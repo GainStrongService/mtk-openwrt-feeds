@@ -1,0 +1,248 @@
+/dts-v1/;
+#include "mt7986a.dtsi"
+/ {
+	model = "MediaTek MT7986a RFB";
+	compatible = "mediatek,mt7986a-rfb";
+	chosen {
+		bootargs = "console=ttyS0,115200n1 loglevel=8  \
+				earlycon=uart8250,mmio32,0x11002000";
+	};
+
+	memory {
+		// fpga ddr2: 128MB*2
+		reg = <0 0x40000000 0 0x10000000>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};
+
+&eth {
+        status = "okay";
+
+        gmac0: mac@0 {
+                compatible = "mediatek,eth-mac";
+                reg = <0>;
+                phy-mode = "2500base-x";
+
+                fixed-link {
+                        speed = <2500>;
+                        full-duplex;
+                        pause;
+                };
+        };
+
+        gmac1: mac@1 {
+                compatible = "mediatek,eth-mac";
+                reg = <1>;
+                phy-mode = "2500base-x";
+
+                fixed-link {
+                        speed = <2500>;
+                        full-duplex;
+                        pause;
+                };
+        };
+
+        mdio: mdio-bus {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                switch@0 {
+                        compatible = "mediatek,mt7531";
+                        reg = <0>;
+                        reset-gpios = <&pio 5 0>;
+
+                        ports {
+                                #address-cells = <1>;
+                                #size-cells = <0>;
+
+                                port@0 {
+                                        reg = <0>;
+                                        label = "lan1";
+                                };
+
+                                port@1 {
+                                        reg = <1>;
+                                        label = "lan2";
+                                };
+
+                                port@2 {
+                                        reg = <2>;
+                                        label = "lan3";
+                                };
+
+                                port@3 {
+                                        reg = <3>;
+                                        label = "lan4";
+                                };
+
+                                port@4 {
+                                        reg = <4>;
+                                        label = "wan";
+                                };
+
+                                port@6 {
+                                        reg = <6>;
+                                        label = "cpu";
+                                        ethernet = <&gmac0>;
+                                        phy-mode = "2500base-x";
+
+                                        fixed-link {
+                                                speed = <2500>;
+                                                full-duplex;
+                                                pause;
+                                        };
+                                };
+                        };
+                };
+        };
+};
+
+&hnat {
+	mtketh-wan = "eth1";
+	mtketh-max-gmac = <2>;
+	status = "okay";
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_flash_pins>;
+	cs-gpios = <0>, <0>;		
+	status = "okay";
+	spi_nor@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+		spi-tx-buswidth = <4>;
+		spi-rx-buswidth = <4>;
+
+		partition@00000 {
+			label = "BL2";
+			reg = <0x00000 0x0040000>;
+		};
+		partition@40000 {
+			label = "u-boot-env";
+			reg = <0x40000 0x0010000>;
+		};
+		partition@50000 {
+			label = "Factory";
+			reg = <0x50000 0x00B0000>;
+		};
+		partition@100000 {
+			label = "FIP";
+			reg = <0x100000 0x0080000>;
+		};
+		partition@180000 {
+			label = "firmware";
+			reg = <0x180000 0xE00000>;
+		};
+	};
+	spi_nand@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "spi-nand";
+		reg = <1>;
+		spi-max-frequency = <20000000>;
+		spi-tx-buswidth = <4>;
+		spi-rx-buswidth = <4>;
+
+		partition@00000 {
+			label = "BL2";
+			reg = <0x00000 0x0100000>;
+		};
+		partition@100000 {
+			label = "u-boot-env";
+			reg = <0x100000 0x0080000>;
+		};
+		partition@180000 {
+			label = "Factory";
+			reg = <0x180000 0x00200000>;
+		};
+		partition@380000 {
+			label = "FIP";
+			reg = <0x380000 0x0200000>;
+		};
+		partition@580000 {
+			label = "ubi";
+			reg = <0x580000 0x4000000>;
+		};
+	};
+};
+
+&snand {
+	pinctrl-names = "default";
+	/* pin shared with spic */
+	pinctrl-0 = <&snfi_pins>;
+	status = "okay";
+	mediatek,quad-spi;
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "BL2";
+			reg = <0x00000 0x0100000>;
+			read-only;
+		};
+
+		partition@100000 {
+			label = "u-boot-env";
+			reg = <0x0100000 0x0080000>;
+		};
+
+		partition@180000 {
+			label = "Factory";
+			reg = <0x180000 0x0200000>;
+		};
+
+		partition@380000 {
+			label = "FIP";
+			reg = <0x380000 0x0200000>;
+		};
+
+		partition@580000 {
+			label = "ubi";
+			reg = <0x580000 0x4000000>;
+		};
+	};
+};
+
+&spi1 {
+	pinctrl-names = "default";
+	/* pin shared with snfi */
+	pinctrl-0 = <&spic_pins>;
+	status = "okay";
+};
+
+&pio {
+	spi_flash_pins: spi0-pins {
+		mux {
+			function = "flash";
+			groups = "spi0", "spi0_wp_hold";
+		};
+	};
+
+	snfi_pins: snfi-pins {
+		mux {
+			function = "flash";
+			groups = "snfi";
+		};
+	};
+
+	spic_pins: spi1-pins {
+		mux {
+			function = "spi";
+			groups = "spi1_1";
+		};
+	};
+};
