@@ -62,22 +62,10 @@ extern void __iomem *ethdma_frame_engine_base;
 #define SGMII_CONFIG_0	BIT(9) /*SGMII path enable of GMAC1*/
 #define SGMII_CONFIG_1	BIT(8) /*SGMII path enable of GMAC1*/
 
-#if defined(CONFIG_PINCTRL_MT7622)
-#define SGMII_REG_BASE0	(0x1b128000)
-#define SGMII_REG_PHYA_BASE0	(0x1b12a000)
-#define SGMII_REG_BASE1	(0)
-#define SGMII_REG_PHYA_BASE1	(0)
-#elif defined(CONFIG_MACH_LEOPARD)
-#define SGMII_REG_BASE0	(0x1b128000)
-#define SGMII_REG_PHYA_BASE0	(0x1b128100)
-#define SGMII_REG_BASE1	(0x1b130000)
-#define SGMII_REG_PHYA_BASE1	(0x1b130100)
-#else
-#define SGMII_REG_BASE0	(0)
-#define SGMII_REG_PHYA_BASE0	(0)
-#define SGMII_REG_BASE1	(0)
-#define SGMII_REG_PHYA_BASE1	(0)
-#endif
+#define SGMII_REG_BASE0	(0x10060000)
+#define SGMII_REG_PHYA_BASE0	(0x10060100)
+#define SGMII_REG_BASE1	(0x10070000)
+#define SGMII_REG_PHYA_BASE1	(0x10070100)
 #define ETHSYS_MAC_BASE	(0x1b110000)
 
 #if defined(CONFIG_MACH_LEOPARD)

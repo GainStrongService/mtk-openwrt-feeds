@@ -12,6 +12,12 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
+#include <linux/phy.h>
+#include <linux/of_device.h>
+#include <linux/of_mdio.h>
+#include <linux/of_net.h>
+
 #include "raether.h"
 #include "ra_mac.h"
 #include "ra_ioctl.h"
@@ -2396,6 +2402,129 @@ void raeth_init_pseudo(struct END_DEVICE *p_ad, struct net_device *net_dev)
 	}
 }
 
+
+/* PHY Indirect Access Control registers */
+#define MTK_PHY_IAC             0x10004
+#define PHY_IAC_ACCESS          BIT(31)
+#define PHY_IAC_READ            BIT(19)
+#define PHY_IAC_WRITE           BIT(18)
+#define PHY_IAC_START           BIT(16)
+#define PHY_IAC_ADDR_SHIFT      20
+#define PHY_IAC_REG_SHIFT       25
+#define PHY_IAC_TIMEOUT         HZ
+#define dummy 1
+
+static int mtk_mdio_busy_wait(struct platform_device *pdev)
+{
+        unsigned long t_start = jiffies;
+
+        while (1) {
+                if (!(sys_reg_read(RALINK_FRAME_ENGINE_BASE + MTK_PHY_IAC) & PHY_IAC_ACCESS))
+                        return 0;
+                if (time_after(jiffies, t_start + PHY_IAC_TIMEOUT))
+                        break;
+                usleep_range(10, 20);
+        }
+
+        dev_err(&pdev->dev, "mdio: MDIO timeout\n");
+        return -1;
+}
+
+static int mtk_mdio_write(struct mii_bus *bus, int phy_addr, int phy_register, u16 write_data)
+{
+        struct platform_device *pdev = (struct platform_device *)bus->priv;
+        if (mtk_mdio_busy_wait(pdev))
+                return -1;
+
+/*
+        dev_info(&pdev->dev, "[%s] phy_addr=0x%08x, phy_reg=0x%08x, data=0x%08x!",
+                __func__, phy_addr, phy_register, write_data);
+*/
+        write_data &= 0xffff;
+
+        sys_reg_write(RALINK_FRAME_ENGINE_BASE + MTK_PHY_IAC,
+                (PHY_IAC_ACCESS | PHY_IAC_START | PHY_IAC_WRITE |
+                (phy_register << PHY_IAC_REG_SHIFT) |
+                (phy_addr << PHY_IAC_ADDR_SHIFT) | write_data));
+
+        if (mtk_mdio_busy_wait(pdev))
+                return -1;
+
+        return 0;
+}
+
+static int  mtk_mdio_read(struct mii_bus *bus, int phy_addr, int phy_reg)
+{
+        u32 d;
+        struct platform_device *pdev = (struct platform_device *)bus->priv;
+/*
+        dev_info(&pdev->dev, "[%s] phy_addr=0x%08x, phy_reg=0x%08x!",
+                __func__, phy_addr, phy_reg);
+        */
+
+        if (mtk_mdio_busy_wait(pdev))
+                return 0xffff;
+
+        sys_reg_write(RALINK_FRAME_ENGINE_BASE + MTK_PHY_IAC,
+                (PHY_IAC_ACCESS | PHY_IAC_START | PHY_IAC_READ |
+                (phy_reg << PHY_IAC_REG_SHIFT) |
+                (phy_addr << PHY_IAC_ADDR_SHIFT)));
+
+        if (mtk_mdio_busy_wait(pdev))
+                return 0xffff;
+
+        d = sys_reg_read(RALINK_FRAME_ENGINE_BASE + MTK_PHY_IAC) & 0xffff;
+
+/*
+        dev_info(&pdev->dev, "[%s] phy_addr=0x%08x, phy_reg=0x%08x, val=0x%08x!",
+                __func__, phy_addr, phy_reg, d);
+*/
+        return d;
+}
+
+static int mtk_mdio_init(struct platform_device *pdev)
+{
+        struct device_node *mii_np;
+        struct mii_bus  *mii_bus;
+        int ret;
+
+        dev_info(&pdev->dev, "[%s] in!", __func__);
+
+        mii_np = of_get_child_by_name(pdev->dev.of_node, "mdio-bus");
+        if (!mii_np) {
+                dev_err(&pdev->dev, "no %s child node found", "mdio-bus");
+                return -ENODEV;
+        }
+
+        if (!of_device_is_available(mii_np)) {
+                ret = -ENODEV;
+                goto err_put_node;
+        }
+
+        mii_bus = devm_mdiobus_alloc(&pdev->dev);
+        if (!mii_bus) {
+                ret = -ENOMEM;
+                goto err_put_node;
+        }
+
+        mii_bus->name = "mdio";
+        mii_bus->read = mtk_mdio_read;
+        mii_bus->write = mtk_mdio_write;
+        mii_bus->priv = pdev;
+        mii_bus->parent = &pdev->dev;
+
+        pr_info("mtk_mdio_init %s\n", mii_np->name);
+
+        snprintf(mii_bus->id, MII_BUS_ID_SIZE, "%s", mii_np->name);
+        ret = of_mdiobus_register(mii_bus, mii_np);
+
+        dev_info(&pdev->dev, "[%s] done!", __func__);
+
+err_put_node:
+        of_node_put(mii_np);
+        return ret;
+}
+
 void ei_set_pse_threshold(void)
 {
 
@@ -3208,6 +3337,9 @@ static int rather_probe(struct platform_device *pdev)
 
 	netdev->addr_len = 6;
 //dead 02
+
+	mtk_mdio_init(pdev);
+
 	netdev->base_addr = (unsigned long)RALINK_FRAME_ENGINE_BASE;
 	sys_reg_write(ETHDMASYS_ETH_MAC_BASE + 0x100, 0x2105e303);
 	sys_reg_write(ETHDMASYS_ETH_MAC_BASE + 0x200, 0x2105e303);
