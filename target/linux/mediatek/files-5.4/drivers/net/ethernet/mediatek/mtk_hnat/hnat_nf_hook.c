@@ -1762,7 +1762,8 @@ static unsigned int mtk_hnat_nf_post_routing(
 {
 	struct foe_entry *entry;
 	struct flow_offload_hw_path hw_path = { .dev = (struct net_device*)out,
-						.virt_dev = (struct net_device*)out };
+						.virt_dev = (struct net_device*)out,
+						.flags = FLOW_OFFLOAD_PATH_ETHERNET };
 	const struct net_device *arp_dev = out;
 
 	if (skb_hnat_alg(skb) || unlikely(!is_magic_tag_valid(skb) ||
