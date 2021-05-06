@@ -3424,6 +3424,7 @@ static const struct mtk_soc_data mt7629_data = {
 static const struct mtk_soc_data mt7986_data = {
 	.ana_rgc3 = 0x128,
 	.caps = MT7986_CAPS,
+	.hw_features = MTK_HW_FEATURES,
 	.required_clks = MT7986_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = true,
