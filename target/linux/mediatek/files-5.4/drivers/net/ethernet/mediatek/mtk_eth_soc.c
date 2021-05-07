@@ -2659,7 +2659,10 @@ static int mtk_hw_init(struct mtk_eth *eth)
 		mtk_w32(eth, MAC_MCR_FORCE_LINK_DOWN, MTK_MAC_MCR(i));
 
 	/* Enable RX VLan Offloading */
-	mtk_w32(eth, 1, MTK_CDMP_EG_CTRL);
+	if (eth->soc->hw_features & NETIF_F_HW_VLAN_CTAG_RX)
+		mtk_w32(eth, 1, MTK_CDMP_EG_CTRL);
+	else
+		mtk_w32(eth, 0, MTK_CDMP_EG_CTRL);
 
 	/* enable interrupt delay for RX/TX */
 	mtk_w32(eth, 0x8f0f8f0f, MTK_PDMA_DELAY_INT);
