@@ -592,7 +592,7 @@ static int mtk_snand_probe(struct platform_device *pdev)
 
 	mtd->ooblayout = &mtk_snand_ooblayout;
 
-	mtd->ecc_strength = msm->cinfo.ecc_strength * msm->cinfo.num_sectors;
+	mtd->ecc_strength = msm->cinfo.ecc_strength;
 	mtd->bitflip_threshold = (mtd->ecc_strength * 3) / 4;
 	mtd->ecc_step_size = msm->cinfo.sector_size;
 

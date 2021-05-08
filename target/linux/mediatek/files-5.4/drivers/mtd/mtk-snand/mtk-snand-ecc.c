@@ -232,7 +232,7 @@ int mtk_ecc_wait_decoder_done(struct mtk_snand *snf)
 	return ret;
 }
 
-int mtk_ecc_check_decode_error(struct mtk_snand *snf, uint32_t page)
+int mtk_ecc_check_decode_error(struct mtk_snand *snf)
 {
 	uint32_t i, regi, fi, errnum;
 	uint32_t errnum_shift = snf->ecc_soc->errnum_shift;
@@ -245,20 +245,151 @@ int mtk_ecc_check_decode_error(struct mtk_snand *snf, uint32_t page)
 
 		errnum = ecc_read32(snf, ECC_DECENUM(regi));
 		errnum = (errnum >> (fi * errnum_shift)) & errnum_mask;
-		if (!errnum)
-			continue;
 
 		if (errnum <= snf->ecc_strength) {
-			if (ret >= 0)
-				ret += errnum;
-			continue;
+			snf->sect_bf[i] = errnum;
+		} else {
+			snf->sect_bf[i] = -1;
+			ret = -EBADMSG;
 		}
-
-		snand_log_ecc(snf->pdev,
-			      "Uncorrectable bitflips in page %u sect %u\n",
-			      page, i);
-		ret = -EBADMSG;
 	}
 
 	return ret;
+}
+
+static int mtk_ecc_check_buf_bitflips(struct mtk_snand *snf, const void *buf,
+				      size_t len, uint32_t bitflips)
+{
+	const uint8_t *buf8 = buf;
+	const uint32_t *buf32;
+	uint32_t d, weight;
+
+	while (len && ((uintptr_t)buf8) % sizeof(uint32_t)) {
+		weight = hweight8(*buf8);
+		bitflips += BITS_PER_BYTE - weight;
+		buf8++;
+		len--;
+
+		if (bitflips > snf->ecc_strength)
+			return -EBADMSG;
+	}
+
+	buf32 = (const uint32_t *)buf8;
+	while (len >= sizeof(uint32_t)) {
+		d = *buf32;
+
+		if (d != ~0) {
+			weight = hweight32(d);
+			bitflips += sizeof(uint32_t) * BITS_PER_BYTE - weight;
+		}
+
+		buf32++;
+		len -= sizeof(uint32_t);
+
+		if (bitflips > snf->ecc_strength)
+			return -EBADMSG;
+	}
+
+	buf8 = (const uint8_t *)buf32;
+	while (len) {
+		weight = hweight8(*buf8);
+		bitflips += BITS_PER_BYTE - weight;
+		buf8++;
+		len--;
+
+		if (bitflips > snf->ecc_strength)
+			return -EBADMSG;
+	}
+
+	return bitflips;
+}
+
+static int mtk_ecc_check_parity_bitflips(struct mtk_snand *snf, const void *buf,
+					 uint32_t bits, uint32_t bitflips)
+{
+	uint32_t len, i;
+	uint8_t b;
+	int rc;
+
+	len = bits >> 3;
+	bits &= 7;
+
+	rc = mtk_ecc_check_buf_bitflips(snf, buf, len, bitflips);
+	if (!bits || rc < 0)
+		return rc;
+
+	bitflips = rc;
+
+	/* We want a precise count of bits */
+	b = ((const uint8_t *)buf)[len];
+	for (i = 0; i < bits; i++) {
+		if (!(b & BIT(i)))
+			bitflips++;
+	}
+
+	if (bitflips > snf->ecc_strength)
+		return -EBADMSG;
+
+	return bitflips;
+}
+
+static void mtk_ecc_reset_parity(void *buf, uint32_t bits)
+{
+	uint32_t len;
+
+	len = bits >> 3;
+	bits &= 7;
+
+	memset(buf, 0xff, len);
+
+	/* Only reset bits protected by ECC to 1 */
+	if (bits)
+		((uint8_t *)buf)[len] |= GENMASK(bits - 1, 0);
+}
+
+int mtk_ecc_fixup_empty_sector(struct mtk_snand *snf, uint32_t sect)
+{
+	uint32_t ecc_bytes = snf->spare_per_sector - snf->nfi_soc->fdm_size;
+	uint8_t *oob = snf->page_cache + snf->writesize;
+	uint8_t *data_ptr, *fdm_ptr, *ecc_ptr;
+	int bitflips = 0, ecc_bits, parity_bits;
+
+	parity_bits = fls(snf->nfi_soc->sector_size * 8);
+	ecc_bits = snf->ecc_strength * parity_bits;
+
+	data_ptr = snf->page_cache + sect * snf->nfi_soc->sector_size;
+	fdm_ptr = oob + sect * snf->nfi_soc->fdm_size;
+	ecc_ptr = oob + snf->ecc_steps * snf->nfi_soc->fdm_size +
+		  sect * ecc_bytes;
+
+	/*
+	 * Check whether DATA + FDM + ECC of a sector contains correctable
+	 * bitflips
+	 */
+	bitflips = mtk_ecc_check_buf_bitflips(snf, data_ptr,
+					      snf->nfi_soc->sector_size,
+					      bitflips);
+	if (bitflips < 0)
+		return -EBADMSG;
+
+	bitflips = mtk_ecc_check_buf_bitflips(snf, fdm_ptr,
+					      snf->nfi_soc->fdm_ecc_size,
+					      bitflips);
+	if (bitflips < 0)
+		return -EBADMSG;
+
+	bitflips = mtk_ecc_check_parity_bitflips(snf, ecc_ptr, ecc_bits,
+						 bitflips);
+	if (bitflips < 0)
+		return -EBADMSG;
+
+	if (!bitflips)
+		return 0;
+
+	/* Reset the data of this sector to 0xff */
+	memset(data_ptr, 0xff, snf->nfi_soc->sector_size);
+	memset(fdm_ptr, 0xff, snf->nfi_soc->fdm_ecc_size);
+	mtk_ecc_reset_parity(ecc_ptr, ecc_bits);
+
+	return bitflips;
 }

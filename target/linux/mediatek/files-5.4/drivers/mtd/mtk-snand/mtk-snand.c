@@ -645,6 +645,72 @@ static void mtk_snand_read_fdm(struct mtk_snand *snf, uint8_t *buf)
 	}
 }
 
+static int mtk_snand_read_ecc_parity(struct mtk_snand *snf, uint32_t page,
+				     uint32_t sect, uint8_t *oob)
+{
+	uint32_t ecc_bytes = snf->spare_per_sector - snf->nfi_soc->fdm_size;
+	uint32_t coladdr, raw_offs, offs;
+	uint8_t op[4];
+
+	if (sizeof(op) + ecc_bytes > SNF_GPRAM_SIZE) {
+		snand_log_snfi(snf->pdev,
+			       "ECC parity size does not fit the GPRAM\n");
+		return -ENOTSUPP;
+	}
+
+	raw_offs = sect * snf->raw_sector_size + snf->nfi_soc->sector_size +
+		   snf->nfi_soc->fdm_size;
+	offs = snf->ecc_steps * snf->nfi_soc->fdm_size + sect * ecc_bytes;
+
+	/* Column address with plane bit */
+	coladdr = raw_offs | mtk_snand_get_plane_address(snf, page);
+
+	op[0] = SNAND_CMD_READ_FROM_CACHE;
+	op[1] = (coladdr >> 8) & 0xff;
+	op[2] = coladdr & 0xff;
+	op[3] = 0;
+
+	return mtk_snand_mac_io(snf, op, sizeof(op), oob + offs, ecc_bytes);
+}
+
+static int mtk_snand_check_ecc_result(struct mtk_snand *snf, uint32_t page)
+{
+	uint8_t *oob = snf->page_cache + snf->writesize;
+	int i, rc, ret = 0, max_bitflips = 0;
+
+	for (i = 0; i < snf->ecc_steps; i++) {
+		if (snf->sect_bf[i] >= 0) {
+			if (snf->sect_bf[i] > max_bitflips)
+				max_bitflips = snf->sect_bf[i];
+			continue;
+		}
+
+		rc = mtk_snand_read_ecc_parity(snf, page, i, oob);
+		if (rc)
+			return rc;
+
+		rc = mtk_ecc_fixup_empty_sector(snf, i);
+		if (rc < 0) {
+			ret = -EBADMSG;
+
+			snand_log_ecc(snf->pdev,
+			      "Uncorrectable bitflips in page %u sect %u\n",
+			      page, i);
+		} else {
+			snf->sect_bf[i] = rc;
+
+			if (snf->sect_bf[i] > max_bitflips)
+				max_bitflips = snf->sect_bf[i];
+
+			snand_log_ecc(snf->pdev,
+			      "%u bitflip%s corrected in page %u sect %u\n",
+			      rc, rc > 1 ? "s" : "", page, i);
+		}
+	}
+
+	return ret ? ret : max_bitflips;
+}
+
 static int mtk_snand_read_cache(struct mtk_snand *snf, uint32_t page, bool raw)
 {
 	uint32_t coladdr, rwbytes, mode, len;
@@ -722,17 +788,10 @@ static int mtk_snand_read_cache(struct mtk_snand *snf, uint32_t page, bool raw)
 
 		mtk_snand_read_fdm(snf, snf->page_cache + snf->writesize);
 
-		/*
-		 * For new IPs, ecc error may occure on empty pages.
-		 * Use an specific indication bit to check empty page.
-		 */
-		if (snf->nfi_soc->empty_page_check &&
-		    (nfi_read32(snf, NFI_STA) & READ_EMPTY))
-			ret = 0;
-		else
-			ret = mtk_ecc_check_decode_error(snf, page);
-
+		mtk_ecc_check_decode_error(snf);
 		mtk_snand_ecc_decoder_stop(snf);
+
+		ret = mtk_snand_check_ecc_result(snf, page);
 	}
 
 cleanup:
@@ -1683,8 +1742,8 @@ int mtk_snand_init(void *dev, const struct mtk_snand_platdata *pdata,
 		   struct mtk_snand **psnf)
 {
 	const struct snand_flash_info *snand_info;
+	uint32_t rawpage_size, sect_bf_size;
 	struct mtk_snand tmpsnf, *snf;
-	uint32_t rawpage_size;
 	int ret;
 
 	if (!pdata || !psnf)
@@ -1725,14 +1784,19 @@ int mtk_snand_init(void *dev, const struct mtk_snand_platdata *pdata,
 	rawpage_size = snand_info->memorg.pagesize +
 		       snand_info->memorg.sparesize;
 
+	sect_bf_size = mtk_snand_socs[pdata->soc].max_sectors *
+		       sizeof(*snf->sect_bf);
+
 	/* Allocate memory for instance and cache */
-	snf = generic_mem_alloc(dev, sizeof(*snf) + rawpage_size);
+	snf = generic_mem_alloc(dev,
+				sizeof(*snf) + rawpage_size + sect_bf_size);
 	if (!snf) {
 		snand_log_chip(dev, "Failed to allocate memory for instance\n");
 		return -ENOMEM;
 	}
 
-	snf->buf_cache = (uint8_t *)((uintptr_t)snf + sizeof(*snf));
+	snf->sect_bf = (int *)((uintptr_t)snf + sizeof(*snf));
+	snf->buf_cache = (uint8_t *)((uintptr_t)snf->sect_bf + sect_bf_size);
 
 	/* Allocate memory for DMA buffer */
 	snf->page_cache = dma_mem_alloc(dev, rawpage_size);
