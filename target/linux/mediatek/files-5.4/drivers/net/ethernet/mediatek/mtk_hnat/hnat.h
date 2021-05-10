@@ -587,6 +587,13 @@ struct foe_entry {
 #define MAX_EXT_DEVS		(0x3fU)
 #define MAX_IF_NUM		64
 
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#define MAX_PPE_NUM		2
+#else
+#define MAX_PPE_NUM		1
+#endif
+#define CFG_PPE_NUM		(hnat_priv->ppe_num)
+
 struct mib_entry {
 	u32 byt_cnt_l;
 	u16 byt_cnt_h;
@@ -619,17 +626,17 @@ struct mtk_hnat_data {
 struct mtk_hnat {
 	struct device *dev;
 	void __iomem *fe_base;
-	void __iomem *ppe_base;
-	struct foe_entry *foe_table_cpu;
-	dma_addr_t foe_table_dev;
+	void __iomem *ppe_base[MAX_PPE_NUM];
+	struct foe_entry *foe_table_cpu[MAX_PPE_NUM];
+	dma_addr_t foe_table_dev[MAX_PPE_NUM];
 	u8 enable;
 	u8 enable1;
 	struct dentry *root;
-	struct debugfs_regset32 *regset;
+	struct debugfs_regset32 *regset[MAX_PPE_NUM];
 
-	struct mib_entry *foe_mib_cpu;
-	dma_addr_t foe_mib_dev;
-	struct hnat_accounting *acct;
+	struct mib_entry *foe_mib_cpu[MAX_PPE_NUM];
+	dma_addr_t foe_mib_dev[MAX_PPE_NUM];
+	struct hnat_accounting *acct[MAX_PPE_NUM];
 	const struct mtk_hnat_data *data;
 
 	/*devices we plays for*/
@@ -641,6 +648,7 @@ struct mtk_hnat {
 
 	struct reset_control *rstc;
 
+	u8 ppe_num;
 	u8 gmac_num;
 	u8 wan_dsa_port;
 	struct ppe_mcast_table *pmcast;
@@ -725,10 +733,10 @@ enum FoeIpAct {
 #define BIT_IPV4_MAPT_EN BIT(22)
 
 /*GDMA_FWD_CFG value*/
-#define BITS_GDM_UFRC_P_PPE (NR_PPE_PORT << 12)
-#define BITS_GDM_BFRC_P_PPE (NR_PPE_PORT << 8)
-#define BITS_GDM_MFRC_P_PPE (NR_PPE_PORT << 4)
-#define BITS_GDM_OFRC_P_PPE (NR_PPE_PORT << 0)
+#define BITS_GDM_UFRC_P_PPE (NR_PPE0_PORT << 12)
+#define BITS_GDM_BFRC_P_PPE (NR_PPE0_PORT << 8)
+#define BITS_GDM_MFRC_P_PPE (NR_PPE0_PORT << 4)
+#define BITS_GDM_OFRC_P_PPE (NR_PPE0_PORT << 0)
 #define BITS_GDM_ALL_FRC_P_PPE                                              \
 	(BITS_GDM_UFRC_P_PPE | BITS_GDM_BFRC_P_PPE | BITS_GDM_MFRC_P_PPE |  \
 	 BITS_GDM_OFRC_P_PPE)
@@ -794,8 +802,14 @@ enum FoeIpAct {
 #define NR_PDMA_PORT 0
 #define NR_GMAC1_PORT 1
 #define NR_GMAC2_PORT 2
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#define NR_WHNAT_WDMA_PORT EINVAL
+#define NR_PPE0_PORT 3
+#define NR_PPE1_PORT 4
+#else
 #define NR_WHNAT_WDMA_PORT 3
-#define NR_PPE_PORT 4
+#define NR_PPE0_PORT 4
+#endif
 #define NR_QDMA_PORT 5
 #define NR_DISCARD 7
 #define NR_WDMA0_PORT 8
@@ -917,7 +931,8 @@ int hnat_enable_hook(void);
 int hnat_disable_hook(void);
 void hnat_cache_ebl(int enable);
 void set_gmac_ppe_fwd(int gmac_no, int enable);
-int entry_delete(int index);
+int entry_detail(int ppe_id, int index);
+int entry_delete(int ppe_id, int index);
 
 static inline u16 foe_timestamp(struct mtk_hnat *h)
 {

@@ -181,7 +181,7 @@ int ext_if_del(struct extdev_entry *ext_entry)
 
 void foe_clear_all_bind_entries(struct net_device *dev)
 {
-	int hash_index;
+	int i, hash_index;
 	struct foe_entry *entry;
 
 	if (!IS_LAN(dev) && !IS_WAN(dev) &&
@@ -189,13 +189,17 @@ void foe_clear_all_bind_entries(struct net_device *dev)
 	    !dev->netdev_ops->ndo_flow_offload_check)
 		return;
 
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, SMA, SMA_ONLY_FWD_CPU);
-	for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
-		entry = hnat_priv->foe_table_cpu + hash_index;
-		if (entry->bfib1.state == BIND) {
-			entry->ipv4_hnapt.udib1.state = INVALID;
-			entry->ipv4_hnapt.udib1.time_stamp =
-				readl((hnat_priv->fe_base + 0x0010)) & 0xFF;
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_TB_CFG,
+			     SMA, SMA_ONLY_FWD_CPU);
+
+		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
+			entry = hnat_priv->foe_table_cpu[i] + hash_index;
+			if (entry->bfib1.state == BIND) {
+				entry->ipv4_hnapt.udib1.state = INVALID;
+				entry->ipv4_hnapt.udib1.time_stamp =
+					readl((hnat_priv->fe_base + 0x0010)) & 0xFF;
+			}
 		}
 	}
 
@@ -246,37 +250,39 @@ void foe_clear_entry(struct neighbour *neigh)
 	u32 *daddr = (u32 *)neigh->primary_key;
 	unsigned char h_dest[ETH_ALEN];
 	struct foe_entry *entry;
-	int hash_index;
+	int i, hash_index;
 	u32 dip;
 
 	dip = (u32)(*daddr);
 
-	for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
-		entry = hnat_priv->foe_table_cpu + hash_index;
-		if (entry->bfib1.state == BIND &&
-		    entry->ipv4_hnapt.new_dip == ntohl(dip)) {
-			*((u32 *)h_dest) = swab32(entry->ipv4_hnapt.dmac_hi);
-			*((u16 *)&h_dest[4]) =
-				swab16(entry->ipv4_hnapt.dmac_lo);
-			if (strncmp(h_dest, neigh->ha, ETH_ALEN) != 0) {
-				pr_info("%s: state=%d\n", __func__,
-					neigh->nud_state);
-				cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, SMA,
-					     SMA_ONLY_FWD_CPU);
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
+			entry = hnat_priv->foe_table_cpu[i] + hash_index;
+			if (entry->bfib1.state == BIND &&
+			    entry->ipv4_hnapt.new_dip == ntohl(dip)) {
+				*((u32 *)h_dest) = swab32(entry->ipv4_hnapt.dmac_hi);
+				*((u16 *)&h_dest[4]) =
+					swab16(entry->ipv4_hnapt.dmac_lo);
+				if (strncmp(h_dest, neigh->ha, ETH_ALEN) != 0) {
+					pr_info("%s: state=%d\n", __func__,
+						neigh->nud_state);
+					cr_set_field(hnat_priv->ppe_base[i] + PPE_TB_CFG,
+						     SMA, SMA_ONLY_FWD_CPU);
 
-				entry->ipv4_hnapt.udib1.state = INVALID;
-				entry->ipv4_hnapt.udib1.time_stamp =
-					readl((hnat_priv->fe_base + 0x0010)) & 0xFF;
+					entry->ipv4_hnapt.udib1.state = INVALID;
+					entry->ipv4_hnapt.udib1.time_stamp =
+						readl((hnat_priv->fe_base + 0x0010)) & 0xFF;
 
-				/* clear HWNAT cache */
-				hnat_cache_ebl(1);
+					/* clear HWNAT cache */
+					hnat_cache_ebl(1);
 
-				mod_timer(&hnat_priv->hnat_sma_build_entry_timer,
-					  jiffies + 3 * HZ);
+					mod_timer(&hnat_priv->hnat_sma_build_entry_timer,
+						  jiffies + 3 * HZ);
 
-				pr_info("Delete old entry: dip =%pI4\n", &dip);
-				pr_info("Old mac= %pM\n", h_dest);
-				pr_info("New mac= %pM\n", neigh->ha);
+					pr_info("Delete old entry: dip =%pI4\n", &dip);
+					pr_info("Old mac= %pM\n", h_dest);
+					pr_info("New mac= %pM\n", neigh->ha);
+				}
 			}
 		}
 	}
@@ -421,7 +427,7 @@ unsigned int do_hnat_ext_to_ge2(struct sk_buff *skb, const char *func)
 				skb->vlan_proto = 0;
 				skb->vlan_tci = 0;
 				fix_skb_packet_type(skb, skb->dev, eth_hdr(skb));
-				entry = &hnat_priv->foe_table_cpu[skb_hnat_entry(skb)];
+				entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
 				entry->bfib1.pkt_type = IPV4_HNAPT;
 				netif_rx(skb);
 				return 0;
@@ -439,7 +445,7 @@ unsigned int do_hnat_ge_to_ext(struct sk_buff *skb, const char *func)
 	struct foe_entry *entry;
 	struct net_device *dev;
 
-	entry = &hnat_priv->foe_table_cpu[skb_hnat_entry(skb)];
+	entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
 
 	if (IS_IPV4_GRP(entry))
 		index = entry->ipv4_hnapt.act_dp;
@@ -1507,8 +1513,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	memcpy(foe, &entry, sizeof(entry));
 	/*reset statistic for this entry*/
 	if (hnat_priv->data->per_flow_accounting)
-		memset(&hnat_priv->acct[skb_hnat_entry(skb)], 0,
-		       sizeof(struct mib_entry));
+		memset(&hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
+		       0, sizeof(struct mib_entry));
 
 	wmb();
 	/* The INFO2.port_mg and 2nd VLAN ID fields of PPE entry are redefined
@@ -1538,7 +1544,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	if (!skb_hnat_is_hashed(skb))
 		return NF_ACCEPT;
 
-	entry = &hnat_priv->foe_table_cpu[skb_hnat_entry(skb)];
+	entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
 	if (entry_hnat_is_bound(entry))
 		return NF_ACCEPT;
 
@@ -1785,7 +1791,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 	trace_printk("[%s] case hit, %x-->%s, reason=%x\n", __func__,
 		     skb_hnat_iface(skb), out->name, skb_hnat_reason(skb));
 
-	entry = &hnat_priv->foe_table_cpu[skb_hnat_entry(skb)];
+	entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
 
 	switch (skb_hnat_reason(skb)) {
 	case HIT_UNBIND_RATE_REACH:
@@ -1841,7 +1847,7 @@ mtk_hnat_ipv6_nf_local_out(void *priv, struct sk_buff *skb,
 	if (unlikely(!skb_hnat_is_hashed(skb)))
 		return NF_ACCEPT;
 
-	entry = &hnat_priv->foe_table_cpu[skb_hnat_entry(skb)];
+	entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
 	if (skb_hnat_reason(skb) == HIT_UNBIND_RATE_REACH) {
 		ip6h = ipv6_hdr(skb);
 		if (ip6h->nexthdr == NEXTHDR_IPIP) {
@@ -1998,7 +2004,7 @@ mtk_hnat_ipv4_nf_local_out(void *priv, struct sk_buff *skb,
 	if (!skb_hnat_is_hashed(skb))
 		return NF_ACCEPT;
 
-	entry = &hnat_priv->foe_table_cpu[skb_hnat_entry(skb)];
+	entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
 
 	if (unlikely(skb_headroom(skb) < FOE_INFO_LEN)) {
 		new_skb = skb_realloc_headroom(skb, FOE_INFO_LEN);

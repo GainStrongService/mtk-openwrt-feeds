@@ -96,9 +96,10 @@ uint32_t foe_dump_pkt(struct sk_buff *skb)
 {
 	struct foe_entry *entry;
 
-	entry = &hnat_priv->foe_table_cpu[skb_hnat_entry(skb)];
+	entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
 	pr_info("\nRx===<FOE_Entry=%d>=====\n", skb_hnat_entry(skb));
 	pr_info("RcvIF=%s\n", skb->dev->name);
+	pr_info("PPE_ID=%d\n", skb_hnat_ppe(skb));
 	pr_info("FOE_Entry=%d\n", skb_hnat_entry(skb));
 	pr_info("CPU Reason=%s", show_cpu_reason(skb));
 	pr_info("ALG=%d\n", skb_hnat_alg(skb));
@@ -296,8 +297,10 @@ int entry_set_usage(int level)
 		debug_level);
 	pr_info("              1       0~3      Change tracking state\n");
 	pr_info("                               (0:invalid; 1:unbind; 2:bind; 3:fin)\n");
-	pr_info("              2   <entry_idx>  Show specific foe entry info. of assigned <entry_idx>\n");
-	pr_info("              3   <entry_idx>  Delete specific foe entry of assigned <entry_idx>\n");
+	pr_info("              2   <entry_idx>  Show PPE0 specific foe entry info. of assigned <entry_idx>\n");
+	pr_info("              3   <entry_idx>  Delete PPE0 specific foe entry of assigned <entry_idx>\n");
+	pr_info("              4   <entry_idx>  Show PPE1 specific foe entry info. of assigned <entry_idx>\n");
+	pr_info("              5   <entry_idx>  Delete PPE1 specific foe entry of assigned <entry_idx>\n");
 
 	return 0;
 }
@@ -313,7 +316,17 @@ int entry_set_state(int state)
 	return 0;
 }
 
-int entry_detail(int index)
+int wrapped_ppe0_entry_detail(int index) {
+	entry_detail(0, index);
+	return 0;
+}
+
+int wrapped_ppe1_entry_detail(int index) {
+	entry_detail(1, index);
+	return 0;
+}
+
+int entry_detail(int ppe_id, int index)
 {
 	struct foe_entry *entry;
 	struct mtk_hnat *h = hnat_priv;
@@ -324,14 +337,17 @@ int entry_detail(int index)
 	unsigned char h_source[ETH_ALEN];
 	__be32 saddr, daddr, nsaddr, ndaddr;
 
-	entry = h->foe_table_cpu + index;
+	if (ppe_id >= CFG_PPE_NUM)
+		return -EINVAL;
+
+	entry = h->foe_table_cpu[ppe_id] + index;
 	saddr = htonl(entry->ipv4_hnapt.sip);
 	daddr = htonl(entry->ipv4_hnapt.dip);
 	nsaddr = htonl(entry->ipv4_hnapt.new_sip);
 	ndaddr = htonl(entry->ipv4_hnapt.new_dip);
 	p = (uint32_t *)entry;
-	pr_info("==========<Flow Table Entry=%d (%p)>===============\n", index,
-		entry);
+	pr_info("==========<PPE_ID=%d, Flow Table Entry=%d (%p)>===============\n",
+		ppe_id, index, entry);
 	if (debug_level >= 2) {
 		print_cnt = 20;
 		for (i = 0; i < print_cnt; i++)
@@ -488,18 +504,31 @@ int entry_detail(int index)
 	return 0;
 }
 
-int entry_delete(int index)
+int wrapped_ppe0_entry_delete(int index) {
+	entry_delete(0, index);
+	return 0;
+}
+
+int wrapped_ppe1_entry_delete(int index) {
+	entry_delete(1, index);
+	return 0;
+}
+
+int entry_delete(int ppe_id, int index)
 {
 	struct foe_entry *entry;
 	struct mtk_hnat *h = hnat_priv;
 
-	entry = h->foe_table_cpu + index;
+	if (ppe_id >= CFG_PPE_NUM)
+		return -EINVAL;
+
+	entry = h->foe_table_cpu[ppe_id] + index;
 	memset(entry, 0, sizeof(struct foe_entry));
 
 	/* clear HWNAT cache */
 	hnat_cache_ebl(1);
 
-	pr_info("delete entry idx = %d\n", index);
+	pr_info("delete ppe id = %d, entry idx = %d\n", ppe_id, index);
 
 	return 0;
 }
@@ -526,62 +555,92 @@ int cr_set_usage(int level)
 
 int binding_threshold(int threshold)
 {
+	int i;
+
 	pr_info("Binding Threshold =%d\n", threshold);
-	writel(threshold, hnat_priv->ppe_base + PPE_BNDR);
+
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		writel(threshold, hnat_priv->ppe_base[i] + PPE_BNDR);
+
 	return 0;
 }
 
 int tcp_bind_lifetime(int tcp_life)
 {
+	int i;
+
 	pr_info("tcp_life = %d\n", tcp_life);
+
 	/* set Delta time for aging out an bind TCP FOE entry */
-	cr_set_field(hnat_priv->ppe_base + PPE_BND_AGE_1, TCP_DLTA, tcp_life);
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_BND_AGE_1,
+			     TCP_DLTA, tcp_life);
 
 	return 0;
 }
 
 int fin_bind_lifetime(int fin_life)
 {
+	int i;
+
 	pr_info("fin_life = %d\n", fin_life);
+
 	/* set Delta time for aging out an bind TCP FIN FOE entry */
-	cr_set_field(hnat_priv->ppe_base + PPE_BND_AGE_1, FIN_DLTA, fin_life);
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_BND_AGE_1,
+			     FIN_DLTA, fin_life);
 
 	return 0;
 }
 
 int udp_bind_lifetime(int udp_life)
 {
+	int i;
+
 	pr_info("udp_life = %d\n", udp_life);
+
 	/* set Delta time for aging out an bind UDP FOE entry */
-	cr_set_field(hnat_priv->ppe_base + PPE_BND_AGE_0, UDP_DLTA, udp_life);
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_BND_AGE_0,
+			     UDP_DLTA, udp_life);
 
 	return 0;
 }
 
 int tcp_keep_alive(int tcp_interval)
 {
+	int i;
+
 	if (tcp_interval > 255) {
 		tcp_interval = 255;
 		pr_info("TCP keep alive max interval = 255\n");
 	} else {
 		pr_info("tcp_interval = %d\n", tcp_interval);
 	}
+
 	/* Keep alive time for bind FOE TCP entry */
-	cr_set_field(hnat_priv->ppe_base + PPE_KA, TCP_KA, tcp_interval);
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_KA,
+			     TCP_KA, tcp_interval);
 
 	return 0;
 }
 
 int udp_keep_alive(int udp_interval)
 {
+	int i;
+
 	if (udp_interval > 255) {
 		udp_interval = 255;
 		pr_info("TCP/UDP keep alive max interval = 255\n");
 	} else {
 		pr_info("udp_interval = %d\n", udp_interval);
 	}
+
 	/* Keep alive timer for bind FOE UDP entry */
-	cr_set_field(hnat_priv->ppe_base + PPE_KA, UDP_KA, udp_interval);
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_KA,
+			     UDP_KA, udp_interval);
 
 	return 0;
 }
@@ -594,8 +653,10 @@ static const debugfs_write_func hnat_set_func[] = {
 static const debugfs_write_func entry_set_func[] = {
 	[0] = entry_set_usage,
 	[1] = entry_set_state,
-	[2] = entry_detail,
-	[3] = entry_delete,
+	[2] = wrapped_ppe0_entry_detail,
+	[3] = wrapped_ppe0_entry_delete,
+	[4] = wrapped_ppe1_entry_detail,
+	[5] = wrapped_ppe1_entry_delete,
 };
 
 static const debugfs_write_func cr_set_func[] = {
@@ -605,7 +666,8 @@ static const debugfs_write_func cr_set_func[] = {
 	[6] = udp_keep_alive,
 };
 
-static struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 index)
+static struct hnat_accounting *hnat_get_count(struct mtk_hnat *h,
+					      int ppe_id, u32 index)
 {
 	struct hnat_accounting *acount;
 	u32 val, cnt_r0, cnt_r1, cnt_r2;
@@ -614,17 +676,17 @@ static struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 index)
 	if (!hnat_priv->data->per_flow_accounting)
 		return NULL;
 
-	writel(index | (1 << 16), h->ppe_base + PPE_MIB_SER_CR);
-	ret = readx_poll_timeout_atomic(readl, h->ppe_base + PPE_MIB_SER_CR, val,
-					!(val & BIT_MIB_BUSY), 20, 10000);
+	writel(index | (1 << 16), h->ppe_base[ppe_id] + PPE_MIB_SER_CR);
+	ret = readx_poll_timeout_atomic(readl, h->ppe_base[ppe_id] + PPE_MIB_SER_CR,
+					val, !(val & BIT_MIB_BUSY), 20, 10000);
 	if (ret < 0) {
 		pr_notice("mib busy,please check later\n");
 		return NULL;
 	}
-	cnt_r0 = readl(h->ppe_base + PPE_MIB_SER_R0);
-	cnt_r1 = readl(h->ppe_base + PPE_MIB_SER_R1);
-	cnt_r2 = readl(h->ppe_base + PPE_MIB_SER_R2);
-	acount = &h->acct[index];
+	cnt_r0 = readl(h->ppe_base[ppe_id] + PPE_MIB_SER_R0);
+	cnt_r1 = readl(h->ppe_base[ppe_id] + PPE_MIB_SER_R1);
+	cnt_r2 = readl(h->ppe_base[ppe_id] + PPE_MIB_SER_R2);
+	acount = &h->acct[ppe_id][index];
 	acount->bytes += cnt_r0 + ((u64)(cnt_r1 & 0xffff) << 32);
 	acount->packets +=
 		((cnt_r1 & 0xffff0000) >> 16) + ((cnt_r2 & 0xffffff) << 16);
@@ -635,7 +697,7 @@ static struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 index)
 #define PRINT_COUNT(m, acount) {if (acount) \
 		seq_printf(m, "bytes=%llu|packets=%llu|", \
 			   acount->bytes, acount->packets); }
-static int hnat_debug_show(struct seq_file *m, void *private)
+static int __hnat_debug_show(struct seq_file *m, void *private, int ppe_id)
 {
 	struct mtk_hnat *h = hnat_priv;
 	struct foe_entry *entry, *end;
@@ -644,15 +706,15 @@ static int hnat_debug_show(struct seq_file *m, void *private)
 	struct hnat_accounting *acount;
 	u32 entry_index = 0;
 
-	entry = h->foe_table_cpu;
-	end = h->foe_table_cpu + hnat_priv->foe_etry_num;
+	entry = h->foe_table_cpu[ppe_id];
+	end = h->foe_table_cpu[ppe_id] + hnat_priv->foe_etry_num;
 	while (entry < end) {
 		if (!entry->bfib1.state) {
 			entry++;
 			entry_index++;
 			continue;
 		}
-		acount = hnat_get_count(h, entry_index);
+		acount = hnat_get_count(h, ppe_id, entry_index);
 		if (IS_IPV4_HNAPT(entry)) {
 			__be32 saddr = htonl(entry->ipv4_hnapt.sip);
 			__be32 daddr = htonl(entry->ipv4_hnapt.dip);
@@ -667,8 +729,9 @@ static int hnat_debug_show(struct seq_file *m, void *private)
 				swab16(entry->ipv4_hnapt.dmac_lo);
 			PRINT_COUNT(m, acount);
 			seq_printf(m,
-				   "addr=0x%p|index=%d|state=%s|type=%s|%pI4:%d->%pI4:%d=>%pI4:%d->%pI4:%d|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
-				   entry, ei(entry, end), es(entry), pt(entry), &saddr,
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|%pI4:%d->%pI4:%d=>%pI4:%d->%pI4:%d|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+				   entry, ppe_id, ei(entry, end),
+				   es(entry), pt(entry), &saddr,
 				   entry->ipv4_hnapt.sport, &daddr,
 				   entry->ipv4_hnapt.dport, &nsaddr,
 				   entry->ipv4_hnapt.new_sport, &ndaddr,
@@ -692,8 +755,9 @@ static int hnat_debug_show(struct seq_file *m, void *private)
 				swab16(entry->ipv4_hnapt.dmac_lo);
 			PRINT_COUNT(m, acount);
 			seq_printf(m,
-				   "addr=0x%p|index=%d|state=%s|type=%s|%pI4->%pI4=>%pI4->%pI4|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
-				   entry, ei(entry, end), es(entry), pt(entry), &saddr,
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|%pI4->%pI4=>%pI4->%pI4|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+				   entry, ppe_id, ei(entry, end),
+				   es(entry), pt(entry), &saddr,
 				   &daddr, &nsaddr, &ndaddr, h_source, h_dest,
 				   ntohs(entry->ipv4_hnapt.etype),
 				   entry->ipv4_hnapt.info_blk1,
@@ -719,8 +783,8 @@ static int hnat_debug_show(struct seq_file *m, void *private)
 				swab16(entry->ipv6_5t_route.dmac_lo);
 			PRINT_COUNT(m, acount);
 			seq_printf(m,
-				   "addr=0x%p|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
-				   entry, ei(entry, end), es(entry), pt(entry), ipv6_sip0,
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
+				   entry, ppe_id, ei(entry, end), es(entry), pt(entry), ipv6_sip0,
 				   ipv6_sip1, ipv6_sip2, ipv6_sip3,
 				   entry->ipv6_5t_route.sport, ipv6_dip0,
 				   ipv6_dip1, ipv6_dip2, ipv6_dip3,
@@ -747,8 +811,9 @@ static int hnat_debug_show(struct seq_file *m, void *private)
 				swab16(entry->ipv6_5t_route.dmac_lo);
 			PRINT_COUNT(m, acount);
 			seq_printf(m,
-				   "addr=0x%p|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
-				   entry, ei(entry, end), es(entry), pt(entry), ipv6_sip0,
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
+				   entry, ppe_id, ei(entry, end),
+				   es(entry), pt(entry), ipv6_sip0,
 				   ipv6_sip1, ipv6_sip2, ipv6_sip3, ipv6_dip0,
 				   ipv6_dip1, ipv6_dip2, ipv6_dip3, h_source,
 				   h_dest, ntohs(entry->ipv6_5t_route.etype),
@@ -775,8 +840,9 @@ static int hnat_debug_show(struct seq_file *m, void *private)
 				swab16(entry->ipv6_5t_route.dmac_lo);
 			PRINT_COUNT(m, acount);
 			seq_printf(m,
-				   "addr=0x%p|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|TSIP=%pI4->TDIP=%pI4|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
-				   entry, ei(entry, end), es(entry), pt(entry), ipv6_sip0,
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|TSIP=%pI4->TDIP=%pI4|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
+				   entry, ppe_id, ei(entry, end),
+				   es(entry), pt(entry), ipv6_sip0,
 				   ipv6_sip1, ipv6_sip2, ipv6_sip3,
 				   entry->ipv6_5t_route.sport, ipv6_dip0,
 				   ipv6_dip1, ipv6_dip2, ipv6_dip3,
@@ -805,8 +871,9 @@ static int hnat_debug_show(struct seq_file *m, void *private)
 				swab16(entry->ipv4_dslite.dmac_lo);
 			PRINT_COUNT(m, acount);
 			seq_printf(m,
-				   "addr=0x%p|index=%d|state=%s|type=%s|SIP=%pI4->DIP=%pI4|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
-				   entry, ei(entry, end), es(entry), pt(entry), &saddr,
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%pI4->DIP=%pI4|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
+				   entry, ppe_id, ei(entry, end),
+				   es(entry), pt(entry), &saddr,
 				   &daddr, ipv6_tsip0, ipv6_tsip1, ipv6_tsip2,
 				   ipv6_tsip3, ipv6_tdip0, ipv6_tdip1, ipv6_tdip2,
 				   ipv6_tdip3, h_source, h_dest,
@@ -836,8 +903,9 @@ static int hnat_debug_show(struct seq_file *m, void *private)
 				swab16(entry->ipv4_dslite.dmac_lo);
 			PRINT_COUNT(m, acount);
 			seq_printf(m,
-				   "addr=0x%p|index=%d|state=%s|type=%s|SIP=%pI4:%d->DIP=%pI4:%d|NSIP=%pI4:%d->NDIP=%pI4:%d|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
-				   entry, ei(entry, end), es(entry), pt(entry),
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%pI4:%d->DIP=%pI4:%d|NSIP=%pI4:%d->NDIP=%pI4:%d|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
+				   entry, ppe_id, ei(entry, end),
+				   es(entry), pt(entry),
 				   &saddr, entry->ipv4_dslite.sport,
 				   &daddr, entry->ipv4_dslite.dport,
 				   &nsaddr, entry->ipv4_dslite.new_sport,
@@ -850,11 +918,21 @@ static int hnat_debug_show(struct seq_file *m, void *private)
 				   entry->ipv6_5t_route.info_blk2);
 #endif
 		} else
-			seq_printf(m, "addr=0x%p|index=%d state=%s\n", entry, ei(entry, end),
+			seq_printf(m, "addr=0x%p|ppe=%d|index=%d state=%s\n", entry, ppe_id, ei(entry, end),
 				   es(entry));
 		entry++;
 		entry_index++;
 	}
+
+	return 0;
+}
+
+static int hnat_debug_show(struct seq_file *m, void *private)
+{
+	int i;
+
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		__hnat_debug_show(m, private, i);
 
 	return 0;
 }
@@ -1103,7 +1181,7 @@ void dbg_dump_entry(struct seq_file *m, struct foe_entry *entry,
 	}
 }
 
-int hnat_entry_read(struct seq_file *m, void *private)
+int __hnat_entry_read(struct seq_file *m, void *private, int ppe_id)
 {
 	struct mtk_hnat *h = hnat_priv;
 	struct foe_entry *entry, *end;
@@ -1112,8 +1190,11 @@ int hnat_entry_read(struct seq_file *m, void *private)
 
 	hash_index = 0;
 	cnt = 0;
-	entry = h->foe_table_cpu;
-	end = h->foe_table_cpu + hnat_priv->foe_etry_num;
+	entry = h->foe_table_cpu[ppe_id];
+	end = h->foe_table_cpu[ppe_id] + hnat_priv->foe_etry_num;
+
+	seq_printf(m, "============================\n");
+	seq_printf(m, "PPE_ID = %d\n", ppe_id);
 
 	while (entry < end) {
 		if (entry->bfib1.state == dbg_entry_state) {
@@ -1130,6 +1211,16 @@ int hnat_entry_read(struct seq_file *m, void *private)
 		   "Unbind" : dbg_entry_state == 2 ?
 		   "BIND" : dbg_entry_state == 3 ?
 		   "FIN" : "Unknown", cnt);
+
+	return 0;
+}
+
+int hnat_entry_read(struct seq_file *m, void *private)
+{
+	int i;
+
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		__hnat_entry_read(m, private, i);
 
 	return 0;
 }
@@ -1168,6 +1259,8 @@ ssize_t hnat_entry_write(struct file *file, const char __user *buffer,
 	case 1:
 	case 2:
 	case 3:
+	case 4:
+	case 5:
 		p_token = strsep(&p_buf, p_delimiter);
 		if (!p_token)
 			arg1 = 0;
@@ -1199,7 +1292,7 @@ static const struct file_operations hnat_entry_fops = {
 	.release = single_release,
 };
 
-int hnat_setting_read(struct seq_file *m, void *private)
+int __hnat_setting_read(struct seq_file *m, void *private, int ppe_id)
 {
 	struct mtk_hnat *h = hnat_priv;
 	int i;
@@ -1208,10 +1301,22 @@ int hnat_setting_read(struct seq_file *m, void *private)
 	cr_max = 319 * 4;
 	for (i = 0; i < cr_max; i = i + 0x10) {
 		pr_info("0x%p : 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			(void *)h->foe_table_dev + i, readl(h->ppe_base + i),
-			readl(h->ppe_base + i + 4), readl(h->ppe_base + i + 8),
-			readl(h->ppe_base + i + 0xc));
+			(void *)h->foe_table_dev[ppe_id] + i,
+			readl(h->ppe_base[ppe_id] + i),
+			readl(h->ppe_base[ppe_id] + i + 4),
+			readl(h->ppe_base[ppe_id] + i + 8),
+			readl(h->ppe_base[ppe_id] + i + 0xc));
 	}
+
+	return 0;
+}
+
+int hnat_setting_read(struct seq_file *m, void *private)
+{
+	int i;
+
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		__hnat_setting_read(m, private, i);
 
 	return 0;
 }
@@ -1284,7 +1389,7 @@ static const struct file_operations hnat_setting_fops = {
 	.release = single_release,
 };
 
-int mcast_table_dump(struct seq_file *m, void *private)
+int __mcast_table_dump(struct seq_file *m, void *private, int ppe_id)
 {
 	struct mtk_hnat *h = hnat_priv;
 	struct ppe_mcast_h mcast_h;
@@ -1296,12 +1401,14 @@ int mcast_table_dump(struct seq_file *m, void *private)
 		return 0;
 
 	max = h->pmcast->max_entry;
+	pr_info("============================\n");
+	pr_info("PPE_ID = %d\n", ppe_id);
 	pr_info("MAC | VID | PortMask | QosPortMask\n");
 	for (i = 0; i < max; i++) {
 		if (i < 0x10) {
-			reg = h->ppe_base + PPE_MCAST_H_0 + i * 8;
+			reg = h->ppe_base[ppe_id] + PPE_MCAST_H_0 + i * 8;
 			mcast_h.u.value = readl(reg);
-			reg = h->ppe_base + PPE_MCAST_L_0 + i * 8;
+			reg = h->ppe_base[ppe_id] + PPE_MCAST_L_0 + i * 8;
 			mcast_l.addr = readl(reg);
 		} else {
 			reg = h->fe_base + PPE_MCAST_H_10 + (i - 0x10) * 8;
@@ -1324,6 +1431,16 @@ int mcast_table_dump(struct seq_file *m, void *private)
 			((mcast_h.u.info.mc_qos_qid54) << 4),
 			mcast_h.u.info.mc_mpre_sel);
 	}
+
+	return 0;
+}
+
+int mcast_table_dump(struct seq_file *m, void *private)
+{
+	int i;
+
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		__mcast_table_dump(m, private, i);
 
 	return 0;
 }
@@ -1799,14 +1916,17 @@ static const struct file_operations hnat_version_fops = {
 	.release = single_release,
 };
 
-int get_ppe_mib(int index, u64 *pkt_cnt, u64 *byte_cnt)
+int get_ppe_mib(int ppe_id, int index, u64 *pkt_cnt, u64 *byte_cnt)
 {
 	struct mtk_hnat *h = hnat_priv;
 	struct hnat_accounting *acount;
 	struct foe_entry *entry;
 
-	acount = hnat_get_count(h, index);
-	entry = hnat_priv->foe_table_cpu + index;
+	if (ppe_id >= CFG_PPE_NUM)
+		return -1;
+
+	acount = hnat_get_count(h, ppe_id, index);
+	entry = hnat_priv->foe_table_cpu[ppe_id] + index;
 
 	if (!acount)
 		return -1;
@@ -1821,11 +1941,14 @@ int get_ppe_mib(int index, u64 *pkt_cnt, u64 *byte_cnt)
 }
 EXPORT_SYMBOL(get_ppe_mib);
 
-int is_entry_binding(int index)
+int is_entry_binding(int ppe_id, int index)
 {
 	struct foe_entry *entry;
 
-	entry = hnat_priv->foe_table_cpu + index;
+	if (ppe_id >= CFG_PPE_NUM)
+		return -1;
+
+	entry = hnat_priv->foe_table_cpu[ppe_id] + index;
 
 	return entry->bfib1.state == BIND;
 }
@@ -1886,22 +2009,28 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 		goto err0;
 	}
 	h->root = root;
-	h->regset = kzalloc(sizeof(*h->regset), GFP_KERNEL);
-	if (!h->regset) {
-		dev_notice(h->dev, "%s:err at %d\n", __func__, __LINE__);
-		ret = -ENOMEM;
-		goto err1;
-	}
-	h->regset->regs = hnat_regs;
-	h->regset->nregs = ARRAY_SIZE(hnat_regs);
-	h->regset->base = h->ppe_base;
 
-	file = debugfs_create_regset32("regdump", S_IRUGO, root, h->regset);
-	if (!file) {
-		dev_notice(h->dev, "%s:err at %d\n", __func__, __LINE__);
-		ret = -ENOMEM;
-		goto err1;
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		h->regset[i] = kzalloc(sizeof(*h->regset[i]), GFP_KERNEL);
+		if (!h->regset[i]) {
+			dev_notice(h->dev, "%s:err at %d\n", __func__, __LINE__);
+			ret = -ENOMEM;
+			goto err1;
+		}
+		h->regset[i]->regs = hnat_regs;
+		h->regset[i]->nregs = ARRAY_SIZE(hnat_regs);
+		h->regset[i]->base = h->ppe_base[i];
+
+		snprintf(name, sizeof(name), "regdump%ld", i);
+		file = debugfs_create_regset32(name, S_IRUGO,
+					       root, h->regset[i]);
+		if (!file) {
+			dev_notice(h->dev, "%s:err at %d\n", __func__, __LINE__);
+			ret = -ENOMEM;
+			goto err1;
+		}
 	}
+
 	debugfs_create_file("all_entry", S_IRUGO, root, h, &hnat_debug_fops);
 	debugfs_create_file("external_interface", S_IRUGO, root, h,
 			    &hnat_ext_fops);

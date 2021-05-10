@@ -37,14 +37,22 @@ EXPORT_SYMBOL(ppe_dev_unregister_hook);
 
 static void hnat_sma_build_entry(struct timer_list *t)
 {
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, SMA, SMA_FWD_CPU_BUILD_ENTRY);
+	int i;
+
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_TB_CFG,
+			     SMA, SMA_FWD_CPU_BUILD_ENTRY);
 }
 
 void hnat_cache_ebl(int enable)
 {
-	cr_set_field(hnat_priv->ppe_base + PPE_CAH_CTRL, CAH_X_MODE, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_CAH_CTRL, CAH_X_MODE, 0);
-	cr_set_field(hnat_priv->ppe_base + PPE_CAH_CTRL, CAH_EN, enable);
+	int i;
+
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_CAH_CTRL, CAH_X_MODE, 1);
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_CAH_CTRL, CAH_X_MODE, 0);
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_CAH_CTRL, CAH_EN, enable);
+	}
 }
 
 static void hnat_reset_timestamp(struct timer_list *t)
@@ -53,19 +61,19 @@ static void hnat_reset_timestamp(struct timer_list *t)
 	int hash_index;
 
 	hnat_cache_ebl(0);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, TCP_AGE, 0);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, UDP_AGE, 0);
+	cr_set_field(hnat_priv->ppe_base[0] + PPE_TB_CFG, TCP_AGE, 0);
+	cr_set_field(hnat_priv->ppe_base[0] + PPE_TB_CFG, UDP_AGE, 0);
 	writel(0, hnat_priv->fe_base + 0x0010);
 
 	for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
-		entry = hnat_priv->foe_table_cpu + hash_index;
+		entry = hnat_priv->foe_table_cpu[0] + hash_index;
 		if (entry->bfib1.state == BIND)
 			entry->bfib1.time_stamp =
 				readl(hnat_priv->fe_base + 0x0010) & (0xFFFF);
 	}
 
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, TCP_AGE, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, UDP_AGE, 1);
+	cr_set_field(hnat_priv->ppe_base[0] + PPE_TB_CFG, TCP_AGE, 1);
+	cr_set_field(hnat_priv->ppe_base[0] + PPE_TB_CFG, UDP_AGE, 1);
 	hnat_cache_ebl(1);
 
 	mod_timer(&hnat_priv->hnat_reset_timestamp_timer, jiffies + 14400 * HZ);
@@ -139,7 +147,7 @@ void set_gmac_ppe_fwd(int id, int enable)
 			     BITS_GDM_ALL_FRC_P_CPU_PDMA);
 }
 
-static int hnat_start(void)
+static int hnat_start(int ppe_id)
 {
 	u32 foe_table_sz;
 	u32 foe_mib_tb_sz;
@@ -148,123 +156,127 @@ static int hnat_start(void)
 	/* mapp the FOE table */
 	for (etry_num_cfg = DEF_ETRY_NUM_CFG ; etry_num_cfg >= 0 ; etry_num_cfg--, hnat_priv->foe_etry_num /= 2) {
 		foe_table_sz = hnat_priv->foe_etry_num * sizeof(struct foe_entry);
-		hnat_priv->foe_table_cpu = dma_alloc_coherent(
-			hnat_priv->dev, foe_table_sz, &hnat_priv->foe_table_dev, GFP_KERNEL);
+		hnat_priv->foe_table_cpu[ppe_id] = dma_alloc_coherent(
+				hnat_priv->dev, foe_table_sz,
+				&hnat_priv->foe_table_dev[ppe_id], GFP_KERNEL);
 
-		if (hnat_priv->foe_table_cpu)
+		if (hnat_priv->foe_table_cpu[ppe_id])
 			break;
 	}
 
-	if (!hnat_priv->foe_table_cpu)
+	if (!hnat_priv->foe_table_cpu[ppe_id])
 		return -1;
-	dev_info(hnat_priv->dev, "FOE entry number = %d\n", hnat_priv->foe_etry_num);
+	dev_info(hnat_priv->dev, "PPE%d entry number = %d\n",
+		 ppe_id, hnat_priv->foe_etry_num);
 
-	writel(hnat_priv->foe_table_dev, hnat_priv->ppe_base + PPE_TB_BASE);
-	memset(hnat_priv->foe_table_cpu, 0, foe_table_sz);
+	writel(hnat_priv->foe_table_dev[ppe_id], hnat_priv->ppe_base[ppe_id] + PPE_TB_BASE);
+	memset(hnat_priv->foe_table_cpu[ppe_id], 0, foe_table_sz);
 
 	if (hnat_priv->data->version == MTK_HNAT_V1)
-		exclude_boundary_entry(hnat_priv->foe_table_cpu);
+		exclude_boundary_entry(hnat_priv->foe_table_cpu[ppe_id]);
 
 	if (hnat_priv->data->per_flow_accounting) {
 		foe_mib_tb_sz = hnat_priv->foe_etry_num * sizeof(struct mib_entry);
-		hnat_priv->foe_mib_cpu = dma_alloc_coherent(hnat_priv->dev, foe_mib_tb_sz,
-						       &hnat_priv->foe_mib_dev, GFP_KERNEL);
-		if (!hnat_priv->foe_mib_cpu)
+		hnat_priv->foe_mib_cpu[ppe_id] =
+			dma_alloc_coherent(hnat_priv->dev, foe_mib_tb_sz,
+					   &hnat_priv->foe_mib_dev[ppe_id], GFP_KERNEL);
+		if (!hnat_priv->foe_mib_cpu[ppe_id])
 			return -1;
-		writel(hnat_priv->foe_mib_dev, hnat_priv->ppe_base + PPE_MIB_TB_BASE);
-		memset(hnat_priv->foe_mib_cpu, 0, foe_mib_tb_sz);
+		writel(hnat_priv->foe_mib_dev[ppe_id],
+		       hnat_priv->ppe_base[ppe_id] + PPE_MIB_TB_BASE);
+		memset(hnat_priv->foe_mib_cpu[ppe_id], 0, foe_mib_tb_sz);
 
-		hnat_priv->acct =
+		hnat_priv->acct[ppe_id] =
 			kzalloc(hnat_priv->foe_etry_num * sizeof(struct hnat_accounting),
 				GFP_KERNEL);
-		if (!hnat_priv->acct)
+		if (!hnat_priv->acct[ppe_id])
 			return -1;
 	}
 	/* setup hashing */
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, TB_ETRY_NUM, etry_num_cfg);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, HASH_MODE, HASH_MODE_1);
-	writel(HASH_SEED_KEY, hnat_priv->ppe_base + PPE_HASH_SEED);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, XMODE, 0);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, TB_ENTRY_SIZE, ENTRY_80B);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, SMA, SMA_FWD_CPU_BUILD_ENTRY);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, TB_ETRY_NUM, etry_num_cfg);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, HASH_MODE, HASH_MODE_1);
+	writel(HASH_SEED_KEY, hnat_priv->ppe_base[ppe_id] + PPE_HASH_SEED);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, XMODE, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, TB_ENTRY_SIZE, ENTRY_80B);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SMA, SMA_FWD_CPU_BUILD_ENTRY);
 
 	/* set ip proto */
-	writel(0xFFFFFFFF, hnat_priv->ppe_base + PPE_IP_PROT_CHK);
+	writel(0xFFFFFFFF, hnat_priv->ppe_base[ppe_id] + PPE_IP_PROT_CHK);
 
 	/* setup caching */
 	hnat_cache_ebl(1);
 
 	/* enable FOE */
-	cr_set_bits(hnat_priv->ppe_base + PPE_FLOW_CFG,
+	cr_set_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
 		    BIT_UDP_IP4F_NAT_EN | BIT_IPV4_NAT_EN | BIT_IPV4_NAPT_EN |
 		    BIT_IPV4_NAT_FRAG_EN | BIT_IPV4_HASH_GREK |
 		    BIT_IPV4_DSL_EN | BIT_IPV6_6RD_EN |
 		    BIT_IPV6_3T_ROUTE_EN | BIT_IPV6_5T_ROUTE_EN);
 
 	if (hnat_priv->data->version == MTK_HNAT_V4)
-		cr_set_bits(hnat_priv->ppe_base + PPE_FLOW_CFG,
+		cr_set_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
 			    BIT_IPV4_MAPE_EN | BIT_IPV4_MAPT_EN);
 
 	/* setup FOE aging */
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, NTU_AGE, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, UNBD_AGE, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_UNB_AGE, UNB_MNP, 1000);
-	cr_set_field(hnat_priv->ppe_base + PPE_UNB_AGE, UNB_DLTA, 3);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, TCP_AGE, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, UDP_AGE, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, FIN_AGE, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_BND_AGE_0, UDP_DLTA, 12);
-	cr_set_field(hnat_priv->ppe_base + PPE_BND_AGE_0, NTU_DLTA, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_BND_AGE_1, FIN_DLTA, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_BND_AGE_1, TCP_DLTA, 7);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, NTU_AGE, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, UNBD_AGE, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_UNB_AGE, UNB_MNP, 1000);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_UNB_AGE, UNB_DLTA, 3);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, TCP_AGE, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, UDP_AGE, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, FIN_AGE, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_BND_AGE_0, UDP_DLTA, 12);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_BND_AGE_0, NTU_DLTA, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_BND_AGE_1, FIN_DLTA, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_BND_AGE_1, TCP_DLTA, 7);
 
 	/* setup FOE ka */
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, SCAN_MODE, 2);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, KA_CFG, 3);
-	cr_set_field(hnat_priv->ppe_base + PPE_KA, KA_T, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_KA, TCP_KA, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_KA, UDP_KA, 1);
-	cr_set_field(hnat_priv->ppe_base + PPE_BIND_LMT_1, NTU_KA, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SCAN_MODE, 2);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, KA_CFG, 3);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_KA, KA_T, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_KA, TCP_KA, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_KA, UDP_KA, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_BIND_LMT_1, NTU_KA, 1);
 
 	/* setup FOE rate limit */
-	cr_set_field(hnat_priv->ppe_base + PPE_BIND_LMT_0, QURT_LMT, 16383);
-	cr_set_field(hnat_priv->ppe_base + PPE_BIND_LMT_0, HALF_LMT, 16383);
-	cr_set_field(hnat_priv->ppe_base + PPE_BIND_LMT_1, FULL_LMT, 16383);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_BIND_LMT_0, QURT_LMT, 16383);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_BIND_LMT_0, HALF_LMT, 16383);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_BIND_LMT_1, FULL_LMT, 16383);
 	/* setup binding threshold as 30 packets per second */
-	cr_set_field(hnat_priv->ppe_base + PPE_BNDR, BIND_RATE, 0x1E);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_BNDR, BIND_RATE, 0x1E);
 
 	/* setup FOE cf gen */
-	cr_set_field(hnat_priv->ppe_base + PPE_GLO_CFG, PPE_EN, 1);
-	writel(0, hnat_priv->ppe_base + PPE_DFT_CPORT); /* pdma */
-	/* writel(0x55555555, hnat_priv->ppe_base + PPE_DFT_CPORT); */ /* qdma */
-	cr_set_field(hnat_priv->ppe_base + PPE_GLO_CFG, TTL0_DRP, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG, PPE_EN, 1);
+	writel(0, hnat_priv->ppe_base[ppe_id] + PPE_DFT_CPORT); /* pdma */
+	/* writel(0x55555555, hnat_priv->ppe_base[ppe_id] + PPE_DFT_CPORT); */ /* qdma */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG, TTL0_DRP, 0);
 
 	if (hnat_priv->data->version == MTK_HNAT_V4) {
-		writel(0xcb777, hnat_priv->ppe_base + PPE_DFT_CPORT1);
-		writel(0x7f, hnat_priv->ppe_base + PPE_SBW_CTRL);
+		writel(0xcb777, hnat_priv->ppe_base[ppe_id] + PPE_DFT_CPORT1);
+		writel(0x7f, hnat_priv->ppe_base[ppe_id] + PPE_SBW_CTRL);
 	}
 
 	/*enable ppe mib counter*/
 	if (hnat_priv->data->per_flow_accounting) {
-		cr_set_field(hnat_priv->ppe_base + PPE_MIB_CFG, MIB_EN, 1);
-		cr_set_field(hnat_priv->ppe_base + PPE_MIB_CFG, MIB_READ_CLEAR, 1);
-		cr_set_field(hnat_priv->ppe_base + PPE_MIB_CAH_CTRL, MIB_CAH_EN, 1);
+		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_MIB_CFG, MIB_EN, 1);
+		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_MIB_CFG, MIB_READ_CLEAR, 1);
+		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_MIB_CAH_CTRL, MIB_CAH_EN, 1);
 	}
 
 	hnat_priv->g_ppdev = dev_get_by_name(&init_net, hnat_priv->ppd);
 
-	dev_info(hnat_priv->dev, "hwnat start\n");
+	dev_info(hnat_priv->dev, "PPE%d hwnat start\n", ppe_id);
 
 	return 0;
 }
 
-static int ppe_busy_wait(void)
+static int ppe_busy_wait(int ppe_id)
 {
 	unsigned long t_start = jiffies;
 	u32 r = 0;
 
 	while (1) {
-		r = readl((hnat_priv->ppe_base + 0x0));
+		r = readl((hnat_priv->ppe_base[ppe_id] + 0x0));
 		if (!(r & BIT(31)))
 			return 0;
 		if (time_after(jiffies, t_start + HZ))
@@ -277,7 +289,7 @@ static int ppe_busy_wait(void)
 	return -1;
 }
 
-static void hnat_stop(void)
+static void hnat_stop(int ppe_id)
 {
 	u32 foe_table_sz;
 	u32 foe_mib_tb_sz;
@@ -290,9 +302,9 @@ static void hnat_stop(void)
 
 	dev_info(hnat_priv->dev, "hwnat stop\n");
 
-	if (hnat_priv->foe_table_cpu) {
-		entry = hnat_priv->foe_table_cpu;
-		end = hnat_priv->foe_table_cpu + hnat_priv->foe_etry_num;
+	if (hnat_priv->foe_table_cpu[ppe_id]) {
+		entry = hnat_priv->foe_table_cpu[ppe_id];
+		end = hnat_priv->foe_table_cpu[ppe_id] + hnat_priv->foe_etry_num;
 		while (entry < end) {
 			entry->bfib1.state = INVALID;
 			entry++;
@@ -302,31 +314,31 @@ static void hnat_stop(void)
 	hnat_cache_ebl(0);
 
 	/* flush cache has to be ahead of hnat disable --*/
-	cr_set_field(hnat_priv->ppe_base + PPE_GLO_CFG, PPE_EN, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG, PPE_EN, 0);
 
 	/* disable scan mode and keep-alive */
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, SCAN_MODE, 0);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, KA_CFG, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SCAN_MODE, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, KA_CFG, 0);
 
-	ppe_busy_wait();
+	ppe_busy_wait(ppe_id);
 
 	/* disable FOE */
-	cr_clr_bits(hnat_priv->ppe_base + PPE_FLOW_CFG,
+	cr_clr_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
 		    BIT_IPV4_NAPT_EN | BIT_IPV4_NAT_EN | BIT_IPV4_NAT_FRAG_EN |
 		    BIT_IPV6_HASH_GREK | BIT_IPV4_DSL_EN |
 		    BIT_IPV6_6RD_EN | BIT_IPV6_3T_ROUTE_EN |
 		    BIT_IPV6_5T_ROUTE_EN | BIT_FUC_FOE | BIT_FMC_FOE);
 
 	if (hnat_priv->data->version == MTK_HNAT_V4)
-		cr_clr_bits(hnat_priv->ppe_base + PPE_FLOW_CFG,
+		cr_clr_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
 			    BIT_IPV4_MAPE_EN | BIT_IPV4_MAPT_EN);
 
 	/* disable FOE aging */
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, NTU_AGE, 0);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, UNBD_AGE, 0);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, TCP_AGE, 0);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, UDP_AGE, 0);
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, FIN_AGE, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, NTU_AGE, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, UNBD_AGE, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, TCP_AGE, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, UDP_AGE, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, FIN_AGE, 0);
 
 	r1 = readl(hnat_priv->fe_base + 0x100);
 	r2 = readl(hnat_priv->fe_base + 0x10c);
@@ -341,18 +353,20 @@ static void hnat_stop(void)
 
 	/* free the FOE table */
 	foe_table_sz = hnat_priv->foe_etry_num * sizeof(struct foe_entry);
-	if (hnat_priv->foe_table_cpu)
-		dma_free_coherent(hnat_priv->dev, foe_table_sz, hnat_priv->foe_table_cpu,
-				  hnat_priv->foe_table_dev);
-	writel(0, hnat_priv->ppe_base + PPE_TB_BASE);
+	if (hnat_priv->foe_table_cpu[ppe_id])
+		dma_free_coherent(hnat_priv->dev, foe_table_sz,
+				  hnat_priv->foe_table_cpu[ppe_id],
+				  hnat_priv->foe_table_dev[ppe_id]);
+	writel(0, hnat_priv->ppe_base[ppe_id] + PPE_TB_BASE);
 
 	if (hnat_priv->data->per_flow_accounting) {
 		foe_mib_tb_sz = hnat_priv->foe_etry_num * sizeof(struct mib_entry);
-		if (hnat_priv->foe_mib_cpu)
+		if (hnat_priv->foe_mib_cpu[ppe_id])
 			dma_free_coherent(hnat_priv->dev, foe_mib_tb_sz,
-					  hnat_priv->foe_mib_cpu, hnat_priv->foe_mib_dev);
-		writel(0, hnat_priv->ppe_base + PPE_MIB_TB_BASE);
-		kfree(hnat_priv->acct);
+					  hnat_priv->foe_mib_cpu[ppe_id],
+					  hnat_priv->foe_mib_dev[ppe_id]);
+		writel(0, hnat_priv->ppe_base[ppe_id] + PPE_MIB_TB_BASE);
+		kfree(hnat_priv->acct[ppe_id]);
 	}
 }
 
@@ -404,20 +418,24 @@ int hnat_enable_hook(void)
 
 int hnat_disable_hook(void)
 {
-	int hash_index;
+	int i, hash_index;
 	struct foe_entry *entry;
 
 	ra_sw_nat_hook_tx = NULL;
 	ra_sw_nat_hook_rx = NULL;
 	hnat_unregister_nf_hooks();
 
-	cr_set_field(hnat_priv->ppe_base + PPE_TB_CFG, SMA, SMA_ONLY_FWD_CPU);
-	for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
-		entry = hnat_priv->foe_table_cpu + hash_index;
-		if (entry->bfib1.state == BIND) {
-			entry->ipv4_hnapt.udib1.state = INVALID;
-			entry->ipv4_hnapt.udib1.time_stamp =
-				readl((hnat_priv->fe_base + 0x0010)) & 0xFF;
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_TB_CFG,
+			     SMA, SMA_ONLY_FWD_CPU);
+
+		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
+			entry = hnat_priv->foe_table_cpu[i] + hash_index;
+			if (entry->bfib1.state == BIND) {
+				entry->ipv4_hnapt.udib1.state = INVALID;
+				entry->ipv4_hnapt.udib1.time_stamp =
+					readl((hnat_priv->fe_base + 0x0010)) & 0xFF;
+			}
 		}
 	}
 
@@ -502,6 +520,15 @@ static int hnat_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "wan dsa port = %d\n", hnat_priv->wan_dsa_port);
 	}
 
+	err = of_property_read_u32_index(np, "mtketh-ppe-num", 0, &val);
+
+	if (err < 0)
+		hnat_priv->ppe_num = 1;
+	else
+		hnat_priv->ppe_num = val;
+
+	dev_info(&pdev->dev, "ppe num = %d\n", hnat_priv->ppe_num);
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENOENT;
@@ -511,8 +538,14 @@ static int hnat_probe(struct platform_device *pdev)
 	if (!hnat_priv->fe_base)
 		return -EADDRNOTAVAIL;
 
-	hnat_priv->ppe_base = (hnat_priv->data->version == MTK_HNAT_V4) ?
-		hnat_priv->fe_base + 0x2600 : hnat_priv->fe_base + 0xe00;
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+	hnat_priv->ppe_base[0] = hnat_priv->fe_base + 0x2200;
+
+	if (CFG_PPE_NUM > 1)
+		hnat_priv->ppe_base[1] = hnat_priv->fe_base + 0x2600;
+#else
+	hnat_priv->ppe_base[0] = hnat_priv->fe_base + 0xe00;
+#endif
 
 	err = hnat_init_debugfs(hnat_priv);
 	if (err)
@@ -538,9 +571,11 @@ static int hnat_probe(struct platform_device *pdev)
 	hnat_priv->lvid = 1;
 	hnat_priv->wvid = 2;
 
-	err = hnat_start();
-	if (err)
-		goto err_out;
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		err = hnat_start(i);
+		if (err)
+			goto err_out;
+	}
 
 	if (hnat_priv->data->whnat) {
 		err = whnat_adjust_nf_hooks();
@@ -554,8 +589,12 @@ static int hnat_probe(struct platform_device *pdev)
 
 	register_netdevice_notifier(&nf_hnat_netdevice_nb);
 	register_netevent_notifier(&nf_hnat_netevent_nb);
-	if (hnat_priv->data->mcast)
-		hnat_mcast_enable();
+
+	if (hnat_priv->data->mcast) {
+		for (i = 0; i < CFG_PPE_NUM; i++)
+			hnat_mcast_enable(i);
+	}
+
 	timer_setup(&hnat_priv->hnat_sma_build_entry_timer, hnat_sma_build_entry, 0);
 	if (hnat_priv->data->version == MTK_HNAT_V3) {
 		timer_setup(&hnat_priv->hnat_reset_timestamp_timer, hnat_reset_timestamp, 0);
@@ -571,7 +610,8 @@ static int hnat_probe(struct platform_device *pdev)
 	return 0;
 
 err_out:
-	hnat_stop();
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		hnat_stop(i);
 err_out1:
 	hnat_deinit_debugfs(hnat_priv);
 	for (i = 0; i < MAX_EXT_DEVS && hnat_priv->ext_if[i]; i++) {
@@ -584,6 +624,8 @@ err_out1:
 
 static int hnat_remove(struct platform_device *pdev)
 {
+	int i;
+
 	unregister_netdevice_notifier(&nf_hnat_netdevice_nb);
 	unregister_netevent_notifier(&nf_hnat_netevent_nb);
 	hnat_disable_hook();
@@ -591,7 +633,9 @@ static int hnat_remove(struct platform_device *pdev)
 	if (hnat_priv->data->mcast)
 		hnat_mcast_disable();
 
-	hnat_stop();
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		hnat_stop(i);
+
 	hnat_deinit_debugfs(hnat_priv);
 	hnat_release_netdev();
 	del_timer_sync(&hnat_priv->hnat_sma_build_entry_timer);

@@ -61,7 +61,7 @@ static void get_mac_from_mdb_entry(struct br_mdb_entry *entry,
 }
 
 /*set_hnat_mtbl - set ppe multicast register*/
-static int set_hnat_mtbl(struct ppe_mcast_group *group, int index)
+static int set_hnat_mtbl(struct ppe_mcast_group *group, int ppe_id, int index)
 {
 	struct ppe_mcast_h mcast_h;
 	struct ppe_mcast_l mcast_l;
@@ -83,9 +83,9 @@ static int set_hnat_mtbl(struct ppe_mcast_group *group, int index)
 	trace_printk("%s:index=%d,group info=0x%x,addr=0x%x\n",
 		     __func__, index, mcast_h.u.value, mcast_l.addr);
 	if (index < 0x10) {
-		reg = hnat_priv->ppe_base + PPE_MCAST_H_0 + ((index) * 8);
+		reg = hnat_priv->ppe_base[ppe_id] + PPE_MCAST_H_0 + ((index) * 8);
 		writel(mcast_h.u.value, reg);
-		reg = hnat_priv->ppe_base + PPE_MCAST_L_0 + ((index) * 8);
+		reg = hnat_priv->ppe_base[ppe_id] + PPE_MCAST_L_0 + ((index) * 8);
 		writel(mcast_l.addr, reg);
 	} else {
 		index = index - 0x10;
@@ -112,7 +112,7 @@ static int hnat_mcast_table_update(int type, struct br_mdb_entry *entry)
 	struct net_device *dev;
 	u32 mac_hi;
 	u16 mac_lo;
-	int index;
+	int i, index;
 	struct ppe_mcast_group *group;
 
 	rcu_read_lock();
@@ -164,7 +164,9 @@ static int hnat_mcast_table_update(int type, struct br_mdb_entry *entry)
 		if (!group->oif && !group->eif)
 			/*nobody in this group,clear the entry*/
 			memset(group, 0, sizeof(struct ppe_mcast_group));
-		set_hnat_mtbl(group, index);
+
+		for (i = 0; i < CFG_PPE_NUM; i++)
+			set_hnat_mtbl(group, i, index);
 	}
 
 	return 0;
@@ -254,24 +256,26 @@ out:
 static void hnat_mcast_check_timestamp(struct timer_list *t)
 {
 	struct foe_entry *entry;
-	int hash_index;
+	int i, hash_index;
 	u16 e_ts, foe_ts;
 
-	for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
-		entry = hnat_priv->foe_table_cpu + hash_index;
-		if (entry->bfib1.sta == 1) {
-			e_ts = (entry->ipv4_hnapt.m_timestamp) & 0xffff;
-			foe_ts = foe_timestamp(hnat_priv);
-			if ((foe_ts - e_ts) > 0x3000)
-				foe_ts = (~(foe_ts)) & 0xffff;
-			if (abs(foe_ts - e_ts) > 20)
-				entry_delete(hash_index);
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
+			entry = hnat_priv->foe_table_cpu[i] + hash_index;
+			if (entry->bfib1.sta == 1) {
+				e_ts = (entry->ipv4_hnapt.m_timestamp) & 0xffff;
+				foe_ts = foe_timestamp(hnat_priv);
+				if ((foe_ts - e_ts) > 0x3000)
+					foe_ts = (~(foe_ts)) & 0xffff;
+				if (abs(foe_ts - e_ts) > 20)
+					entry_delete(i, hash_index);
+			}
 		}
 	}
 	mod_timer(&hnat_priv->hnat_mcast_check_timer, jiffies + 10 * HZ);
 }
 
-int hnat_mcast_enable(void)
+int hnat_mcast_enable(int ppe_id)
 {
 	struct ppe_mcast_table *pmcast;
 
@@ -304,15 +308,15 @@ int hnat_mcast_enable(void)
 	}
 
 	/* Enable multicast table lookup */
-	cr_set_field(hnat_priv->ppe_base + PPE_GLO_CFG, MCAST_TB_EN, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG, MCAST_TB_EN, 1);
 	/* multicast port0 map to PDMA */
-	cr_set_field(hnat_priv->ppe_base + PPE_MCAST_PPSE, MC_P0_PPSE, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_MCAST_PPSE, MC_P0_PPSE, 0);
 	/* multicast port1 map to GMAC1 */
-	cr_set_field(hnat_priv->ppe_base + PPE_MCAST_PPSE, MC_P1_PPSE, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_MCAST_PPSE, MC_P1_PPSE, 1);
 	/* multicast port2 map to GMAC2 */
-	cr_set_field(hnat_priv->ppe_base + PPE_MCAST_PPSE, MC_P2_PPSE, 2);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_MCAST_PPSE, MC_P2_PPSE, 2);
 	/* multicast port3 map to QDMA */
-	cr_set_field(hnat_priv->ppe_base + PPE_MCAST_PPSE, MC_P3_PPSE, 5);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_MCAST_PPSE, MC_P3_PPSE, 5);
 
 	return 0;
 err:
