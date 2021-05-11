@@ -100,8 +100,8 @@ static int mtk_snand_mtd_read_data(struct mtk_snand_mtd *msm, uint64_t addr,
 	size_t len, ooblen, maxooblen, chklen;
 	uint32_t col, ooboffs;
 	uint8_t *datcache, *oobcache;
-	bool raw = ops->mode == MTD_OPS_RAW ? true : false;
-	int ret;
+	bool ecc_failed = false, raw = ops->mode == MTD_OPS_RAW ? true : false;
+	int ret, max_bitflips = 0;
 
 	col = addr & mtd->writesize_mask;
 	addr &= ~mtd->writesize_mask;
@@ -124,8 +124,16 @@ static int mtk_snand_mtd_read_data(struct mtk_snand_mtd *msm, uint64_t addr,
 			ret = mtk_snand_read_page(msm->snf, addr, datcache,
 				oobcache, raw);
 
-		if (ret < 0)
+		if (ret < 0 && ret != -EBADMSG)
 			return ret;
+
+		if (ret == -EBADMSG) {
+			mtd->ecc_stats.failed++;
+			ecc_failed = true;
+		} else {
+			mtd->ecc_stats.corrected += ret;
+			max_bitflips = max_t(int, ret, max_bitflips);
+		}
 
 		if (len) {
 			/* Move data */
@@ -156,7 +164,7 @@ static int mtk_snand_mtd_read_data(struct mtk_snand_mtd *msm, uint64_t addr,
 		addr += mtd->writesize;
 	}
 
-	return 0;
+	return ecc_failed ? -EBADMSG : max_bitflips;
 }
 
 static int mtk_snand_mtd_read_oob(struct mtd_info *mtd, loff_t from,
