@@ -18,13 +18,15 @@ struct esw_reg {
 };
 
 struct ra_mii_ioctl_data {
-        __u32 phy_id;
-        __u32 reg_num;
+        __u16 phy_id;
+        __u16 reg_num;
         __u32 val_in;
         __u32 val_out;
+/*
         __u32 port_num;
         __u32 dev_addr;
         __u32 reg_addr;
+*/
 };
 
 struct ra_switch_ioctl_data {
