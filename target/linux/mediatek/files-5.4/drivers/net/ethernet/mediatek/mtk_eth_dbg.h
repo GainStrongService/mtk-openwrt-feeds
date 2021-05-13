@@ -51,13 +51,10 @@ struct mtk_esw_reg {
 };
 
 struct mtk_mii_ioctl_data {
-	unsigned int phy_id;
-	unsigned int reg_num;
+	u16 phy_id;
+	u16 reg_num;
 	unsigned int val_in;
 	unsigned int val_out;
-	unsigned int port_num;
-	unsigned int dev_addr;
-	unsigned int reg_addr;
 };
 
 #if defined(CONFIG_NET_DSA_MT7530) || defined(CONFIG_MT753X_GSW)
@@ -72,12 +69,12 @@ static inline bool mt7530_exist(struct mtk_eth *eth)
 }
 #endif
 
-extern u32 _mtk_mdio_read(struct mtk_eth *eth, int phy_addr, int phy_reg);
-extern u32 _mtk_mdio_write(struct mtk_eth *eth, u32 phy_addr,
-		    u32 phy_register, u32 write_data);
+extern u32 _mtk_mdio_read(struct mtk_eth *eth, u16 phy_addr, u16 phy_reg);
+extern u32 _mtk_mdio_write(struct mtk_eth *eth, u16 phy_addr,
+		    u16 phy_register, u16 write_data);
 
-extern u32 mtk_cl45_ind_read(struct mtk_eth *eth, u32 port, u32 devad, u32 reg, u32 *data);
-extern u32 mtk_cl45_ind_write(struct mtk_eth *eth, u32 port, u32 devad, u32 reg, u32 data);
+extern u32 mtk_cl45_ind_read(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 *data);
+extern u32 mtk_cl45_ind_write(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 data);
 
 int debug_proc_init(struct mtk_eth *eth);
 void debug_proc_exit(void);

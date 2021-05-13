@@ -98,8 +98,8 @@ static int mtk_mdio_busy_wait(struct mtk_eth *eth)
 	return -1;
 }
 
-u32 _mtk_mdio_write(struct mtk_eth *eth, u32 phy_addr,
-			   u32 phy_register, u32 write_data)
+u32 _mtk_mdio_write(struct mtk_eth *eth, u16 phy_addr,
+			   u16 phy_register, u16 write_data)
 {
 	if (mtk_mdio_busy_wait(eth))
 		return -1;
@@ -117,7 +117,7 @@ u32 _mtk_mdio_write(struct mtk_eth *eth, u32 phy_addr,
 	return 0;
 }
 
-u32 _mtk_mdio_read(struct mtk_eth *eth, int phy_addr, int phy_reg)
+u32 _mtk_mdio_read(struct mtk_eth *eth, u16 phy_addr, u16 phy_reg)
 {
 	u32 d;
 
@@ -152,7 +152,7 @@ static int mtk_mdio_read(struct mii_bus *bus, int phy_addr, int phy_reg)
 	return _mtk_mdio_read(eth, phy_addr, phy_reg);
 }
 
-u32 mtk_cl45_ind_read(struct mtk_eth *eth, u32 port, u32 devad, u32 reg, u32 *data)
+u32 mtk_cl45_ind_read(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 *data)
 {
         mutex_lock(&eth->mii_bus->mdio_lock);
 
@@ -166,7 +166,7 @@ u32 mtk_cl45_ind_read(struct mtk_eth *eth, u32 port, u32 devad, u32 reg, u32 *da
         return 0;
 }
 
-u32 mtk_cl45_ind_write(struct mtk_eth *eth, u32 port, u32 devad, u32 reg, u32 data)
+u32 mtk_cl45_ind_write(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 data)
 {
         mutex_lock(&eth->mii_bus->mdio_lock);
 

@@ -36,7 +36,7 @@ struct mtk_eth *g_eth;
 
 struct mtk_eth_debug eth_debug;
 
-void mt7530_mdio_w32(struct mtk_eth *eth, u32 reg, u32 val)
+void mt7530_mdio_w32(struct mtk_eth *eth, u16 reg, u32 val)
 {
 	mutex_lock(&eth->mii_bus->mdio_lock);
 
@@ -374,7 +374,7 @@ void mii_mgr_read_combine(struct mtk_eth *eth, u32 phy_addr, u32 phy_register,
 		*read_data = _mtk_mdio_read(eth, phy_addr, phy_register);
 }
 
-void mii_mgr_write_combine(struct mtk_eth *eth, u32 phy_addr, u32 phy_register,
+void mii_mgr_write_combine(struct mtk_eth *eth, u16 phy_addr, u16 phy_register,
 			   u32 write_data)
 {
 	if (mt7530_exist(eth) && phy_addr == 31)
@@ -384,12 +384,12 @@ void mii_mgr_write_combine(struct mtk_eth *eth, u32 phy_addr, u32 phy_register,
 		_mtk_mdio_write(eth, phy_addr, phy_register, write_data);
 }
 
-static void mii_mgr_read_cl45(struct mtk_eth *eth, u32 port, u32 devad, u32 reg, u32 *data)
+static void mii_mgr_read_cl45(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 *data)
 {
 	mtk_cl45_ind_read(eth, port, devad, reg, data);
 }
 
-static void mii_mgr_write_cl45(struct mtk_eth *eth, u32 port, u32 devad, u32 reg, u32 data)
+static void mii_mgr_write_cl45(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 data)
 {
 	mtk_cl45_ind_write(eth, port, devad, reg, data);
 }
@@ -416,12 +416,14 @@ int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			goto err_copy;
 		mii_mgr_write_combine(eth, mii.phy_id, mii.reg_num,
 				      mii.val_in);
-
 		return 0;
 	case MTKETH_MII_READ_CL45:
 		if (copy_from_user(&mii, ifr->ifr_data, sizeof(mii)))
 			goto err_copy;
-		mii_mgr_read_cl45(eth, mii.port_num, mii.dev_addr, mii.reg_addr,
+		mii_mgr_read_cl45(eth,
+				  mdio_phy_id_prtad(mii.phy_id),
+				  mdio_phy_id_devad(mii.phy_id),
+				  mii.reg_num,
 				  &mii.val_out);
 		if (copy_to_user(ifr->ifr_data, &mii, sizeof(mii)))
 			goto err_copy;
@@ -430,8 +432,11 @@ int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case MTKETH_MII_WRITE_CL45:
 		if (copy_from_user(&mii, ifr->ifr_data, sizeof(mii)))
 			goto err_copy;
-		mii_mgr_write_cl45(eth, mii.port_num, mii.dev_addr, mii.reg_addr,
-				   mii.val_in);
+		mii_mgr_write_cl45(eth,
+				  mdio_phy_id_prtad(mii.phy_id),
+				  mdio_phy_id_devad(mii.phy_id),
+				  mii.reg_num,
+				  mii.val_in);
 		return 0;
 	case MTKETH_ESW_REG_READ:
 		if (!mt7530_exist(eth))
