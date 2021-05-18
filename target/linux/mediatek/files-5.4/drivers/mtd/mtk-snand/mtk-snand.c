@@ -800,6 +800,7 @@ cleanup:
 
 	/* Stop read */
 	nfi_write32(snf, NFI_CON, 0);
+	nfi_write16(snf, NFI_CNFG, 0);
 
 	/* Clear SNF done flag */
 	nfi_rmw32(snf, SNF_STA_CTL1, 0, CUS_READ_DONE);
@@ -1016,7 +1017,8 @@ cleanup:
 	dma_mem_unmap(snf->pdev, dma_addr, len, true);
 
 	/* Stop write */
-	nfi_write16(snf, NFI_CON, 0);
+	nfi_write32(snf, NFI_CON, 0);
+	nfi_write16(snf, NFI_CNFG, 0);
 
 	/* Clear SNF done flag */
 	nfi_rmw32(snf, SNF_STA_CTL1, 0, CUS_PG_DONE);
