@@ -57,7 +57,14 @@
 #define FIFO_WR_REMAIN_S		8
 #define FIFO_RD_REMAIN_S		0
 
+#define NFI_ADDRCNTR			0x070
+#define SEC_CNTR			GENMASK(16, 12)
+#define	SEC_CNTR_S			12
+
 #define NFI_STRADDR			0x080
+
+#define NFI_BYTELEN			0x084
+#define	BUS_SEC_CNTR(val)		(((val) & SEC_CNTR) >> SEC_CNTR_S)
 
 #define NFI_FDM0L			0x0a0
 #define NFI_FDM0M			0x0a4
@@ -715,7 +722,7 @@ static int mtk_snand_check_ecc_result(struct mtk_snand *snf, uint32_t page)
 
 static int mtk_snand_read_cache(struct mtk_snand *snf, uint32_t page, bool raw)
 {
-	uint32_t coladdr, rwbytes, mode, len;
+	uint32_t coladdr, rwbytes, mode, len, val;
 	uintptr_t dma_addr;
 	int ret;
 
@@ -780,6 +787,26 @@ static int mtk_snand_read_cache(struct mtk_snand *snf, uint32_t page, bool raw)
 	if (ret) {
 		snand_log_nfi(snf->pdev,
 			      "DMA timed out for reading from cache\n");
+		goto cleanup;
+	}
+
+	/* Wait for BUS_SEC_CNTR returning expected value */
+	ret = read32_poll_timeout(snf->nfi_base + NFI_BYTELEN, val,
+				  BUS_SEC_CNTR(val) >= snf->ecc_steps,
+				  0, SNFI_POLL_INTERVAL);
+	if (ret) {
+		snand_log_nfi(snf->pdev,
+			      "Timed out waiting for BUS_SEC_CNTR\n");
+		goto cleanup;
+	}
+
+	/* Wait for bus becoming idle */
+	ret = read32_poll_timeout(snf->nfi_base + NFI_MASTERSTA, val,
+				  !(val & snf->nfi_soc->mastersta_mask),
+				  0, SNFI_POLL_INTERVAL);
+	if (ret) {
+		snand_log_nfi(snf->pdev,
+			      "Timed out waiting for bus becoming idle\n");
 		goto cleanup;
 	}
 
@@ -941,7 +968,7 @@ static void mtk_snand_write_fdm(struct mtk_snand *snf, const uint8_t *buf)
 static int mtk_snand_program_load(struct mtk_snand *snf, uint32_t page,
 				  bool raw)
 {
-	uint32_t coladdr, rwbytes, mode, len;
+	uint32_t coladdr, rwbytes, mode, len, val;
 	uintptr_t dma_addr;
 	int ret;
 
@@ -1008,6 +1035,16 @@ static int mtk_snand_program_load(struct mtk_snand *snf, uint32_t page,
 	if (ret) {
 		snand_log_nfi(snf->pdev,
 			      "DMA timed out for program load\n");
+		goto cleanup;
+	}
+
+	/* Wait for BUS_SEC_CNTR returning expected value */
+	ret = read32_poll_timeout(snf->nfi_base + NFI_BYTELEN, val,
+				  BUS_SEC_CNTR(val) >= snf->ecc_steps,
+				  0, SNFI_POLL_INTERVAL);
+	if (ret) {
+		snand_log_nfi(snf->pdev,
+			      "Timed out waiting for BUS_SEC_CNTR\n");
 		goto cleanup;
 	}
 
