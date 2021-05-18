@@ -1,0 +1,11 @@
+Index: lede/package/base-files/files/etc/hotplug.d/net/00-sysctl
+===================================================================
+--- lede.orig/package/base-files/files/etc/hotplug.d/net/00-sysctl
++++ lede/package/base-files/files/etc/hotplug.d/net/00-sysctl
+@@ -6,4 +6,6 @@ if [ "$ACTION" = add ]; then
+ 		sed -ne "/^[[:space:]]*net\..*\.$DEVICENAME\./p" "$CONF" | \
+ 			sysctl -e -p - | logger -t sysctl
+ 	done
++
++	[ -f /sbin/smp.sh ] && /sbin/smp.sh
+ fi
