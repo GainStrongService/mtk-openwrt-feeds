@@ -696,7 +696,7 @@ static int mtk_snand_check_ecc_result(struct mtk_snand *snf, uint32_t page)
 			snand_log_ecc(snf->pdev,
 			      "Uncorrectable bitflips in page %u sect %u\n",
 			      page, i);
-		} else {
+		} else if (rc) {
 			snf->sect_bf[i] = rc;
 
 			if (snf->sect_bf[i] > max_bitflips)
@@ -705,6 +705,8 @@ static int mtk_snand_check_ecc_result(struct mtk_snand *snf, uint32_t page)
 			snand_log_ecc(snf->pdev,
 			      "%u bitflip%s corrected in page %u sect %u\n",
 			      rc, rc > 1 ? "s" : "", page, i);
+		} else {
+			snf->sect_bf[i] = 0;
 		}
 	}
 
