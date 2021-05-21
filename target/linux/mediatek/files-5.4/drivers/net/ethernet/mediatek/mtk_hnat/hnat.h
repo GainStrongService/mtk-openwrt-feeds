@@ -581,9 +581,11 @@ struct foe_entry {
  * DEF_ETRY_NUM_CFG need to be modified.
  */
 #define DEF_ETRY_NUM		8192
-/* feasible values : 16384, 8192, 4096, 2048, 1024 */
+/* feasible values : 32768, 16384, 8192, 4096, 2048, 1024 */
 #define DEF_ETRY_NUM_CFG	TABLE_8K
-/* corresponding values : TABLE_16K, TABLE_8K, TABLE_4K, TABLE_2K, TABLE_1K */
+/* corresponding values : TABLE_32K, TABLE_16K, TABLE_8K, TABLE_4K, TABLE_2K,
+ * TABLE_1K
+ */
 #define MAX_EXT_DEVS		(0x3fU)
 #define MAX_IF_NUM		64
 
@@ -705,6 +707,7 @@ enum FoeIpAct {
 #define TABLE_4K 2
 #define TABLE_8K 3
 #define TABLE_16K 4
+#define TABLE_32K 5
 #define SMA_DROP 0 /* Drop the packet */
 #define SMA_DROP2 1 /* Drop the packet */
 #define SMA_ONLY_FWD_CPU 2 /* Only Forward to CPU */

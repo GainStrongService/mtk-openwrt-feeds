@@ -148,7 +148,7 @@ static inline int extif_put_dev(struct net_device *dev)
 			dev_put(dev);
 			pr_info("%s(%s)\n", __func__, dev->name);
 
-			return ext_entry->dev->ifindex;
+			return 0;
 		}
 	}
 
