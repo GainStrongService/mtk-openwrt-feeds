@@ -16,6 +16,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/reset/ti-syscon.h>
+#include <dt-bindings/clock/mt7986-clk.h>
+
 / {
 	compatible = "mediatek,mt7986a-rfb";
 	interrupt-parent = <&gic>;
@@ -158,6 +160,13 @@
 		method      = "smc";
 	};
 
+	clk40m: oscillator@0 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <40000000>;
+		clock-output-names = "clkxtal";
+	};
+
 	system_clk: dummy_system_clk {
 		compatible = "fixed-clock";
 		clock-frequency = <40000000>;
@@ -197,6 +206,30 @@
 			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 
+	};
+
+	infracfg_ao: infracfg_ao@10001000 {
+		compatible = "mediatek,mt7986-infracfg_ao", "syscon";
+		reg = <0 0x10001000 0 0x30>;
+		#clock-cells = <1>;
+	};
+
+	infracfg: infracfg@10001040 {
+		compatible = "mediatek,mt7986-infracfg", "syscon";
+		reg = <0 0x10001040 0 0x1000>;
+		#clock-cells = <1>;
+	};
+
+	topckgen: topckgen@1001B000 {
+		compatible = "mediatek,mt7986-topckgen", "syscon";
+		reg = <0 0x1001B000 0 0x1000>;
+		#clock-cells = <1>;
+	};
+
+	apmixedsys: apmixedsys@1001E000 {
+		compatible = "mediatek,mt7986-apmixedsys", "syscon";
+		reg = <0 0x1001E000 0 0x1000>;
+		#clock-cells = <1>;
 	};
 
 	watchdog: watchdog@1001c000 {
@@ -367,13 +400,17 @@
 	};
 
 	sgmiisys0: syscon@10060000 {
-		compatible = "mediatek,mt7986-sgmiisys", "syscon";
+		compatible = "mediatek,mt7986-sgmiisys",
+				"mediatek,mt7986-sgmiisys_0",
+				"syscon";
 		reg = <0 0x10060000 0 0x1000>;
 		#clock-cells = <1>;
 	};
 
 	sgmiisys1: syscon@10070000 {
-		compatible = "mediatek,mt7986-sgmiisys", "syscon";
+		compatible = "mediatek,mt7986-sgmiisys",
+				 "mediatek,mt7986-sgmiisys_1",
+				 "syscon";
 		reg = <0 0x10070000 0 0x1000>;
 		#clock-cells = <1>;
 	};
@@ -513,4 +550,10 @@
 			status = "okay";
 		};
 	};
+
+	clkitg: clkitg {
+		compatible = "simple-bus";
+	};
 };
+
+#include "mt7986-clkitg.dtsi"
