@@ -785,13 +785,15 @@ enum FoeIpAct {
 #define FROM_GE_PPD(skb) (skb_hnat_iface(skb) == FOE_MAGIC_GE_PPD)
 #define FROM_GE_VIRTUAL(skb) (skb_hnat_iface(skb) == FOE_MAGIC_GE_VIRTUAL)
 #define FROM_EXT(skb) (skb_hnat_iface(skb) == FOE_MAGIC_EXT)
+#define FROM_WED(skb) ((skb_hnat_iface(skb) == FOE_MAGIC_WED0) ||		\
+		       (skb_hnat_iface(skb) == FOE_MAGIC_WED1))
 #define FOE_MAGIC_GE_LAN 0x1
 #define FOE_MAGIC_GE_WAN 0x2
 #define FOE_MAGIC_EXT 0x3
 #define FOE_MAGIC_GE_VIRTUAL 0x4
 #define FOE_MAGIC_GE_PPD 0x5
-#define FOE_MAGIC_WED0 0x6
-#define FOE_MAGIC_WED1 0x7
+#define FOE_MAGIC_WED0 0x78
+#define FOE_MAGIC_WED1 0x79
 #define FOE_INVALID 0xf
 #define index6b(i) (0x3fU - i)
 

@@ -32,13 +32,13 @@ struct hnat_desc {
 	u32 sport : 4;
 	u32 resv2 : 1;
 	u32 alg : 1;
-	u32 iface : 4;
-	u32 resv3 : 4;
-	u32 magic_tag_protect : 16;
+	u32 iface : 8;
 	u32 wdmaid : 2;
 	u32 rxid : 2;
 	u32 wcid : 10;
 	u32 bssid : 6;
+	u32 resv5 : 20;
+	u32 magic_tag_protect : 16;
 } __packed;
 #else
 struct hnat_desc {
@@ -83,7 +83,8 @@ struct hnat_desc {
 #define skb_hnat_bss_id(skb) (((struct hnat_desc *)((skb)->head))->bssid)
 #define skb_hnat_ppe(skb)				\
 	((skb_hnat_iface(skb) == FOE_MAGIC_WED1 && CFG_PPE_NUM > 1) ? 1 : 0)
-#define do_ext2ge_fast_try(dev, skb) (IS_EXT(dev) && !is_from_extge(skb))
+#define do_ext2ge_fast_try(dev, skb)						\
+	((skb_hnat_iface(skb) == FOE_MAGIC_EXT) && !is_from_extge(skb))
 #define set_from_extge(skb) (HNAT_SKB_CB2(skb)->magic = 0x78786688)
 #define clr_from_extge(skb) (HNAT_SKB_CB2(skb)->magic = 0x0)
 #define set_to_ppe(skb) (HNAT_SKB_CB2(skb)->magic = 0x78681415)

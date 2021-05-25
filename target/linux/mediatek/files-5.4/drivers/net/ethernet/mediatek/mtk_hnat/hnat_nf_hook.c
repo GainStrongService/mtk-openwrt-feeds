@@ -537,7 +537,9 @@ static void post_routing_print(struct sk_buff *skb, const struct net_device *in,
 static inline void hnat_set_iif(const struct nf_hook_state *state,
 				struct sk_buff *skb, int val)
 {
-	if (IS_LAN(state->in)) {
+	if (FROM_WED(skb)) {
+		return;
+	} else if (IS_LAN(state->in)) {
 		skb_hnat_iface(skb) = FOE_MAGIC_GE_LAN;
 	} else if (IS_PPD(state->in)) {
 		skb_hnat_iface(skb) = FOE_MAGIC_GE_PPD;
@@ -685,10 +687,6 @@ mtk_hnat_ipv6_nf_pre_routing(void *priv, struct sk_buff *skb,
 
 	pre_routing_print(skb, state->in, state->out, __func__);
 
-	if ((skb_hnat_iface(skb) == FOE_MAGIC_WED0) ||
-	    (skb_hnat_iface(skb) == FOE_MAGIC_WED1))
-		return NF_ACCEPT;
-
 	/* packets from external devices -> xxx ,step 1 , learning stage & bound stage*/
 	if (do_ext2ge_fast_try(state->in, skb)) {
 		if (!do_hnat_ext_to_ge(skb, state->in, __func__))
@@ -742,10 +740,6 @@ mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 	hnat_set_head_frags(state, skb, -1, hnat_set_iif);
 
 	pre_routing_print(skb, state->in, state->out, __func__);
-
-	if ((skb_hnat_iface(skb) == FOE_MAGIC_WED0) ||
-	    (skb_hnat_iface(skb) == FOE_MAGIC_WED1))
-		return NF_ACCEPT;
 
 	/* packets from external devices -> xxx ,step 1 , learning stage & bound stage*/
 	if (do_ext2ge_fast_try(state->in, skb)) {
@@ -808,10 +802,6 @@ mtk_hnat_br_nf_local_in(void *priv, struct sk_buff *skb,
 		if (skb_hnat_reason(skb) == dbg_cpu_reason)
 			foe_dump_pkt(skb);
 	}
-
-	if ((skb_hnat_iface(skb) == FOE_MAGIC_WED0) ||
-	    (skb_hnat_iface(skb) == FOE_MAGIC_WED1))
-		return NF_ACCEPT;
 
 	/* packets from external devices -> xxx ,step 1 , learning stage & bound stage*/
 	if ((skb_hnat_iface(skb) == FOE_MAGIC_EXT) && !is_from_extge(skb) &&
@@ -1580,7 +1570,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	/* MT7622 wifi hw_nat not support QoS */
 	if (IS_IPV4_GRP(entry)) {
 		entry->ipv4_hnapt.iblk2.fqos = 0;
-		if (gmac_no == NR_WHNAT_WDMA_PORT) {
+		if ((hnat_priv->data->version == MTK_HNAT_V2 &&
+		     gmac_no == NR_WHNAT_WDMA_PORT) ||
+		    (hnat_priv->data->version == MTK_HNAT_V4 &&
+		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT))) {
 			entry->ipv4_hnapt.winfo.bssid = skb_hnat_bss_id(skb);
 			entry->ipv4_hnapt.winfo.wcid = skb_hnat_wc_id(skb);
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
@@ -1615,7 +1608,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		entry->ipv4_hnapt.iblk2.dp = gmac_no;
 	} else {
 		entry->ipv6_5t_route.iblk2.fqos = 0;
-		if (gmac_no == NR_WHNAT_WDMA_PORT) {
+		if ((hnat_priv->data->version == MTK_HNAT_V2 &&
+		     gmac_no == NR_WHNAT_WDMA_PORT) ||
+		    (hnat_priv->data->version == MTK_HNAT_V4 &&
+		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT))) {
 			entry->ipv6_5t_route.winfo.bssid = skb_hnat_bss_id(skb);
 			entry->ipv6_5t_route.winfo.wcid = skb_hnat_wc_id(skb);
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
