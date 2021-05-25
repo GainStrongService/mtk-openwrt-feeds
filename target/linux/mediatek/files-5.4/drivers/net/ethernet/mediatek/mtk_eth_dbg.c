@@ -400,6 +400,7 @@ int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_mii_ioctl_data mii;
 	struct mtk_esw_reg reg;
+	u16 val;
 
 	switch (cmd) {
 	case MTKETH_MII_READ:
@@ -424,7 +425,8 @@ int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				  mdio_phy_id_prtad(mii.phy_id),
 				  mdio_phy_id_devad(mii.phy_id),
 				  mii.reg_num,
-				  &mii.val_out);
+				  &val);
+		mii.val_out = val;
 		if (copy_to_user(ifr->ifr_data, &mii, sizeof(mii)))
 			goto err_copy;
 
@@ -432,11 +434,12 @@ int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case MTKETH_MII_WRITE_CL45:
 		if (copy_from_user(&mii, ifr->ifr_data, sizeof(mii)))
 			goto err_copy;
+		val = mii.val_in;
 		mii_mgr_write_cl45(eth,
 				  mdio_phy_id_prtad(mii.phy_id),
 				  mdio_phy_id_devad(mii.phy_id),
 				  mii.reg_num,
-				  mii.val_in);
+				  val);
 		return 0;
 	case MTKETH_ESW_REG_READ:
 		if (!mt7530_exist(eth))
