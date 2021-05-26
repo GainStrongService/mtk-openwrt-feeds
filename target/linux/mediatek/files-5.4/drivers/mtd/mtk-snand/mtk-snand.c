@@ -59,12 +59,13 @@
 
 #define NFI_ADDRCNTR			0x070
 #define SEC_CNTR			GENMASK(16, 12)
-#define	SEC_CNTR_S			12
+#define SEC_CNTR_S			12
+#define NFI_SEC_CNTR(val)               (((val) & SEC_CNTR) >> SEC_CNTR_S)
 
 #define NFI_STRADDR			0x080
 
 #define NFI_BYTELEN			0x084
-#define	BUS_SEC_CNTR(val)		(((val) & SEC_CNTR) >> SEC_CNTR_S)
+#define BUS_SEC_CNTR(val)		(((val) & SEC_CNTR) >> SEC_CNTR_S)
 
 #define NFI_FDM0L			0x0a0
 #define NFI_FDM0M			0x0a4
@@ -1038,9 +1039,9 @@ static int mtk_snand_program_load(struct mtk_snand *snf, uint32_t page,
 		goto cleanup;
 	}
 
-	/* Wait for BUS_SEC_CNTR returning expected value */
-	ret = read32_poll_timeout(snf->nfi_base + NFI_BYTELEN, val,
-				  BUS_SEC_CNTR(val) >= snf->ecc_steps,
+	/* Wait for NFI_SEC_CNTR returning expected value */
+	ret = read32_poll_timeout(snf->nfi_base + NFI_ADDRCNTR, val,
+				  NFI_SEC_CNTR(val) >= snf->ecc_steps,
 				  0, SNFI_POLL_INTERVAL);
 	if (ret) {
 		snand_log_nfi(snf->pdev,
