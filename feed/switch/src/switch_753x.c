@@ -320,24 +320,26 @@ int main(int argc, char *argv[])
 	attres->dev_id = -1;
 	attres->port_num = -1;
 	attres->phy_dev = -1;
-	nl_init_flag = true;
+	nl_init_flag = false;
 
-	err = mt753x_netlink_init(MT753X_DSA_GENL_NAME);
+	err = switch_ioctl_init();
 	if (!err)
 		chip_name = get_chip_name();
 
 	/* dsa netlink family might not be enabled. Try gsw netlink family. */
 	if (err < 0 || chip_name < 0) {
-		err = mt753x_netlink_init(MT753X_GENL_NAME);
+		nl_init_flag = true;
+
+		err = mt753x_netlink_init(MT753X_DSA_GENL_NAME);
 		if (!err)
 			chip_name = get_chip_name();
 	}
 
 	if (err < 0 || chip_name < 0) {
-		nl_init_flag = false;
+		err = mt753x_netlink_init(MT753X_GENL_NAME);
+		if (!err)
+			chip_name = get_chip_name();
 
-		switch_ioctl_init();
-		chip_name = get_chip_name();
 		if (chip_name < 0) {
 			printf("no chip unsupport or chip id is invalid!\n");
 			exit_free();

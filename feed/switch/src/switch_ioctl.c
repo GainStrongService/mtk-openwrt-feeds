@@ -2,6 +2,7 @@
  * switch_ioctl.c: switch(ioctl) set API
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -15,13 +16,15 @@
 
 static int esw_fd;
 
-void switch_ioctl_init(void)
+int switch_ioctl_init(void)
 {
 	esw_fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (esw_fd < 0) {
 		perror("socket");
-		exit(0);
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 void switch_ioctl_fini(void)

@@ -54,7 +54,7 @@ struct ra_switch_ioctl_data {
 
 extern int chip_name;
 
-void switch_ioctl_init(void);
+int switch_ioctl_init(void);
 void switch_ioctl_fini(void);
 int reg_read_ioctl(unsigned int offset, unsigned int *value);
 int reg_write_ioctl(unsigned int offset, unsigned int value);
