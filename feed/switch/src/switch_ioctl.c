@@ -138,11 +138,14 @@ int mii_mgr_cl22_read_ioctl(unsigned int port_num, unsigned int reg, unsigned in
 
 	/*Change to indirect access mode*/
 	/*if you need to use direct access mode, please change back manually by reset bit5*/
-	reg_read(0x7804, &reg_value);
-	if (((reg_value >> 5) & 0x1) == 0) {
-		reg_value |= 1 << 5;
-		reg_write(0x7804, reg_value);
-		printf("Change to indirect access mode:0x%x\n", reg_value);
+	if (chip_name == 0x7530) {
+		reg_read(0x7804, &reg_value);
+		if (((reg_value >> 5) & 0x1) == 0) {
+			reg_value |= 1 << 5;
+			reg_write(0x7804, reg_value);
+			printf("Change to indirect access mode:0x%x\n",
+			       reg_value);
+		}
 	}
 	reg_value = 0x80090000 | (port_num << 20) | (reg << 25);
 	reg_write(0x701c, reg_value);
@@ -161,7 +164,7 @@ int mii_mgr_cl22_read_ioctl(unsigned int port_num, unsigned int reg, unsigned in
 			break;
 		}
 	}
-	printf(" PHY Indirect Access Control(0x701c) register read value =0x%x  \n", reg_value);
+	//printf(" PHY Indirect Access Control(0x701c) register read value =0x%x  \n", reg_value);
 	*value = reg_value;
 
 	return 0;
@@ -176,11 +179,14 @@ int mii_mgr_cl22_write_ioctl(unsigned int port_num, unsigned int reg, unsigned i
 	loop_cnt = 0;
 	/*Change to indirect access mode*/
 	/*if you need to use direct access mode, please change back manually by reset bit5*/
-	reg_read(0x7804, &reg_value);
-	if (((reg_value >> 5) & 0x1) == 0) {
-		reg_value |= 1 << 5;
-		reg_write(0x7804, reg_value);
-		printf("Change to indirect access mode:0x%x\n", reg_value);
+	if (chip_name == 0x7530) {
+		reg_read(0x7804, &reg_value);
+		if (((reg_value >> 5) & 0x1) == 0) {
+			reg_value |= 1 << 5;
+			reg_write(0x7804, reg_value);
+			printf("Change to indirect access mode:0x%x\n",
+			       reg_value);
+		}
 	}
 
 	reg_value = 0x80050000 | (port_num << 20) | (reg << 25) | value;
@@ -199,13 +205,13 @@ int mii_mgr_cl22_write_ioctl(unsigned int port_num, unsigned int reg, unsigned i
 		}
 	}
 
-	printf(" PHY Indirect Access Control(0x701c) register write value =0x%x  \n", reg_value);
+	//printf(" PHY Indirect Access Control(0x701c) register write value =0x%x  \n", reg_value);
 
 	return 0;
 }
 
-int mii_mgr_cl45_read_ioctl(unsigned int port_num, unsigned int dev,
-			    unsigned int reg, unsigned int *value)
+int mii_mgr_cl45_read_indirect(unsigned int port_num, unsigned int dev,
+			       unsigned int reg, unsigned int *value)
 {
 	int sk, method, ret;
 	struct ifreq ifr;
@@ -255,8 +261,8 @@ int mii_mgr_cl45_read_ioctl(unsigned int port_num, unsigned int dev,
 	return ret;
 }
 
-int mii_mgr_cl45_write_ioctl(unsigned int port_num, unsigned int dev,
-			     unsigned int reg, unsigned int value)
+int mii_mgr_cl45_write_indirect(unsigned int port_num, unsigned int dev,
+				unsigned int reg, unsigned int value)
 {
 	int sk, method, ret;
 	struct ifreq ifr;
@@ -301,6 +307,129 @@ int mii_mgr_cl45_write_ioctl(unsigned int port_num, unsigned int dev,
 	close(sk);
 
 	return ret;
+}
+
+int mii_mgr_cl45_read(unsigned int port_num, unsigned int dev,
+		      unsigned int reg, unsigned int *value)
+{
+	unsigned int reg_value;
+	int loop_cnt;
+	int op_busy;
+	int ret = 0;
+
+	loop_cnt = 0;
+
+	reg_value = 0x80000000 | (port_num << 20) | (dev << 25) | reg;
+	reg_write(0x701c, reg_value);
+	while (1)
+	{
+		reg_read(0x701c, &reg_value);
+		op_busy = reg_value & (1 << 31);
+		if (!op_busy) {
+			break;
+		} else if (loop_cnt < 10) {
+			loop_cnt++;
+		} else {
+			printf("MDIO cl45 set dev opeartion timeout\n");
+			reg_value = 0;
+			ret = -1; 
+			goto out;
+		}
+	}
+
+	reg_value = 0x800c0000 | (port_num << 20) | (dev << 25);
+	reg_write(0x701c, reg_value);
+	while (1)
+	{
+		reg_read(0x701c, &reg_value);
+		op_busy = reg_value & (1 << 31);
+		if (!op_busy) {
+			reg_value = reg_value & 0xFFFF;
+			break;
+		} else if (loop_cnt < 10) {
+			loop_cnt++;
+		} else {
+			printf("MDIO cl45 read reg opeartion timeout\n");
+			reg_value = 0;
+			ret = -1; 
+			break;
+		}
+	}
+out:
+	//printf(" PHY Indirect Access Control(0x701c) register read value =0x%x  \n", reg_value);
+	*value = reg_value;
+
+	return ret;
+}
+
+int mii_mgr_cl45_write(unsigned int port_num, unsigned int dev,
+		       unsigned int reg, unsigned int value)
+{
+	unsigned int reg_value;
+	int loop_cnt;
+	int op_busy;
+	int ret = 0;
+
+	loop_cnt = 0;
+
+	reg_value = 0x80000000 | (port_num << 20) | (dev << 25) | reg;
+	reg_write(0x701c, reg_value);
+	while (1)
+	{
+		reg_read(0x701c, &reg_value);
+		op_busy = reg_value & (1 << 31);
+		if (!op_busy)
+			break;
+		else if (loop_cnt < 10)
+			loop_cnt++;
+		else {
+			printf("MDIO cl45 set dev opeartion timeout\n");
+			ret = -1; 
+			goto out;
+		}
+	}
+
+	reg_value = 0x80040000 | (port_num << 20) | (dev << 25) | value;
+	reg_write(0x701c, reg_value);
+	while (1)
+	{
+		reg_read(0x701c, &reg_value);
+		op_busy = reg_value & (1 << 31);
+		if (!op_busy)
+			break;
+		else if (loop_cnt < 10)
+			loop_cnt++;
+		else {
+			printf("MDIO cl45 write reg opeartion timeout\n");
+			ret = -1; 
+			break;
+		}
+	}
+out:
+	//printf(" PHY Indirect Access Control(0x701c) register write value =0x%x  \n", reg_value);
+	return ret;
+}
+
+int mii_mgr_cl45_read_ioctl(unsigned int port_num, unsigned int dev,
+			    unsigned int reg, unsigned int *value)
+{
+	if (chip_name == 0x7531)
+		return mii_mgr_cl45_read(port_num, dev, reg, value);
+	else if (chip_name == 0x7530)
+		return mii_mgr_cl45_read_indirect(port_num, dev, reg, value);
+	else
+		return -1;
+}
+
+int mii_mgr_cl45_write_ioctl(unsigned int port_num, unsigned int dev,
+			     unsigned int reg, unsigned int value)
+{
+	if (chip_name == 0x7531)
+		return mii_mgr_cl45_write(port_num, dev, reg, value);
+	else if (chip_name == 0x7530)
+		return mii_mgr_cl45_write_indirect(port_num, dev, reg, value);
+	else
+		return -1;
 }
 
 int dump_gphy(void)

@@ -122,7 +122,7 @@ int mii_mgr_read(unsigned int port_num, unsigned int reg, unsigned int *value)
 		ret = mii_mgr_cl22_read_ioctl(port_num, reg, value);
 
 	if (ret < 0) {
-		printf("Phy read fail\n");
+		printf("Phy cl22 read fail\n");
 		exit_free();
 		exit(0);
 	}
@@ -145,7 +145,7 @@ int mii_mgr_write(unsigned int port_num, unsigned int reg, unsigned int value)
 		ret = mii_mgr_cl22_write_ioctl(port_num, reg, value);
 
 	if (ret < 0) {
-		printf("Phy write fail\n");
+		printf("Phy cl22 write fail\n");
 		exit_free();
 		exit(0);
 	}
@@ -168,7 +168,7 @@ int mii_mgr_c45_read(unsigned int port_num, unsigned int dev, unsigned int reg, 
 		ret = mii_mgr_cl45_read_ioctl(port_num, dev, reg, value);
 
 	if (ret < 0) {
-		printf("Phy read fail\n");
+		printf("Phy cl45 read fail\n");
 		exit_free();
 		exit(0);
 	}
@@ -191,7 +191,7 @@ int mii_mgr_c45_write(unsigned int port_num, unsigned int dev, unsigned int reg,
 		ret = mii_mgr_cl45_write_ioctl(port_num, dev, reg, value);
 
 	if (ret < 0) {
-		printf("Phy write fail\n");
+		printf("Phy cl45 write fail\n");
 		exit_free();
 		exit(0);
 	}
