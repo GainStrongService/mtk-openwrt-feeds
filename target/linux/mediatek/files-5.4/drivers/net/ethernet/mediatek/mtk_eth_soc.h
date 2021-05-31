@@ -111,15 +111,9 @@
 #define PSE_OQ_TH(x)		(0x160 + ((x - 1) * 0x4))
 
 #define MTK_PDMA_V2		BIT(4)
+
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
-#define CONFIG_MEDIATEK_NETSYS_RX_V2 1
-
-#ifdef CONFIG_MEDIATEK_NETSYS_RX_V2
 #define PDMA_BASE               0x6000
-#else
-#define PDMA_BASE		0x4000
-#endif
-
 #define QDMA_BASE               0x4400
 #else
 #define PDMA_BASE               0x0800
@@ -261,7 +255,7 @@
 
 /* QDMA Interrupt Status Register */
 #define MTK_QDMA_INT_STATUS	(QDMA_BASE + 0x218)
-#ifdef CONFIG_MEDIATEK_NETSYS_RX_V2
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 #define MTK_RX_DONE_DLY 	BIT(14)
 #else
 #define MTK_RX_DONE_DLY 	BIT(30)
@@ -348,7 +342,7 @@
 #define MTK_TX_DMA_BUF_SHIFT    16
 #endif
 
-#ifdef CONFIG_MEDIATEK_NETSYS_RX_V2
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 #define MTK_RX_DMA_BUF_LEN      0xffff
 #define MTK_RX_DMA_BUF_SHIFT    8
 #define RX_DMA_SPORT_SHIFT      26
@@ -590,7 +584,7 @@ struct mtk_rx_dma {
 	unsigned int rxd2;
 	unsigned int rxd3;
 	unsigned int rxd4;
-#ifdef CONFIG_MEDIATEK_NETSYS_RX_V2
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 	unsigned int rxd5;
 	unsigned int rxd6;
 	unsigned int rxd7;
@@ -810,8 +804,7 @@ enum mkt_eth_capabilities {
 	MTK_SHARED_INT_BIT,
 	MTK_TRGMII_MT7621_CLK_BIT,
 	MTK_QDMA_BIT,
-	MTK_NETSYS_TX_V2_BIT,
-	MTK_NETSYS_RX_V2_BIT,
+	MTK_NETSYS_V2_BIT,
 	MTK_SOC_MT7628_BIT,
 
 	/* MUX BITS*/
@@ -844,8 +837,7 @@ enum mkt_eth_capabilities {
 #define MTK_SHARED_INT		BIT(MTK_SHARED_INT_BIT)
 #define MTK_TRGMII_MT7621_CLK	BIT(MTK_TRGMII_MT7621_CLK_BIT)
 #define MTK_QDMA		BIT(MTK_QDMA_BIT)
-#define MTK_NETSYS_TX_V2	BIT(MTK_NETSYS_TX_V2_BIT)
-#define MTK_NETSYS_RX_V2	BIT(MTK_NETSYS_RX_V2_BIT)
+#define MTK_NETSYS_V2		BIT(MTK_NETSYS_V2_BIT)
 #define MTK_SOC_MT7628		BIT(MTK_SOC_MT7628_BIT)
 
 #define MTK_ETH_MUX_GDM1_TO_GMAC1_ESW		\
@@ -919,15 +911,9 @@ enum mkt_eth_capabilities {
 		      MTK_MUX_U3_GMAC2_TO_QPHY | \
 		      MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA)
 
-#ifdef CONFIG_MEDIATEK_NETSYS_RX_V2
 #define MT7986_CAPS   (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | \
                        MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
-                       MTK_NETSYS_TX_V2 | MTK_NETSYS_RX_V2)
-#else
-#define MT7986_CAPS   (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | \
-                       MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
-                       MTK_NETSYS_TX_V2)
-#endif
+                       MTK_NETSYS_V2)
 
 /* struct mtk_eth_data -	This is the structure holding all differences
  *				among various plaforms

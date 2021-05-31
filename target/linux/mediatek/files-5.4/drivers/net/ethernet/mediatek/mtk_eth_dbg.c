@@ -688,7 +688,7 @@ int rx_ring_read(struct seq_file *seq, void *v)
 		seq_printf(seq, "%d: %08x %08x %08x %08x", i,
 			   *(int *)&rx_ring[i].rxd1, *(int *)&rx_ring[i].rxd2,
 			   *(int *)&rx_ring[i].rxd3, *(int *)&rx_ring[i].rxd4);
-#ifdef CONFIG_MEDIATEK_NETSYS_RX_V2
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 		seq_printf(seq, " %08x %08x %08x %08x",
 			   *(int *)&rx_ring[i].rxd5, *(int *)&rx_ring[i].rxd6,
 			   *(int *)&rx_ring[i].rxd7, *(int *)&rx_ring[i].rxd8);
@@ -725,7 +725,7 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 	seq_printf(seq, "| PSE_IQ_STA2	: %08x |\n",
 		   mtk_r32(eth, MTK_PSE_IQ_STA(1)));
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_TX_V2)) {
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 		seq_printf(seq, "| PSE_IQ_STA3	: %08x |\n",
 			   mtk_r32(eth, MTK_PSE_IQ_STA(2)));
 		seq_printf(seq, "| PSE_IQ_STA4	: %08x |\n",
@@ -737,7 +737,7 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 	seq_printf(seq, "| PSE_OQ_STA2	: %08x |\n",
 		   mtk_r32(eth, MTK_PSE_OQ_STA(1)));
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_TX_V2)) {
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 		seq_printf(seq, "| PSE_OQ_STA3	: %08x |\n",
 			   mtk_r32(eth, MTK_PSE_OQ_STA(2)));
 		seq_printf(seq, "| PSE_OQ_STA4	: %08x |\n",
@@ -763,7 +763,7 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 	seq_printf(seq, "| MAC_P2_MCR	: %08x |\n",
 		   mtk_r32(eth, MTK_MAC_MCR(1)));
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_TX_V2)) {
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 		seq_printf(seq, "| FE_CDM1_FSM	: %08x |\n",
 			   mtk_r32(eth, MTK_FE_CDM1_FSM));
 		seq_printf(seq, "| FE_CDM2_FSM	: %08x |\n",

@@ -816,7 +816,7 @@ static inline bool mtk_rx_get_desc(struct mtk_rx_dma *rxd,
 	rxd->rxd1 = READ_ONCE(dma_rxd->rxd1);
 	rxd->rxd3 = READ_ONCE(dma_rxd->rxd3);
 	rxd->rxd4 = READ_ONCE(dma_rxd->rxd4);
-#ifdef CONFIG_MEDIATEK_NETSYS_RX_V2
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 	rxd->rxd5 = READ_ONCE(dma_rxd->rxd5);
 	rxd->rxd6 = READ_ONCE(dma_rxd->rxd6);
 #endif
@@ -1016,7 +1016,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
         qid = skb->mark & (MTK_QDMA_TX_MASK);
 #endif
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_TX_V2)) {
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 		u32 txd5 = 0, txd6 = 0;
 		/* set the forward port */
 		fport = (mac->id + 1) << TX_DMA_FPORT_SHIFT_V2;
@@ -1068,7 +1068,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 
 #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
 	if (HNAT_SKB_CB2(skb)->magic == 0x78681415) {
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_TX_V2)) {
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 			txd4 &= ~(0xf << TX_DMA_FPORT_SHIFT_V2);
 			txd4 |= 0x4 << TX_DMA_FPORT_SHIFT_V2;
 		} else {
@@ -1117,7 +1117,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 
 			WRITE_ONCE(txd->txd1, mapped_addr);
 
-			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_TX_V2)) {
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 				WRITE_ONCE(txd->txd3, (TX_DMA_PLEN0(frag_map_size) |
 					   last_frag * TX_DMA_LS0));
 				WRITE_ONCE(txd->txd4, fport | TX_DMA_SWC_V2 |
@@ -1150,7 +1150,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	/* store skb to cleanup */
 	itx_buf->skb = skb;
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_TX_V2))
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
 		WRITE_ONCE(itxd->txd4, txd4 | QID_BITS_V2(qid));
 	else
 		WRITE_ONCE(itxd->txd4, txd4 | QID_HIGH_BITS(qid));
@@ -1377,8 +1377,8 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
 			mac = 0;
 		} else {
-#ifdef CONFIG_MEDIATEK_NETSYS_RX_V2
-			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2))
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
 				mac = RX_DMA_GET_SPORT(trxd.rxd5) - 1;
 			else
 #endif
@@ -1428,9 +1428,9 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		skb->dev = netdev;
 		skb_put(skb, pktlen);
 
-		if ((!MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) &&
+		if ((!MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) &&
 				  (trxd.rxd4 & eth->rx_dma_l4_valid)) ||
-		    (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) &&
+		    (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) &&
 				  (trxd.rxd3 & eth->rx_dma_l4_valid)))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
@@ -1438,7 +1438,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		skb->protocol = eth_type_trans(skb, netdev);
 
 		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
-			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 				if (trxd.rxd4 & RX_DMA_VTAG_V2)
 					__vlan_hwaccel_put_tag(skb,
 					htons(RX_DMA_VPID_V2(trxd.rxd3,
@@ -1462,8 +1462,8 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		}
 
 #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
-#ifdef CONFIG_MEDIATEK_NETSYS_RX_V2
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2))
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
 			*(u32 *)(skb->head) = trxd.rxd5;
 		else
 #endif
@@ -1891,7 +1891,7 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 
 		ring->dma[i].rxd3 = 0;
 		ring->dma[i].rxd4 = 0;
-#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 		if (eth->soc->has_sram && ((sizeof(struct mtk_rx_dma)) > 16)) {
 			ring->dma[i].rxd5 = 0;
 			ring->dma[i].rxd6 = 0;
@@ -2416,7 +2416,7 @@ static int mtk_start_dma(struct mtk_eth *eth)
 	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_TX_V2))
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
 			mtk_w32(eth,
 				MTK_TX_DMA_EN | MTK_RX_DMA_EN |
 				MTK_DMA_SIZE_32DWORDS | MTK_TX_WB_DDONE |
@@ -2648,7 +2648,7 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	ethsys_reset(eth, RSTCTRL_PPE);
 
 	/* Set FE to PDMAv2 if necessary */
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2))
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
 		mtk_w32(eth, mtk_r32(eth, MTK_FE_GLO_MISC) | MTK_PDMA_V2, MTK_FE_GLO_MISC);
 
 	if (eth->pctl) {
@@ -2689,7 +2689,7 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	mtk_w32(eth, MTK_RX_DONE_INT, MTK_QDMA_INT_GRP2);
 	mtk_w32(eth, 0x21021000, MTK_FE_INT_GRP);
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 		/* PSE config input/output queue threshold */
 		mtk_w32(eth, 0x001a000e, PSE_IQ_REV(1));
 		mtk_w32(eth, 0x01ff001a, PSE_IQ_REV(2));
@@ -3203,7 +3203,7 @@ static int mtk_probe(struct platform_device *pdev)
 		eth->rx_dma_l4_valid = RX_DMA_L4_VALID_PDMA;
 		eth->ip_align = NET_IP_ALIGN;
 	} else {
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2))
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
 			eth->rx_dma_l4_valid = RX_DMA_L4_VALID_V2;
 		else
 			eth->rx_dma_l4_valid = RX_DMA_L4_VALID;

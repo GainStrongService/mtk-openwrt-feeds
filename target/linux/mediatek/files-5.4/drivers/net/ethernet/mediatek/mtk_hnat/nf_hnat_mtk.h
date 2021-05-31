@@ -23,7 +23,7 @@ struct hnat_skb_cb2 {
 	__u32 magic;
 };
 
-#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 struct hnat_desc {
 	u32 entry : 15;
 	u32 resv0 : 3;
