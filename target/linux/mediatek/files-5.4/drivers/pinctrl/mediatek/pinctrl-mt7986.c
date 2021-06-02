@@ -901,6 +901,14 @@ static int mt7986_wf1_mode1_funcs[] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 static int mt7986_wf1_mode2_pins[] = { 91, 92, 93, 94, 95, 97 };
 static int mt7986_wf1_mode2_funcs[] = { 2, 2, 2, 2, 2, 2 };
 
+/* PCIE_CLK_REQ */
+static int mt7986_pcie_clk_pins[] = { 9, };
+static int mt7986_pcie_clk_funcs[] = { 1, };
+
+/* PCIE_WAKE_N */
+static int mt7986_pcie_wake_pins[] = { 10, };
+static int mt7986_pcie_wake_funcs[] = { 1, };
+
 static const struct group_desc mt7986_groups[] = {
 	/*  @GPIO(0): SYS_WATCHDOG(1) */
         PINCTRL_PIN_GROUP("watchdog", mt7986_watchdog),
@@ -910,6 +918,10 @@ static const struct group_desc mt7986_groups[] = {
         PINCTRL_PIN_GROUP("i2c", mt7986_i2c),
 	/*  @GPIO(7,10): UART1(3) */
         PINCTRL_PIN_GROUP("uart1_0", mt7986_uart1_0),
+        /*  @GPIO(9): PCIE_CLK_REQ(9) */
+        PINCTRL_PIN_GROUP("pcie_clk", mt7986_pcie_clk),
+        /*  @GPIO(10): PCIE_WAKE_N(10) */
+        PINCTRL_PIN_GROUP("pcie_wake", mt7986_pcie_wake),
 	/*  @GPIO(11,15): JTAG(1) */
         PINCTRL_PIN_GROUP("jtag", mt7986_jtag),
 	/*  @GPIO(11,15): SPI1(3) */
@@ -992,6 +1004,7 @@ static const char *mt7986_uart_groups[] = { "uart1_0", "uart1_1", "uart1_2",
 					    "uart0", "uart1", "uart2", };
 static const char *mt7986_wdt_groups[] = { "watchdog", };
 static const char *mt7986_flash_groups[] = { "snfi", "emmc_45", "emmc_51", "spi0", "spi0_wp_hold"};
+static const char *mt7986_pcie_groups[] = { "pcie_clk", "pcie_wake", "pcie_pereset"};
 
 static const struct function_desc mt7986_functions[] = {
 	{"eth",	mt7986_ethernet_groups, ARRAY_SIZE(mt7986_ethernet_groups)},
@@ -1002,6 +1015,7 @@ static const struct function_desc mt7986_functions[] = {
 	{"uart", mt7986_uart_groups, ARRAY_SIZE(mt7986_uart_groups)},
 	{"watchdog", mt7986_wdt_groups, ARRAY_SIZE(mt7986_wdt_groups)},
 	{"flash", mt7986_flash_groups, ARRAY_SIZE(mt7986_flash_groups)},
+	{"pcie", mt7986_pcie_groups, ARRAY_SIZE(mt7986_pcie_groups)},
 };
 
 static const struct mtk_eint_hw mt7986_eint_hw = {
