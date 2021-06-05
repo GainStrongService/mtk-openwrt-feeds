@@ -28,6 +28,19 @@
 #include "mtk_eth_soc.h"
 #include "mtk_eth_dbg.h"
 
+u32 hw_lro_agg_num_cnt[MTK_HW_LRO_RING_NUM][MTK_HW_LRO_MAX_AGG_CNT + 1];
+u32 hw_lro_agg_size_cnt[MTK_HW_LRO_RING_NUM][16];
+u32 hw_lro_tot_agg_cnt[MTK_HW_LRO_RING_NUM];
+u32 hw_lro_tot_flush_cnt[MTK_HW_LRO_RING_NUM];
+u32 hw_lro_agg_flush_cnt[MTK_HW_LRO_RING_NUM];
+u32 hw_lro_age_flush_cnt[MTK_HW_LRO_RING_NUM];
+u32 hw_lro_seq_flush_cnt[MTK_HW_LRO_RING_NUM];
+u32 hw_lro_timestamp_flush_cnt[MTK_HW_LRO_RING_NUM];
+u32 hw_lro_norule_flush_cnt[MTK_HW_LRO_RING_NUM];
+u32 mtk_hwlro_stats_ebl;
+static struct proc_dir_entry *proc_hw_lro_stats, *proc_hw_lro_auto_tlb;
+typedef int (*mtk_lro_dbg_func) (int par);
+
 struct mtk_eth_debug {
         struct dentry *root;
 };
@@ -78,8 +91,7 @@ static int mtketh_debug_show(struct seq_file *m, void *private)
 {
 	struct mtk_eth *eth = m->private;
 	struct mtk_mac *mac = 0;
-	u32 d;
-	int  i, j = 0;
+	int  i = 0;
 
 	for (i = 0 ; i < MTK_MAX_DEVS ; i++) {
 		if (!eth->mac[i] ||
@@ -790,11 +802,607 @@ static const struct file_operations dbg_regs_fops = {
 	.release = single_release
 };
 
-#define PROCREG_ESW_CNT         "esw_cnt"
-#define PROCREG_TXRING          "tx_ring"
-#define PROCREG_RXRING          "rx_ring"
-#define PROCREG_DIR             "mtketh"
-#define PROCREG_DBG_REGS        "dbg_regs"
+void hw_lro_stats_update(u32 ring_no, struct mtk_rx_dma *rxd)
+{
+	u32 idx, agg_cnt, agg_size;
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+	idx = ring_no - 4;
+	agg_cnt = RX_DMA_GET_AGG_CNT_V2(rxd->rxd6);
+#else
+	idx = ring_no - 1;
+	agg_cnt = RX_DMA_GET_AGG_CNT(rxd->rxd2);
+#endif
+
+	agg_size = RX_DMA_GET_PLEN0(rxd->rxd2);
+
+	hw_lro_agg_size_cnt[idx][agg_size / 5000]++;
+	hw_lro_agg_num_cnt[idx][agg_cnt]++;
+	hw_lro_tot_flush_cnt[idx]++;
+	hw_lro_tot_agg_cnt[idx] += agg_cnt;
+}
+
+void hw_lro_flush_stats_update(u32 ring_no, struct mtk_rx_dma *rxd)
+{
+	u32 idx, flush_reason;
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+	idx = ring_no - 4;
+	flush_reason = RX_DMA_GET_FLUSH_RSN_V2(rxd->rxd6);
+#else
+	idx = ring_no - 1;
+	flush_reason = RX_DMA_GET_REV(rxd->rxd2);
+#endif
+
+	if ((flush_reason & 0x7) == MTK_HW_LRO_AGG_FLUSH)
+		hw_lro_agg_flush_cnt[idx]++;
+	else if ((flush_reason & 0x7) == MTK_HW_LRO_AGE_FLUSH)
+		hw_lro_age_flush_cnt[idx]++;
+	else if ((flush_reason & 0x7) == MTK_HW_LRO_NOT_IN_SEQ_FLUSH)
+		hw_lro_seq_flush_cnt[idx]++;
+	else if ((flush_reason & 0x7) == MTK_HW_LRO_TIMESTAMP_FLUSH)
+		hw_lro_timestamp_flush_cnt[idx]++;
+	else if ((flush_reason & 0x7) == MTK_HW_LRO_NON_RULE_FLUSH)
+		hw_lro_norule_flush_cnt[idx]++;
+}
+
+ssize_t hw_lro_stats_write(struct file *file, const char __user *buffer,
+			   size_t count, loff_t *data)
+{
+	memset(hw_lro_agg_num_cnt, 0, sizeof(hw_lro_agg_num_cnt));
+	memset(hw_lro_agg_size_cnt, 0, sizeof(hw_lro_agg_size_cnt));
+	memset(hw_lro_tot_agg_cnt, 0, sizeof(hw_lro_tot_agg_cnt));
+	memset(hw_lro_tot_flush_cnt, 0, sizeof(hw_lro_tot_flush_cnt));
+	memset(hw_lro_agg_flush_cnt, 0, sizeof(hw_lro_agg_flush_cnt));
+	memset(hw_lro_age_flush_cnt, 0, sizeof(hw_lro_age_flush_cnt));
+	memset(hw_lro_seq_flush_cnt, 0, sizeof(hw_lro_seq_flush_cnt));
+	memset(hw_lro_timestamp_flush_cnt, 0,
+	       sizeof(hw_lro_timestamp_flush_cnt));
+	memset(hw_lro_norule_flush_cnt, 0, sizeof(hw_lro_norule_flush_cnt));
+
+	pr_info("clear hw lro cnt table\n");
+
+	return count;
+}
+
+int hw_lro_stats_read_v1(struct seq_file *seq, void *v)
+{
+	int i;
+
+	seq_puts(seq, "HW LRO statistic dump:\n");
+
+	/* Agg number count */
+	seq_puts(seq, "Cnt:   RING1 | RING2 | RING3 | Total\n");
+	for (i = 0; i <= MTK_HW_LRO_MAX_AGG_CNT; i++) {
+		seq_printf(seq, " %d :      %d        %d        %d        %d\n",
+			   i, hw_lro_agg_num_cnt[0][i],
+			   hw_lro_agg_num_cnt[1][i], hw_lro_agg_num_cnt[2][i],
+			   hw_lro_agg_num_cnt[0][i] + hw_lro_agg_num_cnt[1][i] +
+			   hw_lro_agg_num_cnt[2][i]);
+	}
+
+	/* Total agg count */
+	seq_puts(seq, "Total agg:   RING1 | RING2 | RING3 | Total\n");
+	seq_printf(seq, "                %d      %d      %d      %d\n",
+		   hw_lro_tot_agg_cnt[0], hw_lro_tot_agg_cnt[1],
+		   hw_lro_tot_agg_cnt[2],
+		   hw_lro_tot_agg_cnt[0] + hw_lro_tot_agg_cnt[1] +
+		   hw_lro_tot_agg_cnt[2]);
+
+	/* Total flush count */
+	seq_puts(seq, "Total flush:   RING1 | RING2 | RING3 | Total\n");
+	seq_printf(seq, "                %d      %d      %d      %d\n",
+		   hw_lro_tot_flush_cnt[0], hw_lro_tot_flush_cnt[1],
+		   hw_lro_tot_flush_cnt[2],
+		   hw_lro_tot_flush_cnt[0] + hw_lro_tot_flush_cnt[1] +
+		   hw_lro_tot_flush_cnt[2]);
+
+	/* Avg agg count */
+	seq_puts(seq, "Avg agg:   RING1 | RING2 | RING3 | Total\n");
+	seq_printf(seq, "                %d      %d      %d      %d\n",
+		   (hw_lro_tot_flush_cnt[0]) ?
+		    hw_lro_tot_agg_cnt[0] / hw_lro_tot_flush_cnt[0] : 0,
+		   (hw_lro_tot_flush_cnt[1]) ?
+		    hw_lro_tot_agg_cnt[1] / hw_lro_tot_flush_cnt[1] : 0,
+		   (hw_lro_tot_flush_cnt[2]) ?
+		    hw_lro_tot_agg_cnt[2] / hw_lro_tot_flush_cnt[2] : 0,
+		   (hw_lro_tot_flush_cnt[0] + hw_lro_tot_flush_cnt[1] +
+		    hw_lro_tot_flush_cnt[2]) ?
+		    ((hw_lro_tot_agg_cnt[0] + hw_lro_tot_agg_cnt[1] +
+		      hw_lro_tot_agg_cnt[2]) / (hw_lro_tot_flush_cnt[0] +
+		      hw_lro_tot_flush_cnt[1] + hw_lro_tot_flush_cnt[2])) : 0);
+
+	/*  Statistics of aggregation size counts */
+	seq_puts(seq, "HW LRO flush pkt len:\n");
+	seq_puts(seq, " Length  | RING1  | RING2  | RING3  | Total\n");
+	for (i = 0; i < 15; i++) {
+		seq_printf(seq, "%d~%d: %d      %d      %d      %d\n", i * 5000,
+			   (i + 1) * 5000, hw_lro_agg_size_cnt[0][i],
+			   hw_lro_agg_size_cnt[1][i], hw_lro_agg_size_cnt[2][i],
+			   hw_lro_agg_size_cnt[0][i] +
+			   hw_lro_agg_size_cnt[1][i] +
+			   hw_lro_agg_size_cnt[2][i]);
+	}
+
+	seq_puts(seq, "Flush reason:   RING1 | RING2 | RING3 | Total\n");
+	seq_printf(seq, "AGG timeout:      %d      %d      %d      %d\n",
+		   hw_lro_agg_flush_cnt[0], hw_lro_agg_flush_cnt[1],
+		   hw_lro_agg_flush_cnt[2],
+		   (hw_lro_agg_flush_cnt[0] + hw_lro_agg_flush_cnt[1] +
+		    hw_lro_agg_flush_cnt[2]));
+
+	seq_printf(seq, "AGE timeout:      %d      %d      %d      %d\n",
+		   hw_lro_age_flush_cnt[0], hw_lro_age_flush_cnt[1],
+		   hw_lro_age_flush_cnt[2],
+		   (hw_lro_age_flush_cnt[0] + hw_lro_age_flush_cnt[1] +
+		    hw_lro_age_flush_cnt[2]));
+
+	seq_printf(seq, "Not in-sequence:  %d      %d      %d      %d\n",
+		   hw_lro_seq_flush_cnt[0], hw_lro_seq_flush_cnt[1],
+		   hw_lro_seq_flush_cnt[2],
+		   (hw_lro_seq_flush_cnt[0] + hw_lro_seq_flush_cnt[1] +
+		    hw_lro_seq_flush_cnt[2]));
+
+	seq_printf(seq, "Timestamp:        %d      %d      %d      %d\n",
+		   hw_lro_timestamp_flush_cnt[0],
+		   hw_lro_timestamp_flush_cnt[1],
+		   hw_lro_timestamp_flush_cnt[2],
+		   (hw_lro_timestamp_flush_cnt[0] +
+		    hw_lro_timestamp_flush_cnt[1] +
+		    hw_lro_timestamp_flush_cnt[2]));
+
+	seq_printf(seq, "No LRO rule:      %d      %d      %d      %d\n",
+		   hw_lro_norule_flush_cnt[0],
+		   hw_lro_norule_flush_cnt[1],
+		   hw_lro_norule_flush_cnt[2],
+		   (hw_lro_norule_flush_cnt[0] +
+		    hw_lro_norule_flush_cnt[1] +
+		    hw_lro_norule_flush_cnt[2]));
+
+	return 0;
+}
+
+int hw_lro_stats_read_v2(struct seq_file *seq, void *v)
+{
+	int i;
+
+	seq_puts(seq, "HW LRO statistic dump:\n");
+
+	/* Agg number count */
+	seq_puts(seq, "Cnt:   RING4 | RING5 | RING6 | RING7 Total\n");
+	for (i = 0; i <= MTK_HW_LRO_MAX_AGG_CNT; i++) {
+		seq_printf(seq,
+			   " %d :      %d        %d        %d        %d        %d\n",
+			   i, hw_lro_agg_num_cnt[0][i], hw_lro_agg_num_cnt[1][i],
+			   hw_lro_agg_num_cnt[2][i], hw_lro_agg_num_cnt[3][i],
+			   hw_lro_agg_num_cnt[0][i] + hw_lro_agg_num_cnt[1][i] +
+			   hw_lro_agg_num_cnt[2][i] + hw_lro_agg_num_cnt[3][i]);
+	}
+
+	/* Total agg count */
+	seq_puts(seq, "Total agg:   RING4 | RING5 | RING6 | RING7 Total\n");
+	seq_printf(seq, "                %d      %d      %d      %d      %d\n",
+		   hw_lro_tot_agg_cnt[0], hw_lro_tot_agg_cnt[1],
+		   hw_lro_tot_agg_cnt[2], hw_lro_tot_agg_cnt[3],
+		   hw_lro_tot_agg_cnt[0] + hw_lro_tot_agg_cnt[1] +
+		   hw_lro_tot_agg_cnt[2] + hw_lro_tot_agg_cnt[3]);
+
+	/* Total flush count */
+	seq_puts(seq, "Total flush:   RING4 | RING5 | RING6 | RING7 Total\n");
+	seq_printf(seq, "                %d      %d      %d      %d      %d\n",
+		   hw_lro_tot_flush_cnt[0], hw_lro_tot_flush_cnt[1],
+		   hw_lro_tot_flush_cnt[2], hw_lro_tot_flush_cnt[3],
+		   hw_lro_tot_flush_cnt[0] + hw_lro_tot_flush_cnt[1] +
+		   hw_lro_tot_flush_cnt[2] + hw_lro_tot_flush_cnt[3]);
+
+	/* Avg agg count */
+	seq_puts(seq, "Avg agg:   RING4 | RING5 | RING6 | RING7 Total\n");
+	seq_printf(seq, "                %d      %d      %d      %d      %d\n",
+		   (hw_lro_tot_flush_cnt[0]) ?
+		    hw_lro_tot_agg_cnt[0] / hw_lro_tot_flush_cnt[0] : 0,
+		   (hw_lro_tot_flush_cnt[1]) ?
+		    hw_lro_tot_agg_cnt[1] / hw_lro_tot_flush_cnt[1] : 0,
+		   (hw_lro_tot_flush_cnt[2]) ?
+		    hw_lro_tot_agg_cnt[2] / hw_lro_tot_flush_cnt[2] : 0,
+		   (hw_lro_tot_flush_cnt[3]) ?
+                    hw_lro_tot_agg_cnt[3] / hw_lro_tot_flush_cnt[3] : 0,
+		   (hw_lro_tot_flush_cnt[0] + hw_lro_tot_flush_cnt[1] +
+		    hw_lro_tot_flush_cnt[2] + hw_lro_tot_flush_cnt[3]) ?
+		    ((hw_lro_tot_agg_cnt[0] + hw_lro_tot_agg_cnt[1] +
+		      hw_lro_tot_agg_cnt[2] + hw_lro_tot_agg_cnt[3]) /
+		     (hw_lro_tot_flush_cnt[0] + hw_lro_tot_flush_cnt[1] +
+		      hw_lro_tot_flush_cnt[2] + hw_lro_tot_flush_cnt[3])) : 0);
+
+	/*  Statistics of aggregation size counts */
+	seq_puts(seq, "HW LRO flush pkt len:\n");
+	seq_puts(seq, " Length  | RING4  | RING5  | RING6  | RING7 Total\n");
+	for (i = 0; i < 15; i++) {
+		seq_printf(seq, "%d~%d: %d      %d      %d      %d      %d\n",
+			   i * 5000, (i + 1) * 5000,
+			   hw_lro_agg_size_cnt[0][i], hw_lro_agg_size_cnt[1][i],
+			   hw_lro_agg_size_cnt[2][i], hw_lro_agg_size_cnt[3][i],
+			   hw_lro_agg_size_cnt[0][i] +
+			   hw_lro_agg_size_cnt[1][i] +
+			   hw_lro_agg_size_cnt[2][i] +
+			   hw_lro_agg_size_cnt[3][i]);
+	}
+
+	seq_puts(seq, "Flush reason:   RING4 | RING5 | RING6 | RING7 Total\n");
+	seq_printf(seq, "AGG timeout:      %d      %d      %d      %d      %d\n",
+		   hw_lro_agg_flush_cnt[0], hw_lro_agg_flush_cnt[1],
+		   hw_lro_agg_flush_cnt[2], hw_lro_agg_flush_cnt[3],
+		   (hw_lro_agg_flush_cnt[0] + hw_lro_agg_flush_cnt[1] +
+		    hw_lro_agg_flush_cnt[2] + hw_lro_agg_flush_cnt[3]));
+
+	seq_printf(seq, "AGE timeout:      %d      %d      %d      %d      %d\n",
+		   hw_lro_age_flush_cnt[0], hw_lro_age_flush_cnt[1],
+		   hw_lro_age_flush_cnt[2], hw_lro_age_flush_cnt[3],
+		   (hw_lro_age_flush_cnt[0] + hw_lro_age_flush_cnt[1] +
+		    hw_lro_age_flush_cnt[2] + hw_lro_age_flush_cnt[3]));
+
+	seq_printf(seq, "Not in-sequence:  %d      %d      %d      %d      %d\n",
+		   hw_lro_seq_flush_cnt[0], hw_lro_seq_flush_cnt[1],
+		   hw_lro_seq_flush_cnt[2], hw_lro_seq_flush_cnt[3],
+		   (hw_lro_seq_flush_cnt[0] + hw_lro_seq_flush_cnt[1] +
+		    hw_lro_seq_flush_cnt[2] + hw_lro_seq_flush_cnt[3]));
+
+	seq_printf(seq, "Timestamp:        %d      %d      %d      %d      %d\n",
+		   hw_lro_timestamp_flush_cnt[0],
+		   hw_lro_timestamp_flush_cnt[1],
+		   hw_lro_timestamp_flush_cnt[2],
+		   hw_lro_timestamp_flush_cnt[3],
+		   (hw_lro_timestamp_flush_cnt[0] +
+		    hw_lro_timestamp_flush_cnt[1] +
+		    hw_lro_timestamp_flush_cnt[2] +
+		    hw_lro_timestamp_flush_cnt[3]));
+
+	seq_printf(seq, "No LRO rule:      %d      %d      %d      %d      %d\n",
+		   hw_lro_norule_flush_cnt[0],
+		   hw_lro_norule_flush_cnt[1],
+		   hw_lro_norule_flush_cnt[2],
+		   hw_lro_norule_flush_cnt[3],
+		   (hw_lro_norule_flush_cnt[0] +
+		    hw_lro_norule_flush_cnt[1] +
+		    hw_lro_norule_flush_cnt[2] +
+		    hw_lro_norule_flush_cnt[3]));
+
+	return 0;
+}
+
+int hw_lro_stats_read_wrapper(struct seq_file *seq, void *v)
+{
+	struct mtk_eth *eth = g_eth;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		hw_lro_stats_read_v2(seq, v);
+	else
+		hw_lro_stats_read_v1(seq, v);
+
+	return 0;
+}
+
+static int hw_lro_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hw_lro_stats_read_wrapper, NULL);
+}
+
+static const struct file_operations hw_lro_stats_fops = {
+	.owner = THIS_MODULE,
+	.open = hw_lro_stats_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = hw_lro_stats_write,
+	.release = single_release
+};
+
+int hwlro_agg_cnt_ctrl(int cnt)
+{
+	int i;
+
+	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++)
+		SET_PDMA_RXRING_MAX_AGG_CNT(g_eth, i, cnt);
+
+	return 0;
+}
+
+int hwlro_agg_time_ctrl(int time)
+{
+	int i;
+
+	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++)
+		SET_PDMA_RXRING_AGG_TIME(g_eth, i, time);
+
+	return 0;
+}
+
+int hwlro_age_time_ctrl(int time)
+{
+	int i;
+
+	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++)
+		SET_PDMA_RXRING_AGE_TIME(g_eth, i, time);
+
+	return 0;
+}
+
+int hwlro_threshold_ctrl(int bandwidth)
+{
+	SET_PDMA_LRO_BW_THRESHOLD(g_eth, bandwidth);
+
+	return 0;
+}
+
+int hwlro_ring_enable_ctrl(int enable)
+{
+	int i;
+
+	pr_info("[%s] %s HW LRO rings\n", __func__, (enable) ? "Enable" : "Disable");
+
+	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++)
+		SET_PDMA_RXRING_VALID(g_eth, i, enable);
+
+	return 0;
+}
+
+int hwlro_stats_enable_ctrl(int enable)
+{
+	pr_info("[%s] %s HW LRO statistics\n", __func__, (enable) ? "Enable" : "Disable");
+	mtk_hwlro_stats_ebl = enable;
+
+	return 0;
+}
+
+static const mtk_lro_dbg_func lro_dbg_func[] = {
+	[0] = hwlro_agg_cnt_ctrl,
+	[1] = hwlro_agg_time_ctrl,
+	[2] = hwlro_age_time_ctrl,
+	[3] = hwlro_threshold_ctrl,
+	[4] = hwlro_ring_enable_ctrl,
+	[5] = hwlro_stats_enable_ctrl,
+};
+
+ssize_t hw_lro_auto_tlb_write(struct file *file, const char __user *buffer,
+			      size_t count, loff_t *data)
+{
+	char buf[32];
+	char *p_buf;
+	char *p_token = NULL;
+	char *p_delimiter = " \t";
+	long x = 0, y = 0;
+	int len = count;
+	int ret;
+
+	if (len >= sizeof(buf)) {
+		pr_info("Input handling fail!\n");
+		len = sizeof(buf) - 1;
+		return -1;
+	}
+
+	if (copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	p_buf = buf;
+	p_token = strsep(&p_buf, p_delimiter);
+	if (!p_token)
+		x = 0;
+	else
+		ret = kstrtol(p_token, 10, &x);
+
+	p_token = strsep(&p_buf, "\t\n ");
+	if (p_token)
+		ret = kstrtol(p_token, 10, &y);
+
+	if (lro_dbg_func[x] && (ARRAY_SIZE(lro_dbg_func) > x))
+		(*lro_dbg_func[x]) (y);
+
+	return count;
+}
+
+void hw_lro_auto_tlb_dump_v1(struct seq_file *seq, u32 index)
+{
+	int i;
+	struct mtk_lro_alt_v1 alt;
+	__be32 addr;
+	u32 tlb_info[9];
+	u32 dw_len, cnt, priority;
+	u32 entry;
+
+	if (index > 4)
+		index = index - 1;
+	entry = (index * 9) + 1;
+
+	/* read valid entries of the auto-learn table */
+	mtk_w32(g_eth, entry, MTK_FE_ALT_CF8);
+
+	for (i = 0; i < 9; i++)
+		tlb_info[i] = mtk_r32(g_eth, MTK_FE_ALT_SEQ_CFC);
+
+	memcpy(&alt, tlb_info, sizeof(struct mtk_lro_alt_v1));
+
+	dw_len = alt.alt_info7.dw_len;
+	cnt = alt.alt_info6.cnt;
+
+	if (mtk_r32(g_eth, MTK_PDMA_LRO_CTRL_DW0) & MTK_LRO_ALT_PKT_CNT_MODE)
+		priority = cnt;		/* packet count */
+	else
+		priority = dw_len;	/* byte count */
+
+	/* dump valid entries of the auto-learn table */
+	if (index >= 4)
+		seq_printf(seq, "\n===== TABLE Entry: %d (Act) =====\n", index);
+	else
+		seq_printf(seq, "\n===== TABLE Entry: %d (LRU) =====\n", index);
+
+	if (alt.alt_info8.ipv4) {
+		addr = htonl(alt.alt_info1.sip0);
+		seq_printf(seq, "SIP = %pI4 (IPv4)\n", &addr);
+	} else {
+		seq_printf(seq, "SIP = %08X:%08X:%08X:%08X (IPv6)\n",
+			   alt.alt_info4.sip3, alt.alt_info3.sip2,
+			   alt.alt_info2.sip1, alt.alt_info1.sip0);
+	}
+
+	seq_printf(seq, "DIP_ID = %d\n", alt.alt_info8.dip_id);
+	seq_printf(seq, "TCP SPORT = %d | TCP DPORT = %d\n",
+		   alt.alt_info0.stp, alt.alt_info0.dtp);
+	seq_printf(seq, "VLAN_VID_VLD = %d\n", alt.alt_info6.vlan_vid_vld);
+	seq_printf(seq, "VLAN1 = %d | VLAN2 = %d | VLAN3 = %d | VLAN4 =%d\n",
+		   (alt.alt_info5.vlan_vid0 & 0xfff),
+		   ((alt.alt_info5.vlan_vid0 >> 12) & 0xfff),
+		   ((alt.alt_info6.vlan_vid1 << 8) |
+		   ((alt.alt_info5.vlan_vid0 >> 24) & 0xfff)),
+		   ((alt.alt_info6.vlan_vid1 >> 4) & 0xfff));
+	seq_printf(seq, "TPUT = %d | FREQ = %d\n", dw_len, cnt);
+	seq_printf(seq, "PRIORITY = %d\n", priority);
+}
+
+void hw_lro_auto_tlb_dump_v2(struct seq_file *seq, u32 index)
+{
+	int i;
+	struct mtk_lro_alt_v2 alt;
+	u32 score = 0, ipv4 = 0;
+	u32 ipv6[4] = { 0 };
+	u32 tlb_info[12];
+
+	/* read valid entries of the auto-learn table */
+	mtk_w32(g_eth, index << MTK_LRO_ALT_INDEX_OFFSET, MTK_LRO_ALT_DBG);
+
+	for (i = 0; i < 11; i++)
+		tlb_info[i] = mtk_r32(g_eth, MTK_LRO_ALT_DBG_DATA);
+
+	memcpy(&alt, tlb_info, sizeof(struct mtk_lro_alt_v2));
+
+	if (mtk_r32(g_eth, MTK_PDMA_LRO_CTRL_DW0) & MTK_LRO_ALT_PKT_CNT_MODE)
+		score = 1;	/* packet count */
+	else
+		score = 0;	/* byte count */
+
+	/* dump valid entries of the auto-learn table */
+	if (alt.alt_info0.valid) {
+		if (index < 5)
+			seq_printf(seq,
+				   "\n===== TABLE Entry: %d (onging) =====\n",
+				   index);
+		else
+			seq_printf(seq,
+				   "\n===== TABLE Entry: %d (candidate) =====\n",
+				   index);
+
+		if (alt.alt_info1.v4_valid) {
+			ipv4 = (alt.alt_info4.sip0_h << 23) |
+				alt.alt_info5.sip0_l;
+			seq_printf(seq, "SIP = 0x%x: (IPv4)\n", ipv4);
+
+			ipv4 = (alt.alt_info8.dip0_h << 23) |
+				alt.alt_info9.dip0_l;
+			seq_printf(seq, "DIP = 0x%x: (IPv4)\n", ipv4);
+		} else if (alt.alt_info1.v6_valid) {
+			ipv6[3] = (alt.alt_info1.sip3_h << 23) |
+				   (alt.alt_info2.sip3_l << 9);
+			ipv6[2] = (alt.alt_info2.sip2_h << 23) |
+				   (alt.alt_info3.sip2_l << 9);
+			ipv6[1] = (alt.alt_info3.sip1_h << 23) |
+				   (alt.alt_info4.sip1_l << 9);
+			ipv6[0] = (alt.alt_info4.sip0_h << 23) |
+				   (alt.alt_info5.sip0_l << 9);
+			seq_printf(seq, "SIP = 0x%x:0x%x:0x%x:0x%x (IPv6)\n",
+				   ipv6[3], ipv6[2], ipv6[1], ipv6[0]);
+
+			ipv6[3] = (alt.alt_info5.dip3_h << 23) |
+				   (alt.alt_info6.dip3_l << 9);
+			ipv6[2] = (alt.alt_info6.dip2_h << 23) |
+				   (alt.alt_info7.dip2_l << 9);
+			ipv6[1] = (alt.alt_info7.dip1_h << 23) |
+				   (alt.alt_info8.dip1_l << 9);
+			ipv6[0] = (alt.alt_info8.dip0_h << 23) |
+				   (alt.alt_info9.dip0_l << 9);
+			seq_printf(seq, "DIP = 0x%x:0x%x:0x%x:0x%x (IPv6)\n",
+				   ipv6[3], ipv6[2], ipv6[1], ipv6[0]);
+		}
+
+		seq_printf(seq, "TCP SPORT = %d | TCP DPORT = %d\n",
+			   (alt.alt_info9.sp_h << 7) | (alt.alt_info10.sp_l),
+			   alt.alt_info10.dp);
+	}
+}
+
+int hw_lro_auto_tlb_read(struct seq_file *seq, void *v)
+{
+	int i;
+	u32 reg_val;
+	u32 reg_op1, reg_op2, reg_op3, reg_op4;
+	u32 agg_cnt, agg_time, age_time;
+
+	seq_puts(seq, "Usage of /proc/mtketh/hw_lro_auto_tlb:\n");
+	seq_puts(seq, "echo [function] [setting] > /proc/mtketh/hw_lro_auto_tlb\n");
+	seq_puts(seq, "Functions:\n");
+	seq_puts(seq, "[0] = hwlro_agg_cnt_ctrl\n");
+	seq_puts(seq, "[1] = hwlro_agg_time_ctrl\n");
+	seq_puts(seq, "[2] = hwlro_age_time_ctrl\n");
+	seq_puts(seq, "[3] = hwlro_threshold_ctrl\n");
+	seq_puts(seq, "[4] = hwlro_ring_enable_ctrl\n");
+	seq_puts(seq, "[5] = hwlro_stats_enable_ctrl\n\n");
+
+	if (MTK_HAS_CAPS(g_eth->soc->caps, MTK_NETSYS_V2)) {
+		for (i = 1; i <= 8; i++)
+			hw_lro_auto_tlb_dump_v2(seq, i);
+	} else {
+		/* Read valid entries of the auto-learn table */
+		mtk_w32(g_eth, 0, MTK_FE_ALT_CF8);
+		reg_val = mtk_r32(g_eth, MTK_FE_ALT_SEQ_CFC);
+
+		seq_printf(seq,
+			   "HW LRO Auto-learn Table: (MTK_FE_ALT_SEQ_CFC=0x%x)\n",
+			   reg_val);
+
+		for (i = 7; i >= 0; i--) {
+			if (reg_val & (1 << i))
+				hw_lro_auto_tlb_dump_v1(seq, i);
+		}
+	}
+
+	/* Read the agg_time/age_time/agg_cnt of LRO rings */
+	seq_puts(seq, "\nHW LRO Ring Settings\n");
+
+	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++) {
+		reg_op1 = mtk_r32(g_eth, MTK_LRO_CTRL_DW1_CFG(i));
+		reg_op2 = mtk_r32(g_eth, MTK_LRO_CTRL_DW2_CFG(i));
+		reg_op3 = mtk_r32(g_eth, MTK_LRO_CTRL_DW3_CFG(i));
+		reg_op4 = mtk_r32(g_eth, MTK_PDMA_LRO_CTRL_DW2);
+
+		agg_cnt =
+		    ((reg_op3 & 0x3) << 6) |
+		    ((reg_op2 >> MTK_LRO_RING_AGG_CNT_L_OFFSET) & 0x3f);
+		agg_time = (reg_op2 >> MTK_LRO_RING_AGG_TIME_OFFSET) & 0xffff;
+		age_time =
+		    ((reg_op2 & 0x3f) << 10) |
+		    ((reg_op1 >> MTK_LRO_RING_AGE_TIME_L_OFFSET) & 0x3ff);
+		seq_printf(seq,
+			   "Ring[%d]: MAX_AGG_CNT=%d, AGG_TIME=%d, AGE_TIME=%d, Threshold=%d\n",
+			   (MTK_HAS_CAPS(g_eth->soc->caps, MTK_NETSYS_V2))? i+3 : i,
+			   agg_cnt, agg_time, age_time, reg_op4);
+	}
+
+	seq_puts(seq, "\n");
+
+	return 0;
+}
+
+static int hw_lro_auto_tlb_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hw_lro_auto_tlb_read, NULL);
+}
+
+static const struct file_operations hw_lro_auto_tlb_fops = {
+	.owner = THIS_MODULE,
+	.open = hw_lro_auto_tlb_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = hw_lro_auto_tlb_write,
+	.release = single_release
+};
 
 struct proc_dir_entry *proc_reg_dir;
 static struct proc_dir_entry *proc_esw_cnt, *proc_dbg_regs;
@@ -826,6 +1434,21 @@ int debug_proc_init(struct mtk_eth *eth)
 	if (!proc_dbg_regs)
 		pr_notice("!! FAIL to create %s PROC !!\n", PROCREG_DBG_REGS);
 
+	if (g_eth->hwlro) {
+		proc_hw_lro_stats =
+			proc_create(PROCREG_HW_LRO_STATS, 0, proc_reg_dir,
+				    &hw_lro_stats_fops);
+		if (!proc_hw_lro_stats)
+			pr_info("!! FAIL to create %s PROC !!\n", PROCREG_HW_LRO_STATS);
+
+		proc_hw_lro_auto_tlb =
+			proc_create(PROCREG_HW_LRO_AUTO_TLB, 0, proc_reg_dir,
+				    &hw_lro_auto_tlb_fops);
+		if (!proc_hw_lro_auto_tlb)
+			pr_info("!! FAIL to create %s PROC !!\n",
+				PROCREG_HW_LRO_AUTO_TLB);
+	}
+
 	return 0;
 }
 
@@ -844,5 +1467,13 @@ void debug_proc_exit(void)
 
 	if (proc_dbg_regs)
 		remove_proc_entry(PROCREG_DBG_REGS, proc_reg_dir);
+
+	if (g_eth->hwlro) {
+		if (proc_hw_lro_stats)
+			remove_proc_entry(PROCREG_HW_LRO_STATS, proc_reg_dir);
+
+		if (proc_hw_lro_auto_tlb)
+			remove_proc_entry(PROCREG_HW_LRO_AUTO_TLB, proc_reg_dir);
+	}
 }
 

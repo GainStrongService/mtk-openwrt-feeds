@@ -1316,6 +1316,9 @@ static struct mtk_rx_ring *mtk_get_rx_ring(struct mtk_eth *eth)
 		return &eth->rx_ring[0];
 
 	for (i = 0; i < MTK_MAX_RX_RING_NUM; i++) {
+		if (!IS_NORMAL_RING(i) && !IS_HW_LRO_RING(i))
+			continue;
+
 		ring = &eth->rx_ring[i];
 		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
 		if (ring->dma[idx].rxd2 & RX_DMA_DONE) {
@@ -1482,6 +1485,11 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			     __func__, skb_hnat_entry(skb), skb_hnat_sport(skb),
 			     skb_hnat_reason(skb), skb_hnat_alg(skb));
 #endif
+		if (mtk_hwlro_stats_ebl &&
+		    IS_HW_LRO_RING(ring->ring_no) && eth->hwlro) {
+			hw_lro_stats_update(ring->ring_no, &trxd);
+			hw_lro_flush_stats_update(ring->ring_no, &trxd);
+		}
 
 		skb_record_rx_queue(skb, 0);
 		napi_gro_receive(napi, skb);
@@ -1906,6 +1914,7 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 	ring->crx_idx_reg = (rx_flag == MTK_RX_FLAGS_QDMA) ?
 			     MTK_QRX_CRX_IDX_CFG(ring_no) :
 			     MTK_PRX_CRX_IDX_CFG(ring_no);
+	ring->ring_no = ring_no;
 	/* make sure that all changes to the dma ring are flushed before we
 	 * continue
 	 */
@@ -1961,6 +1970,7 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring, int in_s
 static int mtk_hwlro_rx_init(struct mtk_eth *eth)
 {
 	int i;
+	u32 val;
 	u32 ring_ctrl_dw1 = 0, ring_ctrl_dw2 = 0, ring_ctrl_dw3 = 0;
 	u32 lro_ctrl_dw0 = 0, lro_ctrl_dw3 = 0;
 
@@ -1981,7 +1991,7 @@ static int mtk_hwlro_rx_init(struct mtk_eth *eth)
 	ring_ctrl_dw2 |= MTK_RING_MAX_AGG_CNT_L;
 	ring_ctrl_dw3 |= MTK_RING_MAX_AGG_CNT_H;
 
-	for (i = 1; i < MTK_MAX_RX_RING_NUM; i++) {
+	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++) {
 		mtk_w32(eth, ring_ctrl_dw1, MTK_LRO_CTRL_DW1_CFG(i));
 		mtk_w32(eth, ring_ctrl_dw2, MTK_LRO_CTRL_DW2_CFG(i));
 		mtk_w32(eth, ring_ctrl_dw3, MTK_LRO_CTRL_DW3_CFG(i));
@@ -1997,23 +2007,37 @@ static int mtk_hwlro_rx_init(struct mtk_eth *eth)
 	mtk_w32(eth, MTK_HW_LRO_BW_THRE, MTK_PDMA_LRO_CTRL_DW2);
 
 	/* auto-learn score delta setting */
-	mtk_w32(eth, MTK_HW_LRO_REPLACE_DELTA, MTK_PDMA_LRO_ALT_SCORE_DELTA);
+	mtk_w32(eth, MTK_HW_LRO_REPLACE_DELTA, MTK_LRO_ALT_SCORE_DELTA);
 
 	/* set refresh timer for altering flows to 1 sec. (unit: 20us) */
 	mtk_w32(eth, (MTK_HW_LRO_TIMER_UNIT << 16) | MTK_HW_LRO_REFRESH_TIME,
 		MTK_PDMA_LRO_ALT_REFRESH_TIMER);
 
-	/* set HW LRO mode & the max aggregation count for rx packets */
-	lro_ctrl_dw3 |= MTK_ADMA_MODE | (MTK_HW_LRO_MAX_AGG_CNT & 0xff);
-
 	/* the minimal remaining room of SDL0 in RXD for lro aggregation */
 	lro_ctrl_dw3 |= MTK_LRO_MIN_RXD_SDL;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+		val = mtk_r32(eth, MTK_PDMA_RX_CFG);
+		mtk_w32(eth, val | (MTK_PDMA_LRO_SDL << MTK_RX_CFG_SDL_OFFSET),
+			MTK_PDMA_RX_CFG);
+
+		lro_ctrl_dw0 |= MTK_PDMA_LRO_SDL << MTK_CTRL_DW0_SDL_OFFSET;
+	} else {
+		/* set HW LRO mode & the max aggregation count for rx packets */
+		lro_ctrl_dw3 |= MTK_ADMA_MODE | (MTK_HW_LRO_MAX_AGG_CNT & 0xff);
+	}
 
 	/* enable HW LRO */
 	lro_ctrl_dw0 |= MTK_LRO_EN;
 
+	/* enable cpu reason black list */
+	lro_ctrl_dw0 |= MTK_LRO_CRSN_BNW;
+
 	mtk_w32(eth, lro_ctrl_dw3, MTK_PDMA_LRO_CTRL_DW3);
 	mtk_w32(eth, lro_ctrl_dw0, MTK_PDMA_LRO_CTRL_DW0);
+
+	/* no use PPE cpu reason */
+	mtk_w32(eth, 0xffffffff, MTK_PDMA_LRO_CTRL_DW1);
 
 	return 0;
 }
@@ -2024,12 +2048,12 @@ static void mtk_hwlro_rx_uninit(struct mtk_eth *eth)
 	u32 val;
 
 	/* relinquish lro rings, flush aggregated packets */
-	mtk_w32(eth, MTK_LRO_RING_RELINQUISH_REQ, MTK_PDMA_LRO_CTRL_DW0);
+	mtk_w32(eth, MTK_LRO_RING_RELINGUISH_REQ, MTK_PDMA_LRO_CTRL_DW0);
 
 	/* wait for relinquishments done */
 	for (i = 0; i < 10; i++) {
 		val = mtk_r32(eth, MTK_PDMA_LRO_CTRL_DW0);
-		if (val & MTK_LRO_RING_RELINQUISH_DONE) {
+		if (val & MTK_LRO_RING_RELINGUISH_DONE) {
 			msleep(20);
 			continue;
 		}
@@ -2037,7 +2061,7 @@ static void mtk_hwlro_rx_uninit(struct mtk_eth *eth)
 	}
 
 	/* invalidate lro rings */
-	for (i = 1; i < MTK_MAX_RX_RING_NUM; i++)
+	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++)
 		mtk_w32(eth, 0, MTK_LRO_CTRL_DW2_CFG(i));
 
 	/* disable HW LRO */
@@ -2047,6 +2071,9 @@ static void mtk_hwlro_rx_uninit(struct mtk_eth *eth)
 static void mtk_hwlro_val_ipaddr(struct mtk_eth *eth, int idx, __be32 ip)
 {
 	u32 reg_val;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		idx += 1;
 
 	reg_val = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(idx));
 
@@ -2062,6 +2089,9 @@ static void mtk_hwlro_val_ipaddr(struct mtk_eth *eth, int idx, __be32 ip)
 static void mtk_hwlro_inval_ipaddr(struct mtk_eth *eth, int idx)
 {
 	u32 reg_val;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		idx += 1;
 
 	reg_val = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(idx));
 
@@ -2289,7 +2319,8 @@ static int mtk_dma_init(struct mtk_eth *eth)
 		return err;
 
 	if (eth->hwlro) {
-		for (i = 1; i < MTK_MAX_RX_RING_NUM; i++) {
+		i = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) ? 4 : 1;
+		for (; i < MTK_MAX_RX_RING_NUM; i++) {
 			err = mtk_rx_alloc(eth, i, MTK_RX_FLAGS_HWLRO);
 			if (err)
 				return err;
@@ -2332,8 +2363,10 @@ static void mtk_dma_free(struct mtk_eth *eth)
 
 	if (eth->hwlro) {
 		mtk_hwlro_rx_uninit(eth);
-		for (i = 1; i < MTK_MAX_RX_RING_NUM; i++)
-			mtk_rx_clean(eth, &eth->rx_ring[i],0);
+
+		i = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) ? 4 : 1;
+		for (; i < MTK_MAX_RX_RING_NUM; i++)
+			mtk_rx_clean(eth, &eth->rx_ring[i], 0);
 	}
 
 	kfree(eth->scratch_head);
@@ -2407,7 +2440,7 @@ static void mtk_poll_controller(struct net_device *dev)
 static int mtk_start_dma(struct mtk_eth *eth)
 {
 	u32 rx_2b_offset = (NET_IP_ALIGN == 2) ? MTK_RX_2B_OFFSET : 0;
-	int err;
+	int val, err;
 
 	err = mtk_dma_init(eth);
 	if (err) {
@@ -2440,6 +2473,11 @@ static int mtk_start_dma(struct mtk_eth *eth)
 		mtk_w32(eth, MTK_TX_WB_DDONE | MTK_TX_DMA_EN | MTK_RX_DMA_EN |
 			MTK_MULTI_EN | MTK_PDMA_SIZE_8DWORDS,
 			MTK_PDMA_GLO_CFG);
+	}
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) && eth->hwlro) {
+		val = mtk_r32(eth, MTK_PDMA_GLO_CFG);
+		mtk_w32(eth, val | MTK_RX_DMA_LRO_EN, MTK_PDMA_GLO_CFG);
 	}
 
 	return 0;
@@ -2614,7 +2652,7 @@ err_disable_clks:
 
 static int mtk_hw_init(struct mtk_eth *eth)
 {
-	int i, val, ret;
+	int i, ret;
 
 	if (test_and_set_bit(MTK_HW_INIT, &eth->state))
 		return 0;

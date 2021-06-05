@@ -45,6 +45,196 @@
 #define MTKETH_MII_WRITE_CL45            0x89FD
 #define REG_ESW_MAX                     0xFC
 
+#define PROCREG_ESW_CNT			"esw_cnt"
+#define PROCREG_TXRING			"tx_ring"
+#define PROCREG_RXRING			"rx_ring"
+#define PROCREG_DIR			"mtketh"
+#define PROCREG_DBG_REGS		"dbg_regs"
+#define PROCREG_HW_LRO_STATS		"hw_lro_stats"
+#define PROCREG_HW_LRO_AUTO_TLB		"hw_lro_auto_tlb"
+
+/* HW LRO flush reason */
+#define MTK_HW_LRO_AGG_FLUSH		(1)
+#define MTK_HW_LRO_AGE_FLUSH		(2)
+#define MTK_HW_LRO_NOT_IN_SEQ_FLUSH	(3)
+#define MTK_HW_LRO_TIMESTAMP_FLUSH	(4)
+#define MTK_HW_LRO_NON_RULE_FLUSH	(5)
+
+#define SET_PDMA_RXRING_MAX_AGG_CNT(eth, x, y)				\
+{									\
+	u32 reg_val1 = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
+	u32 reg_val2 = mtk_r32(eth, MTK_LRO_CTRL_DW3_CFG(x));		\
+	reg_val1 &= ~MTK_LRO_RING_AGG_CNT_L_MASK;			\
+	reg_val2 &= ~MTK_LRO_RING_AGG_CNT_H_MASK;			\
+	reg_val1 |= ((y) & 0x3f) << MTK_LRO_RING_AGG_CNT_L_OFFSET;	\
+	reg_val2 |= (((y) >> 6) & 0x03) <<				\
+		     MTK_LRO_RING_AGG_CNT_H_OFFSET;			\
+	mtk_w32(eth, reg_val1, MTK_LRO_CTRL_DW2_CFG(x));		\
+	mtk_w32(eth, reg_val2, MTK_LRO_CTRL_DW3_CFG(x));		\
+}
+
+#define SET_PDMA_RXRING_AGG_TIME(eth, x, y)				\
+{									\
+	u32 reg_val = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
+	reg_val &= ~MTK_LRO_RING_AGG_TIME_MASK;				\
+	reg_val |= ((y) & 0xffff) << MTK_LRO_RING_AGG_TIME_OFFSET;	\
+	mtk_w32(eth, reg_val, MTK_LRO_CTRL_DW2_CFG(x));			\
+}
+
+#define SET_PDMA_RXRING_AGE_TIME(eth, x, y)				\
+{									\
+	u32 reg_val1 = mtk_r32(eth, MTK_LRO_CTRL_DW1_CFG(x));		\
+	u32 reg_val2 = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
+	reg_val1 &= ~MTK_LRO_RING_AGE_TIME_L_MASK;			\
+	reg_val2 &= ~MTK_LRO_RING_AGE_TIME_H_MASK;			\
+	reg_val1 |= ((y) & 0x3ff) << MTK_LRO_RING_AGE_TIME_L_OFFSET;	\
+	reg_val2 |= (((y) >> 10) & 0x03f) <<				\
+		     MTK_LRO_RING_AGE_TIME_H_OFFSET;			\
+	mtk_w32(eth, reg_val1, MTK_LRO_CTRL_DW1_CFG(x));		\
+	mtk_w32(eth, reg_val2, MTK_LRO_CTRL_DW2_CFG(x));		\
+}
+
+#define SET_PDMA_LRO_BW_THRESHOLD(eth, x)				\
+{									\
+	u32 reg_val = mtk_r32(eth, MTK_PDMA_LRO_CTRL_DW2);		\
+	reg_val = (x);							\
+	mtk_w32(eth, reg_val, MTK_PDMA_LRO_CTRL_DW2);			\
+}
+
+#define SET_PDMA_RXRING_VALID(eth, x, y)				\
+{									\
+	u32 reg_val = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
+	reg_val &= ~(0x1 << MTK_RX_PORT_VALID_OFFSET);			\
+	reg_val |= ((y) & 0x1) << MTK_RX_PORT_VALID_OFFSET;		\
+	mtk_w32(eth, reg_val, MTK_LRO_CTRL_DW2_CFG(x));			\
+}
+
+struct mtk_lro_alt_v1_info0 {
+	u32 dtp : 16;
+	u32 stp : 16;
+};
+
+struct mtk_lro_alt_v1_info1 {
+	u32 sip0 : 32;
+};
+
+struct mtk_lro_alt_v1_info2 {
+	u32 sip1 : 32;
+};
+
+struct mtk_lro_alt_v1_info3 {
+	u32 sip2 : 32;
+};
+
+struct mtk_lro_alt_v1_info4 {
+	u32 sip3 : 32;
+};
+
+struct mtk_lro_alt_v1_info5 {
+	u32 vlan_vid0 : 32;
+};
+
+struct mtk_lro_alt_v1_info6 {
+	u32 vlan_vid1 : 16;
+	u32 vlan_vid_vld : 4;
+	u32 cnt : 12;
+};
+
+struct mtk_lro_alt_v1_info7 {
+	u32 dw_len : 32;
+};
+
+struct mtk_lro_alt_v1_info8 {
+	u32 dip_id : 2;
+	u32 ipv6 : 1;
+	u32 ipv4 : 1;
+	u32 resv : 27;
+	u32 valid : 1;
+};
+
+struct mtk_lro_alt_v1 {
+	struct mtk_lro_alt_v1_info0 alt_info0;
+	struct mtk_lro_alt_v1_info1 alt_info1;
+	struct mtk_lro_alt_v1_info2 alt_info2;
+	struct mtk_lro_alt_v1_info3 alt_info3;
+	struct mtk_lro_alt_v1_info4 alt_info4;
+	struct mtk_lro_alt_v1_info5 alt_info5;
+	struct mtk_lro_alt_v1_info6 alt_info6;
+	struct mtk_lro_alt_v1_info7 alt_info7;
+	struct mtk_lro_alt_v1_info8 alt_info8;
+};
+
+struct mtk_lro_alt_v2_info0 {
+	u32 v2_id_h:3;
+	u32 v1_id:12;
+	u32 v0_id:12;
+	u32 v3_valid:1;
+	u32 v2_valid:1;
+	u32 v1_valid:1;
+	u32 v0_valid:1;
+	u32 valid:1;
+};
+
+struct mtk_lro_alt_v2_info1 {
+	u32 sip3_h:9;
+	u32 v6_valid:1;
+	u32 v4_valid:1;
+	u32 v3_id:12;
+	u32 v2_id_l:9;
+};
+
+struct mtk_lro_alt_v2_info2 {
+	u32 sip2_h:9;
+	u32 sip3_l:23;
+};
+struct mtk_lro_alt_v2_info3 {
+	u32 sip1_h:9;
+	u32 sip2_l:23;
+};
+struct mtk_lro_alt_v2_info4 {
+	u32 sip0_h:9;
+	u32 sip1_l:23;
+};
+struct mtk_lro_alt_v2_info5 {
+	u32 dip3_h:9;
+	u32 sip0_l:23;
+};
+struct mtk_lro_alt_v2_info6 {
+	u32 dip2_h:9;
+	u32 dip3_l:23;
+};
+struct mtk_lro_alt_v2_info7 {
+	u32 dip1_h:9;
+	u32 dip2_l:23;
+};
+struct mtk_lro_alt_v2_info8 {
+	u32 dip0_h:9;
+	u32 dip1_l:23;
+};
+struct mtk_lro_alt_v2_info9 {
+	u32 sp_h:9;
+	u32 dip0_l:23;
+};
+struct mtk_lro_alt_v2_info10 {
+	u32 resv:9;
+	u32 dp:16;
+	u32 sp_l:7;
+};
+
+struct mtk_lro_alt_v2 {
+	struct mtk_lro_alt_v2_info0 alt_info0;
+	struct mtk_lro_alt_v2_info1 alt_info1;
+	struct mtk_lro_alt_v2_info2 alt_info2;
+	struct mtk_lro_alt_v2_info3 alt_info3;
+	struct mtk_lro_alt_v2_info4 alt_info4;
+	struct mtk_lro_alt_v2_info5 alt_info5;
+	struct mtk_lro_alt_v2_info6 alt_info6;
+	struct mtk_lro_alt_v2_info7 alt_info7;
+	struct mtk_lro_alt_v2_info8 alt_info8;
+	struct mtk_lro_alt_v2_info9 alt_info9;
+	struct mtk_lro_alt_v2_info10 alt_info10;
+};
+
 struct mtk_esw_reg {
 	unsigned int off;
 	unsigned int val;
@@ -82,5 +272,7 @@ void debug_proc_exit(void);
 int mtketh_debugfs_init(struct mtk_eth *eth);
 void mtketh_debugfs_exit(struct mtk_eth *eth);
 int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
+void hw_lro_stats_update(u32 ring_no, struct mtk_rx_dma *rxd);
+void hw_lro_flush_stats_update(u32 ring_no, struct mtk_rx_dma *rxd);
 
 #endif /* MTK_ETH_DBG_H */
