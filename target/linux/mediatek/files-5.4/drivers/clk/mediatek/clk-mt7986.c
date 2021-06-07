@@ -39,7 +39,7 @@ static const struct mtk_fixed_factor infra_divs[] __initconst = {
 	FACTOR(CK_INFRA_PWM, "infra_pwm", "pwm_sel", 1, 1),
 	FACTOR(CK_INFRA_66M_MCK, "infra_66m_mck", "sysaxi_sel", 1, 2),
 	FACTOR(CK_INFRA_CK_F32K, "infra_ck_f32k", "cb_rtc_32p7k", 1, 1),
-	FACTOR(CK_INFRA_PCIE_CK, "infra_pcie_ck", "pextp_tl_ck_sel", 1, 1),
+	FACTOR(CK_INFRA_PCIE_CK, "infra_pcie", "pextp_tl_ck_sel", 1, 1),
 	FACTOR(CK_INFRA_PWM_BCK, "infra_pwm_bck", "infra_pwm_bsel", 1, 1),
 	FACTOR(CK_INFRA_PWM_CK1, "infra_pwm_ck1", "infra_pwm1_sel", 1, 1),
 	FACTOR(CK_INFRA_PWM_CK2, "infra_pwm_ck2", "infra_pwm2_sel", 1, 1),
@@ -394,20 +394,13 @@ static const char * const infra_uart0_parents[] __initconst = {
 };
 
 static const char * const infra_spi0_parents[] __initconst = {
-	"infra_ispi0",
-	"infra_i2c"
+	"infra_i2c",
+	"infra_ispi0"
 };
 
 static const char * const infra_spi1_parents[] __initconst = {
-	"infra_ispi1",
-	"infra_i2c"
-};
-
-static const char * const infra_pwm1_parents[] __initconst = {
-	"infra_pwm",
-	"infra_66m_mck",
-	"infra_ck_f26m",
-	"infra_ck_f32k"
+	"infra_i2c",
+	"infra_ispi1"
 };
 
 static const char * const infra_pwm_bsel_parents[] __initconst = {
@@ -418,10 +411,10 @@ static const char * const infra_pwm_bsel_parents[] __initconst = {
 };
 
 static const char * const infra_pcie_parents[] __initconst = {
-	"infra_pcie",
-	"cb_cksq_40m",
+	"infra_ck_f32k",
 	"infra_ck_f26m",
-	"infra_ck_f32k"
+	"cb_cksq_40m",
+	"infra_pcie"
 };
 
 static const struct mtk_mux infra_muxes[] = {
@@ -437,9 +430,9 @@ static const struct mtk_mux infra_muxes[] = {
 	MUX_GATE_CLR_SET_UPD(CK_INFRA_SPI1_SEL, "infra_spi1_sel",
 	    infra_spi1_parents, 0x0018, 0x0010, 0x0014, 5, 1, -1, -1, -1),
 	MUX_GATE_CLR_SET_UPD(CK_INFRA_PWM1_SEL, "infra_pwm1_sel",
-	    infra_pwm1_parents, 0x0018, 0x0010, 0x0014, 9, 2, -1, -1, -1),
+	    infra_pwm_bsel_parents, 0x0018, 0x0010, 0x0014, 9, 2, -1, -1, -1),
 	MUX_GATE_CLR_SET_UPD(CK_INFRA_PWM2_SEL, "infra_pwm2_sel",
-	    infra_pwm1_parents, 0x0018, 0x0010, 0x0014, 11, 2, -1, -1, -1),
+	    infra_pwm_bsel_parents, 0x0018, 0x0010, 0x0014, 11, 2, -1, -1, -1),
 	MUX_GATE_CLR_SET_UPD(CK_INFRA_PWM_BSEL, "infra_pwm_bsel",
 	    infra_pwm_bsel_parents, 0x0018, 0x0010, 0x0014, 13, 2, -1, -1, -1),
 	/* MODULE_CLK_SEL_1 */
@@ -730,7 +723,7 @@ static void __init mtk_infracfg_ao_init(struct device_node *node)
 		return;
 	}
 
-	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
+	clk_data = mtk_alloc_clk_data(CLK_INFRA_AO_NR_CLK);
 
 	mtk_clk_register_muxes(infra_muxes, ARRAY_SIZE(infra_muxes), node, &mt7986_clk_lock, clk_data);
 	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks), clk_data);
