@@ -1243,6 +1243,13 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			entry.ipv6_3t_route.ipv6_dip3 =
 				foe->ipv6_3t_route.ipv6_dip3;
 
+			if (IS_IPV6_3T_ROUTE(foe)) {
+				entry.ipv6_3t_route.prot =
+					foe->ipv6_3t_route.prot;
+				entry.ipv6_3t_route.hph =
+					foe->ipv6_3t_route.hph;
+			}
+
 			if (IS_IPV6_5T_ROUTE(foe) || IS_IPV6_6RD(foe)) {
 				entry.ipv6_5t_route.sport =
 					foe->ipv6_5t_route.sport;

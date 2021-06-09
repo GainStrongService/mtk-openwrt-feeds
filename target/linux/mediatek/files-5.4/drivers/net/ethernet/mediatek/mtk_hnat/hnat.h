@@ -428,7 +428,7 @@ struct hnat_ipv6_3t_route {
 	u32 ipv6_dip2;
 	u32 ipv6_dip3;
 	u32 prot : 8;
-	u32 resv : 24;
+	u32 hph : 24; /* hash placeholder */
 
 	u32 resv1;
 	u32 resv2;
