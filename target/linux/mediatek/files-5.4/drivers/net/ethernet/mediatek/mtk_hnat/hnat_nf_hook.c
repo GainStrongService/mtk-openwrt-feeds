@@ -1310,7 +1310,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				if (hnat_priv->data->per_flow_accounting)
 					entry.ipv4_hnapt.iblk2.mibf = 1;
 
-				entry.ipv4_hnapt.vlan1 = hw_path->vlan_id;
+				if (IS_GMAC1_MODE)
+					entry.ipv4_hnapt.vlan1 = 1;
+				else
+					entry.ipv4_hnapt.vlan1 = hw_path->vlan_id;
 
 				entry.ipv4_hnapt.sip = foe->ipv4_hnapt.sip;
 				entry.ipv4_hnapt.dip = foe->ipv4_hnapt.dip;
