@@ -1511,6 +1511,13 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 #endif
 	}
 
+	/* The INFO2.port_mg and 2nd VLAN ID fields of PPE entry are redefined
+	 * by Wi-Fi whnat engine. These data and INFO2.dp will be updated and
+	 * the entry is set to BIND state in mtk_sw_nat_hook_tx().
+	 */
+	if (!whnat)
+		entry.bfib1.state = BIND;
+
 	memcpy(foe, &entry, sizeof(entry));
 	/*reset statistic for this entry*/
 	if (hnat_priv->data->per_flow_accounting)
@@ -1518,12 +1525,6 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		       0, sizeof(struct mib_entry));
 
 	wmb();
-	/* The INFO2.port_mg and 2nd VLAN ID fields of PPE entry are redefined
-	 * by Wi-Fi whnat engine. These data and INFO2.dp will be updated and
-	 * the entry is set to BIND state in mtk_sw_nat_hook_tx().
-	 */
-	if (!whnat)
-		foe->bfib1.state = BIND;
 
 	return 0;
 }
@@ -1577,6 +1578,9 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		entry->ipv6_5t_route.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
 		break;
 	}
+
+	entry->bfib1.vpm = 0;
+	entry->bfib1.vlan_layer = 0;
 
 	/* MT7622 wifi hw_nat not support QoS */
 	if (IS_IPV4_GRP(entry)) {
