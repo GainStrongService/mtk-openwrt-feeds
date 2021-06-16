@@ -2498,7 +2498,6 @@ static int nmbm_read_logic_page(struct nmbm_instance *ni, uint64_t addr,
 {
 	uint32_t lb, pb, offset;
 	uint64_t paddr;
-	int ret;
 
 	/* Extract block address and in-block offset */
 	lb = addr2ba(ni, addr);
@@ -2520,18 +2519,7 @@ static int nmbm_read_logic_page(struct nmbm_instance *ni, uint64_t addr,
 	/* Assemble new address */
 	paddr = ba2addr(ni, pb) + offset;
 
-	ret = nmbm_read_phys_page(ni, paddr, data, oob, mode);
-	if (ret >= 0 || ret == -EBADMSG)
-		return ret;
-
-	/*
-	 * Do not remap bad block here. Just mark this block in state table.
-	 * Remap this block on erasing.
-	 */
-	nmbm_set_block_state(ni, pb, BLOCK_ST_NEED_REMAP);
-	nmbm_update_info_table(ni);
-
-	return ret;
+	return nmbm_read_phys_page(ni, paddr, data, oob, mode);
 }
 
 /*
