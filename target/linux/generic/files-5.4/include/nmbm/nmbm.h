@@ -65,6 +65,7 @@ struct nmbm_instance;
 
 /* Create NMBM if management area not found, or not complete */
 #define NMBM_F_CREATE			0x01
+#define NMBM_F_EMPTY_PAGE_ECC_OK	0x02
 
 size_t nmbm_calc_structure_size(struct nmbm_lower_device *nld);
 int nmbm_attach(struct nmbm_lower_device *nld, struct nmbm_instance *ni);

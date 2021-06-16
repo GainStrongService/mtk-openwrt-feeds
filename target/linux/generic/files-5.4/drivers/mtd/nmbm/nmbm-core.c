@@ -618,6 +618,56 @@ static void nmbm_build_mapping_table(struct nmbm_instance *ni)
 }
 
 /*
+ * nmbm_erase_block_and_check - Erase a block and check its usability
+ * @ni: NMBM instance structure
+ * @ba: block address to be erased
+ *
+ * Erase a block anc check its usability
+ *
+ * Return true if the block is usable, false if erasure failure or the block
+ * has too many bitflips.
+ */
+static bool nmbm_erase_block_and_check(struct nmbm_instance *ni, uint32_t ba)
+{
+	uint64_t addr, off;
+	bool success;
+	int ret;
+
+	success = nmbm_erase_phys_block(ni, ba2addr(ni, ba));
+	if (!success)
+		return false;
+
+	if (!(ni->lower.flags & NMBM_F_EMPTY_PAGE_ECC_OK))
+		return true;
+
+	/* Check every page to make sure there aren't too many bitflips */
+
+	addr = ba2addr(ni, ba);
+
+	for (off = 0; off < ni->lower.erasesize; off += ni->lower.writesize) {
+		WATCHDOG_RESET();
+
+		ret = nmbm_read_phys_page(ni, addr + off, ni->page_cache, NULL,
+					  NMBM_MODE_PLACE_OOB);
+		if (ret == -EBADMSG) {
+			/*
+			 * NMBM_F_EMPTY_PAGE_ECC_OK means the empty page is
+			 * still protected by ECC. So reading pages with ECC
+			 * enabled and -EBADMSG means there are too many
+			 * bitflips that can't be recovered, and the block
+			 * containing the page should be marked bad.
+			 */
+			nlog_err(ni,
+				 "Too many bitflips in empty page at 0x%llx\n",
+				 addr + off);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/*
  * nmbm_erase_range - Erase a range of blocks
  * @ni: NMBM instance structure
  * @ba: block address where the erasure will start
@@ -645,7 +695,7 @@ static void nmbm_erase_range(struct nmbm_instance *ni, uint32_t ba,
 			goto next_block;
 		}
 
-		success = nmbm_erase_phys_block(ni, ba2addr(ni, ba));
+		success = nmbm_erase_block_and_check(ni, ba);
 		if (success)
 			goto next_block;
 
@@ -740,7 +790,7 @@ static bool nmbm_write_signature(struct nmbm_instance *ni, uint32_t limit,
 			goto next_block;
 		}
 
-		success = nmbm_erase_phys_block(ni, ba2addr(ni, ba));
+		success = nmbm_erase_block_and_check(ni, ba);
 		if (!success)
 			goto skip_bad_block;
 
@@ -905,7 +955,7 @@ static bool nmbm_write_mgmt_range(struct nmbm_instance *ni, uint32_t ba,
 			goto next_block;
 		}
 
-		success = nmbm_erase_phys_block(ni, ba2addr(ni, ba));
+		success = nmbm_erase_block_and_check(ni, ba);
 		if (!success)
 			goto skip_bad_block;
 
@@ -2348,7 +2398,7 @@ retry:
 		goto remap_logic_block;
 	}
 
-	success = nmbm_erase_phys_block(ni, ba2addr(ni, pb));
+	success = nmbm_erase_block_and_check(ni, pb);
 	if (success)
 		return 0;
 
