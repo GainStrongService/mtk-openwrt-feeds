@@ -84,12 +84,24 @@ static int nmbm_lower_read_page(void *arg, uint64_t addr, void *buf, void *oob,
 	nm->upper.ecc_stats.corrected = nm->lower->ecc_stats.corrected;
 	nm->upper.ecc_stats.failed = nm->lower->ecc_stats.failed;
 
-	if (ret == -EBADMSG)
-		return 1;
-
-	if (ret && ret != -EUCLEAN)
+	/* Report error on failure (including ecc error) */
+	if (ret < 0 && ret != -EUCLEAN)
 		return ret;
 
+	/*
+	 * Since mtd_read_oob() won't report exact bitflips, what we can know
+	 * is whether bitflips exceeds the threshold.
+	 * We want the -EUCLEAN to be passed to the upper layer, but not the
+	 * error value itself. To achieve this, report bitflips above the
+	 * threshold.
+	 */
+
+	if (ret == -EUCLEAN) {
+		return min_t(u32, nm->lower->bitflip_threshold + 1,
+			     nm->lower->ecc_strength);
+	}
+
+	/* For bitflips less than the threshold, return 0 */
 	return 0;
 }
 
@@ -251,7 +263,8 @@ static int nmbm_mtd_read_data(struct nmbm_mtd *nm, uint64_t addr,
 	size_t len, ooblen, maxooblen, chklen;
 	uint32_t col, ooboffs;
 	uint8_t *datcache, *oobcache;
-	int ret;
+	bool has_ecc_err = false;
+	int ret, max_bitflips = 0;
 
 	col = addr & nm->lower->writesize_mask;
 	addr &= ~nm->lower->writesize_mask;
@@ -269,11 +282,16 @@ static int nmbm_mtd_read_data(struct nmbm_mtd *nm, uint64_t addr,
 	while (len || ooblen) {
 		ret = nmbm_read_single_page(nm->ni, addr, datcache, oobcache,
 					    mode);
-		if (ret) {
-			if (ret > 0)
-				return -EBADMSG;
-			return -EIO;
-		}
+		if (ret < 0 && ret != -EBADMSG)
+			return ret;
+
+		/* Continue reading on ecc error */
+		if (ret == -EBADMSG)
+			has_ecc_err = true;
+
+		/* Record the maximum bitflips between pages */
+		if (ret > max_bitflips)
+			max_bitflips = ret;
 
 		if (len) {
 			/* Move data */
@@ -304,7 +322,10 @@ static int nmbm_mtd_read_data(struct nmbm_mtd *nm, uint64_t addr,
 		addr += nm->lower->writesize;
 	}
 
-	return 0;
+	if (has_ecc_err)
+		return -EBADMSG;
+
+	return max_bitflips;
 }
 
 static int nmbm_mtd_read_oob(struct mtd_info *mtd, loff_t from,
@@ -355,12 +376,7 @@ static int nmbm_mtd_read_oob(struct mtd_info *mtd, loff_t from,
 
 		nmbm_release_device(nm);
 
-		if (ret > 0)
-			return -EBADMSG;
-		else if (ret)
-			return -EIO;
-
-		return 0;
+		return ret;
 	}
 
 	if (unlikely(ops->ooboffs >= maxooblen)) {
@@ -557,11 +573,11 @@ static int nmbm_probe(struct platform_device *pdev)
 {
 	struct device_node *mtd_np, *np = pdev->dev.of_node;
 	uint32_t max_ratio, max_reserved_blocks, alloc_size;
+	bool forced_create, empty_page_ecc_ok;
 	struct nmbm_lower_device nld;
 	struct mtd_info *lower, *mtd;
 	struct nmbm_mtd *nm;
 	const char *mtdname;
-	bool forced_create;
 	int ret;
 
 	mtd_np = of_parse_phandle(np, "lower-mtd-device", 0);
@@ -594,10 +610,19 @@ do_attach_mtd:
 		max_reserved_blocks = NMBM_MAX_BLOCKS_DEFAULT;
 
 	forced_create = of_property_read_bool(np, "forced-create");
+	empty_page_ecc_ok = of_property_read_bool(np,
+						  "empty-page-ecc-protected");
 
 	memset(&nld, 0, sizeof(nld));
 
-	nld.flags = forced_create ? NMBM_F_CREATE : 0;
+	nld.flags = 0;
+
+	if (forced_create)
+		nld.flags |= NMBM_F_CREATE;
+
+	if (empty_page_ecc_ok)
+		nld.flags |= NMBM_F_EMPTY_PAGE_ECC_OK;
+
 	nld.max_ratio = max_ratio;
 	nld.max_reserved_blocks = max_reserved_blocks;
 
