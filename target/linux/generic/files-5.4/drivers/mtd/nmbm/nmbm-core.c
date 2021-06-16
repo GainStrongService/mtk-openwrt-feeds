@@ -291,7 +291,7 @@ static bool nmbm_check_bad_phys_block(struct nmbm_instance *ni, uint32_t ba)
 	/* Treat ECC error as read success */
 	ret = nmbm_read_phys_page(ni, addr, NULL,
 				  ni->page_cache + ni->lower.writesize,
-				  NMBM_MODE_PLACE_OOB);
+				  NMBM_MODE_RAW);
 	if (ret < 0)
 		return true;
 
