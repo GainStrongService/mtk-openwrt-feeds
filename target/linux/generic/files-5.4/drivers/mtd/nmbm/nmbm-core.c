@@ -639,6 +639,12 @@ static void nmbm_erase_range(struct nmbm_instance *ni, uint32_t ba,
 		if (nmbm_get_block_state(ni, ba) != BLOCK_ST_GOOD)
 			goto next_block;
 
+		/* Insurance to detect unexpected bad block marked by user */
+		if (nmbm_check_bad_phys_block(ni, ba)) {
+			nmbm_set_block_state(ni, ba, BLOCK_ST_BAD);
+			goto next_block;
+		}
+
 		success = nmbm_erase_phys_block(ni, ba2addr(ni, ba));
 		if (success)
 			goto next_block;
@@ -727,6 +733,12 @@ static bool nmbm_write_signature(struct nmbm_instance *ni, uint32_t limit,
 
 		if (nmbm_get_block_state(ni, ba) != BLOCK_ST_GOOD)
 			goto next_block;
+
+		/* Insurance to detect unexpected bad block marked by user */
+		if (nmbm_check_bad_phys_block(ni, ba)) {
+			nmbm_set_block_state(ni, ba, BLOCK_ST_BAD);
+			goto next_block;
+		}
 
 		success = nmbm_erase_phys_block(ni, ba2addr(ni, ba));
 		if (!success)
@@ -886,6 +898,12 @@ static bool nmbm_write_mgmt_range(struct nmbm_instance *ni, uint32_t ba,
 
 		if (nmbm_get_block_state(ni, ba) != BLOCK_ST_GOOD)
 			goto next_block;
+
+		/* Insurance to detect unexpected bad block marked by user */
+		if (nmbm_check_bad_phys_block(ni, ba)) {
+			nmbm_set_block_state(ni, ba, BLOCK_ST_BAD);
+			goto next_block;
+		}
 
 		success = nmbm_erase_phys_block(ni, ba2addr(ni, ba));
 		if (!success)
@@ -2322,6 +2340,13 @@ retry:
 	if (nmbm_get_block_state(ni, pb) == BLOCK_ST_BAD ||
 	    nmbm_get_block_state(ni, pb) == BLOCK_ST_NEED_REMAP)
 		goto remap_logic_block;
+
+	/* Insurance to detect unexpected bad block marked by user */
+	if (nmbm_check_bad_phys_block(ni, pb)) {
+		nlog_warn(ni, "Found unexpected bad block possibly marked by user\n");
+		nmbm_set_block_state(ni, pb, BLOCK_ST_BAD);
+		goto remap_logic_block;
+	}
 
 	success = nmbm_erase_phys_block(ni, ba2addr(ni, pb));
 	if (success)
