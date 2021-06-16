@@ -200,8 +200,8 @@ static void nmbm_reset_chip(struct nmbm_instance *ni)
  *
  * Read a page for at most NMBM_TRY_COUNT times.
  *
- * Return 0 for success, positive value for ecc error,
- * negative value for other errors
+ * Return 0 for success, positive value for corrected bitflip count,
+ * -EBADMSG for ecc error, other negative values for other errors
  */
 static int nmbm_read_phys_page(struct nmbm_instance *ni, uint64_t addr,
 			       void *data, void *oob, enum nmbm_oob_mode mode)
@@ -210,13 +210,13 @@ static int nmbm_read_phys_page(struct nmbm_instance *ni, uint64_t addr,
 
 	for (tries = 0; tries < NMBM_TRY_COUNT; tries++) {
 		ret = ni->lower.read_page(ni->lower.arg, addr, data, oob, mode);
-		if (!ret)
-			return 0;
+		if (ret >= 0)
+			return ret;
 
 		nmbm_reset_chip(ni);
 	}
 
-	if (ret < 0)
+	if (ret != -EBADMSG)
 		nlog_err(ni, "Page read failed at address 0x%08llx\n", addr);
 
 	return ret;
@@ -292,7 +292,7 @@ static bool nmbm_check_bad_phys_block(struct nmbm_instance *ni, uint32_t ba)
 	ret = nmbm_read_phys_page(ni, addr, NULL,
 				  ni->page_cache + ni->lower.writesize,
 				  NMBM_MODE_RAW);
-	if (ret < 0)
+	if (ret < 0 && ret != -EBADMSG)
 		return true;
 
 	return ni->page_cache[ni->lower.writesize] != 0xff;
@@ -699,7 +699,7 @@ static bool nmbm_write_repeated_data(struct nmbm_instance *ni, uint32_t ba,
 		/* Verify the data just written. ECC error indicates failure */
 		ret = nmbm_read_phys_page(ni, addr + off, ni->page_cache, NULL,
 					  NMBM_MODE_PLACE_OOB);
-		if (ret)
+		if (ret < 0)
 			return false;
 
 		if (memcmp(ni->page_cache, data, size))
@@ -772,8 +772,8 @@ static bool nmbm_write_signature(struct nmbm_instance *ni, uint32_t limit,
  * Read data range.
  * Every page will be tried for at most NMBM_TRY_COUNT times.
  *
- * Return 0 for success, positive value for ecc error,
- * negative value for other errors
+ * Return 0 for success, positive value for corrected bitflip count,
+ * -EBADMSG for ecc error, other negative values for other errors
  */
 static int nmbn_read_data(struct nmbm_instance *ni, uint64_t addr, void *data,
 			  uint32_t size)
@@ -794,13 +794,13 @@ static int nmbn_read_data(struct nmbm_instance *ni, uint64_t addr, void *data,
 		if (chunksize == ni->lower.writesize) {
 			ret = nmbm_read_phys_page(ni, off - leading, ptr, NULL,
 						  NMBM_MODE_PLACE_OOB);
-			if (ret)
+			if (ret < 0)
 				return ret;
 		} else {
 			ret = nmbm_read_phys_page(ni, off - leading,
 						  ni->page_cache, NULL,
 						  NMBM_MODE_PLACE_OOB);
-			if (ret)
+			if (ret < 0)
 				return ret;
 
 			memcpy(ptr, ni->page_cache + leading, chunksize);
@@ -854,7 +854,7 @@ static bool nmbn_write_verify_data(struct nmbm_instance *ni, uint64_t addr,
 		/* Verify the data just written. ECC error indicates failure */
 		ret = nmbm_read_phys_page(ni, off - leading, ni->page_cache,
 					  NULL, NMBM_MODE_PLACE_OOB);
-		if (ret)
+		if (ret < 0)
 			return false;
 
 		if (memcmp(ni->page_cache + leading, ptr, chunksize))
@@ -2439,6 +2439,9 @@ int nmbm_erase_block_range(struct nmbm_instance *ni, uint64_t addr,
  * @data: buffer to store main data. optional.
  * @oob: buffer to store oob data. optional.
  * @mode: read mode
+ *
+ * Return 0 for success, positive value for corrected bitflip count,
+ * -EBADMSG for ecc error, other negative values for other errors
  */
 static int nmbm_read_logic_page(struct nmbm_instance *ni, uint64_t addr,
 				void *data, void *oob, enum nmbm_oob_mode mode)
@@ -2468,12 +2471,8 @@ static int nmbm_read_logic_page(struct nmbm_instance *ni, uint64_t addr,
 	paddr = ba2addr(ni, pb) + offset;
 
 	ret = nmbm_read_phys_page(ni, paddr, data, oob, mode);
-	if (!ret)
-		return 0;
-
-	/* For ECC error, return positive value only */
-	if (ret > 0)
-		return 1;
+	if (ret >= 0 || ret == -EBADMSG)
+		return ret;
 
 	/*
 	 * Do not remap bad block here. Just mark this block in state table.
@@ -2482,7 +2481,7 @@ static int nmbm_read_logic_page(struct nmbm_instance *ni, uint64_t addr,
 	nmbm_set_block_state(ni, pb, BLOCK_ST_NEED_REMAP);
 	nmbm_update_info_table(ni);
 
-	return -EIO;
+	return ret;
 }
 
 /*
@@ -2492,6 +2491,9 @@ static int nmbm_read_logic_page(struct nmbm_instance *ni, uint64_t addr,
  * @data: buffer to store main data. optional.
  * @oob: buffer to store oob data. optional.
  * @mode: read mode
+ *
+ * Return 0 for success, positive value for corrected bitflip count,
+ * -EBADMSG for ecc error, other negative values for other errors
  */
 int nmbm_read_single_page(struct nmbm_instance *ni, uint64_t addr, void *data,
 			  void *oob, enum nmbm_oob_mode mode)
@@ -2521,6 +2523,9 @@ int nmbm_read_single_page(struct nmbm_instance *ni, uint64_t addr, void *data,
  * @data: buffer to store main data to be read
  * @mode: read mode
  * @retlen: return actual data size read
+ *
+ * Return 0 for success, positive value for corrected bitflip count,
+ * -EBADMSG for ecc error, other negative values for other errors
  */
 int nmbm_read_range(struct nmbm_instance *ni, uint64_t addr, size_t size,
 		    void *data, enum nmbm_oob_mode mode, size_t *retlen)
@@ -2528,7 +2533,8 @@ int nmbm_read_range(struct nmbm_instance *ni, uint64_t addr, size_t size,
 	uint64_t off = addr;
 	uint8_t *ptr = data;
 	size_t sizeremain = size, chunksize, leading;
-	int ret;
+	bool has_ecc_err = false;
+	int ret, max_bitflips = 0;
 
 	if (!ni)
 		return -EINVAL;
@@ -2565,17 +2571,23 @@ int nmbm_read_range(struct nmbm_instance *ni, uint64_t addr, size_t size,
 		if (chunksize == ni->lower.writesize) {
 			ret = nmbm_read_logic_page(ni, off - leading, ptr,
 							NULL, mode);
-			if (ret)
+			if (ret < 0 && ret != -EBADMSG)
 				break;
 		} else {
 			ret = nmbm_read_logic_page(ni, off - leading,
 							ni->page_cache, NULL,
 							mode);
-			if (ret)
+			if (ret < 0 && ret != -EBADMSG)
 				break;
 
 			memcpy(ptr, ni->page_cache + leading, chunksize);
 		}
+
+		if (ret == -EBADMSG)
+			has_ecc_err = true;
+
+		if (ret > max_bitflips)
+			max_bitflips = ret;
 
 		off += chunksize;
 		ptr += chunksize;
@@ -2585,7 +2597,13 @@ int nmbm_read_range(struct nmbm_instance *ni, uint64_t addr, size_t size,
 	if (retlen)
 		*retlen = size - sizeremain;
 
-	return ret;
+	if (ret < 0 && ret != -EBADMSG)
+		return ret;
+
+	if (has_ecc_err)
+		return -EBADMSG;
+
+	return max_bitflips;
 }
 
 /*
