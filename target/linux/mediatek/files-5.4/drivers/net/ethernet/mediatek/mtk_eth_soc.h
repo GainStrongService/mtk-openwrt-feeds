@@ -108,11 +108,23 @@
 /* FE global misc reg*/
 #define MTK_FE_GLO_MISC         0x124
 
+/* PSE Free Queue Flow Control  */
+#define PSE_FQFC_CFG1		0x100
+#define PSE_FQFC_CFG2		0x104
+
 /* PSE Input Queue Reservation Register*/
 #define PSE_IQ_REV(x)		(0x140 + ((x - 1) * 0x4))
 
 /* PSE Output Queue Threshold Register*/
 #define PSE_OQ_TH(x)		(0x160 + ((x - 1) * 0x4))
+
+/* GDM and CDM Threshold */
+#define MTK_GDM2_THRES		0x1530
+#define MTK_CDMW0_THRES		0x164c
+#define MTK_CDMW1_THRES		0x1650
+#define MTK_CDME0_THRES		0x1654
+#define MTK_CDME1_THRES		0x1658
+#define MTK_CDMM_THRES		0x165c
 
 #define MTK_PDMA_V2		BIT(4)
 

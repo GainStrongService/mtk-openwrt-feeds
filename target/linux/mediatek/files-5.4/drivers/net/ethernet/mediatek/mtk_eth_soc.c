@@ -2728,7 +2728,10 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	mtk_w32(eth, 0x21021000, MTK_FE_INT_GRP);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
-		/* PSE config input/output queue threshold */
+		/* PSE Free Queue Flow Control  */
+		mtk_w32(eth, 0x01fa01f4, PSE_FQFC_CFG2);
+
+		/* PSE config input queue threshold */
 		mtk_w32(eth, 0x001a000e, PSE_IQ_REV(1));
 		mtk_w32(eth, 0x01ff001a, PSE_IQ_REV(2));
 		mtk_w32(eth, 0x000e01ff, PSE_IQ_REV(3));
@@ -2738,6 +2741,7 @@ static int mtk_hw_init(struct mtk_eth *eth)
 		mtk_w32(eth, 0x000e000e, PSE_IQ_REV(7));
 		mtk_w32(eth, 0x000e000e, PSE_IQ_REV(8));
 
+		/* PSE config output queue threshold */
 		mtk_w32(eth, 0x000f000a, PSE_OQ_TH(1));
 		mtk_w32(eth, 0x001a000f, PSE_OQ_TH(2));
 		mtk_w32(eth, 0x000f001a, PSE_OQ_TH(3));
@@ -2746,6 +2750,14 @@ static int mtk_hw_init(struct mtk_eth *eth)
 		mtk_w32(eth, 0x0006000f, PSE_OQ_TH(6));
 		mtk_w32(eth, 0x00060006, PSE_OQ_TH(7));
 		mtk_w32(eth, 0x00060006, PSE_OQ_TH(8));
+
+		/* GDM and CDM Threshold */
+		mtk_w32(eth, 0x00000004, MTK_GDM2_THRES);
+                mtk_w32(eth, 0x00000004, MTK_CDMW0_THRES);
+                mtk_w32(eth, 0x00000004, MTK_CDMW1_THRES);
+                mtk_w32(eth, 0x00000004, MTK_CDME0_THRES);
+                mtk_w32(eth, 0x00000004, MTK_CDME1_THRES);
+                mtk_w32(eth, 0x00000004, MTK_CDMM_THRES);
 	}
 
 	return 0;
