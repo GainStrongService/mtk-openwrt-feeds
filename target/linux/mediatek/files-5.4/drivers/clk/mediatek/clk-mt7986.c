@@ -67,6 +67,7 @@ static const struct mtk_fixed_factor infra_divs[] __initconst = {
 	FACTOR(CK_INFRA_USB_XHCI_CK, "infra_usb_xhci", "u2u3_xhci", 1, 1),
 	FACTOR(CK_INFRA_PCIE_GFMUX_TL_O_PRE, "infra_pcie_mux", "pextp_tl", 1, 1),
 	FACTOR(CK_INFRA_F26M_CK0, "infra_f26m_ck0", "csw_f26m", 1, 1),
+	FACTOR(CK_INFRA_HD_133M, "infra_hd_133m", "sysaxi", 1, 1),
 };
 
 static const struct mtk_fixed_factor top_divs[] __initconst = {
@@ -506,6 +507,7 @@ static const struct mtk_gate infra_clks[] __initconst = {
 	GATE_INFRA0(CK_INFRA_AP_DMA_CK, "infra_ap_dma", "infra_66m_mck", 16),
 	GATE_INFRA0(CK_INFRA_SEJ_CK, "infra_sej", "infra_66m_mck", 24),
 	GATE_INFRA0(CK_INFRA_SEJ_13M_CK, "infra_sej_13m", "infra_ck_f26m", 25),
+	GATE_INFRA0(CK_INFRA_TRNG_CK, "infra_trng", "infra_hd_133m", 26),
 	/* INFRA1 */
 	GATE_INFRA1(CK_INFRA_THERM_CK, "infra_therm", "infra_ck_f26m", 0),
 	GATE_INFRA1(CK_INFRA_I2CO_CK, "infra_i2co", "infra_i2cs", 1),

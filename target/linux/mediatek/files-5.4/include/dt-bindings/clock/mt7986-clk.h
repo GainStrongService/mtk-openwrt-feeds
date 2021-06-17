@@ -53,7 +53,8 @@
 #define CK_INFRA_USB_XHCI_CK		33
 #define CK_INFRA_PCIE_GFMUX_TL_O_PRE	34
 #define CK_INFRA_F26M_CK0		35
-#define CLK_INFRA_NR_CLK		36
+#define CK_INFRA_HD_133M        36
+#define CLK_INFRA_NR_CLK		37
 
 /* TOPCKGEN */
 
@@ -206,7 +207,8 @@
 #define CK_INFRA_IPCIE_CK		50
 #define CK_INFRA_IPCIER_CK		51
 #define CK_INFRA_IPCIEB_CK		52
-#define CLK_INFRA_AO_NR_CLK		53
+#define CK_INFRA_TRNG_CK		53
+#define CLK_INFRA_AO_NR_CLK		54
 
 /* APMIXEDSYS */
 
