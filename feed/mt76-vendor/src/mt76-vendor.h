@@ -94,7 +94,7 @@ struct csi_data {
 	s16 data_q[CSI_MAX_COUNT];
 	s8 rssi;
 	u8 snr;
-	ktime_t ts;
+	u32 ts;
 	u8 data_bw;
 	u8 pri_ch_idx;
 	u8 ta[ETH_ALEN];

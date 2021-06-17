@@ -25,7 +25,7 @@ static struct nla_policy csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
 
 static struct nla_policy csi_data_policy[NUM_MTK_VENDOR_ATTRS_CSI_DATA] = {
 	[MTK_VENDOR_ATTR_CSI_DATA_VER] = { .type = NLA_U8 },
-	[MTK_VENDOR_ATTR_CSI_DATA_TS] = { .type = NLA_U64 },
+	[MTK_VENDOR_ATTR_CSI_DATA_TS] = { .type = NLA_U32 },
 	[MTK_VENDOR_ATTR_CSI_DATA_RSSI] = { .type = NLA_U8 },
 	[MTK_VENDOR_ATTR_CSI_DATA_SNR] = { .type = NLA_U8 },
 	[MTK_VENDOR_ATTR_CSI_DATA_BW] = { .type = NLA_U8 },
@@ -107,7 +107,7 @@ static int mt76_dump_cb(struct nl_msg *msg, void *arg)
 	c->info = nla_get_u32(tb_data[MTK_VENDOR_ATTR_CSI_DATA_INFO]);
 	c->h_idx = nla_get_u32(tb_data[MTK_VENDOR_ATTR_CSI_DATA_H_IDX]);
 
-	c->ts = nla_get_u64(tb_data[MTK_VENDOR_ATTR_CSI_DATA_TS]);
+	c->ts = nla_get_u32(tb_data[MTK_VENDOR_ATTR_CSI_DATA_TS]);
 
 	idx = 0;
 	nla_for_each_nested(cur, tb_data[MTK_VENDOR_ATTR_CSI_DATA_TA], rem) {
