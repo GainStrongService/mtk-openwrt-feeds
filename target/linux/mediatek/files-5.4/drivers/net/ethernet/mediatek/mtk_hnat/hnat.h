@@ -657,6 +657,7 @@ struct mtk_hnat {
 
 	u32 foe_etry_num;
 	struct net_device *g_ppdev;
+	struct net_device *g_wandev;
 	struct net_device *wifi_hook_if[MAX_IF_NUM];
 	struct extdev_entry *ext_if[MAX_EXT_DEVS];
 	struct timer_list hnat_sma_build_entry_timer;

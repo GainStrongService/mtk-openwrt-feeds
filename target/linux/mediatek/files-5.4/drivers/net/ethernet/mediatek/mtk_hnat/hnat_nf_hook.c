@@ -109,11 +109,11 @@ static inline struct net_device *get_dev_from_index(int index)
 
 static inline struct net_device *get_wandev_from_index(int index)
 {
-	struct net_device *wandev = 0;
+	if (!hnat_priv->g_wandev)
+		hnat_priv->g_wandev = dev_get_by_name(&init_net, hnat_priv->wan);
 
-	wandev = dev_get_by_name(&init_net, hnat_priv->wan);
-	if (wandev->ifindex == index)
-		return wandev;
+	if (hnat_priv->g_wandev && hnat_priv->g_wandev->ifindex == index)
+		return hnat_priv->g_wandev;
 	return NULL;
 }
 
@@ -236,6 +236,24 @@ int nf_hnat_netdevice_event(struct notifier_block *unused, unsigned long event,
 			extif_put_dev(dev);
 
 		foe_clear_all_bind_entries(dev);
+
+		break;
+	case NETDEV_UNREGISTER:
+		if (IS_PPD(dev) && hnat_priv->g_ppdev) {
+			hnat_priv->g_ppdev = NULL;
+			dev_put(dev);
+		}
+		if (IS_WAN(dev) && hnat_priv->g_wandev) {
+			hnat_priv->g_wandev = NULL;
+			dev_put(dev);
+		}
+
+		break;
+	case NETDEV_REGISTER:
+		if (IS_PPD(dev) && !hnat_priv->g_ppdev)
+			hnat_priv->g_ppdev = dev_get_by_name(&init_net, hnat_priv->ppd);
+		if (IS_WAN(dev) && !hnat_priv->g_wandev)
+			hnat_priv->g_wandev = dev_get_by_name(&init_net, hnat_priv->wan);
 
 		break;
 	default:

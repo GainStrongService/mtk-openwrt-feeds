@@ -264,6 +264,7 @@ static int hnat_start(int ppe_id)
 	}
 
 	hnat_priv->g_ppdev = dev_get_by_name(&init_net, hnat_priv->ppd);
+	hnat_priv->g_wandev = dev_get_by_name(&init_net, hnat_priv->wan);
 
 	dev_info(hnat_priv->dev, "PPE%d hwnat start\n", ppe_id);
 
@@ -385,6 +386,9 @@ static void hnat_release_netdev(void)
 
 	if (hnat_priv->g_ppdev)
 		dev_put(hnat_priv->g_ppdev);
+
+	if (hnat_priv->g_wandev)
+		dev_put(hnat_priv->g_wandev);
 }
 
 static struct notifier_block nf_hnat_netdevice_nb __read_mostly = {
