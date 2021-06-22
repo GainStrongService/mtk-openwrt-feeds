@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 Felix Fietkau <nbd@nbd.name> */
-#ifndef __MT76_TEST_H
-#define __MT76_TEST_H
+#ifndef __MT76_VENDOR_H
+#define __MT76_VENDOR_H
 
+#include <errno.h>
+#include <linux/nl80211.h>
+#include <netlink/attr.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-
-#include <linux/nl80211.h>
-#include <netlink/attr.h>
 #include <unl.h>
 
 typedef uint8_t u8;
@@ -46,6 +46,7 @@ enum mtk_vendor_attr_csi_ctrl {
 	MTK_VENDOR_ATTR_CSI_CTRL_CFG_VAL1,
 	MTK_VENDOR_ATTR_CSI_CTRL_CFG_VAL2,
 	MTK_VENDOR_ATTR_CSI_CTRL_MAC_ADDR,
+	MTK_VENDOR_ATTR_CSI_CTRL_INTERVAL,
 
 	MTK_VENDOR_ATTR_CSI_CTRL_DUMP_NUM,
 
@@ -105,38 +106,9 @@ struct csi_data {
 	u16 rx_idx;
 };
 
-struct vendor_field {
-	const char *name;
-	const char *prefix;
-
-	bool (*parse)(const struct vendor_field *field, int idx, struct nl_msg *msg,
-		      const char *val);
-	void (*print)(const struct vendor_field *field, struct nlattr *attr);
-
-	union {
-		struct {
-			const char * const *enum_str;
-			int enum_len;
-		};
-		struct {
-			bool (*parse2)(const struct vendor_field *field, int idx,
-				       struct nl_msg *msg, const char *val);
-			void (*print2)(const struct vendor_field *field,
-				       struct nlattr *attr);
-		};
-		struct {
-			void (*print_extra)(const struct vendor_field *field,
-					    struct nlattr **tb);
-			const struct vendor_field *fields;
-			struct nla_policy *policy;
-			int len;
-		};
-	};
-};
-
 extern struct unl unl;
-extern const struct vendor_field msg_field;
 
-void usage(void);
+int mt76_csi_set(int idx, int argc, char **argv);
+int mt76_csi_dump(int idx, int argc, char **argv);
 
 #endif
