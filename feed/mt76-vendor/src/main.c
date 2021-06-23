@@ -11,8 +11,9 @@ struct unl unl;
 void usage(void)
 {
 	static const char *const commands[] = {
-		"set csi ctrl=",
-		"dump <packet num> <filename>",
+		"set csi ctrl=<opt1>,<opt2>,<opt3>,<opt4> (macaddr=<macaddr>)",
+		"set csi interval=<interval (us)>",
+		"dump csi <packet num> <filename>",
 	};
 	int i;
 
