@@ -238,6 +238,11 @@ static bool nmbm_write_phys_page(struct nmbm_instance *ni, uint64_t addr,
 {
 	int tries, ret;
 
+	if (ni->lower.flags & NMBM_F_READ_ONLY) {
+		nlog_err(ni, "%s called with NMBM_F_READ_ONLY set\n", addr);
+		return false;
+	}
+
 	for (tries = 0; tries < NMBM_TRY_COUNT; tries++) {
 		ret = ni->lower.write_page(ni->lower.arg, addr, data, oob, mode);
 		if (!ret)
@@ -261,6 +266,11 @@ static bool nmbm_write_phys_page(struct nmbm_instance *ni, uint64_t addr,
 static bool nmbm_erase_phys_block(struct nmbm_instance *ni, uint64_t addr)
 {
 	int tries, ret;
+
+	if (ni->lower.flags & NMBM_F_READ_ONLY) {
+		nlog_err(ni, "%s called with NMBM_F_READ_ONLY set\n", addr);
+		return false;
+	}
 
 	for (tries = 0; tries < NMBM_TRY_COUNT; tries++) {
 		ret = ni->lower.erase_block(ni->lower.arg, addr);
@@ -308,6 +318,11 @@ static int nmbm_mark_phys_bad_block(struct nmbm_instance *ni, uint32_t ba)
 	uint64_t addr = ba2addr(ni, ba);
 	enum nmbm_log_category level;
 	uint32_t off;
+
+	if (ni->lower.flags & NMBM_F_READ_ONLY) {
+		nlog_err(ni, "%s called with NMBM_F_READ_ONLY set\n", addr);
+		return false;
+	}
 
 	nlog_info(ni, "Block %u [0x%08llx] will be marked bad\n", ba, addr);
 
@@ -1684,6 +1699,11 @@ static bool nmbm_create_new(struct nmbm_instance *ni)
 	ni->signature.max_try_count = NMBM_TRY_COUNT;
 	nmbm_update_checksum(&ni->signature.header);
 
+	if (ni->lower.flags & NMBM_F_READ_ONLY) {
+		nlog_info(ni, "NMBM has been initialized in read-only mode\n");
+		return true;
+	}
+
 	success = nmbm_write_signature(ni, ni->mgmt_start_ba,
 				       &ni->signature, &ni->signature_ba);
 	if (!success) {
@@ -1985,6 +2005,9 @@ static bool nmbm_load_info_table(struct nmbm_instance *ni, uint32_t ba,
 	/* Regenerate the info table cache from the final selected info table */
 	nmbm_generate_info_table_cache(ni);
 
+	if (ni->lower.flags & NMBM_F_READ_ONLY)
+		return true;
+
 	/*
 	 * If only one table exists, try to write another table.
 	 * If two tables have different write count, try to update info table
@@ -2037,7 +2060,8 @@ static bool nmbm_load_existing(struct nmbm_instance *ni)
 	success = nmbm_load_info_table(ni, ni->mgmt_start_ba,
 		ni->signature_ba);
 	if (success) {
-		nlog_info(ni, "NMBM has been successfully attached\n");
+		nlog_info(ni, "NMBM has been successfully attached %s\n",
+			  (ni->lower.flags & NMBM_F_READ_ONLY) ? "in read-only mode" : "");
 		return true;
 	}
 
@@ -2047,6 +2071,11 @@ static bool nmbm_load_existing(struct nmbm_instance *ni)
 	/* Fill block state table & mapping table */
 	nmbm_scan_badblocks(ni);
 	nmbm_build_mapping_table(ni);
+
+	if (ni->lower.flags & NMBM_F_READ_ONLY) {
+		nlog_info(ni, "NMBM has been initialized in read-only mode\n");
+		return true;
+	}
 
 	/* Write info table(s) */
 	success = nmbm_create_info_table(ni);
@@ -2166,9 +2195,14 @@ static bool nmbm_check_lower_members(struct nmbm_lower_device *nld)
 		return false;
 	}
 
-	if (!nld->read_page || !nld->write_page || !nld->erase_block) {
+	if (!nld->read_page) {
+		nmbm_log_lower(nld, NMBM_LOG_ERR, "read_page() is required\n");
+		return false;
+	}
+
+	if (!(nld->flags & NMBM_F_READ_ONLY) && (!nld->write_page || !nld->erase_block)) {
 		nmbm_log_lower(nld, NMBM_LOG_ERR,
-			       "read_page(), write_page() and erase_block() are required\n");
+			       "write_page() and erase_block() are required\n");
 		return false;
 	}
 
@@ -2355,7 +2389,8 @@ int nmbm_detach(struct nmbm_instance *ni)
 	if (!ni)
 		return -EINVAL;
 
-	nmbm_update_info_table(ni);
+	if (!(ni->lower.flags & NMBM_F_READ_ONLY))
+		nmbm_update_info_table(ni);
 
 	nmbm_mark_block_color_normal(ni, 0, ni->block_count - 1);
 
@@ -2443,7 +2478,7 @@ int nmbm_erase_block_range(struct nmbm_instance *ni, uint64_t addr,
 		return -EINVAL;
 
 	/* Sanity check */
-	if (ni->protected) {
+	if (ni->protected || (ni->lower.flags & NMBM_F_READ_ONLY)) {
 		nlog_debug(ni, "Device is forced read-only\n");
 		return -EROFS;
 	}
@@ -2710,7 +2745,7 @@ int nmbm_write_single_page(struct nmbm_instance *ni, uint64_t addr,
 		return -EINVAL;
 
 	/* Sanity check */
-	if (ni->protected) {
+	if (ni->protected || (ni->lower.flags & NMBM_F_READ_ONLY)) {
 		nlog_debug(ni, "Device is forced read-only\n");
 		return -EROFS;
 	}
@@ -2745,7 +2780,7 @@ int nmbm_write_range(struct nmbm_instance *ni, uint64_t addr, size_t size,
 		return -EINVAL;
 
 	/* Sanity check */
-	if (ni->protected) {
+	if (ni->protected || (ni->lower.flags & NMBM_F_READ_ONLY)) {
 		nlog_debug(ni, "Device is forced read-only\n");
 		return -EROFS;
 	}
@@ -2842,6 +2877,12 @@ int nmbm_mark_bad_block(struct nmbm_instance *ni, uint64_t addr)
 
 	if (!ni)
 		return -EINVAL;
+
+	/* Sanity check */
+	if (ni->protected || (ni->lower.flags & NMBM_F_READ_ONLY)) {
+		nlog_debug(ni, "Device is forced read-only\n");
+		return -EROFS;
+	}
 
 	if (addr >= ba2addr(ni, ni->data_block_count)) {
 		nlog_err(ni, "Address 0x%llx is invalid\n", addr);
