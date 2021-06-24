@@ -16,6 +16,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/reset/ti-syscon.h>
+#include <dt-bindings/clock/mt7986-clk.h>
+
 / {
 	compatible = "mediatek,mt7986b-rfb";
 	interrupt-parent = <&gic>;
@@ -158,33 +160,16 @@
 		method      = "smc";
 	};
 
+	clk40m: oscillator@0 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <40000000>;
+		clock-output-names = "clkxtal";
+	};
+
 	system_clk: dummy_system_clk {
 		compatible = "fixed-clock";
 		clock-frequency = <40000000>;
-		#clock-cells = <0>;
-	};
-
-	spi0_clk: dummy_spi0_clk {
-		compatible = "fixed-clock";
-		clock-frequency = <208000000>;
-		#clock-cells = <0>;
-	};
-
-	spi1_clk: dummy_spi1_clk {
-		compatible = "fixed-clock";
-		clock-frequency = <40000000>;
-		#clock-cells = <0>;
-	};
-
-	uart_clk: dummy_uart_clk {
-		compatible = "fixed-clock";
-		clock-frequency = <40000000>;
-		#clock-cells = <0>;
-	};
-
-	gpt_clk: dummy_gpt_clk {
-		compatible = "fixed-clock";
-		clock-frequency = <13000000>;
 		#clock-cells = <0>;
 	};
 
@@ -196,7 +181,30 @@
 			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+	};
 
+	infracfg_ao: infracfg_ao@10001000 {
+		compatible = "mediatek,mt7986-infracfg_ao", "syscon";
+		reg = <0 0x10001000 0 0x68>;
+		#clock-cells = <1>;
+	};
+
+	infracfg: infracfg@10001040 {
+		compatible = "mediatek,mt7986-infracfg", "syscon";
+		reg = <0 0x1000106c 0 0x1000>;
+		#clock-cells = <1>;
+	};
+
+	topckgen: topckgen@1001B000 {
+		compatible = "mediatek,mt7986-topckgen", "syscon";
+		reg = <0 0x1001B000 0 0x1000>;
+		#clock-cells = <1>;
+	};
+
+	apmixedsys: apmixedsys@1001E000 {
+		compatible = "mediatek,mt7986-apmixedsys", "syscon";
+		reg = <0 0x1001E000 0 0x1000>;
+		#clock-cells = <1>;
 	};
 
 	watchdog: watchdog@1001c000 {
@@ -218,12 +226,38 @@
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	pwm: pwm@10048000 {
+		compatible = "mediatek,mt7986-pwm";
+		reg = <0 0x10048000 0 0x1000>;
+		#clock-cells = <1>;
+		#pwm-cells = <2>;
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&infracfg CK_INFRA_PWM>,
+			 <&infracfg_ao CK_INFRA_PWM_BSEL>,
+			 <&infracfg_ao CK_INFRA_PWM1_CK>,
+			 <&infracfg_ao CK_INFRA_PWM2_CK>;
+		assigned-clocks = <&topckgen CK_TOP_PWM_SEL>,
+				  <&infracfg_ao CK_INFRA_PWM_BSEL>,
+				  <&infracfg_ao CK_INFRA_PWM1_SEL>,
+				  <&infracfg_ao CK_INFRA_PWM2_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_M_D4>,
+					 <&infracfg CK_INFRA_PWM>,
+					 <&infracfg CK_INFRA_PWM>,
+					 <&infracfg CK_INFRA_PWM>;
+		clock-names = "top", "main", "pwm1", "pwm2";
+		status = "disabled";
+	};
+
 	uart0: serial@11002000 {
 		compatible = "mediatek,mt7986-uart",
 			     "mediatek,mt6577-uart";
 		reg = <0 0x11002000 0 0x400>;
 		interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&uart_clk>;
+		clocks = <&infracfg_ao CK_INFRA_UART0_CK>;
+		assigned-clocks = <&topckgen CK_TOP_UART_SEL>,
+				  <&infracfg_ao CK_INFRA_UART0_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>,
+					 <&infracfg CK_INFRA_UART>;
 		status = "disabled";
 	};
 
@@ -232,7 +266,9 @@
 			     "mediatek,mt6577-uart";
 		reg = <0 0x11003000 0 0x400>;
 		interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&uart_clk>;
+		clocks = <&infracfg_ao CK_INFRA_UART1_CK>;
+		assigned-clocks = <&infracfg_ao CK_INFRA_UART1_SEL>;
+		assigned-clock-parents = <&infracfg CK_INFRA_CK_F26M>;
 		status = "disabled";
 	};
 
@@ -241,41 +277,25 @@
 			     "mediatek,mt6577-uart";
 		reg = <0 0x11004000 0 0x400>;
 		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&uart_clk>;
+		clocks = <&infracfg_ao CK_INFRA_UART2_CK>;
+		assigned-clocks = <&infracfg_ao CK_INFRA_UART2_SEL>;
+		assigned-clock-parents = <&infracfg CK_INFRA_CK_F26M>;
 		status = "disabled";
 	};
 
-	pcie: pcie@11280000 {
-		compatible = "mediatek,mt7986-pcie";
-		device_type = "pci";
-		reg = <0 0x11280000 0 0x5000>;
-		reg-names = "port0";
-		#address-cells = <3>;
-		#size-cells = <2>;
-		interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
-		bus-range = <0x00 0xff>;
-		ranges = <0x82000000 0 0x20000000
-			  0x0 0x20000000 0 0x10000000>;
-
-		pcie0: pcie@0,0 {
-			device_type = "pci";
-			reg = <0x0000 0 0 0 0>;
-			#address-cells = <3>;
-			#size-cells = <2>;
-			ranges;
-			#interrupt-cells = <1>;
-			interrupt-map-mask = <0 0 0 7>;
-			interrupt-map = <0 0 0 1 &pcie_intc0 0>,
-					<0 0 0 2 &pcie_intc0 1>,
-					<0 0 0 3 &pcie_intc0 2>,
-					<0 0 0 4 &pcie_intc0 3>;
-			pcie_intc0: interrupt-controller {
-				interrupt-controller;
-				#address-cells = <0>;
-				#interrupt-cells = <1>;
-			};
-		};
-	};
+        i2c0: i2c@11008000 {
+                compatible = "mediatek,mt7986-i2c";
+                reg = <0 0x11008000 0 0x90>,
+                      <0 0x10217080 0 0x80>;
+                interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+                clock-div = <16>;
+                clocks = <&infracfg_ao CK_INFRA_I2CO_CK>,
+                         <&infracfg_ao CK_INFRA_AP_DMA_CK>;
+                clock-names = "main", "dma";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                status = "disabled";
+        };
 
 	crypto: crypto@10320000 {
 		compatible = "inside-secure,safexcel-eip97";
@@ -312,7 +332,7 @@
 	ethsys: syscon@15000000 {
                 #address-cells = <1>;
                 #size-cells = <1>;
-                compatible = "mediatek,mt7986-ethsys",
+                compatible = "mediatek,mt7986-ethsys_ck",
                              "syscon";
                 reg = <0 0x15000000 0 0x1000>;
                 #clock-cells = <1>;
@@ -332,24 +352,28 @@
                              <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
                              <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,
                              <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
-                clocks = <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>;
+                clocks = <&ethsys CK_ETH_FE_EN>,
+                         <&ethsys CK_ETH_GP2_EN>,
+                         <&ethsys CK_ETH_GP1_EN>,
+                         <&ethsys CK_ETH_WOCPU1_EN>,
+                         <&ethsys CK_ETH_WOCPU0_EN>,
+                         <&ethsys CK_SGM0_TX_EN>,
+                         <&ethsys CK_SGM0_RX_EN>,
+                         <&ethsys CK_SGM0_CK0_EN>,
+                         <&ethsys CK_SGM0_CDR_CK0_EN>,
+                         <&ethsys CK_SGM1_TX_EN>,
+                         <&ethsys CK_SGM1_RX_EN>,
+                         <&ethsys CK_SGM1_CK1_EN>,
+                         <&ethsys CK_SGM1_CDR_CK1_EN>;
                 clock-names = "fe", "gp2", "gp1", "wocpu1", "wocpu0",
                          "sgmii_tx250m", "sgmii_rx250m",
                          "sgmii_cdr_ref", "sgmii_cdr_fb",
                          "sgmii2_tx250m", "sgmii2_rx250m",
                          "sgmii2_cdr_ref", "sgmii2_cdr_fb";
+		assigned-clocks = <&topckgen CK_TOP_NETSYS_2X_SEL>,
+				  <&topckgen CK_TOP_SGM_325M_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_NET2_800M>,
+					 <&topckgen CK_TOP_CB_SGM_325M>;
                 mediatek,ethsys = <&ethsys>;
 		mediatek,sgmiisys = <&sgmiisys0>, <&sgmiisys1>;
                 #reset-cells = <1>;
@@ -367,13 +391,17 @@
 	};
 
 	sgmiisys0: syscon@10060000 {
-		compatible = "mediatek,mt7986-sgmiisys", "syscon";
+		compatible = "mediatek,mt7986-sgmiisys",
+				"mediatek,mt7986-sgmiisys_0",
+				"syscon";
 		reg = <0 0x10060000 0 0x1000>;
 		#clock-cells = <1>;
 	};
 
 	sgmiisys1: syscon@10070000 {
-		compatible = "mediatek,mt7986-sgmiisys", "syscon";
+		compatible = "mediatek,mt7986-sgmiisys",
+				 "mediatek,mt7986-sgmiisys_1",
+				 "syscon";
 		reg = <0 0x10070000 0 0x1000>;
 		#clock-cells = <1>;
 	};
@@ -383,10 +411,14 @@
 		reg = <0 0x11005000 0 0x1000>, <0 0x11006000 0 0x1000>;
 		reg-names = "nfi", "ecc";
 		interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>;
+		clocks = <&topckgen CK_TOP_SPINFI_SEL>,
+			 <&infracfg_ao CK_INFRA_SPINFI1_CK>,
+			 <&topckgen CK_TOP_NFI1X_SEL>;
 		clock-names = "nfi_clk", "pad_clk", "ecc_clk";
+		assigned-clocks = <&topckgen CK_TOP_SPINFI_SEL>,
+			 	  <&topckgen CK_TOP_NFI1X_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M_D2>,
+					 <&topckgen CK_TOP_CB_CKSQ_40M>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -411,9 +443,9 @@
 		compatible = "mediatek,ipm-spi";
 		reg = <0 0x1100a000 0 0x100>;
 		interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&spi0_clk>,
-			 <&spi0_clk>,
-			 <&spi0_clk>;
+		clocks = <&topckgen CK_TOP_CB_M_D2>,
+			 <&infracfg_ao CK_INFRA_SPI0_CK>,
+			 <&topckgen CK_TOP_SPI_SEL>;
 		clock-names = "parent-clk", "sel-clk", "spi-clk";
 		status = "disabled";
 	};
@@ -422,9 +454,9 @@
 		compatible = "mediatek,ipm-spi";
 		reg = <0 0x1100b000 0 0x100>;
 		interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&spi1_clk>,
-			 <&spi1_clk>,
-			 <&spi1_clk>;
+		clocks = <&topckgen CK_TOP_CB_M_D2>,
+			 <&infracfg_ao CK_INFRA_SPI1_CK>,
+			 <&topckgen CK_TOP_SPIM_MST_SEL>;
 		clock-names = "parent-clk", "sel-clk", "spi-clk";
 		status = "disabled";
 	};
@@ -433,9 +465,10 @@
 		compatible = "mediatek,mt7986-auxadc",
 			     "mediatek,mt7622-auxadc";
 		reg = <0 0x1100d000 0 0x1000>;
-		clocks = <&system_clk>;
+		clocks = <&infracfg_ao CK_INFRA_ADC_26M_CK>;
 		clock-names = "main";
 		#io-channel-cells = <1>;
+		status = "disabled";
 	};
 
 	consys: consys@10000000 {
@@ -498,7 +531,13 @@
 			clocks = <&system_clk>;
 			clock-names = "ref";
 			#phy-cells = <1>;
-			status = "okay";
+			status = "disabled";
 		};
 	};
+
+	clkitg: clkitg {
+		compatible = "simple-bus";
+	};
 };
+
+#include "mt7986-clkitg.dtsi"
