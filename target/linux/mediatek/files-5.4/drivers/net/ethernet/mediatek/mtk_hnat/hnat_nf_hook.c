@@ -555,7 +555,7 @@ static void post_routing_print(struct sk_buff *skb, const struct net_device *in,
 static inline void hnat_set_iif(const struct nf_hook_state *state,
 				struct sk_buff *skb, int val)
 {
-	if (FROM_WED(skb)) {
+	if (IS_WHNAT(state->in) && FROM_WED(skb)) {
 		return;
 	} else if (IS_LAN(state->in)) {
 		skb_hnat_iface(skb) = FOE_MAGIC_GE_LAN;
