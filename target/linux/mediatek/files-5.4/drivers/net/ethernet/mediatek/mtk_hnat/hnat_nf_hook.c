@@ -565,13 +565,16 @@ static inline void hnat_set_iif(const struct nf_hook_state *state,
 		skb_hnat_iface(skb) = FOE_MAGIC_EXT;
 	} else if (IS_WAN(state->in)) {
 		skb_hnat_iface(skb) = FOE_MAGIC_GE_WAN;
-	} else if (state->in->netdev_ops->ndo_flow_offload_check) {
-		skb_hnat_iface(skb) = FOE_MAGIC_GE_VIRTUAL;
 	} else if (!IS_BR(state->in)) {
-		skb_hnat_iface(skb) = FOE_INVALID;
+		if (state->in->netdev_ops->ndo_flow_offload_check) {
+			skb_hnat_iface(skb) = FOE_MAGIC_GE_VIRTUAL;
+		} else {
+			skb_hnat_iface(skb) = FOE_INVALID;
 
-		if (is_magic_tag_valid(skb) && IS_SPACE_AVAILABLE_HEAD(skb))
-			memset(skb_hnat_info(skb), 0, FOE_INFO_LEN);
+			if (is_magic_tag_valid(skb) &&
+			    IS_SPACE_AVAILABLE_HEAD(skb))
+				memset(skb_hnat_info(skb), 0, FOE_INFO_LEN);
+		}
 	}
 }
 
@@ -1435,7 +1438,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			gmac = (IS_GMAC1_MODE) ? NR_GMAC1_PORT : NR_GMAC2_PORT;
 		}
 	} else if (IS_EXT(dev) && (FROM_GE_PPD(skb) || FROM_GE_LAN(skb) ||
-		   FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
+		   FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb) || FROM_WED(skb))) {
 		if (!hnat_priv->data->whnat && IS_GMAC1_MODE) {
 			entry.bfib1.vpm = 1;
 			entry.bfib1.vlan_layer = 1;
@@ -1560,6 +1563,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		__func__, skb_hnat_entry(skb), skb_hnat_reason(skb), gmac_no,
 		skb_hnat_wdma_id(skb), skb_hnat_bss_id(skb),
 		skb_hnat_wc_id(skb), skb_hnat_rx_id(skb));
+
+	if ((gmac_no != NR_WDMA0_PORT) && (gmac_no != NR_WDMA1_PORT) &&
+	    (gmac_no != NR_WHNAT_WDMA_PORT))
+		return NF_ACCEPT;
 
 	if (!skb_hnat_is_hashed(skb))
 		return NF_ACCEPT;
@@ -1686,8 +1693,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 
 int mtk_sw_nat_hook_rx(struct sk_buff *skb)
 {
-	if (!IS_SPACE_AVAILABLE_HEAD(skb))
+	if (!IS_SPACE_AVAILABLE_HEAD(skb) || !FROM_WED(skb)) {
+		skb_hnat_magic_tag(skb) = 0;
 		return NF_ACCEPT;
+	}
 
 	skb_hnat_alg(skb) = 0;
 	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
@@ -2059,7 +2068,8 @@ static unsigned int mtk_hnat_br_nf_forward(void *priv,
 					   struct sk_buff *skb,
 					   const struct nf_hook_state *state)
 {
-	if (unlikely(IS_EXT(state->in) && IS_EXT(state->out)))
+	if ((hnat_priv->data->version == MTK_HNAT_V2) &&
+	    unlikely(IS_EXT(state->in) && IS_EXT(state->out)))
 		hnat_set_head_frags(state, skb, 1, hnat_set_alg);
 
 	return NF_ACCEPT;
