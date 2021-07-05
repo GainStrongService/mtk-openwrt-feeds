@@ -961,7 +961,7 @@ static const struct group_desc mt7986_groups[] = {
 	/*  @GPIO(39,40): UART0(1) */
         PINCTRL_PIN_GROUP("uart0", mt7986_uart0),
 	/*  @GPIO(41): PCIE_PERESET_N(1) */
-        PINCTRL_PIN_GROUP("pcie_reset", mt7986_pcie_reset),
+        PINCTRL_PIN_GROUP("pcie_pereset", mt7986_pcie_reset),
 	/*  @GPIO(42,45): UART1(1) */
         PINCTRL_PIN_GROUP("uart1", mt7986_uart1),
 	/*  @GPIO(46,49): UART1(1) */
