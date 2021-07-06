@@ -115,6 +115,9 @@ struct mtk_snand_soc_data {
 
 	const uint8_t *spare_sizes;
 	uint32_t num_spare_size;
+
+	uint16_t latch_lat;
+	uint16_t sample_delay;
 };
 
 enum mtk_ecc_regs {

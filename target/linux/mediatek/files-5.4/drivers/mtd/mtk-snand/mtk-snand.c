@@ -118,6 +118,8 @@
 #define   DATA_READ_MODE_X4		2
 #define   DATA_READ_MODE_DUAL		5
 #define   DATA_READ_MODE_QUAD		6
+#define LATCH_LAT_S			8
+#define LATCH_LAT			GENMASK(9, 8)
 #define PG_LOAD_CUSTOM_EN		BIT(7)
 #define DATARD_CUSTOM_EN		BIT(6)
 #define CS_DESELECT_CYC_S		0
@@ -161,7 +163,9 @@ static const struct mtk_snand_soc_data mtk_snand_socs[__SNAND_SOC_MAX] = {
 		.empty_page_check = false,
 		.mastersta_mask = NFI_MASTERSTA_MASK_7622,
 		.spare_sizes = mt7622_spare_sizes,
-		.num_spare_size = ARRAY_SIZE(mt7622_spare_sizes)
+		.num_spare_size = ARRAY_SIZE(mt7622_spare_sizes),
+		.latch_lat = 0,
+		.sample_delay = 40
 	},
 	[SNAND_SOC_MT7629] = {
 		.sector_size = 512,
@@ -173,7 +177,9 @@ static const struct mtk_snand_soc_data mtk_snand_socs[__SNAND_SOC_MAX] = {
 		.empty_page_check = false,
 		.mastersta_mask = NFI_MASTERSTA_MASK_7622,
 		.spare_sizes = mt7622_spare_sizes,
-		.num_spare_size = ARRAY_SIZE(mt7622_spare_sizes)
+		.num_spare_size = ARRAY_SIZE(mt7622_spare_sizes),
+		.latch_lat = 0,
+		.sample_delay = 40
 	},
 	[SNAND_SOC_MT7986] = {
 		.sector_size = 1024,
@@ -185,7 +191,9 @@ static const struct mtk_snand_soc_data mtk_snand_socs[__SNAND_SOC_MAX] = {
 		.empty_page_check = true,
 		.mastersta_mask = NFI_MASTERSTA_MASK_7986,
 		.spare_sizes = mt7986_spare_sizes,
-		.num_spare_size = ARRAY_SIZE(mt7986_spare_sizes)
+		.num_spare_size = ARRAY_SIZE(mt7986_spare_sizes),
+		.latch_lat = 1,
+		.sample_delay = 8
 	},
 };
 
@@ -357,7 +365,7 @@ static int mtk_snand_mac_reset(struct mtk_snand *snf)
 		snand_log_snfi(snf->pdev, "Failed to reset SNFI MAC\n");
 
 	nfi_write32(snf, SNF_MISC_CTL, (2 << FIFO_RD_LTC_S) |
-		    (10 << CS_DESELECT_CYC_S));
+		    (10 << CS_DESELECT_CYC_S) | (snf->nfi_soc->latch_lat << LATCH_LAT_S));
 
 	return ret;
 }
@@ -743,7 +751,8 @@ static int mtk_snand_read_cache(struct mtk_snand *snf, uint32_t page, bool raw)
 
 	/* Set read mode */
 	mode = (uint32_t)snf->mode_rfc << DATA_READ_MODE_S;
-	nfi_rmw32(snf, SNF_MISC_CTL, DATA_READ_MODE, mode | DATARD_CUSTOM_EN);
+	nfi_rmw32(snf, SNF_MISC_CTL, DATA_READ_MODE,
+			mode | DATARD_CUSTOM_EN | (snf->nfi_soc->latch_lat << LATCH_LAT_S));
 
 	/* Set bytes to read */
 	rwbytes = snf->ecc_steps * snf->raw_sector_size;
@@ -840,7 +849,7 @@ cleanup:
 	nfi_read32(snf, NFI_INTR_STA);
 	nfi_write32(snf, NFI_INTR_EN, 0);
 
-	nfi_rmw32(snf, SNF_MISC_CTL, DATARD_CUSTOM_EN, 0);
+	nfi_rmw32(snf, SNF_MISC_CTL, DATARD_CUSTOM_EN | LATCH_LAT, 0);
 
 	return ret;
 }
@@ -1715,7 +1724,7 @@ static int mtk_snand_setup(struct mtk_snand *snf,
 
 	/* Tuning options */
 	nfi_write16(snf, NFI_DEBUG_CON1, WBUF_EN);
-	nfi_write32(snf, SNF_DLY_CTL3, (40 << SFCK_SAM_DLY_S));
+	nfi_write32(snf, SNF_DLY_CTL3, (snf->nfi_soc->sample_delay << SFCK_SAM_DLY_S));
 
 	/* Interrupts */
 	nfi_read32(snf, NFI_INTR_STA);
