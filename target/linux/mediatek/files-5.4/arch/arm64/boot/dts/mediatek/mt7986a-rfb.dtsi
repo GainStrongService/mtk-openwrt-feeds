@@ -114,6 +114,17 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+
+	sound {
+		compatible = "mediatek,mt7986-wm8960-machine";
+		mediatek,platform = <&afe>;
+		audio-routing = "Headphone", "HP_L",
+				"Headphone", "HP_R",
+				"LINPUT1", "AMIC",
+				"RINPUT1", "AMIC";
+		mediatek,audio-codec = <&wm8960>;
+		status = "okay";
+	};
 };
 
 &pwm {
@@ -142,6 +153,11 @@
         pinctrl-names = "default";
         pinctrl-0 = <&i2c_pins>;
         status = "okay";
+
+	wm8960: wm8960@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+	};
 };
 
 &auxadc {
