@@ -35,7 +35,7 @@ static const struct mtk_fixed_factor infra_divs[] __initconst = {
 	FACTOR(CK_INFRA_UART, "infra_uart", "uart_sel", 1, 1),
 	FACTOR(CK_INFRA_ISPI0, "infra_ispi0", "spi_sel", 1, 1),
 	FACTOR(CK_INFRA_I2C, "infra_i2c", "i2c_sel", 1, 1),
-	FACTOR(CK_INFRA_ISPI1, "infra_ispi1", "spinfi_sel", 1, 1),
+	FACTOR(CK_INFRA_ISPI1, "infra_ispi1", "spim_mst_sel", 1, 1),
 	FACTOR(CK_INFRA_PWM, "infra_pwm", "pwm_sel", 1, 1),
 	FACTOR(CK_INFRA_66M_MCK, "infra_66m_mck", "sysaxi_sel", 1, 2),
 	FACTOR(CK_INFRA_CK_F32K, "infra_ck_f32k", "cb_rtc_32p7k", 1, 1),
@@ -671,6 +671,7 @@ static void __init mtk_clk_enable_critical(void)
 	clk_prepare_enable(mt7986_top_clk_data->clks[CK_TOP_SYSAPB_SEL]);
 	clk_prepare_enable(mt7986_top_clk_data->clks[CK_TOP_DRAMC_SEL]);
 	clk_prepare_enable(mt7986_top_clk_data->clks[CK_TOP_DRAMC_MD32_SEL]);
+	clk_prepare_enable(mt7986_top_clk_data->clks[CK_TOP_F26M_SEL]);
 }
 
 static void __init mtk_infracfg_init(struct device_node *node)
