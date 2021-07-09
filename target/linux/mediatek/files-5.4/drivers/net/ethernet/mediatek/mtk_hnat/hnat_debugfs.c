@@ -1557,7 +1557,7 @@ static ssize_t hnat_sched_write(struct file *file, const char __user *buf,
 	u32 qdma_tx_sch;
 	u32 val = 0;
 
-	if (length > sizeof(line))
+	if (length >= sizeof(line))
 		return -EINVAL;
 
 	if (copy_from_user(line, buf, length))
@@ -1570,6 +1570,8 @@ static ssize_t hnat_sched_write(struct file *file, const char __user *buf,
 		rate /= 10;
 		exp++;
 	}
+
+	line[length] = '\0';
 
 	if (enable)
 		val |= BIT(11);
@@ -1703,7 +1705,7 @@ static ssize_t hnat_queue_write(struct file *file, const char __user *buf,
 
 	cr_set_field(h->fe_base + QDMA_PAGE, QTX_CFG_PAGE, (id / NUM_OF_Q_PER_PAGE));
 	qtx_sch = readl(h->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
-	if (length > sizeof(line))
+	if (length >= sizeof(line))
 		return -EINVAL;
 
 	if (copy_from_user(line, buf, length))
@@ -1712,6 +1714,8 @@ static ssize_t hnat_queue_write(struct file *file, const char __user *buf,
 	if (sscanf(line, "%d %d %d %d %d %d %d", &scheduler, &min_enable, &min_rate,
 		   &max_enable, &max_rate, &weight, &resv) != 7)
 		return -EFAULT;
+
+	line[length] = '\0';
 
 	while (max_rate > 127) {
 		max_rate /= 10;
