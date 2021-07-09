@@ -340,6 +340,11 @@ int entry_detail(int ppe_id, int index)
 	if (ppe_id >= CFG_PPE_NUM)
 		return -EINVAL;
 
+	if (index < 0 || index >= h->foe_etry_num) {
+		pr_info("Invalid entry index\n");
+		return -EINVAL;
+	}
+
 	entry = h->foe_table_cpu[ppe_id] + index;
 	saddr = htonl(entry->ipv4_hnapt.sip);
 	daddr = htonl(entry->ipv4_hnapt.dip);
@@ -521,6 +526,11 @@ int entry_delete(int ppe_id, int index)
 
 	if (ppe_id >= CFG_PPE_NUM)
 		return -EINVAL;
+
+	if (index < 0 || index >= h->foe_etry_num) {
+		pr_info("Invalid entry index\n");
+		return -EINVAL;
+	}
 
 	entry = h->foe_table_cpu[ppe_id] + index;
 	memset(entry, 0, sizeof(struct foe_entry));
@@ -1929,6 +1939,11 @@ int get_ppe_mib(int ppe_id, int index, u64 *pkt_cnt, u64 *byte_cnt)
 	if (ppe_id >= CFG_PPE_NUM)
 		return -1;
 
+	if (index < 0 || index >= h->foe_etry_num) {
+		pr_info("Invalid entry index\n");
+		return -EINVAL;
+	}
+
 	acount = hnat_get_count(h, ppe_id, index);
 	entry = hnat_priv->foe_table_cpu[ppe_id] + index;
 
@@ -1951,6 +1966,11 @@ int is_entry_binding(int ppe_id, int index)
 
 	if (ppe_id >= CFG_PPE_NUM)
 		return -1;
+
+	if (index < 0 || index >= h->foe_etry_num) {
+		pr_info("Invalid entry index\n");
+		return -EINVAL;
+	}
 
 	entry = hnat_priv->foe_table_cpu[ppe_id] + index;
 
