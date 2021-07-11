@@ -1962,6 +1962,7 @@ EXPORT_SYMBOL(get_ppe_mib);
 
 int is_entry_binding(int ppe_id, int index)
 {
+	struct mtk_hnat *h = hnat_priv;
 	struct foe_entry *entry;
 
 	if (ppe_id >= CFG_PPE_NUM)
