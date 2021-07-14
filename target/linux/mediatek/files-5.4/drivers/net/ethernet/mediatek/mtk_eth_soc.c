@@ -2449,9 +2449,10 @@ static int mtk_start_dma(struct mtk_eth *eth)
 	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		val = mtk_r32(eth, MTK_QDMA_GLO_CFG);
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
 			mtk_w32(eth,
-				MTK_TX_DMA_EN | MTK_RX_DMA_EN |
+				val | MTK_TX_DMA_EN | MTK_RX_DMA_EN |
 				MTK_DMA_SIZE_32DWORDS | MTK_TX_WB_DDONE |
 				MTK_NDP_CO_PRO | MTK_MUTLI_CNT |
 				MTK_RESV_BUF | MTK_WCOMP_EN |
@@ -2459,14 +2460,15 @@ static int mtk_start_dma(struct mtk_eth *eth)
 				MTK_RX_2B_OFFSET, MTK_QDMA_GLO_CFG);
 		else
 			mtk_w32(eth,
-				MTK_TX_DMA_EN |
+				val | MTK_TX_DMA_EN |
 				MTK_DMA_SIZE_32DWORDS | MTK_NDP_CO_PRO |
 				MTK_RX_DMA_EN | MTK_RX_2B_OFFSET |
 				MTK_RX_BT_32DWORDS,
 				MTK_QDMA_GLO_CFG);
 
+		val = mtk_r32(eth, MTK_PDMA_GLO_CFG);
 		mtk_w32(eth,
-			MTK_RX_DMA_EN | rx_2b_offset |
+			val | MTK_RX_DMA_EN | rx_2b_offset |
 			MTK_RX_BT_32DWORDS | MTK_MULTI_EN,
 			MTK_PDMA_GLO_CFG);
 	} else {
