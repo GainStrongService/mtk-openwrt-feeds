@@ -24,14 +24,18 @@
 
 struct mtk_snand_of_id {
 	enum mtk_snand_soc soc;
+	bool en_ecc_clk;
+	bool en_nfi_hclk;
 };
 
 struct mtk_snand_mtd {
 	struct mtk_snand_plat_dev pdev;
+	struct mtk_snand_of_id *soc_id;
 
 	struct clk *nfi_clk;
 	struct clk *pad_clk;
 	struct clk *ecc_clk;
+	struct clk *nfi_hclk;
 
 	void __iomem *nfi_regs;
 	void __iomem *ecc_regs;
@@ -414,6 +418,7 @@ static irqreturn_t mtk_snand_irq(int irq, void *id)
 
 static int mtk_snand_enable_clk(struct mtk_snand_mtd *msm)
 {
+	struct mtk_snand_of_id *soc_id = msm->soc_id;
 	int ret;
 
 	ret = clk_prepare_enable(msm->nfi_clk);
@@ -429,12 +434,26 @@ static int mtk_snand_enable_clk(struct mtk_snand_mtd *msm)
 		return ret;
 	}
 
-	ret = clk_prepare_enable(msm->ecc_clk);
-	if (ret) {
-		dev_err(msm->pdev.dev, "unable to enable ecc clk\n");
-		clk_disable_unprepare(msm->nfi_clk);
-		clk_disable_unprepare(msm->pad_clk);
-		return ret;
+	if (soc_id->en_ecc_clk) {
+		ret = clk_prepare_enable(msm->ecc_clk);
+		if (ret) {
+			dev_err(msm->pdev.dev, "unable to enable ecc clk\n");
+			clk_disable_unprepare(msm->nfi_clk);
+			clk_disable_unprepare(msm->pad_clk);
+			return ret;
+		}
+	}
+
+	if (soc_id->en_nfi_hclk) {
+		ret = clk_prepare_enable(msm->nfi_hclk);
+		if (ret) {
+			dev_err(msm->pdev.dev, "unable to enable nfi hclk\n");
+			clk_disable_unprepare(msm->nfi_clk);
+			clk_disable_unprepare(msm->pad_clk);
+			if (soc_id->en_ecc_clk)
+				clk_disable_unprepare(msm->ecc_clk);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -442,9 +461,14 @@ static int mtk_snand_enable_clk(struct mtk_snand_mtd *msm)
 
 static void mtk_snand_disable_clk(struct mtk_snand_mtd *msm)
 {
+	struct mtk_snand_of_id *soc_id = msm->soc_id;
+
 	clk_disable_unprepare(msm->nfi_clk);
 	clk_disable_unprepare(msm->pad_clk);
-	clk_disable_unprepare(msm->ecc_clk);
+	if (soc_id->en_ecc_clk)
+		clk_disable_unprepare(msm->ecc_clk);
+	if (soc_id->en_nfi_hclk)
+		clk_disable_unprepare(msm->nfi_hclk);
 }
 
 static const struct mtd_ooblayout_ops mtk_snand_ooblayout = {
@@ -452,9 +476,23 @@ static const struct mtd_ooblayout_ops mtk_snand_ooblayout = {
 	.free = mtk_snand_ooblayout_free,
 };
 
-static struct mtk_snand_of_id mt7622_soc_id = { .soc = SNAND_SOC_MT7622 };
-static struct mtk_snand_of_id mt7629_soc_id = { .soc = SNAND_SOC_MT7629 };
-static struct mtk_snand_of_id mt7986_soc_id = { .soc = SNAND_SOC_MT7986 };
+static struct mtk_snand_of_id mt7622_soc_id = {
+	.soc = SNAND_SOC_MT7622,
+	.en_ecc_clk = true,
+	.en_nfi_hclk = false
+};
+
+static struct mtk_snand_of_id mt7629_soc_id = {
+	.soc = SNAND_SOC_MT7629,
+	.en_ecc_clk = true,
+	.en_nfi_hclk = false
+};
+
+static struct mtk_snand_of_id mt7986_soc_id = {
+	.soc = SNAND_SOC_MT7986,
+	.en_ecc_clk = false,
+	.en_nfi_hclk = true
+};
 
 static const struct of_device_id mtk_snand_ids[] = {
 	{ .compatible = "mediatek,mt7622-snand", .data = &mt7622_soc_id },
@@ -470,7 +508,6 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	struct mtk_snand_platdata mtk_snand_pdata = {};
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_soc_id;
-	const struct mtk_snand_of_id *soc_id;
 	struct mtk_snand_mtd *msm;
 	struct mtd_info *mtd;
 	struct resource *r;
@@ -481,11 +518,11 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	if (!of_soc_id)
 		return -EINVAL;
 
-	soc_id = of_soc_id->data;
-
 	msm = devm_kzalloc(&pdev->dev, sizeof(*msm), GFP_KERNEL);
 	if (!msm)
 		return -ENOMEM;
+
+	msm->soc_id = of_soc_id->data;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nfi");
 	msm->nfi_regs = devm_ioremap_resource(&pdev->dev, r);
@@ -503,30 +540,42 @@ static int mtk_snand_probe(struct platform_device *pdev)
 
 	msm->pdev.dev = &pdev->dev;
 	msm->quad_spi = of_property_read_bool(np, "mediatek,quad-spi");
-	msm->soc = soc_id->soc;
+	msm->soc = msm->soc_id->soc;
 
 	msm->nfi_clk = devm_clk_get(msm->pdev.dev, "nfi_clk");
 	if (IS_ERR(msm->nfi_clk)) {
 		ret = PTR_ERR(msm->nfi_clk);
-		dev_err(msm->pdev.dev, "unable to get nfi_clk, err = %d\n",
-			ret);
+		dev_err(msm->pdev.dev,
+			"unable to get nfi_clk, err = %d\n", ret);
 		goto errout1;
 	}
 
-	msm->ecc_clk = devm_clk_get(msm->pdev.dev, "ecc_clk");
-	if (IS_ERR(msm->ecc_clk)) {
-		ret = PTR_ERR(msm->ecc_clk);
-		dev_err(msm->pdev.dev, "unable to get ecc_clk, err = %d\n",
-			ret);
-		goto errout1;
+	if (msm->soc_id->en_ecc_clk) {
+		msm->ecc_clk = devm_clk_get(msm->pdev.dev, "ecc_clk");
+		if (IS_ERR(msm->ecc_clk)) {
+			ret = PTR_ERR(msm->ecc_clk);
+			dev_err(msm->pdev.dev,
+				"unable to get ecc_clk, err = %d\n", ret);
+			goto errout1;
+		}
 	}
 
 	msm->pad_clk = devm_clk_get(msm->pdev.dev, "pad_clk");
 	if (IS_ERR(msm->pad_clk)) {
 		ret = PTR_ERR(msm->pad_clk);
-		dev_err(msm->pdev.dev, "unable to get pad_clk, err = %d\n",
-			ret);
+		dev_err(msm->pdev.dev,
+			"unable to get pad_clk, err = %d\n", ret);
 		goto errout1;
+	}
+
+	if (msm->soc_id->en_nfi_hclk) {
+		msm->nfi_hclk = devm_clk_get(msm->pdev.dev, "nfi_hclk");
+		if (IS_ERR(msm->nfi_hclk)) {
+			ret = PTR_ERR(msm->nfi_hclk);
+			dev_err(msm->pdev.dev,
+				"unable to get nfi_hclk, err = %d\n", ret);
+			goto errout1;
+		}
 	}
 
 	ret = mtk_snand_enable_clk(msm);
