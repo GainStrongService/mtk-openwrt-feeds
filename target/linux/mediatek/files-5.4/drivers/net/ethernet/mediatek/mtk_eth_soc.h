@@ -603,9 +603,15 @@
 #define ETHSYS_TRGMII_MT7621_DDR_PLL	BIT(5)
 
 /* ethernet reset control register */
-#define ETHSYS_RSTCTRL		0x34
-#define RSTCTRL_FE		BIT(6)
-#define RSTCTRL_PPE		BIT(31)
+#define ETHSYS_RSTCTRL	0x34
+#define RSTCTRL_FE	BIT(6)
+#define RSTCTRL_PPE	BIT(31)
+#define RSTCTRL_PPE1 	BIT(30)
+#define RSTCTRL_ETH 	BIT(23)
+
+/* ethernet reset check idle register */
+#define ETHSYS_FE_RST_CHK_IDLE_EN 	0x28
+
 
 /* SGMII subsystem config registers */
 /* Register to auto-negotiation restart */
@@ -900,6 +906,7 @@ enum mkt_eth_capabilities {
 	MTK_QDMA_BIT,
 	MTK_NETSYS_V2_BIT,
 	MTK_SOC_MT7628_BIT,
+	MTK_RSTCTRL_PPE1_BIT,
 
 	/* MUX BITS*/
 	MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT,
@@ -933,6 +940,7 @@ enum mkt_eth_capabilities {
 #define MTK_QDMA		BIT(MTK_QDMA_BIT)
 #define MTK_NETSYS_V2		BIT(MTK_NETSYS_V2_BIT)
 #define MTK_SOC_MT7628		BIT(MTK_SOC_MT7628_BIT)
+#define MTK_RSTCTRL_PPE1	BIT(MTK_RSTCTRL_PPE1_BIT)
 
 #define MTK_ETH_MUX_GDM1_TO_GMAC1_ESW		\
 	BIT(MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT)
@@ -1007,7 +1015,7 @@ enum mkt_eth_capabilities {
 
 #define MT7986_CAPS   (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | \
                        MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
-                       MTK_NETSYS_V2)
+                       MTK_NETSYS_V2 | MTK_RSTCTRL_PPE1)
 
 /* struct mtk_eth_data -	This is the structure holding all differences
  *				among various plaforms

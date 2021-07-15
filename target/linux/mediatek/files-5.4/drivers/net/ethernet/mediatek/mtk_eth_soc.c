@@ -2684,12 +2684,20 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	}
 
 	/* Non-MT7628 handling... */
-	ethsys_reset(eth, RSTCTRL_FE);
-	ethsys_reset(eth, RSTCTRL_PPE);
-
-	/* Set FE to PDMAv2 if necessary */
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0);
+
+	if(MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+		ethsys_reset(eth,  RSTCTRL_ETH | RSTCTRL_FE | RSTCTRL_PPE | RSTCTRL_PPE1);
+	else
+		ethsys_reset(eth,  RSTCTRL_ETH | RSTCTRL_FE | RSTCTRL_PPE);
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0x3ffffff);
+
+		/* Set FE to PDMAv2 if necessary */
 		mtk_w32(eth, mtk_r32(eth, MTK_FE_GLO_MISC) | MTK_PDMA_V2, MTK_FE_GLO_MISC);
+	}
 
 	if (eth->pctl) {
 		/* Set GE2 driving and slew rate */
