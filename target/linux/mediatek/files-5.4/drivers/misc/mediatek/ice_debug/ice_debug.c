@@ -34,7 +34,19 @@ static int mtk_ice_debug_probe(struct platform_device *pdev)
 
 	clk_icedbg = devm_clk_get(&pdev->dev, "ice_dbg");
 	if (IS_ERR(clk_icedbg)) {
-		dev_err(&pdev->dev, "get clock fail: %ld\n",
+		dev_err(&pdev->dev, "get ice_dbg clock fail: %ld\n",
+				PTR_ERR(clk_icedbg));
+		return PTR_ERR(clk_icedbg);
+	}
+
+	ret = clk_prepare_enable(clk_icedbg);
+	if (ret)
+		return ret;
+
+	/*enable CK_TOP_ARM_DB_JTSEL clk*/
+	clk_icedbg = devm_clk_get(&pdev->dev, "dbg_jtsel");
+	if (IS_ERR(clk_icedbg)) {
+		dev_err(&pdev->dev, "get dbg_sel clock fail: %ld\n",
 				PTR_ERR(clk_icedbg));
 		return PTR_ERR(clk_icedbg);
 	}
