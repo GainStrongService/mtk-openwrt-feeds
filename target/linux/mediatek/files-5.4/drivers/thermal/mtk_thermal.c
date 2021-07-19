@@ -672,27 +672,18 @@ static int raw_to_mcelsius_v2(struct mtk_thermal *mt, int sensno, s32 raw)
 
 static int raw_to_mcelsius_v3(struct mtk_thermal *mt, int sensno, s32 raw)
 {
-	s32 format_1;
-	s32 g_oe;
-	s32 g_gain;
-	s32 g_x_roomt;
 	s32 tmp;
 
 	if (raw == 0)
 		return 0;
 
 	raw &= 0xfff;
-	g_gain = 1 + ((mt->adc_ge - 512) >> 12);
-	g_oe = mt->adc_oe - 512;
-	format_1 = mt->vts[sensno] + 2900 - g_oe;
-	g_x_roomt = format_1 / (g_gain << 12);
+	tmp = 100000 * 15 / 16 * 10000;
+	tmp /= 4096 - 512 + mt->adc_ge;
+	tmp /= 1490;
+	tmp *= raw - mt->vts[sensno] - 2900;
 
-	tmp = (((raw - g_oe) >> 12) / g_gain) - g_x_roomt;
-	tmp = tmp * 15 / 18;
-	tmp = (tmp * 100000) / 149;
-	tmp = (mt->degc_cali >> 1) - tmp;
-
-	return tmp * 100;
+	return mt->degc_cali * 500 - tmp;
 }
 
 /**
