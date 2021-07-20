@@ -885,11 +885,13 @@ static int mtk_snand_do_read_page(struct mtk_snand *snf, uint64_t addr,
 				  void *buf, void *oob, bool raw, bool format)
 {
 	uint64_t die_addr;
-	uint32_t page;
-	int ret;
+	uint32_t page, dly_ctrl3;
+	int ret, retry_cnt = 0;
 
 	die_addr = mtk_snand_select_die_address(snf, addr);
 	page = die_addr >> snf->writesize_shift;
+
+	dly_ctrl3 = nfi_read32(snf, SNF_DLY_CTL3);
 
 	ret = mtk_snand_page_op(snf, page, SNAND_CMD_READ_TO_CACHE);
 	if (ret)
@@ -901,9 +903,29 @@ static int mtk_snand_do_read_page(struct mtk_snand *snf, uint64_t addr,
 		return ret;
 	}
 
+retry:
 	ret = mtk_snand_read_cache(snf, page, raw);
 	if (ret < 0 && ret != -EBADMSG)
 		return ret;
+
+	if (ret == -EBADMSG && retry_cnt < 16) {
+		nfi_write32(snf, SNF_DLY_CTL3, retry_cnt * 2);
+		retry_cnt++;
+		goto retry;
+	}
+
+	if (retry_cnt) {
+		if(ret == -EBADMSG) {
+			nfi_write32(snf, SNF_DLY_CTL3, dly_ctrl3);
+			snand_log_chip(snf->pdev,
+				       "NFI calibration failed. Original sample delay: 0x%x\n",
+				       dly_ctrl3);
+		} else {
+			snand_log_chip(snf->pdev,
+				       "NFI calibration passed. New sample delay: 0x%x\n",
+				       nfi_read32(snf, SNF_DLY_CTL3));
+		}
+	}
 
 	if (raw) {
 		if (format) {
