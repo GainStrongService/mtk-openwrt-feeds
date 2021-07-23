@@ -34,6 +34,7 @@ struct nl_msg;
 struct nlattr;
 
 enum mtk_nl80211_vendor_subcmds {
+	MTK_NL80211_VENDOR_SUBCMD_AMNT_CTRL = 0xae,
 	MTK_NL80211_VENDOR_SUBCMD_CSI_CTRL = 0xc2,
 };
 
@@ -87,6 +88,42 @@ enum mtk_vendor_attr_csi_data {
 		NUM_MTK_VENDOR_ATTRS_CSI_DATA - 1
 };
 
+enum mtk_vendor_attr_mnt_ctrl {
+	MTK_VENDOR_ATTR_AMNT_CTRL_UNSPEC,
+
+	MTK_VENDOR_ATTR_AMNT_CTRL_SET,
+	MTK_VENDOR_ATTR_AMNT_CTRL_DUMP,
+	/* keep last */
+	NUM_MTK_VENDOR_ATTRS_AMNT_CTRL,
+	MTK_VENDOR_ATTR_AMNT_CTRL_MAX =
+		NUM_MTK_VENDOR_ATTRS_AMNT_CTRL - 1
+};
+
+enum mtk_vendor_attr_mnt_set {
+	MTK_VENDOR_ATTR_AMNT_SET_UNSPEC,
+
+	MTK_VENDOR_ATTR_AMNT_SET_INDEX,
+	MTK_VENDOR_ATTR_AMNT_SET_MACADDR,
+
+	/* keep last */
+	NUM_MTK_VENDOR_ATTRS_AMNT_SET,
+	MTK_VENDOR_ATTR_AMNT_SET_MAX =
+		NUM_MTK_VENDOR_ATTRS_AMNT_SET - 1
+};
+
+enum mtk_vendor_attr_mnt_dump {
+	MTK_VENDOR_ATTR_AMNT_DUMP_UNSPEC,
+
+	MTK_VENDOR_ATTR_AMNT_DUMP_INDEX,
+	MTK_VENDOR_ATTR_AMNT_DUMP_LEN,
+	MTK_VENDOR_ATTR_AMNT_DUMP_RESULT,
+
+	/* keep last */
+	NUM_MTK_VENDOR_ATTRS_AMNT_DUMP,
+	MTK_VENDOR_ATTR_AMNT_DUMP_MAX =
+		NUM_MTK_VENDOR_ATTRS_AMNT_DUMP - 1
+};
+
 #define CSI_MAX_COUNT 256
 #define ETH_ALEN 6
 
@@ -106,9 +143,19 @@ struct csi_data {
 	u16 rx_idx;
 };
 
+struct amnt_data {
+	u8 idx;
+	u8 addr[ETH_ALEN];
+	s8 rssi[4];
+	u32 last_seen;
+};
+
 extern struct unl unl;
 
 int mt76_csi_set(int idx, int argc, char **argv);
 int mt76_csi_dump(int idx, int argc, char **argv);
+
+int mt76_amnt_set(int idx, int argc, char **argv);
+int mt76_amnt_dump(int idx, int argc, char **argv);
 
 #endif
