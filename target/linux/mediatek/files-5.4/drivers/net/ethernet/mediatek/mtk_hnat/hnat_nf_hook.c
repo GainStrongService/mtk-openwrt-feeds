@@ -1571,6 +1571,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	if (!skb_hnat_is_hashed(skb))
 		return NF_ACCEPT;
 
+	if (skb_hnat_entry(skb) >= hnat_priv->foe_etry_num ||
+	    skb_hnat_ppe(skb) >= CFG_PPE_NUM)
+		return NF_ACCEPT;
+
 	entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
 	if (entry_hnat_is_bound(entry))
 		return NF_ACCEPT;
