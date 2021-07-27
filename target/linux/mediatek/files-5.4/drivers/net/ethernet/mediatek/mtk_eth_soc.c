@@ -1446,10 +1446,9 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 
 		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
-				if (trxd.rxd4 & RX_DMA_VTAG_V2)
+				if (trxd.rxd3 & RX_DMA_VTAG_V2)
 					__vlan_hwaccel_put_tag(skb,
-					htons(RX_DMA_VPID_V2(trxd.rxd3,
-							     trxd.rxd4)),
+					htons(RX_DMA_VPID_V2(trxd.rxd4)),
 					RX_DMA_VID_V2(trxd.rxd4));
 			} else {
 				if (trxd.rxd2 & RX_DMA_VTAG)
@@ -3680,6 +3679,15 @@ static const struct mtk_soc_data mt7986_data = {
 	.has_sram = true,
 };
 
+static const struct mtk_soc_data mt7981_data = {
+	.ana_rgc3 = 0x128,
+	.caps = MT7981_CAPS,
+	.hw_features = MTK_HW_FEATURES | NETIF_F_HW_VLAN_CTAG_RX,
+	.required_clks = MT7981_CLKS_BITMAP,
+	.required_pctl = false,
+	.has_sram = true,
+};
+
 static const struct mtk_soc_data rt5350_data = {
 	.caps = MT7628_CAPS,
 	.hw_features = MTK_HW_FEATURES_MT7628,
@@ -3695,6 +3703,7 @@ const struct of_device_id of_mtk_match[] = {
 	{ .compatible = "mediatek,mt7623-eth", .data = &mt7623_data},
 	{ .compatible = "mediatek,mt7629-eth", .data = &mt7629_data},
 	{ .compatible = "mediatek,mt7986-eth", .data = &mt7986_data},
+	{ .compatible = "mediatek,mt7981-eth", .data = &mt7981_data},
 	{ .compatible = "ralink,rt5350-eth", .data = &rt5350_data},
 	{},
 };

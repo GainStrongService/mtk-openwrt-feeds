@@ -523,8 +523,8 @@
 
 /* PDMA V2 descriptor rxd4 */
 #define RX_DMA_VID_V2(_x)       RX_DMA_VID(_x)
-#define RX_DMA_TCI_V2(_x)	(((_x) >> 1) & (VLAN_PRIO_MASK | VLAN_VID_MASK))
-#define RX_DMA_VPID_V2(x3, x4)	((((x3) & 1) << 15) | (((x4) >> 17) & 0x7fff))
+#define RX_DMA_TCI_V2(_x)	RX_DMA_TCI(_x)
+#define RX_DMA_VPID_V2(_x)	RX_DMA_VPID(_x)
 
 /* PDMA V2 descriptor rxd6 */
 #define RX_DMA_GET_FLUSH_RSN_V2(_x)	((_x) & 0x7)
@@ -695,6 +695,11 @@
 #define CO_QPHY_SEL            BIT(0)
 #define GEPHY_MAC_SEL          BIT(1)
 
+/* Top misc registers */
+#define USB_PHY_SWITCH_REG     0x218
+#define QPHY_SEL_MASK          GENMASK(1, 0)
+#define SGMII_QPHY_SEL	       0x10
+
 /*MDIO control*/
 #define MII_MMD_ACC_CTL_REG             0x0d
 #define MII_MMD_ADDR_DATA_REG           0x0e
@@ -850,6 +855,8 @@ enum mtk_clks_map {
                                  BIT(MTK_CLK_SGMII2_CDR_REF) | \
                                  BIT(MTK_CLK_SGMII2_CDR_FB))
 
+#define MT7981_CLKS_BITMAP	(MT7986_CLKS_BITMAP)
+
 enum mtk_dev_state {
 	MTK_HW_INIT,
 	MTK_RESETTING
@@ -958,6 +965,7 @@ enum mkt_eth_capabilities {
 	MTK_NETSYS_V2_BIT,
 	MTK_SOC_MT7628_BIT,
 	MTK_RSTCTRL_PPE1_BIT,
+	MTK_U3_COPHY_V2_BIT,
 
 	/* MUX BITS*/
 	MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT,
@@ -993,6 +1001,7 @@ enum mkt_eth_capabilities {
 #define MTK_NETSYS_V2		BIT(MTK_NETSYS_V2_BIT)
 #define MTK_SOC_MT7628		BIT(MTK_SOC_MT7628_BIT)
 #define MTK_RSTCTRL_PPE1	BIT(MTK_RSTCTRL_PPE1_BIT)
+#define MTK_U3_COPHY_V2		BIT(MTK_U3_COPHY_V2_BIT)
 
 #define MTK_ETH_MUX_GDM1_TO_GMAC1_ESW		\
 	BIT(MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT)
@@ -1068,6 +1077,11 @@ enum mkt_eth_capabilities {
 #define MT7986_CAPS   (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | \
                        MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
                        MTK_NETSYS_V2 | MTK_RSTCTRL_PPE1)
+
+#define MT7981_CAPS   (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | MTK_GMAC2_GEPHY | \
+			MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
+			MTK_MUX_U3_GMAC2_TO_QPHY | MTK_U3_COPHY_V2 | \
+			MTK_NETSYS_V2)
 
 /* struct mtk_eth_data -	This is the structure holding all differences
  *				among various plaforms
