@@ -96,6 +96,10 @@ uint32_t foe_dump_pkt(struct sk_buff *skb)
 {
 	struct foe_entry *entry;
 
+	if (skb_hnat_entry(skb) >= hnat_priv->foe_etry_num ||
+	    skb_hnat_ppe(skb) >= CFG_PPE_NUM)
+		return 1;
+
 	entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
 	pr_info("\nRx===<FOE_Entry=%d>=====\n", skb_hnat_entry(skb));
 	pr_info("RcvIF=%s\n", skb->dev->name);
