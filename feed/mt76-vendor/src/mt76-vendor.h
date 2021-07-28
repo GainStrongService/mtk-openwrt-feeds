@@ -36,6 +36,8 @@ struct nlattr;
 enum mtk_nl80211_vendor_subcmds {
 	MTK_NL80211_VENDOR_SUBCMD_AMNT_CTRL = 0xae,
 	MTK_NL80211_VENDOR_SUBCMD_CSI_CTRL = 0xc2,
+	MTK_NL80211_VENDOR_SUBCMD_RFEATURE_CTRL = 0xc3,
+	MTK_NL80211_VENDOR_SUBCMD_WIRELESS_CTRL = 0xc4,
 };
 
 enum mtk_vendor_attr_csi_ctrl {
@@ -124,6 +126,29 @@ enum mtk_vendor_attr_mnt_dump {
 		NUM_MTK_VENDOR_ATTRS_AMNT_DUMP - 1
 };
 
+enum mtk_vendor_attr_wireless_ctrl {
+	MTK_VENDOR_ATTR_WIRELESS_CTRL_UNSPEC,
+
+	MTK_VENDOR_ATTR_WIRELESS_CTRL_FIXED_MCS,
+
+	/* keep last */
+	NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL,
+	MTK_VENDOR_ATTR_WIRELESS_CTRL_MAX =
+		NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL - 1
+};
+
+enum mtk_vendor_attr_rfeature_ctrl {
+	MTK_VENDOR_ATTR_RFEATURE_CTRL_UNSPEC,
+
+	MTK_VENDOR_ATTR_RFEATURE_CTRL_HE_GI,
+	MTK_VENDOR_ATTR_RFEATURE_CTRL_HE_LTF,
+
+	/* keep last */
+	NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL,
+	MTK_VENDOR_ATTR_RFEATURE_CTRL_MAX =
+		NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL - 1
+};
+
 #define CSI_MAX_COUNT 256
 #define ETH_ALEN 6
 
@@ -158,4 +183,6 @@ int mt76_csi_dump(int idx, int argc, char **argv);
 int mt76_amnt_set(int idx, int argc, char **argv);
 int mt76_amnt_dump(int idx, int argc, char **argv);
 
+int mt76_ap_rfeatures_set(int idx, int argc, char **argv);
+int mt76_ap_wireless_set(int idx, int argc, char **argv);
 #endif

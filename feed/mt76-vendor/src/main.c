@@ -16,7 +16,11 @@ void usage(void)
 		"dump csi <packet num> <filename>",
 
 		"set amnt <index>(0x0~0xf) <mac addr>(xx:xx:xx:xx:xx:xx)",
-		"dump amnt <index> (0x0~0xf or 0xff)"
+		"dump amnt <index> (0x0~0xf or 0xff)",
+
+		"set ap_rfeatures he_gi=<val>",
+		"set ap_rfeatures he_ltf=<val>",
+		"set ap_wireless fixed_mcs=<val>",
 	};
 	int i;
 
@@ -57,6 +61,10 @@ int main(int argc, char **argv)
 			ret = mt76_csi_set(if_idx, argc, argv);
 		else if (!strncmp(subcmd, "amnt", 4))
 			ret = mt76_amnt_set(if_idx, argc, argv);
+		else if (!strncmp(subcmd, "ap_rfeatures", 12))
+			ret = mt76_ap_rfeatures_set(if_idx, argc, argv);
+		else if (!strncmp(subcmd, "ap_wireless", 11))
+			ret = mt76_ap_wireless_set(if_idx, argc, argv);
 	} else {
 		usage();
 	}
