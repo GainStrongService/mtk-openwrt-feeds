@@ -690,6 +690,11 @@
 #define SGMSYS_QPHY_PWR_STATE_CTRL 0xe8
 #define	SGMII_PHYA_PWD		BIT(4)
 
+/* Register to QPHY wrapper control */
+#define SGMSYS_QPHY_WRAP_CTRL	0xec
+#define SGMII_PN_SWAP_MASK	GENMASK(1, 0)
+#define SGMII_PN_SWAP_TX_RX	(BIT(0) | BIT(1))
+
 /* Infrasys subsystem config registers */
 #define INFRA_MISC2            0x70c
 #define CO_QPHY_SEL            BIT(0)
@@ -1110,6 +1115,7 @@ struct mtk_soc_data {
 #define MTK_SGMII_PHYSPEED_MASK        GENMASK(2, 0)
 #define MTK_SGMII_PHYSPEED_1000        BIT(0)
 #define MTK_SGMII_PHYSPEED_2500        BIT(1)
+#define MTK_SGMII_PN_SWAP	       BIT(16)
 #define MTK_HAS_FLAGS(flags, _x)       (((flags) & (_x)) == (_x))
 
 /* struct mtk_sgmii -  This is the structure holding sgmii regmap and its

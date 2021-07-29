@@ -28,6 +28,10 @@ int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *r, u32 ana_rgc3)
 		ss->regmap[i] = syscon_node_to_regmap(np);
 		if (IS_ERR(ss->regmap[i]))
 			return PTR_ERR(ss->regmap[i]);
+
+		ss->flags[i] &= ~(MTK_SGMII_PN_SWAP);
+		if (of_property_read_bool(np, "pn_swap"))
+			ss->flags[i] |= MTK_SGMII_PN_SWAP;
 	}
 
 	return 0;
@@ -51,6 +55,10 @@ int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id)
 	regmap_read(ss->regmap[id], SGMSYS_PCS_CONTROL_1, &val);
 	val |= SGMII_AN_RESTART;
 	regmap_write(ss->regmap[id], SGMSYS_PCS_CONTROL_1, val);
+
+	if(MTK_HAS_FLAGS(ss->flags[id],MTK_SGMII_PN_SWAP))
+		regmap_update_bits(ss->regmap[id], SGMSYS_QPHY_WRAP_CTRL,
+				   SGMII_PN_SWAP_MASK, SGMII_PN_SWAP_TX_RX);
 
 	regmap_read(ss->regmap[id], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
 	val &= ~SGMII_PHYA_PWD;
@@ -100,6 +108,9 @@ int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
 
 	regmap_write(ss->regmap[id], SGMSYS_SGMII_MODE, val);
 
+	if(MTK_HAS_FLAGS(ss->flags[id],MTK_SGMII_PN_SWAP))
+		regmap_update_bits(ss->regmap[id], SGMSYS_QPHY_WRAP_CTRL,
+				   SGMII_PN_SWAP_MASK, SGMII_PN_SWAP_TX_RX);
 	/* Release PHYA power down state */
 	regmap_read(ss->regmap[id], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
 	val &= ~SGMII_PHYA_PWD;
