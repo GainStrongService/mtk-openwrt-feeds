@@ -21,6 +21,7 @@ void usage(void)
 		"set ap_rfeatures he_gi=<val>",
 		"set ap_rfeatures he_ltf=<val>",
 		"set ap_wireless fixed_mcs=<val>",
+		"set ap_wireless ofdma=<val> (0: disable, 1: DL, 2: UL)",
 	};
 	int i;
 

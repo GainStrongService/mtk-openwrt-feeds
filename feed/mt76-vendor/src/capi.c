@@ -66,6 +66,8 @@ static int mt76_ap_wireless_set_attr(struct nl_msg *msg, int argc, char **argv)
 
 	if (!strncmp(argv[0], "fixed_mcs", 9)) {
 		nla_put_u8(msg, MTK_VENDOR_ATTR_WIRELESS_CTRL_FIXED_MCS, strtoul(val, NULL, 0));
+	} else if (!strncmp(argv[0], "ofdma", 5)) {
+		nla_put_u8(msg, MTK_VENDOR_ATTR_WIRELESS_CTRL_FIXED_OFDMA, strtoul(val, NULL, 0));
 	}
 
 	return 0;
