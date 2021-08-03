@@ -273,18 +273,45 @@
 };
 
 &pio {
-	spi_flash_pins: spi0-pins {
+	spi_flash_pins: spi-flash-pins-33-to-38 {
 		mux {
 			function = "flash";
 			groups = "spi0", "spi0_wp_hold";
 		};
+		conf-pu {
+			pins = "SPI2_CS", "SPI2_HOLD", "SPI2_WP";
+			drive-strength = <MTK_DRIVE_8mA>;
+			mediatek,pull-up-adv = <0>;	/* bias-disable */
+		};
+		conf-pd {
+			pins = "SPI2_CLK", "SPI2_MOSI", "SPI2_MISO";
+			drive-strength = <MTK_DRIVE_8mA>;
+			mediatek,pull-down-adv = <0>;	/* bias-disable */
+		};
+
 	};
 
-	snfi_pins: snfi-pins {
+	snfi_pins: snfi-pins-23-to-28 {
 		mux {
 			function = "flash";
 			groups = "snfi";
 		};
+		conf-clk {
+			pins = "SPI0_CLK";
+			drive-strength = <MTK_DRIVE_8mA>;
+			mediatek,pull-down-adv = <0>;	/* bias-disable */
+		};
+		conf-pu {
+			pins = "SPI0_CS", "SPI0_HOLD", "SPI0_WP";
+			drive-strength = <MTK_DRIVE_6mA>;
+			mediatek,pull-up-adv = <0>;	/* bias-disable */
+		};
+		conf-pd {
+			pins = "SPI0_MOSI", "SPI0_MISO";
+			drive-strength = <MTK_DRIVE_6mA>;
+			mediatek,pull-down-adv = <0>;	/* bias-disable */
+		};
+
 	};
 
 	spic_pins: spi1-pins {

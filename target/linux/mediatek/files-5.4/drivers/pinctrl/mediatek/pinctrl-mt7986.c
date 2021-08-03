@@ -9,7 +9,7 @@
 #include "pinctrl-moore.h"
 
 #define MT7986_PIN(_number, _name)				\
-	MTK_PIN(_number, _name, 0, _number, DRV_GRP1)
+	MTK_PIN(_number, _name, 0, _number, DRV_GRP4)
 
 #define PIN_FIELD_BASE(_s_pin, _e_pin, _i_base, _s_addr, _x_addrs, _s_bit, _x_bits)	\
 	PIN_FIELD_CALC(_s_pin, _e_pin, _i_base, _s_addr, _x_addrs, _s_bit,	\
