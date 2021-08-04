@@ -15,6 +15,10 @@ static int mt76_ap_rfeatures_set_attr(struct nl_msg *msg, int argc, char **argv)
 		nla_put_u8(msg, MTK_VENDOR_ATTR_RFEATURE_CTRL_HE_GI, strtoul(val, NULL, 0));
 	} else if (!strncmp(argv[0], "he_ltf", 6)) {
 		nla_put_u8(msg, MTK_VENDOR_ATTR_RFEATURE_CTRL_HE_LTF, strtoul(val, NULL, 0));
+	} else if (!strncmp(argv[0], "trig_type", 9)) {
+		nla_put_u8(msg, MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TYPE, strtoul(val, NULL, 0));
+	} else if (!strncmp(argv[0], "ack_policy", 10)) {
+		nla_put_u8(msg, MTK_VENDOR_ATTR_RFEATURE_CTRL_ACK_PLCY, strtoul(val, NULL, 0));
 	}
 
 	return 0;

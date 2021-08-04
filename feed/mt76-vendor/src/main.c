@@ -20,6 +20,8 @@ void usage(void)
 
 		"set ap_rfeatures he_gi=<val>",
 		"set ap_rfeatures he_ltf=<val>",
+		"set ap_rfeatures trig_type=<val> (range: 0-7)",
+		"set ap_rfeatures ack_policy=<val> (range: 0-4)",
 		"set ap_wireless fixed_mcs=<val>",
 		"set ap_wireless ofdma=<val> (0: disable, 1: DL, 2: UL)",
 	};
