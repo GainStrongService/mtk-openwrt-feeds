@@ -192,8 +192,8 @@ static const struct mtk_snand_soc_data mtk_snand_socs[__SNAND_SOC_MAX] = {
 		.mastersta_mask = NFI_MASTERSTA_MASK_7986,
 		.spare_sizes = mt7986_spare_sizes,
 		.num_spare_size = ARRAY_SIZE(mt7986_spare_sizes),
-		.latch_lat = 1,
-		.sample_delay = 8
+		.latch_lat = 0,
+		.sample_delay = 40
 	},
 };
 
