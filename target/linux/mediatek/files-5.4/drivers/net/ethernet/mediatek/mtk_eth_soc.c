@@ -2493,8 +2493,8 @@ static irqreturn_t mtk_handle_irq_rx(int irq, void *priv)
 	struct mtk_rx_ring *ring = rx_napi->rx_ring;
 
 	if (likely(napi_schedule_prep(&rx_napi->napi))) {
-		__napi_schedule(&rx_napi->napi);
 		mtk_rx_irq_disable(eth, MTK_RX_DONE_INT(ring->ring_no));
+		__napi_schedule(&rx_napi->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -2505,8 +2505,8 @@ static irqreturn_t mtk_handle_irq_tx(int irq, void *_eth)
 	struct mtk_eth *eth = _eth;
 
 	if (likely(napi_schedule_prep(&eth->tx_napi))) {
-		__napi_schedule(&eth->tx_napi);
 		mtk_tx_irq_disable(eth, MTK_TX_DONE_INT);
+		__napi_schedule(&eth->tx_napi);
 	}
 
 	return IRQ_HANDLED;
