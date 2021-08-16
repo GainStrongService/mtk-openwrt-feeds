@@ -24,6 +24,8 @@ void usage(void)
 		"set ap_rfeatures ack_policy=<val> (range: 0-4)",
 		"set ap_wireless fixed_mcs=<val>",
 		"set ap_wireless ofdma=<val> (0: disable, 1: DL, 2: UL)",
+		"set ap_wireless nusers_ofdma=<val>",
+		"set ap_wireless ppdu_type=<val> (0: SU, 1: MU, 4: LEGACY)",
 	};
 	int i;
 
