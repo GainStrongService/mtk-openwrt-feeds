@@ -1718,9 +1718,6 @@ void mtk_ppe_dev_register_hook(struct net_device *dev)
 	int i, number = 0;
 	struct extdev_entry *ext_entry;
 
-	if (!strncmp(dev->name, "wds", 3))
-		return;
-
 	for (i = 1; i < MAX_IF_NUM; i++) {
 		if (hnat_priv->wifi_hook_if[i] == dev) {
 			pr_info("%s : %s has been registered in wifi_hook_if table[%d]\n",
