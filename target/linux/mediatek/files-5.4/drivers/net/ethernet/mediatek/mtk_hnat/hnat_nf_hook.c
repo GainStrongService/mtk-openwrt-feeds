@@ -2129,7 +2129,7 @@ static struct nf_hook_ops mtk_hnat_nf_ops[] __read_mostly = {
 		.hook = mtk_pong_hqos_handler,
 		.pf = NFPROTO_BRIDGE,
 		.hooknum = NF_BR_PRE_ROUTING,
-		.priority = NF_BR_PRI_FIRST,
+		.priority = NF_BR_PRI_FIRST + 1,
 	},
 };
 
@@ -2154,6 +2154,7 @@ int whnat_adjust_nf_hooks(void)
 	while (n-- > 0) {
 		if (hook[n].hook == mtk_hnat_br_nf_local_in) {
 			hook[n].hooknum = NF_BR_PRE_ROUTING;
+			hook[n].priority = NF_BR_PRI_FIRST + 1;
 		} else if (hook[n].hook == mtk_hnat_br_nf_local_out) {
 			hook[n].hooknum = NF_BR_POST_ROUTING;
 		} else if (hook[n].hook == mtk_pong_hqos_handler) {
