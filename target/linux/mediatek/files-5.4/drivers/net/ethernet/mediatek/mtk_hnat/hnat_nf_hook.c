@@ -656,7 +656,7 @@ static unsigned int is_ppe_support_type(struct sk_buff *skb)
 
 	eth = eth_hdr(skb);
 	if (!is_magic_tag_valid(skb) || !IS_SPACE_AVAILABLE_HEAD(skb) ||
-	    is_broadcast_ether_addr(eth->h_dest))
+	    is_multicast_ether_addr(eth->h_dest))
 		return 0;
 
 	switch (ntohs(skb->protocol)) {
@@ -1033,7 +1033,8 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 	switch (entry.bfib1.pkt_type) {
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
-		if (is_multicast_ether_addr(&eth->h_dest[0])) {
+		if (hnat_priv->data->mcast &&
+		    is_multicast_ether_addr(&eth->h_dest[0])) {
 			entry.ipv4_hnapt.iblk2.mcast = 1;
 			if (hnat_priv->data->version == MTK_HNAT_V3) {
 				entry.bfib1.sta = 1;
@@ -1051,7 +1052,8 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 	case IPV6_6RD:
 	case IPV6_5T_ROUTE:
 	case IPV6_3T_ROUTE:
-		if (is_multicast_ether_addr(&eth->h_dest[0])) {
+		if (hnat_priv->data->mcast &&
+		    is_multicast_ether_addr(&eth->h_dest[0])) {
 			entry.ipv6_5t_route.iblk2.mcast = 1;
 			if (hnat_priv->data->version == MTK_HNAT_V3) {
 				entry.bfib1.sta = 1;
@@ -1097,11 +1099,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		eth = (struct ethhdr *)(skb->data - ETH_HLEN);
 	else
 		eth = eth_hdr(skb);
-	if (is_multicast_ether_addr(eth->h_dest)) {
-		/*do not bind multicast if PPE mcast not enable*/
-		if (!hnat_priv->pmcast)
-			return 0;
-	}
+
+	/*do not bind multicast if PPE mcast not enable*/
+	if (!hnat_priv->data->mcast && is_multicast_ether_addr(eth->h_dest))
+		return 0;
 
 	entry.bfib1.pkt_type = foe->udib1.pkt_type; /* Get packte type state*/
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
@@ -1583,11 +1584,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		return NF_ACCEPT;
 
 	eth = eth_hdr(skb);
-	if (is_multicast_ether_addr(eth->h_dest)) {
-		/*not bind multicast if PPE mcast not enable*/
-		if (!hnat_priv->pmcast)
-			return NF_ACCEPT;
-	}
+
+	/*not bind multicast if PPE mcast not enable*/
+	if (!hnat_priv->data->mcast && is_multicast_ether_addr(eth->h_dest))
+		return NF_ACCEPT;
 
 	/* Some mt_wifi virtual interfaces, such as apcli,
 	 * will change the smac for specail purpose.
