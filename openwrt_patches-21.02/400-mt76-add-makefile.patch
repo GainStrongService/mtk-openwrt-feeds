@@ -1,0 +1,30 @@
+--- a/package/kernel/mt76/Makefile
++++ b/package/kernel/mt76/Makefile
+@@ -249,6 +249,11 @@ ifdef CONFIG_PACKAGE_MAC80211_MESH
+   NOSTDINC_FLAGS += -DCONFIG_MAC80211_MESH
+ endif
+ 
++ifdef CONFIG_PACKAGE_MAC80211_DEBUGFS
++  NOSTDINC_FLAGS += -DCONFIG_MAC80211_DEBUGFS
++  PKG_MAKE_FLAGS += CONFIG_MAC80211_DEBUGFS=y
++endif
++
+ ifdef CONFIG_PACKAGE_CFG80211_TESTMODE
+   NOSTDINC_FLAGS += -DCONFIG_NL80211_TESTMODE
+   PKG_MAKE_FLAGS += CONFIG_NL80211_TESTMODE=y
+@@ -401,9 +406,9 @@ endef
+ define KernelPackage/mt7915e/install
+ 	$(INSTALL_DIR) $(1)/lib/firmware/mediatek
+ 	cp \
+-		$(PKG_BUILD_DIR)/firmware/mt7915_wa.bin \
+-		$(PKG_BUILD_DIR)/firmware/mt7915_wm.bin \
+-		$(PKG_BUILD_DIR)/firmware/mt7915_rom_patch.bin \
++		./files/firmware/mt7915_wa.bin \
++		./files/firmware/mt7915_wm.bin \
++		./files/firmware/mt7915_rom_patch.bin \
+ 		$(1)/lib/firmware/mediatek
+ endef
+ 
+-- 
+2.29.2
+
