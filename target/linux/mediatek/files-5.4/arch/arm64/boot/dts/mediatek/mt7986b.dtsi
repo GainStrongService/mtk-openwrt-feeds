@@ -33,7 +33,6 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "psci";
 			reg = <0x0>;
-			#cooling-cells = <2>;
 		};
 
 		cpu1: cpu@1 {
@@ -41,7 +40,6 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "psci";
 			reg = <0x1>;
-			#cooling-cells = <2>;
 		};
 
 		cpu2: cpu@2 {
@@ -49,7 +47,6 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "psci";
 			reg = <0x2>;
-			#cooling-cells = <2>;
 		};
 
 		cpu3: cpu@3 {
@@ -57,7 +54,6 @@
 			enable-method = "psci";
 			compatible = "arm,cortex-a53";
 			reg = <0x3>;
-			#cooling-cells = <2>;
 		};
 	};
 
@@ -308,82 +304,6 @@
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 			thermal-sensors = <&thermal 0>;
-
-			trips {
-				cpu_passive: cpu-passive {
-					temperature = <47000>;
-					hysteresis = <2000>;
-					type = "passive";
-				};
-
-				cpu_active: cpu-active {
-					temperature = <67000>;
-					hysteresis = <2000>;
-					type = "active";
-				};
-
-				cpu_hot: cpu-hot {
-					temperature = <87000>;
-					hysteresis = <2000>;
-					type = "hot";
-				};
-
-				cpu-crit {
-					temperature = <107000>;
-					hysteresis = <2000>;
-					type = "critical";
-				};
-			};
-
-			cooling-maps {
-				map0 {
-					trip = <&cpu_passive>;
-					cooling-device = <&cpu0
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>,
-							 <&cpu1
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>,
-							 <&cpu2
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>,
-							 <&cpu3
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>;
-				};
-
-				map1 {
-					trip = <&cpu_active>;
-					cooling-device = <&cpu0
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>,
-							 <&cpu1
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>,
-							 <&cpu2
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>,
-							 <&cpu3
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>;
-				};
-
-				map2 {
-					trip = <&cpu_hot>;
-					cooling-device = <&cpu0
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>,
-							 <&cpu1
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>,
-							 <&cpu2
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>,
-							 <&cpu3
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>;
-				};
-			};
 		};
 	};
 
@@ -393,8 +313,9 @@
 		reg = <0 0x1100c800 0 0x800>;
 		interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&infracfg_ao CK_INFRA_THERM_CK>,
-			 <&infracfg_ao CK_INFRA_ADC_26M_CK>;
-		clock-names = "therm", "auxadc";
+			 <&infracfg_ao CK_INFRA_ADC_26M_CK>,
+			 <&infracfg_ao CK_INFRA_ADC_FRC_CK>;
+		clock-names = "therm", "auxadc", "adc_32k";
 		mediatek,auxadc = <&auxadc>;
 		mediatek,apmixedsys = <&apmixedsys>;
 		nvmem-cells = <&thermal_calibration>;

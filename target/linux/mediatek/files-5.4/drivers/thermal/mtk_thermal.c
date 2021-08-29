@@ -314,6 +314,7 @@ struct mtk_thermal {
 
 	struct clk *clk_peri_therm;
 	struct clk *clk_auxadc;
+	struct clk *clk_adc_32k;
 	/* lock: for getting and putting banks */
 	struct mutex lock;
 
@@ -1122,6 +1123,12 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 	if (IS_ERR(mt->clk_auxadc))
 		return PTR_ERR(mt->clk_auxadc);
 
+	if (mt->conf->version == MTK_THERMAL_V3) {
+		mt->clk_adc_32k = devm_clk_get(&pdev->dev, "adc_32k");
+		if (IS_ERR(mt->clk_adc_32k))
+			return PTR_ERR(mt->clk_adc_32k);
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mt->thermal_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(mt->thermal_base))
@@ -1171,10 +1178,18 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	if (mt->conf->version == MTK_THERMAL_V3) {
+		ret = clk_prepare_enable(mt->clk_adc_32k);
+		if (ret) {
+			dev_err(&pdev->dev, "Can't enable auxadc 32k clk: %d\n", ret);
+			return ret;
+		}
+	}
+
 	ret = clk_prepare_enable(mt->clk_auxadc);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't enable auxadc clk: %d\n", ret);
-		return ret;
+		goto err_disable_clk_adc_32k;
 	}
 
 	ret = clk_prepare_enable(mt->clk_peri_therm);
@@ -1209,6 +1224,9 @@ err_disable_clk_peri_therm:
 	clk_disable_unprepare(mt->clk_peri_therm);
 err_disable_clk_auxadc:
 	clk_disable_unprepare(mt->clk_auxadc);
+err_disable_clk_adc_32k:
+	if (mt->conf->version == MTK_THERMAL_V3)
+		clk_disable_unprepare(mt->clk_adc_32k);
 
 	return ret;
 }
@@ -1219,6 +1237,9 @@ static int mtk_thermal_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(mt->clk_peri_therm);
 	clk_disable_unprepare(mt->clk_auxadc);
+
+	if (mt->conf->version == MTK_THERMAL_V3)
+		clk_disable_unprepare(mt->clk_adc_32k);
 
 	return 0;
 }
