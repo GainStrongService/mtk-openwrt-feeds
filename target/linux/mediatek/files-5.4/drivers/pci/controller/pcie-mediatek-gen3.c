@@ -73,6 +73,7 @@
 #define PCIE_MSI_SET_OFFSET		0x10
 #define PCIE_MSI_SET_STATUS_OFFSET	0x04
 #define PCIE_MSI_SET_ENABLE_OFFSET	0x08
+#define PCIE_MSI_SET_GRP1_ENABLE_OFFSET	0x0c
 
 #define PCIE_MSI_SET_ADDR_HI_BASE	0xc80
 #define PCIE_MSI_SET_ADDR_HI_OFFSET	0x04
@@ -141,6 +142,8 @@ struct mtk_pcie_port {
 	int num_clks;
 
 	int irq;
+	int direct_msi_enable;
+	int direct_msi[PCIE_MSI_IRQS_PER_SET];
 	u32 saved_irq_state;
 	raw_spinlock_t irq_lock;
 	struct irq_domain *intx_domain;
@@ -269,9 +272,11 @@ static void mtk_pcie_enable_msi(struct mtk_pcie_port *port)
 	val |= PCIE_MSI_SET_ENABLE;
 	writel_relaxed(val, port->base + PCIE_MSI_SET_ENABLE_REG);
 
-	val = readl_relaxed(port->base + PCIE_INT_ENABLE_REG);
-	val |= PCIE_MSI_ENABLE;
-	writel_relaxed(val, port->base + PCIE_INT_ENABLE_REG);
+	if (!port->direct_msi_enable) {
+		val = readl_relaxed(port->base + PCIE_INT_ENABLE_REG);
+		val |= PCIE_MSI_ENABLE;
+		writel_relaxed(val, port->base + PCIE_INT_ENABLE_REG);
+	}
 }
 
 static int mtk_pcie_startup_port(struct mtk_pcie_port *port)
@@ -363,6 +368,29 @@ static int mtk_pcie_startup_port(struct mtk_pcie_port *port)
 	return 0;
 }
 
+static int mtk_pcie_set_msi_affinity(struct irq_data *data,
+				 const struct cpumask *mask, bool force)
+{
+	struct mtk_pcie_port *port = data->domain->host_data;
+	struct irq_data *port_data;
+	struct irq_chip *port_chip;
+	int msi_bit, irq, ret;
+
+	msi_bit = data->hwirq % PCIE_MSI_IRQS_PER_SET;
+	irq = port->direct_msi[msi_bit];
+
+	port_data = irq_get_irq_data(irq);
+	port_chip = irq_data_get_irq_chip(port_data);
+	if (!port_chip || !port_chip->irq_set_affinity)
+		return -EINVAL;
+
+	ret = port_chip->irq_set_affinity(port_data, mask, force);
+
+	irq_data_update_effective_affinity(data, mask);
+
+	return ret;
+}
+
 static int mtk_pcie_set_affinity(struct irq_data *data,
 				 const struct cpumask *mask, bool force)
 {
@@ -429,9 +457,17 @@ static void mtk_msi_bottom_irq_mask(struct irq_data *data)
 	hwirq =	data->hwirq % PCIE_MSI_IRQS_PER_SET;
 
 	raw_spin_lock_irqsave(&port->irq_lock, flags);
-	val = readl_relaxed(msi_set->base + PCIE_MSI_SET_ENABLE_OFFSET);
-	val &= ~BIT(hwirq);
-	writel_relaxed(val, msi_set->base + PCIE_MSI_SET_ENABLE_OFFSET);
+	if (port->direct_msi_enable) {
+		val = readl_relaxed(msi_set->base +
+					PCIE_MSI_SET_GRP1_ENABLE_OFFSET);
+		val &= ~BIT(hwirq);
+		writel_relaxed(val, msi_set->base +
+					PCIE_MSI_SET_GRP1_ENABLE_OFFSET);
+	} else {
+		val = readl_relaxed(msi_set->base + PCIE_MSI_SET_ENABLE_OFFSET);
+		val &= ~BIT(hwirq);
+		writel_relaxed(val, msi_set->base + PCIE_MSI_SET_ENABLE_OFFSET);
+	}
 	raw_spin_unlock_irqrestore(&port->irq_lock, flags);
 }
 
@@ -445,9 +481,17 @@ static void mtk_msi_bottom_irq_unmask(struct irq_data *data)
 	hwirq =	data->hwirq % PCIE_MSI_IRQS_PER_SET;
 
 	raw_spin_lock_irqsave(&port->irq_lock, flags);
-	val = readl_relaxed(msi_set->base + PCIE_MSI_SET_ENABLE_OFFSET);
-	val |= BIT(hwirq);
-	writel_relaxed(val, msi_set->base + PCIE_MSI_SET_ENABLE_OFFSET);
+	if (port->direct_msi_enable) {
+		val = readl_relaxed(msi_set->base +
+					PCIE_MSI_SET_GRP1_ENABLE_OFFSET);
+		val |= BIT(hwirq);
+		writel_relaxed(val, msi_set->base +
+					PCIE_MSI_SET_GRP1_ENABLE_OFFSET);
+	} else {
+		val = readl_relaxed(msi_set->base + PCIE_MSI_SET_ENABLE_OFFSET);
+		val |= BIT(hwirq);
+		writel_relaxed(val, msi_set->base + PCIE_MSI_SET_ENABLE_OFFSET);
+	}
 	raw_spin_unlock_irqrestore(&port->irq_lock, flags);
 }
 
@@ -616,6 +660,11 @@ static int mtk_pcie_init_irq_domains(struct mtk_pcie_port *port)
 		goto err_msi_domain;
 	}
 
+	if (of_find_property(node, "direct_msi", NULL))
+		port->direct_msi_enable = true;
+	else
+		port->direct_msi_enable = false;
+
 	return 0;
 
 err_msi_domain:
@@ -695,11 +744,52 @@ static void mtk_pcie_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(irqchip, desc);
 }
 
+static void mtk_pcie_direct_msi_handler(struct irq_desc *desc)
+{
+	struct mtk_pcie_port *port = irq_desc_get_handler_data(desc);
+	struct irq_chip *irqchip = irq_desc_get_chip(desc);
+	unsigned long msi_enable, msi_status;
+	unsigned int virq;
+	irq_hw_number_t hwirq;
+	int i, msi_bit = -EINVAL;
+
+	for (i = 0; i < PCIE_MSI_IRQS_PER_SET; i++) {
+		if (port->direct_msi[i] == irq_desc_get_irq(desc)) {
+			msi_bit = i;
+			break;
+		}
+	}
+
+	if (msi_bit == -EINVAL)
+		return;
+
+	chained_irq_enter(irqchip, desc);
+
+	for (i = 0; i < PCIE_MSI_SET_NUM; i++) {
+		struct mtk_msi_set *msi_set = &port->msi_sets[i];
+
+		msi_status = readl_relaxed(msi_set->base +
+					   PCIE_MSI_SET_STATUS_OFFSET);
+		msi_enable = readl_relaxed(msi_set->base +
+					   PCIE_MSI_SET_GRP1_ENABLE_OFFSET);
+		msi_status &= msi_enable;
+		msi_status &= BIT(msi_bit);
+		if (!msi_status)
+			continue;
+
+		hwirq = msi_bit + i * PCIE_MSI_IRQS_PER_SET;
+		virq = irq_find_mapping(port->msi_bottom_domain, hwirq);
+		generic_handle_irq(virq);
+	}
+
+	chained_irq_exit(irqchip, desc);
+}
+
 static int mtk_pcie_setup_irq(struct mtk_pcie_port *port)
 {
 	struct device *dev = port->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	int err;
+	int err, i;
 
 	err = mtk_pcie_init_irq_domains(port);
 	if (err)
@@ -710,6 +800,17 @@ static int mtk_pcie_setup_irq(struct mtk_pcie_port *port)
 		return port->irq;
 
 	irq_set_chained_handler_and_data(port->irq, mtk_pcie_irq_handler, port);
+
+	if (port->direct_msi_enable) {
+		mtk_msi_bottom_irq_chip.irq_set_affinity =
+						      mtk_pcie_set_msi_affinity;
+
+		for (i = 0; i < PCIE_MSI_IRQS_PER_SET; i++) {
+			port->direct_msi[i] = platform_get_irq(pdev, i + 1);
+			irq_set_chained_handler_and_data(port->direct_msi[i],
+					    mtk_pcie_direct_msi_handler, port);
+		}
+	}
 
 	return 0;
 }
@@ -927,8 +1028,12 @@ static void __maybe_unused mtk_pcie_irq_save(struct mtk_pcie_port *port)
 	for (i = 0; i < PCIE_MSI_SET_NUM; i++) {
 		struct mtk_msi_set *msi_set = &port->msi_sets[i];
 
-		msi_set->saved_irq_state = readl_relaxed(msi_set->base +
-					   PCIE_MSI_SET_ENABLE_OFFSET);
+		if (port->direct_msi_enable)
+			msi_set->saved_irq_state = readl_relaxed(msi_set->base +
+					PCIE_MSI_SET_GRP1_ENABLE_OFFSET);
+		else
+			msi_set->saved_irq_state = readl_relaxed(msi_set->base +
+					PCIE_MSI_SET_ENABLE_OFFSET);
 	}
 
 	raw_spin_unlock(&port->irq_lock);
@@ -945,8 +1050,12 @@ static void __maybe_unused mtk_pcie_irq_restore(struct mtk_pcie_port *port)
 	for (i = 0; i < PCIE_MSI_SET_NUM; i++) {
 		struct mtk_msi_set *msi_set = &port->msi_sets[i];
 
-		writel_relaxed(msi_set->saved_irq_state,
-			       msi_set->base + PCIE_MSI_SET_ENABLE_OFFSET);
+		if (port->direct_msi_enable)
+			writel_relaxed(msi_set->saved_irq_state, msi_set->base +
+					PCIE_MSI_SET_GRP1_ENABLE_OFFSET);
+		else
+			writel_relaxed(msi_set->saved_irq_state, msi_set->base +
+					PCIE_MSI_SET_ENABLE_OFFSET);
 	}
 
 	raw_spin_unlock(&port->irq_lock);
