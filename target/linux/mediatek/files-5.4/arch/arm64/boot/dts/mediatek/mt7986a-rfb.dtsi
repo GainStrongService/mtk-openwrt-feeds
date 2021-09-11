@@ -336,12 +336,16 @@
 	pinctrl-0 = <&mmc0_pins_default>;
 	pinctrl-1 = <&mmc0_pins_uhs>;
 	bus-width = <8>;
-	max-frequency = <50000000>;
+	max-frequency = <200000000>;
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	hs400-ds-delay = <0x14014>;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_1p8v>;
 	non-removable;
+	no-sd;
+	no-sdio;
 	status = "okay";
 };
 
@@ -532,10 +536,9 @@
 		conf-cmd-dat {
 			pins = "EMMC_DATA_0", "EMMC_DATA_1", "EMMC_DATA_2",
 			       "EMMC_DATA_3", "EMMC_DATA_4", "EMMC_DATA_5",
-			       "EMMC_DATA_6", "EMMC_DATA_7", "EMMC_CMD",
-			       "EMMC_DSL";
+			       "EMMC_DATA_6", "EMMC_DATA_7", "EMMC_CMD";
 			input-enable;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <MTK_DRIVE_4mA>;
 			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
 		};
 		conf-clk {
@@ -543,9 +546,13 @@
 			drive-strength = <MTK_DRIVE_6mA>;
 			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
 		};
+		conf-ds {
+			pins = "EMMC_DSL";
+			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
+		};
 		conf-rst {
 			pins = "EMMC_RSTB";
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <MTK_DRIVE_4mA>;
 			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
 		};
 	};
@@ -558,10 +565,9 @@
 		conf-cmd-dat {
 			pins = "EMMC_DATA_0", "EMMC_DATA_1", "EMMC_DATA_2",
 			       "EMMC_DATA_3", "EMMC_DATA_4", "EMMC_DATA_5",
-			       "EMMC_DATA_6", "EMMC_DATA_7", "EMMC_CMD",
-			       "EMMC_DSL";
+			       "EMMC_DATA_6", "EMMC_DATA_7", "EMMC_CMD";
 			input-enable;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <MTK_DRIVE_4mA>;
 			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
 		};
 		conf-clk {
@@ -569,9 +575,13 @@
 			drive-strength = <MTK_DRIVE_6mA>;
 			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
 		};
+		conf-ds {
+			pins = "EMMC_DSL";
+			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
+		};
 		conf-rst {
 			pins = "EMMC_RSTB";
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <MTK_DRIVE_4mA>;
 			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
 		};
 	};
