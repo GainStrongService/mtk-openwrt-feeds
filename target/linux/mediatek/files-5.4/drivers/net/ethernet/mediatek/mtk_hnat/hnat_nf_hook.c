@@ -1547,6 +1547,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		       0, sizeof(struct mib_entry));
 
 	wmb();
+	skb_hnat_filled(skb) = HNAT_INFO_FILLED;
 
 	return 0;
 }
@@ -1556,7 +1557,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	struct foe_entry *entry;
 	struct ethhdr *eth;
 
-	if (skb_hnat_alg(skb) || !is_magic_tag_valid(skb) || !IS_SPACE_AVAILABLE_HEAD(skb))
+	if (skb_hnat_alg(skb) || !is_hnat_info_filled(skb) ||
+	    !is_magic_tag_valid(skb) || !IS_SPACE_AVAILABLE_HEAD(skb))
 		return NF_ACCEPT;
 
 	trace_printk(
@@ -1586,8 +1588,15 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	eth = eth_hdr(skb);
 
 	/*not bind multicast if PPE mcast not enable*/
-	if (!hnat_priv->data->mcast && is_multicast_ether_addr(eth->h_dest))
-		return NF_ACCEPT;
+	if (!hnat_priv->data->mcast) {
+		if (is_multicast_ether_addr(eth->h_dest))
+			return NF_ACCEPT;
+
+		if (IS_IPV4_GRP(entry))
+			entry->ipv4_hnapt.iblk2.mcast = 0;
+		else
+			entry->ipv6_5t_route.iblk2.mcast = 0;
+	}
 
 	/* Some mt_wifi virtual interfaces, such as apcli,
 	 * will change the smac for specail purpose.
@@ -1703,6 +1712,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *skb)
 	}
 
 	skb_hnat_alg(skb) = 0;
+	skb_hnat_filled(skb) = 0;
 	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
 
 	if (skb_hnat_iface(skb) == FOE_MAGIC_WED0)

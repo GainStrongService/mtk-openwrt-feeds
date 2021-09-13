@@ -26,7 +26,7 @@ struct hnat_skb_cb2 {
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
 struct hnat_desc {
 	u32 entry : 15;
-	u32 resv0 : 3;
+	u32 filled : 3;
 	u32 crsn : 5;
 	u32 resv1 : 3;
 	u32 sport : 4;
@@ -47,7 +47,8 @@ struct hnat_desc {
 	u32 sport : 4;
 	u32 alg : 1;
 	u32 iface : 4;
-	u32 resv : 4;
+	u32 filled : 3;
+	u32 resv : 1;
 	u32 magic_tag_protect : 16;
 	u32 wdmaid : 8;
 	u32 rxid : 2;
@@ -64,6 +65,7 @@ struct hnat_desc {
 #endif
 
 #define HNAT_MAGIC_TAG 0x6789
+#define HNAT_INFO_FILLED 0x7
 #define WIFI_INFO_LEN 3
 #define FOE_INFO_LEN (10 + WIFI_INFO_LEN)
 #define IS_SPACE_AVAILABLE_HEAD(skb)                                           \
@@ -76,6 +78,7 @@ struct hnat_desc {
 #define skb_hnat_sport(skb) (((struct hnat_desc *)(skb->head))->sport)
 #define skb_hnat_alg(skb) (((struct hnat_desc *)(skb->head))->alg)
 #define skb_hnat_iface(skb) (((struct hnat_desc *)(skb->head))->iface)
+#define skb_hnat_filled(skb) (((struct hnat_desc *)(skb->head))->filled)
 #define skb_hnat_magic_tag(skb) (((struct hnat_desc *)((skb)->head))->magic_tag_protect)
 #define skb_hnat_wdma_id(skb) (((struct hnat_desc *)((skb)->head))->wdmaid)
 #define skb_hnat_rx_id(skb) (((struct hnat_desc *)((skb)->head))->rxid)
@@ -89,6 +92,7 @@ struct hnat_desc {
 #define clr_from_extge(skb) (HNAT_SKB_CB2(skb)->magic = 0x0)
 #define set_to_ppe(skb) (HNAT_SKB_CB2(skb)->magic = 0x78681415)
 #define is_from_extge(skb) (HNAT_SKB_CB2(skb)->magic == 0x78786688)
+#define is_hnat_info_filled(skb) (skb_hnat_filled(skb) == HNAT_INFO_FILLED)
 #define is_magic_tag_valid(skb) (skb_hnat_magic_tag(skb) == HNAT_MAGIC_TAG)
 #define set_from_mape(skb) (HNAT_SKB_CB2(skb)->magic = 0x78787788)
 #define is_from_mape(skb) (HNAT_SKB_CB2(skb)->magic == 0x78787788)

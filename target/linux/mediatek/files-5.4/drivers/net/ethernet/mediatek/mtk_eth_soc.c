@@ -1476,6 +1476,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			*(u32 *)(skb->head) = trxd.rxd4;
 
 		skb_hnat_alg(skb) = 0;
+		skb_hnat_filled(skb) = 0;
 		skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
 
 		if (skb_hnat_reason(skb) == HIT_BIND_FORCE_TO_CPU) {
