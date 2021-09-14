@@ -492,6 +492,22 @@
 		status = "disabled";
 	};
 
+	mmc0: mmc@11230000 {
+		compatible = "mediatek,mt7986-mmc";
+		reg = <0 0x11230000 0 0x1000>,
+			<0 0x11c20000 0 0x1000>;
+		interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&topckgen CK_TOP_EMMC_416M>,
+			<&topckgen CK_TOP_EMMC_250M>,
+			<&infracfg_ao CK_INFRA_MSDC_CK>;
+		clock-names = "source", "hclk", "source_cg";
+		assigned-clocks = <&topckgen CK_TOP_EMMC_416M_SEL>,
+				  <&topckgen CK_TOP_EMMC_250M_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>,
+					 <&topckgen CK_TOP_CB_CKSQ_40M>;
+		status = "disabled";
+	};
+
 	auxadc: adc@1100d000 {
 		compatible = "mediatek,mt7986-auxadc",
 			     "mediatek,mt7622-auxadc";
