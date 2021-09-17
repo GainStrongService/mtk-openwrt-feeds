@@ -112,6 +112,26 @@
 	status = "okay";
 };
 
+/* Warning: pins shared with &snand */
+&uart1 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&uart1_pins>;
+        status = "disabled";
+};
+
+/* Warning: pins shared with &spi1 */
+&uart2 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&uart2_pins>;
+        status = "disabled";
+};
+
+&i2c0 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&i2c_pins>;
+        status = "okay";
+};
+
 &watchdog {
 	status = "okay";
 };
@@ -260,9 +280,9 @@
 	};
 };
 
+/* Warning: pins shared with &uart1 */
 &snand {
 	pinctrl-names = "default";
-	/* pin shared with spic */
 	pinctrl-0 = <&snfi_pins>;
 	status = "okay";
 	mediatek,quad-spi;
@@ -274,9 +294,9 @@
 	};
 };
 
+/* Warning: pins shared with &uart2 */
 &spi1 {
 	pinctrl-names = "default";
-	/* pin shared with snfi */
 	pinctrl-0 = <&spic_pins>;
 	status = "okay";
 };
@@ -295,6 +315,27 @@
 };
 
 &pio {
+	i2c_pins: i2c-pins-3-4 {
+		mux {
+			function = "i2c";
+			groups = "i2c";
+		};
+	};
+
+	uart1_pins: uart1-pins-23-to-26 {
+		mux {
+			function = "uart";
+			groups = "uart1_1";
+		};
+	};
+
+	uart2_pins: uart1-pins-29-to-32 {
+		mux {
+			function = "uart";
+			groups = "uart2_0";
+		};
+	};
+
 	spi_flash_pins: spi-flash-pins-33-to-38 {
 		mux {
 			function = "flash";
@@ -336,7 +377,7 @@
 
 	};
 
-	spic_pins: spi1-pins {
+	spic_pins: spi1-pins-29-to-32 {
 		mux {
 			function = "spi";
 			groups = "spi1_2";
