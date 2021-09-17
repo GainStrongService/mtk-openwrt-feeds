@@ -938,6 +938,7 @@ int hnat_disable_hook(void);
 void hnat_cache_ebl(int enable);
 void set_gmac_ppe_fwd(int gmac_no, int enable);
 int entry_detail(int ppe_id, int index);
+int entry_delete_by_mac(u8 *mac);
 int entry_delete(int ppe_id, int index);
 
 static inline u16 foe_timestamp(struct mtk_hnat *h)

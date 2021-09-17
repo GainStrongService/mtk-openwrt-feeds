@@ -19,11 +19,15 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
+#include <linux/rtnetlink.h>
+#include <net/netlink.h>
 
 #include "nf_hnat_mtk.h"
 #include "hnat.h"
 
 struct mtk_hnat *hnat_priv;
+static struct socket *_hnat_roam_sock;
+static struct work_struct _hnat_roam_work;
 
 int (*ra_sw_nat_hook_rx)(struct sk_buff *skb) = NULL;
 EXPORT_SYMBOL(ra_sw_nat_hook_rx);
@@ -145,6 +149,143 @@ void set_gmac_ppe_fwd(int id, int enable)
 	if ((val & GDM_ALL_FRC_MASK) == BITS_GDM_ALL_FRC_P_PPE)
 		cr_set_field(reg, GDM_ALL_FRC_MASK,
 			     BITS_GDM_ALL_FRC_P_CPU_PDMA);
+}
+
+static int entry_mac_cmp(struct foe_entry *entry, u8 *mac)
+{
+	int i, ret = 0;
+
+	if(IS_IPV4_GRP(entry)) {
+		if(((swab32(entry->ipv4_hnapt.dmac_hi) == *(u32 *)mac) &&
+			(swab16(entry->ipv4_hnapt.dmac_lo) == *(u16 *)&mac[4])) ||
+			((swab32(entry->ipv4_hnapt.smac_hi) == *(u32 *)mac) &&
+			(swab16(entry->ipv4_hnapt.smac_lo) == *(u16 *)&mac[4])))
+			ret = 1;
+	} else {
+		if(((swab32(entry->ipv6_5t_route.dmac_hi) == *(u32 *)mac) &&
+			(swab16(entry->ipv6_5t_route.dmac_lo) == *(u16 *)&mac[4])) ||
+			((swab32(entry->ipv6_5t_route.smac_hi) == *(u32 *)mac) &&
+			(swab16(entry->ipv6_5t_route.smac_lo) == *(u16 *)&mac[4])))
+			ret = 1;
+	}
+
+	if(ret){
+		pr_info("mac:");
+		for(i = 0; i < ETH_ALEN - 1; i++)
+			pr_info("%2x:", mac[i]);
+		pr_info("%2x\n", mac[i]);
+	}
+
+	return ret;
+}
+
+int entry_delete_by_mac(u8 *mac)
+{
+	struct foe_entry *entry = NULL;
+	int index, i, ret = 0;
+
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		entry = hnat_priv->foe_table_cpu[i];
+		for (index = 0; index < DEF_ETRY_NUM; entry++, index++) {
+			if(entry->bfib1.state == BIND && entry_mac_cmp(entry, mac)) {
+				memset(entry, 0, sizeof(*entry));
+				hnat_cache_ebl(1);
+				pr_info("delete entry idx = %d\n", index);
+				ret++;
+			}
+		}
+	}
+
+	if(!ret && debug_level >= 2)
+		pr_info("entry not found\n");
+
+	return ret;
+}
+EXPORT_SYMBOL(entry_delete_by_mac);
+
+static void hnat_roam_handler(struct work_struct *work)
+{
+	struct kvec iov;
+	struct msghdr msg;
+	struct nlmsghdr *nlh;
+	struct ndmsg *ndm;
+	struct nlattr *nla;
+	u8 rcv_buf[512];
+	int len;
+
+	if (!_hnat_roam_sock)
+		return;
+
+	iov.iov_base = rcv_buf;
+	iov.iov_len = sizeof(rcv_buf);
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_namelen = sizeof(struct sockaddr_nl);
+
+	len = kernel_recvmsg(_hnat_roam_sock, &msg, &iov, 1, iov.iov_len, 0);
+	if (len <= 0)
+		goto out;
+
+	nlh = (struct nlmsghdr*)rcv_buf;
+	if (!NLMSG_OK(nlh, len) || nlh->nlmsg_type != RTM_NEWNEIGH)
+		goto out;
+
+	len = nlh->nlmsg_len - NLMSG_HDRLEN;
+	ndm = (struct ndmsg *)NLMSG_DATA(nlh);
+	if (ndm->ndm_family != PF_BRIDGE)
+		goto out;
+
+	nla = (struct nlattr *)((u8 *)ndm + sizeof(struct ndmsg));
+	len -= NLMSG_LENGTH(sizeof(struct ndmsg));
+	while (nla_ok(nla, len)) {
+		if (nla_type(nla) == NDA_LLADDR) {
+			entry_delete_by_mac(nla_data(nla));
+		}
+		nla = nla_next(nla, &len);
+	}
+
+out:
+	schedule_work(&_hnat_roam_work);
+}
+
+static int hnat_roaming_enable(void)
+{
+	struct socket *sock = NULL;
+	struct sockaddr_nl addr;
+	int ret;
+
+	INIT_WORK(&_hnat_roam_work, hnat_roam_handler);
+
+	ret = sock_create_kern(&init_net, AF_NETLINK, SOCK_RAW, NETLINK_ROUTE, &sock);
+	if (ret < 0)
+		goto out;
+
+	_hnat_roam_sock = sock;
+
+	addr.nl_family = AF_NETLINK;
+	addr.nl_pad = 0;
+	addr.nl_pid = 65534;
+	addr.nl_groups = 1 << (RTNLGRP_NEIGH - 1);
+	ret = kernel_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
+	if (ret < 0)
+		goto out;
+
+	schedule_work(&_hnat_roam_work);
+	pr_info("hnat roaming work enable\n");
+
+	return 0;
+out:
+	if (sock)
+		sock_release(sock);
+
+	return ret;
+}
+
+static void hnat_roaming_disable(void)
+{
+	if (_hnat_roam_sock)
+		sock_release(_hnat_roam_sock);
+	_hnat_roam_sock = NULL;
+	pr_info("hnat roaming work disable\n");
 }
 
 static int hnat_start(int ppe_id)
@@ -610,6 +751,9 @@ static int hnat_probe(struct platform_device *pdev)
 	if (IS_GMAC1_MODE)
 		dev_add_pack(&mtk_pack_type);
 #endif
+	err = hnat_roaming_enable();
+	if (err)
+		pr_info("hnat roaming work fail\n");
 
 	return 0;
 
@@ -630,6 +774,7 @@ static int hnat_remove(struct platform_device *pdev)
 {
 	int i;
 
+	hnat_roaming_disable();
 	unregister_netdevice_notifier(&nf_hnat_netdevice_nb);
 	unregister_netevent_notifier(&nf_hnat_netevent_nb);
 	hnat_disable_hook();
