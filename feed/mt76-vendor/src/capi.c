@@ -76,6 +76,11 @@ static int mt76_ap_wireless_set_attr(struct nl_msg *msg, int argc, char **argv)
 		nla_put_u8(msg, MTK_VENDOR_ATTR_WIRELESS_CTRL_PPDU_TX_TYPE, strtoul(val, NULL, 0));
 	} else if (!strncmp(argv[0], "nusers_ofdma", 12)) {
 		nla_put_u8(msg, MTK_VENDOR_ATTR_WIRELESS_CTRL_NUSERS_OFDMA, strtoul(val, NULL, 0));
+	} else if (!strncmp(argv[0], "add_ba_req_bufsize", 18)) {
+		nla_put_u16(msg, MTK_VENDOR_ATTR_WIRELESS_CTRL_BA_BUFFER_SIZE,
+			    strtoul(val, NULL, 0));
+	} else if (!strncmp(argv[0], "mimo", 4)) {
+		nla_put_u8(msg, MTK_VENDOR_ATTR_WIRELESS_CTRL_MIMO, strtoul(val, NULL, 0));
 	}
 
 	return 0;

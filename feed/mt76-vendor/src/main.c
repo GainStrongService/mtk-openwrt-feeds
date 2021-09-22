@@ -26,6 +26,8 @@ void usage(void)
 		"set ap_wireless ofdma=<val> (0: disable, 1: DL, 2: UL)",
 		"set ap_wireless nusers_ofdma=<val>",
 		"set ap_wireless ppdu_type=<val> (0: SU, 1: MU, 4: LEGACY)",
+		"set ap_wireless add_ba_req_bufsize=<val>",
+		"set ap_wireless mimo=<val> (0: DL, 1: UL)",
 	};
 	int i;
 
