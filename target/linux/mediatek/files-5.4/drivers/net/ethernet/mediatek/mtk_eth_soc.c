@@ -2473,7 +2473,10 @@ static void mtk_dma_free(struct mtk_eth *eth)
 			mtk_rx_clean(eth, &eth->rx_ring[i], 1);
 	}
 
-	kfree(eth->scratch_head);
+	if (eth->scratch_head) {
+		kfree(eth->scratch_head);
+		eth->scratch_head = NULL;
+	}
 }
 
 static void mtk_tx_timeout(struct net_device *dev)
