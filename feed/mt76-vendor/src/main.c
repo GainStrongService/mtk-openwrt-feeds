@@ -28,6 +28,8 @@ void usage(void)
 		"set ap_wireless ppdu_type=<val> (0: SU, 1: MU, 4: LEGACY)",
 		"set ap_wireless add_ba_req_bufsize=<val>",
 		"set ap_wireless mimo=<val> (0: DL, 1: UL)",
+		"set ap_wireless ampdu=<val> (0: disable, 1: enable)",
+		"set ap_wireless amsdu=<val> (0: disable, 1: enable)",
 	};
 	int i;
 

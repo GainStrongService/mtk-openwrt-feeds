@@ -81,6 +81,10 @@ static int mt76_ap_wireless_set_attr(struct nl_msg *msg, int argc, char **argv)
 			    strtoul(val, NULL, 0));
 	} else if (!strncmp(argv[0], "mimo", 4)) {
 		nla_put_u8(msg, MTK_VENDOR_ATTR_WIRELESS_CTRL_MIMO, strtoul(val, NULL, 0));
+	} else if (!strncmp(argv[0], "ampdu", 5)) {
+		nla_put_u8(msg, MTK_VENDOR_ATTR_WIRELESS_CTRL_AMPDU, strtoul(val, NULL, 0));
+	} else if (!strncmp(argv[0], "amsdu", 5)) {
+		nla_put_u8(msg, MTK_VENDOR_ATTR_WIRELESS_CTRL_AMSDU, strtoul(val, NULL, 0));
 	}
 
 	return 0;
