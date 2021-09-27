@@ -20,16 +20,16 @@ void usage(void)
 
 		"set ap_rfeatures he_gi=<val>",
 		"set ap_rfeatures he_ltf=<val>",
-		"set ap_rfeatures trig_type=<val> (range: 0-7)",
-		"set ap_rfeatures ack_policy=<val> (range: 0-4)",
+		"set ap_rfeatures trig_type=<enable>,<val> (val: 0-7)",
+		"set ap_rfeatures ack_policy=<val> (val: 0-4)",
 		"set ap_wireless fixed_mcs=<val>",
 		"set ap_wireless ofdma=<val> (0: disable, 1: DL, 2: UL)",
 		"set ap_wireless nusers_ofdma=<val>",
 		"set ap_wireless ppdu_type=<val> (0: SU, 1: MU, 4: LEGACY)",
 		"set ap_wireless add_ba_req_bufsize=<val>",
 		"set ap_wireless mimo=<val> (0: DL, 1: UL)",
-		"set ap_wireless ampdu=<val> (0: disable, 1: enable)",
-		"set ap_wireless amsdu=<val> (0: disable, 1: enable)",
+		"set ap_wireless ampdu=<enable>",
+		"set ap_wireless amsdu=<enable>",
 	};
 	int i;
 

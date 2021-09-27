@@ -5,7 +5,9 @@
 
 static int mt76_ap_rfeatures_set_attr(struct nl_msg *msg, int argc, char **argv)
 {
-	char *val;
+	char *val,*s1,*cur;
+	void *data;
+	int idx = MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TYPE_EN;
 
 	val = strchr(argv[0], '=');
 	if (!val)
@@ -18,7 +20,14 @@ static int mt76_ap_rfeatures_set_attr(struct nl_msg *msg, int argc, char **argv)
 	} else if (!strncmp(argv[0], "he_ltf", 6)) {
 		nla_put_u8(msg, MTK_VENDOR_ATTR_RFEATURE_CTRL_HE_LTF, strtoul(val, NULL, 0));
 	} else if (!strncmp(argv[0], "trig_type", 9)) {
-		nla_put_u8(msg, MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TYPE, strtoul(val, NULL, 0));
+		s1 = strdup(val);
+		data = nla_nest_start(msg,
+				      MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TYPE_CFG | NLA_F_NESTED);
+
+		while ((cur = strsep(&s1, ",")) != NULL)
+			nla_put_u8(msg, idx++, strtoul(cur, NULL, 0));
+
+		nla_nest_end(msg, data);
 	} else if (!strncmp(argv[0], "ack_policy", 10)) {
 		nla_put_u8(msg, MTK_VENDOR_ATTR_RFEATURE_CTRL_ACK_PLCY, strtoul(val, NULL, 0));
 	}
