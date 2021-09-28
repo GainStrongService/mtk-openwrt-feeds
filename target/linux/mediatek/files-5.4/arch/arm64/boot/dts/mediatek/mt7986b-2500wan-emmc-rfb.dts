@@ -1,65 +1,50 @@
 /dts-v1/;
-#include "mt7986a.dtsi"
-#include "mt7986a-pinctrl.dtsi"
-#include "mt7986-spim-nor-partition.dtsi"
+#include "mt7986b.dtsi"
+#include "mt7986b-pinctrl.dtsi"
 / {
-	model = "MediaTek MT7986a RFB";
-	compatible = "mediatek,mt7986a-2500wan-nor-rfb";
+	model = "MediaTek MT7986b RFB";
+	compatible = "mediatek,mt7986b-emmc-rfb";
 	chosen {
 		bootargs = "console=ttyS0,115200n1 loglevel=8  \
-				earlycon=uart8250,mmio32,0x11002000";
+				earlycon=uart8250,mmio32,0x11002000 \
+				root=/dev/mmcblk0p7 rootwait rootfstype=squashfs,f2fs";
 	};
 
 	memory {
 		reg = <0 0x40000000 0 0x10000000>;
 	};
 
-	sound {
-		compatible = "mediatek,mt7986-wm8960-machine";
-		mediatek,platform = <&afe>;
-		audio-routing = "Headphone", "HP_L",
-				"Headphone", "HP_R",
-				"LINPUT1", "AMIC",
-				"RINPUT1", "AMIC";
-		mediatek,audio-codec = <&wm8960>;
-		status = "okay";
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
-};
-
-&pwm {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_pin &pwm1_pin_g1>;
-	status = "okay";
 };
 
 &uart0 {
 	status = "okay";
 };
 
+/* Warning: pins shared with &snand */
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
+/* Warning: pins shared with &spi1 */
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_pins>;
-	status = "okay";
-
-	wm8960: wm8960@1a {
-		compatible = "wlf,wm8960";
-		reg = <0x1a>;
-	};
-};
-
-&auxadc {
 	status = "okay";
 };
 
@@ -182,31 +167,23 @@
 	status = "okay";
 };
 
-&spi0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi_flash_pins>;
-	cs-gpios = <0>, <0>;
-	status = "okay";
-	spi_nor@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
-		reg = <0>;
-		spi-max-frequency = <20000000>;
-		spi-tx-buswidth = <4>;
-		spi-rx-buswidth = <4>;
-	};
-};
-
+/* Warning: pins shared with &uart2 */
 &spi1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spic_pins_g2>;
+	pinctrl-0 = <&spic_pins>;
 	status = "okay";
 };
 
-&pcie0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcie0_pins>;
+&mmc0 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&mmc0_pins_default>;
+	pinctrl-1 = <&mmc0_pins_uhs>;
+	bus-width = <8>;
+	max-frequency = <50000000>;
+	cap-mmc-highspeed;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+	non-removable;
 	status = "okay";
 };
 
@@ -216,20 +193,53 @@
 };
 
 &pio {
-	spi_flash_pins: spi-flash-pins-33-to-38 {
+	mmc0_pins_default: mmc0-pins-22-to-32-default {
 		mux {
 			function = "flash";
-			groups = "spi0", "spi0_wp_hold";
+			groups = "emmc_45";
 		};
-		conf-pu {
-			pins = "SPI2_CS", "SPI2_HOLD", "SPI2_WP";
-			drive-strength = <MTK_DRIVE_8mA>;
-			mediatek,pull-up-adv = <0>;	/* bias-disable */
+		conf-cmd-dat {
+			pins = "SPI0_CLK", "SPI0_MOSI", "SPI0_MISO",
+			       "SPI0_CS", "SPI0_HOLD", "SPI0_WP",
+			       "SPI1_CLK", "SPI1_MOSI", "SPI1_MISO";
+			input-enable;
+			drive-strength = <MTK_DRIVE_4mA>;
+			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
 		};
-		conf-pd {
-			pins = "SPI2_CLK", "SPI2_MOSI", "SPI2_MISO";
-			drive-strength = <MTK_DRIVE_8mA>;
-			mediatek,pull-down-adv = <0>;	/* bias-disable */
+		conf-clk {
+			pins = "SPI1_CS";
+			drive-strength = <MTK_DRIVE_6mA>;
+			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
+		};
+		conf-rst {
+			pins = "PWM1";
+			drive-strength = <MTK_DRIVE_4mA>;
+			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
+		};
+	};
+
+	mmc0_pins_uhs: mmc0-pins-22-to-32-uhs {
+		mux {
+			function = "flash";
+			groups = "emmc_45";
+		};
+		conf-cmd-dat {
+			pins = "SPI0_CLK", "SPI0_MOSI", "SPI0_MISO",
+			       "SPI0_CS", "SPI0_HOLD", "SPI0_WP",
+			       "SPI1_CLK", "SPI1_MOSI", "SPI1_MISO";
+			input-enable;
+			drive-strength = <MTK_DRIVE_4mA>;
+			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
+		};
+		conf-clk {
+			pins = "SPI1_CS";
+			drive-strength = <MTK_DRIVE_6mA>;
+			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
+		};
+		conf-rst {
+			pins = "PWM1";
+			drive-strength = <MTK_DRIVE_4mA>;
+			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
 		};
 	};
 };

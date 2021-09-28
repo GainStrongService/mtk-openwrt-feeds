@@ -1,10 +1,10 @@
 /dts-v1/;
 #include "mt7986a.dtsi"
 #include "mt7986a-pinctrl.dtsi"
-#include "mt7986-spim-nor-partition.dtsi"
+#include "mt7986-snfi-nand-partition.dtsi"
 / {
 	model = "MediaTek MT7986a RFB";
-	compatible = "mediatek,mt7986a-2500wan-nor-rfb";
+	compatible = "mediatek,mt7986a-snfi-snand-rfb";
 	chosen {
 		bootargs = "console=ttyS0,115200n1 loglevel=8  \
 				earlycon=uart8250,mmio32,0x11002000";
@@ -141,23 +141,6 @@
 					label = "lan3";
 				};
 
-				port@4 {
-					reg = <4>;
-					label = "lan4";
-				};
-
-				port@5 {
-					reg = <5>;
-					label = "lan5";
-					phy-mode = "2500base-x";
-
-					fixed-link {
-						speed = <2500>;
-						full-duplex;
-						pause;
-					};
-				};
-
 				port@6 {
 					reg = <6>;
 					label = "cpu";
@@ -182,19 +165,16 @@
 	status = "okay";
 };
 
-&spi0 {
+&snand {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi_flash_pins>;
-	cs-gpios = <0>, <0>;
+	pinctrl-0 = <&snfi_pins>;
+	mediatek,quad-spi;
 	status = "okay";
-	spi_nor@0 {
+
+	partitions {
+		compatible = "fixed-partitions";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
-		reg = <0>;
-		spi-max-frequency = <20000000>;
-		spi-tx-buswidth = <4>;
-		spi-rx-buswidth = <4>;
 	};
 };
 
@@ -216,19 +196,24 @@
 };
 
 &pio {
-	spi_flash_pins: spi-flash-pins-33-to-38 {
+	snfi_pins: snfi-pins-23-to-28 {
 		mux {
 			function = "flash";
-			groups = "spi0", "spi0_wp_hold";
+			groups = "snfi";
+		};
+		conf-clk {
+			pins = "SPI0_CLK";
+			drive-strength = <MTK_DRIVE_8mA>;
+			mediatek,pull-down-adv = <0>;	/* bias-disable */
 		};
 		conf-pu {
-			pins = "SPI2_CS", "SPI2_HOLD", "SPI2_WP";
-			drive-strength = <MTK_DRIVE_8mA>;
+			pins = "SPI0_CS", "SPI0_HOLD", "SPI0_WP";
+			drive-strength = <MTK_DRIVE_6mA>;
 			mediatek,pull-up-adv = <0>;	/* bias-disable */
 		};
 		conf-pd {
-			pins = "SPI2_CLK", "SPI2_MOSI", "SPI2_MISO";
-			drive-strength = <MTK_DRIVE_8mA>;
+			pins = "SPI0_MOSI", "SPI0_MISO";
+			drive-strength = <MTK_DRIVE_6mA>;
 			mediatek,pull-down-adv = <0>;	/* bias-disable */
 		};
 	};

@@ -8,12 +8,12 @@ define Device/mt7986a-ax6000-nor-rfb
 endef
 TARGET_DEVICES += mt7986a-ax6000-nor-rfb
 
-define Device/mt7986a-ax6000-snand-rfb
+define Device/mt7986a-ax6000-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986a-ax6000-snand-rfb (SPI-NAND,UBI)
-  DEVICE_DTS := mt7986a-snand-rfb
+  DEVICE_MODEL := mt7986a-ax6000-spim-nand-rfb (SPI-NAND,UBI)
+  DEVICE_DTS := mt7986a-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-snand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-spim-nand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -23,7 +23,24 @@ define Device/mt7986a-ax6000-snand-rfb
   IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
-TARGET_DEVICES += mt7986a-ax6000-snand-rfb
+TARGET_DEVICES += mt7986a-ax6000-spim-nand-rfb
+
+define Device/mt7986a-ax6000-snfi-nand-rfb
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7986a-ax6000-snfi-nand-rfb (SPI-NAND,UBI)
+  DEVICE_DTS := mt7986a-snfi-nand-rfb
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7986a-snfi-nand-rfb
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 65536k
+  KERNEL_IN_UBI := 1
+  IMAGES += factory.bin
+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += mt7986a-ax6000-snfi-nand-rfb
 
 define Device/mt7986a-ax6000-emmc-rfb
   DEVICE_VENDOR := MediaTek
@@ -44,12 +61,12 @@ define Device/mt7986a-ax6000-2500wan-nor-rfb
 endef
 TARGET_DEVICES += mt7986a-ax6000-2500wan-nor-rfb
 
-define Device/mt7986a-ax6000-2500wan-snand-rfb
+define Device/mt7986a-ax6000-2500wan-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986a-ax6000-2500wan-snand-rfb (SPI-NAND,UBI)
-  DEVICE_DTS := mt7986a-2500wan-snand-rfb
+  DEVICE_MODEL := mt7986a-ax6000-2500wan-spim-nand-rfb (SPI-NAND,UBI)
+  DEVICE_DTS := mt7986a-2500wan-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-snand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-spim-nand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -59,7 +76,7 @@ define Device/mt7986a-ax6000-2500wan-snand-rfb
   IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
-TARGET_DEVICES += mt7986a-ax6000-2500wan-snand-rfb
+TARGET_DEVICES += mt7986a-ax6000-2500wan-spim-nand-rfb
 
 define Device/mt7986a-ax7800-nor-rfb
   DEVICE_VENDOR := MediaTek
@@ -69,12 +86,12 @@ define Device/mt7986a-ax7800-nor-rfb
 endef
 TARGET_DEVICES += mt7986a-ax7800-nor-rfb
 
-define Device/mt7986a-ax7800-snand-rfb
+define Device/mt7986a-ax7800-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986a-ax7800-snand-rfb (SPI-NAND,UBI)
-  DEVICE_DTS := mt7986a-snand-rfb
+  DEVICE_MODEL := mt7986a-ax7800-spim-nand-rfb (SPI-NAND,UBI)
+  DEVICE_DTS := mt7986a-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-snand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-spim-nand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -84,7 +101,7 @@ define Device/mt7986a-ax7800-snand-rfb
   IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
-TARGET_DEVICES += mt7986a-ax7800-snand-rfb
+TARGET_DEVICES += mt7986a-ax7800-spim-nand-rfb
 
 define Device/mt7986a-ax7800-2500wan-nor-rfb
   DEVICE_VENDOR := MediaTek
@@ -94,12 +111,12 @@ define Device/mt7986a-ax7800-2500wan-nor-rfb
 endef
 TARGET_DEVICES += mt7986a-ax7800-2500wan-nor-rfb
 
-define Device/mt7986a-ax7800-2500wan-snand-rfb
+define Device/mt7986a-ax7800-2500wan-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986a-ax7800-2500wan-snand-rfb (SPI-NAND,UBI)
-  DEVICE_DTS := mt7986a-2500wan-snand-rfb
+  DEVICE_MODEL := mt7986a-ax7800-2500wan-spim-nand-rfb (SPI-NAND,UBI)
+  DEVICE_DTS := mt7986a-2500wan-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-snand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-spim-nand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -109,7 +126,7 @@ define Device/mt7986a-ax7800-2500wan-snand-rfb
   IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
-TARGET_DEVICES += mt7986a-ax7800-2500wan-snand-rfb
+TARGET_DEVICES += mt7986a-ax7800-2500wan-spim-nand-rfb
 
 define Device/mt7986b-ax6000-nor-rfb
   DEVICE_VENDOR := MediaTek
@@ -119,12 +136,12 @@ define Device/mt7986b-ax6000-nor-rfb
 endef
 TARGET_DEVICES += mt7986b-ax6000-nor-rfb
 
-define Device/mt7986b-ax6000-snand-rfb
+define Device/mt7986b-ax6000-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986b-ax6000-snand-rfb (SPI-NAND,UBI)
-  DEVICE_DTS := mt7986b-snand-rfb
+  DEVICE_MODEL := mt7986b-ax6000-spim-nand-rfb (SPI-NAND,UBI)
+  DEVICE_DTS := mt7986b-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986b-snand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986b-spim-nand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -134,7 +151,24 @@ define Device/mt7986b-ax6000-snand-rfb
   IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
-TARGET_DEVICES += mt7986b-ax6000-snand-rfb
+TARGET_DEVICES += mt7986b-ax6000-spim-nand-rfb
+
+define Device/mt7986b-ax6000-snfi-nand-rfb
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7986b-ax6000-snfi-nand-rfb (SPI-NAND,UBI)
+  DEVICE_DTS := mt7986b-snfi-nand-rfb
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7986b-snfi-nand-rfb
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 65536k
+  KERNEL_IN_UBI := 1
+  IMAGES += factory.bin
+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += mt7986b-ax6000-snfi-nand-rfb
 
 define Device/mt7986b-ax6000-emmc-rfb
   DEVICE_VENDOR := MediaTek
@@ -155,12 +189,12 @@ define Device/mt7986b-ax6000-2500wan-nor-rfb
 endef
 TARGET_DEVICES += mt7986b-ax6000-2500wan-nor-rfb
 
-define Device/mt7986b-ax6000-2500wan-snand-rfb
+define Device/mt7986b-ax6000-2500wan-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986b-ax6000-2500wan-snand-rfb (SPI-NAND,UBI)
-  DEVICE_DTS := mt7986b-2500wan-snand-rfb
+  DEVICE_MODEL := mt7986b-ax6000-2500wan-spim-nand-rfb (SPI-NAND,UBI)
+  DEVICE_DTS := mt7986b-2500wan-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986b-2500wan-snand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986b-2500wan-spim-nand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -170,25 +204,7 @@ define Device/mt7986b-ax6000-2500wan-snand-rfb
   IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
-TARGET_DEVICES += mt7986b-ax6000-2500wan-snand-rfb
-
-define Device/mt7986b-mt7976-ax6000-rfb4-snand
-  DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986b-mt7976-ax6000-rfb4-snand (SPI-NAND,UBI)
-  DEVICE_DTS := mt7986b-mt7976-ax6000-rfb4
-  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986b-snand-rfb
-  UBINIZE_OPTS := -E 5
-  BLOCKSIZE := 128k
-  PAGESIZE := 2048
-  IMAGE_SIZE := 65536k
-  KERNEL_IN_UBI := 1
-  IMAGES += factory.bin
-  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
-  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
-endef
-TARGET_DEVICES += mt7986b-mt7976-ax6000-rfb4-snand
-
+TARGET_DEVICES += mt7986b-ax6000-2500wan-spim-nand-rfb
 
 define Device/mediatek_mt7986-fpga
   DEVICE_VENDOR := MediaTek
