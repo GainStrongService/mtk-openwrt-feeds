@@ -8,8 +8,10 @@ static int mt76_ap_rfeatures_set_attr(struct nl_msg *msg, int argc, char **argv)
 	char *val;
 
 	val = strchr(argv[0], '=');
-	if (val)
-		*(val++) = 0;
+	if (!val)
+		return -EINVAL;
+
+	*(val++) = 0;
 
 	if (!strncmp(argv[0], "he_gi", 5)) {
 		nla_put_u8(msg, MTK_VENDOR_ATTR_RFEATURE_CTRL_HE_GI, strtoul(val, NULL, 0));
@@ -65,8 +67,10 @@ static int mt76_ap_wireless_set_attr(struct nl_msg *msg, int argc, char **argv)
 	char *val;
 
 	val = strchr(argv[0], '=');
-	if (val)
-		*(val++) = 0;
+	if (!val)
+		return -EINVAL;
+
+	*(val++) = 0;
 
 	if (!strncmp(argv[0], "fixed_mcs", 9)) {
 		nla_put_u8(msg, MTK_VENDOR_ATTR_WIRELESS_CTRL_FIXED_MCS, strtoul(val, NULL, 0));

@@ -3,13 +3,13 @@
 
 #include "mt76-vendor.h"
 
-static const struct nla_policy
+static struct nla_policy
 amnt_ctrl_policy[NUM_MTK_VENDOR_ATTRS_AMNT_CTRL] = {
 	[MTK_VENDOR_ATTR_AMNT_CTRL_SET] = {.type = NLA_NESTED },
 	[MTK_VENDOR_ATTR_AMNT_CTRL_DUMP] = { .type = NLA_NESTED },
 };
 
-static const struct nla_policy
+static struct nla_policy
 amnt_dump_policy[NUM_MTK_VENDOR_ATTRS_AMNT_DUMP] = {
 	[MTK_VENDOR_ATTR_AMNT_DUMP_INDEX] = {.type = NLA_U8 },
 	[MTK_VENDOR_ATTR_AMNT_DUMP_LEN] = { .type = NLA_U8 },
@@ -30,14 +30,23 @@ static int mt76_amnt_set_attr(struct nl_msg *msg, int argc, char **argv)
 		return -EINVAL;
 
 	tb1 = nla_nest_start(msg, MTK_VENDOR_ATTR_AMNT_CTRL_SET | NLA_F_NESTED);
+	if (!tb1)
+		return -ENOMEM;
+
 	nla_put_u8(msg, MTK_VENDOR_ATTR_AMNT_SET_INDEX, idx);
 
 	tb2 = nla_nest_start(msg, MTK_VENDOR_ATTR_AMNT_SET_MACADDR | NLA_F_NESTED);
+	if (!tb2) {
+		nla_nest_end(msg, tb1);
+		return -ENOMEM;
+	}
+
 	for (i = 0; i < ETH_ALEN; i++)
 		nla_put_u8(msg, i, a[i]);
 
 	nla_nest_end(msg, tb2);
 	nla_nest_end(msg, tb1);
+
 	return 0;
 }
 

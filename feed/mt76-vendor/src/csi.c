@@ -132,7 +132,7 @@ static int mt76_csi_to_json(const char *name)
 
 		pos += snprintf(pos, MAX_BUF_SIZE, "%c", '[');
 
-		pos += snprintf(pos, MAX_BUF_SIZE, "%ld,", c->ts);
+		pos += snprintf(pos, MAX_BUF_SIZE, "%d,", c->ts);
 		pos += snprintf(pos, MAX_BUF_SIZE, "\"%02x%02x%02x%02x%02x%02x\",", c->ta[0], c->ta[1], c->ta[2], c->ta[3], c->ta[4], c->ta[5]);
 
 		pos += snprintf(pos, MAX_BUF_SIZE, "%d,", c->rssi);
@@ -171,11 +171,13 @@ static int mt76_csi_to_json(const char *name)
 
 	fwrite("]", 1, 1, f);
 	fclose(f);
+
+	return 0;
 }
 
 int mt76_csi_dump(int idx, int argc, char **argv)
 {
-	int pkt_num, ret, i;
+	int pkt_num, ret = 0, i;
 	struct nl_msg *msg;
 	void *data;
 
@@ -227,8 +229,10 @@ static int mt76_csi_set_attr(struct nl_msg *msg, int argc, char **argv)
 	void *data;
 
 	val = strchr(argv[0], '=');
-	if (val)
-		*(val++) = 0;
+	if (!val)
+		return -EINVAL;
+
+	*(val++) = 0;
 
 	if (!strncmp(argv[0], "ctrl", 4)) {
 		s1 = s2 = strdup(val);
