@@ -41,7 +41,8 @@ static int mt76_csi_dump_cb(struct nl_msg *msg, void *arg)
 	struct nlattr *tb_data[NUM_MTK_VENDOR_ATTRS_CSI_DATA];
 	struct nlattr *attr;
 	struct nlattr *cur;
-	int rem, idx;
+	size_t idx;
+	int rem;
 	struct csi_data *c = &csi[csi_idx];
 
 	attr = unl_find_attr(&unl, msg, NL80211_ATTR_VENDOR_DATA);
@@ -91,17 +92,20 @@ static int mt76_csi_dump_cb(struct nl_msg *msg, void *arg)
 
 	idx = 0;
 	nla_for_each_nested(cur, tb_data[MTK_VENDOR_ATTR_CSI_DATA_TA], rem) {
-		c->ta[idx++] = nla_get_u8(cur);
+		if (idx < ETH_ALEN)
+			c->ta[idx++] = nla_get_u8(cur);
 	}
 
 	idx = 0;
 	nla_for_each_nested(cur, tb_data[MTK_VENDOR_ATTR_CSI_DATA_I], rem) {
-		c->data_i[idx++] = nla_get_u16(cur);
+		if (idx < CSI_MAX_COUNT)
+			c->data_i[idx++] = nla_get_u16(cur);
 	}
 
 	idx = 0;
 	nla_for_each_nested(cur, tb_data[MTK_VENDOR_ATTR_CSI_DATA_Q], rem) {
-		c->data_q[idx++] = nla_get_u16(cur);
+		if (idx < CSI_MAX_COUNT)
+			c->data_q[idx++] = nla_get_u16(cur);
 	}
 
 	csi_idx++;
@@ -113,7 +117,7 @@ static int mt76_csi_to_json(const char *name)
 {
 #define MAX_BUF_SIZE	6000
 	FILE *f;
-	int i;
+	int i, ret = -ENOMEM;
 
 	f = fopen(name, "a+");
 	if (!f) {
@@ -121,15 +125,21 @@ static int mt76_csi_to_json(const char *name)
 		return 1;
 	}
 
-	fwrite("[", 1, 1, f);
+	if (fwrite("[", 1, 1, f) != 1) {
+		perror("fwrite");
+		goto out;
+	}
 
 	for (i = 0; i < csi_idx; i++) {
-		char *pos, *buf = malloc(MAX_BUF_SIZE);
 		struct csi_data *c = &csi[i];
+		char *pos, *buf;
 		int j;
 
-		pos = buf;
+		buf = malloc(MAX_BUF_SIZE);
+		if (!buf)
+			goto out;
 
+		pos = buf;
 		pos += snprintf(pos, MAX_BUF_SIZE, "%c", '[');
 
 		pos += snprintf(pos, MAX_BUF_SIZE, "%d,", c->ts);
@@ -165,14 +175,26 @@ static int mt76_csi_to_json(const char *name)
 		if (i != csi_idx - 1)
 			pos += snprintf(pos, MAX_BUF_SIZE, ",");
 
-		fwrite(buf, 1, pos - buf, f);
+		if (fwrite(buf, 1, pos - buf, f) != (pos - buf)) {
+			perror("fwrite");
+			free(buf);
+			goto out;
+		}
+
 		free(buf);
 	}
 
-	fwrite("]", 1, 1, f);
-	fclose(f);
+	if (fwrite("]", 1, 1, f) != 1) {
+		perror("fwrite");
+		goto out;
+	}
 
-	return 0;
+	ret = 0;
+out:
+	if (fclose(f))
+		perror("fclose");
+
+	return ret;
 }
 
 int mt76_csi_dump(int idx, int argc, char **argv)
@@ -183,7 +205,10 @@ int mt76_csi_dump(int idx, int argc, char **argv)
 
 	if (argc < 2)
 		return 1;
+
 	pkt_num = strtol(argv[0], NULL, 10);
+	if (pkt_num < 0 || pkt_num > 30000)
+		return -EINVAL;
 
 #define CSI_DUMP_PER_NUM	3
 	csi_idx = 0;
@@ -203,6 +228,8 @@ int mt76_csi_dump(int idx, int argc, char **argv)
 			return false;
 
 		data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA | NLA_F_NESTED);
+		if (!data)
+			return -ENOMEM;
 
 		if (nla_put_u16(msg, MTK_VENDOR_ATTR_CSI_CTRL_DUMP_NUM, CSI_DUMP_PER_NUM))
 			return false;
@@ -235,11 +262,17 @@ static int mt76_csi_set_attr(struct nl_msg *msg, int argc, char **argv)
 	*(val++) = 0;
 
 	if (!strncmp(argv[0], "ctrl", 4)) {
-		s1 = s2 = strdup(val);
 		data = nla_nest_start(msg, MTK_VENDOR_ATTR_CSI_CTRL_CFG | NLA_F_NESTED);
+		if (!data)
+			return -ENOMEM;
 
-		while ((cur = strsep(&s1, ",")) != NULL)
-			nla_put_u8(msg, idx++, strtoul(cur, NULL, 0));
+		s1 = s2 = strdup(val);
+
+		while ((cur = strsep(&s1, ",")) != NULL) {
+			u8 param = strtoul(cur, NULL, 0);
+
+			nla_put_u8(msg, idx++, param);
+		}
 
 		nla_nest_end(msg, data);
 
@@ -251,9 +284,10 @@ static int mt76_csi_set_attr(struct nl_msg *msg, int argc, char **argv)
 			int matches, i;
 
 			val = strchr(argv[1], '=');
-			if (val)
-				*(val++) = 0;
+			if (!val)
+				return -EINVAL;
 
+			*(val++) = 0;
 			matches = sscanf(val, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
 					a, a+1, a+2, a+3, a+4, a+5);
 
@@ -261,13 +295,18 @@ static int mt76_csi_set_attr(struct nl_msg *msg, int argc, char **argv)
 				return -EINVAL;
 
 			data = nla_nest_start(msg, MTK_VENDOR_ATTR_CSI_CTRL_MAC_ADDR | NLA_F_NESTED);
+			if (!data)
+				return -ENOMEM;
+
 			for (i = 0; i < ETH_ALEN; i++)
 				nla_put_u8(msg, i, a[i]);
 
 			nla_nest_end(msg, data);
 		}
 	} else if (!strncmp(argv[0], "interval", 8)) {
-		nla_put_u32(msg, MTK_VENDOR_ATTR_CSI_CTRL_INTERVAL, strtoul(val, NULL, 0));
+		u32 interval = strtoul(val, NULL, 0);
+
+		nla_put_u32(msg, MTK_VENDOR_ATTR_CSI_CTRL_INTERVAL, interval);
 	}
 
 	return 0;
@@ -295,6 +334,8 @@ int mt76_csi_set(int idx, int argc, char **argv)
 		return false;
 
 	data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA | NLA_F_NESTED);
+	if (!data)
+		return -ENOMEM;
 
 	mt76_csi_set_attr(msg, argc, argv);
 

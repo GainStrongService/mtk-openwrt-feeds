@@ -57,6 +57,8 @@ int mt76_ap_rfeatures_set(int idx, int argc, char **argv)
 		return false;
 
 	data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA | NLA_F_NESTED);
+	if (!data)
+		return -ENOMEM;
 
 	mt76_ap_rfeatures_set_attr(msg, argc, argv);
 
@@ -125,6 +127,8 @@ int mt76_ap_wireless_set(int idx, int argc, char **argv)
 		return false;
 
 	data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA | NLA_F_NESTED);
+	if (!data)
+		return -ENOMEM;
 
 	mt76_ap_wireless_set_attr(msg, argc, argv);
 

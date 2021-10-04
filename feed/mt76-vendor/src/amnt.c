@@ -72,6 +72,8 @@ int mt76_amnt_set(int idx, int argc, char **argv)
 		return false;
 
 	data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA | NLA_F_NESTED);
+	if (!data)
+		return -ENOMEM;
 
 	mt76_amnt_set_attr(msg, argc, argv);
 
@@ -136,10 +138,10 @@ static int mt76_amnt_dump_cb(struct nl_msg *msg, void *arg)
 
 int mt76_amnt_dump(int idx, int argc, char **argv)
 {
-	struct nl_msg *msg, *tb1;
-	void *data;
-	int ret;
-	u8 amnt_idx = 0;
+	struct nl_msg *msg;
+	void *data, *tb1;
+	int ret = -EINVAL;
+	u8 amnt_idx;
 
 	if (argc < 1)
 		return 1;
@@ -157,8 +159,12 @@ int mt76_amnt_dump(int idx, int argc, char **argv)
 		return false;
 
 	data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA | NLA_F_NESTED);
+	if (!data)
+		goto out;
 
 	tb1 = nla_nest_start(msg, MTK_VENDOR_ATTR_AMNT_CTRL_DUMP | NLA_F_NESTED);
+	if (!tb1)
+		goto out;
 
 	amnt_idx = strtoul(argv[0], NULL, 0);
 	nla_put_u8(msg, MTK_VENDOR_ATTR_AMNT_DUMP_INDEX, amnt_idx);
@@ -171,6 +177,7 @@ int mt76_amnt_dump(int idx, int argc, char **argv)
 	if (ret)
 		fprintf(stderr, "nl80211 call failed: %s\n", strerror(-ret));
 
+out:
 	unl_free(&unl);
 
 	return ret;
