@@ -725,11 +725,30 @@ static const struct file_operations rx_ring_fops = {
 	.release = single_release
 };
 
+static inline u32 mtk_dbg_r32(u32 reg)
+{
+	void __iomem *virt_reg;
+	u32 val;
+
+	virt_reg = ioremap(reg, 32);
+	val = __raw_readl(virt_reg);
+	iounmap(virt_reg);
+
+	return val;
+}
+
 int dbg_regs_read(struct seq_file *seq, void *v)
 {
 	struct mtk_eth *eth = g_eth;
 
-	seq_puts(seq, "   <<PSE DEBUG REG DUMP>>\n");
+	seq_puts(seq, "   <<DEBUG REG DUMP>>\n");
+
+	seq_printf(seq, "| FE_INT_STA	: %08x |\n",
+		   mtk_r32(eth, MTK_INT_STATUS));
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		seq_printf(seq, "| FE_INT_STA2	: %08x |\n",
+			   mtk_r32(eth, MTK_INT_STATUS2));
+
 	seq_printf(seq, "| PSE_FQFC_CFG	: %08x |\n",
 		   mtk_r32(eth, MTK_PSE_FQFC_CFG));
 	seq_printf(seq, "| PSE_IQ_STA1	: %08x |\n",
@@ -742,6 +761,8 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 			   mtk_r32(eth, MTK_PSE_IQ_STA(2)));
 		seq_printf(seq, "| PSE_IQ_STA4	: %08x |\n",
 			   mtk_r32(eth, MTK_PSE_IQ_STA(3)));
+		seq_printf(seq, "| PSE_IQ_STA5	: %08x |\n",
+			   mtk_r32(eth, MTK_PSE_IQ_STA(4)));
 	}
 
 	seq_printf(seq, "| PSE_OQ_STA1	: %08x |\n",
@@ -754,8 +775,18 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 			   mtk_r32(eth, MTK_PSE_OQ_STA(2)));
 		seq_printf(seq, "| PSE_OQ_STA4	: %08x |\n",
 			   mtk_r32(eth, MTK_PSE_OQ_STA(3)));
+		seq_printf(seq, "| PSE_OQ_STA5	: %08x |\n",
+			   mtk_r32(eth, MTK_PSE_OQ_STA(4)));
 	}
 
+	seq_printf(seq, "| PDMA_CRX_IDX	: %08x |\n",
+		   mtk_r32(eth, MTK_PRX_CRX_IDX0));
+	seq_printf(seq, "| PDMA_DRX_IDX	: %08x |\n",
+		   mtk_r32(eth, MTK_PRX_DRX_IDX0));
+	seq_printf(seq, "| QDMA_CTX_IDX	: %08x |\n",
+		   mtk_r32(eth, MTK_QTX_CTX_PTR));
+	seq_printf(seq, "| QDMA_DTX_IDX	: %08x |\n",
+		   mtk_r32(eth, MTK_QTX_DTX_PTR));
 	seq_printf(seq, "| QDMA_FQ_CNT	: %08x |\n",
 		   mtk_r32(eth, MTK_QDMA_FQ_CNT));
 	seq_printf(seq, "| FE_PSE_FREE	: %08x |\n",
@@ -774,17 +805,37 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 		   mtk_r32(eth, MTK_MAC_MCR(0)));
 	seq_printf(seq, "| MAC_P2_MCR	: %08x |\n",
 		   mtk_r32(eth, MTK_MAC_MCR(1)));
+	seq_printf(seq, "| MAC_P1_FSM	: %08x |\n",
+		   mtk_r32(eth, MTK_MAC_FSM(0)));
+	seq_printf(seq, "| MAC_P2_FSM	: %08x |\n",
+		   mtk_r32(eth, MTK_MAC_FSM(1)));
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 		seq_printf(seq, "| FE_CDM1_FSM	: %08x |\n",
 			   mtk_r32(eth, MTK_FE_CDM1_FSM));
 		seq_printf(seq, "| FE_CDM2_FSM	: %08x |\n",
 			   mtk_r32(eth, MTK_FE_CDM2_FSM));
+		seq_printf(seq, "| FE_CDM3_FSM	: %08x |\n",
+			   mtk_r32(eth, MTK_FE_CDM3_FSM));
+		seq_printf(seq, "| FE_CDM4_FSM	: %08x |\n",
+			   mtk_r32(eth, MTK_FE_CDM4_FSM));
 		seq_printf(seq, "| FE_GDM1_FSM	: %08x |\n",
 			   mtk_r32(eth, MTK_FE_GDM1_FSM));
 		seq_printf(seq, "| FE_GDM2_FSM	: %08x |\n",
 			   mtk_r32(eth, MTK_FE_GDM2_FSM));
+		seq_printf(seq, "| SGMII_EFUSE	: %08x |\n",
+			   mtk_dbg_r32(MTK_SGMII_EFUSE));
+		seq_printf(seq, "| SGMII0_RX_CNT : %08x |\n",
+			   mtk_dbg_r32(MTK_SGMII_FALSE_CARRIER_CNT(0)));
+		seq_printf(seq, "| SGMII1_RX_CNT : %08x |\n",
+			   mtk_dbg_r32(MTK_SGMII_FALSE_CARRIER_CNT(1)));
+		seq_printf(seq, "| WED_RTQM_GLO	: %08x |\n",
+			   mtk_dbg_r32(MTK_WED_RTQM_GLO_CFG));
 	}
+
+	mtk_w32(eth, 0xffffffff, MTK_INT_STATUS);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		mtk_w32(eth, 0xffffffff, MTK_INT_STATUS2);
 
 	return 0;
 }

@@ -61,7 +61,8 @@
 #define RST_GL_PSE		BIT(0)
 
 /* Frame Engine Interrupt Status Register */
-#define MTK_INT_STATUS2		0x08
+#define MTK_INT_STATUS		0x08
+#define MTK_INT_STATUS2		0x28
 #define MTK_GDM1_AF		BIT(28)
 #define MTK_GDM2_AF		BIT(29)
 
@@ -147,6 +148,10 @@
 /* PDMA RX CPU Pointer Register */
 #define MTK_PRX_CRX_IDX0	(MTK_PRX_BASE_PTR0 + 0x08)
 #define MTK_PRX_CRX_IDX_CFG(x)	(MTK_PRX_CRX_IDX0 + (x * 0x10))
+
+/* PDMA RX DMA Pointer Register */
+#define MTK_PRX_DRX_IDX0	(MTK_PRX_BASE_PTR0 + 0x0c)
+#define MTK_PRX_DRX_IDX_CFG(x)	(MTK_PRX_DRX_IDX0 + (x * 0x10))
 
 /* PDMA HW LRO Control Registers */
 #define BITS(m, n)			(~(BIT(m) - 1) & ((BIT(n) - 1) | BIT(n)))

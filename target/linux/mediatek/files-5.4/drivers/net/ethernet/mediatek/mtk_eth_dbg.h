@@ -22,12 +22,18 @@
 #define MTK_PSE_FQFC_CFG		0x100
 #define MTK_FE_CDM1_FSM			0x220
 #define MTK_FE_CDM2_FSM			0x224
+#define MTK_FE_CDM3_FSM			0x238
+#define MTK_FE_CDM4_FSM			0x298
 #define MTK_FE_GDM1_FSM			0x228
 #define MTK_FE_GDM2_FSM			0x22C
 #define MTK_FE_PSE_FREE			0x240
 #define MTK_FE_DROP_FQ			0x244
 #define MTK_FE_DROP_FC			0x248
 #define MTK_FE_DROP_PPE			0x24C
+#define MTK_MAC_FSM(x)			(0x1010C + ((x) * 0x100))
+#define MTK_SGMII_FALSE_CARRIER_CNT(x)	(0x10060028 + ((x) * 0x10000))
+#define MTK_SGMII_EFUSE			0x11D008C8
+#define MTK_WED_RTQM_GLO_CFG		0x15010B00
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
 #define MTK_PSE_IQ_STA(x)		(0x180 + (x) * 0x4)
