@@ -1246,8 +1246,8 @@ u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
 
 int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *np,
 		   u32 ana_rgc3);
-int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id);
-int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
+int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, unsigned int id);
+int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, unsigned int id,
 			       const struct phylink_link_state *state);
 void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id);
 
