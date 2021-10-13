@@ -37,7 +37,7 @@ int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *r, u32 ana_rgc3)
 	return 0;
 }
 
-int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id)
+int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, unsigned int id)
 {
 	unsigned int val;
 
@@ -67,7 +67,7 @@ int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id)
 	return 0;
 }
 
-int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,
+int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, unsigned int id,
 			       const struct phylink_link_state *state)
 {
 	unsigned int val;

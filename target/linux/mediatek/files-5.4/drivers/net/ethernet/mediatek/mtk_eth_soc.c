@@ -107,8 +107,8 @@ u32 _mtk_mdio_write(struct mtk_eth *eth, u16 phy_addr,
 	write_data &= 0xffff;
 
 	mtk_w32(eth, PHY_IAC_ACCESS | PHY_IAC_START | PHY_IAC_WRITE |
-		(phy_register << PHY_IAC_REG_SHIFT) |
-		(phy_addr << PHY_IAC_ADDR_SHIFT) | write_data,
+		((phy_register & 0x1f) << PHY_IAC_REG_SHIFT) |
+		((phy_addr & 0x1f) << PHY_IAC_ADDR_SHIFT) | write_data,
 		MTK_PHY_IAC);
 
 	if (mtk_mdio_busy_wait(eth))
@@ -125,8 +125,8 @@ u32 _mtk_mdio_read(struct mtk_eth *eth, u16 phy_addr, u16 phy_reg)
 		return 0xffff;
 
 	mtk_w32(eth, PHY_IAC_ACCESS | PHY_IAC_START | PHY_IAC_READ |
-		(phy_reg << PHY_IAC_REG_SHIFT) |
-		(phy_addr << PHY_IAC_ADDR_SHIFT),
+		((phy_reg & 0x1f) << PHY_IAC_REG_SHIFT) |
+		((phy_addr & 0x1f) << PHY_IAC_ADDR_SHIFT),
 		MTK_PHY_IAC);
 
 	if (mtk_mdio_busy_wait(eth))
@@ -249,7 +249,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 					   phylink_config);
 	struct mtk_eth *eth = mac->hw;
 	u32 mcr_cur, mcr_new, sid, i;
-	int val, ge_mode, err;
+	int val, ge_mode, err=0;
 
 	/* MT76x8 has no hardware settings between for the MAC */
 	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628) &&
@@ -614,7 +614,10 @@ static int mtk_mdio_init(struct mtk_eth *eth)
 	eth->mii_bus->priv = eth;
 	eth->mii_bus->parent = eth->dev;
 
-	snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%pOFn", mii_np);
+	if(snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%pOFn", mii_np)) {
+		ret = -ENOMEM;
+		goto err_put_node;
+	}
 	ret = of_mdiobus_register(eth->mii_bus, mii_np);
 
 err_put_node:
@@ -1331,12 +1334,9 @@ static void mtk_update_rx_cpu_idx(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 {
 	int i;
 
-	if (!eth->hwlro) {
-		if (unlikely(!ring))
-			dev_info(eth->dev, "Update Rx cpu index failed !\n");
-
+	if (!eth->hwlro)
 		mtk_w32(eth, ring->calc_idx, ring->crx_idx_reg);
-	} else {
+	else {
 		for (i = 0; i < MTK_MAX_RX_RING_NUM; i++) {
 			ring = &eth->rx_ring[i];
 			if (ring->calc_idx_update) {
@@ -1525,7 +1525,7 @@ rx_done:
 	return done;
 }
 
-static int mtk_poll_tx_qdma(struct mtk_eth *eth, int budget,
+static void mtk_poll_tx_qdma(struct mtk_eth *eth, int budget,
 			    unsigned int *done, unsigned int *bytes)
 {
 	struct mtk_tx_ring *ring = &eth->tx_ring;
@@ -1571,11 +1571,9 @@ static int mtk_poll_tx_qdma(struct mtk_eth *eth, int budget,
 
 	ring->last_free_ptr = cpu;
 	mtk_w32(eth, cpu, MTK_QTX_CRX_PTR);
-
-	return budget;
 }
 
-static int mtk_poll_tx_pdma(struct mtk_eth *eth, int budget,
+static void mtk_poll_tx_pdma(struct mtk_eth *eth, int budget,
 			    unsigned int *done, unsigned int *bytes)
 {
 	struct mtk_tx_ring *ring = &eth->tx_ring;
@@ -1609,8 +1607,6 @@ static int mtk_poll_tx_pdma(struct mtk_eth *eth, int budget,
 	}
 
 	ring->cpu_idx = cpu;
-
-	return budget;
 }
 
 static int mtk_poll_tx(struct mtk_eth *eth, int budget)
@@ -1624,9 +1620,9 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
 	memset(bytes, 0, sizeof(bytes));
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
-		budget = mtk_poll_tx_qdma(eth, budget, done, bytes);
+		mtk_poll_tx_qdma(eth, budget, done, bytes);
 	else
-		budget = mtk_poll_tx_pdma(eth, budget, done, bytes);
+		mtk_poll_tx_pdma(eth, budget, done, bytes);
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i] || !done[i])
@@ -3291,7 +3287,7 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	}
 
 	id = be32_to_cpup(_id);
-	if (id >= MTK_MAC_COUNT) {
+	if (id < 0 || id >= MTK_MAC_COUNT) {
 		dev_err(eth->dev, "%d is not a valid mac id\n", id);
 		return -EINVAL;
 	}

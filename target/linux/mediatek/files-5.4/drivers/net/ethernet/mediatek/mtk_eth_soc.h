@@ -1221,7 +1221,7 @@ struct mtk_eth {
  * @hw_stats:		Packet statistics counter
  */
 struct mtk_mac {
-	int				id;
+	unsigned int			id;
 	phy_interface_t			interface;
 	unsigned int			mode;
 	int				speed;
