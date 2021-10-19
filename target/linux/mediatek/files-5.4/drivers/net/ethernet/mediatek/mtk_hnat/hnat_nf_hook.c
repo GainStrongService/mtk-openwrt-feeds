@@ -1809,6 +1809,37 @@ static unsigned int mtk_hnat_accel_type(struct sk_buff *skb)
 	return 1;
 }
 
+static void mtk_hnat_dscp_update(struct sk_buff *skb, struct foe_entry *entry)
+{
+	struct iphdr *iph;
+	struct ethhdr *eth;
+	struct ipv6hdr *ip6h;
+	bool flag = false;
+
+	eth = eth_hdr(skb);
+	switch (ntohs(eth->h_proto)) {
+	case ETH_P_IP:
+		iph = ip_hdr(skb);
+		if (entry->ipv4_hnapt.iblk2.dscp != iph->tos)
+			flag = true;
+		break;
+	case ETH_P_IPV6:
+		ip6h = ipv6_hdr(skb);
+		if (entry->ipv6_5t_route.iblk2.dscp !=
+			(ip6h->priority << 4 |
+			 (ip6h->flow_lbl[0] >> 4)))
+			flag = true;
+		break;
+	default:
+		return;
+	}
+
+	if (flag) {
+		memset(entry, 0, sizeof(struct foe_entry));
+		hnat_cache_ebl(1);
+	}
+}
+
 static unsigned int mtk_hnat_nf_post_routing(
 	struct sk_buff *skb, const struct net_device *out,
 	unsigned int (*fn)(struct sk_buff *, const struct net_device *,
@@ -1856,6 +1887,9 @@ static unsigned int mtk_hnat_nf_post_routing(
 	case HIT_BIND_KEEPALIVE_DUP_OLD_HDR:
 		if (fn && !mtk_hnat_accel_type(skb))
 			break;
+
+		/* update dscp for qos */
+		mtk_hnat_dscp_update(skb, entry);
 
 		/* update mcast timestamp*/
 		if (hnat_priv->data->version == MTK_HNAT_V3 &&
