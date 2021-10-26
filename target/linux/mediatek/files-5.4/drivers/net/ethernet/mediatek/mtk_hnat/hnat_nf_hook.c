@@ -1617,8 +1617,26 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		break;
 	}
 
-	entry->bfib1.vpm = 0;
-	entry->bfib1.vlan_layer = 0;
+	if (skb->vlan_tci) {
+		entry->bfib1.vlan_layer += 1;
+		entry->bfib1.vpm = 1;
+		if (IS_IPV4_GRP(entry)) {
+			entry->ipv4_hnapt.etype = htons(ETH_P_8021Q);
+			if(entry->ipv4_hnapt.vlan1)
+				entry->ipv4_hnapt.vlan2 = skb->vlan_tci;
+			else
+				entry->ipv4_hnapt.vlan1 = skb->vlan_tci;
+		} else if (IS_IPV6_GRP(entry)) {
+			entry->ipv6_5t_route.etype = htons(ETH_P_8021Q);
+			if(entry->ipv6_5t_route.vlan1)
+				entry->ipv6_5t_route.vlan2 = skb->vlan_tci;
+			else
+				entry->ipv6_5t_route.vlan1 = skb->vlan_tci;
+		}
+	} else {
+		entry->bfib1.vpm = 0;
+		entry->bfib1.vlan_layer = 0;
+	}
 
 	/* MT7622 wifi hw_nat not support QoS */
 	if (IS_IPV4_GRP(entry)) {
