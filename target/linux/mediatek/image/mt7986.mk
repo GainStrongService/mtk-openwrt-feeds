@@ -1,4 +1,4 @@
-KERNEL_LOADADDR := 0x44080000
+KERNEL_LOADADDR := 0x48080000
 
 define Device/mt7986a-ax6000-nor-rfb
   DEVICE_VENDOR := MediaTek
