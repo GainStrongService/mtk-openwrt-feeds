@@ -830,7 +830,7 @@ static const struct group_desc mt7981_groups[] = {
     /*  @GPIO(26,29): UART1(2) */
         PINCTRL_PIN_GROUP("uart1_1", mt7981_uart1_1),
     /*  @GPIO(22,25): UART1(3) */
-        PINCTRL_PIN_GROUP("uart2_0", mt7981_uart2_1),
+        PINCTRL_PIN_GROUP("uart2_1", mt7981_uart2_1),
     /*  @GPIO(22,24) PTA_EXT(4) */
         PINCTRL_PIN_GROUP("pta_ext_1", mt7981_pta_ext_1),
     /*  @GPIO(20,21): WM_UART(4) */
@@ -892,7 +892,7 @@ static const char *mt7981_wa_aice_groups[] = { "wa_aice1", "wa_aice2", "wm_aice1
 	"wa_aice3", "wm_aice1_2", };
 static const char *mt7981_uart_groups[] = { "wm_uart_0", "uart2_0",
 	"net_wo0_uart_txd_0", "net_wo0_uart_txd_1", "net_wo0_uart_txd_2",
-	"uart1_0", "uart1_1", "uart2_0", "wm_aurt_1", "wm_aurt_2", "uart0", };
+	"uart1_0", "uart1_1", "uart2_1", "wm_aurt_1", "wm_aurt_2", "uart0", };
 static const char *mt7981_dfd_groups[] = { "dfd", "dfd_ntrst", };
 static const char *mt7981_wdt_groups[] = { "watchdog", "watchdog1", };
 static const char *mt7981_pcie_groups[] = { "pcie_pereset", "pcie_clk", "pcie_wake", };
