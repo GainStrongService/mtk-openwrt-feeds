@@ -663,6 +663,7 @@ struct mtk_hnat {
 	struct timer_list hnat_sma_build_entry_timer;
 	struct timer_list hnat_reset_timestamp_timer;
 	struct timer_list hnat_mcast_check_timer;
+	bool nf_stat_en;
 };
 
 struct extdev_entry {
@@ -940,6 +941,8 @@ void set_gmac_ppe_fwd(int gmac_no, int enable);
 int entry_detail(int ppe_id, int index);
 int entry_delete_by_mac(u8 *mac);
 int entry_delete(int ppe_id, int index);
+struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, int ppe_id,
+				       u32 index, struct hnat_accounting *diff);
 
 static inline u16 foe_timestamp(struct mtk_hnat *h)
 {
