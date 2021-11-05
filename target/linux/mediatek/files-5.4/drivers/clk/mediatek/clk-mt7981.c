@@ -744,7 +744,7 @@ static void __init mtk_topckgen_init(struct device_node *node)
 	mt7981_top_clk_data = mtk_alloc_clk_data(CLK_TOP_NR_CLK);
 
 	mtk_clk_register_factors(top_divs, ARRAY_SIZE(top_divs), mt7981_top_clk_data);
-	mtk_clk_register_muxes(top_muxes, ARRAY_SIZE(top_muxes), base, &mt7981_clk_lock, mt7981_top_clk_data);
+	mtk_clk_register_muxes(top_muxes, ARRAY_SIZE(top_muxes), node, &mt7981_clk_lock, mt7981_top_clk_data);
 	mtk_clk_register_dividers(top_adj_divs, ARRAY_SIZE(top_adj_divs), base, &mt7981_clk_lock, mt7981_top_clk_data);
 
 	r = of_clk_add_provider(node, of_clk_src_onecell_get, mt7981_top_clk_data);
@@ -771,7 +771,7 @@ static void __init mtk_infracfg_ao_init(struct device_node *node)
 
 	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
 
-	mtk_clk_register_muxes(infra_muxes, ARRAY_SIZE(infra_muxes), base, &mt7981_clk_lock, clk_data);
+	mtk_clk_register_muxes(infra_muxes, ARRAY_SIZE(infra_muxes), node, &mt7981_clk_lock, clk_data);
 	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks), clk_data);
 
 	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
