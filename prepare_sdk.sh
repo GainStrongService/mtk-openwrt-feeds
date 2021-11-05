@@ -2,7 +2,11 @@
 
 MTK_FEEDS_DIR=${1}
 
-OPENWRT_VER=`cat ./feeds.conf.default | grep "src-git packages" | awk -F ";openwrt" '{print $2}'`
+if [ -f feeds.conf.default_ori ]; then
+	OPENWRT_VER=`cat ./feeds.conf.default_ori | grep "src-git packages" | awk -F ";openwrt" '{print $2}'`
+else
+	OPENWRT_VER=`cat ./feeds.conf.default | grep "src-git packages" | awk -F ";openwrt" '{print $2}'`
+fi
 
 if [ -z ${1} ]; then
         MTK_FEEDS_DIR=feeds/mtk_openwrt_feed
