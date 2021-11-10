@@ -373,10 +373,14 @@
 		reg = <0 0x11005000 0 0x1000>, <0 0x11006000 0 0x1000>;
 		reg-names = "nfi", "ecc";
 		interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>;
-		clock-names = "nfi_clk", "pad_clk", "ecc_clk";
+		clocks = <&infracfg_ao CK_INFRA_SPINFI1_CK>,
+			 <&infracfg_ao CK_INFRA_NFI1_CK>,
+			 <&infracfg_ao CK_INFRA_NFI_HCK_CK>;
+		clock-names = "pad_clk", "nfi_clk", "nfi_hclk";
+		assigned-clocks = <&topckgen CK_TOP_SPINFI_SEL>,
+				  <&topckgen CK_TOP_NFI1X_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_M_D8>,
+					 <&topckgen CK_TOP_CB_M_D8>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
