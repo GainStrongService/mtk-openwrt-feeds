@@ -153,7 +153,7 @@ void set_gmac_ppe_fwd(int id, int enable)
 
 static int entry_mac_cmp(struct foe_entry *entry, u8 *mac)
 {
-	int i, ret = 0;
+	int ret = 0;
 
 	if(IS_IPV4_GRP(entry)) {
 		if(((swab32(entry->ipv4_hnapt.dmac_hi) == *(u32 *)mac) &&
@@ -169,12 +169,8 @@ static int entry_mac_cmp(struct foe_entry *entry, u8 *mac)
 			ret = 1;
 	}
 
-	if(ret){
-		pr_info("mac:");
-		for(i = 0; i < ETH_ALEN - 1; i++)
-			pr_info("%2x:", mac[i]);
-		pr_info("%2x\n", mac[i]);
-	}
+	if (ret && debug_level >= 2)
+		pr_info("mac=%pM\n", mac);
 
 	return ret;
 }
@@ -190,7 +186,8 @@ int entry_delete_by_mac(u8 *mac)
 			if(entry->bfib1.state == BIND && entry_mac_cmp(entry, mac)) {
 				memset(entry, 0, sizeof(*entry));
 				hnat_cache_ebl(1);
-				pr_info("delete entry idx = %d\n", index);
+				if (debug_level >= 2)
+					pr_info("delete entry idx = %d\n", index);
 				ret++;
 			}
 		}
