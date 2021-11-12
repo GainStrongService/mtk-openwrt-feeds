@@ -64,9 +64,11 @@ define Device/mt7986a-ax6000-emmc-rfb
   DEVICE_MODEL := mt7986a-ax6000-emmc-rfb
   DEVICE_DTS := mt7986a-emmc-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  DEVICE_PACKAGES := mkf2fs e2fsprogs kmod-fs-vfat kmod-nls-cp437 kmod-nls-iso8859-1 kmod-mmc
-  IMAGES := sysupgrade-emmc.bin.gz
-  IMAGE/sysupgrade-emmc.bin.gz := sysupgrade-emmc | gzip | append-metadata
+  SUPPORTED_DEVICES := mediatek,mt7986a-emmc-rfb
+  DEVICE_PACKAGES := mkf2fs e2fsprogs blkid blockdev losetup kmod-fs-ext4 \
+		     kmod-mmc kmod-fs-f2fs kmod-fs-vfat kmod-nls-cp437 \
+		     kmod-nls-iso8859-1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += mt7986a-ax6000-emmc-rfb
 
@@ -209,9 +211,11 @@ define Device/mt7986b-ax6000-emmc-rfb
   DEVICE_MODEL := mt7986b-ax6000-emmc-rfb
   DEVICE_DTS := mt7986b-emmc-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  DEVICE_PACKAGES := mkf2fs e2fsprogs kmod-fs-vfat kmod-nls-cp437 kmod-nls-iso8859-1 kmod-mmc
-  IMAGES := sysupgrade-emmc.bin.gz
-  IMAGE/sysupgrade-emmc.bin.gz := sysupgrade-emmc | gzip | append-metadata
+  SUPPORTED_DEVICES := mediatek,mt7986b-emmc-rfb
+  DEVICE_PACKAGES := mkf2fs e2fsprogs blkid blockdev losetup kmod-fs-ext4 \
+		     kmod-mmc kmod-fs-f2fs kmod-fs-vfat kmod-nls-cp437 \
+		     kmod-nls-iso8859-1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += mt7986b-ax6000-emmc-rfb
 
