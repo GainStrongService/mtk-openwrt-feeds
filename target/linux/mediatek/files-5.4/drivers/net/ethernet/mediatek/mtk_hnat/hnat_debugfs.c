@@ -332,7 +332,7 @@ int wrapped_ppe1_entry_detail(int index) {
 	return 0;
 }
 
-int entry_detail(int ppe_id, int index)
+int entry_detail(u32 ppe_id, int index)
 {
 	struct foe_entry *entry;
 	struct mtk_hnat *h = hnat_priv;
@@ -525,7 +525,7 @@ int wrapped_ppe1_entry_delete(int index) {
 	return 0;
 }
 
-int entry_delete(int ppe_id, int index)
+int entry_delete(u32 ppe_id, int index)
 {
 	struct foe_entry *entry;
 	struct mtk_hnat *h = hnat_priv;
@@ -703,11 +703,15 @@ static const debugfs_write_func cr_set_func[] = {
 	[6] = udp_keep_alive,    [7] = set_nf_update_toggle,
 };
 
-int read_mib(struct mtk_hnat *h, int ppe_id,
+int read_mib(struct mtk_hnat *h, u32 ppe_id,
 	     u32 index, u64 *bytes, u64 *packets)
 {
 	int ret;
 	u32 val, cnt_r0, cnt_r1, cnt_r2;
+
+	if (ppe_id >= CFG_PPE_NUM)
+		return -EINVAL;
+
 	writel(index | (1 << 16), h->ppe_base[ppe_id] + PPE_MIB_SER_CR);
 	ret = readx_poll_timeout_atomic(readl, h->ppe_base[ppe_id] + PPE_MIB_SER_CR, val,
 					!(val & BIT_MIB_BUSY), 20, 10000);
@@ -726,11 +730,14 @@ int read_mib(struct mtk_hnat *h, int ppe_id,
 
 }
 
-struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, int ppe_id,
+struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 ppe_id,
 				       u32 index, struct hnat_accounting *diff)
 
 {
 	u64 bytes, packets;
+
+	if (ppe_id >= CFG_PPE_NUM)
+		return NULL;
 
 	if (!hnat_priv->data->per_flow_accounting)
 		return NULL;
@@ -753,7 +760,7 @@ EXPORT_SYMBOL(hnat_get_count);
 #define PRINT_COUNT(m, acct) {if (acct) \
 		seq_printf(m, "bytes=%llu|packets=%llu|", \
 			   acct->bytes, acct->packets); }
-static int __hnat_debug_show(struct seq_file *m, void *private, int ppe_id)
+static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 {
 	struct mtk_hnat *h = hnat_priv;
 	struct foe_entry *entry, *end;
@@ -761,6 +768,9 @@ static int __hnat_debug_show(struct seq_file *m, void *private, int ppe_id)
 	unsigned char h_source[ETH_ALEN];
 	struct hnat_accounting *acct;
 	u32 entry_index = 0;
+
+	if (ppe_id >= CFG_PPE_NUM)
+		return -EINVAL;
 
 	entry = h->foe_table_cpu[ppe_id];
 	end = h->foe_table_cpu[ppe_id] + hnat_priv->foe_etry_num;
@@ -1092,7 +1102,7 @@ ssize_t cpu_reason_write(struct file *file, const char __user *buffer,
 {
 	char buf[32];
 	char *p_buf;
-	int len = count;
+	u32 len = count;
 	long arg0 = 0, arg1 = 0;
 	char *p_token = NULL;
 	char *p_delimiter = " \t";
@@ -1100,7 +1110,6 @@ ssize_t cpu_reason_write(struct file *file, const char __user *buffer,
 
 	if (len >= sizeof(buf)) {
 		pr_info("input handling fail!\n");
-		len = sizeof(buf) - 1;
 		return -1;
 	}
 
@@ -1237,12 +1246,15 @@ void dbg_dump_entry(struct seq_file *m, struct foe_entry *entry,
 	}
 }
 
-int __hnat_entry_read(struct seq_file *m, void *private, int ppe_id)
+int __hnat_entry_read(struct seq_file *m, void *private, u32 ppe_id)
 {
 	struct mtk_hnat *h = hnat_priv;
 	struct foe_entry *entry, *end;
 	int hash_index;
 	int cnt;
+
+	if (ppe_id >= CFG_PPE_NUM)
+		return -EINVAL;
 
 	hash_index = 0;
 	cnt = 0;
@@ -1286,7 +1298,7 @@ ssize_t hnat_entry_write(struct file *file, const char __user *buffer,
 {
 	char buf[32];
 	char *p_buf;
-	int len = count;
+	u32 len = count;
 	long arg0 = 0, arg1 = 0;
 	char *p_token = NULL;
 	char *p_delimiter = " \t";
@@ -1294,7 +1306,6 @@ ssize_t hnat_entry_write(struct file *file, const char __user *buffer,
 
 	if (len >= sizeof(buf)) {
 		pr_info("input handling fail!\n");
-		len = sizeof(buf) - 1;
 		return -1;
 	}
 
@@ -1348,11 +1359,14 @@ static const struct file_operations hnat_entry_fops = {
 	.release = single_release,
 };
 
-int __hnat_setting_read(struct seq_file *m, void *private, int ppe_id)
+int __hnat_setting_read(struct seq_file *m, void *private, u32 ppe_id)
 {
 	struct mtk_hnat *h = hnat_priv;
 	int i;
 	int cr_max;
+
+	if (ppe_id >= CFG_PPE_NUM)
+		return -EINVAL;
 
 	cr_max = 319 * 4;
 	for (i = 0; i < cr_max; i = i + 0x10) {
@@ -1387,7 +1401,7 @@ ssize_t hnat_setting_write(struct file *file, const char __user *buffer,
 {
 	char buf[32];
 	char *p_buf;
-	int len = count;
+	u32 len = count;
 	long arg0 = 0, arg1 = 0;
 	char *p_token = NULL;
 	char *p_delimiter = " \t";
@@ -1395,7 +1409,6 @@ ssize_t hnat_setting_write(struct file *file, const char __user *buffer,
 
 	if (len >= sizeof(buf)) {
 		pr_info("input handling fail!\n");
-		len = sizeof(buf) - 1;
 		return -1;
 	}
 
@@ -1446,13 +1459,16 @@ static const struct file_operations hnat_setting_fops = {
 	.release = single_release,
 };
 
-int __mcast_table_dump(struct seq_file *m, void *private, int ppe_id)
+int __mcast_table_dump(struct seq_file *m, void *private, u32 ppe_id)
 {
 	struct mtk_hnat *h = hnat_priv;
 	struct ppe_mcast_h mcast_h;
 	struct ppe_mcast_l mcast_l;
 	u8 i, max;
 	void __iomem *reg;
+
+	if (ppe_id >= CFG_PPE_NUM)
+		return -EINVAL;
 
 	if (!h->pmcast)
 		return 0;
@@ -1607,7 +1623,7 @@ static ssize_t hnat_sched_write(struct file *file, const char __user *buf,
 {
 	long id = (long)file->private_data;
 	struct mtk_hnat *h = hnat_priv;
-	char line[64];
+	char line[64] = {0};
 	int enable, rate, exp = 0, shift = 0;
 	char scheduling[32];
 	size_t size;
@@ -1751,7 +1767,7 @@ static ssize_t hnat_queue_write(struct file *file, const char __user *buf,
 {
 	long id = (long)file->private_data;
 	struct mtk_hnat *h = hnat_priv;
-	char line[64];
+	char line[64] = {0};
 	int max_enable, max_rate, max_exp = 0;
 	int min_enable, min_rate, min_exp = 0;
 	int weight;
@@ -1842,7 +1858,7 @@ static ssize_t hnat_ppd_if_write(struct file *file, const char __user *buffer,
 			dev_put(hnat_priv->g_ppdev);
 		hnat_priv->g_ppdev = dev;
 
-		strncpy(hnat_priv->ppd, p, IFNAMSIZ);
+		strncpy(hnat_priv->ppd, p, IFNAMSIZ - 1);
 		pr_info("hnat_priv ppd = %s\n", hnat_priv->ppd);
 	} else {
 		pr_info("no such device!\n");
@@ -1893,7 +1909,7 @@ static int hnat_mape_toggle_open(struct inode *inode, struct file *file)
 static ssize_t hnat_mape_toggle_write(struct file *file, const char __user *buffer,
 				      size_t count, loff_t *data)
 {
-	char buf;
+	char buf = 0;
 	int len = count;
 
 	if (copy_from_user(&buf, buffer, len))
@@ -1933,7 +1949,7 @@ static int hnat_hook_toggle_open(struct inode *inode, struct file *file)
 static ssize_t hnat_hook_toggle_write(struct file *file, const char __user *buffer,
 				      size_t count, loff_t *data)
 {
-	char buf[8];
+	char buf[8] = {0};
 	int len = count;
 
 	if ((len > 8) || copy_from_user(buf, buffer, len))
@@ -2020,14 +2036,14 @@ static const struct file_operations hnat_version_fops = {
 	.release = single_release,
 };
 
-int get_ppe_mib(int ppe_id, int index, u64 *pkt_cnt, u64 *byte_cnt)
+int get_ppe_mib(u32 ppe_id, int index, u64 *pkt_cnt, u64 *byte_cnt)
 {
 	struct mtk_hnat *h = hnat_priv;
 	struct hnat_accounting *acct;
 	struct foe_entry *entry;
 
 	if (ppe_id >= CFG_PPE_NUM)
-		return -1;
+		return -EINVAL;
 
 	if (index < 0 || index >= h->foe_etry_num) {
 		pr_info("Invalid entry index\n");
@@ -2050,13 +2066,13 @@ int get_ppe_mib(int ppe_id, int index, u64 *pkt_cnt, u64 *byte_cnt)
 }
 EXPORT_SYMBOL(get_ppe_mib);
 
-int is_entry_binding(int ppe_id, int index)
+int is_entry_binding(u32 ppe_id, int index)
 {
 	struct mtk_hnat *h = hnat_priv;
 	struct foe_entry *entry;
 
 	if (ppe_id >= CFG_PPE_NUM)
-		return -1;
+		return -EINVAL;
 
 	if (index < 0 || index >= h->foe_etry_num) {
 		pr_info("Invalid entry index\n");
@@ -2192,7 +2208,11 @@ err0:
 
 void hnat_deinit_debugfs(struct mtk_hnat *h)
 {
+	int i;
+
 	debugfs_remove_recursive(h->root);
 	h->root = NULL;
-	kfree(h->regset);
+
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		kfree(h->regset[i]);
 }

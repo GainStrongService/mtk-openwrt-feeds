@@ -63,7 +63,7 @@ struct ppe_mcast_l {
 	u32 addr;
 };
 
-int hnat_mcast_enable(int ppe_id);
+int hnat_mcast_enable(u32 ppe_id);
 int hnat_mcast_disable(void);
 
 #endif

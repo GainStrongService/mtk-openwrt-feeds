@@ -941,10 +941,10 @@ int hnat_enable_hook(void);
 int hnat_disable_hook(void);
 void hnat_cache_ebl(int enable);
 void set_gmac_ppe_fwd(int gmac_no, int enable);
-int entry_detail(int ppe_id, int index);
+int entry_detail(u32 ppe_id, int index);
 int entry_delete_by_mac(u8 *mac);
-int entry_delete(int ppe_id, int index);
-struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, int ppe_id,
+int entry_delete(u32 ppe_id, int index);
+struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 ppe_id,
 				       u32 index, struct hnat_accounting *diff);
 
 static inline u16 foe_timestamp(struct mtk_hnat *h)

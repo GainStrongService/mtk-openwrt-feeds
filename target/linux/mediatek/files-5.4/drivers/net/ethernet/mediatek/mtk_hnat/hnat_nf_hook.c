@@ -161,7 +161,9 @@ int ext_if_add(struct extdev_entry *ext_entry)
 {
 	int len = get_ext_device_number();
 
-	hnat_priv->ext_if[len++] = ext_entry;
+	if (len < MAX_EXT_DEVS)
+		hnat_priv->ext_if[len++] = ext_entry;
+
 	return len;
 }
 
@@ -611,6 +613,9 @@ unsigned int do_hnat_mape_w2l_fast(struct sk_buff *skb, const struct net_device 
 	/* WAN -> LAN/WLAN MapE. */
 	if (mape_toggle && (ip6h->nexthdr == NEXTHDR_IPIP)) {
 		iph = skb_header_pointer(skb, IPV6_HDR_LEN, sizeof(_iphdr), &_iphdr);
+		if (unlikely(!iph))
+			return -1;
+
 		switch (iph->protocol) {
 		case IPPROTO_UDP:
 		case IPPROTO_TCP:
@@ -682,6 +687,8 @@ static unsigned int is_ppe_support_type(struct sk_buff *skb)
 		} else if (ip6h->nexthdr == NEXTHDR_IPIP) {
 			iph = skb_header_pointer(skb, IPV6_HDR_LEN,
 						 sizeof(_iphdr), &_iphdr);
+			if (unlikely(!iph))
+				return 0;
 
 			if ((iph->protocol == IPPROTO_TCP) ||
 			    (iph->protocol == IPPROTO_UDP)) {
@@ -1139,6 +1146,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 								  iph->ihl * 4,
 								  sizeof(_ports),
 								  &_ports);
+					if (unlikely(!pptr))
+						return -1;
 
 					entry.ipv4_dslite.new_sip =
 							ntohl(iph->saddr);
@@ -1205,6 +1214,9 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				pptr = skb_header_pointer(skb, iph->ihl * 4,
 							  sizeof(_ports),
 							  &_ports);
+				if (unlikely(!pptr))
+					return -1;
+
 				entry.ipv4_hnapt.new_sport = ntohs(pptr->src);
 				entry.ipv4_hnapt.new_dport = ntohs(pptr->dst);
 			}
@@ -1384,7 +1396,6 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		break;
 
 	default:
-		ip6h = ipv6_hdr(skb);
 		iph = ip_hdr(skb);
 		switch (entry.bfib1.pkt_type) {
 		case IPV6_6RD: /* 6RD LAN->WAN */
@@ -1800,7 +1811,7 @@ void mtk_ppe_dev_register_hook(struct net_device *dev)
 			if (!ext_entry)
 				return;
 
-			strncpy(ext_entry->name, dev->name, IFNAMSIZ);
+			strncpy(ext_entry->name, dev->name, IFNAMSIZ - 1);
 			dev_hold(dev);
 			ext_entry->dev = dev;
 			ext_if_add(ext_entry);
@@ -2011,6 +2022,9 @@ mtk_hnat_ipv6_nf_local_out(void *priv, struct sk_buff *skb,
 			if (mape_toggle) {
 				iph = skb_header_pointer(skb, IPV6_HDR_LEN,
 							 sizeof(_iphdr), &_iphdr);
+				if (unlikely(!iph))
+					return NF_ACCEPT;
+
 				switch (iph->protocol) {
 				case IPPROTO_UDP:
 					udp = 1;
@@ -2023,6 +2037,9 @@ mtk_hnat_ipv6_nf_local_out(void *priv, struct sk_buff *skb,
 
 				pptr = skb_header_pointer(skb, IPV6_HDR_LEN + iph->ihl * 4,
 							  sizeof(_ports), &_ports);
+				if (unlikely(!pptr))
+                                        return NF_ACCEPT;
+
 				entry->bfib1.udp = udp;
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
@@ -2267,9 +2284,6 @@ int whnat_adjust_nf_hooks(void)
 {
 	struct nf_hook_ops *hook = mtk_hnat_nf_ops;
 	unsigned int n = ARRAY_SIZE(mtk_hnat_nf_ops);
-
-	if (!hook)
-		return -1;
 
 	while (n-- > 0) {
 		if (hook[n].hook == mtk_hnat_br_nf_local_in) {

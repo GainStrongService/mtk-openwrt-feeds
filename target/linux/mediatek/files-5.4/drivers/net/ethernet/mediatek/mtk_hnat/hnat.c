@@ -285,11 +285,14 @@ static void hnat_roaming_disable(void)
 	pr_info("hnat roaming work disable\n");
 }
 
-static int hnat_start(int ppe_id)
+static int hnat_start(u32 ppe_id)
 {
 	u32 foe_table_sz;
 	u32 foe_mib_tb_sz;
 	int etry_num_cfg;
+
+	if (ppe_id >= CFG_PPE_NUM)
+		return -EINVAL;
 
 	/* mapp the FOE table */
 	for (etry_num_cfg = DEF_ETRY_NUM_CFG ; etry_num_cfg >= 0 ; etry_num_cfg--, hnat_priv->foe_etry_num /= 2) {
@@ -409,10 +412,13 @@ static int hnat_start(int ppe_id)
 	return 0;
 }
 
-static int ppe_busy_wait(int ppe_id)
+static int ppe_busy_wait(u32 ppe_id)
 {
 	unsigned long t_start = jiffies;
 	u32 r = 0;
+
+	if (ppe_id >= CFG_PPE_NUM)
+		return -EINVAL;
 
 	while (1) {
 		r = readl((hnat_priv->ppe_base[ppe_id] + 0x0));
@@ -428,12 +434,15 @@ static int ppe_busy_wait(int ppe_id)
 	return -1;
 }
 
-static void hnat_stop(int ppe_id)
+static void hnat_stop(u32 ppe_id)
 {
 	u32 foe_table_sz;
 	u32 foe_mib_tb_sz;
 	struct foe_entry *entry, *end;
 	u32 r1 = 0, r2 = 0;
+
+	if (ppe_id >= CFG_PPE_NUM)
+		return;
 
 	/* send all traffic back to the DMA engine */
 	set_gmac_ppe_fwd(0, 0);
@@ -617,6 +626,9 @@ static int hnat_probe(struct platform_device *pdev)
 	hnat_priv->foe_etry_num = DEF_ETRY_NUM;
 
 	match = of_match_device(of_hnat_match, &pdev->dev);
+	if (unlikely(!match))
+		return -EINVAL;
+
 	hnat_priv->data = (struct mtk_hnat_data *)match->data;
 
 	hnat_priv->dev = &pdev->dev;
@@ -626,21 +638,21 @@ static int hnat_probe(struct platform_device *pdev)
 	if (err < 0)
 		return -EINVAL;
 
-	strncpy(hnat_priv->wan, (char *)name, IFNAMSIZ);
+	strncpy(hnat_priv->wan, (char *)name, IFNAMSIZ - 1);
 	dev_info(&pdev->dev, "wan = %s\n", hnat_priv->wan);
 
 	err = of_property_read_string(np, "mtketh-lan", &name);
 	if (err < 0)
 		strncpy(hnat_priv->lan, "eth0", IFNAMSIZ);
 	else
-		strncpy(hnat_priv->lan, (char *)name, IFNAMSIZ);
+		strncpy(hnat_priv->lan, (char *)name, IFNAMSIZ - 1);
 	dev_info(&pdev->dev, "lan = %s\n", hnat_priv->lan);
 
 	err = of_property_read_string(np, "mtketh-ppd", &name);
 	if (err < 0)
 		strncpy(hnat_priv->ppd, "eth0", IFNAMSIZ);
 	else
-		strncpy(hnat_priv->ppd, (char *)name, IFNAMSIZ);
+		strncpy(hnat_priv->ppd, (char *)name, IFNAMSIZ - 1);
 	dev_info(&pdev->dev, "ppd = %s\n", hnat_priv->ppd);
 
 	/*get total gmac num in hnat*/
@@ -701,7 +713,7 @@ static int hnat_probe(struct platform_device *pdev)
 			err = -ENOMEM;
 			goto err_out1;
 		}
-		strncpy(ext_entry->name, (char *)name, IFNAMSIZ);
+		strncpy(ext_entry->name, (char *)name, IFNAMSIZ - 1);
 		ext_if_add(ext_entry);
 	}
 

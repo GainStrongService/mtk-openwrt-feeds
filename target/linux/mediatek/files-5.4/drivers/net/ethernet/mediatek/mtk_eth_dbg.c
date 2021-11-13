@@ -1220,12 +1220,11 @@ ssize_t hw_lro_auto_tlb_write(struct file *file, const char __user *buffer,
 	char *p_token = NULL;
 	char *p_delimiter = " \t";
 	long x = 0, y = 0;
-	int len = count;
+	u32 len = count;
 	int ret;
 
 	if (len >= sizeof(buf)) {
 		pr_info("Input handling fail!\n");
-		len = sizeof(buf) - 1;
 		return -1;
 	}
 

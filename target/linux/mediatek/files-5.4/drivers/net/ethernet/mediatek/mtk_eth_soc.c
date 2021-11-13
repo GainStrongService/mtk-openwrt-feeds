@@ -3393,6 +3393,8 @@ static int mtk_probe(struct platform_device *pdev)
 	if(eth->soc->has_sram) {
 		struct resource *res;
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (unlikely(!res))
+			return -EINVAL;
 		eth->phy_scratch_ring = res->start + MTK_ETH_SRAM_OFFSET;
 	}
 

@@ -61,7 +61,7 @@ static void get_mac_from_mdb_entry(struct br_mdb_entry *entry,
 }
 
 /*set_hnat_mtbl - set ppe multicast register*/
-static int set_hnat_mtbl(struct ppe_mcast_group *group, int ppe_id, int index)
+static int set_hnat_mtbl(struct ppe_mcast_group *group, u32 ppe_id, int index)
 {
 	struct ppe_mcast_h mcast_h;
 	struct ppe_mcast_l mcast_l;
@@ -69,6 +69,9 @@ static int set_hnat_mtbl(struct ppe_mcast_group *group, int ppe_id, int index)
 	u32 mac_hi = group->mac_hi;
 	u8 mc_port = group->mc_port;
 	void __iomem *reg;
+
+	if (ppe_id >= CFG_PPE_NUM)
+		return -EINVAL;
 
 	mcast_h.u.value = 0;
 	mcast_l.addr = 0;
@@ -110,8 +113,8 @@ static int set_hnat_mtbl(struct ppe_mcast_group *group, int ppe_id, int index)
 static int hnat_mcast_table_update(int type, struct br_mdb_entry *entry)
 {
 	struct net_device *dev;
-	u32 mac_hi;
-	u16 mac_lo;
+	u32 mac_hi = 0;
+	u16 mac_lo = 0;
 	int i, index;
 	struct ppe_mcast_group *group;
 
@@ -275,13 +278,16 @@ static void hnat_mcast_check_timestamp(struct timer_list *t)
 	mod_timer(&hnat_priv->hnat_mcast_check_timer, jiffies + 10 * HZ);
 }
 
-int hnat_mcast_enable(int ppe_id)
+int hnat_mcast_enable(u32 ppe_id)
 {
 	struct ppe_mcast_table *pmcast;
 
+	if (ppe_id >= CFG_PPE_NUM)
+		return -EINVAL;
+
 	pmcast = kzalloc(sizeof(*pmcast), GFP_KERNEL);
 	if (!pmcast)
-		goto err;
+		return -1;
 
 	if (hnat_priv->data->version == MTK_HNAT_V1)
 		pmcast->max_entry = 0x10;
@@ -332,19 +338,17 @@ err:
 int hnat_mcast_disable(void)
 {
 	struct ppe_mcast_table *pmcast = hnat_priv->pmcast;
-	struct socket *sock = pmcast->msock;
-	struct workqueue_struct *queue = pmcast->queue;
-	struct work_struct *work = &pmcast->work;
+
+	if (!pmcast)
+		return -EINVAL;
 
 	if (hnat_priv->data->version == MTK_HNAT_V3)
 		del_timer_sync(&hnat_priv->hnat_mcast_check_timer);
 
-	if (pmcast) {
-		flush_work(work);
-		destroy_workqueue(queue);
-		sock_release(sock);
-		kfree(pmcast);
-	}
+	flush_work(&pmcast->work);
+	destroy_workqueue(pmcast->queue);
+	sock_release(pmcast->msock);
+	kfree(pmcast);
 
 	return 0;
 }
