@@ -523,5 +523,20 @@
         clkitg: clkitg {
 		compatible = "simple-bus";
 	};
+
+	efuse: efuse@11f20000 {
+		compatible = "mediatek,efuse";
+		reg = <0 0x11f20000 0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		thermal_calibration: calib@274 {
+			reg = <0x274 0xc>;
+		};
+
+		phy_calibration: calib@8dc {
+			reg = <0x8dc 0x10>;
+		};
+	};
 };
 #include "mt7981-clkitg.dtsi"
