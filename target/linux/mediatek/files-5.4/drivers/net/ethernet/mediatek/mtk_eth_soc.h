@@ -708,7 +708,7 @@
 /* Top misc registers */
 #define USB_PHY_SWITCH_REG     0x218
 #define QPHY_SEL_MASK          GENMASK(1, 0)
-#define SGMII_QPHY_SEL	       0x10
+#define SGMII_QPHY_SEL	       0x2
 
 /*MDIO control*/
 #define MII_MMD_ACC_CTL_REG             0x0d
