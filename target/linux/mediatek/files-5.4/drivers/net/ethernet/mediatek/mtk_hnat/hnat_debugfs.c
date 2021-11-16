@@ -305,6 +305,7 @@ int entry_set_usage(int level)
 	pr_info("              3   <entry_idx>  Delete PPE0 specific foe entry of assigned <entry_idx>\n");
 	pr_info("              4   <entry_idx>  Show PPE1 specific foe entry info. of assigned <entry_idx>\n");
 	pr_info("              5   <entry_idx>  Delete PPE1 specific foe entry of assigned <entry_idx>\n");
+	pr_info("                               When entry_idx is -1, clear all entries\n");
 
 	return 0;
 }
@@ -531,18 +532,23 @@ int entry_delete(int ppe_id, int index)
 	if (ppe_id >= CFG_PPE_NUM)
 		return -EINVAL;
 
-	if (index < 0 || index >= h->foe_etry_num) {
+	if (index < -1 || index >= (int)h->foe_etry_num) {
 		pr_info("Invalid entry index\n");
 		return -EINVAL;
 	}
 
-	entry = h->foe_table_cpu[ppe_id] + index;
-	memset(entry, 0, sizeof(struct foe_entry));
+	if (index == -1) {
+		memset(h->foe_table_cpu[ppe_id], 0, h->foe_etry_num * sizeof(struct foe_entry));
+		pr_info("clear all foe entry\n");
+	} else {
+
+		entry = h->foe_table_cpu[ppe_id] + index;
+		memset(entry, 0, sizeof(struct foe_entry));
+		pr_info("delete ppe id = %d, entry idx = %d\n", ppe_id, index);
+	}
 
 	/* clear HWNAT cache */
 	hnat_cache_ebl(1);
-
-	pr_info("delete ppe id = %d, entry idx = %d\n", ppe_id, index);
 
 	return 0;
 }
