@@ -30,6 +30,7 @@ void usage(void)
 		"set ap_wireless mimo=<val> (0: DL, 1: UL)",
 		"set ap_wireless ampdu=<enable>",
 		"set ap_wireless amsdu=<enable>",
+		"set ap_wireless cert=<enable>",
 	};
 	int i;
 
