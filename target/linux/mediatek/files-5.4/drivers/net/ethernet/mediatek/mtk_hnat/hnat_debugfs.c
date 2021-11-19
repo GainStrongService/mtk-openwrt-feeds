@@ -27,6 +27,7 @@ int debug_level;
 int dbg_cpu_reason;
 int hook_toggle;
 int mape_toggle;
+int qos_toggle;
 unsigned int dbg_cpu_reason_cnt[MAX_CRSN_NUM];
 
 static const char * const entry_state[] = { "INVALID", "UNBIND", "BIND", "FIN" };
@@ -1957,6 +1958,49 @@ static const struct file_operations hnat_hook_toggle_fops = {
 	.release = single_release,
 };
 
+static int hnat_qos_toggle_read(struct seq_file *m, void *private)
+{
+	pr_info("value=%d, HQoS is %s now!\n", qos_toggle, (qos_toggle) ? "enabled" : "disabled");
+
+	return 0;
+}
+
+static int hnat_qos_toggle_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hnat_qos_toggle_read, file->private_data);
+}
+
+static ssize_t hnat_qos_toggle_write(struct file *file, const char __user *buffer,
+				     size_t count, loff_t *data)
+{
+	char buf[8];
+	int len = count;
+
+	if ((len > 8) || copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	if (buf[0] == '0' && qos_toggle != 0) {
+		pr_info("HQoS is going to be disabled !\n");
+		qos_toggle = 0;
+	} else if (buf[0] == '1' && qos_toggle != 1) {
+		pr_info("HQoS mode is going to be enabled !\n");
+		qos_toggle = 1;
+	} else if (buf[0] == '2' && qos_toggle != 2) {
+		pr_info("Per-port-per-queue mode is going to be enabled !\n");
+		qos_toggle = 2;
+	}
+
+	return len;
+}
+
+static const struct file_operations hnat_qos_toggle_fops = {
+	.open = hnat_qos_toggle_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = hnat_qos_toggle_write,
+	.release = single_release,
+};
+
 static int hnat_version_read(struct seq_file *m, void *private)
 {
 	pr_info("HNAT SW version : %s\nHNAT HW version : %d\n", HNAT_SW_VER, hnat_priv->data->version);
@@ -2119,6 +2163,8 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 			    &hnat_hook_toggle_fops);
 	debugfs_create_file("mape_toggle", S_IRUGO | S_IRUGO, root, h,
 			    &hnat_mape_toggle_fops);
+	debugfs_create_file("qos_toggle", S_IRUGO | S_IRUGO, root, h,
+			    &hnat_qos_toggle_fops);
 	debugfs_create_file("hnat_version", S_IRUGO | S_IRUGO, root, h,
 			    &hnat_version_fops);
 	debugfs_create_file("hnat_ppd_if", S_IRUGO | S_IRUGO, root, h,

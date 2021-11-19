@@ -745,7 +745,7 @@ static int hnat_probe(struct platform_device *pdev)
 	}
 
 #if defined(CONFIG_NET_MEDIATEK_HW_QOS)
-	if (IS_GMAC1_MODE)
+	if (qos_toggle && IS_GMAC1_MODE)
 		dev_add_pack(&mtk_pack_type);
 #endif
 	err = hnat_roaming_enable();
@@ -789,7 +789,7 @@ static int hnat_remove(struct platform_device *pdev)
 		del_timer_sync(&hnat_priv->hnat_reset_timestamp_timer);
 
 #if defined(CONFIG_NET_MEDIATEK_HW_QOS)
-	if (IS_GMAC1_MODE)
+	if (qos_toggle && IS_GMAC1_MODE)
 		dev_remove_pack(&mtk_pack_type);
 #endif
 

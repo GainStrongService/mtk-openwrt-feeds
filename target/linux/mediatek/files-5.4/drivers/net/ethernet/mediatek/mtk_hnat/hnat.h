@@ -845,6 +845,8 @@ enum FoeIpAct {
 	 IS_IPV4_DSLITE(x) | IS_IPV4_MAPE(x) | IS_IPV4_MAPT(x))
 #define IS_BOND_MODE (!strncmp(LAN_DEV_NAME, "bond", 4))
 #define IS_GMAC1_MODE ((hnat_priv->gmac_num == 1) ? 1 : 0)
+#define IS_HQOS_MODE (qos_toggle == 1)
+#define IS_PPPQ_MODE (qos_toggle == 2)		/* Per Port Per Queue */
 
 #define es(entry) (entry_state[entry->bfib1.state])
 #define ei(entry, end) (hnat_priv->foe_etry_num - (int)(end - entry))
@@ -886,20 +888,20 @@ extern const struct of_device_id of_hnat_match[];
 extern struct mtk_hnat *hnat_priv;
 
 #if defined(CONFIG_NET_DSA_MT7530)
-void hnat_dsa_fill_stag(const struct net_device *netdev,
-			struct foe_entry *entry,
-			struct flow_offload_hw_path *hw_path,
-			u16 eth_proto, int mape);
+u32 hnat_dsa_fill_stag(const struct net_device *netdev,
+		       struct foe_entry *entry,
+		       struct flow_offload_hw_path *hw_path,
+		       u16 eth_proto, int mape);
 
 static inline bool hnat_dsa_is_enable(struct mtk_hnat *priv)
 {
 	return (priv->wan_dsa_port != NONE_DSA_PORT);
 }
 #else
-static inline void hnat_dsa_fill_stag(const struct net_device *netdev,
-				      struct foe_entry *entry,
-				      struct flow_offload_hw_path *hw_path,
-				      u16 eth_proto, int mape)
+static inline u32 hnat_dsa_fill_stag(const struct net_device *netdev,
+				     struct foe_entry *entry,
+				     struct flow_offload_hw_path *hw_path,
+				     u16 eth_proto, int mape)
 {
 }
 
@@ -920,6 +922,7 @@ extern int dbg_cpu_reason;
 extern int debug_level;
 extern int hook_toggle;
 extern int mape_toggle;
+extern int qos_toggle;
 
 int ext_if_add(struct extdev_entry *ext_entry);
 int ext_if_del(struct extdev_entry *ext_entry);

@@ -8,11 +8,11 @@
 #include <net/netfilter/nf_flow_table.h>
 #include "hnat.h"
 
-void hnat_dsa_fill_stag(const struct net_device *netdev,
-			struct foe_entry *entry,
-			struct flow_offload_hw_path *hw_path,
-			u16 eth_proto,
-			int mape)
+u32 hnat_dsa_fill_stag(const struct net_device *netdev,
+		       struct foe_entry *entry,
+		       struct flow_offload_hw_path *hw_path,
+		       u16 eth_proto,
+		       int mape)
 {
 	const struct net_device *ndev;
 	const unsigned int *port_reg;
@@ -54,4 +54,6 @@ void hnat_dsa_fill_stag(const struct net_device *netdev,
 	default:
 		pr_info("DSA + HNAT unsupport protocol\n");
 	}
+
+	return port_index;
 }
