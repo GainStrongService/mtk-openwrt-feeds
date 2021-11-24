@@ -104,12 +104,20 @@
 #define GDMA1_FWD_CFG 0x500
 #define GDMA2_FWD_CFG 0x1500
 
+/* QDMA Tx queue configuration */
 #define QTX_CFG(x)		(QDMA_BASE + ((x) * 0x10))
 #define QTX_SCH(x)		(QDMA_BASE + 0x4 + ((x) * 0x10))
+#define QTX_TX_SCH_SEL_OFFSET	(30)
+
+/* QDMA Tx scheduler configuration */
 #define QDMA_PAGE		(QDMA_BASE + 0x1f0)
 #define QDMA_TX_2SCH_BASE	(QDMA_BASE + 0x214)
 #define QTX_MIB_IF		(QDMA_BASE + 0x2bc)
 #define QDMA_TX_4SCH_BASE(x)	(QDMA_BASE + 0x398 + (((x) >> 1) * 0x4))
+#define QDMA_TX_SCH_MAX_WFQ	BIT(15)
+#define QDMA_TX_SCH_RATE_EN	BIT(11)
+#define QDMA_RATE_MAN_OFFSET	(4)
+#define QDMA_RATE_EXP_OFFSET	(0)
 
 /*--------------------------------------------------------------------------*/
 /* Register Mask*/

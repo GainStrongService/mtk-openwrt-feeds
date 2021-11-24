@@ -599,12 +599,10 @@ int hnat_disable_hook(void)
 	return 0;
 }
 
-#if defined(CONFIG_NET_MEDIATEK_HW_QOS)
 static struct packet_type mtk_pack_type __read_mostly = {
 	.type   = HQOS_MAGIC_TAG,
 	.func   = mtk_hqos_ptype_cb,
 };
-#endif
 
 static int hnat_probe(struct platform_device *pdev)
 {
@@ -756,10 +754,9 @@ static int hnat_probe(struct platform_device *pdev)
 		add_timer(&hnat_priv->hnat_reset_timestamp_timer);
 	}
 
-#if defined(CONFIG_NET_MEDIATEK_HW_QOS)
 	if (qos_toggle && IS_GMAC1_MODE)
 		dev_add_pack(&mtk_pack_type);
-#endif
+
 	err = hnat_roaming_enable();
 	if (err)
 		pr_info("hnat roaming work fail\n");
@@ -800,10 +797,8 @@ static int hnat_remove(struct platform_device *pdev)
 	if (hnat_priv->data->version == MTK_HNAT_V3)
 		del_timer_sync(&hnat_priv->hnat_reset_timestamp_timer);
 
-#if defined(CONFIG_NET_MEDIATEK_HW_QOS)
 	if (qos_toggle && IS_GMAC1_MODE)
 		dev_remove_pack(&mtk_pack_type);
-#endif
 
 	return 0;
 }

@@ -26,7 +26,7 @@ u32 hnat_dsa_fill_stag(const struct net_device *netdev,
 
 	port_reg = of_get_property(ndev->dev.of_node, "reg", NULL);
 	if (unlikely(!port_reg))
-		return;
+		return -EINVAL;
 
 	port_index = be32_to_cpup(port_reg);
 	sp_tag = BIT(port_index);

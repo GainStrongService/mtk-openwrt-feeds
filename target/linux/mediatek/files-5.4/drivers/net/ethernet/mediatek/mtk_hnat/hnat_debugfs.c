@@ -1986,6 +1986,29 @@ static int hnat_qos_toggle_open(struct inode *inode, struct file *file)
 	return single_open(file, hnat_qos_toggle_read, file->private_data);
 }
 
+static void hnat_qos_pppq_enable(void)
+{
+	u32 cfg, id;
+
+	for (id = 0; id < hnat_priv->data->num_of_sch; id++) {
+		writel(id << QTX_TX_SCH_SEL_OFFSET,
+		       hnat_priv->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
+
+		if (id & 0x1) {
+			cfg = 0;
+			cfg |= QDMA_TX_SCH_MAX_WFQ | QDMA_TX_SCH_RATE_EN;
+			cfg |= 25 << QDMA_RATE_MAN_OFFSET;
+			cfg |= 5 << QDMA_RATE_EXP_OFFSET;
+			cfg |= cfg << 16;
+
+			if (hnat_priv->data->num_of_sch == 4)
+				writel(cfg, hnat_priv->fe_base + QDMA_TX_4SCH_BASE(id));
+			else
+				writel(cfg, hnat_priv->fe_base + QDMA_TX_2SCH_BASE);
+		}
+	}
+}
+
 static ssize_t hnat_qos_toggle_write(struct file *file, const char __user *buffer,
 				     size_t count, loff_t *data)
 {
@@ -1995,15 +2018,16 @@ static ssize_t hnat_qos_toggle_write(struct file *file, const char __user *buffe
 	if ((len > 8) || copy_from_user(buf, buffer, len))
 		return -EFAULT;
 
-	if (buf[0] == '0' && qos_toggle != 0) {
+	if (buf[0] == '0') {
 		pr_info("HQoS is going to be disabled !\n");
 		qos_toggle = 0;
-	} else if (buf[0] == '1' && qos_toggle != 1) {
+	} else if (buf[0] == '1') {
 		pr_info("HQoS mode is going to be enabled !\n");
 		qos_toggle = 1;
-	} else if (buf[0] == '2' && qos_toggle != 2) {
+	} else if (buf[0] == '2') {
 		pr_info("Per-port-per-queue mode is going to be enabled !\n");
 		qos_toggle = 2;
+		hnat_qos_pppq_enable();
 	}
 
 	return len;

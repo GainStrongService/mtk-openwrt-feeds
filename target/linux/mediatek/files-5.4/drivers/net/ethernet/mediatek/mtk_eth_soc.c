@@ -1015,9 +1015,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 
 	nr_frags = skb_shinfo(skb)->nr_frags;
 
-#if defined(CONFIG_NET_MEDIATEK_HW_QOS)
         qid = skb->mark & (MTK_QDMA_TX_MASK);
-#endif
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 		u32 txd5 = 0, txd6 = 0;

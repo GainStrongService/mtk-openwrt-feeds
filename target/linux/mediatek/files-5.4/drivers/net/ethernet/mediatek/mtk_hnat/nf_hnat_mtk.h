@@ -57,12 +57,8 @@ struct hnat_desc {
 } __packed;
 #endif
 
-#if defined(CONFIG_NET_MEDIATEK_HW_QOS)
 #define HQOS_MAGIC_TAG 0x5678
-#define HAS_HQOS_MAGIC_TAG(skb) (skb->protocol == HQOS_MAGIC_TAG)
-#else
-#define HAS_HQOS_MAGIC_TAG(skb) NULL
-#endif
+#define HAS_HQOS_MAGIC_TAG(skb) (qos_toggle && skb->protocol == HQOS_MAGIC_TAG)
 
 #define HNAT_MAGIC_TAG 0x6789
 #define HNAT_INFO_FILLED 0x7

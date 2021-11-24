@@ -69,8 +69,7 @@ define KernelPackage/mediatek_hnat
   KCONFIG:= \
 	CONFIG_BRIDGE_NETFILTER=y \
 	CONFIG_NETFILTER_FAMILY_BRIDGE=y \
-	CONFIG_NET_MEDIATEK_HNAT \
-	CONFIG_NET_MEDIATEK_HW_QOS=y
+	CONFIG_NET_MEDIATEK_HNAT
   FILES:= \
         $(LINUX_DIR)/drivers/net/ethernet/mediatek/mtk_hnat/mtkhnat.ko
 endef
