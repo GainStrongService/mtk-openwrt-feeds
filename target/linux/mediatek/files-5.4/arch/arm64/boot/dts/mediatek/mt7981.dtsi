@@ -274,6 +274,20 @@
 		};
 	};
 
+	crypto: crypto@10320000 {
+		compatible = "inside-secure,safexcel-eip97";
+		reg = <0 0x10320000 0 0x40000>;
+		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "ring0", "ring1", "ring2", "ring3";
+		clocks = <&topckgen CK_TOP_EIP97B>;
+		clock-names = "top_eip97_ck";
+		assigned-clocks = <&topckgen CK_TOP_EIP97B_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>;
+	};
+
 	pio: pinctrl@11d00000 {
 		compatible = "mediatek,mt7981-pinctrl";
 		reg = <0 0x11d00000 0 0x1000>,
@@ -537,6 +551,31 @@
 		phy_calibration: calib@8dc {
 			reg = <0x8dc 0x10>;
 		};
+	};
+
+	afe: audio-controller@11210000 {
+		compatible = "mediatek,mt79xx-audio";
+		reg = <0 0x11210000 0 0x9000>;
+		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&infracfg_ao CK_INFRA_AUD_BUS_CK>,
+			 <&infracfg_ao CK_INFRA_AUD_26M_CK>,
+			 <&infracfg_ao CK_INFRA_AUD_L_CK>,
+			 <&infracfg_ao CK_INFRA_AUD_AUD_CK>,
+			 <&infracfg_ao CK_INFRA_AUD_EG2_CK>;
+		clock-names = "aud_bus_ck",
+			      "aud_26m_ck",
+			      "aud_l_ck",
+			      "aud_aud_ck",
+			      "aud_eg2_ck";
+		assigned-clocks = <&topckgen CK_TOP_AUD_SEL>,
+				  <&topckgen CK_TOP_A1SYS_SEL>,
+				  <&topckgen CK_TOP_AUD_L_SEL>,
+				  <&topckgen CK_TOP_A_TUNER_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>,
+					 <&topckgen CK_TOP_CB_CKSQ_40M>,
+					 <&topckgen CK_TOP_CB_CKSQ_40M>,
+					 <&topckgen CK_TOP_CB_CKSQ_40M>;
+		status = "disabled";
 	};
 };
 #include "mt7981-clkitg.dtsi"
