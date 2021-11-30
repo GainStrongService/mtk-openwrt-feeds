@@ -865,8 +865,17 @@ enum mtk_clks_map {
                                  BIT(MTK_CLK_SGMII2_CDR_REF) | \
                                  BIT(MTK_CLK_SGMII2_CDR_FB))
 
-#define MT7981_CLKS_BITMAP	(MT7986_CLKS_BITMAP)
 
+#define MT7981_CLKS_BITMAP	(BIT(MTK_CLK_FE) | BIT(MTK_CLK_GP2) | BIT(MTK_CLK_GP1) | \
+                                 BIT(MTK_CLK_WOCPU0) | \
+                                 BIT(MTK_CLK_SGMII_TX_250M) | \
+                                 BIT(MTK_CLK_SGMII_RX_250M) | \
+                                 BIT(MTK_CLK_SGMII_CDR_REF) | \
+                                 BIT(MTK_CLK_SGMII_CDR_FB) | \
+                                 BIT(MTK_CLK_SGMII2_TX_250M) | \
+                                 BIT(MTK_CLK_SGMII2_RX_250M) | \
+                                 BIT(MTK_CLK_SGMII2_CDR_REF) | \
+                                 BIT(MTK_CLK_SGMII2_CDR_FB))
 enum mtk_dev_state {
 	MTK_HW_INIT,
 	MTK_RESETTING

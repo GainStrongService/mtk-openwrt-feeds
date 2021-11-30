@@ -314,7 +314,7 @@
 	ethsys: syscon@15000000 {
                 #address-cells = <1>;
                 #size-cells = <1>;
-                compatible = "mediatek,mt7986-ethsys",
+                compatible = "mediatek,mt7981-ethsys",
                              "syscon";
                 reg = <0 0x15000000 0 0x1000>;
                 #clock-cells = <1>;
@@ -334,24 +334,27 @@
                              <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
                              <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,
                              <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
-                clocks = <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>,
-                         <&system_clk>;
-                clock-names = "fe", "gp2", "gp1", "wocpu1", "wocpu0",
+                clocks = <&ethsys CK_ETH_FE_EN>,
+                         <&ethsys CK_ETH_GP2_EN>,
+                         <&ethsys CK_ETH_GP1_EN>,
+                         <&ethsys CK_ETH_WOCPU0_EN>,
+                         <&sgmiisys0 CK_SGM0_TX_EN>,
+                         <&sgmiisys0 CK_SGM0_RX_EN>,
+                         <&sgmiisys0 CK_SGM0_CK0_EN>,
+                         <&sgmiisys0 CK_SGM0_CDR_CK0_EN>,
+                         <&sgmiisys1 CK_SGM1_TX_EN>,
+                         <&sgmiisys1 CK_SGM1_RX_EN>,
+                         <&sgmiisys1 CK_SGM1_CK1_EN>,
+                         <&sgmiisys1 CK_SGM1_CDR_CK1_EN>;
+		clock-names = "fe", "gp2", "gp1", "wocpu0",
                          "sgmii_tx250m", "sgmii_rx250m",
                          "sgmii_cdr_ref", "sgmii_cdr_fb",
                          "sgmii2_tx250m", "sgmii2_rx250m",
                          "sgmii2_cdr_ref", "sgmii2_cdr_fb";
+                assigned-clocks = <&topckgen CK_TOP_NETSYS_2X_SEL>,
+                                  <&topckgen CK_TOP_SGM_325M_SEL>;
+                assigned-clock-parents = <&topckgen CK_TOP_CB_NET2_800M>,
+                                         <&topckgen CK_TOP_CB_SGM_325M>;
                 mediatek,ethsys = <&ethsys>;
 		mediatek,sgmiisys = <&sgmiisys0>, <&sgmiisys1>;
 		mediatek,infracfg = <&topmisc>;
@@ -370,14 +373,14 @@
 	};
 
 	sgmiisys0: syscon@10060000 {
-		compatible = "mediatek,mt7986-sgmiisys", "syscon";
+		compatible = "mediatek,mt7981-sgmiisys_0", "syscon";
 		reg = <0 0x10060000 0 0x1000>;
 		pn_swap;
 		#clock-cells = <1>;
 	};
 
 	sgmiisys1: syscon@10070000 {
-		compatible = "mediatek,mt7986-sgmiisys", "syscon";
+		compatible = "mediatek,mt7981-sgmiisys_1", "syscon";
 		reg = <0 0x10070000 0 0x1000>;
 		#clock-cells = <1>;
 	};
