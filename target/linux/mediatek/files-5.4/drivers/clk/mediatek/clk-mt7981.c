@@ -431,10 +431,7 @@ static const char * const infra_spi1_parents[] __initconst = {
 };
 
 static const char * const infra_pwm1_parents[] __initconst = {
-	"infra_pwm",
-	"infra_66m_mck",
-	"infra_ck_f26m",
-	"infra_ck_f32k"
+	"infra_pwm"
 };
 
 static const char * const infra_pwm_bsel_parents[] __initconst = {
@@ -466,9 +463,11 @@ static const struct mtk_mux infra_muxes[] = {
 	MUX_GATE_CLR_SET_UPD(CK_INFRA_SPI2_SEL, "infra_spi2_sel",
 	    infra_spi0_parents, 0x0018, 0x0010, 0x0014, 6, 1, -1, -1, -1),
 	MUX_GATE_CLR_SET_UPD(CK_INFRA_PWM1_SEL, "infra_pwm1_sel",
-	    infra_pwm1_parents, 0x0018, 0x0010, 0x0014, 9, 2, -1, -1, -1),
+	    infra_pwm1_parents, 0x0018, 0x0010, 0x0014, 9, 1, -1, -1, -1),
 	MUX_GATE_CLR_SET_UPD(CK_INFRA_PWM2_SEL, "infra_pwm2_sel",
-	    infra_pwm1_parents, 0x0018, 0x0010, 0x0014, 11, 2, -1, -1, -1),
+	    infra_pwm1_parents, 0x0018, 0x0010, 0x0014, 11, 1, -1, -1, -1),
+	MUX_GATE_CLR_SET_UPD(CK_INFRA_PWM3_SEL, "infra_pwm3_sel",
+	    infra_pwm1_parents, 0x0018, 0x0010, 0x0014, 15, 1, -1, -1, -1),
 	MUX_GATE_CLR_SET_UPD(CK_INFRA_PWM_BSEL, "infra_pwm_bsel",
 	    infra_pwm_bsel_parents, 0x0018, 0x0010, 0x0014, 13, 2, -1, -1, -1),
 	/* MODULE_CLK_SEL_1 */
@@ -543,6 +542,7 @@ static const struct mtk_gate infra_clks[] __initconst = {
 	GATE_INFRA0(CK_INFRA_AP_DMA_CK, "infra_ap_dma", "infra_66m_mck", 16),
 	GATE_INFRA0(CK_INFRA_SEJ_CK, "infra_sej", "infra_66m_mck", 24),
 	GATE_INFRA0(CK_INFRA_SEJ_13M_CK, "infra_sej_13m", "infra_ck_f26m", 25),
+	GATE_INFRA0(CK_INFRA_PWM3_CK, "infra_pwm3", "infra_pwm3_sel", 27),
 	/* INFRA1 */
 	GATE_INFRA1(CK_INFRA_THERM_CK, "infra_therm", "infra_ck_f26m", 0),
 	GATE_INFRA1(CK_INFRA_I2CO_CK, "infra_i2co", "infra_i2cs", 1),
@@ -769,7 +769,7 @@ static void __init mtk_infracfg_ao_init(struct device_node *node)
 		return;
 	}
 
-	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
+	clk_data = mtk_alloc_clk_data(CLK_INFRA_AO_NR_CLK);
 
 	mtk_clk_register_muxes(infra_muxes, ARRAY_SIZE(infra_muxes), node, &mt7981_clk_lock, clk_data);
 	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks), clk_data);
