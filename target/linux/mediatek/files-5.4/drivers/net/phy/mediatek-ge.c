@@ -812,6 +812,7 @@ static int mt798x_phy_config_init(struct phy_device *phydev)
 	CAL_FLOW(tx_amp, EFUSE, cal_mode_from_dts, NO_PAIR, buf)
 	CAL_FLOW(tx_r50, SW_EFUSE, cal_mode_from_dts, PAIR_A_TO_D, buf)
 	CAL_FLOW(tx_vcm, SW, cal_mode_from_dts, PAIR_A_TO_A)
+	ret = 0;
 
 out:
 	kfree(buf);
