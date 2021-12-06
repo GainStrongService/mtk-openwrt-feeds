@@ -574,6 +574,7 @@ static const struct mtk_gate infra_clks[] __initconst = {
 	GATE_INFRA2(CK_INFRA_IUSB_SYS_CK, "infra_iusb_sys", "infra_usb_sys", 2),
 	GATE_INFRA2(CK_INFRA_IUSB_CK, "infra_iusb", "infra_usb", 3),
 	GATE_INFRA2(CK_INFRA_IPCIE_CK, "infra_ipcie", "infra_pcie_mux", 12),
+	GATE_INFRA2(CK_INFRA_IPCIE_PIPE_CK, "infra_ipcie_pipe", "cb_cksq_40m", 13),
 	GATE_INFRA2(CK_INFRA_IPCIER_CK, "infra_ipcier", "infra_f26m_ck0", 14),
 	GATE_INFRA2(CK_INFRA_IPCIEB_CK, "infra_ipcieb", "infra_133m_phck", 15),
 };
