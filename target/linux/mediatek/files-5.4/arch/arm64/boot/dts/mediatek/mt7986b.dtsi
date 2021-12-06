@@ -19,6 +19,7 @@
 #include <dt-bindings/clock/mt7986-clk.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/pinctrl/mt65xx.h>
+#include <dt-bindings/reset/mt7986-resets.h>
 
 / {
 	compatible = "mediatek,mt7986b-rfb";
@@ -210,8 +211,7 @@
 	};
 
 	watchdog: watchdog@1001c000 {
-		compatible = "mediatek,mt7622-wdt",
-			     "mediatek,mt6589-wdt";
+		compatible = "mediatek,mt7986-wdt";
 		reg = <0 0x1001c000 0 0x1000>;
 		interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 		#reset-cells = <1>;
@@ -455,12 +455,18 @@
 
 	wbsys: wbsys@18000000 {
 		compatible = "mediatek,wbsys";
-		reg = <0 0x18000000 0  0x1000000>;
+		resets = <&watchdog MT7986_TOPRGU_CONSYS_RST>;
+		reset-names = "consys";
+		reg = <0 0x18000000 0 0x1000000>,
+		      <0 0x10003000 0 0x1000>,
+		      <0 0x11d1000 0 0x1000>;
 		interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>,
 					 <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>,
 					 <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>,
 					 <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
 		chip_id = <0x7986>;
+		memory-region = <&wmcpu_emi>;
+
 	};
 
 	wed_pcie: wed_pcie@10003000 {
@@ -613,6 +619,7 @@
 			reg = <0x274 0xc>;
 		};
 	};
+
 };
 
 #include "mt7986-clkitg.dtsi"
