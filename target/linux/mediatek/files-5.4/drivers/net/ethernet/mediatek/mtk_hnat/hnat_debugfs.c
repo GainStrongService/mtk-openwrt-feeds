@@ -1951,6 +1951,7 @@ static ssize_t hnat_hook_toggle_write(struct file *file, const char __user *buff
 {
 	char buf[8] = {0};
 	int len = count;
+	u32 id;
 
 	if ((len > 8) || copy_from_user(buf, buffer, len))
 		return -EFAULT;
@@ -1958,9 +1959,19 @@ static ssize_t hnat_hook_toggle_write(struct file *file, const char __user *buff
 	if (buf[0] == '1' && !hook_toggle) {
 		pr_info("hook is going to be enabled !\n");
 		hnat_enable_hook();
+
+		if (IS_PPPQ_MODE) {
+			for (id = 0; id < MAX_PPPQ_PORT_NUM; id++)
+				hnat_qos_shaper_ebl(id, 1);
+		}
 	} else if (buf[0] == '0' && hook_toggle) {
 		pr_info("hook is going to be disabled !\n");
 		hnat_disable_hook();
+
+		if (IS_PPPQ_MODE) {
+			for (id = 0; id < MAX_PPPQ_PORT_NUM; id++)
+				hnat_qos_shaper_ebl(id, 0);
+		}
 	}
 
 	return len;
@@ -1986,26 +1997,67 @@ static int hnat_qos_toggle_open(struct inode *inode, struct file *file)
 	return single_open(file, hnat_qos_toggle_read, file->private_data);
 }
 
+void hnat_qos_shaper_ebl(u32 id, u32 enable)
+{
+	struct mtk_hnat *h = hnat_priv;
+	u32 cfg;
+
+	if (enable) {
+		cfg = QTX_SCH_MIN_RATE_EN | QTX_SCH_MAX_RATE_EN;
+		cfg |= (1 << QTX_SCH_MIN_RATE_MAN_OFFSET) |
+		       (4 << QTX_SCH_MIN_RATE_EXP_OFFSET) |
+		       (25 << QTX_SCH_MAX_RATE_MAN_OFFSET) |
+		       (5 << QTX_SCH_MAX_RATE_EXP_OFFSET) |
+		       (4 << QTX_SCH_MAX_RATE_WGHT_OFFSET);
+
+		writel(cfg, h->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
+	} else {
+		writel(0, h->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
+	}
+}
+
+static void hnat_qos_disable(void)
+{
+	struct mtk_hnat *h = hnat_priv;
+	u32 id;
+
+	for (id = 0; id < MAX_PPPQ_PORT_NUM; id++) {
+		hnat_qos_shaper_ebl(id, 0);
+		writel(0, h->fe_base + QTX_CFG(id % NUM_OF_Q_PER_PAGE));
+	}
+
+	writel((4 << QTX_CFG_HW_RESV_CNT_OFFSET) |
+	       (4 << QTX_CFG_SW_RESV_CNT_OFFSET), h->fe_base + QTX_CFG(0));
+
+	for (id = 0; id < h->data->num_of_sch; id += 2) {
+		if (h->data->num_of_sch == 4)
+			writel(0, h->fe_base + QDMA_TX_4SCH_BASE(id));
+		else
+			writel(0, h->fe_base + QDMA_TX_2SCH_BASE);
+	}
+}
+
 static void hnat_qos_pppq_enable(void)
 {
-	u32 cfg, id;
+	struct mtk_hnat *h = hnat_priv;
+	u32 id;
 
-	for (id = 0; id < hnat_priv->data->num_of_sch; id++) {
-		writel(id << QTX_TX_SCH_SEL_OFFSET,
-		       hnat_priv->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
+	for (id = 0; id < MAX_PPPQ_PORT_NUM; id++) {
+		if (hook_toggle)
+			hnat_qos_shaper_ebl(id, 1);
+		else
+			hnat_qos_shaper_ebl(id, 0);
 
-		if (id & 0x1) {
-			cfg = 0;
-			cfg |= QDMA_TX_SCH_MAX_WFQ | QDMA_TX_SCH_RATE_EN;
-			cfg |= 25 << QDMA_RATE_MAN_OFFSET;
-			cfg |= 5 << QDMA_RATE_EXP_OFFSET;
-			cfg |= cfg << 16;
+		writel((4 << QTX_CFG_HW_RESV_CNT_OFFSET) |
+		       (4 << QTX_CFG_SW_RESV_CNT_OFFSET),
+		       h->fe_base + QTX_CFG(id % NUM_OF_Q_PER_PAGE));
+	}
 
-			if (hnat_priv->data->num_of_sch == 4)
-				writel(cfg, hnat_priv->fe_base + QDMA_TX_4SCH_BASE(id));
-			else
-				writel(cfg, hnat_priv->fe_base + QDMA_TX_2SCH_BASE);
-		}
+	for (id = 0; id < h->data->num_of_sch; id+= 2) {
+		if (h->data->num_of_sch == 4)
+                        writel(0, h->fe_base + QDMA_TX_4SCH_BASE(id));
+                else
+                        writel(0, h->fe_base + QDMA_TX_2SCH_BASE);
 	}
 }
 
@@ -2021,6 +2073,7 @@ static ssize_t hnat_qos_toggle_write(struct file *file, const char __user *buffe
 	if (buf[0] == '0') {
 		pr_info("HQoS is going to be disabled !\n");
 		qos_toggle = 0;
+		hnat_qos_disable();
 	} else if (buf[0] == '1') {
 		pr_info("HQoS mode is going to be enabled !\n");
 		qos_toggle = 1;

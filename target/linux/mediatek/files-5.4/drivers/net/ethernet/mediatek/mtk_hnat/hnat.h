@@ -105,19 +105,24 @@
 #define GDMA2_FWD_CFG 0x1500
 
 /* QDMA Tx queue configuration */
-#define QTX_CFG(x)		(QDMA_BASE + ((x) * 0x10))
-#define QTX_SCH(x)		(QDMA_BASE + 0x4 + ((x) * 0x10))
-#define QTX_TX_SCH_SEL_OFFSET	(30)
+#define QTX_CFG(x)			(QDMA_BASE + ((x) * 0x10))
+#define QTX_CFG_HW_RESV_CNT_OFFSET	(8)
+#define QTX_CFG_SW_RESV_CNT_OFFSET	(0)
+
+#define QTX_SCH(x)			(QDMA_BASE + 0x4 + ((x) * 0x10))
+#define QTX_SCH_MIN_RATE_EN		BIT(27)
+#define QTX_SCH_MAX_RATE_EN		BIT(11)
+#define QTX_SCH_MIN_RATE_MAN_OFFSET	(20)
+#define QTX_SCH_MIN_RATE_EXP_OFFSET	(16)
+#define QTX_SCH_MAX_RATE_WGHT_OFFSET	(12)
+#define QTX_SCH_MAX_RATE_MAN_OFFSET	(4)
+#define QTX_SCH_MAX_RATE_EXP_OFFSET	(0)
 
 /* QDMA Tx scheduler configuration */
-#define QDMA_PAGE		(QDMA_BASE + 0x1f0)
-#define QDMA_TX_2SCH_BASE	(QDMA_BASE + 0x214)
-#define QTX_MIB_IF		(QDMA_BASE + 0x2bc)
-#define QDMA_TX_4SCH_BASE(x)	(QDMA_BASE + 0x398 + (((x) >> 1) * 0x4))
-#define QDMA_TX_SCH_MAX_WFQ	BIT(15)
-#define QDMA_TX_SCH_RATE_EN	BIT(11)
-#define QDMA_RATE_MAN_OFFSET	(4)
-#define QDMA_RATE_EXP_OFFSET	(0)
+#define QDMA_PAGE			(QDMA_BASE + 0x1f0)
+#define QDMA_TX_2SCH_BASE		(QDMA_BASE + 0x214)
+#define QTX_MIB_IF			(QDMA_BASE + 0x2bc)
+#define QDMA_TX_4SCH_BASE(x)		(QDMA_BASE + 0x398 + (((x) >> 1) * 0x4))
 
 /*--------------------------------------------------------------------------*/
 /* Register Mask*/
@@ -855,6 +860,7 @@ enum FoeIpAct {
 #define IS_GMAC1_MODE ((hnat_priv->gmac_num == 1) ? 1 : 0)
 #define IS_HQOS_MODE (qos_toggle == 1)
 #define IS_PPPQ_MODE (qos_toggle == 2)		/* Per Port Per Queue */
+#define MAX_PPPQ_PORT_NUM	6
 
 #define es(entry) (entry_state[entry->bfib1.state])
 #define ei(entry, end) (hnat_priv->foe_etry_num - (int)(end - entry))
@@ -948,6 +954,7 @@ uint32_t hnat_cpu_reason_cnt(struct sk_buff *skb);
 int hnat_enable_hook(void);
 int hnat_disable_hook(void);
 void hnat_cache_ebl(int enable);
+void hnat_qos_shaper_ebl(u32 id, u32 enable);
 void set_gmac_ppe_fwd(int gmac_no, int enable);
 int entry_detail(u32 ppe_id, int index);
 int entry_delete_by_mac(u8 *mac);
