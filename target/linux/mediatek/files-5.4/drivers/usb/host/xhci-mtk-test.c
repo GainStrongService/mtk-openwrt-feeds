@@ -1,18 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2015 MediaTek Inc.
- * Author:
- *  Shaocheng.Wang <shaocheng.wang@mediatek.com>
- *  Chunfeng.Yun <chunfeng.yun@mediatek.com>
+ * xHCI host controller toolkit driver
  *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
+ * Copyright (C) 2021  MediaTek Inc.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
+ *  Author: Zhanyong Wang <zhanyong.wang@mediatek.com>
+ *          Shaocheng.Wang <shaocheng.wang@mediatek.com>
+ *          Chunfeng.Yun <chunfeng.yun@mediatek.com>
  */
 
 #include <linux/platform_device.h>
@@ -20,9 +14,13 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/kobject.h>
-
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <dt-bindings/phy/phy.h>
 #include "../core/usb.h"
 #include "xhci-mtk.h"
+#include "xhci-mtk-test.h"
+#include "xhci-mtk-unusual.h"
 
 static int t_test_j(struct xhci_hcd_mtk *mtk, int argc, char **argv);
 static int t_test_k(struct xhci_hcd_mtk *mtk, int argc, char **argv);
@@ -113,31 +111,9 @@ static int test_mode_enter(struct xhci_hcd_mtk *mtk,
 
 static int test_mode_exit(struct xhci_hcd_mtk *mtk)
 {
-	/* struct usb_hcd *hcd = mtk->hcd; */
-	/* struct xhci_hcd *xhci = hcd_to_xhci(hcd); */
-
-	if (mtk->test_mode == 1) {
-#if 0
-		xhci_reset(xhci);
-		/*reinitIP(&pdev->dev);*/
-
-		if (!usb_hcd_is_primary_hcd(test_hcd))
-			secondary_hcd = test_hcd;
-		else
-			secondary_hcd = xhci->shared_hcd;
-
-		retval = xhci_init(test_hcd->primary_hcd);
-		if (retval)
-			return retval;
-
-		retval = xhci_run(test_hcd->primary_hcd);
-		if (!retval)
-			retval = xhci_run(secondary_hcd);
-
-		/*enableXhciAllPortPower(xhci);*/
-#endif
+	if (mtk->test_mode == 1)
 		mtk->test_mode = 0;
-	}
+
 	return 0;
 }
 
@@ -461,9 +437,15 @@ static int t_test_get_device_descriptor(struct xhci_hcd_mtk *mtk,
 	return 0;
 }
 
-static ssize_t mu3h_hqa_show(struct device *dev,
+static ssize_t hqa_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
+	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = mtk->hcd;
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	u32 __iomem *addr;
+	u32 val;
+	u32 ports;
 	int len = 0;
 	int bufLen = PAGE_SIZE;
 	struct hqa_test_cmd *hqa;
@@ -484,10 +466,20 @@ static ssize_t mu3h_hqa_show(struct device *dev,
 				"\t%s: %s\n", hqa->name, hqa->discription);
 	}
 
+	ports = mtk->num_u3_ports + mtk->num_u2_ports;
+	for (i = mtk->num_u3_ports + 1; i <= ports; i++) {
+		addr = &xhci->op_regs->port_power_base +
+			NUM_PORT_REGS * ((i - 1) & 0xff);
+		val = readl(addr);
+		len += snprintf(buf+len, bufLen-len,
+			"USB20 Port%i PORTMSC[31,28] 4b'0000: 0x%08X\n",
+			i, val);
+	}
+
 	return len;
 }
 
-static ssize_t mu3h_hqa_store(struct device *dev,
+static ssize_t hqa_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
@@ -504,320 +496,102 @@ static ssize_t mu3h_hqa_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(hqa, 0664, mu3h_hqa_show, mu3h_hqa_store);
+static DEVICE_ATTR_RW(hqa);
 
-#define REGS_LIMIT_XHCI 0x1000
-#define REGS_LIMIT_MU3D 0x3000
-#define REGS_LIMIT_IPPC 0x100
-#define REGS_LIMIT_PHYS 0x4000
-
-#define REGS_XHCI_OFFSET 0x0000
-#define REGS_MU3D_OFFSET 0x1000
-#define REGS_IPPC_OFFSET 0x3e00
-#define REGS_PHY_OFFSET  0xA20000
-
-static ssize_t ssusb_reg_show(struct device *dev,
+static ssize_t usb3hqa_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	int ret = -EINVAL;
-
-	ret = sprintf(buf, "SSUSB register operation interface help info.\n"
-		"  rx - read xhci reg: offset [len]\n"
-		"  rm - read mu3d reg: offset [len]\n"
-		"  ri - read ippc reg: offset [len]\n"
-		"  rp - read phy reg: offset [len]\n"
-		"  wx - write xhci reg: offset value\n"
-		"  wm - write mu3d reg: offset value\n"
-		"  wi - write ippc reg: offset value\n"
-		"  wp - write phy reg: offset value\n"
-		"  sx - set xhci mac reg bits: offset bit_start mask value\n"
-		"  sm - set mu3d mac reg bits: offset bit_start mask value\n"
-		"  si - set ippc reg bits: offset bit_start mask value\n"
-		"  sp - set phy reg bits: offset bit_start mask value\n"
-		"  px - print xhci mac reg bits: offset bit_start mask\n"
-		"  pm - print mu3d mac reg bits: offset bit_start mask\n"
-		"  pi - print ippc reg bits: offset bit_start mask\n"
-		"  pp - print phy reg bits: offset bit_start mask\n"
-		"  NOTE: numbers should be HEX, except bit_star(DEC)\n");
-
-	return ret;
-}
-
-/* base address: return value; limit is put into @limit */
-static void __iomem *get_reg_base_limit(struct xhci_hcd_mtk *mtk,
-		const char *buf, u32 *limit)
-{
+	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
 	struct usb_hcd *hcd = mtk->hcd;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	void __iomem *base;
-	u32 len = 0;
+	ssize_t cnt = 0;
+	u32 __iomem *addr;
+	u32 val;
+	u32 i;
+	int ports;
 
-	switch (buf[1]) {
-	case 'x':
-		base = mtk->ip_base + REGS_XHCI_OFFSET;
-		len = REGS_LIMIT_XHCI;
-		xhci_info(xhci, "xhci's reg:\n");
-		break;
-	case 'm':
-		base = mtk->ip_base + REGS_MU3D_OFFSET;
-		len = REGS_LIMIT_MU3D;
-		xhci_info(xhci, "mu3d's reg:\n");
-		break;
-	case 'i':
-		base = mtk->ip_base + REGS_IPPC_OFFSET;
-		len = REGS_LIMIT_IPPC;
-		xhci_info(xhci, "ippc's reg:\n");
-		break;
-	case 'p':
-		base = mtk->ip_base + REGS_PHY_OFFSET;
-		len = REGS_LIMIT_PHYS;
-		xhci_info(xhci, "phy's reg:\n");
-		break;
-	default:
-		base = NULL;
+	cnt += sprintf(buf + cnt, "usb3hqa usage:\n");
+	cnt += sprintf(buf + cnt, "	echo u3port >usb3hqa\n");
+
+	ports = mtk->num_u3_ports + mtk->num_u2_ports;
+	for (i = 1; i <= ports; i++) {
+		addr = &xhci->op_regs->port_status_base +
+			NUM_PORT_REGS * ((i - 1) & 0xff);
+		val = readl(addr);
+		if (i < mtk->num_u3_ports)
+			cnt += sprintf(buf + cnt,
+				"USB30 Port%i: 0x%08X\n", i, val);
+		else 
+			cnt += sprintf(buf + cnt,
+				"USB20 Port%i: 0x%08X\n", i, val);
 	}
 
-	*limit = len;
+	if (mtk->hqa_pos) {
+		cnt += sprintf(buf + cnt, "%s", mtk->hqa_buf);
+		mtk->hqa_pos = 0;
+	}
 
-	return base;
+	return cnt;
 }
-
-static void ssusb_write_reg(struct xhci_hcd_mtk *mtk, const char *buf)
-{
-	struct usb_hcd *hcd = mtk->hcd;
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	void __iomem *base;
-	u32 offset = 0;
-	u32 value = 0;
-	u32 old_val = 0;
-	u32 limit = 0;
-	u32 param;
-
-	param = sscanf(buf, "%*s 0x%x 0x%x", &offset, &value);
-	xhci_info(xhci, "params-%d (offset: %#x, value: %#x)\n",
-				param, offset, value);
-
-	base = get_reg_base_limit(mtk, buf, &limit);
-	if (!base || (param != 2)) {
-		xhci_err(xhci, "params are invalid!\n");
-		return;
-	}
-
-	offset &= ~0x3;  /* 4-bytes align */
-	if (offset >= limit) {
-		xhci_err(xhci, "reg's offset overrun!\n");
-		return;
-	}
-	old_val = readl(base + offset);
-	writel(value, base + offset);
-	xhci_info(xhci, "0x%8.8x : 0x%8.8x --> 0x%8.8x\n", offset, old_val,
-		readl(base + offset));
-}
-
-static void read_single_reg(struct xhci_hcd_mtk *mtk,
-			void __iomem *base, u32 offset, u32 limit)
-{
-	struct usb_hcd *hcd = mtk->hcd;
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	u32 value;
-
-	offset &= ~0x3;  /* 4-bytes align */
-	if (offset >= limit) {
-		xhci_err(xhci, "reg's offset overrun!\n");
-		return;
-	}
-	value = readl(base + offset);
-	xhci_err(xhci, "0x%8.8x : 0x%8.8x\n", offset, value);
-}
-
-static void read_multi_regs(struct xhci_hcd_mtk *mtk,
-	void __iomem *base, u32 offset, u32 len, u32 limit)
-{
-	struct usb_hcd *hcd = mtk->hcd;
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	int i;
-
-	/* at least 4 ints */
-	offset &= ~0xF;
-	len = (len + 0x3) & ~0x3;
-
-	if (offset + len > limit) {
-		xhci_err(xhci, "reg's offset overrun!\n");
-		return;
-	}
-
-	len >>= 2;
-	xhci_info(xhci, "read regs [%#x, %#x)\n", offset, offset + (len << 4));
-	for (i = 0; i < len; i++) {
-		xhci_err(xhci, "0x%8.8x : 0x%8.8x 0x%8.8x 0x%8.8x 0x%8.8x\n",
-			offset, readl(base + offset),
-			readl(base + offset + 0x4),
-			readl(base + offset + 0x8),
-			readl(base + offset + 0xc));
-		offset += 0x10;
-	}
-}
-
-static void ssusb_read_regs(struct xhci_hcd_mtk *mtk, const char *buf)
-{
-	struct usb_hcd *hcd = mtk->hcd;
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	void __iomem *base;
-	u32 offset = 0;
-	u32 len = 0;
-	u32 limit = 0;
-	u32 param;
-
-	param = sscanf(buf, "%*s 0x%x 0x%x", &offset, &len);
-	xhci_info(xhci, "params-%d (offset: %#x, len: %#x)\n",
-				param, offset, len);
-
-	base = get_reg_base_limit(mtk, buf, &limit);
-	if (!base || !param) {
-		xhci_err(xhci, "params are invalid!\n");
-		return;
-	}
-
-	if (param == 1)
-		read_single_reg(mtk, base, offset, limit);
-	else
-		read_multi_regs(mtk, base, offset, len, limit);
-}
-
-static void ssusb_set_reg_bits(struct xhci_hcd_mtk *mtk, const char *buf)
-{
-	struct usb_hcd *hcd = mtk->hcd;
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	void __iomem *base;
-	u32 offset = 0;
-	u32 bit_start = 0;
-	u32 mask = 0;
-	u32 value = 0;
-	u32 old_val = 0;
-	u32 new_val = 0;
-	u32 limit = 0;
-	u32 param;
-
-	param = sscanf(buf, "%*s 0x%x %d 0x%x 0x%x",
-			&offset, &bit_start, &mask, &value);
-	xhci_info(xhci, "params-%d (offset:%#x,bit_start:%d,mask:%#x,value:%#x)\n",
-		param, offset, bit_start, mask, value);
-
-	base = get_reg_base_limit(mtk, buf, &limit);
-	if (!base || (param != 4) || (bit_start > 32)) {
-		xhci_err(xhci, "params are invalid!\n");
-		return;
-	}
-
-	offset &= ~0x3;  /* 4-bytes align */
-	if (offset >= limit) {
-		xhci_err(xhci, "reg's offset overrun!\n");
-		return;
-	}
-	old_val = readl(base + offset);
-	new_val = old_val;
-	new_val &= ~(mask << bit_start);
-	new_val |= (value << bit_start);
-	writel(new_val, base + offset);
-	xhci_info(xhci, "0x%8.8x : 0x%8.8x --> 0x%8.8x\n", offset, old_val,
-		readl(base + offset));
-}
-
-
-static void ssusb_print_reg_bits(struct xhci_hcd_mtk *mtk, const char *buf)
-{
-	struct usb_hcd *hcd = mtk->hcd;
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	void __iomem *base;
-	u32 offset = 0;
-	u32 bit_start = 0;
-	u32 mask = 0;
-	u32 old_val = 0;
-	u32 new_val = 0;
-	u32 limit = 0;
-	u32 param;
-
-	param = sscanf(buf, "%*s 0x%x %d 0x%x", &offset, &bit_start, &mask);
-	xhci_info(xhci, "params-%d (offset: %#x, bit_start: %d, mask: %#x)\n",
-		param, offset, bit_start, mask);
-
-	base = get_reg_base_limit(mtk, buf, &limit);
-	if (!base || (param != 3) || (bit_start > 32)) {
-		xhci_err(xhci, "params are invalid!\n");
-		return;
-	}
-
-	offset &= ~0x3;  /* 4-bytes align */
-	if (offset >= limit) {
-		xhci_err(xhci, "reg's offset overrun!\n");
-		return;
-	}
-
-	old_val = readl(base + offset);
-	new_val = old_val;
-	new_val >>= bit_start;
-	new_val &= mask;
-	xhci_info(xhci, "0x%8.8x : 0x%8.8x (0x%x)\n", offset, old_val, new_val);
-}
-
 
 static ssize_t
-ssusb_reg_store(struct device *dev, struct device_attribute *attr,
+usb3hqa_store(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t n)
 {
 	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
 	struct usb_hcd *hcd = mtk->hcd;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	u32 __iomem *addr;
+	u32 val;
+	int port;
+	int words;
 
-	xhci_info(xhci, " cmd: %s\n", buf);
+	mtk->hqa_pos = 0;
+	memset(mtk->hqa_buf, 0, mtk->hqa_size);
 
-	switch (buf[0]) {
-	case 'w':
-		ssusb_write_reg(mtk, buf);
-		break;
-	case 'r':
-		ssusb_read_regs(mtk, buf);
-		break;
-	case 's':
-		ssusb_set_reg_bits(mtk, buf);
-		break;
-	case 'p':
-		ssusb_print_reg_bits(mtk, buf);
-		break;
-	default:
-		xhci_err(xhci, "No such cmd\n");
+	hqa_info(mtk, "usb3hqa: %s\n", buf);
+
+	words = sscanf(buf, "%d", &port);
+	if ((words != 1) ||
+	    (port < 1 || port > mtk->num_u3_ports)) {
+		hqa_info(mtk, "usb3hqa: param number:%i, port:%i failure\n",
+			words, port);
+		return -EINVAL;
 	}
+
+	addr = &xhci->op_regs->port_status_base +
+		NUM_PORT_REGS * ((port - 1) & 0xff);
+	val  = readl(addr);
+	val &= ~(PORT_PLS_MASK);
+	val |= (PORT_LINK_STROBE | XDEV_COMP_MODE);
+	writel(val, addr);
+	hqa_info(mtk, "usb3hqa: port%i: 0x%08X but 0x%08X\n",
+		port, val, readl(addr));
 
 	return n;
 }
-
-static DEVICE_ATTR(reg, 0664, ssusb_reg_show, ssusb_reg_store);
+static DEVICE_ATTR_RW(usb3hqa);
 
 static struct device_attribute *mu3h_hqa_attr_list[] = {
 	&dev_attr_hqa,
-	&dev_attr_reg,
+	&dev_attr_usb3hqa,
+#include "unusual-statement.h"
 };
 
-static void ssusb_remap_ip_regs(struct device *dev)
-{
-	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
-	struct usb_hcd *hcd = mtk->hcd;
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-
-	mtk->ip_base = ioremap(hcd->rsrc_start, 0xb00000);//0xa30000
-	if (!mtk->ip_base)
-		xhci_err(xhci, "could not ioremap regs\n");
-}
-
-int mu3h_hqa_create_attr(struct device *dev)
+int hqa_create_attr(struct device *dev)
 {
 	int idx, err = 0;
 	int num = ARRAY_SIZE(mu3h_hqa_attr_list);
+	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
 
-	if (dev == NULL)
+	if (dev == NULL || mtk == NULL)
 		return -EINVAL;
 
-	ssusb_remap_ip_regs(dev);
+	mtk->hqa_size = HQA_PREFIX_SIZE;
+	mtk->hqa_pos  = 0;
+	mtk->hqa_buf = kzalloc(mtk->hqa_size, GFP_KERNEL);
+	if (!mtk->hqa_buf)
+		return -ENOMEM;
 
 	for (idx = 0; idx < num; idx++) {
 		err = device_create_file(dev, mu3h_hqa_attr_list[idx]);
@@ -828,11 +602,16 @@ int mu3h_hqa_create_attr(struct device *dev)
 	return err;
 }
 
-void mu3h_hqa_remove_attr(struct device *dev)
+void hqa_remove_attr(struct device *dev)
 {
 	int idx;
 	int num = ARRAY_SIZE(mu3h_hqa_attr_list);
+	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
 
 	for (idx = 0; idx < num; idx++)
 		device_remove_file(dev, mu3h_hqa_attr_list[idx]);
+
+	kfree(mtk->hqa_buf);
+	mtk->hqa_size = 0;
+	mtk->hqa_pos  = 0;
 }

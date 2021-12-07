@@ -1,7 +1,7 @@
-From 5ca0fcdea508f0d55153baed58d1fb88d7bf0678 Mon Sep 17 00:00:00 2001
+From 801da3c9fd916d3743b8af174f4ef4aefc071981 Mon Sep 17 00:00:00 2001
 From: Zhanyong Wang <zhanyong.wang@mediatek.com>
 Date: Thu, 17 Jun 2021 16:09:04 +0800
-Subject: [PATCH] [PATCH][PATCH 1/1] usb: add embedded Host feature support
+Subject: [PATCH 2/2] usb: add embedded Host feature support
 
 add EH(Embedded Host) feature for PET authentication
 1. need CONFIG_USB_OTG_WHITELIST enable
@@ -16,14 +16,14 @@ Signed-off-by: Zhanyong Wang <zhanyong.wang@mediatek.com>
 ---
  drivers/usb/core/hub.c           |  9 +++++---
  drivers/usb/core/otg_whitelist.h | 39 ++++++++++++++++++++++++++++++++
- drivers/usb/host/xhci-mtk.c      |  3 +++
- 3 files changed, 48 insertions(+), 3 deletions(-)
+ drivers/usb/host/xhci-mtk.c      |  2 ++
+ 3 files changed, 47 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/usb/core/hub.c b/drivers/usb/core/hub.c
-index cd61860cada5..aa0131aae89c 100644
+index 303e8b3c1bda..b8c96ac26886 100644
 --- a/drivers/usb/core/hub.c
 +++ b/drivers/usb/core/hub.c
-@@ -2413,6 +2413,8 @@ static int usb_enumerate_device(struct usb_device *udev)
+@@ -2419,6 +2419,8 @@ static int usb_enumerate_device(struct usb_device *udev)
  			if (err < 0)
  				dev_dbg(&udev->dev, "HNP fail, %d\n", err);
  		}
@@ -32,7 +32,7 @@ index cd61860cada5..aa0131aae89c 100644
  		return -ENOTSUPP;
  	}
  
-@@ -4728,9 +4730,10 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
+@@ -4778,9 +4780,10 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
  				goto fail;
  			}
  			if (r) {
@@ -107,18 +107,10 @@ index 2ae90158ded7..a8dd221334c1 100644
  	}
  
 diff --git a/drivers/usb/host/xhci-mtk.c b/drivers/usb/host/xhci-mtk.c
-index 5c0eb35cd007..5714103fd3b9 100644
+index 8bd4c95a5435..876e134a01b4 100644
 --- a/drivers/usb/host/xhci-mtk.c
 +++ b/drivers/usb/host/xhci-mtk.c
-@@ -18,6 +18,7 @@
- #include <linux/pm_runtime.h>
- #include <linux/regmap.h>
- #include <linux/regulator/consumer.h>
-+#include <linux/usb/of.h>
- 
- #include "xhci.h"
- #include "xhci-mtk.h"
-@@ -559,6 +560,8 @@ static int xhci_mtk_probe(struct platform_device *pdev)
+@@ -560,6 +560,8 @@ static int xhci_mtk_probe(struct platform_device *pdev)
  		goto disable_device_wakeup;
  	}
  

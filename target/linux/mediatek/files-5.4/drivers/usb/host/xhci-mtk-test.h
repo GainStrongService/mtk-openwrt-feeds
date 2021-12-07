@@ -1,24 +1,27 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (c) 2015 MediaTek Inc.
- * Author:
- *  Shaocheng.Wang <shaocheng.wang@mediatek.com>
- *  Chunfeng.Yun <chunfeng.yun@mediatek.com>
+ * xhci-mtk-unusuallib.h -- xhci toolkit header file
  *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
+ * Copyright (C) 2021 Mediatek Inc - http://www.mediatek.com
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
+ *  Author: Zhanyong Wang <zhanyong.wang@mediatek.com>
+ *          Shaocheng.Wang <shaocheng.wang@mediatek.com>
+ *          Chunfeng.Yun <chunfeng.yun@mediatek.com>
  */
 
 #ifndef __XHCI_MTK_TEST_H
 #define __XHCI_MTK_TEST_H
 
-int mu3h_hqa_create_attr(struct device *dev);
-void mu3h_hqa_remove_attr(struct device *dev);
-
+#ifdef CONFIG_USB_XHCI_MTK_DEBUGFS
+int hqa_create_attr(struct device *dev);
+void hqa_remove_attr(struct device *dev);
+#else
+static inline int hqa_create_attr(struct device *dev)
+{
+	return 0;
+}
+static inline void hqa_remove_attr(struct device *dev)
+{
+}
+#endif
 #endif /* __XHCI_MTK_TEST_H */
