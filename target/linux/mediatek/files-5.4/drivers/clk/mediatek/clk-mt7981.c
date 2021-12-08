@@ -421,13 +421,13 @@ static const char * const infra_uart0_parents[] __initconst = {
 };
 
 static const char * const infra_spi0_parents[] __initconst = {
-	"infra_ispi0",
 	"infra_i2c"
+	"infra_ispi0",
 };
 
 static const char * const infra_spi1_parents[] __initconst = {
-	"infra_ispi1",
 	"infra_i2c"
+	"infra_ispi1",
 };
 
 static const char * const infra_pwm1_parents[] __initconst = {
