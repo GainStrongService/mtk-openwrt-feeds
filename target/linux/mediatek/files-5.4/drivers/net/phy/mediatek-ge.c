@@ -224,36 +224,39 @@ const char pair[4] = {'A', 'B', 'C', 'D'};
 		if(cal_ret) break;			\
 	}
 
-#define SW_CAL(cal_item, cal_mode_get, pair_mode)	\
-	CAL_##pair_mode(cal_item, sw)		\
+#define SW_CAL(cal_item, cal_mode_get, pair_mode)			\
+	if(ret || (!ret && strcmp("sw", cal_mode_get) == 0)) {		\
+		CAL_##pair_mode(cal_item, sw)				\
+	}
 
 #define SW_EFUSE_CAL(cal_item, cal_mode_get, pair_mode,...)	\
-	if (ret || (!ret && strcmp("efuse", cal_mode_get) == 0)) {	\
+	if ((efs_valid && ret) ||				\
+	    (!ret && strcmp("efuse", cal_mode_get) == 0)) {	\
 		CAL_##pair_mode(cal_item, efuse, ##__VA_ARGS__)	\
-	} else if (!ret && strcmp("sw", cal_mode_get) == 0) {	\
+	} else if ((!efs_valid && ret) ||			\
+		   (!ret && strcmp("sw", cal_mode_get) == 0)) {	\
 		CAL_##pair_mode(cal_item, sw)			\
-	} else {								\
-		dev_info(&phydev->mdio.dev, "%s cal mode %s not supported\n",	\
-			#cal_item,					\
-			cal_mode_get);	\
 	}
 
 #define EFUSE_CAL(cal_item, cal_mode_get, pair_mode, ...)	\
 	if ((efs_valid && ret) ||				\
-	    (efs_valid && !ret && strcmp("efuse", cal_mode_get) == 0)) {\
+	    (!ret && strcmp("efuse", cal_mode_get) == 0)) {\
 		CAL_##pair_mode(cal_item, efuse, ##__VA_ARGS__)	\
-	} else {							\
-		dev_info(&phydev->mdio.dev, "%s uses default value, "	\
-			"efs-valid: %s, dts: %s\n",	\
-			#cal_item,			\
-			efs_valid? "yes" : "no",	\
-			ret? "empty" : cal_mode_get);		\
 	}
 
 #define CAL_FLOW(cal_item, cal_mode, cal_mode_get, pair_mode,...)	\
 	ret = of_property_read_string(phydev->mdio.dev.of_node,		\
 			#cal_item, &cal_mode_get);			\
 	cal_mode##_CAL(cal_item, cal_mode_get, pair_mode, ##__VA_ARGS__)\
+	else {								\
+		dev_info(&phydev->mdio.dev, "%s cal mode %s%s,"		\
+			 " use default value,"				\
+			 " efs-valid: %s",				\
+			 #cal_item,					\
+			 ret? "" : cal_mode_get,			\
+			 ret? "not specified" : " not supported",	\
+			 efs_valid? "yes" : "no");			\
+	}								\
 	if(cal_ret) {							\
 		dev_err(&phydev->mdio.dev, "cal_item cal failed\n");	\
 		ret = -EIO;						\
