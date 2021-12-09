@@ -1854,14 +1854,14 @@ static void mtk_hnat_dscp_update(struct sk_buff *skb, struct foe_entry *entry)
 	switch (ntohs(eth->h_proto)) {
 	case ETH_P_IP:
 		iph = ip_hdr(skb);
-		if (entry->ipv4_hnapt.iblk2.dscp != iph->tos)
+		if (IS_IPV4_GRP(entry) && entry->ipv4_hnapt.iblk2.dscp != iph->tos)
 			flag = true;
 		break;
 	case ETH_P_IPV6:
 		ip6h = ipv6_hdr(skb);
-		if (entry->ipv6_5t_route.iblk2.dscp !=
-			(ip6h->priority << 4 |
-			 (ip6h->flow_lbl[0] >> 4)))
+		if ((IS_IPV6_3T_ROUTE(entry) || IS_IPV6_5T_ROUTE(entry)) &&
+			(entry->ipv6_5t_route.iblk2.dscp !=
+			(ip6h->priority << 4 | (ip6h->flow_lbl[0] >> 4))))
 			flag = true;
 		break;
 	default:
@@ -1869,6 +1869,7 @@ static void mtk_hnat_dscp_update(struct sk_buff *skb, struct foe_entry *entry)
 	}
 
 	if (flag) {
+		pr_info("Delete entry idx=%d.\n", skb_hnat_entry(skb));
 		memset(entry, 0, sizeof(struct foe_entry));
 		hnat_cache_ebl(1);
 	}
