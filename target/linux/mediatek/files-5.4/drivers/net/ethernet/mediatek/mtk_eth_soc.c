@@ -989,7 +989,8 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	dma_addr_t mapped_addr;
 	unsigned int nr_frags;
 	int i, n_desc = 1;
-	u32 txd4 = 0, fport;
+	u32 txd4 = 0, txd5 = 0, txd6 = 0;
+	u32 fport;
 	u32 qid = 0;
 	int k = 0;
 
@@ -1018,7 +1019,6 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
         qid = skb->mark & (MTK_QDMA_TX_MASK);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
-		u32 txd5 = 0, txd6 = 0;
 		/* set the forward port */
 		fport = (mac->id + 1) << TX_DMA_FPORT_SHIFT_V2;
 		txd4 |= fport;
@@ -1035,14 +1035,6 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 			txd6 |= TX_DMA_INS_VLAN_V2 | skb_vlan_tag_get(skb);
 
 		txd4 = txd4 | TX_DMA_SWC_V2;
-
-		WRITE_ONCE(itxd->txd3, (TX_DMA_PLEN0(skb_headlen(skb)) |
-				(!nr_frags * TX_DMA_LS0)));
-
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-		WRITE_ONCE(itxd->txd5, txd5);
-		WRITE_ONCE(itxd->txd6, txd6);
-#endif
 	} else {
 		/* set the forward port */
 		fport = (mac->id + 1) << TX_DMA_FPORT_SHIFT;
@@ -1058,10 +1050,6 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 		/* VLAN header offload */
 		if (skb_vlan_tag_present(skb))
 			txd4 |= TX_DMA_INS_VLAN | skb_vlan_tag_get(skb);
-
-		WRITE_ONCE(itxd->txd3,
-			   TX_DMA_SWC | TX_DMA_PLEN0(skb_headlen(skb)) |
-			   (!nr_frags * TX_DMA_LS0) | QID_LOW_BITS(qid));
 	}
 	/* TX SG offload */
 	txd = itxd;
@@ -1151,10 +1139,23 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	/* store skb to cleanup */
 	itx_buf->skb = skb;
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+	WRITE_ONCE(itxd->txd5, txd5);
+	WRITE_ONCE(itxd->txd6, txd6);
+	WRITE_ONCE(itxd->txd7, 0);
+	WRITE_ONCE(itxd->txd8, 0);
+#endif
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 		WRITE_ONCE(itxd->txd4, txd4 | QID_BITS_V2(qid));
-	else
+		WRITE_ONCE(itxd->txd3, (TX_DMA_PLEN0(skb_headlen(skb)) |
+				(!nr_frags * TX_DMA_LS0)));
+	} else {
 		WRITE_ONCE(itxd->txd4, txd4 | QID_HIGH_BITS(qid));
+		WRITE_ONCE(itxd->txd3,
+			   TX_DMA_SWC | TX_DMA_PLEN0(skb_headlen(skb)) |
+			   (!nr_frags * TX_DMA_LS0) | QID_LOW_BITS(qid));
+	}
 
 	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
 		if (k & 0x1)
