@@ -27,8 +27,6 @@
 
 static DEFINE_SPINLOCK(mt7981_clk_lock);
 
-
-
 static const struct mtk_fixed_factor infra_divs[] __initconst = {
 	FACTOR(CK_INFRA_CK_F26M, "infra_ck_f26m", "csw_f26m_sel", 1, 1),
 	FACTOR(CK_INFRA_UART, "infra_uart", "uart_sel", 1, 1),
@@ -421,13 +419,13 @@ static const char * const infra_uart0_parents[] __initconst = {
 };
 
 static const char * const infra_spi0_parents[] __initconst = {
-	"infra_i2c"
-	"infra_ispi0",
+	"infra_i2c",
+	"infra_ispi0"
 };
 
 static const char * const infra_spi1_parents[] __initconst = {
-	"infra_i2c"
-	"infra_ispi1",
+	"infra_i2c",
+	"infra_ispi1"
 };
 
 static const char * const infra_pwm1_parents[] __initconst = {
@@ -442,10 +440,10 @@ static const char * const infra_pwm_bsel_parents[] __initconst = {
 };
 
 static const char * const infra_pcie_parents[] __initconst = {
-	"infra_pcie",
-	"cb_cksq_40m",
+	"infra_ck_f32k",
 	"infra_ck_f26m",
-	"infra_ck_f32k"
+	"cb_cksq_40m",
+	"infra_pcie"
 };
 
 static const struct mtk_mux infra_muxes[] = {
