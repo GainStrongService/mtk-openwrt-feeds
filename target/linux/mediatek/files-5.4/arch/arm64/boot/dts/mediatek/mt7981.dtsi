@@ -40,6 +40,18 @@
 		};
 	};
 
+	pwm: pwm@10048000 {
+		compatible = "mediatek,mt7981-pwm";
+		reg = <0 0x10048000 0 0x1000>;
+		#pwm-cells = <2>;
+		clocks = <&infracfg_ao CK_INFRA_PWM_STA>,
+			 <&infracfg_ao CK_INFRA_PWM_HCK>,
+			 <&infracfg_ao CK_INFRA_PWM1_CK>,
+			 <&infracfg_ao CK_INFRA_PWM2_CK>,
+			 <&infracfg_ao CK_INFRA_PWM3_CK>;
+		clock-names = "top", "main", "pwm1", "pwm2", "pwm3";
+	};
+
 	auxadc: adc@1100d000 {
 		compatible = "mediatek,mt7981-auxadc",
 			     "mediatek,mt7622-auxadc";
