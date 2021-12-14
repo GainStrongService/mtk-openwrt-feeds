@@ -34,6 +34,9 @@ EXPORT_SYMBOL(ra_sw_nat_hook_rx);
 int (*ra_sw_nat_hook_tx)(struct sk_buff *skb, int gmac_no) = NULL;
 EXPORT_SYMBOL(ra_sw_nat_hook_tx);
 
+int (*ppe_del_entry_by_mac)(unsigned char *mac) = NULL;
+EXPORT_SYMBOL(ppe_del_entry_by_mac);
+
 void (*ppe_dev_register_hook)(struct net_device *dev) = NULL;
 EXPORT_SYMBOL(ppe_dev_register_hook);
 void (*ppe_dev_unregister_hook)(struct net_device *dev) = NULL;
@@ -198,7 +201,6 @@ int entry_delete_by_mac(u8 *mac)
 
 	return ret;
 }
-EXPORT_SYMBOL(entry_delete_by_mac);
 
 static void hnat_roam_handler(struct work_struct *work)
 {
@@ -562,6 +564,7 @@ int hnat_enable_hook(void)
 	if (hnat_register_nf_hooks())
 		return -1;
 
+	ppe_del_entry_by_mac = entry_delete_by_mac;
 	hook_toggle = 1;
 
 	return 0;
@@ -594,6 +597,7 @@ int hnat_disable_hook(void)
 	hnat_cache_ebl(1);
 
 	mod_timer(&hnat_priv->hnat_sma_build_entry_timer, jiffies + 3 * HZ);
+	ppe_del_entry_by_mac = NULL;
 	hook_toggle = 0;
 
 	return 0;
