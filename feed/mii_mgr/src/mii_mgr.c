@@ -65,7 +65,8 @@ static int __phy_op(char *ifname, uint16_t phy_id, uint16_t reg_num, unsigned in
         if (sd < 0)
                 return sd;
 
-        strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+	strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name) - 1);
+	ifr.ifr_name[sizeof(ifr.ifr_name) - 1] = '\0';
 
 	if (is_priv) {
 		fill_mtk_mii_ioctl(&mtk_mii, phy_id, reg_num, val);
@@ -117,7 +118,8 @@ int main(int argc, char *argv[])
 				is_priv = 0;
 				break;
 			case 'i':
-				strncpy(ifname,optarg, 5);
+				strncpy(ifname, optarg, 5);
+				ifname[IFNAMSIZ - 1] = '\0';
 				break;	
 			case 'p':
 				port = strtoul(optarg, NULL, 16);
