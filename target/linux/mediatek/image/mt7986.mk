@@ -1,12 +1,12 @@
 KERNEL_LOADADDR := 0x48080000
 
-define Device/mt7986a-ax6000-nor-rfb
+define Device/mt7986a-ax6000-spim-nor-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986a-ax6000-nor-rfb
-  DEVICE_DTS := mt7986a-nor-rfb
+  DEVICE_MODEL := mt7986a-ax6000-spim-nor-rfb
+  DEVICE_DTS := mt7986a-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
 endef
-TARGET_DEVICES += mt7986a-ax6000-nor-rfb
+TARGET_DEVICES += mt7986a-ax6000-spim-nor-rfb
 
 define Device/mt7986a-ax6000-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
@@ -72,13 +72,13 @@ define Device/mt7986a-ax6000-emmc-rfb
 endef
 TARGET_DEVICES += mt7986a-ax6000-emmc-rfb
 
-define Device/mt7986a-ax6000-2500wan-nor-rfb
+define Device/mt7986a-ax6000-2500wan-spim-nor-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986a-ax6000-2500wan-nor-rfb
-  DEVICE_DTS := mt7986a-2500wan-nor-rfb
+  DEVICE_MODEL := mt7986a-ax6000-2500wan-spim-nor-rfb
+  DEVICE_DTS := mt7986a-2500wan-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
 endef
-TARGET_DEVICES += mt7986a-ax6000-2500wan-nor-rfb
+TARGET_DEVICES += mt7986a-ax6000-2500wan-spim-nor-rfb
 
 define Device/mt7986a-ax6000-2500wan-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
@@ -114,13 +114,13 @@ define Device/mt7986a-ax8400-2500wan-spim-nand-rfb
 endef
 TARGET_DEVICES += mt7986a-ax8400-2500wan-spim-nand-rfb
 
-define Device/mt7986a-ax7800-nor-rfb
+define Device/mt7986a-ax7800-spim-nor-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986a-ax7800-nor-rfb
-  DEVICE_DTS := mt7986a-nor-rfb
+  DEVICE_MODEL := mt7986a-ax7800-spim-nor-rfb
+  DEVICE_DTS := mt7986a-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
 endef
-TARGET_DEVICES += mt7986a-ax7800-nor-rfb
+TARGET_DEVICES += mt7986a-ax7800-spim-nor-rfb
 
 define Device/mt7986a-ax7800-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
@@ -139,13 +139,13 @@ define Device/mt7986a-ax7800-spim-nand-rfb
 endef
 TARGET_DEVICES += mt7986a-ax7800-spim-nand-rfb
 
-define Device/mt7986a-ax7800-2500wan-nor-rfb
+define Device/mt7986a-ax7800-2500wan-spim-nor-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986a-ax7800-2500wan-nor-rfb
-  DEVICE_DTS := mt7986a-2500wan-nor-rfb
+  DEVICE_MODEL := mt7986a-ax7800-2500wan-spim-nor-rfb
+  DEVICE_DTS := mt7986a-2500wan-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
 endef
-TARGET_DEVICES += mt7986a-ax7800-2500wan-nor-rfb
+TARGET_DEVICES += mt7986a-ax7800-2500wan-spim-nor-rfb
 
 define Device/mt7986a-ax7800-2500wan-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
@@ -164,13 +164,13 @@ define Device/mt7986a-ax7800-2500wan-spim-nand-rfb
 endef
 TARGET_DEVICES += mt7986a-ax7800-2500wan-spim-nand-rfb
 
-define Device/mt7986b-ax6000-nor-rfb
+define Device/mt7986b-ax6000-spim-nor-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986b-ax6000-nor-rfb
-  DEVICE_DTS := mt7986b-nor-rfb
+  DEVICE_MODEL := mt7986b-ax6000-spim-nor-rfb
+  DEVICE_DTS := mt7986b-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
 endef
-TARGET_DEVICES += mt7986b-ax6000-nor-rfb
+TARGET_DEVICES += mt7986b-ax6000-spim-nor-rfb
 
 define Device/mt7986b-ax6000-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
@@ -219,13 +219,13 @@ define Device/mt7986b-ax6000-emmc-rfb
 endef
 TARGET_DEVICES += mt7986b-ax6000-emmc-rfb
 
-define Device/mt7986b-ax6000-2500wan-nor-rfb
+define Device/mt7986b-ax6000-2500wan-spim-nor-rfb
   DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7986b-ax6000-2500wan-nor-rfb
-  DEVICE_DTS := mt7986b-2500wan-nor-rfb
+  DEVICE_MODEL := mt7986b-ax6000-2500wan-spim-nor-rfb
+  DEVICE_DTS := mt7986b-2500wan-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
 endef
-TARGET_DEVICES += mt7986b-ax6000-2500wan-nor-rfb
+TARGET_DEVICES += mt7986b-ax6000-2500wan-spim-nor-rfb
 
 define Device/mt7986b-ax6000-2500wan-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
