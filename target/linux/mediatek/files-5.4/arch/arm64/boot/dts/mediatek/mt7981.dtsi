@@ -182,12 +182,6 @@
 		#clock-cells = <0>;
 	};
 
-	uart_clk: dummy_uart_clk {
-		compatible = "fixed-clock";
-		clock-frequency = <40000000>;
-		#clock-cells = <0>;
-	};
-
 	gpt_clk: dummy_gpt_clk {
 		compatible = "fixed-clock";
 		clock-frequency = <20000000>;
@@ -225,29 +219,38 @@
 	};
 
 	uart0: serial@11002000 {
-		compatible = "mediatek,mt7986-uart",
-			     "mediatek,mt6577-uart";
+		compatible = "mediatek,mt6577-uart";
 		reg = <0 0x11002000 0 0x400>;
 		interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&uart_clk>;
+		clocks = <&infracfg_ao CK_INFRA_UART0_CK>;
+		assigned-clocks = <&topckgen CK_TOP_UART_SEL>,
+				  <&infracfg_ao CK_INFRA_UART0_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>,
+					 <&infracfg CK_INFRA_UART>;
 		status = "disabled";
 	};
 
 	uart1: serial@11003000 {
-		compatible = "mediatek,mt7986-uart",
-			     "mediatek,mt6577-uart";
+		compatible = "mediatek,mt6577-uart";
 		reg = <0 0x11003000 0 0x400>;
 		interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&uart_clk>;
+		clocks = <&infracfg_ao CK_INFRA_UART1_CK>;
+		assigned-clocks = <&topckgen CK_TOP_UART_SEL>,
+				  <&infracfg_ao CK_INFRA_UART1_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>,
+					 <&infracfg CK_INFRA_UART>;
 		status = "disabled";
 	};
 
 	uart2: serial@11004000 {
-		compatible = "mediatek,mt7986-uart",
-			     "mediatek,mt6577-uart";
+		compatible = "mediatek,mt6577-uart";
 		reg = <0 0x11004000 0 0x400>;
 		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&uart_clk>;
+		clocks = <&infracfg_ao CK_INFRA_UART2_CK>;
+		assigned-clocks = <&topckgen CK_TOP_UART_SEL>,
+				  <&infracfg_ao CK_INFRA_UART2_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>,
+					 <&infracfg CK_INFRA_UART>;
 		status = "disabled";
 	};
 
