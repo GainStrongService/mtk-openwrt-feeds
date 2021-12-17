@@ -52,6 +52,29 @@
 		clock-names = "top", "main", "pwm1", "pwm2", "pwm3";
 	};
 
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+			thermal-sensors = <&thermal 0>;
+		};
+	};
+
+	thermal: thermal@1100c800 {
+		#thermal-sensor-cells = <1>;
+		compatible = "mediatek,mt7981-thermal";
+		reg = <0 0x1100c800 0 0x800>;
+		interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&infracfg_ao CK_INFRA_THERM_CK>,
+			 <&infracfg_ao CK_INFRA_ADC_26M_CK>,
+			 <&infracfg_ao CK_INFRA_ADC_FRC_CK>;
+		clock-names = "therm", "auxadc", "adc_32k";
+		mediatek,auxadc = <&auxadc>;
+		mediatek,apmixedsys = <&apmixedsys>;
+		nvmem-cells = <&thermal_calibration>;
+		nvmem-cell-names = "calibration-data";
+	};
+
 	auxadc: adc@1100d000 {
 		compatible = "mediatek,mt7981-auxadc",
 			     "mediatek,mt7622-auxadc";
