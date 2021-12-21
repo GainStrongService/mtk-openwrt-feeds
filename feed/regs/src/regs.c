@@ -70,8 +70,12 @@ void reg_mod_bits(uint32_t *virt_addr, int data, int  start_bit, int data_len)
 		return;
 	}
 
-	for (i = 0; i < data_len; i++)
+	for (i = 0; i < data_len; i++) {
+		if (start_bit + i > 31)
+			break;
+
 		mask |= 1 << (start_bit + i);
+	}
 
 	value = *((volatile uint32_t *) virt_addr);
 	value &= ~mask;
