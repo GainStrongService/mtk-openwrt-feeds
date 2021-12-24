@@ -21,6 +21,15 @@
 #define MTK_PHY_PAGE_EXTENDED_52B5	0x52b5
 
 /* Registers on MDIO_MMD_VEND1 */
+#define MTK_PHY_1st_OVERSHOOT_LEVEL_0TO1	(0x1)
+#define MTK_PHY_2nd_OVERSHOOT_LEVEL_0TO1	(0x2)
+#define MTK_PHY_1st_OVERSHOOT_LEVEL_1TO0	(0x4)
+#define MTK_PHY_2nd_OVERSHOOT_LEVEL_1TO0	(0x5)
+#define MTK_PHY_1st_OVERSHOOT_LEVEL_0TON1	(0x7) /* N means negative */
+#define MTK_PHY_2nd_OVERSHOOT_LEVEL_0TON1	(0x8)
+#define MTK_PHY_1st_OVERSHOOT_LEVEL_N1TO0	(0xa)
+#define MTK_PHY_2nd_OVERSHOOT_LEVEL_N1TO0	(0xb)
+
 #define MTK_PHY_TXVLD_DA_RG				(0x12)
 #define   MTK_PHY_DA_TX_I2MPB_A_GBE_MASK	GENMASK(15, 10)
 #define   MTK_PHY_DA_TX_I2MPB_A_TBT_MASK	GENMASK(5, 0)
@@ -258,7 +267,7 @@ const char pair[4] = {'A', 'B', 'C', 'D'};
 			 efs_valid? "yes" : "no");			\
 	}								\
 	if(cal_ret) {							\
-		dev_err(&phydev->mdio.dev, "cal_item cal failed\n");	\
+		dev_err(&phydev->mdio.dev, "%s cal failed\n", #cal_item);\
 		ret = -EIO;						\
 		goto out;						\
 	}
@@ -430,41 +439,44 @@ static int tx_offset_cal_efuse(struct phy_device *phydev, u32 *buf)
 
 static int tx_amp_fill_result(struct phy_device *phydev, u16 *buf)
 {
+	/* We add some calibration to efuse values:
+	 * GBE: +7, TBT: +1, HBT: +4, TST: +7
+	 */
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TXVLD_DA_RG,
-		       MTK_PHY_DA_TX_I2MPB_A_GBE_MASK, buf[0] << 10);
+		       MTK_PHY_DA_TX_I2MPB_A_GBE_MASK, (buf[0] + 7) << 10);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TXVLD_DA_RG,
-		       MTK_PHY_DA_TX_I2MPB_A_TBT_MASK, buf[0]);
+		       MTK_PHY_DA_TX_I2MPB_A_TBT_MASK, buf[0] + 1);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_A2,
-		       MTK_PHY_DA_TX_I2MPB_A_HBT_MASK, buf[0] << 10);
+		       MTK_PHY_DA_TX_I2MPB_A_HBT_MASK, (buf[0] + 4) << 10);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_A2,
-		       MTK_PHY_DA_TX_I2MPB_A_TST_MASK, buf[0]);
+		       MTK_PHY_DA_TX_I2MPB_A_TST_MASK, buf[0] + 7);
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B1,
-		       MTK_PHY_DA_TX_I2MPB_B_GBE_MASK, buf[1] << 8);
+		       MTK_PHY_DA_TX_I2MPB_B_GBE_MASK, (buf[1] + 7) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B1,
-		       MTK_PHY_DA_TX_I2MPB_B_TBT_MASK, buf[1]);
+		       MTK_PHY_DA_TX_I2MPB_B_TBT_MASK, buf[1] + 1);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B2,
-		       MTK_PHY_DA_TX_I2MPB_B_HBT_MASK, buf[1] << 8);
+		       MTK_PHY_DA_TX_I2MPB_B_HBT_MASK, (buf[1] + 4 ) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B2,
-		       MTK_PHY_DA_TX_I2MPB_B_TST_MASK, buf[1]);
+		       MTK_PHY_DA_TX_I2MPB_B_TST_MASK, buf[1] + 7);
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C1,
-		       MTK_PHY_DA_TX_I2MPB_C_GBE_MASK, buf[2] << 8);
+		       MTK_PHY_DA_TX_I2MPB_C_GBE_MASK, (buf[2] + 7) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C1,
-		       MTK_PHY_DA_TX_I2MPB_C_TBT_MASK, buf[2]);
+		       MTK_PHY_DA_TX_I2MPB_C_TBT_MASK, buf[2] + 1);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C2,
-		       MTK_PHY_DA_TX_I2MPB_C_HBT_MASK, buf[2] << 8);
+		       MTK_PHY_DA_TX_I2MPB_C_HBT_MASK, (buf[2] + 4) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C2,
-		       MTK_PHY_DA_TX_I2MPB_C_TST_MASK, buf[2]);
+		       MTK_PHY_DA_TX_I2MPB_C_TST_MASK, buf[2] + 7);
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D1,
-		       MTK_PHY_DA_TX_I2MPB_D_GBE_MASK, buf[3] << 8);
+		       MTK_PHY_DA_TX_I2MPB_D_GBE_MASK, (buf[3] + 7) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D1,
-		       MTK_PHY_DA_TX_I2MPB_D_TBT_MASK, buf[3]);
+		       MTK_PHY_DA_TX_I2MPB_D_TBT_MASK, buf[3] + 1);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D2,
-		       MTK_PHY_DA_TX_I2MPB_D_HBT_MASK, buf[3] << 8);
+		       MTK_PHY_DA_TX_I2MPB_D_HBT_MASK, (buf[3] + 4) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D2,
-		       MTK_PHY_DA_TX_I2MPB_D_TST_MASK, buf[3]);
+		       MTK_PHY_DA_TX_I2MPB_D_TST_MASK, buf[3] + 7);
 
 	return 0;
 }
@@ -562,7 +574,7 @@ static int tx_r50_cal_sw(struct phy_device *phydev, phy_cal_pair_t txg_calen_x)
 	zcal_lower = ZCAL_CTRL_MIN;
 	zcal_upper = ZCAL_CTRL_MAX;
 
-	dev_dbg(&phydev->mdio.dev, "Start TX-R50 Part%c SW cal.\n", pair[txg_calen_x]);
+	dev_dbg(&phydev->mdio.dev, "Start TX-R50 Pair%c SW cal.\n", pair[txg_calen_x]);
 	while((zcal_upper-zcal_lower) > 1) {
 		rg_zcal_ctrl = DIV_ROUND_CLOSEST(zcal_lower+zcal_upper, 2);
 		ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
@@ -589,7 +601,7 @@ static int tx_r50_cal_sw(struct phy_device *phydev, phy_cal_pair_t txg_calen_x)
 	if (ret == 1) {
 		tx_r50_cal_val[0] = mt798x_zcal_to_r50[zcal_upper];
 		tx_r50_fill_result(phydev, tx_r50_cal_val, txg_calen_x);
-		dev_info(&phydev->mdio.dev, "TX-R50 Part%c SW cal result: 0x%x\n",
+		dev_info(&phydev->mdio.dev, "TX-R50 Pair%c SW cal result: 0x%x\n",
 			pair[txg_calen_x], zcal_lower);
 		ret = 0;
 	} else
@@ -777,6 +789,35 @@ static int mt7531_phy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static inline void mt798x_phy_finetune(struct phy_device *phydev)
+{
+	/* 100M eye finetune:
+	 * Keep middle level of TX MLT3 shapper as default.
+	 * Only change TX MLT3 overshoot level here.
+	 */
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_1st_OVERSHOOT_LEVEL_0TO1, 0x1ce);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_2nd_OVERSHOOT_LEVEL_0TO1, 0x1c1);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_1st_OVERSHOOT_LEVEL_1TO0, 0x20f);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_2nd_OVERSHOOT_LEVEL_1TO0, 0x202);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_1st_OVERSHOOT_LEVEL_0TON1, 0x3d0);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_2nd_OVERSHOOT_LEVEL_0TON1, 0x3c0);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_1st_OVERSHOOT_LEVEL_N1TO0, 0x13);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_2nd_OVERSHOOT_LEVEL_N1TO0, 0x5);
+#
+	/* TX-AMP finetune:
+	 * 100M +4, 1000M +6 to default value.
+	 * If efuse values aren't valid, TX-AMP uses the below values.
+	 */
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TXVLD_DA_RG, 0x9824);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_A2, 0x9026);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B1, 0x2624);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B2, 0x2426);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C1, 0x2624);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C2, 0x2426);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D1, 0x2624);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D2, 0x2426);
+}
+
 static int mt798x_phy_config_init(struct phy_device *phydev)
 {
 	const char *cal_mode_from_dts;
@@ -788,6 +829,8 @@ static int mt798x_phy_config_init(struct phy_device *phydev)
 
 	if (phydev->interface != PHY_INTERFACE_MODE_GMII)
 		return -EINVAL;
+
+	mt798x_phy_finetune(phydev);
 
 	cell = nvmem_cell_get(&phydev->mdio.dev, "phy-cal-data");
 	if (IS_ERR(cell)) {
