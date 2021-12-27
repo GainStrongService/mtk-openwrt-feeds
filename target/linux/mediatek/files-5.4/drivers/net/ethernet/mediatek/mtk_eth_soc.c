@@ -1018,6 +1018,11 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 
         qid = skb->mark & (MTK_QDMA_TX_MASK);
 
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+	if(!qid && mac->id)
+		qid = MTK_QDMA_GMAC2_QID;
+#endif
+
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 		/* set the forward port */
 		fport = (mac->id + 1) << TX_DMA_FPORT_SHIFT_V2;
