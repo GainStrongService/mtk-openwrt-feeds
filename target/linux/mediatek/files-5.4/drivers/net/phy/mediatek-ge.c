@@ -368,29 +368,31 @@ static int rext_cal_sw(struct phy_device *phydev)
 		rg_zcal_ctrl = DIV_ROUND_CLOSEST(zcal_lower+zcal_upper, 2);
 		ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
 				MTK_PHY_RG_ZCAL_CTRL_MASK, rg_zcal_ctrl);
-		if(ret==1)
+		if(ret == 1) {
 			zcal_upper = rg_zcal_ctrl;
-		else if(ret==0)
+			upper_ret = ret;
+		} else if(ret == 0) {
 			zcal_lower = rg_zcal_ctrl;
-		else
+			lower_ret = ret;
+		} else
 			goto restore;
 	}
 
-	ret = lower_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
-				    MTK_PHY_RG_ZCAL_CTRL_MASK, zcal_lower);
-	if(lower_ret < 0)
-		goto restore;
-
-	ret = upper_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
-				    MTK_PHY_RG_ZCAL_CTRL_MASK, zcal_upper);
-	if(upper_ret < 0)
+	if(zcal_lower == ZCAL_CTRL_MIN) {
+		ret = lower_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
+				MTK_PHY_RG_ZCAL_CTRL_MASK, zcal_lower);
+	} else if(zcal_upper == ZCAL_CTRL_MAX) {
+		ret = upper_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
+				MTK_PHY_RG_ZCAL_CTRL_MASK, zcal_upper);
+	}
+	if (ret < 0)
 		goto restore;
 
 	ret = upper_ret-lower_ret;
 	if (ret == 1) {
 		rext_cal_val[0] = zcal_upper;
 		rext_cal_val[1] = zcal_upper >> 3;
- 		rext_fill_result(phydev, rext_cal_val);
+		rext_fill_result(phydev, rext_cal_val);
 		dev_info(&phydev->mdio.dev, "REXT SW cal result: 0x%x\n", zcal_upper);
 		ret = 0;
 	} else
@@ -579,22 +581,24 @@ static int tx_r50_cal_sw(struct phy_device *phydev, phy_cal_pair_t txg_calen_x)
 		rg_zcal_ctrl = DIV_ROUND_CLOSEST(zcal_lower+zcal_upper, 2);
 		ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
 				MTK_PHY_RG_ZCAL_CTRL_MASK, rg_zcal_ctrl);
-		if(ret==1)
+		if(ret==1) {
 			zcal_upper = rg_zcal_ctrl;
-		else if(ret==0)
+			upper_ret = ret;
+		} else if(ret==0) {
 			zcal_lower = rg_zcal_ctrl;
-		else
+			lower_ret = ret;
+		} else
 			goto restore;
 	}
 
-	ret = lower_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
+	if(zcal_lower == ZCAL_CTRL_MIN) {
+		ret = lower_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
 				MTK_PHY_RG_ZCAL_CTRL_MASK, zcal_lower);
-	if(lower_ret < 0)
-		goto restore;
-
-	ret = upper_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
+	} else if(zcal_upper == ZCAL_CTRL_MAX) {
+		ret = upper_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
 				MTK_PHY_RG_ZCAL_CTRL_MASK, zcal_upper);
-	if(upper_ret < 0)
+	}
+	if (ret < 0)
 		goto restore;
 
 	ret = upper_ret-lower_ret;
@@ -684,31 +688,33 @@ static int tx_vcm_cal_sw(struct phy_device *phydev, phy_cal_pair_t rg_txreserve_
 				MTK_PHY_DA_RX_PSBN_GBE_MASK | MTK_PHY_DA_RX_PSBN_LP_MASK,
 				txreserve_val << 12 | txreserve_val << 8 |
 				txreserve_val << 4 | txreserve_val);
-		if(ret==1)
+		if(ret==1) {
 			upper_idx = txreserve_val;
-		else if(ret==0)
+			upper_ret = ret;
+		} else if(ret==0) {
 			lower_idx = txreserve_val;
-		else
+			lower_ret = ret;
+		} else
 			goto restore;
 	}
+
+	if(lower_idx == TXRESERVE_MIN) {
+		ret = lower_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RXADC_CTRL_RG9,
+				MTK_PHY_DA_RX_PSBN_TBT_MASK | MTK_PHY_DA_RX_PSBN_HBT_MASK |
+				MTK_PHY_DA_RX_PSBN_GBE_MASK | MTK_PHY_DA_RX_PSBN_LP_MASK,
+				lower_idx << 12 | lower_idx << 8 | lower_idx << 4 | lower_idx);
+	} else if(upper_idx == TXRESERVE_MAX) {
+		ret = upper_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RXADC_CTRL_RG9,
+				MTK_PHY_DA_RX_PSBN_TBT_MASK | MTK_PHY_DA_RX_PSBN_HBT_MASK |
+				MTK_PHY_DA_RX_PSBN_GBE_MASK | MTK_PHY_DA_RX_PSBN_LP_MASK,
+				upper_idx << 12 | upper_idx << 8 | upper_idx << 4 | upper_idx);
+	}
+	if (ret < 0)
+		goto restore;
 
 	/* We calibrate TX-VCM in different logic. Check upper index and then
 	 * lower index. If this calibration is valid, apply lower index's result.
 	 */
-	ret = lower_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RXADC_CTRL_RG9,
-				MTK_PHY_DA_RX_PSBN_TBT_MASK | MTK_PHY_DA_RX_PSBN_HBT_MASK |
-				MTK_PHY_DA_RX_PSBN_GBE_MASK | MTK_PHY_DA_RX_PSBN_LP_MASK,
-				lower_idx << 12 | lower_idx << 8 | lower_idx << 4 | lower_idx);
-	if(lower_ret < 0)
-		goto restore;
-
-	ret = upper_ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RXADC_CTRL_RG9,
-				MTK_PHY_DA_RX_PSBN_TBT_MASK | MTK_PHY_DA_RX_PSBN_HBT_MASK |
-				MTK_PHY_DA_RX_PSBN_GBE_MASK | MTK_PHY_DA_RX_PSBN_LP_MASK,
-				upper_idx << 12 | upper_idx << 8 | upper_idx << 4 | upper_idx);
-	if(upper_ret < 0)
-		goto restore;
-
 	ret = upper_ret-lower_ret;
 	if (ret == 1) {
 		ret = 0;
