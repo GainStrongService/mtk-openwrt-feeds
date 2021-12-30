@@ -340,6 +340,9 @@
 			 <&infracfg_ao CK_INFRA_IPCIER_CK>,
 			 <&infracfg_ao CK_INFRA_IPCIEB_CK>;
 
+		phys = <&pcieport PHY_TYPE_PCIE>;
+		phy-names = "pcie-phy";
+
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 7>;
 		interrupt-map = <0 0 0 1 &pcie_intc0 0>,
@@ -584,6 +587,23 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		status = "okay";
+	};
+
+	pcietphy: pcie-phy@11c00000 {
+		compatible = "mediatek,mt7986",
+			     "mediatek,generic-tphy-v2";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		status = "okay";
+
+		pcieport: pcie-phy@11c00000 {
+			reg = <0 0x11c00000 0 0x20000>;
+			clocks = <&system_clk>;
+			clock-names = "ref";
+			#phy-cells = <1>;
+			status = "okay";
+		};
 	};
 
 	usbtphy: usb-phy@11e10000 {
