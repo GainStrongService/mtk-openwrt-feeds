@@ -341,7 +341,7 @@
 		clocks = <&topckgen CK_TOP_EIP97B>;
 		clock-names = "top_eip97_ck";
 		assigned-clocks = <&topckgen CK_TOP_EIP97B_SEL>;
-		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_NET1_D5>;
 	};
 
 	pio: pinctrl@11d00000 {
@@ -620,20 +620,22 @@
 			 <&infracfg_ao CK_INFRA_AUD_26M_CK>,
 			 <&infracfg_ao CK_INFRA_AUD_L_CK>,
 			 <&infracfg_ao CK_INFRA_AUD_AUD_CK>,
-			 <&infracfg_ao CK_INFRA_AUD_EG2_CK>;
+			 <&infracfg_ao CK_INFRA_AUD_EG2_CK>,
+			 <&topckgen CK_TOP_AUD_SEL>;
 		clock-names = "aud_bus_ck",
 			      "aud_26m_ck",
 			      "aud_l_ck",
 			      "aud_aud_ck",
-			      "aud_eg2_ck";
+			      "aud_eg2_ck",
+			      "aud_sel";
 		assigned-clocks = <&topckgen CK_TOP_AUD_SEL>,
 				  <&topckgen CK_TOP_A1SYS_SEL>,
 				  <&topckgen CK_TOP_AUD_L_SEL>,
 				  <&topckgen CK_TOP_A_TUNER_SEL>;
-		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>,
-					 <&topckgen CK_TOP_CB_CKSQ_40M>,
-					 <&topckgen CK_TOP_CB_CKSQ_40M>,
-					 <&topckgen CK_TOP_CB_CKSQ_40M>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_APLL2_196M>,
+					 <&topckgen CK_TOP_APLL2_D4>,
+					 <&topckgen CK_TOP_CB_APLL2_196M>,
+					 <&topckgen CK_TOP_APLL2_D4>;
 		status = "disabled";
 	};
 

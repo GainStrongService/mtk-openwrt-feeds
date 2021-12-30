@@ -55,11 +55,22 @@
 		};
 	};
 
-	sound {
+	sound_wm8960 {
+		compatible = "mediatek,mt79xx-wm8960-machine";
+		mediatek,platform = <&afe>;
+		audio-routing = "Headphone", "HP_L",
+				"Headphone", "HP_R",
+				"LINPUT1", "AMIC",
+				"RINPUT1", "AMIC";
+		mediatek,audio-codec = <&wm8960>;
+		status = "disabled";
+	};
+
+	sound_si3218x {
 		compatible = "mediatek,mt79xx-si3218x-machine";
 		mediatek,platform = <&afe>;
 		mediatek,ext-codec = <&proslic_spi>;
-		status = "okay";
+		status = "disabled";
 	};
 };
 
@@ -72,7 +83,7 @@
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_pins>;
-	status = "okay";
+	status = "disabled";
 
 	wm8960: wm8960@1a {
 		compatible = "wlf,wm8960";
