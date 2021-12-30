@@ -10,11 +10,19 @@ config_get scheduling global scheduling "wrr"
 config_get sch0_bw global sch0_bw 100000
 config_get sch1_bw global sch1_bw 100000
 
+# disable bridge netfilter module to avoid high cpu usage
+echo 0 > /proc/sys/net/bridge/bridge-nf-call-arptables
+echo 0 > /proc/sys/net/bridge/bridge-nf-call-iptables
+echo 0 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
+echo 0 > /proc/sys/net/bridge/bridge-nf-filter-pppoe-tagged
+echo 0 > /proc/sys/net/bridge/bridge-nf-filter-vlan-tagged
+echo 0 > /proc/sys/net/bridge/bridge-nf-pass-vlan-input-dev
+
 #if enable=0, disable qdma_sch & qdma_txq
 [ "${enable}" -eq 1 ] || {
 	echo 0 ${scheduling} ${sch0_bw} > /sys/kernel/debug/hnat/qdma_sch0
 	echo 0 ${scheduling} ${sch1_bw} > /sys/kernel/debug/hnat/qdma_sch1
-	echo 1 0 0 0 0 0 4 > /sys/kernel/debug/hnat/qdma_txq0
+	echo 0 0 0 0 0 0 4 > /sys/kernel/debug/hnat/qdma_txq0
 	for i in $(seq 1 $((txq_num - 1)))
 	do
 		echo 0 0 0 0 0 0 0 > /sys/kernel/debug/hnat/qdma_txq$i
@@ -30,10 +38,14 @@ insmod mtkhnat
 [ "${hqos}" -eq 1 ] || {
 	echo 0 ${scheduling} ${sch0_bw} > /sys/kernel/debug/hnat/qdma_sch0
 	echo 0 ${scheduling} ${sch1_bw} > /sys/kernel/debug/hnat/qdma_sch1
-	echo 1 0 0 0 0 0 4 > /sys/kernel/debug/hnat/qdma_txq0
-	for i in $(seq 1 $((txq_num - 1)))
+
+	for i in $(seq 0 $((txq_num - 1)))
 	do
-		echo 0 0 0 0 0 0 0 > /sys/kernel/debug/hnat/qdma_txq$i
+		if [ "${i}" -le $(((txq_num / 2) - 1)) ]; then
+			echo 0 0 0 0 0 0 4 > /sys/kernel/debug/hnat/qdma_txq$i
+		else
+			echo 1 0 0 0 0 0 4 > /sys/kernel/debug/hnat/qdma_txq$i
+		fi
 	done
 
 	exit 0
@@ -42,6 +54,10 @@ insmod mtkhnat
 # enable qdma_sch0 and qdma_sch1
 echo 1 ${scheduling} ${sch0_bw} > /sys/kernel/debug/hnat/qdma_sch0
 echo 1 ${scheduling} ${sch1_bw} > /sys/kernel/debug/hnat/qdma_sch1
+
+# enable bridge netfilter module to allow skb being marked
+echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
+echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
 
 setup_queue() {
 	local queue_id queue_scheduler queue_minebl queue_maxebl

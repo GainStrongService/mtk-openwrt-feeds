@@ -1774,10 +1774,9 @@ static ssize_t hnat_queue_write(struct file *file, const char __user *buf,
 	int resv;
 	int scheduler;
 	size_t size;
-	u32 qtx_sch;
+	u32 qtx_sch = 0;
 
 	cr_set_field(h->fe_base + QDMA_PAGE, QTX_CFG_PAGE, (id / NUM_OF_Q_PER_PAGE));
-	qtx_sch = readl(h->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
 	if (length >= sizeof(line))
 		return -EINVAL;
 
@@ -1800,7 +1799,6 @@ static ssize_t hnat_queue_write(struct file *file, const char __user *buf,
 		min_exp++;
 	}
 
-	qtx_sch &= 0x70000000;
 	if (hnat_priv->data->num_of_sch == 4)
 		qtx_sch |= (scheduler & 0x3) << 30;
 	else
