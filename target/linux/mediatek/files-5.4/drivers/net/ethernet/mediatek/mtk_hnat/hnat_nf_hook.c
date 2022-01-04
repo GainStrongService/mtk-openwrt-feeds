@@ -243,11 +243,11 @@ int nf_hnat_netdevice_event(struct notifier_block *unused, unsigned long event,
 
 		break;
 	case NETDEV_UNREGISTER:
-		if (IS_PPD(dev) && hnat_priv->g_ppdev) {
+		if (hnat_priv->g_ppdev == dev) {
 			hnat_priv->g_ppdev = NULL;
 			dev_put(dev);
 		}
-		if (IS_WAN(dev) && hnat_priv->g_wandev) {
+		if (hnat_priv->g_wandev == dev) {
 			hnat_priv->g_wandev = NULL;
 			dev_put(dev);
 		}
