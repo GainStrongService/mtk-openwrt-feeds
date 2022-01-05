@@ -2898,7 +2898,7 @@ static int mtk_hw_init(struct mtk_eth *eth)
 		mtk_w32(eth, 0x000e000e, PSE_IQ_REV(5));
 		mtk_w32(eth, 0x000e000e, PSE_IQ_REV(6));
 		mtk_w32(eth, 0x000e000e, PSE_IQ_REV(7));
-		mtk_w32(eth, 0x000e000e, PSE_IQ_REV(8));
+		mtk_w32(eth, 0x002a000e, PSE_IQ_REV(8));
 
 		/* PSE config output queue threshold */
 		mtk_w32(eth, 0x000f000a, PSE_OQ_TH(1));
