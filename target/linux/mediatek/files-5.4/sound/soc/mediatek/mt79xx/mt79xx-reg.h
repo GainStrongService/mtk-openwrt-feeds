@@ -19,6 +19,8 @@
 #define AFE_IRQ0_MCU_CFG1               0x0144
 #define AFE_IRQ1_MCU_CFG0               0x0148
 #define AFE_IRQ1_MCU_CFG1               0x014c
+#define AFE_IRQ2_MCU_CFG0               0x0150
+#define AFE_IRQ2_MCU_CFG1               0x0154
 #define ETDM_IN5_CON0                   0x13f0
 #define ETDM_IN5_CON1                   0x13f4
 #define ETDM_IN5_CON2                   0x13f8
@@ -64,7 +66,7 @@
 #define AFE_VUL0_CON0                   0x4238
 
 #define AFE_MAX_REGISTER AFE_VUL0_CON0
-#define AFE_IRQ_STATUS_BITS             0x1
+#define AFE_IRQ_STATUS_BITS             0x7
 #define AFE_IRQ_CNT_SHIFT               0
 #define AFE_IRQ_CNT_MASK	        0xffffff
 
@@ -131,9 +133,15 @@
 #define IRQ_MCU_ON_SFT                  0
 #define IRQ_MCU_ON_MASK                 0x1
 #define IRQ_MCU_ON_MASK_SFT             BIT(0)
-#define IRQ_MCU_CLR_SFT                 0
-#define IRQ_MCU_CLR_MASK                0x1
-#define IRQ_MCU_CLR_MASK_SFT            BIT(0)
+#define IRQ0_MCU_CLR_SFT                0
+#define IRQ0_MCU_CLR_MASK               0x1
+#define IRQ0_MCU_CLR_MASK_SFT           BIT(0)
+#define IRQ1_MCU_CLR_SFT                1
+#define IRQ1_MCU_CLR_MASK               0x1
+#define IRQ1_MCU_CLR_MASK_SFT           BIT(1)
+#define IRQ2_MCU_CLR_SFT                2
+#define IRQ2_MCU_CLR_MASK               0x1
+#define IRQ2_MCU_CLR_MASK_SFT           BIT(2)
 
 /* ETDM_IN5_CON2 */
 #define IN_CLK_SRC(x)                   ((x) << 10)

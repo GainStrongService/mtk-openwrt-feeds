@@ -25,6 +25,7 @@ enum {
 enum {
 	MT79XX_IRQ_0,
 	MT79XX_IRQ_1,
+	MT79XX_IRQ_2,
 	MT79XX_IRQ_NUM,
 };
 

@@ -239,7 +239,7 @@ static const struct mtk_base_irq_data irq_data[MT79XX_IRQ_NUM] = {
 		.irq_en_reg = AFE_IRQ0_MCU_CFG0,
 		.irq_en_shift = IRQ_MCU_ON_SFT,
 		.irq_clr_reg = AFE_IRQ_MCU_CLR,
-		.irq_clr_shift = IRQ_MCU_CLR_SFT,
+		.irq_clr_shift = IRQ0_MCU_CLR_SFT,
 	},
 	[MT79XX_IRQ_1] = {
 		.id = MT79XX_IRQ_1,
@@ -252,7 +252,20 @@ static const struct mtk_base_irq_data irq_data[MT79XX_IRQ_NUM] = {
 		.irq_en_reg = AFE_IRQ1_MCU_CFG0,
 		.irq_en_shift = IRQ_MCU_ON_SFT,
 		.irq_clr_reg = AFE_IRQ_MCU_CLR,
-		.irq_clr_shift = IRQ_MCU_CLR_SFT,
+		.irq_clr_shift = IRQ1_MCU_CLR_SFT,
+	},
+	[MT79XX_IRQ_2] = {
+		.id = MT79XX_IRQ_2,
+		.irq_cnt_reg = AFE_IRQ2_MCU_CFG1,
+		.irq_cnt_shift = AFE_IRQ_CNT_SHIFT,
+		.irq_cnt_maskbit = AFE_IRQ_CNT_MASK,
+		.irq_fs_reg = AFE_IRQ2_MCU_CFG0,
+		.irq_fs_shift = IRQ_MCU_MODE_SFT,
+		.irq_fs_maskbit = IRQ_MCU_MODE_MASK,
+		.irq_en_reg = AFE_IRQ2_MCU_CFG0,
+		.irq_en_shift = IRQ_MCU_ON_SFT,
+		.irq_clr_reg = AFE_IRQ_MCU_CLR,
+		.irq_clr_shift = IRQ2_MCU_CLR_SFT,
 	},
 };
 
