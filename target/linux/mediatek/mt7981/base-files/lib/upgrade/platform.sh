@@ -6,7 +6,6 @@ platform_do_upgrade() {
 	*snand*)
 		nand_do_upgrade "$1"
 		;;
-	*)
 	*emmc*)
 		mtk_mmc_do_upgrade "$1"
 		;;
@@ -25,7 +24,7 @@ platform_check_image() {
 	[ "$#" -gt 1 ] && return 1
 
 	case "$board" in
-	*snand*)|\
+	*snand* |\
 	*emmc*)
 		# tar magic `ustar`
 		magic="$(dd if="$1" bs=1 skip=257 count=5 2>/dev/null)"
