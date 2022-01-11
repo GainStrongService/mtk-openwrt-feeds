@@ -1,41 +1,74 @@
 /dts-v1/;
-#include "mt7986b.dtsi"
-#include "mt7986b-pinctrl.dtsi"
-#include "mt7986-spim-nand-partition.dtsi"
+#include "mt7986a.dtsi"
+#include "mt7986a-pinctrl.dtsi"
 / {
-	model = "MediaTek MT7986b RFB";
-	compatible = "mediatek,mt7986b-2500wan-spim-snand-rfb";
+	model = "MediaTek MT7986a RFB";
+	compatible = "mediatek,mt7986a-2500wan-sd-rfb";
 	chosen {
 		bootargs = "console=ttyS0,115200n1 loglevel=8  \
-				earlycon=uart8250,mmio32,0x11002000";
+			earlycon=uart8250,mmio32,0x11002000 \
+			root=PARTLABEL=rootfs rootwait rootfstype=squashfs,f2fs";
 	};
 
 	memory {
 		reg = <0 0x40000000 0 0x10000000>;
 	};
+
+	sound {
+		compatible = "mediatek,mt7986-wm8960-machine";
+		mediatek,platform = <&afe>;
+		audio-routing = "Headphone", "HP_L",
+				"Headphone", "HP_R",
+				"LINPUT1", "AMIC",
+				"RINPUT1", "AMIC";
+		mediatek,audio-codec = <&wm8960>;
+		status = "okay";
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0_pin &pwm1_pin_g1>;
+	status = "okay";
 };
 
 &uart0 {
 	status = "okay";
 };
 
-/* Warning: pins shared with &snand */
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins>;
-	status = "disabled";
+	status = "okay";
 };
 
-/* Warning: pins shared with &spi1 */
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_pins>;
+	status = "okay";
+
+	wm8960: wm8960@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+	};
+};
+
+&auxadc {
 	status = "okay";
 };
 
@@ -158,65 +191,81 @@
 	status = "okay";
 };
 
-&spi0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi_flash_pins>;
-	cs-gpios = <0>, <0>;
-	status = "okay";
-
-	spi_nor@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
-		reg = <0>;
-		spi-max-frequency = <20000000>;
-		spi-tx-buswidth = <4>;
-		spi-rx-buswidth = <4>;
-	};
-
-	spi_nand: spi_nand@1 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "spi-nand";
-		reg = <1>;
-		spi-max-frequency = <20000000>;
-		spi-tx-buswidth = <4>;
-		spi-rx-buswidth = <4>;
-	};
-};
-
-/* Warning: pins shared with &uart2 */
-&spi1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spic_pins>;
+&mmc0 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&mmc0_pins_default>;
+	pinctrl-1 = <&mmc0_pins_uhs>;
+	bus-width = <4>;
+	max-frequency = <52000000>;
+	cap-sd-highspeed;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
 	status = "okay";
 };
 
-&wbsys {
-	mediatek,mtd-eeprom = <&factory 0x0000>;
+&pcie0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie0_pins>;
 	status = "okay";
-	pinctrl-names = "default", "dbdc";
-	pinctrl-0 = <&wf_2g_5g_pins>;
-	pinctrl-1 = <&wf_dbdc_pins>;
 };
 
 &pio {
-	spi_flash_pins: spi-flash-pins-33-to-38 {
+	mmc0_pins_default: mmc0-pins-50-to-61-default {
 		mux {
 			function = "flash";
-			groups = "spi0", "spi0_wp_hold";
+			groups = "emmc_51";
 		};
-		conf-pu {
-			pins = "SPI2_CS", "SPI2_HOLD", "SPI2_WP";
-			drive-strength = <MTK_DRIVE_8mA>;
-			mediatek,pull-up-adv = <0>;	/* bias-disable */
+		conf-cmd-dat {
+			pins = "EMMC_DATA_0", "EMMC_DATA_1", "EMMC_DATA_2",
+			       "EMMC_DATA_3", "EMMC_DATA_4", "EMMC_DATA_5",
+			       "EMMC_DATA_6", "EMMC_DATA_7", "EMMC_CMD";
+			input-enable;
+			drive-strength = <MTK_DRIVE_4mA>;
+			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
 		};
-		conf-pd {
-			pins = "SPI2_CLK", "SPI2_MOSI", "SPI2_MISO";
-			drive-strength = <MTK_DRIVE_8mA>;
-			mediatek,pull-down-adv = <0>;	/* bias-disable */
+		conf-clk {
+			pins = "EMMC_CK";
+			drive-strength = <MTK_DRIVE_6mA>;
+			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
 		};
+		conf-ds {
+			pins = "EMMC_DSL";
+			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
+		};
+		conf-rst {
+			pins = "EMMC_RSTB";
+			drive-strength = <MTK_DRIVE_4mA>;
+			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
+		};
+	};
 
+	mmc0_pins_uhs: mmc0-pins-50-to-61-uhs {
+		mux {
+			function = "flash";
+			groups = "emmc_51";
+		};
+		conf-cmd-dat {
+			pins = "EMMC_DATA_0", "EMMC_DATA_1", "EMMC_DATA_2",
+			       "EMMC_DATA_3", "EMMC_DATA_4", "EMMC_DATA_5",
+			       "EMMC_DATA_6", "EMMC_DATA_7", "EMMC_CMD";
+			input-enable;
+			drive-strength = <MTK_DRIVE_4mA>;
+			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
+		};
+		conf-clk {
+			pins = "EMMC_CK";
+			drive-strength = <MTK_DRIVE_6mA>;
+			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
+		};
+		conf-ds {
+			pins = "EMMC_DSL";
+			mediatek,pull-down-adv = <2>;	/* pull-down 50K */
+		};
+		conf-rst {
+			pins = "EMMC_RSTB";
+			drive-strength = <MTK_DRIVE_4mA>;
+			mediatek,pull-up-adv = <1>;	/* pull-up 10K */
+		};
 	};
 
 	wf_2g_5g_pins: wf_2g_5g-pins {
