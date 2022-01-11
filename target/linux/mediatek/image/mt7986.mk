@@ -114,6 +114,19 @@ define Device/mt7986a-ax6000-2500wan-gsw-spim-nand-rfb
 endef
 TARGET_DEVICES += mt7986a-ax6000-2500wan-gsw-spim-nand-rfb
 
+define Device/mt7986a-ax6000-2500wan-sd-rfb
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7986a-ax6000-2500wan-sd-rfb
+  DEVICE_DTS := mt7986a-2500wan-sd-rfb
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7986b-2500wan-sd-rfb
+  DEVICE_PACKAGES := mkf2fs e2fsprogs blkid blockdev losetup kmod-fs-ext4 \
+		     kmod-mmc kmod-fs-f2fs kmod-fs-vfat kmod-nls-cp437 \
+		     kmod-nls-iso8859-1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += mt7986a-ax6000-2500wan-sd-rfb
+
 define Device/mt7986a-ax8400-2500wan-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
   DEVICE_MODEL := mt7986a-ax8400-2500wan-spim-nand-rfb (SPI-NAND,UBI)
@@ -294,6 +307,19 @@ define Device/mt7986b-ax6000-2500wan-snfi-nand-rfb
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += mt7986b-ax6000-2500wan-snfi-nand-rfb
+
+define Device/mt7986b-ax6000-2500wan-sd-rfb
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7986b-ax6000-2500wan-sd-rfb
+  DEVICE_DTS := mt7986b-2500wan-sd-rfb
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7986b-2500wan-sd-rfb
+  DEVICE_PACKAGES := mkf2fs e2fsprogs blkid blockdev losetup kmod-fs-ext4 \
+		     kmod-mmc kmod-fs-f2fs kmod-fs-vfat kmod-nls-cp437 \
+		     kmod-nls-iso8859-1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += mt7986b-ax6000-2500wan-sd-rfb
 
 define Device/mediatek_mt7986-fpga
   DEVICE_VENDOR := MediaTek
