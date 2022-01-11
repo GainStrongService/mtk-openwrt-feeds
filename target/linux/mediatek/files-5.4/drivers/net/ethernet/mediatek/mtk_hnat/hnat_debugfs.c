@@ -2017,28 +2017,28 @@ void hnat_qos_shaper_ebl(u32 id, u32 enable)
 static void hnat_qos_disable(void)
 {
 	struct mtk_hnat *h = hnat_priv;
-	u32 id;
+	u32 id, cfg;
 
 	for (id = 0; id < MAX_PPPQ_PORT_NUM; id++) {
 		hnat_qos_shaper_ebl(id, 0);
-		writel(0, h->fe_base + QTX_CFG(id % NUM_OF_Q_PER_PAGE));
+		writel((4 << QTX_CFG_HW_RESV_CNT_OFFSET) |
+		       (4 << QTX_CFG_SW_RESV_CNT_OFFSET),
+		       h->fe_base + QTX_CFG(id % NUM_OF_Q_PER_PAGE));
 	}
 
-	writel((4 << QTX_CFG_HW_RESV_CNT_OFFSET) |
-	       (4 << QTX_CFG_SW_RESV_CNT_OFFSET), h->fe_base + QTX_CFG(0));
-
+	cfg = (QDMA_TX_SCH_WFQ_EN) | (QDMA_TX_SCH_WFQ_EN << 16);
 	for (id = 0; id < h->data->num_of_sch; id += 2) {
 		if (h->data->num_of_sch == 4)
-			writel(0, h->fe_base + QDMA_TX_4SCH_BASE(id));
+			writel(cfg, h->fe_base + QDMA_TX_4SCH_BASE(id));
 		else
-			writel(0, h->fe_base + QDMA_TX_2SCH_BASE);
+			writel(cfg, h->fe_base + QDMA_TX_2SCH_BASE);
 	}
 }
 
 static void hnat_qos_pppq_enable(void)
 {
 	struct mtk_hnat *h = hnat_priv;
-	u32 id;
+	u32 id, cfg;
 
 	for (id = 0; id < MAX_PPPQ_PORT_NUM; id++) {
 		if (hook_toggle)
@@ -2051,11 +2051,12 @@ static void hnat_qos_pppq_enable(void)
 		       h->fe_base + QTX_CFG(id % NUM_OF_Q_PER_PAGE));
 	}
 
+	cfg = (QDMA_TX_SCH_WFQ_EN) | (QDMA_TX_SCH_WFQ_EN << 16);
 	for (id = 0; id < h->data->num_of_sch; id+= 2) {
 		if (h->data->num_of_sch == 4)
-                        writel(0, h->fe_base + QDMA_TX_4SCH_BASE(id));
+                        writel(cfg, h->fe_base + QDMA_TX_4SCH_BASE(id));
                 else
-                        writel(0, h->fe_base + QDMA_TX_2SCH_BASE);
+                        writel(cfg, h->fe_base + QDMA_TX_2SCH_BASE);
 	}
 }
 

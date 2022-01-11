@@ -758,7 +758,7 @@ static int hnat_probe(struct platform_device *pdev)
 		add_timer(&hnat_priv->hnat_reset_timestamp_timer);
 	}
 
-	if (qos_toggle && IS_GMAC1_MODE)
+	if (IS_HQOS_MODE && IS_GMAC1_MODE)
 		dev_add_pack(&mtk_pack_type);
 
 	err = hnat_roaming_enable();
@@ -801,7 +801,7 @@ static int hnat_remove(struct platform_device *pdev)
 	if (hnat_priv->data->version == MTK_HNAT_V3)
 		del_timer_sync(&hnat_priv->hnat_reset_timestamp_timer);
 
-	if (qos_toggle && IS_GMAC1_MODE)
+	if (IS_HQOS_MODE && IS_GMAC1_MODE)
 		dev_remove_pack(&mtk_pack_type);
 
 	return 0;

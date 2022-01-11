@@ -476,7 +476,7 @@ unsigned int do_hnat_ge_to_ext(struct sk_buff *skb, const char *func)
 
 	skb->dev = get_dev_from_index(index);
 
-	if (qos_toggle && eth_hdr(skb)->h_proto == HQOS_MAGIC_TAG) {
+	if (IS_HQOS_MODE && eth_hdr(skb)->h_proto == HQOS_MAGIC_TAG) {
 		skb = skb_unshare(skb, GFP_ATOMIC);
 		if (!skb)
 			return NF_ACCEPT;
@@ -806,7 +806,7 @@ mtk_hnat_br_nf_local_in(void *priv, struct sk_buff *skb,
 {
 	struct vlan_ethhdr *veth;
 
-	if (qos_toggle && hnat_priv->data->whnat) {
+	if (IS_HQOS_MODE && hnat_priv->data->whnat) {
 		veth = (struct vlan_ethhdr *)skb_mac_header(skb);
 
 		if (eth_hdr(skb)->h_proto == HQOS_MAGIC_TAG) {
@@ -1357,7 +1357,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					foe->ipv4_hnapt.new_dip;
 				entry.ipv4_hnapt.etype = htons(ETH_P_IP);
 
-				if (qos_toggle) {
+				if (IS_HQOS_MODE) {
 					entry.ipv4_hnapt.iblk2.qid =
 						(hnat_priv->data->version == MTK_HNAT_V4) ?
 						 skb->mark & 0x7f : skb->mark & 0xf;
@@ -1479,7 +1479,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 	if (IS_HQOS_MODE)
 		qid = skb->mark & (MTK_QDMA_TX_MASK);
-	else if (IS_PPPQ_MODE)
+	else if (IS_PPPQ_MODE && (IS_DSA_LAN(dev) || IS_DSA_WAN(dev)))
 		qid = port_id & MTK_QDMA_TX_MASK;
 	else
 		qid = 0;
@@ -1509,7 +1509,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				}
 			}
 
-			if (FROM_EXT(skb) || skb_hnat_sport(skb) == NR_QDMA_PORT)
+			if (FROM_EXT(skb) || skb_hnat_sport(skb) == NR_QDMA_PORT ||
+			    (IS_PPPQ_MODE && !IS_DSA_LAN(dev) && !IS_DSA_WAN(dev)))
 				entry.ipv4_hnapt.iblk2.fqos = 0;
 			else
 				entry.ipv4_hnapt.iblk2.fqos = 1;
@@ -1540,7 +1541,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				}
 			}
 
-			if (FROM_EXT(skb))
+			if (FROM_EXT(skb) ||
+			    (IS_PPPQ_MODE && !IS_DSA_LAN(dev) && !IS_DSA_WAN(dev)))
 				entry.ipv6_5t_route.iblk2.fqos = 0;
 			else
 				entry.ipv6_5t_route.iblk2.fqos = 1;
@@ -1664,7 +1666,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 			entry->ipv4_hnapt.winfo.bssid = skb_hnat_bss_id(skb);
 			entry->ipv4_hnapt.winfo.wcid = skb_hnat_wc_id(skb);
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
-			entry->ipv4_hnapt.iblk2.fqos = (qos_toggle) ? 1 : 0;
+			entry->ipv4_hnapt.iblk2.fqos = (IS_HQOS_MODE) ? 1 : 0;
 			entry->ipv4_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
 			entry->ipv4_hnapt.iblk2.winfoi = 1;
 #else
@@ -1683,7 +1685,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 					entry->ipv4_hnapt.vlan1 = 2;
 			}
 
-			if (qos_toggle &&
+			if (IS_HQOS_MODE &&
 			    (FROM_GE_LAN(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
 				entry->bfib1.vpm = 0;
 				entry->bfib1.vlan_layer = 1;
@@ -1702,7 +1704,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 			entry->ipv6_5t_route.winfo.bssid = skb_hnat_bss_id(skb);
 			entry->ipv6_5t_route.winfo.wcid = skb_hnat_wc_id(skb);
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
-			entry->ipv6_5t_route.iblk2.fqos = (qos_toggle) ? 1 : 0;
+			entry->ipv6_5t_route.iblk2.fqos = (IS_HQOS_MODE) ? 1 : 0;
 			entry->ipv6_5t_route.iblk2.rxid = skb_hnat_rx_id(skb);
 			entry->ipv6_5t_route.iblk2.winfoi = 1;
 #else
@@ -1721,7 +1723,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 					entry->ipv6_5t_route.vlan1 = 2;
 			}
 
-			if (qos_toggle &&
+			if (IS_HQOS_MODE &&
 			    (FROM_GE_LAN(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
 				entry->bfib1.vpm = 0;
 				entry->bfib1.vlan_layer = 1;
@@ -2083,7 +2085,7 @@ mtk_pong_hqos_handler(void *priv, struct sk_buff *skb,
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb_mac_header(skb);
 
-	if (qos_toggle && eth_hdr(skb)->h_proto == HQOS_MAGIC_TAG) {
+	if (IS_HQOS_MODE && eth_hdr(skb)->h_proto == HQOS_MAGIC_TAG) {
 		skb_hnat_entry(skb) = ntohs(veth->h_vlan_TCI) & 0x3fff;
 		skb_hnat_reason(skb) = HIT_BIND_FORCE_TO_CPU;
 	}

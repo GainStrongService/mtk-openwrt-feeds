@@ -123,6 +123,7 @@
 #define QDMA_TX_2SCH_BASE		(QDMA_BASE + 0x214)
 #define QTX_MIB_IF			(QDMA_BASE + 0x2bc)
 #define QDMA_TX_4SCH_BASE(x)		(QDMA_BASE + 0x398 + (((x) >> 1) * 0x4))
+#define QDMA_TX_SCH_WFQ_EN		BIT(15)
 
 /*--------------------------------------------------------------------------*/
 /* Register Mask*/
