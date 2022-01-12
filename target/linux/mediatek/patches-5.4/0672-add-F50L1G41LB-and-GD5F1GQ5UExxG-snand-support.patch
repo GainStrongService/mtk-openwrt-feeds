@@ -18,9 +18,39 @@ Index: linux-5.4.158/drivers/mtd/nand/spi/gigadevice.c
  static SPINAND_OP_VARIANTS(write_cache_variants,
  		SPINAND_PROG_LOAD_X4(true, 0, NULL, 0),
  		SPINAND_PROG_LOAD(true, 0, NULL, 0));
-@@ -224,6 +233,24 @@ static int gd5fxgq4ufxxg_ecc_get_status(
+@@ -223,7 +232,54 @@ static int gd5fxgq4ufxxg_ecc_get_status(
+ 	return -EINVAL;
  }
  
++static int esmt_1_ooblayout_ecc(struct mtd_info *mtd, int section,
++				  struct mtd_oob_region *region)
++{
++	if (section > 3)
++		return -ERANGE;
++
++	region->offset = (16 * section) + 8;
++	region->length = 8;
++
++	return 0;
++}
++
++static int esmt_1_ooblayout_free(struct mtd_info *mtd, int section,
++				   struct mtd_oob_region *region)
++{
++	if (section > 3)
++		return -ERANGE;
++
++	region->offset = (16 * section) + 2;
++	region->length = 6;
++
++	return 0;
++}
++
++static const struct mtd_ooblayout_ops esmt_1_ooblayout = {
++	.ecc = esmt_1_ooblayout_ecc,
++	.rfree = esmt_1_ooblayout_free,
++};
++
  static const struct spinand_info gigadevice_spinand_table[] = {
 +	SPINAND_INFO("F50L1G41LB", 0x01,
 +		     NAND_MEMORG(1, 2048, 64, 64, 1024, 20, 1, 1, 1),
@@ -29,8 +59,8 @@ Index: linux-5.4.158/drivers/mtd/nand/spi/gigadevice.c
 +					      &write_cache_variants,
 +					      &update_cache_variants),
 +		     0,
-+		     SPINAND_ECCINFO(&gd5fxgq4xa_ooblayout,
-+				     gd5fxgq4xa_ecc_get_status)),
++		     SPINAND_ECCINFO(&esmt_1_ooblayout,
++				     NULL)),
 +	SPINAND_INFO("GD5F1GQ5UExxG", 0x51,
 +		     NAND_MEMORG(1, 2048, 128, 64, 1024, 20, 1, 1, 1),
 +		     NAND_ECCREQ(4, 512),
