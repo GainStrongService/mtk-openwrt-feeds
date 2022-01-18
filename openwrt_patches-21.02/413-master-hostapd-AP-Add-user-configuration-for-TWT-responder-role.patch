@@ -1,0 +1,107 @@
+From 98cbf8b36d141112c7bc9e3a366ecc333b60ee90 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 18 Jan 2022 20:56:46 +0800
+Subject: [PATCH 2/2] AP Add user configuration for TWT responder role
+
+Change-Id: I4f669319eb72e37d22bd97901a0d418450f301c3
+---
+ ...configuration-for-TWT-responder-role.patch | 87 +++++++++++++++++++
+ 1 file changed, 87 insertions(+)
+ create mode 100644 package/network/services/hostapd/patches/905-AP-Add-user-configuration-for-TWT-responder-role.patch
+
+diff --git a/package/network/services/hostapd/patches/905-AP-Add-user-configuration-for-TWT-responder-role.patch b/package/network/services/hostapd/patches/905-AP-Add-user-configuration-for-TWT-responder-role.patch
+new file mode 100644
+index 0000000..1ece165
+--- /dev/null
++++ b/package/network/services/hostapd/patches/905-AP-Add-user-configuration-for-TWT-responder-role.patch
+@@ -0,0 +1,87 @@
++From c0ce87b34e120d1bc79bdca349fa8211ecff3a71 Mon Sep 17 00:00:00 2001
++From: Mohammad Asaad Akram <asadkrm@codeaurora.org>
++Date: Fri, 28 May 2021 09:47:38 +0530
++Subject: [PATCH 1/7] AP: Add user configuration for TWT responder role
++
++Add user configuration he_twt_responder for enabling/disabling TWT
++responder role, in addition to checking the driver's capability. The
++default configuration is to enable TWT responder role when the driver
++supports this.
++
++Signed-off-by: Mohammad Asaad Akram <asadkrm@codeaurora.org>
++---
++ hostapd/config_file.c  | 2 ++
++ hostapd/hostapd.conf   | 5 +++++
++ src/ap/ap_config.c     | 1 +
++ src/ap/ap_config.h     | 1 +
++ src/ap/ieee802_11_he.c | 3 ++-
++ 5 files changed, 11 insertions(+), 1 deletion(-)
++
++diff --git a/hostapd/config_file.c b/hostapd/config_file.c
++index 8f6281a..45aa809 100644
++--- a/hostapd/config_file.c
+++++ b/hostapd/config_file.c
++@@ -3537,6 +3537,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
++ 		conf->he_op.he_default_pe_duration = atoi(pos);
++ 	} else if (os_strcmp(buf, "he_twt_required") == 0) {
++ 		conf->he_op.he_twt_required = atoi(pos);
+++	} else if (os_strcmp(buf, "he_twt_responder") == 0) {
+++		conf->he_op.he_twt_responder = atoi(pos);
++ 	} else if (os_strcmp(buf, "he_rts_threshold") == 0) {
++ 		conf->he_op.he_rts_threshold = atoi(pos);
++ 	} else if (os_strcmp(buf, "he_basic_mcs_nss_set") == 0) {
++diff --git a/hostapd/hostapd.conf b/hostapd/hostapd.conf
++index 0c951a9..77775fc 100644
++--- a/hostapd/hostapd.conf
+++++ b/hostapd/hostapd.conf
++@@ -838,6 +838,11 @@ wmm_ac_vo_acm=0
++ # 1 = required
++ #he_twt_required=0
++ 
+++#he_twt_responder: Whether TWT (HE) responder is enabled
+++# 0 = disabled
+++# 1 = enabled if supported by the driver (default)
+++#he_twt_responder=1
+++
++ #he_rts_threshold: Duration of STA transmission
++ # 0 = not set (default)
++ # unsigned integer = duration in units of 16 us
++diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
++index ce281ac..59c356d 100644
++--- a/src/ap/ap_config.c
+++++ b/src/ap/ap_config.c
++@@ -274,6 +274,7 @@ struct hostapd_config * hostapd_config_defaults(void)
++ 	conf->he_op.he_bss_color_disabled = 1;
++ 	conf->he_op.he_bss_color_partial = 0;
++ 	conf->he_op.he_bss_color = 1;
+++	conf->he_op.he_twt_responder = 1;
++ 	conf->he_6ghz_max_mpdu = 2;
++ 	conf->he_6ghz_max_ampdu_len_exp = 7;
++ 	conf->he_6ghz_rx_ant_pat = 1;
++diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
++index ffc3c2c..28d199e 100644
++--- a/src/ap/ap_config.h
+++++ b/src/ap/ap_config.h
++@@ -921,6 +921,7 @@ struct he_operation {
++ 	u8 he_bss_color_partial;
++ 	u8 he_default_pe_duration;
++ 	u8 he_twt_required;
+++	u8 he_twt_responder;
++ 	u16 he_rts_threshold;
++ 	u16 he_basic_mcs_nss_set;
++ };
++diff --git a/src/ap/ieee802_11_he.c b/src/ap/ieee802_11_he.c
++index 8ff3835..cbe5e63 100644
++--- a/src/ap/ieee802_11_he.c
+++++ b/src/ap/ieee802_11_he.c
++@@ -514,5 +514,6 @@ int hostapd_get_he_twt_responder(struct hostapd_data *hapd,
++ 
++ 	mac_cap = hapd->iface->current_mode->he_capab[mode].mac_cap;
++ 
++-	return !!(mac_cap[HE_MAC_CAPAB_0] & HE_MACCAP_TWT_RESPONDER);
+++	return !!(mac_cap[HE_MAC_CAPAB_0] & HE_MACCAP_TWT_RESPONDER) &&
+++		hapd->iface->conf->he_op.he_twt_responder;
++ }
++-- 
++2.29.2
++
+-- 
+2.29.2
+
