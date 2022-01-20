@@ -661,7 +661,7 @@ static unsigned int is_ppe_support_type(struct sk_buff *skb)
 
 	eth = eth_hdr(skb);
 	if (!is_magic_tag_valid(skb) || !IS_SPACE_AVAILABLE_HEAD(skb) ||
-	    is_multicast_ether_addr(eth->h_dest))
+	    is_broadcast_ether_addr(eth->h_dest))
 		return 0;
 
 	switch (ntohs(skb->protocol)) {
