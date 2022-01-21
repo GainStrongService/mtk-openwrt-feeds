@@ -2617,9 +2617,6 @@ static void mtk_gdm_config(struct mtk_eth *eth, u32 config)
 
 		mtk_w32(eth, val, MTK_GDMA_FWD_CFG(i));
 	}
-	/* Reset and enable PSE */
-	mtk_w32(eth, RST_GL_PSE, MTK_RST_GL);
-	mtk_w32(eth, 0, MTK_RST_GL);
 }
 
 static int mtk_open(struct net_device *dev)
