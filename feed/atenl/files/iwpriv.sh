@@ -42,51 +42,6 @@ function get_config() {
     echo "$(cat ${tmp_file} | grep $1 | sed s/=/' '/g | cut -d " " -f 2)"
 }
 
-function do_ate_work() {
-    local ate_cmd=$1
-
-    case ${ate_cmd} in
-        "ATESTART")
-            local if_str=$(ifconfig | grep mon${phy_idx})
-
-            if [ ! -z "${if_str}" -a "${if_str}" != " " ]; then
-                echo "ATE already starts."
-            else
-                do_cmd "iw phy ${interface} interface add mon${phy_idx} type monitor"
-                do_cmd "iw dev wlan${phy_idx} del"
-                do_cmd "ifconfig mon${phy_idx} up"
-            fi
-            ;;
-        "ATESTOP")
-            local if_str=$(ifconfig | grep mon${phy_idx})
-
-            if [ -z "${if_str}" -a "${if_str}" != " " ]; then
-                echo "ATE does not start."
-            else
-                do_cmd "mt76-test ${interface} set state=off"
-                do_cmd "iw dev mon${phy_idx} del"
-                do_cmd "iw phy ${interface} interface add wlan${phy_idx} type managed"
-                do_cmd "ifconfig wlan${phy_idx} up"
-            fi
-            ;;
-        "TXFRAME")
-            do_cmd "mt76-test ${interface} set state=tx_frames"
-            ;;
-        "TXSTOP")
-            do_cmd "mt76-test ${interface} set state=idle"
-            ;;
-        "RXFRAME")
-            do_cmd "mt76-test ${interface} set state=rx_frames"
-            ;;
-        "RXSTOP")
-            do_cmd "mt76-test ${interface} set state=idle"
-            ;;
-        "TXCONT")
-            do_cmd "mt76-test ${interface} set state=tx_cont"
-            ;;
-    esac
-}
-
 function simple_convert() {
     if [ "$1" = "ATETXCNT" ]; then
         echo "tx_count"
@@ -229,8 +184,11 @@ function convert_channel {
                 local bw_str="HT20"
                 ;;
         esac
-    else
+    elif [ "${band}" = "1" ]; then
         case ${bw} in
+            "5")
+                local bw_str="160MHz"
+                ;;
             "2")
                 local bw_str="80MHz"
                 ;;
@@ -249,9 +207,64 @@ function convert_channel {
                 local bw_str="HT20"
                 ;;
         esac
+    else
+        echo "6G Todo"
     fi
 
     do_cmd "iw dev mon${phy_idx} set channel ${ch} ${bw_str}"
+}
+
+function do_ate_work() {
+    local ate_cmd=$1
+
+    case ${ate_cmd} in
+        "ATESTART")
+            local if_str=$(ifconfig | grep mon${phy_idx})
+
+            if [ ! -z "${if_str}" -a "${if_str}" != " " ]; then
+                echo "ATE already starts."
+            else
+                do_cmd "iw phy ${interface} interface add mon${phy_idx} type monitor"
+                do_cmd "iw dev wlan${phy_idx} del"
+                do_cmd "ifconfig mon${phy_idx} up"
+            fi
+            ;;
+        "ATESTOP")
+            local if_str=$(ifconfig | grep mon${phy_idx})
+
+            if [ -z "${if_str}" -a "${if_str}" != " " ]; then
+                echo "ATE does not start."
+            else
+                do_cmd "mt76-test ${interface} set state=off"
+                do_cmd "iw dev mon${phy_idx} del"
+                do_cmd "iw phy ${interface} interface add wlan${phy_idx} type managed"
+                do_cmd "ifconfig wlan${phy_idx} up"
+            fi
+            ;;
+        "TXFRAME")
+            do_cmd "mt76-test ${interface} set state=tx_frames"
+            ;;
+        "TXSTOP"|"RXSTOP"|"TXREVERT")
+            do_cmd "mt76-test ${interface} set state=idle"
+            ;;
+        "RXFRAME")
+            do_cmd "mt76-test ${interface} set state=rx_frames"
+            ;;
+        "TXCONT")
+            do_cmd "mt76-test ${interface} set state=tx_cont"
+            ;;
+        "TXCOMMIT")
+            tx_mode=$(convert_tx_mode $(get_config "ATETXMODE"))
+                case ${tx_mode} in
+                    "ht"|"vht"|"he_su")
+                        do_cmd "mt76-test ${interface} set aid=1"
+                        ;;
+                    *)
+                        ;;
+                esac
+            do_cmd "mt76-test ${interface} set state=idle"
+            ;;
+    esac
 }
 
 if [ "${cmd_type}" = "set" ]; then
@@ -304,6 +317,9 @@ if [ "${cmd_type}" = "set" ]; then
             fi
             skip=1
             ;;
+        "ResetCounter"|"ATERXSTATRESET")
+            skip=1
+            ;;
         *)
             echo "Unknown command to set"
             skip=1
@@ -316,14 +332,49 @@ elif [ "${cmd_type}" = "show" ]; then
     do_cmd "mt76-test ${interface} dump"
     do_cmd "mt76-test ${interface} dump stats"
 elif [ "${cmd_type}" = "e2p" ]; then
-    v1=$(do_cmd "ated -i ${interface} -c \"eeprom read ${param}\"")
-    v1=$(echo "${v1}" | grep "val =" | cut -d '(' -f 2 | grep -o -E '[0-9]+')
+    offset=$(printf "0x%s" ${cmd})
+    val=$(printf "0x%s" ${param})
 
-    param2=$(expr ${param} + "1")
-    v2=$(do_cmd "ated -i ${interface} -c \"eeprom read ${param2}\"")
-    v2=$(echo "${v2}" | grep "val =" | cut -d '(' -f 2 | grep -o -E '[0-9]+')
-    printf "[0x%04x]:0x%02x%02x\n" ${param} ${v2} ${v1}
+    # eeprom offset write
+    if [[ ${full_cmd} == *"="* ]]; then
+        tmp=$((${val} & 0xff))
+        tmp=$(printf "0x%x" ${tmp})
+        do_cmd "ated -i ${interface} -c \"eeprom set ${offset}=${tmp}\""
+
+        offset=$((${offset}))
+        offset=$(expr ${offset} + "1")
+        offset=$(printf "0x%x" ${offset})
+        tmp=$(((${val} >> 8) & 0xff))
+        tmp=$(printf "0x%x" ${tmp})
+        do_cmd "ated -i ${interface} -c \"eeprom set ${offset}=${tmp}\""
+    else
+        v1=$(do_cmd "ated -i ${interface} -c \"eeprom read ${param}\"")
+        v1=$(echo "${v1}" | grep "val =" | cut -d '(' -f 2 | grep -o -E '[0-9]+')
+
+        tmp=$(printf "0x%s" ${param})
+        tmp=$((${tmp}))
+        param2=$(expr ${tmp} + "1")
+        param2=$(printf "%x" ${param2})
+        v2=$(do_cmd "ated -i ${interface} -c \"eeprom read ${param2}\"")
+        v2=$(echo "${v2}" | grep "val =" | cut -d '(' -f 2 | grep -o -E '[0-9]+')
+
+        param=$(printf "0x%s" ${param})
+        printf "[0x%04x]:0x%02x%02x\n" ${param} ${v2} ${v1}
+    fi
+elif [ "${cmd_type}" = "mac" ]; then
+    regidx=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/regidx
+    regval=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/regval
+    offset=$(printf "0x%s" ${cmd})
+    val=$(printf "0x%s" ${param})
+
+    echo ${offset} > ${regidx}
+    # reg write
+    if [[ ${full_cmd} == *"="* ]]; then
+        echo ${val} > ${regval}
+    else
+        res=$(cat ${regval} | cut -d 'x' -f 2)
+        printf "%s mac:[%s]:%s\n" ${interface} ${offset} ${res}
+    fi
 else
     echo "Unknown command"
 fi
-

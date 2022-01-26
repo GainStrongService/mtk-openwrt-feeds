@@ -95,7 +95,6 @@ struct atenl {
 	u8 *eeprom_data;
 	int eeprom_fd;
 	u16 eeprom_size;
-	bool eeprom_exist;
 
 	bool cmd_mode;
 };

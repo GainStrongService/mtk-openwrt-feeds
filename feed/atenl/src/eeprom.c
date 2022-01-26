@@ -7,7 +7,7 @@
 #include "atenl.h"
 
 #define EEPROM_PART_SIZE 20480
-#define EEPROM_FILE	"/tmp/atenl-eeprom"
+char *eeprom_file;
 
 static FILE *mtd_open(const char *mtd)
 {
@@ -47,7 +47,7 @@ atenl_flash_create_file(struct atenl *an)
 		return -1;
 	}
 
-	fd = open(EEPROM_FILE, O_RDWR | O_CREAT | O_EXCL, 00644);
+	fd = open(eeprom_file, O_RDWR | O_CREAT | O_EXCL, 00644);
 	if (fd < 0)
 		goto out;
 
@@ -63,7 +63,7 @@ retry:
 			goto retry;
 
 		perror("write");
-		unlink(EEPROM_FILE);
+		unlink(eeprom_file);
 		close(fd);
 		fd = -1;
 		goto out;
@@ -94,7 +94,7 @@ atenl_efuse_create_file(struct atenl *an)
 	if (fd_ori < 0)
 		return -1;
 
-	fd = open(EEPROM_FILE, O_RDWR | O_CREAT | O_EXCL, 00644);
+	fd = open(eeprom_file, O_RDWR | O_CREAT | O_EXCL, 00644);
 	if (fd < 0)
 		goto out;
 
@@ -110,7 +110,7 @@ retry:
 			goto retry;
 
 		perror("write");
-		unlink(EEPROM_FILE);
+		unlink(eeprom_file);
 		close(fd);
 		fd = -1;
 		goto out;
@@ -133,7 +133,7 @@ atenl_eeprom_file_exists(void)
 {
 	struct stat st;
 
-	return stat(EEPROM_FILE, &st) == 0;
+	return stat(eeprom_file, &st) == 0;
 }
 
 static int
@@ -153,11 +153,9 @@ atenl_eeprom_init_file(struct atenl *an, bool flash_mode)
 		return atenl_efuse_create_file(an);
 	}
 
-	fd = open(EEPROM_FILE, O_RDWR);
+	fd = open(eeprom_file, O_RDWR);
 	if (fd < 0)
 		perror("open");
-
-	an->eeprom_exist = true;
 
 	return fd;
 }
@@ -264,8 +262,11 @@ int atenl_eeprom_init(struct atenl *an, u8 phy_idx)
 {
 	bool flash_mode;
 	int eeprom_fd;
+	char buf[30];
 
 	set_band_val(an, 0, phy_idx, phy_idx);
+	snprintf(buf, sizeof(buf), "/tmp/atenl-eeprom-phy%u", phy_idx);
+	eeprom_file = strdup(buf);
 
 	atenl_nl_check_mtd(an);
 	flash_mode = an->mtd_part != NULL;
@@ -300,9 +301,12 @@ void atenl_eeprom_close(struct atenl *an)
 	munmap(an->eeprom_data, EEPROM_PART_SIZE);
 	close(an->eeprom_fd);
 
-	if (!an->eeprom_exist && (an->child_pid || an->cmd_mode))
-		if (remove(EEPROM_FILE))
+	if (!an->cmd_mode && an->child_pid) {
+		if (remove(eeprom_file))
 			perror("remove");
+	}
+
+	free(eeprom_file);
 }
 
 int atenl_eeprom_write_mtd(struct atenl *an)
@@ -319,7 +323,7 @@ int atenl_eeprom_write_mtd(struct atenl *an)
 		return EXIT_FAILURE;
 	} else if (pid == 0) {
 		char *part = strdup(an->mtd_part);
-		char *cmd[] = {"mtd", "write", EEPROM_FILE, part, NULL};
+		char *cmd[] = {"mtd", "write", eeprom_file, part, NULL};
 		int ret;
 
 		ret = execvp("mtd", cmd);
@@ -378,7 +382,7 @@ atenl_eeprom_sync_to_driver(struct atenl *an)
 {
 	int i;
 
-	for (i = 0; i < 3584; i += 16)
+	for (i = 0; i < an->eeprom_size; i += 16)
 		atenl_nl_write_eeprom(an, i, &an->eeprom_data[i], 16);
 }
 
@@ -403,9 +407,9 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 
 		s++;
 		if (!strncmp(s, "reset", 5)) {
-			unlink(EEPROM_FILE);
+			unlink(eeprom_file);
 		} else if (!strncmp(s, "file", 4)) {
-			atenl_info("%s\n", EEPROM_FILE);
+			atenl_info("%s\n", eeprom_file);
 			atenl_info("Flash mode: %d\n", flash_mode);
 		} else if (!strncmp(s, "set", 3)) {
 			u32 offset, val;
@@ -422,6 +426,7 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 			an->eeprom_data[offset] = val;
 			atenl_info("set offset 0x%x to 0x%x\n", offset, val);
 		} else if (!strncmp(s, "update", 6)) {
+			atenl_eeprom_sync_to_driver(an);
 			atenl_nl_update_buffer_mode(an);
 		} else if (!strncmp(s, "write", 5)) {
 			s = strchr(s, ' ');
@@ -429,12 +434,8 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 				return;
 			s++;
 
-			if (!strncmp(s, "flash", 5)) {
+			if (!strncmp(s, "flash", 5))
 				atenl_eeprom_write_mtd(an);
-			} else if (!strncmp(s, "efuse", 5)) {
-				atenl_eeprom_sync_to_driver(an);
-				atenl_nl_write_efuse_all(an, NULL);
-			}
 		} else if (!strncmp(s, "read", 4)) {
 			u32 offset;
 

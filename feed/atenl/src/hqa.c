@@ -339,19 +339,10 @@ atenl_hqa_eeprom_bulk(struct atenl *an, struct atenl_data *data)
 				*(u16 *)(hdr->data + 2 + i) = val;
 			}
 		} else { /* write eeprom */
-			u16 offset_a;
-
 			for (i = 0; i < DIV_ROUND_UP(len, 2); i++) {
 				val = ntohs(v[i + 2]);
 				memcpy(&an->eeprom_data[offset + i * 2], &val, 2);
 			}
-
-			offset_a = offset - (offset % 16);
-			len += (offset - offset_a);
-			for (i = offset_a; i < offset_a + len; i += 16)
-				atenl_nl_write_eeprom(an, i, &an->eeprom_data[i], 16);
-
-			atenl_eeprom_write_mtd(an);
 		}
 	}
 
