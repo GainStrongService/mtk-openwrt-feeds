@@ -467,7 +467,6 @@
 					 <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
 		chip_id = <0x7986>;
 		memory-region = <&wmcpu_emi>;
-
 	};
 
 	wed_pcie: wed_pcie@10003000 {
@@ -569,6 +568,9 @@
 			clocks = <&system_clk>;
 			clock-names = "ref";
 			#phy-cells = <1>;
+			auto_load_valid;
+			nvmem-cells = <&u2_intr_p0>, <&u2_auto_load_valid_p0>;
+			nvmem-cell-names = "intr", "auto_load_valid";
 			status = "disabled";
 		};
 
@@ -577,6 +579,12 @@
 			clocks = <&system_clk>;
 			clock-names = "ref";
 			#phy-cells = <1>;
+			auto_load_valid;
+			nvmem-cells = <&comb_intr_p0>,
+			      <&comb_rx_imp_p0>,
+			      <&comb_tx_imp_p0>,
+			      <&comb_auto_load_valid>;
+			nvmem-cell-names = "intr", "rx_imp", "tx_imp", "auto_load_valid";
 			status = "okay";
 		};
 
@@ -585,6 +593,9 @@
 			clocks = <&system_clk>;
 			clock-names = "ref";
 			#phy-cells = <1>;
+			auto_load_valid;
+			nvmem-cells = <&u2_intr_p1>, <&u2_auto_load_valid_p1>;
+			nvmem-cell-names = "intr", "auto_load_valid";
 			status = "okay";
 		};
 	};
@@ -619,8 +630,47 @@
 		thermal_calibration: calib@274 {
 			reg = <0x274 0xc>;
 		};
-	};
 
+		comb_auto_load_valid: usb3-alv-imp@8da {
+			reg = <0x8da 1>;
+			bits = <0 1>;
+		};
+
+		comb_rx_imp_p0: usb3-rx-imp@8d8 {
+			reg = <0x8d8 1>;
+			bits = <0 5>;
+		};
+
+		comb_tx_imp_p0: usb3-tx-imp@8d8 {
+			reg = <0x8d8 2>;
+			bits = <5 5>;
+		};
+
+		comb_intr_p0: usb3-intr@8d9 {
+			reg = <0x8d9 1>;
+			bits = <2 6>;
+		};
+
+		u2_auto_load_valid_p0: usb2-alv-p0@8e0 {
+			reg  = <0x8e0 1>;
+			bits = <0 1>;
+		};
+
+		u2_intr_p0: usb2-intr-p0@8e0 {
+			reg  = <0x8e0 1>;
+			bits = <1 5>;
+		};
+
+		u2_auto_load_valid_p1: usb2-alv-p1@8e0 {
+			reg  = <0x8e0 2>;
+			bits = <6 1>;
+		};
+
+		u2_intr_p1: usb2-intr-p1@8e0 {
+			reg  = <0x8e0 2>;
+			bits = <7 5>;
+		};
+	};	
 };
 
 #include "mt7986-clkitg.dtsi"
