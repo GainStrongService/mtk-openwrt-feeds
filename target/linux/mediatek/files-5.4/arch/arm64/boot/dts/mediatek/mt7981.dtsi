@@ -586,6 +586,10 @@
 			clock-names = "ref";
 			#phy-cells = <1>;
 			mediatek,syscon-type = <&topmisc 0x218 0>;
+			nvmem-cells = <&comb_intr_p0>,
+			      <&comb_rx_imp_p0>,
+			      <&comb_tx_imp_p0>;
+			nvmem-cell-names = "intr", "rx_imp", "tx_imp";
 			status = "okay";
 		};
 	};
@@ -615,6 +619,21 @@
 
 		phy_calibration: calib@8dc {
 			reg = <0x8dc 0x10>;
+		};
+
+		comb_rx_imp_p0: usb3-rx-imp@8c8 {
+			reg = <0x8c8 1>;
+			bits = <0 5>;
+		};
+
+		comb_tx_imp_p0: usb3-tx-imp@8c8 {
+			reg = <0x8c8 2>;
+			bits = <5 5>;
+		};
+
+		comb_intr_p0: usb3-intr@8c9 {
+			reg = <0x8c9 1>;
+			bits = <2 6>;
 		};
 	};
 
