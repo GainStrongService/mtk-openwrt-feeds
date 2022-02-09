@@ -2630,6 +2630,7 @@ static int mtk_open(struct net_device *dev)
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 	int err, i;
+	struct device_node *phy_node;
 
 	err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
 	if (err) {
@@ -2675,6 +2676,10 @@ static int mtk_open(struct net_device *dev)
 
 	phylink_start(mac->phylink);
 	netif_start_queue(dev);
+	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
+	if (!phy_node) {
+		regmap_write(eth->sgmii->regmap[0], SGMSYS_QPHY_PWR_STATE_CTRL, 0);
+	}
 	return 0;
 }
 
@@ -2706,10 +2711,27 @@ static int mtk_stop(struct net_device *dev)
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 	int i;
-
-	phylink_stop(mac->phylink);
+	u32 val = 0;
+	struct device_node *phy_node;
 
 	netif_tx_disable(dev);
+
+	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
+	if (phy_node) {
+		val = _mtk_mdio_read(eth, 0, 0);
+		val |= BMCR_PDOWN;
+		_mtk_mdio_write(eth, 0, 0, val);
+	}else {
+		regmap_read(eth->sgmii->regmap[0], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
+		val |= SGMII_PHYA_PWD;
+		regmap_write(eth->sgmii->regmap[0], SGMSYS_QPHY_PWR_STATE_CTRL, val);
+	}
+
+	//GMAC RX disable
+	val = mtk_r32(eth, MTK_MAC_MCR(mac->id));
+	mtk_w32(eth, val & ~(MAC_MCR_RX_EN), MTK_MAC_MCR(mac->id));
+
+	phylink_stop(mac->phylink);
 
 	phylink_disconnect_phy(mac->phylink);
 
