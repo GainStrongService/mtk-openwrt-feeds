@@ -1221,6 +1221,7 @@ struct mtk_eth {
 	u32				tx_int_status_reg;
 	u32				rx_dma_l4_valid;
 	int				ip_align;
+	spinlock_t			syscfg0_lock;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the

@@ -342,10 +342,12 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		}
 
 		/* put the gmac into the right mode */
+		spin_lock(&eth->syscfg0_lock);
 		regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
 		val &= ~SYSCFG0_GE_MODE(SYSCFG0_GE_MASK, mac->id);
 		val |= SYSCFG0_GE_MODE(ge_mode, mac->id);
 		regmap_write(eth->ethsys, ETHSYS_SYSCFG0, val);
+		spin_unlock(&eth->syscfg0_lock);
 
 		mac->interface = state->interface;
 	}
@@ -356,6 +358,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		/* The path GMAC to SGMII will be enabled once the SGMIISYS is
 		 * being setup done.
 		 */
+		spin_lock(&eth->syscfg0_lock);
 		regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
 
 		regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
@@ -373,11 +376,14 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		else if (phylink_autoneg_inband(mode))
 			err = mtk_sgmii_setup_mode_an(eth->sgmii, sid);
 
-		if (err)
+		if (err) {
+			spin_unlock(&eth->syscfg0_lock);
 			goto init_err;
+		}
 
 		regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
 				   SYSCFG0_SGMII_MASK, val);
+		spin_unlock(&eth->syscfg0_lock);
 	} else if (phylink_autoneg_inband(mode)) {
 		dev_err(eth->dev,
 			"In-band mode not supported in non SGMII mode!\n");
@@ -3420,6 +3426,7 @@ static int mtk_probe(struct platform_device *pdev)
 	spin_lock_init(&eth->page_lock);
 	spin_lock_init(&eth->tx_irq_lock);
 	spin_lock_init(&eth->rx_irq_lock);
+	spin_lock_init(&eth->syscfg0_lock);
 
 	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
 		eth->ethsys = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
