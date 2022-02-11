@@ -131,9 +131,24 @@ define Device/mt7981-fpga-emmc
   DEVICE_VENDOR := MediaTek
   DEVICE_MODEL := mt7981-fpga-emmc
   DEVICE_DTS := mt7981-fpga-emmc
+  SUPPORTED_DEVICES := mediatek,mt7981-fpga-emmc
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  DEVICE_PACKAGES := mkf2fs e2fsprogs kmod-fs-vfat kmod-nls-cp437 kmod-nls-iso8859-1 kmod-mmc
-  IMAGES := sysupgrade-emmc.bin.gz
-  IMAGE/sysupgrade-emmc.bin.gz := sysupgrade-emmc | gzip | append-metadata
+  DEVICE_PACKAGES := mkf2fs e2fsprogs blkid blockdev losetup kmod-fs-ext4 \
+		     kmod-mmc kmod-fs-f2fs kmod-fs-vfat kmod-nls-cp437 \
+		     kmod-nls-iso8859-1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += mt7981-fpga-emmc
+
+define Device/mt7981-fpga-sd
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7981-fpga-sd
+  DEVICE_DTS := mt7981-fpga-sd
+  SUPPORTED_DEVICES := mediatek,mt7981-fpga-sd
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  DEVICE_PACKAGES := mkf2fs e2fsprogs blkid blockdev losetup kmod-fs-ext4 \
+		     kmod-mmc kmod-fs-f2fs kmod-fs-vfat kmod-nls-cp437 \
+		     kmod-nls-iso8859-1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += mt7981-fpga-sd
