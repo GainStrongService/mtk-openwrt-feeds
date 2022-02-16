@@ -1,6 +1,6 @@
-From a2dcc0845430159d30e4a1f2054911e38ea09b60 Mon Sep 17 00:00:00 2001
+From 4cfeeac3cb5224c3779e79259688221479735d06 Mon Sep 17 00:00:00 2001
 From: "howard.hsu" <howard-yh.hsu@mediatek.com>
-Date: Thu, 20 Jan 2022 16:39:04 +0800
+Date: Wed, 16 Feb 2022 15:54:22 +0800
 Subject: [PATCH] Add hostapd patches for WiFi Certification MBO test plan
 
 ---
@@ -26,11 +26,11 @@ Subject: [PATCH] Add hostapd patches for WiFi Certification MBO test plan
 
 diff --git a/package/network/services/hostapd/patches/902-master-Add-hostapd_neighbor_count-and-hostapd_neighbor_inse.patch b/package/network/services/hostapd/patches/902-master-Add-hostapd_neighbor_count-and-hostapd_neighbor_inse.patch
 new file mode 100644
-index 0000000..3a7e018
+index 0000000..e761c00
 --- /dev/null
 +++ b/package/network/services/hostapd/patches/902-master-Add-hostapd_neighbor_count-and-hostapd_neighbor_inse.patch
 @@ -0,0 +1,72 @@
-+From e53d12c69846446bd38a8d05f5a99d79e7907733 Mon Sep 17 00:00:00 2001
++From 413cb1d917383c5f4cb4bb6b94310c4f193a9187 Mon Sep 17 00:00:00 2001
 +From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 +Date: Wed, 19 Jan 2022 19:18:07 +0800
 +Subject: [PATCH 1/9] Add hostapd_neighbor_count() and
@@ -45,10 +45,10 @@ index 0000000..3a7e018
 + 2 files changed, 35 insertions(+)
 +
 +diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
-+index 2bbe318..a47afd4 100644
++index 229edd2..ce6865d 100644
 +--- a/src/ap/neighbor_db.c
 ++++ b/src/ap/neighbor_db.c
-+@@ -88,6 +88,38 @@ int hostapd_neighbor_show(struct hostapd_data *hapd, char *buf, size_t buflen)
++@@ -89,6 +89,38 @@ int hostapd_neighbor_show(struct hostapd_data *hapd, char *buf, size_t buflen)
 + }
 + 
 + 
@@ -88,10 +88,10 @@ index 0000000..3a7e018
 + {
 + 	wpabuf_free(nr->nr);
 +diff --git a/src/ap/neighbor_db.h b/src/ap/neighbor_db.h
-+index bed0a2f..e93d1d5 100644
++index 992671b..1ae194d 100644
 +--- a/src/ap/neighbor_db.h
 ++++ b/src/ap/neighbor_db.h
-+@@ -23,4 +23,7 @@ int hostapd_neighbor_remove(struct hostapd_data *hapd, const u8 *bssid,
++@@ -24,4 +24,7 @@ int hostapd_neighbor_remove(struct hostapd_data *hapd, const u8 *bssid,
 + 			    const struct wpa_ssid_value *ssid);
 + void hostapd_free_neighbor_db(struct hostapd_data *hapd);
 + 
@@ -104,11 +104,11 @@ index 0000000..3a7e018
 +
 diff --git a/package/network/services/hostapd/patches/903-master-Support-including-neighbor-report-elements-in-ANQP-r.patch b/package/network/services/hostapd/patches/903-master-Support-including-neighbor-report-elements-in-ANQP-r.patch
 new file mode 100644
-index 0000000..73c0052
+index 0000000..3e6506a
 --- /dev/null
 +++ b/package/network/services/hostapd/patches/903-master-Support-including-neighbor-report-elements-in-ANQP-r.patch
 @@ -0,0 +1,95 @@
-+From 3111458bed644db0795942e825c65a14c7c12b7b Mon Sep 17 00:00:00 2001
++From adacd810f97a89472f26b454805cd67d0e6f5d31 Mon Sep 17 00:00:00 2001
 +From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 +Date: Wed, 19 Jan 2022 19:25:05 +0800
 +Subject: [PATCH 2/9] Support including neighbor report elements in ANQP
@@ -205,11 +205,11 @@ index 0000000..73c0052
 +
 diff --git a/package/network/services/hostapd/patches/904-master-Support-including-neignbor-report-elements-in-BTM-re.patch b/package/network/services/hostapd/patches/904-master-Support-including-neignbor-report-elements-in-BTM-re.patch
 new file mode 100644
-index 0000000..504c738
+index 0000000..86d8fd1
 --- /dev/null
 +++ b/package/network/services/hostapd/patches/904-master-Support-including-neignbor-report-elements-in-BTM-re.patch
 @@ -0,0 +1,68 @@
-+From 67e43b33cc70e63e6eabf571ac2c134a5e25b665 Mon Sep 17 00:00:00 2001
++From 4a7b4a0fe05dd01ae64dd4e291d05de6d5f05bb7 Mon Sep 17 00:00:00 2001
 +From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 +Date: Wed, 19 Jan 2022 19:49:09 +0800
 +Subject: [PATCH 3/9] Support including neignbor report elements in BTM
@@ -220,7 +220,7 @@ index 0000000..504c738
 + 1 file changed, 23 insertions(+), 2 deletions(-)
 +
 +diff --git a/src/ap/wnm_ap.c b/src/ap/wnm_ap.c
-+index 2f66a54..e37ddd0 100644
++index 72cd126..b55b3f3 100644
 +--- a/src/ap/wnm_ap.c
 ++++ b/src/ap/wnm_ap.c
 +@@ -20,6 +20,7 @@
@@ -279,11 +279,11 @@ index 0000000..504c738
 +
 diff --git a/package/network/services/hostapd/patches/905-master-Support-configuring-BSS-Termination-TSF-by-using-hos.patch b/package/network/services/hostapd/patches/905-master-Support-configuring-BSS-Termination-TSF-by-using-hos.patch
 new file mode 100644
-index 0000000..2f9b174
+index 0000000..f6832e3
 --- /dev/null
 +++ b/package/network/services/hostapd/patches/905-master-Support-configuring-BSS-Termination-TSF-by-using-hos.patch
 @@ -0,0 +1,66 @@
-+From b97cdd75ea3f0c15a6d76cd6483941ee73fa400c Mon Sep 17 00:00:00 2001
++From 56613ad9b568a3ac7467105beaa162c68ffbbf70 Mon Sep 17 00:00:00 2001
 +From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 +Date: Wed, 19 Jan 2022 20:20:03 +0800
 +Subject: [PATCH 4/9] Support configuring BSS Termination TSF by using
@@ -296,7 +296,7 @@ index 0000000..2f9b174
 + 3 files changed, 11 insertions(+)
 +
 +diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-+index 568232a..cb2bdbf 100644
++index f50fafb..1b5a091 100644
 +--- a/hostapd/ctrl_iface.c
 ++++ b/hostapd/ctrl_iface.c
 +@@ -954,6 +954,10 @@ static int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
@@ -323,7 +323,7 @@ index 0000000..2f9b174
 + 		ret = hostapd_set_iface(hapd->iconf, hapd->conf, cmd, value);
 + 		if (ret)
 +diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-+index ce281ac..fc1372a 100644
++index 1f04686..078a3fc 100644
 +--- a/src/ap/ap_config.c
 ++++ b/src/ap/ap_config.c
 +@@ -170,6 +170,7 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
@@ -335,7 +335,7 @@ index 0000000..2f9b174
 + 
 + 
 +diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-+index ffc3c2c..1f3f3d8 100644
++index f3aff36..7301bbb 100644
 +--- a/src/ap/ap_config.h
 ++++ b/src/ap/ap_config.h
 +@@ -549,6 +549,7 @@ struct hostapd_bss_config {
@@ -351,11 +351,11 @@ index 0000000..2f9b174
 +
 diff --git a/package/network/services/hostapd/patches/906-master-Disable-interface-if-BSS-Termination-TSF-is-set.patch b/package/network/services/hostapd/patches/906-master-Disable-interface-if-BSS-Termination-TSF-is-set.patch
 new file mode 100644
-index 0000000..18b44fa
+index 0000000..0d28e4e
 --- /dev/null
 +++ b/package/network/services/hostapd/patches/906-master-Disable-interface-if-BSS-Termination-TSF-is-set.patch
 @@ -0,0 +1,47 @@
-+From d084074baaa8f9df15810323aeeeba0e98b0dbd5 Mon Sep 17 00:00:00 2001
++From dcedb231bc62949d458792530a14ceddfee20e96 Mon Sep 17 00:00:00 2001
 +From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 +Date: Wed, 19 Jan 2022 21:03:38 +0800
 +Subject: [PATCH 5/9] Disable interface if BSS Termination TSF is set
@@ -365,7 +365,7 @@ index 0000000..18b44fa
 + 1 file changed, 17 insertions(+)
 +
 +diff --git a/src/ap/wnm_ap.c b/src/ap/wnm_ap.c
-+index e37ddd0..ce7aca2 100644
++index b55b3f3..6eac3ac 100644
 +--- a/src/ap/wnm_ap.c
 ++++ b/src/ap/wnm_ap.c
 +@@ -767,6 +767,22 @@ static void set_disassoc_timer(struct hostapd_data *hapd, struct sta_info *sta,
@@ -391,7 +391,7 @@ index 0000000..18b44fa
 + int wnm_send_ess_disassoc_imminent(struct hostapd_data *hapd,
 + 				   struct sta_info *sta, const char *url,
 + 				   int disassoc_timer)
-+@@ -855,6 +871,7 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
++@@ -856,6 +872,7 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
 + 	    bss_term_dur) {
 + 		os_memcpy(pos, bss_term_dur, 12);
 + 		pos += 12;
@@ -404,11 +404,11 @@ index 0000000..18b44fa
 +
 diff --git a/package/network/services/hostapd/patches/907-master-Add-set_send_disassoc_frame_timer-to-send-disassocia.patch b/package/network/services/hostapd/patches/907-master-Add-set_send_disassoc_frame_timer-to-send-disassocia.patch
 new file mode 100644
-index 0000000..8839c25
+index 0000000..be0f823
 --- /dev/null
 +++ b/package/network/services/hostapd/patches/907-master-Add-set_send_disassoc_frame_timer-to-send-disassocia.patch
 @@ -0,0 +1,63 @@
-+From 1f4ff04758932b773df99a51055373f7610046ce Mon Sep 17 00:00:00 2001
++From cb31775e39eaa2b8a0bd36f5e195ac8bff967535 Mon Sep 17 00:00:00 2001
 +From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 +Date: Wed, 19 Jan 2022 21:15:07 +0800
 +Subject: [PATCH 6/9] Add set_send_disassoc_frame_timer() to send disassociate
@@ -421,7 +421,7 @@ index 0000000..8839c25
 + 1 file changed, 29 insertions(+), 1 deletion(-)
 +
 +diff --git a/src/ap/wnm_ap.c b/src/ap/wnm_ap.c
-+index ce7aca2..2ee9fb7 100644
++index 6eac3ac..fad132c 100644
 +--- a/src/ap/wnm_ap.c
 ++++ b/src/ap/wnm_ap.c
 +@@ -767,6 +767,34 @@ static void set_disassoc_timer(struct hostapd_data *hapd, struct sta_info *sta,
@@ -459,7 +459,7 @@ index 0000000..8839c25
 + void bss_termination_disable_iface(void *eloop_ctx, void *timeout_ctx)
 + {
 + 	struct hostapd_data *hapd = eloop_ctx;
-+@@ -908,7 +936,7 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
++@@ -909,7 +937,7 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
 + 	hapd->openwrt_stats.wnm.bss_transition_request_tx++;
 + 	if (disassoc_timer) {
 + 		/* send disassociation frame after time-out */
@@ -473,11 +473,11 @@ index 0000000..8839c25
 +
 diff --git a/package/network/services/hostapd/patches/908-master-Support-including-neighbor-report-elements-in-BTM-re.patch b/package/network/services/hostapd/patches/908-master-Support-including-neighbor-report-elements-in-BTM-re.patch
 new file mode 100644
-index 0000000..dd6a859
+index 0000000..1bf102a
 --- /dev/null
 +++ b/package/network/services/hostapd/patches/908-master-Support-including-neighbor-report-elements-in-BTM-re.patch
 @@ -0,0 +1,31 @@
-+From f0b8ae8248f026c31e19a9c04423013a720f6136 Mon Sep 17 00:00:00 2001
++From 9043eff145701c6324ae48966301681adacb89c4 Mon Sep 17 00:00:00 2001
 +From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 +Date: Wed, 19 Jan 2022 21:16:45 +0800
 +Subject: [PATCH 7/9] Support including neighbor report elements in BTM request
@@ -487,7 +487,7 @@ index 0000000..dd6a859
 + 1 file changed, 6 insertions(+), 1 deletion(-)
 +
 +diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-+index cb2bdbf..2c5cf4b 100644
++index 1b5a091..5a82ae6 100644
 +--- a/hostapd/ctrl_iface.c
 ++++ b/hostapd/ctrl_iface.c
 +@@ -984,8 +984,13 @@ static int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
@@ -510,11 +510,11 @@ index 0000000..dd6a859
 +
 diff --git a/package/network/services/hostapd/patches/909-master-Add-hostapd_neighbor_set_own_report_pref.patch b/package/network/services/hostapd/patches/909-master-Add-hostapd_neighbor_set_own_report_pref.patch
 new file mode 100644
-index 0000000..4e233d4
+index 0000000..14571fe
 --- /dev/null
 +++ b/package/network/services/hostapd/patches/909-master-Add-hostapd_neighbor_set_own_report_pref.patch
 @@ -0,0 +1,88 @@
-+From de5785cfdbc90d789a9b20e160b7311a2a3841e9 Mon Sep 17 00:00:00 2001
++From 6fc069a54efb892e486dfde59cb97e0023dbbf5d Mon Sep 17 00:00:00 2001
 +From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 +Date: Wed, 19 Jan 2022 21:27:55 +0800
 +Subject: [PATCH 8/9] Add hostapd_neighbor_set_own_report_pref()
@@ -528,7 +528,7 @@ index 0000000..4e233d4
 + 3 files changed, 42 insertions(+), 1 deletion(-)
 +
 +diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-+index 2c5cf4b..5be75e5 100644
++index 5a82ae6..3146a25 100644
 +--- a/hostapd/ctrl_iface.c
 ++++ b/hostapd/ctrl_iface.c
 +@@ -993,8 +993,11 @@ static int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
@@ -545,10 +545,10 @@ index 0000000..4e233d4
 + #ifdef CONFIG_MBO
 + 	pos = os_strstr(cmd, "mbo=");
 +diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
-+index a47afd4..6473800 100644
++index ce6865d..bc1b163 100644
 +--- a/src/ap/neighbor_db.c
 ++++ b/src/ap/neighbor_db.c
-+@@ -348,3 +348,39 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
++@@ -352,3 +352,39 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
 + 	wpabuf_free(nr);
 + #endif /* NEED_AP_MLME */
 + }
@@ -589,10 +589,10 @@ index 0000000..4e233d4
 ++	}
 ++}
 +diff --git a/src/ap/neighbor_db.h b/src/ap/neighbor_db.h
-+index e93d1d5..dc6807b 100644
++index 1ae194d..2e16f72 100644
 +--- a/src/ap/neighbor_db.h
 ++++ b/src/ap/neighbor_db.h
-+@@ -26,4 +26,6 @@ void hostapd_free_neighbor_db(struct hostapd_data *hapd);
++@@ -27,4 +27,6 @@ void hostapd_free_neighbor_db(struct hostapd_data *hapd);
 + int hostapd_neighbor_count(struct hostapd_data *hapd);
 + int hostapd_neighbor_insert_buffer(struct hostapd_data *hapd, char *buf,
 +         size_t buflen);
@@ -604,11 +604,11 @@ index 0000000..4e233d4
 +
 diff --git a/package/network/services/hostapd/patches/910-master-Add-hostapd_neighbor_set_pref_by_non_pref_chan.patch b/package/network/services/hostapd/patches/910-master-Add-hostapd_neighbor_set_pref_by_non_pref_chan.patch
 new file mode 100644
-index 0000000..b38b216
+index 0000000..632475c
 --- /dev/null
 +++ b/package/network/services/hostapd/patches/910-master-Add-hostapd_neighbor_set_pref_by_non_pref_chan.patch
 @@ -0,0 +1,101 @@
-+From 3306cdad16655901c1b76372fa939eae20ac8b26 Mon Sep 17 00:00:00 2001
++From 7aab6cf66cfb7dea480d16e312e0f0eb08e758ab Mon Sep 17 00:00:00 2001
 +From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 +Date: Wed, 19 Jan 2022 21:32:17 +0800
 +Subject: [PATCH 9/9] Add hostapd_neighbor_set_pref_by_non_pref_chan()
@@ -622,23 +622,23 @@ index 0000000..b38b216
 + 3 files changed, 57 insertions(+)
 +
 +diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-+index 5be75e5..2e11e7b 100644
++index 3146a25..974e5b9 100644
 +--- a/hostapd/ctrl_iface.c
 ++++ b/hostapd/ctrl_iface.c
-+@@ -999,6 +999,8 @@ static int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
-+ 		hostapd_neighbor_set_own_report_pref(hapd, nei_rep, nei_len, 0);
++@@ -1000,6 +1000,8 @@ static int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
 + 	}
 + 
++ #ifdef CONFIG_MBO
 ++	hostapd_neighbor_set_pref_by_non_pref_chan(hapd, sta, nei_rep, nei_len);
 ++
-+ #ifdef CONFIG_MBO
 + 	pos = os_strstr(cmd, "mbo=");
 + 	if (pos) {
++ 		unsigned int mbo_reason, cell_pref, reassoc_delay;
 +diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
-+index 6473800..254dc39 100644
++index bc1b163..75b6fcc 100644
 +--- a/src/ap/neighbor_db.c
 ++++ b/src/ap/neighbor_db.c
-+@@ -384,3 +384,54 @@ void hostapd_neighbor_set_own_report_pref(struct hostapd_data *hapd, char *nei_b
++@@ -388,3 +388,54 @@ void hostapd_neighbor_set_own_report_pref(struct hostapd_data *hapd, char *nei_b
 + 		}
 + 	}
 + }
@@ -694,10 +694,10 @@ index 0000000..b38b216
 ++}
 ++#endif
 +diff --git a/src/ap/neighbor_db.h b/src/ap/neighbor_db.h
-+index dc6807b..731d1b8 100644
++index 2e16f72..a1ddc07 100644
 +--- a/src/ap/neighbor_db.h
 ++++ b/src/ap/neighbor_db.h
-+@@ -28,4 +28,8 @@ int hostapd_neighbor_insert_buffer(struct hostapd_data *hapd, char *buf,
++@@ -29,4 +29,8 @@ int hostapd_neighbor_insert_buffer(struct hostapd_data *hapd, char *buf,
 +         size_t buflen);
 + void hostapd_neighbor_set_own_report_pref(struct hostapd_data *hapd, char *nei_buf,
 + 			 size_t buflen, const int pref);
