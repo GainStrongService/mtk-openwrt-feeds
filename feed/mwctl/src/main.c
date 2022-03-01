@@ -80,7 +80,13 @@ int main(int argc, char **argv)
 
 	progname = argv[0];
 
-	if_idx = if_nametoindex(argv[1]);
+	if(argv[1])
+		if_idx = if_nametoindex(argv[1]);
+	else {
+		fprintf(stderr, "wrong argument\n");
+		usage();
+	}
+
 	if (!if_idx) {
 		fprintf(stderr, "%s\n", strerror(errno));
 		return 2;
