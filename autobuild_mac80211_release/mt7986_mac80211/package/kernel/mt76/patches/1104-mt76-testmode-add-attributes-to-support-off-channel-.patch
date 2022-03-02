@@ -1,0 +1,92 @@
+From c11cb393f5d03ff73809510a1056f7aef1799de9 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Mon, 28 Jun 2021 10:46:14 +0800
+Subject: [PATCH 1104/1112] mt76: testmode: add attributes to support off
+ channel scan
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ drivers/net/wireless/mediatek/mt76/mt76.h     |  5 +++++
+ drivers/net/wireless/mediatek/mt76/testmode.c | 21 +++++++++++++++++++
+ drivers/net/wireless/mediatek/mt76/testmode.h | 10 +++++++++
+ 3 files changed, 36 insertions(+)
+
+diff --git a/mt76.h b/mt76.h
+index 157fd6d..ab9482c 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -624,6 +624,11 @@ struct mt76_testmode_data {
+ 		u8 enable;
+ 	} cfg;
+ 
++	u8 off_ch_scan_ch;
++	u8 off_ch_scan_center_ch;
++	u8 off_ch_scan_bw;
++	u8 off_ch_scan_path;
++
+ 	u32 tx_pending;
+ 	u32 tx_queued;
+ 	u16 tx_queued_limit;
+diff --git a/testmode.c b/testmode.c
+index f31e124..2376e00 100644
+--- a/testmode.c
++++ b/testmode.c
+@@ -567,6 +567,27 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 		}
+ 	}
+ 
++	if (tb[MT76_TM_ATTR_OFF_CH_SCAN_CH]) {
++		u8 ch = nla_get_u8(tb[MT76_TM_ATTR_OFF_CH_SCAN_CH]);
++		struct ieee80211_supported_band *sband;
++
++		sband = ch > 14 ? &phy->sband_5g.sband :
++				  &phy->sband_2g.sband;
++		if (ch && (ch < sband->channels[0].hw_value ||
++			   ch > sband->channels[sband->n_channels - 1].hw_value))
++			goto out;
++
++		td->off_ch_scan_ch = ch;
++
++		if (mt76_tm_get_u8(tb[MT76_TM_ATTR_OFF_CH_SCAN_CENTER_CH],
++				   &td->off_ch_scan_center_ch, ch - 6, ch + 6) ||
++		    mt76_tm_get_u8(tb[MT76_TM_ATTR_OFF_CH_SCAN_BW],
++				   &td->off_ch_scan_bw, 0, 6) ||
++		    mt76_tm_get_u8(tb[MT76_TM_ATTR_OFF_CH_SCAN_PATH],
++				   &td->off_ch_scan_path, 1, 0xff))
++			goto out;
++	}
++
+ 	if (dev->test_ops->set_params) {
+ 		err = dev->test_ops->set_params(phy, tb, state);
+ 		if (err)
+diff --git a/testmode.h b/testmode.h
+index c469ce6..0fc0ddd 100644
+--- a/testmode.h
++++ b/testmode.h
+@@ -57,6 +57,11 @@
+  *
+  * @MT76_TM_ATTR_CFG: config testmode rf feature (nested, see &mt76_testmode_cfg)
+  *
++ * @MT76_TM_ATTR_OFF_CH_SCAN_CH: monitored channel for off channel scan (u8)
++ * @MT76_TM_ATTR_OFF_CH_SCAN_CENTER_CH: monitored channel for off channel scan (u8)
++ * @MT76_TM_ATTR_OFF_CH_SCAN_BW: monitored bw for off channel scan (u8)
++ * @MT76_TM_ATTR_OFF_CH_SCAN_PATH: monitored rx path for off channel scan (u8)
++ *
+  */
+ enum mt76_testmode_attr {
+ 	MT76_TM_ATTR_UNSPEC,
+@@ -101,6 +106,11 @@ enum mt76_testmode_attr {
+ 
+ 	MT76_TM_ATTR_CFG,
+ 
++	MT76_TM_ATTR_OFF_CH_SCAN_CH,
++	MT76_TM_ATTR_OFF_CH_SCAN_CENTER_CH,
++	MT76_TM_ATTR_OFF_CH_SCAN_BW,
++	MT76_TM_ATTR_OFF_CH_SCAN_PATH,
++
+ 	/* keep last */
+ 	NUM_MT76_TM_ATTRS,
+ 	MT76_TM_ATTR_MAX = NUM_MT76_TM_ATTRS - 1,
+-- 
+2.25.1
+

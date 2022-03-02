@@ -1,0 +1,311 @@
+From c0233dfe70fb56c8accd8e492e340f9c19ba0f78 Mon Sep 17 00:00:00 2001
+From: MeiChia Chiu <meichia.chiu@mediatek.com>
+Date: Wed, 9 Feb 2022 10:46:28 +0800
+Subject: [PATCH 08/11] mt76: mt7915: add support for 6G
+
+---
+ .../wireless/mediatek/mt76/mt7915/eeprom.c    | 43 +++++++++++++------
+ .../wireless/mediatek/mt76/mt7915/eeprom.h    |  7 +++
+ .../net/wireless/mediatek/mt76/mt7915/init.c  | 29 ++++++++++++-
+ .../net/wireless/mediatek/mt76/mt7915/mac.c   | 10 +++--
+ .../net/wireless/mediatek/mt76/mt7915/mcu.c   | 23 +++++++---
+ .../wireless/mediatek/mt76/mt7915/mt7915.h    |  2 +-
+ .../wireless/mediatek/mt76/mt7915/testmode.c  |  4 ++
+ 7 files changed, 92 insertions(+), 26 deletions(-)
+
+diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
+index 0fa5394..bbd9bef 100644
+--- a/mt7915/eeprom.c
++++ b/mt7915/eeprom.c
+@@ -135,21 +135,36 @@ static void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
+ 
+ 	val = eeprom[MT_EE_WIFI_CONF + phy->band_idx];
+ 	val = FIELD_GET(MT_EE_WIFI_CONF0_BAND_SEL, val);
+-	if (val == MT_EE_BAND_SEL_DEFAULT &&
+-	    (!is_mt7915(&dev->mt76) || dev->dbdc_support))
+-		val = phy->band_idx ? MT_EE_BAND_SEL_5GHZ : MT_EE_BAND_SEL_2GHZ;
+ 
+-	switch (val) {
+-	case MT_EE_BAND_SEL_5GHZ:
+-		phy->mt76->cap.has_5ghz = true;
+-		break;
+-	case MT_EE_BAND_SEL_2GHZ:
+-		phy->mt76->cap.has_2ghz = true;
+-		break;
+-	default:
+-		phy->mt76->cap.has_2ghz = true;
+-		phy->mt76->cap.has_5ghz = true;
+-		break;
++	if (is_mt7915(&dev->mt76)) {
++		switch (val) {
++		case MT_EE_BAND_SEL_5GHZ:
++			phy->mt76->cap.has_5ghz = true;
++			break;
++		case MT_EE_BAND_SEL_2GHZ:
++			phy->mt76->cap.has_2ghz = true;
++			break;
++		default:
++			phy->mt76->cap.has_2ghz = true;
++			phy->mt76->cap.has_5ghz = true;
++			break;
++		}
++	} else {
++		switch (val) {
++		case MT_EE_V2_BAND_SEL_5GHZ:
++			phy->mt76->cap.has_5ghz = true;
++			break;
++		case MT_EE_V2_BAND_SEL_6GHZ:
++			phy->mt76->cap.has_6ghz = true;
++			break;
++		case MT_EE_V2_BAND_SEL_5GHZ_6GHZ:
++			phy->mt76->cap.has_5ghz = true;
++			phy->mt76->cap.has_6ghz = true;
++			break;
++		default:
++			phy->mt76->cap.has_2ghz = true;
++			break;
++		}
+ 	}
+ }
+ 
+diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
+index 5ffc56b..5dad5b0 100644
+--- a/mt7915/eeprom.h
++++ b/mt7915/eeprom.h
+@@ -76,6 +76,13 @@ enum mt7915_eeprom_band {
+ 	MT_EE_BAND_SEL_DUAL,
+ };
+ 
++enum {
++	MT_EE_V2_BAND_SEL_2GHZ,
++	MT_EE_V2_BAND_SEL_5GHZ,
++	MT_EE_V2_BAND_SEL_6GHZ,
++	MT_EE_V2_BAND_SEL_5GHZ_6GHZ,
++};
++
+ enum mt7915_sku_rate_group {
+ 	SKU_CCK,
+ 	SKU_OFDM,
+diff --git a/mt7915/init.c b/mt7915/init.c
+index 1003dd3..82bb99c 100644
+--- a/mt7915/init.c
++++ b/mt7915/init.c
+@@ -890,7 +890,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
+ 		if (band == NL80211_BAND_2GHZ)
+ 			he_cap_elem->phy_cap_info[0] =
+ 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
+-		else if (band == NL80211_BAND_5GHZ)
++		else
+ 			he_cap_elem->phy_cap_info[0] =
+ 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
+ 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
+@@ -929,7 +929,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
+ 			if (band == NL80211_BAND_2GHZ)
+ 				he_cap_elem->phy_cap_info[0] |=
+ 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_2G;
+-			else if (band == NL80211_BAND_5GHZ)
++			else
+ 				he_cap_elem->phy_cap_info[0] |=
+ 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_5G;
+ 
+@@ -978,6 +978,22 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
+ 			he_cap_elem->phy_cap_info[9] |=
+ 				IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US;
+ 		}
++
++		if (band == NL80211_BAND_6GHZ) {
++			u16 cap = IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS |
++				  IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
++
++			cap |= u16_encode_bits(6,
++					IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START) |
++			       u16_encode_bits(7,
++					IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP) |
++			       u16_encode_bits(
++					IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454,
++					IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN);
++
++			data[idx].he_6ghz_capa.capa = cpu_to_le16(cap);
++		}
++
+ 		idx++;
+ 	}
+ 
+@@ -1007,6 +1023,15 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
+ 		band->iftype_data = data;
+ 		band->n_iftype_data = n;
+ 	}
++
++	if (phy->mt76->cap.has_6ghz) {
++		data = phy->iftype[NL80211_BAND_6GHZ];
++		n = mt7915_init_he_caps(phy, NL80211_BAND_6GHZ, data);
++
++		band = &phy->mt76->sband_6g.sband;
++		band->iftype_data = data;
++		band->n_iftype_data = n;
++	}
+ }
+ 
+ static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index c5564ee..b7e7cd4 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -638,6 +638,8 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
+ 	status->band = mphy->chandef.chan->band;
+ 	if (status->band == NL80211_BAND_5GHZ)
+ 		sband = &mphy->sband_5g.sband;
++	else if (status->band == NL80211_BAND_6GHZ)
++		sband = &mphy->sband_6g.sband;
+ 	else
+ 		sband = &mphy->sband_2g.sband;
+ 
+@@ -1560,6 +1562,8 @@ mt7915_mac_add_txs_skb(struct mt7915_dev *dev, struct mt76_wcid *wcid, int pid,
+ 
+ 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
+ 			sband = &mphy->sband_5g.sband;
++		else if (mphy->chandef.chan->band == NL80211_BAND_6GHZ)
++			sband = &mphy->sband_6g.sband;
+ 		else
+ 			sband = &mphy->sband_2g.sband;
+ 
+@@ -1805,7 +1809,7 @@ void mt7915_mac_set_timing(struct mt7915_phy *phy)
+ 	u32 ofdm = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 60) |
+ 		   FIELD_PREP(MT_TIMEOUT_VAL_CCA, 28);
+ 	int offset;
+-	bool is_5ghz = phy->mt76->chandef.chan->band == NL80211_BAND_5GHZ;
++	bool a_band = !(phy->mt76->chandef.chan->band == NL80211_BAND_2GHZ);
+ 
+ 	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
+ 		return;
+@@ -1825,7 +1829,7 @@ void mt7915_mac_set_timing(struct mt7915_phy *phy)
+ 	mt76_wr(dev, MT_TMAC_CDTR(phy->band_idx), cck + reg_offset);
+ 	mt76_wr(dev, MT_TMAC_ODTR(phy->band_idx), ofdm + reg_offset);
+ 	mt76_wr(dev, MT_TMAC_ICR0(phy->band_idx),
+-		FIELD_PREP(MT_IFS_EIFS_OFDM, is_5ghz ? 84 : 78) |
++		FIELD_PREP(MT_IFS_EIFS_OFDM, a_band ? 84 : 78) |
+ 		FIELD_PREP(MT_IFS_RIFS, 2) |
+ 		FIELD_PREP(MT_IFS_SIFS, 10) |
+ 		FIELD_PREP(MT_IFS_SLOT, phy->slottime));
+@@ -1833,7 +1837,7 @@ void mt7915_mac_set_timing(struct mt7915_phy *phy)
+ 	mt76_wr(dev, MT_TMAC_ICR1(phy->band_idx),
+ 		FIELD_PREP(MT_IFS_EIFS_CCK, 314));
+ 
+-	if (phy->slottime < 20 || is_5ghz)
++	if (phy->slottime < 20 || a_band)
+ 		val = MT7915_CFEND_RATE_DEFAULT;
+ 	else
+ 		val = MT7915_CFEND_RATE_11B;
+diff --git a/mt7915/mcu.c b/mt7915/mcu.c
+index 1223a2a..8eb48fa 100644
+--- a/mt7915/mcu.c
++++ b/mt7915/mcu.c
+@@ -1693,6 +1693,7 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+ 		       struct ieee80211_sta *sta, bool enable)
+ {
+ 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
++	enum nl80211_band band = mvif->phy->mt76->chandef.chan->band;
+ 	struct mt7915_sta *msta;
+ 	struct sk_buff *skb;
+ 	int ret;
+@@ -1709,16 +1710,17 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+ 	if (!enable)
+ 		goto out;
+ 
+-	/* tag order is in accordance with firmware dependency. */
+-	if (sta && sta->ht_cap.ht_supported) {
++	if (sta && (sta->ht_cap.ht_supported || sta->he_cap.has_he)) {
+ 		/* starec bfer */
+ 		mt7915_mcu_sta_bfer_tlv(dev, skb, vif, sta);
++	}
++
++	/* tag order is in accordance with firmware dependency. */
++	if (sta && sta->ht_cap.ht_supported) {
+ 		/* starec ht */
+ 		mt7915_mcu_sta_ht_tlv(skb, sta);
+ 		/* starec vht */
+ 		mt7915_mcu_sta_vht_tlv(skb, sta);
+-		/* starec uapsd */
+-		mt76_connac_mcu_sta_uapsd(skb, vif, sta);
+ 	}
+ 
+ 	ret = mt7915_mcu_sta_wtbl_tlv(dev, skb, vif, sta);
+@@ -1727,7 +1729,9 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+ 		return ret;
+ 	}
+ 
+-	if (sta && sta->ht_cap.ht_supported) {
++	if (sta) {
++		/* starec uapsd */
++		mt76_connac_mcu_sta_uapsd(skb, vif, sta);
+ 		/* starec amsdu */
+ 		mt7915_mcu_sta_amsdu_tlv(dev, skb, vif, sta);
+ 		/* starec he */
+@@ -2768,6 +2772,11 @@ int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
+ 
+ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
+ {
++	static const u8 ch_band[] = {
++		[NL80211_BAND_2GHZ] = 0,
++		[NL80211_BAND_5GHZ] = 1,
++		[NL80211_BAND_6GHZ] = 2,
++	};
+ 	struct mt7915_dev *dev = phy->dev;
+ 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
+ 	int freq1 = chandef->center_freq1;
+@@ -2795,7 +2804,7 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
+ 		.tx_streams_num = hweight8(phy->mt76->antenna_mask),
+ 		.rx_streams = phy->mt76->antenna_mask,
+ 		.band_idx = phy->band_idx,
+-		.channel_band = chandef->chan->band,
++		.channel_band = ch_band[chandef->chan->band],
+ 	};
+ 
+ #ifdef CONFIG_NL80211_TESTMODE
+@@ -3450,6 +3459,8 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
+ 	case MT_PHY_TYPE_OFDM:
+ 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
+ 			sband = &mphy->sband_5g.sband;
++		else if (mphy->chandef.chan->band == NL80211_BAND_6GHZ)
++			sband = &mphy->sband_6g.sband;
+ 		else
+ 			sband = &mphy->sband_2g.sband;
+ 
+diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
+index 52b848d..3e6f5a3 100644
+--- a/mt7915/mt7915.h
++++ b/mt7915/mt7915.h
+@@ -225,7 +225,7 @@ struct mt7915_phy {
+ 	struct mt76_phy *mt76;
+ 	struct mt7915_dev *dev;
+ 
+-	struct ieee80211_sband_iftype_data iftype[2][NUM_NL80211_IFTYPES];
++	struct ieee80211_sband_iftype_data iftype[4][NUM_NL80211_IFTYPES];
+ 
+ 	struct ieee80211_vif *monitor_vif;
+ 
+diff --git a/mt7915/testmode.c b/mt7915/testmode.c
+index 186b546..e8bf616 100644
+--- a/mt7915/testmode.c
++++ b/mt7915/testmode.c
+@@ -286,6 +286,8 @@ mt7915_tm_set_tx_len(struct mt7915_phy *phy, u32 tx_time)
+ 	case MT76_TM_TX_MODE_OFDM:
+ 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
+ 			sband = &mphy->sband_5g.sband;
++		else if (mphy->chandef.chan->band == NL80211_BAND_6GHZ)
++			sband = &mphy->sband_6g.sband;
+ 		else
+ 			sband = &mphy->sband_2g.sband;
+ 
+@@ -654,6 +656,8 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
+ 
+ 		if (chandef->chan->band == NL80211_BAND_5GHZ)
+ 			sband = &phy->mt76->sband_5g.sband;
++		else if (chandef->chan->band == NL80211_BAND_6GHZ)
++			sband = &phy->mt76->sband_6g.sband;
+ 		else
+ 			sband = &phy->mt76->sband_2g.sband;
+ 
+-- 
+2.25.1
+

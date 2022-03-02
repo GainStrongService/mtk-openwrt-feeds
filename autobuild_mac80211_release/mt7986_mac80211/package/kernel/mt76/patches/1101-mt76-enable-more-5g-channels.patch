@@ -1,0 +1,55 @@
+From a45a4416976cd7604bf90103e24fe78150b9de6f Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Wed, 29 Sep 2021 14:03:02 +0800
+Subject: [PATCH 1101/1112] mt76: enable more 5g channels
+
+This is necessary for testmode.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ drivers/net/wireless/mediatek/mt76/mac80211.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/mac80211.c b/mac80211.c
+index 89ca644..e473227 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -45,6 +45,9 @@ static const struct ieee80211_channel mt76_channels_2ghz[] = {
+ };
+ 
+ static const struct ieee80211_channel mt76_channels_5ghz[] = {
++	CHAN5G(12, 5060),
++	CHAN5G(16, 5080),
++
+ 	CHAN5G(36, 5180),
+ 	CHAN5G(40, 5200),
+ 	CHAN5G(44, 5220),
+@@ -55,6 +58,13 @@ static const struct ieee80211_channel mt76_channels_5ghz[] = {
+ 	CHAN5G(60, 5300),
+ 	CHAN5G(64, 5320),
+ 
++	CHAN5G(68, 5340),
++	CHAN5G(80, 5400),
++	CHAN5G(84, 5420),
++	CHAN5G(88, 5440),
++	CHAN5G(92, 5460),
++	CHAN5G(96, 5480),
++
+ 	CHAN5G(100, 5500),
+ 	CHAN5G(104, 5520),
+ 	CHAN5G(108, 5540),
+@@ -75,6 +85,11 @@ static const struct ieee80211_channel mt76_channels_5ghz[] = {
+ 	CHAN5G(165, 5825),
+ 	CHAN5G(169, 5845),
+ 	CHAN5G(173, 5865),
++
++	CHAN5G(184, 4920),
++	CHAN5G(188, 4940),
++	CHAN5G(192, 4960),
++	CHAN5G(196, 4980),
+ };
+ 
+ static const struct ieee80211_channel mt76_channels_6ghz[] = {
+-- 
+2.25.1
+

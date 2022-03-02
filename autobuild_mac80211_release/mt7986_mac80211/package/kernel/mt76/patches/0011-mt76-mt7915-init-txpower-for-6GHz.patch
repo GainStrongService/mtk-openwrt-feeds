@@ -1,0 +1,122 @@
+From dc716282ac878c050c0752bc7457e8943ddd2022 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Mon, 14 Feb 2022 18:04:51 +0800
+Subject: [PATCH 11/11] mt76: mt7915: init txpower for 6GHz
+
+init txpower for 6GHz
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ .../net/wireless/mediatek/mt76/mt7915/eeprom.c   | 16 ++++++++++++----
+ .../net/wireless/mediatek/mt76/mt7915/eeprom.h   | 13 ++++++++++++-
+ drivers/net/wireless/mediatek/mt76/mt7915/init.c |  2 ++
+ 3 files changed, 26 insertions(+), 5 deletions(-)
+
+diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
+index 0aab381..69236c3 100644
+--- a/mt7915/eeprom.c
++++ b/mt7915/eeprom.c
+@@ -282,8 +282,8 @@ int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
+ 			if (!tssi_on)
+ 				target_power += eeprom[index + 1];
+ 		}
+-	} else {
+-		int group = mt7915_get_channel_group(chan->hw_value, is_7976);
++	} else if (chan->band == NL80211_BAND_5GHZ) {
++		int group = mt7915_get_channel_group_5g(chan->hw_value, is_7976);
+ 
+ 		if (is_7976) {
+ 			index = MT_EE_TX0_POWER_5G_V2 + chain_idx * 5;
+@@ -295,6 +295,12 @@ int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
+ 			if (!tssi_on)
+ 				target_power += eeprom[index + 8];
+ 		}
++	} else {
++		int group;
++
++		group = mt7915_get_channel_group_6g(chan->hw_value);
++		index = MT_EE_TX0_POWER_6G_V2 + chain_idx * 8;
++		target_power = is_7976 ? eeprom[index + group] : 0;
+ 	}
+ 
+ 	return target_power;
+@@ -309,12 +315,14 @@ s8 mt7915_eeprom_get_power_delta(struct mt7915_dev *dev, int band)
+ 
+ 	if (band == NL80211_BAND_2GHZ)
+ 		offs = is_7976 ? MT_EE_RATE_DELTA_2G_V2 : MT_EE_RATE_DELTA_2G;
+-	else
++	else if (band == NL80211_BAND_5GHZ)
+ 		offs = is_7976 ? MT_EE_RATE_DELTA_5G_V2 : MT_EE_RATE_DELTA_5G;
++	else
++		offs = is_7976 ? MT_EE_RATE_DELTA_6G_V2 : 0;
+ 
+ 	val = eeprom[offs];
+ 
+-	if (!(val & MT_EE_RATE_DELTA_EN))
++	if (!offs || !(val & MT_EE_RATE_DELTA_EN))
+ 		return 0;
+ 
+ 	delta = FIELD_GET(MT_EE_RATE_DELTA_MASK, val);
+diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
+index 4576091..7578ac6 100644
+--- a/mt7915/eeprom.h
++++ b/mt7915/eeprom.h
+@@ -25,8 +25,10 @@ enum mt7915_eeprom_field {
+ 	MT_EE_TX0_POWER_5G =	0x34b,
+ 	MT_EE_RATE_DELTA_2G_V2 = 0x7d3,
+ 	MT_EE_RATE_DELTA_5G_V2 = 0x81e,
++	MT_EE_RATE_DELTA_6G_V2 = 0x884, /* 6g fields only appear in eeprom v2 */
+ 	MT_EE_TX0_POWER_2G_V2 =	0x441,
+ 	MT_EE_TX0_POWER_5G_V2 =	0x445,
++	MT_EE_TX0_POWER_6G_V2 =	0x465,
+ 	MT_EE_ADIE_FT_VERSION =	0x9a0,
+ 
+ 	__MT_EE_MAX =		0xe00,
+@@ -103,7 +105,7 @@ enum mt7915_sku_rate_group {
+ };
+ 
+ static inline int
+-mt7915_get_channel_group(int channel, bool is_7976)
++mt7915_get_channel_group_5g(int channel, bool is_7976)
+ {
+ 	if (is_7976) {
+ 		if (channel <= 64)
+@@ -134,6 +136,15 @@ mt7915_get_channel_group(int channel, bool is_7976)
+ 	return 7;
+ }
+ 
++static inline int
++mt7915_get_channel_group_6g(int channel)
++{
++	if (channel <= 29)
++		return 0;
++
++	return DIV_ROUND_UP(channel - 29, 32);
++}
++
+ static inline bool
+ mt7915_tssi_enabled(struct mt7915_dev *dev, enum nl80211_band band)
+ {
+diff --git a/mt7915/init.c b/mt7915/init.c
+index 82bb99c..81868c5 100644
+--- a/mt7915/init.c
++++ b/mt7915/init.c
+@@ -312,6 +312,7 @@ mt7915_regd_notifier(struct wiphy *wiphy,
+ 
+ 	mt7915_init_txpower(dev, &mphy->sband_2g.sband);
+ 	mt7915_init_txpower(dev, &mphy->sband_5g.sband);
++	mt7915_init_txpower(dev, &mphy->sband_6g.sband);
+ 
+ 	mphy->dfs_state = MT_DFS_STATE_UNKNOWN;
+ 	mt7915_dfs_init_radar_detector(phy);
+@@ -561,6 +562,7 @@ static void mt7915_init_work(struct work_struct *work)
+ 	mt7915_mac_init(dev);
+ 	mt7915_init_txpower(dev, &dev->mphy.sband_2g.sband);
+ 	mt7915_init_txpower(dev, &dev->mphy.sband_5g.sband);
++	mt7915_init_txpower(dev, &dev->mphy.sband_6g.sband);
+ 	mt7915_txbf_init(dev);
+ }
+ 
+-- 
+2.25.1
+

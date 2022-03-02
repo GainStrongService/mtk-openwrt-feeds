@@ -1,0 +1,94 @@
+From e5b15e6a5f8f8ee282e818172f9b1a9cb5a63942 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Mon, 17 May 2021 11:27:17 +0800
+Subject: [PATCH 1107/1112] mt76: testmode: support to dump stats from
+ different virtual stations
+
+Support to
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ drivers/net/wireless/mediatek/mt76/testmode.c | 36 ++++++++++++++++---
+ 1 file changed, 31 insertions(+), 5 deletions(-)
+
+diff --git a/testmode.c b/testmode.c
+index 682ca3d..bb15388 100644
+--- a/testmode.c
++++ b/testmode.c
+@@ -331,8 +331,11 @@ __mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state)
+ 	struct mt76_dev *dev = phy->dev;
+ 	int err;
+ 
+-	if (prev_state == MT76_TM_STATE_TX_FRAMES)
++	if (prev_state == MT76_TM_STATE_TX_FRAMES) {
++		if (phy->test.tx_rate_mode == MT76_TM_TX_MODE_HE_MU)
++			dev->test_ops->set_state(phy, MT76_TM_STATE_IDLE);
+ 		mt76_testmode_tx_stop(phy);
++	}
+ 
+ 	if (state == MT76_TM_STATE_TX_FRAMES) {
+ 		err = mt76_testmode_tx_init(phy);
+@@ -654,6 +657,7 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
+ 	struct mt76_phy *phy = hw->priv;
+ 	struct mt76_dev *dev = phy->dev;
+ 	struct mt76_testmode_data *td = &phy->test;
++	struct mt76_testmode_sta_data *sd = &td->sd;
+ 	struct nlattr *tb[NUM_MT76_TM_ATTRS] = {};
+ 	int err = 0;
+ 	void *a;
+@@ -686,6 +690,23 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
+ 		goto out;
+ 	}
+ 
++	if (tb[MT76_TM_ATTR_AID]) {
++		struct mt76_testmode_sta *tm_sta;
++		u8 aid;
++
++		err = mt76_tm_get_u8(tb[MT76_TM_ATTR_AID], &aid, 1, 16);
++		if (err)
++			goto out;
++
++		tm_sta = mt76_testmode_aid_get_sta(phy, aid);
++		if (!tm_sta) {
++			err = -EINVAL;
++			goto out;
++		}
++
++		sd = &tm_sta->sd;
++	}
++
+ 	mt76_testmode_init_defaults(phy);
+ 
+ 	err = -EMSGSIZE;
+@@ -698,12 +719,8 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
+ 		goto out;
+ 
+ 	if (nla_put_u32(msg, MT76_TM_ATTR_TX_COUNT, td->tx_count) ||
+-	    nla_put_u32(msg, MT76_TM_ATTR_TX_LENGTH, td->tx_mpdu_len) ||
+ 	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_MODE, td->tx_rate_mode) ||
+-	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_NSS, td->tx_rate_nss) ||
+-	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_IDX, td->tx_rate_idx) ||
+ 	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_SGI, td->tx_rate_sgi) ||
+-	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_LDPC, td->tx_rate_ldpc) ||
+ 	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_STBC, td->tx_rate_stbc) ||
+ 	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_LTF) &&
+ 	     nla_put_u8(msg, MT76_TM_ATTR_TX_LTF, td->tx_ltf)) ||
+@@ -723,6 +740,15 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
+ 	     nla_put_u8(msg, MT76_TM_ATTR_FREQ_OFFSET, td->freq_offset)))
+ 		goto out;
+ 
++	if (nla_put_u8(msg, MT76_TM_ATTR_AID, sd->aid) ||
++	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_NSS, sd->tx_rate_nss) ||
++	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_IDX, sd->tx_rate_idx) ||
++	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_LDPC, sd->tx_rate_ldpc) ||
++	    nla_put_u8(msg, MT76_TM_ATTR_RU_ALLOC, sd->ru_alloc) ||
++	    nla_put_u8(msg, MT76_TM_ATTR_RU_IDX, sd->ru_idx) ||
++	    nla_put_u32(msg, MT76_TM_ATTR_TX_LENGTH, sd->tx_mpdu_len))
++		goto out;
++
+ 	if (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_POWER)) {
+ 		a = nla_nest_start(msg, MT76_TM_ATTR_TX_POWER);
+ 		if (!a)
+-- 
+2.25.1
+

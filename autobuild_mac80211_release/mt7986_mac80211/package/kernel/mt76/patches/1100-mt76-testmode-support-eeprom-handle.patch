@@ -1,0 +1,284 @@
+From b6c6afbe347c8cd3ab43d4cab07e840ecf5d3ad6 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 29 Jun 2021 14:30:44 +0800
+Subject: [PATCH 1100/1112] mt76: testmode: support eeprom handle
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ drivers/net/wireless/mediatek/mt76/mt76.h     |  1 +
+ .../net/wireless/mediatek/mt76/mt7915/init.c  |  2 +-
+ .../net/wireless/mediatek/mt76/mt7915/mcu.c   |  5 +-
+ .../wireless/mediatek/mt76/mt7915/mt7915.h    |  2 +-
+ .../wireless/mediatek/mt76/mt7915/testmode.c  | 54 +++++++++++++++++++
+ drivers/net/wireless/mediatek/mt76/testmode.c | 46 +++++++++++++++-
+ drivers/net/wireless/mediatek/mt76/testmode.h | 30 +++++++++++
+ 7 files changed, 133 insertions(+), 7 deletions(-)
+
+diff --git a/mt76.h b/mt76.h
+index 58b324c..8ad7674 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -581,6 +581,7 @@ struct mt76_testmode_ops {
+ 	int (*set_params)(struct mt76_phy *phy, struct nlattr **tb,
+ 			  enum mt76_testmode_state new_state);
+ 	int (*dump_stats)(struct mt76_phy *phy, struct sk_buff *msg);
++	int (*set_eeprom)(struct mt76_phy *phy, u32 offset, u8 *val, u8 action);
+ };
+ 
+ #define MT_TM_FW_RX_COUNT	BIT(0)
+diff --git a/mt7915/init.c b/mt7915/init.c
+index cd69174..92d57f9 100644
+--- a/mt7915/init.c
++++ b/mt7915/init.c
+@@ -569,7 +569,7 @@ static void mt7915_init_work(struct work_struct *work)
+ 	struct mt7915_dev *dev = container_of(work, struct mt7915_dev,
+ 				 init_work);
+ 
+-	mt7915_mcu_set_eeprom(dev);
++	mt7915_mcu_set_eeprom(dev, dev->flash_mode);
+ 	mt7915_mac_init(dev);
+ 	mt7915_init_txpower(dev, &dev->mphy.sband_2g.sband);
+ 	mt7915_init_txpower(dev, &dev->mphy.sband_5g.sband);
+diff --git a/mt7915/mcu.c b/mt7915/mcu.c
+index d55e9d0..2b57459 100644
+--- a/mt7915/mcu.c
++++ b/mt7915/mcu.c
+@@ -289,7 +289,6 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+ 	if (mcu_txd->ext_cid) {
+ 		mcu_txd->ext_cid_ack = 1;
+ 
+-		/* do not use Q_SET for efuse */
+ 		if (cmd & __MCU_CMD_FIELD_QUERY)
+ 			mcu_txd->set_query = MCU_Q_QUERY;
+ 		else
+@@ -2913,14 +2912,14 @@ static int mt7915_mcu_set_eeprom_flash(struct mt7915_dev *dev)
+ 	return 0;
+ }
+ 
+-int mt7915_mcu_set_eeprom(struct mt7915_dev *dev)
++int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode)
+ {
+ 	struct mt7915_mcu_eeprom req = {
+ 		.buffer_mode = EE_MODE_EFUSE,
+ 		.format = EE_FORMAT_WHOLE,
+ 	};
+ 
+-	if (dev->flash_mode)
++	if (flash_mode)
+ 		return mt7915_mcu_set_eeprom_flash(dev);
+ 
+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(EFUSE_BUFFER_MODE),
+diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
+index a8726fe..274afff 100644
+--- a/mt7915/mt7915.h
++++ b/mt7915/mt7915.h
+@@ -539,7 +539,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
+ 				   struct ieee80211_vif *vif,
+ 				   struct ieee80211_sta *sta,
+ 				   void *data, u32 field);
+-int mt7915_mcu_set_eeprom(struct mt7915_dev *dev);
++int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode);
+ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset);
+ int mt7915_mcu_get_eeprom_free_block(struct mt7915_dev *dev, u8 *block_num);
+ int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
+diff --git a/mt7915/testmode.c b/mt7915/testmode.c
+index e8bf616..2c859f6 100644
+--- a/mt7915/testmode.c
++++ b/mt7915/testmode.c
+@@ -848,8 +848,62 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
+ 	return mt7915_tm_get_rx_stats(phy, false);
+ }
+ 
++static int
++mt7915_tm_write_back_to_efuse(struct mt7915_dev *dev)
++{
++	struct mt7915_mcu_eeprom_info req = {};
++	u8 *eeprom = dev->mt76.eeprom.data;
++	int i, ret = -EINVAL;
++
++	/* prevent from damaging chip id in efuse */
++	if (mt76_chip(&dev->mt76) != get_unaligned_le16(eeprom))
++		goto out;
++
++	for (i = 0; i < MT7915_EEPROM_SIZE; i += MT76_TM_EEPROM_BLOCK_SIZE) {
++		req.addr = cpu_to_le32(i);
++		memcpy(&req.data, eeprom + i, MT76_TM_EEPROM_BLOCK_SIZE);
++
++		ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(EFUSE_ACCESS),
++					&req, sizeof(req), true);
++		if (ret)
++			return ret;
++	}
++
++out:
++	return ret;
++}
++
++static int
++mt7915_tm_set_eeprom(struct mt76_phy *mphy, u32 offset, u8 *val, u8 action)
++{
++	struct mt7915_phy *phy = mphy->priv;
++	struct mt7915_dev *dev = phy->dev;
++	u8 *eeprom = dev->mt76.eeprom.data;
++	int ret = 0;
++
++	if (offset >= MT7915_EEPROM_SIZE)
++		return -EINVAL;
++
++	switch (action) {
++	case MT76_TM_EEPROM_ACTION_UPDATE_DATA:
++		memcpy(eeprom + offset, val, MT76_TM_EEPROM_BLOCK_SIZE);
++		break;
++	case MT76_TM_EEPROM_ACTION_UPDATE_BUFFER_MODE:
++		ret = mt7915_mcu_set_eeprom(dev, true);
++		break;
++	case MT76_TM_EEPROM_ACTION_WRITE_TO_EFUSE:
++		ret = mt7915_tm_write_back_to_efuse(dev);
++		break;
++	default:
++		break;
++	}
++
++	return ret;
++}
++
+ const struct mt76_testmode_ops mt7915_testmode_ops = {
+ 	.set_state = mt7915_tm_set_state,
+ 	.set_params = mt7915_tm_set_params,
+ 	.dump_stats = mt7915_tm_dump_stats,
++	.set_eeprom = mt7915_tm_set_eeprom,
+ };
+diff --git a/testmode.c b/testmode.c
+index e6d1f70..1fbca66 100644
+--- a/testmode.c
++++ b/testmode.c
+@@ -402,6 +402,44 @@ mt76_tm_get_u8(struct nlattr *attr, u8 *dest, u8 min, u8 max)
+ 	return 0;
+ }
+ 
++static int
++mt76_testmode_set_eeprom(struct mt76_phy *phy, struct nlattr **tb)
++{
++	struct mt76_dev *dev = phy->dev;
++	u8 action, val[MT76_TM_EEPROM_BLOCK_SIZE];
++	u32 offset = 0;
++	int err = -EINVAL;
++
++	if (!dev->test_ops->set_eeprom)
++		return -EOPNOTSUPP;
++
++	if (mt76_tm_get_u8(tb[MT76_TM_ATTR_EEPROM_ACTION], &action,
++			   0, MT76_TM_EEPROM_ACTION_MAX))
++		goto out;
++
++	if (tb[MT76_TM_ATTR_EEPROM_OFFSET]) {
++		struct nlattr *cur;
++		int rem, idx = 0;
++
++		offset = nla_get_u32(tb[MT76_TM_ATTR_EEPROM_OFFSET]);
++		if (!!(offset % MT76_TM_EEPROM_BLOCK_SIZE) ||
++		    !tb[MT76_TM_ATTR_EEPROM_VAL])
++			goto out;
++
++		nla_for_each_nested(cur, tb[MT76_TM_ATTR_EEPROM_VAL], rem) {
++			if (nla_len(cur) != 1 || idx >= ARRAY_SIZE(val))
++				goto out;
++
++			val[idx++] = nla_get_u8(cur);
++		}
++	}
++
++	err = dev->test_ops->set_eeprom(phy, offset, val, action);
++
++out:
++	return err;
++}
++
+ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 		      void *data, int len)
+ {
+@@ -425,6 +463,11 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 
+ 	mutex_lock(&dev->mutex);
+ 
++	if (tb[MT76_TM_ATTR_EEPROM_ACTION]) {
++		err = mt76_testmode_set_eeprom(phy, tb);
++		goto out;
++	}
++
+ 	if (tb[MT76_TM_ATTR_RESET]) {
+ 		mt76_testmode_set_state(phy, MT76_TM_STATE_OFF);
+ 		memset(td, 0, sizeof(*td));
+@@ -484,8 +527,7 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 
+ 	if (tb[MT76_TM_ATTR_TX_POWER]) {
+ 		struct nlattr *cur;
+-		int idx = 0;
+-		int rem;
++		int rem, idx = 0;
+ 
+ 		nla_for_each_nested(cur, tb[MT76_TM_ATTR_TX_POWER], rem) {
+ 			if (nla_len(cur) != 1 ||
+diff --git a/testmode.h b/testmode.h
+index 8961326..5900c76 100644
+--- a/testmode.h
++++ b/testmode.h
+@@ -6,6 +6,7 @@
+ #define __MT76_TESTMODE_H
+ 
+ #define MT76_TM_TIMEOUT	10
++#define MT76_TM_EEPROM_BLOCK_SIZE	16
+ 
+ /**
+  * enum mt76_testmode_attr - testmode attributes inside NL80211_ATTR_TESTDATA
+@@ -47,6 +48,13 @@
+  * @MT76_TM_ATTR_DRV_DATA: driver specific netlink attrs (nested)
+  *
+  * @MT76_TM_ATTR_MAC_ADDRS: array of nested MAC addresses (nested)
++ *
++ * @MT76_TM_ATTR_EEPROM_ACTION: eeprom setting actions
++ * 	(u8, see &enum mt76_testmode_eeprom_action)
++ * @MT76_TM_ATTR_EEPROM_OFFSET: offset of eeprom data block for writing (u32)
++ * @MT76_TM_ATTR_EEPROM_VAL: values for writing into a 16-byte data block
++ * 	(nested, u8 attrs)
++ *
+  */
+ enum mt76_testmode_attr {
+ 	MT76_TM_ATTR_UNSPEC,
+@@ -85,6 +93,10 @@ enum mt76_testmode_attr {
+ 
+ 	MT76_TM_ATTR_MAC_ADDRS,
+ 
++	MT76_TM_ATTR_EEPROM_ACTION,
++	MT76_TM_ATTR_EEPROM_OFFSET,
++	MT76_TM_ATTR_EEPROM_VAL,
++
+ 	/* keep last */
+ 	NUM_MT76_TM_ATTRS,
+ 	MT76_TM_ATTR_MAX = NUM_MT76_TM_ATTRS - 1,
+@@ -198,4 +210,22 @@ enum mt76_testmode_tx_mode {
+ 
+ extern const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS];
+ 
++/**
++ * enum mt76_testmode_eeprom_action - eeprom setting actions
++ *
++ * @MT76_TM_EEPROM_ACTION_UPDATE_DATA: update rf values to specific
++ * 	eeprom data block
++ * @MT76_TM_EEPROM_ACTION_UPDATE_BUFFER_MODE: send updated eeprom data to fw
++ * @MT76_TM_EEPROM_ACTION_WRITE_TO_EFUSE: write eeprom data back to efuse
++ */
++enum mt76_testmode_eeprom_action {
++	MT76_TM_EEPROM_ACTION_UPDATE_DATA,
++	MT76_TM_EEPROM_ACTION_UPDATE_BUFFER_MODE,
++	MT76_TM_EEPROM_ACTION_WRITE_TO_EFUSE,
++
++	/* keep last */
++	NUM_MT76_TM_EEPROM_ACTION,
++	MT76_TM_EEPROM_ACTION_MAX = NUM_MT76_TM_EEPROM_ACTION - 1,
++};
++
+ #endif
+-- 
+2.25.1
+

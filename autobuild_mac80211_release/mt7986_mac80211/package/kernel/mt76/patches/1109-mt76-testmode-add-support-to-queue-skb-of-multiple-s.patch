@@ -1,0 +1,144 @@
+From 19e0036562d574c6ffe6a47790dbfa953b35050c Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 11 May 2021 15:17:31 +0800
+Subject: [PATCH 1109/1112] mt76: testmode: add support to queue skb of
+ multiple stations
+
+Rework queue skb flow to support sending packet for multiple virtual
+stations.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ drivers/net/wireless/mediatek/mt76/mt76.h     |  1 +
+ drivers/net/wireless/mediatek/mt76/testmode.c | 70 ++++++++++++++++---
+ 2 files changed, 63 insertions(+), 8 deletions(-)
+
+diff --git a/mt76.h b/mt76.h
+index b5f1367..4b502c6 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -642,6 +642,7 @@ struct mt76_testmode_data {
+ 	u8 off_ch_scan_path;
+ 
+ 	struct mt76_wcid *tm_wcid[MT76_TM_MAX_STA_NUM + 1];
++	u8 cur_aid;
+ 	u16 tm_sta_mask;
+ 	union {
+ 		struct mt76_testmode_sta_data sd;
+diff --git a/testmode.c b/testmode.c
+index 0f93338..9da490c 100644
+--- a/testmode.c
++++ b/testmode.c
+@@ -25,18 +25,18 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
+ };
+ EXPORT_SYMBOL_GPL(mt76_tm_policy);
+ 
+-void mt76_testmode_tx_pending(struct mt76_phy *phy)
++static u16
++mt76_testmode_queue_tx(struct mt76_phy *phy, struct mt76_wcid *wcid,
++		       struct sk_buff *skb, u32 limit)
+ {
+ 	struct mt76_testmode_data *td = &phy->test;
+ 	struct mt76_dev *dev = phy->dev;
+-	struct mt76_wcid *wcid = &dev->global_wcid;
+-	struct sk_buff *skb = td->tx_skb;
+ 	struct mt76_queue *q;
+-	u16 tx_queued_limit;
++	u16 tx_queued_limit, count = 0;
+ 	int qid;
+ 
+-	if (!skb || !td->tx_pending)
+-		return;
++	if (!skb)
++		return 0;
+ 
+ 	qid = skb_get_queue_mapping(skb);
+ 	q = phy->q_tx[qid];
+@@ -45,7 +45,7 @@ void mt76_testmode_tx_pending(struct mt76_phy *phy)
+ 
+ 	spin_lock_bh(&q->lock);
+ 
+-	while (td->tx_pending > 0 &&
++	while (count < limit &&
+ 	       td->tx_queued - td->tx_done < tx_queued_limit &&
+ 	       q->queued < q->ndesc / 2) {
+ 		int ret;
+@@ -55,13 +55,56 @@ void mt76_testmode_tx_pending(struct mt76_phy *phy)
+ 		if (ret < 0)
+ 			break;
+ 
+-		td->tx_pending--;
+ 		td->tx_queued++;
++		count++;
+ 	}
+ 
+ 	dev->queue_ops->kick(dev, q);
+ 
+ 	spin_unlock_bh(&q->lock);
++
++	return count;
++}
++
++void mt76_testmode_tx_pending(struct mt76_phy *phy)
++{
++	struct mt76_testmode_data *td = &phy->test;
++	u16 count;
++
++	if (!td->tx_pending)
++		return;
++
++	if (!mt76_testmode_has_sta(phy)) {
++		count = mt76_testmode_queue_tx(phy, &phy->dev->global_wcid,
++					       td->tx_skb, td->tx_pending);
++		td->tx_pending -= count;
++
++		return;
++	}
++
++	while (true) {
++		struct mt76_testmode_sta *tm_sta;
++		struct mt76_wcid *wcid;
++		u32 limit, per_sta_cnt = 1;
++
++		if (td->tx_rate_mode != MT76_TM_TX_MODE_HE_MU)
++			per_sta_cnt = td->tx_count / hweight16(phy->test.tm_sta_mask);
++
++		limit = td->tx_pending % per_sta_cnt;
++		if (limit == 0)
++			limit = per_sta_cnt;
++
++		tm_sta = mt76_testmode_aid_get_sta(phy, td->cur_aid);
++		wcid = td->tm_wcid[td->cur_aid];
++		count = mt76_testmode_queue_tx(phy, wcid, tm_sta->tx_skb, limit);
++
++		td->tx_pending -= count;
++
++		if (td->tx_pending && (td->tx_pending % per_sta_cnt == 0))
++			td->cur_aid = ffs(td->tm_sta_mask >> td->cur_aid) + td->cur_aid;
++		else
++			break;
++	}
+ }
+ 
+ static u32
+@@ -318,6 +361,17 @@ mt76_testmode_tx_start(struct mt76_phy *phy)
+ 	td->tx_queued = 0;
+ 	td->tx_done = 0;
+ 	td->tx_pending = td->tx_count;
++
++	if (mt76_testmode_has_sta(phy)) {
++		td->cur_aid = ffs(td->tm_sta_mask);
++
++		/* The actual tx count of MU packets will be pass to FW
++		 * by a mcu command in testmode.
++		 */
++		if (td->tx_rate_mode == MT76_TM_TX_MODE_HE_MU)
++			td->tx_pending = hweight16(phy->test.tm_sta_mask);
++	}
++
+ 	mt76_worker_schedule(&dev->tx_worker);
+ }
+ 
+-- 
+2.25.1
+

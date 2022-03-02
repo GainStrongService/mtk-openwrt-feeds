@@ -1,0 +1,27 @@
+From 628ae3efe19f29dea777d17a8a7c72cc924ec9b9 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Mon, 24 Jan 2022 16:30:36 +0800
+Subject: [PATCH 01/11] mt76: mt7915: fix TGID field in tx descriptor
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ drivers/net/wireless/mediatek/mt76/mt7915/mac.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index 06186c0..268b7f9 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -1217,8 +1217,7 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
+ 	      FIELD_PREP(MT_TXD1_WLAN_IDX, wcid->idx) |
+ 	      FIELD_PREP(MT_TXD1_OWN_MAC, omac_idx);
+ 
+-	if ((ext_phy || band_idx) &&
+-	    q_idx >= MT_LMAC_ALTX0 && q_idx <= MT_LMAC_BCN0)
++	if (ext_phy || band_idx)
+ 		val |= MT_TXD1_TGID;
+ 
+ 	txwi[1] = cpu_to_le32(val);
+-- 
+2.25.1
+

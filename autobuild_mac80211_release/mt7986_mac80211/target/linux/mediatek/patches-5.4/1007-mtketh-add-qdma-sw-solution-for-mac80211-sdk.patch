@@ -1,0 +1,25 @@
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index 991558dd..6b1ce272 100755
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -23,6 +23,7 @@
+ 
+ #include "mtk_eth_soc.h"
+ #include "mtk_eth_dbg.h"
++#include "mtk_hnat/hnat.h"
+ 
+ #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+ #include "mtk_hnat/nf_hnat_mtk.h"
+@@ -3590,6 +3591,12 @@ static int mtk_probe(struct platform_device *pdev)
+ 
+ 	platform_set_drvdata(pdev, eth);
+ 
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++	mtk_w32(eth, 0x00000404, MTK_QTX_CFG(MTK_QDMA_GMAC2_QID));
++	mtk_w32(eth, 0x40000000, MTK_QTX_SCH(MTK_QDMA_GMAC2_QID));
++	mtk_w32(eth, 0x80008000, QDMA_TX_4SCH_BASE(0));
++#endif
++
+ 	return 0;
+ 
+ err_deinit_mdio:

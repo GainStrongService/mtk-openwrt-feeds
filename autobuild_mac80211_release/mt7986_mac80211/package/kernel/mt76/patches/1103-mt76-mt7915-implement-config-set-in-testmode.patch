@@ -1,0 +1,87 @@
+From 63de755813ec9d82c785b4d70c4f59d5fb00ca69 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 4 Jun 2021 18:25:21 +0800
+Subject: [PATCH 1103/1112] mt76: mt7915: implement config set in testmode
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ .../net/wireless/mediatek/mt76/mt7915/mcu.h   |  4 +++
+ .../wireless/mediatek/mt76/mt7915/testmode.c  | 26 +++++++++++++++++++
+ 2 files changed, 30 insertions(+)
+
+diff --git a/mt7915/mcu.h b/mt7915/mcu.h
+index c15f89b..4b78468 100644
+--- a/mt7915/mcu.h
++++ b/mt7915/mcu.h
+@@ -27,6 +27,10 @@ struct mt7915_mcu_txd {
+ 
+ enum {
+ 	MCU_ATE_SET_TRX = 0x1,
++	MCU_ATE_SET_TSSI = 0x5,
++	MCU_ATE_SET_DPD = 0x6,
++	MCU_ATE_SET_RATE_POWER_OFFSET = 0x7,
++	MCU_ATE_SET_THERMAL_COMP = 0x8,
+ 	MCU_ATE_SET_FREQ_OFFSET = 0xa,
+ 	MCU_ATE_SET_PHY_COUNT = 0x11,
+ 	MCU_ATE_SET_SLOT_TIME = 0x13,
+diff --git a/mt7915/testmode.c b/mt7915/testmode.c
+index 2c859f6..98431d6 100644
+--- a/mt7915/testmode.c
++++ b/mt7915/testmode.c
+@@ -9,6 +9,7 @@
+ enum {
+ 	TM_CHANGED_TXPOWER,
+ 	TM_CHANGED_FREQ_OFFSET,
++	TM_CHANGED_CFG,
+ 
+ 	/* must be last */
+ 	NUM_TM_CHANGED
+@@ -17,6 +18,7 @@ enum {
+ static const u8 tm_change_map[] = {
+ 	[TM_CHANGED_TXPOWER] = MT76_TM_ATTR_TX_POWER,
+ 	[TM_CHANGED_FREQ_OFFSET] = MT76_TM_ATTR_FREQ_OFFSET,
++	[TM_CHANGED_CFG] = MT76_TM_ATTR_CFG,
+ };
+ 
+ struct reg_band {
+@@ -182,6 +184,28 @@ mt7915_tm_set_tam_arb(struct mt7915_phy *phy, bool enable, bool mu)
+ 	return mt7915_mcu_set_muru_ctrl(dev, MURU_SET_ARB_OP_MODE, op_mode);
+ }
+ 
++static int
++mt7915_tm_set_cfg(struct mt7915_phy *phy)
++{
++	static const u8 cfg_cmd[] = {
++		[MT76_TM_CFG_TSSI] = MCU_ATE_SET_TSSI,
++		[MT76_TM_CFG_DPD] = MCU_ATE_SET_DPD,
++		[MT76_TM_CFG_RATE_POWER_OFFSET] = MCU_ATE_SET_RATE_POWER_OFFSET,
++		[MT76_TM_CFG_THERMAL_COMP] = MCU_ATE_SET_THERMAL_COMP,
++	};
++	struct mt76_testmode_data *td = &phy->mt76->test;
++	struct mt7915_dev *dev = phy->dev;
++	struct mt7915_tm_cmd req = {
++		.testmode_en = !(phy->mt76->test.state == MT76_TM_STATE_OFF),
++		.param_idx = cfg_cmd[td->cfg.type],
++		.param.cfg.enable = td->cfg.enable,
++		.param.cfg.band = phy != &dev->phy,
++	};
++
++	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(ATE_CTRL), &req,
++				 sizeof(req), false);
++}
++
+ static int
+ mt7915_tm_set_wmm_qid(struct mt7915_dev *dev, u8 qid, u8 aifs, u8 cw_min,
+ 		      u16 cw_max, u16 txop)
+@@ -727,6 +751,8 @@ mt7915_tm_update_params(struct mt7915_phy *phy, u32 changed)
+ 		mt7915_tm_set_freq_offset(phy, en, en ? td->freq_offset : 0);
+ 	if (changed & BIT(TM_CHANGED_TXPOWER))
+ 		mt7915_tm_set_tx_power(phy);
++	if (changed & BIT(TM_CHANGED_CFG))
++		mt7915_tm_set_cfg(phy);
+ }
+ 
+ static int
+-- 
+2.25.1
+

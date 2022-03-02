@@ -1,0 +1,151 @@
+From f83177be8bfcc35eb7e6a1e7742175d27435ce82 Mon Sep 17 00:00:00 2001
+From: MeiChia Chiu <meichia.chiu@mediatek.com>
+Date: Wed, 9 Feb 2022 15:43:19 +0800
+Subject: [PATCH 09/11] mt76: fix mt76 tlv in 6GHz
+
+[Description]
+1. Fix mt76 STA_REC/WTBL tlv
+2. Fix Tx BA issue
+---
+ .../wireless/mediatek/mt76/mt76_connac_mcu.c  | 30 +++++++++++++++----
+ .../net/wireless/mediatek/mt76/mt7915/mac.c   |  2 +-
+ .../net/wireless/mediatek/mt76/mt7915/mcu.c   | 23 ++++++++++++++
+ 3 files changed, 48 insertions(+), 7 deletions(-)
+
+diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
+index 0a646ae..eac096c 100644
+--- a/mt76_connac_mcu.c
++++ b/mt76_connac_mcu.c
+@@ -905,18 +905,28 @@ void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
+ 	struct tlv *tlv;
+ 	u32 flags = 0;
+ 
+-	if (sta->ht_cap.ht_supported) {
++	if (sta->ht_cap.ht_supported || sta->he_6ghz_capa.capa) {
+ 		tlv = mt76_connac_mcu_add_nested_tlv(skb, WTBL_HT, sizeof(*ht),
+ 						     wtbl_tlv, sta_wtbl);
+ 		ht = (struct wtbl_ht *)tlv;
+ 		ht->ldpc = ldpc &&
+ 			   !!(sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING);
+-		ht->af = sta->ht_cap.ampdu_factor;
+-		ht->mm = sta->ht_cap.ampdu_density;
++
++		if (sta->ht_cap.ht_supported) {
++			ht->af = sta->ht_cap.ampdu_factor;
++			ht->mm = sta->ht_cap.ampdu_density;
++		}
++		else {
++			ht->af = FIELD_GET(IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP,
++					   sta->he_6ghz_capa.capa);
++			ht->mm = FIELD_GET(IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START,
++					   sta->he_6ghz_capa.capa);
++		}
++
+ 		ht->ht = true;
+ 	}
+ 
+-	if (sta->vht_cap.vht_supported) {
++	if (sta->vht_cap.vht_supported || sta->he_6ghz_capa.capa) {
+ 		struct wtbl_vht *vht;
+ 		u8 af;
+ 
+@@ -1241,7 +1251,7 @@ u8 mt76_connac_get_phy_mode(struct mt76_phy *phy, struct ieee80211_vif *vif,
+ 
+ 		if (he_cap && he_cap->has_he)
+ 			mode |= PHY_MODE_AX_24G;
+-	} else if (band == NL80211_BAND_5GHZ || band == NL80211_BAND_6GHZ) {
++	} else if (band == NL80211_BAND_5GHZ) {
+ 		mode |= PHY_MODE_A;
+ 
+ 		if (ht_cap->ht_supported)
+@@ -1250,8 +1260,16 @@ u8 mt76_connac_get_phy_mode(struct mt76_phy *phy, struct ieee80211_vif *vif,
+ 		if (vht_cap->vht_supported)
+ 			mode |= PHY_MODE_AC;
+ 
+-		if (he_cap && he_cap->has_he && band == NL80211_BAND_5GHZ)
++		if (he_cap && he_cap->has_he)
+ 			mode |= PHY_MODE_AX_5G;
++	} else if (band == NL80211_BAND_6GHZ) {
++		mode |= PHY_MODE_A;
++
++		if (he_cap && he_cap->has_he) {
++			mode |= PHY_MODE_AN;
++			mode |= PHY_MODE_AC;
++			mode |= PHY_MODE_AX_5G;
++		}
+ 	}
+ 
+ 	return mode;
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index b7e7cd4..261861a 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -1354,7 +1354,7 @@ mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
+ 	u16 fc, tid;
+ 	u32 val;
+ 
+-	if (!sta || !sta->ht_cap.ht_supported)
++	if (!sta || !(sta->ht_cap.ht_supported || sta->he_cap.has_he))
+ 		return;
+ 
+ 	tid = FIELD_GET(MT_TXD1_TID, le32_to_cpu(txwi[1]));
+diff --git a/mt7915/mcu.c b/mt7915/mcu.c
+index 8eb48fa..15580f0 100644
+--- a/mt7915/mcu.c
++++ b/mt7915/mcu.c
+@@ -1538,6 +1538,7 @@ mt7915_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7915_dev *dev,
+ 	struct tlv *tlv;
+ 	u32 supp_rate = sta->supp_rates[band];
+ 	u32 cap = sta->wme ? STA_CAP_WMM : 0;
++	bool is_6ghz = band == NL80211_BAND_6GHZ;
+ 
+ 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_RA, sizeof(*ra));
+ 	ra = (struct sta_rec_ra *)tlv;
+@@ -1617,8 +1618,25 @@ mt7915_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7915_dev *dev,
+ 	}
+ 
+ 	if (sta->he_cap.has_he) {
++		u8 *phy_cap = sta->he_cap.he_cap_elem.phy_cap_info;
++
+ 		ra->supp_mode |= MODE_HE;
+ 		cap |= STA_CAP_HE;
++
++		if(is_6ghz) {
++			ra->af = FIELD_GET(IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP,
++					   sta->he_6ghz_capa.capa);
++			ra->mmps_mode = FIELD_GET(IEEE80211_HE_6GHZ_CAP_SM_PS,
++						  sta->he_6ghz_capa.capa);
++			ra->phy.type = ffs(MODE_HE);
++			ra->phy.stbc = 1;
++			ra->phy.sgi = 1;
++			ra->phy.ldpc = (mvif->cap.ldpc && !!(phy_cap[1] &
++					  IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD));
++			ra->phy.mcs = 9;
++			ra->phy.nss = sta->rx_nss;
++		}
++
+ 	}
+ 
+ 	ra->sta_cap = cpu_to_le32(cap);
+@@ -1858,6 +1876,8 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
+ 	const struct ieee80211_vht_cap *vht;
+ 	const struct ieee80211_ht_cap *ht;
+ 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
++	enum nl80211_band band = phy->mt76->chandef.chan->band;
++	bool is_6ghz = band == NL80211_BAND_6GHZ;
+ 	const u8 *ie;
+ 	u32 len, bc;
+ 
+@@ -1921,6 +1941,9 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
+ 		vc->he_mu_ebfer =
+ 			HE_PHY(CAP4_MU_BEAMFORMER, he->phy_cap_info[4]) &&
+ 			HE_PHY(CAP4_MU_BEAMFORMER, pe->phy_cap_info[4]);
++
++		if (is_6ghz)
++			vc->ldpc |= HE_PHY(CAP1_LDPC_CODING_IN_PAYLOAD, pe->phy_cap_info[1]);
+ 	}
+ }
+ 
+-- 
+2.25.1
+

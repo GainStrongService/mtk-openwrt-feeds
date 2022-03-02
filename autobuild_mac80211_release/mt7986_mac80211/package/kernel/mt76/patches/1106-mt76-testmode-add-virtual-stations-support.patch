@@ -1,0 +1,224 @@
+From ced1d19944f5da249dfacc0a4ef3d5616efc4f87 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Mon, 10 May 2021 20:50:43 +0800
+Subject: [PATCH 1106/1112] mt76: testmode: add virtual stations support
+
+Introduce a virtual station struct mt76_testmode_sta for the
+preparation of HE-MU and RU setting support in testmode.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ drivers/net/wireless/mediatek/mt76/mt76.h     | 103 +++++++++++++++---
+ drivers/net/wireless/mediatek/mt76/testmode.c |   6 +-
+ drivers/net/wireless/mediatek/mt76/testmode.h |   5 +
+ drivers/net/wireless/mediatek/mt76/tx.c       |   3 +-
+ 4 files changed, 99 insertions(+), 18 deletions(-)
+
+diff --git a/mt76.h b/mt76.h
+index ab9482c..ce4a098 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -586,6 +586,22 @@ struct mt76_testmode_ops {
+ 
+ #define MT_TM_FW_RX_COUNT	BIT(0)
+ 
++struct mt76_testmode_sta_data {
++	u16 tx_mpdu_len;
++	u8 tx_rate_idx;
++	u8 tx_rate_nss;
++	u8 tx_rate_ldpc;
++
++	u8 aid;
++	u8 ru_alloc;
++	u8 ru_idx;
++};
++
++struct mt76_testmode_sta {
++	struct sk_buff *tx_skb;
++	struct mt76_testmode_sta_data sd;
++};
++
+ struct mt76_testmode_data {
+ 	enum mt76_testmode_state state;
+ 
+@@ -593,13 +609,9 @@ struct mt76_testmode_data {
+ 	struct sk_buff *tx_skb;
+ 
+ 	u32 tx_count;
+-	u16 tx_mpdu_len;
+ 
+ 	u8 tx_rate_mode;
+-	u8 tx_rate_idx;
+-	u8 tx_rate_nss;
+ 	u8 tx_rate_sgi;
+-	u8 tx_rate_ldpc;
+ 	u8 tx_rate_stbc;
+ 	u8 tx_ltf;
+ 
+@@ -629,6 +641,22 @@ struct mt76_testmode_data {
+ 	u8 off_ch_scan_bw;
+ 	u8 off_ch_scan_path;
+ 
++	struct mt76_wcid *tm_wcid[MT76_TM_MAX_STA_NUM + 1];
++	u16 tm_sta_mask;
++	union {
++		struct mt76_testmode_sta_data sd;
++		struct {
++			u16 tx_mpdu_len;
++			u8 tx_rate_idx;
++			u8 tx_rate_nss;
++			u8 tx_rate_ldpc;
++
++			u8 aid;
++			u8 ru_alloc;
++			u8 ru_idx;
++		};
++	};
++
+ 	u32 tx_pending;
+ 	u32 tx_queued;
+ 	u16 tx_queued_limit;
+@@ -1107,22 +1135,69 @@ static inline bool mt76_testmode_enabled(struct mt76_phy *phy)
+ #endif
+ }
+ 
++#ifdef CONFIG_NL80211_TESTMODE
++static inline bool
++mt76_testmode_has_sta(struct mt76_phy *phy)
++{
++	return phy->test.tm_sta_mask != 0;
++}
++
++static inline struct mt76_testmode_sta *
++mt76_testmode_aid_get_sta(struct mt76_phy *phy, u8 aid)
++{
++	struct mt76_wcid *wcid = phy->test.tm_wcid[aid];
++
++	if (!wcid || !aid)
++		return NULL;
++
++	return (struct mt76_testmode_sta *)((u8 *)wcid + phy->hw->sta_data_size);
++}
++
++#define mt76_testmode_for_each_sta(phy, aid, tm_sta)	\
++	for (aid = 1, tm_sta = mt76_testmode_aid_get_sta(phy, 1);	\
++	     aid <= hweight16(phy->test.tm_sta_mask);	\
++	     aid = phy->test.tm_sta_mask >> aid ?	\
++		   ffs(phy->test.tm_sta_mask >> aid) + aid :	\
++		   aid + 1,	\
++	     tm_sta = mt76_testmode_aid_get_sta(phy, aid))
++
++static inline bool
++__mt76_testmode_check_skb(struct mt76_phy *phy, struct sk_buff *skb)
++{
++	struct mt76_testmode_sta *tm_sta;
++	int i;
++
++	if (!mt76_testmode_has_sta(phy))
++		return false;
++
++	mt76_testmode_for_each_sta(phy, i, tm_sta) {
++		if (tm_sta->tx_skb == skb)
++			return true;
++	}
++
++	return false;
++}
++
+ static inline bool mt76_is_testmode_skb(struct mt76_dev *dev,
+ 					struct sk_buff *skb,
+ 					struct ieee80211_hw **hw)
+ {
+-#ifdef CONFIG_NL80211_TESTMODE
+-	if (skb == dev->phy.test.tx_skb)
+-		*hw = dev->phy.hw;
+-	else if (dev->phy2 && skb == dev->phy2->test.tx_skb)
+-		*hw = dev->phy2->hw;
+-	else
+-		return false;
+-	return true;
+-#else
++	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
++	struct mt76_phy *phy = &dev->phy;
++
++	if ((info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY) && dev->phy2)
++		phy = dev->phy2;
++
++	if (mt76_testmode_enabled(phy) &&
++	    (skb == phy->test.tx_skb ||
++	    __mt76_testmode_check_skb(phy, skb))) {
++		*hw = phy->hw;
++		return true;
++	}
++
+ 	return false;
+-#endif
+ }
++#endif
+ 
+ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb);
+ void mt76_tx(struct mt76_phy *dev, struct ieee80211_sta *sta,
+diff --git a/testmode.c b/testmode.c
+index 2376e00..682ca3d 100644
+--- a/testmode.c
++++ b/testmode.c
+@@ -382,7 +382,6 @@ int mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state
+ 	}
+ 
+ 	return __mt76_testmode_set_state(phy, state);
+-
+ }
+ EXPORT_SYMBOL(mt76_testmode_set_state);
+ 
+@@ -495,7 +494,10 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_DUTY_CYCLE],
+ 			   &td->tx_duty_cycle, 0, 99) ||
+ 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_POWER_CONTROL],
+-			   &td->tx_power_control, 0, 1))
++			   &td->tx_power_control, 0, 1) ||
++	    mt76_tm_get_u8(tb[MT76_TM_ATTR_AID], &td->aid, 0, 16) ||
++	    mt76_tm_get_u8(tb[MT76_TM_ATTR_RU_ALLOC], &td->ru_alloc, 0, 0xff) ||
++	    mt76_tm_get_u8(tb[MT76_TM_ATTR_RU_IDX], &td->ru_idx, 0, 68))
+ 		goto out;
+ 
+ 	if (tb[MT76_TM_ATTR_TX_LENGTH]) {
+diff --git a/testmode.h b/testmode.h
+index 0fc0ddd..b360d7a 100644
+--- a/testmode.h
++++ b/testmode.h
+@@ -7,6 +7,7 @@
+ 
+ #define MT76_TM_TIMEOUT	10
+ #define MT76_TM_EEPROM_BLOCK_SIZE	16
++#define MT76_TM_MAX_STA_NUM	16
+ 
+ /**
+  * enum mt76_testmode_attr - testmode attributes inside NL80211_ATTR_TESTDATA
+@@ -111,6 +112,10 @@ enum mt76_testmode_attr {
+ 	MT76_TM_ATTR_OFF_CH_SCAN_BW,
+ 	MT76_TM_ATTR_OFF_CH_SCAN_PATH,
+ 
++	MT76_TM_ATTR_AID,
++	MT76_TM_ATTR_RU_ALLOC,
++	MT76_TM_ATTR_RU_IDX,
++
+ 	/* keep last */
+ 	NUM_MT76_TM_ATTRS,
+ 	MT76_TM_ATTR_MAX = NUM_MT76_TM_ATTRS - 1,
+diff --git a/tx.c b/tx.c
+index 6b8c9dc..ca5e6d9 100644
+--- a/tx.c
++++ b/tx.c
+@@ -245,8 +245,7 @@ void __mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *
+ 	if (mt76_is_testmode_skb(dev, skb, &hw)) {
+ 		struct mt76_phy *phy = hw->priv;
+ 
+-		if (skb == phy->test.tx_skb)
+-			phy->test.tx_done++;
++		phy->test.tx_done++;
+ 		if (phy->test.tx_queued == phy->test.tx_done)
+ 			wake_up(&dev->tx_wait);
+ 
+-- 
+2.25.1
+

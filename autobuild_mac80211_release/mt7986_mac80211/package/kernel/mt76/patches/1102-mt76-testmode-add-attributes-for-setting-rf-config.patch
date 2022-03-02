@@ -1,0 +1,106 @@
+From fdf988d26cbea1d432e6cfb9a0ca82c160101771 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 4 Jun 2021 18:22:07 +0800
+Subject: [PATCH 1102/1112] mt76: testmode: add attributes for setting rf
+ config
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ drivers/net/wireless/mediatek/mt76/mt76.h     |  5 ++++
+ drivers/net/wireless/mediatek/mt76/testmode.c | 17 +++++++++++++-
+ drivers/net/wireless/mediatek/mt76/testmode.h | 23 +++++++++++++++++++
+ 3 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/mt76.h b/mt76.h
+index 8ad7674..157fd6d 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -619,6 +619,11 @@ struct mt76_testmode_data {
+ 
+ 	u8 flag;
+ 
++	struct {
++		u8 type;
++		u8 enable;
++	} cfg;
++
+ 	u32 tx_pending;
+ 	u32 tx_queued;
+ 	u16 tx_queued_limit;
+diff --git a/testmode.c b/testmode.c
+index 1fbca66..f31e124 100644
+--- a/testmode.c
++++ b/testmode.c
+@@ -547,7 +547,22 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 			if (nla_len(cur) != ETH_ALEN || idx >= 3)
+ 				goto out;
+ 
+-			memcpy(td->addr[idx], nla_data(cur), ETH_ALEN);
++			memcpy(td->addr[idx++], nla_data(cur), ETH_ALEN);
++		}
++	}
++
++	if (tb[MT76_TM_ATTR_CFG]) {
++		struct nlattr *cur;
++		int rem, idx = 0;
++
++		nla_for_each_nested(cur, tb[MT76_TM_ATTR_CFG], rem) {
++			if (nla_len(cur) != 1 || idx >= 2)
++				goto out;
++
++			if (idx == 0)
++				td->cfg.type = nla_get_u8(cur);
++			else
++				td->cfg.enable = nla_get_u8(cur);
+ 			idx++;
+ 		}
+ 	}
+diff --git a/testmode.h b/testmode.h
+index 5900c76..c469ce6 100644
+--- a/testmode.h
++++ b/testmode.h
+@@ -55,6 +55,8 @@
+  * @MT76_TM_ATTR_EEPROM_VAL: values for writing into a 16-byte data block
+  * 	(nested, u8 attrs)
+  *
++ * @MT76_TM_ATTR_CFG: config testmode rf feature (nested, see &mt76_testmode_cfg)
++ *
+  */
+ enum mt76_testmode_attr {
+ 	MT76_TM_ATTR_UNSPEC,
+@@ -97,6 +99,8 @@ enum mt76_testmode_attr {
+ 	MT76_TM_ATTR_EEPROM_OFFSET,
+ 	MT76_TM_ATTR_EEPROM_VAL,
+ 
++	MT76_TM_ATTR_CFG,
++
+ 	/* keep last */
+ 	NUM_MT76_TM_ATTRS,
+ 	MT76_TM_ATTR_MAX = NUM_MT76_TM_ATTRS - 1,
+@@ -228,4 +232,23 @@ enum mt76_testmode_eeprom_action {
+ 	MT76_TM_EEPROM_ACTION_MAX = NUM_MT76_TM_EEPROM_ACTION - 1,
+ };
+ 
++/**
++ * enum mt76_testmode_cfg - packet tx phy mode
++ *
++ * @MT76_TM_EEPROM_ACTION_UPDATE_DATA: update rf values to specific
++ * 	eeprom data block
++ * @MT76_TM_EEPROM_ACTION_UPDATE_BUFFER_MODE: send updated eeprom data to fw
++ * @MT76_TM_EEPROM_ACTION_WRITE_TO_EFUSE: write eeprom data back to efuse
++ */
++enum mt76_testmode_cfg {
++	MT76_TM_CFG_TSSI,
++	MT76_TM_CFG_DPD,
++	MT76_TM_CFG_RATE_POWER_OFFSET,
++	MT76_TM_CFG_THERMAL_COMP,
++
++	/* keep last */
++	NUM_MT76_TM_CFG,
++	MT76_TM_CFG_MAX = NUM_MT76_TM_CFG - 1,
++};
++
+ #endif
+-- 
+2.25.1
+

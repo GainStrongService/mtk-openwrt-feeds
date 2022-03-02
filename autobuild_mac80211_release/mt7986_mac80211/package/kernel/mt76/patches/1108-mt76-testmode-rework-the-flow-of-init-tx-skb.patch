@@ -1,0 +1,193 @@
+From 323105f9f7d5057ffb445948318525f81b76506c Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 11 May 2021 10:24:46 +0800
+Subject: [PATCH 1108/1112] mt76: testmode: rework the flow of init tx skb
+
+This is the preparation for supporting virtual stations in testmode.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ drivers/net/wireless/mediatek/mt76/mt76.h     |  3 +-
+ .../wireless/mediatek/mt76/mt7915/testmode.c  |  2 +-
+ drivers/net/wireless/mediatek/mt76/testmode.c | 73 +++++++++++++++----
+ 3 files changed, 61 insertions(+), 17 deletions(-)
+
+diff --git a/mt76.h b/mt76.h
+index ce4a098..b5f1367 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -1289,7 +1289,7 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
+ 		       struct netlink_callback *cb, void *data, int len);
+ int mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state);
+-int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len);
++int mt76_testmode_init_skb(struct mt76_phy *phy, u32 len, u8 aid, struct sk_buff **skb);
+ 
+ static inline void mt76_testmode_reset(struct mt76_phy *phy, bool disable)
+ {
+@@ -1303,7 +1303,6 @@ static inline void mt76_testmode_reset(struct mt76_phy *phy, bool disable)
+ #endif
+ }
+ 
+-
+ /* internal */
+ static inline struct ieee80211_hw *
+ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+diff --git a/mt7915/testmode.c b/mt7915/testmode.c
+index 08bb700..054829e 100644
+--- a/mt7915/testmode.c
++++ b/mt7915/testmode.c
+@@ -431,7 +431,7 @@ mt7915_tm_set_tx_len(struct mt7915_phy *phy, u32 tx_time)
+ 	bitrate = cfg80211_calculate_bitrate(&rate);
+ 	tx_len = bitrate * tx_time / 10 / 8;
+ 
+-	ret = mt76_testmode_alloc_skb(phy->mt76, tx_len);
++	ret = mt76_testmode_init_skb(phy->mt76, tx_len, 0, &td->tx_skb);
+ 	if (ret)
+ 		return ret;
+ 
+diff --git a/testmode.c b/testmode.c
+index bb15388..0f93338 100644
+--- a/testmode.c
++++ b/testmode.c
+@@ -87,15 +87,34 @@ mt76_testmode_max_mpdu_len(struct mt76_phy *phy, u8 tx_rate_mode)
+ }
+ 
+ static void
+-mt76_testmode_free_skb(struct mt76_phy *phy)
++mt76_testmode_free_skb(struct sk_buff **tx_skb)
++{
++	dev_kfree_skb(*tx_skb);
++	*tx_skb = NULL;
++}
++
++static void
++mt76_testmode_free_skb_all(struct mt76_phy *phy)
+ {
+ 	struct mt76_testmode_data *td = &phy->test;
+ 
+-	dev_kfree_skb(td->tx_skb);
+-	td->tx_skb = NULL;
++	if (mt76_testmode_has_sta(phy)) {
++		struct mt76_testmode_sta *tm_sta;
++		int i;
++
++		mt76_testmode_for_each_sta(phy, i, tm_sta) {
++			mt76_testmode_free_skb(&tm_sta->tx_skb);
++		}
++
++		return;
++	}
++
++	mt76_testmode_free_skb(&td->tx_skb);
+ }
+ 
+-int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
++static int
++mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len,
++			struct sk_buff **tx_skb, u8 *da)
+ {
+ #define MT_TXP_MAX_LEN	4095
+ 	u16 fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
+@@ -128,7 +147,9 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
+ 	hdr->frame_control = cpu_to_le16(fc);
+ 	memcpy(hdr->addr1, td->addr[0], ETH_ALEN);
+ 	memcpy(hdr->addr2, td->addr[1], ETH_ALEN);
+-	memcpy(hdr->addr3, td->addr[2], ETH_ALEN);
++	/* memcpy(hdr->addr3, td->addr[2], ETH_ALEN); */
++	memcpy(hdr->addr3, da, ETH_ALEN);
++
+ 	skb_set_queue_mapping(head, IEEE80211_AC_BE);
+ 
+ 	info = IEEE80211_SKB_CB(head);
+@@ -152,7 +173,7 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
+ 
+ 		frag = alloc_skb(frag_len, GFP_KERNEL);
+ 		if (!frag) {
+-			mt76_testmode_free_skb(phy);
++			mt76_testmode_free_skb(tx_skb);
+ 			dev_kfree_skb(head);
+ 			return -ENOMEM;
+ 		}
+@@ -165,23 +186,25 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
+ 		frag_tail = &(*frag_tail)->next;
+ 	}
+ 
+-	mt76_testmode_free_skb(phy);
+-	td->tx_skb = head;
++	mt76_testmode_free_skb(tx_skb);
++	*tx_skb = head;
+ 
+ 	return 0;
+ }
+-EXPORT_SYMBOL(mt76_testmode_alloc_skb);
+ 
+-static int
+-mt76_testmode_tx_init(struct mt76_phy *phy)
++int mt76_testmode_init_skb(struct mt76_phy *phy, u32 len, u8 aid,
++			   struct sk_buff **tx_skb)
+ {
+ 	struct mt76_testmode_data *td = &phy->test;
+ 	struct ieee80211_tx_info *info;
+ 	struct ieee80211_tx_rate *rate;
+ 	u8 max_nss = hweight8(phy->antenna_mask);
++	u8 da[ETH_ALEN];
+ 	int ret;
+ 
+-	ret = mt76_testmode_alloc_skb(phy, td->tx_mpdu_len);
++	ether_addr_copy(da, phy->macaddr);
++	da[0] += aid * 4;
++	ret = mt76_testmode_alloc_skb(phy, len, tx_skb, da);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -191,7 +214,7 @@ mt76_testmode_tx_init(struct mt76_phy *phy)
+ 	if (td->tx_antenna_mask)
+ 		max_nss = min_t(u8, max_nss, hweight8(td->tx_antenna_mask));
+ 
+-	info = IEEE80211_SKB_CB(td->tx_skb);
++	info = IEEE80211_SKB_CB(*tx_skb);
+ 	rate = &info->control.rates[0];
+ 	rate->count = 1;
+ 	rate->idx = td->tx_rate_idx;
+@@ -263,6 +286,28 @@ mt76_testmode_tx_init(struct mt76_phy *phy)
+ out:
+ 	return 0;
+ }
++EXPORT_SYMBOL(mt76_testmode_init_skb);
++
++static int
++mt76_testmode_tx_init(struct mt76_phy *phy)
++{
++	struct mt76_testmode_data *td = &phy->test;
++	struct mt76_testmode_sta *tm_sta;
++	int ret, i;
++
++	if (!mt76_testmode_has_sta(phy))
++		return mt76_testmode_init_skb(phy, td->tx_mpdu_len,
++					      0, &td->tx_skb);
++
++	mt76_testmode_for_each_sta(phy, i, tm_sta) {
++		ret = mt76_testmode_init_skb(phy, tm_sta->sd.tx_mpdu_len,
++					     tm_sta->sd.aid, &tm_sta->tx_skb);
++		if (ret)
++			return ret;
++	}
++
++	return 0;
++}
+ 
+ static void
+ mt76_testmode_tx_start(struct mt76_phy *phy)
+@@ -291,7 +336,7 @@ mt76_testmode_tx_stop(struct mt76_phy *phy)
+ 	wait_event_timeout(dev->tx_wait, td->tx_done == td->tx_queued,
+ 			   MT76_TM_TIMEOUT * HZ);
+ 
+-	mt76_testmode_free_skb(phy);
++	mt76_testmode_free_skb_all(phy);
+ }
+ 
+ static inline void
+-- 
+2.25.1
+
