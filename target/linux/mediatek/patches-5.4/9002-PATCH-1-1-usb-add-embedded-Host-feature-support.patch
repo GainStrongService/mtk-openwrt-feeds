@@ -1,4 +1,4 @@
-From 801da3c9fd916d3743b8af174f4ef4aefc071981 Mon Sep 17 00:00:00 2001
+From 5b28b61fb9c88e3d2f7c7057929d55e54bc17966 Mon Sep 17 00:00:00 2001
 From: Zhanyong Wang <zhanyong.wang@mediatek.com>
 Date: Thu, 17 Jun 2021 16:09:04 +0800
 Subject: [PATCH 2/2] usb: add embedded Host feature support
@@ -20,10 +20,10 @@ Signed-off-by: Zhanyong Wang <zhanyong.wang@mediatek.com>
  3 files changed, 47 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/usb/core/hub.c b/drivers/usb/core/hub.c
-index 303e8b3c1bda..b8c96ac26886 100644
+index 4cf0dc7f330d..f2f330606d0c 100644
 --- a/drivers/usb/core/hub.c
 +++ b/drivers/usb/core/hub.c
-@@ -2419,6 +2419,8 @@ static int usb_enumerate_device(struct usb_device *udev)
+@@ -2422,6 +2422,8 @@ static int usb_enumerate_device(struct usb_device *udev)
  			if (err < 0)
  				dev_dbg(&udev->dev, "HNP fail, %d\n", err);
  		}
@@ -32,7 +32,7 @@ index 303e8b3c1bda..b8c96ac26886 100644
  		return -ENOTSUPP;
  	}
  
-@@ -4778,9 +4780,10 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
+@@ -4779,9 +4781,10 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
  				goto fail;
  			}
  			if (r) {

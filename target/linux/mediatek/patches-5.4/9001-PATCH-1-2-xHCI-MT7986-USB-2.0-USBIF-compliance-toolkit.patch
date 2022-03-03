@@ -1,4 +1,4 @@
-From b4048b5efd1ac39f85d86dedbf54a9b614d17d64 Mon Sep 17 00:00:00 2001
+From 9deb29cc86b8fdee6702f8d575f08f9a214cf90a Mon Sep 17 00:00:00 2001
 From: Zhanyong Wang <zhanyong.wang@mediatek.com>
 Date: Thu, 27 May 2021 11:44:17 +0800
 Subject: [PATCH 1/2] xHCI: MT7986 USB 2.0 USBIF compliance toolkit
@@ -8,12 +8,12 @@ MT7986 USB 2.0 USBIF compliance toolkit
 Signed-off-by: Zhanyong Wang <zhanyong.wang@mediatek.com>
 ---
  drivers/usb/host/Kconfig    | 9 +++++++++
- drivers/usb/host/Makefile   | 8 ++++++++
+ drivers/usb/host/Makefile   | 9 +++++++++
  drivers/usb/host/xhci-mtk.c | 5 ++++-
  drivers/usb/host/xhci-mtk.h | 7 +++++++
  drivers/usb/host/xhci.c     | 2 +-
  drivers/usb/host/xhci.h     | 1 +
- 6 files changed, 30 insertions(+), 2 deletions(-)
+ 6 files changed, 31 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/usb/host/Kconfig b/drivers/usb/host/Kconfig
 index 79b2e79dddd0..12b1bf9aa043 100644
@@ -36,10 +36,10 @@ index 79b2e79dddd0..12b1bf9aa043 100644
  	tristate "xHCI support for Marvell Armada 375/38x/37xx"
  	select USB_XHCI_PLATFORM
 diff --git a/drivers/usb/host/Makefile b/drivers/usb/host/Makefile
-index b191361257cc..704237831a58 100644
+index b191361257cc..612c855adfa1 100644
 --- a/drivers/usb/host/Makefile
 +++ b/drivers/usb/host/Makefile
-@@ -21,6 +21,14 @@ endif
+@@ -21,6 +21,15 @@ endif
  
  ifneq ($(CONFIG_USB_XHCI_MTK), )
  	xhci-hcd-y += xhci-mtk-sch.o
@@ -51,6 +51,7 @@ index b191361257cc..704237831a58 100644
 +	xhci-hcd-$(CONFIG_USB_XHCI_MTK_DEBUGFS) += xhci-mtk-hstx-srctrl.o
 +	xhci-hcd-$(CONFIG_USB_XHCI_MTK_DEBUGFS) += xhci-mtk-discth.o
 +	xhci-hcd-$(CONFIG_USB_XHCI_MTK_DEBUGFS) += xhci-mtk-chgdt-en.o
++	xhci-hcd-$(CONFIG_USB_XHCI_MTK_DEBUGFS) += xhci-mtk-reg.o
  endif
  
  xhci-plat-hcd-y := xhci-plat.o
@@ -105,7 +106,7 @@ index 985e7a19f6f6..1540c66799d7 100644
  
  static inline struct xhci_hcd_mtk *hcd_to_mtk(struct usb_hcd *hcd)
 diff --git a/drivers/usb/host/xhci.c b/drivers/usb/host/xhci.c
-index 4bb850370bb6..710ccbe5a3b8 100644
+index 1c8070023161..cf004950bc00 100644
 --- a/drivers/usb/host/xhci.c
 +++ b/drivers/usb/host/xhci.c
 @@ -713,7 +713,7 @@ EXPORT_SYMBOL_GPL(xhci_run);

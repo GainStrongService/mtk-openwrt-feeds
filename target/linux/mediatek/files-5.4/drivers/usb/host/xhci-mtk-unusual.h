@@ -10,6 +10,8 @@
 #ifndef __XHCI_MTK_UNUSUAL_H
 #define __XHCI_MTK_UNUSUAL_H
 
+#include <dt-bindings/phy/phy.h>
+
 #define HQA_PREFIX_SIZE		4*1024
 
 #define BIT_WIDTH_1		1
@@ -131,7 +133,10 @@ u32 binary_write_width4(u32 __iomem *addr,
 				u32 shift, const char *buf);
 u32 bin2str(u32 value, u32 width, char *buffer);
 int query_phy_addr(struct device_node *np, int *start,
-				u32 *addr, u32 *length);
+				u32 *addr, u32 *length, int type);
+int query_reg_addr(struct platform_device *pdev, u32 *addr,
+				u32 *length, const char* name);
+
 static inline int remaining(struct xhci_hcd_mtk *mtk)
 {
 	u32 surplus = 0;
@@ -178,7 +183,12 @@ static inline u32 bin2str(u32 value, u32 width, char *buffer)
 	return 0;
 };
 static inline int query_phy_addr(struct device_node *np, int *start,
-					u32 *addr, u32 *length)
+					u32 *addr, u32 *length, int type)
+{
+	return -EPERM;
+}
+static inline int query_reg_addr(struct platform_device *pdev, u32 *addr,
+					u32 *length, const char* name)
 {
 	return -EPERM;
 }
