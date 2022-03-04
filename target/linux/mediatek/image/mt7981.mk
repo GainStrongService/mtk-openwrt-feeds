@@ -5,6 +5,7 @@ define Device/mt7981-spim-nor-rfb
   DEVICE_MODEL := mt7981-spim-nor-rfb
   DEVICE_DTS := mt7981-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7981-spim-nor-rfb
 endef
 TARGET_DEVICES += mt7981-spim-nor-rfb
 
@@ -13,7 +14,7 @@ define Device/mt7981-spim-nand-2500wan-gmac2
   DEVICE_MODEL := mt7981-spim-nand-2500wan-gmac2
   DEVICE_DTS := mt7981-spim-nand-2500wan-gmac2
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7981-rfb,ubi
+  SUPPORTED_DEVICES := mediatek,mt7981-spim-snand-2500wan-gmac2-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -30,7 +31,7 @@ define Device/mt7981-spim-nand-rfb
   DEVICE_MODEL := mt7981-spim-nand-rfb
   DEVICE_DTS := mt7981-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7981-rfb,ubi
+  SUPPORTED_DEVICES := mediatek,mt7981-spim-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -90,7 +91,7 @@ define Device/mt7981-snfi-nand-2500wan-p5
   DEVICE_MODEL := mt7981-snfi-nand-2500wan-p5
   DEVICE_DTS := mt7981-snfi-nand-2500wan-p5
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7981-rfb,ubi
+  SUPPORTED_DEVICES := mediatek,mt7981-snfi-snand-pcie-2500wan-p5-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -107,6 +108,7 @@ define Device/mt7981-fpga-spim-nor
   DEVICE_MODEL := mt7981-fpga-spim-nor
   DEVICE_DTS := mt7981-fpga-spim-nor
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7981-fpga-nor
 endef
 TARGET_DEVICES += mt7981-fpga-spim-nor
 
@@ -115,7 +117,7 @@ define Device/mt7981-fpga-snfi-nand
   DEVICE_MODEL := mt7981-fpga-snfi-nand
   DEVICE_DTS := mt7981-fpga-snfi-nand
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7981-fpga,ubi
+  SUPPORTED_DEVICES := mediatek,mt7981-fpga-snfi-snand
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -132,7 +134,7 @@ define Device/mt7981-fpga-spim-nand
   DEVICE_MODEL := mt7981-fpga-spim-nand
   DEVICE_DTS := mt7981-fpga-spim-nand
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7981-fpga,ubi
+  SUPPORTED_DEVICES := mediatek,mt7981-fpga-spim-snand
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
