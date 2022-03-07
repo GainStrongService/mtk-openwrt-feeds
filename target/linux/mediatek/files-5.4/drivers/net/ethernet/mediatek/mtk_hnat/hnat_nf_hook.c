@@ -1871,7 +1871,8 @@ static void mtk_hnat_dscp_update(struct sk_buff *skb, struct foe_entry *entry)
 	}
 
 	if (flag) {
-		pr_info("Delete entry idx=%d.\n", skb_hnat_entry(skb));
+		if (debug_level >= 2)
+			pr_info("Delete entry idx=%d.\n", skb_hnat_entry(skb));
 		memset(entry, 0, sizeof(struct foe_entry));
 		hnat_cache_ebl(1);
 	}
