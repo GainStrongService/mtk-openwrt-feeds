@@ -41,6 +41,7 @@ echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7986/config-5.4
 echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
 echo "CONFIG_WPS_UPNP=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
 
+prepare_final ${branch_name}
 #hack mt76 firmware/eeprom
 FW_BIN_DIR=${BUILD_DIR}/package/kernel/mt76/firmware/mt7986/rebb
 FW_SOURCE_DIR=${BUILD_DIR}/package/kernel/mt76/src/firmware
@@ -72,7 +73,6 @@ cp -rf ${FW_BIN_DIR}/MT7986_ePAeLNA_EEPROM_AX7800.bin ${FW_SOURCE_DIR}/mt7986_ee
 cp -rf ${FW_BIN_DIR}/MT7986_ePAeLNA_EEPROM_ONEADIE_DBDC.bin ${FW_SOURCE_DIR}/mt7986_eeprom_mt7976_dbdc.bin
 cp -rf ${FW_BIN_DIR}/MT7986_ePAeLNA_EEPROM_AX6000.bin ${FW_SOURCE_DIR}/mt7986_eeprom_mt7976_dual.bin
 
-prepare_final ${branch_name}
 #flow offload for kernel 5.4 patch
 patch -f -p1 -i ${BUILD_DIR}/autobuild/0001-master-mac80211-generate-hostapd-setting-from-ap-cap.patch
 patch -f -p1 -i ${BUILD_DIR}/autobuild/0002-master-hostapd-makefile-for-utils.patch
