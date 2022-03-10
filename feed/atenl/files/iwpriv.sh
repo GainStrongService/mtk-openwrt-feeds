@@ -3,6 +3,7 @@
 interface=$1	# phy0/phy1/ra0
 cmd_type=$2	    # set/show/e2p/mac
 full_cmd=$3
+interface_ori=${interface}
 
 work_mode="RUN" # RUN/PRINT/DEBUG
 tmp_file="/tmp/iwpriv_wrapper"
@@ -21,6 +22,12 @@ function do_cmd() {
             echo "$1"
             ;;
     esac
+}
+
+function print_debug() {
+    if [ "${work_mode}" = "DEBUG" ]; then
+        echo "$1"
+    fi
 }
 
 function write_dmesg() {
@@ -74,7 +81,7 @@ function simple_convert() {
     elif [ "$1" = "ATETXFREQOFFSET" ]; then
         echo "freq_offset"
     else
-        echo "unknown"
+        echo "unknown param: $1"
     fi
 }
 
@@ -96,7 +103,7 @@ function convert_tx_mode() {
     elif [ "$1" = "11" ]; then
         echo "he_mu"
     else
-        echo "unknown"
+        echo "unknown tx mode: $1"
     fi
 }
 
@@ -170,7 +177,7 @@ function convert_gi {
             esac
             ;;
         *)
-            echo "unknown tx_rate_mode, can't transform gi"
+            print_debug "legacy mode no need gi"
     esac
 
     do_cmd "mt76-test ${interface} set tx_rate_sgi=${sgi} tx_ltf=${he_ltf}"
@@ -182,7 +189,7 @@ function convert_channel {
     local bw=$(get_config "ATETXBW" | cut -d ":" -f 1)
     local bw_str="HT20"
 
-    if [ -z "${band}" ] || [ "${band}" = "0" ]; then
+    if [[ $1 != *":"* ]] || [ "${band}" = "0" ]; then
         case ${bw} in
             "1")
                 if [ "${ch}" -ge "1" ] && [ "${ch}" -le "7" ]; then
@@ -305,12 +312,12 @@ function convert_rxstat {
     local wb_rssi=$(echo "${res}" | grep "last_wb_rssi" | cut -d "=" -f 2 | sed 's/,/ /g')
     local rx_ok=$(expr ${mdrdy} - ${fcs_error})
 
-    write_dmesg "rcpi: ${rcpi}"
-    write_dmesg "fagc rssi ib: ${ib_rssi}"
-    write_dmesg "fagc rssi wb: ${wb_rssi}"
-    write_dmesg "all_mac_rx_mdrdy_cnt: ${mdrdy}"
-    write_dmesg "all_mac_rx_fcs_err_cnt: ${fcs_error}"
-    write_dmesg "all_mac_rx_ok_cnt: ${rx_ok}"
+    write_dmesg "rcpi : ${rcpi}"
+    write_dmesg "fagc rssi ib : ${ib_rssi}"
+    write_dmesg "fagc rssi wb : ${wb_rssi}"
+    write_dmesg "all_mac_rx_mdrdy_cnt : ${mdrdy}"
+    write_dmesg "all_mac_rx_fcs_err_cnt : ${fcs_error}"
+    write_dmesg "all_mac_rx_ok_cnt : ${rx_ok}"
 }
 
 function change_band_idx {
@@ -371,6 +378,8 @@ function do_ate_work() {
                 do_cmd "iw phy ${interface} interface add mon${phy_idx} type monitor"
                 do_cmd "iw dev wlan${phy_idx} del"
                 do_cmd "ifconfig mon${phy_idx} up"
+                do_cmd "iw reg set VV"
+                do_cmd "mt76-test ${interface} set aid=1"
             fi
             ;;
         "ATESTOP")
@@ -380,6 +389,7 @@ function do_ate_work() {
                 echo "ATE does not start."
             else
                 do_cmd "mt76-test ${interface} set state=off"
+                do_cmd "mt76-test ${interface} set aid=0"
                 do_cmd "iw dev mon${phy_idx} del"
                 do_cmd "iw phy ${interface} interface add wlan${phy_idx} type managed"
             fi
@@ -389,7 +399,7 @@ function do_ate_work() {
         "TXFRAME")
             do_cmd "mt76-test ${interface} set state=tx_frames"
             ;;
-        "TXSTOP"|"RXSTOP"|"TXREVERT")
+        "TXSTOP"|"RXSTOP")
             do_cmd "mt76-test ${interface} set state=idle"
             ;;
         "RXFRAME")
@@ -398,16 +408,9 @@ function do_ate_work() {
         "TXCONT")
             do_cmd "mt76-test ${interface} set state=tx_cont"
             ;;
-        "TXCOMMIT")
-            tx_mode=$(convert_tx_mode $(get_config "ATETXMODE"))
-                case ${tx_mode} in
-                    "ht"|"vht"|"he_su")
-                        do_cmd "mt76-test ${interface} set aid=1"
-                        ;;
-                    *)
-                        ;;
-                esac
-            do_cmd "mt76-test ${interface} set state=idle"
+        *)
+            # skip TXCOMMIT/TXREVERT
+            print_debug "skip ${ate_cmd}"
             ;;
     esac
 }
@@ -482,7 +485,7 @@ if [ "${cmd_type}" = "set" ]; then
             ;;
         "bufferMode")
             if [ "${param}" = "2" ]; then
-                do_cmd "ated -i ${interface} -c \"eeprom update\""
+                do_cmd "ated -i ${interface} -c \"eeprom update buffermode\""
             fi
             skip=1
             ;;
@@ -490,7 +493,7 @@ if [ "${cmd_type}" = "set" ]; then
             skip=1
             ;;
         *)
-            echo "Unknown command to set"
+            print_debug "Unknown command to set: ${cmd}"
             skip=1
     esac
 
@@ -530,6 +533,7 @@ elif [ "${cmd_type}" = "e2p" ]; then
         v2=$(echo "${v2}" | grep "val =" | cut -d '(' -f 2 | grep -o -E '[0-9]+')
 
         param=$(printf "0x%s" ${param})
+        printf "%s       e2p:\n" ${interface_ori}
         printf "[0x%04x]:0x%02x%02x\n" ${param} ${v2} ${v1}
     fi
 

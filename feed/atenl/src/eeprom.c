@@ -425,7 +425,7 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 
 			an->eeprom_data[offset] = val;
 			atenl_info("set offset 0x%x to 0x%x\n", offset, val);
-		} else if (!strncmp(s, "update", 6)) {
+		} else if (!strncmp(s, "update buffermode", 17)) {
 			atenl_eeprom_sync_to_driver(an);
 			atenl_nl_update_buffer_mode(an);
 		} else if (!strncmp(s, "write", 5)) {
@@ -434,8 +434,12 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 				return;
 			s++;
 
-			if (!strncmp(s, "flash", 5))
+			if (!strncmp(s, "flash", 5)) {
 				atenl_eeprom_write_mtd(an);
+            } else if (!strncmp(s, "to efuse", 8)) {
+                atenl_eeprom_sync_to_driver(an);
+                atenl_nl_write_efuse_all(an);
+            }
 		} else if (!strncmp(s, "read", 4)) {
 			u32 offset;
 
@@ -450,7 +454,9 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 
 			atenl_info("val = 0x%x (%u)\n", an->eeprom_data[offset],
 							an->eeprom_data[offset]);
-		}
+		} else {
+            atenl_err("Unknown eeprom command: %s\n", cmd);
+        }
 	} else {
 		atenl_err("Unknown command: %s\n", cmd);
 	}

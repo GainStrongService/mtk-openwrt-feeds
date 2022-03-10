@@ -315,7 +315,7 @@ atenl_hqa_eeprom_bulk(struct atenl *an, struct atenl_data *data)
 
 		switch (buf_mode) {
 		case E2P_EFUSE_MODE:
-			atenl_nl_write_efuse_all(an, data);
+			atenl_nl_write_efuse_all(an);
 			break;
 		default:
 			break;

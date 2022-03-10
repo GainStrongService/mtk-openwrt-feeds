@@ -1113,7 +1113,7 @@ out:
 	return 0;
 }
 
-int atenl_nl_write_efuse_all(struct atenl *an, struct atenl_data *data)
+int atenl_nl_write_efuse_all(struct atenl *an)
 {
 	struct atenl_nl_priv nl_priv = {};
 	struct nl_msg *msg;

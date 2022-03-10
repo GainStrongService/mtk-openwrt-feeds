@@ -16,6 +16,11 @@ do
         cmd="${cmd} \"${i}\""
         add_quote="0"
     else
+        if [ ${i} = "ra0" ]; then
+            i="phy0"
+        elif [ ${i} = "rax0" ]; then
+            i="phy1"
+        fi
         cmd="${cmd} ${i}"
     fi
 done

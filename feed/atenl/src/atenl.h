@@ -380,7 +380,7 @@ int atenl_nl_process(struct atenl *an, struct atenl_data *data);
 int atenl_nl_process_many(struct atenl *an, struct atenl_data *data);
 int atenl_nl_check_mtd(struct atenl *an);
 int atenl_nl_write_eeprom(struct atenl *an, u32 offset, u8 *val, int len);
-int atenl_nl_write_efuse_all(struct atenl *an, struct atenl_data *data);
+int atenl_nl_write_efuse_all(struct atenl *an);
 int atenl_nl_update_buffer_mode(struct atenl *an);
 int atenl_nl_set_state(struct atenl *an, u8 band,
 		       enum mt76_testmode_state state);
