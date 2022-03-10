@@ -1,14 +1,45 @@
-diff --git a/package/kernel/mt76/patches/1007-mt7915-cert-patches.patch b/package/kernel/mt76/patches/1007-mt7915-cert-patches.patch
+diff --git a/package/kernel/mt76/patches/1005-mt76-certification-patches.patch b/package/kernel/mt76/patches/1005-mt76-certification-patches.patch
 new file mode 100644
-index 0000000..7e88db2
+index 00000000..e2034ac9
 --- /dev/null
-+++ b/package/kernel/mt76/patches/1007-mt7915-cert-patches.patch
-@@ -0,0 +1,1150 @@
++++ b/package/kernel/mt76/patches/1005-mt76-certification-patches.patch
+@@ -0,0 +1,1161 @@
++From c412ccd55171d3051fba026b5ec8bb84330e3735 Mon Sep 17 00:00:00 2001
++From: MeiChia Chiu <meichia.chiu@mediatek.com>
++Date: Fri, 21 Jan 2022 11:22:10 +0800
++Subject: [PATCH 1005/1006] mt76: certification patches
++
++Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
++---
++ .../wireless/mediatek/mt76/mt76_connac_mcu.h  |   1 +
++ .../net/wireless/mediatek/mt76/mt7915/init.c  |   7 +-
++ .../net/wireless/mediatek/mt76/mt7915/mac.c   |  23 +
++ .../net/wireless/mediatek/mt76/mt7915/main.c  |  15 +-
++ .../net/wireless/mediatek/mt76/mt7915/mcu.c   | 463 ++++++++++++++++++
++ .../net/wireless/mediatek/mt76/mt7915/mcu.h   | 209 +++++++-
++ .../wireless/mediatek/mt76/mt7915/mt7915.h    |  13 +
++ .../mediatek/mt76/mt7915/mtk_debugfs.c        |   7 +-
++ .../wireless/mediatek/mt76/mt7915/vendor.c    | 187 +++++++
++ .../wireless/mediatek/mt76/mt7915/vendor.h    |  42 ++
++ 10 files changed, 961 insertions(+), 6 deletions(-)
++
++diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
++index 2173682..8903e08 100644
++--- a/mt76_connac_mcu.h
+++++ b/mt76_connac_mcu.h
++@@ -993,6 +993,7 @@ enum {
++ 	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
++ 	/* for vendor csi and air monitor */
++ 	MCU_EXT_CMD_SMESH_CTRL = 0xae,
+++	MCU_EXT_CMD_CERT_CFG = 0xb7,
++ 	MCU_EXT_CMD_CSI_CTRL = 0xc2,
++ };
++ 
 +diff --git a/mt7915/init.c b/mt7915/init.c
-+index 62a6d53b..c09432a3 100644
++index a12b701..aed4731 100644
 +--- a/mt7915/init.c
 ++++ b/mt7915/init.c
-+@@ -354,12 +354,17 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
++@@ -366,12 +366,17 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
 + 	if (!phy->dev->dbdc_support)
 + 		wiphy->txq_memory_limit = 32 << 20; /* 32 MiB */
 + 
@@ -28,7 +59,7 @@ index 0000000..7e88db2
 + 			IEEE80211_HT_CAP_LDPC_CODING |
 + 			IEEE80211_HT_CAP_MAX_AMSDU;
 +diff --git a/mt7915/mac.c b/mt7915/mac.c
-+index 084a597e..e97d46c7 100644
++index 9f595ca..efdc1b1 100644
 +--- a/mt7915/mac.c
 ++++ b/mt7915/mac.c
 +@@ -7,6 +7,7 @@
@@ -39,34 +70,32 @@ index 0000000..7e88db2
 + 
 + #define to_rssi(field, rxv)	((FIELD_GET(field, rxv) - 220) / 2)
 + 
-+@@ -2165,7 +2166,22 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
-+ 		dev->mt76.aggr_stats[aggr1++] += val >> 16;
++@@ -2294,6 +2295,21 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 + 	}
 + }
++ 
 ++#ifdef CONFIG_MTK_VENDOR
 ++void mt7915_capi_sta_rc_work(void *data, struct ieee80211_sta *sta)
 ++{
 ++	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
 ++	struct mt7915_dev *dev = msta->vif->phy->dev;
-++	struct ieee80211_hw *hw = msta->vif->phy->mt76->hw;
 ++	u32 *changed = data;
-+ 
+++
 ++	spin_lock_bh(&dev->sta_poll_lock);
 ++	msta->changed |= *changed;
-++	if (list_empty(&msta->rc_list)) {
+++	if (list_empty(&msta->rc_list))
 ++		list_add_tail(&msta->rc_list, &dev->sta_rc_list);
-++	}
 ++	spin_unlock_bh(&dev->sta_poll_lock);
 ++}
 ++#endif
+++
 + void mt7915_mac_sta_rc_work(struct work_struct *work)
 + {
 + 	struct mt7915_dev *dev = container_of(work, struct mt7915_dev, rc_work);
-+@@ -2187,7 +2203,13 @@ void mt7915_mac_sta_rc_work(struct work_struct *work)
-+ 
++@@ -2316,6 +2332,13 @@ void mt7915_mac_sta_rc_work(struct work_struct *work)
 + 		sta = container_of((void *)msta, struct ieee80211_sta, drv_priv);
 + 		vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
-+-
++ 
 ++#ifdef CONFIG_MTK_VENDOR
 ++		if (changed & CAPI_RFEATURE_CHANGED) {
 ++			mt7915_mcu_set_rfeature_starec(&changed, dev, vif, sta);
@@ -78,20 +107,20 @@ index 0000000..7e88db2
 + 			       IEEE80211_RC_NSS_CHANGED |
 + 			       IEEE80211_RC_BW_CHANGED))
 +diff --git a/mt7915/main.c b/mt7915/main.c
-+index 6633b2a1..049a68f2 100644
++index 1beadd8..a09cd74 100644
 +--- a/mt7915/main.c
 ++++ b/mt7915/main.c
-+@@ -664,6 +664,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
-+ 	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
++@@ -655,6 +655,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 + 	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
 + 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
++ 	bool ext_phy = mvif->phy != &dev->phy;
 ++#ifdef CONFIG_MTK_VENDOR
 ++	struct mt7915_phy *phy;
 ++#endif
 + 	int ret, idx;
 + 
 + 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
-+@@ -689,7 +692,17 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
++@@ -680,7 +683,17 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 + #ifdef CONFIG_MTK_VENDOR
 + 	mt7915_vendor_amnt_sta_remove(mvif->phy, sta);
 + #endif
@@ -102,7 +131,7 @@ index 0000000..7e88db2
 ++
 ++#ifdef CONFIG_MTK_VENDOR
 ++	if (dev->dbg.muru_onoff & MUMIMO_DL_CERT) {
-++		phy = mvif->band_idx ? mt7915_ext_phy(dev) : &dev->phy;
+++		phy = mvif->mt76.band_idx ? mt7915_ext_phy(dev) : &dev->phy;
 ++		mt7915_mcu_set_mimo(phy, 0);
 ++	}
 ++#endif
@@ -111,15 +140,13 @@ index 0000000..7e88db2
 + 
 + void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 +diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-+index dae38e63..ecac30cf 100644
++index f01a2f0..bb77edc 100644
 +--- a/mt7915/mcu.c
 ++++ b/mt7915/mcu.c
-+@@ -4344,8 +4344,358 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
-+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(TWT_AGRT_UPDATE),
-+ 				 &req, sizeof(req), true);
++@@ -3707,6 +3707,469 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
++ 
++ 	return 0;
 + }
-+-
-+ #ifdef CONFIG_MTK_VENDOR
 ++void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
 ++{
 ++	u8 mode, val;
@@ -154,11 +181,11 @@ index 0000000..7e88db2
 ++	mode = FIELD_GET(RATE_CFG_MODE, *((u32 *)data));
 ++	val = FIELD_GET(RATE_CFG_VAL, *((u32 *)data));
 ++
-++	skb = mt7915_mcu_alloc_sta_req(dev, mvif, msta, len);
+++	skb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->mt76, &msta->wcid, len);
 ++	if (IS_ERR(skb))
-++		return PTR_ERR(skb);
+++		return;
 ++
-++	tlv = mt7915_mcu_add_tlv(skb, STA_REC_RA_UPDATE, sizeof(*ra));
+++	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_RA_UPDATE, sizeof(*ra));
 ++	ra = (struct sta_rec_ra_fixed *)tlv;
 ++
 ++	switch (mode) {
@@ -471,14 +498,6 @@ index 0000000..7e88db2
 ++			&req, sizeof(req), false);
 ++}
 ++
-+ int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
-+ 			u8 cfg, u8 v1, u32 v2, u8 *mac_addr)
-+ {
-+@@ -4445,4 +4795,117 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
-+ 
-+ 	return 0;
-+ }
-++
 ++int mt7915_mcu_set_bsrp_ctrl(struct mt7915_phy *phy, u16 interval,
 ++			u16 ru_alloc, u32 ppdu_dur, u8 trig_flow, u8 ext_cmd)
 ++{
@@ -592,19 +611,13 @@ index 0000000..7e88db2
 ++	}
 ++}
 + #endif
++ 
++ #ifdef MTK_DEBUG
 +diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-+index 41825cef..d22630aa 100644
++index 2a88bee..30211cb 100644
 +--- a/mt7915/mcu.h
 ++++ b/mt7915/mcu.h
-+@@ -319,6 +319,7 @@ enum {
-+ 	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
-+ #ifdef CONFIG_MTK_VENDOR
-+ 	MCU_EXT_CMD_SMESH_CTRL = 0xae,
-++	MCU_EXT_CMD_CERT_CFG = 0xb7,
-+ 	MCU_EXT_CMD_CSI_CTRL = 0xc2,
-+ #endif
-+ };
-+@@ -999,9 +1000,13 @@ enum {
++@@ -430,9 +430,13 @@ enum {
 + 	RATE_PARAM_FIXED = 3,
 + 	RATE_PARAM_MMPS_UPDATE = 5,
 + 	RATE_PARAM_FIXED_HE_LTF = 7,
@@ -619,22 +632,24 @@ index 0000000..7e88db2
 + };
 + 
 + #define RATE_CFG_MCS			GENMASK(3, 0)
-+@@ -1149,6 +1154,9 @@ enum {
-+ 	MURU_SET_PLATFORM_TYPE = 25,
-+ };
++@@ -444,6 +448,9 @@ enum {
++ #define RATE_CFG_PHY_TYPE		GENMASK(27, 24)
++ #define RATE_CFG_HE_LTF			GENMASK(31, 28)
 + 
 ++#define RATE_CFG_MODE			GENMASK(15, 8)
 ++#define RATE_CFG_VAL			GENMASK(7, 0)
 ++
 + enum {
-+ 	MURU_PLATFORM_TYPE_PERF_LEVEL_1 = 1,
-+ 	MURU_PLATFORM_TYPE_PERF_LEVEL_2,
-+@@ -1331,5 +1339,202 @@ struct csi_data {
++ 	THERMAL_PROTECT_PARAMETER_CTRL,
++ 	THERMAL_PROTECT_BASIC_INFO,
++@@ -573,5 +580,205 @@ struct csi_data {
 + #define OFDMA_UL			BIT(1)
 + #define MUMIMO_DL			BIT(2)
 + #define MUMIMO_UL			BIT(3)
 ++#define MUMIMO_DL_CERT			BIT(4)
 ++
+++
+++#ifdef CONFIG_MTK_VENDOR
 ++struct mt7915_muru_comm {
 ++	u8 ppdu_format;
 ++	u8 sch_type;
@@ -830,17 +845,16 @@ index 0000000..7e88db2
 ++	MURU_DL_INIT,
 ++	MURU_UL_INIT,
 ++};
+++#endif
 + 
 + #endif
 +diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-+index 3edb1033..487af2d9 100644
++index eddcc6d..b3abe77 100644
 +--- a/mt7915/mt7915.h
 ++++ b/mt7915/mt7915.h
-+@@ -605,8 +605,20 @@ int mt7915_init_debugfs(struct mt7915_phy *phy);
-+ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-+ 			    struct ieee80211_sta *sta, struct dentry *dir);
++@@ -655,6 +655,19 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 + #endif
-+-
++ 
 + #ifdef CONFIG_MTK_VENDOR
 ++void mt7915_capi_sta_rc_work(void *data, struct ieee80211_sta *sta);
 ++void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
@@ -859,10 +873,10 @@ index 0000000..7e88db2
 + int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
 + 			u8 cfg, u8 v1, u32 v2, u8 *mac_addr);
 +diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-+index a2cdc6d5..f56f5871 100644
++index 4ebeeb2..63853f7 100644
 +--- a/mt7915/mtk_debugfs.c
 ++++ b/mt7915/mtk_debugfs.c
-+@@ -2634,7 +2634,8 @@ static int mt7915_muru_onoff_get(void *data, u64 *val)
++@@ -2436,7 +2436,8 @@ static int mt7915_muru_onoff_get(void *data, u64 *val)
 + 
 + 	*val = dev->dbg.muru_onoff;
 + 
@@ -872,7 +886,7 @@ index 0000000..7e88db2
 + 		!!(dev->dbg.muru_onoff & MUMIMO_UL),
 + 		!!(dev->dbg.muru_onoff & MUMIMO_DL),
 + 		!!(dev->dbg.muru_onoff & OFDMA_UL),
-+@@ -2647,8 +2648,8 @@ static int mt7915_muru_onoff_set(void *data, u64 val)
++@@ -2449,8 +2450,8 @@ static int mt7915_muru_onoff_set(void *data, u64 val)
 + {
 + 	struct mt7915_dev *dev = data;
 + 
@@ -884,7 +898,7 @@ index 0000000..7e88db2
 + 	}
 + 
 +diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-+index b94d787e..a8381011 100644
++index b94d787..7456c57 100644
 +--- a/mt7915/vendor.c
 ++++ b/mt7915/vendor.c
 +@@ -22,6 +22,29 @@ csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
@@ -917,7 +931,7 @@ index 0000000..7e88db2
 + struct csi_null_tone {
 + 	u8 start;
 + 	u8 end;
-+@@ -777,6 +800,149 @@ mt7915_vendor_amnt_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
++@@ -777,6 +800,148 @@ mt7915_vendor_amnt_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
 + 	return len + 1;
 + }
 + 
@@ -1063,15 +1077,13 @@ index 0000000..7e88db2
 ++	return 0;
 ++}
 ++
-++
 + static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
 + 	{
 + 		.info = {
-+@@ -801,7 +967,29 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
++@@ -801,6 +966,28 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
 + 		.dumpit = mt7915_vendor_amnt_ctrl_dump,
 + 		.policy = amnt_ctrl_policy,
 + 		.maxattr = MTK_VENDOR_ATTR_AMNT_CTRL_MAX,
-+-	}
 ++	},
 ++	{
 ++		.info = {
@@ -1094,12 +1106,11 @@ index 0000000..7e88db2
 ++		.doit = mt7915_vendor_wireless_ctrl,
 ++		.policy = wireless_ctrl_policy,
 ++		.maxattr = MTK_VENDOR_ATTR_WIRELESS_CTRL_MAX,
-++	},
++ 	}
 + };
 + 
-+ void mt7915_vendor_register(struct mt7915_phy *phy)
 +diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-+index 976817f3..1b08321c 100644
++index 976817f..1b08321 100644
 +--- a/mt7915/vendor.h
 ++++ b/mt7915/vendor.h
 +@@ -6,6 +6,48 @@
@@ -1152,8 +1163,5 @@ index 0000000..7e88db2
 + 
 + enum mtk_vendor_attr_csi_ctrl {
 +-- 
-+2.29.2
++2.25.1
 +
--- 
-2.29.2
-
