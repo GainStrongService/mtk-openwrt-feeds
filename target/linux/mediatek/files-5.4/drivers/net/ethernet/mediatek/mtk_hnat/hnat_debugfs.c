@@ -1036,10 +1036,52 @@ static int hnat_whnat_open(struct inode *inode, struct file *file)
 	return single_open(file, hnat_whnat_show, file->private_data);
 }
 
+static ssize_t hnat_whnat_write(struct file *file, const char __user *buf,
+				size_t length, loff_t *offset)
+{
+	char line[64] = {0};
+	struct net_device *dev;
+	int enable;
+	char name[32];
+	size_t size;
+
+	if (length >= sizeof(line))
+		return -EINVAL;
+
+	if (copy_from_user(line, buf, length))
+		return -EFAULT;
+
+	if (sscanf(line, "%s %d", name, &enable) != 2)
+		return -EFAULT;
+
+	line[length] = '\0';
+
+	dev = dev_get_by_name(&init_net, name);
+
+	if (dev) {
+		if (enable) {
+			mtk_ppe_dev_register_hook(dev);
+			pr_info("register wifi extern if = %s\n", dev->name);
+		} else {
+			mtk_ppe_dev_unregister_hook(dev);
+			pr_info("unregister wifi extern if = %s\n", dev->name);
+		}
+	} else {
+		pr_info("no such device!\n");
+	}
+
+	size = strlen(line);
+	*offset += size;
+
+	return length;
+}
+
+
 static const struct file_operations hnat_whnat_fops = {
 	.open = hnat_whnat_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
+	.write = hnat_whnat_write,
 	.release = single_release,
 };
 
