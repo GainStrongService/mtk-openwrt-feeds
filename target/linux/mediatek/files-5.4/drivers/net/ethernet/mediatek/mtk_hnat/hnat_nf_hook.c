@@ -1558,13 +1558,13 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	if (!whnat)
 		entry.bfib1.state = BIND;
 
+	wmb();
 	memcpy(foe, &entry, sizeof(entry));
 	/*reset statistic for this entry*/
 	if (hnat_priv->data->per_flow_accounting)
 		memset(&hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
 		       0, sizeof(struct mib_entry));
 
-	wmb();
 	skb_hnat_filled(skb) = HNAT_INFO_FILLED;
 
 	return 0;
@@ -1574,6 +1574,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 {
 	struct foe_entry *entry;
 	struct ethhdr *eth;
+	struct hnat_bind_info_blk bfib1_tx;
 
 	if (skb_hnat_alg(skb) || !is_hnat_info_filled(skb) ||
 	    !is_magic_tag_valid(skb) || !IS_SPACE_AVAILABLE_HEAD(skb))
@@ -1604,6 +1605,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		return NF_ACCEPT;
 
 	eth = eth_hdr(skb);
+	memcpy(&bfib1_tx, &entry->bfib1, sizeof(entry->bfib1));
 
 	/*not bind multicast if PPE mcast not enable*/
 	if (!hnat_priv->data->mcast) {
@@ -1619,7 +1621,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	/* Some mt_wifi virtual interfaces, such as apcli,
 	 * will change the smac for specail purpose.
 	 */
-	switch (entry->bfib1.pkt_type) {
+	switch (bfib1_tx.pkt_type) {
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
 		entry->ipv4_hnapt.smac_hi = swab32(*((u32 *)eth->h_source));
@@ -1636,8 +1638,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	}
 
 	if (skb->vlan_tci) {
-		entry->bfib1.vlan_layer = 1;
-		entry->bfib1.vpm = 1;
+		bfib1_tx.vlan_layer = 1;
+		bfib1_tx.vpm = 1;
 		if (IS_IPV4_GRP(entry)) {
 			entry->ipv4_hnapt.etype = htons(ETH_P_8021Q);
 			entry->ipv4_hnapt.vlan1 = skb->vlan_tci;
@@ -1646,8 +1648,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 			entry->ipv6_5t_route.vlan1 = skb->vlan_tci;
 		}
 	} else {
-		entry->bfib1.vpm = 0;
-		entry->bfib1.vlan_layer = 0;
+		bfib1_tx.vpm = 0;
+		bfib1_tx.vlan_layer = 0;
 	}
 
 	/* MT7622 wifi hw_nat not support QoS */
@@ -1669,8 +1671,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 #endif
 		} else {
 			if (IS_GMAC1_MODE && !hnat_dsa_is_enable(hnat_priv)) {
-				entry->bfib1.vpm = 1;
-				entry->bfib1.vlan_layer = 1;
+				bfib1_tx.vpm = 1;
+				bfib1_tx.vlan_layer = 1;
 
 				if (FROM_GE_LAN(skb))
 					entry->ipv4_hnapt.vlan1 = 1;
@@ -1680,8 +1682,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 
 			if (IS_HQOS_MODE &&
 			    (FROM_GE_LAN(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
-				entry->bfib1.vpm = 0;
-				entry->bfib1.vlan_layer = 1;
+				bfib1_tx.vpm = 0;
+				bfib1_tx.vlan_layer = 1;
 				entry->ipv4_hnapt.etype = htons(HQOS_MAGIC_TAG);
 				entry->ipv4_hnapt.vlan1 = skb_hnat_entry(skb);
 				entry->ipv4_hnapt.iblk2.fqos = 1;
@@ -1706,8 +1708,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 #endif
 		} else {
 			if (IS_GMAC1_MODE && !hnat_dsa_is_enable(hnat_priv)) {
-				entry->bfib1.vpm = 1;
-				entry->bfib1.vlan_layer = 1;
+				bfib1_tx.vpm = 1;
+				bfib1_tx.vlan_layer = 1;
 
 				if (FROM_GE_LAN(skb))
 					entry->ipv6_5t_route.vlan1 = 1;
@@ -1717,8 +1719,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 
 			if (IS_HQOS_MODE &&
 			    (FROM_GE_LAN(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
-				entry->bfib1.vpm = 0;
-				entry->bfib1.vlan_layer = 1;
+				bfib1_tx.vpm = 0;
+				bfib1_tx.vlan_layer = 1;
 				entry->ipv6_5t_route.etype = htons(HQOS_MAGIC_TAG);
 				entry->ipv6_5t_route.vlan1 = skb_hnat_entry(skb);
 				entry->ipv6_5t_route.iblk2.fqos = 1;
@@ -1727,7 +1729,9 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		entry->ipv6_5t_route.iblk2.dp = gmac_no;
 	}
 
-	entry->bfib1.state = BIND;
+	bfib1_tx.state = BIND;
+	wmb();
+	memcpy(&entry->bfib1, &bfib1_tx, sizeof(bfib1_tx));
 
 	return NF_ACCEPT;
 }
