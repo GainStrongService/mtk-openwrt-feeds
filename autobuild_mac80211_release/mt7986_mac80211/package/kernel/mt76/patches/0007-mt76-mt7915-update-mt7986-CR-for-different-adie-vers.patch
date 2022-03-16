@@ -1,0 +1,68 @@
+From 87efddcc9bb605802fdabe8bf3408a106bf5b997 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 15 Mar 2022 14:21:13 +0800
+Subject: [PATCH] mt76: mt7915: update mt7986 CR for different adie version
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7915/regs.h |  1 +
+ mt7915/soc.c  | 24 +++++++++++++++++++++---
+ 2 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/mt7915/regs.h b/mt7915/regs.h
+index e5f93c40..a69ba562 100644
+--- a/mt7915/regs.h
++++ b/mt7915/regs.h
+@@ -794,6 +794,7 @@ enum offs_rev {
+ 
+ /* ADIE */
+ #define MT_ADIE_CHIP_ID			0x02c
++#define MT_ADIE_VERSION_MASK		GENMASK(15, 0)
+ #define MT_ADIE_CHIP_ID_MASK		GENMASK(31, 16)
+ #define MT_ADIE_IDX0			GENMASK(15, 0)
+ #define MT_ADIE_IDX1			GENMASK(31, 16)
+diff --git a/mt7915/soc.c b/mt7915/soc.c
+index 04df47fd..e1892368 100644
+--- a/mt7915/soc.c
++++ b/mt7915/soc.c
+@@ -468,16 +468,34 @@ static int mt7986_wmac_adie_xtal_trim_7976(struct mt7915_dev *dev, u8 adie)
+ static int mt7986_wmac_adie_patch_7976(struct mt7915_dev *dev, u8 adie)
+ {
+ 	int ret;
++	u32 id, version;
+ 
+-	ret = mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_TOP_THADC, 0x4a563b00);
++
++	ret = mt76_wmac_spi_read(dev, adie, MT_ADIE_CHIP_ID, &id);
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_01, 0x1d59080f);
++	version = FIELD_GET(MT_ADIE_VERSION_MASK, id);
++
++	ret = mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_TOP_THADC, 0x4a563b00);
+ 	if (ret)
+ 		return ret;
+ 
+-	return mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_03, 0x34c00fe0);
++	if (version == 0x8a00 || version == 0x8a10 || version == 0x8b00) {
++		ret = mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_01, 0x1d59080f);
++		if (ret)
++			return ret;
++
++		mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_03, 0x34c00fe0);
++	} else {
++		ret = mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_01, 0x1959c80f);
++		if (ret)
++			return ret;
++
++		mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_03, 0x34d00fe0);
++	}
++
++	return ret;
+ }
+ 
+ static int
+-- 
+2.18.0
+

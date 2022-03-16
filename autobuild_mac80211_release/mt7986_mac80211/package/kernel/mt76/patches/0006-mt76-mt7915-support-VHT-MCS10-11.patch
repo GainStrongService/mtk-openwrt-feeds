@@ -1,0 +1,26 @@
+From 777b1a1dfe9d7f649c7d7bb3732ff1fba8437ae0 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 11 Mar 2022 12:15:35 +0800
+Subject: [PATCH 6/6] mt76: mt7915: support VHT MCS10/11
+
+Support receiving MCS10/11 in VHT mode.
+---
+ mt7915/mac.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index 887292da..fe718102 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -519,7 +519,7 @@ mt7915_mac_fill_rx_rate(struct mt7915_dev *dev,
+ 		status->encoding = RX_ENC_VHT;
+ 		if (gi)
+ 			status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
+-		if (i > 9)
++		if (i > 11)
+ 			return -EINVAL;
+ 		break;
+ 	case MT_PHY_TYPE_HE_MU:
+-- 
+2.18.0
+

@@ -20,6 +20,8 @@ cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iwinfo ${BUILD_
 rm -rf ${BUILD_DIR}/package/kernel/mac80211
 cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/package/kernel
 
+cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
+
 #use hostapd master package revision, remove hostapd 2102 patches
 find ../mtk-openwrt-feeds/openwrt_patches-21.02 -name "*-2102-hostapd-*.patch" -delete
 
@@ -37,7 +39,7 @@ echo "CONFIG_NETFILTER=y" >> ./target/linux/mediatek/mt7986/config-5.4
 echo "CONFIG_NETFILTER_ADVANCED=y" >> ./target/linux/mediatek/mt7986/config-5.4
 echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7986/config-5.4
 
-#hack mt7986 hostapd config
+#hack hostapd config
 echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
 echo "CONFIG_WPS_UPNP=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
 
@@ -73,7 +75,7 @@ cp -rf ${FW_BIN_DIR}/MT7986_ePAeLNA_EEPROM_AX7800.bin ${FW_SOURCE_DIR}/mt7986_ee
 cp -rf ${FW_BIN_DIR}/MT7986_ePAeLNA_EEPROM_ONEADIE_DBDC.bin ${FW_SOURCE_DIR}/mt7986_eeprom_mt7976_dbdc.bin
 cp -rf ${FW_BIN_DIR}/MT7986_ePAeLNA_EEPROM_AX6000.bin ${FW_SOURCE_DIR}/mt7986_eeprom_mt7976_dual.bin
 
-#flow offload for kernel 5.4 patch
+#apply hostapd patch
 patch -f -p1 -i ${BUILD_DIR}/autobuild/0001-master-mac80211-generate-hostapd-setting-from-ap-cap.patch
 patch -f -p1 -i ${BUILD_DIR}/autobuild/0002-master-hostapd-makefile-for-utils.patch
 #step2 build

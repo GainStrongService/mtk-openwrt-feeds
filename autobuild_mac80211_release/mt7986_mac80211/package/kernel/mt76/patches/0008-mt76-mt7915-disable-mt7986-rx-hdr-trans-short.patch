@@ -1,0 +1,58 @@
+From 00e4fb5cf4d22681b379cdb92e0750cf74b367e7 Mon Sep 17 00:00:00 2001
+From: "lian.chen" <lian.chen@mediatek.com>
+Date: Wed, 16 Mar 2022 15:14:05 +0800
+Subject: [PATCH] mt76: mt7915: disable mt7986 RX_HDR_TRANS_SHORT
+
+Signed-off-by: lian.chen <lian.chen@mediatek.com>
+---
+ mt7915/init.c | 3 +++
+ mt7915/mac.c  | 4 ----
+ mt7915/regs.h | 3 +++
+ 3 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/mt7915/init.c b/mt7915/init.c
+index f57a3d18..223a4f77 100644
+--- a/mt7915/init.c
++++ b/mt7915/init.c
+@@ -451,6 +451,9 @@ static void mt7915_mac_init(struct mt7915_dev *dev)
+ 
+ 	mt76_rmw_field(dev, MT_MDP_DCR1, MT_MDP_DCR1_MAX_RX_LEN, rx_len);
+ 
++	/* disable RX_TRANS_SHORT */
++	mt76_clear(dev, MT_MDP_DCR2, MT_MDP_DCR2_RX_TRANS_SHORT);
++
+ 	/* enable hardware de-agg */
+ 	mt76_set(dev, MT_MDP_DCR0, MT_MDP_DCR0_DAMSDU_EN);
+ 
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index fe718102..eedd901f 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -835,10 +835,6 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
+ 	if (!status->wcid || !ieee80211_is_data_qos(fc))
+ 		return 0;
+ 
+-	/* drop no data frame */
+-	if (fc & cpu_to_le16(IEEE80211_STYPE_NULLFUNC))
+-		return -EINVAL;
+-
+ 	status->aggr = unicast &&
+ 		       !ieee80211_is_qos_nullfunc(fc);
+ 	status->qos_ctl = qos_ctl;
+diff --git a/mt7915/regs.h b/mt7915/regs.h
+index e7d83458..6ddfa48f 100644
+--- a/mt7915/regs.h
++++ b/mt7915/regs.h
+@@ -159,6 +159,9 @@ enum offs_rev {
+ #define MT_MDP_DCR1			MT_MDP(0x004)
+ #define MT_MDP_DCR1_MAX_RX_LEN		GENMASK(15, 3)
+ 
++#define MT_MDP_DCR2			MT_MDP(0x0e8)
++#define MT_MDP_DCR2_RX_TRANS_SHORT		BIT(2)
++
+ #define MT_MDP_BNRCFR0(_band)		MT_MDP(__OFFS(MDP_BNRCFR0) + \
+ 					       ((_band) << 8))
+ #define MT_MDP_RCFR0_MCU_RX_MGMT	GENMASK(5, 4)
+-- 
+2.18.0
+
