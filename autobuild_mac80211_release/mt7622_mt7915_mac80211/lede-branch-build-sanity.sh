@@ -41,8 +41,15 @@ echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7622/config-5.4
 
 prepare_final ${branch_name}
 
-#apply hostapd patch
+#copy mt7915/mt7916/mt7986 default eeprom
+FW_SOURCE_DIR=${BUILD_DIR}/package/kernel/mt76/src/firmware
+mkdir -p ${FW_SOURCE_DIR}
+cp -rf ../mtk-openwrt-feeds/autobuild_mac80211_release/default_bins/* ${FW_SOURCE_DIR}
+
+#hack hostapd/mac80211/mt76 package in master branch
 patch -f -p1 -i ${BUILD_DIR}/autobuild/0001-master-mac80211-generate-hostapd-setting-from-ap-cap.patch
 patch -f -p1 -i ${BUILD_DIR}/autobuild/0002-master-hostapd-makefile-for-utils.patch
+patch -f -p1 -i ${BUILD_DIR}/autobuild/0003-master-mt76-makefile-for-new-chip.patch
+
 #step2 build
 build ${branch_name} -j1 || [ "$LOCAL" != "1" ]
