@@ -1,0 +1,28 @@
+From 053df93aaa079c2942eadf52fb33f76dfffa2f05 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 22 Mar 2022 15:49:04 +0800
+Subject: [PATCH] mt76: mt7915: fix table_mask to u16
+
+mt7915 can support 16 twt stations so modify table_mask to u16.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7915/mt7915.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
+index 6efa0a2e..4b6eda95 100644
+--- a/mt7915/mt7915.h
++++ b/mt7915/mt7915.h
+@@ -319,7 +319,7 @@ struct mt7915_dev {
+ 	void *cal;
+ 
+ 	struct {
+-		u8 table_mask;
++		u16 table_mask;
+ 		u8 n_agrt;
+ 	} twt;
+ 
+-- 
+2.18.0
+

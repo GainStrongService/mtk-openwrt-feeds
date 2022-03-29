@@ -1,0 +1,57 @@
+diff --git a/src/drivers/nl80211_copy.h b/src/drivers/nl80211_copy.h
+index f962c06..f7be755 100644
+--- a/src/drivers/nl80211_copy.h
++++ b/src/drivers/nl80211_copy.h
+@@ -2560,6 +2560,19 @@ enum nl80211_commands {
+  *	disassoc events to indicate that an immediate reconnect to the AP
+  *	is desired.
+  *
++ * @NL80211_ATTR_OBSS_COLOR_BITMAP: bitmap of the u64 BSS colors for the
++ *	%NL80211_CMD_OBSS_COLOR_COLLISION event.
++ *
++ * @NL80211_ATTR_COLOR_CHANGE_COUNT: u8 attribute specifying the number of TBTT's
++ *	until the color switch event.
++ * @NL80211_ATTR_COLOR_CHANGE_COLOR: u8 attribute specifying the color that we are
++ *	switching to
++ * @NL80211_ATTR_COLOR_CHANGE_ELEMS: Nested set of attributes containing the IE
++ *	information for the time while performing a color switch.
++ *
++ * @NL80211_ATTR_WIPHY_ANTENNA_GAIN: Configured antenna gain. Used to reduce
++ *	transmit power to stay within regulatory limits. u32, dBi.
++ *
+  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
+  * @NL80211_ATTR_MAX: highest attribute number currently defined
+  * @__NL80211_ATTR_AFTER_LAST: internal use
+@@ -3057,6 +3070,14 @@ enum nl80211_attrs {
+ 
+ 	NL80211_ATTR_DISABLE_HE,
+ 
++	NL80211_ATTR_OBSS_COLOR_BITMAP,
++
++	NL80211_ATTR_COLOR_CHANGE_COUNT,
++	NL80211_ATTR_COLOR_CHANGE_COLOR,
++	NL80211_ATTR_COLOR_CHANGE_ELEMS,
++
++	NL80211_ATTR_WIPHY_ANTENNA_GAIN,
++
+ 	/* add attributes here, update the policy in nl80211.c */
+ 
+ 	__NL80211_ATTR_AFTER_LAST,
+@@ -5950,6 +5971,9 @@ enum nl80211_feature_flags {
+  *      frame protection for all management frames exchanged during the
+  *      negotiation and range measurement procedure.
+  *
++ * @NL80211_EXT_FEATURE_BSS_COLOR: The driver supports BSS color collision
++ *	detection and change announcemnts.
++ *
+  * @NUM_NL80211_EXT_FEATURES: number of extended features.
+  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
+  */
+@@ -6014,6 +6038,7 @@ enum nl80211_ext_feature_index {
+ 	NL80211_EXT_FEATURE_SECURE_LTF,
+ 	NL80211_EXT_FEATURE_SECURE_RTT,
+ 	NL80211_EXT_FEATURE_PROT_RANGE_NEGO_AND_MEASURE,
++	NL80211_EXT_FEATURE_BSS_COLOR,
+ 
+ 	/* add new features before the definition below */
+ 	NUM_NL80211_EXT_FEATURES,

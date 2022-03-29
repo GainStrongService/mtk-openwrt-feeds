@@ -22,12 +22,6 @@ cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/
 
 cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
 
-#use hostapd master package revision, remove hostapd 2102 patches
-find ../mtk-openwrt-feeds/openwrt_patches-21.02 -name "*-2102-hostapd-*.patch" -delete
-
-#have MT7986 specific non-upstream patches, remove feeds mt76 master patches
-find ../mtk-openwrt-feeds/openwrt_patches-21.02 -name "*-master-mt76-*.patch" -delete
-
 #step1 clean
 #clean
 
@@ -43,18 +37,9 @@ echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7986/config-5.4
 echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
 echo "CONFIG_WPS_UPNP=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
 
+prepare_mac80211
+
 prepare_final ${branch_name}
-
-#copy mt7915/mt7916/mt7986 default eeprom
-FW_SOURCE_DIR=${BUILD_DIR}/package/kernel/mt76/src/firmware
-mkdir -p ${FW_SOURCE_DIR}
-cp -rf ../mtk-openwrt-feeds/autobuild_mac80211_release/default_bins/* ${FW_SOURCE_DIR}
-cp -rf ../mtk-openwrt-feeds/autobuild_mac80211_release/default_bins/* ${FW_SOURCE_DIR}/src/firmware/
-
-#hack hostapd/mac80211/mt76 package in master branch
-patch -f -p1 -i ${BUILD_DIR}/autobuild/0001-master-mac80211-generate-hostapd-setting-from-ap-cap.patch
-patch -f -p1 -i ${BUILD_DIR}/autobuild/0002-master-hostapd-makefile-for-utils.patch
-patch -f -p1 -i ${BUILD_DIR}/autobuild/0003-master-mt76-makefile-for-new-chip.patch
 
 #step2 build
 if [ -z ${1} ]; then

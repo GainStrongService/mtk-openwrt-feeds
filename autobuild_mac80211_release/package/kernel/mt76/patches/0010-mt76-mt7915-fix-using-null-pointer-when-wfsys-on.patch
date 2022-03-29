@@ -1,0 +1,42 @@
+From 1edfc160ec62c99aa3e72d4d1019614bf17f1cc4 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 28 Mar 2022 11:37:21 +0800
+Subject: [PATCH] mt76: mt7915: fix using null pointer when wfsys on
+
+---
+ mt7915/soc.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/mt7915/soc.c b/mt7915/soc.c
+index bf0603f9..36a13099 100644
+--- a/mt7915/soc.c
++++ b/mt7915/soc.c
+@@ -1145,7 +1145,7 @@ static int mt7986_wmac_init(struct mt7915_dev *dev)
+ 	if (IS_ERR(dev->rstc))
+ 		return PTR_ERR(dev->rstc);
+ 
+-	return mt7986_wmac_enable(dev);
++	return 0;
+ }
+ 
+ static int mt7986_wmac_probe(struct platform_device *pdev)
+@@ -1178,13 +1178,13 @@ static int mt7986_wmac_probe(struct platform_device *pdev)
+ 	if (ret)
+ 		goto free_device;
+ 
+-	mt7915_wfsys_reset(dev);
+-	mt76_wr(dev, MT_INT_MASK_CSR, 0);
+-
+ 	ret = mt7986_wmac_init(dev);
+ 	if (ret)
+ 		goto free_irq;
+ 
++	mt7915_wfsys_reset(dev);
++	mt76_wr(dev, MT_INT_MASK_CSR, 0);
++
+ 	ret = mt7915_register_device(dev);
+ 	if (ret)
+ 		goto free_irq;
+-- 
+2.18.0
+
