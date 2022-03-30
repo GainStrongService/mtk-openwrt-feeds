@@ -1,8 +1,8 @@
 diff --git a/scripts/mkits.sh b/scripts/mkits.sh
-index 42a8818..9cb1407 100755
+index bb629d6..547a4eb 100755
 --- a/scripts/mkits.sh
 +++ b/scripts/mkits.sh
-@@ -72,27 +72,27 @@ ARCH_UPPER=$(echo "$ARCH" | tr '[:lower:]' '[:upper:]')
+@@ -65,21 +65,21 @@ ARCH_UPPER=$(echo "$ARCH" | tr '[:lower:]' '[:upper:]')
  # Conditionally create fdt information
  if [ -n "${DTB}" ]; then
  	FDT_NODE="
@@ -27,35 +27,8 @@ index 42a8818..9cb1407 100755
 +	FDT_PROP="fdt = \"fdt-$FDTNUM\";"
  fi
  
- # Conditionally create script information
- if [ -n "${UBOOT_SCRIPT}" ]; then
- 	SCRIPT="\
--		script@1 {
-+		script-1 {
- 			description = \"U-Boot Script\";
- 			data = /incbin/(\"${UBOOT_SCRIPT}\");
- 			type = \"script\";
-@@ -101,16 +101,16 @@ if [ -n "${UBOOT_SCRIPT}" ]; then
- 			load = <0>;
- 			entry = <0>;
- 			compression = \"none\";
--			hash@1 {
-+			hash-1 {
- 				algo = \"crc32\";
- 			};
--			hash@2 {
-+			hash-2 {
- 				algo = \"sha1\";
- 			};
- 		};\
- "
- 	LOADABLES="\
--			loadables = \"script@1\";\
-+			loadables = \"script-1\";\
- "
- 	SIGN_IMAGES="\
- 				sign-images = \"fdt\", \"kernel\", \"loadables\";\
-@@ -147,7 +147,7 @@ DATA="/dts-v1/;
+ # Create a default, fully populated DTS file
+@@ -90,7 +90,7 @@ DATA="/dts-v1/;
  	#address-cells = <1>;
  
  	images {
@@ -64,7 +37,7 @@ index 42a8818..9cb1407 100755
  			description = \"${ARCH_UPPER} OpenWrt Linux-${VERSION}\";
  			data = /incbin/(\"${KERNEL}\");
  			type = \"kernel\";
-@@ -156,10 +156,10 @@ DATA="/dts-v1/;
+@@ -99,10 +99,10 @@ DATA="/dts-v1/;
  			compression = \"${COMPRESS}\";
  			load = <${LOAD_ADDR}>;
  			entry = <${ENTRY_ADDR}>;
@@ -77,15 +50,15 @@ index 42a8818..9cb1407 100755
  				algo = \"sha1\";
  			};
  		};
-@@ -173,7 +173,7 @@ ${SCRIPT}
+@@ -113,7 +113,7 @@ ${FDT_NODE}
+ 		default = \"${CONFIG}\";
+ 		${CONFIG} {
  			description = \"OpenWrt\";
- ${FIT_AR_VER}
- ${LOADABLES}
 -			kernel = \"kernel@1\";
 +			kernel = \"kernel-1\";
  			${FDT_PROP}
- ${SIGNATURE}
  		};
+ 	};
 diff --git a/include/image-commands.mk b/include/image-commands.mk
 index 51e7459..5a3f624 100644
 --- a/include/image-commands.mk
