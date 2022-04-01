@@ -1,0 +1,31 @@
+From 95953b3adaadf15ad5ae637d4e0e433c3bfb0835 Mon Sep 17 00:00:00 2001
+From: Bo Jiao <Bo.Jiao@mediatek.com>
+Date: Thu, 31 Mar 2022 11:23:02 +0800
+Subject: [PATCH] mt76: mt7915: add list_del_init(&msta->wcid.list)
+
+msta->wcid may use after free when do mt76_tx_status_check
+
+Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
+---
+ mt7915/main.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/mt7915/main.c b/mt7915/main.c
+index 9de5f152..fc271e3c 100644
+--- a/mt7915/main.c
++++ b/mt7915/main.c
+@@ -729,6 +729,11 @@ void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+ 	if (!list_empty(&msta->rc_list))
+ 		list_del_init(&msta->rc_list);
+ 	spin_unlock_bh(&dev->sta_poll_lock);
++
++	spin_lock_bh(&mdev->status_lock);
++	if (!list_empty(&msta->wcid.list))
++		list_del_init(&msta->wcid.list);
++	spin_unlock_bh(&mdev->status_lock);
+ }
+ 
+ static void mt7915_tx(struct ieee80211_hw *hw,
+-- 
+2.18.0
+
