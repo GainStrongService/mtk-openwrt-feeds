@@ -1,14 +1,14 @@
-From efe439e8e210ac266baee5cfd6664fb914144b12 Mon Sep 17 00:00:00 2001
+From bd0dae19286bf13e74698d753a98e46b155a5882 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 30 Mar 2022 10:38:24 +0800
 Subject: [PATCH] mt76: add MT7986/MT7916/Bersa support in makefile
 
 ---
- package/kernel/mt76/Makefile | 69 +++++++++++++++++++++++++++++++++++++++++++-
+ kernel/mt76/Makefile | 69 +++++++++++++++++++++++++++++++++++++++++++-
  1 file changed, 68 insertions(+), 1 deletion(-)
 
 diff --git a/package/kernel/mt76/Makefile b/package/kernel/mt76/Makefile
-index 0ccf067..7c64e58 100644
+index 0ccf067..75e65f7 100644
 --- a/package/kernel/mt76/Makefile
 +++ b/package/kernel/mt76/Makefile
 @@ -220,12 +220,20 @@ endef
@@ -89,12 +89,12 @@ index 0ccf067..7c64e58 100644
 +		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7975_dual.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7975.bin \
 +		$(1)/lib/firmware/mediatek
-+endif
 +ifdef CONFIG_NET_MEDIATEK_SOC_WED
 +	cp \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_wo_0.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_wo_1.bin \
 +		$(1)/lib/firmware/mediatek
++endif
 +endif
  endef
  
