@@ -1,0 +1,50 @@
+From 261d8a198f9fd9c7f58586f102eafabd2d73b80a Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Thu, 7 Apr 2022 08:40:05 +0800
+Subject: [PATCH 2/2] mt76: mt7915: reject duplicated twt flow
+
+---
+ mt7915/mac.c | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index aa312b75..8c7edd98 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -2889,7 +2889,7 @@ void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 	enum ieee80211_twt_setup_cmd sta_setup_cmd;
+ 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
+ 	struct mt7915_twt_flow *flow;
+-	int flowid, table_id;
++	int flowid, table_id, i;
+ 	u8 exp;
+ 
+ 	if (mt7915_mac_check_twt_req(twt))
+@@ -2907,10 +2907,24 @@ void mt7915_mac_add_twt_setup(struct ieee80211_hw *hw,
+ 	le16p_replace_bits(&twt_agrt->req_type, flowid,
+ 			   IEEE80211_TWT_REQTYPE_FLOWID);
+ 
++
+ 	table_id = ffs(~dev->twt.table_mask) - 1;
+ 	exp = FIELD_GET(IEEE80211_TWT_REQTYPE_WAKE_INT_EXP, req_type);
+ 	sta_setup_cmd = FIELD_GET(IEEE80211_TWT_REQTYPE_SETUP_CMD, req_type);
+ 
++	for (i = 0; i < 8; i++) {
++		if (msta->twt.flowid_mask & BIT(i)) {
++			flow = &msta->twt.flow[i];
++			if (flow->duration == twt_agrt->min_twt_dur &&
++			    flow->mantissa == twt_agrt->mantissa &&
++			    flow->exp == exp &&
++			    flow->protection == !!(req_type & IEEE80211_TWT_REQTYPE_PROTECTION) &&
++			    flow->flowtype == !!(req_type & IEEE80211_TWT_REQTYPE_FLOWTYPE) &&
++			    flow->trigger == !!(req_type & IEEE80211_TWT_REQTYPE_TRIGGER))
++				goto unlock;
++		}
++	}
++
+ 	flow = &msta->twt.flow[flowid];
+ 	memset(flow, 0, sizeof(*flow));
+ 	INIT_LIST_HEAD(&flow->list);
+-- 
+2.18.0
+
