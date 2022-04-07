@@ -1027,7 +1027,6 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 	entry.bfib1.vpm = (entry.bfib1.vlan_layer) ? 1 : 0;
 	entry.bfib1.ttl = 1;
 	entry.bfib1.cah = 1;
-	entry.bfib1.ka = 1;
 	entry.bfib1.time_stamp = (hnat_priv->data->version == MTK_HNAT_V4) ?
 		readl(hnat_priv->fe_base + 0x0010) & (0xFF) :
 		readl(hnat_priv->fe_base + 0x0010) & (0x7FFF);
