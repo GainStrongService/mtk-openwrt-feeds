@@ -23,14 +23,19 @@
 
 #include "mtk_eth_soc.h"
 #include "mtk_eth_dbg.h"
+#include "mtk_eth_reset.h"
 
 #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
 #include "mtk_hnat/nf_hnat_mtk.h"
 #endif
 
 static int mtk_msg_level = -1;
+atomic_t reset_lock = ATOMIC_INIT(0);
+atomic_t force = ATOMIC_INIT(0);
+
 module_param_named(msg_level, mtk_msg_level, int, 0);
 MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
+DECLARE_COMPLETION(wait_ser_done);
 
 #define MTK_ETHTOOL_STAT(x) { #x, \
 			      offsetof(struct mtk_hw_stats, x) / sizeof(u64) }
@@ -1650,12 +1655,12 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
 
 static void mtk_handle_status_irq(struct mtk_eth *eth)
 {
-	u32 status2 = mtk_r32(eth, MTK_INT_STATUS);
+	u32 status2 = mtk_r32(eth, MTK_FE_INT_STATUS);
 
 	if (unlikely(status2 & (MTK_GDM1_AF | MTK_GDM2_AF))) {
 		mtk_stats_update(eth);
 		mtk_w32(eth, (MTK_GDM1_AF | MTK_GDM2_AF),
-			MTK_INT_STATUS);
+			MTK_FE_INT_STATUS);
 	}
 }
 
@@ -2068,7 +2073,7 @@ static void mtk_hwlro_rx_uninit(struct mtk_eth *eth)
 	for (i = 0; i < 10; i++) {
 		val = mtk_r32(eth, MTK_PDMA_LRO_CTRL_DW0);
 		if (val & MTK_LRO_RING_RELINGUISH_DONE) {
-			msleep(20);
+			mdelay(20);
 			continue;
 		}
 		break;
@@ -2493,7 +2498,9 @@ static void mtk_tx_timeout(struct net_device *dev)
 	eth->netdev[mac->id]->stats.tx_errors++;
 	netif_err(eth, tx_err, dev,
 		  "transmit timed out\n");
-	schedule_work(&eth->pending_work);
+
+	if (atomic_read(&reset_lock) == 0)
+		schedule_work(&eth->pending_work);
 }
 
 static irqreturn_t mtk_handle_irq_rx(int irq, void *priv)
@@ -2600,7 +2607,7 @@ static int mtk_start_dma(struct mtk_eth *eth)
 	return 0;
 }
 
-static void mtk_gdm_config(struct mtk_eth *eth, u32 config)
+void mtk_gdm_config(struct mtk_eth *eth, u32 config)
 {
 	int i;
 
@@ -2699,7 +2706,7 @@ static void mtk_stop_dma(struct mtk_eth *eth, u32 glo_cfg)
 	for (i = 0; i < 10; i++) {
 		val = mtk_r32(eth, glo_cfg);
 		if (val & (MTK_TX_DMA_BUSY | MTK_RX_DMA_BUSY)) {
-			msleep(20);
+			mdelay(20);
 			continue;
 		}
 		break;
@@ -2762,16 +2769,25 @@ static int mtk_stop(struct net_device *dev)
 	return 0;
 }
 
-static void ethsys_reset(struct mtk_eth *eth, u32 reset_bits)
+void ethsys_reset(struct mtk_eth *eth, u32 reset_bits)
 {
-	regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
-			   reset_bits,
-			   reset_bits);
+	u32 val = 0, i = 0;
 
-	usleep_range(1000, 1100);
 	regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
-			   reset_bits,
-			   ~reset_bits);
+			   reset_bits, reset_bits);
+
+	while (i++ < 5000) {
+		mdelay(1);
+		regmap_read(eth->ethsys, ETHSYS_RSTCTRL, &val);
+
+		if ((val & reset_bits) == reset_bits) {
+			mtk_reset_event_update(eth, MTK_EVENT_COLD_CNT);
+			regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
+					   reset_bits, ~reset_bits);
+			break;
+		}
+	}
+
 	mdelay(10);
 }
 
@@ -2823,19 +2839,24 @@ static int mtk_napi_init(struct mtk_eth *eth)
 	return 0;
 }
 
-static int mtk_hw_init(struct mtk_eth *eth)
+static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 {
-	int i, ret;
+	int i, ret = 0;
 
-	if (test_and_set_bit(MTK_HW_INIT, &eth->state))
-		return 0;
+	pr_info("[%s] reset_lock:%d, force:%d\n", __func__,
+		atomic_read(&reset_lock), atomic_read(&force));
 
-	pm_runtime_enable(eth->dev);
-	pm_runtime_get_sync(eth->dev);
+	if (atomic_read(&reset_lock) == 0) {
+		if (test_and_set_bit(MTK_HW_INIT, &eth->state))
+			return 0;
 
-	ret = mtk_clk_enable(eth);
-	if (ret)
-		goto err_disable_pm;
+		pm_runtime_enable(eth->dev);
+		pm_runtime_get_sync(eth->dev);
+
+		ret = mtk_clk_enable(eth);
+		if (ret)
+			goto err_disable_pm;
+	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
 		ret = device_reset(eth->dev);
@@ -2854,18 +2875,15 @@ static int mtk_hw_init(struct mtk_eth *eth)
 		return 0;
 	}
 
-	/* Non-MT7628 handling... */
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
-		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0);
+	pr_info("[%s] execute fe %s reset\n", __func__,
+		(type == MTK_TYPE_WARM_RESET) ? "warm" : "cold");
 
-	if(MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
-		ethsys_reset(eth,  RSTCTRL_ETH | RSTCTRL_FE | RSTCTRL_PPE | RSTCTRL_PPE1);
+	if (type == MTK_TYPE_WARM_RESET)
+		mtk_eth_warm_reset(eth);
 	else
-		ethsys_reset(eth,  RSTCTRL_ETH | RSTCTRL_FE | RSTCTRL_PPE);
+		mtk_eth_cold_reset(eth);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
-		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0x3ffffff);
-
 		/* Set FE to PDMAv2 if necessary */
 		mtk_w32(eth, mtk_r32(eth, MTK_FE_GLO_MISC) | MTK_PDMA_V2, MTK_FE_GLO_MISC);
 	}
@@ -2906,7 +2924,10 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	mtk_w32(eth, MTK_RX_DONE_INT(0), MTK_PDMA_INT_GRP2);
 	mtk_w32(eth, MTK_TX_DONE_INT, MTK_QDMA_INT_GRP1);
 	mtk_w32(eth, MTK_RX_DONE_INT(0), MTK_QDMA_INT_GRP2);
-	mtk_w32(eth, 0x21021000, MTK_FE_INT_GRP);
+	mtk_w32(eth, 0x21021003, MTK_FE_INT_GRP);
+	mtk_w32(eth, MTK_FE_INT_FQ_EMPTY | MTK_FE_INT_TSO_FAIL |
+		MTK_FE_INT_TSO_ILLEGAL | MTK_FE_INT_TSO_ALIGN |
+		MTK_FE_INT_RFIFO_OV | MTK_FE_INT_RFIFO_UF, MTK_FE_INT_ENABLE);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
 		/* PSE Free Queue Flow Control  */
@@ -3017,17 +3038,48 @@ static int mtk_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static void mtk_pending_work(struct work_struct *work)
 {
 	struct mtk_eth *eth = container_of(work, struct mtk_eth, pending_work);
-	int err, i;
+	struct device_node *phy_node = NULL;
+	struct mtk_mac *mac = NULL;
+	int err, i = 0;
 	unsigned long restart = 0;
+	u32 val = 0;
+
+	atomic_inc(&reset_lock);
+	val = mtk_r32(eth, MTK_FE_INT_STATUS);
+	if (!mtk_check_reset_event(eth, val)) {
+		atomic_dec(&reset_lock);
+		pr_info("[%s] No need to do FE reset !\n", __func__);
+		return;
+	}
 
 	rtnl_lock();
 
-	dev_dbg(eth->dev, "[%s][%d] reset\n", __func__, __LINE__);
+	/* Disabe FE P3 and P4 */
+	val = mtk_r32(eth, MTK_FE_GLO_CFG);
+	val |= MTK_FE_LINK_DOWN_P3;
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+		val |= MTK_FE_LINK_DOWN_P4;
+	mtk_w32(eth, val, MTK_FE_GLO_CFG);
+
+	/* Adjust PPE configurations to prepare for reset */
+	mtk_prepare_reset_ppe(eth, 0);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+		mtk_prepare_reset_ppe(eth, 1);
+
+	/* Adjust FE configurations to prepare for reset */
+	mtk_prepare_reset_fe(eth);
+
+	/* Trigger Wifi SER reset */
+	call_netdevice_notifiers(MTK_FE_START_RESET, eth->netdev[0]);
+	rtnl_unlock();
+	wait_for_completion_timeout(&wait_ser_done, 5000);
+	rtnl_lock();
 
 	while (test_and_set_bit_lock(MTK_RESETTING, &eth->state))
 		cpu_relax();
 
-	dev_dbg(eth->dev, "[%s][%d] mtk_stop starts\n", __func__, __LINE__);
+	del_timer_sync(&eth->mtk_dma_monitor_timer);
+	pr_info("[%s] mtk_stop starts !\n", __func__);
 	/* stop all devices to make sure that dma is properly shut down */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i])
@@ -3035,17 +3087,16 @@ static void mtk_pending_work(struct work_struct *work)
 		mtk_stop(eth->netdev[i]);
 		__set_bit(i, &restart);
 	}
-	dev_dbg(eth->dev, "[%s][%d] mtk_stop ends\n", __func__, __LINE__);
-
-	/* restart underlying hardware such as power, clock, pin mux
-	 * and the connected phy
-	 */
-	mtk_hw_deinit(eth);
+	pr_info("[%s] mtk_stop ends !\n", __func__);
+	mdelay(15);
 
 	if (eth->dev->pins)
 		pinctrl_select_state(eth->dev->pins->p,
 				     eth->dev->pins->default_state);
-	mtk_hw_init(eth);
+
+	pr_info("[%s] mtk_hw_init starts !\n", __func__);
+	mtk_hw_init(eth, MTK_TYPE_WARM_RESET);
+	pr_info("[%s] mtk_hw_init ends !\n", __func__);
 
 	/* restart DMA and enable IRQs */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
@@ -3059,8 +3110,41 @@ static void mtk_pending_work(struct work_struct *work)
 		}
 	}
 
-	dev_dbg(eth->dev, "[%s][%d] reset done\n", __func__, __LINE__);
+	/* Set KA tick select */
+	mtk_m32(eth, MTK_PPE_TICK_SEL_MASK, 0, MTK_PPE_TB_CFG(0));
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+		mtk_m32(eth, MTK_PPE_TICK_SEL_MASK, 0, MTK_PPE_TB_CFG(1));
 
+	/* Enabe FE P3 and P4*/
+	val = mtk_r32(eth, MTK_FE_GLO_CFG);
+	val &= ~MTK_FE_LINK_DOWN_P3;
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+		val &= ~MTK_FE_LINK_DOWN_P4;
+	mtk_w32(eth, val, MTK_FE_GLO_CFG);
+
+	/* Power up sgmii */
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		mac = netdev_priv(eth->netdev[i]);
+		phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
+		if (!phy_node) {
+			mtk_gmac_sgmii_path_setup(eth, i);
+			regmap_write(eth->sgmii->regmap[i], SGMSYS_QPHY_PWR_STATE_CTRL, 0);
+		}
+	}
+
+	call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE, eth->netdev[0]);
+	pr_info("[%s] HNAT reset done !\n", __func__);
+
+	call_netdevice_notifiers(MTK_FE_RESET_DONE, eth->netdev[0]);
+	pr_info("[%s] WiFi SER reset done !\n", __func__);
+
+	atomic_dec(&reset_lock);
+	if (atomic_read(&force) > 0)
+		atomic_dec(&force);
+
+	timer_setup(&eth->mtk_dma_monitor_timer, mtk_dma_monitor, 0);
+	eth->mtk_dma_monitor_timer.expires = jiffies;
+	add_timer(&eth->mtk_dma_monitor_timer);
 	clear_bit_unlock(MTK_RESETTING, &eth->state);
 
 	rtnl_unlock();
@@ -3519,7 +3603,7 @@ static int mtk_probe(struct platform_device *pdev)
 	eth->msg_enable = netif_msg_init(mtk_msg_level, MTK_DEFAULT_MSG_ENABLE);
 	INIT_WORK(&eth->pending_work, mtk_pending_work);
 
-	err = mtk_hw_init(eth);
+	err = mtk_hw_init(eth, MTK_TYPE_COLD_RESET);
 	if (err)
 		return err;
 
@@ -3571,8 +3655,15 @@ static int mtk_probe(struct platform_device *pdev)
 				if (err)
 					goto err_free_dev;
 			}
+		} else {
+			err = devm_request_irq(eth->dev, eth->irq[3],
+					       mtk_handle_fe_irq, 0,
+					       dev_name(eth->dev), eth);
+			if (err)
+				goto err_free_dev;
 		}
 	}
+
 	if (err)
 		goto err_free_dev;
 
@@ -3617,6 +3708,11 @@ static int mtk_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, eth);
 
+	register_netdevice_notifier(&mtk_eth_netdevice_nb);
+	timer_setup(&eth->mtk_dma_monitor_timer, mtk_dma_monitor, 0);
+	eth->mtk_dma_monitor_timer.expires = jiffies;
+	add_timer(&eth->mtk_dma_monitor_timer);
+
 	return 0;
 
 err_deinit_mdio:
@@ -3656,6 +3752,8 @@ static int mtk_remove(struct platform_device *pdev)
 
 	mtk_cleanup(eth);
 	mtk_mdio_cleanup(eth);
+	unregister_netdevice_notifier(&mtk_eth_netdevice_nb);
+	del_timer_sync(&eth->mtk_dma_monitor_timer);
 
 	return 0;
 }

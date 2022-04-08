@@ -30,6 +30,7 @@
 #include "hnat.h"
 
 #include "../mtk_eth_soc.h"
+#include "../mtk_eth_reset.h"
 
 #define do_ge2ext_fast(dev, skb)                                               \
 	((IS_LAN(dev) || IS_WAN(dev) || IS_PPD(dev)) && \
@@ -260,6 +261,10 @@ int nf_hnat_netdevice_event(struct notifier_block *unused, unsigned long event,
 			hnat_priv->g_wandev = dev_get_by_name(&init_net, hnat_priv->wan);
 
 		break;
+	case MTK_FE_RESET_NAT_DONE:
+		pr_info("[%s] HNAT driver starts to do warm init !\n", __func__);
+		hnat_warm_init();
+		break;
 	default:
 		break;
 	}
@@ -278,6 +283,9 @@ void foe_clear_entry(struct neighbour *neigh)
 	dip = (u32)(*daddr);
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
+		if (!hnat_priv->foe_table_cpu[i])
+			continue;
+
 		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
 			entry = hnat_priv->foe_table_cpu[i] + hash_index;
 			if (entry->bfib1.state == BIND &&
