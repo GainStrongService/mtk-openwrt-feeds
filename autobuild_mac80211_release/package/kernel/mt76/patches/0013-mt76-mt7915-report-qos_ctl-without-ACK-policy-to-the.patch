@@ -1,0 +1,37 @@
+From fcd6f43e0a3de4829397efe19cedf759d091beac Mon Sep 17 00:00:00 2001
+From: Bo Jiao <Bo.Jiao@mediatek.com>
+Date: Mon, 11 Apr 2022 20:03:09 +0800
+Subject: [PATCH] mt76: mt7915: report qos_ctl without ACK policy to the up
+ layer
+
+There is no need to report the ACK policy to the
+mac80211 layer, because hw has already processed it
+
+Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
+---
+ mt7915/mac.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index 8df38a23..64ef061f 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -680,9 +680,14 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
+ 		u32 v2 = le32_to_cpu(rxd[2]);
+ 
+ 		fc = cpu_to_le16(FIELD_GET(MT_RXD6_FRAME_CONTROL, v0));
+-		qos_ctl = FIELD_GET(MT_RXD8_QOS_CTL, v2);
+ 		seq_ctrl = FIELD_GET(MT_RXD8_SEQ_CTRL, v2);
+ 
++		/*
++		 * There is no need to report the ACK policy to the
++		 * mac80211 layer, because hw has already processed it.
++		 */
++		qos_ctl = FIELD_GET(MT_RXD8_QOS_CTL, v2) & IEEE80211_QOS_CTL_TID_MASK;
++
+ 		rxd += 4;
+ 		if ((u8 *)rxd - skb->data >= skb->len)
+ 			return -EINVAL;
+-- 
+2.18.0
+
