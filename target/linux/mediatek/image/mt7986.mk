@@ -5,6 +5,7 @@ define Device/mt7986a-ax6000-spim-nor-rfb
   DEVICE_MODEL := mt7986a-ax6000-spim-nor-rfb
   DEVICE_DTS := mt7986a-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7986a-nor-rfb
 endef
 TARGET_DEVICES += mt7986a-ax6000-spim-nor-rfb
 
@@ -13,7 +14,7 @@ define Device/mt7986a-ax6000-spim-nand-rfb
   DEVICE_MODEL := mt7986a-ax6000-spim-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986a-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-spim-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-spim-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -30,7 +31,7 @@ define Device/mt7986a-ax8400-spim-nand-rfb
   DEVICE_MODEL := mt7986a-ax8400-spim-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986a-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-spim-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-spim-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -47,7 +48,7 @@ define Device/mt7986a-ax6000-snfi-nand-rfb
   DEVICE_MODEL := mt7986a-ax6000-snfi-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986a-snfi-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-snfi-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-snfi-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -77,6 +78,7 @@ define Device/mt7986a-ax6000-2500wan-spim-nor-rfb
   DEVICE_MODEL := mt7986a-ax6000-2500wan-spim-nor-rfb
   DEVICE_DTS := mt7986a-2500wan-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-nor-rfb
 endef
 TARGET_DEVICES += mt7986a-ax6000-2500wan-spim-nor-rfb
 
@@ -85,7 +87,7 @@ define Device/mt7986a-ax6000-2500wan-spim-nand-rfb
   DEVICE_MODEL := mt7986a-ax6000-2500wan-spim-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986a-2500wan-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-spim-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-spim-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -102,7 +104,7 @@ define Device/mt7986a-ax6000-2500wan-gsw-spim-nand-rfb
   DEVICE_MODEL := mt7986a-ax6000-2500wan-gsw-spim-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986a-2500wan-gsw-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-gsw-spim-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-gsw-spim-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -132,7 +134,7 @@ define Device/mt7986a-ax8400-2500wan-spim-nand-rfb
   DEVICE_MODEL := mt7986a-ax8400-2500wan-spim-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986a-2500wan-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-spim-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-spim-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -149,6 +151,7 @@ define Device/mt7986a-ax7800-spim-nor-rfb
   DEVICE_MODEL := mt7986a-ax7800-spim-nor-rfb
   DEVICE_DTS := mt7986a-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7986a-nor-rfb
 endef
 TARGET_DEVICES += mt7986a-ax7800-spim-nor-rfb
 
@@ -157,7 +160,7 @@ define Device/mt7986a-ax7800-spim-nand-rfb
   DEVICE_MODEL := mt7986a-ax7800-spim-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986a-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-spim-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-spim-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -174,6 +177,7 @@ define Device/mt7986a-ax7800-2500wan-spim-nor-rfb
   DEVICE_MODEL := mt7986a-ax7800-2500wan-spim-nor-rfb
   DEVICE_DTS := mt7986a-2500wan-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-nor-rfb
 endef
 TARGET_DEVICES += mt7986a-ax7800-2500wan-spim-nor-rfb
 
@@ -182,7 +186,7 @@ define Device/mt7986a-ax7800-2500wan-spim-nand-rfb
   DEVICE_MODEL := mt7986a-ax7800-2500wan-spim-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986a-2500wan-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-spim-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986a-2500wan-spim-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -199,6 +203,7 @@ define Device/mt7986b-ax6000-spim-nor-rfb
   DEVICE_MODEL := mt7986b-ax6000-spim-nor-rfb
   DEVICE_DTS := mt7986b-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7986b-nor-rfb
 endef
 TARGET_DEVICES += mt7986b-ax6000-spim-nor-rfb
 
@@ -207,7 +212,7 @@ define Device/mt7986b-ax6000-spim-nand-rfb
   DEVICE_MODEL := mt7986b-ax6000-spim-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986b-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986b-spim-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986b-spim-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -224,7 +229,7 @@ define Device/mt7986b-ax6000-snfi-nand-rfb
   DEVICE_MODEL := mt7986b-ax6000-snfi-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986b-snfi-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986b-snfi-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986b-snfi-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -254,6 +259,7 @@ define Device/mt7986b-ax6000-2500wan-spim-nor-rfb
   DEVICE_MODEL := mt7986b-ax6000-2500wan-spim-nor-rfb
   DEVICE_DTS := mt7986b-2500wan-spim-nor-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7986b-nor-rfb
 endef
 TARGET_DEVICES += mt7986b-ax6000-2500wan-spim-nor-rfb
 
@@ -262,7 +268,7 @@ define Device/mt7986b-ax6000-2500wan-spim-nand-rfb
   DEVICE_MODEL := mt7986b-ax6000-2500wan-spim-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986b-2500wan-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986b-2500wan-spim-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986b-2500wan-spim-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -279,7 +285,7 @@ define Device/mt7986b-ax6000-2500wan-gsw-spim-nand-rfb
   DEVICE_MODEL := mt7986b-ax6000-2500wan-gsw-spim-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986b-2500wan-gsw-spim-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986b-2500wan-gsw-spim-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986b-2500wan-gsw-spim-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
@@ -296,7 +302,7 @@ define Device/mt7986b-ax6000-2500wan-snfi-nand-rfb
   DEVICE_MODEL := mt7986b-ax6000-2500wan-snfi-nand-rfb (SPI-NAND,UBI)
   DEVICE_DTS := mt7986b-2500wan-snfi-nand-rfb
   DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7986b-2500wan-snfi-nand-rfb
+  SUPPORTED_DEVICES := mediatek,mt7986b-2500wan-snfi-snand-rfb
   UBINIZE_OPTS := -E 5
   BLOCKSIZE := 128k
   PAGESIZE := 2048
