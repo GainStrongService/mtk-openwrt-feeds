@@ -93,7 +93,7 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 	}
 
 	pr_info("[%s] reset record val1=0x%x, val2=0x%x, val3=0x%x !\n",
-		__func__, val1, val2, val3);	
+		__func__, val1, val2, val3);
 
 	if (!done)
 		mtk_eth_cold_reset(eth);
@@ -143,9 +143,17 @@ irqreturn_t mtk_handle_fe_irq(int irq, void *_eth)
 	while (status) {
 		val = ffs((unsigned int)status) - 1;
 		status &= ~(1 << val);
-		pr_info("[%s] Detect reset event: %s !\n", __func__,
-			mtk_reset_event_name[val]);
+
+		if ((val == MTK_EVENT_FQ_EMPTY) ||
+		    (val == MTK_EVENT_TSO_FAIL) ||
+		    (val == MTK_EVENT_TSO_ILLEGAL) ||
+		    (val == MTK_EVENT_TSO_ALIGN) ||
+		    (val == MTK_EVENT_RFIFO_OV) ||
+		    (val == MTK_EVENT_RFIFO_UF))
+			pr_info("[%s] Detect reset event: %s !\n", __func__,
+				mtk_reset_event_name[val]);
 	}
+	mtk_w32(eth, 0xFFFFFFFF, MTK_FE_INT_STATUS);
 
 	return IRQ_HANDLED;
 }
