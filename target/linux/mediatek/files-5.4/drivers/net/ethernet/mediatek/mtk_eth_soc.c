@@ -2572,7 +2572,8 @@ static int mtk_start_dma(struct mtk_eth *eth)
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
 		val = mtk_r32(eth, MTK_QDMA_GLO_CFG);
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+			val &= ~MTK_RESV_BUF_MASK;
 			mtk_w32(eth,
 				val | MTK_TX_DMA_EN | MTK_RX_DMA_EN |
 				MTK_DMA_SIZE_32DWORDS | MTK_TX_WB_DDONE |
@@ -2580,6 +2581,7 @@ static int mtk_start_dma(struct mtk_eth *eth)
 				MTK_RESV_BUF | MTK_WCOMP_EN |
 				MTK_DMAD_WR_WDONE | MTK_CHK_DDONE_EN |
 				MTK_RX_2B_OFFSET, MTK_QDMA_GLO_CFG);
+		}
 		else
 			mtk_w32(eth,
 				val | MTK_TX_DMA_EN |

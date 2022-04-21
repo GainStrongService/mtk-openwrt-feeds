@@ -382,6 +382,7 @@
 #define MTK_WCOMP_EN		BIT(24)
 #define MTK_RESV_BUF		(0x80 << 16)
 #define MTK_MUTLI_CNT		(0x4 << 12)
+#define MTK_RESV_BUF_MASK	(0xff << 16)
 
 /* QDMA Reset Index Register */
 #define MTK_QDMA_RST_IDX	(QDMA_BASE + 0x208)
