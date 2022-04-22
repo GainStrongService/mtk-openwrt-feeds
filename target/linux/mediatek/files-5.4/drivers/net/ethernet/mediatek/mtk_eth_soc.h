@@ -681,9 +681,9 @@
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
 #define RSTCTRL_PPE0	BIT(30)
 #define RSTCTRL_PPE1 	BIT(31)
-#elif
+#else
 #define RSTCTRL_PPE0	BIT(31)
-#define RSTCTRL_PPE1 	NULL
+#define RSTCTRL_PPE1 	0
 #endif
 
 /* ethernet reset check idle register */
