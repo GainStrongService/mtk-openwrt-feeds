@@ -123,17 +123,25 @@ int main(int argc, char *argv[])
 				break;	
 			case 'p':
 				port = strtoul(optarg, NULL, 16);
+				if (port > INT_MAX)
+					return -EINVAL;
 				break;
                         case 'd':				
                                 dev = strtoul(optarg, NULL, 16);
+				if (dev > INT_MAX)
+					return -EINVAL;
 				is_cl45 = 1;
 				break;
 			case 'r':
 				reg_num = strtoul(optarg, NULL, 16);
+				if (reg_num > INT_MAX)
+					return -EINVAL;
 				break;
 
 			case 'v':
 				val = strtoul(optarg, NULL, 16);
+				if (val > INT_MAX)
+					return -EINVAL;
 				break;
 			case '?':
 				show_usage();
