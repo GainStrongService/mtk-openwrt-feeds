@@ -1,6 +1,6 @@
-From de52c12018c3f4691310c002ab49dec0de7e8518 Mon Sep 17 00:00:00 2001
+From 410b8c158d29137df0da4d8a1e82d494528e4fb1 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
-Date: Thu, 21 Apr 2022 20:02:40 +0800
+Date: Mon, 25 Apr 2022 10:19:29 +0800
 Subject: [PATCH] mt76: mt7915: add L0.5 SER for mt7986
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
@@ -15,12 +15,9 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  mt7915/mt7915.h  |  27 ++++++
  mt7915/regs.h    |  37 +++++++-
  9 files changed, 572 insertions(+), 28 deletions(-)
- mode change 100644 => 100755 mt7915/debugfs.c
 
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-old mode 100644
-new mode 100755
-index e8e26ac1..f7ad486f
+index e8e26ac1..003aacaa 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -47,7 +47,8 @@ mt7915_implicit_txbf_get(void *data, u64 *val)
@@ -121,25 +118,25 @@ index e8e26ac1..f7ad486f
 +	msleep(100);
 +
 +	seq_printf(s, "::E  R , SER_STATUS        = 0x%08X\n",
-+		   MT_SWDEF_SER_STATUS);
++		   mt76_rr(dev, MT_SWDEF_SER_STATUS));
 +	seq_printf(s, "::E  R , SER_PLE_ERR       = 0x%08X\n",
-+		   MT_SWDEF_PLE_STATUS);
++		   mt76_rr(dev, MT_SWDEF_PLE_STATUS));
 +	seq_printf(s, "::E  R , SER_PLE_ERR_1     = 0x%08X\n",
-+		   MT_SWDEF_PLE1_STATUS);
++		   mt76_rr(dev, MT_SWDEF_PLE1_STATUS));
 +	seq_printf(s, "::E  R , SER_PLE_ERR_AMSDU = 0x%08X\n",
-+		   MT_SWDEF_PLE_AMSDU_STATUS);
++		   mt76_rr(dev, MT_SWDEF_PLE_AMSDU_STATUS));
 +	seq_printf(s, "::E  R , SER_PSE_ERR       = 0x%08X\n",
-+		   MT_SWDEF_PSE_STATUS);
++		   mt76_rr(dev, MT_SWDEF_PSE_STATUS));
 +	seq_printf(s, "::E  R , SER_PSE_ERR_1     = 0x%08X\n",
-+		   MT_SWDEF_PSE1_STATUS);
++		   mt76_rr(dev, MT_SWDEF_PSE1_STATUS));
 +	seq_printf(s, "::E  R , SER_LMAC_WISR6_B0 = 0x%08X\n",
-+		   MT_SWDEF_LAMC_WISR6_BN0_STATUS);
++		   mt76_rr(dev, MT_SWDEF_LAMC_WISR6_BN0_STATUS));
 +	seq_printf(s, "::E  R , SER_LMAC_WISR6_B1 = 0x%08X\n",
-+		   MT_SWDEF_LAMC_WISR6_BN1_STATUS);
++		   mt76_rr(dev, MT_SWDEF_LAMC_WISR6_BN1_STATUS));
 +	seq_printf(s, "::E  R , SER_LMAC_WISR7_B0 = 0x%08X\n",
-+		   MT_SWDEF_LAMC_WISR7_BN0_STATUS);
++		   mt76_rr(dev, MT_SWDEF_LAMC_WISR7_BN0_STATUS));
 +	seq_printf(s, "::E  R , SER_LMAC_WISR7_B1 = 0x%08X\n",
-+		   MT_SWDEF_LAMC_WISR7_BN1_STATUS);
++		   mt76_rr(dev, MT_SWDEF_LAMC_WISR7_BN1_STATUS));
 +
 +	seq_printf(s, "\nWF RESET STATUS: WM %d, WA %d, WO %d\n",
 +		   dev->ser.wf_reset_wm_count,
@@ -316,7 +313,7 @@ index 79dae0fc..25a9b5de 100644
  
  unreg_thermal:
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 89d3badc..d97a3c58 100644
+index b899697c..e301fe52 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -3,6 +3,7 @@
@@ -327,7 +324,7 @@ index 89d3badc..d97a3c58 100644
  #include "mt7915.h"
  #include "../dma.h"
  #include "mac.h"
-@@ -2069,9 +2070,9 @@ mt7915_update_beacons(struct mt7915_dev *dev)
+@@ -2064,9 +2065,9 @@ mt7915_update_beacons(struct mt7915_dev *dev)
  		IEEE80211_IFACE_ITER_RESUME_ALL,
  		mt7915_update_vif_beacon, dev->mt76.phy2->hw);
  }
@@ -339,7 +336,7 @@ index 89d3badc..d97a3c58 100644
  {
  	struct mt76_phy *mphy_ext = dev->mt76.phy2;
  	u32 hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
-@@ -2136,6 +2137,7 @@ mt7915_dma_reset(struct mt7915_dev *dev)
+@@ -2131,6 +2132,7 @@ mt7915_dma_reset(struct mt7915_dev *dev)
  				 MT_WFDMA1_GLO_CFG_OMIT_RX_INFO);
  	}
  }
@@ -347,7 +344,7 @@ index 89d3badc..d97a3c58 100644
  
  void mt7915_tx_token_put(struct mt7915_dev *dev)
  {
-@@ -2151,6 +2153,172 @@ void mt7915_tx_token_put(struct mt7915_dev *dev)
+@@ -2146,6 +2148,172 @@ void mt7915_tx_token_put(struct mt7915_dev *dev)
  	idr_destroy(&dev->mt76.token);
  }
  
@@ -520,7 +517,7 @@ index 89d3badc..d97a3c58 100644
  /* system error recovery */
  void mt7915_mac_reset_work(struct work_struct *work)
  {
-@@ -2162,6 +2330,25 @@ void mt7915_mac_reset_work(struct work_struct *work)
+@@ -2157,6 +2325,25 @@ void mt7915_mac_reset_work(struct work_struct *work)
  	ext_phy = dev->mt76.phy2;
  	phy2 = ext_phy ? ext_phy->priv : NULL;
  
@@ -546,7 +543,7 @@ index 89d3badc..d97a3c58 100644
  	if (!(READ_ONCE(dev->reset_state) & MT_MCU_CMD_STOP_DMA))
  		return;
  
-@@ -2188,7 +2375,7 @@ void mt7915_mac_reset_work(struct work_struct *work)
+@@ -2183,7 +2370,7 @@ void mt7915_mac_reset_work(struct work_struct *work)
  	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_DMA_STOPPED);
  
  	if (mt7915_wait_reset_state(dev, MT_MCU_CMD_RESET_DONE)) {
@@ -555,7 +552,7 @@ index 89d3badc..d97a3c58 100644
  
  		mt7915_tx_token_put(dev);
  		idr_init(&dev->mt76.token);
-@@ -2239,6 +2426,44 @@ void mt7915_mac_reset_work(struct work_struct *work)
+@@ -2234,6 +2421,44 @@ void mt7915_mac_reset_work(struct work_struct *work)
  					     MT7915_WATCHDOG_TIME);
  }
  
@@ -601,7 +598,7 @@ index 89d3badc..d97a3c58 100644
  {
  	struct mt7915_dev *dev = phy->dev;
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 0e62aa3b..13bb6368 100644
+index 5b0a6d02..9cc60e85 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -20,7 +20,7 @@ static bool mt7915_dev_running(struct mt7915_dev *dev)
