@@ -1,7 +1,7 @@
-From b6c6afbe347c8cd3ab43d4cab07e840ecf5d3ad6 Mon Sep 17 00:00:00 2001
+From 223df0027748514563ede33a1283e5c1b9fbc342 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 29 Jun 2021 14:30:44 +0800
-Subject: [PATCH 1100/1112] mt76: testmode: support eeprom handle
+Subject: [PATCH 1/2] mt76: testmode: support eeprom handle
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
@@ -15,10 +15,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  7 files changed, 133 insertions(+), 7 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 58b324c..8ad7674 100644
+index 8f6279c5..6d78e7bf 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -581,6 +581,7 @@ struct mt76_testmode_ops {
+@@ -602,6 +602,7 @@ struct mt76_testmode_ops {
  	int (*set_params)(struct mt76_phy *phy, struct nlattr **tb,
  			  enum mt76_testmode_state new_state);
  	int (*dump_stats)(struct mt76_phy *phy, struct sk_buff *msg);
@@ -27,10 +27,10 @@ index 58b324c..8ad7674 100644
  
  #define MT_TM_FW_RX_COUNT	BIT(0)
 diff --git a/mt7915/init.c b/mt7915/init.c
-index cd69174..92d57f9 100644
+index 0b36083e..79dae0fc 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -569,7 +569,7 @@ static void mt7915_init_work(struct work_struct *work)
+@@ -573,7 +573,7 @@ static void mt7915_init_work(struct work_struct *work)
  	struct mt7915_dev *dev = container_of(work, struct mt7915_dev,
  				 init_work);
  
@@ -40,7 +40,7 @@ index cd69174..92d57f9 100644
  	mt7915_init_txpower(dev, &dev->mphy.sband_2g.sband);
  	mt7915_init_txpower(dev, &dev->mphy.sband_5g.sband);
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index d55e9d0..2b57459 100644
+index 777fd890..681ede23 100755
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -289,7 +289,6 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -51,7 +51,7 @@ index d55e9d0..2b57459 100644
  		if (cmd & __MCU_CMD_FIELD_QUERY)
  			mcu_txd->set_query = MCU_Q_QUERY;
  		else
-@@ -2913,14 +2912,14 @@ static int mt7915_mcu_set_eeprom_flash(struct mt7915_dev *dev)
+@@ -2955,14 +2954,14 @@ static int mt7915_mcu_set_eeprom_flash(struct mt7915_dev *dev)
  	return 0;
  }
  
@@ -69,10 +69,10 @@ index d55e9d0..2b57459 100644
  
  	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(EFUSE_BUFFER_MODE),
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index a8726fe..274afff 100644
+index 09710562..24276da5 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -539,7 +539,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
+@@ -549,7 +549,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
  				   struct ieee80211_vif *vif,
  				   struct ieee80211_sta *sta,
  				   void *data, u32 field);
@@ -82,7 +82,7 @@ index a8726fe..274afff 100644
  int mt7915_mcu_get_eeprom_free_block(struct mt7915_dev *dev, u8 *block_num);
  int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index e8bf616..2c859f6 100644
+index e8bf616c..a91f7e55 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -848,8 +848,62 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
@@ -100,7 +100,7 @@ index e8bf616..2c859f6 100644
 +	if (mt76_chip(&dev->mt76) != get_unaligned_le16(eeprom))
 +		goto out;
 +
-+	for (i = 0; i < MT7915_EEPROM_SIZE; i += MT76_TM_EEPROM_BLOCK_SIZE) {
++	for (i = 0; i < mt7915_eeprom_size(dev); i += MT76_TM_EEPROM_BLOCK_SIZE) {
 +		req.addr = cpu_to_le32(i);
 +		memcpy(&req.data, eeprom + i, MT76_TM_EEPROM_BLOCK_SIZE);
 +
@@ -122,7 +122,7 @@ index e8bf616..2c859f6 100644
 +	u8 *eeprom = dev->mt76.eeprom.data;
 +	int ret = 0;
 +
-+	if (offset >= MT7915_EEPROM_SIZE)
++	if (offset >= mt7915_eeprom_size(dev))
 +		return -EINVAL;
 +
 +	switch (action) {
@@ -149,7 +149,7 @@ index e8bf616..2c859f6 100644
 +	.set_eeprom = mt7915_tm_set_eeprom,
  };
 diff --git a/testmode.c b/testmode.c
-index e6d1f70..1fbca66 100644
+index e6d1f702..1fbca660 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -402,6 +402,44 @@ mt76_tm_get_u8(struct nlattr *attr, u8 *dest, u8 min, u8 max)
@@ -220,7 +220,7 @@ index e6d1f70..1fbca66 100644
  		nla_for_each_nested(cur, tb[MT76_TM_ATTR_TX_POWER], rem) {
  			if (nla_len(cur) != 1 ||
 diff --git a/testmode.h b/testmode.h
-index 8961326..5900c76 100644
+index 89613266..5900c762 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -6,6 +6,7 @@
