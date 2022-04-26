@@ -1,0 +1,31 @@
+From b5928412d6debbaf624f9d91650b3a60443e3099 Mon Sep 17 00:00:00 2001
+From: MeiChia Chiu <meichia.chiu@mediatek.com>
+Date: Tue, 26 Apr 2022 11:21:14 +0800
+Subject: [PATCH] hostapd: add destination address of unsolicited probe
+ response
+
+without this patch, hostapd generates probe responses with
+null destination address when ap enables unsolicited probe response.
+
+Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
+---
+ src/ap/beacon.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/ap/beacon.c b/src/ap/beacon.c
+index 8cd1c4170..3c49653cc 100644
+--- a/src/ap/beacon.c
++++ b/src/ap/beacon.c
+@@ -484,6 +484,9 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
+ 					   WLAN_FC_STYPE_PROBE_RESP);
+ 	if (req)
+ 		os_memcpy(resp->da, req->sa, ETH_ALEN);
++	else if (hapd->conf->unsol_bcast_probe_resp_interval > 0)
++		os_memset(resp->da, 0xff, ETH_ALEN);
++
+ 	os_memcpy(resp->sa, hapd->own_addr, ETH_ALEN);
+ 
+ 	os_memcpy(resp->bssid, hapd->own_addr, ETH_ALEN);
+-- 
+2.29.2
+
