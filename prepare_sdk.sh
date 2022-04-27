@@ -32,7 +32,7 @@ sdk_patch(){
 sdk_patch
 #cp mtk target to OpenWRT
 cp -fpR ${MTK_FEEDS_DIR}/target ./
-cp -fpR ${MTK_FEEDS_DIR}/package ./
+cp -fpR ${MTK_FEEDS_DIR}/package${OPENWRT_VER}/* ./package
 cp -fpR ${MTK_FEEDS_DIR}/tools ./
 #remove patch if choose to not "keep" patch
 if [ -z ${2} ]; then
