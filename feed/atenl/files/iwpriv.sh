@@ -192,10 +192,11 @@ function convert_channel {
     if [[ $1 != *":"* ]] || [ "${band}" = "0" ]; then
         case ${bw} in
             "1")
-                if [ "${ch}" -ge "1" ] && [ "${ch}" -le "7" ]; then
-                    local bw_str="HT40+"
+                if [ "${ch}" -lt "3" ] || [ "${ch}" -gt "12" ]; then
+                    local bw_str="HT20"
                 else
-                    local bw_str="HT40-"
+                    local bw_str="HT40+"
+                    ch=$(expr ${ch} - "2")
                 fi
                 ;;
         esac
@@ -312,11 +313,11 @@ function convert_rxstat {
     local wb_rssi=$(echo "${res}" | grep "last_wb_rssi" | cut -d "=" -f 2 | sed 's/,/ /g')
     local rx_ok=$(expr ${mdrdy} - ${fcs_error})
 
-    write_dmesg "rcpi : ${rcpi}"
-    write_dmesg "fagc rssi ib : ${ib_rssi}"
-    write_dmesg "fagc rssi wb : ${wb_rssi}"
-    write_dmesg "all_mac_rx_mdrdy_cnt : ${mdrdy}"
-    write_dmesg "all_mac_rx_fcs_err_cnt : ${fcs_error}"
+    write_dmesg "rcpi: ${rcpi}"
+    write_dmesg "fagc rssi ib: ${ib_rssi}"
+    write_dmesg "fagc rssi wb: ${wb_rssi}"
+    write_dmesg "all_mac_rx_mdrdy_cnt: ${mdrdy}"
+    write_dmesg "all_mac_rx_fcs_err_cnt: ${fcs_error}"
     write_dmesg "all_mac_rx_ok_cnt : ${rx_ok}"
 }
 
@@ -379,7 +380,6 @@ function do_ate_work() {
                 do_cmd "iw dev wlan${phy_idx} del"
                 do_cmd "ifconfig mon${phy_idx} up"
                 do_cmd "iw reg set VV"
-                do_cmd "mt76-test ${interface} set aid=1"
             fi
             ;;
         "ATESTOP")
@@ -389,18 +389,24 @@ function do_ate_work() {
                 echo "ATE does not start."
             else
                 do_cmd "mt76-test ${interface} set state=off"
-                do_cmd "mt76-test ${interface} set aid=0"
                 do_cmd "iw dev mon${phy_idx} del"
                 do_cmd "iw phy ${interface} interface add wlan${phy_idx} type managed"
+                do_cmd "mt76-test ${interface} set aid=0"
             fi
 
             rm ${tmp_file} > /dev/null 2>&1
+            ;;
+        "TXCOMMIT")
+            do_cmd "mt76-test ${interface} set aid=1"
             ;;
         "TXFRAME")
             do_cmd "mt76-test ${interface} set state=tx_frames"
             ;;
         "TXSTOP"|"RXSTOP")
             do_cmd "mt76-test ${interface} set state=idle"
+            ;;
+        "TXREVERT")
+            do_cmd "mt76-test ${interface} set aid=0"
             ;;
         "RXFRAME")
             do_cmd "mt76-test ${interface} set state=rx_frames"
@@ -409,7 +415,6 @@ function do_ate_work() {
             do_cmd "mt76-test ${interface} set state=tx_cont"
             ;;
         *)
-            # skip TXCOMMIT/TXREVERT
             print_debug "skip ${ate_cmd}"
             ;;
     esac
@@ -433,7 +438,6 @@ param=$(echo ${full_cmd} | sed s/=/' '/g | cut -d " " -f 2)
 
 if [ "${cmd_type}" = "set" ]; then
     skip=0
-    use_ated=0
     case ${cmd} in
         "ATE")
             do_ate_work ${param}
@@ -485,7 +489,7 @@ if [ "${cmd_type}" = "set" ]; then
             ;;
         "bufferMode")
             if [ "${param}" = "2" ]; then
-                do_cmd "ated -i ${interface} -c \"eeprom update buffermode\""
+                do_cmd "atenl -i ${interface} -c \"eeprom update buffermode\""
             fi
             skip=1
             ;;
@@ -513,28 +517,30 @@ elif [ "${cmd_type}" = "e2p" ]; then
     if [[ ${full_cmd} == *"="* ]]; then
         tmp=$((${val} & 0xff))
         tmp=$(printf "0x%x" ${tmp})
-        do_cmd "ated -i ${interface} -c \"eeprom set ${offset}=${tmp}\""
+        do_cmd "atenl -i ${interface} -c \"eeprom set ${offset}=${tmp}\""
 
         offset=$((${offset}))
         offset=$(expr ${offset} + "1")
         offset=$(printf "0x%x" ${offset})
         tmp=$(((${val} >> 8) & 0xff))
         tmp=$(printf "0x%x" ${tmp})
-        do_cmd "ated -i ${interface} -c \"eeprom set ${offset}=${tmp}\""
+        do_cmd "atenl -i ${interface} -c \"eeprom set ${offset}=${tmp}\""
     else
-        v1=$(do_cmd "ated -i ${interface} -c \"eeprom read ${param}\"")
+        v1=$(do_cmd "atenl -i ${interface} -c \"eeprom read ${param}\"")
         v1=$(echo "${v1}" | grep "val =" | cut -d '(' -f 2 | grep -o -E '[0-9]+')
 
         tmp=$(printf "0x%s" ${param})
         tmp=$((${tmp}))
         param2=$(expr ${tmp} + "1")
         param2=$(printf "%x" ${param2})
-        v2=$(do_cmd "ated -i ${interface} -c \"eeprom read ${param2}\"")
+        v2=$(do_cmd "atenl -i ${interface} -c \"eeprom read ${param2}\"")
         v2=$(echo "${v2}" | grep "val =" | cut -d '(' -f 2 | grep -o -E '[0-9]+')
 
         param=$(printf "0x%s" ${param})
+        param=$(printf "%04x" ${param})
+        param=$(echo $param | tr 'a-z' 'A-Z')
         printf "%s       e2p:\n" ${interface_ori}
-        printf "[0x%04x]:0x%02x%02x\n" ${param} ${v2} ${v1}
+        printf "[0x%s]:0x%02x%02x\n" ${param} ${v2} ${v1}
     fi
 
 elif [ "${cmd_type}" = "mac" ]; then
@@ -547,10 +553,10 @@ elif [ "${cmd_type}" = "mac" ]; then
     # reg write
     if [[ ${full_cmd} == *"="* ]]; then
         echo ${val} > ${regval}
-    else
-        res=$(cat ${regval} | cut -d 'x' -f 2)
-        printf "%s mac:[%s]:%s\n" ${interface} ${offset} ${res}
     fi
+
+    res=$(cat ${regval} | cut -d 'x' -f 2)
+    printf "%s       mac:[%s]:%s\n" ${interface_ori} ${offset} ${res}
 
 else
     echo "Unknown command"

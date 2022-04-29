@@ -5,6 +5,7 @@
 mode="0"
 add_quote="0"
 cmd="atenl"
+ori_inf=""
 
 for i in "$@"
 do
@@ -17,8 +18,10 @@ do
         add_quote="0"
     else
         if [ ${i} = "ra0" ]; then
+            ori_inf=${i}
             i="phy0"
         elif [ ${i} = "rax0" ]; then
+            ori_inf=${i}
             i="phy1"
         fi
         cmd="${cmd} ${i}"
@@ -26,7 +29,10 @@ do
 done
 
 if [ "$mode" = "0" ]; then
-    killall atenl
+    killall atenl > /dev/null 2>&1
 fi
 
-eval "${cmd}"
+eval "${cmd}" > /dev/null 2>&1 &
+if [[ ! -z "${ori_inf}" ]]; then
+    echo "if_name: ${ori_inf}"
+fi
