@@ -1950,20 +1950,35 @@ static ssize_t hnat_mape_toggle_write(struct file *file, const char __user *buff
 				      size_t count, loff_t *data)
 {
 	char buf = 0;
-	int len = count;
-
-	if (copy_from_user(&buf, buffer, len))
+	int i;
+	u32 ppe_cfg;
+	
+	if ((count < 1) || copy_from_user(&buf, buffer, sizeof(buf)))
 		return -EFAULT;
 
-	if (buf == '1' && !mape_toggle) {
+	if (buf == '1') {
 		pr_info("mape is going to be enabled, ds-lite is going to be disabled !\n");
 		mape_toggle = 1;
-	} else if (buf == '0' && mape_toggle) {
+	} else if (buf == '0') {
 		pr_info("ds-lite is going to be enabled, mape is going to be disabled !\n");
 		mape_toggle = 0;
+	} else {
+		pr_info("Invalid parameter.\n");
+		return -EFAULT;
 	}
 
-	return len;
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		ppe_cfg = readl(hnat_priv->ppe_base[i] + PPE_FLOW_CFG);
+
+		if (mape_toggle)
+			ppe_cfg &= ~BIT_IPV4_DSL_EN;
+		else
+			ppe_cfg |= BIT_IPV4_DSL_EN;
+
+		writel(ppe_cfg, hnat_priv->ppe_base[i] + PPE_FLOW_CFG);
+	}
+
+	return count;
 }
 
 static const struct file_operations hnat_mape_toggle_fops = {
