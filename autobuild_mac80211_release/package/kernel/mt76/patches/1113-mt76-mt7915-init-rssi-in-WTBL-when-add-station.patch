@@ -1,17 +1,17 @@
-From 04ef8f969aa6a51dd6d9ccd2723513bed3a588a0 Mon Sep 17 00:00:00 2001
+From 9d57f49dd5ff756854029c484876325b43fc2b78 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Sun, 24 Apr 2022 10:07:00 +0800
-Subject: [PATCH] mt76: mt7915: init rssi in WTBL when add station
+Subject: [PATCH 1113/1116] mt76: mt7915: init rssi in WTBL when add station
 
 ---
  mt7915/main.c | 4 ++++
  1 file changed, 4 insertions(+)
 
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 09659dc7..3c6c66b8 100644
+index 5b0a6d02..f50dbbb5 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -671,6 +671,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -651,6 +651,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	struct mt7915_phy *phy;
  #endif
  	int ret, idx;
@@ -19,7 +19,7 @@ index 09659dc7..3c6c66b8 100644
  
  	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
  	if (idx < 0)
-@@ -692,6 +693,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -672,6 +673,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	if (ret)
  		return ret;
  
