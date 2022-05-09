@@ -1,4 +1,4 @@
-From cdccb674bc75292020be6894dcea162e585dc5ce Mon Sep 17 00:00:00 2001
+From 6820d00b2fd86c760e281ea6e3e114cf2779cb12 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 28 Mar 2022 09:19:29 +0800
 Subject: [PATCH] mt76: mt7915: add support for muru_onoff via debugfs
@@ -12,7 +12,7 @@ Subject: [PATCH] mt76: mt7915: add support for muru_onoff via debugfs
  5 files changed, 49 insertions(+), 4 deletions(-)
 
 diff --git a/mt7915/init.c b/mt7915/init.c
-index dbcdf147..c58f045f 100644
+index ad2a9c9f..3eaf7916 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -574,6 +574,7 @@ static void mt7915_init_work(struct work_struct *work)
@@ -24,7 +24,7 @@ index dbcdf147..c58f045f 100644
  
  void mt7915_wfsys_reset(struct mt7915_dev *dev)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 26831327..95825062 100644
+index c7694819..cbcd3bd4 100755
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -944,6 +944,7 @@ mt7915_mcu_sta_muru_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
@@ -55,10 +55,10 @@ index 26831327..95825062 100644
  	if (sta->vht_cap.vht_supported)
  		muru->mimo_dl.vht_mu_bfee =
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 007282d4..a5e5afae 100644
+index f166eaea..ccb1c9d0 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -569,4 +569,10 @@ struct csi_data {
+@@ -573,4 +573,10 @@ struct csi_data {
  };
  #endif
  
@@ -70,7 +70,7 @@ index 007282d4..a5e5afae 100644
 +
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 9960785e..ec844dbe 100644
+index 1b37cef7..e6b87239 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -390,6 +390,7 @@ struct mt7915_dev {
@@ -82,10 +82,10 @@ index 9960785e..ec844dbe 100644
  	const struct mt7915_dbg_reg_desc *dbg_reg;
  #endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 246eb129..6c48f115 100644
+index ccaaea78..d2dbae45 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -2454,6 +2454,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)
+@@ -2480,6 +2480,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)
  	return 0;
  }
  
@@ -124,7 +124,7 @@ index 246eb129..6c48f115 100644
  static int mt7915_amsduinfo_read(struct seq_file *s, void *data)
  {
  	struct mt7915_dev *dev = dev_get_drvdata(s->private);
-@@ -2831,6 +2863,7 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -2857,6 +2889,7 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  
  	mt7915_mcu_fw_log_2_host(dev, MCU_FW_LOG_WM, 0);
  

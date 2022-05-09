@@ -1,4 +1,4 @@
-From 0449c4e87ffdfefb52beb549d2afc924f330fc60 Mon Sep 17 00:00:00 2001
+From 03d0a859ad4ba9f270b0c5ae896e8cc89fd241f4 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Thu, 21 Apr 2022 19:42:55 +0800
 Subject: [PATCH] mt76: mt7915: add mtk internal debug tools for mt76
@@ -13,10 +13,10 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  mt7915/mcu.h          |    4 +
  mt7915/mt7915.h       |   41 +
  mt7915/mt7915_debug.h | 1350 +++++++++++++++++++
- mt7915/mtk_debugfs.c  | 2893 +++++++++++++++++++++++++++++++++++++++++
+ mt7915/mtk_debugfs.c  | 2921 +++++++++++++++++++++++++++++++++++++++++
  mt7915/mtk_mcu.c      |   51 +
  tools/fwlog.c         |   26 +-
- 11 files changed, 4489 insertions(+), 11 deletions(-)
+ 11 files changed, 4517 insertions(+), 11 deletions(-)
  mode change 100644 => 100755 mt7915/mcu.c
  create mode 100644 mt7915/mt7915_debug.h
  create mode 100644 mt7915/mtk_debugfs.c
@@ -54,7 +54,7 @@ index b794ceb7..a3474e2f 100644
  mt7915e-$(CONFIG_MT7986_WMAC) += soc.o
 \ No newline at end of file
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 77bbeeed..e8e26ac1 100644
+index b45181c1..27321528 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -8,6 +8,9 @@
@@ -67,7 +67,7 @@ index 77bbeeed..e8e26ac1 100644
  
  /** global debugfs **/
  
-@@ -370,6 +373,9 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
+@@ -448,6 +451,9 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
  	int ret;
  
  	dev->fw_debug_wm = val ? MCU_FW_LOG_TO_HOST : 0;
@@ -77,7 +77,7 @@ index 77bbeeed..e8e26ac1 100644
  
  	if (dev->fw_debug_bin)
  		val = 16;
-@@ -394,6 +400,9 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
+@@ -472,6 +478,9 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
  		if (ret)
  			return ret;
  	}
@@ -87,7 +87,7 @@ index 77bbeeed..e8e26ac1 100644
  
  	/* WM CPU info record control */
  	mt76_clear(dev, MT_CPU_UTIL_CTRL, BIT(0));
-@@ -401,6 +410,12 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
+@@ -479,6 +488,12 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
  	mt76_wr(dev, MT_MCU_WM_CIRQ_IRQ_MASK_CLR_ADDR, BIT(5));
  	mt76_wr(dev, MT_MCU_WM_CIRQ_IRQ_SOFT_ADDR, BIT(5));
  
@@ -100,7 +100,7 @@ index 77bbeeed..e8e26ac1 100644
  	return 0;
  }
  
-@@ -409,7 +424,11 @@ mt7915_fw_debug_wm_get(void *data, u64 *val)
+@@ -487,7 +502,11 @@ mt7915_fw_debug_wm_get(void *data, u64 *val)
  {
  	struct mt7915_dev *dev = data;
  
@@ -113,7 +113,7 @@ index 77bbeeed..e8e26ac1 100644
  
  	return 0;
  }
-@@ -489,6 +508,16 @@ mt7915_fw_debug_bin_set(void *data, u64 val)
+@@ -567,6 +586,16 @@ mt7915_fw_debug_bin_set(void *data, u64 val)
  
  	relay_reset(dev->relay_fwlog);
  
@@ -130,7 +130,7 @@ index 77bbeeed..e8e26ac1 100644
  	return mt7915_fw_debug_wm_set(dev, dev->fw_debug_wm);
  }
  
-@@ -942,6 +971,11 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
+@@ -1020,6 +1049,11 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
  	if (!ext_phy)
  		dev->debugfs_dir = dir;
  
@@ -142,7 +142,7 @@ index 77bbeeed..e8e26ac1 100644
  	return 0;
  }
  
-@@ -982,17 +1016,53 @@ void mt7915_debugfs_rx_fw_monitor(struct mt7915_dev *dev, const void *data, int
+@@ -1060,17 +1094,53 @@ void mt7915_debugfs_rx_fw_monitor(struct mt7915_dev *dev, const void *data, int
  		.msg_type = cpu_to_le16(PKT_TYPE_RX_FW_MONITOR),
  	};
  
@@ -197,7 +197,7 @@ index 77bbeeed..e8e26ac1 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index de5f3f10..ce760cdb 100644
+index 25a6adfc..6d8b749e 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -596,6 +596,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -222,7 +222,7 @@ index de5f3f10..ce760cdb 100644
  	if (hdr_trans && ieee80211_has_morefrags(fc)) {
  		if (mt7915_reverse_frag0_hdr_trans(skb, hdr_gap))
  			return -EINVAL;
-@@ -1352,6 +1360,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -1346,6 +1354,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	tx_info->buf[1].skip_unmap = true;
  	tx_info->nbuf = MT_CT_DMA_BUF_NUM;
  
@@ -238,7 +238,7 @@ index de5f3f10..ce760cdb 100644
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
 old mode 100644
 new mode 100755
-index c215bc9e..bce14f4b
+index 20f32f7f..c325c4b6
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -298,6 +298,10 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -252,7 +252,7 @@ index c215bc9e..bce14f4b
  	if (wait_seq)
  		*wait_seq = seq;
  
-@@ -3660,6 +3664,43 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
+@@ -3657,6 +3661,43 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
  				 &req, sizeof(req), true);
  }
  
@@ -297,7 +297,7 @@ index c215bc9e..bce14f4b
  {
  	struct {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index df7aefca..c36cf511 100644
+index 5cbc3ecf..3f303885 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -296,6 +296,10 @@ enum {
@@ -377,7 +377,7 @@ index e5f89161..92fedaf3 100644
  #endif
 diff --git a/mt7915/mt7915_debug.h b/mt7915/mt7915_debug.h
 new file mode 100644
-index 00000000..ca4b6078
+index 00000000..58ba2cdf
 --- /dev/null
 +++ b/mt7915/mt7915_debug.h
 @@ -0,0 +1,1350 @@
@@ -722,7 +722,7 @@ index 00000000..ca4b6078
 +	[DBG_PLE_CPU_PG_INFO]		= { DBG_INVALID_BASE, 0x394},
 +	[DBG_PLE_FL_QUE_CTRL]		= { DBG_INVALID_BASE, 0x3e0},
 +	[DBG_PLE_NATIVE_TXCMD_Q_EMPTY]	= { DBG_INVALID_BASE, 0x370},
-+	[DBG_PLE_TXCMD_Q_EMPTY]		= { DBG_INVALID_BASE, 0x374},
++	[DBG_PLE_TXCMD_Q_EMPTY]		= { DBG_INVALID_BASE, 0x36c},
 +	[DBG_PLE_AC_QEMPTY]		= { DBG_INVALID_BASE, 0x600},
 +	[DBG_PLE_AC_OFFSET]		= { DBG_INVALID_BASE, 0x080},
 +	[DBG_PLE_STATION_PAUSE]		= { DBG_INVALID_BASE, 0x100},
@@ -1733,10 +1733,10 @@ index 00000000..ca4b6078
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 00000000..246eb129
+index 00000000..ccaaea78
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
-@@ -0,0 +1,2893 @@
+@@ -0,0 +1,2921 @@
 +#include<linux/inet.h>
 +#include "mt7915.h"
 +#include "mt7915_debug.h"
@@ -1968,6 +1968,23 @@ index 00000000..246eb129
 +#define LWTBL_LEN_IN_DW 32
 +#define UWTBL_LEN_IN_DW 8
 +#define ONE_KEY_ENTRY_LEN_IN_DW 8
++static int mt7915_sta_info(struct seq_file *s, void *data)
++{
++	struct mt7915_dev *dev = dev_get_drvdata(s->private);
++	u8 lwtbl[LWTBL_LEN_IN_DW*4] = {0};
++	u16 i = 0;
++
++	for (i=0; i < mt7915_wtbl_size(dev); i++) {
++		mt7915_wtbl_read_raw(dev, i, WTBL_TYPE_LMAC, 0,
++					LWTBL_LEN_IN_DW, lwtbl);
++		if (lwtbl[4] || lwtbl[5] || lwtbl[6] || lwtbl[7] || lwtbl[0] || lwtbl[1])
++			seq_printf(s, "wcid:%d\tAddr: %02x:%02x:%02x:%02x:%02x:%02x\n",
++					i, lwtbl[4], lwtbl[5], lwtbl[6], lwtbl[7], lwtbl[0], lwtbl[1]);
++	}
++
++	return 0;
++}
++
 +static int mt7915_wtbl_read(struct seq_file *s, void *data)
 +{
 +	struct mt7915_dev *dev = dev_get_drvdata(s->private);
@@ -2893,7 +2910,7 @@ index 00000000..246eb129
 +	return 0;
 +}
 +
-+#define CR_NUM_OF_AC 9
++#define CR_NUM_OF_AC 17
 +
 +typedef enum _ENUM_UMAC_PORT_T {
 +	ENUM_UMAC_HIF_PORT_0         = 0,
@@ -3023,16 +3040,15 @@ index 00000000..246eb129
 +	u32 ac_num = 9, all_ac_num;
 +
 +	/* TDO: ac_num = 16 for mt7986 */
-+	/* if (!is_mt7915(&dev->mt76))
-+		ac_num = 16;
-+	*/
++	if (!is_mt7915(&dev->mt76))
++		ac_num = 17;
 +
 +	all_ac_num = ac_num * 4;
 +
 +	for (j = 0; j < all_ac_num; j++) { /* show AC Q info */
 +		for (i = 0; i < 32; i++) {
 +			if (((ple_stat[j + 1] & (0x1 << i)) >> i) == 0) {
-+				u32 hfid, tfid, pktcnt, ac_num = j / ac_num, ctrl = 0;
++				u32 hfid, tfid, pktcnt, ac_n = j / ac_num, ctrl = 0;
 +				u32 sta_num = i + (j % ac_num) * 32, fl_que_ctrl[3] = {0};
 +				//struct wifi_dev *wdev = wdev_search_by_wcid(pAd, sta_num);
 +				u32 wmmidx = 0;
@@ -3044,16 +3060,16 @@ index 00000000..246eb129
 +				sta = wcid_to_sta(wcid);
 +				if (!sta) {
 +					printk("ERROR!! no found STA wcid=%d\n", sta_num);
-+					return 0;
++					continue;
 +				}
 +				msta = container_of(wcid, struct mt7915_sta, wcid);
 +				wmmidx = msta->vif->mt76.wmm_idx;
 +
-+				seq_printf(s, "\tSTA%d AC%d: ", sta_num, ac_num);
++				seq_printf(s, "\tSTA%d AC%d: ", sta_num, ac_n);
 +
 +				fl_que_ctrl[0] |= MT_DBG_PLE_FL_QUE_CTRL0_EXECUTE_MASK;
 +				fl_que_ctrl[0] |= (ENUM_UMAC_LMAC_PORT_2 << MT_PLE_FL_QUE_CTRL0_Q_BUF_PID_SHFT);
-+				fl_que_ctrl[0] |= (ac_num << MT_PLE_FL_QUE_CTRL0_Q_BUF_QID_SHFT);
++				fl_que_ctrl[0] |= (ac_n << MT_PLE_FL_QUE_CTRL0_Q_BUF_QID_SHFT);
 +				fl_que_ctrl[0] |= sta_num;
 +				mt76_wr(dev, MT_DBG_PLE_FL_QUE_CTRL0, fl_que_ctrl[0]);
 +				fl_que_ctrl[1] = mt76_rr(dev, MT_DBG_PLE_FL_QUE_CTRL2);
@@ -3090,7 +3106,7 @@ index 00000000..246eb129
 +	int i;
 +
 +	seq_printf(s, "Nonempty TXCMD Q info:\n");
-+	for (i = 0; i < 31; i++) {
++	for (i = 0; i < 32; i++) {
 +		if (((ple_txcmd_stat & (0x1 << i)) >> i) == 0) {
 +			u32 hfid, tfid, pktcnt, fl_que_ctrl[3] = {0};
 +
@@ -3123,10 +3139,9 @@ index 00000000..246eb129
 +	u32 ac , index;
 +
 +	/* TDO: cr_num = 16 for mt7986 */
-+	/*
 +	if(!is_mt7915(&dev->mt76))
-+		cr_num = 16;
-+	*/
++		cr_num = 17;
++
 +	all_cr_num =  cr_num * 4;
 +
 +	ple_stat[0] = mt76_rr(dev, MT_DBG_PLE_QUEUE_EMPTY);
@@ -3143,8 +3158,13 @@ index 00000000..246eb129
 +static void chip_get_dis_sta_map(struct mt7915_dev *dev, u32 *dis_sta_map)
 +{
 +	int i;
++	u32 ac_num = 9;
 +
-+	for(i = 0; i < CR_NUM_OF_AC; i++) {
++	/* TDO: ac_num = 16 for mt7986 */
++	if (!is_mt7915(&dev->mt76))
++		ac_num = 17;
++
++	for(i = 0; i < ac_num; i++) {
 +		dis_sta_map[i] = mt76_rr(dev, MT_DBG_PLE_DIS_STA_MAP(i));
 +	}
 +}
@@ -3152,8 +3172,13 @@ index 00000000..246eb129
 +static void chip_get_sta_pause(struct mt7915_dev *dev, u32 *sta_pause)
 +{
 +	int i;
++	u32 ac_num = 9;
 +
-+	for(i = 0; i < CR_NUM_OF_AC; i++) {
++	/* TDO: ac_num = 16 for mt7986 */
++	if (!is_mt7915(&dev->mt76))
++		ac_num = 17;
++
++	for(i = 0; i < ac_num; i++) {
 +		sta_pause[i] = mt76_rr(dev, MT_DBG_PLE_STATION_PAUSE(i));
 +	}
 +}
@@ -3162,7 +3187,7 @@ index 00000000..246eb129
 +{
 +	struct mt7915_dev *dev = dev_get_drvdata(s->private);
 +	u32 ple_buf_ctrl, pg_sz, pg_num;
-+	u32 ple_stat[65] = {0}, pg_flow_ctrl[8] = {0};
++	u32 ple_stat[70] = {0}, pg_flow_ctrl[8] = {0};
 +	u32 ple_native_txcmd_stat;
 +	u32 ple_txcmd_stat;
 +	u32 sta_pause[CR_NUM_OF_AC] = {0}, dis_sta_map[CR_NUM_OF_AC] = {0};
@@ -3172,9 +3197,8 @@ index 00000000..246eb129
 +	u32 ac_num = 9, all_ac_num;
 +
 +	/* TDO: ac_num = 16 for mt7986 */
-+	/* if (!is_mt7915(&dev->mt76))
-+		ac_num = 16;
-+	*/
++	if (!is_mt7915(&dev->mt76))
++		ac_num = 17;
 +
 +	all_ac_num = ac_num * 4;
 +
@@ -3240,15 +3264,17 @@ index 00000000..246eb129
 +	seq_printf(s, "\tHIF_TXCMD group page status(0x%x): 0x%08x\n",
 +	              MT_DBG_PLE_HIF_TXCMD_PG_INFO, pg_flow_ctrl[7]);
 +	cpu_min_q = FIELD_GET(MT_DBG_PLE_PG_HIF_TXCMD_GROUP_HIF_TXCMD_MIN_QUOTA_MASK, pg_flow_ctrl[6]);
-+	cpu_max_q = FIELD_GET(MT_DBG_PLE_PG_HIF_TXCMD_GROUP_HIF_TXCMD_MIN_QUOTA_MASK, pg_flow_ctrl[6]);
++	cpu_max_q = FIELD_GET(MT_DBG_PLE_PG_HIF_TXCMD_GROUP_HIF_TXCMD_MAX_QUOTA_MASK, pg_flow_ctrl[6]);
 +	seq_printf(s, "\t\tThe max/min quota pages of HIF_TXCMD group=0x%03x/0x%03x\n", cpu_max_q, cpu_min_q);
 +
 +	rpg_cpu = FIELD_GET(MT_DBG_PLE_TXCMD_PG_INFO_HIF_TXCMD_RSV_CNT_MASK, pg_flow_ctrl[7]);
 +	upg_cpu = FIELD_GET(MT_DBG_PLE_TXCMD_PG_INFO_HIF_TXCMD_SRC_CNT_MASK, pg_flow_ctrl[7]);
 +	seq_printf(s, "\t\tThe used/reserved pages of HIF_TXCMD group=0x%03x/0x%03x\n", upg_cpu, rpg_cpu);
 +
-+	seq_printf(s, "\tReserved page counter of CPU group(0x820c0150): 0x%08x\n", pg_flow_ctrl[4]);
-+	seq_printf(s, "\tCPU group page status(0x820c0154): 0x%08x\n", pg_flow_ctrl[5]);
++	seq_printf(s, "\tReserved page counter of CPU group(0x%x): 0x%08x\n",
++			MT_DBG_PLE_PG_CPU_GROUP, pg_flow_ctrl[4]);
++	seq_printf(s, "\tCPU group page status(0x%x): 0x%08x\n",
++			MT_DBG_PLE_CPU_PG_INFO, pg_flow_ctrl[5]);
 +	cpu_min_q = FIELD_GET(MT_DBG_PLE_PG_CPU_GROUP_CPU_MIN_QUOTA_MASK, pg_flow_ctrl[4]);
 +	cpu_max_q = FIELD_GET(MT_DBG_PLE_PG_CPU_GROUP_CPU_MAX_QUOTA_MASK, pg_flow_ctrl[4]);
 +	seq_printf(s, "\t\tThe max/min quota pages of CPU group=0x%03x/0x%03x\n", cpu_max_q, cpu_min_q);
@@ -3263,7 +3289,7 @@ index 00000000..246eb129
 +				seq_printf(s, "\n\tNonempty AC%d Q of STA#: ", j / ac_num);
 +			}
 +
-+			for (i = 0; i < all_ac_num; i++) {
++			for (i = 0; i < 32; i++) {
 +				if (((ple_stat[j + 1] & (0x1 << i)) >> i) == 0) {
 +					seq_printf(s, "%d ", i + (j % ac_num) * 32);
 +				}
@@ -3277,7 +3303,7 @@ index 00000000..246eb129
 +
 +	seq_printf(s, "Nonempty Q info:\n");
 +
-+	for (i = 0; i < all_ac_num; i++) {
++	for (i = 0; i < 32; i++) {
 +		if (((ple_stat[0] & (0x1 << i)) >> i) == 0) {
 +			u32 hfid, tfid, pktcnt, fl_que_ctrl[3] = {0};
 +
@@ -4575,6 +4601,8 @@ index 00000000..246eb129
 +	debugfs_create_file("fw_debug_level", 0600, dir, dev,
 +			    &fops_fw_debug_level);
 +
++	debugfs_create_devm_seqfile(dev->mt76.dev, "sta_info", dir,
++				    mt7915_sta_info);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "wtbl_info", dir,
 +				    mt7915_wtbl_read);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "uwtbl_info", dir,
