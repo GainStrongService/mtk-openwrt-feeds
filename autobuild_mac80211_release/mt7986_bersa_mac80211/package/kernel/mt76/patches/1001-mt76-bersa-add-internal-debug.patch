@@ -1,6 +1,6 @@
-From 6ac1a5b7560df1f2f43201f19bb89daed0d02117 Mon Sep 17 00:00:00 2001
+From 650cb1ed09a37bcb426ec5f27ae0e65f1d65df94 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
-Date: Tue, 22 Feb 2022 23:15:46 +0800
+Date: Mon, 9 May 2022 15:12:22 +0800
 Subject: [PATCH] mt76: bersa: add internal debug patch
 
 ---
@@ -20,7 +20,7 @@ Subject: [PATCH] mt76: bersa: add internal debug patch
 diff --git a/bersa/Makefile b/bersa/Makefile
 old mode 100755
 new mode 100644
-index a51abe0..edb7800
+index a51abe0c..edb7800a
 --- a/bersa/Makefile
 +++ b/bersa/Makefile
 @@ -1,8 +1,11 @@
@@ -38,13 +38,13 @@ index a51abe0..edb7800
 +
 +bersa-y += mtk_debugfs.o
 diff --git a/bersa/bersa.h b/bersa/bersa.h
-index 1b7a975..596cbcd 100644
+index 63a97363..30c3a79b 100644
 --- a/bersa/bersa.h
 +++ b/bersa/bersa.h
 @@ -301,6 +301,23 @@ struct bersa_dev {
- 	struct reset_control *rstc;
- 	void __iomem *dcm;
- 	void __iomem *sku;
+ 		u8 table_mask;
+ 		u8 n_agrt;
+ 	} twt;
 +
 +#ifdef CONFIG_MTK_DEBUG
 +	u16 wlan_idx;
@@ -65,7 +65,7 @@ index 1b7a975..596cbcd 100644
  };
  
  enum {
-@@ -568,4 +585,22 @@ void bersa_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -571,4 +588,22 @@ void bersa_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			    struct ieee80211_sta *sta, struct dentry *dir);
  #endif
  
@@ -89,7 +89,7 @@ index 1b7a975..596cbcd 100644
 +
  #endif
 diff --git a/bersa/debugfs.c b/bersa/debugfs.c
-index 96b2b6e..d2cdddc 100644
+index 4be253ea..9f3e11a8 100644
 --- a/bersa/debugfs.c
 +++ b/bersa/debugfs.c
 @@ -371,6 +371,9 @@ bersa_fw_debug_wm_set(void *data, u64 val)
@@ -119,7 +119,7 @@ index 96b2b6e..d2cdddc 100644
  	return bersa_fw_debug_wm_set(dev, dev->fw_debug_wm);
  }
  
-@@ -910,8 +923,13 @@ int bersa_init_debugfs(struct bersa_phy *phy)
+@@ -942,8 +955,13 @@ int bersa_init_debugfs(struct bersa_phy *phy)
  					    bersa_rdd_monitor);
  	}
  
@@ -134,7 +134,7 @@ index 96b2b6e..d2cdddc 100644
  
  	return 0;
  }
-@@ -968,7 +986,12 @@ void bersa_debugfs_rx_fw_monitor(struct bersa_dev *dev, const void *data, int le
+@@ -1000,7 +1018,12 @@ void bersa_debugfs_rx_fw_monitor(struct bersa_dev *dev, const void *data, int le
  
  bool bersa_debugfs_rx_log(struct bersa_dev *dev, const void *data, int len)
  {
@@ -148,10 +148,10 @@ index 96b2b6e..d2cdddc 100644
  
  	if (dev->relay_fwlog)
 diff --git a/bersa/mac.c b/bersa/mac.c
-index 745ee3a..dd0a1d8 100644
+index 2d48a1a4..b726e2d8 100644
 --- a/bersa/mac.c
 +++ b/bersa/mac.c
-@@ -582,6 +582,11 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
+@@ -589,6 +589,11 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
  	int idx;
  	u8 band_idx;
  
@@ -163,7 +163,7 @@ index 745ee3a..dd0a1d8 100644
  	memset(status, 0, sizeof(*status));
  
  	band_idx = FIELD_GET(MT_RXD1_NORMAL_BAND_IDX, rxd1);
-@@ -754,6 +759,10 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
+@@ -763,6 +768,10 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
  	}
  
  	hdr_gap = (u8 *)rxd - skb->data + 2 * remove_pad;
@@ -174,7 +174,7 @@ index 745ee3a..dd0a1d8 100644
  	if (hdr_trans && ieee80211_has_morefrags(fc)) {
  		if (bersa_reverse_frag0_hdr_trans(skb, hdr_gap))
  			return -EINVAL;
-@@ -1318,6 +1327,15 @@ int bersa_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -1330,6 +1339,15 @@ int bersa_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	tx_info->buf[1].skip_unmap = true;
  	tx_info->nbuf = MT_CT_DMA_BUF_NUM;
  
@@ -191,7 +191,7 @@ index 745ee3a..dd0a1d8 100644
  }
  
 diff --git a/bersa/mcu.c b/bersa/mcu.c
-index 04300c6..26fe600 100644
+index 5276552c..6fc175c6 100644
 --- a/bersa/mcu.c
 +++ b/bersa/mcu.c
 @@ -299,6 +299,10 @@ bersa_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -207,7 +207,7 @@ index 04300c6..26fe600 100644
  
 diff --git a/bersa/mtk_debug.h b/bersa/mtk_debug.h
 new file mode 100644
-index 0000000..1a797c8
+index 00000000..1a797c81
 --- /dev/null
 +++ b/bersa/mtk_debug.h
 @@ -0,0 +1,3716 @@
@@ -3929,7 +3929,7 @@ index 0000000..1a797c8
 +#endif
 diff --git a/bersa/mtk_debugfs.c b/bersa/mtk_debugfs.c
 new file mode 100644
-index 0000000..ea6a262
+index 00000000..ea6a2620
 --- /dev/null
 +++ b/bersa/mtk_debugfs.c
 @@ -0,0 +1,3576 @@
@@ -7510,7 +7510,7 @@ index 0000000..ea6a262
 +
 +#endif
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a10..3c6a61d 100644
+index e5d4a105..3c6a61d7 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)
@@ -7594,5 +7594,5 @@ index e5d4a10..3c6a61d 100644
  	return ret;
  }
 -- 
-2.25.1
+2.18.0
 
