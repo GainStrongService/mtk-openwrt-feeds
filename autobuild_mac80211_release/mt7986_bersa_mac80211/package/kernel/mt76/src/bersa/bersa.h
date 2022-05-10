@@ -41,6 +41,7 @@
 #define BERSA_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 
 #define BERSA_THERMAL_THROTTLE_MAX	100
+#define BERSA_CDEV_THROTTLE_MAX	99
 
 #define BERSA_SKU_RATE_NUM		161
 
@@ -113,7 +114,9 @@ struct bersa_sta {
 };
 
 struct bersa_vif_cap {
-	bool ldpc:1;
+	bool ht_ldpc:1;
+	bool vht_ldpc:1;
+	bool he_ldpc:1;
 	bool vht_su_ebfer:1;
 	bool vht_su_ebfee:1;
 	bool vht_mu_ebfer:1;
@@ -200,11 +203,12 @@ struct bersa_phy {
 	struct mt76_phy *mt76;
 	struct bersa_dev *dev;
 
-	struct ieee80211_sband_iftype_data iftype[2][NUM_NL80211_IFTYPES];
+	struct ieee80211_sband_iftype_data iftype[NUM_NL80211_BANDS][NUM_NL80211_IFTYPES];
 
 	struct ieee80211_vif *monitor_vif;
 
 	struct thermal_cooling_device *cdev;
+	u8 cdev_state;
 	u8 throttle_state;
 	u32 throttle_temp[2]; /* 0: critical high, 1: maximum */
 
@@ -297,10 +301,6 @@ struct bersa_dev {
 		u8 table_mask;
 		u8 n_agrt;
 	} twt;
-
-	struct reset_control *rstc;
-	void __iomem *dcm;
-	void __iomem *sku;
 };
 
 enum {
@@ -403,6 +403,7 @@ extern struct pci_driver bersa_hif_driver;
 
 struct bersa_dev *bersa_mmio_probe(struct device *pdev,
 				     void __iomem *mem_base, u32 device_id);
+void bersa_wfsys_reset(struct bersa_dev *dev);
 irqreturn_t bersa_irq_handler(int irq, void *dev_instance);
 u64 __bersa_get_tsf(struct ieee80211_hw *hw, struct bersa_vif *mvif);
 int bersa_register_device(struct bersa_dev *dev);
@@ -458,7 +459,6 @@ int bersa_mcu_get_eeprom(struct bersa_dev *dev, u32 offset);
 int bersa_mcu_get_eeprom_free_block(struct bersa_dev *dev, u8 *block_num);
 int bersa_mcu_set_test_param(struct bersa_dev *dev, u8 param, bool test_mode,
 			      u8 en);
-int bersa_mcu_set_scs(struct bersa_dev *dev, u8 band, bool enable);
 int bersa_mcu_set_ser(struct bersa_dev *dev, u8 action, u8 set, u8 band);
 int bersa_mcu_set_sku_en(struct bersa_phy *phy, bool enable);
 int bersa_mcu_set_txpower_sku(struct bersa_phy *phy);
@@ -486,6 +486,7 @@ int bersa_mcu_rdd_cmd(struct bersa_dev *dev, int cmd, u8 index,
 		      u8 rx_sel, u8 val);
 int bersa_mcu_rdd_background_enable(struct bersa_phy *phy,
 				     struct cfg80211_chan_def *chandef);
+int bersa_mcu_rf_regval(struct bersa_dev *dev, u32 regidx, u32 *val, bool set);
 int bersa_mcu_wa_cmd(struct bersa_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
 int bersa_mcu_fw_log_2_host(struct bersa_dev *dev, u8 type, u8 ctrl);
 int bersa_mcu_fw_dbg_ctrl(struct bersa_dev *dev, u32 module, u8 level);
@@ -563,6 +564,8 @@ int bersa_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
 		      struct mt76_connac_sta_key_conf *sta_key_conf,
 		      struct ieee80211_key_conf *key, int mcu_cmd,
 		      struct mt76_wcid *wcid, enum set_key_cmd cmd);
+int bersa_mcu_wtbl_update_hdr_trans(struct bersa_dev *dev,
+			struct ieee80211_vif *vif, struct ieee80211_sta *sta);
 #ifdef CONFIG_MAC80211_DEBUGFS
 void bersa_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir);

@@ -72,7 +72,7 @@ enum base_rev {
 #define MT_PSE(ofs)			(MT_PSE_BASE + (ofs))
 
 /* WF MDP TOP */
-#define MT_MDP_BASE			0x820cd000
+#define MT_MDP_BASE			0x820cc000
 #define MT_MDP(ofs)			(MT_MDP_BASE + (ofs))
 
 #define MT_MDP_DCR0			MT_MDP(0x000)
@@ -80,6 +80,9 @@ enum base_rev {
 
 #define MT_MDP_DCR1			MT_MDP(0x004)
 #define MT_MDP_DCR1_MAX_RX_LEN		GENMASK(15, 3)
+
+#define MT_MDP_DCR2			MT_MDP(0x8e8)
+#define MT_MDP_DCR2_RX_TRANS_SHORT	BIT(2)
 
 #define MT_MDP_BNRCFR0(_band)		MT_MDP(0x090 + ((_band) << 8))
 #define MT_MDP_RCFR0_MCU_RX_MGMT	GENMASK(5, 4)

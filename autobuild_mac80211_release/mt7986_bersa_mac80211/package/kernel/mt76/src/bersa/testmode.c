@@ -230,12 +230,8 @@ bersa_tm_set_ipg_params(struct bersa_phy *phy, u32 ipg, u8 mode)
 
 		ipg -= aifsn * slot_time;
 
-		if (ipg > TM_DEFAULT_SIFS) {
-			if (ipg < TM_MAX_SIFS)
-				sifs = ipg;
-			else
-				sifs = TM_MAX_SIFS;
-		}
+		if (ipg > TM_DEFAULT_SIFS)
+			sifs = min_t(u32, ipg, TM_MAX_SIFS);
 	}
 done:
 	txv_time = mt76_get_field(dev, MT_TMAC_ATCR(phy->band_idx),
@@ -278,6 +274,8 @@ bersa_tm_set_tx_len(struct bersa_phy *phy, u32 tx_time)
 	case MT76_TM_TX_MODE_OFDM:
 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
 			sband = &mphy->sband_5g.sband;
+		else if (mphy->chandef.chan->band == NL80211_BAND_6GHZ)
+			sband = &mphy->sband_6g.sband;
 		else
 			sband = &mphy->sband_2g.sband;
 
@@ -588,6 +586,8 @@ bersa_tm_set_tx_cont(struct bersa_phy *phy, bool en)
 
 		if (chandef->chan->band == NL80211_BAND_5GHZ)
 			sband = &phy->mt76->sband_5g.sband;
+		else if (chandef->chan->band == NL80211_BAND_6GHZ)
+			sband = &phy->mt76->sband_6g.sband;
 		else
 			sband = &phy->mt76->sband_2g.sband;
 

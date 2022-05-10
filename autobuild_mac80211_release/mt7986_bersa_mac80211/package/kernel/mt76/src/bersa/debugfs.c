@@ -95,7 +95,7 @@ bersa_muru_debug_set(void *data, u64 val)
 	struct bersa_dev *dev = data;
 
 	dev->muru_debug = val;
-	bersa_mcu_muru_debug_set(dev, data);
+	bersa_mcu_muru_debug_set(dev, dev->muru_debug);
 
 	return 0;
 }
@@ -871,6 +871,36 @@ bersa_twt_stats(struct seq_file *s, void *data)
 	return 0;
 }
 
+/* The index of RF registers use the generic regidx, combined with two parts:
+ * WF selection [31:28] and offset [27:0].
+ */
+static int
+bersa_rf_regval_get(void *data, u64 *val)
+{
+	struct bersa_dev *dev = data;
+	u32 regval;
+	int ret;
+
+	ret = bersa_mcu_rf_regval(dev, dev->mt76.debugfs_reg, &regval, false);
+	if (ret)
+		return ret;
+
+	*val = le32_to_cpu(regval);
+
+	return 0;
+}
+
+static int
+bersa_rf_regval_set(void *data, u64 val)
+{
+	struct bersa_dev *dev = data;
+
+	return bersa_mcu_rf_regval(dev, dev->mt76.debugfs_reg, (u32 *)&val, true);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_rf_regval, bersa_rf_regval_get,
+			 bersa_rf_regval_set, "0x%08llx\n");
+
 int bersa_init_debugfs(struct bersa_phy *phy)
 {
 	struct bersa_dev *dev = phy->dev;
@@ -901,6 +931,8 @@ int bersa_init_debugfs(struct bersa_phy *phy)
 	debugfs_create_devm_seqfile(dev->mt76.dev, "twt_stats", dir,
 				    bersa_twt_stats);
 	debugfs_create_file("ser_trigger", 0200, dir, dev, &fops_ser_trigger);
+	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
+
 	if (!dev->dbdc_support || phy->band_idx) {
 		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 				   &dev->hw_pattern);
@@ -954,7 +986,7 @@ void bersa_debugfs_rx_fw_monitor(struct bersa_dev *dev, const void *data, int le
 	} hdr = {
 		.version = 0x1,
 		.magic = cpu_to_le32(FW_BIN_LOG_MAGIC),
-		.msg_type = PKT_TYPE_RX_FW_MONITOR,
+		.msg_type = cpu_to_le16(PKT_TYPE_RX_FW_MONITOR),
 	};
 
 	if (!dev->relay_fwlog)

@@ -473,6 +473,15 @@ struct sta_rec_ra_fixed {
 	u8 mmps_mode;
 } __packed;
 
+struct sta_rec_hdr_trans {
+	__le16 tag;
+	__le16 len;
+	u8 from_ds;
+	u8 to_ds;
+	u8 dis_rx_hdr_tran;
+	u8 rsv;
+} __packed;
+
 /* wtbl_rec */
 
 struct wtbl_req_hdr {
@@ -640,6 +649,7 @@ struct wtbl_raw {
 					 sizeof(struct sta_rec_sec) +	\
 					 sizeof(struct sta_rec_ra_fixed) + \
 					 sizeof(struct sta_rec_he_6g_capa) + \
+					 sizeof(struct sta_rec_hdr_trans) + \
 					 sizeof(struct tlv) +		\
 					 MT76_CONNAC_WTBL_UPDATE_MAX_SIZE)
 
@@ -668,6 +678,7 @@ enum {
 	STA_REC_PHY = 0x15,
 	STA_REC_HE_6G = 0x17,
 	STA_REC_HE_V2 = 0x19,
+	STA_REC_HDR_TRANS = 0x2B,
 	STA_REC_MAX_NUM
 };
 
@@ -1042,7 +1053,6 @@ enum {
 	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
 	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
 	MCU_EXT_CMD_SET_SER_TRIGGER = 0x81,
-	MCU_EXT_CMD_SCS_CTRL = 0x82,
 	MCU_EXT_CMD_TWT_AGRT_UPDATE = 0x94,
 	MCU_EXT_CMD_FW_DBG_CTRL = 0x95,
 	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,

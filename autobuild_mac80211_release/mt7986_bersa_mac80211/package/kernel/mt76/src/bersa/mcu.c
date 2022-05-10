@@ -1446,6 +1446,32 @@ bersa_mcu_sta_phy_tlv(struct bersa_dev *dev, struct sk_buff *skb,
 		     FIELD_PREP(IEEE80211_HT_AMPDU_PARM_DENSITY, mm);
 }
 
+static void
+bersa_mcu_sta_hdr_trans_tlv(struct bersa_dev *dev, struct sk_buff *skb,
+			 struct ieee80211_vif *vif, struct ieee80211_sta *sta)
+{
+	struct sta_rec_hdr_trans *hdr_trans;
+	struct tlv *tlv;
+
+	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_HDR_TRANS, sizeof(*hdr_trans));
+	hdr_trans = (struct sta_rec_hdr_trans*) tlv;
+	hdr_trans->dis_rx_hdr_tran = 0;
+	if (vif->type == NL80211_IFTYPE_STATION)
+		hdr_trans->to_ds = true;
+	else
+		hdr_trans->from_ds = true;
+
+	struct mt76_wcid *wcid;
+	wcid = (struct mt76_wcid *)sta->drv_priv;
+	if (!wcid)
+		return;
+
+	if (test_bit(MT_WCID_FLAG_4ADDR, &wcid->flags)) {
+		hdr_trans->to_ds = true;
+		hdr_trans->from_ds = true;
+	}
+}
+
 static enum mcu_mmps_mode
 bersa_mcu_get_mmps_mode(enum ieee80211_smps_mode smps)
 {
@@ -1684,7 +1710,7 @@ bersa_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct bersa_dev *dev,
 			cap |= STA_CAP_TX_STBC;
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC)
 			cap |= STA_CAP_RX_STBC;
-		if (mvif->cap.ldpc &&
+		if (mvif->cap.ht_ldpc &&
 		    (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING))
 			cap |= STA_CAP_LDPC;
 
@@ -1710,7 +1736,7 @@ bersa_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct bersa_dev *dev,
 			cap |= STA_CAP_VHT_TX_STBC;
 		if (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_1)
 			cap |= STA_CAP_VHT_RX_STBC;
-		if (mvif->cap.ldpc &&
+		if (mvif->cap.vht_ldpc &&
 		    (sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC))
 			cap |= STA_CAP_VHT_LDPC;
 
@@ -1747,7 +1773,7 @@ int bersa_mcu_add_rate_ctrl(struct bersa_dev *dev, struct ieee80211_vif *vif,
 	 * once dev->rc_work changes the settings driver should also
 	 * update sta_rec_he here.
 	 */
-	if (sta->he_cap.has_he && changed)
+	if (changed)
 		bersa_mcu_sta_he_tlv(skb, sta, vif);
 
 	/* sta_rec_ra accommodates BW, NSS and only MCS range format
@@ -1842,6 +1868,8 @@ int bersa_mcu_add_sta(struct bersa_dev *dev, struct ieee80211_vif *vif,
 		bersa_mcu_sta_muru_tlv(skb, sta, vif);
 		/* starec bfee */
 		bersa_mcu_sta_bfee_tlv(dev, skb, vif, sta);
+		/* starec hdr trans */
+		bersa_mcu_sta_hdr_trans_tlv(dev, skb, vif, sta);
 	}
 
 	ret = bersa_mcu_add_group(dev, vif, sta);
@@ -2054,8 +2082,8 @@ bersa_mcu_beacon_check_caps(struct bersa_phy *phy, struct ieee80211_vif *vif,
 			      len);
 	if (ie && ie[1] >= sizeof(*ht)) {
 		ht = (void *)(ie + 2);
-		vc->ldpc |= !!(le16_to_cpu(ht->cap_info) &
-			       IEEE80211_HT_CAP_LDPC_CODING);
+		vc->ht_ldpc |= !!(le16_to_cpu(ht->cap_info) &
+				  IEEE80211_HT_CAP_LDPC_CODING);
 	}
 
 	ie = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, mgmt->u.beacon.variable,
@@ -2066,7 +2094,7 @@ bersa_mcu_beacon_check_caps(struct bersa_phy *phy, struct ieee80211_vif *vif,
 		vht = (void *)(ie + 2);
 		bc = le32_to_cpu(vht->vht_cap_info);
 
-		vc->ldpc |= !!(bc & IEEE80211_VHT_CAP_RXLDPC);
+		vc->vht_ldpc |= !!(bc & IEEE80211_VHT_CAP_RXLDPC);
 		vc->vht_su_ebfer =
 			(bc & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE) &&
 			(pc & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE);
@@ -2090,6 +2118,8 @@ bersa_mcu_beacon_check_caps(struct bersa_phy *phy, struct ieee80211_vif *vif,
 
 		he = (void *)(ie + 3);
 
+		vc->he_ldpc =
+			HE_PHY(CAP1_LDPC_CODING_IN_PAYLOAD, pe->phy_cap_info[1]);
 		vc->he_su_ebfer =
 			HE_PHY(CAP3_SU_BEAMFORMER, he->phy_cap_info[3]) &&
 			HE_PHY(CAP3_SU_BEAMFORMER, pe->phy_cap_info[3]);
@@ -2786,22 +2816,6 @@ int bersa_mcu_set_hdr_trans(struct bersa_dev *dev, bool hdr_trans)
 				     MCU_WM_UNI_CMD(RX_HDR_TRANS), true);
 }
 
-int bersa_mcu_set_scs(struct bersa_dev *dev, u8 band, bool enable)
-{
-	struct {
-		__le32 cmd;
-		u8 band;
-		u8 enable;
-	} __packed req = {
-		.cmd = cpu_to_le32(SCS_ENABLE),
-		.band = band,
-		.enable = enable + 1,
-	};
-
-	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(SCS_CTRL), &req,
-				 sizeof(req), false);
-}
-
 int bersa_mcu_set_tx(struct bersa_dev *dev, struct ieee80211_vif *vif)
 {
 	struct bersa_vif *mvif = (struct bersa_vif *)vif->drv_priv;
@@ -3041,6 +3055,11 @@ int bersa_mcu_rdd_background_enable(struct bersa_phy *phy,
 
 int bersa_mcu_set_chan_info(struct bersa_phy *phy, int tag)
 {
+	static const u8 ch_band[] = {
+		[NL80211_BAND_2GHZ] = 0,
+		[NL80211_BAND_5GHZ] = 1,
+		[NL80211_BAND_6GHZ] = 2,
+	};
 	struct bersa_dev *dev = phy->dev;
 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	int freq1 = chandef->center_freq1;
@@ -3078,7 +3097,7 @@ int bersa_mcu_set_chan_info(struct bersa_phy *phy, int tag)
 		.tx_streams_num = hweight8(phy->mt76->antenna_mask),
 		.rx_streams = phy->mt76->antenna_mask,
 		.band_idx = phy->band_idx,
-		.channel_band = chandef->chan->band,
+		.channel_band = ch_band[chandef->chan->band],
 	};
 
 #ifdef CONFIG_NL80211_TESTMODE
@@ -3100,10 +3119,13 @@ int bersa_mcu_set_chan_info(struct bersa_phy *phy, int tag)
 	}
 #endif
 
-	if (phy->mt76->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+	if (tag == UNI_CHANNEL_RX_PATH ||
+	    dev->mt76.hw->conf.flags & IEEE80211_CONF_MONITOR)
+		req.switch_reason = CH_SWITCH_NORMAL;
+	else if (phy->mt76->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
-	else if (phy->mt76->hw->conf.radar_enabled &&
-		 chandef->chan->dfs_state != NL80211_DFS_AVAILABLE)
+	else if (!cfg80211_reg_can_beacon(phy->mt76->hw->wiphy, chandef,
+					  NL80211_IFTYPE_AP))
 		req.switch_reason = CH_SWITCH_DFS;
 	else
 		req.switch_reason = CH_SWITCH_NORMAL;
@@ -3770,6 +3792,8 @@ int bersa_mcu_get_rx_rate(struct bersa_phy *phy, struct ieee80211_vif *vif,
 	case MT_PHY_TYPE_OFDM:
 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
 			sband = &mphy->sband_5g.sband;
+		else if (mphy->chandef.chan->band == NL80211_BAND_6GHZ)
+			sband = &mphy->sband_6g.sband;
 		else
 			sband = &mphy->sband_2g.sband;
 
@@ -4048,5 +4072,55 @@ int bersa_mcu_rdd_cmd(struct bersa_dev *dev, int cmd, u8 index,
 	*/
 	mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(RDD_CTRL),
 			  &req, sizeof(req), true);
+	return 0;
+}
+
+
+int bersa_mcu_wtbl_update_hdr_trans(struct bersa_dev *dev,
+			struct ieee80211_vif *vif, struct ieee80211_sta *sta)
+{
+	struct bersa_vif *mvif = (struct bersa_vif *)vif->drv_priv;
+	struct bersa_sta *msta;
+	struct sk_buff *skb;
+
+	msta = sta ? (struct bersa_sta *)sta->drv_priv : &mvif->sta;
+
+	skb = mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->mt76,
+					    &msta->wcid);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	/* starec hdr trans */
+	bersa_mcu_sta_hdr_trans_tlv(dev, skb, vif, sta);
+	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
+}
+
+int bersa_mcu_rf_regval(struct bersa_dev *dev, u32 regidx, u32 *val, bool set)
+{
+	struct {
+		__le32 idx;
+		__le32 ofs;
+		__le32 data;
+	} __packed req = {
+	.idx = cpu_to_le32(u32_get_bits(regidx, GENMASK(31, 28))),
+		.ofs = cpu_to_le32(u32_get_bits(regidx, GENMASK(27, 0))),
+		.data = set ? cpu_to_le32(*val) : 0,
+	};
+	struct sk_buff *skb;
+	int ret;
+
+	if (set)
+		return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(RF_REG_ACCESS),
+					 &req, sizeof(req), false);
+
+	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_EXT_QUERY(RF_REG_ACCESS),
+					&req, sizeof(req), true, &skb);
+	if (ret)
+		return ret;
+
+	*val = le32_to_cpu(*(__le32 *)(skb->data + 8));
+	dev_kfree_skb(skb);
+
 	return 0;
 }

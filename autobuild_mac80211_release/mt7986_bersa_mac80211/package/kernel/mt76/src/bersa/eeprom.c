@@ -114,10 +114,28 @@ static void bersa_eeprom_parse_band_config(struct bersa_phy *phy)
 	/* val = eeprom[MT_EE_WIFI_CONF + phy->band_idx]; */
 	/* val = FIELD_GET(MT_EE_WIFI_CONF0_BAND_SEL, val); */
 
+	/* switch (val) { */
+	/* 	case MT_EE_V2_BAND_SEL_5GHZ: */
+	/* 		phy->mt76->cap.has_5ghz = true; */
+	/* 		return; */
+	/* 	case MT_EE_V2_BAND_SEL_6GHZ: */
+	/* 		phy->mt76->cap.has_6ghz = true; */
+	/* 		return; */
+	/* 	case MT_EE_V2_BAND_SEL_5GHZ_6GHZ: */
+	/* 		phy->mt76->cap.has_5ghz = true; */
+	/* 		phy->mt76->cap.has_6ghz = true; */
+	/* 		return; */
+	/* 	default */
+	/* 		phy->mt76->cap.has_2ghz = true; */
+	/* 		return; */
+	/* } */
+
 	if (phy->band_idx == 2)
 		phy->mt76->cap.has_2ghz = true;
-	else
+	else {
 		phy->mt76->cap.has_5ghz = true;
+		/* phy->mt76->cap.has_6ghz = true; */
+	}
 }
 
 void bersa_eeprom_parse_hw_cap(struct bersa_dev *dev,

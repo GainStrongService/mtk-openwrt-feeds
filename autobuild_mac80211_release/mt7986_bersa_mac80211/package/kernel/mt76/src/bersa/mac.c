@@ -226,8 +226,8 @@ bersa_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
 	u32 ru_h, ru_l;
 	u8 ru, offs = 0;
 
-	ru_l = FIELD_GET(MT_PRXV_HE_RU_ALLOC_L, le32_to_cpu(rxv[0]));
-	ru_h = FIELD_GET(MT_PRXV_HE_RU_ALLOC_H, le32_to_cpu(rxv[1]));
+	ru_l = le32_get_bits(rxv[0], MT_PRXV_HE_RU_ALLOC_L);
+	ru_h = le32_get_bits(rxv[1], MT_PRXV_HE_RU_ALLOC_H);
 	ru = (u8)(ru_l | ru_h << 4);
 
 	status->bw = RATE_INFO_BW_HE_RU;
@@ -309,7 +309,7 @@ bersa_mac_decode_he_mu_radiotap(struct sk_buff *skb, __le32 *rxv)
 }
 
 static void
-bersa_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv, u32 mode)
+bersa_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv, u8 mode)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	static const struct ieee80211_radiotap_he known = {
@@ -349,14 +349,16 @@ bersa_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv, u32 mode)
 	case MT_PHY_TYPE_HE_SU:
 		he->data1 |= HE_BITS(DATA1_FORMAT_SU) |
 			     HE_BITS(DATA1_UL_DL_KNOWN) |
-			     HE_BITS(DATA1_BEAM_CHANGE_KNOWN);
+			     HE_BITS(DATA1_BEAM_CHANGE_KNOWN) |
+			     HE_BITS(DATA1_BW_RU_ALLOC_KNOWN);
 
 		he->data3 |= HE_PREP(DATA3_BEAM_CHANGE, BEAM_CHNG, rxv[14]) |
 			     HE_PREP(DATA3_UL_DL, UPLINK, rxv[2]);
 		break;
 	case MT_PHY_TYPE_HE_EXT_SU:
 		he->data1 |= HE_BITS(DATA1_FORMAT_EXT_SU) |
-			     HE_BITS(DATA1_UL_DL_KNOWN);
+			     HE_BITS(DATA1_UL_DL_KNOWN) |
+			     HE_BITS(DATA1_BW_RU_ALLOC_KNOWN);
 
 		he->data3 |= HE_PREP(DATA3_UL_DL, UPLINK, rxv[2]);
 		break;
@@ -398,9 +400,9 @@ static int bersa_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif;
 	struct ieee80211_hdr hdr;
-	__le32 qos_ctrl, ht_ctrl;
+	u16 frame_control;
 
-	if (FIELD_GET(MT_RXD3_NORMAL_ADDR_TYPE, le32_to_cpu(rxd[3])) !=
+	if (le32_get_bits(rxd[3], MT_RXD3_NORMAL_ADDR_TYPE) !=
 	    MT_RXD3_NORMAL_U2M)
 		return -EINVAL;
 
@@ -414,16 +416,15 @@ static int bersa_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
 	vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
 
 	/* store the info from RXD and ethhdr to avoid being overridden */
-	hdr.frame_control = FIELD_GET(MT_RXD6_FRAME_CONTROL, rxd[6]);
-	hdr.seq_ctrl = FIELD_GET(MT_RXD8_SEQ_CTRL, rxd[8]);
-	qos_ctrl = FIELD_GET(MT_RXD8_QOS_CTL, rxd[8]);
-	ht_ctrl = FIELD_GET(MT_RXD9_HT_CONTROL, rxd[9]);
-
+	frame_control = le32_get_bits(rxd[6], MT_RXD6_FRAME_CONTROL);
+	hdr.frame_control = cpu_to_le16(frame_control);
+	hdr.seq_ctrl = cpu_to_le16(le32_get_bits(rxd[8], MT_RXD8_SEQ_CTRL));
 	hdr.duration_id = 0;
+
 	ether_addr_copy(hdr.addr1, vif->addr);
 	ether_addr_copy(hdr.addr2, sta->addr);
-	switch (le16_to_cpu(hdr.frame_control) &
-		(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
+	switch (frame_control & (IEEE80211_FCTL_TODS |
+				 IEEE80211_FCTL_FROMDS)) {
 	case 0:
 		ether_addr_copy(hdr.addr3, vif->bss_conf.bssid);
 		break;
@@ -445,15 +446,22 @@ static int bersa_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
 	if (eth_hdr->h_proto == cpu_to_be16(ETH_P_AARP) ||
 	    eth_hdr->h_proto == cpu_to_be16(ETH_P_IPX))
 		ether_addr_copy(skb_push(skb, ETH_ALEN), bridge_tunnel_header);
-	else if (eth_hdr->h_proto >= cpu_to_be16(ETH_P_802_3_MIN))
+	else if (be16_to_cpu(eth_hdr->h_proto) >= ETH_P_802_3_MIN)
 		ether_addr_copy(skb_push(skb, ETH_ALEN), rfc1042_header);
 	else
 		skb_pull(skb, 2);
 
 	if (ieee80211_has_order(hdr.frame_control))
-		memcpy(skb_push(skb, 2), &ht_ctrl, 2);
-	if (ieee80211_is_data_qos(hdr.frame_control))
-		memcpy(skb_push(skb, 2), &qos_ctrl, 2);
+		memcpy(skb_push(skb, IEEE80211_HT_CTL_LEN), &rxd[9],
+		       IEEE80211_HT_CTL_LEN);
+	if (ieee80211_is_data_qos(hdr.frame_control)) {
+		__le16 qos_ctrl;
+
+		qos_ctrl = cpu_to_le16(le32_get_bits(rxd[8], MT_RXD8_QOS_CTL));
+		memcpy(skb_push(skb, IEEE80211_QOS_CTL_LEN), &qos_ctrl,
+		       IEEE80211_QOS_CTL_LEN);
+	}
+
 	if (ieee80211_has_a4(hdr.frame_control))
 		memcpy(skb_push(skb, sizeof(hdr)), &hdr, sizeof(hdr));
 	else
@@ -466,10 +474,10 @@ static int
 bersa_mac_fill_rx_rate(struct bersa_dev *dev,
 			struct mt76_rx_status *status,
 			struct ieee80211_supported_band *sband,
-			__le32 *rxv)
+			__le32 *rxv, u8 *mode)
 {
 	u32 v0, v2;
-	u8 stbc, gi, bw, dcm, mode, nss;
+	u8 stbc, gi, bw, dcm, nss;
 	int i, idx;
 	bool cck = false;
 
@@ -481,11 +489,11 @@ bersa_mac_fill_rx_rate(struct bersa_dev *dev,
 
 	stbc = FIELD_GET(MT_PRXV_HT_STBC, v2);
 	gi = FIELD_GET(MT_PRXV_HT_SHORT_GI, v2);
-	mode = FIELD_GET(MT_PRXV_TX_MODE, v2);
+	*mode = FIELD_GET(MT_PRXV_TX_MODE, v2);
 	dcm = FIELD_GET(MT_PRXV_DCM, v2);
 	bw = FIELD_GET(MT_PRXV_FRAME_MODE, v2);
 
-	switch (mode) {
+	switch (*mode) {
 	case MT_PHY_TYPE_CCK:
 		cck = true;
 		fallthrough;
@@ -505,7 +513,7 @@ bersa_mac_fill_rx_rate(struct bersa_dev *dev,
 		status->encoding = RX_ENC_VHT;
 		if (gi)
 			status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
-		if (i > 9)
+		if (i > 11)
 			return -EINVAL;
 		break;
 	case MT_PHY_TYPE_HE_MU:
@@ -530,7 +538,7 @@ bersa_mac_fill_rx_rate(struct bersa_dev *dev,
 	case IEEE80211_STA_RX_BW_20:
 		break;
 	case IEEE80211_STA_RX_BW_40:
-		if (mode & MT_PHY_TYPE_HE_EXT_SU &&
+		if (*mode & MT_PHY_TYPE_HE_EXT_SU &&
 		    (idx & MT_PRXV_TX_ER_SU_106T)) {
 			status->bw = RATE_INFO_BW_HE_RU;
 			status->he_ru =
@@ -550,7 +558,7 @@ bersa_mac_fill_rx_rate(struct bersa_dev *dev,
 	}
 
 	status->enc_flags |= RX_ENC_FLAG_STBC_MASK * stbc;
-	if (mode < MT_PHY_TYPE_HE_SU && gi)
+	if (*mode < MT_PHY_TYPE_HE_SU && gi)
 		status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 	return 0;
@@ -565,7 +573,6 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
 	struct ieee80211_supported_band *sband;
 	__le32 *rxd = (__le32 *)skb->data;
 	__le32 *rxv = NULL;
-	u32 mode = 0;
 	u32 rxd0 = le32_to_cpu(rxd[0]);
 	u32 rxd1 = le32_to_cpu(rxd[1]);
 	u32 rxd2 = le32_to_cpu(rxd[2]);
@@ -574,10 +581,10 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
 	u32 csum_mask = MT_RXD0_NORMAL_IP_SUM | MT_RXD0_NORMAL_UDP_TCP_SUM;
 	bool unicast, insert_ccmp_hdr = false;
 	u8 remove_pad, amsdu_info;
+	u8 mode = 0, qos_ctl = 0;
 	bool hdr_trans;
 	u16 hdr_gap;
 	u16 seq_ctrl = 0;
-	u8 qos_ctl = 0;
 	__le16 fc = 0;
 	int idx;
 	u8 band_idx;
@@ -621,6 +628,8 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
 	status->band = mphy->chandef.chan->band;
 	if (status->band == NL80211_BAND_5GHZ)
 		sband = &mphy->sband_5g.sband;
+	else if (status->band == NL80211_BAND_6GHZ)
+		sband = &mphy->sband_6g.sband;
 	else
 		sband = &mphy->sband_2g.sband;
 
@@ -741,7 +750,7 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
 		}
 
 		/* TODO: parse rx rate from rxv */
-		ret = bersa_mac_fill_rx_rate(dev, status, sband, rxv);
+		ret = bersa_mac_fill_rx_rate(dev, status, sband, rxv, &mode);
 		if (ret < 0)
 			return ret;
 	}
@@ -811,10 +820,6 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
 	if (!status->wcid || !ieee80211_is_data_qos(fc))
 		return 0;
 
-	/* drop no data frame */
-	if (fc & cpu_to_le16(IEEE80211_STYPE_NULLFUNC))
-		return -EINVAL;
-
 	status->aggr = unicast &&
 		       !ieee80211_is_qos_nullfunc(fc);
 	status->qos_ctl = qos_ctl;
@@ -837,12 +842,18 @@ bersa_mac_fill_rx_vector(struct bersa_dev *dev, struct sk_buff *skb)
 	u8 snr;
 	int i;
 
-	phy_idx = FIELD_GET(MT_RXV_HDR_BAND_IDX, le32_to_cpu(rxv_hdr[1]));
-	if (phy_idx == MT_EXT_PHY)
+	phy_idx = le32_get_bits(rxv_hdr[1], MT_RXV_HDR_BAND_IDX);
+	if (phy_idx == MT_EXT_PHY) {
 		phy = bersa_ext_phy(dev);
+		if (!phy)
+			goto out;
+	}
 
-	if (phy_idx == MT_TRI_PHY)
+	if (phy_idx == MT_TRI_PHY) {
 		phy = bersa_tri_phy(dev);
+		if (!phy)
+			goto out;
+	}
 
 	rcpi = le32_to_cpu(rxv[6]);
 	ib_rssi = le32_to_cpu(rxv[7]);
@@ -867,8 +878,8 @@ bersa_mac_fill_rx_vector(struct bersa_dev *dev, struct sk_buff *skb)
 
 	phy->test.last_freq_offset = foe;
 	phy->test.last_snr = snr;
+out:
 #endif
-
 	dev_kfree_skb(skb);
 }
 
@@ -994,6 +1005,7 @@ bersa_mac_write_txwi_8023(struct bersa_dev *dev, __le32 *txwi,
 
 	u8 tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	u8 fc_type, fc_stype;
+	u16 ethertype;
 	bool wmm = false;
 	u32 val;
 
@@ -1007,7 +1019,8 @@ bersa_mac_write_txwi_8023(struct bersa_dev *dev, __le32 *txwi,
 	val = FIELD_PREP(MT_TXD1_HDR_FORMAT, MT_HDR_FORMAT_802_3) |
 	      FIELD_PREP(MT_TXD1_TID, tid);
 
-	if (be16_to_cpu(skb->protocol) >= ETH_P_802_3_MIN)
+	ethertype = get_unaligned_be16(&skb->data[12]);
+	if (ethertype >= ETH_P_802_3_MIN)
 		val |= MT_TXD1_ETH_802_3;
 
 	txwi[1] |= cpu_to_le32(val);
@@ -1181,8 +1194,7 @@ void bersa_mac_write_txwi(struct bersa_dev *dev, __le32 *txwi,
 	val = FIELD_PREP(MT_TXD1_WLAN_IDX, wcid->idx) |
 	      FIELD_PREP(MT_TXD1_OWN_MAC, omac_idx);
 
-	if (band_idx &&
-	    q_idx >= MT_LMAC_ALTX0 && q_idx <= MT_LMAC_BCN0)
+	if (band_idx)
 		val |= FIELD_PREP(MT_TXD1_TGID, band_idx);
 
 	txwi[1] = cpu_to_le32(val);
@@ -1328,10 +1340,10 @@ bersa_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 	u16 fc, tid;
 	u32 val;
 
-	if (!sta || !sta->ht_cap.ht_supported)
+	if (!sta || !(sta->ht_cap.ht_supported || sta->he_cap.has_he))
 		return;
 
-	tid = FIELD_GET(MT_TXD1_TID, le32_to_cpu(txwi[1]));
+	tid = le32_get_bits(txwi[1], MT_TXD1_TID);
 	if (tid >= 6) /* skip VO queue */
 		return;
 
@@ -1379,7 +1391,7 @@ bersa_txwi_free(struct bersa_dev *dev, struct mt76_txwi_cache *t,
 		if (likely(t->skb->protocol != cpu_to_be16(ETH_P_PAE)))
 			bersa_tx_check_aggr(sta, txwi);
 	} else {
-		wcid_idx = FIELD_GET(MT_TXD1_WLAN_IDX, le32_to_cpu(txwi[1]));
+		wcid_idx = le32_get_bits(txwi[1], MT_TXD1_WLAN_IDX);
 	}
 
 	__mt76_tx_complete_skb(mdev, wcid_idx, t->skb, free_list);
@@ -1418,12 +1430,7 @@ bersa_mac_tx_free(struct bersa_dev *dev, void *data, int len)
 		mt76_queue_tx_cleanup(dev, mphy_tri->q_tx[MT_TXQ_BE], false);
 	}
 
-	/*
-	 * TODO: MT_TX_FREE_LATENCY is msdu time from the TXD is queued into PLE,
-	 * to the time ack is received or dropped by hw (air + hw queue time).
-	 * Should avoid accessing WTBL to get Tx airtime, and use it instead.
-	 */
-	total = FIELD_GET(MT_TX_FREE_MSDU_CNT, le16_to_cpu(free->ctrl));
+	total = le16_get_bits(free->ctrl, MT_TX_FREE_MSDU_CNT);
 	v3 = (FIELD_GET(MT_TX_FREE_VER, txd) >= 0x4);
 	if (WARN_ON_ONCE((void *)&free->info[total >> v3] > end))
 		return;
@@ -1539,6 +1546,8 @@ bersa_mac_add_txs_skb(struct bersa_dev *dev, struct mt76_wcid *wcid, int pid,
 
 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
 			sband = &mphy->sband_5g.sband;
+		else if (mphy->chandef.chan->band == NL80211_BAND_6GHZ)
+			sband = &mphy->sband_6g.sband;
 		else
 			sband = &mphy->sband_2g.sband;
 
@@ -1612,18 +1621,13 @@ static void bersa_mac_add_txs(struct bersa_dev *dev, void *data)
 	struct mt76_wcid *wcid;
 	__le32 *txs_data = data;
 	u16 wcidx;
-	u32 txs;
 	u8 pid;
 
-	txs = le32_to_cpu(txs_data[0]);
-	if (FIELD_GET(MT_TXS0_TXS_FORMAT, txs) > 1)
+	if (le32_get_bits(txs_data[0], MT_TXS0_TXS_FORMAT) > 1)
 		return;
 
-	txs = le32_to_cpu(txs_data[2]);
-	wcidx = FIELD_GET(MT_TXS2_WCID, txs);
-
-	txs = le32_to_cpu(txs_data[3]);
-	pid = FIELD_GET(MT_TXS3_PID, txs);
+	wcidx = le32_get_bits(txs_data[2], MT_TXS2_WCID);
+	pid = le32_get_bits(txs_data[3], MT_TXS3_PID);
 
 	if (pid < MT_PACKET_ID_FIRST)
 		return;
@@ -1660,7 +1664,7 @@ bool bersa_rx_check(struct mt76_dev *mdev, enum mt76_rxq_id q, void *data, int l
 	__le32 *end = (__le32 *)&rxd[len / 4];
 	enum rx_pkt_type type;
 
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
 	if (q == MT_RXQ_MCU || q == MT_RXQ_MCU_WA ||
 	    q == MT_RXQ_MAIN_WA || q == MT_RXQ_EXT_WA || q == MT_RXQ_TRI_WA) {
 		enum rx_pkt_type sw_type = FIELD_GET(MT_RXD0_SW_PKT_TYPE_MASK, le32_to_cpu(rxd[0]));
@@ -1693,7 +1697,7 @@ void bersa_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	__le32 *end = (__le32 *)&skb->data[skb->len];
 	enum rx_pkt_type type;
 
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
 	if (q == MT_RXQ_MCU || q == MT_RXQ_MCU_WA ||
 	    q == MT_RXQ_MAIN_WA || q == MT_RXQ_EXT_WA || q == MT_RXQ_TRI_WA) {
 		enum rx_pkt_type sw_type = FIELD_GET(MT_RXD0_SW_PKT_TYPE_MASK, le32_to_cpu(rxd[0]));
@@ -1800,7 +1804,7 @@ void bersa_mac_set_timing(struct bersa_phy *phy)
 	u32 ofdm = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 60) |
 		   FIELD_PREP(MT_TIMEOUT_VAL_CCA, 28);
 	int offset;
-	bool is_5ghz = phy->mt76->chandef.chan->band == NL80211_BAND_5GHZ;
+	bool a_band = !(phy->mt76->chandef.chan->band == NL80211_BAND_2GHZ);
 
 	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
 		return;
@@ -1824,7 +1828,7 @@ void bersa_mac_set_timing(struct bersa_phy *phy)
 	mt76_wr(dev, MT_TMAC_CDTR(phy->band_idx), cck + reg_offset);
 	mt76_wr(dev, MT_TMAC_ODTR(phy->band_idx), ofdm + reg_offset);
 	mt76_wr(dev, MT_TMAC_ICR0(phy->band_idx),
-		FIELD_PREP(MT_IFS_EIFS_OFDM, is_5ghz ? 84 : 78) |
+		FIELD_PREP(MT_IFS_EIFS_OFDM, a_band ? 84 : 78) |
 		FIELD_PREP(MT_IFS_RIFS, 2) |
 		FIELD_PREP(MT_IFS_SIFS, 10) |
 		FIELD_PREP(MT_IFS_SLOT, phy->slottime));
@@ -1832,7 +1836,7 @@ void bersa_mac_set_timing(struct bersa_phy *phy)
 	mt76_wr(dev, MT_TMAC_ICR1(phy->band_idx),
 		FIELD_PREP(MT_IFS_EIFS_CCK, 314));
 
-	if (phy->slottime < 20 || is_5ghz)
+	if (phy->slottime < 20 || a_band)
 		val = BERSA_CFEND_RATE_DEFAULT;
 	else
 		val = BERSA_CFEND_RATE_11B;
@@ -2331,10 +2335,23 @@ static void bersa_dfs_stop_radar_detector(struct bersa_phy *phy)
 
 static int bersa_dfs_start_rdd(struct bersa_dev *dev, int chain)
 {
-	int err;
+	int err, region;
+
+	switch (dev->mt76.region) {
+	case NL80211_DFS_ETSI:
+		region = 0;
+		break;
+	case NL80211_DFS_JP:
+		region = 2;
+		break;
+	case NL80211_DFS_FCC:
+	default:
+		region = 1;
+		break;
+	}
 
 	err = bersa_mcu_rdd_cmd(dev, RDD_START, chain,
-				MT_RX_SEL0, 0);
+				MT_RX_SEL0, region);
 	if (err < 0)
 		return err;
 

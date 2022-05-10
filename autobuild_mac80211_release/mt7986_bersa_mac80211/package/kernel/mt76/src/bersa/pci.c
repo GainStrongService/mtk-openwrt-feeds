@@ -123,6 +123,7 @@ static int bersa_pci_probe(struct pci_dev *pdev,
 		return PTR_ERR(dev);
 
 	mdev = &dev->mt76;
+	bersa_wfsys_reset(dev);
 	hif2 = bersa_pci_init_hif2(pdev);
 
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);

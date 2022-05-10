@@ -50,15 +50,22 @@ static ssize_t bersa_thermal_temp_show(struct device *dev,
 	int i = to_sensor_dev_attr(attr)->index;
 	int temperature;
 
-	if (i)
-		return sprintf(buf, "%u\n", phy->throttle_temp[i - 1] * 1000);
-
-	temperature = bersa_mcu_get_temperature(phy);
-	if (temperature < 0)
-		return temperature;
-
-	/* display in millidegree celcius */
-	return sprintf(buf, "%u\n", temperature * 1000);
+	switch (i) {
+	case 0:
+		temperature = bersa_mcu_get_temperature(phy);
+		if (temperature < 0)
+			return temperature;
+		/* display in millidegree celcius */
+		return sprintf(buf, "%u\n", temperature * 1000);
+	case 1:
+	case 2:
+		return sprintf(buf, "%u\n",
+			       phy->throttle_temp[i - 1] * 1000);
+	case 3:
+		return sprintf(buf, "%hhu\n", phy->throttle_state);
+	default:
+		return -EINVAL;
+	}
 }
 
 static ssize_t bersa_thermal_temp_store(struct device *dev,
@@ -84,11 +91,13 @@ static ssize_t bersa_thermal_temp_store(struct device *dev,
 static SENSOR_DEVICE_ATTR_RO(temp1_input, bersa_thermal_temp, 0);
 static SENSOR_DEVICE_ATTR_RW(temp1_crit, bersa_thermal_temp, 1);
 static SENSOR_DEVICE_ATTR_RW(temp1_max, bersa_thermal_temp, 2);
+static SENSOR_DEVICE_ATTR_RO(throttle1, bersa_thermal_temp, 3);
 
 static struct attribute *bersa_hwmon_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_crit.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_throttle1.dev_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(bersa_hwmon);
@@ -97,7 +106,7 @@ static int
 bersa_thermal_get_max_throttle_state(struct thermal_cooling_device *cdev,
 				      unsigned long *state)
 {
-	*state = BERSA_THERMAL_THROTTLE_MAX;
+	*state = BERSA_CDEV_THROTTLE_MAX;
 
 	return 0;
 }
@@ -108,7 +117,7 @@ bersa_thermal_get_cur_throttle_state(struct thermal_cooling_device *cdev,
 {
 	struct bersa_phy *phy = cdev->devdata;
 
-	*state = phy->throttle_state;
+	*state = phy->cdev_state;
 
 	return 0;
 }
@@ -118,22 +127,27 @@ bersa_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
 				      unsigned long state)
 {
 	struct bersa_phy *phy = cdev->devdata;
+	u8 throttling = BERSA_THERMAL_THROTTLE_MAX - state;
 	int ret;
 
-	if (state > BERSA_THERMAL_THROTTLE_MAX)
+	if (state > BERSA_CDEV_THROTTLE_MAX)
 		return -EINVAL;
 
 	if (phy->throttle_temp[0] > phy->throttle_temp[1])
 		return 0;
 
-	if (state == phy->throttle_state)
+	if (state == phy->cdev_state)
 		return 0;
 
-	ret = bersa_mcu_set_thermal_throttling(phy, state);
+	/*
+	 * cooling_device convention: 0 = no cooling, more = more cooling
+	 * mcu convention: 1 = max cooling, more = less cooling
+	 */
+	ret = bersa_mcu_set_thermal_throttling(phy, throttling);
 	if (ret)
 		return ret;
 
-	phy->throttle_state = state;
+	phy->cdev_state = state;
 
 	return 0;
 }
@@ -186,7 +200,8 @@ static int bersa_thermal_init(struct bersa_phy *phy)
 	phy->throttle_temp[0] = 110;
 	phy->throttle_temp[1] = 120;
 
-	return 0;
+	return bersa_mcu_set_thermal_throttling(phy,
+						 BERSA_THERMAL_THROTTLE_MAX);
 }
 
 static void bersa_led_set_config(struct led_classdev *led_cdev,
@@ -422,6 +437,8 @@ static void bersa_mac_init(struct bersa_dev *dev)
 
 	/* mt76_rmw_field(dev, MT_MDP_DCR1, MT_MDP_DCR1_MAX_RX_LEN, 0x680); */
 
+	/* mt76_clear(dev, MT_MDP_DCR2, MT_MDP_DCR2_RX_TRANS_SHORT); */
+
 	/* enable hardware de-agg */
 	/* mt76_set(dev, MT_MDP_DCR0, MT_MDP_DCR0_DAMSDU_EN); */
 
@@ -604,7 +621,7 @@ static void bersa_init_work(struct work_struct *work)
 	bersa_txbf_init(dev);
 }
 
-static void bersa_wfsys_reset(struct bersa_dev *dev)
+void bersa_wfsys_reset(struct bersa_dev *dev)
 {
 	if (is_mt7902(&dev->mt76))
 		return;
@@ -648,11 +665,6 @@ static int bersa_init_hardware(struct bersa_dev *dev)
 			return ret;
 	}
 
-	/* If MCU was already running, it is likely in a bad state */
-	if (mt76_get_field(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE) >
-	    FW_STATE_FW_DOWNLOAD)
-		bersa_wfsys_reset(dev);
-
 	ret = bersa_dma_init(dev);
 	if (ret)
 		return ret;
@@ -660,14 +672,8 @@ static int bersa_init_hardware(struct bersa_dev *dev)
 	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	ret = bersa_mcu_init(dev);
-	if (ret) {
-		/* Reset and try again */
-		bersa_wfsys_reset(dev);
-
-		ret = bersa_mcu_init(dev);
-		if (ret)
-			return ret;
-	}
+	if (ret)
+		return ret;
 
 	ret = bersa_eeprom_init(dev);
 	if (ret < 0)
@@ -776,23 +782,26 @@ bersa_set_stream_he_txbf_caps(struct ieee80211_sta_he_cap *he_cap,
 	elem->phy_cap_info[3] |= IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER;
 	elem->phy_cap_info[4] |= IEEE80211_HE_PHY_CAP4_MU_BEAMFORMER;
 
-	/* num_snd_dim
-	 * for bersa, max supported nss is 2 for bw > 80MHz
-	 */
-	c = (nss - 1) |
-	    IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_2;
+	c = FIELD_PREP(IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_MASK,
+		       nss - 1) |
+	    FIELD_PREP(IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_MASK,
+		       nss - 1);
 	elem->phy_cap_info[5] |= c;
 
 	c = IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMING_FB |
 	    IEEE80211_HE_PHY_CAP6_TRIG_MU_BEAMFORMING_PARTIAL_BW_FB;
 	elem->phy_cap_info[6] |= c;
+
+	c = IEEE80211_HE_PHY_CAP7_STBC_TX_ABOVE_80MHZ |
+	    IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ;
+	elem->phy_cap_info[7] |= c;
 }
 
 static void
 bersa_gen_ppe_thresh(u8 *he_ppet, int nss)
 {
 	u8 i, ppet_bits, ppet_size, ru_bit_mask = 0x7; /* HE80 */
-	u8 ppet16_ppet8_ru3_ru0[] = {0x1c, 0xc7, 0x71};
+	static const u8 ppet16_ppet8_ru3_ru0[] = {0x1c, 0xc7, 0x71};
 
 	he_ppet[0] = FIELD_PREP(IEEE80211_PPE_THRES_NSS_MASK, nss - 1) |
 		     FIELD_PREP(IEEE80211_PPE_THRES_RU_INDEX_BITMASK_MASK,
@@ -865,7 +874,7 @@ bersa_init_he_caps(struct bersa_phy *phy, enum nl80211_band band,
 		if (band == NL80211_BAND_2GHZ)
 			he_cap_elem->phy_cap_info[0] =
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
-		else if (band == NL80211_BAND_5GHZ)
+		else
 			he_cap_elem->phy_cap_info[0] =
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
@@ -904,7 +913,7 @@ bersa_init_he_caps(struct bersa_phy *phy, enum nl80211_band band,
 			if (band == NL80211_BAND_2GHZ)
 				he_cap_elem->phy_cap_info[0] |=
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_2G;
-			else if (band == NL80211_BAND_5GHZ)
+			else
 				he_cap_elem->phy_cap_info[0] |=
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_RU_MAPPING_IN_5G;
 
@@ -953,6 +962,21 @@ bersa_init_he_caps(struct bersa_phy *phy, enum nl80211_band band,
 			he_cap_elem->phy_cap_info[9] |=
 				IEEE80211_HE_PHY_CAP9_NOMIMAL_PKT_PADDING_16US;
 		}
+
+		if (band == NL80211_BAND_6GHZ) {
+			u16 cap = IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS |
+				  IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
+
+			cap |= u16_encode_bits(IEEE80211_HT_MPDU_DENSITY_8,
+					       IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START) |
+			       u16_encode_bits(IEEE80211_VHT_MAX_AMPDU_1024K,
+					       IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP) |
+			       u16_encode_bits(IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454,
+					       IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN);
+
+			data[idx].he_6ghz_capa.capa = cpu_to_le16(cap);
+		}
+
 		idx++;
 	}
 
@@ -979,6 +1003,15 @@ void bersa_set_stream_he_caps(struct bersa_phy *phy)
 		n = bersa_init_he_caps(phy, NL80211_BAND_5GHZ, data);
 
 		band = &phy->mt76->sband_5g.sband;
+		band->iftype_data = data;
+		band->n_iftype_data = n;
+	}
+
+	if (phy->mt76->cap.has_6ghz) {
+		data = phy->iftype[NL80211_BAND_6GHZ];
+		n = bersa_init_he_caps(phy, NL80211_BAND_6GHZ, data);
+
+		band = &phy->mt76->sband_6g.sband;
 		band->iftype_data = data;
 		band->n_iftype_data = n;
 	}
