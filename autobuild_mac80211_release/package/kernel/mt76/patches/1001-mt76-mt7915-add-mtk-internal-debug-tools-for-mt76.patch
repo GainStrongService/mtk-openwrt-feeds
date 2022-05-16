@@ -1,26 +1,26 @@
-From 03d0a859ad4ba9f270b0c5ae896e8cc89fd241f4 Mon Sep 17 00:00:00 2001
+From 235e69804c130fd7381fd44b1853859984e97ac5 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Thu, 21 Apr 2022 19:42:55 +0800
 Subject: [PATCH] mt76: mt7915: add mtk internal debug tools for mt76
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
- mt76_connac_mcu.h     |    6 +
- mt7915/Makefile       |    2 +-
- mt7915/debugfs.c      |   72 +-
- mt7915/mac.c          |   14 +
- mt7915/mcu.c          |   41 +
- mt7915/mcu.h          |    4 +
- mt7915/mt7915.h       |   41 +
- mt7915/mt7915_debug.h | 1350 +++++++++++++++++++
- mt7915/mtk_debugfs.c  | 2921 +++++++++++++++++++++++++++++++++++++++++
- mt7915/mtk_mcu.c      |   51 +
- tools/fwlog.c         |   26 +-
- 11 files changed, 4517 insertions(+), 11 deletions(-)
- mode change 100644 => 100755 mt7915/mcu.c
- create mode 100644 mt7915/mt7915_debug.h
- create mode 100644 mt7915/mtk_debugfs.c
- create mode 100644 mt7915/mtk_mcu.c
+ .../wireless/mediatek/mt76/mt76_connac_mcu.h  |    6 +
+ .../wireless/mediatek/mt76/mt7915/Makefile    |    2 +-
+ .../wireless/mediatek/mt76/mt7915/debugfs.c   |   72 +-
+ .../net/wireless/mediatek/mt76/mt7915/mac.c   |   14 +
+ .../net/wireless/mediatek/mt76/mt7915/mcu.c   |   41 +
+ .../net/wireless/mediatek/mt76/mt7915/mcu.h   |    4 +
+ .../wireless/mediatek/mt76/mt7915/mt7915.h    |   41 +
+ .../mediatek/mt76/mt7915/mt7915_debug.h       | 1350 ++++++++
+ .../mediatek/mt76/mt7915/mtk_debugfs.c        | 2921 +++++++++++++++++
+ .../wireless/mediatek/mt76/mt7915/mtk_mcu.c   |   51 +
+ .../net/wireless/mediatek/mt76/tools/fwlog.c  |   44 +-
+ 11 files changed, 4533 insertions(+), 13 deletions(-)
+ mode change 100644 => 100755 drivers/net/wireless/mediatek/mt76/mt7915/mcu.c
+ create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mt7915_debug.h
+ create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mtk_debugfs.c
+ create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
 index aa14d2d4..03134066 100644
@@ -197,7 +197,7 @@ index b45181c1..27321528 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 25a6adfc..6d8b749e 100644
+index de5f3f10..ce760cdb 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -596,6 +596,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -222,7 +222,7 @@ index 25a6adfc..6d8b749e 100644
  	if (hdr_trans && ieee80211_has_morefrags(fc)) {
  		if (mt7915_reverse_frag0_hdr_trans(skb, hdr_gap))
  			return -EINVAL;
-@@ -1346,6 +1354,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -1352,6 +1360,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	tx_info->buf[1].skip_unmap = true;
  	tx_info->nbuf = MT_CT_DMA_BUF_NUM;
  
@@ -4716,7 +4716,7 @@ index 00000000..145fe785
 +				 sizeof(req), true);
 +}
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a105..58a976a9 100644
+index e5d4a105..3d51d9ec 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)
@@ -4751,19 +4751,35 @@ index e5d4a105..58a976a9 100644
  	struct sockaddr_in local = {
  		.sin_family = AF_INET,
  		.sin_addr.s_addr = INADDR_ANY,
-@@ -84,9 +91,9 @@ int mt76_fwlog(const char *phyname, int argc, char **argv)
+@@ -84,9 +91,10 @@ int mt76_fwlog(const char *phyname, int argc, char **argv)
  		.sin_family = AF_INET,
  		.sin_port = htons(55688),
  	};
 -	char buf[1504];
 +	char *buf = calloc(BUF_SIZE, sizeof(char));
++	FILE *logfile = NULL;
  	int ret = 0;
 -	int yes = 1;
 +	/* int yes = 1; */
  	int s, fd;
  
  	if (argc < 1) {
-@@ -105,13 +112,13 @@ int mt76_fwlog(const char *phyname, int argc, char **argv)
+@@ -99,19 +107,28 @@ int mt76_fwlog(const char *phyname, int argc, char **argv)
+ 		return 1;
+ 	}
+ 
++	if (argc == 3) {
++		fprintf(stdout, "start logging to file %s\n", argv[2]);
++		logfile = fopen(argv[2], "wb");
++		if (!logfile) {
++			perror("fopen");
++			return 1;
++		}
++	}
++
+ 	s = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+ 	if (s < 0) {
+ 		perror("socket");
  		return 1;
  	}
  
@@ -4779,7 +4795,7 @@ index e5d4a105..58a976a9 100644
  		return 1;
  
  	fd = open(debugfs_path(phyname, "fwlog_data"), O_RDONLY);
-@@ -145,8 +152,8 @@ int mt76_fwlog(const char *phyname, int argc, char **argv)
+@@ -145,8 +162,8 @@ int mt76_fwlog(const char *phyname, int argc, char **argv)
  		if (!r)
  			continue;
  
@@ -4790,16 +4806,29 @@ index e5d4a105..58a976a9 100644
  			ret = 1;
  			break;
  		}
-@@ -171,7 +178,8 @@ int mt76_fwlog(const char *phyname, int argc, char **argv)
+@@ -164,14 +181,19 @@ int mt76_fwlog(const char *phyname, int argc, char **argv)
+ 			break;
+ 		}
+ 
+-		/* send buf */
+-		sendto(s, buf, len, 0, (struct sockaddr *)&remote, sizeof(remote));
++		if (logfile)
++			fwrite(buf, 1, len, logfile);
++		else
++			/* send buf */
++			sendto(s, buf, len, 0, (struct sockaddr *)&remote, sizeof(remote));
+ 	}
+ 
  	close(fd);
  
  out:
 -	mt76_set_fwlog_en(phyname, false);
 +	mt76_set_fwlog_en(phyname, false, NULL);
 +	free(buf);
++	fclose(logfile);
  
  	return ret;
  }
 -- 
-2.18.0
+2.25.1
 
