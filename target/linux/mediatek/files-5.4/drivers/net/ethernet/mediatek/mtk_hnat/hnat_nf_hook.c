@@ -1114,7 +1114,6 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 	entry.bfib1.psn = (hw_path->flags & FLOW_OFFLOAD_PATH_PPPOE) ? 1 : 0;
 	entry.bfib1.vlan_layer += (hw_path->flags & FLOW_OFFLOAD_PATH_VLAN) ? 1 : 0;
 	entry.bfib1.vpm = (entry.bfib1.vlan_layer) ? 1 : 0;
-	entry.bfib1.ttl = 1;
 	entry.bfib1.cah = 1;
 	entry.bfib1.time_stamp = (hnat_priv->data->version == MTK_HNAT_V4) ?
 		readl(hnat_priv->fe_base + 0x0010) & (0xFF) :
@@ -1648,8 +1647,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	 * by Wi-Fi whnat engine. These data and INFO2.dp will be updated and
 	 * the entry is set to BIND state in mtk_sw_nat_hook_tx().
 	 */
-	if (!whnat)
+	if (!whnat) {
+		entry.bfib1.ttl = 1;
 		entry.bfib1.state = BIND;
+	}
 
 	wmb();
 	memcpy(foe, &entry, sizeof(entry));
@@ -1822,6 +1823,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		entry->ipv6_5t_route.iblk2.dp = gmac_no;
 	}
 
+	bfib1_tx.ttl = 1;
 	bfib1_tx.state = BIND;
 	wmb();
 	memcpy(&entry->bfib1, &bfib1_tx, sizeof(bfib1_tx));
