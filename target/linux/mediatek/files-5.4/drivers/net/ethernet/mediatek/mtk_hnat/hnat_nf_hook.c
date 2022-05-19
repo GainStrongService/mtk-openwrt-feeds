@@ -667,7 +667,8 @@ unsigned int do_hnat_mape_w2l_fast(struct sk_buff *skb, const struct net_device 
 	return -1;
 }
 
-unsigned int do_hnat_mape_wan2lan(struct sk_buff *skb, const struct net_device *in,
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+unsigned int do_hnat_mape_w2l(struct sk_buff *skb, const struct net_device *in,
 				   const char *func)
 {
 	struct ipv6hdr *ip6h = ipv6_hdr(skb);
@@ -733,7 +734,7 @@ unsigned int do_hnat_mape_wan2lan(struct sk_buff *skb, const struct net_device *
 	}
 	return -1;
 }
-
+#endif
 
 static unsigned int is_ppe_support_type(struct sk_buff *skb)
 {
@@ -820,7 +821,7 @@ mtk_hnat_ipv6_nf_pre_routing(void *priv, struct sk_buff *skb,
 	/* MapE need remove ipv6 header and pingpong. */
 	if (do_mape_w2l_fast(state->in, skb)) {
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
-		if (mape_toggle && do_hnat_mape_wan2lan(skb, state->in, __func__))
+		if (mape_toggle && do_hnat_mape_w2l(skb, state->in, __func__))
 			return NF_ACCEPT;
 #else
 		if (!do_hnat_mape_w2l_fast(skb, state->in, __func__))
