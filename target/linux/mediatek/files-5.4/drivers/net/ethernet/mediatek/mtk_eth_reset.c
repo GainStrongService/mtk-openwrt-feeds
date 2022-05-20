@@ -323,12 +323,14 @@ void mtk_prepare_reset_fe(struct mtk_eth *eth)
 	mtk_w32(eth, val & ~(MTK_TX_DMA_EN), MTK_QDMA_GLO_CFG);
 
 	/* Power down sgmii */
-	regmap_read(eth->sgmii->regmap[0], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
-	val |= SGMII_PHYA_PWD;
-	regmap_write(eth->sgmii->regmap[0], SGMSYS_QPHY_PWR_STATE_CTRL, val);
-	regmap_read(eth->sgmii->regmap[1], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
-	val |= SGMII_PHYA_PWD;
-	regmap_write(eth->sgmii->regmap[1], SGMSYS_QPHY_PWR_STATE_CTRL, val);
+	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		if (!eth->sgmii->regmap[i])
+			continue;
+
+		regmap_read(eth->sgmii->regmap[i], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
+		val |= SGMII_PHYA_PWD;
+		regmap_write(eth->sgmii->regmap[i], SGMSYS_QPHY_PWR_STATE_CTRL, val);
+	}
 
 	/* Force link down GMAC */
 	val = mtk_r32(eth, MTK_MAC_MCR(0));

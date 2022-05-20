@@ -2686,7 +2686,7 @@ static int mtk_open(struct net_device *dev)
 	phylink_start(mac->phylink);
 	netif_start_queue(dev);
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
-	if (!phy_node) {
+	if (!phy_node && eth->sgmii->regmap[mac->id]) {
 		regmap_write(eth->sgmii->regmap[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, 0);
 	}
 	return 0;
@@ -2730,7 +2730,7 @@ static int mtk_stop(struct net_device *dev)
 		val = _mtk_mdio_read(eth, 0, 0);
 		val |= BMCR_PDOWN;
 		_mtk_mdio_write(eth, 0, 0, val);
-	}else {
+	} else if (eth->sgmii->regmap[mac->id]) {
 		regmap_read(eth->sgmii->regmap[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
 		val |= SGMII_PHYA_PWD;
 		regmap_write(eth->sgmii->regmap[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, val);
@@ -3128,7 +3128,7 @@ static void mtk_pending_work(struct work_struct *work)
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		mac = netdev_priv(eth->netdev[i]);
 		phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
-		if (!phy_node) {
+		if (!phy_node && eth->sgmii->regmap[i]) {
 			mtk_gmac_sgmii_path_setup(eth, i);
 			regmap_write(eth->sgmii->regmap[i], SGMSYS_QPHY_PWR_STATE_CTRL, 0);
 		}
@@ -3647,22 +3647,24 @@ static int mtk_probe(struct platform_device *pdev)
 		if (err)
 			goto err_free_dev;
 
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
-			for (i = 1; i < MTK_RX_NAPI_NUM; i++) {
-				err = devm_request_irq(eth->dev,
-						eth->irq[2 + i],
-						mtk_handle_irq_rx, 0,
-						dev_name(eth->dev),
-						&eth->rx_napi[i]);
+		if (MTK_MAX_IRQ_NUM > 3) {
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
+				for (i = 1; i < MTK_RX_NAPI_NUM; i++) {
+					err = devm_request_irq(eth->dev,
+							       eth->irq[2 + i],
+							       mtk_handle_irq_rx, 0,
+							       dev_name(eth->dev),
+							       &eth->rx_napi[i]);
+					if (err)
+						goto err_free_dev;
+				}
+			} else {
+				err = devm_request_irq(eth->dev, eth->irq[3],
+						       mtk_handle_fe_irq, 0,
+						       dev_name(eth->dev), eth);
 				if (err)
 					goto err_free_dev;
 			}
-		} else {
-			err = devm_request_irq(eth->dev, eth->irq[3],
-					       mtk_handle_fe_irq, 0,
-					       dev_name(eth->dev), eth);
-			if (err)
-				goto err_free_dev;
 		}
 	}
 
@@ -3711,9 +3713,11 @@ static int mtk_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, eth);
 
 	register_netdevice_notifier(&mtk_eth_netdevice_nb);
+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 	timer_setup(&eth->mtk_dma_monitor_timer, mtk_dma_monitor, 0);
 	eth->mtk_dma_monitor_timer.expires = jiffies;
 	add_timer(&eth->mtk_dma_monitor_timer);
+#endif
 
 	return 0;
 
