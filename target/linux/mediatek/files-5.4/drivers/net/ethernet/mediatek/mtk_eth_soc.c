@@ -2927,7 +2927,7 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 	mtk_w32(eth, MTK_TX_DONE_INT, MTK_QDMA_INT_GRP1);
 	mtk_w32(eth, MTK_RX_DONE_INT(0), MTK_QDMA_INT_GRP2);
 	mtk_w32(eth, 0x21021003, MTK_FE_INT_GRP);
-	mtk_w32(eth, MTK_FE_INT_FQ_EMPTY | MTK_FE_INT_TSO_FAIL |
+	mtk_w32(eth, MTK_FE_INT_TSO_FAIL |
 		MTK_FE_INT_TSO_ILLEGAL | MTK_FE_INT_TSO_ALIGN |
 		MTK_FE_INT_RFIFO_OV | MTK_FE_INT_RFIFO_UF, MTK_FE_INT_ENABLE);
 
