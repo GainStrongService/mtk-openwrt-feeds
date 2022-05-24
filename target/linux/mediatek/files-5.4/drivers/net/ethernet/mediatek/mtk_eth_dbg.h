@@ -267,12 +267,10 @@ static inline bool mt7530_exist(struct mtk_eth *eth)
 }
 #endif
 
-extern u32 _mtk_mdio_read(struct mtk_eth *eth, u16 phy_addr, u16 phy_reg);
-extern u32 _mtk_mdio_write(struct mtk_eth *eth, u16 phy_addr,
-		    u16 phy_register, u16 write_data);
+extern u32 _mtk_mdio_read(struct mtk_eth *eth, int phy_addr, int phy_reg);
+extern u32 _mtk_mdio_write(struct mtk_eth *eth, int phy_addr,
+		    int phy_reg, u16 write_data);
 
-extern u32 mtk_cl45_ind_read(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 *data);
-extern u32 mtk_cl45_ind_write(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 data);
 extern atomic_t force;
 
 int debug_proc_init(struct mtk_eth *eth);

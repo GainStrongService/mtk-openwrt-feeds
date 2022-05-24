@@ -400,12 +400,12 @@ void mii_mgr_write_combine(struct mtk_eth *eth, u16 phy_addr, u16 phy_register,
 
 static void mii_mgr_read_cl45(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 *data)
 {
-	mtk_cl45_ind_read(eth, port, devad, reg, data);
+	*data = _mtk_mdio_read(eth, port, mdiobus_c45_addr(devad, reg));
 }
 
 static void mii_mgr_write_cl45(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 data)
 {
-	mtk_cl45_ind_write(eth, port, devad, reg, data);
+	_mtk_mdio_write(eth, port, mdiobus_c45_addr(devad, reg), data);
 }
 
 int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)

@@ -103,18 +103,33 @@ static int mtk_mdio_busy_wait(struct mtk_eth *eth)
 	return -1;
 }
 
-u32 _mtk_mdio_write(struct mtk_eth *eth, u16 phy_addr,
-			   u16 phy_register, u16 write_data)
+u32 _mtk_mdio_write(struct mtk_eth *eth, int phy_addr,
+			   int phy_reg, u16 write_data)
 {
 	if (mtk_mdio_busy_wait(eth))
 		return -1;
 
 	write_data &= 0xffff;
 
-	mtk_w32(eth, PHY_IAC_ACCESS | PHY_IAC_START | PHY_IAC_WRITE |
-		((phy_register & 0x1f) << PHY_IAC_REG_SHIFT) |
-		((phy_addr & 0x1f) << PHY_IAC_ADDR_SHIFT) | write_data,
-		MTK_PHY_IAC);
+	if (phy_reg & MII_ADDR_C45) {
+		mtk_w32(eth, PHY_IAC_ACCESS | PHY_IAC_START_C45 | PHY_IAC_ADDR_C45 |
+			((mdiobus_c45_devad(phy_reg) & 0x1f) << PHY_IAC_REG_SHIFT) |
+			((phy_addr & 0x1f) << PHY_IAC_ADDR_SHIFT) | mdiobus_c45_regad(phy_reg),
+			MTK_PHY_IAC);
+
+		if (mtk_mdio_busy_wait(eth))
+			return -1;
+
+		mtk_w32(eth, PHY_IAC_ACCESS | PHY_IAC_START_C45 | PHY_IAC_WRITE |
+			((mdiobus_c45_devad(phy_reg) & 0x1f) << PHY_IAC_REG_SHIFT) |
+			((phy_addr & 0x1f) << PHY_IAC_ADDR_SHIFT) | write_data,
+			MTK_PHY_IAC);
+	} else {
+		mtk_w32(eth, PHY_IAC_ACCESS | PHY_IAC_START | PHY_IAC_WRITE |
+			((phy_reg & 0x1f) << PHY_IAC_REG_SHIFT) |
+			((phy_addr & 0x1f) << PHY_IAC_ADDR_SHIFT) | write_data,
+			MTK_PHY_IAC);
+	}
 
 	if (mtk_mdio_busy_wait(eth))
 		return -1;
@@ -122,17 +137,32 @@ u32 _mtk_mdio_write(struct mtk_eth *eth, u16 phy_addr,
 	return 0;
 }
 
-u32 _mtk_mdio_read(struct mtk_eth *eth, u16 phy_addr, u16 phy_reg)
+u32 _mtk_mdio_read(struct mtk_eth *eth, int phy_addr, int phy_reg)
 {
 	u32 d;
 
 	if (mtk_mdio_busy_wait(eth))
 		return 0xffff;
 
-	mtk_w32(eth, PHY_IAC_ACCESS | PHY_IAC_START | PHY_IAC_READ |
-		((phy_reg & 0x1f) << PHY_IAC_REG_SHIFT) |
-		((phy_addr & 0x1f) << PHY_IAC_ADDR_SHIFT),
-		MTK_PHY_IAC);
+	if (phy_reg & MII_ADDR_C45) {
+		mtk_w32(eth, PHY_IAC_ACCESS | PHY_IAC_START_C45 | PHY_IAC_ADDR_C45 |
+			((mdiobus_c45_devad(phy_reg) & 0x1f) << PHY_IAC_REG_SHIFT) |
+			((phy_addr & 0x1f) << PHY_IAC_ADDR_SHIFT) | mdiobus_c45_regad(phy_reg),
+			MTK_PHY_IAC);
+
+		if (mtk_mdio_busy_wait(eth))
+			return 0xffff;
+
+		mtk_w32(eth, PHY_IAC_ACCESS | PHY_IAC_START_C45 | PHY_IAC_READ_C45 |
+			((mdiobus_c45_devad(phy_reg) & 0x1f) << PHY_IAC_REG_SHIFT) |
+			((phy_addr & 0x1f) << PHY_IAC_ADDR_SHIFT),
+			MTK_PHY_IAC);
+	} else {
+		mtk_w32(eth, PHY_IAC_ACCESS | PHY_IAC_START | PHY_IAC_READ |
+			((phy_reg & 0x1f) << PHY_IAC_REG_SHIFT) |
+			((phy_addr & 0x1f) << PHY_IAC_ADDR_SHIFT),
+			MTK_PHY_IAC);
+	}
 
 	if (mtk_mdio_busy_wait(eth))
 		return 0xffff;
@@ -155,34 +185,6 @@ static int mtk_mdio_read(struct mii_bus *bus, int phy_addr, int phy_reg)
 	struct mtk_eth *eth = bus->priv;
 
 	return _mtk_mdio_read(eth, phy_addr, phy_reg);
-}
-
-u32 mtk_cl45_ind_read(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 *data)
-{
-        mutex_lock(&eth->mii_bus->mdio_lock);
-
-        _mtk_mdio_write(eth, port, MII_MMD_ACC_CTL_REG, devad);
-        _mtk_mdio_write(eth, port, MII_MMD_ADDR_DATA_REG, reg);
-        _mtk_mdio_write(eth, port, MII_MMD_ACC_CTL_REG, MMD_OP_MODE_DATA | devad);
-        *data = _mtk_mdio_read(eth, port, MII_MMD_ADDR_DATA_REG);
-
-        mutex_unlock(&eth->mii_bus->mdio_lock);
-
-        return 0;
-}
-
-u32 mtk_cl45_ind_write(struct mtk_eth *eth, u16 port, u16 devad, u16 reg, u16 data)
-{
-        mutex_lock(&eth->mii_bus->mdio_lock);
-
-        _mtk_mdio_write(eth, port, MII_MMD_ACC_CTL_REG, devad);
-        _mtk_mdio_write(eth, port, MII_MMD_ADDR_DATA_REG, reg);
-        _mtk_mdio_write(eth, port, MII_MMD_ACC_CTL_REG, MMD_OP_MODE_DATA | devad);
-        _mtk_mdio_write(eth, port, MII_MMD_ADDR_DATA_REG, data);
-
-        mutex_unlock(&eth->mii_bus->mdio_lock);
-
-        return 0;
 }
 
 static int mt7621_gmac0_rgmii_adjust(struct mtk_eth *eth,
