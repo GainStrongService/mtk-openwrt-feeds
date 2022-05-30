@@ -43,25 +43,31 @@ out:
 
 int atenl_eth_recv(struct atenl *an, struct atenl_data *data)
 {
-	char buf[RACFG_PKT_MAX_SIZE];
-	int len = recvfrom(an->sock_eth, buf, sizeof(buf), 0, NULL, NULL);
-	struct ethhdr *hdr = (struct ethhdr *)buf;
+	struct ethhdr *hdr;
+	int len;
 
-	atenl_dbg("[%d]%s: recv len = %d\n", getpid(), __func__, len);
+	len = recvfrom(an->sock_eth, data->buf, sizeof(data->buf), 0, NULL, NULL);
 
-	if (len >= ETH_HLEN + RACFG_HLEN) {
-		if (hdr->h_proto == htons(ETH_P_RACFG) &&
-		    (ether_addr_equal(an->mac_addr, hdr->h_dest) ||
-		     is_broadcast_ether_addr(hdr->h_dest))) {
-			data->len = len;
-			memcpy(data->buf, buf, len);
-
-			return 0;
-		}
+	if (len < ETH_HLEN + RACFG_HLEN) {
+		atenl_err("packet len is too short: %d\n", len);
+		return -EINVAL;
 	}
 
-	atenl_err("%s: packet len is too short\n", __func__);
-	return -EINVAL;
+	hdr = (struct ethhdr *)data->buf;
+	if (hdr->h_proto != htons(ETH_P_RACFG)) {
+		atenl_err("invalid protocol type\n");
+		return -EINVAL;
+	}
+
+	if (!ether_addr_equal(an->mac_addr, hdr->h_dest) &&
+	    !is_broadcast_ether_addr(hdr->h_dest)) {
+		atenl_err("invalid dest MAC\n");
+		return -EINVAL;
+	}
+
+	data->len = len;
+
+	return 0;
 }
 
 int atenl_eth_send(struct atenl *an, struct atenl_data *data)
@@ -81,11 +87,11 @@ int atenl_eth_send(struct atenl *an, struct atenl_data *data)
 	if (len < 60)
 		len = 60;
 	else if (len > 1514) {
-		atenl_err("%s: response ethernet length is too long\n", __func__);
+		atenl_err("response ethernet length is too long\n");
 		return -1;
 	}
 
-	atenl_dbg_print_data(data, __func__, len);
+	atenl_dbg_print_data(data->buf, __func__, len);
 
 	addr.sll_family = PF_PACKET;
 	addr.sll_protocol = htons(ETH_P_RACFG);
@@ -103,7 +109,5 @@ int atenl_eth_send(struct atenl *an, struct atenl_data *data)
 		return ret;
 	}
 	
-	atenl_dbg("[%d]%s: send length = %d\n", getpid(), __func__, len);
-
 	return 0;
 }

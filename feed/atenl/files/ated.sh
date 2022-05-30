@@ -32,7 +32,7 @@ if [ "$mode" = "0" ]; then
     killall atenl > /dev/null 2>&1
 fi
 
-eval "${cmd}" > /dev/null 2>&1 &
+eval "${cmd}"
 if [[ ! -z "${ori_inf}" ]]; then
     echo "if_name: ${ori_inf}"
 fi

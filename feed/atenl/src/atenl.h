@@ -15,9 +15,8 @@
 
 #include "nl.h"
 #include "util.h"
+#include "debug.h"
 
-/* #define CONFIG_ATENL_DEBUG     1 */
-/* #define CONFIG_ATENL_DEBUG_VERBOSE     1 */
 #define BRIDGE_NAME	"br-lan"
 #define ETH_P_RACFG	0x2880
 #define RACFG_PKT_MAX_SIZE	1600
@@ -27,14 +26,6 @@
 #define RACFG_CMD_TYPE_MASK	GENMASK(14, 0)
 #define RACFG_CMD_TYPE_ETHREQ	BIT(3)
 #define RACFG_CMD_TYPE_PLATFORM_MODULE	GENMASK(4, 3)
-
-#define atenl_info(fmt, ...)	printf(fmt, __VA_ARGS__)
-#define atenl_err(fmt, ...)	fprintf(stderr, fmt, __VA_ARGS__)
-#ifdef CONFIG_ATENL_DEBUG
-#define atenl_dbg(fmt, ...)	atenl_info(fmt, __VA_ARGS__)
-#else
-#define atenl_dbg(fmt, ...)
-#endif
 
 #define set_band_val(_an, _band, _field, _val)	\
 	_an->anb[_band]._field = (_val)
@@ -68,6 +59,8 @@ struct atenl_band {
 	enum atenl_rf_mode rf_mode;
 
 	bool use_tx_time;
+	u32 tx_time;
+	u32 tx_mpdu_len;
 
 	bool reset_tx_cnt;
 	bool reset_rx_cnt;
@@ -76,19 +69,18 @@ struct atenl_band {
 	struct atenl_rx_stat rx_stat;
 };
 
-#define MAX_BAND_NUM	4
+#define MAX_BAND_NUM	3
 
 struct atenl {
 	struct atenl_band anb[MAX_BAND_NUM];
 	u16 chip_id;
-
+	u16 adie_id;
+	u8 sub_chip_id;
 	u8 cur_band;
 
 	u8 mac_addr[ETH_ALEN];
 	bool unicast;
 	int sock_eth;
-	int pipefd[2];
-	int child_pid;
 
 	const char *mtd_part;
 	u32 mtd_offset;
@@ -97,6 +89,10 @@ struct atenl {
 	u16 eeprom_size;
 
 	bool cmd_mode;
+
+	/* intermediate data */
+	u8 ibf_mcs;
+	u8 ibf_ant;
 };
 
 struct atenl_cmd_hdr {
@@ -131,7 +127,9 @@ enum atenl_cmd {
 	HQA_CMD_SET_CFG,
 	HQA_CMD_SET_RU,
 	HQA_CMD_SET_BAND,
+	HQA_CMD_SET_EEPROM_TO_FW,
 	HQA_CMD_READ_MAC_BBP_REG,
+	HQA_CMD_READ_MAC_BBP_REG_QA,
 	HQA_CMD_READ_RF_REG,
 	HQA_CMD_READ_EEPROM_BULK,
 	HQA_CMD_READ_TEMPERATURE,
@@ -186,33 +184,29 @@ enum atenl_ext_cmd {
 struct atenl_data {
 	u8 buf[RACFG_PKT_MAX_SIZE];
 	int len;
+	u16 cmd_id;
+	u8 ext_id;
 	enum atenl_cmd cmd;
-	u32 ext_id;
 	enum atenl_ext_cmd ext_cmd;
 };
 
-struct atenl_cmd_ops {
-	u16 resp_len;
+struct atenl_ops {
 	int (*ops)(struct atenl *an, struct atenl_data *data);
+	u8 cmd;
+	u8 flags;
+	u16 cmd_id;
+	u16 resp_len;
 };
+
+#define ATENL_OPS_FLAG_EXT_CMD	BIT(0)
+#define ATENL_OPS_FLAG_LEGACY	BIT(1)
+#define ATENL_OPS_FLAG_SKIP	BIT(2)
 
 static inline struct atenl_cmd_hdr * atenl_hdr(struct atenl_data *data)
 {
 	u8 *hqa_data = (u8 *)data->buf + ETH_HLEN;
 
 	return (struct atenl_cmd_hdr *)hqa_data;
-}
-
-static inline void
-atenl_dbg_print_data(struct atenl_data *data, const char *func_name, u32 len)
-{
-#ifdef CONFIG_ATENL_DEBUG_VERBOSE
-	u32 *tmp = (u32 *)data->buf;
-	int i;
-
-	for (i = 0; i < DIV_ROUND_UP(len, 4); i++)
-		atenl_dbg("%s: [%d] = 0x%08x\n", func_name, i, tmp[i]);
-#endif
 }
 
 enum atenl_phy_type {
@@ -374,8 +368,7 @@ static inline bool is_mt7986(struct atenl *an)
 int atenl_eth_init(struct atenl *an);
 int atenl_eth_recv(struct atenl *an, struct atenl_data *data);
 int atenl_eth_send(struct atenl *an, struct atenl_data *data);
-int atenl_hqa_recv(struct atenl *an, struct atenl_data *data);
-int atenl_hqa_proc_cmd(struct atenl *an, struct atenl_data *data);
+int atenl_hqa_proc_cmd(struct atenl *an);
 int atenl_nl_process(struct atenl *an, struct atenl_data *data);
 int atenl_nl_process_many(struct atenl *an, struct atenl_data *data);
 int atenl_nl_check_mtd(struct atenl *an);
@@ -384,6 +377,7 @@ int atenl_nl_write_efuse_all(struct atenl *an);
 int atenl_nl_update_buffer_mode(struct atenl *an);
 int atenl_nl_set_state(struct atenl *an, u8 band,
 		       enum mt76_testmode_state state);
+int atenl_nl_set_aid(struct atenl *an, u8 band, u8 aid);
 int atenl_eeprom_init(struct atenl *an, u8 phy_idx);
 void atenl_eeprom_close(struct atenl *an);
 int atenl_eeprom_write_mtd(struct atenl *an);
@@ -392,5 +386,7 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd);
 u16 atenl_get_center_channel(u8 bw, u8 ch_band, u16 ctrl_ch);
 int atenl_reg_read(struct atenl *an, u32 offset, u32 *res);
 int atenl_reg_write(struct atenl *an, u32 offset, u32 val);
+int atenl_rf_read(struct atenl *an, u32 wf_sel, u32 offset, u32 *res);
+int atenl_rf_write(struct atenl *an, u32 wf_sel, u32 offset, u32 val);
 
 #endif

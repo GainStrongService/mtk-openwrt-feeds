@@ -58,7 +58,7 @@ static int phy_lookup_idx(const char *name)
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage:\n");
+	printf("Usage:\n");
 	printf("  %s [-u] [-i phyX]\n", progname);
 	printf("options:\n"
 	       "  -h = show help text\n"
@@ -70,13 +70,12 @@ static void usage(void)
 	exit(EXIT_FAILURE);
 }
 
-static int atenl_parent_work(struct atenl *an)
+static void atenl_handler_run(struct atenl *an)
 {
-	int sock_eth = an->sock_eth;
-	int count, ret = 0;
+	int count, sock_eth = an->sock_eth;
 	fd_set readfds;
 
-	atenl_info("[%d]%s: start for receiving HQA commands\n", getpid(), __func__);
+	atenl_info("Start atenl HQA command handler\n");
 
 	while (atenl_enable) {
 		FD_ZERO(&readfds);
@@ -85,90 +84,16 @@ static int atenl_parent_work(struct atenl *an)
 
 		if (count < 0) {
 			atenl_err("%s: select failed, %s\n", __func__, strerror(errno));
-			continue;
 		} else if (count == 0) {
 			usleep(1000);
-			continue;
 		} else {
-			if (FD_ISSET(sock_eth, &readfds)) {
-				struct atenl_data *data = calloc(1, sizeof(struct atenl_data));
-
-				ret = atenl_eth_recv(an, data);
-				if (ret) {
-					kill(an->child_pid, SIGUSR1);
-					return ret;
-				}
-
-				ret = atenl_hqa_recv(an, data);
-				if (ret < 0) {
-					kill(an->child_pid, SIGUSR1);
-					return ret;
-				}
-
-				free(data);
-			}
+			if (!FD_ISSET(sock_eth, &readfds))
+				continue;
+			atenl_hqa_proc_cmd(an);
 		}
 	}
 
-	atenl_info("[%d]%s: parent work end\n", getpid(), __func__);
-
-	return ret;
-}
-
-static int atenl_child_work(struct atenl *an)
-{
-	int rfd = an->pipefd[PIPE_READ], count;
-	int ret = 0;
-	fd_set readfds;
-
-	atenl_info("[%d]%s: start for sending back results\n", getpid(), __func__);
-
-	while (atenl_enable) {
-		struct atenl_data *data = calloc(1, sizeof(struct atenl_data));
-
-		FD_ZERO(&readfds);
-		FD_SET(rfd, &readfds);
-
-		count = select(FD_SETSIZE, &readfds, NULL, NULL, NULL);
-
-		if (count < 0) {
-			atenl_err("%s: select failed, %s\n", __func__, strerror(errno));
-			continue;
-		} else if (count == 0) {
-			usleep(1000);
-			continue;
-		} else {
-			if (FD_ISSET(rfd, &readfds)) {
-				count = read(rfd, data->buf, RACFG_PKT_MAX_SIZE);
-				atenl_dbg("[%d]PIPE Read %d bytes\n", getpid(), count);
-
-				if (count < 0) {
-					atenl_info("%s: %s\n", __func__, strerror(errno));
-				} else if (count == 0) {
-					continue;
-				} else {
-					int ret;
-
-					ret = atenl_hqa_proc_cmd(an, data);
-					if (ret) {
-						kill(getppid(), SIGUSR2);
-						goto out;
-					}
-
-					ret = atenl_eth_send(an, data);
-					if (ret) {
-						kill(getppid(), SIGUSR2);
-						goto out;
-					}
-				}
-			}
-		}
-	}
-
-out:
-	atenl_info("[%d]%s: child work end\n", getpid(), __func__);
-
-	return ret;
+	atenl_dbg("HQA command handler end\n");
 }
 
 int main(int argc, char **argv)
@@ -191,8 +116,7 @@ int main(int argc, char **argv)
 		switch (opt) {
 			case 'h':
 				usage();
-				free(an);
-				return 0;
+				goto out;
 			case 'i':
 				phy = optarg;
 				break;
@@ -204,16 +128,15 @@ int main(int argc, char **argv)
 				cmd = optarg;
 				break;
 			default:
-				fprintf(stderr, "Not supported option\n");
-				break;
+				atenl_err("Not supported option: %c\n", opt);
+				goto out;
 		}
 	}
 
 	phy_idx = phy_lookup_idx(phy);
 	if (phy_idx < 0 || phy_idx > UCHAR_MAX) {
-		fprintf(stderr, "Could not find phy '%s'\n", phy);
-		free(an);
-		return 2;
+		atenl_err("Could not find phy '%s'\n", phy);
+		goto out;
 	}
 
 	if (cmd) {
@@ -226,8 +149,6 @@ int main(int argc, char **argv)
 
 	/* background ourself */
 	if (!fork()) {
-		pid_t pid;
-
 		ret = atenl_eeprom_init(an, phy_idx);
 		if (ret)
 			goto out;
@@ -236,28 +157,7 @@ int main(int argc, char **argv)
 		if (ret)
 			goto out;
 
-		ret = pipe(an->pipefd);
-		if (ret) {
-			perror("Pipe");
-			goto out;
-		}
-
-		pid = fork();
-		an->child_pid = pid;
-		if (pid < 0) {
-			perror("Fork");
-			ret = pid;
-			goto out;
-		} else if (pid == 0) {
-			close(an->pipefd[PIPE_WRITE]);
-			atenl_child_work(an);
-		} else {
-			int status;
-
-			close(an->pipefd[PIPE_READ]);
-			atenl_parent_work(an);
-			waitpid(pid, &status, 0);
-		}
+		atenl_handler_run(an);
 	} else {
 		usleep(800000);
 	}

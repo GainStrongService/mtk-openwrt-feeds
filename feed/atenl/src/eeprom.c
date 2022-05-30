@@ -36,14 +36,15 @@ static FILE *mtd_open(const char *mtd)
 static int
 atenl_flash_create_file(struct atenl *an)
 {
+#define READ_LEN_LIMIT	20000
 	char buf[1024];
-	ssize_t len;
+	ssize_t len, limit = 0;
 	FILE *f;
 	int fd, ret;
 
 	f = mtd_open(an->mtd_part);
 	if (!f) {
-		fprintf(stderr, "Failed to open MTD device\n");
+		atenl_err("Failed to open MTD device\n");
 		return -1;
 	}
 
@@ -56,8 +57,13 @@ atenl_flash_create_file(struct atenl *an)
 
 retry:
 		w = write(fd, buf, len);
-		if (w > 0)
+		if (w > 0) {
+			limit += len;
+
+			if (limit >= READ_LEN_LIMIT)
+				break;
 			continue;
+		}
 
 		if (errno == EINTR)
 			goto retry;
@@ -143,9 +149,9 @@ atenl_eeprom_init_file(struct atenl *an, bool flash_mode)
 
 	if (!atenl_eeprom_file_exists()) {
 		if (flash_mode)
-			atenl_dbg("[%d]%s: init eeprom with flash mode\n", getpid(), __func__);
+			atenl_dbg("%s: init eeprom with flash mode\n", __func__);
 		else
-			atenl_dbg("[%d]%s: init eeprom with efuse mode\n", getpid(), __func__);
+			atenl_dbg("%s: init eeprom with efuse mode\n", __func__);
 
 		if (flash_mode)
 			return atenl_flash_create_file(an);
@@ -158,6 +164,46 @@ atenl_eeprom_init_file(struct atenl *an, bool flash_mode)
 		perror("open");
 
 	return fd;
+}
+
+static void
+atenl_eeprom_init_chip_id(struct atenl *an)
+{
+	an->chip_id = *(u16 *)an->eeprom_data;
+
+	if (is_mt7915(an)) {
+		an->adie_id = 0x7975;
+	} else if (is_mt7916(an)) {
+		an->adie_id = 0x7976;
+	} else if (is_mt7986(an)) {
+		bool is_7975 = false;
+		u32 val;
+		u8 sub_id;
+
+		atenl_reg_read(an, 0x18050000, &val);
+
+		switch (val & 0xf) {
+		case MT7975_ONE_ADIE_SINGLE_BAND:
+			is_7975 = true;
+			/* fallthrough */
+		case MT7976_ONE_ADIE_SINGLE_BAND:
+			sub_id = 0xa;
+			break;
+		case MT7976_ONE_ADIE_DBDC:
+			sub_id = 0x7;
+			break;
+		case MT7975_DUAL_ADIE_DBDC:
+			is_7975 = true;
+			/* fallthrough */
+		case MT7976_DUAL_ADIE_DBDC:
+		default:
+			sub_id = 0xf;
+			break;
+		}
+
+		an->sub_chip_id = sub_id;
+		an->adie_id = is_7975 ? 0x7975 : 0x7976;
+	}
 }
 
 static void
@@ -284,7 +330,7 @@ int atenl_eeprom_init(struct atenl *an, u8 phy_idx)
 	}
 
 	an->eeprom_fd = eeprom_fd;
-	an->chip_id = *(u16 *)an->eeprom_data;
+	atenl_eeprom_init_chip_id(an);
 	atenl_eeprom_init_max_size(an);
 	atenl_eeprom_init_band_cap(an);
 	atenl_eeprom_init_antenna_cap(an);
@@ -301,7 +347,7 @@ void atenl_eeprom_close(struct atenl *an)
 	munmap(an->eeprom_data, EEPROM_PART_SIZE);
 	close(an->eeprom_fd);
 
-	if (!an->cmd_mode && an->child_pid) {
+	if (!an->cmd_mode) {
 		if (remove(eeprom_file))
 			perror("remove");
 	}
@@ -328,7 +374,7 @@ int atenl_eeprom_write_mtd(struct atenl *an)
 
 		ret = execvp("mtd", cmd);
 		if (ret < 0) {
-			fprintf(stderr, "%s: execl error\n", __func__);
+			atenl_err("%s: exec error\n", __func__);
 			exit(0);
 		}
 	} else {
@@ -338,7 +384,7 @@ int atenl_eeprom_write_mtd(struct atenl *an)
 	return 0;
 }
 
-/* Directly read some value from driver's eeprom.
+/* Directly read values from driver's eeprom.
  * It's usally used to get calibrated data from driver.
  */
 int atenl_eeprom_read_from_driver(struct atenl *an, u32 offset, int len)
@@ -401,7 +447,7 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 		char *s = strchr(cmd, ' ');
 
 		if (!s) {
-			fprintf(stderr, "eeprom: please type a correct command\n");
+			atenl_err("eeprom: please type a correct command\n");
 			return;
 		}
 
