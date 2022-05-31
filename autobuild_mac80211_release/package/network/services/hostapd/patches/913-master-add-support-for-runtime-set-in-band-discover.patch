@@ -1,7 +1,7 @@
-From 8c9d9f2b8da1b0e3e0832e7d7b02d75c4c0a4f3e Mon Sep 17 00:00:00 2001
+From 31ec868f23a1bae48fceab6f2fb5f8b1a3a909a1 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
-Date: Thu, 24 May 2022 21:48:21 +0800
-Subject: [PATCH] hostapd:v2 add support for runtime set in-band discovery-v2
+Date: Tue, 31 May 2022 21:15:54 +0800
+Subject: [PATCH] hostapd: add support for runtime set in-band discovery
 
 Usage:
 hostapd_cli unsolic_probe_resp [tx_type] [interval]
@@ -12,18 +12,18 @@ hostapd_cli unsolic_probe_resp [tx_type] [interval]
 
 Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 ---
- hostapd/ctrl_iface.c         | 62 ++++++++++++++++++++++++++++++++++++
- hostapd/hostapd_cli.c        | 20 ++++++++++++
+ hostapd/ctrl_iface.c         | 66 ++++++++++++++++++++++++++++++++++++
+ hostapd/hostapd_cli.c        | 20 +++++++++++
  src/ap/beacon.c              |  5 ++-
  src/drivers/driver_nl80211.c |  8 +++--
  src/drivers/nl80211_copy.h   |  1 +
- 5 files changed, 92 insertions(+), 4 deletions(-)
+ 5 files changed, 96 insertions(+), 4 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 86adf18e5..41740cfd5 100644
+index 86adf18e5..ce04cd641 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -769,6 +769,65 @@ static int hostapd_ctrl_iface_send_qos_map_conf(struct hostapd_data *hapd,
+@@ -769,6 +769,69 @@ static int hostapd_ctrl_iface_send_qos_map_conf(struct hostapd_data *hapd,
  
  #endif /* CONFIG_INTERWORKING */
  
@@ -57,8 +57,10 @@ index 86adf18e5..41740cfd5 100644
 +#define UNSOL_PROBE_RESP 1
 +#define FILS_DISCOVERY 2
 +
++#ifdef CONFIG_FILS
 +	conf->fils_discovery_max_int = 0;
 +	conf->fils_discovery_min_int = 0;
++#endif /* CONFIG_FILS */
 +	conf->unsol_bcast_probe_resp_interval = 0;
 +
 +	switch (tx_type) {
@@ -70,11 +72,13 @@ index 86adf18e5..41740cfd5 100644
 +		/* Enable Unsolicited probe response */
 +		conf->unsol_bcast_probe_resp_interval = interval;
 +		break;
++#ifdef CONFIG_FILS
 +	case FILS_DISCOVERY:
 +		/* Enable FILS discovery */
 +		conf->fils_discovery_min_int = interval;
 +		conf->fils_discovery_max_int = interval;
 +		break;
++#endif /* CONFIG_FILS */
 +	}
 +
 +	ret = ieee802_11_update_beacons(hapd->iface);
@@ -89,7 +93,7 @@ index 86adf18e5..41740cfd5 100644
  
  #ifdef CONFIG_WNM_AP
  
-@@ -3673,6 +3732,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -3673,6 +3736,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		if (hostapd_ctrl_iface_coloc_intf_req(hapd, buf + 15))
  			reply_len = -1;
  #endif /* CONFIG_WNM_AP */
@@ -138,10 +142,10 @@ index 260912111..e30c4e7c1 100644
  };
  
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index 3c49653cc..367e32611 100644
+index a96155ada..68e847956 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
-@@ -1406,6 +1406,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
+@@ -1408,6 +1408,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
  				   struct wpa_driver_ap_params *params)
  {
  	params->fd_max_int = hapd->conf->fils_discovery_max_int;
@@ -150,7 +154,7 @@ index 3c49653cc..367e32611 100644
  	if (is_6ghz_op_class(hapd->iconf->op_class) &&
  	    params->fd_max_int > FD_MAX_INTERVAL_6GHZ)
  		params->fd_max_int = FD_MAX_INTERVAL_6GHZ;
-@@ -1414,7 +1416,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
+@@ -1416,7 +1418,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
  	if (params->fd_min_int > params->fd_max_int)
  		params->fd_min_int = params->fd_max_int;
  
