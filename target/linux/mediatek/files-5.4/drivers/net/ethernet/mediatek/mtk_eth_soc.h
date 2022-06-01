@@ -365,6 +365,7 @@
 /* QDMA Global Configuration Register */
 #define MTK_QDMA_GLO_CFG	(QDMA_BASE + 0x204)
 #define MTK_RX_2B_OFFSET	BIT(31)
+#define MTK_PKT_RX_WDONE	BIT(27)
 #define MTK_RX_BT_32DWORDS	(3 << 11)
 #define MTK_NDP_CO_PRO		BIT(10)
 #define MTK_TX_WB_DDONE		BIT(6)
