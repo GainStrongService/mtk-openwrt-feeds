@@ -1,0 +1,76 @@
+From 888da5f48030e45ce14f43a2bf7be07ec79b60d4 Mon Sep 17 00:00:00 2001
+From: Dennis Bland <dennis@dbperformance.com>
+Date: Wed, 20 Apr 2022 20:56:38 -0600
+Subject: [PATCH 2/5] Regulatory update for 6 GHz operation in United States
+ (US)
+
+With the 6 GHz band (U-NII-5, U-NII-6, U-NII-7, U-NII-8) in USA, the FCC
+introduces the concept of a fixed PSD (Power Spectral Density) for all
+supported 6 GHz channel widths for LPI (Low Power Indoor) environments.
+Wider channel widths have a higher noise floor, therefore specifying a
+fixed PSD allows wider channels to operate at a higher EIRP to maintain
+the same S/N ratio as smaller channel widths.
+
+While the 6 GHz specification also allows a "Standard" power mode with
+higher EIRP and PSD limits, these devices are also required to employ
+AFC (Automatic Frequency Coordination) which normally requires GNSS.
+Currently there is no way to specify different EIRP and PSD levels for
+APC and non-APC devices.  Therefore, only LPI mode is considered here.
+
+LPI requires non-client (AP) devices to have a maximum PSD of 5 dBm/MHz
+and a maximum EIRP of 30 dBm.  LPI requires client (STA) devices to have
+a maximum PSD of -1 dBm/MHz.  The maximum channel width is 320 MHz.
+
+The following equation is used to calculate the EIRP from the PSD and
+channel width:
+
+EIRP = PSD + 10*log(channel width in MHz)
+
+Using the maximum PSD values of 5 and -1 for APs and STAs respectively,
+the EIRP in dBm for a given channel width can be calculated:
+
+Channel Width (MHz)     AP            STA
+------------------------------------------------
+20                      18            12
+40                      21            15
+80                      24            18
+160                     27            21
+320                     31 (max 30)   25 (max 24)
+
+For channel widths up to 160 MHz, the maximum PSD is the limiting factor.
+For the 320 MHz channel width, the maximum EIRP is the limiting factor.
+
+Unfortunately, because there is currently no mechanism to specify
+different power levels for AP and STA modes, and for different channel
+widths, the smallest value has to be selected, which is 12 dBm.  This
+will likely cause connectivity problems with larger channel widths until
+these additional parameters can be added.
+
+6 GHz operation on oil platforms, vehicles, boats, trains, and drones is
+prohibited except on commercial aircraft above 10,000 feet altitude.
+An IR (Initiate Radiation) restriction is mentioned in the 6 GHz
+specification.
+
+Signed-off-by: Dennis Bland <dennis@dbperformance.com>
+Signed-off-by: Seth Forshee <sforshee@kernel.org>
+---
+ db.txt | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/db.txt b/db.txt
+index 062ad8a..fcdc74a 100644
+--- a/db.txt
++++ b/db.txt
+@@ -1649,6 +1649,9 @@ country US: DFS-FCC
+ 	# https://www.federalregister.gov/documents/2021/05/03/2021-08802/use-of-the-5850-5925-ghz-band
+ 	# max. 33 dBm AP @ 20MHz, 36 dBm AP @ 40Mhz+, 6 dB less for clients
+ 	(5850 - 5895 @ 40), (27), NO-OUTDOOR, AUTO-BW, NO-IR
++	# 6g band
++	# https://www.federalregister.gov/documents/2020/05/26/2020-11236/unlicensed-use-of-the-6ghz-band
++	(5925 - 7125 @ 320), (12), NO-OUTDOOR, NO-IR
+ 	# 60g band
+ 	# reference: section IV-D https://docs.fcc.gov/public/attachments/FCC-16-89A1.pdf
+ 	# channels 1-6 EIRP=40dBm(43dBm peak)
+-- 
+2.29.2
+

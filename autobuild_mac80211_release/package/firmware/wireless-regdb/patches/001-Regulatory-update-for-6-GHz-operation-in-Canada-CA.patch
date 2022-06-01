@@ -1,0 +1,78 @@
+From e3f03f9236c25c3270aa3807ce5dcc315395ee83 Mon Sep 17 00:00:00 2001
+From: Dennis Bland <dennis@dbperformance.com>
+Date: Wed, 20 Apr 2022 20:40:51 -0600
+Subject: [PATCH 1/5] Regulatory update for 6 GHz operation in Canada (CA)
+
+With the 6 GHz band (U-NII-5, U-NII-6, U-NII-7, U-NII-8) in Canada, ISED
+introduces the concept of a fixed PSD (Power Spectral Density) for all
+supported 6 GHz channel widths.  Wider channel widths have a higher noise
+floor, therefore specifying a fixed PSD allows wider channels to
+operate at a higher EIRP to maintain the same S/N ratio as smaller
+channel widths.
+
+Clause 4.6.2 requires non-client (AP devices to have a maximum PSD of 5
+dBm/MHz and a maximum EIRP of 30 dBm.  Clause 4.6.3 requires client (STA)
+devices to have a maximum PSD of -1 dBm/MHz.  Clause 4.4 specifies a
+maximum channel width of 320 MHz.  Clause 4.9 specifies indoor use only.
+Operation on oil platforms, vehicles, boats, trains, and drones is
+prohibited except on commercial aircraft above 10,000 feet altitude.
+There is no IR (Initiate Radiation) restriction mentioned in the 6 GHz
+specification.
+
+The following equation is used to calculate the EIRP from the PSD and
+channel width:
+
+EIRP = PSD + 10*log(channel width in MHz)
+
+Using the maximum PSD values of 5 and -1 for APs and STAs respectively,
+the EIRP in dBm for a given channel width can be calculated:
+
+Channel Width (MHz)     AP            STA
+------------------------------------------------
+20                      18            12
+40                      21            15
+80                      24            18
+160                     27            21
+320                     31 (max 30)   25 (max 24)
+
+For channel widths up to 160 MHz, the maximum PSD is the limiting factor.
+For the 320 MHz channel width, the maximum EIRP is the limiting factor.
+
+Unfortunately, because there is currently no mechanism to specify
+different power levels for AP and STA modes, and for different channel
+widths, the smallest value has to be selected, which is 12 dBm.  This
+will likely cause connectivity problems with larger channel widths until
+these additional parameters can be added.
+
+Signed-off-by: Dennis Bland <dennis@dbperformance.com>
+Signed-off-by: Seth Forshee <sforshee@kernel.org>
+---
+ db.txt | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/db.txt b/db.txt
+index 41f94f8..062ad8a 100644
+--- a/db.txt
++++ b/db.txt
+@@ -298,8 +298,9 @@ country BZ: DFS-JP
+ 	(2402 - 2482 @ 40), (30)
+ 	(5735 - 5835 @ 80), (30)
+ 
+-# Source:
++# Sources:
+ # https://www.ic.gc.ca/eic/site/smt-gst.nsf/vwapj/rss-247-i2-e.pdf/$file/rss-247-i2-e.pdf
++# https://www.ic.gc.ca/eic/site/smt-gst.nsf/eng/sf11750.html (6 GHz operation)
+ country CA: DFS-FCC
+ 	(2402 - 2472 @ 40), (30)
+ 	(5150 - 5250 @ 80), (23), NO-OUTDOOR, AUTO-BW
+@@ -307,6 +308,7 @@ country CA: DFS-FCC
+ 	(5470 - 5600 @ 80), (24), DFS
+ 	(5650 - 5730 @ 80), (24), DFS
+ 	(5735 - 5835 @ 80), (30)
++	(5925 - 7125 @ 320), (12), NO-OUTDOOR
+ 
+ # Source:
+ # http://www.art-rca.org
+-- 
+2.29.2
+
