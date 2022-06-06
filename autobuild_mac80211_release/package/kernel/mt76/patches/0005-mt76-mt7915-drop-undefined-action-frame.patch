@@ -1,17 +1,17 @@
-From 573b80a984695b338e12c6c30bb4e9f7af7e3495 Mon Sep 17 00:00:00 2001
+From 65c8978578ae5a485455617e5598ec83c2d519ae Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 14 Apr 2022 15:18:02 +0800
-Subject: [PATCH] mt76: mt7915: drop undefined action frame
+Subject: [PATCH 5/7] mt76: mt7915: drop undefined action frame
 
 ---
  mt7915/mac.c | 6 ++++++
  1 file changed, 6 insertions(+)
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 1e0ddc13..81c582f2 100644
+index a3cf1b74..b0e86968 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -1303,6 +1303,8 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -1281,6 +1281,8 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  			  struct mt76_tx_info *tx_info)
  {
  	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx_info->skb->data;
@@ -20,7 +20,7 @@ index 1e0ddc13..81c582f2 100644
  	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
  	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
  	struct ieee80211_key_conf *key = info->control.hw_key;
-@@ -1333,6 +1335,10 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -1311,6 +1313,10 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	t = (struct mt76_txwi_cache *)(txwi + mdev->drv->txwi_size);
  	t->skb = tx_info->skb;
  

@@ -1,7 +1,7 @@
-From 8376a0a6abb778366fc1863f11acafdd918efb07 Mon Sep 17 00:00:00 2001
+From 33d4383e72491f7e8879c6e4334bf36c30704d18 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 20 May 2022 19:19:25 +0800
-Subject: [PATCH] mt76: mt7915: add mt7986 and mt7916 pre-calibration
+Subject: [PATCH 1115/1115] mt76: mt7915: add mt7986 and mt7916 pre-calibration
 
 Add pre-calibration for mt7986 and mt7916. It has different data size
 with mt7915. Group cal needs 54k and 94k for 2G + 5G and 2G + 6G,
@@ -103,10 +103,10 @@ index 7578ac6d..e924baef 100644
  
  #endif
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index d547cf6f..2f851669 100755
+index 17a36ea3..2b9797c8 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3122,9 +3122,10 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
+@@ -3203,9 +3203,10 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
  int mt7915_mcu_apply_group_cal(struct mt7915_dev *dev)
  {
  	u8 idx = 0, *cal = dev->cal, *eep = dev->mt76.eeprom.data;
@@ -119,7 +119,7 @@ index d547cf6f..2f851669 100755
  		return 0;
  
  	/*
-@@ -3160,9 +3161,9 @@ static int mt7915_find_freq_idx(const u16 *freqs, int n_freqs, u16 cur)
+@@ -3241,9 +3242,9 @@ static int mt7915_find_freq_idx(const u16 *freqs, int n_freqs, u16 cur)
  	return -1;
  }
  
@@ -131,7 +131,7 @@ index d547cf6f..2f851669 100755
  		5180, 5200, 5220, 5240,
  		5260, 5280, 5300, 5320,
  		5500, 5520, 5540, 5560,
-@@ -3170,65 +3171,102 @@ static int mt7915_dpd_freq_idx(u16 freq, u8 bw)
+@@ -3251,65 +3252,102 @@ static int mt7915_dpd_freq_idx(u16 freq, u8 bw)
  		5660, 5680, 5700, 5745,
  		5765, 5785, 5805, 5825
  	};

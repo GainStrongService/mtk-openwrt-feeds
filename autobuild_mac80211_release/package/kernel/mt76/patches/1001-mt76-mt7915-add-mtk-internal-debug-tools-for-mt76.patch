@@ -1,26 +1,25 @@
-From 235e69804c130fd7381fd44b1853859984e97ac5 Mon Sep 17 00:00:00 2001
+From a9cf0fd711fdccf35e6171dd4aba0eb7f6588148 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
-Date: Thu, 21 Apr 2022 19:42:55 +0800
+Date: Mon, 6 Jun 2022 20:08:58 +0800
 Subject: [PATCH] mt76: mt7915: add mtk internal debug tools for mt76
 
-Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
- .../wireless/mediatek/mt76/mt76_connac_mcu.h  |    6 +
- .../wireless/mediatek/mt76/mt7915/Makefile    |    2 +-
- .../wireless/mediatek/mt76/mt7915/debugfs.c   |   72 +-
- .../net/wireless/mediatek/mt76/mt7915/mac.c   |   14 +
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   |   41 +
- .../net/wireless/mediatek/mt76/mt7915/mcu.h   |    4 +
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |   41 +
- .../mediatek/mt76/mt7915/mt7915_debug.h       | 1350 ++++++++
- .../mediatek/mt76/mt7915/mtk_debugfs.c        | 2921 +++++++++++++++++
- .../wireless/mediatek/mt76/mt7915/mtk_mcu.c   |   51 +
- .../net/wireless/mediatek/mt76/tools/fwlog.c  |   44 +-
- 11 files changed, 4533 insertions(+), 13 deletions(-)
- mode change 100644 => 100755 drivers/net/wireless/mediatek/mt76/mt7915/mcu.c
- create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mt7915_debug.h
- create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mtk_debugfs.c
- create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mtk_mcu.c
+ mt76_connac_mcu.h     |    6 +
+ mt7915/Makefile       |    2 +-
+ mt7915/debugfs.c      |   73 +-
+ mt7915/mac.c          |   14 +
+ mt7915/mcu.c          |   41 +
+ mt7915/mcu.h          |    4 +
+ mt7915/mt7915.h       |   41 +
+ mt7915/mt7915_debug.h | 1350 +++++++++++++++++++
+ mt7915/mtk_debugfs.c  | 2921 +++++++++++++++++++++++++++++++++++++++++
+ mt7915/mtk_mcu.c      |   51 +
+ tools/fwlog.c         |   44 +-
+ 11 files changed, 4534 insertions(+), 13 deletions(-)
+ mode change 100644 => 100755 mt7915/mcu.c
+ create mode 100644 mt7915/mt7915_debug.h
+ create mode 100644 mt7915/mtk_debugfs.c
+ create mode 100644 mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
 index aa14d2d4..03134066 100644
@@ -54,7 +53,7 @@ index b794ceb7..a3474e2f 100644
  mt7915e-$(CONFIG_MT7986_WMAC) += soc.o
 \ No newline at end of file
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index b45181c1..27321528 100644
+index 9f21d978..0cfb6068 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -8,6 +8,9 @@
@@ -70,16 +69,16 @@ index b45181c1..27321528 100644
 @@ -448,6 +451,9 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
  	int ret;
  
- 	dev->fw_debug_wm = val ? MCU_FW_LOG_TO_HOST : 0;
+ 	dev->fw.debug_wm = val ? MCU_FW_LOG_TO_HOST : 0;
 +#ifdef MTK_DEBUG
-+	dev->fw_debug_wm = val;
++	dev->fw.debug_wm = val;
 +#endif
  
- 	if (dev->fw_debug_bin)
+ 	if (dev->fw.debug_bin)
  		val = 16;
 @@ -472,6 +478,9 @@ mt7915_fw_debug_wm_set(void *data, u64 val)
  		if (ret)
- 			return ret;
+ 			goto out;
  	}
 +#ifdef MTK_DEBUG
 +	mt7915_mcu_fw_dbg_ctrl(dev, 68, !!val);
@@ -92,28 +91,28 @@ index b45181c1..27321528 100644
  	mt76_wr(dev, MT_MCU_WM_CIRQ_IRQ_SOFT_ADDR, BIT(5));
  
 +#ifdef MTK_DEBUG
-+	if (dev->fw_debug_bin & BIT(3))
++	if (dev->fw.debug_bin & BIT(3))
 +		/* use bit 7 to indicate v2 magic number */
-+		dev->fw_debug_wm |= BIT(7);
++		dev->fw.debug_wm |= BIT(7);
 +#endif
 +
- 	return 0;
- }
- 
-@@ -487,7 +502,11 @@ mt7915_fw_debug_wm_get(void *data, u64 *val)
+ out:
+ 	if (ret)
+ 		dev->fw.debug_wm = 0;
+@@ -491,7 +506,11 @@ mt7915_fw_debug_wm_get(void *data, u64 *val)
  {
  	struct mt7915_dev *dev = data;
  
--	*val = dev->fw_debug_wm;
+-	*val = dev->fw.debug_wm;
 +#ifdef MTK_DEBUG
-+	*val = dev->fw_debug_wm & ~BIT(7);
++	*val = dev->fw.debug_wm & ~BIT(7);
 +#else
-+	val = dev->fw_debug_wm;
++	val = dev->fw.debug_wm;
 +#endif
  
  	return 0;
  }
-@@ -567,6 +586,16 @@ mt7915_fw_debug_bin_set(void *data, u64 val)
+@@ -576,6 +595,17 @@ mt7915_fw_debug_bin_set(void *data, u64 val)
  
  	relay_reset(dev->relay_fwlog);
  
@@ -127,10 +126,11 @@ index b45181c1..27321528 100644
 +		return 0;
 +#endif
 +
- 	return mt7915_fw_debug_wm_set(dev, dev->fw_debug_wm);
++
+ 	return mt7915_fw_debug_wm_set(dev, dev->fw.debug_wm);
  }
  
-@@ -1020,6 +1049,11 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
+@@ -1038,6 +1068,11 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
  	if (!ext_phy)
  		dev->debugfs_dir = dir;
  
@@ -142,7 +142,7 @@ index b45181c1..27321528 100644
  	return 0;
  }
  
-@@ -1060,17 +1094,53 @@ void mt7915_debugfs_rx_fw_monitor(struct mt7915_dev *dev, const void *data, int
+@@ -1078,17 +1113,53 @@ void mt7915_debugfs_rx_fw_monitor(struct mt7915_dev *dev, const void *data, int
  		.msg_type = cpu_to_le16(PKT_TYPE_RX_FW_MONITOR),
  	};
  
@@ -167,7 +167,7 @@ index b45181c1..27321528 100644
  
 +#ifdef MTK_DEBUG
 +	/* old magic num */
-+	if (!(dev->fw_debug_wm & BIT(7))) {
++	if (!(dev->fw.debug_wm & BIT(7))) {
 +		hdr.timestamp = mt76_rr(dev, MT_LPON_FRCR(0));
 +		hdr.len = *(__le16 *)data;
 +		mt7915_debugfs_write_fwlog(dev, &hdr, sizeof(hdr), data, len);
@@ -197,7 +197,7 @@ index b45181c1..27321528 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index de5f3f10..ce760cdb 100644
+index b0e86968..9e92b32f 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -596,6 +596,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -222,7 +222,7 @@ index de5f3f10..ce760cdb 100644
  	if (hdr_trans && ieee80211_has_morefrags(fc)) {
  		if (mt7915_reverse_frag0_hdr_trans(skb, hdr_gap))
  			return -EINVAL;
-@@ -1352,6 +1360,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -1358,6 +1366,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	tx_info->buf[1].skip_unmap = true;
  	tx_info->nbuf = MT_CT_DMA_BUF_NUM;
  
@@ -238,7 +238,7 @@ index de5f3f10..ce760cdb 100644
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
 old mode 100644
 new mode 100755
-index 20f32f7f..c325c4b6
+index 81559002..6ec321e1
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -298,6 +298,10 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -252,7 +252,7 @@ index 20f32f7f..c325c4b6
  	if (wait_seq)
  		*wait_seq = seq;
  
-@@ -3657,6 +3661,43 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
+@@ -3733,6 +3737,43 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
  				 &req, sizeof(req), true);
  }
  
@@ -297,7 +297,7 @@ index 20f32f7f..c325c4b6
  {
  	struct {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 5cbc3ecf..3f303885 100644
+index d46c8da4..2f7007fd 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -296,6 +296,10 @@ enum {
@@ -312,7 +312,7 @@ index 5cbc3ecf..3f303885 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index e5f89161..92fedaf3 100644
+index bd985e6c..001a6015 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -323,7 +323,7 @@ index e5f89161..92fedaf3 100644
  #define MT7915_MAX_INTERFACES		19
  #define MT7915_MAX_WMM_SETS		4
  #define MT7915_WTBL_SIZE		288
-@@ -326,6 +327,27 @@ struct mt7915_dev {
+@@ -339,6 +340,27 @@ struct mt7915_dev {
  	struct reset_control *rstc;
  	void __iomem *dcm;
  	void __iomem *sku;
@@ -351,7 +351,7 @@ index e5f89161..92fedaf3 100644
  };
  
  enum {
-@@ -595,4 +617,23 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -608,4 +630,23 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			    struct ieee80211_sta *sta, struct dentry *dir);
  #endif
  
@@ -4830,5 +4830,5 @@ index e5d4a105..3d51d9ec 100644
  	return ret;
  }
 -- 
-2.25.1
+2.18.0
 

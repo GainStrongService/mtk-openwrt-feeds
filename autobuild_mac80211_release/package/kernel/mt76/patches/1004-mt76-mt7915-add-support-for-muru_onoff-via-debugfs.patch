@@ -1,7 +1,8 @@
-From 6820d00b2fd86c760e281ea6e3e114cf2779cb12 Mon Sep 17 00:00:00 2001
+From 37b133c4d8fa05aae067dfb5fb68c24d3cabea2d Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 28 Mar 2022 09:19:29 +0800
-Subject: [PATCH] mt76: mt7915: add support for muru_onoff via debugfs
+Subject: [PATCH 1004/1007] mt76: mt7915: add support for muru_onoff via
+ debugfs
 
 ---
  mt7915/init.c        |  1 +
@@ -12,10 +13,10 @@ Subject: [PATCH] mt76: mt7915: add support for muru_onoff via debugfs
  5 files changed, 49 insertions(+), 4 deletions(-)
 
 diff --git a/mt7915/init.c b/mt7915/init.c
-index ad2a9c9f..3eaf7916 100644
+index 258bb20a..2b8d758f 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -574,6 +574,7 @@ static void mt7915_init_work(struct work_struct *work)
+@@ -576,6 +576,7 @@ static void mt7915_init_work(struct work_struct *work)
  	mt7915_init_txpower(dev, &dev->mphy.sband_5g.sband);
  	mt7915_init_txpower(dev, &dev->mphy.sband_6g.sband);
  	mt7915_txbf_init(dev);
@@ -24,7 +25,7 @@ index ad2a9c9f..3eaf7916 100644
  
  void mt7915_wfsys_reset(struct mt7915_dev *dev)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index c7694819..cbcd3bd4 100755
+index 18b05b2e..5df0b4fd 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -944,6 +944,7 @@ mt7915_mcu_sta_muru_tlv(struct sk_buff *skb, struct ieee80211_sta *sta,
@@ -55,10 +56,10 @@ index c7694819..cbcd3bd4 100755
  	if (sta->vht_cap.vht_supported)
  		muru->mimo_dl.vht_mu_bfee =
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index f166eaea..ccb1c9d0 100644
+index cb854b28..0ff1fd11 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -573,4 +573,10 @@ struct csi_data {
+@@ -589,4 +589,10 @@ struct csi_data {
  };
  #endif
  
@@ -70,10 +71,10 @@ index f166eaea..ccb1c9d0 100644
 +
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 1b37cef7..e6b87239 100644
+index ace01e15..06f2737f 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -390,6 +390,7 @@ struct mt7915_dev {
+@@ -403,6 +403,7 @@ struct mt7915_dev {
  		bool dump_rx_pkt;
  		bool dump_rx_raw;
  		u32 token_idx;

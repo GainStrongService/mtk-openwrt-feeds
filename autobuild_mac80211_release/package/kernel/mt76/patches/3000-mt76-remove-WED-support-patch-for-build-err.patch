@@ -1,29 +1,29 @@
-From fba2423026ba723423ab2bab81e60eba4448ba57 Mon Sep 17 00:00:00 2001
+From 7caf2dd34d38bd98b5b1087c0f00ccdb009a461a Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
-Date: Tue, 12 Apr 2022 15:58:28 +0800
-Subject: [PATCH 5/5] mt76:remove WED support patch for build err
+Date: Mon, 6 Jun 2022 20:22:35 +0800
+Subject: [PATCH] mt76:remove WED support patch for build err
 
-Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
- drivers/net/wireless/mediatek/mt76/dma.c      | 160 ++++--------------
- drivers/net/wireless/mediatek/mt76/mac80211.c |   4 +-
- drivers/net/wireless/mediatek/mt76/mmio.c     |   9 +-
- drivers/net/wireless/mediatek/mt76/mt76.h     |  25 +--
- .../net/wireless/mediatek/mt76/mt7603/dma.c   |   8 +-
- .../net/wireless/mediatek/mt76/mt7615/dma.c   |   6 +-
- .../net/wireless/mediatek/mt76/mt76x02_mmio.c |   4 +-
- .../net/wireless/mediatek/mt76/mt7915/dma.c   |  43 +----
- .../net/wireless/mediatek/mt76/mt7915/mac.c   | 129 +++-----------
- .../net/wireless/mediatek/mt76/mt7915/mac.h   |   2 -
- .../net/wireless/mediatek/mt76/mt7915/main.c  |  36 ----
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   |   3 -
- .../net/wireless/mediatek/mt76/mt7915/mmio.c  |  29 +---
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |   2 -
- .../net/wireless/mediatek/mt76/mt7915/pci.c   |  96 +----------
- .../net/wireless/mediatek/mt76/mt7915/regs.h  |  17 +-
- .../net/wireless/mediatek/mt76/mt7921/dma.c   |   2 +-
- drivers/net/wireless/mediatek/mt76/tx.c       |  16 +-
+ dma.c           | 160 ++++++++++--------------------------------------
+ mac80211.c      |   4 +-
+ mmio.c          |   9 +--
+ mt76.h          |  25 ++------
+ mt7603/dma.c    |   8 +--
+ mt7615/dma.c    |   6 +-
+ mt76x02_mmio.c  |   4 +-
+ mt7915/dma.c    |  43 ++-----------
+ mt7915/mac.c    | 129 ++++++--------------------------------
+ mt7915/mac.h    |   2 -
+ mt7915/main.c   |  36 -----------
+ mt7915/mcu.c    |   3 -
+ mt7915/mmio.c   |  29 +++------
+ mt7915/mt7915.h |   2 -
+ mt7915/pci.c    |  96 +++--------------------------
+ mt7915/regs.h   |  17 +----
+ mt7921/dma.c    |   2 +-
+ tx.c            |  16 +----
  18 files changed, 94 insertions(+), 497 deletions(-)
+ mode change 100644 => 100755 mt7915/mcu.c
 
 diff --git a/dma.c b/dma.c
 index f6f5f129..3f7456b1 100644
@@ -232,10 +232,10 @@ index f6f5f129..3f7456b1 100644
  }
  EXPORT_SYMBOL_GPL(mt76_dma_cleanup);
 diff --git a/mac80211.c b/mac80211.c
-index e17b04b1..1b9a400b 100644
+index 4b4d8b99..19a2b849 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -1594,7 +1594,7 @@ EXPORT_SYMBOL_GPL(mt76_get_antenna);
+@@ -1600,7 +1600,7 @@ EXPORT_SYMBOL_GPL(mt76_get_antenna);
  
  struct mt76_queue *
  mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
@@ -244,7 +244,7 @@ index e17b04b1..1b9a400b 100644
  {
  	struct mt76_queue *hwq;
  	int err;
-@@ -1603,8 +1603,6 @@ mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
+@@ -1609,8 +1609,6 @@ mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
  	if (!hwq)
  		return ERR_PTR(-ENOMEM);
  
@@ -274,7 +274,7 @@ index 86e3d2ac..26353b6b 100644
  }
  EXPORT_SYMBOL_GPL(mt76_set_irq_mask);
 diff --git a/mt76.h b/mt76.h
-index 3d1e893d..3e299bd4 100644
+index 062c5ce4..ed1924c1 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -13,7 +13,6 @@
@@ -527,10 +527,10 @@ index 9e3d14db..4358e9bf 100644
  		return ret;
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index d80ef1b3..9e6ac1f0 100644
+index bae700eb..094d10a5 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -1407,29 +1407,6 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -1413,29 +1413,6 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	return 0;
  }
  
@@ -560,7 +560,7 @@ index d80ef1b3..9e6ac1f0 100644
  static void
  mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
  {
-@@ -1463,7 +1440,7 @@ mt7915_txp_skb_unmap(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+@@ -1469,7 +1446,7 @@ mt7915_txp_skb_unmap(struct mt76_dev *dev, struct mt76_txwi_cache *t)
  
  	txp = mt7915_txwi_to_txp(dev, t);
  	for (i = 0; i < txp->nbuf; i++)
@@ -569,7 +569,7 @@ index d80ef1b3..9e6ac1f0 100644
  				 le16_to_cpu(txp->len[i]), DMA_TO_DEVICE);
  }
  
-@@ -1472,7 +1449,6 @@ mt7915_txwi_free(struct mt7915_dev *dev, struct mt76_txwi_cache *t,
+@@ -1478,7 +1455,6 @@ mt7915_txwi_free(struct mt7915_dev *dev, struct mt76_txwi_cache *t,
  		 struct ieee80211_sta *sta, struct list_head *free_list)
  {
  	struct mt76_dev *mdev = &dev->mt76;
@@ -577,7 +577,7 @@ index d80ef1b3..9e6ac1f0 100644
  	struct mt76_wcid *wcid;
  	__le32 *txwi;
  	u16 wcid_idx;
-@@ -1485,24 +1461,13 @@ mt7915_txwi_free(struct mt7915_dev *dev, struct mt76_txwi_cache *t,
+@@ -1491,24 +1467,13 @@ mt7915_txwi_free(struct mt7915_dev *dev, struct mt76_txwi_cache *t,
  	if (sta) {
  		wcid = (struct mt76_wcid *)sta->drv_priv;
  		wcid_idx = wcid->idx;
@@ -605,7 +605,7 @@ index d80ef1b3..9e6ac1f0 100644
  	__mt76_tx_complete_skb(mdev, wcid_idx, t->skb, free_list);
  
  out:
-@@ -1510,56 +1475,30 @@ out:
+@@ -1516,56 +1481,30 @@ out:
  	mt76_put_txwi(mdev, t);
  }
  
@@ -671,7 +671,7 @@ index d80ef1b3..9e6ac1f0 100644
  
  	total = le16_get_bits(free->ctrl, MT_TX_FREE_MSDU_CNT);
  	v3 = (FIELD_GET(MT_TX_FREE_VER, txd) == 0x4);
-@@ -1616,38 +1555,17 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -1622,38 +1561,17 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  		}
  	}
  
@@ -717,7 +717,7 @@ index d80ef1b3..9e6ac1f0 100644
  }
  
  static bool
-@@ -1827,9 +1745,6 @@ bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len)
+@@ -1833,9 +1751,6 @@ bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len)
  	case PKT_TYPE_TXRX_NOTIFY:
  		mt7915_mac_tx_free(dev, data, len);
  		return false;
@@ -727,7 +727,7 @@ index d80ef1b3..9e6ac1f0 100644
  	case PKT_TYPE_TXS:
  		for (rxd += 2; rxd + 8 <= end; rxd += 8)
  		    mt7915_mac_add_txs(dev, rxd);
-@@ -1857,10 +1772,6 @@ void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
+@@ -1863,10 +1778,6 @@ void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
  		mt7915_mac_tx_free(dev, skb->data, skb->len);
  		napi_consume_skb(skb, 1);
  		break;
@@ -759,10 +759,10 @@ index c5fd1a61..5add1dd3 100644
  #define MT_TX_FREE_LATENCY		GENMASK(12, 0)
  /* 0: success, others: dropped */
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 64ba70fb..770090a1 100644
+index 2d5a46d3..7da3eada 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1403,39 +1403,6 @@ out:
+@@ -1421,39 +1421,6 @@ out:
  	return ret;
  }
  
@@ -802,7 +802,7 @@ index 64ba70fb..770090a1 100644
  const struct ieee80211_ops mt7915_ops = {
  	.tx = mt7915_tx,
  	.start = mt7915_start,
-@@ -1483,7 +1450,4 @@ const struct ieee80211_ops mt7915_ops = {
+@@ -1501,7 +1468,4 @@ const struct ieee80211_ops mt7915_ops = {
  	.sta_add_debugfs = mt7915_sta_add_debugfs,
  #endif
  	.set_radar_background = mt7915_set_radar_background,
@@ -811,10 +811,12 @@ index 64ba70fb..770090a1 100644
 -#endif
  };
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 8ed8700d..899d7de7 100755
+old mode 100644
+new mode 100755
+index 2b9797c8..9da3e85c
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2581,9 +2581,6 @@ int mt7915_run_firmware(struct mt7915_dev *dev)
+@@ -2656,9 +2656,6 @@ int mt7915_run_firmware(struct mt7915_dev *dev)
  	if (ret)
  		return ret;
  
@@ -825,10 +827,10 @@ index 8ed8700d..899d7de7 100755
  	if (ret)
  		return ret;
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index bbf8b16c..a795dda3 100644
+index 995c9ee0..4d196d74 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
-@@ -557,21 +557,15 @@ static void mt7915_rx_poll_complete(struct mt76_dev *mdev,
+@@ -560,21 +560,15 @@ static void mt7915_rx_poll_complete(struct mt76_dev *mdev,
  static void mt7915_irq_tasklet(struct tasklet_struct *t)
  {
  	struct mt7915_dev *dev = from_tasklet(dev, t, irq_tasklet);
@@ -856,7 +858,7 @@ index bbf8b16c..a795dda3 100644
  
  	if (dev->hif2) {
  		intr1 = mt76_rr(dev, MT_INT1_SOURCE_CSR);
-@@ -625,15 +619,10 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
+@@ -628,15 +622,10 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
  irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
  {
  	struct mt7915_dev *dev = dev_instance;
@@ -876,10 +878,10 @@ index bbf8b16c..a795dda3 100644
  	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
  		return IRQ_NONE;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 6508cc26..d6c9e7ed 100644
+index 90391a07..02a8c424 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -528,8 +528,6 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
+@@ -541,8 +541,6 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
  void mt7915_wfsys_reset(struct mt7915_dev *dev);
  irqreturn_t mt7915_irq_handler(int irq, void *dev_instance);
  u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif);
@@ -889,7 +891,7 @@ index 6508cc26..d6c9e7ed 100644
  void mt7915_unregister_device(struct mt7915_dev *dev);
  int mt7915_eeprom_init(struct mt7915_dev *dev);
 diff --git a/mt7915/pci.c b/mt7915/pci.c
-index f6222ef1..1bab1cbb 100644
+index d74f6097..7cea49f2 100644
 --- a/mt7915/pci.c
 +++ b/mt7915/pci.c
 @@ -12,9 +12,6 @@
@@ -1010,9 +1012,9 @@ index f6222ef1..1bab1cbb 100644
 -		goto free_wed_or_irq_vector;
 +		goto free_irq_vector;
  
- 	mt76_wr(dev, MT_INT_MASK_CSR, 0);
- 
-@@ -253,11 +174,8 @@ free_hif2:
+ 	/* master switch of PCIe tnterrupt enable */
+ 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
+@@ -251,11 +172,8 @@ free_hif2:
  	if (dev->hif2)
  		put_device(dev->hif2->dev);
  	devm_free_irq(mdev->dev, irq, dev);
@@ -1027,10 +1029,10 @@ index f6222ef1..1bab1cbb 100644
  	mt76_free_device(&dev->mt76);
  
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 6ba5e9fe..0e1e05f9 100644
+index 444440e1..1e7fbcee 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
-@@ -594,31 +594,18 @@ enum offs_rev {
+@@ -603,31 +603,18 @@ enum offs_rev {
  
  /* WFDMA CSR */
  #define MT_WFDMA_EXT_CSR_BASE		__REG(WFDMA_EXT_CSR_ADDR)
@@ -1114,5 +1116,5 @@ index 0457c3eb..656b7090 100644
  	    dev->phy.q_tx[0]->blocked)
  		*wake = true;
 -- 
-2.25.1
+2.18.0
 

@@ -1,29 +1,29 @@
-From 90683f1b8f7961808da41b8782c98721265a2127 Mon Sep 17 00:00:00 2001
+From 85b7c70f08f3c363c605816143c5f0c64264016a Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 21 Apr 2022 15:43:19 +0800
-Subject: [PATCH 1/5] mt76: testmode: additional supports
+Subject: [PATCH 1111/1115] mt76: testmode: additional supports
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
- drivers/net/wireless/mediatek/mt76/dma.c      |    3 +-
- drivers/net/wireless/mediatek/mt76/mac80211.c |   12 +
- drivers/net/wireless/mediatek/mt76/mt76.h     |  111 +-
- .../wireless/mediatek/mt76/mt76_connac_mcu.c  |    4 +
- .../wireless/mediatek/mt76/mt76_connac_mcu.h  |    2 +
- .../net/wireless/mediatek/mt76/mt7915/init.c  |    2 +-
- .../net/wireless/mediatek/mt76/mt7915/mac.c   |   37 +-
- .../net/wireless/mediatek/mt76/mt7915/main.c  |    2 +-
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   |   11 +-
- .../net/wireless/mediatek/mt76/mt7915/mcu.h   |   31 +-
- .../net/wireless/mediatek/mt76/mt7915/mmio.c  |    2 +
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |   14 +-
- .../net/wireless/mediatek/mt76/mt7915/regs.h  |    3 +
- .../wireless/mediatek/mt76/mt7915/testmode.c  | 1136 +++++++++++++++--
- .../wireless/mediatek/mt76/mt7915/testmode.h  |  278 ++++
- drivers/net/wireless/mediatek/mt76/testmode.c |  274 +++-
- drivers/net/wireless/mediatek/mt76/testmode.h |   75 ++
- .../net/wireless/mediatek/mt76/tools/fields.c |   80 ++
- drivers/net/wireless/mediatek/mt76/tx.c       |    3 +-
+ dma.c             |    3 +-
+ mac80211.c        |   12 +
+ mt76.h            |  111 ++++-
+ mt76_connac_mcu.c |    4 +
+ mt76_connac_mcu.h |    2 +
+ mt7915/init.c     |    2 +-
+ mt7915/mac.c      |   37 +-
+ mt7915/main.c     |    2 +-
+ mt7915/mcu.c      |   11 +-
+ mt7915/mcu.h      |   31 +-
+ mt7915/mmio.c     |    2 +
+ mt7915/mt7915.h   |   14 +-
+ mt7915/regs.h     |    3 +
+ mt7915/testmode.c | 1136 ++++++++++++++++++++++++++++++++++++++++++---
+ mt7915/testmode.h |  278 +++++++++++
+ testmode.c        |  274 +++++++++--
+ testmode.h        |   75 +++
+ tools/fields.c    |   80 ++++
+ tx.c              |    3 +-
  19 files changed, 1928 insertions(+), 152 deletions(-)
 
 diff --git a/dma.c b/dma.c
@@ -41,7 +41,7 @@ index 30de8be4..f6f5f129 100644
  #endif
  
 diff --git a/mac80211.c b/mac80211.c
-index 31602d7f..49b99f36 100644
+index 8c90db87..022b63e7 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -55,6 +55,13 @@ static const struct ieee80211_channel mt76_channels_5ghz[] = {
@@ -71,7 +71,7 @@ index 31602d7f..49b99f36 100644
  
  static const struct ieee80211_channel mt76_channels_6ghz[] = {
 diff --git a/mt76.h b/mt76.h
-index 8f6279c5..3d1e893d 100644
+index 28720ee4..062c5ce4 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -602,6 +602,21 @@ struct mt76_testmode_ops {
@@ -277,10 +277,10 @@ index 82498039..a3bbf5ca 100644
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  };
 diff --git a/mt7915/init.c b/mt7915/init.c
-index e4f6617f..25a9b5de 100644
+index 80ada114..d90a2e47 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -573,7 +573,7 @@ static void mt7915_init_work(struct work_struct *work)
+@@ -575,7 +575,7 @@ static void mt7915_init_work(struct work_struct *work)
  	struct mt7915_dev *dev = container_of(work, struct mt7915_dev,
  				 init_work);
  
@@ -290,7 +290,7 @@ index e4f6617f..25a9b5de 100644
  	mt7915_init_txpower(dev, &dev->mphy.sband_2g.sband);
  	mt7915_init_txpower(dev, &dev->mphy.sband_5g.sband);
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index ffb0037b..12afb204 100644
+index a9ebbf12..af72e268 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -914,17 +914,39 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
@@ -356,7 +356,7 @@ index ffb0037b..12afb204 100644
  }
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index f2a6d9da..942b8a9a 100644
+index 082e27d4..55b4cefe 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -221,7 +221,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
@@ -369,7 +369,7 @@ index f2a6d9da..942b8a9a 100644
  		mvif->mt76.wmm_idx += 2;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 8a3bd33f..8ed8700d 100755
+index 5e7b3f4a..17a36ea3 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -360,7 +360,6 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -400,7 +400,7 @@ index 8a3bd33f..8ed8700d 100755
  	    !rxd->seq)
  		mt7915_mcu_rx_unsolicited_event(dev, skb);
  	else
-@@ -3030,14 +3035,14 @@ static int mt7915_mcu_set_eeprom_flash(struct mt7915_dev *dev)
+@@ -3105,14 +3110,14 @@ static int mt7915_mcu_set_eeprom_flash(struct mt7915_dev *dev)
  	return 0;
  }
  
@@ -418,7 +418,7 @@ index 8a3bd33f..8ed8700d 100755
  
  	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(EFUSE_BUFFER_MODE),
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index adf71f10..82c21168 100644
+index 44d3722e..9aa133a3 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -27,10 +27,15 @@ struct mt7915_mcu_txd {
@@ -437,7 +437,7 @@ index adf71f10..82c21168 100644
  };
  
  struct mt7915_mcu_rxd {
-@@ -455,6 +460,12 @@ enum {
+@@ -467,6 +472,12 @@ enum {
  
  enum {
  	MT_BF_SOUNDING_ON = 1,
@@ -450,7 +450,7 @@ index adf71f10..82c21168 100644
  	MT_BF_TYPE_UPDATE = 20,
  	MT_BF_MODULE_UPDATE = 25
  };
-@@ -681,12 +692,20 @@ struct mt7915_muru {
+@@ -697,12 +708,20 @@ struct mt7915_muru {
  #define MURU_OFDMA_SCH_TYPE_DL          BIT(0)
  #define MURU_OFDMA_SCH_TYPE_UL          BIT(1)
  
@@ -478,10 +478,10 @@ index adf71f10..82c21168 100644
  
  enum {
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index b3de3a7a..bbf8b16c 100644
+index ba61ce2e..995c9ee0 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
-@@ -73,6 +73,7 @@ static const u32 mt7915_offs[] = {
+@@ -76,6 +76,7 @@ static const u32 mt7915_offs[] = {
  	[ARB_DRNGR0]		= 0x194,
  	[ARB_SCR]		= 0x080,
  	[RMAC_MIB_AIRTIME14]	= 0x3b8,
@@ -489,7 +489,7 @@ index b3de3a7a..bbf8b16c 100644
  	[AGG_AWSCR0]		= 0x05c,
  	[AGG_PCR0]		= 0x06c,
  	[AGG_ACR0]		= 0x084,
-@@ -147,6 +148,7 @@ static const u32 mt7916_offs[] = {
+@@ -150,6 +151,7 @@ static const u32 mt7916_offs[] = {
  	[ARB_DRNGR0]		= 0x1e0,
  	[ARB_SCR]		= 0x000,
  	[RMAC_MIB_AIRTIME14]	= 0x0398,
@@ -498,10 +498,10 @@ index b3de3a7a..bbf8b16c 100644
  	[AGG_PCR0]		= 0x040,
  	[AGG_ACR0]		= 0x054,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index cf0630c8..4b375629 100644
+index ae5ac72f..c99e700d 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -294,6 +294,9 @@ struct mt7915_phy {
+@@ -304,6 +304,9 @@ struct mt7915_phy {
  		u8 last_snr;
  
  		u8 spe_idx;
@@ -511,7 +511,7 @@ index cf0630c8..4b375629 100644
  	} test;
  #endif
  
-@@ -382,6 +385,14 @@ struct mt7915_dev {
+@@ -395,6 +398,14 @@ struct mt7915_dev {
  	void __iomem *dcm;
  	void __iomem *sku;
  
@@ -526,7 +526,7 @@ index cf0630c8..4b375629 100644
  #ifdef MTK_DEBUG
  	u16 wlan_idx;
  	struct {
-@@ -572,7 +583,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
+@@ -585,7 +596,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
  				   struct ieee80211_vif *vif,
  				   struct ieee80211_sta *sta,
  				   void *data, u32 field);
@@ -535,7 +535,7 @@ index cf0630c8..4b375629 100644
  int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset);
  int mt7915_mcu_get_eeprom_free_block(struct mt7915_dev *dev, u8 *block_num);
  int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
-@@ -605,6 +616,7 @@ int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
+@@ -618,6 +629,7 @@ int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
  int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
  void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb);
  void mt7915_mcu_exit(struct mt7915_dev *dev);
@@ -544,10 +544,10 @@ index cf0630c8..4b375629 100644
  static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
  {
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 99834310..6ba5e9fe 100644
+index 47bae86e..444440e1 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
-@@ -50,6 +50,7 @@ enum offs_rev {
+@@ -51,6 +51,7 @@ enum offs_rev {
  	ARB_DRNGR0,
  	ARB_SCR,
  	RMAC_MIB_AIRTIME14,
@@ -555,7 +555,7 @@ index 99834310..6ba5e9fe 100644
  	AGG_AWSCR0,
  	AGG_PCR0,
  	AGG_ACR0,
-@@ -458,6 +459,8 @@ enum offs_rev {
+@@ -467,6 +468,8 @@ enum offs_rev {
  #define MT_WF_AGG_BASE(_band)		((_band) ? 0x820f2000 : 0x820e2000)
  #define MT_WF_AGG(_band, ofs)		(MT_WF_AGG_BASE(_band) + (ofs))
  
@@ -2888,5 +2888,5 @@ index 02067edc..0457c3eb 100644
  			wake_up(&dev->tx_wait);
  
 -- 
-2.25.1
+2.18.0
 
