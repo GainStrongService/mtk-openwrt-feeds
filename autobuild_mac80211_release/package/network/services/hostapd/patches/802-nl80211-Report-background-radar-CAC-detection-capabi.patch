@@ -1,0 +1,47 @@
+From 5fb4920aa49934d3a602556fbe35ab6ed11374d1 Mon Sep 17 00:00:00 2001
+From: dzou <dzou@company.com>
+Date: Sun, 5 Jun 2022 23:17:28 +0800
+Subject: [PATCH 902/911] nl80211: Report background radar/CAC detection
+ capability
+
+Report background radar/CAC detection capability if supported
+by the underlying driver/hardware.
+
+Tested-by: Owen Peng <owen.peng@mediatek.com>
+Signed-off-by: Lorenzo Bianconi <lorenzo@kernel.org>
+---
+ src/drivers/driver.h              | 2 ++
+ src/drivers/driver_nl80211_capa.c | 4 ++++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index 44304d487..68964c9d5 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -2032,6 +2032,8 @@ struct wpa_driver_capa {
+ #define WPA_DRIVER_FLAGS2_OCV			0x0000000000000080ULL
+ /** Driver expects user space implementation of SME in AP mode */
+ #define WPA_DRIVER_FLAGS2_AP_SME		0x0000000000000100ULL
++/** Driver supports background radar/CAC detection */
++#define WPA_DRIVER_RADAR_BACKGROUND            0x0000000000000400ULL
+ 	u64 flags2;
+ 
+ #define FULL_AP_CLIENT_STATE_SUPP(drv_flags) \
+diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
+index 83868b78e..05703ec64 100644
+--- a/src/drivers/driver_nl80211_capa.c
++++ b/src/drivers/driver_nl80211_capa.c
+@@ -665,6 +665,10 @@ static void wiphy_info_ext_feature_flags(struct wiphy_info_data *info,
+ 	if (ext_feature_isset(ext_features, len,
+ 			      NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION))
+ 		capa->flags2 |= WPA_DRIVER_FLAGS2_OCV;
++
++	if (ext_feature_isset(ext_features, len,
++			      NL80211_EXT_FEATURE_RADAR_BACKGROUND))
++		capa->flags2 |= WPA_DRIVER_RADAR_BACKGROUND;
+ }
+ 
+ 
+-- 
+2.29.2
+
