@@ -1,22 +1,20 @@
-From 7aab6cf66cfb7dea480d16e312e0f0eb08e758ab Mon Sep 17 00:00:00 2001
-From: "howard.hsu" <howard-yh.hsu@mediatek.com>
-Date: Wed, 19 Jan 2022 21:32:17 +0800
-Subject: [PATCH 9/9] Add hostapd_neighbor_set_pref_by_non_pref_chan()
+From be49aa855a83b3bb0c6a96380960b54cbdabcb56 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Thu, 9 Jun 2022 20:02:06 +0800
+Subject: [PATCH 6/6] Add hostapd_neighbor_set_pref_by_non_pref_chan()
 
-The preference value of neighbor report shall be modified according to struct
-non_pref_chan_info.
 ---
- hostapd/ctrl_iface.c |  2 ++
- src/ap/neighbor_db.c | 51 ++++++++++++++++++++++++++++++++++++++++++++
- src/ap/neighbor_db.h |  4 ++++
+ src/ap/ctrl_iface_ap.c |  2 ++
+ src/ap/neighbor_db.c   | 51 ++++++++++++++++++++++++++++++++++++++++++
+ src/ap/neighbor_db.h   |  4 ++++
  3 files changed, 57 insertions(+)
 
-diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 3146a25..974e5b9 100644
---- a/hostapd/ctrl_iface.c
-+++ b/hostapd/ctrl_iface.c
-@@ -1000,6 +1000,8 @@ static int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
- 	}
+diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
+index d5d4e33..a888b76 100644
+--- a/src/ap/ctrl_iface_ap.c
++++ b/src/ap/ctrl_iface_ap.c
+@@ -1249,6 +1249,8 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+ 
  
  #ifdef CONFIG_MBO
 +	hostapd_neighbor_set_pref_by_non_pref_chan(hapd, sta, nei_rep, nei_len);
@@ -25,10 +23,10 @@ index 3146a25..974e5b9 100644
  	if (pos) {
  		unsigned int mbo_reason, cell_pref, reassoc_delay;
 diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
-index bc1b163..75b6fcc 100644
+index 20a4417..8c27da9 100644
 --- a/src/ap/neighbor_db.c
 +++ b/src/ap/neighbor_db.c
-@@ -388,3 +388,54 @@ void hostapd_neighbor_set_own_report_pref(struct hostapd_data *hapd, char *nei_b
+@@ -391,3 +391,54 @@ void hostapd_neighbor_set_own_report_pref(struct hostapd_data *hapd, char *nei_b
  		}
  	}
  }

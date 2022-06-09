@@ -1,21 +1,19 @@
-From 6fc069a54efb892e486dfde59cb97e0023dbbf5d Mon Sep 17 00:00:00 2001
-From: "howard.hsu" <howard-yh.hsu@mediatek.com>
-Date: Wed, 19 Jan 2022 21:27:55 +0800
-Subject: [PATCH 8/9] Add hostapd_neighbor_set_own_report_pref()
+From 12b95b365372ca8167b8fdbfd192fcd4dcb11419 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Thu, 9 Jun 2022 20:00:49 +0800
+Subject: [PATCH 5/6] Add hostapd_neighbor_set_own_report_pref()
 
-If my own BSS is going to terminate itself, the preference value of neighbor
-report must be set to 0.
 ---
- hostapd/ctrl_iface.c |  5 ++++-
- src/ap/neighbor_db.c | 36 ++++++++++++++++++++++++++++++++++++
- src/ap/neighbor_db.h |  2 ++
- 3 files changed, 42 insertions(+), 1 deletion(-)
+ src/ap/ctrl_iface_ap.c |  6 +++++-
+ src/ap/neighbor_db.c   | 36 ++++++++++++++++++++++++++++++++++++
+ src/ap/neighbor_db.h   |  2 ++
+ 3 files changed, 43 insertions(+), 1 deletion(-)
 
-diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 5a82ae6..3146a25 100644
---- a/hostapd/ctrl_iface.c
-+++ b/hostapd/ctrl_iface.c
-@@ -993,8 +993,11 @@ static int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
+index fccc5f9..d5d4e33 100644
+--- a/src/ap/ctrl_iface_ap.c
++++ b/src/ap/ctrl_iface_ap.c
+@@ -1241,8 +1241,12 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
  	}
  	if (os_strstr(cmd, " abridged=1"))
  		req_mode |= WNM_BSS_TM_REQ_ABRIDGED;
@@ -25,14 +23,15 @@ index 5a82ae6..3146a25 100644
 +		/* Set own BSS neighbor report preference value as 0 */
 +		hostapd_neighbor_set_own_report_pref(hapd, nei_rep, nei_len, 0);
 +	}
++
  
  #ifdef CONFIG_MBO
  	pos = os_strstr(cmd, "mbo=");
 diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
-index ce6865d..bc1b163 100644
+index fabe64d..20a4417 100644
 --- a/src/ap/neighbor_db.c
 +++ b/src/ap/neighbor_db.c
-@@ -352,3 +352,39 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
+@@ -355,3 +355,39 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
  	wpabuf_free(nr);
  #endif /* NEED_AP_MLME */
  }
