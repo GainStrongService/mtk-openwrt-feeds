@@ -169,6 +169,7 @@ mtk_mmc_do_upgrade_dual_boot() {
 		mkdir -p /var/lock
 		touch /var/lock/fw_printenv.lock
 		fw_setenv "dual_boot.current_slot" "${upgrade_image_slot}"
+		fw_setenv "dual_boot.slot_${upgrade_image_slot}_invalid" "0"
 	}
 
 	rootfs_data_dev=$(cat /sys/module/boot_param/parameters/rootfs_data_part 2>/dev/null)
