@@ -6,7 +6,7 @@ platform_do_upgrade() {
 
 	case "$board" in
 	*snand*)
-		nand_do_upgrade "$1"
+		ubi_do_upgrade "$1"
 		;;
 	*emmc*)
 		mtk_mmc_do_upgrade "$1"
