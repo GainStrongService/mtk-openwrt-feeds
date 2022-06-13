@@ -4,23 +4,6 @@ source ./autobuild/lede-build-sanity.sh
 temp=${0%/*}
 branch_name=${temp##*/}
 
-rm -rf ${BUILD_DIR}/package/network/services/hostapd
-cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/hostapd ${BUILD_DIR}/package/network/services
-
-rm -rf ${BUILD_DIR}/package/libs/libnl-tiny
-cp -fpR ${BUILD_DIR}/./../mac80211_package/package/libs/libnl-tiny ${BUILD_DIR}/package/libs
-
-rm -rf ${BUILD_DIR}/package/network/utils/iw
-cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iw ${BUILD_DIR}/package/network/utils
-
-rm -rf ${BUILD_DIR}/package/network/utils/iwinfo
-cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iwinfo ${BUILD_DIR}/package/network/utils
-
-rm -rf ${BUILD_DIR}/package/kernel/mac80211
-cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/package/kernel
-
-cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
-
 #step1 clean
 #clean
 

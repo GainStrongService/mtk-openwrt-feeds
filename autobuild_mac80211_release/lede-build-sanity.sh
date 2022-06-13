@@ -106,10 +106,29 @@ prepare_mtwifi() {
 }
 
 prepare_mac80211() {
+	rm -rf ${BUILD_DIR}/package/network/services/hostapd
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/hostapd ${BUILD_DIR}/package/network/services
+
+	rm -rf ${BUILD_DIR}/package/libs/libnl-tiny
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/libs/libnl-tiny ${BUILD_DIR}/package/libs
+
+	rm -rf ${BUILD_DIR}/package/network/utils/iw
+	p -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iw ${BUILD_DIR}/package/network/utils
+
+	rm -rf ${BUILD_DIR}/package/network/utils/iwinfo
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iwinfo ${BUILD_DIR}/package/network/utils
+
+	rm -rf ${BUILD_DIR}/package/kernel/mac80211
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/package/kernel
+
+	rm -rf ${BUILD_DIR}/package/firmware/wireless-regdb
+    cp -fpR ${BUILD_DIR}/./../mac80211_package/package/firmware/wireless-regdb ${BUILD_DIR}/package/firmware
+
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
+
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0001-master-mac80211-generate-hostapd-setting-from-ap-cap.patch
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-master-hostapd-makefile-for-utils.patch
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0003-master-mt76-makefile-for-new-chip.patch
-	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0004-master-wireless-regdb-makefile-for-6E.patch
 	cp -rfa ${MTK_FEED_DIR}/autobuild_mac80211_release/package/ ${BUILD_DIR}
 	cp -rfa ${MTK_FEED_DIR}/autobuild_mac80211_release/target/ ${BUILD_DIR}
 }

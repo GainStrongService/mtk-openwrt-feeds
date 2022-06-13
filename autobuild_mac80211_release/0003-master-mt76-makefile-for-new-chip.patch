@@ -115,11 +115,13 @@ index 0ccf067..75e65f7 100644
  define KernelPackage/mt7921e/install
  	$(INSTALL_DIR) $(1)/lib/firmware/mediatek
  	cp \
-@@ -489,5 +555,6 @@ $(eval $(call KernelPackage,mt7921-common))
+@@ -489,5 +555,8 @@ $(eval $(call KernelPackage,mt7921-common))
  $(eval $(call KernelPackage,mt7921u))
  $(eval $(call KernelPackage,mt7921s))
  $(eval $(call KernelPackage,mt7921e))
++ifdef CONFIG_PACKAGE_kmod-bersa
 +$(eval $(call KernelPackage,bersa))
++endif
  $(eval $(call KernelPackage,mt76))
  $(eval $(call BuildPackage,mt76-test))
 -- 
