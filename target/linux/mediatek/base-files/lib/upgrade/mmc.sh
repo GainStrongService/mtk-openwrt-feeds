@@ -146,7 +146,7 @@ mtk_mmc_do_upgrade_dual_boot() {
 	[ -z "${kernel_dev}" -o $? -ne 0 ] && return 1
 
 	rootfs_dev=$(cat /sys/module/boot_param/parameters/upgrade_rootfs_part 2>/dev/null)
-	[ -z "${kernel_dev}" -o $? -ne 0 ] && return 1
+	[ -z "${rootfs_dev}" -o $? -ne 0 ] && return 1
 
 	rootfs_dev=$(block_dev_path "${rootfs_dev}")
 	[ -z "${rootfs_dev}" -o $? -ne 0 ] && return 1
