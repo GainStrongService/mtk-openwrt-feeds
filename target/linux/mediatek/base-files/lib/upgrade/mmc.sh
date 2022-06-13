@@ -135,6 +135,7 @@ mtk_mmc_do_upgrade_dual_boot() {
 	local kernel_dev=
 	local rootfs_dev=
 	local rootfs_data_dev=
+	local reserve_rootfs_data=$(cat /sys/module/boot_param/parameters/reserve_rootfs_data 2>/dev/null)
 
 	local board_dir=$(tar tf ${tar_file} | grep -m 1 '^sysupgrade-.*/$')
 	board_dir=${board_dir%/}
@@ -171,6 +172,12 @@ mtk_mmc_do_upgrade_dual_boot() {
 		fw_setenv "dual_boot.current_slot" "${upgrade_image_slot}"
 		fw_setenv "dual_boot.slot_${upgrade_image_slot}_invalid" "0"
 	}
+
+	if [ x"${reserve_rootfs_data}" = xY ]; then
+		# Do not touch rootfs_data
+		sync
+		return 0
+	fi
 
 	rootfs_data_dev=$(cat /sys/module/boot_param/parameters/rootfs_data_part 2>/dev/null)
 	[ -z "${rootfs_data_dev}" -o $? -ne 0 ] && return 0
