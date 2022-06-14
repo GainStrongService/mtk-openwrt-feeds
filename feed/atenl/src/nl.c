@@ -118,6 +118,25 @@ atenl_set_attr_state(struct atenl *an, struct nl_msg *msg,
 }
 
 static void
+atenl_set_attr_tx_length(struct atenl *an, struct nl_msg *msg,
+			 u32 tx_length, bool is_mu)
+{
+#define IEEE80211_MAX_FRAME_LEN		2352
+	int hdr_len = 24;
+
+	if (tx_length > IEEE80211_MAX_FRAME_LEN || is_mu)
+		hdr_len += 2;
+
+	if (an->ibf_cal)
+		hdr_len = 0;
+
+	/* The definition of MT76_TM_ATTR_TX_LENGTH is MPDU length,
+	 * so add ieee80211_hdr length.
+	 */
+	nla_put_u32(msg, MT76_TM_ATTR_TX_LENGTH, tx_length + hdr_len);
+}
+
+static void
 atenl_set_attr_antenna(struct atenl *an, struct nl_msg *msg, u8 tx_antenna)
 {
 	if (!tx_antenna)
@@ -289,8 +308,9 @@ atenl_nl_tx(struct atenl *an, struct atenl_data *data, struct atenl_nl_priv *nl_
 			nla_put_u32(msg, MT76_TM_ATTR_TX_TIME,
 				    get_band_val(an, band, tx_time));
 		else
-			nla_put_u32(msg, MT76_TM_ATTR_TX_LENGTH,
-				    get_band_val(an, band, tx_mpdu_len));
+			atenl_set_attr_tx_length(an, msg,
+					get_band_val(an, band, tx_mpdu_len),
+					tx_rate_mode == MT76_TM_TX_MODE_HE_MU);
 
 		/* for chips after 7915, tx need to use at least wcid = 1 */
 		if (!is_mt7915(an) && !aid)
@@ -715,7 +735,7 @@ atenl_nl_set_ru(struct atenl *an, struct atenl_data *data,
 		nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_IDX, mcs);
 		nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_LDPC, ldpc);
 		nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_NSS, nss);
-		nla_put_u32(msg, MT76_TM_ATTR_TX_LENGTH, tx_length);
+		atenl_set_attr_tx_length(an, msg, tx_length, true);
 
 		ret = snprintf(buf, sizeof(buf), "%x", ru_alloc);
 		if (snprintf_error(sizeof(buf), ret))
@@ -879,6 +899,8 @@ atenl_nl_ibf_set_val(struct atenl *an, struct atenl_data *data,
 			return -ENOMEM;
 		nla_put_u16(msg, 0, 0);
 		nla_nest_end(msg, a);
+
+		an->ibf_cal = true;
 		break;
 	case TXBF_ACT_MCS:
 		tmp_ant = (1 << DIV_ROUND_UP(val[0], 8)) - 1 ?: 1;
@@ -903,7 +925,7 @@ atenl_nl_ibf_set_val(struct atenl *an, struct atenl_data *data,
 		nla_put_u8(msg, MT76_TM_ATTR_AID, val[1]);
 		nla_put_u8(msg, MT76_TM_ATTR_TXBF_ACT, MT76_TM_TXBF_ACT_TX_PREP);
 		nla_put_u32(msg, MT76_TM_ATTR_TX_COUNT, 10000000);
-		nla_put_u32(msg, MT76_TM_ATTR_TX_LENGTH, 1024);
+		atenl_set_attr_tx_length(an, msg, 1024, false);
 		a = nla_nest_start(msg, MT76_TM_ATTR_TXBF_PARAM);
 		if (!a)
 			return -ENOMEM;
@@ -940,6 +962,8 @@ atenl_nl_ibf_set_val(struct atenl *an, struct atenl_data *data,
 			return -ENOMEM;
 		nla_put_u16(msg, 0, 0);
 		nla_nest_end(msg, a);
+
+		an->ibf_cal = false;
 		break;
 	case TXBF_ACT_INIT:
 	case TXBF_ACT_POWER:

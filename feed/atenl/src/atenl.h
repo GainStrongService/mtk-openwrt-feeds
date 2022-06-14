@@ -90,6 +90,7 @@ struct atenl {
 
 	bool cmd_mode;
 
+	bool ibf_cal;
 	/* intermediate data */
 	u8 ibf_mcs;
 	u8 ibf_ant;
