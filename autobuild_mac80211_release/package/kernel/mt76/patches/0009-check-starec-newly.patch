@@ -1,0 +1,55 @@
+From 03a261c28f08e5c8aae5e4dde8f5f45e841fb0de Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Wed, 15 Jun 2022 23:15:13 +0800
+Subject: [PATCH] check starec newly
+
+---
+ mt7915/main.c | 2 +-
+ mt7915/mcu.c  | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/mt7915/main.c b/mt7915/main.c
+index 7da3eada..9feba0d6 100644
+--- a/mt7915/main.c
++++ b/mt7915/main.c
+@@ -247,7 +247,6 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
+ 	mt7915_mac_wtbl_update(dev, idx,
+ 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
+ 
+-	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
+ 	if (vif->txq) {
+ 		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
+ 		mtxq->wcid = idx;
+@@ -263,6 +262,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
+ 
+ 	mt7915_mcu_add_bss_info(phy, vif, true);
+ 	mt7915_mcu_add_sta(dev, vif, NULL, true);
++	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
+ 
+ out:
+ 	mutex_unlock(&dev->mt76.mutex);
+diff --git a/mt7915/mcu.c b/mt7915/mcu.c
+index 36151959..ff5a73e3 100755
+--- a/mt7915/mcu.c
++++ b/mt7915/mcu.c
+@@ -1803,6 +1803,7 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+ 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+ 	struct mt7915_sta *msta;
+ 	struct sk_buff *skb;
++	bool newly;
+ 	int ret;
+ 
+ 	msta = sta ? (struct mt7915_sta *)sta->drv_priv : &mvif->sta;
+@@ -1813,7 +1814,8 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+ 		return PTR_ERR(skb);
+ 
+ 	/* starec basic */
+-	mt76_connac_mcu_sta_basic_tlv(skb, vif, sta, enable, true);
++	newly = !rcu_access_pointer(dev->mt76.wcid[msta->wcid.idx]);
++	mt76_connac_mcu_sta_basic_tlv(skb, vif, sta, enable, newly);
+ 	if (!enable)
+ 		goto out;
+ 
+-- 
+2.18.0
+
