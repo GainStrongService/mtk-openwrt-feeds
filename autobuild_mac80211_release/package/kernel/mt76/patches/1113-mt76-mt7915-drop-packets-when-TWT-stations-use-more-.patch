@@ -1,16 +1,16 @@
-From 627e2efd654f0a2ff430a1c22e4ac0717eac125d Mon Sep 17 00:00:00 2001
+From 23de5ffe66f73e5fbd22a441f7ca1f612f1bd158 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 22 Jun 2022 10:58:37 +0800
 Subject: [PATCH 1113/1115] mt76: mt7915: drop packets when TWT stations use
  more tokens than 128
 
 ---
- .../net/wireless/mediatek/mt76/mt7915/mac.c   | 21 ++++++++++++++++---
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |  2 ++
+ mt7915/mac.c    | 21 ++++++++++++++++++---
+ mt7915/mt7915.h |  2 ++
  2 files changed, 20 insertions(+), 3 deletions(-)
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 8fd46183..fd0dd509 100644
+index 8fd4618..fd0dd50 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -724,6 +724,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -81,7 +81,7 @@ index 8fd46183..fd0dd509 100644
  			mt7915_txwi_free(dev, txwi, sta, &free_list);
  		}
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 1a279844..e1e3ce2d 100644
+index ff92e55..6235014 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -136,6 +136,8 @@ struct mt7915_sta {
@@ -94,5 +94,5 @@ index 1a279844..e1e3ce2d 100644
  
  struct mt7915_vif_cap {
 -- 
-2.25.1
+2.18.0
 

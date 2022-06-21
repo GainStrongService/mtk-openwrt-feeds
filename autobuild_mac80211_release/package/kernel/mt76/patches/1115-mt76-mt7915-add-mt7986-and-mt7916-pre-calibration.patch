@@ -1,4 +1,4 @@
-From 91a666148d2ff1a7c4cb43afd0cfb2df56cd8c71 Mon Sep 17 00:00:00 2001
+From c07c8c699e63f32f431a7439145ecf1844690ca3 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 20 May 2022 19:19:25 +0800
 Subject: [PATCH 1115/1115] mt76: mt7915: add mt7986 and mt7916 pre-calibration
@@ -9,13 +9,13 @@ respectively. DPD cal needs 300k.
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
- .../wireless/mediatek/mt76/mt7915/eeprom.c    | 15 ++--
- .../wireless/mediatek/mt76/mt7915/eeprom.h    | 27 ++++++-
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   | 80 ++++++++++++++-----
+ mt7915/eeprom.c | 15 +++++-----
+ mt7915/eeprom.h | 27 +++++++++++++++--
+ mt7915/mcu.c    | 80 ++++++++++++++++++++++++++++++++++++-------------
  3 files changed, 90 insertions(+), 32 deletions(-)
 
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 4b1a9811..ee3049e5 100644
+index 4b1a981..ee3049e 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -9,23 +9,22 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
@@ -50,7 +50,7 @@ index 4b1a9811..ee3049e5 100644
  
  static int mt7915_check_eeprom(struct mt7915_dev *dev)
 diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
-index 7578ac6d..e924baef 100644
+index 7578ac6..e924bae 100644
 --- a/mt7915/eeprom.h
 +++ b/mt7915/eeprom.h
 @@ -19,6 +19,7 @@ enum mt7915_eeprom_field {
@@ -103,7 +103,7 @@ index 7578ac6d..e924baef 100644
  
  #endif
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ee3b1d76..42f2bda5 100644
+index 810d72e..a16081d 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2911,9 +2911,10 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
@@ -252,5 +252,5 @@ index ee3b1d76..42f2bda5 100644
  
  	return 0;
 -- 
-2.25.1
+2.18.0
 

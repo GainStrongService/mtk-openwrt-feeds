@@ -1,7 +1,7 @@
-From 1c694d2fe3f98e08ebed1df18599be2b2885ccc6 Mon Sep 17 00:00:00 2001
+From 975fc0afe9673689b2364b261dbe1f8f7fc58c56 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 20 Jun 2022 17:42:19 +0800
-Subject: [PATCH 11/11] mt76: do not check the ccmp pn for ONLY_MONITOR frame
+Subject: [PATCH 11/12] mt76: do not check the ccmp pn for ONLY_MONITOR frame
 
 if the received frame enables RX_FLAG_ONLY_MONITOR,
 driver doesn't need to check the ccmp pn of this frame.
@@ -9,11 +9,11 @@ driver doesn't need to check the ccmp pn of this frame.
 Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 Change-Id: I85abba5b66ef3b58739069e04830980384f805d1
 ---
- drivers/net/wireless/mediatek/mt76/mac80211.c | 3 +++
+ mac80211.c | 3 +++
  1 file changed, 3 insertions(+)
 
 diff --git a/mac80211.c b/mac80211.c
-index 5782244d..c1df063f 100644
+index 5782244..c1df063 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -1031,6 +1031,9 @@ mt76_check_ccmp_pn(struct sk_buff *skb)
@@ -27,5 +27,5 @@ index 5782244d..c1df063f 100644
  		return 0;
  
 -- 
-2.25.1
+2.18.0
 

@@ -1,29 +1,29 @@
-From 66334b2b6ed1d15fc0ac2d66c81fcbc51eb65825 Mon Sep 17 00:00:00 2001
+From 4c1658312392db894fd36bbdc98476d6e6b1e32f Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
-Subject: [PATCH] mt76: mt7915: add mtk internal debug tools for mt76
+Subject: [PATCH 1001/1008] mt76: mt7915: add mtk internal debug tools for mt76
 
 ---
- .../wireless/mediatek/mt76/mt76_connac_mcu.h  |    6 +
- .../wireless/mediatek/mt76/mt7915/Makefile    |    2 +-
- .../wireless/mediatek/mt76/mt7915/debugfs.c   |   73 +-
- .../net/wireless/mediatek/mt76/mt7915/mac.c   |   14 +
- .../net/wireless/mediatek/mt76/mt7915/main.c  |    4 +
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   |   44 +
- .../net/wireless/mediatek/mt76/mt7915/mcu.h   |    4 +
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |   43 +
- .../mediatek/mt76/mt7915/mt7915_debug.h       | 1350 ++++++++
- .../mediatek/mt76/mt7915/mtk_debugfs.c        | 2923 +++++++++++++++++
- .../wireless/mediatek/mt76/mt7915/mtk_mcu.c   |   51 +
- .../net/wireless/mediatek/mt76/tools/fwlog.c  |   44 +-
+ mt76_connac_mcu.h     |    6 +
+ mt7915/Makefile       |    2 +-
+ mt7915/debugfs.c      |   73 +-
+ mt7915/mac.c          |   14 +
+ mt7915/main.c         |    4 +
+ mt7915/mcu.c          |   44 +
+ mt7915/mcu.h          |    4 +
+ mt7915/mt7915.h       |   43 +
+ mt7915/mt7915_debug.h | 1350 +++++++++++++++++++
+ mt7915/mtk_debugfs.c  | 2923 +++++++++++++++++++++++++++++++++++++++++
+ mt7915/mtk_mcu.c      |   51 +
+ tools/fwlog.c         |   44 +-
  12 files changed, 4545 insertions(+), 13 deletions(-)
- mode change 100644 => 100755 drivers/net/wireless/mediatek/mt76/mt7915/mcu.c
- create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mt7915_debug.h
- create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mtk_debugfs.c
- create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mtk_mcu.c
+ mode change 100644 => 100755 mt7915/mcu.c
+ create mode 100644 mt7915/mt7915_debug.h
+ create mode 100644 mt7915/mtk_debugfs.c
+ create mode 100644 mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index e94d6706..333d3a04 100644
+index e94d670..333d3a0 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1119,6 +1119,12 @@ enum {
@@ -40,7 +40,7 @@ index e94d6706..333d3a04 100644
  	MCU_EXT_CMD_CAL_CACHE = 0x67,
  	MCU_EXT_CMD_SET_RADAR_TH = 0x7c,
 diff --git a/mt7915/Makefile b/mt7915/Makefile
-index b794ceb7..a3474e2f 100644
+index b794ceb..a3474e2 100644
 --- a/mt7915/Makefile
 +++ b/mt7915/Makefile
 @@ -3,7 +3,7 @@
@@ -54,7 +54,7 @@ index b794ceb7..a3474e2f 100644
  mt7915e-$(CONFIG_MT7986_WMAC) += soc.o
 \ No newline at end of file
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 9f21d978..0cfb6068 100644
+index 9f21d97..0cfb606 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -8,6 +8,9 @@
@@ -198,7 +198,7 @@ index 9f21d978..0cfb6068 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 6a4da8e6..c332e0a0 100644
+index 6a4da8e..c332e0a 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -239,6 +239,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -237,7 +237,7 @@ index 6a4da8e6..c332e0a0 100644
  }
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 39587992..929c726d 100644
+index 3958799..929c726 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -62,7 +62,11 @@ static int mt7915_start(struct ieee80211_hw *hw)
@@ -255,7 +255,7 @@ index 39587992..929c726d 100644
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
 old mode 100644
 new mode 100755
-index a726021e..4ff13c7a
+index a726021..4ff13c7
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -195,6 +195,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -324,7 +324,7 @@ index a726021e..4ff13c7a
  {
  	struct {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index b82f2581..b2c51bfb 100644
+index b82f258..b2c51bf 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -259,6 +259,10 @@ enum {
@@ -339,7 +339,7 @@ index b82f2581..b2c51bfb 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index b6a6aa7f..594f2fb2 100644
+index b6a6aa7..594f2fb 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -406,7 +406,7 @@ index b6a6aa7f..594f2fb2 100644
  #endif
 diff --git a/mt7915/mt7915_debug.h b/mt7915/mt7915_debug.h
 new file mode 100644
-index 00000000..58ba2cdf
+index 0000000..58ba2cd
 --- /dev/null
 +++ b/mt7915/mt7915_debug.h
 @@ -0,0 +1,1350 @@
@@ -1762,7 +1762,7 @@ index 00000000..58ba2cdf
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 00000000..f18c8b6c
+index 0000000..f18c8b6
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
 @@ -0,0 +1,2923 @@
@@ -4691,7 +4691,7 @@ index 00000000..f18c8b6c
 +#endif
 diff --git a/mt7915/mtk_mcu.c b/mt7915/mtk_mcu.c
 new file mode 100644
-index 00000000..145fe785
+index 0000000..145fe78
 --- /dev/null
 +++ b/mt7915/mtk_mcu.c
 @@ -0,0 +1,51 @@
@@ -4747,7 +4747,7 @@ index 00000000..145fe785
 +				 sizeof(req), true);
 +}
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a105..3d51d9ec 100644
+index e5d4a10..3d51d9e 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)
@@ -4861,5 +4861,5 @@ index e5d4a105..3d51d9ec 100644
  	return ret;
  }
 -- 
-2.25.1
+2.18.0
 

@@ -1,16 +1,16 @@
-From 5a498af3e4f021f1554c7ffa57272aa89dcdad14 Mon Sep 17 00:00:00 2001
+From 2692efbe9806361dd71197bdbe3f30ccfcffdb70 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Jun 2022 19:46:26 +0800
-Subject: [PATCH 01/11] mt76: mt7915: rework testmode init registers
+Subject: [PATCH 01/12] mt76: mt7915: rework testmode init registers
 
 ---
- .../net/wireless/mediatek/mt76/mt7915/mmio.c  |  2 +
- .../net/wireless/mediatek/mt76/mt7915/regs.h  | 16 +++++-
- .../wireless/mediatek/mt76/mt7915/testmode.c  | 52 ++++++++++++++-----
+ mt7915/mmio.c     |  2 ++
+ mt7915/regs.h     | 16 +++++++++++++--
+ mt7915/testmode.c | 52 ++++++++++++++++++++++++++++++++++-------------
  3 files changed, 54 insertions(+), 16 deletions(-)
 
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index c2646d24..a8e3810e 100644
+index c2646d2..a8e3810 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -59,6 +59,7 @@ static const u32 mt7986_reg[] = {
@@ -30,7 +30,7 @@ index c2646d24..a8e3810e 100644
  	[TMAC_ODTR]		= 0x0cc,
  	[TMAC_ATCR]		= 0x00c,
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 77fd448b..c7c9e411 100644
+index 77fd448..c7c9e41 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -36,6 +36,7 @@ enum reg_rev {
@@ -78,7 +78,7 @@ index 77fd448b..c7c9e411 100644
  #define MT_AGG_ACR0(_band)		MT_WF_AGG(_band, __OFFS(AGG_ACR0))
  #define MT_AGG_ACR_CFEND_RATE		GENMASK(13, 0)
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 0f5c1e5b..20c593d0 100644
+index 0f5c1e5..20c593d 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -30,7 +30,7 @@ struct reg_band {
@@ -175,5 +175,5 @@ index 0f5c1e5b..20c593d0 100644
  
  static void
 -- 
-2.25.1
+2.18.0
 

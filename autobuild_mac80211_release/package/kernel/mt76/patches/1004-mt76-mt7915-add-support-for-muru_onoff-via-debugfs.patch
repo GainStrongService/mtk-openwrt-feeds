@@ -1,19 +1,18 @@
-From bc23057e7ba6d15de91adc11be0093e672a87dbb Mon Sep 17 00:00:00 2001
+From 7bcfae1d261805e54b6e27091dffd4706c4dc046 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Wed, 22 Jun 2022 10:45:53 +0800
 Subject: [PATCH 1004/1008] mt76: mt7915: add support for muru_onoff via
  debugfs
 
 ---
- .../net/wireless/mediatek/mt76/mt7915/init.c  |  1 +
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   |  9 +++--
- .../net/wireless/mediatek/mt76/mt7915/mcu.h   |  6 ++++
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |  1 +
- .../mediatek/mt76/mt7915/mtk_debugfs.c        | 33 +++++++++++++++++++
- 5 files changed, 48 insertions(+), 2 deletions(-)
+ mt7915/init.c        |  1 +
+ mt7915/mcu.c         |  9 +++++++--
+ mt7915/mcu.h         |  6 ++++++
+ mt7915/mtk_debugfs.c | 33 +++++++++++++++++++++++++++++++++
+ 4 files changed, 47 insertions(+), 2 deletions(-)
 
 diff --git a/mt7915/init.c b/mt7915/init.c
-index fa9568ca..6e2a1c13 100644
+index fa9568c..6e2a1c1 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -577,6 +577,7 @@ static void mt7915_init_work(struct work_struct *work)
@@ -25,7 +24,7 @@ index fa9568ca..6e2a1c13 100644
  
  void mt7915_wfsys_reset(struct mt7915_dev *dev)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 5e87db13..3ee1db4e 100644
+index 0941bf3..34cf3e6 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -856,13 +856,18 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -37,7 +36,7 @@ index 5e87db13..3ee1db4e 100644
  			       mvif->cap.vht_mu_ebfer ||
 -			       mvif->cap.vht_mu_ebfee;
 +			       mvif->cap.vht_mu_ebfee) &&
-+			       !!(dev->dbg.muru_onoff & MUMIMO_DL);
++				   !!(dev->dbg.muru_onoff & MUMIMO_DL);
  	if (!is_mt7915(&dev->mt76))
  		muru->cfg.mimo_ul_en = true;
  	muru->cfg.ofdma_dl_en = true;
@@ -50,7 +49,7 @@ index 5e87db13..3ee1db4e 100644
  		muru->mimo_dl.vht_mu_bfee =
  			!!(sta->vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index ec8887b5..92715b97 100644
+index ec8887b..07c1f2b 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -552,4 +552,10 @@ struct csi_data {
@@ -58,26 +57,14 @@ index ec8887b5..92715b97 100644
  #endif
  
 +/* MURU */
-+#define OFDMA_DL			BIT(0)
-+#define OFDMA_UL			BIT(1)
-+#define MUMIMO_DL			BIT(2)
-+#define MUMIMO_UL			BIT(3)
++#define OFDMA_DL                       BIT(0)
++#define OFDMA_UL                       BIT(1)
++#define MUMIMO_DL                      BIT(2)
++#define MUMIMO_UL                      BIT(3)
 +
  #endif
-diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index b2b9b7ec..c4f8a6ad 100644
---- a/mt7915/mt7915.h
-+++ b/mt7915/mt7915.h
-@@ -402,6 +402,7 @@ struct mt7915_dev {
- 		bool dump_rx_pkt;
- 		bool dump_rx_raw;
- 		u32 token_idx;
-+		u8 muru_onoff;
- 	} dbg;
- 	const struct mt7915_dbg_reg_desc *dbg_reg;
- #endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index ccaaea78..d2dbae45 100644
+index f18c8b6..e239df9 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2480,6 +2480,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)
@@ -86,35 +73,35 @@ index ccaaea78..d2dbae45 100644
  
 +static int mt7915_muru_onoff_get(void *data, u64 *val)
 +{
-+	struct mt7915_dev *dev = data;
++       struct mt7915_dev *dev = data;
 +
-+	*val = dev->dbg.muru_onoff;
++       *val = dev->dbg.muru_onoff;
 +
-+	printk("mumimo ul:%d, mumimo dl:%d, ofdma ul:%d, ofdma dl:%d\n",
-+		!!(dev->dbg.muru_onoff & MUMIMO_UL),
-+		!!(dev->dbg.muru_onoff & MUMIMO_DL),
-+		!!(dev->dbg.muru_onoff & OFDMA_UL),
-+		!!(dev->dbg.muru_onoff & OFDMA_DL));
++       printk("mumimo ul:%d, mumimo dl:%d, ofdma ul:%d, ofdma dl:%d\n",
++               !!(dev->dbg.muru_onoff & MUMIMO_UL),
++               !!(dev->dbg.muru_onoff & MUMIMO_DL),
++               !!(dev->dbg.muru_onoff & OFDMA_UL),
++               !!(dev->dbg.muru_onoff & OFDMA_DL));
 +
-+	return 0;
++       return 0;
 +}
 +
 +static int mt7915_muru_onoff_set(void *data, u64 val)
 +{
-+	struct mt7915_dev *dev = data;
++       struct mt7915_dev *dev = data;
 +
-+	if (val > 15) {
-+		printk("Wrong value! The value is between 0 ~ 15.\n");
-+		goto exit;
-+	}
++       if (val > 15) {
++               printk("Wrong value! The value is between 0 ~ 15.\n");
++               goto exit;
++       }
 +
-+	dev->dbg.muru_onoff = val;
++       dev->dbg.muru_onoff = val;
 +exit:
-+	return 0;
++       return 0;
 +}
 +
 +DEFINE_DEBUGFS_ATTRIBUTE(fops_muru_onoff, mt7915_muru_onoff_get,
-+			mt7915_muru_onoff_set, "%llx\n");
++                       mt7915_muru_onoff_set, "%llx\n");
 +
  static int mt7915_amsduinfo_read(struct seq_file *s, void *data)
  {
@@ -128,5 +115,5 @@ index ccaaea78..d2dbae45 100644
  			    &fops_fw_debug_module);
  	debugfs_create_file("fw_debug_level", 0600, dir, dev,
 -- 
-2.25.1
+2.18.0
 

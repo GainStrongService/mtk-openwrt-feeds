@@ -1,23 +1,23 @@
-From 76cd7f08cc80b561d83cc265dccf531721792964 Mon Sep 17 00:00:00 2001
+From a050a241c404f9a56ff84a972b80f744750731ca Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 6 Jun 2022 20:15:51 +0800
 Subject: [PATCH 1005/1008] mt76: certification patches
 
 ---
- .../wireless/mediatek/mt76/mt76_connac_mcu.h  |   1 +
- .../net/wireless/mediatek/mt76/mt7915/init.c  |   7 +-
- .../net/wireless/mediatek/mt76/mt7915/mac.c   |  23 +
- .../net/wireless/mediatek/mt76/mt7915/main.c  |  15 +-
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   | 466 ++++++++++++++++++
- .../net/wireless/mediatek/mt76/mt7915/mcu.h   | 209 +++++++-
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |  13 +
- .../mediatek/mt76/mt7915/mtk_debugfs.c        |   7 +-
- .../wireless/mediatek/mt76/mt7915/vendor.c    | 187 +++++++
- .../wireless/mediatek/mt76/mt7915/vendor.h    |  42 ++
- 10 files changed, 964 insertions(+), 6 deletions(-)
+ mt76_connac_mcu.h    |   1 +
+ mt7915/init.c        |   7 +-
+ mt7915/mac.c         |  23 +++
+ mt7915/main.c        |  15 +-
+ mt7915/mcu.c         | 466 +++++++++++++++++++++++++++++++++++++++++++
+ mt7915/mcu.h         | 207 ++++++++++++++++++-
+ mt7915/mt7915.h      |  13 ++
+ mt7915/mtk_debugfs.c |   7 +-
+ mt7915/vendor.c      | 187 +++++++++++++++++
+ mt7915/vendor.h      |  42 ++++
+ 10 files changed, 962 insertions(+), 6 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 42425f75..32e540cc 100644
+index 42425f7..32e540c 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1144,6 +1144,7 @@ enum {
@@ -29,7 +29,7 @@ index 42425f75..32e540cc 100644
  };
  
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 6e2a1c13..02d1b6d8 100644
+index 6e2a1c1..02d1b6d 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -372,12 +372,17 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
@@ -52,7 +52,7 @@ index 6e2a1c13..02d1b6d8 100644
  			IEEE80211_HT_CAP_LDPC_CODING |
  			IEEE80211_HT_CAP_MAX_AMSDU;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 69c226f0..9058c750 100644
+index 69c226f..9058c75 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -7,6 +7,7 @@
@@ -100,10 +100,10 @@ index 69c226f0..9058c750 100644
  			       IEEE80211_RC_NSS_CHANGED |
  			       IEEE80211_RC_BW_CHANGED))
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 91c4370a..90543596 100644
+index e461e0f..c2304db 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -649,6 +649,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -653,6 +653,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
  	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
  	bool ext_phy = mvif->phy != &dev->phy;
@@ -113,7 +113,7 @@ index 91c4370a..90543596 100644
  	int ret, idx;
  
  	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
-@@ -674,7 +677,17 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -678,7 +681,17 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  #ifdef CONFIG_MTK_VENDOR
  	mt7915_vendor_amnt_sta_remove(mvif->phy, sta);
  #endif
@@ -133,10 +133,10 @@ index 91c4370a..90543596 100644
  
  void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 3ee1db4e..6ae4d159 100644
+index 34cf3e6..759d615 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3558,6 +3558,472 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
+@@ -3560,6 +3560,472 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
  
  	return 0;
  }
@@ -610,7 +610,7 @@ index 3ee1db4e..6ae4d159 100644
  
  #ifdef MTK_DEBUG
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 92715b97..7418f78c 100644
+index 07c1f2b..7b1a521 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -396,9 +396,13 @@ enum {
@@ -638,100 +638,99 @@ index 92715b97..7418f78c 100644
  enum {
  	THERMAL_PROTECT_PARAMETER_CTRL,
  	THERMAL_PROTECT_BASIC_INFO,
-@@ -557,5 +564,205 @@ struct csi_data {
- #define OFDMA_UL			BIT(1)
- #define MUMIMO_DL			BIT(2)
- #define MUMIMO_UL			BIT(3)
-+#define MUMIMO_DL_CERT			BIT(4)
-+
+@@ -557,5 +564,203 @@ struct csi_data {
+ #define OFDMA_UL                       BIT(1)
+ #define MUMIMO_DL                      BIT(2)
+ #define MUMIMO_UL                      BIT(3)
++#define MUMIMO_DL_CERT                 BIT(4)
 +
 +#ifdef CONFIG_MTK_VENDOR
 +struct mt7915_muru_comm {
-+	u8 ppdu_format;
-+	u8 sch_type;
-+	u8 band;
-+	u8 wmm_idx;
-+	u8 spe_idx;
-+	u8 proc_type;
++   u8 ppdu_format;
++   u8 sch_type;
++   u8 band;
++   u8 wmm_idx;
++   u8 spe_idx;
++   u8 proc_type;
 +};
 +
 +struct mt7915_muru_dl {
-+	u8 user_num;
-+	u8 tx_mode;
-+	u8 bw;
-+	u8 gi;
-+	u8 ltf;
-+	/* sigB */
-+	u8 mcs;
-+	u8 dcm;
-+	u8 cmprs;
++   u8 user_num;
++   u8 tx_mode;
++   u8 bw;
++   u8 gi;
++   u8 ltf;
++   /* sigB */
++   u8 mcs;
++   u8 dcm;
++   u8 cmprs;
 +
-+	u8 ru[8];
-+	u8 c26[2];
-+	u8 ack_policy;
++   u8 ru[8];
++   u8 c26[2];
++   u8 ack_policy;
 +
-+	struct {
-+		__le16 wlan_idx;
-+		u8 ru_alloc_seg;
-+		u8 ru_idx;
-+		u8 ldpc;
-+		u8 nss;
-+		u8 mcs;
-+		u8 mu_group_idx;
-+		u8 vht_groud_id;
-+		u8 vht_up;
-+		u8 he_start_stream;
-+		u8 he_mu_spatial;
-+		u8 ack_policy;
-+		__le16 tx_power_alpha;
-+	} usr[16];
++   struct {
++	   __le16 wlan_idx;
++       u8 ru_alloc_seg;
++       u8 ru_idx;
++       u8 ldpc;
++       u8 nss;
++       u8 mcs;
++       u8 mu_group_idx;
++       u8 vht_groud_id;
++       u8 vht_up;
++       u8 he_start_stream;
++       u8 he_mu_spatial;
++       u8 ack_policy;
++       __le16 tx_power_alpha;
++   } usr[16];
 +};
 +
 +struct mt7915_muru_ul {
-+	u8 user_num;
++   u8 user_num;
 +
-+	/* UL TX */
-+	u8 trig_type;
-+	__le16 trig_cnt;
-+	__le16 trig_intv;
-+	u8 bw;
-+	u8 gi_ltf;
-+	__le16 ul_len;
-+	u8 pad;
-+	u8 trig_ta[ETH_ALEN];
-+	u8 ru[8];
-+	u8 c26[2];
++   /* UL TX */
++   u8 trig_type;
++   __le16 trig_cnt;
++   __le16 trig_intv;
++   u8 bw;
++   u8 gi_ltf;
++   __le16 ul_len;
++   u8 pad;
++   u8 trig_ta[ETH_ALEN];
++   u8 ru[8];
++   u8 c26[2];
 +
-+	struct {
-+		__le16 wlan_idx;
-+		u8 ru_alloc;
-+		u8 ru_idx;
-+		u8 ldpc;
-+		u8 nss;
-+		u8 mcs;
-+		u8 target_rssi;
-+		__le32 trig_pkt_size;
-+	} usr[16];
++   struct {
++       __le16 wlan_idx;
++       u8 ru_alloc;
++       u8 ru_idx;
++       u8 ldpc;
++       u8 nss;
++       u8 mcs;
++       u8 target_rssi;
++       __le32 trig_pkt_size;
++   } usr[16];
 +
-+	/* HE TB RX Debug */
-+	__le32 rx_hetb_nonsf_en_bitmap;
-+	__le32 rx_hetb_cfg[2];
++   /* HE TB RX Debug */
++   __le32 rx_hetb_nonsf_en_bitmap;
++   __le32 rx_hetb_cfg[2];
 +
-+	/* DL TX */
-+	u8 ba_type;
++   /* DL TX */
++   u8 ba_type;
 +};
 +
 +struct mt7915_muru {
-+	__le32 cfg_comm;
-+	__le32 cfg_dl;
-+	__le32 cfg_ul;
++   __le32 cfg_comm;
++   __le32 cfg_dl;
++   __le32 cfg_ul;
 +
-+	struct mt7915_muru_comm comm;
-+	struct mt7915_muru_dl dl;
-+	struct mt7915_muru_ul ul;
++   struct mt7915_muru_comm comm;
++   struct mt7915_muru_dl dl;
++   struct mt7915_muru_ul ul;
 +};
 +
-+#define MURU_PPDU_HE_TRIG		BIT(2)
++#define MURU_PPDU_HE_TRIG      BIT(2)
 +#define MURU_PPDU_HE_MU                 BIT(3)
 +
 +#define MURU_OFDMA_SCH_TYPE_DL          BIT(0)
@@ -741,114 +740,113 @@ index 92715b97..7418f78c 100644
 +#define MURU_COMM_PPDU_FMT              BIT(0)
 +#define MURU_COMM_SCH_TYPE              BIT(1)
 +#define MURU_COMM_SET                   (MURU_COMM_PPDU_FMT | MURU_COMM_SCH_TYPE)
-+
 +/* DL&UL User config*/
 +#define MURU_USER_CNT                   BIT(4)
 +
 +enum {
-+	CAPI_SU,
-+	CAPI_MU,
-+	CAPI_ER_SU,
-+	CAPI_TB,
-+	CAPI_LEGACY
++   CAPI_SU,
++   CAPI_MU,
++   CAPI_ER_SU,
++   CAPI_TB,
++   CAPI_LEGACY
 +};
 +
 +enum {
-+	CAPI_BASIC,
-+	CAPI_BRP,
-+	CAPI_MU_BAR,
-+	CAPI_MU_RTS,
-+	CAPI_BSRP,
-+	CAPI_GCR_MU_BAR,
-+	CAPI_BQRP,
-+	CAPI_NDP_FRP
++   CAPI_BASIC,
++   CAPI_BRP,
++   CAPI_MU_BAR,
++   CAPI_MU_RTS,
++   CAPI_BSRP,
++   CAPI_GCR_MU_BAR,
++   CAPI_BQRP,
++   CAPI_NDP_FRP
 +};
 +
 +enum {
-+	MURU_SET_BSRP_CTRL = 1,
-+	MURU_SET_SUTX = 16,
-+	MURU_SET_MUMIMO_CTRL = 17,
-+	MURU_SET_MANUAL_CFG = 100,
-+	MURU_SET_MU_DL_ACK_POLICY = 200,
-+	MURU_SET_TRIG_TYPE = 201,
-+	MURU_SET_20M_DYN_ALGO = 202,
-+	MURU_SET_PROT_FRAME_THR = 204,
-+	MURU_SET_CERT_MU_EDCA_OVERRIDE = 205,
++   MURU_SET_BSRP_CTRL = 1,
++   MURU_SET_SUTX = 16,
++   MURU_SET_MUMIMO_CTRL = 17,
++   MURU_SET_MANUAL_CFG = 100,
++   MURU_SET_MU_DL_ACK_POLICY = 200,
++   MURU_SET_TRIG_TYPE = 201,
++   MURU_SET_20M_DYN_ALGO = 202,
++   MURU_SET_PROT_FRAME_THR = 204,
++   MURU_SET_CERT_MU_EDCA_OVERRIDE = 205,
 +};
 +
 +enum {
-+	MU_DL_ACK_POLICY_MU_BAR = 3,
-+	MU_DL_ACK_POLICY_TF_FOR_ACK = 4,
-+	MU_DL_ACK_POLICY_SU_BAR = 5,
++   MU_DL_ACK_POLICY_MU_BAR = 3,
++   MU_DL_ACK_POLICY_TF_FOR_ACK = 4,
++  MU_DL_ACK_POLICY_SU_BAR = 5,
 +};
 +
 +enum {
-+	BF_SOUNDING_OFF = 0,
-+	BF_SOUNDING_ON,
-+	BF_DATA_PACKET_APPLY,
-+	BF_PFMU_MEM_ALLOCATE,
-+	BF_PFMU_MEM_RELEASE,
-+	BF_PFMU_TAG_READ,
-+	BF_PFMU_TAG_WRITE,
-+	BF_PROFILE_READ,
-+	BF_PROFILE_WRITE,
-+	BF_PN_READ,
-+	BF_PN_WRITE,
-+	BF_PFMU_MEM_ALLOC_MAP_READ,
-+	BF_AID_SET,
-+	BF_STA_REC_READ,
-+	BF_PHASE_CALIBRATION,
-+	BF_IBF_PHASE_COMP,
-+	BF_LNA_GAIN_CONFIG,
-+	BF_PROFILE_WRITE_20M_ALL,
-+	BF_APCLIENT_CLUSTER,
-+	BF_AWARE_CTRL,
-+	BF_HW_ENABLE_STATUS_UPDATE,
-+	BF_REPT_CLONED_STA_TO_NORMAL_STA,
-+	BF_GET_QD,
-+	BF_BFEE_HW_CTRL,
-+	BF_PFMU_SW_TAG_WRITE,
-+	BF_MOD_EN_CTRL,
-+	BF_DYNSND_EN_INTR,
-+	BF_DYNSND_CFG_DMCS_TH,
-+	BF_DYNSND_EN_PFID_INTR,
-+	BF_CONFIG,
-+	BF_PFMU_DATA_WRITE,
-+	BF_FBRPT_DBG_INFO_READ,
-+	BF_CMD_TXSND_INFO,
-+	BF_CMD_PLY_INFO,
-+	BF_CMD_MU_METRIC,
-+	BF_CMD_TXCMD,
-+	BF_CMD_CFG_PHY,
-+	BF_CMD_SND_CNT,
-+	BF_CMD_MAX
++   BF_SOUNDING_OFF = 0,
++   BF_SOUNDING_ON,
++   BF_DATA_PACKET_APPLY,
++   BF_PFMU_MEM_ALLOCATE,
++   BF_PFMU_MEM_RELEASE,
++   BF_PFMU_TAG_READ,
++   BF_PFMU_TAG_WRITE,
++   BF_PROFILE_READ,
++   BF_PROFILE_WRITE,
++   BF_PN_READ,
++   BF_PN_WRITE,
++   BF_PFMU_MEM_ALLOC_MAP_READ,
++   BF_AID_SET,
++   BF_STA_REC_READ,
++   BF_PHASE_CALIBRATION,
++   BF_IBF_PHASE_COMP,
++   BF_LNA_GAIN_CONFIG,
++   BF_PROFILE_WRITE_20M_ALL,
++   BF_APCLIENT_CLUSTER,
++   BF_AWARE_CTRL,
++   BF_HW_ENABLE_STATUS_UPDATE,
++   BF_REPT_CLONED_STA_TO_NORMAL_STA,
++   BF_GET_QD,
++   BF_BFEE_HW_CTRL,
++   BF_PFMU_SW_TAG_WRITE,
++   BF_MOD_EN_CTRL,
++   BF_DYNSND_EN_INTR,
++   BF_DYNSND_CFG_DMCS_TH,
++   BF_DYNSND_EN_PFID_INTR,
++   BF_CONFIG,
++   BF_PFMU_DATA_WRITE,
++   BF_FBRPT_DBG_INFO_READ,
++   BF_CMD_TXSND_INFO,
++   BF_CMD_PLY_INFO,
++   BF_CMD_MU_METRIC,
++   BF_CMD_TXCMD,
++   BF_CMD_CFG_PHY,
++   BF_CMD_SND_CNT,
++   BF_CMD_MAX
 +};
 +
 +enum {
-+	BF_SND_READ_INFO = 0,
-+	BF_SND_CFG_OPT,
-+	BF_SND_CFG_INTV,
-+	BF_SND_STA_STOP,
-+	BF_SND_CFG_MAX_STA,
-+	BF_SND_CFG_BFRP,
-+	BF_SND_CFG_INF
++   BF_SND_READ_INFO = 0,
++   BF_SND_CFG_OPT,
++   BF_SND_CFG_INTV,
++   BF_SND_STA_STOP,
++   BF_SND_CFG_MAX_STA,
++   BF_SND_CFG_BFRP,
++   BF_SND_CFG_INF
 +};
 +
 +enum {
-+	MURU_UPDATE = 0,
-+	MURU_DL_USER_CNT,
-+	MURU_UL_USER_CNT,
-+	MURU_DL_INIT,
-+	MURU_UL_INIT,
++   MURU_UPDATE = 0,
++   MURU_DL_USER_CNT,
++   MURU_UL_USER_CNT,
++   MURU_DL_INIT,
++   MURU_UL_INIT,
 +};
 +#endif
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index c4f8a6ad..6c6c2424 100644
+index d702532..11e92fe 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -661,6 +661,19 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -662,6 +662,19 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  #endif
  
  #ifdef CONFIG_MTK_VENDOR
@@ -869,32 +867,32 @@ index c4f8a6ad..6c6c2424 100644
  int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
  			u8 cfg, u8 v1, u32 v2, u8 *mac_addr);
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index d2dbae45..815be6d8 100644
+index e239df9..222268f 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2486,7 +2486,8 @@ static int mt7915_muru_onoff_get(void *data, u64 *val)
  
- 	*val = dev->dbg.muru_onoff;
+        *val = dev->dbg.muru_onoff;
  
--	printk("mumimo ul:%d, mumimo dl:%d, ofdma ul:%d, ofdma dl:%d\n",
-+	printk("cert mumimo dl:%d, mumimo ul:%d, mumimo dl:%d, ofdma ul:%d, ofdma dl:%d\n",
-+		!!(dev->dbg.muru_onoff & MUMIMO_DL_CERT),
- 		!!(dev->dbg.muru_onoff & MUMIMO_UL),
- 		!!(dev->dbg.muru_onoff & MUMIMO_DL),
- 		!!(dev->dbg.muru_onoff & OFDMA_UL),
+-       printk("mumimo ul:%d, mumimo dl:%d, ofdma ul:%d, ofdma dl:%d\n",
++	   printk("cert mumimo dl:%d, mumimo ul:%d, mumimo dl:%d, ofdma ul:%d, ofdma dl:%d\n",
++               !!(dev->dbg.muru_onoff & MUMIMO_DL_CERT),
+                !!(dev->dbg.muru_onoff & MUMIMO_UL),
+                !!(dev->dbg.muru_onoff & MUMIMO_DL),
+                !!(dev->dbg.muru_onoff & OFDMA_UL),
 @@ -2499,8 +2500,8 @@ static int mt7915_muru_onoff_set(void *data, u64 val)
  {
- 	struct mt7915_dev *dev = data;
+        struct mt7915_dev *dev = data;
  
--	if (val > 15) {
--		printk("Wrong value! The value is between 0 ~ 15.\n");
-+	if (val > 31) {
-+		printk("Wrong value! The value is between 0 ~ 31.\n");
- 		goto exit;
- 	}
+-       if (val > 15) {
+-               printk("Wrong value! The value is between 0 ~ 15.\n");
++       if (val > 31) {
++               printk("Wrong value! The value is between 0 ~ 31.\n");
+                goto exit;
+        }
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index b94d787e..7456c577 100644
+index b94d787..7456c57 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -22,6 +22,29 @@ csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
@@ -1106,7 +1104,7 @@ index b94d787e..7456c577 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 976817f3..1b08321c 100644
+index 976817f..1b08321 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -6,6 +6,48 @@
@@ -1159,5 +1157,5 @@ index 976817f3..1b08321c 100644
  
  enum mtk_vendor_attr_csi_ctrl {
 -- 
-2.25.1
+2.18.0
 
