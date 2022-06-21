@@ -39,6 +39,7 @@ enum mtk_nl80211_vendor_subcmds {
 	MTK_NL80211_VENDOR_SUBCMD_RFEATURE_CTRL = 0xc3,
 	MTK_NL80211_VENDOR_SUBCMD_WIRELESS_CTRL = 0xc4,
 	MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL = 0xc5,
+	MTK_NL80211_VENDOR_SUBCMD_PHY_CAPA_CTRL = 0xc6,
 };
 
 enum mtk_vendor_attr_csi_ctrl {
@@ -173,6 +174,30 @@ enum mtk_vendor_attr_rfeature_ctrl {
 		NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL - 1
 };
 
+enum mtk_vendor_attr_phy_capa_ctrl {
+	MTK_VENDOR_ATTR_PHY_CAPA_CTRL_UNSPEC,
+
+	MTK_VENDOR_ATTR_PHY_CAPA_CTRL_SET,
+	MTK_VENDOR_ATTR_PHY_CAPA_CTRL_DUMP,
+
+	/* keep last */
+	NUM_MTK_VENDOR_ATTRS_PHY_CAPA_CTRL,
+	MTK_VENDOR_ATTR_PHY_CAPA_CTRL_MAX =
+		NUM_MTK_VENDOR_ATTRS_PHY_CAPA_CTRL - 1
+};
+
+enum mtk_vendor_attr_phy_capa_dump {
+	MTK_VENDOR_ATTR_PHY_CAPA_DUMP_UNSPEC,
+
+	MTK_VENDOR_ATTR_PHY_CAPA_DUMP_MAX_SUPPORTED_BSS,
+	MTK_VENDOR_ATTR_PHY_CAPA_DUMP_MAX_SUPPORTED_STA,
+
+	/* keep last */
+	NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP,
+	MTK_VENDOR_ATTR_PHY_CAPA_DUMP_MAX =
+		NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP - 1
+};
+
 #define CSI_MAX_COUNT 256
 #define ETH_ALEN 6
 
@@ -211,4 +236,6 @@ int mt76_ap_rfeatures_set(int idx, int argc, char **argv);
 int mt76_ap_wireless_set(int idx, int argc, char **argv);
 
 int mt76_hemu_onoff_set(int idx, int argc, char **argv);
+
+int mt76_phy_capa_dump(int idx, int argc, char **argv);
 #endif

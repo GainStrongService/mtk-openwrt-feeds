@@ -33,6 +33,8 @@ void usage(void)
 		"set ap_wireless cert=<enable>",
 
 		"set hemu onoff=<val> (bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0))",
+
+		"dump phy_capa",
 	};
 	int i;
 
@@ -68,6 +70,8 @@ int main(int argc, char **argv)
 			ret = mt76_csi_dump(if_idx, argc, argv);
 		else if (!strncmp(subcmd, "amnt", 4))
 			ret = mt76_amnt_dump(if_idx, argc, argv);
+		else if (!strncmp(subcmd, "phy_capa", 4))
+			ret = mt76_phy_capa_dump(if_idx, argc, argv);
 	} else if (!strncmp(cmd, "set", 3)) {
 		if (!strncmp(subcmd, "csi", 3))
 			ret = mt76_csi_set(if_idx, argc, argv);
