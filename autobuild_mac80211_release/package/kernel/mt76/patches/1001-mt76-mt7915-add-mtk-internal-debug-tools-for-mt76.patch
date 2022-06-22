@@ -1,21 +1,22 @@
-From 6bde2bca6b391d6e7e0b5d8599eedc136354e5c5 Mon Sep 17 00:00:00 2001
+From 66334b2b6ed1d15fc0ac2d66c81fcbc51eb65825 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
-Subject: [PATCH 1001/1008] mt76: mt7915: add mtk internal debug tools for mt76
+Subject: [PATCH] mt76: mt7915: add mtk internal debug tools for mt76
 
 ---
  .../wireless/mediatek/mt76/mt76_connac_mcu.h  |    6 +
  .../wireless/mediatek/mt76/mt7915/Makefile    |    2 +-
  .../wireless/mediatek/mt76/mt7915/debugfs.c   |   73 +-
  .../net/wireless/mediatek/mt76/mt7915/mac.c   |   14 +
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   |   42 +
+ .../net/wireless/mediatek/mt76/mt7915/main.c  |    4 +
+ .../net/wireless/mediatek/mt76/mt7915/mcu.c   |   44 +
  .../net/wireless/mediatek/mt76/mt7915/mcu.h   |    4 +
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |   41 +
+ .../wireless/mediatek/mt76/mt7915/mt7915.h    |   43 +
  .../mediatek/mt76/mt7915/mt7915_debug.h       | 1350 ++++++++
- .../mediatek/mt76/mt7915/mtk_debugfs.c        | 2921 +++++++++++++++++
+ .../mediatek/mt76/mt7915/mtk_debugfs.c        | 2923 +++++++++++++++++
  .../wireless/mediatek/mt76/mt7915/mtk_mcu.c   |   51 +
  .../net/wireless/mediatek/mt76/tools/fwlog.c  |   44 +-
- 11 files changed, 4535 insertions(+), 13 deletions(-)
+ 12 files changed, 4545 insertions(+), 13 deletions(-)
  mode change 100644 => 100755 drivers/net/wireless/mediatek/mt76/mt7915/mcu.c
  create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mt7915_debug.h
  create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mtk_debugfs.c
@@ -235,10 +236,26 @@ index 6a4da8e6..c332e0a0 100644
  	return 0;
  }
  
+diff --git a/mt7915/main.c b/mt7915/main.c
+index 39587992..929c726d 100644
+--- a/mt7915/main.c
++++ b/mt7915/main.c
+@@ -62,7 +62,11 @@ static int mt7915_start(struct ieee80211_hw *hw)
+ 	if (ret)
+ 		goto out;
+ 
++#ifdef MTK_DEBUG
++	ret = mt7915_mcu_set_sku_en(phy, !dev->dbg.sku_disable);
++#else
+ 	ret = mt7915_mcu_set_sku_en(phy, true);
++#endif
+ 	if (ret)
+ 		goto out;
+ 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
 old mode 100644
 new mode 100755
-index a726021e..e4c5b40c
+index a726021e..4ff13c7a
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -195,6 +195,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -253,7 +270,16 @@ index a726021e..e4c5b40c
  	return mt76_tx_queue_skb_raw(dev, mdev->q_mcu[qid], skb, 0);
  }
  
-@@ -3439,6 +3444,43 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
+@@ -3164,6 +3169,8 @@ int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable)
+ 		.sku_enable = enable,
+ 	};
+ 
++	pr_info("%s: enable = %d\n", __func__, enable);
++
+ 	return mt76_mcu_send_msg(&dev->mt76,
+ 				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL), &req,
+ 				 sizeof(req), true);
+@@ -3439,6 +3446,43 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
  				 &req, sizeof(req), true);
  }
  
@@ -313,7 +339,7 @@ index b82f2581..b2c51bfb 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index b6a6aa7f..2bc0e915 100644
+index b6a6aa7f..594f2fb2 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -324,7 +350,7 @@ index b6a6aa7f..2bc0e915 100644
  #define MT7915_MAX_INTERFACES		19
  #define MT7915_WTBL_SIZE		288
  #define MT7916_WTBL_SIZE		544
-@@ -338,6 +339,27 @@ struct mt7915_dev {
+@@ -338,6 +339,29 @@ struct mt7915_dev {
  	struct reset_control *rstc;
  	void __iomem *dcm;
  	void __iomem *sku;
@@ -346,13 +372,15 @@ index b6a6aa7f..2bc0e915 100644
 +		bool dump_rx_pkt;
 +		bool dump_rx_raw;
 +		u32 token_idx;
++		u8 sku_disable;
++		u8 muru_onoff;
 +	} dbg;
 +	const struct mt7915_dbg_reg_desc *dbg_reg;
 +#endif
  };
  
  enum {
-@@ -592,4 +614,23 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -592,4 +616,23 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			    struct ieee80211_sta *sta, struct dentry *dir);
  #endif
  
@@ -1734,10 +1762,10 @@ index 00000000..58ba2cdf
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 00000000..ccaaea78
+index 00000000..f18c8b6c
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
-@@ -0,0 +1,2921 @@
+@@ -0,0 +1,2923 @@
 +#include<linux/inet.h>
 +#include "mt7915.h"
 +#include "mt7915_debug.h"
@@ -4655,6 +4683,8 @@ index 00000000..ccaaea78
 +
 +	debugfs_create_file("txpower_level", 0400, dir, dev,
 +			    &fops_txpower_level);
++
++	debugfs_create_u8("sku_disable", 0600, dir, &dev->dbg.sku_disable);
 +
 +	return 0;
 +}
