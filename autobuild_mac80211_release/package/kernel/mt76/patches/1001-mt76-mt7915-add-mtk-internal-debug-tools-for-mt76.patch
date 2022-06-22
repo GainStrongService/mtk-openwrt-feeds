@@ -1,31 +1,31 @@
-From a9cf0fd711fdccf35e6171dd4aba0eb7f6588148 Mon Sep 17 00:00:00 2001
-From: Bo Jiao <Bo.Jiao@mediatek.com>
-Date: Mon, 6 Jun 2022 20:08:58 +0800
-Subject: [PATCH] mt76: mt7915: add mtk internal debug tools for mt76
+From 6bde2bca6b391d6e7e0b5d8599eedc136354e5c5 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Wed, 22 Jun 2022 10:39:47 +0800
+Subject: [PATCH 1001/1008] mt76: mt7915: add mtk internal debug tools for mt76
 
 ---
- mt76_connac_mcu.h     |    6 +
- mt7915/Makefile       |    2 +-
- mt7915/debugfs.c      |   73 +-
- mt7915/mac.c          |   14 +
- mt7915/mcu.c          |   41 +
- mt7915/mcu.h          |    4 +
- mt7915/mt7915.h       |   41 +
- mt7915/mt7915_debug.h | 1350 +++++++++++++++++++
- mt7915/mtk_debugfs.c  | 2921 +++++++++++++++++++++++++++++++++++++++++
- mt7915/mtk_mcu.c      |   51 +
- tools/fwlog.c         |   44 +-
- 11 files changed, 4534 insertions(+), 13 deletions(-)
- mode change 100644 => 100755 mt7915/mcu.c
- create mode 100644 mt7915/mt7915_debug.h
- create mode 100644 mt7915/mtk_debugfs.c
- create mode 100644 mt7915/mtk_mcu.c
+ .../wireless/mediatek/mt76/mt76_connac_mcu.h  |    6 +
+ .../wireless/mediatek/mt76/mt7915/Makefile    |    2 +-
+ .../wireless/mediatek/mt76/mt7915/debugfs.c   |   73 +-
+ .../net/wireless/mediatek/mt76/mt7915/mac.c   |   14 +
+ .../net/wireless/mediatek/mt76/mt7915/mcu.c   |   42 +
+ .../net/wireless/mediatek/mt76/mt7915/mcu.h   |    4 +
+ .../wireless/mediatek/mt76/mt7915/mt7915.h    |   41 +
+ .../mediatek/mt76/mt7915/mt7915_debug.h       | 1350 ++++++++
+ .../mediatek/mt76/mt7915/mtk_debugfs.c        | 2921 +++++++++++++++++
+ .../wireless/mediatek/mt76/mt7915/mtk_mcu.c   |   51 +
+ .../net/wireless/mediatek/mt76/tools/fwlog.c  |   44 +-
+ 11 files changed, 4535 insertions(+), 13 deletions(-)
+ mode change 100644 => 100755 drivers/net/wireless/mediatek/mt76/mt7915/mcu.c
+ create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mt7915_debug.h
+ create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mtk_debugfs.c
+ create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index aa14d2d4..03134066 100644
+index e94d6706..333d3a04 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -968,6 +968,12 @@ enum {
+@@ -1119,6 +1119,12 @@ enum {
  	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
  	MCU_EXT_CMD_RXDCOC_CAL = 0x59,
  	MCU_EXT_CMD_GET_MIB_INFO = 0x5a,
@@ -197,10 +197,10 @@ index 9f21d978..0cfb6068 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index b0e86968..9e92b32f 100644
+index 6a4da8e6..c332e0a0 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -596,6 +596,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
+@@ -239,6 +239,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
  	__le16 fc = 0;
  	int idx;
  
@@ -211,7 +211,7 @@ index b0e86968..9e92b32f 100644
  	memset(status, 0, sizeof(*status));
  
  	if ((rxd1 & MT_RXD1_NORMAL_BAND_IDX) && !phy->band_idx) {
-@@ -780,6 +784,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
+@@ -421,6 +425,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
  	}
  
  	hdr_gap = (u8 *)rxd - skb->data + 2 * remove_pad;
@@ -220,9 +220,9 @@ index b0e86968..9e92b32f 100644
 +		mt7915_packet_log_to_host(dev, skb->data, skb->len, PKT_BIN_DEBUG_RX, hdr_gap);
 +#endif
  	if (hdr_trans && ieee80211_has_morefrags(fc)) {
- 		if (mt7915_reverse_frag0_hdr_trans(skb, hdr_gap))
- 			return -EINVAL;
-@@ -1358,6 +1366,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 		struct ieee80211_vif *vif;
+ 		int err;
+@@ -760,6 +768,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	tx_info->buf[1].skip_unmap = true;
  	tx_info->nbuf = MT_CT_DMA_BUF_NUM;
  
@@ -238,21 +238,22 @@ index b0e86968..9e92b32f 100644
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
 old mode 100644
 new mode 100755
-index 81559002..6ec321e1
+index a726021e..e4c5b40c
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -298,6 +298,10 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
- 		mcu_txd->s2d_index = MCU_S2D_H2N;
+@@ -195,6 +195,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+ 	else
+ 		qid = MT_MCUQ_WM;
  
- exit:
 +#ifdef MTK_DEBUG
 +	if (dev->dbg.dump_mcu_pkt)
 +		mt7915_packet_log_to_host(dev, skb->data, skb->len, PKT_BIN_DEBUG_MCU, 0);
 +#endif
- 	if (wait_seq)
- 		*wait_seq = seq;
++
+ 	return mt76_tx_queue_skb_raw(dev, mdev->q_mcu[qid], skb, 0);
+ }
  
-@@ -3733,6 +3737,43 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
+@@ -3439,6 +3444,43 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
  				 &req, sizeof(req), true);
  }
  
@@ -297,10 +298,10 @@ index 81559002..6ec321e1
  {
  	struct {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index d46c8da4..2f7007fd 100644
+index b82f2581..b2c51bfb 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -296,6 +296,10 @@ enum {
+@@ -259,6 +259,10 @@ enum {
  	MCU_WA_PARAM_PDMA_RX = 0x04,
  	MCU_WA_PARAM_CPU_UTIL = 0x0b,
  	MCU_WA_PARAM_RED = 0x0e,
@@ -312,7 +313,7 @@ index d46c8da4..2f7007fd 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index bd985e6c..001a6015 100644
+index b6a6aa7f..2bc0e915 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -321,9 +322,9 @@ index bd985e6c..001a6015 100644
  
 +#define MTK_DEBUG 1
  #define MT7915_MAX_INTERFACES		19
- #define MT7915_MAX_WMM_SETS		4
  #define MT7915_WTBL_SIZE		288
-@@ -339,6 +340,27 @@ struct mt7915_dev {
+ #define MT7916_WTBL_SIZE		544
+@@ -338,6 +339,27 @@ struct mt7915_dev {
  	struct reset_control *rstc;
  	void __iomem *dcm;
  	void __iomem *sku;
@@ -351,7 +352,7 @@ index bd985e6c..001a6015 100644
  };
  
  enum {
-@@ -608,4 +630,23 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -592,4 +614,23 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			    struct ieee80211_sta *sta, struct dentry *dir);
  #endif
  
@@ -4830,5 +4831,5 @@ index e5d4a105..3d51d9ec 100644
  	return ret;
  }
 -- 
-2.18.0
+2.25.1
 

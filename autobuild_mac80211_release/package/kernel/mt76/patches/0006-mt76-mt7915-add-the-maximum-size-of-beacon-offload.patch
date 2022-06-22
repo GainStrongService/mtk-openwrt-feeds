@@ -1,22 +1,22 @@
-From 29eed004474096aa960336f7850dc0bad49eda6a Mon Sep 17 00:00:00 2001
+From fbb9cf16ce6656345047b7c09c2bca02df9130d3 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 23 May 2022 17:09:52 +0800
-Subject: [PATCH 6/7] mt76: mt7915: add the maximum size of beacon offload
+Subject: [PATCH 06/11] mt76: mt7915: add the maximum size of beacon offload
 
 add the maximum size of beacon offload to avoid exceeding the size limit
 
 Signed-off-by: Money Wang <Money.Wang@mediatek.com>
 Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 ---
- mt7915/mcu.c | 11 +++++++++--
- mt7915/mcu.h |  3 +++
+ drivers/net/wireless/mediatek/mt76/mt7915/mcu.c | 11 +++++++++--
+ drivers/net/wireless/mediatek/mt76/mt7915/mcu.h |  3 +++
  2 files changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index bdef2b37..81559002 100644
+index f513005b..3a88638f 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2037,6 +2037,13 @@ mt7915_mcu_beacon_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vi
+@@ -1937,6 +1937,13 @@ mt7915_mcu_beacon_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vi
  	len = sizeof(*discov) + MT_TXD_SIZE + skb->len;
  	len = (len & 0x3) ? ((len | 0x3) + 1) : len;
  
@@ -30,7 +30,7 @@ index bdef2b37..81559002 100644
  	tlv = mt7915_mcu_add_nested_subtlv(rskb, BSS_INFO_BCN_DISCOV,
  					   len, &bcn->sub_ntlv, &bcn->len);
  	discov = (struct bss_info_inband_discovery *)tlv;
-@@ -2059,7 +2066,6 @@ mt7915_mcu_beacon_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vi
+@@ -1959,7 +1966,6 @@ mt7915_mcu_beacon_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vi
  int mt7915_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			  int en, u32 changed)
  {
@@ -38,7 +38,7 @@ index bdef2b37..81559002 100644
  	struct mt7915_dev *dev = mt7915_hw_dev(hw);
  	struct mt7915_phy *phy = mt7915_hw_phy(hw);
  	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
-@@ -2068,7 +2074,8 @@ int mt7915_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1968,7 +1974,8 @@ int mt7915_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	struct sk_buff *skb, *rskb;
  	struct tlv *tlv;
  	struct bss_info_bcn *bcn;
@@ -49,10 +49,10 @@ index bdef2b37..81559002 100644
  
  	if (vif->bss_conf.nontransmitted)
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 21aa9633..d46c8da4 100644
+index bd9c6dcc..b82f2581 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -490,6 +490,9 @@ enum {
+@@ -453,6 +453,9 @@ enum {
  	SER_RECOVER
  };
  
@@ -63,5 +63,5 @@ index 21aa9633..d46c8da4 100644
  					 sizeof(struct bss_info_omac) +	\
  					 sizeof(struct bss_info_basic) +\
 -- 
-2.18.0
+2.25.1
 

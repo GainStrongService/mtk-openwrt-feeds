@@ -1,19 +1,19 @@
-From eee8cdc1710c18f90b8e5345dc85a0749cffabe3 Mon Sep 17 00:00:00 2001
+From 7a1c00a4418ca3b5cf4e41aaeaca56b9f9b64b63 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Fri, 27 May 2022 15:51:48 +0800
-Subject: [PATCH 1007/1007] mt76: mt7915:add support for runtime set in-band
+Subject: [PATCH 1007/1008] mt76: mt7915:add support for runtime set in-band
  discovery
 
 Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 ---
- mt7915/mcu.c | 5 ++---
+ drivers/net/wireless/mediatek/mt76/mt7915/mcu.c | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 4a921a50..5e7b3f4a 100644
+index 34409759..a3ccc7a2 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2102,8 +2102,7 @@ mt7915_mcu_beacon_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vi
+@@ -2006,8 +2006,7 @@ mt7915_mcu_beacon_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vi
  	u8 *buf, interval;
  	int len;
  
@@ -23,7 +23,7 @@ index 4a921a50..5e7b3f4a 100644
  		interval = vif->bss_conf.fils_discovery.max_interval;
  		skb = ieee80211_get_fils_discovery_tmpl(hw, vif);
  	} else if (changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP &&
-@@ -2140,7 +2139,7 @@ mt7915_mcu_beacon_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vi
+@@ -2044,7 +2043,7 @@ mt7915_mcu_beacon_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vi
  	discov->tx_type = !!(changed & BSS_CHANGED_FILS_DISCOVERY);
  	discov->tx_interval = interval;
  	discov->prob_rsp_len = cpu_to_le16(MT_TXD_SIZE + skb->len);
@@ -33,5 +33,5 @@ index 4a921a50..5e7b3f4a 100644
  	buf = (u8 *)tlv + sizeof(*discov);
  
 -- 
-2.18.0
+2.25.1
 

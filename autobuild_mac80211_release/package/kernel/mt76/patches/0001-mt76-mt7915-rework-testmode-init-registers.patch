@@ -1,16 +1,16 @@
-From 31be26088119f67efdc8dcb79c64765abb10d356 Mon Sep 17 00:00:00 2001
+From 5a498af3e4f021f1554c7ffa57272aa89dcdad14 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Jun 2022 19:46:26 +0800
-Subject: [PATCH 1/7] mt76: mt7915: rework testmode init registers
+Subject: [PATCH 01/11] mt76: mt7915: rework testmode init registers
 
 ---
- mt7915/mmio.c     |  2 ++
- mt7915/regs.h     | 16 +++++++++++++--
- mt7915/testmode.c | 52 ++++++++++++++++++++++++++++++++++-------------
+ .../net/wireless/mediatek/mt76/mt7915/mmio.c  |  2 +
+ .../net/wireless/mediatek/mt76/mt7915/regs.h  | 16 +++++-
+ .../wireless/mediatek/mt76/mt7915/testmode.c  | 52 ++++++++++++++-----
  3 files changed, 54 insertions(+), 16 deletions(-)
 
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 46ee8a7d..71945ba9 100644
+index c2646d24..a8e3810e 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -59,6 +59,7 @@ static const u32 mt7986_reg[] = {
@@ -78,7 +78,7 @@ index 77fd448b..c7c9e411 100644
  #define MT_AGG_ACR0(_band)		MT_WF_AGG(_band, __OFFS(AGG_ACR0))
  #define MT_AGG_ACR_CFEND_RATE		GENMASK(13, 0)
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 20f63644..8d7ec9e8 100644
+index 0f5c1e5b..20c593d0 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -30,7 +30,7 @@ struct reg_band {
@@ -90,7 +90,7 @@ index 20f63644..8d7ec9e8 100644
  static struct reg_band reg_backup_list[TM_REG_MAX_ID];
  
  
-@@ -334,7 +334,7 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
+@@ -335,7 +335,7 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
  {
  	int n_regs = ARRAY_SIZE(reg_backup_list);
  	struct mt7915_dev *dev = phy->dev;
@@ -99,7 +99,7 @@ index 20f63644..8d7ec9e8 100644
  	int i;
  
  	REG_BAND_IDX(reg_backup_list[0], AGG_PCR0, 0);
-@@ -346,18 +346,28 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
+@@ -347,18 +347,28 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
  	REG_BAND(reg_backup_list[6], AGG_MRCR);
  	REG_BAND(reg_backup_list[7], TMAC_TFCR0);
  	REG_BAND(reg_backup_list[8], TMAC_TCR0);
@@ -138,7 +138,7 @@ index 20f63644..8d7ec9e8 100644
  		return;
  	}
  
-@@ -377,8 +387,13 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
+@@ -378,8 +388,13 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
  		   MT_AGG_PCR0_BW40_PROT | MT_AGG_PCR0_BW80_PROT);
  	mt76_set(dev, MT_AGG_PCR0(phy->band_idx, 0), MT_AGG_PCR0_PTA_WIN_DIS);
  
@@ -154,7 +154,7 @@ index 20f63644..8d7ec9e8 100644
  
  	mt76_clear(dev, MT_AGG_MRCR(phy->band_idx), MT_AGG_MRCR_BAR_CNT_LIMIT |
  		   MT_AGG_MRCR_LAST_RTS_CTS_RN | MT_AGG_MRCR_RTS_FAIL_LIMIT |
-@@ -391,10 +406,19 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
+@@ -392,10 +407,19 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
  
  	mt76_wr(dev, MT_TMAC_TFCR0(phy->band_idx), 0);
  	mt76_clear(dev, MT_TMAC_TCR0(phy->band_idx), MT_TMAC_TCR0_TBTT_STOP_CTRL);
@@ -175,5 +175,5 @@ index 20f63644..8d7ec9e8 100644
  
  static void
 -- 
-2.18.0
+2.25.1
 

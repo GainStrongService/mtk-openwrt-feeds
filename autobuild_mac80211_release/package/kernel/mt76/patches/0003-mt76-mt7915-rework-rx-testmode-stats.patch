@@ -1,24 +1,24 @@
-From ab8812a820a8b001d5abeb4d73b46db8e6453451 Mon Sep 17 00:00:00 2001
+From fee99898576c5a91a3d729aa9d0b88334c72ee36 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 3 Jan 2022 17:09:53 +0800
-Subject: [PATCH 3/7] mt76: mt7915: rework rx testmode stats
+Subject: [PATCH 03/11] mt76: mt7915: rework rx testmode stats
 
 ---
- mac80211.c        |  3 +-
- mt76.h            |  5 +++
- mt76_connac_mcu.h |  1 +
- mt7915/mcu.h      |  1 +
- mt7915/testmode.c | 82 ++++++++++++++++++++++++++++++++++++++---------
- mt7915/testmode.h | 28 ++++++++++++++++
- testmode.c        |  3 ++
- testmode.h        |  3 ++
+ drivers/net/wireless/mediatek/mt76/mac80211.c |  3 +-
+ drivers/net/wireless/mediatek/mt76/mt76.h     |  5 ++
+ .../wireless/mediatek/mt76/mt76_connac_mcu.h  |  1 +
+ .../net/wireless/mediatek/mt76/mt7915/mcu.h   |  1 +
+ .../wireless/mediatek/mt76/mt7915/testmode.c  | 82 +++++++++++++++----
+ .../wireless/mediatek/mt76/mt7915/testmode.h  | 28 +++++++
+ drivers/net/wireless/mediatek/mt76/testmode.c |  3 +
+ drivers/net/wireless/mediatek/mt76/testmode.h |  3 +
  8 files changed, 109 insertions(+), 17 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 5515e169..8c90db87 100644
+index 57e91565..5782244d 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -745,7 +745,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
+@@ -747,7 +747,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
  	}
  
  #ifdef CONFIG_NL80211_TESTMODE
@@ -59,10 +59,10 @@ index 4e8997c4..28720ee4 100644
  };
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 561fb036..aa14d2d4 100644
+index f1d7c05b..e94d6706 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -979,6 +979,7 @@ enum {
+@@ -1130,6 +1130,7 @@ enum {
  	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,
  	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
  	MCU_EXT_CMD_MURU_CTRL = 0x9f,
@@ -71,10 +71,10 @@ index 561fb036..aa14d2d4 100644
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 5abde482..21aa9633 100644
+index da4ee0ac..bd9c6dcc 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -28,6 +28,7 @@ struct mt7915_mcu_txd {
+@@ -9,6 +9,7 @@
  enum {
  	MCU_ATE_SET_TRX = 0x1,
  	MCU_ATE_SET_FREQ_OFFSET = 0xa,
@@ -83,7 +83,7 @@ index 5abde482..21aa9633 100644
  	MCU_ATE_CLEAN_TXQUEUE = 0x1c,
  };
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index d6f71436..e8bf616c 100644
+index b8c1da19..123ceaf9 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -133,6 +133,21 @@ mt7915_tm_clean_hwq(struct mt7915_phy *phy, u8 wcid)
@@ -108,7 +108,7 @@ index d6f71436..e8bf616c 100644
  static int
  mt7915_tm_set_slot_time(struct mt7915_phy *phy, u8 slot_time, u8 sifs)
  {
-@@ -438,6 +453,8 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
+@@ -439,6 +454,8 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
  	mt7915_mcu_add_bss_info(phy, phy->monitor_vif, en);
  	mt7915_mcu_add_sta(dev, phy->monitor_vif, NULL, en);
  
@@ -117,7 +117,7 @@ index d6f71436..e8bf616c 100644
  	if (!en)
  		mt7915_tm_set_tam_arb(phy, en, 0);
  }
-@@ -503,18 +520,63 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
+@@ -504,18 +521,63 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
  	mt7915_tm_set_trx(phy, TM_MAC_TX, en);
  }
  
@@ -184,7 +184,7 @@ index d6f71436..e8bf616c 100644
  		mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, en);
  	}
  }
-@@ -738,12 +800,8 @@ static int
+@@ -739,12 +801,8 @@ static int
  mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
  {
  	struct mt7915_phy *phy = mphy->priv;
@@ -197,7 +197,7 @@ index d6f71436..e8bf616c 100644
  
  	rx = nla_nest_start(msg, MT76_TM_STATS_ATTR_LAST_RX);
  	if (!rx)
-@@ -787,15 +845,7 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
+@@ -788,15 +846,7 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
  
  	nla_nest_end(msg, rx);
  
@@ -301,5 +301,5 @@ index 5e2792d8..89613266 100644
  	/* keep last */
  	NUM_MT76_TM_STATS_ATTRS,
 -- 
-2.18.0
+2.25.1
 

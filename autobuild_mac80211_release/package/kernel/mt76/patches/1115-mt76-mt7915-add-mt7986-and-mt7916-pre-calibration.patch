@@ -1,4 +1,4 @@
-From 33d4383e72491f7e8879c6e4334bf36c30704d18 Mon Sep 17 00:00:00 2001
+From 91a666148d2ff1a7c4cb43afd0cfb2df56cd8c71 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 20 May 2022 19:19:25 +0800
 Subject: [PATCH 1115/1115] mt76: mt7915: add mt7986 and mt7916 pre-calibration
@@ -9,9 +9,9 @@ respectively. DPD cal needs 300k.
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
- mt7915/eeprom.c | 15 +++++-----
- mt7915/eeprom.h | 27 +++++++++++++++--
- mt7915/mcu.c    | 80 ++++++++++++++++++++++++++++++++++++-------------
+ .../wireless/mediatek/mt76/mt7915/eeprom.c    | 15 ++--
+ .../wireless/mediatek/mt76/mt7915/eeprom.h    | 27 ++++++-
+ .../net/wireless/mediatek/mt76/mt7915/mcu.c   | 80 ++++++++++++++-----
  3 files changed, 90 insertions(+), 32 deletions(-)
 
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
@@ -103,10 +103,10 @@ index 7578ac6d..e924baef 100644
  
  #endif
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 17a36ea3..2b9797c8 100644
+index ee3b1d76..42f2bda5 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3203,9 +3203,10 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
+@@ -2911,9 +2911,10 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
  int mt7915_mcu_apply_group_cal(struct mt7915_dev *dev)
  {
  	u8 idx = 0, *cal = dev->cal, *eep = dev->mt76.eeprom.data;
@@ -119,7 +119,7 @@ index 17a36ea3..2b9797c8 100644
  		return 0;
  
  	/*
-@@ -3241,9 +3242,9 @@ static int mt7915_find_freq_idx(const u16 *freqs, int n_freqs, u16 cur)
+@@ -2949,9 +2950,9 @@ static int mt7915_find_freq_idx(const u16 *freqs, int n_freqs, u16 cur)
  	return -1;
  }
  
@@ -131,7 +131,7 @@ index 17a36ea3..2b9797c8 100644
  		5180, 5200, 5220, 5240,
  		5260, 5280, 5300, 5320,
  		5500, 5520, 5540, 5560,
-@@ -3251,65 +3252,102 @@ static int mt7915_dpd_freq_idx(u16 freq, u8 bw)
+@@ -2959,65 +2960,102 @@ static int mt7915_dpd_freq_idx(u16 freq, u8 bw)
  		5660, 5680, 5700, 5745,
  		5765, 5785, 5805, 5825
  	};
@@ -252,5 +252,5 @@ index 17a36ea3..2b9797c8 100644
  
  	return 0;
 -- 
-2.18.0
+2.25.1
 

@@ -1,17 +1,17 @@
-From 51cffe3e010931c8f070a101ece043072bed2512 Mon Sep 17 00:00:00 2001
+From 6d03d29acbfbfebbdf11ddedcfc6e5e9a550a84c Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 19 Jan 2022 15:51:01 +0800
-Subject: [PATCH 4/7] mt76: mt7915: fix tx descriptor
+Subject: [PATCH 04/11] mt76: mt7915: fix tx descriptor
 
 ---
- mt7915/mac.c | 1 +
+ drivers/net/wireless/mediatek/mt76/mt7915/mac.c | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index a57d2732..a3cf1b74 100644
+index b280b0e9..9092b40f 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -1002,6 +1002,7 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
+@@ -653,6 +653,7 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
  	if (td->tx_rate_ldpc || (bw > 0 && mode >= MT_PHY_TYPE_HE_SU))
  		val |= MT_TXD6_LDPC;
  
@@ -20,5 +20,5 @@ index a57d2732..a3cf1b74 100644
  	txwi[6] |= cpu_to_le32(val);
  	txwi[7] |= cpu_to_le32(FIELD_PREP(MT_TXD7_SPE_IDX,
 -- 
-2.18.0
+2.25.1
 

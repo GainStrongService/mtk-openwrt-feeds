@@ -1,19 +1,19 @@
-From ce19a95831eeb721ce52bb913ac52bd5a0d88bab Mon Sep 17 00:00:00 2001
+From 5fef96ecd9dfc88f21a41d01319dc934f66bd098 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 25 Feb 2022 09:36:01 +0800
-Subject: [PATCH 2/7] mt76: testmode: rework tx antenna setting
+Subject: [PATCH 02/11] mt76: testmode: rework tx antenna setting
 
 ---
- mt7915/mcu.c      | 7 +------
- mt7915/testmode.c | 9 +--------
- testmode.c        | 4 ++--
+ drivers/net/wireless/mediatek/mt76/mt7915/mcu.c      | 7 +------
+ drivers/net/wireless/mediatek/mt76/mt7915/testmode.c | 9 +--------
+ drivers/net/wireless/mediatek/mt76/testmode.c        | 4 ++--
  3 files changed, 4 insertions(+), 16 deletions(-)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 2a88c14b..bdef2b37 100644
+index 552352dd..f513005b 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2933,14 +2933,9 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
+@@ -2637,14 +2637,9 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
  
  #ifdef CONFIG_NL80211_TESTMODE
  	if (phy->mt76->test.tx_antenna_mask &&
@@ -30,10 +30,10 @@ index 2a88c14b..bdef2b37 100644
  #endif
  
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 8d7ec9e8..d6f71436 100644
+index 20c593d0..b8c1da19 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
-@@ -473,11 +473,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
+@@ -474,11 +474,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
  		if (td->tx_spe_idx) {
  			phy->test.spe_idx = td->tx_spe_idx;
  		} else {
@@ -46,7 +46,7 @@ index 8d7ec9e8..d6f71436 100644
  		}
  	}
  
-@@ -728,9 +724,6 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
+@@ -729,9 +725,6 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
  	    td->state == MT76_TM_STATE_OFF)
  		return 0;
  
@@ -72,5 +72,5 @@ index 382b4563..7cd00794 100644
  	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_DUTY_CYCLE],
  			   &td->tx_duty_cycle, 0, 99) ||
 -- 
-2.18.0
+2.25.1
 

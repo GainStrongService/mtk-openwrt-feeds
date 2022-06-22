@@ -1,8 +1,20 @@
+From acba3f5a21a66d8f1f46943d053e94b65762684c Mon Sep 17 00:00:00 2001
+From: MeiChia Chiu <meichia.chiu@mediatek.com>
+Date: Wed, 22 Jun 2022 10:53:43 +0800
+Subject: [PATCH 1008/1008] mt76: mt7915: add mt76 vendor muru onoff command
+
+---
+ .../net/wireless/mediatek/mt76/mt7915/mcu.c   |  7 +++
+ .../net/wireless/mediatek/mt76/mt7915/mcu.h   |  1 +
+ .../wireless/mediatek/mt76/mt7915/vendor.c    | 43 +++++++++++++++++++
+ .../wireless/mediatek/mt76/mt7915/vendor.h    | 12 ++++++
+ 4 files changed, 63 insertions(+)
+
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index d547cf6..bec0cd0 100755
+index a3ccc7a2..e9169ed5 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3871,6 +3871,13 @@ void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
+@@ -3654,6 +3654,13 @@ void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  		if (val == 0)
  			dev->dbg.muru_onoff = MUMIMO_DL_CERT | MUMIMO_DL;
  		break;
@@ -17,10 +29,10 @@ index d547cf6..bec0cd0 100755
  }
  
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index af939c4..fc382cd 100644
+index 4c5482b2..d96b1a66 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -431,6 +431,7 @@ enum {
+@@ -402,6 +402,7 @@ enum {
  #ifdef CONFIG_MTK_VENDOR
  	RATE_PARAM_FIXED_MIMO = 30,
  	RATE_PARAM_FIXED_OFDMA = 31,
@@ -29,7 +41,7 @@ index af939c4..fc382cd 100644
  };
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 7456c57..cb5b60f 100644
+index 7456c577..c7551848 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -34,6 +34,11 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -44,7 +56,7 @@ index 7456c57..cb5b60f 100644
  static const struct nla_policy
  rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
  	[MTK_VENDOR_ATTR_RFEATURE_CTRL_HE_GI] = {.type = NLA_U8 },
-@@ -942,6 +947,35 @@ static int mt7915_vendor_wireless_ctrl(struct wiphy *wiphy,
+@@ -942,6 +947,33 @@ static int mt7915_vendor_wireless_ctrl(struct wiphy *wiphy,
  	return 0;
  }
  
@@ -54,8 +66,6 @@ index 7456c57..cb5b60f 100644
 +				  int data_len)
 +{
 +	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-+	struct mt7915_phy *phy = mt7915_hw_phy(hw);
-+	struct mt7915_dev *dev = phy->dev;
 +	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_HEMU_CTRL];
 +	int err;
 +	u8 val8;
@@ -80,7 +90,7 @@ index 7456c57..cb5b60f 100644
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -988,6 +1022,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -988,6 +1020,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.doit = mt7915_vendor_wireless_ctrl,
  		.policy = wireless_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_WIRELESS_CTRL_MAX,
@@ -99,7 +109,7 @@ index 7456c57..cb5b60f 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 1b08321..b5c1420 100644
+index 1b08321c..a8e4ebf9 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -8,6 +8,7 @@ enum mtk_nl80211_vendor_subcmds {
@@ -128,3 +138,6 @@ index 1b08321..b5c1420 100644
  enum mtk_vendor_attr_rfeature_ctrl {
  	MTK_VENDOR_ATTR_RFEATURE_CTRL_UNSPEC,
  
+-- 
+2.25.1
+
