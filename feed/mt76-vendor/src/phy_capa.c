@@ -4,23 +4,23 @@
 #include "mt76-vendor.h"
 
 static struct nla_policy
-phy_capa_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
-	[MTK_VENDOR_ATTR_PHY_CAPA_CTRL_SET] = {.type = NLA_NESTED },
-	[MTK_VENDOR_ATTR_PHY_CAPA_CTRL_DUMP] = {.type = NLA_NESTED },
+phy_capa_ctrl_policy[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_CTRL] = {
+	[MTK_VENDOR_ATTR_PHY_CAPA_CTRL_SET] = { .type = NLA_NESTED },
+	[MTK_VENDOR_ATTR_PHY_CAPA_CTRL_DUMP] = { .type = NLA_NESTED },
 };
 
 static struct nla_policy
-phy_capa_dump_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
-	[MTK_VENDOR_ATTR_PHY_CAPA_DUMP_MAX_SUPPORTED_BSS] = {.type = NLA_U16 },
-	[MTK_VENDOR_ATTR_PHY_CAPA_DUMP_MAX_SUPPORTED_STA] = {.type = NLA_U16 },
+phy_capa_dump_policy[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP] = {
+	[MTK_VENDOR_ATTR_PHY_CAPA_DUMP_MAX_SUPPORTED_BSS] = { .type = NLA_U16 },
+	[MTK_VENDOR_ATTR_PHY_CAPA_DUMP_MAX_SUPPORTED_STA] = { .type = NLA_U16 },
 };
 
 static int mt76_phy_capa_dump_cb(struct nl_msg *msg, void *arg)
 {
-	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP];
+	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_CTRL];
 	struct nlattr *tb_dump[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP];
 	struct nlattr *attr;
-	int max_bss, max_sta;
+	u16 max_bss, max_sta;
 
 	attr = unl_find_attr(&unl, msg, NL80211_ATTR_VENDOR_DATA);
 	if (!attr) {
@@ -34,14 +34,14 @@ static int mt76_phy_capa_dump_cb(struct nl_msg *msg, void *arg)
 	if (!tb[MTK_VENDOR_ATTR_PHY_CAPA_CTRL_DUMP])
 		return NL_SKIP;
 
-	nla_parse_nested(tb_dump, NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP,
+	nla_parse_nested(tb_dump, MTK_VENDOR_ATTR_PHY_CAPA_DUMP_MAX,
 			 tb[MTK_VENDOR_ATTR_PHY_CAPA_CTRL_DUMP], phy_capa_dump_policy);
 
 	max_bss = nla_get_u16(tb_dump[MTK_VENDOR_ATTR_PHY_CAPA_DUMP_MAX_SUPPORTED_BSS]);
 	max_sta = nla_get_u16(tb_dump[MTK_VENDOR_ATTR_PHY_CAPA_DUMP_MAX_SUPPORTED_STA]);
 
-	printf("[vendor] Max Supported BSS=%d "
-		" Max Supported STA=%d\n", __func__, max_bss, max_sta);
+	printf("[vendor] Max Supported BSS=%u "
+		" Max Supported STA=%u\n", max_bss, max_sta);
 
 	return 0;
 }
