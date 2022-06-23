@@ -2,10 +2,10 @@
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include <linux/firmware.h>
-#include "bersa.h"
+#include "besra.h"
 #include "eeprom.h"
 
-static int bersa_eeprom_load_precal(struct bersa_dev *dev)
+static int besra_eeprom_load_precal(struct besra_dev *dev)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	u8 *eeprom = mdev->eeprom.data;
@@ -25,7 +25,7 @@ static int bersa_eeprom_load_precal(struct bersa_dev *dev)
 	return mt76_get_of_eeprom(mdev, dev->cal, MT_EE_PRECAL_V2, val);
 }
 
-static int bersa_check_eeprom(struct bersa_dev *dev)
+static int besra_check_eeprom(struct besra_dev *dev)
 {
 	u8 *eeprom = dev->mt76.eeprom.data;
 	u16 val = get_unaligned_le16(eeprom);
@@ -40,19 +40,19 @@ static int bersa_check_eeprom(struct bersa_dev *dev)
 	}
 }
 
-static char *bersa_eeprom_name(struct bersa_dev *dev)
+static char *besra_eeprom_name(struct besra_dev *dev)
 {
 	return MT7902_EEPROM_DEFAULT;
 }
 
 static int
-bersa_eeprom_load_default(struct bersa_dev *dev)
+besra_eeprom_load_default(struct besra_dev *dev)
 {
 	u8 *eeprom = dev->mt76.eeprom.data;
 	const struct firmware *fw = NULL;
 	int ret;
 
-	ret = request_firmware(&fw, bersa_eeprom_name(dev), dev->mt76.dev);
+	ret = request_firmware(&fw, besra_eeprom_name(dev), dev->mt76.dev);
 	if (ret)
 		return ret;
 
@@ -62,7 +62,7 @@ bersa_eeprom_load_default(struct bersa_dev *dev)
 		goto out;
 	}
 
-	memcpy(eeprom, fw->data, BERSA_EEPROM_SIZE);
+	memcpy(eeprom, fw->data, BESRA_EEPROM_SIZE);
 	dev->flash_mode = true;
 
 out:
@@ -71,11 +71,11 @@ out:
 	return ret;
 }
 
-static int bersa_eeprom_load(struct bersa_dev *dev)
+static int besra_eeprom_load(struct besra_dev *dev)
 {
 	int ret;
 
-	ret = mt76_eeprom_init(&dev->mt76, BERSA_EEPROM_SIZE);
+	ret = mt76_eeprom_init(&dev->mt76, BESRA_EEPROM_SIZE);
 	if (ret < 0)
 		return ret;
 
@@ -85,25 +85,25 @@ static int bersa_eeprom_load(struct bersa_dev *dev)
 		u8 free_block_num;
 		u32 block_num, i;
 
-		bersa_mcu_get_eeprom_free_block(dev, &free_block_num);
+		besra_mcu_get_eeprom_free_block(dev, &free_block_num);
 		/* efuse info not enough */
 		if (free_block_num >= 29)
 			return -EINVAL;
 
 		/* read eeprom data from efuse */
-		block_num = DIV_ROUND_UP(BERSA_EEPROM_SIZE,
-					 BERSA_EEPROM_BLOCK_SIZE);
+		block_num = DIV_ROUND_UP(BESRA_EEPROM_SIZE,
+					 BESRA_EEPROM_BLOCK_SIZE);
 		for (i = 0; i < block_num; i++)
-			bersa_mcu_get_eeprom(dev,
-					      i * BERSA_EEPROM_BLOCK_SIZE);
+			besra_mcu_get_eeprom(dev,
+					      i * BESRA_EEPROM_BLOCK_SIZE);
 	}
 
-	return bersa_check_eeprom(dev);
+	return besra_check_eeprom(dev);
 }
 
-static void bersa_eeprom_parse_band_config(struct bersa_phy *phy)
+static void besra_eeprom_parse_band_config(struct besra_phy *phy)
 {
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	u8 *eeprom = dev->mt76.eeprom.data;
 	u32 val;
 
@@ -138,14 +138,14 @@ static void bersa_eeprom_parse_band_config(struct bersa_phy *phy)
 	}
 }
 
-void bersa_eeprom_parse_hw_cap(struct bersa_dev *dev,
-				struct bersa_phy *phy)
+void besra_eeprom_parse_hw_cap(struct besra_dev *dev,
+				struct besra_phy *phy)
 {
 	u8 nss, nss_band, nss_band_max, *eeprom = dev->mt76.eeprom.data;
 	struct mt76_phy *mphy = phy->mt76;
-	u8 phy_idx = bersa_get_phy_id(phy);
+	u8 phy_idx = besra_get_phy_id(phy);
 
-	bersa_eeprom_parse_band_config(phy);
+	besra_eeprom_parse_band_config(phy);
 
 	/* read tx/rx mask from eeprom */
 	nss = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH,
@@ -201,26 +201,26 @@ void bersa_eeprom_parse_hw_cap(struct bersa_dev *dev,
 		 mphy->chainmask, mphy->antenna_mask, dev->chainmask);
 }
 
-int bersa_eeprom_init(struct bersa_dev *dev)
+int besra_eeprom_init(struct besra_dev *dev)
 {
 	int ret;
 
-	ret = bersa_eeprom_load(dev);
+	ret = besra_eeprom_load(dev);
 	if (ret < 0) {
 		if (ret != -EINVAL)
 			return ret;
 
 		dev_warn(dev->mt76.dev, "eeprom load fail, use default bin\n");
-		ret = bersa_eeprom_load_default(dev);
+		ret = besra_eeprom_load_default(dev);
 		if (ret)
 			return ret;
 	}
 
-	ret = bersa_eeprom_load_precal(dev);
+	ret = besra_eeprom_load_precal(dev);
 	if (ret)
 		return ret;
 
-	bersa_eeprom_parse_hw_cap(dev, &dev->phy);
+	besra_eeprom_parse_hw_cap(dev, &dev->phy);
 	memcpy(dev->mphy.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
 	       ETH_ALEN);
 
@@ -229,7 +229,7 @@ int bersa_eeprom_init(struct bersa_dev *dev)
 	return 0;
 }
 
-int bersa_eeprom_get_target_power(struct bersa_dev *dev,
+int besra_eeprom_get_target_power(struct besra_dev *dev,
 				   struct ieee80211_channel *chan,
 				   u8 chain_idx)
 {
@@ -240,7 +240,7 @@ int bersa_eeprom_get_target_power(struct bersa_dev *dev,
 	if (chain_idx > 3)
 		return -EINVAL;
 
-	tssi_on = bersa_tssi_enabled(dev, chan->band);
+	tssi_on = besra_tssi_enabled(dev, chan->band);
 
 	if (chan->band == NL80211_BAND_2GHZ) {
 		index = MT_EE_TX0_POWER_2G_V2 + chain_idx * 3;
@@ -249,7 +249,7 @@ int bersa_eeprom_get_target_power(struct bersa_dev *dev,
 		if (!tssi_on)
 			target_power += eeprom[index + 1];
 	} else {
-		int group = bersa_get_channel_group(chan->hw_value);
+		int group = besra_get_channel_group(chan->hw_value);
 
 		index = MT_EE_TX0_POWER_5G_V2 + chain_idx * 12;
 		target_power = eeprom[index + group];
@@ -261,7 +261,7 @@ int bersa_eeprom_get_target_power(struct bersa_dev *dev,
 	return target_power;
 }
 
-s8 bersa_eeprom_get_power_delta(struct bersa_dev *dev, int band)
+s8 besra_eeprom_get_power_delta(struct besra_dev *dev, int band)
 {
 	u8 *eeprom = dev->mt76.eeprom.data;
 	u32 val;
@@ -280,7 +280,7 @@ s8 bersa_eeprom_get_power_delta(struct bersa_dev *dev, int band)
 	return val & MT_EE_RATE_DELTA_SIGN ? delta : -delta;
 }
 
-const u8 bersa_sku_group_len[] = {
+const u8 besra_sku_group_len[] = {
 	[SKU_CCK] = 4,
 	[SKU_OFDM] = 8,
 	[SKU_HT_BW20] = 8,

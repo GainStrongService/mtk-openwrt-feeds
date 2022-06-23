@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include "bersa.h"
+#include "besra.h"
 #include "mac.h"
 #include "../trace.h"
 
@@ -16,18 +16,18 @@ static LIST_HEAD(hif_list);
 static DEFINE_SPINLOCK(hif_lock);
 static u32 hif_idx;
 
-static const struct pci_device_id bersa_pci_device_table[] = {
+static const struct pci_device_id besra_pci_device_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7902) }, //bellwether
 	{ },
 };
 
-static const struct pci_device_id bersa_hif_device_table[] = {
+static const struct pci_device_id besra_hif_device_table[] = {
 	{ },
 };
 
-static struct bersa_hif *bersa_pci_get_hif2(u32 idx)
+static struct besra_hif *besra_pci_get_hif2(u32 idx)
 {
-	struct bersa_hif *hif;
+	struct besra_hif *hif;
 	u32 val;
 
 	spin_lock_bh(&hif_lock);
@@ -49,7 +49,7 @@ out:
 	return hif;
 }
 
-static void bersa_put_hif2(struct bersa_hif *hif)
+static void besra_put_hif2(struct besra_hif *hif)
 {
 	if (!hif)
 		return;
@@ -57,7 +57,7 @@ static void bersa_put_hif2(struct bersa_hif *hif)
 	put_device(hif->dev);
 }
 
-static struct bersa_hif *bersa_pci_init_hif2(struct pci_dev *pdev)
+static struct besra_hif *besra_pci_init_hif2(struct pci_dev *pdev)
 {
 	hif_idx++;
 	if (!pci_get_device(PCI_VENDOR_ID_MEDIATEK, 0x7916, NULL) &&
@@ -67,12 +67,12 @@ static struct bersa_hif *bersa_pci_init_hif2(struct pci_dev *pdev)
 	writel(hif_idx | MT_PCIE_RECOG_ID_SEM,
 	       pcim_iomap_table(pdev)[0] + MT_PCIE_RECOG_ID);
 
-	return bersa_pci_get_hif2(hif_idx);
+	return besra_pci_get_hif2(hif_idx);
 }
 
-static int bersa_pci_hif2_probe(struct pci_dev *pdev)
+static int besra_pci_hif2_probe(struct pci_dev *pdev)
 {
-	struct bersa_hif *hif;
+	struct besra_hif *hif;
 
 	hif = devm_kzalloc(&pdev->dev, sizeof(*hif), GFP_KERNEL);
 	if (!hif)
@@ -89,12 +89,12 @@ static int bersa_pci_hif2_probe(struct pci_dev *pdev)
 	return 0;
 }
 
-static int bersa_pci_probe(struct pci_dev *pdev,
+static int besra_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
-	struct bersa_dev *dev;
+	struct besra_dev *dev;
 	struct mt76_dev *mdev;
-	struct bersa_hif *hif2;
+	struct besra_hif *hif2;
 	int irq;
 	int ret;
 
@@ -115,23 +115,23 @@ static int bersa_pci_probe(struct pci_dev *pdev,
 	mt76_pci_disable_aspm(pdev);
 
 	if (id->device == 0x790a)
-		return bersa_pci_hif2_probe(pdev);
+		return besra_pci_hif2_probe(pdev);
 
-	dev = bersa_mmio_probe(&pdev->dev, pcim_iomap_table(pdev)[0],
+	dev = besra_mmio_probe(&pdev->dev, pcim_iomap_table(pdev)[0],
 				id->device);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
 	mdev = &dev->mt76;
-	bersa_wfsys_reset(dev);
-	hif2 = bersa_pci_init_hif2(pdev);
+	besra_wfsys_reset(dev);
+	hif2 = besra_pci_init_hif2(pdev);
 
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
 		goto free_device;
 
 	irq = pdev->irq;
-	ret = devm_request_irq(mdev->dev, irq, bersa_irq_handler,
+	ret = devm_request_irq(mdev->dev, irq, besra_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret)
 		goto free_irq_vector;
@@ -149,13 +149,13 @@ static int bersa_pci_probe(struct pci_dev *pdev,
 		mt76_wr(dev, MT_PCIE1_MAC_INT_ENABLE, 0xff);
 
 		ret = devm_request_irq(mdev->dev, dev->hif2->irq,
-				       bersa_irq_handler, IRQF_SHARED,
+				       besra_irq_handler, IRQF_SHARED,
 				       KBUILD_MODNAME "-hif", dev);
 		if (ret)
 			goto free_hif2;
 	}
 
-	ret = bersa_register_device(dev);
+	ret = besra_register_device(dev);
 	if (ret)
 		goto free_hif2_irq;
 
@@ -176,40 +176,40 @@ free_device:
 	return ret;
 }
 
-static void bersa_hif_remove(struct pci_dev *pdev)
+static void besra_hif_remove(struct pci_dev *pdev)
 {
-	struct bersa_hif *hif = pci_get_drvdata(pdev);
+	struct besra_hif *hif = pci_get_drvdata(pdev);
 
 	list_del(&hif->list);
 }
 
-static void bersa_pci_remove(struct pci_dev *pdev)
+static void besra_pci_remove(struct pci_dev *pdev)
 {
 	struct mt76_dev *mdev;
-	struct bersa_dev *dev;
+	struct besra_dev *dev;
 
 	mdev = pci_get_drvdata(pdev);
-	dev = container_of(mdev, struct bersa_dev, mt76);
-	bersa_put_hif2(dev->hif2);
-	bersa_unregister_device(dev);
+	dev = container_of(mdev, struct besra_dev, mt76);
+	besra_put_hif2(dev->hif2);
+	besra_unregister_device(dev);
 }
 
-struct pci_driver bersa_hif_driver = {
+struct pci_driver besra_hif_driver = {
 	.name		= KBUILD_MODNAME "_hif",
-	.id_table	= bersa_hif_device_table,
-	.probe		= bersa_pci_probe,
-	.remove		= bersa_hif_remove,
+	.id_table	= besra_hif_device_table,
+	.probe		= besra_pci_probe,
+	.remove		= besra_hif_remove,
 };
 
-struct pci_driver bersa_pci_driver = {
+struct pci_driver besra_pci_driver = {
 	.name		= KBUILD_MODNAME,
-	.id_table	= bersa_pci_device_table,
-	.probe		= bersa_pci_probe,
-	.remove		= bersa_pci_remove,
+	.id_table	= besra_pci_device_table,
+	.probe		= besra_pci_probe,
+	.remove		= besra_pci_remove,
 };
 
-MODULE_DEVICE_TABLE(pci, bersa_pci_device_table);
-MODULE_DEVICE_TABLE(pci, bersa_hif_device_table);
+MODULE_DEVICE_TABLE(pci, besra_pci_device_table);
+MODULE_DEVICE_TABLE(pci, besra_hif_device_table);
 MODULE_FIRMWARE(MT7902_FIRMWARE_WA);
 MODULE_FIRMWARE(MT7902_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7902_ROM_PATCH);

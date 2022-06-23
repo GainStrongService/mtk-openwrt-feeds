@@ -1,47 +1,47 @@
 From 650cb1ed09a37bcb426ec5f27ae0e65f1d65df94 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 9 May 2022 15:12:22 +0800
-Subject: [PATCH] mt76: bersa: add internal debug patch
+Subject: [PATCH] mt76: besra: add internal debug patch
 
 ---
- bersa/Makefile      |    5 +-
- bersa/bersa.h       |   35 +
- bersa/debugfs.c     |   25 +-
- bersa/mac.c         |   18 +
- bersa/mcu.c         |    4 +
- bersa/mtk_debug.h   | 3716 +++++++++++++++++++++++++++++++++++++++++++
- bersa/mtk_debugfs.c | 3576 +++++++++++++++++++++++++++++++++++++++++
+ besra/Makefile      |    5 +-
+ besra/besra.h       |   35 +
+ besra/debugfs.c     |   25 +-
+ besra/mac.c         |   18 +
+ besra/mcu.c         |    4 +
+ besra/mtk_debug.h   | 3716 +++++++++++++++++++++++++++++++++++++++++++
+ besra/mtk_debugfs.c | 3576 +++++++++++++++++++++++++++++++++++++++++
  tools/fwlog.c       |   25 +-
  8 files changed, 7393 insertions(+), 11 deletions(-)
- mode change 100755 => 100644 bersa/Makefile
- create mode 100644 bersa/mtk_debug.h
- create mode 100644 bersa/mtk_debugfs.c
+ mode change 100755 => 100644 besra/Makefile
+ create mode 100644 besra/mtk_debug.h
+ create mode 100644 besra/mtk_debugfs.c
 
-diff --git a/bersa/Makefile b/bersa/Makefile
+diff --git a/besra/Makefile b/besra/Makefile
 old mode 100755
 new mode 100644
 index a51abe0c..edb7800a
---- a/bersa/Makefile
-+++ b/bersa/Makefile
+--- a/besra/Makefile
++++ b/besra/Makefile
 @@ -1,8 +1,11 @@
  # SPDX-License-Identifier: ISC
 +EXTRA_CFLAGS += -DCONFIG_MTK_DEBUG
  
- obj-$(CONFIG_BERSA) += bersa.o
+ obj-$(CONFIG_BESRA) += besra.o
  
- bersa-y := pci.o init.o dma.o eeprom.o main.o mcu.o mac.o \
+ besra-y := pci.o init.o dma.o eeprom.o main.o mcu.o mac.o \
  	     debugfs.o mmio.o
  
--bersa-$(CONFIG_NL80211_TESTMODE) += testmode.o
+-besra-$(CONFIG_NL80211_TESTMODE) += testmode.o
 \ No newline at end of file
-+bersa-$(CONFIG_NL80211_TESTMODE) += testmode.o
++besra-$(CONFIG_NL80211_TESTMODE) += testmode.o
 +
-+bersa-y += mtk_debugfs.o
-diff --git a/bersa/bersa.h b/bersa/bersa.h
++besra-y += mtk_debugfs.o
+diff --git a/besra/besra.h b/besra/besra.h
 index 63a97363..30c3a79b 100644
---- a/bersa/bersa.h
-+++ b/bersa/bersa.h
-@@ -301,6 +301,23 @@ struct bersa_dev {
+--- a/besra/besra.h
++++ b/besra/besra.h
+@@ -301,6 +301,23 @@ struct besra_dev {
  		u8 table_mask;
  		u8 n_agrt;
  	} twt;
@@ -65,12 +65,12 @@ index 63a97363..30c3a79b 100644
  };
  
  enum {
-@@ -571,4 +588,22 @@ void bersa_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -571,4 +588,22 @@ void besra_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			    struct ieee80211_sta *sta, struct dentry *dir);
  #endif
  
 +#ifdef CONFIG_MTK_DEBUG
-+void bersa_packet_log_to_host(struct bersa_dev *dev, const void *data, int len, int type, int des_len);
++void besra_packet_log_to_host(struct besra_dev *dev, const void *data, int len, int type, int des_len);
 +
 +#define PKT_BIN_DEBUG_MAGIC	0xc8763123
 +enum {
@@ -81,18 +81,18 @@ index 63a97363..30c3a79b 100644
 +	PKT_BIN_DEBUG_RX_RAW,
 +};
 +
-+int bersa_mtk_init_debugfs(struct bersa_phy *phy, struct dentry *dir);
-+void bersa_dump_bmac_rxd_info(struct bersa_dev *dev, __le32 *rxd);
-+void bersa_dump_bmac_txd_info(struct bersa_dev *dev, __le32 *txd, bool dump_txp);
-+void bersa_dump_bmac_txp_info(struct bersa_dev *dev, __le32 *txp);
++int besra_mtk_init_debugfs(struct besra_phy *phy, struct dentry *dir);
++void besra_dump_bmac_rxd_info(struct besra_dev *dev, __le32 *rxd);
++void besra_dump_bmac_txd_info(struct besra_dev *dev, __le32 *txd, bool dump_txp);
++void besra_dump_bmac_txp_info(struct besra_dev *dev, __le32 *txp);
 +#endif
 +
  #endif
-diff --git a/bersa/debugfs.c b/bersa/debugfs.c
+diff --git a/besra/debugfs.c b/besra/debugfs.c
 index 4be253ea..9f3e11a8 100644
---- a/bersa/debugfs.c
-+++ b/bersa/debugfs.c
-@@ -371,6 +371,9 @@ bersa_fw_debug_wm_set(void *data, u64 val)
+--- a/besra/debugfs.c
++++ b/besra/debugfs.c
+@@ -371,6 +371,9 @@ besra_fw_debug_wm_set(void *data, u64 val)
  	int ret;
  
  	dev->fw_debug_wm = val ? MCU_FW_LOG_TO_HOST : 0;
@@ -102,7 +102,7 @@ index 4be253ea..9f3e11a8 100644
  
  	if (dev->fw_debug_bin)
  		val = MCU_FW_LOG_RELAY;
-@@ -494,6 +497,16 @@ bersa_fw_debug_bin_set(void *data, u64 val)
+@@ -494,6 +497,16 @@ besra_fw_debug_bin_set(void *data, u64 val)
  
  	relay_reset(dev->relay_fwlog);
  
@@ -116,11 +116,11 @@ index 4be253ea..9f3e11a8 100644
 +		return 0;
 +#endif
 +
- 	return bersa_fw_debug_wm_set(dev, dev->fw_debug_wm);
+ 	return besra_fw_debug_wm_set(dev, dev->fw_debug_wm);
  }
  
-@@ -942,8 +955,13 @@ int bersa_init_debugfs(struct bersa_phy *phy)
- 					    bersa_rdd_monitor);
+@@ -942,8 +955,13 @@ int besra_init_debugfs(struct besra_phy *phy)
+ 					    besra_rdd_monitor);
  	}
  
 -	if (phy == &dev->phy)
@@ -128,15 +128,15 @@ index 4be253ea..9f3e11a8 100644
  		dev->debugfs_dir = dir;
 +#ifdef CONFIG_MTK_DEBUG
 +		debugfs_create_u16("wlan_idx", 0600, dir, &dev->wlan_idx);
-+		bersa_mtk_init_debugfs(phy, dir);
++		besra_mtk_init_debugfs(phy, dir);
 +#endif
 +	}
  
  	return 0;
  }
-@@ -1000,7 +1018,12 @@ void bersa_debugfs_rx_fw_monitor(struct bersa_dev *dev, const void *data, int le
+@@ -1000,7 +1018,12 @@ void besra_debugfs_rx_fw_monitor(struct besra_dev *dev, const void *data, int le
  
- bool bersa_debugfs_rx_log(struct bersa_dev *dev, const void *data, int len)
+ bool besra_debugfs_rx_log(struct besra_dev *dev, const void *data, int len)
  {
 +#ifdef CONFIG_MTK_DEBUG
 +	if (get_unaligned_le32(data) != FW_BIN_LOG_MAGIC &&
@@ -147,69 +147,69 @@ index 4be253ea..9f3e11a8 100644
  		return false;
  
  	if (dev->relay_fwlog)
-diff --git a/bersa/mac.c b/bersa/mac.c
+diff --git a/besra/mac.c b/besra/mac.c
 index 2d48a1a4..b726e2d8 100644
---- a/bersa/mac.c
-+++ b/bersa/mac.c
-@@ -589,6 +589,11 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
+--- a/besra/mac.c
++++ b/besra/mac.c
+@@ -589,6 +589,11 @@ besra_mac_fill_rx(struct besra_dev *dev, struct sk_buff *skb)
  	int idx;
  	u8 band_idx;
  
 +#ifdef CONFIG_MTK_DEBUG
 +	if (dev->dbg.dump_rx_raw)
-+		bersa_packet_log_to_host(dev, skb->data, skb->len, PKT_BIN_DEBUG_RX_RAW, 0);
-+	bersa_dump_bmac_rxd_info(dev, rxd);
++		besra_packet_log_to_host(dev, skb->data, skb->len, PKT_BIN_DEBUG_RX_RAW, 0);
++	besra_dump_bmac_rxd_info(dev, rxd);
 +#endif
  	memset(status, 0, sizeof(*status));
  
  	band_idx = FIELD_GET(MT_RXD1_NORMAL_BAND_IDX, rxd1);
-@@ -763,6 +768,10 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
+@@ -763,6 +768,10 @@ besra_mac_fill_rx(struct besra_dev *dev, struct sk_buff *skb)
  	}
  
  	hdr_gap = (u8 *)rxd - skb->data + 2 * remove_pad;
 +#ifdef CONFIG_MTK_DEBUG
 +	if (dev->dbg.dump_rx_pkt)
-+		bersa_packet_log_to_host(dev, skb->data, skb->len, PKT_BIN_DEBUG_RX, hdr_gap);
++		besra_packet_log_to_host(dev, skb->data, skb->len, PKT_BIN_DEBUG_RX, hdr_gap);
 +#endif
  	if (hdr_trans && ieee80211_has_morefrags(fc)) {
- 		if (bersa_reverse_frag0_hdr_trans(skb, hdr_gap))
+ 		if (besra_reverse_frag0_hdr_trans(skb, hdr_gap))
  			return -EINVAL;
-@@ -1330,6 +1339,15 @@ int bersa_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -1330,6 +1339,15 @@ int besra_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	tx_info->buf[1].skip_unmap = true;
  	tx_info->nbuf = MT_CT_DMA_BUF_NUM;
  
 +#ifdef CONFIG_MTK_DEBUG
-+	bersa_dump_bmac_txd_info(dev, (__le32 *)txwi, true);
++	besra_dump_bmac_txd_info(dev, (__le32 *)txwi, true);
 +
 +	if (dev->dbg.dump_txd)
-+		bersa_packet_log_to_host(dev, txwi, MT_TXD_SIZE, PKT_BIN_DEBUG_TXD, 0);
++		besra_packet_log_to_host(dev, txwi, MT_TXD_SIZE, PKT_BIN_DEBUG_TXD, 0);
 +	if (dev->dbg.dump_tx_pkt)
-+		bersa_packet_log_to_host(dev, t->skb->data, t->skb->len, PKT_BIN_DEBUG_TX, 0);
++		besra_packet_log_to_host(dev, t->skb->data, t->skb->len, PKT_BIN_DEBUG_TX, 0);
 +#endif
 +
  	return 0;
  }
  
-diff --git a/bersa/mcu.c b/bersa/mcu.c
+diff --git a/besra/mcu.c b/besra/mcu.c
 index 5276552c..6fc175c6 100644
---- a/bersa/mcu.c
-+++ b/bersa/mcu.c
-@@ -299,6 +299,10 @@ bersa_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+--- a/besra/mcu.c
++++ b/besra/mcu.c
+@@ -299,6 +299,10 @@ besra_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
  		mcu_txd->s2d_index = MCU_S2D_H2N;
  
  exit:
 +#ifdef CONFIG_MTK_DEBUG
 +	if (dev->dbg.dump_mcu_pkt)
-+		bersa_packet_log_to_host(dev, skb->data, skb->len, PKT_BIN_DEBUG_MCU, 0);
++		besra_packet_log_to_host(dev, skb->data, skb->len, PKT_BIN_DEBUG_MCU, 0);
 +#endif
  	if (wait_seq)
  		*wait_seq = seq;
  
-diff --git a/bersa/mtk_debug.h b/bersa/mtk_debug.h
+diff --git a/besra/mtk_debug.h b/besra/mtk_debug.h
 new file mode 100644
 index 00000000..1a797c81
 --- /dev/null
-+++ b/bersa/mtk_debug.h
++++ b/besra/mtk_debug.h
 @@ -0,0 +1,3716 @@
 +#ifndef __MTK_DEBUG_H
 +#define __MTK_DEBUG_H
@@ -280,7 +280,7 @@ index 00000000..1a797c81
 +};
 +
 +/* WTBL */
-+enum bersa_wtbl_type {
++enum besra_wtbl_type {
 +	WTBL_TYPE_LMAC, 	/* WTBL in LMAC */
 +	WTBL_TYPE_UMAC, 	/* WTBL in UMAC */
 +	WTBL_TYPE_KEY,		/* Key Table */
@@ -3927,14 +3927,14 @@ index 00000000..1a797c81
 +
 +#endif
 +#endif
-diff --git a/bersa/mtk_debugfs.c b/bersa/mtk_debugfs.c
+diff --git a/besra/mtk_debugfs.c b/besra/mtk_debugfs.c
 new file mode 100644
 index 00000000..ea6a2620
 --- /dev/null
-+++ b/bersa/mtk_debugfs.c
++++ b/besra/mtk_debugfs.c
 @@ -0,0 +1,3576 @@
 +#include<linux/inet.h>
-+#include "bersa.h"
++#include "besra.h"
 +#include "mtk_debug.h"
 +#include "../mt76.h"
 +#include "mcu.h"
@@ -3942,7 +3942,7 @@ index 00000000..ea6a2620
 +
 +#ifdef CONFIG_MTK_DEBUG
 +
-+void bersa_packet_log_to_host(struct bersa_dev *dev, const void *data, int len, int type, int des_len)
++void besra_packet_log_to_host(struct besra_dev *dev, const void *data, int len, int type, int des_len)
 +{
 +	struct bin_debug_hdr *hdr;
 +	char *buf;
@@ -3963,57 +3963,57 @@ index 00000000..ea6a2620
 +
 +	memcpy(buf + sizeof(*hdr), data, len);
 +
-+	bersa_debugfs_rx_log(dev, buf, sizeof(*hdr) + len);
++	besra_debugfs_rx_log(dev, buf, sizeof(*hdr) + len);
 +}
 +
 +/* DBG MODLE */
 +static int
-+bersa_fw_debug_module_set(void *data, u64 module)
++besra_fw_debug_module_set(void *data, u64 module)
 +{
-+	struct bersa_dev *dev = data;
++	struct besra_dev *dev = data;
 +
 +	dev->dbg.fw_dbg_module = module;
 +	return 0;
 +}
 +
 +static int
-+bersa_fw_debug_module_get(void *data, u64 *module)
++besra_fw_debug_module_get(void *data, u64 *module)
 +{
-+	struct bersa_dev *dev = data;
++	struct besra_dev *dev = data;
 +
 +	*module = dev->dbg.fw_dbg_module;
 +	return 0;
 +}
 +
-+DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug_module, bersa_fw_debug_module_get,
-+			 bersa_fw_debug_module_set, "%lld\n");
++DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug_module, besra_fw_debug_module_get,
++			 besra_fw_debug_module_set, "%lld\n");
 +
 +static int
-+bersa_fw_debug_level_set(void *data, u64 level)
++besra_fw_debug_level_set(void *data, u64 level)
 +{
-+	struct bersa_dev *dev = data;
++	struct besra_dev *dev = data;
 +
 +	dev->dbg.fw_dbg_lv = level;
-+	bersa_mcu_fw_dbg_ctrl(dev, dev->dbg.fw_dbg_module, dev->dbg.fw_dbg_lv);
++	besra_mcu_fw_dbg_ctrl(dev, dev->dbg.fw_dbg_module, dev->dbg.fw_dbg_lv);
 +	return 0;
 +}
 +
 +static int
-+bersa_fw_debug_level_get(void *data, u64 *level)
++besra_fw_debug_level_get(void *data, u64 *level)
 +{
-+	struct bersa_dev *dev = data;
++	struct besra_dev *dev = data;
 +
 +	*level = dev->dbg.fw_dbg_lv;
 +	return 0;
 +}
 +
-+DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug_level, bersa_fw_debug_level_get,
-+			 bersa_fw_debug_level_set, "%lld\n");
++DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug_level, besra_fw_debug_level_get,
++			 besra_fw_debug_level_set, "%lld\n");
 +
 +/* WTBL INFO */
 +static int
-+bersa_wtbl_read_raw(struct bersa_dev *dev, u16 idx,
-+			 enum bersa_wtbl_type type, u16 start_dw,
++besra_wtbl_read_raw(struct besra_dev *dev, u16 idx,
++			 enum besra_wtbl_type type, u16 start_dw,
 +			 u16 len, void *buf)
 +{
 +	u32 *dest_cpy = (u32 *)buf;
@@ -4047,8 +4047,8 @@ index 00000000..ea6a2620
 +}
 +
 +static int
-+bersa_wtbl_write_raw(struct bersa_dev *dev, u16 idx,
-+			  enum bersa_wtbl_type type, u16 start_dw,
++besra_wtbl_write_raw(struct besra_dev *dev, u16 idx,
++			  enum besra_wtbl_type type, u16 start_dw,
 +			  u32 val)
 +{
 +	u32 addr = 0;
@@ -5136,7 +5136,7 @@ index 00000000..ea6a2620
 +)
 +{
 +#define ONE_KEY_ENTRY_LEN_IN_DW                8
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	u8 keytbl[ONE_KEY_ENTRY_LEN_IN_DW*4] = {0};
 +	uint16_t x;
 +
@@ -5147,7 +5147,7 @@ index 00000000..ea6a2620
 +		/* Don't swap below two lines, halWtblReadRaw will
 +		* write new value WF_WTBLON_TOP_WDUCR_ADDR
 +		*/
-+		bersa_wtbl_read_raw(dev, keyloc0,
++		besra_wtbl_read_raw(dev, keyloc0,
 +			WTBL_TYPE_KEY, 0, ONE_KEY_ENTRY_LEN_IN_DW, keytbl);
 +		seq_printf(s, "\t\tKEY WTBL Addr: group:0x%x=0x%x addr: 0x%x\n",
 +			MT_DBG_UWTBL_TOP_WDUCR_ADDR,
@@ -5168,7 +5168,7 @@ index 00000000..ea6a2620
 +		/* Don't swap below two lines, halWtblReadRaw will
 +		* write new value WF_WTBLON_TOP_WDUCR_ADDR
 +		*/
-+		bersa_wtbl_read_raw(dev, keyloc1,
++		besra_wtbl_read_raw(dev, keyloc1,
 +			WTBL_TYPE_KEY, 0, ONE_KEY_ENTRY_LEN_IN_DW, keytbl);
 +		seq_printf(s, "\t\tKEY WTBL Addr: group:0x%x=0x%x addr: 0x%x\n",
 +			MT_DBG_UWTBL_TOP_WDUCR_ADDR,
@@ -5189,7 +5189,7 @@ index 00000000..ea6a2620
 +		/* Don't swap below two lines, halWtblReadRaw will
 +		* write new value WF_WTBLON_TOP_WDUCR_ADDR
 +		*/
-+		bersa_wtbl_read_raw(dev, keyloc2,
++		besra_wtbl_read_raw(dev, keyloc2,
 +			WTBL_TYPE_KEY, 0, ONE_KEY_ENTRY_LEN_IN_DW, keytbl);
 +		seq_printf(s, "\t\tKEY WTBL Addr: group:0x%x=0x%x addr: 0x%x\n",
 +			MT_DBG_UWTBL_TOP_WDUCR_ADDR,
@@ -5304,14 +5304,14 @@ index 00000000..ea6a2620
 +		(dw_value & WTBL_AMSDU_NUM_MASK) >> WTBL_AMSDU_NUM_OFFSET);
 +}
 +
-+static int bersa_wtbl_read(struct seq_file *s, void *data)
++static int besra_wtbl_read(struct seq_file *s, void *data)
 +{
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	u8 lwtbl[LWTBL_LEN_IN_DW * 4] = {0};
 +	u8 uwtbl[UWTBL_LEN_IN_DW * 4] = {0};
 +	int x;
 +
-+	bersa_wtbl_read_raw(dev, dev->wlan_idx, WTBL_TYPE_LMAC, 0,
++	besra_wtbl_read_raw(dev, dev->wlan_idx, WTBL_TYPE_LMAC, 0,
 +				 LWTBL_LEN_IN_DW, lwtbl);
 +	seq_printf(s, "Dump WTBL info of WLAN_IDX:%d\n", dev->wlan_idx);
 +	seq_printf(s, "LMAC WTBL Addr: group:0x%x=0x%x addr: 0x%lx\n",
@@ -5347,7 +5347,7 @@ index 00000000..ea6a2620
 +	parse_fmac_lwtbl_dw32(s, lwtbl);
 +	parse_fmac_lwtbl_rx_stats(s, lwtbl);
 +
-+	bersa_wtbl_read_raw(dev, dev->wlan_idx, WTBL_TYPE_UMAC, 0,
++	besra_wtbl_read_raw(dev, dev->wlan_idx, WTBL_TYPE_UMAC, 0,
 +				 UWTBL_LEN_IN_DW, uwtbl);
 +	seq_printf(s, "Dump WTBL info of WLAN_IDX:%d\n", dev->wlan_idx);
 +	seq_printf(s, "UMAC WTBL Addr: group:0x%x=0x%x addr: 0x%lx\n",
@@ -5441,7 +5441,7 @@ index 00000000..ea6a2620
 +};
 +
 +static void
-+dump_dma_tx_ring_info(struct seq_file *s, struct bersa_dev *dev,  char *str1, char *str2, u32 ring_base)
++dump_dma_tx_ring_info(struct seq_file *s, struct besra_dev *dev,  char *str1, char *str2, u32 ring_base)
 +{
 +	u32 base, cnt, cidx, didx, queue_cnt;
 +
@@ -5455,7 +5455,7 @@ index 00000000..ea6a2620
 +}
 +
 +static void
-+dump_dma_rx_ring_info(struct seq_file *s, struct bersa_dev *dev,  char *str1, char *str2, u32 ring_base)
++dump_dma_rx_ring_info(struct seq_file *s, struct besra_dev *dev,  char *str1, char *str2, u32 ring_base)
 +{
 +	u32 base, cnt, cidx, didx, queue_cnt;
 +
@@ -5469,7 +5469,7 @@ index 00000000..ea6a2620
 +}
 +
 +static void
-+bersa_show_dma_info(struct seq_file *s, struct bersa_dev *dev)
++besra_show_dma_info(struct seq_file *s, struct besra_dev *dev)
 +{
 +	u32 sys_ctrl[10];
 +
@@ -5633,9 +5633,9 @@ index 00000000..ea6a2620
 +		WF_WFDMA_MEM_DMA_WPDMA_RX_RING1_CTRL0_ADDR);
 +}
 +
-+static int bersa_trinfo_read(struct seq_file *s, void *data)
++static int besra_trinfo_read(struct seq_file *s, void *data)
 +{
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	const struct queue_desc *tx_ring_layout;
 +	const struct queue_desc *rx_ring_layout;
 +	u32 tx_ring_num, rx_ring_num;
@@ -5698,15 +5698,15 @@ index 00000000..ea6a2620
 +			   rbase[idx], rcnt[idx], rcidx[idx], rdidx[idx], queue_cnt);
 +	}
 +
-+	bersa_show_dma_info(s, dev);
++	besra_show_dma_info(s, dev);
 +	return 0;
 +}
 +
 +/* MIB INFO */
-+static int bersa_mibinfo_read_per_band(struct seq_file *s, int band_idx)
++static int besra_mibinfo_read_per_band(struct seq_file *s, int band_idx)
 +{
 +#define BSS_NUM	4
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	u8 bss_nums = BSS_NUM;
 +	u32 idx;
 +	u32 mac_val, band_offset = 0, band_offset_umib = 0;
@@ -5920,26 +5920,26 @@ index 00000000..ea6a2620
 +	return 0;
 +}
 +
-+static int bersa_mibinfo_band0(struct seq_file *s, void *data)
++static int besra_mibinfo_band0(struct seq_file *s, void *data)
 +{
-+	bersa_mibinfo_read_per_band(s, MT_BAND0);
++	besra_mibinfo_read_per_band(s, MT_BAND0);
 +	return 0;
 +}
 +
-+static int bersa_mibinfo_band1(struct seq_file *s, void *data)
++static int besra_mibinfo_band1(struct seq_file *s, void *data)
 +{
-+	bersa_mibinfo_read_per_band(s, MT_BAND1);
++	besra_mibinfo_read_per_band(s, MT_BAND1);
 +	return 0;
 +}
 +
-+static int bersa_mibinfo_band2(struct seq_file *s, void *data)
++static int besra_mibinfo_band2(struct seq_file *s, void *data)
 +{
-+	bersa_mibinfo_read_per_band(s, MT_BAND2);
++	besra_mibinfo_read_per_band(s, MT_BAND2);
 +	return 0;
 +}
 +
 +//bmac dump txp
-+void bersa_dump_bmac_txp_info(struct bersa_dev *dev, __le32 *txp)
++void besra_dump_bmac_txp_info(struct besra_dev *dev, __le32 *txp)
 +{
 +	int i, j = 0;
 +	u32 dw;
@@ -6029,7 +6029,7 @@ index 00000000..ea6a2620
 +}
 +
 +/* bmac txd dump */
-+void bersa_dump_bmac_txd_info(struct bersa_dev *dev, __le32 *txd, bool dump_txp)
++void besra_dump_bmac_txd_info(struct besra_dev *dev, __le32 *txd, bool dump_txp)
 +{
 +	/* dump stop */
 +	if (!dev->dbg.txd_read_cnt)
@@ -6233,17 +6233,17 @@ index 00000000..ea6a2620
 +	if (dump_txp) {
 +		__le32 *txp = txd + 8;
 +
-+		bersa_dump_bmac_txp_info(dev, txp);
++		besra_dump_bmac_txp_info(dev, txp);
 +	}
 +}
 +
 +static void
-+bersa_dump_bmac_txd_by_fid(u32 fid)
++besra_dump_bmac_txd_by_fid(u32 fid)
 +{
 +	//TDO
 +}
 +
-+void bersa_dump_bmac_rxd_info(struct bersa_dev *dev, __le32 *rxd)
++void besra_dump_bmac_rxd_info(struct besra_dev *dev, __le32 *rxd)
 +{
 +	/* dump stop */
 +	if (!dev->dbg.rxd_read_cnt)
@@ -6439,9 +6439,9 @@ index 00000000..ea6a2620
 +			le32_to_cpu(rxd[11])) : 0);
 +}
 +
-+static int bersa_token_read(struct seq_file *s, void *data)
++static int besra_token_read(struct seq_file *s, void *data)
 +{
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	int id, count = 0;
 +	struct mt76_txwi_cache *txwi;
 +
@@ -6459,9 +6459,9 @@ index 00000000..ea6a2620
 +	return 0;
 +}
 +
-+static int bersa_token_txd_read(struct seq_file *s, void *data)
++static int besra_token_txd_read(struct seq_file *s, void *data)
 +{
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	struct mt76_txwi_cache *t;
 +	u8* txwi;
 +
@@ -6476,7 +6476,7 @@ index 00000000..ea6a2620
 +		txwi = ((u8*)(t)) - (mdev->drv->txwi_size);
 +		/* dump one txd info */
 +		dev->dbg.txd_read_cnt = 1;
-+		bersa_dump_bmac_txd_info(dev, (__le32 *)txwi, false);
++		besra_dump_bmac_txd_info(dev, (__le32 *)txwi, false);
 +		printk("\n");
 +		printk("[SKB]\n");
 +		print_hex_dump(KERN_ERR , "", DUMP_PREFIX_OFFSET, 16, 1, (u8 *)t->skb->data, t->skb->len, false);
@@ -6486,9 +6486,9 @@ index 00000000..ea6a2620
 +}
 +
 +/* AMSDU INFO */
-+static int bersa_amsdu_read(struct seq_file *s, void *data)
++static int besra_amsdu_read(struct seq_file *s, void *data)
 +{
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	u32 ple_stat[8] = {0}, total_amsdu = 0;
 +	u8 i;
 +
@@ -6513,9 +6513,9 @@ index 00000000..ea6a2620
 +
 +/* AGG INFO */
 +static int
-+bersa_agginfo_read_per_band(struct seq_file *s, int band_idx)
++besra_agginfo_read_per_band(struct seq_file *s, int band_idx)
 +{
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	u64 total_burst, total_ampdu, ampdu_cnt[16];
 +	u32 value, idx, row_idx, col_idx, start_range, agg_rang_sel[16], burst_cnt[16], band_offset = 0;
 +	u8 readFW = 0, partial_str[16] = {}, full_str[64] = {};
@@ -6707,21 +6707,21 @@ index 00000000..ea6a2620
 +	return 0;
 +}
 +
-+static int bersa_agginfo_read_band0(struct seq_file *s, void *data)
++static int besra_agginfo_read_band0(struct seq_file *s, void *data)
 +{
-+	bersa_agginfo_read_per_band(s, MT_BAND0);
++	besra_agginfo_read_per_band(s, MT_BAND0);
 +	return 0;
 +}
 +
-+static int bersa_agginfo_read_band1(struct seq_file *s, void *data)
++static int besra_agginfo_read_band1(struct seq_file *s, void *data)
 +{
-+	bersa_agginfo_read_per_band(s, MT_BAND1);
++	besra_agginfo_read_per_band(s, MT_BAND1);
 +	return 0;
 +}
 +
-+static int bersa_agginfo_read_band2(struct seq_file *s, void *data)
++static int besra_agginfo_read_band2(struct seq_file *s, void *data)
 +{
-+	bersa_agginfo_read_per_band(s, MT_BAND2);
++	besra_agginfo_read_per_band(s, MT_BAND2);
 +	return 0;
 +}
 +
@@ -6784,9 +6784,9 @@ index 00000000..ea6a2620
 +};
 +
 +static int
-+bersa_pseinfo_read(struct seq_file *s, void *data)
++besra_pseinfo_read(struct seq_file *s, void *data)
 +{
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	u32 pse_buf_ctrl, pg_sz, pg_num;
 +	u32 pse_stat[2], pg_flow_ctrl[28] = {0};
 +	u32 fpg_cnt, ffa_cnt, fpg_head, fpg_tail;
@@ -7114,7 +7114,7 @@ index 00000000..ea6a2620
 +};
 +
 +static void
-+bersa_get_ple_acq_stat(struct bersa_dev *dev, u32 *ple_stat)
++besra_get_ple_acq_stat(struct besra_dev *dev, u32 *ple_stat)
 +{
 +	ple_stat[0] = mt76_rr(dev, WF_PLE_TOP_QUEUE_EMPTY_ADDR);
 +
@@ -7160,13 +7160,13 @@ index 00000000..ea6a2620
 +}
 +
 +static void
-+bersa_get_ple_txcmd_stat(struct bersa_dev *dev, u32 *ple_txcmd_stat)
++besra_get_ple_txcmd_stat(struct besra_dev *dev, u32 *ple_txcmd_stat)
 +{
 +	*ple_txcmd_stat = mt76_rr(dev, WF_PLE_TOP_NATIVE_TXCMD_QUEUE_EMPTY_ADDR);
 +}
 +
 +static void
-+bersa_get_dis_sta_map(struct bersa_dev *dev, u32 *dis_sta_map)
++besra_get_dis_sta_map(struct besra_dev *dev, u32 *dis_sta_map)
 +{
 +	dis_sta_map[0] = mt76_rr(dev, WF_PLE_TOP_DIS_STA_MAP0_ADDR);
 +	dis_sta_map[1] = mt76_rr(dev, WF_PLE_TOP_DIS_STA_MAP1_ADDR);
@@ -7180,17 +7180,17 @@ index 00000000..ea6a2620
 +}
 +
 +static void
-+bersa_get_sta_pause(struct bersa_dev *dev, u32 *sta_pause)
++besra_get_sta_pause(struct besra_dev *dev, u32 *sta_pause)
 +{
 +	/* BELLWETHER TODO: Wait MIB counter API implement complete */
 +}
 +
 +static int
-+bersa_show_sta_acq_info(struct seq_file *s, u32 *ple_stat,
++besra_show_sta_acq_info(struct seq_file *s, u32 *ple_stat,
 +				   u32 *sta_pause, u32 *dis_sta_map,
 +				   u32 dumptxd)
 +{
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	int i, j;
 +	u32 total_nonempty_cnt = 0;
 +
@@ -7200,7 +7200,7 @@ index 00000000..ea6a2620
 +				u32 hfid, tfid, pktcnt, ac_num = j / CR_NUM_OF_AC, ctrl = 0;
 +				u32 sta_num = i + (j % CR_NUM_OF_AC) * 32, fl_que_ctrl[3] = {0};
 +				u32 wmmidx = 0;
-+				struct bersa_sta *msta;
++				struct besra_sta *msta;
 +				struct mt76_wcid *wcid;
 +				struct ieee80211_sta *sta = NULL;
 +
@@ -7210,7 +7210,7 @@ index 00000000..ea6a2620
 +					printk("ERROR!! no found STA wcid=%d\n", sta_num);
 +					return 0;
 +				}
-+				msta = container_of(wcid, struct bersa_sta, wcid);
++				msta = container_of(wcid, struct besra_sta, wcid);
 +				wmmidx = msta->vif->mt76.wmm_idx;
 +
 +				printk("\tSTA%d AC%d: ", sta_num, ac_num);
@@ -7244,7 +7244,7 @@ index 00000000..ea6a2620
 +				total_nonempty_cnt++;
 +
 +				if (pktcnt > 0 && dumptxd > 0)
-+					bersa_dump_bmac_txd_by_fid(hfid);
++					besra_dump_bmac_txd_by_fid(hfid);
 +			}
 +		}
 +	}
@@ -7253,9 +7253,9 @@ index 00000000..ea6a2620
 +}
 +
 +static void
-+bersa_show_txcmdq_info(struct seq_file *s, u32 ple_txcmd_stat)
++besra_show_txcmdq_info(struct seq_file *s, u32 ple_txcmd_stat)
 +{
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	int i;
 +
 +	printk("Nonempty TXCMD Q info:\n");
@@ -7290,9 +7290,9 @@ index 00000000..ea6a2620
 +}
 +
 +static int
-+bersa_pleinfo_read(struct seq_file *s, void *data)
++besra_pleinfo_read(struct seq_file *s, void *data)
 +{
-+	struct bersa_dev *dev = dev_get_drvdata(s->private);
++	struct besra_dev *dev = dev_get_drvdata(s->private);
 +	u32 ple_buf_ctrl, pg_sz, pg_num;
 +	u32 ple_stat[ALL_CR_NUM_OF_ALL_AC + 1] = {0}, pg_flow_ctrl[10] = {0};
 +	u32 ple_native_txcmd_stat;
@@ -7304,9 +7304,9 @@ index 00000000..ea6a2620
 +	u32 dumptxd = 1;
 +
 +	ple_buf_ctrl = mt76_rr(dev, WF_PLE_TOP_PBUF_CTRL_ADDR);
-+	bersa_get_ple_acq_stat(dev, ple_stat);
++	besra_get_ple_acq_stat(dev, ple_stat);
 +	ple_txcmd_stat = mt76_rr(dev, WF_PLE_TOP_TXCMD_QUEUE_EMPTY_ADDR);
-+	bersa_get_ple_txcmd_stat(dev, &ple_native_txcmd_stat);
++	besra_get_ple_txcmd_stat(dev, &ple_native_txcmd_stat);
 +	pg_flow_ctrl[0] = mt76_rr(dev, WF_PLE_TOP_FREEPG_CNT_ADDR);
 +	pg_flow_ctrl[1] = mt76_rr(dev, WF_PLE_TOP_FREEPG_HEAD_TAIL_ADDR);
 +	pg_flow_ctrl[2] = mt76_rr(dev, WF_PLE_TOP_PG_HIF_GROUP_ADDR);
@@ -7317,8 +7317,8 @@ index 00000000..ea6a2620
 +	pg_flow_ctrl[7] = mt76_rr(dev, WF_PLE_TOP_HIF_TXCMD_PG_INFO_ADDR);
 +	pg_flow_ctrl[8] = mt76_rr(dev, WF_PLE_TOP_PG_HIF_WMTXD_GROUP_ADDR);
 +	pg_flow_ctrl[9] = mt76_rr(dev, WF_PLE_TOP_HIF_WMTXD_PG_INFO_ADDR);
-+	bersa_get_dis_sta_map(dev, dis_sta_map);
-+	bersa_get_sta_pause(dev, sta_pause);
++	besra_get_dis_sta_map(dev, dis_sta_map);
++	besra_get_sta_pause(dev, sta_pause);
 +
 +	/* Configuration Info */
 +	printk("PLE Configuration Info:\n");
@@ -7436,29 +7436,29 @@ index 00000000..ea6a2620
 +					  tfid, hfid, pktcnt);
 +
 +			if (pktcnt > 0 && dumptxd > 0)
-+				bersa_dump_bmac_txd_by_fid(hfid);
++				besra_dump_bmac_txd_by_fid(hfid);
 +		}
 +	}
 +
-+	bersa_show_sta_acq_info(s, ple_stat, sta_pause, dis_sta_map, dumptxd);
-+	bersa_show_txcmdq_info(s, ple_native_txcmd_stat);
++	besra_show_sta_acq_info(s, ple_stat, sta_pause, dis_sta_map, dumptxd);
++	besra_show_txcmdq_info(s, ple_native_txcmd_stat);
 +
 +	return true;
 +}
 +
 +/* DRR */
 +static int
-+bersa_drr_info(struct seq_file *s, void *data)
++besra_drr_info(struct seq_file *s, void *data)
 +{
 +	/* BELLWETHER TODO: Wait MIB counter API implement complete */
 +	return 0;
 +}
 +
-+int bersa_mtk_init_debugfs(struct bersa_phy *phy, struct dentry *dir)
++int besra_mtk_init_debugfs(struct besra_phy *phy, struct dentry *dir)
 +{
-+	struct bersa_dev *dev = phy->dev;
++	struct besra_dev *dev = phy->dev;
 +
-+	bersa_mcu_fw_log_2_host(dev, MCU_FW_LOG_WM, 0);
++	besra_mcu_fw_log_2_host(dev, MCU_FW_LOG_WM, 0);
 +
 +	debugfs_create_file("fw_debug_module", 0600, dir, dev,
 +			    &fops_fw_debug_module);
@@ -7466,44 +7466,44 @@ index 00000000..ea6a2620
 +			    &fops_fw_debug_level);
 +
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "wtbl_info", dir,
-+				    bersa_wtbl_read);
++				    besra_wtbl_read);
 +
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "tr_info", dir,
-+				    bersa_trinfo_read);
++				    besra_trinfo_read);
 +
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "drr_info", dir,
-+				    bersa_drr_info);
++				    besra_drr_info);
 +
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "ple_info", dir,
-+				    bersa_pleinfo_read);
++				    besra_pleinfo_read);
 +
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "pse_info", dir,
-+				    bersa_pseinfo_read);
++				    besra_pseinfo_read);
 +
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "mib_info0", dir,
-+				    bersa_mibinfo_band0);
++				    besra_mibinfo_band0);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "mib_info1", dir,
-+				    bersa_mibinfo_band1);
++				    besra_mibinfo_band1);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "mib_info2", dir,
-+				    bersa_mibinfo_band2);
++				    besra_mibinfo_band2);
 +
 +	debugfs_create_u32("token_idx", 0600, dir, &dev->dbg.token_idx);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "token", dir,
-+				    bersa_token_read);
++				    besra_token_read);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "token_txd", dir,
-+				    bersa_token_txd_read);
++				    besra_token_txd_read);
 +	debugfs_create_u32("txd_dump", 0600, dir, &dev->dbg.txd_read_cnt);
 +	debugfs_create_u32("rxd_dump", 0600, dir, &dev->dbg.rxd_read_cnt);
 +
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "amsdu_info", dir,
-+				    bersa_amsdu_read);
++				    besra_amsdu_read);
 +
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "agg_info0", dir,
-+				    bersa_agginfo_read_band0);
++				    besra_agginfo_read_band0);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "agg_info1", dir,
-+				    bersa_agginfo_read_band1);
++				    besra_agginfo_read_band1);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "agg_info2", dir,
-+				    bersa_agginfo_read_band2);
++				    besra_agginfo_read_band2);
 +
 +	return 0;
 +}

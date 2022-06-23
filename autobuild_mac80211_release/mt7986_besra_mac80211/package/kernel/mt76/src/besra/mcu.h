@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: ISC */
 /* Copyright (C) 2020 MediaTek Inc. */
 
-#ifndef __BERSA_MCU_H
-#define __BERSA_MCU_H
+#ifndef __BESRA_MCU_H
+#define __BESRA_MCU_H
 
 #include "../mt76_connac_mcu.h"
 
-struct bersa_mcu_txd {
+struct besra_mcu_txd {
 	__le32 txd[8];
 
 	__le16 len;
@@ -26,7 +26,7 @@ struct bersa_mcu_txd {
 } __packed __aligned(4);
 
 /**
- * struct bersa_uni_txd - mcu command descriptor for firmware v3
+ * struct besra_uni_txd - mcu command descriptor for firmware v3
  * @txd: hardware descriptor
  * @len: total length not including txd
  * @cid: command identifier
@@ -54,7 +54,7 @@ struct bersa_mcu_txd {
  *          0: QUERY command
  *          1: SET command
  */
-struct bersa_uni_txd {
+struct besra_uni_txd {
 	__le32 txd[8];
 
 	/* DW1 */
@@ -83,7 +83,7 @@ enum {
 	MCU_ATE_CLEAN_TXQUEUE = 0x1c,
 };
 
-struct bersa_mcu_rxd {
+struct besra_mcu_rxd {
 	__le32 rxd[8];
 
 	__le16 len;
@@ -99,13 +99,13 @@ struct bersa_mcu_rxd {
 	u8 s2d_index;
 };
 
-struct bersa_mcu_uni_event {
+struct besra_mcu_uni_event {
 	u8 cid;
 	u8 __rsv[3];
 	__le32 status; /* 0: success, others: fail */
 } __packed;
 
-struct bersa_mcu_thermal_ctrl {
+struct besra_mcu_thermal_ctrl {
 	u8 ctrl_id;
 	u8 band_idx;
 	union {
@@ -120,16 +120,16 @@ struct bersa_mcu_thermal_ctrl {
 	};
 } __packed;
 
-struct bersa_mcu_thermal_notify {
-	struct bersa_mcu_rxd rxd;
+struct besra_mcu_thermal_notify {
+	struct besra_mcu_rxd rxd;
 
-	struct bersa_mcu_thermal_ctrl ctrl;
+	struct besra_mcu_thermal_ctrl ctrl;
 	__le32 temperature;
 	u8 rsv[8];
 } __packed;
 
-struct bersa_mcu_csa_notify {
-	struct bersa_mcu_rxd rxd;
+struct besra_mcu_csa_notify {
+	struct besra_mcu_rxd rxd;
 
 	u8 omac_idx;
 	u8 csa_count;
@@ -137,8 +137,8 @@ struct bersa_mcu_csa_notify {
 	u8 rsv;
 } __packed;
 
-struct bersa_mcu_rdd_report {
-	struct bersa_mcu_rxd rxd;
+struct besra_mcu_rdd_report {
+	struct besra_mcu_rxd rxd;
 
 	u8 band_idx;
 	u8 long_detected;
@@ -189,7 +189,7 @@ struct bersa_mcu_rdd_report {
 	} hw_pulse[32];
 } __packed;
 
-struct bersa_mcu_background_chain_ctrl {
+struct besra_mcu_background_chain_ctrl {
 	u8 chan;		/* primary channel */
 	u8 central_chan;	/* central channel */
 	u8 bw;
@@ -212,7 +212,7 @@ struct bersa_mcu_background_chain_ctrl {
 	u8 rsv[2];
 } __packed;
 
-struct bersa_mcu_eeprom {
+struct besra_mcu_eeprom {
 	u8 _rsv[4];
 
 	__le16 tag;
@@ -222,13 +222,13 @@ struct bersa_mcu_eeprom {
 	__le16 buf_len;
 } __packed;
 
-struct bersa_mcu_eeprom_info {
+struct besra_mcu_eeprom_info {
 	__le32 addr;
 	__le32 valid;
 	u8 data[16];
 } __packed;
 
-struct bersa_mcu_phy_rx_info {
+struct besra_mcu_phy_rx_info {
 	u8 category;
 	u8 rate;
 	u8 mode;
@@ -239,15 +239,15 @@ struct bersa_mcu_phy_rx_info {
 	u8 bw;
 };
 
-struct bersa_mcu_mib {
+struct besra_mcu_mib {
 	__le16 tag;
 	__le16 len;
 	__le32 offs;
 	__le64 data;
 } __packed;
 
-enum bersa_chan_mib_offs {
-	/* bersa */
+enum besra_chan_mib_offs {
+	/* besra */
 	MIB_BUSY_TIME = 0,
 	MIB_TX_TIME = 6,
 	MIB_RX_TIME = 8,
@@ -267,7 +267,7 @@ struct edca {
 	u8 __rsv;
 };
 
-struct bersa_mcu_muru_stats {
+struct besra_mcu_muru_stats {
 	__le32 event_id;
 	struct {
 		__le32 cck_cnt;
@@ -484,7 +484,7 @@ struct hdr_trans_blacklist {
 	__le16 type;
 } __packed;
 
-#define BERSA_HDR_TRANS_MAX_SIZE	(sizeof(struct hdr_trans_en) + \
+#define BESRA_HDR_TRANS_MAX_SIZE	(sizeof(struct hdr_trans_en) + \
 					 sizeof(struct hdr_trans_vlan) + \
 					 sizeof(struct hdr_trans_blacklist))
 
@@ -561,7 +561,7 @@ enum {
 	UNI_CHANNEL_SWITCH,
 	UNI_CHANNEL_RX_PATH,
 };
-#define BERSA_BSS_UPDATE_MAX_SIZE	(sizeof(struct bss_req_hdr) +	\
+#define BESRA_BSS_UPDATE_MAX_SIZE	(sizeof(struct bss_req_hdr) +	\
 					 sizeof(struct mt76_connac_bss_basic_tlv) +	\
 					 sizeof(struct bss_rlm_tlv) +\
 					 sizeof(struct bss_ra_tlv) + \
@@ -572,7 +572,7 @@ enum {
 					 sizeof(struct bss_sec_tlv) +\
 					 sizeof(struct bss_mld_tlv))
 
-#define BERSA_BEACON_UPDATE_SIZE	(sizeof(struct bss_req_hdr) +	\
+#define BESRA_BEACON_UPDATE_SIZE	(sizeof(struct bss_req_hdr) +	\
 					 sizeof(struct bss_bcn_content_tlv) + \
 					 sizeof(struct bss_bcn_cntdwn_tlv) + \
 					 sizeof(struct bss_bcn_mbss_tlv))

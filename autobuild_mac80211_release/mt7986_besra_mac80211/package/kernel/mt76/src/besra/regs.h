@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: ISC */
 /* Copyright (C) 2020 MediaTek Inc. */
 
-#ifndef __BERSA_REGS_H
-#define __BERSA_REGS_H
+#ifndef __BESRA_REGS_H
+#define __BESRA_REGS_H
 
 struct __map {
 	u32 phys;
@@ -15,7 +15,7 @@ struct __base {
 };
 
 /* used to differentiate between generations */
-struct bersa_reg_desc {
+struct besra_reg_desc {
 	const struct __base *base;
 	const struct __map *map;
 	u32 map_size;

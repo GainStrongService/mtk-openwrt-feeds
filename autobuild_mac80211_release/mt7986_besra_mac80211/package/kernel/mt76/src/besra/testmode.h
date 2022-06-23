@@ -1,22 +1,22 @@
 /* SPDX-License-Identifier: ISC */
 /* Copyright (C) 2020 MediaTek Inc. */
 
-#ifndef __BERSA_TESTMODE_H
-#define __BERSA_TESTMODE_H
+#ifndef __BESRA_TESTMODE_H
+#define __BESRA_TESTMODE_H
 
-struct bersa_tm_trx {
+struct besra_tm_trx {
 	u8 type;
 	u8 enable;
 	u8 band;
 	u8 rsv;
 };
 
-struct bersa_tm_freq_offset {
+struct besra_tm_freq_offset {
 	u8 band;
 	__le32 freq_offset;
 };
 
-struct bersa_tm_slot_time {
+struct besra_tm_slot_time {
 	u8 slot_time;
 	u8 sifs;
 	u8 rifs;
@@ -26,23 +26,23 @@ struct bersa_tm_slot_time {
 	u8 _rsv1[5];
 };
 
-struct bersa_tm_clean_txq {
+struct besra_tm_clean_txq {
 	bool sta_pause;
 	u8 wcid;	/* 256 sta */
 	u8 band;
 	u8 rsv;
 };
 
-struct bersa_tm_cmd {
+struct besra_tm_cmd {
 	u8 testmode_en;
 	u8 param_idx;
 	u8 _rsv[2];
 	union {
 		__le32 data;
-		struct bersa_tm_trx trx;
-		struct bersa_tm_freq_offset freq;
-		struct bersa_tm_slot_time slot;
-		struct bersa_tm_clean_txq clean;
+		struct besra_tm_trx trx;
+		struct besra_tm_freq_offset freq;
+		struct besra_tm_slot_time slot;
+		struct besra_tm_clean_txq clean;
 		u8 test[72];
 	} param;
 } __packed;
@@ -66,7 +66,7 @@ struct tm_tx_cont {
 	u8 txfd_mode;
 };
 
-struct bersa_tm_rf_test {
+struct besra_tm_rf_test {
 	u8 action;
 	u8 icap_len;
 	u8 _rsv[2];

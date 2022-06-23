@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: ISC */
 /* Copyright (C) 2020 MediaTek Inc. */
 
-#ifndef __BERSA_MAC_H
-#define __BERSA_MAC_H
+#ifndef __BESRA_MAC_H
+#define __BESRA_MAC_H
 
 #define MT_CT_PARSE_LEN			72
 #define MT_CT_DMA_BUF_NUM		2
@@ -272,7 +272,7 @@ enum tx_mgnt_type {
 
 #define MT_TXP_MAX_BUF_NUM		6
 
-struct bersa_txp {
+struct besra_txp {
 	__le16 flags;
 	__le16 token;
 	u8 bss_idx;
@@ -282,7 +282,7 @@ struct bersa_txp {
 	__le16 len[MT_TXP_MAX_BUF_NUM];
 } __packed __aligned(4);
 
-struct bersa_tx_free {
+struct besra_tx_free {
 	__le16 rx_byte_cnt;
 	__le16 ctrl;
 	__le32 txd;
@@ -359,7 +359,7 @@ struct bersa_tx_free {
 #define MT_TXS7_F1_MPDU_RETRY_COUNT	GENMASK(31, 24)
 #define MT_TXS7_F1_MPDU_RETRY_BYTES	GENMASK(23, 0)
 
-struct bersa_dfs_pulse {
+struct besra_dfs_pulse {
 	u32 max_width;		/* us */
 	int max_pwr;		/* dbm */
 	int min_pwr;		/* dbm */
@@ -369,7 +369,7 @@ struct bersa_dfs_pulse {
 	u32 max_cr_pri;		/* us */
 };
 
-struct bersa_dfs_pattern {
+struct besra_dfs_pattern {
 	u8 enb;
 	u8 stgr;
 	u8 min_crpn;
@@ -388,13 +388,13 @@ struct bersa_dfs_pattern {
 	u32 min_stgpr_diff;
 } __packed;
 
-struct bersa_dfs_radar_spec {
-	struct bersa_dfs_pulse pulse_th;
-	struct bersa_dfs_pattern radar_pattern[16];
+struct besra_dfs_radar_spec {
+	struct besra_dfs_pulse pulse_th;
+	struct besra_dfs_pattern radar_pattern[16];
 };
 
-static inline struct bersa_txp *
-bersa_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+static inline struct besra_txp *
+besra_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 {
 	u8 *txwi;
 
@@ -403,7 +403,7 @@ bersa_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 
 	txwi = mt76_get_txwi_ptr(dev, t);
 
-	return (struct bersa_txp *)(txwi + MT_TXD_SIZE);
+	return (struct besra_txp *)(txwi + MT_TXD_SIZE);
 }
 
 #endif

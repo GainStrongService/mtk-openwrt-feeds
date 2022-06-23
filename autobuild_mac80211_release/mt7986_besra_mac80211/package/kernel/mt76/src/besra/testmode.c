@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 MediaTek Inc. */
 
-#include "bersa.h"
+#include "besra.h"
 #include "mac.h"
 #include "mcu.h"
 #include "testmode.h"
@@ -35,9 +35,9 @@ static struct reg_band reg_backup_list[TM_REG_MAX_ID];
 
 
 static int
-bersa_tm_set_tx_power(struct bersa_phy *phy)
+besra_tm_set_tx_power(struct besra_phy *phy)
 {
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	struct mt76_phy *mphy = phy->mt76;
 	struct cfg80211_chan_def *chandef = &mphy->chandef;
 	int freq = chandef->center_freq1;
@@ -71,10 +71,10 @@ bersa_tm_set_tx_power(struct bersa_phy *phy)
 }
 
 static int
-bersa_tm_set_freq_offset(struct bersa_phy *phy, bool en, u32 val)
+besra_tm_set_freq_offset(struct besra_phy *phy, bool en, u32 val)
 {
-	struct bersa_dev *dev = phy->dev;
-	struct bersa_tm_cmd req = {
+	struct besra_dev *dev = phy->dev;
+	struct besra_tm_cmd req = {
 		.testmode_en = en,
 		.param_idx = MCU_ATE_SET_FREQ_OFFSET,
 		.param.freq.band = phy->band_idx,
@@ -86,7 +86,7 @@ bersa_tm_set_freq_offset(struct bersa_phy *phy, bool en, u32 val)
 }
 
 static int
-bersa_tm_mode_ctrl(struct bersa_dev *dev, bool enable)
+besra_tm_mode_ctrl(struct besra_dev *dev, bool enable)
 {
 	struct {
 		u8 format_id;
@@ -103,10 +103,10 @@ bersa_tm_mode_ctrl(struct bersa_dev *dev, bool enable)
 }
 
 static int
-bersa_tm_set_trx(struct bersa_phy *phy, int type, bool en)
+besra_tm_set_trx(struct besra_phy *phy, int type, bool en)
 {
-	struct bersa_dev *dev = phy->dev;
-	struct bersa_tm_cmd req = {
+	struct besra_dev *dev = phy->dev;
+	struct besra_tm_cmd req = {
 		.testmode_en = 1,
 		.param_idx = MCU_ATE_SET_TRX,
 		.param.trx.type = type,
@@ -119,10 +119,10 @@ bersa_tm_set_trx(struct bersa_phy *phy, int type, bool en)
 }
 
 static int
-bersa_tm_clean_hwq(struct bersa_phy *phy, u8 wcid)
+besra_tm_clean_hwq(struct besra_phy *phy, u8 wcid)
 {
-	struct bersa_dev *dev = phy->dev;
-	struct bersa_tm_cmd req = {
+	struct besra_dev *dev = phy->dev;
+	struct besra_tm_cmd req = {
 		.testmode_en = 1,
 		.param_idx = MCU_ATE_CLEAN_TXQUEUE,
 		.param.clean.wcid = wcid,
@@ -134,10 +134,10 @@ bersa_tm_clean_hwq(struct bersa_phy *phy, u8 wcid)
 }
 
 static int
-bersa_tm_set_slot_time(struct bersa_phy *phy, u8 slot_time, u8 sifs)
+besra_tm_set_slot_time(struct besra_phy *phy, u8 slot_time, u8 sifs)
 {
-	struct bersa_dev *dev = phy->dev;
-	struct bersa_tm_cmd req = {
+	struct besra_dev *dev = phy->dev;
+	struct besra_tm_cmd req = {
 		.testmode_en = !(phy->mt76->test.state == MT76_TM_STATE_OFF),
 		.param_idx = MCU_ATE_SET_SLOT_TIME,
 		.param.slot.slot_time = slot_time,
@@ -152,9 +152,9 @@ bersa_tm_set_slot_time(struct bersa_phy *phy, u8 slot_time, u8 sifs)
 }
 
 static int
-bersa_tm_set_tam_arb(struct bersa_phy *phy, bool enable, bool mu)
+besra_tm_set_tam_arb(struct besra_phy *phy, bool enable, bool mu)
 {
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	u32 op_mode;
 
 	if (!enable)
@@ -164,15 +164,15 @@ bersa_tm_set_tam_arb(struct bersa_phy *phy, bool enable, bool mu)
 	else
 		op_mode = TAM_ARB_OP_MODE_FORCE_SU;
 
-	return bersa_mcu_set_muru_ctrl(dev, MURU_SET_ARB_OP_MODE, op_mode);
+	return besra_mcu_set_muru_ctrl(dev, MURU_SET_ARB_OP_MODE, op_mode);
 }
 
 static int
-bersa_tm_set_wmm_qid(struct bersa_dev *dev, u8 qid, u8 aifs, u8 cw_min,
+besra_tm_set_wmm_qid(struct besra_dev *dev, u8 qid, u8 aifs, u8 cw_min,
 		      u16 cw_max, u16 txop)
 {
 #if 0
-	struct bersa_mcu_tx req = { .total = 1 };
+	struct besra_mcu_tx req = { .total = 1 };
 	struct edca *e = &req.edca[0];
 
 	e->queue = qid;
@@ -183,20 +183,20 @@ bersa_tm_set_wmm_qid(struct bersa_dev *dev, u8 qid, u8 aifs, u8 cw_min,
 	e->cw_max = cpu_to_le16(cw_max);
 	e->txop = cpu_to_le16(txop);
 
-	return bersa_mcu_update_edca(dev, &req);
+	return besra_mcu_update_edca(dev, &req);
 #endif
 	return 0;
 }
 
 static int
-bersa_tm_set_ipg_params(struct bersa_phy *phy, u32 ipg, u8 mode)
+besra_tm_set_ipg_params(struct besra_phy *phy, u32 ipg, u8 mode)
 {
 #define TM_DEFAULT_SIFS	10
 #define TM_MAX_SIFS	127
 #define TM_MAX_AIFSN	0xf
 #define TM_MIN_AIFSN	0x1
 #define BBP_PROC_TIME	1500
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	u8 sig_ext = (mode == MT76_TM_TX_MODE_CCK) ? 0 : 6;
 	u8 slot_time = 9, sifs = TM_DEFAULT_SIFS;
 	u8 aifsn = TM_MIN_AIFSN;
@@ -245,15 +245,15 @@ done:
 		 FIELD_PREP(MT_TMAC_TRCR0_TR2T_CHK, tr2t_time) |
 		 FIELD_PREP(MT_TMAC_TRCR0_I2T_CHK, i2t_time));
 
-	bersa_tm_set_slot_time(phy, slot_time, sifs);
+	besra_tm_set_slot_time(phy, slot_time, sifs);
 
-	return bersa_tm_set_wmm_qid(dev,
+	return besra_tm_set_wmm_qid(dev,
 				     mt76_connac_lmac_mapping(IEEE80211_AC_BE),
 				     aifsn, cw, cw, 0);
 }
 
 static int
-bersa_tm_set_tx_len(struct bersa_phy *phy, u32 tx_time)
+besra_tm_set_tx_len(struct besra_phy *phy, u32 tx_time)
 {
 	struct mt76_phy *mphy = phy->mt76;
 	struct mt76_testmode_data *td = &mphy->test;
@@ -333,10 +333,10 @@ bersa_tm_set_tx_len(struct bersa_phy *phy, u32 tx_time)
 }
 
 static void
-bersa_tm_reg_backup_restore(struct bersa_phy *phy)
+besra_tm_reg_backup_restore(struct besra_phy *phy)
 {
 	int n_regs = ARRAY_SIZE(reg_backup_list);
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	u32 *b = phy->test.reg_backup;
 	int i;
 
@@ -401,56 +401,56 @@ bersa_tm_reg_backup_restore(struct bersa_phy *phy)
 }
 
 static void
-bersa_tm_init(struct bersa_phy *phy, bool en)
+besra_tm_init(struct besra_phy *phy, bool en)
 {
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 
 	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
 		return;
 
 	/* TODO: need check */
-	/* bersa_mcu_set_sku_en(phy, !en); */
+	/* besra_mcu_set_sku_en(phy, !en); */
 
-	bersa_tm_mode_ctrl(dev, en);
-	bersa_tm_reg_backup_restore(phy);
-	bersa_tm_set_trx(phy, TM_MAC_TXRX, !en);
+	besra_tm_mode_ctrl(dev, en);
+	besra_tm_reg_backup_restore(phy);
+	besra_tm_set_trx(phy, TM_MAC_TXRX, !en);
 
-	bersa_mcu_add_bss_info(phy, phy->monitor_vif, en);
-	bersa_mcu_add_sta(dev, phy->monitor_vif, NULL, en);
+	besra_mcu_add_bss_info(phy, phy->monitor_vif, en);
+	besra_mcu_add_sta(dev, phy->monitor_vif, NULL, en);
 
 	if (!en)
-		bersa_tm_set_tam_arb(phy, en, 0);
+		besra_tm_set_tam_arb(phy, en, 0);
 }
 
 static void
-bersa_tm_update_channel(struct bersa_phy *phy)
+besra_tm_update_channel(struct besra_phy *phy)
 {
 	mutex_unlock(&phy->dev->mt76.mutex);
-	bersa_set_channel(phy);
+	besra_set_channel(phy);
 	mutex_lock(&phy->dev->mt76.mutex);
 
-	bersa_mcu_set_chan_info(phy, UNI_CHANNEL_RX_PATH);
+	besra_mcu_set_chan_info(phy, UNI_CHANNEL_RX_PATH);
 }
 
 static void
-bersa_tm_set_tx_frames(struct bersa_phy *phy, bool en)
+besra_tm_set_tx_frames(struct besra_phy *phy, bool en)
 {
 	static const u8 spe_idx_map[] = {0, 0, 1, 0, 3, 2, 4, 0,
 					 9, 8, 6, 10, 16, 12, 18, 0};
 	struct mt76_testmode_data *td = &phy->mt76->test;
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	struct ieee80211_tx_info *info;
 	u8 duty_cycle = td->tx_duty_cycle;
 	u32 tx_time = td->tx_time;
 	u32 ipg = td->tx_ipg;
-	u8 phy_idx = bersa_get_phy_id(phy);
+	u8 phy_idx = besra_get_phy_id(phy);
 	u16 chainshift;
 
-	bersa_tm_set_trx(phy, TM_MAC_RX_RXV, false);
-	bersa_tm_clean_hwq(phy, dev->mt76.global_wcid.idx);
+	besra_tm_set_trx(phy, TM_MAC_RX_RXV, false);
+	besra_tm_clean_hwq(phy, dev->mt76.global_wcid.idx);
 
 	if (en) {
-		bersa_tm_update_channel(phy);
+		besra_tm_update_channel(phy);
 
 		if (td->tx_spe_idx) {
 			phy->test.spe_idx = td->tx_spe_idx;
@@ -469,7 +469,7 @@ bersa_tm_set_tx_frames(struct bersa_phy *phy, bool en)
 		}
 	}
 
-	bersa_tm_set_tam_arb(phy, en,
+	besra_tm_set_tam_arb(phy, en,
 			      td->tx_rate_mode == MT76_TM_TX_MODE_HE_MU);
 
 	/* if all three params are set, duty_cycle will be ignored */
@@ -480,8 +480,8 @@ bersa_tm_set_tx_frames(struct bersa_phy *phy, bool en)
 			tx_time = duty_cycle * ipg / (100 - duty_cycle);
 	}
 
-	bersa_tm_set_ipg_params(phy, ipg, td->tx_rate_mode);
-	bersa_tm_set_tx_len(phy, tx_time);
+	besra_tm_set_ipg_params(phy, ipg, td->tx_rate_mode);
+	besra_tm_set_tx_len(phy, tx_time);
 
 	if (ipg)
 		td->tx_queued_limit = MT76_TM_TIMEOUT * 1000000 / ipg / 2;
@@ -492,29 +492,29 @@ bersa_tm_set_tx_frames(struct bersa_phy *phy, bool en)
 	info = IEEE80211_SKB_CB(td->tx_skb);
 	info->control.vif = phy->monitor_vif;
 
-	bersa_tm_set_trx(phy, TM_MAC_TX, en);
+	besra_tm_set_trx(phy, TM_MAC_TX, en);
 }
 
 static void
-bersa_tm_set_rx_frames(struct bersa_phy *phy, bool en)
+besra_tm_set_rx_frames(struct besra_phy *phy, bool en)
 {
-	bersa_tm_set_trx(phy, TM_MAC_RX_RXV, false);
+	besra_tm_set_trx(phy, TM_MAC_RX_RXV, false);
 
 	if (en) {
-		struct bersa_dev *dev = phy->dev;
+		struct besra_dev *dev = phy->dev;
 
-		bersa_tm_update_channel(phy);
+		besra_tm_update_channel(phy);
 
 		/* read-clear */
 		mt76_rr(dev, MT_MIB_SDR3(phy->band_idx));
-		bersa_tm_set_trx(phy, TM_MAC_RX_RXV, en);
+		besra_tm_set_trx(phy, TM_MAC_RX_RXV, en);
 	}
 }
 
 static int
-bersa_tm_rf_switch_mode(struct bersa_dev *dev, u32 oper)
+besra_tm_rf_switch_mode(struct besra_dev *dev, u32 oper)
 {
-	struct bersa_tm_rf_test req = {
+	struct besra_tm_rf_test req = {
 		.op.op_mode = cpu_to_le32(oper),
 	};
 
@@ -523,18 +523,18 @@ bersa_tm_rf_switch_mode(struct bersa_dev *dev, u32 oper)
 }
 
 static int
-bersa_tm_set_tx_cont(struct bersa_phy *phy, bool en)
+besra_tm_set_tx_cont(struct besra_phy *phy, bool en)
 {
 #define TX_CONT_START	0x05
 #define TX_CONT_STOP	0x06
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	int freq1 = ieee80211_frequency_to_channel(chandef->center_freq1);
 	struct mt76_testmode_data *td = &phy->mt76->test;
 	u32 func_idx = en ? TX_CONT_START : TX_CONT_STOP;
 	u8 rate_idx = td->tx_rate_idx, mode;
 	u16 rateval;
-	struct bersa_tm_rf_test req = {
+	struct besra_tm_rf_test req = {
 		.action = 1,
 		.icap_len = 120,
 		.op.rf.func_idx = cpu_to_le32(func_idx),
@@ -637,49 +637,49 @@ out:
 		if (ret)
 			return ret;
 
-		return bersa_tm_rf_switch_mode(dev, RF_OPER_NORMAL);
+		return besra_tm_rf_switch_mode(dev, RF_OPER_NORMAL);
 	}
 
-	bersa_tm_rf_switch_mode(dev, RF_OPER_RF_TEST);
-	bersa_tm_update_channel(phy);
+	besra_tm_rf_switch_mode(dev, RF_OPER_RF_TEST);
+	besra_tm_update_channel(phy);
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(RF_TEST), &req,
 				 sizeof(req), true);
 }
 
 static void
-bersa_tm_update_params(struct bersa_phy *phy, u32 changed)
+besra_tm_update_params(struct besra_phy *phy, u32 changed)
 {
 	struct mt76_testmode_data *td = &phy->mt76->test;
 	bool en = phy->mt76->test.state != MT76_TM_STATE_OFF;
 
 	if (changed & BIT(TM_CHANGED_FREQ_OFFSET))
-		bersa_tm_set_freq_offset(phy, en, en ? td->freq_offset : 0);
+		besra_tm_set_freq_offset(phy, en, en ? td->freq_offset : 0);
 	if (changed & BIT(TM_CHANGED_TXPOWER))
-		bersa_tm_set_tx_power(phy);
+		besra_tm_set_tx_power(phy);
 }
 
 static int
-bersa_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
+besra_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
 {
 	struct mt76_testmode_data *td = &mphy->test;
-	struct bersa_phy *phy = mphy->priv;
+	struct besra_phy *phy = mphy->priv;
 	enum mt76_testmode_state prev_state = td->state;
 
 	mphy->test.state = state;
 
 	if (prev_state == MT76_TM_STATE_TX_FRAMES ||
 	    state == MT76_TM_STATE_TX_FRAMES)
-		bersa_tm_set_tx_frames(phy, state == MT76_TM_STATE_TX_FRAMES);
+		besra_tm_set_tx_frames(phy, state == MT76_TM_STATE_TX_FRAMES);
 	else if (prev_state == MT76_TM_STATE_RX_FRAMES ||
 		 state == MT76_TM_STATE_RX_FRAMES)
-		bersa_tm_set_rx_frames(phy, state == MT76_TM_STATE_RX_FRAMES);
+		besra_tm_set_rx_frames(phy, state == MT76_TM_STATE_RX_FRAMES);
 	else if (prev_state == MT76_TM_STATE_TX_CONT ||
 		 state == MT76_TM_STATE_TX_CONT)
-		bersa_tm_set_tx_cont(phy, state == MT76_TM_STATE_TX_CONT);
+		besra_tm_set_tx_cont(phy, state == MT76_TM_STATE_TX_CONT);
 	else if (prev_state == MT76_TM_STATE_OFF ||
 		 state == MT76_TM_STATE_OFF)
-		bersa_tm_init(phy, !(state == MT76_TM_STATE_OFF));
+		besra_tm_init(phy, !(state == MT76_TM_STATE_OFF));
 
 	if ((state == MT76_TM_STATE_IDLE &&
 	     prev_state == MT76_TM_STATE_OFF) ||
@@ -695,18 +695,18 @@ bersa_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
 				changed |= BIT(i);
 		}
 
-		bersa_tm_update_params(phy, changed);
+		besra_tm_update_params(phy, changed);
 	}
 
 	return 0;
 }
 
 static int
-bersa_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
+besra_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
 		     enum mt76_testmode_state new_state)
 {
 	struct mt76_testmode_data *td = &mphy->test;
-	struct bersa_phy *phy = mphy->priv;
+	struct besra_phy *phy = mphy->priv;
 	u32 changed = 0;
 	int i;
 
@@ -724,16 +724,16 @@ bersa_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
 			changed |= BIT(i);
 	}
 
-	bersa_tm_update_params(phy, changed);
+	besra_tm_update_params(phy, changed);
 
 	return 0;
 }
 
 static int
-bersa_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
+besra_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 {
-	struct bersa_phy *phy = mphy->priv;
-	struct bersa_dev *dev = phy->dev;
+	struct besra_phy *phy = mphy->priv;
+	struct besra_dev *dev = phy->dev;
 	enum mt76_rxq_id q;
 	void *rx, *rssi;
 	u16 fcs_err;
@@ -792,8 +792,8 @@ bersa_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
 	return 0;
 }
 
-const struct mt76_testmode_ops bersa_testmode_ops = {
-	.set_state = bersa_tm_set_state,
-	.set_params = bersa_tm_set_params,
-	.dump_stats = bersa_tm_dump_stats,
+const struct mt76_testmode_ops besra_testmode_ops = {
+	.set_state = besra_tm_set_state,
+	.set_params = besra_tm_set_params,
+	.dump_stats = besra_tm_dump_stats,
 };

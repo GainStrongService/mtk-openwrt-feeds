@@ -1,17 +1,17 @@
 /* SPDX-License-Identifier: ISC */
 /* Copyright (C) 2020 MediaTek Inc. */
 
-#ifndef __BERSA_EEPROM_H
-#define __BERSA_EEPROM_H
+#ifndef __BESRA_EEPROM_H
+#define __BESRA_EEPROM_H
 
-#include "bersa.h"
+#include "besra.h"
 
 struct cal_data {
 	u8 count;
 	u16 offset[60];
 };
 
-enum bersa_eeprom_field {
+enum besra_eeprom_field {
 	MT_EE_CHIP_ID =		0x000,
 	MT_EE_VERSION =		0x002,
 	MT_EE_MAC_ADDR =	0x004,
@@ -61,7 +61,7 @@ enum bersa_eeprom_field {
 #define MT_EE_NSS_MAX_MA7986			4
 #define MT_EE_NSS_MAX_DBDC_MA7986		4
 
-enum bersa_adie_sku {
+enum besra_adie_sku {
 	MT7976_ONE_ADIE_DBDC = 0x7,
 	MT7975_ONE_ADIE	= 0x8,
 	MT7976_ONE_ADIE	= 0xa,
@@ -69,7 +69,7 @@ enum bersa_adie_sku {
 	MT7976_DUAL_ADIE = 0xf,
 };
 
-enum bersa_eeprom_band {
+enum besra_eeprom_band {
 	MT_EE_BAND_SEL_DEFAULT,
 	MT_EE_BAND_SEL_5GHZ,
 	MT_EE_BAND_SEL_2GHZ,
@@ -83,7 +83,7 @@ enum {
 	MT_EE_V2_BAND_SEL_5GHZ_6GHZ,
 };
 
-enum bersa_sku_rate_group {
+enum besra_sku_rate_group {
 	SKU_CCK,
 	SKU_OFDM,
 	SKU_HT_BW20,
@@ -103,7 +103,7 @@ enum bersa_sku_rate_group {
 };
 
 static inline int
-bersa_get_channel_group(int channel)
+besra_get_channel_group(int channel)
 {
 	if (channel >= 184 && channel <= 196)
 		return 0;
@@ -123,7 +123,7 @@ bersa_get_channel_group(int channel)
 }
 
 static inline bool
-bersa_tssi_enabled(struct bersa_dev *dev, enum nl80211_band band)
+besra_tssi_enabled(struct besra_dev *dev, enum nl80211_band band)
 {
 	u8 *eep = dev->mt76.eeprom.data;
 	u8 val = eep[MT_EE_WIFI_CONF + 7];
@@ -137,6 +137,6 @@ bersa_tssi_enabled(struct bersa_dev *dev, enum nl80211_band band)
 		return val & MT_EE_WIFI_CONF7_TSSI0_5G;
 }
 
-extern const u8 bersa_sku_group_len[MAX_SKU_RATE_GROUP_NUM];
+extern const u8 besra_sku_group_len[MAX_SKU_RATE_GROUP_NUM];
 
 #endif

@@ -3,7 +3,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/timekeeping.h>
-#include "bersa.h"
+#include "besra.h"
 #include "../dma.h"
 #include "mac.h"
 #include "mcu.h"
@@ -14,7 +14,7 @@
 #define HE_PREP(f, m, v)	le16_encode_bits(le32_get_bits(v, MT_CRXV_HE_##m),\
 						 IEEE80211_RADIOTAP_HE_##f)
 
-static const struct bersa_dfs_radar_spec etsi_radar_specs = {
+static const struct besra_dfs_radar_spec etsi_radar_specs = {
 	.pulse_th = { 110, -10, -80, 40, 5200, 128, 5200 },
 	.radar_pattern = {
 		[5] =  { 1, 0,  6, 32, 28, 0,  990, 5010, 17, 1, 1 },
@@ -28,7 +28,7 @@ static const struct bersa_dfs_radar_spec etsi_radar_specs = {
 	},
 };
 
-static const struct bersa_dfs_radar_spec fcc_radar_specs = {
+static const struct besra_dfs_radar_spec fcc_radar_specs = {
 	.pulse_th = { 110, -10, -80, 40, 5200, 128, 5200 },
 	.radar_pattern = {
 		[0] = { 1, 0,  8,  32, 28, 0, 508, 3076, 13, 1,  1 },
@@ -39,7 +39,7 @@ static const struct bersa_dfs_radar_spec fcc_radar_specs = {
 	},
 };
 
-static const struct bersa_dfs_radar_spec jp_radar_specs = {
+static const struct besra_dfs_radar_spec jp_radar_specs = {
 	.pulse_th = { 110, -10, -80, 40, 5200, 128, 5200 },
 	.radar_pattern = {
 		[0] =  { 1, 0,  8,  32, 28, 0,  508, 3076,  13, 1,  1 },
@@ -53,10 +53,10 @@ static const struct bersa_dfs_radar_spec jp_radar_specs = {
 	},
 };
 
-static struct mt76_wcid *bersa_rx_get_wcid(struct bersa_dev *dev,
+static struct mt76_wcid *besra_rx_get_wcid(struct besra_dev *dev,
 					    u16 idx, bool unicast)
 {
-	struct bersa_sta *sta;
+	struct besra_sta *sta;
 	struct mt76_wcid *wcid;
 
 	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
@@ -69,18 +69,18 @@ static struct mt76_wcid *bersa_rx_get_wcid(struct bersa_dev *dev,
 	if (!wcid->sta)
 		return NULL;
 
-	sta = container_of(wcid, struct bersa_sta, wcid);
+	sta = container_of(wcid, struct besra_sta, wcid);
 	if (!sta->vif)
 		return NULL;
 
 	return &sta->vif->sta.wcid;
 }
 
-void bersa_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
+void besra_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 {
 }
 
-bool bersa_mac_wtbl_update(struct bersa_dev *dev, int idx, u32 mask)
+bool besra_mac_wtbl_update(struct besra_dev *dev, int idx, u32 mask)
 {
 	mt76_rmw(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_WLAN_IDX,
 		 FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, idx) | mask);
@@ -89,7 +89,7 @@ bool bersa_mac_wtbl_update(struct bersa_dev *dev, int idx, u32 mask)
 			 0, 5000);
 }
 
-u32 bersa_mac_wtbl_lmac_addr(struct bersa_dev *dev, u16 wcid, u8 dw)
+u32 besra_mac_wtbl_lmac_addr(struct besra_dev *dev, u16 wcid, u8 dw)
 {
 	mt76_wr(dev, MT_WTBLON_TOP_WDUCR,
 		FIELD_PREP(MT_WTBLON_TOP_WDUCR_GROUP, (wcid >> 7)));
@@ -97,7 +97,7 @@ u32 bersa_mac_wtbl_lmac_addr(struct bersa_dev *dev, u16 wcid, u8 dw)
 	return MT_WTBL_LMAC_OFFS(wcid, dw);
 }
 
-static void bersa_mac_sta_poll(struct bersa_dev *dev)
+static void besra_mac_sta_poll(struct besra_dev *dev)
 {
 	static const u8 ac_to_tid[] = {
 		[IEEE80211_AC_BE] = 0,
@@ -106,7 +106,7 @@ static void bersa_mac_sta_poll(struct bersa_dev *dev)
 		[IEEE80211_AC_VO] = 6
 	};
 	struct ieee80211_sta *sta;
-	struct bersa_sta *msta;
+	struct besra_sta *msta;
 	struct rate_info *rate;
 	u32 tx_time[IEEE80211_NUM_ACS], rx_time[IEEE80211_NUM_ACS];
 	LIST_HEAD(sta_poll_list);
@@ -130,12 +130,12 @@ static void bersa_mac_sta_poll(struct bersa_dev *dev)
 			break;
 		}
 		msta = list_first_entry(&sta_poll_list,
-					struct bersa_sta, poll_list);
+					struct besra_sta, poll_list);
 		list_del_init(&msta->poll_list);
 		spin_unlock_bh(&dev->sta_poll_lock);
 
 		idx = msta->wcid.idx;
-		addr = bersa_mac_wtbl_lmac_addr(dev, idx, 20);
+		addr = besra_mac_wtbl_lmac_addr(dev, idx, 20);
 
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 			u32 tx_last = msta->airtime_ac[i];
@@ -154,7 +154,7 @@ static void bersa_mac_sta_poll(struct bersa_dev *dev)
 		}
 
 		if (clear) {
-			bersa_mac_wtbl_update(dev, idx,
+			besra_mac_wtbl_update(dev, idx,
 					       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 			memset(msta->airtime_ac, 0, sizeof(msta->airtime_ac));
 		}
@@ -184,7 +184,7 @@ static void bersa_mac_sta_poll(struct bersa_dev *dev)
 		 * from per-sta counters directly.
 		 */
 		rate = &msta->wcid.rate;
-		addr = bersa_mac_wtbl_lmac_addr(dev, idx, 6);
+		addr = besra_mac_wtbl_lmac_addr(dev, idx, 6);
 		val = mt76_rr(dev, addr);
 
 		switch (rate->bw) {
@@ -219,7 +219,7 @@ static void bersa_mac_sta_poll(struct bersa_dev *dev)
 }
 
 static void
-bersa_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
+besra_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
 				 struct ieee80211_radiotap_he *he,
 				 __le32 *rxv)
 {
@@ -268,7 +268,7 @@ bersa_mac_decode_he_radiotap_ru(struct mt76_rx_status *status,
 }
 
 static void
-bersa_mac_decode_he_mu_radiotap(struct sk_buff *skb, __le32 *rxv)
+besra_mac_decode_he_mu_radiotap(struct sk_buff *skb, __le32 *rxv)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	static const struct ieee80211_radiotap_he_mu mu_known = {
@@ -309,7 +309,7 @@ bersa_mac_decode_he_mu_radiotap(struct sk_buff *skb, __le32 *rxv)
 }
 
 static void
-bersa_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv, u8 mode)
+besra_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv, u8 mode)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	static const struct ieee80211_radiotap_he known = {
@@ -369,8 +369,8 @@ bersa_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv, u8 mode)
 		he->data3 |= HE_PREP(DATA3_UL_DL, UPLINK, rxv[2]);
 		he->data4 |= HE_PREP(DATA4_MU_STA_ID, MU_AID, rxv[7]);
 
-		bersa_mac_decode_he_radiotap_ru(status, he, rxv);
-		bersa_mac_decode_he_mu_radiotap(skb, rxv);
+		besra_mac_decode_he_radiotap_ru(status, he, rxv);
+		besra_mac_decode_he_mu_radiotap(skb, rxv);
 		break;
 	case MT_PHY_TYPE_HE_TB:
 		he->data1 |= HE_BITS(DATA1_FORMAT_TRIG) |
@@ -383,7 +383,7 @@ bersa_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv, u8 mode)
 			     HE_PREP(DATA4_TB_SPTL_REUSE3, SR2_MASK, rxv[11]) |
 			     HE_PREP(DATA4_TB_SPTL_REUSE4, SR3_MASK, rxv[11]);
 
-		bersa_mac_decode_he_radiotap_ru(status, he, rxv);
+		besra_mac_decode_he_radiotap_ru(status, he, rxv);
 		break;
 	default:
 		break;
@@ -391,11 +391,11 @@ bersa_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv, u8 mode)
 }
 
 /* The HW does not translate the mac header to 802.3 for mesh point */
-static int bersa_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
+static int besra_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct ethhdr *eth_hdr = (struct ethhdr *)(skb->data + hdr_gap);
-	struct bersa_sta *msta = (struct bersa_sta *)status->wcid;
+	struct besra_sta *msta = (struct besra_sta *)status->wcid;
 	__le32 *rxd = (__le32 *)skb->data;
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif;
@@ -471,7 +471,7 @@ static int bersa_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
 }
 
 static int
-bersa_mac_fill_rx_rate(struct bersa_dev *dev,
+besra_mac_fill_rx_rate(struct besra_dev *dev,
 			struct mt76_rx_status *status,
 			struct ieee80211_supported_band *sband,
 			__le32 *rxv, u8 *mode)
@@ -565,11 +565,11 @@ bersa_mac_fill_rx_rate(struct bersa_dev *dev,
 }
 
 static int
-bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
+besra_mac_fill_rx(struct besra_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct bersa_phy *phy = &dev->phy;
+	struct besra_phy *phy = &dev->phy;
 	struct ieee80211_supported_band *sband;
 	__le32 *rxd = (__le32 *)skb->data;
 	__le32 *rxv = NULL;
@@ -612,12 +612,12 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
 
 	unicast = FIELD_GET(MT_RXD3_NORMAL_ADDR_TYPE, rxd3) == MT_RXD3_NORMAL_U2M;
 	idx = FIELD_GET(MT_RXD1_NORMAL_WLAN_IDX, rxd1);
-	status->wcid = bersa_rx_get_wcid(dev, idx, unicast);
+	status->wcid = besra_rx_get_wcid(dev, idx, unicast);
 
 	if (status->wcid) {
-		struct bersa_sta *msta;
+		struct besra_sta *msta;
 
-		msta = container_of(status->wcid, struct bersa_sta, wcid);
+		msta = container_of(status->wcid, struct besra_sta, wcid);
 		spin_lock_bh(&dev->sta_poll_lock);
 		if (list_empty(&msta->poll_list))
 			list_add_tail(&msta->poll_list, &dev->sta_poll_list);
@@ -750,7 +750,7 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
 		}
 
 		/* TODO: parse rx rate from rxv */
-		ret = bersa_mac_fill_rx_rate(dev, status, sband, rxv, &mode);
+		ret = besra_mac_fill_rx_rate(dev, status, sband, rxv, &mode);
 		if (ret < 0)
 			return ret;
 	}
@@ -764,7 +764,7 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
 
 	hdr_gap = (u8 *)rxd - skb->data + 2 * remove_pad;
 	if (hdr_trans && ieee80211_has_morefrags(fc)) {
-		if (bersa_reverse_frag0_hdr_trans(skb, hdr_gap))
+		if (besra_reverse_frag0_hdr_trans(skb, hdr_gap))
 			return -EINVAL;
 		hdr_trans = false;
 	} else {
@@ -815,7 +815,7 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
 	}
 
 	if (rxv && mode >= MT_PHY_TYPE_HE_SU && !(status->flag & RX_FLAG_8023))
-		bersa_mac_decode_he_radiotap(skb, rxv, mode);
+		besra_mac_decode_he_radiotap(skb, rxv, mode);
 
 	if (!status->wcid || !ieee80211_is_data_qos(fc))
 		return 0;
@@ -829,10 +829,10 @@ bersa_mac_fill_rx(struct bersa_dev *dev, struct sk_buff *skb)
 }
 
 static void
-bersa_mac_fill_rx_vector(struct bersa_dev *dev, struct sk_buff *skb)
+besra_mac_fill_rx_vector(struct besra_dev *dev, struct sk_buff *skb)
 {
 #ifdef CONFIG_NL80211_TESTMODE
-	struct bersa_phy *phy = &dev->phy;
+	struct besra_phy *phy = &dev->phy;
 	__le32 *rxd = (__le32 *)skb->data;
 	__le32 *rxv_hdr = rxd + 2;
 	__le32 *rxv = rxd + 4;
@@ -844,13 +844,13 @@ bersa_mac_fill_rx_vector(struct bersa_dev *dev, struct sk_buff *skb)
 
 	phy_idx = le32_get_bits(rxv_hdr[1], MT_RXV_HDR_BAND_IDX);
 	if (phy_idx == MT_EXT_PHY) {
-		phy = bersa_ext_phy(dev);
+		phy = besra_ext_phy(dev);
 		if (!phy)
 			goto out;
 	}
 
 	if (phy_idx == MT_TRI_PHY) {
-		phy = bersa_tri_phy(dev);
+		phy = besra_tri_phy(dev);
 		if (!phy)
 			goto out;
 	}
@@ -884,7 +884,7 @@ out:
 }
 
 static void
-bersa_mac_write_txwi_tm(struct bersa_phy *phy, __le32 *txwi,
+besra_mac_write_txwi_tm(struct besra_phy *phy, __le32 *txwi,
 			 struct sk_buff *skb)
 {
 #ifdef CONFIG_NL80211_TESTMODE
@@ -999,7 +999,7 @@ bersa_mac_write_txwi_tm(struct bersa_phy *phy, __le32 *txwi,
 }
 
 static void
-bersa_mac_write_txwi_8023(struct bersa_dev *dev, __le32 *txwi,
+besra_mac_write_txwi_8023(struct besra_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid)
 {
 
@@ -1035,7 +1035,7 @@ bersa_mac_write_txwi_8023(struct bersa_dev *dev, __le32 *txwi,
 }
 
 static void
-bersa_mac_write_txwi_80211(struct bersa_dev *dev, __le32 *txwi,
+besra_mac_write_txwi_80211(struct besra_dev *dev, __le32 *txwi,
 			    struct sk_buff *skb, struct ieee80211_key_conf *key,
 			    bool *mcast)
 {
@@ -1105,7 +1105,7 @@ bersa_mac_write_txwi_80211(struct bersa_dev *dev, __le32 *txwi,
 }
 
 static u16
-bersa_mac_tx_rate_val(struct mt76_phy *mphy, struct ieee80211_vif *vif,
+besra_mac_tx_rate_val(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 		       bool beacon, bool mcast)
 {
 	u8 mode = 0, band = mphy->chandef.chan->band;
@@ -1149,13 +1149,13 @@ out:
 	       FIELD_PREP(MT_TX_RATE_MODE, mode);
 }
 
-void bersa_mac_write_txwi(struct bersa_dev *dev, __le32 *txwi,
+void besra_mac_write_txwi(struct besra_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid, int pid,
 			   struct ieee80211_key_conf *key, bool beacon)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
-	struct bersa_vif *mvif = (struct bersa_vif *)vif->drv_priv;
+	struct besra_vif *mvif = (struct besra_vif *)vif->drv_priv;
 	struct mt76_phy *mphy = &dev->mphy;
 	u8 phy_idx = (info->hw_queue & MT_TX_HW_QUEUE_PHY) >> 2;
 	u8 p_fmt, q_idx, omac_idx = 0, wmm_idx = 0, band_idx = 0;
@@ -1165,7 +1165,7 @@ void bersa_mac_write_txwi(struct bersa_dev *dev, __le32 *txwi,
 	u32 val;
 
 	if (vif) {
-		struct bersa_vif *mvif = (struct bersa_vif *)vif->drv_priv;
+		struct besra_vif *mvif = (struct besra_vif *)vif->drv_priv;
 
 		omac_idx = mvif->mt76.omac_idx;
 		wmm_idx = mvif->mt76.wmm_idx;
@@ -1182,7 +1182,7 @@ void bersa_mac_write_txwi(struct bersa_dev *dev, __le32 *txwi,
 		q_idx = MT_LMAC_ALTX0;
 	} else {
 		p_fmt = MT_TX_TYPE_CT;
-		q_idx = wmm_idx * BERSA_MAX_WMM_SETS +
+		q_idx = wmm_idx * BESRA_MAX_WMM_SETS +
 			mt76_connac_lmac_mapping(skb_get_queue_mapping(skb));
 	}
 
@@ -1226,12 +1226,12 @@ void bersa_mac_write_txwi(struct bersa_dev *dev, __le32 *txwi,
 	txwi[7] = 0;
 
 	if (is_8023)
-		bersa_mac_write_txwi_8023(dev, txwi, skb, wcid);
+		besra_mac_write_txwi_8023(dev, txwi, skb, wcid);
 	else
-		bersa_mac_write_txwi_80211(dev, txwi, skb, key, &mcast);
+		besra_mac_write_txwi_80211(dev, txwi, skb, key, &mcast);
 
 	if (txwi[1] & cpu_to_le32(MT_TXD1_FIXED_RATE)) {
-		u16 rate = bersa_mac_tx_rate_val(mphy, vif, beacon, mcast);
+		u16 rate = besra_mac_tx_rate_val(mphy, vif, beacon, mcast);
 
 		/* hardware won't add HTC for mgmt/ctrl frame */
 		/* txwi[2] |= cpu_to_le32(MT_TXD2_HTC_VLD); */
@@ -1243,21 +1243,21 @@ void bersa_mac_write_txwi(struct bersa_dev *dev, __le32 *txwi,
 	}
 
 	if (mt76_testmode_enabled(mphy))
-		bersa_mac_write_txwi_tm(mphy->priv, txwi, skb);
+		besra_mac_write_txwi_tm(mphy->priv, txwi, skb);
 }
 
-int bersa_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+int besra_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta,
 			  struct mt76_tx_info *tx_info)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx_info->skb->data;
-	struct bersa_dev *dev = container_of(mdev, struct bersa_dev, mt76);
+	struct besra_dev *dev = container_of(mdev, struct besra_dev, mt76);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct ieee80211_vif *vif = info->control.vif;
 	struct mt76_txwi_cache *t;
-	struct bersa_txp *txp;
+	struct besra_txp *txp;
 	int id, i, nbuf = tx_info->nbuf - 1;
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
 	u8 *txwi = (u8 *)txwi_ptr;
@@ -1270,9 +1270,9 @@ int bersa_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		wcid = &dev->mt76.global_wcid;
 
 	if (sta) {
-		struct bersa_sta *msta;
+		struct besra_sta *msta;
 
-		msta = (struct bersa_sta *)sta->drv_priv;
+		msta = (struct besra_sta *)sta->drv_priv;
 
 		if (time_after(jiffies, msta->jiffies + HZ / 4)) {
 			info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
@@ -1291,10 +1291,10 @@ int bersa_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	memset(txwi_ptr, 0, MT_TXD_SIZE);
 	/* Transmit non qos data by 802.11 header and need to fill txd by host*/
 	if (!is_8023 || pid >= MT_PACKET_ID_FIRST)
-		bersa_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, pid,
+		besra_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, pid,
 				     key, false);
 
-	txp = (struct bersa_txp *)(txwi + MT_TXD_SIZE);
+	txp = (struct besra_txp *)(txwi + MT_TXD_SIZE);
 	for (i = 0; i < nbuf; i++) {
 		txp->buf[i] = cpu_to_le32(tx_info->buf[i + 1].addr);
 		txp->len[i] = cpu_to_le16(tx_info->buf[i + 1].len);
@@ -1313,7 +1313,7 @@ int bersa_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		txp->flags |= cpu_to_le16(MT_CT_INFO_MGMT_FRAME);
 
 	if (vif) {
-		struct bersa_vif *mvif = (struct bersa_vif *)vif->drv_priv;
+		struct besra_vif *mvif = (struct besra_vif *)vif->drv_priv;
 
 		txp->bss_idx = mvif->mt76.idx;
 	}
@@ -1334,9 +1334,9 @@ int bersa_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 }
 
 static void
-bersa_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
+besra_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 {
-	struct bersa_sta *msta;
+	struct besra_sta *msta;
 	u16 fc, tid;
 	u32 val;
 
@@ -1353,25 +1353,25 @@ bersa_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 	if (unlikely(fc != (IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_DATA)))
 		return;
 
-	msta = (struct bersa_sta *)sta->drv_priv;
+	msta = (struct besra_sta *)sta->drv_priv;
 	if (!test_and_set_bit(tid, &msta->ampdu_state))
 		ieee80211_start_tx_ba_session(sta, tid, 0);
 }
 
 static void
-bersa_txp_skb_unmap(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+besra_txp_skb_unmap(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 {
-	struct bersa_txp *txp;
+	struct besra_txp *txp;
 	int i;
 
-	txp = bersa_txwi_to_txp(dev, t);
+	txp = besra_txwi_to_txp(dev, t);
 	for (i = 0; i < txp->nbuf; i++)
 		dma_unmap_single(dev->dev, le32_to_cpu(txp->buf[i]),
 				 le16_to_cpu(txp->len[i]), DMA_TO_DEVICE);
 }
 
 static void
-bersa_txwi_free(struct bersa_dev *dev, struct mt76_txwi_cache *t,
+besra_txwi_free(struct besra_dev *dev, struct mt76_txwi_cache *t,
 		 struct ieee80211_sta *sta, struct list_head *free_list)
 {
 	struct mt76_dev *mdev = &dev->mt76;
@@ -1379,7 +1379,7 @@ bersa_txwi_free(struct bersa_dev *dev, struct mt76_txwi_cache *t,
 	__le32 *txwi;
 	u16 wcid_idx;
 
-	bersa_txp_skb_unmap(mdev, t);
+	besra_txp_skb_unmap(mdev, t);
 	if (!t->skb)
 		goto out;
 
@@ -1389,7 +1389,7 @@ bersa_txwi_free(struct bersa_dev *dev, struct mt76_txwi_cache *t,
 		wcid_idx = wcid->idx;
 
 		if (likely(t->skb->protocol != cpu_to_be16(ETH_P_PAE)))
-			bersa_tx_check_aggr(sta, txwi);
+			besra_tx_check_aggr(sta, txwi);
 	} else {
 		wcid_idx = le32_get_bits(txwi[1], MT_TXD1_WLAN_IDX);
 	}
@@ -1402,9 +1402,9 @@ out:
 }
 
 static void
-bersa_mac_tx_free(struct bersa_dev *dev, void *data, int len)
+besra_mac_tx_free(struct besra_dev *dev, void *data, int len)
 {
-	struct bersa_tx_free *free = (struct bersa_tx_free *)data;
+	struct besra_tx_free *free = (struct besra_tx_free *)data;
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_phy *mphy_ext = mdev->phy2;
 	struct mt76_phy *mphy_tri = mdev->phy3;
@@ -1444,7 +1444,7 @@ bersa_mac_tx_free(struct bersa_dev *dev, void *data, int len)
 		 * 1'b0: msdu_id with the same 'wcid pair' as above.
 		 */
 		if (info & MT_TX_FREE_PAIR) {
-			struct bersa_sta *msta;
+			struct besra_sta *msta;
 			struct mt76_wcid *wcid;
 			u16 idx;
 
@@ -1454,7 +1454,7 @@ bersa_mac_tx_free(struct bersa_dev *dev, void *data, int len)
 			if (!sta)
 				continue;
 
-			msta = container_of(wcid, struct bersa_sta, wcid);
+			msta = container_of(wcid, struct besra_sta, wcid);
 			spin_lock_bh(&dev->sta_poll_lock);
 			if (list_empty(&msta->poll_list))
 				list_add_tail(&msta->poll_list, &dev->sta_poll_list);
@@ -1478,11 +1478,11 @@ bersa_mac_tx_free(struct bersa_dev *dev, void *data, int len)
 			if (!txwi)
 				continue;
 
-			bersa_txwi_free(dev, txwi, sta, &free_list);
+			besra_txwi_free(dev, txwi, sta, &free_list);
 		}
 	}
 
-	bersa_mac_sta_poll(dev);
+	besra_mac_sta_poll(dev);
 
 	if (wake)
 		mt76_set_tx_blocked(&dev->mt76, false);
@@ -1496,7 +1496,7 @@ bersa_mac_tx_free(struct bersa_dev *dev, void *data, int len)
 }
 
 static bool
-bersa_mac_add_txs_skb(struct bersa_dev *dev, struct mt76_wcid *wcid, int pid,
+besra_mac_add_txs_skb(struct besra_dev *dev, struct mt76_wcid *wcid, int pid,
 		       __le32 *txs_data, struct mt76_sta_stats *stats)
 {
 	struct ieee80211_supported_band *sband;
@@ -1615,9 +1615,9 @@ out_no_skb:
 	return !!skb;
 }
 
-static void bersa_mac_add_txs(struct bersa_dev *dev, void *data)
+static void besra_mac_add_txs(struct besra_dev *dev, void *data)
 {
-	struct bersa_sta *msta = NULL;
+	struct besra_sta *msta = NULL;
 	struct mt76_wcid *wcid;
 	__le32 *txs_data = data;
 	u16 wcidx;
@@ -1632,7 +1632,7 @@ static void bersa_mac_add_txs(struct bersa_dev *dev, void *data)
 	if (pid < MT_PACKET_ID_FIRST)
 		return;
 
-	if (wcidx >= BERSA_WTBL_SIZE)
+	if (wcidx >= BESRA_WTBL_SIZE)
 		return;
 
 	rcu_read_lock();
@@ -1641,9 +1641,9 @@ static void bersa_mac_add_txs(struct bersa_dev *dev, void *data)
 	if (!wcid)
 		goto out;
 
-	msta = container_of(wcid, struct bersa_sta, wcid);
+	msta = container_of(wcid, struct besra_sta, wcid);
 
-	bersa_mac_add_txs_skb(dev, wcid, pid, txs_data, &msta->stats);
+	besra_mac_add_txs_skb(dev, wcid, pid, txs_data, &msta->stats);
 
 	if (!wcid->sta)
 		goto out;
@@ -1657,9 +1657,9 @@ out:
 	rcu_read_unlock();
 }
 
-bool bersa_rx_check(struct mt76_dev *mdev, enum mt76_rxq_id q, void *data, int len)
+bool besra_rx_check(struct mt76_dev *mdev, enum mt76_rxq_id q, void *data, int len)
 {
-	struct bersa_dev *dev = container_of(mdev, struct bersa_dev, mt76);
+	struct besra_dev *dev = container_of(mdev, struct besra_dev, mt76);
 	__le32 *rxd = (__le32 *)data;
 	__le32 *end = (__le32 *)&rxd[len / 4];
 	enum rx_pkt_type type;
@@ -1675,24 +1675,24 @@ bool bersa_rx_check(struct mt76_dev *mdev, enum mt76_rxq_id q, void *data, int l
 
 	switch (type) {
 	case PKT_TYPE_TXRX_NOTIFY:
-		bersa_mac_tx_free(dev, data, len);
+		besra_mac_tx_free(dev, data, len);
 		return false;
 	case PKT_TYPE_TXS:
 		for (rxd += 4; rxd + 8 <= end; rxd += 8)
-			bersa_mac_add_txs(dev, rxd);
+			besra_mac_add_txs(dev, rxd);
 		return false;
 	case PKT_TYPE_RX_FW_MONITOR:
-		bersa_debugfs_rx_fw_monitor(dev, data, len);
+		besra_debugfs_rx_fw_monitor(dev, data, len);
 		return false;
 	default:
 		return true;
 	}
 }
 
-void bersa_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
+void besra_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb)
 {
-	struct bersa_dev *dev = container_of(mdev, struct bersa_dev, mt76);
+	struct besra_dev *dev = container_of(mdev, struct besra_dev, mt76);
 	__le32 *rxd = (__le32 *)skb->data;
 	__le32 *end = (__le32 *)&skb->data[skb->len];
 	enum rx_pkt_type type;
@@ -1708,26 +1708,26 @@ void bersa_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 
 	switch (type) {
 	case PKT_TYPE_TXRX_NOTIFY:
-		bersa_mac_tx_free(dev, skb->data, skb->len);
+		besra_mac_tx_free(dev, skb->data, skb->len);
 		napi_consume_skb(skb, 1);
 		break;
 	case PKT_TYPE_RX_EVENT:
-		bersa_mcu_rx_event(dev, skb);
+		besra_mcu_rx_event(dev, skb);
 		break;
 	case PKT_TYPE_TXRXV:
-		bersa_mac_fill_rx_vector(dev, skb);
+		besra_mac_fill_rx_vector(dev, skb);
 		break;
 	case PKT_TYPE_TXS:
 		for (rxd += 4; rxd + 8 <= end; rxd += 8)
-			bersa_mac_add_txs(dev, rxd);
+			besra_mac_add_txs(dev, rxd);
 		dev_kfree_skb(skb);
 		break;
 	case PKT_TYPE_RX_FW_MONITOR:
-		bersa_debugfs_rx_fw_monitor(dev, skb->data, skb->len);
+		besra_debugfs_rx_fw_monitor(dev, skb->data, skb->len);
 		dev_kfree_skb(skb);
 		break;
 	case PKT_TYPE_NORMAL:
-		if (!bersa_mac_fill_rx(dev, skb)) {
+		if (!besra_mac_fill_rx(dev, skb)) {
 			mt76_rx(&dev->mt76, q, skb);
 			return;
 		}
@@ -1738,7 +1738,7 @@ void bersa_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	}
 }
 
-void bersa_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
+void besra_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 {
 	if (!e->txwi) {
 		dev_kfree_skb_any(e->skb);
@@ -1748,9 +1748,9 @@ void bersa_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 	/* error path */
 	if (e->skb == DMA_DUMMY_DATA) {
 		struct mt76_txwi_cache *t;
-		struct bersa_txp *txp;
+		struct besra_txp *txp;
 
-		txp = bersa_txwi_to_txp(mdev, e->txwi);
+		txp = besra_txwi_to_txp(mdev, e->txwi);
 		t = mt76_token_put(mdev, le16_to_cpu(txp->token));
 		e->skb = t ? t->skb : NULL;
 	}
@@ -1759,18 +1759,18 @@ void bersa_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 		mt76_tx_complete_skb(mdev, e->wcid, e->skb);
 }
 
-void bersa_mac_cca_stats_reset(struct bersa_phy *phy)
+void besra_mac_cca_stats_reset(struct besra_phy *phy)
 {
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	u32 reg = MT_WF_PHY_RX_CTRL1(phy->band_idx);
 
 	mt76_clear(dev, reg, MT_WF_PHY_RX_CTRL1_STSCNT_EN);
 	mt76_set(dev, reg, BIT(11) | BIT(9));
 }
 
-void bersa_mac_reset_counters(struct bersa_phy *phy)
+void besra_mac_reset_counters(struct besra_phy *phy)
 {
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	int i;
 
 	for (i = 0; i < 4; i++) {
@@ -1789,15 +1789,15 @@ void bersa_mac_reset_counters(struct bersa_phy *phy)
 	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0(phy->band_idx),
 		 MT_WF_RMAC_MIB_RXTIME_CLR);
 
-	bersa_mcu_get_chan_mib_info(phy, true);
+	besra_mcu_get_chan_mib_info(phy, true);
 }
 
-void bersa_mac_set_timing(struct bersa_phy *phy)
+void besra_mac_set_timing(struct besra_phy *phy)
 {
 	s16 coverage_class = phy->coverage_class;
-	struct bersa_dev *dev = phy->dev;
-	struct bersa_phy *ext_phy = bersa_ext_phy(dev);
-	struct bersa_phy *tri_phy = bersa_tri_phy(dev);
+	struct besra_dev *dev = phy->dev;
+	struct besra_phy *ext_phy = besra_ext_phy(dev);
+	struct besra_phy *tri_phy = besra_tri_phy(dev);
 	u32 val, reg_offset;
 	u32 cck = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 231) |
 		  FIELD_PREP(MT_TIMEOUT_VAL_CCA, 48);
@@ -1837,16 +1837,16 @@ void bersa_mac_set_timing(struct bersa_phy *phy)
 		FIELD_PREP(MT_IFS_EIFS_CCK, 314));
 
 	if (phy->slottime < 20 || a_band)
-		val = BERSA_CFEND_RATE_DEFAULT;
+		val = BESRA_CFEND_RATE_DEFAULT;
 	else
-		val = BERSA_CFEND_RATE_11B;
+		val = BESRA_CFEND_RATE_11B;
 
 	mt76_rmw_field(dev, MT_AGG_ACR0(phy->band_idx), MT_AGG_ACR_CFEND_RATE, val);
 	mt76_clear(dev, MT_ARB_SCR(phy->band_idx),
 		   MT_ARB_SCR_TX_DISABLE | MT_ARB_SCR_RX_DISABLE);
 }
 
-void bersa_mac_enable_nf(struct bersa_dev *dev, u8 band)
+void besra_mac_enable_nf(struct besra_dev *dev, u8 band)
 {
 	mt76_set(dev, MT_WF_PHY_RXTD12(band),
 		 MT_WF_PHY_RXTD12_IRPI_SW_CLR_ONLY |
@@ -1857,10 +1857,10 @@ void bersa_mac_enable_nf(struct bersa_dev *dev, u8 band)
 }
 
 static u8
-bersa_phy_get_nf(struct bersa_phy *phy, int idx)
+besra_phy_get_nf(struct besra_phy *phy, int idx)
 {
 	static const u8 nf_power[] = { 92, 89, 86, 83, 80, 75, 70, 65, 60, 55, 52 };
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	u32 val, sum = 0, n = 0;
 	int nss, i;
 
@@ -1880,15 +1880,15 @@ bersa_phy_get_nf(struct bersa_phy *phy, int idx)
 	return sum / n;
 }
 
-void bersa_update_channel(struct mt76_phy *mphy)
+void besra_update_channel(struct mt76_phy *mphy)
 {
-	struct bersa_phy *phy = (struct bersa_phy *)mphy->priv;
+	struct besra_phy *phy = (struct besra_phy *)mphy->priv;
 	struct mt76_channel_state *state = mphy->chan_state;
 	int nf;
 
-	bersa_mcu_get_chan_mib_info(phy, false);
+	besra_mcu_get_chan_mib_info(phy, false);
 
-	nf = bersa_phy_get_nf(phy, phy->band_idx);
+	nf = besra_phy_get_nf(phy, phy->band_idx);
 	if (!phy->noise)
 		phy->noise = nf << 4;
 	else if (nf)
@@ -1898,20 +1898,20 @@ void bersa_update_channel(struct mt76_phy *mphy)
 }
 
 static bool
-bersa_wait_reset_state(struct bersa_dev *dev, u32 state)
+besra_wait_reset_state(struct besra_dev *dev, u32 state)
 {
 	bool ret;
 
 	ret = wait_event_timeout(dev->reset_wait,
 				 (READ_ONCE(dev->reset_state) & state),
-				 BERSA_RESET_TIMEOUT);
+				 BESRA_RESET_TIMEOUT);
 
 	WARN(!ret, "Timeout waiting for MCU reset state %x\n", state);
 	return ret;
 }
 
 static void
-bersa_update_vif_beacon(void *priv, u8 *mac, struct ieee80211_vif *vif)
+besra_update_vif_beacon(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct ieee80211_hw *hw = priv;
 
@@ -1919,7 +1919,7 @@ bersa_update_vif_beacon(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_AP:
-		bersa_mcu_add_beacon(hw, vif, vif->bss_conf.enable_beacon);
+		besra_mcu_add_beacon(hw, vif, vif->bss_conf.enable_beacon);
 		break;
 	default:
 		break;
@@ -1927,29 +1927,29 @@ bersa_update_vif_beacon(void *priv, u8 *mac, struct ieee80211_vif *vif)
 }
 
 static void
-bersa_update_beacons(struct bersa_dev *dev)
+besra_update_beacons(struct besra_dev *dev)
 {
 	ieee80211_iterate_active_interfaces(dev->mt76.hw,
 		IEEE80211_IFACE_ITER_RESUME_ALL,
-		bersa_update_vif_beacon, dev->mt76.hw);
+		besra_update_vif_beacon, dev->mt76.hw);
 
 	if (!dev->mt76.phy2)
 		return;
 
 	ieee80211_iterate_active_interfaces(dev->mt76.phy2->hw,
 		IEEE80211_IFACE_ITER_RESUME_ALL,
-		bersa_update_vif_beacon, dev->mt76.phy2->hw);
+		besra_update_vif_beacon, dev->mt76.phy2->hw);
 
 	if (!dev->mt76.phy3)
 		return;
 
 	ieee80211_iterate_active_interfaces(dev->mt76.phy3->hw,
 		IEEE80211_IFACE_ITER_RESUME_ALL,
-		bersa_update_vif_beacon, dev->mt76.phy3->hw);
+		besra_update_vif_beacon, dev->mt76.phy3->hw);
 }
 
 static void
-bersa_dma_reset(struct bersa_dev *dev)
+besra_dma_reset(struct besra_dev *dev)
 {
 	struct mt76_phy *mphy_ext = dev->mt76.phy2;
 	struct mt76_phy *mphy_tri = dev->mt76.phy3;
@@ -1984,7 +1984,7 @@ bersa_dma_reset(struct bersa_dev *dev)
 	mt76_tx_status_check(&dev->mt76, true);
 
 	/* re-init prefetch settings after reset */
-	bersa_dma_prefetch(dev);
+	besra_dma_prefetch(dev);
 
 	mt76_set(dev, MT_WFDMA0_GLO_CFG,
 		 MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
@@ -1995,14 +1995,14 @@ bersa_dma_reset(struct bersa_dev *dev)
 			 MT_WFDMA0_GLO_CFG_RX_DMA_EN);
 }
 
-void bersa_tx_token_put(struct bersa_dev *dev)
+void besra_tx_token_put(struct besra_dev *dev)
 {
 	struct mt76_txwi_cache *txwi;
 	int id;
 
 	spin_lock_bh(&dev->mt76.token_lock);
 	idr_for_each_entry(&dev->mt76.token, txwi, id) {
-		bersa_txwi_free(dev, txwi, NULL, NULL);
+		besra_txwi_free(dev, txwi, NULL, NULL);
 		dev->mt76.token_count--;
 	}
 	spin_unlock_bh(&dev->mt76.token_lock);
@@ -2010,13 +2010,13 @@ void bersa_tx_token_put(struct bersa_dev *dev)
 }
 
 /* system error recovery */
-void bersa_mac_reset_work(struct work_struct *work)
+void besra_mac_reset_work(struct work_struct *work)
 {
-	struct bersa_phy *phy2, *phy3;
+	struct besra_phy *phy2, *phy3;
 	struct mt76_phy *ext_phy, *tri_phy;
-	struct bersa_dev *dev;
+	struct besra_dev *dev;
 
-	dev = container_of(work, struct bersa_dev, reset_work);
+	dev = container_of(work, struct besra_dev, reset_work);
 	ext_phy = dev->mt76.phy2;
 	phy2 = ext_phy ? ext_phy->priv : NULL;
 
@@ -2054,14 +2054,14 @@ void bersa_mac_reset_work(struct work_struct *work)
 
 	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_DMA_STOPPED);
 
-	if (bersa_wait_reset_state(dev, MT_MCU_CMD_RESET_DONE)) {
-		bersa_dma_reset(dev);
+	if (besra_wait_reset_state(dev, MT_MCU_CMD_RESET_DONE)) {
+		besra_dma_reset(dev);
 
-		bersa_tx_token_put(dev);
+		besra_tx_token_put(dev);
 		idr_init(&dev->mt76.token);
 
 		mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_DMA_INIT);
-		bersa_wait_reset_state(dev, MT_MCU_CMD_RECOVERY_DONE);
+		besra_wait_reset_state(dev, MT_MCU_CMD_RECOVERY_DONE);
 	}
 
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
@@ -2085,7 +2085,7 @@ void bersa_mac_reset_work(struct work_struct *work)
 	tasklet_schedule(&dev->irq_tasklet);
 
 	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_RESET_DONE);
-	bersa_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
+	besra_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
 
 	mt76_worker_enable(&dev->mt76.tx_worker);
 
@@ -2100,23 +2100,23 @@ void bersa_mac_reset_work(struct work_struct *work)
 
 	mutex_unlock(&dev->mt76.mutex);
 
-	bersa_update_beacons(dev);
+	besra_update_beacons(dev);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mphy.mac_work,
-				     BERSA_WATCHDOG_TIME);
+				     BESRA_WATCHDOG_TIME);
 	if (phy2)
 		ieee80211_queue_delayed_work(ext_phy->hw,
 					     &phy2->mt76->mac_work,
-					     BERSA_WATCHDOG_TIME);
+					     BESRA_WATCHDOG_TIME);
 	if (phy3)
 		ieee80211_queue_delayed_work(tri_phy->hw,
 					     &phy3->mt76->mac_work,
-					     BERSA_WATCHDOG_TIME);
+					     BESRA_WATCHDOG_TIME);
 }
 
-void bersa_mac_update_stats(struct bersa_phy *phy)
+void besra_mac_update_stats(struct besra_phy *phy)
 {
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	struct mib_stats *mib = &phy->mib;
 	int i, aggr0, cnt;
 	u32 val;
@@ -2258,12 +2258,12 @@ void bersa_mac_update_stats(struct bersa_phy *phy)
 	}
 }
 
-void bersa_mac_sta_rc_work(struct work_struct *work)
+void besra_mac_sta_rc_work(struct work_struct *work)
 {
-	struct bersa_dev *dev = container_of(work, struct bersa_dev, rc_work);
+	struct besra_dev *dev = container_of(work, struct besra_dev, rc_work);
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif;
-	struct bersa_sta *msta;
+	struct besra_sta *msta;
 	u32 changed;
 	LIST_HEAD(list);
 
@@ -2271,7 +2271,7 @@ void bersa_mac_sta_rc_work(struct work_struct *work)
 	list_splice_init(&dev->sta_rc_list, &list);
 
 	while (!list_empty(&list)) {
-		msta = list_first_entry(&list, struct bersa_sta, rc_list);
+		msta = list_first_entry(&list, struct besra_sta, rc_list);
 		list_del_init(&msta->rc_list);
 		changed = msta->changed;
 		msta->changed = 0;
@@ -2283,10 +2283,10 @@ void bersa_mac_sta_rc_work(struct work_struct *work)
 		if (changed & (IEEE80211_RC_SUPP_RATES_CHANGED |
 			       IEEE80211_RC_NSS_CHANGED |
 			       IEEE80211_RC_BW_CHANGED))
-			bersa_mcu_add_rate_ctrl(dev, vif, sta, true);
+			besra_mcu_add_rate_ctrl(dev, vif, sta, true);
 
 		if (changed & IEEE80211_RC_SMPS_CHANGED)
-			bersa_mcu_add_smps(dev, vif, sta);
+			besra_mcu_add_smps(dev, vif, sta);
 
 		spin_lock_bh(&dev->sta_poll_lock);
 	}
@@ -2294,9 +2294,9 @@ void bersa_mac_sta_rc_work(struct work_struct *work)
 	spin_unlock_bh(&dev->sta_poll_lock);
 }
 
-void bersa_mac_work(struct work_struct *work)
+void besra_mac_work(struct work_struct *work)
 {
-	struct bersa_phy *phy;
+	struct besra_phy *phy;
 	struct mt76_phy *mphy;
 
 	mphy = (struct mt76_phy *)container_of(work, struct mt76_phy,
@@ -2310,7 +2310,7 @@ void bersa_mac_work(struct work_struct *work)
 	/* if (++mphy->mac_work_count == 5) { */
 	/* 	mphy->mac_work_count = 0; */
 
-	/* 	bersa_mac_update_stats(phy); */
+	/* 	besra_mac_update_stats(phy); */
 	/* } */
 
 	mutex_unlock(&mphy->dev->mutex);
@@ -2318,22 +2318,22 @@ void bersa_mac_work(struct work_struct *work)
 	mt76_tx_status_check(mphy->dev, false);
 
 	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
-				     BERSA_WATCHDOG_TIME);
+				     BESRA_WATCHDOG_TIME);
 }
 
-static void bersa_dfs_stop_radar_detector(struct bersa_phy *phy)
+static void besra_dfs_stop_radar_detector(struct besra_phy *phy)
 {
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 
 	if (phy->rdd_state & BIT(0))
-		bersa_mcu_rdd_cmd(dev, RDD_STOP, 0,
+		besra_mcu_rdd_cmd(dev, RDD_STOP, 0,
 				  MT_RX_SEL0, 0);
 	if (phy->rdd_state & BIT(1))
-		bersa_mcu_rdd_cmd(dev, RDD_STOP, 1,
+		besra_mcu_rdd_cmd(dev, RDD_STOP, 1,
 				  MT_RX_SEL0, 0);
 }
 
-static int bersa_dfs_start_rdd(struct bersa_dev *dev, int chain)
+static int besra_dfs_start_rdd(struct besra_dev *dev, int chain)
 {
 	int err, region;
 
@@ -2350,28 +2350,28 @@ static int bersa_dfs_start_rdd(struct bersa_dev *dev, int chain)
 		break;
 	}
 
-	err = bersa_mcu_rdd_cmd(dev, RDD_START, chain,
+	err = besra_mcu_rdd_cmd(dev, RDD_START, chain,
 				MT_RX_SEL0, region);
 	if (err < 0)
 		return err;
 
-	return bersa_mcu_rdd_cmd(dev, RDD_DET_MODE, chain,
+	return besra_mcu_rdd_cmd(dev, RDD_DET_MODE, chain,
 				 MT_RX_SEL0, 1);
 }
 
-static int bersa_dfs_start_radar_detector(struct bersa_phy *phy)
+static int besra_dfs_start_radar_detector(struct besra_phy *phy)
 {
 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	int err;
 
 	/* start CAC */
-	err = bersa_mcu_rdd_cmd(dev, RDD_CAC_START, phy->band_idx,
+	err = besra_mcu_rdd_cmd(dev, RDD_CAC_START, phy->band_idx,
 				MT_RX_SEL0, 0);
 	if (err < 0)
 		return err;
 
-	err = bersa_dfs_start_rdd(dev, phy->band_idx);
+	err = besra_dfs_start_rdd(dev, phy->band_idx);
 	if (err < 0)
 		return err;
 
@@ -2382,7 +2382,7 @@ static int bersa_dfs_start_radar_detector(struct bersa_phy *phy)
 
 	if (chandef->width == NL80211_CHAN_WIDTH_160 ||
 	    chandef->width == NL80211_CHAN_WIDTH_80P80) {
-		err = bersa_dfs_start_rdd(dev, 1);
+		err = besra_dfs_start_rdd(dev, 1);
 		if (err < 0)
 			return err;
 
@@ -2393,16 +2393,16 @@ static int bersa_dfs_start_radar_detector(struct bersa_phy *phy)
 }
 
 static int
-bersa_dfs_init_radar_specs(struct bersa_phy *phy)
+besra_dfs_init_radar_specs(struct besra_phy *phy)
 {
-	const struct bersa_dfs_radar_spec *radar_specs;
-	struct bersa_dev *dev = phy->dev;
+	const struct besra_dfs_radar_spec *radar_specs;
+	struct besra_dev *dev = phy->dev;
 	int err, i;
 
 	switch (dev->mt76.region) {
 	case NL80211_DFS_FCC:
 		radar_specs = &fcc_radar_specs;
-		err = bersa_mcu_set_fcc5_lpn(dev, 8);
+		err = besra_mcu_set_fcc5_lpn(dev, 8);
 		if (err < 0)
 			return err;
 		break;
@@ -2417,18 +2417,18 @@ bersa_dfs_init_radar_specs(struct bersa_phy *phy)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(radar_specs->radar_pattern); i++) {
-		err = bersa_mcu_set_radar_th(dev, i,
+		err = besra_mcu_set_radar_th(dev, i,
 					      &radar_specs->radar_pattern[i]);
 		if (err < 0)
 			return err;
 	}
 
-	return bersa_mcu_set_pulse_th(dev, &radar_specs->pulse_th);
+	return besra_mcu_set_pulse_th(dev, &radar_specs->pulse_th);
 }
 
-int bersa_dfs_init_radar_detector(struct bersa_phy *phy)
+int besra_dfs_init_radar_detector(struct besra_phy *phy)
 {
-	struct bersa_dev *dev = phy->dev;
+	struct besra_dev *dev = phy->dev;
 	enum mt76_dfs_state dfs_state, prev_state;
 	int err;
 
@@ -2439,17 +2439,17 @@ int bersa_dfs_init_radar_detector(struct bersa_phy *phy)
 		return 0;
 
 	if (prev_state == MT_DFS_STATE_UNKNOWN)
-		bersa_dfs_stop_radar_detector(phy);
+		besra_dfs_stop_radar_detector(phy);
 
 	if (dfs_state == MT_DFS_STATE_DISABLED)
 		goto stop;
 
 	if (prev_state <= MT_DFS_STATE_DISABLED) {
-		err = bersa_dfs_init_radar_specs(phy);
+		err = besra_dfs_init_radar_specs(phy);
 		if (err < 0)
 			return err;
 
-		err = bersa_dfs_start_radar_detector(phy);
+		err = besra_dfs_start_radar_detector(phy);
 		if (err < 0)
 			return err;
 
@@ -2459,7 +2459,7 @@ int bersa_dfs_init_radar_detector(struct bersa_phy *phy)
 	if (dfs_state == MT_DFS_STATE_CAC)
 		return 0;
 
-	err = bersa_mcu_rdd_cmd(dev, RDD_CAC_END,
+	err = besra_mcu_rdd_cmd(dev, RDD_CAC_END,
 				phy->band_idx, MT_RX_SEL0, 0);
 	if (err < 0) {
 		phy->mt76->dfs_state = MT_DFS_STATE_UNKNOWN;
@@ -2470,33 +2470,33 @@ int bersa_dfs_init_radar_detector(struct bersa_phy *phy)
 	return 0;
 
 stop:
-	err = bersa_mcu_rdd_cmd(dev, RDD_NORMAL_START,
+	err = besra_mcu_rdd_cmd(dev, RDD_NORMAL_START,
 				phy->band_idx, MT_RX_SEL0, 0);
 	if (err < 0)
 		return err;
 
-	bersa_dfs_stop_radar_detector(phy);
+	besra_dfs_stop_radar_detector(phy);
 	phy->mt76->dfs_state = MT_DFS_STATE_DISABLED;
 
 	return 0;
 }
 
 static int
-bersa_mac_twt_duration_align(int duration)
+besra_mac_twt_duration_align(int duration)
 {
 	return duration << 8;
 }
 
 static u64
-bersa_mac_twt_sched_list_add(struct bersa_dev *dev,
-			      struct bersa_twt_flow *flow)
+besra_mac_twt_sched_list_add(struct besra_dev *dev,
+			      struct besra_twt_flow *flow)
 {
-	struct bersa_twt_flow *iter, *iter_next;
+	struct besra_twt_flow *iter, *iter_next;
 	u32 duration = flow->duration << 8;
 	u64 start_tsf;
 
 	iter = list_first_entry_or_null(&dev->twt_list,
-					struct bersa_twt_flow, list);
+					struct besra_twt_flow, list);
 	if (!iter || !iter->sched || iter->start_tsf > duration) {
 		/* add flow as first entry in the list */
 		list_add(&flow->list, &dev->twt_list);
@@ -2505,7 +2505,7 @@ bersa_mac_twt_sched_list_add(struct bersa_dev *dev,
 
 	list_for_each_entry_safe(iter, iter_next, &dev->twt_list, list) {
 		start_tsf = iter->start_tsf +
-			    bersa_mac_twt_duration_align(iter->duration);
+			    besra_mac_twt_duration_align(iter->duration);
 		if (list_is_last(&iter->list, &dev->twt_list))
 			break;
 
@@ -2522,7 +2522,7 @@ out:
 	return start_tsf;
 }
 
-static int bersa_mac_check_twt_req(struct ieee80211_twt_setup *twt)
+static int besra_mac_check_twt_req(struct ieee80211_twt_setup *twt)
 {
 	struct ieee80211_twt_params *twt_agrt;
 	u64 interval, duration;
@@ -2555,26 +2555,26 @@ static int bersa_mac_check_twt_req(struct ieee80211_twt_setup *twt)
 	return 0;
 }
 
-void bersa_mac_add_twt_setup(struct ieee80211_hw *hw,
+void besra_mac_add_twt_setup(struct ieee80211_hw *hw,
 			      struct ieee80211_sta *sta,
 			      struct ieee80211_twt_setup *twt)
 {
 	enum ieee80211_twt_setup_cmd setup_cmd = TWT_SETUP_CMD_REJECT;
-	struct bersa_sta *msta = (struct bersa_sta *)sta->drv_priv;
+	struct besra_sta *msta = (struct besra_sta *)sta->drv_priv;
 	struct ieee80211_twt_params *twt_agrt = (void *)twt->params;
 	u16 req_type = le16_to_cpu(twt_agrt->req_type);
 	enum ieee80211_twt_setup_cmd sta_setup_cmd;
-	struct bersa_dev *dev = bersa_hw_dev(hw);
-	struct bersa_twt_flow *flow;
+	struct besra_dev *dev = besra_hw_dev(hw);
+	struct besra_twt_flow *flow;
 	int flowid, table_id;
 	u8 exp;
 
-	if (bersa_mac_check_twt_req(twt))
+	if (besra_mac_check_twt_req(twt))
 		goto out;
 
 	mutex_lock(&dev->mt76.mutex);
 
-	if (dev->twt.n_agrt == BERSA_MAX_TWT_AGRT)
+	if (dev->twt.n_agrt == BESRA_MAX_TWT_AGRT)
 		goto unlock;
 
 	if (hweight8(msta->twt.flowid_mask) == ARRAY_SIZE(msta->twt.flow))
@@ -2608,8 +2608,8 @@ void bersa_mac_add_twt_setup(struct ieee80211_hw *hw,
 		u32 rem;
 
 		flow->sched = true;
-		flow->start_tsf = bersa_mac_twt_sched_list_add(dev, flow);
-		curr_tsf = __bersa_get_tsf(hw, msta->vif);
+		flow->start_tsf = besra_mac_twt_sched_list_add(dev, flow);
+		curr_tsf = __besra_get_tsf(hw, msta->vif);
 		div_u64_rem(curr_tsf - flow->start_tsf, interval, &rem);
 		flow_tsf = curr_tsf + interval - rem;
 		twt_agrt->twt = cpu_to_le64(flow_tsf);
@@ -2618,7 +2618,7 @@ void bersa_mac_add_twt_setup(struct ieee80211_hw *hw,
 	}
 	flow->tsf = le64_to_cpu(twt_agrt->twt);
 
-	if (bersa_mcu_twt_agrt_update(dev, msta->vif, flow, MCU_TWT_AGRT_ADD))
+	if (besra_mcu_twt_agrt_update(dev, msta->vif, flow, MCU_TWT_AGRT_ADD))
 		goto unlock;
 
 	setup_cmd = TWT_SETUP_CMD_ACCEPT;
@@ -2635,11 +2635,11 @@ out:
 		       (twt->control & IEEE80211_TWT_CONTROL_RX_DISABLED);
 }
 
-void bersa_mac_twt_teardown_flow(struct bersa_dev *dev,
-				  struct bersa_sta *msta,
+void besra_mac_twt_teardown_flow(struct besra_dev *dev,
+				  struct besra_sta *msta,
 				  u8 flowid)
 {
-	struct bersa_twt_flow *flow;
+	struct besra_twt_flow *flow;
 
 	lockdep_assert_held(&dev->mt76.mutex);
 
@@ -2650,7 +2650,7 @@ void bersa_mac_twt_teardown_flow(struct bersa_dev *dev,
 		return;
 
 	flow = &msta->twt.flow[flowid];
-	if (bersa_mcu_twt_agrt_update(dev, msta->vif, flow,
+	if (besra_mcu_twt_agrt_update(dev, msta->vif, flow,
 				       MCU_TWT_AGRT_DELETE))
 		return;
 

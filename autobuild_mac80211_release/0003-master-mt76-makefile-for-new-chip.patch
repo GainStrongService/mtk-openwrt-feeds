@@ -1,7 +1,7 @@
 From bd0dae19286bf13e74698d753a98e46b155a5882 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 30 Mar 2022 10:38:24 +0800
-Subject: [PATCH] mt76: add MT7986/MT7916/Bersa support in makefile
+Subject: [PATCH] mt76: add MT7986/MT7916/Besra support in makefile
 
 ---
  kernel/mt76/Makefile | 69 +++++++++++++++++++++++++++++++++++++++++++-
@@ -22,12 +22,12 @@ index 0ccf067..75e65f7 100644
    AUTOLOAD:=$(call AutoProbe,mt7915e)
  endef
  
-+define KernelPackage/bersa
++define KernelPackage/besra
 +  $(KernelPackage/mt76-default)
 +  TITLE:=MediaTek MT7902/MT7990 wireless driver
 +  DEPENDS+=@PCI_SUPPORT +kmod-mt76-core +kmod-mt76-connac +kmod-hwmon-core +kmod-thermal +@DRIVER_11AX_SUPPORT +@DRIVER_11BE_SUPPORT
-+  FILES:= $(PKG_BUILD_DIR)/bersa/bersa.ko
-+  AUTOLOAD:=$(call AutoProbe,bersa)
++  FILES:= $(PKG_BUILD_DIR)/besra/besra.ko
++  AUTOLOAD:=$(call AutoProbe,besra)
 +endef
 +
  define KernelPackage/mt7921-common
@@ -54,8 +54,8 @@ index 0ccf067..75e65f7 100644
 +  NOSTDINC_FLAGS += -DCONFIG_MT7986_WMAC
 +endif
 +endif
-+ifdef CONFIG_PACKAGE_kmod-bersa
-+  PKG_MAKE_FLAGS += CONFIG_BERSA=m
++ifdef CONFIG_PACKAGE_kmod-besra
++  PKG_MAKE_FLAGS += CONFIG_BESRA=m
  endif
  ifdef CONFIG_PACKAGE_kmod-mt7921-common
    PKG_MAKE_FLAGS += CONFIG_MT7921_COMMON=m
@@ -98,8 +98,8 @@ index 0ccf067..75e65f7 100644
 +endif
  endef
  
-+ifdef CONFIG_PACKAGE_kmod-bersa
-+define KernelPackage/bersa/install
++ifdef CONFIG_PACKAGE_kmod-besra
++define KernelPackage/besra/install
 +	$(INSTALL_DIR) $(1)/lib/firmware/mediatek
 +	cp \
 +		$(PKG_BUILD_DIR)/firmware/mt7902_wa.bin \
@@ -119,7 +119,7 @@ index 0ccf067..75e65f7 100644
  $(eval $(call KernelPackage,mt7921u))
  $(eval $(call KernelPackage,mt7921s))
  $(eval $(call KernelPackage,mt7921e))
-+$(eval $(call KernelPackage,bersa))
++$(eval $(call KernelPackage,besra))
  $(eval $(call KernelPackage,mt76))
  $(eval $(call BuildPackage,mt76-test))
 -- 

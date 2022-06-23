@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 MediaTek Inc. */
 
-#include "bersa.h"
+#include "besra.h"
 #include "../dma.h"
 #include "mac.h"
 
-int bersa_init_tx_queues(struct bersa_phy *phy, int idx, int n_desc, int ring_base)
+int besra_init_tx_queues(struct besra_phy *phy, int idx, int n_desc, int ring_base)
 {
 	int i, err;
 
@@ -20,22 +20,22 @@ int bersa_init_tx_queues(struct bersa_phy *phy, int idx, int n_desc, int ring_ba
 }
 
 static void
-bersa_tx_cleanup(struct bersa_dev *dev)
+besra_tx_cleanup(struct besra_dev *dev)
 {
 	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
 	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WA], false);
 }
 
-static int bersa_poll_tx(struct napi_struct *napi, int budget)
+static int besra_poll_tx(struct napi_struct *napi, int budget)
 {
-	struct bersa_dev *dev;
+	struct besra_dev *dev;
 
-	dev = container_of(napi, struct bersa_dev, mt76.tx_napi);
+	dev = container_of(napi, struct besra_dev, mt76.tx_napi);
 
-	bersa_tx_cleanup(dev);
+	besra_tx_cleanup(dev);
 
 	if (napi_complete_done(napi, 0))
-		bersa_irq_enable(dev, MT_INT_TX_DONE_MCU);
+		besra_irq_enable(dev, MT_INT_TX_DONE_MCU);
 
 	return 0;
 }
@@ -51,27 +51,27 @@ static int bersa_poll_tx(struct napi_struct *napi, int budget)
 #define RXQ_CONFIG(q, wfdma, int, id)	Q_CONFIG(__RXQ(q), (wfdma), (int), (id))
 #define TXQ_CONFIG(q, wfdma, int, id)	Q_CONFIG(__TXQ(q), (wfdma), (int), (id))
 
-static void bersa_dma_config(struct bersa_dev *dev)
+static void besra_dma_config(struct besra_dev *dev)
 {
-	RXQ_CONFIG(MT_RXQ_MAIN, WFDMA0, MT_INT_RX_DONE_BAND0, BERSA_RXQ_BAND0);
-	RXQ_CONFIG(MT_RXQ_MCU, WFDMA0, MT_INT_RX_DONE_WM, BERSA_RXQ_MCU_WM);
-	RXQ_CONFIG(MT_RXQ_MCU_WA, WFDMA0, MT_INT_RX_DONE_WA, BERSA_RXQ_MCU_WA);
-	RXQ_CONFIG(MT_RXQ_EXT, WFDMA0, MT_INT_RX_DONE_BAND1, BERSA_RXQ_BAND1);
-	RXQ_CONFIG(MT_RXQ_EXT_WA, WFDMA0, MT_INT_RX_DONE_WA_EXT, BERSA_RXQ_MCU_WA_EXT);
-	RXQ_CONFIG(MT_RXQ_MAIN_WA, WFDMA0, MT_INT_RX_DONE_WA_MAIN, BERSA_RXQ_MCU_WA_MAIN);
-	RXQ_CONFIG(MT_RXQ_TRI, WFDMA0, MT_INT_RX_DONE_BAND2, BERSA_RXQ_BAND2);
-	RXQ_CONFIG(MT_RXQ_TRI_WA, WFDMA0, MT_INT_RX_DONE_WA_TRI, BERSA_RXQ_MCU_WA_TRI);
+	RXQ_CONFIG(MT_RXQ_MAIN, WFDMA0, MT_INT_RX_DONE_BAND0, BESRA_RXQ_BAND0);
+	RXQ_CONFIG(MT_RXQ_MCU, WFDMA0, MT_INT_RX_DONE_WM, BESRA_RXQ_MCU_WM);
+	RXQ_CONFIG(MT_RXQ_MCU_WA, WFDMA0, MT_INT_RX_DONE_WA, BESRA_RXQ_MCU_WA);
+	RXQ_CONFIG(MT_RXQ_EXT, WFDMA0, MT_INT_RX_DONE_BAND1, BESRA_RXQ_BAND1);
+	RXQ_CONFIG(MT_RXQ_EXT_WA, WFDMA0, MT_INT_RX_DONE_WA_EXT, BESRA_RXQ_MCU_WA_EXT);
+	RXQ_CONFIG(MT_RXQ_MAIN_WA, WFDMA0, MT_INT_RX_DONE_WA_MAIN, BESRA_RXQ_MCU_WA_MAIN);
+	RXQ_CONFIG(MT_RXQ_TRI, WFDMA0, MT_INT_RX_DONE_BAND2, BESRA_RXQ_BAND2);
+	RXQ_CONFIG(MT_RXQ_TRI_WA, WFDMA0, MT_INT_RX_DONE_WA_TRI, BESRA_RXQ_MCU_WA_TRI);
 
-	TXQ_CONFIG(0, WFDMA0, MT_INT_TX_DONE_BAND0, BERSA_TXQ_BAND0);
-	TXQ_CONFIG(1, WFDMA0, MT_INT_TX_DONE_BAND1, BERSA_TXQ_BAND1);
-	TXQ_CONFIG(2, WFDMA0, MT_INT_TX_DONE_BAND2, BERSA_TXQ_BAND2);
+	TXQ_CONFIG(0, WFDMA0, MT_INT_TX_DONE_BAND0, BESRA_TXQ_BAND0);
+	TXQ_CONFIG(1, WFDMA0, MT_INT_TX_DONE_BAND1, BESRA_TXQ_BAND1);
+	TXQ_CONFIG(2, WFDMA0, MT_INT_TX_DONE_BAND2, BESRA_TXQ_BAND2);
 
-	MCUQ_CONFIG(MT_MCUQ_WM, WFDMA0, MT_INT_TX_DONE_MCU_WM, BERSA_TXQ_MCU_WM);
-	MCUQ_CONFIG(MT_MCUQ_WA, WFDMA0, MT_INT_TX_DONE_MCU_WA, BERSA_TXQ_MCU_WA);
-	MCUQ_CONFIG(MT_MCUQ_FWDL, WFDMA0, MT_INT_TX_DONE_FWDL, BERSA_TXQ_FWDL);
+	MCUQ_CONFIG(MT_MCUQ_WM, WFDMA0, MT_INT_TX_DONE_MCU_WM, BESRA_TXQ_MCU_WM);
+	MCUQ_CONFIG(MT_MCUQ_WA, WFDMA0, MT_INT_TX_DONE_MCU_WA, BESRA_TXQ_MCU_WA);
+	MCUQ_CONFIG(MT_MCUQ_FWDL, WFDMA0, MT_INT_TX_DONE_FWDL, BESRA_TXQ_FWDL);
 }
 
-static void __bersa_dma_prefetch(struct bersa_dev *dev, u32 ofs)
+static void __besra_dma_prefetch(struct besra_dev *dev, u32 ofs)
 {
 #define PREFETCH(_base, _depth)	((_base) << 16 | (_depth))
 
@@ -92,14 +92,14 @@ static void __bersa_dma_prefetch(struct bersa_dev *dev, u32 ofs)
 	mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TRI) + ofs, PREFETCH(0x2c0, 0x4));
 }
 
-void bersa_dma_prefetch(struct bersa_dev *dev)
+void besra_dma_prefetch(struct besra_dev *dev)
 {
-	__bersa_dma_prefetch(dev, 0);
+	__besra_dma_prefetch(dev, 0);
 	if (dev->hif2)
-		__bersa_dma_prefetch(dev, MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0));
+		__besra_dma_prefetch(dev, MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0));
 }
 
-static void bersa_dma_disable(struct bersa_dev *dev, bool rst)
+static void besra_dma_disable(struct besra_dev *dev, bool rst)
 {
 	u32 hif1_ofs = 0;
 
@@ -145,7 +145,7 @@ static void bersa_dma_disable(struct bersa_dev *dev, bool rst)
 	}
 }
 
-static int bersa_dma_enable(struct bersa_dev *dev)
+static int besra_dma_enable(struct besra_dev *dev)
 {
 	u32 hif1_ofs = 0;
 	u32 irq_mask;
@@ -170,7 +170,7 @@ static int bersa_dma_enable(struct bersa_dev *dev)
 	}
 
 	/* configure perfetch settings */
-	bersa_dma_prefetch(dev);
+	besra_dma_prefetch(dev);
 
 	/* hif wait WFDMA idle */
 	mt76_set(dev, MT_WFDMA0_BUSY_ENA,
@@ -219,29 +219,29 @@ static int bersa_dma_enable(struct bersa_dev *dev)
 	if (dev->tbtc_support)
 		irq_mask |= MT_INT_BAND2_RX_DONE;
 
-	bersa_irq_enable(dev, irq_mask);
+	besra_irq_enable(dev, irq_mask);
 
 	return 0;
 }
 
-int bersa_dma_init(struct bersa_dev *dev)
+int besra_dma_init(struct besra_dev *dev)
 {
 	u32 hif1_ofs = 0;
 	int ret;
 
-	bersa_dma_config(dev);
+	besra_dma_config(dev);
 
 	mt76_dma_attach(&dev->mt76);
 
 	if (dev->hif2)
 		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
 
-	bersa_dma_disable(dev, true);
+	besra_dma_disable(dev, true);
 
 	/* init tx queue */
-	ret = bersa_init_tx_queues(&dev->phy,
+	ret = besra_init_tx_queues(&dev->phy,
 				    MT_TXQ_ID(dev->phy.band_idx),
-				    BERSA_TX_RING_SIZE,
+				    BESRA_TX_RING_SIZE,
 				    MT_TXQ_RING_BASE(0));
 	if (ret)
 		return ret;
@@ -249,7 +249,7 @@ int bersa_dma_init(struct bersa_dev *dev)
 	/* command to WM */
 	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WM,
 				  MT_MCUQ_ID(MT_MCUQ_WM),
-				  BERSA_TX_MCU_RING_SIZE,
+				  BESRA_TX_MCU_RING_SIZE,
 				  MT_MCUQ_RING_BASE(MT_MCUQ_WM));
 	if (ret)
 		return ret;
@@ -257,7 +257,7 @@ int bersa_dma_init(struct bersa_dev *dev)
 	/* command to WA */
 	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WA,
 				  MT_MCUQ_ID(MT_MCUQ_WA),
-				  BERSA_TX_MCU_RING_SIZE,
+				  BESRA_TX_MCU_RING_SIZE,
 				  MT_MCUQ_RING_BASE(MT_MCUQ_WA));
 	if (ret)
 		return ret;
@@ -265,7 +265,7 @@ int bersa_dma_init(struct bersa_dev *dev)
 	/* firmware download */
 	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_FWDL,
 				  MT_MCUQ_ID(MT_MCUQ_FWDL),
-				  BERSA_TX_FWDL_RING_SIZE,
+				  BESRA_TX_FWDL_RING_SIZE,
 				  MT_MCUQ_RING_BASE(MT_MCUQ_FWDL));
 	if (ret)
 		return ret;
@@ -273,7 +273,7 @@ int bersa_dma_init(struct bersa_dev *dev)
 	/* event from WM */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU],
 			       MT_RXQ_ID(MT_RXQ_MCU),
-			       BERSA_RX_MCU_RING_SIZE,
+			       BESRA_RX_MCU_RING_SIZE,
 			       MT_RX_BUF_SIZE,
 			       MT_RXQ_RING_BASE(MT_RXQ_MCU));
 	if (ret)
@@ -282,7 +282,7 @@ int bersa_dma_init(struct bersa_dev *dev)
 	/* event from WA */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
 			       MT_RXQ_ID(MT_RXQ_MCU_WA),
-			       BERSA_RX_MCU_RING_SIZE,
+			       BESRA_RX_MCU_RING_SIZE,
 			       MT_RX_BUF_SIZE,
 			       MT_RXQ_RING_BASE(MT_RXQ_MCU_WA));
 	if (ret)
@@ -292,7 +292,7 @@ int bersa_dma_init(struct bersa_dev *dev)
 	if (!dev->phy.band_idx) {
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN],
 				       MT_RXQ_ID(MT_RXQ_MAIN),
-				       BERSA_RX_RING_SIZE,
+				       BESRA_RX_RING_SIZE,
 				       MT_RX_BUF_SIZE,
 				       MT_RXQ_RING_BASE(MT_RXQ_MAIN));
 		if (ret)
@@ -302,7 +302,7 @@ int bersa_dma_init(struct bersa_dev *dev)
 	/* tx free notify event from WA for band0 */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN_WA],
 			       MT_RXQ_ID(MT_RXQ_MAIN_WA),
-			       BERSA_RX_MCU_RING_SIZE,
+			       BESRA_RX_MCU_RING_SIZE,
 			       MT_RX_BUF_SIZE,
 			       MT_RXQ_RING_BASE(MT_RXQ_MAIN_WA));
 	if (ret)
@@ -312,7 +312,7 @@ int bersa_dma_init(struct bersa_dev *dev)
 		/* rx data queue for band1 */
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_EXT],
 				       MT_RXQ_ID(MT_RXQ_EXT),
-				       BERSA_RX_RING_SIZE,
+				       BESRA_RX_RING_SIZE,
 				       MT_RX_BUF_SIZE,
 				       MT_RXQ_RING_BASE(MT_RXQ_EXT) + hif1_ofs);
 		if (ret)
@@ -321,7 +321,7 @@ int bersa_dma_init(struct bersa_dev *dev)
 		/* tx free notify event from WA for band1 */
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_EXT_WA],
 				       MT_RXQ_ID(MT_RXQ_EXT_WA),
-				       BERSA_RX_MCU_RING_SIZE,
+				       BESRA_RX_MCU_RING_SIZE,
 				       MT_RX_BUF_SIZE,
 				       MT_RXQ_RING_BASE(MT_RXQ_EXT_WA) + hif1_ofs);
 		if (ret)
@@ -332,7 +332,7 @@ int bersa_dma_init(struct bersa_dev *dev)
 		/* rx data queue for band2 */
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_TRI],
 				       MT_RXQ_ID(MT_RXQ_TRI),
-				       BERSA_RX_RING_SIZE,
+				       BESRA_RX_RING_SIZE,
 				       MT_RX_BUF_SIZE,
 				       MT_RXQ_RING_BASE(MT_RXQ_TRI) + hif1_ofs);
 		if (ret)
@@ -344,17 +344,17 @@ int bersa_dma_init(struct bersa_dev *dev)
 		return ret;
 
 	netif_tx_napi_add(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
-			  bersa_poll_tx, NAPI_POLL_WEIGHT);
+			  besra_poll_tx, NAPI_POLL_WEIGHT);
 	napi_enable(&dev->mt76.tx_napi);
 
-	bersa_dma_enable(dev);
+	besra_dma_enable(dev);
 
 	return 0;
 }
 
-void bersa_dma_cleanup(struct bersa_dev *dev)
+void besra_dma_cleanup(struct besra_dev *dev)
 {
-	bersa_dma_disable(dev, true);
+	besra_dma_disable(dev, true);
 
 	mt76_dma_cleanup(&dev->mt76);
 }
