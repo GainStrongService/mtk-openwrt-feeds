@@ -1,4 +1,4 @@
-From 31ec868f23a1bae48fceab6f2fb5f8b1a3a909a1 Mon Sep 17 00:00:00 2001
+From 76d110deecc1705295b3154ce91d046fb6115c66 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 31 May 2022 21:15:54 +0800
 Subject: [PATCH] hostapd: add support for runtime set in-band discovery
@@ -15,12 +15,12 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  hostapd/ctrl_iface.c         | 66 ++++++++++++++++++++++++++++++++++++
  hostapd/hostapd_cli.c        | 20 +++++++++++
  src/ap/beacon.c              |  5 ++-
- src/drivers/driver_nl80211.c |  8 +++--
+ src/drivers/driver_nl80211.c | 10 ++++--
  src/drivers/nl80211_copy.h   |  1 +
- 5 files changed, 96 insertions(+), 4 deletions(-)
+ 5 files changed, 98 insertions(+), 4 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 86adf18e5..ce04cd641 100644
+index 664c59df7..e6a2d4203 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -769,6 +769,69 @@ static int hostapd_ctrl_iface_send_qos_map_conf(struct hostapd_data *hapd,
@@ -93,7 +93,7 @@ index 86adf18e5..ce04cd641 100644
  
  #ifdef CONFIG_WNM_AP
  
-@@ -3673,6 +3736,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -3336,6 +3399,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		if (hostapd_ctrl_iface_coloc_intf_req(hapd, buf + 15))
  			reply_len = -1;
  #endif /* CONFIG_WNM_AP */
@@ -104,7 +104,7 @@ index 86adf18e5..ce04cd641 100644
  		reply_len = hostapd_ctrl_iface_get_config(hapd, reply,
  							  reply_size);
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index 260912111..e30c4e7c1 100644
+index 60396f3da..4c4c82c9a 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
 @@ -646,6 +646,24 @@ static int hostapd_cli_cmd_wps_config(struct wpa_ctrl *ctrl, int argc,
@@ -142,10 +142,10 @@ index 260912111..e30c4e7c1 100644
  };
  
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index a96155ada..68e847956 100644
+index 58872bfda..c8db86c6e 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
-@@ -1408,6 +1408,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
+@@ -1483,6 +1483,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
  				   struct wpa_driver_ap_params *params)
  {
  	params->fd_max_int = hapd->conf->fils_discovery_max_int;
@@ -154,21 +154,21 @@ index a96155ada..68e847956 100644
  	if (is_6ghz_op_class(hapd->iconf->op_class) &&
  	    params->fd_max_int > FD_MAX_INTERVAL_6GHZ)
  		params->fd_max_int = FD_MAX_INTERVAL_6GHZ;
-@@ -1416,7 +1418,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
+@@ -1491,7 +1493,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
  	if (params->fd_min_int > params->fd_max_int)
  		params->fd_min_int = params->fd_max_int;
  
 -	if (params->fd_max_int)
-+	if (params->fd_max_int ||
-+	    !params->unsol_bcast_probe_resp_interval)
++	if (params->fd_max_int || (is_6ghz_op_class(hapd->iconf->op_class) &&
++	    !params->unsol_bcast_probe_resp_interval))
  		return hostapd_gen_fils_discovery(hapd,
  						  &params->fd_frame_tmpl_len);
  
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index aec179ac3..6113aff0b 100644
+index 0127a6be2..ee763990f 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -4491,9 +4491,10 @@ static int nl80211_fils_discovery(struct i802_bss *bss, struct nl_msg *msg,
+@@ -4493,9 +4493,10 @@ static int nl80211_fils_discovery(struct i802_bss *bss, struct nl_msg *msg,
  			params->fd_max_int) ||
  	    (params->fd_frame_tmpl &&
  	     nla_put(msg, NL80211_FILS_DISCOVERY_ATTR_TMPL,
@@ -181,21 +181,23 @@ index aec179ac3..6113aff0b 100644
  	nla_nest_end(msg, attr);
  	return 0;
  }
-@@ -4823,7 +4824,8 @@ static int wpa_driver_nl80211_set_ap(void *priv,
+@@ -4839,7 +4840,10 @@ static int wpa_driver_nl80211_set_ap(void *priv,
  #endif /* CONFIG_SAE */
  
  #ifdef CONFIG_FILS
 -	if (params->fd_max_int && nl80211_fils_discovery(bss, msg, params) < 0)
-+	if ((params->fd_max_int || !(params->unsol_bcast_probe_resp_interval)) &&
++	if ((params->fd_max_int ||
++	    ((params->freq->freq > 5950 && params->freq->freq <= 7115) &&
++	      !(params->unsol_bcast_probe_resp_interval))) &&
 +	     nl80211_fils_discovery(bss, msg, params) < 0)
  		goto fail;
  #endif /* CONFIG_FILS */
  
 diff --git a/src/drivers/nl80211_copy.h b/src/drivers/nl80211_copy.h
-index f962c06e9..6fb7b7fcf 100644
+index 0568a7909..c4bf3ad35 100644
 --- a/src/drivers/nl80211_copy.h
 +++ b/src/drivers/nl80211_copy.h
-@@ -7150,6 +7150,7 @@ enum nl80211_fils_discovery_attributes {
+@@ -7379,6 +7379,7 @@ enum nl80211_fils_discovery_attributes {
  	NL80211_FILS_DISCOVERY_ATTR_INT_MIN,
  	NL80211_FILS_DISCOVERY_ATTR_INT_MAX,
  	NL80211_FILS_DISCOVERY_ATTR_TMPL,
@@ -204,5 +206,5 @@ index f962c06e9..6fb7b7fcf 100644
  	/* keep last */
  	__NL80211_FILS_DISCOVERY_ATTR_LAST,
 -- 
-2.29.2
+2.36.1
 
