@@ -889,6 +889,8 @@ enum FoeIpAct {
 	})
 
 #define IS_DSA_LAN(dev) (!strncmp(dev->name, "lan", 3))
+#define IS_DSA_1G_LAN(dev) (!strncmp(dev->name, "lan", 3) &&		       \
+			    strcmp(dev->name, "lan5"))
 #define IS_DSA_WAN(dev) (!strncmp(dev->name, "wan", 3))
 #define NONE_DSA_PORT 0xff
 #define MAX_CRSN_NUM 32
