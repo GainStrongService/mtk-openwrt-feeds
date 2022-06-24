@@ -48,6 +48,44 @@ index 27eecf3..0124d89 100644
  	hostapd_prepare_device_config "$hostapd_conf_file" nl80211
  	cat >> "$hostapd_conf_file" <<EOF
  ${channel:+channel=$channel}
+--- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
++++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
+@@ -132,6 +132,13 @@
+ 		mode_band="$band"
+ 		channel="$chan"
+ 		htmode="$mode"
++		if [ "$band" = "6g" ]
++		then
++			encryption=sae
++			key=12345678
++		else
++			encryption=none
++		fi
+ 	done
+ }
+ 
+@@ -157,6 +164,8 @@
+ 		channel=""
+ 		htmode=""
+ 		ht_capab=""
++		encryption=""
++		key=""
+ 
+ 		get_band_defaults "$dev"
+ 
+@@ -181,8 +190,11 @@
+ 			set wireless.default_radio${devidx}.network=lan
+ 			set wireless.default_radio${devidx}.mode=ap
+ 			set wireless.default_radio${devidx}.ssid=OpenWrt
+-			set wireless.default_radio${devidx}.encryption=none
++			set wireless.default_radio${devidx}.encryption=${encryption}
+ EOF
++		[ -n "$key" ] && {
++			uci -q set wireless.default_radio${devidx}.key=${key}
++		}
+ 		uci -q commit wireless
+ 
+ 		devidx=$(($devidx + 1))
 -- 
 2.29.2
 
