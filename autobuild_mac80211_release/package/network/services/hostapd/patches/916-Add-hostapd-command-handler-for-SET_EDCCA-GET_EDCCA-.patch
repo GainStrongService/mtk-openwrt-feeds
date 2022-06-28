@@ -1,0 +1,137 @@
+From a00f78d06067b5c139c043c9acf359810e963108 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Fri, 24 Jun 2022 22:32:40 +0800
+Subject: [PATCH 916/917] Add hostapd command handler for SET_EDCCA, GET_EDCCA
+ and APPLY_EDCCA
+
+---
+ hostapd/ctrl_iface.c | 99 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 99 insertions(+)
+
+diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
+index b997ed8..5e9af7f 100644
+--- a/hostapd/ctrl_iface.c
++++ b/hostapd/ctrl_iface.c
+@@ -598,6 +598,19 @@ static const char * pbc_status_str(enum pbc_status status)
+ }
+ 
+ 
++static const char * edcca_mode_str(enum edcca_mode status)
++{
++	switch (status) {
++		case EDCCA_MODE_FORCE_DISABLE:
++			return "Force Disable";
++		case EDCCA_MODE_AUTO:
++			return "Auto";
++		default:
++			return "Unknown";
++	}
++}
++
++
+ static int hostapd_ctrl_iface_wps_get_status(struct hostapd_data *hapd,
+ 					     char *buf, size_t buflen)
+ {
+@@ -3307,6 +3320,85 @@ static int hostapd_ctrl_iface_driver_cmd(struct hostapd_data *hapd, char *cmd,
+ #endif /* ANDROID */
+ 
+ 
++static int
++hostapd_ctrl_iface_set_edcca(struct hostapd_data *hapd, char *cmd,
++					 char *buf, size_t buflen)
++{
++	char *pos, *config, *value;
++	config = cmd;
++	pos = os_strchr(config, ' ');
++	if (pos == NULL)
++		return -1;
++	*pos++ = '\0';
++
++	if(pos == NULL)
++		return -1;
++	value = pos;
++
++	if (os_strcmp(config, "enable") == 0) {
++		int mode = atoi(value);
++		if (mode < EDCCA_MODE_FORCE_DISABLE || mode > EDCCA_MODE_AUTO) {
++			wpa_printf(MSG_ERROR, "Invalid value for edcca enable");
++			return -1;
++		}
++		hapd->iconf->edcca_enable = (u8) mode;
++	} else if (os_strcmp(config, "compensation") == 0) {
++		int compensation = atoi(value);
++		if (compensation < EDCCA_MIN_COMPENSATION ||
++			compensation > EDCCA_MAX_COMPENSATION) {
++			wpa_printf(MSG_ERROR, "Invalid value for edcca compensation");
++			return -1;
++		}
++		hapd->iconf->edcca_compensation = (s8) compensation;
++	} else {
++		wpa_printf(MSG_ERROR,
++			"Unsupported parameter %s for SET_EDCCA", config);
++		return -1;
++	}
++	return os_snprintf(buf, buflen, "OK\n");
++}
++
++
++static int
++hostapd_ctrl_iface_get_edcca(struct hostapd_data *hapd, char *buf,
++					 size_t buflen)
++{
++	int ret;
++	char *pos, *end;
++
++	pos = buf;
++	end = buf + buflen;
++
++	ret = os_snprintf(pos, end - pos, "EDCCA Mode: %s\n",
++			  edcca_mode_str(hapd->iconf->edcca_enable));
++
++	if (os_snprintf_error(end - pos, ret))
++		return pos - buf;
++	pos += ret;
++
++	ret = os_snprintf(pos, end - pos, "EDCCA compensation %d\n",
++			  hapd->iconf->edcca_compensation);
++
++	if (os_snprintf_error(end - pos, ret))
++		return pos - buf;
++	pos += ret;
++
++	return pos - buf;
++}
++
++
++static int
++hostapd_ctrl_iface_apply_edcca(struct hostapd_data *hapd, char *buf,
++					 size_t buflen)
++{
++	if(hostapd_drv_configure_edcca_threshold(hapd) == 0) {
++		return os_snprintf(buf, buflen, "OK\n");
++	} else {
++		return -1;
++	}
++}
++
++
+ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+ 					      char *buf, char *reply,
+ 					      int reply_size,
+@@ -3840,6 +3932,13 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+ 		reply_len = hostapd_ctrl_iface_driver_cmd(hapd, buf + 7, reply,
+ 							  reply_size);
+ #endif /* ANDROID */
++	} else if (os_strncmp(buf, "SET_EDCCA ", 10) == 0) {
++		reply_len = hostapd_ctrl_iface_set_edcca(hapd, buf+10, reply,
++							  reply_size);
++	} else if (os_strncmp(buf, "GET_EDCCA", 9) == 0) {
++		reply_len = hostapd_ctrl_iface_get_edcca(hapd, reply, reply_size);
++	} else if (os_strncmp(buf, "APPLY_EDCCA", 11) == 0) {
++		reply_len = hostapd_ctrl_iface_apply_edcca(hapd, reply, reply_size);
+ 	} else {
+ 		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
+ 		reply_len = 16;
+-- 
+2.18.0
+
