@@ -241,6 +241,9 @@ static void parse_reg_cmd(int argc, char *argv[], int len)
 static int get_chip_name()
 {
 	unsigned int temp;
+	FILE *fp = NULL;
+	char buff[255];
+
 	/*judge 7530*/
 	reg_read((0x7ffc), &temp);
 	temp = temp >> 16;
@@ -251,6 +254,18 @@ static int get_chip_name()
 	temp = temp >> 16;
 	if (temp == 0x7531)
 		return temp;
+
+	/*judge jaguar embedded switch*/
+	fp = fopen("/sys/bus/platform/devices/15020000.gsw/of_node/mediatek,model", "r");
+	if (fp != NULL) {
+		fgets(buff, 255, (FILE *)fp);
+		fclose(fp);
+		if (!strcmp(buff, "mediatek,mt7988")) {
+			temp = 0x7988;
+			return temp;
+		}
+	}
+
 	return -1;
 }
 
@@ -320,30 +335,29 @@ int main(int argc, char *argv[])
 	attres->dev_id = -1;
 	attres->port_num = -1;
 	attres->phy_dev = -1;
-	nl_init_flag = false;
+	nl_init_flag = true;
 
-	err = switch_ioctl_init();
+	/* dsa netlink family might not be enabled. Try gsw netlink family. */
+	err = mt753x_netlink_init(MT753X_DSA_GENL_NAME);
 	if (!err)
 		chip_name = get_chip_name();
 
-	/* dsa netlink family might not be enabled. Try gsw netlink family. */
-	if (err < 0 || chip_name < 0) {
-		nl_init_flag = true;
-
-		err = mt753x_netlink_init(MT753X_DSA_GENL_NAME);
-		if (!err)
-			chip_name = get_chip_name();
-	}
-
-	if (err < 0 || chip_name < 0) {
+	if (err < 0) {
 		err = mt753x_netlink_init(MT753X_GENL_NAME);
 		if (!err)
 			chip_name = get_chip_name();
-
-		if (chip_name < 0) {
-			printf("no chip unsupport or chip id is invalid!\n");
-			exit_free();
-			exit(0);
+	}
+	
+	if (err < 0) {
+		err = switch_ioctl_init();
+		if (!err) {
+			chip_name = get_chip_name();
+			nl_init_flag = false;
+			if (chip_name < 0) {
+				printf("no chip unsupport or chip id is invalid!\n");
+				exit_free();
+				exit(0);
+			}
 		}
 	}
 

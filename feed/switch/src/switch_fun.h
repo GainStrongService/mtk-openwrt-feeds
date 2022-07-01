@@ -128,7 +128,7 @@ void pfc_get_rx_counter(int argc, char *argv[]);
 void pfc_get_tx_counter(int argc, char *argv[]);
 
 /*switch reset*/
-void switch_reset(int argc, char *argv[]);
+int switch_reset(int argc, char *argv[]);
 
 /* EEE(802.3az) function  */
 void eee_enable(int argc, char *argv[]);

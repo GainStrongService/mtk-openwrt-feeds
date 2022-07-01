@@ -327,7 +327,7 @@ void write_acl_table(unsigned char tbl_idx, unsigned int vawd1, unsigned int vaw
 	unsigned int value, reg;
 	unsigned int max_index;
 
-	if (chip_name == 0x7531)
+	if (chip_name == 0x7531 || chip_name == 0x7988)
 		max_index = 256;
 	else
 		max_index = 64;
@@ -380,7 +380,7 @@ void write_acl_mask_table(unsigned char tbl_idx, unsigned int vawd1, unsigned in
 	unsigned int value, reg;
 	unsigned int max_index;
 
-	if (chip_name == 0x7531)
+	if (chip_name == 0x7531 || chip_name == 0x7988)
 		max_index = 128;
 	else
 		max_index = 32;
@@ -430,7 +430,7 @@ void write_acl_rule_table(unsigned char tbl_idx, unsigned int vawd1, unsigned in
 	unsigned int value, reg;
 	unsigned int max_index;
 
-	if (chip_name == 0x7531)
+	if (chip_name == 0x7531 || chip_name == 0x7988)
 		max_index = 128;
 	else
 		max_index = 32;
@@ -671,11 +671,12 @@ void acl_dip_meter(int argc, char *argv[])
 	//set action
 	meter = strtoul(argv[6], NULL, 0);
 	if (((chip_name == 0x7530) && (meter > 1000000)) ||
-		((chip_name == 0x7531) && (meter > 2500000))) {
-		printf("\n**Illegal meter input, and 7530: 0~1000000Kpbs, 7531: 0~2500000Kpbs**\n");
+		((chip_name == 0x7531) && (meter > 2500000)) ||
+		((chip_name == 0x7988) && (meter > 4000000))) {
+		printf("\n**Illegal meter input, and 7530: 0~1000000Kpbs, 7531: 0~2500000Kpbs, 7988: 0~4000000Kpbs**\n");
 		return;
 	}
-	if (((chip_name == 0x7531) && (meter > 1000000))) {
+	if (((chip_name == 0x7531 || chip_name == 0x7988) && (meter > 1000000))) {
 		reg_read(0xc,&value);
 		value |= 0x1 << 30;
 		reg_write(0xC,value);
@@ -2228,8 +2229,11 @@ void igmp_off()
 	printf("config igmpsnoop off.\n");
 }
 
-void switch_reset(int argc, char *argv[])
+int switch_reset(int argc, char *argv[])
 {
+	if (chip_name == 0x7988)
+		return -1;
+
 	unsigned int value = 0;
 	/*Software Register Reset  and Software System Reset */
 	reg_write(0x7000, 0x3);
@@ -2241,6 +2245,7 @@ void switch_reset(int argc, char *argv[])
 		printf("GPIO Mode (0x7c0c) select value =0x%x  \n", value);
 	}
 	printf("Switch Software Reset !!! \n");
+	return 0;
 }
 
 int phy_set_fc(int argc, char *argv[])
@@ -2305,7 +2310,7 @@ int set_mac_pfc(int argc, char *argv[])
 		printf("Illegal parameter (port:0~6, enable|diable:0|1) \n");
 		return -1;
 	}
-	if (chip_name == 0x7531) {
+	if (chip_name == 0x7531 || chip_name == 0x7988) {
 		reg_read(REG_PFC_CTRL_ADDR, &value);
 		value &= ~(1 << port);
 		value |= (enable << port);
@@ -2481,7 +2486,7 @@ void qos_set_base(int argc, char *argv[])
 		reg_write(0x44, value);
 		printf("reg: 0x44, value: 0x%x\n", value);
 
-	} else if (chip_name == 0x7531) {
+	} else if (chip_name == 0x7531 || chip_name == 0x7988) {
 
 		reg_read(GSW_UPW(port), &value);
 		get_upw(&value, base);
@@ -2605,7 +2610,7 @@ void qos_pri_mapping_queue(int argc, char *argv[])
 		}
 		reg_write(reg, value);
 		printf("write reg: %x, value: %x\n", reg, value);
-	} else if (chip_name == 0x7531) {
+	} else if (chip_name == 0x7531 || chip_name == 0x7988) {
 		pem_n = prio / 2;
 		reg = GSW_PEM(pem_n) + 0x100 * port;
 		reg_read(reg, &value);
@@ -3111,16 +3116,22 @@ int ingress_rate_set(int on_off, unsigned int port, unsigned int bw)
 				return -1;
 			}
 			value = ((bw / 32) << 16) + (1 << 15) + (7 << 8) + (1 << 7) + 0x0f;
-		} else if (chip_name == 0x7531) {
-			if (bw > 2500000) {
+		} else if (chip_name == 0x7531 || chip_name == 0x7988) {
+			if ((chip_name == 0x7531) && (bw > 2500000)) {
 				printf("\n**Charge rate(%d) is larger than line rate(2500000kbps)**\n",bw);
 				return -1;
 			}
-		        if (bw/32 >= 65536) //supoort 2.5G case
-                                value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (1 << 12) + (7 << 8) + 0xf;
-                        else
-                                value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (7 << 8) + 0xf;
+
+			if ((chip_name == 0x7988) && (bw > 4000000)) {
+				printf("\n**Charge rate(%d) is larger than line rate(4000000kbps)**\n",bw);
+				return -1;
 			}
+
+			if (bw/32 >= 65536) //supoort 2.5G case
+				value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (1 << 12) + (7 << 8) + 0xf;
+			else
+				value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (7 << 8) + 0xf;
+		}
 		else
 			printf("unknow chip\n");
 	}
@@ -3172,15 +3183,20 @@ int egress_rate_set(int on_off, int port, int bw)
 				return -1;
 			}
 			value = ((bw / 32) << 16) + (1 << 15) + (7 << 8) + (1 << 7) + 0xf;
-		} else if (chip_name == 0x7531) {
-			if (bw < 0 || bw > 2500000) {
+		} else if (chip_name == 0x7531 || chip_name == 0x7988) {
+			if ((chip_name == 0x7531) && (bw < 0 || bw > 2500000)) {
 				printf("\n**Charge rate(%d) is larger than line rate(2500000kbps)**\n",bw);
 				return -1;
 			}
-		        if (bw/32 >= 65536)	//support 2.5G cases
-                                value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (1 << 12) + (7 << 8) + 0xf;
-                        else
-                                value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (7 << 8) + 0xf;
+			if ((chip_name == 0x7988) && (bw < 0 || bw > 4000000)) {
+				printf("\n**Charge rate(%d) is larger than line rate(4000000kbps)**\n",bw);
+				return -1;
+			}
+
+			if (bw/32 >= 65536)	//support 2.5G cases
+				value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (1 << 12) + (7 << 8) + 0xf;
+			else
+				value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (7 << 8) + 0xf;
 		}
 		else
 			printf("unknow chip\n");
@@ -3232,7 +3248,7 @@ int collision_pool_enable(int argc, char *argv[])
 		return -1;
 	}
 
-	if (chip_name == 0x7531) {
+	if (chip_name == 0x7531 || chip_name == 0x7988) {
 		reg = REG_CPGC_ADDR;
 		if(enable == 1) {
 			/* active reset */
@@ -3298,7 +3314,7 @@ void collision_pool_mac_dump()
 {
 	unsigned int value, reg;
 
-	if (chip_name == 0x7531) {
+	if (chip_name == 0x7531 || chip_name == 0x7988) {
 		reg = REG_CPGC_ADDR;
 		reg_read(reg, &value);
 		if(value & REG_CPCG_COL_EN_MASK)
@@ -3314,7 +3330,7 @@ void collision_pool_dip_dump()
 {
 	unsigned int value, reg;
 
-	if (chip_name == 0x7531) {
+	if (chip_name == 0x7531 || chip_name == 0x7988) {
 		reg = REG_CPGC_ADDR;
 		reg_read(reg, &value);
 		if(value & REG_CPCG_COL_EN_MASK)
@@ -3332,7 +3348,7 @@ void collision_pool_sip_dump()
 {
 	unsigned int value, reg;
 
-	if (chip_name == 0x7531) {
+	if (chip_name == 0x7531 ||  chip_name == 0x7988) {
 		reg = REG_CPGC_ADDR;
 		reg_read(reg, &value);
 		if(value & REG_CPCG_COL_EN_MASK)
@@ -3358,7 +3374,7 @@ void pfc_get_rx_counter(int argc, char *argv[])
 		return;
 	}
 
-	if (chip_name == 0x7531) {
+	if (chip_name == 0x7531 ||  chip_name == 0x7988) {
 		reg= PFC_RX_COUNTER_L(port);
 		reg_read(reg, &value);
 		user_pri = value & 0xff;
@@ -3402,7 +3418,7 @@ void pfc_get_tx_counter(int argc, char *argv[])
 		return;
 	}
 
-	if (chip_name == 0x7531) {
+	if (chip_name == 0x7531 || chip_name == 0x7988) {
 		reg= PFC_TX_COUNTER_L(port);
 		reg_read(reg, &value);
 		user_pri = value & 0xff;
@@ -3478,7 +3494,7 @@ void read_free_page_counters()
 	unsigned int fc_port_blk_thd,fc_port_blk_hi_thd;
 	unsigned int queue[8]={0};
 
-	if (chip_name == 0x7531) {
+	if (chip_name == 0x7531 || chip_name == 0x7988) {
 		/* get system free page link counter*/
 		reg_read(0x1fc0, &value);
 		free_page = value & 0xFFF;
@@ -3615,7 +3631,7 @@ void eee_enable(int argc, char *argv[])
 	}
 
 	/* Turn on/off global EEE switch */
-	if (chip_name == 0x7531) {
+	if (chip_name == 0x7531 || chip_name == 0x7988) {
 		mii_mgr_c45_read(0, 0x1f, 0x403, &value);
 		if (eee_en_bitmap)
 			value |= (1 << 6);

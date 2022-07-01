@@ -413,7 +413,7 @@ out:
 int mii_mgr_cl45_read_ioctl(unsigned int port_num, unsigned int dev,
 			    unsigned int reg, unsigned int *value)
 {
-	if (chip_name == 0x7531)
+	if (chip_name == 0x7531 || chip_name == 0x7988)
 		return mii_mgr_cl45_read(port_num, dev, reg, value);
 	else if (chip_name == 0x7530)
 		return mii_mgr_cl45_read_indirect(port_num, dev, reg, value);
@@ -424,7 +424,7 @@ int mii_mgr_cl45_read_ioctl(unsigned int port_num, unsigned int dev,
 int mii_mgr_cl45_write_ioctl(unsigned int port_num, unsigned int dev,
 			     unsigned int reg, unsigned int value)
 {
-	if (chip_name == 0x7531)
+	if (chip_name == 0x7531 || chip_name == 0x7988)
 		return mii_mgr_cl45_write(port_num, dev, reg, value);
 	else if (chip_name == 0x7530)
 		return mii_mgr_cl45_write_indirect(port_num, dev, reg, value);
