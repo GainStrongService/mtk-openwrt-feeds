@@ -1,4 +1,5 @@
 RAMFS_COPY_BIN='mkfs.f2fs blkid blockdev fw_printenv fw_setenv'
+RAMFS_COPY_DATA="/etc/fw_env.config /var/lock/fw_printenv.lock"
 platform_do_upgrade() {
 	local board=$(board_name)
 
