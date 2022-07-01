@@ -1,7 +1,7 @@
-Index: mt76-2022-06-02-1d8af168/mt7915/vendor.c
+Index: mt76-2022-06-24-b6e865e2/mt7915/vendor.c
 ===================================================================
---- mt76-2022-06-02-1d8af168.orig/mt7915/vendor.c
-+++ mt76-2022-06-02-1d8af168/mt7915/vendor.c
+--- mt76-2022-06-24-b6e865e2.orig/mt7915/vendor.c
++++ mt76-2022-06-24-b6e865e2/mt7915/vendor.c
 @@ -50,6 +50,18 @@ rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTR
  	[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TXBF] = { .type = NLA_U8 },
  };
@@ -21,7 +21,7 @@ Index: mt76-2022-06-02-1d8af168/mt7915/vendor.c
  struct csi_null_tone {
  	u8 start;
  	u8 end;
-@@ -976,6 +988,35 @@ static int mt7915_vendor_hemu_ctrl(struc
+@@ -974,6 +986,35 @@ static int mt7915_vendor_hemu_ctrl(struc
  	return 0;
  }
  
@@ -57,7 +57,7 @@ Index: mt76-2022-06-02-1d8af168/mt7915/vendor.c
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -1033,6 +1074,17 @@ static const struct wiphy_vendor_command
+@@ -1031,6 +1072,17 @@ static const struct wiphy_vendor_command
  		.doit = mt7915_vendor_hemu_ctrl,
  		.policy = hemu_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_HEMU_CTRL_MAX,
@@ -75,10 +75,10 @@ Index: mt76-2022-06-02-1d8af168/mt7915/vendor.c
  	}
  };
  
-Index: mt76-2022-06-02-1d8af168/mt7915/vendor.h
+Index: mt76-2022-06-24-b6e865e2/mt7915/vendor.h
 ===================================================================
---- mt76-2022-06-02-1d8af168.orig/mt7915/vendor.h
-+++ mt76-2022-06-02-1d8af168/mt7915/vendor.h
+--- mt76-2022-06-24-b6e865e2.orig/mt7915/vendor.h
++++ mt76-2022-06-24-b6e865e2/mt7915/vendor.h
 @@ -9,6 +9,7 @@ enum mtk_nl80211_vendor_subcmds {
  	MTK_NL80211_VENDOR_SUBCMD_RFEATURE_CTRL = 0xc3,
  	MTK_NL80211_VENDOR_SUBCMD_WIRELESS_CTRL = 0xc4,
@@ -116,15 +116,15 @@ Index: mt76-2022-06-02-1d8af168/mt7915/vendor.h
 +};
 +
  #endif
-Index: mt76-2022-06-02-1d8af168/mt7915/mt7915.h
+Index: mt76-2022-06-24-b6e865e2/mt7915/mt7915.h
 ===================================================================
---- mt76-2022-06-02-1d8af168.orig/mt7915/mt7915.h
-+++ mt76-2022-06-02-1d8af168/mt7915/mt7915.h
+--- mt76-2022-06-24-b6e865e2.orig/mt7915/mt7915.h
++++ mt76-2022-06-24-b6e865e2/mt7915/mt7915.h
 @@ -11,6 +11,7 @@
  
  #define MTK_DEBUG 1
  #define MT7915_MAX_INTERFACES		19
 +#define MT7915_MAX_BSS			16
- #define MT7915_MAX_WMM_SETS		4
  #define MT7915_WTBL_SIZE		288
  #define MT7916_WTBL_SIZE		544
+ #define MT7915_WTBL_RESERVED		(mt7915_wtbl_size(dev) - 1)
