@@ -1,19 +1,21 @@
-From 23de5ffe66f73e5fbd22a441f7ca1f612f1bd158 Mon Sep 17 00:00:00 2001
-From: Peter Chiu <chui-hao.chiu@mediatek.com>
-Date: Wed, 22 Jun 2022 10:58:37 +0800
-Subject: [PATCH 1113/1115] mt76: mt7915: drop packets when TWT stations use
- more tokens than 128
+From 9bc707077df60aa6423c89b1d17fd8a5f4e2d36b Mon Sep 17 00:00:00 2001
+From: Bo Jiao <Bo.Jiao@mediatek.com>
+Date: Mon, 4 Jul 2022 19:24:34 +0800
+Subject: [PATCH] mt76: mt7915: drop packets when TWT stations use
 
 ---
  mt7915/mac.c    | 21 ++++++++++++++++++---
  mt7915/mt7915.h |  2 ++
  2 files changed, 20 insertions(+), 3 deletions(-)
+ mode change 100644 => 100755 mt7915/mac.c
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 8fd4618..fd0dd50 100644
+old mode 100644
+new mode 100755
+index 5e5df23d..55b38d16
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -724,6 +724,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -725,6 +725,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
  	struct ieee80211_key_conf *key = info->control.hw_key;
  	struct ieee80211_vif *vif = info->control.vif;
@@ -21,7 +23,7 @@ index 8fd4618..fd0dd50 100644
  	struct mt76_connac_fw_txp *txp;
  	struct mt76_txwi_cache *t;
  	int id, i, nbuf = tx_info->nbuf - 1;
-@@ -737,8 +738,6 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -738,8 +739,6 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  		wcid = &dev->mt76.global_wcid;
  
  	if (sta) {
@@ -30,7 +32,7 @@ index 8fd4618..fd0dd50 100644
  		msta = (struct mt7915_sta *)sta->drv_priv;
  
  		if (time_after(jiffies, msta->jiffies + HZ / 4)) {
-@@ -754,10 +753,22 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -755,10 +754,22 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	    mgmt->u.action.category == 0xff)
  		return -1;
  
@@ -51,9 +53,9 @@ index 8fd4618..fd0dd50 100644
 +	spin_unlock_bh(&mdev->token_lock);
 +
  	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
- 	mt7915_mac_write_txwi(mdev, txwi_ptr, tx_info->skb, wcid, pid, key, 0);
- 
-@@ -937,6 +948,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+ 	mt7915_mac_write_txwi(mdev, txwi_ptr, tx_info->skb, wcid, pid, key,
+ 			      qid, 0);
+@@ -939,6 +950,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  	struct mt76_dev *mdev = &dev->mt76;
  	struct mt76_txwi_cache *txwi;
  	struct ieee80211_sta *sta = NULL;
@@ -61,7 +63,7 @@ index 8fd4618..fd0dd50 100644
  	LIST_HEAD(free_list);
  	void *end = data + len;
  	bool v3, wake = false;
-@@ -960,7 +972,6 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -962,7 +974,6 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  		 * 1'b0: msdu_id with the same 'wcid pair' as above.
  		 */
  		if (info & MT_TX_FREE_PAIR) {
@@ -69,7 +71,7 @@ index 8fd4618..fd0dd50 100644
  			struct mt76_wcid *wcid;
  			u16 idx;
  
-@@ -993,6 +1004,10 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -995,6 +1006,10 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  			txwi = mt76_token_release(mdev, msdu, &wake);
  			if (!txwi)
  				continue;
@@ -81,7 +83,7 @@ index 8fd4618..fd0dd50 100644
  			mt7915_txwi_free(dev, txwi, sta, &free_list);
  		}
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index ff92e55..6235014 100644
+index 7c7d6bd3..5f11b3fb 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -136,6 +136,8 @@ struct mt7915_sta {
