@@ -494,25 +494,15 @@
 #define TX_DMA_FPORT_MASK_V2       0xf
 #define TX_DMA_SWC_V2              BIT(30)
 
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-#define MTK_TX_DMA_BUF_LEN      0xffff
-#define MTK_TX_DMA_BUF_SHIFT    8
-#else
 #define MTK_TX_DMA_BUF_LEN      0x3fff
+#define MTK_TX_DMA_BUF_LEN_V2   0xffff
 #define MTK_TX_DMA_BUF_SHIFT    16
-#endif
+#define MTK_TX_DMA_BUF_SHIFT_V2 8
 
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-#define MTK_RX_DMA_BUF_LEN      0xffff
-#define MTK_RX_DMA_BUF_SHIFT    8
-#define RX_DMA_SPORT_SHIFT      26
-#define RX_DMA_SPORT_MASK       0xf
-#else
-#define MTK_RX_DMA_BUF_LEN      0x3fff
-#define MTK_RX_DMA_BUF_SHIFT    16
 #define RX_DMA_SPORT_SHIFT      19
+#define RX_DMA_SPORT_SHIFT_V2   26
 #define RX_DMA_SPORT_MASK       0x7
-#endif
+#define RX_DMA_SPORT_MASK_V2    0xf
 
 /* QDMA descriptor txd4 */
 #define TX_DMA_CHKSUM		(0x7 << 29)
@@ -524,10 +514,9 @@
 /* QDMA descriptor txd3 */
 #define TX_DMA_OWNER_CPU	BIT(31)
 #define TX_DMA_LS0		BIT(30)
-#define TX_DMA_PLEN0(_x)	(((_x) & MTK_TX_DMA_BUF_LEN) << MTK_TX_DMA_BUF_SHIFT)
-#define TX_DMA_PLEN1(_x)	((_x) & MTK_TX_DMA_BUF_LEN)
+#define TX_DMA_PLEN0(_x)	(((_x) & eth->soc->txrx.dma_max_len) << eth->soc->txrx.dma_len_offset)
+#define TX_DMA_PLEN1(_x)	((_x) & eth->soc->txrx.dma_max_len)
 #define TX_DMA_SWC		BIT(14)
-#define TX_DMA_SDL(_x)		(TX_DMA_PLEN0(_x))
 
 /* PDMA on MT7628 */
 #define TX_DMA_DONE		BIT(31)
@@ -537,8 +526,8 @@
 /* QDMA descriptor rxd2 */
 #define RX_DMA_DONE		BIT(31)
 #define RX_DMA_LSO		BIT(30)
-#define RX_DMA_PLEN0(_x)	(((_x) & MTK_RX_DMA_BUF_LEN) << MTK_RX_DMA_BUF_SHIFT)
-#define RX_DMA_GET_PLEN0(_x)	(((_x) >> MTK_RX_DMA_BUF_SHIFT) & MTK_RX_DMA_BUF_LEN)
+#define RX_DMA_PLEN0(_x)	(((_x) & eth->soc->txrx.dma_max_len) << eth->soc->txrx.dma_len_offset)
+#define RX_DMA_GET_PLEN0(_x)	(((_x) >> eth->soc->txrx.dma_len_offset) & eth->soc->txrx.dma_max_len)
 #define RX_DMA_GET_AGG_CNT(_x)	(((_x) >> 2) & 0xff)
 #define RX_DMA_GET_REV(_x)	(((_x) >> 10) & 0x1f)
 #define RX_DMA_VTAG		BIT(15)
@@ -554,6 +543,7 @@
 #define RX_DMA_SPECIAL_TAG	BIT(22)		/* switch header in packet */
 
 #define RX_DMA_GET_SPORT(_x) 	(((_x) >> RX_DMA_SPORT_SHIFT) & RX_DMA_SPORT_MASK)
+#define RX_DMA_GET_SPORT_V2(_x) (((_x) >> RX_DMA_SPORT_SHIFT_V2) & RX_DMA_SPORT_MASK_V2)
 
 /* PDMA V2 descriptor rxd3 */
 #define RX_DMA_VTAG_V2          BIT(0)
@@ -774,12 +764,17 @@ struct mtk_rx_dma {
 	unsigned int rxd2;
 	unsigned int rxd3;
 	unsigned int rxd4;
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+} __packed __aligned(4);
+
+struct mtk_rx_dma_v2 {
+	unsigned int rxd1;
+	unsigned int rxd2;
+	unsigned int rxd3;
+	unsigned int rxd4;
 	unsigned int rxd5;
 	unsigned int rxd6;
 	unsigned int rxd7;
 	unsigned int rxd8;
-#endif
 } __packed __aligned(4);
 
 struct mtk_tx_dma {
@@ -787,12 +782,17 @@ struct mtk_tx_dma {
 	unsigned int txd2;
 	unsigned int txd3;
 	unsigned int txd4;
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+} __packed __aligned(4);
+
+struct mtk_tx_dma_v2 {
+	unsigned int txd1;
+	unsigned int txd2;
+	unsigned int txd3;
+	unsigned int txd4;
 	unsigned int txd5;
 	unsigned int txd6;
 	unsigned int txd7;
 	unsigned int txd8;
-#endif
 } __packed __aligned(4);
 
 struct mtk_eth;
@@ -951,16 +951,16 @@ struct mtk_tx_buf {
  *			are present
  */
 struct mtk_tx_ring {
-	struct mtk_tx_dma *dma;
+	void *dma;
 	struct mtk_tx_buf *buf;
 	dma_addr_t phys;
-	struct mtk_tx_dma *next_free;
-	struct mtk_tx_dma *last_free;
+	void *next_free;
+	void *last_free;
 	u32 last_free_ptr;
 	u16 thresh;
 	atomic_t free_count;
 	int dma_size;
-	struct mtk_tx_dma *dma_pdma;	/* For MT7628/88 PDMA handling */
+	void *dma_pdma;	/* For MT7628/88 PDMA handling */
 	dma_addr_t phys_pdma;
 	int cpu_idx;
 };
@@ -982,7 +982,7 @@ enum mtk_rx_flags {
  * @ring_no:		The index of ring
  */
 struct mtk_rx_ring {
-	struct mtk_rx_dma *dma;
+	void *dma;
 	u8 **data;
 	dma_addr_t phys;
 	u16 frag_size;
@@ -1143,6 +1143,18 @@ enum mkt_eth_capabilities {
 			MTK_MUX_U3_GMAC2_TO_QPHY | MTK_U3_COPHY_V2 | \
 			MTK_NETSYS_V2)
 
+struct mtk_tx_dma_desc_info {
+	dma_addr_t	addr;
+	u32		size;
+	u16		vlan_tci;
+	u16		qid;
+	u8		gso:1;
+	u8		csum:1;
+	u8		vlan:1;
+	u8		first:1;
+	u8		last:1;
+};
+
 /* struct mtk_eth_data -	This is the structure holding all differences
  *				among various plaforms
  * @ana_rgc3:                   The offset for register ANA_RGC3 related to
@@ -1153,6 +1165,10 @@ enum mkt_eth_capabilities {
  *				the target SoC
  * @required_pctl		A bool value to show whether the SoC requires
  *				the extra setup for those pins used by GMAC.
+ * @txd_size			Tx DMA descriptor size.
+ * @rxd_size			Rx DMA descriptor size.
+ * @dma_max_len			Max DMA tx/rx buffer length.
+ * @dma_len_offset		Tx/Rx DMA length field offset.
  */
 struct mtk_soc_data {
 	u32             ana_rgc3;
@@ -1161,6 +1177,12 @@ struct mtk_soc_data {
 	bool		required_pctl;
 	netdev_features_t hw_features;
 	bool		has_sram;
+	struct {
+		u32	txd_size;
+		u32	rxd_size;
+		u32	dma_max_len;
+		u32	dma_len_offset;
+	} txrx;
 };
 
 /* currently no SoC has more than 2 macs */
@@ -1269,7 +1291,7 @@ struct mtk_eth {
 	struct mtk_rx_ring		rx_ring_qdma;
 	struct napi_struct		tx_napi;
 	struct mtk_napi			rx_napi[MTK_RX_NAPI_NUM];
-	struct mtk_tx_dma		*scratch_ring;
+	void				*scratch_ring;
 	struct mtk_reset_event		reset_event;
 	dma_addr_t			phy_scratch_ring;
 	void				*scratch_head;

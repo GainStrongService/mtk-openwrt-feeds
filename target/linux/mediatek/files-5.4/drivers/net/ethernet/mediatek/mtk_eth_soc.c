@@ -823,8 +823,8 @@ static inline int mtk_max_buf_size(int frag_size)
 	return buf_size;
 }
 
-static inline bool mtk_rx_get_desc(struct mtk_rx_dma *rxd,
-				   struct mtk_rx_dma *dma_rxd)
+static bool mtk_rx_get_desc(struct mtk_eth *eth, struct mtk_rx_dma_v2 *rxd,
+			    struct mtk_rx_dma_v2 *dma_rxd)
 {
 	rxd->rxd2 = READ_ONCE(dma_rxd->rxd2);
 	if (!(rxd->rxd2 & RX_DMA_DONE))
@@ -833,16 +833,19 @@ static inline bool mtk_rx_get_desc(struct mtk_rx_dma *rxd,
 	rxd->rxd1 = READ_ONCE(dma_rxd->rxd1);
 	rxd->rxd3 = READ_ONCE(dma_rxd->rxd3);
 	rxd->rxd4 = READ_ONCE(dma_rxd->rxd4);
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-	rxd->rxd5 = READ_ONCE(dma_rxd->rxd5);
-	rxd->rxd6 = READ_ONCE(dma_rxd->rxd6);
-#endif
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+		rxd->rxd5 = READ_ONCE(dma_rxd->rxd5);
+		rxd->rxd6 = READ_ONCE(dma_rxd->rxd6);
+	}
+
 	return true;
 }
 
 /* the qdma core needs scratch memory to be setup */
 static int mtk_init_fq_dma(struct mtk_eth *eth)
 {
+	const struct mtk_soc_data *soc = eth->soc;
 	dma_addr_t phy_ring_tail;
 	int cnt = MTK_DMA_SIZE;
 	dma_addr_t dma_addr;
@@ -850,9 +853,9 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 
 	if (!eth->soc->has_sram) {
 		eth->scratch_ring = dma_alloc_coherent(eth->dev,
-					       cnt * sizeof(struct mtk_tx_dma),
+					       cnt * soc->txrx.txd_size,
 					       &eth->phy_scratch_ring,
-					       GFP_ATOMIC);
+					       GFP_KERNEL);
 	} else {
 		eth->scratch_ring = eth->base + MTK_ETH_SRAM_OFFSET;
 	}
@@ -860,8 +863,7 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	if (unlikely(!eth->scratch_ring))
                         return -ENOMEM;
 
-	eth->scratch_head = kcalloc(cnt, MTK_QDMA_PAGE_SIZE,
-				    GFP_KERNEL);
+	eth->scratch_head = kcalloc(cnt, MTK_QDMA_PAGE_SIZE, GFP_KERNEL);
 	if (unlikely(!eth->scratch_head))
 		return -ENOMEM;
 
@@ -871,26 +873,26 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	if (unlikely(dma_mapping_error(eth->dev, dma_addr)))
 		return -ENOMEM;
 
-	phy_ring_tail = eth->phy_scratch_ring +
-			(sizeof(struct mtk_tx_dma) * (cnt - 1));
+	phy_ring_tail = eth->phy_scratch_ring + soc->txrx.txd_size * (cnt - 1);
 
 	for (i = 0; i < cnt; i++) {
-		eth->scratch_ring[i].txd1 =
-				(dma_addr + (i * MTK_QDMA_PAGE_SIZE));
-		if (i < cnt - 1)
-			eth->scratch_ring[i].txd2 = (eth->phy_scratch_ring +
-				((i + 1) * sizeof(struct mtk_tx_dma)));
-		eth->scratch_ring[i].txd3 = TX_DMA_SDL(MTK_QDMA_PAGE_SIZE);
+		struct mtk_tx_dma_v2 *txd;
 
-		eth->scratch_ring[i].txd4 = 0;
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-		if (eth->soc->has_sram && ((sizeof(struct mtk_tx_dma)) > 16)) {
-			eth->scratch_ring[i].txd5 = 0;
-			eth->scratch_ring[i].txd6 = 0;
-			eth->scratch_ring[i].txd7 = 0;
-			eth->scratch_ring[i].txd8 = 0;
+		txd = eth->scratch_ring + i * soc->txrx.txd_size;
+		txd->txd1 = dma_addr + i * MTK_QDMA_PAGE_SIZE;
+		if (i < cnt - 1)
+			txd->txd2 = eth->phy_scratch_ring +
+				(i + 1) * soc->txrx.txd_size;
+
+		txd->txd3 = TX_DMA_PLEN0(MTK_QDMA_PAGE_SIZE);
+		txd->txd4 = 0;
+
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+			txd->txd5 = 0;
+			txd->txd6 = 0;
+			txd->txd7 = 0;
+			txd->txd8 = 0;
 		}
-#endif
 	}
 
 	mtk_w32(eth, eth->phy_scratch_ring, MTK_QDMA_FQ_HEAD);
@@ -903,28 +905,26 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 
 static inline void *mtk_qdma_phys_to_virt(struct mtk_tx_ring *ring, u32 desc)
 {
-	void *ret = ring->dma;
-
-	return ret + (desc - ring->phys);
+	return ring->dma + (desc - ring->phys);
 }
 
 static inline struct mtk_tx_buf *mtk_desc_to_tx_buf(struct mtk_tx_ring *ring,
-						    struct mtk_tx_dma *txd)
+						    void *txd, u32 txd_size)
 {
-	int idx = txd - ring->dma;
+	int idx = (txd - ring->dma) / txd_size;
 
 	return &ring->buf[idx];
 }
 
 static struct mtk_tx_dma *qdma_to_pdma(struct mtk_tx_ring *ring,
-				       struct mtk_tx_dma *dma)
+				       void *dma)
 {
 	return ring->dma_pdma - ring->dma + dma;
 }
 
-static int txd_to_idx(struct mtk_tx_ring *ring, struct mtk_tx_dma *dma)
+static int txd_to_idx(struct mtk_tx_ring *ring, void *dma, u32 txd_size)
 {
-	return ((void *)dma - (void *)ring->dma) / sizeof(*dma);
+	return (dma - ring->dma) / txd_size;
 }
 
 static void mtk_tx_unmap(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf,
@@ -992,20 +992,129 @@ static void setup_tx_buf(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf,
 	}
 }
 
-static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
-		      int tx_num, struct mtk_tx_ring *ring, bool gso)
+static void mtk_tx_set_dma_desc_v1(struct sk_buff *skb, struct net_device *dev, void *txd,
+				struct mtk_tx_dma_desc_info *info)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
+	struct mtk_tx_dma *desc = txd;
+	u32 data;
+
+	WRITE_ONCE(desc->txd1, info->addr);
+
+	data = TX_DMA_SWC | QID_LOW_BITS(info->qid) | TX_DMA_PLEN0(info->size);
+	if (info->last)
+		data |= TX_DMA_LS0;
+	WRITE_ONCE(desc->txd3, data);
+
+	data = (mac->id + 1) << TX_DMA_FPORT_SHIFT; /* forward port */
+	data |= QID_HIGH_BITS(info->qid);
+	if (info->first) {
+		if (info->gso)
+			data |= TX_DMA_TSO;
+		/* tx checksum offload */
+		if (info->csum)
+			data |= TX_DMA_CHKSUM;
+		/* vlan header offload */
+		if (info->vlan)
+			data |= TX_DMA_INS_VLAN | info->vlan_tci;
+	}
+
+#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+	if (HNAT_SKB_CB2(skb)->magic == 0x78681415) {
+		data &= ~(0x7 << TX_DMA_FPORT_SHIFT);
+		data |= 0x4 << TX_DMA_FPORT_SHIFT;
+	}
+
+	trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
+		     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
+#endif
+	WRITE_ONCE(desc->txd4, data);
+}
+
+static void mtk_tx_set_dma_desc_v2(struct sk_buff *skb, struct net_device *dev, void *txd,
+				struct mtk_tx_dma_desc_info *info)
+{
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	struct mtk_tx_dma_v2 *desc = txd;
+	u32 data = 0;
+	u16 qid;
+
+	if(!info->qid && mac->id)
+		qid = MTK_QDMA_GMAC2_QID;
+
+	WRITE_ONCE(desc->txd1, info->addr);
+
+	data = TX_DMA_PLEN0(info->size);
+	if (info->last)
+		data |= TX_DMA_LS0;
+	WRITE_ONCE(desc->txd3, data);
+
+	data = (mac->id + 1) << TX_DMA_FPORT_SHIFT_V2; /* forward port */
+	data |= TX_DMA_SWC_V2 | QID_BITS_V2(qid);
+#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+	if (HNAT_SKB_CB2(skb)->magic == 0x78681415) {
+		data &= ~(0xf << TX_DMA_FPORT_SHIFT_V2);
+		data |= 0x4 << TX_DMA_FPORT_SHIFT_V2;
+	}
+
+	trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
+		     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
+#endif
+	WRITE_ONCE(desc->txd4, data);
+
+	data = 0;
+	if (info->first) {
+		if (info->gso)
+			data |= TX_DMA_TSO_V2;
+		/* tx checksum offload */
+		if (info->csum)
+			data |= TX_DMA_CHKSUM_V2;
+	}
+	WRITE_ONCE(desc->txd5, data);
+
+	data = 0;
+	if (info->first && info->vlan)
+		data |= TX_DMA_INS_VLAN_V2 | info->vlan_tci;
+	WRITE_ONCE(desc->txd6, data);
+
+	WRITE_ONCE(desc->txd7, 0);
+	WRITE_ONCE(desc->txd8, 0);
+}
+
+static void mtk_tx_set_dma_desc(struct sk_buff *skb, struct net_device *dev, void *txd,
+				struct mtk_tx_dma_desc_info *info)
+{
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		mtk_tx_set_dma_desc_v2(skb, dev, txd, info);
+	else
+		mtk_tx_set_dma_desc_v1(skb, dev, txd, info);
+}
+
+static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
+		      int tx_num, struct mtk_tx_ring *ring, bool gso)
+{
+	struct mtk_tx_dma_desc_info txd_info = {
+		.size = skb_headlen(skb),
+		.qid = skb->mark & MTK_QDMA_TX_MASK,
+		.gso = gso,
+		.csum = skb->ip_summed == CHECKSUM_PARTIAL,
+		.vlan = skb_vlan_tag_present(skb),
+		.vlan_tci = skb_vlan_tag_get(skb),
+		.first = true,
+		.last = !skb_is_nonlinear(skb),
+	};
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	const struct mtk_soc_data *soc = eth->soc;
 	struct mtk_tx_dma *itxd, *txd;
 	struct mtk_tx_dma *itxd_pdma, *txd_pdma;
 	struct mtk_tx_buf *itx_buf, *tx_buf;
-	dma_addr_t mapped_addr;
-	unsigned int nr_frags;
 	int i, n_desc = 1;
-	u32 txd4 = 0, txd5 = 0, txd6 = 0;
-	u32 fport;
-	u32 qid = 0;
 	int k = 0;
 
 	itxd = ring->next_free;
@@ -1013,93 +1122,35 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	if (itxd == ring->last_free)
 		return -ENOMEM;
 
-	itx_buf = mtk_desc_to_tx_buf(ring, itxd);
+	itx_buf = mtk_desc_to_tx_buf(ring, itxd, soc->txrx.txd_size);
 	memset(itx_buf, 0, sizeof(*itx_buf));
 
-	mapped_addr = dma_map_single(eth->dev, skb->data,
-				     skb_headlen(skb), DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(eth->dev, mapped_addr)))
+	txd_info.addr = dma_map_single(eth->dev, skb->data, txd_info.size,
+				       DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(eth->dev, txd_info.addr)))
 		return -ENOMEM;
 
-	WRITE_ONCE(itxd->txd1, mapped_addr);
+	mtk_tx_set_dma_desc(skb, dev, itxd, &txd_info);
+
 	itx_buf->flags |= MTK_TX_FLAGS_SINGLE0;
 	itx_buf->flags |= (!mac->id) ? MTK_TX_FLAGS_FPORT0 :
 			  MTK_TX_FLAGS_FPORT1;
-	setup_tx_buf(eth, itx_buf, itxd_pdma, mapped_addr, skb_headlen(skb),
+	setup_tx_buf(eth, itx_buf, itxd_pdma, txd_info.addr, txd_info.size,
 		     k++);
 
-	nr_frags = skb_shinfo(skb)->nr_frags;
-
-        qid = skb->mark & (MTK_QDMA_TX_MASK);
-
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-	if(!qid && mac->id)
-		qid = MTK_QDMA_GMAC2_QID;
-#endif
-
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
-		/* set the forward port */
-		fport = (mac->id + 1) << TX_DMA_FPORT_SHIFT_V2;
-		txd4 |= fport;
-
-		if (gso)
-			txd5 |= TX_DMA_TSO_V2;
-
-		/* TX Checksum offload */
-		if (skb->ip_summed == CHECKSUM_PARTIAL)
-			txd5 |= TX_DMA_CHKSUM_V2;
-
-		/* VLAN header offload */
-		if (skb_vlan_tag_present(skb))
-			txd6 |= TX_DMA_INS_VLAN_V2 | skb_vlan_tag_get(skb);
-
-		txd4 = txd4 | TX_DMA_SWC_V2;
-	} else {
-		/* set the forward port */
-		fport = (mac->id + 1) << TX_DMA_FPORT_SHIFT;
-		txd4 |= fport;
-
-                if (gso)
-                        txd4 |= TX_DMA_TSO;
-
-                /* TX Checksum offload */
-                if (skb->ip_summed == CHECKSUM_PARTIAL)
-                        txd4 |= TX_DMA_CHKSUM;
-
-		/* VLAN header offload */
-		if (skb_vlan_tag_present(skb))
-			txd4 |= TX_DMA_INS_VLAN | skb_vlan_tag_get(skb);
-	}
 	/* TX SG offload */
 	txd = itxd;
 	txd_pdma = qdma_to_pdma(ring, txd);
 
-#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
-	if (HNAT_SKB_CB2(skb)->magic == 0x78681415) {
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
-			txd4 &= ~(0xf << TX_DMA_FPORT_SHIFT_V2);
-			txd4 |= 0x4 << TX_DMA_FPORT_SHIFT_V2;
-		} else {
-			txd4 &= ~(0x7 << TX_DMA_FPORT_SHIFT);
-			txd4 |= 0x4 << TX_DMA_FPORT_SHIFT;
-		}
-	}
-
-	trace_printk("[%s] nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
-		     __func__, nr_frags, HNAT_SKB_CB2(skb)->magic, txd4);
-#endif
-
-	for (i = 0; i < nr_frags; i++) {
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		unsigned int offset = 0;
 		int frag_size = skb_frag_size(frag);
 
 		while (frag_size) {
-			bool last_frag = false;
-			unsigned int frag_map_size;
 			bool new_desc = true;
 
-			if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA) ||
+			if (MTK_HAS_CAPS(soc->caps, MTK_QDMA) ||
 			    (i & 0x1)) {
 				txd = mtk_qdma_phys_to_virt(ring, txd->txd2);
 				txd_pdma = qdma_to_pdma(ring, txd);
@@ -1111,35 +1162,20 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 				new_desc = false;
 			}
 
+			memset(&txd_info, 0, sizeof(struct mtk_tx_dma_desc_info));
+			txd_info.size = min(frag_size, MTK_TX_DMA_BUF_LEN);
+			txd_info.qid = skb->mark & MTK_QDMA_TX_MASK;
+			txd_info.last = i == skb_shinfo(skb)->nr_frags - 1 &&
+					!(frag_size - txd_info.size);
+			txd_info.addr = skb_frag_dma_map(eth->dev, frag,
+							 offset, txd_info.size,
+							 DMA_TO_DEVICE);
+			if (unlikely(dma_mapping_error(eth->dev, txd_info.addr)))
+ 				goto err_dma;
 
-			frag_map_size = min(frag_size, MTK_TX_DMA_BUF_LEN);
-			mapped_addr = skb_frag_dma_map(eth->dev, frag, offset,
-						       frag_map_size,
-						       DMA_TO_DEVICE);
-			if (unlikely(dma_mapping_error(eth->dev, mapped_addr)))
-				goto err_dma;
+			mtk_tx_set_dma_desc(skb, dev, txd, &txd_info);
 
-			if (i == nr_frags - 1 &&
-			    (frag_size - frag_map_size) == 0)
-				last_frag = true;
-
-			WRITE_ONCE(txd->txd1, mapped_addr);
-
-			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
-				WRITE_ONCE(txd->txd3, (TX_DMA_PLEN0(frag_map_size) |
-					   last_frag * TX_DMA_LS0));
-				WRITE_ONCE(txd->txd4, fport | TX_DMA_SWC_V2 |
-						      QID_BITS_V2(qid));
-			} else {
-				WRITE_ONCE(txd->txd3,
-					   (TX_DMA_SWC | QID_LOW_BITS(qid) |
-					    TX_DMA_PLEN0(frag_map_size) |
-					    last_frag * TX_DMA_LS0));
-				WRITE_ONCE(txd->txd4,
-					   fport | QID_HIGH_BITS(qid));
-			}
-
-			tx_buf = mtk_desc_to_tx_buf(ring, txd);
+			tx_buf = mtk_desc_to_tx_buf(ring, txd, soc->txrx.txd_size);
 			if (new_desc)
 				memset(tx_buf, 0, sizeof(*tx_buf));
 			tx_buf->skb = (struct sk_buff *)MTK_DMA_DUMMY_DESC;
@@ -1147,36 +1183,18 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 			tx_buf->flags |= (!mac->id) ? MTK_TX_FLAGS_FPORT0 :
 					 MTK_TX_FLAGS_FPORT1;
 
-			setup_tx_buf(eth, tx_buf, txd_pdma, mapped_addr,
-				     frag_map_size, k++);
+			setup_tx_buf(eth, tx_buf, txd_pdma, txd_info.addr,
+				     txd_info.size, k++);
 
-			frag_size -= frag_map_size;
-			offset += frag_map_size;
+			frag_size -= txd_info.size;
+			offset += txd_info.size;
 		}
 	}
 
 	/* store skb to cleanup */
 	itx_buf->skb = skb;
 
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-	WRITE_ONCE(itxd->txd5, txd5);
-	WRITE_ONCE(itxd->txd6, txd6);
-	WRITE_ONCE(itxd->txd7, 0);
-	WRITE_ONCE(itxd->txd8, 0);
-#endif
-
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
-		WRITE_ONCE(itxd->txd4, txd4 | QID_BITS_V2(qid));
-		WRITE_ONCE(itxd->txd3, (TX_DMA_PLEN0(skb_headlen(skb)) |
-				(!nr_frags * TX_DMA_LS0)));
-	} else {
-		WRITE_ONCE(itxd->txd4, txd4 | QID_HIGH_BITS(qid));
-		WRITE_ONCE(itxd->txd3,
-			   TX_DMA_SWC | TX_DMA_PLEN0(skb_headlen(skb)) |
-			   (!nr_frags * TX_DMA_LS0) | QID_LOW_BITS(qid));
-	}
-
-	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+	if (!MTK_HAS_CAPS(soc->caps, MTK_QDMA)) {
 		if (k & 0x1)
 			txd_pdma->txd2 |= TX_DMA_LS0;
 		else
@@ -1194,12 +1212,12 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	 */
 	wmb();
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+	if (MTK_HAS_CAPS(soc->caps, MTK_QDMA)) {
 		if (netif_xmit_stopped(netdev_get_tx_queue(dev, 0)) ||
 		    !netdev_xmit_more())
 			mtk_w32(eth, txd->txd2, MTK_QTX_CTX_PTR);
 	} else {
-		int next_idx = NEXT_DESP_IDX(txd_to_idx(ring, txd),
+		int next_idx = NEXT_DESP_IDX(txd_to_idx(ring, txd, soc->txrx.txd_size),
 					     ring->dma_size);
 		mtk_w32(eth, next_idx, MT7628_TX_CTX_IDX0);
 	}
@@ -1208,13 +1226,13 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 
 err_dma:
 	do {
-		tx_buf = mtk_desc_to_tx_buf(ring, itxd);
+		tx_buf = mtk_desc_to_tx_buf(ring, itxd, soc->txrx.txd_size);
 
 		/* unmap dma */
 		mtk_tx_unmap(eth, tx_buf, false);
 
 		itxd->txd3 = TX_DMA_LS0 | TX_DMA_OWNER_CPU;
-		if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		if (!MTK_HAS_CAPS(soc->caps, MTK_QDMA))
 			itxd_pdma->txd2 = TX_DMA_DESP2_DEF;
 
 		itxd = mtk_qdma_phys_to_virt(ring, itxd->txd2);
@@ -1334,12 +1352,15 @@ static struct mtk_rx_ring *mtk_get_rx_ring(struct mtk_eth *eth)
 	int idx;
 
 	for (i = 0; i < MTK_MAX_RX_RING_NUM; i++) {
+		struct mtk_rx_dma *rxd;
+
 		if (!IS_NORMAL_RING(i) && !IS_HW_LRO_RING(i))
 			continue;
 
 		ring = &eth->rx_ring[i];
 		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
-		if (ring->dma[idx].rxd2 & RX_DMA_DONE) {
+		rxd = ring->dma + idx * eth->soc->txrx.rxd_size;
+		if (rxd->rxd2 & RX_DMA_DONE) {
 			ring->calc_idx_update = true;
 			return ring;
 		}
@@ -1373,7 +1394,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 	int idx;
 	struct sk_buff *skb;
 	u8 *data, *new_data;
-	struct mtk_rx_dma *rxd, trxd;
+	struct mtk_rx_dma_v2 *rxd, trxd;
 	int done = 0;
 
 	if (unlikely(!ring))
@@ -1383,7 +1404,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		struct net_device *netdev;
 		unsigned int pktlen;
 		dma_addr_t dma_addr;
-		int mac;
+		int mac = 0;
 
 		if (eth->hwlro)
 			ring = mtk_get_rx_ring(eth);
@@ -1392,21 +1413,19 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			goto rx_done;
 
 		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
-		rxd = &ring->dma[idx];
+		rxd = ring->dma + idx * eth->soc->txrx.rxd_size;
 		data = ring->data[idx];
 
-		if (!mtk_rx_get_desc(&trxd, rxd))
+		if (!mtk_rx_get_desc(eth, &trxd, rxd))
 			break;
 
 		/* find out which mac the packet come from. values start at 1 */
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
 			mac = 0;
 		} else {
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
-				mac = RX_DMA_GET_SPORT(trxd.rxd5) - 1;
+				mac = RX_DMA_GET_SPORT_V2(trxd.rxd5) - 1;
 			else
-#endif
 				mac = (trxd.rxd4 & RX_DMA_SPECIAL_TAG) ?
 				      0 : RX_DMA_GET_SPORT(trxd.rxd4) - 1;
 		}
@@ -1486,11 +1505,9 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		}
 
 #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
 			*(u32 *)(skb->head) = trxd.rxd5;
 		else
-#endif
 			*(u32 *)(skb->head) = trxd.rxd4;
 
 		skb_hnat_alg(skb) = 0;
@@ -1546,6 +1563,7 @@ rx_done:
 static void mtk_poll_tx_qdma(struct mtk_eth *eth, int budget,
 			    unsigned int *done, unsigned int *bytes)
 {
+	const struct mtk_soc_data *soc = eth->soc;
 	struct mtk_tx_ring *ring = &eth->tx_ring;
 	struct mtk_tx_dma *desc;
 	struct sk_buff *skb;
@@ -1566,7 +1584,7 @@ static void mtk_poll_tx_qdma(struct mtk_eth *eth, int budget,
 
 		desc = mtk_qdma_phys_to_virt(ring, desc->txd2);
 
-		tx_buf = mtk_desc_to_tx_buf(ring, desc);
+		tx_buf = mtk_desc_to_tx_buf(ring, desc, soc->txrx.txd_size);
 		if (tx_buf->flags & MTK_TX_FLAGS_FPORT1)
 			mac = 1;
 
@@ -1617,7 +1635,7 @@ static void mtk_poll_tx_pdma(struct mtk_eth *eth, int budget,
 
 		mtk_tx_unmap(eth, tx_buf, true);
 
-		desc = &ring->dma[cpu];
+		desc = ring->dma + cpu * eth->soc->txrx.txd_size;
 		ring->last_free = desc;
 		atomic_inc(&ring->free_count);
 
@@ -1738,8 +1756,10 @@ poll_again:
 
 static int mtk_tx_alloc(struct mtk_eth *eth)
 {
+	const struct mtk_soc_data *soc = eth->soc;
 	struct mtk_tx_ring *ring = &eth->tx_ring;
-	int i, sz = sizeof(*ring->dma);
+	int i, sz = soc->txrx.txd_size;
+	struct mtk_tx_dma_v2 *txd, *pdma_txd;
 
 	ring->buf = kcalloc(MTK_DMA_SIZE, sizeof(*ring->buf),
 			       GFP_KERNEL);
@@ -1748,9 +1768,9 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 
 	if (!eth->soc->has_sram)
 		ring->dma = dma_alloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
-					       &ring->phys, GFP_ATOMIC);
+					       &ring->phys, GFP_KERNEL);
 	else {
-		ring->dma =  eth->scratch_ring + MTK_DMA_SIZE;
+		ring->dma =  eth->scratch_ring + MTK_DMA_SIZE * sz;
 		ring->phys = eth->phy_scratch_ring + MTK_DMA_SIZE * sz;
 	}
 
@@ -1761,17 +1781,17 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 		int next = (i + 1) % MTK_DMA_SIZE;
 		u32 next_ptr = ring->phys + next * sz;
 
-		ring->dma[i].txd2 = next_ptr;
-		ring->dma[i].txd3 = TX_DMA_LS0 | TX_DMA_OWNER_CPU;
-		ring->dma[i].txd4 = 0;
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-                if (eth->soc->has_sram && ( sz > 16)) {
-                        ring->dma[i].txd5 = 0;
-                        ring->dma[i].txd6 = 0;
-                        ring->dma[i].txd7 = 0;
-                        ring->dma[i].txd8 = 0;
-                }
-#endif
+		txd = ring->dma + i * sz;
+		txd->txd2 = next_ptr;
+		txd->txd3 = TX_DMA_LS0 | TX_DMA_OWNER_CPU;
+		txd->txd4 = 0;
+
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+			txd->txd5 = 0;
+			txd->txd6 = 0;
+			txd->txd7 = 0;
+			txd->txd8 = 0;
+		}
 	}
 
 	/* On MT7688 (PDMA only) this driver uses the ring->dma structs
@@ -1780,21 +1800,22 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	 */
 	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
 		ring->dma_pdma = dma_alloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
-						    &ring->phys_pdma,
-						    GFP_ATOMIC);
+						    &ring->phys_pdma, GFP_KERNEL);
 		if (!ring->dma_pdma)
 			goto no_tx_mem;
 
 		for (i = 0; i < MTK_DMA_SIZE; i++) {
-			ring->dma_pdma[i].txd2 = TX_DMA_DESP2_DEF;
-			ring->dma_pdma[i].txd4 = 0;
+			pdma_txd = ring->dma_pdma + i *sz;
+
+			pdma_txd->txd2 = TX_DMA_DESP2_DEF;
+			pdma_txd->txd4 = 0;
 		}
 	}
 
 	ring->dma_size = MTK_DMA_SIZE;
 	atomic_set(&ring->free_count, MTK_DMA_SIZE - 2);
-	ring->next_free = &ring->dma[0];
-	ring->last_free = &ring->dma[MTK_DMA_SIZE - 1];
+	ring->next_free = ring->dma;
+	ring->last_free = (void *)txd;
 	ring->last_free_ptr = (u32)(ring->phys + ((MTK_DMA_SIZE - 1) * sz));
 	ring->thresh = MAX_SKB_FRAGS;
 
@@ -1827,6 +1848,7 @@ no_tx_mem:
 
 static void mtk_tx_clean(struct mtk_eth *eth)
 {
+	const struct mtk_soc_data *soc = eth->soc;
 	struct mtk_tx_ring *ring = &eth->tx_ring;
 	int i;
 
@@ -1839,17 +1861,15 @@ static void mtk_tx_clean(struct mtk_eth *eth)
 
 	if (!eth->soc->has_sram && ring->dma) {
 		dma_free_coherent(eth->dev,
-				  MTK_DMA_SIZE * sizeof(*ring->dma),
-				  ring->dma,
-				  ring->phys);
+				  MTK_DMA_SIZE * soc->txrx.txd_size,
+				  ring->dma, ring->phys);
 		ring->dma = NULL;
 	}
 
 	if (ring->dma_pdma) {
 		dma_free_coherent(eth->dev,
-				  MTK_DMA_SIZE * sizeof(*ring->dma_pdma),
-				  ring->dma_pdma,
-				  ring->phys_pdma);
+				  MTK_DMA_SIZE * soc->txrx.txd_size,
+				  ring->dma_pdma, ring->phys_pdma);
 		ring->dma_pdma = NULL;
 	}
 }
@@ -1892,43 +1912,46 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 	if ((!eth->soc->has_sram) || (eth->soc->has_sram
 				&& (rx_flag != MTK_RX_FLAGS_NORMAL)))
 		ring->dma = dma_alloc_coherent(eth->dev,
-					       rx_dma_size * sizeof(*ring->dma),
-					       &ring->phys, GFP_ATOMIC);
+					       rx_dma_size * eth->soc->txrx.rxd_size,
+					       &ring->phys, GFP_KERNEL);
 	else {
 		struct mtk_tx_ring *tx_ring = &eth->tx_ring;
-		ring->dma = (struct mtk_rx_dma *)(tx_ring->dma +
-			     MTK_DMA_SIZE * (ring_no + 1));
+		ring->dma = tx_ring->dma + MTK_DMA_SIZE *
+			    eth->soc->txrx.rxd_size * (ring_no + 1);
 		ring->phys = tx_ring->phys + MTK_DMA_SIZE *
-			     sizeof(*tx_ring->dma) * (ring_no + 1);
+			     eth->soc->txrx.rxd_size * (ring_no + 1);
 	}
 
 	if (!ring->dma)
 		return -ENOMEM;
 
 	for (i = 0; i < rx_dma_size; i++) {
+		struct mtk_rx_dma_v2 *rxd;
+
 		dma_addr_t dma_addr = dma_map_single(eth->dev,
 				ring->data[i] + NET_SKB_PAD + eth->ip_align,
 				ring->buf_size,
 				DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(eth->dev, dma_addr)))
 			return -ENOMEM;
-		ring->dma[i].rxd1 = (unsigned int)dma_addr;
+
+		rxd = ring->dma + i * eth->soc->txrx.rxd_size;
+		rxd->rxd1 = (unsigned int)dma_addr;
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
-			ring->dma[i].rxd2 = RX_DMA_LSO;
+			rxd->rxd2 = RX_DMA_LSO;
 		else
-			ring->dma[i].rxd2 = RX_DMA_PLEN0(ring->buf_size);
+			rxd->rxd2 = RX_DMA_PLEN0(ring->buf_size);
 
-		ring->dma[i].rxd3 = 0;
-		ring->dma[i].rxd4 = 0;
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-		if (eth->soc->has_sram && ((sizeof(struct mtk_rx_dma)) > 16)) {
-			ring->dma[i].rxd5 = 0;
-			ring->dma[i].rxd6 = 0;
-			ring->dma[i].rxd7 = 0;
-			ring->dma[i].rxd8 = 0;
+		rxd->rxd3 = 0;
+		rxd->rxd4 = 0;
+
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+			rxd->rxd5 = 0;
+			rxd->rxd6 = 0;
+			rxd->rxd7 = 0;
+			rxd->rxd8 = 0;
 		}
-#endif
 	}
 	ring->dma_size = rx_dma_size;
 	ring->calc_idx_update = false;
@@ -1963,12 +1986,17 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring, int in_s
 
 	if (ring->data && ring->dma) {
 		for (i = 0; i < ring->dma_size; i++) {
+			struct mtk_rx_dma *rxd;
+
 			if (!ring->data[i])
 				continue;
-			if (!ring->dma[i].rxd1)
+
+			rxd = ring->dma + i * eth->soc->txrx.rxd_size;
+			if (!rxd->rxd1)
 				continue;
+
 			dma_unmap_single(eth->dev,
-					 ring->dma[i].rxd1,
+					 rxd->rxd1,
 					 ring->buf_size,
 					 DMA_FROM_DEVICE);
 			skb_free_frag(ring->data[i]);
@@ -1982,7 +2010,7 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring, int in_s
 
 	if (ring->dma) {
 		dma_free_coherent(eth->dev,
-				  ring->dma_size * sizeof(*ring->dma),
+				  ring->dma_size * eth->soc->txrx.rxd_size,
 				  ring->dma,
 				  ring->phys);
 		ring->dma = NULL;
@@ -2455,6 +2483,7 @@ static int mtk_dma_init(struct mtk_eth *eth)
 
 static void mtk_dma_free(struct mtk_eth *eth)
 {
+	const struct mtk_soc_data *soc = eth->soc;
 	int i;
 
 	for (i = 0; i < MTK_MAC_COUNT; i++)
@@ -2462,9 +2491,8 @@ static void mtk_dma_free(struct mtk_eth *eth)
 			netdev_reset_queue(eth->netdev[i]);
 	if ( !eth->soc->has_sram && eth->scratch_ring) {
 		dma_free_coherent(eth->dev,
-				  MTK_DMA_SIZE * sizeof(struct mtk_tx_dma),
-				  eth->scratch_ring,
-				  eth->phy_scratch_ring);
+				  MTK_DMA_SIZE * soc->txrx.txd_size,
+				  eth->scratch_ring, eth->phy_scratch_ring);
 		eth->scratch_ring = NULL;
 		eth->phy_scratch_ring = 0;
 	}
@@ -3873,6 +3901,12 @@ static const struct mtk_soc_data mt2701_data = {
 	.required_clks = MT7623_CLKS_BITMAP,
 	.required_pctl = true,
 	.has_sram = false,
+	.txrx = {
+		.txd_size = sizeof(struct mtk_tx_dma),
+		.rxd_size = sizeof(struct mtk_rx_dma),
+		.dma_max_len = MTK_TX_DMA_BUF_LEN,
+		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
+	},
 };
 
 static const struct mtk_soc_data mt7621_data = {
@@ -3881,6 +3915,12 @@ static const struct mtk_soc_data mt7621_data = {
 	.required_clks = MT7621_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = false,
+	.txrx = {
+		.txd_size = sizeof(struct mtk_tx_dma),
+		.rxd_size = sizeof(struct mtk_rx_dma),
+		.dma_max_len = MTK_TX_DMA_BUF_LEN,
+		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
+	},
 };
 
 static const struct mtk_soc_data mt7622_data = {
@@ -3890,6 +3930,12 @@ static const struct mtk_soc_data mt7622_data = {
 	.required_clks = MT7622_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = false,
+	.txrx = {
+		.txd_size = sizeof(struct mtk_tx_dma),
+		.rxd_size = sizeof(struct mtk_rx_dma),
+		.dma_max_len = MTK_TX_DMA_BUF_LEN,
+		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
+	},
 };
 
 static const struct mtk_soc_data mt7623_data = {
@@ -3898,6 +3944,12 @@ static const struct mtk_soc_data mt7623_data = {
 	.required_clks = MT7623_CLKS_BITMAP,
 	.required_pctl = true,
 	.has_sram = false,
+	.txrx = {
+		.txd_size = sizeof(struct mtk_tx_dma),
+		.rxd_size = sizeof(struct mtk_rx_dma),
+		.dma_max_len = MTK_TX_DMA_BUF_LEN,
+		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
+	},
 };
 
 static const struct mtk_soc_data mt7629_data = {
@@ -3907,6 +3959,12 @@ static const struct mtk_soc_data mt7629_data = {
 	.required_clks = MT7629_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = false,
+	.txrx = {
+		.txd_size = sizeof(struct mtk_tx_dma),
+		.rxd_size = sizeof(struct mtk_rx_dma),
+		.dma_max_len = MTK_TX_DMA_BUF_LEN,
+		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
+	},
 };
 
 static const struct mtk_soc_data mt7986_data = {
@@ -3916,6 +3974,12 @@ static const struct mtk_soc_data mt7986_data = {
 	.required_clks = MT7986_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = true,
+	.txrx = {
+		.txd_size = sizeof(struct mtk_tx_dma_v2),
+		.rxd_size = sizeof(struct mtk_rx_dma_v2),
+		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
+		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
+	},
 };
 
 static const struct mtk_soc_data mt7981_data = {
@@ -3925,6 +3989,12 @@ static const struct mtk_soc_data mt7981_data = {
 	.required_clks = MT7981_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = true,
+	.txrx = {
+		.txd_size = sizeof(struct mtk_tx_dma_v2),
+		.rxd_size = sizeof(struct mtk_rx_dma_v2),
+		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
+		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
+	},
 };
 
 static const struct mtk_soc_data rt5350_data = {
@@ -3933,6 +4003,12 @@ static const struct mtk_soc_data rt5350_data = {
 	.required_clks = MT7628_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = false,
+	.txrx = {
+		.txd_size = sizeof(struct mtk_tx_dma),
+		.rxd_size = sizeof(struct mtk_rx_dma),
+		.dma_max_len = MTK_TX_DMA_BUF_LEN,
+		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
+	},
 };
 
 const struct of_device_id of_mtk_match[] = {
