@@ -1,0 +1,103 @@
+From 03e816970e354ae3521f94dc56b94e2ff046a305 Mon Sep 17 00:00:00 2001
+From: Sujuan Chen <sujuan.chen@mediatek.com>
+Date: Fri, 11 Mar 2022 11:34:11 +0800
+Subject: [PATCH] mask kernel version limitation and fill forward path in
+ kernel 5.4
+
+Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
+---
+ include/net/mac80211.h    | 2 --
+ net/mac80211/driver-ops.h | 2 --
+ net/mac80211/iface.c      | 4 ----
+ net/mac80211/trace.h      | 2 --
+ 4 files changed, 10 deletions(-)
+
+diff --git a/include/net/mac80211.h b/include/net/mac80211.h
+index 54df8c4..0fb2de9 100644
+--- a/include/net/mac80211.h
++++ b/include/net/mac80211.h
+@@ -4279,13 +4279,11 @@ struct ieee80211_ops {
+ 				     struct ieee80211_sta *sta, u8 flowid);
+ 	int (*set_radar_background)(struct ieee80211_hw *hw,
+ 				    struct cfg80211_chan_def *chandef);
+-#if LINUX_VERSION_IS_GEQ(5,10,0)
+ 	int (*net_fill_forward_path)(struct ieee80211_hw *hw,
+ 				     struct ieee80211_vif *vif,
+ 				     struct ieee80211_sta *sta,
+ 				     struct net_device_path_ctx *ctx,
+ 				     struct net_device_path *path);
+-#endif
+ };
+ 
+ /**
+diff --git a/net/mac80211/driver-ops.h b/net/mac80211/driver-ops.h
+index 5c4adca..ce90549 100644
+--- a/net/mac80211/driver-ops.h
++++ b/net/mac80211/driver-ops.h
+@@ -1483,7 +1483,6 @@ static inline void drv_twt_teardown_request(struct ieee80211_local *local,
+ 	trace_drv_return_void(local);
+ }
+ 
+-#if LINUX_VERSION_IS_GEQ(5,10,0)
+ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
+ 					    struct ieee80211_sub_if_data *sdata,
+ 					    struct ieee80211_sta *sta,
+@@ -1505,6 +1504,5 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
+ 
+ 	return ret;
+ }
+-#endif
+ 
+ #endif /* __MAC80211_DRIVER_OPS */
+diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
+index 6a44826..98b6d1c 100644
+--- a/net/mac80211/iface.c
++++ b/net/mac80211/iface.c
+@@ -822,7 +822,6 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
+ 
+ };
+ 
+-#if LINUX_VERSION_IS_GEQ(5,10,0)
+ static int ieee80211_netdev_fill_forward_path(struct net_device_path_ctx *ctx,
+ 					      struct net_device_path *path)
+ {
+@@ -880,7 +879,6 @@ out:
+ 
+ 	return ret;
+ }
+-#endif
+ 
+ static const struct net_device_ops ieee80211_dataif_8023_ops = {
+ #if LINUX_VERSION_IS_LESS(4,10,0)
+@@ -899,9 +897,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
+ #else
+ 	.ndo_get_stats64 = bp_ieee80211_get_stats64,
+ #endif
+-#if LINUX_VERSION_IS_GEQ(5,10,0)
+ 	.ndo_fill_forward_path = ieee80211_netdev_fill_forward_path,
+-#endif
+ };
+ 
+ static bool ieee80211_iftype_supports_hdr_offload(enum nl80211_iftype iftype)
+diff --git a/net/mac80211/trace.h b/net/mac80211/trace.h
+index bbda9e9..d91498f 100644
+--- a/net/mac80211/trace.h
++++ b/net/mac80211/trace.h
+@@ -2892,14 +2892,12 @@ TRACE_EVENT(drv_twt_teardown_request,
+ 	)
+ );
+ 
+-#if LINUX_VERSION_IS_GEQ(5,10,0)
+ DEFINE_EVENT(sta_event, drv_net_fill_forward_path,
+ 	TP_PROTO(struct ieee80211_local *local,
+ 		 struct ieee80211_sub_if_data *sdata,
+ 		 struct ieee80211_sta *sta),
+ 	TP_ARGS(local, sdata, sta)
+ );
+-#endif
+ 
+ #endif /* !__MAC80211_DRIVER_TRACE || TRACE_HEADER_MULTI_READ */
+ 
+-- 
+2.18.0
+
