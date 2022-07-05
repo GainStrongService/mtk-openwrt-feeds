@@ -14,10 +14,7 @@ prepare
 echo "CONFIG_NETFILTER=y" >> ./target/linux/mediatek/mt7622/config-5.4
 echo "CONFIG_NETFILTER_ADVANCED=y" >> ./target/linux/mediatek/mt7622/config-5.4
 
-#hack hostapd config
-echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
-echo "CONFIG_WPS_UPNP=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
-echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7622/config-5.4
+prepare_flowoffload
 
 prepare_mac80211
 

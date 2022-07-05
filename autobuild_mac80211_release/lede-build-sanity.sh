@@ -85,11 +85,12 @@ prepare() {
 add_proprietary_kernel_files() {
 	#cp mtk proprietary ko_module source to mtk target
 	#and also need to be done in release mtk target
-	mkdir -p ${BUILD_DIR}/target/linux/mediatek/files-5.4/drivers/net/wireless
-	cp -rf ${BUILD_DIR}/../ko_module/gateway/proprietary_driver/drivers/wifi_utility/ ${BUILD_DIR}/target/linux/mediatek/files-5.4/drivers/net/wireless
 
-	mkdir -p ${BUILD_DIR}/target/linux/mediatek/files-5.4/include/uapi/linux/
-	cp -rf ${BUILD_DIR}/../kernel/wapp_uapi_includes ${BUILD_DIR}/target/linux/mediatek/files-5.4/include/uapi/linux/wapp
+	# mean it is old process for possible build issue and should delete it gradually in the furture. 
+	if [ ! -d ${BUILD_DIR}/target/linux/mediatek/files-5.4/drivers/net/wireless/wifi_utility ]; then
+		mkdir -p ${BUILD_DIR}/target/linux/mediatek/files-5.4/drivers/net/wireless
+		cp -rf ${BUILD_DIR}/../ko_module/gateway/proprietary_driver/drivers/wifi_utility/ ${BUILD_DIR}/target/linux/mediatek/files-5.4/drivers/net/wireless
+	fi
 
 	cp -fpR ${BUILD_DIR}/autobuild/target/ ${BUILD_DIR}
 }
@@ -103,6 +104,24 @@ prepare_mtwifi() {
 
 	#do mtk_wifi openwrt patch
 	do_patch ${BUILD_DIR}/autobuild/openwrt_patches${OPENWRT_VER}/mtk_wifi || exit 1
+}
+
+prepare_flowoffload() {
+	#rm patches for flowblock
+	rm -rf ./target/linux/generic/pending-5.4/64*.patch
+	rm -rf ./target/linux/generic/hack-5.4/647-netfilter-flow-acct.patch
+	rm -rf ./target/linux/generic/hack-5.4/650-netfilter-add-xt_OFFLOAD-target.patch
+	rm -rf ./target/linux/mediatek/patches-5.4/1002-mtkhnat-add-support-for-virtual-interface-acceleration.patch
+
+	#hack mt7986 config5.4
+	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_NETFILTER_FAMILY_BRIDGE=y" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_SKB_EXTENSIONS=y" >> ./target/linux/mediatek/mt7986/config-5.4
+
+	#hack mt7622 config5.4
+	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7622/config-5.4
+	echo "CONFIG_NETFILTER_FAMILY_BRIDGE=y" >> ./target/linux/mediatek/mt7622/config-5.4
+	echo "CONFIG_SKB_EXTENSIONS=y" >> ./target/linux/mediatek/mt7622/config-5.4
 }
 
 prepare_mac80211() {
@@ -126,9 +145,20 @@ prepare_mac80211() {
 
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
 
+	#hack mt7986 hostapd config
+	echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
+	echo "CONFIG_WPS_UPNP=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
+	echo "CONFIG_DPP=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
+	echo "CONFIG_DPP2=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
+	echo "CONFIG_DPP3=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
+	echo "CONFIG_DPP=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
+	echo "CONFIG_DPP2=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
+	echo "CONFIG_DPP3=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
+
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0001-master-mac80211-generate-hostapd-setting-from-ap-cap.patch
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-master-hostapd-makefile-for-utils.patch
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0003-master-mt76-makefile-for-new-chip.patch
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0004-master-wireless-regdb-makefile-for-6E.patch
 	cp -rfa ${MTK_FEED_DIR}/autobuild_mac80211_release/package/ ${BUILD_DIR}
 	cp -rfa ${MTK_FEED_DIR}/autobuild_mac80211_release/target/ ${BUILD_DIR}
 }
@@ -273,9 +303,27 @@ build() {
 
 	cd ${BUILD_DIR}
 
-    	#make
-	echo make V=s $2
-	make V=s $2 || exit 1
+	#make
+
+	echo "make  V=s -j $(($(nproc) + 1)) download world"
+	make  V=s -j $(($(nproc) + 1)) download world || exit 1
+
+	#tar unstripped rootfs for debug symbols
+	install_release $1
+}
+
+build_log() {
+	echo "###############################################################################"
+	echo "# $1"
+	echo "###############################################################################"
+	echo "build $1"
+
+	cd ${BUILD_DIR}
+
+	#make
+
+	echo "make  V=s -j $(($(nproc) + 1)) download world"
+	make  V=s -j $(($(nproc) + 1)) download world || make V=s -j1 || exit 1
 
 	#tar unstripped rootfs for debug symbols
 	install_release $1
