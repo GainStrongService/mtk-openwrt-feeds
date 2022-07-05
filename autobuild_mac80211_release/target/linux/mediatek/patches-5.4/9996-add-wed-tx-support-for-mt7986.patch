@@ -63,7 +63,7 @@ index 3f67bebfe..ac021e2ed 100644
  {
  	struct device_node *mac_np;
  	struct mtk_eth *eth;
-+	struct resource *res;
++	struct resource *res = NULL;
  	int err, i;
  
  	eth = devm_kzalloc(&pdev->dev, sizeof(*eth), GFP_KERNEL);
@@ -977,13 +977,17 @@ index 0a0465ea5..69f136ed4 100644
  #define MTK_WDMA_DESC_CTRL_LEN0			GENMASK(29, 16)
  #define MTK_WDMA_DESC_CTRL_LAST_SEG0		BIT(30)
  #define MTK_WDMA_DESC_CTRL_DMA_DONE		BIT(31)
-@@ -18,6 +24,10 @@ struct mtk_wdma_desc {
+@@ -18,6 +24,14 @@ struct mtk_wdma_desc {
  	__le32 info;
  } __packed __aligned(4);
  
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +#define MTK_WED_REV_ID					0x004
 +#define MTK_WED_REV_ID_MAJOR				GENMASK(31, 28)
-+#define MTK_WED_REV_ID_MINOR				GENMASK(27, 16)
++#else
++#define MTK_WED_REV_ID					0x000
++#define MTK_WED_REV_ID_MAJOR				GENMASK(7, 0)
++#endif
 +
  #define MTK_WED_RESET					0x008
  #define MTK_WED_RESET_TX_BM				BIT(0)

@@ -492,11 +492,12 @@ index 48b0353bb..c4aab12b0
  	wed_w32(dev, MTK_WED_WPDMA_INT_TRIGGER, 0);
  	wed_w32(dev, MTK_WED_WDMA_INT_TRIGGER, 0);
  	wdma_w32(dev, MTK_WDMA_INT_MASK, 0);
-@@ -416,9 +581,15 @@ mtk_wed_detach(struct mtk_wed_device *dev)
+@@ -416,9 +581,17 @@ mtk_wed_detach(struct mtk_wed_device *dev)
  	wdma_w32(dev, MTK_WDMA_RESET_IDX, 0);
  
  	mtk_wed_reset(dev, MTK_WED_RESET_WED);
-+	mtk_wed_wo_reset(dev);
++	if (dev->ver > MTK_WED_V1)
++		mtk_wed_wo_reset(dev);
 +
 +	wdma_clr(dev, MTK_WDMA_GLO_CFG, MTK_WDMA_GLO_CFG_TX_DMA_EN);
 +	wdma_w32(dev, MTK_WDMA_RESET_IDX, MTK_WDMA_RESET_IDX_TX);
@@ -504,11 +505,12 @@ index 48b0353bb..c4aab12b0
  
  	mtk_wed_free_buffer(dev);
  	mtk_wed_free_tx_rings(dev);
-+	mtk_wed_free_rx_rings(dev);
++	if (dev->ver > MTK_WED_V1)
++		mtk_wed_free_rx_rings(dev);
  
  	if (dev->wlan.bus_type == MTK_BUS_TYPE_PCIE) {
  		wlan_node = dev->wlan.pci_dev->dev.of_node;
-@@ -477,7 +648,6 @@ mtk_wed_bus_init(struct mtk_wed_device *dev)
+@@ -477,7 +650,6 @@ mtk_wed_bus_init(struct mtk_wed_device *dev)
  		value = wed_r32(dev, MTK_WED_PCIE_CFG_INTM);
  		value = wed_r32(dev, MTK_WED_PCIE_CFG_BASE);
  
@@ -516,7 +518,7 @@ index 48b0353bb..c4aab12b0
  		wed_w32(dev, MTK_WED_PCIE_INT_TRIGGER, BIT(24));
  		wed_r32(dev, MTK_WED_PCIE_INT_TRIGGER);
  
-@@ -501,6 +671,9 @@ mtk_wed_set_wpdma(struct mtk_wed_device *dev)
+@@ -501,6 +673,9 @@ mtk_wed_set_wpdma(struct mtk_wed_device *dev)
  		wed_w32(dev, MTK_WED_WPDMA_CFG_INT_MASK,  dev->wlan.wpdma_mask);
  		wed_w32(dev, MTK_WED_WPDMA_CFG_TX,  dev->wlan.wpdma_tx);
  		wed_w32(dev, MTK_WED_WPDMA_CFG_TX_FREE,  dev->wlan.wpdma_txfree);
@@ -627,7 +629,7 @@ index 48b0353bb..c4aab12b0
  		rev_size = size;
  		thr = 0;
  	}
-@@ -609,13 +850,48 @@ mtk_wed_hw_init(struct mtk_wed_device *dev)
+@@ -609,13 +852,48 @@ mtk_wed_hw_init(struct mtk_wed_device *dev)
  }
  
  static void
@@ -678,7 +680,7 @@ index 48b0353bb..c4aab12b0
  		desc->buf1 = 0;
  		desc->info = 0;
  		desc += scale;
-@@ -674,7 +950,7 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -674,7 +952,7 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
  		if (!desc)
  			continue;
  
@@ -687,7 +689,7 @@ index 48b0353bb..c4aab12b0
  	}
  
  	if (mtk_wed_poll_busy(dev))
-@@ -729,9 +1005,24 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -729,9 +1007,24 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
  
  }
  
@@ -713,7 +715,7 @@ index 48b0353bb..c4aab12b0
  {
  	ring->desc = dma_alloc_coherent(dev->hw->dev,
  					size * sizeof(*ring->desc) * scale,
-@@ -740,17 +1031,18 @@ mtk_wed_ring_alloc(struct mtk_wed_device *dev, struct mtk_wed_ring *ring,
+@@ -740,17 +1033,18 @@ mtk_wed_ring_alloc(struct mtk_wed_device *dev, struct mtk_wed_ring *ring,
  		return -ENOMEM;
  
  	ring->size = size;
@@ -735,7 +737,7 @@ index 48b0353bb..c4aab12b0
  		return -ENOMEM;
  
  	wdma_w32(dev, MTK_WDMA_RING_RX(idx) + MTK_WED_RING_OFS_BASE,
-@@ -767,22 +1059,140 @@ mtk_wed_wdma_ring_setup(struct mtk_wed_device *dev, int idx, int size)
+@@ -767,22 +1061,143 @@ mtk_wed_wdma_ring_setup(struct mtk_wed_device *dev, int idx, int size)
  	return 0;
  }
  
@@ -839,6 +841,9 @@ index 48b0353bb..c4aab12b0
 +{
 +	struct mtk_wed_wo *wo = dev->hw->wed_wo;
 +
++	if (dev->ver == MTK_WED_V1)
++		return 0;
++
 +	return mtk_wed_mcu_send_msg(wo, MODULE_ID_WO, cmd_id, data, len, true);
 +}
 +
@@ -882,7 +887,7 @@ index 48b0353bb..c4aab12b0
  	mtk_wed_set_ext_int(dev, true);
  
  	if (dev->ver == MTK_WED_V1) {
-@@ -797,6 +1207,19 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
+@@ -797,6 +1212,19 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
  		val |= BIT(0);
  		regmap_write(dev->hw->mirror, dev->hw->index * 4, val);
  	} else {
@@ -902,7 +907,7 @@ index 48b0353bb..c4aab12b0
  		mtk_wed_set_512_support(dev, true);
  	}
  
-@@ -841,9 +1264,17 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -841,9 +1269,17 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  			    wed_r32(dev, MTK_WED_REV_ID));
  
  	ret = mtk_wed_buffer_alloc(dev);
@@ -923,7 +928,7 @@ index 48b0353bb..c4aab12b0
  	}
  
  	mtk_wed_hw_init_early(dev);
-@@ -851,7 +1282,12 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -851,7 +1287,12 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  	if (dev->ver == MTK_WED_V1)
  		regmap_update_bits(hw->hifsys, HIFSYS_DMA_AG_MAP,
  				   BIT(hw->index), 0);
@@ -936,7 +941,7 @@ index 48b0353bb..c4aab12b0
  out:
  	mutex_unlock(&hw_lock);
  
-@@ -877,10 +1313,10 @@ mtk_wed_tx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs)
+@@ -877,10 +1318,10 @@ mtk_wed_tx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs)
  
  	BUG_ON(idx > ARRAY_SIZE(dev->tx_ring));
  
@@ -949,7 +954,7 @@ index 48b0353bb..c4aab12b0
  		return -ENOMEM;
  
  	ring->reg_base = MTK_WED_RING_TX(idx);
-@@ -927,6 +1363,35 @@ mtk_wed_txfree_ring_setup(struct mtk_wed_device *dev, void __iomem *regs)
+@@ -927,6 +1368,35 @@ mtk_wed_txfree_ring_setup(struct mtk_wed_device *dev, void __iomem *regs)
  	return 0;
  }
  
@@ -985,7 +990,7 @@ index 48b0353bb..c4aab12b0
  static u32
  mtk_wed_irq_get(struct mtk_wed_device *dev, u32 mask)
  {
-@@ -1014,6 +1479,8 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -1014,6 +1484,8 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  		.attach = mtk_wed_attach,
  		.tx_ring_setup = mtk_wed_tx_ring_setup,
  		.txfree_ring_setup = mtk_wed_txfree_ring_setup,
@@ -994,7 +999,7 @@ index 48b0353bb..c4aab12b0
  		.start = mtk_wed_start,
  		.stop = mtk_wed_stop,
  		.reset_dma = mtk_wed_reset_dma,
-@@ -1022,6 +1489,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -1022,6 +1494,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  		.irq_get = mtk_wed_irq_get,
  		.irq_set_mask = mtk_wed_irq_set_mask,
  		.detach = mtk_wed_detach,
