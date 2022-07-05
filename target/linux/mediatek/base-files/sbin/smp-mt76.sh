@@ -12,6 +12,7 @@ NUM_WIFI_CARD=0
 WIFI_RADIO1=0
 WIFI_RADIO2=0
 WIFI_RADIO3=0
+WED_ENABLE=0
 
 get_if_info()
 {
@@ -51,10 +52,19 @@ get_if_info()
 		fi
 	done;
 
+	WED_ENABLE_LIST=`cat /sys/module/mt7915e/parameters/wed_enable`
+	for v in $WED_ENABLE_LIST;
+	do
+		dbg2 "wed enable ori info $v"
+		if [[ $v == "Y" ]]; then
+			WED_ENABLE=1
+		fi
+	done;
 	dbg2 "NUM_WIFI_CARD = $NUM_WIFI_CARD"
 	dbg2 "platform wifi enable = $WIFI_RADIO1"
 	dbg2 "pcie1 wifi enable = $WIFI_RADIO2"
 	dbg2 "pcie2 wifi enable = $WIFI_RADIO3"
+	dbg2 "WED enable = $WED_ENABLE"
 }
 
 # $1: CPU#
@@ -85,17 +95,42 @@ MT7986()
 	wifi1_irq=
 	wifi2_irq=
 	wifi3_irq=
-	#AX6000 AX7800
-	if [[ "$WIFI_RADIO1" -eq "1" ]]; then
-		wifi1_irq=245
-	fi
-	#AX7800
-	if [[ "$WIFI_RADIO2" -eq "1" ]]; then
-		wifi2_irq=246
-	fi
-	#AX7800
-	if [[ "$WIFI_RADIO3" -eq "1" ]]; then
-		wifi3_irq=247
+
+	if [[ "$WED_ENABLE" -eq "1" ]]; then
+		dbg2 "WED_ENABLE ON irq/iptable setting"
+		#TCP Binding
+		iptables -I FORWARD 1 -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
+		ip6tables -I FORWARD 1 -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
+		#UDP Binding
+		iptables -I FORWARD 1 -p udp -j FLOWOFFLOAD --hw
+		ip6tables -I FORWARD 1 -p udp -j FLOWOFFLOAD --hw
+
+		#AX6000 AX7800 - SOC
+		if [[ "$WIFI_RADIO1" -eq "1" ]]; then
+			wifi1_irq=238
+		fi
+		#AX7800 - PCIE0
+		if [[ "$WIFI_RADIO2" -eq "1" ]]; then
+			wifi2_irq=237
+		fi
+		#AX7800 - PCIE1
+		#if [[ "$WIFI_RADIO3" -eq "1" ]]; then
+		#	wifi3_irq=239
+		#fi
+	else
+		dbg2 "WED_ENABLE OFF irq/iptable seting"
+		#AX6000 AX7800 - SOC
+		if [[ "$WIFI_RADIO1" -eq "1" ]]; then
+			wifi1_irq=245
+		fi
+		#AX7800 - PCIE0
+		if [[ "$WIFI_RADIO2" -eq "1" ]]; then
+			wifi2_irq=246
+		fi
+		#AX7800 - PCIE1
+		#if [[ "$WIFI_RADIO3" -eq "1" ]]; then
+		#	wifi3_irq=247
+		#fi
 	fi
 	# Please update the CPU binding in each cases.
 	# CPU#_AFFINITY="add binding irq number here"
