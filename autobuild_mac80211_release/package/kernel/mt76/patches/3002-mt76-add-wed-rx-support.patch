@@ -644,9 +644,7 @@ index cd35068..f90a08f 100644
  				    wtbl_hdr);
  
 +	if (mtk_wed_device_active(wed) && wed->ver > MTK_WED_V1)
-+		
-
-(wed, WED_WO_STA_REC, skb->data, skb->len);
++		mtk_wed_device_update_msg(wed, WED_WO_STA_REC, skb->data, skb->len);
  	ret = mt76_mcu_skb_send_msg(dev, skb, cmd, true);
  	if (ret)
  		return ret;

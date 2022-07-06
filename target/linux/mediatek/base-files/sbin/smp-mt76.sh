@@ -99,11 +99,15 @@ MT7986()
 	if [[ "$WED_ENABLE" -eq "1" ]]; then
 		dbg2 "WED_ENABLE ON irq/iptable setting"
 		#TCP Binding
-		iptables -I FORWARD 1 -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD 1 -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
+		iptables -D FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
+		iptables -I FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
+		ip6tables -D FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
+		ip6tables -I FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
 		#UDP Binding
-		iptables -I FORWARD 1 -p udp -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD 1 -p udp -j FLOWOFFLOAD --hw
+		iptables -D FORWARD -p udp -j FLOWOFFLOAD --hw
+		iptables -I FORWARD -p udp -j FLOWOFFLOAD --hw
+		ip6tables -D FORWARD -p udp -j FLOWOFFLOAD --hw
+		ip6tables -I FORWARD -p udp -j FLOWOFFLOAD --hw
 
 		#AX6000 AX7800 - SOC
 		if [[ "$WIFI_RADIO1" -eq "1" ]]; then
