@@ -141,13 +141,17 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/
 index fce1a7172..b4de7c0c6 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -110,7 +110,8 @@
+@@ -110,7 +110,12 @@
  #define MTK_GDMA_TCS_EN		BIT(21)
  #define MTK_GDMA_UCS_EN		BIT(20)
  #define MTK_GDMA_TO_PDMA	0x0
 -#define MTK_GDMA_TO_PPE		0x3333
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +#define MTK_GDMA_TO_PPE0	0x3333
 +#define MTK_GDMA_TO_PPE1	0x4444
++#else
++#define MTK_GDMA_TO_PPE0	0x4444
++#endif
  #define MTK_GDMA_DROP_ALL	0x7777
  
  /* Unicast Filter MAC Address Register - Low */
