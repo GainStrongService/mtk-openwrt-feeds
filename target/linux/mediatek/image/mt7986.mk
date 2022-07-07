@@ -73,6 +73,19 @@ define Device/mt7986a-ax6000-emmc-rfb
 endef
 TARGET_DEVICES += mt7986a-ax6000-emmc-rfb
 
+define Device/mt7986a-ax7800-emmc-rfb
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7986a-ax7800-emmc-rfb
+  DEVICE_DTS := mt7986a-emmc-rfb
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7986a-emmc-rfb
+  DEVICE_PACKAGES := mkf2fs e2fsprogs blkid blockdev losetup kmod-fs-ext4 \
+		     kmod-mmc kmod-fs-f2fs kmod-fs-vfat kmod-nls-cp437 \
+		     kmod-nls-iso8859-1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += mt7986a-ax7800-emmc-rfb
+
 define Device/mt7986a-ax6000-2500wan-spim-nor-rfb
   DEVICE_VENDOR := MediaTek
   DEVICE_MODEL := mt7986a-ax6000-2500wan-spim-nor-rfb
