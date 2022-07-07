@@ -1252,19 +1252,15 @@ index 7e00cca06..24742604b 100644
  
  	struct mtk_wed_ring tx_ring[MTK_WED_TX_QUEUES];
  	struct mtk_wed_ring txfree_ring;
-@@ -43,8 +57,19 @@ struct mtk_wed_device {
+@@ -43,8 +57,17 @@ struct mtk_wed_device {
  	/* filled by driver: */
  	struct {
  		struct pci_dev *pci_dev;
--
--		u32 wpdma_phys;
 +		void __iomem *base;
 +		u32 bus_type;
-+
-+		union {
-+			u32 wpdma_phys;
-+			u32 wpdma_int;
-+		};
+ 
+ 		u32 wpdma_phys;
++		u32 wpdma_int;
 +		u32 wpdma_mask;
 +		u32 wpdma_tx;
 +		u32 wpdma_txfree;
