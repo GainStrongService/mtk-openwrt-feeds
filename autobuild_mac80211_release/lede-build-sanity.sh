@@ -107,6 +107,8 @@ prepare_mtwifi() {
 }
 
 prepare_flowoffload() {
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0004-2102-netfilter-remove-nf_flow_table_hw.patch
+
 	#rm patches for flowblock
 	rm -rf ./target/linux/generic/pending-5.4/64*.patch
 	rm -rf ./target/linux/generic/hack-5.4/647-netfilter-flow-acct.patch
@@ -158,7 +160,6 @@ prepare_mac80211() {
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0001-master-mac80211-generate-hostapd-setting-from-ap-cap.patch
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-master-hostapd-makefile-for-utils.patch
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0003-master-mt76-makefile-for-new-chip.patch
-	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0004-master-wireless-regdb-makefile-for-6E.patch
 	cp -rfa ${MTK_FEED_DIR}/autobuild_mac80211_release/package/ ${BUILD_DIR}
 	cp -rfa ${MTK_FEED_DIR}/autobuild_mac80211_release/target/ ${BUILD_DIR}
 }
