@@ -6114,7 +6114,7 @@ new file mode 100644
 index 000000000..ae1eb2656
 --- /dev/null
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
-@@ -0,0 +1,719 @@
+@@ -0,0 +1,728 @@
 +/*
 + * Copyright (C) 2018-2021 Felix Fietkau <nbd@nbd.name>
 + *
@@ -6585,17 +6585,24 @@ index 000000000..ae1eb2656
 +				       devs[!dir]->ifindex,
 +				       devs);
 +	if (ret)
-+		return ret;
++		goto err_route_dir1;
 +
 +	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH &&
 +	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
-+		if (nf_dev_forward_path(route, ct, dir, devs))
-+			return -1;
-+		if (nf_dev_forward_path(route, ct, !dir, devs))
-+			return -1;
++		if (nf_dev_forward_path(route, ct, dir, devs) ||
++		    nf_dev_forward_path(route, ct, !dir, devs)) {
++			ret = -1;
++			goto err_route_dir2;
++		}
 +	}
 +
 +	return 0;
++
++err_route_dir2:
++	dst_release(route->tuple[!dir].dst);
++err_route_dir1:
++	dst_release(route->tuple[dir].dst);
++	return ret;
 +}
 +
 +static unsigned int
@@ -6680,6 +6687,7 @@ index 000000000..ae1eb2656
 +	xt_flowoffload_check_device(table, devs[0]);
 +	xt_flowoffload_check_device(table, devs[1]);
 +
++	dst_release(route.tuple[dir].dst);
 +	dst_release(route.tuple[!dir].dst);
 +
 +	return XT_CONTINUE;
@@ -6687,6 +6695,7 @@ index 000000000..ae1eb2656
 +err_flow_add:
 +	flow_offload_free(flow);
 +err_flow_alloc:
++	dst_release(route.tuple[dir].dst);
 +	dst_release(route.tuple[!dir].dst);
 +err_flow_route:
 +	clear_bit(IPS_OFFLOAD_BIT, &ct->status);
