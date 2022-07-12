@@ -1,8 +1,31 @@
-Index: mt76-2022-06-24-b6e865e2/mt7915/vendor.c
-===================================================================
---- mt76-2022-06-24-b6e865e2.orig/mt7915/vendor.c
-+++ mt76-2022-06-24-b6e865e2/mt7915/vendor.c
-@@ -50,6 +50,18 @@ rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTR
+From 1dd09d7cdf80f3982017cae52013a423f84bfa52 Mon Sep 17 00:00:00 2001
+From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
+Date: Tue, 12 Jul 2022 10:04:35 -0700
+Subject: [PATCH] mt76: mt7915: add phy capability vendor command
+
+---
+ mt7915/mt7915.h |  1 +
+ mt7915/vendor.c | 52 +++++++++++++++++++++++++++++++++++++++++++++++++
+ mt7915/vendor.h | 25 ++++++++++++++++++++++++
+ 3 files changed, 78 insertions(+)
+
+diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
+index 5f11b3fb..fb8bd877 100644
+--- a/mt7915/mt7915.h
++++ b/mt7915/mt7915.h
+@@ -11,6 +11,7 @@
+ 
+ #define MTK_DEBUG 1
+ #define MT7915_MAX_INTERFACES		19
++#define MT7915_MAX_BSS			16
+ #define MT7915_WTBL_SIZE		288
+ #define MT7916_WTBL_SIZE		544
+ #define MT7915_WTBL_RESERVED		(mt7915_wtbl_size(dev) - 1)
+diff --git a/mt7915/vendor.c b/mt7915/vendor.c
+index c7551848..77d71e48 100644
+--- a/mt7915/vendor.c
++++ b/mt7915/vendor.c
+@@ -50,6 +50,18 @@ rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
  	[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TXBF] = { .type = NLA_U8 },
  };
  
@@ -21,7 +44,7 @@ Index: mt76-2022-06-24-b6e865e2/mt7915/vendor.c
  struct csi_null_tone {
  	u8 start;
  	u8 end;
-@@ -974,6 +986,35 @@ static int mt7915_vendor_hemu_ctrl(struc
+@@ -974,6 +986,35 @@ static int mt7915_vendor_hemu_ctrl(struct wiphy *wiphy,
  	return 0;
  }
  
@@ -57,7 +80,7 @@ Index: mt76-2022-06-24-b6e865e2/mt7915/vendor.c
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -1031,6 +1072,17 @@ static const struct wiphy_vendor_command
+@@ -1031,6 +1072,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.doit = mt7915_vendor_hemu_ctrl,
  		.policy = hemu_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_HEMU_CTRL_MAX,
@@ -75,10 +98,10 @@ Index: mt76-2022-06-24-b6e865e2/mt7915/vendor.c
  	}
  };
  
-Index: mt76-2022-06-24-b6e865e2/mt7915/vendor.h
-===================================================================
---- mt76-2022-06-24-b6e865e2.orig/mt7915/vendor.h
-+++ mt76-2022-06-24-b6e865e2/mt7915/vendor.h
+diff --git a/mt7915/vendor.h b/mt7915/vendor.h
+index a8e4ebf9..719b851f 100644
+--- a/mt7915/vendor.h
++++ b/mt7915/vendor.h
 @@ -9,6 +9,7 @@ enum mtk_nl80211_vendor_subcmds {
  	MTK_NL80211_VENDOR_SUBCMD_RFEATURE_CTRL = 0xc3,
  	MTK_NL80211_VENDOR_SUBCMD_WIRELESS_CTRL = 0xc4,
@@ -116,15 +139,6 @@ Index: mt76-2022-06-24-b6e865e2/mt7915/vendor.h
 +};
 +
  #endif
-Index: mt76-2022-06-24-b6e865e2/mt7915/mt7915.h
-===================================================================
---- mt76-2022-06-24-b6e865e2.orig/mt7915/mt7915.h
-+++ mt76-2022-06-24-b6e865e2/mt7915/mt7915.h
-@@ -11,6 +11,7 @@
- 
- #define MTK_DEBUG 1
- #define MT7915_MAX_INTERFACES		19
-+#define MT7915_MAX_BSS			16
- #define MT7915_WTBL_SIZE		288
- #define MT7916_WTBL_SIZE		544
- #define MT7915_WTBL_RESERVED		(mt7915_wtbl_size(dev) - 1)
+-- 
+2.32.0
+
