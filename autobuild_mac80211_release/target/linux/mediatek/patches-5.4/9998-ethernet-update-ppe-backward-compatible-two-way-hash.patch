@@ -12,52 +12,88 @@ index 2c54c9c..d3ba9eb 100644
  			if (!eth->ppe[i]) {
  				err = -ENOMEM;
  				goto err_free_dev;
-@@ -3927,6 +3928,7 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -3927,12 +3928,13 @@ static const struct mtk_soc_data mt2701_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
 +	.hash_way = 2,
  	.offload_version = 2,
+ 	.txrx = {
+ 		.txd_size = sizeof(struct mtk_tx_dma),
+ 		.rxd_size = sizeof(struct mtk_rx_dma),
+ 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
+ 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
+ 	},
  };
  
-@@ -3936,6 +3938,7 @@ static const struct mtk_soc_data mt7621_data = {
+@@ -3936,12 +3938,13 @@ static const struct mtk_soc_data mt7621_data = {
  	.required_clks = MT7621_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
 +	.hash_way = 2,
  	.offload_version = 2,
+ 	.txrx = {
+ 		.txd_size = sizeof(struct mtk_tx_dma),
+ 		.rxd_size = sizeof(struct mtk_rx_dma),
+ 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
+ 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
+ 	},
  };
  
-@@ -3946,6 +3949,7 @@ static const struct mtk_soc_data mt7622_data = {
+@@ -3946,12 +3949,13 @@ static const struct mtk_soc_data mt7622_data = {
  	.required_clks = MT7622_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
 +	.hash_way = 2,
  	.offload_version = 2,
+ 	.txrx = {
+ 		.txd_size = sizeof(struct mtk_tx_dma),
+ 		.rxd_size = sizeof(struct mtk_rx_dma),
+ 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
+ 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
+ 	},
  };
  
-@@ -3955,6 +3959,7 @@ static const struct mtk_soc_data mt7623_data = {
+@@ -3955,12 +3959,13 @@ static const struct mtk_soc_data mt7623_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
 +	.hash_way = 2,
  	.offload_version = 2,
+ 	.txrx = {
+ 		.txd_size = sizeof(struct mtk_tx_dma),
+ 		.rxd_size = sizeof(struct mtk_rx_dma),
+ 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
+ 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
+ 	},
  };
  
-@@ -3974,6 +3979,7 @@ static const struct mtk_soc_data mt7986_data = {
+@@ -3974,12 +3979,13 @@ static const struct mtk_soc_data mt7986_data = {
  	.required_clks = MT7986_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = true,
 +	.hash_way = 4,
  	.offload_version = 2,
+ 	.txrx = {
+ 		.txd_size = sizeof(struct mtk_tx_dma_v2),
+ 		.rxd_size = sizeof(struct mtk_rx_dma_v2),
+ 		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
+ 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
+ 	},
  };
  
-@@ -3984,6 +3990,8 @@ static const struct mtk_soc_data mt7981_data = {
+@@ -3984,12 +3990,14 @@ static const struct mtk_soc_data mt7981_data = {
  	.required_clks = MT7981_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = true,
 +	.hash_way = 4,
 +	.offload_version = 2,
+ 	.txrx = {
+ 		.txd_size = sizeof(struct mtk_tx_dma_v2),
+ 		.rxd_size = sizeof(struct mtk_rx_dma_v2),
+ 		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
+ 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
+ 	},
  };
  
  static const struct mtk_soc_data rt5350_data = {
