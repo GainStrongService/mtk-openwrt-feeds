@@ -17,12 +17,9 @@ do
         cmd="${cmd} \"${i}\""
         add_quote="0"
     else
-        if [ ${i} = "ra0" ]; then
+        if [ ${i} = "ra0" ] || [ ${i} = "rax0" ]; then
             ori_inf=${i}
             i="phy0"
-        elif [ ${i} = "rax0" ]; then
-            ori_inf=${i}
-            i="phy1"
         fi
         cmd="${cmd} ${i}"
     fi
