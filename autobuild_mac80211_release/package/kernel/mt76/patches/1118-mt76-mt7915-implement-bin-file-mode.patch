@@ -1,19 +1,19 @@
-From 558aef638808667341e65d8c11ee7da4266189cd Mon Sep 17 00:00:00 2001
+From 8a072ddf45b67a379a2fb63dd45e0f5024101403 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 7 Jul 2022 11:09:59 +0800
-Subject: [PATCH] mt76: mt7915: implement bin file mode
+Subject: [PATCH 1118/1119] mt76: mt7915: implement bin file mode
 
 Change-Id: I2a726341541a11cbecdb210b33a8e79aefbd6cf3
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- eeprom.c        | 18 +++++++++++++++++
- mt76.h          |  1 +
- mt7915/eeprom.c | 53 +++++++++++++++++++++++++++++++++++++++----------
- mt7915/mt7915.h | 10 ++++++++++
+ drivers/net/wireless/mediatek/mt76/eeprom.c   | 18 +++++++
+ drivers/net/wireless/mediatek/mt76/mt76.h     |  1 +
+ .../wireless/mediatek/mt76/mt7915/eeprom.c    | 53 +++++++++++++++----
+ .../wireless/mediatek/mt76/mt7915/mt7915.h    | 10 ++++
  4 files changed, 71 insertions(+), 11 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index d172cb0..7e4cb0f 100644
+index d7ee123b..f2d0a65b 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -102,6 +102,24 @@ out_put_node:
@@ -30,7 +30,7 @@ index d172cb0..7e4cb0f 100644
 +		return false;
 +
 +	bin_file_mode = of_get_property(np, "bin_file_mode", NULL);
-+	if (be32_to_cpu(*bin_file_mode))
++	if (bin_file_mode && be32_to_cpu(*bin_file_mode))
 +		ret = true;
 +
 +	of_node_put(np);
@@ -42,7 +42,7 @@ index d172cb0..7e4cb0f 100644
  mt76_eeprom_override(struct mt76_phy *phy)
  {
 diff --git a/mt76.h b/mt76.h
-index 4c8a671..4931489 100644
+index 4c8a671f..49314895 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -1005,6 +1005,7 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
@@ -54,7 +54,7 @@ index 4c8a671..4931489 100644
  struct mt76_queue *
  mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index ee3049e..98e6a76 100644
+index ee3049e5..e5cfa5b0 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -46,26 +46,36 @@ static char *mt7915_eeprom_name(struct mt7915_dev *dev)
@@ -148,7 +148,7 @@ index ee3049e..98e6a76 100644
  		if (ret)
  			return ret;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index fb8bd87..a81bc7c 100644
+index 6462d502..491566e9 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -51,6 +51,15 @@
@@ -176,5 +176,5 @@ index fb8bd87..a81bc7c 100644
  	bool ibf;
  
 -- 
-2.18.0
+2.25.1
 

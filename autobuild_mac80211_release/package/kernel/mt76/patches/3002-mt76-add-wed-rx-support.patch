@@ -1,35 +1,35 @@
-From 1abac441c94f3f32bd074b8b01c439263129102d Mon Sep 17 00:00:00 2001
+From a6bbc51840c63e5992c2d0cee9fbbb795312da0c Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Tue, 5 Jul 2022 19:42:55 +0800
-Subject: [PATCH 2/3] mt76 add wed rx support
+Subject: [PATCH 3002/3003] mt76 add wed rx support
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
- dma.c             | 248 +++++++++++++++++++++++++++++++++--------
- dma.h             |  10 ++
- mac80211.c        |   8 +-
- mt76.h            |  24 +++-
- mt7603/dma.c      |   2 +-
- mt7603/mt7603.h   |   2 +-
- mt7615/mac.c      |   2 +-
- mt7615/mt7615.h   |   2 +-
- mt76_connac_mcu.c |   9 ++
- mt76x02.h         |   2 +-
- mt76x02_txrx.c    |   2 +-
- mt7915/dma.c      |  10 ++
- mt7915/mac.c      | 101 ++++++++++++++++-
- mt7915/mcu.c      |   3 +
- mt7915/mmio.c     |  26 ++++-
- mt7915/mt7915.h   |   7 +-
- mt7915/regs.h     |  14 ++-
- mt7921/mac.c      |   2 +-
- mt7921/mt7921.h   |   4 +-
- mt7921/pci_mac.c  |   4 +-
- tx.c              |  34 ++++++
+ drivers/net/wireless/mediatek/mt76/dma.c      | 246 +++++++++++++++---
+ drivers/net/wireless/mediatek/mt76/dma.h      |  10 +
+ drivers/net/wireless/mediatek/mt76/mac80211.c |   8 +-
+ drivers/net/wireless/mediatek/mt76/mt76.h     |  24 +-
+ .../net/wireless/mediatek/mt76/mt7603/dma.c   |   2 +-
+ .../wireless/mediatek/mt76/mt7603/mt7603.h    |   2 +-
+ .../net/wireless/mediatek/mt76/mt7615/mac.c   |   2 +-
+ .../wireless/mediatek/mt76/mt7615/mt7615.h    |   2 +-
+ .../wireless/mediatek/mt76/mt76_connac_mcu.c  |   9 +
+ drivers/net/wireless/mediatek/mt76/mt76x02.h  |   2 +-
+ .../net/wireless/mediatek/mt76/mt76x02_txrx.c |   2 +-
+ .../net/wireless/mediatek/mt76/mt7915/dma.c   |  10 +
+ .../net/wireless/mediatek/mt76/mt7915/mac.c   | 103 +++++++-
+ .../net/wireless/mediatek/mt76/mt7915/mcu.c   |   3 +
+ .../net/wireless/mediatek/mt76/mt7915/mmio.c  |  26 +-
+ .../wireless/mediatek/mt76/mt7915/mt7915.h    |   7 +-
+ .../net/wireless/mediatek/mt76/mt7915/regs.h  |  14 +-
+ .../net/wireless/mediatek/mt76/mt7921/mac.c   |   2 +-
+ .../wireless/mediatek/mt76/mt7921/mt7921.h    |   4 +-
+ .../wireless/mediatek/mt76/mt7921/pci_mac.c   |   4 +-
+ drivers/net/wireless/mediatek/mt76/tx.c       |  34 +++
  21 files changed, 448 insertions(+), 68 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 03ee910..e46dbed 100644
+index 03ee9109..3acba9a3 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -98,6 +98,63 @@ mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t)
@@ -448,17 +448,15 @@ index 03ee910..e46dbed 100644
  		continue;
  
  free_frag:
-@@ -785,8 +940,8 @@ EXPORT_SYMBOL_GPL(mt76_dma_attach);
+@@ -785,7 +940,7 @@ EXPORT_SYMBOL_GPL(mt76_dma_attach);
  
  void mt76_dma_cleanup(struct mt76_dev *dev)
  {
 -	int i;
--
 +	int i, type;
-+
+ 
  	mt76_worker_disable(&dev->tx_worker);
  	netif_napi_del(&dev->tx_napi);
- 
 @@ -801,12 +956,17 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
  
  	mt76_for_each_q_rx(dev, i) {
@@ -479,7 +477,7 @@ index 03ee910..e46dbed 100644
  }
  EXPORT_SYMBOL_GPL(mt76_dma_cleanup);
 diff --git a/dma.h b/dma.h
-index fdf786f..90370d1 100644
+index fdf786f9..90370d12 100644
 --- a/dma.h
 +++ b/dma.h
 @@ -16,6 +16,16 @@
@@ -500,7 +498,7 @@ index fdf786f..90370d1 100644
  #define MT_RX_INFO_LEN			4
  #define MT_FCE_INFO_LEN			4
 diff --git a/mac80211.c b/mac80211.c
-index af2c09a..fa5ce6e 100644
+index af2c09ad..fa5ce6ec 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -594,11 +594,14 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
@@ -531,7 +529,7 @@ index af2c09a..fa5ce6e 100644
  
  	mt76_rx_complete(dev, &frames, napi);
 diff --git a/mt76.h b/mt76.h
-index 4c8a671..24e4741 100644
+index 49314895..9162213a 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -20,6 +20,8 @@
@@ -606,7 +604,7 @@ index 4c8a671..24e4741 100644
  
  	wait_queue_head_t tx_wait;
  	/* spinclock used to protect wcid pktid linked list */
-@@ -1351,6 +1363,8 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+@@ -1352,6 +1364,8 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
  }
  
  void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
@@ -615,7 +613,7 @@ index 4c8a671..24e4741 100644
  void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
  		      struct napi_struct *napi);
  void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
-@@ -1495,6 +1509,12 @@ struct mt76_txwi_cache *
+@@ -1496,6 +1510,12 @@ struct mt76_txwi_cache *
  mt76_token_release(struct mt76_dev *dev, int token, bool *wake);
  int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi);
  void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
@@ -629,7 +627,7 @@ index 4c8a671..24e4741 100644
  static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
  {
 diff --git a/mt7603/dma.c b/mt7603/dma.c
-index 590cff9..2ff71c5 100644
+index 590cff9d..2ff71c53 100644
 --- a/mt7603/dma.c
 +++ b/mt7603/dma.c
 @@ -69,7 +69,7 @@ free:
@@ -642,7 +640,7 @@ index 590cff9..2ff71c5 100644
  	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
  	__le32 *rxd = (__le32 *)skb->data;
 diff --git a/mt7603/mt7603.h b/mt7603/mt7603.h
-index 0fd46d9..f2ce22a 100644
+index 0fd46d90..f2ce22ae 100644
 --- a/mt7603/mt7603.h
 +++ b/mt7603/mt7603.h
 @@ -244,7 +244,7 @@ int mt7603_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -655,7 +653,7 @@ index 0fd46d9..f2ce22a 100644
  void mt7603_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);
  int mt7603_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 diff --git a/mt7615/mac.c b/mt7615/mac.c
-index 3728627..14cdd9a 100644
+index 37286276..14cdd9a2 100644
 --- a/mt7615/mac.c
 +++ b/mt7615/mac.c
 @@ -1648,7 +1648,7 @@ bool mt7615_rx_check(struct mt76_dev *mdev, void *data, int len)
@@ -668,7 +666,7 @@ index 3728627..14cdd9a 100644
  	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
  	__le32 *rxd = (__le32 *)skb->data;
 diff --git a/mt7615/mt7615.h b/mt7615/mt7615.h
-index 25880d1..983469c 100644
+index 25880d1a..983469c7 100644
 --- a/mt7615/mt7615.h
 +++ b/mt7615/mt7615.h
 @@ -511,7 +511,7 @@ void mt7615_tx_worker(struct mt76_worker *w);
@@ -681,7 +679,7 @@ index 25880d1..983469c 100644
  int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  		       struct ieee80211_sta *sta);
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index cd35068..2454846 100644
+index cd350689..24548469 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -1190,6 +1190,7 @@ int mt76_connac_mcu_sta_ba(struct mt76_dev *dev, struct mt76_vif *mvif,
@@ -729,7 +727,7 @@ index cd35068..2454846 100644
  }
  EXPORT_SYMBOL_GPL(mt76_connac_mcu_add_key);
 diff --git a/mt76x02.h b/mt76x02.h
-index f76fd22..0b872af 100644
+index f76fd22e..0b872af1 100644
 --- a/mt76x02.h
 +++ b/mt76x02.h
 @@ -173,7 +173,7 @@ int mt76x02_set_rts_threshold(struct ieee80211_hw *hw, u32 val);
@@ -742,7 +740,7 @@ index f76fd22..0b872af 100644
  irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance);
  void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 diff --git a/mt76x02_txrx.c b/mt76x02_txrx.c
-index 96fdf42..bf24d3e 100644
+index 96fdf423..bf24d3e0 100644
 --- a/mt76x02_txrx.c
 +++ b/mt76x02_txrx.c
 @@ -33,7 +33,7 @@ void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
@@ -755,7 +753,7 @@ index 96fdf42..bf24d3e 100644
  	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
  	void *rxwi = skb->data;
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 7122322..ac98e01 100644
+index 71223221..ac98e01b 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -376,6 +376,8 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -790,7 +788,7 @@ index 7122322..ac98e01 100644
  				       MT_RXQ_ID(MT_RXQ_EXT),
  				       MT7915_RX_RING_SIZE,
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index bc8da4d..dd87a40 100644
+index db21d83e..1f8e1230 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -217,7 +217,7 @@ static void mt7915_mac_sta_poll(struct mt7915_dev *dev)
@@ -939,10 +937,10 @@ index bc8da4d..dd87a40 100644
  			return;
  		}
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 1468c3c..5eace9e 100644
+index 674cbc4e..0ae6daf3 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -1704,6 +1704,7 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+@@ -1723,6 +1723,7 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
  		       struct ieee80211_sta *sta, bool enable)
  {
  	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
@@ -950,7 +948,7 @@ index 1468c3c..5eace9e 100644
  	struct mt7915_sta *msta;
  	struct sk_buff *skb;
  	int ret;
-@@ -1756,6 +1757,8 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+@@ -1775,6 +1776,8 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
  		return ret;
  	}
  out:
@@ -960,7 +958,7 @@ index 1468c3c..5eace9e 100644
  				     MCU_EXT_CMD(STA_REC_UPDATE), true);
  }
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index b4a3120..08ff556 100644
+index b4a3120d..08ff556e 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -28,6 +28,9 @@ static const u32 mt7915_reg[] = {
@@ -1041,10 +1039,10 @@ index b4a3120..08ff556 100644
  	dev->mt76.dma_dev = wed->dev;
  	mdev->token_size = wed->wlan.token_start;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index fe407c5..e2f0d41 100644
+index 39127922..22399cc7 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -69,6 +69,7 @@
+@@ -78,6 +78,7 @@
  #define MT7915_MAX_STA_TWT_AGRT		8
  #define MT7915_MIN_TWT_DUR 64
  #define MT7915_MAX_QUEUE		(__MT_RXQ_MAX + __MT_MCUQ_MAX + 2)
@@ -1052,7 +1050,7 @@ index fe407c5..e2f0d41 100644
  
  struct mt7915_vif;
  struct mt7915_sta;
-@@ -531,7 +532,9 @@ void mt7915_wfsys_reset(struct mt7915_dev *dev);
+@@ -541,7 +542,9 @@ void mt7915_wfsys_reset(struct mt7915_dev *dev);
  irqreturn_t mt7915_irq_handler(int irq, void *dev_instance);
  u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif);
  u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
@@ -1063,7 +1061,7 @@ index fe407c5..e2f0d41 100644
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);
  int mt7915_eeprom_init(struct mt7915_dev *dev);
-@@ -683,7 +686,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -693,7 +696,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  			  struct mt76_tx_info *tx_info);
  void mt7915_tx_token_put(struct mt7915_dev *dev);
  void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
@@ -1073,7 +1071,7 @@ index fe407c5..e2f0d41 100644
  void mt7915_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);
  void mt7915_stats_work(struct work_struct *work);
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index ffda5f6..08bf84c 100644
+index ffda5f6b..08bf84ce 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -33,6 +33,9 @@ enum reg_rev {
@@ -1119,7 +1117,7 @@ index ffda5f6..08bf84c 100644
  #define MT_INT_SOURCE_CSR		__REG(INT_SOURCE_CSR)
  #define MT_INT_MASK_CSR			__REG(INT_MASK_CSR)
 diff --git a/mt7921/mac.c b/mt7921/mac.c
-index 4fcadf8..4897940 100644
+index 4fcadf86..4897940b 100644
 --- a/mt7921/mac.c
 +++ b/mt7921/mac.c
 @@ -555,7 +555,7 @@ out:
@@ -1132,7 +1130,7 @@ index 4fcadf8..4897940 100644
  	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
  	__le32 *rxd = (__le32 *)skb->data;
 diff --git a/mt7921/mt7921.h b/mt7921/mt7921.h
-index efeb82c..4b2e974 100644
+index efeb82cb..4b2e974b 100644
 --- a/mt7921/mt7921.h
 +++ b/mt7921/mt7921.h
 @@ -388,7 +388,7 @@ int mt7921e_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -1154,7 +1152,7 @@ index efeb82c..4b2e974 100644
  int mt7921e_mac_reset(struct mt7921_dev *dev);
  int mt7921e_mcu_init(struct mt7921_dev *dev);
 diff --git a/mt7921/pci_mac.c b/mt7921/pci_mac.c
-index e180067..ca982eb 100644
+index e1800674..ca982eb5 100644
 --- a/mt7921/pci_mac.c
 +++ b/mt7921/pci_mac.c
 @@ -182,7 +182,7 @@ bool mt7921e_rx_check(struct mt76_dev *mdev, void *data, int len)
@@ -1176,7 +1174,7 @@ index e180067..ca982eb 100644
  	}
  }
 diff --git a/tx.c b/tx.c
-index ae44afe..bccd206 100644
+index ae44afe0..bccd206e 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -767,3 +767,37 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
@@ -1218,5 +1216,5 @@ index ae44afe..bccd206 100644
 +}
 +EXPORT_SYMBOL_GPL(mt76_rx_token_release);
 -- 
-2.18.0
+2.25.1
 

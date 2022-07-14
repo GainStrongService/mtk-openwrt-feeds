@@ -1,18 +1,18 @@
-From 7bcfae1d261805e54b6e27091dffd4706c4dc046 Mon Sep 17 00:00:00 2001
+From b57983fb1ed631af2b6230aaf010826cd05c9ddf Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Wed, 22 Jun 2022 10:45:53 +0800
 Subject: [PATCH 1004/1008] mt76: mt7915: add support for muru_onoff via
  debugfs
 
 ---
- mt7915/init.c        |  1 +
- mt7915/mcu.c         |  9 +++++++--
- mt7915/mcu.h         |  6 ++++++
- mt7915/mtk_debugfs.c | 33 +++++++++++++++++++++++++++++++++
+ .../net/wireless/mediatek/mt76/mt7915/init.c  |  1 +
+ .../net/wireless/mediatek/mt76/mt7915/mcu.c   |  9 +++--
+ .../net/wireless/mediatek/mt76/mt7915/mcu.h   |  6 ++++
+ .../mediatek/mt76/mt7915/mtk_debugfs.c        | 33 +++++++++++++++++++
  4 files changed, 47 insertions(+), 2 deletions(-)
 
 diff --git a/mt7915/init.c b/mt7915/init.c
-index fa9568c..6e2a1c1 100644
+index fa9568ca..6e2a1c13 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -577,6 +577,7 @@ static void mt7915_init_work(struct work_struct *work)
@@ -24,7 +24,7 @@ index fa9568c..6e2a1c1 100644
  
  void mt7915_wfsys_reset(struct mt7915_dev *dev)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 0941bf3..34cf3e6 100644
+index be1dd6b9..a6b5d213 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -856,13 +856,18 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -49,10 +49,10 @@ index 0941bf3..34cf3e6 100644
  		muru->mimo_dl.vht_mu_bfee =
  			!!(sta->vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index ec8887b..07c1f2b 100644
+index a27129c2..d3cc8283 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -552,4 +552,10 @@ struct csi_data {
+@@ -556,4 +556,10 @@ struct csi_data {
  };
  #endif
  
@@ -64,7 +64,7 @@ index ec8887b..07c1f2b 100644
 +
  #endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index f18c8b6..e239df9 100644
+index f18c8b6c..e239df95 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2480,6 +2480,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)
@@ -115,5 +115,5 @@ index f18c8b6..e239df9 100644
  			    &fops_fw_debug_module);
  	debugfs_create_file("fw_debug_level", 0600, dir, dev,
 -- 
-2.18.0
+2.25.1
 

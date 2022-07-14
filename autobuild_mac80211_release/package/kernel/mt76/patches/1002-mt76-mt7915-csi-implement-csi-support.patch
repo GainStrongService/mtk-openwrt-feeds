@@ -1,24 +1,23 @@
-From c2e0f6df51b9b2e681285523b1c4471c7f613c83 Mon Sep 17 00:00:00 2001
+From b4f1309073f6578374e30f4578a8c7e982e45e19 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Jun 2022 20:13:02 +0800
 Subject: [PATCH 1002/1008] mt76: mt7915: csi: implement csi support
 
 ---
- mt76_connac_mcu.h |   2 +
- mt7915/Makefile   |   4 +-
- mt7915/init.c     |  39 ++++
- mt7915/mcu.c      | 111 ++++++++++++
- mt7915/mcu.h      |  76 ++++++++
- mt7915/mt7915.h   |  20 ++
- mt7915/vendor.c   | 452 ++++++++++++++++++++++++++++++++++++++++++++++
- mt7915/vendor.h   |  60 ++++++
+ .../wireless/mediatek/mt76/mt76_connac_mcu.h  |   2 +
+ .../wireless/mediatek/mt76/mt7915/Makefile    |   4 +-
+ .../net/wireless/mediatek/mt76/mt7915/init.c  |  39 ++
+ .../net/wireless/mediatek/mt76/mt7915/mcu.c   | 111 +++++
+ .../net/wireless/mediatek/mt76/mt7915/mcu.h   |  76 +++
+ .../wireless/mediatek/mt76/mt7915/mt7915.h    |  20 +
+ .../wireless/mediatek/mt76/mt7915/vendor.c    | 452 ++++++++++++++++++
+ .../wireless/mediatek/mt76/mt7915/vendor.h    |  60 +++
  8 files changed, 762 insertions(+), 2 deletions(-)
- mode change 100755 => 100644 mt7915/mcu.c
- create mode 100644 mt7915/vendor.c
- create mode 100644 mt7915/vendor.h
+ create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/vendor.c
+ create mode 100644 drivers/net/wireless/mediatek/mt76/mt7915/vendor.h
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 333d3a0..b25807a 100644
+index c7aeae57..ede59231 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -971,6 +971,7 @@ enum {
@@ -38,7 +37,7 @@ index 333d3a0..b25807a 100644
  
  enum {
 diff --git a/mt7915/Makefile b/mt7915/Makefile
-index a3474e2..e272c82 100644
+index a3474e2f..e272c826 100644
 --- a/mt7915/Makefile
 +++ b/mt7915/Makefile
 @@ -1,9 +1,9 @@
@@ -55,7 +54,7 @@ index a3474e2..e272c82 100644
  mt7915e-$(CONFIG_MT7986_WMAC) += soc.o
 \ No newline at end of file
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 8554c9d..fa9568c 100644
+index 8554c9dc..fa9568ca 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -542,6 +542,12 @@ mt7915_register_ext_phy(struct mt7915_dev *dev, struct mt7915_phy *phy)
@@ -133,9 +132,7 @@ index 8554c9d..fa9568c 100644
  	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
  		dev->mt76.led_cdev.brightness_set = mt7915_led_set_brightness;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-old mode 100755
-new mode 100644
-index 4ff13c7..0941bf3
+index 0003bbb6..be1dd6b9 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -32,6 +32,10 @@
@@ -161,7 +158,7 @@ index 4ff13c7..0941bf3
  	case MCU_EXT_EVENT_BCC_NOTIFY:
  		mt7915_mcu_rx_bcc_notify(dev, skb);
  		break;
-@@ -3446,6 +3455,108 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
+@@ -3465,6 +3474,108 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
  				 &req, sizeof(req), true);
  }
  
@@ -271,10 +268,10 @@ index 4ff13c7..0941bf3
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index b2c51bf..ec8887b 100644
+index bfb822fa..a27129c2 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -476,4 +476,80 @@ enum {
+@@ -480,4 +480,80 @@ enum {
  					 sizeof(struct bss_info_bcn_cont) + \
  					 sizeof(struct bss_info_inband_discovery))
  
@@ -356,7 +353,7 @@ index b2c51bf..ec8887b 100644
 +
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 594f2fb..5a6224b 100644
+index 82781879..33d14d6d 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -276,6 +276,20 @@ struct mt7915_phy {
@@ -380,7 +377,7 @@ index 594f2fb..5a6224b 100644
  };
  
  struct mt7915_dev {
-@@ -616,6 +630,12 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -617,6 +631,12 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			    struct ieee80211_sta *sta, struct dentry *dir);
  #endif
  
@@ -395,7 +392,7 @@ index 594f2fb..5a6224b 100644
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp);
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
 new file mode 100644
-index 0000000..98fd9c2
+index 00000000..98fd9c2d
 --- /dev/null
 +++ b/mt7915/vendor.c
 @@ -0,0 +1,452 @@
@@ -853,7 +850,7 @@ index 0000000..98fd9c2
 +}
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
 new file mode 100644
-index 0000000..9d3db2a
+index 00000000..9d3db2a7
 --- /dev/null
 +++ b/mt7915/vendor.h
 @@ -0,0 +1,60 @@
@@ -918,5 +915,5 @@ index 0000000..9d3db2a
 +
 +#endif
 -- 
-2.18.0
+2.25.1
 
