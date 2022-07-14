@@ -1,16 +1,14 @@
-From a30647e3152b03eeb65ce60b60cb52a2c0840d28 Mon Sep 17 00:00:00 2001
-From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
-Date: Thu, 7 Jul 2022 17:09:31 +0800
-Subject: [PATCH] mt76: add MT7986/MT7916/Besra & bin file mode support in
- makefile
+From bd0dae19286bf13e74698d753a98e46b155a5882 Mon Sep 17 00:00:00 2001
+From: Evelyn Tsai <evelyn.tsai@mediatek.com>
+Date: Wed, 30 Mar 2022 10:38:24 +0800
+Subject: [PATCH] mt76: add MT7986/MT7916/Besra support in makefile
 
-Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- Makefile | 77 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 76 insertions(+), 1 deletion(-)
+ kernel/mt76/Makefile | 69 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 68 insertions(+), 1 deletion(-)
 
 diff --git a/package/kernel/mt76/Makefile b/package/kernel/mt76/Makefile
-index 354449b..758546f 100644
+index 0ccf067..75e65f7 100644
 --- a/package/kernel/mt76/Makefile
 +++ b/package/kernel/mt76/Makefile
 @@ -220,12 +220,20 @@ endef
@@ -61,7 +59,7 @@ index 354449b..758546f 100644
  endif
  ifdef CONFIG_PACKAGE_kmod-mt7921-common
    PKG_MAKE_FLAGS += CONFIG_MT7921_COMMON=m
-@@ -447,9 +467,63 @@ define KernelPackage/mt7915e/install
+@@ -447,9 +467,55 @@ define KernelPackage/mt7915e/install
  		$(PKG_BUILD_DIR)/firmware/mt7915_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7915_wm.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7915_rom_patch.bin \
@@ -82,9 +80,6 @@ index 354449b..758546f 100644
 +		$(PKG_BUILD_DIR)/firmware/mt7916_eeprom.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7915_eeprom.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7915_eeprom_dbdc.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7916_binfile.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7915_binfile.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7915_binfile_dbdc.bin \
  		$(1)/lib/firmware/mediatek
 +ifdef CONFIG_TARGET_mediatek_mt7986
 +	cp \
@@ -93,11 +88,6 @@ index 354449b..758546f 100644
 +		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7976_dbdc.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7975_dual.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7975.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7986_binfile_mt7976_dual.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7986_binfile_mt7976.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7986_binfile_mt7976_dbdc.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7986_binfile_mt7975_dual.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7986_binfile_mt7975.bin \
 +		$(1)/lib/firmware/mediatek
 +ifdef CONFIG_NET_MEDIATEK_SOC_WED
 +	cp \
@@ -125,7 +115,7 @@ index 354449b..758546f 100644
  define KernelPackage/mt7921e/install
  	$(INSTALL_DIR) $(1)/lib/firmware/mediatek
  	cp \
-@@ -489,5 +563,6 @@ $(eval $(call KernelPackage,mt7921-common))
+@@ -489,5 +555,6 @@ $(eval $(call KernelPackage,mt7921-common))
  $(eval $(call KernelPackage,mt7921u))
  $(eval $(call KernelPackage,mt7921s))
  $(eval $(call KernelPackage,mt7921e))
@@ -133,5 +123,5 @@ index 354449b..758546f 100644
  $(eval $(call KernelPackage,mt76))
  $(eval $(call BuildPackage,mt76-test))
 -- 
-2.18.0
+2.29.2
 
