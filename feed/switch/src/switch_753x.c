@@ -351,8 +351,8 @@ int main(int argc, char *argv[])
 	if (err < 0) {
 		err = switch_ioctl_init();
 		if (!err) {
-			chip_name = get_chip_name();
 			nl_init_flag = false;
+			chip_name = get_chip_name();
 			if (chip_name < 0) {
 				printf("no chip unsupport or chip id is invalid!\n");
 				exit_free();
