@@ -23,7 +23,7 @@ diff --git a/include/net/mac80211.h b/include/net/mac80211.h
 diff --git a/include/uapi/linux/nl80211.h b/include/uapi/linux/nl80211.h
 --- a/include/uapi/linux/nl80211.h
 +++ b/include/uapi/linux/nl80211.h
-@@ -7236,6 +7236,7 @@ enum nl80211_fils_discovery_attributes {
+@@ -7242,6 +7242,7 @@ enum nl80211_fils_discovery_attributes {
  	NL80211_FILS_DISCOVERY_ATTR_INT_MIN,
  	NL80211_FILS_DISCOVERY_ATTR_INT_MAX,
  	NL80211_FILS_DISCOVERY_ATTR_TMPL,
@@ -42,37 +42,45 @@ diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
  
  	old = sdata_dereference(sdata->u.ap.fils_discovery, sdata);
  	new = kzalloc(sizeof(*new) + params->tmpl_len, GFP_KERNEL);
-@@ -1316,6 +1317,8 @@ static int ieee80211_change_beacon(struc
+@@ -1316,6 +1317,9 @@ static int ieee80211_change_beacon(struc
  {
  	struct ieee80211_sub_if_data *sdata;
  	struct beacon_data *old;
 +	struct cfg80211_ap_settings *ap_params;
++	struct ieee80211_supported_band *sband;
 +	u32 changed;
  	int err;
  
  	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-@@ -1334,7 +1337,26 @@ static int ieee80211_change_beacon(struc
+@@ -1334,7 +1338,33 @@ static int ieee80211_change_beacon(struc
  	err = ieee80211_assign_beacon(sdata, params, NULL, NULL);
  	if (err < 0)
  		return err;
 -	ieee80211_bss_info_change_notify(sdata, err);
 +
 +	changed = err;
-+	ap_params = container_of(params, struct cfg80211_ap_settings, beacon);
 +
-+	if(ap_params->unsol_bcast_probe_resp.interval) {
-+		err = ieee80211_set_unsol_bcast_probe_resp(sdata,
-+							   &ap_params->unsol_bcast_probe_resp);
-+		if (err < 0)
-+			return err;
-+		changed |= BSS_CHANGED_UNSOL_BCAST_PROBE_RESP;
-+	} else {
-+		err = ieee80211_set_fils_discovery(sdata,
-+						   &ap_params->fils_discovery);
-+		if (err < 0)
-+			return err;
-+		changed |= BSS_CHANGED_FILS_DISCOVERY;
++	sband = ieee80211_get_sband(sdata);
++	if (!sband)
++		return -EINVAL;
 +
++	if (sband->band == NL80211_BAND_6GHZ) {
++		ap_params = container_of(params, struct cfg80211_ap_settings, beacon);
++
++		if(ap_params->unsol_bcast_probe_resp.interval) {
++			err = ieee80211_set_unsol_bcast_probe_resp(sdata,
++								   &ap_params->unsol_bcast_probe_resp);
++			if (err < 0)
++				return err;
++			changed |= BSS_CHANGED_UNSOL_BCAST_PROBE_RESP;
++		} else {
++			err = ieee80211_set_fils_discovery(sdata,
++							   &ap_params->fils_discovery);
++
++			if (err < 0)
++				return err;
++			changed |= BSS_CHANGED_FILS_DISCOVERY;
++		}
 +	}
 +
 +	ieee80211_bss_info_change_notify(sdata, changed);
