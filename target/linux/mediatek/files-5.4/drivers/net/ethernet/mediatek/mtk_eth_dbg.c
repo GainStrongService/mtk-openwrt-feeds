@@ -319,10 +319,42 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 				    size_t len, loff_t *off)
 {
 	struct mtk_eth *eth = file->private_data;
+	char buf[8] = "";
+	int count = len;
+	unsigned long dbg_level = 0;
 
-	atomic_inc(&force);
-	schedule_work(&eth->pending_work);
-	return len;
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, ptr, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (kstrtoul(buf, 0, &dbg_level))
+		return -EINVAL;
+
+	switch(dbg_level)
+	{
+		case 0:
+			if (atomic_read(&reset_lock) == 0)
+				atomic_inc(&reset_lock);
+			break;
+		case 1:
+			if (atomic_read(&force) == 0)
+				atomic_inc(&force);
+			schedule_work(&eth->pending_work);
+			break;
+		case 2:
+			if (atomic_read(&reset_lock) == 1)
+				atomic_dec(&reset_lock);
+			break;
+		default:
+			pr_info("Usage: echo [level] > /sys/kernel/debug/mtketh/reset\n");
+			pr_info("Commands:	 [level] \n");
+			pr_info("			   0	 disable reset \n");
+			pr_info("			   1	 force reset \n");
+			pr_info("			   2	 enable reset\n");
+			break;
+	}
+	return count;
 }
 
 static const struct file_operations fops_reg_w = {

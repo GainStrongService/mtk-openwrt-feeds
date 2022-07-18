@@ -211,7 +211,7 @@ void mtk_dma_monitor(struct timer_list *t)
 	if (cur_wdidx == prev_wdidx && is_wtx_busy &&
 	    is_oq_free && is_cdm_full) {
 		err_cnt1++;
-		if (err_cnt1 == 3) {
+		if (err_cnt1 >= 3) {
 			pr_info("WDMA CDM Hang !\n");
 			pr_info("============== Time: %d ================\n",
 				timestamp);
@@ -244,7 +244,7 @@ void mtk_dma_monitor(struct timer_list *t)
 		}
 	} else if (is_qfsm_hang && is_qfwd_hang) {
 		err_cnt2++;
-		if (err_cnt2 == 3) {
+		if (err_cnt2 >= 3) {
 			pr_info("QDMA Tx Hang !\n");
 			pr_info("============== Time: %d ================\n",
 				timestamp);
@@ -269,7 +269,7 @@ void mtk_dma_monitor(struct timer_list *t)
 		}
 	} else if (is_oq0_stuck && is_cdm1_busy && is_adma_busy) {
 		err_cnt3++;
-		if (err_cnt3 == 3) {
+		if (err_cnt3 >= 3) {
 			pr_info("ADMA Rx Hang !\n");
 			pr_info("============== Time: %d ================\n",
 				timestamp);
