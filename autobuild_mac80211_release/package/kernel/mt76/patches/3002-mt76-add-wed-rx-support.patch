@@ -5,7 +5,7 @@ Subject: [PATCH 3002/3003] mt76 add wed rx support
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
- drivers/net/wireless/mediatek/mt76/dma.c      | 246 +++++++++++++++---
+ drivers/net/wireless/mediatek/mt76/dma.c      | 250 +++++++++++++++---
  drivers/net/wireless/mediatek/mt76/dma.h      |  10 +
  drivers/net/wireless/mediatek/mt76/mac80211.c |   8 +-
  drivers/net/wireless/mediatek/mt76/mt76.h     |  24 +-
@@ -198,7 +198,7 @@ index 03ee9109..3acba9a3 100644
  		WRITE_ONCE(desc->buf0, cpu_to_le32(buf0));
  		WRITE_ONCE(desc->buf1, cpu_to_le32(buf1));
  		WRITE_ONCE(desc->info, cpu_to_le32(info));
-@@ -272,33 +361,63 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
+@@ -272,33 +361,65 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
  
  static void *
  mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
@@ -208,7 +208,8 @@ index 03ee9109..3acba9a3 100644
  	struct mt76_queue_entry *e = &q->entry[idx];
  	struct mt76_desc *desc = &q->desc[idx];
  	dma_addr_t buf_addr;
- 	void *buf = e->buf;
+-	void *buf = e->buf;
++	void *buf = e->buf, *copy = NULL;
  	int buf_len = SKB_WITH_OVERHEAD(q->buf_size);
 +	struct mtk_wed_device *wed = &dev->mmio.wed;
 +	int type;
@@ -237,11 +238,10 @@ index 03ee9109..3acba9a3 100644
 +		if (!buf)
 +			return NULL;
 +
-+		memcpy(buf, r->buf, MTK_WED_RX_PKT_SIZE);
++		copy = r->buf;
 +		buf_addr = r->dma_addr;
 +		buf_len = MTK_WED_RX_PKT_SIZE;
 +		r->dma_addr = 0;
-+		//r->buf = NULL;
 +
 +		mt76_put_rxwi(dev, r);
 +
@@ -254,6 +254,9 @@ index 03ee9109..3acba9a3 100644
  
  	dma_unmap_single(dev->dma_dev, buf_addr, buf_len, DMA_FROM_DEVICE);
 -	e->buf = NULL;
++
++	if (copy)
++		memcpy(buf, copy, MTK_WED_RX_PKT_SIZE);
 +
 +	if (info)
 +		*info = le32_to_cpu(desc->info);
