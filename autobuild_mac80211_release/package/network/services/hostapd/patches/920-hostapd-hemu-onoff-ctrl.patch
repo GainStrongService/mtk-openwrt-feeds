@@ -1,17 +1,19 @@
-From b01a06578df836bc9df2c68134cfebf42d8ffde0 Mon Sep 17 00:00:00 2001
+From 390f9431f5a6f8001f6822a3aea4c5e08743806d Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Thu, 14 Jul 2022 13:43:06 -0700
 Subject: [PATCH-920]Add hemu hostapd vendor command
 
 ---
- hostapd/config_file.c        |  9 +++++++++
- src/ap/ap_config.h           |  1 +
- src/ap/ap_drv_ops.c          |  7 +++++++
- src/ap/beacon.c              |  2 ++
- src/common/mtk_vendor.h      | 13 +++++++++++++
- src/drivers/driver.h         | 12 ++++++++++++
- src/drivers/driver_nl80211.c | 28 ++++++++++++++++++++++++++++
- 7 files changed, 72 insertions(+)
+ hostapd/config_file.c             |  9 ++++++++
+ src/ap/ap_config.h                |  1 +
+ src/ap/ap_drv_ops.c               |  7 ++++++
+ src/ap/beacon.c                   |  2 ++
+ src/common/mtk_vendor.h           | 13 +++++++++++
+ src/drivers/driver.h              | 12 +++++++++++
+ src/drivers/driver_nl80211.c      | 36 ++++++++++++++++++++++++++++++-
+ src/drivers/driver_nl80211.h      |  1 +
+ src/drivers/driver_nl80211_capa.c |  3 +++
+ 9 files changed, 83 insertions(+), 1 deletion(-)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
 index 19a2fd5..85d58cd 100644
@@ -43,7 +45,7 @@ index 9bbe7eb..737cc2f 100644
  	u8 he_6ghz_reg_pwr_type;
 +	u8 hemu_onoff;
  #endif /* CONFIG_IEEE80211AX */
- 
+
  	/* VHT enable/disable config from CHAN_SWITCH */
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
 index b8b98e4..517d2a5 100644
@@ -66,7 +68,7 @@ index 575c92f..7170711 100644
 +++ b/src/ap/beacon.c
 @@ -1976,6 +1976,8 @@ static int __ieee802_11_set_beacon(struct hostapd_data *hapd)
  		params.freq = &freq;
- 
+
  	res = hostapd_drv_set_ap(hapd, &params);
 +	if (hostapd_drv_hemu_ctrl(hapd) < 0)
 +		goto fail;
@@ -85,11 +87,11 @@ index 528387f..6a0e60a 100644
 +	MTK_NL80211_VENDOR_SUBCMD_PHY_CAPA_CTRL= 0xc6,
  	MTK_NL80211_VENDOR_SUBCMD_EDCCA_CTRL = 0xc7,
  };
- 
+
 @@ -167,6 +169,17 @@ enum mtk_vendor_attr_rfeature_ctrl {
  		NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL - 1
  };
- 
+
 +enum mtk_vendor_attr_hemu_ctrl {
 +	MTK_VENDOR_ATTR_HEMU_CTRL_UNSPEC,
 +
@@ -103,7 +105,7 @@ index 528387f..6a0e60a 100644
 +
  #define CSI_MAX_COUNT 256
  #define ETH_ALEN 6
- 
+
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
 index fc96fef..298dbf3 100644
 --- a/src/drivers/driver.h
@@ -118,7 +120,7 @@ index fc96fef..298dbf3 100644
 +	 */
 +	u8 hemu_onoff;
  };
- 
+
  struct wpa_driver_mesh_bss_params {
 @@ -4675,6 +4680,13 @@ struct wpa_driver_ops {
  #endif /* CONFIG_TESTING_OPTIONS */
@@ -132,16 +134,16 @@ index fc96fef..298dbf3 100644
 +	 */
 +	int (*hemu_ctrl)(void *priv, u8 hemu_onoff);
  };
- 
+
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index b1e7b16..18ccbc7 100644
+index b1e7b16..089c24a 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -12287,6 +12287,33 @@ fail:
+@@ -12287,6 +12287,39 @@ fail:
  }
- 
- 
+
+
 +#ifdef CONFIG_IEEE80211AX
 +static int nl80211_hemu_muruonoff(void *priv, u8 hemu_onoff)
 +{
@@ -150,6 +152,12 @@ index b1e7b16..18ccbc7 100644
 +	struct nl_msg *msg;
 +	struct nlattr *data;
 +	int ret;
++
++	if (!drv->mtk_hemu_vendor_cmd_avail) {
++		wpa_printf(MSG_INFO,
++			   "nl80211: Driver does not support setting hemu control");
++		return 0;
++	}
 +
 +	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR)) ||
 +		nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_MTK) ||
@@ -172,7 +180,7 @@ index b1e7b16..18ccbc7 100644
  #ifdef CONFIG_DPP
  static int nl80211_dpp_listen(void *priv, bool enable)
  {
-@@ -12531,6 +12558,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -12531,6 +12564,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.update_connect_params = nl80211_update_connection_params,
  	.send_external_auth_status = nl80211_send_external_auth_status,
  	.set_4addr_mode = nl80211_set_4addr_mode,
@@ -180,6 +188,31 @@ index b1e7b16..18ccbc7 100644
  #ifdef CONFIG_DPP
  	.dpp_listen = nl80211_dpp_listen,
  #endif /* CONFIG_DPP */
--- 
-2.32.0
+diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
+index b677907..62d9696 100644
+--- a/src/drivers/driver_nl80211.h
++++ b/src/drivers/driver_nl80211.h
+@@ -181,6 +181,7 @@ struct wpa_driver_nl80211_data {
+ 	unsigned int qca_do_acs:1;
+ 	unsigned int brcm_do_acs:1;
+ 	unsigned int mtk_edcca_vendor_cmd_avail:1;
++	unsigned int mtk_hemu_vendor_cmd_avail:1;
 
+ 	u64 vendor_scan_cookie;
+ 	u64 remain_on_chan_cookie;
+diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
+index 6c743bf..b5cd2c5 100644
+--- a/src/drivers/driver_nl80211_capa.c
++++ b/src/drivers/driver_nl80211_capa.c
+@@ -1050,6 +1050,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
+ 				case MTK_NL80211_VENDOR_SUBCMD_EDCCA_CTRL :
+ 					drv->mtk_edcca_vendor_cmd_avail = 1;
+ 					break;
++				case MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL :
++					drv->mtk_hemu_vendor_cmd_avail = 1;
++					break;
+ 				}
+ 			}
+
+--
+2.32.0
