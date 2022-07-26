@@ -1,24 +1,24 @@
-From bac4df557d1674c557297e80b852867a650aa490 Mon Sep 17 00:00:00 2001
+From 379918ba724d761166f0677848b6266fe999486a Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Sun, 12 Jun 2022 16:38:45 +0800
 Subject: [PATCH 3001/3003] mt76 add wed tx support
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
- .../net/wireless/mediatek/mt76/mt76_connac.h  |   1 +
- .../net/wireless/mediatek/mt76/mt7915/dma.c   |  59 +++++++---
- .../net/wireless/mediatek/mt76/mt7915/mac.c   |   4 +-
- .../net/wireless/mediatek/mt76/mt7915/main.c  |   9 +-
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   |   2 +-
- .../net/wireless/mediatek/mt76/mt7915/mmio.c  | 110 +++++++++++++++++-
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |   2 +
- .../net/wireless/mediatek/mt76/mt7915/pci.c   |  72 +-----------
- .../net/wireless/mediatek/mt76/mt7915/regs.h  |  15 +++
- .../net/wireless/mediatek/mt76/mt7915/soc.c   |  16 ++-
+ mt76_connac.h   |   1 +
+ mt7915/dma.c    |  59 +++++++++++++++++++-------
+ mt7915/mac.c    |   4 +-
+ mt7915/main.c   |   9 +++-
+ mt7915/mcu.c    |   2 +-
+ mt7915/mmio.c   | 110 +++++++++++++++++++++++++++++++++++++++++++++++-
+ mt7915/mt7915.h |   2 +
+ mt7915/pci.c    |  72 +------------------------------
+ mt7915/regs.h   |  15 +++++++
+ mt7915/soc.c    |  16 +++++--
  10 files changed, 193 insertions(+), 97 deletions(-)
 
 diff --git a/mt76_connac.h b/mt76_connac.h
-index 5a9c1c97..c8d86800 100644
+index 5a9c1c9..c8d8680 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
 @@ -110,6 +110,7 @@ struct mt76_connac_sta_key_conf {
@@ -30,7 +30,7 @@ index 5a9c1c97..c8d86800 100644
  struct mt76_connac_fw_txp {
  	__le16 flags;
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 9e3d14db..71223221 100644
+index 9e3d14d..7122322 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -12,7 +12,10 @@ mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc, int ring_base
@@ -144,7 +144,7 @@ index 9e3d14db..71223221 100644
  			return ret;
  	}
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 0310ca74..db21d83e 100644
+index 0310ca7..db21d83 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -835,9 +835,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
@@ -160,7 +160,7 @@ index 0310ca74..db21d83e 100644
  
  static void
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 6085e124..2e721cd0 100644
+index 6085e12..2e721cd 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -1439,14 +1439,19 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
@@ -186,10 +186,10 @@ index 6085e124..2e721cd0 100644
  
  	ctx->dev = NULL;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 681a2a7c..674cbc4e 100644
+index ffe0447..9e9a2ea 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2381,7 +2381,7 @@ int mt7915_run_firmware(struct mt7915_dev *dev)
+@@ -2377,7 +2377,7 @@ int mt7915_run_firmware(struct mt7915_dev *dev)
  	if (ret)
  		return ret;
  
@@ -199,7 +199,7 @@ index 681a2a7c..674cbc4e 100644
  
  	ret = mt7915_mcu_set_mwds(dev, 1);
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 6d1dbdbd..b4a3120d 100644
+index 6d1dbdb..b4a3120 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -10,6 +10,9 @@
@@ -341,7 +341,7 @@ index 6d1dbdbd..b4a3120d 100644
  				     void __iomem *mem_base, u32 device_id)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 491566e9..39127922 100644
+index 491566e..3912792 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -533,6 +533,8 @@ static inline void mt7986_wmac_disable(struct mt7915_dev *dev)
@@ -354,7 +354,7 @@ index 491566e9..39127922 100644
  				     void __iomem *mem_base, u32 device_id);
  void mt7915_wfsys_reset(struct mt7915_dev *dev);
 diff --git a/mt7915/pci.c b/mt7915/pci.c
-index d74f6097..c5da01a9 100644
+index d74f609..c5da01a 100644
 --- a/mt7915/pci.c
 +++ b/mt7915/pci.c
 @@ -12,9 +12,6 @@
@@ -451,7 +451,7 @@ index d74f6097..c5da01a9 100644
  		goto free_wed_or_irq_vector;
  
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 444440e1..ffda5f6b 100644
+index 444440e..ffda5f6 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -623,6 +623,7 @@ enum offs_rev {
@@ -498,7 +498,7 @@ index 444440e1..ffda5f6b 100644
  #define MT_INT_TX_DONE_MCU		(MT_INT_TX_MCU(MT_MCUQ_WA) |	\
  					 MT_INT_TX_MCU(MT_MCUQ_WM) |	\
 diff --git a/mt7915/soc.c b/mt7915/soc.c
-index 3618718d..8d0b2068 100644
+index 3618718..8d0b206 100644
 --- a/mt7915/soc.c
 +++ b/mt7915/soc.c
 @@ -1171,10 +1171,6 @@ static int mt7986_wmac_probe(struct platform_device *pdev)
@@ -539,5 +539,5 @@ index 3618718d..8d0b2068 100644
  
  	return ret;
 -- 
-2.25.1
+2.18.0
 
