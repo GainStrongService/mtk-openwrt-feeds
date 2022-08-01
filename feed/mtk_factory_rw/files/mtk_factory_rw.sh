@@ -46,6 +46,11 @@ case `cat /tmp/sysinfo/board_name` in
 		lan_mac_offset=0x1F800
 		wan_mac_offset=0x1F806
 		;;
+	*7988*)
+		#2560k - 12 byte
+		lan_mac_offset=0x27FFF4
+		wan_mac_offset=0x27FFFA
+		;;
 	*)
 		lan_mac_offset=0x2A
 		wan_mac_offset=0x24
