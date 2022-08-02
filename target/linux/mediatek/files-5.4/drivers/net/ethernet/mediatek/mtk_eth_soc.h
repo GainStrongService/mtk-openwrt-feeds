@@ -363,6 +363,9 @@
 /* QDMA RX DMA Pointer Register */
 #define MTK_QRX_DRX_IDX0	(QDMA_BASE + 0x10c)
 
+/* QDMA Page Configuration Register */
+#define MTK_QDMA_PAGE	(QDMA_BASE + 0x1f0)
+
 /* QDMA Global Configuration Register */
 #define MTK_QDMA_GLO_CFG	(QDMA_BASE + 0x204)
 #define MTK_RX_2B_OFFSET	BIT(31)
