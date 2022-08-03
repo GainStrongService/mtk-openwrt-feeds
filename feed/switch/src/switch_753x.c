@@ -240,7 +240,7 @@ static void parse_reg_cmd(int argc, char *argv[], int len)
 
 static int get_chip_name()
 {
-	unsigned int temp;
+	int temp;
 	FILE *fp = NULL;
 	char buff[255];
 
@@ -256,14 +256,14 @@ static int get_chip_name()
 		return temp;
 
 	/*judge jaguar embedded switch*/
-	fp = fopen("/sys/bus/platform/devices/15020000.gsw/of_node/mediatek,model", "r");
+	fp = fopen("/proc/device-tree/compatible", "r");
 	if (fp != NULL) {
-		fgets(buff, 255, (FILE *)fp);
-		fclose(fp);
-		if (!strcmp(buff, "mediatek,mt7988")) {
+		temp = -1;
+		if (fgets(buff, 255, (FILE *)fp) && strstr(buff, "mt7988"))
 			temp = 0x7988;
-			return temp;
-		}
+
+		fclose(fp);
+		return temp;
 	}
 
 	return -1;
