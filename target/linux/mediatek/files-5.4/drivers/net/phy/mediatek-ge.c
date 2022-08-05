@@ -21,14 +21,21 @@
 #define MTK_PHY_PAGE_EXTENDED_52B5	0x52b5
 
 /* Registers on MDIO_MMD_VEND1 */
-#define MTK_PHY_1st_OVERSHOOT_LEVEL_0TO1	(0x1)
-#define MTK_PHY_2nd_OVERSHOOT_LEVEL_0TO1	(0x2)
-#define MTK_PHY_1st_OVERSHOOT_LEVEL_1TO0	(0x4)
-#define MTK_PHY_2nd_OVERSHOOT_LEVEL_1TO0	(0x5)
-#define MTK_PHY_1st_OVERSHOOT_LEVEL_0TON1	(0x7) /* N means negative */
-#define MTK_PHY_2nd_OVERSHOOT_LEVEL_0TON1	(0x8)
-#define MTK_PHY_1st_OVERSHOOT_LEVEL_N1TO0	(0xa)
-#define MTK_PHY_2nd_OVERSHOOT_LEVEL_N1TO0	(0xb)
+typedef enum {
+	MTK_PHY_MIDDLE_LEVEL_SHAPPER_0TO1 = 0,
+	MTK_PHY_1st_OVERSHOOT_LEVEL_0TO1,
+	MTK_PHY_2nd_OVERSHOOT_LEVEL_0TO1,
+	MTK_PHY_MIDDLE_LEVEL_SHAPPER_1TO0,
+	MTK_PHY_1st_OVERSHOOT_LEVEL_1TO0,
+	MTK_PHY_2nd_OVERSHOOT_LEVEL_1TO0,
+	MTK_PHY_MIDDLE_LEVEL_SHAPPER_0TON1, /* N means negative */
+	MTK_PHY_1st_OVERSHOOT_LEVEL_0TON1,
+	MTK_PHY_2nd_OVERSHOOT_LEVEL_0TON1,
+	MTK_PHY_MIDDLE_LEVEL_SHAPPER_N1TO0,
+	MTK_PHY_1st_OVERSHOOT_LEVEL_N1TO0,
+	MTK_PHY_2nd_OVERSHOOT_LEVEL_N1TO0,
+	MTK_PHY_TX_MLT3_END,
+};
 
 #define MTK_PHY_TXVLD_DA_RG				(0x12)
 #define   MTK_PHY_DA_TX_I2MPB_A_GBE_MASK	GENMASK(15, 10)
@@ -795,7 +802,7 @@ static int mt7531_phy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-static inline void mt798x_phy_finetune(struct phy_device *phydev)
+static inline void mt7981_phy_finetune(struct phy_device *phydev)
 {
 	/* 100M eye finetune:
 	 * Keep middle level of TX MLT3 shapper as default.
@@ -809,7 +816,7 @@ static inline void mt798x_phy_finetune(struct phy_device *phydev)
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_2nd_OVERSHOOT_LEVEL_0TON1, 0x3c0);
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_1st_OVERSHOOT_LEVEL_N1TO0, 0x13);
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_2nd_OVERSHOOT_LEVEL_N1TO0, 0x5);
-#
+
 	/* TX-AMP finetune:
 	 * 100M +4, 1000M +6 to default value.
 	 * If efuse values aren't valid, TX-AMP uses the below values.
@@ -824,10 +831,23 @@ static inline void mt798x_phy_finetune(struct phy_device *phydev)
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D2, 0x2426);
 }
 
-static int mt798x_phy_config_init(struct phy_device *phydev)
+static inline void mt7988_phy_finetune(struct phy_device *phydev)
+{
+	int i;
+	u16 val[12] = {0x0187, 0x01cd, 0x01c8, 0x0182,
+		0x020d, 0x0206, 0x0384, 0x03d0,
+		0x03c6, 0x030a, 0x0011, 0x0005};
+
+	for(i=0; i<MTK_PHY_TX_MLT3_END; i++) {
+		phy_write_mmd(phydev, MDIO_MMD_VEND1, i, val[i]);
+	}
+}
+
+static int mt798x_phy_calibration(struct phy_device *phydev)
 {
 	const char *cal_mode_from_dts;
-	int i, ret, cal_ret;
+	int i, ret;
+	int cal_ret = 0;
 	u32 *buf;
 	bool efs_valid = true;
 	size_t len;
@@ -835,8 +855,6 @@ static int mt798x_phy_config_init(struct phy_device *phydev)
 
 	if (phydev->interface != PHY_INTERFACE_MODE_GMII)
 		return -EINVAL;
-
-	mt798x_phy_finetune(phydev);
 
 	cell = nvmem_cell_get(&phydev->mdio.dev, "phy-cal-data");
 	if (IS_ERR(cell)) {
@@ -869,6 +887,25 @@ static int mt798x_phy_config_init(struct phy_device *phydev)
 out:
 	kfree(buf);
 	return ret;
+}
+
+static int mt7981_phy_config_init(struct phy_device *phydev)
+{
+	mt7981_phy_finetune(phydev);
+
+	return mt798x_phy_calibration(phydev);
+}
+
+static int mt7988_phy_config_init(struct phy_device *phydev)
+{
+	mt7988_phy_finetune(phydev);
+
+	return mt798x_phy_calibration(phydev);
+}
+
+static int mt7988_phy_probe(struct phy_device *phydev)
+{
+	return mt7988_phy_config_init(phydev);
 }
 
 static struct phy_driver mtk_gephy_driver[] = {
@@ -904,8 +941,23 @@ static struct phy_driver mtk_gephy_driver[] = {
 #endif
 	{
 		PHY_ID_MATCH_EXACT(0x03a29461),
-		.name		= "MediaTek MT798x PHY",
-		.config_init	= mt798x_phy_config_init,
+		.name		= "MediaTek MT7981 PHY",
+		.config_init	= mt7981_phy_config_init,
+		/* Interrupts are handled by the switch, not the PHY
+		 * itself.
+		 */
+		.config_intr	= genphy_no_config_intr,
+		.handle_interrupt = genphy_no_ack_interrupt,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
+		.read_page	= mtk_gephy_read_page,
+		.write_page	= mtk_gephy_write_page,
+	},
+	{
+		PHY_ID_MATCH_EXACT(0x03a29481),
+		.name		= "MediaTek MT7988 PHY",
+		.probe		= mt7988_phy_probe,
+		.config_init	= mt7988_phy_config_init,
 		/* Interrupts are handled by the switch, not the PHY
 		 * itself.
 		 */
