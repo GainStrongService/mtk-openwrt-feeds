@@ -374,8 +374,8 @@ index 48b0353..0750def 100644
 +
 +	dev->wlan.release_rx_buf(dev);
 +
-+	/* dma_free_coherent(dev->hw->dev, ring_size * sizeof(*desc),
-+			  desc, dev->buf_ring.desc_phys); */
++	dma_free_coherent(dev->hw->dev, ring_size * sizeof(*desc),
++			  desc, dev->rx_buf_ring.desc_phys);
 +}
 +
  static void
@@ -2527,7 +2527,7 @@ new file mode 100644
 index 0000000..e101f17
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_wo.c
-@@ -0,0 +1,588 @@
+@@ -0,0 +1,581 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#include <linux/kernel.h>
@@ -2615,7 +2615,7 @@ index 0000000..e101f17
 +
 +	spin_lock_bh(&q->lock);
 +
-+	while (q->queued < q->ndesc - 1) {
++	while (q->queued < q->ndesc) {
 +
 +		buf = page_frag_alloc(&q->rx_page, len, GFP_ATOMIC);
 +		if (!buf)
@@ -2954,13 +2954,6 @@ index 0000000..e101f17
 +		data = woif_q_deq(wo, q, false, &len, &info, &more);
 +		if (!data)
 +			break;
-+
-+		data_len = SKB_WITH_OVERHEAD(q->buf_size);
-+
-+		if (data_len < len) {
-+			skb_free_frag(data);
-+			continue;
-+		}
 +
 +		skb = build_skb(data, q->buf_size);
 +		if (!skb) {
