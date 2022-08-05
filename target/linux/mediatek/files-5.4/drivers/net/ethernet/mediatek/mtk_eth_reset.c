@@ -200,7 +200,6 @@ void mtk_dma_monitor(struct timer_list *t)
 	static u32 err_cnt1 = 0, err_cnt2 = 0, err_cnt3 = 0;
 	static u32 prev_wdidx = 0;
 	unsigned int mib_base = MTK_GDM1_TX_GBCNT;
-	static u32 prev_gdm2rx = 0;
 
 	/*wdma tx path*/
 	u32 cur_wdidx = mtk_r32(eth, MTK_WDMA_DTX_PTR(0));
@@ -226,9 +225,6 @@ void mtk_dma_monitor(struct timer_list *t)
 	u32 is_cdm1_busy = (mtk_r32(eth, MTK_FE_CDM1_FSM) & 0xFFFF0000) != 0;
 	u32 is_adma_busy = ((mtk_r32(eth, MTK_ADMA_RX_DBG0) & 0x1F) == 0) &&
 			   ((mtk_r32(eth, MTK_ADMA_RX_DBG0) & 0x40) == 0);
-	/*gmac2 rx path*/
-	u32 gmac2_rx = (mtk_r32(eth, MTK_MAC_FSM(1)) & 0xFF0000 != 0x10000);
-	u32 gdm2_rx_cnt =  mtk_r32(eth, mib_base+0x48);
 
 	if (cur_wdidx == prev_wdidx && is_wtx_busy &&
 	    is_oq_free && is_cdm_full) {
@@ -316,30 +312,13 @@ void mtk_dma_monitor(struct timer_list *t)
 				schedule_work(&eth->pending_work);
 			}
 		}
-	}else if ((gdm2_rx_cnt == prev_gdm2rx) && gmac2_rx) {
-		err_cnt3++;
-		if (err_cnt3 >= 3) {
-			pr_info("GMAC Rx Info\n");
-			pr_info("============== Time: %d ================\n",
-				timestamp);
-			pr_info("err_cnt3 = %d", err_cnt3);
-			pr_info("gmac2_rx = %d\n", gmac2_rx);
-			pr_info("gdm2_rx_cnt = %d\n", gdm2_rx_cnt);
-			pr_info("==============================\n");
-			if ((atomic_read(&reset_lock) == 0) &&
-			    (atomic_read(&force) == 0)){
-				atomic_inc(&force);
-				schedule_work(&eth->pending_work);
-			}
-		}
-	} else {
+	}else {
 		err_cnt1 = 0;
 		err_cnt2 = 0;
 		err_cnt3 = 0;
 	}
 
 	prev_wdidx = cur_wdidx;
-	prev_gdm2rx = gdm2_rx_cnt;
 	mod_timer(&eth->mtk_dma_monitor_timer, jiffies + 1 * HZ);
 }
 
