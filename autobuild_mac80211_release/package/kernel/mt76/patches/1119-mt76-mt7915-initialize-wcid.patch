@@ -1,26 +1,26 @@
-From ce1b7634efbf75007f431dd770ebd70e47771029 Mon Sep 17 00:00:00 2001
+From 1c4ec7f43f20ebbbe0c30100e6798ace079c3714 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Tue, 12 Jul 2022 13:56:07 +0800
-Subject: [PATCH 1119/1119] mt76 mt7915 initialize wcid
+Subject: [PATCH] mt76 mt7915 initialize wcid
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
- drivers/net/wireless/mediatek/mt76/mt7915/mac.c | 2 +-
+ mt7915/mac.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 55b38d16..0310ca74 100644
+index 5e5df23d..9674015d 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -974,7 +974,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
- 		 * 1'b0: msdu_id with the same 'wcid pair' as above.
+@@ -963,7 +963,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  		 */
  		if (info & MT_TX_FREE_PAIR) {
+ 			struct mt7915_sta *msta;
 -			struct mt76_wcid *wcid;
 +			struct mt76_wcid *wcid = NULL;
  			u16 idx;
  
  			idx = FIELD_GET(MT_TX_FREE_WLAN_ID, info);
 -- 
-2.25.1
+2.18.0
 
