@@ -247,7 +247,7 @@ const char pair[4] = {'A', 'B', 'C', 'D'};
 
 #define SW_EFUSE_CAL(cal_item, cal_mode_get, pair_mode,...)	\
 	if ((efs_valid && ret) ||				\
-	    (!ret && strcmp("efuse", cal_mode_get) == 0)) {	\
+	    (efs_valid && !ret && strcmp("efuse", cal_mode_get) == 0)) {	\
 		CAL_##pair_mode(cal_item, efuse, ##__VA_ARGS__)	\
 	} else if ((!efs_valid && ret) ||			\
 		   (!ret && strcmp("sw", cal_mode_get) == 0)) {	\
@@ -256,7 +256,7 @@ const char pair[4] = {'A', 'B', 'C', 'D'};
 
 #define EFUSE_CAL(cal_item, cal_mode_get, pair_mode, ...)	\
 	if ((efs_valid && ret) ||				\
-	    (!ret && strcmp("efuse", cal_mode_get) == 0)) {\
+	    (efs_valid && !ret && strcmp("efuse", cal_mode_get) == 0)) {\
 		CAL_##pair_mode(cal_item, efuse, ##__VA_ARGS__)	\
 	}
 
