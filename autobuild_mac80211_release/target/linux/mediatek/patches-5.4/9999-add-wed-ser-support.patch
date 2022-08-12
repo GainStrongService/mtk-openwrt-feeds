@@ -6,11 +6,11 @@ Subject: [PATCH 3/3] add wed ser support
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c  |   9 +-
- drivers/net/ethernet/mediatek/mtk_wed.c      | 343 ++++++++++++++-----
+ drivers/net/ethernet/mediatek/mtk_wed.c      | 347 ++++++++++++++-----
  drivers/net/ethernet/mediatek/mtk_wed.h      |   2 +
  drivers/net/ethernet/mediatek/mtk_wed_regs.h |  12 +
  include/linux/soc/mediatek/mtk_wed.h         |  28 +-
- 5 files changed, 295 insertions(+), 99 deletions(-)
+ 5 files changed, 297 insertions(+), 101 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 index c582bb9..5259141 100644
@@ -45,7 +45,7 @@ index c582bb9..5259141 100644
  
  	atomic_dec(&reset_lock);
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 7552795..bb6ec97 100644
+index 7552795..c98d749 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -13,8 +13,10 @@
@@ -104,9 +104,11 @@ index 7552795..bb6ec97 100644
 +	wdma_w32(dev, MTK_WDMA_RESET_IDX, 0);
  	for (i = 0; i < ARRAY_SIZE(dev->tx_wdma); i++)
 -		if (!dev->tx_wdma[i].desc) {
- 		wdma_w32(dev, MTK_WDMA_RING_TX(i) +
- 			 MTK_WED_RING_OFS_CPU_IDX, 0);
+-			wdma_w32(dev, MTK_WDMA_RING_TX(i) +
+-				 MTK_WED_RING_OFS_CPU_IDX, 0);
 -	}
++		wdma_w32(dev, MTK_WDMA_RING_TX(i) +
++			 MTK_WED_RING_OFS_CPU_IDX, 0);
  }
  
  static u32
@@ -257,8 +259,8 @@ index 7552795..bb6ec97 100644
  	return read_poll_timeout(mtk_wed_check_busy, val, !val, sleep,
 -				 timeout, false, dev);
 +				 timeout, false, dev, reg, mask);
- }
- 
++}
++
 +static void
 +mtk_wed_rx_reset(struct mtk_wed_device *dev)
 +{
@@ -358,8 +360,8 @@ index 7552795..bb6ec97 100644
 +	}
 +
 +	mtk_wed_free_rx_bm(dev);
-+}
-+
+ }
+ 
 +
  static void
  mtk_wed_reset_dma(struct mtk_wed_device *dev)
