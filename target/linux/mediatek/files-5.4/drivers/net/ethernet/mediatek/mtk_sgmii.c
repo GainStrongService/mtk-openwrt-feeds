@@ -44,6 +44,13 @@ int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, unsigned int id)
 	if (!ss->regmap[id])
 		return -EINVAL;
 
+	/* Assert PHYA power down state */
+	regmap_write(ss->regmap[id], SGMSYS_QPHY_PWR_STATE_CTRL, SGMII_PHYA_PWD);
+
+	regmap_read(ss->regmap[id], ss->ana_rgc3, &val);
+	val &= ~RG_PHY_SPEED_3_125G;
+	regmap_write(ss->regmap[id], ss->ana_rgc3, val);
+
 	/* Setup the link timer and QPHY power up inside SGMIISYS */
 	regmap_write(ss->regmap[id], SGMSYS_PCS_LINK_TIMER,
 		     SGMII_LINK_TIMER_DEFAULT);
@@ -52,8 +59,15 @@ int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, unsigned int id)
 	val |= SGMII_REMOTE_FAULT_DIS;
 	regmap_write(ss->regmap[id], SGMSYS_SGMII_MODE, val);
 
+	/* SGMII AN mode setting */
+	regmap_read(ss->regmap[id], SGMSYS_SGMII_MODE, &val);
+	val &= ~SGMII_IF_MODE_MASK;
+	val |= SGMII_SPEED_DUPLEX_AN;
+	regmap_write(ss->regmap[id], SGMSYS_SGMII_MODE, val);
+
 	regmap_read(ss->regmap[id], SGMSYS_PCS_CONTROL_1, &val);
 	val |= SGMII_AN_RESTART;
+	val |= SGMII_AN_ENABLE;
 	regmap_write(ss->regmap[id], SGMSYS_PCS_CONTROL_1, val);
 
 	if(MTK_HAS_FLAGS(ss->flags[id],MTK_SGMII_PN_SWAP))
@@ -73,6 +87,9 @@ int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, unsigned int id,
 
 	if (!ss->regmap[id])
 		return -EINVAL;
+
+	/* Assert PHYA power down state */
+	regmap_write(ss->regmap[id], SGMSYS_QPHY_PWR_STATE_CTRL, SGMII_PHYA_PWD);
 
 	regmap_read(ss->regmap[id], ss->ana_rgc3, &val);
 	val &= ~RG_PHY_SPEED_MASK;
