@@ -273,9 +273,9 @@ static int phy_operate(int argc, char *argv[])
 {
 	unsigned int port_num;
 	unsigned int dev_num;
-	unsigned int value;
+	unsigned int value, cl_value;
 	unsigned int reg;
-	int ret = 0;
+	int ret = 0, cl_ret = 0;
 	char op;
 
 	if (strncmp(argv[2], "cl22", 4) && strncmp(argv[2], "cl45", 4))
@@ -310,11 +310,21 @@ static int phy_operate(int argc, char *argv[])
 			if (argc == 7) {
 				port_num = strtoul(argv[argc-3], NULL, 0);
 				ret = mii_mgr_write(port_num, reg, value);
+				cl_ret = mii_mgr_read(port_num, reg, &cl_value);
+				if (cl_ret < 0)
+					printf(" Phy read reg fail\n");
+				else
+					printf(" Phy read reg=0x%x, value=0x%x\n", reg, cl_value);
 			}
 			else if (argc == 8) {
 				dev_num = strtoul(argv[argc-3], NULL, 0);
 				port_num = strtoul(argv[argc-4], NULL, 0);
 				ret = mii_mgr_c45_write(port_num, dev_num, reg, value);
+				cl_ret = mii_mgr_c45_read(port_num, dev_num, reg, &cl_value);
+				if (cl_ret < 0)
+					printf(" Phy read reg fail\n");
+				else
+					printf(" Phy read reg=0x%x, value=0x%x\n", reg, cl_value);
 			}
 			else
 				usage(argv[0]);
