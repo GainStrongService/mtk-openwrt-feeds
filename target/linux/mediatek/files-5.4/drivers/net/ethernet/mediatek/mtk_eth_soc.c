@@ -188,6 +188,16 @@ static int mtk_mdio_read(struct mii_bus *bus, int phy_addr, int phy_reg)
 	return _mtk_mdio_read(eth, phy_addr, phy_reg);
 }
 
+static int mtk_mdio_reset(struct mii_bus *bus)
+{
+	/* The mdiobus_register will trigger a reset pulse when enabling Bus reset,
+	 * we just need to wait until device ready.
+	 */
+	mdelay(20);
+
+	return 0;
+}
+
 static int mt7621_gmac0_rgmii_adjust(struct mtk_eth *eth,
 				     phy_interface_t interface)
 {
@@ -626,6 +636,7 @@ static int mtk_mdio_init(struct mtk_eth *eth)
 	eth->mii_bus->name = "mdio";
 	eth->mii_bus->read = mtk_mdio_read;
 	eth->mii_bus->write = mtk_mdio_write;
+	eth->mii_bus->reset = mtk_mdio_reset;
 	eth->mii_bus->priv = eth;
 	eth->mii_bus->parent = eth->dev;
 
