@@ -19,7 +19,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  mt7915/dma.c      |  25 +++--
  mt7915/init.c     |   9 ++
  mt7915/mac.c      | 103 ++++++++++++++++++-
- mt7915/main.c     |  25 ++++-
+ mt7915/main.c     |  26 ++++-
  mt7915/mcu.c      |  14 ++-
  mt7915/mcu.h      |   1 +
  mt7915/mmio.c     |  26 ++++-
@@ -29,7 +29,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  mt7921/mt7921.h   |   4 +-
  mt7921/pci_mac.c  |   4 +-
  tx.c              |  34 +++++++
- 24 files changed, 504 insertions(+), 81 deletions(-)
+ 24 files changed, 505 insertions(+), 81 deletions(-)
 
 diff --git a/dma.c b/dma.c
 index 03ee9109..4d4d4046 100644
@@ -1016,7 +1016,7 @@ index 2e721cd0..9c808ff4 100644
 +	bool wed_wds = false;
  
 -	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
-+	if (mtk_wed_device_active(&mdev->mmio.wed))
++	if (mtk_wed_device_active(&mdev->mmio.wed) && is_mt7986(mdev))
 +		wed_wds = !!test_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
 +
 +	if (wed_wds)
@@ -1026,11 +1026,12 @@ index 2e721cd0..9c808ff4 100644
  	if (idx < 0)
  		return -ENOSPC;
  
-@@ -1107,6 +1114,13 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
+@@ -1107,6 +1114,14 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
  	else
  		clear_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
  
 +	if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
++	    is_mt7986(&dev->mt76) &&
 +	    (msta->wcid.idx < MT7915_WTBL_WDS_START ||
 +	     msta->wcid.idx > MT7915_WTBL_WDS_END)) {
 +		mt7915_sta_remove(hw, vif, sta);
@@ -1040,7 +1041,7 @@ index 2e721cd0..9c808ff4 100644
  	mt76_connac_mcu_wtbl_update_hdr_trans(&dev->mt76, vif, sta);
  }
  
-@@ -1449,9 +1463,12 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1449,9 +1464,12 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	/* fw will find the wcid by dest addr */
  	if(is_mt7915(&dev->mt76))
  		path->mtk_wdma.wcid = 0xff;
