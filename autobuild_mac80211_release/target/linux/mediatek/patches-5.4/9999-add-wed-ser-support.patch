@@ -703,10 +703,12 @@ diff --git a/include/linux/soc/mediatek/mtk_wed.h b/include/linux/soc/mediatek/m
 index 9a9cc1b..31f4a26 100644
 --- a/include/linux/soc/mediatek/mtk_wed.h
 +++ b/include/linux/soc/mediatek/mtk_wed.h
-@@ -114,23 +114,27 @@ struct mtk_wed_device {
+@@ -114,25 +114,29 @@ struct mtk_wed_device {
  		u32 (*init_rx_buf)(struct mtk_wed_device *wed,
  				   int pkt_num);
  		void (*release_rx_buf)(struct mtk_wed_device *wed);
+ 		void (*update_wo_rxcnt)(struct  mtk_wed_device *wed,
+ 				struct wo_cmd_rxcnt_t *rxcnt);
 +		void (*ser_trigger)(struct mtk_wed_device *wed);
  	} wlan;
 +	struct completion fe_reset_done;

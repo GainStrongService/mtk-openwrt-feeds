@@ -1,4 +1,4 @@
-From bc8244ada5c668374813f7f9b73d990bf2695aaf Mon Sep 17 00:00:00 2001
+From 7c81104d65728fb1c0f156c46e3cfc5dec24b119 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Wed, 15 Jun 2022 14:38:54 +0800
 Subject: [PATCH 8/8] 9997-add-wed-rx-support-for-mt7896
@@ -13,13 +13,13 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_wed_ccif.c  | 133 ++++
  drivers/net/ethernet/mediatek/mtk_wed_ccif.h  |  45 ++
  .../net/ethernet/mediatek/mtk_wed_debugfs.c   |  90 +++
- drivers/net/ethernet/mediatek/mtk_wed_mcu.c   | 561 ++++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_wed_mcu.c   | 586 ++++++++++++++++
  drivers/net/ethernet/mediatek/mtk_wed_mcu.h   | 125 ++++
  drivers/net/ethernet/mediatek/mtk_wed_regs.h  | 145 +++-
- drivers/net/ethernet/mediatek/mtk_wed_wo.c    | 588 ++++++++++++++++
- drivers/net/ethernet/mediatek/mtk_wed_wo.h    | 336 ++++++++++
- include/linux/soc/mediatek/mtk_wed.h          |  64 +-
- 14 files changed, 2643 insertions(+), 69 deletions(-)
+ drivers/net/ethernet/mediatek/mtk_wed_wo.c    | 581 ++++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_wed_wo.h    | 327 +++++++++
+ include/linux/soc/mediatek/mtk_wed.h          |  75 ++-
+ 14 files changed, 2796 insertions(+), 75 deletions(-)
  create mode 100644 drivers/net/ethernet/mediatek/mtk_wed_ccif.c
  create mode 100644 drivers/net/ethernet/mediatek/mtk_wed_ccif.h
  create mode 100644 drivers/net/ethernet/mediatek/mtk_wed_mcu.c
@@ -28,7 +28,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  create mode 100644 drivers/net/ethernet/mediatek/mtk_wed_wo.h
 
 diff --git a/arch/arm64/boot/dts/mediatek/mt7986a.dtsi b/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
-index 644255b35..ddcc0b809 100644
+index 87d2b11a9..6abc06db8 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
 @@ -65,6 +65,12 @@
@@ -170,7 +170,7 @@ index 67bf86f6a..6710b388b 100644
  		resets = <&ethsysrst 0>;
  		reset-names = "wocpu_rst";
 diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
-index 3528f1b..0c724a5 100644
+index 3528f1b3c..0c724a55c 100644
 --- a/drivers/net/ethernet/mediatek/Makefile
 +++ b/drivers/net/ethernet/mediatek/Makefile
 @@ -10,5 +10,5 @@ mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed.o
@@ -181,7 +181,7 @@ index 3528f1b..0c724a5 100644
 +obj-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_ops.o mtk_wed_wo.o mtk_wed_mcu.o mtk_wed_ccif.o
  obj-$(CONFIG_NET_MEDIATEK_HNAT)			+= mtk_hnat/
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 48b0353..0750def 100644
+index 48b0353bb..75527956b 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -13,11 +13,19 @@
@@ -338,7 +338,7 @@ index 48b0353..0750def 100644
  	for (i = 0, page_idx = 0; i < dev->buf_ring.size; i += MTK_WED_BUF_PER_PAGE) {
  		void *page = page_list[page_idx++];
  
-@@ -205,6 +316,42 @@ free_pagelist:
+@@ -205,6 +316,42 @@ mtk_wed_free_buffer(struct mtk_wed_device *dev)
  	kfree(page_list);
  }
  
@@ -1128,7 +1128,7 @@ index 48b0353..0750def 100644
  
  	mtk_wed_hw_add_debugfs(hw);
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.h b/drivers/net/ethernet/mediatek/mtk_wed.h
-index 9b17b74..8ef5253 100644
+index 9b17b7405..8ef5253ca 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.h
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.h
 @@ -13,6 +13,7 @@
@@ -1232,7 +1232,7 @@ index 9b17b74..8ef5253 100644
  #endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_ccif.c b/drivers/net/ethernet/mediatek/mtk_wed_ccif.c
 new file mode 100644
-index 0000000..22ef337
+index 000000000..22ef337d0
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_ccif.c
 @@ -0,0 +1,133 @@
@@ -1371,7 +1371,7 @@ index 0000000..22ef337
 +}
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_ccif.h b/drivers/net/ethernet/mediatek/mtk_wed_ccif.h
 new file mode 100644
-index 0000000..68ade44
+index 000000000..68ade449c
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_ccif.h
 @@ -0,0 +1,45 @@
@@ -1421,7 +1421,7 @@ index 0000000..68ade44
 +
 +#endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c b/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
-index f420f18..4a9e684 100644
+index f420f187e..4a9e684ed 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
 @@ -2,6 +2,7 @@
@@ -1563,10 +1563,10 @@ index f420f18..4a9e684 100644
  }
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_mcu.c b/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
 new file mode 100644
-index 0000000..bd1ab95
+index 000000000..723bdfd55
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
-@@ -0,0 +1,561 @@
+@@ -0,0 +1,586 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#include <linux/skbuff.h>
@@ -1744,8 +1744,10 @@ index 0000000..bd1ab95
 +void
 +mtk_wed_mcu_rx_unsolicited_event(struct mtk_wed_wo *wo, struct sk_buff *skb)
 +{
++	struct mtk_wed_device *wed = wo->hw->wed_dev;
 +	struct wed_cmd_hdr *hdr = (struct wed_cmd_hdr *)skb->data;
 +	struct wed_wo_log *record;
++	struct wo_cmd_rxcnt_t *rxcnt;
 +	char *msg = (char *)(skb->data + sizeof(struct wed_cmd_hdr));
 +	u16 msg_len = skb->len - sizeof(struct wed_cmd_hdr);
 +	u32 i, cnt = 0;
@@ -1771,7 +1773,14 @@ index 0000000..bd1ab95
 +				 record[i].mod);
 +		}
 +		break;
++	case WO_EVT_RXCNT_INFO:
++		cnt = *(u32 *)msg;
++		rxcnt = (struct wo_cmd_rxcnt_t *)((u32 *)msg+1);
 +
++		for (i = 0; i < cnt; i++)
++			if (wed->wlan.update_wo_rxcnt)
++				wed->wlan.update_wo_rxcnt(wed, rxcnt);
++		break;
 +	default:
 +		break;
 +	}
@@ -1942,7 +1951,10 @@ index 0000000..bd1ab95
 +wo_mcu_parse_response(struct mtk_wed_wo *wo, int cmd,
 +			  struct sk_buff *skb, int seq)
 +{
++	struct mtk_wed_device *wed = wo->hw->wed_dev;
 +	struct wed_cmd_hdr  *hdr;
++	struct wo_cmd_rxcnt_t *rxcnt = NULL;
++	u32 i, cnt = 0;
 +
 +	if (!skb) {
 +		dev_err(wo->hw->dev, "Message %08x (seq %d) timeout\n",
@@ -1957,7 +1969,20 @@ index 0000000..bd1ab95
 +		return -EAGAIN;
 +	}
 +
-+	//skb_pull(skb, sizeof(struct wed_cmd_hdr));
++	skb_pull(skb, sizeof(struct wed_cmd_hdr));
++
++	switch (cmd) {
++	case WO_CMD_RXCNT_INFO:
++		cnt = *(u32 *)skb->data;
++		rxcnt = (struct wo_cmd_rxcnt_t *)((u32 *)skb->data+1);
++
++		for (i = 0; i < cnt; i++)
++			if (wed->wlan.update_wo_rxcnt)
++				wed->wlan.update_wo_rxcnt(wed, rxcnt);
++		break;
++	default:
++		break;
++	}
 +
 +	return 0;
 +}
@@ -2130,7 +2155,7 @@ index 0000000..bd1ab95
 +
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_mcu.h b/drivers/net/ethernet/mediatek/mtk_wed_mcu.h
 new file mode 100644
-index 0000000..6a5ac76
+index 000000000..6a5ac7672
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_mcu.h
 @@ -0,0 +1,125 @@
@@ -2260,7 +2285,7 @@ index 0000000..6a5ac76
 +
 +#endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_regs.h b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
-index e107de7..9d021e2 100644
+index e107de7ba..9d021e2da 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_regs.h
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
 @@ -4,6 +4,8 @@
@@ -2524,7 +2549,7 @@ index e107de7..9d021e2 100644
  #endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_wo.c b/drivers/net/ethernet/mediatek/mtk_wed_wo.c
 new file mode 100644
-index 0000000..e101f17
+index 000000000..67dcffb26
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_wo.c
 @@ -0,0 +1,581 @@
@@ -3111,10 +3136,10 @@ index 0000000..e101f17
 +}
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_wo.h b/drivers/net/ethernet/mediatek/mtk_wed_wo.h
 new file mode 100644
-index 0000000..d962e3a
+index 000000000..d962e3a33
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_wo.h
-@@ -0,0 +1,336 @@
+@@ -0,0 +1,327 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/* Copyright (C) 2021 Felix Fietkau <nbd@nbd.name> */
 +
@@ -3257,15 +3282,6 @@ index 0000000..d962e3a
 +	bool skip_buf0:1;
 +	bool skip_buf1:1;
 +	bool done:1;
-+};
-+
-+struct wo_cmd_rxcnt_t {
-+	u16 wlan_idx;
-+	u16 tid;
-+	u32 rx_pkt_cnt;
-+	u32 rx_byte_cnt;
-+	u32 rx_err_cnt;
-+	u32 rx_drop_cnt;
 +};
 +
 +struct wo_cmd_query {
@@ -3452,7 +3468,7 @@ index 0000000..d962e3a
 +#endif
 +
 diff --git a/include/linux/soc/mediatek/mtk_wed.h b/include/linux/soc/mediatek/mtk_wed.h
-index ffd547a..9a9cc1b 100644
+index ffd547a4c..c74dd4aad 100644
 --- a/include/linux/soc/mediatek/mtk_wed.h
 +++ b/include/linux/soc/mediatek/mtk_wed.h
 @@ -7,6 +7,9 @@
@@ -3465,7 +3481,7 @@ index ffd547a..9a9cc1b 100644
  
  enum {
  	MTK_NO_WED,
-@@ -33,6 +36,24 @@ struct mtk_wed_ring {
+@@ -33,6 +36,33 @@ struct mtk_wed_ring {
  	void __iomem *wpdma;
  };
  
@@ -3487,10 +3503,19 @@ index ffd547a..9a9cc1b 100644
 +	dma_addr_t desc_phys;
 +};
 +
++struct wo_cmd_rxcnt_t {
++	u16 wlan_idx;
++	u16 tid;
++	u32 rx_pkt_cnt;
++	u32 rx_byte_cnt;
++	u32 rx_err_cnt;
++	u32 rx_drop_cnt;
++};
++
  struct mtk_wed_device {
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
  	const struct mtk_wed_ops *ops;
-@@ -42,39 +63,57 @@ struct mtk_wed_device {
+@@ -42,39 +63,59 @@ struct mtk_wed_device {
  	int wdma_idx;
  	int irq;
  	u8 ver;
@@ -3550,10 +3575,12 @@ index ffd547a..9a9cc1b 100644
 +		u32 (*init_rx_buf)(struct mtk_wed_device *wed,
 +				   int pkt_num);
 +		void (*release_rx_buf)(struct mtk_wed_device *wed);
++		void (*update_wo_rxcnt)(struct  mtk_wed_device *wed,
++				struct wo_cmd_rxcnt_t *rxcnt);
  	} wlan;
  #endif
  };
-@@ -85,6 +124,10 @@ struct mtk_wed_ops {
+@@ -85,6 +126,10 @@ struct mtk_wed_ops {
  			     void __iomem *regs);
  	int (*txfree_ring_setup)(struct mtk_wed_device *dev,
  				 void __iomem *regs);
@@ -3564,7 +3591,7 @@ index ffd547a..9a9cc1b 100644
  	void (*detach)(struct mtk_wed_device *dev);
  
  	void (*stop)(struct mtk_wed_device *dev);
-@@ -96,6 +139,8 @@ struct mtk_wed_ops {
+@@ -96,6 +141,8 @@ struct mtk_wed_ops {
  
  	u32 (*irq_get)(struct mtk_wed_device *dev, u32 mask);
  	void (*irq_set_mask)(struct mtk_wed_device *dev, u32 mask);
@@ -3573,7 +3600,7 @@ index ffd547a..9a9cc1b 100644
  };
  
  extern const struct mtk_wed_ops __rcu *mtk_soc_wed_ops;
-@@ -128,6 +173,10 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
+@@ -128,6 +175,10 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
  	(_dev)->ops->tx_ring_setup(_dev, _ring, _regs)
  #define mtk_wed_device_txfree_ring_setup(_dev, _regs) \
  	(_dev)->ops->txfree_ring_setup(_dev, _regs)
@@ -3584,7 +3611,7 @@ index ffd547a..9a9cc1b 100644
  #define mtk_wed_device_reg_read(_dev, _reg) \
  	(_dev)->ops->reg_read(_dev, _reg)
  #define mtk_wed_device_reg_write(_dev, _reg, _val) \
-@@ -136,6 +185,8 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
+@@ -136,6 +187,8 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
  	(_dev)->ops->irq_get(_dev, _mask)
  #define mtk_wed_device_irq_set_mask(_dev, _mask) \
  	(_dev)->ops->irq_set_mask(_dev, _mask)
@@ -3593,7 +3620,7 @@ index ffd547a..9a9cc1b 100644
  #else
  static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
  {
-@@ -145,10 +196,13 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
+@@ -145,10 +198,13 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
  #define mtk_wed_device_start(_dev, _mask) do {} while (0)
  #define mtk_wed_device_tx_ring_setup(_dev, _ring, _regs) -ENODEV
  #define mtk_wed_device_txfree_ring_setup(_dev, _ring, _regs) -ENODEV
@@ -3608,5 +3635,5 @@ index ffd547a..9a9cc1b 100644
  
  #endif
 -- 
-2.18.0
+2.32.0
 
