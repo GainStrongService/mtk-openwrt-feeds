@@ -1571,7 +1571,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 	if (IS_HQOS_MODE || skb->mark >= MAX_PPPQ_PORT_NUM)
 		qid = skb->mark & (MTK_QDMA_TX_MASK);
-	else if (IS_PPPQ_MODE && (IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev)))
+	else if (IS_PPPQ_MODE && (IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev) ||
+		 (FROM_WED(skb) && IS_DSA_LAN(dev))))
 		qid = port_id & MTK_QDMA_TX_MASK;
 	else
 		qid = 0;
@@ -1607,7 +1608,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			else
 				entry.ipv4_hnapt.iblk2.fqos =
 					(!IS_PPPQ_MODE || (IS_PPPQ_MODE &&
-					 (IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev))));
+					 (IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev) ||
+					 (FROM_WED(skb) && IS_DSA_LAN(dev)))));
 		} else {
 			entry.ipv4_hnapt.iblk2.fqos = 0;
 		}
@@ -1641,7 +1643,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			else
 				entry.ipv6_5t_route.iblk2.fqos =
 					(!IS_PPPQ_MODE || (IS_PPPQ_MODE &&
-					 (IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev))));
+					 (IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev) ||
+					 (FROM_WED(skb) && IS_DSA_LAN(dev)))));
 		} else {
 			entry.ipv6_5t_route.iblk2.fqos = 0;
 		}
