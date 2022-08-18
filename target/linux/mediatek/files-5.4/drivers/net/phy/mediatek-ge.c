@@ -725,6 +725,11 @@ static int tx_vcm_cal_sw(struct phy_device *phydev, phy_cal_pair_t rg_txreserve_
 	ret = upper_ret-lower_ret;
 	if (ret == 1) {
 		ret = 0;
+		/* Make sure we use upper_idx in our calibration system */
+		cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RXADC_CTRL_RG9,
+			MTK_PHY_DA_RX_PSBN_TBT_MASK | MTK_PHY_DA_RX_PSBN_HBT_MASK |
+			MTK_PHY_DA_RX_PSBN_GBE_MASK | MTK_PHY_DA_RX_PSBN_LP_MASK,
+			upper_idx << 12 | upper_idx << 8 | upper_idx << 4 | upper_idx);
 		dev_info(&phydev->mdio.dev, "TX-VCM SW cal result: 0x%x\n", upper_idx);
 	} else if (lower_idx == TXRESERVE_MIN && upper_ret == 1 && lower_ret == 1) {
 		ret = 0;
