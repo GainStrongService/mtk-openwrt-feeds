@@ -21,7 +21,7 @@
 #define MTK_PHY_PAGE_EXTENDED_52B5	0x52b5
 
 /* Registers on MDIO_MMD_VEND1 */
-typedef enum {
+enum {
 	MTK_PHY_MIDDLE_LEVEL_SHAPPER_0TO1 = 0,
 	MTK_PHY_1st_OVERSHOOT_LEVEL_0TO1,
 	MTK_PHY_2nd_OVERSHOOT_LEVEL_0TO1,
@@ -448,44 +448,67 @@ static int tx_offset_cal_efuse(struct phy_device *phydev, u32 *buf)
 
 static int tx_amp_fill_result(struct phy_device *phydev, u16 *buf)
 {
-	/* We add some calibration to efuse values:
-	 * GBE: +7, TBT: +1, HBT: +4, TST: +7
-	 */
+	int bias[16] = {0};
+	switch(phydev->drv->phy_id) {
+		case 0x03a29461:
+		{
+			/* We add some calibration to efuse values:
+			 * GBE: +7, TBT: +1, HBT: +4, TST: +7
+			 */
+			int tmp[16] = { 7, 1, 4, 7,
+					7, 1, 4, 7,
+					7, 1, 4, 7,
+					7, 1, 4, 7 };
+			memcpy(bias, (const void *)tmp, sizeof(bias));
+			break;
+		}
+		case 0x03a29481:
+		{
+			int tmp[16] = { 10, 6, 6, 10,
+					10, 6, 6, 10,
+					10, 6, 6, 10,
+					10, 6, 6, 10 };
+			memcpy(bias, (const void *)tmp, sizeof(bias));
+			break;
+		}
+		default:
+			break;
+	}
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TXVLD_DA_RG,
-		       MTK_PHY_DA_TX_I2MPB_A_GBE_MASK, (buf[0] + 7) << 10);
+		       MTK_PHY_DA_TX_I2MPB_A_GBE_MASK, (buf[0] + bias[0]) << 10);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TXVLD_DA_RG,
-		       MTK_PHY_DA_TX_I2MPB_A_TBT_MASK, buf[0] + 1);
+		       MTK_PHY_DA_TX_I2MPB_A_TBT_MASK, buf[0] + bias[1]);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_A2,
-		       MTK_PHY_DA_TX_I2MPB_A_HBT_MASK, (buf[0] + 4) << 10);
+		       MTK_PHY_DA_TX_I2MPB_A_HBT_MASK, (buf[0] + bias[2]) << 10);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_A2,
-		       MTK_PHY_DA_TX_I2MPB_A_TST_MASK, buf[0] + 7);
+		       MTK_PHY_DA_TX_I2MPB_A_TST_MASK, buf[0] + bias[3]);
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B1,
-		       MTK_PHY_DA_TX_I2MPB_B_GBE_MASK, (buf[1] + 7) << 8);
+		       MTK_PHY_DA_TX_I2MPB_B_GBE_MASK, (buf[1] + bias[4]) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B1,
-		       MTK_PHY_DA_TX_I2MPB_B_TBT_MASK, buf[1] + 1);
+		       MTK_PHY_DA_TX_I2MPB_B_TBT_MASK, buf[1] + bias[5]);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B2,
-		       MTK_PHY_DA_TX_I2MPB_B_HBT_MASK, (buf[1] + 4 ) << 8);
+		       MTK_PHY_DA_TX_I2MPB_B_HBT_MASK, (buf[1] + bias[6]) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B2,
-		       MTK_PHY_DA_TX_I2MPB_B_TST_MASK, buf[1] + 7);
+		       MTK_PHY_DA_TX_I2MPB_B_TST_MASK, buf[1] + bias[7]);
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C1,
-		       MTK_PHY_DA_TX_I2MPB_C_GBE_MASK, (buf[2] + 7) << 8);
+		       MTK_PHY_DA_TX_I2MPB_C_GBE_MASK, (buf[2] + bias[8]) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C1,
-		       MTK_PHY_DA_TX_I2MPB_C_TBT_MASK, buf[2] + 1);
+		       MTK_PHY_DA_TX_I2MPB_C_TBT_MASK, buf[2] + bias[9]);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C2,
-		       MTK_PHY_DA_TX_I2MPB_C_HBT_MASK, (buf[2] + 4) << 8);
+		       MTK_PHY_DA_TX_I2MPB_C_HBT_MASK, (buf[2] + bias[10]) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C2,
-		       MTK_PHY_DA_TX_I2MPB_C_TST_MASK, buf[2] + 7);
+		       MTK_PHY_DA_TX_I2MPB_C_TST_MASK, buf[2] + bias[11]);
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D1,
-		       MTK_PHY_DA_TX_I2MPB_D_GBE_MASK, (buf[3] + 7) << 8);
+		       MTK_PHY_DA_TX_I2MPB_D_GBE_MASK, (buf[3] + bias[12]) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D1,
-		       MTK_PHY_DA_TX_I2MPB_D_TBT_MASK, buf[3] + 1);
+		       MTK_PHY_DA_TX_I2MPB_D_TBT_MASK, buf[3] + bias[13]);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D2,
-		       MTK_PHY_DA_TX_I2MPB_D_HBT_MASK, (buf[3] + 4) << 8);
+		       MTK_PHY_DA_TX_I2MPB_D_HBT_MASK, (buf[3] + bias[14]) << 8);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D2,
-		       MTK_PHY_DA_TX_I2MPB_D_TST_MASK, buf[3] + 7);
+		       MTK_PHY_DA_TX_I2MPB_D_TST_MASK, buf[3] + bias[15]);
 
 	return 0;
 }
@@ -506,30 +529,43 @@ static int tx_amp_cal_efuse(struct phy_device *phydev, u32 *buf)
 static int tx_r50_fill_result(struct phy_device *phydev, u16 *buf,
 			      phy_cal_pair_t txg_calen_x)
 {
+	int bias[4] = {0};
+	switch(phydev->drv->phy_id) {
+		case 0x03a29481:
+		{
+			int tmp[16] = { 1, 1, 1, 1 };
+			memcpy(bias, (const void *)tmp, sizeof(bias));
+			break;
+		}
+		/* 0x03a29461 enters default case */
+		default:
+			break;
+	}
+
 	switch(txg_calen_x) {
 		case PAIR_A:
 			phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG53D,
-				       MTK_PHY_DA_TX_R50_A_NORMAL_MASK, buf[0] << 8);
+				       MTK_PHY_DA_TX_R50_A_NORMAL_MASK, (buf[0] + bias[0]) << 8);
 			phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG53D,
-				       MTK_PHY_DA_TX_R50_A_TBT_MASK, buf[0]);
+				       MTK_PHY_DA_TX_R50_A_TBT_MASK, (buf[0]) + bias[0]);
 			break;
 		case PAIR_B:
 			phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG53E,
-				       MTK_PHY_DA_TX_R50_B_NORMAL_MASK, buf[0] << 8);
+				       MTK_PHY_DA_TX_R50_B_NORMAL_MASK, (buf[0] + bias[1])<< 8);
 			phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG53E,
-				       MTK_PHY_DA_TX_R50_B_TBT_MASK, buf[0]);
+				       MTK_PHY_DA_TX_R50_B_TBT_MASK, (buf[0] + bias[1]));
 			break;
 		case PAIR_C:
 			phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG53F,
-				       MTK_PHY_DA_TX_R50_C_NORMAL_MASK, buf[0] << 8);
+				       MTK_PHY_DA_TX_R50_C_NORMAL_MASK, (buf[0] + bias[2])<< 8);
 			phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG53F,
-				       MTK_PHY_DA_TX_R50_C_TBT_MASK, buf[0]);
+				       MTK_PHY_DA_TX_R50_C_TBT_MASK, (buf[0] + bias[2]));
 			break;
 		case PAIR_D:
 			phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG540,
-				       MTK_PHY_DA_TX_R50_D_NORMAL_MASK, buf[0] << 8);
+				       MTK_PHY_DA_TX_R50_D_NORMAL_MASK, (buf[0] + bias[3])<< 8);
 			phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG540,
-				       MTK_PHY_DA_TX_R50_D_TBT_MASK, buf[0]);
+				       MTK_PHY_DA_TX_R50_D_TBT_MASK, (buf[0] + bias[3]));
 			break;
 	}
 	return 0;
