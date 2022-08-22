@@ -212,13 +212,17 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/medi
 index a76f4b0ac..21cc55145 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -8,6 +8,8 @@
+@@ -8,10 +8,12 @@
  #include <linux/bitfield.h>
  #include <linux/rhashtable.h>
  
+ #if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +#define MTK_MAX_PPE_NUM			2
-+
  #define MTK_ETH_PPE_BASE		0x2000
+ #else
++#define MTK_MAX_PPE_NUM			1
+ #define MTK_ETH_PPE_BASE		0xc00
+ #endif
  
  #define MTK_PPE_ENTRIES_SHIFT		3
 @@ -253,6 +255,7 @@ struct mtk_flow_entry {
@@ -354,11 +358,12 @@ index 5a4201447..2f7d76d3b
  	} else {
  		return -EOPNOTSUPP;
  	}
-@@ -435,11 +441,25 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -435,11 +441,27 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	if (!entry)
  		return -ENOMEM;
  
 +	i = 0;
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +	if (idev && idev->netdev_ops->ndo_fill_receive_path) {
 +		ctx.dev = idev;
 +		idev->netdev_ops->ndo_fill_receive_path(&ctx, &path);
@@ -370,6 +375,7 @@ index 5a4201447..2f7d76d3b
 +			return -EINVAL;
 +		}
 +	}
++#endif
 +
  	entry->cookie = f->cookie;
  	memcpy(&entry->data, &foe, sizeof(entry->data));

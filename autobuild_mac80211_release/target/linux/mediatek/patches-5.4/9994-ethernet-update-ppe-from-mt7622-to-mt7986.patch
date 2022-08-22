@@ -98,41 +98,50 @@ index 3d75c22be..d46e91178 100755
  	hash &= MTK_PPE_ENTRIES - 1;
  
  	return hash;
-@@ -171,8 +171,7 @@ int mtk_foe_entry_prepare(struct mtk_foe_entry *entry, int type, int l4proto,
+@@ -171,8 +171,12 @@ int mtk_foe_entry_prepare(struct mtk_foe_entry *entry, int type, int l4proto,
  	      MTK_FOE_IB1_BIND_CACHE;
  	entry->ib1 = val;
- 
--	val = FIELD_PREP(MTK_FOE_IB2_PORT_MG, 0x3f) |
--	      FIELD_PREP(MTK_FOE_IB2_PORT_AG, 0x1f) |
+
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +	val = FIELD_PREP(MTK_FOE_IB2_PORT_AG, 0xf) |
++#else
+ 	val = FIELD_PREP(MTK_FOE_IB2_PORT_MG, 0x3f) |
+ 	      FIELD_PREP(MTK_FOE_IB2_PORT_AG, 0x1f) |
++#endif
  	      FIELD_PREP(MTK_FOE_IB2_DEST_PORT, pse_port);
  
  	if (is_multicast_ether_addr(dest_mac))
-@@ -359,12 +358,10 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
+@@ -359,12 +358,19 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
  
  	*ib2 &= ~MTK_FOE_IB2_PORT_MG;
  	*ib2 |= MTK_FOE_IB2_WDMA_WINFO;
--	if (wdma_idx)
--		*ib2 |= MTK_FOE_IB2_WDMA_DEVIDX;
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +	*ib2 |=  FIELD_PREP(MTK_FOE_IB2_RX_IDX, txq);
- 
--	l2->vlan2 = FIELD_PREP(MTK_FOE_VLAN2_WINFO_BSS, bss) |
--		    FIELD_PREP(MTK_FOE_VLAN2_WINFO_WCID, wcid) |
--		    FIELD_PREP(MTK_FOE_VLAN2_WINFO_RING, txq);
++
 +	l2->winfo = FIELD_PREP(MTK_FOE_WINFO_WCID, wcid) |
 +		    FIELD_PREP(MTK_FOE_WINFO_BSS, bss);
++#else
+ 	if (wdma_idx)
+ 		*ib2 |= MTK_FOE_IB2_WDMA_DEVIDX;
+ 
+ 	l2->vlan2 = FIELD_PREP(MTK_FOE_VLAN2_WINFO_BSS, bss) |
+ 		    FIELD_PREP(MTK_FOE_VLAN2_WINFO_WCID, wcid) |
+ 		    FIELD_PREP(MTK_FOE_VLAN2_WINFO_RING, txq);
++#endif
  
  	return 0;
  }
-@@ -741,6 +738,7 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
+@@ -741,6 +738,9 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
  	      MTK_PPE_TB_CFG_AGE_TCP |
  	      MTK_PPE_TB_CFG_AGE_UDP |
  	      MTK_PPE_TB_CFG_AGE_TCP_FIN |
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +	      MTK_PPE_TB_CFG_INFO_SEL |
++#endif
  	      FIELD_PREP(MTK_PPE_TB_CFG_SEARCH_MISS,
  			 MTK_PPE_SEARCH_MISS_ACTION_FORWARD_BUILD) |
  	      FIELD_PREP(MTK_PPE_TB_CFG_KEEPALIVE,
-@@ -757,7 +755,9 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
+@@ -757,7 +755,8 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
  
  	mtk_ppe_cache_enable(ppe, true);
  
@@ -140,7 +149,7 @@ index 3d75c22be..d46e91178 100755
 +	val = MTK_PPE_MD_TOAP_BYP_CRSN0 |
 +	      MTK_PPE_MD_TOAP_BYP_CRSN1 |
 +	      MTK_PPE_MD_TOAP_BYP_CRSN2 |
- 	      MTK_PPE_FLOW_CFG_IP4_UDP_FRAG |
+-	      MTK_PPE_FLOW_CFG_IP4_UDP_FRAG |
  	      MTK_PPE_FLOW_CFG_IP6_3T_ROUTE |
  	      MTK_PPE_FLOW_CFG_IP6_5T_ROUTE |
 @@ -765,7 +765,8 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
@@ -148,17 +157,19 @@ index 3d75c22be..d46e91178 100755
  	      MTK_PPE_FLOW_CFG_IP4_NAPT |
  	      MTK_PPE_FLOW_CFG_IP4_DSLITE |
 -	      MTK_PPE_FLOW_CFG_IP4_NAT_FRAG;
-+	      MTK_PPE_FLOW_CFG_IP4_HASH_GRE_KEY |
-+	      MTK_PPE_FLOW_CFG_IP4_NAT_FRAG ;
++	      MTK_PPE_FLOW_CFG_IP4_NAT_FRAG |
++	      MTK_PPE_FLOW_CFG_IP4_HASH_GRE_KEY;
  	ppe_w32(ppe, MTK_PPE_FLOW_CFG, val);
  
  	val = FIELD_PREP(MTK_PPE_UNBIND_AGE_MIN_PACKETS, 1000) |
-@@ -800,6 +801,9 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
+@@ -800,6 +801,11 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
  
  	ppe_w32(ppe, MTK_PPE_DEFAULT_CPU_PORT, 0);
- 
+
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +	ppe_w32(ppe, MTK_PPE_DEFAULT_CPU_PORT1, 0xcb777);
 +	ppe_w32(ppe, MTK_PPE_SBW_CTRL, 0x7f);
++#endif
 +
  	return 0;
  }
@@ -167,33 +178,23 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/medi
 index 1f5cf1c9a..a76f4b0ac 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -8,7 +8,7 @@
+@@ -8,7 +8,11 @@
  #include <linux/bitfield.h>
  #include <linux/rhashtable.h>
- 
--#define MTK_ETH_PPE_BASE		0xc00
+
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +#define MTK_ETH_PPE_BASE		0x2000
++#else
+ #define MTK_ETH_PPE_BASE		0xc00
++#endif
  
  #define MTK_PPE_ENTRIES_SHIFT		3
  #define MTK_PPE_ENTRIES			(1024 << MTK_PPE_ENTRIES_SHIFT)
-@@ -16,20 +16,23 @@
+@@ -16,20 +16,40 @@
  #define MTK_PPE_WAIT_TIMEOUT_US		1000000
  
  #define MTK_FOE_IB1_UNBIND_TIMESTAMP	GENMASK(7, 0)
--#define MTK_FOE_IB1_UNBIND_PACKETS	GENMASK(23, 8)
--#define MTK_FOE_IB1_UNBIND_PREBIND	BIT(24)
--
--#define MTK_FOE_IB1_BIND_TIMESTAMP	GENMASK(14, 0)
--#define MTK_FOE_IB1_BIND_KEEPALIVE	BIT(15)
--#define MTK_FOE_IB1_BIND_VLAN_LAYER	GENMASK(18, 16)
--#define MTK_FOE_IB1_BIND_PPPOE		BIT(19)
--#define MTK_FOE_IB1_BIND_VLAN_TAG	BIT(20)
--#define MTK_FOE_IB1_BIND_PKT_SAMPLE	BIT(21)
--#define MTK_FOE_IB1_BIND_CACHE		BIT(22)
--#define MTK_FOE_IB1_BIND_TUNNEL_DECAP	BIT(23)
--#define MTK_FOE_IB1_BIND_TTL		BIT(24)
--
--#define MTK_FOE_IB1_PACKET_TYPE		GENMASK(27, 25)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +#define MTK_FOE_IB1_UNBIND_SRC_PORT	GENMASK(11, 8)
 +#define MTK_FOE_IB1_UNBIND_PACKETS	GENMASK(19, 12)
 +#define MTK_FOE_IB1_UNBIND_PREBIND	BIT(22)
@@ -210,27 +211,31 @@ index 1f5cf1c9a..a76f4b0ac 100644
 +#define MTK_FOE_IB1_BIND_TUNNEL_DECAP	BIT(21)
 +#define MTK_FOE_IB1_BIND_TTL		BIT(22)
 +#define MTK_FOE_IB1_PACKET_TYPE		GENMASK(27, 23)
++#else
+ #define MTK_FOE_IB1_UNBIND_PACKETS	GENMASK(23, 8)
+ #define MTK_FOE_IB1_UNBIND_PREBIND	BIT(24)
+ 
+ #define MTK_FOE_IB1_BIND_TIMESTAMP	GENMASK(14, 0)
+ #define MTK_FOE_IB1_BIND_KEEPALIVE	BIT(15)
+ #define MTK_FOE_IB1_BIND_VLAN_LAYER	GENMASK(18, 16)
+ #define MTK_FOE_IB1_BIND_PPPOE		BIT(19)
+ #define MTK_FOE_IB1_BIND_VLAN_TAG	BIT(20)
+ #define MTK_FOE_IB1_BIND_PKT_SAMPLE	BIT(21)
+ #define MTK_FOE_IB1_BIND_CACHE		BIT(22)
+ #define MTK_FOE_IB1_BIND_TUNNEL_DECAP	BIT(23)
+ #define MTK_FOE_IB1_BIND_TTL		BIT(24)
+ 
+ #define MTK_FOE_IB1_PACKET_TYPE		GENMASK(27, 25)
++#endif
 +
  #define MTK_FOE_IB1_STATE		GENMASK(29, 28)
  #define MTK_FOE_IB1_UDP			BIT(30)
  #define MTK_FOE_IB1_STATIC		BIT(31)
-@@ -44,24 +47,19 @@ enum {
+@@ -44,24 +47,42 @@ enum {
  	MTK_PPE_PKT_TYPE_IPV6_6RD = 7,
  };
  
--#define MTK_FOE_IB2_QID			GENMASK(3, 0)
--#define MTK_FOE_IB2_PSE_QOS		BIT(4)
--#define MTK_FOE_IB2_DEST_PORT		GENMASK(7, 5)
--#define MTK_FOE_IB2_MULTICAST		BIT(8)
--
--#define MTK_FOE_IB2_WDMA_QID2		GENMASK(13, 12)
--#define MTK_FOE_IB2_WDMA_DEVIDX		BIT(16)
--#define MTK_FOE_IB2_WDMA_WINFO		BIT(17)
--
--#define MTK_FOE_IB2_PORT_MG		GENMASK(17, 12)
--
--#define MTK_FOE_IB2_PORT_AG		GENMASK(23, 18)
--
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +#define MTK_FOE_IB2_QID			GENMASK(6, 0)
 +#define MTK_FOE_IB2_PORT_MG		BIT(7)
 +#define MTK_FOE_IB2_PSE_QOS		BIT(8)
@@ -240,43 +245,56 @@ index 1f5cf1c9a..a76f4b0ac 100644
 +#define MTK_FOE_IB2_RX_IDX		GENMASK(18, 17)
 +#define MTK_FOE_IB2_WDMA_WINFO		BIT(19)
 +#define MTK_FOE_IB2_PORT_AG		GENMASK(23, 20)
++#else
+ #define MTK_FOE_IB2_QID			GENMASK(3, 0)
+ #define MTK_FOE_IB2_PSE_QOS		BIT(4)
+ #define MTK_FOE_IB2_DEST_PORT		GENMASK(7, 5)
+ #define MTK_FOE_IB2_MULTICAST		BIT(8)
+ 
+ #define MTK_FOE_IB2_WDMA_QID2		GENMASK(13, 12)
++#define MTK_FOE_IB2_MIB_CNT		BIT(15)
+ #define MTK_FOE_IB2_WDMA_DEVIDX		BIT(16)
+ #define MTK_FOE_IB2_WDMA_WINFO		BIT(17)
+ 
+ #define MTK_FOE_IB2_PORT_MG		GENMASK(17, 12)
+ 
+ #define MTK_FOE_IB2_PORT_AG		GENMASK(23, 18)
++#endif
+ 
  #define MTK_FOE_IB2_DSCP		GENMASK(31, 24)
  
--#define MTK_FOE_VLAN2_WINFO_BSS		GENMASK(5, 0)
--#define MTK_FOE_VLAN2_WINFO_WCID	GENMASK(13, 6)
--#define MTK_FOE_VLAN2_WINFO_RING	GENMASK(15, 14)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +#define MTK_FOE_WINFO_BSS		GENMASK(5, 0)
 +#define MTK_FOE_WINFO_WCID		GENMASK(15, 6)
++#else
+ #define MTK_FOE_VLAN2_WINFO_BSS		GENMASK(5, 0)
+ #define MTK_FOE_VLAN2_WINFO_WCID	GENMASK(13, 6)
+ #define MTK_FOE_VLAN2_WINFO_RING	GENMASK(15, 14)
++#endif
  
  enum {
  	MTK_FOE_STATE_INVALID,
-@@ -83,6 +81,9 @@ struct mtk_foe_mac_info {
+@@ -83,6 +81,11 @@ struct mtk_foe_mac_info {
  
  	u16 pppoe_id;
  	u16 src_mac_lo;
 +
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +	u16 minfo;
 +	u16 winfo;
++#endif
  };
  
  /* software-only entry type */
-@@ -96,6 +97,10 @@ struct mtk_foe_bridge {
- 	u32 ib2;
- 
- 	struct mtk_foe_mac_info l2;
-+	u32 new_sip;
-+	u32 new_dip;
-+	u16 new_dport;
-+	u16 new_sport;
- };
- 
- struct mtk_ipv4_tuple {
-@@ -200,7 +205,7 @@ struct mtk_foe_entry {
+@@ -200,7 +205,11 @@ struct mtk_foe_entry {
  		struct mtk_foe_ipv4_dslite dslite;
  		struct mtk_foe_ipv6 ipv6;
  		struct mtk_foe_ipv6_6rd ipv6_6rd;
--		u32 data[19];
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +		u32 data[23];
++#else
+ 		u32 data[19];
++#endif
  	};
  };
  
@@ -284,17 +302,19 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ether
 index d4a012608..5a4201447 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -192,7 +192,12 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+@@ -192,7 +192,15 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  	if (mtk_flow_get_wdma_info(dev, dest_mac, &info) == 0) {
  		mtk_foe_entry_set_wdma(foe, info.wdma_idx, info.queue, info.bss,
  				       info.wcid);
--		pse_port = 3;
+ 		pse_port = 3;
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +		if (info.wdma_idx == 0)
 +			pse_port = 8;
 +		else if (info.wdma_idx == 1)
 +			pse_port = 9;
 +		else
 +			return -EOPNOTSUPP;
++#endif
  		*wed_index = info.wdma_idx;
  		goto out;
  	}
