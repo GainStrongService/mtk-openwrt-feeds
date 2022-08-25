@@ -1,30 +1,30 @@
-From 969b99141e451f7af21a2e8f5ec051be6deaa026 Mon Sep 17 00:00:00 2001
+From 180d5c4f134397cf6e1132c35d48de81e8d0b926 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 21 Apr 2022 15:43:19 +0800
-Subject: [PATCH 1111/1119] mt76: testmode: additional supports
+Subject: [PATCH] mt76: testmode: additional supports
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
- drivers/net/wireless/mediatek/mt76/dma.c      |    3 +-
- drivers/net/wireless/mediatek/mt76/mac80211.c |   12 +
- drivers/net/wireless/mediatek/mt76/mt76.h     |  111 +-
- .../wireless/mediatek/mt76/mt76_connac_mcu.c  |    4 +
- .../wireless/mediatek/mt76/mt76_connac_mcu.h  |    2 +
- .../net/wireless/mediatek/mt76/mt7915/init.c  |    2 +-
- .../net/wireless/mediatek/mt76/mt7915/mac.c   |   37 +-
- .../net/wireless/mediatek/mt76/mt7915/main.c  |    2 +-
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   |   10 +-
- .../net/wireless/mediatek/mt76/mt7915/mcu.h   |   28 +-
- .../net/wireless/mediatek/mt76/mt7915/mmio.c  |    2 +
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |   14 +-
- .../net/wireless/mediatek/mt76/mt7915/regs.h  |    3 +
- .../wireless/mediatek/mt76/mt7915/testmode.c  | 1171 +++++++++++++++--
- .../wireless/mediatek/mt76/mt7915/testmode.h  |  278 ++++
- drivers/net/wireless/mediatek/mt76/testmode.c |  275 +++-
- drivers/net/wireless/mediatek/mt76/testmode.h |   75 ++
- .../net/wireless/mediatek/mt76/tools/fields.c |   80 ++
- drivers/net/wireless/mediatek/mt76/tx.c       |    3 +-
- 19 files changed, 1963 insertions(+), 149 deletions(-)
+ dma.c             |    3 +-
+ mac80211.c        |   12 +
+ mt76.h            |  111 ++++-
+ mt76_connac_mcu.c |    4 +
+ mt76_connac_mcu.h |    2 +
+ mt7915/init.c     |    2 +-
+ mt7915/mac.c      |   35 +-
+ mt7915/main.c     |    2 +-
+ mt7915/mcu.c      |   10 +-
+ mt7915/mcu.h      |   28 +-
+ mt7915/mmio.c     |    2 +
+ mt7915/mt7915.h   |   14 +-
+ mt7915/regs.h     |    3 +
+ mt7915/testmode.c | 1171 ++++++++++++++++++++++++++++++++++++++++++---
+ mt7915/testmode.h |  278 +++++++++++
+ testmode.c        |  275 +++++++++--
+ testmode.h        |   75 +++
+ tools/fields.c    |   80 ++++
+ tx.c              |    3 +-
+ 19 files changed, 1963 insertions(+), 147 deletions(-)
 
 diff --git a/dma.c b/dma.c
 index f22273cd..03ee9109 100644
@@ -290,10 +290,10 @@ index 0d5109a3..b549fa04 100644
  	mt7915_init_txpower(dev, &dev->mphy.sband_2g.sband);
  	mt7915_init_txpower(dev, &dev->mphy.sband_5g.sband);
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index f13456bf..5e5df23d 100644
+index ae3dcec7..1df8272f 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -565,17 +565,39 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
+@@ -565,16 +565,38 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
  {
  #ifdef CONFIG_NL80211_TESTMODE
  	struct mt76_testmode_data *td = &phy->mt76->test;
@@ -319,7 +319,7 @@ index f13456bf..5e5df23d 100644
 +		txwi[3] &= ~cpu_to_le32(MT_TXD3_NO_ACK);
 +		le32p_replace_bits(&txwi[3], 0x1f, MT_TXD3_REM_TX_COUNT);
 +
-+		return;
+ 		return;
 +	}
 +
 +	mt76_tm_for_each_entry(phy->mt76, wcid, ed)
@@ -327,16 +327,15 @@ index f13456bf..5e5df23d 100644
 +			break;
 +
 +	if (!ed)
- 		return;
- 
++		return;
++
 +	nss = ed->tx_rate_nss;
 +	rate_idx = ed->tx_rate_idx;
 +	ldpc = ed->tx_rate_ldpc;
-+
+ 
  	switch (td->tx_rate_mode) {
  	case MT76_TM_TX_MODE_HT:
- 		nss = 1 + (rate_idx >> 3);
-@@ -664,14 +686,13 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
+@@ -664,13 +686,14 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
  	if (mode >= MT_PHY_TYPE_HE_SU)
  		val |= FIELD_PREP(MT_TXD6_HELTF, td->tx_ltf);
  
@@ -344,8 +343,7 @@ index f13456bf..5e5df23d 100644
 +	if (ldpc || (bw > 0 && mode >= MT_PHY_TYPE_HE_SU))
  		val |= MT_TXD6_LDPC;
  
--	txwi[1] &= ~cpu_to_le32(MT_TXD1_VTA);
--	txwi[3] &= ~cpu_to_le32(MT_TXD3_SN_VALID);
+ 	txwi[3] &= ~cpu_to_le32(MT_TXD3_SN_VALID);
 +	if (phy->test.bf_en)
 +		val |= MT_TXD6_TX_IBF | MT_TXD6_TX_EBF;
 +
@@ -369,7 +367,7 @@ index 60d990f3..dd0b3cc2 100644
  		mvif->mt76.wmm_idx += 2;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 0f71356b..c65fee98 100644
+index 20b01c91..d7e717f4 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -434,6 +434,11 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -392,7 +390,7 @@ index 0f71356b..c65fee98 100644
  	    !rxd->seq)
  		mt7915_mcu_rx_unsolicited_event(dev, skb);
  	else
-@@ -2831,14 +2837,14 @@ static int mt7915_mcu_set_eeprom_flash(struct mt7915_dev *dev)
+@@ -2827,14 +2833,14 @@ static int mt7915_mcu_set_eeprom_flash(struct mt7915_dev *dev)
  	return 0;
  }
  
@@ -487,7 +485,7 @@ index 6e140e2d..6d1dbdbd 100644
  	[AGG_PCR0]		= 0x040,
  	[AGG_ACR0]		= 0x054,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 07a1c9ce..7c7d6bd3 100644
+index 496b8367..f8c59568 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -303,6 +303,9 @@ struct mt7915_phy {
@@ -515,7 +513,7 @@ index 07a1c9ce..7c7d6bd3 100644
  #ifdef MTK_DEBUG
  	u16 wlan_idx;
  	struct {
-@@ -571,7 +582,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
+@@ -572,7 +583,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
  				   struct ieee80211_vif *vif,
  				   struct ieee80211_sta *sta,
  				   void *data, u32 field);
@@ -524,7 +522,7 @@ index 07a1c9ce..7c7d6bd3 100644
  int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset);
  int mt7915_mcu_get_eeprom_free_block(struct mt7915_dev *dev, u8 *block_num);
  int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
-@@ -604,6 +615,7 @@ int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
+@@ -605,6 +616,7 @@ int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
  int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
  void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb);
  void mt7915_mcu_exit(struct mt7915_dev *dev);
