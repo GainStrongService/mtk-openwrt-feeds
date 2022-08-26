@@ -72,7 +72,14 @@
 		compatible = "mediatek,eth-mac";
 		reg = <1>;
 		phy-mode = "2500base-x";
-		phy-handle = <&phy6>;
+
+		fixed-link {
+			speed = <2500>;
+			full-duplex;
+			pause;
+			link-gpio = <&pio 46 0>;
+			phy-handle = <&phy6>;
+		};
 	};
 
 	mdio: mdio-bus {
@@ -88,7 +95,7 @@
 		};
 
 		phy6: phy@6 {
-			compatible = "ethernet-phy-ieee802.3-c45";
+			compatible = "ethernet-phy-id67c9.de0a";
 			reg = <6>;
 		};
 	};
