@@ -59,6 +59,38 @@ function get_config() {
     fi
 }
 
+function convert_interface {
+    local start_idx_7986=$(get_config "STARTIDX")
+    if [ -z "${start_idx_7986}" ]; then
+        local tmp=$(lspci | grep "7906")
+        if [ ! -z "${tmp}" ]; then
+            start_idx_7986="2"
+        else
+            local tmp=$(lspci | grep "7915\|7916")
+            if [ ! -z "${tmp}" ]; then
+                start_idx_7986="1"
+            else
+                start_idx_7986="0"
+            fi
+        fi
+        record_config "STARTIDX" ${start_idx_7986}
+    fi
+
+    if [[ $1 == "raix"* ]]; then
+        interface="phy1"
+        phy_idx=1
+    elif [[ $1 == "rai"* ]]; then
+        interface="phy0"
+        phy_idx=0
+    elif [[ $1 == "rax"* ]]; then
+        phy_idx=$((start_idx_7986+1))
+        interface="phy${phy_idx}"
+    else
+        phy_idx=$start_idx_7986
+        interface="phy${phy_idx}"
+    fi
+}
+
 function simple_convert() {
     if [ "$1" = "ATETXCNT" ]; then
         echo "tx_count"
@@ -188,6 +220,9 @@ function convert_channel {
     local ch=$(echo $1 | sed s/:/' '/g | cut -d " " -f 1)
     local bw=$(get_config "ATETXBW" | cut -d ":" -f 1)
     local bw_str="HT20"
+    local base_chan=1
+    local control_freq=0
+    local base_freq=0
 
     if [[ $1 != *":"* ]] || [ "${band}" = "0" ]; then
         case ${bw} in
@@ -200,6 +235,7 @@ function convert_channel {
                 fi
                 ;;
         esac
+        local base_freq=2412
     elif [ "${band}" = "1" ]; then
         case ${bw} in
             "5")
@@ -297,11 +333,162 @@ function convert_channel {
                 local bw_str="HT20"
                 ;;
         esac
+        local base_freq=5180
+        local base_chan=36
     else
-        echo "6G Todo"
+        case ${bw} in
+            "5")
+                bw_str="160MHz"
+                if [ ${ch} -lt "33" ]; then
+                    ch="1"
+                elif [ ${ch} -lt "65" ]; then
+                    ch="33"
+                elif [ ${ch} -lt "97" ]; then
+                    ch="65"
+                elif [ ${ch} -lt "129" ]; then
+                    ch="97"
+                elif [ ${ch} -lt "161" ]; then
+                    ch="129"
+                elif [ ${ch} -lt "193" ]; then
+                    ch="161"
+                elif [ ${ch} -lt "225" ]; then
+                    ch="193"
+                fi
+                ;;
+            "2")
+                bw_str="80MHz"
+                if [ ${ch} -lt "17" ]; then
+                    ch="1"
+                elif [ ${ch} -lt "33" ]; then
+                    ch="17"
+                elif [ ${ch} -lt "49" ]; then
+                    ch="33"
+                elif [ ${ch} -lt "65" ]; then
+                    ch="49"
+                elif [ ${ch} -lt "81" ]; then
+                    ch="65"
+                elif [ ${ch} -lt "97" ]; then
+                    ch="81"
+                elif [ ${ch} -lt "113" ]; then
+                    ch="97"
+                elif [ ${ch} -lt "129" ]; then
+                    ch="113"
+                elif [ ${ch} -lt "145" ]; then
+                    ch="129"
+                elif [ ${ch} -lt "161" ]; then
+                    ch="145"
+                elif [ ${ch} -lt "177" ]; then
+                    ch="161"
+                elif [ ${ch} -lt "193" ]; then
+                    ch="177"
+                elif [ ${ch} -lt "209" ]; then
+                    ch="193"
+                elif [ ${ch} -lt "225" ]; then
+                    ch="209"
+                fi
+                ;;
+            "1")
+                if [ ${ch} -lt "9" ]; then
+                    ch=$([ "${ch}" -lt "5" ] && echo "1" || echo "5")
+                    bw_str=$([ "${ch}" -le "3" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "17" ]; then
+                    ch=$([ "${ch}" -lt "13" ] && echo "9" || echo "13")
+                    bw_str=$([ "${ch}" -le "11" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "25" ]; then
+                    ch=$([ "${ch}" -lt "21" ] && echo "17" || echo "21")
+                    bw_str=$([ "${ch}" -le "19" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "33" ]; then
+                    ch=$([ "${ch}" -lt "29" ] && echo "25" || echo "29")
+                    bw_str=$([ "${ch}" -le "27" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "33" ]; then
+                    ch=$([ "${ch}" -lt "29" ] && echo "25" || echo "29")
+                    bw_str=$([ "${ch}" -le "27" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "41" ]; then
+                    ch=$([ "${ch}" -lt "37" ] && echo "33" || echo "37")
+                    bw_str=$([ "${ch}" -le "35" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "49" ]; then
+                    ch=$([ "${ch}" -lt "45" ] && echo "41" || echo "45")
+                    bw_str=$([ "${ch}" -le "43" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "57" ]; then
+                    ch=$([ "${ch}" -lt "53" ] && echo "49" || echo "53")
+                    bw_str=$([ "${ch}" -le "51" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "65" ]; then
+                    ch=$([ "${ch}" -lt "61" ] && echo "57" || echo "61")
+                    bw_str=$([ "${ch}" -le "59" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "73" ]; then
+                    ch=$([ "${ch}" -lt "69" ] && echo "65" || echo "69")
+                    bw_str=$([ "${ch}" -le "67" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "81" ]; then
+                    ch=$([ "${ch}" -lt "77" ] && echo "73" || echo "77")
+                    bw_str=$([ "${ch}" -le "75" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "89" ]; then
+                    ch=$([ "${ch}" -lt "85" ] && echo "81" || echo "85")
+                    bw_str=$([ "${ch}" -le "83" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "97" ]; then
+                    ch=$([ "${ch}" -lt "93" ] && echo "89" || echo "93")
+                    bw_str=$([ "${ch}" -le "91" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "105" ]; then
+                    ch=$([ "${ch}" -lt "101" ] && echo "97" || echo "101")
+                    bw_str=$([ "${ch}" -le "99" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "113" ]; then
+                    ch=$([ "${ch}" -lt "109" ] && echo "105" || echo "109")
+                    bw_str=$([ "${ch}" -le "107" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "121" ]; then
+                    ch=$([ "${ch}" -lt "117" ] && echo "113" || echo "117")
+                    bw_str=$([ "${ch}" -le "115" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "129" ]; then
+                    ch=$([ "${ch}" -lt "125" ] && echo "121" || echo "125")
+                    bw_str=$([ "${ch}" -le "123" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "137" ]; then
+                    ch=$([ "${ch}" -lt "133" ] && echo "129" || echo "133")
+                    bw_str=$([ "${ch}" -le "131" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "145" ]; then
+                    ch=$([ "${ch}" -lt "141" ] && echo "137" || echo "141")
+                    bw_str=$([ "${ch}" -le "139" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "153" ]; then
+                    ch=$([ "${ch}" -lt "149" ] && echo "145" || echo "149")
+                    bw_str=$([ "${ch}" -le "147" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "161" ]; then
+                    ch=$([ "${ch}" -lt "157" ] && echo "153" || echo "157")
+                    bw_str=$([ "${ch}" -le "155" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "169" ]; then
+                    ch=$([ "${ch}" -lt "165" ] && echo "161" || echo "165")
+                    bw_str=$([ "${ch}" -le "163" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "177" ]; then
+                    ch=$([ "${ch}" -lt "173" ] && echo "169" || echo "173")
+                    bw_str=$([ "${ch}" -le "171" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "185" ]; then
+                    ch=$([ "${ch}" -lt "181" ] && echo "177" || echo "181")
+                    bw_str=$([ "${ch}" -le "179" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "193" ]; then
+                    ch=$([ "${ch}" -lt "189" ] && echo "185" || echo "189")
+                    bw_str=$([ "${ch}" -le "187" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "201" ]; then
+                    ch=$([ "${ch}" -lt "197" ] && echo "193" || echo "197")
+                    bw_str=$([ "${ch}" -le "195" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "209" ]; then
+                    ch=$([ "${ch}" -lt "205" ] && echo "201" || echo "205")
+                    bw_str=$([ "${ch}" -le "203" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "217" ]; then
+                    ch=$([ "${ch}" -lt "213" ] && echo "209" || echo "213")
+                    bw_str=$([ "${ch}" -le "211" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "225" ]; then
+                    ch=$([ "${ch}" -lt "221" ] && echo "217" || echo "221")
+                    bw_str=$([ "${ch}" -le "219" ] && echo "HT40+" || echo "HT40-")
+                elif [ ${ch} -lt "233" ]; then
+                    ch=$([ "${ch}" -lt "229" ] && echo "225" || echo "229")
+                    bw_str=$([ "${ch}" -le "227" ] && echo "HT40+" || echo "HT40-")
+                fi
+                ;;
+            "0")
+                local bw_str="HT20"
+                ;;
+        esac
+        local base_freq=5955
     fi
 
-    do_cmd "iw dev mon${phy_idx} set channel ${ch} ${bw_str}"
+    local control_freq=$(((ch - base_chan) * 5 + base_freq))
+    do_cmd "iw dev mon${phy_idx} set freq ${control_freq} ${bw_str}"
 }
 
 function convert_rxstat {
@@ -423,14 +610,7 @@ function do_ate_work() {
 # main start here
 
 if [[ ${interface} == "ra"* ]]; then
-    tmp=$(get_config "ATECTRLBANDIDX")
-    if [ ! -z "${tmp}" ]; then
-        interface="phy${tmp}"
-        phy_idx=${tmp}
-    else
-        interface="phy0"
-        phy_idx=0
-    fi
+    convert_interface $interface
 fi
 
 cmd=$(echo ${full_cmd} | sed s/=/' '/g | cut -d " " -f 1)
