@@ -26,6 +26,10 @@ if [ -z ${INSTALL_DIR} ]; then
 fi
 
 OPENWRT_VER=`cat ${BUILD_DIR}/feeds.conf.default | grep "src-git packages" | awk -F ";openwrt" '{print $2}'`
+if [ -z ${OPENWRT_VER} ]; then
+	OPENWRT_VER=`cat ${BUILD_DIR}/feeds.conf.default | grep "src-git-full packages" | awk -F ";openwrt" '{print $2}'`
+fi
+
 cp ${BUILD_DIR}/feeds.conf.default ${BUILD_DIR}/feeds.conf.default_ori
 
 clean() {

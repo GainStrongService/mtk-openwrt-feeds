@@ -4,8 +4,16 @@ MTK_FEEDS_DIR=${1}
 
 if [ -f feeds.conf.default_ori ]; then
 	OPENWRT_VER=`cat ./feeds.conf.default_ori | grep "src-git packages" | awk -F ";openwrt" '{print $2}'`
+
+	if [ -z ${OPENWRT_VER} ]; then
+		OPENWRT_VER=`cat ./feeds.conf.default_ori | grep "src-git-full packages" | awk -F ";openwrt" '{print $2}'`
+	fi
 else
 	OPENWRT_VER=`cat ./feeds.conf.default | grep "src-git packages" | awk -F ";openwrt" '{print $2}'`
+
+	if [ -z ${OPENWRT_VER} ]; then
+		OPENWRT_VER=`cat ./feeds.conf.default | grep "src-git-full packages" | awk -F ";openwrt" '{print $2}'`
+	fi
 fi
 
 if [ -z ${1} ]; then
