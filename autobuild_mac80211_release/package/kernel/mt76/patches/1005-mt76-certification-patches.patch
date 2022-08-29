@@ -1,20 +1,19 @@
-From 851129617f31e9c802b01eab480f9f8041cfde4f Mon Sep 17 00:00:00 2001
+From e69061ef6ea44ada9215dbfb444eb90795b4e20c Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 6 Jun 2022 20:15:51 +0800
-Subject: [PATCH 1005/1008] mt76: certification patches
+Subject: [PATCH 1005/1006] mt76: certification patches
 
 ---
- .../wireless/mediatek/mt76/mt76_connac_mcu.h  |   1 +
- .../net/wireless/mediatek/mt76/mt7915/init.c  |   7 +-
- .../net/wireless/mediatek/mt76/mt7915/mac.c   |  23 +
- .../net/wireless/mediatek/mt76/mt7915/main.c  |  15 +-
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   | 466 ++++++++++++++++++
- .../net/wireless/mediatek/mt76/mt7915/mcu.h   | 207 +++++++-
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |  13 +
- .../mediatek/mt76/mt7915/mtk_debugfs.c        |   7 +-
- .../wireless/mediatek/mt76/mt7915/vendor.c    | 187 +++++++
- .../wireless/mediatek/mt76/mt7915/vendor.h    |  42 ++
- 10 files changed, 962 insertions(+), 6 deletions(-)
+ mt76_connac_mcu.h    |   1 +
+ mt7915/mac.c         |  23 +++
+ mt7915/main.c        |  15 +-
+ mt7915/mcu.c         | 466 +++++++++++++++++++++++++++++++++++++++++++
+ mt7915/mcu.h         | 207 ++++++++++++++++++-
+ mt7915/mt7915.h      |  13 ++
+ mt7915/mtk_debugfs.c |   7 +-
+ mt7915/vendor.c      | 187 +++++++++++++++++
+ mt7915/vendor.h      |  42 ++++
+ 9 files changed, 956 insertions(+), 5 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
 index 865bbf3d..25aeedc2 100644
@@ -28,31 +27,8 @@ index 865bbf3d..25aeedc2 100644
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  };
  
-diff --git a/mt7915/init.c b/mt7915/init.c
-index 6e2a1c13..02d1b6d8 100644
---- a/mt7915/init.c
-+++ b/mt7915/init.c
-@@ -372,12 +372,17 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
- 	if (!phy->dev->dbdc_support)
- 		wiphy->txq_memory_limit = 32 << 20; /* 32 MiB */
- 
--	if (phy->mt76->cap.has_2ghz)
-+	if (phy->mt76->cap.has_2ghz) {
-+		phy->mt76->sband_2g.sband.ht_cap.ampdu_density =
-+			IEEE80211_HT_MPDU_DENSITY_4;
- 		phy->mt76->sband_2g.sband.ht_cap.cap |=
- 			IEEE80211_HT_CAP_LDPC_CODING |
- 			IEEE80211_HT_CAP_MAX_AMSDU;
-+	}
- 
- 	if (phy->mt76->cap.has_5ghz) {
-+		phy->mt76->sband_5g.sband.ht_cap.ampdu_density =
-+			IEEE80211_HT_MPDU_DENSITY_4;
- 		phy->mt76->sband_5g.sband.ht_cap.cap |=
- 			IEEE80211_HT_CAP_LDPC_CODING |
- 			IEEE80211_HT_CAP_MAX_AMSDU;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 8aa5350a..24052f47 100644
+index 75e2036b..6b3fa4ce 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -7,6 +7,7 @@
@@ -63,7 +39,7 @@ index 8aa5350a..24052f47 100644
  
  #define to_rssi(field, rxv)	((FIELD_GET(field, rxv) - 220) / 2)
  
-@@ -1736,6 +1737,21 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
+@@ -1738,6 +1739,21 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
  	phy->trb_ts = trb;
  }
  
@@ -85,7 +61,7 @@ index 8aa5350a..24052f47 100644
  void mt7915_mac_sta_rc_work(struct work_struct *work)
  {
  	struct mt7915_dev *dev = container_of(work, struct mt7915_dev, rc_work);
-@@ -1758,6 +1774,13 @@ void mt7915_mac_sta_rc_work(struct work_struct *work)
+@@ -1760,6 +1776,13 @@ void mt7915_mac_sta_rc_work(struct work_struct *work)
  		sta = container_of((void *)msta, struct ieee80211_sta, drv_priv);
  		vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
  
@@ -100,7 +76,7 @@ index 8aa5350a..24052f47 100644
  			       IEEE80211_RC_NSS_CHANGED |
  			       IEEE80211_RC_BW_CHANGED))
 diff --git a/mt7915/main.c b/mt7915/main.c
-index cd7314c9..d5fb947a 100644
+index 43daa17c..4e82904f 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -653,6 +653,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -133,10 +109,10 @@ index cd7314c9..d5fb947a 100644
  
  void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index a6b5d213..53d4cd44 100644
+index f7a3eb19..f692e520 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3579,6 +3579,472 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
+@@ -3572,6 +3572,472 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
  
  	return 0;
  }
@@ -844,10 +820,10 @@ index d3cc8283..aab1a6a3 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 2af06d35..5aafaac0 100644
+index 5551d77a..267fa7eb 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -663,6 +663,19 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -664,6 +664,19 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  #endif
  
  #ifdef CONFIG_MTK_VENDOR
@@ -1158,5 +1134,5 @@ index 976817f3..1b08321c 100644
  
  enum mtk_vendor_attr_csi_ctrl {
 -- 
-2.25.1
+2.18.0
 

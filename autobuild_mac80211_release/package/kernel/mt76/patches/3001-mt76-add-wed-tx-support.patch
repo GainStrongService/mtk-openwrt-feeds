@@ -1,7 +1,7 @@
-From 379918ba724d761166f0677848b6266fe999486a Mon Sep 17 00:00:00 2001
+From 47fc67f6071081280625a5cb34c5612429787f77 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Sun, 12 Jun 2022 16:38:45 +0800
-Subject: [PATCH 3001/3003] mt76 add wed tx support
+Subject: [PATCH 3001/3002] mt76 add wed tx support
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -18,10 +18,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  10 files changed, 193 insertions(+), 97 deletions(-)
 
 diff --git a/mt76_connac.h b/mt76_connac.h
-index 5a9c1c9..c8d8680 100644
+index 7b6b3aa6..f71ded84 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
-@@ -110,6 +110,7 @@ struct mt76_connac_sta_key_conf {
+@@ -116,6 +116,7 @@ struct mt76_connac_sta_key_conf {
  };
  
  #define MT_TXP_MAX_BUF_NUM		6
@@ -30,11 +30,11 @@ index 5a9c1c9..c8d8680 100644
  struct mt76_connac_fw_txp {
  	__le16 flags;
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 9e3d14d..7122322 100644
+index 8905018c..248a67f2 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
-@@ -12,7 +12,10 @@ mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc, int ring_base
- 	int i, err;
+@@ -11,7 +11,10 @@ mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc, int ring_base
+ 	struct mt7915_dev *dev = phy->dev;
  
  	if (mtk_wed_device_active(&phy->dev->mt76.mmio.wed)) {
 -		ring_base = MT_WED_TX_RING_BASE;
@@ -45,7 +45,7 @@ index 9e3d14d..7122322 100644
  		idx -= MT_TXQ_ID(0);
  	}
  
-@@ -74,14 +77,23 @@ static void mt7915_dma_config(struct mt7915_dev *dev)
+@@ -58,14 +61,23 @@ static void mt7915_dma_config(struct mt7915_dev *dev)
  		MCUQ_CONFIG(MT_MCUQ_WA, WFDMA1, MT_INT_TX_DONE_MCU_WA, MT7915_TXQ_MCU_WA);
  		MCUQ_CONFIG(MT_MCUQ_FWDL, WFDMA1, MT_INT_TX_DONE_FWDL, MT7915_TXQ_FWDL);
  	} else {
@@ -53,29 +53,29 @@ index 9e3d14d..7122322 100644
 +		if(is_mt7916(&dev->mt76) && (mtk_wed_device_active(&dev->mt76.mmio.wed))) {
 +			RXQ_CONFIG(MT_RXQ_MAIN, WFDMA0, MT_INT_WED_RX_DONE_BAND0_MT7916, MT7916_RXQ_BAND0);
 +			RXQ_CONFIG(MT_RXQ_MCU_WA, WFDMA0, MT_INT_WED_RX_DONE_WA_MT7916, MT7916_RXQ_MCU_WA);
-+			RXQ_CONFIG(MT_RXQ_EXT, WFDMA0, MT_INT_WED_RX_DONE_BAND1_MT7916, MT7916_RXQ_BAND1);
++			RXQ_CONFIG(MT_RXQ_BAND1, WFDMA0, MT_INT_WED_RX_DONE_BAND1_MT7916, MT7916_RXQ_BAND1);
 +			RXQ_CONFIG(MT_RXQ_MAIN_WA, WFDMA0, MT_INT_WED_RX_DONE_WA_MAIN_MT7916, MT7916_RXQ_MCU_WA_MAIN);
 +			TXQ_CONFIG(0, WFDMA0, MT_INT_WED_TX_DONE_BAND0, MT7915_TXQ_BAND0);
 +			TXQ_CONFIG(1, WFDMA0, MT_INT_WED_TX_DONE_BAND1, MT7915_TXQ_BAND1);
 +		} else {
 +			RXQ_CONFIG(MT_RXQ_MAIN, WFDMA0, MT_INT_RX_DONE_BAND0_MT7916, MT7916_RXQ_BAND0);
 +			RXQ_CONFIG(MT_RXQ_MCU_WA, WFDMA0, MT_INT_RX_DONE_WA, MT7916_RXQ_MCU_WA);
-+			RXQ_CONFIG(MT_RXQ_EXT, WFDMA0, MT_INT_RX_DONE_BAND1_MT7916, MT7916_RXQ_BAND1);
++			RXQ_CONFIG(MT_RXQ_BAND1, WFDMA0, MT_INT_RX_DONE_BAND1_MT7916, MT7916_RXQ_BAND1);
 +			RXQ_CONFIG(MT_RXQ_MAIN_WA, WFDMA0, MT_INT_RX_DONE_WA_MAIN_MT7916, MT7916_RXQ_MCU_WA_MAIN);
 +			TXQ_CONFIG(0, WFDMA0, MT_INT_TX_DONE_BAND0, MT7915_TXQ_BAND0);
 +			TXQ_CONFIG(1, WFDMA0, MT_INT_TX_DONE_BAND1, MT7915_TXQ_BAND1);
 +		}
  		RXQ_CONFIG(MT_RXQ_MCU, WFDMA0, MT_INT_RX_DONE_WM, MT7916_RXQ_MCU_WM);
 -		RXQ_CONFIG(MT_RXQ_MCU_WA, WFDMA0, MT_INT_RX_DONE_WA, MT7916_RXQ_MCU_WA);
--		RXQ_CONFIG(MT_RXQ_EXT, WFDMA0, MT_INT_RX_DONE_BAND1_MT7916, MT7916_RXQ_BAND1);
- 		RXQ_CONFIG(MT_RXQ_EXT_WA, WFDMA0, MT_INT_RX_DONE_WA_EXT_MT7916, MT7916_RXQ_MCU_WA_EXT);
+-		RXQ_CONFIG(MT_RXQ_BAND1, WFDMA0, MT_INT_RX_DONE_BAND1_MT7916, MT7916_RXQ_BAND1);
+ 		RXQ_CONFIG(MT_RXQ_BAND1_WA, WFDMA0, MT_INT_RX_DONE_WA_EXT_MT7916, MT7916_RXQ_MCU_WA_EXT);
 -		RXQ_CONFIG(MT_RXQ_MAIN_WA, WFDMA0, MT_INT_RX_DONE_WA_MAIN_MT7916, MT7916_RXQ_MCU_WA_MAIN);
 -		TXQ_CONFIG(0, WFDMA0, MT_INT_TX_DONE_BAND0, MT7915_TXQ_BAND0);
 -		TXQ_CONFIG(1, WFDMA0, MT_INT_TX_DONE_BAND1, MT7915_TXQ_BAND1);
  		MCUQ_CONFIG(MT_MCUQ_WM, WFDMA0, MT_INT_TX_DONE_MCU_WM, MT7915_TXQ_MCU_WM);
  		MCUQ_CONFIG(MT_MCUQ_WA, WFDMA0, MT_INT_TX_DONE_MCU_WA_MT7916, MT7915_TXQ_MCU_WA);
  		MCUQ_CONFIG(MT_MCUQ_FWDL, WFDMA0, MT_INT_TX_DONE_FWDL, MT7915_TXQ_FWDL);
-@@ -330,7 +342,9 @@ static int mt7915_dma_enable(struct mt7915_dev *dev)
+@@ -323,7 +335,9 @@ static int mt7915_dma_enable(struct mt7915_dev *dev)
  		u32 wed_irq_mask = irq_mask;
  
  		wed_irq_mask |= MT_INT_TX_DONE_BAND0 | MT_INT_TX_DONE_BAND1;
@@ -86,7 +86,7 @@ index 9e3d14d..7122322 100644
  		mtk_wed_device_start(&dev->mt76.mmio.wed, wed_irq_mask);
  	}
  
-@@ -355,15 +369,19 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
+@@ -348,15 +362,19 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
  
  	mt7915_dma_disable(dev, true);
  
@@ -110,7 +110,7 @@ index 9e3d14d..7122322 100644
  	}
  
  	/* init tx queue */
-@@ -417,7 +435,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
+@@ -410,7 +428,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
  		return ret;
  
  	/* event from WA */
@@ -119,7 +119,7 @@ index 9e3d14d..7122322 100644
  		wa_rx_base = MT_WED_RX_RING_BASE;
  		wa_rx_idx = MT7915_RXQ_MCU_WA;
  		dev->mt76.q_rx[MT_RXQ_MCU_WA].flags = MT_WED_Q_TXFREE;
-@@ -444,11 +462,20 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
+@@ -437,11 +455,20 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
  
  	/* tx free notify event from WA for band0 */
  	if (!is_mt7915(mdev)) {
@@ -144,10 +144,10 @@ index 9e3d14d..7122322 100644
  			return ret;
  	}
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 0310ca7..db21d83 100644
+index 2f154518..39a115ed 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -835,9 +835,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
+@@ -826,9 +826,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
  
  	txp->token = cpu_to_le16(token_id);
  	txp->nbuf = 1;
@@ -160,7 +160,7 @@ index 0310ca7..db21d83 100644
  
  static void
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 6085e12..2e721cd 100644
+index c287de36..b77b3be7 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -1439,14 +1439,19 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
@@ -186,10 +186,10 @@ index 6085e12..2e721cd 100644
  
  	ctx->dev = NULL;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ffe0447..9e9a2ea 100644
+index 65f91c1f..dd46762d 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2377,7 +2377,7 @@ int mt7915_run_firmware(struct mt7915_dev *dev)
+@@ -2374,7 +2374,7 @@ int mt7915_run_firmware(struct mt7915_dev *dev)
  	if (ret)
  		return ret;
  
@@ -199,7 +199,7 @@ index ffe0447..9e9a2ea 100644
  
  	ret = mt7915_mcu_set_mwds(dev, 1);
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 6d1dbdb..b4a3120 100644
+index 8d966eff..b0d8a616 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -10,6 +10,9 @@
@@ -341,10 +341,10 @@ index 6d1dbdb..b4a3120 100644
  				     void __iomem *mem_base, u32 device_id)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 491566e..3912792 100644
+index 87be6002..a3ffbc63 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -533,6 +533,8 @@ static inline void mt7986_wmac_disable(struct mt7915_dev *dev)
+@@ -532,6 +532,8 @@ static inline void mt7986_wmac_disable(struct mt7915_dev *dev)
  {
  }
  #endif
@@ -354,7 +354,7 @@ index 491566e..3912792 100644
  				     void __iomem *mem_base, u32 device_id);
  void mt7915_wfsys_reset(struct mt7915_dev *dev);
 diff --git a/mt7915/pci.c b/mt7915/pci.c
-index d74f609..c5da01a 100644
+index d74f6097..c5da01a9 100644
 --- a/mt7915/pci.c
 +++ b/mt7915/pci.c
 @@ -12,9 +12,6 @@
@@ -451,10 +451,10 @@ index d74f609..c5da01a 100644
  		goto free_wed_or_irq_vector;
  
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 444440e..ffda5f6 100644
+index 05ab6d9b..432ed303 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
-@@ -623,6 +623,7 @@ enum offs_rev {
+@@ -617,6 +617,7 @@ enum offs_rev {
  #define MT_PCIE_RECOG_ID_MASK		GENMASK(30, 0)
  #define MT_PCIE_RECOG_ID_SEM		BIT(31)
  
@@ -462,7 +462,7 @@ index 444440e..ffda5f6 100644
  #define MT_INT_WED_MASK_CSR		MT_WFDMA_EXT_CSR(0x204)
  
  #define MT_WED_TX_RING_BASE		MT_WFDMA_EXT_CSR(0x300)
-@@ -669,6 +670,13 @@ enum offs_rev {
+@@ -663,6 +664,13 @@ enum offs_rev {
  #define MT_TXQ_EXT_CTRL(q)		(MT_Q_BASE(__TXQ(q)) + 0x600 +	\
  					 MT_TXQ_ID(q)* 0x4)
  
@@ -476,7 +476,7 @@ index 444440e..ffda5f6 100644
  #define MT_INT_SOURCE_CSR		__REG(INT_SOURCE_CSR)
  #define MT_INT_MASK_CSR			__REG(INT_MASK_CSR)
  
-@@ -687,6 +695,11 @@ enum offs_rev {
+@@ -681,6 +689,11 @@ enum offs_rev {
  #define MT_INT_RX_DONE_WA_MAIN_MT7916	BIT(2)
  #define MT_INT_RX_DONE_WA_EXT_MT7916	BIT(3)
  
@@ -488,7 +488,7 @@ index 444440e..ffda5f6 100644
  #define MT_INT_RX(q)			(dev->q_int_mask[__RXQ(q)])
  #define MT_INT_TX_MCU(q)		(dev->q_int_mask[(q)])
  
-@@ -710,6 +723,8 @@ enum offs_rev {
+@@ -704,6 +717,8 @@ enum offs_rev {
  #define MT_INT_TX_DONE_BAND0		BIT(30)
  #define MT_INT_TX_DONE_BAND1		BIT(31)
  #define MT_INT_TX_DONE_MCU_WA_MT7916	BIT(25)
@@ -498,7 +498,7 @@ index 444440e..ffda5f6 100644
  #define MT_INT_TX_DONE_MCU		(MT_INT_TX_MCU(MT_MCUQ_WA) |	\
  					 MT_INT_TX_MCU(MT_MCUQ_WM) |	\
 diff --git a/mt7915/soc.c b/mt7915/soc.c
-index 3618718..8d0b206 100644
+index 3618718d..8d0b2068 100644
 --- a/mt7915/soc.c
 +++ b/mt7915/soc.c
 @@ -1171,10 +1171,6 @@ static int mt7986_wmac_probe(struct platform_device *pdev)

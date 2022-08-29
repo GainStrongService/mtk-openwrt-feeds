@@ -1,24 +1,24 @@
-From 7e339b883383bc9a54fddddbe3d56dbadffb5e49 Mon Sep 17 00:00:00 2001
+From 32812cb4898d84772ec5cf7e79b8dcbd0552bd24 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 13 Jul 2022 10:43:16 +0800
 Subject: [PATCH] mt76: mt7915: add spatial extension index support
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
- .../net/wireless/mediatek/mt76/mt76_connac.h  | 11 ++++++++++
- .../wireless/mediatek/mt76/mt76_connac_mac.c  | 11 +++++++---
- .../wireless/mediatek/mt76/mt76_connac_mcu.h  |  2 +-
- .../net/wireless/mediatek/mt76/mt7915/main.c  |  3 ---
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   | 20 ++++++++++++++++++-
- .../net/wireless/mediatek/mt76/mt7915/mcu.h   |  1 +
- .../wireless/mediatek/mt76/mt7915/testmode.c  |  9 +++------
+ mt76_connac.h     | 11 +++++++++++
+ mt76_connac_mac.c | 11 ++++++++---
+ mt76_connac_mcu.h |  2 +-
+ mt7915/main.c     |  3 ---
+ mt7915/mcu.c      | 20 +++++++++++++++++++-
+ mt7915/mcu.h      |  1 +
+ mt7915/testmode.c |  9 +++------
  7 files changed, 43 insertions(+), 14 deletions(-)
 
 diff --git a/mt76_connac.h b/mt76_connac.h
-index 9070162c..5a9c1c97 100644
+index d0336553..7b6b3aa6 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
-@@ -255,6 +255,17 @@ mt76_connac_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+@@ -261,6 +261,17 @@ mt76_connac_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
  	return (void *)(txwi + MT_TXD_SIZE);
  }
  
@@ -37,10 +37,10 @@ index 9070162c..5a9c1c97 100644
  void mt76_connac_power_save_sched(struct mt76_phy *phy,
  				  struct mt76_connac_pm *pm);
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index d83ed593..33abe5d6 100644
+index 18dea8e1..a9e58cfa 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
-@@ -402,9 +402,6 @@ mt76_connac2_mac_write_txwi_80211(struct mt76_dev *dev, __le32 *txwi,
+@@ -417,9 +417,6 @@ mt76_connac2_mac_write_txwi_80211(struct mt76_dev *dev, __le32 *txwi,
  	if (ieee80211_is_beacon(fc)) {
  		txwi[3] &= ~cpu_to_le32(MT_TXD3_SW_POWER_MGMT);
  		txwi[3] |= cpu_to_le32(MT_TXD3_REM_TX_COUNT);
@@ -50,7 +50,7 @@ index d83ed593..33abe5d6 100644
  	}
  
  	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
-@@ -531,6 +528,14 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
+@@ -546,6 +543,14 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
  		val |= FIELD_PREP(MT_TXD6_TX_RATE, rate);
  		txwi[6] |= cpu_to_le32(val);
  		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
@@ -59,7 +59,7 @@ index d83ed593..33abe5d6 100644
 +			u8 spe_idx = mt76_connac_spe_idx(mphy->antenna_mask);
 +
 +			if (!spe_idx)
-+				spe_idx = 24 + ext_phy;
++				spe_idx = 24 + phy_idx;
 +			txwi[7] |= cpu_to_le32(FIELD_PREP(MT_TXD7_SPE_IDX, spe_idx));
 +		}
  	}
@@ -79,7 +79,7 @@ index e94d6706..17e5213c 100644
  	u8 is_5g;
  	u8 mmps_mode;
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 39587992..080e935c 100644
+index 36faefb3..1ba164a4 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -957,9 +957,6 @@ mt7915_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
@@ -93,7 +93,7 @@ index 39587992..080e935c 100644
  
  	phy->mt76->antenna_mask = tx_ant;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 6587be2f..c196d453 100644
+index 9ba930a2..5fc7a242 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -1306,6 +1306,9 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
@@ -134,7 +134,7 @@ index 6587be2f..c196d453 100644
  }
  
  static void
-@@ -2649,6 +2664,9 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
+@@ -2646,6 +2661,9 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
  	}
  #endif
  
@@ -185,5 +185,5 @@ index 123ceaf9..b2eee3f2 100644
  
  	mt7915_tm_set_tam_arb(phy, en,
 -- 
-2.25.1
+2.18.0
 
