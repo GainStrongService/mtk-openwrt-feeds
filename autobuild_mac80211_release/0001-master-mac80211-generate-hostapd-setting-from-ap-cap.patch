@@ -1,8 +1,8 @@
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5d6ca7c..cfe4243 100644
+index f524940..37f919b 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-@@ -141,9 +141,6 @@ mac80211_hostapd_setup_base() {
+@@ -142,9 +142,6 @@ mac80211_hostapd_setup_base() {
  	json_get_values ht_capab_list ht_capab tx_burst
  	json_get_values channel_list channels
  
@@ -12,18 +12,6 @@ index 5d6ca7c..cfe4243 100644
  	[ "$min_tx_power" -gt 0 ] && append base_cfg "min_tx_power=$min_tx_power"
  
  	set_default noscan 0
-@@ -420,9 +417,9 @@ mac80211_hostapd_setup_base() {
- 			he_spr_non_srg_obss_pd_max_offset:1 \
- 			he_bss_color
- 
--		he_phy_cap=$(iw phy "$phy" info | awk -F "[()]" '/HE PHY Capabilities/ { print $2 }' | head -1)
-+		he_phy_cap=$(iw phy "$phy" info | grep "HE Iftypes: AP" -A 50 | awk -F "[()]" '/HE PHY Capabilities/ { print $2 }' | head -1)
- 		he_phy_cap=${he_phy_cap:2}
--		he_mac_cap=$(iw phy "$phy" info | awk -F "[()]" '/HE MAC Capabilities/ { print $2 }' | head -1)
-+		he_mac_cap=$(iw phy "$phy" info | grep "HE Iftypes: AP" -A 50 | awk -F "[()]" '/HE MAC Capabilities/ { print $2 }' | head -1)
- 		he_mac_cap=${he_mac_cap:2}
- 
- 		append base_cfg "ieee80211ax=1" "$N"
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 index 6aa46b0..5551835 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
