@@ -1,7 +1,7 @@
 #!/bin/ash
 
-interface=$1	# phy0/phy1/ra0
-cmd_type=$2	    # set/show/e2p/mac
+interface=$1    # phy0/phy1/ra0
+cmd_type=$2     # set/show/e2p/mac
 full_cmd=$3
 interface_ori=${interface}
 
@@ -600,6 +600,36 @@ function do_ate_work() {
             ;;
         "TXCONT")
             do_cmd "mt76-test ${interface} set state=tx_cont"
+            ;;
+        "GROUPREK")
+            do_cmd "mt76-test ${interface} set state=group_prek"
+            do_cmd "atenl -i ${interface} -c \"eeprom precal sync group\""
+            ;;
+        "GROUPREKDump")
+            do_cmd "mt76-test ${interface} set state=group_prek_dump"
+            ;;
+        "GROUPREKClean")
+            do_cmd "mt76-test ${interface} set state=group_prek_clean"
+            do_cmd "atenl -i ${interface} -c \"eeprom precal group clean\""
+            ;;
+        "DPD2G")
+            do_cmd "mt76-test ${interface} set state=dpd_2g"
+            do_cmd "atenl -i ${interface} -c \"eeprom precal sync dpd 2g\""
+            ;;
+        "DPD5G")
+            do_cmd "mt76-test ${interface} set state=dpd_5g"
+            do_cmd "atenl -i ${interface} -c \"eeprom precal sync dpd 5g\""
+            ;;
+        "DPD6G")
+            do_cmd "mt76-test ${interface} set state=dpd_6g"
+            do_cmd "atenl -i ${interface} -c \"eeprom precal sync dpd 6g\""
+            ;;
+        "DPDDump")
+            do_cmd "mt76-test ${interface} set state=dpd_dump"
+            ;;
+        "DPDClean")
+            do_cmd "mt76-test ${interface} set state=dpd_clean"
+            do_cmd "atenl -i ${interface} -c \"eeprom precal dpd clean\""
             ;;
         *)
             print_debug "skip ${ate_cmd}"

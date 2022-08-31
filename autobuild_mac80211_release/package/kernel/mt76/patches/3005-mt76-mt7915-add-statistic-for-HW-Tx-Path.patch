@@ -1,7 +1,7 @@
-From 7b9c6ae23f07ac5514492fff192fa927de1d5d17 Mon Sep 17 00:00:00 2001
+From 5f599f89d9ad8aaec596537bb304de9acfd9cde6 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
 Date: Thu, 21 Jul 2022 10:56:09 -0700
-Subject: [PATCH] mt76: mt7915: add statistic for H/W Tx Path
+Subject: [PATCH 3005/3006] mt76: mt7915: add statistic for H/W Tx Path
 
 Set PPDU_TXS2H_EN_B0/B1 to get PPDU txs.
 Add MT_PACKET_ID_WED for PPDU txs, and change MT_PACKET_ID_FIRST to 3
@@ -21,7 +21,7 @@ we report it directly from mt7915_sta_statistics.
  10 files changed, 141 insertions(+), 61 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 831a47a9..364b1119 100644
+index 2ad3900..c6f3ef7 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -275,6 +275,30 @@ DECLARE_EWMA(signal, 10, 8);
@@ -74,7 +74,7 @@ index 831a47a9..364b1119 100644
  #define MT_PACKET_ID_HAS_RATE		BIT(7)
  /* This is timer for when to give up when waiting for TXS callback,
   * with starting time being the time at which the DMA_DONE callback
-@@ -874,26 +901,6 @@ struct mt76_power_limits {
+@@ -875,26 +902,6 @@ struct mt76_power_limits {
  	s8 ru[7][12];
  };
  
@@ -102,7 +102,7 @@ index 831a47a9..364b1119 100644
  	u64 *data;
  	int idx;
 diff --git a/mt76_connac.h b/mt76_connac.h
-index f71ded84..4a43838b 100644
+index f71ded8..4a43838 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
 @@ -366,9 +366,10 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
@@ -119,7 +119,7 @@ index f71ded84..4a43838b 100644
  					 struct sk_buff *skb,
  					 __le32 *rxv, u32 mode);
 diff --git a/mt76_connac2_mac.h b/mt76_connac2_mac.h
-index 67ce216f..c7064ba2 100644
+index 67ce216..c7064ba 100644
 --- a/mt76_connac2_mac.h
 +++ b/mt76_connac2_mac.h
 @@ -123,6 +123,12 @@ enum {
@@ -151,7 +151,7 @@ index 67ce216f..c7064ba2 100644
  #define MT_RXD1_NORMAL_WLAN_IDX		GENMASK(9, 0)
  #define MT_RXD1_NORMAL_GROUP_1		BIT(11)
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index a9e58cfa..af265d99 100644
+index a9e58cf..af265d9 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -487,6 +487,9 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
@@ -289,7 +289,7 @@ index a9e58cfa..af265d99 100644
  
  	return !!skb;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 5b684926..63c702e0 100644
+index 5b68492..63c702e 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -1153,13 +1153,10 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
@@ -322,7 +322,7 @@ index 5b684926..63c702e0 100644
  		goto out;
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 0f872f5d..b7c6cf6a 100644
+index 0f872f5..b7c6cf6 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -1049,6 +1049,20 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
@@ -356,7 +356,7 @@ index 0f872f5d..b7c6cf6a 100644
  
  static
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 1ccec14f..bb2d1c45 100644
+index 1ccec14..bb2d1c4 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -92,6 +92,7 @@ static const u32 mt7915_offs[] = {
@@ -425,7 +425,7 @@ index 1ccec14f..bb2d1c45 100644
  #endif
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 01b2f681..f1b9c0d6 100644
+index 3c4d2c2..570ecc4 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -142,8 +142,6 @@ struct mt7915_sta {
@@ -438,7 +438,7 @@ index 01b2f681..f1b9c0d6 100644
  
  	struct {
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 36ef8a9c..dcb40181 100644
+index 36ef8a9..dcb4018 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -52,6 +52,7 @@ enum offs_rev {
@@ -460,7 +460,7 @@ index 36ef8a9c..dcb40181 100644
  #define MT_AGG_MRCR_BAR_CNT_LIMIT		GENMASK(15, 12)
  #define MT_AGG_MRCR_LAST_RTS_CTS_RN		BIT(6)
 diff --git a/mt7921/mt7921.h b/mt7921/mt7921.h
-index 0a1f0357..96267d5b 100644
+index 0a1f035..96267d5 100644
 --- a/mt7921/mt7921.h
 +++ b/mt7921/mt7921.h
 @@ -100,7 +100,6 @@ struct mt7921_sta {

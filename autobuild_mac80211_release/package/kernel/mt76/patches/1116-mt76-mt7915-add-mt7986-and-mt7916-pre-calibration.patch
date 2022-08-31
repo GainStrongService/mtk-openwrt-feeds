@@ -1,7 +1,7 @@
-From a4033091ec1a76b05364ea714f2abea7addbebb9 Mon Sep 17 00:00:00 2001
+From 16d67349d56a818200f96ba21e8c9023094baffc Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 20 May 2022 19:19:25 +0800
-Subject: [PATCH 1115/1119] mt76: mt7915: add mt7986 and mt7916 pre-calibration
+Subject: [PATCH 1116/1121] mt76: mt7915: add mt7986 and mt7916 pre-calibration
 
 Add pre-calibration for mt7986 and mt7916. It has different data size
 with mt7915. Group cal needs 54k and 94k for 2G + 5G and 2G + 6G,
@@ -9,13 +9,13 @@ respectively. DPD cal needs 300k.
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
- .../wireless/mediatek/mt76/mt7915/eeprom.c    | 15 ++--
- .../wireless/mediatek/mt76/mt7915/eeprom.h    | 27 ++++++-
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   | 80 ++++++++++++++-----
- 3 files changed, 90 insertions(+), 32 deletions(-)
+ mt7915/eeprom.c | 15 +++++------
+ mt7915/eeprom.h |  1 +
+ mt7915/mcu.c    | 72 ++++++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 62 insertions(+), 26 deletions(-)
 
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 4b1a9811..ee3049e5 100644
+index 4b1a981..ee3049e 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -9,23 +9,22 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
@@ -50,7 +50,7 @@ index 4b1a9811..ee3049e5 100644
  
  static int mt7915_check_eeprom(struct mt7915_dev *dev)
 diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
-index 7578ac6d..e924baef 100644
+index b980342..fb9fbfe 100644
 --- a/mt7915/eeprom.h
 +++ b/mt7915/eeprom.h
 @@ -19,6 +19,7 @@ enum mt7915_eeprom_field {
@@ -61,52 +61,11 @@ index 7578ac6d..e924baef 100644
  	MT_EE_RATE_DELTA_2G =	0x252,
  	MT_EE_RATE_DELTA_5G =	0x29d,
  	MT_EE_TX0_POWER_2G =	0x2fc,
-@@ -39,10 +40,14 @@ enum mt7915_eeprom_field {
- };
- 
- #define MT_EE_WIFI_CAL_GROUP			BIT(0)
--#define MT_EE_WIFI_CAL_DPD			GENMASK(2, 1)
-+#define MT_EE_WIFI_CAL_DPD			GENMASK(3, 1)
- #define MT_EE_CAL_UNIT				1024
--#define MT_EE_CAL_GROUP_SIZE			(49 * MT_EE_CAL_UNIT + 16)
--#define MT_EE_CAL_DPD_SIZE			(54 * MT_EE_CAL_UNIT)
-+#define MT_EE_CAL_GROUP_SIZE_7915		(49 * MT_EE_CAL_UNIT + 16)
-+#define MT_EE_CAL_GROUP_SIZE_7916		(54 * MT_EE_CAL_UNIT + 16)
-+#define MT_EE_CAL_GROUP_SIZE_7975		(54 * MT_EE_CAL_UNIT + 16)
-+#define MT_EE_CAL_GROUP_SIZE_7976		(94 * MT_EE_CAL_UNIT + 16)
-+#define MT_EE_CAL_DPD_SIZE_V1			(54 * MT_EE_CAL_UNIT)
-+#define MT_EE_CAL_DPD_SIZE_V2			(300 * MT_EE_CAL_UNIT)
- 
- #define MT_EE_WIFI_CONF0_TX_PATH		GENMASK(2, 0)
- #define MT_EE_WIFI_CONF0_BAND_SEL		GENMASK(7, 6)
-@@ -160,6 +165,22 @@ mt7915_tssi_enabled(struct mt7915_dev *dev, enum nl80211_band band)
- 		return val & MT_EE_WIFI_CONF7_TSSI0_5G;
- }
- 
-+static inline u32
-+mt7915_get_cal_group_size(struct mt7915_dev *dev)
-+{
-+	switch (mt76_chip(&dev->mt76)) {
-+	case 0x7915:
-+		return MT_EE_CAL_GROUP_SIZE_7915;
-+	case 0x7916:
-+		return MT_EE_CAL_GROUP_SIZE_7916;
-+	default:
-+		if (mt7915_check_adie(dev, false))
-+			return MT_EE_CAL_GROUP_SIZE_7976;
-+
-+		return MT_EE_CAL_GROUP_SIZE_7975;
-+	}
-+}
-+
- extern const u8 mt7915_sku_group_len[MAX_SKU_RATE_GROUP_NUM];
- 
- #endif
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index c65fee98..29422f55 100644
+index eb53095..9d1dea2 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2930,9 +2930,10 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
+@@ -2926,7 +2926,8 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
  int mt7915_mcu_apply_group_cal(struct mt7915_dev *dev)
  {
  	u8 idx = 0, *cal = dev->cal, *eep = dev->mt76.eeprom.data;
@@ -114,12 +73,9 @@ index c65fee98..29422f55 100644
 +	u32 total = mt7915_get_cal_group_size(dev);
 +	u32 offs = is_mt7915(&dev->mt76) ? MT_EE_DO_PRE_CAL : MT_EE_DO_PRE_CAL_V2;
  
--	if (1 || !(eep[MT_EE_DO_PRE_CAL] & MT_EE_WIFI_CAL_GROUP))
-+	if (1 || !(eep[offs] & MT_EE_WIFI_CAL_GROUP))
+ 	if (!(eep[offs] & MT_EE_WIFI_CAL_GROUP))
  		return 0;
- 
- 	/*
-@@ -2968,9 +2969,9 @@ static int mt7915_find_freq_idx(const u16 *freqs, int n_freqs, u16 cur)
+@@ -2964,9 +2965,9 @@ static int mt7915_find_freq_idx(const u16 *freqs, int n_freqs, u16 cur)
  	return -1;
  }
  
@@ -127,16 +83,16 @@ index c65fee98..29422f55 100644
 +static int mt7915_dpd_freq_idx(struct mt7915_dev *dev, u16 freq, u8 bw)
  {
 -	static const u16 freq_list[] = {
-+	static const u16 freq_list_v1[] = {
++	const u16 freq_list_v1[] = {
  		5180, 5200, 5220, 5240,
  		5260, 5280, 5300, 5320,
  		5500, 5520, 5540, 5560,
-@@ -2978,65 +2979,102 @@ static int mt7915_dpd_freq_idx(u16 freq, u8 bw)
+@@ -2974,34 +2975,69 @@ static int mt7915_dpd_freq_idx(u16 freq, u8 bw)
  		5660, 5680, 5700, 5745,
  		5765, 5785, 5805, 5825
  	};
 -	int offset_2g = ARRAY_SIZE(freq_list);
-+	static const u16 freq_list_v2[] = {
++	const u16 freq_list_v2[] = {
 +		/* 6G BW20*/
 +		5955, 5975, 5995, 6015,
 +		6035, 6055, 6075, 6095,
@@ -167,7 +123,7 @@ index c65fee98..29422f55 100644
 +		/* 5G BW160 */
 +		5250, 5570, 5815
 +	};
-+	static const u16 *freq_list = freq_list_v1;
++	const u16 *freq_list = freq_list_v1;
 +	int n_freqs = ARRAY_SIZE(freq_list_v1);
  	int idx;
  
@@ -211,18 +167,8 @@ index c65fee98..29422f55 100644
  }
  
  int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
- {
- 	struct mt7915_dev *dev = phy->dev;
- 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
--	u16 total = 2, center_freq = chandef->center_freq1;
-+	u32 offs = is_mt7915(&dev->mt76) ? MT_EE_DO_PRE_CAL : MT_EE_DO_PRE_CAL_V2;
-+	u16 center_freq = chandef->center_freq1;
- 	u8 *cal = dev->cal, *eep = dev->mt76.eeprom.data;
-+	u8 cal_num = is_mt7915(&dev->mt76) ? 2 : 3;
- 	int idx;
- 
--	if (1 || !(eep[MT_EE_DO_PRE_CAL] & MT_EE_WIFI_CAL_DPD))
-+	if (1 || !(eep[offs] & MT_EE_WIFI_CAL_DPD))
+@@ -3033,24 +3069,24 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
+ 	if (!(eep[offs] & dpd_mask))
  		return 0;
  
 -	idx = mt7915_dpd_freq_idx(center_freq, chandef->width);
@@ -252,5 +198,5 @@ index c65fee98..29422f55 100644
  
  	return 0;
 -- 
-2.25.1
+2.18.0
 

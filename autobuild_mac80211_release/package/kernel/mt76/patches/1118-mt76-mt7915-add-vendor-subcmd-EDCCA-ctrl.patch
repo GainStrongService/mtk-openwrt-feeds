@@ -1,24 +1,24 @@
-From 49eb731e0ede35ae2deb4e248f704b1c27afeeed Mon Sep 17 00:00:00 2001
+From a8d14b6b74819754b4c9419fb5ac3e5c5a1cc07c Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
-Subject: [PATCH 1117/1119] mt76: mt7915: add vendor subcmd EDCCA ctrl
+Subject: [PATCH 1118/1121] mt76: mt7915: add vendor subcmd EDCCA ctrl
 
 Change-Id: I92dabf8be9c5a7ecec78f35325bc5645af8d15ab
 ---
- .../wireless/mediatek/mt76/mt76_connac_mcu.h  |  1 +
- .../net/wireless/mediatek/mt76/mt7915/main.c  |  3 +
- .../net/wireless/mediatek/mt76/mt7915/mcu.c   | 38 +++++++++++
- .../net/wireless/mediatek/mt76/mt7915/mcu.h   | 12 ++++
- .../wireless/mediatek/mt76/mt7915/mt7915.h    |  2 +
- .../wireless/mediatek/mt76/mt7915/vendor.c    | 63 +++++++++++++++++++
- .../wireless/mediatek/mt76/mt7915/vendor.h    | 19 ++++++
+ mt76_connac_mcu.h |  1 +
+ mt7915/main.c     |  3 +++
+ mt7915/mcu.c      | 38 ++++++++++++++++++++++++++++
+ mt7915/mcu.h      | 12 +++++++++
+ mt7915/mt7915.h   |  2 ++
+ mt7915/vendor.c   | 63 +++++++++++++++++++++++++++++++++++++++++++++++
+ mt7915/vendor.h   | 19 ++++++++++++++
  7 files changed, 138 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index cb1e94a3..ca68172d 100644
+index 9789380..2162a4a 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1147,6 +1147,7 @@ enum {
+@@ -1148,6 +1148,7 @@ enum {
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
@@ -27,7 +27,7 @@ index cb1e94a3..ca68172d 100644
  };
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 06658aed..6085e124 100644
+index 551e909..c287de3 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -456,6 +456,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
@@ -41,10 +41,10 @@ index 06658aed..6085e124 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 29422f55..681a2a7c 100644
+index 9d1dea2..1f45d1a 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4239,3 +4239,41 @@ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
+@@ -4251,3 +4251,41 @@ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  
  	return 0;
  }
@@ -87,7 +87,7 @@ index 29422f55..681a2a7c 100644
 +	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(EDCCA), &req, sizeof(req), true);
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index ad85e56c..b8a433e5 100644
+index ad85e56..b8a433e 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -789,4 +789,16 @@ enum {
@@ -108,10 +108,10 @@ index ad85e56c..b8a433e5 100644
 +};
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index fb8bd877..6462d502 100644
+index 99796d7..730b91b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -721,6 +721,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
+@@ -725,6 +725,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
  int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
@@ -121,7 +121,7 @@ index fb8bd877..6462d502 100644
  #ifdef MTK_DEBUG
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 77d71e48..5a28a554 100644
+index 77d71e4..5a28a55 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -62,6 +62,17 @@ phy_capa_dump_policy[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP] = {
@@ -209,7 +209,7 @@ index 77d71e48..5a28a554 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 719b851f..83c41bc1 100644
+index 719b851..83c41bc 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -10,8 +10,27 @@ enum mtk_nl80211_vendor_subcmds {
@@ -241,5 +241,5 @@ index 719b851f..83c41bc1 100644
  	CAPI_RFEATURE_CHANGED		= BIT(16),
  	CAPI_WIRELESS_CHANGED		= BIT(17),
 -- 
-2.25.1
+2.18.0
 

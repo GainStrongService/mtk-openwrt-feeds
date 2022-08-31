@@ -26,6 +26,7 @@ static struct nla_policy testdata_policy[NUM_MT76_TM_ATTRS] = {
 	[MT76_TM_ATTR_STATE] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_MTD_PART] = { .type = NLA_STRING },
 	[MT76_TM_ATTR_MTD_OFFSET] = { .type = NLA_U32 },
+	[MT76_TM_ATTR_IS_MAIN_PHY] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_COUNT] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_TX_LENGTH] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_TX_RATE_MODE] = { .type = NLA_U8 },
@@ -39,6 +40,8 @@ static struct nla_policy testdata_policy[NUM_MT76_TM_ATTRS] = {
 	[MT76_TM_ATTR_TX_ANTENNA] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_FREQ_OFFSET] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_STATS] = { .type = NLA_NESTED },
+	[MT76_TM_ATTR_PRECAL] = { .type = NLA_NESTED },
+	[MT76_TM_ATTR_PRECAL_INFO] = { .type = NLA_NESTED },
 };
 
 static struct nla_policy stats_policy[NUM_MT76_TM_STATS_ATTRS] = {
@@ -122,7 +125,6 @@ atenl_set_attr_antenna(struct atenl *an, struct nl_msg *msg, u8 tx_antenna)
 {
 	if (!tx_antenna)
 		return;
-
 	if (is_mt7915(an))
 		nla_put_u8(msg, MT76_TM_ATTR_TX_ANTENNA,
 			   tx_antenna << (2 * an->cur_band));
@@ -1177,6 +1179,7 @@ static int atenl_nl_check_mtd_cb(struct nl_msg *msg, void *arg)
 
 	an->mtd_part = strdup(nla_get_string(tb[MT76_TM_ATTR_MTD_PART]));
 	an->mtd_offset = nla_get_u32(tb[MT76_TM_ATTR_MTD_OFFSET]);
+	an->is_main_phy = nla_get_u32(tb[MT76_TM_ATTR_IS_MAIN_PHY]);
 
 	return NL_SKIP;
 }
@@ -1306,3 +1309,187 @@ int atenl_nl_update_buffer_mode(struct atenl *an)
 	return 0;
 }
 
+static int atenl_nl_precal_sync_from_driver_cb(struct nl_msg *msg, void *arg)
+{
+	struct atenl_nl_priv *nl_priv = (struct atenl_nl_priv *)arg;
+	struct atenl *an = nl_priv->an;
+	struct nlattr *tb[NUM_MT76_TM_ATTRS];
+	struct nlattr *attr, *cur;
+	int i, rem, prek_offset = nl_priv->attr;
+
+
+	attr = unl_find_attr(&nl_priv->unl, msg, NL80211_ATTR_TESTDATA);
+	if (!attr)
+		return NL_SKIP;
+
+	nla_parse_nested(tb, MT76_TM_ATTR_MAX, attr, testdata_policy);
+
+	if (!tb[MT76_TM_ATTR_PRECAL_INFO] && !tb[MT76_TM_ATTR_PRECAL]) {
+		atenl_info("No Pre cal data or info!\n");
+		return NL_SKIP;
+	}
+
+	if (tb[MT76_TM_ATTR_PRECAL_INFO]) {
+		i = 0;
+		nla_for_each_nested(cur, tb[MT76_TM_ATTR_PRECAL_INFO], rem) {
+			an->cal_info[i] = (u32) nla_get_u32(cur);
+			i++;
+		}
+		return NL_SKIP;
+	}
+
+	if (tb[MT76_TM_ATTR_PRECAL] && an->cal) {
+		i = prek_offset;
+		nla_for_each_nested(cur, tb[MT76_TM_ATTR_PRECAL], rem) {
+			an->cal[i] = (u8) nla_get_u8(cur);
+			i++;
+		}
+		return NL_SKIP;
+	}
+	atenl_info("No data found for pre-cal!\n");
+
+	return NL_SKIP;
+}
+
+static int
+atenl_nl_precal_sync_partition(struct atenl_nl_priv *nl_priv, enum mt76_testmode_attr attr,
+			       int prek_type, int prek_offset)
+{
+	int ret;
+	void *ptr;
+	struct nl_msg *msg;
+	struct atenl *an = nl_priv->an;
+
+	msg = unl_genl_msg(&(nl_priv->unl), NL80211_CMD_TESTMODE, true);
+	nla_put_u32(msg, NL80211_ATTR_WIPHY, get_band_val(an, an->cur_band, phy_idx));
+	nl_priv->msg = msg;
+	nl_priv->attr = prek_offset;
+
+	ptr = nla_nest_start(msg, NL80211_ATTR_TESTDATA);
+	if (!ptr)
+		return -ENOMEM;
+
+	nla_put_flag(msg, attr);
+	if (attr == MT76_TM_ATTR_PRECAL)
+		nla_put_u8(msg, MT76_TM_ATTR_PRECAL_INFO, prek_type);
+	nla_nest_end(msg, ptr);
+
+	ret = unl_genl_request(&(nl_priv->unl), msg, atenl_nl_precal_sync_from_driver_cb, (void *)nl_priv);
+
+	if (ret) {
+		atenl_err("command process error!\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+int atenl_nl_precal_sync_from_driver(struct atenl *an, enum prek_ops ops)
+{
+#define GROUP_IND_MASK  	BIT(0)
+#define DPD_IND_MASK  		GENMASK(3, 1)
+	int ret;
+	u32 i, times, group_size, dpd_size, total_size, transmit_size, offs;
+	u32 dpd_per_chan_size, dpd_chan_num[3], total_chan_num;
+	u32 size, base, base_idx, *size_ptr;
+	u8 cal_indicator, *precal_info;
+	struct atenl_nl_priv nl_priv = { .an = an };
+
+	offs = an->eeprom_prek_offs;
+	cal_indicator = an->eeprom_data[offs];
+
+	if (cal_indicator) {
+		precal_info = an->eeprom_data + an->eeprom_size;
+		memcpy(an->cal_info, precal_info, PRE_CAL_INFO);
+		group_size = an->cal_info[0];
+		dpd_size = an->cal_info[1];
+		total_size = group_size + dpd_size;
+		dpd_chan_num[0] = (an->cal_info[2] >> DPD_INFO_6G_SHIFT) & DPD_INFO_MASK;
+		dpd_chan_num[1] = (an->cal_info[2] >> DPD_INFO_5G_SHIFT) & DPD_INFO_MASK;
+		dpd_chan_num[2] = (an->cal_info[2] >> DPD_INFO_2G_SHIFT) & DPD_INFO_MASK;
+		dpd_per_chan_size = (an->cal_info[2] >> DPD_INFO_CH_SHIFT) & DPD_INFO_MASK;
+		total_chan_num = dpd_chan_num[0] + dpd_chan_num[1] + dpd_chan_num[2];
+	}
+
+	switch (ops){
+	case PREK_SYNC_ALL:
+		size_ptr = &total_size;
+		base_idx = 0;
+		goto start;
+	case PREK_SYNC_GROUP:
+		size_ptr = &group_size;
+		base_idx = 0;
+		goto start;
+	case PREK_SYNC_DPD_6G:
+		size_ptr = &dpd_size;
+		base_idx = 0;
+		goto start;
+	case PREK_SYNC_DPD_5G:
+		size_ptr = &dpd_size;
+		base_idx = 1;
+		goto start;
+	case PREK_SYNC_DPD_2G:
+		size_ptr = &dpd_size;
+		base_idx = 2;
+
+start:
+		if (unl_genl_init(&nl_priv.unl, "nl80211") < 0) {
+			atenl_err("Failed to connect to nl80211\n");
+			return 2;
+		}
+
+		ret = atenl_nl_precal_sync_partition(&nl_priv, MT76_TM_ATTR_PRECAL_INFO, 0, 0);
+		if (ret || !an->cal_info)
+			goto out;
+
+		group_size = an->cal_info[0];
+		dpd_size = an->cal_info[1];
+		total_size = group_size + dpd_size;
+		dpd_chan_num[0] = (an->cal_info[2] >> DPD_INFO_6G_SHIFT) & DPD_INFO_MASK;
+		dpd_chan_num[1] = (an->cal_info[2] >> DPD_INFO_5G_SHIFT) & DPD_INFO_MASK;
+		dpd_chan_num[2] = (an->cal_info[2] >> DPD_INFO_2G_SHIFT) & DPD_INFO_MASK;
+		dpd_per_chan_size = (an->cal_info[2] >> DPD_INFO_CH_SHIFT) & DPD_INFO_MASK;
+		total_chan_num = dpd_chan_num[0] + dpd_chan_num[1] + dpd_chan_num[2];
+		transmit_size = an->cal_info[3];
+
+		size = *size_ptr;
+		size = (size_ptr == &dpd_size) ? (size / total_chan_num * dpd_chan_num[base_idx]) :
+						 size;
+		base = 0;
+		for (i = 0; i < base_idx; i++) {
+			base += dpd_chan_num[i] * dpd_per_chan_size * MT_EE_CAL_UNIT;
+		}
+		base += (size_ptr == &dpd_size) ? group_size : 0;
+
+		if (!an->cal)
+			an->cal = (u8 *) calloc(size, sizeof(u8));
+		times = size / transmit_size + 1;
+		for (i = 0; i < times; i++) {
+			ret = atenl_nl_precal_sync_partition(&nl_priv, MT76_TM_ATTR_PRECAL, ops,
+							     i * transmit_size);
+			if (ret)
+				goto out;
+		}
+
+		ret = atenl_eeprom_update_precal(an, base, size);
+		break;
+	case PREK_CLEAN_GROUP:
+		if (!(cal_indicator & GROUP_IND_MASK))
+			return 0;
+		an->cal_info[4] = cal_indicator & (u8) ~GROUP_IND_MASK;
+		ret = atenl_eeprom_update_precal(an, 0, group_size);
+		break;
+	case PREK_CLEAN_DPD:
+		if (!(cal_indicator & DPD_IND_MASK))
+			return 0;
+		an->cal_info[4] = cal_indicator & (u8) ~DPD_IND_MASK;
+		ret = atenl_eeprom_update_precal(an, group_size, dpd_size);
+		break;
+	default:
+		break;
+	}
+
+out:
+	unl_free(&nl_priv.unl);
+	return ret;
+}
