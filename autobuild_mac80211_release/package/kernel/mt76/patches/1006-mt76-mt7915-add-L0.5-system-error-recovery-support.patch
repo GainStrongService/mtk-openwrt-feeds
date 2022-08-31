@@ -1,7 +1,8 @@
-From a9856ee394084946e0fb59c6b56dfd66108761ba Mon Sep 17 00:00:00 2001
+From 09bf3cc5a27d3120ebef02eadbabadf96e555586 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Wed, 22 Jun 2022 10:51:59 +0800
-Subject: [PATCH] mt76: mt7915: add L0.5 system error recovery support
+Subject: [PATCH 1006/1009] mt76: mt7915: add L0.5 system error recovery
+ support
 
 ---
  mt7915/debugfs.c |  88 ++++++++++++---
@@ -17,7 +18,7 @@ Subject: [PATCH] mt76: mt7915: add L0.5 system error recovery support
  10 files changed, 492 insertions(+), 99 deletions(-)
 
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 0cfb6068..07de2eef 100644
+index 0cfb606..07de2ee 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -52,12 +52,17 @@ static ssize_t
@@ -141,7 +142,7 @@ index 0cfb6068..07de2eef 100644
  	kfree(buff);
  	return ret;
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index f7e6bb10..4b594a53 100644
+index f7e6bb1..4b594a5 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -479,6 +479,54 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -200,7 +201,7 @@ index f7e6bb10..4b594a53 100644
  {
  	mt7915_dma_disable(dev, true);
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 37b7b54a..141c5ad8 100644
+index 37b7b54..141c5ad 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -262,7 +262,7 @@ static void mt7915_led_set_brightness(struct led_classdev *led_cdev,
@@ -240,7 +241,7 @@ index 37b7b54a..141c5ad8 100644
  
  unreg_thermal:
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 6b3fa4ce..e5409413 100644
+index 6b3fa4c..e540941 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -3,6 +3,7 @@
@@ -581,7 +582,7 @@ index 6b3fa4ce..e5409413 100644
  {
  	struct mt7915_dev *dev = phy->dev;
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 4e82904f..7a7ff86a 100644
+index 4e82904..7a7ff86 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -20,17 +20,13 @@ static bool mt7915_dev_running(struct mt7915_dev *dev)
@@ -631,7 +632,7 @@ index 4e82904f..7a7ff86a 100644
  	mutex_lock(&dev->mt76.mutex);
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f692e520..5eac6ed6 100644
+index f692e52..5eac6ed 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -150,19 +150,90 @@ mt7915_mcu_set_sta_ht_mcs(struct ieee80211_sta *sta, u8 *ht_mcs,
@@ -767,7 +768,7 @@ index f692e520..5eac6ed6 100644
  {
  	__mt76_mcu_restart(&dev->mt76);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index aab1a6a3..c4850644 100644
+index aab1a6a..c485064 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -453,8 +453,9 @@ enum {
@@ -782,7 +783,7 @@ index aab1a6a3..c4850644 100644
  	SER_SET_RECOVER_L3_RX_ABORT,
  	SER_SET_RECOVER_L3_TX_ABORT,
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index c81fa091..8469d8fb 100644
+index c81fa09..8469d8f 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -24,6 +24,7 @@ static const u32 mt7915_reg[] = {
@@ -823,7 +824,7 @@ index c81fa091..8469d8fb 100644
  	}
  }
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 267fa7eb..d214b181 100644
+index 267fa7e..d214b18 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -352,6 +352,15 @@ struct mt7915_dev {
@@ -871,7 +872,7 @@ index 267fa7eb..d214b181 100644
  int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
  			       struct mt7915_vif *mvif,
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 16875680..3d2c15be 100644
+index 1687568..3d2c15b 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -26,6 +26,7 @@ enum reg_rev {

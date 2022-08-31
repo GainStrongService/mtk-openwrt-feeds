@@ -1,7 +1,7 @@
-From 0fb081d0cbaeaf0c2ff537d44680818185942590 Mon Sep 17 00:00:00 2001
+From b45e4f29cd1580cd22b59b3080da2ebe096c15ba Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 26 Jul 2022 16:04:53 +0800
-Subject: [PATCH] mt76: mt7915: set the first antenna to detect radar for
+Subject: [PATCH 8/8] mt76: mt7915: set the first antenna to detect radar for
  MT7915
 
 The default value of listening antenna set by FW might be different in
@@ -10,15 +10,15 @@ the radar detection function, manually set the value by a mcu command.
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
- drivers/net/wireless/mediatek/mt76/mt7915/mac.c   | 15 +++++++++++++++
- .../net/wireless/mediatek/mt76/mt7915/mt7915.h    |  1 +
+ mt7915/mac.c    | 15 +++++++++++++++
+ mt7915/mt7915.h |  1 +
  2 files changed, 16 insertions(+)
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 1f8e1230..a31ac2df 100644
+index 31d1138..a1d5c15 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -2149,6 +2149,13 @@ static int mt7915_dfs_start_rdd(struct mt7915_dev *dev, int chain)
+@@ -1817,6 +1817,13 @@ static int mt7915_dfs_start_rdd(struct mt7915_dev *dev, int chain)
  	if (err < 0)
  		return err;
  
@@ -32,7 +32,7 @@ index 1f8e1230..a31ac2df 100644
  	return mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_DET_MODE, chain,
  				       MT_RX_SEL0, 1);
  }
-@@ -2269,6 +2276,14 @@ stop:
+@@ -1937,6 +1944,14 @@ stop:
  	if (err < 0)
  		return err;
  
@@ -48,10 +48,10 @@ index 1f8e1230..a31ac2df 100644
  	phy->mt76->dfs_state = MT_DFS_STATE_DISABLED;
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 22399cc7..2eaada50 100644
+index 54ef2a1..836a7f1 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -468,6 +468,7 @@ enum mt7915_rdd_cmd {
+@@ -359,6 +359,7 @@ enum mt7915_rdd_cmd {
  	RDD_DET_MODE,
  	RDD_RADAR_EMULATE,
  	RDD_START_TXQ = 20,
@@ -60,5 +60,5 @@ index 22399cc7..2eaada50 100644
  	RDD_CAC_END,
  	RDD_NORMAL_START,
 -- 
-2.25.1
+2.18.0
 

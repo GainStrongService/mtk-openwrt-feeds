@@ -1,7 +1,7 @@
-From 5b712b2ec82bb9e88346b379b5c6645b1fa7d7fe Mon Sep 17 00:00:00 2001
+From df09a1213e5df6e4afd2b1c0e64adfca8f95c72b Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 6 Jul 2022 21:52:45 +0800
-Subject: [PATCH] mt76: testmode: use random payload for tx packets
+Subject: [PATCH 6/8] mt76: testmode: use random payload for tx packets
 
 Compared to fixed payload packets, random payload packets have better
 measured EVM under the same txpower. Our tests show EVM becomes at least
@@ -11,11 +11,11 @@ aligns the testing result of proprietary driver.
 Suggested-by: Jm Chen <jm.chen@mediatek.com>
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
- drivers/net/wireless/mediatek/mt76/testmode.c | 8 ++++++--
+ testmode.c | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
 
 diff --git a/testmode.c b/testmode.c
-index 4a24f6c9..31439b39 100644
+index ba9ac2d..1d0d5d3 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -1,5 +1,7 @@
@@ -26,7 +26,7 @@ index 4a24f6c9..31439b39 100644
  #include "mt76.h"
  
  const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
-@@ -124,12 +126,14 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
+@@ -123,12 +125,14 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
  	if (!head)
  		return -ENOMEM;
  
@@ -42,7 +42,7 @@ index 4a24f6c9..31439b39 100644
  
  	info = IEEE80211_SKB_CB(head);
  	info->flags = IEEE80211_TX_CTL_INJECTED |
-@@ -157,7 +161,7 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
+@@ -154,7 +158,7 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
  			return -ENOMEM;
  		}
  
@@ -52,5 +52,5 @@ index 4a24f6c9..31439b39 100644
  		head->data_len += frag->len;
  
 -- 
-2.25.1
+2.18.0
 
