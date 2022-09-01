@@ -1,4 +1,4 @@
-From 7b05ee7c55f2ac724af056e8ae16f8ca2835bc2a Mon Sep 17 00:00:00 2001
+From 3e0328c381fcaaa6e5fcf50494934c770d9ade49 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 31 Aug 2022 20:06:52 +0800
 Subject: [PATCH 1112/1121] mt76: testmode: add pre-cal support
@@ -192,7 +192,7 @@ index 99f364c..fc0621e 100644
  static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
  {
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index de6e63e..0afce0d 100644
+index bc4cd80..7a49608 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -5,6 +5,7 @@
@@ -551,7 +551,7 @@ index de6e63e..0afce0d 100644
  
  	if ((state == MT76_TM_STATE_IDLE &&
  	     prev_state == MT76_TM_STATE_OFF) ||
-@@ -1866,9 +2179,113 @@ mt7915_tm_set_eeprom(struct mt76_phy *mphy, u32 offset, u8 *val, u8 action)
+@@ -1872,9 +2185,113 @@ mt7915_tm_set_eeprom(struct mt76_phy *mphy, u32 offset, u8 *val, u8 action)
  	return ret;
  }
  
@@ -734,10 +734,10 @@ index 01b08e9..d500987 100644
  	TAM_ARB_OP_MODE_NORMAL = 1,
  	TAM_ARB_OP_MODE_TEST,
 diff --git a/testmode.c b/testmode.c
-index 2653182..568b478 100644
+index 7a9ed54..82b8e98 100644
 --- a/testmode.c
 +++ b/testmode.c
-@@ -764,6 +764,18 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
+@@ -763,6 +763,18 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
  
  	mutex_lock(&dev->mutex);
  
@@ -756,7 +756,7 @@ index 2653182..568b478 100644
  	if (tb[MT76_TM_ATTR_STATS]) {
  		err = -EINVAL;
  
-@@ -797,7 +809,8 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
+@@ -796,7 +808,8 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
  
  	if (dev->test_mtd.name &&
  	    (nla_put_string(msg, MT76_TM_ATTR_MTD_PART, dev->test_mtd.name) ||
