@@ -1,0 +1,254 @@
+From 516fcbdf41f48d71d814caaffb9e50b88778cd17 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 30 Aug 2022 15:29:38 +0800
+Subject: [PATCH] mt76: mt7915: add vendor subcmd three wire (PTA) ctrl
+
+Change-Id: Ie092d63af9a1e06bef36fc5a5bac40fdab73dba5
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt76_connac_mcu.h |  2 +-
+ mt7915/mcu.c      | 51 ++++++++++++++++++++++-------------------------
+ mt7915/mcu.h      | 29 +++++++++++++++++++++++++++
+ mt7915/mt7915.h   |  1 +
+ mt7915/vendor.c   | 42 +++++++++++++++++++++++++++++++++++++-
+ mt7915/vendor.h   | 12 +++++++++++
+ 6 files changed, 108 insertions(+), 29 deletions(-)
+
+diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
+index 2162a4a..b777d95 100644
+--- a/mt76_connac_mcu.h
++++ b/mt76_connac_mcu.h
+@@ -1147,7 +1147,7 @@ enum {
+ 	/* for vendor csi and air monitor */
+ 	MCU_EXT_CMD_SMESH_CTRL = 0xae,
+ 	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
+-	MCU_EXT_CMD_CERT_CFG = 0xb7,
++	MCU_EXT_CMD_SET_CFG = 0xb7,
+ 	MCU_EXT_CMD_EDCCA = 0xba,
+ 	MCU_EXT_CMD_CSI_CTRL = 0xc2,
+ };
+diff --git a/mt7915/mcu.c b/mt7915/mcu.c
+index 1f45d1a..6931f2a 100644
+--- a/mt7915/mcu.c
++++ b/mt7915/mcu.c
+@@ -4017,37 +4017,34 @@ void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable)
+ 			&req, sizeof(req), false);
+ }
+ 
+-void mt7915_mcu_set_cert(struct mt7915_phy *phy, u8 type)
++int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type)
+ {
+-#define CFGINFO_CERT_CFG 4
+ 	struct mt7915_dev *dev = phy->dev;
+-	struct {
+-		struct basic_info{
+-			u8 dbdc_idx;
+-			u8 rsv[3];
+-			__le32 tlv_num;
+-			u8 tlv_buf[0];
+-		} hdr;
+-		struct cert_cfg{
+-			__le16 tag;
+-			__le16 length;
+-			u8 cert_program;
+-			u8 rsv[3];
+-		} tlv;
+-	} req = {
+-		.hdr = {
+-			.dbdc_idx = phy != &dev->phy,
+-			.tlv_num = cpu_to_le32(1),
+-		},
+-		.tlv = {
+-			.tag = cpu_to_le16(CFGINFO_CERT_CFG),
+-			.length = cpu_to_le16(sizeof(struct cert_cfg)),
+-			.cert_program = type, /* 1: CAPI Enable */
+-		}
++	struct cfg_basic_info req = {
++		.dbdc_idx = phy != &dev->phy,
++		.tlv_num = cpu_to_le32(1),
+ 	};
++	struct sk_buff *skb;
++	int tlv_len;
++
++	switch (cfg_info) {
++	case CFGINFO_CERT_CFG:
++		tlv_len = sizeof(struct cert_cfg);
++		req.cert.tag = cpu_to_le16(cfg_info);
++		req.cert.length = cpu_to_le16(tlv_len);
++		req.cert.cert_program = type;
++		break;
++	case CFGINFO_3WIRE_EN_CFG:
++		tlv_len = sizeof(struct three_wire_cfg);
++		req.three_wire.tag = cpu_to_le16(cfg_info);
++		req.three_wire.length = cpu_to_le16(tlv_len);
++		req.three_wire.three_wire_en = type;
++		break;
++	default:
++		return -EOPNOTSUPP;
++	}
+ 
+-	mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(CERT_CFG),
+-			  &req, sizeof(req), false);
++	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(SET_CFG), &req, sizeof(req), false);
+ }
+ 
+ void mt7915_mcu_set_bypass_smthint(struct mt7915_phy *phy, u8 val)
+diff --git a/mt7915/mcu.h b/mt7915/mcu.h
+index b8a433e..9d0fac4 100644
+--- a/mt7915/mcu.h
++++ b/mt7915/mcu.h
+@@ -576,6 +576,35 @@ struct csi_data {
+ };
+ #endif
+ 
++struct cert_cfg {
++	__le16 tag;
++	__le16 length;
++	u8 cert_program;
++	u8 rsv[3];
++} __packed;
++
++struct three_wire_cfg {
++	__le16 tag;
++	__le16 length;
++	u8 three_wire_en;
++	u8 rsv[3];
++} __packed;
++
++struct cfg_basic_info {
++	u8 dbdc_idx;
++	u8 rsv[3];
++	__le32 tlv_num;
++	union {
++		struct cert_cfg cert;
++		struct three_wire_cfg three_wire;
++	};
++} __packed;
++
++enum {
++	CFGINFO_CERT_CFG = 4,
++	CFGINFO_3WIRE_EN_CFG = 10,
++};
++
+ /* MURU */
+ #define OFDMA_DL                       BIT(0)
+ #define OFDMA_UL                       BIT(1)
+diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
+index 78f0b18..e8ac75e 100644
+--- a/mt7915/mt7915.h
++++ b/mt7915/mt7915.h
+@@ -727,6 +727,7 @@ void mt7915_mcu_set_mimo(struct mt7915_phy *phy, u8 direction);
+ void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable);
+ int mt7915_mcu_set_mu_edca(struct mt7915_phy *phy, u8 val);
+ void mt7915_mcu_set_cert(struct mt7915_phy *phy, u8 type);
++int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type);
+ void mt7915_mcu_set_bypass_smthint(struct mt7915_phy *phy, u8 val);
+ void mt7915_vendor_register(struct mt7915_phy *phy);
+ int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
+diff --git a/mt7915/vendor.c b/mt7915/vendor.c
+index 7acb330..7f67c0d 100644
+--- a/mt7915/vendor.c
++++ b/mt7915/vendor.c
+@@ -40,6 +40,11 @@ hemu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_HEMU_CTRL] = {
+ 	[MTK_VENDOR_ATTR_HEMU_CTRL_DUMP] = {.type = NLA_U8 },
+ };
+ 
++static const struct nla_policy
++three_wire_ctrl_policy[NUM_MTK_VENDOR_ATTRS_3WIRE_CTRL] = {
++	[MTK_VENDOR_ATTR_3WIRE_CTRL_MODE] = {.type = NLA_U8 },
++};
++
+ static const struct nla_policy
+ rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
+ 	[MTK_VENDOR_ATTR_RFEATURE_CTRL_HE_GI] = {.type = NLA_U8 },
+@@ -964,7 +969,7 @@ static int mt7915_vendor_wireless_ctrl(struct wiphy *wiphy,
+ 			mt7915_set_wireless_vif, &val32);
+ 	} else if (tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_CERT]) {
+ 		val8 = nla_get_u8(tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_CERT]);
+-		mt7915_mcu_set_cert(phy, val8); /* Cert Enable for OMI */
++		mt7915_mcu_set_cfg(phy, CFGINFO_CERT_CFG, val8); /* Cert Enable for OMI */
+ 		mt7915_mcu_set_bypass_smthint(phy, val8); /* Cert bypass smooth interpolation */
+ 	}
+ 
+@@ -1091,6 +1096,30 @@ static int mt7915_vendor_edcca_ctrl(struct wiphy *wiphy,
+ 	return 0;
+ }
+ 
++static int mt7915_vendor_3wire_ctrl(struct wiphy *wiphy,
++				    struct wireless_dev *wdev,
++				    const void *data,
++				    int data_len)
++{
++	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
++	struct mt7915_phy *phy = mt7915_hw_phy(hw);
++	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_3WIRE_CTRL];
++	int err;
++	u8 three_wire_mode;
++
++	err = nla_parse(tb, MTK_VENDOR_ATTR_3WIRE_CTRL_MAX, data, data_len,
++			three_wire_ctrl_policy, NULL);
++	if (err)
++		return err;
++
++	if (!tb[MTK_VENDOR_ATTR_3WIRE_CTRL_MODE])
++		return -EINVAL;
++
++	three_wire_mode = nla_get_u8(tb[MTK_VENDOR_ATTR_3WIRE_CTRL_MODE]);
++
++	return mt7915_mcu_set_cfg(phy, CFGINFO_3WIRE_EN_CFG, three_wire_mode);
++}
++
+ 
+ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+ 	{
+@@ -1172,6 +1201,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+ 		.doit = mt7915_vendor_edcca_ctrl,
+ 		.policy = edcca_ctrl_policy,
+ 		.maxattr = MTK_VENDOR_ATTR_EDCCA_CTRL_MAX,
++	},
++	{
++		.info = {
++			.vendor_id = MTK_NL80211_VENDOR_ID,
++			.subcmd = MTK_NL80211_VENDOR_SUBCMD_3WIRE_CTRL,
++		},
++		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
++			 WIPHY_VENDOR_CMD_NEED_RUNNING,
++		.doit = mt7915_vendor_3wire_ctrl,
++		.policy = three_wire_ctrl_policy,
++		.maxattr = MTK_VENDOR_ATTR_3WIRE_CTRL_MAX,
+ 	}
+ };
+ 
+diff --git a/mt7915/vendor.h b/mt7915/vendor.h
+index 57f52f3..e0c5fd9 100644
+--- a/mt7915/vendor.h
++++ b/mt7915/vendor.h
+@@ -11,6 +11,7 @@ enum mtk_nl80211_vendor_subcmds {
+ 	MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL = 0xc5,
+ 	MTK_NL80211_VENDOR_SUBCMD_PHY_CAPA_CTRL = 0xc6,
+ 	MTK_NL80211_VENDOR_SUBCMD_EDCCA_CTRL = 0xc7,
++	MTK_NL80211_VENDOR_SUBCMD_3WIRE_CTRL = 0xc8
+ };
+ 
+ 
+@@ -30,6 +31,17 @@ enum mtk_vendor_attr_edcca_ctrl {
+                 NUM_MTK_VENDOR_ATTRS_EDCCA_CTRL - 1
+ };
+ 
++enum mtk_vendor_attr_3wire_ctrl {
++	MTK_VENDOR_ATTR_3WIRE_CTRL_UNSPEC,
++
++	MTK_VENDOR_ATTR_3WIRE_CTRL_MODE,
++
++	/* keep last */
++	NUM_MTK_VENDOR_ATTRS_3WIRE_CTRL,
++	MTK_VENDOR_ATTR_3WIRE_CTRL_MAX =
++		NUM_MTK_VENDOR_ATTRS_3WIRE_CTRL - 1
++};
++
+ 
+ enum mtk_capi_control_changed {
+ 	CAPI_RFEATURE_CHANGED		= BIT(16),
+-- 
+2.18.0
+

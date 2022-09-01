@@ -1,4 +1,4 @@
-From 7fc80425ac0cde07b221cea4ab726be90d55c8b7 Mon Sep 17 00:00:00 2001
+From 3516b23f9acad60c44a13119e42636f92ca9d9a2 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Tue, 5 Jul 2022 19:42:55 +0800
 Subject: [PATCH 3002/3006] mt76 add wed rx support
@@ -20,7 +20,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  mt7915/init.c     |   9 ++
  mt7915/mac.c      | 103 ++++++++++++++++++-
  mt7915/main.c     |  26 ++++-
- mt7915/mcu.c      |  15 ++-
+ mt7915/mcu.c      |  14 ++-
  mt7915/mcu.h      |   1 +
  mt7915/mmio.c     |  26 ++++-
  mt7915/mt7915.h   |  10 +-
@@ -29,7 +29,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  mt7921/mt7921.h   |   4 +-
  mt7921/pci_mac.c  |   4 +-
  tx.c              |  34 +++++++
- 24 files changed, 506 insertions(+), 81 deletions(-)
+ 24 files changed, 505 insertions(+), 81 deletions(-)
 
 diff --git a/dma.c b/dma.c
 index 8ea09e6..3317d2b 100644
@@ -1058,7 +1058,7 @@ index b77b3be..29ee700 100644
  
  	ctx->dev = NULL;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 8c7328b..5fb8af3 100644
+index a041bb2..3d50b78 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -1722,6 +1722,7 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
@@ -1086,7 +1086,7 @@ index 8c7328b..5fb8af3 100644
  
  	/* force firmware operation mode into normal state,
  	 * which should be set before firmware download stage.
-@@ -2377,8 +2381,15 @@ int mt7915_run_firmware(struct mt7915_dev *dev)
+@@ -2377,8 +2381,14 @@ int mt7915_run_firmware(struct mt7915_dev *dev)
  	if (ret)
  		return ret;
  
@@ -1096,16 +1096,15 @@ index 8c7328b..5fb8af3 100644
 +		if (is_mt7915(&dev->mt76))
 +			mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(CAPABILITY),
 +					  0, 0, 0);
-+		if (!is_mt7915(&dev->mt76))
-+			mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
-+					  MCU_WA_PARAM_WED_VERSION,
-+					  wed->rev_id, 0);
++		mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
++				  MCU_WA_PARAM_WED_VERSION,
++				  wed->rev_id, 0);
 +	}
  
  	ret = mt7915_mcu_set_mwds(dev, 1);
  	if (ret)
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index b8a433e..ce50e60 100644
+index 9d0fac4..1f56db6 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -268,6 +268,7 @@ enum {
@@ -1198,7 +1197,7 @@ index b0d8a61..111444d 100644
  	dev->mt76.dma_dev = wed->dev;
  	mdev->token_size = wed->wlan.token_start;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 23f8a62..a4d97dd 100644
+index e329f74..b10b90a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -18,6 +18,9 @@
