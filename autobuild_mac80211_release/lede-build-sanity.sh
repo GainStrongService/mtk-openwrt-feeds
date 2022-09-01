@@ -150,6 +150,7 @@ prepare_mac80211() {
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/firmware/wireless-regdb ${BUILD_DIR}/package/firmware
 
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
+	rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/101-fix-encap-offload-ethernet-type-check.patch
 
 	#hack mt7986 hostapd config
 	echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
