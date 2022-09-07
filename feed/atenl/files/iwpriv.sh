@@ -4,9 +4,11 @@ interface=$1    # phy0/phy1/ra0
 cmd_type=$2     # set/show/e2p/mac
 full_cmd=$3
 interface_ori=${interface}
+start_idx_7986="0"
 
 work_mode="RUN" # RUN/PRINT/DEBUG
-tmp_file="/tmp/iwpriv_wrapper"
+iwpriv_file="/tmp/iwpriv_wrapper"
+interface_file="/tmp/interface"
 phy_idx=$(echo ${interface} | tr -dc '0-9')
 
 function do_cmd() {
@@ -35,60 +37,140 @@ function write_dmesg() {
 }
 
 function record_config() {
+    local config=$1
+    local tmp_file=$3
+
+    # check is mt7986 or mt7915/7916, and write its config
+    if [ ${config} != "STARTIDX" ]; then
+        if [ $phy_idx -lt $start_idx_7986 ]; then
+            config="${config}_PCIE"
+        elif [ $phy_idx -ge $start_idx_7986 ]; then
+            config="${config}_7986"
+        fi
+    fi
+
     if [ -f ${tmp_file} ]; then
-        if grep -q $1 ${tmp_file}; then
-            sed -i "/$1/c\\$1=$2" ${tmp_file}
+        if grep -q ${config} ${tmp_file}; then
+            sed -i "/${config}/c\\${config}=$2" ${tmp_file}
         else
-            echo "$1=$2" >> ${tmp_file}
+            echo "${config}=$2" >> ${tmp_file}
         fi
     else
-        echo "$1=$2" >> ${tmp_file}
+        echo "${config}=$2" >> ${tmp_file}
     fi
 }
 
 function get_config() {
+    local config=$1
+    local tmp_file=$2
+
     if [ ! -f ${tmp_file} ]; then
         echo ""
         return
     fi
 
-    if grep -q $1 ${tmp_file}; then
-        echo "$(cat ${tmp_file} | grep $1 | sed s/=/' '/g | cut -d " " -f 2)"
+    # check is mt7986 or mt7915/7916, and load its config
+    if [ ${config} != "STARTIDX" ]; then
+        if [ $phy_idx -lt $start_idx_7986 ]; then
+            config="${config}_PCIE"
+        elif [ $phy_idx -ge $start_idx_7986 ]; then
+            config="${config}_7986"
+        fi
+    fi
+
+    if grep -q ${config} ${tmp_file}; then
+        echo "$(cat ${tmp_file} | grep ${config} | sed s/=/' '/g | cut -d " " -f 2)"
     else
         echo ""
     fi
 }
 
 function convert_interface {
-    local start_idx_7986=$(get_config "STARTIDX")
+    start_idx_7986=$(get_config "STARTIDX" ${interface_file})
+    local eeprom_file=/sys/kernel/debug/ieee80211/phy0/mt76/eeprom
     if [ -z "${start_idx_7986}" ]; then
-        local tmp=$(lspci | grep "7906")
-        if [ ! -z "${tmp}" ]; then
+        if [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7916")" ]; then
             start_idx_7986="2"
+        elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7915")" ]; then
+            start_idx_7986="1"
+        elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7986")" ]; then
+            start_idx_7986="0"
         else
-            local tmp=$(lspci | grep "7915\|7916")
-            if [ ! -z "${tmp}" ]; then
-                start_idx_7986="1"
-            else
-                start_idx_7986="0"
-            fi
+            echo "Interface Conversion Failed!"
+            echo "Please use iwpriv <phy0/phy1/..> set <...> or configure the sku of your board manually by the following commands"
+            echo "For AX6000: echo STARTIDX=0 >> ${interface_file}"
+            echo "For AX7800: echo STARTIDX=2 >> ${interface_file}"
+            echo "For AX8400: echo STARTIDX=1 >> ${interface_file}"
+            exit 0
         fi
-        record_config "STARTIDX" ${start_idx_7986}
+        record_config "STARTIDX" ${start_idx_7986} ${interface_file}
     fi
 
     if [[ $1 == "raix"* ]]; then
-        interface="phy1"
         phy_idx=1
     elif [[ $1 == "rai"* ]]; then
-        interface="phy0"
         phy_idx=0
     elif [[ $1 == "rax"* ]]; then
         phy_idx=$((start_idx_7986+1))
-        interface="phy${phy_idx}"
     else
         phy_idx=$start_idx_7986
-        interface="phy${phy_idx}"
     fi
+
+    # convert phy index according to band idx
+    local band_idx=$(get_config "ATECTRLBANDIDX" ${iwpriv_file})
+    if [ "${band_idx}" = "0" ]; then
+        if [[ $1 == "raix"* ]]; then
+            phy_idx=0
+        elif [[ $1 == "rax"* ]]; then
+            phy_idx=$start_idx_7986
+        fi
+    elif [ "${band_idx}" = "1" ]; then
+        if [[ $1 == "rai"* ]]; then
+            phy_idx=1
+        elif [[ $1 == "ra"* ]]; then
+            phy_idx=$((start_idx_7986+1))
+        fi
+    fi
+
+    interface="phy${phy_idx}"
+}
+
+function change_band_idx {
+    local new_idx=$1
+    local new_phy_idx=$phy_idx
+
+    local old_idx=$(get_config "ATECTRLBANDIDX" ${iwpriv_file})
+
+
+    if [[ ${interface_ori} == "ra"* ]]; then
+        if [ -z "${old_idx}" ] || [ "${old_idx}" != "${new_idx}" ]; then
+            if [ "${new_idx}" = "0" ]; then
+                # raix0 & rai0 becomes rai0
+                if [[ $interface_ori == "rai"* ]]; then
+                    new_phy_idx=0
+                # rax0 & ra0 becomes ra0
+                elif [[ $interface_ori == "ra"* ]]; then
+                    new_phy_idx=$start_idx_7986
+                fi
+            elif [ "${new_idx}" = "1" ]; then
+                # raix0 & rai0 becomes raix0
+                if [[ $interface_ori == "rai"* ]]; then
+                    new_phy_idx=1
+                # rax0 & ra0 becomes rax0
+                elif [[ $interface_ori == "ra"* ]]; then
+                    new_phy_idx=$((start_idx_7986+1))
+                fi
+            fi
+        fi
+
+        if [ ${new_phy_idx} != ${phy_idx} ]; then
+            do_ate_work "ATESTOP"
+            phy_idx=$new_phy_idx
+            interface="phy${phy_idx}"
+            do_ate_work "ATESTART"
+        fi
+    fi
+    record_config "ATECTRLBANDIDX" ${new_idx} ${iwpriv_file}
 }
 
 function simple_convert() {
@@ -113,7 +195,7 @@ function simple_convert() {
     elif [ "$1" = "ATETXFREQOFFSET" ]; then
         echo "freq_offset"
     else
-        echo "unknown param: $1"
+        echo "undefined"
     fi
 }
 
@@ -135,7 +217,7 @@ function convert_tx_mode() {
     elif [ "$1" = "11" ]; then
         echo "he_mu"
     else
-        echo "unknown tx mode: $1"
+        echo "undefined"
     fi
 }
 
@@ -216,13 +298,19 @@ function convert_gi {
 }
 
 function convert_channel {
-    local band=$(echo $1 | sed s/:/' '/g | cut -d " " -f 2)
+    local ctrl_band_idx=$(get_config "ATECTRLBANDIDX" ${iwpriv_file})
     local ch=$(echo $1 | sed s/:/' '/g | cut -d " " -f 1)
-    local bw=$(get_config "ATETXBW" | cut -d ":" -f 1)
+    local bw=$(get_config "ATETXBW" ${iwpriv_file} | cut -d ":" -f 1)
     local bw_str="HT20"
     local base_chan=1
     local control_freq=0
     local base_freq=0
+
+    if [ -z ${ctrl_band_idx} ]; then
+        local band=$(echo $1 | sed s/:/' '/g | cut -d " " -f 2)
+    else
+        local band=$ctrl_band_idx
+    fi
 
     if [[ $1 != *":"* ]] || [ "${band}" = "0" ]; then
         case ${bw} in
@@ -508,37 +596,12 @@ function convert_rxstat {
     write_dmesg "all_mac_rx_ok_cnt : ${rx_ok}"
 }
 
-function change_band_idx {
-    local old_idx=$(get_config "ATECTRLBANDIDX")
-    local new_idx=$1
-
-    if [ -z "${old_idx}" ] && [ "${new_idx}" == "0" ]; then
-        return
-    fi
-
-    if [ "${old_idx}" != "${new_idx}" ]; then
-            if [ -z "${old_idx}" ]; then
-                old_idx=0
-            fi
-
-            interface="phy${old_idx}"
-            phy_idx=${old_idx}
-            do_ate_work "ATESTOP"
-
-            interface="phy${new_idx}"
-            phy_idx=${new_idx}
-            do_ate_work "ATESTART"
-
-            record_config "ATECTRLBANDIDX" ${new_idx}
-    fi
-}
-
 function set_mac_addr {
-    record_config ${cmd} ${param}
+    record_config ${cmd} ${param} ${iwpriv_file}
 
-    local addr1=$(get_config "ATEDA")
-    local addr2=$(get_config "ATESA")
-    local addr3=$(get_config "ATEBSSID")
+    local addr1=$(get_config "ATEDA" ${iwpriv_file})
+    local addr2=$(get_config "ATESA" ${iwpriv_file})
+    local addr3=$(get_config "ATEBSSID" ${iwpriv_file})
 
     if [ -z "${addr1}" ]; then
         addr1="00:11:22:33:44:55"
@@ -581,7 +644,11 @@ function do_ate_work() {
                 do_cmd "mt76-test ${interface} set aid=0"
             fi
 
-            rm ${tmp_file} > /dev/null 2>&1
+            if [ ${phy_idx} -lt ${start_idx_7986} ]; then
+                sed -i '/_PCIE=/d' ${iwpriv_file}
+            elif [ ${phy_idx} -ge ${start_idx_7986} ]; then
+                sed -i '/_7986=/d' ${iwpriv_file}
+            fi
             ;;
         "TXCOMMIT")
             do_cmd "mt76-test ${interface} set aid=1"
@@ -643,6 +710,12 @@ if [[ ${interface} == "ra"* ]]; then
     convert_interface $interface
 fi
 
+tmp_work_mode=$(get_config "WORKMODE" ${iwpriv_file})
+
+if [ ! -z ${tmp_work_mode} ]; then
+    work_mode=${tmp_work_mode}
+fi
+
 cmd=$(echo ${full_cmd} | sed s/=/' '/g | cut -d " " -f 1)
 param=$(echo ${full_cmd} | sed s/=/' '/g | cut -d " " -f 2)
 
@@ -657,6 +730,10 @@ if [ "${cmd_type}" = "set" ]; then
         "ATETXCNT"|"ATETXLEN"|"ATETXMCS"|"ATEVHTNSS"|"ATETXLDPC"|"ATETXSTBC"| \
         "ATEPKTTXTIME"|"ATEIPG"|"ATEDUTYCYCLE"|"ATETXFREQOFFSET")
             cmd_new=$(simple_convert ${cmd})
+            if [ "${param_new}" = "undefined" ]; then
+                echo "unknown cmd: ${cmd}"
+                exit
+            fi
             param_new=${param}
             ;;
         "ATETXANT"|"ATERXANT")
@@ -664,21 +741,27 @@ if [ "${cmd_type}" = "set" ]; then
             param_new=${param}
             ;;
         "ATETXGI")
-            tx_mode=$(convert_tx_mode $(get_config "ATETXMODE"))
+            tx_mode=$(convert_tx_mode $(get_config "ATETXMODE" ${iwpriv_file}))
             convert_gi ${tx_mode} ${param}
             skip=1
             ;;
         "ATETXMODE")
             cmd_new="tx_rate_mode"
             param_new=$(convert_tx_mode ${param})
-            record_config ${cmd} ${param}
+            if [ "${param_new}" = "undefined" ]; then
+                echo "unknown tx mode"
+                echo "0:cck, 1:ofdm, 2:ht, 4:vht, 8:he_su, 9:he_er, 10:he_tb, 11:he_mu"
+                exit
+            else
+                record_config ${cmd} ${param} ${iwpriv_file}
+            fi
             ;;
         "ATETXPOW0"|"ATETXPOW1"|"ATETXPOW2"|"ATETXPOW3")
             cmd_new="tx_power"
             param_new="${param},0,0,0"
             ;;
         "ATETXBW")
-            record_config ${cmd} ${param}
+            record_config ${cmd} ${param} ${iwpriv_file}
             skip=1
             ;;
         "ATECHANNEL")
@@ -704,6 +787,11 @@ if [ "${cmd_type}" = "set" ]; then
             skip=1
             ;;
         "ResetCounter"|"ATERXSTATRESET")
+            skip=1
+            ;;
+        "WORKMODE")
+            record_config "WORKMODE" ${param} ${iwpriv_file}
+            echo "Entering ${param} mode in iwpriv"
             skip=1
             ;;
         *)
