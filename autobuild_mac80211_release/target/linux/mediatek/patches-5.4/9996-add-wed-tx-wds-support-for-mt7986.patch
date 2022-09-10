@@ -1,0 +1,63 @@
+From 3bddc232ca043699e893d279a3ec1f72ff6b9fae Mon Sep 17 00:00:00 2001
+From: Sujuan Chen <sujuan.chen@mediatek.com>
+Date: Sat, 10 Sep 2022 15:42:32 +0800
+Subject: [PATCH] 9996-add-wed-tx-wds-support-on-panther
+
+Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
+---
+ drivers/net/ethernet/mediatek/mtk_wed.c      | 6 ++++++
+ drivers/net/ethernet/mediatek/mtk_wed_regs.h | 1 +
+ include/linux/soc/mediatek/mtk_wed.h         | 1 +
+ 3 files changed, 8 insertions(+)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
+index 48b0353..2700176 100644
+--- a/drivers/net/ethernet/mediatek/mtk_wed.c
++++ b/drivers/net/ethernet/mediatek/mtk_wed.c
+@@ -809,6 +809,7 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+ 	__releases(RCU)
+ {
+ 	struct mtk_wed_hw *hw;
++	u16 ver;
+ 	int ret = 0;
+ 
+ 	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
+@@ -839,6 +840,11 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+ 
+ 	dev->ver = FIELD_GET(MTK_WED_REV_ID_MAJOR,
+ 			    wed_r32(dev, MTK_WED_REV_ID));
++	if (dev->ver > MTK_WED_V1)
++		ver = FIELD_GET(MTK_WED_REV_ID_MINOR,
++			    wed_r32(dev, MTK_WED_REV_ID));
++
++	dev->rev_id = ((dev->ver << 28) | ver << 16);
+ 
+ 	ret = mtk_wed_buffer_alloc(dev);
+ 	if (ret) {
+diff --git a/drivers/net/ethernet/mediatek/mtk_wed_regs.h b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
+index e107de7..b189761 100644
+--- a/drivers/net/ethernet/mediatek/mtk_wed_regs.h
++++ b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
+@@ -31,6 +31,7 @@ struct mtk_wdma_desc {
+ #define MTK_WED_REV_ID					0x000
+ #define MTK_WED_REV_ID_MAJOR				GENMASK(7, 0)
+ #endif
++#define MTK_WED_REV_ID_MINOR				GENMASK(27, 16)
+ 
+ #define MTK_WED_RESET					0x008
+ #define MTK_WED_RESET_TX_BM				BIT(0)
+diff --git a/include/linux/soc/mediatek/mtk_wed.h b/include/linux/soc/mediatek/mtk_wed.h
+index ffd547a..631360b 100644
+--- a/include/linux/soc/mediatek/mtk_wed.h
++++ b/include/linux/soc/mediatek/mtk_wed.h
+@@ -42,6 +42,7 @@ struct mtk_wed_device {
+ 	int wdma_idx;
+ 	int irq;
+ 	u8 ver;
++	u32 rev_id;
+ 
+ 	struct mtk_wed_ring tx_ring[MTK_WED_TX_QUEUES];
+ 	struct mtk_wed_ring txfree_ring;
+-- 
+2.18.0
+
