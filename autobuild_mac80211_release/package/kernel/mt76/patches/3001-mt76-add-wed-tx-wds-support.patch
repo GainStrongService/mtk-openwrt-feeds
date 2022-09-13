@@ -8,12 +8,12 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  mac80211.c      |  5 ++++-
  mt76.h          |  2 ++
  mt7915/init.c   |  9 +++++++++
- mt7915/main.c   | 47 +++++++++++++++++++++++++++++++++++++++++++----
+ mt7915/main.c   | 52 +++++++++++++++++++++++++++++++++++++++++++------
  mt7915/mcu.c    | 12 ++++++++++--
  mt7915/mcu.h    |  1 +
- mt7915/mmio.c   |  1 +
+ mt7915/mmio.c   |  3 +++
  mt7915/mt7915.h |  4 ++++
- 8 files changed, 74 insertions(+), 7 deletions(-)
+ 8 files changed, 79 insertions(+), 9 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
 index 4eaf317..c477d62 100644
@@ -135,16 +135,22 @@ index b77b3be..144718e 100644
  	mt76_connac_mcu_wtbl_update_hdr_trans(&dev->mt76, vif, sta);
  }
  
-@@ -1449,9 +1485,12 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
- 	/* fw will find the wcid by dest addr */
- 	if(is_mt7915(&dev->mt76))
- 		path->mtk_wdma.wcid = 0xff;
+@@ -1446,12 +1482,16 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+ 	path->dev = ctx->dev;
+ 	path->mtk_wdma.wdma_idx = wed->wdma_idx;
+ 	path->mtk_wdma.bss = mvif->mt76.idx;
+-	/* fw will find the wcid by dest addr */
+-	if(is_mt7915(&dev->mt76))
+-		path->mtk_wdma.wcid = 0xff;
 -	else
 -		path->mtk_wdma.wcid = 0x3ff;
--
-+	else {
-+		if (test_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags))
-+			path->mtk_wdma.wcid = msta->wcid.idx;
+ 
++	if (test_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags)) {
++		path->mtk_wdma.wcid = msta->wcid.idx;
++	} else {
++		/* fw will find the wcid by dest addr */
++		if(is_mt7915(&dev->mt76))
++			path->mtk_wdma.wcid = 0xff;
 +		else
 +			path->mtk_wdma.wcid = 0x3ff;
 +	}
@@ -197,7 +203,16 @@ diff --git a/mt7915/mmio.c b/mt7915/mmio.c
 index b0d8a61..de797fd 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
-@@ -774,6 +774,7 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
+@@ -734,6 +734,8 @@ mt7915_pci_wed_init(struct mt7915_dev *dev, struct device *pdev, int *irq)
+ 	/* disable dynamic tx token */
+ 	wed->wlan.offload_enable = mt7915_wed_offload_enable;
+ 	wed->wlan.offload_disable = mt7915_wed_offload_disable;
++	if (!is_mt7915(mdev))
++		wed->wlan.wcid_512 = true;
+ 
+ 	if (mtk_wed_device_attach(wed) != 0)
+ 		return 0;
+@@ -774,6 +776,7 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
  		.sta_add = mt7915_mac_sta_add,
  		.sta_remove = mt7915_mac_sta_remove,
  		.update_survey = mt7915_update_channel,

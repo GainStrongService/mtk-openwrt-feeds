@@ -996,7 +996,7 @@ index 2700176..b037d00 100644
  		val |= BIT(0);
  		regmap_write(dev->hw->mirror, dev->hw->index * 4, val);
  	} else {
--		mtk_wed_set_512_support(dev, true);
+-		mtk_wed_set_512_support(dev, dev->wlan.wcid_512);
 +		/* driver set mid ready and only once */
 +		wed_w32(dev, MTK_WED_EXT_INT_MASK1,
 +			MTK_WED_EXT_INT_STATUS_WPDMA_MID_RDY);
@@ -1010,7 +1010,7 @@ index 2700176..b037d00 100644
 +		if (ret)
 +			return;
  	}
-+	mtk_wed_set_512_support(dev, true);
++	mtk_wed_set_512_support(dev, dev->wlan.wcid_512);
  
  	mtk_wed_dma_enable(dev);
  	dev->running = true;
@@ -3447,7 +3447,7 @@ index 0000000..5824f39
 +#endif
 +
 diff --git a/include/linux/soc/mediatek/mtk_wed.h b/include/linux/soc/mediatek/mtk_wed.h
-index 631360b..393f3ca 100644
+index e914cb4..cfa1120 100644
 --- a/include/linux/soc/mediatek/mtk_wed.h
 +++ b/include/linux/soc/mediatek/mtk_wed.h
 @@ -7,6 +7,9 @@
@@ -3494,7 +3494,7 @@ index 631360b..393f3ca 100644
  struct mtk_wed_device {
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
  	const struct mtk_wed_ops *ops;
-@@ -47,35 +77,54 @@ struct mtk_wed_device {
+@@ -47,37 +77,56 @@ struct mtk_wed_device {
  	struct mtk_wed_ring tx_ring[MTK_WED_TX_QUEUES];
  	struct mtk_wed_ring txfree_ring;
  	struct mtk_wed_ring tx_wdma[MTK_WED_TX_QUEUES];
@@ -3543,6 +3543,8 @@ index 631360b..393f3ca 100644
 +		unsigned int rx_pkt;
 +		unsigned int rx_pkt_size;
  
+ 		bool wcid_512;
+ 
  		u32 (*init_buf)(void *ptr, dma_addr_t phys, int token_id);
  		int (*offload_enable)(struct mtk_wed_device *wed);
  		void (*offload_disable)(struct mtk_wed_device *wed);
@@ -3554,7 +3556,7 @@ index 631360b..393f3ca 100644
  	} wlan;
  #endif
  };
-@@ -86,6 +135,10 @@ struct mtk_wed_ops {
+@@ -88,6 +137,10 @@ struct mtk_wed_ops {
  			     void __iomem *regs);
  	int (*txfree_ring_setup)(struct mtk_wed_device *dev,
  				 void __iomem *regs);
@@ -3565,7 +3567,7 @@ index 631360b..393f3ca 100644
  	void (*detach)(struct mtk_wed_device *dev);
  
  	void (*stop)(struct mtk_wed_device *dev);
-@@ -97,6 +150,8 @@ struct mtk_wed_ops {
+@@ -99,6 +152,8 @@ struct mtk_wed_ops {
  
  	u32 (*irq_get)(struct mtk_wed_device *dev, u32 mask);
  	void (*irq_set_mask)(struct mtk_wed_device *dev, u32 mask);
@@ -3574,7 +3576,7 @@ index 631360b..393f3ca 100644
  };
  
  extern const struct mtk_wed_ops __rcu *mtk_soc_wed_ops;
-@@ -129,6 +184,10 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
+@@ -131,6 +186,10 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
  	(_dev)->ops->tx_ring_setup(_dev, _ring, _regs)
  #define mtk_wed_device_txfree_ring_setup(_dev, _regs) \
  	(_dev)->ops->txfree_ring_setup(_dev, _regs)
@@ -3585,7 +3587,7 @@ index 631360b..393f3ca 100644
  #define mtk_wed_device_reg_read(_dev, _reg) \
  	(_dev)->ops->reg_read(_dev, _reg)
  #define mtk_wed_device_reg_write(_dev, _reg, _val) \
-@@ -137,6 +196,8 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
+@@ -139,6 +198,8 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
  	(_dev)->ops->irq_get(_dev, _mask)
  #define mtk_wed_device_irq_set_mask(_dev, _mask) \
  	(_dev)->ops->irq_set_mask(_dev, _mask)
@@ -3594,7 +3596,7 @@ index 631360b..393f3ca 100644
  #else
  static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
  {
-@@ -146,10 +207,13 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
+@@ -148,10 +209,13 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
  #define mtk_wed_device_start(_dev, _mask) do {} while (0)
  #define mtk_wed_device_tx_ring_setup(_dev, _ring, _regs) -ENODEV
  #define mtk_wed_device_txfree_ring_setup(_dev, _ring, _regs) -ENODEV
