@@ -849,7 +849,7 @@ atenl_nl_ibf_set_val(struct atenl *an, struct atenl_data *data,
 	struct nl_msg *msg = nl_priv->msg;
 	u32 *v = (u32 *)(hdr->data + 4);
 	u32 action = ntohl(v[0]);
-	u16 val[8];
+	u16 val[8], is_atenl = 1;
 	u8 tmp_ant;
 	void *ptr, *a;
 	char cmd[64];
@@ -925,9 +925,13 @@ atenl_nl_ibf_set_val(struct atenl *an, struct atenl_data *data,
 		a = nla_nest_start(msg, MT76_TM_ATTR_TXBF_PARAM);
 		if (!a)
 			return -ENOMEM;
-
+		/* Note: litepoint may send random number for lna_gain_level, reset to 0 */
+		if (action == TXBF_ACT_IBF_PHASE_CAL)
+			val[4] = 0;
 		for (i = 0; i < 5; i++)
 			nla_put_u16(msg, i, val[i]);
+		/* Used to distinguish between command mode and HQADLL mode */
+		nla_put_u16(msg, 5, is_atenl);
 		nla_nest_end(msg, a);
 		break;
 	case TXBF_ACT_IBF_PHASE_E2P_UPDATE:

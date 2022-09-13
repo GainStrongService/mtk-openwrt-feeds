@@ -1,7 +1,7 @@
-From f7539f063a354671a7e8b9d769c77fd936e09f96 Mon Sep 17 00:00:00 2001
+From ea9bb882fa5d067de166aa7b025abaa1e06debcc Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Thu, 28 Jul 2022 11:16:15 +0800
-Subject: [PATCH 3004/3006] mt76 add ser spport when wed on
+Subject: [PATCH 3005/3008] mt76 add ser spport when wed on
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -120,10 +120,10 @@ index 90370d1..083cbca 100644
 +int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset);
  #endif
 diff --git a/mt76.h b/mt76.h
-index fb3ae86..2ad3900 100644
+index 20fd0ec..ee63da5 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1372,6 +1372,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+@@ -1373,6 +1373,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
  void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
  void mt76_put_rxwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
  struct mt76_txwi_cache *mt76_get_rxwi(struct mt76_dev *dev);
@@ -248,7 +248,7 @@ index 4e1dfc9..5b68492 100644
  	if (ext_phy)
  		ieee80211_stop_queues(ext_phy->hw);
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 111444d..1ccec14 100644
+index 181b94d..a0bb879 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -757,6 +757,8 @@ mt7915_pci_wed_init(struct mt7915_dev *dev, struct device *pdev, int *irq)
@@ -261,7 +261,7 @@ index 111444d..1ccec14 100644
  	if (mtk_wed_device_attach(wed) != 0)
  		return 0;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index b10b90a..b4c8cdf 100644
+index b805aae..ca62622 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -551,6 +551,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);

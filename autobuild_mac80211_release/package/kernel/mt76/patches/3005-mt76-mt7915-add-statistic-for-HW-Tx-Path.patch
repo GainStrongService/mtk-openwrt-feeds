@@ -1,7 +1,7 @@
-From 369397e8762832dc633ade7407852acb235fd4aa Mon Sep 17 00:00:00 2001
+From a6cc491093f5280496ae75a2ba953d8a10d919f8 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
 Date: Thu, 21 Jul 2022 10:56:09 -0700
-Subject: [PATCH 3005/3006] mt76: mt7915: add statistic for H/W Tx Path
+Subject: [PATCH 3006/3008] mt76: mt7915: add statistic for H/W Tx Path
 
 Set PPDU_TXS2H_EN_B0/B1 to get PPDU txs.
 Add MT_PACKET_ID_WED for PPDU txs, and change MT_PACKET_ID_FIRST to 3
@@ -21,7 +21,7 @@ we report it directly from mt7915_sta_statistics.
  10 files changed, 141 insertions(+), 61 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 2ad3900..c6f3ef7 100644
+index ee63da5..bd75b5a 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -275,6 +275,30 @@ DECLARE_EWMA(signal, 10, 8);
@@ -74,7 +74,7 @@ index 2ad3900..c6f3ef7 100644
  #define MT_PACKET_ID_HAS_RATE		BIT(7)
  /* This is timer for when to give up when waiting for TXS callback,
   * with starting time being the time at which the DMA_DONE callback
-@@ -875,26 +902,6 @@ struct mt76_power_limits {
+@@ -876,26 +903,6 @@ struct mt76_power_limits {
  	s8 ru[7][12];
  };
  
@@ -322,10 +322,10 @@ index 5b68492..63c702e 100644
  		goto out;
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 0f872f5..b7c6cf6 100644
+index e238eab..1ea3f6f 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1049,6 +1049,20 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1070,6 +1070,20 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  	}
  	sinfo->txrate.flags = txrate->flags;
  	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
@@ -346,7 +346,7 @@ index 0f872f5..b7c6cf6 100644
  }
  
  static void mt7915_sta_rc_work(void *data, struct ieee80211_sta *sta)
-@@ -1271,7 +1285,7 @@ static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
+@@ -1292,7 +1306,7 @@ static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
  	if (msta->vif->mt76.idx != wi->idx)
  		return;
  
@@ -356,7 +356,7 @@ index 0f872f5..b7c6cf6 100644
  
  static
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 1ccec14..bb2d1c4 100644
+index a0bb879..e07153b 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -92,6 +92,7 @@ static const u32 mt7915_offs[] = {
@@ -425,7 +425,7 @@ index 1ccec14..bb2d1c4 100644
  #endif
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index b4c8cdf..a1ce516 100644
+index ca62622..a487245 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -142,8 +142,6 @@ struct mt7915_sta {

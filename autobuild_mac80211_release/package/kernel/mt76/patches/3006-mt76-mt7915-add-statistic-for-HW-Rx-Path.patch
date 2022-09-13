@@ -1,7 +1,7 @@
-From f7138db4f2f9742c57bfc9dcf41c9ed7c0b9bd8f Mon Sep 17 00:00:00 2001
+From c2eb0d9692269323d6f6d94cc48f5e37ecccdb13 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
 Date: Fri, 5 Aug 2022 13:58:11 -0700
-Subject: [PATCH 3006/3006] mt76: mt7915: add statistic for H/W Rx Path
+Subject: [PATCH 3007/3008] mt76: mt7915: add statistic for H/W Rx Path
 
 Change-Id: Id94d663f08e91c83d296bd57e5e9b65a505ae1c7
 ---
@@ -16,7 +16,7 @@ Change-Id: Id94d663f08e91c83d296bd57e5e9b65a505ae1c7
  8 files changed, 108 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index c6f3ef7..d29bcdf 100644
+index bd75b5a..480ed21 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -297,6 +297,10 @@ struct mt76_sta_stats {
@@ -137,10 +137,10 @@ index 63c702e..516717c 100644
  		goto out;
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index b7c6cf6..f8da685 100644
+index 1ea3f6f..7e5947d 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1028,7 +1028,8 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1049,7 +1049,8 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  	struct rate_info *txrate = &msta->wcid.rate;
  	struct rate_info rxrate = {};
  
@@ -150,7 +150,7 @@ index b7c6cf6..f8da685 100644
  	    !mt7915_mcu_get_rx_rate(phy, vif, sta, &rxrate)) {
  		sinfo->rxrate = rxrate;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
-@@ -1062,6 +1063,12 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1083,6 +1084,12 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  
  		sinfo->tx_retries = msta->wcid.stats.tx_retries;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
@@ -164,7 +164,7 @@ index b7c6cf6..f8da685 100644
  }
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 3d50b78..fda1ff2 100644
+index 22f68da..6b70e47 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -293,6 +293,27 @@ int mt7915_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)
@@ -196,7 +196,7 @@ index 3d50b78..fda1ff2 100644
  mt7915_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
  {
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index bb2d1c4..c4bdf7f 100644
+index e07153b..0561b2a 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -9,6 +9,7 @@
@@ -227,7 +227,7 @@ index bb2d1c4..c4bdf7f 100644
  #else
  	return 0;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index a1ce516..7c20235 100644
+index a487245..0348683 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -550,6 +550,8 @@ u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed,

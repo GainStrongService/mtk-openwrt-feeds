@@ -616,6 +616,70 @@ function set_mac_addr {
     do_cmd "mt76-test phy${phy_idx} set mac_addrs=${addr1},${addr2},${addr3}"
 }
 
+function convert_ibf {
+    local cmd=$1
+    local param=$2
+    local new_cmd=""
+    local new_param=$(echo ${param} | sed s/":"/","/g)
+
+    case ${cmd} in
+        "ATETxBfInit")
+            new_cmd="init"
+            new_param=1
+            do_cmd "mt76-test phy${phy_idx} set state=idle"
+            ;;
+        "ATEIBFPhaseComp")
+            new_cmd="phase_comp"
+            new_param="${new_param} aid=1"
+            ;;
+        "ATEEBfProfileConfig")
+            new_cmd="ebf_prof_update"
+            ;;
+        "ATEIBfProfileConfig")
+            new_cmd="ibf_prof_update"
+            ;;
+        "ATEIBfInstCal")
+            new_cmd="phase_cal"
+            ;;
+        "ATEIBfGdCal")
+            new_cmd="phase_cal"
+            new_param="${new_param},00"
+            ;;
+        "TxBfTxApply")
+            new_cmd="apply_tx"
+            ;;
+        "ATETxPacketWithBf")
+            local bf_on=${new_param:0:2}
+            local aid="01"
+            local wlan_idx=${new_param:3:2}
+            local update="00"
+            local tx_len=${new_param:6}
+
+            new_cmd="tx_prep"
+            new_param="${bf_on},${aid},${wlan_idx},${update}"
+            if [ "${tx_len}" = "00" ]; then
+                new_param="${new_param} aid=1 tx_count=10000000 tx_length=1024"
+            else
+                new_param="${new_param} aid=1 tx_count=${tx_len} tx_length=1024"
+            fi
+            do_cmd "mt76-test phy${phy_idx} set state=idle"
+            ;;
+        "TxBfProfileData20MAllWrite")
+            new_cmd="prof_update_all"
+            ;;
+        "ATEIBFPhaseE2pUpdate")
+            new_cmd="e2p_update"
+            ;;
+        *)
+    esac
+
+    do_cmd "mt76-test phy${phy_idx} set txbf_act=${new_cmd} txbf_param=${new_param}"
+
+    if [ "${cmd}" = "ATETxPacketWithBf" ]; then
+        do_cmd "mt76-test phy${phy_idx} set state=tx_frames"
+    fi
+}
+
 function do_ate_work() {
     local ate_cmd=$1
 
@@ -778,6 +842,12 @@ if [ "${cmd_type}" = "set" ]; then
             ;;
         "ATEDA"|"ATESA"|"ATEBSSID")
             set_mac_addr ${cmd} ${param}
+            skip=1
+            ;;
+        "ATETxBfInit"|"ATEIBFPhaseComp"|"ATEEBfProfileConfig"|"ATEIBfProfileConfig"| \
+        "TxBfTxApply"|"ATETxPacketWithBf"|"TxBfProfileData20MAllWrite"|"ATEIBfInstCal"|\
+        "ATEIBfGdCal"|"ATEIBFPhaseE2pUpdate")
+            convert_ibf ${cmd} ${param}
             skip=1
             ;;
         "bufferMode")
