@@ -1051,10 +1051,9 @@ static void mtk_tx_set_dma_desc_v2(struct sk_buff *skb, struct net_device *dev, 
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_tx_dma_v2 *desc = txd;
 	u32 data = 0;
-	u16 qid;
 
 	if(!info->qid && mac->id)
-		qid = MTK_QDMA_GMAC2_QID;
+		info->qid = MTK_QDMA_GMAC2_QID;
 
 	WRITE_ONCE(desc->txd1, info->addr);
 
@@ -1064,7 +1063,7 @@ static void mtk_tx_set_dma_desc_v2(struct sk_buff *skb, struct net_device *dev, 
 	WRITE_ONCE(desc->txd3, data);
 
 	data = (mac->id + 1) << TX_DMA_FPORT_SHIFT_V2; /* forward port */
-	data |= TX_DMA_SWC_V2 | QID_BITS_V2(qid);
+	data |= TX_DMA_SWC_V2 | QID_BITS_V2(info->qid);
 #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
 	if (HNAT_SKB_CB2(skb)->magic == 0x78681415) {
 		data &= ~(0xf << TX_DMA_FPORT_SHIFT_V2);
