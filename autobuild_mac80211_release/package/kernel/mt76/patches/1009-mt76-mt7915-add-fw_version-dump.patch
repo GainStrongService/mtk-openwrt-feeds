@@ -1,4 +1,4 @@
-From 958bb5b8c333641344dd61cd84ee5402c4d11b32 Mon Sep 17 00:00:00 2001
+From 20a76d5a926f067a858a29c91bd21e0ff7ee7f10 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 17 Aug 2022 13:40:24 +0800
 Subject: [PATCH 1009/1009] mt76: mt7915: add fw_version dump
@@ -10,10 +10,10 @@ Subject: [PATCH 1009/1009] mt76: mt7915: add fw_version dump
  3 files changed, 32 insertions(+)
 
 diff --git a/mt76.h b/mt76.h
-index 94541cd..8e81f40 100644
+index e4a248a1..b5453d35 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -811,6 +811,10 @@ struct mt76_dev {
+@@ -837,6 +837,10 @@ struct mt76_dev {
  		struct mt76_usb usb;
  		struct mt76_sdio sdio;
  	};
@@ -25,20 +25,20 @@ index 94541cd..8e81f40 100644
  
  struct mt76_power_limits {
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 261181d..47b2bce 100644
+index ed6c9ebb..c1ed9fef 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -2883,6 +2883,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -2875,6 +2875,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		goto out;
  	}
  
 +	dev->wm_hdr = devm_kzalloc(dev->dev, sizeof(*hdr), GFP_KERNEL);
 +	memcpy(dev->wm_hdr, hdr, sizeof(*hdr));
 +
- 	release_firmware(fw);
- 
- 	if (!fw_wa)
-@@ -2908,6 +2911,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+ 	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
+ 	dev_info(dev->dev, "WM Firmware Version: %.10s, Build Time: %.15s\n",
+ 		 hdr->fw_ver, hdr->build_date);
+@@ -2914,6 +2917,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		goto out;
  	}
  
@@ -48,7 +48,7 @@ index 261181d..47b2bce 100644
  	snprintf(dev->hw->wiphy->fw_version,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
-@@ -2978,6 +2984,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
+@@ -2984,6 +2990,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
  	dev_info(dev->dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
  		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
  
@@ -59,7 +59,7 @@ index 261181d..47b2bce 100644
  		struct mt76_connac2_patch_sec *sec;
  		u32 len, addr, mode;
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 222268f..cfd0b30 100644
+index 222268fc..ef0c27d2 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2721,6 +2721,22 @@ static int mt7915_agginfo_read_band1(struct seq_file *s, void *data)
@@ -70,7 +70,7 @@ index 222268f..cfd0b30 100644
 +{
 +	struct mt7915_dev *dev = dev_get_drvdata(s->private);
 +	struct mt76_dev *mdev = NULL;
-+	seq_printf(s, "Version: 2.2.3.0\n");
++	seq_printf(s, "Version: 2.2.5.0\n");
 +
 +	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
 +		return 0;
@@ -96,5 +96,5 @@ index 222268f..cfd0b30 100644
  }
  #endif
 -- 
-2.18.0
+2.25.1
 

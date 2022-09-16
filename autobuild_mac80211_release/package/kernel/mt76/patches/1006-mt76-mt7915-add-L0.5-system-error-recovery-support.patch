@@ -1,4 +1,4 @@
-From c98da6a8443de7aeb6104de3ddc200253f0ee116 Mon Sep 17 00:00:00 2001
+From 18093d743469680c1ae7b8f91837dc3804cc1756 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Wed, 22 Jun 2022 10:51:59 +0800
 Subject: [PATCH 1006/1009] mt76: mt7915: add L0.5 system error recovery
@@ -8,17 +8,17 @@ Subject: [PATCH 1006/1009] mt76: mt7915: add L0.5 system error recovery
  mt7915/debugfs.c |  88 ++++++++++++---
  mt7915/dma.c     |  48 ++++++++
  mt7915/init.c    |   8 +-
- mt7915/mac.c     | 283 +++++++++++++++++++++++++++++++++++++----------
+ mt7915/mac.c     | 281 +++++++++++++++++++++++++++++++++++++----------
  mt7915/main.c    |  19 +++-
  mt7915/mcu.c     |  95 ++++++++++++++--
  mt7915/mcu.h     |   3 +-
  mt7915/mmio.c    |   8 +-
  mt7915/mt7915.h  |  23 ++++
  mt7915/regs.h    |  16 +++
- 10 files changed, 492 insertions(+), 99 deletions(-)
+ 10 files changed, 491 insertions(+), 98 deletions(-)
 
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 0cfb606..07de2ee 100644
+index ea512fd1..0fe95f84 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -52,12 +52,17 @@ static ssize_t
@@ -142,7 +142,7 @@ index 0cfb606..07de2ee 100644
  	kfree(buff);
  	return ret;
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index f7e6bb1..4b594a5 100644
+index f7e6bb10..4b594a53 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -479,6 +479,54 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -201,7 +201,7 @@ index f7e6bb1..4b594a5 100644
  {
  	mt7915_dma_disable(dev, true);
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 37b7b54..141c5ad 100644
+index 37b7b54a..141c5ad8 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -262,7 +262,7 @@ static void mt7915_led_set_brightness(struct led_classdev *led_cdev,
@@ -241,7 +241,7 @@ index 37b7b54..141c5ad 100644
  
  unreg_thermal:
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 6b3fa4c..e540941 100644
+index 4d777fd5..d44af409 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -3,6 +3,7 @@
@@ -252,7 +252,7 @@ index 6b3fa4c..e540941 100644
  #include "mt7915.h"
  #include "../dma.h"
  #include "mac.h"
-@@ -1315,85 +1316,187 @@ mt7915_update_beacons(struct mt7915_dev *dev)
+@@ -1318,85 +1319,187 @@ mt7915_update_beacons(struct mt7915_dev *dev)
  		mt7915_update_vif_beacon, mphy_ext->hw);
  }
  
@@ -451,9 +451,6 @@ index 6b3fa4c..e540941 100644
 -	idr_for_each_entry(&dev->mt76.token, txwi, id) {
 -		mt7915_txwi_free(dev, txwi, NULL, NULL);
 -		dev->mt76.token_count--;
--	}
--	spin_unlock_bh(&dev->mt76.token_lock);
--	idr_destroy(&dev->mt76.token);
 +	ext_phy = dev->mt76.phys[MT_BAND1];
 +	phy2 = ext_phy ? ext_phy->priv : NULL;
 +
@@ -476,7 +473,9 @@ index 6b3fa4c..e540941 100644
 +	for (i = 0; i < 10; i++) {
 +		if (!mt7915_mac_reset(dev))
 +			break;
-+ 	}
+ 	}
+-	spin_unlock_bh(&dev->mt76.token_lock);
+-	idr_destroy(&dev->mt76.token);
 +	mutex_unlock(&dev->mt76.mutex);
 +
 +	if (i == 10)
@@ -500,7 +499,7 @@ index 6b3fa4c..e540941 100644
  }
  
  /* system error recovery */
-@@ -1408,6 +1511,36 @@ void mt7915_mac_reset_work(struct work_struct *work)
+@@ -1411,6 +1514,36 @@ void mt7915_mac_reset_work(struct work_struct *work)
  	ext_phy = dev->mt76.phys[MT_BAND1];
  	phy2 = ext_phy ? ext_phy->priv : NULL;
  
@@ -537,7 +536,7 @@ index 6b3fa4c..e540941 100644
  	if (!(READ_ONCE(dev->reset_state) & MT_MCU_CMD_STOP_DMA))
  		return;
  
-@@ -1433,7 +1566,7 @@ void mt7915_mac_reset_work(struct work_struct *work)
+@@ -1436,7 +1569,7 @@ void mt7915_mac_reset_work(struct work_struct *work)
  	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_DMA_STOPPED);
  
  	if (mt7915_wait_reset_state(dev, MT_MCU_CMD_RESET_DONE)) {
@@ -546,7 +545,7 @@ index 6b3fa4c..e540941 100644
  
  		mt7915_tx_token_put(dev);
  		idr_init(&dev->mt76.token);
-@@ -1482,6 +1615,34 @@ void mt7915_mac_reset_work(struct work_struct *work)
+@@ -1485,6 +1618,34 @@ void mt7915_mac_reset_work(struct work_struct *work)
  					     MT7915_WATCHDOG_TIME);
  }
  
@@ -582,7 +581,7 @@ index 6b3fa4c..e540941 100644
  {
  	struct mt7915_dev *dev = phy->dev;
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 4e82904..7a7ff86 100644
+index e2f557a2..5b25604e 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -20,17 +20,13 @@ static bool mt7915_dev_running(struct mt7915_dev *dev)
@@ -632,7 +631,7 @@ index 4e82904..7a7ff86 100644
  	mutex_lock(&dev->mt76.mutex);
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f692e52..5eac6ed 100644
+index b4cf4d86..3f18967a 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -150,19 +150,90 @@ mt7915_mcu_set_sta_ht_mcs(struct ieee80211_sta *sta, u8 *ht_mcs,
@@ -726,7 +725,7 @@ index f692e52..5eac6ed 100644
  	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
  	if (seq != rxd->seq)
  		return -EAGAIN;
-@@ -2266,18 +2337,10 @@ mt7915_mcu_init_rx_airtime(struct mt7915_dev *dev)
+@@ -2268,18 +2339,10 @@ mt7915_mcu_init_rx_airtime(struct mt7915_dev *dev)
  				 sizeof(req), true);
  }
  
@@ -746,7 +745,7 @@ index f692e52..5eac6ed 100644
  	/* force firmware operation mode into normal state,
  	 * which should be set before firmware download stage.
  	 */
-@@ -2326,6 +2389,20 @@ int mt7915_mcu_init(struct mt7915_dev *dev)
+@@ -2328,6 +2391,20 @@ int mt7915_mcu_init(struct mt7915_dev *dev)
  				 MCU_WA_PARAM_RED, 0, 0);
  }
  
@@ -768,7 +767,7 @@ index f692e52..5eac6ed 100644
  {
  	__mt76_mcu_restart(&dev->mt76);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index aab1a6a..c485064 100644
+index aab1a6a3..c4850644 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -453,8 +453,9 @@ enum {
@@ -783,7 +782,7 @@ index aab1a6a..c485064 100644
  	SER_SET_RECOVER_L3_RX_ABORT,
  	SER_SET_RECOVER_L3_TX_ABORT,
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index c81fa09..8469d8f 100644
+index 68d978f4..fd2f70e3 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -24,6 +24,7 @@ static const u32 mt7915_reg[] = {
@@ -810,7 +809,7 @@ index c81fa09..8469d8f 100644
  };
  
  static const u32 mt7915_offs[] = {
-@@ -613,10 +616,9 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
+@@ -615,10 +618,9 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
  		u32 val = mt76_rr(dev, MT_MCU_CMD);
  
  		mt76_wr(dev, MT_MCU_CMD, val);
@@ -824,10 +823,10 @@ index c81fa09..8469d8f 100644
  	}
  }
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 267fa7e..d214b18 100644
+index f08974bb..e8feba36 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -352,6 +352,15 @@ struct mt7915_dev {
+@@ -350,6 +350,15 @@ struct mt7915_dev {
  	struct work_struct reset_work;
  	wait_queue_head_t reset_wait;
  	u32 reset_state;
@@ -843,7 +842,7 @@ index 267fa7e..d214b18 100644
  
  	struct list_head sta_rc_list;
  	struct list_head sta_poll_list;
-@@ -416,6 +425,12 @@ enum {
+@@ -414,6 +423,12 @@ enum {
  	__MT_WFDMA_MAX,
  };
  
@@ -856,7 +855,7 @@ index 267fa7e..d214b18 100644
  enum {
  	MT_RX_SEL0,
  	MT_RX_SEL1,
-@@ -514,6 +529,14 @@ s8 mt7915_eeprom_get_power_delta(struct mt7915_dev *dev, int band);
+@@ -512,6 +527,14 @@ s8 mt7915_eeprom_get_power_delta(struct mt7915_dev *dev, int band);
  int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2);
  void mt7915_dma_prefetch(struct mt7915_dev *dev);
  void mt7915_dma_cleanup(struct mt7915_dev *dev);
@@ -872,7 +871,7 @@ index 267fa7e..d214b18 100644
  int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
  			       struct mt7915_vif *mvif,
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 1687568..3d2c15b 100644
+index 6d9d187a..e2b0ff7d 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -26,6 +26,7 @@ enum reg_rev {
@@ -883,7 +882,7 @@ index 1687568..3d2c15b 100644
  	__MT_REG_MAX,
  };
  
-@@ -107,6 +108,11 @@ enum offs_rev {
+@@ -108,6 +109,11 @@ enum offs_rev {
  #define __REG(id)			(dev->reg.reg_rev[(id)])
  #define __OFFS(id)			(dev->reg.offs_rev[(id)])
  
@@ -895,7 +894,7 @@ index 1687568..3d2c15b 100644
  /* MCU WFDMA0 */
  #define MT_MCU_WFDMA0_BASE		0x2000
  #define MT_MCU_WFDMA0(ofs)		(MT_MCU_WFDMA0_BASE + (ofs))
-@@ -559,6 +565,10 @@ enum offs_rev {
+@@ -563,6 +569,10 @@ enum offs_rev {
  #define MT_WFDMA0_PRI_DLY_INT_CFG1	MT_WFDMA0(0x2f4)
  #define MT_WFDMA0_PRI_DLY_INT_CFG2	MT_WFDMA0(0x2f8)
  
@@ -906,7 +905,7 @@ index 1687568..3d2c15b 100644
  /* WFDMA1 */
  #define MT_WFDMA1_BASE			0xd5000
  #define MT_WFDMA1(ofs)			(MT_WFDMA1_BASE + (ofs))
-@@ -704,6 +714,10 @@ enum offs_rev {
+@@ -708,6 +718,10 @@ enum offs_rev {
  #define MT_MCU_CMD_NORMAL_STATE		BIT(5)
  #define MT_MCU_CMD_ERROR_MASK		GENMASK(5, 1)
  
@@ -917,7 +916,7 @@ index 1687568..3d2c15b 100644
  /* TOP RGU */
  #define MT_TOP_RGU_BASE			0x18000000
  #define MT_TOP_PWR_CTRL			(MT_TOP_RGU_BASE + (0x0))
-@@ -979,6 +993,8 @@ enum offs_rev {
+@@ -983,6 +997,8 @@ enum offs_rev {
  #define MT_CPU_UTIL_PEAK_IDLE_CNT	MT_CPU_UTIL(0x0c)
  #define MT_CPU_UTIL_CTRL		MT_CPU_UTIL(0x1c)
  
@@ -927,5 +926,5 @@ index 1687568..3d2c15b 100644
  #define MT_LED_TOP_BASE			0x18013000
  #define MT_LED_PHYS(_n)			(MT_LED_TOP_BASE + (_n))
 -- 
-2.18.0
+2.25.1
 

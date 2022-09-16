@@ -1,4 +1,4 @@
-From 7baba6d23f4633ee545c883f0676c7b076e88aee Mon Sep 17 00:00:00 2001
+From 79ddf246652c86dbda37aa94526497b791ec8246 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 7 Jul 2022 11:09:59 +0800
 Subject: [PATCH 1120/1124] mt76: mt7915: implement bin file mode
@@ -13,7 +13,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 71 insertions(+), 11 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index e083964..5b9faf7 100644
+index 4c50bfe6..baca86fd 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -104,6 +104,24 @@ out_put_node:
@@ -42,10 +42,10 @@ index e083964..5b9faf7 100644
  mt76_eeprom_override(struct mt76_phy *phy)
  {
 diff --git a/mt76.h b/mt76.h
-index 0ed4188..4a41949 100644
+index b28fe32f..e997908a 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1009,6 +1009,7 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
+@@ -1015,6 +1015,7 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
  int mt76_eeprom_init(struct mt76_dev *dev, int len);
  void mt76_eeprom_override(struct mt76_phy *phy);
  int mt76_get_of_eeprom(struct mt76_dev *dev, void *data, int offset, int len);
@@ -54,7 +54,7 @@ index 0ed4188..4a41949 100644
  struct mt76_queue *
  mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index ee3049e..e5cfa5b 100644
+index ee3049e5..e5cfa5b0 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -46,26 +46,36 @@ static char *mt7915_eeprom_name(struct mt7915_dev *dev)
@@ -148,7 +148,7 @@ index ee3049e..e5cfa5b 100644
  		if (ret)
  			return ret;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 730b91b..78f0b18 100644
+index 439d071a..6fe3191d 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -51,6 +51,15 @@
@@ -167,7 +167,7 @@ index 730b91b..78f0b18 100644
  #define MT7915_EEPROM_SIZE		3584
  #define MT7916_EEPROM_SIZE		4096
  
-@@ -375,6 +384,7 @@ struct mt7915_dev {
+@@ -373,6 +382,7 @@ struct mt7915_dev {
  
  	bool dbdc_support;
  	bool flash_mode;
@@ -176,5 +176,5 @@ index 730b91b..78f0b18 100644
  	bool ibf;
  
 -- 
-2.18.0
+2.25.1
 

@@ -1,4 +1,4 @@
-From ec1151e292e2c753543f509a8817760d00aecf89 Mon Sep 17 00:00:00 2001
+From eefd860e1bf33fd7a222a999a8cb8eb631150952 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 12 Sep 2022 18:16:54 +0800
 Subject: [PATCH 1113/1124] mt76: testmode: add iBF command mode support
@@ -13,7 +13,7 @@ Change-Id: I7eea1d6412563f889e5774e787e58ce9eba001bd
  4 files changed, 85 insertions(+), 7 deletions(-)
 
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 7a49608..0a58ad9 100644
+index 7a49608c..0a58ad97 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -701,6 +701,7 @@ mt7915_tm_txbf_profile_update(struct mt7915_phy *phy, u16 *val, bool ebf)
@@ -105,7 +105,7 @@ index 7a49608..0a58ad9 100644
  		mt7915_tm_set_tx_len(phy, tx_time);
  
 diff --git a/testmode.c b/testmode.c
-index 82b8e98..aa874a8 100644
+index 82b8e983..aa874a83 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -530,6 +530,42 @@ out:
@@ -164,7 +164,7 @@ index 82b8e98..aa874a8 100644
  		nla_for_each_nested(cur, tb[MT76_TM_ATTR_TXBF_PARAM], rem) {
  			if (nla_len(cur) != 2 ||
 diff --git a/testmode.h b/testmode.h
-index e2190e7..5d1fe79 100644
+index e2190e72..5d1fe793 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -281,8 +281,10 @@ enum mt76_testmode_txbf_act {
@@ -179,7 +179,7 @@ index e2190e7..5d1fe79 100644
  
  	/* keep last */
 diff --git a/tools/fields.c b/tools/fields.c
-index 1be1ffd..47fc69f 100644
+index 1be1ffd6..47fc69f9 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -32,6 +32,20 @@ static const char * const testmode_tx_mode[] = {
@@ -239,5 +239,5 @@ index 1be1ffd..47fc69f 100644
  
  const struct tm_field msg_field = {
 -- 
-2.18.0
+2.25.1
 

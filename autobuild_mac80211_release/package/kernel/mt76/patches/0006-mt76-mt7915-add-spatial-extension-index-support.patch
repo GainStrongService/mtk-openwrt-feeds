@@ -1,7 +1,7 @@
-From 66e3f9c0cefaabcb7747f9ac52a92e8912332da9 Mon Sep 17 00:00:00 2001
+From f93eece806a777bea73ab2fcca1869b1b4b87b5c Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 13 Jul 2022 10:43:16 +0800
-Subject: [PATCH 7/8] mt76: mt7915: add spatial extension index support
+Subject: [PATCH 6/7] mt76: mt7915: add spatial extension index support
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
@@ -15,7 +15,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  7 files changed, 43 insertions(+), 14 deletions(-)
 
 diff --git a/mt76_connac.h b/mt76_connac.h
-index d033655..7b6b3aa 100644
+index 635192c8..0915eb57 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
 @@ -261,6 +261,17 @@ mt76_connac_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
@@ -37,7 +37,7 @@ index d033655..7b6b3aa 100644
  void mt76_connac_power_save_sched(struct mt76_phy *phy,
  				  struct mt76_connac_pm *pm);
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index 18dea8e..a9e58cf 100644
+index 34ac3d81..8b7ec64a 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -417,9 +417,6 @@ mt76_connac2_mac_write_txwi_80211(struct mt76_dev *dev, __le32 *txwi,
@@ -50,7 +50,7 @@ index 18dea8e..a9e58cf 100644
  	}
  
  	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
-@@ -546,6 +543,14 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
+@@ -550,6 +547,14 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
  		val |= FIELD_PREP(MT_TXD6_TX_RATE, rate);
  		txwi[6] |= cpu_to_le32(val);
  		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
@@ -66,10 +66,10 @@ index 18dea8e..a9e58cf 100644
  }
  EXPORT_SYMBOL_GPL(mt76_connac2_mac_write_txwi);
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index e94d670..17e5213 100644
+index f62af7a8..31017218 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -572,7 +572,7 @@ struct sta_rec_ra_fixed {
+@@ -580,7 +580,7 @@ struct sta_rec_ra_fixed {
  
  	struct sta_phy phy;
  
@@ -79,7 +79,7 @@ index e94d670..17e5213 100644
  	u8 is_5g;
  	u8 mmps_mode;
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 36faefb..1ba164a 100644
+index 2557fe08..edd678ce 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -957,9 +957,6 @@ mt7915_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
@@ -93,7 +93,7 @@ index 36faefb..1ba164a 100644
  
  	phy->mt76->antenna_mask = tx_ant;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 9ba930a..5fc7a24 100644
+index 2d6642e6..19a33120 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -1306,6 +1306,9 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
@@ -125,7 +125,7 @@ index 9ba930a..5fc7a24 100644
  static int
  mt7915_mcu_add_rate_ctrl_fixed(struct mt7915_dev *dev,
  			       struct ieee80211_vif *vif,
-@@ -1433,7 +1448,7 @@ mt7915_mcu_add_rate_ctrl_fixed(struct mt7915_dev *dev,
+@@ -1435,7 +1450,7 @@ mt7915_mcu_add_rate_ctrl_fixed(struct mt7915_dev *dev,
  			return ret;
  	}
  
@@ -134,7 +134,7 @@ index 9ba930a..5fc7a24 100644
  }
  
  static void
-@@ -2646,6 +2661,9 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
+@@ -2648,6 +2663,9 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
  	}
  #endif
  
@@ -145,7 +145,7 @@ index 9ba930a..5fc7a24 100644
  	    dev->mt76.hw->conf.flags & IEEE80211_CONF_MONITOR)
  		req.switch_reason = CH_SWITCH_NORMAL;
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 110e4f3..ed94980 100644
+index 110e4f36..ed949802 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -395,6 +395,7 @@ enum {
@@ -157,7 +157,7 @@ index 110e4f3..ed94980 100644
  
  #define RATE_CFG_MCS			GENMASK(3, 0)
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 6c05dfa..35345d3 100644
+index 6c05dfab..35345d35 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -473,8 +473,6 @@ mt7915_tm_update_channel(struct mt7915_phy *phy)
@@ -185,5 +185,5 @@ index 6c05dfa..35345d3 100644
  
  	mt7915_tm_set_tam_arb(phy, en,
 -- 
-2.18.0
+2.25.1
 

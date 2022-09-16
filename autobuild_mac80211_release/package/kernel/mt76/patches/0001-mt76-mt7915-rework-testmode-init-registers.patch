@@ -1,7 +1,7 @@
-From 8b72691afc0ab523e98a9737e56c7aeebd830b3f Mon Sep 17 00:00:00 2001
+From 35c54875181e0f1b0637746de7c4af6aa9ec0212 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Jun 2022 19:46:26 +0800
-Subject: [PATCH 1/8] mt76: mt7915: rework testmode init registers
+Subject: [PATCH 1/7] mt76: mt7915: rework testmode init registers
 
 ---
  mt7915/mmio.c     |  2 ++
@@ -10,7 +10,7 @@ Subject: [PATCH 1/8] mt76: mt7915: rework testmode init registers
  3 files changed, 54 insertions(+), 16 deletions(-)
 
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index c1256de..c81fa09 100644
+index 7bd5f672..68d978f4 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -59,6 +59,7 @@ static const u32 mt7986_reg[] = {
@@ -21,7 +21,7 @@ index c1256de..c81fa09 100644
  	[TMAC_CDTR]		= 0x090,
  	[TMAC_ODTR]		= 0x094,
  	[TMAC_ATCR]		= 0x098,
-@@ -132,6 +133,7 @@ static const u32 mt7915_offs[] = {
+@@ -133,6 +134,7 @@ static const u32 mt7915_offs[] = {
  };
  
  static const u32 mt7916_offs[] = {
@@ -30,7 +30,7 @@ index c1256de..c81fa09 100644
  	[TMAC_ODTR]		= 0x0cc,
  	[TMAC_ATCR]		= 0x00c,
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 53061aa..1687568 100644
+index 5920e705..6d9d187a 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -30,6 +30,7 @@ enum reg_rev {
@@ -41,7 +41,7 @@ index 53061aa..1687568 100644
  	TMAC_CDTR,
  	TMAC_ODTR,
  	TMAC_ATCR,
-@@ -179,6 +180,12 @@ enum offs_rev {
+@@ -180,6 +181,12 @@ enum offs_rev {
  #define MT_TRB_RXPSR0_RX_WTBL_PTR	GENMASK(25, 16)
  #define MT_TRB_RXPSR0_RX_RMAC_PTR	GENMASK(9, 0)
  
@@ -54,7 +54,7 @@ index 53061aa..1687568 100644
  /* TMAC: band 0(0x820e4000), band 1(0x820f4000) */
  #define MT_WF_TMAC_BASE(_band)		((_band) ? 0x820f4000 : 0x820e4000)
  #define MT_WF_TMAC(_band, ofs)		(MT_WF_TMAC_BASE(_band) + (ofs))
-@@ -187,6 +194,9 @@ enum offs_rev {
+@@ -188,6 +195,9 @@ enum offs_rev {
  #define MT_TMAC_TCR0_TX_BLINK		GENMASK(7, 6)
  #define MT_TMAC_TCR0_TBTT_STOP_CTRL	BIT(25)
  
@@ -64,7 +64,7 @@ index 53061aa..1687568 100644
  #define MT_TMAC_CDTR(_band)		MT_WF_TMAC(_band, __OFFS(TMAC_CDTR))
   #define MT_TMAC_ODTR(_band)		MT_WF_TMAC(_band, __OFFS(TMAC_ODTR))
  #define MT_TIMEOUT_VAL_PLCP		GENMASK(15, 0)
-@@ -458,8 +468,10 @@ enum offs_rev {
+@@ -459,8 +469,10 @@ enum offs_rev {
  #define MT_AGG_PCR0_VHT_PROT		BIT(13)
  #define MT_AGG_PCR0_PTA_WIN_DIS		BIT(15)
  
@@ -78,7 +78,7 @@ index 53061aa..1687568 100644
  #define MT_AGG_ACR0(_band)		MT_WF_AGG(_band, __OFFS(AGG_ACR0))
  #define MT_AGG_ACR_CFEND_RATE		GENMASK(13, 0)
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index efb9bb8..0186602 100644
+index efb9bb82..01866028 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -30,7 +30,7 @@ struct reg_band {
@@ -175,5 +175,5 @@ index efb9bb8..0186602 100644
  
  static void
 -- 
-2.18.0
+2.25.1
 
