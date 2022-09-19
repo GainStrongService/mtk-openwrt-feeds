@@ -1,7 +1,7 @@
-From 20a76d5a926f067a858a29c91bd21e0ff7ee7f10 Mon Sep 17 00:00:00 2001
+From c0238eeeaec21b5f1e0087bec4b6306d3c5aed53 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 17 Aug 2022 13:40:24 +0800
-Subject: [PATCH 1009/1009] mt76: mt7915: add fw_version dump
+Subject: [PATCH] mt76: mt7915: add fw_version dump
 
 ---
  mt76.h               |  4 ++++
@@ -25,19 +25,19 @@ index e4a248a1..b5453d35 100644
  
  struct mt76_power_limits {
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index ed6c9ebb..c1ed9fef 100644
+index ed6c9ebb..be2a2de1 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -2875,6 +2875,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
- 		goto out;
- 	}
+@@ -2889,6 +2889,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+ 		 sizeof(dev->hw->wiphy->fw_version),
+ 		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
  
 +	dev->wm_hdr = devm_kzalloc(dev->dev, sizeof(*hdr), GFP_KERNEL);
 +	memcpy(dev->wm_hdr, hdr, sizeof(*hdr));
 +
- 	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
- 	dev_info(dev->dev, "WM Firmware Version: %.10s, Build Time: %.15s\n",
- 		 hdr->fw_ver, hdr->build_date);
+ 	release_firmware(fw);
+ 
+ 	if (!fw_wa)
 @@ -2914,6 +2917,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		goto out;
  	}
@@ -96,5 +96,5 @@ index 222268fc..ef0c27d2 100644
  }
  #endif
 -- 
-2.25.1
+2.18.0
 
