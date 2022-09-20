@@ -32,7 +32,7 @@ new file mode 100644
 index 0000000..7304278
 --- /dev/null
 +++ b/drivers/net/phy/mxl-gpy.c
-@@ -0,0 +1,749 @@
+@@ -0,0 +1,738 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/* Copyright (C) 2021 Maxlinear Corporation
 + * Copyright (C) 2020 Intel Corporation
@@ -98,7 +98,6 @@ index 0000000..7304278
 +#define VSPEC1_SGMII_CTRL_ANRS	BIT(9)		/* Restart Aneg */
 +#define VSPEC1_SGMII_ANEN_ANRS	(VSPEC1_SGMII_CTRL_ANEN | \
 +				 VSPEC1_SGMII_CTRL_ANRS)
-+#define VSPEC1_SGMII_FIXED_2G5	BIT(5)
 +
 +/* WoL */
 +#define VPSPEC2_WOL_CTL		0x0E06
@@ -301,23 +300,13 @@ index 0000000..7304278
 +	case SPEED_2500:
 +		phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
 +		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_SGMII_CTRL,
-+				     VSPEC1_SGMII_CTRL_ANEN | VSPEC1_SGMII_FIXED_2G5,
-+				     0);
++				     VSPEC1_SGMII_CTRL_ANEN, 0);
 +		if (ret < 0)
 +			phydev_err(phydev,
 +				   "Error: Disable of SGMII ANEG failed: %d\n",
 +				   ret);
 +		break;
 +	case SPEED_1000:
-+		phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
-+		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_SGMII_CTRL,
-+				     VSPEC1_SGMII_CTRL_ANEN | VSPEC1_SGMII_FIXED_2G5,
-+				     VSPEC1_SGMII_FIXED_2G5);
-+		if (ret < 0)
-+			phydev_err(phydev,
-+				   "Error: Disable of SGMII ANEG failed: %d\n",
-+				   ret);
-+		break;
 +	case SPEED_100:
 +	case SPEED_10:
 +		phydev->interface = PHY_INTERFACE_MODE_SGMII;
@@ -327,7 +316,7 @@ index 0000000..7304278
 +		 * if ANEG is disabled (in 2500-BaseX mode).
 +		 */
 +		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_SGMII_CTRL,
-+				     VSPEC1_SGMII_ANEN_ANRS | VSPEC1_SGMII_FIXED_2G5,
++				     VSPEC1_SGMII_ANEN_ANRS,
 +				     VSPEC1_SGMII_ANEN_ANRS);
 +		if (ret < 0)
 +			phydev_err(phydev,
