@@ -1,8 +1,8 @@
-From 801aa2e893945b44d2a10b73fcc2cff269e02497 Mon Sep 17 00:00:00 2001
+From 166ba374624b2aed360427f087c20b8f511fb2e0 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 30 May 2022 16:31:34 +0800
-Subject: [PATCH 915/917] Support new hostapd configuration, edcca_enable and
- edcca_compensation
+Subject: [PATCH 99912/99916] Support new hostapd configuration, edcca_enable
+ and edcca_compensation
 
 ---
  hostapd/config_file.c             | 20 +++++++++++++++
@@ -18,10 +18,10 @@ Subject: [PATCH 915/917] Support new hostapd configuration, edcca_enable and
  10 files changed, 98 insertions(+), 1 deletion(-)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index e57c78b..19a2fd5 100644
+index eda9db021..8a21c9698 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4741,6 +4741,26 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -4753,6 +4753,26 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  	} else if (os_strcmp(buf, "eht_mu_beamformer") == 0) {
  		conf->eht_phy_capab.mu_beamformer = atoi(pos);
  #endif /* CONFIG_IEEE80211BE */
@@ -49,7 +49,7 @@ index e57c78b..19a2fd5 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index f248281..427f16e 100644
+index 4a20eb4e1..373879f79 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -294,6 +294,9 @@ struct hostapd_config * hostapd_config_defaults(void)
@@ -63,10 +63,10 @@ index f248281..427f16e 100644
  }
  
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 5dab8be..9bbe7eb 100644
+index 3f68e76d5..3ac2ae070 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1150,8 +1150,18 @@ struct hostapd_config {
+@@ -1153,8 +1153,18 @@ struct hostapd_config {
  #define CH_SWITCH_EHT_ENABLED BIT(0)
  #define CH_SWITCH_EHT_DISABLED BIT(1)
  	unsigned int ch_switch_eht_config;
@@ -83,13 +83,13 @@ index 5dab8be..9bbe7eb 100644
 +#define EDCCA_MIN_COMPENSATION -126
 +#define EDCCA_MAX_COMPENSATION 126
  
- static inline u8 hostapd_get_oper_chwidth(struct hostapd_config *conf)
- {
+ static inline enum oper_chan_width
+ hostapd_get_oper_chwidth(struct hostapd_config *conf)
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index f7ad3ed..b8b98e4 100644
+index 0c7aee276..5d2d79c38 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
-@@ -1012,3 +1012,12 @@ int hostapd_drv_dpp_listen(struct hostapd_data *hapd, bool enable)
+@@ -1015,3 +1015,12 @@ int hostapd_drv_dpp_listen(struct hostapd_data *hapd, bool enable)
  		return 0;
  	return hapd->driver->dpp_listen(hapd->drv_priv, enable);
  }
@@ -103,7 +103,7 @@ index f7ad3ed..b8b98e4 100644
 +				hapd->iconf->edcca_compensation);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index b4fb766..f8fef19 100644
+index b4fb766ee..f8fef1929 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -138,7 +138,7 @@ int hostapd_drv_do_acs(struct hostapd_data *hapd);
@@ -116,7 +116,7 @@ index b4fb766..f8fef19 100644
  #include "drivers/driver.h"
  
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index e61ac39..c1edaab 100644
+index 0dd8c13b7..6babb036a 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -2295,6 +2295,9 @@ dfs_offload:
@@ -130,10 +130,10 @@ index e61ac39..c1edaab 100644
  		   iface->bss[0]->conf->iface);
  	if (iface->interfaces && iface->interfaces->terminate_on_error > 0)
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 836c16b..fc96fef 100644
+index 1d2b1b265..575448a93 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -4673,6 +4673,8 @@ struct wpa_driver_ops {
+@@ -4676,6 +4676,8 @@ struct wpa_driver_ops {
  			      const u8 *match, size_t match_len,
  			      bool multicast);
  #endif /* CONFIG_TESTING_OPTIONS */
@@ -143,7 +143,7 @@ index 836c16b..fc96fef 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index cd4a853..4351e74 100644
+index 5eba0ea1b..76680dfd3 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -35,6 +35,7 @@
@@ -154,7 +154,7 @@ index cd4a853..4351e74 100644
  
  
  #ifndef NETLINK_CAP_ACK
-@@ -12350,6 +12351,45 @@ static int testing_nl80211_radio_disable(void *priv, int disabled)
+@@ -12368,6 +12369,45 @@ static int testing_nl80211_radio_disable(void *priv, int disabled)
  
  #endif /* CONFIG_TESTING_OPTIONS */
  
@@ -200,7 +200,7 @@ index cd4a853..4351e74 100644
  
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
-@@ -12496,4 +12536,6 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -12514,4 +12554,6 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.register_frame = testing_nl80211_register_frame,
  	.radio_disable = testing_nl80211_radio_disable,
  #endif /* CONFIG_TESTING_OPTIONS */
@@ -208,19 +208,19 @@ index cd4a853..4351e74 100644
 +	.configure_edcca_threshold = nl80211_configure_edcca_threshold,
  };
 diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
-index 80d4564..b677907 100644
+index 6e40d5556..13e5d248c 100644
 --- a/src/drivers/driver_nl80211.h
 +++ b/src/drivers/driver_nl80211.h
-@@ -180,6 +180,7 @@ struct wpa_driver_nl80211_data {
- 	unsigned int unsol_bcast_probe_resp:1;
+@@ -181,6 +181,7 @@ struct wpa_driver_nl80211_data {
  	unsigned int qca_do_acs:1;
  	unsigned int brcm_do_acs:1;
+ 	unsigned int uses_6ghz:1;
 +	unsigned int mtk_edcca_vendor_cmd_avail:1;
  
  	u64 vendor_scan_cookie;
  	u64 remain_on_chan_cookie;
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index a0803ba..6c743bf 100644
+index 7ede0d030..732ae292d 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
 @@ -18,6 +18,7 @@
@@ -231,7 +231,7 @@ index a0803ba..6c743bf 100644
  
  
  static int protocol_feature_handler(struct nl_msg *msg, void *arg)
-@@ -1044,6 +1045,12 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
+@@ -1050,6 +1051,12 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
  					break;
  				}
  #endif /* CONFIG_DRIVER_NL80211_BRCM */
@@ -245,5 +245,5 @@ index a0803ba..6c743bf 100644
  
  			wpa_printf(MSG_DEBUG, "nl80211: Supported vendor command: vendor_id=0x%x subcmd=%u",
 -- 
-2.18.0
+2.25.1
 

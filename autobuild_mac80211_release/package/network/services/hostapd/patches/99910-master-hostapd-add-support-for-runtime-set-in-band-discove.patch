@@ -1,7 +1,8 @@
-From 76d110deecc1705295b3154ce91d046fb6115c66 Mon Sep 17 00:00:00 2001
+From cff3f584e921ce37fcd72a895666abc9227d16fd Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 31 May 2022 21:15:54 +0800
-Subject: [PATCH] hostapd: add support for runtime set in-band discovery
+Subject: [PATCH 99910/99916] hostapd: add support for runtime set in-band
+ discovery
 
 Usage:
 hostapd_cli unsolic_probe_resp [tx_type] [interval]
@@ -20,10 +21,10 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  5 files changed, 98 insertions(+), 4 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 664c59df7..e6a2d4203 100644
+index bc690c526..bb8c74fd3 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -769,6 +769,69 @@ static int hostapd_ctrl_iface_send_qos_map_conf(struct hostapd_data *hapd,
+@@ -826,6 +826,69 @@ static int hostapd_ctrl_iface_send_qos_map_conf(struct hostapd_data *hapd,
  
  #endif /* CONFIG_INTERWORKING */
  
@@ -93,7 +94,7 @@ index 664c59df7..e6a2d4203 100644
  
  #ifdef CONFIG_WNM_AP
  
-@@ -3336,6 +3399,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -3434,6 +3497,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		if (hostapd_ctrl_iface_coloc_intf_req(hapd, buf + 15))
  			reply_len = -1;
  #endif /* CONFIG_WNM_AP */
@@ -104,12 +105,12 @@ index 664c59df7..e6a2d4203 100644
  		reply_len = hostapd_ctrl_iface_get_config(hapd, reply,
  							  reply_size);
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index 60396f3da..4c4c82c9a 100644
+index 85c41d0c3..db2125805 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
-@@ -646,6 +646,24 @@ static int hostapd_cli_cmd_wps_config(struct wpa_ctrl *ctrl, int argc,
+@@ -642,6 +642,24 @@ static int hostapd_cli_cmd_wps_config(struct wpa_ctrl *ctrl, int argc,
+ 	return wpa_ctrl_command(ctrl, buf);
  }
- #endif /* CONFIG_WPS */
  
 +static int hostapd_cli_cmd_inband_discovery(struct wpa_ctrl *ctrl, int argc,
 +					    char *argv[])
@@ -132,7 +133,7 @@ index 60396f3da..4c4c82c9a 100644
  
  static int hostapd_cli_cmd_disassoc_imminent(struct wpa_ctrl *ctrl, int argc,
  					     char *argv[])
-@@ -1744,6 +1762,8 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
+@@ -1749,6 +1767,8 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
  	{ "driver", hostapd_cli_cmd_driver, NULL,
  	  "<driver sub command> [<hex formatted data>] = send driver command data" },
  #endif /* ANDROID */
@@ -142,10 +143,10 @@ index 60396f3da..4c4c82c9a 100644
  };
  
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index 58872bfda..c8db86c6e 100644
+index 814e86efe..1a26f11ff 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
-@@ -1483,6 +1483,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
+@@ -1497,6 +1497,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
  				   struct wpa_driver_ap_params *params)
  {
  	params->fd_max_int = hapd->conf->fils_discovery_max_int;
@@ -154,7 +155,7 @@ index 58872bfda..c8db86c6e 100644
  	if (is_6ghz_op_class(hapd->iconf->op_class) &&
  	    params->fd_max_int > FD_MAX_INTERVAL_6GHZ)
  		params->fd_max_int = FD_MAX_INTERVAL_6GHZ;
-@@ -1491,7 +1493,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
+@@ -1505,7 +1507,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
  	if (params->fd_min_int > params->fd_max_int)
  		params->fd_min_int = params->fd_max_int;
  
@@ -165,10 +166,10 @@ index 58872bfda..c8db86c6e 100644
  						  &params->fd_frame_tmpl_len);
  
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 0127a6be2..ee763990f 100644
+index 53f25030a..5eba0ea1b 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -4493,9 +4493,10 @@ static int nl80211_fils_discovery(struct i802_bss *bss, struct nl_msg *msg,
+@@ -4498,9 +4498,10 @@ static int nl80211_fils_discovery(struct i802_bss *bss, struct nl_msg *msg,
  			params->fd_max_int) ||
  	    (params->fd_frame_tmpl &&
  	     nla_put(msg, NL80211_FILS_DISCOVERY_ATTR_TMPL,
@@ -181,7 +182,7 @@ index 0127a6be2..ee763990f 100644
  	nla_nest_end(msg, attr);
  	return 0;
  }
-@@ -4839,7 +4840,10 @@ static int wpa_driver_nl80211_set_ap(void *priv,
+@@ -4844,7 +4845,10 @@ static int wpa_driver_nl80211_set_ap(void *priv,
  #endif /* CONFIG_SAE */
  
  #ifdef CONFIG_FILS
@@ -206,5 +207,5 @@ index 0568a7909..c4bf3ad35 100644
  	/* keep last */
  	__NL80211_FILS_DISCOVERY_ATTR_LAST,
 -- 
-2.36.1
+2.25.1
 

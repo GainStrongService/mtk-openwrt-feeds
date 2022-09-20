@@ -1,8 +1,8 @@
-From cb31775e39eaa2b8a0bd36f5e195ac8bff967535 Mon Sep 17 00:00:00 2001
+From 1538a92c53326c958133d5859c8dff0d56050c68 Mon Sep 17 00:00:00 2001
 From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 Date: Wed, 19 Jan 2022 21:15:07 +0800
-Subject: [PATCH 6/9] Add set_send_disassoc_frame_timer() to send disassociate
- frame
+Subject: [PATCH 99905/99916] Add set_send_disassoc_frame_timer() to send
+ disassociate frame
 
 Function set_disassoc_timer() may fail if key was deleted first. This new
 function will not ask to delete key as set_disassoc_timer() did.
@@ -11,10 +11,10 @@ function will not ask to delete key as set_disassoc_timer() did.
  1 file changed, 29 insertions(+), 1 deletion(-)
 
 diff --git a/src/ap/wnm_ap.c b/src/ap/wnm_ap.c
-index 6eac3ac..fad132c 100644
+index f6761aba3..4349e1df2 100644
 --- a/src/ap/wnm_ap.c
 +++ b/src/ap/wnm_ap.c
-@@ -767,6 +767,34 @@ static void set_disassoc_timer(struct hostapd_data *hapd, struct sta_info *sta,
+@@ -780,6 +780,34 @@ static void set_disassoc_timer(struct hostapd_data *hapd, struct sta_info *sta,
  }
  
  
@@ -49,7 +49,7 @@ index 6eac3ac..fad132c 100644
  void bss_termination_disable_iface(void *eloop_ctx, void *timeout_ctx)
  {
  	struct hostapd_data *hapd = eloop_ctx;
-@@ -909,7 +937,7 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
+@@ -922,7 +950,7 @@ int wnm_send_bss_tm_req(struct hostapd_data *hapd, struct sta_info *sta,
  	hapd->openwrt_stats.wnm.bss_transition_request_tx++;
  	if (disassoc_timer) {
  		/* send disassociation frame after time-out */
@@ -59,5 +59,5 @@ index 6eac3ac..fad132c 100644
  
  	return 0;
 -- 
-2.18.0
+2.25.1
 

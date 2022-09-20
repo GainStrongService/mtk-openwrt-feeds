@@ -1,7 +1,7 @@
-From 6a949f8644546d689b7271228d19b1b1ad80632f Mon Sep 17 00:00:00 2001
+From e3453cf75d1d9067e97b6d0d370afb3805eccea7 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 9 Jun 2022 19:56:18 +0800
-Subject: [PATCH 1/6] Support configuring BSS Termination TSF by using
+Subject: [PATCH 99903/99916] Support configuring BSS Termination TSF by using
  hostapd_cli command
 
 ---
@@ -12,10 +12,10 @@ Subject: [PATCH 1/6] Support configuring BSS Termination TSF by using
  4 files changed, 11 insertions(+)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 4718368..e0a7e4f 100644
+index a2584920c..c2a282227 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -1326,6 +1326,11 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
+@@ -1338,6 +1338,11 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
  #endif /* CONFIG_DPP */
  	} else if (os_strcasecmp(cmd, "setband") == 0) {
  		ret = hostapd_ctrl_iface_set_band(hapd, value);
@@ -28,7 +28,7 @@ index 4718368..e0a7e4f 100644
  		ret = hostapd_set_iface(hapd->iconf, hapd->conf, cmd, value);
  		if (ret)
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 23b67e1..f248281 100644
+index d7a0c7c80..4a20eb4e1 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -170,6 +170,7 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
@@ -40,7 +40,7 @@ index 23b67e1..f248281 100644
  
  
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index f795ee9..5dab8be 100644
+index ed3bec7fe..3f68e76d5 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
 @@ -557,6 +557,7 @@ struct hostapd_bss_config {
@@ -52,10 +52,10 @@ index f795ee9..5dab8be 100644
  	/* IEEE 802.11u - Interworking */
  	int interworking;
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
-index c496e4f..aad5180 100644
+index 96209ce7e..46a860905 100644
 --- a/src/ap/ctrl_iface_ap.c
 +++ b/src/ap/ctrl_iface_ap.c
-@@ -1202,6 +1202,10 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+@@ -1203,6 +1203,10 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
  			wpa_printf(MSG_DEBUG, "Invalid bss_term data");
  			return -1;
  		}
@@ -67,5 +67,5 @@ index c496e4f..aad5180 100644
  		WPA_PUT_LE16(&bss_term_dur[10], atoi(end));
  	}
 -- 
-2.18.0
+2.25.1
 

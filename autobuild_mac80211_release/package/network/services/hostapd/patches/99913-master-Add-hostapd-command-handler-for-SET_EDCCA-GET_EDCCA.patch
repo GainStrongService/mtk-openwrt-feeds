@@ -1,15 +1,15 @@
-From a00f78d06067b5c139c043c9acf359810e963108 Mon Sep 17 00:00:00 2001
+From 64344c416f8d394552aeaa44f2b1cea4c9815141 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 22:32:40 +0800
-Subject: [PATCH 916/917] Add hostapd command handler for SET_EDCCA, GET_EDCCA
- and APPLY_EDCCA
+Subject: [PATCH 99913/99916] Add hostapd command handler for SET_EDCCA,
+ GET_EDCCA and APPLY_EDCCA
 
 ---
  hostapd/ctrl_iface.c | 99 ++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 99 insertions(+)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index b997ed8..5e9af7f 100644
+index bb8c74fd3..b3e61ff3d 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -598,6 +598,19 @@ static const char * pbc_status_str(enum pbc_status status)
@@ -32,7 +32,7 @@ index b997ed8..5e9af7f 100644
  static int hostapd_ctrl_iface_wps_get_status(struct hostapd_data *hapd,
  					     char *buf, size_t buflen)
  {
-@@ -3307,6 +3320,85 @@ static int hostapd_ctrl_iface_driver_cmd(struct hostapd_data *hapd, char *cmd,
+@@ -3322,6 +3335,85 @@ static int hostapd_ctrl_iface_driver_cmd(struct hostapd_data *hapd, char *cmd,
  #endif /* ANDROID */
  
  
@@ -118,7 +118,7 @@ index b997ed8..5e9af7f 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -3840,6 +3932,13 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -3868,6 +3960,13 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_driver_cmd(hapd, buf + 7, reply,
  							  reply_size);
  #endif /* ANDROID */
@@ -133,5 +133,5 @@ index b997ed8..5e9af7f 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 -- 
-2.18.0
+2.25.1
 
