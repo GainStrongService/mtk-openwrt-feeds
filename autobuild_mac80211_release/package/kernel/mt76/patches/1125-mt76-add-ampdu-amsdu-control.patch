@@ -1,0 +1,172 @@
+From f15366ef845f70c3557e6ebcc4c72ee154e7cfc1 Mon Sep 17 00:00:00 2001
+From: TomLiu <tomml.liu@mediatek.com>
+Date: Wed, 21 Sep 2022 13:55:15 -0700
+Subject: [PATCH][MAC80211][mt76][add AMPDU/AMSDU OnOff ctonrol]
+
+---
+ mt7915/mac.c    | 28 ++++++++++++++++++++++++++++
+ mt7915/mt7915.h |  2 ++
+ mt7915/vendor.c | 39 +++++++++++++++++++++++++++++++++++++++
+ mt7915/vendor.h | 14 ++++++++++++++
+ 4 files changed, 83 insertions(+)
+
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index 516717c..6ad32b1 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -2064,6 +2064,34 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
+ 	phy->trb_ts = trb;
+ }
+ 
++void mt7915_set_wireless_ampdu(struct ieee80211_hw *hw, u8 en)
++{
++	ieee80211_del_all_station(hw);
++	/* clear/set the feature ampdu support */
++	if (en)
++		ieee80211_hw_set(hw, AMPDU_AGGREGATION);
++	else
++		ieee80211_hw_clear(hw, AMPDU_AGGREGATION);
++}
++
++void mt7915_set_wireless_amsdu(struct ieee80211_hw *hw, u8 en) {
++	struct mt76_phy *mphy = hw->priv;
++	struct mt76_dev *mdev = mphy->dev;
++
++	if (!ieee80211_hw_check(hw, AMPDU_AGGREGATION)) {
++		dev_err(mdev->dev, "AMSDU set failed, please enable ampdu first!\n");
++		return;
++	}
++
++	ieee80211_del_all_station(hw);
++
++	/* clear/set the feature ampdu support */
++	if (en)
++		ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
++	else
++		ieee80211_hw_clear(hw, SUPPORTS_AMSDU_IN_AMPDU);
++}
++
+ #ifdef CONFIG_MTK_VENDOR
+ void mt7915_capi_sta_rc_work(void *data, struct ieee80211_sta *sta)
+ {
+diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
+index 3029315..bac7fcb 100644
+--- a/mt7915/mt7915.h
++++ b/mt7915/mt7915.h
+@@ -726,6 +726,8 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ #endif
+ 
+ #ifdef CONFIG_MTK_VENDOR
++void mt7915_set_wireless_ampdu(struct ieee80211_hw *hw, u8 en);
++void mt7915_set_wireless_amsdu(struct ieee80211_hw *hw, u8 en);
+ void mt7915_capi_sta_rc_work(void *data, struct ieee80211_sta *sta);
+ void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
+ void mt7915_mcu_set_rfeature_starec(void *data, struct mt7915_dev *dev,
+diff --git a/mt7915/vendor.c b/mt7915/vendor.c
+index cbbb084..d73fdd4 100644
+--- a/mt7915/vendor.c
++++ b/mt7915/vendor.c
+@@ -30,10 +30,18 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
+ 	[MTK_VENDOR_ATTR_WIRELESS_CTRL_NUSERS_OFDMA] = {.type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_WIRELESS_CTRL_MIMO] = {.type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_WIRELESS_CTRL_BA_BUFFER_SIZE] = {.type = NLA_U16 },
++	[MTK_VENDOR_ATTR_WIRELESS_CTRL_AMPDU] = {.type = NLA_U8 },
++	[MTK_VENDOR_ATTR_WIRELESS_CTRL_AMSDU] = {.type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_WIRELESS_CTRL_MU_EDCA] = {.type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_WIRELESS_CTRL_CERT] = {.type = NLA_U8 },
+ };
+ 
++static const struct nla_policy
++wireless_dump_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_DUMP] = {
++	[MTK_VENDOR_ATTR_WIRELESS_DUMP_AMPDU] = { .type = NLA_U8 },
++	[MTK_VENDOR_ATTR_WIRELESS_DUMP_AMSDU] = { .type = NLA_U8 },
++};
++
+ static const struct nla_policy
+ hemu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_HEMU_CTRL] = {
+ 	[MTK_VENDOR_ATTR_HEMU_CTRL_ONOFF] = {.type = NLA_U8 },
+@@ -981,11 +989,41 @@ static int mt7915_vendor_wireless_ctrl(struct wiphy *wiphy,
+ 		val8 = nla_get_u8(tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_CERT]);
+ 		mt7915_mcu_set_cfg(phy, CFGINFO_CERT_CFG, val8); /* Cert Enable for OMI */
+ 		mt7915_mcu_set_bypass_smthint(phy, val8); /* Cert bypass smooth interpolation */
++	} else if (tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_AMPDU]) {
++		val8 = nla_get_u8(tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_AMPDU]);
++		mt7915_set_wireless_ampdu(hw, val8);
++	} else if (tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_AMSDU]) {
++		val8 = nla_get_u8(tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_AMSDU]);
++		mt7915_set_wireless_amsdu(hw, val8);
+ 	}
+ 
+ 	return 0;
+ }
+ 
++static int
++mt7915_vendor_wireless_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
++			     struct sk_buff *skb, const void *data, int data_len,
++			     unsigned long *storage)
++{
++	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
++	struct mt7915_phy *phy = mt7915_hw_phy(hw);
++	struct mt7915_dev *dev = phy->dev;
++	int len = 0;
++	if (*storage == 1)
++		return -ENOENT;
++	*storage = 1;
++
++
++	if (nla_put_u8(skb,
++	    MTK_VENDOR_ATTR_WIRELESS_DUMP_AMPDU, ieee80211_hw_check(hw, AMPDU_AGGREGATION)) ||
++	    nla_put_u8(skb,
++	    MTK_VENDOR_ATTR_WIRELESS_DUMP_AMSDU, ieee80211_hw_check(hw, SUPPORTS_AMSDU_IN_AMPDU)))
++		return -ENOMEM;
++	len += 2;
++
++	return len;
++}
++
+ static int mt7915_vendor_hemu_ctrl(struct wiphy *wiphy,
+ 				  struct wireless_dev *wdev,
+ 				  const void *data,
+@@ -1223,6 +1261,7 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+ 		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
+ 			WIPHY_VENDOR_CMD_NEED_RUNNING,
+ 		.doit = mt7915_vendor_wireless_ctrl,
++		.dumpit = mt7915_vendor_wireless_ctrl_dump,
+ 		.policy = wireless_ctrl_policy,
+ 		.maxattr = MTK_VENDOR_ATTR_WIRELESS_CTRL_MAX,
+ 	},
+diff --git a/mt7915/vendor.h b/mt7915/vendor.h
+index 5aac559..53abb10 100644
+--- a/mt7915/vendor.h
++++ b/mt7915/vendor.h
+@@ -58,6 +58,8 @@ enum mtk_vendor_attr_wireless_ctrl {
+ 	MTK_VENDOR_ATTR_WIRELESS_CTRL_NUSERS_OFDMA,
+ 	MTK_VENDOR_ATTR_WIRELESS_CTRL_BA_BUFFER_SIZE,
+ 	MTK_VENDOR_ATTR_WIRELESS_CTRL_MIMO,
++	MTK_VENDOR_ATTR_WIRELESS_CTRL_AMPDU,
++	MTK_VENDOR_ATTR_WIRELESS_CTRL_AMSDU,
+ 	MTK_VENDOR_ATTR_WIRELESS_CTRL_CERT = 9,
+ 
+ 	MTK_VENDOR_ATTR_WIRELESS_CTRL_MU_EDCA, /* reserve */
+@@ -67,6 +69,18 @@ enum mtk_vendor_attr_wireless_ctrl {
+ 		NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL - 1
+ };
+ 
++enum mtk_vendor_attr_wireless_dump {
++	MTK_VENDOR_ATTR_WIRELESS_DUMP_UNSPEC,
++
++	MTK_VENDOR_ATTR_WIRELESS_DUMP_AMPDU,
++	MTK_VENDOR_ATTR_WIRELESS_DUMP_AMSDU,
++
++	/* keep last */
++	NUM_MTK_VENDOR_ATTRS_WIRELESS_DUMP,
++	MTK_VENDOR_ATTR_WIRELESS_DUMP_MAX =
++		NUM_MTK_VENDOR_ATTRS_WIRELESS_DUMP - 1
++};
++
+ enum mtk_vendor_attr_hemu_ctrl {
+ 	MTK_VENDOR_ATTR_HEMU_CTRL_UNSPEC,
+ 
+-- 
+2.32.0
+
