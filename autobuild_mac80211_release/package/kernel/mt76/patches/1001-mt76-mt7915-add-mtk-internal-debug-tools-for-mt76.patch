@@ -1,31 +1,39 @@
-From dcaf9bdc667b94263fd95971d7a920934a7a1725 Mon Sep 17 00:00:00 2001
+From 30238567bb559bd31644a811d75d63c808a4d55f Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
-Subject: [PATCH 1001/1009] mt76: mt7915: add mtk internal debug tools for mt76
+Subject: [PATCH] mt76: mt7915: add mtk internal debug tools for mt76
 
 ---
- mt76_connac_mcu.h     |    6 +
+ mt76_connac_mcu.h     |    7 +
  mt7915/Makefile       |    2 +-
  mt7915/debugfs.c      |   73 +-
  mt7915/mac.c          |   14 +
  mt7915/main.c         |    4 +
- mt7915/mcu.c          |   44 +
+ mt7915/mcu.c          |   63 +
  mt7915/mcu.h          |    4 +
- mt7915/mt7915.h       |   43 +
+ mt7915/mt7915.h       |   44 +
  mt7915/mt7915_debug.h | 1350 +++++++++++++++++++
- mt7915/mtk_debugfs.c  | 2923 +++++++++++++++++++++++++++++++++++++++++
+ mt7915/mtk_debugfs.c  | 2925 +++++++++++++++++++++++++++++++++++++++++
  mt7915/mtk_mcu.c      |   51 +
  tools/fwlog.c         |   44 +-
- 12 files changed, 4545 insertions(+), 13 deletions(-)
+ 12 files changed, 4568 insertions(+), 13 deletions(-)
  create mode 100644 mt7915/mt7915_debug.h
  create mode 100644 mt7915/mtk_debugfs.c
  create mode 100644 mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 31017218..89732676 100644
+index 31017218..06813f77 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1127,6 +1127,12 @@ enum {
+@@ -1104,6 +1104,7 @@ enum {
+ 	MCU_EXT_CMD_SET_TX_POWER_CTRL = 0x11,
+ 	MCU_EXT_CMD_FW_LOG_2_HOST = 0x13,
+ 	MCU_EXT_CMD_TXBF_ACTION = 0x1e,
++	MCU_EXT_CMD_MEC_CTRL = 0x1f,
+ 	MCU_EXT_CMD_EFUSE_BUFFER_MODE = 0x21,
+ 	MCU_EXT_CMD_THERMAL_PROT = 0x23,
+ 	MCU_EXT_CMD_STA_REC_UPDATE = 0x25,
+@@ -1127,6 +1128,12 @@ enum {
  	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
  	MCU_EXT_CMD_RXDCOC_CAL = 0x59,
  	MCU_EXT_CMD_GET_MIB_INFO = 0x5a,
@@ -236,7 +244,7 @@ index 11d2866b..00218624 100644
  }
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index edd678ce..48b8be17 100644
+index fc5319da..1eb8107a 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -62,7 +62,11 @@ static int mt7915_start(struct ieee80211_hw *hw)
@@ -252,7 +260,7 @@ index edd678ce..48b8be17 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 19a33120..e498b61f 100644
+index f11ca25d..44d461d7 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -195,6 +195,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -320,6 +328,29 @@ index 19a33120..e498b61f 100644
  int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  {
  	struct {
+@@ -3481,3 +3525,22 @@ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
+ 
+ 	return 0;
+ }
++
++#ifdef MTK_DEBUG
++int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
++{
++	struct {
++		u16 action;
++		u8 _rsv1[2];
++		u16 wcid;
++		u8 enable;
++		u8 _rsv2[5];
++	} __packed req = {
++		.action = cpu_to_le16(1),
++		.wcid = cpu_to_le16(wcid),
++		.enable = enable,
++	};
++
++	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(MEC_CTRL), &req, sizeof(req), true);
++}
++#endif
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
 index ed949802..bfb822fa 100644
 --- a/mt7915/mcu.h
@@ -336,7 +367,7 @@ index ed949802..bfb822fa 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index c90a148d..8990b5b0 100644
+index c90a148d..193b8ab4 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -377,7 +408,7 @@ index c90a148d..8990b5b0 100644
  };
  
  enum {
-@@ -592,4 +616,23 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -592,4 +616,24 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			    struct ieee80211_sta *sta, struct dentry *dir);
  #endif
  
@@ -388,6 +419,7 @@ index c90a148d..8990b5b0 100644
 +void mt7915_dump_tmac_info(u8 *tmac_info);
 +int mt7915_mcu_set_txpower_level(struct mt7915_phy *phy, u8 drop_level);
 +void mt7915_packet_log_to_host(struct mt7915_dev *dev, const void *data, int len, int type, int des_len);
++int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable);
 +
 +#define PKT_BIN_DEBUG_MAGIC	0xc8763123
 +enum {
@@ -1759,10 +1791,10 @@ index 00000000..58ba2cdf
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 00000000..f18c8b6c
+index 00000000..747a9014
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
-@@ -0,0 +1,2923 @@
+@@ -0,0 +1,2925 @@
 +#include<linux/inet.h>
 +#include "mt7915.h"
 +#include "mt7915_debug.h"
@@ -4470,6 +4502,8 @@ index 00000000..f18c8b6c
 +	u32 num = FIELD_GET(GENMASK(15, 8), tx_amsdu);
 +	u32 uwtbl;
 +
++	mt7915_mcu_set_amsdu_algo(dev, dev->wlan_idx, 0);
++
 +	mt7915_wtbl_read_raw(dev, dev->wlan_idx, WTBL_TYPE_UMAC,
 +			UWTBL_HW_AMSDU_DW, 1, &uwtbl);
 +
@@ -4858,5 +4892,5 @@ index e5d4a105..3d51d9ec 100644
  	return ret;
  }
 -- 
-2.25.1
+2.18.0
 

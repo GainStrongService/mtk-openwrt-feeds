@@ -1,0 +1,90 @@
+From 5fbff98bcf45a6b2a5467d06af26507dbdb0c7aa Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Thu, 22 Sep 2022 09:54:53 +0800
+Subject: [PATCH] mt76: mt7915: update mt7916 trinfo when hw path enable
+
+---
+ mt7915/mt7915_debug.h | 10 ++++++++++
+ mt7915/mtk_debugfs.c  | 16 +++++++++++++---
+ 2 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/mt7915/mt7915_debug.h b/mt7915/mt7915_debug.h
+index 58ba2cdf..50b588bd 100644
+--- a/mt7915/mt7915_debug.h
++++ b/mt7915/mt7915_debug.h
+@@ -133,6 +133,8 @@ enum dbg_reg_rev {
+ 	DBG_MIB_M0ARNG0,
+ 	DBG_MIB_M0DR2,
+ 	DBG_MIB_M0DR13,
++	DBG_WFDMA_WED_TX_CTRL,
++	DBG_WFDMA_WED_RX_CTRL,
+ 	__MT_DBG_REG_REV_MAX,
+ };
+ 
+@@ -177,6 +179,8 @@ static const u32 mt7986_dbg_base[] = {
+ 
+ /* mt7915 regs with different base and offset */
+ static const struct __dbg_reg mt7915_dbg_reg[] = {
++	[DBG_WFDMA_WED_TX_CTRL]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x300 },
++	[DBG_WFDMA_WED_RX_CTRL]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x400 },
+ 	[DBG_INT_SOURCE_CSR]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x10 },
+ 	[DBG_INT_MASK_CSR]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x14 },
+ 	[DBG_INT1_SOURCE_CSR]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x88 },
+@@ -281,6 +285,8 @@ static const struct __dbg_reg mt7915_dbg_reg[] = {
+ 
+ /* mt7986/mt7916 regs with different base and offset */
+ static const struct __dbg_reg mt7916_dbg_reg[] = {
++	[DBG_WFDMA_WED_TX_CTRL]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x300 },
++	[DBG_WFDMA_WED_RX_CTRL]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x400 },
+ 	[DBG_INT_SOURCE_CSR]		= { MT_DBG_WFDMA0_BASE, 0x200 },
+ 	[DBG_INT_MASK_CSR]		= { MT_DBG_WFDMA0_BASE, 0x204 },
+ 	[DBG_INT1_SOURCE_CSR]		= { MT_DBG_WFDMA0_PCIE1_BASE, 0x200 },
+@@ -450,11 +456,15 @@ struct bin_debug_hdr {
+ #define MT_DBG_RX_EVENT_RING_BASE		__DBG_REG(dev, DBG_RX_EVENT_RING_BASE)
+ #define MT_DBG_RX_STS_RING_BASE			__DBG_REG(dev, DBG_RX_STS_RING_BASE)
+ #define MT_DBG_RX_DATA_RING_BASE		__DBG_REG(dev, DBG_RX_DATA_RING_BASE)
++#define MT_DBG_WFDMA_WED_TX_CTRL_BASE		__DBG_REG(dev, DBG_WFDMA_WED_TX_CTRL)
++#define MT_DBG_WFDMA_WED_RX_CTRL_BASE		__DBG_REG(dev, DBG_WFDMA_WED_RX_CTRL)
+ 
+ #define MT_DBG_TX_RING_CTRL(n)			(MT_DBG_TX_RING_BASE + (0x10 * (n)))
+ #define MT_DBG_RX_DATA_RING_CTRL(n)		(MT_DBG_RX_DATA_RING_BASE + (0x10 * (n)))
+ #define MT_DBG_RX_EVENT_RING_CTRL(n)		(MT_DBG_RX_EVENT_RING_BASE + (0x10 * (n)))
+ 
++#define MT_DBG_WFDMA_WED_TX_CTRL(n)		(MT_DBG_WFDMA_WED_TX_CTRL_BASE + (0x10 * (n)))
++#define MT_DBG_WFDMA_WED_RX_CTRL(n)		(MT_DBG_WFDMA_WED_RX_CTRL_BASE + (0x10 * (n)))
+ /* WFDMA COMMON */
+ #define MT_DBG_INT_SOURCE_CSR			__DBG_REG(dev, DBG_INT_SOURCE_CSR)
+ #define MT_DBG_INT_MASK_CSR			__DBG_REG(dev, DBG_INT_MASK_CSR)
+diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
+index e336b35a..c9d634ce 100644
+--- a/mt7915/mtk_debugfs.c
++++ b/mt7915/mtk_debugfs.c
+@@ -855,12 +855,22 @@ mt7986_show_host_dma_info(struct seq_file *s, struct mt7915_dev *dev)
+ 		      "Name", "Base", "Cnt", "CIDX", "DIDX", "QCnt");
+ 	dump_dma_tx_ring_info(s, dev, "T16:FWDL", MT_DBG_TX_RING_CTRL(0));
+ 	dump_dma_tx_ring_info(s, dev, "T17:Cmd(H2WM)",	MT_DBG_TX_RING_CTRL(1));
+-	dump_dma_tx_ring_info(s, dev, "T18:TXD0(H2WA)",  MT_DBG_TX_RING_CTRL(2));
+-	dump_dma_tx_ring_info(s, dev, "T19:TXD1(H2WA)",  MT_DBG_TX_RING_CTRL(3));
++
++	if (is_mt7916(&dev->mt76) && mtk_wed_device_active(&dev->mt76.mmio.wed)) {
++		dump_dma_tx_ring_info(s, dev, "T18:TXD0(H2WA)",  MT_DBG_WFDMA_WED_TX_CTRL(0));
++		dump_dma_tx_ring_info(s, dev, "T19:TXD1(H2WA)",  MT_DBG_WFDMA_WED_TX_CTRL(1));
++	} else {
++		dump_dma_tx_ring_info(s, dev, "T18:TXD0(H2WA)",  MT_DBG_TX_RING_CTRL(2));
++		dump_dma_tx_ring_info(s, dev, "T19:TXD1(H2WA)",  MT_DBG_TX_RING_CTRL(3));
++	}
++
+ 	dump_dma_tx_ring_info(s, dev, "T20:Cmd(H2WA)",	MT_DBG_TX_RING_CTRL(4));
+ 	dump_dma_rx_ring_info(s, dev, "R0:Event(WM2H)", MT_DBG_RX_DATA_RING_CTRL(0));
+ 	dump_dma_rx_ring_info(s, dev, "R1:Event(WA2H)", MT_DBG_RX_EVENT_RING_CTRL(1));
+-	dump_dma_rx_ring_info(s, dev, "R2:TxDone(WA2H)", MT_DBG_RX_EVENT_RING_CTRL(2));
++	if (is_mt7916(&dev->mt76) && mtk_wed_device_active(&dev->mt76.mmio.wed))
++		dump_dma_rx_ring_info(s, dev, "R2:TxDone(WA2H)", MT_DBG_WFDMA_WED_RX_CTRL(1));
++	else
++		dump_dma_rx_ring_info(s, dev, "R2:TxDone(WA2H)", MT_DBG_RX_EVENT_RING_CTRL(2));
+ 	dump_dma_rx_ring_info(s, dev, "R3:TxDone1(WA2H)", MT_DBG_RX_EVENT_RING_CTRL(3));
+ 	dump_dma_rx_ring_info(s, dev, "R4:Data0(MAC2H)", MT_DBG_RX_DATA_RING_CTRL(0));
+ 	dump_dma_rx_ring_info(s, dev, "R5:Data1(MAC2H)", MT_DBG_RX_DATA_RING_CTRL(1));
+-- 
+2.18.0
+

@@ -1,7 +1,7 @@
-From 2043d4b7cd46412f5a480c6b8f8c4c1d4a0801f9 Mon Sep 17 00:00:00 2001
+From e5d1346bdc27c267911ec5d2a6815350c43cccb8 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
-Subject: [PATCH 1119/1124] mt76: mt7915: add vendor subcmd EDCCA ctrl
+Subject: [PATCH] mt76: mt7915: add vendor subcmd EDCCA ctrl
 
 Change-Id: I92dabf8be9c5a7ecec78f35325bc5645af8d15ab
 ---
@@ -15,10 +15,10 @@ Change-Id: I92dabf8be9c5a7ecec78f35325bc5645af8d15ab
  7 files changed, 138 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index cb06827c..683d8542 100644
+index b14f931b..6143d8e4 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1156,6 +1156,7 @@ enum {
+@@ -1157,6 +1157,7 @@ enum {
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
@@ -27,7 +27,7 @@ index cb06827c..683d8542 100644
  };
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index ba1b3e4b..192b0a9b 100644
+index 85e9cd60..bad0fe1e 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -456,6 +456,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
@@ -41,13 +41,13 @@ index ba1b3e4b..192b0a9b 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f649bcaf..7e6102b8 100644
+index 6d67e9e1..523cc6da 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4253,3 +4253,41 @@ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
- 
- 	return 0;
+@@ -4272,3 +4272,41 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(MEC_CTRL), &req, sizeof(req), true);
  }
+ #endif
 +
 +int mt7915_mcu_set_edcca(struct mt7915_phy *phy, int mode, u8 *value,
 +			 s8 compensation)
@@ -108,7 +108,7 @@ index ad85e56c..b8a433e5 100644
 +};
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 432f0b8a..439d071a 100644
+index b750660d..a5abcc56 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -723,6 +723,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
@@ -241,5 +241,5 @@ index 719b851f..83c41bc1 100644
  	CAPI_RFEATURE_CHANGED		= BIT(16),
  	CAPI_WIRELESS_CHANGED		= BIT(17),
 -- 
-2.25.1
+2.18.0
 
