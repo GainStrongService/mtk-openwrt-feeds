@@ -166,7 +166,7 @@ index c87a823..955bb27 100644
  	spinlock_t			syscfg0_lock;
  	struct timer_list		mtk_dma_monitor_timer;
  
-+	u8				qos_mode;
++	u8				qos_toggle;
  	u8				ppe_num;
  	struct mtk_ppe			*ppe[MTK_MAX_PPE_NUM];
  	struct rhashtable		flow_table;
@@ -214,21 +214,84 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ether
 index f258539..3b17819 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -203,9 +203,13 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
- 	}
+@@ -9,6 +9,8 @@
+ #include <linux/ipv6.h>
+ #include <net/flow_offload.h>
+ #include <net/pkt_cls.h>
++#include <net/netfilter/nf_conntrack.h>
++#include <net/netfilter/nf_flow_table.h>
+ #include <net/dsa.h>
+ #include "mtk_eth_soc.h"
+ #include "mtk_wed.h"
+@@ -183,7 +185,7 @@ mtk_flow_get_dsa_port(struct net_device **dev)
  
- 	dsa_port = mtk_flow_get_dsa_port(&dev);
--	if (dsa_port >= 0)
-+	if (dsa_port >= 0) {
- 		mtk_foe_entry_set_dsa(foe, dsa_port);
+ static int
+ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+-			   struct net_device *dev, const u8 *dest_mac,
++			   struct net_device *dev, struct nf_conn *ct, const u8 *dest_mac,
+ 			   int *wed_index)
+ {
+ 	struct mtk_wdma_info info = {};
+@@ -211,6 +211,11 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 	if (dsa_port >= 0)
+ 	mtk_foe_entry_set_dsa(foe, dsa_port);
  
-+		if (eth->qos_mode == 2)
-+			mtk_foe_entry_set_qid(foe, dsa_port);
-+	}
++	if (eth->qos_toggle == 1 || ct->mark >= 6)
++		mtk_foe_entry_set_qid(foe, ct->mark & MTK_QDMA_TX_MASK);
++	if (eth->qos_toggle == 2 && dsa_port >= 0)
++		mtk_foe_entry_set_qid(foe, dsa_port & MTK_QDMA_TX_MASK);
 +
  	if (dev == eth->netdev[0])
  		pse_port = 1;
  	else if (dev == eth->netdev[1])
+@@ -433,7 +443,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+ 	if (data.pppoe.num == 1)
+ 		mtk_foe_entry_set_pppoe(&foe, data.pppoe.sid);
+ 
+-	err = mtk_flow_set_output_device(eth, &foe, odev, data.eth.h_dest,
++	err = mtk_flow_set_output_device(eth, &foe, odev, f->flow->ct, data.eth.h_dest,
+ 					 &wed_index);
+ 	if (err)
+ 		return err;
+diff --git a/include/net/flow_offload.h b/include/net/flow_offload.h
+index 59b8736..7261b6d 100644
+--- a/include/net/flow_offload.h
++++ b/include/net/flow_offload.h
+@@ -365,6 +378,7 @@ struct flow_cls_offload {
+ 	struct flow_cls_common_offload common;
+ 	enum flow_cls_command command;
+ 	unsigned long cookie;
++	struct flow_offload *flow;
+ 	struct flow_rule *rule;
+ 	struct flow_stats stats;
+ 	u32 classid;
+diff --git a/net/netfilter/nf_flow_table_offload.c b/net/netfilter/nf_flow_table_offload.c
+index d94c6fb..886ced5 100644
+--- a/net/netfilter/nf_flow_table_offload.c
++++ b/net/netfilter/nf_flow_table_offload.c
+@@ -810,11 +810,13 @@ static int nf_flow_offload_alloc(const struct flow_offload_work *offload,
+ }
+ 
+ static void nf_flow_offload_init(struct flow_cls_offload *cls_flow,
++				 struct flow_offload *flow,
+ 				 __be16 proto, int priority,
+ 				 enum flow_cls_command cmd,
+ 				 const struct flow_offload_tuple *tuple,
+ 				 struct netlink_ext_ack *extack)
+ {
++	cls_flow->flow = flow;
+ 	cls_flow->common.protocol = proto;
+ 	cls_flow->common.prio = priority;
+ 	cls_flow->common.extack = extack;
+@@ -836,7 +838,7 @@ static int nf_flow_offload_tuple(struct nf_flowtable *flowtable,
+ 	__be16 proto = ETH_P_ALL;
+ 	int err, i = 0;
+ 
+-	nf_flow_offload_init(&cls_flow, proto, priority, cmd,
++	nf_flow_offload_init(&cls_flow, flow, proto, priority, cmd,
+ 			     &flow->tuplehash[dir].tuple, &extack);
+ 	if (cmd == FLOW_CLS_REPLACE)
+ 		cls_flow.rule = flow_rule->rule;
 diff --git a/drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c b/drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c
 new file mode 100644
 index 0000000..198b924
@@ -323,15 +386,15 @@ index 0000000..198b924
 +
 +	if (buf[0] == '0') {
 +		pr_info("HQoS is going to be disabled !\n");
-+		eth->qos_mode = 0;
++		eth->qos_toggle = 0;
 +		mtk_qdma_qos_disable(eth);
 +	} else if (buf[0] == '1') {
 +		pr_info("HQoS mode is going to be enabled !\n");
-+		eth->qos_mode = 1;
++		eth->qos_toggle = 1;
 +	} else if (buf[0] == '2') {
 +		pr_info("Per-port-per-queue mode is going to be enabled !\n");
 +		pr_info("PPPQ use qid 0~5 (scheduler 0).\n");
-+		eth->qos_mode = 2;
++		eth->qos_toggle = 2;
 +		mtk_qdma_qos_pppq_enable(eth);
 +	}
 +
@@ -343,7 +406,7 @@ index 0000000..198b924
 +	struct mtk_eth *eth = m->private;
 +
 +	seq_printf(m, "value=%d, HQoS is %s now!\n",
-+		   eth->qos_mode, (eth->qos_mode) ? "enabled" : "disabled");
++		   eth->qos_toggle, (eth->qos_toggle) ? "enabled" : "disabled");
 +
 +	return 0;
 +}
@@ -652,7 +715,7 @@ index 0000000..198b924
 +	if (!root)
 +		return -ENOMEM;
 +
-+	debugfs_create_file("qos_mode", S_IRUGO, root, eth, &fops_qos);
++	debugfs_create_file("qos_toggle", S_IRUGO, root, eth, &fops_qos);
 +
 +	for (i = 0; i < eth->soc->txrx.qdma_tx_sch; i++) {
 +		snprintf(name, sizeof(name), "qdma_sch%ld", i);
