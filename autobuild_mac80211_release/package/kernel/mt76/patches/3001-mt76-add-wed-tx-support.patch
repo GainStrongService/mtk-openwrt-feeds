@@ -7,7 +7,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
  mt76_connac.h   |   1 +
  mt7915/dma.c    |  59 +++++++++++++++++++-------
- mt7915/mac.c    |   4 +-
+ mt7915/mac.c    |  11 +++--
  mt7915/main.c   |   9 +++-
  mt7915/mcu.c    |   2 +-
  mt7915/mmio.c   | 110 +++++++++++++++++++++++++++++++++++++++++++++++-
@@ -158,6 +158,31 @@ index 0631ad2c..b1788fb8 100644
 +	return MT_TXD_TXP_BUF_SIZE;
  }
  
+ static void
+@@ -944,6 +944,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+ 	LIST_HEAD(free_list);
+ 	void *end = data + len;
+ 	bool v3, wake = false;
++	bool with_txwi = true;
+ 	u16 total, count = 0;
+ 	u32 txd = le32_to_cpu(free->txd);
+ 	__le32 *cur_info;
+@@ -997,12 +998,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+ 			txwi = mt76_token_release(mdev, msdu, &wake);
+ 			if (!txwi)
+ 				continue;
++			else
++				with_txwi = false;
+
+ 			mt7915_txwi_free(dev, txwi, sta, &free_list);
+ 		}
+ 	}
+-
+-	mt7915_mac_tx_free_done(dev, &free_list, wake);
++	if (!with_txwi)
++		mt7915_mac_tx_free_done(dev, &free_list, wake);
+ }
+
  static void
 diff --git a/mt7915/main.c b/mt7915/main.c
 index 192b0a9b..3a09f3f5 100644
