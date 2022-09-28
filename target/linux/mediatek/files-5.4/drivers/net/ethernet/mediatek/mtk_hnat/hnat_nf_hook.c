@@ -33,7 +33,7 @@
 #include "../mtk_eth_reset.h"
 
 #define do_ge2ext_fast(dev, skb)                                               \
-	((IS_LAN(dev) || IS_WAN(dev) || IS_PPD(dev)) && \
+	((IS_LAN_GRP(dev) || IS_WAN(dev) || IS_PPD(dev)) && \
 	 skb_hnat_is_hashed(skb) && \
 	 skb_hnat_reason(skb) == HIT_BIND_FORCE_TO_CPU)
 #define do_ext2ge_fast_learn(dev, skb)                                         \
@@ -189,7 +189,7 @@ void foe_clear_all_bind_entries(struct net_device *dev)
 	int i, hash_index;
 	struct foe_entry *entry;
 
-	if (!IS_LAN(dev) && !IS_WAN(dev) &&
+	if (!IS_LAN_GRP(dev) && !IS_WAN(dev) &&
 	    !find_extif_from_devname(dev->name) &&
 	    !dev->netdev_ops->ndo_flow_offload_check)
 		return;
@@ -217,9 +217,11 @@ void foe_clear_all_bind_entries(struct net_device *dev)
 static void gmac_ppe_fwd_enable(struct net_device *dev)
 {
 	if (IS_LAN(dev) || IS_GMAC1_MODE)
-		set_gmac_ppe_fwd(0, 1);
+		set_gmac_ppe_fwd(NR_GMAC1_PORT, 1);
 	else if (IS_WAN(dev))
-		set_gmac_ppe_fwd(1, 1);
+		set_gmac_ppe_fwd(NR_GMAC2_PORT, 1);
+	else if (IS_LAN2(dev))
+		set_gmac_ppe_fwd(NR_GMAC3_PORT, 1);
 }
 
 int nf_hnat_netdevice_event(struct notifier_block *unused, unsigned long event,
@@ -434,9 +436,11 @@ unsigned int do_hnat_ext_to_ge2(struct sk_buff *skb, const char *func)
 		}
 
 		if (IS_BOND_MODE &&
-		    (((hnat_priv->data->version == MTK_HNAT_V4) &&
+		    (((hnat_priv->data->version == MTK_HNAT_V4 ||
+		       hnat_priv->data->version == MTK_HNAT_V5) &&
 				(skb_hnat_entry(skb) != 0x7fff)) ||
-		     ((hnat_priv->data->version != MTK_HNAT_V4) &&
+		     ((hnat_priv->data->version != MTK_HNAT_V4 &&
+		       hnat_priv->data->version != MTK_HNAT_V5) &&
 				(skb_hnat_entry(skb) != 0x3fff))))
 			skb_set_hash(skb, skb_hnat_entry(skb) >> 1, PKT_HASH_TYPE_L4);
 
@@ -569,6 +573,8 @@ static inline void hnat_set_iif(const struct nf_hook_state *state,
 		return;
 	} else if (IS_LAN(state->in)) {
 		skb_hnat_iface(skb) = FOE_MAGIC_GE_LAN;
+	} else if (IS_LAN2(state->in)) {
+		skb_hnat_iface(skb) = FOE_MAGIC_GE_LAN2;
 	} else if (IS_PPD(state->in)) {
 		skb_hnat_iface(skb) = FOE_MAGIC_GE_PPD;
 	} else if (IS_EXT(state->in)) {
@@ -725,10 +731,10 @@ unsigned int do_hnat_mape_w2l(struct sk_buff *skb, const struct net_device *in,
 
 		entry->bfib1.udp = udp;
 
-		entry->ipv4_dslite.new_sip = ntohl(iph->saddr);
-		entry->ipv4_dslite.new_dip = ntohl(iph->daddr);
-		entry->ipv4_dslite.new_sport = ntohs(pptr->src);
-		entry->ipv4_dslite.new_dport = ntohs(pptr->dst);
+		entry->ipv4_mape.new_sip = ntohl(iph->saddr);
+		entry->ipv4_mape.new_dip = ntohl(iph->daddr);
+		entry->ipv4_mape.new_sport = ntohs(pptr->src);
+		entry->ipv4_mape.new_dport = ntohs(pptr->dst);
 
 		return 0;
 	}
@@ -1115,7 +1121,8 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 	entry.bfib1.vlan_layer += (hw_path->flags & FLOW_OFFLOAD_PATH_VLAN) ? 1 : 0;
 	entry.bfib1.vpm = (entry.bfib1.vlan_layer) ? 1 : 0;
 	entry.bfib1.cah = 1;
-	entry.bfib1.time_stamp = (hnat_priv->data->version == MTK_HNAT_V4) ?
+	entry.bfib1.time_stamp = (hnat_priv->data->version == MTK_HNAT_V4 ||
+				  hnat_priv->data->version == MTK_HNAT_V5) ?
 		readl(hnat_priv->fe_base + 0x0010) & (0xFF) :
 		readl(hnat_priv->fe_base + 0x0010) & (0x7FFF);
 
@@ -1134,7 +1141,8 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 		}
 
 		entry.ipv4_hnapt.iblk2.port_ag =
-			(hnat_priv->data->version == MTK_HNAT_V4) ? 0xf : 0x3f;
+			(hnat_priv->data->version == MTK_HNAT_V4 ||
+			 hnat_priv->data->version == MTK_HNAT_V5) ? 0xf : 0x3f;
 		break;
 	case IPV4_DSLITE:
 	case IPV4_MAP_E:
@@ -1153,7 +1161,8 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 		}
 
 		entry.ipv6_5t_route.iblk2.port_ag =
-			(hnat_priv->data->version == MTK_HNAT_V4) ? 0xf : 0x3f;
+			(hnat_priv->data->version == MTK_HNAT_V4 ||
+			 hnat_priv->data->version == MTK_HNAT_V5) ? 0xf : 0x3f;
 		break;
 	}
 	return entry;
@@ -1190,7 +1199,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	entry.bfib1.pkt_type = foe->udib1.pkt_type; /* Get packte type state*/
 	entry.bfib1.state = foe->udib1.state;
 
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 	entry.bfib1.sp = foe->udib1.sp;
 #endif
 
@@ -1214,7 +1223,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv4_dslite.dport =
 					foe->ipv4_dslite.dport;
 
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 				if (entry.bfib1.pkt_type == IPV4_MAP_E) {
 					pptr = skb_header_pointer(skb,
 								  iph->ihl * 4,
@@ -1223,13 +1232,13 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					if (unlikely(!pptr))
 						return -1;
 
-					entry.ipv4_dslite.new_sip =
+					entry.ipv4_mape.new_sip =
 							ntohl(iph->saddr);
-					entry.ipv4_dslite.new_dip =
+					entry.ipv4_mape.new_dip =
 							ntohl(iph->daddr);
-					entry.ipv4_dslite.new_sport =
+					entry.ipv4_mape.new_sport =
 							ntohs(pptr->src);
-					entry.ipv4_dslite.new_dport =
+					entry.ipv4_mape.new_dport =
 							ntohs(pptr->dst);
 				}
 #endif
@@ -1265,7 +1274,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 				entry.ipv4_hnapt.vlan1 = hw_path->vlan_id;
 
-				if (skb->vlan_tci && FROM_GE_WAN(skb) && IS_LAN(dev)) {
+				if (skb->vlan_tci && FROM_GE_WAN(skb) &&
+				    IS_LAN_GRP(dev)) {
 					entry.bfib1.vlan_layer += 1;
 
 					if (entry.ipv4_hnapt.vlan1)
@@ -1317,7 +1327,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 			entry.ipv6_5t_route.vlan1 = hw_path->vlan_id;
 
-			if (skb->vlan_tci && FROM_GE_WAN(skb) && IS_LAN(dev)) {
+			if (skb->vlan_tci && FROM_GE_WAN(skb) &&
+			    IS_LAN_GRP(dev)) {
 				entry.bfib1.vlan_layer += 1;
 
 				if (entry.ipv6_5t_route.vlan1)
@@ -1418,10 +1429,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 #if defined(CONFIG_MEDIATEK_NETSYS_V2)
 				if (mape_toggle) {
 					entry.ipv4_dslite.iblk2.dscp = foe->ipv4_dslite.iblk2.dscp;
-					entry.ipv4_dslite.new_sip = foe->ipv4_dslite.new_sip;
-					entry.ipv4_dslite.new_dip = foe->ipv4_dslite.new_dip;
-					entry.ipv4_dslite.new_sport = foe->ipv4_dslite.new_sport;
-					entry.ipv4_dslite.new_dport = foe->ipv4_dslite.new_dport;
+					entry.ipv4_mape.new_sip = foe->ipv4_mape.new_sip;
+					entry.ipv4_mape.new_dip = foe->ipv4_mape.new_dip;
+					entry.ipv4_mape.new_sport = foe->ipv4_mape.new_sport;
+					entry.ipv4_mape.new_dport = foe->ipv4_mape.new_dport;
 				}
 #endif
 			} else if (mape_toggle &&
@@ -1451,9 +1462,14 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 				if (IS_HQOS_MODE) {
 					entry.ipv4_hnapt.iblk2.qid =
-						(hnat_priv->data->version == MTK_HNAT_V4) ?
+						(hnat_priv->data->version == MTK_HNAT_V4 ||
+						 hnat_priv->data->version == MTK_HNAT_V5) ?
 						 skb->mark & 0x7f : skb->mark & 0xf;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+					entry.ipv4_hnapt.tport_id = 1;
+#else
 					entry.ipv4_hnapt.iblk2.fqos = 1;
+#endif
 				}
 
 				entry.ipv4_hnapt.bfib1.udp =
@@ -1527,6 +1543,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				 NR_GMAC2_PORT : NR_GMAC1_PORT;
 		else
 			gmac = NR_GMAC1_PORT;
+	} else if (IS_LAN2(dev)) {
+		gmac = NR_GMAC3_PORT;
 	} else if (IS_WAN(dev)) {
 		if (IS_DSA_WAN(dev))
 			port_id = hnat_dsa_fill_stag(dev,&entry, hw_path,
@@ -1539,7 +1557,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		} else {
 			gmac = (IS_GMAC1_MODE) ? NR_GMAC1_PORT : NR_GMAC2_PORT;
 		}
-	} else if (IS_EXT(dev) && (FROM_GE_PPD(skb) || FROM_GE_LAN(skb) ||
+	} else if (IS_EXT(dev) && (FROM_GE_PPD(skb) || FROM_GE_LAN_GRP(skb) ||
 		   FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb) || FROM_WED(skb))) {
 		if (!hnat_priv->data->whnat && IS_GMAC1_MODE) {
 			entry.bfib1.vpm = 1;
@@ -1583,7 +1601,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			(hnat_priv->data->version == MTK_HNAT_V1) ? 0x3f : 0;
 
 		if (qos_toggle) {
-			if (hnat_priv->data->version == MTK_HNAT_V4) {
+			if (hnat_priv->data->version == MTK_HNAT_V4 ||
+			    hnat_priv->data->version == MTK_HNAT_V5) {
 				entry.ipv4_hnapt.iblk2.qid = qid & 0x7f;
 			} else {
 				/* qid[5:0]= port_mg[1:0]+ qid[3:0] */
@@ -1592,7 +1611,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					entry.ipv4_hnapt.iblk2.port_mg |=
 						((qid >> 4) & 0x3);
 
-				if (((IS_EXT(dev) && (FROM_GE_LAN(skb) ||
+				if (((IS_EXT(dev) && (FROM_GE_LAN_GRP(skb) ||
 				      FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) ||
 				      ((mape_toggle && mape == 1) && !FROM_EXT(skb))) &&
 				      (!whnat)) {
@@ -1606,10 +1625,14 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			    (IS_PPPQ_MODE && !IS_DSA_LAN(dev) && !IS_DSA_WAN(dev)))
 				entry.ipv4_hnapt.iblk2.fqos = 0;
 			else
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+				entry.ipv4_hnapt.tport_id = 1;
+#else
 				entry.ipv4_hnapt.iblk2.fqos =
 					(!IS_PPPQ_MODE || (IS_PPPQ_MODE &&
 					 (IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev) ||
 					 (FROM_WED(skb) && IS_DSA_LAN(dev)))));
+#endif
 		} else {
 			entry.ipv4_hnapt.iblk2.fqos = 0;
 		}
@@ -1619,7 +1642,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			(hnat_priv->data->version == MTK_HNAT_V1) ? 0x3f : 0;
 
 		if (qos_toggle) {
-			if (hnat_priv->data->version == MTK_HNAT_V4) {
+			if (hnat_priv->data->version == MTK_HNAT_V4 ||
+			    hnat_priv->data->version == MTK_HNAT_V5) {
 				entry.ipv6_5t_route.iblk2.qid = qid & 0x7f;
 			} else {
 				/* qid[5:0]= port_mg[1:0]+ qid[3:0] */
@@ -1628,7 +1652,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					entry.ipv6_5t_route.iblk2.port_mg |=
 								((qid >> 4) & 0x3);
 
-				if (IS_EXT(dev) && (FROM_GE_LAN(skb) ||
+				if (IS_EXT(dev) && (FROM_GE_LAN_GRP(skb) ||
 				    FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb)) &&
 				    (!whnat)) {
 					entry.ipv6_5t_route.etype = htons(HQOS_MAGIC_TAG);
@@ -1641,10 +1665,14 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			    (IS_PPPQ_MODE && !IS_DSA_LAN(dev) && !IS_DSA_WAN(dev)))
 				entry.ipv6_5t_route.iblk2.fqos = 0;
 			else
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+				entry.ipv6_5t_route.tport_id = 1;
+#else
 				entry.ipv6_5t_route.iblk2.fqos =
 					(!IS_PPPQ_MODE || (IS_PPPQ_MODE &&
 					 (IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev) ||
 					 (FROM_WED(skb) && IS_DSA_LAN(dev)))));
+#endif
 		} else {
 			entry.ipv6_5t_route.iblk2.fqos = 0;
 		}
@@ -1758,11 +1786,26 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		entry->ipv4_hnapt.iblk2.fqos = 0;
 		if ((hnat_priv->data->version == MTK_HNAT_V2 &&
 		     gmac_no == NR_WHNAT_WDMA_PORT) ||
-		    (hnat_priv->data->version == MTK_HNAT_V4 &&
+		    ((hnat_priv->data->version == MTK_HNAT_V4 ||
+		      hnat_priv->data->version == MTK_HNAT_V5) &&
 		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT))) {
 			entry->ipv4_hnapt.winfo.bssid = skb_hnat_bss_id(skb);
 			entry->ipv4_hnapt.winfo.wcid = skb_hnat_wc_id(skb);
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+			entry->ipv4_hnapt.tport_id = (IS_HQOS_MODE) ? 1 : 0;
+			entry->ipv4_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
+			entry->ipv4_hnapt.iblk2.winfoi = 1;
+			entry->ipv4_hnapt.winfo_pao.usr_info =
+				skb_hnat_usr_info(skb);
+			entry->ipv4_hnapt.winfo_pao.tid = skb_hnat_tid(skb);
+			entry->ipv4_hnapt.winfo_pao.is_fixedrate =
+				skb_hnat_is_fixedrate(skb);
+			entry->ipv4_hnapt.winfo_pao.is_prior =
+				skb_hnat_is_prior(skb);
+			entry->ipv4_hnapt.winfo_pao.is_sp = skb_hnat_is_sp(skb);
+			entry->ipv4_hnapt.winfo_pao.hf = skb_hnat_hf(skb);
+			entry->ipv4_hnapt.winfo_pao.amsdu = skb_hnat_amsdu(skb);
+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
 			entry->ipv4_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
 			entry->ipv4_hnapt.iblk2.winfoi = 1;
 #else
@@ -1775,14 +1818,14 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 				bfib1_tx.vpm = 1;
 				bfib1_tx.vlan_layer = 1;
 
-				if (FROM_GE_LAN(skb))
+				if (FROM_GE_LAN_GRP(skb))
 					entry->ipv4_hnapt.vlan1 = 1;
 				else if (FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))
 					entry->ipv4_hnapt.vlan1 = 2;
 			}
 
 			if (IS_HQOS_MODE &&
-			    (FROM_GE_LAN(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
+			    (FROM_GE_LAN_GRP(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
 				bfib1_tx.vpm = 0;
 				bfib1_tx.vlan_layer = 1;
 				entry->ipv4_hnapt.etype = htons(HQOS_MAGIC_TAG);
@@ -1795,11 +1838,30 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		entry->ipv6_5t_route.iblk2.fqos = 0;
 		if ((hnat_priv->data->version == MTK_HNAT_V2 &&
 		     gmac_no == NR_WHNAT_WDMA_PORT) ||
-		    (hnat_priv->data->version == MTK_HNAT_V4 &&
+		    ((hnat_priv->data->version == MTK_HNAT_V4 ||
+		      hnat_priv->data->version == MTK_HNAT_V5) &&
 		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT))) {
 			entry->ipv6_5t_route.winfo.bssid = skb_hnat_bss_id(skb);
 			entry->ipv6_5t_route.winfo.wcid = skb_hnat_wc_id(skb);
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+			entry->ipv6_5t_route.tport_id = (IS_HQOS_MODE) ? 1 : 0;
+			entry->ipv6_5t_route.iblk2.rxid = skb_hnat_rx_id(skb);
+			entry->ipv6_5t_route.iblk2.winfoi = 1;
+			entry->ipv6_5t_route.winfo_pao.usr_info =
+				skb_hnat_usr_info(skb);
+			entry->ipv6_5t_route.winfo_pao.tid =
+				skb_hnat_tid(skb);
+			entry->ipv6_5t_route.winfo_pao.is_fixedrate =
+				skb_hnat_is_fixedrate(skb);
+			entry->ipv6_5t_route.winfo_pao.is_prior =
+				skb_hnat_is_prior(skb);
+			entry->ipv6_5t_route.winfo_pao.is_sp =
+				skb_hnat_is_sp(skb);
+			entry->ipv6_5t_route.winfo_pao.hf =
+				skb_hnat_hf(skb);
+			entry->ipv6_5t_route.winfo_pao.amsdu =
+				skb_hnat_amsdu(skb);
+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
 			entry->ipv6_5t_route.iblk2.rxid = skb_hnat_rx_id(skb);
 			entry->ipv6_5t_route.iblk2.winfoi = 1;
 #else
@@ -1812,14 +1874,14 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 				bfib1_tx.vpm = 1;
 				bfib1_tx.vlan_layer = 1;
 
-				if (FROM_GE_LAN(skb))
+				if (FROM_GE_LAN_GRP(skb))
 					entry->ipv6_5t_route.vlan1 = 1;
 				else if (FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))
 					entry->ipv6_5t_route.vlan1 = 2;
 			}
 
 			if (IS_HQOS_MODE &&
-			    (FROM_GE_LAN(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
+			    (FROM_GE_LAN_GRP(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
 				bfib1_tx.vpm = 0;
 				bfib1_tx.vlan_layer = 1;
 				entry->ipv6_5t_route.etype = htons(HQOS_MAGIC_TAG);
@@ -2021,7 +2083,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 		out = (IS_GMAC1_MODE) ? hw_path.virt_dev : hw_path.dev;
 	}
 
-	if (!IS_LAN(out) && !IS_WAN(out) && !IS_EXT(out))
+	if (!IS_LAN_GRP(out) && !IS_WAN(out) && !IS_EXT(out))
 		return 0;
 
 	trace_printk("[%s] case hit, %x-->%s, reason=%x\n", __func__,
@@ -2067,7 +2129,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 	case HIT_BIND_MULTICAST_TO_CPU:
 	case HIT_BIND_MULTICAST_TO_GMAC_CPU:
 		/*do not forward to gdma again,if ppe already done it*/
-		if (IS_LAN(out) || IS_WAN(out))
+		if (IS_LAN_GRP(out) || IS_WAN(out))
 			return -1;
 		break;
 	}
@@ -2119,13 +2181,13 @@ mtk_hnat_ipv6_nf_local_out(void *priv, struct sk_buff *skb,
 				entry->bfib1.udp = udp;
 
 				/* Map-E LAN->WAN record inner IPv4 header info. */
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 				entry->bfib1.pkt_type = IPV4_MAP_E;
 				entry->ipv4_dslite.iblk2.dscp = iph->tos;
-				entry->ipv4_dslite.new_sip = ntohl(iph->saddr);
-				entry->ipv4_dslite.new_dip = ntohl(iph->daddr);
-				entry->ipv4_dslite.new_sport = ntohs(pptr->src);
-				entry->ipv4_dslite.new_dport = ntohs(pptr->dst);
+				entry->ipv4_mape.new_sip = ntohl(iph->saddr);
+				entry->ipv4_mape.new_dip = ntohl(iph->daddr);
+				entry->ipv4_mape.new_sport = ntohs(pptr->src);
+				entry->ipv4_mape.new_dport = ntohs(pptr->dst);
 #else
 				entry->ipv4_hnapt.iblk2.dscp = iph->tos;
 				entry->ipv4_hnapt.new_sip = ntohl(iph->saddr);

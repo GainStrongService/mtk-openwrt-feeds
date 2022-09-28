@@ -402,10 +402,10 @@ int entry_detail(u32 ppe_id, int index)
 			entry->ipv4_dslite.tunnel_dipv6_1,
 			entry->ipv4_dslite.tunnel_dipv6_2,
 			entry->ipv4_dslite.tunnel_dipv6_3);
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 	} else if (IS_IPV4_MAPE(entry)) {
-		nsaddr = htonl(entry->ipv4_dslite.new_sip);
-		ndaddr = htonl(entry->ipv4_dslite.new_dip);
+		nsaddr = htonl(entry->ipv4_mape.new_sip);
+		ndaddr = htonl(entry->ipv4_mape.new_dip);
 
 		pr_info("Information Block 2: %08X\n",
 			entry->ipv4_dslite.info_blk2);
@@ -414,8 +414,8 @@ int entry_detail(u32 ppe_id, int index)
 			&saddr,	entry->ipv4_dslite.sport,
 			&daddr,	entry->ipv4_dslite.dport);
 		pr_info("IPv4 MAP-E New IP/Port: %pI4:%d->%pI4:%d\n",
-			&nsaddr, entry->ipv4_dslite.new_sport,
-			&ndaddr, entry->ipv4_dslite.new_dport);
+			&nsaddr, entry->ipv4_mape.new_sport,
+			&ndaddr, entry->ipv4_mape.new_dport);
 		pr_info("EG DIPv6: %08X:%08X:%08X:%08X->%08X:%08X:%08X:%08X\n",
 			entry->ipv4_dslite.tunnel_sipv6_0,
 			entry->ipv4_dslite.tunnel_sipv6_1,
@@ -487,6 +487,12 @@ int entry_detail(u32 ppe_id, int index)
 			entry->ipv4_hnapt.bfib1.udp == 0 ?
 			"TCP" :	entry->ipv4_hnapt.bfib1.udp == 1 ?
 			"UDP" : "Unknown");
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+		pr_info("tport_id = %d, tops_entry = %d, cdrt_id = %d\n",
+			entry->ipv4_hnapt.tport_id,
+			entry->ipv4_hnapt.tops_entry,
+			entry->ipv4_hnapt.cdrt_id);
+#endif
 		pr_info("=========================================\n\n");
 	} else {
 		*((u32 *)h_source) = swab32(entry->ipv6_5t_route.smac_hi);
@@ -510,6 +516,12 @@ int entry_detail(u32 ppe_id, int index)
 			entry->ipv6_5t_route.bfib1.udp == 0 ?
 			"TCP" :	entry->ipv6_5t_route.bfib1.udp == 1 ?
 			"UDP" :	"Unknown");
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+		pr_info("tport_id = %d, tops_entry = %d, cdrt_id = %d\n",
+			entry->ipv6_5t_route.tport_id,
+			entry->ipv6_5t_route.tops_entry,
+			entry->ipv6_5t_route.cdrt_id);
+#endif
 		pr_info("=========================================\n\n");
 	}
 	return 0;
@@ -707,7 +719,7 @@ int read_mib(struct mtk_hnat *h, u32 ppe_id,
 	     u32 index, u64 *bytes, u64 *packets)
 {
 	int ret;
-	u32 val, cnt_r0, cnt_r1, cnt_r2;
+	u32 val, cnt_r0, cnt_r1, cnt_r2, cnt_r3;
 
 	if (ppe_id >= CFG_PPE_NUM)
 		return -EINVAL;
@@ -723,8 +735,15 @@ int read_mib(struct mtk_hnat *h, u32 ppe_id,
 	cnt_r0 = readl(h->ppe_base[ppe_id] + PPE_MIB_SER_R0);
 	cnt_r1 = readl(h->ppe_base[ppe_id] + PPE_MIB_SER_R1);
 	cnt_r2 = readl(h->ppe_base[ppe_id] + PPE_MIB_SER_R2);
-	*bytes = cnt_r0 + ((u64)(cnt_r1 & 0xffff) << 32);
-	*packets = ((cnt_r1 & 0xffff0000) >> 16) + ((cnt_r2 & 0xffffff) << 16);
+
+	if (hnat_priv->data->version == MTK_HNAT_V5) {
+		cnt_r3 = readl(h->ppe_base[ppe_id] + PPE_MIB_SER_R3);
+		*bytes = cnt_r0 + ((u64)cnt_r1 << 32);
+		*packets = cnt_r2 + ((u64)cnt_r3 << 32);
+	} else {
+		*bytes = cnt_r0 + ((u64)(cnt_r1 & 0xffff) << 32);
+		*packets = ((cnt_r1 & 0xffff0000) >> 16) + ((cnt_r2 & 0xffffff) << 16);
+	}
 
 	return 0;
 
@@ -946,12 +965,12 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				   ntohs(entry->ipv6_5t_route.etype),
 				   entry->ipv6_5t_route.info_blk1,
 				   entry->ipv6_5t_route.info_blk2);
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 		} else if (IS_IPV4_MAPE(entry)) {
 			__be32 saddr = htonl(entry->ipv4_dslite.sip);
 			__be32 daddr = htonl(entry->ipv4_dslite.dip);
-			__be32 nsaddr = htonl(entry->ipv4_dslite.new_sip);
-			__be32 ndaddr = htonl(entry->ipv4_dslite.new_dip);
+			__be32 nsaddr = htonl(entry->ipv4_mape.new_sip);
+			__be32 ndaddr = htonl(entry->ipv4_mape.new_dip);
 			u32 ipv6_tsip0 = entry->ipv4_dslite.tunnel_sipv6_0;
 			u32 ipv6_tsip1 = entry->ipv4_dslite.tunnel_sipv6_1;
 			u32 ipv6_tsip2 = entry->ipv4_dslite.tunnel_sipv6_2;
@@ -974,8 +993,8 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				   es(entry), pt(entry),
 				   &saddr, entry->ipv4_dslite.sport,
 				   &daddr, entry->ipv4_dslite.dport,
-				   &nsaddr, entry->ipv4_dslite.new_sport,
-				   &ndaddr, entry->ipv4_dslite.new_dport,
+				   &nsaddr, entry->ipv4_mape.new_sport,
+				   &ndaddr, entry->ipv4_mape.new_dport,
 				   ipv6_tsip0, ipv6_tsip1, ipv6_tsip2,
 				   ipv6_tsip3, ipv6_tdip0, ipv6_tdip1,
 				   ipv6_tdip2, ipv6_tdip3, h_source, h_dest,
@@ -1231,17 +1250,17 @@ void dbg_dump_entry(struct seq_file *m, struct foe_entry *entry,
 			   entry->ipv4_dslite.tunnel_dipv6_1,
 			   entry->ipv4_dslite.tunnel_dipv6_2,
 			   entry->ipv4_dslite.tunnel_dipv6_3);
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 	} else if (IS_IPV4_MAPE(entry)) {
-		nsaddr = htonl(entry->ipv4_dslite.new_sip);
-		ndaddr = htonl(entry->ipv4_dslite.new_dip);
+		nsaddr = htonl(entry->ipv4_mape.new_sip);
+		ndaddr = htonl(entry->ipv4_mape.new_dip);
 
 		seq_printf(m,
 			   "IPv4 MAP-E(%d): %pI4:%d->%pI4:%d => %pI4:%d->%pI4:%d | Tunnel=%08X:%08X:%08X:%08X->%08X:%08X:%08X:%08X\n",
 			   index, &saddr, entry->ipv4_dslite.sport,
 			   &daddr, entry->ipv4_dslite.dport,
-			   &nsaddr, entry->ipv4_dslite.new_sport,
-			   &ndaddr, entry->ipv4_dslite.new_dport,
+			   &nsaddr, entry->ipv4_mape.new_sport,
+			   &ndaddr, entry->ipv4_mape.new_dport,
 			   entry->ipv4_dslite.tunnel_sipv6_0,
 			   entry->ipv4_dslite.tunnel_sipv6_1,
 			   entry->ipv4_dslite.tunnel_sipv6_2,
