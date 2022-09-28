@@ -33,7 +33,8 @@ void mtk_reset_event_update(struct mtk_eth *eth, u32 id)
 
 int mtk_eth_cold_reset(struct mtk_eth *eth)
 {
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
+	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
 		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
@@ -41,7 +42,8 @@ int mtk_eth_cold_reset(struct mtk_eth *eth)
 	else
 		ethsys_reset(eth,  RSTCTRL_ETH | RSTCTRL_FE | RSTCTRL_PPE0);
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
+	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
 		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0x3ffffff);
 
 	return 0;
@@ -344,12 +346,12 @@ void mtk_prepare_reset_fe(struct mtk_eth *eth)
 
 	/* Power down sgmii */
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
-		if (!eth->sgmii->regmap[i])
+		if (!eth->xgmii->regmap_sgmii[i])
 			continue;
 
-		regmap_read(eth->sgmii->regmap[i], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
+		regmap_read(eth->xgmii->regmap_sgmii[i], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
 		val |= SGMII_PHYA_PWD;
-		regmap_write(eth->sgmii->regmap[i], SGMSYS_QPHY_PWR_STATE_CTRL, val);
+		regmap_write(eth->xgmii->regmap_sgmii[i], SGMSYS_QPHY_PWR_STATE_CTRL, val);
 	}
 
 	/* Force link down GMAC */

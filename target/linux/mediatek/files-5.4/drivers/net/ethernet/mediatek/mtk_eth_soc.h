@@ -20,7 +20,13 @@
 #define	MTK_MAX_RX_LENGTH	1536
 #define MTK_DMA_SIZE		2048
 #define MTK_NAPI_WEIGHT		256
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MTK_MAC_COUNT		3
+#else
 #define MTK_MAC_COUNT		2
+#endif
+
 #define MTK_RX_ETH_HLEN		(VLAN_ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN)
 #define MTK_RX_HLEN		(NET_SKB_PAD + MTK_RX_ETH_HLEN + NET_IP_ALIGN)
 #define MTK_DMA_DUMMY_DESC	0xffffffff
@@ -100,23 +106,36 @@
 /* CDMP Exgress Control Register */
 #define MTK_CDMP_EG_CTRL	0x404
 
-/* GDM Exgress Control Register */
-#define MTK_GDMA_FWD_CFG(x)	(0x500 + (x * 0x1000))
+/* GDM Ingress Control Register */
+#define MTK_GDMA_FWD_CFG(x)	((x == MTK_GMAC3_ID) ?		\
+				 0x540 : 0x500 + (x * 0x1000))
 #define MTK_GDMA_SPECIAL_TAG	BIT(24)
 #define MTK_GDMA_ICS_EN		BIT(22)
 #define MTK_GDMA_TCS_EN		BIT(21)
 #define MTK_GDMA_UCS_EN		BIT(20)
+#define MTK_GDMA_STRP_CRC	BIT(16)
 #define MTK_GDMA_TO_PDMA	0x0
 #define MTK_GDMA_DROP_ALL	0x7777
 
+/* GDM Egress Control Register */
+#define MTK_GDMA_EG_CTRL(x)	((x == MTK_GMAC3_ID) ?		\
+				 0x544 : 0x504 + (x * 0x1000))
+#define MTK_GDMA_XGDM_SEL        BIT(31)
+
 /* Unicast Filter MAC Address Register - Low */
-#define MTK_GDMA_MAC_ADRL(x)	(0x508 + (x * 0x1000))
+#define MTK_GDMA_MAC_ADRL(x)	((x == MTK_GMAC3_ID) ?		\
+				 0x548 : 0x508 + (x * 0x1000))
 
 /* Unicast Filter MAC Address Register - High */
-#define MTK_GDMA_MAC_ADRH(x)	(0x50C + (x * 0x1000))
+#define MTK_GDMA_MAC_ADRH(x)	((x == MTK_GMAC3_ID) ?		\
+				 0x54C : 0x50C + (x * 0x1000))
 
 /* Internal SRAM offset */
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MTK_ETH_SRAM_OFFSET	0x300000
+#else
 #define MTK_ETH_SRAM_OFFSET	0x40000
+#endif
 
 /* FE global misc reg*/
 #define MTK_FE_GLO_MISC         0x124
@@ -143,7 +162,12 @@
 
 #define MTK_PDMA_V2		BIT(4)
 
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define PDMA_BASE               0x6800
+#define QDMA_BASE               0x4400
+#define WDMA_BASE(x)		(0x4800 + ((x) * 0x400))
+#define PPE_BASE(x)		((x == 2) ? 0x2C00 : 0x2200 + ((x) * 0x400))
+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
 #define PDMA_BASE               0x6000
 #define QDMA_BASE               0x4400
 #define WDMA_BASE(x)		(0x4800 + ((x) * 0x400))
@@ -172,7 +196,7 @@
 
 /* PDMA HW LRO Control Registers */
 #define BITS(m, n)			(~(BIT(m) - 1) & ((BIT(n) - 1) | BIT(n)))
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_MAX_RX_RING_NUM		(8)
 #define MTK_HW_LRO_RING_NUM		(4)
 #define IS_HW_LRO_RING(ring_no)		(((ring_no) > 3) && ((ring_no) < 8))
@@ -216,7 +240,7 @@
 #define MTK_LRO_MIN_RXD_SDL	(MTK_HW_LRO_SDL_REMAIN_ROOM << 16)
 
 /* PDMA RSS Control Registers */
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_PDMA_RSS_GLO_CFG		(PDMA_BASE + 0x800)
 #define MTK_RX_NAPI_NUM			(2)
 #define MTK_MAX_IRQ_NUM			(4)
@@ -258,6 +282,7 @@
 
 /* PDMA Delay Interrupt Register */
 #define MTK_PDMA_DELAY_INT		(PDMA_BASE + 0x20c)
+#define MTK_PDMA_RSS_DELAY_INT		(PDMA_BASE + 0x2c0)
 #define MTK_PDMA_DELAY_RX_EN		BIT(15)
 #define MTK_PDMA_DELAY_RX_PINT		4
 #define MTK_PDMA_DELAY_RX_PINT_SHIFT	8
@@ -275,7 +300,7 @@
 /* PDMA Interrupt grouping registers */
 #define MTK_PDMA_INT_GRP1	(PDMA_BASE + 0x250)
 #define MTK_PDMA_INT_GRP2	(PDMA_BASE + 0x254)
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_PDMA_INT_GRP3	(PDMA_BASE + 0x258)
 #else
 #define MTK_PDMA_INT_GRP3	(PDMA_BASE + 0x22c)
@@ -284,7 +309,7 @@
 #define MTK_MAX_DELAY_INT	0x8f0f8f0f
 
 /* PDMA HW LRO IP Setting Registers */
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_LRO_RX_RING0_DIP_DW0	(PDMA_BASE + 0x414)
 #else
 #define MTK_LRO_RX_RING0_DIP_DW0	(PDMA_BASE + 0x304)
@@ -403,9 +428,10 @@
 
 /* QDMA Interrupt Status Register */
 #define MTK_QDMA_INT_STATUS	(QDMA_BASE + 0x218)
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-#define MTK_RX_DONE_INT(ring_no)		\
-	((ring_no)? BIT(16 + (ring_no)) : BIT(14))
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MTK_RX_DONE_INT(ring_no)					\
+	(MTK_HAS_CAPS(eth->soc->caps, MTK_RSS) ? (BIT(24 + (ring_no))) :	\
+	 ((ring_no) ? BIT(16 + (ring_no)) : BIT(14)))
 #else
 #define MTK_RX_DONE_INT(ring_no)		\
 	((ring_no)? BIT(24 + (ring_no)) : BIT(30))
@@ -469,12 +495,17 @@
 #define MTK_CDM_TXFIFO_RDY	BIT(7)
 
 /* GMA1 Received Good Byte Count Register */
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_GDM1_TX_GBCNT       0x1C00
 #else
 #define MTK_GDM1_TX_GBCNT	0x2400
 #endif
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MTK_STAT_OFFSET		0x80
+#else
 #define MTK_STAT_OFFSET		0x40
+#endif
 
 /* QDMA TX NUM */
 #define MTK_QDMA_TX_NUM		16
@@ -492,6 +523,7 @@
 /* QDMA V2 descriptor txd5 */
 #define TX_DMA_CHKSUM_V2           (0x7 << 28)
 #define TX_DMA_TSO_V2              BIT(31)
+#define TX_DMA_SPTAG_V3            BIT(27)
 
 /* QDMA V2 descriptor txd4 */
 #define TX_DMA_FPORT_SHIFT_V2      8
@@ -521,6 +553,7 @@
 #define TX_DMA_PLEN0(_x)	(((_x) & eth->soc->txrx.dma_max_len) << eth->soc->txrx.dma_len_offset)
 #define TX_DMA_PLEN1(_x)	((_x) & eth->soc->txrx.dma_max_len)
 #define TX_DMA_SWC		BIT(14)
+#define TX_DMA_SDP1(_x)		((((u64)(_x)) >> 32) & 0xf)
 
 /* PDMA on MT7628 */
 #define TX_DMA_DONE		BIT(31)
@@ -535,6 +568,7 @@
 #define RX_DMA_GET_AGG_CNT(_x)	(((_x) >> 2) & 0xff)
 #define RX_DMA_GET_REV(_x)	(((_x) >> 10) & 0x1f)
 #define RX_DMA_VTAG		BIT(15)
+#define RX_DMA_SDP1(_x)		((((u64)(_x)) >> 32) & 0xf)
 
 /* QDMA descriptor rxd3 */
 #define RX_DMA_VID(_x)		((_x) & VLAN_VID_MASK)
@@ -578,6 +612,23 @@
 #define MTK_MAC_MISC		0x1000c
 #define MTK_MUX_TO_ESW		BIT(0)
 
+/* XMAC status registers */
+#define MTK_XGMAC_STS(x)	((x == MTK_GMAC3_ID) ? 0x1001C : 0x1000C)
+#define MTK_XGMAC_FORCE_LINK	BIT(15)
+#define MTK_USXGMII_PCS_LINK	BIT(8)
+#define MTK_XGMAC_RX_FC		BIT(5)
+#define MTK_XGMAC_TX_FC		BIT(4)
+#define MTK_USXGMII_PCS_MODE	GENMASK(3, 1)
+#define MTK_XGMAC_LINK_STS	BIT(0)
+
+/* GSW bridge registers */
+#define MTK_GSW_CFG		(0x10080)
+#define GSWTX_IPG_MASK		GENMASK(19, 16)
+#define GSWTX_IPG_SHIFT		16
+#define GSWRX_IPG_MASK		GENMASK(3, 0)
+#define GSWRX_IPG_SHIFT		0
+#define GSW_IPG_11		11
+
 /* Mac control registers */
 #define MTK_MAC_MCR(x)		(0x10100 + (x * 0x100))
 #define MAC_MCR_MAX_RX_1536	BIT(24)
@@ -594,6 +645,12 @@
 #define MAC_MCR_FORCE_DPX	BIT(1)
 #define MAC_MCR_FORCE_LINK	BIT(0)
 #define MAC_MCR_FORCE_LINK_DOWN	(MAC_MCR_FORCE_MODE)
+
+/* XFI Mac control registers */
+#define MTK_XMAC_MCR(x)		(0x12000 + ((x - 1) * 0x1000))
+#define XMAC_MCR_TRX_DISABLE	0xf
+#define XMAC_MCR_FORCE_TX_FC	BIT(5)
+#define XMAC_MCR_FORCE_RX_FC	BIT(4)
 
 /* Mac status registers */
 #define MTK_MAC_MSR(x)		(0x10108 + (x * 0x100))
@@ -659,11 +716,12 @@
 #define ETHSYS_SYSCFG0		0x14
 #define SYSCFG0_GE_MASK		0x3
 #define SYSCFG0_GE_MODE(x, y)	(x << (12 + (y * 2)))
-#define SYSCFG0_SGMII_MASK     GENMASK(9, 8)
+#define SYSCFG0_SGMII_MASK     GENMASK(9, 7)
 #define SYSCFG0_SGMII_GMAC1    ((2 << 8) & SYSCFG0_SGMII_MASK)
 #define SYSCFG0_SGMII_GMAC2    ((3 << 8) & SYSCFG0_SGMII_MASK)
 #define SYSCFG0_SGMII_GMAC1_V2 BIT(9)
 #define SYSCFG0_SGMII_GMAC2_V2 BIT(8)
+#define SYSCFG0_SGMII_GMAC3_V2 BIT(7)
 
 
 /* ethernet subsystem clock register */
@@ -701,6 +759,15 @@
 #define SGMII_PCS_FAULT		BIT(23)
 #define SGMII_AN_EXPANSION_CLR	BIT(30)
 
+/* Register to set SGMII speed */
+#define SGMII_PCS_SPEED_ABILITY	0x08
+#define SGMII_PCS_SPEED_MASK	GENMASK(11, 10)
+#define SGMII_PCS_SPEED_10	0
+#define SGMII_PCS_SPEED_100	1
+#define SGMII_PCS_SPEED_1000	2
+#define SGMII_PCS_SPEED_DUPLEX	BIT(12)
+#define SGMII_PCS_SPEED_LINK	BIT(15)
+
 /* Register to programmable link timer, the unit in 2 * 8ns */
 #define SGMSYS_PCS_LINK_TIMER	0x18
 #define SGMII_LINK_TIMER_DEFAULT	(0x186a0 & GENMASK(19, 0))
@@ -709,6 +776,7 @@
 #define SGMSYS_SGMII_MODE		0x20
 #define SGMII_IF_MODE_BIT0		BIT(0)
 #define SGMII_SPEED_DUPLEX_AN		BIT(1)
+#define SGMII_SPEED_MASK		GENMASK(3, 2)
 #define SGMII_SPEED_10			0x0
 #define SGMII_SPEED_100			BIT(2)
 #define SGMII_SPEED_1000		BIT(3)
@@ -739,12 +807,49 @@
 #define SGMII_PN_SWAP_MASK	GENMASK(1, 0)
 #define SGMII_PN_SWAP_TX_RX	(BIT(0) | BIT(1))
 
+/* USXGMII subsystem config registers */
+/* Register to control speed */
+#define RG_PHY_TOP_SPEED_CTRL1	0x80C
+#define RG_USXGMII_RATE_UPDATE_MODE	BIT(31)
+#define RG_MAC_CK_GATED		BIT(29)
+#define RG_IF_FORCE_EN		BIT(28)
+#define RG_RATE_ADAPT_MODE	GENMASK(10, 8)
+#define RG_RATE_ADAPT_MODE_X1	0
+#define RG_RATE_ADAPT_MODE_X2	1
+#define RG_RATE_ADAPT_MODE_X4	2
+#define RG_RATE_ADAPT_MODE_X10	3
+#define RG_RATE_ADAPT_MODE_X100	4
+#define RG_RATE_ADAPT_MODE_X5	5
+#define RG_RATE_ADAPT_MODE_X50	6
+#define RG_XFI_RX_MODE		GENMASK(6, 4)
+#define RG_XFI_RX_MODE_10G	0
+#define RG_XFI_RX_MODE_5G	1
+#define RG_XFI_TX_MODE		GENMASK(2, 0)
+#define RG_XFI_TX_MODE_10G	0
+#define RG_XFI_TX_MODE_5G	1
+
+/* Register to control PCS AN */
+#define RG_PCS_AN_CTRL0		0x810
+#define RG_AN_ENABLE		BIT(0)
+
+/* Register to control USXGMII XFI PLL digital */
+#define XFI_PLL_DIG_GLB8	0x08
+#define RG_XFI_PLL_EN		BIT(31)
+
+/* Register to control USXGMII XFI PLL analog */
+#define XFI_PLL_ANA_GLB8	0x108
+#define RG_XFI_PLL_ANA_SWWA	0x02283248
+
 /* Infrasys subsystem config registers */
 #define INFRA_MISC2            0x70c
 #define CO_QPHY_SEL            BIT(0)
 #define GEPHY_MAC_SEL          BIT(1)
 
 /* Top misc registers */
+#define TOP_MISC_NETSYS_PCS_MUX	0x84
+#define NETSYS_PCS_MUX_MASK	GENMASK(1, 0)
+#define	MUX_G2_USXGMII_SEL	BIT(1)
+#define MUX_HSGMII1_G1_SEL	BIT(0)
 #define USB_PHY_SWITCH_REG     0x218
 #define QPHY_SEL_MASK          GENMASK(1, 0)
 #define SGMII_QPHY_SEL	       0x2
@@ -846,6 +951,7 @@ enum mtk_tx_flags {
 	 */
 	MTK_TX_FLAGS_FPORT0	= 0x04,
 	MTK_TX_FLAGS_FPORT1	= 0x08,
+	MTK_TX_FLAGS_FPORT2	= 0x10,
 };
 
 /* This enum allows us to identify how the clock is defined on the array of the
@@ -925,9 +1031,57 @@ enum mtk_clks_map {
                                  BIT(MTK_CLK_SGMII2_RX_250M) | \
                                  BIT(MTK_CLK_SGMII2_CDR_REF) | \
                                  BIT(MTK_CLK_SGMII2_CDR_FB))
+
+#define MT7988_CLKS_BITMAP	(BIT(MTK_CLK_FE) | BIT(MTK_CLK_GP2) | BIT(MTK_CLK_GP1) | \
+				 BIT(MTK_CLK_WOCPU1) | BIT(MTK_CLK_WOCPU0) | \
+				 BIT(MTK_CLK_SGMII_TX_250M) | \
+				 BIT(MTK_CLK_SGMII_RX_250M) | \
+				 BIT(MTK_CLK_SGMII_CDR_REF) | \
+				 BIT(MTK_CLK_SGMII_CDR_FB) | \
+				 BIT(MTK_CLK_SGMII2_TX_250M) | \
+				 BIT(MTK_CLK_SGMII2_RX_250M) | \
+				 BIT(MTK_CLK_SGMII2_CDR_REF) | \
+				 BIT(MTK_CLK_SGMII2_CDR_FB))
+
 enum mtk_dev_state {
 	MTK_HW_INIT,
 	MTK_RESETTING
+};
+
+/* PSE Port Definition */
+enum mtk_pse_port {
+	PSE_ADMA_PORT = 0,
+	PSE_GDM1_PORT,
+	PSE_GDM2_PORT,
+	PSE_PPE0_PORT,
+	PSE_PPE1_PORT,
+	PSE_QDMA_TX_PORT,
+	PSE_QDMA_RX_PORT,
+	PSE_DROP_PORT,
+	PSE_WDMA0_PORT,
+	PSE_WDMA1_PORT,
+	PSE_TDMA_PORT,
+	PSE_NONE_PORT,
+	PSE_PPE2_PORT,
+	PSE_WDMA2_PORT,
+	PSE_EIP197_PORT,
+	PSE_GDM3_PORT,
+	PSE_PORT_MAX
+};
+
+/* GMAC Identifier */
+enum mtk_gmac_id {
+	MTK_GMAC1_ID = 0,
+	MTK_GMAC2_ID,
+	MTK_GMAC3_ID,
+	MTK_GMAC_ID_MAX
+};
+
+/* GDM Type */
+enum mtk_gdm_type {
+	MTK_GDM_TYPE = 0,
+	MTK_XGDM_TYPE,
+	MTK_GDM_TYPE_MAX
 };
 
 /* struct mtk_tx_buf -	This struct holds the pointers to the memory pointed at
@@ -1020,6 +1174,7 @@ enum mkt_eth_capabilities {
 	MTK_RGMII_BIT = 0,
 	MTK_TRGMII_BIT,
 	MTK_SGMII_BIT,
+	MTK_USXGMII_BIT,
 	MTK_ESW_BIT,
 	MTK_GEPHY_BIT,
 	MTK_MUX_BIT,
@@ -1030,10 +1185,13 @@ enum mkt_eth_capabilities {
 	MTK_SHARED_INT_BIT,
 	MTK_TRGMII_MT7621_CLK_BIT,
 	MTK_QDMA_BIT,
+	MTK_NETSYS_V1_BIT,
 	MTK_NETSYS_V2_BIT,
+	MTK_NETSYS_V3_BIT,
 	MTK_SOC_MT7628_BIT,
 	MTK_RSTCTRL_PPE1_BIT,
 	MTK_U3_COPHY_V2_BIT,
+	MTK_8GB_ADDRESSING_BIT,
 
 	/* MUX BITS*/
 	MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT,
@@ -1041,6 +1199,8 @@ enum mkt_eth_capabilities {
 	MTK_ETH_MUX_U3_GMAC2_TO_QPHY_BIT,
 	MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII_BIT,
 	MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII_BIT,
+	MTK_ETH_MUX_GMAC123_TO_GEPHY_SGMII_BIT,
+	MTK_ETH_MUX_GMAC123_TO_USXGMII_BIT,
 
 	/* PATH BITS */
 	MTK_ETH_PATH_GMAC1_RGMII_BIT,
@@ -1049,13 +1209,18 @@ enum mkt_eth_capabilities {
 	MTK_ETH_PATH_GMAC2_RGMII_BIT,
 	MTK_ETH_PATH_GMAC2_SGMII_BIT,
 	MTK_ETH_PATH_GMAC2_GEPHY_BIT,
+	MTK_ETH_PATH_GMAC3_SGMII_BIT,
 	MTK_ETH_PATH_GDM1_ESW_BIT,
+	MTK_ETH_PATH_GMAC1_USXGMII_BIT,
+	MTK_ETH_PATH_GMAC2_USXGMII_BIT,
+	MTK_ETH_PATH_GMAC3_USXGMII_BIT,
 };
 
 /* Supported hardware group on SoCs */
 #define MTK_RGMII		BIT(MTK_RGMII_BIT)
 #define MTK_TRGMII		BIT(MTK_TRGMII_BIT)
 #define MTK_SGMII		BIT(MTK_SGMII_BIT)
+#define MTK_USXGMII		BIT(MTK_USXGMII_BIT)
 #define MTK_ESW			BIT(MTK_ESW_BIT)
 #define MTK_GEPHY		BIT(MTK_GEPHY_BIT)
 #define MTK_MUX			BIT(MTK_MUX_BIT)
@@ -1066,10 +1231,13 @@ enum mkt_eth_capabilities {
 #define MTK_SHARED_INT		BIT(MTK_SHARED_INT_BIT)
 #define MTK_TRGMII_MT7621_CLK	BIT(MTK_TRGMII_MT7621_CLK_BIT)
 #define MTK_QDMA		BIT(MTK_QDMA_BIT)
+#define MTK_NETSYS_V1		BIT(MTK_NETSYS_V1_BIT)
 #define MTK_NETSYS_V2		BIT(MTK_NETSYS_V2_BIT)
+#define MTK_NETSYS_V3		BIT(MTK_NETSYS_V3_BIT)
 #define MTK_SOC_MT7628		BIT(MTK_SOC_MT7628_BIT)
 #define MTK_RSTCTRL_PPE1	BIT(MTK_RSTCTRL_PPE1_BIT)
 #define MTK_U3_COPHY_V2		BIT(MTK_U3_COPHY_V2_BIT)
+#define MTK_8GB_ADDRESSING	BIT(MTK_8GB_ADDRESSING_BIT)
 
 #define MTK_ETH_MUX_GDM1_TO_GMAC1_ESW		\
 	BIT(MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT)
@@ -1081,6 +1249,10 @@ enum mkt_eth_capabilities {
 	BIT(MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII_BIT)
 #define MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII	\
 	BIT(MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII_BIT)
+#define MTK_ETH_MUX_GMAC123_TO_GEPHY_SGMII	\
+	BIT(MTK_ETH_MUX_GMAC123_TO_GEPHY_SGMII_BIT)
+#define MTK_ETH_MUX_GMAC123_TO_USXGMII	\
+	BIT(MTK_ETH_MUX_GMAC123_TO_USXGMII_BIT)
 
 /* Supported path present on SoCs */
 #define MTK_ETH_PATH_GMAC1_RGMII	BIT(MTK_ETH_PATH_GMAC1_RGMII_BIT)
@@ -1089,7 +1261,11 @@ enum mkt_eth_capabilities {
 #define MTK_ETH_PATH_GMAC2_RGMII	BIT(MTK_ETH_PATH_GMAC2_RGMII_BIT)
 #define MTK_ETH_PATH_GMAC2_SGMII	BIT(MTK_ETH_PATH_GMAC2_SGMII_BIT)
 #define MTK_ETH_PATH_GMAC2_GEPHY	BIT(MTK_ETH_PATH_GMAC2_GEPHY_BIT)
+#define MTK_ETH_PATH_GMAC3_SGMII	BIT(MTK_ETH_PATH_GMAC3_SGMII_BIT)
 #define MTK_ETH_PATH_GDM1_ESW		BIT(MTK_ETH_PATH_GDM1_ESW_BIT)
+#define MTK_ETH_PATH_GMAC1_USXGMII	BIT(MTK_ETH_PATH_GMAC1_USXGMII_BIT)
+#define MTK_ETH_PATH_GMAC2_USXGMII	BIT(MTK_ETH_PATH_GMAC2_USXGMII_BIT)
+#define MTK_ETH_PATH_GMAC3_USXGMII	BIT(MTK_ETH_PATH_GMAC3_USXGMII_BIT)
 
 #define MTK_GMAC1_RGMII		(MTK_ETH_PATH_GMAC1_RGMII | MTK_RGMII)
 #define MTK_GMAC1_TRGMII	(MTK_ETH_PATH_GMAC1_TRGMII | MTK_TRGMII)
@@ -1097,7 +1273,11 @@ enum mkt_eth_capabilities {
 #define MTK_GMAC2_RGMII		(MTK_ETH_PATH_GMAC2_RGMII | MTK_RGMII)
 #define MTK_GMAC2_SGMII		(MTK_ETH_PATH_GMAC2_SGMII | MTK_SGMII)
 #define MTK_GMAC2_GEPHY		(MTK_ETH_PATH_GMAC2_GEPHY | MTK_GEPHY)
+#define MTK_GMAC3_SGMII		(MTK_ETH_PATH_GMAC3_SGMII | MTK_SGMII)
 #define MTK_GDM1_ESW		(MTK_ETH_PATH_GDM1_ESW | MTK_ESW)
+#define MTK_GMAC1_USXGMII	(MTK_ETH_PATH_GMAC1_USXGMII | MTK_USXGMII)
+#define MTK_GMAC2_USXGMII	(MTK_ETH_PATH_GMAC2_USXGMII | MTK_USXGMII)
+#define MTK_GMAC3_USXGMII	(MTK_ETH_PATH_GMAC3_USXGMII | MTK_USXGMII)
 
 /* MUXes present on SoCs */
 /* 0: GDM1 -> GMAC1, 1: GDM1 -> ESW */
@@ -1120,26 +1300,32 @@ enum mkt_eth_capabilities {
 #define MTK_MUX_GMAC12_TO_GEPHY_SGMII   \
 	(MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII | MTK_MUX)
 
+#define MTK_MUX_GMAC123_TO_GEPHY_SGMII   \
+	(MTK_ETH_MUX_GMAC123_TO_GEPHY_SGMII | MTK_MUX)
+
+#define MTK_MUX_GMAC123_TO_USXGMII   \
+	(MTK_ETH_MUX_GMAC123_TO_USXGMII | MTK_MUX | MTK_INFRA)
+
 #define MTK_HAS_CAPS(caps, _x)		(((caps) & (_x)) == (_x))
 
 #define MT7621_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_TRGMII | \
 		      MTK_GMAC2_RGMII | MTK_SHARED_INT | \
-		      MTK_TRGMII_MT7621_CLK | MTK_QDMA)
+		      MTK_TRGMII_MT7621_CLK | MTK_QDMA | MTK_NETSYS_V1)
 
 #define MT7622_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_SGMII | MTK_GMAC2_RGMII | \
 		      MTK_GMAC2_SGMII | MTK_GDM1_ESW | \
-		      MTK_MUX_GDM1_TO_GMAC1_ESW | \
+		      MTK_MUX_GDM1_TO_GMAC1_ESW | MTK_NETSYS_V1 | \
 		      MTK_MUX_GMAC1_GMAC2_TO_SGMII_RGMII | MTK_QDMA)
 
 #define MT7623_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_TRGMII | MTK_GMAC2_RGMII | \
-		      MTK_QDMA)
+		      MTK_QDMA | MTK_NETSYS_V1)
 
-#define MT7628_CAPS  (MTK_SHARED_INT | MTK_SOC_MT7628)
+#define MT7628_CAPS  (MTK_SHARED_INT | MTK_SOC_MT7628 | MTK_NETSYS_V1)
 
 #define MT7629_CAPS  (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | MTK_GMAC2_GEPHY | \
 		      MTK_GDM1_ESW | MTK_MUX_GDM1_TO_GMAC1_ESW | \
 		      MTK_MUX_GMAC2_GMAC0_TO_GEPHY | \
-		      MTK_MUX_U3_GMAC2_TO_QPHY | \
+		      MTK_MUX_U3_GMAC2_TO_QPHY | MTK_NETSYS_V1 | \
 		      MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA)
 
 #define MT7986_CAPS   (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | \
@@ -1150,6 +1336,12 @@ enum mkt_eth_capabilities {
 			MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
 			MTK_MUX_U3_GMAC2_TO_QPHY | MTK_U3_COPHY_V2 | \
 			MTK_NETSYS_V2)
+
+#define MT7988_CAPS   (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | MTK_GMAC3_SGMII | \
+		       MTK_MUX_GMAC123_TO_GEPHY_SGMII | MTK_QDMA | \
+		       MTK_NETSYS_V3 | MTK_RSTCTRL_PPE1 | \
+		       MTK_GMAC1_USXGMII | MTK_GMAC2_USXGMII | \
+		       MTK_GMAC3_USXGMII | MTK_MUX_GMAC123_TO_USXGMII | MTK_RSS)
 
 struct mtk_tx_dma_desc_info {
 	dma_addr_t	addr;
@@ -1180,7 +1372,7 @@ struct mtk_tx_dma_desc_info {
  */
 struct mtk_soc_data {
 	u32             ana_rgc3;
-	u32		caps;
+	u64		caps;
 	u32		required_clks;
 	bool		required_pctl;
 	netdev_features_t hw_features;
@@ -1193,26 +1385,37 @@ struct mtk_soc_data {
 	} txrx;
 };
 
-/* currently no SoC has more than 2 macs */
-#define MTK_MAX_DEVS			2
+/* currently no SoC has more than 3 macs */
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MTK_MAX_DEVS		3
+#else
+#define MTK_MAX_DEVS		2
+#endif
 
 #define MTK_SGMII_PHYSPEED_AN          BIT(31)
 #define MTK_SGMII_PHYSPEED_MASK        GENMASK(2, 0)
 #define MTK_SGMII_PHYSPEED_1000        BIT(0)
 #define MTK_SGMII_PHYSPEED_2500        BIT(1)
+#define MTK_SGMII_PHYSPEED_5000	       BIT(2)
+#define MTK_SGMII_PHYSPEED_10000       BIT(3)
 #define MTK_SGMII_PN_SWAP	       BIT(16)
+#define MTK_USXGMII_INT_2500	       BIT(17)
 #define MTK_HAS_FLAGS(flags, _x)       (((flags) & (_x)) == (_x))
 
-/* struct mtk_sgmii -  This is the structure holding sgmii regmap and its
- *                     characteristics
+/* struct mtk_xgmii -  This is the structure holding sgmii/usxgmii regmap and
+ *		       its characteristics
  * @regmap:            The register map pointing at the range used to setup
- *                     SGMII modes
+ *                     SGMII/USXGMII modes
  * @flags:             The enum refers to which mode the sgmii wants to run on
  * @ana_rgc3:          The offset refers to register ANA_RGC3 related to regmap
  */
 
-struct mtk_sgmii {
-	struct regmap   *regmap[MTK_MAX_DEVS];
+struct mtk_xgmii {
+	struct mtk_eth	*eth;
+	struct regmap   *regmap_sgmii[MTK_MAX_DEVS];
+	struct regmap   *regmap_usxgmii[MTK_MAX_DEVS];
+	struct regmap   *regmap_pextp[MTK_MAX_DEVS];
+	struct regmap	*regmap_pll;
 	u32             flags[MTK_MAX_DEVS];
 	u32             ana_rgc3;
 };
@@ -1279,6 +1482,7 @@ struct mtk_phylink_priv {
 struct mtk_eth {
 	struct device			*dev;
 	void __iomem			*base;
+	void __iomem			*sram_base;
 	spinlock_t			page_lock;
 	spinlock_t			tx_irq_lock;
 	spinlock_t			rx_irq_lock;
@@ -1290,7 +1494,8 @@ struct mtk_eth {
 	unsigned long			sysclk;
 	struct regmap			*ethsys;
 	struct regmap                   *infra;
-	struct mtk_sgmii                *sgmii;
+	struct regmap                   *toprgu;
+	struct mtk_xgmii                *xgmii;
 	struct regmap			*pctl;
 	bool				hwlro;
 	refcount_t			dma_refcnt;
@@ -1331,6 +1536,7 @@ struct mtk_mac {
 	unsigned int			id;
 	phy_interface_t			interface;
 	unsigned int			mode;
+	unsigned int			type;
 	int				speed;
 	struct device_node		*of_node;
 	struct phylink			*phylink;
@@ -1353,17 +1559,31 @@ void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
 u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
 u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned reg);
 
-int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *np,
+int mtk_sgmii_init(struct mtk_xgmii *ss, struct device_node *np,
 		   u32 ana_rgc3);
-int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, unsigned int id);
-int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, unsigned int id,
+int mtk_sgmii_setup_mode_an(struct mtk_xgmii *ss, unsigned int mac_id);
+int mtk_sgmii_setup_mode_force(struct mtk_xgmii *ss, unsigned int mac_id,
 			       const struct phylink_link_state *state);
 void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id);
+void mtk_sgmii_setup_phya_gen2(struct mtk_xgmii *ss, int mac_id);
 
 int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
+int mtk_gmac_usxgmii_path_setup(struct mtk_eth *eth, int mac_id);
 void mtk_gdm_config(struct mtk_eth *eth, u32 config);
 void ethsys_reset(struct mtk_eth *eth, u32 reset_bits);
 
+int mtk_mac2xgmii_id(struct mtk_eth *eth, int mac_id);
+int mtk_usxgmii_init(struct mtk_xgmii *ss, struct device_node *r);
+int mtk_xfi_pextp_init(struct mtk_xgmii *ss, struct device_node *r);
+int mtk_xfi_pll_init(struct mtk_xgmii *ss, struct device_node *r);
+int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
+int mtk_xfi_pll_enable(struct mtk_xgmii *ss);
+int mtk_usxgmii_setup_mode_an(struct mtk_xgmii *ss, int mac_id,
+			      int max_speed);
+int mtk_usxgmii_setup_mode_force(struct mtk_xgmii *ss, int mac_id,
+				 int max_speed);
+void mtk_usxgmii_setup_phya_an_10000(struct mtk_xgmii *ss, int mac_id);
+void mtk_usxgmii_reset(struct mtk_xgmii *ss, int mac_id);
 #endif /* MTK_ETH_H */
