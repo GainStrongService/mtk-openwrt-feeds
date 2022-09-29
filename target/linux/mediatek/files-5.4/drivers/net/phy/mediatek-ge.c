@@ -105,6 +105,8 @@ enum {
 #define   MTK_PHY_RG_REXT_TRIM_MASK	GENMASK(13, 8)
 #define   MTK_PHY_RG_ZCAL_CTRL_MASK	GENMASK(5, 0)
 
+#define MTK_PHY_RG_TX_FILTER		(0xfe)
+
 #define MTK_PHY_RG_DEV1E_REG172		(0x172)
 #define   MTK_PHY_CR_TX_AMP_OFFSET_A_MASK	GENMASK(13, 8)
 #define   MTK_PHY_CR_TX_AMP_OFFSET_B_MASK	GENMASK(6, 0)
@@ -882,6 +884,8 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 	for(i=0; i<MTK_PHY_TX_MLT3_END; i++) {
 		phy_write_mmd(phydev, MDIO_MMD_VEND1, i, val[i]);
 	}
+
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_TX_FILTER, 0x5);
 }
 
 static int mt798x_phy_calibration(struct phy_device *phydev)
