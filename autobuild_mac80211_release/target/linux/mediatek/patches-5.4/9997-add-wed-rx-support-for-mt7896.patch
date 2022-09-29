@@ -16,8 +16,8 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_wed_mcu.c   | 586 ++++++++++++++++
  drivers/net/ethernet/mediatek/mtk_wed_mcu.h   | 125 ++++
  drivers/net/ethernet/mediatek/mtk_wed_regs.h  | 144 +++-
- drivers/net/ethernet/mediatek/mtk_wed_wo.c    | 573 ++++++++++++++++
- drivers/net/ethernet/mediatek/mtk_wed_wo.h    | 327 +++++++++
+ drivers/net/ethernet/mediatek/mtk_wed_wo.c    | 564 ++++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_wed_wo.h    | 324 +++++++++
  include/linux/soc/mediatek/mtk_wed.h          |  74 ++-
  14 files changed, 2796 insertions(+), 75 deletions(-)
  create mode 100644 drivers/net/ethernet/mediatek/mtk_wed_ccif.c
@@ -1359,7 +1359,7 @@ index 0000000..22ef337
 +	tasklet_disable(&wo->irq_tasklet);
 +	netif_napi_del(&wo->napi);
 +
-+	mtk_wed_wo_q_tx_clean(wo, &wo->q_tx, true);
++	mtk_wed_wo_q_tx_clean(wo, &wo->q_tx);
 +	mtk_wed_wo_q_rx_clean(wo, &wo->q_rx);
 +	mtk_wed_wo_q_free(wo, &wo->q_tx);
 +	mtk_wed_wo_q_free(wo, &wo->q_rx);
@@ -2539,7 +2539,7 @@ new file mode 100644
 index 0000000..8434272
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_wo.c
-@@ -0,0 +1,573 @@
+@@ -0,0 +1,564 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#include <linux/kernel.h>
@@ -2611,10 +2611,11 @@ index 0000000..8434272
 +}
 +
 +static int
-+woif_q_rx_fill(struct mtk_wed_wo *wo, struct wed_wo_queue *q)
++woif_q_rx_fill(struct mtk_wed_wo *wo, struct wed_wo_queue *q, bool rx)
 +{
 +	int len = q->buf_size, frames = 0;
 +	struct wed_wo_queue_entry *entry;
++	struct page_frag_cache *page = &q->tx_page;
 +	struct wed_wo_desc *desc;
 +	dma_addr_t addr;
 +	u32 ctrl = 0;
@@ -2625,9 +2626,11 @@ index 0000000..8434272
 +
 +	spin_lock_bh(&q->lock);
 +
-+	while (q->queued < q->ndesc) {
++	if(rx)
++		page = &q->rx_page;
 +
-+		buf = page_frag_alloc(&q->rx_page, len, GFP_ATOMIC);
++	while (q->queued < q->ndesc) {
++		buf = page_frag_alloc(page, len, GFP_ATOMIC);
 +		if (!buf)
 +			break;
 +
@@ -2636,8 +2639,6 @@ index 0000000..8434272
 +			skb_free_frag(buf);
 +			break;
 +		}
-+		dma_sync_single_for_cpu(wo->hw->dev, addr, len,
-+					DMA_TO_DEVICE);
 +
 +		q->head = (q->head + 1) % q->ndesc;
 +
@@ -2647,13 +2648,13 @@ index 0000000..8434272
 +		entry->dma_addr = addr;
 +		entry->dma_len = len;
 +
-+		ctrl = FIELD_PREP(WED_CTL_SD_LEN0, entry->dma_len);
-+		ctrl |= WED_CTL_LAST_SEC0;
++		if (rx) {
++			ctrl = FIELD_PREP(WED_CTL_SD_LEN0, entry->dma_len);
++			ctrl |= WED_CTL_LAST_SEC0;
 +
-+		WRITE_ONCE(desc->buf0, cpu_to_le32(addr));
-+		WRITE_ONCE(desc->ctrl, cpu_to_le32(ctrl));
-+		dma_sync_single_for_device(wo->hw->dev, addr, len,
-+					DMA_TO_DEVICE);
++			WRITE_ONCE(desc->buf0, cpu_to_le32(addr));
++			WRITE_ONCE(desc->ctrl, cpu_to_le32(ctrl));
++		}
 +		q->queued++;
 +		q->entry[q->head].buf = buf;
 +
@@ -2668,7 +2669,7 @@ index 0000000..8434272
 +static void
 +woif_q_rx_fill_process(struct mtk_wed_wo *wo, struct wed_wo_queue *q)
 +{
-+	if(woif_q_rx_fill(wo, q))
++	if(woif_q_rx_fill(wo, q, true))
 +		woif_q_kick(wo, q, -1);
 +}
 +
@@ -2706,8 +2707,11 @@ index 0000000..8434272
 +	if (!q->entry)
 +		return -ENOMEM;
 +
-+	if (idx == 0)
++	if (idx == 0) {
++		/* alloc tx buf */
++		woif_q_rx_fill(dev, &dev->q_tx, false);
 +		woif_q_reset(dev, &dev->q_tx);
++	}
 +
 +	return 0;
 +}
@@ -2730,44 +2734,36 @@ index 0000000..8434272
 +}
 +
 +static void
-+woif_q_tx_clean(struct mtk_wed_wo *wo, struct wed_wo_queue *q, bool flush)
++woif_q_tx_clean(struct mtk_wed_wo *wo, struct wed_wo_queue *q)
 +{
-+	int last;
++	struct page *page;
++	int i = 0;
 +
 +	if (!q || !q->ndesc)
 +		return;
 +
-+	spin_lock_bh(&q->cleanup_lock);
-+	if (flush)
-+		last = -1;
-+	else
-+		last = woccif_r32(wo, q->regs->dma_idx);
-+
-+	while (q->queued > 0 && q->tail != last) {
++	spin_lock_bh(&q->lock);
++	while (i < q->ndesc) {
 +		struct wed_wo_queue_entry *e;
 +
-+		e = &q->entry[q->tail + 1];
++		e = &q->entry[i];
++		i++;
 +
++		if (!e)
++			continue;
 +		dma_unmap_single(wo->hw->dev, e->dma_addr, e->dma_len,
 +				 DMA_TO_DEVICE);
 +
-+
-+		memset(e, 0, sizeof(*e));
-+
-+		spin_lock_bh(&q->lock);
-+		q->tail = (q->tail + 1) % q->ndesc;
-+		q->queued--;
-+		spin_unlock_bh(&q->lock);
-+
++		skb_free_frag(e->buf);
 +	}
-+	spin_unlock_bh(&q->cleanup_lock);
++	spin_unlock_bh(&q->lock);
 +
-+	if (flush) {
-+		spin_lock_bh(&q->lock);
-+		woif_q_sync_idx(wo, q);
-+		woif_q_kick(wo, q, 0);
-+		spin_unlock_bh(&q->lock);
-+	}
++	if (!q->tx_page.va)
++		return;
++
++	page = virt_to_page(q->tx_page.va);
++	__page_frag_cache_drain(page, q->tx_page.pagecnt_bias);
++	memset(&q->tx_page, 0, sizeof(q->tx_page));
 +}
 +
 +static void *
@@ -2838,7 +2834,6 @@ index 0000000..8434272
 +	page = virt_to_page(q->rx_page.va);
 +	__page_frag_cache_drain(page, q->rx_page.pagecnt_bias);
 +	memset(&q->rx_page, 0, sizeof(q->rx_page));
-+
 +}
 +
 +static int
@@ -2851,7 +2846,7 @@ index 0000000..8434272
 +
 +	if (dev->q_rx.ndesc) {
 +		netif_napi_add(&dev->napi_dev, &dev->napi, poll, 64);
-+		woif_q_rx_fill(dev, &dev->q_rx);
++		woif_q_rx_fill(dev, &dev->q_rx, true);
 +		woif_q_reset(dev, &dev->q_rx);
 +		napi_enable(&dev->napi);
 +	}
@@ -2884,33 +2879,33 @@ index 0000000..8434272
 +{
 +	struct wed_wo_queue_entry *entry;
 +	struct wed_wo_desc *desc;
-+	int len, ret, idx = -1;
++	int len, ret = 0, idx = -1;
 +	dma_addr_t addr;
 +	u32 ctrl = 0;
 +
 +	len = skb->len;
-+	addr = dma_map_single(wo->hw->dev, skb->data, len, DMA_TO_DEVICE);
-+	if (unlikely(dma_mapping_error(wo->hw->dev, addr)))
-+		goto error;
++	spin_lock_bh(&q->lock);
 +
-+	/* packet tx, force trigger tx clean. */
-+		woif_q_tx_clean(wo, q, false);
-+
-+	if (q->queued >= q->ndesc) {
++	q->tail = woccif_r32(wo, q->regs->dma_idx);
++	q->head = (q->head + 1) % q->ndesc;
++	if (q->tail == q->head) {
 +		ret = -ENOMEM;
 +		goto error;
 +	}
 +
-+	spin_lock_bh(&q->lock);
-+
-+	q->head = (q->head + 1) % q->ndesc;
 +	idx = q->head;
-+
 +	desc = &q->desc[idx];
 +	entry = &q->entry[idx];
 +
-+	entry->dma_addr = addr;
-+	entry->dma_len = len;
++	if (len > entry->dma_len) {
++		ret = -ENOMEM;
++		goto error;
++	}
++	addr = entry->dma_addr;
++
++	dma_sync_single_for_cpu(wo->hw->dev, addr, len, DMA_TO_DEVICE);
++	memcpy(entry->buf, skb->data, len);
++	dma_sync_single_for_device(wo->hw->dev, addr, len, DMA_TO_DEVICE);
 +
 +	ctrl = FIELD_PREP(WED_CTL_SD_LEN0, len);
 +	ctrl |= WED_CTL_LAST_SEC0;
@@ -2919,18 +2914,14 @@ index 0000000..8434272
 +	WRITE_ONCE(desc->buf0, cpu_to_le32(addr));
 +	WRITE_ONCE(desc->ctrl, cpu_to_le32(ctrl));
 +
-+	q->queued++;
-+	q->entry[idx].skb = skb;
-+
 +	woif_q_kick(wo, q, 0);
 +	wo->drv_ops->kickout(wo);
 +
 +	spin_unlock_bh(&q->lock);
-+	return 0;
 +
 +error:
 +	dev_kfree_skb(skb);
-+	return -ENOMEM;
++	return ret;
 +}
 +
 +static const struct wed_wo_queue_ops wo_queue_ops = {
@@ -2947,7 +2938,7 @@ index 0000000..8434272
 +static int
 +mtk_wed_wo_rx_process(struct mtk_wed_wo *wo, struct wed_wo_queue *q, int budget)
 +{
-+	int len, data_len, done = 0;
++	int len, done = 0;
 +	struct sk_buff *skb;
 +	unsigned char *data;
 +	bool more;
@@ -3118,7 +3109,7 @@ new file mode 100644
 index 0000000..5824f39
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_wo.h
-@@ -0,0 +1,327 @@
+@@ -0,0 +1,324 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/* Copyright (C) 2021 Felix Fietkau <nbd@nbd.name> */
 +
@@ -3205,6 +3196,7 @@ index 0000000..5824f39
 +
 +	dma_addr_t desc_dma;
 +	struct page_frag_cache rx_page;
++	struct page_frag_cache tx_page;
 +};
 +
 +
@@ -3344,10 +3336,7 @@ index 0000000..5824f39
 +
 +	int (*tx_skb)(struct mtk_wed_wo *wo, struct wed_wo_queue *q,
 +		      struct sk_buff *skb);
-+	int (*tx_skb1)(struct mtk_wed_wo *wo, struct wed_wo_queue *q,
-+		       u8 *msg, u32 msg_len);
-+	void (*tx_clean)(struct mtk_wed_wo *wo, struct wed_wo_queue *q,
-+			 bool flush);
++	void (*tx_clean)(struct mtk_wed_wo *wo, struct wed_wo_queue *q);
 +
 +	void (*rx_clean)(struct mtk_wed_wo *wo, struct wed_wo_queue *q);
 +
@@ -3382,7 +3371,6 @@ index 0000000..5824f39
 +#define mtk_wed_wo_q_free(wo, ...)	(wo)->queue_ops->free((wo), __VA_ARGS__)
 +#define mtk_wed_wo_q_reset(wo, ...)	(wo)->queue_ops->reset((wo), __VA_ARGS__)
 +#define mtk_wed_wo_q_tx_skb(wo, ...)	(wo)->queue_ops->tx_skb((wo), __VA_ARGS__)
-+#define mtk_wed_wo_q_tx_skb1(wo, ...)	(wo)->queue_ops->tx_skb1((wo), __VA_ARGS__)
 +#define mtk_wed_wo_q_tx_clean(wo, ...)	(wo)->queue_ops->tx_clean((wo), __VA_ARGS__)
 +#define mtk_wed_wo_q_rx_clean(wo, ...)	(wo)->queue_ops->rx_clean((wo), __VA_ARGS__)
 +#define mtk_wed_wo_q_kick(wo, ...)	(wo)->queue_ops->kick((wo), __VA_ARGS__)
