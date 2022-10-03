@@ -248,7 +248,7 @@ index 819d8a0be..2121335a1
  		int mac = 0;
  
  		if (eth->hwlro)
-@@ -1427,18 +1431,18 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -1427,22 +1431,22 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			netdev->stats.rx_dropped++;
  			goto release_desc;
  		}
@@ -265,8 +265,12 @@ index 819d8a0be..2121335a1
  			goto release_desc;
  		}
  
--		dma_unmap_single(eth->dev, trxd.rxd1,
-+		dma_unmap_single(eth->dma_dev, trxd.rxd1,
+ 		addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
+ 			  ((u64)(trxd.rxd2 & 0xf)) << 32 : 0;
+ 
+-		dma_unmap_single(eth->dev,
++		dma_unmap_single(eth->dma_dev,
+ 				 (u64)(trxd.rxd1 | addr64),
  				 ring->buf_size, DMA_FROM_DEVICE);
  
  		/* receive data */
@@ -346,14 +350,13 @@ index 819d8a0be..2121335a1
  			return -ENOMEM;
 
  		rxd = ring->dma + i * eth->soc->txrx.rxd_size;
-@@ -1968,8 +1983,8 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring, int in_s
- 			rxd = ring->dma + i * eth->soc->txrx.rxd_size;
- 			if (!rxd->rxd1)
- 				continue;
-
+@@ -1968,7 +1983,7 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring, int in_s
+ 					       MTK_8GB_ADDRESSING)) ?
+ 				  ((u64)(rxd->rxd2 & 0xf)) << 32 : 0;
+ 
 -			dma_unmap_single(eth->dev,
 +			dma_unmap_single(eth->dma_dev,
- 					 rxd->rxd1,
+ 					 (u64)(rxd->rxd1 | addr64),
  					 ring->buf_size,
  					 DMA_FROM_DEVICE);
 @@ -1982,7 +1997,7 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring, int in_s

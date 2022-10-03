@@ -5,7 +5,7 @@ index 0c724a5..93cd55f 100644
 @@ -5,7 +5,7 @@
  
  obj-$(CONFIG_NET_MEDIATEK_SOC)			+= mtk_eth.o
- mtk_eth-y := mtk_eth_soc.o mtk_sgmii.o mtk_eth_path.o mtk_eth_dbg.o mtk_eth_reset.o	\
+ mtk_eth-y := mtk_eth_soc.o mtk_sgmii.o mtk_usxgmii.o mtk_eth_path.o mtk_eth_dbg.o mtk_eth_reset.o	\
 -	     mtk_ppe.o mtk_ppe_debugfs.o mtk_ppe_offload.o
 +	     mtk_ppe.o mtk_ppe_debugfs.o mtk_ppe_offload.o  mtk_qdma_debugfs.o
  mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed.o
@@ -176,7 +176,7 @@ index c87a823..955bb27 100644
  
 +int mtk_qdma_debugfs_init(struct mtk_eth *eth);
 +
- #endif /* MTK_ETH_H */
+ int mtk_mac2xgmii_id(struct mtk_eth *eth, int mac_id);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 index a49275f..1767823 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
