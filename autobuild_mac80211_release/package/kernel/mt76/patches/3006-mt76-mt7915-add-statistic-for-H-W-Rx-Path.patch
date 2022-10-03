@@ -1,7 +1,7 @@
-From 247fa46efdeaa5ea727a3d5dde7a9f3d7aac97d4 Mon Sep 17 00:00:00 2001
+From 74a76d638bf234a888a94a607aadeb0fda232abd Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
 Date: Fri, 5 Aug 2022 13:58:11 -0700
-Subject: [PATCH 3006/3007] mt76: mt7915: add statistic for H/W Rx Path
+Subject: [PATCH 3006/3010] mt76: mt7915: add statistic for H/W Rx Path
 
 Change-Id: Id94d663f08e91c83d296bd57e5e9b65a505ae1c7
 ---
@@ -16,7 +16,7 @@ Change-Id: Id94d663f08e91c83d296bd57e5e9b65a505ae1c7
  8 files changed, 107 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index 9b00f53c..4958d97c 100644
+index 3530d21..47a9213 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -278,6 +278,10 @@ struct mt76_sta_stats {
@@ -31,7 +31,7 @@ index 9b00f53c..4958d97c 100644
  
  enum mt76_wcid_flags {
 diff --git a/mt76_connac.h b/mt76_connac.h
-index 9a468878..7ecc7253 100644
+index 9a46887..7ecc725 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
 @@ -224,6 +224,11 @@ static inline bool is_mt76_fw_txp(struct mt76_dev *dev)
@@ -47,10 +47,10 @@ index 9a468878..7ecc7253 100644
  {
  	static const u8 width_to_bw[] = {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 4cdfadc7..adb06f84 100644
+index 27a3624..475c391 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1210,6 +1210,41 @@ enum {
+@@ -1211,6 +1211,41 @@ enum {
  	MCU_CE_CMD_GET_TXPWR = 0xd0,
  };
  
@@ -93,7 +93,7 @@ index 4cdfadc7..adb06f84 100644
  	PATCH_SEM_RELEASE,
  	PATCH_SEM_GET
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 0cd9cad9..35c13efd 100644
+index 544d166..bfc6c52 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -940,6 +940,31 @@ void mt7915_wed_trigger_ser(struct mtk_wed_device *wed)
@@ -129,10 +129,10 @@ index 0cd9cad9..35c13efd 100644
  mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
  {
 diff --git a/mt7915/main.c b/mt7915/main.c
-index fcf122cf..db9d55fe 100644
+index d5360ce..3e8142e 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1049,7 +1049,8 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1050,7 +1050,8 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  	struct rate_info *txrate = &msta->wcid.rate;
  	struct rate_info rxrate = {};
  
@@ -142,7 +142,7 @@ index fcf122cf..db9d55fe 100644
  	    !mt7915_mcu_get_rx_rate(phy, vif, sta, &rxrate)) {
  		sinfo->rxrate = rxrate;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
-@@ -1086,6 +1087,12 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1087,6 +1088,12 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  
  		sinfo->tx_retries = msta->wcid.stats.tx_retries;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
@@ -156,7 +156,7 @@ index fcf122cf..db9d55fe 100644
  }
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index aa8bcf70..b0fa6dac 100644
+index a405bfd..48305b4 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -293,6 +293,27 @@ int mt7915_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)
@@ -188,7 +188,7 @@ index aa8bcf70..b0fa6dac 100644
  mt7915_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
  {
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 0edea0d3..c5ce8cf7 100644
+index 11c7e94..1f794df 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -9,6 +9,7 @@
@@ -197,18 +197,18 @@ index 0edea0d3..c5ce8cf7 100644
  #include "../trace.h"
 +#include "../mt76_connac_mcu.h"
  
- static bool wed_enable = true;
+ static bool wed_enable;
  module_param(wed_enable, bool, 0644);
-@@ -763,6 +764,8 @@ mt7915_pci_wed_init(struct mt7915_dev *dev, struct device *pdev, int *irq)
+@@ -611,6 +612,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  
  	wed->wlan.ser_trigger = mt7915_wed_trigger_ser;
  
 +	wed->wlan.update_wo_rxcnt = mt7915_wed_update_wo_rxcnt;
 +
  	dev->mt76.rx_token_size = wed->wlan.rx_pkt;
- 	if (mtk_wed_device_attach(wed) != 0)
+ 	if (mtk_wed_device_attach(wed))
  		return 0;
-@@ -774,6 +777,9 @@ mt7915_pci_wed_init(struct mt7915_dev *dev, struct device *pdev, int *irq)
+@@ -622,6 +625,9 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  	if (ret)
  		return ret;
  
@@ -219,10 +219,10 @@ index 0edea0d3..c5ce8cf7 100644
  #else
  	return 0;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index a4872451..03486837 100644
+index 1a32e82..c2a7f35 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -550,6 +550,8 @@ u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed,
+@@ -548,6 +548,8 @@ u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed,
  				int pkt_num);
  void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed);
  void mt7915_wed_trigger_ser(struct mtk_wed_device *wed);
@@ -231,7 +231,7 @@ index a4872451..03486837 100644
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);
  int mt7915_eeprom_init(struct mt7915_dev *dev);
-@@ -634,6 +636,7 @@ int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
+@@ -632,6 +634,7 @@ int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
  				     struct cfg80211_chan_def *chandef);
  int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set);
  int mt7915_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
@@ -240,5 +240,5 @@ index a4872451..03486837 100644
  int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
  void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb);
 -- 
-2.25.1
+2.18.0
 

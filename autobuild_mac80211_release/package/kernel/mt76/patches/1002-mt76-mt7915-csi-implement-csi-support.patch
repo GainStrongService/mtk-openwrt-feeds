@@ -1,4 +1,4 @@
-From 87e6f3e21a575655e449ff2d09a27e3933940842 Mon Sep 17 00:00:00 2001
+From 0da94e40be885271ff884b581117498f2e4db997 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Jun 2022 20:13:02 +0800
 Subject: [PATCH 1002/1009] mt76: mt7915: csi: implement csi support
@@ -17,7 +17,7 @@ Subject: [PATCH 1002/1009] mt76: mt7915: csi: implement csi support
  create mode 100644 mt7915/vendor.h
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 89732676..90bf841e 100644
+index 06813f7..5d7c911 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -979,6 +979,7 @@ enum {
@@ -28,7 +28,7 @@ index 89732676..90bf841e 100644
  };
  
  enum {
-@@ -1149,6 +1150,7 @@ enum {
+@@ -1150,6 +1151,7 @@ enum {
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
  	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
@@ -37,7 +37,7 @@ index 89732676..90bf841e 100644
  
  enum {
 diff --git a/mt7915/Makefile b/mt7915/Makefile
-index a3474e2f..e272c826 100644
+index a3474e2..e272c82 100644
 --- a/mt7915/Makefile
 +++ b/mt7915/Makefile
 @@ -1,9 +1,9 @@
@@ -54,7 +54,7 @@ index a3474e2f..e272c826 100644
  mt7915e-$(CONFIG_MT7986_WMAC) += soc.o
 \ No newline at end of file
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 489f6e77..6efa28fe 100644
+index 416e5ac..34b5df7 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -547,6 +547,12 @@ mt7915_register_ext_phy(struct mt7915_dev *dev, struct mt7915_phy *phy)
@@ -70,7 +70,7 @@ index 489f6e77..6efa28fe 100644
  	ret = mt76_register_phy(mphy, true, mt76_rates,
  				ARRAY_SIZE(mt76_rates));
  	if (ret)
-@@ -1037,6 +1043,25 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
+@@ -1036,6 +1042,25 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
  	}
  }
  
@@ -96,7 +96,7 @@ index 489f6e77..6efa28fe 100644
  static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
  {
  	struct mt7915_phy *phy = mt7915_ext_phy(dev);
-@@ -1045,6 +1070,10 @@ static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
+@@ -1044,6 +1069,10 @@ static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
  	if (!phy)
  		return;
  
@@ -107,7 +107,7 @@ index 489f6e77..6efa28fe 100644
  	mt7915_unregister_thermal(phy);
  	mt76_unregister_phy(mphy);
  	ieee80211_free_hw(mphy->hw);
-@@ -1057,6 +1086,10 @@ static void mt7915_stop_hardware(struct mt7915_dev *dev)
+@@ -1056,6 +1085,10 @@ static void mt7915_stop_hardware(struct mt7915_dev *dev)
  	mt7915_dma_cleanup(dev);
  	tasklet_disable(&dev->irq_tasklet);
  
@@ -118,7 +118,7 @@ index 489f6e77..6efa28fe 100644
  	if (is_mt7986(&dev->mt76))
  		mt7986_wmac_disable(dev);
  }
-@@ -1097,6 +1130,12 @@ int mt7915_register_device(struct mt7915_dev *dev)
+@@ -1096,6 +1129,12 @@ int mt7915_register_device(struct mt7915_dev *dev)
  	dev->mt76.test_ops = &mt7915_testmode_ops;
  #endif
  
@@ -132,7 +132,7 @@ index 489f6e77..6efa28fe 100644
  	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
  		dev->mt76.led_cdev.brightness_set = mt7915_led_set_brightness;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index e498b61f..48e9e5ec 100644
+index c710624..d9ff5a3 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -32,6 +32,10 @@
@@ -268,7 +268,7 @@ index e498b61f..48e9e5ec 100644
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index bfb822fa..a27129c2 100644
+index bfb822f..a27129c 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -480,4 +480,80 @@ enum {
@@ -353,7 +353,7 @@ index bfb822fa..a27129c2 100644
 +
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 8990b5b0..4914c91d 100644
+index c0dfe10..bcfcf6f 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -274,6 +274,20 @@ struct mt7915_phy {
@@ -377,9 +377,9 @@ index 8990b5b0..4914c91d 100644
  };
  
  struct mt7915_dev {
-@@ -616,6 +630,12 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
- 			    struct ieee80211_sta *sta, struct dentry *dir);
- #endif
+@@ -618,6 +632,12 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+ 			 bool pci, int *irq);
  
 +#ifdef CONFIG_MTK_VENDOR
 +void mt7915_vendor_register(struct mt7915_phy *phy);
@@ -392,7 +392,7 @@ index 8990b5b0..4914c91d 100644
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp);
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
 new file mode 100644
-index 00000000..98fd9c2d
+index 0000000..98fd9c2
 --- /dev/null
 +++ b/mt7915/vendor.c
 @@ -0,0 +1,452 @@
@@ -850,7 +850,7 @@ index 00000000..98fd9c2d
 +}
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
 new file mode 100644
-index 00000000..9d3db2a7
+index 0000000..9d3db2a
 --- /dev/null
 +++ b/mt7915/vendor.h
 @@ -0,0 +1,60 @@
@@ -915,5 +915,5 @@ index 00000000..9d3db2a7
 +
 +#endif
 -- 
-2.25.1
+2.18.0
 

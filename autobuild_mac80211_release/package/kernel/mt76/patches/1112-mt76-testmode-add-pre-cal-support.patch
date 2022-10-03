@@ -1,4 +1,4 @@
-From a000ed0273b915b24a5fe83b19b85b8a9f8a45ef Mon Sep 17 00:00:00 2001
+From a87d889131d6a636ebae5e0a51c90ded201d7e6e Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 31 Aug 2022 20:06:52 +0800
 Subject: [PATCH 1112/1124] mt76: testmode: add pre-cal support
@@ -20,7 +20,7 @@ Change-Id: Ibfbbc3443de994eeb4daa5e364b0a90f5d7d3bcd
  11 files changed, 562 insertions(+), 13 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index 25f67760..4c50bfe6 100644
+index 25f6776..4c50bfe 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -89,8 +89,10 @@ int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
@@ -37,10 +37,10 @@ index 25f67760..4c50bfe6 100644
  
  out_put_node:
 diff --git a/mt76.h b/mt76.h
-index 0e4eea16..b28fe32f 100644
+index c4cdb4b..3ca449f 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -637,6 +637,7 @@ struct mt76_testmode_ops {
+@@ -625,6 +625,7 @@ struct mt76_testmode_ops {
  			  enum mt76_testmode_state new_state);
  	int (*dump_stats)(struct mt76_phy *phy, struct sk_buff *msg);
  	int (*set_eeprom)(struct mt76_phy *phy, u32 offset, u8 *val, u8 action);
@@ -49,7 +49,7 @@ index 0e4eea16..b28fe32f 100644
  
  struct mt76_testmode_entry_data {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 9b9878ac..cb06827c 100644
+index a60965a..b14f931 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -971,6 +971,7 @@ enum {
@@ -61,7 +61,7 @@ index 9b9878ac..cb06827c 100644
  	MCU_EXT_EVENT_FW_LOG_2_HOST = 0x13,
  	MCU_EXT_EVENT_THERMAL_PROTECT = 0x22,
 diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
-index 7578ac6d..b980342c 100644
+index f3e5681..88aaa16 100644
 --- a/mt7915/eeprom.h
 +++ b/mt7915/eeprom.h
 @@ -39,10 +39,18 @@ enum mt7915_eeprom_field {
@@ -86,7 +86,7 @@ index 7578ac6d..b980342c 100644
  
  #define MT_EE_WIFI_CONF0_TX_PATH		GENMASK(2, 0)
  #define MT_EE_WIFI_CONF0_BAND_SEL		GENMASK(7, 6)
-@@ -160,6 +168,26 @@ mt7915_tssi_enabled(struct mt7915_dev *dev, enum nl80211_band band)
+@@ -155,6 +163,26 @@ mt7915_tssi_enabled(struct mt7915_dev *dev, enum nl80211_band band)
  		return val & MT_EE_WIFI_CONF7_TSSI0_5G;
  }
  
@@ -114,7 +114,7 @@ index 7578ac6d..b980342c 100644
  
  #endif
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ff0e91e5..d7e6df50 100644
+index 1b56635..34ce7d6 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -438,6 +438,9 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -169,7 +169,7 @@ index ff0e91e5..d7e6df50 100644
  
  	idx = mt7915_dpd_freq_idx(center_freq, chandef->width);
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 798c9337..dfef078b 100644
+index 3bfec8f..f3bbdba 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -379,6 +379,10 @@ struct mt7915_dev {
@@ -192,7 +192,7 @@ index 798c9337..dfef078b 100644
  static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
  {
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index bc4cd809..7a49608c 100644
+index 8f250db..b1ce299 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -5,6 +5,7 @@
@@ -666,7 +666,7 @@ index bc4cd809..7a49608c 100644
 +	.dump_precal = mt7915_tm_dump_precal,
  };
 diff --git a/mt7915/testmode.h b/mt7915/testmode.h
-index 01b08e9e..d500987d 100644
+index 01b08e9..d500987 100644
 --- a/mt7915/testmode.h
 +++ b/mt7915/testmode.h
 @@ -81,6 +81,11 @@ struct tm_tx_cont {
@@ -734,7 +734,7 @@ index 01b08e9e..d500987d 100644
  	TAM_ARB_OP_MODE_NORMAL = 1,
  	TAM_ARB_OP_MODE_TEST,
 diff --git a/testmode.c b/testmode.c
-index 7a9ed543..82b8e983 100644
+index 7a9ed54..82b8e98 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -763,6 +763,18 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
@@ -767,7 +767,7 @@ index 7a9ed543..82b8e983 100644
  
  	if (nla_put_u32(msg, MT76_TM_ATTR_TX_COUNT, td->tx_count) ||
 diff --git a/testmode.h b/testmode.h
-index 57949f2b..e2190e72 100644
+index 57949f2..e2190e7 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -19,6 +19,7 @@
@@ -823,7 +823,7 @@ index 57949f2b..e2190e72 100644
  
  	/* keep last */
 diff --git a/tools/fields.c b/tools/fields.c
-index 6e36ab27..1be1ffd6 100644
+index 6e36ab2..1be1ffd 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -11,6 +11,14 @@ static const char * const testmode_state[] = {
@@ -842,5 +842,5 @@ index 6e36ab27..1be1ffd6 100644
  
  static const char * const testmode_tx_mode[] = {
 -- 
-2.25.1
+2.18.0
 

@@ -1,7 +1,7 @@
-From 826c0c1849f01d0afaf4cfa14adfba0386f8d88f Mon Sep 17 00:00:00 2001
+From 095584941c21d2348ab3c3afe67f4dfa0b6957cd Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 3 Jan 2022 17:09:53 +0800
-Subject: [PATCH 3/7] mt76: mt7915: rework rx testmode stats
+Subject: [PATCH 2/3] mt76: mt7915: rework rx testmode stats
 
 ---
  mac80211.c        |  3 +-
@@ -15,10 +15,10 @@ Subject: [PATCH 3/7] mt76: mt7915: rework rx testmode stats
  8 files changed, 109 insertions(+), 17 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index bc3a7514..c5ef5940 100644
+index e2a8ef9..7ef853c 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -752,7 +752,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
+@@ -756,7 +756,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
  	}
  
  #ifdef CONFIG_NL80211_TESTMODE
@@ -29,10 +29,10 @@ index bc3a7514..c5ef5940 100644
  		if (status->flag & RX_FLAG_FAILED_FCS_CRC)
  			phy->test.rx_stats.fcs_error[q]++;
 diff --git a/mt76.h b/mt76.h
-index 87db9498..e4a248a1 100644
+index f9bdf16..aef6006 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -638,6 +638,8 @@ struct mt76_testmode_ops {
+@@ -626,6 +626,8 @@ struct mt76_testmode_ops {
  	int (*dump_stats)(struct mt76_phy *phy, struct sk_buff *msg);
  };
  
@@ -41,7 +41,7 @@ index 87db9498..e4a248a1 100644
  struct mt76_testmode_data {
  	enum mt76_testmode_state state;
  
-@@ -669,6 +671,8 @@ struct mt76_testmode_data {
+@@ -657,6 +659,8 @@ struct mt76_testmode_data {
  
  	u8 addr[3][ETH_ALEN];
  
@@ -50,7 +50,7 @@ index 87db9498..e4a248a1 100644
  	u32 tx_pending;
  	u32 tx_queued;
  	u16 tx_queued_limit;
-@@ -676,6 +680,7 @@ struct mt76_testmode_data {
+@@ -664,6 +668,7 @@ struct mt76_testmode_data {
  	struct {
  		u64 packets[__MT_RXQ_MAX];
  		u64 fcs_error[__MT_RXQ_MAX];
@@ -59,7 +59,7 @@ index 87db9498..e4a248a1 100644
  };
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 718f427d..f62af7a8 100644
+index cf4ce3b..3101721 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1138,6 +1138,7 @@ enum {
@@ -71,7 +71,7 @@ index 718f427d..f62af7a8 100644
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index cd1edf55..110e4f36 100644
+index 87cd1bf..ed94980 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -9,6 +9,7 @@
@@ -83,7 +83,7 @@ index cd1edf55..110e4f36 100644
  	MCU_ATE_CLEAN_TXQUEUE = 0x1c,
  };
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 41b99496..6c05dfab 100644
+index 819fafe..8d99edc 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -133,6 +133,21 @@ mt7915_tm_clean_hwq(struct mt7915_phy *phy, u8 wcid)
@@ -117,7 +117,7 @@ index 41b99496..6c05dfab 100644
  	if (!en)
  		mt7915_tm_set_tam_arb(phy, en, 0);
  }
-@@ -504,18 +521,63 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
+@@ -501,18 +518,63 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
  	mt7915_tm_set_trx(phy, TM_MAC_TX, en);
  }
  
@@ -184,7 +184,7 @@ index 41b99496..6c05dfab 100644
  		mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, en);
  	}
  }
-@@ -745,12 +807,8 @@ static int
+@@ -742,12 +804,8 @@ static int
  mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
  {
  	struct mt7915_phy *phy = mphy->priv;
@@ -197,7 +197,7 @@ index 41b99496..6c05dfab 100644
  
  	rx = nla_nest_start(msg, MT76_TM_STATS_ATTR_LAST_RX);
  	if (!rx)
-@@ -794,15 +852,7 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
+@@ -791,15 +849,7 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
  
  	nla_nest_end(msg, rx);
  
@@ -215,7 +215,7 @@ index 41b99496..6c05dfab 100644
  
  const struct mt76_testmode_ops mt7915_testmode_ops = {
 diff --git a/mt7915/testmode.h b/mt7915/testmode.h
-index 5573ac30..a1c54c89 100644
+index 5573ac3..a1c54c8 100644
 --- a/mt7915/testmode.h
 +++ b/mt7915/testmode.h
 @@ -33,6 +33,12 @@ struct mt7915_tm_clean_txq {
@@ -266,7 +266,7 @@ index 5573ac30..a1c54c89 100644
 +
  #endif
 diff --git a/testmode.c b/testmode.c
-index 57cdfdf6..1d0d5d30 100644
+index 57cdfdf..1d0d5d3 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -559,6 +559,9 @@ mt76_testmode_dump_stats(struct mt76_phy *phy, struct sk_buff *msg)
@@ -280,7 +280,7 @@ index 57cdfdf6..1d0d5d30 100644
  		return -EMSGSIZE;
  
 diff --git a/testmode.h b/testmode.h
-index 5e2792d8..89613266 100644
+index 5e2792d..8961326 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -101,6 +101,8 @@ enum mt76_testmode_attr {
@@ -301,5 +301,5 @@ index 5e2792d8..89613266 100644
  	/* keep last */
  	NUM_MT76_TM_STATS_ATTRS,
 -- 
-2.25.1
+2.18.0
 

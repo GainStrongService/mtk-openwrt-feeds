@@ -1,4 +1,4 @@
-From ee8f75888527b8f7114d5ac3f946a9acd21f9aa4 Mon Sep 17 00:00:00 2001
+From c2a099c2d4c02f67232cf98ee7d4e4b241b6befc Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 30 Aug 2022 15:29:38 +0800
 Subject: [PATCH 1123/1124] mt76: mt7915: add vendor subcmd three wire (PTA)
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 108 insertions(+), 29 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 683d8542..4cdfadc7 100644
+index 6143d8e..27a3624 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1155,7 +1155,7 @@ enum {
+@@ -1156,7 +1156,7 @@ enum {
  	/* for vendor csi and air monitor */
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
@@ -29,7 +29,7 @@ index 683d8542..4cdfadc7 100644
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  };
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 7e6102b8..8d74275d 100644
+index 8dcc54e..477a41c 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -4019,37 +4019,34 @@ void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable)
@@ -95,7 +95,7 @@ index 7e6102b8..8d74275d 100644
  
  void mt7915_mcu_set_bypass_smthint(struct mt7915_phy *phy, u8 val)
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index b8a433e5..9d0fac47 100644
+index b8a433e..9d0fac4 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -576,6 +576,35 @@ struct csi_data {
@@ -135,10 +135,10 @@ index b8a433e5..9d0fac47 100644
  #define OFDMA_DL                       BIT(0)
  #define OFDMA_UL                       BIT(1)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 6fe3191d..3fcedba5 100644
+index 5fa1dfa..f403820 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -725,6 +725,7 @@ void mt7915_mcu_set_mimo(struct mt7915_phy *phy, u8 direction);
+@@ -727,6 +727,7 @@ void mt7915_mcu_set_mimo(struct mt7915_phy *phy, u8 direction);
  void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable);
  int mt7915_mcu_set_mu_edca(struct mt7915_phy *phy, u8 val);
  void mt7915_mcu_set_cert(struct mt7915_phy *phy, u8 type);
@@ -147,7 +147,7 @@ index 6fe3191d..3fcedba5 100644
  void mt7915_vendor_register(struct mt7915_phy *phy);
  int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 7acb3304..7f67c0d3 100644
+index 7acb330..7f67c0d 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -40,6 +40,11 @@ hemu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_HEMU_CTRL] = {
@@ -221,7 +221,7 @@ index 7acb3304..7f67c0d3 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 57f52f3a..e0c5fd94 100644
+index 57f52f3..e0c5fd9 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -11,6 +11,7 @@ enum mtk_nl80211_vendor_subcmds {
@@ -251,5 +251,5 @@ index 57f52f3a..e0c5fd94 100644
  enum mtk_capi_control_changed {
  	CAPI_RFEATURE_CHANGED		= BIT(16),
 -- 
-2.25.1
+2.18.0
 

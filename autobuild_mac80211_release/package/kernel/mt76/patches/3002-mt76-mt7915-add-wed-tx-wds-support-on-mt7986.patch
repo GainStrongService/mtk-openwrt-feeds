@@ -1,25 +1,25 @@
-From 8aa505cd1dcb9410d38bb608214aa28c01bc3cd2 Mon Sep 17 00:00:00 2001
+From 2e99c7444625c73a247c0be7b3c1b60fb5de72ce Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Sat, 10 Sep 2022 17:09:21 +0800
-Subject: [PATCH] mt76: mt7915: add-wed-tx-wds-support-on-mt7986
+Subject: [PATCH 3002/3010] mt76: mt7915: add-wed-tx-wds-support-on-mt7986
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
  mac80211.c      |  5 ++++-
  mt76.h          |  2 ++
  mt7915/init.c   |  9 +++++++++
- mt7915/main.c   | 52 +++++++++++++++++++++++++++++++++++++++++++------
+ mt7915/main.c   | 44 ++++++++++++++++++++++++++++++++++++++++++--
  mt7915/mcu.c    | 12 ++++++++++--
  mt7915/mcu.h    |  1 +
  mt7915/mmio.c   |  3 +++
  mt7915/mt7915.h |  4 ++++
- 8 files changed, 79 insertions(+), 9 deletions(-)
+ 8 files changed, 75 insertions(+), 5 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 4eaf317b..c477d625 100644
+index b7c1b13..7571e83 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -1360,7 +1360,10 @@ void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
+@@ -1364,7 +1364,10 @@ void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
  
  	mt76_packet_id_flush(dev, wcid);
  
@@ -32,10 +32,10 @@ index 4eaf317b..c477d625 100644
  }
  EXPORT_SYMBOL_GPL(__mt76_sta_remove);
 diff --git a/mt76.h b/mt76.h
-index e997908a..ec9bd59d 100644
+index e547f79..335f0b1 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -453,6 +453,7 @@ struct mt76_driver_ops {
+@@ -454,6 +454,7 @@ struct mt76_driver_ops {
  
  	void (*sta_remove)(struct mt76_dev *dev, struct ieee80211_vif *vif,
  			   struct ieee80211_sta *sta);
@@ -43,7 +43,7 @@ index e997908a..ec9bd59d 100644
  };
  
  struct mt76_channel_state {
-@@ -826,6 +827,7 @@ struct mt76_dev {
+@@ -814,6 +815,7 @@ struct mt76_dev {
  	spinlock_t status_lock;
  
  	u32 wcid_mask[DIV_ROUND_UP(MT76_N_WCIDS, 32)];
@@ -52,7 +52,7 @@ index e997908a..ec9bd59d 100644
  
  	u64 vif_mask;
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 538ff5c3..cd9d846d 100644
+index 6833bbf..8055c6e 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -695,6 +695,15 @@ mt7915_init_hardware(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -72,7 +72,7 @@ index 538ff5c3..cd9d846d 100644
  	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
  	if (idx)
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 3a09f3f5..b1fb3ddf 100644
+index 4e91527..74c9777 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -658,6 +658,24 @@ mt7915_channel_switch_beacon(struct ieee80211_hw *hw,
@@ -105,11 +105,11 @@ index 3a09f3f5..b1fb3ddf 100644
  	int ret, idx;
  	u32 addr;
 +	bool wed_wds = false;
- 
--	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
++
 +	if (mtk_wed_device_active(&mdev->mmio.wed) && is_mt7986(mdev))
 +		wed_wds = !!test_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
-+
+ 
+-	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
 +	if (wed_wds)
 +		idx = mt76_wcid_alloc(mdev->wcid_wds_mask, MT7915_WTBL_STA);
 +	else {
@@ -120,7 +120,7 @@ index 3a09f3f5..b1fb3ddf 100644
  	if (idx < 0)
  		return -ENOSPC;
  
-@@ -1124,6 +1152,14 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
+@@ -1125,6 +1153,14 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
  	else
  		clear_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
  
@@ -135,30 +135,21 @@ index 3a09f3f5..b1fb3ddf 100644
  	mt76_connac_mcu_wtbl_update_hdr_trans(&dev->mt76, vif, sta);
  }
  
-@@ -1463,12 +1499,16 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1464,7 +1500,11 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	path->dev = ctx->dev;
  	path->mtk_wdma.wdma_idx = wed->wdma_idx;
  	path->mtk_wdma.bss = mvif->mt76.idx;
--	/* fw will find the wcid by dest addr */
--	if(is_mt7915(&dev->mt76))
--		path->mtk_wdma.wcid = 0xff;
--	else
--		path->mtk_wdma.wcid = 0x3ff;
- 
-+	if (test_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags)) {
+-	path->mtk_wdma.wcid = is_mt7915(&dev->mt76) ? 0xff : 0x3ff;
++
++	if (test_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags))
 +		path->mtk_wdma.wcid = msta->wcid.idx;
-+	} else {
-+		/* fw will find the wcid by dest addr */
-+		if(is_mt7915(&dev->mt76))
-+			path->mtk_wdma.wcid = 0xff;
-+		else
-+			path->mtk_wdma.wcid = 0x3ff;
-+	}
++	else
++		path->mtk_wdma.wcid = is_mt7915(&dev->mt76) ? 0xff : 0x3ff;
  	path->mtk_wdma.queue = phy != &dev->phy;
  
  	ctx->dev = NULL;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f5caa326..21167f00 100644
+index 477a41c..1d5cb2b 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2350,6 +2350,7 @@ mt7915_mcu_init_rx_airtime(struct mt7915_dev *dev)
@@ -188,7 +179,7 @@ index f5caa326..21167f00 100644
  	ret = mt7915_mcu_set_mwds(dev, 1);
  	if (ret)
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 9d0fac47..1f56db6b 100644
+index 9d0fac4..1f56db6 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -268,6 +268,7 @@ enum {
@@ -200,19 +191,19 @@ index 9d0fac47..1f56db6b 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 11c90772..6df039a7 100644
+index 1eda361..6f0f262 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
-@@ -736,6 +736,8 @@ mt7915_pci_wed_init(struct mt7915_dev *dev, struct device *pdev, int *irq)
- 	/* disable dynamic tx token */
- 	wed->wlan.offload_enable = mt7915_wed_offload_enable;
- 	wed->wlan.offload_disable = mt7915_wed_offload_disable;
+@@ -589,6 +589,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+ 	wed->wlan.init_buf = mt7915_wed_init_buf;
+ 	wed->wlan.offload_enable = mt7915_mmio_wed_offload_enable;
+ 	wed->wlan.offload_disable = mt7915_mmio_wed_offload_disable;
 +	if (!is_mt7915(mdev))
 +		wed->wlan.wcid_512 = true;
  
- 	if (mtk_wed_device_attach(wed) != 0)
+ 	if (mtk_wed_device_attach(wed))
  		return 0;
-@@ -776,6 +778,7 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
+@@ -802,6 +804,7 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
  		.sta_add = mt7915_mac_sta_add,
  		.sta_remove = mt7915_mac_sta_remove,
  		.update_survey = mt7915_update_channel,
@@ -221,7 +212,7 @@ index 11c90772..6df039a7 100644
  	struct mt7915_dev *dev;
  	struct mt76_dev *mdev;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 1c78b882..486c203c 100644
+index f403820..b06e7a9 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -18,6 +18,9 @@
@@ -234,7 +225,7 @@ index 1c78b882..486c203c 100644
  #define MT7915_WATCHDOG_TIME		(HZ / 10)
  #define MT7915_RESET_TIMEOUT		(30 * HZ)
  
-@@ -697,6 +700,7 @@ void mt7915_tx_token_put(struct mt7915_dev *dev);
+@@ -695,6 +698,7 @@ void mt7915_tx_token_put(struct mt7915_dev *dev);
  void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
  			 struct sk_buff *skb);
  bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len);

@@ -1,7 +1,7 @@
-From 30238567bb559bd31644a811d75d63c808a4d55f Mon Sep 17 00:00:00 2001
+From 66c81406b30b24a50be33f5434664191b7cf7ab0 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
-Subject: [PATCH] mt76: mt7915: add mtk internal debug tools for mt76
+Subject: [PATCH 1001/1009] mt76: mt7915: add mtk internal debug tools for mt76
 
 ---
  mt76_connac_mcu.h     |    7 +
@@ -22,7 +22,7 @@ Subject: [PATCH] mt76: mt7915: add mtk internal debug tools for mt76
  create mode 100644 mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 31017218..06813f77 100644
+index 3101721..06813f7 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1104,6 +1104,7 @@ enum {
@@ -47,7 +47,7 @@ index 31017218..06813f77 100644
  	MCU_EXT_CMD_CAL_CACHE = 0x67,
  	MCU_EXT_CMD_SET_RADAR_TH = 0x7c,
 diff --git a/mt7915/Makefile b/mt7915/Makefile
-index b794ceb7..a3474e2f 100644
+index b794ceb..a3474e2 100644
 --- a/mt7915/Makefile
 +++ b/mt7915/Makefile
 @@ -3,7 +3,7 @@
@@ -61,7 +61,7 @@ index b794ceb7..a3474e2f 100644
  mt7915e-$(CONFIG_MT7986_WMAC) += soc.o
 \ No newline at end of file
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index a4e37a52..ea512fd1 100644
+index b95c81d..fd0c9d1 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -8,6 +8,9 @@
@@ -205,7 +205,7 @@ index a4e37a52..ea512fd1 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 11d2866b..00218624 100644
+index 8ef5ddc..2ff90f7 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -239,6 +239,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -244,7 +244,7 @@ index 11d2866b..00218624 100644
  }
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index fc5319da..1eb8107a 100644
+index 0dffe82..7913059 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -62,7 +62,11 @@ static int mt7915_start(struct ieee80211_hw *hw)
@@ -260,7 +260,7 @@ index fc5319da..1eb8107a 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f11ca25d..44d461d7 100644
+index 2f6d328..c710624 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -195,6 +195,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -352,7 +352,7 @@ index f11ca25d..44d461d7 100644
 +}
 +#endif
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index ed949802..bfb822fa 100644
+index ed94980..bfb822f 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -259,6 +259,10 @@ enum {
@@ -367,7 +367,7 @@ index ed949802..bfb822fa 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index c90a148d..193b8ab4 100644
+index fe6a6d3..c0dfe10 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -408,9 +408,9 @@ index c90a148d..193b8ab4 100644
  };
  
  enum {
-@@ -592,4 +616,24 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
- 			    struct ieee80211_sta *sta, struct dentry *dir);
- #endif
+@@ -594,4 +618,24 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+ 			 bool pci, int *irq);
  
 +#ifdef MTK_DEBUG
 +int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
@@ -435,7 +435,7 @@ index c90a148d..193b8ab4 100644
  #endif
 diff --git a/mt7915/mt7915_debug.h b/mt7915/mt7915_debug.h
 new file mode 100644
-index 00000000..58ba2cdf
+index 0000000..58ba2cd
 --- /dev/null
 +++ b/mt7915/mt7915_debug.h
 @@ -0,0 +1,1350 @@
@@ -1791,7 +1791,7 @@ index 00000000..58ba2cdf
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 00000000..747a9014
+index 0000000..747a901
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
 @@ -0,0 +1,2925 @@
@@ -4722,7 +4722,7 @@ index 00000000..747a9014
 +#endif
 diff --git a/mt7915/mtk_mcu.c b/mt7915/mtk_mcu.c
 new file mode 100644
-index 00000000..145fe785
+index 0000000..145fe78
 --- /dev/null
 +++ b/mt7915/mtk_mcu.c
 @@ -0,0 +1,51 @@
@@ -4778,7 +4778,7 @@ index 00000000..145fe785
 +				 sizeof(req), true);
 +}
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a105..3d51d9ec 100644
+index e5d4a10..3d51d9e 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)

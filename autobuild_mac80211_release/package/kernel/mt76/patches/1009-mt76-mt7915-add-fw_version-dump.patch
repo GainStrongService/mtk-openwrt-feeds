@@ -1,7 +1,7 @@
-From c0238eeeaec21b5f1e0087bec4b6306d3c5aed53 Mon Sep 17 00:00:00 2001
+From 3240a8b38a26ca9293db89e3e5bf8f48f5434518 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 17 Aug 2022 13:40:24 +0800
-Subject: [PATCH] mt76: mt7915: add fw_version dump
+Subject: [PATCH 1009/1009] mt76: mt7915: add fw_version dump
 
 ---
  mt76.h               |  4 ++++
@@ -10,10 +10,10 @@ Subject: [PATCH] mt76: mt7915: add fw_version dump
  3 files changed, 32 insertions(+)
 
 diff --git a/mt76.h b/mt76.h
-index e4a248a1..b5453d35 100644
+index aef6006..fac1dfb 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -837,6 +837,10 @@ struct mt76_dev {
+@@ -823,6 +823,10 @@ struct mt76_dev {
  		struct mt76_usb usb;
  		struct mt76_sdio sdio;
  	};
@@ -25,7 +25,7 @@ index e4a248a1..b5453d35 100644
  
  struct mt76_power_limits {
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index ed6c9ebb..be2a2de1 100644
+index ed6c9eb..be2a2de 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -2889,6 +2889,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
@@ -59,7 +59,7 @@ index ed6c9ebb..be2a2de1 100644
  		struct mt76_connac2_patch_sec *sec;
  		u32 len, addr, mode;
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 222268fc..ef0c27d2 100644
+index e24b4d7..9de5b0f 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2721,6 +2721,22 @@ static int mt7915_agginfo_read_band1(struct seq_file *s, void *data)
@@ -70,7 +70,7 @@ index 222268fc..ef0c27d2 100644
 +{
 +	struct mt7915_dev *dev = dev_get_drvdata(s->private);
 +	struct mt76_dev *mdev = NULL;
-+	seq_printf(s, "Version: 2.2.5.0\n");
++	seq_printf(s, "Version: 2.2.6.0\n");
 +
 +	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
 +		return 0;
@@ -85,7 +85,7 @@ index 222268fc..ef0c27d2 100644
  /*usage: <en> <num> <len>
  	en: BIT(16) 0: sw amsdu  1: hw amsdu
  	num: GENMASK(15, 8) range 1-8
-@@ -2952,6 +2968,9 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -2954,6 +2970,9 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  
  	debugfs_create_u8("sku_disable", 0600, dir, &dev->dbg.sku_disable);
  

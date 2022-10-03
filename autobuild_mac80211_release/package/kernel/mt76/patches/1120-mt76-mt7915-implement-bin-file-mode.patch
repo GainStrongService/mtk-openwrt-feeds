@@ -1,4 +1,4 @@
-From 79ddf246652c86dbda37aa94526497b791ec8246 Mon Sep 17 00:00:00 2001
+From 09763f3753bb13ed2d754440295a459f6bb743c3 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 7 Jul 2022 11:09:59 +0800
 Subject: [PATCH 1120/1124] mt76: mt7915: implement bin file mode
@@ -13,7 +13,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 71 insertions(+), 11 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index 4c50bfe6..baca86fd 100644
+index 4c50bfe..baca86f 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -104,6 +104,24 @@ out_put_node:
@@ -42,10 +42,10 @@ index 4c50bfe6..baca86fd 100644
  mt76_eeprom_override(struct mt76_phy *phy)
  {
 diff --git a/mt76.h b/mt76.h
-index b28fe32f..e997908a 100644
+index 3ca449f..e547f79 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1015,6 +1015,7 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
+@@ -1001,6 +1001,7 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
  int mt76_eeprom_init(struct mt76_dev *dev, int len);
  void mt76_eeprom_override(struct mt76_phy *phy);
  int mt76_get_of_eeprom(struct mt76_dev *dev, void *data, int offset, int len);
@@ -54,7 +54,7 @@ index b28fe32f..e997908a 100644
  struct mt76_queue *
  mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index ee3049e5..e5cfa5b0 100644
+index d58a320..632ecc7 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -46,26 +46,36 @@ static char *mt7915_eeprom_name(struct mt7915_dev *dev)
@@ -114,7 +114,7 @@ index ee3049e5..e5cfa5b0 100644
  		ret = -EINVAL;
  		goto out;
  	}
-@@ -234,12 +247,30 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
+@@ -221,12 +234,30 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
  {
  	int ret;
  
@@ -148,7 +148,7 @@ index ee3049e5..e5cfa5b0 100644
  		if (ret)
  			return ret;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 439d071a..6fe3191d 100644
+index 1b08686..5fa1dfa 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -51,6 +51,15 @@
@@ -176,5 +176,5 @@ index 439d071a..6fe3191d 100644
  	bool ibf;
  
 -- 
-2.25.1
+2.18.0
 
