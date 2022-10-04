@@ -38,7 +38,6 @@ enum mt753x_attr {
 #ifdef __KERNEL__
 int mt753x_nl_init(void);
 void mt753x_nl_exit(void);
-
 #endif /* __KERNEL__ */
 
 #endif /* _MT753X_NL_H_ */
