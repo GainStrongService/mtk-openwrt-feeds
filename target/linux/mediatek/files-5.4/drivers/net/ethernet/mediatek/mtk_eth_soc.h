@@ -595,6 +595,7 @@
 /* PDMA V2 descriptor rxd6 */
 #define RX_DMA_GET_FLUSH_RSN_V2(_x)	((_x) & 0x7)
 #define RX_DMA_GET_AGG_CNT_V2(_x)	(((_x) >> 16) & 0xff)
+#define RX_DMA_GET_TOPS_CRSN(_x)	(((_x) >> 24) & 0xff)
 
 /* PHY Indirect Access Control registers */
 #define MTK_PHY_IAC		0x10004

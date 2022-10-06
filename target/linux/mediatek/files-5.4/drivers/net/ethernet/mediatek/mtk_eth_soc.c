@@ -1045,6 +1045,7 @@ static bool mtk_rx_get_desc(struct mtk_eth *eth, struct mtk_rx_dma_v2 *rxd,
 	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
 		rxd->rxd5 = READ_ONCE(dma_rxd->rxd5);
 		rxd->rxd6 = READ_ONCE(dma_rxd->rxd6);
+		rxd->rxd7 = READ_ONCE(dma_rxd->rxd7);
 	}
 
 	return true;
@@ -1677,7 +1678,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		goto rx_done;
 
 	while (done < budget) {
-		struct net_device *netdev;
+		struct net_device *netdev = NULL;
 		unsigned int pktlen;
 		dma_addr_t dma_addr;
 		int mac = 0;
