@@ -1,24 +1,24 @@
-From a9c16aec415de2f4550c0bf25eb690e9025c5dbf Mon Sep 17 00:00:00 2001
+From d9361b85b289804c9a69f4ca3d2747ca17aaf6d5 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
-Date: Thu, 22 Sep 2022 19:12:18 +0800
+Date: Fri, 7 Oct 2022 10:46:29 +0800
 Subject: [PATCH] Add DFS disable channel switch when receive radar
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  hostapd/config_file.c |  4 ++++
- hostapd/ctrl_iface.c  | 22 ++++++++++++++++++++++
+ hostapd/ctrl_iface.c  | 20 ++++++++++++++++++++
  src/ap/ap_config.h    | 13 +++++++++++++
  src/ap/dfs.c          | 10 ++++++++++
- 4 files changed, 49 insertions(+)
+ 4 files changed, 47 insertions(+)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 9b79be1..5fa0e37 100644
+index 310f97d..a2ee418 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4789,6 +4789,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
- 	} else if (os_strcmp(buf, "ibf_enable") == 0) { /*ibf setting is per device*/
- 		int val = atoi(pos);
- 		conf->ibf_enable = !!val;
+@@ -4807,6 +4807,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+ 			return 1;
+ 		}
+ 		conf->amsdu = val;
 +	} else if (os_strcmp(buf, "dfs_detect_mode") == 0) { /*bypass channel switch*/
 +		u8 en = strtol(pos, NULL, 10);
 +
@@ -27,12 +27,12 @@ index 9b79be1..5fa0e37 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index a010e7f..6ed8965 100644
+index 0c40175..cc440fd 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3494,6 +3494,25 @@ hostapd_ctrl_iface_get_ibf(struct hostapd_data *hapd, char *buf,
- 	return ret;
+@@ -3537,6 +3537,26 @@ hostapd_ctrl_iface_get_aggregation(struct hostapd_data *hapd, char *buf,
  }
+ 
  
 +static int
 +hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,
@@ -53,32 +53,23 @@ index a010e7f..6ed8965 100644
 +	return 0;
 +}
 +
- 
++
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
-@@ -4055,6 +4074,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
- 		reply_len = hostapd_ctrl_iface_get_hemu(hapd, reply, reply_size);
- 	} else if (os_strncmp(buf, "GET_IBF", 7) == 0) {
- 		reply_len = hostapd_ctrl_iface_get_ibf(hapd, reply, reply_size);
-+	} else if (os_strncmp(buf, "DFS_DETECT_MODE ", 16) == 0) {
-+		reply_len = hostapd_ctrl_iface_set_dfs_detect_mode(hapd, buf + 16,
-+								   reply, reply_size);
- 	} else {
- 		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
- 		reply_len = 16;
+ 					      int reply_size,
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 2a74e09..97f5e33 100644
+index 01b051d..f567c37 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1158,6 +1158,7 @@ struct hostapd_config {
- 	s8 edcca_compensation;
- 	u8 three_wire_enable;
+@@ -1160,6 +1160,7 @@ struct hostapd_config {
  	u8 ibf_enable;
+ 	u8 ampdu;
+ 	u8 amsdu;
 +	u8 dfs_detect_mode;
  };
  
  enum three_wire_mode {
-@@ -1172,6 +1173,18 @@ enum three_wire_mode {
+@@ -1174,6 +1175,18 @@ enum three_wire_mode {
  		NUM_THREE_WIRE_MODE - 1
  };
  
