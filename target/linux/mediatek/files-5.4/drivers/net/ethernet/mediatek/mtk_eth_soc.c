@@ -1250,21 +1250,17 @@ static void mtk_tx_set_dma_desc_v2(struct sk_buff *skb, struct net_device *dev, 
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_tx_dma_v2 *desc = txd;
-	u64 addr64 = 0;
 	u32 data = 0;
 
-	if(!info->qid && mac->id)
+	if (!info->qid && mac->id)
 		info->qid = MTK_QDMA_GMAC2_QID;
-
-	addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
-		  TX_DMA_SDP1(info->addr) : 0;
 
 	WRITE_ONCE(desc->txd1, info->addr);
 
 	data = TX_DMA_PLEN0(info->size);
 	if (info->last)
 		data |= TX_DMA_LS0;
-	WRITE_ONCE(desc->txd3, data | addr64);
+	WRITE_ONCE(desc->txd3, data);
 
 	data = ((mac->id == MTK_GMAC3_ID) ?
 		PSE_GDM3_PORT : (mac->id + 1)) << TX_DMA_FPORT_SHIFT_V2; /* forward port */
@@ -1299,14 +1295,73 @@ static void mtk_tx_set_dma_desc_v2(struct sk_buff *skb, struct net_device *dev, 
 	WRITE_ONCE(desc->txd8, 0);
 }
 
+static void mtk_tx_set_dma_desc_v3(struct sk_buff *skb, struct net_device *dev, void *txd,
+				struct mtk_tx_dma_desc_info *info)
+{
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	struct mtk_tx_dma_v2 *desc = txd;
+	u64 addr64 = 0;
+	u32 data = 0;
+
+	if (!info->qid && mac->id)
+		info->qid = MTK_QDMA_GMAC2_QID;
+
+	addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
+		  TX_DMA_SDP1(info->addr) : 0;
+
+	WRITE_ONCE(desc->txd1, info->addr);
+
+	data = TX_DMA_PLEN0(info->size);
+	if (info->last)
+		data |= TX_DMA_LS0;
+	WRITE_ONCE(desc->txd3, data | addr64);
+
+	data = ((mac->id == MTK_GMAC3_ID) ?
+		PSE_GDM3_PORT : (mac->id + 1)) << TX_DMA_FPORT_SHIFT_V2; /* forward port */
+	data |= TX_DMA_SWC_V2 | QID_BITS_V2(info->qid);
+#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+	if (HNAT_SKB_CB2(skb)->magic == 0x78681415) {
+		data &= ~(0xf << TX_DMA_FPORT_SHIFT_V2);
+		data |= 0x4 << TX_DMA_FPORT_SHIFT_V2;
+	}
+
+	trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
+		     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
+#endif
+	WRITE_ONCE(desc->txd4, data);
+
+	data = 0;
+	if (info->first) {
+		if (info->gso)
+			data |= TX_DMA_TSO_V2;
+		/* tx checksum offload */
+		if (info->csum)
+			data |= TX_DMA_CHKSUM_V2;
+
+		if (netdev_uses_dsa(dev))
+			data |= TX_DMA_SPTAG_V3;
+	}
+	WRITE_ONCE(desc->txd5, data);
+
+	data = 0;
+	if (info->first && info->vlan)
+		data |= TX_DMA_INS_VLAN_V2 | info->vlan_tci;
+	WRITE_ONCE(desc->txd6, data);
+
+	WRITE_ONCE(desc->txd7, 0);
+	WRITE_ONCE(desc->txd8, 0);
+}
+
 static void mtk_tx_set_dma_desc(struct sk_buff *skb, struct net_device *dev, void *txd,
 				struct mtk_tx_dma_desc_info *info)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
-	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+		mtk_tx_set_dma_desc_v3(skb, dev, txd, info);
+	else if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
 		mtk_tx_set_dma_desc_v2(skb, dev, txd, info);
 	else
 		mtk_tx_set_dma_desc_v1(skb, dev, txd, info);
