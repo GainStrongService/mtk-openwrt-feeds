@@ -392,10 +392,7 @@ struct hnat_ipv4_hnapt {
 	u32 smac_hi;
 	u16 pppoe_id;
 	u16 smac_lo;
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-	u16 minfo;
-	struct hnat_winfo winfo;
-#elif defined(CONFIG_MEDIATEK_NETSYS_V3)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
 	u16 minfo;
 	u16 resv4;
 	struct hnat_winfo winfo;
@@ -405,6 +402,9 @@ struct hnat_ipv4_hnapt {
 	u32 resv5 : 2;
 	u32 tport_id : 4;
 	u32 resv6 : 12;
+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
+	u16 minfo;
+	struct hnat_winfo winfo;
 #endif
 } __packed;
 
@@ -454,10 +454,7 @@ struct hnat_ipv4_dslite {
 	u32 smac_hi;
 	u16 pppoe_id;
 	u16 smac_lo;
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-	u16 minfo;
-	struct hnat_winfo winfo;
-#elif defined(CONFIG_MEDIATEK_NETSYS_V3)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
 	u16 minfo;
 	u16 resv3;
 	struct hnat_winfo winfo;
@@ -467,6 +464,9 @@ struct hnat_ipv4_dslite {
 	u32 resv4 : 2;
 	u32 tport_id : 4;
 	u32 resv5 : 12;
+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
+	u16 minfo;
+	struct hnat_winfo winfo;
 #endif
 } __packed;
 
@@ -516,14 +516,7 @@ struct hnat_ipv4_mape {
 	u32 smac_hi;
 	u16 pppoe_id;
 	u16 smac_lo;
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-	u16 minfo;
-	struct hnat_winfo winfo;
-	u32 new_sip;
-	u32 new_dip;
-	u16 new_dport;
-	u16 new_sport;
-#elif defined(CONFIG_MEDIATEK_NETSYS_V3)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
 	u16 minfo;
 	u16 resv3;
 	u32 new_sip;
@@ -537,6 +530,13 @@ struct hnat_ipv4_mape {
 	u32 resv4 : 2;
 	u32 tport_id : 4;
 	u32 resv5 : 12;
+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
+	u16 minfo;
+	struct hnat_winfo winfo;
+	u32 new_sip;
+	u32 new_dip;
+	u16 new_dport;
+	u16 new_sport;
 #endif
 } __packed;
 
@@ -581,10 +581,7 @@ struct hnat_ipv6_3t_route {
 	u32 smac_hi;
 	u16 pppoe_id;
 	u16 smac_lo;
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-	u16 minfo;
-	struct hnat_winfo winfo;
-#elif defined(CONFIG_MEDIATEK_NETSYS_V3)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
 	u16 minfo;
 	u16 resv5;
 	struct hnat_winfo winfo;
@@ -594,6 +591,9 @@ struct hnat_ipv6_3t_route {
 	u32 resv6 : 2;
 	u32 tport_id : 4;
 	u32 resv7 : 12;
+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
+	u16 minfo;
+	struct hnat_winfo winfo;
 #endif
 } __packed;
 
@@ -639,10 +639,7 @@ struct hnat_ipv6_5t_route {
 	u32 smac_hi;
 	u16 pppoe_id;
 	u16 smac_lo;
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-	u16 minfo;
-	struct hnat_winfo winfo;
-#elif defined(CONFIG_MEDIATEK_NETSYS_V3)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
 	u16 minfo;
 	u16 resv5;
 	struct hnat_winfo winfo;
@@ -652,6 +649,9 @@ struct hnat_ipv6_5t_route {
 	u32 resv6 : 2;
 	u32 tport_id : 4;
 	u32 resv7 : 12;
+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
+	u16 minfo;
+	struct hnat_winfo winfo;
 #endif
 } __packed;
 
@@ -702,14 +702,7 @@ struct hnat_ipv6_6rd {
 	u32 smac_hi;
 	u16 pppoe_id;
 	u16 smac_lo;
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-	u16 minfo;
-	struct hnat_winfo winfo;
-	u32 resv3;
-	u32 resv4;
-	u16 new_dport;
-	u16 new_sport;
-#elif defined(CONFIG_MEDIATEK_NETSYS_V3)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
 	u16 minfo;
 	u16 resv3;
 	struct hnat_winfo winfo;
@@ -727,6 +720,13 @@ struct hnat_ipv6_6rd {
 	u32 resv11;
 	u32 resv12;
 	u32 resv13;
+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
+	u16 minfo;
+	struct hnat_winfo winfo;
+	u32 resv3;
+	u32 resv4;
+	u16 new_dport;
+	u16 new_sport;
 #endif
 } __packed;
 
