@@ -17,7 +17,8 @@
 #include "util.h"
 #include "debug.h"
 
-#define BRIDGE_NAME	"br-lan"
+#define BRIDGE_NAME_OPENWRT	"br-lan"
+#define BRIDGE_NAME_RDKB	"brlan0"
 #define ETH_P_RACFG	0x2880
 #define RACFG_PKT_MAX_SIZE	1600
 #define RACFG_HLEN	12
@@ -86,6 +87,7 @@ struct atenl {
 	u8 cur_band;
 
 	u8 mac_addr[ETH_ALEN];
+	char *bridge_name;
 	bool unicast;
 	int sock_eth;
 

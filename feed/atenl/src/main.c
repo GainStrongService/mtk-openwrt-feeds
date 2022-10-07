@@ -56,6 +56,30 @@ static int phy_lookup_idx(const char *name)
 	return atoi(buf);
 }
 
+static int get_default_bridge_name(struct atenl *an)
+{
+	char buf[128];
+	FILE *f;
+	size_t len;
+	int ret;
+
+	ret = snprintf(buf, sizeof(buf), "/sbin/procd");
+	if (snprintf_error(sizeof(buf), ret))
+		return -1;
+
+	f = fopen(buf, "r");
+
+	/* This procd is openwrt only */
+	if (f) {
+		an->bridge_name = BRIDGE_NAME_OPENWRT;
+		fclose(f);
+	} else {
+		an->bridge_name = BRIDGE_NAME_RDKB;
+	}
+
+	return 0;
+}
+
 static void usage(void)
 {
 	printf("Usage:\n");
@@ -63,9 +87,10 @@ static void usage(void)
 	printf("options:\n"
 	       "  -h = show help text\n"
 	       "  -i = phy name of driver interface, please use first phy for dbdc\n"
-	       "  -u = use unicast to respond to HQADLL\n");
+	       "  -u = use unicast to respond to HQADLL\n"
+	       "  -b = specify your bridge name\n");
 	printf("examples:\n"
-	       "  %s -u -i phy0\n", progname);
+	       "  %s -u -i phy0 -b br-lan\n", progname);
 
 	exit(EXIT_FAILURE);
 }
@@ -109,7 +134,7 @@ int main(int argc, char **argv)
 		return -ENOMEM;
 
 	while(1) {
-		opt = getopt(argc, argv, "hi:uc:");
+		opt = getopt(argc, argv, "hi:uc:b:");
 		if (opt == -1)
 			break;
 
@@ -119,6 +144,9 @@ int main(int argc, char **argv)
 				goto out;
 			case 'i':
 				phy = optarg;
+				break;
+			case 'b':
+				an->bridge_name = optarg;
 				break;
 			case 'u':
 				an->unicast = true;
@@ -146,6 +174,18 @@ int main(int argc, char **argv)
 
 	atenl_enable = true;
 	atenl_init_signals();
+
+	if (!an->bridge_name) {
+		ret = get_default_bridge_name(an);
+		if (ret) {
+			atenl_err("Get default bridge name failed\n");
+			goto out;
+		}
+
+		atenl_info("Bridge name is not specified, use default bridge name: %s\n", an->bridge_name);
+	} else {
+		atenl_info("Currently using bridge name: %s\n", an->bridge_name);
+	}
 
 	/* background ourself */
 	if (!fork()) {

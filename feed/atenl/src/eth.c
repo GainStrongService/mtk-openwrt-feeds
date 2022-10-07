@@ -9,7 +9,12 @@ int atenl_eth_init(struct atenl *an)
 	struct ifreq ifr = {};
 	int ret;
  
-	memcpy(ifr.ifr_name, BRIDGE_NAME, strlen(BRIDGE_NAME));
+	if (!an->bridge_name) {
+		perror("Bridge name not specified");
+		goto out;
+	}
+
+	memcpy(ifr.ifr_name, an->bridge_name, strlen(an->bridge_name));
 	ret = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_RACFG));
 	if (ret < 0) {
 		perror("socket");
@@ -18,7 +23,7 @@ int atenl_eth_init(struct atenl *an)
 	an->sock_eth = ret;
 
 	addr.sll_family = AF_PACKET;
-	addr.sll_ifindex = if_nametoindex(BRIDGE_NAME);
+	addr.sll_ifindex = if_nametoindex(an->bridge_name);
 
 	ret = bind(an->sock_eth, (struct sockaddr *)&addr, sizeof(addr));
 	if (ret < 0) {
@@ -34,7 +39,7 @@ int atenl_eth_init(struct atenl *an)
 
 	memcpy(an->mac_addr, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
 	atenl_info("Open Ethernet socket success on %s, mac addr = " MACSTR "\n",
-		   BRIDGE_NAME, MAC2STR(an->mac_addr));
+		   an->bridge_name, MAC2STR(an->mac_addr));
 
 	ret = 0;
 out:
@@ -95,7 +100,7 @@ int atenl_eth_send(struct atenl *an, struct atenl_data *data)
 
 	addr.sll_family = PF_PACKET;
 	addr.sll_protocol = htons(ETH_P_RACFG);
-	addr.sll_ifindex = if_nametoindex(BRIDGE_NAME);
+	addr.sll_ifindex = if_nametoindex(an->bridge_name);
 	addr.sll_pkttype = PACKET_BROADCAST;
 	addr.sll_hatype = ARPHRD_ETHER;
 	addr.sll_halen = ETH_ALEN;
