@@ -430,11 +430,14 @@ index 5a4201447..2f7d76d3b
  	f->stats.lastused = jiffies - idle * HZ;
  
  	return 0;
-@@ -540,9 +564,12 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
+@@ -540,12 +564,14 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
  	static LIST_HEAD(block_cb_list);
  	struct flow_block_cb *block_cb;
  	flow_setup_cb_t *cb;
-+	int i;
+-	int err = 0;
++	int i, err = 0;
+ 
+ 	flowtable = container_of(f->block, struct nf_flowtable, flow_block);
  
 -	if (!eth->ppe || !eth->ppe->foe_table)
 -		return -EOPNOTSUPP;

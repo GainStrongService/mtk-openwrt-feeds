@@ -1291,7 +1291,7 @@ new file mode 100644
 index 000000000..4294f0c74
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -0,0 +1,526 @@
+@@ -0,0 +1,541 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + *  Copyright (C) 2020 Felix Fietkau <nbd@nbd.name>
@@ -1760,9 +1760,13 @@ index 000000000..4294f0c74
 +{
 +	struct mtk_mac *mac = netdev_priv(dev);
 +	struct mtk_eth *eth = mac->hw;
++	struct nf_flowtable *flowtable;
 +	static LIST_HEAD(block_cb_list);
 +	struct flow_block_cb *block_cb;
 +	flow_setup_cb_t *cb;
++	int err = 0;
++
++	flowtable = container_of(f->block, struct nf_flowtable, flow_block);
 +
 +	if (!eth->ppe.foe_table)
 +		return -EOPNOTSUPP;
@@ -1773,33 +1777,44 @@ index 000000000..4294f0c74
 +	cb = mtk_eth_setup_tc_block_cb;
 +	f->driver_block_list = &block_cb_list;
 +
++	down_write(&flowtable->flow_block_lock);
++
 +	switch (f->command) {
 +	case FLOW_BLOCK_BIND:
 +		block_cb = flow_block_cb_lookup(f->block, cb, dev);
 +		if (block_cb) {
 +			flow_block_cb_incref(block_cb);
-+			return 0;
++			goto unlock;
 +		}
 +		block_cb = flow_block_cb_alloc(cb, dev, dev, NULL);
-+		if (IS_ERR(block_cb))
-+			return PTR_ERR(block_cb);
++		if (IS_ERR(block_cb)) {
++			err = PTR_ERR(block_cb);
++			goto unlock;
++		}
 +
 +		flow_block_cb_add(block_cb, f);
 +		list_add_tail(&block_cb->driver_list, &block_cb_list);
-+		return 0;
++		break;
 +	case FLOW_BLOCK_UNBIND:
 +		block_cb = flow_block_cb_lookup(f->block, cb, dev);
-+		if (!block_cb)
-+			return -ENOENT;
++		if (!block_cb) {
++			err = -ENOENT;
++			goto unlock;
++		}
 +
 +		if (flow_block_cb_decref(block_cb)) {
 +			flow_block_cb_remove(block_cb, f);
 +			list_del(&block_cb->driver_list);
 +		}
-+		return 0;
++		break;
 +	default:
-+		return -EOPNOTSUPP;
++		err = -EOPNOTSUPP;
++		break;
 +	}
++
++unlock:
++	up_write(&flowtable->flow_block_lock);
++	return err;
 +}
 +
 +int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
@@ -5785,7 +5800,7 @@ index 000000000..d94c6fb92
 +	if (cmd == FLOW_CLS_REPLACE)
 +		cls_flow.rule = flow_rule->rule;
 +
-+	down_read(&flowtable->flow_block_lock);
++	down_write(&flowtable->flow_block_lock);
 +	list_for_each_entry(block_cb, block_cb_list, list) {
 +		err = block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow,
 +				   block_cb->cb_priv);
@@ -5794,7 +5809,7 @@ index 000000000..d94c6fb92
 +
 +		i++;
 +	}
-+	up_read(&flowtable->flow_block_lock);
++	up_write(&flowtable->flow_block_lock);
 +
 +	if (cmd == FLOW_CLS_STATS)
 +		memcpy(stats, &cls_flow.stats, sizeof(*stats));
