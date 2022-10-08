@@ -673,74 +673,7 @@ unsigned int do_hnat_mape_w2l_fast(struct sk_buff *skb, const struct net_device 
 	return -1;
 }
 
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-unsigned int do_hnat_mape_w2l(struct sk_buff *skb, const struct net_device *in,
-				   const char *func)
-{
-	struct ipv6hdr *ip6h = ipv6_hdr(skb);
-	struct iphdr _iphdr;
-	struct iphdr *iph;
-	struct foe_entry *entry;
-	struct tcpudphdr _ports;
-	const struct tcpudphdr *pptr;
-	int udp = 0;
 
-	/* WAN -> LAN/WLAN MapE learn info(include innner IPv4 header info). */
-	if (ip6h->nexthdr == NEXTHDR_IPIP) {
-		entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
-
-		entry->ipv4_dslite.tunnel_sipv6_0 =
-			ntohl(ip6h->saddr.s6_addr32[0]);
-		entry->ipv4_dslite.tunnel_sipv6_1 =
-			ntohl(ip6h->saddr.s6_addr32[1]);
-		entry->ipv4_dslite.tunnel_sipv6_2 =
-			ntohl(ip6h->saddr.s6_addr32[2]);
-		entry->ipv4_dslite.tunnel_sipv6_3 =
-			ntohl(ip6h->saddr.s6_addr32[3]);
-
-		entry->ipv4_dslite.tunnel_dipv6_0 =
-			ntohl(ip6h->daddr.s6_addr32[0]);
-		entry->ipv4_dslite.tunnel_dipv6_1 =
-			ntohl(ip6h->daddr.s6_addr32[1]);
-		entry->ipv4_dslite.tunnel_dipv6_2 =
-			ntohl(ip6h->daddr.s6_addr32[2]);
-		entry->ipv4_dslite.tunnel_dipv6_3 =
-			ntohl(ip6h->daddr.s6_addr32[3]);
-
-		ppe_fill_flow_lbl(entry, ip6h);
-
-		iph = skb_header_pointer(skb, IPV6_HDR_LEN,
-					 sizeof(_iphdr), &_iphdr);
-		if (unlikely(!iph))
-			return NF_ACCEPT;
-
-		switch (iph->protocol) {
-		case IPPROTO_UDP:
-			udp = 1;
-		case IPPROTO_TCP:
-		break;
-
-		default:
-			return NF_ACCEPT;
-		}
-
-		pptr = skb_header_pointer(skb, IPV6_HDR_LEN + iph->ihl * 4,
-					  sizeof(_ports), &_ports);
-		if (unlikely(!pptr))
-			return NF_ACCEPT;
-
-		entry->bfib1.udp = udp;
-
-		entry->ipv4_mape.new_sip = ntohl(iph->saddr);
-		entry->ipv4_mape.new_dip = ntohl(iph->daddr);
-		entry->ipv4_mape.new_sport = ntohs(pptr->src);
-		entry->ipv4_mape.new_dport = ntohs(pptr->dst);
-
-		return 0;
-	}
-	return -1;
-}
-#endif
 
 static unsigned int is_ppe_support_type(struct sk_buff *skb)
 {
@@ -824,22 +757,19 @@ mtk_hnat_ipv6_nf_pre_routing(void *priv, struct sk_buff *skb,
 		goto drop;
 	}
 
+
+#if !(defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3))
 	/* MapE need remove ipv6 header and pingpong. */
 	if (do_mape_w2l_fast(state->in, skb)) {
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-		if (mape_toggle && do_hnat_mape_w2l(skb, state->in, __func__))
-			return NF_ACCEPT;
-#else
 		if (!do_hnat_mape_w2l_fast(skb, state->in, __func__))
 			return NF_STOLEN;
 		else
 			return NF_ACCEPT;
-#endif
 	}
 
 	if (is_from_mape(skb))
 		clr_from_extge(skb);
-
+#endif
 	return NF_ACCEPT;
 drop:
 	printk_ratelimited(KERN_WARNING
@@ -958,6 +888,7 @@ mtk_hnat_br_nf_local_in(void *priv, struct sk_buff *skb,
 		}
 	}
 
+#if !(defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3))
 	/* MapE need remove ipv6 header and pingpong. (bridge mode) */
 	if (do_mape_w2l_fast(state->in, skb)) {
 		if (!do_hnat_mape_w2l_fast(skb, state->in, __func__))
@@ -965,7 +896,7 @@ mtk_hnat_br_nf_local_in(void *priv, struct sk_buff *skb,
 		else
 			return NF_ACCEPT;
 	}
-
+#endif
 	return NF_ACCEPT;
 drop:
 	printk_ratelimited(KERN_WARNING
