@@ -24,7 +24,7 @@ index b7c1b13..7571e83 100644
  	mt76_packet_id_flush(dev, wcid);
  
 -	mt76_wcid_mask_clear(dev->wcid_mask, idx);
-+	if (dev->drv->wed_wds_check(dev, sta))
++	if (dev->drv->wed_wds_check && dev->drv->wed_wds_check(dev, sta))
 +		mt76_wcid_mask_clear(dev->wcid_wds_mask, idx);
 +	else
 +		mt76_wcid_mask_clear(dev->wcid_mask, idx);
