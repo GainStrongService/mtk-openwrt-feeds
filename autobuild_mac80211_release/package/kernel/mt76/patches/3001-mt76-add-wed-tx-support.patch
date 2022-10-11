@@ -8,8 +8,8 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  mt76_connac.h |  1 +
  mt7915/mac.c  | 11 +++++++----
  mt7915/main.c |  4 ++--
- mt7915/mmio.c | 10 +++++++++-
- 4 files changed, 19 insertions(+), 7 deletions(-)
+ mt7915/mmio.c | 12 ++++++++++--
+ 4 files changed, 20 insertions(+), 8 deletions(-)
 
 diff --git a/mt76_connac.h b/mt76_connac.h
 index 0915eb57..9a468878 100644
@@ -27,7 +27,7 @@ diff --git a/mt7915/mac.c b/mt7915/mac.c
 index 961b7afc..65e47f95 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -826,9 +826,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
+@@ -828,9 +828,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
  
  	txp->token = cpu_to_le16(token_id);
  	txp->nbuf = 1;
@@ -39,7 +39,7 @@ index 961b7afc..65e47f95 100644
  }
  
  static void
-@@ -944,6 +944,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -946,6 +946,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  	LIST_HEAD(free_list);
  	void *end = data + len;
  	bool v3, wake = false;
@@ -47,7 +47,7 @@ index 961b7afc..65e47f95 100644
  	u16 total, count = 0;
  	u32 txd = le32_to_cpu(free->txd);
  	__le32 *cur_info;
-@@ -999,12 +1000,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -1001,12 +1002,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  			txwi = mt76_token_release(mdev, msdu, &wake);
  			if (!txwi)
  				continue;
@@ -98,6 +98,15 @@ index 1eda361f..0b37f1b3 100644
  module_param(wed_enable, bool, 0644);
  
  static const u32 mt7915_reg[] = {
+@@ -525,7 +525,7 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
+ 	dev = container_of(wed, struct mt7915_dev, mt76.mmio.wed);
+ 
+ 	spin_lock_bh(&dev->mt76.token_lock);
+-	dev->mt76.token_size = MT7915_TOKEN_SIZE;
++	dev->mt76.token_size = wed->wlan.token_start;//MT7915_TOKEN_SIZE
+ 	spin_unlock_bh(&dev->mt76.token_lock);
+ 
+ 	/* MT_TXD5_TX_STATUS_HOST (MPDU format) has higher priority than
 @@ -556,6 +556,9 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  
  		wed->wlan.pci_dev = pci_dev;

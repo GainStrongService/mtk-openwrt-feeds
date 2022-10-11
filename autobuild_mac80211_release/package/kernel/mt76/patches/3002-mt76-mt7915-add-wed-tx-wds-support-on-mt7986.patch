@@ -8,12 +8,12 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  mac80211.c      |  5 ++++-
  mt76.h          |  2 ++
  mt7915/init.c   |  9 +++++++++
- mt7915/main.c   | 44 ++++++++++++++++++++++++++++++++++++++++++--
+ mt7915/main.c   | 45 +++++++++++++++++++++++++++++++++++++++++++--
  mt7915/mcu.c    | 12 ++++++++++--
  mt7915/mcu.h    |  1 +
  mt7915/mmio.c   |  3 +++
  mt7915/mt7915.h |  4 ++++
- 8 files changed, 75 insertions(+), 5 deletions(-)
+ 8 files changed, 76 insertions(+), 5 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
 index b7c1b13..7571e83 100644
@@ -120,7 +120,7 @@ index 4e91527..74c9777 100644
  	if (idx < 0)
  		return -ENOSPC;
  
-@@ -1125,6 +1153,14 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
+@@ -1125,6 +1153,15 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
  	else
  		clear_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
  
@@ -129,13 +129,14 @@ index 4e91527..74c9777 100644
 +	    (msta->wcid.idx < MT7915_WTBL_WDS_START ||
 +	     msta->wcid.idx > MT7915_WTBL_WDS_END)) {
 +		mt7915_sta_remove(hw, vif, sta);
++		mt76_sta_pre_rcu_remove(hw, vif, sta);
 +		mt7915_sta_add(hw, vif, sta);
 +	 }
 +
  	mt76_connac_mcu_wtbl_update_hdr_trans(&dev->mt76, vif, sta);
  }
  
-@@ -1464,7 +1500,11 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1464,7 +1501,11 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	path->dev = ctx->dev;
  	path->mtk_wdma.wdma_idx = wed->wdma_idx;
  	path->mtk_wdma.bss = mvif->mt76.idx;
@@ -194,7 +195,7 @@ diff --git a/mt7915/mmio.c b/mt7915/mmio.c
 index 1eda361..6f0f262 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
-@@ -589,6 +589,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -596,6 +596,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  	wed->wlan.init_buf = mt7915_wed_init_buf;
  	wed->wlan.offload_enable = mt7915_mmio_wed_offload_enable;
  	wed->wlan.offload_disable = mt7915_mmio_wed_offload_disable;
@@ -203,7 +204,7 @@ index 1eda361..6f0f262 100644
  
  	if (mtk_wed_device_attach(wed))
  		return 0;
-@@ -802,6 +804,7 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
+@@ -810,6 +812,7 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
  		.sta_add = mt7915_mac_sta_add,
  		.sta_remove = mt7915_mac_sta_remove,
  		.update_survey = mt7915_update_channel,
