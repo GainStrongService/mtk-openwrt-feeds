@@ -77,6 +77,9 @@ enum {
 #define MTK_PHY_TANA_CAL_MODE		(0xc1)
 #define MTK_PHY_TANA_CAL_MODE_SHIFT	(8)
 
+#define MTK_PHY_RXADC_CTRL_RG7		(0xc6)
+#define   MTK_PHY_DA_AD_BUF_BIAS_LP_MASK	GENMASK(9, 8)
+
 #define MTK_PHY_RXADC_CTRL_RG9		(0xc8)
 #define   MTK_PHY_DA_RX_PSBN_TBT_MASK	GENMASK(14, 12)
 #define   MTK_PHY_DA_RX_PSBN_HBT_MASK	GENMASK(10, 8)
@@ -885,7 +888,24 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 		phy_write_mmd(phydev, MDIO_MMD_VEND1, i, val[i]);
 	}
 
+	/* TCT finetune */
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_TX_FILTER, 0x5);
+
+	/* Disable TX power saving */
+	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RXADC_CTRL_RG7,
+			MTK_PHY_DA_AD_BUF_BIAS_LP_MASK, 0x3);
+
+	/* Slave mode finetune*/
+	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_52B5);
+	__phy_write(phydev, 0x12, 0x0);
+	__phy_write(phydev, 0x11, 0x700);
+	__phy_write(phydev, 0x10, 0x9686);
+
+	__phy_write(phydev, 0x12, 0x0);
+	__phy_write(phydev, 0x11, 0x64);
+	__phy_write(phydev, 0x10, 0x8f82);
+	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
+
 }
 
 static int mt798x_phy_calibration(struct phy_device *phydev)
