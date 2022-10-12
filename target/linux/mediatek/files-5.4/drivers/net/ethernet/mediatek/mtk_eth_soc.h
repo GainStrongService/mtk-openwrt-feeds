@@ -146,6 +146,11 @@
 #define PSE_NO_DROP_CFG		0x108
 #define PSE_PPE0_DROP		0x110
 
+/* PSE Last FreeQ Page Request Control */
+#define PSE_DUMY_REQ		0x10C
+#define PSE_DUMMY_WORK_GDM(x)	BIT(16 + (x))
+#define DUMMY_PAGE_THR		0x151
+
 /* PSE Input Queue Reservation Register*/
 #define PSE_IQ_REV(x)		(0x140 + ((x - 1) * 0x4))
 
