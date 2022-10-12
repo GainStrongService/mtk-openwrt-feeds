@@ -12,7 +12,14 @@
  	}
  
  }
-@@ -409,7 +414,7 @@
+@@ -403,13 +408,13 @@
+ 	const struct firmware *fw[FW_NB];
+ 	char fw_path[37], *dir = NULL;
+ 	int i, j, ret = 0, pe;
+-	int ipuesz, ifppsz, minifw = 0;
++	int ipuesz, ifppsz, minifw = 1;
+ 
+ 	if (priv->version == EIP197D_MRVL)
  		dir = "eip197d";
  	else if (priv->version == EIP197B_MRVL ||
  		 priv->version == EIP197_DEVBRD)
@@ -21,7 +28,19 @@
  	else
  		return -ENODEV;
  
-@@ -792,6 +797,12 @@
+@@ -592,6 +597,11 @@
+ 	 */
+ 	if (priv->flags & SAFEXCEL_HW_EIP197) {
+ 		val = readl(EIP197_HIA_AIC(priv) + EIP197_HIA_MST_CTRL);
++		/* Clear axi_burst_size and rx_burst_size */
++		val &= 0xffffff00;
++		/* Set axi_burst_size = 3, rx_burst_size = 3 */
++		val |= EIP197_MST_CTRL_RD_CACHE(3);
++		val |= EIP197_MST_CTRL_WD_CACHE(3);
+ 		val |= EIP197_MST_CTRL_TX_MAX_CMD(5);
+ 		writel(val, EIP197_HIA_AIC(priv) + EIP197_HIA_MST_CTRL);
+ 	}
+@@ -792,6 +802,12 @@
  			return ret;
  	}
  
@@ -34,7 +53,7 @@
  	return safexcel_hw_setup_cdesc_rings(priv) ?:
  	       safexcel_hw_setup_rdesc_rings(priv) ?:
  	       0;
-@@ -1498,6 +1509,9 @@
+@@ -1498,6 +1514,9 @@
  	hwopt = readl(EIP197_GLOBAL(priv) + EIP197_OPTIONS);
  	hiaopt = readl(EIP197_HIA_AIC(priv) + EIP197_HIA_OPTIONS);
  
@@ -44,7 +63,7 @@
  	if (priv->flags & SAFEXCEL_HW_EIP197) {
  		/* EIP197 */
  		peopt = readl(EIP197_PE(priv) + EIP197_PE_OPTIONS(0));
-@@ -1516,8 +1530,37 @@
+@@ -1516,8 +1535,37 @@
  					    EIP197_N_RINGS_MASK;
  		if (hiaopt & EIP197_HIA_OPT_HAS_PE_ARB)
  			priv->flags |= EIP197_PE_ARB;
@@ -83,7 +102,7 @@
  		/* If not a full TRC, then assume simple TRC */
  		if (!(hwopt & EIP197_OPT_HAS_TRC))
  			priv->flags |= EIP197_SIMPLE_TRC;
-@@ -1555,13 +1598,14 @@
+@@ -1555,13 +1603,14 @@
  				    EIP197_PE_EIP96_OPTIONS(0));
  
  	/* Print single info line describing what we just detected */
@@ -100,7 +119,7 @@
  
  	safexcel_configure(priv);
  
-@@ -1690,6 +1734,7 @@
+@@ -1690,6 +1739,7 @@
  {
  	struct device *dev = &pdev->dev;
  	struct safexcel_crypto_priv *priv;
@@ -108,7 +127,7 @@
  	int ret;
  
  	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-@@ -1701,7 +1746,11 @@
+@@ -1701,7 +1751,11 @@
  
  	platform_set_drvdata(pdev, priv);
  
