@@ -709,6 +709,8 @@ static void mtk_validate(struct phylink_config *config,
 		phylink_set(mask, 1000baseT_Half);
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseX_Full);
+		phylink_set(mask, 2500baseT_Full);
+		phylink_set(mask, 5000baseT_Full);
 		break;
 	case PHY_INTERFACE_MODE_TRGMII:
 		phylink_set(mask, 1000baseT_Full);
