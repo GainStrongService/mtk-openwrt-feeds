@@ -618,8 +618,9 @@ static const struct mtk_mux infra_muxes[] = {
 			     0x0020, 0x0024, 6, 2, -1, -1, -1),
 };
 
-static const struct mtk_clk_divider top_adj_divs[] = {
-	DIV_ADJ(CK_TOP_AUD_I2S_M, "aud_i2s_m", "aud", 0x0420, 8, 8),
+static struct mtk_composite top_aud_divs[] = {
+	DIV_GATE(CK_TOP_AUD_I2S_M, "aud_i2s_m", "aud",
+		0x0420, 0, 0x0420, 8, 8),
 };
 
 static const struct mtk_gate_regs infra0_cg_regs = {
@@ -1033,9 +1034,8 @@ static void __init mtk_topckgen_init(struct device_node *node)
 				 mt7988_top_clk_data);
 	mtk_clk_register_muxes(top_muxes, ARRAY_SIZE(top_muxes), node,
 			       &mt7988_clk_lock, mt7988_top_clk_data);
-	mtk_clk_register_dividers(top_adj_divs, ARRAY_SIZE(top_adj_divs), base,
-				  &mt7988_clk_lock, mt7988_top_clk_data);
-
+	mtk_clk_register_composites(top_aud_divs, ARRAY_SIZE(top_aud_divs),
+		base, &mt7988_clk_lock, mt7988_top_clk_data);
 	r = of_clk_add_provider(node, of_clk_src_onecell_get,
 				mt7988_top_clk_data);
 
