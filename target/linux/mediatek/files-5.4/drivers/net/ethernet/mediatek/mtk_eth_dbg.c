@@ -656,6 +656,26 @@ static void gdm_cnt_read(struct mtk_eth *eth)
 	pr_info("+-----------------------------------------------+\n");
 }
 
+void dump_each_port(struct seq_file *seq, struct mtk_eth *eth, u32 base)
+{
+	u32 pkt_cnt = 0;
+	int i = 0;
+
+	for (i = 0; i < 7; i++) {
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+			if ((base == 0x402C) && (i == 6))
+				base = 0x408C;
+			else if ((base == 0x408C) && (i == 6))
+				base = 0x402C;
+			else
+				;
+		}
+		pkt_cnt = mt7530_mdio_r32(eth, (base) + (i * 0x100));
+		seq_printf(seq, "%8u ", pkt_cnt);
+	}
+	seq_puts(seq, "\n");
+}
+
 int esw_cnt_read(struct seq_file *seq, void *v)
 {
 	unsigned int pkt_cnt = 0;
@@ -669,56 +689,47 @@ int esw_cnt_read(struct seq_file *seq, void *v)
 
 	mt798x_iomap();
 
-#define DUMP_EACH_PORT(base)					\
-	do { \
-		for (i = 0; i < 7; i++) {				\
-			pkt_cnt = mt7530_mdio_r32(eth, (base) + (i * 0x100));\
-			seq_printf(seq, "%8u ", pkt_cnt);		\
-		}							\
-		seq_puts(seq, "\n"); \
-	} while (0)
-
 	seq_printf(seq, "===================== %8s %8s %8s %8s %8s %8s %8s\n",
 		   "Port0", "Port1", "Port2", "Port3", "Port4", "Port5",
 		   "Port6");
 	seq_puts(seq, "Tx Drop Packet      :");
-	DUMP_EACH_PORT(0x4000);
+	dump_each_port(seq, eth, 0x4000);
 	seq_puts(seq, "Tx CRC Error        :");
-	DUMP_EACH_PORT(0x4004);
+	dump_each_port(seq, eth, 0x4004);
 	seq_puts(seq, "Tx Unicast Packet   :");
-	DUMP_EACH_PORT(0x4008);
+	dump_each_port(seq, eth, 0x4008);
 	seq_puts(seq, "Tx Multicast Packet :");
-	DUMP_EACH_PORT(0x400C);
+	dump_each_port(seq, eth, 0x400C);
 	seq_puts(seq, "Tx Broadcast Packet :");
-	DUMP_EACH_PORT(0x4010);
+	dump_each_port(seq, eth, 0x4010);
 	seq_puts(seq, "Tx Collision Event  :");
-	DUMP_EACH_PORT(0x4014);
+	dump_each_port(seq, eth, 0x4014);
 	seq_puts(seq, "Tx Pause Packet     :");
-	DUMP_EACH_PORT(0x402C);
+	dump_each_port(seq, eth, 0x402C);
 	seq_puts(seq, "Rx Drop Packet      :");
-	DUMP_EACH_PORT(0x4060);
+	dump_each_port(seq, eth, 0x4060);
 	seq_puts(seq, "Rx Filtering Packet :");
-	DUMP_EACH_PORT(0x4064);
+	dump_each_port(seq, eth, 0x4064);
 	seq_puts(seq, "Rx Unicast Packet   :");
-	DUMP_EACH_PORT(0x4068);
+	dump_each_port(seq, eth, 0x4068);
 	seq_puts(seq, "Rx Multicast Packet :");
-	DUMP_EACH_PORT(0x406C);
+	dump_each_port(seq, eth, 0x406C);
 	seq_puts(seq, "Rx Broadcast Packet :");
-	DUMP_EACH_PORT(0x4070);
+	dump_each_port(seq, eth, 0x4070);
 	seq_puts(seq, "Rx Alignment Error  :");
-	DUMP_EACH_PORT(0x4074);
+	dump_each_port(seq, eth, 0x4074);
 	seq_puts(seq, "Rx CRC Error	    :");
-	DUMP_EACH_PORT(0x4078);
+	dump_each_port(seq, eth, 0x4078);
 	seq_puts(seq, "Rx Undersize Error  :");
-	DUMP_EACH_PORT(0x407C);
+	dump_each_port(seq, eth, 0x407C);
 	seq_puts(seq, "Rx Fragment Error   :");
-	DUMP_EACH_PORT(0x4080);
+	dump_each_port(seq, eth, 0x4080);
 	seq_puts(seq, "Rx Oversize Error   :");
-	DUMP_EACH_PORT(0x4084);
+	dump_each_port(seq, eth, 0x4084);
 	seq_puts(seq, "Rx Jabber Error     :");
-	DUMP_EACH_PORT(0x4088);
+	dump_each_port(seq, eth, 0x4088);
 	seq_puts(seq, "Rx Pause Packet     :");
-	DUMP_EACH_PORT(0x408C);
+	dump_each_port(seq, eth, 0x408C);
 	mt7530_mdio_w32(eth, 0x4fe0, 0xf0);
 	mt7530_mdio_w32(eth, 0x4fe0, 0x800000f0);
 
