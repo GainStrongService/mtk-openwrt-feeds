@@ -898,7 +898,8 @@ static void mt7531_adjust_line_driving(struct gsw_mt753x *gsw, u32 port)
 	gsw->mmd_write(gsw, port, PHY_DEV1F, TXVLD_DA_273, 0x3000);
 
 	/* Adjust RX Echo path filter */
-	gsw->mmd_write(gsw, port, PHY_DEV1E, PHY_DEV1E_REG_0FE, 0x2);
+	if (!gsw->direct_access)
+		gsw->mmd_write(gsw, port, PHY_DEV1E, PHY_DEV1E_REG_0FE, 0x2);
 
 	/* Adjust RX HVGA bias current */
 	gsw->mmd_write(gsw, port, PHY_DEV1E, PHY_DEV1E_REG_41, 0x3333);

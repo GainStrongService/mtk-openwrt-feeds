@@ -893,19 +893,7 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 
 	/* Disable TX power saving */
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RXADC_CTRL_RG7,
-			MTK_PHY_DA_AD_BUF_BIAS_LP_MASK, 0x3);
-
-	/* Slave mode finetune*/
-	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_52B5);
-	__phy_write(phydev, 0x12, 0x0);
-	__phy_write(phydev, 0x11, 0x700);
-	__phy_write(phydev, 0x10, 0x9686);
-
-	__phy_write(phydev, 0x12, 0x0);
-	__phy_write(phydev, 0x11, 0x64);
-	__phy_write(phydev, 0x10, 0x8f82);
-	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
-
+			MTK_PHY_DA_AD_BUF_BIAS_LP_MASK, 0x3 << 8);
 }
 
 static int mt798x_phy_calibration(struct phy_device *phydev)
