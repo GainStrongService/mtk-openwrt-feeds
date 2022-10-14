@@ -3702,6 +3702,14 @@ void dump_each_port(unsigned int base)
 	int i = 0;
 
 	for (i = 0; i < 7; i++) {
+		if (chip_name == 0x7988) {
+			if ((base == 0x402C) && (i == 6))
+				base = 0x408C;
+			else if ((base == 0x408C) && (i == 6))
+				base = 0x402C;
+			else
+				;
+		}
 		reg_read((base) + (i * 0x100), &pkt_cnt);
 		printf("%8u ", pkt_cnt);
 	}
