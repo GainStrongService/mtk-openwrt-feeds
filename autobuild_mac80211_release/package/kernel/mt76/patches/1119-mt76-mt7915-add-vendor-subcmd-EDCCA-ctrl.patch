@@ -1,7 +1,7 @@
-From ef7f1097ad31dc69e3e5d0893ef5713f6af98a44 Mon Sep 17 00:00:00 2001
+From d219c48c59fdf1ec69bd08d3c1fef708c3ab9300 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
-Subject: [PATCH 1119/1124] mt76: mt7915: add vendor subcmd EDCCA ctrl
+Subject: [PATCH 1119/1127] mt76: mt7915: add vendor subcmd EDCCA ctrl
 
 Change-Id: I92dabf8be9c5a7ecec78f35325bc5645af8d15ab
 ---
@@ -15,7 +15,7 @@ Change-Id: I92dabf8be9c5a7ecec78f35325bc5645af8d15ab
  7 files changed, 138 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index b14f931..6143d8e 100644
+index b14f931b..6143d8e4 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1157,6 +1157,7 @@ enum {
@@ -27,7 +27,7 @@ index b14f931..6143d8e 100644
  };
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index fdbf1ee..80f4d9d 100644
+index fdbf1eea..80f4d9dd 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -456,6 +456,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
@@ -41,7 +41,7 @@ index fdbf1ee..80f4d9d 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 69a266f..8dcc54e 100644
+index 69a266f6..8dcc54eb 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -4272,3 +4272,41 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
@@ -87,7 +87,7 @@ index 69a266f..8dcc54e 100644
 +	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(EDCCA), &req, sizeof(req), true);
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index ad85e56..b8a433e 100644
+index ad85e56c..b8a433e5 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -789,4 +789,16 @@ enum {
@@ -108,7 +108,7 @@ index ad85e56..b8a433e 100644
 +};
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index bd20e7c..1b08686 100644
+index bd20e7c7..1b08686e 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -725,6 +725,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
@@ -121,7 +121,7 @@ index bd20e7c..1b08686 100644
  #ifdef MTK_DEBUG
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 77d71e4..5a28a55 100644
+index 77d71e48..5a28a554 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -62,6 +62,17 @@ phy_capa_dump_policy[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP] = {
@@ -209,7 +209,7 @@ index 77d71e4..5a28a55 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 719b851..83c41bc 100644
+index 719b851f..83c41bc1 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -10,8 +10,27 @@ enum mtk_nl80211_vendor_subcmds {
@@ -241,5 +241,5 @@ index 719b851..83c41bc 100644
  	CAPI_RFEATURE_CHANGED		= BIT(16),
  	CAPI_WIRELESS_CHANGED		= BIT(17),
 -- 
-2.18.0
+2.25.1
 

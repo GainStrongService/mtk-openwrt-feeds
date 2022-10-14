@@ -1,8 +1,9 @@
-From f15366ef845f70c3557e6ebcc4c72ee154e7cfc1 Mon Sep 17 00:00:00 2001
+From 73ed020063abbe785ad02d2fdab8dc6fdcec07a3 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Wed, 21 Sep 2022 13:55:15 -0700
-Subject: [PATCH][MAC80211][mt76][add AMPDU/AMSDU OnOff ctonrol]
+Subject: [PATCH 1125/1127] mt76: mt7915: add AMPDU/AMSDU OnOff ctonrol
 
+Change-Id: I6030b3a420e96b02e83b0c7a3c3626a3b23c97e3
 ---
  mt7915/mac.c    | 28 ++++++++++++++++++++++++++++
  mt7915/mt7915.h |  2 ++
@@ -11,10 +12,10 @@ Subject: [PATCH][MAC80211][mt76][add AMPDU/AMSDU OnOff ctonrol]
  4 files changed, 83 insertions(+)
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 516717c..6ad32b1 100644
+index 27f9419a..3896c3d5 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -2064,6 +2064,34 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
+@@ -1939,6 +1939,34 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
  	phy->trb_ts = trb;
  }
  
@@ -50,11 +51,11 @@ index 516717c..6ad32b1 100644
  void mt7915_capi_sta_rc_work(void *data, struct ieee80211_sta *sta)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 3029315..bac7fcb 100644
+index f4038207..d5e0c3e9 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -726,6 +726,8 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
- #endif
+@@ -715,6 +715,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+ 			 bool pci, int *irq);
  
  #ifdef CONFIG_MTK_VENDOR
 +void mt7915_set_wireless_ampdu(struct ieee80211_hw *hw, u8 en);
@@ -63,7 +64,7 @@ index 3029315..bac7fcb 100644
  void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
  void mt7915_mcu_set_rfeature_starec(void *data, struct mt7915_dev *dev,
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index cbbb084..d73fdd4 100644
+index cbbb0843..d73fdd4c 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -30,10 +30,18 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -136,7 +137,7 @@ index cbbb084..d73fdd4 100644
  		.maxattr = MTK_VENDOR_ATTR_WIRELESS_CTRL_MAX,
  	},
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 5aac559..53abb10 100644
+index 5aac5595..53abb100 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -58,6 +58,8 @@ enum mtk_vendor_attr_wireless_ctrl {
@@ -168,5 +169,5 @@ index 5aac559..53abb10 100644
  	MTK_VENDOR_ATTR_HEMU_CTRL_UNSPEC,
  
 -- 
-2.32.0
+2.25.1
 

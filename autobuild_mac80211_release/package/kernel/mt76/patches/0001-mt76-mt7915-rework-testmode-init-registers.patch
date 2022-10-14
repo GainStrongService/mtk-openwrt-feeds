@@ -1,4 +1,4 @@
-From f45f9c4ab6b8e9508a0fedb65de098c4f1be63c3 Mon Sep 17 00:00:00 2001
+From 567a6f7be24a7f87d550f1cf3e1f1796e1770b2a Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Jun 2022 19:46:26 +0800
 Subject: [PATCH 1/3] mt76: mt7915: rework testmode init registers
@@ -11,7 +11,7 @@ Subject: [PATCH 1/3] mt76: mt7915: rework testmode init registers
  4 files changed, 55 insertions(+), 18 deletions(-)
 
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index be1b8ea..9c2c508 100644
+index be1b8ea7..9c2c5086 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -68,6 +68,7 @@ static const u32 mt7986_reg[] = {
@@ -31,7 +31,7 @@ index be1b8ea..9c2c508 100644
  	[TMAC_ODTR]		= 0x0cc,
  	[TMAC_ATCR]		= 0x00c,
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 5180dd9..2e44537 100644
+index 5180dd93..2e445373 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -32,6 +32,7 @@ enum reg_rev {
@@ -79,7 +79,7 @@ index 5180dd9..2e44537 100644
  #define MT_AGG_ACR0(_band)		MT_WF_AGG(_band, __OFFS(AGG_ACR0))
  #define MT_AGG_ACR_CFEND_RATE		GENMASK(13, 0)
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index a979460..819fafe 100644
+index a979460f..819fafe4 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -30,7 +30,7 @@ struct reg_band {
@@ -176,7 +176,7 @@ index a979460..819fafe 100644
  
  static void
 diff --git a/testmode.c b/testmode.c
-index 0accc71..57cdfdf 100644
+index 0accc71a..57cdfdf6 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -447,8 +447,7 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -190,5 +190,5 @@ index 0accc71..57cdfdf 100644
  	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_DUTY_CYCLE],
  			   &td->tx_duty_cycle, 0, 99) ||
 -- 
-2.18.0
+2.25.1
 
