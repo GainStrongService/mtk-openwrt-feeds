@@ -22,6 +22,8 @@ echo 0 > /proc/sys/net/bridge/bridge-nf-pass-vlan-input-dev
 module=hnat
 [ -d /sys/kernel/debug/${module} ] || {
 	module=mtk_ppe
+	echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
+	echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
 }
 
 #if enable=0, disable qdma_sch & qdma_txq
