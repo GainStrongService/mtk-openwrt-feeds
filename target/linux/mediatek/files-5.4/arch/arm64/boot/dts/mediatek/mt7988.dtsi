@@ -358,19 +358,23 @@
 			 <&topckgen CK_TOP_NPU_TOPS_SEL>,
 			 <&topckgen CK_TOP_CK_NPU_SEL_CM_TOPS_SEL>;
 		clock-names = "bus", "sram", "xdma", "offload", "mgmt";
+		power-domains = <&topmisc MT7988_POWER_DOMAIN_TOPS0>,
+				<&topmisc MT7988_POWER_DOMAIN_TOPS1>;
+
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "tdma-tx-pause", "mbox";
-		topmisc = <&topmisc>;
+
 		fe_mem = <&eth>;
-		topckgen = <&topckgen>;
 	};
+
 	hpdma1: hpdma@09106000 {
 		compatible = "mediatek,hpdma-top";
 		reg = <0 0x09106000 0 0x1000>;
 		reg-names = "base";
 	};
+
 	hpdma2: hpdma@09606000 {
 		compatible = "mediatek,hpdma-sub";
 		reg = <0 0x09606000 0 0x1000>;
