@@ -15,10 +15,10 @@ index b23b6d2..147a224 100644
  	struct cpufreq_frequency_table *freq_table;
  	int ret;
 +	int target_vproc;
-+	u32 reg_val;
++	u8 reg_val;
 +	struct nvmem_cell *cell;
 +	size_t len;
-+	u32 *buf;
++	u8 *buf;
  
  	info = mtk_cpu_dvfs_info_lookup(policy->cpu);
  	if (!info) {
@@ -28,7 +28,7 @@ index b23b6d2..147a224 100644
  
 +	cell = nvmem_cell_get(info->cpu_dev, "calibration-data");
 +	if (!IS_ERR(cell)) {
-+		buf = (u32 *)nvmem_cell_read(cell, &len);
++		buf = (u8 *)nvmem_cell_read(cell, &len);
 +		nvmem_cell_put(cell);
 +		if (!IS_ERR(buf)) {
 +			reg_val = buf[0] & 0x1f;
