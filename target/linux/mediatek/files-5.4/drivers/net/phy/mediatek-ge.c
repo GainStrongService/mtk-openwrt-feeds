@@ -538,7 +538,7 @@ static int tx_r50_fill_result(struct phy_device *phydev, u16 *buf,
 	switch(phydev->drv->phy_id) {
 		case 0x03a29481:
 		{
-			int tmp[16] = { 1, 1, 1, 1 };
+			int tmp[16] = { -1, -1, -1, -1 };
 			memcpy(bias, (const void *)tmp, sizeof(bias));
 			break;
 		}
@@ -894,6 +894,13 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 	/* Disable TX power saving */
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RXADC_CTRL_RG7,
 			MTK_PHY_DA_AD_BUF_BIAS_LP_MASK, 0x3 << 8);
+
+	/* Slave mode finetune, Kp=3/Kf=2 */
+	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_52B5);
+	__phy_write(phydev, 0x12, 0x0);
+	__phy_write(phydev, 0x11, 0x750);
+	__phy_write(phydev, 0x10, 0x9686);
+	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
 }
 
 static int mt798x_phy_calibration(struct phy_device *phydev)
