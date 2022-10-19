@@ -1,0 +1,39 @@
+From 7280bc1aba9fa30d3a16660c8afba8656d831cb8 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Wed, 19 Oct 2022 16:04:10 +0800
+Subject: [PATCH] mt76: connac: update nss calculation in txs
+
+The nss is nsts divided by 2 when stbc is 1.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt76_connac_mac.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
+index 8b7ec64a..fd60123f 100644
+--- a/mt76_connac_mac.c
++++ b/mt76_connac_mac.c
+@@ -567,7 +567,7 @@ bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
+ 	struct mt76_phy *mphy;
+ 	struct rate_info rate = {};
+ 	bool cck = false;
+-	u32 txrate, txs, mode;
++	u32 txrate, txs, mode, stbc;
+ 
+ 	txs = le32_to_cpu(txs_data[0]);
+ 
+@@ -587,6 +587,10 @@ bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
+ 
+ 	rate.mcs = FIELD_GET(MT_TX_RATE_IDX, txrate);
+ 	rate.nss = FIELD_GET(MT_TX_RATE_NSS, txrate) + 1;
++	stbc = FIELD_GET(MT_TX_RATE_STBC, txrate);
++
++	if (stbc && rate.nss > 1)
++		rate.nss >>= 1;
+ 
+ 	if (rate.nss - 1 < ARRAY_SIZE(stats->tx_nss))
+ 		stats->tx_nss[rate.nss - 1]++;
+-- 
+2.18.0
+
