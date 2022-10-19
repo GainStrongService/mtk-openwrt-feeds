@@ -39,28 +39,32 @@ endef
 
 $(eval $(call KernelPackage,sdhci-mtk))
 
-define KernelPackage/crypto-hw-mtk
-  TITLE:= MediaTek's Crypto Engine module
+define KernelPackage/crypto-eip197
+  TITLE:= EIP-197 Crypto Engine module
   DEPENDS:=@TARGET_mediatek
   KCONFIG:= \
 	CONFIG_CRYPTO_HW=y \
+	CONFIG_CRYPTO_AUTHENC=y \
 	CONFIG_CRYPTO_AES=y \
 	CONFIG_CRYPTO_AEAD=y \
+	CONFIG_CRYPTO_DES=y \
+	CONFIG_CRYPTO_MD5=y \
 	CONFIG_CRYPTO_SHA1=y \
 	CONFIG_CRYPTO_SHA256=y \
 	CONFIG_CRYPTO_SHA512=y \
+	CONFIG_CRYPTO_SHA3=y \
 	CONFIG_CRYPTO_HMAC=y \
-	CONFIG_CRYPTO_DEV_MEDIATEK
-  FILES:=$(LINUX_DIR)/drivers/crypto/mediatek/mtk-crypto.ko
-  AUTOLOAD:=$(call AutoLoad,90,mtk-crypto)
+	CONFIG_CRYPTO_DEV_SAFEXCEL
+  FILES:=$(LINUX_DIR)/drivers/crypto/inside-secure/crypto_safexcel.ko
+  AUTOLOAD:=$(call AutoLoad,90,crypto-safexcel)
   $(call AddDepends/crypto)
 endef
 
-define KernelPackage/crypto-hw-mtk/description
-  MediaTek's EIP97 Cryptographic Engine driver.
+define KernelPackage/crypto-eip197/description
+  EIP-197 Cryptographic Engine driver.
 endef
 
-$(eval $(call KernelPackage,crypto-hw-mtk))
+$(eval $(call KernelPackage,crypto-eip197))
 
 define KernelPackage/sound-soc-mt79xx
   TITLE:=MT79xx SoC sound support
@@ -102,3 +106,20 @@ endef
 
 $(eval $(call KernelPackage,mediatek_hnat))
 
+
+define KernelPackage/aquantia_aqtion
+  SUBMENU:=Network Devices
+  TITLE:=Aquantia AQtion(tm) Ethernet driver module
+  DEPENDS:=@TARGET_mediatek
+  KCONFIG:= \
+	CONFIG_NET_VENDOR_AQUANTIA=y \
+	CONFIG_AQTION
+  FILES:= \
+        $(LINUX_DIR)/drivers/net/ethernet/aquantia/atlantic/atlantic.ko
+endef
+
+define KernelPackage/aquantia_aqtion/description
+  Kernel modules for Aquantia AQtion(tm) Ethernet PCIe card driver
+endef
+
+$(eval $(call KernelPackage,aquantia_aqtion))
