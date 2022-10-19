@@ -1,10 +1,21 @@
+From f85db6e56ba3b559d3affffc3baad9f21d60c5f6 Mon Sep 17 00:00:00 2001
+From: Evelyn Tsai <evelyn.tsai@mediatek.com>
+Date: Wed, 19 Oct 2022 13:42:43 +0800
+Subject: [PATCH 905/914] mac80211: airtime_flags depends on
+ NL80211_EXT_FEATURE
+
+Signed-off-by: Evelyn Tsai <evelyn.tsai@mediatek.com>
+---
+ net/mac80211/main.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
 diff --git a/net/mac80211/main.c b/net/mac80211/main.c
-index 3a442d8..f355cd3 100644
+index 09e5bf1..8c005f1 100644
 --- a/net/mac80211/main.c
 +++ b/net/mac80211/main.c
-@@ -723,8 +723,9 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
- 		air_sched->aql_txq_limit_high =
+@@ -721,8 +721,9 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
  			IEEE80211_DEFAULT_AQL_TXQ_LIMIT_H;
+ 		atomic_set(&local->aql_ac_pending_airtime[i], 0);
  	}
 -
 -	local->airtime_flags = AIRTIME_USE_TX | AIRTIME_USE_RX;

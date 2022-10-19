@@ -1,6 +1,21 @@
---- b/include/net/mac80211.h	2021-09-22 21:10:45.803721216 +0800
-+++ a/include/net/mac80211.h	2021-09-22 21:19:40.494744637 +0800
-@@ -2639,6 +2639,13 @@
+From ae8bd933a1ef1499863dbb8313a61375b7d00c11 Mon Sep 17 00:00:00 2001
+From: TomLiu <tomml.liu@mediatek.com>
+Date: Wed, 19 Oct 2022 13:33:02 +0800
+Subject: [PATCH 900/914] mac80211: export del all station for ampdu amsdu on
+ off function
+
+Signed-off-by: TomLiu <tomml.liu@mediatek.com>
+---
+ include/net/mac80211.h  | 13 +++++++++++++
+ net/mac80211/cfg.c      | 13 +++++++++++++
+ net/mac80211/sta_info.c |  3 ++-
+ 3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/include/net/mac80211.h b/include/net/mac80211.h
+index c85050f..edcad3b 100644
+--- a/include/net/mac80211.h
++++ b/include/net/mac80211.h
+@@ -2662,6 +2662,13 @@ static inline void _ieee80211_hw_set(struct ieee80211_hw *hw,
  }
  #define ieee80211_hw_set(hw, flg)	_ieee80211_hw_set(hw, IEEE80211_HW_##flg)
  
@@ -14,22 +29,24 @@
  /**
   * struct ieee80211_scan_request - hw scan request
   *
-@@ -4989,6 +4996,12 @@
+@@ -5056,6 +5063,12 @@ void ieee80211_beacon_set_cntdwn(struct ieee80211_vif *vif, u8 counter);
+  */
  void ieee80211_csa_finish(struct ieee80211_vif *vif);
  
- /**
++/**
 + * ieee80211_del_all_station - request mac80211 to delete all stations
 + * @hw: pointer obtained from ieee80211_alloc_hw().
 + */
 +void ieee80211_del_all_station(struct ieee80211_hw *hw);
 +
-+/**
+ /**
   * ieee80211_beacon_cntdwn_is_complete - find out if countdown reached 1
   * @vif: &struct ieee80211_vif pointer from the add_interface callback.
-  *
---- b/net/mac80211/cfg.c	2021-09-22 21:10:45.675720709 +0800
-+++ a/net/mac80211/cfg.c	2021-09-22 21:11:23.456352549 +0800
-@@ -1718,6 +1718,19 @@
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index abe7318..b582730 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -1822,6 +1822,19 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
  	return 0;
  }
  
@@ -49,9 +66,11 @@
  static int ieee80211_change_station(struct wiphy *wiphy,
  				    struct net_device *dev, const u8 *mac,
  				    struct station_parameters *params)
---- b/net/mac80211/sta_info.c	2021-09-22 21:10:45.599720409 +0800
-+++ a/net/mac80211/sta_info.c	2021-09-22 20:50:39.158775251 +0800
-@@ -683,7 +683,8 @@
+diff --git a/net/mac80211/sta_info.c b/net/mac80211/sta_info.c
+index 541c769..a703e83 100644
+--- a/net/mac80211/sta_info.c
++++ b/net/mac80211/sta_info.c
+@@ -683,7 +683,8 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
  	}
  
  	/* accept BA sessions now */
@@ -61,3 +80,6 @@
  
  	ieee80211_sta_debugfs_add(sta);
  	rate_control_add_sta_debugfs(sta);
+-- 
+2.18.0
+

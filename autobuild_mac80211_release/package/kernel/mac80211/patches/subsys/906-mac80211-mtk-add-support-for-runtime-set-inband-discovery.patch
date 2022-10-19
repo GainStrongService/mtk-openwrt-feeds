@@ -1,4 +1,20 @@
+From b4551b622d6a57b6613200bee2f83729e64ba64e Mon Sep 17 00:00:00 2001
+From: MeiChia Chiu <meichia.chiu@mediatek.com>
+Date: Wed, 19 Oct 2022 13:45:42 +0800
+Subject: [PATCH 906/914] mac80211: add support for runtime set inband
+ discovery
+
+Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
+---
+ include/net/cfg80211.h       |  1 +
+ include/net/mac80211.h       |  1 +
+ include/uapi/linux/nl80211.h |  1 +
+ net/mac80211/cfg.c           | 32 +++++++++++++++++++++++++++++++-
+ net/wireless/nl80211.c       | 31 +++++++++++++++++++++++++++----
+ 5 files changed, 61 insertions(+), 5 deletions(-)
+
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
+index ab83553..f594914 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
 @@ -1158,6 +1158,7 @@ struct cfg80211_fils_discovery {
@@ -10,6 +26,7 @@ diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
  
  /**
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
+index edcad3b..bde3495 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -505,6 +505,7 @@ struct ieee80211_ftm_responder_params {
@@ -21,6 +38,7 @@ diff --git a/include/net/mac80211.h b/include/net/mac80211.h
  
  /**
 diff --git a/include/uapi/linux/nl80211.h b/include/uapi/linux/nl80211.h
+index 019f065..e674aa7 100644
 --- a/include/uapi/linux/nl80211.h
 +++ b/include/uapi/linux/nl80211.h
 @@ -7242,6 +7242,7 @@ enum nl80211_fils_discovery_attributes {
@@ -32,9 +50,10 @@ diff --git a/include/uapi/linux/nl80211.h b/include/uapi/linux/nl80211.h
  	/* keep last */
  	__NL80211_FILS_DISCOVERY_ATTR_LAST,
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index b582730..1328827 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -906,6 +906,7 @@ static int ieee80211_set_fils_discovery(
+@@ -906,6 +906,7 @@ static int ieee80211_set_fils_discovery(struct ieee80211_sub_if_data *sdata,
  	fd = &sdata->vif.bss_conf.fils_discovery;
  	fd->min_interval = params->min_interval;
  	fd->max_interval = params->max_interval;
@@ -42,7 +61,7 @@ diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
  
  	old = sdata_dereference(sdata->u.ap.fils_discovery, sdata);
  	new = kzalloc(sizeof(*new) + params->tmpl_len, GFP_KERNEL);
-@@ -1316,6 +1317,9 @@ static int ieee80211_change_beacon(struc
+@@ -1316,6 +1317,9 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
  {
  	struct ieee80211_sub_if_data *sdata;
  	struct beacon_data *old;
@@ -52,7 +71,7 @@ diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
  	int err;
  
  	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-@@ -1334,7 +1338,33 @@ static int ieee80211_change_beacon(struc
+@@ -1334,7 +1338,33 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
  	err = ieee80211_assign_beacon(sdata, params, NULL, NULL);
  	if (err < 0)
  		return err;
@@ -88,9 +107,10 @@ diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
  }
  
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
+index 1292634..a20aba5 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -421,6 +421,7 @@ nl80211_fils_discovery_policy[NL80211_FI
+@@ -421,6 +421,7 @@ nl80211_fils_discovery_policy[NL80211_FILS_DISCOVERY_ATTR_MAX + 1] = {
  	[NL80211_FILS_DISCOVERY_ATTR_TMPL] = { .type = NLA_BINARY,
  					       .len = IEEE80211_MAX_DATA_LEN },
  #endif
@@ -98,7 +118,7 @@ diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
  };
  
  static const struct nla_policy
-@@ -5349,6 +5350,8 @@ static int nl80211_parse_fils_discovery(
+@@ -5364,6 +5365,8 @@ static int nl80211_parse_fils_discovery(struct cfg80211_registered_device *rdev,
  	fd->tmpl = nla_data(tb[NL80211_FILS_DISCOVERY_ATTR_TMPL]);
  	fd->min_interval = nla_get_u32(tb[NL80211_FILS_DISCOVERY_ATTR_INT_MIN]);
  	fd->max_interval = nla_get_u32(tb[NL80211_FILS_DISCOVERY_ATTR_INT_MAX]);
@@ -107,7 +127,7 @@ diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
  
  	return 0;
  }
-@@ -5754,7 +5757,8 @@ static int nl80211_set_beacon(struct sk_
+@@ -5769,7 +5772,8 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
  	struct cfg80211_registered_device *rdev = info->user_ptr[0];
  	struct net_device *dev = info->user_ptr[1];
  	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -117,7 +137,7 @@ diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
  	int err;
  
  	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
-@@ -5767,16 +5771,35 @@ static int nl80211_set_beacon(struct sk_
+@@ -5782,16 +5786,35 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
  	if (!wdev->beacon_interval)
  		return -EINVAL;
  
@@ -156,3 +176,6 @@ diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
  	return err;
  }
  
+-- 
+2.18.0
+

@@ -1,8 +1,8 @@
-From a58aa02645052470e6bacb9e6c1eb7adfb9fc0d8 Mon Sep 17 00:00:00 2001
+From 31b9460ba394aa6dde2ba1eee715832a9688c494 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 5 Oct 2022 19:13:43 +0800
-Subject: [PATCH] mac80211: fix the issue of AP and STA starting on DFS channel
- concurrently
+Subject: [PATCH 914/914] mac80211: fix the issue of AP and STA starting on DFS
+ channel concurrently
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -76,10 +76,10 @@ index e674aa7..ada8288 100644
  	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
  	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index bf71594..73fb432 100644
+index 1328827..ff0659c 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -4504,6 +4504,53 @@ ieee80211_set_radar_background(struct wiphy *wiphy,
+@@ -4517,6 +4517,53 @@ ieee80211_set_radar_background(struct wiphy *wiphy,
  	return local->ops->set_radar_background(&local->hw, chandef);
  }
  
@@ -133,7 +133,7 @@ index bf71594..73fb432 100644
  const struct cfg80211_ops mac80211_config_ops = {
  	.add_virtual_intf = ieee80211_add_iface,
  	.del_virtual_intf = ieee80211_del_iface,
-@@ -4610,4 +4657,5 @@ const struct cfg80211_ops mac80211_config_ops = {
+@@ -4623,4 +4670,5 @@ const struct cfg80211_ops mac80211_config_ops = {
  	.set_sar_specs = ieee80211_set_sar_specs,
  	.color_change = ieee80211_color_change,
  	.set_radar_background = ieee80211_set_radar_background,

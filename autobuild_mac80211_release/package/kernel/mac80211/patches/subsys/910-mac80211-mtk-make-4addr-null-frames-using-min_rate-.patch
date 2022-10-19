@@ -1,7 +1,8 @@
-From de1d3b1259574aac2dcb4d830c34030bc20cc280 Mon Sep 17 00:00:00 2001
+From e7f4d518cdecfce077b4cf7a68678e1781dfe974 Mon Sep 17 00:00:00 2001
 From: Lian Chen <lian.chen@mediatek.com>
 Date: Thu, 14 Jul 2022 16:33:58 +0800
-Subject: [PATCH] wifi: mac80211: make 4addr null frames using min_rate for WDS
+Subject: [PATCH 910/914] wifi: mac80211: make 4addr null frames using min_rate
+ for WDS
 
 WDS needs 4addr packets to trigger AP for wlan0.sta creation.
 However, the 4addr null frame is sent at a high rate
@@ -14,7 +15,7 @@ Signed-off-by: Lian Chen <lian.chen@mediatek.com>
  1 file changed, 1 insertion(+)
 
 diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
-index c833245..09f54be 100644
+index 1548f53..4d6d469 100644
 --- a/net/mac80211/mlme.c
 +++ b/net/mac80211/mlme.c
 @@ -1133,6 +1133,7 @@ void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,

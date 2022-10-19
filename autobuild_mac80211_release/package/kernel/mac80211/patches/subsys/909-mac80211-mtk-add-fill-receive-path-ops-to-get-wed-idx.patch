@@ -1,7 +1,7 @@
-From bf39e0bef2dff4419f51b7a8bb7da3de04a38bd7 Mon Sep 17 00:00:00 2001
+From 670b284d0098d142aa5144dfdc8fa57ac4a6c23f Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Wed, 18 May 2022 15:10:22 +0800
-Subject: [PATCH] add fill receive path ops to get wed idx
+Subject: [PATCH 909/914] mac80211: add fill receive path ops to get wed idx
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -16,7 +16,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
 old mode 100644
 new mode 100755
-index 1f6ddf6..17672ac
+index 35dbf62..43a4ddb
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -1791,6 +1791,13 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
@@ -33,7 +33,7 @@ index 1f6ddf6..17672ac
  /**
   * enum ieee80211_key_flags - key flags
   *
-@@ -3957,6 +3964,8 @@ struct ieee80211_prep_tx_info {
+@@ -3964,6 +3971,8 @@ struct ieee80211_prep_tx_info {
   *	disable background CAC/radar detection.
   * @net_fill_forward_path: Called from .ndo_fill_forward_path in order to
   *	resolve a path for hardware flow offloading
@@ -42,7 +42,7 @@ index 1f6ddf6..17672ac
   */
  struct ieee80211_ops {
  	void (*tx)(struct ieee80211_hw *hw,
-@@ -4292,6 +4301,9 @@ struct ieee80211_ops {
+@@ -4299,6 +4308,9 @@ struct ieee80211_ops {
  				     struct ieee80211_sta *sta,
  				     struct net_device_path_ctx *ctx,
  				     struct net_device_path *path);
@@ -75,10 +75,10 @@ index d2b68ef..27da75e 100644
 +
  #endif /* __MAC80211_DRIVER_OPS */
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index 797fe24..a72bdea 100644
+index e7c85ce..c222348 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
-@@ -911,6 +911,29 @@ out:
+@@ -910,6 +910,29 @@ out:
  	return ret;
  }
  
@@ -108,7 +108,7 @@ index 797fe24..a72bdea 100644
  static const struct net_device_ops ieee80211_dataif_8023_ops = {
  #if LINUX_VERSION_IS_LESS(4,10,0)
  	.ndo_change_mtu = __change_mtu,
-@@ -929,6 +952,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
+@@ -928,6 +951,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
  	.ndo_get_stats64 = bp_ieee80211_get_stats64,
  #endif
  	.ndo_fill_forward_path = ieee80211_netdev_fill_forward_path,
@@ -119,7 +119,7 @@ index 797fe24..a72bdea 100644
 diff --git a/net/mac80211/util.c b/net/mac80211/util.c
 old mode 100644
 new mode 100755
-index d85a39a..d515956
+index fb9d0a0..f799e63
 --- a/net/mac80211/util.c
 +++ b/net/mac80211/util.c
 @@ -898,6 +898,15 @@ struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
