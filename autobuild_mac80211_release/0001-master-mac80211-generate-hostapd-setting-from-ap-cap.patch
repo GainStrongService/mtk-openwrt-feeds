@@ -1,9 +1,20 @@
+From 6385f7196ddd1e05c4ea089e8076ab9f62794ac8 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Thu, 20 Oct 2022 10:55:22 +0800
+Subject: [PATCH] master: mac80211: generate hostapd setting from ap cap
+
+Change-Id: Iaae41c39b7d5c80470ea3e0ac58ac115bfe746ae
+---
+ .../files/lib/netifd/wireless/mac80211.sh         |  3 ---
+ .../kernel/mac80211/files/lib/wifi/mac80211.sh    | 15 ++++++++++++++-
+ 2 files changed, 14 insertions(+), 4 deletions(-)
+
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index f524940..37f919b 100644
+index ed280521..a0550057 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-@@ -142,9 +142,6 @@ mac80211_hostapd_setup_base() {
- 	json_get_values ht_capab_list ht_capab tx_burst
+@@ -144,9 +144,6 @@ mac80211_hostapd_setup_base() {
+ 	json_get_values ht_capab_list ht_capab
  	json_get_values channel_list channels
  
 -	[ "$auto_channel" = 0 ] && [ -z "$channel_list" ] && \
@@ -13,10 +24,10 @@ index f524940..37f919b 100644
  
  	set_default noscan 0
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index 6aa46b0..5551835 100644
+index 3ecd9322..438bf929 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-@@ -132,6 +132,13 @@ get_band_defaults() {
+@@ -120,6 +120,13 @@ get_band_defaults() {
  		mode_band="$band"
  		channel="$chan"
  		htmode="$mode"
@@ -30,7 +41,7 @@ index 6aa46b0..5551835 100644
  	done
  }
  
-@@ -157,6 +164,8 @@ detect_mac80211() {
+@@ -162,6 +169,8 @@ detect_mac80211() {
  		channel=""
  		htmode=""
  		ht_capab=""
@@ -39,19 +50,20 @@ index 6aa46b0..5551835 100644
  
  		get_band_defaults "$dev"
  
-@@ -181,8 +190,11 @@ detect_mac80211() {
- 			set wireless.default_radio${devidx}.network=lan
- 			set wireless.default_radio${devidx}.mode=ap
- 			set wireless.default_radio${devidx}.ssid=OpenWrt
--			set wireless.default_radio${devidx}.encryption=none
-+			set wireless.default_radio${devidx}.encryption=${encryption}
+@@ -206,8 +215,12 @@ detect_mac80211() {
+ 			set wireless.default_${name}.network=lan
+ 			set wireless.default_${name}.mode=ap
+ 			set wireless.default_${name}.ssid=OpenWrt
+-			set wireless.default_${name}.encryption=none
++			set wireless.default_${name}.encryption=${encryption}
++
  EOF
 +		[ -n "$key" ] && {
-+			uci -q set wireless.default_radio${devidx}.key=${key}
++			uci -q set wireless.default_${name}.key=${key}
 +		}
  		uci -q commit wireless
- 
- 		devidx=$(($devidx + 1))
+ 	done
+ }
 -- 
-2.36.1
+2.18.0
 
