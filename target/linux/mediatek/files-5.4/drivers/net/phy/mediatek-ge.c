@@ -2,6 +2,7 @@
 #include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/phy.h>
 
@@ -177,6 +178,18 @@ enum {
 
 
 /* Registers on MDIO_MMD_VEND2 */
+#define MTK_PHY_LED0_ON_CTRL		(0x24)
+#define   MTK_PHY_LED0_ON_MASK			GENMASK(6, 0)
+#define   MTK_PHY_LED0_ON_LINK1000	BIT(0)
+#define   MTK_PHY_LED0_ON_LINK100	BIT(1)
+#define   MTK_PHY_LED0_ON_LINK10	BIT(2)
+#define   MTK_PHY_LED0_ON_LINKDOWN	BIT(3)
+#define   MTK_PHY_LED0_ON_FDX		BIT(4) /* Full duplex */
+#define   MTK_PHY_LED0_ON_HDX		BIT(5) /* Half duplex */
+#define   MTK_PHY_LED0_FORCE_ON		BIT(6)
+#define   MTK_PHY_LED0_POLARITY		BIT(14)
+#define   MTK_PHY_LED0_ENABLE		BIT(15)
+
 #define MTK_PHY_ANA_TEST_BUS_CTRL_RG	(0x100)
 #define   MTK_PHY_ANA_TEST_MODE_MASK		GENMASK(15, 8)
 
@@ -216,6 +229,13 @@ typedef enum {
 	PAIR_C,
 	PAIR_D,
 } phy_cal_pair_t;
+
+enum {
+	GPHY_PORT0,
+	GPHY_PORT1,
+	GPHY_PORT2,
+	GPHY_PORT3,
+};
 
 const u8 mt798x_zcal_to_r50[64] = {
 	7, 8, 9, 9, 10, 10, 11, 11,
@@ -958,6 +978,34 @@ static int mt7981_phy_config_init(struct phy_device *phydev)
 
 static int mt7988_phy_config_init(struct phy_device *phydev)
 {
+	struct device_node *np;
+	void __iomem *boottrap;
+	u32 reg;
+	int port;
+
+	/* Setup LED polarity according to boottrap's polarity */
+	np = of_find_compatible_node(NULL, NULL, "mediatek,boottrap");
+	if (!np)
+		return -ENOENT;
+	boottrap = of_iomap(np, 0);
+	if (!boottrap)
+		return -ENOMEM;
+	reg = readl(boottrap);
+	port = phydev->mdio.addr;
+	if ((port == GPHY_PORT0 && reg & BIT(8)) ||
+	    (port == GPHY_PORT1 && reg & BIT(9)) ||
+	    (port == GPHY_PORT2 && reg & BIT(10)) ||
+	    (port == GPHY_PORT3 && reg & BIT(11))) {
+		phy_write_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
+			MTK_PHY_LED0_ENABLE | MTK_PHY_LED0_ON_LINK10 |
+			MTK_PHY_LED0_ON_LINK100 | MTK_PHY_LED0_ON_LINK1000);
+	} else {
+		phy_write_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
+			MTK_PHY_LED0_ENABLE | MTK_PHY_LED0_POLARITY |
+			MTK_PHY_LED0_ON_LINK10 | MTK_PHY_LED0_ON_LINK100 |
+			MTK_PHY_LED0_ON_LINK1000);
+	}
+
 	mt7988_phy_finetune(phydev);
 
 	return mt798x_phy_calibration(phydev);
