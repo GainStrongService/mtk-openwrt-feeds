@@ -5,15 +5,12 @@ Subject: [PATCH 3006/3011] mt76: mt7915: add statistic for H/W Rx Path
 
 Change-Id: Id94d663f08e91c83d296bd57e5e9b65a505ae1c7
 ---
- mt76.h            |  4 ++++
- mt76_connac.h     |  5 +++++
- mt76_connac_mcu.h | 35 +++++++++++++++++++++++++++++++++++
- mt7915/mac.c      | 25 +++++++++++++++++++++++++
- mt7915/main.c     |  9 ++++++++-
- mt7915/mcu.c      | 21 +++++++++++++++++++++
- mt7915/mmio.c     |  6 ++++++
- mt7915/mt7915.h   |  3 +++
- 8 files changed, 107 insertions(+), 1 deletion(-)
+ mt76.h          |  4 ++++
+ mt7915/mac.c    | 25 +++++++++++++++++++++++++
+ mt7915/main.c   |  9 ++++++++-
+ mt7915/mmio.c   | 17 +++++++++++++++++
+ mt7915/mt7915.h |  2 ++
+ 5 files changed, 56 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
 index 3530d213..47a92132 100644
@@ -30,68 +27,6 @@ index 3530d213..47a92132 100644
  };
  
  enum mt76_wcid_flags {
-diff --git a/mt76_connac.h b/mt76_connac.h
-index 9a468878..7ecc7253 100644
---- a/mt76_connac.h
-+++ b/mt76_connac.h
-@@ -224,6 +224,11 @@ static inline bool is_mt76_fw_txp(struct mt76_dev *dev)
- 	}
- }
- 
-+static inline bool is_wo_mcu(struct mt76_dev *dev)
-+{
-+	return is_mt7986(dev);
-+}
-+
- static inline u8 mt76_connac_chan_bw(struct cfg80211_chan_def *chandef)
- {
- 	static const u8 width_to_bw[] = {
-diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 27a36241..475c3910 100644
---- a/mt76_connac_mcu.h
-+++ b/mt76_connac_mcu.h
-@@ -1211,6 +1211,41 @@ enum {
- 	MCU_CE_CMD_GET_TXPWR = 0xd0,
- };
- 
-+enum wo_event_id {
-+	WO_EVT_LOG_DUMP = 0x1,
-+	WO_EVT_PROFILING = 0x2,
-+	WO_EVT_RXCNT_INFO = 0x3
-+};
-+
-+enum wo_cmd_id {
-+	WO_CMD_WED_CFG = 0,
-+	WO_CMD_WED_RX_STAT,
-+	WO_CMD_RRO_SER,
-+	WO_CMD_DBG_INFO,
-+	WO_CMD_DEV_INFO,
-+	WO_CMD_BSS_INFO,
-+	WO_CMD_STA_REC,
-+	WO_CMD_DEV_INFO_DUMP,
-+	WO_CMD_BSS_INFO_DUMP,
-+	WO_CMD_STA_REC_DUMP,
-+	WO_CMD_BA_INFO_DUMP,
-+	WO_CMD_FBCMD_Q_DUMP,
-+	WO_CMD_FW_LOG_CTRL,
-+	WO_CMD_LOG_FLUSH,
-+	WO_CMD_CHANGE_STATE,
-+	WO_CMD_CPU_STATS_ENABLE,
-+	WO_CMD_CPU_STATS_DUMP,
-+	WO_CMD_EXCEPTION_INIT,
-+	WO_CMD_PROF_CTRL,
-+	WO_CMD_STA_BA_DUMP,
-+	WO_CMD_BA_CTRL_DUMP,
-+	WO_CMD_RXCNT_CTRL,
-+	WO_CMD_RXCNT_INFO,
-+	WO_CMD_SET_CAP,
-+	WO_CMD_CCIF_RING_DUMP,
-+	WO_CMD_WED_END
-+};
-+
- enum {
- 	PATCH_SEM_RELEASE,
- 	PATCH_SEM_GET
 diff --git a/mt7915/mac.c b/mt7915/mac.c
 index e78f30fc..7fb161db 100644
 --- a/mt7915/mac.c
@@ -155,38 +90,6 @@ index 5e37c4c8..01d64b2f 100644
  	}
  }
  
-diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 6603effd..87e02de7 100644
---- a/mt7915/mcu.c
-+++ b/mt7915/mcu.c
-@@ -293,6 +293,27 @@ int mt7915_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)
- 	return mt76_mcu_send_msg(&dev->mt76, cmd, &req, sizeof(req), false);
- }
- 
-+int mt7915_mcu_wo_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2)
-+{
-+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
-+	struct {
-+		__le32 args[2];
-+	} req = {
-+		.args = {
-+			cpu_to_le32(a1),
-+			cpu_to_le32(a2),
-+		},
-+	};
-+
-+	if (!mtk_wed_device_active(wed))
-+		return -1;
-+
-+	if (!is_wo_mcu(&dev->mt76))
-+		return -1;
-+
-+	return mtk_soc_wed_ops->msg_update(wed, cmd, (void *)&req, sizeof(req));
-+}
-+
- static void
- mt7915_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
- {
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
 index 6a1877d4..cd8326b0 100644
 --- a/mt7915/mmio.c
@@ -208,12 +111,23 @@ index 6a1877d4..cd8326b0 100644
  	dev->mt76.rx_token_size = wed->wlan.rx_pkt;
  	if (mtk_wed_device_attach(wed))
  		return 0;
-@@ -630,6 +633,9 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -630,6 +633,20 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  	if (ret)
  		return ret;
  
-+	if (is_wo_mcu(&dev->mt76))
-+		mt7915_mcu_wo_cmd(dev, WO_CMD_RXCNT_CTRL, 1, 6);
++	if (wed->ver != 1) {
++		struct {
++		__le32 args[2];
++		} req = {
++			.args = {
++				cpu_to_le32(1),
++				cpu_to_le32(6),
++			},
++		};
++
++		mtk_wed_device_update_msg(wed, WED_WO_RXCNT_CTRL,
++					  (void *)&req, sizeof(req));
++	}
 +
  	return 1;
  #else
@@ -231,14 +145,6 @@ index 3a81261b..b1fbbae9 100644
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);
  void mt7915_eeprom_rebonding(struct mt7915_dev *dev);
-@@ -633,6 +635,7 @@ int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
- 				     struct cfg80211_chan_def *chandef);
- int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set);
- int mt7915_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
-+int mt7915_mcu_wo_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2);
- int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
- int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
- void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb);
 -- 
 2.25.1
 

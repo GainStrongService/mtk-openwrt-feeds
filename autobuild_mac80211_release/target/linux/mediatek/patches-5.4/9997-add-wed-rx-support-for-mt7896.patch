@@ -14,11 +14,11 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_wed_ccif.h  |  45 ++
  .../net/ethernet/mediatek/mtk_wed_debugfs.c   |  90 +++
  drivers/net/ethernet/mediatek/mtk_wed_mcu.c   | 586 ++++++++++++++++
- drivers/net/ethernet/mediatek/mtk_wed_mcu.h   | 125 ++++
+ drivers/net/ethernet/mediatek/mtk_wed_mcu.h   |  96 +++
  drivers/net/ethernet/mediatek/mtk_wed_regs.h  | 144 +++-
  drivers/net/ethernet/mediatek/mtk_wed_wo.c    | 564 ++++++++++++++++
  drivers/net/ethernet/mediatek/mtk_wed_wo.h    | 324 +++++++++
- include/linux/soc/mediatek/mtk_wed.h          |  74 ++-
+ include/linux/soc/mediatek/mtk_wed.h          | 101 ++-
  14 files changed, 2796 insertions(+), 75 deletions(-)
  create mode 100644 drivers/net/ethernet/mediatek/mtk_wed_ccif.c
  create mode 100644 drivers/net/ethernet/mediatek/mtk_wed_ccif.h
@@ -280,7 +280,7 @@ index 2700176..b037d00 100644
 +
 +	mtk_wed_reset(dev, MTK_WED_RESET_WED);
 +
-+	mtk_wed_mcu_send_msg(wo, MODULE_ID_WO, WO_CMD_CHANGE_STATE,
++	mtk_wed_mcu_send_msg(wo, MODULE_ID_WO, WED_WO_CHANGE_STATE,
 +			     &state, sizeof(state), false);
 +
 +	do {
@@ -937,7 +937,7 @@ index 2700176..b037d00 100644
 +		.wed = 0,
 +	};
 +
-+	return mtk_wed_mcu_send_msg(wo, MODULE_ID_WO, WO_CMD_WED_CFG,
++	return mtk_wed_mcu_send_msg(wo, MODULE_ID_WO, WED_WO_CFG,
 +				    &req, sizeof(req), true);
 +}
 +
@@ -1711,7 +1711,7 @@ index 0000000..723bdfd
 +	req.arg0 = (u32)exp->phys;
 +	req.arg1 = (u32)exp->log_size;
 +
-+	return mtk_wed_mcu_send_msg(wo, MODULE_ID_WO, WO_CMD_EXCEPTION_INIT,
++	return mtk_wed_mcu_send_msg(wo, MODULE_ID_WO, WED_WO_EXCEPTION_INIT,
 +				    &req, sizeof(req), false);
 +
 +free:
@@ -1774,7 +1774,7 @@ index 0000000..723bdfd
 +
 +		for (i = 0; i < cnt; i++)
 +			if (wed->wlan.update_wo_rxcnt)
-+				wed->wlan.update_wo_rxcnt(wed, rxcnt);
++				wed->wlan.update_wo_rxcnt(wed, &rxcnt[i]);
 +		break;
 +	default:
 +		break;
@@ -1967,13 +1967,13 @@ index 0000000..723bdfd
 +	skb_pull(skb, sizeof(struct wed_cmd_hdr));
 +
 +	switch (cmd) {
-+	case WO_CMD_RXCNT_INFO:
++	case WED_WO_RXCNT_INFO:
 +		cnt = *(u32 *)skb->data;
 +		rxcnt = (struct wo_cmd_rxcnt_t *)((u32 *)skb->data+1);
 +
 +		for (i = 0; i < cnt; i++)
 +			if (wed->wlan.update_wo_rxcnt)
-+				wed->wlan.update_wo_rxcnt(wed, rxcnt);
++				wed->wlan.update_wo_rxcnt(wed, &rxcnt[i]);
 +		break;
 +	default:
 +		break;
@@ -2057,22 +2057,22 @@ index 0000000..723bdfd
 +	cmd = input[0];
 +	if (input_total == 1 && cmd) {
 +		if (strncmp(cmd, "bainfo", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_BA_INFO_DUMP;
++			cmd_id = WED_WO_BA_INFO_DUMP;
 +		} else if (strncmp(cmd, "bactrl", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_BA_CTRL_DUMP;
++			cmd_id = WED_WO_BA_CTRL_DUMP;
 +		} else if (strncmp(cmd, "fbcmdq", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_FBCMD_Q_DUMP;
++			cmd_id = WED_WO_FBCMD_Q_DUMP;
 +		} else if (strncmp(cmd, "logflush", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_LOG_FLUSH;
++			cmd_id = WED_WO_LOG_FLUSH;
 +		} else if (strncmp(cmd, "cpustat.dump", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_CPU_STATS_DUMP;
++			cmd_id = WED_WO_CPU_STATS_DUMP;
 +		} else if (strncmp(cmd, "state", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_WED_RX_STAT;
++			cmd_id = WED_WO_RX_STAT;
 +		} else if (strncmp(cmd, "prof_hit_dump", strlen(cmd)) == 0) {
 +			//wo_profiling_report();
 +			return count;
 +		} else if (strncmp(cmd, "rxcnt_info", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_RXCNT_INFO;
++			cmd_id = WED_WO_RXCNT_INFO;
 +			wait = true;
 +		} else {
 +			pr_info("(%s) unknown comand string(%s)!\n", __func__, cmd);
@@ -2088,23 +2088,23 @@ index 0000000..723bdfd
 +			}
 +		}
 +		if(strncmp(cmd, "devinfo", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_DEV_INFO_DUMP;
++			cmd_id = WED_WO_DEV_INFO_DUMP;
 +		} else if (strncmp(cmd, "bssinfo", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_BSS_INFO_DUMP;
++			cmd_id = WED_WO_BSS_INFO_DUMP;
 +		} else if (strncmp(cmd, "starec", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_STA_REC_DUMP;
++			cmd_id = WED_WO_STA_REC_DUMP;
 +		} else if (strncmp(cmd, "starec_ba", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_STA_BA_DUMP;
++			cmd_id = WED_WO_STA_BA_DUMP;
 +		} else if (strncmp(cmd, "logctrl", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_FW_LOG_CTRL;
++			cmd_id = WED_WO_FW_LOG_CTRL;
 +		} else if (strncmp(cmd, "cpustat.en", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_CPU_STATS_ENABLE;
++			cmd_id = WED_WO_CPU_STATS_ENABLE;
 +		} else if (strncmp(cmd, "prof_conf", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_PROF_CTRL;
++			cmd_id = WED_WO_PROF_CTRL;
 +		} else if (strncmp(cmd, "rxcnt_ctrl", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_RXCNT_CTRL;
++			cmd_id = WED_WO_RXCNT_CTRL;
 +		} else if (strncmp(cmd, "dbg_set", strlen(cmd)) == 0) {
-+			cmd_id = WO_CMD_DBG_INFO;
++			cmd_id = WED_WO_DBG_INFO;
 +		}
 +	} else {
 +		dev_info(hw->dev, "usage: echo cmd='cmd_str' > wo_write\n");
@@ -2153,7 +2153,7 @@ new file mode 100644
 index 0000000..6a5ac76
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_mcu.h
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,96 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#ifndef __MTK_WED_MCU_H
@@ -2207,35 +2207,6 @@ index 0000000..6a5ac76
 +	WO_EVT_LOG_DUMP = 0x1,
 +	WO_EVT_PROFILING = 0x2,
 +	WO_EVT_RXCNT_INFO = 0x3
-+};
-+
-+enum wo_cmd_id {
-+	WO_CMD_WED_CFG = 0,
-+	WO_CMD_WED_RX_STAT,
-+	WO_CMD_RRO_SER,
-+	WO_CMD_DBG_INFO,
-+	WO_CMD_DEV_INFO,
-+	WO_CMD_BSS_INFO,
-+	WO_CMD_STA_REC,
-+	WO_CMD_DEV_INFO_DUMP,
-+	WO_CMD_BSS_INFO_DUMP,
-+	WO_CMD_STA_REC_DUMP,
-+	WO_CMD_BA_INFO_DUMP,
-+	WO_CMD_FBCMD_Q_DUMP,
-+	WO_CMD_FW_LOG_CTRL,
-+	WO_CMD_LOG_FLUSH,
-+	WO_CMD_CHANGE_STATE,
-+	WO_CMD_CPU_STATS_ENABLE,
-+	WO_CMD_CPU_STATS_DUMP,
-+	WO_CMD_EXCEPTION_INIT,
-+	WO_CMD_PROF_CTRL,
-+	WO_CMD_STA_BA_DUMP,
-+	WO_CMD_BA_CTRL_DUMP,
-+	WO_CMD_RXCNT_CTRL,
-+	WO_CMD_RXCNT_INFO,
-+	WO_CMD_SET_CAP,
-+	WO_CMD_CCIF_RING_DUMP,
-+	WO_CMD_WED_END
 +};
 +
 +enum wo_state {
@@ -3438,17 +3409,44 @@ diff --git a/include/linux/soc/mediatek/mtk_wed.h b/include/linux/soc/mediatek/m
 index e914cb4..cfa1120 100644
 --- a/include/linux/soc/mediatek/mtk_wed.h
 +++ b/include/linux/soc/mediatek/mtk_wed.h
-@@ -7,6 +7,9 @@
+@@ -7,6 +7,36 @@
  #include <linux/pci.h>
  
  #define MTK_WED_TX_QUEUES		2
 +#define MTK_WED_RX_QUEUES		2
 +
-+#define WED_WO_STA_REC			0x6
++enum wo_cmd_id {
++	WED_WO_CFG = 0,
++	WED_WO_RX_STAT,
++	WED_WO_RRO_SER,
++	WED_WO_DBG_INFO,
++	WED_WO_DEV_INFO,
++	WED_WO_BSS_INFO,
++	WED_WO_STA_REC,
++	WED_WO_DEV_INFO_DUMP,
++	WED_WO_BSS_INFO_DUMP,
++	WED_WO_STA_REC_DUMP,
++	WED_WO_BA_INFO_DUMP,
++	WED_WO_FBCMD_Q_DUMP,
++	WED_WO_FW_LOG_CTRL,
++	WED_WO_LOG_FLUSH,
++	WED_WO_CHANGE_STATE,
++	WED_WO_CPU_STATS_ENABLE,
++	WED_WO_CPU_STATS_DUMP,
++	WED_WO_EXCEPTION_INIT,
++	WED_WO_PROF_CTRL,
++	WED_WO_STA_BA_DUMP,
++	WED_WO_BA_CTRL_DUMP,
++	WED_WO_RXCNT_CTRL,
++	WED_WO_RXCNT_INFO,
++	WED_WO_SET_CAP,
++	WED_WO_CCIF_RING_DUMP,
++	WED_WO_WED_END
++};
  
  enum {
  	MTK_NO_WED,
-@@ -33,6 +36,33 @@ struct mtk_wed_ring {
+@@ -33,6 +63,33 @@ struct mtk_wed_ring {
  	void __iomem *wpdma;
  };
  
@@ -3482,7 +3480,7 @@ index e914cb4..cfa1120 100644
  struct mtk_wed_device {
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
  	const struct mtk_wed_ops *ops;
-@@ -47,37 +77,56 @@ struct mtk_wed_device {
+@@ -47,37 +104,56 @@ struct mtk_wed_device {
  	struct mtk_wed_ring tx_ring[MTK_WED_TX_QUEUES];
  	struct mtk_wed_ring txfree_ring;
  	struct mtk_wed_ring tx_wdma[MTK_WED_TX_QUEUES];
@@ -3544,7 +3542,7 @@ index e914cb4..cfa1120 100644
  	} wlan;
  #endif
  };
-@@ -88,6 +137,10 @@ struct mtk_wed_ops {
+@@ -88,6 +164,10 @@ struct mtk_wed_ops {
  			     void __iomem *regs);
  	int (*txfree_ring_setup)(struct mtk_wed_device *dev,
  				 void __iomem *regs);
@@ -3555,7 +3553,7 @@ index e914cb4..cfa1120 100644
  	void (*detach)(struct mtk_wed_device *dev);
  
  	void (*stop)(struct mtk_wed_device *dev);
-@@ -99,6 +152,8 @@ struct mtk_wed_ops {
+@@ -99,6 +179,8 @@ struct mtk_wed_ops {
  
  	u32 (*irq_get)(struct mtk_wed_device *dev, u32 mask);
  	void (*irq_set_mask)(struct mtk_wed_device *dev, u32 mask);
@@ -3564,7 +3562,7 @@ index e914cb4..cfa1120 100644
  };
  
  extern const struct mtk_wed_ops __rcu *mtk_soc_wed_ops;
-@@ -131,6 +186,10 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
+@@ -131,6 +213,10 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
  	(_dev)->ops->tx_ring_setup(_dev, _ring, _regs)
  #define mtk_wed_device_txfree_ring_setup(_dev, _regs) \
  	(_dev)->ops->txfree_ring_setup(_dev, _regs)
@@ -3575,7 +3573,7 @@ index e914cb4..cfa1120 100644
  #define mtk_wed_device_reg_read(_dev, _reg) \
  	(_dev)->ops->reg_read(_dev, _reg)
  #define mtk_wed_device_reg_write(_dev, _reg, _val) \
-@@ -139,6 +198,8 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
+@@ -139,6 +225,8 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
  	(_dev)->ops->irq_get(_dev, _mask)
  #define mtk_wed_device_irq_set_mask(_dev, _mask) \
  	(_dev)->ops->irq_set_mask(_dev, _mask)
@@ -3584,7 +3582,7 @@ index e914cb4..cfa1120 100644
  #else
  static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
  {
-@@ -148,10 +209,13 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
+@@ -148,10 +236,13 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
  #define mtk_wed_device_start(_dev, _mask) do {} while (0)
  #define mtk_wed_device_tx_ring_setup(_dev, _ring, _regs) -ENODEV
  #define mtk_wed_device_txfree_ring_setup(_dev, _ring, _regs) -ENODEV
