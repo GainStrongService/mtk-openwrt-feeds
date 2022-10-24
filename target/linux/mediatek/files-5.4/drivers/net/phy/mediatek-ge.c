@@ -190,6 +190,18 @@ enum {
 #define   MTK_PHY_LED0_POLARITY		BIT(14)
 #define   MTK_PHY_LED0_ENABLE		BIT(15)
 
+#define MTK_PHY_LED0_BLINK_CTRL		(0x25)
+#define   MTK_PHY_LED0_1000TX		BIT(0)
+#define   MTK_PHY_LED0_1000RX		BIT(1)
+#define   MTK_PHY_LED0_100TX		BIT(2)
+#define   MTK_PHY_LED0_100RX		BIT(3)
+#define   MTK_PHY_LED0_10TX		BIT(4)
+#define   MTK_PHY_LED0_10RX		BIT(5)
+#define   MTK_PHY_LED0_COLLISION	BIT(6)
+#define   MTK_PHY_LED0_RX_CRC_ERR	BIT(7)
+#define   MTK_PHY_LED0_RX_IDLE_ERR	BIT(8)
+#define   MTK_PHY_LED0_FORCE_BLINK	BIT(9)
+
 #define MTK_PHY_ANA_TEST_BUS_CTRL_RG	(0x100)
 #define   MTK_PHY_ANA_TEST_MODE_MASK		GENMASK(15, 8)
 
@@ -1005,6 +1017,10 @@ static int mt7988_phy_config_init(struct phy_device *phydev)
 			MTK_PHY_LED0_ON_LINK10 | MTK_PHY_LED0_ON_LINK100 |
 			MTK_PHY_LED0_ON_LINK1000);
 	}
+	phy_write_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_BLINK_CTRL,
+			MTK_PHY_LED0_1000TX | MTK_PHY_LED0_1000RX |
+			MTK_PHY_LED0_100TX  | MTK_PHY_LED0_100RX  |
+			MTK_PHY_LED0_10TX   | MTK_PHY_LED0_10RX);
 
 	mt7988_phy_finetune(phydev);
 
