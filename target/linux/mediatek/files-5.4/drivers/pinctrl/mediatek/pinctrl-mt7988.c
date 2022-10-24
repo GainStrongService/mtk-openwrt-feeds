@@ -1026,9 +1026,13 @@ static int mt7988_net_wo2_uart_txd_1_funcs[] = { 3 };
 static int mt7988_udi_pins[] = { 32, 33, 34, 35, 36 };
 static int mt7988_udi_funcs[] = { 4, 4, 4, 4, 4 };
 
+/* i2s */
+static int mt7988_i2s_pins[] = { 50, 51, 52, 53, 54 };
+static int mt7988_i2s_funcs[] = { 1, 1, 1, 1, 1 };
+
 /* pcm */
-static int mt7988_pcm_pins[] = { 50, 51, 52, 53, 54 };
-static int mt7988_pcm_funcs[] = { 1, 1, 1, 1, 1 };
+static int mt7988_pcm_pins[] = { 50, 51, 52, 53 };
+static int mt7988_pcm_funcs[] = { 1, 1, 1, 1 };
 
 /* led */
 static int mt7988_gbe_led1_pins[] = { 58, 59, 60, 61 };
@@ -1179,7 +1183,9 @@ static const struct group_desc mt7988_groups[] = {
 	PINCTRL_PIN_GROUP("2p5g_ext_mdio", mt7988_2p5g_ext_mdio),
 	/*  @GPIO(30,31) gbe_ext_mdio */
 	PINCTRL_PIN_GROUP("gbe_ext_mdio", mt7988_gbe_ext_mdio),
-	/*  @GPIO(50,51,52,53,54) pcm */
+	/*  @GPIO(50,51,52,53,54) i2s */
+	PINCTRL_PIN_GROUP("i2s", mt7988_i2s),
+	/*  @GPIO(50,51,52,53) pcm */
 	PINCTRL_PIN_GROUP("pcm", mt7988_pcm),
 	/*  @GPIO(55,56) uart0 */
 	PINCTRL_PIN_GROUP("uart0", mt7988_uart0),
@@ -1373,8 +1379,8 @@ static const char * const mt7988_uart_groups[] = {
 static const char * const mt7988_udi_groups[] = {
 	"udi",
 };
-static const char * const mt7988_pcm_groups[] = {
-	"pcm",
+static const char * const mt7988_audio_groups[] = {
+	"i2s", "pcm",
 };
 static const char * const mt7988_led_groups[] = {
 	"gbe_led1",    "2p5gbe_led1", "gbe_led0",
@@ -1386,6 +1392,7 @@ static const char * const mt7988_usb_groups[] = {
 };
 
 static const struct function_desc mt7988_functions[] = {
+	{ "audio", mt7988_audio_groups, ARRAY_SIZE(mt7988_audio_groups) },
 	{ "jtag", mt7988_jtag_groups, ARRAY_SIZE(mt7988_jtag_groups) },
 	{ "int_usxgmii", mt7988_int_usxgmii_groups,
 	  ARRAY_SIZE(mt7988_int_usxgmii_groups) },
@@ -1400,7 +1407,6 @@ static const struct function_desc mt7988_functions[] = {
 	{ "flash", mt7988_flash_groups, ARRAY_SIZE(mt7988_flash_groups) },
 	{ "uart", mt7988_uart_groups, ARRAY_SIZE(mt7988_uart_groups) },
 	{ "udi", mt7988_udi_groups, ARRAY_SIZE(mt7988_udi_groups) },
-	{ "pcm", mt7988_pcm_groups, ARRAY_SIZE(mt7988_pcm_groups) },
 	{ "usb", mt7988_usb_groups, ARRAY_SIZE(mt7988_usb_groups) },
 	{ "led", mt7988_led_groups, ARRAY_SIZE(mt7988_led_groups) },
 };
