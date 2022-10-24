@@ -15,7 +15,7 @@ if [ -z ${BUILD_DIR} ]; then
 fi
 
 MTK_FEED_DIR=${BUILD_DIR}/feeds/mtk_openwrt_feed
-MTK_MANIFEST_FEED=${BUILD_DIR}/../mtk-openwrt-feeds
+MTK_MANIFEST_FEED=${BUILD_DIR}/../mtk_openwrt_feeds
 
 if [ -z ${INSTALL_DIR} ]; then
 	INSTALL_DIR=autobuild_release
