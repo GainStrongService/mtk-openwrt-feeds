@@ -1357,7 +1357,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				if (hnat_priv->data->per_flow_accounting)
 					entry.ipv4_dslite.iblk2.mibf = 1;
 				/* Map-E LAN->WAN record inner IPv4 header info. */
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 				if (mape_toggle) {
 					entry.ipv4_dslite.iblk2.dscp = foe->ipv4_dslite.iblk2.dscp;
 					entry.ipv4_mape.new_sip = foe->ipv4_mape.new_sip;
