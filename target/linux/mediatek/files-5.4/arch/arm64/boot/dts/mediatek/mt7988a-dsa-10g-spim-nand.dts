@@ -71,10 +71,34 @@
 		adie_id = <7976>;
 		sku_type = <3000>;
 	};
+
+	sound_wm8960 {
+		compatible = "mediatek,mt79xx-wm8960-machine";
+		mediatek,platform = <&afe>;
+		audio-routing = "Headphone", "HP_L",
+				"Headphone", "HP_R",
+				"LINPUT1", "AMIC",
+				"RINPUT1", "AMIC";
+		mediatek,audio-codec = <&wm8960>;
+		status = "disabled";
+	};
+
+	sound_si3218x {
+		compatible = "mediatek,mt79xx-si3218x-machine";
+		mediatek,platform = <&afe>;
+		mediatek,ext-codec = <&proslic_spi>;
+		status = "disabled";
+	};
 };
 
 &fan {
 	pwms = <&pwm 0 50000 0>;
+	status = "okay";
+};
+
+&afe {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcm_pins>;
 	status = "okay";
 };
 
@@ -84,6 +108,17 @@
 
 &uart0 {
 	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+	status = "okay";
+
+	wm8960: wm8960@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+	};
 };
 
 &spi0 {
@@ -113,6 +148,18 @@
 	/* pin shared with snfi */
 	pinctrl-0 = <&spic_pins>;
 	status = "disabled";
+
+	proslic_spi: proslic_spi@0 {
+		compatible = "silabs,proslic_spi";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		spi-cpha = <1>;
+		spi-cpol = <1>;
+		channel_count = <1>;
+		debug_level = <4>;       /* 1 = TRC, 2 = DBG, 4 = ERR */
+		reset_gpio = <&pio 54 0>;
+		ig,enable-spi = <1>;     /* 1: Enable, 0: Disable */
+	};
 };
 
 &pcie0 {
@@ -182,7 +229,28 @@
 	spic_pins: spi1-pins {
 		mux {
 			function = "spi";
-			groups = "spi1_1";
+			groups = "spi1";
+		};
+	};
+
+	i2c1_pins: i2c1-pins {
+		mux {
+			function = "i2c";
+			groups = "i2c1_0";
+		};
+	};
+
+	i2s_pins: i2s-pins {
+		mux {
+			function = "audio";
+			groups = "i2s";
+		};
+	};
+
+	pcm_pins: pcm-pins {
+		mux {
+			function = "audio";
+			groups = "pcm";
 		};
 	};
 };

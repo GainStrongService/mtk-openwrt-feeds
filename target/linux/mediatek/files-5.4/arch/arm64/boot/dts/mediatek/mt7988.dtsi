@@ -538,6 +538,35 @@
 		status = "okay";
 	};
 
+	afe: audio-controller@11210000 {
+		compatible = "mediatek,mt79xx-audio";
+		reg = <0 0x11210000 0 0x9000>;
+		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&infracfg_ao CK_INFRA_66M_AUD_SLV_BCK>,
+			 <&infracfg_ao CK_INFRA_AUD_26M>,
+			 <&infracfg_ao CK_INFRA_AUD_L>,
+			 <&infracfg_ao CK_INFRA_AUD_AUD>,
+			 <&infracfg_ao CK_INFRA_AUD_EG2>,
+			 <&topckgen CK_TOP_AUD_SEL>,
+			 <&topckgen CK_TOP_AUD_I2S_M>;
+		clock-names = "aud_bus_ck",
+			      "aud_26m_ck",
+			      "aud_l_ck",
+			      "aud_aud_ck",
+			      "aud_eg2_ck",
+			      "aud_sel",
+			      "aud_i2s_m";
+		assigned-clocks = <&topckgen CK_TOP_AUD_SEL>,
+				  <&topckgen CK_TOP_A1SYS_SEL>,
+				  <&topckgen CK_TOP_AUD_L_SEL>,
+				  <&topckgen CK_TOP_A_TUNER_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_APLL2_196M>,
+					 <&topckgen CK_TOP_CB_APLL2_D4>,
+					 <&topckgen CK_TOP_CB_APLL2_196M>,
+					 <&topckgen CK_TOP_CB_APLL2_D4>;
+		status = "disabled";
+	};
+
 	pcie0: pcie@11300000 {
 		compatible = "mediatek,mt7988-pcie",
 			     "mediatek,mt7986-pcie";
