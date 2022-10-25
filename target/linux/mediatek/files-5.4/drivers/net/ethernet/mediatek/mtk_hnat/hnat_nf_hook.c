@@ -1020,7 +1020,7 @@ static u16 ppe_get_chkbase(struct iphdr *iph)
 struct foe_entry ppe_fill_L2_info(struct ethhdr *eth, struct foe_entry entry,
 				  struct flow_offload_hw_path *hw_path)
 {
-	switch (entry.bfib1.pkt_type) {
+	switch ((int)entry.bfib1.pkt_type) {
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
 		entry.ipv4_hnapt.dmac_hi = swab32(*((u32 *)eth->h_dest));
@@ -1034,6 +1034,8 @@ struct foe_entry ppe_fill_L2_info(struct ethhdr *eth, struct foe_entry entry,
 	case IPV6_6RD:
 	case IPV6_5T_ROUTE:
 	case IPV6_3T_ROUTE:
+	case IPV6_HNAPT:
+	case IPV6_HNAT:
 		entry.ipv6_5t_route.dmac_hi = swab32(*((u32 *)eth->h_dest));
 		entry.ipv6_5t_route.dmac_lo = swab16(*((u16 *)&eth->h_dest[4]));
 		entry.ipv6_5t_route.smac_hi = swab32(*((u32 *)eth->h_source));
@@ -1057,7 +1059,7 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 		readl(hnat_priv->fe_base + 0x0010) & (0xFF) :
 		readl(hnat_priv->fe_base + 0x0010) & (0x7FFF);
 
-	switch (entry.bfib1.pkt_type) {
+	switch ((int)entry.bfib1.pkt_type) {
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
 		if (hnat_priv->data->mcast &&
@@ -1080,6 +1082,8 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 	case IPV6_6RD:
 	case IPV6_5T_ROUTE:
 	case IPV6_3T_ROUTE:
+	case IPV6_HNAPT:
+	case IPV6_HNAT:
 		if (hnat_priv->data->mcast &&
 		    is_multicast_ether_addr(&eth->h_dest[0])) {
 			entry.ipv6_5t_route.iblk2.mcast = 1;
@@ -1111,11 +1115,15 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	struct ipv6hdr *ip6h;
 	struct tcpudphdr _ports;
 	const struct tcpudphdr *pptr;
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
 	u32 gmac = NR_DISCARD;
 	int udp = 0;
 	u32 qid = 0;
 	u32 port_id = 0;
 	int mape = 0;
+
+	ct = nf_ct_get(skb, &ctinfo);
 
 	if (ipv6_hdr(skb)->nexthdr == NEXTHDR_IPIP)
 		/* point to ethernet header for DS-Lite and MapE */
@@ -1311,6 +1319,46 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv6_5t_route.dport =
 					foe->ipv6_5t_route.dport;
 			}
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+			if (ct && (ct->status & IPS_SRC_NAT)) {
+				entry.bfib1.pkt_type = IPV6_HNAPT;
+
+				if (IS_WAN(dev) || IS_DSA_WAN(dev)) {
+					entry.ipv6_hnapt.eg_ipv6_dir =
+						IPV6_SNAT;
+					entry.ipv6_hnapt.new_ipv6_ip0 =
+						ntohl(ip6h->saddr.s6_addr32[0]);
+					entry.ipv6_hnapt.new_ipv6_ip1 =
+						ntohl(ip6h->saddr.s6_addr32[1]);
+					entry.ipv6_hnapt.new_ipv6_ip2 =
+						ntohl(ip6h->saddr.s6_addr32[2]);
+					entry.ipv6_hnapt.new_ipv6_ip3 =
+						ntohl(ip6h->saddr.s6_addr32[3]);
+				} else {
+					entry.ipv6_hnapt.eg_ipv6_dir =
+						IPV6_DNAT;
+					entry.ipv6_hnapt.new_ipv6_ip0 =
+						ntohl(ip6h->daddr.s6_addr32[0]);
+					entry.ipv6_hnapt.new_ipv6_ip1 =
+						ntohl(ip6h->daddr.s6_addr32[1]);
+					entry.ipv6_hnapt.new_ipv6_ip2 =
+						ntohl(ip6h->daddr.s6_addr32[2]);
+					entry.ipv6_hnapt.new_ipv6_ip3 =
+						ntohl(ip6h->daddr.s6_addr32[3]);
+				}
+
+				pptr = skb_header_pointer(skb, IPV6_HDR_LEN,
+							  sizeof(_ports),
+							  &_ports);
+				if (unlikely(!pptr))
+					return -1;
+
+				entry.ipv6_hnapt.new_sport = ntohs(pptr->src);
+				entry.ipv6_hnapt.new_dport = ntohs(pptr->dst);
+			}
+#endif
+
 			entry.ipv6_5t_route.iblk2.dscp =
 				(ip6h->priority << 4 |
 				 (ip6h->flow_lbl[0] >> 4));
@@ -1681,7 +1729,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	/* Some mt_wifi virtual interfaces, such as apcli,
 	 * will change the smac for specail purpose.
 	 */
-	switch (bfib1_tx.pkt_type) {
+	switch ((int)bfib1_tx.pkt_type) {
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
 		entry->ipv4_hnapt.smac_hi = swab32(*((u32 *)eth->h_source));
@@ -1692,6 +1740,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	case IPV6_6RD:
 	case IPV6_5T_ROUTE:
 	case IPV6_3T_ROUTE:
+	case IPV6_HNAPT:
+	case IPV6_HNAT:
 		entry->ipv6_5t_route.smac_hi = swab32(*((u32 *)eth->h_source));
 		entry->ipv6_5t_route.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
 		break;
@@ -1765,6 +1815,24 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 			}
 		}
 		entry->ipv4_hnapt.iblk2.dp = gmac_no;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	} else if (IS_IPV6_HNAPT(entry) || IS_IPV6_HNAT(entry)) {
+		entry->ipv6_hnapt.iblk2.dp = gmac_no;
+		entry->ipv6_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
+		entry->ipv6_hnapt.iblk2.winfoi = 1;
+
+		entry->ipv6_hnapt.winfo.bssid = skb_hnat_bss_id(skb);
+		entry->ipv6_hnapt.winfo.wcid = skb_hnat_wc_id(skb);
+		entry->ipv6_hnapt.winfo_pao.usr_info = skb_hnat_usr_info(skb);
+		entry->ipv6_hnapt.winfo_pao.tid = skb_hnat_tid(skb);
+		entry->ipv6_hnapt.winfo_pao.is_fixedrate =
+			skb_hnat_is_fixedrate(skb);
+		entry->ipv6_hnapt.winfo_pao.is_prior = skb_hnat_is_prior(skb);
+		entry->ipv6_hnapt.winfo_pao.is_sp = skb_hnat_is_sp(skb);
+		entry->ipv6_hnapt.winfo_pao.hf = skb_hnat_hf(skb);
+		entry->ipv6_hnapt.winfo_pao.amsdu = skb_hnat_amsdu(skb);
+		entry->ipv6_hnapt.tport_id = (IS_HQOS_MODE) ? 1 : 0;
+#endif
 	} else {
 		entry->ipv6_5t_route.iblk2.fqos = 0;
 		if ((hnat_priv->data->version == MTK_HNAT_V2 &&

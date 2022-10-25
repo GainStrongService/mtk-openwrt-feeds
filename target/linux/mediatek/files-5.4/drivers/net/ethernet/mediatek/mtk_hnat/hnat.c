@@ -330,6 +330,11 @@ static int hnat_hw_init(u32 ppe_id)
 		cr_set_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
 			    BIT_IPV4_MAPE_EN | BIT_IPV4_MAPT_EN);
 
+	if (hnat_priv->data->version == MTK_HNAT_V5)
+		cr_set_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
+			    BIT_IPV6_NAT_EN | BIT_IPV6_NAPT_EN |
+			    BIT_CS0_RM_ALL_IP6_IP_EN);
+
 	/* setup FOE aging */
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, NTU_AGE, 1);
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, UNBD_AGE, 1);
@@ -524,6 +529,11 @@ static void hnat_stop(u32 ppe_id)
 	    hnat_priv->data->version == MTK_HNAT_V5)
 		cr_clr_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
 			    BIT_IPV4_MAPE_EN | BIT_IPV4_MAPT_EN);
+
+	if (hnat_priv->data->version == MTK_HNAT_V5)
+		cr_clr_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
+			    BIT_IPV6_NAT_EN | BIT_IPV6_NAPT_EN |
+			    BIT_CS0_RM_ALL_IP6_IP_EN);
 
 	/* disable FOE aging */
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, NTU_AGE, 0);

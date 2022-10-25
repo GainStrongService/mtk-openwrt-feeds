@@ -35,7 +35,7 @@ static const char * const entry_state[] = { "INVALID", "UNBIND", "BIND", "FIN" }
 static const char * const packet_type[] = {
 	"IPV4_HNAPT",    "IPV4_HNAT",     "IPV6_1T_ROUTE", "IPV4_DSLITE",
 	"IPV6_3T_ROUTE", "IPV6_5T_ROUTE", "REV",	   "IPV6_6RD",
-	"IPV4_MAP_T",    "IPV4_MAP_E",
+	"IPV4_MAP_T",    "IPV4_MAP_E",    "IPV6_HNAPT",    "IPV6_HNAT",
 };
 
 static uint8_t *show_cpu_reason(struct sk_buff *skb)
@@ -465,7 +465,92 @@ int entry_detail(u32 ppe_id, int index)
 			entry->ipv6_6rd.sport, entry->ipv6_6rd.ipv6_dip0,
 			entry->ipv6_6rd.ipv6_dip1, entry->ipv6_6rd.ipv6_dip2,
 			entry->ipv6_6rd.ipv6_dip3, entry->ipv6_6rd.dport);
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	} else if (IS_IPV6_HNAPT(entry)) {
+		pr_info("Information Block 2: %08X (FP=%d FQOS=%d QID=%d)",
+			entry->ipv6_hnapt.info_blk2,
+			entry->ipv6_hnapt.iblk2.dp,
+			entry->ipv6_hnapt.iblk2.fqos,
+			entry->ipv6_hnapt.iblk2.qid);
+		pr_info("Create IPv6 HNAPT entry\n");
+		pr_info("IPv6 Org IP/Port: %08X:%08X:%08X:%08X:%d -> %08X:%08X:%08X:%08X:%d",
+			entry->ipv6_hnapt.ipv6_sip0,
+			entry->ipv6_hnapt.ipv6_sip1,
+			entry->ipv6_hnapt.ipv6_sip2,
+			entry->ipv6_hnapt.ipv6_sip3,
+			entry->ipv6_hnapt.sport,
+			entry->ipv6_hnapt.ipv6_dip0,
+			entry->ipv6_hnapt.ipv6_dip1,
+			entry->ipv6_hnapt.ipv6_dip2,
+			entry->ipv6_hnapt.ipv6_dip3,
+			entry->ipv6_hnapt.dport);
+
+		if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_SNAT) {
+			pr_info("IPv6 New IP/Port: %08X:%08X:%08X:%08X:%d -> %08X:%08X:%08X:%08X:%d\n",
+				entry->ipv6_hnapt.new_ipv6_ip0,
+				entry->ipv6_hnapt.new_ipv6_ip1,
+				entry->ipv6_hnapt.new_ipv6_ip2,
+				entry->ipv6_hnapt.new_ipv6_ip3,
+				entry->ipv6_hnapt.new_sport,
+				entry->ipv6_hnapt.ipv6_dip0,
+				entry->ipv6_hnapt.ipv6_dip1,
+				entry->ipv6_hnapt.ipv6_dip2,
+				entry->ipv6_hnapt.ipv6_dip3,
+				entry->ipv6_hnapt.new_dport);
+		} else if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_DNAT) {
+			pr_info("IPv6 New IP/Port: %08X:%08X:%08X:%08X:%d -> %08X:%08X:%08X:%08X:%d\n",
+				entry->ipv6_hnapt.ipv6_sip0,
+				entry->ipv6_hnapt.ipv6_sip1,
+				entry->ipv6_hnapt.ipv6_sip2,
+				entry->ipv6_hnapt.ipv6_sip3,
+				entry->ipv6_hnapt.new_sport,
+				entry->ipv6_hnapt.new_ipv6_ip0,
+				entry->ipv6_hnapt.new_ipv6_ip1,
+				entry->ipv6_hnapt.new_ipv6_ip2,
+				entry->ipv6_hnapt.new_ipv6_ip3,
+				entry->ipv6_hnapt.new_dport);
+		}
+	} else if (IS_IPV6_HNAT(entry)) {
+		pr_info("Information Block 2: %08X (FP=%d FQOS=%d QID=%d)",
+			entry->ipv6_hnapt.info_blk2,
+			entry->ipv6_hnapt.iblk2.dp,
+			entry->ipv6_hnapt.iblk2.fqos,
+			entry->ipv6_hnapt.iblk2.qid);
+		pr_info("Create IPv6 HNAT entry\n");
+		pr_info("IPv6 Org IP: %08X:%08X:%08X:%08X -> %08X:%08X:%08X:%08X",
+			entry->ipv6_hnapt.ipv6_sip0,
+			entry->ipv6_hnapt.ipv6_sip1,
+			entry->ipv6_hnapt.ipv6_sip2,
+			entry->ipv6_hnapt.ipv6_sip3,
+			entry->ipv6_hnapt.ipv6_dip0,
+			entry->ipv6_hnapt.ipv6_dip1,
+			entry->ipv6_hnapt.ipv6_dip2,
+			entry->ipv6_hnapt.ipv6_dip3);
+
+		if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_SNAT) {
+			pr_info("IPv6 New IP: %08X:%08X:%08X:%08X -> %08X:%08X:%08X:%08X\n",
+				entry->ipv6_hnapt.new_ipv6_ip0,
+				entry->ipv6_hnapt.new_ipv6_ip1,
+				entry->ipv6_hnapt.new_ipv6_ip2,
+				entry->ipv6_hnapt.new_ipv6_ip3,
+				entry->ipv6_hnapt.ipv6_dip0,
+				entry->ipv6_hnapt.ipv6_dip1,
+				entry->ipv6_hnapt.ipv6_dip2,
+				entry->ipv6_hnapt.ipv6_dip3);
+		} else if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_DNAT) {
+			pr_info("IPv6 New IP: %08X:%08X:%08X:%08X -> %08X:%08X:%08X:%08X\n",
+				entry->ipv6_hnapt.ipv6_sip0,
+				entry->ipv6_hnapt.ipv6_sip1,
+				entry->ipv6_hnapt.ipv6_sip2,
+				entry->ipv6_hnapt.ipv6_sip3,
+				entry->ipv6_hnapt.new_ipv6_ip0,
+				entry->ipv6_hnapt.new_ipv6_ip1,
+				entry->ipv6_hnapt.new_ipv6_ip2,
+				entry->ipv6_hnapt.new_ipv6_ip3);
+		}
+#endif
 	}
+
 	if (IS_IPV4_HNAPT(entry) || IS_IPV4_HNAT(entry)) {
 		*((u32 *)h_source) = swab32(entry->ipv4_hnapt.smac_hi);
 		*((u16 *)&h_source[4]) = swab16(entry->ipv4_hnapt.smac_lo);
@@ -936,6 +1021,138 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				   ntohs(entry->ipv6_5t_route.etype),
 				   entry->ipv6_5t_route.info_blk1,
 				   entry->ipv6_5t_route.info_blk2);
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+		} else if (IS_IPV6_HNAPT(entry)) {
+			u32 ipv6_sip0 = entry->ipv6_hnapt.ipv6_sip0;
+			u32 ipv6_sip1 = entry->ipv6_hnapt.ipv6_sip1;
+			u32 ipv6_sip2 = entry->ipv6_hnapt.ipv6_sip2;
+			u32 ipv6_sip3 = entry->ipv6_hnapt.ipv6_sip3;
+			u32 ipv6_dip0 = entry->ipv6_hnapt.ipv6_dip0;
+			u32 ipv6_dip1 = entry->ipv6_hnapt.ipv6_dip1;
+			u32 ipv6_dip2 = entry->ipv6_hnapt.ipv6_dip2;
+			u32 ipv6_dip3 = entry->ipv6_hnapt.ipv6_dip3;
+			u32 new_ipv6_ip0 = entry->ipv6_hnapt.new_ipv6_ip0;
+			u32 new_ipv6_ip1 = entry->ipv6_hnapt.new_ipv6_ip1;
+			u32 new_ipv6_ip2 = entry->ipv6_hnapt.new_ipv6_ip2;
+			u32 new_ipv6_ip3 = entry->ipv6_hnapt.new_ipv6_ip3;
+
+			*((u32 *)h_source) = swab32(entry->ipv6_hnapt.smac_hi);
+			*((u16 *)&h_source[4]) =
+				swab16(entry->ipv6_hnapt.smac_lo);
+			*((u32 *)h_dest) = swab32(entry->ipv6_hnapt.dmac_hi);
+			*((u16 *)&h_dest[4]) =
+				swab16(entry->ipv6_hnapt.dmac_lo);
+			PRINT_COUNT(m, acct);
+
+			if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_SNAT) {
+				seq_printf(m,
+					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|NEW_SIP=%08x:%08x:%08x:%08x(sp=%d)->NEW_DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+					   entry, ppe_id, ei(entry, end),
+					   es(entry), pt(entry),
+					   ipv6_sip0, ipv6_sip1,
+					   ipv6_sip2, ipv6_sip3,
+					   entry->ipv6_hnapt.sport,
+					   ipv6_dip0, ipv6_dip1,
+					   ipv6_dip2, ipv6_dip3,
+					   entry->ipv6_hnapt.dport,
+					   new_ipv6_ip0, new_ipv6_ip1,
+					   new_ipv6_ip2, new_ipv6_ip3,
+					   entry->ipv6_hnapt.new_sport,
+					   ipv6_dip0, ipv6_dip1,
+					   ipv6_dip2, ipv6_dip3,
+					   entry->ipv6_hnapt.new_dport,
+					   h_source, h_dest,
+					   ntohs(entry->ipv6_hnapt.etype),
+					   entry->ipv6_hnapt.info_blk1,
+					   entry->ipv6_hnapt.info_blk2,
+					   entry->ipv6_hnapt.vlan1,
+					   entry->ipv6_hnapt.vlan2);
+			} else if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_DNAT) {
+				seq_printf(m,
+					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|NEW_SIP=%08x:%08x:%08x:%08x(sp=%d)->NEW_DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+					   entry, ppe_id, ei(entry, end),
+					   es(entry), pt(entry),
+					   ipv6_sip0, ipv6_sip1,
+					   ipv6_sip2, ipv6_sip3,
+					   entry->ipv6_hnapt.sport,
+					   ipv6_dip0, ipv6_dip1,
+					   ipv6_dip2, ipv6_dip3,
+					   entry->ipv6_hnapt.dport,
+					   ipv6_sip0, ipv6_sip1,
+					   ipv6_sip2, ipv6_sip3,
+					   entry->ipv6_hnapt.new_sport,
+					   new_ipv6_ip0, new_ipv6_ip1,
+					   new_ipv6_ip2, new_ipv6_ip3,
+					   entry->ipv6_hnapt.new_dport,
+					   h_source, h_dest,
+					   ntohs(entry->ipv6_hnapt.etype),
+					   entry->ipv6_hnapt.info_blk1,
+					   entry->ipv6_hnapt.info_blk2,
+					   entry->ipv6_hnapt.vlan1,
+					   entry->ipv6_hnapt.vlan2);
+			}
+		} else if (IS_IPV6_HNAT(entry)) {
+			u32 ipv6_sip0 = entry->ipv6_hnapt.ipv6_sip0;
+			u32 ipv6_sip1 = entry->ipv6_hnapt.ipv6_sip1;
+			u32 ipv6_sip2 = entry->ipv6_hnapt.ipv6_sip2;
+			u32 ipv6_sip3 = entry->ipv6_hnapt.ipv6_sip3;
+			u32 ipv6_dip0 = entry->ipv6_hnapt.ipv6_dip0;
+			u32 ipv6_dip1 = entry->ipv6_hnapt.ipv6_dip1;
+			u32 ipv6_dip2 = entry->ipv6_hnapt.ipv6_dip2;
+			u32 ipv6_dip3 = entry->ipv6_hnapt.ipv6_dip3;
+			u32 new_ipv6_ip0 = entry->ipv6_hnapt.new_ipv6_ip0;
+			u32 new_ipv6_ip1 = entry->ipv6_hnapt.new_ipv6_ip1;
+			u32 new_ipv6_ip2 = entry->ipv6_hnapt.new_ipv6_ip2;
+			u32 new_ipv6_ip3 = entry->ipv6_hnapt.new_ipv6_ip3;
+
+			*((u32 *)h_source) = swab32(entry->ipv6_hnapt.smac_hi);
+			*((u16 *)&h_source[4]) =
+				swab16(entry->ipv6_hnapt.smac_lo);
+			*((u32 *)h_dest) = swab32(entry->ipv6_hnapt.dmac_hi);
+			*((u16 *)&h_dest[4]) =
+				swab16(entry->ipv6_hnapt.dmac_lo);
+			PRINT_COUNT(m, acct);
+
+			if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_SNAT) {
+				seq_printf(m,
+					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|NEW_SIP=%08x:%08x:%08x:%08x->NEW_DIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+					   entry, ppe_id, ei(entry, end),
+					   es(entry), pt(entry),
+					   ipv6_sip0, ipv6_sip1,
+					   ipv6_sip2, ipv6_sip3,
+					   ipv6_dip0, ipv6_dip1,
+					   ipv6_dip2, ipv6_dip3,
+					   new_ipv6_ip0, new_ipv6_ip1,
+					   new_ipv6_ip2, new_ipv6_ip3,
+					   ipv6_dip0, ipv6_dip1,
+					   ipv6_dip2, ipv6_dip3,
+					   h_source, h_dest,
+					   ntohs(entry->ipv6_hnapt.etype),
+					   entry->ipv6_hnapt.info_blk1,
+					   entry->ipv6_hnapt.info_blk2,
+					   entry->ipv6_hnapt.vlan1,
+					   entry->ipv6_hnapt.vlan2);
+			} else if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_DNAT) {
+				seq_printf(m,
+					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|NEW_SIP=%08x:%08x:%08x:%08x->NEW_DIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+					   entry, ppe_id, ei(entry, end),
+					   es(entry), pt(entry),
+					   ipv6_sip0, ipv6_sip1,
+					   ipv6_sip2, ipv6_sip3,
+					   ipv6_dip0, ipv6_dip1,
+					   ipv6_dip2, ipv6_dip3,
+					   ipv6_sip0, ipv6_sip1,
+					   ipv6_sip2, ipv6_sip3,
+					   new_ipv6_ip0, new_ipv6_ip1,
+					   new_ipv6_ip2, new_ipv6_ip3,
+					   h_source, h_dest,
+					   ntohs(entry->ipv6_hnapt.etype),
+					   entry->ipv6_hnapt.info_blk1,
+					   entry->ipv6_hnapt.info_blk2,
+					   entry->ipv6_hnapt.vlan1,
+					   entry->ipv6_hnapt.vlan2);
+			}
+#endif
 		} else if (IS_IPV4_DSLITE(entry)) {
 			__be32 saddr = htonl(entry->ipv4_hnapt.sip);
 			__be32 daddr = htonl(entry->ipv4_hnapt.dip);
@@ -1304,6 +1521,96 @@ void dbg_dump_entry(struct seq_file *m, struct foe_entry *entry,
 			   entry->ipv6_6rd.ipv6_dip0, entry->ipv6_6rd.ipv6_dip1,
 			   entry->ipv6_6rd.ipv6_dip2, entry->ipv6_6rd.ipv6_dip3,
 			   entry->ipv6_6rd.dport);
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	} else if (IS_IPV6_HNAPT(entry)) {
+		if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_SNAT) {
+			seq_printf(m,
+				   "IPv6_HNAPT(%d): %08X:%08X:%08X:%08X:%d->%08X:%08X:%08X:%08X:%d => %08X:%08X:%08X:%08X:%d -> %08X:%08X:%08X:%08X:%d\n",
+				   index, entry->ipv6_hnapt.ipv6_sip0,
+				   entry->ipv6_hnapt.ipv6_sip1,
+				   entry->ipv6_hnapt.ipv6_sip2,
+				   entry->ipv6_hnapt.ipv6_sip3,
+				   entry->ipv6_hnapt.sport,
+				   entry->ipv6_hnapt.ipv6_dip0,
+				   entry->ipv6_hnapt.ipv6_dip1,
+				   entry->ipv6_hnapt.ipv6_dip2,
+				   entry->ipv6_hnapt.ipv6_dip3,
+				   entry->ipv6_hnapt.dport,
+				   entry->ipv6_hnapt.new_ipv6_ip0,
+				   entry->ipv6_hnapt.new_ipv6_ip1,
+				   entry->ipv6_hnapt.new_ipv6_ip2,
+				   entry->ipv6_hnapt.new_ipv6_ip3,
+				   entry->ipv6_hnapt.new_sport,
+				   entry->ipv6_hnapt.ipv6_dip0,
+				   entry->ipv6_hnapt.ipv6_dip1,
+				   entry->ipv6_hnapt.ipv6_dip2,
+				   entry->ipv6_hnapt.ipv6_dip3,
+				   entry->ipv6_hnapt.new_dport);
+		} else if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_DNAT) {
+			seq_printf(m,
+				   "IPv6_HNAPT(%d): %08X:%08X:%08X:%08X:%d->%08X:%08X:%08X:%08X:%d => %08X:%08X:%08X:%08X:%d -> %08X:%08X:%08X:%08X:%d\n",
+				   index, entry->ipv6_hnapt.ipv6_sip0,
+				   entry->ipv6_hnapt.ipv6_sip1,
+				   entry->ipv6_hnapt.ipv6_sip2,
+				   entry->ipv6_hnapt.ipv6_sip3,
+				   entry->ipv6_hnapt.sport,
+				   entry->ipv6_hnapt.ipv6_dip0,
+				   entry->ipv6_hnapt.ipv6_dip1,
+				   entry->ipv6_hnapt.ipv6_dip2,
+				   entry->ipv6_hnapt.ipv6_dip3,
+				   entry->ipv6_hnapt.dport,
+				   entry->ipv6_hnapt.ipv6_sip0,
+				   entry->ipv6_hnapt.ipv6_sip1,
+				   entry->ipv6_hnapt.ipv6_sip2,
+				   entry->ipv6_hnapt.ipv6_sip3,
+				   entry->ipv6_hnapt.new_sport,
+				   entry->ipv6_hnapt.new_ipv6_ip0,
+				   entry->ipv6_hnapt.new_ipv6_ip1,
+				   entry->ipv6_hnapt.new_ipv6_ip2,
+				   entry->ipv6_hnapt.new_ipv6_ip3,
+				   entry->ipv6_hnapt.new_dport);
+		}
+	} else if (IS_IPV6_HNAT(entry)) {
+		if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_SNAT) {
+			seq_printf(m,
+				   "IPv6_HNAT(%d): %08X:%08X:%08X:%08X->%08X:%08X:%08X:%08X => %08X:%08X:%08X:%08X -> %08X:%08X:%08X:%08X\n",
+				   index, entry->ipv6_hnapt.ipv6_sip0,
+				   entry->ipv6_hnapt.ipv6_sip1,
+				   entry->ipv6_hnapt.ipv6_sip2,
+				   entry->ipv6_hnapt.ipv6_sip3,
+				   entry->ipv6_hnapt.ipv6_dip0,
+				   entry->ipv6_hnapt.ipv6_dip1,
+				   entry->ipv6_hnapt.ipv6_dip2,
+				   entry->ipv6_hnapt.ipv6_dip3,
+				   entry->ipv6_hnapt.new_ipv6_ip0,
+				   entry->ipv6_hnapt.new_ipv6_ip1,
+				   entry->ipv6_hnapt.new_ipv6_ip2,
+				   entry->ipv6_hnapt.new_ipv6_ip3,
+				   entry->ipv6_hnapt.ipv6_dip0,
+				   entry->ipv6_hnapt.ipv6_dip1,
+				   entry->ipv6_hnapt.ipv6_dip2,
+				   entry->ipv6_hnapt.ipv6_dip3);
+		} else if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_DNAT) {
+			seq_printf(m,
+				   "IPv6_HNAT(%d): %08X:%08X:%08X:%08X->%08X:%08X:%08X:%08X => %08X:%08X:%08X:%08X -> %08X:%08X:%08X:%08X\n",
+				   index, entry->ipv6_hnapt.ipv6_sip0,
+				   entry->ipv6_hnapt.ipv6_sip1,
+				   entry->ipv6_hnapt.ipv6_sip2,
+				   entry->ipv6_hnapt.ipv6_sip3,
+				   entry->ipv6_hnapt.ipv6_dip0,
+				   entry->ipv6_hnapt.ipv6_dip1,
+				   entry->ipv6_hnapt.ipv6_dip2,
+				   entry->ipv6_hnapt.ipv6_dip3,
+				   entry->ipv6_hnapt.ipv6_sip0,
+				   entry->ipv6_hnapt.ipv6_sip1,
+				   entry->ipv6_hnapt.ipv6_sip2,
+				   entry->ipv6_hnapt.ipv6_sip3,
+				   entry->ipv6_hnapt.new_ipv6_ip0,
+				   entry->ipv6_hnapt.new_ipv6_ip1,
+				   entry->ipv6_hnapt.new_ipv6_ip2,
+				   entry->ipv6_hnapt.new_ipv6_ip3);
+		}
+#endif
 	}
 }
 

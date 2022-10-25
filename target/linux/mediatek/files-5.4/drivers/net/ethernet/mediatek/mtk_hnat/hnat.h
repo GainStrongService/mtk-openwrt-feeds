@@ -712,21 +712,75 @@ struct hnat_ipv6_6rd {
 	u32 resv4 : 2;
 	u32 tport_id : 4;
 	u32 resv5 : 12;
-	u32 resv6;
-	u32 resv7;
-	u32 resv8;
-	u32 resv9;
-	u32 resv10;
-	u32 resv11;
-	u32 resv12;
-	u32 resv13;
 #elif defined(CONFIG_MEDIATEK_NETSYS_V2)
 	u16 minfo;
 	struct hnat_winfo winfo;
+#endif
+} __packed;
+
+struct hnat_ipv6_hnapt {
+	union {
+		struct hnat_bind_info_blk bfib1;
+		struct hnat_unbind_info_blk udib1;
+		u32 info_blk1;
+	};
+	u32 ipv6_sip0;
+	u32 ipv6_sip1;
+	u32 ipv6_sip2;
+	u32 ipv6_sip3;
+	u32 ipv6_dip0;
+	u32 ipv6_dip1;
+	u32 ipv6_dip2;
+	u32 ipv6_dip3;
+	u16 dport;
+	u16 sport;
+
+	u32 resv1;
+	u32 resv2;
 	u32 resv3;
-	u32 resv4;
+	u32 resv4 : 8;
+	u32 eg_ipv6_dir : 1;
+	u32 eg_keep_ecn : 1;
+	u32 eg_keep_cls : 1;
+	u32 resv5 : 15;
+	u32 act_dp : 6; /* UDF */
+
+	union {
+		struct hnat_info_blk2 iblk2;
+		struct hnat_info_blk2_whnat iblk2w;
+		u32 info_blk2;
+	};
+
+	u16 vlan1;
+	u16 etype;
+	u32 dmac_hi;
+	u16 vlan2;
+	u16 dmac_lo;
+	u32 smac_hi;
+	u16 pppoe_id;
+	u16 smac_lo;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	u16 minfo;
+	u16 resv6;
+	u32 new_ipv6_ip0;
+	u32 new_ipv6_ip1;
+	u32 new_ipv6_ip2;
+	u32 new_ipv6_ip3;
 	u16 new_dport;
 	u16 new_sport;
+	struct hnat_winfo winfo;
+	struct hnat_winfo_pao winfo_pao;
+	u32 cdrt_id : 8;
+	u32 tops_entry : 6;
+	u32 resv7 : 2;
+	u32 tport_id : 4;
+	u32 resv8 : 12;
+	u32 resv9;
+	u32 resv10;
+	u32 resv11;
+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
+	u16 minfo;
+	struct hnat_winfo winfo;
 #endif
 } __packed;
 
@@ -740,6 +794,7 @@ struct foe_entry {
 		struct hnat_ipv6_3t_route ipv6_3t_route;
 		struct hnat_ipv6_5t_route ipv6_5t_route;
 		struct hnat_ipv6_6rd ipv6_6rd;
+		struct hnat_ipv6_hnapt ipv6_hnapt;
 	};
 };
 
@@ -856,13 +911,10 @@ enum FoeIpAct {
 	IPV6_3T_ROUTE = 4,
 	IPV6_5T_ROUTE = 5,
 	IPV6_6RD = 7,
-#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 	IPV4_MAP_T = 8,
 	IPV4_MAP_E = 9,
-#else
-	IPV4_MAP_T = 6,
-	IPV4_MAP_E = 6,
-#endif
+	IPV6_HNAPT = 10,
+	IPV6_HNAT = 11,
 };
 
 /*--------------------------------------------------------------------------*/
@@ -908,6 +960,9 @@ enum FoeIpAct {
 #define BIT_IPV6_HASH_GREK BIT(20)
 #define BIT_IPV4_MAPE_EN BIT(21)
 #define BIT_IPV4_MAPT_EN BIT(22)
+#define BIT_IPV6_NAT_EN BIT(23)
+#define BIT_IPV6_NAPT_EN BIT(24)
+#define BIT_CS0_RM_ALL_IP6_IP_EN BIT(25)
 
 /*GDMA_FWD_CFG value*/
 #define BITS_GDM_UFRC_P_PPE (NR_PPE0_PORT << 12)
@@ -1038,9 +1093,12 @@ enum FoeIpAct {
 #define IS_IPV6_3T_ROUTE(x) (((x)->bfib1.pkt_type == IPV6_3T_ROUTE) ? 1 : 0)
 #define IS_IPV6_5T_ROUTE(x) (((x)->bfib1.pkt_type == IPV6_5T_ROUTE) ? 1 : 0)
 #define IS_IPV6_6RD(x) (((x)->bfib1.pkt_type == IPV6_6RD) ? 1 : 0)
+#define IS_IPV6_HNAPT(x) (((x)->bfib1.pkt_type == IPV6_HNAPT) ? 1 : 0)
+#define IS_IPV6_HNAT(x) (((x)->bfib1.pkt_type == IPV6_HNAT) ? 1 : 0)
 #define IS_IPV6_GRP(x)                                                         \
 	(IS_IPV6_3T_ROUTE(x) | IS_IPV6_5T_ROUTE(x) | IS_IPV6_6RD(x) |          \
-	 IS_IPV4_DSLITE(x) | IS_IPV4_MAPE(x) | IS_IPV4_MAPT(x))
+	 IS_IPV4_DSLITE(x) | IS_IPV4_MAPE(x) | IS_IPV4_MAPT(x) |	       \
+	 IS_IPV6_HNAPT(x) | IS_IPV6_HNAT(x))
 #define IS_BOND_MODE (!strncmp(LAN_DEV_NAME, "bond", 4))
 #define IS_GMAC1_MODE ((hnat_priv->gmac_num == 1) ? 1 : 0)
 #define IS_HQOS_MODE (qos_toggle == 1)
@@ -1076,6 +1134,8 @@ enum FoeIpAct {
 #define NONE_DSA_PORT 0xff
 #define MAX_CRSN_NUM 32
 #define IPV6_HDR_LEN 40
+#define IPV6_SNAT	0
+#define IPV6_DNAT	1
 
 /*QDMA_PAGE value*/
 #define NUM_OF_Q_PER_PAGE 16
