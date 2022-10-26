@@ -17,6 +17,36 @@ define Device/mediatek_mt7988a-gsw-10g-spim-nand
 endef
 TARGET_DEVICES += mediatek_mt7988a-gsw-10g-spim-nand
 
+define Device/mediatek_mt7988a-gsw-10g-spim-nand-sb
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7988a-gsw-10g-spim-nand-sb
+  DEVICE_DTS := mt7988a-gsw-10g-spim-nand
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7988a-gsw-10g-spim-snand
+  DEVICE_PACKAGES := uboot-envtools dmsetup
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 65536k
+  KERNEL_IN_UBI := 1
+  IMAGES += factory.bin
+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin := sysupgrade-tar rootfs=$$$$(IMAGE_ROOTFS)-hashed | \
+	append-metadata
+  FIT_KEY_DIR := $(TOPDIR)/../../keys
+  FIT_KEY_NAME := fit_key
+  ANTI_ROLLBACK_TABLE := $(TOPDIR)/../../fw_ar_table.xml
+  AUTO_AR_CONF := $(TOPDIR)/../../auto_ar_conf.mk
+  HASHED_BOOT_DEVICE := 253:0
+  BASIC_KERNEL_CMDLINE := console=ttyS0,115200n1 rootfstype=squashfs loglevel=8
+  KERNEL = kernel-bin | lzma | squashfs-hashed | fw-ar-ver | \
+	fit-sign lzma $$(KDIR)/image-sb-$$(firstword $$(DEVICE_DTS)).dtb
+  KERNEL_INITRAMFS =
+endef
+TARGET_DEVICES += mediatek_mt7988a-gsw-10g-spim-nand-sb
+DEFAULT_DEVICE_VARS += FIT_KEY_DIR FIT_KEY_NAME ANTI_ROLLBACK_TABLE \
+	AUTO_AR_CONF HASHED_BOOT_DEVICE BASIC_KERNEL_CMDLINE
+
 define Device/mediatek_mt7988a-gsw-10g-spim-nand-4pcie
   DEVICE_VENDOR := MediaTek
   DEVICE_MODEL := mt7988a-gsw-10g-spim-nand-4pcie
