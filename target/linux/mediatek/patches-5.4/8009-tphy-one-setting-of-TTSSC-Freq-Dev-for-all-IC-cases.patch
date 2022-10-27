@@ -1,0 +1,51 @@
+From 917388b73b89f2859d795d800a296151d77e6ece Mon Sep 17 00:00:00 2001
+From: Zhanyong Wang <zhanyong.wang@mediatek.com>
+Date: Sat, 15 Oct 2022 17:38:54 +0800
+Subject: [PATCH 5/8] tphy: one setting of TTSSC-Freq-Dev for all IC cases
+
+try to use one setting of TTSSC-Freq-Dev to covery all IC cases
+
+Signed-off-by: Zhanyong Wang <zhanyong.wang@mediatek.com>
+---
+ drivers/phy/mediatek/phy-mtk-tphy.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/drivers/phy/mediatek/phy-mtk-tphy.c b/drivers/phy/mediatek/phy-mtk-tphy.c
+index a5b17a1aed5c..a38c50f4529f 100644
+--- a/drivers/phy/mediatek/phy-mtk-tphy.c
++++ b/drivers/phy/mediatek/phy-mtk-tphy.c
+@@ -219,6 +219,14 @@
+ #define P3D_RG_RXDET_STB2_SET_P3	GENMASK(8, 0)
+ #define P3D_RG_RXDET_STB2_SET_P3_VAL(x)	(0x1ff & (x))
+ 
++#define U3P_U3_PHYD_REG19		0x338
++#define P3D_RG_PLL_SSC_DELTA1           GENMASK(15, 0)
++#define P3D_RG_PLL_SSC_DELTA1_VAL(x)	(0xffff & (x))
++
++#define U3P_U3_PHYD_REG21		0x340
++#define P3D_RG_PLL_SSC_DELTA            GENMASK(31, 16)
++#define P3D_RG_PLL_SSC_DELTA_VAL(x)	((0xffff & (x)) << 16)
++
+ #define U3P_SPLLC_XTALCTL3		0x018
+ #define XC3_RG_U3_XTAL_RX_PWD		BIT(9)
+ #define XC3_RG_U3_FRC_XTAL_RX_PWD	BIT(8)
+@@ -514,6 +522,16 @@ static void u3_phy_instance_init(struct mtk_tphy *tphy,
+ 	tmp |= P3D_RG_RXDET_STB2_SET_P3_VAL(0x10);
+ 	writel(tmp, u3_banks->phyd + U3P_U3_PHYD_RXDET2);
+ 
++	tmp = readl(u3_banks->phyd + U3P_U3_PHYD_REG19);
++	tmp &= ~P3D_RG_PLL_SSC_DELTA1;
++	tmp |= P3D_RG_PLL_SSC_DELTA1_VAL(0x1c3);
++	writel(tmp, u3_banks->phyd + U3P_U3_PHYD_REG19);
++
++	tmp = readl(u3_banks->phyd + U3P_U3_PHYD_REG21);
++	tmp &= ~P3D_RG_PLL_SSC_DELTA;
++	tmp |= P3D_RG_PLL_SSC_DELTA_VAL(0x1c3);
++	writel(tmp, u3_banks->phyd + U3P_U3_PHYD_REG21);
++
+ 	dev_dbg(tphy->dev, "%s(%d)\n", __func__, instance->index);
+ }
+ 
+-- 
+2.18.0
+

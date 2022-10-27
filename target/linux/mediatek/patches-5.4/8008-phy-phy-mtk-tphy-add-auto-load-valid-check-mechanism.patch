@@ -1,7 +1,7 @@
-From 1d5819e90f2ef6dead11809744372a9863227a92 Mon Sep 17 00:00:00 2001
+From 355e7f114a47819c3c6545a97ad308d627da5d1a Mon Sep 17 00:00:00 2001
 From: Zhanyong Wang <zhanyong.wang@mediatek.com>
 Date: Tue, 25 Jan 2022 19:03:34 +0800
-Subject: [PATCH 5/5] phy: phy-mtk-tphy: add auto-load-valid check mechanism
+Subject: [PATCH 4/8] phy: phy-mtk-tphy: add auto-load-valid check mechanism
  support
 
 add auto-load-valid check mechanism support
@@ -12,10 +12,10 @@ Signed-off-by: Zhanyong Wang <zhanyong.wang@mediatek.com>
  1 file changed, 64 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/phy/mediatek/phy-mtk-tphy.c b/drivers/phy/mediatek/phy-mtk-tphy.c
-index 59d6ac3..4adc505 100644
+index b855e759b0da..a5b17a1aed5c 100644
 --- a/drivers/phy/mediatek/phy-mtk-tphy.c
 +++ b/drivers/phy/mediatek/phy-mtk-tphy.c
-@@ -345,9 +345,13 @@ struct mtk_phy_instance {
+@@ -354,9 +354,13 @@ struct mtk_phy_instance {
  	};
  	struct clk *ref_clk;	/* reference clock of anolog phy */
  	u32 efuse_sw_en;
@@ -29,7 +29,7 @@ index 59d6ac3..4adc505 100644
  	u32 efuse_intr_ln1;
  	u32 efuse_tx_imp_ln1;
  	u32 efuse_rx_imp_ln1;
-@@ -980,6 +984,7 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
+@@ -1050,6 +1054,7 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
  {
  	struct device *dev = &instance->phy->dev;
  	int ret = 0;
@@ -37,7 +37,7 @@ index 59d6ac3..4adc505 100644
  
  	dev_err(dev, "try to get sw efuse\n");
  
-@@ -998,6 +1003,20 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
+@@ -1068,6 +1073,20 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
  
  	switch (instance->type) {
  	case PHY_TYPE_USB2:
@@ -58,7 +58,7 @@ index 59d6ac3..4adc505 100644
  		ret = nvmem_cell_read_variable_le_u32(dev, "intr", &instance->efuse_intr);
  		if (ret) {
  			dev_err(dev, "fail to get u2 intr efuse, %d\n", ret);
-@@ -1015,6 +1034,20 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
+@@ -1085,6 +1104,20 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
  		break;
  	case PHY_TYPE_USB3:
  	case PHY_TYPE_PCIE:
@@ -79,7 +79,7 @@ index 59d6ac3..4adc505 100644
  		ret = nvmem_cell_read_variable_le_u32(dev, "intr", &instance->efuse_intr);
  		if (ret) {
  			dev_err(dev, "fail to get u3 intr efuse, %d\n", ret);
-@@ -1049,6 +1082,20 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
+@@ -1119,6 +1152,20 @@ static int phy_efuse_get(struct mtk_tphy *tphy, struct mtk_phy_instance *instanc
  		if (tphy->pdata->version != MTK_PHY_V4)
  			break;
  
@@ -100,7 +100,7 @@ index 59d6ac3..4adc505 100644
  		ret = nvmem_cell_read_variable_le_u32(dev, "intr_ln1", &instance->efuse_intr_ln1);
  		if (ret) {
  			dev_err(dev, "fail to get u3 lane1 intr efuse, %d\n", ret);
-@@ -1100,6 +1147,10 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
+@@ -1170,6 +1217,10 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
  
  	switch (instance->type) {
  	case PHY_TYPE_USB2:
@@ -111,7 +111,7 @@ index 59d6ac3..4adc505 100644
  		tmp = readl(u2_banks->misc + U3P_MISC_REG1);
  		tmp |= MR1_EFUSE_AUTO_LOAD_DIS;
  		writel(tmp, u2_banks->misc + U3P_MISC_REG1);
-@@ -1112,6 +1163,10 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
+@@ -1182,6 +1233,10 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
  
  		break;
  	case PHY_TYPE_USB3:
@@ -122,7 +122,7 @@ index 59d6ac3..4adc505 100644
  		tmp = readl(u3_banks->phyd + U3P_U3_PHYD_RSV);
  		tmp |= P3D_RG_EFUSE_AUTO_LOAD_DIS;
  		writel(tmp, u3_banks->phyd + U3P_U3_PHYD_RSV);
-@@ -1138,6 +1193,10 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
+@@ -1208,6 +1263,10 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
  
  		break;
  	case PHY_TYPE_PCIE:
@@ -133,7 +133,7 @@ index 59d6ac3..4adc505 100644
  		tmp = readl(u3_banks->phyd + U3P_U3_PHYD_RSV);
  		tmp |= P3D_RG_EFUSE_AUTO_LOAD_DIS;
  		writel(tmp, u3_banks->phyd + U3P_U3_PHYD_RSV);
-@@ -1162,9 +1221,11 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
+@@ -1232,9 +1291,11 @@ static void phy_efuse_set(struct mtk_phy_instance *instance)
  			__func__, instance->efuse_tx_imp,
  			instance->efuse_rx_imp, instance->efuse_intr);
  
