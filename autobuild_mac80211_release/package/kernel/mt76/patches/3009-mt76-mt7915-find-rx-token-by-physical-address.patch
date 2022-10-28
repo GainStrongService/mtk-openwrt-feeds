@@ -1,18 +1,19 @@
-From 8798ce118731d2446d8d1b1c4ab0f1062fc08ea7 Mon Sep 17 00:00:00 2001
+From ee742fbd2c1d7334553fc07787fca09b227e71f5 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 27 Sep 2022 16:34:26 +0800
-Subject: [PATCH 3009/3011] mt76: mt7915: find rx token by physical address
+Subject: [PATCH 3009/3010] mt76: mt7915: find rx token by physical address
 
 The token id in RxDMAD may be incorrect when it is not the last frame due to
 WED HW bug. Lookup correct token id by physical address in sdp0.
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  dma.c | 19 ++++++++++++++++++-
  1 file changed, 18 insertions(+), 1 deletion(-)
 
 diff --git a/dma.c b/dma.c
-index d63b02f5..a7a4538a 100644
+index d63b02f..a7a4538 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -380,11 +380,28 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
@@ -46,5 +47,5 @@ index d63b02f5..a7a4538a 100644
  		if (!r)
  			return NULL;
 -- 
-2.25.1
+2.18.0
 

@@ -1,9 +1,10 @@
-From a96024fdb9633ad7a309bc13800cf730fd00f7dc Mon Sep 17 00:00:00 2001
+From da55b34ff3c8b76a2b8d89467a95d026bdb7f015 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Sun, 12 Jun 2022 16:38:45 +0800
-Subject: [PATCH 3001/3011] mt76 add wed tx support
+Subject: [PATCH 3001/3010] mt76 add wed tx support
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  mt76_connac.h |  1 +
  mt7915/mac.c  | 11 +++++++----
@@ -12,7 +13,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  4 files changed, 20 insertions(+), 8 deletions(-)
 
 diff --git a/mt76_connac.h b/mt76_connac.h
-index 0915eb57..9a468878 100644
+index 0915eb5..9a46887 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
 @@ -116,6 +116,7 @@ struct mt76_connac_sta_key_conf {
@@ -24,7 +25,7 @@ index 0915eb57..9a468878 100644
  struct mt76_connac_fw_txp {
  	__le16 flags;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 3896c3d5..98925ed5 100644
+index 3896c3d..98925ed 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -828,9 +828,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
@@ -65,7 +66,7 @@ index 3896c3d5..98925ed5 100644
  
  static void
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 80f4d9dd..4e915279 100644
+index 80f4d9d..4e91527 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -1457,14 +1457,14 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
@@ -86,7 +87,7 @@ index 80f4d9dd..4e915279 100644
  
  	ctx->dev = NULL;
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 1eda361f..5819281c 100644
+index 1eda361..5819281 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -10,7 +10,7 @@
@@ -148,5 +149,5 @@ index 1eda361f..5819281c 100644
  	ret = dma_set_mask(wed->dev, DMA_BIT_MASK(32));
  	if (ret)
 -- 
-2.25.1
+2.18.0
 

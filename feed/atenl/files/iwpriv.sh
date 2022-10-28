@@ -20,8 +20,8 @@ function do_cmd() {
             echo "$1"
             ;;
         "DEBUG")
-            eval "$1"
             echo "$1"
+            eval "$1"
             ;;
     esac
 }
@@ -680,6 +680,41 @@ function convert_ibf {
     fi
 }
 
+function convert_dfs {
+    local cmd=$1
+    local param=$2
+
+    case ${cmd} in
+        "DfsRxCtrl")
+            local offchan_ch="$(echo $param | cut -d ':' -f1)"
+            local offchan_bw="$(echo $param | cut -d ':' -f2)"
+
+	    if [ "$offchan_bw" = "0" ]; then
+            offchan_bw="20"
+	    elif [ "$offchan_bw" = "1" ]; then
+            offchan_bw="40"
+	    elif [ "$offchan_bw" = "2" ]; then
+            offchan_bw="80"
+	    fi
+
+	    do_cmd "mt76-test phy${phy_idx} set state=idle"
+	    do_cmd "mt76-test phy${phy_idx} set offchan_ch=${offchan_ch} offchan_bw=${offchan_bw}"
+            ;;
+        "DfsRxHist")
+            local ipi_th="$(echo $param | cut -d ':' -f 1)"
+            local ipi_period="$(echo $param | cut -d ':' -f 2)"
+	    local ipi_antenna="$(echo $param | cut -d ':' -f 3)"
+
+	    if [ -z $ipi_antenna ]; then
+	        do_cmd "mt76-test phy${phy_idx} set ipi_threshold=${ipi_th} ipi_period=${ipi_period}"
+	    else
+		do_cmd "mt76-test phy${phy_idx} set ipi_threshold=${ipi_th} ipi_period=${ipi_period} ipi_antenna_idx=${ipi_antenna}"
+	    fi
+            ;;
+        *)
+    esac
+}
+
 function do_ate_work() {
     local ate_cmd=$1
 
@@ -842,6 +877,10 @@ if [ "${cmd_type}" = "set" ]; then
             ;;
         "ATEDA"|"ATESA"|"ATEBSSID")
             set_mac_addr ${cmd} ${param}
+            skip=1
+            ;;
+        "DfsRxCtrl"|"DfsRxHist")
+            convert_dfs ${cmd} ${param}
             skip=1
             ;;
         "ATETxBfInit"|"ATEIBFPhaseComp"|"ATEEBfProfileConfig"|"ATEIBfProfileConfig"| \

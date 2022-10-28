@@ -1,7 +1,7 @@
-From 73ed020063abbe785ad02d2fdab8dc6fdcec07a3 Mon Sep 17 00:00:00 2001
+From 4d425d098a578b80535153feec322a6974f88bb6 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Wed, 21 Sep 2022 13:55:15 -0700
-Subject: [PATCH 1125/1127] mt76: mt7915: add AMPDU/AMSDU OnOff ctonrol
+Subject: [PATCH 1126/1128] mt76: mt7915: add AMPDU/AMSDU OnOff ctonrol
 
 Change-Id: I6030b3a420e96b02e83b0c7a3c3626a3b23c97e3
 ---
@@ -12,7 +12,7 @@ Change-Id: I6030b3a420e96b02e83b0c7a3c3626a3b23c97e3
  4 files changed, 83 insertions(+)
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 27f9419a..3896c3d5 100644
+index 27f9419..3896c3d 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -1939,6 +1939,34 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
@@ -51,10 +51,10 @@ index 27f9419a..3896c3d5 100644
  void mt7915_capi_sta_rc_work(void *data, struct ieee80211_sta *sta)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index f4038207..d5e0c3e9 100644
+index 429824b..6e8148f 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -715,6 +715,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -716,6 +716,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  			 bool pci, int *irq);
  
  #ifdef CONFIG_MTK_VENDOR
@@ -64,7 +64,7 @@ index f4038207..d5e0c3e9 100644
  void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
  void mt7915_mcu_set_rfeature_starec(void *data, struct mt7915_dev *dev,
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index cbbb0843..d73fdd4c 100644
+index cbbb084..d73fdd4 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -30,10 +30,18 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -137,7 +137,7 @@ index cbbb0843..d73fdd4c 100644
  		.maxattr = MTK_VENDOR_ATTR_WIRELESS_CTRL_MAX,
  	},
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 5aac5595..53abb100 100644
+index 5aac559..53abb10 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -58,6 +58,8 @@ enum mtk_vendor_attr_wireless_ctrl {
@@ -169,5 +169,5 @@ index 5aac5595..53abb100 100644
  	MTK_VENDOR_ATTR_HEMU_CTRL_UNSPEC,
  
 -- 
-2.25.1
+2.18.0
 

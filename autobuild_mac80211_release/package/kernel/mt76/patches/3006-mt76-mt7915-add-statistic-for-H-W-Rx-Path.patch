@@ -1,9 +1,10 @@
-From 3c7f7b7883ce2dd0f185488d1f67d689330213d4 Mon Sep 17 00:00:00 2001
+From 301353df129dc70115481141357c590b4362a5c8 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
 Date: Fri, 5 Aug 2022 13:58:11 -0700
-Subject: [PATCH 3006/3011] mt76: mt7915: add statistic for H/W Rx Path
+Subject: [PATCH 3006/3010] mt76: mt7915: add statistic for H/W Rx Path
 
 Change-Id: Id94d663f08e91c83d296bd57e5e9b65a505ae1c7
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  mt76.h          |  4 ++++
  mt7915/mac.c    | 25 +++++++++++++++++++++++++
@@ -13,7 +14,7 @@ Change-Id: Id94d663f08e91c83d296bd57e5e9b65a505ae1c7
  5 files changed, 56 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index 3530d213..47a92132 100644
+index 13bdc08..14c58bc 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -278,6 +278,10 @@ struct mt76_sta_stats {
@@ -28,7 +29,7 @@ index 3530d213..47a92132 100644
  
  enum mt76_wcid_flags {
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index e78f30fc..7fb161db 100644
+index e78f30f..7fb161d 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -942,6 +942,31 @@ void mt7915_wed_trigger_ser(struct mtk_wed_device *wed)
@@ -64,7 +65,7 @@ index e78f30fc..7fb161db 100644
  mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
  {
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 5e37c4c8..01d64b2f 100644
+index 5e37c4c..01d64b2 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -1050,7 +1050,8 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
@@ -91,7 +92,7 @@ index 5e37c4c8..01d64b2f 100644
  }
  
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 6a1877d4..cd8326b0 100644
+index 6a1877d..cd8326b 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -9,6 +9,7 @@
@@ -133,10 +134,10 @@ index 6a1877d4..cd8326b0 100644
  #else
  	return 0;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 3a81261b..b1fbbae9 100644
+index 412f4f4..9977162 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -548,6 +548,8 @@ u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed,
+@@ -549,6 +549,8 @@ u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed,
  				int pkt_num);
  void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed);
  void mt7915_wed_trigger_ser(struct mtk_wed_device *wed);
@@ -146,5 +147,5 @@ index 3a81261b..b1fbbae9 100644
  void mt7915_unregister_device(struct mt7915_dev *dev);
  void mt7915_eeprom_rebonding(struct mt7915_dev *dev);
 -- 
-2.25.1
+2.18.0
 
