@@ -74,7 +74,10 @@ static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+	/* We don't support HDX at MAC layer on mt798x.
+	 * So mask phy's HDX capabilities, too.
+	 */
+	linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
 			 phydev->supported);
 	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 			 phydev->supported);
