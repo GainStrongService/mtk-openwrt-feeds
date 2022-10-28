@@ -722,47 +722,29 @@ static int mt7988_int_usxgmii_pins[] = { 2, 3 };
 static int mt7988_int_usxgmii_funcs[] = { 3, 3 };
 
 /* pwm */
-static int mt7988_pwm7_0_pins[] = { 4 };
-static int mt7988_pwm7_0_funcs[] = { 3 };
+static int mt7988_pwm0_pins[] = { 57 };
+static int mt7988_pwm0_funcs[] = { 1 };
 
 static int mt7988_pwm1_pins[] = { 21 };
 static int mt7988_pwm1_funcs[] = { 1 };
 
-static int mt7988_pwm0_pins[] = { 57 };
-static int mt7988_pwm0_funcs[] = { 1 };
+static int mt7988_pwm2_pins[] = { 80 };
+static int mt7988_pwm2_funcs[] = { 2 };
 
-static int mt7988_pwm2_pins[] = { 58 };
-static int mt7988_pwm2_funcs[] = { 5 };
+static int mt7988_pwm3_pins[] = { 81 };
+static int mt7988_pwm3_funcs[] = { 2 };
 
-static int mt7988_pwm3_pins[] = { 59 };
-static int mt7988_pwm3_funcs[] = { 5 };
+static int mt7988_pwm4_pins[] = { 82 };
+static int mt7988_pwm4_funcs[] = { 2 };
 
-static int mt7988_pwm4_pins[] = { 60 };
-static int mt7988_pwm4_funcs[] = { 5 };
+static int mt7988_pwm5_pins[] = { 83 };
+static int mt7988_pwm5_funcs[] = { 2 };
 
-static int mt7988_pwm5_pins[] = { 61 };
-static int mt7988_pwm5_funcs[] = { 5 };
-
-static int mt7988_pwm6_0_pins[] = { 62 };
-static int mt7988_pwm6_0_funcs[] = { 5 };
-
-static int mt7988_pwm6_1_pins[] = { 69 };
-static int mt7988_pwm6_1_funcs[] = { 3 };
+static int mt7988_pwm6_pins[] = { 69 };
+static int mt7988_pwm6_funcs[] = { 3 };
 
 static int mt7988_pwm7_pins[] = { 70 };
 static int mt7988_pwm7_funcs[] = { 3 };
-
-static int mt7988_pwm2_1_pins[] = { 80 };
-static int mt7988_pwm2_1_funcs[] = { 2 };
-
-static int mt7988_pwm3_1_pins[] = { 81 };
-static int mt7988_pwm3_1_funcs[] = { 2 };
-
-static int mt7988_pwm4_1_pins[] = { 82 };
-static int mt7988_pwm4_1_funcs[] = { 2 };
-
-static int mt7988_pwm5_1_pins[] = { 83 };
-static int mt7988_pwm5_1_funcs[] = { 2 };
 
 /* dfd */
 static int mt7988_dfd_pins[] = { 0, 1, 2, 3, 4 };
@@ -1061,8 +1043,6 @@ static const struct group_desc mt7988_groups[] = {
 	PINCTRL_PIN_GROUP("tops_jtag0_0", mt7988_tops_jtag0_0),
 	/*  @GPIO(2,3): int_usxgmii */
 	PINCTRL_PIN_GROUP("int_usxgmii", mt7988_int_usxgmii),
-	/*  @GPIO(4): pwm7_0 */
-	PINCTRL_PIN_GROUP("pwm7_0", mt7988_pwm7_0),
 	/*  @GPIO(0,1,2,3,4): dfd */
 	PINCTRL_PIN_GROUP("dfd", mt7988_dfd),
 	/*  @GPIO(0,1): xfi_phy0_i2c0 */
@@ -1209,16 +1189,6 @@ static const struct group_desc mt7988_groups[] = {
 	PINCTRL_PIN_GROUP("uart2_3", mt7988_uart2_3),
 	/*  @GPIO(58,59,60,61) uart1_1 */
 	PINCTRL_PIN_GROUP("uart1_1", mt7988_uart1_1),
-	/*  @GPIO(58) pwm2 */
-	PINCTRL_PIN_GROUP("pwm2", mt7988_pwm2),
-	/*  @GPIO(59) pwm3 */
-	PINCTRL_PIN_GROUP("pwm3", mt7988_pwm3),
-	/*  @GPIO(60) pwm4 */
-	PINCTRL_PIN_GROUP("pwm4", mt7988_pwm4),
-	/*  @GPIO(61) pwm5 */
-	PINCTRL_PIN_GROUP("pwm5", mt7988_pwm5),
-	/*  @GPIO(62) pwm6_0 */
-	PINCTRL_PIN_GROUP("pwm6_0", mt7988_pwm6_0),
 	/*  @GPIO(58,59,60,61) gbe_led1 */
 	PINCTRL_PIN_GROUP("gbe_led1", mt7988_gbe_led1),
 	/*  @GPIO(62) 2p5gbe_led1 */
@@ -1235,8 +1205,8 @@ static const struct group_desc mt7988_groups[] = {
 	PINCTRL_PIN_GROUP("mdc_mdio1", mt7988_mdc_mdio1),
 	/*  @GPIO(69, 70) i2c1_2 */
 	PINCTRL_PIN_GROUP("i2c1_2", mt7988_i2c1_2),
-	/*  @GPIO(69) pwm6_1 */
-	PINCTRL_PIN_GROUP("pwm6_1", mt7988_pwm6_1),
+	/*  @GPIO(69) pwm6 */
+	PINCTRL_PIN_GROUP("pwm6", mt7988_pwm6),
 	/*  @GPIO(70) pwm7 */
 	PINCTRL_PIN_GROUP("pwm7", mt7988_pwm7),
 	/*  @GPIO(69,70) i2c2_0 */
@@ -1261,14 +1231,14 @@ static const struct group_desc mt7988_groups[] = {
 	PINCTRL_PIN_GROUP("pcie_wake_n2_1", mt7988_pcie_wake_n2_1),
 	/*  @GPIO(80,81,82,83) uart1_2 */
 	PINCTRL_PIN_GROUP("uart1_2", mt7988_uart1_2),
-	/*  @GPIO(80) pwm2_1 */
-	PINCTRL_PIN_GROUP("pwm2_1", mt7988_pwm2_1),
-	/*  @GPIO(81) pwm3_1 */
-	PINCTRL_PIN_GROUP("pwm3_1", mt7988_pwm3_1),
-	/*  @GPIO(82) pwm4_1 */
-	PINCTRL_PIN_GROUP("pwm4_1", mt7988_pwm4_1),
-	/*  @GPIO(83) pwm5_1 */
-	PINCTRL_PIN_GROUP("pwm5_1", mt7988_pwm5_1),
+	/*  @GPIO(80) pwm2 */
+	PINCTRL_PIN_GROUP("pwm2", mt7988_pwm2),
+	/*  @GPIO(81) pwm3 */
+	PINCTRL_PIN_GROUP("pwm3", mt7988_pwm3),
+	/*  @GPIO(82) pwm4 */
+	PINCTRL_PIN_GROUP("pwm4", mt7988_pwm4),
+	/*  @GPIO(83) pwm5 */
+	PINCTRL_PIN_GROUP("pwm5", mt7988_pwm5),
 	/*  @GPIO(80) net_wo0_uart_txd_0 */
 	PINCTRL_PIN_GROUP("net_wo0_uart_txd_0", mt7988_net_wo0_uart_txd_0),
 	/*  @GPIO(81) net_wo1_uart_txd_0 */
@@ -1296,8 +1266,7 @@ static const char * const mt7988_int_usxgmii_groups[] = {
 	"int_usxgmii",
 };
 static const char * const mt7988_pwm_groups[] = {
-	"pwm7_0", "pwm1",   "pwm0", "pwm2",   "pwm3",	"pwm4",	  "pwm5",
-	"pwm6_0", "pwm6_1", "pwm7", "pwm2_1", "pwm3_1", "pwm4_1", "pwm5_1"
+	"pwm0", "pwm1", "pwm2", "pwm3", "pwm4",	"pwm5",	"pwm6", "pwm7"
 };
 static const char * const mt7988_dfd_groups[] = {
 	"dfd",
