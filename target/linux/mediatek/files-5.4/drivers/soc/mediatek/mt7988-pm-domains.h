@@ -75,7 +75,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt7988[] = {
 		.sram_2nd_pdn_bit = BIT(8),
 		.sram_2nd_clk_dis_bit = BIT(5),
 		.sram_2nd_ctrl_offs = 0x060,
-		.caps = MTK_SCPD_CLAMP_PROTECTION,
+		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
 
 	},
 
