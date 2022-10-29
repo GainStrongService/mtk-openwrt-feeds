@@ -1,4 +1,4 @@
-From 917388b73b89f2859d795d800a296151d77e6ece Mon Sep 17 00:00:00 2001
+From 3295585b4e77f4a365bd1a4e17d8be6ee504584a Mon Sep 17 00:00:00 2001
 From: Zhanyong Wang <zhanyong.wang@mediatek.com>
 Date: Sat, 15 Oct 2022 17:38:54 +0800
 Subject: [PATCH 5/8] tphy: one setting of TTSSC-Freq-Dev for all IC cases
@@ -7,11 +7,11 @@ try to use one setting of TTSSC-Freq-Dev to covery all IC cases
 
 Signed-off-by: Zhanyong Wang <zhanyong.wang@mediatek.com>
 ---
- drivers/phy/mediatek/phy-mtk-tphy.c | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ drivers/phy/mediatek/phy-mtk-tphy.c | 37 +++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)
 
 diff --git a/drivers/phy/mediatek/phy-mtk-tphy.c b/drivers/phy/mediatek/phy-mtk-tphy.c
-index a5b17a1aed5c..a38c50f4529f 100644
+index a5b17a1aed5c..49a2625c1fc1 100644
 --- a/drivers/phy/mediatek/phy-mtk-tphy.c
 +++ b/drivers/phy/mediatek/phy-mtk-tphy.c
 @@ -219,6 +219,14 @@
@@ -29,22 +29,55 @@ index a5b17a1aed5c..a38c50f4529f 100644
  #define U3P_SPLLC_XTALCTL3		0x018
  #define XC3_RG_U3_XTAL_RX_PWD		BIT(9)
  #define XC3_RG_U3_FRC_XTAL_RX_PWD	BIT(8)
-@@ -514,6 +522,16 @@ static void u3_phy_instance_init(struct mtk_tphy *tphy,
+@@ -373,6 +381,8 @@ struct mtk_phy_instance {
+ 	int eye_vrt;
+ 	int eye_term;
+ 	bool bc12_en;
++	bool u3_pll_ssc_delta;
++	bool u3_pll_ssc_delta1;
+ };
+ 
+ struct mtk_tphy {
+@@ -514,6 +524,20 @@ static void u3_phy_instance_init(struct mtk_tphy *tphy,
  	tmp |= P3D_RG_RXDET_STB2_SET_P3_VAL(0x10);
  	writel(tmp, u3_banks->phyd + U3P_U3_PHYD_RXDET2);
  
-+	tmp = readl(u3_banks->phyd + U3P_U3_PHYD_REG19);
-+	tmp &= ~P3D_RG_PLL_SSC_DELTA1;
-+	tmp |= P3D_RG_PLL_SSC_DELTA1_VAL(0x1c3);
-+	writel(tmp, u3_banks->phyd + U3P_U3_PHYD_REG19);
++	if (instance->u3_pll_ssc_delta1) {
++		tmp = readl(u3_banks->phyd + U3P_U3_PHYD_REG19);
++		tmp &= ~P3D_RG_PLL_SSC_DELTA1;
++		tmp |= P3D_RG_PLL_SSC_DELTA1_VAL(0x1c3);
++		writel(tmp, u3_banks->phyd + U3P_U3_PHYD_REG19);
++	}
 +
-+	tmp = readl(u3_banks->phyd + U3P_U3_PHYD_REG21);
-+	tmp &= ~P3D_RG_PLL_SSC_DELTA;
-+	tmp |= P3D_RG_PLL_SSC_DELTA_VAL(0x1c3);
-+	writel(tmp, u3_banks->phyd + U3P_U3_PHYD_REG21);
++	if (instance->u3_pll_ssc_delta) {
++		tmp = readl(u3_banks->phyd + U3P_U3_PHYD_REG21);
++		tmp &= ~P3D_RG_PLL_SSC_DELTA;
++		tmp |= P3D_RG_PLL_SSC_DELTA_VAL(0x1c3);
++		writel(tmp, u3_banks->phyd + U3P_U3_PHYD_REG21);
++	}
 +
  	dev_dbg(tphy->dev, "%s(%d)\n", __func__, instance->index);
  }
+ 
+@@ -942,6 +966,19 @@ static void phy_parse_property(struct mtk_tphy *tphy,
+ {
+ 	struct device *dev = &instance->phy->dev;
+ 
++	if (instance->type == PHY_TYPE_USB3) {
++		instance->u3_pll_ssc_delta =
++			device_property_read_bool(dev,
++				"mediatek,usb3-pll-ssc-delta");
++		instance->u3_pll_ssc_delta1 =
++			device_property_read_bool(dev,
++				"mediatek,usb3-pll-ssc-delta1");
++
++		dev_dbg(dev, "u3_pll_ssc_delta:%i, u3_pll_ssc_delta1:%i\n",
++					instance->u3_pll_ssc_delta,
++					instance->u3_pll_ssc_delta1);
++	}
++
+ 	if (instance->type != PHY_TYPE_USB2)
+ 		return;
  
 -- 
 2.18.0
