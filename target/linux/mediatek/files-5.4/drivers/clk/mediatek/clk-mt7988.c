@@ -981,12 +981,15 @@ static const struct mtk_pll_data plls[] = {
 	    0x0314, 4, 0, 0, 0, 0x0318, 0, 0x0314, "clkxtal"),
 };
 
+static struct clk_onecell_data *mt7988_infra_clk_data __initdata;
+static struct clk_onecell_data *mt7988_infra_ao_clk_data __initdata;
 static struct clk_onecell_data *mt7988_top_clk_data __initdata;
 static struct clk_onecell_data *mt7988_pll_clk_data __initdata;
 
 static void __init mtk_clk_enable_critical(void)
 {
-	if (!mt7988_top_clk_data || !mt7988_pll_clk_data)
+	if (!mt7988_infra_clk_data || !mt7988_infra_ao_clk_data
+	    || !mt7988_top_clk_data || !mt7988_pll_clk_data)
 		return;
 
 	clk_prepare_enable(mt7988_pll_clk_data->clks[CK_APMIXED_ARM_B]);
@@ -995,19 +998,25 @@ static void __init mtk_clk_enable_critical(void)
 	clk_prepare_enable(mt7988_top_clk_data->clks[CK_TOP_DRAMC_SEL]);
 	clk_prepare_enable(mt7988_top_clk_data->clks[CK_TOP_DRAMC_MD32_SEL]);
 	clk_prepare_enable(mt7988_top_clk_data->clks[CK_TOP_INFRA_F26M_SEL]);
+	clk_prepare_enable(mt7988_top_clk_data->clks[CK_TOP_PEXTP_P0_SEL]);
+	clk_prepare_enable(mt7988_top_clk_data->clks[CK_TOP_PEXTP_P1_SEL]);
+	clk_prepare_enable(mt7988_top_clk_data->clks[CK_TOP_PEXTP_P2_SEL]);
+	clk_prepare_enable(mt7988_top_clk_data->clks[CK_TOP_PEXTP_P3_SEL]);
+	clk_prepare_enable(
+		mt7988_infra_ao_clk_data->clks[CK_INFRA_PCIE_PERI_26M_CK_P3]);
 }
 
 static void __init mtk_infracfg_init(struct device_node *node)
 {
 	int r;
 
-	mt7988_top_clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
+	mt7988_infra_clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
 
 	mtk_clk_register_factors(infra_divs, ARRAY_SIZE(infra_divs),
-				 mt7988_top_clk_data);
+				 mt7988_infra_clk_data);
 
 	r = of_clk_add_provider(node, of_clk_src_onecell_get,
-				mt7988_top_clk_data);
+				mt7988_infra_clk_data);
 
 	if (r)
 		pr_err("%s(): could not register clock provider: %d\n",
@@ -1049,7 +1058,6 @@ CLK_OF_DECLARE(mtk_topckgen, "mediatek,mt7988-topckgen", mtk_topckgen_init);
 
 static void __init mtk_infracfg_ao_init(struct device_node *node)
 {
-	struct clk_onecell_data *clk_data;
 	int r;
 	void __iomem *base;
 
@@ -1059,18 +1067,21 @@ static void __init mtk_infracfg_ao_init(struct device_node *node)
 		return;
 	}
 
-	clk_data = mtk_alloc_clk_data(CLK_INFRA_AO_NR_CLK);
+	mt7988_infra_ao_clk_data = mtk_alloc_clk_data(CLK_INFRA_AO_NR_CLK);
 
 	mtk_clk_register_muxes(infra_muxes, ARRAY_SIZE(infra_muxes), node,
-			       &mt7988_clk_lock, clk_data);
+			       &mt7988_clk_lock, mt7988_infra_ao_clk_data);
 	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks),
-			       clk_data);
+			       mt7988_infra_ao_clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(node, of_clk_src_onecell_get,
+				mt7988_infra_ao_clk_data);
 
 	if (r)
 		pr_err("%s(): could not register clock provider: %d\n",
 		       __func__, r);
+
+	mtk_clk_enable_critical();
 }
 CLK_OF_DECLARE(mtk_infracfg_ao, "mediatek,mt7988-infracfg_ao",
 	       mtk_infracfg_ao_init);
