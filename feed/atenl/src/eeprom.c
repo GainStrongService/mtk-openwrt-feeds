@@ -9,60 +9,38 @@
 #define EEPROM_PART_SIZE 0x64000
 char *eeprom_file;
 
-static FILE *mtd_open(const char *mtd)
-{
-	char line[128], name[64];
-	FILE *fp;
-	int i;
-
-	fp = fopen("/proc/mtd", "r");
-	if (!fp)
-		return NULL;
-
-	snprintf(name, sizeof(name), "\"%s\"", mtd);
-	while (fgets(line, sizeof(line), fp)) {
-		if (!sscanf(line, "mtd%d:", &i) || !strstr(line, name))
-			continue;
-
-		snprintf(line, sizeof(line), "/dev/mtd%d", i);
-		fclose(fp);
-		return fopen(line, "r");
-	}
-	fclose(fp);
-
-	return NULL;
-}
-
 static int
-atenl_flash_create_file(struct atenl *an)
+atenl_create_file(struct atenl *an, bool flash_mode)
 {
-#define READ_LEN_LIMIT	0x64000
-	char buf[1024];
-	ssize_t len, limit = 0;
-	FILE *f;
-	int fd, ret;
+	char fname[64], buf[1024];
+	ssize_t w, len, max_len, total_len = 0;
+	int fd_ori, fd, ret;
 
-	f = mtd_open(an->mtd_part);
-	if (!f) {
-		atenl_err("Failed to open MTD device\n");
-		return -1;
+	/* reserve space for pre-cal data in flash mode */
+	if (flash_mode) {
+		atenl_dbg("%s: init eeprom with flash mode\n", __func__);
+		max_len = EEPROM_PART_SIZE;
+	} else {
+		atenl_dbg("%s: init eeprom with efuse mode\n", __func__);
+		max_len = 0x1000;
 	}
-	fseek(f, an->mtd_offset, SEEK_SET);
+
+	snprintf(fname, sizeof(fname),
+		 "/sys/kernel/debug/ieee80211/phy%d/mt76/eeprom",
+		 get_band_val(an, 0, phy_idx));
+	fd_ori = open(fname, O_RDONLY);
+	if (fd_ori < 0)
+		return -1;
 
 	fd = open(eeprom_file, O_RDWR | O_CREAT | O_EXCL, 00644);
 	if (fd < 0)
 		goto out;
 
-	while ((len = fread(buf, 1, sizeof(buf), f)) > 0) {
-		ssize_t w;
-
+	while ((len = read(fd_ori, buf, sizeof(buf))) > 0) {
 retry:
 		w = write(fd, buf, len);
 		if (w > 0) {
-			limit += len;
-
-			if (limit >= READ_LEN_LIMIT)
-				break;
+			total_len += len;
 			continue;
 		}
 
@@ -76,52 +54,26 @@ retry:
 		goto out;
 	}
 
-	ret = lseek(fd, 0, SEEK_SET);
-	if (ret) {
-		fclose(f);
-		close(fd);
-		return ret;
-	}
-
-out:
-	fclose(f);
-	return fd;
-}
-
-static int
-atenl_efuse_create_file(struct atenl *an)
-{
-	char fname[64], buf[1024];
-	ssize_t len;
-	int fd_ori, fd, ret;
-
-	snprintf(fname, sizeof(fname),
-		"/sys/kernel/debug/ieee80211/phy%d/mt76/eeprom", get_band_val(an, 0, phy_idx));
-	fd_ori = open(fname, O_RDONLY);
-	if (fd_ori < 0)
-		return -1;
-
-	fd = open(eeprom_file, O_RDWR | O_CREAT | O_EXCL, 00644);
-	if (fd < 0)
-		goto out;
-
-	while ((len = read(fd_ori, buf, sizeof(buf))) > 0) {
-		ssize_t w;
-
-retry:
+	/* reserve space for pre-cal data in flash mode */
+	len = sizeof(buf);
+	memset(buf, 0, len);
+	while (total_len < max_len) {
 		w = write(fd, buf, len);
-		if (w > 0)
+
+		if (w > 0) {
+			total_len += len;
 			continue;
+		}
 
-		if (errno == EINTR)
-			goto retry;
-
-		perror("write");
-		unlink(eeprom_file);
-		close(fd);
-		fd = -1;
-		goto out;
+		if (errno != EINTR) {
+			perror("write");
+			unlink(eeprom_file);
+			close(fd);
+			fd = -1;
+			goto out;
+		}
 	}
+
 
 	ret = lseek(fd, 0, SEEK_SET);
 	if (ret) {
@@ -148,17 +100,8 @@ atenl_eeprom_init_file(struct atenl *an, bool flash_mode)
 {
 	int fd;
 
-	if (!atenl_eeprom_file_exists()) {
-		if (flash_mode)
-			atenl_dbg("%s: init eeprom with flash mode\n", __func__);
-		else
-			atenl_dbg("%s: init eeprom with efuse mode\n", __func__);
-
-		if (flash_mode)
-			return atenl_flash_create_file(an);
-
-		return atenl_efuse_create_file(an);
-	}
+	if (!atenl_eeprom_file_exists())
+		return atenl_create_file(an, flash_mode);
 
 	fd = open(eeprom_file, O_RDWR);
 	if (fd < 0)
