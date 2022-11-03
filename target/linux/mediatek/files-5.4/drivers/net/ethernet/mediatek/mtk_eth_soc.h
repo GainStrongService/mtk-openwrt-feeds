@@ -1090,6 +1090,18 @@ enum mtk_gdm_type {
 	MTK_GDM_TYPE_MAX
 };
 
+static inline const char *gdm_type(int type)
+{
+	switch (type) {
+	case MTK_GDM_TYPE:
+		return "gdm";
+	case MTK_XGDM_TYPE:
+		return "xgdm";
+	default:
+		return "unkown";
+	}
+}
+
 /* struct mtk_tx_buf -	This struct holds the pointers to the memory pointed at
  *			by the TX descriptor	s
  * @skb:		The SKB pointer of the packet being sent
@@ -1180,6 +1192,7 @@ enum mkt_eth_capabilities {
 	MTK_RGMII_BIT = 0,
 	MTK_TRGMII_BIT,
 	MTK_SGMII_BIT,
+	MTK_XGMII_BIT,
 	MTK_USXGMII_BIT,
 	MTK_ESW_BIT,
 	MTK_GEPHY_BIT,
@@ -1203,6 +1216,7 @@ enum mkt_eth_capabilities {
 	MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT,
 	MTK_ETH_MUX_GMAC2_GMAC0_TO_GEPHY_BIT,
 	MTK_ETH_MUX_U3_GMAC2_TO_QPHY_BIT,
+	MTK_ETH_MUX_GMAC2_TO_XGMII_BIT,
 	MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII_BIT,
 	MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII_BIT,
 	MTK_ETH_MUX_GMAC123_TO_GEPHY_SGMII_BIT,
@@ -1214,6 +1228,7 @@ enum mkt_eth_capabilities {
 	MTK_ETH_PATH_GMAC1_SGMII_BIT,
 	MTK_ETH_PATH_GMAC2_RGMII_BIT,
 	MTK_ETH_PATH_GMAC2_SGMII_BIT,
+	MTK_ETH_PATH_GMAC2_XGMII_BIT,
 	MTK_ETH_PATH_GMAC2_GEPHY_BIT,
 	MTK_ETH_PATH_GMAC3_SGMII_BIT,
 	MTK_ETH_PATH_GDM1_ESW_BIT,
@@ -1226,6 +1241,7 @@ enum mkt_eth_capabilities {
 #define MTK_RGMII		BIT_ULL(MTK_RGMII_BIT)
 #define MTK_TRGMII		BIT_ULL(MTK_TRGMII_BIT)
 #define MTK_SGMII		BIT_ULL(MTK_SGMII_BIT)
+#define MTK_XGMII		BIT_ULL(MTK_XGMII_BIT)
 #define MTK_USXGMII		BIT_ULL(MTK_USXGMII_BIT)
 #define MTK_ESW			BIT_ULL(MTK_ESW_BIT)
 #define MTK_GEPHY		BIT_ULL(MTK_GEPHY_BIT)
@@ -1251,6 +1267,8 @@ enum mkt_eth_capabilities {
 	BIT_ULL(MTK_ETH_MUX_GMAC2_GMAC0_TO_GEPHY_BIT)
 #define MTK_ETH_MUX_U3_GMAC2_TO_QPHY		\
 	BIT_ULL(MTK_ETH_MUX_U3_GMAC2_TO_QPHY_BIT)
+#define MTK_ETH_MUX_GMAC2_TO_XGMII		\
+	BIT_ULL(MTK_ETH_MUX_GMAC2_TO_XGMII_BIT)
 #define MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII	\
 	BIT_ULL(MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII_BIT)
 #define MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII	\
@@ -1266,6 +1284,7 @@ enum mkt_eth_capabilities {
 #define MTK_ETH_PATH_GMAC1_SGMII	BIT_ULL(MTK_ETH_PATH_GMAC1_SGMII_BIT)
 #define MTK_ETH_PATH_GMAC2_RGMII	BIT_ULL(MTK_ETH_PATH_GMAC2_RGMII_BIT)
 #define MTK_ETH_PATH_GMAC2_SGMII	BIT_ULL(MTK_ETH_PATH_GMAC2_SGMII_BIT)
+#define MTK_ETH_PATH_GMAC2_XGMII	BIT_ULL(MTK_ETH_PATH_GMAC2_XGMII_BIT)
 #define MTK_ETH_PATH_GMAC2_GEPHY	BIT_ULL(MTK_ETH_PATH_GMAC2_GEPHY_BIT)
 #define MTK_ETH_PATH_GMAC3_SGMII	BIT_ULL(MTK_ETH_PATH_GMAC3_SGMII_BIT)
 #define MTK_ETH_PATH_GDM1_ESW		BIT_ULL(MTK_ETH_PATH_GDM1_ESW_BIT)
@@ -1278,6 +1297,7 @@ enum mkt_eth_capabilities {
 #define MTK_GMAC1_SGMII		(MTK_ETH_PATH_GMAC1_SGMII | MTK_SGMII)
 #define MTK_GMAC2_RGMII		(MTK_ETH_PATH_GMAC2_RGMII | MTK_RGMII)
 #define MTK_GMAC2_SGMII		(MTK_ETH_PATH_GMAC2_SGMII | MTK_SGMII)
+#define MTK_GMAC2_XGMII		(MTK_ETH_PATH_GMAC2_XGMII | MTK_XGMII)
 #define MTK_GMAC2_GEPHY		(MTK_ETH_PATH_GMAC2_GEPHY | MTK_GEPHY)
 #define MTK_GMAC3_SGMII		(MTK_ETH_PATH_GMAC3_SGMII | MTK_SGMII)
 #define MTK_GDM1_ESW		(MTK_ETH_PATH_GDM1_ESW | MTK_ESW)
@@ -1301,6 +1321,10 @@ enum mkt_eth_capabilities {
 #define MTK_MUX_GMAC1_GMAC2_TO_SGMII_RGMII      \
 	(MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII | MTK_MUX | \
 	MTK_SHARED_SGMII)
+
+/* 2: GMAC2 -> XGMII */
+#define MTK_MUX_GMAC2_TO_XGMII      \
+	(MTK_ETH_MUX_GMAC2_TO_XGMII | MTK_MUX | MTK_INFRA)
 
 /* 0: GMACx -> GEPHY, 1: GMACx -> SGMII where x is 1 or 2 */
 #define MTK_MUX_GMAC12_TO_GEPHY_SGMII   \
@@ -1347,7 +1371,8 @@ enum mkt_eth_capabilities {
 		       MTK_MUX_GMAC123_TO_GEPHY_SGMII | MTK_QDMA | \
 		       MTK_NETSYS_V3 | MTK_RSTCTRL_PPE1 | \
 		       MTK_GMAC1_USXGMII | MTK_GMAC2_USXGMII | \
-		       MTK_GMAC3_USXGMII | MTK_MUX_GMAC123_TO_USXGMII | MTK_RSS)
+		       MTK_GMAC3_USXGMII | MTK_MUX_GMAC123_TO_USXGMII | \
+		       MTK_GMAC2_XGMII | MTK_MUX_GMAC2_TO_XGMII | MTK_RSS)
 
 struct mtk_tx_dma_desc_info {
 	dma_addr_t	addr;
@@ -1405,7 +1430,6 @@ struct mtk_soc_data {
 #define MTK_SGMII_PHYSPEED_5000	       BIT(2)
 #define MTK_SGMII_PHYSPEED_10000       BIT(3)
 #define MTK_SGMII_PN_SWAP	       BIT(16)
-#define MTK_USXGMII_INT_2500	       BIT(17)
 #define MTK_HAS_FLAGS(flags, _x)       (((flags) & (_x)) == (_x))
 
 /* struct mtk_xgmii -  This is the structure holding sgmii/usxgmii regmap and
@@ -1574,6 +1598,7 @@ void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id);
 void mtk_sgmii_setup_phya_gen2(struct mtk_xgmii *ss, int mac_id);
 
 int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
+int mtk_gmac_xgmii_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_usxgmii_path_setup(struct mtk_eth *eth, int mac_id);

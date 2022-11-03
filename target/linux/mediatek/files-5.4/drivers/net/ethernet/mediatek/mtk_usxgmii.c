@@ -22,10 +22,6 @@ int mtk_usxgmii_init(struct mtk_xgmii *ss, struct device_node *r)
 		ss->regmap_usxgmii[i] = syscon_node_to_regmap(np);
 		if (IS_ERR(ss->regmap_usxgmii[i]))
 			return PTR_ERR(ss->regmap_usxgmii[i]);
-
-		ss->flags[i] &= ~(MTK_USXGMII_INT_2500);
-		if (of_property_read_bool(np, "internal_2500"))
-			ss->flags[i] |= MTK_USXGMII_INT_2500;
 	}
 
 	return 0;

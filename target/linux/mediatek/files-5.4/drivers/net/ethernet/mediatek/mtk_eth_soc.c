@@ -332,6 +332,13 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 					goto init_err;
 			}
 			break;
+		case PHY_INTERFACE_MODE_XGMII:
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_XGMII)) {
+				err = mtk_gmac_xgmii_path_setup(eth, mac->id);
+				if (err)
+					goto init_err;
+			}
+			break;
 		case PHY_INTERFACE_MODE_USXGMII:
 		case PHY_INTERFACE_MODE_10GKR:
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_USXGMII)) {
@@ -455,8 +462,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 	}
 
 	/* Setup gmac */
-	if (state->interface == PHY_INTERFACE_MODE_USXGMII ||
-	    state->interface == PHY_INTERFACE_MODE_10GKR) {
+	if (mac->type == MTK_XGDM_TYPE) {
 		mtk_w32(mac->hw, MTK_GDMA_XGDM_SEL, MTK_GDMA_EG_CTRL(mac->id));
 		mtk_w32(mac->hw, MAC_MCR_FORCE_LINK_DOWN, MTK_MAC_MCR(mac->id));
 
@@ -683,6 +689,8 @@ static void mtk_validate(struct phylink_config *config,
 	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_SGMII) &&
 	      (state->interface == PHY_INTERFACE_MODE_SGMII ||
 	       phy_interface_mode_is_8023z(state->interface))) &&
+	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_XGMII) &&
+	      (state->interface == PHY_INTERFACE_MODE_XGMII)) &&
 	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_USXGMII) &&
 	      (state->interface == PHY_INTERFACE_MODE_USXGMII)) &&
 	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_USXGMII) &&
@@ -715,6 +723,8 @@ static void mtk_validate(struct phylink_config *config,
 	case PHY_INTERFACE_MODE_TRGMII:
 		phylink_set(mask, 1000baseT_Full);
 		break;
+	case PHY_INTERFACE_MODE_XGMII:
+		/* fall through */
 	case PHY_INTERFACE_MODE_1000BASEX:
 		phylink_set(mask, 1000baseX_Full);
 		/* fall through; */
@@ -772,6 +782,12 @@ static void mtk_validate(struct phylink_config *config,
 			phylink_set(mask, 1000baseT_Full);
 			phylink_set(mask, 1000baseT_Half);
 		}
+	}
+
+	if (mac->type == MTK_XGDM_TYPE) {
+		phylink_clear(mask, 10baseT_Half);
+		phylink_clear(mask, 100baseT_Half);
+		phylink_clear(mask, 1000baseT_Half);
 	}
 
 	phylink_set(mask, Pause);
@@ -3841,8 +3857,9 @@ static const struct net_device_ops mtk_netdev_ops = {
 static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 {
 	const __be32 *_id = of_get_property(np, "reg", NULL);
+	const char *label;
 	struct phylink *phylink;
-	int phy_mode, id, err;
+	int mac_type, phy_mode, id, err;
 	struct mtk_mac *mac;
 	struct mtk_phylink_priv *phylink_priv;
 	struct fwnode_handle *fixed_node;
@@ -3906,9 +3923,25 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	mac->phylink_config.dev = &eth->netdev[id]->dev;
 	mac->phylink_config.type = PHYLINK_NETDEV;
 
-	mac->type = (phy_mode == PHY_INTERFACE_MODE_10GKR ||
-		     phy_mode == PHY_INTERFACE_MODE_USXGMII) ?
-		     MTK_XGDM_TYPE : MTK_GDM_TYPE;
+	mac->type = 0;
+	if (!of_property_read_string(np, "mac-type", &label)) {
+		for (mac_type = 0; mac_type < MTK_GDM_TYPE_MAX; mac_type++) {
+			if (!strcasecmp(label, gdm_type(mac_type)))
+				break;
+		}
+
+		switch (mac_type) {
+		case 0:
+			mac->type = MTK_GDM_TYPE;
+			break;
+		case 1:
+			mac->type = MTK_XGDM_TYPE;
+			break;
+		default:
+			dev_warn(eth->dev, "incorrect mac-type\n");
+			break;
+		};
+	}
 
 	phylink = phylink_create(&mac->phylink_config,
 				 of_fwnode_handle(mac->of_node),

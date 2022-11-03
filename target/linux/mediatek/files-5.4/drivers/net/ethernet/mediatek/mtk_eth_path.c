@@ -31,6 +31,8 @@ static const char *mtk_eth_path_name(u64 path)
 		return "gmac2_rgmii";
 	case MTK_ETH_PATH_GMAC2_SGMII:
 		return "gmac2_sgmii";
+	case MTK_ETH_PATH_GMAC2_XGMII:
+		return "gmac2_xgmii";
 	case MTK_ETH_PATH_GMAC2_GEPHY:
 		return "gmac2_gephy";
 	case MTK_ETH_PATH_GMAC3_SGMII:
@@ -133,6 +135,56 @@ static int set_mux_u3_gmac2_to_qphy(struct mtk_eth *eth, u64 path)
 	return 0;
 }
 
+static int set_mux_gmac2_to_xgmii(struct mtk_eth *eth, u64 path)
+{
+	unsigned int val = 0;
+	bool updated = true;
+	int mac_id = 0;
+
+	dev_dbg(eth->dev, "path %s in %s updated = %d\n",
+		mtk_eth_path_name(path), __func__, updated);
+
+	spin_lock(&eth->syscfg0_lock);
+
+	regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
+
+	switch (path) {
+	case MTK_ETH_PATH_GMAC2_XGMII:
+		val &= ~(u32)SYSCFG0_SGMII_GMAC2_V2;
+		mac_id = MTK_GMAC2_ID;
+		break;
+	default:
+		updated = false;
+		break;
+	};
+
+	if (updated)
+		regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
+				   SYSCFG0_SGMII_MASK, val);
+
+	/* Enable GDM/XGDM Path */
+	if (eth->mac[mac_id]->type == MTK_GDM_TYPE) {
+		val = mtk_r32(eth, MTK_GDMA_EG_CTRL(mac_id));
+		mtk_w32(eth, val & ~MTK_GDMA_XGDM_SEL,
+			MTK_GDMA_EG_CTRL(mac_id));
+	} else if (eth->mac[mac_id]->type == MTK_XGDM_TYPE) {
+		val = mtk_r32(eth, MTK_GDMA_EG_CTRL(mac_id));
+		mtk_w32(eth, val | MTK_GDMA_XGDM_SEL,
+			MTK_GDMA_EG_CTRL(mac_id));
+
+		val = mtk_r32(eth, MTK_XGMAC_STS(mac_id));
+		mtk_w32(eth, val | (MTK_XGMAC_FORCE_LINK << 16),
+			MTK_XGMAC_STS(mac_id));
+	}
+
+	spin_unlock(&eth->syscfg0_lock);
+
+	dev_dbg(eth->dev, "path %s in %s updated = %d\n",
+		mtk_eth_path_name(path), __func__, updated);
+
+	return 0;
+}
+
 static int set_mux_gmac1_gmac2_to_sgmii_rgmii(struct mtk_eth *eth, u64 path)
 {
 	unsigned int val = 0;
@@ -179,7 +231,7 @@ static int set_mux_gmac123_to_usxgmii(struct mtk_eth *eth, u64 path)
 {
 	unsigned int val = 0;
 	bool updated = true;
-	int mac_id = 0, id = 0;
+	int mac_id = 0;
 
 	dev_dbg(eth->dev, "path %s in %s updated = %d\n",
 		mtk_eth_path_name(path), __func__, updated);
@@ -210,19 +262,10 @@ static int set_mux_gmac123_to_usxgmii(struct mtk_eth *eth, u64 path)
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
 		    mac_id == MTK_GMAC2_ID) {
-			id = mtk_mac2xgmii_id(eth, mac_id);
-			if (MTK_HAS_FLAGS(eth->xgmii->flags[id],
-					  MTK_USXGMII_INT_2500)) {
-				val = mtk_r32(eth, MTK_XGMAC_STS(mac_id));
-				mtk_w32(eth,
-					val | (MTK_XGMAC_FORCE_LINK << 16),
-					MTK_XGMAC_STS(mac_id));
-			} else {
-				regmap_update_bits(eth->infra,
-						   TOP_MISC_NETSYS_PCS_MUX,
-						   NETSYS_PCS_MUX_MASK,
-						   MUX_G2_USXGMII_SEL);
-			}
+			regmap_update_bits(eth->infra,
+					   TOP_MISC_NETSYS_PCS_MUX,
+					   NETSYS_PCS_MUX_MASK,
+					   MUX_G2_USXGMII_SEL);
 		}
 	}
 
@@ -289,6 +332,10 @@ static const struct mtk_eth_muxc mtk_eth_muxc[] = {
 		.name = "mux_u3_gmac2_to_qphy",
 		.cap_bit = MTK_ETH_MUX_U3_GMAC2_TO_QPHY,
 		.set_path = set_mux_u3_gmac2_to_qphy,
+	}, {
+		.name = "mux_gmac2_to_xgmii",
+		.cap_bit = MTK_ETH_MUX_GMAC2_TO_XGMII,
+		.set_path = set_mux_gmac2_to_xgmii,
 	}, {
 		.name = "mux_gmac1_gmac2_to_sgmii_rgmii",
 		.cap_bit = MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII,
@@ -365,6 +412,25 @@ int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id)
 	path = (mac_id == MTK_GMAC1_ID) ? MTK_ETH_PATH_GMAC1_SGMII :
 	       (mac_id == MTK_GMAC2_ID) ? MTK_ETH_PATH_GMAC2_SGMII :
 					  MTK_ETH_PATH_GMAC3_SGMII;
+
+	/* Setup proper MUXes along the path */
+	err = mtk_eth_mux_setup(eth, path);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+int mtk_gmac_xgmii_path_setup(struct mtk_eth *eth, int mac_id)
+{
+	int err;
+	u64 path;
+
+	if (mac_id == 1)
+		path = MTK_ETH_PATH_GMAC2_XGMII;
+
+	if (!path)
+		return -EINVAL;
 
 	/* Setup proper MUXes along the path */
 	err = mtk_eth_mux_setup(eth, path);

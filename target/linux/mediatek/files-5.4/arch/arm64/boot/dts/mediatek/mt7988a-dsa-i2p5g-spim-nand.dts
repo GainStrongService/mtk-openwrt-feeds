@@ -182,16 +182,13 @@
 	status = "disabled";
 };
 
-&usxgmiisys1 {
-	internal_2500;
-};
-
 &eth {
 	status = "okay";
 
 	gmac0: mac@0 {
 		compatible = "mediatek,eth-mac";
 		reg = <0>;
+		mac-type = "xgdm";
 		phy-mode = "10gbase-kr";
 
 		fixed-link {
@@ -204,13 +201,15 @@
 	gmac1: mac@1 {
 		compatible = "mediatek,eth-mac";
 		reg = <1>;
-		phy-mode = "10gbase-kr";
+		mac-type = "xgdm";
+		phy-mode = "xgmii";
 		phy-handle = <&phy0>;
 	};
 
 	gmac2: mac@2 {
 		compatible = "mediatek,eth-mac";
 		reg = <2>;
+		mac-type = "xgdm";
 		phy-mode = "10gbase-kr";
 		phy-handle = <&phy1>;
 	};
@@ -221,7 +220,7 @@
 		phy0: ethernet-phy@0 {
 			reg = <15>;
 			compatible = "ethernet-phy-ieee802.3-c45";
-			phy-mode = "10gbase-kr";
+			phy-mode = "xgmii";
 		};
 
 		phy1: ethernet-phy@8 {
