@@ -1,4 +1,4 @@
-From 8f5eeab00cf1eeb394132306db23fb1cd2ef5afa Mon Sep 17 00:00:00 2001
+From 0a0fdd6f9407deb1008a6625bee063470ccd48d2 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 27 Oct 2022 17:42:07 +0800
 Subject: [PATCH] mt76: testmode: add ZWDFS test mode support
@@ -6,22 +6,23 @@ Subject: [PATCH] mt76: testmode: add ZWDFS test mode support
 Change-Id: I14d104b7158a35acf6b0595357d07fb87f5a9d94
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- mt76.h            |   8 ++
+ mt76.h            |   9 ++
  mt76_connac_mcu.h |   2 +
- mt7915/mcu.c      |  64 ++++++++++++++
- mt7915/mcu.h      |  46 ++++++++++
+ mt7915/mcu.c      |  66 +++++++++++++
+ mt7915/mcu.h      |  46 +++++++++
  mt7915/mt7915.h   |   4 +
- mt7915/testmode.c | 213 ++++++++++++++++++++++++++++++++++++++++++++++
- testmode.c        |  23 ++++-
- testmode.h        |  43 ++++++++++
- tools/fields.c    |  20 +++++
- 9 files changed, 422 insertions(+), 1 deletion(-)
+ mt7915/regs.h     |   2 +
+ mt7915/testmode.c | 232 ++++++++++++++++++++++++++++++++++++++++++++++
+ testmode.c        |  25 ++++-
+ testmode.h        |  45 +++++++++
+ tools/fields.c    |  22 +++++
+ 10 files changed, 452 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index 3ca449f..adeba98 100644
+index 3ca449f..bc07463 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -708,6 +708,14 @@ struct mt76_testmode_data {
+@@ -708,6 +708,15 @@ struct mt76_testmode_data {
  		u64 fcs_error[__MT_RXQ_MAX];
  		u64 len_mismatch;
  	} rx_stats;
@@ -33,6 +34,7 @@ index 3ca449f..adeba98 100644
 +	u8 ipi_threshold;
 +	u32 ipi_period;
 +	u8 ipi_antenna_idx;
++	u8 ipi_reset;
  };
  
  struct mt76_vif {
@@ -57,7 +59,7 @@ index b14f931..d7ea781 100644
  
  enum {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 34ce7d6..87578d7 100644
+index bed3ad5..c498af8 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2665,6 +2665,7 @@ mt7915_mcu_background_chain_ctrl(struct mt7915_phy *phy,
@@ -68,7 +70,7 @@ index 34ce7d6..87578d7 100644
  		req.band_idx = phy != &dev->phy;
  		req.scan_mode = 2;
  		break;
-@@ -4236,3 +4237,66 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
+@@ -4236,3 +4237,68 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
  	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(MEC_CTRL), &req, sizeof(req), true);
  }
  #endif
@@ -92,13 +94,15 @@ index 34ce7d6..87578d7 100644
 +		.band_idx = phy->band_idx,
 +	};
 +
-+	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_EXT_CMD(IPI_HIST_CTRL),
++	if (!wait_resp)
++		return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(IPI_HIST_CTRL),
++					 &req, sizeof(req), true);
++
++	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_EXT_QUERY(IPI_HIST_CTRL),
 +					&req, sizeof(req), wait_resp, &skb);
++
 +	if (ret)
 +		return ret;
-+
-+	if (!wait_resp)
-+		return 0;
 +
 +	memcpy(data, skb->data, sizeof(struct mt7915_mcu_rdd_ipi_ctrl));
 +	dev_kfree_skb(skb);
@@ -214,11 +218,24 @@ index f3bbdba..d29c8ef 100644
  #ifdef MTK_DEBUG
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp);
+diff --git a/mt7915/regs.h b/mt7915/regs.h
+index 8fd2f69..5ff5762 100644
+--- a/mt7915/regs.h
++++ b/mt7915/regs.h
+@@ -1138,6 +1138,8 @@ enum offs_rev {
+ #define MT_WF_IRPI_NSS(phy, nss)	MT_WF_IRPI(0x6000 + ((phy) << 20) + ((nss) << 16))
+ #define MT_WF_IRPI_NSS_MT7916(phy, nss)	MT_WF_IRPI(0x1000 + ((phy) << 20) + ((nss) << 16))
+ 
++#define MT_WF_IPI_RESET			0x831a3008
++
+ /* PHY */
+ #define MT_WF_PHY_BASE			0x83080000
+ #define MT_WF_PHY(ofs)			(MT_WF_PHY_BASE + (ofs))
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index f735ed6..8c48d2d 100644
+index f735ed6..b3462bc 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
-@@ -13,6 +13,11 @@ enum {
+@@ -13,6 +13,12 @@ enum {
  	TM_CHANGED_AID,
  	TM_CHANGED_CFG,
  	TM_CHANGED_TXBF_ACT,
@@ -227,10 +244,11 @@ index f735ed6..8c48d2d 100644
 +	TM_CHANGED_OFF_CHAN_BW,
 +	TM_CHANGED_IPI_THRESHOLD,
 +	TM_CHANGED_IPI_PERIOD,
++	TM_CHANGED_IPI_RESET,
  
  	/* must be last */
  	NUM_TM_CHANGED
-@@ -24,6 +29,11 @@ static const u8 tm_change_map[] = {
+@@ -24,6 +30,12 @@ static const u8 tm_change_map[] = {
  	[TM_CHANGED_AID] = MT76_TM_ATTR_AID,
  	[TM_CHANGED_CFG] = MT76_TM_ATTR_CFG,
  	[TM_CHANGED_TXBF_ACT] = MT76_TM_ATTR_TXBF_ACT,
@@ -239,10 +257,11 @@ index f735ed6..8c48d2d 100644
 +	[TM_CHANGED_OFF_CHAN_BW] = MT76_TM_ATTR_OFF_CH_SCAN_BW,
 +	[TM_CHANGED_IPI_THRESHOLD] = MT76_TM_ATTR_IPI_THRESHOLD,
 +	[TM_CHANGED_IPI_PERIOD] = MT76_TM_ATTR_IPI_PERIOD,
++	[TM_CHANGED_IPI_RESET] = MT76_TM_ATTR_IPI_RESET,
  };
  
  struct reg_band {
-@@ -962,6 +972,201 @@ mt7915_tm_set_txbf(struct mt7915_phy *phy)
+@@ -962,6 +974,216 @@ mt7915_tm_set_txbf(struct mt7915_phy *phy)
  	return 0;
  }
  
@@ -266,7 +285,7 @@ index f735ed6..8c48d2d 100644
 +		[NL80211_CHAN_WIDTH_160] = 160,
 +	};
 +
-+	if (phy->band_idx != NL80211_BAND_5GHZ && !freq) {
++	if (!mphy->cap.has_5ghz || !freq) {
 +		ret = -EINVAL;
 +		dev_info(dev->mt76.dev, "Failed to set offchan (invalid band or channel)!\n");
 +		goto out;
@@ -424,15 +443,30 @@ index f735ed6..8c48d2d 100644
 +	} else {
 +		struct mt7915_mcu_rdd_ipi_ctrl data;
 +
++		start_antenna_idx = 4;
 +		mt7915_mcu_ipi_hist_ctrl(phy, &data, RDD_IPI_HIST_ALL_CNT, true);
 +		mt7915_tm_dump_ipi(phy, &data, antenna_num, start_antenna_idx, false);
 +	}
++}
++
++static inline void
++mt7915_tm_reset_ipi(struct mt7915_phy *phy)
++{
++#define IPI_RESET_BIT	BIT(2)
++	struct mt7915_dev *dev = phy->dev;
++
++	if (is_mt7915(&dev->mt76))
++		mt7915_mcu_ipi_hist_ctrl(phy, NULL, RDD_SET_IPI_HIST_RESET, false);
++	else
++		mt76_set(dev, MT_WF_IPI_RESET, IPI_RESET_BIT);
 +}
 +
 +static int
 +mt7915_tm_set_ipi(struct mt7915_phy *phy)
 +{
 +	struct mt76_testmode_data *td = &phy->mt76->test;
++
++	mt7915_tm_reset_ipi(phy);
 +
 +	cancel_delayed_work(&phy->ipi_work);
 +	ieee80211_queue_delayed_work(phy->mt76->hw, &phy->ipi_work,
@@ -444,7 +478,7 @@ index f735ed6..8c48d2d 100644
  static int
  mt7915_tm_set_wmm_qid(struct mt7915_phy *phy, u8 qid, u8 aifs, u8 cw_min,
  		      u16 cw_max, u16 txop, u8 tx_cmd)
-@@ -1247,6 +1452,8 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
+@@ -1247,6 +1469,8 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
  		phy->mt76->test.tx_mpdu_len = 0;
  		phy->test.bf_en = 0;
  		mt7915_tm_set_entry(phy);
@@ -453,7 +487,7 @@ index f735ed6..8c48d2d 100644
  	}
  }
  
-@@ -2004,6 +2211,12 @@ mt7915_tm_update_params(struct mt7915_phy *phy, u32 changed)
+@@ -2004,6 +2228,14 @@ mt7915_tm_update_params(struct mt7915_phy *phy, u32 changed)
  		mt7915_tm_set_cfg(phy);
  	if (changed & BIT(TM_CHANGED_TXBF_ACT))
  		mt7915_tm_set_txbf(phy);
@@ -463,14 +497,16 @@ index f735ed6..8c48d2d 100644
 +	if ((changed & BIT(TM_CHANGED_IPI_THRESHOLD)) &&
 +	    (changed & BIT(TM_CHANGED_IPI_PERIOD)))
 +		mt7915_tm_set_ipi(phy);
++	if (changed & BIT(TM_CHANGED_IPI_RESET))
++		mt7915_tm_reset_ipi(phy);
  }
  
  static int
 diff --git a/testmode.c b/testmode.c
-index aa874a8..de2892b 100644
+index aa874a8..b19b872 100644
 --- a/testmode.c
 +++ b/testmode.c
-@@ -24,6 +24,12 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
+@@ -24,6 +24,13 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
  	[MT76_TM_ATTR_TX_TIME] = { .type = NLA_U32 },
  	[MT76_TM_ATTR_FREQ_OFFSET] = { .type = NLA_U32 },
  	[MT76_TM_ATTR_DRV_DATA] = { .type = NLA_NESTED },
@@ -480,10 +516,11 @@ index aa874a8..de2892b 100644
 +	[MT76_TM_ATTR_IPI_THRESHOLD] = { .type = NLA_U8 },
 +	[MT76_TM_ATTR_IPI_PERIOD] = { .type = NLA_U32 },
 +	[MT76_TM_ATTR_IPI_ANTENNA_INDEX] = { .type = NLA_U8 },
++	[MT76_TM_ATTR_IPI_RESET] = { .type = NLA_U8 },
  };
  EXPORT_SYMBOL_GPL(mt76_tm_policy);
  
-@@ -402,6 +408,7 @@ mt76_testmode_init_defaults(struct mt76_phy *phy)
+@@ -402,6 +409,7 @@ mt76_testmode_init_defaults(struct mt76_phy *phy)
  	td->tx_count = 1;
  	td->tx_rate_mode = MT76_TM_TX_MODE_OFDM;
  	td->tx_rate_nss = 1;
@@ -491,7 +528,7 @@ index aa874a8..de2892b 100644
  
  	memcpy(td->addr[0], phy->macaddr, ETH_ALEN);
  	memcpy(td->addr[1], phy->macaddr, ETH_ALEN);
-@@ -607,6 +614,9 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -607,6 +615,9 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	if (tb[MT76_TM_ATTR_TX_RATE_IDX])
  		td->tx_rate_idx = nla_get_u8(tb[MT76_TM_ATTR_TX_RATE_IDX]);
  
@@ -501,7 +538,7 @@ index aa874a8..de2892b 100644
  	if (mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_RATE_MODE], &td->tx_rate_mode,
  			   0, MT76_TM_TX_MODE_MAX) ||
  	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_RATE_NSS], &td->tx_rate_nss,
-@@ -623,7 +633,15 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -623,7 +634,16 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			   &td->tx_power_control, 0, 1) ||
  	    mt76_tm_get_u8(tb[MT76_TM_ATTR_AID], &td->aid, 0, 16) ||
  	    mt76_tm_get_u8(tb[MT76_TM_ATTR_RU_ALLOC], &td->ru_alloc, 0, 0xff) ||
@@ -514,11 +551,12 @@ index aa874a8..de2892b 100644
 +			   &td->offchan_bw, NL80211_CHAN_WIDTH_20_NOHT, NL80211_CHAN_WIDTH_160) ||
 +	    mt76_tm_get_u8(tb[MT76_TM_ATTR_IPI_THRESHOLD], &td->ipi_threshold, 0, 10) ||
 +	    mt76_tm_get_u8(tb[MT76_TM_ATTR_IPI_ANTENNA_INDEX], &td->ipi_antenna_idx,
-+			   MT76_TM_IPI_ANTENNA_0, MT76_TM_IPI_ANTENNA_ALL))
++			   MT76_TM_IPI_ANTENNA_0, MT76_TM_IPI_ANTENNA_ALL) ||
++	    mt76_tm_get_u8(tb[MT76_TM_ATTR_IPI_RESET], &td->ipi_reset, 0, 1))
  		goto out;
  
  	if (tb[MT76_TM_ATTR_TX_LENGTH]) {
-@@ -857,6 +875,9 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
+@@ -857,6 +877,9 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
  	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_MODE, td->tx_rate_mode) ||
  	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_SGI, td->tx_rate_sgi) ||
  	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_STBC, td->tx_rate_stbc) ||
@@ -529,10 +567,10 @@ index aa874a8..de2892b 100644
  	     nla_put_u8(msg, MT76_TM_ATTR_TX_LTF, td->tx_ltf)) ||
  	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_ANTENNA) &&
 diff --git a/testmode.h b/testmode.h
-index 5d1fe79..9f61847 100644
+index 5d1fe79..27a0095 100644
 --- a/testmode.h
 +++ b/testmode.h
-@@ -63,6 +63,19 @@
+@@ -63,6 +63,20 @@
   * 	(nested, u8 attrs)
   *
   * @MT76_TM_ATTR_CFG: config testmode rf feature (nested, see &mt76_testmode_cfg)
@@ -549,10 +587,11 @@ index 5d1fe79..9f61847 100644
 + *			     the histogram of specific IPI index (u8)
 + * @MT76_TM_ATTR_IPI_ANTENNA_INDEX: config the antenna index for reading
 + *				    the histogram of specific IPI index (u8)
++ * @MT76_TM_ATTR_IPI_RESET: Reset the IPI counter
   *
   */
  enum mt76_testmode_attr {
-@@ -116,6 +129,15 @@ enum mt76_testmode_attr {
+@@ -116,6 +130,16 @@ enum mt76_testmode_attr {
  	MT76_TM_ATTR_TXBF_ACT,
  	MT76_TM_ATTR_TXBF_PARAM,
  
@@ -564,11 +603,12 @@ index 5d1fe79..9f61847 100644
 +	MT76_TM_ATTR_IPI_THRESHOLD,
 +	MT76_TM_ATTR_IPI_PERIOD,
 +	MT76_TM_ATTR_IPI_ANTENNA_INDEX,
++	MT76_TM_ATTR_IPI_RESET,
 +
  	/* keep last */
  	NUM_MT76_TM_ATTRS,
  	MT76_TM_ATTR_MAX = NUM_MT76_TM_ATTRS - 1,
-@@ -292,4 +314,25 @@ enum mt76_testmode_txbf_act {
+@@ -292,4 +316,25 @@ enum mt76_testmode_txbf_act {
  	MT76_TM_TXBF_ACT_MAX = NUM_MT76_TM_TXBF_ACT - 1,
  };
  
@@ -595,7 +635,7 @@ index 5d1fe79..9f61847 100644
 +
  #endif
 diff --git a/tools/fields.c b/tools/fields.c
-index 47fc69f..21f6b19 100644
+index 47fc69f..6f07eed 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -46,6 +46,14 @@ static const char * const testmode_txbf_act[] = {
@@ -613,7 +653,7 @@ index 47fc69f..21f6b19 100644
  static void print_enum(const struct tm_field *field, struct nlattr *attr)
  {
  	unsigned int i = nla_get_u8(attr);
-@@ -411,6 +419,12 @@ static const struct tm_field testdata_fields[NUM_MT76_TM_ATTRS] = {
+@@ -411,6 +419,13 @@ static const struct tm_field testdata_fields[NUM_MT76_TM_ATTRS] = {
  	FIELD(u8, RU_IDX, "ru_idx"),
  	FIELD_ENUM(TXBF_ACT, "txbf_act", testmode_txbf_act),
  	FIELD_ARRAY(u16_hex, TXBF_PARAM, "txbf_param"),
@@ -623,10 +663,11 @@ index 47fc69f..21f6b19 100644
 +	FIELD(u8, IPI_THRESHOLD, "ipi_threshold"),
 +	FIELD(u32, IPI_PERIOD, "ipi_period"),
 +	FIELD(u8, IPI_ANTENNA_INDEX, "ipi_antenna_idx"),
++	FIELD(u8, IPI_RESET, "ipi_reset"),
  	FIELD_MAC(MAC_ADDRS, "mac_addrs"),
  	FIELD_NESTED_RO(STATS, stats, "",
  			.print_extra = print_extra_stats),
-@@ -442,6 +456,12 @@ static struct nla_policy testdata_policy[NUM_MT76_TM_ATTRS] = {
+@@ -442,6 +457,13 @@ static struct nla_policy testdata_policy[NUM_MT76_TM_ATTRS] = {
  	[MT76_TM_ATTR_RU_IDX] = { .type = NLA_U8 },
  	[MT76_TM_ATTR_STATS] = { .type = NLA_NESTED },
  	[MT76_TM_ATTR_TXBF_ACT] = { .type = NLA_U8 },
@@ -636,6 +677,7 @@ index 47fc69f..21f6b19 100644
 +	[MT76_TM_ATTR_IPI_THRESHOLD] = { .type = NLA_U8 },
 +	[MT76_TM_ATTR_IPI_PERIOD] = { .type = NLA_U32 },
 +	[MT76_TM_ATTR_IPI_ANTENNA_INDEX] = { .type = NLA_U8 },
++	[MT76_TM_ATTR_IPI_RESET] = { .type = NLA_U8 },
  };
  
  const struct tm_field msg_field = {
