@@ -602,6 +602,11 @@
 #define RX_DMA_GET_AGG_CNT_V2(_x)	(((_x) >> 16) & 0xff)
 #define RX_DMA_GET_TOPS_CRSN(_x)	(((_x) >> 24) & 0xff)
 
+/* PHY Polling and SMI Master Control registers */
+#define MTK_PPSC		0x10000
+#define PPSC_MDC_CFG		GENMASK(29, 24)
+#define PPSC_MDC_TURBO		BIT(20)
+
 /* PHY Indirect Access Control registers */
 #define MTK_PHY_IAC		0x10004
 #define PHY_IAC_ACCESS		BIT(31)
@@ -615,7 +620,12 @@
 #define PHY_IAC_REG_SHIFT	25
 #define PHY_IAC_TIMEOUT		HZ
 
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MTK_MAC_MISC		0x10010
+#else
 #define MTK_MAC_MISC		0x1000c
+#endif
+#define MISC_MDC_TURBO		BIT(4)
 #define MTK_MUX_TO_ESW		BIT(0)
 
 /* XMAC status registers */
