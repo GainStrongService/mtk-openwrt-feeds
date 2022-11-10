@@ -1,14 +1,24 @@
-From 6385f7196ddd1e05c4ea089e8076ab9f62794ac8 Mon Sep 17 00:00:00 2001
-From: Peter Chiu <chui-hao.chiu@mediatek.com>
-Date: Thu, 20 Oct 2022 10:55:22 +0800
-Subject: [PATCH] master: mac80211: generate hostapd setting from ap cap
+diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
+index 44428ca..f34286b 100644
+--- a/package/kernel/mac80211/Makefile
++++ b/package/kernel/mac80211/Makefile
+@@ -19,6 +19,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
+ PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/backports-$(PKG_VERSION)
+ PKG_BUILD_PARALLEL:=1
 
-Change-Id: Iaae41c39b7d5c80470ea3e0ac58ac115bfe746ae
----
- .../files/lib/netifd/wireless/mac80211.sh         |  3 ---
- .../kernel/mac80211/files/lib/wifi/mac80211.sh    | 15 ++++++++++++++-
- 2 files changed, 14 insertions(+), 4 deletions(-)
++SOURCE_PATH:=./src
+ PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
 
+ PKG_DRIVERS = \
+@@ -450,6 +451,8 @@ define Build/Prepare
+        mkdir -p $(PKG_BUILD_DIR)
+        $(PKG_UNPACK)
+        $(Build/Patch)
++       $(CP) ${SOURCE_PATH)/net ${PKG_BUILD_DIR) 2>/dev/null || :
++       $(CP) ${SOURCE_PATH)/include ${PKG_BUILD_DIR) 2>/dev/null || :
+        $(TAR) -C $(PKG_BUILD_DIR) -xzf $(DL_DIR)/$(IPW2100_NAME)-$(IPW2100_VERSION).tgz
+        $(TAR) -C $(PKG_BUILD_DIR) -xzf $(DL_DIR)/$(IPW2200_NAME)-$(IPW2200_VERSION).tgz
+        $(TAR) -C $(PKG_BUILD_DIR) -xjf $(DL_DIR)/$(ZD1211FW_NAME)-$(ZD1211FW_VERSION).tar.bz2
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 index ed280521..a0550057 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
