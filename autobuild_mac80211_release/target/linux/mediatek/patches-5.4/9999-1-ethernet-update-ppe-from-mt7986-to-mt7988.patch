@@ -1,0 +1,203 @@
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index 4075ec2..524c5d9 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -1796,17 +1796,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+ 			skb_checksum_none_assert(skb);
+ 		skb->protocol = eth_type_trans(skb, netdev);
+ 
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+-			hash = trxd.rxd5 & MTK_RXD5_FOE_ENTRY_V2;
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
++		hash = trxd.rxd5 & MTK_RXD5_FOE_ENTRY_V2;
+ #else
+-			hash = trxd.rxd4 & MTK_RXD4_FOE_ENTRY;
++		hash = trxd.rxd4 & MTK_RXD4_FOE_ENTRY;
+ #endif
+ 		if (hash != MTK_RXD4_FOE_ENTRY) {
+ 			hash = jhash_1word(hash, 0);
+ 			skb_set_hash(skb, hash, PKT_HASH_TYPE_L4);
+ 		}
+ 
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ 		reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON_V2, trxd.rxd5);
+ 		if (reason == MTK_PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED) {
+ 			for (i = 0; i < eth->ppe_num; i++) {
+@@ -4626,11 +4626,15 @@ static const struct mtk_soc_data mt7988_data = {
+ 	.required_clks = MT7988_CLKS_BITMAP,
+ 	.required_pctl = false,
+ 	.has_sram = true,
++	.has_accounting = true,
++	.hash_way = 4,
++	.offload_version = 2,
+ 	.txrx = {
+ 		.txd_size = sizeof(struct mtk_tx_dma_v2),
+ 		.rxd_size = sizeof(struct mtk_rx_dma_v2),
+ 		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
+ 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
++		.qdma_tx_sch = 4,
+ 	},
+ };
+ 
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+index 5b39d87..94bd423 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -118,7 +118,7 @@
+ #define MTK_GDMA_UCS_EN		BIT(20)
+ #define MTK_GDMA_STRP_CRC	BIT(16)
+ #define MTK_GDMA_TO_PDMA	0x0
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ #define MTK_GDMA_TO_PPE0	0x3333
+ #define MTK_GDMA_TO_PPE1	0x4444
+ #else
+diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
+index 98f61fe..bd504d4 100755
+--- a/drivers/net/ethernet/mediatek/mtk_ppe.c
++++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
+@@ -211,7 +211,7 @@ int mtk_foe_entry_prepare(struct mtk_foe_entry *entry, int type, int l4proto,
+ 	      MTK_FOE_IB1_BIND_CACHE;
+ 	entry->ib1 = val;
+ 
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ 	val = FIELD_PREP(MTK_FOE_IB2_PORT_AG, 0xf) |
+ #else
+ 	val = FIELD_PREP(MTK_FOE_IB2_PORT_MG, 0x3f) |
+@@ -403,7 +403,7 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
+ 
+ 	*ib2 &= ~MTK_FOE_IB2_PORT_MG;
+ 	*ib2 |= MTK_FOE_IB2_WDMA_WINFO;
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ 	*ib2 |=  FIELD_PREP(MTK_FOE_IB2_RX_IDX, txq);
+ 
+ 	l2->winfo = FIELD_PREP(MTK_FOE_WINFO_WCID, wcid) |
+@@ -867,13 +867,16 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
+ 	mtk_ppe_init_foe_table(ppe);
+ 	ppe_w32(ppe, MTK_PPE_TB_BASE, ppe->foe_phys);
+ 
+-	val = MTK_PPE_TB_CFG_ENTRY_80B |
++	val =
++#if !defined(CONFIG_MEDIATEK_NETSYS_V3)
++	      MTK_PPE_TB_CFG_ENTRY_80B |
++#endif
+ 	      MTK_PPE_TB_CFG_AGE_NON_L4 |
+ 	      MTK_PPE_TB_CFG_AGE_UNBIND |
+ 	      MTK_PPE_TB_CFG_AGE_TCP |
+ 	      MTK_PPE_TB_CFG_AGE_UDP |
+ 	      MTK_PPE_TB_CFG_AGE_TCP_FIN |
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ 	      MTK_PPE_TB_CFG_INFO_SEL |
+ #endif
+ 	      FIELD_PREP(MTK_PPE_TB_CFG_SEARCH_MISS,
+@@ -937,7 +940,7 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
+ 
+ 	ppe_w32(ppe, MTK_PPE_DEFAULT_CPU_PORT, 0);
+ 
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ 	ppe_w32(ppe, MTK_PPE_DEFAULT_CPU_PORT1, 0xcb777);
+ 	ppe_w32(ppe, MTK_PPE_SBW_CTRL, 0x7f);
+ #endif
+diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
+index 703b2bd..03b4dfb 100644
+--- a/drivers/net/ethernet/mediatek/mtk_ppe.h
++++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
+@@ -8,7 +8,7 @@
+ #include <linux/bitfield.h>
+ #include <linux/rhashtable.h>
+ 
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ #define MTK_MAX_PPE_NUM			2
+ #define MTK_ETH_PPE_BASE		0x2000
+ #else
+@@ -22,7 +22,7 @@
+ #define MTK_PPE_WAIT_TIMEOUT_US		1000000
+ 
+ #define MTK_FOE_IB1_UNBIND_TIMESTAMP	GENMASK(7, 0)
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ #define MTK_FOE_IB1_UNBIND_SRC_PORT	GENMASK(11, 8)
+ #define MTK_FOE_IB1_UNBIND_PACKETS	GENMASK(19, 12)
+ #define MTK_FOE_IB1_UNBIND_PREBIND	BIT(22)
+@@ -70,7 +70,7 @@ enum {
+ 	MTK_PPE_PKT_TYPE_IPV6_6RD = 7,
+ };
+ 
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ #define MTK_FOE_IB2_QID			GENMASK(6, 0)
+ #define MTK_FOE_IB2_PORT_MG		BIT(7)
+ #define MTK_FOE_IB2_PSE_QOS		BIT(8)
+@@ -98,7 +98,18 @@ enum {
+ 
+ #define MTK_FOE_IB2_DSCP		GENMASK(31, 24)
+ 
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V3)
++#define MTK_FOE_WINFO_WCID		GENMASK(15, 0)
++#define MTK_FOE_WINFO_BSS		GENMASK(23, 16)
++
++#define MTK_FOE_WINFO_PAO_USR_INFO	GENMASK(15, 0)
++#define MTK_FOE_WINFO_PAO_TID		GENMASK(19, 16)
++#define MTK_FOE_WINFO_PAO_IS_FIXEDRATE	BIT(20)
++#define MTK_FOE_WINFO_PAO_IS_PRIOR	BIT(21)
++#define MTK_FOE_WINFO_PAO_IS_SP		BIT(22)
++#define MTK_FOE_WINFO_PAO_HF		BIT(23)
++#define MTK_FOE_WINFO_PAO_AMSDU_EN	BIT(24)
++#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
+ #define MTK_FOE_WINFO_BSS		GENMASK(5, 0)
+ #define MTK_FOE_WINFO_WCID		GENMASK(15, 6)
+ #else
+@@ -128,7 +139,12 @@ struct mtk_foe_mac_info {
+ 	u16 pppoe_id;
+ 	u16 src_mac_lo;
+ 
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V3)
++	u16 minfo;
++	u16 resv1;
++	u32 winfo;
++	u32 winfo_pao;
++#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
+ 	u16 minfo;
+ 	u16 winfo;
+ #endif
+@@ -249,7 +265,9 @@ struct mtk_foe_entry {
+ 		struct mtk_foe_ipv4_dslite dslite;
+ 		struct mtk_foe_ipv6 ipv6;
+ 		struct mtk_foe_ipv6_6rd ipv6_6rd;
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V3)
++		u32 data[31];
++#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
+ 		u32 data[23];
+ #else
+ 		u32 data[19];
+diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
+index a5bf090..0e41ff2 100755
+--- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
++++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
+@@ -195,7 +195,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 		mtk_foe_entry_set_wdma(foe, info.wdma_idx, info.queue, info.bss,
+ 				       info.wcid);
+ 		pse_port = 3;
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ 		if (info.wdma_idx == 0)
+ 			pse_port = 8;
+ 		else if (info.wdma_idx == 1)
+@@ -452,7 +452,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+ 		return -ENOMEM;
+ 
+ 	i = 0;
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ 	if (idev && idev->netdev_ops->ndo_fill_receive_path) {
+ 		ctx.dev = idev;
+ 		idev->netdev_ops->ndo_fill_receive_path(&ctx, &path);
