@@ -1,4 +1,4 @@
-From 691fcd82d9e3572d2a2973361ee3c4fe9f3789f3 Mon Sep 17 00:00:00 2001
+From 2e3e45da59fc715a8d6b4771d3773536944cb480 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 3 Jan 2022 17:09:53 +0800
 Subject: [PATCH 2/3] mt76: mt7915: rework rx testmode stats
@@ -15,7 +15,7 @@ Subject: [PATCH 2/3] mt76: mt7915: rework rx testmode stats
  8 files changed, 109 insertions(+), 17 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index e2a8ef94..7ef853cb 100644
+index 30c1bc56..e5d8f45b 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -756,7 +756,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
@@ -29,7 +29,7 @@ index e2a8ef94..7ef853cb 100644
  		if (status->flag & RX_FLAG_FAILED_FCS_CRC)
  			phy->test.rx_stats.fcs_error[q]++;
 diff --git a/mt76.h b/mt76.h
-index f9bdf16f..aef60066 100644
+index a2bccf6b..1b468ccc 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -626,6 +626,8 @@ struct mt76_testmode_ops {
@@ -59,10 +59,10 @@ index f9bdf16f..aef60066 100644
  };
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index cf4ce3b1..31017218 100644
+index 87c65d25..b27a62aa 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1138,6 +1138,7 @@ enum {
+@@ -1143,6 +1143,7 @@ enum {
  	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,
  	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
  	MCU_EXT_CMD_MURU_CTRL = 0x9f,
@@ -71,7 +71,7 @@ index cf4ce3b1..31017218 100644
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 87cd1bff..ed949802 100644
+index c19b5d66..a788277c 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -9,6 +9,7 @@
@@ -301,5 +301,5 @@ index 5e2792d8..89613266 100644
  	/* keep last */
  	NUM_MT76_TM_STATS_ATTRS,
 -- 
-2.25.1
+2.18.0
 

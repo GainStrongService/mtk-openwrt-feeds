@@ -1,7 +1,7 @@
-From 809cc2ea59de51435e0c33466ff2f6ab280ff043 Mon Sep 17 00:00:00 2001
+From cefbd5d7c2c8c2986ed7344e71e6d949d4744da9 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 31 Aug 2022 20:06:52 +0800
-Subject: [PATCH 1112/1127] mt76: testmode: add pre-cal support
+Subject: [PATCH 1112/1128] mt76: testmode: add pre-cal support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Change-Id: Ibfbbc3443de994eeb4daa5e364b0a90f5d7d3bcd
@@ -37,7 +37,7 @@ index 25f67760..4c50bfe6 100644
  
  out_put_node:
 diff --git a/mt76.h b/mt76.h
-index c4cdb4ba..3ca449f7 100644
+index e79d74a4..c08b8a47 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -625,6 +625,7 @@ struct mt76_testmode_ops {
@@ -49,10 +49,10 @@ index c4cdb4ba..3ca449f7 100644
  
  struct mt76_testmode_entry_data {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index a60965a2..b14f931b 100644
+index 858a2676..c510b5d4 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -971,6 +971,7 @@ enum {
+@@ -976,6 +976,7 @@ enum {
  
  /* ext event table */
  enum {
@@ -114,10 +114,10 @@ index f3e56817..88aaa16a 100644
  
  #endif
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 1b566351..34ce7d6f 100644
+index adc14d53..f4285994 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -438,6 +438,9 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
+@@ -367,6 +367,9 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
  	case MCU_EXT_EVENT_BF_STATUS_READ:
  		mt7915_tm_txbf_status_read(dev, skb);
  		break;
@@ -127,7 +127,7 @@ index 1b566351..34ce7d6f 100644
  #endif
  	default:
  		break;
-@@ -2927,7 +2930,7 @@ int mt7915_mcu_apply_group_cal(struct mt7915_dev *dev)
+@@ -2856,7 +2859,7 @@ int mt7915_mcu_apply_group_cal(struct mt7915_dev *dev)
  	u8 idx = 0, *cal = dev->cal, *eep = dev->mt76.eeprom.data;
  	u32 total = MT_EE_CAL_GROUP_SIZE;
  
@@ -136,7 +136,7 @@ index 1b566351..34ce7d6f 100644
  		return 0;
  
  	/*
-@@ -3007,11 +3010,29 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
+@@ -2936,11 +2939,29 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
  {
  	struct mt7915_dev *dev = phy->dev;
  	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
@@ -169,10 +169,10 @@ index 1b566351..34ce7d6f 100644
  
  	idx = mt7915_dpd_freq_idx(center_freq, chandef->width);
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 3bfec8fa..f3bbdbae 100644
+index 0217c6c3..e801fa30 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -379,6 +379,10 @@ struct mt7915_dev {
+@@ -400,6 +400,10 @@ struct mt7915_dev {
  	struct rchan *relay_fwlog;
  
  	void *cal;
@@ -183,7 +183,7 @@ index 3bfec8fa..f3bbdbae 100644
  
  	struct {
  		u8 debug_wm;
-@@ -615,6 +619,7 @@ int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
+@@ -629,6 +633,7 @@ int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
  void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb);
  void mt7915_mcu_exit(struct mt7915_dev *dev);
  int mt7915_tm_txbf_status_read(struct mt7915_dev *dev, struct sk_buff *skb);
@@ -842,5 +842,5 @@ index 6e36ab27..1be1ffd6 100644
  
  static const char * const testmode_tx_mode[] = {
 -- 
-2.25.1
+2.18.0
 

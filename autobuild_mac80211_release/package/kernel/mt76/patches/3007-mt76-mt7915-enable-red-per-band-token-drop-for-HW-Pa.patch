@@ -1,7 +1,7 @@
-From 7953cd4cc8b1f91e56ee6cae491a227bafe5f81e Mon Sep 17 00:00:00 2001
+From 3abad81e25879921c6b6a0403880f7a83f1e6503 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 2 Sep 2022 14:40:40 +0800
-Subject: [PATCH 3007/3010] mt76: mt7915: enable red per-band token drop for HW
+Subject: [PATCH 3007/3011] mt76: mt7915: enable red per-band token drop for HW
  Path
 
 Limit the number of token used by each band. If a band uses too many token,
@@ -17,10 +17,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 45 insertions(+), 11 deletions(-)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index eda4f70..b98c8e8 100644
+index c11e575a..ad2d6a39 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2412,8 +2412,13 @@ int mt7915_run_firmware(struct mt7915_dev *dev)
+@@ -2320,8 +2320,13 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
  			mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
  					  MCU_WA_PARAM_WED_VERSION,
  					  wed->rev_id, 0);
@@ -34,7 +34,7 @@ index eda4f70..b98c8e8 100644
  	ret = mt7915_mcu_set_mwds(dev, 1);
  	if (ret)
  		return ret;
-@@ -2423,12 +2428,7 @@ int mt7915_run_firmware(struct mt7915_dev *dev)
+@@ -2331,12 +2336,7 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
  	if (ret)
  		return ret;
  
@@ -48,7 +48,7 @@ index eda4f70..b98c8e8 100644
  }
  
  int mt7915_mcu_init(struct mt7915_dev *dev)
-@@ -4239,6 +4239,35 @@ int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a
+@@ -4162,6 +4162,35 @@ int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a
  
  	return mt76_mcu_send_msg(&dev->mt76, cmd, &req, sizeof(req), wait_resp);
  }
@@ -84,7 +84,7 @@ index eda4f70..b98c8e8 100644
  
  int mt7915_mcu_set_red(struct mt7915_dev *dev, bool enabled)
  {
-@@ -4249,17 +4278,21 @@ int mt7915_mcu_set_red(struct mt7915_dev *dev, bool enabled)
+@@ -4172,17 +4201,21 @@ int mt7915_mcu_set_red(struct mt7915_dev *dev, bool enabled)
  	u32 red_type = enabled > 0 ? RED_BY_WA_ENABLE : RED_DISABLE;
  	__le32 req = cpu_to_le32(red_type);
  
@@ -111,10 +111,10 @@ index eda4f70..b98c8e8 100644
  int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index cb95add..4071a73 100644
+index 42d5e39f..3e892358 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -269,6 +269,7 @@ enum {
+@@ -271,6 +271,7 @@ enum {
  	MCU_WA_PARAM_RED_TARGET_DELAY = 0x10,
  #endif
  	MCU_WA_PARAM_WED_VERSION = 0x32,
@@ -123,10 +123,10 @@ index cb95add..4071a73 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 9977162..e0c0b49 100644
+index 40161cf6..d93c394c 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -753,6 +753,7 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
+@@ -773,6 +773,7 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  #endif
  int mt7915_mcu_set_edcca(struct mt7915_phy *phy, int mode, u8 *value,
  			 s8 compensation);
@@ -134,7 +134,7 @@ index 9977162..e0c0b49 100644
  
  int mt7915_mcu_ipi_hist_ctrl(struct mt7915_phy *phy, void *data, u8 cmd, bool wait_resp);
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
-@@ -760,7 +761,6 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
+@@ -780,7 +781,6 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
  #ifdef MTK_DEBUG
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp);

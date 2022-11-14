@@ -1,7 +1,7 @@
-From da55b34ff3c8b76a2b8d89467a95d026bdb7f015 Mon Sep 17 00:00:00 2001
+From 3eac6f7492dee323a01408cacaa85e7bc55ea1d0 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Sun, 12 Jun 2022 16:38:45 +0800
-Subject: [PATCH 3001/3010] mt76 add wed tx support
+Subject: [PATCH 3001/3011] mt76 add wed tx support
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -13,7 +13,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 20 insertions(+), 8 deletions(-)
 
 diff --git a/mt76_connac.h b/mt76_connac.h
-index 0915eb5..9a46887 100644
+index 0915eb57..9a468878 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
 @@ -116,6 +116,7 @@ struct mt76_connac_sta_key_conf {
@@ -25,10 +25,10 @@ index 0915eb5..9a46887 100644
  struct mt76_connac_fw_txp {
  	__le16 flags;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 3896c3d..98925ed 100644
+index 5a809c2c..20e5b705 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -828,9 +828,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
+@@ -858,9 +858,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
  
  	txp->token = cpu_to_le16(token_id);
  	txp->nbuf = 1;
@@ -40,7 +40,7 @@ index 3896c3d..98925ed 100644
  }
  
  static void
-@@ -946,6 +946,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -976,6 +976,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  	LIST_HEAD(free_list);
  	void *end = data + len;
  	bool v3, wake = false;
@@ -48,7 +48,7 @@ index 3896c3d..98925ed 100644
  	u16 total, count = 0;
  	u32 txd = le32_to_cpu(free->txd);
  	__le32 *cur_info;
-@@ -1001,12 +1002,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -1031,12 +1032,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  			txwi = mt76_token_release(mdev, msdu, &wake);
  			if (!txwi)
  				continue;
@@ -66,10 +66,10 @@ index 3896c3d..98925ed 100644
  
  static void
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 80f4d9d..4e91527 100644
+index 2b4e122b..f9b2c1ef 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1457,14 +1457,14 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1466,14 +1466,14 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	if (!mtk_wed_device_active(wed))
  		return -ENODEV;
  
@@ -87,7 +87,7 @@ index 80f4d9d..4e91527 100644
  
  	ctx->dev = NULL;
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 1eda361..5819281 100644
+index 63b66e40..f76f8967 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -10,7 +10,7 @@
@@ -99,7 +99,7 @@ index 1eda361..5819281 100644
  module_param(wed_enable, bool, 0644);
  
  static const u32 mt7915_reg[] = {
-@@ -525,7 +525,7 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
+@@ -575,7 +575,7 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
  	dev = container_of(wed, struct mt7915_dev, mt76.mmio.wed);
  
  	spin_lock_bh(&dev->mt76.token_lock);
@@ -108,7 +108,7 @@ index 1eda361..5819281 100644
  	spin_unlock_bh(&dev->mt76.token_lock);
  
  	/* MT_TXD5_TX_STATUS_HOST (MPDU format) has higher priority than
-@@ -556,6 +556,9 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -606,6 +606,9 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  
  		wed->wlan.pci_dev = pci_dev;
  		wed->wlan.bus_type = MTK_WED_BUS_PCIE;
@@ -118,7 +118,7 @@ index 1eda361..5819281 100644
  		wed->wlan.wpdma_int = pci_resource_start(pci_dev, 0) +
  				      MT_INT_WED_SOURCE_CSR;
  		wed->wlan.wpdma_mask = pci_resource_start(pci_dev, 0) +
-@@ -566,6 +569,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -616,6 +619,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  				     MT_TXQ_WED_RING_BASE;
  		wed->wlan.wpdma_txfree = pci_resource_start(pci_dev, 0) +
  					 MT_RXQ_WED_RING_BASE;
@@ -126,7 +126,7 @@ index 1eda361..5819281 100644
  	} else {
  		struct platform_device *plat_dev = pdev_ptr;
  		struct resource *res;
-@@ -576,10 +580,13 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -626,10 +630,13 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  
  		wed->wlan.platform_dev = plat_dev;
  		wed->wlan.bus_type = MTK_WED_BUS_AXI;
@@ -140,7 +140,7 @@ index 1eda361..5819281 100644
  	}
  	wed->wlan.nbuf = 4096;
  	wed->wlan.tx_tbit[0] = is_mt7915(&dev->mt76) ? 4 : 30;
-@@ -595,6 +602,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -645,6 +652,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  
  	*irq = wed->irq;
  	dev->mt76.dma_dev = wed->dev;

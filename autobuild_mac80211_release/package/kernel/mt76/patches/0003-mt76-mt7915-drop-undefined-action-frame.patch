@@ -1,4 +1,4 @@
-From 88a457bc6d5909735c89102ef970235c2e8f4038 Mon Sep 17 00:00:00 2001
+From 6a6b3db016a9279fed1a0bf82ca22c8da4372f36 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 14 Apr 2022 15:18:02 +0800
 Subject: [PATCH 3/3] mt76: mt7915: drop undefined action frame
@@ -8,10 +8,10 @@ Subject: [PATCH 3/3] mt76: mt7915: drop undefined action frame
  1 file changed, 6 insertions(+)
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 66aae55d..d1a20818 100644
+index 99123e77..3e4033e7 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -686,6 +686,8 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -717,6 +717,8 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  			  struct mt76_tx_info *tx_info)
  {
  	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx_info->skb->data;
@@ -20,7 +20,7 @@ index 66aae55d..d1a20818 100644
  	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
  	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
  	struct ieee80211_key_conf *key = info->control.hw_key;
-@@ -716,6 +718,10 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -747,6 +749,10 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	t = (struct mt76_txwi_cache *)(txwi + mdev->drv->txwi_size);
  	t->skb = tx_info->skb;
  
@@ -32,5 +32,5 @@ index 66aae55d..d1a20818 100644
  	if (id < 0)
  		return id;
 -- 
-2.25.1
+2.18.0
 
