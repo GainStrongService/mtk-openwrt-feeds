@@ -1103,6 +1103,8 @@ enum FoeIpAct {
 #define IS_GMAC1_MODE ((hnat_priv->gmac_num == 1) ? 1 : 0)
 #define IS_HQOS_MODE (qos_toggle == 1)
 #define IS_PPPQ_MODE (qos_toggle == 2)		/* Per Port Per Queue */
+#define IS_HQOS_DL_MODE (IS_HQOS_MODE && qos_dl_toggle)
+#define IS_HQOS_UL_MODE (IS_HQOS_MODE && qos_ul_toggle)
 #define MAX_PPPQ_PORT_NUM	6
 
 #define es(entry) (entry_state[entry->bfib1.state])
@@ -1182,6 +1184,8 @@ int mtk_hqos_ptype_cb(struct sk_buff *skb, struct net_device *dev,
 		      struct packet_type *pt, struct net_device *unused);
 extern int dbg_cpu_reason;
 extern int debug_level;
+extern int qos_dl_toggle;
+extern int qos_ul_toggle;
 extern int hook_toggle;
 extern int mape_toggle;
 extern int qos_toggle;

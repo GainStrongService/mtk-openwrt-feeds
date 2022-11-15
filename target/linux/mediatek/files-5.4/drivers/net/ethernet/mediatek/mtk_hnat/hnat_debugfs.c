@@ -28,6 +28,8 @@ int dbg_cpu_reason;
 int hook_toggle;
 int mape_toggle;
 int qos_toggle;
+int qos_dl_toggle = 1;
+int qos_ul_toggle = 1;
 unsigned int dbg_cpu_reason_cnt[MAX_CRSN_NUM];
 
 static const char * const entry_state[] = { "INVALID", "UNBIND", "BIND", "FIN" };
@@ -2366,9 +2368,38 @@ static const struct file_operations hnat_hook_toggle_fops = {
 	.release = single_release,
 };
 
+static void hnat_qos_toggle_usage(void)
+{
+	pr_info("\nHQoS toggle Command Usage:\n");
+	pr_info("Show HQoS mode:\n");
+	pr_info("    cat /sys/kernel/debug/hnat/qos_toggle\n");
+	pr_info("Disable HQoS mode:\n");
+	pr_info("    echo 0 > /sys/kernel/debug/hnat/qos_toggle\n");
+	pr_info("Enable HQoS on bidirection:\n");
+	pr_info("    echo 1 > /sys/kernel/debug/hnat/qos_toggle\n");
+	pr_info("Enable HQoS on uplink only:\n");
+	pr_info("    echo 1 uplink > /sys/kernel/debug/hnat/qos_toggle\n");
+	pr_info("Enable HQoS on downlink only:\n");
+	pr_info("    echo 1 downlink > /sys/kernel/debug/hnat/qos_toggle\n");
+	pr_info("Enable Per-port-per-queue mode:\n");
+	pr_info("    echo 2 > /sys/kernel/debug/hnat/qos_toggle\n");
+	pr_info("Show HQoS toggle usage:\n");
+	pr_info("    echo 3 > /sys/kernel/debug/hnat/qos_toggle\n\n");
+}
+
 static int hnat_qos_toggle_read(struct seq_file *m, void *private)
 {
-	pr_info("value=%d, HQoS is %s now!\n", qos_toggle, (qos_toggle) ? "enabled" : "disabled");
+	if (qos_toggle == 0) {
+		pr_info("HQoS is disabled now!\n");
+	} else if (qos_toggle == 1) {
+		pr_info("HQoS is enabled now!\n");
+		pr_info("HQoS uplink is %s now!\n",
+				qos_ul_toggle ? "enabled" : "disabled");
+		pr_info("HQoS downlink is %s now!\n",
+				qos_dl_toggle ? "enabled" : "disabled");
+	} else if (qos_toggle == 2) {
+		pr_info("Per-port-per-queue mode is enabled!\n");
+	}
 
 	return 0;
 }
@@ -2446,24 +2477,63 @@ static void hnat_qos_pppq_enable(void)
 static ssize_t hnat_qos_toggle_write(struct file *file, const char __user *buffer,
 				     size_t count, loff_t *data)
 {
-	char buf[8];
+	char buf[32], tmp[32];
 	int len = count;
+	char *p_buf = NULL, *p_token = NULL;
 
-	if ((len > 8) || copy_from_user(buf, buffer, len))
+	if (len  >= sizeof(buf))
 		return -EFAULT;
 
+	if (copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
 	if (buf[0] == '0') {
-		pr_info("HQoS is going to be disabled !\n");
+		pr_info("HQoS is going to be disabled!\n");
 		qos_toggle = 0;
+		qos_dl_toggle = 0;
+		qos_ul_toggle = 0;
 		hnat_qos_disable();
 	} else if (buf[0] == '1') {
-		pr_info("HQoS mode is going to be enabled !\n");
+		p_buf = buf;
+		p_token = strsep(&p_buf, " \t");
+		if (p_buf) {
+			memcpy(tmp, p_buf, strlen(p_buf));
+			tmp[len] = '\0';
+			if (!strncmp(tmp, "uplink", 6)) {
+				qos_dl_toggle = 0;
+				qos_ul_toggle = 1;
+			} else if (!strncmp(tmp, "downlink", 8)) {
+				qos_ul_toggle = 0;
+				qos_dl_toggle = 1;
+			} else {
+				pr_info("Direction should be uplink or downlink.\n");
+				hnat_qos_toggle_usage();
+				return len;
+			}
+		} else {
+			qos_ul_toggle = 1;
+			qos_dl_toggle = 1;
+		}
+		pr_info("HQoS mode is going to be enabled!\n");
+		pr_info("HQoS uplink is going to be %s!\n",
+				qos_ul_toggle ? "enabled" : "disabled");
+		pr_info("HQoS downlink is going to be %s!\n",
+				qos_dl_toggle ? "enabled" : "disabled");
 		qos_toggle = 1;
 	} else if (buf[0] == '2') {
-		pr_info("Per-port-per-queue mode is going to be enabled !\n");
+		pr_info("Per-port-per-queue mode is going to be enabled!\n");
 		pr_info("PPPQ use qid 0~5 (scheduler 0).\n");
 		qos_toggle = 2;
+		qos_dl_toggle = 0;
+		qos_ul_toggle = 0;
 		hnat_qos_pppq_enable();
+	} else if (buf[0] == '3') {
+		hnat_qos_toggle_usage();
+	} else {
+		pr_info("Input error!\n");
+		hnat_qos_toggle_usage();
 	}
 
 	return len;
