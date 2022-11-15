@@ -94,6 +94,18 @@
 };
 
 &pio {
+	mdio0_pins: mdio0-pins {
+		mux {
+			function = "mdio";
+			groups = "mdc_mdio0";
+		};
+
+		conf {
+			groups = "mdc_mdio0";
+			drive-strength = <MTK_DRIVE_8mA>;
+		};
+	};
+
 	pcie0_pins: pcie0-pins {
 		mux {
 			function = "pcie";
@@ -153,6 +165,8 @@
 };
 
 &eth {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio0_pins>;
 	status = "okay";
 
 	gmac0: mac@0 {
@@ -187,6 +201,8 @@
 	mdio: mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		mdc-max-frequency = <10500000>;
+
 		phy0: ethernet-phy@0 {
 			reg = <0>;
 			compatible = "ethernet-phy-ieee802.3-c45";
