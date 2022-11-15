@@ -1,4 +1,4 @@
-From 2f1191e48c32e21c71c78f25961bc54baf579656 Mon Sep 17 00:00:00 2001
+From ad8a906f3ee37375a9f2ad9b57d0eeaff90c8f14 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Sat, 10 Sep 2022 17:09:21 +0800
 Subject: [PATCH 3002/3011] mt76: mt7915: add-wed-tx-wds-support-on-mt7986
@@ -16,7 +16,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  8 files changed, 76 insertions(+), 5 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index b378231c..c84c9ef0 100644
+index b378231..c84c9ef 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -1363,7 +1363,10 @@ void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
@@ -32,7 +32,7 @@ index b378231c..c84c9ef0 100644
  }
  EXPORT_SYMBOL_GPL(__mt76_sta_remove);
 diff --git a/mt76.h b/mt76.h
-index e29f490e..b86c8355 100644
+index e29f490..b86c835 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -454,6 +454,7 @@ struct mt76_driver_ops {
@@ -52,7 +52,7 @@ index e29f490e..b86c8355 100644
  
  	u64 vif_mask;
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 69465dd0..039a5b01 100644
+index 69465dd..039a5b0 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -719,6 +719,15 @@ mt7915_init_hardware(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -72,7 +72,7 @@ index 69465dd0..039a5b01 100644
  	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
  	if (idx)
 diff --git a/mt7915/main.c b/mt7915/main.c
-index f9b2c1ef..c0617860 100644
+index f9b2c1e..c061786 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -660,6 +660,24 @@ mt7915_channel_switch_beacon(struct ieee80211_hw *hw,
@@ -150,7 +150,7 @@ index f9b2c1ef..c0617860 100644
  
  	ctx->dev = NULL;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index fad35595..eb9343ca 100644
+index fad3559..eb9343c 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2279,6 +2279,7 @@ mt7915_mcu_init_rx_airtime(struct mt7915_dev *dev)
@@ -180,7 +180,7 @@ index fad35595..eb9343ca 100644
  	ret = mt7915_mcu_set_mwds(dev, 1);
  	if (ret)
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index b2e4032f..42d5e39f 100644
+index b2e4032..42d5e39 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -270,6 +270,7 @@ enum {
@@ -192,7 +192,7 @@ index b2e4032f..42d5e39f 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index f76f8967..e45cd2d5 100644
+index f76f896..e45cd2d 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -646,6 +646,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
@@ -213,7 +213,7 @@ index f76f8967..e45cd2d5 100644
  	struct mt7915_dev *dev;
  	struct mt76_dev *mdev;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 527ec9ea..ba12a2d2 100644
+index dbd634a..06b98b7 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -18,6 +18,9 @@
@@ -226,7 +226,7 @@ index 527ec9ea..ba12a2d2 100644
  #define MT7915_WATCHDOG_TIME		(HZ / 10)
  #define MT7915_RESET_TIMEOUT		(30 * HZ)
  
-@@ -718,6 +721,7 @@ void mt7915_tx_token_put(struct mt7915_dev *dev);
+@@ -719,6 +722,7 @@ void mt7915_tx_token_put(struct mt7915_dev *dev);
  void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
  			 struct sk_buff *skb);
  bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len);

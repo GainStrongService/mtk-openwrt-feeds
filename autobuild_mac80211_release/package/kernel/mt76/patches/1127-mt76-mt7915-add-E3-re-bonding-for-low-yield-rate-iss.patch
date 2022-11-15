@@ -1,4 +1,4 @@
-From d3bae8d8ba808b52ee9090e7e2a09e3750ab8465 Mon Sep 17 00:00:00 2001
+From ba976379e903eb0a26276037718d5679ae95051a Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 13 Oct 2022 13:22:05 +0800
 Subject: [PATCH 1127/1128] mt76: mt7915: add E3 re-bonding for low yield rate
@@ -12,19 +12,19 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 38 insertions(+), 5 deletions(-)
 
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 0ae8d1b4..0c3e43b0 100644
+index 4d2d9ca..b3d2bbc 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
-@@ -133,7 +133,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
+@@ -97,7 +97,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
  					 MT7915_EEPROM_BLOCK_SIZE);
  		for (i = 0; i < block_num; i++)
  			mt7915_mcu_get_eeprom(dev,
 -					      i * MT7915_EEPROM_BLOCK_SIZE);
 +					      i * MT7915_EEPROM_BLOCK_SIZE, NULL);
+ 		dev->eeprom_mode = EFUSE_MODE;
  	}
  
- 	return mt7915_check_eeprom(dev);
-@@ -233,6 +233,29 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
+@@ -198,6 +198,29 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
  	dev->chainshift = hweight8(dev->mphy.chainmask);
  }
  
@@ -54,7 +54,7 @@ index 0ae8d1b4..0c3e43b0 100644
  int mt7915_eeprom_init(struct mt7915_dev *dev)
  {
  	int ret;
-@@ -266,6 +289,8 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
+@@ -229,6 +252,8 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
  			return ret;
  	}
  
@@ -64,7 +64,7 @@ index 0ae8d1b4..0c3e43b0 100644
  	if (ret)
  		return ret;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 39c8e2c2..fad35595 100644
+index 39c8e2c..fad3559 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2779,7 +2779,7 @@ int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode)
@@ -95,10 +95,10 @@ index 39c8e2c2..fad35595 100644
  
  	return 0;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index c43661f5..527ec9ea 100644
+index 4cdcb63..dbd634a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -559,6 +559,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
+@@ -560,6 +560,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
  
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);
@@ -106,7 +106,7 @@ index c43661f5..527ec9ea 100644
  int mt7915_eeprom_init(struct mt7915_dev *dev);
  void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
  				struct mt7915_phy *phy);
-@@ -612,7 +613,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
+@@ -613,7 +614,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
  				   struct ieee80211_sta *sta,
  				   void *data, u32 field);
  int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode);

@@ -1,4 +1,4 @@
-From cfa2b02b3cbc63ccf936d0620c36ed5a5c841cb7 Mon Sep 17 00:00:00 2001
+From 5362658103f2059a16ad626ab2f075b9279877e5 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Thu, 28 Jul 2022 11:16:15 +0800
 Subject: [PATCH 3005/3011] mt76 add ser spport when wed on
@@ -15,7 +15,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  7 files changed, 76 insertions(+), 15 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index a8739eb4..d63b02f5 100644
+index a8739eb..d63b02f 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -169,7 +169,7 @@ mt76_free_pending_txwi(struct mt76_dev *dev)
@@ -109,7 +109,7 @@ index a8739eb4..d63b02f5 100644
  	if (!q->rx_head)
  		return;
 diff --git a/dma.h b/dma.h
-index 90370d12..083cbca4 100644
+index 90370d1..083cbca 100644
 --- a/dma.h
 +++ b/dma.h
 @@ -58,5 +58,5 @@ enum mt76_mcu_evt_type {
@@ -120,7 +120,7 @@ index 90370d12..083cbca4 100644
 +int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset);
  #endif
 diff --git a/mt76.h b/mt76.h
-index 627bcbf9..f22e96e0 100644
+index 627bcbf..f22e96e 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -1375,6 +1375,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
@@ -132,7 +132,7 @@ index 627bcbf9..f22e96e0 100644
  		      struct napi_struct *napi);
  void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 6f6550f5..8edfa465 100644
+index 6f6550f..8edfa46 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -553,6 +553,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -203,7 +203,7 @@ index 6f6550f5..8edfa465 100644
  }
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index eac49465..cbdabea0 100644
+index eac4946..cbdabea 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -948,6 +948,8 @@ void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed)
@@ -248,7 +248,7 @@ index eac49465..cbdabea0 100644
  	if (ext_phy)
  		ieee80211_stop_queues(ext_phy->hw);
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 1e22ec98..60b7886c 100644
+index 1e22ec9..60b7886 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -666,6 +666,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
@@ -261,10 +261,10 @@ index 1e22ec98..60b7886c 100644
  	if (mtk_wed_device_attach(wed))
  		return 0;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index acc345a2..55fe6343 100644
+index 6952825..36d1d86 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -563,6 +563,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
+@@ -564,6 +564,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
  u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed,
  				int pkt_num);
  void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed);

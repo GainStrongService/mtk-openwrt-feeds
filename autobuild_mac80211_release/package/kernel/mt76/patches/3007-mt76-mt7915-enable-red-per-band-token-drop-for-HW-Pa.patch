@@ -1,4 +1,4 @@
-From 3abad81e25879921c6b6a0403880f7a83f1e6503 Mon Sep 17 00:00:00 2001
+From 45412cabb6bde48e1ef69d6a762c78cece035486 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 2 Sep 2022 14:40:40 +0800
 Subject: [PATCH 3007/3011] mt76: mt7915: enable red per-band token drop for HW
@@ -16,7 +16,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 45 insertions(+), 11 deletions(-)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index c11e575a..ad2d6a39 100644
+index c11e575..ad2d6a3 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2320,8 +2320,13 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
@@ -110,7 +110,7 @@ index c11e575a..ad2d6a39 100644
  int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 42d5e39f..3e892358 100644
+index 42d5e39..3e89235 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -271,6 +271,7 @@ enum {
@@ -122,10 +122,10 @@ index 42d5e39f..3e892358 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 40161cf6..d93c394c 100644
+index 7165273..8567415 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -773,6 +773,7 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
+@@ -774,6 +774,7 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  #endif
  int mt7915_mcu_set_edcca(struct mt7915_phy *phy, int mode, u8 *value,
  			 s8 compensation);
@@ -133,7 +133,7 @@ index 40161cf6..d93c394c 100644
  
  int mt7915_mcu_ipi_hist_ctrl(struct mt7915_phy *phy, void *data, u8 cmd, bool wait_resp);
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
-@@ -780,7 +781,6 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
+@@ -781,7 +782,6 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
  #ifdef MTK_DEBUG
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp);

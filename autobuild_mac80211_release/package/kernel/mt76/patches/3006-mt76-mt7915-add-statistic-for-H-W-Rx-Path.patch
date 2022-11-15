@@ -1,4 +1,4 @@
-From 209aeac176b9760b9de5889cb67f674900864633 Mon Sep 17 00:00:00 2001
+From ca3fdfbb27f8d7c4c57164276e0220a7825fa61c Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
 Date: Fri, 5 Aug 2022 13:58:11 -0700
 Subject: [PATCH 3006/3011] mt76: mt7915: add statistic for H/W Rx Path
@@ -13,7 +13,7 @@ Change-Id: Id94d663f08e91c83d296bd57e5e9b65a505ae1c7
  5 files changed, 56 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index f22e96e0..8011d4ca 100644
+index f22e96e..8011d4c 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -278,6 +278,10 @@ struct mt76_sta_stats {
@@ -28,7 +28,7 @@ index f22e96e0..8011d4ca 100644
  
  enum mt76_wcid_flags {
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index cbdabea0..f1d15d85 100644
+index cbdabea..f1d15d8 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -972,6 +972,31 @@ void mt7915_wed_trigger_ser(struct mtk_wed_device *wed)
@@ -64,7 +64,7 @@ index cbdabea0..f1d15d85 100644
  mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
  {
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 84b90010..4ac5259d 100644
+index 84b9001..4ac5259 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -1054,7 +1054,8 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
@@ -91,7 +91,7 @@ index 84b90010..4ac5259d 100644
  
  	sinfo->ack_signal = (s8)msta->ack_signal;
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 60b7886c..f3144d15 100644
+index 60b7886..f3144d1 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -9,6 +9,7 @@
@@ -133,10 +133,10 @@ index 60b7886c..f3144d15 100644
  #else
  	return 0;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 55fe6343..40161cf6 100644
+index 36d1d86..7165273 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -564,6 +564,8 @@ u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed,
+@@ -565,6 +565,8 @@ u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed,
  				int pkt_num);
  void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed);
  void mt7915_wed_trigger_ser(struct mtk_wed_device *wed);

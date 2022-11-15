@@ -1,4 +1,4 @@
-From adc0119417e143af9b9775a9fa4590101070fb5b Mon Sep 17 00:00:00 2001
+From 03db7df14e4b8fcf9cf69725ee3baf74656293dc Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 14 Oct 2022 11:15:13 +0800
 Subject: [PATCH 1128/1128] mt76: support on off SW ACI through debugfs
@@ -11,7 +11,7 @@ Change-Id: I8a9c277c41d1ba76f9737d8af6f42e5e8f00ba64
  2 files changed, 22 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 86a8688e..a368b65b 100644
+index 86a8688..a368b65 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1164,6 +1164,7 @@ enum {
@@ -23,12 +23,12 @@ index 86a8688e..a368b65b 100644
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 9de5b0f6..c5e04728 100644
+index 36cb6f0..facdd69 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -2893,6 +2893,25 @@ mt7915_wa_debug(void *data, u64 val)
- DEFINE_DEBUGFS_ATTRIBUTE(fops_wa_debug, NULL, mt7915_wa_debug,
- 			 "0x%llx\n");
+@@ -2927,6 +2927,25 @@ static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)
+ 	return 0;
+ }
  
 +static int
 +mt7915_sw_aci_set(void *data, u64 val)
@@ -52,10 +52,10 @@ index 9de5b0f6..c5e04728 100644
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  {
  	struct mt7915_dev *dev = phy->dev;
-@@ -2973,6 +2992,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
- 	debugfs_create_devm_seqfile(dev->mt76.dev, "fw_version", dir,
- 				    mt7915_dump_version);
+@@ -3009,6 +3028,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  
+ 	debugfs_create_devm_seqfile(dev->mt76.dev, "eeprom_mode", dir,
+ 				    mt7915_show_eeprom_mode);
 +	debugfs_create_file("sw_aci", 0600, dir, dev,
 +			    &fops_sw_aci);
  	return 0;

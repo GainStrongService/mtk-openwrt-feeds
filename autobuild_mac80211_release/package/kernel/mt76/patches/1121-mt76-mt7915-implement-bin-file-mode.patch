@@ -1,4 +1,4 @@
-From b42c0050ce6061473569362d2884ffabae54e404 Mon Sep 17 00:00:00 2001
+From f7cb9b3ad2c0207db231a16d04beea22be1ef798 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 7 Jul 2022 11:09:59 +0800
 Subject: [PATCH 1121/1128] mt76: mt7915: implement bin file mode
@@ -6,14 +6,16 @@ Subject: [PATCH 1121/1128] mt76: mt7915: implement bin file mode
 Change-Id: I2a726341541a11cbecdb210b33a8e79aefbd6cf3
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- eeprom.c        | 18 +++++++++++++++++
- mt76.h          |  1 +
- mt7915/eeprom.c | 53 +++++++++++++++++++++++++++++++++++++++----------
- mt7915/mt7915.h | 10 ++++++++++
- 4 files changed, 71 insertions(+), 11 deletions(-)
+ eeprom.c             | 18 +++++++++++++++
+ mt76.h               |  1 +
+ mt7915/eeprom.c      | 52 ++++++++++++++++++++------------------------
+ mt7915/eeprom.h      | 44 +++++++++++++++++++++++++++++++++++++
+ mt7915/mt7915.h      | 17 ++++++++++++---
+ mt7915/mtk_debugfs.c | 36 ++++++++++++++++++++++++++++++
+ 6 files changed, 136 insertions(+), 32 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index 4c50bfe6..baca86fd 100644
+index e083964..5b9faf7 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -104,6 +104,24 @@ out_put_node:
@@ -42,7 +44,7 @@ index 4c50bfe6..baca86fd 100644
  mt76_eeprom_override(struct mt76_phy *phy)
  {
 diff --git a/mt76.h b/mt76.h
-index 0a9552b5..e29f490e 100644
+index 0a9552b..e29f490 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -1010,6 +1010,7 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
@@ -54,55 +56,44 @@ index 0a9552b5..e29f490e 100644
  struct mt76_queue *
  mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 0f5862e3..0ae8d1b4 100644
+index 0f5862e..4d2d9ca 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
-@@ -46,26 +46,36 @@ static char *mt7915_eeprom_name(struct mt7915_dev *dev)
- {
- 	switch (mt76_chip(&dev->mt76)) {
- 	case 0x7915:
--		return dev->dbdc_support ?
--		       MT7915_EEPROM_DEFAULT_DBDC : MT7915_EEPROM_DEFAULT;
-+		if (dev->bin_file_mode)
-+			return dev->dbdc_support ?
-+				MT7915_BIN_FILE_DBDC : MT7915_BIN_FILE;
-+		else
-+			return dev->dbdc_support ?
-+				MT7915_EEPROM_DEFAULT_DBDC : MT7915_EEPROM_DEFAULT;
- 	case 0x7986:
- 		switch (mt7915_check_adie(dev, true)) {
- 		case MT7976_ONE_ADIE_DBDC:
--			return MT7986_EEPROM_MT7976_DEFAULT_DBDC;
-+			return dev->bin_file_mode ?
-+			MT7986_BIN_FILE_MT7976_DBDC : MT7986_EEPROM_MT7976_DEFAULT_DBDC;
- 		case MT7975_ONE_ADIE:
--			return MT7986_EEPROM_MT7975_DEFAULT;
-+			return dev->bin_file_mode ?
-+			MT7986_BIN_FILE_MT7975 : MT7986_EEPROM_MT7975_DEFAULT;
- 		case MT7976_ONE_ADIE:
--			return MT7986_EEPROM_MT7976_DEFAULT;
-+			return dev->bin_file_mode ?
-+			MT7986_BIN_FILE_MT7976 : MT7986_EEPROM_MT7976_DEFAULT;
- 		case MT7975_DUAL_ADIE:
--			return MT7986_EEPROM_MT7975_DUAL_DEFAULT;
-+			return dev->bin_file_mode ?
-+			MT7986_BIN_FILE_MT7975_DUAL : MT7986_EEPROM_MT7975_DUAL_DEFAULT;
- 		case MT7976_DUAL_ADIE:
--			return MT7986_EEPROM_MT7976_DUAL_DEFAULT;
-+			return dev->bin_file_mode ?
-+			MT7986_BIN_FILE_MT7976_DUAL : MT7986_EEPROM_MT7976_DUAL_DEFAULT;
- 		default:
- 			break;
- 		}
- 		return NULL;
- 	default:
--		return MT7916_EEPROM_DEFAULT;
-+		return dev->bin_file_mode ?
-+			MT7916_BIN_FILE : MT7916_EEPROM_DEFAULT;
+@@ -42,33 +42,6 @@ static int mt7915_check_eeprom(struct mt7915_dev *dev)
  	}
  }
  
-@@ -81,7 +91,10 @@ mt7915_eeprom_load_default(struct mt7915_dev *dev)
+-static char *mt7915_eeprom_name(struct mt7915_dev *dev)
+-{
+-	switch (mt76_chip(&dev->mt76)) {
+-	case 0x7915:
+-		return dev->dbdc_support ?
+-		       MT7915_EEPROM_DEFAULT_DBDC : MT7915_EEPROM_DEFAULT;
+-	case 0x7986:
+-		switch (mt7915_check_adie(dev, true)) {
+-		case MT7976_ONE_ADIE_DBDC:
+-			return MT7986_EEPROM_MT7976_DEFAULT_DBDC;
+-		case MT7975_ONE_ADIE:
+-			return MT7986_EEPROM_MT7975_DEFAULT;
+-		case MT7976_ONE_ADIE:
+-			return MT7986_EEPROM_MT7976_DEFAULT;
+-		case MT7975_DUAL_ADIE:
+-			return MT7986_EEPROM_MT7975_DUAL_DEFAULT;
+-		case MT7976_DUAL_ADIE:
+-			return MT7986_EEPROM_MT7976_DUAL_DEFAULT;
+-		default:
+-			break;
+-		}
+-		return NULL;
+-	default:
+-		return MT7916_EEPROM_DEFAULT;
+-	}
+-}
+-
+ static int
+ mt7915_eeprom_load_default(struct mt7915_dev *dev)
+ {
+@@ -81,7 +54,10 @@ mt7915_eeprom_load_default(struct mt7915_dev *dev)
  		return ret;
  
  	if (!fw || !fw->data) {
@@ -114,7 +105,23 @@ index 0f5862e3..0ae8d1b4 100644
  		ret = -EINVAL;
  		goto out;
  	}
-@@ -224,12 +237,30 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
+@@ -106,6 +82,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
+ 
+ 	if (ret) {
+ 		dev->flash_mode = true;
++		dev->eeprom_mode = FLASH_MODE;
+ 	} else {
+ 		u8 free_block_num;
+ 		u32 block_num, i;
+@@ -121,6 +98,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
+ 		for (i = 0; i < block_num; i++)
+ 			mt7915_mcu_get_eeprom(dev,
+ 					      i * MT7915_EEPROM_BLOCK_SIZE);
++		dev->eeprom_mode = EFUSE_MODE;
+ 	}
+ 
+ 	return mt7915_check_eeprom(dev);
+@@ -224,12 +202,28 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
  {
  	int ret;
  
@@ -124,10 +131,11 @@ index 0f5862e3..0ae8d1b4 100644
 +	if (dev->bin_file_mode) {
 +		dev->mt76.eeprom.size = mt7915_eeprom_size(dev);
 +		dev->mt76.eeprom.data = devm_kzalloc(dev->mt76.dev, dev->mt76.eeprom.size,
-+						      GFP_KERNEL);
++						     GFP_KERNEL);
 +		if (!dev->mt76.eeprom.data)
 +			return -ENOMEM;
 +		ret = mt7915_eeprom_load_default(dev);
++		dev->eeprom_mode = BIN_FILE_MODE;
 +	} else {
 +		ret = mt7915_eeprom_load(dev);
 +	}
@@ -136,28 +144,98 @@ index 0f5862e3..0ae8d1b4 100644
  		if (ret != -EINVAL)
  			return ret;
  
--		dev_warn(dev->mt76.dev, "eeprom load fail, use default bin\n");
-+		if (dev->bin_file_mode) {
-+			dev_warn(dev->mt76.dev, "bin file load fail, use default bin\n");
-+			dev->bin_file_mode = false;
-+		} else {
-+			dev_warn(dev->mt76.dev, "eeprom load fail, use default bin\n");
-+		}
+ 		dev_warn(dev->mt76.dev, "eeprom load fail, use default bin\n");
++		dev->bin_file_mode = false;
++		dev->eeprom_mode = DEFAULT_BIN_MODE;
 +
  		ret = mt7915_eeprom_load_default(dev);
  		if (ret)
  			return ret;
+diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
+index fdae347..f228926 100644
+--- a/mt7915/eeprom.h
++++ b/mt7915/eeprom.h
+@@ -108,6 +108,13 @@ enum mt7915_sku_rate_group {
+ 	MAX_SKU_RATE_GROUP_NUM,
+ };
+ 
++enum mt7915_eeprom_mode {
++	DEFAULT_BIN_MODE,
++	EFUSE_MODE,
++	FLASH_MODE,
++	BIN_FILE_MODE,
++};
++
+ static inline int
+ mt7915_get_channel_group_5g(int channel, bool is_7976)
+ {
+@@ -184,6 +191,43 @@ mt7915_get_cal_group_size(struct mt7915_dev *dev)
+ 	}
+ }
+ 
++static inline char *mt7915_eeprom_name(struct mt7915_dev *dev)
++{
++	switch (mt76_chip(&dev->mt76)) {
++	case 0x7915:
++		if (dev->bin_file_mode)
++			return dev->dbdc_support ?
++				MT7915_BIN_FILE_DBDC : MT7915_BIN_FILE;
++		else
++			return dev->dbdc_support ?
++				MT7915_EEPROM_DEFAULT_DBDC : MT7915_EEPROM_DEFAULT;
++	case 0x7986:
++		switch (mt7915_check_adie(dev, true)) {
++		case MT7976_ONE_ADIE_DBDC:
++			return dev->bin_file_mode ?
++			MT7986_BIN_FILE_MT7976_DBDC : MT7986_EEPROM_MT7976_DEFAULT_DBDC;
++		case MT7975_ONE_ADIE:
++			return dev->bin_file_mode ?
++			MT7986_BIN_FILE_MT7975 : MT7986_EEPROM_MT7975_DEFAULT;
++		case MT7976_ONE_ADIE:
++			return dev->bin_file_mode ?
++			MT7986_BIN_FILE_MT7976 : MT7986_EEPROM_MT7976_DEFAULT;
++		case MT7975_DUAL_ADIE:
++			return dev->bin_file_mode ?
++			MT7986_BIN_FILE_MT7975_DUAL : MT7986_EEPROM_MT7975_DUAL_DEFAULT;
++		case MT7976_DUAL_ADIE:
++			return dev->bin_file_mode ?
++			MT7986_BIN_FILE_MT7976_DUAL : MT7986_EEPROM_MT7976_DUAL_DEFAULT;
++		default:
++			break;
++		}
++		return NULL;
++	default:
++		return dev->bin_file_mode ?
++			MT7916_BIN_FILE : MT7916_EEPROM_DEFAULT;
++	}
++}
++
+ extern const u8 mt7915_sku_group_len[MAX_SKU_RATE_GROUP_NUM];
+ 
+ #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 1cfa6f03..15db02c4 100644
+index 1cfa6f0..9b72f41 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -51,6 +51,15 @@
+@@ -42,15 +42,24 @@
+ #define MT7986_ROM_PATCH		"mediatek/mt7986_rom_patch.bin"
+ #define MT7986_ROM_PATCH_MT7975		"mediatek/mt7986_rom_patch_mt7975.bin"
+ 
+-#define MT7915_EEPROM_DEFAULT		"mediatek/mt7915_eeprom.bin"
+-#define MT7915_EEPROM_DEFAULT_DBDC	"mediatek/mt7915_eeprom_dbdc.bin"
+-#define MT7916_EEPROM_DEFAULT		"mediatek/mt7916_eeprom.bin"
++#define MT7915_EEPROM_DEFAULT			"mediatek/mt7915_eeprom.bin"
++#define MT7915_EEPROM_DEFAULT_DBDC		"mediatek/mt7915_eeprom_dbdc.bin"
++#define MT7916_EEPROM_DEFAULT			"mediatek/mt7916_eeprom.bin"
+ #define MT7986_EEPROM_MT7975_DEFAULT		"mediatek/mt7986_eeprom_mt7975.bin"
+ #define MT7986_EEPROM_MT7975_DUAL_DEFAULT	"mediatek/mt7986_eeprom_mt7975_dual.bin"
+ #define MT7986_EEPROM_MT7976_DEFAULT		"mediatek/mt7986_eeprom_mt7976.bin"
  #define MT7986_EEPROM_MT7976_DEFAULT_DBDC	"mediatek/mt7986_eeprom_mt7976_dbdc.bin"
  #define MT7986_EEPROM_MT7976_DUAL_DEFAULT	"mediatek/mt7986_eeprom_mt7976_dual.bin"
  
-+#define MT7915_BIN_FILE			"mediatek/mt7915_binfile.bin"
-+#define MT7915_BIN_FILE_DBDC	 	        "mediatek/mt7915_binfile_dbdc.bin"
-+#define MT7916_BIN_FILE		        "mediatek/mt7916_binfile.bin"
++#define MT7915_BIN_FILE				"mediatek/mt7915_binfile.bin"
++#define MT7915_BIN_FILE_DBDC			"mediatek/mt7915_binfile_dbdc.bin"
++#define MT7916_BIN_FILE				"mediatek/mt7916_binfile.bin"
 +#define MT7986_BIN_FILE_MT7975			"mediatek/mt7986_binfile_mt7975.bin"
 +#define MT7986_BIN_FILE_MT7975_DUAL		"mediatek/mt7986_binfile_mt7975_dual.bin"
 +#define MT7986_BIN_FILE_MT7976			"mediatek/mt7986_binfile_mt7976.bin"
@@ -167,14 +245,76 @@ index 1cfa6f03..15db02c4 100644
  #define MT7915_EEPROM_SIZE		3584
  #define MT7916_EEPROM_SIZE		4096
  
-@@ -395,6 +404,7 @@ struct mt7915_dev {
+@@ -395,6 +404,8 @@ struct mt7915_dev {
  
  	bool dbdc_support;
  	bool flash_mode;
 +	bool bin_file_mode;
++	u8 eeprom_mode;
  	bool muru_debug;
  	bool ibf;
  
+diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
+index 9de5b0f..36cb6f0 100644
+--- a/mt7915/mtk_debugfs.c
++++ b/mt7915/mtk_debugfs.c
+@@ -3,6 +3,7 @@
+ #include "mt7915_debug.h"
+ #include "mac.h"
+ #include "mcu.h"
++#include "eeprom.h"
+ 
+ #ifdef MTK_DEBUG
+ #define LWTBL_IDX2BASE_ID		GENMASK(14, 8)
+@@ -2893,6 +2894,39 @@ mt7915_wa_debug(void *data, u64 val)
+ DEFINE_DEBUGFS_ATTRIBUTE(fops_wa_debug, NULL, mt7915_wa_debug,
+ 			 "0x%llx\n");
+ 
++static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)
++{
++	struct mt7915_dev *dev = dev_get_drvdata(s->private);
++	struct mt76_dev *mdev = &dev->mt76;
++	char *mtd_name = mdev->test_mtd.name;
++	u32 mtd_offset = mdev->test_mtd.offset;
++
++	seq_printf(s, "Current eeprom mode:\n");
++
++	switch (dev->eeprom_mode) {
++	case DEFAULT_BIN_MODE:
++		seq_printf(s, "   default bin mode\n   filename = %s\n", mt7915_eeprom_name(dev));
++		break;
++	case EFUSE_MODE:
++		seq_printf(s, "   efuse mode\n");
++		break;
++	case FLASH_MODE:
++		if (mtd_name)
++			seq_printf(s, "   flash mode\n   mtd name = %s\n   flash offset = 0x%x\n",
++				   mtd_name, mtd_offset);
++		else
++			seq_printf(s, "   flash mode\n");
++		break;
++	case BIN_FILE_MODE:
++		seq_printf(s, "   bin file mode\n   filename = %s\n", mt7915_eeprom_name(dev));
++		break;
++	default:
++		break;
++	}
++
++	return 0;
++}
++
+ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+ {
+ 	struct mt7915_dev *dev = phy->dev;
+@@ -2973,6 +3007,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+ 	debugfs_create_devm_seqfile(dev->mt76.dev, "fw_version", dir,
+ 				    mt7915_dump_version);
+ 
++	debugfs_create_devm_seqfile(dev->mt76.dev, "eeprom_mode", dir,
++				    mt7915_show_eeprom_mode);
+ 	return 0;
+ }
+ #endif
 -- 
 2.18.0
 
