@@ -30,6 +30,12 @@
 #include "mtk_hnat/nf_hnat_mtk.h"
 #endif
 
+#if defined(CONFIG_XFRM_OFFLOAD)
+#include <crypto/sha.h>
+#include <net/xfrm.h>
+#include "mtk_ipsec.h"
+#endif
+
 static int mtk_msg_level = -1;
 atomic_t reset_lock = ATOMIC_INIT(0);
 atomic_t force = ATOMIC_INIT(0);
@@ -4301,6 +4307,9 @@ static int mtk_probe(struct platform_device *pdev)
 				       mtk_napi_rx, MTK_NAPI_WEIGHT);
 	}
 
+#if defined(CONFIG_XFRM_OFFLOAD)
+	mtk_ipsec_offload_init(eth);
+#endif
 	mtketh_debugfs_init(eth);
 	debug_proc_init(eth);
 
