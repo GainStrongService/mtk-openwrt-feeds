@@ -1,7 +1,5 @@
 #
-# hua.shao@mediatek.com
-#
-# MTK Property Software.
+# SPDX-License-Identifier: GPL-2.0
 #
 
 include $(TOPDIR)/rules.mk
