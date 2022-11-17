@@ -843,7 +843,7 @@ index 66298e223..3d75c22be
  	memcpy(&hwe->data, &entry->data, sizeof(hwe->data));
  	wmb();
  	hwe->ib1 = entry->ib1;
-@@ -362,32 +519,198 @@ int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
+@@ -362,32 +519,201 @@ int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
  	dma_wmb();
  
  	mtk_ppe_cache_clear(ppe);
@@ -936,6 +936,9 @@ index 66298e223..3d75c22be
 +	u8 *tag;
 +
 +	spin_lock_bh(&ppe_lock);
++
++	if (hash >= MTK_PPE_ENTRIES)
++		goto out;
 +
 +	if (FIELD_GET(MTK_FOE_IB1_STATE, hwe->ib1) == MTK_FOE_STATE_BIND)
 +		goto out;
