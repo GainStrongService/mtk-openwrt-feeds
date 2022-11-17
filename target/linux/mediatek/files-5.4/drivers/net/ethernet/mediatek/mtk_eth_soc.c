@@ -3068,6 +3068,15 @@ void mtk_gdm_config(struct mtk_eth *eth, u32 config)
 	}
 }
 
+void mtk_set_pse_drop(u32 config)
+{
+	struct mtk_eth *eth = g_eth;
+
+	if (eth)
+		mtk_w32(eth, config, PSE_PPE0_DROP);
+}
+EXPORT_SYMBOL(mtk_set_pse_drop);
+
 static int mtk_open(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);

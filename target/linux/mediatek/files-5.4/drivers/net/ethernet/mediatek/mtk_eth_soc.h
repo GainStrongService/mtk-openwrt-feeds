@@ -1601,6 +1601,7 @@ struct mtk_mac {
 };
 
 /* the struct describing the SoC. these are declared in the soc_xyz.c files */
+extern struct mtk_eth *g_eth;
 extern const struct of_device_id of_mtk_match[];
 extern u32 mtk_hwlro_stats_ebl;
 
