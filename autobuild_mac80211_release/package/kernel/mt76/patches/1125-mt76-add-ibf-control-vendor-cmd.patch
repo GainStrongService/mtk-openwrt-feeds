@@ -1,20 +1,20 @@
-From df996674306a59f87f87dda7495079ffadddfad0 Mon Sep 17 00:00:00 2001
+From 6de06b0f652673f2db19060161dcc94d47ff4ce3 Mon Sep 17 00:00:00 2001
 From: mtk27835 <shurong.wen@mediatek.com>
 Date: Wed, 7 Sep 2022 14:01:29 -0700
-Subject: [PATCH 1125/1128] mt76: add ibf control vendor cmd
+Subject: [PATCH] mt76: add ibf control vendor cmd
 
 Signed-off-by: mtk27835 <shurong.wen@mediatek.com>
 ---
- mt7915/vendor.c | 70 +++++++++++++++++++++++++++++++++++++++++++++++++
- mt7915/vendor.h | 25 +++++++++++++++++-
- 2 files changed, 94 insertions(+), 1 deletion(-)
+ mt7915/vendor.c | 71 +++++++++++++++++++++++++++++++++++++++++++++++++
+ mt7915/vendor.h | 25 ++++++++++++++++-
+ 2 files changed, 95 insertions(+), 1 deletion(-)
 
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 7f67c0d..cbbb084 100644
+index 84e088c9..648d2dfb 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
-@@ -78,6 +78,16 @@ edcca_ctrl_policy[NUM_MTK_VENDOR_ATTRS_EDCCA_CTRL] = {
-        [MTK_VENDOR_ATTR_EDCCA_CTRL_COMPENSATE] = { .type = NLA_S8 },
+@@ -86,6 +86,17 @@ edcca_dump_policy[NUM_MTK_VENDOR_ATTRS_EDCCA_DUMP] = {
+        [MTK_VENDOR_ATTR_EDCCA_DUMP_SEC80_VAL] = { .type = NLA_U8 },
  };
  
 +static const struct nla_policy
@@ -27,10 +27,11 @@ index 7f67c0d..cbbb084 100644
 +	[MTK_VENDOR_ATTR_IBF_DUMP_ENABLE] = { .type = NLA_U8 },
 +};
 +
- 
++
  struct csi_null_tone {
  	u8 start;
-@@ -1120,6 +1130,54 @@ static int mt7915_vendor_3wire_ctrl(struct wiphy *wiphy,
+ 	u8 end;
+@@ -1194,6 +1205,54 @@ static int mt7915_vendor_3wire_ctrl(struct wiphy *wiphy,
  	return mt7915_mcu_set_cfg(phy, CFGINFO_3WIRE_EN_CFG, three_wire_mode);
  }
  
@@ -85,7 +86,7 @@ index 7f67c0d..cbbb084 100644
  
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
-@@ -1212,6 +1270,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1287,6 +1346,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.doit = mt7915_vendor_3wire_ctrl,
  		.policy = three_wire_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_3WIRE_CTRL_MAX,
@@ -105,10 +106,10 @@ index 7f67c0d..cbbb084 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index e0c5fd9..5aac559 100644
+index d96e5c23..949c8853 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
-@@ -11,7 +11,8 @@ enum mtk_nl80211_vendor_subcmds {
+@@ -12,7 +12,8 @@ enum mtk_nl80211_vendor_subcmds {
  	MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL = 0xc5,
  	MTK_NL80211_VENDOR_SUBCMD_PHY_CAPA_CTRL = 0xc6,
  	MTK_NL80211_VENDOR_SUBCMD_EDCCA_CTRL = 0xc7,
@@ -118,7 +119,7 @@ index e0c5fd9..5aac559 100644
  };
  
  
-@@ -206,4 +207,26 @@ enum mtk_vendor_attr_phy_capa_dump {
+@@ -222,4 +223,26 @@ enum mtk_vendor_attr_phy_capa_dump {
  		NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP - 1
  };
  
