@@ -956,11 +956,11 @@
 		interrupts = <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>;
 		phys = <&xphyu2port0 PHY_TYPE_USB2>,
 		       <&xphyu3port0 PHY_TYPE_USB3>;
-		clocks = <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>;
+		clocks = <&infracfg_ao CK_INFRA_USB_SYS>,
+			 <&infracfg_ao CK_INFRA_USB_XHCI>,
+			 <&infracfg_ao CK_INFRA_USB_REF>,
+			 <&infracfg_ao CK_INFRA_66M_USB_HCK>,
+			 <&infracfg_ao CK_INFRA_133M_USB_HCK>;
 		clock-names = "sys_ck",
 			      "xhci_ck",
 			      "ref_ck",
@@ -982,7 +982,7 @@
 
 		xphyu2port0: usb-phy@11e10000 {
 			reg = <0 0x11e10000 0 0x400>;
-			clocks = <&system_clk>;
+			clocks = <&infracfg_ao CK_INFRA_USB_UTMI>;
 			clock-names = "ref";
 			#phy-cells = <1>;
 			status = "okay";
@@ -990,7 +990,7 @@
 
 		xphyu3port0: usb-phy@11e13000 {
 			reg = <0 0x11e13400 0 0x500>;
-			clocks = <&system_clk>;
+			clocks = <&infracfg_ao CK_INFRA_USB_PIPE>;
 			clock-names = "ref";
 			#phy-cells = <1>;
 			mediatek,syscon-type = <&topmisc 0x218 0>;
@@ -1007,11 +1007,11 @@
 		interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
 		phys = <&tphyu2port0 PHY_TYPE_USB2>,
 		       <&tphyu3port0 PHY_TYPE_USB3>;
-		clocks = <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>;
+		clocks = <&infracfg_ao CK_INFRA_USB_SYS_CK_P1>,
+			 <&infracfg_ao CK_INFRA_USB_XHCI_CK_P1>,
+			 <&infracfg_ao CK_INFRA_USB_CK_P1>,
+			 <&infracfg_ao CK_INFRA_66M_USB_HCK_CK_P1>,
+			 <&infracfg_ao CK_INFRA_133M_USB_HCK_CK_P1>;
 		clock-names = "sys_ck",
 			      "xhci_ck",
 			      "ref_ck",
@@ -1032,7 +1032,7 @@
 
 		tphyu2port0: usb-phy@11c50000 {
 			reg = <0 0x11c50000 0 0x700>;
-			clocks = <&system_clk>;
+			clocks = <&infracfg_ao CK_INFRA_USB_UTMI_CK_P1>;
 			clock-names = "ref";
 			#phy-cells = <1>;
 			status = "okay";
@@ -1040,7 +1040,7 @@
 
 		tphyu3port0: usb-phy@11c50700 {
 			reg = <0 0x11c50700 0 0x900>;
-			clocks = <&system_clk>;
+			clocks = <&infracfg_ao CK_INFRA_USB_PIPE_CK_P1>;
 			clock-names = "ref";
 			#phy-cells = <1>;
 			mediatek,usb3-pll-ssc-delta;
