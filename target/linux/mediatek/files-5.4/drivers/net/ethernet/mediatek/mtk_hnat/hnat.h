@@ -1103,6 +1103,9 @@ enum FoeIpAct {
 #define IS_GMAC1_MODE ((hnat_priv->gmac_num == 1) ? 1 : 0)
 #define IS_HQOS_MODE (qos_toggle == 1)
 #define IS_PPPQ_MODE (qos_toggle == 2)		/* Per Port Per Queue */
+#define IS_PPPQ_PATH(dev, skb) \
+	((IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev)) || \
+	 (FROM_WED(skb) && IS_DSA_LAN(dev)))
 #define IS_HQOS_DL_MODE (IS_HQOS_MODE && qos_dl_toggle)
 #define IS_HQOS_UL_MODE (IS_HQOS_MODE && qos_ul_toggle)
 #define MAX_PPPQ_PORT_NUM	6

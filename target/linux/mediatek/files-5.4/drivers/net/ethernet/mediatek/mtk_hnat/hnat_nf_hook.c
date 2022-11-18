@@ -1445,8 +1445,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 						 hnat_priv->data->version == MTK_HNAT_V5) ?
 						 skb->mark & 0x7f : skb->mark & 0xf;
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-					if ((IS_WAN(dev) && IS_HQOS_UL_MODE) ||
-					    (IS_LAN(dev) && IS_HQOS_DL_MODE))
+					if ((IS_HQOS_UL_MODE && IS_WAN(dev)) ||
+					    (IS_HQOS_DL_MODE && IS_LAN(dev)) ||
+					    (IS_PPPQ_MODE &&
+					     IS_PPPQ_PATH(dev, skb)))
 						entry.ipv4_hnapt.tport_id = 1;
 					else
 						entry.ipv4_hnapt.tport_id = 0;
@@ -1572,8 +1574,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 	if (IS_HQOS_MODE || skb->mark >= MAX_PPPQ_PORT_NUM)
 		qid = skb->mark & (MTK_QDMA_TX_MASK);
-	else if (IS_PPPQ_MODE && (IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev) ||
-		 (FROM_WED(skb) && IS_DSA_LAN(dev))))
+	else if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb))
 		qid = port_id & MTK_QDMA_TX_MASK;
 	else
 		qid = 0;
@@ -1609,16 +1610,18 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv4_hnapt.iblk2.fqos = 0;
 			else
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-				if ((IS_WAN(dev) && IS_HQOS_UL_MODE) ||
-					(IS_LAN(dev) && IS_HQOS_DL_MODE))
+				if ((IS_HQOS_UL_MODE && IS_WAN(dev)) ||
+				    (IS_HQOS_DL_MODE && IS_LAN(dev)) ||
+				    (IS_PPPQ_MODE &&
+				     IS_PPPQ_PATH(dev, skb)))
 					entry.ipv4_hnapt.tport_id = 1;
 				else
 					entry.ipv4_hnapt.tport_id = 0;
 #else
 				entry.ipv4_hnapt.iblk2.fqos =
-					(!IS_PPPQ_MODE || (IS_PPPQ_MODE &&
-					 (IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev) ||
-					 (FROM_WED(skb) && IS_DSA_LAN(dev)))));
+					(!IS_PPPQ_MODE ||
+					(IS_PPPQ_MODE &&
+					 IS_PPPQ_PATH(dev, skb)));
 #endif
 		} else {
 			entry.ipv4_hnapt.iblk2.fqos = 0;
@@ -1653,16 +1656,18 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv6_5t_route.iblk2.fqos = 0;
 			else
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-				if ((IS_WAN(dev) && IS_HQOS_UL_MODE) ||
-					(IS_LAN(dev) && IS_HQOS_DL_MODE))
+				if ((IS_HQOS_UL_MODE && IS_WAN(dev)) ||
+					(IS_HQOS_DL_MODE && IS_LAN(dev)) ||
+					(IS_PPPQ_MODE &&
+					 IS_PPPQ_PATH(dev, skb)))
 					entry.ipv6_5t_route.tport_id = 1;
 				else
 					entry.ipv6_5t_route.tport_id = 0;
 #else
 				entry.ipv6_5t_route.iblk2.fqos =
-					(!IS_PPPQ_MODE || (IS_PPPQ_MODE &&
-					 (IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev) ||
-					 (FROM_WED(skb) && IS_DSA_LAN(dev)))));
+					(!IS_PPPQ_MODE ||
+					 (IS_PPPQ_MODE &&
+					  IS_PPPQ_PATH(dev, skb)));
 #endif
 		} else {
 			entry.ipv6_5t_route.iblk2.fqos = 0;

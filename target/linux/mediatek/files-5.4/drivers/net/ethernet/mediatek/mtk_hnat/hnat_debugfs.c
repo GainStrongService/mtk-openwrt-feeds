@@ -2526,8 +2526,8 @@ static ssize_t hnat_qos_toggle_write(struct file *file, const char __user *buffe
 		pr_info("Per-port-per-queue mode is going to be enabled!\n");
 		pr_info("PPPQ use qid 0~5 (scheduler 0).\n");
 		qos_toggle = 2;
-		qos_dl_toggle = 0;
-		qos_ul_toggle = 0;
+		qos_dl_toggle = 1;
+		qos_ul_toggle = 1;
 		hnat_qos_pppq_enable();
 	} else if (buf[0] == '3') {
 		hnat_qos_toggle_usage();
