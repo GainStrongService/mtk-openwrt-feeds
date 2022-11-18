@@ -488,7 +488,7 @@
 		compatible = "mediatek,mt7988-lvts";
 		#thermal-sensor-cells = <1>;
 		reg = <0 0x1100a000 0 0x1000>;
-		clocks = <&system_clk>;
+		clocks = <&infracfg_ao CK_INFRA_26M_THERM_SYSTEM>;
 		clock-names = "lvts_clk";
 		nvmem-cells = <&lvts_calibration>;
 		nvmem-cell-names = "e_data1";
@@ -742,24 +742,40 @@
 			     <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>,
-			 <&system_clk>;
-		clock-names = "fe", "gp2", "gp1", "wocpu1", "wocpu0",
-			      "sgmii_tx250m", "sgmii_rx250m",
-			      "sgmii_cdr_ref", "sgmii_cdr_fb",
-			      "sgmii2_tx250m", "sgmii2_rx250m",
-			      "sgmii2_cdr_ref", "sgmii2_cdr_fb";
+		clocks = <&ethsys CK_ETHDMA_XGP1_EN>,
+			 <&ethsys CK_ETHDMA_XGP2_EN>,
+			 <&ethsys CK_ETHDMA_XGP3_EN>,
+			 <&ethsys CK_ETHDMA_FE_EN>,
+			 <&ethsys CK_ETHDMA_GP2_EN>,
+			 <&ethsys CK_ETHDMA_GP1_EN>,
+			 <&ethsys CK_ETHDMA_GP3_EN>,
+			 <&ethsys CK_ETHDMA_ESW_EN>,
+			 <&ethsys CK_ETHDMA_CRYPT0_EN>,
+			 <&sgmiisys0 CK_SGM0_TX_EN>,
+			 <&sgmiisys0 CK_SGM0_RX_EN>,
+			 <&sgmiisys1 CK_SGM1_TX_EN>,
+			 <&sgmiisys1 CK_SGM1_RX_EN>,
+			 <&topckgen CK_TOP_USXGMII_SBUS_0_SEL>,
+			 <&topckgen CK_TOP_USXGMII_SBUS_1_SEL>,
+			 <&topckgen CK_TOP_SGM_0_SEL>,
+			 <&topckgen CK_TOP_SGM_1_SEL>;
+		clock-names = "xgp1", "xgp2", "xgp3", "fe", "gp2", "gp1",
+			      "gp3", "esw", "crypto", "sgmii_tx250m",
+			      "sgmii_rx250m", "sgmii2_tx250m", "sgmii2_rx250m",
+			      "usxgmii0_sel", "usxgmii1_sel",
+			      "sgm0_sel", "sgm1_sel";
+		assigned-clocks = <&topckgen CK_TOP_NETSYS_2X_SEL>,
+				  <&topckgen CK_TOP_NETSYS_GSW_SEL>,
+				  <&topckgen CK_TOP_USXGMII_SBUS_0_SEL>,
+				  <&topckgen CK_TOP_USXGMII_SBUS_1_SEL>,
+				  <&topckgen CK_TOP_SGM_0_SEL>,
+				  <&topckgen CK_TOP_SGM_1_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_NET2_800M>,
+					 <&topckgen CK_TOP_CB_NET1_D4>,
+					 <&topckgen CK_TOP_NET1_D8_D4>,
+					 <&topckgen CK_TOP_NET1_D8_D4>,
+					 <&topckgen CK_TOP_CB_SGM_325M>,
+					 <&topckgen CK_TOP_CB_SGM_325M>;
 		mediatek,ethsys = <&ethsys>;
 		mediatek,sgmiisys = <&sgmiisys0>, <&sgmiisys1>;
 		mediatek,usxgmiisys = <&usxgmiisys0>, <&usxgmiisys1>;
