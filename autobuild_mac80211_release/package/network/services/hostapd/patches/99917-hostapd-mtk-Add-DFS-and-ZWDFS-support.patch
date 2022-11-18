@@ -1,7 +1,7 @@
-From 5fd8ba4e856b94c8753a468b9e8a7dbece63cfec Mon Sep 17 00:00:00 2001
+From 80ecd3e0398aa668e683ff582a0594f88b290f44 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 7 Oct 2022 10:46:29 +0800
-Subject: [PATCH] Add DFS and ZWDFS support
+Subject: [PATCH 99917/99917] Add DFS and ZWDFS support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -17,13 +17,13 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  9 files changed, 186 insertions(+), 17 deletions(-)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 310f97d..a2ee418 100644
+index d9d882c..fd61448 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4807,6 +4807,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
- 			return 1;
- 		}
- 		conf->amsdu = val;
+@@ -4801,6 +4801,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+ 	} else if (os_strcmp(buf, "ibf_enable") == 0) { /*ibf setting is per device*/
+ 		int val = atoi(pos);
+ 		conf->ibf_enable = !!val;
 +	} else if (os_strcmp(buf, "dfs_detect_mode") == 0) { /*bypass channel switch*/
 +		u8 en = strtol(pos, NULL, 10);
 +
@@ -32,10 +32,10 @@ index 310f97d..a2ee418 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 0c40175..296e42f 100644
+index c881d37..6ea1573 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3537,6 +3537,96 @@ hostapd_ctrl_iface_get_aggregation(struct hostapd_data *hapd, char *buf,
+@@ -3522,6 +3522,96 @@ hostapd_ctrl_iface_get_ibf(struct hostapd_data *hapd, char *buf,
  }
  
  
@@ -132,10 +132,10 @@ index 0c40175..296e42f 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4099,6 +4189,11 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4081,6 +4171,11 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+ 		reply_len = hostapd_ctrl_iface_get_hemu(hapd, reply, reply_size);
+ 	} else if (os_strncmp(buf, "GET_IBF", 7) == 0) {
  		reply_len = hostapd_ctrl_iface_get_ibf(hapd, reply, reply_size);
- 	} else if (os_strncmp(buf, "GET_AGGR", 8) == 0) {
- 		reply_len = hostapd_ctrl_iface_get_aggregation(hapd, reply, reply_size);
 +	} else if (os_strncmp(buf, "DFS_DETECT_MODE ", 16) == 0) {
 +		reply_len = hostapd_ctrl_iface_set_dfs_detect_mode(hapd, buf + 16,
 +								   reply, reply_size);
@@ -145,18 +145,18 @@ index 0c40175..296e42f 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 01b051d..f567c37 100644
+index 44a0e7e..3f5afdf 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1160,6 +1160,7 @@ struct hostapd_config {
+@@ -1159,6 +1159,7 @@ struct hostapd_config {
+ 	int *edcca_threshold;
+ 	u8 three_wire_enable;
  	u8 ibf_enable;
- 	u8 ampdu;
- 	u8 amsdu;
 +	u8 dfs_detect_mode;
  };
  
  enum three_wire_mode {
-@@ -1174,6 +1175,18 @@ enum three_wire_mode {
+@@ -1173,6 +1174,18 @@ enum three_wire_mode {
  		NUM_THREE_WIRE_MODE - 1
  };
  
@@ -282,7 +282,7 @@ index 606c1b3..c2556d2 100644
  
  #endif /* DFS_H */
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 5fc998e..ed1dfdb 100644
+index e44b73d..793ce2f 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -1463,7 +1463,9 @@ static int hostapd_setup_bss(struct hostapd_data *hapd, int first)
@@ -297,13 +297,13 @@ index 5fc998e..ed1dfdb 100644
  
  	if (flush_old_stations && !conf->start_disabled &&
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index e34903b..6ad6d84 100644
+index 71ded61..aa23fbd 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -4722,6 +4722,13 @@ struct wpa_driver_ops {
- 	int (*ampdu_ctrl)(void *priv, u8 ampdu);
- 	int (*amsdu_ctrl)(void *priv, u8 amsdu);
- 	int (*aggregation_dump)(void *priv, u8 *aggr);
+@@ -4720,6 +4720,13 @@ struct wpa_driver_ops {
+ 	 *
+ 	 */
+ 	int (*ibf_dump)(void *priv, u8 *ibf_enable);
 +
 +	/**
 +	 * start_disabled - set start_disabled to cfg80211
@@ -315,10 +315,10 @@ index e34903b..6ad6d84 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index a06ac58..af064c0 100644
+index e974f85..003adc4 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -12812,6 +12812,34 @@ fail:
+@@ -12776,6 +12776,34 @@ fail:
  	return -ENOBUFS;
  }
  
@@ -353,10 +353,10 @@ index a06ac58..af064c0 100644
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
  	.desc = "Linux nl80211/cfg80211",
-@@ -12967,4 +12995,5 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
- 	.ampdu_ctrl = nl80211_enable_ampdu,
- 	.amsdu_ctrl = nl80211_enable_amsdu,
- 	.aggregation_dump = nl80211_dump_aggregation,
+@@ -12930,4 +12958,5 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+ 	.three_wire_ctrl = nl80211_enable_three_wire,
+ 	.ibf_ctrl = nl80211_ibf_enable,
+ 	.ibf_dump = nl80211_ibf_dump,
 +	.start_disabled = nl80211_start_disabled,
  };
 diff --git a/src/drivers/nl80211_copy.h b/src/drivers/nl80211_copy.h
@@ -372,5 +372,5 @@ index c4bf3ad..79bc76c 100644
  	__NL80211_ATTR_AFTER_LAST,
  	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
 -- 
-2.18.0
+2.36.1
 

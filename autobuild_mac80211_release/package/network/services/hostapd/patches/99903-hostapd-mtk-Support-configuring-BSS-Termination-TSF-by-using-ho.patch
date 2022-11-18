@@ -1,7 +1,7 @@
-From e3453cf75d1d9067e97b6d0d370afb3805eccea7 Mon Sep 17 00:00:00 2001
+From de13e08cb3e1210bfed2de824c6a19e8dbed057e Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 9 Jun 2022 19:56:18 +0800
-Subject: [PATCH 99903/99916] Support configuring BSS Termination TSF by using
+Subject: [PATCH 99903/99917] Support configuring BSS Termination TSF by using
  hostapd_cli command
 
 ---
@@ -12,7 +12,7 @@ Subject: [PATCH 99903/99916] Support configuring BSS Termination TSF by using
  4 files changed, 11 insertions(+)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index a2584920c..c2a282227 100644
+index a258492..c2a2822 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -1338,6 +1338,11 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
@@ -28,7 +28,7 @@ index a2584920c..c2a282227 100644
  		ret = hostapd_set_iface(hapd->iconf, hapd->conf, cmd, value);
  		if (ret)
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index d7a0c7c80..4a20eb4e1 100644
+index d7a0c7c..4a20eb4 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -170,6 +170,7 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
@@ -40,7 +40,7 @@ index d7a0c7c80..4a20eb4e1 100644
  
  
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index ed3bec7fe..3f68e76d5 100644
+index ed3bec7..3f68e76 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
 @@ -557,6 +557,7 @@ struct hostapd_bss_config {
@@ -52,7 +52,7 @@ index ed3bec7fe..3f68e76d5 100644
  	/* IEEE 802.11u - Interworking */
  	int interworking;
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
-index 96209ce7e..46a860905 100644
+index 96209ce..46a8609 100644
 --- a/src/ap/ctrl_iface_ap.c
 +++ b/src/ap/ctrl_iface_ap.c
 @@ -1203,6 +1203,10 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
@@ -67,5 +67,5 @@ index 96209ce7e..46a860905 100644
  		WPA_PUT_LE16(&bss_term_dur[10], atoi(end));
  	}
 -- 
-2.25.1
+2.36.1
 

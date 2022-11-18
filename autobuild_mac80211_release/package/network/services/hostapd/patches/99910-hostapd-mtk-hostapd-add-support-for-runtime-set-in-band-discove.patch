@@ -1,7 +1,7 @@
-From cff3f584e921ce37fcd72a895666abc9227d16fd Mon Sep 17 00:00:00 2001
+From 7a7b2284ad75cd20c788dad6e253bc2940203ff9 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 31 May 2022 21:15:54 +0800
-Subject: [PATCH 99910/99916] hostapd: add support for runtime set in-band
+Subject: [PATCH 99910/99917] hostapd: add support for runtime set in-band
  discovery
 
 Usage:
@@ -21,7 +21,7 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  5 files changed, 98 insertions(+), 4 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index bc690c526..bb8c74fd3 100644
+index bc690c5..bb8c74f 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -826,6 +826,69 @@ static int hostapd_ctrl_iface_send_qos_map_conf(struct hostapd_data *hapd,
@@ -105,7 +105,7 @@ index bc690c526..bb8c74fd3 100644
  		reply_len = hostapd_ctrl_iface_get_config(hapd, reply,
  							  reply_size);
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index 85c41d0c3..db2125805 100644
+index 85c41d0..db21258 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
 @@ -642,6 +642,24 @@ static int hostapd_cli_cmd_wps_config(struct wpa_ctrl *ctrl, int argc,
@@ -143,7 +143,7 @@ index 85c41d0c3..db2125805 100644
  };
  
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index 814e86efe..1a26f11ff 100644
+index 814e86e..1a26f11 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
 @@ -1497,6 +1497,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
@@ -166,7 +166,7 @@ index 814e86efe..1a26f11ff 100644
  						  &params->fd_frame_tmpl_len);
  
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 53f25030a..5eba0ea1b 100644
+index 53f2503..5eba0ea 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -4498,9 +4498,10 @@ static int nl80211_fils_discovery(struct i802_bss *bss, struct nl_msg *msg,
@@ -195,7 +195,7 @@ index 53f25030a..5eba0ea1b 100644
  #endif /* CONFIG_FILS */
  
 diff --git a/src/drivers/nl80211_copy.h b/src/drivers/nl80211_copy.h
-index 0568a7909..c4bf3ad35 100644
+index 0568a79..c4bf3ad 100644
 --- a/src/drivers/nl80211_copy.h
 +++ b/src/drivers/nl80211_copy.h
 @@ -7379,6 +7379,7 @@ enum nl80211_fils_discovery_attributes {
@@ -207,5 +207,5 @@ index 0568a7909..c4bf3ad35 100644
  	/* keep last */
  	__NL80211_FILS_DISCOVERY_ATTR_LAST,
 -- 
-2.25.1
+2.36.1
 
