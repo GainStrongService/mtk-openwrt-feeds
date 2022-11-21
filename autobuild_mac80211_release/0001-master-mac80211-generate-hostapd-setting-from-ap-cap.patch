@@ -1,17 +1,5 @@
-From ed69c1fdd2d70538644460e299d5772a5528f3d9 Mon Sep 17 00:00:00 2001
-From: Peter Chiu <chui-hao.chiu@mediatek.com>
-Date: Mon, 14 Nov 2022 14:44:47 +0800
-Subject: [PATCH] master mac80211 generate hostapd setting from ap cap
-
-Change-Id: I22cef6b7e1a99b1d589270c136a2e74e7a385e79
----
- package/kernel/mac80211/Makefile                  |  3 +++
- .../files/lib/netifd/wireless/mac80211.sh         |  3 ---
- .../kernel/mac80211/files/lib/wifi/mac80211.sh    | 15 ++++++++++++++-
- 3 files changed, 17 insertions(+), 4 deletions(-)
-
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index ec35bf67..ea7bf6e9 100644
+index ec35bf6..d507de9 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -19,6 +19,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -22,7 +10,18 @@ index ec35bf67..ea7bf6e9 100644
  PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
  
  PKG_DRIVERS = \
-@@ -296,6 +297,8 @@ define Build/Prepare
+@@ -71,6 +72,10 @@ config-y:= \
+ 	WLAN_VENDOR_ST \
+ 	WLAN_VENDOR_TI \
+ 	WLAN_VENDOR_ZYDAS \
++	MAC80211_DEBUG_MENU \
++	MAC80211_MLME_DEBUG \
++	MAC80211_STA_DEBUG \
++	MAC80211_HT_DEBUG \
+ 
+ config-$(call config_package,cfg80211) += CFG80211
+ config-$(CONFIG_PACKAGE_CFG80211_TESTMODE) += NL80211_TESTMODE
+@@ -296,6 +301,8 @@ define Build/Prepare
  	mkdir -p $(PKG_BUILD_DIR)
  	$(PKG_UNPACK)
  	$(Build/Patch)
@@ -32,7 +31,7 @@ index ec35bf67..ea7bf6e9 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index ed280521..a0550057 100644
+index ed28052..a055005 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -144,9 +144,6 @@ mac80211_hostapd_setup_base() {
@@ -46,7 +45,7 @@ index ed280521..a0550057 100644
  
  	set_default noscan 0
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index 3ecd9322..438bf929 100644
+index 3ecd932..438bf92 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -120,6 +120,13 @@ get_band_defaults() {
@@ -87,5 +86,5 @@ index 3ecd9322..438bf929 100644
  	done
  }
 -- 
-2.18.0
+2.36.1
 
