@@ -2,12 +2,30 @@ diff --git a/drivers/net/phy/Kconfig b/drivers/net/phy/Kconfig
 index 7b49c94..5a79af2 100644
 --- a/drivers/net/phy/Kconfig
 +++ b/drivers/net/phy/Kconfig
-@@ -372,7 +372,38 @@ config AMD_PHY
+@@ -372,7 +372,56 @@ config AMD_PHY
  config AQUANTIA_PHY
  	tristate "Aquantia PHYs"
  	---help---
 -	  Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
 +	  Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405, AQR113C
++
++config AQUANTIA_PHY_MDI_SWAP
++	tristate "MDI Swap Enable"
++	depends on AQUANTIA_PHY
++	---help---
++	  Currently supports the Aquantia AQR113C
++
++choice
++	prompt "Swap mode"
++	default AQUANTIA_PHY_MDI_REVERSED
++	depends on AQUANTIA_PHY_MDI_SWAP
++
++	config AQUANTIA_PHY_MDI_NORMAL
++		bool "Normal"
++
++	config AQUANTIA_PHY_MDI_REVERSED
++		bool "Reversed"
++endchoice
 +
 +config AQUANTIA_PHY_FW_DOWNLOAD
 +	tristate "Firmware Download Enable"
@@ -60,10 +78,13 @@ diff --git a/drivers/net/phy/aquantia.h b/drivers/net/phy/aquantia.h
 index 5a16caa..912bbe6 100644
 --- a/drivers/net/phy/aquantia.h
 +++ b/drivers/net/phy/aquantia.h
-@@ -9,8 +9,53 @@
+@@ -9,8 +9,58 @@
  #include <linux/device.h>
  #include <linux/phy.h>
  
++#define PMAPMD_RSVD_VEND_PROV				0xe400
++#define PMAPMD_RSVD_VEND_PROV_MDI_CONF			BIT(0)
++
 +/* MDIO_MMD_C22EXT */
 +#define MDIO_C22EXT_STAT_SGMII_RX_GOOD_FRAMES		0xd292
 +#define MDIO_C22EXT_STAT_SGMII_RX_BAD_FRAMES		0xd294
@@ -105,6 +126,8 @@ index 5a16caa..912bbe6 100644
 +#endif
 +};
 +
++int aqr107_config_mdi(struct phy_device *phydev);
++
  #if IS_REACHABLE(CONFIG_HWMON)
  int aqr_hwmon_probe(struct phy_device *phydev);
  #else
@@ -119,7 +142,7 @@ new file mode 100644
 index 0000000..7aeec86
 --- /dev/null
 +++ b/drivers/net/phy/aquantia_firmware.c
-@@ -0,0 +1,982 @@
+@@ -0,0 +1,995 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/* FW download driver for Aquantia PHY
 + */
@@ -992,6 +1015,9 @@ index 0000000..7aeec86
 +	int result[MAX_GANGLOAD_DEVICES];
 +	int i, ret = 0;
 +
++	if (!fw)
++		return;
++
 +retry:
 +	memset(result, 0, sizeof(result));
 +
@@ -999,16 +1025,26 @@ index 0000000..7aeec86
 +					result, fw->data, fw->size);
 +	if (ret) {
 +		for (i = 0; i < MAX_GANGLOAD_DEVICES; i++) {
-+			if (result[i] == 0) {
-+				priv = phydevs[i]->priv;
-+				priv->fw_initialized = true;
++			if (result[i] == 0)
 +				continue;
-+			}
 +
 +			dev = &phydevs[i]->mdio.dev;
 +			dev_err(dev, "failed to download firmware %s, ret: %d\n",
 +				AQR_FIRMWARE, ret);
 +			goto retry;
++		}
++	}
++
++#ifdef CONFIG_AQUANTIA_PHY_MDI_SWAP
++	mdelay(250);
++#endif
++	for (i = 0; i < MAX_GANGLOAD_DEVICES; i++) {
++		if (result[i] == 0) {
++			priv = phydevs[i]->priv;
++			priv->fw_initialized = true;
++#ifdef CONFIG_AQUANTIA_PHY_MDI_SWAP
++			aqr107_config_mdi(phydevs[i]);
++#endif
 +		}
 +	}
 +
@@ -1157,10 +1193,32 @@ index ac8dd8e..421cdd3 100644
  static int aqr107_get_sset_count(struct phy_device *phydev)
  {
  	return AQR107_SGMII_STAT_SZ;
-@@ -517,6 +480,10 @@ static int aqr107_config_init(struct phy_device *phydev)
+@@ -498,6 +461,17 @@ static void aqr107_chip_info(struct phy_device *phydev)
+ 		   fw_major, fw_minor, build_id, prov_id);
+ }
+ 
++int aqr107_config_mdi(struct phy_device *phydev)
++{
++#ifdef CONFIG_AQUANTIA_PHY_MDI_REVERSED
++	return phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, PMAPMD_RSVD_VEND_PROV,
++			     PMAPMD_RSVD_VEND_PROV_MDI_CONF, 1);
++#else
++	return phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, PMAPMD_RSVD_VEND_PROV,
++			     PMAPMD_RSVD_VEND_PROV_MDI_CONF, 0);
++#endif
++}
++
+ static int aqr107_config_init(struct phy_device *phydev)
+ {
+ 	int ret;
+@@ -517,6 +491,14 @@ static int aqr107_config_init(struct phy_device *phydev)
  	if (!ret)
  		aqr107_chip_info(phydev);
  
++#if !defined(CONFIG_AQUANTIA_PHY_FW_DOWNLOAD) && defined(CONFIG_AQUANTIA_PHY_MDI_SWAP)
++	aqr107_config_mdi(phydev);
++#endif
++
 +#ifdef CONFIG_AQUANTIA_PHY_FW_DOWNLOAD
 +	aqr_firmware_download(phydev);
 +#endif
