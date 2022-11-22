@@ -16,34 +16,33 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/
 index c582bb9..5259141 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -3220,10 +3220,14 @@ static void mtk_pending_work(struct work_struct *work)
- 	mtk_prepare_reset_fe(eth);
- 
- 	/* Trigger Wifi SER reset */
+@@ -3619,10 +3619,14 @@ static void mtk_pending_work(struct work_struct *work)
+ 	for (i = 0; i < MTK_MAC_COUNT; i++) {
+ 		if (!eth->netdev[i])
+ 			continue;
 +#ifdef CONFIG_NET_MEDIATEK_SOC_WED
-+	mtk_wed_fe_reset(MTK_FE_START_RESET);
++		mtk_wed_fe_reset(MTK_FE_START_RESET);
 +#else
- 	call_netdevice_notifiers(MTK_FE_START_RESET, eth->netdev[0]);
- 	rtnl_unlock();
- 	wait_for_completion_timeout(&wait_ser_done, 5000);
- 	rtnl_lock();
+ 		call_netdevice_notifiers(MTK_FE_START_RESET, eth->netdev[i]);
+ 		rtnl_unlock();
+ 		wait_for_completion_timeout(&wait_ser_done, 5000);
+ 		rtnl_lock();
 +#endif
+ 		break;
+ 	}
  
- 	while (test_and_set_bit_lock(MTK_RESETTING, &eth->state))
- 		cpu_relax();
-@@ -3284,8 +3288,11 @@ static void mtk_pending_work(struct work_struct *work)
- 
- 	call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE, eth->netdev[0]);
- 	pr_info("[%s] HNAT reset done !\n", __func__);
--
+@@ -3690,7 +3694,11 @@ static void mtk_pending_work(struct work_struct *work)
+ 			continue;
+ 		call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE, eth->netdev[i]);
+ 		pr_info("[%s] HNAT reset done !\n", __func__);
 +#ifdef CONFIG_NET_MEDIATEK_SOC_WED
-+	mtk_wed_fe_reset(MTK_FE_RESET_DONE);
++		mtk_wed_fe_reset(MTK_FE_RESET_DONE);
 +#else
- 	call_netdevice_notifiers(MTK_FE_RESET_DONE, eth->netdev[0]);
+ 		call_netdevice_notifiers(MTK_FE_RESET_DONE, eth->netdev[i]);
 +#endif
- 	pr_info("[%s] WiFi SER reset done !\n", __func__);
- 
- 	atomic_dec(&reset_lock);
+ 		pr_info("[%s] WiFi SER reset done !\n", __func__);
+ 		break;
+ 	}
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
 index 7552795..c98d749 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
