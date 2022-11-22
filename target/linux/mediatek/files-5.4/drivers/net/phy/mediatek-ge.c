@@ -1068,7 +1068,6 @@ static struct phy_driver mtk_gephy_driver[] = {
 		PHY_ID_MATCH_EXACT(0x03a29461),
 		.name		= "MediaTek MT7981 PHY",
 		.probe		= mt7981_phy_probe,
-		.read_status	= mt798x_phy_read_status,
 		/* Interrupts are handled by the switch, not the PHY
 		 * itself.
 		 */
