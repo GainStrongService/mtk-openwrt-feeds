@@ -3396,15 +3396,14 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 		MTK_FE_INT_RFIFO_OV | MTK_FE_INT_RFIFO_UF, MTK_FE_INT_ENABLE);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-		/* PSE dummy page mechanism */
-		mtk_w32(eth, PSE_DUMMY_WORK_GDM(1) | PSE_DUMMY_WORK_GDM(2) |
-			PSE_DUMMY_WORK_GDM(3) | DUMMY_PAGE_THR, PSE_DUMY_REQ);
-
 		/* PSE should not drop port1, port8 and port9 packets */
 		mtk_w32(eth, 0x00000302, PSE_NO_DROP_CFG);
 
 		/* PSE should drop p8 and p9 packets when WDMA Rx ring full*/
 		mtk_w32(eth, 0x00000300, PSE_PPE0_DROP);
+
+		/* PSE free buffer drop threshold */
+		mtk_w32(eth, 0x00600009, PSE_IQ_REV(8));
 
 		/* GDM and CDM Threshold */
 		mtk_w32(eth, 0x00000707, MTK_CDMW0_THRES);
