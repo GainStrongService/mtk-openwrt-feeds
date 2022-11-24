@@ -662,6 +662,8 @@
 #define MAC_MCR_RX_EN		BIT(13)
 #define MAC_MCR_BACKOFF_EN	BIT(9)
 #define MAC_MCR_BACKPR_EN	BIT(8)
+#define MAC_MCR_FORCE_EEE1000	BIT(7)
+#define MAC_MCR_FORCE_EEE100	BIT(6)
 #define MAC_MCR_FORCE_RX_FC	BIT(5)
 #define MAC_MCR_FORCE_TX_FC	BIT(4)
 #define MAC_MCR_SPEED_1000	BIT(3)
@@ -675,6 +677,17 @@
 #define XMAC_MCR_TRX_DISABLE	0xf
 #define XMAC_MCR_FORCE_TX_FC	BIT(5)
 #define XMAC_MCR_FORCE_RX_FC	BIT(4)
+
+/* Mac EEE control registers */
+#define MTK_MAC_EEE(x)		(0x10104 + (x * 0x100))
+#define MAC_EEE_WAKEUP_TIME_1000	GENMASK(31, 24)
+#define MAC_EEE_WAKEUP_TIME_100	GENMASK(23, 16)
+#define MAC_EEE_LPI_TXIDLE_THD	GENMASK(15, 8)
+#define MAC_EEE_RESV0		GENMASK(7, 4)
+#define MAC_EEE_CKG_TXILDE	BIT(3)
+#define MAC_EEE_CKG_RXLPI	BIT(2)
+#define MAC_EEE_TX_DOWN_REQ	BIT(1)
+#define MAC_EEE_LPI_MODE	BIT(0)
 
 /* Mac status registers */
 #define MTK_MAC_MSR(x)		(0x10108 + (x * 0x100))
@@ -1659,6 +1672,8 @@ struct mtk_mac {
 	struct mtk_hw_stats		*hw_stats;
 	__be32				hwlro_ip[MTK_MAX_LRO_IP_CNT];
 	int				hwlro_ip_cnt;
+	bool				tx_lpi_enabled;
+	u32				tx_lpi_timer;
 };
 
 /* the struct describing the SoC. these are declared in the soc_xyz.c files */
