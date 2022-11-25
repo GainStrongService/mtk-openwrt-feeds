@@ -215,6 +215,20 @@ static const struct mtk_snand_soc_data mtk_snand_socs[__SNAND_SOC_MAX] = {
 		.latch_lat = 0,
 		.sample_delay = 40
 	},
+	[SNAND_SOC_MT7988] = {
+		.sector_size = 1024,
+		.max_sectors = 16,
+		.fdm_size = 8,
+		.fdm_ecc_size = 1,
+		.fifo_size = 64,
+		.bbm_swap = true,
+		.empty_page_check = true,
+		.mastersta_mask = NFI_MASTERSTA_MASK_7986,
+		.spare_sizes = mt7986_spare_sizes,
+		.num_spare_size = ARRAY_SIZE(mt7986_spare_sizes),
+		.latch_lat = 0,
+		.sample_delay = 40
+	},
 };
 
 static inline uint32_t nfi_read32(struct mtk_snand *snf, uint32_t reg)

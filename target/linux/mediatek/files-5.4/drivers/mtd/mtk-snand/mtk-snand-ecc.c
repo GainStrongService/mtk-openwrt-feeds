@@ -99,6 +99,14 @@ static const struct mtk_ecc_soc_data mtk_ecc_socs[__SNAND_SOC_MAX] = {
 		.errnum_bits = 5,
 		.errnum_shift = 8,
 	},
+	[SNAND_SOC_MT7988] = {
+		.ecc_caps = mt7986_ecc_caps,
+		.num_ecc_cap = ARRAY_SIZE(mt7986_ecc_caps),
+		.regs = mt7986_ecc_regs,
+		.mode_shift = 5,
+		.errnum_bits = 5,
+		.errnum_shift = 8,
+	},
 };
 
 static inline uint32_t ecc_read32(struct mtk_snand *snf, uint32_t reg)
