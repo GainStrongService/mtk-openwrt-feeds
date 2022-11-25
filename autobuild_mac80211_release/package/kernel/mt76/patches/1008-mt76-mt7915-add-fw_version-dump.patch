@@ -1,4 +1,4 @@
-From 05dd4dcaf63a2026f920cd4936c0a12c8b6303ae Mon Sep 17 00:00:00 2001
+From 0c600cffb7f89ad45e0f631623632f36cbe8bf81 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 17 Aug 2022 13:40:24 +0800
 Subject: [PATCH 1008/1008] mt76: mt7915: add fw_version dump
@@ -10,10 +10,10 @@ Subject: [PATCH 1008/1008] mt76: mt7915: add fw_version dump
  3 files changed, 32 insertions(+)
 
 diff --git a/mt76.h b/mt76.h
-index 1b468ccc..3a177fff 100644
+index 66059d2e..0d87f135 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -823,6 +823,10 @@ struct mt76_dev {
+@@ -840,6 +840,10 @@ struct mt76_dev {
  		struct mt76_usb usb;
  		struct mt76_sdio sdio;
  	};
@@ -25,10 +25,10 @@ index 1b468ccc..3a177fff 100644
  
  struct mt76_power_limits {
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index dfec416e..7ab491d6 100644
+index c65267b4..a48903ca 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -2904,6 +2904,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -2927,6 +2927,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
  
@@ -38,7 +38,7 @@ index dfec416e..7ab491d6 100644
  	release_firmware(fw);
  
  	if (!fw_wa)
-@@ -2929,6 +2932,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -2952,6 +2955,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		goto out;
  	}
  
@@ -48,7 +48,7 @@ index dfec416e..7ab491d6 100644
  	snprintf(dev->hw->wiphy->fw_version,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
-@@ -2999,6 +3005,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
+@@ -3022,6 +3028,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
  	dev_info(dev->dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
  		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
  

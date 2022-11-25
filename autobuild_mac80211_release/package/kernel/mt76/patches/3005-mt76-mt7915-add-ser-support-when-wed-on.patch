@@ -1,24 +1,24 @@
-From 5362658103f2059a16ad626ab2f075b9279877e5 Mon Sep 17 00:00:00 2001
+From 4808621f5b154d3972f59ab2ee3a40d328a84ce0 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
-Date: Thu, 28 Jul 2022 11:16:15 +0800
-Subject: [PATCH 3005/3011] mt76 add ser spport when wed on
+Date: Fri, 25 Nov 2022 14:07:46 +0800
+Subject: [PATCH 3005/3010] mt76: mt7915: add ser support when wed on
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
  dma.c           | 29 ++++++++++++++++++++---------
- dma.h           |  2 +-
+ dma.h           |  1 +
  mt76.h          |  1 +
  mt7915/dma.c    | 36 +++++++++++++++++++++++++++++++-----
- mt7915/mac.c    | 20 ++++++++++++++++++++
- mt7915/mmio.c   |  2 ++
+ mt7915/mac.c    | 18 ++++++++++++++++++
+ mt7915/mmio.c   |  3 +++
  mt7915/mt7915.h |  1 +
- 7 files changed, 76 insertions(+), 15 deletions(-)
+ 7 files changed, 75 insertions(+), 14 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index a8739eb..d63b02f 100644
+index 929816b7..8987c35f 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -169,7 +169,7 @@ mt76_free_pending_txwi(struct mt76_dev *dev)
+@@ -165,7 +165,7 @@ mt76_free_pending_txwi(struct mt76_dev *dev)
  	local_bh_enable();
  }
  
@@ -26,8 +26,8 @@ index a8739eb..d63b02f 100644
 +void
  mt76_free_pending_rxwi(struct mt76_dev *dev)
  {
- 	struct mt76_txwi_cache *r;
-@@ -183,6 +183,7 @@ mt76_free_pending_rxwi(struct mt76_dev *dev)
+ 	struct mt76_txwi_cache *t;
+@@ -178,6 +178,7 @@ mt76_free_pending_rxwi(struct mt76_dev *dev)
  	}
  	local_bh_enable();
  }
@@ -35,7 +35,7 @@ index a8739eb..d63b02f 100644
  
  static void
  mt76_dma_sync_idx(struct mt76_dev *dev, struct mt76_queue *q)
-@@ -624,14 +625,18 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -623,14 +624,18 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
  	return frames;
  }
  
@@ -57,7 +57,7 @@ index a8739eb..d63b02f 100644
  	if (!mtk_wed_device_active(wed))
  		q->flags &= ~MT_QFLAG_WED;
  
-@@ -643,7 +648,7 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -642,7 +647,7 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
  
  	switch (type) {
  	case MT76_WED_Q_TX:
@@ -66,7 +66,7 @@ index a8739eb..d63b02f 100644
  		if (!ret)
  			q->wed_regs = wed->tx_ring[ring].reg_base;
  		break;
-@@ -659,7 +664,7 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -658,7 +663,7 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
  			q->wed_regs = wed->txfree_ring.reg_base;
  		break;
  	case MT76_WED_Q_RX:
@@ -75,7 +75,7 @@ index a8739eb..d63b02f 100644
  		if (!ret)
  			q->wed_regs = wed->rx_ring[ring].reg_base;
  		break;
-@@ -672,6 +677,7 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -671,6 +676,7 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
  	return 0;
  #endif
  }
@@ -83,7 +83,7 @@ index a8739eb..d63b02f 100644
  
  static int
  mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
-@@ -704,7 +710,7 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -697,7 +703,7 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
  	if (!q->entry)
  		return -ENOMEM;
  
@@ -92,7 +92,7 @@ index a8739eb..d63b02f 100644
  	if (ret)
  		return ret;
  
-@@ -755,8 +761,13 @@ mt76_dma_rx_reset(struct mt76_dev *dev, enum mt76_rxq_id qid)
+@@ -748,8 +754,13 @@ mt76_dma_rx_reset(struct mt76_dev *dev, enum mt76_rxq_id qid)
  		q->desc[i].ctrl = cpu_to_le32(MT_DMA_CTL_DMA_DONE);
  
  	mt76_dma_rx_cleanup(dev, q);
@@ -109,21 +109,21 @@ index a8739eb..d63b02f 100644
  	if (!q->rx_head)
  		return;
 diff --git a/dma.h b/dma.h
-index 90370d1..083cbca 100644
+index 53c6ce25..4b9bc7f4 100644
 --- a/dma.h
 +++ b/dma.h
-@@ -58,5 +58,5 @@ enum mt76_mcu_evt_type {
+@@ -56,5 +56,6 @@ enum mt76_mcu_evt_type {
  int mt76_dma_rx_poll(struct napi_struct *napi, int budget);
  void mt76_dma_attach(struct mt76_dev *dev);
  void mt76_dma_cleanup(struct mt76_dev *dev);
--
 +int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset);
+ 
  #endif
 diff --git a/mt76.h b/mt76.h
-index 627bcbf..f22e96e 100644
+index bb0433b2..cca8986f 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1375,6 +1375,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+@@ -1380,6 +1380,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
  void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
  void mt76_put_rxwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
  struct mt76_txwi_cache *mt76_get_rxwi(struct mt76_dev *dev);
@@ -132,10 +132,10 @@ index 627bcbf..f22e96e 100644
  		      struct napi_struct *napi);
  void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 6f6550f..8edfa46 100644
+index 27b67800..03563919 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
-@@ -553,6 +553,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
+@@ -562,6 +562,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
  int mt7915_dma_reset(struct mt7915_dev *dev, bool force)
  {
  	struct mt76_phy *mphy_ext = dev->mt76.phys[MT_BAND1];
@@ -143,7 +143,7 @@ index 6f6550f..8edfa46 100644
  	int i;
  
  	/* clean up hw queues */
-@@ -572,28 +573,53 @@ int mt7915_dma_reset(struct mt7915_dev *dev, bool force)
+@@ -581,28 +582,53 @@ int mt7915_dma_reset(struct mt7915_dev *dev, bool force)
  	if (force)
  		mt7915_wfsys_reset(dev);
  
@@ -203,20 +203,11 @@ index 6f6550f..8edfa46 100644
  }
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index eac4946..cbdabea 100644
+index d07bf790..f72e2bc2 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -948,6 +948,8 @@ void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed)
- 		mt76_put_rxwi(&dev->mt76, rxwi);
- 	}
- 
-+	mt76_free_pending_rxwi(&dev->mt76);
-+
- 	if (wed->rx_page.va)
- 		return;
- 
-@@ -958,6 +960,18 @@ void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed)
- 	return;
+@@ -895,6 +895,18 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
+ 	return MT_TXD_TXP_BUF_SIZE;
  }
  
 +void mt7915_wed_trigger_ser(struct mtk_wed_device *wed)
@@ -234,7 +225,7 @@ index eac4946..cbdabea 100644
  static void
  mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
  {
-@@ -1697,6 +1711,12 @@ void mt7915_mac_reset_work(struct work_struct *work)
+@@ -1633,6 +1645,12 @@ void mt7915_mac_reset_work(struct work_struct *work)
  	if (!(READ_ONCE(dev->recovery.state) & MT_MCU_CMD_STOP_DMA))
  		return;
  
@@ -248,30 +239,38 @@ index eac4946..cbdabea 100644
  	if (ext_phy)
  		ieee80211_stop_queues(ext_phy->hw);
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 1e22ec9..60b7886 100644
+index f348a779..f5dfee37 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
-@@ -666,6 +666,8 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -617,6 +617,8 @@ static void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed)
+ 		mt76_put_rxwi(&dev->mt76, t);
+ 	}
+ 
++	mt76_free_pending_rxwi(&dev->mt76);
++
+ 	if (!wed->rx_buf_ring.rx_page.va)
+ 		return;
+ 
+@@ -775,6 +777,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  	wed->wlan.init_rx_buf = mt7915_wed_init_rx_buf;
  	wed->wlan.release_rx_buf = mt7915_wed_release_rx_buf;
- 
+ 	wed->wlan.update_wo_rx_stats = mt7915_mmio_wed_update_rx_stats;
 +	wed->wlan.ser_trigger = mt7915_wed_trigger_ser;
-+
- 	dev->mt76.rx_token_size = wed->wlan.rx_pkt;
- 	if (mtk_wed_device_attach(wed))
- 		return 0;
+ 
+ 	dev->mt76.rx_token_size = wed->wlan.rx_npkt;
+ 
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 6952825..36d1d86 100644
+index 6bc33f21..ec61941e 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -564,6 +564,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
- u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed,
- 				int pkt_num);
- void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed);
+@@ -562,6 +562,7 @@ void mt7915_wfsys_reset(struct mt7915_dev *dev);
+ irqreturn_t mt7915_irq_handler(int irq, void *dev_instance);
+ u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif);
+ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
 +void mt7915_wed_trigger_ser(struct mtk_wed_device *wed);
+ 
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);
- void mt7915_eeprom_rebonding(struct mt7915_dev *dev);
 -- 
 2.18.0
 

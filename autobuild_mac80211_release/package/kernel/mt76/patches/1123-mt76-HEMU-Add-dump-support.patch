@@ -1,7 +1,7 @@
-From 32c6671d000c26212b3c6894467392a7b2061f92 Mon Sep 17 00:00:00 2001
+From cf6ba9d0fb09e2c7975b15ede8a5389b700e1f1a Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Thu, 11 Aug 2022 18:09:45 -0700
-Subject: [PATCH 1123/1128] mt76: HEMU: Add dump support
+Subject: [PATCH 1123/1127] mt76: HEMU: Add dump support
 
 Change-Id: I521214f3feb6f0d528a9f550255050ffd1ec96d2
 ---
@@ -10,7 +10,7 @@ Change-Id: I521214f3feb6f0d528a9f550255050ffd1ec96d2
  2 files changed, 27 insertions(+)
 
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 5a28a55..7acb330 100644
+index cd5c3b83..5e34b852 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -37,6 +37,7 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -21,7 +21,7 @@ index 5a28a55..7acb330 100644
  };
  
  static const struct nla_policy
-@@ -997,6 +998,30 @@ static int mt7915_vendor_hemu_ctrl(struct wiphy *wiphy,
+@@ -1004,6 +1005,30 @@ static int mt7915_vendor_hemu_ctrl(struct wiphy *wiphy,
  	return 0;
  }
  
@@ -52,7 +52,7 @@ index 5a28a55..7acb330 100644
  static int
  mt7915_vendor_phy_capa_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
  			     struct sk_buff *skb, const void *data, int data_len,
-@@ -1122,6 +1147,7 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1192,6 +1217,7 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
  			WIPHY_VENDOR_CMD_NEED_RUNNING,
  		.doit = mt7915_vendor_hemu_ctrl,
@@ -61,10 +61,10 @@ index 5a28a55..7acb330 100644
  		.maxattr = MTK_VENDOR_ATTR_HEMU_CTRL_MAX,
  	},
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 83c41bc..57f52f3 100644
+index 72319717..c19ffe72 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
-@@ -58,6 +58,7 @@ enum mtk_vendor_attr_hemu_ctrl {
+@@ -72,6 +72,7 @@ enum mtk_vendor_attr_hemu_ctrl {
  	MTK_VENDOR_ATTR_HEMU_CTRL_UNSPEC,
  
  	MTK_VENDOR_ATTR_HEMU_CTRL_ONOFF,

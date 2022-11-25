@@ -1,7 +1,7 @@
-From a7682d61851c686f78273df7a9926203c8e17ee9 Mon Sep 17 00:00:00 2001
+From 022be7646ae36e7cb6c12ac55e0eae88e738de06 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
-Subject: [PATCH] mt76: mt7915: add vendor subcmd EDCCA ctrl
+Subject: [PATCH 1120/1127] mt76: mt7915: add vendor subcmd EDCCA ctrl
  enable/threshold/compensation
 
 Change-Id: I06a3f94d5e444be894200e2b6588d76ed38d09d0
@@ -16,10 +16,10 @@ Change-Id: I06a3f94d5e444be894200e2b6588d76ed38d09d0
  7 files changed, 266 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index a31b85f0..bceb6799 100644
+index c353341e..9339b711 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1163,6 +1163,7 @@ enum {
+@@ -1189,6 +1189,7 @@ enum {
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
@@ -28,10 +28,10 @@ index a31b85f0..bceb6799 100644
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 1864f241..2b4e122b 100644
+index 9180689e..83b97d23 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -455,6 +455,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
+@@ -454,6 +454,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
  			mutex_unlock(&dev->mt76.mutex);
  		}
  #endif
@@ -42,10 +42,10 @@ index 1864f241..2b4e122b 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index e03ec9e3..67304c84 100644
+index 97b1cf3b..cd6f3292 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4282,3 +4282,75 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
+@@ -4552,3 +4552,75 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
  
  	return 0;
  }
@@ -122,10 +122,10 @@ index e03ec9e3..67304c84 100644
 +	return 0;
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 0a79fe04..b608cb6a 100644
+index 300b7834..de265d15 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -836,6 +836,27 @@ enum {
+@@ -866,6 +866,27 @@ enum {
     MURU_DL_INIT,
     MURU_UL_INIT,
  };
@@ -154,10 +154,10 @@ index 0a79fe04..b608cb6a 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 5023cfcb..2b56692d 100644
+index 69f1b6b4..aaab5f7a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -747,7 +747,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
+@@ -754,7 +754,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
  int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
