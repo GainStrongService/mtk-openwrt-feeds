@@ -160,8 +160,27 @@ enum {
 #define MTK_PHY_RG_DEV1E_REG184		(0x180)
 #define   MTK_PHY_DASN_DAC_IN1_D_MASK	GENMASK(9, 0)
 
+#define MTK_PHY_RG_LP_IIR2_K1_L		(0x22a)
+#define MTK_PHY_RG_LP_IIR2_K1_U		(0x22b)
+#define MTK_PHY_RG_LP_IIR2_K2_L		(0x22c)
+#define MTK_PHY_RG_LP_IIR2_K2_U		(0x22d)
+#define MTK_PHY_RG_LP_IIR2_K3_L		(0x22e)
+#define MTK_PHY_RG_LP_IIR2_K3_U		(0x22f)
+#define MTK_PHY_RG_LP_IIR2_K4_L		(0x230)
+#define MTK_PHY_RG_LP_IIR2_K4_U		(0x231)
+#define MTK_PHY_RG_LP_IIR2_K5_L		(0x232)
+#define MTK_PHY_RG_LP_IIR2_K5_U		(0x233)
+
 #define MTK_PHY_RG_DEV1E_REG234		(0x234)
-#define   MTK_PHY_TR_OPEN_LOOP_EN	GENMASK(0, 0)
+#define   MTK_PHY_TR_OPEN_LOOP_EN_MASK	GENMASK(0, 0)
+#define   MTK_PHY_LPF_X_AVERAGE_MASK	GENMASK(7, 4)
+
+#define MTK_PHY_RG_LPF_CNT_VAL		(0x235)
+
+#define MTK_PHY_RG_DEV1E_REG27C		(0x27c)
+#define   MTK_PHY_VGASTATE_FFE_THR_ST1_MASK	GENMASK(12, 8)
+#define MTK_PHY_RG_DEV1E_REG27D		(0x27d)
+#define   MTK_PHY_VGASTATE_FFE_THR_ST2_MASK	GENMASK(4, 0)
 
 #define MTK_PHY_RG_DEV1E_REG53D		(0x53d)
 #define   MTK_PHY_DA_TX_R50_A_NORMAL_MASK	GENMASK(13, 8)
@@ -488,11 +507,13 @@ static int tx_offset_cal_efuse(struct phy_device *phydev, u32 *buf)
 
 static int tx_amp_fill_result(struct phy_device *phydev, u16 *buf)
 {
+	int i;
 	int bias[16] = {0};
 	switch(phydev->drv->phy_id) {
 		case 0x03a29461:
 		{
-			/* We add some calibration to efuse values:
+			/* We add some calibration to efuse values
+			 * due to board level influence.
 			 * GBE: +7, TBT: +1, HBT: +4, TST: +7
 			 */
 			int tmp[16] = { 7, 1, 4, 7,
@@ -514,6 +535,19 @@ static int tx_amp_fill_result(struct phy_device *phydev, u16 *buf)
 		default:
 			break;
 	}
+
+	for (i = 0; i < 12; i += 4) {
+		if (likely(buf[i>>2] + bias[i] >= 32)) {
+			bias[i] -= 13;
+		} else {
+			phy_modify_mmd(phydev, MDIO_MMD_VEND1, 0x5c,
+				0xf << (12-i), 0x6 << (12-i));
+			bias[i+1] += 13;
+			bias[i+2] += 13;
+			bias[i+3] += 13;
+		}
+	}
+
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TXVLD_DA_RG,
 		       MTK_PHY_DA_TX_I2MPB_A_GBE_MASK, (buf[0] + bias[0]) << 10);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TXVLD_DA_RG,
@@ -885,6 +919,7 @@ static int mt7531_phy_config_init(struct phy_device *phydev)
 
 static inline void mt7981_phy_finetune(struct phy_device *phydev)
 {
+	u32 i;
 	/* 100M eye finetune:
 	 * Keep middle level of TX MLT3 shapper as default.
 	 * Only change TX MLT3 overshoot level here.
@@ -911,8 +946,83 @@ static inline void mt7981_phy_finetune(struct phy_device *phydev)
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D1, 0x2624);
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D2, 0x2426);
 
+	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_52B5);
+	/* EnabRandUpdTrig = 1 */
+	__phy_write(phydev, 0x11, 0x2f00);
+	__phy_write(phydev, 0x12, 0xe);
+	__phy_write(phydev, 0x10, 0x8fb0);
+
+	/* SlvDSPreadyTime = 0xc */
+	__phy_write(phydev, 0x11, 0x671);
+	__phy_write(phydev, 0x12, 0xc);
+	__phy_write(phydev, 0x10, 0x8fae);
+
+	/* NormMseLoThresh = 85 */
+	__phy_write(phydev, 0x11, 0x55a0);
+	__phy_write(phydev, 0x12, 0x0);
+	__phy_write(phydev, 0x10, 0x83aa);
+
+	/* InhibitDisableDfeTail1000 = 1 */
+	__phy_write(phydev, 0x11, 0x2b);
+	__phy_write(phydev, 0x12, 0x0);
+	__phy_write(phydev, 0x10, 0x8f80);
+
+	/* SSTr related */
+	__phy_write(phydev, 0x11, 0xbaef);
+	__phy_write(phydev, 0x12, 0x2e);
+	__phy_write(phydev, 0x10, 0x968c);
+
+	/* VcoSlicerThreshBitsHigh */
+	__phy_write(phydev, 0x11, 0x5555);
+	__phy_write(phydev, 0x12, 0x55);
+	__phy_write(phydev, 0x10, 0x8ec0);
+
+	/* ResetSyncOffset = 6 */
+	__phy_write(phydev, 0x11, 0x600);
+	__phy_write(phydev, 0x12, 0x0);
+	__phy_write(phydev, 0x10, 0x8fc0);
+
+	/* VgaDecRate = 1 */
+	__phy_write(phydev, 0x11, 0x4c2a);
+	__phy_write(phydev, 0x12, 0x3e);
+	__phy_write(phydev, 0x10, 0x8fa4);
+
+	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
+
+	/* TR_OPEN_LOOP_EN = 1, lpf_x_average = 9*/
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG234,
-			MTK_PHY_TR_OPEN_LOOP_EN, 0x1);
+		MTK_PHY_TR_OPEN_LOOP_EN_MASK & MTK_PHY_LPF_X_AVERAGE_MASK,
+		BIT(0) & (0x9 << 4));
+
+	/* rg_tr_lpf_cnt_val = 512 */
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LPF_CNT_VAL, 0x200);
+
+	/* IIR2 related */
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LP_IIR2_K1_L, 0x82);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LP_IIR2_K1_U, 0x0);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LP_IIR2_K2_L, 0x103);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LP_IIR2_K2_U, 0x0);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LP_IIR2_K3_L, 0x82);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LP_IIR2_K3_U, 0x0);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LP_IIR2_K4_L, 0xd177);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LP_IIR2_K4_U, 0x3);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LP_IIR2_K5_L, 0x2c82);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LP_IIR2_K5_U, 0xe);
+
+	/* FFE peaking */
+	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG27C,
+		MTK_PHY_VGASTATE_FFE_THR_ST1_MASK, 0x1b << 8);
+	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG27D,
+		MTK_PHY_VGASTATE_FFE_THR_ST2_MASK, 0x1e);
+
+	/* TX shape */
+	/* 10/100/1000 TX shaper is enabled by default */
+	for (i = 0x202; i < 0x230; i += 2) {
+		if (i == 0x20c || i == 0x218 || i == 0x224)
+			continue;
+		phy_write_mmd(phydev, MDIO_MMD_VEND2, i, 0x2219);
+		phy_write_mmd(phydev, MDIO_MMD_VEND2, i+1, 0x23);
+	}
 }
 
 static inline void mt7988_phy_finetune(struct phy_device *phydev)
