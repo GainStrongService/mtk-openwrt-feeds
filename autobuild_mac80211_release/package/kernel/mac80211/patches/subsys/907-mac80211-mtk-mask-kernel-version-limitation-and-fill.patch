@@ -1,8 +1,8 @@
-From bb2d81974833d5ee908efc2a2cb033304cff1f51 Mon Sep 17 00:00:00 2001
+From 80f2272f822c0df59885ec78fbec78ee99c086c9 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 11 Mar 2022 11:34:11 +0800
-Subject: [PATCH 908/914] mac80211: mask kernel version limitation and fill
- forward path in kernel 5.4
+Subject: [PATCH 907/913] mac80211: mtk: mask kernel version limitation and
+ fill forward path in kernel 5.4
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -13,10 +13,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  4 files changed, 10 deletions(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index bde3495..35dbf62 100644
+index 66fedf6..95e5e66 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -4294,13 +4294,11 @@ struct ieee80211_ops {
+@@ -4292,13 +4292,11 @@ struct ieee80211_ops {
  				     struct ieee80211_sta *sta, u8 flowid);
  	int (*set_radar_background)(struct ieee80211_hw *hw,
  				    struct cfg80211_chan_def *chandef);
@@ -50,7 +50,7 @@ index 2df420b..d2b68ef 100644
  
  #endif /* __MAC80211_DRIVER_OPS */
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index b777921..e7c85ce 100644
+index 717dfda..455791f 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
 @@ -852,7 +852,6 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
@@ -99,5 +99,5 @@ index bbda9e9..d91498f 100644
  #endif /* !__MAC80211_DRIVER_TRACE || TRACE_HEADER_MULTI_READ */
  
 -- 
-2.18.0
+2.36.1
 

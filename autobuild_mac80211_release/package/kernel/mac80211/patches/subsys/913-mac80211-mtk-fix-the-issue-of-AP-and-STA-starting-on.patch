@@ -1,8 +1,8 @@
-From 4cd2b159ef1f560721a830d6c0e0ae69169521b4 Mon Sep 17 00:00:00 2001
+From af85a4c0624897cb92ba6f543b322bb1fcbe9845 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 5 Oct 2022 19:13:43 +0800
-Subject: [PATCH 914/914] mac80211: fix the issue of AP and STA starting on DFS
- channel concurrently
+Subject: [PATCH 913/913] mac80211: mtk: fix the issue of AP and STA starting
+ on DFS channel concurrently
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -17,7 +17,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  8 files changed, 109 insertions(+), 5 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 7d20b98..defce1e 100644
+index b97ddbd..c4c0926 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
 @@ -800,6 +800,24 @@ cfg80211_chandef_identical(const struct cfg80211_chan_def *chandef1,
@@ -76,10 +76,10 @@ index e674aa7..ada8288 100644
  	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
  	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index d1fc54d..c40256d 100644
+index 97c5e5d..d726410 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -4535,6 +4535,49 @@ ieee80211_skip_cac(struct wireless_dev *wdev)
+@@ -4522,6 +4522,49 @@ ieee80211_skip_cac(struct wireless_dev *wdev)
  	}
  }
  
@@ -129,7 +129,7 @@ index d1fc54d..c40256d 100644
  const struct cfg80211_ops mac80211_config_ops = {
  	.add_virtual_intf = ieee80211_add_iface,
  	.del_virtual_intf = ieee80211_del_iface,
-@@ -4642,4 +4685,5 @@ const struct cfg80211_ops mac80211_config_ops = {
+@@ -4629,4 +4672,5 @@ const struct cfg80211_ops mac80211_config_ops = {
  	.color_change = ieee80211_color_change,
  	.set_radar_background = ieee80211_set_radar_background,
  	.skip_cac = ieee80211_skip_cac,
@@ -254,5 +254,5 @@ index eadabfa..a7b0c82 100644
  
  #undef TRACE_INCLUDE_PATH
 -- 
-2.18.0
+2.36.1
 
