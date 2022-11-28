@@ -1143,7 +1143,8 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	if (unlikely(dma_mapping_error(eth->dev, dma_addr)))
 		return -ENOMEM;
 
-	phy_ring_tail = eth->phy_scratch_ring + soc->txrx.txd_size * (cnt - 1);
+	phy_ring_tail = eth->phy_scratch_ring +
+			(dma_addr_t)soc->txrx.txd_size * (cnt - 1);
 
 	for (i = 0; i < cnt; i++) {
 		struct mtk_tx_dma_v2 *txd;
@@ -1738,7 +1739,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 	while (done < budget) {
 		struct net_device *netdev = NULL;
 		unsigned int pktlen;
-		dma_addr_t dma_addr;
+		dma_addr_t dma_addr = 0;
 		int mac = 0;
 
 		if (eth->hwlro)
@@ -2126,7 +2127,8 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 					       &ring->phys, GFP_KERNEL);
 	else {
 		ring->dma =  eth->scratch_ring + MTK_DMA_SIZE * sz;
-		ring->phys = eth->phy_scratch_ring + MTK_DMA_SIZE * sz;
+		ring->phys = eth->phy_scratch_ring +
+			     MTK_DMA_SIZE * (dma_addr_t)sz;
 	}
 
 	if (!ring->dma)
@@ -4035,8 +4037,13 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 					         "ethernet:fixed link", mac);
 			}
 
-			if (!of_property_read_string(to_of_node(fixed_node), "label", &label))
-				strcpy(phylink_priv->label, label);
+			if (!of_property_read_string(to_of_node(fixed_node),
+						     "label", &label)) {
+				if (strlen(label) < 16)
+					strcpy(phylink_priv->label, label);
+				else
+					dev_err(eth->dev, "insufficient space for label!\n");
+			}
 
 			phy_np = of_parse_phandle(to_of_node(fixed_node), "phy-handle", 0);
 			if (phy_np) {

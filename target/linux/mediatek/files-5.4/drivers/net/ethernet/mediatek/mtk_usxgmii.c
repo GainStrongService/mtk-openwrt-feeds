@@ -118,7 +118,7 @@ void mtk_usxgmii_setup_phya_an_10000(struct mtk_xgmii *ss, int mac_id)
 {
 	u32 id = mtk_mac2xgmii_id(ss->eth, mac_id);
 
-	if (id < 0 || id >= MTK_MAX_DEVS ||
+	if (id >= MTK_MAX_DEVS ||
 	    !ss->regmap_usxgmii[id] || !ss->regmap_pextp[id])
 		return;
 
@@ -189,7 +189,7 @@ void mtk_usxgmii_setup_phya_force(struct mtk_xgmii *ss, int mac_id, int max_spee
 	unsigned int val;
 	u32 id = mtk_mac2xgmii_id(ss->eth, mac_id);
 
-	if (id < 0 || id >= MTK_MAX_DEVS ||
+	if (id >= MTK_MAX_DEVS ||
 	    !ss->regmap_usxgmii[id] || !ss->regmap_pextp[id])
 		return;
 
@@ -292,7 +292,7 @@ void mtk_usxgmii_reset(struct mtk_xgmii *ss, int mac_id)
 	struct mtk_eth *eth = ss->eth;
 	u32 id = mtk_mac2xgmii_id(eth, mac_id);
 
-	if (id < 0 || id >= MTK_MAX_DEVS || !eth->toprgu)
+	if (id >= MTK_MAX_DEVS || !eth->toprgu)
 		return;
 
 	switch (mac_id) {

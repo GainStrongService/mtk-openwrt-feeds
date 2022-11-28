@@ -204,8 +204,10 @@ static int set_mux_gmac1_gmac2_to_sgmii_rgmii(struct mtk_eth *eth, u64 path)
 		regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
 		val &= SYSCFG0_SGMII_MASK;
 
-		if ((path == MTK_GMAC1_RGMII && val == SYSCFG0_SGMII_GMAC1) ||
-		    (path == MTK_GMAC2_RGMII && val == SYSCFG0_SGMII_GMAC2))
+		if ((path == MTK_ETH_PATH_GMAC1_RGMII &&
+		     val == SYSCFG0_SGMII_GMAC1) ||
+		    (path == MTK_ETH_PATH_GMAC2_RGMII &&
+		     val == SYSCFG0_SGMII_GMAC2))
 			val = 0;
 		else
 			updated = false;

@@ -102,7 +102,7 @@ void mtk_sgmii_setup_phya_gen2(struct mtk_xgmii *ss, int mac_id)
 {
 	u32 id = mtk_mac2xgmii_id(ss->eth, mac_id);
 
-	if (id < 0 || id >= MTK_MAX_DEVS ||
+	if (id >= MTK_MAX_DEVS ||
 	    !ss->regmap_sgmii[id] || !ss->regmap_pextp[id])
 		return;
 

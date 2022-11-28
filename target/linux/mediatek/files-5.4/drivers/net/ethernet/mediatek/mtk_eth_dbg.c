@@ -265,7 +265,7 @@ static ssize_t mtketh_mt7530sw_debugfs_write(struct file *file,
 {
 	struct mtk_eth *eth = file->private_data;
 	char buf[32], *token, *p = buf;
-	u32 reg, value, phy;
+	unsigned long reg, value, phy;
 	int ret;
 
 	if (!mt7530_exist(eth))
@@ -314,7 +314,7 @@ static ssize_t mtketh_debugfs_write(struct file *file, const char __user *ptr,
 {
 	struct mtk_eth *eth = file->private_data;
 	char buf[32], *token, *p = buf;
-	u32 reg, value, phy;
+	unsigned long reg, value, phy;
 	int ret;
 
 	if (*off != 0)
@@ -766,7 +766,8 @@ int tx_ring_read(struct seq_file *seq, void *v)
 	seq_printf(seq, "cpu next free: %d\n", (int)(ring->next_free - ring->dma));
 	seq_printf(seq, "cpu last free: %d\n", (int)(ring->last_free - ring->dma));
 	for (i = 0; i < MTK_DMA_SIZE; i++) {
-		dma_addr_t tmp = ring->phys + i * eth->soc->txrx.txd_size;
+		dma_addr_t tmp = ring->phys +
+				 i * (dma_addr_t)eth->soc->txrx.txd_size;
 
 		tx_ring = ring->dma + i * eth->soc->txrx.txd_size;
 
@@ -807,7 +808,8 @@ int hwtx_ring_read(struct seq_file *seq, void *v)
 	int i = 0;
 
 	for (i = 0; i < MTK_DMA_SIZE; i++) {
-		dma_addr_t addr = eth->phy_scratch_ring + i * eth->soc->txrx.txd_size;
+		dma_addr_t addr = eth->phy_scratch_ring +
+				  i * (dma_addr_t)eth->soc->txrx.txd_size;
 
 		hwtx_ring = eth->scratch_ring + i * eth->soc->txrx.txd_size;
 
@@ -1062,6 +1064,9 @@ void hw_lro_stats_update(u32 ring_no, struct mtk_rx_dma_v2 *rxd)
 		agg_cnt = RX_DMA_GET_AGG_CNT(rxd->rxd2);
 	}
 
+	if (idx >= MTK_HW_LRO_RING_NUM)
+		return;
+
 	agg_size = RX_DMA_GET_PLEN0(rxd->rxd2);
 
 	hw_lro_agg_size_cnt[idx][agg_size / 5000]++;
@@ -1083,6 +1088,9 @@ void hw_lro_flush_stats_update(u32 ring_no, struct mtk_rx_dma_v2 *rxd)
 		idx = ring_no - 1;
 		flush_reason = RX_DMA_GET_REV(rxd->rxd2);
 	}
+
+	if (idx >= MTK_HW_LRO_RING_NUM)
+		return;
 
 	if ((flush_reason & 0x7) == MTK_HW_LRO_AGG_FLUSH)
 		hw_lro_agg_flush_cnt[idx]++;
