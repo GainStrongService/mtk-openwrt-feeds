@@ -1463,7 +1463,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 						 skb->mark & 0x7f : skb->mark & 0xf;
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 					if ((IS_HQOS_UL_MODE && IS_WAN(dev)) ||
-					    (IS_HQOS_DL_MODE && IS_LAN(dev)) ||
+					    (IS_HQOS_DL_MODE &&
+					     IS_LAN_GRP(dev)) ||
 					    (IS_PPPQ_MODE &&
 					     IS_PPPQ_PATH(dev, skb)))
 						entry.ipv4_hnapt.tport_id = 1;
@@ -1628,7 +1629,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			else
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 				if ((IS_HQOS_UL_MODE && IS_WAN(dev)) ||
-				    (IS_HQOS_DL_MODE && IS_LAN(dev)) ||
+				    (IS_HQOS_DL_MODE && IS_LAN_GRP(dev)) ||
 				    (IS_PPPQ_MODE &&
 				     IS_PPPQ_PATH(dev, skb)))
 					entry.ipv4_hnapt.tport_id = 1;
@@ -1674,7 +1675,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			else
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 				if ((IS_HQOS_UL_MODE && IS_WAN(dev)) ||
-					(IS_HQOS_DL_MODE && IS_LAN(dev)) ||
+					(IS_HQOS_DL_MODE && IS_LAN_GRP(dev)) ||
 					(IS_PPPQ_MODE &&
 					 IS_PPPQ_PATH(dev, skb)))
 					entry.ipv6_5t_route.tport_id = 1;
