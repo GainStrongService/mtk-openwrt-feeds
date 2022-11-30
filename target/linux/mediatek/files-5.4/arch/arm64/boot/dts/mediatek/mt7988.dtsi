@@ -338,12 +338,6 @@
 		#clock-cells = <0>;
 	};
 
-	uart_clk: dummy_uart_clk {
-		compatible = "fixed-clock";
-		clock-frequency = <40000000>;
-		#clock-cells = <0>;
-	};
-
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupt-parent = <&gic>;
@@ -395,7 +389,12 @@
 			     "mediatek,mt6577-uart";
 		reg = <0 0x11000000 0 0x100>;
 		interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&uart_clk>;
+		clocks = <&infracfg_ao CK_INFRA_52M_UART0_CK>;
+		clock-names = "bus";
+		assigned-clocks = <&topckgen CK_TOP_UART_SEL>,
+				  <&infracfg_ao CK_INFRA_MUX_UART0_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>,
+					 <&infracfg CK_INFRA_UART_O0>;
 		status = "disabled";
 	};
 
@@ -404,7 +403,12 @@
 			     "mediatek,mt6577-uart";
 		reg = <0 0x11000100 0 0x100>;
 		interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&uart_clk>;
+		clocks = <&infracfg_ao CK_INFRA_52M_UART1_CK>;
+		clock-names = "bus";
+		assigned-clocks = <&topckgen CK_TOP_UART_SEL>,
+				  <&infracfg_ao CK_INFRA_MUX_UART1_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>,
+					 <&infracfg CK_INFRA_UART_O1>;
 		status = "disabled";
 	};
 
@@ -413,7 +417,12 @@
 			     "mediatek,mt6577-uart";
 		reg = <0 0x11000200 0 0x100>;
 		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&uart_clk>;
+		clocks = <&infracfg_ao CK_INFRA_52M_UART2_CK>;
+		clock-names = "bus";
+		assigned-clocks = <&topckgen CK_TOP_UART_SEL>,
+				  <&infracfg_ao CK_INFRA_MUX_UART2_SEL>;
+		assigned-clock-parents = <&topckgen CK_TOP_CB_CKSQ_40M>,
+					 <&infracfg CK_INFRA_UART_O2>;
 		status = "disabled";
 	};
 
