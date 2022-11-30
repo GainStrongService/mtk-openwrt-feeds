@@ -1,0 +1,58 @@
+From 504f797dfcca7ff11c1ab1698a92c0ef545bae89 Mon Sep 17 00:00:00 2001
+From: Sujuan Chen <sujuan.chen@mediatek.com>
+Date: Fri, 25 Nov 2022 14:37:58 +0800
+Subject: [PATCH 3009/3010] mt76: mt7915: wed: drop scatter and gather frame
+
+The scatter and gather frame may be incorrect because WED and WO may
+send frames to host driver interleaved.
+
+Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
+---
+ dma.c  | 5 +++++
+ dma.h  | 1 +
+ mt76.h | 1 +
+ 3 files changed, 7 insertions(+)
+
+diff --git a/dma.c b/dma.c
+index ddc804a5..fec9d090 100644
+--- a/dma.c
++++ b/dma.c
+@@ -416,6 +416,11 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+ 
+ 			*drop = !!(ctrl & (MT_DMA_CTL_TO_HOST_A |
+ 					   MT_DMA_CTL_DROP));
++
++			if (!(*more) && FIELD_GET(MT_DMA_CTL_WO, desc->buf1))
++				q->flags &= ~MT_QFLAG_WED_FRAG;
++			else
++				q->flags |= MT_QFLAG_WED_FRAG;
+ 		}
+ 	} else {
+ 		buf = e->buf;
+diff --git a/dma.h b/dma.h
+index 4b9bc7f4..ce8ac426 100644
+--- a/dma.h
++++ b/dma.h
+@@ -19,6 +19,7 @@
+ #define MT_DMA_CTL_TO_HOST_A		BIT(12)
+ #define MT_DMA_CTL_DROP			BIT(14)
+ #define MT_DMA_CTL_TOKEN		GENMASK(31, 16)
++#define MT_DMA_CTL_WO			BIT(8)
+ 
+ #define MT_DMA_PPE_CPU_REASON		GENMASK(15, 11)
+ #define MT_DMA_PPE_ENTRY		GENMASK(30, 16)
+diff --git a/mt76.h b/mt76.h
+index cca8986f..43594102 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -30,6 +30,7 @@
+ #define MT_QFLAG_WED_RING	GENMASK(1, 0)
+ #define MT_QFLAG_WED_TYPE	GENMASK(3, 2)
+ #define MT_QFLAG_WED		BIT(4)
++#define MT_QFLAG_WED_FRAG	BIT(5)
+ 
+ #define __MT_WED_Q(_type, _n)	(MT_QFLAG_WED | \
+ 				 FIELD_PREP(MT_QFLAG_WED_TYPE, _type) | \
+-- 
+2.36.1
+

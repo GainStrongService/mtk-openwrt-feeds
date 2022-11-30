@@ -1,0 +1,146 @@
+From f6b59719aef1daa47df3ea5da4fb30c09505f9fe Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 2 Sep 2022 14:40:40 +0800
+Subject: [PATCH 3006/3010] mt76: mt7915: wed: enable red per-band token drop
+ for HW Path
+
+Limit the number of token used by each band. If a band uses too many token,
+it may hurt the throughput of the other band. The SW path can solve this
+problem by AQL.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7915/mcu.c    | 53 +++++++++++++++++++++++++++++++++++++++----------
+ mt7915/mcu.h    |  1 +
+ mt7915/mt7915.h |  3 ++-
+ 3 files changed, 46 insertions(+), 11 deletions(-)
+
+diff --git a/mt7915/mcu.c b/mt7915/mcu.c
+index 03fd8c50..e6826c60 100644
+--- a/mt7915/mcu.c
++++ b/mt7915/mcu.c
+@@ -2343,8 +2343,13 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
+ 			mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
+ 					  MCU_WA_PARAM_WED_VERSION,
+ 					  wed->rev_id, 0);
++
++		mt7915_mcu_set_red(dev, true);
++	} else {
++		mt7915_mcu_set_red(dev, false);
+ 	}
+ 
++
+ 	ret = mt7915_mcu_set_mwds(dev, 1);
+ 	if (ret)
+ 		return ret;
+@@ -2354,12 +2359,7 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = mt7915_mcu_init_rx_airtime(dev);
+-	if (ret)
+-		return ret;
+-
+-	return mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
+-				 MCU_WA_PARAM_RED, 0, 0);
++	return mt7915_mcu_init_rx_airtime(dev);
+ }
+ 
+ int mt7915_mcu_init(struct mt7915_dev *dev)
+@@ -4429,6 +4429,35 @@ int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a
+ 
+ 	return mt76_mcu_send_msg(&dev->mt76, cmd, &req, sizeof(req), wait_resp);
+ }
++#endif
++
++static int mt7915_red_set_watermark(struct mt7915_dev *dev)
++{
++#define RED_GLOBAL_TOKEN_WATERMARK 2
++#define TOTAL_HW_TOKEN_SIZE 8192
++	struct {
++		__le32 args[3];
++
++		u8 cmd;
++		u8 version;
++		u8 __rsv1[4];
++		u16 len;
++
++		__le16 high_mark;
++		__le16 low_mark;
++		u8 __rsv2[12];
++	} req = {
++		.args[0] = cpu_to_le32(MCU_WA_PARAM_RED_SETTING),
++		.cmd = RED_GLOBAL_TOKEN_WATERMARK,
++		.len = cpu_to_le16(sizeof(req) - 12),
++
++		.high_mark = cpu_to_le16(TOTAL_HW_TOKEN_SIZE - 256),
++		.low_mark = cpu_to_le16(TOTAL_HW_TOKEN_SIZE - 256 - 1536),
++	};
++
++	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_PARAM_CMD(SET), &req,
++				 sizeof(req), false);
++}
+ 
+ int mt7915_mcu_set_red(struct mt7915_dev *dev, bool enabled)
+ {
+@@ -4439,17 +4468,21 @@ int mt7915_mcu_set_red(struct mt7915_dev *dev, bool enabled)
+ 	u32 red_type = enabled > 0 ? RED_BY_WA_ENABLE : RED_DISABLE;
+ 	__le32 req = cpu_to_le32(red_type);
+ 
++	if (enabled) {
++		ret = mt7915_red_set_watermark(dev);
++		if (ret < 0)
++			return ret;
++	}
++
+ 	ret = mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(RED_ENABLE), &req,
+ 				 sizeof(req), false);
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	mt7915_dbg_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
+-			  MCU_WA_PARAM_RED, enabled, 0, true);
++	return mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
++				 MCU_WA_PARAM_RED, enabled, 0);
+ 
+-	return 0;
+ }
+-#endif
+ 
+ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
+ {
+diff --git a/mt7915/mcu.h b/mt7915/mcu.h
+index 5fcac90f..f9fb4137 100644
+--- a/mt7915/mcu.h
++++ b/mt7915/mcu.h
+@@ -282,6 +282,7 @@ enum {
+ 	MCU_WA_PARAM_RED_TARGET_DELAY = 0x10,
+ #endif
+ 	MCU_WA_PARAM_WED_VERSION = 0x32,
++	MCU_WA_PARAM_RED_SETTING = 0x40,
+ };
+ 
+ enum mcu_mmps_mode {
+diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
+index ec61941e..3930c441 100644
+--- a/mt7915/mt7915.h
++++ b/mt7915/mt7915.h
+@@ -774,13 +774,14 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
+ #endif
+ int mt7915_mcu_set_edcca(struct mt7915_phy *phy, int mode, u8 *value, s8 compensation);
+ int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value);
++int mt7915_mcu_set_red(struct mt7915_dev *dev, bool enabled);
++
+ int mt7915_mcu_ipi_hist_ctrl(struct mt7915_phy *phy, void *data, u8 cmd, bool wait_resp);
+ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
+ 
+ #ifdef MTK_DEBUG
+ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
+ int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp);
+-int mt7915_mcu_set_red(struct mt7915_dev *dev, bool enabled);
+ void mt7915_dump_tmac_info(u8 *tmac_info);
+ int mt7915_mcu_set_txpower_level(struct mt7915_phy *phy, u8 drop_level);
+ void mt7915_packet_log_to_host(struct mt7915_dev *dev, const void *data, int len, int type, int des_len);
+-- 
+2.36.1
+

@@ -1,7 +1,7 @@
-From a1e88291d8d20a423b9975359d2196491e58b500 Mon Sep 17 00:00:00 2001
+From 6f3fdaaef8dcd1d95017aaf1755cf001168d0836 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
-Subject: [PATCH 1001/1008] mt76: mt7915: add mtk internal debug tools for mt76
+Subject: [PATCH 1001/1010] mt76: mt7915: add mtk internal debug tools for mt76
 
 ---
  mt76_connac_mcu.h     |    7 +
@@ -22,7 +22,7 @@ Subject: [PATCH 1001/1008] mt76: mt7915: add mtk internal debug tools for mt76
  create mode 100644 mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 46584e6f..c0fa2334 100644
+index 72d235a1..ff733f9f 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1135,6 +1135,7 @@ enum {
@@ -204,7 +204,7 @@ index 30f8f18b..092d8434 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 30b44b53..609f10d4 100644
+index 97a19bdb..0b13375e 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -301,6 +301,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -229,7 +229,7 @@ index 30b44b53..609f10d4 100644
  	if (hdr_trans && ieee80211_has_morefrags(fc)) {
  		struct ieee80211_vif *vif;
  		int err;
-@@ -827,6 +835,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -821,6 +829,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	tx_info->buf[1].skip_unmap = true;
  	tx_info->nbuf = MT_CT_DMA_BUF_NUM;
  
@@ -351,10 +351,10 @@ index 36c21596..5af6de5d 100644
 +}
 +#endif
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index ff3eedab..2d057279 100644
+index 46c517e5..b7e8ba2e 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -272,6 +272,10 @@ enum {
+@@ -271,6 +271,10 @@ enum {
  	MCU_WA_PARAM_PDMA_RX = 0x04,
  	MCU_WA_PARAM_CPU_UTIL = 0x0b,
  	MCU_WA_PARAM_RED = 0x0e,
@@ -4891,5 +4891,5 @@ index e5d4a105..3d51d9ec 100644
  	return ret;
  }
 -- 
-2.18.0
+2.36.1
 
