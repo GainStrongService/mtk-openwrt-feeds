@@ -171,7 +171,7 @@
 #define PDMA_BASE               0x6800
 #define QDMA_BASE               0x4400
 #define WDMA_BASE(x)		(0x4800 + ((x) * 0x400))
-#define PPE_BASE(x)		((x == 2) ? 0x2C00 : 0x2200 + ((x) * 0x400))
+#define PPE_BASE(x)		((x == 2) ? 0x2E00 : 0x2200 + ((x) * 0x400))
 #elif defined(CONFIG_MEDIATEK_NETSYS_V2)
 #define PDMA_BASE               0x6000
 #define QDMA_BASE               0x4400
