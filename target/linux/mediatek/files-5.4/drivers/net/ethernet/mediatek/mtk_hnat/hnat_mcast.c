@@ -289,7 +289,7 @@ int hnat_mcast_enable(u32 ppe_id)
 	if (!pmcast)
 		return -1;
 
-	if (hnat_priv->data->version == MTK_HNAT_V1)
+	if (hnat_priv->data->version == MTK_HNAT_V1_1)
 		pmcast->max_entry = 0x10;
 	else
 		pmcast->max_entry = MAX_MCAST_ENTRY;
@@ -306,7 +306,7 @@ int hnat_mcast_enable(u32 ppe_id)
 	hnat_priv->pmcast = pmcast;
 
 	/* mt7629 should checkout mcast entry life time manualy */
-	if (hnat_priv->data->version == MTK_HNAT_V3) {
+	if (hnat_priv->data->version == MTK_HNAT_V1_3) {
 		timer_setup(&hnat_priv->hnat_mcast_check_timer,
 			    hnat_mcast_check_timestamp, 0);
 		hnat_priv->hnat_mcast_check_timer.expires = jiffies;
@@ -341,7 +341,7 @@ int hnat_mcast_disable(void)
 	if (!pmcast)
 		return -EINVAL;
 
-	if (hnat_priv->data->version == MTK_HNAT_V3)
+	if (hnat_priv->data->version == MTK_HNAT_V1_3)
 		del_timer_sync(&hnat_priv->hnat_mcast_check_timer);
 
 	flush_work(&pmcast->work);

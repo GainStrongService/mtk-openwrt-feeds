@@ -828,7 +828,7 @@ int read_mib(struct mtk_hnat *h, u32 ppe_id,
 	cnt_r1 = readl(h->ppe_base[ppe_id] + PPE_MIB_SER_R1);
 	cnt_r2 = readl(h->ppe_base[ppe_id] + PPE_MIB_SER_R2);
 
-	if (hnat_priv->data->version == MTK_HNAT_V5) {
+	if (hnat_priv->data->version == MTK_HNAT_V3) {
 		cnt_r3 = readl(h->ppe_base[ppe_id] + PPE_MIB_SER_R3);
 		*bytes = cnt_r0 + ((u64)cnt_r1 << 32);
 		*packets = cnt_r2 + ((u64)cnt_r3 << 32);
@@ -2106,7 +2106,7 @@ static ssize_t hnat_queue_show(struct file *file, char __user *user_buf,
 			 "scheduler: %d\nhw resv: %d\nsw resv: %d\n", scheduler,
 			 (qtx_cfg >> 8) & 0xff, qtx_cfg & 0xff);
 
-	if (hnat_priv->data->version != MTK_HNAT_V1) {
+	if (hnat_priv->data->version != MTK_HNAT_V1_1) {
 		/* Switch to debug mode */
 		cr_set_field(h->fe_base + QTX_MIB_IF, MIB_ON_QTX_CFG, 1);
 		cr_set_field(h->fe_base + QTX_MIB_IF, VQTX_MIB_EN, 1);

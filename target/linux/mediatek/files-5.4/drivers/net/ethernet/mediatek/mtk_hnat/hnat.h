@@ -834,11 +834,11 @@ struct hnat_accounting {
 };
 
 enum mtk_hnat_version {
-	MTK_HNAT_V1 = 1,	/* version 1: mt7621, mt7623 */
-	MTK_HNAT_V2,		/* version 2: mt7622 */
-	MTK_HNAT_V3,		/* version 3: mt7629 */
-	MTK_HNAT_V4,		/* version 4: mt7981, mt7986 */
-	MTK_HNAT_V5,		/* version 5: mt7988 */
+	MTK_HNAT_V1_1 = 1,	/* version 1.1: mt7621, mt7623	*/
+	MTK_HNAT_V1_2,		/* version 1.2: mt7622		*/
+	MTK_HNAT_V1_3,		/* version 1.3: mt7629		*/
+	MTK_HNAT_V2,		/* version 2:	mt7981, mt7986	*/
+	MTK_HNAT_V3,		/* version 3:	mt7988		*/
 };
 
 struct mtk_hnat_data {

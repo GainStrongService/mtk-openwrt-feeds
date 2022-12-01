@@ -308,8 +308,9 @@ static int hnat_hw_init(u32 ppe_id)
 	writel(HASH_SEED_KEY, hnat_priv->ppe_base[ppe_id] + PPE_HASH_SEED);
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, XMODE, 0);
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, TB_ENTRY_SIZE,
-		     (hnat_priv->data->version == MTK_HNAT_V5) ? ENTRY_128B :
-		     (hnat_priv->data->version == MTK_HNAT_V4) ? ENTRY_96B : ENTRY_80B);
+		     (hnat_priv->data->version == MTK_HNAT_V3) ? ENTRY_128B :
+		     (hnat_priv->data->version == MTK_HNAT_V2) ? ENTRY_96B :
+								 ENTRY_80B);
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SMA, SMA_FWD_CPU_BUILD_ENTRY);
 
 	/* set ip proto */
@@ -325,12 +326,12 @@ static int hnat_hw_init(u32 ppe_id)
 		    BIT_IPV4_DSL_EN | BIT_IPV6_6RD_EN |
 		    BIT_IPV6_3T_ROUTE_EN | BIT_IPV6_5T_ROUTE_EN);
 
-	if (hnat_priv->data->version == MTK_HNAT_V4 ||
-	    hnat_priv->data->version == MTK_HNAT_V5)
+	if (hnat_priv->data->version == MTK_HNAT_V2 ||
+	    hnat_priv->data->version == MTK_HNAT_V3)
 		cr_set_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
 			    BIT_IPV4_MAPE_EN | BIT_IPV4_MAPT_EN);
 
-	if (hnat_priv->data->version == MTK_HNAT_V5)
+	if (hnat_priv->data->version == MTK_HNAT_V3)
 		cr_set_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
 			    BIT_IPV6_NAT_EN | BIT_IPV6_NAPT_EN |
 			    BIT_CS0_RM_ALL_IP6_IP_EN);
@@ -378,13 +379,13 @@ static int hnat_hw_init(u32 ppe_id)
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG, TTL0_DRP, 0);
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG, MCAST_TB_EN, 1);
 
-	if (hnat_priv->data->version == MTK_HNAT_V4 ||
-	    hnat_priv->data->version == MTK_HNAT_V5) {
+	if (hnat_priv->data->version == MTK_HNAT_V2 ||
+	    hnat_priv->data->version == MTK_HNAT_V3) {
 		writel(0xcb777, hnat_priv->ppe_base[ppe_id] + PPE_DFT_CPORT1);
 		writel(0x7f, hnat_priv->ppe_base[ppe_id] + PPE_SBW_CTRL);
 	}
 
-	if (hnat_priv->data->version == MTK_HNAT_V5) {
+	if (hnat_priv->data->version == MTK_HNAT_V3) {
 		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_SB_FIFO_DBG,
 			     SB_MED_FULL_DRP_EN, 1);
 	}
@@ -433,7 +434,7 @@ static int hnat_start(u32 ppe_id)
 	writel(hnat_priv->foe_table_dev[ppe_id], hnat_priv->ppe_base[ppe_id] + PPE_TB_BASE);
 	memset(hnat_priv->foe_table_cpu[ppe_id], 0, foe_table_sz);
 
-	if (hnat_priv->data->version == MTK_HNAT_V1)
+	if (hnat_priv->data->version == MTK_HNAT_V1_1)
 		exclude_boundary_entry(hnat_priv->foe_table_cpu[ppe_id]);
 
 	if (hnat_priv->data->per_flow_accounting) {
@@ -525,12 +526,12 @@ static void hnat_stop(u32 ppe_id)
 		    BIT_IPV6_6RD_EN | BIT_IPV6_3T_ROUTE_EN |
 		    BIT_IPV6_5T_ROUTE_EN | BIT_FUC_FOE | BIT_FMC_FOE);
 
-	if (hnat_priv->data->version == MTK_HNAT_V4 ||
-	    hnat_priv->data->version == MTK_HNAT_V5)
+	if (hnat_priv->data->version == MTK_HNAT_V2 ||
+	    hnat_priv->data->version == MTK_HNAT_V3)
 		cr_clr_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
 			    BIT_IPV4_MAPE_EN | BIT_IPV4_MAPT_EN);
 
-	if (hnat_priv->data->version == MTK_HNAT_V5)
+	if (hnat_priv->data->version == MTK_HNAT_V3)
 		cr_clr_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
 			    BIT_IPV6_NAT_EN | BIT_IPV6_NAPT_EN |
 			    BIT_CS0_RM_ALL_IP6_IP_EN);
@@ -596,8 +597,8 @@ int hnat_enable_hook(void)
 	 */
 	if (hnat_priv->data->whnat) {
 		ra_sw_nat_hook_rx =
-			(hnat_priv->data->version == MTK_HNAT_V4 ||
-			 hnat_priv->data->version == MTK_HNAT_V5) ?
+			(hnat_priv->data->version == MTK_HNAT_V2 ||
+			 hnat_priv->data->version == MTK_HNAT_V3) ?
 			 mtk_sw_nat_hook_rx : NULL;
 		ra_sw_nat_hook_tx = mtk_sw_nat_hook_tx;
 		ppe_dev_register_hook = mtk_ppe_dev_register_hook;
@@ -659,7 +660,7 @@ int hnat_warm_init(void)
 		       hnat_priv->ppe_base[ppe_id] + PPE_TB_BASE);
 		memset(hnat_priv->foe_table_cpu[ppe_id], 0, foe_table_sz);
 
-		if (hnat_priv->data->version == MTK_HNAT_V1)
+		if (hnat_priv->data->version == MTK_HNAT_V1_1)
 			exclude_boundary_entry(hnat_priv->foe_table_cpu[ppe_id]);
 
 		if (hnat_priv->data->per_flow_accounting) {
@@ -840,7 +841,7 @@ static int hnat_probe(struct platform_device *pdev)
 	}
 
 	timer_setup(&hnat_priv->hnat_sma_build_entry_timer, hnat_sma_build_entry, 0);
-	if (hnat_priv->data->version == MTK_HNAT_V3) {
+	if (hnat_priv->data->version == MTK_HNAT_V1_3) {
 		timer_setup(&hnat_priv->hnat_reset_timestamp_timer, hnat_reset_timestamp, 0);
 		hnat_priv->hnat_reset_timestamp_timer.expires = jiffies;
 		add_timer(&hnat_priv->hnat_reset_timestamp_timer);
@@ -886,7 +887,7 @@ static int hnat_remove(struct platform_device *pdev)
 	hnat_deinit_debugfs(hnat_priv);
 	hnat_release_netdev();
 	del_timer_sync(&hnat_priv->hnat_sma_build_entry_timer);
-	if (hnat_priv->data->version == MTK_HNAT_V3)
+	if (hnat_priv->data->version == MTK_HNAT_V1_3)
 		del_timer_sync(&hnat_priv->hnat_reset_timestamp_timer);
 
 	if (IS_HQOS_MODE && IS_GMAC1_MODE)
@@ -900,7 +901,7 @@ static const struct mtk_hnat_data hnat_data_v1 = {
 	.whnat = false,
 	.per_flow_accounting = false,
 	.mcast = false,
-	.version = MTK_HNAT_V1,
+	.version = MTK_HNAT_V1_1,
 };
 
 static const struct mtk_hnat_data hnat_data_v2 = {
@@ -908,7 +909,7 @@ static const struct mtk_hnat_data hnat_data_v2 = {
 	.whnat = true,
 	.per_flow_accounting = true,
 	.mcast = false,
-	.version = MTK_HNAT_V2,
+	.version = MTK_HNAT_V1_2,
 };
 
 static const struct mtk_hnat_data hnat_data_v3 = {
@@ -916,7 +917,7 @@ static const struct mtk_hnat_data hnat_data_v3 = {
 	.whnat = false,
 	.per_flow_accounting = false,
 	.mcast = false,
-	.version = MTK_HNAT_V3,
+	.version = MTK_HNAT_V1_3,
 };
 
 static const struct mtk_hnat_data hnat_data_v4 = {
@@ -924,7 +925,7 @@ static const struct mtk_hnat_data hnat_data_v4 = {
 	.whnat = true,
 	.per_flow_accounting = true,
 	.mcast = false,
-	.version = MTK_HNAT_V4,
+	.version = MTK_HNAT_V2,
 };
 
 static const struct mtk_hnat_data hnat_data_v5 = {
@@ -932,7 +933,7 @@ static const struct mtk_hnat_data hnat_data_v5 = {
 	.whnat = true,
 	.per_flow_accounting = true,
 	.mcast = false,
-	.version = MTK_HNAT_V5,
+	.version = MTK_HNAT_V3,
 };
 
 const struct of_device_id of_hnat_match[] = {

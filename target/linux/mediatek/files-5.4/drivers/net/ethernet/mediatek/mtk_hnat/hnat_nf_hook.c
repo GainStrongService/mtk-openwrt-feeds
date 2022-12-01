@@ -440,11 +440,11 @@ unsigned int do_hnat_ext_to_ge2(struct sk_buff *skb, const char *func)
 		}
 
 		if (IS_BOND_MODE &&
-		    (((hnat_priv->data->version == MTK_HNAT_V4 ||
-		       hnat_priv->data->version == MTK_HNAT_V5) &&
+		    (((hnat_priv->data->version == MTK_HNAT_V2 ||
+		       hnat_priv->data->version == MTK_HNAT_V3) &&
 				(skb_hnat_entry(skb) != 0x7fff)) ||
-		     ((hnat_priv->data->version != MTK_HNAT_V4 &&
-		       hnat_priv->data->version != MTK_HNAT_V5) &&
+		     ((hnat_priv->data->version != MTK_HNAT_V2 &&
+		       hnat_priv->data->version != MTK_HNAT_V3) &&
 				(skb_hnat_entry(skb) != 0x3fff))))
 			skb_set_hash(skb, skb_hnat_entry(skb) >> 1, PKT_HASH_TYPE_L4);
 
@@ -1071,8 +1071,8 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 	entry.bfib1.vlan_layer += (hw_path->flags & FLOW_OFFLOAD_PATH_VLAN) ? 1 : 0;
 	entry.bfib1.vpm = (entry.bfib1.vlan_layer) ? 1 : 0;
 	entry.bfib1.cah = 1;
-	entry.bfib1.time_stamp = (hnat_priv->data->version == MTK_HNAT_V4 ||
-				  hnat_priv->data->version == MTK_HNAT_V5) ?
+	entry.bfib1.time_stamp = (hnat_priv->data->version == MTK_HNAT_V2 ||
+				  hnat_priv->data->version == MTK_HNAT_V3) ?
 		readl(hnat_priv->fe_base + 0x0010) & (0xFF) :
 		readl(hnat_priv->fe_base + 0x0010) & (0x7FFF);
 
@@ -1082,7 +1082,7 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 		if (hnat_priv->data->mcast &&
 		    is_multicast_ether_addr(&eth->h_dest[0])) {
 			entry.ipv4_hnapt.iblk2.mcast = 1;
-			if (hnat_priv->data->version == MTK_HNAT_V3) {
+			if (hnat_priv->data->version == MTK_HNAT_V1_3) {
 				entry.bfib1.sta = 1;
 				entry.ipv4_hnapt.m_timestamp = foe_timestamp(hnat_priv);
 			}
@@ -1091,8 +1091,8 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 		}
 
 		entry.ipv4_hnapt.iblk2.port_ag =
-			(hnat_priv->data->version == MTK_HNAT_V4 ||
-			 hnat_priv->data->version == MTK_HNAT_V5) ? 0xf : 0x3f;
+			(hnat_priv->data->version == MTK_HNAT_V2 ||
+			 hnat_priv->data->version == MTK_HNAT_V3) ? 0xf : 0x3f;
 		break;
 	case IPV4_DSLITE:
 	case IPV4_MAP_E:
@@ -1104,7 +1104,7 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 		if (hnat_priv->data->mcast &&
 		    is_multicast_ether_addr(&eth->h_dest[0])) {
 			entry.ipv6_5t_route.iblk2.mcast = 1;
-			if (hnat_priv->data->version == MTK_HNAT_V3) {
+			if (hnat_priv->data->version == MTK_HNAT_V1_3) {
 				entry.bfib1.sta = 1;
 				entry.ipv4_hnapt.m_timestamp = foe_timestamp(hnat_priv);
 			}
@@ -1113,8 +1113,8 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 		}
 
 		entry.ipv6_5t_route.iblk2.port_ag =
-			(hnat_priv->data->version == MTK_HNAT_V4 ||
-			 hnat_priv->data->version == MTK_HNAT_V5) ? 0xf : 0x3f;
+			(hnat_priv->data->version == MTK_HNAT_V2 ||
+			 hnat_priv->data->version == MTK_HNAT_V3) ? 0xf : 0x3f;
 		break;
 	}
 	return entry;
@@ -1458,8 +1458,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 				if (IS_HQOS_MODE) {
 					entry.ipv4_hnapt.iblk2.qid =
-						(hnat_priv->data->version == MTK_HNAT_V4 ||
-						 hnat_priv->data->version == MTK_HNAT_V5) ?
+						(hnat_priv->data->version ==
+						 MTK_HNAT_V2 ||
+						 hnat_priv->data->version ==
+						 MTK_HNAT_V3) ?
 						 skb->mark & 0x7f : skb->mark & 0xf;
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 					if ((IS_HQOS_UL_MODE && IS_WAN(dev)) ||
@@ -1600,16 +1602,16 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	if (IS_IPV4_GRP(foe)) {
 		entry.ipv4_hnapt.iblk2.dp = gmac;
 		entry.ipv4_hnapt.iblk2.port_mg =
-			(hnat_priv->data->version == MTK_HNAT_V1) ? 0x3f : 0;
+			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
 
 		if (qos_toggle) {
-			if (hnat_priv->data->version == MTK_HNAT_V4 ||
-			    hnat_priv->data->version == MTK_HNAT_V5) {
+			if (hnat_priv->data->version == MTK_HNAT_V2 ||
+			    hnat_priv->data->version == MTK_HNAT_V3) {
 				entry.ipv4_hnapt.iblk2.qid = qid & 0x7f;
 			} else {
 				/* qid[5:0]= port_mg[1:0]+ qid[3:0] */
 				entry.ipv4_hnapt.iblk2.qid = qid & 0xf;
-				if (hnat_priv->data->version != MTK_HNAT_V1)
+				if (hnat_priv->data->version != MTK_HNAT_V1_1)
 					entry.ipv4_hnapt.iblk2.port_mg |=
 						((qid >> 4) & 0x3);
 
@@ -1647,16 +1649,16 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	} else {
 		entry.ipv6_5t_route.iblk2.dp = gmac;
 		entry.ipv6_5t_route.iblk2.port_mg =
-			(hnat_priv->data->version == MTK_HNAT_V1) ? 0x3f : 0;
+			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
 
 		if (qos_toggle) {
-			if (hnat_priv->data->version == MTK_HNAT_V4 ||
-			    hnat_priv->data->version == MTK_HNAT_V5) {
+			if (hnat_priv->data->version == MTK_HNAT_V2 ||
+			    hnat_priv->data->version == MTK_HNAT_V3) {
 				entry.ipv6_5t_route.iblk2.qid = qid & 0x7f;
 			} else {
 				/* qid[5:0]= port_mg[1:0]+ qid[3:0] */
 				entry.ipv6_5t_route.iblk2.qid = qid & 0xf;
-				if (hnat_priv->data->version != MTK_HNAT_V1)
+				if (hnat_priv->data->version != MTK_HNAT_V1_1)
 					entry.ipv6_5t_route.iblk2.port_mg |=
 								((qid >> 4) & 0x3);
 
@@ -1802,10 +1804,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	/* MT7622 wifi hw_nat not support QoS */
 	if (IS_IPV4_GRP(entry)) {
 		entry->ipv4_hnapt.iblk2.fqos = 0;
-		if ((hnat_priv->data->version == MTK_HNAT_V2 &&
+		if ((hnat_priv->data->version == MTK_HNAT_V1_2 &&
 		     gmac_no == NR_WHNAT_WDMA_PORT) ||
-		    ((hnat_priv->data->version == MTK_HNAT_V4 ||
-		      hnat_priv->data->version == MTK_HNAT_V5) &&
+		    ((hnat_priv->data->version == MTK_HNAT_V2 ||
+		      hnat_priv->data->version == MTK_HNAT_V3) &&
 		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT))) {
 			entry->ipv4_hnapt.winfo.bssid = skb_hnat_bss_id(skb);
 			entry->ipv4_hnapt.winfo.wcid = skb_hnat_wc_id(skb);
@@ -1872,10 +1874,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 #endif
 	} else {
 		entry->ipv6_5t_route.iblk2.fqos = 0;
-		if ((hnat_priv->data->version == MTK_HNAT_V2 &&
+		if ((hnat_priv->data->version == MTK_HNAT_V1_2 &&
 		     gmac_no == NR_WHNAT_WDMA_PORT) ||
-		    ((hnat_priv->data->version == MTK_HNAT_V4 ||
-		      hnat_priv->data->version == MTK_HNAT_V5) &&
+		    ((hnat_priv->data->version == MTK_HNAT_V2 ||
+		      hnat_priv->data->version == MTK_HNAT_V3) &&
 		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT))) {
 			entry->ipv6_5t_route.winfo.bssid = skb_hnat_bss_id(skb);
 			entry->ipv6_5t_route.winfo.wcid = skb_hnat_wc_id(skb);
@@ -2156,7 +2158,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 		mtk_hnat_dscp_update(skb, entry);
 
 		/* update mcast timestamp*/
-		if (hnat_priv->data->version == MTK_HNAT_V3 &&
+		if (hnat_priv->data->version == MTK_HNAT_V1_3 &&
 		    hnat_priv->data->mcast && entry->bfib1.sta == 1)
 			entry->ipv4_hnapt.m_timestamp = foe_timestamp(hnat_priv);
 
@@ -2411,7 +2413,7 @@ static unsigned int mtk_hnat_br_nf_forward(void *priv,
 					   struct sk_buff *skb,
 					   const struct nf_hook_state *state)
 {
-	if ((hnat_priv->data->version == MTK_HNAT_V2) &&
+	if ((hnat_priv->data->version == MTK_HNAT_V1_2) &&
 	    unlikely(IS_EXT(state->in) && IS_EXT(state->out)))
 		hnat_set_head_frags(state, skb, 1, hnat_set_alg);
 
