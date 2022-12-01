@@ -426,7 +426,7 @@ int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id)
 int mtk_gmac_xgmii_path_setup(struct mtk_eth *eth, int mac_id)
 {
 	int err;
-	u64 path;
+	u64 path = 0;
 
 	if (mac_id == 1)
 		path = MTK_ETH_PATH_GMAC2_XGMII;
