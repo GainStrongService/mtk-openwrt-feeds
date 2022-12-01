@@ -1298,7 +1298,7 @@ static ssize_t hnat_whnat_write(struct file *file, const char __user *buf,
 	if (copy_from_user(line, buf, length))
 		return -EFAULT;
 
-	if (sscanf(line, "%s %d", name, &enable) != 2)
+	if (sscanf(line, "%15s %1d", name, &enable) != 2)
 		return -EFAULT;
 
 	line[length] = '\0';
@@ -2015,8 +2015,17 @@ static ssize_t hnat_sched_write(struct file *file, const char __user *buf,
 	if (copy_from_user(line, buf, length))
 		return -EFAULT;
 
-	if (sscanf(line, "%d %s %d", &enable, scheduling, &rate) != 3)
+	if (sscanf(line, "%1d %3s %9d", &enable, scheduling, &rate) != 3)
 		return -EFAULT;
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	if (rate > 100000000 || rate < 0 ||
+	    rate > 100000000 || rate < 0)
+#else
+	if (rate > 10000000 || rate < 0 ||
+	    rate > 10000000 || rate < 0)
+#endif
+		return -EINVAL;
 
 	while (rate > 127) {
 		rate /= 10;
@@ -2688,7 +2697,8 @@ static ssize_t hnat_static_entry_write(struct file *file,
 
 	buf[len] = '\0';
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-	if (sscanf(buf, "%d %x %x %x %hx %hx %x %x %x %hx %hx %s %s %x %x %x",
+	if (sscanf(buf,
+		   "%5d %8x %8x %8x %hx %hx %8x %8x %8x %hx %hx %18s %18s %4x %4x %4x",
 		   &hash,
 		   &entry.ipv4_hnapt.info_blk1,
 		   &entry.ipv4_hnapt.sip,
@@ -2703,27 +2713,20 @@ static ssize_t hnat_static_entry_write(struct file *file,
 		   dmac_str, smac_str, &tport_id, &tops_entry, &cdrt_id) != 16)
 		return -EFAULT;
 
-	entry.ipv4_hnapt.tport_id = tport_id;
-	entry.ipv4_hnapt.tops_entry = tops_entry;
-	entry.ipv4_hnapt.cdrt_id = cdrt_id;
-
-	if ((hash >= hnat_priv->foe_etry_num) || (hash < -1) ||
-	    (tport_id > 16) || (tport_id < 0) ||
-	    (tops_entry > 64) || (tops_entry < 0) ||
-	    (cdrt_id > 255) || (cdrt_id < 0) ||
-	    (entry.ipv4_hnapt.sport > 65535) ||
-	    (entry.ipv4_hnapt.sport < 0) ||
-	    (entry.ipv4_hnapt.dport > 65535) ||
-	    (entry.ipv4_hnapt.dport < 0) ||
-	    (entry.ipv4_hnapt.new_sport > 65535) ||
-	    (entry.ipv4_hnapt.new_sport < 0) ||
-	    (entry.ipv4_hnapt.new_dport > 65535) ||
-	    (entry.ipv4_hnapt.new_dport < 0)) {
+	if ((hash >= (int)hnat_priv->foe_etry_num) || (hash < -1) ||
+	    (TPORT_ID(tport_id) != tport_id) ||
+	    (TOPS_ENTRY(tops_entry) != tops_entry) ||
+	    (CDRT_ID(cdrt_id) != cdrt_id)) {
 		hnat_static_entry_help();
 		return -EFAULT;
 	}
+
+	entry.ipv4_hnapt.tport_id = tport_id;
+	entry.ipv4_hnapt.tops_entry = tops_entry;
+	entry.ipv4_hnapt.cdrt_id = cdrt_id;
 #else
-	if (sscanf(buf, "%d %x %x %x %hx %hx %x %x %x %hx %hx %s %s",
+	if (sscanf(buf,
+		   "%5d %8x %8x %8x %hx %hx %8x %8x %8x %hx %hx %18s %18s",
 		   &hash,
 		   &entry.ipv4_hnapt.info_blk1,
 		   &entry.ipv4_hnapt.sip,
@@ -2738,15 +2741,7 @@ static ssize_t hnat_static_entry_write(struct file *file,
 		   dmac_str, smac_str) != 13)
 		return -EFAULT;
 
-	if ((hash >= hnat_priv->foe_etry_num) || (hash < -1) ||
-	    (entry.ipv4_hnapt.sport > 65535) ||
-	    (entry.ipv4_hnapt.sport < 0) ||
-	    (entry.ipv4_hnapt.dport > 65535) ||
-	    (entry.ipv4_hnapt.dport < 0) ||
-	    (entry.ipv4_hnapt.new_sport > 65535) ||
-	    (entry.ipv4_hnapt.new_sport < 0) ||
-	    (entry.ipv4_hnapt.new_dport > 65535) ||
-	    (entry.ipv4_hnapt.new_dport < 0)) {
+	if ((hash >= (int)hnat_priv->foe_etry_num) || (hash < -1)) {
 		hnat_static_entry_help();
 		return -EFAULT;
 	}

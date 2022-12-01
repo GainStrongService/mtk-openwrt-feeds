@@ -159,6 +159,10 @@ struct hnat_desc {
 #define HIT_BIND_PACKET_SAMPLING 0x1B
 #define HIT_BIND_EXCEED_MTU 0x1C
 
+#define TPORT_ID(x) ((x) & GENMASK(3, 0))
+#define TOPS_ENTRY(x) ((x) & GENMASK(5, 0))
+#define CDRT_ID(x) ((x) & GENMASK(7, 0))
+
 u32 hnat_tx(struct sk_buff *skb);
 u32 hnat_set_skb_info(struct sk_buff *skb, u32 *rxd);
 u32 hnat_reg(struct net_device *, void __iomem *);

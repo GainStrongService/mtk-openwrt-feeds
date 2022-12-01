@@ -2305,7 +2305,12 @@ static unsigned int
 mtk_pong_hqos_handler(void *priv, struct sk_buff *skb,
 		      const struct nf_hook_state *state)
 {
-	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb_mac_header(skb);
+	struct vlan_ethhdr *veth;
+
+	if (!skb)
+		goto drop;
+
+	veth = (struct vlan_ethhdr *)skb_mac_header(skb);
 
 	if (IS_HQOS_MODE && eth_hdr(skb)->h_proto == HQOS_MAGIC_TAG) {
 		skb_hnat_entry(skb) = ntohs(veth->h_vlan_TCI) & 0x3fff;
@@ -2516,7 +2521,8 @@ int mtk_hqos_ptype_cb(struct sk_buff *skb, struct net_device *dev,
 	skb_hnat_entry(skb) = ntohs(veth->h_vlan_TCI) & 0x3fff;
 	skb_hnat_reason(skb) = HIT_BIND_FORCE_TO_CPU;
 
-	do_hnat_ge_to_ext(skb, __func__);
+	if (do_hnat_ge_to_ext(skb, __func__) == -1)
+		return 1;
 
 	return 0;
 }

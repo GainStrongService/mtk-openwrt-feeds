@@ -4041,9 +4041,10 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 
 			if (!of_property_read_string(to_of_node(fixed_node),
 						     "label", &label)) {
-				if (strlen(label) < 16)
-					strcpy(phylink_priv->label, label);
-				else
+				if (strlen(label) < 16) {
+					strncpy(phylink_priv->label, label,
+						strlen(label));
+				} else
 					dev_err(eth->dev, "insufficient space for label!\n");
 			}
 
