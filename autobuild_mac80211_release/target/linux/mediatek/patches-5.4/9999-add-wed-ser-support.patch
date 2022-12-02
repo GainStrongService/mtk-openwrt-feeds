@@ -16,7 +16,7 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/
 index c582bb9..5259141 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -3619,10 +3619,14 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -3619,12 +3619,16 @@ static void mtk_pending_work(struct work_struct *work)
  	for (i = 0; i < MTK_MAC_COUNT; i++) {
  		if (!eth->netdev[i])
  			continue;
@@ -25,7 +25,9 @@ index c582bb9..5259141 100644
 +#else
  		call_netdevice_notifiers(MTK_FE_START_RESET, eth->netdev[i]);
  		rtnl_unlock();
- 		wait_for_completion_timeout(&wait_ser_done, 5000);
+ 		if (!wait_for_completion_timeout(&wait_ser_done, 5000))
+ 			pr_warn("[%s] wait for MTK_FE_START_RESET failed\n",
+ 				__func__);
  		rtnl_lock();
 +#endif
  		break;
