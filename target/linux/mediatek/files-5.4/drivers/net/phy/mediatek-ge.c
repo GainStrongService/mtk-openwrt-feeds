@@ -548,6 +548,20 @@ static int tx_amp_fill_result(struct phy_device *phydev, u16 *buf)
 		}
 	}
 
+	/* Prevent overflow */
+	for (i = 0; i < 12; i++) {
+		if (buf[i>>2] + bias[i] > 63) {
+			buf[i>>2] = 63;
+			bias[i] = 0;
+		} else if (buf[i>>2] + bias[i] < 0) {
+			/* Bias caused by board design may change in the future.
+			 * So check negative cases, too.
+			 */
+			buf[i>>2] = 0;
+			bias[i] = 0;
+		}
+	}
+
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TXVLD_DA_RG,
 		       MTK_PHY_DA_TX_I2MPB_A_GBE_MASK, (buf[0] + bias[0]) << 10);
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TXVLD_DA_RG,
@@ -604,6 +618,7 @@ static int tx_r50_fill_result(struct phy_device *phydev, u16 *buf,
 			      phy_cal_pair_t txg_calen_x)
 {
 	int bias[4] = {0};
+	int i;
 	switch(phydev->drv->phy_id) {
 		case 0x03a29481:
 		{
@@ -616,6 +631,15 @@ static int tx_r50_fill_result(struct phy_device *phydev, u16 *buf,
 			break;
 	}
 
+	for (i = 0; i < 4; i++) {
+		if (buf[i>>2] + bias[i] > 63) {
+			buf[i>>2] = 63;
+			bias[i] = 0;
+		} else if (buf[i>>2] + bias[i] < 0) {
+			buf[i>>2] = 0;
+			bias[i] = 0;
+		}
+	}
 	switch(txg_calen_x) {
 		case PAIR_A:
 			phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG53D,
