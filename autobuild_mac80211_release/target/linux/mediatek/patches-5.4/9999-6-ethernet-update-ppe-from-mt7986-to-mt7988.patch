@@ -24,6 +24,16 @@ index 4075ec2..524c5d9 100644
  		reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON_V2, trxd.rxd5);
  		if (reason == MTK_PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED) {
  			for (i = 0; i < eth->ppe_num; i++) {
+@@ -4448,7 +4448,8 @@ static int mtk_probe(struct platform_device *pdev)
+ 
+ 		for (i = 0; i < eth->ppe_num; i++) {
+ 			eth->ppe[i] = mtk_ppe_init(eth,
+-						   eth->base + MTK_ETH_PPE_BASE + i * 0x400,
++						   eth->base + MTK_ETH_PPE_BASE +
++						   (i == 2 ? 0xC00 : i * 0x400),
+ 						   2, eth->soc->hash_way, i,
+ 						   eth->soc->has_accounting);
+ 			if (!eth->ppe[i]) {
 @@ -4626,11 +4626,15 @@ static const struct mtk_soc_data mt7988_data = {
  	.required_clks = MT7988_CLKS_BITMAP,
  	.required_pctl = false,
@@ -44,7 +54,7 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/
 index 5b39d87..94bd423 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -118,7 +118,7 @@
+@@ -118,7 +118,8 @@
  #define MTK_GDMA_UCS_EN		BIT(20)
  #define MTK_GDMA_STRP_CRC	BIT(16)
  #define MTK_GDMA_TO_PDMA	0x0
@@ -52,6 +62,7 @@ index 5b39d87..94bd423 100644
 +#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
  #define MTK_GDMA_TO_PPE0	0x3333
  #define MTK_GDMA_TO_PPE1	0x4444
++#define MTK_GMAC_TO_PPE2	0xcccc
  #else
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 index 98f61fe..bd504d4 100755
@@ -75,6 +86,23 @@ index 98f61fe..bd504d4 100755
  	*ib2 |=  FIELD_PREP(MTK_FOE_IB2_RX_IDX, txq);
  
  	l2->winfo = FIELD_PREP(MTK_FOE_WINFO_WCID, wcid) |
+@@ -422,11 +422,16 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
+ 
+ int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid)
+ {
++	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(entry);
+ 	u32 *ib2 = mtk_foe_entry_ib2(entry);
+ 
+ 	*ib2 &= ~MTK_FOE_IB2_QID;
+ 	*ib2 |= FIELD_PREP(MTK_FOE_IB2_QID, qid);
++#if defined(CONFIG_MEDIATEK_NETSYS_V3)
++	l2->tport_id = 1;
++#else
+ 	*ib2 |= MTK_FOE_IB2_PSE_QOS;
++#endif
+ 
+ 	return 0;
+ }
 @@ -867,13 +867,16 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
  	mtk_ppe_init_foe_table(ppe);
  	ppe_w32(ppe, MTK_PPE_TB_BASE, ppe->foe_phys);
@@ -107,12 +135,15 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/medi
 index 703b2bd..03b4dfb 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -8,7 +8,7 @@
+@@ -8,7 +8,10 @@
  #include <linux/bitfield.h>
  #include <linux/rhashtable.h>
  
 -#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
++#if defined(CONFIG_MEDIATEK_NETSYS_V3)
++#define MTK_MAX_PPE_NUM			3
++#define MTK_ETH_PPE_BASE		0x2000
++#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
  #define MTK_MAX_PPE_NUM			2
  #define MTK_ETH_PPE_BASE		0x2000
  #else
@@ -154,7 +185,7 @@ index 703b2bd..03b4dfb 100644
  #define MTK_FOE_WINFO_BSS		GENMASK(5, 0)
  #define MTK_FOE_WINFO_WCID		GENMASK(15, 6)
  #else
-@@ -128,7 +139,12 @@ struct mtk_foe_mac_info {
+@@ -128,7 +139,17 @@ struct mtk_foe_mac_info {
  	u16 pppoe_id;
  	u16 src_mac_lo;
  
@@ -164,6 +195,11 @@ index 703b2bd..03b4dfb 100644
 +	u16 resv1;
 +	u32 winfo;
 +	u32 winfo_pao;
++	u16 cdrt_id:8;
++	u16 tops_entry:6;
++	u16 resv3:2;
++	u16 tport_id:4;
++	u16 resv4:12;
 +#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
  	u16 minfo;
  	u16 winfo;
@@ -186,12 +222,21 @@ index a5bf090..0e41ff2 100755
 @@ -195,7 +195,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  		mtk_foe_entry_set_wdma(foe, info.wdma_idx, info.queue, info.bss,
  				       info.wcid);
- 		pse_port = 3;
+ 		pse_port = PSE_PPE0_PORT;
 -#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
  		if (info.wdma_idx == 0)
- 			pse_port = 8;
+ 			pse_port = PSE_WDMA0_PORT;
  		else if (info.wdma_idx == 1)
+@@ -220,6 +220,8 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 		pse_port = PSE_GDM1_PORT;
+ 	else if (dev == eth->netdev[1])
+ 		pse_port = PSE_GDM2_PORT;
++	else if (dev == eth->netdev[2])
++		pse_port = PSE_GDM3_PORT;
+ 	else
+ 		return -EOPNOTSUPP;
+ 
 @@ -452,7 +452,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  		return -ENOMEM;
  
