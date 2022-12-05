@@ -1968,6 +1968,9 @@ void mtk_ppe_dev_register_hook(struct net_device *dev)
 				__func__, dev->name, i);
 			return;
 		}
+	}
+
+	for (i = 1; i < MAX_IF_NUM; i++) {
 		if (!hnat_priv->wifi_hook_if[i]) {
 			if (find_extif_from_devname(dev->name)) {
 				extif_set_dev(dev);
