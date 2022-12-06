@@ -121,6 +121,7 @@ static int mtk_ipsec_add_sa(struct xfrm_state *xs)
 	struct ahash_export_state istate, ostate;
 	unsigned char *key_aalg;
 	unsigned char *key_ealg;
+	unsigned int checksum;
 	unsigned int key_len;
 	int i;
 	int cdrt_idx;
@@ -162,7 +163,6 @@ static int mtk_ipsec_add_sa(struct xfrm_state *xs)
 		context->control1 = CTRL_WORD1_OUT;
 		memcpy(context->data + 38, &xs->props.saddr.a4, 4);
 		memcpy(context->data + 42, &xs->id.daddr.a4, 4);
-		context->data[39] = 0x00005938;
 		context->data[46] = 0x04020000;
 		context->data[49] = 0x9e14ed69;
 		context->data[50] = 0x01020c10;
@@ -174,6 +174,16 @@ static int mtk_ipsec_add_sa(struct xfrm_state *xs)
 	context->data[47] = 0x00080000;
 	context->data[48] = 0x00f00008;
 	context->data[51] = 0x94119411;
+
+	/* Calculate Checksum */
+	checksum = 0;
+	checksum += context->data[38] % 0x10000;
+	checksum += context->data[38] / 0x10000;
+	checksum += context->data[42] % 0x10000;
+	checksum += context->data[42] / 0x10000;
+	checksum += checksum / 0x10000;
+	checksum = checksum % 0x10000;
+	context->data[39] = checksum;
 
 	/* EIP-96 context words[2...39]*/
 	if (strcmp(xs->aalg->alg_name, "hmac(sha1)") == 0) {
