@@ -125,11 +125,8 @@ atenl_set_attr_antenna(struct atenl *an, struct nl_msg *msg, u8 tx_antenna)
 {
 	if (!tx_antenna)
 		return;
-	if (is_mt7915(an))
-		nla_put_u8(msg, MT76_TM_ATTR_TX_ANTENNA,
-			   tx_antenna << (2 * an->cur_band));
-	else if (is_mt7916(an) || is_mt7986(an))
-		nla_put_u8(msg, MT76_TM_ATTR_TX_ANTENNA, tx_antenna);
+
+	nla_put_u8(msg, MT76_TM_ATTR_TX_ANTENNA, tx_antenna);
 }
 
 static int
