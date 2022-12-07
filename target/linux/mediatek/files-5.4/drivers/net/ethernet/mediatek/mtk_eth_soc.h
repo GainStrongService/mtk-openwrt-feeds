@@ -861,6 +861,16 @@
 #define CO_QPHY_SEL            BIT(0)
 #define GEPHY_MAC_SEL          BIT(1)
 
+/* Toprgu subsystem config registers */
+#define TOPRGU_SWSYSRST		0x18
+#define SWSYSRST_UNLOCK_KEY	GENMASK(31, 24)
+#define SWSYSRST_XFI_PLL_GRST	BIT(16)
+#define SWSYSRST_XFI_PEXPT1_GRST	BIT(15)
+#define SWSYSRST_XFI_PEXPT0_GRST	BIT(14)
+#define SWSYSRST_SGMII1_GRST	BIT(2)
+#define SWSYSRST_SGMII0_GRST	BIT(1)
+#define TOPRGU_SWSYSRST_EN		0xFC
+
 /* Top misc registers */
 #define TOP_MISC_NETSYS_PCS_MUX	0x84
 #define NETSYS_PCS_MUX_MASK	GENMASK(1, 0)

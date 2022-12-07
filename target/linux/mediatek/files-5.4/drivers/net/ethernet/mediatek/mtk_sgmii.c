@@ -37,6 +37,79 @@ int mtk_sgmii_init(struct mtk_xgmii *ss, struct device_node *r, u32 ana_rgc3)
 	return 0;
 }
 
+void mtk_sgmii_reset(struct mtk_xgmii *ss, int mac_id)
+{
+	struct mtk_eth *eth = ss->eth;
+	u32 id = mtk_mac2xgmii_id(eth, mac_id);
+	u32 val = 0;
+
+	if (id >= MTK_MAX_DEVS || !eth->toprgu)
+		return;
+
+	switch (mac_id) {
+	case MTK_GMAC2_ID:
+		/* Enable software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val |= SWSYSRST_XFI_PEXPT1_GRST |
+		       SWSYSRST_SGMII1_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
+
+		/* Assert SGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88) |
+		       SWSYSRST_XFI_PEXPT1_GRST |
+		       SWSYSRST_SGMII1_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		udelay(100);
+
+		/* De-assert SGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88);
+		val &= ~(SWSYSRST_XFI_PEXPT1_GRST |
+			 SWSYSRST_SGMII1_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		/* Disable software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val &= ~(SWSYSRST_XFI_PEXPT1_GRST |
+			 SWSYSRST_SGMII1_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
+		break;
+	case MTK_GMAC3_ID:
+		/* Enable Software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val |= SWSYSRST_XFI_PEXPT0_GRST |
+		       SWSYSRST_SGMII0_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
+
+		/* Assert SGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88) |
+		       SWSYSRST_XFI_PEXPT0_GRST |
+		       SWSYSRST_SGMII0_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		udelay(100);
+
+		/* De-assert SGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88);
+		val &= ~(SWSYSRST_XFI_PEXPT0_GRST |
+			 SWSYSRST_SGMII0_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		/* Disable software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val &= ~(SWSYSRST_XFI_PEXPT0_GRST |
+			 SWSYSRST_SGMII0_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
+		break;
+	}
+
+	mdelay(1);
+}
+
 void mtk_sgmii_setup_phya_gen1(struct mtk_xgmii *ss, int mac_id)
 {
 	u32 id = mtk_mac2xgmii_id(ss->eth, mac_id);
@@ -167,8 +240,10 @@ int mtk_sgmii_setup_mode_an(struct mtk_xgmii *ss, unsigned int mac_id)
 	if (!ss->regmap_sgmii[id])
 		return -EINVAL;
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
 		mtk_xfi_pll_enable(ss);
+		mtk_sgmii_reset(ss, mac_id);
+	}
 
 	/* Assert PHYA power down state */
 	regmap_write(ss->regmap_sgmii[id], SGMSYS_QPHY_PWR_STATE_CTRL, SGMII_PHYA_PWD);
@@ -222,8 +297,10 @@ int mtk_sgmii_setup_mode_force(struct mtk_xgmii *ss, unsigned int mac_id,
 	if (!ss->regmap_sgmii[id])
 		return -EINVAL;
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
 		mtk_xfi_pll_enable(ss);
+		mtk_sgmii_reset(ss, mac_id);
+	}
 
 	/* Assert PHYA power down state */
 	regmap_write(ss->regmap_sgmii[id], SGMSYS_QPHY_PWR_STATE_CTRL, SGMII_PHYA_PWD);
