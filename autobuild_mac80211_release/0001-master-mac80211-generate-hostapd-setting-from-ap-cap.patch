@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index ec35bf6..d507de9 100644
+index 8ecbe304..aa542d43 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -19,6 +19,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -31,7 +31,7 @@ index ec35bf6..d507de9 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index ed28052..a055005 100644
+index ed280521..66cf5884 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -144,9 +144,6 @@ mac80211_hostapd_setup_base() {
@@ -44,8 +44,25 @@ index ed28052..a055005 100644
  	[ "$min_tx_power" -gt 0 ] && append base_cfg "min_tx_power=$min_tx_power"
  
  	set_default noscan 0
+@@ -315,7 +312,6 @@ mac80211_hostapd_setup_base() {
+ 			vht_link_adapt:3 \
+ 			vht160:2
+ 
+-		set_default tx_burst 2.0
+ 		append base_cfg "ieee80211ac=1" "$N"
+ 		vht_cap=0
+ 		for cap in $(iw phy "$phy" info | awk -F "[()]" '/VHT Capabilities/ { print $2 }'); do
+@@ -484,6 +480,8 @@ mac80211_hostapd_setup_base() {
+ 		append base_cfg "he_mu_edca_ac_vo_timer=255" "$N"
+ 	fi
+ 
++	set_default tx_burst 8.1
++
+ 	hostapd_prepare_device_config "$hostapd_conf_file" nl80211
+ 	cat >> "$hostapd_conf_file" <<EOF
+ ${channel:+channel=$channel}
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index 3ecd932..438bf92 100644
+index 3ecd9322..438bf929 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -120,6 +120,13 @@ get_band_defaults() {
@@ -85,6 +102,3 @@ index 3ecd932..438bf92 100644
  		uci -q commit wireless
  	done
  }
--- 
-2.36.1
-
