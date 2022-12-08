@@ -312,7 +312,7 @@ void mtk_usxgmii_reset(struct mtk_xgmii *ss, int mac_id)
 		break;
 	}
 
-	mdelay(1);
+	mdelay(10);
 }
 
 int mtk_usxgmii_setup_mode_an(struct mtk_xgmii *ss, int mac_id, int max_speed)
