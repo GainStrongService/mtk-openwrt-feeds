@@ -142,7 +142,7 @@ new file mode 100644
 index 0000000..7aeec86
 --- /dev/null
 +++ b/drivers/net/phy/aquantia_firmware.c
-@@ -0,0 +1,995 @@
+@@ -0,0 +1,1023 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/* FW download driver for Aquantia PHY
 + */
@@ -977,10 +977,21 @@ index 0000000..7aeec86
 +	int j;
 +
 +	for (j = 0; j < num_phydevs; j++) {
++		/* stall the uP */
++		val = phy_read_mmd(phydevs[j], MDIO_MMD_VEND1, VEND1_CONTROL2);
++		val |= VEND1_CONTROL2_UP_RUNSTALL_OVERRIDE;
++		val |= VEND1_CONTROL2_UP_RUNSTALL;
++		phy_write_mmd(phydevs[j], MDIO_MMD_VEND1, VEND1_CONTROL2, val);
++
 +		/* disable the S/W reset to the Global MMD registers */
 +		val = phy_read_mmd(phydevs[j], MDIO_MMD_VEND1, VEND1_RESET_CONTROL);
 +		val |= VEND1_RESET_CONTROL_MMD_RESET_DISABLE;
 +		phy_write_mmd(phydevs[j], MDIO_MMD_VEND1, VEND1_RESET_CONTROL, val);
++
++		/* de-assert Global S/W reset */
++		val = phy_read_mmd(phydevs[j], MDIO_MMD_VEND1, VEND1_STD_CONTROL1);
++		val &= ~VEND1_STD_CONTROL1_SOFT_RESET;
++		phy_write_mmd(phydevs[j], MDIO_MMD_VEND1, VEND1_STD_CONTROL1, val);
 +
 +		/* assert Global S/W reset */
 +		val = phy_read_mmd(phydevs[j], MDIO_MMD_VEND1, VEND1_STD_CONTROL1);
@@ -1018,6 +1029,11 @@ index 0000000..7aeec86
 +	if (!fw)
 +		return;
 +
++	for (i = 0; i < MAX_GANGLOAD_DEVICES; i++) {
++		if (phy_is_started(phydevs[i]))
++			phy_stop(phydevs[i]);
++	}
++
 +retry:
 +	memset(result, 0, sizeof(result));
 +
@@ -1042,9 +1058,13 @@ index 0000000..7aeec86
 +		if (result[i] == 0) {
 +			priv = phydevs[i]->priv;
 +			priv->fw_initialized = true;
++
 +#ifdef CONFIG_AQUANTIA_PHY_MDI_SWAP
 +			aqr107_config_mdi(phydevs[i]);
 +#endif
++
++			if (!phy_is_started(phydevs[i]))
++				phy_start(phydevs[i]);
 +		}
 +	}
 +
@@ -1104,6 +1124,7 @@ index 0000000..7aeec86
 +{
 +	struct aqr107_priv *priv = phydev->priv;
 +	struct device *dev = &phydev->mdio.dev;
++	int i;
 +
 +	if (priv->fw_initialized == true)
 +		return 0;
@@ -1120,6 +1141,13 @@ index 0000000..7aeec86
 +			return PTR_ERR(gangload_kthread);
 +		}
 +		wake_up_process(gangload_kthread);
++	}
++
++	for (i = 0; i < gangload; i++) {
++		if (gangload_phydevs[i] == phydev) {
++			dev_err(dev, "Detect duplicate gangload phydev\n");
++			return -EINVAL;
++		}
 +	}
 +
 +	gangload_phydevs[gangload] = phydev;
