@@ -15,7 +15,7 @@ if [ -z ${BUILD_DIR} ]; then
 fi
 
 MTK_FEED_DIR=${BUILD_DIR}/feeds/mtk_openwrt_feed
-MTK_MANIFEST_FEED=${BUILD_DIR}/../mtk_openwrt_feeds
+MTK_MANIFEST_FEED=${BUILD_DIR}/../mtk-openwrt-feeds
 
 if [ -z ${INSTALL_DIR} ]; then
 	INSTALL_DIR=autobuild_release
@@ -144,14 +144,23 @@ prepare_mac80211() {
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iwinfo ${BUILD_DIR}/package/network/utils
 
 	rm -rf ${BUILD_DIR}/package/kernel/mac80211
+	if [ $1 = "1" ]; then
+		echo "=========================MAC80211 v6.1==================="
+		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/package/kernel
+		rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211
+                mv ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211_dev ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211
+	else
+		echo "=========================MAC80211 v5.15=================="
+		tar xvf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211/mac80211_v5.15.81_077622a1.tar.gz -C ${BUILD_DIR}/package/kernel/
+	fi
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/package/kernel
 
 	rm -rf ${BUILD_DIR}/package/firmware/wireless-regdb
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/firmware/wireless-regdb ${BUILD_DIR}/package/firmware
 
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
+	rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/100-Revert-of-net-pass-the-dst-buffer-to-of_get_mac_addr.patch
 	rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/101-fix-encap-offload-ethernet-type-check.patch
-
 	#hack mt7986 hostapd config
 	echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
 	echo "CONFIG_WPS_UPNP=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
@@ -266,6 +275,7 @@ prepare_final() {
 	#cp customized autobuild SDK patches
 	cp -fpR ${BUILD_DIR}/autobuild/$1/target/ ${BUILD_DIR}
 	cp -fpR ${BUILD_DIR}/autobuild/$1/package/ ${BUILD_DIR}
+	cp -fpR ${BUILD_DIR}/autobuild/$1/tools/ ${BUILD_DIR}
 
 
 	#cp special subtarget patches

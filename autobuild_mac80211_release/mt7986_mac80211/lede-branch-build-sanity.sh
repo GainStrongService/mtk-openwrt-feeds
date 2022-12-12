@@ -6,6 +6,7 @@ temp=${0%/*}
 branch_name=${temp##*/}
 swpath=0
 kasan=0
+backport_new=0
 args=
 
 for arg in $*; do
@@ -16,6 +17,9 @@ for arg in $*; do
 	"kasan")
 		kasan=1
 		;;
+	"dev")
+                backport_new=1
+                ;;
 	*)
 		args="$args $arg"
 		;;
@@ -53,6 +57,7 @@ change_dot_config() {
 		echo "CONFIG_SLUB_DEBUG=y" >> ${BUILD_DIR}/target/linux/mediatek/mt7986/config-5.4
 		echo "CONFIG_FRAME_WARN=4096" >> ${BUILD_DIR}/target/linux/mediatek/mt7986/config-5.4
 	}
+
 }
 
 #step1 clean
@@ -68,7 +73,7 @@ echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7986/config-5.4
 
 prepare_flowoffload
 
-prepare_mac80211
+prepare_mac80211 ${backport_new}
 
 prepare_final ${branch_name}
 

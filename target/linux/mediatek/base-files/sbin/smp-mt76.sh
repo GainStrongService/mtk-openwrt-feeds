@@ -23,7 +23,7 @@ get_if_info()
 	do
 		if [[ "$vif" == "eth0*" ]] || [[ "$vif" == "eth1" ]] || \
 		[[ "$vif" == "lan*" ]] || [[ "$vif" == "wan*" ]] || \
-		[[ "$vif" == "wlan*" ]]; then
+		[[ "$vif" == "wlan*" ]] || [[ "$vif" == "phy*" ]]; then
 			RPS_IF_LIST="$RPS_IF_LIST $vif"
 		fi
 	done;
