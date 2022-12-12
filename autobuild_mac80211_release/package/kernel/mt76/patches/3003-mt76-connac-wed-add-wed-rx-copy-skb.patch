@@ -1,7 +1,7 @@
-From 632b007beff9a0800d2a37d173dee028701ecd02 Mon Sep 17 00:00:00 2001
+From bd9310d73f9c7396d06e60fc10ff554a8e02817f Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 25 Nov 2022 12:05:06 +0800
-Subject: [PATCH 3003/3010] mt76: connac: wed: add wed rx copy skb
+Subject: [PATCH 3003/3011] mt76: connac: wed: add wed rx copy skb
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -9,10 +9,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  1 file changed, 18 insertions(+), 5 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index d2891c64..40885754 100644
+index dc8d8882..53c7528f 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -382,9 +382,12 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+@@ -386,9 +386,12 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  				 SKB_WITH_OVERHEAD(q->buf_size),
  				 DMA_FROM_DEVICE);
  
@@ -27,7 +27,7 @@ index d2891c64..40885754 100644
  
  		mt76_put_rxwi(dev, t);
  
-@@ -578,6 +581,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -568,6 +571,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
  	while (q->queued < q->ndesc - 1) {
  		struct mt76_txwi_cache *t = NULL;
  		struct mt76_queue_buf qbuf;
@@ -35,7 +35,7 @@ index d2891c64..40885754 100644
  		void *buf = NULL;
  
  		if ((q->flags & MT_QFLAG_WED) &&
-@@ -585,11 +589,18 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -575,11 +579,18 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
  			t = mt76_get_rxwi(dev);
  			if (!t)
  				break;
@@ -46,18 +46,18 @@ index d2891c64..40885754 100644
 +			}
  		}
  
--		buf = page_frag_alloc(rx_page, q->buf_size, GFP_ATOMIC);
+-		buf = page_frag_alloc(&q->rx_page, q->buf_size, GFP_ATOMIC);
 -		if (!buf)
 -			break;
 +		if (!skip_alloc) {
-+			buf = page_frag_alloc(rx_page, q->buf_size, GFP_ATOMIC);
++			buf = page_frag_alloc(&q->rx_page, q->buf_size, GFP_ATOMIC);
 +			if (!buf)
 +				break;
 +		}
  
  		addr = dma_map_single(dev->dma_dev, buf, len, DMA_FROM_DEVICE);
  		if (unlikely(dma_mapping_error(dev->dma_dev, addr))) {
-@@ -954,5 +965,7 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
+@@ -949,5 +960,7 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
  
  	if (mtk_wed_device_active(&dev->mmio.wed))
  		mtk_wed_device_detach(&dev->mmio.wed);
@@ -66,5 +66,5 @@ index d2891c64..40885754 100644
  }
  EXPORT_SYMBOL_GPL(mt76_dma_cleanup);
 -- 
-2.36.1
+2.25.1
 

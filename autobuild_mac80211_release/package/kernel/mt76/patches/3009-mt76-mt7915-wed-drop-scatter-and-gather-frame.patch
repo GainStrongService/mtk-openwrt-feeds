@@ -1,7 +1,7 @@
-From ae5e28addee09612c37c1c5a1c794e1d0f084852 Mon Sep 17 00:00:00 2001
+From c37cd3ad8c8ed0ddcf18858263edeee80c9e40b6 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 25 Nov 2022 14:37:58 +0800
-Subject: [PATCH 3009/3010] mt76: mt7915: wed: drop scatter and gather frame
+Subject: [PATCH 3009/3011] mt76: mt7915: wed: drop scatter and gather frame
 
 The scatter and gather frame may be incorrect because WED and WO may
 send frames to host driver interleaved.
@@ -14,10 +14,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  3 files changed, 11 insertions(+)
 
 diff --git a/dma.c b/dma.c
-index ddc804a5..c98ed441 100644
+index 327ed3bc..0914266a 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -416,6 +416,15 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+@@ -420,6 +420,15 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  
  			*drop = !!(ctrl & (MT_DMA_CTL_TO_HOST_A |
  					   MT_DMA_CTL_DROP));
@@ -46,7 +46,7 @@ index 4b9bc7f4..ce8ac426 100644
  #define MT_DMA_PPE_CPU_REASON		GENMASK(15, 11)
  #define MT_DMA_PPE_ENTRY		GENMASK(30, 16)
 diff --git a/mt76.h b/mt76.h
-index cca8986f..43594102 100644
+index b7fa1724..7a5b0b61 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -30,6 +30,7 @@
@@ -58,5 +58,5 @@ index cca8986f..43594102 100644
  #define __MT_WED_Q(_type, _n)	(MT_QFLAG_WED | \
  				 FIELD_PREP(MT_QFLAG_WED_TYPE, _type) | \
 -- 
-2.36.1
+2.25.1
 

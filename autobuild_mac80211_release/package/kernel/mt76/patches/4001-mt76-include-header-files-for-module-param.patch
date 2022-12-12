@@ -1,0 +1,63 @@
+From 51c0737433ea318d6897585366de4af124c0bb4a Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 13 Dec 2022 10:38:13 +0800
+Subject: [PATCH 4001/4002] mt76: include header files for module param
+
+---
+ mcu.c             | 1 +
+ mt7615/mcu.c      | 1 +
+ mt76_connac_mcu.c | 1 +
+ mt7915/mcu.c      | 1 +
+ 4 files changed, 4 insertions(+)
+
+diff --git a/mcu.c b/mcu.c
+index a8cafa39..fa4b0544 100644
+--- a/mcu.c
++++ b/mcu.c
+@@ -4,6 +4,7 @@
+  */
+ 
+ #include "mt76.h"
++#include <linux/moduleparam.h>
+ 
+ struct sk_buff *
+ __mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
+diff --git a/mt7615/mcu.c b/mt7615/mcu.c
+index 83f30305..e917d025 100644
+--- a/mt7615/mcu.c
++++ b/mt7615/mcu.c
+@@ -10,6 +10,7 @@
+ #include "mcu.h"
+ #include "mac.h"
+ #include "eeprom.h"
++#include <linux/moduleparam.h>
+ 
+ static bool prefer_offload_fw = true;
+ module_param(prefer_offload_fw, bool, 0644);
+diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
+index 291a7c12..56493774 100644
+--- a/mt76_connac_mcu.c
++++ b/mt76_connac_mcu.c
+@@ -4,6 +4,7 @@
+ #include <linux/firmware.h>
+ #include "mt76_connac2_mac.h"
+ #include "mt76_connac_mcu.h"
++#include <linux/module.h>
+ 
+ int mt76_connac_mcu_start_firmware(struct mt76_dev *dev, u32 addr, u32 option)
+ {
+diff --git a/mt7915/mcu.c b/mt7915/mcu.c
+index 737a714f..e08a96d9 100644
+--- a/mt7915/mcu.c
++++ b/mt7915/mcu.c
+@@ -6,6 +6,7 @@
+ #include "mcu.h"
+ #include "mac.h"
+ #include "eeprom.h"
++#include <linux/moduleparam.h>
+ 
+ #define fw_name(_dev, name, ...)	({			\
+ 	char *_fw;						\
+-- 
+2.25.1
+

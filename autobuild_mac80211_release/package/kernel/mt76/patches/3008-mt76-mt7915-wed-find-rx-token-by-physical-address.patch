@@ -1,7 +1,7 @@
-From c02c4712a0513109f0983a421a9742da1c761a21 Mon Sep 17 00:00:00 2001
+From 7f80dae506d79a41a7357ec14bd6dabdeeb9cd4f Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 25 Nov 2022 14:32:35 +0800
-Subject: [PATCH 3008/3010] mt76: mt7915: wed: find rx token by physical
+Subject: [PATCH 3008/3011] mt76: mt7915: wed: find rx token by physical
  address
 
 The token id in RxDMAD may be incorrect when it is not the last frame due to
@@ -13,10 +13,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  1 file changed, 20 insertions(+), 1 deletion(-)
 
 diff --git a/dma.c b/dma.c
-index 87ce79cb..ddc804a5 100644
+index 35beec72..327ed3bc 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -372,10 +372,29 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+@@ -376,10 +376,29 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  
  	if ((q->flags & MT_QFLAG_WED) &&
  	    FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX) {
@@ -48,5 +48,5 @@ index 87ce79cb..ddc804a5 100644
  			return NULL;
  
 -- 
-2.36.1
+2.25.1
 

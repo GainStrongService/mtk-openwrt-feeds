@@ -1,4 +1,4 @@
-From 2ae175cba8bc0192c251c380d00448fb08a709a5 Mon Sep 17 00:00:00 2001
+From 0efb01a98e1abbe39c141df4f7ab6aa2bbb55ad8 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 31 Aug 2022 20:06:52 +0800
 Subject: [PATCH 1113/1128] mt76: testmode: add pre-cal support
@@ -20,7 +20,7 @@ Change-Id: Ibfbbc3443de994eeb4daa5e364b0a90f5d7d3bcd
  11 files changed, 562 insertions(+), 13 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index 1e41b94d..e083964b 100644
+index 0a88048b..cb6ff17a 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -89,8 +89,10 @@ int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
@@ -37,7 +37,7 @@ index 1e41b94d..e083964b 100644
  
  out_put_node:
 diff --git a/mt76.h b/mt76.h
-index 32e2dea0..2beb1056 100644
+index 58258e19..89c85709 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -636,6 +636,7 @@ struct mt76_testmode_ops {
@@ -49,10 +49,10 @@ index 32e2dea0..2beb1056 100644
  
  struct mt76_testmode_entry_data {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index e10e92b6..4e489244 100644
+index a8ce98c9..f42946ec 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -979,6 +979,7 @@ enum {
+@@ -990,6 +990,7 @@ enum {
  
  /* ext event table */
  enum {
@@ -114,10 +114,10 @@ index f3e56817..88aaa16a 100644
  
  #endif
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 5687e136..d1ff73a9 100644
+index d4336f69..92bae4f7 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -371,6 +371,9 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
+@@ -387,6 +387,9 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
  	case MCU_EXT_EVENT_BF_STATUS_READ:
  		mt7915_tm_txbf_status_read(dev, skb);
  		break;
@@ -127,7 +127,7 @@ index 5687e136..d1ff73a9 100644
  #endif
  	default:
  		break;
-@@ -2882,7 +2885,7 @@ int mt7915_mcu_apply_group_cal(struct mt7915_dev *dev)
+@@ -2901,7 +2904,7 @@ int mt7915_mcu_apply_group_cal(struct mt7915_dev *dev)
  	u8 idx = 0, *cal = dev->cal, *eep = dev->mt76.eeprom.data;
  	u32 total = MT_EE_CAL_GROUP_SIZE;
  
@@ -136,7 +136,7 @@ index 5687e136..d1ff73a9 100644
  		return 0;
  
  	/*
-@@ -2962,11 +2965,29 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
+@@ -2981,11 +2984,29 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
  {
  	struct mt7915_dev *dev = phy->dev;
  	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
@@ -169,10 +169,10 @@ index 5687e136..d1ff73a9 100644
  
  	idx = mt7915_dpd_freq_idx(center_freq, chandef->width);
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index cf7fcdfc..cafd4389 100644
+index 6206c7f5..ed1469d6 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -402,6 +402,10 @@ struct mt7915_dev {
+@@ -401,6 +401,10 @@ struct mt7915_dev {
  	struct rchan *relay_fwlog;
  
  	void *cal;
@@ -183,7 +183,7 @@ index cf7fcdfc..cafd4389 100644
  
  	struct {
  		u8 debug_wm;
-@@ -635,6 +639,7 @@ int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
+@@ -634,6 +638,7 @@ int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
  void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb);
  void mt7915_mcu_exit(struct mt7915_dev *dev);
  int mt7915_tm_txbf_status_read(struct mt7915_dev *dev, struct sk_buff *skb);
@@ -192,7 +192,7 @@ index cf7fcdfc..cafd4389 100644
  static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
  {
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index d9d43cb7..c6a5837e 100644
+index e0ba088f..a9e57e4b 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -5,6 +5,7 @@
@@ -203,7 +203,7 @@ index d9d43cb7..c6a5837e 100644
  
  enum {
  	TM_CHANGED_TXPOWER,
-@@ -1578,17 +1579,15 @@ mt7915_tm_rf_switch_mode(struct mt7915_dev *dev, u32 oper)
+@@ -1580,18 +1581,16 @@ mt7915_tm_rf_switch_mode(struct mt7915_dev *dev, u32 oper)
  static int
  mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
  {
@@ -216,6 +216,7 @@ index d9d43cb7..c6a5837e 100644
 -	u32 func_idx = en ? TX_CONT_START : TX_CONT_STOP;
 +	u32 func_idx = en ? RF_TEST_TX_CONT_START : RF_TEST_TX_CONT_STOP;
  	u8 rate_idx = td->tx_rate_idx, mode;
+ 	u8 band = phy->mt76->band_idx;
  	u16 rateval;
  	struct mt7915_tm_rf_test req = {
 -		.action = 1,
@@ -223,7 +224,7 @@ index d9d43cb7..c6a5837e 100644
  		.icap_len = 120,
  		.op.rf.func_idx = cpu_to_le32(func_idx),
  	};
-@@ -1673,6 +1672,316 @@ out:
+@@ -1676,6 +1675,316 @@ out:
  				 sizeof(req), true);
  }
  
@@ -277,7 +278,7 @@ index d9d43cb7..c6a5837e 100644
 +		}
 +		dev_info(dev->mt76.dev, "Group Pre-Cal:\n");
 +		for (i = 0; i < (group_size / sizeof(u32)); i += 4) {
-+			dev_info(dev->mt76.dev, "[0x%08x] 0x%8x 0x%8x 0x%8x 0x%8x\n",
++			dev_info(dev->mt76.dev, "[0x%08lx] 0x%8x 0x%8x 0x%8x 0x%8x\n",
 +				 i * sizeof(u32), pre_cal[i], pre_cal[i + 1],
 +				 pre_cal[i + 2], pre_cal[i + 3]);
 +		}
@@ -404,7 +405,7 @@ index d9d43cb7..c6a5837e 100644
 +		}
 +
 +		req.op.rf.param.cal_param.func_data = func_data;
-+		req.op.rf.param.cal_param.band_idx = phy->band_idx;
++		req.op.rf.param.cal_param.band_idx = phy->mt76->band_idx;
 +
 +		memcpy(&chan_backup, chandef->chan, sizeof(struct ieee80211_channel));
 +		memcpy(&chandef_backup, chandef, sizeof(struct cfg80211_chan_def));
@@ -458,7 +459,7 @@ index d9d43cb7..c6a5837e 100644
 +		dev_info(dev->mt76.dev, "DPD Pre-Cal:\n");
 +		for (i = 0; i < dpd_size / sizeof(u32); i += 4) {
 +			j = i + (group_size / sizeof(u32));
-+			dev_info(dev->mt76.dev, "[0x%08x] 0x%8x 0x%8x 0x%8x 0x%8x\n",
++			dev_info(dev->mt76.dev, "[0x%08lx] 0x%8x 0x%8x 0x%8x 0x%8x\n",
 +				 j * sizeof(u32), pre_cal[j], pre_cal[j + 1],
 +				 pre_cal[j + 2], pre_cal[j + 3]);
 +		}
@@ -540,7 +541,7 @@ index d9d43cb7..c6a5837e 100644
  static void
  mt7915_tm_update_params(struct mt7915_phy *phy, u32 changed)
  {
-@@ -1712,6 +2021,10 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
+@@ -1715,6 +2024,10 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
  	else if (prev_state == MT76_TM_STATE_OFF ||
  		 state == MT76_TM_STATE_OFF)
  		mt7915_tm_init(phy, !(state == MT76_TM_STATE_OFF));
@@ -551,7 +552,7 @@ index d9d43cb7..c6a5837e 100644
  
  	if ((state == MT76_TM_STATE_IDLE &&
  	     prev_state == MT76_TM_STATE_OFF) ||
-@@ -1873,9 +2186,113 @@ mt7915_tm_set_eeprom(struct mt76_phy *mphy, u32 offset, u8 *val, u8 action)
+@@ -1876,9 +2189,113 @@ mt7915_tm_set_eeprom(struct mt76_phy *mphy, u32 offset, u8 *val, u8 action)
  	return ret;
  }
  
@@ -842,5 +843,5 @@ index 6e36ab27..1be1ffd6 100644
  
  static const char * const testmode_tx_mode[] = {
 -- 
-2.36.1
+2.25.1
 

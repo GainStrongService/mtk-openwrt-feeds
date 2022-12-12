@@ -1,4 +1,4 @@
-From ccbf47f2ebfed7523d92f17bd74352bd88779869 Mon Sep 17 00:00:00 2001
+From 5a4f3c3d504087725ef9f47191b4a8edbf27b70e Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 13 Oct 2022 13:22:05 +0800
 Subject: [PATCH 1127/1128] mt76: mt7915: add E3 re-bonding for low yield rate
@@ -12,19 +12,19 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 38 insertions(+), 5 deletions(-)
 
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 4d2d9ca2..b3d2bbc5 100644
+index 64a7750b..efa9c173 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
-@@ -97,7 +97,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
- 					 MT7915_EEPROM_BLOCK_SIZE);
- 		for (i = 0; i < block_num; i++)
- 			mt7915_mcu_get_eeprom(dev,
--					      i * MT7915_EEPROM_BLOCK_SIZE);
-+					      i * MT7915_EEPROM_BLOCK_SIZE, NULL);
- 		dev->eeprom_mode = EFUSE_MODE;
- 	}
- 
-@@ -198,6 +198,29 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
+@@ -99,7 +99,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
+ 		/* read eeprom data from efuse */
+ 		block_num = DIV_ROUND_UP(eeprom_size, eeprom_blk_size);
+ 		for (i = 0; i < block_num; i++) {
+-			ret = mt7915_mcu_get_eeprom(dev, i * eeprom_blk_size);
++			ret = mt7915_mcu_get_eeprom(dev, i * eeprom_blk_size, NULL);
+ 			if (ret < 0)
+ 				return ret;
+ 		}
+@@ -206,6 +206,29 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
  	dev->chainshift = hweight8(dev->mphy.chainmask);
  }
  
@@ -54,7 +54,7 @@ index 4d2d9ca2..b3d2bbc5 100644
  int mt7915_eeprom_init(struct mt7915_dev *dev)
  {
  	int ret;
-@@ -229,6 +252,8 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
+@@ -237,6 +260,8 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
  			return ret;
  	}
  
@@ -64,10 +64,10 @@ index 4d2d9ca2..b3d2bbc5 100644
  	if (ret)
  		return ret;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 4e7bc982..dfb1ee69 100644
+index 5791cb29..785c3c10 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2805,7 +2805,7 @@ int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode)
+@@ -2822,7 +2822,7 @@ int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode)
  				 &req, sizeof(req), true);
  }
  
@@ -76,7 +76,7 @@ index 4e7bc982..dfb1ee69 100644
  {
  	struct mt7915_mcu_eeprom_info req = {
  		.addr = cpu_to_le32(round_down(offset,
-@@ -2822,8 +2822,15 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
+@@ -2840,8 +2840,15 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
  		return ret;
  
  	res = (struct mt7915_mcu_eeprom_info *)skb->data;
@@ -95,10 +95,10 @@ index 4e7bc982..dfb1ee69 100644
  
  	return 0;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 626b2634..701e5c86 100644
+index 22454b54..2d3769c6 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -562,6 +562,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
+@@ -561,6 +561,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
  
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);
@@ -106,7 +106,7 @@ index 626b2634..701e5c86 100644
  int mt7915_eeprom_init(struct mt7915_dev *dev);
  void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
  				struct mt7915_phy *phy);
-@@ -615,7 +616,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
+@@ -614,7 +615,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
  				   struct ieee80211_sta *sta,
  				   void *data, u32 field);
  int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode);
@@ -116,5 +116,5 @@ index 626b2634..701e5c86 100644
  int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
  		       bool hdr_trans);
 -- 
-2.36.1
+2.25.1
 

@@ -1,4 +1,4 @@
-From 189f75c624438287c7228eb029f07e7a79cbccff Mon Sep 17 00:00:00 2001
+From 98bf3fe9efb60744e0de0cdbc16b6954d4586d2c Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 27 Oct 2022 17:42:07 +0800
 Subject: [PATCH 1115/1128] mt76: testmode: add ZWDFS test mode support
@@ -19,7 +19,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  10 files changed, 452 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index 2beb1056..8139b4ad 100644
+index 89c85709..2bacc1b4 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -719,6 +719,15 @@ struct mt76_testmode_data {
@@ -39,10 +39,10 @@ index 2beb1056..8139b4ad 100644
  
  struct mt76_vif {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 4e489244..c353341e 100644
+index f42946ec..7853e074 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1179,6 +1179,7 @@ enum {
+@@ -1190,6 +1190,7 @@ enum {
  	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,
  	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
  	MCU_EXT_CMD_MURU_CTRL = 0x9f,
@@ -50,7 +50,7 @@ index 4e489244..c353341e 100644
  	MCU_EXT_CMD_RX_STAT = 0xa4,
  	MCU_EXT_CMD_SET_SPR = 0xa8,
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
-@@ -1189,6 +1190,7 @@ enum {
+@@ -1200,6 +1201,7 @@ enum {
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
@@ -59,18 +59,18 @@ index 4e489244..c353341e 100644
  
  enum {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index d1ff73a9..51ec151b 100644
+index 92bae4f7..87d2c0de 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2620,6 +2620,7 @@ mt7915_mcu_background_chain_ctrl(struct mt7915_phy *phy,
+@@ -2636,6 +2636,7 @@ mt7915_mcu_background_chain_ctrl(struct mt7915_phy *phy,
  		req.monitor_chan = chandef->chan->hw_value;
  		req.monitor_central_chan =
  			ieee80211_frequency_to_channel(chandef->center_freq1);
 +		req.monitor_bw = mt76_connac_chan_bw(chandef);
- 		req.band_idx = phy->band_idx;
+ 		req.band_idx = phy->mt76->band_idx;
  		req.scan_mode = 2;
  		break;
-@@ -4450,3 +4451,68 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
+@@ -4466,3 +4467,68 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
  	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(MEC_CTRL), &req, sizeof(req), true);
  }
  #endif
@@ -91,7 +91,7 @@ index d1ff73a9..51ec151b 100644
 +		u32 idle_power_cmd_type;
 +	} __packed req = {
 +		.ipi_hist_idx = cmd,
-+		.band_idx = phy->band_idx,
++		.band_idx = phy->mt76->band_idx,
 +	};
 +
 +	if (!wait_resp)
@@ -123,7 +123,7 @@ index d1ff73a9..51ec151b 100644
 +	} __packed req = {
 +		.mode = mode,
 +		.pd_setting = 1,
-+		.band_idx = phy->band_idx,
++		.band_idx = phy->mt76->band_idx,
 +	};
 +
 +	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_EXT_CMD(IPI_HIST_SCAN),
@@ -140,10 +140,10 @@ index d1ff73a9..51ec151b 100644
 +	return 0;
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 4bc58c98..300b7834 100644
+index 4d86c7f1..9a485249 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -609,6 +609,52 @@ struct csi_data {
+@@ -628,6 +628,52 @@ struct csi_data {
  };
  #endif
  
@@ -197,10 +197,10 @@ index 4bc58c98..300b7834 100644
  #define OFDMA_DL                       BIT(0)
  #define OFDMA_UL                       BIT(1)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index cafd4389..0cbd02e2 100644
+index ed1469d6..26bcb4e5 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -304,6 +304,7 @@ struct mt7915_phy {
+@@ -303,6 +303,7 @@ struct mt7915_phy {
  
  	struct mib_stats mib;
  	struct mt76_channel_state state_ts;
@@ -208,7 +208,7 @@ index cafd4389..0cbd02e2 100644
  
  #ifdef CONFIG_NL80211_TESTMODE
  	struct {
-@@ -753,6 +754,9 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
+@@ -752,6 +753,9 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
  
@@ -219,10 +219,10 @@ index cafd4389..0cbd02e2 100644
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp);
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index ae4695ae..6aa98812 100644
+index e8768488..f4b57099 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
-@@ -1187,6 +1187,8 @@ enum offs_rev {
+@@ -1194,6 +1194,8 @@ enum offs_rev {
  #define MT_WF_IRPI_NSS(phy, nss)	MT_WF_IRPI(0x6000 + ((phy) << 20) + ((nss) << 16))
  #define MT_WF_IRPI_NSS_MT7916(phy, nss)	MT_WF_IRPI(0x1000 + ((phy) << 20) + ((nss) << 16))
  
@@ -232,7 +232,7 @@ index ae4695ae..6aa98812 100644
  #define MT_WF_PHY_BASE			0x83080000
  #define MT_WF_PHY(ofs)			(MT_WF_PHY_BASE + (ofs))
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 9de11e98..6ce2c0e6 100644
+index 99582d9c..2ae6c07f 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -13,6 +13,12 @@ enum {
@@ -406,14 +406,14 @@ index 9de11e98..6ce2c0e6 100644
 +		if (self_idle_ratio <= td->ipi_threshold) {
 +			dev_info(dev->mt76.dev,
 +				 "band[%d]: self idle ratio = %d%%, idle ratio = %d%%\n",
-+				 phy->band_idx, self_idle_ratio, ipi_idle_ratio);
++				 phy->mt76->band_idx, self_idle_ratio, ipi_idle_ratio);
 +			return;
 +		}
 +
 +		channel_load = (100 * channel_load) / self_idle_ratio;
 +		dev_info(dev->mt76.dev,
 +			 "band[%d]: chan load = %d%%, self idle ratio = %d%%, idle ratio = %d%%\n",
-+			 phy->band_idx, channel_load, self_idle_ratio, ipi_idle_ratio);
++			 phy->mt76->band_idx, channel_load, self_idle_ratio, ipi_idle_ratio);
 +		antenna_idx++;
 +	}
 +}
@@ -429,7 +429,7 @@ index 9de11e98..6ce2c0e6 100644
 +	if (!is_mt7915(&dev->mt76)) {
 +		struct mt7915_mcu_rdd_ipi_scan data;
 +
-+		if (phy->band_idx)
++		if (phy->mt76->band_idx)
 +			start_antenna_idx = 4;
 +
 +		/* Use all antenna */
@@ -478,7 +478,7 @@ index 9de11e98..6ce2c0e6 100644
  static int
  mt7915_tm_set_wmm_qid(struct mt7915_phy *phy, u8 qid, u8 aifs, u8 cw_min,
  		      u16 cw_max, u16 txop, u8 tx_cmd)
-@@ -1247,6 +1469,8 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
+@@ -1249,6 +1471,8 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
  		phy->mt76->test.tx_mpdu_len = 0;
  		phy->test.bf_en = 0;
  		mt7915_tm_set_entry(phy);
@@ -487,7 +487,7 @@ index 9de11e98..6ce2c0e6 100644
  	}
  }
  
-@@ -2005,6 +2229,14 @@ mt7915_tm_update_params(struct mt7915_phy *phy, u32 changed)
+@@ -2008,6 +2232,14 @@ mt7915_tm_update_params(struct mt7915_phy *phy, u32 changed)
  		mt7915_tm_set_cfg(phy);
  	if (changed & BIT(TM_CHANGED_TXBF_ACT))
  		mt7915_tm_set_txbf(phy);
@@ -682,5 +682,5 @@ index 47fc69f9..6f07eed0 100644
  
  const struct tm_field msg_field = {
 -- 
-2.36.1
+2.25.1
 

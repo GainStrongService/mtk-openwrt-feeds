@@ -1,7 +1,8 @@
-From d4da547260953c75c354c023b4ec902fa4790194 Mon Sep 17 00:00:00 2001
+From 0431d98e1a656f59c4fab110897e7e9bc092cc5a Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 2 Dec 2022 17:17:06 +0800
-Subject: [PATCH] mt76: mt7915: wed: add mt7916 2 pcie support when wed on
+Subject: [PATCH 3011/3011] mt76: mt7915: wed: add mt7916 2 pcie support when
+ wed on
 
 It should use bit 23 in interrupt mask for wfdma band1 data
 for 2 pcie mt7916, and use bit 19 for  band1 data for 1 pcie.
@@ -14,10 +15,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  3 files changed, 12 insertions(+), 8 deletions(-)
 
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 0356391..0ebc07a 100644
+index 1ae6c339..36260085 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
-@@ -87,8 +87,12 @@ static void mt7915_dma_config(struct mt7915_dev *dev)
+@@ -88,8 +88,12 @@ static void mt7915_dma_config(struct mt7915_dev *dev)
  				   MT7916_RXQ_BAND0);
  			RXQ_CONFIG(MT_RXQ_MCU_WA, WFDMA0, MT_INT_WED_RX_DONE_WA_MT7916,
  				   MT7916_RXQ_MCU_WA);
@@ -33,10 +34,10 @@ index 0356391..0ebc07a 100644
  				   MT7916_RXQ_MCU_WA_MAIN);
  			TXQ_CONFIG(0, WFDMA0, MT_INT_WED_TX_DONE_BAND0,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 4d3def9..cc6f224 100644
+index ff207f70..737a714f 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2336,7 +2336,7 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
+@@ -2352,7 +2352,7 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
  		return ret;
  
  	if (mtk_wed_device_active(wed)) {
@@ -46,10 +47,10 @@ index 4d3def9..cc6f224 100644
  					  0, 0, 0);
  		else
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index f5dfee3..a249a83 100644
+index 6fb3419d..e30a8d4c 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
-@@ -957,13 +957,13 @@ irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
+@@ -964,13 +964,13 @@ irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
  	struct mt7915_dev *dev = dev_instance;
  	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
  
@@ -69,5 +70,5 @@ index f5dfee3..a249a83 100644
  	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
  		return IRQ_NONE;
 -- 
-2.18.0
+2.25.1
 

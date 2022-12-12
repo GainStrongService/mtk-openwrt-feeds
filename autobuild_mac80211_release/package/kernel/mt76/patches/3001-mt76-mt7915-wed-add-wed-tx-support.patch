@@ -1,7 +1,7 @@
-From 4e69db534b8abba258baefdd7897907d70234857 Mon Sep 17 00:00:00 2001
+From 30ce8783532bc157e2639b4a91aecb3c050d1bf6 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 25 Nov 2022 10:38:53 +0800
-Subject: [PATCH 3001/3010] mt76: mt7915: wed: add wed tx support
+Subject: [PATCH 3001/3011] mt76: mt7915: wed: add wed tx support
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -24,10 +24,10 @@ index 8ba883b0..f70987dd 100644
  struct mt76_connac_fw_txp {
  	__le16 flags;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index dc4c6eb3..d07bf790 100644
+index 22dd66e3..5373777a 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -890,9 +890,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
+@@ -889,9 +889,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
  
  	txp->token = cpu_to_le16(token_id);
  	txp->nbuf = 1;
@@ -39,7 +39,7 @@ index dc4c6eb3..d07bf790 100644
  }
  
  static void
-@@ -1008,6 +1008,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -1007,6 +1007,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  	LIST_HEAD(free_list);
  	void *end = data + len;
  	bool v3, wake = false;
@@ -47,7 +47,7 @@ index dc4c6eb3..d07bf790 100644
  	u16 total, count = 0;
  	u32 txd = le32_to_cpu(free->txd);
  	__le32 *cur_info;
-@@ -1063,12 +1064,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -1062,12 +1063,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  			txwi = mt76_token_release(mdev, msdu, &wake);
  			if (!txwi)
  				continue;
@@ -65,10 +65,10 @@ index dc4c6eb3..d07bf790 100644
  
  static void
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 83b97d23..2d237abf 100644
+index 94b7a651..370bfad7 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1505,14 +1505,14 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1512,14 +1512,14 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	if (!mtk_wed_device_active(wed))
  		return -ENODEV;
  
@@ -86,7 +86,7 @@ index 83b97d23..2d237abf 100644
  
  	ctx->dev = NULL;
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index fef4b126..7a50aa11 100644
+index 26881fdc..ac574722 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -11,7 +11,7 @@
@@ -107,7 +107,7 @@ index fef4b126..7a50aa11 100644
  	spin_unlock_bh(&dev->mt76.token_lock);
  
  	/* MT_TXD5_TX_STATUS_HOST (MPDU format) has higher priority than
-@@ -783,6 +783,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -790,6 +790,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  
  	*irq = wed->irq;
  	dev->mt76.dma_dev = wed->dev;
@@ -116,5 +116,5 @@ index fef4b126..7a50aa11 100644
  	ret = dma_set_mask(wed->dev, DMA_BIT_MASK(32));
  	if (ret)
 -- 
-2.36.1
+2.25.1
 

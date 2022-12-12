@@ -1,4 +1,4 @@
-From f7ab85c232e5f4048e3f2a2bdc1141915d503ae4 Mon Sep 17 00:00:00 2001
+From f865459f3adbb780091ef0346f93ce65130412d4 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 28 Oct 2022 10:15:56 +0800
 Subject: [PATCH 1125/1128] mt76: mt7915: add vendor subcmd three wire (PTA)
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 111 insertions(+), 29 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 9339b711..131257c7 100644
+index 88bfd09f..5cff1a45 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1188,7 +1188,7 @@ enum {
+@@ -1199,7 +1199,7 @@ enum {
  	/* for vendor csi and air monitor */
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
@@ -29,10 +29,10 @@ index 9339b711..131257c7 100644
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index cd6f3292..4e7bc982 100644
+index 7507344a..5791cb29 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4234,37 +4234,33 @@ void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable)
+@@ -4250,37 +4250,33 @@ void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable)
  			&req, sizeof(req), false);
  }
  
@@ -94,10 +94,10 @@ index cd6f3292..4e7bc982 100644
  
  void mt7915_mcu_set_bypass_smthint(struct mt7915_phy *phy, u8 val)
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index de265d15..9780f128 100644
+index 33e33d89..08476eb6 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -655,6 +655,35 @@ struct mt7915_mcu_rdd_ipi_scan {
+@@ -674,6 +674,35 @@ struct mt7915_mcu_rdd_ipi_scan {
  	u8 tx_assert_time;						/* unit: us */
  } __packed;
  
@@ -134,10 +134,10 @@ index de265d15..9780f128 100644
  #define OFDMA_DL                       BIT(0)
  #define OFDMA_UL                       BIT(1)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 5a206f7a..626b2634 100644
+index 239eef58..22454b54 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -757,6 +757,7 @@ void mt7915_mcu_set_mimo(struct mt7915_phy *phy, u8 direction);
+@@ -756,6 +756,7 @@ void mt7915_mcu_set_mimo(struct mt7915_phy *phy, u8 direction);
  void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable);
  int mt7915_mcu_set_mu_edca(struct mt7915_phy *phy, u8 val);
  void mt7915_mcu_set_cert(struct mt7915_phy *phy, u8 type);
@@ -146,7 +146,7 @@ index 5a206f7a..626b2634 100644
  void mt7915_vendor_register(struct mt7915_phy *phy);
  int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 5e34b852..6b86b77a 100644
+index f7becce9..fb760e17 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -40,6 +40,11 @@ hemu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_HEMU_CTRL] = {
@@ -170,7 +170,7 @@ index 5e34b852..6b86b77a 100644
  		mt7915_mcu_set_bypass_smthint(phy, val8); /* Cert bypass smooth interpolation */
  	}
  
-@@ -1117,6 +1122,7 @@ static int mt7915_vendor_edcca_ctrl(struct wiphy *wiphy,
+@@ -1116,6 +1121,7 @@ static int mt7915_vendor_edcca_ctrl(struct wiphy *wiphy,
  	return 0;
  }
  
@@ -178,7 +178,7 @@ index 5e34b852..6b86b77a 100644
  static int
  mt7915_vendor_edcca_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
  			     struct sk_buff *skb, const void *data, int data_len,
-@@ -1162,6 +1168,31 @@ mt7915_vendor_edcca_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
+@@ -1159,6 +1165,31 @@ mt7915_vendor_edcca_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
  	return len;
  }
  
@@ -210,7 +210,7 @@ index 5e34b852..6b86b77a 100644
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -1243,6 +1274,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1240,6 +1271,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.dumpit = mt7915_vendor_edcca_ctrl_dump,
  		.policy = edcca_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_EDCCA_CTRL_MAX,
@@ -268,5 +268,5 @@ index c19ffe72..d96e5c23 100644
  	CAPI_RFEATURE_CHANGED		= BIT(16),
  	CAPI_WIRELESS_CHANGED		= BIT(17),
 -- 
-2.36.1
+2.25.1
 

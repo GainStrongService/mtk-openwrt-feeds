@@ -1,4 +1,4 @@
-From 62514b545ba99ba75fbed0ece763009b583473dc Mon Sep 17 00:00:00 2001
+From 41e8c107e1e3e4ecc5b99d9066702b9b560abf6e Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Jun 2022 19:46:26 +0800
 Subject: [PATCH 1111/1128] mt76: mt7915: rework testmode init registers
@@ -17,10 +17,10 @@ Subject: [PATCH 1111/1128] mt76: mt7915: rework testmode init registers
  10 files changed, 164 insertions(+), 35 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index acac04ef..9a908c9a 100644
+index 7fe7f68a..19d9efb3 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -761,7 +761,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
+@@ -775,7 +775,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
  	}
  
  #ifdef CONFIG_NL80211_TESTMODE
@@ -31,7 +31,7 @@ index acac04ef..9a908c9a 100644
  		if (status->flag & RX_FLAG_FAILED_FCS_CRC)
  			phy->test.rx_stats.fcs_error[q]++;
 diff --git a/mt76.h b/mt76.h
-index 84d49c2b..0d87f135 100644
+index beea57d5..4822ffb7 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -637,6 +637,8 @@ struct mt76_testmode_ops {
@@ -61,10 +61,10 @@ index 84d49c2b..0d87f135 100644
  };
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 0d4d466f..172a926a 100644
+index 18ae3acb..18d6c669 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1177,6 +1177,7 @@ enum {
+@@ -1188,6 +1188,7 @@ enum {
  	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,
  	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
  	MCU_EXT_CMD_MURU_CTRL = 0x9f,
@@ -73,7 +73,7 @@ index 0d4d466f..172a926a 100644
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index e7ad0560..6a145aef 100644
+index eaadd331..2e97db7b 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -9,6 +9,7 @@
@@ -85,7 +85,7 @@ index e7ad0560..6a145aef 100644
  	MCU_ATE_CLEAN_TXQUEUE = 0x1c,
  };
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 3b4ede3b..19518cb5 100644
+index afa558c9..07de3cbd 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -118,6 +118,7 @@ static const u32 mt7986_reg[] = {
@@ -105,7 +105,7 @@ index 3b4ede3b..19518cb5 100644
  	[TMAC_ODTR]		= 0x0cc,
  	[TMAC_ATCR]		= 0x00c,
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index aca1b2f1..688f7dee 100644
+index c8e478a5..d6a05f13 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -48,6 +48,7 @@ enum reg_rev {
@@ -153,7 +153,7 @@ index aca1b2f1..688f7dee 100644
  #define MT_AGG_ACR0(_band)		MT_WF_AGG(_band, __OFFS(AGG_ACR0))
  #define MT_AGG_ACR_CFEND_RATE		GENMASK(13, 0)
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 7ace05e0..931d1db2 100644
+index 0d76ae31..46939191 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -30,7 +30,7 @@ struct reg_band {
@@ -187,16 +187,16 @@ index 7ace05e0..931d1db2 100644
  static int
  mt7915_tm_set_slot_time(struct mt7915_phy *phy, u8 slot_time, u8 sifs)
  {
-@@ -335,7 +350,7 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
+@@ -336,7 +351,7 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
  {
  	int n_regs = ARRAY_SIZE(reg_backup_list);
  	struct mt7915_dev *dev = phy->dev;
 -	u32 *b = phy->test.reg_backup;
 +	u32 *b = phy->test.reg_backup, val;
+ 	u8 band = phy->mt76->band_idx;
  	int i;
  
- 	REG_BAND_IDX(reg_backup_list[0], AGG_PCR0, 0);
-@@ -347,18 +362,28 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
+@@ -349,18 +364,28 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
  	REG_BAND(reg_backup_list[6], AGG_MRCR);
  	REG_BAND(reg_backup_list[7], TMAC_TFCR0);
  	REG_BAND(reg_backup_list[8], TMAC_TCR0);
@@ -219,15 +219,15 @@ index 7ace05e0..931d1db2 100644
 +	REG_BAND(reg_backup_list[17], WF_RFCR1);
 +
 +	if (is_mt7916(&dev->mt76)) {
-+		reg_backup_list[18].band[phy->band_idx] = MT_MDP_TOP_DBG_WDT_CTRL;
-+		reg_backup_list[19].band[phy->band_idx] = MT_MDP_TOP_DBG_CTRL;
++		reg_backup_list[18].band[band] = MT_MDP_TOP_DBG_WDT_CTRL;
++		reg_backup_list[19].band[band] = MT_MDP_TOP_DBG_CTRL;
 +	}
  
  	if (phy->mt76->test.state == MT76_TM_STATE_OFF) {
 -		for (i = 0; i < n_regs; i++)
--			mt76_wr(dev, reg_backup_list[i].band[phy->band_idx], b[i]);
+-			mt76_wr(dev, reg_backup_list[i].band[band], b[i]);
 +		for (i = 0; i < n_regs; i++) {
-+			u8 reg = reg_backup_list[i].band[phy->band_idx];
++			u8 reg = reg_backup_list[i].band[band];
 +
 +			if (reg)
 +				mt76_wr(dev, reg, b[i]);
@@ -235,11 +235,11 @@ index 7ace05e0..931d1db2 100644
  		return;
  	}
  
-@@ -378,8 +403,13 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
+@@ -380,8 +405,13 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
  		   MT_AGG_PCR0_BW40_PROT | MT_AGG_PCR0_BW80_PROT);
- 	mt76_set(dev, MT_AGG_PCR0(phy->band_idx, 0), MT_AGG_PCR0_PTA_WIN_DIS);
+ 	mt76_set(dev, MT_AGG_PCR0(band, 0), MT_AGG_PCR0_PTA_WIN_DIS);
  
--	mt76_wr(dev, MT_AGG_PCR0(phy->band_idx, 1), MT_AGG_PCR1_RTS0_NUM_THRES |
+-	mt76_wr(dev, MT_AGG_PCR0(band, 1), MT_AGG_PCR1_RTS0_NUM_THRES |
 -		MT_AGG_PCR1_RTS0_LEN_THRES);
 +	if (is_mt7915(&dev->mt76))
 +		val = MT_AGG_PCR1_RTS0_NUM_THRES | MT_AGG_PCR1_RTS0_LEN_THRES;
@@ -247,19 +247,19 @@ index 7ace05e0..931d1db2 100644
 +		val = MT_AGG_PCR1_RTS0_NUM_THRES_MT7916 |
 +		      MT_AGG_PCR1_RTS0_LEN_THRES_MT7916;
 +
-+	mt76_wr(dev, MT_AGG_PCR0(phy->band_idx, 1), val);
++	mt76_wr(dev, MT_AGG_PCR0(band, 1), val);
  
- 	mt76_clear(dev, MT_AGG_MRCR(phy->band_idx), MT_AGG_MRCR_BAR_CNT_LIMIT |
+ 	mt76_clear(dev, MT_AGG_MRCR(band), MT_AGG_MRCR_BAR_CNT_LIMIT |
  		   MT_AGG_MRCR_LAST_RTS_CTS_RN | MT_AGG_MRCR_RTS_FAIL_LIMIT |
-@@ -392,10 +422,19 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
+@@ -394,10 +424,19 @@ mt7915_tm_reg_backup_restore(struct mt7915_phy *phy)
  
- 	mt76_wr(dev, MT_TMAC_TFCR0(phy->band_idx), 0);
- 	mt76_clear(dev, MT_TMAC_TCR0(phy->band_idx), MT_TMAC_TCR0_TBTT_STOP_CTRL);
-+	mt76_set(dev, MT_TMAC_TCR2(phy->band_idx), MT_TMAC_TCR2_SCH_DET_DIS);
+ 	mt76_wr(dev, MT_TMAC_TFCR0(band), 0);
+ 	mt76_clear(dev, MT_TMAC_TCR0(band), MT_TMAC_TCR0_TBTT_STOP_CTRL);
++	mt76_set(dev, MT_TMAC_TCR2(band), MT_TMAC_TCR2_SCH_DET_DIS);
  
  	/* config rx filter for testmode rx */
- 	mt76_wr(dev, MT_WF_RFCR(phy->band_idx), 0xcf70a);
- 	mt76_wr(dev, MT_WF_RFCR1(phy->band_idx), 0);
+ 	mt76_wr(dev, MT_WF_RFCR(band), 0xcf70a);
+ 	mt76_wr(dev, MT_WF_RFCR1(band), 0);
 +
 +	if (is_mt7916(&dev->mt76)) {
 +		/* enable MDP Tx block mode */
@@ -271,7 +271,7 @@ index 7ace05e0..931d1db2 100644
  }
  
  static void
-@@ -415,6 +454,8 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
+@@ -417,6 +456,8 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
  	mt7915_mcu_add_bss_info(phy, phy->monitor_vif, en);
  	mt7915_mcu_add_sta(dev, phy->monitor_vif, NULL, en);
  
@@ -280,7 +280,7 @@ index 7ace05e0..931d1db2 100644
  	if (!en)
  		mt7915_tm_set_tam_arb(phy, en, 0);
  }
-@@ -477,18 +518,63 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
+@@ -479,18 +520,63 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
  	mt7915_tm_set_trx(phy, TM_MAC_TX, en);
  }
  
@@ -298,7 +298,7 @@ index 7ace05e0..931d1db2 100644
 +		u8 _rsv[2];
 +	} __packed req = {
 +		.format_id = CMD_RX_STAT_BAND,
-+		.band = phy != &dev->phy,
++		.band = phy->mt76->band_idx,
 +	};
 +	int ret;
 +
@@ -337,7 +337,7 @@ index 7ace05e0..931d1db2 100644
  		mt7915_tm_update_channel(phy);
  
  		/* read-clear */
--		mt76_rr(dev, MT_MIB_SDR3(phy->band_idx));
+-		mt76_rr(dev, MT_MIB_SDR3(phy->mt76->band_idx));
 +		mt7915_tm_get_rx_stats(phy, true);
 +
 +		/* clear fw count */
@@ -347,7 +347,7 @@ index 7ace05e0..931d1db2 100644
  		mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, en);
  	}
  }
-@@ -718,12 +804,8 @@ static int
+@@ -721,12 +807,8 @@ static int
  mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
  {
  	struct mt7915_phy *phy = mphy->priv;
@@ -360,15 +360,15 @@ index 7ace05e0..931d1db2 100644
  
  	rx = nla_nest_start(msg, MT76_TM_STATS_ATTR_LAST_RX);
  	if (!rx)
-@@ -767,15 +849,7 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
+@@ -770,15 +852,7 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
  
  	nla_nest_end(msg, rx);
  
--	cnt = mt76_rr(dev, MT_MIB_SDR3(phy->band_idx));
+-	cnt = mt76_rr(dev, MT_MIB_SDR3(phy->mt76->band_idx));
 -	fcs_err = is_mt7915(&dev->mt76) ? FIELD_GET(MT_MIB_SDR3_FCS_ERR_MASK, cnt) :
 -		FIELD_GET(MT_MIB_SDR3_FCS_ERR_MASK_MT7916, cnt);
 -
--	q = phy->band_idx ? MT_RXQ_BAND1 : MT_RXQ_MAIN;
+-	q = phy->mt76->band_idx ? MT_RXQ_BAND1 : MT_RXQ_MAIN;
 -	mphy->test.rx_stats.packets[q] += fcs_err;
 -	mphy->test.rx_stats.fcs_error[q] += fcs_err;
 -
@@ -474,5 +474,5 @@ index 5e2792d8..89613266 100644
  	/* keep last */
  	NUM_MT76_TM_STATS_ATTRS,
 -- 
-2.36.1
+2.25.1
 

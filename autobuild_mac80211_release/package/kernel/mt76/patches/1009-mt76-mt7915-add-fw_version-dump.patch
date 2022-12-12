@@ -1,7 +1,7 @@
-From e024583e77c3eedc2e3dcfb52d179a20ebb08e86 Mon Sep 17 00:00:00 2001
+From eba9059676a9a0012aed63fbc800e1f6b2a2a381 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 17 Aug 2022 13:40:24 +0800
-Subject: [PATCH 1009/1010] mt76: mt7915: add fw_version dump
+Subject: [PATCH 1009/1009] mt76: mt7915: add fw_version dump
 
 ---
  mt76.h               |  4 ++++
@@ -10,10 +10,10 @@ Subject: [PATCH 1009/1010] mt76: mt7915: add fw_version dump
  3 files changed, 32 insertions(+)
 
 diff --git a/mt76.h b/mt76.h
-index 33f87e51..84d49c2b 100644
+index 1037d23b..beea57d5 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -835,6 +835,10 @@ struct mt76_dev {
+@@ -837,6 +837,10 @@ struct mt76_dev {
  		struct mt76_usb usb;
  		struct mt76_sdio sdio;
  	};
@@ -25,10 +25,10 @@ index 33f87e51..84d49c2b 100644
  
  struct mt76_power_limits {
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index c65267b4..a48903ca 100644
+index 5a047e63..cf6ec55f 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -2927,6 +2927,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -2968,6 +2968,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
  
@@ -38,7 +38,7 @@ index c65267b4..a48903ca 100644
  	release_firmware(fw);
  
  	if (!fw_wa)
-@@ -2952,6 +2955,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -2993,6 +2996,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		goto out;
  	}
  
@@ -48,7 +48,7 @@ index c65267b4..a48903ca 100644
  	snprintf(dev->hw->wiphy->fw_version,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
-@@ -3022,6 +3028,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
+@@ -3063,6 +3069,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
  	dev_info(dev->dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
  		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
  
@@ -96,5 +96,5 @@ index e24b4d78..d96f222a 100644
  }
  #endif
 -- 
-2.36.1
+2.25.1
 
