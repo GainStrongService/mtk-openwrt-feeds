@@ -78,7 +78,7 @@ diff --git a/drivers/net/phy/aquantia.h b/drivers/net/phy/aquantia.h
 index 5a16caa..912bbe6 100644
 --- a/drivers/net/phy/aquantia.h
 +++ b/drivers/net/phy/aquantia.h
-@@ -9,8 +9,58 @@
+@@ -9,8 +9,64 @@
  #include <linux/device.h>
  #include <linux/phy.h>
  
@@ -123,6 +123,7 @@ index 5a16caa..912bbe6 100644
 +#ifdef CONFIG_AQUANTIA_PHY_FW_DOWNLOAD
 +	struct phy_device *phydevs[1];
 +	bool fw_initialized;
++	int fw_dl_mode;
 +#endif
 +};
 +
@@ -135,6 +136,11 @@ index 5a16caa..912bbe6 100644
  #endif
 +
 +#ifdef CONFIG_AQUANTIA_PHY_FW_DOWNLOAD
++enum {
++	FW_DL_SINGLE = 0,
++	FW_DL_GNAGLOAD,
++};
++
 +int aqr_firmware_download(struct phy_device *phydev);
 +#endif
 diff --git a/drivers/net/phy/aquantia_firmware.c b/drivers/net/phy/aquantia_firmware.c
@@ -142,7 +148,7 @@ new file mode 100644
 index 0000000..7aeec86
 --- /dev/null
 +++ b/drivers/net/phy/aquantia_firmware.c
-@@ -0,0 +1,1023 @@
+@@ -0,0 +1,1032 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/* FW download driver for Aquantia PHY
 + */
@@ -287,6 +293,7 @@ index 0000000..7aeec86
 +struct task_struct *gangload_kthread = NULL;
 +struct phy_device *gangload_phydevs[MAX_GANGLOAD_DEVICES];
 +static int gangload = 0;
++static DEFINE_SPINLOCK(gangload_lock);
 +
 +void AQ_API_EnableMDIO_BootLoadMode
 +(
@@ -1022,25 +1029,25 @@ index 0000000..7aeec86
 +	struct phy_device **phydevs = context;
 +	struct phy_device *gandload_phydev = phydevs[0];
 +	struct device *dev;
-+	struct aqr107_priv *priv;
++	struct aqr107_priv *priv = phydevs[0]->priv;
 +	int result[MAX_GANGLOAD_DEVICES];
-+	int i, ret = 0;
++	int i, num_phydevs = 0, ret = 0;
 +
 +	if (!fw)
 +		return;
 +
-+	for (i = 0; i < MAX_GANGLOAD_DEVICES; i++) {
-+		if (phy_is_started(phydevs[i]))
-+			phy_stop(phydevs[i]);
-+	}
++	spin_lock(&gangload_lock);
++
++	num_phydevs = priv->fw_dl_mode == FW_DL_GNAGLOAD ?
++		      MAX_GANGLOAD_DEVICES : 1;
 +
 +retry:
 +	memset(result, 0, sizeof(result));
 +
-+	ret = AQ_API_WriteBootLoadImage(phydevs, MAX_GANGLOAD_DEVICES, gandload_phydev,
++	ret = AQ_API_WriteBootLoadImage(phydevs, num_phydevs, gandload_phydev,
 +					result, fw->data, fw->size);
 +	if (ret) {
-+		for (i = 0; i < MAX_GANGLOAD_DEVICES; i++) {
++		for (i = 0; i < num_phydevs; i++) {
 +			if (result[i] == 0)
 +				continue;
 +
@@ -1054,7 +1061,7 @@ index 0000000..7aeec86
 +#ifdef CONFIG_AQUANTIA_PHY_MDI_SWAP
 +	mdelay(250);
 +#endif
-+	for (i = 0; i < MAX_GANGLOAD_DEVICES; i++) {
++	for (i = 0; i < num_phydevs; i++) {
 +		if (result[i] == 0) {
 +			priv = phydevs[i]->priv;
 +			priv->fw_initialized = true;
@@ -1063,31 +1070,38 @@ index 0000000..7aeec86
 +			aqr107_config_mdi(phydevs[i]);
 +#endif
 +
-+			if (!phy_is_started(phydevs[i]))
-+				phy_start(phydevs[i]);
++			if (priv->fw_dl_mode == FW_DL_GNAGLOAD) {
++				phydevs[i]->state = PHY_UP;
++				phy_queue_state_machine(phydevs[i], 0);
++			}
 +		}
 +	}
 +
 +	release_firmware(fw);
++
++	spin_unlock(&gangload_lock);
 +}
 +
 +int aqr_firmware_download_single(struct phy_device *phydev)
 +{
 +	struct aqr107_priv *priv = phydev->priv;
 +	struct device *dev = &phydev->mdio.dev;
++	const struct firmware *fw;
 +	int ret = 0;
 +
 +	if (priv->fw_initialized == true)
 +		return 0;
 +
++	priv->fw_dl_mode = FW_DL_SINGLE;
 +	priv->phydevs[0] = phydev;
 +
-+	ret = request_firmware_nowait(THIS_MODULE, true, AQR_FIRMWARE, dev,
-+				      GFP_KERNEL, priv->phydevs, aqr_firmware_download_cb);
++	ret = request_firmware(&fw, AQR_FIRMWARE, dev);
 +	if (ret) {
 +		dev_err(dev, "failed to load firmware %s, ret: %d\n",
 +			AQR_FIRMWARE, ret);
 +	}
++
++	aqr_firmware_download_cb(fw, priv->phydevs);
 +
 +	return ret;
 +}
@@ -1150,6 +1164,7 @@ index 0000000..7aeec86
 +		}
 +	}
 +
++	priv->fw_dl_mode = FW_DL_GNAGLOAD;
 +	gangload_phydevs[gangload] = phydev;
 +	gangload++;
 +
