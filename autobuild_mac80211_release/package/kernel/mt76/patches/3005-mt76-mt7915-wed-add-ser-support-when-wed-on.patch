@@ -1,4 +1,4 @@
-From 47cfa806f1e2945d1d63f3642207cbdb205e9a12 Mon Sep 17 00:00:00 2001
+From e199b3a9a4dcf01c00fd367e7dea297b0c0e308b Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 25 Nov 2022 14:07:46 +0800
 Subject: [PATCH 3005/3011] mt76: mt7915: wed: add ser support when wed on
@@ -120,10 +120,10 @@ index 53c6ce25..4b9bc7f4 100644
  
  #endif
 diff --git a/mt76.h b/mt76.h
-index 74818a59..b7fa1724 100644
+index fb8c15eb..b107516d 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1383,6 +1383,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+@@ -1391,6 +1391,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
  void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
  void mt76_put_rxwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
  struct mt76_txwi_cache *mt76_get_rxwi(struct mt76_dev *dev);
@@ -268,10 +268,10 @@ index ffe23406..6fb3419d 100644
  	dev->mt76.rx_token_size = wed->wlan.rx_npkt;
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 51453058..c39be358 100644
+index 836d485f..8ea75fb9 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -561,6 +561,7 @@ void mt7915_wfsys_reset(struct mt7915_dev *dev);
+@@ -562,6 +562,7 @@ void mt7915_wfsys_reset(struct mt7915_dev *dev);
  irqreturn_t mt7915_irq_handler(int irq, void *dev_instance);
  u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif);
  u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
