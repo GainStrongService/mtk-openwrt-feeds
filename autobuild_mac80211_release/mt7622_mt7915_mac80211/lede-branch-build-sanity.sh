@@ -3,6 +3,7 @@ source ./autobuild/lede-build-sanity.sh
 #get the brach_name
 temp=${0%/*}
 branch_name=${temp##*/}
+backport_new=0
 
 #step1 clean
 #clean
@@ -16,7 +17,7 @@ echo "CONFIG_NETFILTER_ADVANCED=y" >> ./target/linux/mediatek/mt7622/config-5.4
 
 prepare_flowoffload
 
-prepare_mac80211
+prepare_mac80211 ${backport_new}
 
 prepare_final ${branch_name}
 

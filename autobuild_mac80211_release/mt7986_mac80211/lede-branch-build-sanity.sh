@@ -58,6 +58,10 @@ change_dot_config() {
 		echo "CONFIG_FRAME_WARN=4096" >> ${BUILD_DIR}/target/linux/mediatek/mt7986/config-5.4
 	}
 
+	[ "$backport_new" = "1" ] && {
+		rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*revert-for-backports*.patch
+	}
+
 }
 
 #step1 clean
