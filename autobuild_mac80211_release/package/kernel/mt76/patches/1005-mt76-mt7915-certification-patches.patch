@@ -1,7 +1,7 @@
-From ce4f3cb268d50b49fbde125fc00b8bcac938f45d Mon Sep 17 00:00:00 2001
+From 0e5f3fbc65dd09924683c8c5e6ba62f60cbd2843 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 6 Jun 2022 20:15:51 +0800
-Subject: [PATCH 1005/1009] mt76: mt7915: certification patches
+Subject: [PATCH 1005/1042] mt76: mt7915: certification patches
 
 ---
  mt76_connac_mcu.h    |   1 +
@@ -16,7 +16,7 @@ Subject: [PATCH 1005/1009] mt76: mt7915: certification patches
  9 files changed, 956 insertions(+), 5 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 841fcdec..18ae3acb 100644
+index 841fcde..18ae3ac 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1194,6 +1194,7 @@ enum {
@@ -28,7 +28,7 @@ index 841fcdec..18ae3acb 100644
  };
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 015f2705..229e68c3 100644
+index 015f270..229e68c 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -8,6 +8,7 @@
@@ -76,7 +76,7 @@ index 015f2705..229e68c3 100644
  			       IEEE80211_RC_NSS_CHANGED |
  			       IEEE80211_RC_BW_CHANGED))
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 33db7202..3d309bc0 100644
+index 33db720..3d309bc 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -667,6 +667,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -109,7 +109,7 @@ index 33db7202..3d309bc0 100644
  
  void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index e0e25a91..4e36910c 100644
+index e0e25a9..4e36910 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -3881,6 +3881,472 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -586,7 +586,7 @@ index e0e25a91..4e36910c 100644
  
  #ifdef MTK_DEBUG
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index b6840b22..d7322fe8 100644
+index b6840b2..d7322fe 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -415,10 +415,14 @@ enum {
@@ -820,7 +820,7 @@ index b6840b22..d7322fe8 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 33ca8e8c..415fe82a 100644
+index 33ca8e8..415fe82 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -714,6 +714,19 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
@@ -844,7 +844,7 @@ index 33ca8e8c..415fe82a 100644
  int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
  			u8 cfg, u8 v1, u32 v2, u8 *mac_addr);
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 176937ad..e24b4d78 100644
+index 176937a..e24b4d7 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2486,7 +2486,8 @@ static int mt7915_muru_onoff_get(void *data, u64 *val)
@@ -869,7 +869,7 @@ index 176937ad..e24b4d78 100644
         }
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index b94d787e..7456c577 100644
+index b94d787..7456c57 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -22,6 +22,29 @@ csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
@@ -1081,7 +1081,7 @@ index b94d787e..7456c577 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 976817f3..1b08321c 100644
+index 976817f..1b08321 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -6,6 +6,48 @@
@@ -1134,5 +1134,5 @@ index 976817f3..1b08321c 100644
  
  enum mtk_vendor_attr_csi_ctrl {
 -- 
-2.25.1
+2.36.1
 

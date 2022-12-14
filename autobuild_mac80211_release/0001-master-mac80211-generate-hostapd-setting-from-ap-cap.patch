@@ -1,8 +1,8 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index 8ecbe304..aa542d43 100644
+index 58f07e1..e9a0dd3 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
-@@ -19,6 +19,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
+@@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
  PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/backports-$(PKG_VERSION)
  PKG_BUILD_PARALLEL:=1
  
@@ -10,7 +10,7 @@ index 8ecbe304..aa542d43 100644
  PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
  
  PKG_DRIVERS = \
-@@ -71,6 +72,10 @@ config-y:= \
+@@ -72,6 +73,10 @@ config-y:= \
  	WLAN_VENDOR_ST \
  	WLAN_VENDOR_TI \
  	WLAN_VENDOR_ZYDAS \
@@ -21,7 +21,7 @@ index 8ecbe304..aa542d43 100644
  
  config-$(call config_package,cfg80211) += CFG80211
  config-$(CONFIG_PACKAGE_CFG80211_TESTMODE) += NL80211_TESTMODE
-@@ -296,6 +301,8 @@ define Build/Prepare
+@@ -297,6 +302,8 @@ define Build/Prepare
  	mkdir -p $(PKG_BUILD_DIR)
  	$(PKG_UNPACK)
  	$(Build/Patch)
@@ -31,7 +31,7 @@ index 8ecbe304..aa542d43 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index ed280521..66cf5884 100644
+index 0a7f787..4bae0bc 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -144,9 +144,6 @@ mac80211_hostapd_setup_base() {
@@ -61,8 +61,18 @@ index ed280521..66cf5884 100644
  	hostapd_prepare_device_config "$hostapd_conf_file" nl80211
  	cat >> "$hostapd_conf_file" <<EOF
  ${channel:+channel=$channel}
+@@ -1058,6 +1056,9 @@ mac80211_setup_vif() {
+ 
+ 	json_select ..
+ 	[ -n "$failed" ] || wireless_add_vif "$name" "$ifname"
++
++	echo "Setup SMP Affinity"
++	/sbin/smp-mt76.sh
+ }
+ 
+ get_freq() {
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index 3ecd9322..438bf929 100644
+index 3ecd932..438bf92 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -120,6 +120,13 @@ get_band_defaults() {
@@ -102,3 +112,6 @@ index 3ecd9322..438bf929 100644
  		uci -q commit wireless
  	done
  }
+-- 
+2.36.1
+
