@@ -1,7 +1,7 @@
-From e199b3a9a4dcf01c00fd367e7dea297b0c0e308b Mon Sep 17 00:00:00 2001
+From 5a4e0813aaaf66a658c9907b7834cb61e10ae682 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 25 Nov 2022 14:07:46 +0800
-Subject: [PATCH 3005/3011] mt76: mt7915: wed: add ser support when wed on
+Subject: [PATCH 3005/3012] mt76: mt7915: wed: add ser support when wed on
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -120,10 +120,10 @@ index 53c6ce25..4b9bc7f4 100644
  
  #endif
 diff --git a/mt76.h b/mt76.h
-index fb8c15eb..b107516d 100644
+index 7b222e73..75975cb5 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1391,6 +1391,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+@@ -1395,6 +1395,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
  void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
  void mt76_put_rxwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
  struct mt76_txwi_cache *mt76_get_rxwi(struct mt76_dev *dev);
@@ -247,7 +247,7 @@ index 5373777a..d5df73db 100644
  	if (ext_phy)
  		ieee80211_stop_queues(ext_phy->hw);
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index ffe23406..6fb3419d 100644
+index ac574722..ecc38e05 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -617,6 +617,8 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
@@ -268,10 +268,10 @@ index ffe23406..6fb3419d 100644
  	dev->mt76.rx_token_size = wed->wlan.rx_npkt;
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 836d485f..8ea75fb9 100644
+index 2e6519e7..f9c02912 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -562,6 +562,7 @@ void mt7915_wfsys_reset(struct mt7915_dev *dev);
+@@ -559,6 +559,7 @@ void mt7915_wfsys_reset(struct mt7915_dev *dev);
  irqreturn_t mt7915_irq_handler(int irq, void *dev_instance);
  u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif);
  u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
