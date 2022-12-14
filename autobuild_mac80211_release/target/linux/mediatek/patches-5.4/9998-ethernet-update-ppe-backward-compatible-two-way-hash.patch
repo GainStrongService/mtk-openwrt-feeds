@@ -2,7 +2,7 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/
 index 2c54c9c..d3ba9eb 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -3814,7 +3814,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -4442,7 +4442,8 @@ static int mtk_probe(struct platform_dev
  
  		for (i = 0; i < eth->ppe_num; i++) {
  			eth->ppe[i] = mtk_ppe_init(eth,
@@ -12,7 +12,7 @@ index 2c54c9c..d3ba9eb 100644
  			if (!eth->ppe[i]) {
  				err = -ENOMEM;
  				goto err_free_dev;
-@@ -3927,12 +3928,13 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -4558,6 +4559,7 @@ static const struct mtk_soc_data mt2701_
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -20,13 +20,7 @@ index 2c54c9c..d3ba9eb 100644
  	.offload_version = 2,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
- 		.rxd_size = sizeof(struct mtk_rx_dma),
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
- 	},
- };
- 
-@@ -3936,12 +3938,13 @@ static const struct mtk_soc_data mt7621_data = {
+@@ -4573,6 +4575,7 @@ static const struct mtk_soc_data mt7621_
  	.required_clks = MT7621_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -34,13 +28,7 @@ index 2c54c9c..d3ba9eb 100644
  	.offload_version = 2,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
- 		.rxd_size = sizeof(struct mtk_rx_dma),
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
- 	},
- };
- 
-@@ -3946,12 +3949,13 @@ static const struct mtk_soc_data mt7622_data = {
+@@ -4589,6 +4592,7 @@ static const struct mtk_soc_data mt7622_
  	.required_clks = MT7622_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -48,13 +36,7 @@ index 2c54c9c..d3ba9eb 100644
  	.offload_version = 2,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
- 		.rxd_size = sizeof(struct mtk_rx_dma),
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
- 	},
- };
- 
-@@ -3955,12 +3959,13 @@ static const struct mtk_soc_data mt7623_data = {
+@@ -4604,6 +4608,7 @@ static const struct mtk_soc_data mt7623_
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -62,13 +44,7 @@ index 2c54c9c..d3ba9eb 100644
  	.offload_version = 2,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
- 		.rxd_size = sizeof(struct mtk_rx_dma),
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
- 	},
- };
- 
-@@ -3974,12 +3979,13 @@ static const struct mtk_soc_data mt7986_data = {
+@@ -4635,6 +4640,7 @@ static const struct mtk_soc_data mt7986_
  	.required_clks = MT7986_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = true,
@@ -76,13 +52,7 @@ index 2c54c9c..d3ba9eb 100644
  	.offload_version = 2,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),
- 		.rxd_size = sizeof(struct mtk_rx_dma_v2),
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
- 	},
- };
- 
-@@ -3984,12 +3990,14 @@ static const struct mtk_soc_data mt7981_data = {
+@@ -4651,6 +4657,8 @@ static const struct mtk_soc_data mt7981_
  	.required_clks = MT7981_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = true,
@@ -91,18 +61,12 @@ index 2c54c9c..d3ba9eb 100644
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),
  		.rxd_size = sizeof(struct mtk_rx_dma_v2),
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
- 	},
- };
- 
- static const struct mtk_soc_data rt5350_data = {
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 index 4a69bd0..35a7543 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1188,6 +1188,7 @@ struct mtk_soc_data {
- 	u32		caps;
+@@ -1472,6 +1472,7 @@ struct mtk_soc_data {
+ 	u64		caps;
  	u32		required_clks;
  	bool		required_pctl;
 +	u8		hash_way;

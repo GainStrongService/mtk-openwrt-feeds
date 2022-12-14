@@ -74,27 +74,27 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/
 index 2b21f7ed0..819d8a0be 100755
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2654,12 +2654,17 @@ static int mtk_open(struct net_device *dev)
+@@ -3081,6 +3081,7 @@ static int mtk_open(struct net_device *d
+ 	struct mtk_phylink_priv *phylink_priv = &mac->phylink_priv;
+ 	int err, i;
+ 	struct device_node *phy_node;
++	u32 gdm_config = MTK_GDMA_TO_PDMA;
  
- 	/* we run 2 netdevs on the same dma ring so we only bring it up once */
- 	if (!refcount_read(&eth->dma_refcnt)) {
--		int err = mtk_start_dma(eth);
-+		u32 gdm_config = MTK_GDMA_TO_PDMA;
-+		int err;
+ 	err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
+ 	if (err) {
+@@ -3157,7 +3158,10 @@ static int mtk_open(struct net_device *d
+ 	if (!phy_node && eth->xgmii->regmap_sgmii[mac->id])
+ 		regmap_write(eth->xgmii->regmap_sgmii[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
-+		err = mtk_start_dma(eth);
- 		if (err)
- 			return err;
- 
--		mtk_gdm_config(eth, MTK_GDMA_TO_PDMA);
-+		if (eth->soc->offload_version && mtk_ppe_start(&eth->ppe) == 0)
+-	mtk_gdm_config(eth, mac->id, MTK_GDMA_TO_PDMA);
++	if (eth->soc->offload_version && mtk_ppe_start(&eth->ppe) == 0)
 +			gdm_config = MTK_GDMA_TO_PPE;
 +
-+		mtk_gdm_config(eth, gdm_config);
++	mtk_gdm_config(eth, mac->id, gdm_config);
  
- 		/* Indicates CDM to parse the MTK special tag from CPU */
- 		if (netdev_uses_dsa(dev)) {
-@@ -2772,6 +2777,9 @@ static int mtk_stop(struct net_device *dev)
+ 	return 0;
+ }
+@@ -3238,6 +3242,9 @@ static int mtk_stop(struct net_device *d
  
  	mtk_dma_free(eth);
  
@@ -104,7 +104,7 @@ index 2b21f7ed0..819d8a0be 100755
  	return 0;
  }
  
-@@ -3391,6 +3399,7 @@ static const struct net_device_ops mtk_netdev_ops = {
+@@ -3915,6 +3922,7 @@ static const struct net_device_ops mtk_n
  #ifdef CONFIG_NET_POLL_CONTROLLER
  	.ndo_poll_controller	= mtk_poll_controller,
  #endif
@@ -112,7 +112,7 @@ index 2b21f7ed0..819d8a0be 100755
  };
  
  static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
-@@ -3682,6 +3691,17 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -4308,6 +4316,17 @@ static int mtk_probe(struct platform_dev
  			goto err_free_dev;
  	}
  
@@ -130,62 +130,38 @@ index 2b21f7ed0..819d8a0be 100755
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
  		if (!eth->netdev[i])
  			continue;
-@@ -3781,12 +3801,13 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -4410,6 +4429,7 @@ static const struct mtk_soc_data mt2701_
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
 +	.offload_version = 2,
-	.txrx = {
-		.txd_size = sizeof(struct mtk_tx_dma),
-		.rxd_size = sizeof(struct mtk_rx_dma),
-		.dma_max_len = MTK_TX_DMA_BUF_LEN,
-		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
-	},
- };
- 
- static const struct mtk_soc_data mt7621_data = {
-@@ -3789,12 +3810,13 @@ static const struct mtk_soc_data mt7621_data = {
+ 	.txrx = {
+ 		.txd_size = sizeof(struct mtk_tx_dma),
+ 		.rxd_size = sizeof(struct mtk_rx_dma),
+@@ -4424,6 +4444,7 @@ static const struct mtk_soc_data mt7621_
  	.required_clks = MT7621_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
 +	.offload_version = 2,
-	.txrx = {
-		.txd_size = sizeof(struct mtk_tx_dma),
-		.rxd_size = sizeof(struct mtk_rx_dma),
-		.dma_max_len = MTK_TX_DMA_BUF_LEN,
-		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
-	},
- };
- 
- static const struct mtk_soc_data mt7622_data = {
-@@ -3798,12 +3820,13 @@ static const struct mtk_soc_data mt7622_data = {
+ 	.txrx = {
+ 		.txd_size = sizeof(struct mtk_tx_dma),
+ 		.rxd_size = sizeof(struct mtk_rx_dma),
+@@ -4439,6 +4460,7 @@ static const struct mtk_soc_data mt7622_
  	.required_clks = MT7622_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
 +	.offload_version = 2,
-	.txrx = {
-		.txd_size = sizeof(struct mtk_tx_dma),
-		.rxd_size = sizeof(struct mtk_rx_dma),
-		.dma_max_len = MTK_TX_DMA_BUF_LEN,
-		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
-	},
- };
- 
- static const struct mtk_soc_data mt7623_data = {
-@@ -3806,12 +3829,13 @@ static const struct mtk_soc_data mt7623_data = {
+ 	.txrx = {
+ 		.txd_size = sizeof(struct mtk_tx_dma),
+ 		.rxd_size = sizeof(struct mtk_rx_dma),
+@@ -4453,6 +4475,7 @@ static const struct mtk_soc_data mt7623_
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
 +	.offload_version = 2,
-	.txrx = {
-		.txd_size = sizeof(struct mtk_tx_dma),
-		.rxd_size = sizeof(struct mtk_rx_dma),
-		.dma_max_len = MTK_TX_DMA_BUF_LEN,
-		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
-	},
- };
- 
- static const struct mtk_soc_data mt7629_data = {
+ 	.txrx = {
+ 		.txd_size = sizeof(struct mtk_tx_dma),
+ 		.rxd_size = sizeof(struct mtk_rx_dma),
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 index b6380ffeb..349f98503 100755
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h

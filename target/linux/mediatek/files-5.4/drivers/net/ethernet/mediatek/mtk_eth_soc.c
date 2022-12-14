@@ -283,11 +283,6 @@ static void mtk_setup_bridge_switch(struct mtk_eth *eth)
 	val |= (GSW_IPG_11 << GSWTX_IPG_SHIFT) |
 	       (GSW_IPG_11 << GSWRX_IPG_SHIFT);
 	mtk_w32(eth, val, MTK_GSW_CFG);
-
-	/* Disable GDM1 RX CRC stripping */
-	val = mtk_r32(eth, MTK_GDMA_FWD_CFG(0));
-	val &= ~MTK_GDMA_STRP_CRC;
-	mtk_w32(eth, val, MTK_GDMA_FWD_CFG(0));
 }
 
 static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
@@ -3045,29 +3040,27 @@ static int mtk_start_dma(struct mtk_eth *eth)
 	return 0;
 }
 
-void mtk_gdm_config(struct mtk_eth *eth, u32 config)
+void mtk_gdm_config(struct mtk_eth *eth, u32 id, u32 config)
 {
-	int i;
+	u32 val;
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
 		return;
 
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		u32 val = mtk_r32(eth, MTK_GDMA_FWD_CFG(i));
+	val = mtk_r32(eth, MTK_GDMA_FWD_CFG(id));
 
-		/* default setup the forward port to send frame to PDMA */
-		val &= ~0xffff;
+	/* default setup the forward port to send frame to PDMA */
+	val &= ~0xffff;
 
-		/* Enable RX checksum */
-		val |= MTK_GDMA_ICS_EN | MTK_GDMA_TCS_EN | MTK_GDMA_UCS_EN;
+	/* Enable RX checksum */
+	val |= MTK_GDMA_ICS_EN | MTK_GDMA_TCS_EN | MTK_GDMA_UCS_EN;
 
-		val |= config;
+	val |= config;
 
-		if (eth->netdev[i] && netdev_uses_dsa(eth->netdev[i]))
-			val |= MTK_GDMA_SPECIAL_TAG;
+	if (eth->netdev[id] && netdev_uses_dsa(eth->netdev[id]))
+		val |= MTK_GDMA_SPECIAL_TAG;
 
-		mtk_w32(eth, val, MTK_GDMA_FWD_CFG(i));
-	}
+	mtk_w32(eth, val, MTK_GDMA_FWD_CFG(id));
 }
 
 void mtk_set_pse_drop(u32 config)
@@ -3101,7 +3094,6 @@ static int mtk_open(struct net_device *dev)
 		if (err)
 			return err;
 
-		mtk_gdm_config(eth, MTK_GDMA_TO_PDMA);
 
 		/* Indicates CDM to parse the MTK special tag from CPU */
 		if (netdev_uses_dsa(dev)) {
@@ -3163,6 +3155,8 @@ static int mtk_open(struct net_device *dev)
 	if (!phy_node && eth->xgmii->regmap_sgmii[mac->id])
 		regmap_write(eth->xgmii->regmap_sgmii[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, 0);
 
+	mtk_gdm_config(eth, mac->id, MTK_GDMA_TO_PDMA);
+
 	return 0;
 }
 
@@ -3197,6 +3191,7 @@ static int mtk_stop(struct net_device *dev)
 	u32 val = 0;
 	struct device_node *phy_node;
 
+	mtk_gdm_config(eth, mac->id, MTK_GDMA_DROP_ALL);
 	netif_tx_disable(dev);
 
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
@@ -3222,7 +3217,6 @@ static int mtk_stop(struct net_device *dev)
 	if (!refcount_dec_and_test(&eth->dma_refcnt))
 		return 0;
 
-	mtk_gdm_config(eth, MTK_GDMA_DROP_ALL);
 
 	mtk_tx_irq_disable(eth, MTK_TX_DONE_INT);
 	mtk_rx_irq_disable(eth, MTK_RX_DONE_INT(0));
@@ -3318,6 +3312,7 @@ static int mtk_napi_init(struct mtk_eth *eth)
 static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 {
 	int i, ret = 0;
+	u32 val;
 
 	pr_info("[%s] reset_lock:%d, force:%d\n", __func__,
 		atomic_read(&reset_lock), atomic_read(&force));
@@ -3419,6 +3414,11 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 		/* GDM and CDM Threshold */
 		mtk_w32(eth, 0x00000707, MTK_CDMW0_THRES);
 		mtk_w32(eth, 0x00000077, MTK_CDMW1_THRES);
+
+		/* Disable GDM1 RX CRC stripping */
+		val = mtk_r32(eth, MTK_GDMA_FWD_CFG(0));
+		val &= ~MTK_GDMA_STRP_CRC;
+		mtk_w32(eth, val, MTK_GDMA_FWD_CFG(0));
 
 		/* PSE GDM3 MIB counter has incorrect hw default values,
 		 * so the driver ought to read clear the values beforehand

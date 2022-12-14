@@ -31,15 +31,15 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/
 index 01fc1e5c0..3f67bebfe 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -1379,6 +1379,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -1732,6 +1732,7 @@ static int mtk_poll_rx(struct napi_struc
  	u8 *data, *new_data;
- 	struct mtk_rx_dma *rxd, trxd;
+ 	struct mtk_rx_dma_v2 *rxd, trxd;
  	int done = 0;
 +	int i;
  
  	if (unlikely(!ring))
  		goto rx_done;
-@@ -1479,14 +1480,20 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -1843,14 +1844,20 @@ static int mtk_poll_rx(struct napi_struc
  
  #if defined(CONFIG_MEDIATEK_NETSYS_V2)
  		reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON_V2, trxd.rxd5);
@@ -66,22 +66,22 @@ index 01fc1e5c0..3f67bebfe 100644
  #endif
  
  		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
-@@ -2687,8 +2694,12 @@ static int mtk_open(struct net_device *dev)
- 		if (err)
- 			return err;
+@@ -3184,8 +3191,12 @@ static int mtk_open(struct net_device *d
+ 	if (!phy_node && eth->xgmii->regmap_sgmii[mac->id])
+ 		regmap_write(eth->xgmii->regmap_sgmii[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
--		if (eth->soc->offload_version && mtk_ppe_start(eth->ppe) == 0)
+-	if (eth->soc->offload_version && mtk_ppe_start(&eth->ppe) == 0)
 -			gdm_config = MTK_GDMA_TO_PPE;
-+		if (eth->soc->offload_version) {
++	if (eth->soc->offload_version) {
 +			gdm_config = MTK_GDMA_TO_PPE0;
 +
 +			for (i = 0; i < eth->ppe_num; i++)
 +				mtk_ppe_start(eth->ppe[i]);
 +		}
  
- 		mtk_gdm_config(eth, gdm_config);
+ 	mtk_gdm_config(eth, mac->id, gdm_config);
  
-@@ -2803,8 +2814,10 @@ static int mtk_stop(struct net_device *dev)
+@@ -3268,8 +3279,10 @@ static int mtk_stop(struct net_device *d
  
  	mtk_dma_free(eth);
  
@@ -94,7 +94,7 @@ index 01fc1e5c0..3f67bebfe 100644
  
  	return 0;
  }
-@@ -3780,15 +3793,35 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -4408,15 +4421,35 @@ static int mtk_probe(struct platform_dev
  	}
  
  	if (eth->soc->offload_version) {
@@ -141,9 +141,9 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/
 index fce1a7172..b4de7c0c6 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -110,7 +110,12 @@
- #define MTK_GDMA_TCS_EN		BIT(21)
+@@ -118,7 +118,12 @@
  #define MTK_GDMA_UCS_EN		BIT(20)
+ #define MTK_GDMA_STRP_CRC	BIT(16)
  #define MTK_GDMA_TO_PDMA	0x0
 -#define MTK_GDMA_TO_PPE		0x3333
 +#if defined(CONFIG_MEDIATEK_NETSYS_V2)
@@ -154,8 +154,8 @@ index fce1a7172..b4de7c0c6 100644
 +#endif
  #define MTK_GDMA_DROP_ALL	0x7777
  
- /* Unicast Filter MAC Address Register - Low */
-@@ -1299,7 +1300,8 @@ struct mtk_eth {
+ /* GDM Egress Control Register */
+@@ -1612,7 +1617,8 @@ struct mtk_eth {
  	spinlock_t			syscfg0_lock;
  	struct timer_list		mtk_dma_monitor_timer;
  
@@ -165,8 +165,8 @@ index fce1a7172..b4de7c0c6 100644
  	struct rhashtable		flow_table;
  };
  
-@@ -1349,9 +1351,11 @@ int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
- void mtk_gdm_config(struct mtk_eth *eth, u32 config);
+@@ -1668,11 +1674,13 @@ int mtk_gmac_usxgmii_path_setup(struct m
+ void mtk_gdm_config(struct mtk_eth *eth, u32 id, u32 config);
  void ethsys_reset(struct mtk_eth *eth, u32 reset_bits);
  
 -int mtk_eth_offload_init(struct mtk_eth *eth);
@@ -178,6 +178,8 @@ index fce1a7172..b4de7c0c6 100644
 +int mtk_ppe_debugfs_init(struct mtk_eth *eth);
 +
  int mtk_mac2xgmii_id(struct mtk_eth *eth, int mac_id);
+ int mtk_usxgmii_init(struct mtk_xgmii *ss, struct device_node *r);
+ int mtk_xfi_pextp_init(struct mtk_xgmii *ss, struct device_node *r);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 index d46e91178..3d6ff30ba 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
