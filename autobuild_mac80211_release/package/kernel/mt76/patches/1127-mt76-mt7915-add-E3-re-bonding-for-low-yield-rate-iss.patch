@@ -1,7 +1,7 @@
-From 1116673d44b71df37e01407ee6ebca0b6cc9f338 Mon Sep 17 00:00:00 2001
+From 1b3a030e1a19cc22d93b8b579f0ef38616aca2f9 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 13 Oct 2022 13:22:05 +0800
-Subject: [PATCH 1127/1129] mt76: mt7915: add E3 re-bonding for low yield rate
+Subject: [PATCH 1127/1130] mt76: mt7915: add E3 re-bonding for low yield rate
  issue
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -64,7 +64,7 @@ index 64a7750b..efa9c173 100644
  	if (ret)
  		return ret;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 5791cb29..785c3c10 100644
+index 8885067b..0db72efc 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2822,7 +2822,7 @@ int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode)
@@ -95,10 +95,10 @@ index 5791cb29..785c3c10 100644
  
  	return 0;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 22454b54..2d3769c6 100644
+index 2718b42c..f618e99a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -561,6 +561,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
+@@ -566,6 +566,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
  
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);
@@ -106,7 +106,7 @@ index 22454b54..2d3769c6 100644
  int mt7915_eeprom_init(struct mt7915_dev *dev);
  void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
  				struct mt7915_phy *phy);
-@@ -614,7 +615,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
+@@ -619,7 +620,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
  				   struct ieee80211_sta *sta,
  				   void *data, u32 field);
  int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode);
@@ -116,5 +116,5 @@ index 22454b54..2d3769c6 100644
  int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
  		       bool hdr_trans);
 -- 
-2.25.1
+2.18.0
 

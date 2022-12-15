@@ -1,4 +1,4 @@
-From 2d158600e7c9b18069111d5935e9dbaf8c9277f3 Mon Sep 17 00:00:00 2001
+From 34abc0e25e54078353f9c1458e4743f95bf70bfd Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Tue, 13 Dec 2022 17:51:26 +0800
 Subject: [PATCH 3002/3012] mt76: mt7915: wed: add wds support when wed is
@@ -32,10 +32,10 @@ index 01baceaf..7b222e73 100644
  	u32 (*rr)(struct mt76_dev *dev, u32 offset);
  	void (*wr)(struct mt76_dev *dev, u32 offset, u32 val);
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 370bfad7..75c78b8e 100644
+index 0a09400c..eef899b7 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -675,8 +675,15 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -686,8 +686,15 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  #endif
  	int ret, idx;
  	u32 addr;
@@ -52,7 +52,7 @@ index 370bfad7..75c78b8e 100644
  	if (idx < 0)
  		return -ENOSPC;
  
-@@ -1148,6 +1155,13 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
+@@ -1159,6 +1166,13 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
  	else
  		clear_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
  
@@ -66,7 +66,7 @@ index 370bfad7..75c78b8e 100644
  	mt76_connac_mcu_wtbl_update_hdr_trans(&dev->mt76, vif, sta);
  }
  
-@@ -1519,8 +1533,12 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1530,8 +1544,12 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	path->dev = ctx->dev;
  	path->mtk_wdma.wdma_idx = wed->wdma_idx;
  	path->mtk_wdma.bss = mvif->mt76.idx;
@@ -81,7 +81,7 @@ index 370bfad7..75c78b8e 100644
  	ctx->dev = NULL;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 4b7ad450..bdfb71e2 100644
+index 519ead54..8ceea94d 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2350,8 +2350,17 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)

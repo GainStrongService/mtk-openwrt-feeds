@@ -1,7 +1,7 @@
-From 42421ff7f8ef7bbc45a050c6f7590981862d91bd Mon Sep 17 00:00:00 2001
+From 5ce6e964e6204e498517acac37c4285fc7d0b398 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 31 Aug 2022 20:06:52 +0800
-Subject: [PATCH 1113/1129] mt76: testmode: add pre-cal support
+Subject: [PATCH 1113/1130] mt76: testmode: add pre-cal support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Change-Id: Ibfbbc3443de994eeb4daa5e364b0a90f5d7d3bcd
@@ -114,7 +114,7 @@ index f3e56817..88aaa16a 100644
  
  #endif
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index d4336f69..92bae4f7 100644
+index 85450ead..8e3217b6 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -387,6 +387,9 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -169,10 +169,10 @@ index d4336f69..92bae4f7 100644
  
  	idx = mt7915_dpd_freq_idx(center_freq, chandef->width);
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 6206c7f5..ed1469d6 100644
+index 4336f204..b6c9fc50 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -401,6 +401,10 @@ struct mt7915_dev {
+@@ -406,6 +406,10 @@ struct mt7915_dev {
  	struct rchan *relay_fwlog;
  
  	void *cal;
@@ -183,7 +183,7 @@ index 6206c7f5..ed1469d6 100644
  
  	struct {
  		u8 debug_wm;
-@@ -634,6 +638,7 @@ int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
+@@ -640,6 +644,7 @@ int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
  void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb);
  void mt7915_mcu_exit(struct mt7915_dev *dev);
  int mt7915_tm_txbf_status_read(struct mt7915_dev *dev, struct sk_buff *skb);
@@ -843,5 +843,5 @@ index 6e36ab27..1be1ffd6 100644
  
  static const char * const testmode_tx_mode[] = {
 -- 
-2.25.1
+2.18.0
 

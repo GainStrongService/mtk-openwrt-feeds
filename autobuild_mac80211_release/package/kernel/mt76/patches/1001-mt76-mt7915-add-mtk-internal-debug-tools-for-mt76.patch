@@ -1,7 +1,7 @@
-From 53904fff8723ca80699e95efeb4b3fe9ededafbd Mon Sep 17 00:00:00 2001
+From 6bcd3876554df7bbf16e84a3bcdcee1d534c07c3 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
-Subject: [PATCH 1001/1042] mt76: mt7915: add mtk internal debug tools for mt76
+Subject: [PATCH 1001/1009] mt76: mt7915: add mtk internal debug tools for mt76
 
 ---
  mt76_connac_mcu.h     |    7 +
@@ -22,7 +22,7 @@ Subject: [PATCH 1001/1042] mt76: mt7915: add mtk internal debug tools for mt76
  create mode 100644 mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index f1e942b..9d0d613 100644
+index f1e942b9..9d0d6130 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1146,6 +1146,7 @@ enum {
@@ -47,7 +47,7 @@ index f1e942b..9d0d613 100644
  	MCU_EXT_CMD_CAL_CACHE = 0x67,
  	MCU_EXT_CMD_SET_RADAR_TH = 0x7c,
 diff --git a/mt7915/Makefile b/mt7915/Makefile
-index 797ae49..a42866e 100644
+index 797ae498..a42866e9 100644
 --- a/mt7915/Makefile
 +++ b/mt7915/Makefile
 @@ -3,7 +3,7 @@
@@ -60,7 +60,7 @@ index 797ae49..a42866e 100644
  mt7915e-$(CONFIG_NL80211_TESTMODE) += testmode.o
  mt7915e-$(CONFIG_MT7986_WMAC) += soc.o
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 5a46813..f1f3f2f 100644
+index 5a46813a..f1f3f2f3 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -8,6 +8,9 @@
@@ -204,7 +204,7 @@ index 5a46813..f1f3f2f 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index f0d5a36..149527d 100644
+index f0d5a360..149527df 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -300,6 +300,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -243,10 +243,10 @@ index f0d5a36..149527d 100644
  }
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 0511d6a..b44507f 100644
+index 7589af4b..f6edab6e 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -62,7 +62,11 @@ int mt7915_run(struct ieee80211_hw *hw)
+@@ -73,7 +73,11 @@ int mt7915_run(struct ieee80211_hw *hw)
  	if (ret)
  		goto out;
  
@@ -259,7 +259,7 @@ index 0511d6a..b44507f 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 35441dc..56e5ea5 100644
+index 7c14a189..644e6a8f 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -199,6 +199,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -274,7 +274,7 @@ index 35441dc..56e5ea5 100644
  	return mt76_tx_queue_skb_raw(dev, mdev->q_mcu[qid], skb, 0);
  }
  
-@@ -3323,6 +3328,8 @@ int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable)
+@@ -3331,6 +3336,8 @@ int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable)
  		.sku_enable = enable,
  	};
  
@@ -283,7 +283,7 @@ index 35441dc..56e5ea5 100644
  	return mt76_mcu_send_msg(&dev->mt76,
  				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL), &req,
  				 sizeof(req), true);
-@@ -3760,6 +3767,43 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
+@@ -3768,6 +3775,43 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
  				 &req, sizeof(req), true);
  }
  
@@ -327,7 +327,7 @@ index 35441dc..56e5ea5 100644
  int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  {
  	struct {
-@@ -3788,3 +3832,22 @@ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
+@@ -3796,3 +3840,22 @@ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  
  	return 0;
  }
@@ -351,7 +351,7 @@ index 35441dc..56e5ea5 100644
 +}
 +#endif
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 29b5434..aa89106 100644
+index 29b5434b..aa89106e 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -278,6 +278,10 @@ enum {
@@ -366,7 +366,7 @@ index 29b5434..aa89106 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 6351feb..7c129f7 100644
+index 942d70c5..afe2ec7a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -377,7 +377,7 @@ index 6351feb..7c129f7 100644
  #define MT7915_MAX_INTERFACES		19
  #define MT7915_WTBL_SIZE		288
  #define MT7916_WTBL_SIZE		544
-@@ -367,6 +368,29 @@ struct mt7915_dev {
+@@ -372,6 +373,29 @@ struct mt7915_dev {
  	struct reset_control *rstc;
  	void __iomem *dcm;
  	void __iomem *sku;
@@ -407,7 +407,7 @@ index 6351feb..7c129f7 100644
  };
  
  enum {
-@@ -644,4 +668,24 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -650,4 +674,24 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  			 bool pci, int *irq);
  
@@ -434,7 +434,7 @@ index 6351feb..7c129f7 100644
  #endif
 diff --git a/mt7915/mt7915_debug.h b/mt7915/mt7915_debug.h
 new file mode 100644
-index 0000000..ecdc02a
+index 00000000..ecdc02ab
 --- /dev/null
 +++ b/mt7915/mt7915_debug.h
 @@ -0,0 +1,1350 @@
@@ -1790,7 +1790,7 @@ index 0000000..ecdc02a
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 0000000..747a901
+index 00000000..747a9014
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
 @@ -0,0 +1,2925 @@
@@ -4721,7 +4721,7 @@ index 0000000..747a901
 +#endif
 diff --git a/mt7915/mtk_mcu.c b/mt7915/mtk_mcu.c
 new file mode 100644
-index 0000000..143dae2
+index 00000000..143dae26
 --- /dev/null
 +++ b/mt7915/mtk_mcu.c
 @@ -0,0 +1,51 @@
@@ -4777,7 +4777,7 @@ index 0000000..143dae2
 +				 sizeof(req), true);
 +}
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a10..3d51d9e 100644
+index e5d4a105..3d51d9ec 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)
@@ -4891,5 +4891,5 @@ index e5d4a10..3d51d9e 100644
  	return ret;
  }
 -- 
-2.36.1
+2.18.0
 

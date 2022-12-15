@@ -1,7 +1,7 @@
-From 5a91524be285d368d1616a47df541a1c14314846 Mon Sep 17 00:00:00 2001
+From af149d1b40396d7dc123699ce3edfdea5f210622 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
-Subject: [PATCH 1121/1129] mt76: mt7915: add vendor subcmd EDCCA ctrl
+Subject: [PATCH 1121/1130] mt76: mt7915: add vendor subcmd EDCCA ctrl
  enable/threshold/compensation
 
 Change-Id: I06a3f94d5e444be894200e2b6588d76ed38d09d0
@@ -28,10 +28,10 @@ index 7853e074..88bfd09f 100644
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 0396031c..94b7a651 100644
+index f1829cea..9467dbe2 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -458,6 +458,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
+@@ -469,6 +469,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
  			mutex_unlock(&dev->mt76.mutex);
  		}
  #endif
@@ -42,10 +42,10 @@ index 0396031c..94b7a651 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ca2e4029..7507344a 100644
+index 9fb21cba..b4c563a7 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4568,3 +4568,75 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
+@@ -4576,3 +4576,75 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
  
  	return 0;
  }
@@ -154,10 +154,10 @@ index 9a485249..33e33d89 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 66695d5b..5bffcff5 100644
+index 66a76cba..ac19b78e 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -753,7 +753,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
+@@ -759,7 +759,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
  int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
@@ -376,5 +376,5 @@ index 719b851f..72319717 100644
  
  enum mtk_capi_control_changed {
 -- 
-2.25.1
+2.18.0
 
