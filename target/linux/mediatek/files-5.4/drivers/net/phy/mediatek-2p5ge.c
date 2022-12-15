@@ -13,6 +13,10 @@
 #define MD32_EN_CFG	0x18
 #define   MD32_EN	BIT(0)
 
+#define BASE100T_STATUS_EXTEND		(0x10)
+#define BASE1000T_STATUS_EXTEND		(0x11)
+#define EXTEND_CTRL_AND_STATUS		(0x16)
+
 static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 {
 	int ret;
@@ -90,6 +94,38 @@ static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
 	return 0;
 }
 
+static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
+{
+	int ret;
+	u16 reg;
+
+	ret = genphy_read_status(phydev);
+
+	reg = phy_read(phydev, BASE1000T_STATUS_EXTEND);
+	if (FIELD_GET(BIT(2), reg)) {
+		phydev->speed = SPEED_2500;
+		goto end;
+	} else if (FIELD_GET(BIT(12), reg)) {
+		phydev->speed = SPEED_1000;
+		goto end;
+	}
+
+	reg = phy_read(phydev, BASE100T_STATUS_EXTEND);
+	if (FIELD_GET(BIT(12), reg)) {
+		phydev->speed = SPEED_100;
+		goto end;
+	}
+
+	reg = phy_read(phydev, EXTEND_CTRL_AND_STATUS);
+	if (FIELD_GET(BIT(6), reg)) {
+		phydev->speed = SPEED_10;
+		goto end;
+	}
+
+end:
+	return ret;
+}
+
 static struct phy_driver mtk_gephy_driver[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x00339c11),
@@ -97,6 +133,7 @@ static struct phy_driver mtk_gephy_driver[] = {
 		.config_init	= mt798x_2p5ge_phy_config_init,
 		.config_aneg    = genphy_c45_config_aneg,
 		.get_features	= mt798x_2p5ge_phy_get_features,
+		.read_status	= mt798x_2p5ge_phy_read_status,
 		//.config_intr	= genphy_no_config_intr,
 		//.handle_interrupt = genphy_no_ack_interrupt,
 		//.suspend	= genphy_suspend,
