@@ -1,19 +1,18 @@
-From 0d87b80d522117ea4c074ff3f7767f76fdd3df2d Mon Sep 17 00:00:00 2001
-From: mtk31095 <michael-cy.lee@mediatek.com>
-Date: Fri, 16 Dec 2022 10:37:53 +0800
-Subject: [PATCH 912/915] mac80211: mtk: check the control channel before
+From 1c406724813497c3a7679d67f53755c102be8f9a Mon Sep 17 00:00:00 2001
+From: Evelyn Tsai <evelyn.tsai@mediatek.com>
+Date: Fri, 16 Dec 2022 03:31:06 +0800
+Subject: [PATCH 909/912] mac80211: mtk: check the control channel before
  downgrading the bandwidth
 
-Signed-off-by: mtk31095 <michael-cy.lee@mediatek.com>
 ---
  net/mac80211/mlme.c | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
 
 diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
-index f97bf2b..8ee325a 100644
+index d8484cd..8ab5c52 100644
 --- a/net/mac80211/mlme.c
 +++ b/net/mac80211/mlme.c
-@@ -5019,6 +5019,26 @@ ieee80211_verify_sta_he_mcs_support(struct ieee80211_sub_if_data *sdata,
+@@ -4582,6 +4582,26 @@ ieee80211_verify_sta_he_mcs_support(struct ieee80211_sub_if_data *sdata,
  	return false;
  }
  
@@ -38,9 +37,9 @@ index f97bf2b..8ee325a 100644
 +}
 +
  static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
- 				  struct cfg80211_bss *cbss)
- {
-@@ -5179,6 +5199,9 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
+ 				  struct ieee80211_link_data *link,
+ 				  struct cfg80211_bss *cbss,
+@@ -4808,6 +4828,9 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
  	    chandef.width == NL80211_CHAN_WIDTH_10)
  		goto out;
  
@@ -48,8 +47,8 @@ index f97bf2b..8ee325a 100644
 +		goto out;
 +
  	while (ret && chandef.width != NL80211_CHAN_WIDTH_20_NOHT) {
- 		ifmgd->flags |= ieee80211_chandef_downgrade(&chandef);
- 		ret = ieee80211_vif_use_channel(sdata, &chandef,
+ 		*conn_flags |=
+ 			ieee80211_chandef_downgrade(&chandef);
 -- 
 2.36.1
 

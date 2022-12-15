@@ -1,7 +1,7 @@
-From 6d245b62cf147bb813898da2ccb43a14ae0fac5c Mon Sep 17 00:00:00 2001
+From 316a7218dbbfa48fbd030cb64fb3693edf00e276 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 22 Sep 2022 14:27:41 +0800
-Subject: [PATCH 909/911] cfg80211: mtk: implement DFS status show, cac and nop
+Subject: [PATCH 909/915] cfg80211: mtk: implement DFS status show, cac and nop
  skip command via debugfs
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -28,10 +28,10 @@ index ae2af09..b97ddbd 100644
  
  /*
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index bf71594..97c5e5d 100644
+index 544dcf5..0a6257d 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -4504,6 +4504,24 @@ ieee80211_set_radar_background(struct wiphy *wiphy,
+@@ -4501,6 +4501,24 @@ ieee80211_set_radar_background(struct wiphy *wiphy,
  	return local->ops->set_radar_background(&local->hw, chandef);
  }
  
@@ -56,7 +56,7 @@ index bf71594..97c5e5d 100644
  const struct cfg80211_ops mac80211_config_ops = {
  	.add_virtual_intf = ieee80211_add_iface,
  	.del_virtual_intf = ieee80211_del_iface,
-@@ -4610,4 +4628,5 @@ const struct cfg80211_ops mac80211_config_ops = {
+@@ -4607,4 +4625,5 @@ const struct cfg80211_ops mac80211_config_ops = {
  	.set_sar_specs = ieee80211_set_sar_specs,
  	.color_change = ieee80211_color_change,
  	.set_radar_background = ieee80211_set_radar_background,
