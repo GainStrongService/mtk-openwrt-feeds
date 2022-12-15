@@ -155,7 +155,10 @@ function change_band_idx {
             elif [ "${new_idx}" = "1" ]; then
                 # raix0 & rai0 becomes raix0
                 if [[ $interface_ori == "rai"* ]]; then
-                    new_phy_idx=1
+                    # For AX8400 => don't change phy idx
+                    if [ ${start_idx_7986} != "1" ]; then
+                        new_phy_idx=1
+                    fi
                 # rax0 & ra0 becomes rax0
                 elif [[ $interface_ori == "ra"* ]]; then
                     new_phy_idx=$((start_idx_7986+1))
@@ -200,21 +203,24 @@ function simple_convert() {
 }
 
 function convert_tx_mode() {
-    if [ "$1" = "0" ]; then
+    # Remove leading zeros
+    local tx_mode=$(echo $1 | sed 's/^0*//')
+
+    if [ "$tx_mode" = "0" ]; then
         echo "cck"
-    elif [ "$1" = "1" ]; then
+    elif [ "$tx_mode" = "1" ]; then
         echo "ofdm"
-    elif [ "$1" = "2" ]; then
+    elif [ "$tx_mode" = "2" ]; then
         echo "ht"
-    elif [ "$1" = "4" ]; then
+    elif [ "$tx_mode" = "4" ]; then
         echo "vht"
-    elif [ "$1" = "8" ]; then
+    elif [ "$tx_mode" = "8" ]; then
         echo "he_su"
-    elif [ "$1" = "9" ]; then
+    elif [ "$tx_mode" = "9" ]; then
         echo "he_er"
-    elif [ "$1" = "10" ]; then
+    elif [ "$tx_mode" = "10" ]; then
         echo "he_tb"
-    elif [ "$1" = "11" ]; then
+    elif [ "$tx_mode" = "11" ]; then
         echo "he_mu"
     else
         echo "undefined"
@@ -305,11 +311,30 @@ function convert_channel {
     local base_chan=1
     local control_freq=0
     local base_freq=0
+    local band=$(echo $1 | sed s/:/' '/g | cut -d " " -f 2)
+    local temp=$((phy_idx+1))
 
-    if [ -z ${ctrl_band_idx} ]; then
-        local band=$(echo $1 | sed s/:/' '/g | cut -d " " -f 2)
-    else
-        local band=$ctrl_band_idx
+    # Handle ATECTRLBANDIDX
+    if [ ! -z ${ctrl_band_idx} ]; then
+        if [ "${ctrl_band_idx}" == "1" ] && [ ${band} == "0" ]; then
+            local temp=$(cat "/etc/config/wireless"| grep "option band" | sed -n ${temp}p | cut -c 15)
+            if [ "${temp}" == "2" ]; then
+                local band=0
+            elif [ "${temp}" == "5" ]; then
+                local band=1
+            elif [ "${temp}" == "6" ]; then
+                local band=2
+            else
+                echo "iwpriv wrapper band translate error!"
+            fi
+        else
+            # mt7915 in AX8400 case: band should be determined by only the input band
+            if [ "${start_idx_7986}" == "1" ] && [ ${phy_idx} == "0" ]; then
+                local band=$((band))
+            else
+                local band=$((ctrl_band_idx * band))
+            fi
+        fi
     fi
 
     if [[ $1 != *":"* ]] || [ "${band}" = "0" ]; then
@@ -625,12 +650,17 @@ function convert_ibf {
     case ${cmd} in
         "ATETxBfInit")
             new_cmd="init"
-            new_param=1
+            new_param="1"
+            do_cmd "mt76-test phy${phy_idx} set state=idle"
+            ;;
+        "ATETxBfGdInit")
+            new_cmd="golden_init"
+            new_param="1"
             do_cmd "mt76-test phy${phy_idx} set state=idle"
             ;;
         "ATEIBFPhaseComp")
             new_cmd="phase_comp"
-            new_param="${new_param} aid=1"
+            new_param="${new_param}"
             ;;
         "ATEEBfProfileConfig")
             new_cmd="ebf_prof_update"
@@ -670,6 +700,77 @@ function convert_ibf {
         "ATEIBFPhaseE2pUpdate")
             new_cmd="e2p_update"
             ;;
+        "ATEIBFPhaseVerify")
+            local group=${new_param:0:2}
+            local group_l_m_h=${new_param:3:2}
+            local band_idx=${new_param:6:2}
+            local phase_cal_type=${new_param:9:2}
+            local LNA_gain_level=${new_param:12:2}
+            local read_from_e2p=${new_param:15:2}
+
+            do_cmd "mt76-test phy${phy_idx} set txbf_act=phase_comp txbf_param=1,${band_idx},${group},${read_from_e2p},0"
+            new_cmd="phase_cal"
+            new_param="${group},${group_l_m_h},${band_idx},${phase_cal_type},${LNA_gain_level}"
+            ;;
+        "TxBfProfileTagRead")
+            new_cmd="pfmu_tag_read"
+            ;;
+        "TxBfProfileTagWrite")
+            new_cmd="pfmu_tag_write"
+            ;;
+        "TxBfProfileTagInValid")
+            new_cmd="set_invalid_prof"
+            ;;
+        "StaRecBfRead")
+            new_cmd="sta_rec_read"
+            ;;
+        "TriggerSounding")
+            new_cmd="trigger_sounding"
+            ;;
+        "StopSounding")
+            new_cmd="stop_sounding"
+            new_param="0"
+            ;;
+        "ATEConTxETxBfGdProc")
+            local tx_rate_mode=$(convert_tx_mode ${new_param:0:2})
+            local tx_rate_idx=${new_param:3:2}
+            local bw=$(echo ${new_param:6:2} | sed 's/^0//')
+            local channel=${new_param:9:3}
+            local channel2=${new_param:13:3}
+            local band=${new_param:17}
+
+            new_cmd="ebf_golden_init"
+            do_ate_work "ATESTART"
+            do_cmd "mt76-test phy${phy_idx} set state=idle"
+            record_config "ATETXBW" ${bw} ${iwpriv_file}
+            convert_channel "${channel}:${band}"
+            if [ "${bw}" = "5" ]; then
+                new_param="1,1"
+            else
+                new_param="1,0"
+            fi
+            do_cmd "mt76-test phy${phy_idx} set tx_rate_mode=${tx_rate_mode} tx_rate_idx=${tx_rate_idx} tx_rate_sgi=0"
+            ;;
+        "ATEConTxETxBfInitProc")
+            local tx_rate_mode=$(convert_tx_mode ${new_param:0:2})
+            local tx_rate_idx=${new_param:3:2}
+            local bw=$(echo ${new_param:6:2} | sed 's/^0//')
+            local tx_rate_nss=${new_param:9:2}
+            local tx_stream=${new_param:12:2}
+            local tx_power=${new_param:15:2}
+            local channel=${new_param:18:3}
+            local channel2=${new_param:22:3}
+            local band=${new_param:26:1}
+            local tx_length=${new_param:28:5}
+
+            new_cmd="ebf_init"
+            do_ate_work "ATESTART"
+            do_cmd "mt76-test phy${phy_idx} set state=idle"
+            record_config "ATETXBW" ${bw} ${iwpriv_file}
+            convert_channel "${channel}:${band}"
+            new_param="1"
+            do_cmd "mt76-test phy${phy_idx} set tx_rate_mode=${tx_rate_mode} tx_rate_idx=${tx_rate_idx} tx_rate_nss=${tx_rate_nss} tx_rate_sgi=0 tx_rate_ldpc=1 tx_power=${tx_power},0,0,0 tx_count=10000000 tx_length=${tx_length} tx_ipg=4"
+            ;;
         *)
     esac
 
@@ -677,6 +778,24 @@ function convert_ibf {
 
     if [ "${cmd}" = "ATETxPacketWithBf" ]; then
         do_cmd "mt76-test phy${phy_idx} set state=tx_frames"
+    elif [ "${cmd}" = "ATEConTxETxBfInitProc" ]; then
+        do_cmd "mt76-test phy${phy_idx} set aid=1"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=stop_sounding txbf_param=1"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=update_ch txbf_param=1"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=ebf_prof_update txbf_param=0,0,0"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=apply_tx txbf_param=1,1,0,0,0"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=pfmu_tag_read txbf_param=0,1"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=sta_rec_read txbf_param=1"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=trigger_sounding txbf_param=0,1,0,1,0,0,0"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=trigger_sounding txbf_param=2,1,ff,1,0,0,0"
+        do_cmd "mt76-test phy${phy_idx} set state=rx_frames"
+    elif [ "${cmd}" = "ATEConTxETxBfGdProc" ]; then
+        do_cmd "mt76-test phy${phy_idx} set aid=1"
+        do_cmd "mt76-test phy${phy_idx} set state=rx_frames"
+    elif [ "${cmd}" = "ATETxBfInit" ]; then
+        do_cmd "mt76-test phy${phy_idx} set aid=1"
+    elif [ "${cmd}" = "ATETxBfGdInit" ]; then
+        do_cmd "mt76-test phy${phy_idx} set aid=1"
     fi
 }
 
@@ -834,6 +953,9 @@ if [ "${cmd_type}" = "set" ]; then
                 exit
             fi
             param_new=${param}
+            if [ "${cmd}" = "ATETXCNT" ] && [ "${param}" = "0" ]; then
+                param_new="10000000"
+            fi
             ;;
         "ATETXANT"|"ATERXANT")
             cmd_new="tx_antenna"
@@ -883,9 +1005,11 @@ if [ "${cmd_type}" = "set" ]; then
             convert_dfs ${cmd} ${param}
             skip=1
             ;;
-        "ATETxBfInit"|"ATEIBFPhaseComp"|"ATEEBfProfileConfig"|"ATEIBfProfileConfig"| \
-        "TxBfTxApply"|"ATETxPacketWithBf"|"TxBfProfileData20MAllWrite"|"ATEIBfInstCal"|\
-        "ATEIBfGdCal"|"ATEIBFPhaseE2pUpdate")
+        "ATETxBfInit"|"ATETxBfGdInit"|"ATEIBFPhaseComp"|"ATEEBfProfileConfig"|"ATEIBfProfileConfig"| \
+        "TxBfTxApply"|"ATETxPacketWithBf"|"TxBfProfileData20MAllWrite"|"ATEIBfInstCal"| \
+        "ATEIBfGdCal"|"ATEIBFPhaseE2pUpdate"|"TriggerSounding"|"StopSounding"| \
+        "StaRecBfRead"|"TxBfProfileTagInValid"|"TxBfProfileTagWrite"|"TxBfProfileTagRead"| \
+        "ATEIBFPhaseVerify"|"ATEConTxETxBfGdProc"|"ATEConTxETxBfInitProc")
             convert_ibf ${cmd} ${param}
             skip=1
             ;;
@@ -913,8 +1037,16 @@ if [ "${cmd_type}" = "set" ]; then
     fi
 
 elif [ "${cmd_type}" = "show" ]; then
-    do_cmd "mt76-test ${interface} dump"
-    do_cmd "mt76-test ${interface} dump stats"
+    if [ "${cmd}" = "wtbl" ]; then
+        wlan_idx=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/wlan_idx
+        wtbl_info=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/wtbl_info
+
+        do_cmd "echo ${param} > ${wlan_idx}"
+        do_cmd "cat ${wtbl_info}"
+    else
+        do_cmd "mt76-test ${interface} dump"
+        do_cmd "mt76-test ${interface} dump stats"
+    fi
 
 elif [ "${cmd_type}" = "e2p" ]; then
     offset=$(printf "0x%s" ${cmd})

@@ -1,7 +1,7 @@
-From 1b3a030e1a19cc22d93b8b579f0ef38616aca2f9 Mon Sep 17 00:00:00 2001
+From 69dc3315bb6da4143d55f59a75ab32379bf47633 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 13 Oct 2022 13:22:05 +0800
-Subject: [PATCH 1127/1130] mt76: mt7915: add E3 re-bonding for low yield rate
+Subject: [PATCH 1128/1131] mt76: mt7915: add E3 re-bonding for low yield rate
  issue
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -12,7 +12,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 38 insertions(+), 5 deletions(-)
 
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 64a7750b..efa9c173 100644
+index 64a7750..efa9c17 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -99,7 +99,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
@@ -64,10 +64,10 @@ index 64a7750b..efa9c173 100644
  	if (ret)
  		return ret;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 8885067b..0db72efc 100644
+index 36a33f6..cb47ae6 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2822,7 +2822,7 @@ int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode)
+@@ -2836,7 +2836,7 @@ int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode)
  				 &req, sizeof(req), true);
  }
  
@@ -76,7 +76,7 @@ index 8885067b..0db72efc 100644
  {
  	struct mt7915_mcu_eeprom_info req = {
  		.addr = cpu_to_le32(round_down(offset,
-@@ -2840,8 +2840,15 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
+@@ -2854,8 +2854,15 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
  		return ret;
  
  	res = (struct mt7915_mcu_eeprom_info *)skb->data;
@@ -95,10 +95,10 @@ index 8885067b..0db72efc 100644
  
  	return 0;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 2718b42c..f618e99a 100644
+index 6649633..c10010a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -566,6 +566,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
+@@ -565,6 +565,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
  
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);

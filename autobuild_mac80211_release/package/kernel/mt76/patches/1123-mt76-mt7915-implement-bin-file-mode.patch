@@ -1,7 +1,7 @@
-From 8cd5ff67f77f8b66aaf30c1fbf0bbb833dca74e7 Mon Sep 17 00:00:00 2001
+From 2d0433d68fed7b477af18a53b7c4434fc86d5baf Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 7 Jul 2022 11:09:59 +0800
-Subject: [PATCH 1122/1130] mt76: mt7915: implement bin file mode
+Subject: [PATCH 1123/1131] mt76: mt7915: implement bin file mode
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -14,7 +14,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 142 insertions(+), 32 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index cb6ff17a..aac70efb 100644
+index cb6ff17..aac70ef 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -104,6 +104,24 @@ out_put_node:
@@ -43,10 +43,10 @@ index cb6ff17a..aac70efb 100644
  mt76_eeprom_override(struct mt76_phy *phy)
  {
 diff --git a/mt76.h b/mt76.h
-index 2bacc1b4..d102333b 100644
+index c6aefbf..0534ece 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1029,6 +1029,7 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
+@@ -1033,6 +1033,7 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
  int mt76_eeprom_init(struct mt76_dev *dev, int len);
  void mt76_eeprom_override(struct mt76_phy *phy);
  int mt76_get_of_eeprom(struct mt76_dev *dev, void *data, int offset, int len);
@@ -55,7 +55,7 @@ index 2bacc1b4..d102333b 100644
  struct mt76_queue *
  mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 7bdd4d52..64a7750b 100644
+index 7bdd4d5..64a7750 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -42,33 +42,6 @@ static int mt7915_check_eeprom(struct mt7915_dev *dev)
@@ -152,7 +152,7 @@ index 7bdd4d52..64a7750b 100644
  		if (ret)
  			return ret;
 diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
-index fdae347e..f228926b 100644
+index fdae347..f228926 100644
 --- a/mt7915/eeprom.h
 +++ b/mt7915/eeprom.h
 @@ -108,6 +108,13 @@ enum mt7915_sku_rate_group {
@@ -214,7 +214,7 @@ index fdae347e..f228926b 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index ac19b78e..ed2c71ec 100644
+index 4c370bb..5563bcf 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -42,15 +42,24 @@
@@ -245,7 +245,7 @@ index ac19b78e..ed2c71ec 100644
  #define MT7915_EEPROM_SIZE		3584
  #define MT7916_EEPROM_SIZE		4096
  
-@@ -401,6 +410,8 @@ struct mt7915_dev {
+@@ -400,6 +409,8 @@ struct mt7915_dev {
  
  	bool dbdc_support;
  	bool flash_mode;
@@ -255,7 +255,7 @@ index ac19b78e..ed2c71ec 100644
  	bool ibf;
  
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 766b278b..a3846bc9 100644
+index a2ceb6f..7567666 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -3,6 +3,7 @@
@@ -266,7 +266,7 @@ index 766b278b..a3846bc9 100644
  
  #ifdef MTK_DEBUG
  #define LWTBL_IDX2BASE_ID		GENMASK(14, 8)
-@@ -2893,6 +2894,44 @@ mt7915_wa_debug(void *data, u64 val)
+@@ -2924,6 +2925,44 @@ mt7915_wa_debug(void *data, u64 val)
  DEFINE_DEBUGFS_ATTRIBUTE(fops_wa_debug, NULL, mt7915_wa_debug,
  			 "0x%llx\n");
  
@@ -311,7 +311,7 @@ index 766b278b..a3846bc9 100644
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  {
  	struct mt7915_dev *dev = phy->dev;
-@@ -2973,6 +3012,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -3009,6 +3048,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  	debugfs_create_devm_seqfile(dev->mt76.dev, "fw_version", dir,
  				    mt7915_dump_version);
  

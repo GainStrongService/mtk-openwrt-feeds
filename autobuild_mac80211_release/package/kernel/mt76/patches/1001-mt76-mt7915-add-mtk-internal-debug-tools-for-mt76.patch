@@ -1,4 +1,4 @@
-From 6bcd3876554df7bbf16e84a3bcdcee1d534c07c3 Mon Sep 17 00:00:00 2001
+From 003d0ce3643f9516832b7b35ff0bbf6a77dd5784 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
 Subject: [PATCH 1001/1009] mt76: mt7915: add mtk internal debug tools for mt76
@@ -13,10 +13,10 @@ Subject: [PATCH 1001/1009] mt76: mt7915: add mtk internal debug tools for mt76
  mt7915/mcu.h          |    4 +
  mt7915/mt7915.h       |   44 +
  mt7915/mt7915_debug.h | 1350 +++++++++++++++++++
- mt7915/mtk_debugfs.c  | 2925 +++++++++++++++++++++++++++++++++++++++++
+ mt7915/mtk_debugfs.c  | 2926 +++++++++++++++++++++++++++++++++++++++++
  mt7915/mtk_mcu.c      |   51 +
  tools/fwlog.c         |   44 +-
- 12 files changed, 4568 insertions(+), 13 deletions(-)
+ 12 files changed, 4569 insertions(+), 13 deletions(-)
  create mode 100644 mt7915/mt7915_debug.h
  create mode 100644 mt7915/mtk_debugfs.c
  create mode 100644 mt7915/mtk_mcu.c
@@ -243,7 +243,7 @@ index f0d5a360..149527df 100644
  }
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 7589af4b..f6edab6e 100644
+index 7589af4..f6edab6 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -73,7 +73,11 @@ int mt7915_run(struct ieee80211_hw *hw)
@@ -259,7 +259,7 @@ index 7589af4b..f6edab6e 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 7c14a189..644e6a8f 100644
+index 7c14a18..644e6a8 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -199,6 +199,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -366,7 +366,7 @@ index 29b5434b..aa89106e 100644
  
  enum mcu_mmps_mode {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 942d70c5..afe2ec7a 100644
+index 942d70c..afe2ec7 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -1790,10 +1790,10 @@ index 00000000..ecdc02ab
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 00000000..747a9014
+index 0000000..53f98d1
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
-@@ -0,0 +1,2925 @@
+@@ -0,0 +1,2926 @@
 +#include<linux/inet.h>
 +#include "mt7915.h"
 +#include "mt7915_debug.h"
@@ -4177,7 +4177,8 @@ index 00000000..747a9014
 +
 +	if (txd->txd_2 & MT_TXD2_FIX_RATE) {
 +		/* Fixed BandWidth mode [2:0] */
-+		printk("\t\tbw = %ld\n", FIELD_GET(MT_TXD6_BW, txd->txd_6));
++		printk("\t\tbw = %ld\n",
++		       FIELD_GET(MT_TXD6_BW, txd->txd_6) | (txd->txd_6 & MT_TXD6_FIXED_BW));
 +
 +		/* DYN_BW [3] */
 +		printk("\t\tdyn_bw = %d\n", (txd->txd_6 & MT_TXD6_DYN_BW) ? 1 : 0);

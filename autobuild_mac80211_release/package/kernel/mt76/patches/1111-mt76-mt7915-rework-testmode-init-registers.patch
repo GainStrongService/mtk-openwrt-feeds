@@ -1,7 +1,7 @@
-From fd4298af06b54637ba66f9980e4657af8085b7ac Mon Sep 17 00:00:00 2001
+From 467fb6d27e86221c3d58649a480409310724c863 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Jun 2022 19:46:26 +0800
-Subject: [PATCH 1111/1130] mt76: mt7915: rework testmode init registers
+Subject: [PATCH 1111/1131] mt76: mt7915: rework testmode init registers
 
 ---
  mac80211.c        |   3 +-
@@ -17,7 +17,7 @@ Subject: [PATCH 1111/1130] mt76: mt7915: rework testmode init registers
  10 files changed, 164 insertions(+), 35 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 7fe7f68a..19d9efb3 100644
+index 7fe7f68..19d9efb 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -775,7 +775,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
@@ -31,7 +31,7 @@ index 7fe7f68a..19d9efb3 100644
  		if (status->flag & RX_FLAG_FAILED_FCS_CRC)
  			phy->test.rx_stats.fcs_error[q]++;
 diff --git a/mt76.h b/mt76.h
-index beea57d5..4822ffb7 100644
+index beea57d..4822ffb 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -637,6 +637,8 @@ struct mt76_testmode_ops {
@@ -61,7 +61,7 @@ index beea57d5..4822ffb7 100644
  };
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 18ae3acb..18d6c669 100644
+index 18ae3ac..18d6c66 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1188,6 +1188,7 @@ enum {
@@ -73,7 +73,7 @@ index 18ae3acb..18d6c669 100644
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index eaadd331..2e97db7b 100644
+index eaadd33..2e97db7 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -9,6 +9,7 @@
@@ -85,7 +85,7 @@ index eaadd331..2e97db7b 100644
  	MCU_ATE_CLEAN_TXQUEUE = 0x1c,
  };
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index afa558c9..07de3cbd 100644
+index afa558c..07de3cb 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -118,6 +118,7 @@ static const u32 mt7986_reg[] = {
@@ -105,7 +105,7 @@ index afa558c9..07de3cbd 100644
  	[TMAC_ODTR]		= 0x0cc,
  	[TMAC_ATCR]		= 0x00c,
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index c8e478a5..d6a05f13 100644
+index c8e478a..d6a05f1 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -48,6 +48,7 @@ enum reg_rev {
@@ -153,7 +153,7 @@ index c8e478a5..d6a05f13 100644
  #define MT_AGG_ACR0(_band)		MT_WF_AGG(_band, __OFFS(AGG_ACR0))
  #define MT_AGG_ACR_CFEND_RATE		GENMASK(13, 0)
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 0d76ae31..46939191 100644
+index 0d76ae3..4693919 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -30,7 +30,7 @@ struct reg_band {
@@ -378,7 +378,7 @@ index 0d76ae31..46939191 100644
  
  const struct mt76_testmode_ops mt7915_testmode_ops = {
 diff --git a/mt7915/testmode.h b/mt7915/testmode.h
-index 5573ac30..a1c54c89 100644
+index 5573ac3..a1c54c8 100644
 --- a/mt7915/testmode.h
 +++ b/mt7915/testmode.h
 @@ -33,6 +33,12 @@ struct mt7915_tm_clean_txq {
@@ -429,7 +429,7 @@ index 5573ac30..a1c54c89 100644
 +
  #endif
 diff --git a/testmode.c b/testmode.c
-index 0accc71a..1d0d5d30 100644
+index 0accc71..1d0d5d3 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -447,8 +447,7 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -453,7 +453,7 @@ index 0accc71a..1d0d5d30 100644
  		return -EMSGSIZE;
  
 diff --git a/testmode.h b/testmode.h
-index 5e2792d8..89613266 100644
+index 5e2792d..8961326 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -101,6 +101,8 @@ enum mt76_testmode_attr {
