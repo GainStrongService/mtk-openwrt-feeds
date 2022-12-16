@@ -144,24 +144,31 @@ void set_gmac_ppe_fwd(int id, int enable)
 		 (id == NR_GMAC2_PORT) ? GDMA2_FWD_CFG : GDMA3_FWD_CFG);
 
 	if (enable) {
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 		if (CFG_PPE_NUM == 3 && id == NR_GMAC3_PORT)
 			cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE2);
 		else if (CFG_PPE_NUM == 3 && id == NR_GMAC2_PORT)
 			cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE1);
-		else
-			cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE);
+#endif
+		cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE);
 
 		return;
 	}
 
 	/*disabled */
 	val = readl(reg);
-	if ((val & GDM_ALL_FRC_MASK) == BITS_GDM_ALL_FRC_P_PPE ||
-	    (CFG_PPE_NUM == 3 &&
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+	if ((CFG_PPE_NUM == 3 &&
 	    ((val & GDM_ALL_FRC_MASK) == BITS_GDM_ALL_FRC_P_PPE1 ||
 	     (val & GDM_ALL_FRC_MASK) == BITS_GDM_ALL_FRC_P_PPE2)))
 		cr_set_field(reg, GDM_ALL_FRC_MASK,
 			     BITS_GDM_ALL_FRC_P_CPU_PDMA);
+#endif
+
+	if ((val & GDM_ALL_FRC_MASK) == BITS_GDM_ALL_FRC_P_PPE)
+		cr_set_field(reg, GDM_ALL_FRC_MASK,
+				 BITS_GDM_ALL_FRC_P_CPU_PDMA);
+
 }
 
 static int entry_mac_cmp(struct foe_entry *entry, u8 *mac)
