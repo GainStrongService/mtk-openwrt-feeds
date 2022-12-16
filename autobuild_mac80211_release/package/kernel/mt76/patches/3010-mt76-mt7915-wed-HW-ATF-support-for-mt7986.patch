@@ -1,4 +1,4 @@
-From 829e658c7cfa9b9b0180495b8b791d11be7cc537 Mon Sep 17 00:00:00 2001
+From 65b9073837403d1882b5faaba137055b45f75da4 Mon Sep 17 00:00:00 2001
 From: Lian Chen <lian.chen@mediatek.com>
 Date: Mon, 7 Nov 2022 14:47:44 +0800
 Subject: [PATCH 3010/3012] mt76: mt7915: wed: HW ATF support for mt7986
@@ -16,7 +16,7 @@ Signed-off-by: Lian Chen <lian.chen@mediatek.com>
  mode change 100644 => 100755 mt7915/init.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 98b0074..239643b 100644
+index 98b00747..239643b9 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1159,6 +1159,7 @@ enum {
@@ -36,7 +36,7 @@ index 98b0074..239643b 100644
  	MCU_EXT_CMD_EFUSE_FREE_BLOCK = 0x4f,
  	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 3ef2148..b178036 100644
+index 3ef2148b..b178036c 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -12,6 +12,10 @@
@@ -468,7 +468,7 @@ index 3ef2148..b178036 100644
 diff --git a/mt7915/init.c b/mt7915/init.c
 old mode 100644
 new mode 100755
-index e044f50..ef752e1
+index e044f503..ef752e10
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -563,10 +563,46 @@ mt7915_init_led_mux(struct mt7915_dev *dev)
@@ -529,7 +529,7 @@ index e044f50..ef752e1
  
  int mt7915_txbf_init(struct mt7915_dev *dev)
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 7dd3973..c87f04b 100644
+index 7dd3973f..c87f04b1 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -209,6 +209,7 @@ int mt7915_init_vif(struct mt7915_phy *phy, struct ieee80211_vif *vif, bool bf_e
@@ -576,7 +576,7 @@ index 7dd3973..c87f04b 100644
  }
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 1164eff..aacc237 100644
+index 5b2ae773..029d7e33 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -3533,6 +3533,171 @@ int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)
@@ -752,10 +752,10 @@ index 1164eff..aacc237 100644
  {
  #define MT_BF_PROCESSING	4
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 3683ef0..b2bcf02 100644
+index 5b0f1fca..30e878f4 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -135,6 +135,58 @@ struct mt7915_twt_flow {
+@@ -127,6 +127,58 @@ struct mt7915_twt_flow {
  
  DECLARE_EWMA(avg_signal, 10, 8)
  
@@ -814,7 +814,7 @@ index 3683ef0..b2bcf02 100644
  struct mt7915_sta {
  	struct mt76_wcid wcid; /* must be first */
  
-@@ -156,6 +208,7 @@ struct mt7915_sta {
+@@ -148,6 +200,7 @@ struct mt7915_sta {
  		u8 flowid_mask;
  		struct mt7915_twt_flow flow[MT7915_MAX_STA_TWT_AGRT];
  	} twt;
@@ -822,7 +822,7 @@ index 3683ef0..b2bcf02 100644
  };
  
  struct mt7915_vif_cap {
-@@ -469,6 +522,8 @@ struct mt7915_dev {
+@@ -461,6 +514,8 @@ struct mt7915_dev {
  	} dbg;
  	const struct mt7915_dbg_reg_desc *dbg_reg;
  #endif
@@ -831,7 +831,7 @@ index 3683ef0..b2bcf02 100644
  };
  
  enum {
-@@ -501,6 +556,15 @@ enum mt7915_rdd_cmd {
+@@ -493,6 +548,15 @@ enum mt7915_rdd_cmd {
  	RDD_IRQ_OFF,
  };
  
@@ -847,7 +847,7 @@ index 3683ef0..b2bcf02 100644
  static inline struct mt7915_phy *
  mt7915_hw_phy(struct ieee80211_hw *hw)
  {
-@@ -629,6 +693,10 @@ int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
+@@ -621,6 +685,10 @@ int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
  int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
  			      u8 en);
  int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band);
@@ -859,7 +859,7 @@ index 3683ef0..b2bcf02 100644
  int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy);
  int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len,
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 919cae4..c8df2d0 100644
+index 919cae44..c8df2d0e 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -1301,7 +1301,6 @@ static EMPTY_QUEUE_INFO_T ple_txcmd_queue_empty_info[] = {
@@ -1010,5 +1010,5 @@ index 919cae4..c8df2d0 100644
  {
  	struct mt7915_dev *dev = dev_get_drvdata(s->private);
 -- 
-2.18.0
+2.25.1
 

@@ -1,4 +1,4 @@
-From c396d72c946d9a67df4a7e52d994daa5ec415e2d Mon Sep 17 00:00:00 2001
+From 65b253209f31420ee2b1e7faf65213e858a7a001 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 12 Dec 2022 18:17:12 +0800
 Subject: [PATCH 4002/4002] mt76: revert for backports-5.15 wireless stack
@@ -39,7 +39,7 @@ index 79064a4d..4a8e1864 100644
  	return 0;
  }
 diff --git a/dma.c b/dma.c
-index 7ef272e..8b9fdfc 100644
+index 7ef272e2..8b9fdfc5 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -941,7 +941,7 @@ mt76_dma_init(struct mt76_dev *dev,
@@ -52,7 +52,7 @@ index 7ef272e..8b9fdfc 100644
  		napi_enable(&dev->napi[i]);
  	}
 diff --git a/mac80211.c b/mac80211.c
-index 818f4f0..909ab25 100644
+index 818f4f0c..909ab259 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -1508,7 +1508,7 @@ EXPORT_SYMBOL_GPL(mt76_get_sar_power);
@@ -160,7 +160,7 @@ index e917d025..b2e1f388 100644
  		.bcn_interval = cpu_to_le16(vif->bss_conf.beacon_int),
  	};
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index d406013..703ca73 100644
+index d4060136..703ca736 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -197,7 +197,7 @@ int mt76_connac_mcu_set_vif_ps(struct mt76_dev *dev, struct ieee80211_vif *vif)
@@ -541,7 +541,7 @@ index b178036c..cecc3ef5 100644
  	field = RATE_PARAM_FIXED;
  
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 9cbd362..5743dc5 100644
+index 9cbd3625..5743dc54 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -553,8 +553,8 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -556,7 +556,7 @@ index 9cbd362..5743dc5 100644
  
  	mt7915_dma_enable(dev);
 diff --git a/mt7915/init.c b/mt7915/init.c
-index ef752e1..9ccbc7b 100755
+index ef752e10..9ccbc7bc 100755
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -1152,8 +1152,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
@@ -570,7 +570,7 @@ index ef752e1..9ccbc7b 100755
  
  		if (band == NL80211_BAND_6GHZ) {
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 0d0ae7a..d759912 100644
+index 0d0ae7ab..d759912c 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -915,7 +915,7 @@ mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
@@ -583,7 +583,7 @@ index 0d0ae7a..d759912 100644
  
  	tid = le32_get_bits(txwi[1], MT_TXD1_TID);
 diff --git a/mt7915/main.c b/mt7915/main.c
-index c87f04b..28509d9 100644
+index c87f04b1..28509d94 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -523,7 +523,7 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
@@ -627,7 +627,7 @@ index c87f04b..28509d9 100644
  
  	mutex_lock(&dev->mt76.mutex);
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 0ba822d..bb2ddcf 100644
+index 88ce44f9..f2c848dd 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -64,7 +64,7 @@ mt7915_mcu_set_sta_he_mcs(struct ieee80211_sta *sta, __le16 *he_mcs,
@@ -1147,7 +1147,7 @@ index 0ba822d..bb2ddcf 100644
  					len = sku_len[SKU_HE_RU242] * 4;
  				}
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 70382b9..5c71116 100644
+index 70382b9b..5c711167 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -397,12 +397,12 @@ mt7915_tm_entry_add(struct mt7915_phy *phy, u8 aid)
@@ -1168,7 +1168,7 @@ index 70382b9..5c71116 100644
  	sta->wme = 1;
  
 diff --git a/tx.c b/tx.c
-index a72b777..04b6f2e 100644
+index a72b7779..04b6f2e7 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -60,20 +60,15 @@ mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)
@@ -1196,5 +1196,5 @@ index a72b777..04b6f2e 100644
  
  		hw = mt76_tx_status_get_hw(dev, skb);
 -- 
-2.18.0
+2.25.1
 

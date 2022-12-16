@@ -1,4 +1,4 @@
-From 110011fac66d02b592732a19d1bee5441a69b2f3 Mon Sep 17 00:00:00 2001
+From b4df9060949faad53610f74da23ccafacd703e0e Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Wed, 14 Dec 2022 00:44:07 -0800
 Subject: [PATCH 1131/1131] mt76: mt7915: amsdu set and get control
@@ -11,7 +11,7 @@ Subject: [PATCH 1131/1131] mt76: mt7915: amsdu set and get control
  4 files changed, 54 insertions(+)
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 9d4cfa1..a0df785 100644
+index 9d4cfa1e..a0df7853 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -2053,6 +2053,16 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
@@ -32,10 +32,10 @@ index 9d4cfa1..a0df785 100644
  void mt7915_capi_sta_rc_work(void *data, struct ieee80211_sta *sta)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 4722fe3..00a41e8 100644
+index f5ac92ea..5cc19240 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -755,6 +755,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -746,6 +746,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  			 bool pci, int *irq);
  
  #ifdef CONFIG_MTK_VENDOR
@@ -44,7 +44,7 @@ index 4722fe3..00a41e8 100644
  void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
  void mt7915_mcu_set_rfeature_starec(void *data, struct mt7915_dev *dev,
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 22af66d..a1f526c 100644
+index 22af66d5..a1f526c9 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -30,10 +30,16 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -109,7 +109,7 @@ index 22af66d..a1f526c 100644
  		.maxattr = MTK_VENDOR_ATTR_WIRELESS_CTRL_MAX,
  	},
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 949c885..cbff910 100644
+index 949c8853..cbff910b 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -74,6 +74,7 @@ enum mtk_vendor_attr_wireless_ctrl {
@@ -139,5 +139,5 @@ index 949c885..cbff910 100644
  	MTK_VENDOR_ATTR_HEMU_CTRL_UNSPEC,
  
 -- 
-2.18.0
+2.25.1
 

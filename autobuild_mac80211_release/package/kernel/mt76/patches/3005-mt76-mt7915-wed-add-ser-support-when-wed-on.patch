@@ -1,4 +1,4 @@
-From 7883f81319f8d55905e1dcb9203948e2746c655c Mon Sep 17 00:00:00 2001
+From e99d4fe77a17287d50d97af3d365a81afc286dba Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 25 Nov 2022 14:07:46 +0800
 Subject: [PATCH 3005/3012] mt76: mt7915: wed: add ser support when wed on
@@ -15,7 +15,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  7 files changed, 76 insertions(+), 14 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 53c7528..35beec7 100644
+index 53c7528f..35beec72 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -165,7 +165,7 @@ mt76_free_pending_txwi(struct mt76_dev *dev)
@@ -109,7 +109,7 @@ index 53c7528..35beec7 100644
  	if (!q->rx_head)
  		return;
 diff --git a/dma.h b/dma.h
-index 53c6ce2..4b9bc7f 100644
+index 53c6ce25..4b9bc7f4 100644
 --- a/dma.h
 +++ b/dma.h
 @@ -56,5 +56,6 @@ enum mt76_mcu_evt_type {
@@ -120,10 +120,10 @@ index 53c6ce2..4b9bc7f 100644
  
  #endif
 diff --git a/mt76.h b/mt76.h
-index e9e72e4..686005d 100644
+index cba11f6c..369e1e4b 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1399,6 +1399,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+@@ -1401,6 +1401,7 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
  void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
  void mt76_put_rxwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
  struct mt76_txwi_cache *mt76_get_rxwi(struct mt76_dev *dev);
@@ -132,7 +132,7 @@ index e9e72e4..686005d 100644
  		      struct napi_struct *napi);
  void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index e3fa064..1ae6c33 100644
+index e3fa0649..1ae6c339 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -4,6 +4,7 @@
@@ -211,7 +211,7 @@ index e3fa064..1ae6c33 100644
  }
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 0984357..0d0ae7a 100644
+index 0984357a..0d0ae7ab 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -896,6 +896,18 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
@@ -247,7 +247,7 @@ index 0984357..0d0ae7a 100644
  	if (ext_phy)
  		ieee80211_stop_queues(ext_phy->hw);
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 04411e7..e0761e8 100644
+index 04411e77..e0761e89 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -619,6 +619,8 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
@@ -268,10 +268,10 @@ index 04411e7..e0761e8 100644
  	dev->mt76.rx_token_size = wed->wlan.rx_npkt;
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 00a41e8..73806ae 100644
+index 5cc19240..89c13dbe 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -563,6 +563,7 @@ void mt7915_wfsys_reset(struct mt7915_dev *dev);
+@@ -554,6 +554,7 @@ void mt7915_wfsys_reset(struct mt7915_dev *dev);
  irqreturn_t mt7915_irq_handler(int irq, void *dev_instance);
  u64 __mt7915_get_tsf(struct ieee80211_hw *hw, struct mt7915_vif *mvif);
  u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
@@ -280,5 +280,5 @@ index 00a41e8..73806ae 100644
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);
 -- 
-2.18.0
+2.25.1
 

@@ -1,4 +1,4 @@
-From 3d100a915cc49091e875b11d9bc53af45879b7a5 Mon Sep 17 00:00:00 2001
+From c32e70c13fcde8d452315e0079e8a6832fa5b3b5 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
 Subject: [PATCH 1122/1131] mt76: mt7915: add vendor subcmd EDCCA ctrl
@@ -16,7 +16,7 @@ Change-Id: I06a3f94d5e444be894200e2b6588d76ed38d09d0
  7 files changed, 264 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 7853e07..88bfd09 100644
+index 7853e074..88bfd09f 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1200,6 +1200,7 @@ enum {
@@ -28,7 +28,7 @@ index 7853e07..88bfd09 100644
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/main.c b/mt7915/main.c
-index eae1377..09cf35c 100644
+index eae1377a..09cf35c1 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -479,6 +479,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
@@ -42,7 +42,7 @@ index eae1377..09cf35c 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 4c64655..dddab7d 100644
+index 4c64655a..dddab7d0 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -4593,3 +4593,75 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
@@ -122,7 +122,7 @@ index 4c64655..dddab7d 100644
 +	return 0;
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index a30f52d..391aed9 100644
+index a30f52dd..391aed93 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -1057,6 +1057,27 @@ enum {
@@ -154,7 +154,7 @@ index a30f52d..391aed9 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index e977e5c..4c370bb 100644
+index e977e5c9..4c370bbd 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -761,7 +761,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
@@ -168,7 +168,7 @@ index e977e5c..4c370bb 100644
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 77d71e4..2484e25 100644
+index 77d71e48..2484e25f 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -62,6 +62,24 @@ phy_capa_dump_policy[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP] = {
@@ -325,7 +325,7 @@ index 77d71e4..2484e25 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 719b851..7231971 100644
+index 719b851f..72319717 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -2,6 +2,7 @@
@@ -376,5 +376,5 @@ index 719b851..7231971 100644
  
  enum mtk_capi_control_changed {
 -- 
-2.18.0
+2.25.1
 
