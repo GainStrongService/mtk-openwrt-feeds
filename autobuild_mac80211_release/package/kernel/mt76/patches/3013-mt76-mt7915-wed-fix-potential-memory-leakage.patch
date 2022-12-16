@@ -1,0 +1,86 @@
+From fd959ab8b2d9b7ff275bbd8e90f26905a4920583 Mon Sep 17 00:00:00 2001
+From: Sujuan Chen <sujuan.chen@mediatek.com>
+Date: Fri, 16 Dec 2022 12:16:40 +0800
+Subject: [PATCH] mt76: mt7915: wed: fix potential memory leakage
+
+release rx queue pages in mt7915_mmio_wed_release_rx_buf.
+recycle rxwi when mt76_dma_add_buf() call fails.
+
+Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
+---
+ dma.c         | 16 ++++++++++------
+ mt7915/mmio.c | 15 +++++++++++++++
+ 2 files changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/dma.c b/dma.c
+index 8b9fdfc..08169ba 100644
+--- a/dma.c
++++ b/dma.c
+@@ -633,9 +633,11 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
+ 		qbuf.len = len - offset;
+ 		qbuf.skip_unmap = false;
+ 		if (mt76_dma_add_buf(dev, q, &qbuf, 1, 0, buf, NULL, r) < 0) {
++			mt76_put_rxwi(dev, r);
+ 			dma_unmap_single(dev->dma_dev, addr, len,
+ 					 DMA_FROM_DEVICE);
+-			skb_free_frag(buf);
++			if (!skip_alloc)
++				skb_free_frag(buf);
+ 			break;
+ 		}
+ 		frames++;
+@@ -758,12 +760,14 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
+ 	} while (1);
+ 	spin_unlock_bh(&q->lock);
+ 
+-	if (!q->rx_page.va)
+-		return;
++	if (FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) != MT76_WED_Q_RX) {
++		if (!q->rx_page.va)
++			return;
+ 
+-	page = virt_to_page(q->rx_page.va);
+-	__page_frag_cache_drain(page, q->rx_page.pagecnt_bias);
+-	memset(&q->rx_page, 0, sizeof(q->rx_page));
++		page = virt_to_page(q->rx_page.va);
++		__page_frag_cache_drain(page, q->rx_page.pagecnt_bias);
++		memset(&q->rx_page, 0, sizeof(q->rx_page));
++	}
+ }
+ 
+ static void
+diff --git a/mt7915/mmio.c b/mt7915/mmio.c
+index 6f80f07..63388fc 100644
+--- a/mt7915/mmio.c
++++ b/mt7915/mmio.c
+@@ -621,12 +621,27 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
+ 
+ 	mt76_free_pending_rxwi(&dev->mt76);
+ 
++	mt76_for_each_q_rx(&dev->mt76, i) {
++		if (FIELD_GET(MT_QFLAG_WED_TYPE,
++			      dev->mt76.q_rx[i].flags) == MT76_WED_Q_RX) {
++			struct mt76_queue *q = &dev->mt76.q_rx[i];
++
++			if (!q->rx_page.va)
++				continue;
++
++			page = virt_to_page(q->rx_page.va);
++			__page_frag_cache_drain(page, q->rx_page.pagecnt_bias);
++			memset(&q->rx_page, 0, sizeof(q->rx_page));
++		}
++	}
++
+ 	if (!wed->rx_buf_ring.rx_page.va)
+ 		return;
+ 
+ 	page = virt_to_page(wed->rx_buf_ring.rx_page.va);
+ 	__page_frag_cache_drain(page, wed->rx_buf_ring.rx_page.pagecnt_bias);
+ 	memset(&wed->rx_buf_ring.rx_page, 0, sizeof(wed->rx_buf_ring.rx_page));
++
+ }
+ 
+ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+-- 
+2.18.0
+
