@@ -48,6 +48,14 @@ do_patch(){
 	done
 }
 
+change_config_before_defconfig() {
+	return 0
+}
+
+change_config_after_defconfig() {
+	return 0
+}
+
 prepare() {
 	echo "Preparing...."
 	#FIXME : workaround HOST PC build issue
@@ -111,6 +119,24 @@ prepare_mtwifi() {
 }
 
 prepare_flowoffload() {
+	#cp bridger and related utilities from master
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/include/bpf.mk ${BUILD_DIR}/include
+
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/include/kernel-5.15 ${BUILD_DIR}/include
+
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/target/llvm-bpf ${BUILD_DIR}/target
+
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/tools/llvm-bpf ${BUILD_DIR}/tools
+
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/bpf-headers ${BUILD_DIR}/package/kernel
+
+	rm -rf  ${BUILD_DIR}/package/network/utils/bpftools
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/bpftools ${BUILD_DIR}/package/network/utils
+
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/bridger ${BUILD_DIR}/package/network/services
+
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0010-add-llvm_bpf-toolchain.patch
+
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0004-2102-netfilter-remove-nf_flow_table_hw.patch
 
 	#rm patches for flowblock
@@ -118,6 +144,11 @@ prepare_flowoffload() {
 	rm -rf ./target/linux/generic/hack-5.4/647-netfilter-flow-acct.patch
 	rm -rf ./target/linux/generic/hack-5.4/650-netfilter-add-xt_OFFLOAD-target.patch
 	rm -rf ./target/linux/mediatek/patches-5.4/1002-mtkhnat-add-support-for-virtual-interface-acceleration.patch
+
+	#hack mt7988 config5.4
+	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_NETFILTER_FAMILY_BRIDGE=y" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_SKB_EXTENSIONS=y" >> ./target/linux/mediatek/mt7988/config-5.4
 
 	#hack mt7986 config5.4
 	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7986/config-5.4
@@ -148,13 +179,12 @@ prepare_mac80211() {
 		echo "=========================MAC80211 v6.1==================="
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/package/kernel
 		rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211
-                mv ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211_dev ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211
+		mv ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211_dev ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211
 	else
 		echo "=========================MAC80211 v5.15=================="
 		tar xvf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211/mac80211_v5.15.81_077622a1.tar.gz -C ${BUILD_DIR}/package/kernel/
 		rm -rf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211/mac80211_v5.15.81_077622a1.tar.gz
 	fi
-	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/package/kernel
 
 	rm -rf ${BUILD_DIR}/package/firmware/wireless-regdb
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/firmware/wireless-regdb ${BUILD_DIR}/package/firmware
@@ -245,6 +275,11 @@ install_output_feeds_buildinfo() {
         fi
 }
 
+install_output_at() {
+	tar -zcvf to at.tgz -C ${INSTALL_DIR}/$1 .
+	mv to_at.tgz ${INSTALL_DIR}/
+}
+
 install_release() {
 	temp=${1#*mt}
 	chip_name=${temp:0:4}
@@ -268,8 +303,11 @@ install_release() {
 	#tar unstripped rootfs for debug symbols
 	install_output_RootfsDebugFile $1
 
-        #install output feeds buildinfo
-        install_output_feeds_buildinfo $1 ${chip_name} ${arch_name}
+	#install output feeds buildinfo
+	install_output_feeds_buildinfo $1 ${chip_name} ${arch_name}
+
+	#tarball for AT
+	install_output_at $1
 }
 
 prepare_final() {
@@ -291,7 +329,8 @@ prepare_final() {
 	#rm old legacy patch, ex old nfi nand driver
 	case $1 in
 	mt7986*|\
-	mt7981*)
+	mt7981*|\
+	mt7988*)
 		rm -rf ${BUILD_DIR}/target/linux/mediatek/patches-5.4/0303-mtd-spinand-disable-on-die-ECC.patch
 		;;
 	*)
@@ -308,8 +347,12 @@ prepare_final() {
 	#copy main test config(.config)
 	copy_main_Config $1
 
+	change_config_before_defconfig
+
 	echo make defconfig
 	make defconfig
+
+	change_config_after_defconfig
 }
 
 build() {

@@ -1,7 +1,7 @@
-From 3f2ba7e6f135e65850c32e83cd8ab76a36bbd560 Mon Sep 17 00:00:00 2001
+From cd6fa73880e4e69622f5e4f0ee30b0c3a60cc797 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 2 Dec 2022 17:17:06 +0800
-Subject: [PATCH 3011/3012] mt76: mt7915: wed: add mt7916 2 pcie support when
+Subject: [PATCH 3011/3013] mt76: mt7915: wed: add mt7916 2 pcie support when
  wed on
 
 It should use bit 23 in interrupt mask for wfdma band1 data
@@ -15,7 +15,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  3 files changed, 13 insertions(+), 8 deletions(-)
 
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 1ae6c339..36260085 100644
+index 1ae6c33..3626008 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -88,8 +88,12 @@ static void mt7915_dma_config(struct mt7915_dev *dev)
@@ -34,7 +34,7 @@ index 1ae6c339..36260085 100644
  				   MT7916_RXQ_MCU_WA_MAIN);
  			TXQ_CONFIG(0, WFDMA0, MT_INT_WED_TX_DONE_BAND0,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 029d7e33..387967d7 100644
+index 029d7e3..387967d 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2365,7 +2365,8 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
@@ -48,7 +48,7 @@ index 029d7e33..387967d7 100644
  						0, 0, 0);
  		else
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index b29fe7a4..4bc8e8cd 100644
+index b29fe7a..4bc8e8c 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -966,13 +966,13 @@ irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
@@ -71,5 +71,5 @@ index b29fe7a4..4bc8e8cd 100644
  	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
  		return IRQ_NONE;
 -- 
-2.25.1
+2.36.1
 

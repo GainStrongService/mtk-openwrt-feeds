@@ -1,7 +1,7 @@
-From b405687f0b8cf6b2bcd16f2addd74a6736852c15 Mon Sep 17 00:00:00 2001
+From 3841127f712794f45b9078215feaa8221ed18851 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Wed, 14 Dec 2022 17:19:00 +0800
-Subject: [PATCH 3012/3012] mt76: mt7915: wed: add rxwi for further in chip rro
+Subject: [PATCH 3012/3013] mt76: mt7915: wed: add rxwi for further in chip rro
  development
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
@@ -16,7 +16,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  7 files changed, 86 insertions(+), 78 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 0914266a..7ef272e2 100644
+index 0914266..7ef272e 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -59,17 +59,17 @@ mt76_alloc_txwi(struct mt76_dev *dev)
@@ -263,7 +263,7 @@ index 0914266a..7ef272e2 100644
  					 DMA_FROM_DEVICE);
  			skb_free_frag(buf);
 diff --git a/mac80211.c b/mac80211.c
-index de9ef237..818f4f0c 100644
+index de9ef23..818f4f0 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -597,7 +597,6 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
@@ -283,7 +283,7 @@ index de9ef237..818f4f0c 100644
  	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
  		skb_queue_head_init(&dev->rx_skb[i]);
 diff --git a/mt76.h b/mt76.h
-index b10a16f8..631c4ccd 100644
+index b10a16f..631c4cc 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -166,6 +166,7 @@ struct mt76_queue_entry {
@@ -354,7 +354,7 @@ index b10a16f8..631c4ccd 100644
  static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
  {
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 36260085..9cbd3625 100644
+index 3626008..9cbd362 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -492,7 +492,6 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -374,7 +374,7 @@ index 36260085..9cbd3625 100644
  
  		/* rx data queue for band1 */
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 4bc8e8cd..09b39730 100644
+index 4bc8e8c..09b3973 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -605,18 +605,18 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
@@ -439,7 +439,7 @@ index 4bc8e8cd..09b39730 100644
  		.tx_complete_skb = mt76_connac_tx_complete_skb,
  		.rx_skb = mt7915_queue_rx_skb,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 30e878f4..58ed90b0 100644
+index 30e878f..58ed90b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -57,6 +57,7 @@
@@ -451,7 +451,7 @@ index 30e878f4..58ed90b0 100644
  #define MT7915_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
  #define MT7915_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 diff --git a/tx.c b/tx.c
-index 6d55566f..a72b7779 100644
+index 6d55566..a72b777 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -756,16 +756,16 @@ int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
@@ -496,5 +496,5 @@ index 6d55566f..a72b7779 100644
  }
  EXPORT_SYMBOL_GPL(mt76_rx_token_release);
 -- 
-2.25.1
+2.36.1
 

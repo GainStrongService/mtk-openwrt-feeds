@@ -1,7 +1,7 @@
-From fd959ab8b2d9b7ff275bbd8e90f26905a4920583 Mon Sep 17 00:00:00 2001
+From 164ff4c03d6f221bbb8b7dac87be102e1deab87c Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 16 Dec 2022 12:16:40 +0800
-Subject: [PATCH] mt76: mt7915: wed: fix potential memory leakage
+Subject: [PATCH 3013/3013] mt76: mt7915: wed: fix potential memory leakage
 
 release rx queue pages in mt7915_mmio_wed_release_rx_buf.
 recycle rxwi when mt76_dma_add_buf() call fails.
@@ -13,7 +13,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  2 files changed, 25 insertions(+), 6 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 8b9fdfc..08169ba 100644
+index 7ef272e..0925daf 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -633,9 +633,11 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
@@ -50,7 +50,7 @@ index 8b9fdfc..08169ba 100644
  
  static void
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 6f80f07..63388fc 100644
+index 09b3973..419338c 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -621,12 +621,27 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
@@ -82,5 +82,5 @@ index 6f80f07..63388fc 100644
  
  static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 -- 
-2.18.0
+2.36.1
 

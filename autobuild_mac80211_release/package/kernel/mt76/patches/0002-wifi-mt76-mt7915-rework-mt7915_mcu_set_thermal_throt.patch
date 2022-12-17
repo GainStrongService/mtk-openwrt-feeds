@@ -1,4 +1,4 @@
-From 49e7be71d19c9f0b66bf4e5b4fc5dc24435ad49c Mon Sep 17 00:00:00 2001
+From 38da46e9edb3f699df3f57525b445690338857dc Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 5 Dec 2022 14:09:18 +0800
 Subject: [PATCH 2/6] wifi: mt76: mt7915: rework
@@ -22,7 +22,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  4 files changed, 37 insertions(+), 26 deletions(-)
 
 diff --git a/mt7915/init.c b/mt7915/init.c
-index a03d0b3b..df3a35d5 100644
+index a03d0b3..df3a35d 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -134,9 +134,6 @@ mt7915_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
@@ -36,7 +36,7 @@ index a03d0b3b..df3a35d5 100644
  		return 0;
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 98af032e..7589af4b 100644
+index 98af032..7589af4 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -60,6 +60,11 @@ int mt7915_run(struct ieee80211_hw *hw)
@@ -52,7 +52,7 @@ index 98af032e..7589af4b 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 35441dcb..7c14a189 100644
+index 35441dc..7c14a18 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -3077,6 +3077,29 @@ int mt7915_mcu_get_temperature(struct mt7915_phy *phy)
@@ -135,7 +135,7 @@ index 35441dcb..7c14a189 100644
  				 &req, sizeof(req), false);
  }
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 6351feba..855779f8 100644
+index 6351feb..855779f 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -543,6 +543,7 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy);
@@ -147,5 +147,5 @@ index 6351feba..855779f8 100644
  			   struct ieee80211_sta *sta, struct rate_info *rate);
  int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
 -- 
-2.25.1
+2.36.1
 

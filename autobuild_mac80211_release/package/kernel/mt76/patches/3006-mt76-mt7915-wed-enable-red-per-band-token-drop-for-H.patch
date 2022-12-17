@@ -1,7 +1,7 @@
-From 30ad09a021ffe242344ab73efa5c92173ffe0706 Mon Sep 17 00:00:00 2001
+From ff22ef4a4d68412999df62ca05c012c05ffdbf81 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 2 Sep 2022 14:40:40 +0800
-Subject: [PATCH 3006/3012] mt76: mt7915: wed: enable red per-band token drop
+Subject: [PATCH 3006/3013] mt76: mt7915: wed: enable red per-band token drop
  for HW Path
 
 Limit the number of token used by each band. If a band uses too many token,
@@ -17,7 +17,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  4 files changed, 51 insertions(+), 12 deletions(-)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f494d9f6..5b2ae773 100644
+index f494d9f..5b2ae77 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2374,8 +2374,17 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
@@ -114,7 +114,7 @@ index f494d9f6..5b2ae773 100644
  int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index f2f88cc4..572cc16a 100644
+index f2f88cc..572cc16 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -285,6 +285,7 @@ enum {
@@ -126,7 +126,7 @@ index f2f88cc4..572cc16a 100644
  	MCU_WA_PARAM_RED_SHOW_STA = 0xf,
  	MCU_WA_PARAM_RED_TARGET_DELAY = 0x10,
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index e0761e89..b29fe7a4 100644
+index e0761e8..b29fe7a 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -759,7 +759,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
@@ -139,7 +139,7 @@ index e0761e89..b29fe7a4 100644
  	wed->wlan.tx_tbit[1] = is_mt7915(&dev->mt76) ? 5 : 31;
  	wed->wlan.txfree_tbit = is_mt7986(&dev->mt76) ? 2 : 1;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 89c13dbe..5b0f1fca 100644
+index 89c13db..5b0f1fc 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -56,6 +56,7 @@
@@ -167,5 +167,5 @@ index 89c13dbe..5b0f1fca 100644
  int mt7915_mcu_set_txpower_level(struct mt7915_phy *phy, u8 drop_level);
  void mt7915_packet_log_to_host(struct mt7915_dev *dev, const void *data, int len, int type, int des_len);
 -- 
-2.25.1
+2.36.1
 

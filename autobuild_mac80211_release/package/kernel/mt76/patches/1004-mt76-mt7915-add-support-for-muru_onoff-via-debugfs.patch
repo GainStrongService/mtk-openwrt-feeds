@@ -1,4 +1,4 @@
-From 61c96251315274f2bec7154bdf7f095cc73c71f1 Mon Sep 17 00:00:00 2001
+From 6e393c35dff8447e3f1cb95fa8e17ff573786b83 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Wed, 22 Jun 2022 10:45:53 +0800
 Subject: [PATCH 1004/1009] mt76: mt7915: add support for muru_onoff via
@@ -12,7 +12,7 @@ Subject: [PATCH 1004/1009] mt76: mt7915: add support for muru_onoff via
  4 files changed, 48 insertions(+), 3 deletions(-)
 
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 844a92f8..00ddab78 100644
+index 844a92f..00ddab7 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -693,6 +693,7 @@ static void mt7915_init_work(struct work_struct *work)
@@ -24,7 +24,7 @@ index 844a92f8..00ddab78 100644
  
  void mt7915_wfsys_reset(struct mt7915_dev *dev)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 788f3fbf..ce07eeec 100644
+index 788f3fb..ce07eee 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -876,13 +876,18 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -50,7 +50,7 @@ index 788f3fbf..ce07eeec 100644
  		muru->mimo_dl.vht_mu_bfee =
  			!!(sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index f3dedd5b..b6840b22 100644
+index f3dedd5..b6840b2 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -608,4 +608,10 @@ struct csi_data {
@@ -65,7 +65,7 @@ index f3dedd5b..b6840b22 100644
 +
  #endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 53f98d1b..2719a8d8 100644
+index 53f98d1..2719a8d 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2481,6 +2481,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)
@@ -116,5 +116,5 @@ index 53f98d1b..2719a8d8 100644
  			    &fops_fw_debug_module);
  	debugfs_create_file("fw_debug_level", 0600, dir, dev,
 -- 
-2.25.1
+2.36.1
 
