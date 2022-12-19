@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mt76/Makefile b/package/kernel/mt76/Makefile
-index a086fed..b87f7dd 100644
+index c71c7c52..b87f7dda 100644
 --- a/package/kernel/mt76/Makefile
 +++ b/package/kernel/mt76/Makefile
 @@ -220,7 +220,7 @@ endef
@@ -59,7 +59,17 @@ index a086fed..b87f7dd 100644
  ifdef CONFIG_PACKAGE_kmod-mt7921-common
    PKG_MAKE_FLAGS += CONFIG_MT7921_COMMON=m
  endif
-@@ -468,6 +484,12 @@ define KernelPackage/mt7915e/install
+@@ -379,7 +395,8 @@ ifdef CONFIG_PACKAGE_kmod-mt7921e
+ endif
+ 
+ define Build/Compile
+-	+$(KERNEL_MAKE) $(PKG_JOBS) \
++	+$(MAKE) $(PKG_JOBS) -C "$(LINUX_DIR)" \
++		$(KERNEL_MAKE_FLAGS) \
+ 		$(PKG_MAKE_FLAGS) \
+ 		M="$(PKG_BUILD_DIR)" \
+ 		NOSTDINC_FLAGS="$(NOSTDINC_FLAGS)" \
+@@ -467,6 +484,12 @@ define KernelPackage/mt7915e/install
  		$(PKG_BUILD_DIR)/firmware/mt7915_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7915_wm.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7915_rom_patch.bin \
@@ -72,7 +82,7 @@ index a086fed..b87f7dd 100644
  		$(1)/lib/firmware/mediatek
  endef
  
-@@ -490,9 +512,30 @@ define KernelPackage/mt7986-firmware/install
+@@ -489,9 +512,30 @@ define KernelPackage/mt7986-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7986_rom_patch.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7975_dual.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7976_dual.bin \
@@ -103,13 +113,10 @@ index a086fed..b87f7dd 100644
  define KernelPackage/mt7921-firmware/install
  	$(INSTALL_DIR) $(1)/lib/firmware/mediatek
  	cp \
-@@ -535,5 +578,6 @@ $(eval $(call KernelPackage,mt7921-common))
+@@ -534,5 +578,6 @@ $(eval $(call KernelPackage,mt7921-common))
  $(eval $(call KernelPackage,mt7921u))
  $(eval $(call KernelPackage,mt7921s))
  $(eval $(call KernelPackage,mt7921e))
 +$(eval $(call KernelPackage,mt7996e))
  $(eval $(call KernelPackage,mt76))
  $(eval $(call BuildPackage,mt76-test))
--- 
-2.36.1
-
