@@ -18,7 +18,11 @@
 #define MTK_PHY_PAGE_EXTENDED		0x0001
 #define MTK_PHY_PAGE_EXTENDED_2		0x0002
 #define MTK_PHY_PAGE_EXTENDED_3		0x0003
+
 #define MTK_PHY_PAGE_EXTENDED_2A30	0x2a30
+#define MTK_PHY_ANARG_RG		(0x10)
+#define   MTK_PHY_TCLKOFFSET_MASK	GENMASK(12, 8)
+
 #define MTK_PHY_PAGE_EXTENDED_52B5	0x52b5
 
 /* Registers on MDIO_MMD_VEND1 */
@@ -86,6 +90,8 @@ enum {
 #define   MTK_PHY_DA_RX_PSBN_HBT_MASK	GENMASK(10, 8)
 #define   MTK_PHY_DA_RX_PSBN_GBE_MASK	GENMASK(6, 4)
 #define   MTK_PHY_DA_RX_PSBN_LP_MASK	GENMASK(2, 0)
+
+#define MTK_PHY_LDO_CTRL		(0xd6)
 
 #define MTK_PHY_RG_ANA_CAL_RG0		(0xdb)
 #define   MTK_PHY_RG_CAL_CKINV		BIT(12)
@@ -181,6 +187,9 @@ enum {
 #define   MTK_PHY_VGASTATE_FFE_THR_ST1_MASK	GENMASK(12, 8)
 #define MTK_PHY_RG_DEV1E_REG27D		(0x27d)
 #define   MTK_PHY_VGASTATE_FFE_THR_ST2_MASK	GENMASK(4, 0)
+
+#define MTK_PHY_LDO_PUMP_EN_PAIRAB	(0x502)
+#define MTK_PHY_LDO_PUMP_EN_PAIRCD	(0x503)
 
 #define MTK_PHY_RG_DEV1E_REG53D		(0x53d)
 #define   MTK_PHY_DA_TX_R50_A_NORMAL_MASK	GENMASK(13, 8)
@@ -622,7 +631,7 @@ static int tx_r50_fill_result(struct phy_device *phydev, u16 *buf,
 	switch(phydev->drv->phy_id) {
 		case 0x03a29481:
 		{
-			int tmp[16] = { -1, -1, -1, -1 };
+			int tmp[16] = { -2, -2, -2, -2 };
 			memcpy(bias, (const void *)tmp, sizeof(bias));
 			break;
 		}
@@ -1105,16 +1114,17 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x12, 0x55);
 	__phy_write(phydev, 0x10, 0x8ec0);
 
-	/* ResetSyncOffset = 6 */
-	__phy_write(phydev, 0x11, 0x600);
+	/* ResetSyncOffset = 5 */
+	__phy_write(phydev, 0x11, 0x500);
 	__phy_write(phydev, 0x12, 0x0);
 	__phy_write(phydev, 0x10, 0x8fc0);
 
-	/* VgaDecRate = 1 */
-	__phy_write(phydev, 0x11, 0x4c2a);
-	__phy_write(phydev, 0x12, 0x3e);
-	__phy_write(phydev, 0x10, 0x8fa4);
+	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_2A30);
+	/* TxClkOffset = 2 */
+	phy_modify(phydev, MTK_PHY_ANARG_RG, MTK_PHY_TCLKOFFSET_MASK,
+		FIELD_PREP(MTK_PHY_TCLKOFFSET_MASK, 0x2));
 
+	/* Always restore to page0 if page select is called */
 	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
 
 	/* TR_OPEN_LOOP_EN = 1, lpf_x_average = 9*/
@@ -1151,6 +1161,13 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 		phy_write_mmd(phydev, MDIO_MMD_VEND2, i, 0x2219);
 		phy_write_mmd(phydev, MDIO_MMD_VEND2, i+1, 0x23);
 	}
+
+	/* Disable LDO pump */
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LDO_PUMP_EN_PAIRAB, 0x0);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LDO_PUMP_EN_PAIRCD, 0x0);
+
+	/* Adjust LDO output voltage */
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LDO_CTRL, 0x2222);
 }
 
 static int mt798x_phy_calibration(struct phy_device *phydev)
