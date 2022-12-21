@@ -126,7 +126,9 @@ function convert_interface {
         fi
     elif [ "${band_idx}" = "1" ]; then
         if [[ $1 == "rai"* ]]; then
-            phy_idx=1
+            # AX8400: mt7915 remain phy0
+            # AX7800: mt7916 becomes phy1
+            phy_idx=$((start_idx_7986-1))
         elif [[ $1 == "ra"* ]]; then
             phy_idx=$((start_idx_7986+1))
         fi
