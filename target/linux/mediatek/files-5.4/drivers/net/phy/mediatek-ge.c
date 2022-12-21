@@ -530,6 +530,17 @@ static int tx_amp_fill_result(struct phy_device *phydev, u16 *buf)
 					7, 1, 4, 7,
 					7, 1, 4, 7 };
 			memcpy(bias, (const void *)tmp, sizeof(bias));
+			for (i = 0; i <= 12; i += 4) {
+				if (likely(buf[i>>2] + bias[i] >= 32)) {
+					bias[i] -= 13;
+				} else {
+					phy_modify_mmd(phydev, MDIO_MMD_VEND1,
+						0x5c, 0x7 << i, bias[i] << i);
+					bias[i+1] += 13;
+					bias[i+2] += 13;
+					bias[i+3] += 13;
+				}
+			}
 			break;
 		}
 		case 0x03a29481:
@@ -543,18 +554,6 @@ static int tx_amp_fill_result(struct phy_device *phydev, u16 *buf)
 		}
 		default:
 			break;
-	}
-
-	for (i = 0; i < 12; i += 4) {
-		if (likely(buf[i>>2] + bias[i] >= 32)) {
-			bias[i] -= 13;
-		} else {
-			phy_modify_mmd(phydev, MDIO_MMD_VEND1, 0x5c,
-				0xf << (12-i), 0x6 << (12-i));
-			bias[i+1] += 13;
-			bias[i+2] += 13;
-			bias[i+3] += 13;
-		}
 	}
 
 	/* Prevent overflow */
