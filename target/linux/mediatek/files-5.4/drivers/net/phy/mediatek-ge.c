@@ -91,7 +91,7 @@ enum {
 #define   MTK_PHY_DA_RX_PSBN_GBE_MASK	GENMASK(6, 4)
 #define   MTK_PHY_DA_RX_PSBN_LP_MASK	GENMASK(2, 0)
 
-#define MTK_PHY_LDO_CTRL		(0xd6)
+#define MTK_PHY_LDO_OUTPUT_V		(0xd7)
 
 #define MTK_PHY_RG_ANA_CAL_RG0		(0xdb)
 #define   MTK_PHY_RG_CAL_CKINV		BIT(12)
@@ -1021,11 +1021,10 @@ static inline void mt7981_phy_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x10, 0x8fa4);
 
 	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
-
 	/* TR_OPEN_LOOP_EN = 1, lpf_x_average = 9*/
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG234,
-		MTK_PHY_TR_OPEN_LOOP_EN_MASK & MTK_PHY_LPF_X_AVERAGE_MASK,
-		BIT(0) & (0x9 << 4));
+		MTK_PHY_TR_OPEN_LOOP_EN_MASK | MTK_PHY_LPF_X_AVERAGE_MASK,
+		BIT(0) | FIELD_PREP(MTK_PHY_LPF_X_AVERAGE_MASK, 0x9));
 
 	/* rg_tr_lpf_cnt_val = 512 */
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LPF_CNT_VAL, 0x200);
@@ -1118,19 +1117,18 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x11, 0x500);
 	__phy_write(phydev, 0x12, 0x0);
 	__phy_write(phydev, 0x10, 0x8fc0);
+	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
 
 	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_2A30);
 	/* TxClkOffset = 2 */
-	phy_modify(phydev, MTK_PHY_ANARG_RG, MTK_PHY_TCLKOFFSET_MASK,
+	__phy_modify(phydev, MTK_PHY_ANARG_RG, MTK_PHY_TCLKOFFSET_MASK,
 		FIELD_PREP(MTK_PHY_TCLKOFFSET_MASK, 0x2));
-
-	/* Always restore to page0 if page select is called */
 	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
 
 	/* TR_OPEN_LOOP_EN = 1, lpf_x_average = 9*/
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG234,
-		MTK_PHY_TR_OPEN_LOOP_EN_MASK & MTK_PHY_LPF_X_AVERAGE_MASK,
-		BIT(0) & (0x9 << 4));
+		MTK_PHY_TR_OPEN_LOOP_EN_MASK | MTK_PHY_LPF_X_AVERAGE_MASK,
+		BIT(0) | FIELD_PREP(MTK_PHY_LPF_X_AVERAGE_MASK, 0x9));
 
 	/* rg_tr_lpf_cnt_val = 512 */
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LPF_CNT_VAL, 0x200);
@@ -1167,7 +1165,7 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LDO_PUMP_EN_PAIRCD, 0x0);
 
 	/* Adjust LDO output voltage */
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LDO_CTRL, 0x2222);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LDO_OUTPUT_V, 0x2222);
 }
 
 static int mt798x_phy_calibration(struct phy_device *phydev)
