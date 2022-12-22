@@ -189,8 +189,11 @@ prepare_mac80211() {
 	rm -rf ${BUILD_DIR}/package/firmware/wireless-regdb
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/firmware/wireless-regdb ${BUILD_DIR}/package/firmware
 
-	rm -rf ${BUILD_DIR}/package/kernel/mt76
-	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
+	# do not directly remove mt76 folder, since the firmware folder will also be removed and enter an unsync state
+        rm -rf ${BUILD_DIR}/package/kernel/mt76/Makefile
+        rm -rf ${BUILD_DIR}/package/kernel/mt76/patches
+        rm -rf ${BUILD_DIR}/package/kernel/mt76/src
+        cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
 
 	#hack hostapd config
 	echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
@@ -305,9 +308,6 @@ install_release() {
 
 	#install output feeds buildinfo
 	install_output_feeds_buildinfo $1 ${chip_name} ${arch_name}
-
-	#tarball for AT
-	install_output_at $1
 }
 
 prepare_final() {
