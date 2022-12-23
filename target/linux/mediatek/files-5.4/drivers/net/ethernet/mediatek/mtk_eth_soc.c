@@ -762,6 +762,7 @@ static void mtk_validate(struct phylink_config *config,
 
 		if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_USXGMII)) {
 			phylink_set(mask, 10000baseKR_Full);
+			phylink_set(mask, 10000baseT_Full);
 			phylink_set(mask, 10000baseSR_Full);
 			phylink_set(mask, 10000baseLR_Full);
 			phylink_set(mask, 10000baseLRM_Full);
