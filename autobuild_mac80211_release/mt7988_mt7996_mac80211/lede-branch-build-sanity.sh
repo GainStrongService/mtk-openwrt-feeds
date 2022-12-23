@@ -52,9 +52,17 @@ echo "CONFIG_NETFILTER_ADVANCED=y" >> ${BUILD_DIR}/target/linux/mediatek/mt7988/
 echo "CONFIG_RELAY=y" >> ${BUILD_DIR}/target/linux/mediatek/mt7988/config-5.4
 
 prepare_flowoffload
+##############################################################################
+rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mt76/patches
+##############################################################################
 
 #prepare mac80211 mt76 wifi stuff
 prepare_mac80211 ${backport_new}
+
+###############################################################################
+# remove hostapd internal patches
+rm -rf ${BUILD_DIR}/package/network/services/hostapd/patches/999*mtk*.patch
+###############################################################################
 
 prepare_final ${branch_name}
 

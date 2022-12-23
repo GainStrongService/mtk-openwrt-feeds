@@ -1,0 +1,67 @@
+From c7c415e89ab0e47caa0d0a8d6b62bc179a16c35a Mon Sep 17 00:00:00 2001
+From: Evelyn Tsai <evelyn.tsai@mediatek.com>
+Date: Fri, 23 Dec 2022 17:28:03 +0800
+Subject: [PATCH 4001/4003] mt76: mt7996: for build pass
+
+---
+ debugfs.c    | 3 +++
+ dma.c        | 4 ++--
+ mt7996/dma.c | 4 ++--
+ 3 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/debugfs.c b/debugfs.c
+index 79064a4..e10d4cb 100644
+--- a/debugfs.c
++++ b/debugfs.c
+@@ -33,8 +33,11 @@ mt76_napi_threaded_set(void *data, u64 val)
+ 	if (!mt76_is_mmio(dev))
+ 		return -EOPNOTSUPP;
+ 
++#if 0
++	/* need to backport patch from networking stack */
+ 	if (dev->napi_dev.threaded != val)
+ 		return dev_set_threaded(&dev->napi_dev, val);
++#endif
+ 
+ 	return 0;
+ }
+diff --git a/dma.c b/dma.c
+index fc24b35..beb03cd 100644
+--- a/dma.c
++++ b/dma.c
+@@ -627,7 +627,7 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
+ 
+ 	switch (type) {
+ 	case MT76_WED_Q_TX:
+-		ret = mtk_wed_device_tx_ring_setup(wed, ring, q->regs);
++		ret = mtk_wed_device_tx_ring_setup(wed, ring, q->regs, 0);
+ 		if (!ret)
+ 			q->wed_regs = wed->tx_ring[ring].reg_base;
+ 		break;
+@@ -643,7 +643,7 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
+ 			q->wed_regs = wed->txfree_ring.reg_base;
+ 		break;
+ 	case MT76_WED_Q_RX:
+-		ret = mtk_wed_device_rx_ring_setup(wed, ring, q->regs);
++		ret = mtk_wed_device_rx_ring_setup(wed, ring, q->regs, 0);
+ 		if (!ret)
+ 			q->wed_regs = wed->rx_ring[ring].reg_base;
+ 		break;
+diff --git a/mt7996/dma.c b/mt7996/dma.c
+index c09fe42..8c2e060 100644
+--- a/mt7996/dma.c
++++ b/mt7996/dma.c
+@@ -343,8 +343,8 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	netif_napi_add_tx(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
+-			  mt7996_poll_tx);
++	netif_tx_napi_add(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
++			  mt7996_poll_tx, NAPI_POLL_WEIGHT);
+ 	napi_enable(&dev->mt76.tx_napi);
+ 
+ 	mt7996_dma_enable(dev);
+-- 
+2.36.1
+

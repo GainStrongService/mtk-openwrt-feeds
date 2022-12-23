@@ -1,0 +1,85 @@
+From 6098317d391c07b301bede6002c03ea0eed72103 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Thu, 1 Dec 2022 14:23:35 +0800
+Subject: [PATCH 2/7] wifi: mt76: mt7996: update register for CFEND_RATE
+
+In newer chipsets, CFEND_RATE setting has been moved to different hw
+module.
+
+Fixes: 98686cd21624 ("wifi: mt76: mt7996: add driver for MediaTek Wi-Fi 7 (802.11be) devices")
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+Change-Id: I41dd443010ede910d934f38f4d86aaa3e7f31032
+---
+ mt7996/mac.c  |  2 +-
+ mt7996/mmio.c |  1 +
+ mt7996/regs.h | 15 ++++++++-------
+ 3 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 0b3e287..ce4242f 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1690,7 +1690,7 @@ void mt7996_mac_set_timing(struct mt7996_phy *phy)
+ 	else
+ 		val = MT7996_CFEND_RATE_11B;
+ 
+-	mt76_rmw_field(dev, MT_AGG_ACR0(band_idx), MT_AGG_ACR_CFEND_RATE, val);
++	mt76_rmw_field(dev, MT_RATE_HRCR0(band_idx), MT_RATE_HRCR0_CFEND_RATE, val);
+ 	mt76_clear(dev, MT_ARB_SCR(band_idx),
+ 		   MT_ARB_SCR_TX_DISABLE | MT_ARB_SCR_RX_DISABLE);
+ }
+diff --git a/mt7996/mmio.c b/mt7996/mmio.c
+index 60781d0..d8a2c1a 100644
+--- a/mt7996/mmio.c
++++ b/mt7996/mmio.c
+@@ -21,6 +21,7 @@ static const struct __base mt7996_reg_base[] = {
+ 	[WF_ETBF_BASE]		= { { 0x820ea000, 0x820fa000, 0x830ea000 } },
+ 	[WF_LPON_BASE]		= { { 0x820eb000, 0x820fb000, 0x830eb000 } },
+ 	[WF_MIB_BASE]		= { { 0x820ed000, 0x820fd000, 0x830ed000 } },
++	[WF_RATE_BASE]		= { { 0x820ee000, 0x820fe000, 0x830ee000 } },
+ };
+ 
+ static const struct __map mt7996_reg_map[] = {
+diff --git a/mt7996/regs.h b/mt7996/regs.h
+index 42980b9..7a28cae 100644
+--- a/mt7996/regs.h
++++ b/mt7996/regs.h
+@@ -33,6 +33,7 @@ enum base_rev {
+ 	WF_ETBF_BASE,
+ 	WF_LPON_BASE,
+ 	WF_MIB_BASE,
++	WF_RATE_BASE,
+ 	__MT_REG_BASE_MAX,
+ };
+ 
+@@ -235,13 +236,6 @@ enum base_rev {
+ 						 FIELD_PREP(MT_WTBL_LMAC_ID, _id) | \
+ 						 FIELD_PREP(MT_WTBL_LMAC_DW, _dw))
+ 
+-/* AGG: band 0(0x820e2000), band 1(0x820f2000), band 2(0x830e2000) */
+-#define MT_WF_AGG_BASE(_band)			__BASE(WF_AGG_BASE, (_band))
+-#define MT_WF_AGG(_band, ofs)			(MT_WF_AGG_BASE(_band) + (ofs))
+-
+-#define MT_AGG_ACR0(_band)			MT_WF_AGG(_band, 0x054)
+-#define MT_AGG_ACR_CFEND_RATE			GENMASK(13, 0)
+-
+ /* ARB: band 0(0x820e3000), band 1(0x820f3000), band 2(0x830e3000) */
+ #define MT_WF_ARB_BASE(_band)			__BASE(WF_ARB_BASE, (_band))
+ #define MT_WF_ARB(_band, ofs)			(MT_WF_ARB_BASE(_band) + (ofs))
+@@ -300,6 +294,13 @@ enum base_rev {
+ #define MT_WF_RMAC_RSVD0(_band)			MT_WF_RMAC(_band, 0x03e0)
+ #define MT_WF_RMAC_RSVD0_EIFS_CLR		BIT(21)
+ 
++/* RATE: band 0(0x820ee000), band 1(0x820fe000), band 2(0x830ee000) */
++#define MT_WF_RATE_BASE(_band)			__BASE(WF_RATE_BASE, (_band))
++#define MT_WF_RATE(_band, ofs)			(MT_WF_RATE_BASE(_band) + (ofs))
++
++#define MT_RATE_HRCR0(_band)			MT_WF_RATE(_band, 0x050)
++#define MT_RATE_HRCR0_CFEND_RATE		GENMASK(14, 0)
++
+ /* WFDMA0 */
+ #define MT_WFDMA0_BASE				0xd4000
+ #define MT_WFDMA0(ofs)				(MT_WFDMA0_BASE + (ofs))
+-- 
+2.36.1
+

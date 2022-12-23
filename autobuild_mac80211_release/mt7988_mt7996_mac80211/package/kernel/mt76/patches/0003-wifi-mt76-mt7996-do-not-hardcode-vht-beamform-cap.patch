@@ -1,0 +1,29 @@
+From bc54af3f8657ee2633a1c976247fb8d2f07ad568 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 9 Dec 2022 16:38:03 +0800
+Subject: [PATCH 3/7] wifi: mt76: mt7996: do not hardcode vht beamform cap
+
+Use the sts variable when setting vht beamform sts cap.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+Change-Id: Idbc52c144220ee855251d4a316e475510cfdadad
+---
+ mt7996/init.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 64e8dfd..7a9692a 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -465,7 +465,7 @@ void mt7996_set_stream_vht_txbf_caps(struct mt7996_phy *phy)
+ 
+ 	*cap |= IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
+ 		IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE |
+-		(3 << IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT);
++		FIELD_PREP(IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK, sts - 1);
+ 
+ 	*cap &= ~(IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK |
+ 		  IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
+-- 
+2.36.1
+
