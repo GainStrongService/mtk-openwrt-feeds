@@ -24,6 +24,8 @@ char* mtk_reset_event_name[32] = {
 
 static int mtk_wifi_num = 0;
 static int mtk_rest_cnt = 0;
+u32 mtk_reset_flag = MTK_FE_START_RESET;
+typedef u32 (*mtk_monitor_xdma_func) (struct mtk_eth *eth);
 
 void mtk_reset_event_update(struct mtk_eth *eth, u32 id)
 {
@@ -69,12 +71,16 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 	}
 
 	if (i < 1000) {
-		reset_bits = 0;
-
+		reset_bits = RSTCTRL_ETH | RSTCTRL_PPE0;
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
-			reset_bits |= RSTCTRL_ETH | RSTCTRL_PPE0 | RSTCTRL_PPE1;
-		else
-			reset_bits |= RSTCTRL_ETH | RSTCTRL_PPE0;
+			reset_bits |= RSTCTRL_PPE1;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
+			reset_bits |= RSTCTRL_PPE2;
+		if (mtk_reset_flag == MTK_FE_START_RESET)
+			reset_bits |= RSTCTRL_WDMA0 |
+			RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
+#endif
 
 		regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
 				   reset_bits, reset_bits);
@@ -195,84 +201,124 @@ void mtk_dump_netsys_info(void *_eth)
 	mtk_dump_reg(eth, "GMAC", 0x10000, 0x300);
 }
 
-void mtk_dma_monitor(struct timer_list *t)
+u32 mtk_monitor_wdma_tx(struct mtk_eth *eth)
 {
-	struct mtk_eth *eth = from_timer(eth, t, mtk_dma_monitor_timer);
-	static u32 timestamp = 0;
-	static u32 err_cnt1 = 0, err_cnt2 = 0, err_cnt3 = 0;
-	static u32 prev_wdidx = 0;
-	unsigned int mib_base = MTK_GDM1_TX_GBCNT;
+	static u32 pre_dtx[MTK_WDMA_CNT];
+	static u32 err_cnt[MTK_WDMA_CNT];
+	u32 i = 0, cur_dtx = 0, tx_busy = 0, tx_rdy = 0, err_flag = 0;
+	u32 dbg_mon = 0;
 
-	/*wdma tx path*/
-	u32 cur_wdidx = mtk_r32(eth, MTK_WDMA_DTX_PTR(0));
-	u32 is_wtx_busy = mtk_r32(eth, MTK_WDMA_GLO_CFG(0)) & MTK_TX_DMA_BUSY;
-	u32 is_oq_free = ((mtk_r32(eth, MTK_PSE_OQ_STA(0)) & 0x01FF0000) == 0) &&
-			 ((mtk_r32(eth, MTK_PSE_OQ_STA(1)) & 0x000001FF) == 0) &&
-			 ((mtk_r32(eth, MTK_PSE_OQ_STA(4)) & 0x01FF0000) == 0);
-	u32 is_cdm_full =
-		!(mtk_r32(eth, MTK_WDMA_TX_DBG_MON0(0)) & MTK_CDM_TXFIFO_RDY);
-	/*qdma tx path*/
-	u32 is_qfsm_hang = mtk_r32(eth, MTK_QDMA_FSM) != 0;
-	u32 is_qfwd_hang = mtk_r32(eth, MTK_QDMA_FWD_CNT) == 0;
-	u32 is_qfq_hang = mtk_r32(eth, MTK_QDMA_FQ_CNT) !=
-			  ((MTK_DMA_SIZE << 16) | MTK_DMA_SIZE);
-	u32 is_gdm1_tx = (mtk_r32(eth, MTK_FE_GDM1_FSM) & 0xFFFF0000) > 0;
-	u32 is_gdm2_tx = (mtk_r32(eth, MTK_FE_GDM2_FSM) & 0xFFFF0000) > 0;
-	u32 is_gmac1_tx = (mtk_r32(eth, MTK_MAC_FSM(0)) & 0xFF000000) != 0x1000000;
-	u32 is_gmac2_tx = (mtk_r32(eth, MTK_MAC_FSM(1)) & 0xFF000000) != 0x1000000;
-	u32 gdm1_fc =  mtk_r32(eth, mib_base+0x24);
-	u32 gdm2_fc =  mtk_r32(eth, mib_base+0x64);
-	/*adma rx path*/
-	u32 is_oq0_stuck = (mtk_r32(eth, MTK_PSE_OQ_STA(0)) & 0x1FF) != 0;
-	u32 is_cdm1_busy = (mtk_r32(eth, MTK_FE_CDM1_FSM) & 0xFFFF0000) != 0;
-	u32 is_adma_busy = ((mtk_r32(eth, MTK_ADMA_RX_DBG0) & 0x1F) == 0) &&
-			   ((mtk_r32(eth, MTK_ADMA_RX_DBG0) & 0x40) == 0);
-
-	if (cur_wdidx == prev_wdidx && is_wtx_busy &&
-	    is_oq_free && is_cdm_full) {
-		err_cnt1++;
-		if (err_cnt1 >= 3) {
-			pr_info("WDMA CDM Info\n");
-			pr_info("============== Time: %d ================\n",
-				timestamp);
-			pr_info("err_cnt1 = %d", err_cnt1);
-			pr_info("prev_wdidx = 0x%x	| cur_wdidx = 0x%x\n",
-				prev_wdidx, cur_wdidx);
-			pr_info("is_wtx_busy = %d | is_oq_free = %d	| is_cdm_full = %d\n",
-				is_wtx_busy, is_oq_free, is_cdm_full);
-			pr_info("-- -- -- -- -- -- --\n");
-			pr_info("WDMA_CTX_PTR = 0x%x\n", mtk_r32(eth, 0x4808));
-			pr_info("WDMA_DTX_PTR = 0x%x\n",
-				mtk_r32(eth, MTK_WDMA_DTX_PTR(0)));
-			pr_info("WDMA_GLO_CFG = 0x%x\n",
-				mtk_r32(eth, MTK_WDMA_GLO_CFG(0)));
-			pr_info("WDMA_TX_DBG_MON0 = 0x%x\n",
-				mtk_r32(eth, MTK_WDMA_TX_DBG_MON0(0)));
-			pr_info("PSE_OQ_STA1 = 0x%x\n",
-				mtk_r32(eth, MTK_PSE_OQ_STA(0)));
-			pr_info("PSE_OQ_STA2 = 0x%x\n",
-				mtk_r32(eth, MTK_PSE_OQ_STA(1)));
-			pr_info("PSE_OQ_STA5 = 0x%x\n",
-				mtk_r32(eth, MTK_PSE_OQ_STA(4)));
-			pr_info("==============================\n");
-
-			if ((atomic_read(&reset_lock) == 0) &&
-			    (atomic_read(&force) == 0)){
-				atomic_inc(&force);
-				schedule_work(&eth->pending_work);
+	for (i = 0; i < MTK_WDMA_CNT; i++) {
+		cur_dtx = mtk_r32(eth, MTK_WDMA_DTX_PTR(i));
+		tx_busy = mtk_r32(eth, MTK_WDMA_GLO_CFG(i)) & MTK_TX_DMA_BUSY;
+		dbg_mon = mtk_r32(eth, MTK_WDMA_TX_DBG_MON0(i));
+		tx_rdy = !(dbg_mon & MTK_CDM_TXFIFO_RDY);
+		if (cur_dtx == pre_dtx[i] && tx_busy && tx_rdy) {
+			err_cnt[i]++;
+			if (err_cnt[i] >= 3) {
+				pr_info("WDMA %d Info\n", i);
+				pr_info("err_cnt = %d", err_cnt[i]);
+				pr_info("prev_dtx = 0x%x	| cur_dtx = 0x%x\n",
+					pre_dtx[i], cur_dtx);
+				pr_info("WDMA_CTX_PTR = 0x%x\n",
+					mtk_r32(eth, MTK_WDMA_CTX_PTR(i)));
+				pr_info("WDMA_DTX_PTR = 0x%x\n",
+					mtk_r32(eth, MTK_WDMA_DTX_PTR(i)));
+				pr_info("WDMA_GLO_CFG = 0x%x\n",
+					mtk_r32(eth, MTK_WDMA_GLO_CFG(i)));
+				pr_info("WDMA_TX_DBG_MON0 = 0x%x\n",
+					mtk_r32(eth, MTK_WDMA_TX_DBG_MON0(i)));
+				pr_info("==============================\n");
+				err_flag = 1;
 			}
-		}
-	} else if (is_qfsm_hang && is_qfwd_hang &&
-		((is_gdm1_tx && is_gmac1_tx && (gdm1_fc < 1)) || (is_gdm2_tx && is_gmac2_tx && (gdm2_fc < 1)))) {
-		err_cnt2++;
-		if (err_cnt2 >= 3) {
+		} else
+			err_cnt[i] = 0;
+		pre_dtx[i] = cur_dtx;
+	}
+
+	if (err_flag)
+		return MTK_FE_START_RESET;
+	else
+		return 0;
+}
+
+u32 mtk_monitor_wdma_rx(struct mtk_eth *eth)
+{
+	static u32 pre_drx[MTK_WDMA_CNT];
+	static u32 pre_opq[MTK_WDMA_CNT];
+	static u32 err_cnt[MTK_WDMA_CNT];
+	u32 i = 0, cur_drx = 0, rx_busy = 0, err_flag = 0;
+	u32 cur_opq = 0;
+
+	for (i = 0; i < MTK_WDMA_CNT; i++) {
+		cur_drx = mtk_r32(eth, MTK_WDMA_DRX_PTR(i));
+		rx_busy = mtk_r32(eth, MTK_WDMA_GLO_CFG(i)) & MTK_RX_DMA_BUSY;
+		if (i == 0)
+			cur_opq = (mtk_r32(eth, MTK_PSE_OQ_STA(5)) & 0x1FF);
+		else if (i == 1)
+			cur_opq = (mtk_r32(eth, MTK_PSE_OQ_STA(5)) & 0x1FF0000);
+		else
+			cur_opq = (mtk_r32(eth, MTK_PSE_OQ_STA(7)) & 0x1FF0000);
+
+		if (cur_drx == pre_drx[i] && rx_busy && cur_opq != 0 &&
+			cur_opq == pre_opq[i]) {
+			err_cnt[i]++;
+			if (err_cnt[i] >= 3) {
+				pr_info("WDMA %d Info\n", i);
+				pr_info("err_cnt = %d", err_cnt[i]);
+				pr_info("prev_drx = 0x%x	| cur_drx = 0x%x\n",
+					pre_drx[i], cur_drx);
+				pr_info("WDMA_CRX_PTR = 0x%x\n",
+					mtk_r32(eth, MTK_WDMA_CRX_PTR(i)));
+				pr_info("WDMA_DRX_PTR = 0x%x\n",
+					mtk_r32(eth, MTK_WDMA_DRX_PTR(i)));
+				pr_info("WDMA_GLO_CFG = 0x%x\n",
+					mtk_r32(eth, MTK_WDMA_GLO_CFG(i)));
+				pr_info("==============================\n");
+				err_flag = 1;
+			}
+		} else
+			err_cnt[i] = 0;
+		pre_drx[i] = cur_drx;
+		pre_opq[i] = cur_opq;
+	}
+
+	if (err_flag)
+		return MTK_FE_START_RESET;
+	else
+		return 0;
+}
+
+u32 mtk_monitor_rx_fc(struct mtk_eth *eth)
+{
+	u32 i = 0, mib_base = 0, gdm_fc = 0;
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		mib_base = MTK_GDM1_TX_GBCNT + MTK_STAT_OFFSET*i;
+		gdm_fc =  mtk_r32(eth, mib_base);
+		if (gdm_fc < 1)
+			return 1;
+	}
+	return 0;
+}
+
+u32 mtk_monitor_qdma_tx(struct mtk_eth *eth)
+{
+	static u32 err_cnt_qtx;
+	u32 err_flag = 0;
+	u32 i = 0, is_rx_fc = 0;
+
+	u32 is_qfsm_hang = (mtk_r32(eth, MTK_QDMA_FSM) & 0xF00) != 0;
+	u32 is_qfwd_hang = mtk_r32(eth, MTK_QDMA_FWD_CNT) == 0;
+
+	is_rx_fc = mtk_monitor_rx_fc(eth);
+	if (is_qfsm_hang && is_qfwd_hang && is_rx_fc) {
+		err_cnt_qtx++;
+		if (err_cnt_qtx >= 3) {
 			pr_info("QDMA Tx Info\n");
-			pr_info("============== Time: %d ================\n",
-				timestamp);
-			pr_info("err_cnt2 = %d", err_cnt2);
+			pr_info("err_cnt = %d", err_cnt_qtx);
 			pr_info("is_qfsm_hang = %d\n", is_qfsm_hang);
 			pr_info("is_qfwd_hang = %d\n", is_qfwd_hang);
-			pr_info("is_qfq_hang = %d\n", is_qfq_hang);
 			pr_info("-- -- -- -- -- -- --\n");
 			pr_info("MTK_QDMA_FSM = 0x%x\n",
 				mtk_r32(eth, MTK_QDMA_FSM));
@@ -280,27 +326,70 @@ void mtk_dma_monitor(struct timer_list *t)
 				mtk_r32(eth, MTK_QDMA_FWD_CNT));
 			pr_info("MTK_QDMA_FQ_CNT = 0x%x\n",
 				mtk_r32(eth, MTK_QDMA_FQ_CNT));
-			pr_info("GDM1 FC = 0x%x\n",gdm1_fc);
-			pr_info("GDM2 FC = 0x%x\n",gdm2_fc);
 			pr_info("==============================\n");
-
-			if ((atomic_read(&reset_lock) == 0) &&
-			    (atomic_read(&force) == 0)){
-				atomic_inc(&force);
-				schedule_work(&eth->pending_work);
-			}
+			err_flag = 1;
 		}
-	} else if (is_oq0_stuck && is_cdm1_busy && is_adma_busy) {
-		err_cnt3++;
-		if (err_cnt3 >= 3) {
+	} else
+		err_cnt_qtx = 0;
+
+	if (err_flag)
+		return MTK_FE_STOP_TRAFFIC;
+	else
+		return 0;
+}
+
+u32 mtk_monitor_qdma_rx(struct mtk_eth *eth)
+{
+	static u32 err_cnt_qrx;
+	static u32 pre_fq_head, pre_fq_tail;
+	u32 err_flag = 0;
+
+	u32 qrx_fsm = (mtk_r32(eth, MTK_QDMA_FSM) & 0x1F) == 9;
+	u32 fq_head = mtk_r32(eth, MTK_QDMA_FQ_HEAD);
+	u32 fq_tail = mtk_r32(eth, MTK_QDMA_FQ_TAIL);
+
+	if (qrx_fsm && fq_head == pre_fq_head &&
+			fq_tail == pre_fq_tail) {
+		err_cnt_qrx++;
+		if (err_cnt_qrx >= 3) {
+			pr_info("QDMA Rx Info\n");
+			pr_info("err_cnt = %d", err_cnt_qrx);
+			pr_info("MTK_QDMA_FSM = %d\n",
+				mtk_r32(eth, MTK_QDMA_FSM));
+			pr_info("FQ_HEAD = 0x%x\n",
+				mtk_r32(eth, MTK_QDMA_FQ_HEAD));
+			pr_info("FQ_TAIL = 0x%x\n",
+				mtk_r32(eth, MTK_QDMA_FQ_TAIL));
+			err_flag = 1;
+		} else
+			err_cnt_qrx = 0;
+	}
+	pre_fq_head = fq_head;
+	pre_fq_tail = fq_tail;
+
+	if (err_flag)
+		return MTK_FE_STOP_TRAFFIC;
+	else
+		return 0;
+}
+
+
+u32 mtk_monitor_adma_rx(struct mtk_eth *eth)
+{
+	static u32 err_cnt_arx;
+	u32 err_flag = 0;
+	u32 opq0 = (mtk_r32(eth, MTK_PSE_OQ_STA(0)) & 0x1FF) != 0;
+	u32 cdm1_fsm = (mtk_r32(eth, MTK_FE_CDM1_FSM) & 0xFFFF0000) != 0;
+	u32 cur_stat = ((mtk_r32(eth, MTK_ADMA_RX_DBG0) & 0x1F) == 0);
+	u32 fifo_rdy = ((mtk_r32(eth, MTK_ADMA_RX_DBG0) & 0x40) == 0);
+
+	if (opq0 && cdm1_fsm && cur_stat && fifo_rdy) {
+		err_cnt_arx++;
+		if (err_cnt_arx >= 3) {
 			pr_info("ADMA Rx Info\n");
-			pr_info("============== Time: %d ================\n",
-				timestamp);
-			pr_info("err_cnt3 = %d", err_cnt3);
-			pr_info("is_oq0_stuck = %d\n", is_oq0_stuck);
-			pr_info("is_cdm1_busy = %d\n", is_cdm1_busy);
-			pr_info("is_adma_busy = %d\n", is_adma_busy);
-			pr_info("-- -- -- -- -- -- --\n");
+			pr_info("err_cnt = %d", err_cnt_arx);
+			pr_info("CDM1_FSM = %d\n",
+				mtk_r32(eth, MTK_FE_CDM1_FSM));
 			pr_info("MTK_PSE_OQ_STA1 = 0x%x\n",
 				mtk_r32(eth, MTK_PSE_OQ_STA(0)));
 			pr_info("MTK_ADMA_RX_DBG0 = 0x%x\n",
@@ -308,25 +397,124 @@ void mtk_dma_monitor(struct timer_list *t)
 			pr_info("MTK_ADMA_RX_DBG1 = 0x%x\n",
 				mtk_r32(eth, MTK_ADMA_RX_DBG1));
 			pr_info("==============================\n");
-			if ((atomic_read(&reset_lock) == 0) &&
-			    (atomic_read(&force) == 0)){
-				atomic_inc(&force);
-				schedule_work(&eth->pending_work);
-			}
+			err_flag = 1;
 		}
-	}else {
-		err_cnt1 = 0;
-		err_cnt2 = 0;
-		err_cnt3 = 0;
+	} else
+		err_cnt_arx = 0;
+
+	if (err_flag)
+		return MTK_FE_STOP_TRAFFIC;
+	else
+		return 0;
+}
+
+u32 mtk_monitor_tdma_tx(struct mtk_eth *eth)
+{
+	static u32 err_cnt_ttx;
+	static u32 pre_fsm;
+	u32 err_flag = 0;
+	u32 cur_fsm = 0;
+	u32 tx_busy = 0;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		cur_fsm = (mtk_r32(eth, MTK_FE_CDM6_FSM) & 0x1FFF) != 0;
+		tx_busy = ((mtk_r32(eth, MTK_TDMA_GLO_CFG) & 0x2) != 0);
+
+		if (cur_fsm == pre_fsm && cur_fsm != 0 && tx_busy) {
+			err_cnt_ttx++;
+			if (err_cnt_ttx >= 3) {
+				pr_info("TDMA Tx Info\n");
+				pr_info("err_cnt = %d", err_cnt_ttx);
+				pr_info("CDM6_FSM = %d\n",
+					mtk_r32(eth, MTK_FE_CDM6_FSM));
+				pr_info("DMA CFG = 0x%x\n",
+					mtk_r32(eth, MTK_TDMA_GLO_CFG));
+				pr_info("==============================\n");
+				err_flag = 1;
+			}
+		} else
+			err_cnt_ttx = 0;
+
+		pre_fsm = cur_fsm;
 	}
 
-	prev_wdidx = cur_wdidx;
+	if (err_flag)
+		return MTK_FE_STOP_TRAFFIC;
+	else
+		return 0;
+}
+
+u32 mtk_monitor_tdma_rx(struct mtk_eth *eth)
+{
+	static u32 err_cnt_trx;
+	static u32 pre_fsm;
+	u32 err_flag = 0;
+	u32 cur_fsm = 0;
+	u32 rx_busy = 0;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		cur_fsm = (mtk_r32(eth, MTK_FE_CDM6_FSM) & 0xFFF0000) != 0;
+		rx_busy = ((mtk_r32(eth, MTK_TDMA_GLO_CFG) & 0x8) != 0);
+
+		if (cur_fsm == pre_fsm && cur_fsm != 0 && rx_busy) {
+			err_cnt_trx++;
+			if (err_cnt_trx >= 3) {
+				pr_info("TDMA Rx Info\n");
+				pr_info("err_cnt = %d", err_cnt_trx);
+				pr_info("CDM6_FSM = %d\n",
+					mtk_r32(eth, MTK_FE_CDM6_FSM));
+				pr_info("DMA CFG = 0x%x\n",
+					mtk_r32(eth, MTK_TDMA_GLO_CFG));
+				pr_info("==============================\n");
+				err_flag = 1;
+			}
+		} else
+			err_cnt_trx = 0;
+
+		pre_fsm = cur_fsm;
+	}
+
+	if (err_flag)
+		return MTK_FE_STOP_TRAFFIC;
+	else
+		return 0;
+}
+
+static const mtk_monitor_xdma_func mtk_reset_monitor_func[] = {
+	[0] = mtk_monitor_wdma_tx,
+	[1] = mtk_monitor_wdma_rx,
+	[2] = mtk_monitor_qdma_tx,
+	[3] = mtk_monitor_qdma_rx,
+	[4] = mtk_monitor_adma_rx,
+	[5] = mtk_monitor_tdma_tx,
+	[6] = mtk_monitor_tdma_rx,
+};
+
+void mtk_dma_monitor(struct timer_list *t)
+{
+	struct mtk_eth *eth = from_timer(eth, t, mtk_dma_monitor_timer);
+	u32 i = 0, ret = 0;
+
+	for (i = 0; i < 6; i++) {
+		ret = (*mtk_reset_monitor_func[i]) (eth);
+		if ((ret == MTK_FE_START_RESET) ||
+			(ret == MTK_FE_STOP_TRAFFIC)) {
+			if ((atomic_read(&reset_lock) == 0) &&
+				(atomic_read(&force) == 0)) {
+				atomic_inc(&force);
+				mtk_reset_flag = ret;
+				schedule_work(&eth->pending_work);
+			}
+			break;
+		}
+	}
+
 	mod_timer(&eth->mtk_dma_monitor_timer, jiffies + 1 * HZ);
 }
 
 void mtk_prepare_reset_fe(struct mtk_eth *eth)
 {
-	u32 i = 0, val = 0;
+	u32 i = 0, val = 0, mcr = 0;
 
 	/* Disable NETSYS Interrupt */
 	mtk_w32(eth, 0, MTK_FE_INT_ENABLE);
@@ -344,27 +532,25 @@ void mtk_prepare_reset_fe(struct mtk_eth *eth)
 	val = mtk_r32(eth, MTK_QDMA_GLO_CFG);
 	mtk_w32(eth, val & ~(MTK_TX_DMA_EN), MTK_QDMA_GLO_CFG);
 
-	/* Power down sgmii */
-	for (i = 0; i < MTK_MAX_DEVS; i++) {
-		if (!eth->xgmii->regmap_sgmii[i])
-			continue;
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		pr_info("[%s] i:%d type:%d id:%d\n",
+			__func__, i, eth->mac[i]->type, eth->mac[i]->id);
+		if (eth->mac[i]->type == MTK_XGDM_TYPE &&
+		    eth->mac[i]->id != MTK_GMAC1_ID) {
+			mcr = mtk_r32(eth, MTK_XMAC_MCR(eth->mac[i]->id));
+			mcr &= 0xfffffff0;
+			mcr |= XMAC_MCR_TRX_DISABLE;
+			pr_info("disable XMAC TX/RX\n");
+			mtk_w32(eth, mcr, MTK_XMAC_MCR(eth->mac[i]->id));
+		}
 
-		regmap_read(eth->xgmii->regmap_sgmii[i], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
-		val |= SGMII_PHYA_PWD;
-		regmap_write(eth->xgmii->regmap_sgmii[i], SGMSYS_QPHY_PWR_STATE_CTRL, val);
+		if (eth->mac[i]->type == MTK_GDM_TYPE) {
+			mcr = mtk_r32(eth, MTK_MAC_MCR(eth->mac[i]->id));
+			mcr &= ~(MAC_MCR_TX_EN | MAC_MCR_RX_EN);
+			mtk_w32(eth, mcr, MTK_MAC_MCR(eth->mac[i]->id));
+			pr_info("disable GMAC TX/RX\n");
+		}
 	}
-
-	/* Force link down GMAC */
-	val = mtk_r32(eth, MTK_MAC_MCR(0));
-	mtk_w32(eth, val & ~(MAC_MCR_FORCE_LINK), MTK_MAC_MCR(0));
-	val = mtk_r32(eth, MTK_MAC_MCR(1));
-	mtk_w32(eth, val & ~(MAC_MCR_FORCE_LINK), MTK_MAC_MCR(1));
-
-	/* Disable GMAC Rx */
-	val = mtk_r32(eth, MTK_MAC_MCR(0));
-	mtk_w32(eth, val & ~(MAC_MCR_RX_EN), MTK_MAC_MCR(0));
-	val = mtk_r32(eth, MTK_MAC_MCR(1));
-	mtk_w32(eth, val & ~(MAC_MCR_RX_EN), MTK_MAC_MCR(1));
 
 	/* Enable GDM drop */
 	for (i = 0; i < MTK_MAC_COUNT; i++)
@@ -418,6 +604,7 @@ static int mtk_eth_netdevice_event(struct notifier_block *unused,
 {
 	switch (event) {
 	case MTK_WIFI_RESET_DONE:
+	case MTK_FE_STOP_TRAFFIC_DONE:
 		mtk_rest_cnt--;
 		if(!mtk_rest_cnt) {
 			complete(&wait_ser_done);

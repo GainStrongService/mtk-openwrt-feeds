@@ -3537,6 +3537,41 @@ static int mtk_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EOPNOTSUPP;
 }
 
+int mtk_phy_config(struct mtk_eth *eth, int enable)
+{
+	struct device_node *mii_np = NULL;
+	struct device_node *child = NULL;
+	int addr = 0;
+	u32 val = 0;
+
+	mii_np = of_get_child_by_name(eth->dev->of_node, "mdio-bus");
+	if (!mii_np) {
+		dev_err(eth->dev, "no %s child node found", "mdio-bus");
+		return -ENODEV;
+	}
+
+	if (!of_device_is_available(mii_np)) {
+		dev_err(eth->dev, "device is not available\n");
+		return -ENODEV;
+	}
+
+	for_each_available_child_of_node(mii_np, child) {
+		addr = of_mdio_parse_addr(&eth->mii_bus->dev, child);
+		if (addr < 0)
+			continue;
+		pr_info("%s %d addr:%d name:%s\n",
+			__func__, __LINE__, addr, child->name);
+		val = _mtk_mdio_read(eth, addr, mdiobus_c45_addr(0x1e, 0));
+		if (enable)
+			val &= ~BMCR_PDOWN;
+		else
+			val |= BMCR_PDOWN;
+		_mtk_mdio_write(eth, addr, mdiobus_c45_addr(0x1e, 0), val);
+	}
+
+	return 0;
+}
+
 static void mtk_pending_work(struct work_struct *work)
 {
 	struct mtk_eth *eth = container_of(work, struct mtk_eth, pending_work);
@@ -3556,12 +3591,10 @@ static void mtk_pending_work(struct work_struct *work)
 
 	rtnl_lock();
 
-	/* Disabe FE P3 and P4 */
-	val = mtk_r32(eth, MTK_FE_GLO_CFG);
-	val |= MTK_FE_LINK_DOWN_P3;
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
-		val |= MTK_FE_LINK_DOWN_P4;
-	mtk_w32(eth, val, MTK_FE_GLO_CFG);
+	while (test_and_set_bit_lock(MTK_RESETTING, &eth->state))
+		cpu_relax();
+
+	mtk_phy_config(eth, 0);
 
 	/* Adjust PPE configurations to prepare for reset */
 	mtk_prepare_reset_ppe(eth, 0);
@@ -3575,17 +3608,21 @@ static void mtk_pending_work(struct work_struct *work)
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i])
 			continue;
-		call_netdevice_notifiers(MTK_FE_START_RESET, eth->netdev[i]);
+		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
+			pr_info("send MTK_FE_STOP_TRAFFIC event\n");
+			call_netdevice_notifiers(MTK_FE_STOP_TRAFFIC,
+				eth->netdev[i]);
+		} else {
+			pr_info("send MTK_FE_START_RESET event\n");
+			call_netdevice_notifiers(MTK_FE_START_RESET,
+				eth->netdev[i]);
+		}
 		rtnl_unlock();
-		if (!wait_for_completion_timeout(&wait_ser_done, 5000))
-			pr_warn("[%s] wait for MTK_FE_START_RESET failed\n",
-				__func__);
+		if (!wait_for_completion_timeout(&wait_ser_done, 3000))
+			pr_warn("wait for MTK_FE_START_RESET failed\n");
 		rtnl_lock();
 		break;
 	}
-
-	while (test_and_set_bit_lock(MTK_RESETTING, &eth->state))
-		cpu_relax();
 
 	del_timer_sync(&eth->mtk_dma_monitor_timer);
 	pr_info("[%s] mtk_stop starts !\n", __func__);
@@ -3619,37 +3656,20 @@ static void mtk_pending_work(struct work_struct *work)
 		}
 	}
 
-	/* Set KA tick select */
-	mtk_m32(eth, MTK_PPE_TICK_SEL_MASK, 0, MTK_PPE_TB_CFG(0));
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
-		mtk_m32(eth, MTK_PPE_TICK_SEL_MASK, 0, MTK_PPE_TB_CFG(1));
-
-	/* Enabe FE P3 and P4*/
-	val = mtk_r32(eth, MTK_FE_GLO_CFG);
-	val &= ~MTK_FE_LINK_DOWN_P3;
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
-		val &= ~MTK_FE_LINK_DOWN_P4;
-	mtk_w32(eth, val, MTK_FE_GLO_CFG);
-
-	/* Power up sgmii */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i])
 			continue;
-		mac = netdev_priv(eth->netdev[i]);
-		phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
-		if (!phy_node && eth->xgmii->regmap_sgmii[i]) {
-			mtk_gmac_sgmii_path_setup(eth, i);
-			regmap_write(eth->xgmii->regmap_sgmii[i], SGMSYS_QPHY_PWR_STATE_CTRL, 0);
+		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
+			pr_info("send MTK_FE_START_TRAFFIC event\n");
+			call_netdevice_notifiers(MTK_FE_START_TRAFFIC,
+				eth->netdev[i]);
+		} else {
+			pr_info("send MTK_FE_RESET_DONE event\n");
+			call_netdevice_notifiers(MTK_FE_RESET_DONE,
+				eth->netdev[i]);
 		}
-	}
-
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		if (!eth->netdev[i])
-			continue;
-		call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE, eth->netdev[i]);
-		pr_info("[%s] HNAT reset done !\n", __func__);
-		call_netdevice_notifiers(MTK_FE_RESET_DONE, eth->netdev[i]);
-		pr_info("[%s] WiFi SER reset done !\n", __func__);
+		call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE,
+			eth->netdev[i]);
 		break;
 	}
 
@@ -3660,6 +3680,9 @@ static void mtk_pending_work(struct work_struct *work)
 	timer_setup(&eth->mtk_dma_monitor_timer, mtk_dma_monitor, 0);
 	eth->mtk_dma_monitor_timer.expires = jiffies;
 	add_timer(&eth->mtk_dma_monitor_timer);
+
+	mtk_phy_config(eth, 1);
+	mtk_reset_flag = 0;
 	clear_bit_unlock(MTK_RESETTING, &eth->state);
 
 	rtnl_unlock();
@@ -4348,7 +4371,7 @@ static int mtk_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, eth);
 
 	register_netdevice_notifier(&mtk_eth_netdevice_nb);
-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 	timer_setup(&eth->mtk_dma_monitor_timer, mtk_dma_monitor, 0);
 	eth->mtk_dma_monitor_timer.expires = jiffies;
 	add_timer(&eth->mtk_dma_monitor_timer);

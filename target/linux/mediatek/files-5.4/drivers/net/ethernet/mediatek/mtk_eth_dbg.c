@@ -382,20 +382,31 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 				atomic_inc(&reset_lock);
 			break;
 		case 1:
-			if (atomic_read(&force) == 0)
+			if (atomic_read(&force) == 0) {
 				atomic_inc(&force);
-			schedule_work(&eth->pending_work);
+				schedule_work(&eth->pending_work);
+			} else
+				pr_info(" device resetting !!!\n");
 			break;
 		case 2:
 			if (atomic_read(&reset_lock) == 1)
 				atomic_dec(&reset_lock);
 			break;
+		case 3:
+			if (atomic_read(&force) == 0) {
+				atomic_inc(&force);
+				mtk_reset_flag = MTK_FE_STOP_TRAFFIC;
+				schedule_work(&eth->pending_work);
+			} else
+				pr_info(" device resetting !!!\n");
+			break;
 		default:
 			pr_info("Usage: echo [level] > /sys/kernel/debug/mtketh/reset\n");
-			pr_info("Commands:	 [level] \n");
-			pr_info("			   0	 disable reset \n");
-			pr_info("			   1	 force reset \n");
+			pr_info("Commands:	 [level]\n");
+			pr_info("			   0	 disable reset\n");
+			pr_info("			   1	 FE and WDMA reset\n");
 			pr_info("			   2	 enable reset\n");
+			pr_info("			   3	 FE reset\n");
 			break;
 	}
 	return count;

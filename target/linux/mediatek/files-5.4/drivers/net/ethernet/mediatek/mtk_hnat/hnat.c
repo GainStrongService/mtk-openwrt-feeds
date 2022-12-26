@@ -682,8 +682,9 @@ int hnat_warm_init(void)
 		hnat_hw_init(ppe_id);
 	}
 
-	set_gmac_ppe_fwd(0, 1);
-	set_gmac_ppe_fwd(1, 1);
+	set_gmac_ppe_fwd(NR_GMAC1_PORT, 1);
+	set_gmac_ppe_fwd(NR_GMAC2_PORT, 1);
+	set_gmac_ppe_fwd(NR_GMAC3_PORT, 1);
 	register_netevent_notifier(&nf_hnat_netevent_nb);
 
 	return 0;
