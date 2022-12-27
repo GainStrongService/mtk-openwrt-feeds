@@ -1,0 +1,165 @@
+From 4c8f0a38d9c2df3815ace32133bb63d8a4345856 Mon Sep 17 00:00:00 2001
+From: Sujuan Chen <sujuan.chen@mediatek.com>
+Date: Tue, 27 Dec 2022 10:14:35 +0800
+Subject: [PATCH] mediatek: ethernet: add wifi2wifi offload support
+
+Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
+---
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  2 ++
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   | 35 +++++++++++++------
+ drivers/net/ethernet/mediatek/mtk_wed.c       | 13 +++++++
+ include/linux/soc/mediatek/mtk_wed.h          |  6 +++-
+ 4 files changed, 45 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+index ab1df9c..7879798 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -1716,6 +1716,8 @@ void ethsys_reset(struct mtk_eth *eth, u32 reset_bits);
+ int mtk_eth_offload_init(struct mtk_eth *eth, int id);
+ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
+ 		     void *type_data);
++int mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f,
++			   struct mtk_eth *eth);
+ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
+ 
+ int mtk_ppe_debugfs_init(struct mtk_eth *eth);
+diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
+index 2787a97..23d2048 100644
+--- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
++++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
+@@ -546,10 +546,20 @@ static int
+ mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
+ {
+ 	struct flow_cls_offload *cls = type_data;
+-	struct net_device *dev = cb_priv;
+-	struct mtk_mac *mac = netdev_priv(dev);
+-	struct mtk_eth *eth = mac->hw;
+-	int err;
++	struct mtk_eth *eth = cb_priv;
++	struct net_device *dev = NULL;
++	int i, err;
++
++	for (i = 0; i < MTK_MAC_COUNT; i++) {
++		if (!eth->netdev[i])
++			continue;
++
++		dev = eth->netdev[i];
++		break;
++	}
++
++	if (!dev)
++		return -EOPNOTSUPP;
+ 
+ 	if (!tc_can_offload(dev))
+ 		return -EOPNOTSUPP;
+@@ -577,17 +587,22 @@ mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_pri
+ 	return err;
+ }
+ 
+-static int
+-mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
++int
++mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f,
++		       struct mtk_eth *eth)
+ {
+-	struct mtk_mac *mac = netdev_priv(dev);
+-	struct mtk_eth *eth = mac->hw;
++	struct mtk_mac *mac;
+ 	struct nf_flowtable *flowtable;
+ 	static LIST_HEAD(block_cb_list);
+ 	struct flow_block_cb *block_cb;
+ 	flow_setup_cb_t *cb;
+ 	int i, err = 0;
+ 
++	if (!eth) {
++		mac = netdev_priv(dev);
++		eth = mac->hw;
++	}
++
+ 	flowtable = container_of(f->block, struct nf_flowtable, flow_block);
+ 
+ 	for (i = 0; i < eth->ppe_num; i++) {
+@@ -610,7 +625,7 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
+ 			flow_block_cb_incref(block_cb);
+ 			goto unlock;
+ 		}
+-		block_cb = flow_block_cb_alloc(cb, dev, dev, NULL);
++		block_cb = flow_block_cb_alloc(cb, dev, eth, NULL);
+ 		if (IS_ERR(block_cb)) {
+ 			err = PTR_ERR(block_cb);
+ 			goto unlock;
+@@ -647,7 +662,7 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
+ 	switch (type) {
+ 	case TC_SETUP_BLOCK:
+ 	case TC_SETUP_FT:
+-		return mtk_eth_setup_tc_block(dev, type_data);
++		return mtk_eth_setup_tc_block(dev, type_data, NULL);
+ 	default:
+ 		return -EOPNOTSUPP;
+ 	}
+diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
+index b328a52..a6e6eb8 100644
+--- a/drivers/net/ethernet/mediatek/mtk_wed.c
++++ b/drivers/net/ethernet/mediatek/mtk_wed.c
+@@ -1717,6 +1717,18 @@ out:
+ 	mutex_unlock(&hw_lock);
+ }
+ 
++static int mtk_wed_eth_setup_tc(struct mtk_wed_device *wed, struct net_device *dev,
++		int type, void *type_data)
++{
++	switch (type) {
++	case TC_SETUP_BLOCK:
++	case TC_SETUP_FT:
++		return mtk_eth_setup_tc_block(dev, type_data, wed->hw->eth);
++	default:
++		return -EOPNOTSUPP;
++	}
++}
++
+ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+ 			void __iomem *wdma, u32 wdma_phy, int index)
+ 
+@@ -1735,6 +1747,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+ 		.irq_get = mtk_wed_irq_get,
+ 		.irq_set_mask = mtk_wed_irq_set_mask,
+ 		.detach = mtk_wed_detach,
++		.setup_tc = mtk_wed_eth_setup_tc,
+ 		.ppe_check = mtk_wed_ppe_check,
+ 	};
+ 	struct device_node *eth_np = eth->dev->of_node;
+diff --git a/include/linux/soc/mediatek/mtk_wed.h b/include/linux/soc/mediatek/mtk_wed.h
+index 00c9a78..96c8a03 100644
+--- a/include/linux/soc/mediatek/mtk_wed.h
++++ b/include/linux/soc/mediatek/mtk_wed.h
+@@ -182,7 +182,8 @@ struct mtk_wed_ops {
+ 	int (*msg_update)(struct mtk_wed_device *dev, int cmd_id,
+ 			  void *data, int len);
+ 	void (*detach)(struct mtk_wed_device *dev);
+-
++	int (*setup_tc)(struct mtk_wed_device *wed, struct net_device *dev,
++			 int type, void *type_data);
+ 	void (*stop)(struct mtk_wed_device *dev, bool reset);
+ 	void (*start)(struct mtk_wed_device *dev, u32 irq_mask);
+ 	void (*reset_dma)(struct mtk_wed_device *dev);
+@@ -231,6 +232,8 @@ mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
+ #ifdef CONFIG_NET_MEDIATEK_SOC_WED
+ #define mtk_wed_device_active(_dev) !!(_dev)->ops
+ #define mtk_wed_device_detach(_dev) (_dev)->ops->detach(_dev)
++#define mtk_wed_device_setup_tc(_dev, _ndev, _type, _data) \
++	(_dev)->ops->setup_tc(_dev, _ndev, _type, _data)
+ #define mtk_wed_device_start(_dev, _mask) (_dev)->ops->start(_dev, _mask)
+ #define mtk_wed_device_stop(_dev, _reset) (_dev)->ops->stop(_dev, _reset)
+ #define mtk_wed_device_tx_ring_setup(_dev, _ring, _regs, _reset) \
+@@ -269,6 +272,7 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
+ #define mtk_wed_device_irq_get(_dev, _mask) 0
+ #define mtk_wed_device_irq_set_mask(_dev, _mask) do {} while (0)
+ #define mtk_wed_device_dma_reset(_dev) do {} while (0)
++#define mtk_wed_device_setup_tc(_dev, _ndev, _type, _data) do {} while (0)
+ #define mtk_wed_device_ppe_check(_dev, _hash)  do {} while (0)
+ #endif
+ 
+-- 
+2.18.0
+
