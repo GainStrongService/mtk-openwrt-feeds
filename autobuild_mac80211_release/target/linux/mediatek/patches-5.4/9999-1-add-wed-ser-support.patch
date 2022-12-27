@@ -13,38 +13,45 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  5 files changed, 297 insertions(+), 101 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index c582bb9..5259141 100644
+index 51b40fa..8dbea6b 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -3619,12 +3619,16 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -3662,6 +3662,9 @@ static void mtk_pending_work(struct work_struct *work)
  	for (i = 0; i < MTK_MAC_COUNT; i++) {
  		if (!eth->netdev[i])
  			continue;
 +#ifdef CONFIG_NET_MEDIATEK_SOC_WED
 +		mtk_wed_fe_reset(MTK_FE_START_RESET);
 +#else
- 		call_netdevice_notifiers(MTK_FE_START_RESET, eth->netdev[i]);
- 		rtnl_unlock();
- 		if (!wait_for_completion_timeout(&wait_ser_done, 5000))
- 			pr_warn("[%s] wait for MTK_FE_START_RESET failed\n",
- 				__func__);
+ 		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
+ 			pr_info("send MTK_FE_STOP_TRAFFIC event\n");
+ 			call_netdevice_notifiers(MTK_FE_STOP_TRAFFIC,
+@@ -3675,6 +3678,7 @@ static void mtk_pending_work(struct work_struct *work)
+ 		if (!wait_for_completion_timeout(&wait_ser_done, 3000))
+ 			pr_warn("wait for MTK_FE_START_RESET failed\n");
  		rtnl_lock();
 +#endif
  		break;
  	}
  
-@@ -3690,7 +3694,11 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -3713,6 +3717,9 @@ static void mtk_pending_work(struct work_struct *work)
+ 	for (i = 0; i < MTK_MAC_COUNT; i++) {
+ 		if (!eth->netdev[i])
  			continue;
- 		call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE, eth->netdev[i]);
- 		pr_info("[%s] HNAT reset done !\n", __func__);
 +#ifdef CONFIG_NET_MEDIATEK_SOC_WED
 +		mtk_wed_fe_reset(MTK_FE_RESET_DONE);
 +#else
- 		call_netdevice_notifiers(MTK_FE_RESET_DONE, eth->netdev[i]);
+ 		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
+ 			pr_info("send MTK_FE_START_TRAFFIC event\n");
+ 			call_netdevice_notifiers(MTK_FE_START_TRAFFIC,
+@@ -3722,6 +3729,7 @@ static void mtk_pending_work(struct work_struct *work)
+ 			call_netdevice_notifiers(MTK_FE_RESET_DONE,
+ 				eth->netdev[i]);
+ 		}
 +#endif
- 		pr_info("[%s] WiFi SER reset done !\n", __func__);
+ 		call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE,
+ 			eth->netdev[i]);
  		break;
- 	}
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
 index 7552795..c98d749 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
