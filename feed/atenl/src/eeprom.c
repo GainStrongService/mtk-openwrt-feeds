@@ -22,7 +22,7 @@ atenl_create_file(struct atenl *an, bool flash_mode)
 		max_len = EEPROM_PART_SIZE;
 	} else {
 		atenl_dbg("%s: init eeprom with efuse mode\n", __func__);
-		max_len = 0x1000;
+		max_len = 0x1e00;
 	}
 
 	snprintf(fname, sizeof(fname),
@@ -147,6 +147,8 @@ atenl_eeprom_init_chip_id(struct atenl *an)
 
 		an->sub_chip_id = sub_id;
 		an->adie_id = is_7975 ? 0x7975 : 0x7976;
+	} else if (is_mt7996(an)) {
+		/* TODO: parse info if required */
 	}
 }
 
@@ -164,6 +166,9 @@ atenl_eeprom_init_max_size(struct atenl *an)
 		an->eeprom_size = 4096;
 		an->eeprom_prek_offs = 0x19a;
 		break;
+	case 0x7990:
+		an->eeprom_size = 7680;
+		an->eeprom_prek_offs = 0x1a5;
 	default:
 		break;
 	}
@@ -172,6 +177,7 @@ atenl_eeprom_init_max_size(struct atenl *an)
 static void
 atenl_eeprom_init_band_cap(struct atenl *an)
 {
+#define EAGLE_BAND_SEL(index)	MT_EE_WIFI_EAGLE_CONF##index##_BAND_SEL
 	u8 *eeprom = an->eeprom_data;
 
 	if (is_mt7915(an)) {
@@ -228,6 +234,36 @@ atenl_eeprom_init_band_cap(struct atenl *an)
 				break;
 			}
 		}
+	} else if (is_mt7996(an)) {
+		struct atenl_band *anb;
+		u8 val, band_sel;
+		u8 band_sel_mask[3] = {EAGLE_BAND_SEL(0), EAGLE_BAND_SEL(1),
+				       EAGLE_BAND_SEL(2)};
+		int i;
+
+		for (i = 0; i < 3; i++) {
+			val = eeprom[MT_EE_WIFI_CONF + i];
+			band_sel = FIELD_GET(band_sel_mask[i], val);
+			anb = &an->anb[i];
+
+			anb->valid = true;
+			switch (band_sel) {
+			case MT_EE_EAGLE_BAND_SEL_2GHZ:
+				anb->cap = BAND_TYPE_2G;
+				break;
+			case MT_EE_EAGLE_BAND_SEL_5GHZ:
+				anb->cap = BAND_TYPE_5G;
+				break;
+			case MT_EE_EAGLE_BAND_SEL_6GHZ:
+				anb->cap = BAND_TYPE_6G;
+				break;
+			case MT_EE_EAGLE_BAND_SEL_5GHZ_6GHZ:
+				anb->cap = BAND_TYPE_5G_6G;
+				break;
+			default:
+				break;
+			}
+		}
 	}
 }
 
@@ -247,6 +283,10 @@ atenl_eeprom_init_antenna_cap(struct atenl *an)
 	} else if (is_mt7986(an)) {
 		an->anb[0].chainmask = 0xf;
 		an->anb[1].chainmask = 0xf;
+	} else if (is_mt7996(an)) {
+		an->anb[0].chainmask = 0xf;
+		an->anb[1].chainmask = 0xf;
+		an->anb[2].chainmask = 0xf;
 	}
 }
 
@@ -261,8 +301,9 @@ int atenl_eeprom_init(struct atenl *an, u8 phy_idx)
 	atenl_nl_check_mtd(an);
 	flash_mode = an->mtd_part != NULL;
 
+	// Get the first main phy index for this chip
 	if (flash_mode)
-		main_phy_idx = an->is_main_phy ? main_phy_idx : (main_phy_idx - 1);
+		main_phy_idx -= an->band_idx;
 
 	snprintf(buf, sizeof(buf), "/tmp/atenl-eeprom-phy%u", main_phy_idx);
 	eeprom_file = strdup(buf);

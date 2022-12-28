@@ -1,10 +1,11 @@
 #!/bin/ash
 
 interface=$1    # phy0/phy1/ra0
-cmd_type=$2     # set/show/e2p/mac
+cmd_type=$2     # set/show/e2p/mac/dump
 full_cmd=$3
 interface_ori=${interface}
-start_idx_7986="0"
+SOC_start_idx="0"
+is_eagle="0"
 
 work_mode="RUN" # RUN/PRINT/DEBUG
 iwpriv_file="/tmp/iwpriv_wrapper"
@@ -40,12 +41,12 @@ function record_config() {
     local config=$1
     local tmp_file=$3
 
-    # check is mt7986 or mt7915/7916, and write its config
-    if [ ${config} != "STARTIDX" ]; then
-        if [ $phy_idx -lt $start_idx_7986 ]; then
+    # check it is SOC(mt7986)/Eagle or PCIE card (mt7915/7916), and write its config
+    if [ ${config} != "STARTIDX" ] && [ ${config} != "IS_EAGLE" ]; then
+        if [ $phy_idx -lt $SOC_start_idx ]; then
             config="${config}_PCIE"
-        elif [ $phy_idx -ge $start_idx_7986 ]; then
-            config="${config}_7986"
+        elif [ $phy_idx -ge $SOC_start_idx ]; then
+            config="${config}_SOC"
         fi
     fi
 
@@ -69,12 +70,12 @@ function get_config() {
         return
     fi
 
-    # check is mt7986 or mt7915/7916, and load its config
-    if [ ${config} != "STARTIDX" ]; then
-        if [ $phy_idx -lt $start_idx_7986 ]; then
+    # check it is SOC(mt7986)/Eagle or PCIE card (mt7915/7916), and write its config
+    if [ ${config} != "STARTIDX" ] && [ ${config} != "IS_EAGLE" ]; then
+        if [ $phy_idx -lt $SOC_start_idx ]; then
             config="${config}_PCIE"
-        elif [ $phy_idx -ge $start_idx_7986 ]; then
-            config="${config}_7986"
+        elif [ $phy_idx -ge $SOC_start_idx ]; then
+            config="${config}_SOC"
         fi
     fi
 
@@ -86,51 +87,74 @@ function get_config() {
 }
 
 function convert_interface {
-    start_idx_7986=$(get_config "STARTIDX" ${interface_file})
+    SOC_start_idx=$(get_config "STARTIDX" ${interface_file})
+    is_eagle=$(get_config "IS_EAGLE" ${interface_file})
     local eeprom_file=/sys/kernel/debug/ieee80211/phy0/mt76/eeprom
-    if [ -z "${start_idx_7986}" ]; then
+    if [ -z "${SOC_start_idx}" ] || [ -z "${is_eagle}" ]; then
         if [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7916")" ]; then
-            start_idx_7986="2"
+            SOC_start_idx="2"
+            is_eagle="0"
         elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7915")" ]; then
-            start_idx_7986="1"
+            SOC_start_idx="1"
+            is_eagle="0"
         elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7986")" ]; then
-            start_idx_7986="0"
+            SOC_start_idx="0"
+            is_eagle="0"
+        elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7990")" ]; then
+            SOC_start_idx="0"
+            is_eagle="1"
         else
             echo "Interface Conversion Failed!"
             echo "Please use iwpriv <phy0/phy1/..> set <...> or configure the sku of your board manually by the following commands"
-            echo "For AX6000: echo STARTIDX=0 >> ${interface_file}"
+            echo "For AX6000/Eagle: echo STARTIDX=0 >> ${interface_file}"
             echo "For AX7800: echo STARTIDX=2 >> ${interface_file}"
             echo "For AX8400: echo STARTIDX=1 >> ${interface_file}"
             exit 0
         fi
-        record_config "STARTIDX" ${start_idx_7986} ${interface_file}
+        record_config "STARTIDX" ${SOC_start_idx} ${interface_file}
+        record_config "IS_EAGLE" ${is_eagle} ${interface_file}
     fi
 
-    if [[ $1 == "raix"* ]]; then
-        phy_idx=1
-    elif [[ $1 == "rai"* ]]; then
-        phy_idx=0
-    elif [[ $1 == "rax"* ]]; then
-        phy_idx=$((start_idx_7986+1))
-    else
-        phy_idx=$start_idx_7986
-    fi
 
-    # convert phy index according to band idx
-    local band_idx=$(get_config "ATECTRLBANDIDX" ${iwpriv_file})
-    if [ "${band_idx}" = "0" ]; then
+    if [ ${is_eagle} == "0" ]; then
         if [[ $1 == "raix"* ]]; then
+            phy_idx=1
+        elif [[ $1 == "rai"* ]]; then
             phy_idx=0
         elif [[ $1 == "rax"* ]]; then
-            phy_idx=$start_idx_7986
+            phy_idx=$((SOC_start_idx+1))
+        else
+            phy_idx=$SOC_start_idx
         fi
-    elif [ "${band_idx}" = "1" ]; then
+
+        # convert phy index according to band idx
+        local band_idx=$(get_config "ATECTRLBANDIDX" ${iwpriv_file})
+        if [ "${band_idx}" = "0" ]; then
+            if [[ $1 == "raix"* ]]; then
+                phy_idx=0
+            elif [[ $1 == "rax"* ]]; then
+                phy_idx=$SOC_start_idx
+            fi
+        elif [ "${band_idx}" = "1" ]; then
+            if [[ $1 == "rai"* ]]; then
+                # AX8400: mt7915 remain phy0
+                # AX7800: mt7916 becomes phy1
+                phy_idx=$((SOC_start_idx-1))
+            elif [[ $1 == "ra"* ]]; then
+                phy_idx=$((SOC_start_idx+1))
+            fi
+        fi
+    else
+        # Eagle has different mapping method
+        # phy0: ra0
+        # phy1: rai0
+        # phy2: rax0
         if [[ $1 == "rai"* ]]; then
-            # AX8400: mt7915 remain phy0
-            # AX7800: mt7916 becomes phy1
-            phy_idx=$((start_idx_7986-1))
-        elif [[ $1 == "ra"* ]]; then
-            phy_idx=$((start_idx_7986+1))
+            phy_idx=1
+        elif [[ $1 == "rax"* ]]; then
+            phy_idx=2
+        else
+            phy_idx=0
         fi
     fi
 
@@ -152,18 +176,18 @@ function change_band_idx {
                     new_phy_idx=0
                 # rax0 & ra0 becomes ra0
                 elif [[ $interface_ori == "ra"* ]]; then
-                    new_phy_idx=$start_idx_7986
+                    new_phy_idx=$SOC_start_idx
                 fi
             elif [ "${new_idx}" = "1" ]; then
                 # raix0 & rai0 becomes raix0
                 if [[ $interface_ori == "rai"* ]]; then
                     # For AX8400 => don't change phy idx
-                    if [ ${start_idx_7986} != "1" ]; then
+                    if [ ${SOC_start_idx} != "1" ]; then
                         new_phy_idx=1
                     fi
                 # rax0 & ra0 becomes rax0
                 elif [[ $interface_ori == "ra"* ]]; then
-                    new_phy_idx=$((start_idx_7986+1))
+                    new_phy_idx=$((SOC_start_idx+1))
                 fi
             fi
         fi
@@ -331,7 +355,7 @@ function convert_channel {
             fi
         else
             # mt7915 in AX8400 case: band should be determined by only the input band
-            if [ "${start_idx_7986}" == "1" ] && [ ${phy_idx} == "0" ]; then
+            if [ "${SOC_start_idx}" == "1" ] && [ ${phy_idx} == "0" ]; then
                 local band=$((band))
             else
                 local band=$((ctrl_band_idx * band))
@@ -864,10 +888,10 @@ function do_ate_work() {
                 do_cmd "mt76-test ${interface} set aid=0"
             fi
 
-            if [ ${phy_idx} -lt ${start_idx_7986} ]; then
+            if [ ${phy_idx} -lt ${SOC_start_idx} ]; then
                 sed -i '/_PCIE=/d' ${iwpriv_file}
-            elif [ ${phy_idx} -ge ${start_idx_7986} ]; then
-                sed -i '/_7986=/d' ${iwpriv_file}
+            elif [ ${phy_idx} -ge ${SOC_start_idx} ]; then
+                sed -i '/_SOC=/d' ${iwpriv_file}
             fi
             ;;
         "TXCOMMIT")
@@ -924,9 +948,36 @@ function do_ate_work() {
     esac
 }
 
+function dump_usage {
+    echo "Usage:"
+    echo "  mwctl <interface> set csi ctrl=<opt1>,<opt2>,<opt3>,<opt4> (macaddr=<macaddr>)"
+    echo "  mwctl <interface> set csi interval=<interval (us)>"
+    echo "  mwctl <interface> dump csi <packet num> <filename>"
+    echo "  mwctl <interface> set amnt <index>(0x0~0xf) <mac addr>(xx:xx:xx:xx:xx:xx)"
+    echo "  mwctl <interface> dump amnt <index> (0x0~0xf or 0xff)"
+    echo "  mwctl <interface> set ap_rfeatures he_gi=<val>"
+    echo "  mwctl <interface> set ap_rfeatures he_ltf=<val>"
+    echo "  mwctl <interface> set ap_rfeatures trig_type=<enable>,<val> (val: 0-7)"
+    echo "  mwctl <interface> set ap_rfeatures ack_policy=<val> (val: 0-4)"
+    echo "  mwctl <interface> set ap_wireless fixed_mcs=<val>"
+    echo "  mwctl <interface> set ap_wireless ofdma=<val> (0: disable, 1: DL, 2: UL)"
+    echo "  mwctl <interface> set ap_wireless nusers_ofdma=<val>"
+    echo "  mwctl <interface> set ap_wireless ppdu_type=<val> (0: SU, 1: MU, 4: LEGACY)"
+    echo "  mwctl <interface> set ap_wireless add_ba_req_bufsize=<val>"
+    echo "  mwctl <interface> set ap_wireless mimo=<val> (0: DL, 1: UL)"
+    echo "  mwctl <interface> set ap_wireless ampdu=<enable>"
+    echo "  mwctl <interface> set ap_wireless amsdu=<enable>"
+    echo "  mwctl <interface> set ap_wireless cert=<enable>"
+    echo "  mwctl <interface> set hemu onoff=<val> (bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0))"
+    echo "  mwctl <interface> dump phy_capa"
+}
+
 # main start here
 
-if [[ ${interface} == "ra"* ]]; then
+if [ -z ${interface} ]; then
+    dump_usage
+    exit
+elif [[ ${interface} == "ra"* ]]; then
     convert_interface $interface
 fi
 
@@ -942,6 +993,13 @@ param=$(echo ${full_cmd} | sed s/=/' '/g | cut -d " " -f 2)
 if [ "${cmd_type}" = "set" ]; then
     skip=0
     case ${cmd} in
+        ## In wifi 7 chipset, testmode & vendor command both use mwctl
+        ## Therefore this wrapper would translate it to either mt76-test or mt76-vendor based on the attribute of the command
+        ## Translate to mt76-vendor command
+        "csi"|"amnt"|"ap_rfeatures"|"ap_wireless"|"hemu")
+            do_cmd "mt76-vendor $*"
+            skip=1
+            ;;
         "ATE")
             do_ate_work ${param}
 
@@ -1051,37 +1109,51 @@ elif [ "${cmd_type}" = "show" ]; then
     fi
 
 elif [ "${cmd_type}" = "e2p" ]; then
-    offset=$(printf "0x%s" ${cmd})
-    val=$(printf "0x%s" ${param})
-
+    # support multiple read write
     # eeprom offset write
     if [[ ${full_cmd} == *"="* ]]; then
-        tmp=$((${val} & 0xff))
-        tmp=$(printf "0x%x" ${tmp})
-        do_cmd "atenl -i ${interface} -c \"eeprom set ${offset}=${tmp}\""
+        IFS=,
+        for tuple in $full_cmd
+        do
+            cmd=$(echo ${tuple} | sed s/=/' '/g | cut -d " " -f 1)
+            param=$(echo ${tuple} | sed s/=/' '/g | cut -d " " -f 2)
+            offset=$(printf "0x%s" ${cmd})
+            val=$(printf "0x%s" ${param})
+            tmp=$((${val} & 0xff))
+            tmp=$(printf "0x%x" ${tmp})
+            do_cmd "atenl -i ${interface} -c \"eeprom set ${offset}=${tmp}\""
 
-        offset=$((${offset}))
-        offset=$(expr ${offset} + "1")
-        offset=$(printf "0x%x" ${offset})
-        tmp=$(((${val} >> 8) & 0xff))
-        tmp=$(printf "0x%x" ${tmp})
-        do_cmd "atenl -i ${interface} -c \"eeprom set ${offset}=${tmp}\""
+            offset=$((${offset}))
+            offset=$(expr ${offset} + "1")
+            offset=$(printf "0x%x" ${offset})
+            tmp=$(((${val} >> 8) & 0xff))
+            tmp=$(printf "0x%x" ${tmp})
+            do_cmd "atenl -i ${interface} -c \"eeprom set ${offset}=${tmp}\""
+        done
     else
-        v1=$(do_cmd "atenl -i ${interface} -c \"eeprom read ${param}\"")
-        v1=$(echo "${v1}" | grep "val =" | cut -d '(' -f 2 | grep -o -E '[0-9]+')
+        IFS=,
+        for tuple in $full_cmd
+        do
+            cmd=$(echo ${tuple} | sed s/=/' '/g | cut -d " " -f 1)
+            param=$(echo ${tuple} | sed s/=/' '/g | cut -d " " -f 2)
+            offset=$(printf "0x%s" ${cmd})
+            val=$(printf "0x%s" ${param})
+            v1=$(do_cmd "atenl -i ${interface} -c \"eeprom read ${param}\"")
+            v1=$(echo "${v1}" | grep "val =" | cut -d '(' -f 2 | grep -o -E '[0-9]+')
 
-        tmp=$(printf "0x%s" ${param})
-        tmp=$((${tmp}))
-        param2=$(expr ${tmp} + "1")
-        param2=$(printf "%x" ${param2})
-        v2=$(do_cmd "atenl -i ${interface} -c \"eeprom read ${param2}\"")
-        v2=$(echo "${v2}" | grep "val =" | cut -d '(' -f 2 | grep -o -E '[0-9]+')
+            tmp=$(printf "0x%s" ${param})
+            tmp=$((${tmp}))
+            param2=$(expr ${tmp} + "1")
+            param2=$(printf "%x" ${param2})
+            v2=$(do_cmd "atenl -i ${interface} -c \"eeprom read ${param2}\"")
+            v2=$(echo "${v2}" | grep "val =" | cut -d '(' -f 2 | grep -o -E '[0-9]+')
 
-        param=$(printf "0x%s" ${param})
-        param=$(printf "%04x" ${param})
-        param=$(echo $param | tr 'a-z' 'A-Z')
-        printf "%s       e2p:\n" ${interface_ori}
-        printf "[0x%s]:0x%02x%02x\n" ${param} ${v2} ${v1}
+            param=$(printf "0x%s" ${param})
+            param=$(printf "%04x" ${param})
+            param=$(echo $param | tr 'a-z' 'A-Z')
+            printf "%s       e2p:\n" ${interface_ori}
+            printf "[0x%s]:0x%02x%02x\n" ${param} ${v2} ${v1}
+        done
     fi
 
 elif [ "${cmd_type}" = "mac" ]; then
@@ -1099,6 +1171,9 @@ elif [ "${cmd_type}" = "mac" ]; then
     res=$(cat ${regval} | cut -d 'x' -f 2)
     printf "%s       mac:[%s]:%s\n" ${interface_ori} ${offset} ${res}
 
+## dump command is only for vendor commands
+elif [ "${cmd_type}" = "dump" ]; then
+    do_cmd "mt76-vendor $*"
 else
     echo "Unknown command"
 fi

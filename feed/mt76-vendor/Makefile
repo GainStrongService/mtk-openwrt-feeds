@@ -24,7 +24,6 @@ TARGET_CFLAGS += -I$(STAGING_DIR)/usr/include/libnl-tiny
 define Package/mt76-vendor/install
 	mkdir -p $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/mt76-vendor $(1)/usr/sbin
-	ln -s /usr/sbin/mt76-vendor $(1)/usr/sbin/mwctl
 endef
 
 $(eval $(call BuildPackage,mt76-vendor))

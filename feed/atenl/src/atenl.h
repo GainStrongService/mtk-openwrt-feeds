@@ -19,11 +19,11 @@
 
 #define BRIDGE_NAME_OPENWRT	"br-lan"
 #define BRIDGE_NAME_RDKB	"brlan0"
-#define ETH_P_RACFG	0x2880
+#define ETH_P_RACFG		0x2880
 #define RACFG_PKT_MAX_SIZE	1600
-#define RACFG_HLEN	12
-#define RACFG_MAGIC_NO	0x18142880
-#define PRE_CAL_INFO 16
+#define RACFG_HLEN		12
+#define RACFG_MAGIC_NO		0x18142880
+#define PRE_CAL_INFO		16
 #define DPD_INFO_CH_SHIFT	24
 #define DPD_INFO_2G_SHIFT 	16
 #define DPD_INFO_5G_SHIFT	8
@@ -93,7 +93,7 @@ struct atenl {
 
 	const char *mtd_part;
 	u32 mtd_offset;
-	u8 is_main_phy;
+	u8 band_idx;
 	u8 *eeprom_data;
 	int eeprom_fd;
 	u16 eeprom_size;
@@ -275,8 +275,20 @@ enum {
 	MT_EE_BAND_SEL_5G_6G,
 };
 
+/* for mt7996 */
+enum {
+	MT_EE_EAGLE_BAND_SEL_DEFAULT,
+	MT_EE_EAGLE_BAND_SEL_2GHZ,
+	MT_EE_EAGLE_BAND_SEL_5GHZ,
+	MT_EE_EAGLE_BAND_SEL_6GHZ,
+	MT_EE_EAGLE_BAND_SEL_5GHZ_6GHZ,
+};
+
 #define MT_EE_WIFI_CONF				0x190
 #define MT_EE_WIFI_CONF0_BAND_SEL		GENMASK(7, 6)
+#define MT_EE_WIFI_EAGLE_CONF0_BAND_SEL		GENMASK(2, 0)
+#define MT_EE_WIFI_EAGLE_CONF1_BAND_SEL		GENMASK(5, 3)
+#define MT_EE_WIFI_EAGLE_CONF2_BAND_SEL		GENMASK(2, 0)
 
 enum {
 	MT7976_ONE_ADIE_DBDC		= 0x7,
@@ -387,6 +399,11 @@ static inline bool is_mt7916(struct atenl *an)
 static inline bool is_mt7986(struct atenl *an)
 {
 	return an->chip_id == 0x7986;
+}
+
+static inline bool is_mt7996(struct atenl *an)
+{
+	return an->chip_id == 0x7990;
 }
 
 int atenl_eth_init(struct atenl *an);

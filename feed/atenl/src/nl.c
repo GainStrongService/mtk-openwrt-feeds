@@ -26,7 +26,7 @@ static struct nla_policy testdata_policy[NUM_MT76_TM_ATTRS] = {
 	[MT76_TM_ATTR_STATE] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_MTD_PART] = { .type = NLA_STRING },
 	[MT76_TM_ATTR_MTD_OFFSET] = { .type = NLA_U32 },
-	[MT76_TM_ATTR_IS_MAIN_PHY] = { .type = NLA_U8 },
+	[MT76_TM_ATTR_BAND_IDX] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_COUNT] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_TX_LENGTH] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_TX_RATE_MODE] = { .type = NLA_U8 },
@@ -1180,7 +1180,7 @@ static int atenl_nl_check_mtd_cb(struct nl_msg *msg, void *arg)
 
 	an->mtd_part = strdup(nla_get_string(tb[MT76_TM_ATTR_MTD_PART]));
 	an->mtd_offset = nla_get_u32(tb[MT76_TM_ATTR_MTD_OFFSET]);
-	an->is_main_phy = nla_get_u32(tb[MT76_TM_ATTR_IS_MAIN_PHY]);
+	an->band_idx = nla_get_u32(tb[MT76_TM_ATTR_BAND_IDX]);
 
 	return NL_SKIP;
 }

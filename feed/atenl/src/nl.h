@@ -14,7 +14,7 @@
  *
  * @MT76_TM_ATTR_MTD_PART: mtd partition used for eeprom data (string)
  * @MT76_TM_ATTR_MTD_OFFSET: offset of eeprom data within the partition (u32)
- * @MT76_TM_ATTR_IS_MAIN_PHY: Is current phy index the main phy or the ext phy (u8)
+ * @MT76_TM_ATTR_BAND_IDX: band idx of the chip (u8)
  *
  * @MT76_TM_ATTR_TX_COUNT: configured number of frames to send when setting
  *	state to MT76_TM_STATE_TX_FRAMES (u32)
@@ -86,7 +86,7 @@ enum mt76_testmode_attr {
 
 	MT76_TM_ATTR_MTD_PART,
 	MT76_TM_ATTR_MTD_OFFSET,
-	MT76_TM_ATTR_IS_MAIN_PHY,
+	MT76_TM_ATTR_BAND_IDX,
 
 	MT76_TM_ATTR_TX_COUNT,
 	MT76_TM_ATTR_TX_LENGTH,

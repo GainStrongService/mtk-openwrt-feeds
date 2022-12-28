@@ -1,7 +1,7 @@
-From 027cdfa4869e252c6f2dbef992b14fa5bab4218c Mon Sep 17 00:00:00 2001
+From 5a9a2fb84939e81c67a1508b56b2d59a5d7c5937 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 31 Aug 2022 20:06:52 +0800
-Subject: [PATCH 1113/1131] mt76: testmode: add pre-cal support
+Subject: [PATCH] mt76: testmode: add pre-cal support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Change-Id: Ibfbbc3443de994eeb4daa5e364b0a90f5d7d3bcd
@@ -735,7 +735,7 @@ index 01b08e9..d500987 100644
  	TAM_ARB_OP_MODE_NORMAL = 1,
  	TAM_ARB_OP_MODE_TEST,
 diff --git a/testmode.c b/testmode.c
-index 7a9ed54..82b8e98 100644
+index 7a9ed54..42da6f0 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -763,6 +763,18 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
@@ -763,19 +763,19 @@ index 7a9ed54..82b8e98 100644
  	    (nla_put_string(msg, MT76_TM_ATTR_MTD_PART, dev->test_mtd.name) ||
 -	     nla_put_u32(msg, MT76_TM_ATTR_MTD_OFFSET, dev->test_mtd.offset)))
 +	     nla_put_u32(msg, MT76_TM_ATTR_MTD_OFFSET, dev->test_mtd.offset) ||
-+	     nla_put_u8(msg, MT76_TM_ATTR_IS_MAIN_PHY, phy == &dev->phy)))
++	     nla_put_u8(msg, MT76_TM_ATTR_BAND_IDX, phy->band_idx)))
  		goto out;
  
  	if (nla_put_u32(msg, MT76_TM_ATTR_TX_COUNT, td->tx_count) ||
 diff --git a/testmode.h b/testmode.h
-index 57949f2..e2190e7 100644
+index 57949f2..34936e5 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -19,6 +19,7 @@
   *
   * @MT76_TM_ATTR_MTD_PART: mtd partition used for eeprom data (string)
   * @MT76_TM_ATTR_MTD_OFFSET: offset of eeprom data within the partition (u32)
-+ * @MT76_TM_ATTR_IS_MAIN_PHY: Is current phy index the main phy or the ext phy (u8)
++ * @MT76_TM_ATTR_BAND_IDX: band idx of the chip (u8)
   *
   * @MT76_TM_ATTR_TX_COUNT: configured number of frames to send when setting
   *	state to MT76_TM_STATE_TX_FRAMES (u32)
@@ -795,7 +795,7 @@ index 57949f2..e2190e7 100644
  
  	MT76_TM_ATTR_MTD_PART,
  	MT76_TM_ATTR_MTD_OFFSET,
-+	MT76_TM_ATTR_IS_MAIN_PHY,
++	MT76_TM_ATTR_BAND_IDX,
  
  	MT76_TM_ATTR_TX_COUNT,
  	MT76_TM_ATTR_TX_LENGTH,
@@ -843,5 +843,5 @@ index 6e36ab2..1be1ffd 100644
  
  static const char * const testmode_tx_mode[] = {
 -- 
-2.36.1
+2.18.0
 
