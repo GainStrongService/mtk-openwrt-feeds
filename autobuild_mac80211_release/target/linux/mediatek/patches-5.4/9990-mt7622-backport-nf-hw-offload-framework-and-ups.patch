@@ -6120,7 +6120,7 @@ new file mode 100644
 index 000000000..ae1eb2656
 --- /dev/null
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
-@@ -0,0 +1,728 @@
+@@ -0,0 +1,776 @@
 +/*
 + * Copyright (C) 2018-2021 Felix Fietkau <nbd@nbd.name>
 + *
@@ -6574,10 +6574,51 @@ index 000000000..ae1eb2656
 +}
 +
 +static int
-+xt_flowoffload_route(struct sk_buff *skb, const struct nf_conn *ct,
-+		     const struct xt_action_param *par,
-+		     struct nf_flow_route *route, enum ip_conntrack_dir dir,
-+		     struct net_device **devs)
++xt_flowoffload_route_nat(struct sk_buff *skb, const struct nf_conn *ct,
++			 const struct xt_action_param *par,
++			 struct nf_flow_route *route, enum ip_conntrack_dir dir,
++			 struct net_device **devs)
++{
++	struct dst_entry *this_dst = skb_dst(skb);
++	struct dst_entry *other_dst = NULL;
++	struct flowi fl;
++
++	memset(&fl, 0, sizeof(fl));
++	switch (xt_family(par)) {
++	case NFPROTO_IPV4:
++		fl.u.ip4.daddr = ct->tuplehash[dir].tuple.src.u3.ip;
++		fl.u.ip4.flowi4_oif = xt_in(par)->ifindex;
++		break;
++	case NFPROTO_IPV6:
++		fl.u.ip6.saddr = ct->tuplehash[!dir].tuple.dst.u3.in6;
++		fl.u.ip6.daddr = ct->tuplehash[dir].tuple.src.u3.in6;
++		fl.u.ip6.flowi6_oif = xt_in(par)->ifindex;
++		break;
++	}
++
++	nf_route(xt_net(par), &other_dst, &fl, false, xt_family(par));
++	if (!other_dst)
++		return -ENOENT;
++
++	nf_default_forward_path(route, this_dst, dir, devs);
++	nf_default_forward_path(route, other_dst, !dir, devs);
++
++	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH &&
++	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
++		if (nf_dev_forward_path(route, ct, dir, devs))
++			return -1;
++		if (nf_dev_forward_path(route, ct, !dir, devs))
++			return -1;
++	}
++
++	return 0;
++}
++
++static int
++xt_flowoffload_route_bridge(struct sk_buff *skb, const struct nf_conn *ct,
++			    const struct xt_action_param *par,
++			    struct nf_flow_route *route, enum ip_conntrack_dir dir,
++			    struct net_device **devs)
 +{
 +	int ret;
 +
@@ -6666,8 +6707,13 @@ index 000000000..ae1eb2656
 +
 +	dir = CTINFO2DIR(ctinfo);
 +
-+	if (xt_flowoffload_route(skb, ct, par, &route, dir, devs) < 0)
-+		goto err_flow_route;
++	if (ct->status & IPS_NAT_MASK) {
++		if (xt_flowoffload_route_nat(skb, ct, par, &route, dir, devs) < 0)
++			goto err_flow_route;
++	} else {
++		if (xt_flowoffload_route_bridge(skb, ct, par, &route, dir, devs) < 0)
++			goto err_flow_route;
++	}
 +
 +	flow = flow_offload_alloc(ct);
 +	if (!flow)
@@ -6693,7 +6739,8 @@ index 000000000..ae1eb2656
 +	xt_flowoffload_check_device(table, devs[0]);
 +	xt_flowoffload_check_device(table, devs[1]);
 +
-+	dst_release(route.tuple[dir].dst);
++	if (!(ct->status & IPS_NAT_MASK))
++		dst_release(route.tuple[dir].dst);
 +	dst_release(route.tuple[!dir].dst);
 +
 +	return XT_CONTINUE;
@@ -6701,7 +6748,8 @@ index 000000000..ae1eb2656
 +err_flow_add:
 +	flow_offload_free(flow);
 +err_flow_alloc:
-+	dst_release(route.tuple[dir].dst);
++	if (!(ct->status & IPS_NAT_MASK))
++		dst_release(route.tuple[dir].dst);
 +	dst_release(route.tuple[!dir].dst);
 +err_flow_route:
 +	clear_bit(IPS_OFFLOAD_BIT, &ct->status);
