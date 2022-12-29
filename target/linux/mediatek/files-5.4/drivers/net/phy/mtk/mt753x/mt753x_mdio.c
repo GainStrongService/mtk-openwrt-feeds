@@ -495,7 +495,7 @@ static int mt753x_hw_reset(struct gsw_mt753x *gsw)
 	struct device_node *np = gsw->dev->of_node;
 	struct reset_control *rstc;
 	int mcm;
-	int ret = -EINVAL;
+	int ret;
 
 	mcm = of_property_read_bool(np, "mediatek,mcm");
 	if (mcm) {

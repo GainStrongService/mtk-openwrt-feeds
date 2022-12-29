@@ -1,22 +1,3 @@
-diff -Naur a/drivers/net/phy/mtk/mt753x/mt7531.c b/drivers/net/phy/mtk/mt753x/mt7531.c
---- a/drivers/net/phy/mtk/mt753x/mt7531.c	2022-11-25 14:11:51.944272549 +0800
-+++ b/drivers/net/phy/mtk/mt753x/mt7531.c	2022-11-25 14:19:49.970820719 +0800
-@@ -1062,6 +1062,7 @@
- 	u32 pmcr;
- 	u32 speed;
- 
-+	pdev = container_of(gsw->dev, struct platform_device, dev);
- 	switch_node = of_find_node_by_name(NULL, "switch0");
- 	if (switch_node == NULL) {
- 		dev_err(&pdev->dev, "switch node invaild\n");
-@@ -1074,7 +1075,6 @@
- 		return -EIO;
- 	}
- 
--	pdev = container_of(gsw->dev, struct platform_device, dev);
- 	gsw->sysctrl_base = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
- 							"mediatek,sysctrl");
- 	if (IS_ERR(gsw->sysctrl_base)) {
 diff -Naur a/drivers/net/phy/mtk/mt753x/mt753x_common.c b/drivers/net/phy/mtk/mt753x/mt753x_common.c
 --- a/drivers/net/phy/mtk/mt753x/mt753x_common.c	2022-11-25 14:12:06.308223474 +0800
 +++ b/drivers/net/phy/mtk/mt753x/mt753x_common.c	2022-11-25 14:21:52.038450276 +0800
@@ -30,34 +11,6 @@ diff -Naur a/drivers/net/phy/mtk/mt753x/mt753x_common.c b/drivers/net/phy/mtk/mt
  	}
  
  	if (pmsr & MAC_LNK_STS) {
-diff -Naur a/drivers/net/phy/mtk/mt753x/mt753x_mdio.c b/drivers/net/phy/mtk/mt753x/mt753x_mdio.c
---- a/drivers/net/phy/mtk/mt753x/mt753x_mdio.c	2022-11-25 14:12:29.064162894 +0800
-+++ b/drivers/net/phy/mtk/mt753x/mt753x_mdio.c	2022-11-25 17:04:01.973949052 +0800
-@@ -495,7 +495,7 @@
- 	struct device_node *np = gsw->dev->of_node;
- 	struct reset_control *rstc;
- 	int mcm;
--	int ret = -EINVAL;
-+	int ret;
- 
- 	mcm = of_property_read_bool(np, "mediatek,mcm");
- 	if (mcm) {
-diff -Naur a/drivers/net/phy/mtk/mt753x/mt753x_nl.c b/drivers/net/phy/mtk/mt753x/mt753x_nl.c
---- a/drivers/net/phy/mtk/mt753x/mt753x_nl.c	2022-11-25 14:12:12.292202033 +0800
-+++ b/drivers/net/phy/mtk/mt753x/mt753x_nl.c	2022-11-25 17:01:26.881930912 +0800
-@@ -75,8 +75,10 @@
- 		len = snprintf(buf, sizeof(buf),
- 			       "id: %d, model: %s, node: %s\n",
- 			       gsw->id, gsw->name, gsw->dev->of_node->name);
--		strncat(buff, buf, size - total);
--		total += len;
-+		if (len == strlen(buf)) {
-+			strncat(buff, buf, size - total);
-+			total += len;
-+		}
- 	}
- 
- 	mt753x_put_gsw();
 diff -Naur a/drivers/net/phy/mtk/mt753x/mt753x_phy.c b/drivers/net/phy/mtk/mt753x/mt753x_phy.c
 --- a/drivers/net/phy/mtk/mt753x/mt753x_phy.c	2022-11-25 14:12:34.160149995 +0800
 +++ b/drivers/net/phy/mtk/mt753x/mt753x_phy.c	2022-11-29 14:12:28.261884707 +0800

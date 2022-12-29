@@ -1038,6 +1038,7 @@ static int mt7988_sw_init(struct gsw_mt753x *gsw)
 	u32 pmcr;
 	u32 speed;
 
+	pdev = container_of(gsw->dev, struct platform_device, dev);
 	switch_node = of_find_node_by_name(NULL, "switch0");
 	if (switch_node == NULL) {
 		dev_err(&pdev->dev, "switch node invaild\n");
@@ -1050,7 +1051,6 @@ static int mt7988_sw_init(struct gsw_mt753x *gsw)
 		return -EIO;
 	}
 
-	pdev = container_of(gsw->dev, struct platform_device, dev);
 	gsw->sysctrl_base = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 							"mediatek,sysctrl");
 	if (IS_ERR(gsw->sysctrl_base)) {

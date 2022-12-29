@@ -75,8 +75,10 @@ static int mt753x_nl_list_devs(char *buff, int size)
 		len = snprintf(buf, sizeof(buf),
 			       "id: %d, model: %s, node: %s\n",
 			       gsw->id, gsw->name, gsw->dev->of_node->name);
-		strncat(buff, buf, size - total);
-		total += len;
+		if (len == strlen(buf)) {
+			strncat(buff, buf, size - total);
+			total += len;
+		}
 	}
 
 	mt753x_put_gsw();
