@@ -71,8 +71,15 @@ static const char * const mtk_clks_source_name[] = {
 	"xgp1", "xgp2", "xgp3", "crypto", "fe", "trgpll",
 	"sgmii_tx250m", "sgmii_rx250m", "sgmii_cdr_ref", "sgmii_cdr_fb",
 	"sgmii2_tx250m", "sgmii2_rx250m", "sgmii2_cdr_ref", "sgmii2_cdr_fb",
-	"sgmii_ck", "eth2pll", "wocpu0","wocpu1",
-	"usxgmii0_sel", "usxgmii1_sel", "sgm0_sel", "sgm1_sel",
+	"sgmii_ck", "eth2pll", "wocpu0", "wocpu1",
+	"ethwarp_wocpu2", "ethwarp_wocpu1", "ethwarp_wocpu0",
+	"top_usxgmii0_sel", "top_usxgmii1_sel", "top_sgm0_sel", "top_sgm1_sel",
+	"top_xfi_phy0_xtal_sel", "top_xfi_phy1_xtal_sel", "top_eth_gmii_sel",
+	"top_eth_refck_50m_sel", "top_eth_sys_200m_sel", "top_eth_sys_sel",
+	"top_eth_xgmii_sel", "top_eth_mii_sel", "top_netsys_sel",
+	"top_netsys_500m_sel", "top_netsys_pao_2x_sel",
+	"top_netsys_sync_250m_sel", "top_netsys_ppefb_250m_sel",
+	"top_netsys_warp_sel",
 };
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
