@@ -3895,8 +3895,22 @@ static int mtk_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 static void mtk_get_pauseparam(struct net_device *dev, struct ethtool_pauseparam *pause)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	u32 val;
 
-	phylink_ethtool_get_pauseparam(mac->phylink, pause);
+	pause->autoneg = 0;
+
+	if (mac->type == MTK_GDM_TYPE) {
+		val = mtk_r32(eth, MTK_MAC_MCR(mac->id));
+
+		pause->rx_pause = !!(val & MAC_MCR_FORCE_RX_FC);
+		pause->tx_pause = !!(val & MAC_MCR_FORCE_TX_FC);
+	} else if (mac->type == MTK_XGDM_TYPE) {
+		val = mtk_r32(eth, MTK_XMAC_MCR(mac->id));
+
+		pause->rx_pause = !!(val & XMAC_MCR_FORCE_RX_FC);
+		pause->tx_pause = !!(val & XMAC_MCR_FORCE_TX_FC);
+	}
 }
 
 static int mtk_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam *pause)
