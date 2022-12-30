@@ -17,6 +17,17 @@
 #define BASE1000T_STATUS_EXTEND		(0x11)
 #define EXTEND_CTRL_AND_STATUS		(0x16)
 
+#define PHY_AUX_CTRL_STATUS		(0x1d)
+#define   PHY_AUX_DPX_MASK		GENMASK(5, 5)
+#define   PHY_AUX_SPEED_MASK		GENMASK(4, 2)
+
+enum {
+	PHY_AUX_SPD_10 = 0,
+	PHY_AUX_SPD_100,
+	PHY_AUX_SPD_1000,
+	PHY_AUX_SPD_2500,
+};
+
 static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 {
 	int ret;
@@ -97,33 +108,53 @@ static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
 static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
 {
 	int ret;
-	u16 reg;
 
-	ret = genphy_read_status(phydev);
+	ret = genphy_update_link(phydev);
+	if (ret)
+		return ret;
 
-	reg = phy_read(phydev, BASE1000T_STATUS_EXTEND);
-	if (FIELD_GET(BIT(2), reg)) {
-		phydev->speed = SPEED_2500;
-		goto end;
-	} else if (FIELD_GET(BIT(12), reg)) {
-		phydev->speed = SPEED_1000;
-		goto end;
+	phydev->speed = SPEED_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->pause = 0;
+	phydev->asym_pause = 0;
+
+	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
+		ret = genphy_c45_read_lpa(phydev);
+		if (ret < 0)
+			return ret;
+
+		/* Read the link partner's 1G advertisement */
+		ret = phy_read(phydev, MII_STAT1000);
+		if (ret < 0)
+			return ret;
+		mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising, ret);
+	} else if (phydev->autoneg == AUTONEG_DISABLE) {
+		linkmode_zero(phydev->lp_advertising);
 	}
 
-	reg = phy_read(phydev, BASE100T_STATUS_EXTEND);
-	if (FIELD_GET(BIT(12), reg)) {
-		phydev->speed = SPEED_100;
-		goto end;
-	}
+	ret = phy_read(phydev, PHY_AUX_CTRL_STATUS);
+	if (ret < 0)
+		return ret;
 
-	reg = phy_read(phydev, EXTEND_CTRL_AND_STATUS);
-	if (FIELD_GET(BIT(6), reg)) {
+	/* Actually this phy supports only FDX */
+	phydev->duplex = (ret & PHY_AUX_DPX_MASK) ? DUPLEX_FULL : DUPLEX_HALF;
+	switch (FIELD_GET(PHY_AUX_SPEED_MASK, ret)) {
+	case PHY_AUX_SPD_10:
 		phydev->speed = SPEED_10;
-		goto end;
+		break;
+	case PHY_AUX_SPD_100:
+		phydev->speed = SPEED_100;
+		break;
+	case PHY_AUX_SPD_1000:
+		phydev->speed = SPEED_1000;
+		break;
+	case PHY_AUX_SPD_2500:
+		phydev->speed = SPEED_2500;
+		phydev->duplex = DUPLEX_FULL; /* 2.5G must be FDX */
+		break;
 	}
 
-end:
-	return ret;
+	return 0;
 }
 
 static struct phy_driver mtk_gephy_driver[] = {
