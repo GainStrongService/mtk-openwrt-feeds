@@ -81,6 +81,39 @@ static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int mt798x_2p5ge_phy_config_aneg(struct phy_device *phydev)
+{
+	bool changed = false;
+	u32 adv;
+	int ret;
+
+	if (phydev->autoneg == AUTONEG_DISABLE) {
+		/* Configure half duplex with genphy_setup_forced,
+		 * because genphy_c45_pma_setup_forced does not support.
+		 */
+		return phydev->duplex != DUPLEX_FULL
+			? genphy_setup_forced(phydev)
+			: genphy_c45_pma_setup_forced(phydev);
+	}
+
+	ret = genphy_c45_an_config_aneg(phydev);
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
+		changed = true;
+
+	adv = linkmode_adv_to_mii_ctrl1000_t(phydev->advertising);
+	ret = phy_modify_changed(phydev, MII_CTRL1000,
+				 ADVERTISE_1000FULL | ADVERTISE_1000HALF,
+				 adv);
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
+		changed = true;
+
+	return genphy_c45_check_and_restart_aneg(phydev, changed);
+}
+
 static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
 {
 	int ret;
@@ -162,7 +195,7 @@ static struct phy_driver mtk_gephy_driver[] = {
 		PHY_ID_MATCH_EXACT(0x00339c11),
 		.name		= "MediaTek MT798x 2.5GbE PHY",
 		.config_init	= mt798x_2p5ge_phy_config_init,
-		.config_aneg    = genphy_c45_config_aneg,
+		.config_aneg    = mt798x_2p5ge_phy_config_aneg,
 		.get_features	= mt798x_2p5ge_phy_get_features,
 		.read_status	= mt798x_2p5ge_phy_read_status,
 		//.config_intr	= genphy_no_config_intr,
