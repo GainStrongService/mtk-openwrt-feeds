@@ -1,0 +1,27 @@
+From be3ce3c8e5cf171cca1a6e7c3f5ec0536fae0f81 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 30 Dec 2022 11:11:59 +0800
+Subject: [PATCH 4003/4004] mt76: revert kernel api for kernel 5.4
+
+---
+ debugfs.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/debugfs.c b/debugfs.c
+index 79064a4d..4a8e1864 100644
+--- a/debugfs.c
++++ b/debugfs.c
+@@ -33,8 +33,10 @@ mt76_napi_threaded_set(void *data, u64 val)
+ 	if (!mt76_is_mmio(dev))
+ 		return -EOPNOTSUPP;
+ 
++#if 0 /* disable in backport 5.15 */
+ 	if (dev->napi_dev.threaded != val)
+ 		return dev_set_threaded(&dev->napi_dev, val);
++#endif
+ 
+ 	return 0;
+ }
+-- 
+2.18.0
+
