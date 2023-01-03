@@ -50,6 +50,8 @@
 #define MTK_HW_FEATURES_MT7628	(NETIF_F_SG | NETIF_F_RXCSUM)
 #define NEXT_DESP_IDX(X, Y)	(((X) + 1) & ((Y) - 1))
 
+#define MTK_QRX_OFFSET		0x10
+
 #define MTK_HW_LRO_DMA_SIZE	8
 
 #define	MTK_MAX_LRO_RX_LENGTH		(4096 * 3)
@@ -1482,9 +1484,55 @@ struct mtk_tx_dma_desc_info {
 	u8		last:1;
 };
 
+struct mtk_reg_map {
+	u32	tx_irq_mask;
+	u32	tx_irq_status;
+	struct {
+		u32	rx_ptr;		/* rx base pointer */
+		u32	rx_cnt_cfg;	/* rx max count configuration */
+		u32	pcrx_ptr;	/* rx cpu pointer */
+		u32	glo_cfg;	/* global configuration */
+		u32	rst_idx;	/* reset index */
+		u32	delay_irq;	/* delay interrupt */
+		u32	irq_status;	/* interrupt status */
+		u32	irq_mask;	/* interrupt mask */
+		u32	int_grp;	/* interrupt group1 */
+		u32	int_grp2;	/* interrupt group2 */
+	} pdma;
+	struct {
+		u32	qtx_cfg;	/* tx queue configuration */
+		u32	qtx_sch;	/* tx queue scheduler configuration */
+		u32	rx_ptr;		/* rx base pointer */
+		u32	rx_cnt_cfg;	/* rx max count configuration */
+		u32	qcrx_ptr;	/* rx cpu pointer */
+		u32	glo_cfg;	/* global configuration */
+		u32	rst_idx;	/* reset index */
+		u32	delay_irq;	/* delay interrupt */
+		u32	fc_th;		/* flow control */
+		u32	int_grp;	/* interrupt group1 */
+		u32	int_grp2;	/* interrupt group2 */
+		u32	hred2;		/* interrupt mask */
+		u32	ctx_ptr;	/* tx acquire cpu pointer */
+		u32	dtx_ptr;	/* tx acquire dma pointer */
+		u32	crx_ptr;	/* tx release cpu pointer */
+		u32	drx_ptr;	/* tx release dma pointer */
+		u32	fq_head;	/* fq head pointer */
+		u32	fq_tail;	/* fq tail pointer */
+		u32	fq_count;	/* fq free page count */
+		u32	fq_blen;	/* fq free page buffer length */
+		u32	tx_sch_rate;	/* tx scheduler rate control
+					   registers */
+	} qdma;
+	u32	gdm1_cnt;
+	u32	gdma_to_ppe0;
+	u32	ppe_base[3];
+	u32	wdma_base[3];
+};
+
 /* struct mtk_eth_data -	This is the structure holding all differences
  *				among various plaforms
- * @ana_rgc3:                   The offset for register ANA_RGC3 related to
+ * @reg_map			Soc register map.
+ * @ana_rgc3:			The offset for register ANA_RGC3 related to
  *				sgmiisys syscon
  * @caps			Flags shown the extra capability for the SoC
  * @hw_features			Flags shown HW features
@@ -1494,11 +1542,13 @@ struct mtk_tx_dma_desc_info {
  *				the extra setup for those pins used by GMAC.
  * @txd_size			Tx DMA descriptor size.
  * @rxd_size			Rx DMA descriptor size.
+ * @rx_dma_l4_valid		Rx DMA valid register mask.
  * @dma_max_len			Max DMA tx/rx buffer length.
  * @dma_len_offset		Tx/Rx DMA length field offset.
  */
 struct mtk_soc_data {
-	u32             ana_rgc3;
+	const struct mtk_reg_map *reg_map;
+	u32		ana_rgc3;
 	u64		caps;
 	u64		required_clks;
 	bool		required_pctl;
@@ -1507,6 +1557,7 @@ struct mtk_soc_data {
 	struct {
 		u32	txd_size;
 		u32	rxd_size;
+		u32	rx_dma_l4_valid;
 		u32	dma_max_len;
 		u32	dma_len_offset;
 	} txrx;
@@ -1642,8 +1693,6 @@ struct mtk_eth {
 
 	const struct mtk_soc_data	*soc;
 
-	u32				tx_int_mask_reg;
-	u32				tx_int_status_reg;
 	u32				rx_dma_l4_valid;
 	int				ip_align;
 	spinlock_t			syscfg0_lock;
