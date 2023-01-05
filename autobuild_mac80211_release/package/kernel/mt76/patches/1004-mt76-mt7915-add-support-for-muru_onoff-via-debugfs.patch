@@ -1,4 +1,4 @@
-From 49d393ab26f28cec6713ebf967a8f4b6e44b158d Mon Sep 17 00:00:00 2001
+From 5aa5ed9a84420d0dc9310bae0f2ddbbe0a0a0247 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Wed, 22 Jun 2022 10:45:53 +0800
 Subject: [PATCH 1004/1009] mt76: mt7915: add support for muru_onoff via
@@ -65,10 +65,10 @@ index f3dedd5..b6840b2 100644
 +
  #endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 53f98d1..2719a8d 100644
+index 761263e..3bf59ee 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -2481,6 +2481,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)
+@@ -2558,6 +2558,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)
  	return 0;
  }
  
@@ -107,7 +107,7 @@ index 53f98d1..2719a8d 100644
  static int mt7915_amsduinfo_read(struct seq_file *s, void *data)
  {
  	struct mt7915_dev *dev = dev_get_drvdata(s->private);
-@@ -2860,6 +2892,7 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -2937,6 +2969,7 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  
  	mt7915_mcu_fw_log_2_host(dev, MCU_FW_LOG_WM, 0);
  
@@ -116,5 +116,5 @@ index 53f98d1..2719a8d 100644
  			    &fops_fw_debug_module);
  	debugfs_create_file("fw_debug_level", 0600, dir, dev,
 -- 
-2.36.1
+2.18.0
 

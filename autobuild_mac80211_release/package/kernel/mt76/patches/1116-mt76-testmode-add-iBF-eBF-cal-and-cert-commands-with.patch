@@ -1,7 +1,8 @@
-From acc136bc397c9417ca42de7642ede1c35745dae3 Mon Sep 17 00:00:00 2001
+From 2e2057e91913f8992053753b80120a84b5174607 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 15 Dec 2022 19:45:18 +0800
-Subject: [PATCH] mt76: testmode: add iBF/eBF cal and cert commands with golden
+Subject: [PATCH 1116/1131] mt76: testmode: add iBF/eBF cal and cert commands
+ with golden
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -519,10 +520,10 @@ index d845206..ab1efe6 100644
 +
  #endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 583bc19..a2ceb6f 100644
+index 6cb1018..f366869 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -2831,6 +2831,36 @@ mt7915_txpower_level_set(void *data, u64 val)
+@@ -2908,6 +2908,36 @@ mt7915_txpower_level_set(void *data, u64 val)
  DEFINE_DEBUGFS_ATTRIBUTE(fops_txpower_level, NULL,
  			 mt7915_txpower_level_set, "%lld\n");
  
@@ -559,7 +560,7 @@ index 583bc19..a2ceb6f 100644
  /* usage: echo 0x[arg3][arg2][arg1] > fw_wa_set */
  static int
  mt7915_wa_set(void *data, u64 val)
-@@ -2969,6 +2999,11 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -3046,6 +3076,11 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  	debugfs_create_file("txpower_level", 0400, dir, dev,
  			    &fops_txpower_level);
  

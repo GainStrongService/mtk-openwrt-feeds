@@ -1,7 +1,7 @@
-From 1ee66cbba1ce67edfba21bde3c9f9ae794634ab4 Mon Sep 17 00:00:00 2001
+From 74150a20593cebc6ae65e785ae3a784c0a21e23a Mon Sep 17 00:00:00 2001
 From: Lian Chen <lian.chen@mediatek.com>
 Date: Mon, 7 Nov 2022 14:47:44 +0800
-Subject: [PATCH 3010/3013] mt76: mt7915: wed: HW ATF support for mt7986
+Subject: [PATCH 3009/3013] mt76: mt7915: wed: HW ATF support for mt7986
 
 Signed-off-by: Lian Chen <lian.chen@mediatek.com>
 ---
@@ -16,7 +16,7 @@ Signed-off-by: Lian Chen <lian.chen@mediatek.com>
  mode change 100644 => 100755 mt7915/init.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 98b0074..239643b 100644
+index 21ea55d..86ce55d 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1159,6 +1159,7 @@ enum {
@@ -576,10 +576,10 @@ index 7dd3973..c87f04b 100644
  }
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 5b2ae77..029d7e3 100644
+index 116a5cc..15f20ad 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3533,6 +3533,171 @@ int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)
+@@ -3529,6 +3529,171 @@ int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)
  				 &req, sizeof(req), false);
  }
  
@@ -859,10 +859,10 @@ index 2335f78..c3a0b32 100644
  int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy);
  int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len,
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 919cae4..c8df2d0 100644
+index f223871..d6ff7a5 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -1301,7 +1301,6 @@ static EMPTY_QUEUE_INFO_T ple_txcmd_queue_empty_info[] = {
+@@ -1368,7 +1368,6 @@ static EMPTY_QUEUE_INFO_T ple_txcmd_queue_empty_info[] = {
  };
  
  
@@ -870,7 +870,7 @@ index 919cae4..c8df2d0 100644
  static char* sta_ctrl_reg[] = {"ENABLE", "DISABLE", "PAUSE"};
  static u32 chip_show_sta_acq_info(struct seq_file *s, struct mt7915_dev *dev, u32 *ple_stat,
  				  u32 *sta_pause, u32 *dis_sta_map,
-@@ -1455,6 +1454,138 @@ static void chip_get_sta_pause(struct mt7915_dev *dev, u32 *sta_pause)
+@@ -1522,6 +1521,138 @@ static void chip_get_sta_pause(struct mt7915_dev *dev, u32 *sta_pause)
  	}
  }
  
@@ -1010,5 +1010,5 @@ index 919cae4..c8df2d0 100644
  {
  	struct mt7915_dev *dev = dev_get_drvdata(s->private);
 -- 
-2.36.1
+2.18.0
 

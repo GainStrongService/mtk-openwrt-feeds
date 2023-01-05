@@ -1,4 +1,4 @@
-From 39b998e2093d62bb814c5f05ff648561421820b2 Mon Sep 17 00:00:00 2001
+From 3b83a541b0c997b09518d85069a2ec3fb2c08f33 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
 Subject: [PATCH 1001/1009] mt76: mt7915: add mtk internal debug tools for mt76
@@ -12,11 +12,11 @@ Subject: [PATCH 1001/1009] mt76: mt7915: add mtk internal debug tools for mt76
  mt7915/mcu.c          |   63 +
  mt7915/mcu.h          |    4 +
  mt7915/mt7915.h       |   44 +
- mt7915/mt7915_debug.h | 1350 +++++++++++++++++++
- mt7915/mtk_debugfs.c  | 2926 +++++++++++++++++++++++++++++++++++++++++
+ mt7915/mt7915_debug.h | 1363 +++++++++++++++++++
+ mt7915/mtk_debugfs.c  | 3003 +++++++++++++++++++++++++++++++++++++++++
  mt7915/mtk_mcu.c      |   51 +
  tools/fwlog.c         |   44 +-
- 12 files changed, 4569 insertions(+), 13 deletions(-)
+ 12 files changed, 4659 insertions(+), 13 deletions(-)
  create mode 100644 mt7915/mt7915_debug.h
  create mode 100644 mt7915/mtk_debugfs.c
  create mode 100644 mt7915/mtk_mcu.c
@@ -434,10 +434,10 @@ index 942d70c..afe2ec7 100644
  #endif
 diff --git a/mt7915/mt7915_debug.h b/mt7915/mt7915_debug.h
 new file mode 100644
-index 0000000..ecdc02a
+index 0000000..ca553dc
 --- /dev/null
 +++ b/mt7915/mt7915_debug.h
-@@ -0,0 +1,1350 @@
+@@ -0,0 +1,1363 @@
 +#ifndef __MT7915_DEBUG_H
 +#define __MT7915_DEBUG_H
 +
@@ -573,6 +573,8 @@ index 0000000..ecdc02a
 +	DBG_MIB_M0ARNG0,
 +	DBG_MIB_M0DR2,
 +	DBG_MIB_M0DR13,
++	DBG_WFDMA_WED_TX_CTRL,
++	DBG_WFDMA_WED_RX_CTRL,
 +	__MT_DBG_REG_REV_MAX,
 +};
 +
@@ -617,6 +619,8 @@ index 0000000..ecdc02a
 +
 +/* mt7915 regs with different base and offset */
 +static const struct __dbg_reg mt7915_dbg_reg[] = {
++	[DBG_WFDMA_WED_TX_CTRL]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x300 },
++	[DBG_WFDMA_WED_RX_CTRL]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x400 },
 +	[DBG_INT_SOURCE_CSR]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x10 },
 +	[DBG_INT_MASK_CSR]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x14 },
 +	[DBG_INT1_SOURCE_CSR]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x88 },
@@ -721,6 +725,8 @@ index 0000000..ecdc02a
 +
 +/* mt7986/mt7916 regs with different base and offset */
 +static const struct __dbg_reg mt7916_dbg_reg[] = {
++	[DBG_WFDMA_WED_TX_CTRL]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x300 },
++	[DBG_WFDMA_WED_RX_CTRL]		= { MT_DBG_WFDMA_EXT_CSR_BASE, 0x400 },
 +	[DBG_INT_SOURCE_CSR]		= { MT_DBG_WFDMA0_BASE, 0x200 },
 +	[DBG_INT_MASK_CSR]		= { MT_DBG_WFDMA0_BASE, 0x204 },
 +	[DBG_INT1_SOURCE_CSR]		= { MT_DBG_WFDMA0_PCIE1_BASE, 0x200 },
@@ -890,11 +896,15 @@ index 0000000..ecdc02a
 +#define MT_DBG_RX_EVENT_RING_BASE		__DBG_REG(dev, DBG_RX_EVENT_RING_BASE)
 +#define MT_DBG_RX_STS_RING_BASE			__DBG_REG(dev, DBG_RX_STS_RING_BASE)
 +#define MT_DBG_RX_DATA_RING_BASE		__DBG_REG(dev, DBG_RX_DATA_RING_BASE)
++#define MT_DBG_WFDMA_WED_TX_CTRL_BASE		__DBG_REG(dev, DBG_WFDMA_WED_TX_CTRL)
++#define MT_DBG_WFDMA_WED_RX_CTRL_BASE		__DBG_REG(dev, DBG_WFDMA_WED_RX_CTRL)
 +
 +#define MT_DBG_TX_RING_CTRL(n)			(MT_DBG_TX_RING_BASE + (0x10 * (n)))
 +#define MT_DBG_RX_DATA_RING_CTRL(n)		(MT_DBG_RX_DATA_RING_BASE + (0x10 * (n)))
 +#define MT_DBG_RX_EVENT_RING_CTRL(n)		(MT_DBG_RX_EVENT_RING_BASE + (0x10 * (n)))
 +
++#define MT_DBG_WFDMA_WED_TX_CTRL(n)		(MT_DBG_WFDMA_WED_TX_CTRL_BASE + (0x10 * (n)))
++#define MT_DBG_WFDMA_WED_RX_CTRL(n)		(MT_DBG_WFDMA_WED_RX_CTRL_BASE + (0x10 * (n)))
 +/* WFDMA COMMON */
 +#define MT_DBG_INT_SOURCE_CSR			__DBG_REG(dev, DBG_INT_SOURCE_CSR)
 +#define MT_DBG_INT_MASK_CSR			__DBG_REG(dev, DBG_INT_MASK_CSR)
@@ -1487,6 +1497,7 @@ index 0000000..ecdc02a
 +	u16 max_rx_process_cnt;
 +	u16 max_sw_read_idx_inc;
 +	char *const ring_info;
++	bool flags;
 +};
 +
 +const struct hif_pci_tx_ring_desc mt7915_tx_ring_layout[] = {
@@ -1545,7 +1556,8 @@ index 0000000..ecdc02a
 +	 .hw_int_mask = MT_DBG_INT_DMA1_R1_DONE,
 +	 .ring_size = 1024,
 +	 .ring_attr = HIF_RX_EVENT,
-+	 .ring_info = "event from WA band0"
++	 .ring_info = "event from WA band0",
++	 .flags = true
 +	},
 +	{
 +	 .hw_int_mask = MT_DBG_INT_DMA1_R2_DONE,
@@ -1617,7 +1629,8 @@ index 0000000..ecdc02a
 +	 .hw_int_mask = MT_DBG_INT_DMA0_R2_DONE,
 +	 .ring_size = 1024,
 +	 .ring_attr = HIF_RX_EVENT,
-+	 .ring_info = "STS WA band0"
++	 .ring_info = "STS WA band0",
++	 .flags = true
 +	},
 +	{
 +	 .hw_int_mask = MT_DBG_INT_DMA0_R3_DONE,
@@ -1790,10 +1803,10 @@ index 0000000..ecdc02a
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 0000000..53f98d1
+index 0000000..761263e
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
-@@ -0,0 +1,2926 @@
+@@ -0,0 +1,3003 @@
 +#include<linux/inet.h>
 +#include "mt7915.h"
 +#include "mt7915_debug.h"
@@ -2536,11 +2549,19 @@ index 0000000..53f98d1
 +		      "Name", "Base", "Cnt", "CIDX", "DIDX", "QCnt");
 +	dump_dma_tx_ring_info(s, dev, "T16:FWDL", MT_DBG_TX_RING_CTRL(0));
 +	dump_dma_tx_ring_info(s, dev, "T17:Cmd(H2WM)", MT_DBG_TX_RING_CTRL(1));
-+	dump_dma_tx_ring_info(s, dev, "T18:TXD0(H2WA)", MT_DBG_TX_RING_CTRL(2));
-+	dump_dma_tx_ring_info(s, dev, "T19:TXD1(H2WA)", MT_DBG_TX_RING_CTRL(3));
++	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
++		dump_dma_tx_ring_info(s, dev, "T18:TXD0(H2WA)",  MT_DBG_WFDMA_WED_TX_CTRL(0));
++		dump_dma_tx_ring_info(s, dev, "T19:TXD1(H2WA)",  MT_DBG_WFDMA_WED_TX_CTRL(1));
++	} else {
++		dump_dma_tx_ring_info(s, dev, "T18:TXD0(H2WA)", MT_DBG_TX_RING_CTRL(2));
++		dump_dma_tx_ring_info(s, dev, "T19:TXD1(H2WA)", MT_DBG_TX_RING_CTRL(3));
++	}
 +	dump_dma_tx_ring_info(s, dev, "T20:Cmd(H2WA)", MT_DBG_TX_RING_CTRL(4));
 +	dump_dma_rx_ring_info(s, dev, "R0:Event(WM2H)", MT_DBG_RX_EVENT_RING_CTRL(0));
-+	dump_dma_rx_ring_info(s, dev, "R1:Event0(WA2H)", MT_DBG_RX_EVENT_RING_CTRL(1));
++	if (mtk_wed_device_active(&dev->mt76.mmio.wed))
++		dump_dma_rx_ring_info(s, dev, "R1:TxDone(WA2H)", MT_DBG_WFDMA_WED_RX_CTRL(1));
++	else
++		dump_dma_rx_ring_info(s, dev, "R1:Event0(WA2H)", MT_DBG_RX_EVENT_RING_CTRL(1));
 +	dump_dma_rx_ring_info(s, dev, "R2:Event1(WA2H)", MT_DBG_RX_EVENT_RING_CTRL(2));
 +
 +	seq_printf(s, "HOST_DMA1 PCIe 1 Ring Configuration\n");
@@ -2651,12 +2672,22 @@ index 0000000..53f98d1
 +		      "Name", "Base", "Cnt", "CIDX", "DIDX", "QCnt");
 +	dump_dma_tx_ring_info(s, dev, "T16:FWDL", MT_DBG_TX_RING_CTRL(0));
 +	dump_dma_tx_ring_info(s, dev, "T17:Cmd(H2WM)",	MT_DBG_TX_RING_CTRL(1));
-+	dump_dma_tx_ring_info(s, dev, "T18:TXD0(H2WA)",  MT_DBG_TX_RING_CTRL(2));
-+	dump_dma_tx_ring_info(s, dev, "T19:TXD1(H2WA)",  MT_DBG_TX_RING_CTRL(3));
++
++	if (is_mt7916(&dev->mt76) && mtk_wed_device_active(&dev->mt76.mmio.wed)) {
++		dump_dma_tx_ring_info(s, dev, "T18:TXD0(H2WA)",  MT_DBG_WFDMA_WED_TX_CTRL(0));
++		dump_dma_tx_ring_info(s, dev, "T19:TXD1(H2WA)",  MT_DBG_WFDMA_WED_TX_CTRL(1));
++	} else {
++		dump_dma_tx_ring_info(s, dev, "T18:TXD0(H2WA)",  MT_DBG_TX_RING_CTRL(2));
++		dump_dma_tx_ring_info(s, dev, "T19:TXD1(H2WA)",  MT_DBG_TX_RING_CTRL(3));
++	}
++
 +	dump_dma_tx_ring_info(s, dev, "T20:Cmd(H2WA)",	MT_DBG_TX_RING_CTRL(4));
 +	dump_dma_rx_ring_info(s, dev, "R0:Event(WM2H)", MT_DBG_RX_DATA_RING_CTRL(0));
 +	dump_dma_rx_ring_info(s, dev, "R1:Event(WA2H)", MT_DBG_RX_EVENT_RING_CTRL(1));
-+	dump_dma_rx_ring_info(s, dev, "R2:TxDone(WA2H)", MT_DBG_RX_EVENT_RING_CTRL(2));
++	if (is_mt7916(&dev->mt76) && mtk_wed_device_active(&dev->mt76.mmio.wed))
++		dump_dma_rx_ring_info(s, dev, "R2:TxDone(WA2H)", MT_DBG_WFDMA_WED_RX_CTRL(1));
++	else
++		dump_dma_rx_ring_info(s, dev, "R2:TxDone(WA2H)", MT_DBG_RX_EVENT_RING_CTRL(2));
 +	dump_dma_rx_ring_info(s, dev, "R3:TxDone1(WA2H)", MT_DBG_RX_EVENT_RING_CTRL(3));
 +	dump_dma_rx_ring_info(s, dev, "R4:Data0(MAC2H)", MT_DBG_RX_DATA_RING_CTRL(0));
 +	dump_dma_rx_ring_info(s, dev, "R5:Data1(MAC2H)", MT_DBG_RX_DATA_RING_CTRL(1));
@@ -2747,12 +2778,14 @@ index 0000000..53f98d1
 +	struct mt7915_dev *dev = dev_get_drvdata(s->private);
 +	const struct hif_pci_tx_ring_desc *tx_ring_layout;
 +	const struct hif_pci_rx_ring_desc *rx_ring_layout;
++	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
 +	u32 tx_ring_num, rx_ring_num;
 +	u32 tbase[5], tcnt[5];
 +	u32 tcidx[5], tdidx[5];
 +	u32 rbase[6], rcnt[6];
 +	u32 rcidx[6], rdidx[6];
 +	int idx;
++	bool flags = false;
 +
 +	if(is_mt7915(&dev->mt76)) {
 +		tx_ring_layout = &mt7915_tx_ring_layout[0];
@@ -2767,23 +2800,80 @@ index 0000000..53f98d1
 +	}
 +
 +	for (idx = 0; idx < tx_ring_num; idx++) {
-+		tbase[idx] = mt76_rr(dev, MT_DBG_TX_RING_CTRL(idx));
-+		tcnt[idx]  = mt76_rr(dev, MT_DBG_TX_RING_CTRL(idx) + 0x04);
-+		tcidx[idx] = mt76_rr(dev, MT_DBG_TX_RING_CTRL(idx) + 0x08);
-+		tdidx[idx] = mt76_rr(dev, MT_DBG_TX_RING_CTRL(idx) + 0x0c);
++		if (mtk_wed_device_active(wed) &&
++		    (tx_ring_layout[idx].ring_attr == HIF_TX_DATA)) {
++			struct mt76_phy *phy = dev->mt76.phys[MT_BAND0];
++			struct mt76_phy *ext_phy = dev->mt76.phys[MT_BAND1];
++			struct mt76_queue *q;
++
++			tbase[idx] = tcnt[idx] = tcidx[idx] = tdidx[idx] = 0;
++
++			if (!phy)
++				continue;
++
++			if (flags && !ext_phy)
++				continue;
++
++			if (flags && ext_phy)
++				phy = ext_phy;
++
++			q = phy->q_tx[0];
++
++			if (q->wed_regs) {
++				tbase[idx] = mtk_wed_device_reg_read(wed, q->wed_regs);
++				tcnt[idx]  = mtk_wed_device_reg_read(wed, q->wed_regs + 0x04);
++				tcidx[idx] = mtk_wed_device_reg_read(wed, q->wed_regs + 0x08);
++				tdidx[idx] = mtk_wed_device_reg_read(wed, q->wed_regs + 0x0c);
++			}
++
++			flags = true;
++		} else {
++			tbase[idx] = mt76_rr(dev, MT_DBG_TX_RING_CTRL(idx));
++			tcnt[idx]  = mt76_rr(dev, MT_DBG_TX_RING_CTRL(idx) + 0x04);
++			tcidx[idx] = mt76_rr(dev, MT_DBG_TX_RING_CTRL(idx) + 0x08);
++			tdidx[idx] = mt76_rr(dev, MT_DBG_TX_RING_CTRL(idx) + 0x0c);}
 +	}
 +
 +	for (idx = 0; idx < rx_ring_num; idx++) {
-+		if (idx < 2) {
-+			rbase[idx] = mt76_rr(dev, MT_DBG_RX_DATA_RING_CTRL(idx));
-+			rcnt[idx]  = mt76_rr(dev, MT_DBG_RX_DATA_RING_CTRL(idx) + 0x04);
-+			rcidx[idx] = mt76_rr(dev, MT_DBG_RX_DATA_RING_CTRL(idx) + 0x08);
-+			rdidx[idx] = mt76_rr(dev, MT_DBG_RX_DATA_RING_CTRL(idx) + 0x0c);
++		if (rx_ring_layout[idx].ring_attr == HIF_RX_DATA) {
++			if (mtk_wed_device_active(wed) && mtk_wed_get_rx_capa(wed)) {
++				struct mt76_queue *q = &dev->mt76.q_rx[MT_RXQ_MAIN];
++
++				rbase[idx] = rcnt[idx] = rcidx[idx] = rdidx[idx] = 0;
++
++				if (idx == 1)
++					q = &dev->mt76.q_rx[MT_RXQ_BAND1];
++
++				if (q->wed_regs) {
++					rbase[idx] = mtk_wed_device_reg_read(wed, q->wed_regs);
++					rcnt[idx]  = mtk_wed_device_reg_read(wed, q->wed_regs + 0x04);
++					rcidx[idx] = mtk_wed_device_reg_read(wed, q->wed_regs + 0x08);
++					rdidx[idx] = mtk_wed_device_reg_read(wed, q->wed_regs + 0x0c);
++				}
++			} else {
++				rbase[idx] = mt76_rr(dev, MT_DBG_RX_DATA_RING_CTRL(idx));
++				rcnt[idx]  = mt76_rr(dev, MT_DBG_RX_DATA_RING_CTRL(idx) + 0x04);
++				rcidx[idx] = mt76_rr(dev, MT_DBG_RX_DATA_RING_CTRL(idx) + 0x08);
++				rdidx[idx] = mt76_rr(dev, MT_DBG_RX_DATA_RING_CTRL(idx) + 0x0c);
++			}
 +		} else {
-+			rbase[idx] = mt76_rr(dev, MT_DBG_RX_EVENT_RING_CTRL(idx - 2));
-+			rcnt[idx]  = mt76_rr(dev, MT_DBG_RX_EVENT_RING_CTRL(idx - 2) + 0x04);
-+			rcidx[idx] = mt76_rr(dev, MT_DBG_RX_EVENT_RING_CTRL(idx - 2) + 0x08);
-+			rdidx[idx] = mt76_rr(dev, MT_DBG_RX_EVENT_RING_CTRL(idx - 2) + 0x0c);
++			if (mtk_wed_device_active(wed) && rx_ring_layout[idx].flags) {
++				struct mt76_queue *q = &dev->mt76.q_rx[MT_RXQ_MAIN_WA];
++
++				if (is_mt7915(&dev->mt76))
++					q = &dev->mt76.q_rx[MT_RXQ_MCU_WA];
++
++				rbase[idx] = mtk_wed_device_reg_read(wed, q->wed_regs);
++				rcnt[idx]  = mtk_wed_device_reg_read(wed, q->wed_regs + 0x04);
++				rcidx[idx] = mtk_wed_device_reg_read(wed, q->wed_regs + 0x08);
++				rdidx[idx] = mtk_wed_device_reg_read(wed, q->wed_regs + 0x0c);
++
++			} else {
++				rbase[idx] = mt76_rr(dev, MT_DBG_RX_EVENT_RING_CTRL(idx - 2));
++				rcnt[idx]  = mt76_rr(dev, MT_DBG_RX_EVENT_RING_CTRL(idx - 2) + 0x04);
++				rcidx[idx] = mt76_rr(dev, MT_DBG_RX_EVENT_RING_CTRL(idx - 2) + 0x08);
++				rdidx[idx] = mt76_rr(dev, MT_DBG_RX_EVENT_RING_CTRL(idx - 2) + 0x0c);
++			}
 +		}
 +	}
 +
@@ -4892,5 +4982,5 @@ index e5d4a10..3d51d9e 100644
  	return ret;
  }
 -- 
-2.36.1
+2.18.0
 

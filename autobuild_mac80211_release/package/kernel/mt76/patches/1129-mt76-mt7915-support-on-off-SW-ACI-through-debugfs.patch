@@ -1,4 +1,4 @@
-From 413d06c543e77b9d0acf7e75819a62a068a5359e Mon Sep 17 00:00:00 2001
+From 3243e04725e87c5036b440f26c52e6e274e35bb0 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 14 Oct 2022 11:15:13 +0800
 Subject: [PATCH 1129/1131] mt76: mt7915: support on off SW ACI through debugfs
@@ -23,10 +23,10 @@ index 5cff1a4..98b0074 100644
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 7567666..19cc8cb 100644
+index d0f6a07..f223871 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -2963,6 +2963,25 @@ static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)
+@@ -3040,6 +3040,25 @@ static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)
  	return 0;
  }
  
@@ -52,7 +52,7 @@ index 7567666..19cc8cb 100644
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  {
  	struct mt7915_dev *dev = phy->dev;
-@@ -3050,6 +3069,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -3127,6 +3146,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  
  	debugfs_create_devm_seqfile(dev->mt76.dev, "eeprom_mode", dir,
  				    mt7915_show_eeprom_mode);
@@ -62,5 +62,5 @@ index 7567666..19cc8cb 100644
  }
  #endif
 -- 
-2.36.1
+2.18.0
 
