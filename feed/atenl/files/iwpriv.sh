@@ -5,6 +5,7 @@ cmd_type=$2     # set/show/e2p/mac/dump
 full_cmd=$3
 interface_ori=${interface}
 SOC_start_idx="0"
+SOC_end_idx="0"
 is_eagle="0"
 
 work_mode="RUN" # RUN/PRINT/DEBUG
@@ -42,7 +43,7 @@ function record_config() {
     local tmp_file=$3
 
     # check it is SOC(mt7986)/Eagle or PCIE card (mt7915/7916), and write its config
-    if [ ${config} != "STARTIDX" ] && [ ${config} != "IS_EAGLE" ]; then
+    if [ ${tmp_file} != ${interface_file} ]; then
         if [ $phy_idx -lt $SOC_start_idx ]; then
             config="${config}_PCIE"
         elif [ $phy_idx -ge $SOC_start_idx ]; then
@@ -71,7 +72,7 @@ function get_config() {
     fi
 
     # check it is SOC(mt7986)/Eagle or PCIE card (mt7915/7916), and write its config
-    if [ ${config} != "STARTIDX" ] && [ ${config} != "IS_EAGLE" ]; then
+    if [ ${tmp_file} != ${interface_file} ]; then
         if [ $phy_idx -lt $SOC_start_idx ]; then
             config="${config}_PCIE"
         elif [ $phy_idx -ge $SOC_start_idx ]; then
@@ -86,36 +87,56 @@ function get_config() {
     fi
 }
 
-function convert_interface {
+function parse_sku {
     SOC_start_idx=$(get_config "STARTIDX" ${interface_file})
+    SOC_end_idx=$(get_config "ENDIDX" ${interface_file})
     is_eagle=$(get_config "IS_EAGLE" ${interface_file})
     local eeprom_file=/sys/kernel/debug/ieee80211/phy0/mt76/eeprom
-    if [ -z "${SOC_start_idx}" ] || [ -z "${is_eagle}" ]; then
+    if [ -z "${SOC_start_idx}" ] || [ -z "${SOC_end_idx}" ] || [ -z "${is_eagle}" ]; then
         if [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7916")" ]; then
             SOC_start_idx="2"
+            SOC_end_idx="3"
             is_eagle="0"
         elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7915")" ]; then
             SOC_start_idx="1"
+            SOC_end_idx="2"
             is_eagle="0"
         elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7986")" ]; then
             SOC_start_idx="0"
+            SOC_end_idx="1"
             is_eagle="0"
         elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7990")" ]; then
             SOC_start_idx="0"
+            SOC_end_idx="2"
             is_eagle="1"
         else
             echo "Interface Conversion Failed!"
             echo "Please use iwpriv <phy0/phy1/..> set <...> or configure the sku of your board manually by the following commands"
-            echo "For AX6000/Eagle: echo STARTIDX=0 >> ${interface_file}"
-            echo "For AX7800: echo STARTIDX=2 >> ${interface_file}"
-            echo "For AX8400: echo STARTIDX=1 >> ${interface_file}"
+            echo "For AX6000:"
+            echo "      echo STARTIDX=0 >> ${interface_file}"
+            echo "      echo ENDIDX=1 >> ${interface_file}"
+            echo "      echo IS_EAGLE=0 >> ${interface_file}"
+            echo "For AX7800:"
+            echo "      echo STARTIDX=2 >> ${interface_file}"
+            echo "      echo ENDIDX=3 >> ${interface_file}"
+            echo "      echo IS_EAGLE=0 >> ${interface_file}"
+            echo "For AX8400:"
+            echo "      echo STARTIDX=1 >> ${interface_file}"
+            echo "      echo ENDIDX=2 >> ${interface_file}"
+            echo "      echo IS_EAGLE=0 >> ${interface_file}"
+            echo "For Eagle:"
+            echo "      echo STARTIDX=1 >> ${interface_file}"
+            echo "      echo ENDIDX=2 >> ${interface_file}"
+            echo "      echo IS_EAGLE=1 >> ${interface_file}"
             exit 0
         fi
         record_config "STARTIDX" ${SOC_start_idx} ${interface_file}
+        record_config "ENDIDX" ${SOC_end_idx} ${interface_file}
         record_config "IS_EAGLE" ${is_eagle} ${interface_file}
     fi
+}
 
-
+function convert_interface {
     if [ ${is_eagle} == "0" ]; then
         if [[ $1 == "raix"* ]]; then
             phy_idx=1
@@ -871,7 +892,43 @@ function do_ate_work() {
                 echo "ATE already starts."
             else
                 do_cmd "iw phy ${interface} interface add mon${phy_idx} type monitor"
-                do_cmd "iw dev wlan${phy_idx} del"
+
+                if [ $phy_idx -ge $SOC_start_idx ]; then
+                    local end_idx=$SOC_end_idx
+                    local start_idx=$SOC_start_idx
+                else
+                    local end_idx=$((SOC_start_idx-1))
+                    local start_idx="0"
+                fi
+
+                for phy_index in $( seq $start_idx $end_idx )
+                do
+                    # "phy#-1" would not be in iw dev, therefore it will grep the line from the phy#${phy_index} to the end
+                    local prev_phy_index=$((phy_index-1))
+                    local if_num=$(iw dev | awk "/phy#${phy_index}/,/phy#${prev_phy_index}/" | grep -c Interface)
+                    local j="1"
+                    # avoid del_if_count reset to 0 when start ate on another band in dbdc case
+                    local del_if_count=$(get_config "DEL_IF${phy_index}_NUM" ${interface_file})
+                    if [ -z "${del_if_count}" ]; then
+                        local del_if_count="0"
+                    fi
+
+                    for if_count in $( seq 1 $if_num )
+                    do
+                        local del_if=$(iw dev | awk "/phy#${phy_index}/,/phy#${prev_phy_index}/" | grep Interface | sed -n ${j}p | cut -d " " -f 2)
+                        if [  ! -z "${del_if}" ] && [[ "$del_if" != *"mon"* ]]; then
+                            do_cmd "iw dev ${del_if} del"
+                            del_if_count=$((del_if_count+1))
+                            # handle the case of multiple interface in a phy
+                            record_config "DEL_IF${phy_index}-${del_if_count}" ${del_if} ${interface_file}
+                        else
+                            # j add 1 to skip mon interface
+                            j=$((j+1))
+                        fi
+                    done
+                    record_config "DEL_IF${phy_index}_NUM" ${del_if_count} ${interface_file}
+                done
+
                 do_cmd "ifconfig mon${phy_idx} up"
                 do_cmd "iw reg set VV"
             fi
@@ -884,7 +941,55 @@ function do_ate_work() {
             else
                 do_cmd "mt76-test ${interface} set state=off"
                 do_cmd "iw dev mon${phy_idx} del"
-                do_cmd "iw phy ${interface} interface add wlan${phy_idx} type managed"
+
+                if [ $phy_idx -ge $SOC_start_idx ]; then
+                    local end_idx=$SOC_end_idx
+                    local start_idx=$SOC_start_idx
+                else
+                    local end_idx=$((SOC_start_idx-1))
+                    local start_idx="0"
+                fi
+
+                # first check its phy and dbdc band phy has monitor interface or not
+                # if has at lease one mon interface, then skip adding back normal interface
+                local has_mon="0"
+                for phy_index in $( seq $start_idx $end_idx )
+                do
+                     # "phy#-1" would not be in iw dev, therefore it will grep the line from the phy#${phy_index} to the end
+                    local prev_phy_index=$((phy_index-1))
+                    local has_mon_phy=$(iw dev | awk "/phy#${phy_index}/,/phy#${prev_phy_index}/" | grep "Interface mon")
+                    # if this phy interface has mon interface
+                    if [ ! -z "${has_mon_phy}" ]; then
+                        local has_mon="1"
+                    fi
+                done
+
+                for phy_index in $( seq $start_idx $end_idx )
+                do
+                     # "phy#-1" would not be in iw dev, therefore it will grep the line from the phy#${phy_index} to the end
+                    local prev_phy_index=$((phy_index-1))
+                    local j="1"
+                    local add_if_num=$(get_config "DEL_IF${phy_index}_NUM" ${interface_file})
+                    if [ -z "${add_if_num}" ]; then
+                        local add_if_num="0"
+                    fi
+                    # if this phy interface (including its dbdc phy) has no mon interface and can find deleted interface in file, then add it back
+                    if [ "${has_mon}" == "0" ] && [ $add_if_num -ge "1" ]; then
+                        local if_index=$add_if_num
+                        # add interface backwards
+                        while [ $if_index -gt "0" ]
+                        do
+                            local add_if=$(get_config "DEL_IF${phy_index}-${if_index}" ${interface_file})
+                            do_cmd "iw phy phy${phy_index} interface add ${add_if} type managed"
+                            # remove the deleted interface in interface_file since it is added back
+                            sed -i "/DEL_IF${phy_index}-${if_index}=/d" ${interface_file}
+                            if_index=$((if_index-1))
+                        done
+                        # remove the number of deleted interface in interface_file since it is all added back
+                        sed -i "/DEL_IF${phy_index}_NUM=/d" ${interface_file}
+                    fi
+                done
+
                 do_cmd "mt76-test ${interface} set aid=0"
             fi
 
@@ -993,7 +1098,7 @@ function register_handler {
 }
 
 # main start here
-
+parse_sku
 if [ -z ${interface} ]; then
     dump_usage
     exit
