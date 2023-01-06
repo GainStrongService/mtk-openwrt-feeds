@@ -1,35 +1,22 @@
-From 4f947075bef0a413742d8f47b869b3087e242ca8 Mon Sep 17 00:00:00 2001
+From 5f7175246f6a734b63ecd336f1b3ad0bc4f37048 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
-Date: Fri, 16 Dec 2022 12:16:40 +0800
-Subject: [PATCH 3012/3013] mt76: mt7915: wed: fix potential memory leakage
+Date: Fri, 6 Jan 2023 18:25:51 +0800
+Subject: [PATCH 3012/3014] mt76: mt7915: wed: fix potential memory leakage
 
 release rx queue pages in mt7915_mmio_wed_release_rx_buf.
 recycle rxwi when mt76_dma_add_buf() call fails.
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
- dma.c         | 16 ++++++++++------
+ dma.c         | 12 +++++++-----
  mt7915/mmio.c | 15 +++++++++++++++
- 2 files changed, 25 insertions(+), 6 deletions(-)
+ 2 files changed, 22 insertions(+), 5 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 7ef272e..0925daf 100644
+index 21f26df7..cb1fd9c6 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -633,9 +633,11 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
- 		qbuf.len = len - offset;
- 		qbuf.skip_unmap = false;
- 		if (mt76_dma_add_buf(dev, q, &qbuf, 1, 0, buf, NULL, r) < 0) {
-+			mt76_put_rxwi(dev, r);
- 			dma_unmap_single(dev->dma_dev, addr, len,
- 					 DMA_FROM_DEVICE);
--			skb_free_frag(buf);
-+			if (!skip_alloc)
-+				skb_free_frag(buf);
- 			break;
- 		}
- 		frames++;
-@@ -758,12 +760,14 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -795,12 +795,14 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
  	} while (1);
  	spin_unlock_bh(&q->lock);
  
@@ -50,7 +37,7 @@ index 7ef272e..0925daf 100644
  
  static void
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 09b3973..419338c 100644
+index 09b39730..419338cc 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -621,12 +621,27 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)

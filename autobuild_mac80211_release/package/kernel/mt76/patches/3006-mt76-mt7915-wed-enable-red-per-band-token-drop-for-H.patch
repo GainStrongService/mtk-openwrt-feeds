@@ -1,7 +1,7 @@
-From 007ab43e5052b5bc21e5c720d09b30f0b56e6e79 Mon Sep 17 00:00:00 2001
+From 4a7d3194f24e390b37bd9b1349ee25a4ca5e17aa Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 2 Sep 2022 14:40:40 +0800
-Subject: [PATCH 3006/3013] mt76: mt7915: wed: enable red per-band token drop
+Subject: [PATCH 3006/3014] mt76: mt7915: wed: enable red per-band token drop
  for HW Path
 
 Limit the number of token used by each band. If a band uses too many token,
@@ -18,7 +18,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  5 files changed, 44 insertions(+), 10 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 98b0074..21ea55d 100644
+index 98b00747..21ea55d1 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1174,13 +1174,13 @@ enum {
@@ -37,7 +37,7 @@ index 98b0074..21ea55d 100644
  	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
  	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f494d9f..116a5cc 100644
+index f494d9f6..116a5cc9 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2376,6 +2376,7 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
@@ -123,7 +123,7 @@ index f494d9f..116a5cc 100644
  int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index f2f88cc..572cc16 100644
+index f2f88cc4..572cc16a 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -285,6 +285,7 @@ enum {
@@ -135,7 +135,7 @@ index f2f88cc..572cc16 100644
  	MCU_WA_PARAM_RED_SHOW_STA = 0xf,
  	MCU_WA_PARAM_RED_TARGET_DELAY = 0x10,
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index e0761e8..b29fe7a 100644
+index e0761e89..b29fe7a4 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -759,7 +759,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
@@ -148,7 +148,7 @@ index e0761e8..b29fe7a 100644
  	wed->wlan.tx_tbit[1] = is_mt7915(&dev->mt76) ? 5 : 31;
  	wed->wlan.txfree_tbit = is_mt7986(&dev->mt76) ? 2 : 1;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 89c13db..2335f78 100644
+index 89c13dbe..2335f78f 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -56,6 +56,7 @@
