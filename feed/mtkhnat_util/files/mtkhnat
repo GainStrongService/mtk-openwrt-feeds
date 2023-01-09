@@ -44,12 +44,15 @@ insmod mtkhnat
 
 #if hqos=0, disable qdma_sch & qdma_txq
 [ "${hqos}" -eq 1 ] || {
+        SOC=`cat /proc/device-tree/ethernet*/compatible | cut -c 10-15`
+        IS_NETSYS_V2=$(if [[ $SOC == "mt7986" ||  $SOC == "mt7981" ]]; then echo true; fi)
+
 	echo 0 ${scheduling} ${sch0_bw} > /sys/kernel/debug/${module}/qdma_sch0
 	echo 0 ${scheduling} ${sch1_bw} > /sys/kernel/debug/${module}/qdma_sch1
 
 	for i in $(seq 0 $((txq_num - 1)))
 	do
-		if [ "${i}" -le $(((txq_num / 2) - 1)) ]; then
+		if [ "${i}" -le $(((txq_num / 2) - 1)) ] || [ ! $IS_NETSYS_V2 ]; then
 			echo 0 0 0 0 0 0 4 > /sys/kernel/debug/${module}/qdma_txq$i
 		else
 			echo 1 0 0 0 0 0 4 > /sys/kernel/debug/${module}/qdma_txq$i
