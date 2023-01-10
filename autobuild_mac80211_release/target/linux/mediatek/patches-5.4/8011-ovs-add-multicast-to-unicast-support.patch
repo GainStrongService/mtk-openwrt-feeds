@@ -1,5 +1,5 @@
 diff --git a/net/openvswitch/actions.c b/net/openvswitch/actions.c
-index 9e8a5c4..9104255 100644
+index 9e8a5c4..d5bf30d 100644
 --- a/net/openvswitch/actions.c
 +++ b/net/openvswitch/actions.c
 @@ -919,6 +919,10 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
@@ -13,11 +13,10 @@ index 9e8a5c4..9104255 100644
  
  	if (likely(vport)) {
  		u16 mru = OVS_CB(skb)->mru;
-@@ -933,7 +937,31 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
+@@ -933,6 +937,32 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
  
  		if (likely(!mru ||
  		           (skb->len <= mru + vport->dev->hard_header_len))) {
--			ovs_vport_send(vport, skb, ovs_key_mac_proto(key));
 +			if (is_multicast_addr(skb) && !is_igmp_mld(skb)) {
 +				mdb = vport->mdb;
 +				spin_lock(&mdb->tbl_lock);
@@ -37,17 +36,18 @@ index 9e8a5c4..9104255 100644
 +							memcpy(skb_cpy->data, entry->eth_addr, ETH_ALEN);
 +							ovs_vport_send(vport, skb_cpy, ovs_key_mac_proto(key));
 +						}
++						spin_unlock(&mdb->tbl_lock);
++						kfree_skb(skb);
++						return;
 +					}
 +				}
 +				spin_unlock(&mdb->tbl_lock);
-+				kfree_skb(skb);
-+			} else
-+				ovs_vport_send(vport, skb, ovs_key_mac_proto(key));
++			}
+ 			ovs_vport_send(vport, skb, ovs_key_mac_proto(key));
  		} else if (mru <= vport->dev->mtu) {
  			struct net *net = read_pnet(&dp->net);
- 
 diff --git a/net/openvswitch/datapath.c b/net/openvswitch/datapath.c
-index 4f097bd..2f39f07 100644
+index 4f097bd..9a2a8c0 100644
 --- a/net/openvswitch/datapath.c
 +++ b/net/openvswitch/datapath.c
 @@ -11,6 +11,9 @@
@@ -60,7 +60,7 @@ index 4f097bd..2f39f07 100644
  #include <linux/jhash.h>
  #include <linux/delay.h>
  #include <linux/time.h>
-@@ -530,6 +533,262 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
+@@ -530,6 +533,270 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
  	return err;
  }
  
@@ -278,17 +278,25 @@ index 4f097bd..2f39f07 100644
 +			if (ipv6_addr_is_ll_all_nodes(&group_addr.u.ip6))
 +				return 0;
 +
-+			if (group_type == MLD2_MODE_IS_EXCLUDE ||
++			if ((group_type == MLD2_MODE_IS_EXCLUDE ||
 +				group_type == MLD2_CHANGE_TO_EXCLUDE ||
-+				group_type == MLD2_ALLOW_NEW_SOURCES)
++				group_type == MLD2_ALLOW_NEW_SOURCES) &&
++				num_of_source == 0)
 +				ovs_multicast_add_group(&group_addr, dl_src, input_vport);
 +			else if ((group_type == MLD2_MODE_IS_INCLUDE ||
 +					group_type == MLD2_CHANGE_TO_INCLUDE ||
 +					group_type == MLD2_BLOCK_OLD_SOURCES) &&
 +					num_of_source == 0)
 +				ovs_multicast_leave_group(&group_addr, dl_src, input_vport);
-+
-+			grec += (4 + (num_of_source + 1) * sizeof(struct in6_addr) + aux_data_len);
++			else {
++				pr_info("%s(): group_type(%d), aux_data_len(%d),\
++						num_of_source(%d), group_addr(%pI6)\n",
++						__func__, group_type, aux_data_len,
++						num_of_source, &group_addr.u.ip6);
++				return 0;
++			}
++			grec = (struct mld2_grec *)((u8 *)grec + sizeof(struct mld2_grec)
++										+ aux_data_len * sizeof(u32));
 +		}
 +		break;
 +	case ICMPV6_MGM_QUERY:
@@ -323,7 +331,7 @@ index 4f097bd..2f39f07 100644
  static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
  {
  	struct ovs_header *ovs_header = info->userhdr;
-@@ -604,6 +863,9 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
+@@ -604,6 +871,9 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
  	OVS_CB(packet)->input_vport = input_vport;
  	sf_acts = rcu_dereference(flow->sf_acts);
  
@@ -333,7 +341,7 @@ index 4f097bd..2f39f07 100644
  	local_bh_disable();
  	err = ovs_execute_actions(dp, packet, sf_acts, &flow->key);
  	local_bh_enable();
-@@ -2183,6 +2445,9 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
+@@ -2183,6 +2453,9 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
  	struct datapath *dp;
  	struct vport *vport;
  	unsigned int new_headroom;
@@ -343,7 +351,7 @@ index 4f097bd..2f39f07 100644
  	int err;
  
  	reply = ovs_vport_cmd_alloc_info();
-@@ -2210,6 +2475,22 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
+@@ -2210,6 +2483,22 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
  	if (netdev_get_fwd_headroom(vport->dev) == dp->max_headroom)
  		update_headroom = true;
  
