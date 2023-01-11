@@ -351,6 +351,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 			break;
 		case PHY_INTERFACE_MODE_USXGMII:
 		case PHY_INTERFACE_MODE_10GKR:
+		case PHY_INTERFACE_MODE_5GBASER:
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_USXGMII)) {
 				err = mtk_gmac_usxgmii_path_setup(eth, mac->id);
 				if (err)
@@ -450,14 +451,15 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 				   SYSCFG0_SGMII_MASK, val);
 		spin_unlock(&eth->syscfg0_lock);
 	} else if (state->interface == PHY_INTERFACE_MODE_USXGMII ||
-		   state->interface == PHY_INTERFACE_MODE_10GKR) {
+		   state->interface == PHY_INTERFACE_MODE_10GKR ||
+		   state->interface == PHY_INTERFACE_MODE_5GBASER) {
 		sid = mac->id;
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
 		    sid != MTK_GMAC1_ID) {
 			if (phylink_autoneg_inband(mode))
 				err = mtk_usxgmii_setup_mode_force(eth->xgmii, sid,
-								   SPEED_10000);
+								   state);
 			else
 				err = mtk_usxgmii_setup_mode_an(eth->xgmii, sid,
 								SPEED_10000);
@@ -778,6 +780,8 @@ static void mtk_validate(struct phylink_config *config,
 			phylink_set(mask, 1000baseT_Full);
 			phylink_set(mask, 1000baseX_Full);
 			phylink_set(mask, 2500baseX_Full);
+			phylink_set(mask, 2500baseT_Full);
+			phylink_set(mask, 5000baseT_Full);
 		}
 		if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_SGMII)) {
 			phylink_set(mask, 1000baseT_Full);

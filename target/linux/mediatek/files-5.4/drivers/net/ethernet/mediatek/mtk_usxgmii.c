@@ -184,7 +184,7 @@ void mtk_usxgmii_setup_phya_an_10000(struct mtk_xgmii *ss, int mac_id)
 	udelay(400);
 }
 
-void mtk_usxgmii_setup_phya_force(struct mtk_xgmii *ss, int mac_id, int max_speed)
+void mtk_usxgmii_setup_phya_force_5000(struct mtk_xgmii *ss, int mac_id)
 {
 	unsigned int val;
 	u32 id = mtk_mac2xgmii_id(ss->eth, mac_id);
@@ -193,18 +193,9 @@ void mtk_usxgmii_setup_phya_force(struct mtk_xgmii *ss, int mac_id, int max_spee
 	    !ss->regmap_usxgmii[id] || !ss->regmap_pextp[id])
 		return;
 
-	/* Decide USXGMII speed */
-	switch (max_speed) {
-	case SPEED_5000:
-		val = FIELD_PREP(RG_XFI_RX_MODE, RG_XFI_RX_MODE_5G) |
-		      FIELD_PREP(RG_XFI_TX_MODE, RG_XFI_TX_MODE_5G);
-		break;
-	case SPEED_10000:
-	default:
-		val = FIELD_PREP(RG_XFI_RX_MODE, RG_XFI_RX_MODE_10G) |
-		      FIELD_PREP(RG_XFI_TX_MODE, RG_XFI_TX_MODE_10G);
-		break;
-	};
+	/* Setup USXGMII speed */
+	val = FIELD_PREP(RG_XFI_RX_MODE, RG_XFI_RX_MODE_5G) |
+	      FIELD_PREP(RG_XFI_TX_MODE, RG_XFI_TX_MODE_5G);
 	regmap_write(ss->regmap_usxgmii[id], RG_PHY_TOP_SPEED_CTRL1, val);
 
 	/* Disable USXGMII AN mode */
@@ -233,57 +224,241 @@ void mtk_usxgmii_setup_phya_force(struct mtk_xgmii *ss, int mac_id, int max_spee
 
 	ndelay(1020);
 
-	regmap_update_bits(ss->regmap_pextp[id], 0x9024, GENMASK(31, 0), 0x00C9071C);
-	regmap_update_bits(ss->regmap_pextp[id], 0x2020, GENMASK(31, 0), 0xAA8585AA);
-	regmap_update_bits(ss->regmap_pextp[id], 0x2030, GENMASK(31, 0), 0x0C020707);
-	regmap_update_bits(ss->regmap_pextp[id], 0x2034, GENMASK(31, 0), 0x0E050F0F);
-	regmap_update_bits(ss->regmap_pextp[id], 0x2040, GENMASK(31, 0), 0x00140032);
-	regmap_update_bits(ss->regmap_pextp[id], 0x50F0, GENMASK(31, 0), 0x00C014AA);
-	regmap_update_bits(ss->regmap_pextp[id], 0x50E0, GENMASK(31, 0), 0x3777C12B);
-	regmap_update_bits(ss->regmap_pextp[id], 0x506C, GENMASK(31, 0), 0x005F9CFF);
-	regmap_update_bits(ss->regmap_pextp[id], 0x5070, GENMASK(31, 0), 0x9D9DFAFA);
-	regmap_update_bits(ss->regmap_pextp[id], 0x5074, GENMASK(31, 0), 0x27273F3F);
-	regmap_update_bits(ss->regmap_pextp[id], 0x5078, GENMASK(31, 0), 0xA7883C68);
-	regmap_update_bits(ss->regmap_pextp[id], 0x507C, GENMASK(31, 0), 0x11661166);
-	regmap_update_bits(ss->regmap_pextp[id], 0x5080, GENMASK(31, 0), 0x0E000AAF);
-	regmap_update_bits(ss->regmap_pextp[id], 0x5084, GENMASK(31, 0), 0x08080D0D);
-	regmap_update_bits(ss->regmap_pextp[id], 0x5088, GENMASK(31, 0), 0x02030909);
-	regmap_update_bits(ss->regmap_pextp[id], 0x50E4, GENMASK(31, 0), 0x0C0C0000);
-	regmap_update_bits(ss->regmap_pextp[id], 0x50E8, GENMASK(31, 0), 0x04040000);
-	regmap_update_bits(ss->regmap_pextp[id], 0x50EC, GENMASK(31, 0), 0x0F0F0C06);
-	regmap_update_bits(ss->regmap_pextp[id], 0x50A8, GENMASK(31, 0), 0x506E8C8C);
-	regmap_update_bits(ss->regmap_pextp[id], 0x6004, GENMASK(31, 0), 0x18190000);
-	regmap_update_bits(ss->regmap_pextp[id], 0x00F8, GENMASK(31, 0), 0x01423342);
-	regmap_update_bits(ss->regmap_pextp[id], 0x00F4, GENMASK(31, 0), 0x80201F20);
-	regmap_update_bits(ss->regmap_pextp[id], 0x0030, GENMASK(31, 0), 0x00050C00);
-	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0), 0x02002800);
+	regmap_update_bits(ss->regmap_pextp[id], 0x9024, GENMASK(31, 0),
+			   0x00D9071C);
+	regmap_update_bits(ss->regmap_pextp[id], 0x2020, GENMASK(31, 0),
+			   0xAAA5A5AA);
+	regmap_update_bits(ss->regmap_pextp[id], 0x2030, GENMASK(31, 0),
+			   0x0C020707);
+	regmap_update_bits(ss->regmap_pextp[id], 0x2034, GENMASK(31, 0),
+			   0x0E050F0F);
+	regmap_update_bits(ss->regmap_pextp[id], 0x2040, GENMASK(31, 0),
+			   0x00140032);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50F0, GENMASK(31, 0),
+			   0x00C018AA);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50E0, GENMASK(31, 0),
+			   0x3777812B);
+	regmap_update_bits(ss->regmap_pextp[id], 0x506C, GENMASK(31, 0),
+			   0x005C9CFF);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5070, GENMASK(31, 0),
+			   0x9DFAFAFA);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5074, GENMASK(31, 0),
+			   0x273F3F3F);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5078, GENMASK(31, 0),
+			   0xA8883868);
+	regmap_update_bits(ss->regmap_pextp[id], 0x507C, GENMASK(31, 0),
+			   0x14661466);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5080, GENMASK(31, 0),
+			   0x0E001ABF);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5084, GENMASK(31, 0),
+			   0x080B0D0D);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5088, GENMASK(31, 0),
+			   0x02050909);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50E4, GENMASK(31, 0),
+			   0x0C000000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50E8, GENMASK(31, 0),
+			   0x04000000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50EC, GENMASK(31, 0),
+			   0x0F0F0C06);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50A8, GENMASK(31, 0),
+			   0x50808C8C);
+	regmap_update_bits(ss->regmap_pextp[id], 0x6004, GENMASK(31, 0),
+			   0x18000000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x00F8, GENMASK(31, 0),
+			   0x00A132A1);
+	regmap_update_bits(ss->regmap_pextp[id], 0x00F4, GENMASK(31, 0),
+			   0x80201F20);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0030, GENMASK(31, 0),
+			   0x00050C00);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x02002800);
 	ndelay(1020);
-	regmap_update_bits(ss->regmap_pextp[id], 0x30B0, GENMASK(31, 0), 0x00000020);
-	regmap_update_bits(ss->regmap_pextp[id], 0x3028, GENMASK(31, 0), 0x00008A01);
-	regmap_update_bits(ss->regmap_pextp[id], 0x302C, GENMASK(31, 0), 0x0000A884);
-	regmap_update_bits(ss->regmap_pextp[id], 0x3024, GENMASK(31, 0), 0x00083002);
-	regmap_update_bits(ss->regmap_pextp[id], 0x3010, GENMASK(31, 0), 0x00022220);
-	regmap_update_bits(ss->regmap_pextp[id], 0x5064, GENMASK(31, 0), 0x0F020A01);
-	regmap_update_bits(ss->regmap_pextp[id], 0x50B4, GENMASK(31, 0), 0x06100600);
-	regmap_update_bits(ss->regmap_pextp[id], 0x3048, GENMASK(31, 0), 0x49664100);
-	regmap_update_bits(ss->regmap_pextp[id], 0x3050, GENMASK(31, 0), 0x00000000);
-	regmap_update_bits(ss->regmap_pextp[id], 0x3054, GENMASK(31, 0), 0x00000000);
-	regmap_update_bits(ss->regmap_pextp[id], 0x306C, GENMASK(31, 0), 0x00000F00);
-	regmap_update_bits(ss->regmap_pextp[id], 0xA060, GENMASK(31, 0), 0x00040000);
-	regmap_update_bits(ss->regmap_pextp[id], 0x90D0, GENMASK(31, 0), 0x00000001);
-	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0), 0x0200E800);
+	regmap_update_bits(ss->regmap_pextp[id], 0x30B0, GENMASK(31, 0),
+			   0x00000020);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3028, GENMASK(31, 0),
+			   0x00008A01);
+	regmap_update_bits(ss->regmap_pextp[id], 0x302C, GENMASK(31, 0),
+			   0x0000A884);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3024, GENMASK(31, 0),
+			   0x00083002);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3010, GENMASK(31, 0),
+			   0x00022220);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5064, GENMASK(31, 0),
+			   0x0F020A01);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50B4, GENMASK(31, 0),
+			   0x06100600);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3048, GENMASK(31, 0),
+			   0x40704000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3050, GENMASK(31, 0),
+			   0xA8000000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3054, GENMASK(31, 0),
+			   0x000000AA);
+	regmap_update_bits(ss->regmap_pextp[id], 0x306C, GENMASK(31, 0),
+			   0x00000F00);
+	regmap_update_bits(ss->regmap_pextp[id], 0xA060, GENMASK(31, 0),
+			   0x00040000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x90D0, GENMASK(31, 0),
+			   0x00000003);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x0200E800);
 	udelay(150);
-	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0), 0x0200C111);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x0200C111);
 	ndelay(1020);
-	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0), 0x0200C101);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x0200C101);
 	udelay(15);
-	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0), 0x0202C111);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x0202C111);
 	ndelay(1020);
-	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0), 0x0202C101);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x0202C101);
 	udelay(100);
-	regmap_update_bits(ss->regmap_pextp[id], 0x30B0, GENMASK(31, 0), 0x00000030);
-	regmap_update_bits(ss->regmap_pextp[id], 0x00F4, GENMASK(31, 0), 0x80201F00);
-	regmap_update_bits(ss->regmap_pextp[id], 0x3040, GENMASK(31, 0), 0x30000000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x30B0, GENMASK(31, 0),
+			   0x00000030);
+	regmap_update_bits(ss->regmap_pextp[id], 0x00F4, GENMASK(31, 0),
+			   0x80201F00);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3040, GENMASK(31, 0),
+			   0x30000000);
+	udelay(400);
+}
+
+void mtk_usxgmii_setup_phya_force_10000(struct mtk_xgmii *ss, int mac_id)
+{
+	unsigned int val;
+	u32 id = mtk_mac2xgmii_id(ss->eth, mac_id);
+
+	if (id >= MTK_MAX_DEVS ||
+	    !ss->regmap_usxgmii[id] || !ss->regmap_pextp[id])
+		return;
+
+	/* Setup USXGMII speed */
+	val = FIELD_PREP(RG_XFI_RX_MODE, RG_XFI_RX_MODE_10G) |
+	      FIELD_PREP(RG_XFI_TX_MODE, RG_XFI_TX_MODE_10G);
+	regmap_write(ss->regmap_usxgmii[id], RG_PHY_TOP_SPEED_CTRL1, val);
+
+	/* Disable USXGMII AN mode */
+	regmap_read(ss->regmap_usxgmii[id], RG_PCS_AN_CTRL0, &val);
+	val &= ~RG_AN_ENABLE;
+	regmap_write(ss->regmap_usxgmii[id], RG_PCS_AN_CTRL0, val);
+
+	/* Gated USXGMII */
+	regmap_read(ss->regmap_usxgmii[id], RG_PHY_TOP_SPEED_CTRL1, &val);
+	val |= RG_MAC_CK_GATED;
+	regmap_write(ss->regmap_usxgmii[id], RG_PHY_TOP_SPEED_CTRL1, val);
+
+	ndelay(1020);
+
+	/* USXGMII force mode setting */
+	regmap_read(ss->regmap_usxgmii[id], RG_PHY_TOP_SPEED_CTRL1, &val);
+	val |= RG_USXGMII_RATE_UPDATE_MODE;
+	val |= RG_IF_FORCE_EN;
+	val |= FIELD_PREP(RG_RATE_ADAPT_MODE, RG_RATE_ADAPT_MODE_X1);
+	regmap_write(ss->regmap_usxgmii[id], RG_PHY_TOP_SPEED_CTRL1, val);
+
+	/* Un-gated USXGMII */
+	regmap_read(ss->regmap_usxgmii[id], RG_PHY_TOP_SPEED_CTRL1, &val);
+	val &= ~RG_MAC_CK_GATED;
+	regmap_write(ss->regmap_usxgmii[id], RG_PHY_TOP_SPEED_CTRL1, val);
+
+	ndelay(1020);
+
+	regmap_update_bits(ss->regmap_pextp[id], 0x9024, GENMASK(31, 0),
+			   0x00C9071C);
+	regmap_update_bits(ss->regmap_pextp[id], 0x2020, GENMASK(31, 0),
+			   0xAA8585AA);
+	regmap_update_bits(ss->regmap_pextp[id], 0x2030, GENMASK(31, 0),
+			   0x0C020707);
+	regmap_update_bits(ss->regmap_pextp[id], 0x2034, GENMASK(31, 0),
+			   0x0E050F0F);
+	regmap_update_bits(ss->regmap_pextp[id], 0x2040, GENMASK(31, 0),
+			   0x00140032);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50F0, GENMASK(31, 0),
+			   0x00C014AA);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50E0, GENMASK(31, 0),
+			   0x3777C12B);
+	regmap_update_bits(ss->regmap_pextp[id], 0x506C, GENMASK(31, 0),
+			   0x005F9CFF);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5070, GENMASK(31, 0),
+			   0x9D9DFAFA);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5074, GENMASK(31, 0),
+			   0x27273F3F);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5078, GENMASK(31, 0),
+			   0xA7883C68);
+	regmap_update_bits(ss->regmap_pextp[id], 0x507C, GENMASK(31, 0),
+			   0x11661166);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5080, GENMASK(31, 0),
+			   0x0E000AAF);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5084, GENMASK(31, 0),
+			   0x08080D0D);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5088, GENMASK(31, 0),
+			   0x02030909);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50E4, GENMASK(31, 0),
+			   0x0C0C0000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50E8, GENMASK(31, 0),
+			   0x04040000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50EC, GENMASK(31, 0),
+			   0x0F0F0C06);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50A8, GENMASK(31, 0),
+			   0x506E8C8C);
+	regmap_update_bits(ss->regmap_pextp[id], 0x6004, GENMASK(31, 0),
+			   0x18190000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x00F8, GENMASK(31, 0),
+			   0x01423342);
+	regmap_update_bits(ss->regmap_pextp[id], 0x00F4, GENMASK(31, 0),
+			   0x80201F20);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0030, GENMASK(31, 0),
+			   0x00050C00);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x02002800);
+	ndelay(1020);
+	regmap_update_bits(ss->regmap_pextp[id], 0x30B0, GENMASK(31, 0),
+			   0x00000020);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3028, GENMASK(31, 0),
+			   0x00008A01);
+	regmap_update_bits(ss->regmap_pextp[id], 0x302C, GENMASK(31, 0),
+			   0x0000A884);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3024, GENMASK(31, 0),
+			   0x00083002);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3010, GENMASK(31, 0),
+			   0x00022220);
+	regmap_update_bits(ss->regmap_pextp[id], 0x5064, GENMASK(31, 0),
+			   0x0F020A01);
+	regmap_update_bits(ss->regmap_pextp[id], 0x50B4, GENMASK(31, 0),
+			   0x06100600);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3048, GENMASK(31, 0),
+			   0x49664100);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3050, GENMASK(31, 0),
+			   0x00000000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3054, GENMASK(31, 0),
+			   0x00000000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x306C, GENMASK(31, 0),
+			   0x00000F00);
+	regmap_update_bits(ss->regmap_pextp[id], 0xA060, GENMASK(31, 0),
+			   0x00040000);
+	regmap_update_bits(ss->regmap_pextp[id], 0x90D0, GENMASK(31, 0),
+			   0x00000001);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x0200E800);
+	udelay(150);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x0200C111);
+	ndelay(1020);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x0200C101);
+	udelay(15);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x0202C111);
+	ndelay(1020);
+	regmap_update_bits(ss->regmap_pextp[id], 0x0070, GENMASK(31, 0),
+			   0x0202C101);
+	udelay(100);
+	regmap_update_bits(ss->regmap_pextp[id], 0x30B0, GENMASK(31, 0),
+			   0x00000030);
+	regmap_update_bits(ss->regmap_pextp[id], 0x00F4, GENMASK(31, 0),
+			   0x80201F00);
+	regmap_update_bits(ss->regmap_pextp[id], 0x3040, GENMASK(31, 0),
+			   0x30000000);
 	udelay(400);
 }
 
@@ -330,17 +505,18 @@ int mtk_usxgmii_setup_mode_an(struct mtk_xgmii *ss, int mac_id, int max_speed)
 	return 0;
 }
 
-int mtk_usxgmii_setup_mode_force(struct mtk_xgmii *ss, int mac_id, int max_speed)
+int mtk_usxgmii_setup_mode_force(struct mtk_xgmii *ss, int mac_id,
+				 const struct phylink_link_state *state)
 {
 	if (mac_id < 0 || mac_id >= MTK_MAX_DEVS)
 		return -EINVAL;
 
-	if ((max_speed != SPEED_10000) && (max_speed != SPEED_5000))
-		return -EINVAL;
-
 	mtk_xfi_pll_enable(ss);
 	mtk_usxgmii_reset(ss, mac_id);
-	mtk_usxgmii_setup_phya_force(ss, mac_id, max_speed);
+	if (state->interface == PHY_INTERFACE_MODE_5GBASER)
+		mtk_usxgmii_setup_phya_force_5000(ss, mac_id);
+	else
+		mtk_usxgmii_setup_phya_force_10000(ss, mac_id);
 
 	return 0;
 }
