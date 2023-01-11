@@ -764,6 +764,64 @@ static const struct file_operations switch_count_fops = {
 	.release = single_release
 };
 
+void xfi_mib_dump(struct seq_file *seq, u32 gdm_id)
+{
+	struct mtk_eth *eth = g_eth;
+
+	PRINT_FORMATTED_XFI_MIB(seq, TX_PKT_CNT, GENMASK(31, 0));
+	PRINT_FORMATTED_XFI_MIB(seq, TX_ETH_CNT, GENMASK(31, 0));
+	PRINT_FORMATTED_XFI_MIB(seq, TX_PAUSE_CNT, GENMASK(15, 0));
+	PRINT_FORMATTED_XFI_MIB(seq, TX_BYTE_CNT, GENMASK(31, 0));
+	PRINT_FORMATTED_XFI_MIB64(seq, TX_UC_PKT_CNT);
+	PRINT_FORMATTED_XFI_MIB64(seq, TX_MC_PKT_CNT);
+	PRINT_FORMATTED_XFI_MIB64(seq, TX_BC_PKT_CNT);
+
+	PRINT_FORMATTED_XFI_MIB(seq, RX_PKT_CNT, GENMASK(31, 0));
+	PRINT_FORMATTED_XFI_MIB(seq, RX_ETH_CNT, GENMASK(31, 0));
+	PRINT_FORMATTED_XFI_MIB(seq, RX_PAUSE_CNT, GENMASK(15, 0));
+	PRINT_FORMATTED_XFI_MIB(seq, RX_LEN_ERR_CNT, GENMASK(15, 0));
+	PRINT_FORMATTED_XFI_MIB(seq, RX_CRC_ERR_CNT, GENMASK(15, 0));
+	PRINT_FORMATTED_XFI_MIB64(seq, RX_UC_PKT_CNT);
+	PRINT_FORMATTED_XFI_MIB64(seq, RX_MC_PKT_CNT);
+	PRINT_FORMATTED_XFI_MIB64(seq, RX_BC_PKT_CNT);
+	PRINT_FORMATTED_XFI_MIB(seq, RX_UC_DROP_CNT, GENMASK(31, 0));
+	PRINT_FORMATTED_XFI_MIB(seq, RX_BC_DROP_CNT, GENMASK(31, 0));
+	PRINT_FORMATTED_XFI_MIB(seq, RX_MC_DROP_CNT, GENMASK(31, 0));
+	PRINT_FORMATTED_XFI_MIB(seq, RX_ALL_DROP_CNT, GENMASK(31, 0));
+}
+
+int xfi_cnt_read(struct seq_file *seq, void *v)
+{
+	struct mtk_eth *eth = g_eth;
+	int i;
+
+	seq_puts(seq, "+------------------------------------+\n");
+	seq_puts(seq, "|             <<XFI MAC>>            |\n");
+
+	for (i = MTK_GMAC2_ID; i < MTK_GMAC_ID_MAX; i++) {
+		xfi_mib_dump(seq, i);
+		mtk_m32(eth, 0x1, 0x1, MTK_XFI_MIB_BASE(i) + MTK_XFI_CNT_CTRL);
+		seq_puts(seq, "|                                    |\n");
+	}
+
+	seq_puts(seq, "+------------------------------------+\n");
+
+	return 0;
+}
+
+static int xfi_count_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, xfi_cnt_read, 0);
+}
+
+static const struct file_operations xfi_count_fops = {
+	.owner = THIS_MODULE,
+	.open = xfi_count_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release
+};
+
 static struct proc_dir_entry *proc_tx_ring, *proc_hwtx_ring, *proc_rx_ring;
 
 int tx_ring_read(struct seq_file *seq, void *v)
@@ -1733,7 +1791,8 @@ static const struct file_operations reset_event_fops = {
 
 
 struct proc_dir_entry *proc_reg_dir;
-static struct proc_dir_entry *proc_esw_cnt, *proc_dbg_regs, *proc_reset_event;
+static struct proc_dir_entry *proc_esw_cnt, *proc_xfi_cnt,
+			     *proc_dbg_regs, *proc_reset_event;
 
 int debug_proc_init(struct mtk_eth *eth)
 {
@@ -1761,6 +1820,15 @@ int debug_proc_init(struct mtk_eth *eth)
 	    proc_create(PROCREG_ESW_CNT, 0, proc_reg_dir, &switch_count_fops);
 	if (!proc_esw_cnt)
 		pr_notice("!! FAIL to create %s PROC !!\n", PROCREG_ESW_CNT);
+
+	if (MTK_HAS_CAPS(g_eth->soc->caps, MTK_NETSYS_V3)) {
+		proc_xfi_cnt =
+		    proc_create(PROCREG_XFI_CNT, 0,
+				proc_reg_dir, &xfi_count_fops);
+		if (!proc_xfi_cnt)
+			pr_notice("!! FAIL to create %s PROC !!\n",
+				  PROCREG_XFI_CNT);
+	}
 
 	proc_dbg_regs =
 	    proc_create(PROCREG_DBG_REGS, 0, proc_reg_dir, &dbg_regs_fops);
@@ -1801,6 +1869,9 @@ void debug_proc_exit(void)
 
 	if (proc_esw_cnt)
 		remove_proc_entry(PROCREG_ESW_CNT, proc_reg_dir);
+
+	if (proc_xfi_cnt)
+		remove_proc_entry(PROCREG_XFI_CNT, proc_reg_dir);
 
 	if (proc_reg_dir)
 		remove_proc_entry(PROCREG_DIR, 0);

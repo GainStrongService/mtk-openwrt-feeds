@@ -54,6 +54,7 @@
 #define REG_ESW_MAX                     0xFC
 
 #define PROCREG_ESW_CNT			"esw_cnt"
+#define PROCREG_XFI_CNT			"xfi_cnt"
 #define PROCREG_TXRING			"tx_ring"
 #define PROCREG_HWTXRING		"hwtx_ring"
 #define PROCREG_RXRING			"rx_ring"
@@ -62,6 +63,55 @@
 #define PROCREG_HW_LRO_STATS		"hw_lro_stats"
 #define PROCREG_HW_LRO_AUTO_TLB		"hw_lro_auto_tlb"
 #define PROCREG_RESET_EVENT		"reset_event"
+
+/* XFI MAC MIB Register */
+#define MTK_XFI_MIB_BASE(x)		(MTK_XMAC_MCR(x))
+#define MTK_XFI_CNT_CTRL		0x100
+#define MTK_XFI_TX_PKT_CNT		0x108
+#define MTK_XFI_TX_ETH_CNT		0x114
+#define MTK_XFI_TX_PAUSE_CNT		0x120
+#define MTK_XFI_TX_BYTE_CNT		0x134
+#define MTK_XFI_TX_UC_PKT_CNT_L		0x150
+#define MTK_XFI_TX_UC_PKT_CNT_H		0x154
+#define MTK_XFI_TX_MC_PKT_CNT_L		0x160
+#define MTK_XFI_TX_MC_PKT_CNT_H		0x164
+#define MTK_XFI_TX_BC_PKT_CNT_L		0x170
+#define MTK_XFI_TX_BC_PKT_CNT_H		0x174
+
+#define MTK_XFI_RX_PKT_CNT		0x188
+#define MTK_XFI_RX_ETH_CNT		0x18C
+#define MTK_XFI_RX_PAUSE_CNT		0x190
+#define MTK_XFI_RX_LEN_ERR_CNT		0x194
+#define MTK_XFI_RX_CRC_ERR_CNT		0x198
+#define MTK_XFI_RX_UC_PKT_CNT_L		0x1C0
+#define MTK_XFI_RX_UC_PKT_CNT_H		0x1C4
+#define MTK_XFI_RX_MC_PKT_CNT_L		0x1D0
+#define MTK_XFI_RX_MC_PKT_CNT_H		0x1D4
+#define MTK_XFI_RX_BC_PKT_CNT_L		0x1E0
+#define MTK_XFI_RX_BC_PKT_CNT_H		0x1E4
+#define MTK_XFI_RX_UC_DROP_CNT		0x200
+#define MTK_XFI_RX_BC_DROP_CNT		0x204
+#define MTK_XFI_RX_MC_DROP_CNT		0x208
+#define MTK_XFI_RX_ALL_DROP_CNT		0x20C
+
+#define PRINT_FORMATTED_XFI_MIB(seq, reg, mask)			\
+{								\
+	seq_printf(seq, "| XFI%d_%s	: %010lu |\n",		\
+		   gdm_id, #reg,				\
+		   FIELD_GET(mask, mtk_r32(eth,			\
+			     MTK_XFI_MIB_BASE(gdm_id) +		\
+			     MTK_XFI_##reg)));			\
+}
+
+#define PRINT_FORMATTED_XFI_MIB64(seq, reg)			\
+{								\
+	seq_printf(seq, "| XFI%d_%s	: %010llu |\n",		\
+		   gdm_id, #reg,				\
+		   mtk_r32(eth, MTK_XFI_MIB_BASE(gdm_id) +	\
+			   MTK_XFI_##reg##_L) +			\
+		   ((u64)mtk_r32(eth, MTK_XFI_MIB_BASE(gdm_id) +\
+				 MTK_XFI_##reg##_H) << 32));	\
+}
 
 /* HW LRO flush reason */
 #define MTK_HW_LRO_AGG_FLUSH		(1)
