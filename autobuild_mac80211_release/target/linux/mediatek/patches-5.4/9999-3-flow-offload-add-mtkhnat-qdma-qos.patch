@@ -297,7 +297,7 @@ new file mode 100644
 index 0000000..198b924
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c
-@@ -0,0 +1,433 @@
+@@ -0,0 +1,435 @@
 +/* SPDX-License-Identifier: GPL-2.0
 + *
 + * Copyright (c) 2022 MediaTek Inc.
@@ -424,7 +424,7 @@ index 0000000..198b924
 +	long id = (long)file->private_data;
 +	char *buf;
 +	unsigned int len = 0, buf_len = 1500;
-+	int enable, scheduling, max_rate, scheduler, i;
++	int enable, scheduling, max_rate, exp, scheduler, i;
 +	ssize_t ret_cnt;
 +	u32 val;
 +
@@ -440,10 +440,12 @@ index 0000000..198b924
 +	if (id & 0x1)
 +		val >>= 16;
 +
++	val &= MTK_QDMA_TX_SCH_MASK;
 +	enable     = FIELD_GET(MTK_QDMA_TX_SCH_RATE_EN, val);
 +	scheduling = FIELD_GET(MTK_QDMA_TX_SCH_MAX_WFQ, val);
 +	max_rate   = FIELD_GET(MTK_QDMA_TX_SCH_RATE_MAN, val);
-+	while (val--)
++	exp        = FIELD_GET(MTK_QDMA_TX_SCH_RATE_EXP, val);
++	while (exp--)
 +		max_rate *= 10;
 +
 +	len += scnprintf(buf + len, buf_len - len,
@@ -482,7 +484,7 @@ index 0000000..198b924
 +	char line[64] = {0}, scheduling[32];
 +	int enable, rate, exp = 0, shift = 0;
 +	size_t size;
-+	u32 val = 0;
++	u32 sch, val = 0;
 +
 +	if (length >= sizeof(line))
 +		return -EINVAL;
@@ -511,16 +513,16 @@ index 0000000..198b924
 +		shift = 16;
 +
 +	if (eth->soc->txrx.qdma_tx_sch == 4)
-+		val = readl(eth->base+ MTK_QDMA_TX_4SCH_BASE(id));
++		sch = readl(eth->base + MTK_QDMA_TX_4SCH_BASE(id));
 +	else
-+		val = readl(eth->base + MTK_QDMA_TX_2SCH_BASE);
++		sch = readl(eth->base + MTK_QDMA_TX_2SCH_BASE);
 +
-+	val &= ~(MTK_QDMA_TX_SCH_MASK << shift);
-+	val |= val << shift;
++	sch &= ~(MTK_QDMA_TX_SCH_MASK << shift);
++	sch |= val << shift;
 +	if (eth->soc->txrx.qdma_tx_sch == 4)
-+		writel(val, eth->base + MTK_QDMA_TX_4SCH_BASE(id));
++		writel(sch, eth->base + MTK_QDMA_TX_4SCH_BASE(id));
 +	else
-+		writel(val, eth->base + MTK_QDMA_TX_2SCH_BASE);
++		writel(sch, eth->base + MTK_QDMA_TX_2SCH_BASE);
 +
 +	size = strlen(line);
 +	*offset += size;
