@@ -972,6 +972,26 @@ function dump_usage {
     echo "  mwctl <interface> dump phy_capa"
 }
 
+function register_handler {
+
+	local phy_idx=$1
+	local offset=$2
+	local val=$3
+	local cmd=$4
+	local w_cmd="write"
+
+	regidx=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/regidx
+	regval=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/regval
+
+	echo ${offset} > ${regidx}
+	if [[ "${cmd}" == "${w_cmd}" ]]; then
+		echo ${val} > ${regval}
+	fi
+
+	res=$(cat ${regval} | cut -d 'x' -f 2)
+	printf "%s       mac:[%s]:%s\n" ${interface_ori} ${offset} ${res}
+}
+
 # main start here
 
 if [ -z ${interface} ]; then
@@ -1157,19 +1177,29 @@ elif [ "${cmd_type}" = "e2p" ]; then
     fi
 
 elif [ "${cmd_type}" = "mac" ]; then
-    regidx=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/regidx
-    regval=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/regval
     offset=$(printf "0x%s" ${cmd})
     val=$(printf "0x%s" ${param})
 
-    echo ${offset} > ${regidx}
     # reg write
     if [[ ${full_cmd} == *"="* ]]; then
-        echo ${val} > ${regval}
-    fi
+        register_handler ${phy_idx} ${offset} ${val} "write"
+    else
+	start_addr=$(echo ${full_cmd} | sed s/-/' '/g | cut -d " " -f 1)
+	end_addr=$(echo ${full_cmd} | sed s/-/' '/g | cut -d " " -f 2)
+	loop=$((0x${end_addr}-0x${start_addr}))
 
-    res=$(cat ${regval} | cut -d 'x' -f 2)
-    printf "%s       mac:[%s]:%s\n" ${interface_ori} ${offset} ${res}
+	if [[ ${loop} == "0" ]]; then
+		register_handler ${phy_idx} ${offset} ${val}
+        else
+		i=0
+		while [ $i -le $loop ]; do
+			addr=$((0x${start_addr}+$i))
+			offset=$(printf "0x%x" ${addr})
+			register_handler ${phy_idx} ${offset} ${val}
+			i=$(($i + 4))
+		done
+       fi
+    fi
 
 ## dump command is only for vendor commands
 elif [ "${cmd_type}" = "dump" ]; then
