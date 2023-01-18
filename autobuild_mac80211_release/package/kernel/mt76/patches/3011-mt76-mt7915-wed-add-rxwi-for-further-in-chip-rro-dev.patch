@@ -1,21 +1,21 @@
-From dc6f151a8420ce5569b1db103525543600b2f9b5 Mon Sep 17 00:00:00 2001
+From 0ed439e39989e3bd470c2aac9e07ab23853d76ed Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 6 Jan 2023 18:18:50 +0800
 Subject: [PATCH 3011/3014] mt76: mt7915: wed: add rxwi for further in chip rro
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
- dma.c           | 107 ++++++++++++++++++++++++------------------------
+ dma.c           | 115 ++++++++++++++++++++++++------------------------
  mac80211.c      |   2 +-
- mt76.h          |  24 +++++++----
+ mt76.h          |  24 ++++++----
  mt7915/dma.c    |   2 -
- mt7915/mmio.c   |  21 +++++-----
+ mt7915/mmio.c   |  21 ++++-----
  mt7915/mt7915.h |   1 +
- tx.c            |  16 ++++----
- 7 files changed, 90 insertions(+), 83 deletions(-)
+ tx.c            |  16 +++----
+ 7 files changed, 94 insertions(+), 87 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 98d2a29a..21f26df7 100644
+index f898cef0..d4fc091e 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -59,17 +59,17 @@ mt76_alloc_txwi(struct mt76_dev *dev)
@@ -183,13 +183,12 @@ index 98d2a29a..21f26df7 100644
  	q->entry[idx].skb = skb;
  	q->entry[idx].wcid = 0xffff;
  
-@@ -409,14 +410,14 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+@@ -409,13 +410,13 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  		u32 id, find = 0;
  		u32 token = FIELD_GET(MT_DMA_CTL_TOKEN,
  				      le32_to_cpu(desc->buf1));
 -		struct mt76_txwi_cache *t;
 +		struct mt76_rxwi_cache *r;
- 		struct mt76_queue_buf qbuf;
  
  		if (*more) {
  			spin_lock_bh(&dev->rx_token_lock);
@@ -201,7 +200,7 @@ index 98d2a29a..21f26df7 100644
  					find = 1;
  					desc->buf1 = FIELD_PREP(MT_DMA_CTL_TOKEN, id);
  					token = id;
-@@ -429,11 +430,11 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+@@ -428,19 +429,19 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  				return NULL;
  		}
  
@@ -215,46 +214,58 @@ index 98d2a29a..21f26df7 100644
 +		dma_unmap_single(dev->dma_dev, r->dma_addr,
  				 SKB_WITH_OVERHEAD(q->buf_size),
  				 DMA_FROM_DEVICE);
+ 		if (flush) {
+-			buf = t->ptr;
+-			t->dma_addr = 0;
+-			t->ptr = NULL;
++			buf = r->ptr;
++			r->dma_addr = 0;
++			r->ptr = NULL;
  
-@@ -441,27 +442,27 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
- 		if (!buf)
- 			return NULL;
- 
--		memcpy(buf, t->ptr, SKB_WITH_OVERHEAD(q->buf_size));
-+		memcpy(buf, r->ptr, SKB_WITH_OVERHEAD(q->buf_size));
- 
--		t->dma_addr = dma_map_single(dev->dma_dev, t->ptr,
-+		r->dma_addr = dma_map_single(dev->dma_dev, r->ptr,
- 					     SKB_WITH_OVERHEAD(q->buf_size),
- 					     DMA_FROM_DEVICE);
--		if (unlikely(dma_mapping_error(dev->dma_dev, t->dma_addr))) {
--			skb_free_frag(t->ptr);
 -			mt76_put_rxwi(dev, t);
-+		if (unlikely(dma_mapping_error(dev->dma_dev, r->dma_addr))) {
-+			skb_free_frag(r->ptr);
 +			mt76_put_rxwi(dev, r);
- 			return NULL;
+ 		} else {
+ 			struct mt76_queue_buf qbuf;
+ 
+@@ -448,27 +449,27 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+ 			if (!buf)
+ 				return NULL;
+ 
+-			memcpy(buf, t->ptr, SKB_WITH_OVERHEAD(q->buf_size));
++			memcpy(buf, r->ptr, SKB_WITH_OVERHEAD(q->buf_size));
+ 
+-			t->dma_addr = dma_map_single(dev->dma_dev, t->ptr,
++			r->dma_addr = dma_map_single(dev->dma_dev, r->ptr,
+ 						     SKB_WITH_OVERHEAD(q->buf_size),
+ 						     DMA_FROM_DEVICE);
+-			if (unlikely(dma_mapping_error(dev->dma_dev, t->dma_addr))) {
+-				skb_free_frag(t->ptr);
+-				mt76_put_rxwi(dev, t);
++			if (unlikely(dma_mapping_error(dev->dma_dev, r->dma_addr))) {
++				skb_free_frag(r->ptr);
++				mt76_put_rxwi(dev, r);
+ 				return NULL;
+ 			}
+ 
+-			qbuf.addr = t->dma_addr;
++			qbuf.addr = r->dma_addr;
+ 			qbuf.len = SKB_WITH_OVERHEAD(q->buf_size);
+ 			qbuf.skip_unmap = false;
+ 
+-			if (mt76_dma_add_rx_buf(dev, q, &qbuf, t->ptr, t) < 0) {
+-				dma_unmap_single(dev->dma_dev, t->dma_addr,
++			if (mt76_dma_add_rx_buf(dev, q, &qbuf, r->ptr, r) < 0) {
++				dma_unmap_single(dev->dma_dev, r->dma_addr,
+ 						 SKB_WITH_OVERHEAD(q->buf_size),
+ 						 DMA_FROM_DEVICE);
+-				skb_free_frag(t->ptr);
+-				mt76_put_rxwi(dev, t);
++				skb_free_frag(r->ptr);
++				mt76_put_rxwi(dev, r);
+ 				return NULL;
+ 			}
  		}
- 
--		qbuf.addr = t->dma_addr;
-+		qbuf.addr = r->dma_addr;
- 		qbuf.len = SKB_WITH_OVERHEAD(q->buf_size);
- 		qbuf.skip_unmap = false;
- 
--		if (mt76_dma_add_rx_buf(dev, q, &qbuf, t->ptr, t) < 0) {
--			dma_unmap_single(dev->dma_dev, t->dma_addr,
-+		if (mt76_dma_add_rx_buf(dev, q, &qbuf, r->ptr, r) < 0) {
-+			dma_unmap_single(dev->dma_dev, r->dma_addr,
- 					 SKB_WITH_OVERHEAD(q->buf_size),
- 					 DMA_FROM_DEVICE);
--			skb_free_frag(t->ptr);
--			mt76_put_rxwi(dev, t);
-+			skb_free_frag(r->ptr);
-+			mt76_put_rxwi(dev, r);
- 			return NULL;
- 		}
- 
-@@ -531,7 +532,7 @@ mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -539,7 +540,7 @@ mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
  	buf.len = skb->len;
  
  	spin_lock_bh(&q->lock);
@@ -263,7 +274,7 @@ index 98d2a29a..21f26df7 100644
  	mt76_dma_kick_queue(dev, q);
  	spin_unlock_bh(&q->lock);
  
-@@ -608,7 +609,7 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -616,7 +617,7 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
  		goto unmap;
  
  	return mt76_dma_add_buf(dev, q, tx_info.buf, tx_info.nbuf,
