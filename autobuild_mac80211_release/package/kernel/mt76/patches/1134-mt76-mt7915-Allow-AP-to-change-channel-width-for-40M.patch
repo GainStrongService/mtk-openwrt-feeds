@@ -1,0 +1,30 @@
+From 59bae873f7663ccff9f601bcb638793a961265dd Mon Sep 17 00:00:00 2001
+From: "himanshu.goyal" <himanshu.goyal@mediatek.com>
+Date: Mon, 30 Jan 2023 17:47:06 +0800
+Subject: [PATCH] mt76: mt7915: Allow AP to change channel width for 40Mhz
+ Intolerant STA
+
+Ref: WFA 11n Test Case: 4.2.41 AP 20/40 MHz Coexistence
+
+Signed-off-by: himanshu.goyal <himanshu.goyal@mediatek.com>
+---
+ mac80211.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mac80211.c b/mac80211.c
+index 909ab25..4724c62 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -429,7 +429,8 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
+ 	SET_IEEE80211_DEV(hw, dev->dev);
+ 	SET_IEEE80211_PERM_ADDR(hw, phy->macaddr);
+ 
+-	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
++	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR |
++			   NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE;
+ 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH |
+ 			WIPHY_FLAG_SUPPORTS_TDLS |
+ 			WIPHY_FLAG_AP_UAPSD;
+-- 
+2.18.0
+
