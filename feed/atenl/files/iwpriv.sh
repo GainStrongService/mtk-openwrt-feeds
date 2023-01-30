@@ -251,7 +251,7 @@ function simple_convert() {
 
 function convert_tx_mode() {
     # Remove leading zeros
-    local tx_mode=$(echo $1 | sed 's/^0*//')
+    local tx_mode=$(echo $1 | sed -r 's/0+([0-9]+)/\1/g')
 
     if [ "$tx_mode" = "0" ]; then
         echo "cck"
