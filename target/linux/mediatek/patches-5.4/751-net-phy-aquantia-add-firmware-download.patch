@@ -148,7 +148,7 @@ new file mode 100644
 index 0000000..7aeec86
 --- /dev/null
 +++ b/drivers/net/phy/aquantia_firmware.c
-@@ -0,0 +1,1095 @@
+@@ -0,0 +1,1096 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/* FW download driver for Aquantia PHY
 + */
@@ -1062,7 +1062,8 @@ index 0000000..7aeec86
 +		if (kthread_should_stop())
 +			break;
 +
-+		if (aqr_firmware_check_heartbeat(phydev) == 1) {
++		if (phydev->state != PHY_HALTED &&
++		    aqr_firmware_check_heartbeat(phydev) == 1) {
 +			priv->fw_initialized = false;
 +			aqr_firmware_download_single(phydev);
 +		}
