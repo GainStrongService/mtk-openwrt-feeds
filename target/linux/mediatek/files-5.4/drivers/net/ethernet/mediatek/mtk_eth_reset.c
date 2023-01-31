@@ -35,14 +35,21 @@ void mtk_reset_event_update(struct mtk_eth *eth, u32 id)
 
 int mtk_eth_cold_reset(struct mtk_eth *eth)
 {
+	u32 reset_bits = 0;
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
 	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
 		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0);
 
+	reset_bits = RSTCTRL_ETH | RSTCTRL_FE | RSTCTRL_PPE0;
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
-		ethsys_reset(eth,  RSTCTRL_ETH | RSTCTRL_FE | RSTCTRL_PPE0 | RSTCTRL_PPE1);
-	else
-		ethsys_reset(eth,  RSTCTRL_ETH | RSTCTRL_FE | RSTCTRL_PPE0);
+		reset_bits |= RSTCTRL_PPE1;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
+		reset_bits |= RSTCTRL_PPE2;
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+		reset_bits |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
+#endif
+	ethsys_reset(eth, reset_bits);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
 	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
@@ -103,8 +110,8 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 		mtk_reset_event_update(eth, MTK_EVENT_WARM_CNT);
 	}
 
-	pr_info("[%s] reset record val1=0x%x, val2=0x%x, val3=0x%x !\n",
-		__func__, val1, val2, val3);
+	pr_info("[%s] reset record val1=0x%x, val2=0x%x, val3=0x%x i:%d done:%d\n",
+		__func__, val1, val2, val3, i, done);
 
 	if (!done)
 		mtk_eth_cold_reset(eth);
@@ -199,6 +206,10 @@ void mtk_dump_netsys_info(void *_eth)
 	mtk_dump_reg(eth, "WDMA", WDMA_BASE(0), 0x600);
 	mtk_dump_reg(eth, "PPE", 0x2200, 0x200);
 	mtk_dump_reg(eth, "GMAC", 0x10000, 0x300);
+	mtk_dump_reg(eth, "XGMAC0", 0x12000, 0x300);
+	mtk_dump_reg(eth, "XGMAC1", 0x13000, 0x300);
+	mtk_dump_usxgmii(eth->xgmii->regmap_usxgmii[0], "USXGMII0", 0, 0x1000);
+	mtk_dump_usxgmii(eth->xgmii->regmap_usxgmii[1], "USXGMII1", 0, 0x1000);
 }
 
 u32 mtk_monitor_wdma_tx(struct mtk_eth *eth)
@@ -500,8 +511,7 @@ void mtk_dma_monitor(struct timer_list *t)
 		if ((ret == MTK_FE_START_RESET) ||
 			(ret == MTK_FE_STOP_TRAFFIC)) {
 			if ((atomic_read(&reset_lock) == 0) &&
-				(atomic_read(&force) == 0)) {
-				atomic_inc(&force);
+				(atomic_read(&force) == 1)) {
 				mtk_reset_flag = ret;
 				schedule_work(&eth->pending_work);
 			}

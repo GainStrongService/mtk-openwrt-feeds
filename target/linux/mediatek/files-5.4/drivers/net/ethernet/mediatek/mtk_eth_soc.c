@@ -3630,7 +3630,7 @@ static void mtk_pending_work(struct work_struct *work)
 		}
 		rtnl_unlock();
 		if (!wait_for_completion_timeout(&wait_ser_done, 3000))
-			pr_warn("wait for MTK_FE_START_RESET failed\n");
+			pr_warn("wait for MTK_FE_START_RESET\n");
 		rtnl_lock();
 		break;
 	}
@@ -3685,8 +3685,6 @@ static void mtk_pending_work(struct work_struct *work)
 	}
 
 	atomic_dec(&reset_lock);
-	if (atomic_read(&force) > 0)
-		atomic_dec(&force);
 
 	timer_setup(&eth->mtk_dma_monitor_timer, mtk_dma_monitor, 0);
 	eth->mtk_dma_monitor_timer.expires = jiffies;

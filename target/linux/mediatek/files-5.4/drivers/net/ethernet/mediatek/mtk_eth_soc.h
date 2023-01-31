@@ -1700,4 +1700,5 @@ int mtk_usxgmii_setup_mode_force(struct mtk_xgmii *ss, int mac_id,
 				 const struct phylink_link_state *state);
 void mtk_usxgmii_setup_phya_an_10000(struct mtk_xgmii *ss, int mac_id);
 void mtk_usxgmii_reset(struct mtk_xgmii *ss, int mac_id);
+int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
 #endif /* MTK_ETH_H */

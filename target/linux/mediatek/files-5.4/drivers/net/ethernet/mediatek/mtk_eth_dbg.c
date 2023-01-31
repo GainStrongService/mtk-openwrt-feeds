@@ -378,23 +378,19 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 	switch(dbg_level)
 	{
 		case 0:
-			if (atomic_read(&reset_lock) == 0)
-				atomic_inc(&reset_lock);
+			atomic_set(&force, 0);
 			break;
 		case 1:
-			if (atomic_read(&force) == 0) {
-				atomic_inc(&force);
+			if (atomic_read(&force) == 1)
 				schedule_work(&eth->pending_work);
-			} else
-				pr_info(" device resetting !!!\n");
+			else
+				pr_info(" stat:disable\n");
 			break;
 		case 2:
-			if (atomic_read(&reset_lock) == 1)
-				atomic_dec(&reset_lock);
+			atomic_set(&force, 1);
 			break;
 		case 3:
-			if (atomic_read(&force) == 0) {
-				atomic_inc(&force);
+			if (atomic_read(&force) == 1) {
 				mtk_reset_flag = MTK_FE_STOP_TRAFFIC;
 				schedule_work(&eth->pending_work);
 			} else
