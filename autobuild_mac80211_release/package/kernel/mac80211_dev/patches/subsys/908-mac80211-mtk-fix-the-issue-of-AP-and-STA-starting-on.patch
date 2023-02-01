@@ -1,8 +1,8 @@
-From 4c503f7af8f53b6ad3de3f2df914da5f9ed1858f Mon Sep 17 00:00:00 2001
+From a017232e4c904581cc1b57768a1ab326a0b97173 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 5 Oct 2022 19:13:43 +0800
-Subject: [PATCH 908/912] mac80211: mtk: fix the issue of AP and STA starting
- on DFS channel concurrently
+Subject: [PATCH] mac80211: mtk: fix the issue of AP and STA starting on DFS
+ channel concurrently
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -11,10 +11,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  net/mac80211/cfg.c           | 44 ++++++++++++++++++++++++++++++++++++
  net/mac80211/chan.c          |  2 +-
  net/wireless/chan.c          |  6 ++---
- net/wireless/nl80211.c       |  8 +++++++
+ net/wireless/nl80211.c       |  7 ++++++
  net/wireless/rdev-ops.h      | 16 +++++++++++++
  net/wireless/trace.h         | 15 ++++++++++++
- 8 files changed, 110 insertions(+), 5 deletions(-)
+ 8 files changed, 109 insertions(+), 5 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
 index f9c2cc3..84e769b 100644
@@ -174,7 +174,7 @@ index 29b5c2f..bf21f99 100644
  		break;
  	case NL80211_IFTYPE_STATION:
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 202f802..7ce76e7 100644
+index 202f802..cc8d4b2 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
 @@ -789,6 +789,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
@@ -185,20 +185,19 @@ index 202f802..7ce76e7 100644
  	[NL80211_ATTR_AP_SETTINGS_FLAGS] = { .type = NLA_U32 },
  	[NL80211_ATTR_EHT_CAPABILITY] =
  		NLA_POLICY_BINARY_RANGE(NL80211_EHT_MIN_CAPABILITY_LEN, NL80211_EHT_MAX_CAPABILITY_LEN),
-@@ -5803,6 +5804,12 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
+@@ -5803,6 +5804,11 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
  	if (wdev->links[link_id].ap.beacon_interval)
  		return -EALREADY;
  
 +	if (info->attrs[NL80211_ATTR_START_DISABLED]) {
 +		wdev->start_disabled = nla_get_flag(info->attrs[NL80211_ATTR_START_DISABLED]);
-+		err = 0;
-+		goto out;
++		return 0;
 +	}
 +
  	/* these are required for START_AP */
  	if (!info->attrs[NL80211_ATTR_BEACON_INTERVAL] ||
  	    !info->attrs[NL80211_ATTR_DTIM_PERIOD] ||
-@@ -9846,6 +9853,7 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
+@@ -9846,6 +9852,7 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
  		wdev->cac_started = true;
  		wdev->cac_start_time = jiffies;
  		wdev->cac_time_ms = cac_time_ms;
@@ -258,5 +257,5 @@ index d3a98e8..72c8f0e 100644
  
  #undef TRACE_INCLUDE_PATH
 -- 
-2.36.1
+2.18.0
 
