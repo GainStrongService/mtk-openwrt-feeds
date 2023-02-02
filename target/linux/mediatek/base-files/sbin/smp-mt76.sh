@@ -22,9 +22,9 @@ get_if_info()
 	NET_IF_LIST=`ls /sys/class/net`
 	for vif in $NET_IF_LIST;
 	do
-		if [[ "$vif" == "eth0*" ]] || [[ "$vif" == "eth1" ]] || \
-		[[ "$vif" == "lan*" ]] || [[ "$vif" == "wan*" ]] || \
-		[[ "$vif" == "wlan*" ]] || [[ "$vif" == "phy*" ]]; then
+		if [[ "$vif" == "eth"* ]] ||  \
+		[[ "$vif" == "lan"* ]] || [[ "$vif" == "wan"* ]] || \
+		[[ "$vif" == "wlan"* ]] || [[ "$vif" == "phy"* ]]; then
 			RPS_IF_LIST="$RPS_IF_LIST $vif"
 		fi
 	done;
@@ -122,7 +122,7 @@ MT7988()
 
 	for vif in $NET_IF_LIST;
 	do
-		if [[ "$vif" == "wlan*" ]] || [[ "$vif" == "phy*" ]]; then
+		if [[ "$vif" == "wlan"* ]] || [[ "$vif" == "phy"* ]]; then
 			WIFI_IF_LIST="$WIFI_IF_LIST $vif"
 		fi
 	done;
@@ -328,16 +328,16 @@ setup_model()
 	board=$(board_name)
 	num_of_wifi=$NUM_WIFI_CARD
 
-	if [[ $board == "*7988*" ]]; then
+	if [[ $board == *"7988"* ]]; then
 		dbg "setup_model: MT7988 NUM_WIFI_CARD=$num_of_wifi"
 		MT7988 $num_of_wifi
-	elif [[ $board == "*7986*" ]]; then
+	elif [[ $board == *"7986"* ]]; then
 		dbg "setup_model: MT7986 NUM_WIFI_CARD=$num_of_wifi"
 		MT7986 $num_of_wifi
-	elif [[ $board == "*7981*" ]]; then
+	elif [[ $board == *"7981"* ]]; then
 		dbg "setup_model: MT7981 NUM_WIFI_CARD=$num_of_wifi"
 		MT7981 $num_of_wifi
-	elif [[ $board == "*7622*" ]]; then
+	elif [[ $board == *"7622"* ]]; then
 		dbg "setup_model: MT7622 NUM_WIFI_CARD=$num_of_wifi"
 		MT7622 $num_of_wifi
 	fi
