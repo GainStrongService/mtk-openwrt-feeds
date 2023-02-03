@@ -139,16 +139,20 @@ index 918aa22..8c036cd 100755
  static void mtk_ppe_cache_clear(struct mtk_ppe *ppe)
  {
  	ppe_set(ppe, MTK_PPE_CACHE_CTL, MTK_PPE_CACHE_CTL_CLEAR);
-@@ -412,6 +452,14 @@ __mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
+@@ -412,6 +452,18 @@ __mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
  							      MTK_FOE_STATE_INVALID);
  		dma_wmb();
 +
 +		if (ppe->accounting) {
-+			struct mtk_foe_accounting *acct;
++			struct mtk_foe_accounting *acct, *acct_updated;
 +
 +			acct = ppe->acct_table + entry->hash * sizeof(*acct);
 +			acct->packets = 0;
 +			acct->bytes = 0;
++
++			acct_updated = ppe->acct_updated_table + entry->hash * sizeof(*acct_updated);
++			acct_updated->packets = 0;
++			acct_updated->bytes = 0;
 +		}
 	}
  	entry->hash = 0xffff;
@@ -180,14 +184,14 @@ index 918aa22..8c036cd 100755
  			continue;
  		}
  
-@@ -676,12 +731,40 @@ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
+@@ -676,12 +731,44 @@ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
  	return __mtk_foe_entry_idle_time(ppe, entry->data.ib1);
  }
  
 -struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int version, int way, int id)
 +struct mtk_foe_accounting *mtk_foe_entry_get_mib(struct mtk_ppe *ppe, u32 index, struct mtk_foe_accounting *diff)
 +{
-+	struct mtk_foe_accounting *acct;
++	struct mtk_foe_accounting *acct, *acct_updated;
 +	int size = sizeof(struct mtk_foe_accounting);
 +	u64 bytes, packets;
 +
@@ -203,8 +207,12 @@ index 918aa22..8c036cd 100755
 +	acct->packets += packets;
 +
 +	if (diff) {
-+		diff->bytes = bytes;
-+		diff->packets = packets;
++		acct_updated = ppe->acct_updated_table + index * size;
++
++		diff->bytes = acct->bytes - acct_updated->bytes;
++		diff->packets = acct->packets - acct_updated->packets;
++		acct_updated->bytes += diff->bytes;
++		acct_updated->packets += diff->packets;
 +	}
 +
 +	return acct;
@@ -218,7 +226,7 @@ index 918aa22..8c036cd 100755
 +	struct mtk_mib_entry *mib;
  	struct mtk_ppe *ppe;
  	struct hlist_head *flow;
-+	struct mtk_foe_accounting *acct;
++	struct mtk_foe_accounting *acct, *acct_updated;
  
  	ppe = devm_kzalloc(dev, sizeof(*ppe), GFP_KERNEL);
  	if (!ppe)
@@ -230,7 +238,7 @@ index 918aa22..8c036cd 100755
  
  	foe = dmam_alloc_coherent(ppe->dev, MTK_PPE_ENTRIES * sizeof(*foe),
  				  &ppe->foe_phys, GFP_KERNEL);
-@@ -713,6 +797,24 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int versio
+@@ -713,6 +797,31 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int versio
  
  	ppe->foe_flow = flow;
  
@@ -250,6 +258,13 @@ index 918aa22..8c036cd 100755
 +			return NULL;
 +
 +		ppe->acct_table = acct;
++
++		acct_updated = devm_kzalloc(dev, MTK_PPE_ENTRIES * sizeof(*acct_updated),
++					    GFP_KERNEL);
++		if (!acct_updated)
++			return NULL;
++
++		ppe->acct_updated_table = acct_updated;
 +	}
 +
  	return ppe;
@@ -309,8 +324,9 @@ index 3d6928c..8076e5d 100644
  	u16 foe_check_time[MTK_PPE_ENTRIES];
  	struct hlist_head *foe_flow;
  
-@@ -289,7 +307,8 @@ struct mtk_ppe {
+@@ -289,7 +307,9 @@ struct mtk_ppe {
  	void *acct_table;
++	void *acct_updated_table;
  };
  
 -struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int version, int way, int id);
