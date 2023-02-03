@@ -1,7 +1,7 @@
-From 3243e04725e87c5036b440f26c52e6e274e35bb0 Mon Sep 17 00:00:00 2001
+From 3cc965c29077d7631327bf60f75cc23808a025e4 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 14 Oct 2022 11:15:13 +0800
-Subject: [PATCH 1129/1131] mt76: mt7915: support on off SW ACI through debugfs
+Subject: [PATCH 1128/1133] mt76: mt7915: support on off SW ACI through debugfs
 
 Signed-off-by: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Change-Id: I8a9c277c41d1ba76f9737d8af6f42e5e8f00ba64
@@ -11,10 +11,10 @@ Change-Id: I8a9c277c41d1ba76f9737d8af6f42e5e8f00ba64
  2 files changed, 22 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 5cff1a4..98b0074 100644
+index 41859dc3..73a5509a 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1201,6 +1201,7 @@ enum {
+@@ -1206,6 +1206,7 @@ enum {
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_SET_CFG = 0xb7,
  	MCU_EXT_CMD_EDCCA = 0xba,
@@ -23,7 +23,7 @@ index 5cff1a4..98b0074 100644
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index d0f6a07..f223871 100644
+index 0f2795d5..576995dc 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -3040,6 +3040,25 @@ static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)

@@ -1,7 +1,7 @@
-From 5d409ad69898ac9ca36176b2289b6fe7f61af618 Mon Sep 17 00:00:00 2001
+From 6f923c7b8315b6ca8c2308970f8c1e0794421116 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Wed, 14 Dec 2022 00:44:07 -0800
-Subject: [PATCH 1131/1131] mt76: mt7915: amsdu set and get control
+Subject: [PATCH 1130/1133] mt76: mt7915: amsdu set and get control
 
 ---
  mt7915/mac.c    | 10 ++++++++++
@@ -11,10 +11,10 @@ Subject: [PATCH 1131/1131] mt76: mt7915: amsdu set and get control
  4 files changed, 54 insertions(+)
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 9d4cfa1..a0df785 100644
+index 623bf2d4..6fe5cac6 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -2053,6 +2053,16 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
+@@ -2055,6 +2055,16 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
  	phy->trb_ts = trb;
  }
  
@@ -32,10 +32,10 @@ index 9d4cfa1..a0df785 100644
  void mt7915_capi_sta_rc_work(void *data, struct ieee80211_sta *sta)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index f5ac92e..5cc1924 100644
+index 85c88bdd..eb24b45f 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -746,6 +746,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -747,6 +747,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  			 bool pci, int *irq);
  
  #ifdef CONFIG_MTK_VENDOR
@@ -44,7 +44,7 @@ index f5ac92e..5cc1924 100644
  void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
  void mt7915_mcu_set_rfeature_starec(void *data, struct mt7915_dev *dev,
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 22af66d..a1f526c 100644
+index 22af66d5..a1f526c9 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -30,10 +30,16 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -109,7 +109,7 @@ index 22af66d..a1f526c 100644
  		.maxattr = MTK_VENDOR_ATTR_WIRELESS_CTRL_MAX,
  	},
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 949c885..cbff910 100644
+index 949c8853..cbff910b 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -74,6 +74,7 @@ enum mtk_vendor_attr_wireless_ctrl {
@@ -139,5 +139,5 @@ index 949c885..cbff910 100644
  	MTK_VENDOR_ATTR_HEMU_CTRL_UNSPEC,
  
 -- 
-2.36.1
+2.18.0
 

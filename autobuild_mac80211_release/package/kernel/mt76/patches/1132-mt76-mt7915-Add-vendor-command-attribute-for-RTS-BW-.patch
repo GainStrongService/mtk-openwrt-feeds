@@ -1,8 +1,8 @@
-From 3c943d4668b64ee1540e70707db0021b012d13da Mon Sep 17 00:00:00 2001
+From 7932d63acfca9abe1b7e27c25e7e23015e0f39f7 Mon Sep 17 00:00:00 2001
 From: "himanshu.goyal" <himanshu.goyal@mediatek.com>
 Date: Tue, 24 Jan 2023 14:32:08 +0800
-Subject: [PATCH] mt76: mt7915: Add vendor command attribute for RTS BW
- signaling.
+Subject: [PATCH 1132/1133] mt76: mt7915: Add vendor command attribute for RTS
+ BW signaling.
 
 Signed-off-by: himanshu.goyal <himanshu.goyal@mediatek.com>
 ---
@@ -13,10 +13,10 @@ Signed-off-by: himanshu.goyal <himanshu.goyal@mediatek.com>
  4 files changed, 20 insertions(+)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 7954745..da3c004 100644
+index ad5ac120..fc5bf5b7 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4534,6 +4534,12 @@ int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type)
+@@ -4407,6 +4407,12 @@ int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type)
  		req.cert.length = cpu_to_le16(tlv_len);
  		req.cert.cert_program = type;
  		break;
@@ -30,10 +30,10 @@ index 7954745..da3c004 100644
  		tlv_len = sizeof(struct three_wire_cfg);
  		req.three_wire.tag = cpu_to_le16(cfg_info);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 572cc16..b045578 100644
+index e869a9f5..03ee600a 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -868,6 +868,13 @@ struct three_wire_cfg {
+@@ -867,6 +867,13 @@ struct three_wire_cfg {
  	u8 rsv[3];
  } __packed;
  
@@ -47,7 +47,7 @@ index 572cc16..b045578 100644
  struct cfg_basic_info {
  	u8 dbdc_idx;
  	u8 rsv[3];
-@@ -875,11 +882,13 @@ struct cfg_basic_info {
+@@ -874,11 +881,13 @@ struct cfg_basic_info {
  	union {
  		struct cert_cfg cert;
  		struct three_wire_cfg three_wire;
@@ -62,7 +62,7 @@ index 572cc16..b045578 100644
  };
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index a1f526c..b54fee7 100644
+index a1f526c9..b54fee72 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -33,6 +33,7 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -84,7 +84,7 @@ index a1f526c..b54fee7 100644
  
  	return 0;
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index cbff910..41d6ff2 100644
+index cbff910b..41d6ff26 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -76,6 +76,7 @@ enum mtk_vendor_attr_wireless_ctrl {

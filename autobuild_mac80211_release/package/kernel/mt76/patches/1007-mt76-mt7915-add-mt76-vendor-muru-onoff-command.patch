@@ -1,4 +1,4 @@
-From dd853ac02efd5973f494c700e2a668446c66c9a7 Mon Sep 17 00:00:00 2001
+From dede9889b01c531a5e71c4b1beffaef33b799a0b Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Wed, 22 Jun 2022 10:53:43 +0800
 Subject: [PATCH 1007/1009] mt76: mt7915: add mt76 vendor muru onoff command
@@ -11,10 +11,10 @@ Subject: [PATCH 1007/1009] mt76: mt7915: add mt76 vendor muru onoff command
  4 files changed, 63 insertions(+)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 3baed2c..7728e82 100644
+index f7ed1049..6ec12fd2 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3908,6 +3908,13 @@ void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
+@@ -3957,6 +3957,13 @@ void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  		if (val == 0)
  			dev->dbg.muru_onoff = MUMIMO_DL_CERT | MUMIMO_DL;
  		break;
@@ -29,10 +29,10 @@ index 3baed2c..7728e82 100644
  }
  
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index d7322fe..eaadd33 100644
+index 714bc44d..aaea3230 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -422,6 +422,7 @@ enum {
+@@ -423,6 +423,7 @@ enum {
  #ifdef CONFIG_MTK_VENDOR
  	RATE_PARAM_FIXED_MIMO = 30,
  	RATE_PARAM_FIXED_OFDMA = 31,
@@ -41,7 +41,7 @@ index d7322fe..eaadd33 100644
  };
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 7456c57..c755184 100644
+index 7456c577..c7551848 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -34,6 +34,11 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -109,7 +109,7 @@ index 7456c57..c755184 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 1b08321..a8e4ebf 100644
+index 1b08321c..a8e4ebf9 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -8,6 +8,7 @@ enum mtk_nl80211_vendor_subcmds {
@@ -139,5 +139,5 @@ index 1b08321..a8e4ebf 100644
  	MTK_VENDOR_ATTR_RFEATURE_CTRL_UNSPEC,
  
 -- 
-2.36.1
+2.18.0
 

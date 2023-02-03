@@ -1,4 +1,4 @@
-From 301531f8ae836dd93d9b61a2435acd27ba6eb738 Mon Sep 17 00:00:00 2001
+From e64af60e5c5642dec30e8605967b74dff53ada80 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 17 Aug 2022 13:40:24 +0800
 Subject: [PATCH 1009/1009] mt76: mt7915: add fw_version dump
@@ -10,10 +10,10 @@ Subject: [PATCH 1009/1009] mt76: mt7915: add fw_version dump
  3 files changed, 32 insertions(+)
 
 diff --git a/mt76.h b/mt76.h
-index 1037d23..beea57d 100644
+index ccca0162..00f1cd0d 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -837,6 +837,10 @@ struct mt76_dev {
+@@ -843,6 +843,10 @@ struct mt76_dev {
  		struct mt76_usb usb;
  		struct mt76_sdio sdio;
  	};
@@ -25,10 +25,10 @@ index 1037d23..beea57d 100644
  
  struct mt76_power_limits {
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 5a047e6..cf6ec55 100644
+index efb9bfaa..2fefac68 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -2968,6 +2968,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -3014,6 +3014,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
  
@@ -38,7 +38,7 @@ index 5a047e6..cf6ec55 100644
  	release_firmware(fw);
  
  	if (!fw_wa)
-@@ -2993,6 +2996,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -3039,6 +3042,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		goto out;
  	}
  
@@ -48,7 +48,7 @@ index 5a047e6..cf6ec55 100644
  	snprintf(dev->hw->wiphy->fw_version,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
-@@ -3063,6 +3069,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
+@@ -3109,6 +3115,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
  	dev_info(dev->dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
  		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
  
@@ -59,10 +59,10 @@ index 5a047e6..cf6ec55 100644
  		struct mt76_connac2_patch_sec *sec;
  		u32 len, addr, mode;
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index b03ae39..583bc19 100644
+index f8d2cbbb..cba38513 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -2722,6 +2722,22 @@ static int mt7915_agginfo_read_band1(struct seq_file *s, void *data)
+@@ -2799,6 +2799,22 @@ static int mt7915_agginfo_read_band1(struct seq_file *s, void *data)
  	return 0;
  }
  
@@ -85,7 +85,7 @@ index b03ae39..583bc19 100644
  /*usage: <en> <num> <len>
  	en: BIT(16) 0: sw amsdu  1: hw amsdu
  	num: GENMASK(15, 8) range 1-8
-@@ -2955,6 +2971,9 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -3032,6 +3048,9 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  
  	debugfs_create_u8("sku_disable", 0600, dir, &dev->dbg.sku_disable);
  
@@ -96,5 +96,5 @@ index b03ae39..583bc19 100644
  }
  #endif
 -- 
-2.36.1
+2.18.0
 

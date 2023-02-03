@@ -1,7 +1,7 @@
-From 2d217a2c6ffc6069b76956213a60e055e55d59df Mon Sep 17 00:00:00 2001
+From 2a80e06e9d9e76ecb7c3d8de983a692bb58e8f62 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 25 Nov 2022 10:38:53 +0800
-Subject: [PATCH 3001/3014] mt76: mt7915: wed: add wed tx support
+Subject: [PATCH 3001/3010] mt76: mt7915: wed: add wed tx support
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -12,10 +12,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  4 files changed, 13 insertions(+), 8 deletions(-)
 
 diff --git a/mt76_connac.h b/mt76_connac.h
-index 8ba883b0..f70987dd 100644
+index b339c50b..323203df 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
-@@ -116,6 +116,7 @@ struct mt76_connac_sta_key_conf {
+@@ -117,6 +117,7 @@ struct mt76_connac_sta_key_conf {
  };
  
  #define MT_TXP_MAX_BUF_NUM		6
@@ -24,10 +24,10 @@ index 8ba883b0..f70987dd 100644
  struct mt76_connac_fw_txp {
  	__le16 flags;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index a0df7853..0984357a 100644
+index 6fe5cac6..175498b1 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -891,9 +891,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
+@@ -890,9 +890,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
  
  	txp->token = cpu_to_le16(token_id);
  	txp->nbuf = 1;
@@ -39,7 +39,7 @@ index a0df7853..0984357a 100644
  }
  
  static void
-@@ -1009,6 +1009,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -1008,6 +1008,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  	LIST_HEAD(free_list);
  	void *end = data + len;
  	bool v3, wake = false;
@@ -47,7 +47,7 @@ index a0df7853..0984357a 100644
  	u16 total, count = 0;
  	u32 txd = le32_to_cpu(free->txd);
  	__le32 *cur_info;
-@@ -1064,12 +1065,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -1063,12 +1064,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  			txwi = mt76_token_release(mdev, msdu, &wake);
  			if (!txwi)
  				continue;
@@ -65,10 +65,10 @@ index a0df7853..0984357a 100644
  
  static void
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 09cf35c1..2dd78ca2 100644
+index 96236f4c..06a72197 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1533,14 +1533,14 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1539,14 +1539,14 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	if (!mtk_wed_device_active(wed))
  		return -ENODEV;
  
@@ -86,10 +86,10 @@ index 09cf35c1..2dd78ca2 100644
  
  	ctx->dev = NULL;
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index c1b421d1..04411e77 100644
+index 95ded131..6ebb969f 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
-@@ -11,7 +11,7 @@
+@@ -13,7 +13,7 @@
  #include "../trace.h"
  #include "../dma.h"
  
@@ -98,7 +98,7 @@ index c1b421d1..04411e77 100644
  module_param(wed_enable, bool, 0644);
  MODULE_PARM_DESC(wed_enable, "Enable Wireless Ethernet Dispatch support");
  
-@@ -582,7 +582,7 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
+@@ -584,7 +584,7 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
  	dev = container_of(wed, struct mt7915_dev, mt76.mmio.wed);
  
  	spin_lock_bh(&dev->mt76.token_lock);
@@ -107,7 +107,7 @@ index c1b421d1..04411e77 100644
  	spin_unlock_bh(&dev->mt76.token_lock);
  
  	/* MT_TXD5_TX_STATUS_HOST (MPDU format) has higher priority than
-@@ -792,6 +792,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -825,6 +825,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  
  	*irq = wed->irq;
  	dev->mt76.dma_dev = wed->dev;
