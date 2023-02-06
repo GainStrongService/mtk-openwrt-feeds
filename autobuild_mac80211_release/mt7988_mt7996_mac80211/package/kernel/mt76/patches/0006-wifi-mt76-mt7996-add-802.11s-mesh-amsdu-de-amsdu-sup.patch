@@ -1,0 +1,132 @@
+From 6298046de15b190139552d74aeb668e8cb873b1d Mon Sep 17 00:00:00 2001
+From: Bo Jiao <Bo.Jiao@mediatek.com>
+Date: Thu, 15 Dec 2022 18:22:37 +0800
+Subject: [PATCH 6/7] wifi: mt76: mt7996: add 802.11s mesh amsdu/de-amsdu
+ support
+
+Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
+---
+ mt7996/mac.c  | 15 ++++++++++++++-
+ mt7996/mac.h  |  2 ++
+ mt7996/mcu.c  |  9 ++++++++-
+ mt7996/mcu.h  |  2 +-
+ mt7996/mmio.c |  3 ++-
+ 5 files changed, 27 insertions(+), 4 deletions(-)
+ mode change 100644 => 100755 mt7996/mac.c
+ mode change 100644 => 100755 mt7996/mmio.c
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+old mode 100644
+new mode 100755
+index 51337dde..d17b5478
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -630,6 +630,7 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, struct sk_buff *skb)
+ 	u32 rxd4 = le32_to_cpu(rxd[4]);
+ 	u32 csum_mask = MT_RXD0_NORMAL_IP_SUM | MT_RXD0_NORMAL_UDP_TCP_SUM;
+ 	u32 csum_status = *(u32 *)skb->cb;
++	u32 mesh_mask = MT_RXD0_MESH | MT_RXD0_MHCP;
+ 	bool unicast, insert_ccmp_hdr = false;
+ 	u8 remove_pad, amsdu_info, band_idx;
+ 	u8 mode = 0, qos_ctl = 0;
+@@ -822,6 +823,9 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, struct sk_buff *skb)
+ 
+ 		skb_pull(skb, hdr_gap);
+ 		if (!hdr_trans && status->amsdu) {
++		    if(ieee80211_has_a4(fc) && ((rxd0 & mesh_mask) == mesh_mask))
++			pad_start = 0;
++		    else
+ 			pad_start = ieee80211_get_hdrlen_from_skb(skb);
+ 		} else if (hdr_trans && (rxd2 & MT_RXD2_NORMAL_HDR_TRANS_ERROR)) {
+ 			/* When header translation failure is indicated,
+@@ -854,8 +858,17 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, struct sk_buff *skb)
+ 		hdr = mt76_skb_get_hdr(skb);
+ 		fc = hdr->frame_control;
+ 		if (ieee80211_is_data_qos(fc)) {
++			u8 *p = ieee80211_get_qos_ctl(hdr);
++
+ 			seq_ctrl = le16_to_cpu(hdr->seq_ctrl);
+-			qos_ctl = *ieee80211_get_qos_ctl(hdr);
++			qos_ctl = *p;
++
++			/* the hardware support mesh de-amsdu by default,
++			 * so, clear amsdu present bit in the Qos Control field.
++			 */
++			if (ieee80211_has_a4(fc) && status->amsdu &&
++			    ((rxd0 & mesh_mask) == mesh_mask))
++				*p &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
+ 		}
+ 	} else {
+ 		status->flag |= RX_FLAG_8023;
+diff --git a/mt7996/mac.h b/mt7996/mac.h
+index 470b701a..fd0e5d1c 100644
+--- a/mt7996/mac.h
++++ b/mt7996/mac.h
+@@ -12,6 +12,8 @@
+ #define MT_RXD0_LENGTH			GENMASK(15, 0)
+ #define MT_RXD0_PKT_TYPE		GENMASK(31, 27)
+ 
++#define MT_RXD0_MESH			BIT(18)
++#define MT_RXD0_MHCP			BIT(19)
+ #define MT_RXD0_NORMAL_ETH_TYPE_OFS	GENMASK(22, 16)
+ #define MT_RXD0_NORMAL_IP_SUM		BIT(23)
+ #define MT_RXD0_NORMAL_UDP_TCP_SUM	BIT(24)
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 394dd15c..1e47b0ae 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -1022,7 +1022,8 @@ mt7996_mcu_sta_amsdu_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 	struct tlv *tlv;
+ 
+ 	if (vif->type != NL80211_IFTYPE_STATION &&
+-	    vif->type != NL80211_IFTYPE_AP)
++	    vif->type != NL80211_IFTYPE_AP &&
++	    vif->type != NL80211_IFTYPE_MESH_POINT)
+ 		return;
+ 
+ 	if (!sta->deflink.agg.max_amsdu_len)
+@@ -1528,6 +1529,12 @@ mt7996_mcu_sta_hdr_trans_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 		hdr_trans->to_ds = true;
+ 		hdr_trans->from_ds = true;
+ 	}
++
++	if (vif->type == NL80211_IFTYPE_MESH_POINT) {
++		hdr_trans->to_ds = true;
++		hdr_trans->from_ds = true;
++		hdr_trans->mesh = true;
++	}
+ }
+ 
+ static enum mcu_mmps_mode
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index dd0c5ac5..009f5f06 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -396,7 +396,7 @@ struct sta_rec_hdr_trans {
+ 	u8 from_ds;
+ 	u8 to_ds;
+ 	u8 dis_rx_hdr_tran;
+-	u8 rsv;
++	u8 mesh;
+ } __packed;
+ 
+ struct hdr_trans_en {
+diff --git a/mt7996/mmio.c b/mt7996/mmio.c
+old mode 100644
+new mode 100755
+index d8a2c1a7..08164b1a
+--- a/mt7996/mmio.c
++++ b/mt7996/mmio.c
+@@ -320,7 +320,8 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
+ 		/* txwi_size = txd size + txp size */
+ 		.txwi_size = MT_TXD_SIZE + sizeof(struct mt7996_txp),
+ 		.drv_flags = MT_DRV_TXWI_NO_FREE |
+-			     MT_DRV_HW_MGMT_TXQ,
++			     MT_DRV_HW_MGMT_TXQ |
++			     MT_DRV_AMSDU_OFFLOAD,
+ 		.survey_flags = SURVEY_INFO_TIME_TX |
+ 				SURVEY_INFO_TIME_RX |
+ 				SURVEY_INFO_TIME_BSS_RX,
+-- 
+2.25.1
+

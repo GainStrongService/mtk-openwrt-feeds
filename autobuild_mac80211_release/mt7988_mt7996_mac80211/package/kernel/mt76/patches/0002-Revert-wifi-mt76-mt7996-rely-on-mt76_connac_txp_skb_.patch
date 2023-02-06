@@ -1,0 +1,46 @@
+From 9c2313ddded0179ae1a9e6112e2762a1a3e958d7 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 3 Feb 2023 11:01:11 +0800
+Subject: [PATCH 2/7] Revert "wifi: mt76: mt7996: rely on
+ mt76_connac_txp_skb_unmap"
+
+This reverts commit bdb7dc38a6d150b5aa4b09b82a8954c6bb49ba4a.
+---
+ mt7996/mac.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 0d718598..df97d7cf 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1187,6 +1187,18 @@ mt7996_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
+ 		ieee80211_start_tx_ba_session(sta, tid, 0);
+ }
+ 
++static void
++mt7996_txp_skb_unmap(struct mt76_dev *dev, struct mt76_txwi_cache *t)
++{
++	struct mt76_connac_txp_common *txp;
++	int i;
++
++	txp = mt7996_txwi_to_txp(dev, t);
++	for (i = 0; i < txp->fw.nbuf; i++)
++		dma_unmap_single(dev->dev, le32_to_cpu(txp->fw.buf[i]),
++				 le16_to_cpu(txp->fw.len[i]), DMA_TO_DEVICE);
++}
++
+ static void
+ mt7996_txwi_free(struct mt7996_dev *dev, struct mt76_txwi_cache *t,
+ 		 struct ieee80211_sta *sta, struct list_head *free_list)
+@@ -1196,7 +1208,7 @@ mt7996_txwi_free(struct mt7996_dev *dev, struct mt76_txwi_cache *t,
+ 	__le32 *txwi;
+ 	u16 wcid_idx;
+ 
+-	mt76_connac_txp_skb_unmap(mdev, t);
++	mt7996_txp_skb_unmap(mdev, t);
+ 	if (!t->skb)
+ 		goto out;
+ 
+-- 
+2.25.1
+

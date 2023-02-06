@@ -1,0 +1,48 @@
+From d8bef73f22f88bf857698f4018db3aed6a2fca2d Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 29 Nov 2022 09:13:32 +0800
+Subject: [PATCH 5/7] wifi: mt76: mt7996: set txd v1
+
+---
+ mt7996/mac.c | 3 +++
+ mt7996/mac.h | 3 ++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index e5b5fed6..51337dde 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1092,6 +1092,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 	struct mt7996_txp *txp;
+ 	int id, i, pid, nbuf = tx_info->nbuf - 1;
+ 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
++	__le32 *txd = (__le32 *)txwi_ptr;
+ 	u8 *txwi = (u8 *)txwi_ptr;
+ 
+ 	if (unlikely(tx_info->skb->len <= ETH_HLEN))
+@@ -1123,6 +1124,8 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 		mt7996_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, pid,
+ 				      key, 0);
+ 
++	txd[0] |= le32_encode_bits(1, MT_TXD0_VER);
++
+ 	txp = (struct mt7996_txp *)(txwi + MT_TXD_SIZE);
+ 	for (i = 0; i < nbuf; i++) {
+ 		txp->buf[i] = cpu_to_le32(tx_info->buf[i + 1].addr);
+diff --git a/mt7996/mac.h b/mt7996/mac.h
+index 9f688520..470b701a 100644
+--- a/mt7996/mac.h
++++ b/mt7996/mac.h
+@@ -186,7 +186,8 @@ enum tx_mgnt_type {
+ 
+ #define MT_TXD0_Q_IDX			GENMASK(31, 25)
+ #define MT_TXD0_PKT_FMT			GENMASK(24, 23)
+-#define MT_TXD0_ETH_TYPE_OFFSET		GENMASK(22, 16)
++#define MT_TXD0_VER			GENMASK(22, 19)
++#define MT_TXD0_ETH_TYPE_OFFSET		GENMASK(18, 16)
+ #define MT_TXD0_TX_BYTES		GENMASK(15, 0)
+ 
+ #define MT_TXD1_FIXED_RATE		BIT(31)
+-- 
+2.25.1
+
