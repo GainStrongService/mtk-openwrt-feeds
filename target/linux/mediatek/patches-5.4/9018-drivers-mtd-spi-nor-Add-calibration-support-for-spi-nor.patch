@@ -8,11 +8,9 @@ Signed-off-by: SkyLake.Huang <skylake.huang@mediatek.com>
  drivers/mtd/spi-nor/spi-nor.c | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
 
-diff --git a/drivers/mtd/spi-nor/spi-nor.c b/drivers/mtd/spi-nor/spi-nor.c
-index 945833cbb..38a8948b3 100644
 --- a/drivers/mtd/spi-nor/spi-nor.c
 +++ b/drivers/mtd/spi-nor/spi-nor.c
-@@ -4893,6 +4893,20 @@ static void spi_nor_debugfs_init(struct spi_nor *nor,
+@@ -4897,6 +4897,35 @@ static void spi_nor_debugfs_init(struct
  					 info->id_len, info->id);
  }
  
@@ -30,19 +28,39 @@ index 945833cbb..38a8948b3 100644
 +	return spi_nor_read_raw(nor, *addr, readlen, buf);
 +}
 +
++static int spi_nor_cal_read_4B(void *priv, u32 *addr, int addrlen, u8 *buf,
++			    int readlen)
++{
++	int ret;
++	struct spi_nor *nor = (struct spi_nor *)priv;
++
++	nor->reg_proto = SNOR_PROTO_1_1_1;
++	nor->read_proto = SNOR_PROTO_1_1_1;
++	nor->read_opcode = SPINOR_OP_READ_4B;
++	nor->addr_width = 4;
++	nor->read_dummy = 0;
++
++	return spi_nor_read_raw(nor, *addr, readlen, buf);
++}
++
  static const struct flash_info *spi_nor_get_flash_info(struct spi_nor *nor,
  						       const char *name)
  {
-@@ -4967,6 +4981,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
+@@ -4971,6 +5000,17 @@ int spi_nor_scan(struct spi_nor *nor, co
  	if (!nor->bouncebuf)
  		return -ENOMEM;
  
-+	if(nor->spimem)
-+		spi_mem_do_calibration(nor->spimem, spi_nor_cal_read, nor);
++	if(nor->spimem) {
++		ret = spi_mem_do_calibration(nor->spimem,
++					     spi_nor_cal_read, nor);
++		if (ret) {
++			ret = spi_mem_do_calibration(nor->spimem,
++						     spi_nor_cal_read_4B, nor);
++			if (ret)
++				return ret;
++		}
++	}
 +
  	info = spi_nor_get_flash_info(nor, name);
  	if (IS_ERR(info))
  		return PTR_ERR(info);
--- 
-2.18.0
-
