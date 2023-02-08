@@ -1456,6 +1456,13 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	int i, n_desc = 1;
 	int k = 0;
 
+	if (skb->len < 32) {
+		if (skb_put_padto(skb, MTK_MIN_TX_LENGTH))
+			return -ENOMEM;
+
+		txd_info.size = skb_headlen(skb);
+	}
+
 	itxd = ring->next_free;
 	itxd_pdma = qdma_to_pdma(ring, itxd);
 	if (itxd == ring->last_free)
