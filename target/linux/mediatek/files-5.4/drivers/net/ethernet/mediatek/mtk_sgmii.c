@@ -375,21 +375,3 @@ void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id)
 	val |= SGMII_AN_RESTART;
 	regmap_write(ss->regmap_sgmii[sid], SGMSYS_PCS_CONTROL_1, val);
 }
-
-int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range)
-{
-	unsigned int cur = offset;
-	unsigned int val1 = 0, val2 = 0, val3 = 0, val4 = 0;
-
-	pr_info("\n============ %s ============ pmap:%x\n", name, pmap);
-	while (cur < offset + range) {
-		regmap_read(pmap, cur, &val1);
-		regmap_read(pmap, cur + 0x4, &val2);
-		regmap_read(pmap, cur + 0x8, &val3);
-		regmap_read(pmap, cur + 0xc, &val4);
-		pr_info("0x%x: %08x %08x %08x %08x\n", cur,
-			val1, val2, val3, val4);
-		cur += 0x10;
-	}
-	return 0;
-}

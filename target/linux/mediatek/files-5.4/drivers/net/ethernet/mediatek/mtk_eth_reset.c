@@ -206,10 +206,14 @@ void mtk_dump_netsys_info(void *_eth)
 	mtk_dump_reg(eth, "WDMA", WDMA_BASE(0), 0x600);
 	mtk_dump_reg(eth, "PPE", 0x2200, 0x200);
 	mtk_dump_reg(eth, "GMAC", 0x10000, 0x300);
-	mtk_dump_reg(eth, "XGMAC0", 0x12000, 0x300);
-	mtk_dump_reg(eth, "XGMAC1", 0x13000, 0x300);
-	mtk_dump_usxgmii(eth->xgmii->regmap_usxgmii[0], "USXGMII0", 0, 0x1000);
-	mtk_dump_usxgmii(eth->xgmii->regmap_usxgmii[1], "USXGMII1", 0, 0x1000);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		mtk_dump_reg(eth, "XGMAC0", 0x12000, 0x300);
+		mtk_dump_reg(eth, "XGMAC1", 0x13000, 0x300);
+		mtk_dump_usxgmii(eth->xgmii->regmap_usxgmii[0],
+			"USXGMII0", 0, 0x1000);
+		mtk_dump_usxgmii(eth->xgmii->regmap_usxgmii[1],
+			"USXGMII1", 0, 0x1000);
+	}
 }
 
 u32 mtk_monitor_wdma_tx(struct mtk_eth *eth)
