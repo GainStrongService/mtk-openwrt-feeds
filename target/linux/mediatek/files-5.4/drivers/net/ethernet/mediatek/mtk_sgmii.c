@@ -110,6 +110,28 @@ void mtk_sgmii_reset(struct mtk_xgmii *ss, int mac_id)
 	mdelay(1);
 }
 
+int mtk_sgmii_need_powerdown(struct mtk_xgmii *ss, int id, int speed)
+{
+	u32 val;
+
+	/* need to power down sgmii if link down */
+	regmap_read(ss->regmap_sgmii[id], SGMSYS_PCS_CONTROL_1, &val);
+	if (!(val & SGMII_LINK_STATYS))
+		return true;
+
+	/* need to power down sgmii if link speed changed */
+	regmap_read(ss->regmap_sgmii[id], ss->ana_rgc3, &val);
+	if (speed == SPEED_2500) {
+		if (!(val & RG_PHY_SPEED_3_125G))
+			return true;
+	} else {
+		if (val & RG_PHY_SPEED_3_125G)
+			return true;
+	}
+
+	return false;
+}
+
 void mtk_sgmii_setup_phya_gen1(struct mtk_xgmii *ss, int mac_id)
 {
 	u32 id = mtk_mac2xgmii_id(ss->eth, mac_id);
@@ -245,8 +267,10 @@ int mtk_sgmii_setup_mode_an(struct mtk_xgmii *ss, unsigned int mac_id)
 		mtk_sgmii_reset(ss, mac_id);
 	}
 
-	/* Assert PHYA power down state */
-	regmap_write(ss->regmap_sgmii[id], SGMSYS_QPHY_PWR_STATE_CTRL, SGMII_PHYA_PWD);
+	/* Assert PHYA power down state when needed */
+	if (mtk_sgmii_need_powerdown(ss, id, SPEED_1000))
+		regmap_write(ss->regmap_sgmii[id], SGMSYS_QPHY_PWR_STATE_CTRL,
+			     SGMII_PHYA_PWD);
 
 	/* Reset SGMII PCS state */
 	regmap_write(ss->regmap_sgmii[id], SGMII_RESERVED_0, SGMII_SW_RESET);
@@ -302,8 +326,10 @@ int mtk_sgmii_setup_mode_force(struct mtk_xgmii *ss, unsigned int mac_id,
 		mtk_sgmii_reset(ss, mac_id);
 	}
 
-	/* Assert PHYA power down state */
-	regmap_write(ss->regmap_sgmii[id], SGMSYS_QPHY_PWR_STATE_CTRL, SGMII_PHYA_PWD);
+	/* Assert PHYA power down state when needed */
+	if (mtk_sgmii_need_powerdown(ss, id, state->speed))
+		regmap_write(ss->regmap_sgmii[id], SGMSYS_QPHY_PWR_STATE_CTRL,
+			     SGMII_PHYA_PWD);
 
 	/* Reset SGMII PCS state */
 	regmap_write(ss->regmap_sgmii[id], SGMII_RESERVED_0, SGMII_SW_RESET);
