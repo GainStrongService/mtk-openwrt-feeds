@@ -1122,8 +1122,12 @@ if [ "${cmd_type}" = "set" ]; then
         ## Therefore this wrapper would translate it to either mt76-test or mt76-vendor based on the attribute of the command
         ## Translate to mt76-vendor command
         "csi"|"amnt"|"ap_rfeatures"|"ap_wireless"|"hemu")
-            do_cmd "mt76-vendor $*"
-            skip=1
+	    if [ ${is_eagle} == "1" ]; then
+                do_cmd "hostapd_cli -i $*"
+                skip=1
+	    else
+                do_cmd "mt76-vendor $*"
+                skip=1
             ;;
         "ATE")
             do_ate_work ${param}
