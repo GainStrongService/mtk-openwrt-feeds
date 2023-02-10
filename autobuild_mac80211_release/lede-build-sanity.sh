@@ -174,6 +174,9 @@ prepare_mac80211() {
 	rm -rf ${BUILD_DIR}/package/network/utils/iwinfo
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iwinfo ${BUILD_DIR}/package/network/utils
 
+	rm -rf ${BUILD_DIR}/package/network/config/netifd
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/config/netifd ${BUILD_DIR}/package/network/config
+
 	rm -rf ${BUILD_DIR}/package/kernel/mac80211
 	if [ $1 = "1" ]; then
 		echo "=========================MAC80211 v6.1==================="
@@ -190,10 +193,10 @@ prepare_mac80211() {
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/firmware/wireless-regdb ${BUILD_DIR}/package/firmware
 
 	# do not directly remove mt76 folder, since the firmware folder will also be removed and enter an unsync state
-        rm -rf ${BUILD_DIR}/package/kernel/mt76/Makefile
-        rm -rf ${BUILD_DIR}/package/kernel/mt76/patches
-        rm -rf ${BUILD_DIR}/package/kernel/mt76/src
-        cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
+	rm -rf ${BUILD_DIR}/package/kernel/mt76/Makefile
+	rm -rf ${BUILD_DIR}/package/kernel/mt76/patches
+	rm -rf ${BUILD_DIR}/package/kernel/mt76/src
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
 
 	#hack hostapd config
 	echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
@@ -279,7 +282,7 @@ install_output_feeds_buildinfo() {
 }
 
 install_output_at() {
-	tar -zcvf to at.tgz -C ${INSTALL_DIR}/$1 .
+	tar -zcvf to_at.tgz -C ${INSTALL_DIR}/$1 .
 	mv to_at.tgz ${INSTALL_DIR}/
 }
 

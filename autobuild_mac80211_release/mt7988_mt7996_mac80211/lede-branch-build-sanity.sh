@@ -4,16 +4,12 @@ source ./autobuild/lede-build-sanity.sh
 #get the brach_name
 temp=${0%/*}
 branch_name=${temp##*/}
-rro=0
 hwpath=0
 backport_new=1
 args=
 
 for arg in $*; do
 	case "$arg" in
-	"rro")
-		rro=1
-		;;
 	"hwpath")
 		hwpath=1
 		;;
@@ -25,11 +21,6 @@ done
 set -- $args
 
 change_dot_config() {
-	[ "$rro" = "0" ] && {
-		rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*pao*.patch
-		rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*rro*.patch
-		rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*bellwether*.patch
-	}
 	[ "$hwpath" = "0" ] && {
 		echo "==========SW PATH========="
 		sed -i 's/CONFIG_BRIDGE_NETFILTER=y/# CONFIG_BRIDGE_NETFILTER is not set/g' ${BUILD_DIR}/target/linux/mediatek/mt7988/config-5.4
@@ -37,7 +28,7 @@ change_dot_config() {
 		sed -i 's/CONFIG_SKB_EXTENSIONS=y/# CONFIG_SKB_EXTENSIONS is not set/g' ${BUILD_DIR}/target/linux/mediatek/mt7988/config-5.4
 	}
 	[ "$backport_new" = "1" ] && {
-                rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*revert-for-backports*.patch
+		rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*revert-for-backports*.patch
         }
 }
 
@@ -52,17 +43,23 @@ echo "CONFIG_NETFILTER_ADVANCED=y" >> ${BUILD_DIR}/target/linux/mediatek/mt7988/
 echo "CONFIG_RELAY=y" >> ${BUILD_DIR}/target/linux/mediatek/mt7988/config-5.4
 
 prepare_flowoffload
-##############################################################################
-rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mt76/patches
-##############################################################################
 
 #prepare mac80211 mt76 wifi stuff
 prepare_mac80211 ${backport_new}
 
-###############################################################################
-# remove hostapd internal patches
-rm -rf ${BUILD_DIR}/package/network/services/hostapd/patches/999*mtk*.patch
-###############################################################################
+# find ${BUILD_DIR}/package/kernel/mt76/patches -name "*-mt76-*.patch" -delete
+rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*
+
+# ========== specific modification on mt7996 autobuild for EHT support ==========
+# patch mac80211.sh script
+patch -p1 < ${BUILD_DIR}/autobuild/${branch_name}/0001-support-EHT-for-mac80211.sh.patch
+# patch hostapd to use latest version and add 11BE config
+patch -p1 < ${BUILD_DIR}/autobuild/${branch_name}/0002-add-EHT-config-for-hostapd.patch
+
+# remove some iw patches to let EHT work normally
+rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/001-nl80211_h_sync.patch
+rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/120-antenna_gain.patch
+# ===========================================================
 
 prepare_final ${branch_name}
 
