@@ -1,3 +1,25 @@
+diff --git a/drivers/net/phy/marvell10g.c b/drivers/net/phy/marvell10g.c
+index daed73a..7d080d5 100644
+--- a/drivers/net/phy/marvell10g.c
++++ b/drivers/net/phy/marvell10g.c
+@@ -516,6 +516,7 @@ static void mv3310_update_interface(struct phy_device *phydev)
+ 
+ 	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
+ 	     phydev->interface == PHY_INTERFACE_MODE_2500BASEX ||
++	     phydev->interface == PHY_INTERFACE_MODE_5GBASER ||
+ 	     phydev->interface == PHY_INTERFACE_MODE_10GKR) && phydev->link) {
+ 		/* The PHY automatically switches its serdes interface (and
+ 		 * active PHYXS instance) between Cisco SGMII, 10GBase-KR and
+@@ -527,6 +528,9 @@ static void mv3310_update_interface(struct phy_device *phydev)
+ 		case SPEED_10000:
+ 			phydev->interface = PHY_INTERFACE_MODE_10GKR;
+ 			break;
++		case SPEED_5000:
++			phydev->interface = PHY_INTERFACE_MODE_5GBASER;
++			break;
+ 		case SPEED_2500:
+ 			phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
+ 			break;
 diff --git a/drivers/net/phy/phylink.c b/drivers/net/phy/phylink.c
 index b3f25a9..6a38a1c 100644
 --- a/drivers/net/phy/phylink.c

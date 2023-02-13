@@ -39,6 +39,7 @@
 static int mtk_msg_level = -1;
 atomic_t reset_lock = ATOMIC_INIT(0);
 atomic_t force = ATOMIC_INIT(0);
+atomic_t reset_pending = ATOMIC_INIT(0);
 
 module_param_named(msg_level, mtk_msg_level, int, 0);
 MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
@@ -338,6 +339,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 	struct mtk_eth *eth = mac->hw;
 	u32 sid, i;
 	int val = 0, ge_mode, err = 0;
+	unsigned int mac_type = mac->type;
 
 	/* MT76x8 has no hardware settings between for the MAC */
 	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628) &&
@@ -358,6 +360,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		case PHY_INTERFACE_MODE_MII:
 		case PHY_INTERFACE_MODE_REVMII:
 		case PHY_INTERFACE_MODE_RMII:
+			mac->type = MTK_GDM_TYPE;
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_RGMII)) {
 				err = mtk_gmac_rgmii_path_setup(eth, mac->id);
 				if (err)
@@ -367,6 +370,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		case PHY_INTERFACE_MODE_1000BASEX:
 		case PHY_INTERFACE_MODE_2500BASEX:
 		case PHY_INTERFACE_MODE_SGMII:
+			mac->type = MTK_GDM_TYPE;
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_SGMII)) {
 				err = mtk_gmac_sgmii_path_setup(eth, mac->id);
 				if (err)
@@ -374,6 +378,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 			}
 			break;
 		case PHY_INTERFACE_MODE_GMII:
+			mac->type = MTK_GDM_TYPE;
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_GEPHY)) {
 				err = mtk_gmac_gephy_path_setup(eth, mac->id);
 				if (err)
@@ -381,6 +386,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 			}
 			break;
 		case PHY_INTERFACE_MODE_XGMII:
+			mac->type = MTK_XGDM_TYPE;
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_XGMII)) {
 				err = mtk_gmac_xgmii_path_setup(eth, mac->id);
 				if (err)
@@ -390,6 +396,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		case PHY_INTERFACE_MODE_USXGMII:
 		case PHY_INTERFACE_MODE_10GKR:
 		case PHY_INTERFACE_MODE_5GBASER:
+			mac->type = MTK_XGDM_TYPE;
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_USXGMII)) {
 				err = mtk_gmac_usxgmii_path_setup(eth, mac->id);
 				if (err)
@@ -528,6 +535,29 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 				break;
 			}
 		}
+	} else if (mac->type == MTK_GDM_TYPE) {
+		val = mtk_r32(eth, MTK_GDMA_EG_CTRL(mac->id));
+		mtk_w32(eth, val & ~MTK_GDMA_XGDM_SEL,
+			MTK_GDMA_EG_CTRL(mac->id));
+
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+			switch (mac->id) {
+			case MTK_GMAC3_ID:
+				val = mtk_r32(eth, MTK_XGMAC_STS(mac->id));
+				mtk_w32(eth, val & ~MTK_XGMAC_FORCE_LINK,
+					MTK_XGMAC_STS(mac->id));
+				break;
+			}
+		}
+
+		if (mac->type != mac_type) {
+			if (atomic_read(&reset_pending) == 0) {
+				atomic_inc(&force);
+				schedule_work(&eth->pending_work);
+				atomic_inc(&reset_pending);
+			} else
+				atomic_dec(&reset_pending);
+		}
 	}
 
 	return;
@@ -571,6 +601,7 @@ static int mtk_mac_pcs_get_state(struct phylink_config *config,
 			break;
 		}
 
+		state->interface = mac->interface;
 		state->link = FIELD_GET(MTK_USXGMII_PCS_LINK, sts);
 	} else if (mac->type == MTK_GDM_TYPE) {
 		struct mtk_eth *eth = mac->hw;
@@ -581,6 +612,7 @@ static int mtk_mac_pcs_get_state(struct phylink_config *config,
 
 		regmap_read(ss->regmap_sgmii[id], SGMSYS_PCS_CONTROL_1, &val);
 
+		state->interface = mac->interface;
 		state->link = FIELD_GET(SGMII_LINK_STATYS, val);
 
 		if (FIELD_GET(SGMII_AN_ENABLE, val)) {

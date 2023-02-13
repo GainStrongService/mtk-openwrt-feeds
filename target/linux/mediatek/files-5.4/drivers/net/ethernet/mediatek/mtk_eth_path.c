@@ -162,21 +162,6 @@ static int set_mux_gmac2_to_xgmii(struct mtk_eth *eth, u64 path)
 		regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
 				   SYSCFG0_SGMII_MASK, val);
 
-	/* Enable GDM/XGDM Path */
-	if (eth->mac[mac_id]->type == MTK_GDM_TYPE) {
-		val = mtk_r32(eth, MTK_GDMA_EG_CTRL(mac_id));
-		mtk_w32(eth, val & ~MTK_GDMA_XGDM_SEL,
-			MTK_GDMA_EG_CTRL(mac_id));
-	} else if (eth->mac[mac_id]->type == MTK_XGDM_TYPE) {
-		val = mtk_r32(eth, MTK_GDMA_EG_CTRL(mac_id));
-		mtk_w32(eth, val | MTK_GDMA_XGDM_SEL,
-			MTK_GDMA_EG_CTRL(mac_id));
-
-		val = mtk_r32(eth, MTK_XGMAC_STS(mac_id));
-		mtk_w32(eth, val | (MTK_XGMAC_FORCE_LINK << 16),
-			MTK_XGMAC_STS(mac_id));
-	}
-
 	spin_unlock(&eth->syscfg0_lock);
 
 	dev_dbg(eth->dev, "path %s in %s updated = %d\n",
@@ -270,11 +255,6 @@ static int set_mux_gmac123_to_usxgmii(struct mtk_eth *eth, u64 path)
 					   MUX_G2_USXGMII_SEL);
 		}
 	}
-
-	/* Enable XGDM Path */
-	val = mtk_r32(eth, MTK_GDMA_EG_CTRL(mac_id));
-	val |= MTK_GDMA_XGDM_SEL;
-	mtk_w32(eth, val, MTK_GDMA_EG_CTRL(mac_id));
 
 	dev_dbg(eth->dev, "path %s in %s updated = %d\n",
 		mtk_eth_path_name(path), __func__, updated);
