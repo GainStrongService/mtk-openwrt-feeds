@@ -10,12 +10,13 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_wed.c       | 13 +++++++
  include/linux/soc/mediatek/mtk_wed.h          |  6 +++-
  4 files changed, 45 insertions(+), 11 deletions(-)
+ mode change 100755 => 100644 drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index ab1df9c..7879798 100644
+index b935de6..acefa48 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1716,6 +1716,8 @@ void ethsys_reset(struct mtk_eth *eth, u32 reset_bits);
+@@ -1767,6 +1767,8 @@ void ethsys_reset(struct mtk_eth *eth, u32 reset_bits);
  int mtk_eth_offload_init(struct mtk_eth *eth, int id);
  int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
  		     void *type_data);
@@ -25,7 +26,9 @@ index ab1df9c..7879798 100644
  
  int mtk_ppe_debugfs_init(struct mtk_eth *eth);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 2787a97..23d2048 100644
+old mode 100755
+new mode 100644
+index 2787a97..23d2048
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 @@ -546,10 +546,20 @@ static int
@@ -99,10 +102,10 @@ index 2787a97..23d2048 100644
  		return -EOPNOTSUPP;
  	}
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index b328a52..a6e6eb8 100644
+index 1a615f2..37a86c3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
-@@ -1717,6 +1717,18 @@ out:
+@@ -1731,6 +1731,18 @@ out:
  	mutex_unlock(&hw_lock);
  }
  
@@ -121,7 +124,7 @@ index b328a52..a6e6eb8 100644
  void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  			void __iomem *wdma, u32 wdma_phy, int index)
  
-@@ -1735,6 +1747,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -1749,6 +1761,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  		.irq_get = mtk_wed_irq_get,
  		.irq_set_mask = mtk_wed_irq_set_mask,
  		.detach = mtk_wed_detach,
@@ -130,29 +133,29 @@ index b328a52..a6e6eb8 100644
  	};
  	struct device_node *eth_np = eth->dev->of_node;
 diff --git a/include/linux/soc/mediatek/mtk_wed.h b/include/linux/soc/mediatek/mtk_wed.h
-index 00c9a78..96c8a03 100644
+index 98ed390..27cf284 100644
 --- a/include/linux/soc/mediatek/mtk_wed.h
 +++ b/include/linux/soc/mediatek/mtk_wed.h
-@@ -182,7 +182,8 @@ struct mtk_wed_ops {
+@@ -183,7 +183,8 @@ struct mtk_wed_ops {
  	int (*msg_update)(struct mtk_wed_device *dev, int cmd_id,
  			  void *data, int len);
  	void (*detach)(struct mtk_wed_device *dev);
 -
 +	int (*setup_tc)(struct mtk_wed_device *wed, struct net_device *dev,
 +			 int type, void *type_data);
- 	void (*stop)(struct mtk_wed_device *dev, bool reset);
+ 	void (*stop)(struct mtk_wed_device *dev);
  	void (*start)(struct mtk_wed_device *dev, u32 irq_mask);
  	void (*reset_dma)(struct mtk_wed_device *dev);
-@@ -231,6 +232,8 @@ mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
+@@ -232,6 +233,8 @@ mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
  #define mtk_wed_device_active(_dev) !!(_dev)->ops
  #define mtk_wed_device_detach(_dev) (_dev)->ops->detach(_dev)
 +#define mtk_wed_device_setup_tc(_dev, _ndev, _type, _data) \
 +	(_dev)->ops->setup_tc(_dev, _ndev, _type, _data)
  #define mtk_wed_device_start(_dev, _mask) (_dev)->ops->start(_dev, _mask)
- #define mtk_wed_device_stop(_dev, _reset) (_dev)->ops->stop(_dev, _reset)
+ #define mtk_wed_device_stop(_dev) (_dev)->ops->stop(_dev)
  #define mtk_wed_device_tx_ring_setup(_dev, _ring, _regs, _reset) \
-@@ -269,6 +272,7 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
+@@ -270,6 +273,7 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
  #define mtk_wed_device_irq_get(_dev, _mask) 0
  #define mtk_wed_device_irq_set_mask(_dev, _mask) do {} while (0)
  #define mtk_wed_device_dma_reset(_dev) do {} while (0)

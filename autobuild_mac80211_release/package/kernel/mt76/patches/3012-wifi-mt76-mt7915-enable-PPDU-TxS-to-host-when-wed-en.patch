@@ -1,4 +1,4 @@
-From 8af0601319706314171a8f9ed9117dd3fada484f Mon Sep 17 00:00:00 2001
+From 3c70695fbf551ae8eaf90fa92f08ab45199f69e4 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 18 Jan 2023 11:50:38 +0800
 Subject: [PATCH 3012/3015] wifi: mt76: mt7915: enable PPDU-TxS to host when
@@ -13,7 +13,7 @@ Calculate tx bytes and tx retries from PPDU-TxS
  4 files changed, 12 insertions(+), 23 deletions(-)
 
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index 05a7a215..d7cca351 100644
+index 05ba5f26..4e24c492 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -490,8 +490,6 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
@@ -26,10 +26,10 @@ index 05a7a215..d7cca351 100644
  			wcid->stats.tx_packets++;
  	}
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 92977b98..f24c45f6 100644
+index c3b186c8..a1be5b7d 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -489,6 +489,12 @@ mt7915_mac_init_band(struct mt7915_dev *dev, u8 band)
+@@ -491,6 +491,12 @@ mt7915_mac_init_band(struct mt7915_dev *dev, u8 band)
  	set = FIELD_PREP(MT_WTBLOFF_TOP_RSCR_RCPI_MODE, 0) |
  	      FIELD_PREP(MT_WTBLOFF_TOP_RSCR_RCPI_PARAM, 0x3);
  	mt76_rmw(dev, MT_WTBLOFF_TOP_RSCR(band), mask, set);

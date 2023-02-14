@@ -1,4 +1,4 @@
-From aecf943a183c8b1e0ea7d503e406b88ebed57d06 Mon Sep 17 00:00:00 2001
+From dbd25fa4a361f77c713e2f95e11c3806c490877e Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 18 Jan 2023 16:37:22 +0800
 Subject: [PATCH 3010/3015] wifi: mt76: mt7915: add wa command to get tx msdu
@@ -41,7 +41,7 @@ index f33171bc..101e7602 100644
  
  /* RXD DW1 */
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index 614df85e..57e02aec 100644
+index aed4ee95..2643f5aa 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -491,7 +491,9 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
@@ -80,10 +80,10 @@ index 130a8d25..34df625a 100644
  	MCU_EXT_EVENT_MURU_CTRL = 0x9f,
  	MCU_EXT_EVENT_CSI_REPORT = 0xc2,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 8ebea612..dca93cd8 100644
+index 22d293e9..eba0caa6 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1103,9 +1103,6 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1101,9 +1101,6 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  		sinfo->tx_bytes = msta->wcid.stats.tx_bytes;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BYTES64);
  
@@ -93,7 +93,7 @@ index 8ebea612..dca93cd8 100644
  		sinfo->tx_failed = msta->wcid.stats.tx_failed;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
  
-@@ -1121,6 +1118,11 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1119,6 +1116,11 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  		}
  	}
  
@@ -106,7 +106,7 @@ index 8ebea612..dca93cd8 100644
  	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL);
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index b5a0967b..07681902 100644
+index 7301ec1d..3e0c3ab1 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -168,7 +168,9 @@ mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
@@ -137,7 +137,7 @@ index b5a0967b..07681902 100644
  		mt7915_mcu_rx_unsolicited_event(dev, skb);
  	else
  		mt76_mcu_rx_event(&dev->mt76, skb);
-@@ -4086,6 +4089,53 @@ out:
+@@ -4087,6 +4090,53 @@ out:
  	return ret;
  }
  
@@ -214,10 +214,10 @@ index 24d0efd3..5f6c7c80 100644
  	MCU_MMPS_STATIC,
  	MCU_MMPS_DYNAMIC,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 594dfcd5..d76ca390 100644
+index dd6b673b..6536285c 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -712,6 +712,7 @@ int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state);
+@@ -713,6 +713,7 @@ int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state);
  int mt7915_mcu_set_thermal_protect(struct mt7915_phy *phy);
  int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
  			   struct ieee80211_sta *sta, struct rate_info *rate);

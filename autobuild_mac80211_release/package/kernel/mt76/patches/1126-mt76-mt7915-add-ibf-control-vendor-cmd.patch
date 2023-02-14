@@ -1,4 +1,4 @@
-From 7a747cdaec4b7093433fe2e3894c545874c3e0c1 Mon Sep 17 00:00:00 2001
+From 169a6fe9914e6480b9981f5cd6a3911e8700e46c Mon Sep 17 00:00:00 2001
 From: mtk27835 <shurong.wen@mediatek.com>
 Date: Wed, 7 Sep 2022 14:01:29 -0700
 Subject: [PATCH 1126/1133] mt76: mt7915: add ibf control vendor cmd
@@ -10,7 +10,7 @@ Signed-off-by: mtk27835 <shurong.wen@mediatek.com>
  2 files changed, 89 insertions(+), 1 deletion(-)
 
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index fb760e17..22af66d5 100644
+index 48d124e0..9cd6e811 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -86,6 +86,11 @@ edcca_dump_policy[NUM_MTK_VENDOR_ATTRS_EDCCA_DUMP] = {
@@ -25,7 +25,7 @@ index fb760e17..22af66d5 100644
  struct csi_null_tone {
  	u8 start;
  	u8 end;
-@@ -1189,6 +1194,54 @@ static int mt7915_vendor_3wire_ctrl(struct wiphy *wiphy,
+@@ -1188,6 +1193,54 @@ static int mt7915_vendor_3wire_ctrl(struct wiphy *wiphy,
  	return mt7915_mcu_set_cfg(phy, CFGINFO_3WIRE_EN_CFG, three_wire_mode);
  }
  
@@ -80,7 +80,7 @@ index fb760e17..22af66d5 100644
  
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
-@@ -1282,6 +1335,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1281,6 +1334,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.doit = mt7915_vendor_3wire_ctrl,
  		.policy = three_wire_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_3WIRE_CTRL_MAX,

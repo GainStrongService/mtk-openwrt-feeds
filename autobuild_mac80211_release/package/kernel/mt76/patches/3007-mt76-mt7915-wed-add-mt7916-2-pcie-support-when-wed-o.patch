@@ -1,7 +1,7 @@
-From b4091a26e5e6ac5b80a587afdbfd8a54251d050f Mon Sep 17 00:00:00 2001
+From 76a6c0fd812fa4682abca05d94594f063808d815 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 2 Dec 2022 17:17:06 +0800
-Subject: [PATCH 3007/3010] mt76: mt7915: wed: add mt7916 2 pcie support when
+Subject: [PATCH 3007/3015] mt76: mt7915: wed: add mt7916 2 pcie support when
  wed on
 
 It should use bit 23 in interrupt mask for wfdma band1 data
@@ -34,10 +34,10 @@ index abe17dac..52fabde0 100644
  				   MT7916_RXQ_MCU_WA_MAIN);
  			TXQ_CONFIG(0, WFDMA0, MT_INT_WED_TX_DONE_BAND0,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index e3b7d824..b5a0967b 100644
+index 134dc5cb..7301ec1d 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2416,7 +2416,8 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
+@@ -2417,7 +2417,8 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
  		return ret;
  
  	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {

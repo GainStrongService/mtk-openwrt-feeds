@@ -1,4 +1,4 @@
-From 6f923c7b8315b6ca8c2308970f8c1e0794421116 Mon Sep 17 00:00:00 2001
+From 3991eb6b59ffaf4f30815206fb451bc32e2e2af6 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Wed, 14 Dec 2022 00:44:07 -0800
 Subject: [PATCH 1130/1133] mt76: mt7915: amsdu set and get control
@@ -32,10 +32,10 @@ index 623bf2d4..6fe5cac6 100644
  void mt7915_capi_sta_rc_work(void *data, struct ieee80211_sta *sta)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 85c88bdd..eb24b45f 100644
+index 20b0496f..c14d13ae 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -747,6 +747,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -748,6 +748,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  			 bool pci, int *irq);
  
  #ifdef CONFIG_MTK_VENDOR
@@ -44,7 +44,7 @@ index 85c88bdd..eb24b45f 100644
  void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
  void mt7915_mcu_set_rfeature_starec(void *data, struct mt7915_dev *dev,
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 22af66d5..a1f526c9 100644
+index 9cd6e811..766fa595 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -30,10 +30,16 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -100,7 +100,7 @@ index 22af66d5..a1f526c9 100644
  static int mt7915_vendor_hemu_ctrl(struct wiphy *wiphy,
  				  struct wireless_dev *wdev,
  				  const void *data,
-@@ -1287,6 +1317,7 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1286,6 +1316,7 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
  			WIPHY_VENDOR_CMD_NEED_RUNNING,
  		.doit = mt7915_vendor_wireless_ctrl,

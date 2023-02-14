@@ -1,4 +1,4 @@
-From 6c1940b9974057133ad6a27509d21547937d2ab6 Mon Sep 17 00:00:00 2001
+From a8e76b8635c6daf65fb029ea4476ef777768c092 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Thu, 5 Jan 2023 16:43:57 +0800
 Subject: [PATCH 3015/3015] mt76: connac: wed: add wed rx copy skb and revert
@@ -10,10 +10,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  mac80211.c    |  57 ---------------------
  mt76.h        |  22 +-------
  mt7915/main.c |  26 ++++------
- mt7915/mmio.c |  77 ++++++++++++++++++++--------
+ mt7915/mmio.c |  74 +++++++++++++++++++--------
  mt7921/main.c |  31 ++----------
  usb.c         |  42 +++++++--------
- 7 files changed, 183 insertions(+), 210 deletions(-)
+ 7 files changed, 180 insertions(+), 210 deletions(-)
 
 diff --git a/dma.c b/dma.c
 index 76af6506..79da538c 100644
@@ -448,10 +448,10 @@ index 22c6531a..19100d62 100644
  static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
  {
 diff --git a/mt7915/main.c b/mt7915/main.c
-index ef1cf20c..0a64ef01 100644
+index a4d1b816..21caddbe 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1361,22 +1361,19 @@ void mt7915_get_et_strings(struct ieee80211_hw *hw,
+@@ -1359,22 +1359,19 @@ void mt7915_get_et_strings(struct ieee80211_hw *hw,
  			   struct ieee80211_vif *vif,
  			   u32 sset, u8 *data)
  {
@@ -480,7 +480,7 @@ index ef1cf20c..0a64ef01 100644
  }
  
  static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
-@@ -1404,7 +1401,7 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
+@@ -1402,7 +1399,7 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
  	};
  	struct mib_stats *mib = &phy->mib;
  	/* See mt7915_ampdu_stat_read_phy, etc */
@@ -489,7 +489,7 @@ index ef1cf20c..0a64ef01 100644
  
  	mutex_lock(&dev->mt76.mutex);
  
-@@ -1485,12 +1482,9 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
+@@ -1483,12 +1480,9 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
  		return;
  
  	ei += wi.worker_stat_count;
@@ -506,7 +506,7 @@ index ef1cf20c..0a64ef01 100644
  
  static void
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 87cff5d4..0709f5bc 100644
+index 87cff5d4..b6adfd0b 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -581,9 +581,14 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
@@ -524,14 +524,14 @@ index 87cff5d4..0709f5bc 100644
  	for (i = 0; i < dev->mt76.rx_token_size; i++) {
  		struct mt76_rxwi_cache *r;
  
-@@ -591,50 +596,82 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
+@@ -591,50 +596,79 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
  		if (!r || !r->ptr)
  			continue;
  
 -		mt76_put_page_pool_buf(r->ptr, false);
 +		dma_unmap_single(dev->mt76.dma_dev, r->dma_addr,
 +				 wed->wlan.rx_size, DMA_FROM_DEVICE);
-+		__free_pages(virt_to_page(r->ptr), get_order(length));
++		skb_free_frag(r->ptr);
  		r->ptr = NULL;
  
  		mt76_put_rxwi(&dev->mt76, r);
@@ -540,10 +540,9 @@ index 87cff5d4..0709f5bc 100644
  	mt76_free_pending_rxwi(&dev->mt76);
 +
 +	mt76_for_each_q_rx(&dev->mt76, i) {
-+		if (FIELD_GET(MT_QFLAG_WED_TYPE,
-+			      dev->mt76.q_rx[i].flags) == MT76_WED_Q_RX) {
-+			struct mt76_queue *q = &dev->mt76.q_rx[i];
++		struct mt76_queue *q = &dev->mt76.q_rx[i];
 +
++		if (mt76_queue_is_wed_rx(q)) {
 +			if (!q->rx_page.va)
 +				continue;
 +
@@ -583,7 +582,6 @@ index 87cff5d4..0709f5bc 100644
 -		u32 offset;
 +		struct mt76_rxwi_cache *r = mt76_get_rxwi(&dev->mt76);
 +		dma_addr_t phy_addr;
-+		struct page *page;
  		int token;
 -		void *buf;
 +		void *ptr;
@@ -594,8 +592,8 @@ index 87cff5d4..0709f5bc 100644
  
 -		buf = mt76_get_page_pool_buf(q, &offset, q->buf_size);
 -		if (!buf)
-+		page = __dev_alloc_pages(GFP_KERNEL, get_order(length));
-+		if (!page) {
++		ptr = page_frag_alloc(&wed->rx_buf_ring.rx_page, length, GFP_ATOMIC);
++		if (!ptr) {
 +			mt76_put_rxwi(&dev->mt76, r);
  			goto unmap;
 +		}
@@ -603,15 +601,14 @@ index 87cff5d4..0709f5bc 100644
 -		addr = page_pool_get_dma_addr(virt_to_head_page(buf)) + offset;
 -		dir = page_pool_get_dma_dir(q->page_pool);
 -		dma_sync_single_for_device(dev->mt76.dma_dev, addr, len, dir);
- 
--		desc->buf0 = cpu_to_le32(addr);
--		token = mt76_rx_token_consume(&dev->mt76, buf, r, addr);
-+		ptr = page_address(page);
 +		phy_addr = dma_map_single(dev->mt76.dma_dev, ptr,
 +					wed->wlan.rx_size,
 +					DMA_TO_DEVICE);
+ 
+-		desc->buf0 = cpu_to_le32(addr);
+-		token = mt76_rx_token_consume(&dev->mt76, buf, r, addr);
 +		if (unlikely(dma_mapping_error(dev->mt76.dev, phy_addr))) {
-+			__free_pages(page, get_order(length));
++			skb_free_frag(ptr);
 +			mt76_put_rxwi(&dev->mt76, r);
 +			goto unmap;
 +		}
@@ -621,12 +618,12 @@ index 87cff5d4..0709f5bc 100644
 -			mt76_put_page_pool_buf(buf, false);
 +			dma_unmap_single(dev->mt76.dma_dev, phy_addr,
 +					 wed->wlan.rx_size, DMA_TO_DEVICE);
-+			__free_pages(page, get_order(length));
++			skb_free_frag(ptr);
 +			mt76_put_rxwi(&dev->mt76, r);
  			goto unmap;
  		}
  
-@@ -646,8 +683,6 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+@@ -646,8 +680,6 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
  	return 0;
  
  unmap:

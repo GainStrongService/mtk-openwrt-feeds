@@ -1,4 +1,4 @@
-From b9f5dab1bd609a933fab9d7e962a3db1d6e91c29 Mon Sep 17 00:00:00 2001
+From 27a84ef9b8081ba9538efe6bfd94d8baa39b196b Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
 Subject: [PATCH 1121/1133] mt76: mt7915: add vendor subcmd EDCCA ctrl
@@ -28,7 +28,7 @@ index 5cef308a..65863a0d 100644
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/main.c b/mt7915/main.c
-index c32df9b1..96236f4c 100644
+index d1135d9f..0d01d880 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -479,6 +479,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
@@ -42,10 +42,10 @@ index c32df9b1..96236f4c 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 28698d37..46f29021 100644
+index 185b6495..3408555e 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4622,3 +4622,75 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
+@@ -4623,3 +4623,75 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
  
  	return 0;
  }
@@ -154,10 +154,10 @@ index 5c5c92fc..c87fe8e8 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 9d98633c..8418c7dc 100644
+index f6b7241d..582887d4 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -762,7 +762,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
+@@ -763,7 +763,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
  int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
@@ -168,7 +168,7 @@ index 9d98633c..8418c7dc 100644
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 77d71e48..2484e25f 100644
+index 526eb6b2..f712d67c 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -62,6 +62,24 @@ phy_capa_dump_policy[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP] = {
