@@ -1,7 +1,7 @@
-From 63eb14a66a1ed384a0bb952b9b50fe81a859690a Mon Sep 17 00:00:00 2001
+From 93b3732a72b037e4cf321d640bcb28e97becbdb2 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Wed, 14 Dec 2022 00:26:50 -0800
-Subject: [PATCH 910/912] mac80211: mtk: fix tx amsdu aggregation
+Subject: [PATCH 12/15] mac80211: mtk: fix tx amsdu aggregation
 
 ---
  include/net/mac80211.h | 7 +++++++
@@ -9,10 +9,10 @@ Subject: [PATCH 910/912] mac80211: mtk: fix tx amsdu aggregation
  2 files changed, 11 insertions(+), 2 deletions(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 4485cfa..5429de0 100644
+index dc4faea..286810b 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -2851,6 +2851,13 @@ static inline void _ieee80211_hw_set(struct ieee80211_hw *hw,
+@@ -2864,6 +2864,13 @@ static inline void _ieee80211_hw_set(struct ieee80211_hw *hw,
  }
  #define ieee80211_hw_set(hw, flg)	_ieee80211_hw_set(hw, IEEE80211_HW_##flg)
  
@@ -51,5 +51,5 @@ index 1f46561..318c71e 100755
  	capab |= u16_encode_bits(tid, IEEE80211_ADDBA_PARAM_TID_MASK);
  	capab |= u16_encode_bits(agg_size, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
 -- 
-2.36.1
+2.25.1
 

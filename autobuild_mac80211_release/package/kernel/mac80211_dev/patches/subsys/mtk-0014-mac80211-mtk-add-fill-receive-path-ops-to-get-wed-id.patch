@@ -1,8 +1,7 @@
-From 2fddf05d7d9786a42466ec504c890f91e1944612 Mon Sep 17 00:00:00 2001
+From b36c1fd5e967880b025a8301aadbeb832a364639 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Wed, 18 May 2022 15:10:22 +0800
-Subject: [PATCH 99900/99901] mac80211: mtk: add fill receive path ops to get
- wed idx
+Subject: [PATCH 14/16] mac80211: mtk: add fill receive path ops to get wed idx
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -14,7 +13,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  mode change 100644 => 100755 net/mac80211/util.c
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 5429de0..dd9e834 100644
+index 286810b..f68eb7d 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -1354,7 +1354,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
@@ -35,7 +34,7 @@ index 5429de0..dd9e834 100644
   *	from the RX info data, so leave those zeroed when building this data)
   * @RX_FLAG_RADIOTAP_HE_MU: HE MU radiotap data is present
   *	(&struct ieee80211_radiotap_he_mu)
-@@ -1911,6 +1911,12 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
+@@ -1924,6 +1924,12 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
   */
  struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif);
  
@@ -48,7 +47,7 @@ index 5429de0..dd9e834 100644
  /**
   * lockdep_vif_mutex_held - for lockdep checks on link poiners
   * @vif: the interface to check
-@@ -4180,6 +4186,8 @@ struct ieee80211_prep_tx_info {
+@@ -4193,6 +4199,8 @@ struct ieee80211_prep_tx_info {
   *	Note that a sta can also be inserted or removed with valid links,
   *	i.e. passed to @sta_add/@sta_state with sta->valid_links not zero.
   *	In fact, cannot change from having valid_links and not having them.
@@ -57,7 +56,7 @@ index 5429de0..dd9e834 100644
   */
  struct ieee80211_ops {
  	void (*tx)(struct ieee80211_hw *hw,
-@@ -4535,6 +4543,9 @@ struct ieee80211_ops {
+@@ -4548,6 +4556,9 @@ struct ieee80211_ops {
  				struct ieee80211_vif *vif,
  				struct ieee80211_sta *sta,
  				u16 old_links, u16 new_links);
@@ -90,10 +89,10 @@ index 3d16b09..bbecd2e 100644
 +
  #endif /* __MAC80211_DRIVER_OPS */
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index 674b749..af8d96b 100644
+index 25a7545..6e76b23 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
-@@ -918,6 +918,29 @@ out:
+@@ -920,6 +920,29 @@ out:
  	return ret;
  }
  
@@ -123,7 +122,7 @@ index 674b749..af8d96b 100644
  static const struct net_device_ops ieee80211_dataif_8023_ops = {
  	.ndo_open		= ieee80211_open,
  	.ndo_stop		= ieee80211_stop,
-@@ -927,6 +950,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
+@@ -929,6 +952,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
  	.ndo_set_mac_address	= ieee80211_change_mac,
  	.ndo_get_stats64	= ieee80211_get_stats64,
  	.ndo_fill_forward_path	= ieee80211_netdev_fill_forward_path,
@@ -134,7 +133,7 @@ index 674b749..af8d96b 100644
 diff --git a/net/mac80211/util.c b/net/mac80211/util.c
 old mode 100644
 new mode 100755
-index 005a730..189ab8a
+index 608f927..fd63ee3
 --- a/net/mac80211/util.c
 +++ b/net/mac80211/util.c
 @@ -914,6 +914,15 @@ struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
@@ -154,5 +153,5 @@ index 005a730..189ab8a
   * Nothing should have been stuffed into the workqueue during
   * the suspend->resume cycle. Since we can't check each caller
 -- 
-2.36.1
+2.25.1
 
