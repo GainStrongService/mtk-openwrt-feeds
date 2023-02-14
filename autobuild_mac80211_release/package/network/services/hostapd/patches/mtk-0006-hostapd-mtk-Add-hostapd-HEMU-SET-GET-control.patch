@@ -1,7 +1,7 @@
-From 893c5f92257a7313a179dc728ba51a74efbfc74a Mon Sep 17 00:00:00 2001
+From 4919444a2dc29c019ec92321109603763c732071 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Tue, 9 Aug 2022 10:23:44 -0700
-Subject: [PATCH 99905/99910] hostapd: mtk: Add hostapd HEMU SET/GET control
+Subject: [PATCH 06/15] hostapd: mtk: Add hostapd HEMU SET/GET control
 
 ---
  hostapd/config_file.c             |   9 +++
@@ -20,10 +20,10 @@ Subject: [PATCH 99905/99910] hostapd: mtk: Add hostapd HEMU SET/GET control
  13 files changed, 251 insertions(+)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 0ee8952..b22d10b 100644
+index b5024ccd5..cd27d0890 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -3659,6 +3659,15 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -3661,6 +3661,15 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  			return 1;
  		}
  		bss->unsol_bcast_probe_resp_interval = val;
@@ -40,7 +40,7 @@ index 0ee8952..b22d10b 100644
  	} else if (os_strcmp(buf, "max_listen_interval") == 0) {
  		bss->max_listen_interval = atoi(pos);
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 9c70d54..5f71aee 100644
+index 9c70d5419..5f71aeea9 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -3441,6 +3441,63 @@ hostapd_ctrl_iface_get_edcca(struct hostapd_data *hapd, char *cmd, char *buf,
@@ -120,7 +120,7 @@ index 9c70d54..5f71aee 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index db21258..0d36477 100644
+index db2125805..0d364773b 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
 @@ -1380,6 +1380,20 @@ static int hostapd_cli_cmd_driver_flags(struct wpa_ctrl *ctrl, int argc,
@@ -156,7 +156,7 @@ index db21258..0d36477 100644
  	{ "dpp_qr_code", hostapd_cli_cmd_dpp_qr_code, NULL,
  	  "report a scanned DPP URI from a QR Code" },
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 344585a..0e1f192 100644
+index 344585aee..0e1f192cf 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -280,6 +280,7 @@ struct hostapd_config * hostapd_config_defaults(void)
@@ -168,10 +168,10 @@ index 344585a..0e1f192 100644
  
  	/* The third octet of the country string uses an ASCII space character
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 775c567..41b8c68 100644
+index 4ac469910..0616c30bb 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1114,6 +1114,7 @@ struct hostapd_config {
+@@ -1115,6 +1115,7 @@ struct hostapd_config {
  	u8 he_6ghz_rx_ant_pat;
  	u8 he_6ghz_tx_ant_pat;
  	u8 he_6ghz_reg_pwr_type;
@@ -180,7 +180,7 @@ index 775c567..41b8c68 100644
  
  	/* VHT enable/disable config from CHAN_SWITCH */
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index 25e967d..4598737 100644
+index 25e967d1b..4598737a3 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
 @@ -1039,3 +1039,17 @@ int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value)
@@ -202,7 +202,7 @@ index 25e967d..4598737 100644
 +	return hapd->driver->hemu_dump(hapd->drv_priv, hemu_onoff);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 70a99f4..bca39c5 100644
+index 70a99f406..bca39c502 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -142,6 +142,8 @@ int hostapd_drv_configure_edcca_enable(struct hostapd_data *hapd);
@@ -215,10 +215,10 @@ index 70a99f4..bca39c5 100644
  #include "drivers/driver.h"
  
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index d05f948..921769d 100644
+index 3bb38fec3..44a378aa9 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -2301,6 +2301,8 @@ dfs_offload:
+@@ -2302,6 +2302,8 @@ dfs_offload:
  	if (hostapd_drv_configure_edcca_threshold(hapd,
  						  hapd->iconf->edcca_threshold) < 0)
  		goto fail;
@@ -228,7 +228,7 @@ index d05f948..921769d 100644
  	wpa_printf(MSG_DEBUG, "%s: Setup of interface done.",
  		   iface->bss[0]->conf->iface);
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index 7056126..69a46df 100644
+index 70561263c..69a46dfbb 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -10,6 +10,8 @@ enum mtk_nl80211_vendor_subcmds {
@@ -261,7 +261,7 @@ index 7056126..69a46df 100644
  #define ETH_ALEN 6
  
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 3559974..4cd7505 100644
+index 35599741c..4cd7505db 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
 @@ -1623,6 +1623,11 @@ struct wpa_driver_ap_params {
@@ -292,7 +292,7 @@ index 3559974..4cd7505 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 9c2782c..73dee2e 100644
+index 6d4a4dbbe..f8b3f40c2 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -12304,6 +12304,114 @@ fail:
@@ -420,7 +420,7 @@ index 9c2782c..73dee2e 100644
  	.dpp_listen = nl80211_dpp_listen,
  #endif /* CONFIG_DPP */
 diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
-index 13e5d24..57f0249 100644
+index 13e5d248c..57f02497e 100644
 --- a/src/drivers/driver_nl80211.h
 +++ b/src/drivers/driver_nl80211.h
 @@ -182,6 +182,7 @@ struct wpa_driver_nl80211_data {
@@ -432,7 +432,7 @@ index 13e5d24..57f0249 100644
  	u64 vendor_scan_cookie;
  	u64 remain_on_chan_cookie;
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index 732ae29..cc146d9 100644
+index 732ae292d..cc146d9fc 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
 @@ -1056,6 +1056,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
@@ -446,5 +446,5 @@ index 732ae29..cc146d9 100644
  			}
  
 -- 
-2.36.1
+2.25.1
 

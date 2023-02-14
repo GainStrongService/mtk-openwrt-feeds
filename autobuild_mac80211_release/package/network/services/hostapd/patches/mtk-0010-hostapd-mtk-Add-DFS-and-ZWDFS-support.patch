@@ -1,7 +1,7 @@
-From 782f38f2eec27e438e55cb09e824a6ffc1c3eb18 Mon Sep 17 00:00:00 2001
+From 4e7c861c971ca49ea162bd908fef6021a62b9018 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 7 Oct 2022 10:46:29 +0800
-Subject: [PATCH 99909/99910] hostapd: mtk: Add DFS and ZWDFS support
+Subject: [PATCH 10/15] hostapd: mtk: Add DFS and ZWDFS support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -17,10 +17,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  9 files changed, 186 insertions(+), 17 deletions(-)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index d9d882c..fd61448 100644
+index 63c9d40be..cd1534952 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4801,6 +4801,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -4803,6 +4803,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  	} else if (os_strcmp(buf, "ibf_enable") == 0) { /*ibf setting is per device*/
  		int val = atoi(pos);
  		conf->ibf_enable = !!val;
@@ -32,7 +32,7 @@ index d9d882c..fd61448 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index c881d37..6ea1573 100644
+index c881d3717..6ea1573b8 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -3522,6 +3522,96 @@ hostapd_ctrl_iface_get_ibf(struct hostapd_data *hapd, char *buf,
@@ -145,10 +145,10 @@ index c881d37..6ea1573 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 44a0e7e..3f5afdf 100644
+index a9e3d2aeb..77f6169d2 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1159,6 +1159,7 @@ struct hostapd_config {
+@@ -1160,6 +1160,7 @@ struct hostapd_config {
  	int *edcca_threshold;
  	u8 three_wire_enable;
  	u8 ibf_enable;
@@ -156,7 +156,7 @@ index 44a0e7e..3f5afdf 100644
  };
  
  enum three_wire_mode {
-@@ -1173,6 +1174,18 @@ enum three_wire_mode {
+@@ -1174,6 +1175,18 @@ enum three_wire_mode {
  		NUM_THREE_WIRE_MODE - 1
  };
  
@@ -176,7 +176,7 @@ index 44a0e7e..3f5afdf 100644
  	EDCCA_MODE_FORCE_DISABLE = 0,
  	EDCCA_MODE_AUTO = 1,
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index b5d105d..1c3f678 100644
+index b5d105d6a..1c3f6785b 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
 @@ -19,13 +19,6 @@
@@ -250,7 +250,7 @@ index b5d105d..1c3f678 100644
  	if (hostapd_csa_in_progress(iface))
  		return 0;
 diff --git a/src/ap/dfs.h b/src/ap/dfs.h
-index 606c1b3..c2556d2 100644
+index 606c1b393..c2556d2d9 100644
 --- a/src/ap/dfs.h
 +++ b/src/ap/dfs.h
 @@ -9,6 +9,12 @@
@@ -282,10 +282,10 @@ index 606c1b3..c2556d2 100644
  
  #endif /* DFS_H */
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index e44b73d..793ce2f 100644
+index da7f7d87b..a0229c9ca 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -1463,7 +1463,9 @@ static int hostapd_setup_bss(struct hostapd_data *hapd, int first)
+@@ -1464,7 +1464,9 @@ static int hostapd_setup_bss(struct hostapd_data *hapd, int first)
  		return -1;
  	}
  
@@ -297,7 +297,7 @@ index e44b73d..793ce2f 100644
  
  	if (flush_old_stations && !conf->start_disabled &&
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 71ded61..aa23fbd 100644
+index 71ded617f..aa23fbdb3 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
 @@ -4720,6 +4720,13 @@ struct wpa_driver_ops {
@@ -315,7 +315,7 @@ index 71ded61..aa23fbd 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index e974f85..003adc4 100644
+index 5c2a291ca..7472542cc 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -12776,6 +12776,34 @@ fail:
@@ -360,7 +360,7 @@ index e974f85..003adc4 100644
 +	.start_disabled = nl80211_start_disabled,
  };
 diff --git a/src/drivers/nl80211_copy.h b/src/drivers/nl80211_copy.h
-index c4bf3ad..79bc76c 100644
+index c4bf3ad35..79bc76c57 100644
 --- a/src/drivers/nl80211_copy.h
 +++ b/src/drivers/nl80211_copy.h
 @@ -3176,6 +3176,7 @@ enum nl80211_attrs {
@@ -372,5 +372,5 @@ index c4bf3ad..79bc76c 100644
  	__NL80211_ATTR_AFTER_LAST,
  	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
 -- 
-2.36.1
+2.25.1
 
