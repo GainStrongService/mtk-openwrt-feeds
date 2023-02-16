@@ -1,19 +1,19 @@
-From 27a84ef9b8081ba9538efe6bfd94d8baa39b196b Mon Sep 17 00:00:00 2001
+From 9f4ef5f8637f597acf5fc876d40f9159e051e512 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
-Subject: [PATCH 1121/1133] mt76: mt7915: add vendor subcmd EDCCA ctrl
+Subject: [PATCH] mt76: mt7915: add vendor subcmd EDCCA ctrl
  enable/threshold/compensation
 
 Change-Id: I06a3f94d5e444be894200e2b6588d76ed38d09d0
 ---
  mt76_connac_mcu.h |   1 +
  mt7915/main.c     |   3 ++
- mt7915/mcu.c      |  72 +++++++++++++++++++++++++
+ mt7915/mcu.c      |  73 +++++++++++++++++++++++++
  mt7915/mcu.h      |  21 ++++++++
  mt7915/mt7915.h   |   3 +-
  mt7915/vendor.c   | 132 ++++++++++++++++++++++++++++++++++++++++++++++
  mt7915/vendor.h   |  33 ++++++++++++
- 7 files changed, 264 insertions(+), 1 deletion(-)
+ 7 files changed, 265 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
 index 5cef308a..65863a0d 100644
@@ -42,10 +42,10 @@ index d1135d9f..0d01d880 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 185b6495..3408555e 100644
+index 185b6495..85bb60c9 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4623,3 +4623,75 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
+@@ -4623,3 +4623,76 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
  
  	return 0;
  }
@@ -118,6 +118,7 @@ index 185b6495..3408555e 100644
 +	*value++ = res->info[0];
 +	*value++ = res->info[1];
 +	*value = res->info[2];
++	dev_kfree_skb(skb);
 +
 +	return 0;
 +}

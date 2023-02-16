@@ -1,7 +1,7 @@
-From ecececeedd9e0b8ed6589ed4e25d5fdf6789a59b Mon Sep 17 00:00:00 2001
+From 0585e668ca5e848c1b30f6f492ba0897ddb4071b Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
-Subject: [PATCH 1001/1009] mt76: mt7915: add mtk internal debug tools for mt76
+Subject: [PATCH] mt76: mt7915: add mtk internal debug tools for mt76
 
 ---
  mt76_connac_mcu.h     |    6 +
@@ -22,7 +22,7 @@ Subject: [PATCH 1001/1009] mt76: mt7915: add mtk internal debug tools for mt76
  create mode 100644 mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index a5e6ee4..cbe0c52 100644
+index a5e6ee4d..cbe0c52a 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1151,6 +1151,7 @@ enum {
@@ -46,7 +46,7 @@ index a5e6ee4..cbe0c52 100644
  	MCU_EXT_CMD_CAL_CACHE = 0x67,
  	MCU_EXT_CMD_RED_ENABLE = 0x68,
 diff --git a/mt7915/Makefile b/mt7915/Makefile
-index f033116..cbcb64b 100644
+index f033116c..cbcb64be 100644
 --- a/mt7915/Makefile
 +++ b/mt7915/Makefile
 @@ -4,7 +4,7 @@ EXTRA_CFLAGS += -DCONFIG_MT76_LEDS
@@ -59,7 +59,7 @@ index f033116..cbcb64b 100644
  mt7915e-$(CONFIG_NL80211_TESTMODE) += testmode.o
  mt7915e-$(CONFIG_MT7986_WMAC) += soc.o
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 5a46813..f1f3f2f 100644
+index 5a46813a..f1f3f2f3 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -8,6 +8,9 @@
@@ -203,7 +203,7 @@ index 5a46813..f1f3f2f 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 97ca55d..1ba4096 100644
+index 97ca55d2..1ba4096d 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -299,6 +299,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -242,7 +242,7 @@ index 97ca55d..1ba4096 100644
  }
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 3bbccbd..94ecded 100644
+index 3bbccbdf..94ecded5 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -73,7 +73,11 @@ int mt7915_run(struct ieee80211_hw *hw)
@@ -258,7 +258,7 @@ index 3bbccbd..94ecded 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f151ce8..ff718f7 100644
+index f151ce86..ff718f78 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -199,6 +199,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -342,7 +342,7 @@ index f151ce8..ff718f7 100644
 +}
 +#endif
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index b9ea297..da86360 100644
+index b9ea297f..da863601 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -278,6 +278,10 @@ enum {
@@ -357,7 +357,7 @@ index b9ea297..da86360 100644
  };
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 3cbfb9b..5fcc8ac 100644
+index 3cbfb9b6..5fcc8ace 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -424,7 +424,7 @@ index 3cbfb9b..5fcc8ac 100644
  #endif
 diff --git a/mt7915/mt7915_debug.h b/mt7915/mt7915_debug.h
 new file mode 100644
-index 0000000..ca553dc
+index 00000000..ca553dca
 --- /dev/null
 +++ b/mt7915/mt7915_debug.h
 @@ -0,0 +1,1363 @@
@@ -1793,7 +1793,7 @@ index 0000000..ca553dc
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 0000000..4fb845b
+index 00000000..530bde1a
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
 @@ -0,0 +1,3003 @@
@@ -2310,8 +2310,8 @@ index 0000000..4fb845b
 +				 UWTBL_LEN_IN_DW, uwtbl);
 +	seq_printf(s, "Dump WTBL info of WLAN_IDX:%d\n", dev->wlan_idx);
 +	seq_printf(s, "UMAC WTBL Addr: group:0x%x=0x%x addr: 0x%lx\n",
-+		   MT_DBG_WTBLON_TOP_WDUCR,
-+		   mt76_rr(dev, MT_DBG_WTBLON_TOP_WDUCR),
++		   MT_DBG_UWTBL_TOP_WDUCR,
++		   mt76_rr(dev, MT_DBG_UWTBL_TOP_BASE),
 +		   UWTBL_IDX2BASE(dev->wlan_idx, 0));
 +	for (x = 0; x < UWTBL_LEN_IN_DW; x++) {
 +		seq_printf(s, "DW%02d: %02x %02x %02x %02x\n",
@@ -2404,8 +2404,8 @@ index 0000000..4fb845b
 +		mt7915_wtbl_read_raw(dev, keyloc0, WTBL_TYPE_KEY,
 +					 0, ONE_KEY_ENTRY_LEN_IN_DW, keytbl);
 +		seq_printf(s, "KEY WTBL Addr: group:0x%x=0x%x addr: 0x%lx\n",
-+			   MT_DBG_WTBLON_TOP_WDUCR,
-+			   mt76_rr(dev, MT_DBG_WTBLON_TOP_WDUCR),
++			   MT_DBG_UWTBL_TOP_WDUCR,
++			   mt76_rr(dev, MT_DBG_UWTBL_TOP_BASE),
 +			   KEYTBL_IDX2BASE(keyloc0, 0));
 +
 +		for (x = 0; x < ONE_KEY_ENTRY_LEN_IN_DW; x++) {
@@ -2423,8 +2423,8 @@ index 0000000..4fb845b
 +		mt7915_wtbl_read_raw(dev, keyloc1, WTBL_TYPE_KEY,
 +					 0, ONE_KEY_ENTRY_LEN_IN_DW, keytbl);
 +		seq_printf(s, "KEY WTBL Addr: group:0x%x=0x%x addr: 0x%lx\n",
-+			   MT_DBG_WTBLON_TOP_WDUCR,
-+			   mt76_rr(dev, MT_DBG_WTBLON_TOP_WDUCR),
++			   MT_DBG_UWTBL_TOP_WDUCR,
++			   mt76_rr(dev, MT_DBG_UWTBL_TOP_BASE),
 +			   KEYTBL_IDX2BASE(keyloc1, 0));
 +
 +		for (x = 0; x < ONE_KEY_ENTRY_LEN_IN_DW; x++) {
@@ -4802,7 +4802,7 @@ index 0000000..4fb845b
 +#endif
 diff --git a/mt7915/mtk_mcu.c b/mt7915/mtk_mcu.c
 new file mode 100644
-index 0000000..143dae2
+index 00000000..143dae26
 --- /dev/null
 +++ b/mt7915/mtk_mcu.c
 @@ -0,0 +1,51 @@
@@ -4858,7 +4858,7 @@ index 0000000..143dae2
 +				 sizeof(req), true);
 +}
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a10..3d51d9e 100644
+index e5d4a105..3d51d9ec 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)
@@ -4972,5 +4972,5 @@ index e5d4a10..3d51d9e 100644
  	return ret;
  }
 -- 
-2.39.0
+2.18.0
 
