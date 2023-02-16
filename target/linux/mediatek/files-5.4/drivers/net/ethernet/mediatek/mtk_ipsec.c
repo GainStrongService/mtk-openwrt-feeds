@@ -204,10 +204,41 @@ static int mtk_ipsec_add_sa(struct xfrm_state *xs)
 		key_len += SHA1_DIGEST_SIZE;
 		memcpy(context->data + SIZE_IN_WORDS(key_len),
 		       &xs->id.spi, 4);
+	} else if (strcmp(xs->aalg->alg_name, "hmac(sha256)") == 0) {
+		key_aalg = &xs->aalg->alg_key[0];
+		hmac_setkey("sha256-generic", key_aalg,
+			    xs->aalg->alg_key_len / 8,
+			    &istate.state, &ostate.state);
+		key_ealg = &xs->ealg->alg_key[0];
+		key_len = xs->ealg->alg_key_len / 8;
+		write_state_le(context->data, (const u32 *)key_ealg, key_len);
+		write_state_be(context->data + SIZE_IN_WORDS(key_len),
+			       (const u32 *)&istate.state, SHA256_DIGEST_SIZE);
+
+		key_len += SHA256_DIGEST_SIZE;
+		write_state_be(context->data + SIZE_IN_WORDS(key_len),
+			       (const u32 *)&ostate.state, SHA256_DIGEST_SIZE);
+
+		key_len += SHA256_DIGEST_SIZE;
+		memcpy(context->data + SIZE_IN_WORDS(key_len),
+		       &xs->id.spi, 4);
+
+		if (xs->xso.flags & XFRM_OFFLOAD_INBOUND) {
+			/* rx path */
+			context->control0 = CTRL_WORD0_IN_SHA256;
+			context->control1 = CTRL_WORD1_IN_SHA256;
+			context->data[50] = 0x07041010;
+			context->data[52] = 0xdd070010;
+			context->data[53] = 0xe4561820;
+		} else {
+			/* tx path */
+			context->control0 = CTRL_WORD0_OUT_SHA256;
+			context->control1 = CTRL_WORD1_OUT_SHA256;
+			context->data[50] = 0x01021010;
+			context->data[53] = 0xe1560817;
+			context->data[55] = 0x0000004d;
+		}
 	}
-	//TODO: sha256
-	//else if (strcmp(xs->aalg->alg_name, "hmac(sha256)") == 0) {
-	//}
 
 	/**
 	 * Set CDRT for inline IPSec
