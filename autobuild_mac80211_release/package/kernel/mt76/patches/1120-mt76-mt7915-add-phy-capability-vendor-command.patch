@@ -44,7 +44,7 @@ index 5acbd2d7..526eb6b2 100644
  struct csi_null_tone {
  	u8 start;
  	u8 end;
-@@ -974,6 +986,35 @@ static int mt7915_vendor_hemu_ctrl(struct wiphy *wiphy,
+@@ -974,6 +986,35 @@ static int mt7915_vendor_mu_ctrl(struct wiphy *wiphy,
  	return 0;
  }
  
@@ -81,9 +81,9 @@ index 5acbd2d7..526eb6b2 100644
  	{
  		.info = {
 @@ -1031,6 +1072,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
- 		.doit = mt7915_vendor_hemu_ctrl,
- 		.policy = hemu_ctrl_policy,
- 		.maxattr = MTK_VENDOR_ATTR_HEMU_CTRL_MAX,
+ 		.doit = mt7915_vendor_mu_ctrl,
+ 		.policy = mu_ctrl_policy,
+ 		.maxattr = MTK_VENDOR_ATTR_MU_CTRL_MAX,
 +	},
 +	{
 +		.info = {
@@ -105,7 +105,7 @@ index a8e4ebf9..719b851f 100644
 @@ -9,6 +9,7 @@ enum mtk_nl80211_vendor_subcmds {
  	MTK_NL80211_VENDOR_SUBCMD_RFEATURE_CTRL = 0xc3,
  	MTK_NL80211_VENDOR_SUBCMD_WIRELESS_CTRL = 0xc4,
- 	MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL = 0xc5,
+ 	MTK_NL80211_VENDOR_SUBCMD_MU_CTRL = 0xc5,
 +	MTK_NL80211_VENDOR_SUBCMD_PHY_CAPA_CTRL = 0xc6,
  };
  

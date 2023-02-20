@@ -38,7 +38,7 @@ diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
 index 5f71aeea9..c881d3717 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3498,6 +3498,30 @@ hostapd_ctrl_iface_get_hemu(struct hostapd_data *hapd, char *buf,
+@@ -3498,6 +3498,30 @@ hostapd_ctrl_iface_get_mu(struct hostapd_data *hapd, char *buf,
  }
  
  
@@ -71,8 +71,8 @@ index 5f71aeea9..c881d3717 100644
  					      int reply_size,
 @@ -4055,6 +4079,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  							  reply_size);
- 	} else if (os_strncmp(buf, "GET_HEMU", 8) == 0) {
- 		reply_len = hostapd_ctrl_iface_get_hemu(hapd, reply, reply_size);
+ 	} else if (os_strncmp(buf, "GET_MU", 6) == 0) {
+ 		reply_len = hostapd_ctrl_iface_get_mu(hapd, reply, reply_size);
 +	} else if (os_strncmp(buf, "GET_IBF", 7) == 0) {
 +		reply_len = hostapd_ctrl_iface_get_ibf(hapd, reply, reply_size);
  	} else {
@@ -165,8 +165,8 @@ index 5ba62978c..ab9aedcee 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -145,6 +145,8 @@ int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value);
- int hostapd_drv_hemu_ctrl(struct hostapd_data *hapd);
- int hostapd_drv_hemu_dump(struct hostapd_data *hapd, u8 *hemu_onoff);
+ int hostapd_drv_mu_ctrl(struct hostapd_data *hapd);
+ int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff);
  int hostapd_drv_three_wire_ctrl(struct hostapd_data *hapd);
 +int hostapd_drv_ibf_ctrl(struct hostapd_data *hapd);
 +int hostapd_drv_ibf_dump(struct hostapd_data *hapd, u8 *ibf_enable);
@@ -191,7 +191,7 @@ index ee5a4f436..4050cf886 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -13,7 +13,8 @@ enum mtk_nl80211_vendor_subcmds {
- 	MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL = 0xc5,
+ 	MTK_NL80211_VENDOR_SUBCMD_MU_CTRL = 0xc5,
  	MTK_NL80211_VENDOR_SUBCMD_PHY_CAPA_CTRL= 0xc6,
  	MTK_NL80211_VENDOR_SUBCMD_EDCCA_CTRL = 0xc7,
 -	MTK_NL80211_VENDOR_SUBCMD_3WIRE_CTRL = 0xc8
@@ -200,8 +200,8 @@ index ee5a4f436..4050cf886 100644
  };
  
  enum mtk_vendor_attr_edcca_ctrl {
-@@ -204,6 +205,38 @@ enum mtk_vendor_attr_hemu_ctrl {
- 		NUM_MTK_VENDOR_ATTRS_HEMU_CTRL - 1
+@@ -204,6 +205,38 @@ enum mtk_vendor_attr_mu_ctrl {
+ 		NUM_MTK_VENDOR_ATTRS_MU_CTRL - 1
  };
  
 +enum mtk_vendor_attr_ibf_ctrl {
@@ -244,9 +244,9 @@ index 9ca19af81..71ded617f 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
 @@ -1628,6 +1628,11 @@ struct wpa_driver_ap_params {
- 	 * hemu onoff=<val> (bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0))
+ 	 * mu onoff=<val> (bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0))
  	 */
- 	u8 hemu_onoff;
+ 	u8 mu_onoff;
 +
 +	/**
 +	 * ibf_enable=<val>
@@ -406,7 +406,7 @@ index 9fe7811b9..607592ceb 100644
 +++ b/src/drivers/driver_nl80211.h
 @@ -184,6 +184,7 @@ struct wpa_driver_nl80211_data {
  	unsigned int mtk_edcca_vendor_cmd_avail:1;
- 	unsigned int mtk_hemu_vendor_cmd_avail:1;
+ 	unsigned int mtk_mu_vendor_cmd_avail:1;
  	unsigned int mtk_3wire_vendor_cmd_avail:1;
 +	unsigned int mtk_ibf_vendor_cmd_avail:1;
  

@@ -38,7 +38,7 @@ enum mtk_nl80211_vendor_subcmds {
 	MTK_NL80211_VENDOR_SUBCMD_CSI_CTRL = 0xc2,
 	MTK_NL80211_VENDOR_SUBCMD_RFEATURE_CTRL = 0xc3,
 	MTK_NL80211_VENDOR_SUBCMD_WIRELESS_CTRL = 0xc4,
-	MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL = 0xc5,
+	MTK_NL80211_VENDOR_SUBCMD_MU_CTRL = 0xc5,
 	MTK_NL80211_VENDOR_SUBCMD_PHY_CAPA_CTRL = 0xc6,
 };
 
@@ -148,15 +148,15 @@ enum mtk_vendor_attr_wireless_ctrl {
 		NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL - 1
 };
 
-enum mtk_vendor_attr_hemu_ctrl {
-	MTK_VENDOR_ATTR_HEMU_CTRL_UNSPEC,
+enum mtk_vendor_attr_mu_ctrl {
+	MTK_VENDOR_ATTR_MU_CTRL_UNSPEC,
 
-	MTK_VENDOR_ATTR_HEMU_CTRL_ONOFF,
+	MTK_VENDOR_ATTR_MU_CTRL_ONOFF,
 
 	/* keep last */
-	NUM_MTK_VENDOR_ATTRS_HEMU_CTRL,
-	MTK_VENDOR_ATTR_HEMU_CTRL_MAX =
-		NUM_MTK_VENDOR_ATTRS_HEMU_CTRL - 1
+	NUM_MTK_VENDOR_ATTRS_MU_CTRL,
+	MTK_VENDOR_ATTR_MU_CTRL_MAX =
+		NUM_MTK_VENDOR_ATTRS_MU_CTRL - 1
 };
 
 enum mtk_vendor_attr_rfeature_ctrl {
@@ -236,7 +236,7 @@ int mt76_amnt_dump(int idx, int argc, char **argv);
 int mt76_ap_rfeatures_set(int idx, int argc, char **argv);
 int mt76_ap_wireless_set(int idx, int argc, char **argv);
 
-int mt76_hemu_onoff_set(int idx, int argc, char **argv);
+int mt76_mu_onoff_set(int idx, int argc, char **argv);
 
 int mt76_phy_capa_dump(int idx, int argc, char **argv);
 #endif

@@ -1073,7 +1073,7 @@ function dump_usage {
     echo "  mwctl <interface> set ap_wireless ampdu=<enable>"
     echo "  mwctl <interface> set ap_wireless amsdu=<enable>"
     echo "  mwctl <interface> set ap_wireless cert=<enable>"
-    echo "  mwctl <interface> set hemu onoff=<val> (bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0))"
+    echo "  mwctl <interface> set mu onoff=<val> (bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0))"
     echo "  mwctl <interface> dump phy_capa"
 }
 
@@ -1121,7 +1121,7 @@ if [ "${cmd_type}" = "set" ]; then
         ## In wifi 7 chipset, testmode & vendor command both use mwctl
         ## Therefore this wrapper would translate it to either mt76-test or mt76-vendor based on the attribute of the command
         ## Translate to mt76-vendor command
-        "csi"|"amnt"|"ap_rfeatures"|"ap_wireless"|"hemu")
+        "csi"|"amnt"|"ap_rfeatures"|"ap_wireless"|"mu")
 	    if [ ${is_eagle} == "1" ]; then
                 do_cmd "hostapd_cli -i $*"
                 skip=1

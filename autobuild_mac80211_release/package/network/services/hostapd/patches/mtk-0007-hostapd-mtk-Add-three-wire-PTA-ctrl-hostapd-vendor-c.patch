@@ -74,9 +74,9 @@ diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
 index 4598737a3..a1d83e4ee 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
-@@ -1053,3 +1053,14 @@ int hostapd_drv_hemu_dump(struct hostapd_data *hapd, u8 *hemu_onoff)
+@@ -1053,3 +1053,14 @@ int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff)
  		return 0;
- 	return hapd->driver->hemu_dump(hapd->drv_priv, hemu_onoff);
+ 	return hapd->driver->mu_dump(hapd->drv_priv, mu_onoff);
  }
 +
 +int hostapd_drv_three_wire_ctrl(struct hostapd_data *hapd)
@@ -95,8 +95,8 @@ index bca39c502..5ba62978c 100644
 +++ b/src/ap/ap_drv_ops.h
 @@ -144,6 +144,7 @@ int hostapd_drv_configure_edcca_threshold(struct hostapd_data *hapd,
  int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value);
- int hostapd_drv_hemu_ctrl(struct hostapd_data *hapd);
- int hostapd_drv_hemu_dump(struct hostapd_data *hapd, u8 *hemu_onoff);
+ int hostapd_drv_mu_ctrl(struct hostapd_data *hapd);
+ int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff);
 +int hostapd_drv_three_wire_ctrl(struct hostapd_data *hapd);
  
  #include "drivers/driver.h"
@@ -107,7 +107,7 @@ index 44a378aa9..c972b15ea 100644
 +++ b/src/ap/hostapd.c
 @@ -2304,6 +2304,8 @@ dfs_offload:
  		goto fail;
- 	if (hostapd_drv_hemu_ctrl(hapd) < 0)
+ 	if (hostapd_drv_mu_ctrl(hapd) < 0)
  		goto fail;
 +	if (hostapd_drv_three_wire_ctrl(hapd) < 0)
 +		goto fail;
@@ -119,7 +119,7 @@ index 69a46dfbb..ee5a4f436 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -13,6 +13,7 @@ enum mtk_nl80211_vendor_subcmds {
- 	MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL = 0xc5,
+ 	MTK_NL80211_VENDOR_SUBCMD_MU_CTRL = 0xc5,
  	MTK_NL80211_VENDOR_SUBCMD_PHY_CAPA_CTRL= 0xc6,
  	MTK_NL80211_VENDOR_SUBCMD_EDCCA_CTRL = 0xc7,
 +	MTK_NL80211_VENDOR_SUBCMD_3WIRE_CTRL = 0xc8
@@ -154,8 +154,8 @@ index 4cd7505db..9ca19af81 100644
 +++ b/src/drivers/driver.h
 @@ -4693,6 +4693,14 @@ struct wpa_driver_ops {
  	 */
- 	 int (*hemu_ctrl)(void *priv, u8 hemu_onoff);
- 	 int (*hemu_dump)(void *priv, u8 *hemu_onoff);
+ 	 int (*mu_ctrl)(void *priv, u8 mu_onoff);
+ 	 int (*mu_dump)(void *priv, u8 *mu_onoff);
 +
 +	/**
 +	 * three_wire_ctrl - set three_wire_ctrl mode
@@ -223,7 +223,7 @@ index 57f02497e..9fe7811b9 100644
 @@ -183,6 +183,7 @@ struct wpa_driver_nl80211_data {
  	unsigned int uses_6ghz:1;
  	unsigned int mtk_edcca_vendor_cmd_avail:1;
- 	unsigned int mtk_hemu_vendor_cmd_avail:1;
+ 	unsigned int mtk_mu_vendor_cmd_avail:1;
 +	unsigned int mtk_3wire_vendor_cmd_avail:1;
  
  	u64 vendor_scan_cookie;
@@ -233,8 +233,8 @@ index cc146d9fc..04bc54e77 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
 @@ -1059,6 +1059,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
- 				case MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL :
- 					drv->mtk_hemu_vendor_cmd_avail = 1;
+ 				case MTK_NL80211_VENDOR_SUBCMD_MU_CTRL :
+ 					drv->mtk_mu_vendor_cmd_avail = 1;
  					break;
 +				case MTK_NL80211_VENDOR_SUBCMD_3WIRE_CTRL :
 +					drv->mtk_3wire_vendor_cmd_avail = 1;

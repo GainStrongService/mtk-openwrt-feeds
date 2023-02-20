@@ -1,7 +1,7 @@
 From 4919444a2dc29c019ec92321109603763c732071 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Tue, 9 Aug 2022 10:23:44 -0700
-Subject: [PATCH 06/15] hostapd: mtk: Add hostapd HEMU SET/GET control
+Subject: [PATCH 06/15] hostapd: mtk: Add hostapd MU SET/GET control
 
 ---
  hostapd/config_file.c             |   9 +++
@@ -27,15 +27,15 @@ index b5024ccd5..cd27d0890 100644
  			return 1;
  		}
  		bss->unsol_bcast_probe_resp_interval = val;
-+	} else if (os_strcmp(buf, "hemu_onoff") == 0) {
++	} else if (os_strcmp(buf, "mu_onoff") == 0) {
 +		int val = atoi(pos);
 +		if (val < 0 || val > 15) {
 +			wpa_printf(MSG_ERROR,
-+				   "Line %d: invalid hemu_onoff value",
++				   "Line %d: invalid mu_onoff value",
 +				   line);
 +			return 1;
 +		}
-+		conf->hemu_onoff = val;
++		conf->mu_onoff = val;
  #endif /* CONFIG_IEEE80211AX */
  	} else if (os_strcmp(buf, "max_listen_interval") == 0) {
  		bss->max_listen_interval = atoi(pos);
@@ -48,7 +48,7 @@ index 9c70d5419..5f71aeea9 100644
  
  
 +static int
-+hostapd_ctrl_iface_set_hemu(struct hostapd_data *hapd, char *cmd,
++hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
 +					 char *buf, size_t buflen)
 +{
 +	char *pos, *config, *value;
@@ -63,19 +63,19 @@ index 9c70d5419..5f71aeea9 100644
 +	value = pos;
 +
 +	if (os_strcmp(config, "onoff") == 0) {
-+		int hemu = atoi(value);
-+		if (hemu < 0 || hemu > 15) {
-+			wpa_printf(MSG_ERROR, "Invalid value for hemu");
++		int mu = atoi(value);
++		if (mu < 0 || mu > 15) {
++			wpa_printf(MSG_ERROR, "Invalid value for mu");
 +			return -1;
 +		}
-+		hapd->iconf->hemu_onoff = (u8) hemu;
++		hapd->iconf->mu_onoff = (u8) mu;
 +	} else {
 +		wpa_printf(MSG_ERROR,
-+			"Unsupported parameter %s for SET_HEMU", config);
++			"Unsupported parameter %s for SET_MU", config);
 +		return -1;
 +	}
 +
-+	if(hostapd_drv_hemu_ctrl(hapd) == 0) {
++	if(hostapd_drv_mu_ctrl(hapd) == 0) {
 +		return os_snprintf(buf, buflen, "OK\n");
 +	} else {
 +		return -1;
@@ -84,19 +84,19 @@ index 9c70d5419..5f71aeea9 100644
 +
 +
 +static int
-+hostapd_ctrl_iface_get_hemu(struct hostapd_data *hapd, char *buf,
++hostapd_ctrl_iface_get_mu(struct hostapd_data *hapd, char *buf,
 +					 size_t buflen)
 +{
-+	u8 hemu_onoff;
++	u8 mu_onoff;
 +	char *pos, *end;
 +
 +	pos = buf;
 +	end = buf + buflen;
 +
-+	if (hostapd_drv_hemu_dump(hapd, &hemu_onoff) == 0) {
-+		hapd->iconf->hemu_onoff = hemu_onoff;
++	if (hostapd_drv_mu_dump(hapd, &mu_onoff) == 0) {
++		hapd->iconf->mu_onoff = mu_onoff;
 +		return os_snprintf(pos, end - pos, "[hostapd_cli] = UL MU-MIMO: %d, DL MU-MIMO: %d, UL OFDMA: %d, DL OFDMA: %d\n",
-+			!!(hemu_onoff&BIT(3)), !!(hemu_onoff&BIT(2)), !!(hemu_onoff&BIT(1)), !!(hemu_onoff&BIT(0)));
++			!!(mu_onoff&BIT(3)), !!(mu_onoff&BIT(2)), !!(mu_onoff&BIT(1)), !!(mu_onoff&BIT(0)));
 +	} else {
 +		wpa_printf(MSG_INFO, "ctrl iface failed to call");
 +		return -1;
@@ -111,11 +111,11 @@ index 9c70d5419..5f71aeea9 100644
  	} else if (os_strncmp(buf, "GET_EDCCA ", 10) == 0) {
  		reply_len = hostapd_ctrl_iface_get_edcca(hapd, buf+10, reply,
  							  reply_size);
-+	} else if (os_strncmp(buf, "SET_HEMU ", 9) == 0) {
-+		reply_len = hostapd_ctrl_iface_set_hemu(hapd, buf+9, reply,
++	} else if (os_strncmp(buf, "SET_MU ", 7) == 0) {
++		reply_len = hostapd_ctrl_iface_set_mu(hapd, buf + 7, reply,
 +							  reply_size);
-+	} else if (os_strncmp(buf, "GET_HEMU", 8) == 0) {
-+		reply_len = hostapd_ctrl_iface_get_hemu(hapd, reply, reply_size);
++	} else if (os_strncmp(buf, "GET_MU", 6) == 0) {
++		reply_len = hostapd_ctrl_iface_get_mu(hapd, reply, reply_size);
  	} else {
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
@@ -127,17 +127,17 @@ index db2125805..0d364773b 100644
  }
  
  
-+static int hostapd_cli_cmd_set_hemu(struct wpa_ctrl *ctrl, int argc,
++static int hostapd_cli_cmd_set_mu(struct wpa_ctrl *ctrl, int argc,
 +					   char *argv[])
 +{
-+	return hostapd_cli_cmd(ctrl, "SET_HEMU", 1, argc, argv);
++	return hostapd_cli_cmd(ctrl, "SET_MU", 1, argc, argv);
 +}
 +
 +
-+static int hostapd_cli_cmd_get_hemu(struct wpa_ctrl *ctrl, int argc,
++static int hostapd_cli_cmd_get_mu(struct wpa_ctrl *ctrl, int argc,
 +					   char *argv[])
 +{
-+	return hostapd_cli_cmd(ctrl, "GET_HEMU", 0, NULL, NULL);
++	return hostapd_cli_cmd(ctrl, "GET_MU", 0, NULL, NULL);
 +}
 +
 +
@@ -148,10 +148,10 @@ index db2125805..0d364773b 100644
  	  " = send FTM range request"},
  	{ "driver_flags", hostapd_cli_cmd_driver_flags, NULL,
  	  " = show supported driver flags"},
-+	{ "set_hemu", hostapd_cli_cmd_set_hemu, NULL,
++	{ "set_mu", hostapd_cli_cmd_set_mu, NULL,
 +		"<value> [0-15] bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0)"},
-+	{ "get_hemu", hostapd_cli_cmd_get_hemu, NULL,
-+		" = show hemu onoff value in 0-15 bitmap"},
++	{ "get_mu", hostapd_cli_cmd_get_mu, NULL,
++		" = show mu onoff value in 0-15 bitmap"},
  #ifdef CONFIG_DPP
  	{ "dpp_qr_code", hostapd_cli_cmd_dpp_qr_code, NULL,
  	  "report a scanned DPP URI from a QR Code" },
@@ -163,7 +163,7 @@ index 344585aee..0e1f192cf 100644
  	conf->he_6ghz_max_ampdu_len_exp = 7;
  	conf->he_6ghz_rx_ant_pat = 1;
  	conf->he_6ghz_tx_ant_pat = 1;
-+	conf->hemu_onoff = 13;
++	conf->mu_onoff = 13;
  #endif /* CONFIG_IEEE80211AX */
  
  	/* The third octet of the country string uses an ASCII space character
@@ -175,7 +175,7 @@ index 4ac469910..0616c30bb 100644
  	u8 he_6ghz_rx_ant_pat;
  	u8 he_6ghz_tx_ant_pat;
  	u8 he_6ghz_reg_pwr_type;
-+	u8 hemu_onoff;
++	u8 mu_onoff;
  #endif /* CONFIG_IEEE80211AX */
  
  	/* VHT enable/disable config from CHAN_SWITCH */
@@ -188,18 +188,18 @@ index 25e967d1b..4598737a3 100644
  	return hapd->driver->get_edcca(hapd->drv_priv, mode, value);
  }
 +
-+int hostapd_drv_hemu_ctrl(struct hostapd_data *hapd)
++int hostapd_drv_mu_ctrl(struct hostapd_data *hapd)
 +{
-+	if (!hapd->driver || !hapd->driver->hemu_ctrl)
++	if (!hapd->driver || !hapd->driver->mu_ctrl)
 +		return 0;
-+	return hapd->driver->hemu_ctrl(hapd->drv_priv, hapd->iconf->hemu_onoff);
++	return hapd->driver->mu_ctrl(hapd->drv_priv, hapd->iconf->mu_onoff);
 +}
 +
-+int hostapd_drv_hemu_dump(struct hostapd_data *hapd, u8 *hemu_onoff)
++int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff)
 +{
-+	if (!hapd->driver || !hapd->driver->hemu_dump)
++	if (!hapd->driver || !hapd->driver->mu_dump)
 +		return 0;
-+	return hapd->driver->hemu_dump(hapd->drv_priv, hemu_onoff);
++	return hapd->driver->mu_dump(hapd->drv_priv, mu_onoff);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
 index 70a99f406..bca39c502 100644
@@ -209,8 +209,8 @@ index 70a99f406..bca39c502 100644
  int hostapd_drv_configure_edcca_threshold(struct hostapd_data *hapd,
  					  const int *threshold);
  int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value);
-+int hostapd_drv_hemu_ctrl(struct hostapd_data *hapd);
-+int hostapd_drv_hemu_dump(struct hostapd_data *hapd, u8 *hemu_onoff);
++int hostapd_drv_mu_ctrl(struct hostapd_data *hapd);
++int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff);
  
  #include "drivers/driver.h"
  
@@ -222,7 +222,7 @@ index 3bb38fec3..44a378aa9 100644
  	if (hostapd_drv_configure_edcca_threshold(hapd,
  						  hapd->iconf->edcca_threshold) < 0)
  		goto fail;
-+	if (hostapd_drv_hemu_ctrl(hapd) < 0)
++	if (hostapd_drv_mu_ctrl(hapd) < 0)
 +		goto fail;
  
  	wpa_printf(MSG_DEBUG, "%s: Setup of interface done.",
@@ -235,7 +235,7 @@ index 70561263c..69a46dfbb 100644
  	MTK_NL80211_VENDOR_SUBCMD_CSI_CTRL = 0xc2,
  	MTK_NL80211_VENDOR_SUBCMD_RFEATURE_CTRL = 0xc3,
  	MTK_NL80211_VENDOR_SUBCMD_WIRELESS_CTRL = 0xc4,
-+	MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL = 0xc5,
++	MTK_NL80211_VENDOR_SUBCMD_MU_CTRL = 0xc5,
 +	MTK_NL80211_VENDOR_SUBCMD_PHY_CAPA_CTRL= 0xc6,
  	MTK_NL80211_VENDOR_SUBCMD_EDCCA_CTRL = 0xc7,
  };
@@ -244,16 +244,16 @@ index 70561263c..69a46dfbb 100644
  		NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL - 1
  };
  
-+enum mtk_vendor_attr_hemu_ctrl {
-+	MTK_VENDOR_ATTR_HEMU_CTRL_UNSPEC,
++enum mtk_vendor_attr_mu_ctrl {
++	MTK_VENDOR_ATTR_MU_CTRL_UNSPEC,
 +
-+	MTK_VENDOR_ATTR_HEMU_CTRL_ONOFF,
-+	MTK_VENDOR_ATTR_HEMU_CTRL_DUMP,
++	MTK_VENDOR_ATTR_MU_CTRL_ONOFF,
++	MTK_VENDOR_ATTR_MU_CTRL_DUMP,
 +
 +	/* keep last */
-+	NUM_MTK_VENDOR_ATTRS_HEMU_CTRL,
-+	MTK_VENDOR_ATTR_HEMU_CTRL_MAX =
-+		NUM_MTK_VENDOR_ATTRS_HEMU_CTRL - 1
++	NUM_MTK_VENDOR_ATTRS_MU_CTRL,
++	MTK_VENDOR_ATTR_MU_CTRL_MAX =
++		NUM_MTK_VENDOR_ATTRS_MU_CTRL - 1
 +};
 +
 +
@@ -270,9 +270,9 @@ index 35599741c..4cd7505db 100644
  	size_t unsol_bcast_probe_resp_tmpl_len;
 +
 +	/**
-+	 * hemu onoff=<val> (bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0))
++	 * mu onoff=<val> (bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0))
 +	 */
-+	u8 hemu_onoff;
++	u8 mu_onoff;
  };
  
  struct wpa_driver_mesh_bss_params {
@@ -282,12 +282,12 @@ index 35599741c..4cd7505db 100644
  	int (*get_edcca)(void *priv, const u8 mode, u8 *value);
 +
 +	/**
-+	 * hemu_ctrl - ctrl on off for UL/DL MURU
++	 * mu_ctrl - ctrl on off for UL/DL MURU
 +	 * @priv: Private driver interface data
 +	 *
 +	 */
-+	 int (*hemu_ctrl)(void *priv, u8 hemu_onoff);
-+	 int (*hemu_dump)(void *priv, u8 *hemu_onoff);
++	 int (*mu_ctrl)(void *priv, u8 mu_onoff);
++	 int (*mu_dump)(void *priv, u8 *mu_onoff);
  };
  
  /**
@@ -300,7 +300,7 @@ index 6d4a4dbbe..f8b3f40c2 100644
  
  
 +#ifdef CONFIG_IEEE80211AX
-+static int nl80211_hemu_muruonoff(void *priv, u8 hemu_onoff)
++static int nl80211_mu_onoff(void *priv, u8 mu_onoff)
 +{
 +	struct i802_bss *bss = priv;
 +	struct wpa_driver_nl80211_data *drv = bss->drv;
@@ -308,41 +308,41 @@ index 6d4a4dbbe..f8b3f40c2 100644
 +	struct nlattr *data;
 +	int ret;
 +
-+	if (!drv->mtk_hemu_vendor_cmd_avail) {
++	if (!drv->mtk_mu_vendor_cmd_avail) {
 +		wpa_printf(MSG_INFO,
-+			   "nl80211: Driver does not support setting hemu control");
++			   "nl80211: Driver does not support setting mu control");
 +		return 0;
 +	}
 +
 +	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR)) ||
 +		nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_MTK) ||
-+		nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL) ||
++		nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_MU_CTRL) ||
 +		!(data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA)) ||
-+		nla_put_u8(msg, MTK_VENDOR_ATTR_HEMU_CTRL_ONOFF, hemu_onoff)) {
++		nla_put_u8(msg, MTK_VENDOR_ATTR_MU_CTRL_ONOFF, mu_onoff)) {
 +		nlmsg_free(msg);
 +		return -ENOBUFS;
 +	}
 +	nla_nest_end(msg, data);
 +	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);
 +	if(ret){
-+		wpa_printf(MSG_ERROR, "Failed to set hemu_onoff. ret=%d (%s)", ret, strerror(-ret));
++		wpa_printf(MSG_ERROR, "Failed to set mu_onoff. ret=%d (%s)", ret, strerror(-ret));
 +	}
 +	return ret;
 +}
 +
 +
-+static int hemu_dump_handler(struct nl_msg *msg, void *arg)
++static int mu_dump_handler(struct nl_msg *msg, void *arg)
 +{
-+	u8 *hemu_onoff = (u8 *) arg;
++	u8 *mu_onoff = (u8 *) arg;
 +	struct nlattr *tb[NL80211_ATTR_MAX + 1];
-+	struct nlattr *tb_vendor[MTK_VENDOR_ATTR_HEMU_CTRL_MAX + 1];
++	struct nlattr *tb_vendor[MTK_VENDOR_ATTR_MU_CTRL_MAX + 1];
 +	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
 +	struct nlattr *nl_vend, *attr;
 +
 +	static const struct nla_policy
-+	hemu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_HEMU_CTRL + 1] = {
-+		[MTK_VENDOR_ATTR_HEMU_CTRL_ONOFF] = {.type = NLA_U8 },
-+		[MTK_VENDOR_ATTR_HEMU_CTRL_DUMP] = {.type = NLA_U8 },
++	mu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_MU_CTRL + 1] = {
++		[MTK_VENDOR_ATTR_MU_CTRL_ONOFF] = {.type = NLA_U8 },
++		[MTK_VENDOR_ATTR_MU_CTRL_DUMP] = {.type = NLA_U8 },
 +	};
 +
 +	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
@@ -352,22 +352,22 @@ index 6d4a4dbbe..f8b3f40c2 100644
 +	if (!nl_vend)
 +		return NL_SKIP;
 +
-+	nla_parse(tb_vendor, MTK_VENDOR_ATTR_HEMU_CTRL_MAX,
++	nla_parse(tb_vendor, MTK_VENDOR_ATTR_MU_CTRL_MAX,
 +		  nla_data(nl_vend), nla_len(nl_vend), NULL);
 +
-+	attr = tb_vendor[MTK_VENDOR_ATTR_HEMU_CTRL_DUMP];
++	attr = tb_vendor[MTK_VENDOR_ATTR_MU_CTRL_DUMP];
 +	if (!attr) {
-+		wpa_printf(MSG_ERROR, "nl80211: cannot find MTK_VENDOR_ATTR_HEMU_CTRL_DUMP");
++		wpa_printf(MSG_ERROR, "nl80211: cannot find MTK_VENDOR_ATTR_MU_CTRL_DUMP");
 +		return NL_SKIP;
 +	}
 +
-+	*hemu_onoff = nla_get_u8(attr);
-+	wpa_printf(MSG_DEBUG, "nla_get hemu_onoff: %d\n", *hemu_onoff);
++	*mu_onoff = nla_get_u8(attr);
++	wpa_printf(MSG_DEBUG, "nla_get mu_onoff: %d\n", *mu_onoff);
 +
 +	return 0;
 +}
 +
-+static int nl80211_hemu_dump(void *priv, u8 *hemu_onoff)
++static int nl80211_mu_dump(void *priv, u8 *mu_onoff)
 +{
 +	struct i802_bss *bss = priv;
 +	struct wpa_driver_nl80211_data *drv = bss->drv;
@@ -375,15 +375,15 @@ index 6d4a4dbbe..f8b3f40c2 100644
 +	struct nlattr *attr;
 +	int ret;
 +
-+	if (!drv->mtk_hemu_vendor_cmd_avail) {
++	if (!drv->mtk_mu_vendor_cmd_avail) {
 +		wpa_printf(MSG_INFO,
-+			   "nl80211: Driver does not support setting hemu control");
++			   "nl80211: Driver does not support setting mu control");
 +		return 0;
 +	}
 +
 +	if (!(msg = nl80211_drv_msg(drv, NLM_F_DUMP, NL80211_CMD_VENDOR)) ||
 +		nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_MTK) ||
-+		nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL)) {
++		nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_MU_CTRL)) {
 +		nlmsg_free(msg);
 +		return -ENOBUFS;
 +	}
@@ -396,10 +396,10 @@ index 6d4a4dbbe..f8b3f40c2 100644
 +
 +	nla_nest_end(msg, attr);
 +
-+	ret = send_and_recv_msgs(drv, msg, hemu_dump_handler, hemu_onoff, NULL, NULL);
++	ret = send_and_recv_msgs(drv, msg, mu_dump_handler, mu_onoff, NULL, NULL);
 +
 +	if(ret){
-+		wpa_printf(MSG_ERROR, "Failed to get hemu_onoff. ret=%d (%s)", ret, strerror(-ret));
++		wpa_printf(MSG_ERROR, "Failed to get mu_onoff. ret=%d (%s)", ret, strerror(-ret));
 +	}
 +
 +	return ret;
@@ -414,8 +414,8 @@ index 6d4a4dbbe..f8b3f40c2 100644
  	.update_connect_params = nl80211_update_connection_params,
  	.send_external_auth_status = nl80211_send_external_auth_status,
  	.set_4addr_mode = nl80211_set_4addr_mode,
-+	.hemu_ctrl = nl80211_hemu_muruonoff,
-+	.hemu_dump = nl80211_hemu_dump,
++	.mu_ctrl = nl80211_mu_onoff,
++	.mu_dump = nl80211_mu_dump,
  #ifdef CONFIG_DPP
  	.dpp_listen = nl80211_dpp_listen,
  #endif /* CONFIG_DPP */
@@ -427,7 +427,7 @@ index 13e5d248c..57f02497e 100644
  	unsigned int brcm_do_acs:1;
  	unsigned int uses_6ghz:1;
  	unsigned int mtk_edcca_vendor_cmd_avail:1;
-+	unsigned int mtk_hemu_vendor_cmd_avail:1;
++	unsigned int mtk_mu_vendor_cmd_avail:1;
  
  	u64 vendor_scan_cookie;
  	u64 remain_on_chan_cookie;
@@ -439,8 +439,8 @@ index 732ae292d..cc146d9fc 100644
  				case MTK_NL80211_VENDOR_SUBCMD_EDCCA_CTRL :
  					drv->mtk_edcca_vendor_cmd_avail = 1;
  					break;
-+				case MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL :
-+					drv->mtk_hemu_vendor_cmd_avail = 1;
++				case MTK_NL80211_VENDOR_SUBCMD_MU_CTRL :
++					drv->mtk_mu_vendor_cmd_avail = 1;
 +					break;
  				}
  			}

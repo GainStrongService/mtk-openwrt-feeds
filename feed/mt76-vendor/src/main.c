@@ -32,7 +32,7 @@ void usage(void)
 		"set ap_wireless amsdu=<enable>",
 		"set ap_wireless cert=<enable>",
 
-		"set hemu onoff=<val> (bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0))",
+		"set mu onoff=<val> (bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0))",
 
 		"dump phy_capa",
 	};
@@ -81,8 +81,8 @@ int main(int argc, char **argv)
 			ret = mt76_ap_rfeatures_set(if_idx, argc, argv);
 		else if (!strncmp(subcmd, "ap_wireless", 11))
 			ret = mt76_ap_wireless_set(if_idx, argc, argv);
-		else if (!strncmp(subcmd, "hemu", 4))
-			ret = mt76_hemu_onoff_set(if_idx, argc, argv);
+		else if (!strncmp(subcmd, "mu", 2))
+			ret = mt76_mu_onoff_set(if_idx, argc, argv);
 	} else {
 		usage();
 	}

@@ -62,8 +62,8 @@ index 9cd6e811..766fa595 100644
 +};
 +
  static const struct nla_policy
- hemu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_HEMU_CTRL] = {
- 	[MTK_VENDOR_ATTR_HEMU_CTRL_ONOFF] = {.type = NLA_U8 },
+ mu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_MU_CTRL] = {
+ 	[MTK_VENDOR_ATTR_MU_CTRL_ONOFF] = {.type = NLA_U8 },
 @@ -983,11 +989,35 @@ static int mt7915_vendor_wireless_ctrl(struct wiphy *wiphy,
  		val8 = nla_get_u8(tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_CERT]);
  		mt7915_mcu_set_cfg(phy, CFGINFO_CERT_CFG, val8); /* Cert Enable for OMI */
@@ -97,7 +97,7 @@ index 9cd6e811..766fa595 100644
 +	return len;
 +}
 +
- static int mt7915_vendor_hemu_ctrl(struct wiphy *wiphy,
+ static int mt7915_vendor_mu_ctrl(struct wiphy *wiphy,
  				  struct wireless_dev *wdev,
  				  const void *data,
 @@ -1286,6 +1316,7 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
@@ -135,8 +135,8 @@ index 949c8853..cbff910b 100644
 +		NUM_MTK_VENDOR_ATTRS_WIRELESS_DUMP - 1
 +};
 +
- enum mtk_vendor_attr_hemu_ctrl {
- 	MTK_VENDOR_ATTR_HEMU_CTRL_UNSPEC,
+ enum mtk_vendor_attr_mu_ctrl {
+ 	MTK_VENDOR_ATTR_MU_CTRL_UNSPEC,
  
 -- 
 2.18.0

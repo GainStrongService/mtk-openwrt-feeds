@@ -3,7 +3,7 @@
 
 #include "mt76-vendor.h"
 
-static int mt76_hemu_onoff_set_attr(struct nl_msg *msg, int argc, char **argv)
+static int mt76_mu_onoff_set_attr(struct nl_msg *msg, int argc, char **argv)
 {
 	char *val;
 
@@ -14,12 +14,13 @@ static int mt76_hemu_onoff_set_attr(struct nl_msg *msg, int argc, char **argv)
 	*(val++) = 0;
 
 	if (!strncmp(argv[0], "onoff", 5))
-		nla_put_u8(msg, MTK_VENDOR_ATTR_HEMU_CTRL_ONOFF, strtoul(val, NULL, 0));
+		nla_put_u8(msg, MTK_VENDOR_ATTR_MU_CTRL_ONOFF,
+			   strtoul(val, NULL, 0));
 
 	return 0;
 }
 
-int mt76_hemu_onoff_set(int idx, int argc, char **argv)
+int mt76_mu_onoff_set(int idx, int argc, char **argv)
 {
 	struct nl_msg *msg;
 	void *data;
@@ -37,14 +38,15 @@ int mt76_hemu_onoff_set(int idx, int argc, char **argv)
 
 	if (nla_put_u32(msg, NL80211_ATTR_IFINDEX, idx) ||
 	    nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, MTK_NL80211_VENDOR_ID) ||
-	    nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_HEMU_CTRL))
+	    nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD,
+			MTK_NL80211_VENDOR_SUBCMD_MU_CTRL))
 		return false;
 
 	data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA | NLA_F_NESTED);
 	if (!data)
 		return -ENOMEM;
 
-	mt76_hemu_onoff_set_attr(msg, argc, argv);
+	mt76_mu_onoff_set_attr(msg, argc, argv);
 
 	nla_nest_end(msg, data);
 
