@@ -1,0 +1,27 @@
+Index: linux-5.4.224/init/do_mounts.c
+===================================================================
+--- linux-5.4.224.orig/init/do_mounts.c
++++ linux-5.4.224/init/do_mounts.c
+@@ -576,7 +576,8 @@ void __init mount_root(void)
+ 	}
+ #endif
+ #ifdef CONFIG_MTD_ROOTFS_ROOT_DEV
+-	if (!mount_ubi_rootfs())
++	extern bool dual_boot;
++	if (!dual_boot && !mount_ubi_rootfs())
+ 		return;
+ #endif
+ #ifdef CONFIG_BLOCK
+Index: linux-5.4.224/kernel/boot_param.c
+===================================================================
+--- linux-5.4.224.orig/kernel/boot_param.c
++++ linux-5.4.224/kernel/boot_param.c
+@@ -10,7 +10,7 @@
+ 
+ #define BOOT_PARAM_STR_MAX_LEN			256
+ 
+-static bool dual_boot;
++bool dual_boot;
+ module_param(dual_boot, bool, 0444);
+ 
+ static bool no_split_rootfs_data;
