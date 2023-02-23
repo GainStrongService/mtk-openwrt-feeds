@@ -112,6 +112,22 @@ index 3ecd932..438bf92 100644
  		uci -q commit wireless
  	done
  }
+diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
+index 8c233a4..f2d4ad3 100644
+--- a/package/network/services/hostapd/files/hostapd.sh
++++ b/package/network/services/hostapd/files/hostapd.sh
+@@ -1573,6 +1573,11 @@ wpa_supplicant_add_network() {
+ 		append network_data "mcast_rate=$mc_rate" "$N$T"
+ 	}
+ 
++	if [ "$auth_type" = "sae" ]; then
++		json_get_vars sae_pwe sae_pwe
++		[ -n "$sae_pwe" ] && echo "sae_pwe=$sae_pwe" >> "$_config"
++	fi
++
+ 	if [ "$key_mgmt" = "WPS" ]; then
+ 		echo "wps_cred_processing=1" >> "$_config"
+ 	else
 -- 
 2.36.1
 
