@@ -10,20 +10,59 @@ index 75d8351..ac8dd8e 100644
  
  #define MDIO_PHYXS_VEND_IF_STATUS		0xe812
  #define MDIO_PHYXS_VEND_IF_STATUS_TYPE_MASK	GENMASK(7, 3)
-@@ -352,6 +352,13 @@ static int aqr107_read_status(struct phy_device *phydev)
+@@ -268,17 +268,6 @@ static int aqr_read_status(struct phy_device *phydev)
+ 	return genphy_c45_read_status(phydev);
+ }
+ 
+-static int aqr107_read_downshift_event(struct phy_device *phydev)
+-{
+-	int val;
+-
+-	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_INT_STATUS1);
+-	if (val < 0)
+-		return val;
+-
+-	return !!(val & MDIO_AN_TX_VEND_INT_STATUS1_DOWNSHIFT);
+-}
+-
+ static int aqr107_read_rate(struct phy_device *phydev)
+ {
+ 	int val;
+@@ -353,13 +342,7 @@ static int aqr107_read_status(struct phy_device *phydev)
  		break;
  	}
  
-+	/* Handle the case when the link speed is unknown */
-+	if (phydev->speed == SPEED_UNKNOWN) {
-+		val = aqr107_read_rate(phydev);
-+		if (val < 0)
-+			return val;
-+	}
-+
- 	val = aqr107_read_downshift_event(phydev);
- 	if (val <= 0)
- 		return val;
+-	val = aqr107_read_downshift_event(phydev);
+-	if (val <= 0)
+-		return val;
+-
+-	phydev_warn(phydev, "Downshift occurred! Cabling may be defective.\n");
+-
+-	/* Read downshifted rate from vendor register */
++	/* Read possibly downshifted rate from vendor register */
+ 	return aqr107_read_rate(phydev);
+ }
+ 
+@@ -500,9 +483,6 @@ static int aqr107_config_init(struct phy_device *phydev)
+ 	if (!ret)
+ 		aqr107_chip_info(phydev);
+ 
+-	/* ensure that a latched downshift event is cleared */
+-	aqr107_read_downshift_event(phydev);
+-
+ 	return aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
+ }
+ 
+@@ -527,9 +507,6 @@ static int aqcs109_config_init(struct phy_device *phydev)
+ 	if (ret)
+ 		return ret;
+ 
+-	/* ensure that a latched downshift event is cleared */
+-	aqr107_read_downshift_event(phydev);
+-
+ 	return aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
+ }
+ 
 @@ -695,6 +696,24 @@ static struct phy_driver aqr_driver[] = {
  	.ack_interrupt	= aqr_ack_interrupt,
  	.read_status	= aqr_read_status,
