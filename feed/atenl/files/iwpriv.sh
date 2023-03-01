@@ -269,6 +269,12 @@ function convert_tx_mode() {
         echo "he_tb"
     elif [ "$tx_mode" = "11" ]; then
         echo "he_mu"
+    elif [ "$tx_mode" = "13" ]; then
+        echo "eht_su"
+    elif [ "$tx_mode" = "14" ]; then
+        echo "eht_tb"
+    elif [ "$tx_mode" = "15" ]; then
+        echo "eht_mu"
     else
         echo "undefined"
     fi
@@ -496,7 +502,27 @@ function convert_channel {
         local base_freq=5180
         local base_chan=36
     else
+        local base_freq=5955
         case ${bw} in
+            "12")
+                local bw_str="320"
+                if [ ${ch} == "31" ]; then
+                    local control_freq="5955"
+                elif [ ${ch} == "63" ]; then
+                    local control_freq="6115"
+                elif [ ${ch} == "95" ]; then
+                    local control_freq="6275"
+                elif [ ${ch} == "127" ]; then
+                    local control_freq="6435"
+                elif [ ${ch} == "159" ]; then
+                    local control_freq="6595"
+                elif [ ${ch} == "191" ]; then
+                    local control_freq="6755"
+                fi
+                local center_freq=$(((ch - base_chan) * 5 + base_freq))
+                do_cmd "iw dev mon${phy_idx} set freq ${control_freq} ${bw_str} ${center_freq}"
+                return
+                ;;
             "5")
                 bw_str="160MHz"
                 if [ ${ch} -lt "33" ]; then
@@ -644,7 +670,6 @@ function convert_channel {
                 local bw_str="HT20"
                 ;;
         esac
-        local base_freq=5955
     fi
 
     local control_freq=$(((ch - base_chan) * 5 + base_freq))
@@ -826,15 +851,22 @@ function convert_ibf {
     if [ "${cmd}" = "ATETxPacketWithBf" ]; then
         do_cmd "mt76-test phy${phy_idx} set state=tx_frames"
     elif [ "${cmd}" = "ATEConTxETxBfInitProc" ]; then
+        local wlan_idx="1"
+        if [ ${is_eagle} == "1" ]; then
+            local wlan_idx=$((phy_idx+1))
+        fi
         do_cmd "mt76-test phy${phy_idx} set aid=1"
         do_cmd "mt76-test phy${phy_idx} set txbf_act=stop_sounding txbf_param=1"
         do_cmd "mt76-test phy${phy_idx} set txbf_act=update_ch txbf_param=1"
         do_cmd "mt76-test phy${phy_idx} set txbf_act=ebf_prof_update txbf_param=0,0,0"
-        do_cmd "mt76-test phy${phy_idx} set txbf_act=apply_tx txbf_param=1,1,0,0,0"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=apply_tx txbf_param=${wlan_idx},1,0,0,0"
+        if [ ${is_eagle} == "1" ]; then
+            do_cmd "mt76-test phy${phy_idx} set txbf_act=txcmd txbf_param=1,1,1"
+        fi
         do_cmd "mt76-test phy${phy_idx} set txbf_act=pfmu_tag_read txbf_param=0,1"
-        do_cmd "mt76-test phy${phy_idx} set txbf_act=sta_rec_read txbf_param=1"
-        do_cmd "mt76-test phy${phy_idx} set txbf_act=trigger_sounding txbf_param=0,1,0,1,0,0,0"
-        do_cmd "mt76-test phy${phy_idx} set txbf_act=trigger_sounding txbf_param=2,1,ff,1,0,0,0"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=sta_rec_read txbf_param=${wlan_idx}"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=trigger_sounding txbf_param=0,1,0,${wlan_idx},0,0,0"
+        do_cmd "mt76-test phy${phy_idx} set txbf_act=trigger_sounding txbf_param=2,1,ff,${wlan_idx},0,0,0"
         do_cmd "mt76-test phy${phy_idx} set state=rx_frames"
     elif [ "${cmd}" = "ATEConTxETxBfGdProc" ]; then
         do_cmd "mt76-test phy${phy_idx} set aid=1"
@@ -1104,6 +1136,11 @@ if [ -z ${interface} ]; then
     exit
 elif [[ ${interface} == "ra"* ]]; then
     convert_interface $interface
+elif [[ ${interface} == "phy" ]]; then
+    # handle mwctl phy phy0 e2p ... case
+    interface=$2
+    cmd_type=$3
+    full_cmd=$4
 fi
 
 tmp_work_mode=$(get_config "WORKMODE" ${iwpriv_file})
@@ -1122,12 +1159,12 @@ if [ "${cmd_type}" = "set" ]; then
         ## Therefore this wrapper would translate it to either mt76-test or mt76-vendor based on the attribute of the command
         ## Translate to mt76-vendor command
         "csi"|"amnt"|"ap_rfeatures"|"ap_wireless"|"mu")
-	    if [ ${is_eagle} == "1" ]; then
+            if [ ${is_eagle} == "1" ]; then
                 do_cmd "hostapd_cli -i $*"
-                skip=1
-	    else
+            else
                 do_cmd "mt76-vendor $*"
-                skip=1
+            fi
+            skip=1
             ;;
         "ATE")
             do_ate_work ${param}
@@ -1151,9 +1188,14 @@ if [ "${cmd_type}" = "set" ]; then
             param_new=${param}
             ;;
         "ATETXGI")
-            tx_mode=$(convert_tx_mode $(get_config "ATETXMODE" ${iwpriv_file}))
-            convert_gi ${tx_mode} ${param}
-            skip=1
+            if [ ${is_eagle} == "0" ]; then
+                tx_mode=$(convert_tx_mode $(get_config "ATETXMODE" ${iwpriv_file}))
+                convert_gi ${tx_mode} ${param}
+                skip=1
+            else
+                cmd_new="tx_rate_sgi"
+                param_new=${param}
+            fi
             ;;
         "ATETXMODE")
             cmd_new="tx_rate_mode"
@@ -1166,9 +1208,17 @@ if [ "${cmd_type}" = "set" ]; then
                 record_config ${cmd} ${param} ${iwpriv_file}
             fi
             ;;
-        "ATETXPOW0"|"ATETXPOW1"|"ATETXPOW2"|"ATETXPOW3")
+        "ATETXPOW0"|"ATETXPOW1"|"ATETXPOW2"|"ATETXPOW3"|"ATETXPOW")
             cmd_new="tx_power"
+            if [ "${param}" == "127" ]; then
+                # for iTest verification
+                exit
+            fi
             param_new="${param},0,0,0"
+            ;;
+        "ATEMUAID")
+            cmd_new="aid"
+            param_new=${param}
             ;;
         "ATETXBW")
             record_config ${cmd} ${param} ${iwpriv_file}
@@ -1232,6 +1282,8 @@ elif [ "${cmd_type}" = "show" ]; then
 
         do_cmd "echo ${param} > ${wlan_idx}"
         do_cmd "cat ${wtbl_info}"
+    elif [ "${cmd}" = "ATERXSTAT" ]; then
+        convert_rxstat
     else
         do_cmd "mt76-test ${interface} dump"
         do_cmd "mt76-test ${interface} dump stats"
