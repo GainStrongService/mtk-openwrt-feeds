@@ -1,0 +1,28 @@
+From 20d6ed31c0e6c15cfbc120bea6a8729121560371 Mon Sep 17 00:00:00 2001
+From: "himanshu.goyal" <himanshu.goyal@mediatek.com>
+Date: Tue, 21 Feb 2023 15:24:09 +0800
+Subject: [PATCH] nl80211: mtk: Mark DFS channel as available for CSA.
+
+---
+ net/wireless/nl80211.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
+index 8dc928d..a02aacb 100644
+--- a/net/wireless/nl80211.c
++++ b/net/wireless/nl80211.c
+@@ -3193,6 +3193,11 @@ int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
+ 		return -EINVAL;
+ 	}
+ 
++	/* Use RADAR_BACKGROUND attribute here for skipping CAC */
++	if (info->attrs[NL80211_ATTR_RADAR_BACKGROUND]) {
++		cfg80211_set_dfs_state(&rdev->wiphy, chandef, NL80211_DFS_AVAILABLE);
++	}
++
+ 	if (!cfg80211_chandef_usable(&rdev->wiphy, chandef,
+ 				     IEEE80211_CHAN_DISABLED)) {
+ 		NL_SET_ERR_MSG(extack, "(extension) channel is disabled");
+-- 
+2.18.0
+
