@@ -1,7 +1,7 @@
-From e6da252b1895b1aebdfe737dcd57572d877cd1f1 Mon Sep 17 00:00:00 2001
+From a00620522ddc62d8070077e4d4a1ec18a8402bf9 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 15 Dec 2022 19:45:18 +0800
-Subject: [PATCH 1116/1133] mt76: testmode: add iBF/eBF cal and cert commands
+Subject: [PATCH 1116/1116] mt76: testmode: add iBF/eBF cal and cert commands
  with golden
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -25,7 +25,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  16 files changed, 856 insertions(+), 324 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index d5f5054f..6ab689af 100644
+index d5f5054..6ab689a 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -687,6 +687,7 @@ struct mt76_testmode_data {
@@ -47,7 +47,7 @@ index d5f5054f..6ab689af 100644
  	u32 tx_pending;
  	u32 tx_queued;
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index b6c2ccf0..6f5c81ce 100644
+index b6c2ccf..6f5c81c 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -2802,6 +2802,7 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
@@ -68,7 +68,7 @@ index b6c2ccf0..6f5c81ce 100644
  		memcpy(bss->bssid, phy->macaddr, ETH_ALEN);
  	}
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 1460a32b..35b85843 100644
+index 1460a32..35b8584 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -752,8 +752,10 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
@@ -84,7 +84,7 @@ index 1460a32b..35b85843 100644
  	txwi[6] |= cpu_to_le32(val);
  #endif
 diff --git a/mt7915/main.c b/mt7915/main.c
-index ea0d22fe..ecd023f6 100644
+index 651887c..21ad3b0 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -205,46 +205,37 @@ static void mt7915_init_bitrate_mask(struct ieee80211_vif *vif)
@@ -175,7 +175,7 @@ index ea0d22fe..ecd023f6 100644
  
  	return ret;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 988c55c6..e82b7e14 100644
+index cce622d..d8a1b00 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -193,6 +193,7 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -227,7 +227,7 @@ index 988c55c6..e82b7e14 100644
  
  	if (enable) {
  		mt7915_mcu_bss_rfch_tlv(skb, vif, phy);
-@@ -3452,6 +3466,7 @@ int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)
+@@ -3453,6 +3467,7 @@ int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)
  
  int mt7915_mcu_set_txbf(struct mt7915_dev *dev, u8 action)
  {
@@ -235,7 +235,7 @@ index 988c55c6..e82b7e14 100644
  	struct {
  		u8 action;
  		union {
-@@ -3478,7 +3493,6 @@ int mt7915_mcu_set_txbf(struct mt7915_dev *dev, u8 action)
+@@ -3479,7 +3494,6 @@ int mt7915_mcu_set_txbf(struct mt7915_dev *dev, u8 action)
  		.action = action,
  	};
  
@@ -243,7 +243,7 @@ index 988c55c6..e82b7e14 100644
  	switch (action) {
  	case MT_BF_SOUNDING_ON:
  		req.snd.snd_mode = MT_BF_PROCESSING;
-@@ -4396,6 +4410,9 @@ int mt7915_mcu_set_txbf_sound_info(struct mt7915_phy *phy, u8 action,
+@@ -4397,6 +4411,9 @@ int mt7915_mcu_set_txbf_sound_info(struct mt7915_phy *phy, u8 action,
  		req.he_opt = v2;
  		req.glo_opt = v3;
  		break;
@@ -254,7 +254,7 @@ index 988c55c6..e82b7e14 100644
  		return -EINVAL;
  	}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index d780415c..5c5c92fc 100644
+index d780415..5c5c92f 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -476,10 +476,12 @@ enum {
@@ -448,7 +448,7 @@ index d780415c..5c5c92fc 100644
  	MURU_SET_ARB_OP_MODE = 14,
  	MURU_SET_PLATFORM_TYPE = 25,
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 9a666d0f..95ded131 100644
+index 9a666d0..95ded13 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -133,6 +133,7 @@ static const u32 mt7915_offs[] = {
@@ -468,10 +468,10 @@ index 9a666d0f..95ded131 100644
  	[AGG_AALCR0]		= 0x028,
  	[AGG_AWSCR0]		= 0x030,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 2b42fb11..ae06a7c6 100644
+index e99b586..bb9c374 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -323,7 +323,6 @@ struct mt7915_phy {
+@@ -325,7 +325,6 @@ struct mt7915_phy {
  
  		u8 spe_idx;
  
@@ -479,7 +479,7 @@ index 2b42fb11..ae06a7c6 100644
  		bool bf_ever_en;
  	} test;
  #endif
-@@ -428,7 +427,7 @@ struct mt7915_dev {
+@@ -430,7 +429,7 @@ struct mt7915_dev {
  	void __iomem *dcm;
  	void __iomem *sku;
  
@@ -488,7 +488,7 @@ index 2b42fb11..ae06a7c6 100644
  	struct {
  		void *txbf_phase_cal;
  		void *txbf_pfmu_data;
-@@ -567,6 +566,7 @@ void mt7915_dma_prefetch(struct mt7915_dev *dev);
+@@ -568,6 +567,7 @@ void mt7915_dma_prefetch(struct mt7915_dev *dev);
  void mt7915_dma_cleanup(struct mt7915_dev *dev);
  int mt7915_dma_reset(struct mt7915_dev *dev, bool force);
  int mt7915_txbf_init(struct mt7915_dev *dev);
@@ -496,7 +496,7 @@ index 2b42fb11..ae06a7c6 100644
  void mt7915_init_txpower(struct mt7915_dev *dev,
  			 struct ieee80211_supported_band *sband);
  void mt7915_reset(struct mt7915_dev *dev);
-@@ -645,8 +645,10 @@ int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
+@@ -646,8 +646,10 @@ int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
  int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
  void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb);
  void mt7915_mcu_exit(struct mt7915_dev *dev);
@@ -508,7 +508,7 @@ index 2b42fb11..ae06a7c6 100644
  
  static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
  {
-@@ -783,4 +785,10 @@ enum {
+@@ -784,4 +786,10 @@ enum {
  
  #endif
  
@@ -520,7 +520,7 @@ index 2b42fb11..ae06a7c6 100644
 +
  #endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index cba38513..867d52d1 100644
+index 05dc7d5..a130f56 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2908,6 +2908,36 @@ mt7915_txpower_level_set(void *data, u64 val)
@@ -573,7 +573,7 @@ index cba38513..867d52d1 100644
  
  	debugfs_create_devm_seqfile(dev->mt76.dev, "fw_version", dir,
 diff --git a/mt7915/mtk_mcu.c b/mt7915/mtk_mcu.c
-index 143dae26..906c8725 100644
+index 143dae2..906c872 100644
 --- a/mt7915/mtk_mcu.c
 +++ b/mt7915/mtk_mcu.c
 @@ -1,9 +1,10 @@
@@ -836,7 +836,7 @@ index 143dae26..906c8725 100644
 +}
 +#endif
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index f4b57099..007fd4d2 100644
+index f4b5709..007fd4d 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -61,6 +61,7 @@ enum offs_rev {
@@ -858,7 +858,7 @@ index f4b57099..007fd4d2 100644
  #define MT_WF_RMAC_BASE(_band)		((_band) ? 0x820f5000 : 0x820e5000)
  #define MT_WF_RMAC(_band, ofs)		(MT_WF_RMAC_BASE(_band) + (ofs))
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 2ae6c07f..e4af5e1c 100644
+index 23dcabd..ad1865e 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -53,6 +53,8 @@ struct reg_band {
@@ -1701,7 +1701,7 @@ index 2ae6c07f..e4af5e1c 100644
  	rateval =  mode << 6 | rate_idx;
  	tx_cont->rateval = cpu_to_le16(rateval);
 diff --git a/mt7915/testmode.h b/mt7915/testmode.h
-index d500987d..19823694 100644
+index d500987..1982369 100644
 --- a/mt7915/testmode.h
 +++ b/mt7915/testmode.h
 @@ -311,137 +311,7 @@ struct mt7915_tm_muru {
@@ -1845,7 +1845,7 @@ index d500987d..19823694 100644
  
  #endif
 diff --git a/testmode.c b/testmode.c
-index 58280a40..a6b0c160 100644
+index 58280a4..a6b0c16 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -191,6 +191,7 @@ mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len,
@@ -1857,7 +1857,7 @@ index 58280a40..a6b0c160 100644
  	memcpy(hdr->addr2, addr[1], ETH_ALEN);
  	memcpy(hdr->addr3, addr[2], ETH_ALEN);
 diff --git a/testmode.h b/testmode.h
-index e03fa6df..0e96173b 100644
+index e03fa6d..0e96173 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -299,7 +299,10 @@ enum mt76_testmode_cfg {
@@ -1885,7 +1885,7 @@ index e03fa6df..0e96173b 100644
  	/* keep last */
  	NUM_MT76_TM_TXBF_ACT,
 diff --git a/tools/fields.c b/tools/fields.c
-index 6f07eed0..7211ec52 100644
+index 6f07eed..7211ec5 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -33,7 +33,10 @@ static const char * const testmode_tx_mode[] = {
