@@ -530,17 +530,6 @@ static int tx_amp_fill_result(struct phy_device *phydev, u16 *buf)
 					7, 1, 4, 7,
 					7, 1, 4, 7 };
 			memcpy(bias, (const void *)tmp, sizeof(bias));
-			for (i = 0; i <= 12; i += 4) {
-				if (likely(buf[i>>2] + bias[i] >= 32)) {
-					bias[i] -= 13;
-				} else {
-					phy_modify_mmd(phydev, MDIO_MMD_VEND1,
-						0x5c, 0x7 << i, bias[i] << i);
-					bias[i+1] += 13;
-					bias[i+2] += 13;
-					bias[i+3] += 13;
-				}
-			}
 			break;
 		}
 		case 0x03a29481:
@@ -984,8 +973,8 @@ static inline void mt7981_phy_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x12, 0xe);
 	__phy_write(phydev, 0x10, 0x8fb0);
 
-	/* SlvDSPreadyTime = 0xc */
-	__phy_write(phydev, 0x11, 0x671);
+	/* SlvDSPreadyTime = 24, MasDSPreadyTime = 24 */
+	__phy_write(phydev, 0x11, 0xc71);
 	__phy_write(phydev, 0x12, 0xc);
 	__phy_write(phydev, 0x10, 0x8fae);
 
@@ -999,10 +988,22 @@ static inline void mt7981_phy_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x12, 0x0);
 	__phy_write(phydev, 0x10, 0x8f80);
 
-	/* SSTr related */
+	/* SSTrKp1000Slv = 5 */
 	__phy_write(phydev, 0x11, 0xbaef);
 	__phy_write(phydev, 0x12, 0x2e);
 	__phy_write(phydev, 0x10, 0x968c);
+
+	/* MrvlTrFix100Kp = 3, MrvlTrFix100Kf = 2,
+	 * MrvlTrFix1000Kp = 3, MrvlTrFix1000Kf = 2
+	 */
+	__phy_write(phydev, 0x11, 0xd10a);
+	__phy_write(phydev, 0x12, 0x34);
+	__phy_write(phydev, 0x10, 0x8f82);
+
+	/* TrFreeze = 0 */
+	__phy_write(phydev, 0x11, 0x0);
+	__phy_write(phydev, 0x12, 0x0);
+	__phy_write(phydev, 0x10, 0x9686);
 
 	/* VcoSlicerThreshBitsHigh */
 	__phy_write(phydev, 0x11, 0x5555);
@@ -1018,6 +1019,11 @@ static inline void mt7981_phy_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x11, 0x4c2a);
 	__phy_write(phydev, 0x12, 0x3e);
 	__phy_write(phydev, 0x10, 0x8fa4);
+
+	/* FfeUpdGainForce = 4 */
+	__phy_write(phydev, 0x11, 0x240);
+	__phy_write(phydev, 0x12, 0x0);
+	__phy_write(phydev, 0x10, 0x9680);
 
 	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
 	/* TR_OPEN_LOOP_EN = 1, lpf_x_average = 9*/
@@ -1054,6 +1060,13 @@ static inline void mt7981_phy_finetune(struct phy_device *phydev)
 		phy_write_mmd(phydev, MDIO_MMD_VEND2, i, 0x2219);
 		phy_write_mmd(phydev, MDIO_MMD_VEND2, i+1, 0x23);
 	}
+
+	/* Disable LDO pump */
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LDO_PUMP_EN_PAIRAB, 0x0);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LDO_PUMP_EN_PAIRCD, 0x0);
+
+	/* Adjust LDO output voltage */
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LDO_OUTPUT_V, 0x2222);
 }
 
 static inline void mt7988_phy_finetune(struct phy_device *phydev)
@@ -1080,7 +1093,7 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x12, 0xe);
 	__phy_write(phydev, 0x10, 0x8fb0);
 
-	/* SlvDSPreadyTime = 0xc */
+	/* SlvDSPreadyTime = 24, MasDSPreadyTime = 12 */
 	__phy_write(phydev, 0x11, 0x671);
 	__phy_write(phydev, 0x12, 0xc);
 	__phy_write(phydev, 0x10, 0x8fae);
