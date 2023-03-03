@@ -654,7 +654,7 @@ index 66298e223..3d75c22be
  		entry->ipv6.ib2 = val;
  		l2 = &entry->ipv6.l2;
  	} else {
-@@ -329,32 +351,167 @@ int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid)
+@@ -329,32 +351,168 @@ int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid)
  	return 0;
  }
  
@@ -723,6 +723,7 @@ index 66298e223..3d75c22be
 +		ppe->foe_table[entry->hash].ib1 |= FIELD_PREP(MTK_FOE_IB1_STATE,
 +							      MTK_FOE_STATE_INVALID);
 +		dma_wmb();
++		mtk_ppe_cache_clear(ppe);
 +	}
 +	entry->hash = 0xffff;
 +

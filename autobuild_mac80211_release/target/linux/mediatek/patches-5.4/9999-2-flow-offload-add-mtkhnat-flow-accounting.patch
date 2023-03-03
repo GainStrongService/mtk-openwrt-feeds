@@ -139,9 +139,10 @@ index 918aa22..8c036cd 100755
  static void mtk_ppe_cache_clear(struct mtk_ppe *ppe)
  {
  	ppe_set(ppe, MTK_PPE_CACHE_CTL, MTK_PPE_CACHE_CTL_CLEAR);
-@@ -412,6 +452,18 @@ __mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
+@@ -412,7 +452,19 @@ __mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
  							      MTK_FOE_STATE_INVALID);
  		dma_wmb();
+ 		mtk_ppe_cache_clear(ppe);
 +
 +		if (ppe->accounting) {
 +			struct mtk_foe_accounting *acct, *acct_updated;
