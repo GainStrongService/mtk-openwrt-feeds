@@ -1,7 +1,7 @@
-From 52606532643a6db7206ff66fc5a5717e859cf76c Mon Sep 17 00:00:00 2001
+From 8cbdb9a59e3bbe8804f909b13ce6df6e2777c3da Mon Sep 17 00:00:00 2001
 From: mtk20656 <chank.chen@mediatek.com>
 Date: Thu, 2 Mar 2023 10:51:43 +0800
-Subject: [PATCH] add 11v_mbss and ema support for hostapd
+Subject: [PATCH] hostapd: mtk: add 11v_mbss and ema support for hostapd
 
 Signed-off-by: mtk20656 <chank.chen@mediatek.com>
 ---
@@ -11,7 +11,7 @@ Signed-off-by: mtk20656 <chank.chen@mediatek.com>
  src/ap/ap_config.c                |  12 ++
  src/ap/ap_config.h                |   6 +
  src/ap/beacon.c                   | 124 ++++++++++++--
- src/ap/hostapd.c                  |  76 ++++++--
+ src/ap/hostapd.c                  |  72 +++++++-
  src/ap/hostapd.h                  |   7 +
  src/ap/ieee802_11.c               | 276 +++++++++++++++++++++++++++++-
  src/ap/ieee802_11.h               |   7 +-
@@ -22,10 +22,10 @@ Signed-off-by: mtk20656 <chank.chen@mediatek.com>
  src/drivers/driver.h              |  42 +++++
  src/drivers/driver_nl80211.c      |  52 ++++++
  src/drivers/driver_nl80211_capa.c |  27 +++
- 17 files changed, 700 insertions(+), 22 deletions(-)
+ 17 files changed, 698 insertions(+), 20 deletions(-)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 649618b..3f26191
+index 649618b..3f26191 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
 @@ -3663,6 +3663,15 @@ static int hostapd_config_fill(struct hostapd_config *conf,
@@ -45,7 +45,7 @@ index 649618b..3f26191
  		int val = atoi(pos);
  		if (val < 0 || val > 15) {
 diff --git a/hostapd/hostapd.conf b/hostapd/hostapd.conf
-index e3a5eb3..f926029
+index e3a5eb3..f926029 100644
 --- a/hostapd/hostapd.conf
 +++ b/hostapd/hostapd.conf
 @@ -3123,3 +3123,61 @@ own_ip_addr=127.0.0.1
@@ -111,7 +111,7 @@ index e3a5eb3..f926029
 +#wpa_key_mgmt=SAE
 +#bssid=00:03:7f:12:84:85
 diff --git a/hostapd/main.c b/hostapd/main.c
-index 70a4b32..1b6474a
+index 70a4b32..1b6474a 100644
 --- a/hostapd/main.c
 +++ b/hostapd/main.c
 @@ -253,6 +253,9 @@ static int hostapd_driver_init(struct hostapd_iface *iface)
@@ -125,7 +125,7 @@ index 70a4b32..1b6474a
  
  	return 0;
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 4e46a62..7d9d5cb
+index 4e46a62..7d9d5cb 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -1462,6 +1462,12 @@ static int hostapd_config_check_bss(struct hostapd_bss_config *bss,
@@ -155,7 +155,7 @@ index 4e46a62..7d9d5cb
  		if (hostapd_config_check_bss(conf->bss[i], conf, full_config))
  			return -1;
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 7aeb176..51476b8
+index 7aeb176..51476b8 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
 @@ -923,6 +923,8 @@ struct hostapd_bss_config {
@@ -179,7 +179,7 @@ index 7aeb176..51476b8
  
  enum three_wire_mode {
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index f3ea5c2..9263950
+index f3ea5c2..51db23a 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
 @@ -462,15 +462,77 @@ static u8 * hostapd_eid_supported_op_classes(struct hostapd_data *hapd, u8 *eid)
@@ -304,13 +304,13 @@ index f3ea5c2..9263950
  	    is_broadcast_ether_addr(mgmt->da))
  		resp = hostapd_gen_probe_resp(hapd, NULL, elems.p2p != NULL,
 -					      &resp_len, true);
-+				      	&resp_len, false, elems.mbssid_known_bss,
-+				      	elems.mbssid_known_bss_len);
++					      &resp_len, false, elems.mbssid_known_bss,
++					      elems.mbssid_known_bss_len);
  	else
  		resp = hostapd_gen_probe_resp(hapd, mgmt, elems.p2p != NULL,
 -					      &resp_len, false);
-+				      	&resp_len, false, elems.mbssid_known_bss,
-+				      	elems.mbssid_known_bss_len);
++					      &resp_len, false, elems.mbssid_known_bss,
++					      elems.mbssid_known_bss_len);
  	if (resp == NULL)
  		return;
  
@@ -411,7 +411,7 @@ index f3ea5c2..9263950
  	os_free(params->fd_frame_tmpl);
  	params->fd_frame_tmpl = NULL;
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index da1e7a4..308bfb8
+index 42e8ed7..82cc155 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -91,6 +91,29 @@ int hostapd_for_each_interface(struct hapd_interfaces *interfaces,
@@ -483,7 +483,7 @@ index da1e7a4..308bfb8
  {
  	struct hostapd_bss_config *conf = hapd->conf;
  	u8 ssid[SSID_MAX_LEN + 1];
-@@ -1464,9 +1507,6 @@ static int hostapd_setup_bss(struct hostapd_data *hapd, int first)
+@@ -1464,9 +1505,6 @@ static int hostapd_setup_bss(struct hostapd_data *hapd, int first)
  		return -1;
  	}
  
@@ -493,7 +493,7 @@ index da1e7a4..308bfb8
  	if (flush_old_stations && !conf->start_disabled &&
  	    conf->broadcast_deauth) {
  		u8 addr[ETH_ALEN];
-@@ -1487,8 +1525,8 @@ static int hostapd_setup_bss(struct hostapd_data *hapd, int first)
+@@ -1485,8 +1523,8 @@ static int hostapd_setup_bss(struct hostapd_data *hapd, int first)
  	if (hapd->wpa_auth && wpa_init_keys(hapd->wpa_auth) < 0)
  		return -1;
  
@@ -504,7 +504,7 @@ index da1e7a4..308bfb8
  
  	hostapd_ubus_add_bss(hapd);
  
-@@ -2216,7 +2254,7 @@ static int hostapd_setup_interface_complete_sync(struct hostapd_iface *iface,
+@@ -2214,7 +2252,7 @@ static int hostapd_setup_interface_complete_sync(struct hostapd_iface *iface,
  		hapd = iface->bss[j];
  		if (j)
  			os_memcpy(hapd->own_addr, prev_addr, ETH_ALEN);
@@ -513,7 +513,7 @@ index da1e7a4..308bfb8
  			for (;;) {
  				hapd = iface->bss[j];
  				hostapd_bss_deinit_no_free(hapd);
-@@ -2230,6 +2268,24 @@ static int hostapd_setup_interface_complete_sync(struct hostapd_iface *iface,
+@@ -2228,6 +2266,24 @@ static int hostapd_setup_interface_complete_sync(struct hostapd_iface *iface,
  		if (is_zero_ether_addr(hapd->conf->bssid))
  			prev_addr = hapd->own_addr;
  	}
@@ -538,7 +538,7 @@ index da1e7a4..308bfb8
  	hapd = iface->bss[0];
  
  	hostapd_tx_queue_params(iface);
-@@ -3132,7 +3188,7 @@ int hostapd_add_iface(struct hapd_interfaces *interfaces, char *buf)
+@@ -3130,7 +3186,7 @@ int hostapd_add_iface(struct hapd_interfaces *interfaces, char *buf)
  
  			if (start_ctrl_iface_bss(hapd) < 0 ||
  			    (hapd_iface->state == HAPD_IFACE_ENABLED &&
@@ -548,7 +548,7 @@ index da1e7a4..308bfb8
  				hapd_iface->bss[hapd_iface->num_bss - 1] = NULL;
  				hapd_iface->conf->num_bss--;
 diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
-index 56d96a5..093c28a
+index 56d96a5..093c28a 100644
 --- a/src/ap/hostapd.h
 +++ b/src/ap/hostapd.h
 @@ -660,6 +660,11 @@ struct hostapd_iface {
@@ -572,7 +572,7 @@ index 56d96a5..093c28a
  
  #endif /* HOSTAPD_H */
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index 098793e..30bfa30
+index 098793e..30bfa30 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
 @@ -165,6 +165,7 @@ u8 * hostapd_eid_ext_supp_rates(struct hostapd_data *hapd, u8 *eid)
@@ -885,7 +885,7 @@ index 098793e..30bfa30
 +
  #endif /* CONFIG_NATIVE_WINDOWS */
 diff --git a/src/ap/ieee802_11.h b/src/ap/ieee802_11.h
-index fa1f47b..bb454bb
+index fa1f47b..bb454bb 100644
 --- a/src/ap/ieee802_11.h
 +++ b/src/ap/ieee802_11.h
 @@ -214,5 +214,10 @@ u16 copy_sta_eht_capab(struct hostapd_data *hapd, struct sta_info *sta,
@@ -901,7 +901,7 @@ index fa1f47b..bb454bb
 +			const u8 *known_bss, size_t known_bss_len);
  #endif /* IEEE802_11_H */
 diff --git a/src/ap/ieee802_11_shared.c b/src/ap/ieee802_11_shared.c
-index 4f85d78..7f5b475
+index 4f85d78..7f5b475 100644
 --- a/src/ap/ieee802_11_shared.c
 +++ b/src/ap/ieee802_11_shared.c
 @@ -364,6 +364,8 @@ static void hostapd_ext_capab_byte(struct hostapd_data *hapd, u8 *pos, int idx)
@@ -937,7 +937,7 @@ index 4f85d78..7f5b475
  
  	while (len > 0 && eid[1 + len] == 0) {
 diff --git a/src/common/ieee802_11_common.c b/src/common/ieee802_11_common.c
-index c8ee90c..2fab7c3
+index c8ee90c..2fab7c3 100644
 --- a/src/common/ieee802_11_common.c
 +++ b/src/common/ieee802_11_common.c
 @@ -315,6 +315,10 @@ static int ieee802_11_parse_extension(const u8 *pos, size_t elen,
@@ -952,7 +952,7 @@ index c8ee90c..2fab7c3
  		if (show_errors) {
  			wpa_printf(MSG_MSGDUMP,
 diff --git a/src/common/ieee802_11_common.h b/src/common/ieee802_11_common.h
-index 94e1d7b..1e4e27d
+index 94e1d7b..1e4e27d 100644
 --- a/src/common/ieee802_11_common.h
 +++ b/src/common/ieee802_11_common.h
 @@ -119,6 +119,7 @@ struct ieee802_11_elems {
@@ -973,7 +973,7 @@ index 94e1d7b..1e4e27d
  	struct frag_ies_info frag_ies;
  };
 diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
-index 78e7bee..f7ec11b
+index 62088bd..0bbbca9 100644
 --- a/src/common/ieee802_11_defs.h
 +++ b/src/common/ieee802_11_defs.h
 @@ -481,6 +481,9 @@
@@ -996,7 +996,7 @@ index 78e7bee..f7ec11b
  #define WLAN_EXT_CAPAB_20_40_COEX 0
  #define WLAN_EXT_CAPAB_GLK 1
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index bb879ff..aa7d31d
+index 82daef0..36f465c 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
 @@ -1633,6 +1633,43 @@ struct wpa_driver_ap_params {
@@ -1056,7 +1056,7 @@ index bb879ff..aa7d31d
  
  
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 3e2e7a6..268e1ec
+index 6c65901..3753409 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -4540,6 +4540,55 @@ static int nl80211_unsol_bcast_probe_resp(struct i802_bss *bss,
@@ -1126,7 +1126,7 @@ index 3e2e7a6..268e1ec
  
  #ifdef CONFIG_SAE
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index 06a52db..d8078bc
+index 06a52db..d8078bc 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
 @@ -857,6 +857,30 @@ err:
