@@ -1,7 +1,7 @@
-From 8a6c47c698f273485f749c8aa2c3fd2b6a946c86 Mon Sep 17 00:00:00 2001
+From 5650267fdb5d7e237e58908b5f11c9bd12170c3a Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 7 Jul 2022 11:09:59 +0800
-Subject: [PATCH 1122/1133] mt76: mt7915: implement bin file mode
+Subject: [PATCH 1122/1132] mt76: mt7915: implement bin file mode
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
@@ -46,10 +46,10 @@ index 263e5089..1ba84cab 100644
  mt76_eeprom_override(struct mt76_phy *phy)
  {
 diff --git a/mt76.h b/mt76.h
-index 6ab689af..1638ef63 100644
+index 4cbe3670..675c12a4 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -900,9 +900,11 @@ struct mt76_dev {
+@@ -901,9 +901,11 @@ struct mt76_dev {
  		struct mt76_sdio sdio;
  	};
  
@@ -61,7 +61,7 @@ index 6ab689af..1638ef63 100644
  };
  
  struct mt76_power_limits {
-@@ -1039,6 +1041,7 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
+@@ -1040,6 +1042,7 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
  int mt76_eeprom_init(struct mt76_dev *dev, int len);
  void mt76_eeprom_override(struct mt76_phy *phy);
  int mt76_get_of_eeprom(struct mt76_dev *dev, void *data, int offset, int len);
@@ -203,7 +203,7 @@ index 582887d4..03a27ff3 100644
  #define PKT_BIN_DEBUG_MAGIC	0xc8763123
  enum {
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index da444f38..5f34afc7 100644
+index a130f564..1f347efe 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -3,6 +3,7 @@

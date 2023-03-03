@@ -1,7 +1,7 @@
-From cd6e64e5bdea2ee410c1cc8e83f78322bf9f3982 Mon Sep 17 00:00:00 2001
+From 82351f298ec49641998232fb648606996b3c5a37 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 5 Dec 2022 18:21:51 +0800
-Subject: [PATCH 1129/1133] mt76: mt7915: add bf backoff limit table support
+Subject: [PATCH 1129/1132] mt76: mt7915: add bf backoff limit table support
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
@@ -57,10 +57,10 @@ index 1ba84cab..6e6d84e3 100644
  }
  EXPORT_SYMBOL_GPL(mt76_get_rate_power_limits);
 diff --git a/mt76.h b/mt76.h
-index 1638ef63..5e24d03c 100644
+index 675c12a4..dbb120cc 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -912,6 +912,14 @@ struct mt76_power_limits {
+@@ -913,6 +913,14 @@ struct mt76_power_limits {
  	s8 ofdm[8];
  	s8 mcs[4][10];
  	s8 ru[7][12];
@@ -188,10 +188,10 @@ index f1f3f2f3..3ef2148b 100644
  				    mt7915_twt_stats);
  	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 292351fb..ff309294 100644
+index 9d934748..5e74ed6e 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3331,7 +3331,8 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
+@@ -3333,7 +3333,8 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
  	int ret;
  	s8 txpower_sku[MT7915_SKU_RATE_NUM];
  
@@ -201,7 +201,7 @@ index 292351fb..ff309294 100644
  	if (ret)
  		return ret;
  
-@@ -3373,51 +3374,98 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
+@@ -3375,51 +3376,98 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
  
  int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
  {
@@ -325,7 +325,7 @@ index 292351fb..ff309294 100644
  	struct mt7915_dev *dev = phy->dev;
  	struct {
  		u8 format_id;
-@@ -3426,10 +3474,9 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
+@@ -3428,10 +3476,9 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
  		u8 _rsv;
  	} __packed req = {
  		.format_id = TX_POWER_LIMIT_INFO,
@@ -337,7 +337,7 @@ index 292351fb..ff309294 100644
  	struct sk_buff *skb;
  	int ret, i;
  
-@@ -3439,9 +3486,15 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
+@@ -3441,9 +3488,15 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
  	if (ret)
  		return ret;
  
@@ -356,7 +356,7 @@ index 292351fb..ff309294 100644
  
  	dev_kfree_skb(skb);
  
-@@ -3483,9 +3536,18 @@ int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable)
+@@ -3485,9 +3538,18 @@ int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable)
  		.band_idx = phy->mt76->band_idx,
  		.sku_enable = enable,
  	};
@@ -376,7 +376,7 @@ index 292351fb..ff309294 100644
  				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL), &req,
  				 sizeof(req), true);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 16517099..e869a9f5 100644
+index 0aee6948..a07bb9ac 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -447,12 +447,18 @@ enum {

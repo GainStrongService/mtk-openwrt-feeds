@@ -1,7 +1,7 @@
-From 610518420411975d6d4cb88c722a8abf645c88f2 Mon Sep 17 00:00:00 2001
+From 81f9124f106441a6ac2f9c43efb9de9f5cc60cb4 Mon Sep 17 00:00:00 2001
 From: "himanshu.goyal" <himanshu.goyal@mediatek.com>
 Date: Tue, 24 Jan 2023 14:32:08 +0800
-Subject: [PATCH 1132/1133] mt76: mt7915: Add vendor command attribute for RTS
+Subject: [PATCH 1132/1132] mt76: mt7915: Add vendor command attribute for RTS
  BW signaling.
 
 Signed-off-by: himanshu.goyal <himanshu.goyal@mediatek.com>
@@ -13,10 +13,10 @@ Signed-off-by: himanshu.goyal <himanshu.goyal@mediatek.com>
  4 files changed, 20 insertions(+)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 2cfad0a3..4f1d2fe6 100644
+index dffd1761..e07197d0 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4408,6 +4408,12 @@ int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type)
+@@ -4410,6 +4410,12 @@ int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type)
  		req.cert.length = cpu_to_le16(tlv_len);
  		req.cert.cert_program = type;
  		break;
@@ -30,7 +30,7 @@ index 2cfad0a3..4f1d2fe6 100644
  		tlv_len = sizeof(struct three_wire_cfg);
  		req.three_wire.tag = cpu_to_le16(cfg_info);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index e869a9f5..03ee600a 100644
+index a07bb9ac..8cbd37ca 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -867,6 +867,13 @@ struct three_wire_cfg {
@@ -62,7 +62,7 @@ index e869a9f5..03ee600a 100644
  };
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 766fa595..7fbf67d6 100644
+index 2e5f07c3..3b7ac098 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -33,6 +33,7 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -84,7 +84,7 @@ index 766fa595..7fbf67d6 100644
  
  	return 0;
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index cbff910b..41d6ff26 100644
+index 33c75dc9..6001ce4a 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -76,6 +76,7 @@ enum mtk_vendor_attr_wireless_ctrl {

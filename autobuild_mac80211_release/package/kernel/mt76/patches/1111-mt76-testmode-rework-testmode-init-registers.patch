@@ -1,7 +1,7 @@
-From 6517389a3eb0ee290151240c1639a94405fdfbd8 Mon Sep 17 00:00:00 2001
+From 67a19923b1e9f0491531d7f641725310b5152f87 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Jun 2022 19:46:26 +0800
-Subject: [PATCH 1111/1133] mt76: testmode: rework testmode init registers
+Subject: [PATCH 1111/1132] mt76: testmode: rework testmode init registers
 
 ---
  mac80211.c        |   3 +-
@@ -17,10 +17,10 @@ Subject: [PATCH 1111/1133] mt76: testmode: rework testmode init registers
  10 files changed, 164 insertions(+), 35 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index b117e446..00e7b4f3 100644
+index 87902f4b..ad5d6f8b 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -817,7 +817,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
+@@ -826,7 +826,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
  	}
  
  #ifdef CONFIG_NL80211_TESTMODE
@@ -31,10 +31,10 @@ index b117e446..00e7b4f3 100644
  		if (status->flag & RX_FLAG_FAILED_FCS_CRC)
  			phy->test.rx_stats.fcs_error[q]++;
 diff --git a/mt76.h b/mt76.h
-index 00f1cd0d..25ad0f6b 100644
+index 55751e8f..ca664489 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -643,6 +643,8 @@ struct mt76_testmode_ops {
+@@ -644,6 +644,8 @@ struct mt76_testmode_ops {
  	int (*dump_stats)(struct mt76_phy *phy, struct sk_buff *msg);
  };
  
@@ -43,7 +43,7 @@ index 00f1cd0d..25ad0f6b 100644
  struct mt76_testmode_data {
  	enum mt76_testmode_state state;
  
-@@ -674,6 +676,8 @@ struct mt76_testmode_data {
+@@ -675,6 +677,8 @@ struct mt76_testmode_data {
  
  	u8 addr[3][ETH_ALEN];
  
@@ -52,7 +52,7 @@ index 00f1cd0d..25ad0f6b 100644
  	u32 tx_pending;
  	u32 tx_queued;
  	u16 tx_queued_limit;
-@@ -681,6 +685,7 @@ struct mt76_testmode_data {
+@@ -682,6 +686,7 @@ struct mt76_testmode_data {
  	struct {
  		u64 packets[__MT_RXQ_MAX];
  		u64 fcs_error[__MT_RXQ_MAX];
@@ -61,10 +61,10 @@ index 00f1cd0d..25ad0f6b 100644
  };
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index ff114cb9..1a146563 100644
+index 68e9c7e1..8ba8ebfe 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1193,6 +1193,7 @@ enum {
+@@ -1190,6 +1190,7 @@ enum {
  	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,
  	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
  	MCU_EXT_CMD_MURU_CTRL = 0x9f,
@@ -73,7 +73,7 @@ index ff114cb9..1a146563 100644
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index aaea3230..a4b7ef82 100644
+index ac4e6c8b..3c16d214 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -9,6 +9,7 @@
@@ -85,7 +85,7 @@ index aaea3230..a4b7ef82 100644
  	MCU_ATE_CLEAN_TXQUEUE = 0x1c,
  };
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 225a1960..6d8455d5 100644
+index 6f0c0e2a..dbafb5ff 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -120,6 +120,7 @@ static const u32 mt7986_reg[] = {

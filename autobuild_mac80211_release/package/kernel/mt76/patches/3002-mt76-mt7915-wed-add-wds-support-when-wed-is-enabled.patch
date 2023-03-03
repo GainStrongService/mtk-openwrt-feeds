@@ -1,21 +1,21 @@
-From 443b9ce1fa3d69fbfdbb6051c4ed46029556083d Mon Sep 17 00:00:00 2001
+From e7caf441138764cd701c00bf8c3bd6b7747ed323 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Tue, 13 Dec 2022 17:51:26 +0800
-Subject: [PATCH 3002/3015] mt76: mt7915: wed: add wds support when wed is
+Subject: [PATCH 3002/3013] mt76: mt7915: wed: add wds support when wed is
  enabled
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
  mt76.h        |  6 ++++++
  mt7915/main.c | 22 ++++++++++++++++++++--
- mt7915/mcu.c  | 13 +++++++++++--
+ mt7915/mcu.c  | 16 ++++++++++++----
  mt7915/mcu.h  |  1 +
  util.c        | 40 +++++++++++++++++++++++++++++++++++++---
  util.h        |  7 ++++++-
- 6 files changed, 81 insertions(+), 8 deletions(-)
+ 6 files changed, 82 insertions(+), 10 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 5e24d03c..cb34391a 100644
+index dbb120cc..d8438953 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -60,6 +60,12 @@ enum mt76_wed_type {
@@ -81,17 +81,20 @@ index 020a6d2d..b9c17b9b 100644
  	ctx->dev = NULL;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 4f1d2fe6..d046ce0f 100644
+index e07197d0..6b90f338 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2416,8 +2416,17 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
+@@ -2416,10 +2416,18 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
  	if (ret)
  		return ret;
  
--	if (mtk_wed_device_active(&dev->mt76.mmio.wed) && is_mt7915(&dev->mt76))
+-	if ((mtk_wed_device_active(&dev->mt76.mmio.wed) &&
+-	     is_mt7915(&dev->mt76)) ||
+-	    !mtk_wed_get_rx_capa(&dev->mt76.mmio.wed))
 -		mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(CAPABILITY), 0, 0, 0);
 +	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
-+		if (is_mt7915(&dev->mt76))
++		if (is_mt7915(&dev->mt76) ||
++		    !mtk_wed_get_rx_capa(&dev->mt76.mmio.wed))
 +			ret = mt7915_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(CAPABILITY),
 +						0, 0, 0);
 +		else
@@ -105,7 +108,7 @@ index 4f1d2fe6..d046ce0f 100644
  	ret = mt7915_mcu_set_mwds(dev, 1);
  	if (ret)
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 03ee600a..24d0efd3 100644
+index 8cbd37ca..0f845075 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -284,6 +284,7 @@ enum {

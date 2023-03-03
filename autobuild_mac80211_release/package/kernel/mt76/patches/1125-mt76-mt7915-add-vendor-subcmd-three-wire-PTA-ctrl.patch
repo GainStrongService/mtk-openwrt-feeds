@@ -1,7 +1,7 @@
-From 6d68ed1f6ead694289dc9d2a98ef3d49dcb778dd Mon Sep 17 00:00:00 2001
+From 305cf303e1ab242784019ff78a2b534f7c9df707 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 28 Oct 2022 10:15:56 +0800
-Subject: [PATCH 1125/1133] mt76: mt7915: add vendor subcmd three wire (PTA)
+Subject: [PATCH 1125/1132] mt76: mt7915: add vendor subcmd three wire (PTA)
  ctrl
 
 Change-Id: Ic1044698f294455594a0c6254f55326fdab90580
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 111 insertions(+), 29 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 65863a0d..41859dc3 100644
+index e04500f5..1ff517f0 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1204,7 +1204,7 @@ enum {
+@@ -1201,7 +1201,7 @@ enum {
  	/* for vendor csi and air monitor */
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
@@ -29,10 +29,10 @@ index 65863a0d..41859dc3 100644
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 3408555e..ebe00300 100644
+index 28b2a624..baf74440 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4322,37 +4322,33 @@ void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable)
+@@ -4324,37 +4324,33 @@ void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable)
  			&req, sizeof(req), false);
  }
  
@@ -94,7 +94,7 @@ index 3408555e..ebe00300 100644
  
  void mt7915_mcu_set_bypass_smthint(struct mt7915_phy *phy, u8 val)
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index c87fe8e8..16517099 100644
+index 7558726c..0aee6948 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -847,6 +847,35 @@ struct mt7915_mcu_rdd_ipi_scan {
@@ -146,7 +146,7 @@ index 03a27ff3..fbe68ef9 100644
  void mt7915_vendor_register(struct mt7915_phy *phy);
  int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 83f38e07..48d124e0 100644
+index 6915ac8d..b26b1cc6 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -40,6 +40,11 @@ mu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_MU_CTRL] = {
@@ -229,7 +229,7 @@ index 83f38e07..48d124e0 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index c19ffe72..d96e5c23 100644
+index d8e23d34..de3cbe2c 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -12,6 +12,7 @@ enum mtk_nl80211_vendor_subcmds {

@@ -1,7 +1,7 @@
-From 2cd8e8385970f43311305c6849b31cd86cc40f5a Mon Sep 17 00:00:00 2001
+From 8f2a166a0af3f1c6b1f77335685beb56b9d908f3 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 13 Oct 2022 13:22:05 +0800
-Subject: [PATCH 1127/1133] mt76: mt7915: add E3 re-bonding for low yield rate
+Subject: [PATCH 1127/1132] mt76: mt7915: add E3 re-bonding for low yield rate
  issue
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -64,10 +64,10 @@ index 54803e8e..849275e1 100644
  	if (ret)
  		return ret;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ebe00300..292351fb 100644
+index baf74440..9d934748 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2886,7 +2886,7 @@ int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode)
+@@ -2888,7 +2888,7 @@ int mt7915_mcu_set_eeprom(struct mt7915_dev *dev, bool flash_mode)
  				 &req, sizeof(req), true);
  }
  
@@ -76,7 +76,7 @@ index ebe00300..292351fb 100644
  {
  	struct mt7915_mcu_eeprom_info req = {
  		.addr = cpu_to_le32(round_down(offset,
-@@ -2904,8 +2904,15 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
+@@ -2906,8 +2906,15 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
  		return ret;
  
  	res = (struct mt7915_mcu_eeprom_info *)skb->data;

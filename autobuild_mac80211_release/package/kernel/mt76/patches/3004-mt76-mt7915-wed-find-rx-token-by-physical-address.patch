@@ -1,7 +1,7 @@
-From fc10309ea47b4d34ace30e6f4e7ff0c0ffa71db2 Mon Sep 17 00:00:00 2001
+From b454d9a320895e76b3211a3c176dbf3ab24c1a8a Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 25 Nov 2022 14:32:35 +0800
-Subject: [PATCH 3004/3015] mt76: mt7915: wed: find rx token by physical
+Subject: [PATCH 3004/3013] mt76: mt7915: wed: find rx token by physical
  address
 
 The token id in RxDMAD may be incorrect when it is not the last frame due to
@@ -9,21 +9,19 @@ WED HW bug. Lookup correct token id by physical address in sdp0.
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
- dma.c | 27 ++++++++++++++++++++++++++-
- 1 file changed, 26 insertions(+), 1 deletion(-)
+ dma.c | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
 
 diff --git a/dma.c b/dma.c
-index a6bb3730..b58579c5 100644
+index fe65e0f3..14553b24 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -402,10 +402,35 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
- 		*info = le32_to_cpu(desc->info);
+@@ -403,9 +403,32 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  
  	if (mt76_queue_is_wed_rx(q)) {
-+		__le32 buf1;
+ 		u32 buf1 = le32_to_cpu(desc->buf1);
 +		u32 id, find = 0;
- 		u32 token = FIELD_GET(MT_DMA_CTL_TOKEN,
- 				      le32_to_cpu(desc->buf1));
+ 		u32 token = FIELD_GET(MT_DMA_CTL_TOKEN, buf1);
 -		struct mt76_txwi_cache *t = mt76_rx_token_release(dev, token);
 +		struct mt76_txwi_cache *t;
 +
@@ -36,10 +34,9 @@ index a6bb3730..b58579c5 100644
 +					token = id;
 +
 +					/* Write correct id back to DMA*/
-+					buf1 = desc->buf1;
-+					buf1 = le32_replace_bits(buf1, id,
-+							MT_DMA_CTL_TOKEN);
-+					WRITE_ONCE(desc->buf1, buf1);
++					u32p_replace_bits(&buf1, id,
++							  MT_DMA_CTL_TOKEN);
++					WRITE_ONCE(desc->buf1, cpu_to_le32(buf1));
 +					break;
 +				}
 +			}

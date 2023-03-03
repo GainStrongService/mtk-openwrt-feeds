@@ -1,7 +1,7 @@
-From 9f4ef5f8637f597acf5fc876d40f9159e051e512 Mon Sep 17 00:00:00 2001
+From 0519381004e17ba76e11bda6d806bc5a4aedd013 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
-Subject: [PATCH] mt76: mt7915: add vendor subcmd EDCCA ctrl
+Subject: [PATCH 1121/1132] mt76: mt7915: add vendor subcmd EDCCA ctrl
  enable/threshold/compensation
 
 Change-Id: I06a3f94d5e444be894200e2b6588d76ed38d09d0
@@ -16,10 +16,10 @@ Change-Id: I06a3f94d5e444be894200e2b6588d76ed38d09d0
  7 files changed, 265 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 5cef308a..65863a0d 100644
+index f4a329e8..e04500f5 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1205,6 +1205,7 @@ enum {
+@@ -1202,6 +1202,7 @@ enum {
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
@@ -42,10 +42,10 @@ index d1135d9f..0d01d880 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 185b6495..85bb60c9 100644
+index 7da5bdfb..28b2a624 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4623,3 +4623,76 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
+@@ -4625,3 +4625,76 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
  
  	return 0;
  }
@@ -123,7 +123,7 @@ index 185b6495..85bb60c9 100644
 +	return 0;
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 5c5c92fc..c87fe8e8 100644
+index 7d1dc500..7558726c 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -1058,6 +1058,27 @@ enum {
@@ -169,7 +169,7 @@ index f6b7241d..582887d4 100644
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 526eb6b2..f712d67c 100644
+index 607e66bb..e748ab16 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -62,6 +62,24 @@ phy_capa_dump_policy[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP] = {
@@ -326,7 +326,7 @@ index 526eb6b2..f712d67c 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 719b851f..72319717 100644
+index ffdb466b..0c96377f 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -2,6 +2,7 @@

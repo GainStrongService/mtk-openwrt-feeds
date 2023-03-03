@@ -1,4 +1,4 @@
-From a3246b4d0ebb9b123c552f05226b0dc612c70788 Mon Sep 17 00:00:00 2001
+From a3b277ab5965fc3ea056d9d4f2f9a9dedd4fef51 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 6 Jun 2022 20:15:51 +0800
 Subject: [PATCH 1005/1009] mt76: mt7915: certification patches
@@ -6,20 +6,20 @@ Subject: [PATCH 1005/1009] mt76: mt7915: certification patches
 ---
  mt76_connac_mcu.h    |   1 +
  mt7915/mac.c         |  23 +++
- mt7915/main.c        |  15 +-
+ mt7915/main.c        |  13 +-
  mt7915/mcu.c         | 466 +++++++++++++++++++++++++++++++++++++++++++
  mt7915/mcu.h         | 207 ++++++++++++++++++-
  mt7915/mt7915.h      |  13 ++
- mt7915/mtk_debugfs.c |  25 +--
+ mt7915/mtk_debugfs.c |   7 +-
  mt7915/vendor.c      | 187 +++++++++++++++++
  mt7915/vendor.h      |  42 ++++
- 9 files changed, 965 insertions(+), 14 deletions(-)
+ 9 files changed, 954 insertions(+), 5 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 60161c9..ff114cb 100644
+index d35f9e92..68e9c7e1 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1199,6 +1199,7 @@ enum {
+@@ -1196,6 +1196,7 @@ enum {
  	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
  	/* for vendor csi and air monitor */
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
@@ -28,7 +28,7 @@ index 60161c9..ff114cb 100644
  };
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 547519c..599d328 100644
+index 547519cc..599d328d 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -8,6 +8,7 @@
@@ -76,7 +76,7 @@ index 547519c..599d328 100644
  			       IEEE80211_RC_NSS_CHANGED |
  			       IEEE80211_RC_BW_CHANGED))
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 3ded65d..05a5fbc 100644
+index 3ded65de..f0cbfbef 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -678,6 +678,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -107,10 +107,10 @@ index 3ded65d..05a5fbc 100644
  
  void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index cf9a3e2..c15dce3 100644
+index b507f14f..057ea6ee 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3939,6 +3939,472 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
+@@ -3941,6 +3941,472 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
  
  	return 0;
  }
@@ -584,7 +584,7 @@ index cf9a3e2..c15dce3 100644
  
  #ifdef MTK_DEBUG
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 275a0ec..714bc44 100644
+index 275a0ece..714bc44d 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -416,10 +416,14 @@ enum {
@@ -818,7 +818,7 @@ index 275a0ec..714bc44 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index e94970b..8b292c3 100644
+index e94970ba..8b292c3c 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -722,6 +722,19 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
@@ -842,10 +842,10 @@ index e94970b..8b292c3 100644
  int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
  			u8 cfg, u8 v1, u32 v2, u8 *mac_addr);
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 1aafe04..e0af645 100644
+index 824ddeda..4662f46f 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -2564,7 +2564,8 @@ static int mt7915_muru_onoff_get(void *d
+@@ -2564,7 +2564,8 @@ static int mt7915_muru_onoff_get(void *data, u64 *val)
  
  	*val = phy->muru_onoff;
  
@@ -855,7 +855,7 @@ index 1aafe04..e0af645 100644
  		    !!(phy->muru_onoff & MUMIMO_UL),
  		    !!(phy->muru_onoff & MUMIMO_DL),
  		    !!(phy->muru_onoff & OFDMA_UL),
-@@ -2577,8 +2578,8 @@ static int mt7915_muru_onoff_set(void *d
+@@ -2577,8 +2578,8 @@ static int mt7915_muru_onoff_set(void *data, u64 val)
  {
  	struct mt7915_phy *phy = data;
  
@@ -867,7 +867,7 @@ index 1aafe04..e0af645 100644
  	}
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index b94d787..beb0583 100644
+index b94d787e..beb0583a 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -22,6 +22,29 @@ csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
@@ -1079,7 +1079,7 @@ index b94d787..beb0583 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 976817f..1b08321 100644
+index 976817f3..1b08321c 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -6,6 +6,48 @@
@@ -1132,5 +1132,5 @@ index 976817f..1b08321 100644
  
  enum mtk_vendor_attr_csi_ctrl {
 -- 
-2.39.0
+2.18.0
 

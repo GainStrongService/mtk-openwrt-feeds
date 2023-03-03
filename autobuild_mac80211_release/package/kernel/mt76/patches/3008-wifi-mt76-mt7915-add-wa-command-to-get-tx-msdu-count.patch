@@ -1,7 +1,7 @@
-From dbd25fa4a361f77c713e2f95e11c3806c490877e Mon Sep 17 00:00:00 2001
+From 101ab7022c500ad4adacb5faf90bef25d897c70a Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 18 Jan 2023 16:37:22 +0800
-Subject: [PATCH 3010/3015] wifi: mt76: mt7915: add wa command to get tx msdu
+Subject: [PATCH 3008/3013] wifi: mt76: mt7915: add wa command to get tx msdu
  count
 
 ---
@@ -16,10 +16,10 @@ Subject: [PATCH 3010/3015] wifi: mt76: mt7915: add wa command to get tx msdu
  8 files changed, 78 insertions(+), 11 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index a36a978b..0d1f3cbf 100644
+index 7919cda8..08945d66 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -285,7 +285,7 @@ struct mt76_sta_stats {
+@@ -284,7 +284,7 @@ struct mt76_sta_stats {
  	u64 tx_mcs[16];		/* mcs idx */
  	u64 tx_bytes;
  	/* WED TX */
@@ -41,7 +41,7 @@ index f33171bc..101e7602 100644
  
  /* RXD DW1 */
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index aed4ee95..2643f5aa 100644
+index 8d316d3a..1816bcbc 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -491,7 +491,9 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
@@ -68,10 +68,10 @@ index aed4ee95..2643f5aa 100644
  			le32_get_bits(txs_data[6], MT_TXS6_MPDU_FAIL_CNT);
  		stats->tx_retries +=
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 130a8d25..34df625a 100644
+index ad6f845b..7afd9d09 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1003,6 +1003,7 @@ enum {
+@@ -1000,6 +1000,7 @@ enum {
  	MCU_EXT_EVENT_BF_STATUS_READ = 0x35,
  	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
  	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
@@ -106,7 +106,7 @@ index 22d293e9..eba0caa6 100644
  	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL);
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 7301ec1d..3e0c3ab1 100644
+index da10895c..076480ba 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -168,7 +168,9 @@ mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
@@ -192,7 +192,7 @@ index 7301ec1d..3e0c3ab1 100644
  				struct cfg80211_he_bss_color *he_bss_color)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 24d0efd3..5f6c7c80 100644
+index 0f845075..d761fa59 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -292,6 +292,17 @@ enum {
