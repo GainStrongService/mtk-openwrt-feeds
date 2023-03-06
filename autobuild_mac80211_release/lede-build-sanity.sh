@@ -133,6 +133,9 @@ prepare_flowoffload() {
 	rm -rf  ${BUILD_DIR}/package/network/utils/bpftools
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/bpftools ${BUILD_DIR}/package/network/utils
 
+	rm -rf  ${BUILD_DIR}/package/network/utils/iproute2
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iproute2 ${BUILD_DIR}/package/network/utils
+
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/bridger ${BUILD_DIR}/package/network/services
 
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0010-add-llvm_bpf-toolchain.patch
