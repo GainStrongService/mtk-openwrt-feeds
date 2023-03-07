@@ -165,21 +165,18 @@ index fce1a7172..b4de7c0c6 100644
  	struct rhashtable		flow_table;
  };
  
-@@ -1668,11 +1674,13 @@ int mtk_gmac_usxgmii_path_setup(struct m
- void mtk_gdm_config(struct mtk_eth *eth, u32 id, u32 config);
- void ethsys_reset(struct mtk_eth *eth, u32 reset_bits);
+@@ -1668,8 +1674,10 @@ int mtk_gmac_usxgmii_path_setup(struct m
+ void mtk_usxgmii_reset(struct mtk_xgmii *ss, int mac_id);
+ int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
  
 -int mtk_eth_offload_init(struct mtk_eth *eth);
 +int mtk_eth_offload_init(struct mtk_eth *eth, int id);
  int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
  		     void *type_data);
  void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
- 
-+int mtk_ppe_debugfs_init(struct mtk_eth *eth);
 +
- int mtk_mac2xgmii_id(struct mtk_eth *eth, int mac_id);
- int mtk_usxgmii_init(struct mtk_xgmii *ss, struct device_node *r);
- int mtk_xfi_pextp_init(struct mtk_xgmii *ss, struct device_node *r);
++int mtk_ppe_debugfs_init(struct mtk_eth *eth);
+ #endif /* MTK_ETH_H */
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 index d46e91178..3d6ff30ba 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c

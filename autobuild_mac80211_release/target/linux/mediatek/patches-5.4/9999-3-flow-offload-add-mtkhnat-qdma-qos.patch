@@ -12,10 +12,10 @@ index 0c724a5..93cd55f 100644
  ifdef CONFIG_DEBUG_FS
  mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index efdd2e6..9ffc46b 100644
+index ca76047..809c735 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -3992,6 +3992,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -4787,6 +4787,8 @@ static int mtk_probe(struct platform_device *pdev)
  		}
  
  		mtk_ppe_debugfs_init(eth);
@@ -24,7 +24,15 @@ index efdd2e6..9ffc46b 100644
  	}
  
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
-@@ -4101,6 +4103,7 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -4901,6 +4903,7 @@ static const struct mtk_soc_data mt2701_data = {
+ 		.rx_dma_l4_valid = RX_DMA_L4_VALID,
+ 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
+ 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
++		.qdma_tx_sch = 2,
+ 	},
+ };
+ 
+@@ -4920,6 +4923,7 @@ static const struct mtk_soc_data mt7621_data = {
  		.rxd_size = sizeof(struct mtk_rx_dma),
  		.dma_max_len = MTK_TX_DMA_BUF_LEN,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
@@ -32,48 +40,48 @@ index efdd2e6..9ffc46b 100644
  	},
  };
  
-@@ -4118,6 +4121,7 @@ static const struct mtk_soc_data mt7621_data = {
- 		.rxd_size = sizeof(struct mtk_rx_dma),
+@@ -4940,6 +4944,7 @@ static const struct mtk_soc_data mt7622_data = {
+ 		.rx_dma_l4_valid = RX_DMA_L4_VALID,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
 +		.qdma_tx_sch = 2,
  	},
  };
  
-@@ -4136,6 +4140,7 @@ static const struct mtk_soc_data mt7622_data = {
- 		.rxd_size = sizeof(struct mtk_rx_dma),
+@@ -4959,6 +4964,7 @@ static const struct mtk_soc_data mt7623_data = {
+ 		.rx_dma_l4_valid = RX_DMA_L4_VALID,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
 +		.qdma_tx_sch = 2,
  	},
  };
  
-@@ -4153,6 +4158,7 @@ static const struct mtk_soc_data mt7623_data = {
- 		.rxd_size = sizeof(struct mtk_rx_dma),
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
-+		.qdma_tx_sch = 2,
- 	},
- };
- 
-@@ -4187,6 +4193,7 @@ static const struct mtk_soc_data mt7986_data = {
- 		.rxd_size = sizeof(struct mtk_rx_dma_v2),
+@@ -4997,6 +5003,7 @@ static const struct mtk_soc_data mt7986_data = {
+ 		.rx_dma_l4_valid = RX_DMA_L4_VALID_V2,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
 +		.qdma_tx_sch = 4,
  	},
  };
  
-@@ -4205,6 +4212,7 @@ static const struct mtk_soc_data mt7981_data = {
- 		.rxd_size = sizeof(struct mtk_rx_dma_v2),
+@@ -5017,6 +5024,7 @@ static const struct mtk_soc_data mt7981_data = {
+ 		.rx_dma_l4_valid = RX_DMA_L4_VALID_V2,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
 +		.qdma_tx_sch = 4,
  	},
  };
  
-@@ -4220,6 +4228,7 @@ static const struct mtk_soc_data rt5350_data = {
- 		.rxd_size = sizeof(struct mtk_rx_dma),
+@@ -5034,6 +5042,7 @@ static const struct mtk_soc_data mt7988_data = {
+ 		.rx_dma_l4_valid = RX_DMA_L4_VALID_V2,
+ 		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
+ 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
++		.qdma_tx_sch = 4,
+ 	},
+ };
+ 
+@@ -5051,6 +5060,7 @@ static const struct mtk_soc_data rt5350_data = {
+ 		.rx_dma_l4_valid = RX_DMA_L4_VALID_PDMA,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
 +		.qdma_tx_sch = 4,
@@ -81,10 +89,10 @@ index efdd2e6..9ffc46b 100644
  };
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index c87a823..955bb27 100644
+index c6afff5..bd73c27 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -352,10 +352,21 @@
+@@ -385,10 +385,21 @@
  
  /* QDMA TX Queue Configuration Registers */
  #define MTK_QTX_CFG(x)		(QDMA_BASE + (x * 0x10))
@@ -106,7 +114,7 @@ index c87a823..955bb27 100644
  
  /* QDMA RX Base Pointer Register */
  #define MTK_QRX_BASE_PTR0	(QDMA_BASE + 0x100)
-@@ -373,7 +384,9 @@
+@@ -406,7 +417,9 @@
  #define MTK_QRX_DRX_IDX0	(QDMA_BASE + 0x10c)
  
  /* QDMA Page Configuration Register */
@@ -117,7 +125,7 @@ index c87a823..955bb27 100644
  
  /* QDMA Global Configuration Register */
  #define MTK_QDMA_GLO_CFG	(QDMA_BASE + 0x204)
-@@ -410,6 +423,9 @@
+@@ -443,6 +456,9 @@
  #define FC_THRES_DROP_EN	(7 << 16)
  #define FC_THRES_MIN		0x4444
  
@@ -126,8 +134,8 @@ index c87a823..955bb27 100644
 +
  /* QDMA Interrupt Status Register */
  #define MTK_QDMA_INT_STATUS	(QDMA_BASE + 0x218)
- #if defined(CONFIG_MEDIATEK_NETSYS_V2)
-@@ -444,6 +460,11 @@
+ #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+@@ -478,6 +494,11 @@
  /* QDMA Interrupt Mask Register */
  #define MTK_QDMA_HRED2		(QDMA_BASE + 0x244)
  
@@ -139,7 +147,7 @@ index c87a823..955bb27 100644
  /* QDMA TX Forward CPU Pointer Register */
  #define MTK_QTX_CTX_PTR		(QDMA_BASE +0x300)
  
-@@ -471,6 +492,14 @@
+@@ -505,6 +526,14 @@
  /* QDMA FQ Free Page Buffer Length Register */
  #define MTK_QDMA_FQ_BLEN	(QDMA_BASE +0x32c)
  
@@ -152,17 +160,17 @@ index c87a823..955bb27 100644
 +#define MTK_QDMA_TX_SCH_RATE_EXP	GENMASK(3, 0)
 +
  /* WDMA Registers */
+ #define MTK_WDMA_CTX_PTR(x)	(WDMA_BASE(x) + 0x8)
  #define MTK_WDMA_DTX_PTR(x)	(WDMA_BASE(x) + 0xC)
- #define MTK_WDMA_GLO_CFG(x)	(WDMA_BASE(x) + 0x204)
-@@ -1223,6 +1252,7 @@ struct mtk_soc_data {
- 		u32	rxd_size;
+@@ -1596,6 +1625,7 @@ struct mtk_soc_data {
+ 		u32	rx_dma_l4_valid;
  		u32	dma_max_len;
  		u32	dma_len_offset;
 +		u32	qdma_tx_sch;
  	} txrx;
  };
  
-@@ -1353,6 +1383,7 @@ struct mtk_eth {
+@@ -1736,6 +1766,7 @@ struct mtk_eth {
  	spinlock_t			syscfg0_lock;
  	struct timer_list		mtk_dma_monitor_timer;
  
@@ -170,13 +178,13 @@ index c87a823..955bb27 100644
  	u8				ppe_num;
  	struct mtk_ppe			*ppe[MTK_MAX_PPE_NUM];
  	struct rhashtable		flow_table;
-@@ -1412,4 +1443,6 @@ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
+@@ -1815,4 +1846,6 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
+ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
  
  int mtk_ppe_debugfs_init(struct mtk_eth *eth);
- 
-+int mtk_qdma_debugfs_init(struct mtk_eth *eth);
 +
- int mtk_mac2xgmii_id(struct mtk_eth *eth, int mac_id);
++int mtk_qdma_debugfs_init(struct mtk_eth *eth);
+ #endif /* MTK_ETH_H */
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 index a49275f..1767823 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c

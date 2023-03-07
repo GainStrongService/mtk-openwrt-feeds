@@ -224,15 +224,14 @@ index b6380ffeb..349f98503 100755
  };
  
  /* struct mtk_mac -	the structure that holds the info about the MACs of the
-@@ -1319,4 +1333,8 @@ int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
- void mtk_gdm_config(struct mtk_eth *eth, u32 config);
- void ethsys_reset(struct mtk_eth *eth, u32 reset_bits);
+@@ -1319,4 +1333,7 @@ int mtk_gmac_rgmii_path_setup(struct mtk_eth *eth, int mac_id);
+ void mtk_usxgmii_reset(struct mtk_xgmii *ss, int mac_id);
+ int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
  
 +int mtk_eth_offload_init(struct mtk_eth *eth);
 +int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
 +		     void *type_data);
-+
- int mtk_mac2xgmii_id(struct mtk_eth *eth, int mac_id);
+ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 new file mode 100644
 index 000000000..66298e223
