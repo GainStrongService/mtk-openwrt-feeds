@@ -792,6 +792,11 @@
 /* ethernet reset check idle register */
 #define ETHSYS_FE_RST_CHK_IDLE_EN 	0x28
 
+/* ethernet dma channel agent map */
+#define ETHSYS_DMA_AG_MAP	0x408
+#define ETHSYS_DMA_AG_MAP_PDMA	BIT(0)
+#define ETHSYS_DMA_AG_MAP_QDMA	BIT(1)
+#define ETHSYS_DMA_AG_MAP_PPE	BIT(2)
 
 /* SGMII subsystem config registers */
 /* Register to auto-negotiation restart */
@@ -1624,6 +1629,7 @@ struct mtk_phylink_priv {
 /* struct mtk_eth -	This is the main datasructure for holding the state
  *			of the driver
  * @dev:		The device pointer
+ * @dma_dev:		The device pointer used for dma mapping/alloc
  * @base:		The mapped register i/o base
  * @page_lock:		Make sure that register operations are atomic
  * @tx_irq__lock:	Make sure that IRQ register operations are atomic
@@ -1658,6 +1664,7 @@ struct mtk_phylink_priv {
 
 struct mtk_eth {
 	struct device			*dev;
+	struct device			*dma_dev;
 	void __iomem			*base;
 	void __iomem			*sram_base;
 	spinlock_t			page_lock;
@@ -1766,4 +1773,6 @@ int mtk_usxgmii_setup_mode_force(struct mtk_xgmii *ss, int mac_id,
 void mtk_usxgmii_setup_phya_an_10000(struct mtk_xgmii *ss, int mac_id);
 void mtk_usxgmii_reset(struct mtk_xgmii *ss, int mac_id);
 int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
+
+void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
 #endif /* MTK_ETH_H */
