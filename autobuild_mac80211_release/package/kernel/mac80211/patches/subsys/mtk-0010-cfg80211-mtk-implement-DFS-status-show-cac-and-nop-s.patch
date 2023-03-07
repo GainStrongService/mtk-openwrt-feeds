@@ -1,8 +1,8 @@
-From 316a7218dbbfa48fbd030cb64fb3693edf00e276 Mon Sep 17 00:00:00 2001
+From 8e2d3c2456fddf1d5a3fc015ff25c4d79e496bcd Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 22 Sep 2022 14:27:41 +0800
-Subject: [PATCH 909/915] cfg80211: mtk: implement DFS status show, cac and nop
- skip command via debugfs
+Subject: [PATCH] cfg80211: mtk: implement DFS status show, cac and nop skip
+ command via debugfs
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -77,7 +77,7 @@ index b588e5a..10e8981 100644
  	struct work_struct background_cac_abort_wk;
  
 diff --git a/net/wireless/debugfs.c b/net/wireless/debugfs.c
-index 0878b16..ea50cc7 100644
+index 0878b16..d3a0aae 100644
 --- a/net/wireless/debugfs.c
 +++ b/net/wireless/debugfs.c
 @@ -9,6 +9,7 @@
@@ -315,8 +315,8 @@ index 0878b16..ea50cc7 100644
 +			chandef = &wdev->chandef;
 +			chan = chandef->chan;
 +
-+			if ((chan->flags & IEEE80211_CHAN_RADAR) &&
-+			    chan->dfs_state == NL80211_DFS_USABLE && wdev->cac_started) {
++			if ((cfg80211_chandef_dfs_required(wiphy, chandef, wdev->iftype) > 0) &&
++			    cfg80211_chandef_dfs_usable(wiphy, chandef) && wdev->cac_started) {
 +				rdev_skip_cac(rdev, wdev);
 +			}
 +		}
@@ -327,8 +327,8 @@ index 0878b16..ea50cc7 100644
 +			chandef = &rdev->background_radar_chandef;
 +			chan = chandef->chan;
 +
-+			if ((chan->flags & IEEE80211_CHAN_RADAR) &&
-+			    chan->dfs_state == NL80211_DFS_USABLE &&
++			if ((cfg80211_chandef_dfs_required(wiphy, chandef, wdev->iftype) > 0) &&
++			    cfg80211_chandef_dfs_usable(wiphy, chandef) &&
 +			    rdev->background_cac_started) {
 +				// Let current jiffies > dfs_state_entered_jiffies + CAC time
 +				cac_time = rdev->background_cac_time_ms;
@@ -454,5 +454,5 @@ index 97a2937..eadabfa 100644
  
  #undef TRACE_INCLUDE_PATH
 -- 
-2.36.1
+2.18.0
 

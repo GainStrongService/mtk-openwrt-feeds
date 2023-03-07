@@ -1,22 +1,22 @@
-From 58f7244e69613f8248dd4e01f9c7920adb0f88f5 Mon Sep 17 00:00:00 2001
+From 4485bc86685082b37de5a1f3e04c29be65a902a0 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 22 Sep 2022 14:27:41 +0800
-Subject: [PATCH 09/16] cfg80211: mtk: implement DFS status show, cac and nop
- skip command via debugfs
+Subject: [PATCH] cfg80211: mtk: implement DFS status show, cac and nop skip
+ command via debugfs
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  include/net/cfg80211.h  |   1 +
  net/mac80211/cfg.c      |  20 +++
  net/wireless/core.h     |   3 +
- net/wireless/debugfs.c  | 270 ++++++++++++++++++++++++++++++++++++++--
+ net/wireless/debugfs.c  | 271 ++++++++++++++++++++++++++++++++++++++--
  net/wireless/mlme.c     |   6 +
  net/wireless/rdev-ops.h |  14 +++
  net/wireless/trace.h    |  12 ++
- 7 files changed, 319 insertions(+), 7 deletions(-)
+ 7 files changed, 320 insertions(+), 7 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 9728bf8..f9c2cc3 100644
+index d99b59f..bbd3de4 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
 @@ -4641,6 +4641,7 @@ struct cfg80211_ops {
@@ -28,10 +28,10 @@ index 9728bf8..f9c2cc3 100644
  
  /*
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index cd5444e..5718c56 100644
+index 27f7616..3e35433 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -4870,6 +4870,25 @@ ieee80211_del_link_station(struct wiphy *wiphy, struct net_device *dev,
+@@ -4900,6 +4900,25 @@ ieee80211_del_link_station(struct wiphy *wiphy, struct net_device *dev,
  	return ret;
  }
  
@@ -57,7 +57,7 @@ index cd5444e..5718c56 100644
  const struct cfg80211_ops mac80211_config_ops = {
  	.add_virtual_intf = ieee80211_add_iface,
  	.del_virtual_intf = ieee80211_del_iface,
-@@ -4981,4 +5000,5 @@ const struct cfg80211_ops mac80211_config_ops = {
+@@ -5011,4 +5030,5 @@ const struct cfg80211_ops mac80211_config_ops = {
  	.add_link_station = ieee80211_add_link_station,
  	.mod_link_station = ieee80211_mod_link_station,
  	.del_link_station = ieee80211_del_link_station,
@@ -78,7 +78,7 @@ index f4d3b83..b1bc314 100644
  	struct work_struct background_cac_abort_wk;
  
 diff --git a/net/wireless/debugfs.c b/net/wireless/debugfs.c
-index 0878b16..e0fcb59 100644
+index 0878b16..f5f23d0 100644
 --- a/net/wireless/debugfs.c
 +++ b/net/wireless/debugfs.c
 @@ -9,6 +9,7 @@
@@ -89,7 +89,7 @@ index 0878b16..e0fcb59 100644
  
  #define DEBUGFS_READONLY_FILE(name, buflen, fmt, value...)		\
  static ssize_t name## _read(struct file *file, char __user *userbuf,	\
-@@ -96,16 +97,271 @@ static const struct file_operations ht40allow_map_ops = {
+@@ -96,16 +97,272 @@ static const struct file_operations ht40allow_map_ops = {
  	.llseek = default_llseek,
  };
  
@@ -171,7 +171,8 @@ index 0878b16..e0fcb59 100644
 +				if (remain_time > wait_time_ms)
 +					remain_time = 0;
 +			} else if (chan->dfs_state == NL80211_DFS_USABLE) {
-+				if (wdev->cac_started && cfg80211_is_sub_chan(chandef, chan, false)) {
++				if (wdev->cac_started &&
++				    cfg80211_is_sub_chan(chandef, chan, false)) {
 +					jiffies_passed = jiffies - wdev->cac_start_time;
 +					wait_time_ms = wdev->cac_time_ms;
 +					remain_time = (wait_time_ms -
@@ -316,8 +317,8 @@ index 0878b16..e0fcb59 100644
 +			chandef = &wdev->links[0].ap.chandef;
 +			chan = chandef->chan;
 +
-+			if ((chan->flags & IEEE80211_CHAN_RADAR) &&
-+			    chan->dfs_state == NL80211_DFS_USABLE && wdev->cac_started) {
++			if ((cfg80211_chandef_dfs_required(wiphy, chandef, wdev->iftype) > 0) &&
++			    cfg80211_chandef_dfs_usable(wiphy, chandef) && wdev->cac_started) {
 +				rdev_skip_cac(rdev, wdev);
 +			}
 +		}
@@ -328,8 +329,8 @@ index 0878b16..e0fcb59 100644
 +			chandef = &rdev->background_radar_chandef;
 +			chan = chandef->chan;
 +
-+			if ((chan->flags & IEEE80211_CHAN_RADAR) &&
-+			    chan->dfs_state == NL80211_DFS_USABLE &&
++			if ((cfg80211_chandef_dfs_required(wiphy, chandef, wdev->iftype) > 0) &&
++			    cfg80211_chandef_dfs_usable(wiphy, chandef) &&
 +			    rdev->background_cac_started) {
 +				// Let current jiffies > dfs_state_entered_jiffies + CAC time
 +				cac_time = rdev->background_cac_time_ms;
@@ -455,5 +456,5 @@ index 8e7c00f..d3a98e8 100644
  
  #undef TRACE_INCLUDE_PATH
 -- 
-2.25.1
+2.18.0
 
