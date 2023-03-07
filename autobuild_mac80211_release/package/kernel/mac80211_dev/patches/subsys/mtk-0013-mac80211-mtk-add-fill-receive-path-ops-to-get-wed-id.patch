@@ -1,7 +1,7 @@
-From b36c1fd5e967880b025a8301aadbeb832a364639 Mon Sep 17 00:00:00 2001
+From 2a801c07d58b8c9b9d5e9049856c7ef7b504d841 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Wed, 18 May 2022 15:10:22 +0800
-Subject: [PATCH 14/16] mac80211: mtk: add fill receive path ops to get wed idx
+Subject: [PATCH 13/19] mac80211: mtk: add fill receive path ops to get wed idx
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -13,10 +13,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  mode change 100644 => 100755 net/mac80211/util.c
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 286810b..f68eb7d 100644
+index ad5f217..d1d7fc3 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -1354,7 +1354,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
+@@ -1380,7 +1380,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
   * @RX_FLAG_AMPDU_EOF_BIT_KNOWN: The EOF value is known
   * @RX_FLAG_RADIOTAP_HE: HE radiotap data is present
   *	(&struct ieee80211_radiotap_he, mac80211 will fill in
@@ -25,7 +25,7 @@ index 286810b..f68eb7d 100644
   *	 - DATA3_DATA_MCS
   *	 - DATA3_DATA_DCM
   *	 - DATA3_CODING
-@@ -1362,7 +1362,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
+@@ -1388,7 +1388,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
   *	 - DATA5_DATA_BW_RU_ALLOC
   *	 - DATA6_NSTS
   *	 - DATA3_STBC
@@ -34,7 +34,7 @@ index 286810b..f68eb7d 100644
   *	from the RX info data, so leave those zeroed when building this data)
   * @RX_FLAG_RADIOTAP_HE_MU: HE MU radiotap data is present
   *	(&struct ieee80211_radiotap_he_mu)
-@@ -1924,6 +1924,12 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
+@@ -1950,6 +1950,12 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
   */
  struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif);
  
@@ -47,7 +47,7 @@ index 286810b..f68eb7d 100644
  /**
   * lockdep_vif_mutex_held - for lockdep checks on link poiners
   * @vif: the interface to check
-@@ -4193,6 +4199,8 @@ struct ieee80211_prep_tx_info {
+@@ -4219,6 +4225,8 @@ struct ieee80211_prep_tx_info {
   *	Note that a sta can also be inserted or removed with valid links,
   *	i.e. passed to @sta_add/@sta_state with sta->valid_links not zero.
   *	In fact, cannot change from having valid_links and not having them.
@@ -56,7 +56,7 @@ index 286810b..f68eb7d 100644
   */
  struct ieee80211_ops {
  	void (*tx)(struct ieee80211_hw *hw,
-@@ -4548,6 +4556,9 @@ struct ieee80211_ops {
+@@ -4574,6 +4582,9 @@ struct ieee80211_ops {
  				struct ieee80211_vif *vif,
  				struct ieee80211_sta *sta,
  				u16 old_links, u16 new_links);
@@ -153,5 +153,5 @@ index 608f927..fd63ee3
   * Nothing should have been stuffed into the workqueue during
   * the suspend->resume cycle. Since we can't check each caller
 -- 
-2.25.1
+2.18.0
 

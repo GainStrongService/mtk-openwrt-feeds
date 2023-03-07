@@ -1,7 +1,7 @@
-From 12d2196bb600818a9fc9081037c509f2624b2d25 Mon Sep 17 00:00:00 2001
+From 83f826c468a145fb205cffe0f5fcc8d69143bb78 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Tue, 13 Dec 2022 09:04:49 +0800
-Subject: [PATCH 16/16] mac80211: mtk: fix build error on Linux Kernel 5.4
+Subject: [PATCH 15/19] mac80211: mtk: fix build error on Linux Kernel 5.4
 
 ---
  include/linux/ieee80211.h          | 8 +++-----
@@ -66,10 +66,10 @@ index 20f742b..93ec2f3 100644
  
  
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index cc8d4b2..8928a26 100644
+index 202f802..1035f74 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -16448,9 +16448,11 @@ static const struct genl_ops nl80211_ops[] = {
+@@ -16441,9 +16441,11 @@ static const struct genl_ops nl80211_ops[] = {
  		/* can be retrieved by unprivileged users */
  		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WIPHY),
  	},
@@ -81,7 +81,7 @@ index cc8d4b2..8928a26 100644
  	{
  		.cmd = NL80211_CMD_SET_WIPHY,
  		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-@@ -17287,8 +17289,10 @@ static struct genl_family nl80211_fam __genl_ro_after_init = {
+@@ -17280,8 +17282,10 @@ static struct genl_family nl80211_fam __genl_ro_after_init = {
  	.module = THIS_MODULE,
  	.ops = nl80211_ops,
  	.n_ops = ARRAY_SIZE(nl80211_ops),
@@ -93,5 +93,5 @@ index cc8d4b2..8928a26 100644
  	.resv_start_op = NL80211_CMD_REMOVE_LINK_STA + 1,
  #endif
 -- 
-2.25.1
+2.18.0
 
