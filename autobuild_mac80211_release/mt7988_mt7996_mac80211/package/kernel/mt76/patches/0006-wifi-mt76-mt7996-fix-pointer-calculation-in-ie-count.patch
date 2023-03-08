@@ -1,0 +1,34 @@
+From 00d76d4dc3cdb719b5fc234d9cf3bbef39f448ce Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 13 Feb 2023 14:48:10 +0800
+Subject: [PATCH 06/19] wifi: mt76: mt7996: fix pointer calculation in ie
+ countdown event
+
+Fix the tail and data pointers. The rxd->len in mt7996_mcu_rxd does not
+include the length of general rxd. It only includes the length of
+firmware event rxd. Use the skb->length to get the correct length.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+Change-Id: I832194559e63e6b49b7ee00dc9c606b6106d8669
+---
+ mt7996/mcu.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index dbe10576..2e25572a 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -422,7 +422,8 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)
+ 	if (hdr->band && dev->mt76.phys[hdr->band])
+ 		mphy = dev->mt76.phys[hdr->band];
+ 
+-	tail = skb->data + le16_to_cpu(rxd->len);
++	tail = skb->data + skb->len;
++	data += sizeof(struct header);
+ 	while (data + sizeof(struct tlv) < tail && le16_to_cpu(tlv->len)) {
+ 		switch (le16_to_cpu(tlv->tag)) {
+ 		case UNI_EVENT_IE_COUNTDOWN_CSA:
+-- 
+2.39.2
+

@@ -1,0 +1,35 @@
+From 68649746f1862d6c9b3e06492789aadde8c4d2e5 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 6 Mar 2023 15:52:26 +0800
+Subject: [PATCH 18/19] wifi: mt76: mt7996: set wcid in txp
+
+Set correct wcid in txp for SDO to get wtbl.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/mac.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 4c0c8f1e..bb23f531 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1168,10 +1168,12 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 	}
+ 
+ 	txp->fw.token = cpu_to_le16(id);
+-	if (test_bit(MT_WCID_FLAG_4ADDR, &wcid->flags))
+-		txp->fw.rept_wds_wcid = cpu_to_le16(wcid->idx);
+-	else
++	if ((is_8023 && is_multicast_ether_addr(tx_info->skb->data)) ||
++	     is_multicast_ether_addr(hdr->addr1))
+ 		txp->fw.rept_wds_wcid = cpu_to_le16(0xfff);
++	else
++		txp->fw.rept_wds_wcid = cpu_to_le16(wcid->idx);
++
+ 	tx_info->skb = DMA_DUMMY_DATA;
+ 
+ 	/* pass partial skb header to fw */
+-- 
+2.39.2
+

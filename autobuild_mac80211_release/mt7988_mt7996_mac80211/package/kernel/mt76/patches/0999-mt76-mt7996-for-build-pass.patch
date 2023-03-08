@@ -1,4 +1,4 @@
-From e66fbcb72e09e9e6a88fcedc84f4eda0d53ef65d Mon Sep 17 00:00:00 2001
+From a126ad08af718c71b4b05261caefb68996044330 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 3 Nov 2022 00:27:17 +0800
 Subject: [PATCH] mt76: mt7996: for build pass
@@ -6,16 +6,15 @@ Subject: [PATCH] mt76: mt7996: for build pass
 Change-Id: Ieb44c33ee6e6a2e6058c1ef528404c1a1cbcfdaf
 ---
  debugfs.c         | 3 +++
- dma.c             | 2 +-
  eeprom.c          | 8 +++++++-
  mcu.c             | 1 +
  mt7615/mcu.c      | 1 +
  mt76_connac_mcu.c | 1 +
  mt7915/mcu.c      | 1 +
  mt7996/dma.c      | 4 ++--
- mt7996/eeprom.c   | 1 +
+ mt7996/eeprom.c   | 2 ++
  mt7996/mcu.c      | 1 +
- 10 files changed, 19 insertions(+), 4 deletions(-)
+ 9 files changed, 19 insertions(+), 3 deletions(-)
 
 diff --git a/debugfs.c b/debugfs.c
 index 79064a4d..e10d4cbc 100644
@@ -33,19 +32,6 @@ index 79064a4d..e10d4cbc 100644
  
  	return 0;
  }
-diff --git a/dma.c b/dma.c
-index 50a7a689..beb9f4a4 100644
---- a/dma.c
-+++ b/dma.c
-@@ -854,7 +854,7 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
- 		    !(dev->drv->rx_check(dev, data, len)))
- 			goto free_frag;
- 
--		skb = napi_build_skb(data, q->buf_size);
-+		skb = build_skb(data, q->buf_size);
- 		if (!skb)
- 			goto free_frag;
- 
 diff --git a/eeprom.c b/eeprom.c
 index ea54b7af..90d36c8d 100644
 --- a/eeprom.c
@@ -92,7 +78,7 @@ index eea398c7..4593b2e1 100644
  static bool prefer_offload_fw = true;
  module_param(prefer_offload_fw, bool, 0644);
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index efb9bfaa..4a650721 100644
+index 4e4f6b35..e5815227 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -4,6 +4,7 @@
@@ -104,7 +90,7 @@ index efb9bfaa..4a650721 100644
  int mt76_connac_mcu_start_firmware(struct mt76_dev *dev, u32 addr, u32 option)
  {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f151ce86..20d81f05 100644
+index d08907f5..99ef8c9c 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -6,6 +6,7 @@
@@ -116,7 +102,7 @@ index f151ce86..20d81f05 100644
  #define fw_name(_dev, name, ...)	({			\
  	char *_fw;						\
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index c09fe427..8c2e060d 100644
+index 18ea758c..3e2967f7 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
 @@ -343,8 +343,8 @@ int mt7996_dma_init(struct mt7996_dev *dev)
@@ -131,19 +117,20 @@ index c09fe427..8c2e060d 100644
  
  	mt7996_dma_enable(dev);
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 2e48c5a4..dd322f62 100644
+index 2e48c5a4..e747cb9f 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
-@@ -98,6 +98,7 @@ static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_dev *dev)
+@@ -98,6 +98,8 @@ static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_dev *dev)
  	if (ret)
  		return ret;
  
-+	cap = 0x4b249248;	/* internal hardcode */
++	/* for internal testing */
++	cap = 0x4b249248;
  	if (cap) {
  		dev->has_eht = !(cap & MODE_HE_ONLY);
  		dev->wtbl_size_group = u32_get_bits(cap, WTBL_SIZE_GROUP);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 1e47b0ae..db715195 100644
+index 829f7be6..0d9d309f 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -5,6 +5,7 @@
@@ -155,5 +142,5 @@ index 1e47b0ae..db715195 100644
  #include "mcu.h"
  #include "mac.h"
 -- 
-2.25.1
+2.39.2
 

@@ -1,0 +1,92 @@
+From 5b858f7f944144d99fb0ca1ef26d6b8c6719890c Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Thu, 16 Feb 2023 10:52:22 +0800
+Subject: [PATCH 02/19] wifi: mt76: mt7996: let non-bufferable MMPDUs use
+ correct hw queue
+
+non-bufferable MMPDUs are expected to use ALTX hw queue, but current
+condition in mt7996_mac_write_txwi() won't let their tx descriptor
+be filled with correct q_idx. Fix this by passing qid parameter into
+the funciton.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+Change-Id: I18bd1a5ea698912c7aa8f4d4317d4a428d4ac440
+---
+ mt7996/mac.c    | 9 +++++----
+ mt7996/mcu.c    | 4 ++--
+ mt7996/mt7996.h | 3 ++-
+ 3 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index d811b4e0..198eb711 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -982,7 +982,8 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+ }
+ 
+ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+-			   struct sk_buff *skb, struct mt76_wcid *wcid, int pid,
++			   struct sk_buff *skb, struct mt76_wcid *wcid,
++			   enum mt76_txq_id qid, int pid,
+ 			   struct ieee80211_key_conf *key, u32 changed)
+ {
+ 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+@@ -1014,7 +1015,7 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+ 	} else if (beacon) {
+ 		p_fmt = MT_TX_TYPE_FW;
+ 		q_idx = MT_LMAC_BCN0;
+-	} else if (skb_get_queue_mapping(skb) >= MT_TXQ_PSD) {
++	} else if (qid >= MT_TXQ_PSD) {
+ 		p_fmt = MT_TX_TYPE_CT;
+ 		q_idx = MT_LMAC_ALTX0;
+ 	} else {
+@@ -1123,8 +1124,8 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 	memset(txwi_ptr, 0, MT_TXD_SIZE);
+ 	/* Transmit non qos data by 802.11 header and need to fill txd by host*/
+ 	if (!is_8023 || pid >= MT_PACKET_ID_FIRST)
+-		mt7996_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, pid,
+-				      key, 0);
++		mt7996_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, qid,
++				      pid, key, 0);
+ 
+ 	txp = (struct mt76_connac_txp_common *)(txwi + MT_TXD_SIZE);
+ 	for (i = 0; i < nbuf; i++) {
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 8ad51cbf..dbe10576 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -1906,7 +1906,7 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ 	}
+ 
+ 	buf = (u8 *)bcn + sizeof(*bcn) - MAX_BEACON_SIZE;
+-	mt7996_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, 0, NULL,
++	mt7996_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, 0, 0, NULL,
+ 			      BSS_CHANGED_BEACON);
+ 	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
+ }
+@@ -2115,7 +2115,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
+ 
+ 	buf = (u8 *)tlv + sizeof(*discov) - MAX_INBAND_FRAME_SIZE;
+ 
+-	mt7996_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, 0, NULL,
++	mt7996_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, 0, 0, NULL,
+ 			      changed);
+ 
+ 	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 018dfd2b..d20aa5f2 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -487,7 +487,8 @@ void mt7996_mac_enable_nf(struct mt7996_dev *dev, u8 band);
+ void mt7996_mac_enable_rtscts(struct mt7996_dev *dev,
+ 			      struct ieee80211_vif *vif, bool enable);
+ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+-			   struct sk_buff *skb, struct mt76_wcid *wcid, int pid,
++			   struct sk_buff *skb, struct mt76_wcid *wcid,
++			   enum mt76_txq_id qid, int pid,
+ 			   struct ieee80211_key_conf *key, u32 changed);
+ void mt7996_mac_set_timing(struct mt7996_phy *phy);
+ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+-- 
+2.39.2
+

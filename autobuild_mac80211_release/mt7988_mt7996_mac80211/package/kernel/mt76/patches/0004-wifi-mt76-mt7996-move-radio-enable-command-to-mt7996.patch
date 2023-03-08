@@ -1,0 +1,61 @@
+From c86f2243472f00fd2011cc44b89a87f7f6e2066a Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Wed, 15 Feb 2023 18:38:04 +0800
+Subject: [PATCH 04/19] wifi: mt76: mt7996: move radio enable command to
+ mt7996_start()
+
+The radio enable and disable commands are used for per-phy radio, so
+move them into mt7996_start() and mt7996_stop(), respectively.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+Change-Id: I610b170f5198e085eb86dbd371ee0745ac6ff50f
+---
+ mt7996/main.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index e80ee19e..a4fd9e24 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -46,6 +46,10 @@ static int mt7996_start(struct ieee80211_hw *hw)
+ 	if (ret)
+ 		goto out;
+ 
++	ret = mt7996_mcu_set_radio_en(phy, true);
++	if (ret)
++		goto out;
++
+ 	ret = mt7996_mcu_set_chan_info(phy, UNI_CHANNEL_RX_PATH);
+ 	if (ret)
+ 		goto out;
+@@ -77,6 +81,8 @@ static void mt7996_stop(struct ieee80211_hw *hw)
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
++	mt7996_mcu_set_radio_en(phy, false);
++
+ 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
+ 
+ 	ieee80211_iterate_interfaces(dev->mt76.hw,
+@@ -189,10 +195,6 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 	if (ret)
+ 		goto out;
+ 
+-	ret = mt7996_mcu_set_radio_en(phy, true);
+-	if (ret)
+-		goto out;
+-
+ 	dev->mt76.vif_mask |= BIT_ULL(mvif->mt76.idx);
+ 	phy->omac_mask |= BIT_ULL(mvif->mt76.omac_idx);
+ 
+@@ -248,7 +250,6 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
+ 		phy->monitor_vif = NULL;
+ 
+ 	mt7996_mcu_add_dev_info(phy, vif, false);
+-	mt7996_mcu_set_radio_en(phy, false);
+ 
+ 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
+ 
+-- 
+2.39.2
+
