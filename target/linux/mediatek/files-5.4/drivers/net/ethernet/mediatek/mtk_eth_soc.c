@@ -451,7 +451,7 @@ static void mtk_setup_bridge_switch(struct mtk_eth *eth)
 
 	/* Force Port1 XGMAC Link Up */
 	val = mtk_r32(eth, MTK_XGMAC_STS(MTK_GMAC1_ID));
-	mtk_w32(eth, val | MTK_XGMAC_FORCE_LINK,
+	mtk_w32(eth, val | MTK_XGMAC_FORCE_LINK(MTK_GMAC1_ID),
 		MTK_XGMAC_STS(MTK_GMAC1_ID));
 
 	/* Adjust GSW bridge IPG to 11*/
@@ -507,7 +507,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 					   phylink_config);
 	struct mtk_eth *eth = mac->hw;
 	u32 sid, i;
-	int val = 0, ge_mode, err = 0;
+	int val = 0, ge_mode, force_link, err = 0;
 	unsigned int mac_type = mac->type;
 
 	/* MT76x8 has no hardware settings between for the MAC */
@@ -697,9 +697,18 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 			case MTK_GMAC1_ID:
 				mtk_setup_bridge_switch(eth);
 				break;
+			case MTK_GMAC2_ID:
+				force_link = (mac->interface ==
+					      PHY_INTERFACE_MODE_XGMII) ?
+					      MTK_XGMAC_FORCE_LINK(mac->id) : 0;
+				val = mtk_r32(eth, MTK_XGMAC_STS(mac->id));
+				mtk_w32(eth, val | force_link,
+					MTK_XGMAC_STS(mac->id));
+				break;
 			case MTK_GMAC3_ID:
 				val = mtk_r32(eth, MTK_XGMAC_STS(mac->id));
-				mtk_w32(eth, val | MTK_XGMAC_FORCE_LINK,
+				mtk_w32(eth,
+					val | MTK_XGMAC_FORCE_LINK(mac->id),
 					MTK_XGMAC_STS(mac->id));
 				break;
 			}
@@ -711,9 +720,11 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
 			switch (mac->id) {
+			case MTK_GMAC2_ID:
 			case MTK_GMAC3_ID:
 				val = mtk_r32(eth, MTK_XGMAC_STS(mac->id));
-				mtk_w32(eth, val & ~MTK_XGMAC_FORCE_LINK,
+				mtk_w32(eth,
+					val & ~MTK_XGMAC_FORCE_LINK(mac->id),
 					MTK_XGMAC_STS(mac->id));
 				break;
 			}
