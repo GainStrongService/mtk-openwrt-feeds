@@ -55,6 +55,8 @@ rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*
 patch -p1 < ${BUILD_DIR}/autobuild/${branch_name}/0001-support-EHT-for-mac80211.sh.patch
 # patch hostapd to use latest version and add 11BE config
 patch -p1 < ${BUILD_DIR}/autobuild/${branch_name}/0002-add-EHT-config-for-hostapd.patch
+# copy DSP & testmode firmware
+patch -p1 < ${BUILD_DIR}/autobuild/${branch_name}/0003-mt76-mt7996-copy-dsp-and-testmode-firmware.patch
 
 # remove some iw patches to let EHT work normally
 rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/001-nl80211_h_sync.patch
