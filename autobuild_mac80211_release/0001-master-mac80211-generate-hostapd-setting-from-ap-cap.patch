@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index b7059fe6..62c13eb2 100644
+index b7059fe636..62c13eb285 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -31,10 +31,23 @@ index b7059fe6..62c13eb2 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9af..ac23b3ae 100644
+index 5aaba9af26..6d051038bf 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-@@ -144,9 +144,6 @@ mac80211_hostapd_setup_base() {
+@@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
+ 
+ 	config_add_string path phy 'macaddr:macaddr'
+ 	config_add_string tx_burst
++	config_add_int mbssid
+ 	config_add_string distance
+ 	config_add_int beacon_int chanbw frag rts
+ 	config_add_int rxantenna txantenna antenna_gain txpower min_tx_power
+@@ -140,13 +141,10 @@ mac80211_hostapd_setup_base() {
+ 	[ -n "$acs_exclude_dfs" ] && [ "$acs_exclude_dfs" -gt 0 ] &&
+ 		append base_cfg "acs_exclude_dfs=1" "$N"
+ 
+-	json_get_vars noscan ht_coex min_tx_power:0 tx_burst
++	json_get_vars noscan ht_coex min_tx_power:0 tx_burst mbssid
  	json_get_values ht_capab_list ht_capab
  	json_get_values channel_list channels
  
@@ -44,7 +57,7 @@ index 5aaba9af..ac23b3ae 100644
  	[ "$min_tx_power" -gt 0 ] && append base_cfg "min_tx_power=$min_tx_power"
  
  	set_default noscan 0
-@@ -315,7 +312,6 @@ mac80211_hostapd_setup_base() {
+@@ -315,7 +313,6 @@ mac80211_hostapd_setup_base() {
  			vht_link_adapt:3 \
  			vht160:2
  
@@ -52,7 +65,7 @@ index 5aaba9af..ac23b3ae 100644
  		append base_cfg "ieee80211ac=1" "$N"
  		vht_cap=0
  		for cap in $(iw phy "$phy" info | awk -F "[()]" '/VHT Capabilities/ { print $2 }'); do
-@@ -484,6 +480,8 @@ mac80211_hostapd_setup_base() {
+@@ -484,12 +481,15 @@ mac80211_hostapd_setup_base() {
  		append base_cfg "he_mu_edca_ac_vo_timer=255" "$N"
  	fi
  
@@ -61,7 +74,14 @@ index 5aaba9af..ac23b3ae 100644
  	hostapd_prepare_device_config "$hostapd_conf_file" nl80211
  	cat >> "$hostapd_conf_file" <<EOF
  ${channel:+channel=$channel}
-@@ -517,7 +515,7 @@ mac80211_hostapd_setup_bss() {
+ ${channel_list:+chanlist=$channel_list}
+ ${hostapd_noscan:+noscan=1}
+ ${tx_burst:+tx_queue_data2_burst=$tx_burst}
++${mbssid:+mbssid=$mbssid}
+ $base_cfg
+ 
+ EOF
+@@ -517,7 +517,7 @@ mac80211_hostapd_setup_bss() {
  		append hostapd_cfg "wds_sta=1" "$N"
  		[ -n "$wds_bridge" ] && append hostapd_cfg "wds_bridge=$wds_bridge" "$N"
  	}
@@ -70,7 +90,57 @@ index 5aaba9af..ac23b3ae 100644
  
  	cat >> /var/run/hostapd-$phy.conf <<EOF
  $hostapd_cfg
-@@ -1058,6 +1056,9 @@ mac80211_setup_vif() {
+@@ -527,6 +527,34 @@ ${max_listen_int:+max_listen_interval=$max_listen_int}
+ EOF
+ }
+ 
++mac80211_generate_mbssid_mac() {
++	local phy="$1"
++	local transmitted_bssid="$2"
++	local id="${macidx:-0}"
++
++	local ref="$(cat /sys/class/ieee80211/${phy}/macaddress)"
++	local mask="$(cat /sys/class/ieee80211/${phy}/address_mask)"
++
++	if [ -z "$transmitted_bssid" ]; then
++		transmitted_bssid=$ref
++	fi
++
++	if [ $id -eq 0 ]; then
++		echo "$transmitted_bssid"
++		return
++	fi
++
++	local oIFS="$IFS"; IFS=":"; set -- $transmitted_bssid; IFS="$oIFS"
++
++	# Calculate nontransmitted bssid
++	macidx=$(($id + 1))
++	mbssid_idx=$(($macidx - 1))
++	b6="0x$6"
++	ref_b6=$(($b6 % $max_mbssid))
++	b6=$(($b6 - $ref_b6 + ($ref_b6 + $mbssid_idx) % $max_mbssid))
++	printf "%s:%s:%s:%s:%s:%02x" $1 $2 $3 $4 $5 $b6
++}
++
+ mac80211_get_addr() {
+ 	local phy="$1"
+ 	local idx="$(($2 + 1))"
+@@ -757,7 +785,13 @@ mac80211_prepare_vif() {
+ 
+ 	json_select ..
+ 
+-	if [ -z "$macaddr" ]; then
++	if [ "$mbssid" -gt 0 ]; then
++		[ "$macidx" -eq 0 ] && {
++			transmitted_bssid=$macaddr
++		}
++		macaddr="$(mac80211_generate_mbssid_mac $phy $transmitted_bssid)"
++		macidx="$(($macidx + 1))"
++	elif [ -z "$macaddr" ]; then
+ 		macaddr="$(mac80211_generate_mac $phy)"
+ 		macidx="$(($macidx + 1))"
+ 	elif [ "$macaddr" = 'random' ]; then
+@@ -1058,6 +1092,9 @@ mac80211_setup_vif() {
  
  	json_select ..
  	[ -n "$failed" ] || wireless_add_vif "$name" "$ifname"
@@ -80,8 +150,36 @@ index 5aaba9af..ac23b3ae 100644
  }
  
  get_freq() {
+@@ -1122,6 +1159,10 @@ drv_mac80211_cleanup() {
+ 	hostapd_common_cleanup
+ }
+ 
++mac80211_count_ap() {
++	total_num_ap=$(($total_num_ap + 1))
++}
++
+ drv_mac80211_setup() {
+ 	json_select config
+ 	json_get_vars \
+@@ -1219,6 +1260,16 @@ drv_mac80211_setup() {
+ 	for_each_interface "sta adhoc mesh" mac80211_set_noscan
+ 	[ -n "$has_ap" ] && mac80211_hostapd_setup_base "$phy"
+ 
++	total_num_ap=0
++	max_mbssid=1
++	for_each_interface "ap" mac80211_count_ap
++	total_num_ap=$(($total_num_ap - 1))
++	while [ $total_num_ap -gt 0 ]
++	do
++		total_num_ap=$(($total_num_ap >> 1))
++		max_mbssid=$(($max_mbssid << 1))
++	done
++
+ 	mac80211_prepare_iw_htmode
+ 	for_each_interface "sta adhoc mesh monitor" mac80211_prepare_vif
+ 	NEWAPLIST=
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a63..10a3f8b4 100644
+index e24a2a634e..10a3f8b43b 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -120,6 +120,13 @@ get_band_defaults() {
@@ -122,7 +220,7 @@ index e24a2a63..10a3f8b4 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 8c233a4e..f2d4ad3d 100644
+index 28bd210623..81b01a2f04 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -1573,6 +1573,11 @@ wpa_supplicant_add_network() {
