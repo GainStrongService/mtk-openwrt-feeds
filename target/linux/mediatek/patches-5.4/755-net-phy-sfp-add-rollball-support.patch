@@ -1,16 +1,14 @@
-diff --git a/drivers/net/phy/mdio-i2c.c b/drivers/net/phy/mdio-i2c.c
-index 0746e2c..81c8fe7 100644
 --- a/drivers/net/phy/mdio-i2c.c
 +++ b/drivers/net/phy/mdio-i2c.c
-@@ -11,6 +11,7 @@
-  */
+@@ -12,6 +12,7 @@
  #include <linux/i2c.h>
+ #include <linux/mdio/mdio-i2c.h>
  #include <linux/phy.h>
 +#include <linux/sfp.h>
  
- #include "mdio-i2c.h"
- 
-@@ -29,7 +30,7 @@ static unsigned int i2c_mii_phy_addr(int phy_id)
+ /*
+  * I2C bus addresses 0x50 and 0x51 are normally an EEPROM, which is
+@@ -28,7 +29,7 @@ static unsigned int i2c_mii_phy_addr(int
  	return phy_id + 0x40;
  }
  
@@ -19,7 +17,7 @@ index 0746e2c..81c8fe7 100644
  {
  	struct i2c_adapter *i2c = bus->priv;
  	struct i2c_msg msgs[2];
-@@ -63,7 +64,8 @@ static int i2c_mii_read(struct mii_bus *bus, int phy_id, int reg)
+@@ -62,7 +63,8 @@ static int i2c_mii_read(struct mii_bus *
  	return data[0] << 8 | data[1];
  }
  
@@ -29,7 +27,7 @@ index 0746e2c..81c8fe7 100644
  {
  	struct i2c_adapter *i2c = bus->priv;
  	struct i2c_msg msg;
-@@ -92,9 +94,288 @@ static int i2c_mii_write(struct mii_bus *bus, int phy_id, int reg, u16 val)
+@@ -91,9 +93,288 @@ static int i2c_mii_write(struct mii_bus
  	return ret < 0 ? ret : 0;
  }
  
@@ -319,7 +317,7 @@ index 0746e2c..81c8fe7 100644
  
  	if (!i2c_check_functionality(i2c, I2C_FUNC_I2C))
  		return ERR_PTR(-EINVAL);
-@@ -105,10 +386,28 @@ struct mii_bus *mdio_i2c_alloc(struct device *parent, struct i2c_adapter *i2c)
+@@ -104,10 +385,28 @@ struct mii_bus *mdio_i2c_alloc(struct de
  
  	snprintf(mii->id, MII_BUS_ID_SIZE, "i2c:%s", dev_name(parent));
  	mii->parent = parent;
@@ -350,8 +348,6 @@ index 0746e2c..81c8fe7 100644
  	return mii;
  }
  EXPORT_SYMBOL_GPL(mdio_i2c_alloc);
-diff --git a/include/linux/mdio/mdio-i2c.h b/include/linux/mdio/mdio-i2c.h
-index 751dab2..1c21140 100644
 --- a/include/linux/mdio/mdio-i2c.h
 +++ b/include/linux/mdio/mdio-i2c.h
 @@ -11,6 +11,14 @@ struct device;
@@ -370,11 +366,9 @@ index 751dab2..1c21140 100644
 +			       enum mdio_i2c_proto protocol);
  
  #endif
-diff --git a/drivers/net/phy/phylink.c b/drivers/net/phy/phylink.c
-index f360d92..67f34ed 100644
 --- a/drivers/net/phy/phylink.c
 +++ b/drivers/net/phy/phylink.c
-@@ -483,62 +483,105 @@ static void phylink_resolve(struct work_struct *w)
+@@ -483,62 +483,105 @@ static void phylink_resolve(struct work_
  	struct phylink *pl = container_of(w, struct phylink, resolve);
  	struct phylink_link_state link_state;
  	struct net_device *ndev = pl->netdev;
@@ -504,8 +498,6 @@ index f360d92..67f34ed 100644
  		mod_timer(&pl->link_poll, jiffies + HZ);
  	if (pl->phydev)
  		phy_start(pl->phydev);
-diff --git a/drivers/net/phy/sfp-bus.c b/drivers/net/phy/sfp-bus.c
-index 42f0441..0d5ac2a 100644
 --- a/drivers/net/phy/sfp-bus.c
 +++ b/drivers/net/phy/sfp-bus.c
 @@ -10,12 +10,6 @@
@@ -609,7 +601,7 @@ index 42f0441..0d5ac2a 100644
  /**
   * sfp_parse_port() - Parse the EEPROM base ID, setting the port type
   * @bus: a pointer to the &struct sfp_bus structure for the sfp module
-@@ -359,7 +272,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
+@@ -359,7 +272,7 @@ void sfp_parse_support(struct sfp_bus *b
  			phylink_set(modes, 1000baseX_Full);
  	}
  
@@ -618,7 +610,7 @@ index 42f0441..0d5ac2a 100644
  		bus->sfp_quirk->modes(id, modes);
  
  	bitmap_or(support, support, modes, __ETHTOOL_LINK_MODE_MASK_NBITS);
-@@ -734,12 +647,13 @@ void sfp_link_down(struct sfp_bus *bus)
+@@ -737,12 +650,13 @@ void sfp_link_down(struct sfp_bus *bus)
  }
  EXPORT_SYMBOL_GPL(sfp_link_down);
  
@@ -634,11 +626,9 @@ index 42f0441..0d5ac2a 100644
  
  	if (ops && ops->module_insert)
  		ret = ops->module_insert(bus->upstream, id);
-diff --git a/drivers/net/phy/sfp.c b/drivers/net/phy/sfp.c
-index 3253366..8d95f49 100644
 --- a/drivers/net/phy/sfp.c
 +++ b/drivers/net/phy/sfp.c
-@@ -165,6 +165,7 @@ static const enum gpiod_flags gpio_flags[] = {
+@@ -165,6 +165,7 @@ static const enum gpiod_flags gpio_flags
   * on board (for a copper SFP) time to initialise.
   */
  #define T_WAIT			msecs_to_jiffies(50)
@@ -646,7 +636,7 @@ index 3253366..8d95f49 100644
  #define T_START_UP		msecs_to_jiffies(300)
  #define T_START_UP_BAD_GPON	msecs_to_jiffies(60000)
  
-@@ -204,8 +205,11 @@ static const enum gpiod_flags gpio_flags[] = {
+@@ -204,8 +205,11 @@ static const enum gpiod_flags gpio_flags
  
  /* SFP modules appear to always have their PHY configured for bus address
   * 0x56 (which with mdio-i2c, translates to a PHY address of 22).
@@ -686,7 +676,7 @@ index 3253366..8d95f49 100644
  
  #if IS_ENABLED(CONFIG_HWMON)
  	struct sfp_diag diag;
-@@ -303,6 +313,136 @@ static const struct of_device_id sfp_of_match[] = {
+@@ -303,6 +313,136 @@ static const struct of_device_id sfp_of_
  };
  MODULE_DEVICE_TABLE(of, sfp_of_match);
  
@@ -823,7 +813,7 @@ index 3253366..8d95f49 100644
  static unsigned long poll_jiffies;
  
  static unsigned int sfp_gpio_get_state(struct sfp *sfp)
-@@ -414,9 +553,6 @@ static int sfp_i2c_write(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
+@@ -414,9 +554,6 @@ static int sfp_i2c_write(struct sfp *sfp
  
  static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
  {
@@ -833,7 +823,7 @@ index 3253366..8d95f49 100644
  	if (!i2c_check_functionality(i2c, I2C_FUNC_I2C))
  		return -EINVAL;
  
-@@ -424,7 +560,15 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
+@@ -424,7 +561,15 @@ static int sfp_i2c_configure(struct sfp
  	sfp->read = sfp_i2c_read;
  	sfp->write = sfp_i2c_write;
  
@@ -850,7 +840,7 @@ index 3253366..8d95f49 100644
  	if (IS_ERR(i2c_mii))
  		return PTR_ERR(i2c_mii);
  
-@@ -442,6 +586,12 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
+@@ -442,6 +587,12 @@ static int sfp_i2c_configure(struct sfp
  	return 0;
  }
  
@@ -863,7 +853,7 @@ index 3253366..8d95f49 100644
  /* Interface */
  static int sfp_read(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
  {
-@@ -487,17 +637,18 @@ static void sfp_soft_set_state(struct sfp *sfp, unsigned int state)
+@@ -487,17 +638,18 @@ static void sfp_soft_set_state(struct sf
  static void sfp_soft_start_poll(struct sfp *sfp)
  {
  	const struct sfp_eeprom_id *id = &sfp->id;
@@ -891,7 +881,7 @@ index 3253366..8d95f49 100644
  
  	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
  	    !sfp->need_poll)
-@@ -511,10 +662,11 @@ static void sfp_soft_stop_poll(struct sfp *sfp)
+@@ -511,10 +663,11 @@ static void sfp_soft_stop_poll(struct sf
  
  static unsigned int sfp_get_state(struct sfp *sfp)
  {
@@ -906,7 +896,7 @@ index 3253366..8d95f49 100644
  		state |= sfp_soft_get_state(sfp);
  
  	return state;
-@@ -1448,12 +1600,12 @@ static void sfp_sm_phy_detach(struct sfp *sfp)
+@@ -1448,12 +1601,12 @@ static void sfp_sm_phy_detach(struct sfp
  	sfp->mod_phy = NULL;
  }
  
@@ -921,7 +911,7 @@ index 3253366..8d95f49 100644
  	if (phy == ERR_PTR(-ENODEV))
  		return PTR_ERR(phy);
  	if (IS_ERR(phy)) {
-@@ -1548,6 +1700,14 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
+@@ -1548,6 +1701,14 @@ static void sfp_sm_fault(struct sfp *sfp
  	}
  }
  
@@ -936,7 +926,7 @@ index 3253366..8d95f49 100644
  /* Probe a SFP for a PHY device if the module supports copper - the PHY
   * normally sits at I2C bus address 0x56, and may either be a clause 22
   * or clause 45 PHY.
-@@ -1563,19 +1723,23 @@ static int sfp_sm_probe_for_phy(struct sfp *sfp)
+@@ -1563,19 +1724,23 @@ static int sfp_sm_probe_for_phy(struct s
  {
  	int err = 0;
  
@@ -969,7 +959,7 @@ index 3253366..8d95f49 100644
  	return err;
  }
  
-@@ -1819,11 +1983,33 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
+@@ -1819,11 +1984,33 @@ static int sfp_sm_mod_probe(struct sfp *
  	if (ret < 0)
  		return ret;
  
@@ -1007,7 +997,7 @@ index 3253366..8d95f49 100644
  
  	return 0;
  }
-@@ -1936,7 +2122,8 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
+@@ -1936,7 +2123,8 @@ static void sfp_sm_module(struct sfp *sf
  			break;
  
  		/* Report the module insertion to the upstream device */
@@ -1017,7 +1007,7 @@ index 3253366..8d95f49 100644
  		if (err < 0) {
  			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
  			break;
-@@ -1995,6 +2182,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+@@ -1995,6 +2183,8 @@ static void sfp_sm_main(struct sfp *sfp,
  			sfp_module_stop(sfp->sfp_bus);
  		if (sfp->mod_phy)
  			sfp_sm_phy_detach(sfp);
@@ -1026,7 +1016,7 @@ index 3253366..8d95f49 100644
  		sfp_module_tx_disable(sfp);
  		sfp_soft_stop_poll(sfp);
  		sfp_sm_next(sfp, SFP_S_DOWN, 0);
-@@ -2018,9 +2207,10 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+@@ -2018,9 +2208,10 @@ static void sfp_sm_main(struct sfp *sfp,
  
  		/* We need to check the TX_FAULT state, which is not defined
  		 * while TX_DISABLE is asserted. The earliest we want to do
@@ -1039,7 +1029,7 @@ index 3253366..8d95f49 100644
  		break;
  
  	case SFP_S_WAIT:
-@@ -2034,8 +2224,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+@@ -2034,8 +2225,8 @@ static void sfp_sm_main(struct sfp *sfp,
  			 * deasserting.
  			 */
  			timeout = sfp->module_t_start_up;
@@ -1050,7 +1040,7 @@ index 3253366..8d95f49 100644
  			else
  				timeout = 1;
  
-@@ -2057,6 +2247,12 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+@@ -2057,6 +2248,12 @@ static void sfp_sm_main(struct sfp *sfp,
  				     sfp->sm_fault_retries == N_FAULT_INIT);
  		} else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR) {
  	init_done:
@@ -1063,7 +1053,7 @@ index 3253366..8d95f49 100644
  			sfp->sm_phy_retries = R_PHY_RETRY;
  			goto phy_probe;
  		}
-@@ -2409,6 +2605,8 @@ static int sfp_probe(struct platform_device *pdev)
+@@ -2409,6 +2606,8 @@ static int sfp_probe(struct platform_dev
  				return PTR_ERR(sfp->gpio[i]);
  		}
  
@@ -1072,8 +1062,6 @@ index 3253366..8d95f49 100644
  	sfp->get_state = sfp_gpio_get_state;
  	sfp->set_state = sfp_gpio_set_state;
  
-diff --git a/drivers/net/phy/sfp.h b/drivers/net/phy/sfp.h
-index b83f705..ef06d35 100644
 --- a/drivers/net/phy/sfp.h
 +++ b/drivers/net/phy/sfp.h
 @@ -6,6 +6,13 @@
@@ -1090,7 +1078,7 @@ index b83f705..ef06d35 100644
  struct sfp_socket_ops {
  	void (*attach)(struct sfp *sfp);
  	void (*detach)(struct sfp *sfp);
-@@ -20,7 +27,8 @@ int sfp_add_phy(struct sfp_bus *bus, struct phy_device *phydev);
+@@ -20,7 +27,8 @@ int sfp_add_phy(struct sfp_bus *bus, str
  void sfp_remove_phy(struct sfp_bus *bus);
  void sfp_link_up(struct sfp_bus *bus);
  void sfp_link_down(struct sfp_bus *bus);
@@ -1100,8 +1088,6 @@ index b83f705..ef06d35 100644
  void sfp_module_remove(struct sfp_bus *bus);
  int sfp_module_start(struct sfp_bus *bus);
  void sfp_module_stop(struct sfp_bus *bus);
-diff --git a/drivers/net/phy/marvell10g.c b/drivers/net/phy/marvell10g.c
-index 512f27b..daed73a 100644
 --- a/drivers/net/phy/marvell10g.c
 +++ b/drivers/net/phy/marvell10g.c
 @@ -32,6 +32,15 @@
@@ -1165,7 +1151,7 @@ index 512f27b..daed73a 100644
  #ifdef CONFIG_HWMON
  static umode_t mv3310_hwmon_is_visible(const void *data,
  				       enum hwmon_sensor_types type,
-@@ -155,13 +188,6 @@ static int mv3310_hwmon_config(struct phy_device *phydev, bool enable)
+@@ -155,13 +188,6 @@ static int mv3310_hwmon_config(struct ph
  			      MV_V2_TEMP_CTRL_MASK, val);
  }
  
@@ -1179,7 +1165,7 @@ index 512f27b..daed73a 100644
  static int mv3310_hwmon_probe(struct phy_device *phydev)
  {
  	struct device *dev = &phydev->mdio.dev;
-@@ -185,10 +211,6 @@ static int mv3310_hwmon_probe(struct phy_device *phydev)
+@@ -185,10 +211,6 @@ static int mv3310_hwmon_probe(struct phy
  	if (ret)
  		return ret;
  
@@ -1190,7 +1176,7 @@ index 512f27b..daed73a 100644
  	priv->hwmon_dev = devm_hwmon_device_register_with_info(dev,
  				priv->hwmon_name, phydev,
  				&mv3310_hwmon_chip_info, NULL);
-@@ -262,6 +284,11 @@ static int mv3310_probe(struct phy_device *phydev)
+@@ -262,6 +284,11 @@ static int mv3310_probe(struct phy_devic
  	return phy_sfp_probe(phydev, &mv3310_sfp_ops);
  }
  
@@ -1202,7 +1188,7 @@ index 512f27b..daed73a 100644
  static int mv3310_suspend(struct phy_device *phydev)
  {
  	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
-@@ -297,8 +324,84 @@ static bool mv3310_has_pma_ngbaset_quirk(struct phy_device *phydev)
+@@ -297,8 +324,84 @@ static bool mv3310_has_pma_ngbaset_quirk
  		MV_PHY_ALASKA_NBT_QUIRK_MASK) == MV_PHY_ALASKA_NBT_QUIRK_REV;
  }
  
@@ -1287,7 +1273,7 @@ index 512f27b..daed73a 100644
  	/* Check that the PHY interface type is compatible */
  	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
  	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
-@@ -307,6 +410,16 @@ static int mv3310_config_init(struct phy_device *phydev)
+@@ -307,6 +410,16 @@ static int mv3310_config_init(struct phy
  	    phydev->interface != PHY_INTERFACE_MODE_10GKR)
  		return -ENODEV;
  
@@ -1304,7 +1290,7 @@ index 512f27b..daed73a 100644
  	return 0;
  }
  
-@@ -384,6 +497,23 @@ static int mv3310_aneg_done(struct phy_device *phydev)
+@@ -384,6 +497,23 @@ static int mv3310_aneg_done(struct phy_d
  
  static void mv3310_update_interface(struct phy_device *phydev)
  {
@@ -1327,8 +1313,8 @@ index 512f27b..daed73a 100644
 +
  	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
  	     phydev->interface == PHY_INTERFACE_MODE_2500BASEX ||
- 	     phydev->interface == PHY_INTERFACE_MODE_10GKR) && phydev->link) {
-@@ -499,11 +629,22 @@ static int mv3310_read_status(struct phy_device *phydev)
+ 	     phydev->interface == PHY_INTERFACE_MODE_5GBASER ||
+@@ -503,11 +633,22 @@ static int mv3310_read_status(struct phy
  	return 0;
  }
  
@@ -1351,7 +1337,7 @@ index 512f27b..daed73a 100644
  		.get_features	= mv3310_get_features,
  		.soft_reset	= genphy_no_soft_reset,
  		.config_init	= mv3310_config_init,
-@@ -513,11 +654,13 @@ static struct phy_driver mv3310_drivers[] = {
+@@ -517,11 +658,13 @@ static struct phy_driver mv3310_drivers[
  		.config_aneg	= mv3310_config_aneg,
  		.aneg_done	= mv3310_aneg_done,
  		.read_status	= mv3310_read_status,
@@ -1365,7 +1351,7 @@ index 512f27b..daed73a 100644
  		.probe		= mv3310_probe,
  		.suspend	= mv3310_suspend,
  		.resume		= mv3310_resume,
-@@ -526,6 +669,7 @@ static struct phy_driver mv3310_drivers[] = {
+@@ -530,6 +673,7 @@ static struct phy_driver mv3310_drivers[
  		.config_aneg	= mv3310_config_aneg,
  		.aneg_done	= mv3310_aneg_done,
  		.read_status	= mv3310_read_status,
