@@ -6,6 +6,13 @@
 #include <linux/of_platform.h>
 #include <linux/phy.h>
 
+#define MTK_GPHY_ID_MT7530 0x03a29412
+#define MTK_GPHY_ID_MT7531 0x03a29441
+#ifdef CONFIG_MEDIATEK_GE_PHY_SOC
+#define MTK_GPHY_ID_MT7981 0x03a29461
+#define MTK_GPHY_ID_MT7988 0x03a29481
+#endif
+
 #define MTK_EXT_PAGE_ACCESS		0x1f
 #define MTK_PHY_PAGE_STANDARD		0x0000
 #define MTK_PHY_PAGE_EXTENDED		0x0001
@@ -523,7 +530,7 @@ static int tx_amp_fill_result(struct phy_device *phydev, u16 *buf)
 				    10, 6, 6, 10 };
 
 	switch (phydev->drv->phy_id) {
-	case 0x03a29461:
+	case MTK_GPHY_ID_MT7981:
 		/* We add some calibration to efuse values
 		 * due to board level influence.
 		 * GBE: +7, TBT: +1, HBT: +4, TST: +7
@@ -541,7 +548,7 @@ static int tx_amp_fill_result(struct phy_device *phydev, u16 *buf)
 			}
 		}
 		break;
-	case 0x03a29481:
+	case MTK_GPHY_ID_MT7988:
 		memcpy(bias, (const void *)vals_9481, sizeof(bias));
 		break;
 	default:
@@ -621,12 +628,12 @@ static int tx_r50_fill_result(struct phy_device *phydev, u16 tx_r50_cal_val,
 	u16 reg, val;
 
 	switch (phydev->drv->phy_id) {
-	case 0x03a29481:
+	case MTK_GPHY_ID_MT7988:
 	{
 		bias = -2;
 		break;
 	}
-	/* 0x03a29461 enters default case */
+	/* MTK_GPHY_ID_MT7981 enters default case */
 	default:
 		break;
 	}
@@ -1395,7 +1402,7 @@ static int mt7988_phy_probe(struct phy_device *phydev)
 
 static struct phy_driver mtk_gephy_driver[] = {
 	{
-		PHY_ID_MATCH_EXACT(0x03a29412),
+		PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7530),
 		.name		= "MediaTek MT7530 PHY",
 		.config_init	= mt7530_phy_config_init,
 		/* Interrupts are handled by the switch, not the PHY
@@ -1409,7 +1416,7 @@ static struct phy_driver mtk_gephy_driver[] = {
 		.write_page	= mtk_gephy_write_page,
 	},
 	{
-		PHY_ID_MATCH_EXACT(0x03a29441),
+		PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7531),
 		.name		= "MediaTek MT7531 PHY",
 		.config_init	= mt7531_phy_config_init,
 		/* Interrupts are handled by the switch, not the PHY
@@ -1424,7 +1431,7 @@ static struct phy_driver mtk_gephy_driver[] = {
 	},
 #ifdef CONFIG_MEDIATEK_GE_PHY_SOC
 	{
-		PHY_ID_MATCH_EXACT(0x03a29461),
+		PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7981),
 		.name		= "MediaTek MT7981 PHY",
 		.probe		= mt7981_phy_probe,
 		.config_intr	= genphy_no_config_intr,
@@ -1435,7 +1442,7 @@ static struct phy_driver mtk_gephy_driver[] = {
 		.write_page	= mtk_gephy_write_page,
 	},
 	{
-		PHY_ID_MATCH_EXACT(0x03a29481),
+		PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7988),
 		.name		= "MediaTek MT7988 PHY",
 		.probe		= mt7988_phy_probe,
 		.config_intr	= genphy_no_config_intr,
