@@ -47,6 +47,30 @@ TARGET_DEVICES += mediatek_mt7988a-gsw-10g-spim-nand-sb
 DEFAULT_DEVICE_VARS += FIT_KEY_DIR FIT_KEY_NAME ANTI_ROLLBACK_TABLE \
 	AUTO_AR_CONF HASHED_BOOT_DEVICE BASIC_KERNEL_CMDLINE
 
+define Device/mediatek_mt7988a-dsa-10g-emmc-sb
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7988a-dsa-10g-emmc-sb
+  DEVICE_DTS := mt7988a-dsa-10g-emmc
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7988a-dsa-10g-emmc
+  DEVICE_PACKAGES := mkf2fs e2fsprogs blkid blockdev losetup kmod-fs-ext4 \
+		     kmod-mmc kmod-fs-f2fs kmod-fs-vfat kmod-nls-cp437 \
+		     kmod-nls-iso8859-1 uboot-envtools dmsetup
+  IMAGE/sysupgrade.bin := sysupgrade-tar rootfs=$$$$(IMAGE_ROOTFS)-hashed | \
+	append-metadata
+  FIT_KEY_DIR := $(TOPDIR)/../../keys
+  FIT_KEY_NAME := fit_key
+  ANTI_ROLLBACK_TABLE := $(TOPDIR)/../../fw_ar_table.xml
+  AUTO_AR_CONF := $(TOPDIR)/../../auto_ar_conf.mk
+  BASIC_KERNEL_CMDLINE := console=ttyS0,115200n1 rootfstype=squashfs,f2fs loglevel=8
+  KERNEL = kernel-bin | lzma | squashfs-hashed | fw-ar-ver | \
+	fit-sign lzma $$(KDIR)/image-sb-$$(firstword $$(DEVICE_DTS)).dtb
+  KERNEL_INITRAMFS =
+endef
+TARGET_DEVICES += mediatek_mt7988a-dsa-10g-emmc-sb
+DEFAULT_DEVICE_VARS += FIT_KEY_DIR FIT_KEY_NAME ANTI_ROLLBACK_TABLE \
+	AUTO_AR_CONF BASIC_KERNEL_CMDLINE
+
 define Device/mediatek_mt7988a-gsw-10g-spim-nand-4pcie
   DEVICE_VENDOR := MediaTek
   DEVICE_MODEL := mt7988a-gsw-10g-spim-nand-4pcie
