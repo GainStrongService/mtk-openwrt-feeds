@@ -22,7 +22,7 @@ index 2121335a1..01fc1e5c0 100644
  		skb->protocol = eth_type_trans(skb, netdev);
  
 -		hash = trxd.rxd4 & MTK_RXD4_FOE_ENTRY;
-+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2)
 +			hash = trxd.rxd5 & MTK_RXD5_FOE_ENTRY_V2;
 +#else
 +			hash = trxd.rxd4 & MTK_RXD4_FOE_ENTRY;
@@ -32,7 +32,7 @@ index 2121335a1..01fc1e5c0 100644
  			skb_set_hash(skb, hash, PKT_HASH_TYPE_L4);
  		}
  
-+#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2)
 +		reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON_V2, trxd.rxd5);
 +		if (reason == MTK_PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED)
 +			mtk_ppe_check_skb(eth->ppe, skb,

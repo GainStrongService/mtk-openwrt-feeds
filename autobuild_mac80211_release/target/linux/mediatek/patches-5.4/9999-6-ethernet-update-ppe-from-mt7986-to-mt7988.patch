@@ -6,9 +6,9 @@ index 4075ec2..524c5d9 100644
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
--#if defined(CONFIG_MEDIATEK_NETSYS_V2)
+-#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2)
 -			hash = trxd.rxd5 & MTK_RXD5_FOE_ENTRY_V2;
-+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
++#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 +		hash = trxd.rxd5 & MTK_RXD5_FOE_ENTRY_V2;
  #else
 -			hash = trxd.rxd4 & MTK_RXD4_FOE_ENTRY;
@@ -19,8 +19,8 @@ index 4075ec2..524c5d9 100644
  			skb_set_hash(skb, hash, PKT_HASH_TYPE_L4);
  		}
  
--#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+-#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
  		reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON_V2, trxd.rxd5);
  		if (reason == MTK_PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED) {
  			for (i = 0; i < eth->ppe_num; i++) {
