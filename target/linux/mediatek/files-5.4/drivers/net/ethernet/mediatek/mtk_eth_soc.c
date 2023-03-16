@@ -1081,12 +1081,64 @@ static const struct phylink_mac_ops mtk_phylink_ops = {
 	.mac_link_up = mtk_mac_link_up,
 };
 
+static int mtk_mdc_init(struct mtk_eth *eth)
+{
+	struct device_node *mii_np;
+	int max_clk = 2500000, divider;
+	int ret;
+	u32 val;
+
+	mii_np = of_get_child_by_name(eth->dev->of_node, "mdio-bus");
+	if (!mii_np) {
+		dev_err(eth->dev, "no %s child node found", "mdio-bus");
+		return -ENODEV;
+	}
+
+	if (!of_device_is_available(mii_np)) {
+		ret = -ENODEV;
+		goto err_put_node;
+	}
+
+	if (!of_property_read_u32(mii_np, "clock-frequency", &val)) {
+		if (val > MDC_MAX_FREQ ||
+		    val < MDC_MAX_FREQ / MDC_MAX_DIVIDER) {
+			dev_err(eth->dev, "MDIO clock frequency out of range");
+			ret = -EINVAL;
+			goto err_put_node;
+		}
+		max_clk = val;
+	}
+
+	divider = min_t(unsigned int, DIV_ROUND_UP(MDC_MAX_FREQ, max_clk), 63);
+
+	/* Configure MDC Turbo Mode */
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		val = mtk_r32(eth, MTK_MAC_MISC);
+		val |= MISC_MDC_TURBO;
+		mtk_w32(eth, val, MTK_MAC_MISC);
+	} else {
+		val = mtk_r32(eth, MTK_PPSC);
+		val |= PPSC_MDC_TURBO;
+		mtk_w32(eth, val, MTK_PPSC);
+	}
+
+	/* Configure MDC Divider */
+	val = mtk_r32(eth, MTK_PPSC);
+	val &= ~PPSC_MDC_CFG;
+	val |= FIELD_PREP(PPSC_MDC_CFG, divider);
+	mtk_w32(eth, val, MTK_PPSC);
+
+	dev_info(eth->dev, "MDC is running on %d Hz\n", MDC_MAX_FREQ / divider);
+
+err_put_node:
+	of_node_put(mii_np);
+	return ret;
+}
+
 static int mtk_mdio_init(struct mtk_eth *eth)
 {
 	struct device_node *mii_np;
-	int clk = 25000000, max_clk = 2500000, divider = 1;
 	int ret;
-	u32 val;
 
 	mii_np = of_get_child_by_name(eth->dev->of_node, "mdio-bus");
 	if (!mii_np) {
@@ -1112,39 +1164,10 @@ static int mtk_mdio_init(struct mtk_eth *eth)
 	eth->mii_bus->priv = eth;
 	eth->mii_bus->parent = eth->dev;
 
-	if(snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%pOFn", mii_np) < 0) {
+	if (snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%pOFn", mii_np) < 0) {
 		ret = -ENOMEM;
 		goto err_put_node;
 	}
-
-	if (!of_property_read_u32(mii_np, "mdc-max-frequency", &val))
-		max_clk = val;
-
-	while (clk / divider > max_clk) {
-		if (divider >= 63)
-			break;
-
-		divider++;
-	};
-
-	/* Configure MDC Turbo Mode */
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-		val = mtk_r32(eth, MTK_MAC_MISC);
-		val |= MISC_MDC_TURBO;
-		mtk_w32(eth, val, MTK_MAC_MISC);
-	} else {
-		val = mtk_r32(eth, MTK_PPSC);
-		val |= PPSC_MDC_TURBO;
-		mtk_w32(eth, val, MTK_PPSC);
-	}
-
-	/* Configure MDC Divider */
-	val = mtk_r32(eth, MTK_PPSC);
-	val &= ~PPSC_MDC_CFG;
-	val |= FIELD_PREP(PPSC_MDC_CFG, divider);
-	mtk_w32(eth, val, MTK_PPSC);
-
-	dev_info(eth->dev, "MDC is running on %d Hz\n", clk / divider);
 
 	ret = of_mdiobus_register(eth->mii_bus, mii_np);
 
@@ -3658,6 +3681,9 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 		mtk_eth_warm_reset(eth);
 	else
 		mtk_eth_cold_reset(eth);
+
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
+		mtk_mdc_init(eth);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
 		/* Set FE to PDMAv2 if necessary */

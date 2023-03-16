@@ -635,6 +635,8 @@
 #define MTK_PPSC		0x10000
 #define PPSC_MDC_CFG		GENMASK(29, 24)
 #define PPSC_MDC_TURBO		BIT(20)
+#define MDC_MAX_FREQ		25000000
+#define MDC_MAX_DIVIDER		63
 
 /* PHY Indirect Access Control registers */
 #define MTK_PHY_IAC		0x10004
