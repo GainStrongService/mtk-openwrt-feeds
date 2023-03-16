@@ -3515,11 +3515,7 @@ static int mtk_stop(struct net_device *dev)
 	netif_tx_disable(dev);
 
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
-	if (phy_node) {
-		val = _mtk_mdio_read(eth, 0, 0);
-		val |= BMCR_PDOWN;
-		_mtk_mdio_write(eth, 0, 0, val);
-	} else if (eth->xgmii->regmap_sgmii[mac->id]) {
+	if (!phy_node && eth->xgmii->regmap_sgmii[mac->id]) {
 		regmap_read(eth->xgmii->regmap_sgmii[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
 		val |= SGMII_PHYA_PWD;
 		regmap_write(eth->xgmii->regmap_sgmii[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, val);
