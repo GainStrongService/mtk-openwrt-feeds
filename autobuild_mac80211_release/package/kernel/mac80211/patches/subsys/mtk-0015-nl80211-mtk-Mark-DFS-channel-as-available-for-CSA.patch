@@ -1,6 +1,6 @@
-From 20d6ed31c0e6c15cfbc120bea6a8729121560371 Mon Sep 17 00:00:00 2001
+From 3dcb2f159024bccf14ca72a2d38e81aca1b0c87c Mon Sep 17 00:00:00 2001
 From: "himanshu.goyal" <himanshu.goyal@mediatek.com>
-Date: Tue, 21 Feb 2023 15:24:09 +0800
+Date: Fri, 17 Mar 2023 17:36:01 +0800
 Subject: [PATCH] nl80211: mtk: Mark DFS channel as available for CSA.
 
 ---
@@ -8,21 +8,21 @@ Subject: [PATCH] nl80211: mtk: Mark DFS channel as available for CSA.
  1 file changed, 5 insertions(+)
 
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 8dc928d..a02aacb 100644
+index a20aba5..62698c2 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -3193,6 +3193,11 @@ int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
- 		return -EINVAL;
- 	}
+@@ -9620,6 +9620,11 @@ skip_beacons:
+ 	if (err)
+ 		goto free;
  
 +	/* Use RADAR_BACKGROUND attribute here for skipping CAC */
 +	if (info->attrs[NL80211_ATTR_RADAR_BACKGROUND]) {
-+		cfg80211_set_dfs_state(&rdev->wiphy, chandef, NL80211_DFS_AVAILABLE);
++		cfg80211_set_dfs_state(&rdev->wiphy, &params.chandef, NL80211_DFS_AVAILABLE);
 +	}
 +
- 	if (!cfg80211_chandef_usable(&rdev->wiphy, chandef,
- 				     IEEE80211_CHAN_DISABLED)) {
- 		NL_SET_ERR_MSG(extack, "(extension) channel is disabled");
+ 	if (!cfg80211_reg_can_beacon_relax(&rdev->wiphy, &params.chandef,
+ 					   wdev->iftype)) {
+ 		err = -EINVAL;
 -- 
 2.18.0
 
