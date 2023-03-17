@@ -31,7 +31,7 @@ define Device/mediatek_mt7988a-gsw-10g-spim-nand-sb
   KERNEL_IN_UBI := 1
   IMAGES += factory.bin
   IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
-  IMAGE/sysupgrade.bin := sysupgrade-tar rootfs=$$$$(IMAGE_ROOTFS)-hashed | \
+  IMAGE/sysupgrade.bin := sysupgrade-tar rootfs=$$$$(IMAGE_ROOTFS)-hashed-$$(firstword $$(DEVICE_DTS)) | \
 	append-metadata
   FIT_KEY_DIR := $(TOPDIR)/../../keys
   FIT_KEY_NAME := fit_key
@@ -56,7 +56,7 @@ define Device/mediatek_mt7988a-dsa-10g-emmc-sb
   DEVICE_PACKAGES := mkf2fs e2fsprogs blkid blockdev losetup kmod-fs-ext4 \
 		     kmod-mmc kmod-fs-f2fs kmod-fs-vfat kmod-nls-cp437 \
 		     kmod-nls-iso8859-1 uboot-envtools dmsetup
-  IMAGE/sysupgrade.bin := sysupgrade-tar rootfs=$$$$(IMAGE_ROOTFS)-hashed | \
+  IMAGE/sysupgrade.bin := sysupgrade-tar rootfs=$$$$(IMAGE_ROOTFS)-hashed-$$(firstword $$(DEVICE_DTS)) | \
 	append-metadata
   FIT_KEY_DIR := $(TOPDIR)/../../keys
   FIT_KEY_NAME := fit_key
