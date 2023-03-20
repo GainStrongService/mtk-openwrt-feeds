@@ -466,24 +466,69 @@ void mtk_usxgmii_reset(struct mtk_xgmii *ss, int mac_id)
 {
 	struct mtk_eth *eth = ss->eth;
 	u32 id = mtk_mac2xgmii_id(eth, mac_id);
+	u32 val = 0;
 
 	if (id >= MTK_MAX_DEVS || !eth->toprgu)
 		return;
 
 	switch (mac_id) {
 	case MTK_GMAC2_ID:
-		regmap_update_bits(eth->toprgu, 0xFC, GENMASK(31, 0), 0x0000A004);
-		regmap_update_bits(eth->toprgu, 0x18, GENMASK(31, 0), 0x88F0A004);
-		regmap_update_bits(eth->toprgu, 0xFC, GENMASK(31, 0), 0x00000000);
-		regmap_update_bits(eth->toprgu, 0x18, GENMASK(31, 0), 0x88F00000);
-		regmap_update_bits(eth->toprgu, 0x18, GENMASK(31, 0), 0x00F00000);
+		/* Enable software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val |= SWSYSRST_XFI_PEXPT1_GRST |
+		       SWSYSRST_XFI1_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
+
+		/* Assert USXGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88) |
+		       SWSYSRST_XFI_PEXPT1_GRST |
+		       SWSYSRST_XFI1_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		udelay(100);
+
+		/* De-assert USXGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88);
+		val &= ~(SWSYSRST_XFI_PEXPT1_GRST |
+			 SWSYSRST_XFI1_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		/* Disable software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val &= ~(SWSYSRST_XFI_PEXPT1_GRST |
+			 SWSYSRST_XFI1_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
 		break;
 	case MTK_GMAC3_ID:
-		regmap_update_bits(eth->toprgu, 0xFC, GENMASK(31, 0), 0x00005002);
-		regmap_update_bits(eth->toprgu, 0x18, GENMASK(31, 0), 0x88F05002);
-		regmap_update_bits(eth->toprgu, 0xFC, GENMASK(31, 0), 0x00000000);
-		regmap_update_bits(eth->toprgu, 0x18, GENMASK(31, 0), 0x88F00000);
-		regmap_update_bits(eth->toprgu, 0x18, GENMASK(31, 0), 0x00F00000);
+		/* Enable software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val |= SWSYSRST_XFI_PEXPT0_GRST |
+		       SWSYSRST_XFI0_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
+
+		/* Assert USXGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88) |
+		       SWSYSRST_XFI_PEXPT0_GRST |
+		       SWSYSRST_XFI0_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		udelay(100);
+
+		/* De-assert USXGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88);
+		val &= ~(SWSYSRST_XFI_PEXPT0_GRST |
+			 SWSYSRST_XFI0_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		/* Disable software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val &= ~(SWSYSRST_XFI_PEXPT0_GRST |
+			 SWSYSRST_XFI0_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
 		break;
 	}
 
