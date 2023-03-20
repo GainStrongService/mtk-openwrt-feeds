@@ -1180,7 +1180,7 @@ if [ "${cmd_type}" = "set" ]; then
             fi
             param_new=${param}
             if [ "${cmd}" = "ATETXCNT" ] && [ "${param}" = "0" ]; then
-                param_new="10000000"
+                param_new="0xFFFFFFFF"
             fi
             ;;
         "ATETXANT"|"ATERXANT")
