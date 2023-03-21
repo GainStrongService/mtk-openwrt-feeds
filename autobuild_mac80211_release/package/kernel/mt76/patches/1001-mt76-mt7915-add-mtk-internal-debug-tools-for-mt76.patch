@@ -1,12 +1,12 @@
-From 764731bb9676e58e8819bdbe48719b1076625032 Mon Sep 17 00:00:00 2001
+From a5c56c30acb0543550bbe6f315fc2dbfdd7cdafb Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
-Subject: [PATCH 1001/1009] mt76: mt7915: add mtk internal debug tools for mt76
+Subject: [PATCH] mt76: mt7915: add mtk internal debug tools for mt76
 
 ---
  mt76_connac_mcu.h     |    6 +
  mt7915/Makefile       |    2 +-
- mt7915/debugfs.c      |   73 +-
+ mt7915/debugfs.c      |   89 +-
  mt7915/mac.c          |   14 +
  mt7915/main.c         |    4 +
  mt7915/mcu.c          |   48 +-
@@ -16,7 +16,7 @@ Subject: [PATCH 1001/1009] mt76: mt7915: add mtk internal debug tools for mt76
  mt7915/mtk_debugfs.c  | 3003 +++++++++++++++++++++++++++++++++++++++++
  mt7915/mtk_mcu.c      |   51 +
  tools/fwlog.c         |   44 +-
- 12 files changed, 4641 insertions(+), 14 deletions(-)
+ 12 files changed, 4652 insertions(+), 19 deletions(-)
  create mode 100644 mt7915/mt7915_debug.h
  create mode 100644 mt7915/mtk_debugfs.c
  create mode 100644 mt7915/mtk_mcu.c
@@ -59,7 +59,7 @@ index f033116c..cbcb64be 100644
  mt7915e-$(CONFIG_NL80211_TESTMODE) += testmode.o
  mt7915e-$(CONFIG_MT7986_WMAC) += soc.o
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 5a46813a..f1f3f2f3 100644
+index 5a46813a..eb149104 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -8,6 +8,9 @@
@@ -118,7 +118,21 @@ index 5a46813a..f1f3f2f3 100644
  
  	return 0;
  }
-@@ -632,6 +651,17 @@ mt7915_fw_debug_bin_set(void *data, u64 val)
+@@ -622,16 +641,30 @@ mt7915_fw_debug_bin_set(void *data, u64 val)
+ 	};
+ 	struct mt7915_dev *dev = data;
+ 
+-	if (!dev->relay_fwlog)
++	if (!dev->relay_fwlog && val) {
+ 		dev->relay_fwlog = relay_open("fwlog_data", dev->debugfs_dir,
+ 					    1500, 512, &relay_cb, NULL);
+-	if (!dev->relay_fwlog)
+-		return -ENOMEM;
++		if (!dev->relay_fwlog)
++			return -ENOMEM;
++	}
+ 
+ 	dev->fw.debug_bin = val;
  
  	relay_reset(dev->relay_fwlog);
  
@@ -128,15 +142,17 @@ index 5a46813a..f1f3f2f3 100644
 +	dev->dbg.dump_tx_pkt = val & BIT(6) ? true : false;
 +	dev->dbg.dump_rx_pkt = val & BIT(7) ? true : false;
 +	dev->dbg.dump_rx_raw = val & BIT(8) ? true : false;
-+	if (!(val & GENMASK(3, 0)))
-+		return 0;
 +#endif
 +
++	if (dev->relay_fwlog && !val) {
++		relay_close(dev->relay_fwlog);
++		dev->relay_fwlog = NULL;
++	}
 +
  	return mt7915_fw_debug_wm_set(dev, dev->fw.debug_wm);
  }
  
-@@ -1257,6 +1287,11 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
+@@ -1257,6 +1290,11 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
  	if (!ext_phy)
  		dev->debugfs_dir = dir;
  
@@ -148,10 +164,25 @@ index 5a46813a..f1f3f2f3 100644
  	return 0;
  }
  
-@@ -1297,17 +1332,53 @@ void mt7915_debugfs_rx_fw_monitor(struct mt7915_dev *dev, const void *data, int
+@@ -1269,6 +1307,12 @@ mt7915_debugfs_write_fwlog(struct mt7915_dev *dev, const void *hdr, int hdrlen,
+ 	void *dest;
+ 
+ 	spin_lock_irqsave(&lock, flags);
++
++	if (!dev->relay_fwlog) {
++		spin_unlock_irqrestore(&lock, flags);
++		return;
++	}
++
+ 	dest = relay_reserve(dev->relay_fwlog, hdrlen + len + 4);
+ 	if (dest) {
+ 		*(u32 *)dest = hdrlen + len;
+@@ -1297,17 +1341,50 @@ void mt7915_debugfs_rx_fw_monitor(struct mt7915_dev *dev, const void *data, int
  		.msg_type = cpu_to_le16(PKT_TYPE_RX_FW_MONITOR),
  	};
  
+-	if (!dev->relay_fwlog)
+-		return;
 +#ifdef MTK_DEBUG
 +	struct {
 +		__le32 magic;
@@ -167,9 +198,6 @@ index 5a46813a..f1f3f2f3 100644
 +		.msg_type = PKT_TYPE_RX_FW_MONITOR,
 +	};
 +#endif
-+
- 	if (!dev->relay_fwlog)
- 		return;
  
 +#ifdef MTK_DEBUG
 +	/* old magic num */
@@ -258,7 +286,7 @@ index 3bbccbdf..94ecded5 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index d08907f5..1fecd4b1 100644
+index dc24a475..198b623f 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -199,6 +199,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -4972,5 +5000,5 @@ index e5d4a105..3d51d9ec 100644
  	return ret;
  }
 -- 
-2.18.0
+2.39.2
 
