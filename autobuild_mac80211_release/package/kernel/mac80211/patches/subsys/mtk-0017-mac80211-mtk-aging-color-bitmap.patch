@@ -1,4 +1,4 @@
-From 13c1f52aa61fe71335711e16216ba6abb33a8ead Mon Sep 17 00:00:00 2001
+From 61c6c0f49eb2809c2113b83b168a0c532d06da21 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Wed, 8 Mar 2023 06:32:42 +0800
 Subject: [PATCH] mac80211: mtk: ageout color bitmap
@@ -7,11 +7,11 @@ Adding a periodic work which runs once per second to check BSS color.
 OBSS BSS Color will be ageout if not seen for 10 seconds.
 ---
  include/net/mac80211.h     |  1 +
- net/mac80211/cfg.c         | 25 +++++++++++++++++++++++++
+ net/mac80211/cfg.c         | 29 +++++++++++++++++++++++++++++
  net/mac80211/ieee80211_i.h |  5 +++++
  net/mac80211/iface.c       |  5 +++++
  net/mac80211/rx.c          |  1 +
- 5 files changed, 37 insertions(+)
+ 5 files changed, 41 insertions(+)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
 index c6cadf7..6f8c661 100644
@@ -26,10 +26,10 @@ index c6cadf7..6f8c661 100644
  	u32 unsol_bcast_probe_resp_interval;
  	bool s1g;
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 86d231b..82e44d2 100644
+index 86d231b..7449777 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -4425,6 +4425,31 @@ unlock:
+@@ -4425,6 +4425,35 @@ unlock:
  	sdata_unlock(sdata);
  }
  
@@ -43,6 +43,9 @@ index 86d231b..82e44d2 100644
 +
 +	sdata_lock(sdata);
 +
++	if (!ieee80211_sdata_running(sdata))
++		goto unlock;
++
 +	for (i = 0; i < IEEE80211_BSS_COLOR_MAX; i++) {
 +		/* ageout if not seen for a period */
 +		if ((bss_conf->used_color_bitmap & BIT_ULL(i)) &&
@@ -55,6 +58,7 @@ index 86d231b..82e44d2 100644
 +	ieee80211_queue_delayed_work(&sdata->local->hw,
 +				     &sdata->color_aging_work, HZ);
 +
++unlock:
 +	sdata_unlock(sdata);
 +}
 +
@@ -87,30 +91,37 @@ index 6edabd8..2519c14 100644
  /* interface handling */
  #define MAC80211_SUPPORTED_FEATURES_TX	(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | \
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index d314f39..ba25327 100644
+index d314f39..5feb702 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
-@@ -466,6 +466,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
+@@ -466,6 +466,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
  	cancel_work_sync(&sdata->color_change_finalize_work);
  
  	cancel_delayed_work_sync(&sdata->dfs_cac_timer_work);
-+	if (sdata->vif.type == NL80211_IFTYPE_AP)
-+		cancel_delayed_work_sync(&sdata->color_aging_work);
++	cancel_delayed_work_sync(&sdata->color_aging_work);
  
  	if (sdata->wdev.cac_started) {
  		chandef = sdata->vif.bss_conf.chandef;
-@@ -1758,6 +1760,9 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
+@@ -1758,6 +1759,8 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
  		skb_queue_head_init(&sdata->u.ap.ps.bc_buf);
  		INIT_LIST_HEAD(&sdata->u.ap.vlans);
  		sdata->vif.bss_conf.bssid = sdata->vif.addr;
-+		INIT_DELAYED_WORK(&sdata->color_aging_work, ieee80211_color_aging_work);
 +		ieee80211_queue_delayed_work(&sdata->local->hw,
 +					     &sdata->color_aging_work, 0);
  		break;
  	case NL80211_IFTYPE_P2P_CLIENT:
  		type = NL80211_IFTYPE_STATION;
+@@ -2166,6 +2169,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
+ 			  ieee80211_dfs_cac_timer_work);
+ 	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,
+ 			  ieee80211_delayed_tailroom_dec);
++	INIT_DELAYED_WORK(&sdata->color_aging_work,
++			  ieee80211_color_aging_work);
+ 
+ 	for (i = 0; i < NUM_NL80211_BANDS; i++) {
+ 		struct ieee80211_supported_band *sband;
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 36fcf97..31d3bb4 100644
+index 36fcf97..838085f 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
 @@ -3221,6 +3221,7 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
