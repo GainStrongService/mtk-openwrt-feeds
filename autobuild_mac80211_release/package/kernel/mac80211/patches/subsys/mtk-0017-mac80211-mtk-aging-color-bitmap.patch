@@ -1,4 +1,4 @@
-From 61c6c0f49eb2809c2113b83b168a0c532d06da21 Mon Sep 17 00:00:00 2001
+From 84d68e0b64f56564560fc96b6e3ce10078462a01 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Wed, 8 Mar 2023 06:32:42 +0800
 Subject: [PATCH] mac80211: mtk: ageout color bitmap
@@ -9,9 +9,9 @@ OBSS BSS Color will be ageout if not seen for 10 seconds.
  include/net/mac80211.h     |  1 +
  net/mac80211/cfg.c         | 29 +++++++++++++++++++++++++++++
  net/mac80211/ieee80211_i.h |  5 +++++
- net/mac80211/iface.c       |  5 +++++
+ net/mac80211/iface.c       |  7 +++++++
  net/mac80211/rx.c          |  1 +
- 5 files changed, 41 insertions(+)
+ 5 files changed, 43 insertions(+)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
 index c6cadf7..6f8c661 100644
@@ -91,7 +91,7 @@ index 6edabd8..2519c14 100644
  /* interface handling */
  #define MAC80211_SUPPORTED_FEATURES_TX	(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | \
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index d314f39..5feb702 100644
+index d314f39..00b0443 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
 @@ -466,6 +466,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
@@ -102,16 +102,18 @@ index d314f39..5feb702 100644
  
  	if (sdata->wdev.cac_started) {
  		chandef = sdata->vif.bss_conf.chandef;
-@@ -1758,6 +1759,8 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
- 		skb_queue_head_init(&sdata->u.ap.ps.bc_buf);
- 		INIT_LIST_HEAD(&sdata->u.ap.vlans);
- 		sdata->vif.bss_conf.bssid = sdata->vif.addr;
+@@ -1391,6 +1392,10 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
+ 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
+ 
+ 	switch (sdata->vif.type) {
++	case NL80211_IFTYPE_AP:
 +		ieee80211_queue_delayed_work(&sdata->local->hw,
-+					     &sdata->color_aging_work, 0);
++					     &sdata->color_aging_work, HZ);
++		break;
+ 	case NL80211_IFTYPE_P2P_DEVICE:
+ 		rcu_assign_pointer(local->p2p_sdata, sdata);
  		break;
- 	case NL80211_IFTYPE_P2P_CLIENT:
- 		type = NL80211_IFTYPE_STATION;
-@@ -2166,6 +2169,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
+@@ -2166,6 +2171,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
  			  ieee80211_dfs_cac_timer_work);
  	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,
  			  ieee80211_delayed_tailroom_dec);
