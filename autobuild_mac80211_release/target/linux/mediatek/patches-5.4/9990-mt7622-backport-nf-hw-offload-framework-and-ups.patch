@@ -2415,7 +2415,7 @@ index 68d7fc92..7cf89767 100644
  	};
  };
  
-@@ -67,52 +152,139 @@ struct flow_offload_tuple_rhash {
+@@ -67,52 +152,140 @@ struct flow_offload_tuple_rhash {
  	struct flow_offload_tuple	tuple;
  };
  
@@ -2428,6 +2428,7 @@ index 68d7fc92..7cf89767 100644
 +	NF_FLOW_DNAT,
 +	NF_FLOW_TEARDOWN,
 +	NF_FLOW_HW,
++	NF_FLOW_HW_ACCT_DYING,
 +	NF_FLOW_HW_DYING,
 +	NF_FLOW_HW_DEAD,
 +	NF_FLOW_HW_PENDING,
@@ -2586,7 +2587,7 @@ index 68d7fc92..7cf89767 100644
 +void nf_flow_offload_del(struct nf_flowtable *flowtable,
 +			 struct flow_offload *flow);
 +void nf_flow_offload_stats(struct nf_flowtable *flowtable,
-+			   struct flow_offload *flow);
++			   struct flow_offload *flow, bool force);
 +
 +void nf_flow_table_offload_flush(struct nf_flowtable *flowtable);
 +int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
@@ -3903,7 +3904,7 @@ index f212cec0..10365581 100644
  		if (IS_ERR(tuplehash)) {
  			if (PTR_ERR(tuplehash) != -EAGAIN) {
  				err = PTR_ERR(tuplehash);
-@@ -359,23 +430,49 @@ nf_flow_table_iterate(struct nf_flowtable *flow_table,
+@@ -359,23 +430,52 @@ nf_flow_table_iterate(struct nf_flowtable *flow_table,
  
  	return err;
  }
@@ -3951,6 +3952,9 @@ index f212cec0..10365581 100644
 +
 +	if (test_bit(NF_FLOW_TEARDOWN, &flow->flags)) {
 +		if (test_bit(NF_FLOW_HW, &flow->flags)) {
++			if (!test_and_set_bit(NF_FLOW_HW_ACCT_DYING, &flow->flags))
++				nf_flow_offload_stats(flow_table, flow, true);
++
 +			if (!test_bit(NF_FLOW_HW_DYING, &flow->flags))
 +				nf_flow_offload_del(flow_table, flow);
 +			else if (test_bit(NF_FLOW_HW_DEAD, &flow->flags))
@@ -3959,7 +3963,7 @@ index f212cec0..10365581 100644
 +			flow_offload_del(flow_table, flow);
 +		}
 +	} else if (test_bit(NF_FLOW_HW, &flow->flags)) {
-+		nf_flow_offload_stats(flow_table, flow);
++		nf_flow_offload_stats(flow_table, flow, false);
 +	}
  }
  
@@ -4918,7 +4922,7 @@ new file mode 100644
 index 000000000..d94c6fb92
 --- /dev/null
 +++ b/net/netfilter/nf_flow_table_offload.c
-@@ -0,0 +1,1195 @@
+@@ -0,0 +1,1197 @@
 +#include <linux/kernel.h>
 +#include <linux/init.h>
 +#include <linux/module.h>
@@ -5956,14 +5960,16 @@ index 000000000..d94c6fb92
 +}
 +
 +void nf_flow_offload_stats(struct nf_flowtable *flowtable,
-+			   struct flow_offload *flow)
++			   struct flow_offload *flow, bool force)
 +{
 +	struct flow_offload_work *offload;
 +	__s32 delta;
 +
-+	delta = nf_flow_timeout_delta(flow->timeout);
-+	if ((delta >= (9 * flow_offload_get_timeout(flow)) / 10))
-+		return;
++	if (!force) {
++		delta = nf_flow_timeout_delta(flow->timeout);
++		if ((delta >= (9 * flow_offload_get_timeout(flow)) / 10))
++			return;
++	}
 +
 +	offload = nf_flow_offload_work_alloc(flowtable, flow, FLOW_CLS_STATS);
 +	if (!offload)
