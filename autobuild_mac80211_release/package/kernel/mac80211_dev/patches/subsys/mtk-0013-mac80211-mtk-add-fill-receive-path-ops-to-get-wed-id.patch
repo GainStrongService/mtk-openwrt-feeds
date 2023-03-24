@@ -5,74 +5,42 @@ Subject: [PATCH 13/19] mac80211: mtk: add fill receive path ops to get wed idx
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
- include/net/mac80211.h    | 15 +++++++++++++--
+ include/net/mac80211.h    |  5 +++++
  net/mac80211/driver-ops.h | 13 +++++++++++++
- net/mac80211/iface.c      | 24 ++++++++++++++++++++++++
+ net/mac80211/iface.c      | 23 +++++++++++++++++++++++
  net/mac80211/util.c       |  9 +++++++++
- 4 files changed, 59 insertions(+), 2 deletions(-)
- mode change 100644 => 100755 net/mac80211/util.c
+ 4 files changed, 50 insertions(+)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index ad5f217..d1d7fc3 100644
+index 6e5ad3e..cc02639 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -1380,7 +1380,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
-  * @RX_FLAG_AMPDU_EOF_BIT_KNOWN: The EOF value is known
-  * @RX_FLAG_RADIOTAP_HE: HE radiotap data is present
-  *	(&struct ieee80211_radiotap_he, mac80211 will fill in
-- *	
-+ *
-  *	 - DATA3_DATA_MCS
-  *	 - DATA3_DATA_DCM
-  *	 - DATA3_CODING
-@@ -1388,7 +1388,7 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
-  *	 - DATA5_DATA_BW_RU_ALLOC
-  *	 - DATA6_NSTS
-  *	 - DATA3_STBC
-- *	
-+ *
-  *	from the RX info data, so leave those zeroed when building this data)
-  * @RX_FLAG_RADIOTAP_HE_MU: HE MU radiotap data is present
-  *	(&struct ieee80211_radiotap_he_mu)
-@@ -1950,6 +1950,12 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
-  */
- struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif);
- 
-+/**
-+ * ieee80211_vif_to_wdev - return a net_device struct from a vif
-+ * @vif: the vif to get the net_device for
-+ */
-+struct net_device *ieee80211_vif_to_netdev(struct ieee80211_vif *vif);
-+
- /**
-  * lockdep_vif_mutex_held - for lockdep checks on link poiners
-  * @vif: the interface to check
-@@ -4219,6 +4225,8 @@ struct ieee80211_prep_tx_info {
-  *	Note that a sta can also be inserted or removed with valid links,
-  *	i.e. passed to @sta_add/@sta_state with sta->valid_links not zero.
-  *	In fact, cannot change from having valid_links and not having them.
+@@ -4207,6 +4207,8 @@ struct ieee80211_prep_tx_info {
+  *	disable background CAC/radar detection.
+  * @net_fill_forward_path: Called from .ndo_fill_forward_path in order to
+  *	resolve a path for hardware flow offloading
 + * @net_fill_receive_path: Called from .ndo_fill_receive_path in order to
 + *	get a path for hardware flow offloading
-  */
- struct ieee80211_ops {
- 	void (*tx)(struct ieee80211_hw *hw,
-@@ -4574,6 +4582,9 @@ struct ieee80211_ops {
- 				struct ieee80211_vif *vif,
- 				struct ieee80211_sta *sta,
- 				u16 old_links, u16 new_links);
+  * @change_vif_links: Change the valid links on an interface, note that while
+  *	removing the old link information is still valid (link_conf pointer),
+  *	but may immediately disappear after the function returns. The old or
+@@ -4570,6 +4572,9 @@ struct ieee80211_ops {
+ 				     struct ieee80211_sta *sta,
+ 				     struct net_device_path_ctx *ctx,
+ 				     struct net_device_path *path);
 +	int (*net_fill_receive_path)(struct ieee80211_hw *hw,
 +				     struct net_device_path_ctx *ctx,
 +				     struct net_device_path *path);
- };
- 
- /**
+ 	int (*change_vif_links)(struct ieee80211_hw *hw,
+ 				struct ieee80211_vif *vif,
+ 				u16 old_links, u16 new_links,
 diff --git a/net/mac80211/driver-ops.h b/net/mac80211/driver-ops.h
-index 3d16b09..bbecd2e 100644
+index 1c3a2c9..0057535 100644
 --- a/net/mac80211/driver-ops.h
 +++ b/net/mac80211/driver-ops.h
-@@ -1479,4 +1479,17 @@ int drv_change_sta_links(struct ieee80211_local *local,
- 			 struct ieee80211_sta *sta,
- 			 u16 old_links, u16 new_links);
+@@ -1470,6 +1470,19 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
+ 	return ret;
+ }
  
 +static inline int drv_net_fill_receive_path(struct ieee80211_local *local,
 +					    struct net_device_path_ctx *ctx,
@@ -87,12 +55,14 @@ index 3d16b09..bbecd2e 100644
 +	return ret;
 +}
 +
- #endif /* __MAC80211_DRIVER_OPS */
+ static inline int drv_net_setup_tc(struct ieee80211_local *local,
+ 				   struct ieee80211_sub_if_data *sdata,
+ 				   struct net_device *dev,
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index 25a7545..6e76b23 100644
+index a18f80d..b82065c 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
-@@ -920,6 +920,29 @@ out:
+@@ -936,6 +936,28 @@ out:
  	return ret;
  }
  
@@ -118,22 +88,19 @@ index 25a7545..6e76b23 100644
 +	return ret;
 +}
 +
-+
  static const struct net_device_ops ieee80211_dataif_8023_ops = {
  	.ndo_open		= ieee80211_open,
  	.ndo_stop		= ieee80211_stop,
-@@ -929,6 +952,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
+@@ -945,6 +967,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
  	.ndo_set_mac_address	= ieee80211_change_mac,
  	.ndo_get_stats64	= ieee80211_get_stats64,
  	.ndo_fill_forward_path	= ieee80211_netdev_fill_forward_path,
-+	.ndo_fill_receive_path = ieee80211_netdev_fill_receive_path,
++	.ndo_fill_receive_path	= ieee80211_netdev_fill_receive_path,
+ 	.ndo_setup_tc		= ieee80211_netdev_setup_tc,
  };
  
- static bool ieee80211_iftype_supports_hdr_offload(enum nl80211_iftype iftype)
 diff --git a/net/mac80211/util.c b/net/mac80211/util.c
-old mode 100644
-new mode 100755
-index 608f927..fd63ee3
+index 608f927..fd63ee3 100644
 --- a/net/mac80211/util.c
 +++ b/net/mac80211/util.c
 @@ -914,6 +914,15 @@ struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
