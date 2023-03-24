@@ -1,0 +1,30 @@
+From 86aa4e386d09edc4948878e894782a86ba4f8506 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 17 Mar 2023 11:08:04 +0800
+Subject: [PATCH 19/29] wifi: mt76: mt7996: init he and eht cap for AP_VLAN
+
+Add AP_VLAN types in __mt7996_set_stream_he_eht_caps to
+initialize the ht and eht caps. Without this patch, the
+BA response from VLAN AP would not include the ADDBA
+extension tag.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/init.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 479b2cee..381917a8 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -996,6 +996,7 @@ __mt7996_set_stream_he_eht_caps(struct mt7996_phy *phy,
+ 		switch (i) {
+ 		case NL80211_IFTYPE_STATION:
+ 		case NL80211_IFTYPE_AP:
++		case NL80211_IFTYPE_AP_VLAN:
+ #ifdef CONFIG_MAC80211_MESH
+ 		case NL80211_IFTYPE_MESH_POINT:
+ #endif
+-- 
+2.39.2
+

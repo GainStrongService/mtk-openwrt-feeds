@@ -1,7 +1,7 @@
-From 322307272a4c4ccb627d6596220b0ab5bd4aed45 Mon Sep 17 00:00:00 2001
+From 39eb5f447d4cba23c684744800609c17bfb457e4 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 13 Feb 2023 09:46:40 +0800
-Subject: [PATCH 16/19] wifi: mt76: mt7996: init mpdu density
+Subject: [PATCH 04/29] wifi: mt76: mt7996: init mpdu density
 
 Init mpdu density based on the hardware capability to
 prevent hardware drop.
@@ -12,10 +12,10 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  1 file changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index ced38ac8..479b2cee 100644
+index 946da93e..de94e151 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -374,10 +374,13 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
+@@ -196,10 +196,13 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
  
  	hw->max_tx_fragments = 4;
  
@@ -30,7 +30,7 @@ index ced38ac8..479b2cee 100644
  
  	if (phy->mt76->cap.has_5ghz) {
  		phy->mt76->sband_5g.sband.ht_cap.cap |=
-@@ -389,6 +392,8 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
+@@ -211,6 +214,8 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
  			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK |
  			IEEE80211_VHT_CAP_SHORT_GI_160 |
  			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
@@ -39,7 +39,7 @@ index ced38ac8..479b2cee 100644
  	}
  
  	mt76_set_stream_caps(phy->mt76, true);
-@@ -873,7 +878,7 @@ mt7996_init_he_caps(struct mt7996_phy *phy, enum nl80211_band band,
+@@ -689,7 +694,7 @@ mt7996_init_he_caps(struct mt7996_phy *phy, enum nl80211_band band,
  		u16 cap = IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS |
  			  IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
  

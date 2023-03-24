@@ -1,7 +1,7 @@
-From 175bf122ac5790e7e28dadecd9410370364bc16a Mon Sep 17 00:00:00 2001
+From be2fad591cace6a3ba5a2043e085fc143cff0a0e Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Feb 2023 15:34:43 +0800
-Subject: [PATCH 19/19] mt76: revert page pool changes
+Subject: [PATCH 29/29] mt76: revert page pool changes
 
 ---
  dma.c         | 72 ++++++++++++++++++++++++++-------------------------
@@ -214,7 +214,7 @@ index df2ca73f..7357b398 100644
  
  	mt76_free_pending_txwi(dev);
 diff --git a/mac80211.c b/mac80211.c
-index e53166fc..d69e7214 100644
+index a4b3d346..40fda9d0 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -4,7 +4,6 @@
@@ -273,7 +273,7 @@ index e53166fc..d69e7214 100644
  struct mt76_dev *
  mt76_alloc_device(struct device *pdev, unsigned int size,
  		  const struct ieee80211_ops *ops,
-@@ -1746,21 +1704,6 @@ void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
+@@ -1747,21 +1705,6 @@ void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
  }
  EXPORT_SYMBOL_GPL(mt76_ethtool_worker);
  
@@ -296,7 +296,7 @@ index e53166fc..d69e7214 100644
  {
  	struct ieee80211_hw *hw = phy->hw;
 diff --git a/mt76.h b/mt76.h
-index c3d1313e..49da2caa 100644
+index 343bd910..3d96b33e 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -202,7 +202,7 @@ struct mt76_queue {
@@ -308,7 +308,7 @@ index c3d1313e..49da2caa 100644
  };
  
  struct mt76_mcu_ops {
-@@ -1329,7 +1329,6 @@ mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
+@@ -1340,7 +1340,6 @@ mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
  	return usb_bulk_msg(udev, pipe, data, len, actual_len, timeout);
  }
  
@@ -316,7 +316,7 @@ index c3d1313e..49da2caa 100644
  void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
  			 struct mt76_sta_stats *stats, bool eht);
  int mt76_skb_adjust_pad(struct sk_buff *skb, int pad);
-@@ -1441,25 +1440,6 @@ void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
+@@ -1452,25 +1451,6 @@ void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
  struct mt76_txwi_cache *mt76_rx_token_release(struct mt76_dev *dev, int token);
  int mt76_rx_token_consume(struct mt76_dev *dev, void *ptr,
  			  struct mt76_txwi_cache *r, dma_addr_t phys);

@@ -1,7 +1,7 @@
-From 09ef1c1248c8b38c5f2c6e624397e64e8938349f Mon Sep 17 00:00:00 2001
+From 0983321b5cc8138e316fce622c7cd1e12951b046 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 16 Feb 2023 00:39:01 +0800
-Subject: [PATCH 03/19] wifi: mt76: mt7996: reduce repeated bss_info and
+Subject: [PATCH 07/29] wifi: mt76: mt7996: reduce repeated bss_info and
  sta_rec commands
 
 Refine the flow of setting bss_info and sta_rec commands to prevent from
@@ -14,10 +14,10 @@ Change-Id: Iffd2c81f9ec98284793e75f4b7d39e9618977024
  1 file changed, 6 insertions(+), 15 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 3e4da035..e80ee19e 100644
+index f13f67b2..ab28ebeb 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -241,8 +241,8 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
+@@ -233,8 +233,8 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
  	struct mt7996_phy *phy = mt7996_hw_phy(hw);
  	int idx = msta->wcid.idx;
  
@@ -27,7 +27,7 @@ index 3e4da035..e80ee19e 100644
  
  	if (vif == phy->monitor_vif)
  		phy->monitor_vif = NULL;
-@@ -510,17 +510,13 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
+@@ -502,17 +502,13 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
  	/* station mode uses BSSID to map the wlan entry to a peer,
  	 * and then peer references bss_info_rfch to set bandwidth cap.
  	 */
@@ -50,7 +50,7 @@ index 3e4da035..e80ee19e 100644
  	if (changed & BSS_CHANGED_ERP_CTS_PROT)
  		mt7996_mac_enable_rtscts(dev, vif, info->use_cts_prot);
  
-@@ -533,11 +529,6 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
+@@ -525,11 +521,6 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
  		}
  	}
  

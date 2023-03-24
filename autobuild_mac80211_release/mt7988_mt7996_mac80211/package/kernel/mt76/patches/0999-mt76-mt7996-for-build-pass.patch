@@ -1,20 +1,21 @@
-From a126ad08af718c71b4b05261caefb68996044330 Mon Sep 17 00:00:00 2001
+From 5b6ee04d5043e2cbf4a7c0a0129e1dfbd7f33f2b Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 3 Nov 2022 00:27:17 +0800
-Subject: [PATCH] mt76: mt7996: for build pass
+Subject: [PATCH 0999/1001] mt76: mt7996: for build pass
 
 Change-Id: Ieb44c33ee6e6a2e6058c1ef528404c1a1cbcfdaf
 ---
  debugfs.c         | 3 +++
+ dma.c             | 2 +-
  eeprom.c          | 8 +++++++-
  mcu.c             | 1 +
  mt7615/mcu.c      | 1 +
  mt76_connac_mcu.c | 1 +
  mt7915/mcu.c      | 1 +
  mt7996/dma.c      | 4 ++--
- mt7996/eeprom.c   | 2 ++
+ mt7996/eeprom.c   | 1 +
  mt7996/mcu.c      | 1 +
- 9 files changed, 19 insertions(+), 3 deletions(-)
+ 10 files changed, 19 insertions(+), 4 deletions(-)
 
 diff --git a/debugfs.c b/debugfs.c
 index 79064a4d..e10d4cbc 100644
@@ -32,11 +33,24 @@ index 79064a4d..e10d4cbc 100644
  
  	return 0;
  }
+diff --git a/dma.c b/dma.c
+index 7357b398..2fc70e23 100644
+--- a/dma.c
++++ b/dma.c
+@@ -856,7 +856,7 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
+ 		    !(dev->drv->rx_check(dev, data, len)))
+ 			goto free_frag;
+ 
+-		skb = napi_build_skb(data, q->buf_size);
++		skb = build_skb(data, q->buf_size);
+ 		if (!skb)
+ 			goto free_frag;
+ 
 diff --git a/eeprom.c b/eeprom.c
-index ea54b7af..90d36c8d 100644
+index 263e5089..aa889258 100644
 --- a/eeprom.c
 +++ b/eeprom.c
-@@ -106,9 +106,15 @@ void
+@@ -108,9 +108,15 @@ void
  mt76_eeprom_override(struct mt76_phy *phy)
  {
  	struct mt76_dev *dev = phy->dev;
@@ -117,20 +131,19 @@ index 18ea758c..3e2967f7 100644
  
  	mt7996_dma_enable(dev);
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 2e48c5a4..e747cb9f 100644
+index 64e3c4e2..7bff504a 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
-@@ -98,6 +98,8 @@ static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_dev *dev)
+@@ -121,6 +121,7 @@ static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_dev *dev)
  	if (ret)
  		return ret;
  
-+	/* for internal testing */
-+	cap = 0x4b249248;
++	cap = 0x4b249248;	/* internal hardcode */
  	if (cap) {
  		dev->has_eht = !(cap & MODE_HE_ONLY);
  		dev->wtbl_size_group = u32_get_bits(cap, WTBL_SIZE_GROUP);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 829f7be6..0d9d309f 100644
+index 0a52afd1..cc948395 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -5,6 +5,7 @@

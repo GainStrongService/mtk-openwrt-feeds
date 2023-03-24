@@ -1,7 +1,7 @@
-From c2dafe57df1726acb80e30987bc8d678b86af14a Mon Sep 17 00:00:00 2001
+From 770f4020e030af0b930f761513275d6284a9344f Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 14 Feb 2023 18:35:43 +0800
-Subject: [PATCH 07/19] wifi: mt76: mt7996: remove mt7996_mcu_set_pm()
+Subject: [PATCH 05/29] wifi: mt76: mt7996: remove mt7996_mcu_set_pm()
 
 Currently using BSS_INFO_PS command will sometimes cause packet drop in
 hw rx queue.
@@ -17,10 +17,10 @@ Change-Id: I863fc1edb18e4d7b5dac20140dd0904875e1323c
  3 files changed, 35 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index a4fd9e24..44d23e1d 100644
+index 3e4da035..f13f67b2 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -56,10 +56,6 @@ static int mt7996_start(struct ieee80211_hw *hw)
+@@ -52,10 +52,6 @@ static int mt7996_start(struct ieee80211_hw *hw)
  
  	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
  
@@ -31,7 +31,7 @@ index a4fd9e24..44d23e1d 100644
  	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
  				     MT7996_WATCHDOG_TIME);
  
-@@ -85,10 +81,6 @@ static void mt7996_stop(struct ieee80211_hw *hw)
+@@ -79,10 +75,6 @@ static void mt7996_stop(struct ieee80211_hw *hw)
  
  	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
  

@@ -1,0 +1,40 @@
+From 7d83cdb40941ae174a91ec95406f2f61bc6887d5 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 21 Mar 2023 15:04:45 +0800
+Subject: [PATCH 25/29] wifi: mt76: mt7996: enable IDS debug log
+
+---
+ mt7996/debugfs.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
+index f2c46a50..34c30a58 100644
+--- a/mt7996/debugfs.c
++++ b/mt7996/debugfs.c
+@@ -296,6 +296,12 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
+ 		DEBUG_SPL,
+ 		DEBUG_RPT_RX,
+ 		DEBUG_RPT_RA = 68,
++		DEBUG_IDS_PP = 93,
++		DEBUG_IDS_RA = 94,
++		DEBUG_IDS_BF = 95,
++		DEBUG_IDS_SR = 96,
++		DEBUG_IDS_RU = 97,
++		DEBUG_IDS_MUMIMO = 98,
+ 	} debug;
+ 	bool tx, rx, en;
+ 	int ret;
+@@ -315,8 +321,8 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
+ 	if (ret)
+ 		return ret;
+ 
+-	for (debug = DEBUG_TXCMD; debug <= DEBUG_RPT_RA; debug++) {
+-		if (debug == 67)
++	for (debug = DEBUG_TXCMD; debug <= DEBUG_IDS_MUMIMO; debug++) {
++		if (debug == 67 || (debug > DEBUG_RPT_RA && debug < DEBUG_IDS_PP))
+ 			continue;
+ 
+ 		if (debug == DEBUG_RPT_RX)
+-- 
+2.39.2
+

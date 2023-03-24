@@ -1,46 +1,23 @@
-From b4af2c843368e7a787fc02ebde5a8ff41edf0a76 Mon Sep 17 00:00:00 2001
+From ce62eda4ead9fcb2374f5d0933da5416a48e64ed Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 2 Mar 2023 15:44:52 +0800
-Subject: [PATCH 17/19] wifi: mt76: mt7996: fix icv error when enable AP and
+Subject: [PATCH 17/29] wifi: mt76: mt7996: fix icv error when enable AP and
  STA simultaneously
 
 Fix mcu command content to prevent ICV error
-1. The legacy mld index needs to start from 16.
-2. The bmc_tx_wlan_idx needs to be the vif index rather
+The bmc_tx_wlan_idx needs to be the vif index rather
 than peer AP's index.
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
- mt7996/mcu.c | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ mt7996/mcu.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 09800ff2..829f7be6 100644
+index 09800ff2..07c521c1 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -664,6 +664,7 @@ mt7996_mcu_bss_txcmd_tlv(struct sk_buff *skb, bool en)
- static void
- mt7996_mcu_bss_mld_tlv(struct sk_buff *skb, struct ieee80211_vif *vif)
- {
-+#define MT7996_LEGACY_MLD_IDX_START 16
- 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
- 	struct bss_mld_tlv *mld;
- 	struct tlv *tlv;
-@@ -672,8 +673,12 @@ mt7996_mcu_bss_mld_tlv(struct sk_buff *skb, struct ieee80211_vif *vif)
- 
- 	mld = (struct bss_mld_tlv *)tlv;
- 	mld->group_mld_id = 0xff;
--	mld->own_mld_id = mvif->mt76.idx;
-+	mld->own_mld_id = MT7996_LEGACY_MLD_IDX_START + mvif->mt76.idx;
- 	mld->remap_idx = 0xff;
-+	if (vif->type == NL80211_IFTYPE_AP) {
-+		mld->group_mld_id = MT7996_LEGACY_MLD_IDX_START + mvif->mt76.idx;
-+		memcpy(mld->mac_addr, vif->bss_conf.bssid, ETH_ALEN);
-+	}
- }
- 
- static void
-@@ -744,6 +749,7 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
+@@ -744,6 +744,7 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
  	struct cfg80211_chan_def *chandef = &phy->chandef;
  	struct mt76_connac_bss_basic_tlv *bss;
  	u32 type = CONNECTION_INFRA_AP;
@@ -48,7 +25,7 @@ index 09800ff2..829f7be6 100644
  	struct tlv *tlv;
  	int idx;
  
-@@ -763,7 +769,7 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
+@@ -763,7 +764,7 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
  				struct mt76_wcid *wcid;
  
  				wcid = (struct mt76_wcid *)sta->drv_priv;
@@ -57,7 +34,7 @@ index 09800ff2..829f7be6 100644
  			}
  			rcu_read_unlock();
  		}
-@@ -783,7 +789,7 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
+@@ -783,7 +784,7 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
  	bss->bcn_interval = cpu_to_le16(vif->bss_conf.beacon_int);
  	bss->dtim_period = vif->bss_conf.dtim_period;
  	bss->bmc_tx_wlan_idx = cpu_to_le16(wlan_idx);

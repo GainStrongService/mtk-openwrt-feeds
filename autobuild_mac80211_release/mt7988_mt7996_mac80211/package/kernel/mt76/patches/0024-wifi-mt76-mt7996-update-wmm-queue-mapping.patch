@@ -1,0 +1,62 @@
+From 96c6a8e68b5fd3dacdb5239a6ce9a26e5a08c07f Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 20 Mar 2023 19:09:59 +0800
+Subject: [PATCH 24/29] wifi: mt76: mt7996: update wmm queue mapping
+
+The mac80211 use mac80211 queue (MQ) and the firmware
+use access class index (ACI) so convert the MQ to ACI
+in mt7996_conf_tx.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/main.c | 11 +++++++++--
+ mt7996/mcu.c  |  2 +-
+ 2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index cb0e0d31..4e9536e7 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -197,7 +197,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 	mvif->mt76.omac_idx = idx;
+ 	mvif->phy = phy;
+ 	mvif->mt76.band_idx = band_idx;
+-	mvif->mt76.wmm_idx = band_idx;
++	mvif->mt76.wmm_idx = vif->type != NL80211_IFTYPE_AP;
+ 
+ 	ret = mt7996_mcu_add_dev_info(phy, vif, true);
+ 	if (ret)
+@@ -419,9 +419,16 @@ mt7996_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	       const struct ieee80211_tx_queue_params *params)
+ {
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
++	const u8 MQ_to_ACI[IEEE80211_NUM_ACS] = {
++		[IEEE80211_AC_VO] = 3,
++		[IEEE80211_AC_VI] = 2,
++		[IEEE80211_AC_BE] = 0,
++		[IEEE80211_AC_BK] = 1,
++	};
+ 
+ 	/* no need to update right away, we'll get BSS_CHANGED_QOS */
+-	queue = mt76_connac_lmac_mapping(queue);
++	/* convert mac80211 queue to ACI */
++	queue = MQ_to_ACI[queue];
+ 	mvif->queue_params[queue] = *params;
+ 
+ 	return 0;
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index a0d468df..deb6e1eb 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -2902,7 +2902,7 @@ int mt7996_mcu_set_tx(struct mt7996_dev *dev, struct ieee80211_vif *vif)
+ 
+ 		e = (struct edca *)tlv;
+ 		e->set = WMM_PARAM_SET;
+-		e->queue = ac + mvif->mt76.wmm_idx * MT7996_MAX_WMM_SETS;
++		e->queue = ac;
+ 		e->aifs = q->aifs;
+ 		e->txop = cpu_to_le16(q->txop);
+ 
+-- 
+2.39.2
+
