@@ -1,7 +1,8 @@
-From 55d35cf2ac29b250494916d33768b9e52e989e31 Mon Sep 17 00:00:00 2001
+From 6435612049c0a21a30ea835a31d07b6c14b3b248 Mon Sep 17 00:00:00 2001
 From: Michael Lee <michael-cy.lee@mediatek.com>
 Date: Wed, 22 Mar 2023 13:59:29 +0800
-Subject: [PATCH] hostapd: mtk: Add channel information for hostapd reload
+Subject: [PATCH 23/24] hostapd: mtk: Add channel information for hostapd
+ reload
 
 Add center channel, operating class, and bandwidth into the UPDATE
 command when wpa_supplciant reloads hostapd.
@@ -14,7 +15,7 @@ Signed-off-by: Michael Lee <michael-cy.lee@mediatek.com>
  2 files changed, 25 insertions(+), 3 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 61c9e80..e2c9e43 100644
+index e1e9270..4c5d494 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -170,6 +170,17 @@ static struct hostapd_config *hostapd_ctrl_iface_config_read(const char *fname)
@@ -36,7 +37,7 @@ index 61c9e80..e2c9e43 100644
  			break;
  	}
 diff --git a/wpa_supplicant/wpa_supplicant.c b/wpa_supplicant/wpa_supplicant.c
-index 616e00d..ca6612a 100644
+index 270da46..4930f7a 100644
 --- a/wpa_supplicant/wpa_supplicant.c
 +++ b/wpa_supplicant/wpa_supplicant.c
 @@ -150,9 +150,10 @@ static int hostapd_reload(struct wpa_supplicant *wpa_s, struct wpa_bss *bss)
@@ -74,5 +75,5 @@ index 616e00d..ca6612a 100644
  
  	ret = wpa_ctrl_request(wpa_s->hostapd, cmd, os_strlen(cmd), buf, &len, NULL);
 -- 
-2.25.1
+2.18.0
 

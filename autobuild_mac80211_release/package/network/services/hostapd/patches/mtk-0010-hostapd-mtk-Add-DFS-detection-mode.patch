@@ -1,7 +1,7 @@
-From 6828156c206701f5a0e5d30afcc514f452ce0ada Mon Sep 17 00:00:00 2001
+From c628c4257fb1b7eb0e3689d82c7b4bee5ae5d892 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Feb 2023 14:55:49 +0800
-Subject: [PATCH 10/16] hostapd: mtk: Add DFS detection mode
+Subject: [PATCH 10/24] hostapd: mtk: Add DFS detection mode
 
 Add DFS detection mode for testing radar detection rate.
 If DFS detection mode is on, AP will not switch channels when receiving
@@ -17,7 +17,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 50 insertions(+)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 63c9d40..cd15349 100644
+index 579193f..8a61726 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
 @@ -4803,6 +4803,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
@@ -32,7 +32,7 @@ index 63c9d40..cd15349 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index c881d37..0b4c234 100644
+index 5590100..fcbc4ae 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -3522,6 +3522,26 @@ hostapd_ctrl_iface_get_ibf(struct hostapd_data *hapd, char *buf,
@@ -73,7 +73,7 @@ index c881d37..0b4c234 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index a9e3d2a..77f6169 100644
+index be30b51..d3a9fb0 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
 @@ -1160,6 +1160,7 @@ struct hostapd_config {

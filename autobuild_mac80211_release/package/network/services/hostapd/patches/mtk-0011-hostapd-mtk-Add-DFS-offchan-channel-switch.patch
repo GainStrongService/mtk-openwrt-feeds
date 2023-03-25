@@ -1,7 +1,7 @@
-From 88dd3df28e3736af4cca0daf4f7d19ab888ea6c4 Mon Sep 17 00:00:00 2001
+From 7027df47dfc72e52763c90ecce524606e61a5384 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Feb 2023 14:56:55 +0800
-Subject: [PATCH 11/16] hostapd: mtk: Add DFS offchan channel switch
+Subject: [PATCH 11/24] hostapd: mtk: Add DFS offchan channel switch
 
 Add DFS background chain channel switch command for testing purpose.
 This feature is implemented via hostapd_cli command.
@@ -16,7 +16,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 96 insertions(+), 16 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 0b4c234..6ea1573 100644
+index fcbc4ae..37a1b2a 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -3542,6 +3542,76 @@ hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,

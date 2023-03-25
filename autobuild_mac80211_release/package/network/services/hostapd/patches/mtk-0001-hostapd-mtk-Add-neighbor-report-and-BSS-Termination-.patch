@@ -1,7 +1,7 @@
-From cd52509a69c3ba34d9b4146664140fd1ff712aa9 Mon Sep 17 00:00:00 2001
+From d76ef3ce86c91a33baa763014c8a991faa4fae4a Mon Sep 17 00:00:00 2001
 From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 Date: Wed, 19 Jan 2022 19:18:07 +0800
-Subject: [PATCH 01/15] hostapd: mtk: Add neighbor report and BSS Termination
+Subject: [PATCH 01/24] hostapd: mtk: Add neighbor report and BSS Termination
  for MBO certification
 
 1. Add hostapd_neighbor_count() and hostapd_neighbor_insert_buffer ()
@@ -32,7 +32,7 @@ function will not ask to delete key as set_disassoc_timer() did.
  9 files changed, 252 insertions(+), 5 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index a2584920c..c2a282227 100644
+index a258492..c2a2822 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -1338,6 +1338,11 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
@@ -48,7 +48,7 @@ index a2584920c..c2a282227 100644
  		ret = hostapd_set_iface(hapd->iconf, hapd->conf, cmd, value);
  		if (ret)
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index d7a0c7c80..4a20eb4e1 100644
+index d7a0c7c..4a20eb4 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -170,6 +170,7 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
@@ -60,7 +60,7 @@ index d7a0c7c80..4a20eb4e1 100644
  
  
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 39b26d602..a87563265 100644
+index 39b26d6..a875632 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
 @@ -558,6 +558,7 @@ struct hostapd_bss_config {
@@ -72,7 +72,7 @@ index 39b26d602..a87563265 100644
  	/* IEEE 802.11u - Interworking */
  	int interworking;
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
-index 96209ce7e..18bae5c8b 100644
+index 96209ce..18bae5c 100644
 --- a/src/ap/ctrl_iface_ap.c
 +++ b/src/ap/ctrl_iface_ap.c
 @@ -1203,6 +1203,10 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
@@ -115,7 +115,7 @@ index 96209ce7e..18bae5c8b 100644
  	if (pos) {
  		unsigned int mbo_reason, cell_pref, reassoc_delay;
 diff --git a/src/ap/gas_serv.c b/src/ap/gas_serv.c
-index 90f15778b..5845ff857 100644
+index 90f1577..5845ff8 100644
 --- a/src/ap/gas_serv.c
 +++ b/src/ap/gas_serv.c
 @@ -19,6 +19,7 @@
@@ -183,7 +183,7 @@ index 90f15778b..5845ff857 100644
  #ifdef CONFIG_FILS
  		if (info_id == ANQP_FILS_REALM_INFO &&
 diff --git a/src/ap/gas_serv.h b/src/ap/gas_serv.h
-index 1528af4af..d0241f23c 100644
+index 1528af4..d0241f2 100644
 --- a/src/ap/gas_serv.h
 +++ b/src/ap/gas_serv.h
 @@ -40,6 +40,8 @@
@@ -196,7 +196,7 @@ index 1528af4af..d0241f23c 100644
   * First 15 Hotspot 2.0 vendor specific ANQP-elements can be included in the
   * optimized bitmap.
 diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
-index 52f25eb7a..9254d09fd 100644
+index 52f25eb..9254d09 100644
 --- a/src/ap/neighbor_db.c
 +++ b/src/ap/neighbor_db.c
 @@ -89,6 +89,38 @@ int hostapd_neighbor_show(struct hostapd_data *hapd, char *buf, size_t buflen)
@@ -330,7 +330,7 @@ index 52f25eb7a..9254d09fd 100644
 +}
 +#endif
 diff --git a/src/ap/neighbor_db.h b/src/ap/neighbor_db.h
-index 992671b62..a1ddc075b 100644
+index 992671b..a1ddc07 100644
 --- a/src/ap/neighbor_db.h
 +++ b/src/ap/neighbor_db.h
 @@ -24,4 +24,13 @@ int hostapd_neighbor_remove(struct hostapd_data *hapd, const u8 *bssid,
@@ -348,7 +348,7 @@ index 992671b62..a1ddc075b 100644
 +#endif
  #endif /* NEIGHBOR_DB_H */
 diff --git a/src/ap/wnm_ap.c b/src/ap/wnm_ap.c
-index 3ea92af2d..4349e1df2 100644
+index 3ea92af..4349e1d 100644
 --- a/src/ap/wnm_ap.c
 +++ b/src/ap/wnm_ap.c
 @@ -20,6 +20,7 @@
@@ -471,5 +471,5 @@ index 3ea92af2d..4349e1df2 100644
  
  	return 0;
 -- 
-2.25.1
+2.18.0
 
