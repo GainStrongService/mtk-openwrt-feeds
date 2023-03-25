@@ -142,6 +142,8 @@ prepare_flowoffload() {
 
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0004-2102-netfilter-remove-nf_flow_table_hw.patch
 
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0005-add-netfilter-netlink-ftnl-package.patch
+
 	#rm patches for flowblock
 	rm -rf ./target/linux/generic/pending-5.4/64*.patch
 	rm -rf ./target/linux/generic/hack-5.4/647-netfilter-flow-acct.patch
