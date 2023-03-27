@@ -499,8 +499,8 @@ index 42e8ed7..82cc155 100644
  
 -	if (hapd->driver && hapd->driver->set_operstate)
 -		hapd->driver->set_operstate(hapd->drv_priv, 1);
-+	if (start_beacon)
-+		return hostapd_start_beacon(hapd);
++	if (start_beacon && hostapd_start_beacon(hapd) < 0)
++		return -1;
  
  	hostapd_ubus_add_bss(hapd);
  
