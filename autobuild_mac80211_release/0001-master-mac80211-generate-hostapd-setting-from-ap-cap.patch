@@ -220,10 +220,43 @@ index e24a2a634e..10a3f8b43b 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 28bd210623..81b01a2f04 100644
+index 28bd210623..58d7abf22d 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
-@@ -1573,6 +1573,11 @@ wpa_supplicant_add_network() {
+@@ -376,6 +376,11 @@ hostapd_common_add_bss_config() {
+ 	config_add_string fils_dhcp
+ 
+ 	config_add_int ocv
++
++	config_add_int disable_eht
++	config_add_int disable_he
++	config_add_int disable_vht
++	config_add_int disable_ht
+ }
+ 
+ hostapd_set_vlan_file() {
+@@ -1559,6 +1564,20 @@ wpa_supplicant_add_network() {
+ 	[ -n "$bssid_blacklist" ] && append network_data "bssid_blacklist=$bssid_blacklist" "$N$T"
+ 	[ -n "$bssid_whitelist" ] && append network_data "bssid_whitelist=$bssid_whitelist" "$N$T"
+ 
++        local disable_eht
++        local disable_he
++        local disable_vht
++        local disable_ht
++        json_get_vars disable_eht
++        json_get_vars disable_he
++        json_get_vars disable_vht
++        json_get_vars disable_ht
++
++        [ -n "$disable_eht" ] && append network_data "disable_eht=$disable_eht" "$N$T"
++        [ -n "$disable_he" ] && append network_data "disable_he=$disable_he" "$N$T"
++        [ -n "$disable_vht" ] && append network_data "disable_vht=$disable_vht" "$N$T"
++        [ -n "$disable_ht" ] && append network_data "disable_ht=$disable_ht" "$N$T"
++
+ 	[ -n "$basic_rate" ] && {
+ 		local br rate_list=
+ 		for br in $basic_rate; do
+@@ -1573,6 +1592,11 @@ wpa_supplicant_add_network() {
  		append network_data "mcast_rate=$mc_rate" "$N$T"
  	}
  
