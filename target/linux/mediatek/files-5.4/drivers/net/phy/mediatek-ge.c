@@ -272,7 +272,6 @@ enum CAL_ITEM {
 };
 
 enum CAL_MODE {
-	SW_EFUSE_M,
 	EFUSE_M,
 	SW_M
 };
@@ -405,87 +404,6 @@ static int rext_cal_efuse(struct phy_device *phydev, u32 *buf)
 	rext_fill_result(phydev, rext_cal_val);
 
 	return 0;
-}
-
-static int rext_cal_sw(struct phy_device *phydev)
-{
-	u8 rg_zcal_ctrl_def;
-	u8 zcal_lower, zcal_upper, rg_zcal_ctrl;
-	u8 lower_ret, upper_ret;
-	u16 rext_cal_val[2];
-	int ret;
-
-	phy_modify_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_ANA_TEST_BUS_CTRL_RG,
-		       MTK_PHY_ANA_TEST_MODE_MASK, MTK_PHY_TANA_CAL_MODE << 8);
-	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG1,
-			   MTK_PHY_RG_TXVOS_CALEN);
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG0,
-			 MTK_PHY_RG_CAL_CKINV | MTK_PHY_RG_ANA_CALEN |
-			 MTK_PHY_RG_REXT_CALEN);
-	phy_modify_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_RG_DASN_TXT_DMY2,
-		       MTK_PHY_TST_DMY2_MASK, 0x1);
-
-	rg_zcal_ctrl_def = phy_read_mmd(phydev, MDIO_MMD_VEND1,
-					MTK_PHY_RG_ANA_CAL_RG5) &
-					MTK_PHY_RG_ZCAL_CTRL_MASK;
-	zcal_lower = ZCAL_CTRL_MIN;
-	zcal_upper = ZCAL_CTRL_MAX;
-
-	dev_dbg(&phydev->mdio.dev, "Start REXT SW cal.\n");
-	while ((zcal_upper - zcal_lower) > 1) {
-		rg_zcal_ctrl = DIV_ROUND_CLOSEST(zcal_lower + zcal_upper, 2);
-		ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
-				MTK_PHY_RG_ZCAL_CTRL_MASK, rg_zcal_ctrl);
-		if (ret == 1) {
-			zcal_upper = rg_zcal_ctrl;
-			upper_ret = ret;
-		} else if (ret == 0) {
-			zcal_lower = rg_zcal_ctrl;
-			lower_ret = ret;
-		} else {
-			goto restore;
-		}
-	}
-
-	if (zcal_lower == ZCAL_CTRL_MIN) {
-		lower_ret = cal_cycle(phydev, MDIO_MMD_VEND1,
-				      MTK_PHY_RG_ANA_CAL_RG5,
-				      MTK_PHY_RG_ZCAL_CTRL_MASK, zcal_lower);
-		ret = lower_ret;
-	} else if (zcal_upper == ZCAL_CTRL_MAX) {
-		upper_ret = cal_cycle(phydev, MDIO_MMD_VEND1,
-				      MTK_PHY_RG_ANA_CAL_RG5,
-				      MTK_PHY_RG_ZCAL_CTRL_MASK, zcal_upper);
-		ret = upper_ret;
-	}
-	if (ret < 0)
-		goto restore;
-
-	ret = upper_ret - lower_ret;
-	if (ret == 1) {
-		rext_cal_val[0] = zcal_upper;
-		rext_cal_val[1] = zcal_upper >> 3;
-		rext_fill_result(phydev, rext_cal_val);
-		dev_info(&phydev->mdio.dev, "REXT SW cal result: 0x%x\n",
-			 zcal_upper);
-		ret = 0;
-	} else {
-		ret = -EINVAL;
-	}
-
-restore:
-	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2,
-			   MTK_PHY_ANA_TEST_BUS_CTRL_RG,
-			   MTK_PHY_ANA_TEST_MODE_MASK);
-	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG0,
-			   MTK_PHY_RG_CAL_CKINV | MTK_PHY_RG_ANA_CALEN |
-			   MTK_PHY_RG_REXT_CALEN);
-	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_RG_DASN_TXT_DMY2,
-			   MTK_PHY_TST_DMY2_MASK);
-	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
-		       MTK_PHY_RG_ZCAL_CTRL_MASK, rg_zcal_ctrl_def);
-
-	return ret;
 }
 
 static int tx_offset_fill_result(struct phy_device *phydev, u16 *buf)
@@ -682,89 +600,6 @@ static int tx_r50_cal_efuse(struct phy_device *phydev, u32 *buf,
 	tx_r50_fill_result(phydev, tx_r50_cal_val, txg_calen_x);
 
 	return 0;
-}
-
-static int tx_r50_cal_sw(struct phy_device *phydev, u8 txg_calen_x)
-{
-	u8 zcal_lower, zcal_upper, rg_zcal_ctrl;
-	u8 lower_ret, upper_ret;
-	u8 rg_zcal_ctrl_def;
-	u16 tx_r50_cal_val;
-	int ret;
-
-	phy_modify_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_ANA_TEST_BUS_CTRL_RG,
-		       MTK_PHY_ANA_TEST_MODE_MASK, MTK_PHY_TANA_CAL_MODE << 8);
-	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG1,
-			   MTK_PHY_RG_TXVOS_CALEN);
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG0,
-			 MTK_PHY_RG_CAL_CKINV | MTK_PHY_RG_ANA_CALEN);
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG2,
-			 BIT(txg_calen_x * 4));
-	phy_modify_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_RG_DASN_TXT_DMY2,
-		       MTK_PHY_TST_DMY2_MASK, 0x1);
-
-	rg_zcal_ctrl_def = phy_read_mmd(phydev, MDIO_MMD_VEND1,
-					MTK_PHY_RG_ANA_CAL_RG5) &
-			   MTK_PHY_RG_ZCAL_CTRL_MASK;
-	zcal_lower = ZCAL_CTRL_MIN;
-	zcal_upper = ZCAL_CTRL_MAX;
-
-	dev_dbg(&phydev->mdio.dev, "Start TX-R50 Pair%c SW cal.\n",
-		pair[txg_calen_x]);
-	while ((zcal_upper - zcal_lower) > 1) {
-		rg_zcal_ctrl = DIV_ROUND_CLOSEST(zcal_lower + zcal_upper, 2);
-		ret = cal_cycle(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
-				MTK_PHY_RG_ZCAL_CTRL_MASK, rg_zcal_ctrl);
-		if (ret == 1) {
-			zcal_upper = rg_zcal_ctrl;
-			upper_ret = ret;
-		} else if (ret == 0) {
-			zcal_lower = rg_zcal_ctrl;
-			lower_ret = ret;
-		} else {
-			goto restore;
-		}
-	}
-
-	if (zcal_lower == ZCAL_CTRL_MIN) {
-		lower_ret = cal_cycle(phydev, MDIO_MMD_VEND1,
-				      MTK_PHY_RG_ANA_CAL_RG5,
-				      MTK_PHY_RG_ZCAL_CTRL_MASK, zcal_lower);
-		ret = lower_ret;
-	} else if (zcal_upper == ZCAL_CTRL_MAX) {
-		upper_ret = cal_cycle(phydev, MDIO_MMD_VEND1,
-				      MTK_PHY_RG_ANA_CAL_RG5,
-				      MTK_PHY_RG_ZCAL_CTRL_MASK, zcal_upper);
-		ret = upper_ret;
-	}
-	if (ret < 0)
-		goto restore;
-
-	ret = upper_ret - lower_ret;
-	if (ret == 1) {
-		tx_r50_cal_val = mt798x_zcal_to_r50[zcal_upper];
-		tx_r50_fill_result(phydev, tx_r50_cal_val, txg_calen_x);
-		dev_info(&phydev->mdio.dev,
-			 "TX-R50 Pair%c SW cal result: 0x%x\n",
-			 pair[txg_calen_x], zcal_lower);
-		ret = 0;
-	} else {
-		ret = -EINVAL;
-	}
-
-restore:
-	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_ANA_TEST_BUS_CTRL_RG,
-			   MTK_PHY_ANA_TEST_MODE_MASK);
-	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG0,
-			   MTK_PHY_RG_CAL_CKINV | MTK_PHY_RG_ANA_CALEN);
-	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG2,
-			   BIT(txg_calen_x * 4));
-	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_RG_DASN_TXT_DMY2,
-			   MTK_PHY_TST_DMY2_MASK);
-	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG5,
-		       MTK_PHY_RG_ZCAL_CTRL_MASK, rg_zcal_ctrl_def);
-
-	return ret;
 }
 
 static int tx_vcm_cal_sw(struct phy_device *phydev, u8 rg_txreserve_x)
@@ -1173,12 +1008,6 @@ static inline int cal_sw(struct phy_device *phydev, enum CAL_ITEM cal_item,
 	for (pair_n = start_pair; pair_n <= end_pair; pair_n++) {
 		/* TX_OFFSET & TX_AMP have no SW calibration. */
 		switch (cal_item) {
-		case REXT:
-			ret = rext_cal_sw(phydev);
-			break;
-		case TX_R50:
-			ret = tx_r50_cal_sw(phydev, pair_n);
-			break;
 		case TX_VCM:
 			ret = tx_vcm_cal_sw(phydev, pair_n);
 			break;
@@ -1223,73 +1052,31 @@ static inline int cal_efuse(struct phy_device *phydev, enum CAL_ITEM cal_item,
 }
 
 static int start_cal(struct phy_device *phydev, enum CAL_ITEM cal_item,
-		     bool efs_valid, enum CAL_MODE cal_mode, u8 start_pair,
+		     enum CAL_MODE cal_mode, u8 start_pair,
 		     u8 end_pair, u32 *buf)
 {
+	int ret;
 	char cal_prop[5][20] = { "mediatek,rext", "mediatek,tx_offset",
 				 "mediatek,tx_amp", "mediatek,tx_r50",
 				 "mediatek,tx_vcm" };
-	const char *dts_cal_mode;
-	u8 final_cal_mode = 0;
-	bool is_cal = true;
-	int ret, cal_ret;
-
-	ret = of_property_read_string(phydev->mdio.dev.of_node,
-				      cal_prop[cal_item], &dts_cal_mode);
 
 	switch (cal_mode) {
-	case SW_EFUSE_M:
-		if ((efs_valid && ret) ||
-		    (efs_valid && !ret && strcmp("efuse", dts_cal_mode) == 0)) {
-			cal_ret = cal_efuse(phydev, cal_item, start_pair,
-					    end_pair, buf);
-			final_cal_mode = EFUSE_K;
-		} else if ((!efs_valid && ret) ||
-			(!ret && strcmp("sw", dts_cal_mode) == 0)) {
-			cal_ret = cal_sw(phydev, cal_item, start_pair, end_pair);
-			final_cal_mode = SW_K;
-		} else {
-			is_cal = false;
-		}
-		break;
 	case EFUSE_M:
-		if ((efs_valid && ret) ||
-		    (efs_valid && !ret && strcmp("efuse", dts_cal_mode) == 0)) {
-			cal_ret = cal_efuse(phydev, cal_item, start_pair,
-					    end_pair, buf);
-			final_cal_mode = EFUSE_K;
-		} else {
-			is_cal = false;
-		}
+		ret = cal_efuse(phydev, cal_item, start_pair,
+					end_pair, buf);
 		break;
 	case SW_M:
-		if (ret || (!ret && strcmp("sw", dts_cal_mode) == 0)) {
-			cal_ret = cal_sw(phydev, cal_item, start_pair, end_pair);
-			final_cal_mode = SW_K;
-		} else {
-			is_cal = false;
-		}
+		ret = cal_sw(phydev, cal_item, start_pair, end_pair);
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (cal_ret) {
+	if (ret) {
 		dev_err(&phydev->mdio.dev, "[%s]cal failed\n", cal_prop[cal_item]);
 		return -EIO;
 	}
 
-	if (!is_cal) {
-		dev_dbg(&phydev->mdio.dev, "[%s]K mode: %s(not supported)\n",
-			cal_prop[cal_item], dts_cal_mode);
-		return -EIO;
-	}
-
-	dev_dbg(&phydev->mdio.dev, "[%s]K mode: %s(dts: %s), efs-valid: %s\n",
-		cal_prop[cal_item],
-		final_cal_mode ? "SW" : "EFUSE",
-		ret ? "not set" : dts_cal_mode,
-		efs_valid ? "yes" : "no");
 	return 0;
 }
 
@@ -1297,7 +1084,6 @@ static int mt798x_phy_calibration(struct phy_device *phydev)
 {
 	int ret = 0;
 	u32 *buf;
-	bool efs_valid = true;
 	size_t len;
 	struct nvmem_cell *cell;
 
@@ -1316,33 +1102,25 @@ static int mt798x_phy_calibration(struct phy_device *phydev)
 		return PTR_ERR(buf);
 	nvmem_cell_put(cell);
 
-	if (!buf[0] || !buf[1] || !buf[2] || !buf[3])
-		efs_valid = false;
-
-	if (len < 4 * sizeof(u32)) {
-		dev_err(&phydev->mdio.dev, "invalid calibration data\n");
+	if (!buf[0] || !buf[1] || !buf[2] || !buf[3] || len < 4 * sizeof(u32)) {
+		dev_err(&phydev->mdio.dev, "invalid efuse data\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
-	ret = start_cal(phydev, REXT, efs_valid, SW_EFUSE_M,
-			NO_PAIR, NO_PAIR, buf);
+	ret = start_cal(phydev, REXT, EFUSE_M, NO_PAIR, NO_PAIR, buf);
 	if (ret)
 		goto out;
-	ret = start_cal(phydev, TX_OFFSET, efs_valid, EFUSE_M,
-			NO_PAIR, NO_PAIR, buf);
+	ret = start_cal(phydev, TX_OFFSET, EFUSE_M,	NO_PAIR, NO_PAIR, buf);
 	if (ret)
 		goto out;
-	ret = start_cal(phydev, TX_AMP, efs_valid, EFUSE_M,
-			NO_PAIR, NO_PAIR, buf);
+	ret = start_cal(phydev, TX_AMP, EFUSE_M, NO_PAIR, NO_PAIR, buf);
 	if (ret)
 		goto out;
-	ret = start_cal(phydev, TX_R50, efs_valid, EFUSE_M,
-			PAIR_A, PAIR_D, buf);
+	ret = start_cal(phydev, TX_R50, EFUSE_M, PAIR_A, PAIR_D, buf);
 	if (ret)
 		goto out;
-	ret = start_cal(phydev, TX_VCM, efs_valid, SW_M,
-			PAIR_A, PAIR_A, buf);
+	ret = start_cal(phydev, TX_VCM, SW_M, PAIR_A, PAIR_A, buf);
 	if (ret)
 		goto out;
 
