@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index b7059fe636..62c13eb285 100644
+index b7059fe6..62c13eb2 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -31,7 +31,7 @@ index b7059fe636..62c13eb285 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9af26..6d051038bf 100644
+index 5aaba9af..6d051038 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
@@ -179,7 +179,7 @@ index 5aaba9af26..6d051038bf 100644
  	for_each_interface "sta adhoc mesh monitor" mac80211_prepare_vif
  	NEWAPLIST=
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a634e..10a3f8b43b 100644
+index e24a2a63..10a3f8b4 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -120,6 +120,13 @@ get_band_defaults() {
@@ -220,10 +220,10 @@ index e24a2a634e..10a3f8b43b 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 28bd210623..58d7abf22d 100644
+index 28bd2106..5e21d0d6 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
-@@ -376,6 +376,11 @@ hostapd_common_add_bss_config() {
+@@ -376,6 +376,13 @@ hostapd_common_add_bss_config() {
  	config_add_string fils_dhcp
  
  	config_add_int ocv
@@ -232,10 +232,30 @@ index 28bd210623..58d7abf22d 100644
 +	config_add_int disable_he
 +	config_add_int disable_vht
 +	config_add_int disable_ht
++
++	config_add_boolean beacon_prot
  }
  
  hostapd_set_vlan_file() {
-@@ -1559,6 +1564,20 @@ wpa_supplicant_add_network() {
+@@ -975,7 +982,7 @@ hostapd_set_bss_options() {
+ 		# RSN -> allow management frame protection
+ 		case "$ieee80211w" in
+ 			[012])
+-				json_get_vars ieee80211w_mgmt_cipher ieee80211w_max_timeout ieee80211w_retry_timeout
++				json_get_vars ieee80211w_mgmt_cipher ieee80211w_max_timeout ieee80211w_retry_timeout beacon_prot
+ 				append bss_conf "ieee80211w=$ieee80211w" "$N"
+ 				[ "$ieee80211w" -gt "0" ] && {
+ 					if [ "$auth_type" = "eap192" ]; then
+@@ -983,6 +990,8 @@ hostapd_set_bss_options() {
+ 					else
+ 						append bss_conf "group_mgmt_cipher=${ieee80211w_mgmt_cipher:-AES-128-CMAC}" "$N"
+ 					fi
++					[ -n "$beacon_prot" ] && \
++						append bss_conf "beacon_prot=$beacon_prot" "$N"
+ 					[ -n "$ieee80211w_max_timeout" ] && \
+ 						append bss_conf "assoc_sa_query_max_timeout=$ieee80211w_max_timeout" "$N"
+ 					[ -n "$ieee80211w_retry_timeout" ] && \
+@@ -1559,6 +1568,20 @@ wpa_supplicant_add_network() {
  	[ -n "$bssid_blacklist" ] && append network_data "bssid_blacklist=$bssid_blacklist" "$N$T"
  	[ -n "$bssid_whitelist" ] && append network_data "bssid_whitelist=$bssid_whitelist" "$N$T"
  
@@ -256,7 +276,7 @@ index 28bd210623..58d7abf22d 100644
  	[ -n "$basic_rate" ] && {
  		local br rate_list=
  		for br in $basic_rate; do
-@@ -1573,6 +1592,11 @@ wpa_supplicant_add_network() {
+@@ -1573,6 +1596,11 @@ wpa_supplicant_add_network() {
  		append network_data "mcast_rate=$mc_rate" "$N$T"
  	}
  
