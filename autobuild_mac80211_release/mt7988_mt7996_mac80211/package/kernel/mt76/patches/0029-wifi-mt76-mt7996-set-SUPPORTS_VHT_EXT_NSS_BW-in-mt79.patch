@@ -1,0 +1,26 @@
+From 116fc48e245ad6edde4fc238ce1c85eb1b65a96f Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 27 Mar 2023 14:30:25 +0800
+Subject: [PATCH] wifi: mt76: mt7996: set SUPPORTS_VHT_EXT_NSS_BW in
+ mt7996_init_wiphy
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/init.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 29a6783c..fbe1b711 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -394,6 +394,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
+ 			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
+ 		phy->mt76->sband_5g.sband.ht_cap.ampdu_density =
+ 			IEEE80211_HT_MPDU_DENSITY_1;
++		ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
+ 	}
+ 
+ 	mt76_set_stream_caps(phy->mt76, true);
+-- 
+2.18.0
+
