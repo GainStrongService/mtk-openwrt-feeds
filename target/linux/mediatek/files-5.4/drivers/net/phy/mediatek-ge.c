@@ -674,44 +674,44 @@ static int tx_vcm_cal_sw(struct phy_device *phydev, u8 rg_txreserve_x)
 	switch (rg_txreserve_x) {
 	case PAIR_A:
 		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				   MTK_PHY_RG_DASN_DAC_IN0_A,
-				   MTK_PHY_FORCE_DASN_DAC_IN0_A);
+			      MTK_PHY_RG_DASN_DAC_IN0_A,
+			      MTK_PHY_FORCE_DASN_DAC_IN0_A);
 		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				   MTK_PHY_RG_DASN_DAC_IN1_A,
-				   MTK_PHY_FORCE_DASN_DAC_IN1_A);
+			      MTK_PHY_RG_DASN_DAC_IN1_A,
+			      MTK_PHY_FORCE_DASN_DAC_IN1_A);
 		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
 				 MTK_PHY_RG_ANA_CAL_RG0,
 				 MTK_PHY_RG_ZCALEN_A);
 		break;
 	case PAIR_B:
 		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				   MTK_PHY_RG_DASN_DAC_IN0_B,
-				   MTK_PHY_FORCE_DASN_DAC_IN0_B);
+			      MTK_PHY_RG_DASN_DAC_IN0_B,
+			      MTK_PHY_FORCE_DASN_DAC_IN0_B);
 		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				   MTK_PHY_RG_DASN_DAC_IN1_B,
-				   MTK_PHY_FORCE_DASN_DAC_IN1_B);
+			      MTK_PHY_RG_DASN_DAC_IN1_B,
+			      MTK_PHY_FORCE_DASN_DAC_IN1_B);
 		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
 				 MTK_PHY_RG_ANA_CAL_RG1,
 				 MTK_PHY_RG_ZCALEN_B);
 		break;
 	case PAIR_C:
 		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				   MTK_PHY_RG_DASN_DAC_IN0_C,
-				   MTK_PHY_FORCE_DASN_DAC_IN0_C);
+			      MTK_PHY_RG_DASN_DAC_IN0_C,
+			      MTK_PHY_FORCE_DASN_DAC_IN0_C);
 		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				   MTK_PHY_RG_DASN_DAC_IN1_C,
-				   MTK_PHY_FORCE_DASN_DAC_IN1_C);
+			      MTK_PHY_RG_DASN_DAC_IN1_C,
+			      MTK_PHY_FORCE_DASN_DAC_IN1_C);
 		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
 				 MTK_PHY_RG_ANA_CAL_RG1,
 				 MTK_PHY_RG_ZCALEN_C);
 		break;
 	case PAIR_D:
 		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				   MTK_PHY_RG_DASN_DAC_IN0_D,
-				   MTK_PHY_FORCE_DASN_DAC_IN0_D);
+			      MTK_PHY_RG_DASN_DAC_IN0_D,
+			      MTK_PHY_FORCE_DASN_DAC_IN0_D);
 		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-				   MTK_PHY_RG_DASN_DAC_IN1_D,
-				   MTK_PHY_FORCE_DASN_DAC_IN1_D);
+			      MTK_PHY_RG_DASN_DAC_IN1_D,
+			      MTK_PHY_FORCE_DASN_DAC_IN1_D);
 		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
 				 MTK_PHY_RG_ANA_CAL_RG1,
 				 MTK_PHY_RG_ZCALEN_D);
@@ -998,58 +998,64 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 static inline void mt798x_phy_eee(struct phy_device *phydev)
 {
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1,
-		MTK_PHY_RG_LPI_PCS_DSP_CTRL_REG120,
-		MTK_PHY_LPI_SIG_EN_LO_THRESH1000_MASK |
-		MTK_PHY_LPI_SIG_EN_HI_THRESH1000_MASK,
-		FIELD_PREP(MTK_PHY_LPI_SIG_EN_LO_THRESH1000_MASK, 0x0) |
-		FIELD_PREP(MTK_PHY_LPI_SIG_EN_HI_THRESH1000_MASK, 0x14));
+		       MTK_PHY_RG_LPI_PCS_DSP_CTRL_REG120,
+		       MTK_PHY_LPI_SIG_EN_LO_THRESH1000_MASK |
+		       MTK_PHY_LPI_SIG_EN_HI_THRESH1000_MASK,
+		       FIELD_PREP(MTK_PHY_LPI_SIG_EN_LO_THRESH1000_MASK, 0x0) |
+		       FIELD_PREP(MTK_PHY_LPI_SIG_EN_HI_THRESH1000_MASK, 0x14));
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1,
-		MTK_PHY_RG_LPI_PCS_DSP_CTRL_REG122,
-		MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK,
-		FIELD_PREP(MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK, 0xff));
+		       MTK_PHY_RG_LPI_PCS_DSP_CTRL_REG122,
+		       MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK,
+		       FIELD_PREP(MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK,
+				  0xff));
 
 	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
-		MTK_PHY_RG_TESTMUX_ADC_CTRL, MTK_PHY_RG_TXEN_DIG_MASK);
+			   MTK_PHY_RG_TESTMUX_ADC_CTRL,
+			   MTK_PHY_RG_TXEN_DIG_MASK);
 
 	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
-		MTK_PHY_RG_DEV1E_REG19b, MTK_PHY_BYPASS_DSP_LPI_READY);
+			 MTK_PHY_RG_DEV1E_REG19b, MTK_PHY_BYPASS_DSP_LPI_READY);
 
 	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
-		MTK_PHY_RG_DEV1E_REG234, MTK_PHY_TR_LP_IIR_EEE_EN);
+			   MTK_PHY_RG_DEV1E_REG234, MTK_PHY_TR_LP_IIR_EEE_EN);
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG238,
-		MTK_PHY_LPI_SLV_SEND_TX_TIMER_MASK | MTK_PHY_LPI_SLV_SEND_TX_EN,
-		FIELD_PREP(MTK_PHY_LPI_SLV_SEND_TX_TIMER_MASK, 0x120));
+		       MTK_PHY_LPI_SLV_SEND_TX_TIMER_MASK |
+		       MTK_PHY_LPI_SLV_SEND_TX_EN,
+		       FIELD_PREP(MTK_PHY_LPI_SLV_SEND_TX_TIMER_MASK, 0x120));
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG239,
-		MTK_PHY_LPI_SEND_LOC_TIMER_MASK | MTK_PHY_LPI_TXPCS_LOC_RCV,
-		FIELD_PREP(MTK_PHY_LPI_SEND_LOC_TIMER_MASK, 0x117));
+		       MTK_PHY_LPI_SEND_LOC_TIMER_MASK |
+		       MTK_PHY_LPI_TXPCS_LOC_RCV,
+		       FIELD_PREP(MTK_PHY_LPI_SEND_LOC_TIMER_MASK, 0x117));
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG2C7,
-		MTK_PHY_MAX_GAIN_MASK | MTK_PHY_MIN_GAIN_MASK,
-		FIELD_PREP(MTK_PHY_MAX_GAIN_MASK, 0x8) |
-		FIELD_PREP(MTK_PHY_MIN_GAIN_MASK, 0x13));
+		       MTK_PHY_MAX_GAIN_MASK | MTK_PHY_MIN_GAIN_MASK,
+		       FIELD_PREP(MTK_PHY_MAX_GAIN_MASK, 0x8) |
+		       FIELD_PREP(MTK_PHY_MIN_GAIN_MASK, 0x13));
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG2D1,
-		MTK_PHY_VCO_SLICER_THRESH_BITS_HIGH_EEE_MASK,
-		FIELD_PREP(MTK_PHY_VCO_SLICER_THRESH_BITS_HIGH_EEE_MASK, 0x33) |
-		MTK_PHY_LPI_SKIP_SD_SLV_TR | MTK_PHY_LPI_TR_READY |
-		MTK_PHY_LPI_VCO_EEE_STG0_EN);
+		       MTK_PHY_VCO_SLICER_THRESH_BITS_HIGH_EEE_MASK,
+		       FIELD_PREP(MTK_PHY_VCO_SLICER_THRESH_BITS_HIGH_EEE_MASK,
+				  0x33) |
+		       MTK_PHY_LPI_SKIP_SD_SLV_TR | MTK_PHY_LPI_TR_READY |
+		       MTK_PHY_LPI_VCO_EEE_STG0_EN);
 
 	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG323,
-		MTK_PHY_EEE_WAKE_MAS_INT_DC | MTK_PHY_EEE_WAKE_SLV_INT_DC);
+			 MTK_PHY_EEE_WAKE_MAS_INT_DC |
+			 MTK_PHY_EEE_WAKE_SLV_INT_DC);
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG324,
-		MTK_PHY_SMI_DETCNT_MAX_MASK,
-		FIELD_PREP(MTK_PHY_SMI_DETCNT_MAX_MASK, 0x3f) |
-		MTK_PHY_SMI_DET_MAX_EN);
+		       MTK_PHY_SMI_DETCNT_MAX_MASK,
+		       FIELD_PREP(MTK_PHY_SMI_DETCNT_MAX_MASK, 0x3f) |
+		       MTK_PHY_SMI_DET_MAX_EN);
 
 	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG326,
-		MTK_PHY_LPI_MODE_SD_ON | MTK_PHY_RESET_RANDUPD_CNT |
-		MTK_PHY_TREC_UPDATE_ENAB_CLR |
-		MTK_PHY_LPI_QUIT_WAIT_DFE_SIG_DET_OFF |
-		MTK_PHY_TR_READY_SKIP_AFE_WAKEUP);
+			 MTK_PHY_LPI_MODE_SD_ON | MTK_PHY_RESET_RANDUPD_CNT |
+			 MTK_PHY_TREC_UPDATE_ENAB_CLR |
+			 MTK_PHY_LPI_QUIT_WAIT_DFE_SIG_DET_OFF |
+			 MTK_PHY_TR_READY_SKIP_AFE_WAKEUP);
 
 	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_52B5);
 	/* Regsigdet_sel_1000 = 0 */
@@ -1095,16 +1101,16 @@ static inline void mt798x_phy_eee(struct phy_device *phydev)
 
 	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_3);
 	__phy_modify(phydev, MTK_PHY_LPI_REG_14, MTK_PHY_LPI_WAKE_TIMER_1000_MASK,
-		FIELD_PREP(MTK_PHY_LPI_WAKE_TIMER_1000_MASK, 0x19c));
+		     FIELD_PREP(MTK_PHY_LPI_WAKE_TIMER_1000_MASK, 0x19c));
 
 	__phy_modify(phydev, MTK_PHY_LPI_REG_1c, MTK_PHY_SMI_DET_ON_THRESH_MASK,
-		FIELD_PREP(MTK_PHY_SMI_DET_ON_THRESH_MASK, 0xc));
+		     FIELD_PREP(MTK_PHY_SMI_DET_ON_THRESH_MASK, 0xc));
 	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1,
-		MTK_PHY_RG_LPI_PCS_DSP_CTRL_REG122,
-		MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK,
-		FIELD_PREP(MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK, 0xff));
+		       MTK_PHY_RG_LPI_PCS_DSP_CTRL_REG122,
+		       MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK,
+		       FIELD_PREP(MTK_PHY_LPI_NORM_MSE_HI_THRESH1000_MASK, 0xff));
 }
 
 static inline int cal_sw(struct phy_device *phydev, enum CAL_ITEM cal_item,
@@ -1171,7 +1177,7 @@ static int start_cal(struct phy_device *phydev, enum CAL_ITEM cal_item,
 	switch (cal_mode) {
 	case EFUSE_M:
 		ret = cal_efuse(phydev, cal_item, start_pair,
-					end_pair, buf);
+				end_pair, buf);
 		break;
 	case SW_M:
 		ret = cal_sw(phydev, cal_item, start_pair, end_pair);
@@ -1219,7 +1225,7 @@ static int mt798x_phy_calibration(struct phy_device *phydev)
 	ret = start_cal(phydev, REXT, EFUSE_M, NO_PAIR, NO_PAIR, buf);
 	if (ret)
 		goto out;
-	ret = start_cal(phydev, TX_OFFSET, EFUSE_M,	NO_PAIR, NO_PAIR, buf);
+	ret = start_cal(phydev, TX_OFFSET, EFUSE_M, NO_PAIR, NO_PAIR, buf);
 	if (ret)
 		goto out;
 	ret = start_cal(phydev, TX_AMP, EFUSE_M, NO_PAIR, NO_PAIR, buf);
