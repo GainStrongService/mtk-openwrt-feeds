@@ -920,26 +920,6 @@ static inline void mt7981_phy_finetune(struct phy_device *phydev)
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_2nd_OVERSHOOT_LEVEL_N1TO0,
 		      0x5);
 
-	/* TX-AMP finetune:
-	 * 100M +4, 1000M +6 to default value.
-	 * If efuse values aren't valid, TX-AMP uses the below values.
-	 */
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TXVLD_DA_RG, 0x9824);
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_A2,
-		      0x9026);
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B1,
-		      0x2624);
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_B2,
-		      0x2426);
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C1,
-		      0x2624);
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_C2,
-		      0x2426);
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D1,
-		      0x2624);
-	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_TX_I2MPB_TEST_MODE_D2,
-		      0x2426);
-
 	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_52B5);
 	/* SlvDSPreadyTime = 24, MasDSPreadyTime = 24 */
 	__phy_write(phydev, 0x11, 0xc71);
