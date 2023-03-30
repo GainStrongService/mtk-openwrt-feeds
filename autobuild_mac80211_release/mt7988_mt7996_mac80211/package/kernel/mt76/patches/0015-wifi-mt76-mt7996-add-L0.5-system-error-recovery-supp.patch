@@ -1,4 +1,4 @@
-From 56bbd0875ca8a21737d1b87c85eb38433c787e57 Mon Sep 17 00:00:00 2001
+From 0809af5eefeebb30854486e1e928c06ed0a667d6 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 13 Feb 2023 18:00:25 +0800
 Subject: [PATCH 15/29] wifi: mt76: mt7996: add L0.5 system error recovery
@@ -19,7 +19,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  10 files changed, 542 insertions(+), 100 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 9c5e9ac1..f2c46a50 100644
+index 9c5e9ac..f2c46a5 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -48,12 +48,12 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_implicit_txbf, mt7996_implicit_txbf_get,
@@ -219,7 +219,7 @@ index 9c5e9ac1..f2c46a50 100644
  
  	if (phy->mt76->cap.has_5ghz) {
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index c09fe427..18ea758c 100644
+index c09fe42..18ea758 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
 @@ -352,6 +352,71 @@ int mt7996_dma_init(struct mt7996_dev *dev)
@@ -295,7 +295,7 @@ index c09fe427..18ea758c 100644
  {
  	mt7996_dma_disable(dev, true);
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 7350194f..479b2cee 100644
+index 7350194..479b2ce 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -278,8 +278,7 @@ static void mt7996_led_set_brightness(struct led_classdev *led_cdev,
@@ -336,7 +336,7 @@ index 7350194f..479b2cee 100644
  }
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 8dc3a621..4c0c8f1e 100644
+index 8dc3a62..4c0c8f1 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -1724,7 +1724,7 @@ mt7996_wait_reset_state(struct mt7996_dev *dev, u32 state)
@@ -681,7 +681,7 @@ index 8dc3a621..4c0c8f1e 100644
  
  void mt7996_mac_update_stats(struct mt7996_phy *phy)
 diff --git a/mt7996/main.c b/mt7996/main.c
-index d8d578c0..cb0e0d31 100644
+index d8d578c..cb0e0d3 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -22,17 +22,13 @@ static bool mt7996_dev_running(struct mt7996_dev *dev)
@@ -723,7 +723,7 @@ index d8d578c0..cb0e0d31 100644
  
  	return ret;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 0dbe2e01..a949ff76 100644
+index 0dbe2e0..a949ff7 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -2629,17 +2629,10 @@ mt7996_mcu_init_rx_airtime(struct mt7996_dev *dev)
@@ -766,7 +766,7 @@ index 0dbe2e01..a949ff76 100644
  {
  	mt7996_mcu_restart(&dev->mt76);
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index ad66a1f8..778deedf 100644
+index ad66a1f..778deed 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -692,23 +692,21 @@ enum {
@@ -807,7 +807,7 @@ index ad66a1f8..778deedf 100644
  
  enum {
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index 6610cc45..0e11f398 100644
+index 6610cc4..0e11f39 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
 @@ -289,10 +289,9 @@ static void mt7996_irq_tasklet(struct tasklet_struct *t)
@@ -825,7 +825,7 @@ index 6610cc45..0e11f398 100644
  	}
  }
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 25b20fa6..923e6fc9 100644
+index 25b20fa..923e6fc 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -268,7 +268,14 @@ struct mt7996_dev {
@@ -870,7 +870,7 @@ index 25b20fa6..923e6fc9 100644
  bool mt7996_mac_wtbl_update(struct mt7996_dev *dev, int idx, u32 mask);
  void mt7996_mac_reset_counters(struct mt7996_phy *phy);
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index 7a28cae3..0775ca58 100644
+index 7a28cae..0775ca5 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -317,6 +317,8 @@ enum base_rev {
@@ -944,5 +944,5 @@ index 7a28cae3..0775ca58 100644
 +
  #endif
 -- 
-2.39.2
+2.18.0
 

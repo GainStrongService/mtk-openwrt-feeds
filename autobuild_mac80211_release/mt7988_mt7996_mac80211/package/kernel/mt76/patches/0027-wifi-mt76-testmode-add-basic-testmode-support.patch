@@ -1,7 +1,7 @@
-From 8913b802b0d59773c58e669b6d4e9be2154828a0 Mon Sep 17 00:00:00 2001
+From ead183c5143c45e4f188d0bb0214b0d41c113ed2 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 1 Mar 2023 11:59:16 +0800
-Subject: [PATCH 27/29] mt76: testmode: add basic testmode support
+Subject: [PATCH 27/29] wifi: mt76: testmode: add basic testmode support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -27,7 +27,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  create mode 100644 mt7996/testmode.h
 
 diff --git a/eeprom.c b/eeprom.c
-index ea54b7af..263e5089 100644
+index ea54b7a..263e508 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -89,8 +89,10 @@ int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
@@ -44,7 +44,7 @@ index ea54b7af..263e5089 100644
  
  out_put_node:
 diff --git a/mac80211.c b/mac80211.c
-index e53166fc..a4b3d346 100644
+index e53166f..a4b3d34 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -826,7 +826,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
@@ -58,7 +58,7 @@ index e53166fc..a4b3d346 100644
  		if (status->flag & RX_FLAG_FAILED_FCS_CRC)
  			phy->test.rx_stats.fcs_error[q]++;
 diff --git a/mt76.h b/mt76.h
-index c3d1313e..343bd910 100644
+index c3d1313..343bd91 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -652,8 +652,12 @@ struct mt76_testmode_ops {
@@ -104,7 +104,7 @@ index c3d1313e..343bd910 100644
  
  struct mt76_vif {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 79dde31a..bfbf18d6 100644
+index 79dde31..bfbf18d 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1218,10 +1218,12 @@ enum {
@@ -121,7 +121,7 @@ index 79dde31a..bfbf18d6 100644
  	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
  };
 diff --git a/mt7996/Makefile b/mt7996/Makefile
-index bcb9a3c5..f9fb1b0d 100644
+index bcb9a3c..f9fb1b0 100644
 --- a/mt7996/Makefile
 +++ b/mt7996/Makefile
 @@ -4,3 +4,5 @@ obj-$(CONFIG_MT7996E) += mt7996e.o
@@ -131,7 +131,7 @@ index bcb9a3c5..f9fb1b0d 100644
 +
 +mt7996e-$(CONFIG_NL80211_TESTMODE) += testmode.o
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 2e48c5a4..64e3c4e2 100644
+index 2e48c5a..64e3c4e 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -6,6 +6,11 @@
@@ -201,7 +201,7 @@ index 2e48c5a4..64e3c4e2 100644
  		if (ret < 0)
  			return ret;
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index cfc48698..f7497c9b 100644
+index cfc4869..f7497c9 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -14,6 +14,7 @@ enum mt7996_eeprom_field {
@@ -213,7 +213,7 @@ index cfc48698..f7497c9b 100644
  	MT_EE_RATE_DELTA_2G =	0x1400,
  	MT_EE_RATE_DELTA_5G =	0x147d,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 381917a8..29a6783c 100644
+index 381917a..29a6783 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -621,6 +621,10 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
@@ -238,7 +238,7 @@ index 381917a8..29a6783c 100644
  	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
  		dev->mphy.leds.cdev.brightness_set = mt7996_led_set_brightness;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 4e9536e7..b24c75aa 100644
+index 4e9536e..b24c75a 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -22,6 +22,17 @@ static bool mt7996_dev_running(struct mt7996_dev *dev)
@@ -278,7 +278,7 @@ index 4e9536e7..b24c75aa 100644
  	.sta_add_debugfs = mt7996_sta_add_debugfs,
  #endif
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index deb6e1eb..0a52afd1 100644
+index deb6e1e..0a52afd 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -2580,7 +2580,10 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
@@ -332,7 +332,7 @@ index deb6e1eb..0a52afd1 100644
 +				 &req, sizeof(req), false);
 +}
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 778deedf..ebc62713 100644
+index 778deed..ebc6271 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -686,6 +686,33 @@ enum {
@@ -370,7 +370,7 @@ index 778deedf..ebc62713 100644
  	UNI_CMD_ACCESS_REG_BASIC = 0x0,
  	UNI_CMD_ACCESS_RF_REG_BASIC,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index c2f8900c..e3fd50f6 100644
+index c2f8900..e3fd50f 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -30,9 +30,11 @@
@@ -449,7 +449,7 @@ index c2f8900c..e3fd50f6 100644
  {
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
 new file mode 100644
-index 00000000..5dbbb788
+index 0000000..5dbbb78
 --- /dev/null
 +++ b/mt7996/testmode.c
 @@ -0,0 +1,615 @@
@@ -1070,7 +1070,7 @@ index 00000000..5dbbb788
 +};
 diff --git a/mt7996/testmode.h b/mt7996/testmode.h
 new file mode 100644
-index 00000000..f381da56
+index 0000000..f381da5
 --- /dev/null
 +++ b/mt7996/testmode.h
 @@ -0,0 +1,292 @@
@@ -1367,7 +1367,7 @@ index 00000000..f381da56
 +
 +#endif
 diff --git a/testmode.c b/testmode.c
-index 0d2bae9f..007358bd 100644
+index 0d2bae9..007358b 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -2,6 +2,7 @@
@@ -1502,7 +1502,7 @@ index 0d2bae9f..007358bd 100644
  	     nla_put_u8(msg, MT76_TM_ATTR_TX_LTF, td->tx_ltf)) ||
  	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_ANTENNA) &&
 diff --git a/testmode.h b/testmode.h
-index a40cd74b..8d0b9702 100644
+index a40cd74..8d0b970 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -39,6 +39,11 @@
@@ -1622,7 +1622,7 @@ index a40cd74b..8d0b9702 100644
  	/* keep last */
  	NUM_MT76_TM_TX_MODES,
 diff --git a/tools/fields.c b/tools/fields.c
-index e3f69089..e5cf7c53 100644
+index e3f6908..e5cf7c5 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -10,6 +10,7 @@ static const char * const testmode_state[] = {
@@ -1784,5 +1784,5 @@ index e3f69089..e5cf7c53 100644
  
  const struct tm_field msg_field = {
 -- 
-2.39.2
+2.18.0
 

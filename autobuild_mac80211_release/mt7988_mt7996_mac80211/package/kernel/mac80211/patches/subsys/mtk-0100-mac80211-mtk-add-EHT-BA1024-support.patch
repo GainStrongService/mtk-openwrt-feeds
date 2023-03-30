@@ -1,7 +1,7 @@
-From b068bbf279658acaef1bef11e6a7052948eb1ef0 Mon Sep 17 00:00:00 2001
+From 21b39d41faf3a67127778d85a79029002ed65291 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Sun, 25 Dec 2022 22:43:46 +0800
-Subject: [PATCH 100/101] mac80211: mtk: add EHT BA1024 support
+Subject: [PATCH 100/102] mac80211: mtk: add EHT BA1024 support
 
 ---
  include/linux/ieee80211.h |  2 ++
@@ -22,7 +22,7 @@ index 6f70394..27321f2 100644
  				struct{
  					u8 action_code;
 diff --git a/net/mac80211/agg-tx.c b/net/mac80211/agg-tx.c
-index 318c71e..7f750c1 100755
+index 56cd1fc..8daf292 100644
 --- a/net/mac80211/agg-tx.c
 +++ b/net/mac80211/agg-tx.c
 @@ -66,10 +66,17 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
@@ -73,7 +73,7 @@ index 318c71e..7f750c1 100755
  	} else {
  		/*
  		 * We really should use what the driver told us it will
-@@ -960,13 +979,35 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
+@@ -978,13 +997,35 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
  {
  	struct tid_ampdu_tx *tid_tx;
  	struct ieee80211_txq *txq;
@@ -110,5 +110,5 @@ index 318c71e..7f750c1 100755
  
  	txq = sta->sta.txq[tid];
 -- 
-2.25.1
+2.18.0
 

@@ -1,7 +1,7 @@
-From 7dac751fa9d42920b3b62258bffd7e5dd143f284 Mon Sep 17 00:00:00 2001
+From 3b4fed31dabb63ad6e1c9d29e18e90be228accd9 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Mon, 13 Mar 2023 05:23:37 +0800
-Subject: [PATCH 1/2] mac80211: mtk: track obss color bitmap
+Subject: [PATCH 14/15] mac80211: mtk: track obss color bitmap
 
 Track OBSS BSS color when receive their beacon.
 
@@ -16,7 +16,7 @@ echo 1 > /sys/kernel/debug/tracing/events/mac80211/bss_color_collision/enable
  4 files changed, 33 insertions(+), 6 deletions(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 1de9fad..3cf1745 100644
+index cc02639..83bbf70 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -729,6 +729,7 @@ struct ieee80211_bss_conf {
@@ -68,7 +68,7 @@ index 3e35433..5c9dda1 100644
  static int
  ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index e99b8fd..fd2f650 100644
+index 74cf1b6..bc5b471 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
 @@ -3338,9 +3338,14 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
@@ -89,7 +89,7 @@ index e99b8fd..fd2f650 100644
  	}
  }
 diff --git a/net/mac80211/trace.h b/net/mac80211/trace.h
-index 9f43775..71e312f 100644
+index e0ccf5f..f005207 100644
 --- a/net/mac80211/trace.h
 +++ b/net/mac80211/trace.h
 @@ -3051,6 +3051,27 @@ TRACE_EVENT(stop_queue,
@@ -121,5 +121,5 @@ index 9f43775..71e312f 100644
  
  #undef TRACE_INCLUDE_PATH
 -- 
-2.39.0
+2.18.0
 

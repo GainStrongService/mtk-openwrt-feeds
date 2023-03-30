@@ -1,4 +1,4 @@
-From 43cb74cdfc3651a15f6dd2b22bff3a83a2464950 Mon Sep 17 00:00:00 2001
+From 198d3e931e8f24534b63314334454f3254db7892 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 2 Feb 2023 21:20:31 +0800
 Subject: [PATCH 12/29] wifi: mt76: mt7996: add thermal protection support
@@ -18,7 +18,7 @@ Change-Id: I8fecc28f5b17ee50ae4644d1dd17d188dd694731
  6 files changed, 279 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 6f30a0fb..fa10d823 100644
+index 6f30a0f..fa10d82 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1009,6 +1009,7 @@ enum {
@@ -30,7 +30,7 @@ index 6f30a0fb..fa10d823 100644
  
  #define MCU_UNI_CMD_EVENT			BIT(1)
 diff --git a/mt7996/init.c b/mt7996/init.c
-index de94e151..44165a35 100644
+index de94e15..44165a3 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -41,6 +41,98 @@ static const struct ieee80211_iface_combination if_comb[] = {
@@ -174,7 +174,7 @@ index de94e151..44165a35 100644
  	mt7996_mcu_exit(dev);
  	mt7996_tx_token_put(dev);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 44d23e1d..d8d578c0 100644
+index 44d23e1..d8d578c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -54,6 +54,14 @@ static int mt7996_start(struct ieee80211_hw *hw)
@@ -193,7 +193,7 @@ index 44d23e1d..d8d578c0 100644
  
  	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b6bd36c2..3820a63e 100644
+index b6bd36c..3820a63 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -443,6 +443,34 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -324,7 +324,7 @@ index b6bd36c2..3820a63e 100644
  {
  	struct {
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index dd0c5ac5..7fefc28f 100644
+index dd0c5ac..7fefc28 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -30,6 +30,28 @@ struct mt7996_mcu_uni_event {
@@ -393,7 +393,7 @@ index dd0c5ac5..7fefc28f 100644
  	UNI_CMD_ACCESS_REG_BASIC = 0x0,
  	UNI_CMD_ACCESS_RF_REG_BASIC,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 997a0bf0..25b20fa6 100644
+index 997a0bf..25b20fa 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -43,6 +43,13 @@
@@ -433,5 +433,5 @@ index 997a0bf0..25b20fa6 100644
  		       u8 rx_sel, u8 val);
  int mt7996_mcu_rdd_background_enable(struct mt7996_phy *phy,
 -- 
-2.39.2
+2.18.0
 

@@ -1,7 +1,7 @@
-From b330aac018d272206775f120e8793ad6d11d805c Mon Sep 17 00:00:00 2001
+From a9cef32c4ffc9a23e14f72efc49e9ec4743eff23 Mon Sep 17 00:00:00 2001
 From: Johannes Berg <johannes.berg@intel.com>
 Date: Mon, 9 Jan 2023 13:07:21 +0200
-Subject: [PATCH 01/16] mac80211: support minimal EHT rate reporting on RX
+Subject: [PATCH 01/15] mac80211: support minimal EHT rate reporting on RX
 
 Add minimal support for RX EHT rate reporting, not yet
 adding (modifying) any radiotap headers, just statistics
@@ -17,10 +17,10 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
  5 files changed, 64 insertions(+), 10 deletions(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 6b16d6c..edc10ff 100644
+index 1ca00b5..73df564 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -1436,6 +1436,7 @@ enum mac80211_rx_encoding {
+@@ -1462,6 +1462,7 @@ enum mac80211_rx_encoding {
  	RX_ENC_HT,
  	RX_ENC_VHT,
  	RX_ENC_HE,
@@ -28,7 +28,7 @@ index 6b16d6c..edc10ff 100644
  };
  
  /**
-@@ -1469,7 +1470,7 @@ enum mac80211_rx_encoding {
+@@ -1495,7 +1496,7 @@ enum mac80211_rx_encoding {
   * @antenna: antenna used
   * @rate_idx: index of data rate into band's supported rates or MCS index if
   *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
@@ -37,7 +37,7 @@ index 6b16d6c..edc10ff 100644
   * @flag: %RX_FLAG_\*
   * @encoding: &enum mac80211_rx_encoding
   * @bw: &enum rate_info_bw
-@@ -1477,6 +1478,8 @@ enum mac80211_rx_encoding {
+@@ -1503,6 +1504,8 @@ enum mac80211_rx_encoding {
   * @he_ru: HE RU, from &enum nl80211_he_ru_alloc
   * @he_gi: HE GI, from &enum nl80211_he_gi
   * @he_dcm: HE DCM value
@@ -46,7 +46,7 @@ index 6b16d6c..edc10ff 100644
   * @rx_flags: internal RX flags for mac80211
   * @ampdu_reference: A-MPDU reference number, must be a different value for
   *	each A-MPDU but the same for each subframe within one A-MPDU
-@@ -1498,8 +1501,18 @@ struct ieee80211_rx_status {
+@@ -1524,8 +1527,18 @@ struct ieee80211_rx_status {
  	u32 flag;
  	u16 freq: 13, freq_offset: 1;
  	u8 enc_flags;
@@ -68,10 +68,10 @@ index 6b16d6c..edc10ff 100644
  	u8 nss;
  	u8 rx_flags;
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 2a83cd8..cc11ac5 100644
+index 45aeb01..376e131 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
-@@ -5209,6 +5209,15 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
+@@ -5331,6 +5331,15 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
  				      status->rate_idx, status->nss))
  				goto drop;
  			break;
@@ -88,7 +88,7 @@ index 2a83cd8..cc11ac5 100644
  			WARN_ON_ONCE(1);
  			fallthrough;
 diff --git a/net/mac80211/sta_info.c b/net/mac80211/sta_info.c
-index 97d24e9..69b4b42 100644
+index 8edee5d..8cdeb96 100644
 --- a/net/mac80211/sta_info.c
 +++ b/net/mac80211/sta_info.c
 @@ -4,7 +4,7 @@
@@ -100,7 +100,7 @@ index 97d24e9..69b4b42 100644
   */
  
  #include <linux/module.h>
-@@ -2368,6 +2368,13 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
+@@ -2372,6 +2372,13 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
  		rinfo->he_ru_alloc = STA_STATS_GET(HE_RU, rate);
  		rinfo->he_dcm = STA_STATS_GET(HE_DCM, rate);
  		break;
@@ -115,10 +115,10 @@ index 97d24e9..69b4b42 100644
  }
  
 diff --git a/net/mac80211/sta_info.h b/net/mac80211/sta_info.h
-index 8bd7ea3..a23e3c6 100644
+index 759a1a8..ec8dff0 100644
 --- a/net/mac80211/sta_info.h
 +++ b/net/mac80211/sta_info.h
-@@ -929,6 +929,7 @@ enum sta_stats_type {
+@@ -930,6 +930,7 @@ enum sta_stats_type {
  	STA_STATS_RATE_TYPE_VHT,
  	STA_STATS_RATE_TYPE_HE,
  	STA_STATS_RATE_TYPE_S1G,
@@ -126,7 +126,7 @@ index 8bd7ea3..a23e3c6 100644
  };
  
  #define STA_STATS_FIELD_HT_MCS		GENMASK( 7,  0)
-@@ -938,12 +939,16 @@ enum sta_stats_type {
+@@ -939,12 +940,16 @@ enum sta_stats_type {
  #define STA_STATS_FIELD_VHT_NSS		GENMASK( 7,  4)
  #define STA_STATS_FIELD_HE_MCS		GENMASK( 3,  0)
  #define STA_STATS_FIELD_HE_NSS		GENMASK( 7,  4)
@@ -149,7 +149,7 @@ index 8bd7ea3..a23e3c6 100644
  
  #define STA_STATS_FIELD(_n, _v)		FIELD_PREP(STA_STATS_FIELD_ ## _n, _v)
  #define STA_STATS_GET(_n, _v)		FIELD_GET(STA_STATS_FIELD_ ## _n, _v)
-@@ -982,6 +987,13 @@ static inline u32 sta_stats_encode_rate(struct ieee80211_rx_status *s)
+@@ -983,6 +988,13 @@ static inline u32 sta_stats_encode_rate(struct ieee80211_rx_status *s)
  		r |= STA_STATS_FIELD(HE_RU, s->he_ru);
  		r |= STA_STATS_FIELD(HE_DCM, s->he_dcm);
  		break;
@@ -188,5 +188,5 @@ index 005a730..608f927 100644
  		ri.flags |= RATE_INFO_FLAGS_HE_MCS;
  		ri.mcs = status->rate_idx;
 -- 
-2.25.1
+2.18.0
 

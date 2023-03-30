@@ -1,7 +1,7 @@
-From 638a487c558695eff644966027833704e583ab4d Mon Sep 17 00:00:00 2001
+From fb56546c9ec94dd9f8ca4b6cfd91d029710b75c2 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Mon, 13 Mar 2023 05:36:59 +0800
-Subject: [PATCH] mac80211: mtk: ageout color bitmap
+Subject: [PATCH 15/15] mac80211: mtk: ageout color bitmap
 
 Adding a periodic work which runs once per second to check BSS color.
 OBSS BSS Color will be ageout if not seen for 10 seconds.
@@ -15,7 +15,7 @@ OBSS BSS Color will be ageout if not seen for 10 seconds.
  6 files changed, 44 insertions(+)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 3cf1745..d044be5 100644
+index 83bbf70..5ca2f10 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -730,6 +730,7 @@ struct ieee80211_bss_conf {
@@ -68,7 +68,7 @@ index 5c9dda1..343ce2b 100644
  ieee80211_set_radar_background(struct wiphy *wiphy,
  			       struct cfg80211_chan_def *chandef)
 diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
-index a10ef29..4f4dd89 100644
+index f7da92b..bc3f133 100644
 --- a/net/mac80211/ieee80211_i.h
 +++ b/net/mac80211/ieee80211_i.h
 @@ -987,6 +987,7 @@ struct ieee80211_link_data {
@@ -93,7 +93,7 @@ index a10ef29..4f4dd89 100644
  /* interface handling */
  #define MAC80211_SUPPORTED_FEATURES_TX	(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | \
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index b80fb66..98682a0 100644
+index b82065c..6a300ab 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
 @@ -541,6 +541,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
@@ -129,7 +129,7 @@ index e309708..d34cdc2 100644
  	if (!deflink) {
  		switch (sdata->vif.type) {
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index fd2f650..67c768c 100644
+index bc5b471..b96eb7c 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
 @@ -3340,6 +3340,7 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
@@ -141,5 +141,5 @@ index fd2f650..67c768c 100644
  		trace_bss_color_bitmap(color, bss_conf->used_color_bitmap);
  
 -- 
-2.39.0
+2.18.0
 

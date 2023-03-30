@@ -141,7 +141,6 @@ prepare_flowoffload() {
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0010-add-llvm_bpf-toolchain.patch
 
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0004-2102-netfilter-remove-nf_flow_table_hw.patch
-
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0005-add-netfilter-netlink-ftnl-package.patch
 
 	#rm patches for flowblock
@@ -212,6 +211,9 @@ prepare_mac80211() {
 	echo "CONFIG_DPP=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
 	echo "CONFIG_DPP2=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
 	echo "CONFIG_DPP3=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
+	### add configuration for STA wireless mode setting
+	echo "CONFIG_HE_OVERRIDES=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
+	echo "CONFIG_EHT_OVERRIDES=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
 
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0001-master-mac80211-generate-hostapd-setting-from-ap-cap.patch
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-master-hostapd-makefile-for-utils.patch

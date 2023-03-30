@@ -1,7 +1,7 @@
-From ecc272c2cd058ff4e9bf9206089538c7153028b8 Mon Sep 17 00:00:00 2001
+From 8dc4174ddb74ccccbcf60bb9ca85b5c356ac3472 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Wed, 19 Oct 2022 13:45:42 +0800
-Subject: [PATCH 07/16] mac80211: mtk: add support for runtime set inband
+Subject: [PATCH 07/15] mac80211: mtk: add support for runtime set inband
  discovery
 
 Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
@@ -14,7 +14,7 @@ Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
  5 files changed, 62 insertions(+), 5 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 118cd40..9728bf8 100644
+index 357a78f..d99b59f 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
 @@ -1268,6 +1268,7 @@ struct cfg80211_fils_discovery {
@@ -26,7 +26,7 @@ index 118cd40..9728bf8 100644
  
  /**
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index edc10ff..dc4faea 100644
+index 73df564..304595c 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -525,6 +525,7 @@ struct ieee80211_ftm_responder_params {
@@ -50,7 +50,7 @@ index ba4aa09..1293d30 100644
  	/* keep last */
  	__NL80211_FILS_DISCOVERY_ATTR_LAST,
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index c15e72d..cd5444e 100644
+index a6b9a3b..27f7616 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
 @@ -983,6 +983,7 @@ static int ieee80211_set_fils_discovery(struct ieee80211_sub_if_data *sdata,
@@ -61,7 +61,7 @@ index c15e72d..cd5444e 100644
  
  	old = sdata_dereference(link->u.ap.fils_discovery, sdata);
  	new = kzalloc(sizeof(*new) + params->tmpl_len, GFP_KERNEL);
-@@ -1403,6 +1404,9 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
+@@ -1433,6 +1434,9 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
  	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
  	struct ieee80211_link_data *link;
  	struct beacon_data *old;
@@ -71,7 +71,7 @@ index c15e72d..cd5444e 100644
  	int err;
  	struct ieee80211_bss_conf *link_conf;
  
-@@ -1434,7 +1438,34 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
+@@ -1464,7 +1468,34 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
  		err |= BSS_CHANGED_HE_BSS_COLOR;
  	}
  
@@ -178,5 +178,5 @@ index aa04e11..202f802 100644
  }
  
 -- 
-2.25.1
+2.18.0
 

@@ -1,7 +1,7 @@
-From 626077ef532dd21d8f19ef7c8b521348aedc74d7 Mon Sep 17 00:00:00 2001
+From f910e307237f20440fd1664918fe3b8399267b45 Mon Sep 17 00:00:00 2001
 From: Amit Khatri <amit.khatri@mediatek.com>
 Date: Thu, 23 Mar 2023 14:26:46 +0800
-Subject: [PATCH] hostapd: mtk: Add support for masking EHT capabilities.
+Subject: [PATCH 24/25] hostapd: mtk: Add support for masking EHT capabilities.
 
 If STA want to disable EHT mode connection.
 STA can set
@@ -173,10 +173,10 @@ index 8443f54..ea251db 100644
  #ifdef CONFIG_MACSEC
  	"macsec_policy",
 diff --git a/wpa_supplicant/wpa_supplicant.c b/wpa_supplicant/wpa_supplicant.c
-index ba34fd4..efc7594 100644
+index 04c37b1..67c801d 100644
 --- a/wpa_supplicant/wpa_supplicant.c
 +++ b/wpa_supplicant/wpa_supplicant.c
-@@ -4082,6 +4082,10 @@ static void wpas_start_assoc_cb(struct wpa_radio_work *work, int deinit)
+@@ -4084,6 +4084,10 @@ static void wpas_start_assoc_cb(struct wpa_radio_work *work, int deinit)
  #ifdef CONFIG_HE_OVERRIDES
  	wpa_supplicant_apply_he_overrides(wpa_s, ssid, &params);
  #endif /* CONFIG_HE_OVERRIDES */
@@ -187,7 +187,7 @@ index ba34fd4..efc7594 100644
  
  #ifdef CONFIG_P2P
  	/*
-@@ -5877,6 +5881,17 @@ void wpa_supplicant_apply_he_overrides(
+@@ -5879,6 +5883,17 @@ void wpa_supplicant_apply_he_overrides(
  }
  #endif /* CONFIG_HE_OVERRIDES */
  

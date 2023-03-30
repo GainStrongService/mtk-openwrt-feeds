@@ -1,7 +1,7 @@
-From 832350b2c16a9ad2f65c32d32584e7cdb06b074a Mon Sep 17 00:00:00 2001
+From bb3c3c7fd4e5fb96888144062ed6a7a61971d1a6 Mon Sep 17 00:00:00 2001
 From: mtk20656 <chank.chen@mediatek.com>
 Date: Thu, 2 Mar 2023 10:51:43 +0800
-Subject: [PATCH 21/24] hostapd: mtk: add 11v_mbss and ema support for hostapd
+Subject: [PATCH 21/25] hostapd: mtk: add 11v_mbss and ema support for hostapd
 
 Signed-off-by: mtk20656 <chank.chen@mediatek.com>
 ---
@@ -179,7 +179,7 @@ index 7aeb176..51476b8 100644
  
  enum three_wire_mode {
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index f3ea5c2..51db23a 100644
+index f3ea5c2..ad56046 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
 @@ -462,15 +462,77 @@ static u8 * hostapd_eid_supported_op_classes(struct hostapd_data *hapd, u8 *eid)
@@ -411,7 +411,7 @@ index f3ea5c2..51db23a 100644
  	os_free(params->fd_frame_tmpl);
  	params->fd_frame_tmpl = NULL;
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 42e8ed7..82cc155 100644
+index 42e8ed7..ef0d6db 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -91,6 +91,29 @@ int hostapd_for_each_interface(struct hapd_interfaces *interfaces,

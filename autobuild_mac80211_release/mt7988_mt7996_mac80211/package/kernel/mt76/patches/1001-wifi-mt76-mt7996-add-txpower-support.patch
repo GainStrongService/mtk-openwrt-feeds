@@ -1,7 +1,7 @@
-From d7cae77110e06d64cf5046278e905aeb676ef594 Mon Sep 17 00:00:00 2001
+From 9443665b4459780c945eff91ac20812a5336dc18 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 24 Mar 2023 23:35:30 +0800
-Subject: [PATCH 1001/1001] mt76: mt7996: add txpower support
+Subject: [PATCH 1001/1001] wifi: mt76: mt7996: add txpower support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Change-Id: Ic3e7b17f3664fa7f774137572f885359fa2ec93b
@@ -17,7 +17,7 @@ Change-Id: Ic3e7b17f3664fa7f774137572f885359fa2ec93b
  8 files changed, 423 insertions(+), 5 deletions(-)
 
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 7bff504a..670e0db3 100644
+index 7bff504..670e0db 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -284,3 +284,37 @@ s8 mt7996_eeprom_get_power_delta(struct mt7996_dev *dev, int band)
@@ -59,7 +59,7 @@ index 7bff504a..670e0db3 100644
 +	[SKU_EHT3x996_484] = 16,
 +};
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index f7497c9b..b5852da5 100644
+index f7497c9..b5852da 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -73,4 +73,46 @@ mt7996_get_channel_group_6g(int channel)
@@ -110,7 +110,7 @@ index f7497c9b..b5852da5 100644
 +
  #endif
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index ebc62713..476e007b 100644
+index ebc6271..476e007 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -698,6 +698,7 @@ struct tx_power_ctrl {
@@ -130,7 +130,7 @@ index ebc62713..476e007b 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 8b76d69a..d5be582d 100644
+index 8b76d69..d5be582 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -53,6 +53,8 @@
@@ -151,7 +151,7 @@ index 8b76d69a..d5be582d 100644
  static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
  {
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 080f756e..c05f8465 100644
+index 080f756..c05f846 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2296,6 +2296,232 @@ static int mt7996_sta_info(struct seq_file *s, void *data)
@@ -398,7 +398,7 @@ index 080f756e..c05f8465 100644
  	debugfs_create_devm_seqfile(dev->mt76.dev, "wtbl_info", dir,
  				    mt7996_wtbl_read);
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index e8870166..f772243b 100644
+index e887016..f772243 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -12,7 +12,30 @@
@@ -433,7 +433,7 @@ index e8870166..f772243b 100644
  
  #endif
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
-index e741aa27..1fa449ea 100644
+index e741aa2..1fa449e 100644
 --- a/mt7996/mtk_mcu.h
 +++ b/mt7996/mtk_mcu.h
 @@ -10,6 +10,84 @@
@@ -522,7 +522,7 @@ index e741aa27..1fa449ea 100644
  #endif
  
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index 0775ca58..03e8329e 100644
+index 0775ca5..03e8329 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -543,15 +543,22 @@ enum base_rev {
@@ -562,5 +562,5 @@ index 0775ca58..03e8329e 100644
  #define MT_WF_PHYRX_CSD_BAND_RXTD12_IRPI_SW_CLR		BIT(29)
  
 -- 
-2.39.2
+2.18.0
 
