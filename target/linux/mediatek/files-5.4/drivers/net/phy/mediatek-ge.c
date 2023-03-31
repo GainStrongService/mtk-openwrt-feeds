@@ -837,11 +837,6 @@ static inline void mt798x_phy_common_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x12, 0x0);
 	__phy_write(phydev, 0x10, 0x83aa);
 
-	/* InhibitDisableDfeTail1000 = 1 */
-	__phy_write(phydev, 0x11, 0x2b);
-	__phy_write(phydev, 0x12, 0x0);
-	__phy_write(phydev, 0x10, 0x8f80);
-
 	/* SSTrKp1000Slv = 5 */
 	__phy_write(phydev, 0x11, 0xbaef);
 	__phy_write(phydev, 0x12, 0x2e);
@@ -859,6 +854,11 @@ static inline void mt798x_phy_common_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x12, 0x55);
 	__phy_write(phydev, 0x10, 0x8ec0);
 	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
+
+	/* TR_OPEN_LOOP_EN = 1, lpf_x_average = 9*/
+	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG234,
+		       MTK_PHY_TR_OPEN_LOOP_EN_MASK | MTK_PHY_LPF_X_AVERAGE_MASK,
+		       BIT(0) | FIELD_PREP(MTK_PHY_LPF_X_AVERAGE_MASK, 0x9));
 
 	/* rg_tr_lpf_cnt_val = 512 */
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_LPF_CNT_VAL, 0x200);
@@ -947,10 +947,6 @@ static inline void mt7981_phy_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x10, 0x9680);
 
 	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
-	/* TR_OPEN_LOOP_EN = 1, lpf_x_average = 9*/
-	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG234,
-		       MTK_PHY_TR_OPEN_LOOP_EN_MASK | MTK_PHY_LPF_X_AVERAGE_MASK,
-		       BIT(0) | FIELD_PREP(MTK_PHY_LPF_X_AVERAGE_MASK, 0x9));
 }
 
 static inline void mt7988_phy_finetune(struct phy_device *phydev)
@@ -981,6 +977,9 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x11, 0x500);
 	__phy_write(phydev, 0x12, 0x0);
 	__phy_write(phydev, 0x10, 0x8fc0);
+
+	/* VgaDecRate is 1 at default on mt7988 */
+
 	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
 
 	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_2A30);
@@ -988,11 +987,6 @@ static inline void mt7988_phy_finetune(struct phy_device *phydev)
 	__phy_modify(phydev, MTK_PHY_ANARG_RG, MTK_PHY_TCLKOFFSET_MASK,
 		     FIELD_PREP(MTK_PHY_TCLKOFFSET_MASK, 0x2));
 	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
-
-	/* TR_OPEN_LOOP_EN = 1, lpf_x_average = 9*/
-	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG234,
-		       MTK_PHY_TR_OPEN_LOOP_EN_MASK | MTK_PHY_LPF_X_AVERAGE_MASK,
-		       BIT(0) | FIELD_PREP(MTK_PHY_LPF_X_AVERAGE_MASK, 0x9));
 }
 
 static inline void mt798x_phy_eee(struct phy_device *phydev)
@@ -1094,7 +1088,8 @@ static inline void mt798x_phy_eee(struct phy_device *phydev)
 	__phy_write(phydev, 0x10, 0x96ca);
 
 	/* DfeTailEnableVgaThresh1000 = 27 */
-	__phy_write(phydev, 0x11, 0x36);
+	/* InhibitDisableDfeTail1000 = 1 */
+	__phy_write(phydev, 0x11, 0x37);
 	__phy_write(phydev, 0x12, 0x0);
 	__phy_write(phydev, 0x10, 0x8f80);
 	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
