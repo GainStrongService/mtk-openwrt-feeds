@@ -1387,17 +1387,21 @@ atenl_nl_precal_sync_partition(struct atenl_nl_priv *nl_priv, enum mt76_testmode
 
 int atenl_nl_precal_sync_from_driver(struct atenl *an, enum prek_ops ops)
 {
-#define GROUP_IND_MASK  	BIT(0)
-#define DPD_IND_MASK  		GENMASK(3, 1)
+#define GROUP_IND_MASK		BIT(0)
+#define GROUP_IND_MASK_7996	GENMASK(2, 0)
+#define DPD_IND_MASK		GENMASK(3, 1)
+#define DPD_IND_MASK_7996	GENMASK(5, 3)
 	int ret;
 	u32 i, times, group_size, dpd_size, total_size, transmit_size, offs;
-	u32 dpd_per_chan_size, dpd_chan_num[3], total_chan_num;
-	u32 size, base, base_idx, *size_ptr;
-	u8 cal_indicator, *precal_info;
+	u32 dpd_per_chan_size, dpd_chan_ratio[3], total_ratio;
+	u32 size, base, base_idx, dpd_base_map, *size_ptr;
+	u8 cal_indicator, group_ind_mask, dpd_ind_mask, *precal_info;
 	struct atenl_nl_priv nl_priv = { .an = an };
 
 	offs = an->eeprom_prek_offs;
 	cal_indicator = an->eeprom_data[offs];
+	group_ind_mask = is_mt7996(an) ? GROUP_IND_MASK_7996 : GROUP_IND_MASK;
+	dpd_ind_mask = is_mt7996(an) ? DPD_IND_MASK_7996 : DPD_IND_MASK;
 
 	if (cal_indicator) {
 		precal_info = an->eeprom_data + an->eeprom_size;
@@ -1405,33 +1409,43 @@ int atenl_nl_precal_sync_from_driver(struct atenl *an, enum prek_ops ops)
 		group_size = an->cal_info[0];
 		dpd_size = an->cal_info[1];
 		total_size = group_size + dpd_size;
-		dpd_chan_num[0] = (an->cal_info[2] >> DPD_INFO_6G_SHIFT) & DPD_INFO_MASK;
-		dpd_chan_num[1] = (an->cal_info[2] >> DPD_INFO_5G_SHIFT) & DPD_INFO_MASK;
-		dpd_chan_num[2] = (an->cal_info[2] >> DPD_INFO_2G_SHIFT) & DPD_INFO_MASK;
-		dpd_per_chan_size = (an->cal_info[2] >> DPD_INFO_CH_SHIFT) & DPD_INFO_MASK;
-		total_chan_num = dpd_chan_num[0] + dpd_chan_num[1] + dpd_chan_num[2];
+		dpd_chan_ratio[0] = (an->cal_info[2] >> DPD_INFO_6G_SHIFT) &
+				    DPD_INFO_MASK;
+		dpd_chan_ratio[1] = (an->cal_info[2] >> DPD_INFO_5G_SHIFT) &
+				    DPD_INFO_MASK;
+		dpd_chan_ratio[2] = (an->cal_info[2] >> DPD_INFO_2G_SHIFT) &
+				    DPD_INFO_MASK;
+		dpd_per_chan_size = (an->cal_info[2] >> DPD_INFO_CH_SHIFT) &
+				    DPD_INFO_MASK;
+		total_ratio = dpd_chan_ratio[0] + dpd_chan_ratio[1] +
+			      dpd_chan_ratio[2];
 	}
 
 	switch (ops){
 	case PREK_SYNC_ALL:
 		size_ptr = &total_size;
 		base_idx = 0;
+		dpd_base_map = 0;
 		goto start;
 	case PREK_SYNC_GROUP:
 		size_ptr = &group_size;
 		base_idx = 0;
+		dpd_base_map = 0;
 		goto start;
 	case PREK_SYNC_DPD_6G:
 		size_ptr = &dpd_size;
 		base_idx = 0;
+		dpd_base_map = is_mt7996(an) ? GENMASK(2, 1) : 0;
 		goto start;
 	case PREK_SYNC_DPD_5G:
 		size_ptr = &dpd_size;
 		base_idx = 1;
+		dpd_base_map = is_mt7996(an) ? BIT(2) : BIT(0);
 		goto start;
 	case PREK_SYNC_DPD_2G:
 		size_ptr = &dpd_size;
 		base_idx = 2;
+		dpd_base_map = is_mt7996(an) ? 0 : GENMASK(1, 0);
 
 start:
 		if (unl_genl_init(&nl_priv.unl, "nl80211") < 0) {
@@ -1446,19 +1460,27 @@ start:
 		group_size = an->cal_info[0];
 		dpd_size = an->cal_info[1];
 		total_size = group_size + dpd_size;
-		dpd_chan_num[0] = (an->cal_info[2] >> DPD_INFO_6G_SHIFT) & DPD_INFO_MASK;
-		dpd_chan_num[1] = (an->cal_info[2] >> DPD_INFO_5G_SHIFT) & DPD_INFO_MASK;
-		dpd_chan_num[2] = (an->cal_info[2] >> DPD_INFO_2G_SHIFT) & DPD_INFO_MASK;
-		dpd_per_chan_size = (an->cal_info[2] >> DPD_INFO_CH_SHIFT) & DPD_INFO_MASK;
-		total_chan_num = dpd_chan_num[0] + dpd_chan_num[1] + dpd_chan_num[2];
+		dpd_chan_ratio[0] = (an->cal_info[2] >> DPD_INFO_6G_SHIFT) &
+				    DPD_INFO_MASK;
+		dpd_chan_ratio[1] = (an->cal_info[2] >> DPD_INFO_5G_SHIFT) &
+				    DPD_INFO_MASK;
+		dpd_chan_ratio[2] = (an->cal_info[2] >> DPD_INFO_2G_SHIFT) &
+				    DPD_INFO_MASK;
+		dpd_per_chan_size = (an->cal_info[2] >> DPD_INFO_CH_SHIFT) &
+				    DPD_INFO_MASK;
+		total_ratio = dpd_chan_ratio[0] + dpd_chan_ratio[1] +
+			      dpd_chan_ratio[2];
 		transmit_size = an->cal_info[3];
 
 		size = *size_ptr;
-		size = (size_ptr == &dpd_size) ? (size / total_chan_num * dpd_chan_num[base_idx]) :
-						 size;
+		if (size_ptr == &dpd_size)
+			size = size / total_ratio * dpd_chan_ratio[base_idx];
+
 		base = 0;
-		for (i = 0; i < base_idx; i++) {
-			base += dpd_chan_num[i] * dpd_per_chan_size * MT_EE_CAL_UNIT;
+		for (i = 0; i < 3; i++) {
+			if (dpd_base_map & BIT(i))
+				base += dpd_chan_ratio[i] * dpd_per_chan_size *
+					MT_EE_CAL_UNIT;
 		}
 		base += (size_ptr == &dpd_size) ? group_size : 0;
 
@@ -1475,15 +1497,15 @@ start:
 		ret = atenl_eeprom_update_precal(an, base, size);
 		break;
 	case PREK_CLEAN_GROUP:
-		if (!(cal_indicator & GROUP_IND_MASK))
+		if (!(cal_indicator & group_ind_mask))
 			return 0;
-		an->cal_info[4] = cal_indicator & (u8) ~GROUP_IND_MASK;
+		an->cal_info[4] = cal_indicator & group_ind_mask;
 		ret = atenl_eeprom_update_precal(an, 0, group_size);
 		break;
 	case PREK_CLEAN_DPD:
-		if (!(cal_indicator & DPD_IND_MASK))
+		if (!(cal_indicator & dpd_ind_mask))
 			return 0;
-		an->cal_info[4] = cal_indicator & (u8) ~DPD_IND_MASK;
+		an->cal_info[4] = cal_indicator & dpd_ind_mask;
 		ret = atenl_eeprom_update_precal(an, group_size, dpd_size);
 		break;
 	default:

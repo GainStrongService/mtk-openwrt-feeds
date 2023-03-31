@@ -6,7 +6,7 @@
 
 #include "atenl.h"
 
-#define EEPROM_PART_SIZE 0x64000
+#define EEPROM_PART_SIZE 0xFF000
 char *eeprom_file;
 
 static int
