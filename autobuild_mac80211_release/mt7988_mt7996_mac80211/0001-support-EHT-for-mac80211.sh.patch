@@ -1,8 +1,8 @@
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index a055005..0c31ad4 100644
+index 5aaba9a..54a5d88 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-@@ -157,8 +157,8 @@ mac80211_hostapd_setup_base() {
+@@ -160,8 +160,8 @@ mac80211_hostapd_setup_base() {
  	ieee80211n=1
  	ht_capab=
  	case "$htmode" in
@@ -13,7 +13,7 @@ index a055005..0c31ad4 100644
  			case "$hwmode" in
  				a)
  					case "$(( (($channel / 4) + $chan_ofs) % 2 ))" in
-@@ -202,7 +202,7 @@ mac80211_hostapd_setup_base() {
+@@ -205,7 +205,7 @@ mac80211_hostapd_setup_base() {
  			dsss_cck_40:1
  
  		ht_cap_mask=0
@@ -22,7 +22,7 @@ index a055005..0c31ad4 100644
  			ht_cap_mask="$(($ht_cap_mask | $cap))"
  		done
  
-@@ -233,8 +233,8 @@ mac80211_hostapd_setup_base() {
+@@ -236,8 +236,8 @@ mac80211_hostapd_setup_base() {
  
  	idx="$channel"
  	case "$htmode" in
@@ -33,7 +33,7 @@ index a055005..0c31ad4 100644
  			case "$(( (($channel / 4) + $chan_ofs) % 2 ))" in
  				1) idx=$(($channel + 2));;
  				0) idx=$(($channel - 2));;
-@@ -242,7 +242,7 @@ mac80211_hostapd_setup_base() {
+@@ -245,7 +245,7 @@ mac80211_hostapd_setup_base() {
  			enable_ac=1
  			vht_center_seg0=$idx
  		;;
@@ -42,7 +42,7 @@ index a055005..0c31ad4 100644
  			case "$(( (($channel / 4) + $chan_ofs) % 4 ))" in
  				1) idx=$(($channel + 6));;
  				2) idx=$(($channel + 2));;
-@@ -253,7 +253,7 @@ mac80211_hostapd_setup_base() {
+@@ -256,7 +256,7 @@ mac80211_hostapd_setup_base() {
  			vht_oper_chwidth=1
  			vht_center_seg0=$idx
  		;;
@@ -51,7 +51,7 @@ index a055005..0c31ad4 100644
  			if [ "$band" = "6g" ]; then
  				case "$channel" in
  					1|5|9|13|17|21|25|29) idx=15;;
-@@ -274,6 +274,36 @@ mac80211_hostapd_setup_base() {
+@@ -277,6 +277,36 @@ mac80211_hostapd_setup_base() {
  			vht_oper_chwidth=2
  			vht_center_seg0=$idx
  		;;
@@ -88,7 +88,7 @@ index a055005..0c31ad4 100644
  	esac
  	[ "$band" = "5g" ] && {
  		json_get_vars background_radar:0
-@@ -283,8 +313,9 @@ mac80211_hostapd_setup_base() {
+@@ -286,8 +316,9 @@ mac80211_hostapd_setup_base() {
  	[ "$band" = "6g" ] && {
  		op_class=
  		case "$htmode" in
@@ -100,7 +100,7 @@ index a055005..0c31ad4 100644
  		esac
  		[ -n "$op_class" ] && append base_cfg "op_class=$op_class" "$N"
  	}
-@@ -407,7 +438,7 @@ mac80211_hostapd_setup_base() {
+@@ -410,7 +441,7 @@ mac80211_hostapd_setup_base() {
  	# 802.11ax
  	enable_ax=0
  	case "$htmode" in
@@ -109,7 +109,7 @@ index a055005..0c31ad4 100644
  	esac
  
  	if [ "$enable_ax" != "0" ]; then
-@@ -481,6 +512,28 @@ mac80211_hostapd_setup_base() {
+@@ -484,6 +515,31 @@ mac80211_hostapd_setup_base() {
  		append base_cfg "he_mu_edca_ac_vo_timer=255" "$N"
  	fi
  
@@ -121,6 +121,9 @@ index a055005..0c31ad4 100644
 +
 +	if [ "$enable_be" != "0" ]; then
 +		append base_cfg "ieee80211be=1" "$N"
++		append base_cfg "eht_su_beamformer=1" "$N"
++		append base_cfg "eht_su_beamformee=1" "$N"
++		append base_cfg "eht_mu_beamformer=1" "$N"
 +		[ "$hwmode" = "a" ] && {
 +			case $htmode in
 +				EHT320*)
@@ -139,7 +142,7 @@ index a055005..0c31ad4 100644
  	cat >> "$hostapd_conf_file" <<EOF
  ${channel:+channel=$channel}
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index 438bf92..cb85bac 100644
+index 10a3f8b..80cd298 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,8 @@ BEGIN {
@@ -181,7 +184,7 @@ index 438bf92..cb85bac 100644
  	for _dev in /sys/class/ieee80211/*; do
  		[ -e "$_dev" ] || continue
  
-@@ -201,6 +212,11 @@ detect_mac80211() {
+@@ -205,6 +216,11 @@ detect_mac80211() {
  				;;
  		esac
  
@@ -193,7 +196,7 @@ index 438bf92..cb85bac 100644
  		uci -q batch <<-EOF
  			set wireless.${name}=wifi-device
  			set wireless.${name}.type=mac80211
-@@ -217,6 +233,8 @@ detect_mac80211() {
+@@ -221,6 +237,8 @@ detect_mac80211() {
  			set wireless.default_${name}.ssid=OpenWrt
  			set wireless.default_${name}.encryption=${encryption}
  
@@ -202,6 +205,3 @@ index 438bf92..cb85bac 100644
  EOF
  		[ -n "$key" ] && {
  			uci -q set wireless.default_${name}.key=${key}
--- 
-2.25.1
-
