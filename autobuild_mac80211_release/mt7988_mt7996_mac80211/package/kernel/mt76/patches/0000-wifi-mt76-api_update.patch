@@ -1,0 +1,25 @@
+From 44d055ff8225e0d6110048d8c02de526bf5152b2 Mon Sep 17 00:00:00 2001
+From: Evelyn Tsai <evelyn.tsai@mediatek.com>
+Date: Fri, 31 Mar 2023 14:38:44 +0800
+Subject: [PATCH] wifi: mt76: api_update
+
+---
+ tx.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tx.c b/tx.c
+index 1f309d0..3ad9742 100644
+--- a/tx.c
++++ b/tx.c
+@@ -330,7 +330,7 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
+ 	if ((dev->drv->drv_flags & MT_DRV_HW_MGMT_TXQ) &&
+ 	    !(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) &&
+ 	    !ieee80211_is_data(hdr->frame_control) &&
+-	    !ieee80211_is_bufferable_mmpdu(hdr->frame_control)) {
++	    !ieee80211_is_bufferable_mmpdu(skb)) {
+ 		qid = MT_TXQ_PSD;
+ 	}
+ 
+-- 
+2.39.0
+
