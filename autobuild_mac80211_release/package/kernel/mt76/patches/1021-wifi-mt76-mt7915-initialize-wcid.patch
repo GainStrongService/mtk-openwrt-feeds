@@ -1,0 +1,26 @@
+From c107e821383469a19794b6fd42df69e543af41bc Mon Sep 17 00:00:00 2001
+From: Sujuan Chen <sujuan.chen@mediatek.com>
+Date: Tue, 12 Jul 2022 13:56:07 +0800
+Subject: [PATCH 1021/1031] wifi: mt76: mt7915: initialize wcid
+
+Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
+---
+ mt7915/mac.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mt7915/mac.c b/mt7915/mac.c
+index 5fc7141f..8ee963a2 100644
+--- a/mt7915/mac.c
++++ b/mt7915/mac.c
+@@ -1031,7 +1031,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+ 		info = le32_to_cpu(*cur_info);
+ 		if (info & MT_TX_FREE_PAIR) {
+ 			struct mt7915_sta *msta;
+-			struct mt76_wcid *wcid;
++			struct mt76_wcid *wcid = NULL;
+ 			u16 idx;
+ 
+ 			idx = FIELD_GET(MT_TX_FREE_WLAN_ID, info);
+-- 
+2.39.0
+
