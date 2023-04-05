@@ -1,4 +1,4 @@
-From c10fda3cdad3cac6455f28a25a67c1c12c2ec2ee Mon Sep 17 00:00:00 2001
+From dc39156305177d08dc19deecf98155262fe82059 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 17 Aug 2022 13:40:24 +0800
 Subject: [PATCH 1008/1031] wifi: mt76: mt7915: add fw_version dump
@@ -25,10 +25,10 @@ index 856dacbc..bc96f4e7 100644
  
  struct mt76_power_limits {
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index fd14221a..7d4765dd 100644
+index b0dcc5a6..856b2897 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -2965,6 +2965,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -2969,6 +2969,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
  
@@ -38,7 +38,7 @@ index fd14221a..7d4765dd 100644
  	release_firmware(fw);
  
  	if (!fw_wa)
-@@ -2990,6 +2993,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -2994,6 +2997,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		goto out;
  	}
  
@@ -48,7 +48,7 @@ index fd14221a..7d4765dd 100644
  	snprintf(dev->hw->wiphy->fw_version,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
-@@ -3060,6 +3066,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
+@@ -3064,6 +3070,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
  	dev_info(dev->dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
  		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
  

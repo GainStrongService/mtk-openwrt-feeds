@@ -1,4 +1,4 @@
-From ce034bf305908b8467b9e1031ef36cd7974fcb89 Mon Sep 17 00:00:00 2001
+From e43e191c57cf50239170bf766315b75c8a6b0e6f Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 18 Jan 2023 16:37:22 +0800
 Subject: [PATCH 3007/3012] wifi: mt76: mt7915: add wa command to get tx msdu
@@ -80,7 +80,7 @@ index 8e559efb..dd7ee32f 100644
  	MCU_EXT_EVENT_MURU_CTRL = 0x9f,
  	MCU_EXT_EVENT_CSI_REPORT = 0xc2,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 9173734a..f39e1e4c 100644
+index 6aecf2c8..4c9090a4 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -1103,9 +1103,6 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
@@ -106,7 +106,7 @@ index 9173734a..f39e1e4c 100644
  	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL);
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 1530a14c..99d52ea1 100644
+index 6ac24cfc..8e340f5b 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -169,7 +169,9 @@ mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,

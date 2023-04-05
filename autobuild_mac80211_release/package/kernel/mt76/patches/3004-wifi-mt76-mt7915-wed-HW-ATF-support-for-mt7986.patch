@@ -1,4 +1,4 @@
-From 2c6f1b27e23009602228e158865e17256dae9ce8 Mon Sep 17 00:00:00 2001
+From 3ad394a6fd091a21355a5d629ec4c99df49d5742 Mon Sep 17 00:00:00 2001
 From: Lian Chen <lian.chen@mediatek.com>
 Date: Mon, 7 Nov 2022 14:47:44 +0800
 Subject: [PATCH 3004/3012] wifi: mt76: mt7915: wed: HW ATF support for mt7986
@@ -35,7 +35,7 @@ index b3ac14d1..8e559efb 100644
  	MCU_EXT_CMD_EFUSE_FREE_BLOCK = 0x4f,
  	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 8228e8da..dcd773c7 100644
+index 129a15c0..079629a3 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -12,6 +12,10 @@
@@ -465,7 +465,7 @@ index 8228e8da..dcd773c7 100644
  	if (!dev->dbdc_support || phy->mt76->band_idx) {
  		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 6a864a55..3f07aa11 100644
+index f40d09c3..27395316 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -571,10 +571,46 @@ mt7915_init_led_mux(struct mt7915_dev *dev)
@@ -526,7 +526,7 @@ index 6a864a55..3f07aa11 100644
  
  int mt7915_txbf_init(struct mt7915_dev *dev)
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 16a038f3..675510cc 100644
+index b68992de..8428087e 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -209,6 +209,7 @@ int mt7915_init_vif(struct mt7915_phy *phy, struct ieee80211_vif *vif, bool bf_e
@@ -573,7 +573,7 @@ index 16a038f3..675510cc 100644
  }
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 75532899..1530a14c 100644
+index 0340c3ff..6ac24cfc 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -3592,6 +3592,171 @@ int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)

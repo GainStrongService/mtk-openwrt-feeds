@@ -1,4 +1,4 @@
-From c6794ba93f7c6304e3bdd4eb8d40b0fb53d948f9 Mon Sep 17 00:00:00 2001
+From 54ecb0535d80feaa70a57bf3fd46e65deb2b4042 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Jun 2022 19:46:26 +0800
 Subject: [PATCH 1009/1031] wifi: mt76: testmode: rework testmode init
@@ -18,7 +18,7 @@ Subject: [PATCH 1009/1031] wifi: mt76: testmode: rework testmode init
  10 files changed, 164 insertions(+), 35 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 46e35668..968f5d87 100644
+index 577d81a4..c3fa85d9 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -784,7 +784,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)

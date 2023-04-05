@@ -1,4 +1,4 @@
-From ad133784fd5f1e7380f8a34960068f9f4a7d26e5 Mon Sep 17 00:00:00 2001
+From 3281e4d7beb86f30a350c2aceacd5d4d4b0021e1 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 15 Dec 2022 19:45:18 +0800
 Subject: [PATCH 1014/1031] wifi: mt76: testmode: add iBF/eBF cal and cert
@@ -47,10 +47,10 @@ index 882388e6..d7ffe29d 100644
  	u32 tx_pending;
  	u32 tx_queued;
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 99851dc0..703ca736 100644
+index 56493774..d4060136 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -2753,6 +2753,7 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
+@@ -2757,6 +2757,7 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
  	u32 type = vif->p2p ? NETWORK_P2P : NETWORK_INFRA;
  	struct bss_info_basic *bss;
  	struct tlv *tlv;
@@ -58,7 +58,7 @@ index 99851dc0..703ca736 100644
  
  	tlv = mt76_connac_mcu_add_tlv(skb, BSS_INFO_BASIC, sizeof(*bss));
  	bss = (struct bss_info_basic *)tlv;
-@@ -2812,6 +2813,8 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
+@@ -2816,6 +2817,8 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
  		bss->dtim_period = vif->bss_conf.dtim_period;
  		bss->phy_mode = mt76_connac_get_phy_mode(phy, vif,
  							 chandef->chan->band, NULL);
@@ -68,7 +68,7 @@ index 99851dc0..703ca736 100644
  		memcpy(bss->bssid, phy->macaddr, ETH_ALEN);
  	}
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 0830b2f4..5fc7141f 100644
+index 1460a32b..35b85843 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -752,8 +752,10 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
@@ -84,7 +84,7 @@ index 0830b2f4..5fc7141f 100644
  	txwi[6] |= cpu_to_le32(val);
  #endif
 diff --git a/mt7915/main.c b/mt7915/main.c
-index a27dbc47..6d9b47d9 100644
+index 05e7d51f..1a2b2171 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -205,46 +205,37 @@ static void mt7915_init_bitrate_mask(struct ieee80211_vif *vif)
@@ -175,7 +175,7 @@ index a27dbc47..6d9b47d9 100644
  
  	return ret;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index c8ce849c..dd296dbf 100644
+index 9314c409..69d3fe4f 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -194,6 +194,7 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -858,7 +858,7 @@ index f4b57099..007fd4d2 100644
  #define MT_WF_RMAC_BASE(_band)		((_band) ? 0x820f5000 : 0x820e5000)
  #define MT_WF_RMAC(_band, ofs)		(MT_WF_RMAC_BASE(_band) + (ofs))
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 7f648174..393bc186 100644
+index 23dcabd1..ad1865e3 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -53,6 +53,8 @@ struct reg_band {
@@ -963,7 +963,7 @@ index 7f648174..393bc186 100644
 +		memcpy(sta->addr, td->addr[0], ETH_ALEN);
  
  	if (td->tx_rate_mode >= MT76_TM_TX_MODE_HT)
- 		memcpy(&sta->ht_cap, &sband->ht_cap, sizeof(sta->ht_cap));
+ 		memcpy(&sta->deflink.ht_cap, &sband->ht_cap, sizeof(sta->deflink.ht_cap));
 @@ -382,6 +419,14 @@ mt7915_tm_entry_add(struct mt7915_phy *phy, u8 aid)
  	list_add_tail(&msta->wcid.list, &td->tm_entry_list);
  	td->entry_num++;

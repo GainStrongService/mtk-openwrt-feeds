@@ -1,4 +1,4 @@
-From a3b35051c293bf0f138ec4d10098da5a71f69fc5 Mon Sep 17 00:00:00 2001
+From d56efe65c502267ef5b1a79ded88f872c71e6968 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 18 Jan 2023 11:50:38 +0800
 Subject: [PATCH 3009/3012] wifi: mt76: mt7915: enable PPDU-TxS to host when
@@ -26,7 +26,7 @@ index abcb9a27..5a5861a8 100644
  			wcid->stats.tx_packets++;
  	}
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 3f07aa11..0b852286 100644
+index 27395316..70563c9d 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -503,6 +503,12 @@ mt7915_mac_init_band(struct mt7915_dev *dev, u8 band)
@@ -94,10 +94,10 @@ index fc9aadb1..65ee2afa 100644
  
  static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
 diff --git a/tx.c b/tx.c
-index 04b6f2e7..6b590b27 100644
+index a72b7779..36b0f486 100644
 --- a/tx.c
 +++ b/tx.c
-@@ -115,6 +115,7 @@ mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
+@@ -120,6 +120,7 @@ mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
  		       struct sk_buff *skb)
  {
  	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -105,7 +105,7 @@ index 04b6f2e7..6b590b27 100644
  	struct mt76_tx_cb *cb = mt76_tx_skb_cb(skb);
  	int pid;
  
-@@ -126,6 +127,11 @@ mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
+@@ -131,6 +132,11 @@ mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
  	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
  		return MT_PACKET_ID_NO_ACK;
  
