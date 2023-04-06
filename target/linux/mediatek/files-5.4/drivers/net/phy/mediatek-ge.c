@@ -837,6 +837,11 @@ static inline void mt798x_phy_common_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x12, 0x0);
 	__phy_write(phydev, 0x10, 0x83aa);
 
+	/* TrFreeze = 0 */
+	__phy_write(phydev, 0x11, 0x0);
+	__phy_write(phydev, 0x12, 0x0);
+	__phy_write(phydev, 0x10, 0x9686);
+
 	/* SSTrKp1000Slv = 5 */
 	__phy_write(phydev, 0x11, 0xbaef);
 	__phy_write(phydev, 0x12, 0x2e);
@@ -881,15 +886,6 @@ static inline void mt798x_phy_common_finetune(struct phy_device *phydev)
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_DEV1E_REG27D,
 		       MTK_PHY_VGASTATE_FFE_THR_ST2_MASK, 0x1e);
 
-	/* TX shape */
-	/* 10/100/1000 TX shaper is enabled by default */
-	for (i = 0x202; i < 0x230; i += 2) {
-		if (i == 0x20c || i == 0x218 || i == 0x224)
-			continue;
-		phy_write_mmd(phydev, MDIO_MMD_VEND2, i, 0x2219);
-		phy_write_mmd(phydev, MDIO_MMD_VEND2, i + 1, 0x23);
-	}
-
 	/* Disable LDO pump */
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LDO_PUMP_EN_PAIRAB, 0x0);
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LDO_PUMP_EN_PAIRCD, 0x0);
@@ -925,11 +921,6 @@ static inline void mt7981_phy_finetune(struct phy_device *phydev)
 	__phy_write(phydev, 0x11, 0xc71);
 	__phy_write(phydev, 0x12, 0xc);
 	__phy_write(phydev, 0x10, 0x8fae);
-
-	/* TrFreeze = 0 */
-	__phy_write(phydev, 0x11, 0x0);
-	__phy_write(phydev, 0x12, 0x0);
-	__phy_write(phydev, 0x10, 0x9686);
 
 	/* ResetSyncOffset = 6 */
 	__phy_write(phydev, 0x11, 0x600);
@@ -1088,8 +1079,7 @@ static inline void mt798x_phy_eee(struct phy_device *phydev)
 	__phy_write(phydev, 0x10, 0x96ca);
 
 	/* DfeTailEnableVgaThresh1000 = 27 */
-	/* InhibitDisableDfeTail1000 = 1 */
-	__phy_write(phydev, 0x11, 0x37);
+	__phy_write(phydev, 0x11, 0x36);
 	__phy_write(phydev, 0x12, 0x0);
 	__phy_write(phydev, 0x10, 0x8f80);
 	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
