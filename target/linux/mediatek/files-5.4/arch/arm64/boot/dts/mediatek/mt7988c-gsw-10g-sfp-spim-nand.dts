@@ -212,6 +212,13 @@
 };
 
 &pio {
+	gbe_led0_pins: gbe-pins {
+		mux {
+			function = "led";
+			groups = "gbe_led0";
+		};
+	};
+
 	i2c0_pins: i2c0-pins-g0 {
 		mux {
 			function = "i2c";
@@ -278,6 +285,8 @@
 };
 
 &eth {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gbe_led0_pins>;
 	status = "okay";
 
 	gmac0: mac@0 {
