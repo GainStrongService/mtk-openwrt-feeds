@@ -1,19 +1,18 @@
-From d56efe65c502267ef5b1a79ded88f872c71e6968 Mon Sep 17 00:00:00 2001
+From 57fb08e025a96399983e56ce31a3b10d47029e0f Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 18 Jan 2023 11:50:38 +0800
-Subject: [PATCH 3009/3012] wifi: mt76: mt7915: enable PPDU-TxS to host when
- wed enable
+Subject: [PATCH] wifi: mt76: mt7915: enable PPDU-TxS to host when wed enable
 
 Calculate tx bytes and tx retries from PPDU-TxS
 ---
  mt76_connac_mac.c |  2 --
  mt7915/init.c     |  6 ++++++
  mt7915/mmio.c     | 21 ---------------------
- tx.c              |  6 ++++++
- 4 files changed, 12 insertions(+), 23 deletions(-)
+ tx.c              | 14 ++++++++++++++
+ 4 files changed, 20 insertions(+), 23 deletions(-)
 
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index abcb9a27..5a5861a8 100644
+index abcb9a2..5a5861a 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -490,8 +490,6 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
@@ -26,7 +25,7 @@ index abcb9a27..5a5861a8 100644
  			wcid->stats.tx_packets++;
  	}
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 27395316..70563c9d 100644
+index 2739531..70563c9 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -503,6 +503,12 @@ mt7915_mac_init_band(struct mt7915_dev *dev, u8 band)
@@ -43,7 +42,7 @@ index 27395316..70563c9d 100644
  
  static void
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index fc9aadb1..65ee2afa 100644
+index fc9aadb..65ee2af 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -551,7 +551,6 @@ static u32 mt7915_rmw(struct mt76_dev *mdev, u32 offset, u32 mask, u32 val)
@@ -94,7 +93,7 @@ index fc9aadb1..65ee2afa 100644
  
  static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
 diff --git a/tx.c b/tx.c
-index a72b7779..36b0f486 100644
+index a72b777..c3c7eb5 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -120,6 +120,7 @@ mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
@@ -117,6 +116,28 @@ index a72b7779..36b0f486 100644
  	if (!(info->flags & (IEEE80211_TX_CTL_REQ_TX_STATUS |
  			     IEEE80211_TX_CTL_RATE_CTRL_PROBE)))
  		return MT_PACKET_ID_NO_SKB;
+@@ -230,6 +236,7 @@ mt76_tx_check_non_aql(struct mt76_dev *dev, struct mt76_wcid *wcid,
+ void __mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *skb,
+ 			    struct list_head *free_list)
+ {
++	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+ 	struct mt76_tx_cb *cb = mt76_tx_skb_cb(skb);
+ 	struct ieee80211_tx_status status = {
+ 		.skb = skb,
+@@ -262,6 +269,13 @@ void __mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *
+ 	if (cb->pktid < MT_PACKET_ID_FIRST) {
+ 		hw = mt76_tx_status_get_hw(dev, skb);
+ 		status.sta = wcid_to_sta(wcid);
++		if (mtk_wed_device_active(&dev->mmio.wed) &&
++		    (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS)) {
++			if (status.sta) {
++				info->status.rates[0].idx = -1;
++				status.rate = &wcid->rate;
++			}
++		}
+ 		ieee80211_tx_status_ext(hw, &status);
+ 		goto out;
+ 	}
 -- 
-2.39.0
+2.18.0
 
