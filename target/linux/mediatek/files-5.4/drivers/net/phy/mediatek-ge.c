@@ -153,28 +153,28 @@ enum {
 #define   MTK_PHY_DA_CALIN_FLAG			BIT(0)
 
 #define MTK_PHY_RG_DASN_DAC_IN0_A		(0x17d)
-#define   MTK_PHY_FORCE_DASN_DAC_IN0_A		BIT(15)
+#define   MTK_PHY_DASN_DAC_IN0_A_MASK		GENMASK(9, 0)
 
 #define MTK_PHY_RG_DASN_DAC_IN0_B		(0x17e)
-#define   MTK_PHY_FORCE_DASN_DAC_IN0_B		BIT(15)
+#define   MTK_PHY_DASN_DAC_IN0_B_MASK		GENMASK(9, 0)
 
 #define MTK_PHY_RG_DASN_DAC_IN0_C		(0x17f)
-#define   MTK_PHY_FORCE_DASN_DAC_IN0_C		BIT(15)
+#define   MTK_PHY_DASN_DAC_IN0_C_MASK		GENMASK(9, 0)
 
 #define MTK_PHY_RG_DASN_DAC_IN0_D			(0x180)
-#define   MTK_PHY_FORCE_DASN_DAC_IN0_D		BIT(15)
+#define   MTK_PHY_DASN_DAC_IN0_D_MASK		GENMASK(9, 0)
 
 #define MTK_PHY_RG_DASN_DAC_IN1_A			(0x181)
-#define   MTK_PHY_FORCE_DASN_DAC_IN1_A		BIT(15)
+#define   MTK_PHY_DASN_DAC_IN1_A_MASK		GENMASK(9, 0)
 
 #define MTK_PHY_RG_DASN_DAC_IN1_B			(0x182)
-#define   MTK_PHY_FORCE_DASN_DAC_IN1_B		BIT(15)
+#define   MTK_PHY_DASN_DAC_IN1_B_MASK		GENMASK(9, 0)
 
 #define MTK_PHY_RG_DASN_DAC_IN1_C			(0x183)
-#define   MTK_PHY_FORCE_DASN_DAC_IN1_C		BIT(15)
+#define   MTK_PHY_DASN_DAC_IN1_C_MASK		GENMASK(9, 0)
 
 #define MTK_PHY_RG_DASN_DAC_IN1_D			(0x184)
-#define   MTK_PHY_FORCE_DASN_DAC_IN1_D		BIT(15)
+#define   MTK_PHY_DASN_DAC_IN1_D_MASK		GENMASK(9, 0)
 
 #define MTK_PHY_RG_DEV1E_REG19b		(0x19b)
 #define   MTK_PHY_BYPASS_DSP_LPI_READY	BIT(8)
@@ -670,48 +670,47 @@ static int tx_vcm_cal_sw(struct phy_device *phydev, u8 rg_txreserve_x)
 	phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_ANA_CAL_RG1,
 			 MTK_PHY_RG_TXVOS_CALEN);
 
-	/* Also clear bit[9:0] for MTK_PHY_RG_DASN_DAC_IN0/1_A/B/C/D */
 	switch (rg_txreserve_x) {
 	case PAIR_A:
-		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-			      MTK_PHY_RG_DASN_DAC_IN0_A,
-			      MTK_PHY_FORCE_DASN_DAC_IN0_A);
-		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-			      MTK_PHY_RG_DASN_DAC_IN1_A,
-			      MTK_PHY_FORCE_DASN_DAC_IN1_A);
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   MTK_PHY_RG_DASN_DAC_IN0_A,
+				   MTK_PHY_DASN_DAC_IN0_A_MASK);
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   MTK_PHY_RG_DASN_DAC_IN1_A,
+				   MTK_PHY_DASN_DAC_IN1_A_MASK);
 		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
 				 MTK_PHY_RG_ANA_CAL_RG0,
 				 MTK_PHY_RG_ZCALEN_A);
 		break;
 	case PAIR_B:
-		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-			      MTK_PHY_RG_DASN_DAC_IN0_B,
-			      MTK_PHY_FORCE_DASN_DAC_IN0_B);
-		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-			      MTK_PHY_RG_DASN_DAC_IN1_B,
-			      MTK_PHY_FORCE_DASN_DAC_IN1_B);
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   MTK_PHY_RG_DASN_DAC_IN0_B,
+				   MTK_PHY_DASN_DAC_IN0_B_MASK);
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   MTK_PHY_RG_DASN_DAC_IN1_B,
+				   MTK_PHY_DASN_DAC_IN1_B_MASK);
 		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
 				 MTK_PHY_RG_ANA_CAL_RG1,
 				 MTK_PHY_RG_ZCALEN_B);
 		break;
 	case PAIR_C:
-		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-			      MTK_PHY_RG_DASN_DAC_IN0_C,
-			      MTK_PHY_FORCE_DASN_DAC_IN0_C);
-		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-			      MTK_PHY_RG_DASN_DAC_IN1_C,
-			      MTK_PHY_FORCE_DASN_DAC_IN1_C);
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   MTK_PHY_RG_DASN_DAC_IN0_C,
+				   MTK_PHY_DASN_DAC_IN0_C_MASK);
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   MTK_PHY_RG_DASN_DAC_IN1_C,
+				   MTK_PHY_DASN_DAC_IN1_C_MASK);
 		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
 				 MTK_PHY_RG_ANA_CAL_RG1,
 				 MTK_PHY_RG_ZCALEN_C);
 		break;
 	case PAIR_D:
-		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-			      MTK_PHY_RG_DASN_DAC_IN0_D,
-			      MTK_PHY_FORCE_DASN_DAC_IN0_D);
-		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-			      MTK_PHY_RG_DASN_DAC_IN1_D,
-			      MTK_PHY_FORCE_DASN_DAC_IN1_D);
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   MTK_PHY_RG_DASN_DAC_IN0_D,
+				   MTK_PHY_DASN_DAC_IN0_D_MASK);
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   MTK_PHY_RG_DASN_DAC_IN1_D,
+				   MTK_PHY_DASN_DAC_IN1_D_MASK);
 		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
 				 MTK_PHY_RG_ANA_CAL_RG1,
 				 MTK_PHY_RG_ZCALEN_D);
