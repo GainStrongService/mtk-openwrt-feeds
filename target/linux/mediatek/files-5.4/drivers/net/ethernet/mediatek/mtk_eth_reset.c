@@ -209,9 +209,9 @@ void mtk_dump_netsys_info(void *_eth)
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
 		mtk_dump_reg(eth, "XGMAC0", 0x12000, 0x300);
 		mtk_dump_reg(eth, "XGMAC1", 0x13000, 0x300);
-		mtk_dump_usxgmii(eth->xgmii->regmap_usxgmii[0],
+		mtk_dump_usxgmii(eth->usxgmii->pcs[0].regmap,
 			"USXGMII0", 0, 0x1000);
-		mtk_dump_usxgmii(eth->xgmii->regmap_usxgmii[1],
+		mtk_dump_usxgmii(eth->usxgmii->pcs[1].regmap,
 			"USXGMII1", 0, 0x1000);
 	}
 }

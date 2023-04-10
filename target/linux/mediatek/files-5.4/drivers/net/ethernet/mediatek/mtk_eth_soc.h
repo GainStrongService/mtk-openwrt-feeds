@@ -852,7 +852,7 @@
 #define SGMII_SPEED_10			0x0
 #define SGMII_SPEED_100			BIT(2)
 #define SGMII_SPEED_1000		BIT(3)
-#define SGMII_DUPLEX_FULL		BIT(4)
+#define SGMII_DUPLEX_HALF		BIT(4)
 #define SGMII_IF_MODE_BIT5		BIT(5)
 #define SGMII_REMOTE_FAULT_DIS		BIT(8)
 #define SGMII_CODE_SYNC_SET_VAL		BIT(9)
@@ -902,7 +902,21 @@
 
 /* Register to control PCS AN */
 #define RG_PCS_AN_CTRL0		0x810
-#define RG_AN_ENABLE		BIT(0)
+#define USXGMII_AN_RESTART	BIT(31)
+#define USXGMII_AN_ENABLE	BIT(0)
+
+/* Register to control PCS AN */
+#define RG_PCS_AN_STS0		0x81C
+#define USXGMII_LPA_SPEED_MASK	GENMASK(11, 9)
+#define USXGMII_LPA_SPEED_10	0
+#define USXGMII_LPA_SPEED_100	1
+#define USXGMII_LPA_SPEED_1000	2
+#define USXGMII_LPA_SPEED_10000	3
+#define USXGMII_LPA_SPEED_2500	4
+#define USXGMII_LPA_SPEED_5000	5
+#define USXGMII_LPA_DUPLEX	BIT(12)
+#define USXGMII_LPA_LINK	BIT(15)
+#define USXGMII_LPA_LATCH	BIT(31)
 
 /* Register to control USXGMII XFI PLL digital */
 #define XFI_PLL_DIG_GLB8	0x08
@@ -1610,24 +1624,66 @@ struct mtk_soc_data {
 #define MTK_SGMII_PN_SWAP	       BIT(16)
 #define MTK_HAS_FLAGS(flags, _x)       (((flags) & (_x)) == (_x))
 
-/* struct mtk_xgmii -  This is the structure holding sgmii/usxgmii regmap and
- *		       its characteristics
- * @regmap:            The register map pointing at the range used to setup
- *                     SGMII/USXGMII modes
- * @flags:             The enum refers to which mode the sgmii wants to run on
- * @ana_rgc3:          The offset refers to register ANA_RGC3 related to regmap
+/* struct mtk_sgmii_pcs - This structure holds each sgmii regmap and associated
+ *			data
+ * @regmap:		The register map pointing at the range used to setup
+ *			SGMII modes
+ * @regmap_pextp:	The register map pointing at the range used to setup
+ *			PHYA
+ * @ana_rgc3:		The offset refers to register ANA_RGC3 related to regmap
+ * @id:			The element is used to record the index of PCS
+ * @pcs:		Phylink PCS structure
  */
-
-struct mtk_xgmii {
-	struct mtk_eth	*eth;
-	struct regmap   *regmap_sgmii[MTK_MAX_DEVS];
-	struct regmap   *regmap_usxgmii[MTK_MAX_DEVS];
-	struct regmap   *regmap_pextp[MTK_MAX_DEVS];
-	struct regmap	*regmap_pll;
-	u32             flags[MTK_MAX_DEVS];
-	u32             ana_rgc3;
+struct mtk_sgmii_pcs {
+	struct mtk_eth		*eth;
+	struct regmap		*regmap;
+	struct regmap		*regmap_pextp;
+	phy_interface_t		interface;
+	u32			flags;
+	u32			ana_rgc3;
+	u8			id;
+	struct phylink_pcs	pcs;
 };
 
+/* struct mtk_sgmii -	This is the structure holding sgmii regmap and its
+ *			characteristics
+ * @pll:		The register map pointing at the range used to setup
+ *			PLL
+ * @pcs			Array of individual PCS structures
+ */
+struct mtk_sgmii {
+	struct mtk_sgmii_pcs	pcs[MTK_MAX_DEVS];
+	struct regmap		*pll;
+};
+
+/* struct mtk_usxgmii_pcs - This structure holds each usxgmii regmap and
+ *			associated data
+ * @regmap:		The register map pointing at the range used to setup
+ *			USXGMII modes
+ * @regmap_pextp:	The register map pointing at the range used to setup
+ *			PHYA
+ * @id:			The element is used to record the index of PCS
+ * @pcs:		Phylink PCS structure
+ */
+struct mtk_usxgmii_pcs {
+	struct mtk_eth		*eth;
+	struct regmap		*regmap;
+	struct regmap		*regmap_pextp;
+	phy_interface_t		interface;
+	u8			id;
+	struct phylink_pcs	pcs;
+};
+
+/* struct mtk_usxgmii -	This is the structure holding usxgmii regmap and its
+ *			characteristics
+ * @pll:		The register map pointing at the range used to setup
+ *			PLL
+ * @pcs			Array of individual PCS structures
+ */
+struct mtk_usxgmii {
+	struct mtk_usxgmii_pcs	pcs[MTK_MAX_DEVS];
+	struct regmap		*pll;
+};
 
 /* struct mtk_reset_event - This is the structure holding statistics counters
  *			for reset events
@@ -1705,7 +1761,8 @@ struct mtk_eth {
 	struct regmap			*ethsys;
 	struct regmap                   *infra;
 	struct regmap                   *toprgu;
-	struct mtk_xgmii                *xgmii;
+	struct mtk_sgmii		*sgmii;
+	struct mtk_usxgmii		*usxgmii;
 	struct regmap			*pctl;
 	bool				hwlro;
 	refcount_t			dma_refcnt;
@@ -1754,6 +1811,7 @@ struct mtk_mac {
 	struct mtk_hw_stats		*hw_stats;
 	__be32				hwlro_ip[MTK_MAX_LRO_IP_CNT];
 	int				hwlro_ip_cnt;
+	unsigned int			syscfg0;
 	bool				tx_lpi_enabled;
 	u32				tx_lpi_timer;
 };
@@ -1770,13 +1828,9 @@ void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
 u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
 u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned reg);
 
-int mtk_sgmii_init(struct mtk_xgmii *ss, struct device_node *np,
+struct phylink_pcs *mtk_sgmii_select_pcs(struct mtk_sgmii *ss, int id);
+int mtk_sgmii_init(struct mtk_eth *eth, struct device_node *np,
 		   u32 ana_rgc3);
-int mtk_sgmii_setup_mode_an(struct mtk_xgmii *ss, unsigned int mac_id);
-int mtk_sgmii_setup_mode_force(struct mtk_xgmii *ss, unsigned int mac_id,
-			       const struct phylink_link_state *state);
-void mtk_sgmii_restart_an(struct mtk_eth *eth, int mac_id);
-void mtk_sgmii_setup_phya_gen2(struct mtk_xgmii *ss, int mac_id);
 
 int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
 int mtk_gmac_xgmii_path_setup(struct mtk_eth *eth, int mac_id);
@@ -1787,17 +1841,9 @@ void mtk_gdm_config(struct mtk_eth *eth, u32 id, u32 config);
 void ethsys_reset(struct mtk_eth *eth, u32 reset_bits);
 
 int mtk_mac2xgmii_id(struct mtk_eth *eth, int mac_id);
-int mtk_usxgmii_init(struct mtk_xgmii *ss, struct device_node *r);
-int mtk_xfi_pextp_init(struct mtk_xgmii *ss, struct device_node *r);
-int mtk_xfi_pll_init(struct mtk_xgmii *ss, struct device_node *r);
+struct phylink_pcs *mtk_usxgmii_select_pcs(struct mtk_usxgmii *ss, int id);
+int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r);
 int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
-int mtk_xfi_pll_enable(struct mtk_xgmii *ss);
-int mtk_usxgmii_setup_mode_an(struct mtk_xgmii *ss, int mac_id,
-			      int max_speed);
-int mtk_usxgmii_setup_mode_force(struct mtk_xgmii *ss, int mac_id,
-				 const struct phylink_link_state *state);
-void mtk_usxgmii_setup_phya_an_10000(struct mtk_xgmii *ss, int mac_id);
-void mtk_usxgmii_reset(struct mtk_xgmii *ss, int mac_id);
 int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
 
 void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);

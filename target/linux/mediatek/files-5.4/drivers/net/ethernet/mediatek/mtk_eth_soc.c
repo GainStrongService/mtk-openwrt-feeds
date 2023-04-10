@@ -500,6 +500,34 @@ static void mtk_setup_eee(struct mtk_mac *mac, bool enable)
 		mtk_w32(eth, mcr, MTK_MAC_MCR(mac->id));
 }
 
+static struct phylink_pcs *mtk_mac_select_pcs(struct phylink_config *config,
+					      phy_interface_t interface)
+{
+	struct mtk_mac *mac = container_of(config, struct mtk_mac,
+					   phylink_config);
+	struct mtk_eth *eth = mac->hw;
+	unsigned int sid;
+
+	if (interface == PHY_INTERFACE_MODE_SGMII ||
+	    phy_interface_mode_is_8023z(interface)) {
+		sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
+		       0 : mtk_mac2xgmii_id(eth, mac->id);
+
+		return mtk_sgmii_select_pcs(eth->sgmii, sid);
+	} else if (interface == PHY_INTERFACE_MODE_USXGMII ||
+		   interface == PHY_INTERFACE_MODE_10GKR ||
+		   interface == PHY_INTERFACE_MODE_5GBASER) {
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
+		    mac->id != MTK_GMAC1_ID) {
+			sid = mtk_mac2xgmii_id(eth, mac->id);
+
+			return mtk_usxgmii_select_pcs(eth->usxgmii, sid);
+		}
+	}
+
+	return NULL;
+}
+
 static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 			   const struct phylink_link_state *state)
 {
@@ -649,38 +677,13 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
 		       0 : mac->id;
 
-		/* Setup SGMIISYS with the determined property */
-		if (state->interface != PHY_INTERFACE_MODE_SGMII)
-			err = mtk_sgmii_setup_mode_force(eth->xgmii, sid,
-							 state);
-		else
-			err = mtk_sgmii_setup_mode_an(eth->xgmii, sid);
-
-		if (err) {
-			spin_unlock(&eth->syscfg0_lock);
-			goto init_err;
-		}
-
-		regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
-				   SYSCFG0_SGMII_MASK, val);
+		/* Save the syscfg0 value for mac_finish */
+		mac->syscfg0 = val;
 		spin_unlock(&eth->syscfg0_lock);
 	} else if (state->interface == PHY_INTERFACE_MODE_USXGMII ||
 		   state->interface == PHY_INTERFACE_MODE_10GKR ||
 		   state->interface == PHY_INTERFACE_MODE_5GBASER) {
-		sid = mac->id;
-
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
-		    sid != MTK_GMAC1_ID) {
-			if (phylink_autoneg_inband(mode))
-				err = mtk_usxgmii_setup_mode_force(eth->xgmii, sid,
-								   state);
-			else
-				err = mtk_usxgmii_setup_mode_an(eth->xgmii, sid,
-								SPEED_10000);
-
-			if (err)
-				goto init_err;
-		}
+		/* Nothing to do */
 	} else if (phylink_autoneg_inband(mode)) {
 		dev_err(eth->dev,
 			"In-band mode not supported in non SGMII mode!\n");
@@ -730,6 +733,10 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 			}
 		}
 
+		/* FIXME: In current hardware design, we have to reset FE
+		 * when swtiching XGDM to GDM. Therefore, here trigger an SER
+		 * to let GDM go back to the initial state.
+		 */
 		if (mac->type != mac_type) {
 			if (atomic_read(&reset_pending) == 0) {
 				atomic_inc(&force);
@@ -752,6 +759,22 @@ init_err:
 		mac->id, phy_modes(state->interface), err);
 }
 
+static int mtk_mac_finish(struct phylink_config *config, unsigned int mode,
+			  phy_interface_t interface)
+{
+	struct mtk_mac *mac = container_of(config, struct mtk_mac,
+					   phylink_config);
+	struct mtk_eth *eth = mac->hw;
+
+	/* Enable SGMII */
+	if (interface == PHY_INTERFACE_MODE_SGMII ||
+	    phy_interface_mode_is_8023z(interface))
+		regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
+				   SYSCFG0_SGMII_MASK, mac->syscfg0);
+
+	return 0;
+}
+
 static int mtk_mac_pcs_get_state(struct phylink_config *config,
 				 struct phylink_link_state *state)
 {
@@ -764,7 +787,7 @@ static int mtk_mac_pcs_get_state(struct phylink_config *config,
 		if (mac->id == MTK_GMAC2_ID)
 			sts = sts >> 16;
 
-		state->duplex = 1;
+		state->duplex = DUPLEX_FULL;
 
 		switch (FIELD_GET(MTK_USXGMII_PCS_MODE, sts)) {
 		case 0:
@@ -785,18 +808,19 @@ static int mtk_mac_pcs_get_state(struct phylink_config *config,
 		state->link = FIELD_GET(MTK_USXGMII_PCS_LINK, sts);
 	} else if (mac->type == MTK_GDM_TYPE) {
 		struct mtk_eth *eth = mac->hw;
-		struct mtk_xgmii *ss = eth->xgmii;
+		struct mtk_sgmii *ss = eth->sgmii;
 		u32 id = mtk_mac2xgmii_id(eth, mac->id);
 		u32 pmsr = mtk_r32(mac->hw, MTK_MAC_MSR(mac->id));
-		u32 val = 0;
+		u32 rgc3, val = 0;
 
-		regmap_read(ss->regmap_sgmii[id], SGMSYS_PCS_CONTROL_1, &val);
+		regmap_read(ss->pcs[id].regmap, SGMSYS_PCS_CONTROL_1, &val);
 
 		state->interface = mac->interface;
 		state->link = FIELD_GET(SGMII_LINK_STATYS, val);
 
 		if (FIELD_GET(SGMII_AN_ENABLE, val)) {
-			regmap_read(ss->regmap_sgmii[id], SGMII_PCS_SPEED_ABILITY, &val);
+			regmap_read(ss->pcs[id].regmap,
+				    SGMII_PCS_SPEED_ABILITY, &val);
 
 			val = val >> 16;
 
@@ -814,9 +838,10 @@ static int mtk_mac_pcs_get_state(struct phylink_config *config,
 				break;
 			}
 		} else {
-			regmap_read(ss->regmap_sgmii[id], SGMSYS_SGMII_MODE, &val);
+			regmap_read(ss->pcs[id].regmap,
+				    SGMSYS_SGMII_MODE, &val);
 
-			state->duplex = !FIELD_GET(SGMII_DUPLEX_FULL, val);
+			state->duplex = !FIELD_GET(SGMII_DUPLEX_HALF, val);
 
 			switch (FIELD_GET(SGMII_SPEED_MASK, val)) {
 			case 0:
@@ -826,8 +851,10 @@ static int mtk_mac_pcs_get_state(struct phylink_config *config,
 				state->speed = SPEED_100;
 				break;
 			case 2:
-				regmap_read(ss->regmap_sgmii[id], ss->ana_rgc3, &val);
-				state->speed = (FIELD_GET(RG_PHY_SPEED_3_125G, val)) ? SPEED_2500 : SPEED_1000;
+				regmap_read(ss->pcs[id].regmap,
+					    ss->pcs[id].ana_rgc3, &val);
+				rgc3 = FIELD_GET(RG_PHY_SPEED_3_125G, val);
+				state->speed = rgc3 ? SPEED_2500 : SPEED_1000;
 				break;
 			}
 		}
@@ -840,15 +867,6 @@ static int mtk_mac_pcs_get_state(struct phylink_config *config,
 	}
 
 	return 1;
-}
-
-static void mtk_mac_an_restart(struct phylink_config *config)
-{
-	struct mtk_mac *mac = container_of(config, struct mtk_mac,
-					   phylink_config);
-
-	if (mac->type != MTK_XGDM_TYPE)
-		mtk_sgmii_restart_an(mac->hw, mac->id);
 }
 
 static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
@@ -1074,9 +1092,10 @@ static void mtk_validate(struct phylink_config *config,
 
 static const struct phylink_mac_ops mtk_phylink_ops = {
 	.validate = mtk_validate,
+	.mac_select_pcs = mtk_mac_select_pcs,
 	.mac_link_state = mtk_mac_pcs_get_state,
-	.mac_an_restart = mtk_mac_an_restart,
 	.mac_config = mtk_mac_config,
+	.mac_finish = mtk_mac_finish,
 	.mac_link_down = mtk_mac_link_down,
 	.mac_link_up = mtk_mac_link_up,
 };
@@ -3397,6 +3416,7 @@ static int mtk_open(struct net_device *dev)
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_phylink_priv *phylink_priv = &mac->phylink_priv;
+	u32 id = mtk_mac2xgmii_id(eth, mac->id);
 	int err, i;
 	struct device_node *phy_node;
 
@@ -3472,8 +3492,9 @@ static int mtk_open(struct net_device *dev)
 	phylink_start(mac->phylink);
 	netif_start_queue(dev);
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
-	if (!phy_node && eth->xgmii->regmap_sgmii[mac->id])
-		regmap_write(eth->xgmii->regmap_sgmii[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, 0);
+	if (!phy_node && eth->sgmii->pcs[id].regmap)
+		regmap_write(eth->sgmii->pcs[id].regmap,
+			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
 
 	mtk_gdm_config(eth, mac->id, MTK_GDMA_TO_PDMA);
 
@@ -3508,6 +3529,7 @@ static int mtk_stop(struct net_device *dev)
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 	int i;
+	u32 id = mtk_mac2xgmii_id(eth, mac->id);
 	u32 val = 0;
 	struct device_node *phy_node;
 
@@ -3515,10 +3537,12 @@ static int mtk_stop(struct net_device *dev)
 	netif_tx_disable(dev);
 
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
-	if (!phy_node && eth->xgmii->regmap_sgmii[mac->id]) {
-		regmap_read(eth->xgmii->regmap_sgmii[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, &val);
+	if (!phy_node && eth->sgmii->pcs[id].regmap) {
+		regmap_read(eth->sgmii->pcs[id].regmap,
+			    SGMSYS_QPHY_PWR_STATE_CTRL, &val);
 		val |= SGMII_PHYA_PWD;
-		regmap_write(eth->xgmii->regmap_sgmii[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, val);
+		regmap_write(eth->sgmii->pcs[id].regmap,
+			     SGMSYS_QPHY_PWR_STATE_CTRL, val);
 	}
 
 	//GMAC RX disable
@@ -4589,29 +4613,24 @@ static int mtk_probe(struct platform_device *pdev)
 	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SGMII)) {
-		eth->xgmii = devm_kzalloc(eth->dev, sizeof(*eth->xgmii),
+		eth->sgmii = devm_kzalloc(eth->dev, sizeof(*eth->sgmii),
 					  GFP_KERNEL);
-		if (!eth->xgmii)
+		if (!eth->sgmii)
 			return -ENOMEM;
 
-		eth->xgmii->eth = eth;
-		err = mtk_sgmii_init(eth->xgmii, pdev->dev.of_node,
+		err = mtk_sgmii_init(eth, pdev->dev.of_node,
 				     eth->soc->ana_rgc3);
-
 		if (err)
 			return err;
 	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_USXGMII)) {
-		err = mtk_usxgmii_init(eth->xgmii, pdev->dev.of_node);
-		if (err)
-			return err;
+		eth->usxgmii = devm_kzalloc(eth->dev, sizeof(*eth->usxgmii),
+					    GFP_KERNEL);
+		if (!eth->usxgmii)
+			return -ENOMEM;
 
-		err = mtk_xfi_pextp_init(eth->xgmii, pdev->dev.of_node);
-		if (err)
-			return err;
-
-		err = mtk_xfi_pll_init(eth->xgmii, pdev->dev.of_node);
+		err = mtk_usxgmii_init(eth, pdev->dev.of_node);
 		if (err)
 			return err;
 
