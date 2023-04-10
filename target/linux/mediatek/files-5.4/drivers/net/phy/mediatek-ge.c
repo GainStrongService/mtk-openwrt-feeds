@@ -4,6 +4,7 @@
 #include <linux/nvmem-consumer.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/phy.h>
 
 #define MTK_GPHY_ID_MT7530 0x03a29412
@@ -1238,6 +1239,51 @@ static int mt7981_phy_probe(struct phy_device *phydev)
 
 static int mt7988_phy_probe(struct phy_device *phydev)
 {
+	struct device_node *np;
+	void __iomem *boottrap;
+	u32 reg;
+	int port;
+	int ret;
+	struct pinctrl *pinctrl;
+
+	/* Setup LED polarity according to boottrap's polarity */
+	np = of_find_compatible_node(NULL, NULL, "mediatek,boottrap");
+	if (!np)
+		return -ENOENT;
+	boottrap = of_iomap(np, 0);
+	if (!boottrap)
+		return -ENOMEM;
+	reg = readl(boottrap);
+	port = phydev->mdio.addr;
+	if ((port == GPHY_PORT0 && reg & BIT(8)) ||
+	    (port == GPHY_PORT1 && reg & BIT(9)) ||
+	    (port == GPHY_PORT2 && reg & BIT(10)) ||
+	    (port == GPHY_PORT3 && reg & BIT(11))) {
+		phy_write_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
+			      MTK_PHY_LED0_ENABLE | MTK_PHY_LED0_ON_LINK10 |
+			      MTK_PHY_LED0_ON_LINK100 |
+			      MTK_PHY_LED0_ON_LINK1000);
+	} else {
+		phy_write_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
+			      MTK_PHY_LED0_ENABLE | MTK_PHY_LED0_POLARITY |
+			      MTK_PHY_LED0_ON_LINK10 |
+			      MTK_PHY_LED0_ON_LINK100 |
+			      MTK_PHY_LED0_ON_LINK1000);
+	}
+	phy_write_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_BLINK_CTRL,
+		      MTK_PHY_LED0_1000TX | MTK_PHY_LED0_1000RX |
+		      MTK_PHY_LED0_100TX  | MTK_PHY_LED0_100RX  |
+		      MTK_PHY_LED0_10TX   | MTK_PHY_LED0_10RX);
+
+	if (port == GPHY_PORT3) {
+		pinctrl = devm_pinctrl_get_select_default(&phydev->mdio.bus->dev);
+		if (IS_ERR(pinctrl)) {
+			ret = PTR_ERR(pinctrl);
+			dev_err(&phydev->mdio.dev, "Fail to set LED pins!\n");
+			return -EINVAL;
+		}
+	}
+
 	mt798x_phy_common_finetune(phydev);
 	mt7988_phy_finetune(phydev);
 	mt798x_phy_eee(phydev);
