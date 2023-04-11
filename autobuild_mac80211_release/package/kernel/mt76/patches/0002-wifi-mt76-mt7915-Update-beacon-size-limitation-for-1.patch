@@ -1,4 +1,4 @@
-From 907d5ff95a36361c4cf541aebc15c4796eca9251 Mon Sep 17 00:00:00 2001
+From 17cbd7c650f739b8f638c551d2e9c6baf7557832 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Thu, 23 Mar 2023 08:49:48 +0800
 Subject: [PATCH 2/2] wifi: mt76: mt7915: Update beacon size limitation for 11v
@@ -16,12 +16,12 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 ---
  mt7915/main.c   |  8 +++++---
  mt7915/mcu.c    | 50 +++++++++++++++++++++++++++++--------------------
- mt7915/mcu.h    | 19 +++++++++----------
+ mt7915/mcu.h    | 18 ++++++++----------
  mt7915/mt7915.h |  2 ++
- 4 files changed, 46 insertions(+), 33 deletions(-)
+ 4 files changed, 45 insertions(+), 33 deletions(-)
 
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 3bbccbdf..ea1d4e6a 100644
+index 3bbccbd..ea1d4e6 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -647,11 +647,13 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
@@ -42,7 +42,7 @@ index 3bbccbdf..ea1d4e6a 100644
  }
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index dc24a475..03ae3bc9 100644
+index dc24a47..03ae3bc 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -1953,10 +1953,9 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
@@ -163,10 +163,10 @@ index dc24a475..03ae3bc9 100644
  	return mt76_mcu_skb_send_msg(&phy->dev->mt76, rskb,
  				     MCU_EXT_CMD(BSS_INFO_UPDATE), true);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index b9ea297f..739003aa 100644
+index b9ea297..1592b5d 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -495,10 +495,15 @@ enum {
+@@ -495,10 +495,14 @@ enum {
  	SER_RECOVER
  };
  
@@ -181,12 +181,11 @@ index b9ea297f..739003aa 100644
 +					 sizeof(struct bss_info_bcn_mbss) +	\
 +					 MT_TXD_SIZE +	\
 +					 sizeof(struct bss_info_bcn_cont))
-+#define MT7915_MAX_BSS_OFFLOAD_SIZE	(sizeof(struct mt76_connac2_mcu_txd) +	\
-+					 MT7915_MAX_BEACON_SIZE +	\
++#define MT7915_MAX_BSS_OFFLOAD_SIZE	(MT7915_MAX_BEACON_SIZE +	\
  					 MT7915_BEACON_UPDATE_SIZE)
  
  #define MT7915_BSS_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
-@@ -511,12 +516,6 @@ enum {
+@@ -511,12 +515,6 @@ enum {
  					 sizeof(struct bss_info_bmc_rate) +\
  					 sizeof(struct bss_info_ext_bss))
  
@@ -200,7 +199,7 @@ index b9ea297f..739003aa 100644
  mt7915_get_power_bound(struct mt7915_phy *phy, s8 txpower)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 3cbfb9b6..b66938ba 100644
+index 3cbfb9b..b66938b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -506,6 +506,8 @@ int mt7915_mcu_add_rx_ba(struct mt7915_dev *dev,
