@@ -1,4 +1,4 @@
-From 3ef36d16305af80f400ef6ee3d087cd75c195191 Mon Sep 17 00:00:00 2001
+From c9b56aa9e0c4196596cb64f87cbbeb3c489e799b Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Feb 2023 16:29:42 +0800
 Subject: [PATCH] mt76: mt7915: disable SW-ACI by default
@@ -13,7 +13,7 @@ SW-ACI feature is disable by default.
  4 files changed, 29 insertions(+), 9 deletions(-)
 
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 99ae9e86..81fd6742 100644
+index 945634a..12d98c2 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -8,6 +8,10 @@
@@ -39,10 +39,10 @@ index 99ae9e86..81fd6742 100644
  
  	if (phy != &dev->phy) {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 5790fc60..deefb558 100644
+index 6aa0ea8..68adf2c 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4780,3 +4780,18 @@ int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value)
+@@ -4777,3 +4777,18 @@ int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value)
  
  	return 0;
  }
@@ -62,10 +62,10 @@ index 5790fc60..deefb558 100644
 +				 sizeof(req), NULL);
 +}
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 36593a2e..1885b906 100644
+index f324bd2..a1ba3e2 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -774,6 +774,7 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
+@@ -775,6 +775,7 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  #endif
  int mt7915_mcu_set_edcca(struct mt7915_phy *phy, int mode, u8 *value, s8 compensation);
  int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value);
@@ -74,10 +74,10 @@ index 36593a2e..1885b906 100644
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
  
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 6f74caff..2e24a371 100644
+index da4056e..e102ddc 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -3043,16 +3043,12 @@ static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)
+@@ -3644,16 +3644,12 @@ static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)
  static int
  mt7915_sw_aci_set(void *data, u64 val)
  {

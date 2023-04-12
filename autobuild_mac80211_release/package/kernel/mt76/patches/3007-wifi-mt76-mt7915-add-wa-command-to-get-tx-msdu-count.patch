@@ -1,7 +1,7 @@
-From e43e191c57cf50239170bf766315b75c8a6b0e6f Mon Sep 17 00:00:00 2001
+From eff52b8cfb80e38dec2dd900ec2851a559eea372 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 18 Jan 2023 16:37:22 +0800
-Subject: [PATCH 3007/3012] wifi: mt76: mt7915: add wa command to get tx msdu
+Subject: [PATCH 3007/3013] wifi: mt76: mt7915: add wa command to get tx msdu
  count
 
 ---
@@ -16,7 +16,7 @@ Subject: [PATCH 3007/3012] wifi: mt76: mt7915: add wa command to get tx msdu
  8 files changed, 78 insertions(+), 11 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index d7b0f1bb..f95a73cf 100644
+index d7b0f1b..f95a73c 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -284,7 +284,7 @@ struct mt76_sta_stats {
@@ -29,7 +29,7 @@ index d7b0f1bb..f95a73cf 100644
  	u32 tx_failed;
  	/* WED RX */
 diff --git a/mt76_connac2_mac.h b/mt76_connac2_mac.h
-index f33171bc..101e7602 100644
+index f33171b..101e760 100644
 --- a/mt76_connac2_mac.h
 +++ b/mt76_connac2_mac.h
 @@ -164,6 +164,7 @@ enum {
@@ -41,7 +41,7 @@ index f33171bc..101e7602 100644
  
  /* RXD DW1 */
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index 8d316d3a..1816bcbc 100644
+index 8d316d3..1816bcb 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -491,7 +491,9 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
@@ -68,7 +68,7 @@ index 8d316d3a..1816bcbc 100644
  			le32_get_bits(txs_data[6], MT_TXS6_MPDU_FAIL_CNT);
  		stats->tx_retries +=
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 8e559efb..dd7ee32f 100644
+index 8e559ef..dd7ee32 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1000,6 +1000,7 @@ enum {
@@ -80,10 +80,10 @@ index 8e559efb..dd7ee32f 100644
  	MCU_EXT_EVENT_MURU_CTRL = 0x9f,
  	MCU_EXT_EVENT_CSI_REPORT = 0xc2,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 6aecf2c8..4c9090a4 100644
+index f3bd2dc..9cff26c 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1103,9 +1103,6 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1110,9 +1110,6 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  		sinfo->tx_bytes = msta->wcid.stats.tx_bytes;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BYTES64);
  
@@ -93,7 +93,7 @@ index 6aecf2c8..4c9090a4 100644
  		sinfo->tx_failed = msta->wcid.stats.tx_failed;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
  
-@@ -1121,6 +1118,11 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1128,6 +1125,11 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  		}
  	}
  
@@ -106,7 +106,7 @@ index 6aecf2c8..4c9090a4 100644
  	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL);
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 6ac24cfc..8e340f5b 100644
+index 270668e..5dce620 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -169,7 +169,9 @@ mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
@@ -137,7 +137,7 @@ index 6ac24cfc..8e340f5b 100644
  		mt7915_mcu_rx_unsolicited_event(dev, skb);
  	else
  		mt76_mcu_rx_event(&dev->mt76, skb);
-@@ -4098,6 +4101,53 @@ out:
+@@ -4094,6 +4097,53 @@ out:
  	return ret;
  }
  
@@ -192,7 +192,7 @@ index 6ac24cfc..8e340f5b 100644
  				struct cfg80211_he_bss_color *he_bss_color)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index d455ecfd..768c7d74 100644
+index 0df4ddb..4c997c4 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -292,6 +292,17 @@ enum {
@@ -214,10 +214,10 @@ index d455ecfd..768c7d74 100644
  	MCU_MMPS_STATIC,
  	MCU_MMPS_DYNAMIC,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 918046f2..80d6a43c 100644
+index de43c79..f4dee39 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -715,6 +715,7 @@ int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state);
+@@ -716,6 +716,7 @@ int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state);
  int mt7915_mcu_set_thermal_protect(struct mt7915_phy *phy);
  int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
  			   struct ieee80211_sta *sta, struct rate_info *rate);
@@ -226,5 +226,5 @@ index 918046f2..80d6a43c 100644
  				     struct cfg80211_chan_def *chandef);
  int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set);
 -- 
-2.39.0
+2.18.0
 

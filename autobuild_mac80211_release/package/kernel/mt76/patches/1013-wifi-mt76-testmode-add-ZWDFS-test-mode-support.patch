@@ -1,4 +1,4 @@
-From e893fd394224728ed846e699dd85a0f694128351 Mon Sep 17 00:00:00 2001
+From b5d9829d921e0c3d3f21c6ed723f5306c2ef5cab Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 27 Oct 2022 17:42:07 +0800
 Subject: [PATCH 1013/1031] wifi: mt76: testmode: add ZWDFS test mode support
@@ -19,7 +19,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  10 files changed, 452 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index 3da237d0..882388e6 100644
+index 3da237d..882388e 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -726,6 +726,15 @@ struct mt76_testmode_data {
@@ -39,7 +39,7 @@ index 3da237d0..882388e6 100644
  
  struct mt76_vif {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 22d6a915..adfe677c 100644
+index 22d6a91..adfe677 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1192,6 +1192,7 @@ enum {
@@ -59,7 +59,7 @@ index 22d6a915..adfe677c 100644
  
  enum {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 7a906e0e..9314c409 100644
+index f44fa86..61d5360 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2699,6 +2699,7 @@ mt7915_mcu_background_chain_ctrl(struct mt7915_phy *phy,
@@ -70,7 +70,7 @@ index 7a906e0e..9314c409 100644
  		req.band_idx = phy->mt76->band_idx;
  		req.scan_mode = 2;
  		break;
-@@ -4517,3 +4518,68 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
+@@ -4520,3 +4521,68 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
  	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(MEC_CTRL), &req, sizeof(req), true);
  }
  #endif
@@ -140,10 +140,10 @@ index 7a906e0e..9314c409 100644
 +	return 0;
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index dd6a44d4..8649c82e 100644
+index 04d903e..acacd76 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -628,6 +628,52 @@ struct csi_data {
+@@ -627,6 +627,52 @@ struct csi_data {
  };
  #endif
  
@@ -197,7 +197,7 @@ index dd6a44d4..8649c82e 100644
  #define OFDMA_DL                       BIT(0)
  #define OFDMA_UL                       BIT(1)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 5c08417d..c5e29dc2 100644
+index 9c16cd5..295b4ae 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -311,6 +311,7 @@ struct mt7915_phy {
@@ -208,7 +208,7 @@ index 5c08417d..c5e29dc2 100644
  
  #ifdef CONFIG_NL80211_TESTMODE
  	struct {
-@@ -762,6 +763,9 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
+@@ -763,6 +764,9 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
  
@@ -219,7 +219,7 @@ index 5c08417d..c5e29dc2 100644
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp);
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index e8768488..f4b57099 100644
+index e876848..f4b5709 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -1194,6 +1194,8 @@ enum offs_rev {
@@ -232,7 +232,7 @@ index e8768488..f4b57099 100644
  #define MT_WF_PHY_BASE			0x83080000
  #define MT_WF_PHY(ofs)			(MT_WF_PHY_BASE + (ofs))
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 668f4837..23dcabd1 100644
+index fe8bcf4..4dc63f4 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -13,6 +13,12 @@ enum {
@@ -503,7 +503,7 @@ index 668f4837..23dcabd1 100644
  
  static int
 diff --git a/testmode.c b/testmode.c
-index f1982ac2..503d714b 100644
+index f1982ac..503d714 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -24,6 +24,13 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
@@ -567,7 +567,7 @@ index f1982ac2..503d714b 100644
  	     nla_put_u8(msg, MT76_TM_ATTR_TX_LTF, td->tx_ltf)) ||
  	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_ANTENNA) &&
 diff --git a/testmode.h b/testmode.h
-index bbfb313f..e03fa6df 100644
+index bbfb313..e03fa6d 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -63,6 +63,20 @@
@@ -635,7 +635,7 @@ index bbfb313f..e03fa6df 100644
 +
  #endif
 diff --git a/tools/fields.c b/tools/fields.c
-index 6bf4c046..fc01043e 100644
+index 6bf4c04..fc01043 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -46,6 +46,14 @@ static const char * const testmode_txbf_act[] = {
@@ -682,5 +682,5 @@ index 6bf4c046..fc01043e 100644
  
  const struct tm_field msg_field = {
 -- 
-2.39.0
+2.18.0
 

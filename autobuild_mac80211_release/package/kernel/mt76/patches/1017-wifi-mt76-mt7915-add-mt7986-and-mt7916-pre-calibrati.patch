@@ -1,4 +1,4 @@
-From d5eca1de0851802bc9fc9ceab56a3ad63dea3847 Mon Sep 17 00:00:00 2001
+From cb2a3db085a94417d81371cba639e6858c82110a Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 20 May 2022 19:19:25 +0800
 Subject: [PATCH 1017/1031] wifi: mt76: mt7915: add mt7986 and mt7916
@@ -16,7 +16,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 62 insertions(+), 26 deletions(-)
 
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index a7962893..55ba90ac 100644
+index f1b1471..77a1047 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -9,23 +9,22 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
@@ -51,7 +51,7 @@ index a7962893..55ba90ac 100644
  
  static int mt7915_check_eeprom(struct mt7915_dev *dev)
 diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
-index 88aaa16a..fdae347e 100644
+index 88aaa16..fdae347 100644
 --- a/mt7915/eeprom.h
 +++ b/mt7915/eeprom.h
 @@ -19,6 +19,7 @@ enum mt7915_eeprom_field {
@@ -63,10 +63,10 @@ index 88aaa16a..fdae347e 100644
  	MT_EE_RATE_DELTA_5G =	0x29d,
  	MT_EE_TX0_POWER_2G =	0x2fc,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 69d3fe4f..5a220a3d 100644
+index 8593899..a0d48cd 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2980,7 +2980,8 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
+@@ -2983,7 +2983,8 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
  int mt7915_mcu_apply_group_cal(struct mt7915_dev *dev)
  {
  	u8 idx = 0, *cal = dev->cal, *eep = dev->mt76.eeprom.data;
@@ -76,7 +76,7 @@ index 69d3fe4f..5a220a3d 100644
  
  	if (!(eep[offs] & MT_EE_WIFI_CAL_GROUP))
  		return 0;
-@@ -3018,9 +3019,9 @@ static int mt7915_find_freq_idx(const u16 *freqs, int n_freqs, u16 cur)
+@@ -3021,9 +3022,9 @@ static int mt7915_find_freq_idx(const u16 *freqs, int n_freqs, u16 cur)
  	return -1;
  }
  
@@ -88,7 +88,7 @@ index 69d3fe4f..5a220a3d 100644
  		5180, 5200, 5220, 5240,
  		5260, 5280, 5300, 5320,
  		5500, 5520, 5540, 5560,
-@@ -3028,34 +3029,69 @@ static int mt7915_dpd_freq_idx(u16 freq, u8 bw)
+@@ -3031,34 +3032,69 @@ static int mt7915_dpd_freq_idx(u16 freq, u8 bw)
  		5660, 5680, 5700, 5745,
  		5765, 5785, 5805, 5825
  	};
@@ -168,7 +168,7 @@ index 69d3fe4f..5a220a3d 100644
  }
  
  int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
-@@ -3087,24 +3123,24 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
+@@ -3090,24 +3126,24 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
  	if (!(eep[offs] & dpd_mask))
  		return 0;
  
@@ -199,5 +199,5 @@ index 69d3fe4f..5a220a3d 100644
  
  	return 0;
 -- 
-2.39.0
+2.18.0
 
