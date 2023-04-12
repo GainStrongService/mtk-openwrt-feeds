@@ -22,6 +22,10 @@
 #define   PHY_AUX_DPX_MASK		GENMASK(5, 5)
 #define   PHY_AUX_SPEED_MASK		GENMASK(4, 2)
 
+/* Registers on MDIO_MMD_VEND1 */
+#define MTK_PHY_LINK_STATUS_MISC               (0xa2)
+#define   MTK_PHY_FDX_ENABLE                   BIT(5)
+
 /* Registers on MDIO_MMD_VEND2 */
 #define MTK_PHY_LED0_ON_CTRL			(0x24)
 #define   MTK_PHY_LED0_POLARITY			BIT(14)
@@ -190,8 +194,6 @@ static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	/* Actually this phy supports only FDX */
-	phydev->duplex = (ret & PHY_AUX_DPX_MASK) ? DUPLEX_FULL : DUPLEX_HALF;
 	switch (FIELD_GET(PHY_AUX_SPEED_MASK, ret)) {
 	case PHY_AUX_SPD_10:
 		phydev->speed = SPEED_10;
@@ -204,9 +206,13 @@ static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
 		break;
 	case PHY_AUX_SPD_2500:
 		phydev->speed = SPEED_2500;
-		phydev->duplex = DUPLEX_FULL; /* 2.5G must be FDX */
 		break;
 	}
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LINK_STATUS_MISC);
+	if (ret < 0)
+		return ret;
+	phydev->duplex = (ret & MTK_PHY_FDX_ENABLE) ? DUPLEX_FULL : DUPLEX_HALF;
 
 	return 0;
 }
