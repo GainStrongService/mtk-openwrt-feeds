@@ -1,4 +1,4 @@
-From 578ebe5d2db344f4b424af636149cfa7fafdc082 Mon Sep 17 00:00:00 2001
+From ca4a6962b4a4551a54b1675027e857e2787a6832 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 5 Apr 2023 08:29:19 +0800
 Subject: [PATCH] mt76: revert for backports-5.15 wireless stack
@@ -610,7 +610,7 @@ index d674f12..f4b0cad 100644
  
  	mutex_lock(&dev->mt76.mutex);
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 2a40f5a..a8b3fe6 100644
+index 32c5c34..9e2bb20 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -64,7 +64,7 @@ mt7915_mcu_set_sta_he_mcs(struct ieee80211_sta *sta, __le16 *he_mcs,
@@ -788,7 +788,7 @@ index 2a40f5a..a8b3fe6 100644
  		if (!is_mt7915(&dev->mt76)) {
  			amsdu->max_mpdu_size =
 @@ -1064,8 +1064,8 @@ mt7915_is_ebf_supported(struct mt7915_phy *phy, struct ieee80211_vif *vif,
- 	if (!bfee && tx_ant < 2)
+ 	if (!bfee && sts < 2)
  		return false;
  
 -	if (sta->deflink.he_cap.has_he) {
@@ -1151,7 +1151,7 @@ index f3b9392..95d3a6d 100644
  	sta->wme = 1;
  
 diff --git a/tx.c b/tx.c
-index 5a43e4c..607f494 100644
+index c3c7eb5..57f10f4 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -60,20 +60,15 @@ mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)
@@ -1179,5 +1179,5 @@ index 5a43e4c..607f494 100644
  
  		hw = mt76_tx_status_get_hw(dev, skb);
 -- 
-2.18.0
+2.39.0
 
