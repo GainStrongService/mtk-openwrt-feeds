@@ -1,4 +1,4 @@
-From e5032ab43839e8f9c601bc929f9851ce2492a553 Mon Sep 17 00:00:00 2001
+From 1d1c3c33ef852b285fb89abf9825292abf5294e3 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
 Subject: [PATCH 1000/1009] wifi: mt76: mt7915: add mtk internal debug tools
@@ -23,7 +23,7 @@ Subject: [PATCH 1000/1009] wifi: mt76: mt7915: add mtk internal debug tools
  create mode 100644 mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index d5fb7a6..82e323c 100644
+index d5fb7a62..82e323c8 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1148,6 +1148,7 @@ enum {
@@ -47,7 +47,7 @@ index d5fb7a6..82e323c 100644
  	MCU_EXT_CMD_CAL_CACHE = 0x67,
  	MCU_EXT_CMD_RED_ENABLE = 0x68,
 diff --git a/mt7915/Makefile b/mt7915/Makefile
-index f033116..cbcb64b 100644
+index f033116c..cbcb64be 100644
 --- a/mt7915/Makefile
 +++ b/mt7915/Makefile
 @@ -4,7 +4,7 @@ EXTRA_CFLAGS += -DCONFIG_MT76_LEDS
@@ -60,7 +60,7 @@ index f033116..cbcb64b 100644
  mt7915e-$(CONFIG_NL80211_TESTMODE) += testmode.o
  mt7915e-$(CONFIG_MT7986_WMAC) += soc.o
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 5a46813..eb14910 100644
+index 5a46813a..eb149104 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -8,6 +8,9 @@
@@ -232,10 +232,10 @@ index 5a46813..eb14910 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index f1fdcfd..ffb33f5 100644
+index d0520369..9ac0b427 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -299,6 +299,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
+@@ -279,6 +279,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
  	__le16 fc = 0;
  	int idx;
  
@@ -246,7 +246,7 @@ index f1fdcfd..ffb33f5 100644
  	memset(status, 0, sizeof(*status));
  
  	if ((rxd1 & MT_RXD1_NORMAL_BAND_IDX) && !phy->mt76->band_idx) {
-@@ -482,6 +486,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
+@@ -462,6 +466,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
  	}
  
  	hdr_gap = (u8 *)rxd - skb->data + 2 * remove_pad;
@@ -257,7 +257,7 @@ index f1fdcfd..ffb33f5 100644
  	if (hdr_trans && ieee80211_has_morefrags(fc)) {
  		struct ieee80211_vif *vif;
  		int err;
-@@ -819,6 +827,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -799,6 +807,12 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	tx_info->buf[1].skip_unmap = true;
  	tx_info->nbuf = MT_CT_DMA_BUF_NUM;
  
@@ -271,7 +271,7 @@ index f1fdcfd..ffb33f5 100644
  }
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index e74bc12..3cee45e 100644
+index 546a0c91..9cd9b9f5 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -73,7 +73,11 @@ int mt7915_run(struct ieee80211_hw *hw)
@@ -287,7 +287,7 @@ index e74bc12..3cee45e 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 72e5515..32e9a5f 100644
+index 173dc357..ec1b0e14 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -200,6 +200,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -323,7 +323,7 @@ index 72e5515..32e9a5f 100644
  	return mt76_mcu_send_msg(&dev->mt76,
  				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL), &req,
  				 sizeof(req), true);
-@@ -3827,6 +3837,23 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
+@@ -3941,6 +3951,23 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
  				 &req, sizeof(req), true);
  }
  
@@ -347,7 +347,7 @@ index 72e5515..32e9a5f 100644
  int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  {
  	struct {
-@@ -3855,3 +3882,22 @@ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
+@@ -3969,3 +3996,22 @@ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  
  	return 0;
  }
@@ -371,10 +371,10 @@ index 72e5515..32e9a5f 100644
 +}
 +#endif
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 1592b5d..743075d 100644
+index 3429e24f..9b07d5d5 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -278,6 +278,10 @@ enum {
+@@ -314,6 +314,10 @@ enum {
  	MCU_WA_PARAM_PDMA_RX = 0x04,
  	MCU_WA_PARAM_CPU_UTIL = 0x0b,
  	MCU_WA_PARAM_RED = 0x0e,
@@ -386,7 +386,7 @@ index 1592b5d..743075d 100644
  };
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 376256d..503c938 100644
+index 81246f37..a7525f33 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -397,7 +397,7 @@ index 376256d..503c938 100644
  #define MT7915_MAX_INTERFACES		19
  #define MT7915_WTBL_SIZE		288
  #define MT7916_WTBL_SIZE		544
-@@ -373,6 +374,28 @@ struct mt7915_dev {
+@@ -378,6 +379,28 @@ struct mt7915_dev {
  	struct reset_control *rstc;
  	void __iomem *dcm;
  	void __iomem *sku;
@@ -426,7 +426,7 @@ index 376256d..503c938 100644
  };
  
  enum {
-@@ -654,4 +677,24 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -660,4 +683,24 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  			 bool pci, int *irq);
  
@@ -453,7 +453,7 @@ index 376256d..503c938 100644
  #endif
 diff --git a/mt7915/mt7915_debug.h b/mt7915/mt7915_debug.h
 new file mode 100644
-index 0000000..fa8794f
+index 00000000..fa8794fd
 --- /dev/null
 +++ b/mt7915/mt7915_debug.h
 @@ -0,0 +1,1418 @@
@@ -1877,7 +1877,7 @@ index 0000000..fa8794f
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 0000000..4bbb410
+index 00000000..4bbb4100
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
 @@ -0,0 +1,3606 @@
@@ -5489,7 +5489,7 @@ index 0000000..4bbb410
 +#endif
 diff --git a/mt7915/mtk_mcu.c b/mt7915/mtk_mcu.c
 new file mode 100644
-index 0000000..143dae2
+index 00000000..143dae26
 --- /dev/null
 +++ b/mt7915/mtk_mcu.c
 @@ -0,0 +1,51 @@
@@ -5545,7 +5545,7 @@ index 0000000..143dae2
 +				 sizeof(req), true);
 +}
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a10..3d51d9e 100644
+index e5d4a105..3d51d9ec 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)

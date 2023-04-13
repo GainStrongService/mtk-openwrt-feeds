@@ -1,4 +1,4 @@
-From 1d76d947d04c75682c9d7ff383c98071e6980691 Mon Sep 17 00:00:00 2001
+From 0820da6d53f6847d38e2e10f0946eeb8f6fafa9b Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Tue, 4 Apr 2023 02:23:57 +0800
 Subject: [PATCH 1003/1009] wifi: mt76: mt7915: add support for muru_onoff via
@@ -12,7 +12,7 @@ Subject: [PATCH 1003/1009] wifi: mt76: mt7915: add support for muru_onoff via
  5 files changed, 52 insertions(+), 3 deletions(-)
 
 diff --git a/mt7915/init.c b/mt7915/init.c
-index c27469e..1177e4e 100644
+index d21086d1..f6f3e8a6 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -445,6 +445,8 @@ mt7915_init_wiphy(struct mt7915_phy *phy)
@@ -25,7 +25,7 @@ index c27469e..1177e4e 100644
  
  static void
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index c75953a..d23a292 100644
+index 82cff6d3..2e680f68 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -865,6 +865,7 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -59,10 +59,10 @@ index c75953a..d23a292 100644
  		muru->mimo_dl.vht_mu_bfee =
  			!!(sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 159528a..1999259 100644
+index 9a6a52a4..ac1109ea 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -607,4 +607,10 @@ struct csi_data {
+@@ -647,4 +647,10 @@ struct csi_data {
  };
  #endif
  
@@ -74,10 +74,10 @@ index 159528a..1999259 100644
 +
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 0d186ed..47bc2f2 100644
+index 61a63744..f9f8c5de 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -307,6 +307,8 @@ struct mt7915_phy {
+@@ -308,6 +308,8 @@ struct mt7915_phy {
  	u32 rx_ampdu_ts;
  	u32 ampdu_ref;
  
@@ -87,7 +87,7 @@ index 0d186ed..47bc2f2 100644
  	struct mt76_channel_state state_ts;
  
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 4bbb410..1db1d87 100644
+index 4bbb4100..1db1d87f 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2558,6 +2558,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)

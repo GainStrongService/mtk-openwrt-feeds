@@ -1,7 +1,7 @@
-From aabbe8bfc44e1d09877df48a6f236e3aa6236612 Mon Sep 17 00:00:00 2001
+From 689de34da4d04303e8e78160085bd5bd2e16d707 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Thu, 23 Mar 2023 08:49:48 +0800
-Subject: [PATCH 2/3] wifi: mt76: mt7915: Update beacon size limitation for 11v
+Subject: [PATCH 2/5] wifi: mt76: mt7915: Update beacon size limitation for 11v
 
 Separate the beacon offload command into two;
 one is for beacons and the other is for inband discovery frames.
@@ -21,7 +21,7 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  4 files changed, 45 insertions(+), 33 deletions(-)
 
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 3bbccbd..ea1d4e6 100644
+index 3bbccbdf..ea1d4e6a 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -647,11 +647,13 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
@@ -42,7 +42,7 @@ index 3bbccbd..ea1d4e6 100644
  }
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index dc24a47..03ae3bc 100644
+index dc24a475..03ae3bc9 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -1953,10 +1953,9 @@ mt7915_mcu_beacon_check_caps(struct mt7915_phy *phy, struct ieee80211_vif *vif,
@@ -163,7 +163,7 @@ index dc24a47..03ae3bc 100644
  	return mt76_mcu_skb_send_msg(&phy->dev->mt76, rskb,
  				     MCU_EXT_CMD(BSS_INFO_UPDATE), true);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index b9ea297..1592b5d 100644
+index b9ea297f..1592b5d6 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -495,10 +495,14 @@ enum {
@@ -199,7 +199,7 @@ index b9ea297..1592b5d 100644
  mt7915_get_power_bound(struct mt7915_phy *phy, s8 txpower)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 3cbfb9b..b66938b 100644
+index 3cbfb9b6..b66938ba 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -506,6 +506,8 @@ int mt7915_mcu_add_rx_ba(struct mt7915_dev *dev,

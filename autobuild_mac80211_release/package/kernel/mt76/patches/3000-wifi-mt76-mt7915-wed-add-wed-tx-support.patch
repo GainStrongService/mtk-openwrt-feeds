@@ -1,4 +1,4 @@
-From cf127dd971f29a91c81399215a27f504d375a749 Mon Sep 17 00:00:00 2001
+From d908229de50c591179f1625a09572d0cf7423179 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 25 Nov 2022 10:38:53 +0800
 Subject: [PATCH 3000/3013] wifi: mt76: mt7915: wed: add wed tx support
@@ -13,7 +13,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  5 files changed, 14 insertions(+), 9 deletions(-)
 
 diff --git a/mt76_connac.h b/mt76_connac.h
-index 2ee9a3c..5a0a3ce 100644
+index 2ee9a3c8..5a0a3ce1 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
 @@ -116,6 +116,7 @@ struct mt76_connac_sta_key_conf {
@@ -25,10 +25,10 @@ index 2ee9a3c..5a0a3ce 100644
  struct mt76_connac_fw_txp {
  	__le16 flags;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 7149bae..f366442 100644
+index 06d4f2f6..d7b0e631 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -890,9 +890,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
+@@ -870,9 +870,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
  
  	txp->token = cpu_to_le16(token_id);
  	txp->nbuf = 1;
@@ -40,7 +40,7 @@ index 7149bae..f366442 100644
  }
  
  static void
-@@ -1008,6 +1008,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -988,6 +988,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  	LIST_HEAD(free_list);
  	void *end = data + len;
  	bool v3, wake = false;
@@ -48,7 +48,7 @@ index 7149bae..f366442 100644
  	u16 total, count = 0;
  	u32 txd = le32_to_cpu(free->txd);
  	__le32 *cur_info;
-@@ -1063,12 +1064,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -1051,12 +1052,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  			txwi = mt76_token_release(mdev, msdu, &wake);
  			if (!txwi)
  				continue;
@@ -66,10 +66,10 @@ index 7149bae..f366442 100644
  
  static void
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 12d98c2..7b32b80 100644
+index d6b201e0..3b33cdf3 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1540,14 +1540,14 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1547,14 +1547,14 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	if (!mtk_wed_device_active(wed))
  		return -ENODEV;
  
@@ -87,7 +87,7 @@ index 12d98c2..7b32b80 100644
  
  	ctx->dev = NULL;
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index fa99df1..0e79faf 100644
+index fa99df1e..0e79faf2 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -13,7 +13,7 @@
@@ -117,7 +117,7 @@ index fa99df1..0e79faf 100644
  	ret = dma_set_mask(wed->dev, DMA_BIT_MASK(32));
  	if (ret)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index a1ba3e2..90748b8 100644
+index c379b2a8..c3cc35d9 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -55,7 +55,7 @@

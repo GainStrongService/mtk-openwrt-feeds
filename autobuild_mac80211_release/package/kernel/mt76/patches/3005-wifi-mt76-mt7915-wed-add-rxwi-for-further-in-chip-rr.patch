@@ -1,4 +1,4 @@
-From bbc9421c58fe106fd8048f55b1b8f110dd8377de Mon Sep 17 00:00:00 2001
+From f643b8773abcad9b9c78eead55cbd60fcd4d0822 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 6 Jan 2023 18:18:50 +0800
 Subject: [PATCH 3005/3013] wifi: mt76: mt7915: wed: add rxwi for further in
@@ -16,7 +16,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  7 files changed, 87 insertions(+), 80 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 550bdaf..b2b17cc 100644
+index 550bdaf3..b2b17cc9 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -59,17 +59,17 @@ mt76_alloc_txwi(struct mt76_dev *dev)
@@ -244,7 +244,7 @@ index 550bdaf..b2b17cc 100644
  unmap:
  	for (n--; n > 0; n--)
 diff --git a/mac80211.c b/mac80211.c
-index 1654cc9..4dc7627 100644
+index 1654cc9b..4dc7627e 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -602,7 +602,6 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
@@ -264,7 +264,7 @@ index 1654cc9..4dc7627 100644
  	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
  		skb_queue_head_init(&dev->rx_skb[i]);
 diff --git a/mt76.h b/mt76.h
-index 1af5edf..d7b0f1b 100644
+index 0ee2291f..a215d2f1 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -165,6 +165,7 @@ struct mt76_queue_entry {
@@ -275,7 +275,7 @@ index 1af5edf..d7b0f1b 100644
  		struct urb *urb;
  		int buf_sz;
  	};
-@@ -356,10 +357,15 @@ struct mt76_txwi_cache {
+@@ -360,10 +361,15 @@ struct mt76_txwi_cache {
  	struct list_head list;
  	dma_addr_t dma_addr;
  
@@ -295,7 +295,7 @@ index 1af5edf..d7b0f1b 100644
  };
  
  struct mt76_rx_tid {
-@@ -445,6 +451,7 @@ struct mt76_driver_ops {
+@@ -449,6 +455,7 @@ struct mt76_driver_ops {
  	u16 txwi_size;
  	u16 token_size;
  	u8 mcs_rates;
@@ -303,7 +303,7 @@ index 1af5edf..d7b0f1b 100644
  
  	void (*update_survey)(struct mt76_phy *phy);
  
-@@ -815,7 +822,6 @@ struct mt76_dev {
+@@ -819,7 +826,6 @@ struct mt76_dev {
  
  	struct ieee80211_hw *hw;
  
@@ -311,7 +311,7 @@ index 1af5edf..d7b0f1b 100644
  	spinlock_t lock;
  	spinlock_t cc_lock;
  
-@@ -1406,8 +1412,8 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+@@ -1410,8 +1416,8 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
  }
  
  void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
@@ -322,7 +322,7 @@ index 1af5edf..d7b0f1b 100644
  void mt76_free_pending_rxwi(struct mt76_dev *dev);
  void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
  		      struct napi_struct *napi);
-@@ -1559,9 +1565,9 @@ struct mt76_txwi_cache *
+@@ -1563,9 +1569,9 @@ struct mt76_txwi_cache *
  mt76_token_release(struct mt76_dev *dev, int token, bool *wake);
  int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi);
  void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
@@ -335,7 +335,7 @@ index 1af5edf..d7b0f1b 100644
  static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
  {
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 3b8a2ab..7a9ced4 100644
+index 3b8a2ab7..7a9ced47 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -509,7 +509,6 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -355,7 +355,7 @@ index 3b8a2ab..7a9ced4 100644
  
  		/* rx data queue for band1 */
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 0e79faf..fc9aadb 100644
+index 0e79faf2..fc9aadb1 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -610,18 +610,18 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
@@ -445,7 +445,7 @@ index 0e79faf..fc9aadb 100644
  		.tx_complete_skb = mt76_connac_tx_complete_skb,
  		.rx_skb = mt7915_queue_rx_skb,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 310bb3a..de43c79 100644
+index 0ec94aa4..81970ef2 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -57,6 +57,7 @@
@@ -457,7 +457,7 @@ index 310bb3a..de43c79 100644
  #define MT7915_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
  #define MT7915_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 diff --git a/tx.c b/tx.c
-index cecee18..25683c1 100644
+index cecee186..25683c1f 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -756,16 +756,16 @@ int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)

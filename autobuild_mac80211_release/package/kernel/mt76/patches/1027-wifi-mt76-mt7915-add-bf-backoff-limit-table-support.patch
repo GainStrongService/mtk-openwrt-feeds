@@ -1,4 +1,4 @@
-From c03a29387f471e3bd0fd3fde217acb9ec7706621 Mon Sep 17 00:00:00 2001
+From 2cc8c8fe74450706b22caf5195b5e98abf44087e Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 5 Dec 2022 18:21:51 +0800
 Subject: [PATCH 1027/1031] wifi: mt76: mt7915: add bf backoff limit table
@@ -15,7 +15,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  6 files changed, 203 insertions(+), 37 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index 412740f..b2df0f4 100644
+index 412740f0..b2df0f44 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -317,7 +317,8 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
@@ -58,10 +58,10 @@ index 412740f..b2df0f4 100644
  }
  EXPORT_SYMBOL_GPL(mt76_get_rate_power_limits);
 diff --git a/mt76.h b/mt76.h
-index 68b5457..99a853a 100644
+index 614c607f..278a6763 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -913,6 +913,14 @@ struct mt76_power_limits {
+@@ -917,6 +917,14 @@ struct mt76_power_limits {
  	s8 ofdm[8];
  	s8 mcs[4][10];
  	s8 ru[7][12];
@@ -77,7 +77,7 @@ index 68b5457..99a853a 100644
  
  struct mt76_ethtool_worker_info {
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index eb14910..129a15c 100644
+index eb149104..129a15c0 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -1027,7 +1027,7 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
@@ -189,7 +189,7 @@ index eb14910..129a15c 100644
  				    mt7915_twt_stats);
  	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index c2a8617..2a68587 100644
+index cd2b313a..ba255801 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -3340,7 +3340,8 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
@@ -377,10 +377,10 @@ index c2a8617..2a68587 100644
  				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL), &req,
  				 sizeof(req), true);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index e68949a..8f058e4 100644
+index d919da28..a999e0c3 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -447,12 +447,18 @@ enum {
+@@ -483,12 +483,18 @@ enum {
  
  enum {
  	TX_POWER_LIMIT_ENABLE,
@@ -400,7 +400,7 @@ index e68949a..8f058e4 100644
  	SPR_ENABLE = 0x1,
  	SPR_ENABLE_SD = 0x3,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 4bd1fb2..f9a3700 100644
+index c147ca1d..75c2f15c 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -65,6 +65,7 @@
@@ -411,7 +411,7 @@ index 4bd1fb2..f9a3700 100644
  
  #define MT7915_MAX_TWT_AGRT		16
  #define MT7915_MAX_STA_TWT_AGRT		8
-@@ -625,7 +626,8 @@ int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
+@@ -630,7 +631,8 @@ int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
  int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band);
  int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable);
  int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy);

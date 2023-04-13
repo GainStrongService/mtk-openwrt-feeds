@@ -1,4 +1,4 @@
-From eb9274e167e23b41160da44b1d7443d1754e276c Mon Sep 17 00:00:00 2001
+From f189e6091ebfe4ffd55647450fa860aaf983d751 Mon Sep 17 00:00:00 2001
 From: "himanshu.goyal" <himanshu.goyal@mediatek.com>
 Date: Tue, 24 Jan 2023 14:32:08 +0800
 Subject: [PATCH 1030/1031] wifi: mt76: mt7915: Add vendor command attribute
@@ -13,10 +13,10 @@ Signed-off-by: himanshu.goyal <himanshu.goyal@mediatek.com>
  4 files changed, 20 insertions(+)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 9330123..6aa0ea8 100644
+index 13b86ed9..0fe15a54 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4417,6 +4417,12 @@ int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type)
+@@ -4531,6 +4531,12 @@ int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type)
  		req.cert.length = cpu_to_le16(tlv_len);
  		req.cert.cert_program = type;
  		break;
@@ -30,10 +30,10 @@ index 9330123..6aa0ea8 100644
  		tlv_len = sizeof(struct three_wire_cfg);
  		req.three_wire.tag = cpu_to_le16(cfg_info);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 8f058e4..fff4aad 100644
+index a999e0c3..acfd7152 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -865,6 +865,13 @@ struct three_wire_cfg {
+@@ -905,6 +905,13 @@ struct three_wire_cfg {
  	u8 rsv[3];
  } __packed;
  
@@ -47,7 +47,7 @@ index 8f058e4..fff4aad 100644
  struct cfg_basic_info {
  	u8 dbdc_idx;
  	u8 rsv[3];
-@@ -872,11 +879,13 @@ struct cfg_basic_info {
+@@ -912,11 +919,13 @@ struct cfg_basic_info {
  	union {
  		struct cert_cfg cert;
  		struct three_wire_cfg three_wire;
@@ -62,7 +62,7 @@ index 8f058e4..fff4aad 100644
  };
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 2e5f07c..3b7ac09 100644
+index 2e5f07c3..3b7ac098 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -33,6 +33,7 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -84,7 +84,7 @@ index 2e5f07c..3b7ac09 100644
  
  	return 0;
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 33c75dc..6001ce4 100644
+index 33c75dc9..6001ce4a 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -76,6 +76,7 @@ enum mtk_vendor_attr_wireless_ctrl {

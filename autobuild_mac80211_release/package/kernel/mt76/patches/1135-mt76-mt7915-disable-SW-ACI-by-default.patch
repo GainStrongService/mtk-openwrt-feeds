@@ -1,4 +1,4 @@
-From c9b56aa9e0c4196596cb64f87cbbeb3c489e799b Mon Sep 17 00:00:00 2001
+From de2197ecfe4a57825615f4986ef0afd87c08855e Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Feb 2023 16:29:42 +0800
 Subject: [PATCH] mt76: mt7915: disable SW-ACI by default
@@ -13,7 +13,7 @@ SW-ACI feature is disable by default.
  4 files changed, 29 insertions(+), 9 deletions(-)
 
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 945634a..12d98c2 100644
+index ab764e9b..d6b201e0 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -8,6 +8,10 @@
@@ -39,10 +39,10 @@ index 945634a..12d98c2 100644
  
  	if (phy != &dev->phy) {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 6aa0ea8..68adf2c 100644
+index 0fe15a54..f87a3860 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4777,3 +4777,18 @@ int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value)
+@@ -4891,3 +4891,18 @@ int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value)
  
  	return 0;
  }
@@ -62,10 +62,10 @@ index 6aa0ea8..68adf2c 100644
 +				 sizeof(req), NULL);
 +}
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index f324bd2..a1ba3e2 100644
+index 1680413f..c379b2a8 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -775,6 +775,7 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
+@@ -781,6 +781,7 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  #endif
  int mt7915_mcu_set_edcca(struct mt7915_phy *phy, int mode, u8 *value, s8 compensation);
  int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value);
@@ -74,7 +74,7 @@ index f324bd2..a1ba3e2 100644
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
  
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index da4056e..e102ddc 100644
+index da4056e2..e102ddc9 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -3644,16 +3644,12 @@ static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)
