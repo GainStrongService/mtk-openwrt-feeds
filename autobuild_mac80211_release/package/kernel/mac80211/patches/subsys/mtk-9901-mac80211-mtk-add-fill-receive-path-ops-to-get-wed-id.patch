@@ -1,8 +1,8 @@
-From 79cba5aeda7ecbd30a0fc65d3d1083013c11954b Mon Sep 17 00:00:00 2001
+From ab3989fe1cbdd9ed29f9f3a44469a489514b65cf Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Wed, 18 May 2022 15:10:22 +0800
-Subject: [PATCH 99901/99901] mac80211: mtk: add fill receive path ops to get
- wed idx
+Subject: [PATCH 9901/9902] mac80211: mtk: add fill receive path ops to get wed
+ idx
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -17,10 +17,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
 old mode 100644
 new mode 100755
-index df30f24..bf4469b
+index 9c35e0b..2ed355a
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -1796,6 +1796,13 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
+@@ -1798,6 +1798,13 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
   */
  struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif);
  
@@ -34,7 +34,7 @@ index df30f24..bf4469b
  /**
   * enum ieee80211_key_flags - key flags
   *
-@@ -3969,6 +3976,8 @@ struct ieee80211_prep_tx_info {
+@@ -3975,6 +3982,8 @@ struct ieee80211_prep_tx_info {
   *	disable background CAC/radar detection.
   * @net_fill_forward_path: Called from .ndo_fill_forward_path in order to
   *	resolve a path for hardware flow offloading
@@ -43,7 +43,7 @@ index df30f24..bf4469b
   */
  struct ieee80211_ops {
  	void (*tx)(struct ieee80211_hw *hw,
-@@ -4304,6 +4313,9 @@ struct ieee80211_ops {
+@@ -4312,6 +4321,9 @@ struct ieee80211_ops {
  				     struct ieee80211_sta *sta,
  				     struct net_device_path_ctx *ctx,
  				     struct net_device_path *path);
@@ -54,10 +54,10 @@ index df30f24..bf4469b
  
  /**
 diff --git a/net/mac80211/driver-ops.h b/net/mac80211/driver-ops.h
-index d2b68ef..27da75e 100644
+index 19e2ada..88dedfc 100644
 --- a/net/mac80211/driver-ops.h
 +++ b/net/mac80211/driver-ops.h
-@@ -1508,4 +1508,17 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
+@@ -1523,4 +1523,17 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
  	return ret;
  }
  
@@ -76,10 +76,10 @@ index d2b68ef..27da75e 100644
 +
  #endif /* __MAC80211_DRIVER_OPS */
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index 9c2490d..35f1233 100644
+index a7169a5..8a4f4e1 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
-@@ -910,6 +910,29 @@ out:
+@@ -911,6 +911,29 @@ out:
  	return ret;
  }
  
@@ -109,7 +109,7 @@ index 9c2490d..35f1233 100644
  static const struct net_device_ops ieee80211_dataif_8023_ops = {
  #if LINUX_VERSION_IS_LESS(4,10,0)
  	.ndo_change_mtu = __change_mtu,
-@@ -928,6 +951,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
+@@ -929,6 +952,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
  	.ndo_get_stats64 = bp_ieee80211_get_stats64,
  #endif
  	.ndo_fill_forward_path = ieee80211_netdev_fill_forward_path,
@@ -140,5 +140,5 @@ index 8d36b05..d26a2b8
   * Nothing should have been stuffed into the workqueue during
   * the suspend->resume cycle. Since we can't check each caller
 -- 
-2.36.1
+2.18.0
 

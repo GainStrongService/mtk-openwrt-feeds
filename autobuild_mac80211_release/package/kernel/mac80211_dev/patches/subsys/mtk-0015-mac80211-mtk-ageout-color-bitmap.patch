@@ -1,7 +1,7 @@
-From fb56546c9ec94dd9f8ca4b6cfd91d029710b75c2 Mon Sep 17 00:00:00 2001
+From c481f3323ae0e44feeba59851258b1612b2808a0 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Mon, 13 Mar 2023 05:36:59 +0800
-Subject: [PATCH 15/15] mac80211: mtk: ageout color bitmap
+Subject: [PATCH 15/16] mac80211: mtk: ageout color bitmap
 
 Adding a periodic work which runs once per second to check BSS color.
 OBSS BSS Color will be ageout if not seen for 10 seconds.
@@ -15,7 +15,7 @@ OBSS BSS Color will be ageout if not seen for 10 seconds.
  6 files changed, 44 insertions(+)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 83bbf70..5ca2f10 100644
+index ef95cc7..323d57f 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -730,6 +730,7 @@ struct ieee80211_bss_conf {

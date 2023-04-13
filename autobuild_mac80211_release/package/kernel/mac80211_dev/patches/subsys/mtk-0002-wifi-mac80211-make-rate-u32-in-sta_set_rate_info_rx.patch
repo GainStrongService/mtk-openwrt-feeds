@@ -1,7 +1,7 @@
-From d9ba3e35e1291613ca15875a065326fab80e5d6d Mon Sep 17 00:00:00 2001
+From 229f35ad8a192a4e7063336cc58717dab0707b5a Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 9 Feb 2023 18:58:08 +0800
-Subject: [PATCH 02/15] wifi: mac80211: make rate u32 in sta_set_rate_info_rx()
+Subject: [PATCH 02/16] wifi: mac80211: make rate u32 in sta_set_rate_info_rx()
 
 The value of last_rate in ieee80211_sta_rx_stats is degraded from u32 to
 u16 after being assigned to rate variable, which causes information loss
@@ -13,10 +13,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/net/mac80211/sta_info.c b/net/mac80211/sta_info.c
-index 8cdeb96..e32841a 100644
+index a2d7bf5..50daa22 100644
 --- a/net/mac80211/sta_info.c
 +++ b/net/mac80211/sta_info.c
-@@ -2384,7 +2384,7 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
+@@ -2396,7 +2396,7 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
  
  static int sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
  {

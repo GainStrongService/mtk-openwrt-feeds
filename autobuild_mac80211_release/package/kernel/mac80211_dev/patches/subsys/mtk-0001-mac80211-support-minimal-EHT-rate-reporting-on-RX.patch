@@ -1,7 +1,7 @@
-From a9cef32c4ffc9a23e14f72efc49e9ec4743eff23 Mon Sep 17 00:00:00 2001
+From 438df855ef351c2a0dda7911361e1044c9ddf8bc Mon Sep 17 00:00:00 2001
 From: Johannes Berg <johannes.berg@intel.com>
 Date: Mon, 9 Jan 2023 13:07:21 +0200
-Subject: [PATCH 01/15] mac80211: support minimal EHT rate reporting on RX
+Subject: [PATCH 01/16] mac80211: support minimal EHT rate reporting on RX
 
 Add minimal support for RX EHT rate reporting, not yet
 adding (modifying) any radiotap headers, just statistics
@@ -17,7 +17,7 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
  5 files changed, 64 insertions(+), 10 deletions(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 1ca00b5..73df564 100644
+index c8d3c50..b8d71ab 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -1462,6 +1462,7 @@ enum mac80211_rx_encoding {
@@ -88,7 +88,7 @@ index 45aeb01..376e131 100644
  			WARN_ON_ONCE(1);
  			fallthrough;
 diff --git a/net/mac80211/sta_info.c b/net/mac80211/sta_info.c
-index 8edee5d..8cdeb96 100644
+index e94ff8f..a2d7bf5 100644
 --- a/net/mac80211/sta_info.c
 +++ b/net/mac80211/sta_info.c
 @@ -4,7 +4,7 @@
@@ -100,7 +100,7 @@ index 8edee5d..8cdeb96 100644
   */
  
  #include <linux/module.h>
-@@ -2372,6 +2372,13 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
+@@ -2384,6 +2384,13 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
  		rinfo->he_ru_alloc = STA_STATS_GET(HE_RU, rate);
  		rinfo->he_dcm = STA_STATS_GET(HE_DCM, rate);
  		break;

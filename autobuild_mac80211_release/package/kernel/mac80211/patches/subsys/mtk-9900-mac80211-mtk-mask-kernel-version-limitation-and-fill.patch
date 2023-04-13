@@ -1,0 +1,249 @@
+From 2aa50f34a5e8378775028818a1e6f285498fd01e Mon Sep 17 00:00:00 2001
+From: Sujuan Chen <sujuan.chen@mediatek.com>
+Date: Fri, 11 Mar 2022 11:34:11 +0800
+Subject: [PATCH 9900/9902] mac80211: mtk: mask kernel version limitation and
+ fill forward path in kernel 5.4
+
+Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
+---
+ include/net/mac80211.h      |  2 --
+ include/net/mac80211.h.orig | 43 +++++++++++++++++++++++++++++++++++--
+ net/mac80211/driver-ops.h   |  2 --
+ net/mac80211/iface.c        |  4 ----
+ net/mac80211/trace.h        |  2 --
+ 5 files changed, 41 insertions(+), 12 deletions(-)
+
+diff --git a/include/net/mac80211.h b/include/net/mac80211.h
+index 28ec7e8..9c35e0b 100644
+--- a/include/net/mac80211.h
++++ b/include/net/mac80211.h
+@@ -4307,13 +4307,11 @@ struct ieee80211_ops {
+ 				     struct ieee80211_sta *sta, u8 flowid);
+ 	int (*set_radar_background)(struct ieee80211_hw *hw,
+ 				    struct cfg80211_chan_def *chandef);
+-#if LINUX_VERSION_IS_GEQ(5,10,0)
+ 	int (*net_fill_forward_path)(struct ieee80211_hw *hw,
+ 				     struct ieee80211_vif *vif,
+ 				     struct ieee80211_sta *sta,
+ 				     struct net_device_path_ctx *ctx,
+ 				     struct net_device_path *path);
+-#endif
+ };
+ 
+ /**
+diff --git a/include/net/mac80211.h.orig b/include/net/mac80211.h.orig
+index dba8550..28ec7e8 100644
+--- a/include/net/mac80211.h.orig
++++ b/include/net/mac80211.h.orig
+@@ -505,6 +505,7 @@ struct ieee80211_ftm_responder_params {
+ struct ieee80211_fils_discovery {
+ 	u32 min_interval;
+ 	u32 max_interval;
++	u8 disable;
+ };
+ 
+ /**
+@@ -698,6 +699,8 @@ struct ieee80211_bss_conf {
+ 	} he_oper;
+ 	struct ieee80211_he_obss_pd he_obss_pd;
+ 	struct cfg80211_he_bss_color he_bss_color;
++	u64 used_color_bitmap;
++	u64 color_last_seen[64];
+ 	struct ieee80211_fils_discovery fils_discovery;
+ 	u32 unsol_bcast_probe_resp_interval;
+ 	bool s1g;
+@@ -1566,6 +1569,7 @@ enum ieee80211_smps_mode {
+  *
+  * @power_level: requested transmit power (in dBm), backward compatibility
+  *	value only that is set to the minimum of all interfaces
++ * @max_antenna_gain: maximum antenna gain adjusted by user config (in dBi)
+  *
+  * @chandef: the channel definition to tune to
+  * @radar_enabled: whether radar detection is enabled
+@@ -1586,6 +1590,7 @@ enum ieee80211_smps_mode {
+ struct ieee80211_conf {
+ 	u32 flags;
+ 	int power_level, dynamic_ps_timeout;
++	int max_antenna_gain;
+ 
+ 	u16 listen_interval;
+ 	u8 ps_dtim_period;
+@@ -1685,6 +1690,10 @@ enum ieee80211_offload_flags {
+  *	write-protected by sdata_lock and local->mtx so holding either is fine
+  *	for read access.
+  * @mu_mimo_owner: indicates interface owns MU-MIMO capability
++ * @netdev_features: tx netdev features supported by the hardware for this
++ *	vif. mac80211 initializes this to hw->netdev_features, and the driver
++ *	can mask out specific tx features. mac80211 will handle software fixup
++ *	for masked offloads (GSO, CSUM)
+  * @driver_flags: flags/capabilities the driver has for this interface,
+  *	these need to be set (or cleared) when the interface is added
+  *	or, if supported by the driver, the interface type is changed
+@@ -1736,6 +1745,7 @@ struct ieee80211_vif {
+ 
+ 	struct ieee80211_chanctx_conf __rcu *chanctx_conf;
+ 
++	netdev_features_t netdev_features;
+ 	u32 driver_flags;
+ 	u32 offload_flags;
+ 
+@@ -2418,6 +2428,9 @@ struct ieee80211_txq {
+  *	usage and 802.11 frames with %RX_FLAG_ONLY_MONITOR set for monitor to
+  *	the stack.
+  *
++ * @IEEE80211_HW_DETECTS_COLOR_COLLISION: HW/driver has support for BSS color
++ *	collision detection and doesn't need it in software.
++ *
+  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
+  */
+ enum ieee80211_hw_flags {
+@@ -2473,6 +2486,7 @@ enum ieee80211_hw_flags {
+ 	IEEE80211_HW_SUPPORTS_TX_ENCAP_OFFLOAD,
+ 	IEEE80211_HW_SUPPORTS_RX_DECAP_OFFLOAD,
+ 	IEEE80211_HW_SUPPORTS_CONC_MON_RX_DECAP,
++	IEEE80211_HW_DETECTS_COLOR_COLLISION,
+ 
+ 	/* keep last, obviously */
+ 	NUM_IEEE80211_HW_FLAGS
+@@ -2656,6 +2670,13 @@ static inline void _ieee80211_hw_set(struct ieee80211_hw *hw,
+ }
+ #define ieee80211_hw_set(hw, flg)	_ieee80211_hw_set(hw, IEEE80211_HW_##flg)
+ 
++static inline void _ieee80211_hw_clear(struct ieee80211_hw *hw,
++				     enum ieee80211_hw_flags flg)
++{
++	return __clear_bit(flg, hw->flags);
++}
++#define ieee80211_hw_clear(hw, flg)	_ieee80211_hw_clear(hw, IEEE80211_HW_##flg)
++
+ /**
+  * struct ieee80211_scan_request - hw scan request
+  *
+@@ -3688,6 +3709,10 @@ struct ieee80211_prep_tx_info {
+  *	Note that vif can be NULL.
+  *	The callback can sleep.
+  *
++ * @flush_sta: Flush or drop all pending frames from the hardware queue(s) for
++ *	the given station, as it's about to be removed.
++ *	The callback can sleep.
++ *
+  * @channel_switch: Drivers that need (or want) to offload the channel
+  *	switch operation for CSAs received from the AP may implement this
+  *	callback. They must then call ieee80211_chswitch_done() to indicate
+@@ -4116,6 +4141,8 @@ struct ieee80211_ops {
+ #endif
+ 	void (*flush)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 		      u32 queues, bool drop);
++	void (*flush_sta)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
++			  struct ieee80211_sta *sta);
+ 	void (*channel_switch)(struct ieee80211_hw *hw,
+ 			       struct ieee80211_vif *vif,
+ 			       struct ieee80211_channel_switch *ch_switch);
+@@ -5677,6 +5704,18 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
+ 				  struct delayed_work *dwork,
+ 				  unsigned long delay);
+ 
++/**
++ * ieee80211_refresh_tx_agg_session_timer - Refresh a tx agg session timer.
++ * @sta: the station for which to start a BA session
++ * @tid: the TID to BA on.
++ *
++ * This function allows low level driver to refresh tx agg session timer
++ * to maintain BA session, the session level will still be managed by the
++ * mac80211.
++ */
++void ieee80211_refresh_tx_agg_session_timer(struct ieee80211_sta *sta,
++					    u16 tid);
++
+ /**
+  * ieee80211_start_tx_ba_session - Start a tx Block Ack session.
+  * @sta: the station for which to start a BA session
+@@ -6844,7 +6883,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
+ 					  struct ieee80211_vif *vif);
+ 
+ /**
+- * ieeee80211_obss_color_collision_notify - notify userland about a BSS color
++ * ieee80211_obss_color_collision_notify - notify userland about a BSS color
+  * collision.
+  *
+  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+@@ -6852,7 +6891,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
+  *	aware of.
+  */
+ void
+-ieeee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
++ieee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
+ 				       u64 color_bitmap);
+ 
+ /**
+diff --git a/net/mac80211/driver-ops.h b/net/mac80211/driver-ops.h
+index 9e8003f..19e2ada 100644
+--- a/net/mac80211/driver-ops.h
++++ b/net/mac80211/driver-ops.h
+@@ -1501,7 +1501,6 @@ static inline void drv_twt_teardown_request(struct ieee80211_local *local,
+ 	trace_drv_return_void(local);
+ }
+ 
+-#if LINUX_VERSION_IS_GEQ(5,10,0)
+ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
+ 					    struct ieee80211_sub_if_data *sdata,
+ 					    struct ieee80211_sta *sta,
+@@ -1523,6 +1522,5 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
+ 
+ 	return ret;
+ }
+-#endif
+ 
+ #endif /* __MAC80211_DRIVER_OPS */
+diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
+index 00b0443..a7169a5 100644
+--- a/net/mac80211/iface.c
++++ b/net/mac80211/iface.c
+@@ -853,7 +853,6 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
+ 
+ };
+ 
+-#if LINUX_VERSION_IS_GEQ(5,10,0)
+ static int ieee80211_netdev_fill_forward_path(struct net_device_path_ctx *ctx,
+ 					      struct net_device_path *path)
+ {
+@@ -911,7 +910,6 @@ out:
+ 
+ 	return ret;
+ }
+-#endif
+ 
+ static const struct net_device_ops ieee80211_dataif_8023_ops = {
+ #if LINUX_VERSION_IS_LESS(4,10,0)
+@@ -930,9 +928,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
+ #else
+ 	.ndo_get_stats64 = bp_ieee80211_get_stats64,
+ #endif
+-#if LINUX_VERSION_IS_GEQ(5,10,0)
+ 	.ndo_fill_forward_path = ieee80211_netdev_fill_forward_path,
+-#endif
+ };
+ 
+ static bool ieee80211_iftype_supports_hdr_offload(enum nl80211_iftype iftype)
+diff --git a/net/mac80211/trace.h b/net/mac80211/trace.h
+index d15dadd..8770033 100644
+--- a/net/mac80211/trace.h
++++ b/net/mac80211/trace.h
+@@ -2899,14 +2899,12 @@ TRACE_EVENT(drv_twt_teardown_request,
+ 	)
+ );
+ 
+-#if LINUX_VERSION_IS_GEQ(5,10,0)
+ DEFINE_EVENT(sta_event, drv_net_fill_forward_path,
+ 	TP_PROTO(struct ieee80211_local *local,
+ 		 struct ieee80211_sub_if_data *sdata,
+ 		 struct ieee80211_sta *sta),
+ 	TP_ARGS(local, sdata, sta)
+ );
+-#endif
+ 
+ TRACE_EVENT(bss_color_bitmap,
+ 	TP_PROTO(u8 color,
+-- 
+2.18.0
+

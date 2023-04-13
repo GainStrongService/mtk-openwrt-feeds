@@ -1,7 +1,7 @@
-From eee41e0fa9bff506c8402b8cc86ae5e688fdc2c2 Mon Sep 17 00:00:00 2001
+From eb61cbefd3be0bfbca2adfc62128c1865a986cab Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Wed, 8 Mar 2023 06:23:55 +0800
-Subject: [PATCH] mac80211: mtk: track obss color bitmap
+Subject: [PATCH 15/17] mac80211: mtk: track obss color bitmap
 
 Track OBSS BSS color when receive their beacon.
 
@@ -16,7 +16,7 @@ echo 1 > /sys/kernel/debug/tracing/events/mac80211/bss_color_collision/enable
  4 files changed, 33 insertions(+), 6 deletions(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 6419397..c6cadf7 100644
+index 2c40833..1a26ccd 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -699,6 +699,7 @@ struct ieee80211_bss_conf {
@@ -27,7 +27,7 @@ index 6419397..c6cadf7 100644
  	struct ieee80211_fils_discovery fils_discovery;
  	u32 unsol_bcast_probe_resp_interval;
  	bool s1g;
-@@ -6875,7 +6876,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
+@@ -6881,7 +6882,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
  					  struct ieee80211_vif *vif);
  
  /**
@@ -36,7 +36,7 @@ index 6419397..c6cadf7 100644
   * collision.
   *
   * @vif: &struct ieee80211_vif pointer from the add_interface callback.
-@@ -6883,7 +6884,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
+@@ -6889,7 +6890,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
   *	aware of.
   */
  void
@@ -89,10 +89,10 @@ index eb16838..36fcf97 100644
  }
  
 diff --git a/net/mac80211/trace.h b/net/mac80211/trace.h
-index bbda9e9..bd43aab 100644
+index c34067c..d15dadd 100644
 --- a/net/mac80211/trace.h
 +++ b/net/mac80211/trace.h
-@@ -2901,6 +2901,27 @@ DEFINE_EVENT(sta_event, drv_net_fill_forward_path,
+@@ -2908,6 +2908,27 @@ DEFINE_EVENT(sta_event, drv_net_fill_forward_path,
  );
  #endif
  
@@ -121,5 +121,5 @@ index bbda9e9..bd43aab 100644
  
  #undef TRACE_INCLUDE_PATH
 -- 
-2.39.0
+2.18.0
 
