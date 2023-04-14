@@ -20,9 +20,9 @@
  obj-$(CONFIG_MARVELL_PHY)	+= marvell.o
  obj-$(CONFIG_MARVELL_10G_PHY)	+= marvell10g.o
 +obj-$(CONFIG_MAXLINEAR_GPHY)	+= mxl-gpy.o
+ obj-$(CONFIG_MEDIATEK_GE_PHY)	+= mediatek-ge.o
+ obj-$(CONFIG_MEDIATEK_GE_SOC_PHY)	+= mediatek-ge-soc.o
  obj-$(CONFIG_MEDIATEK_2P5GE_PHY)+= mediatek-2p5ge.o
- obj-$(CONFIG_MESON_GXL_PHY)	+= meson-gxl.o
- obj-$(CONFIG_MICREL_KS8995MA)	+= spi_ks8995.o
 --- /dev/null
 +++ b/drivers/net/phy/mxl-gpy.c
 @@ -0,0 +1,738 @@
@@ -764,32 +764,3 @@
 +MODULE_DESCRIPTION("Maxlinear Ethernet GPY Driver");
 +MODULE_AUTHOR("Xu Liang");
 +MODULE_LICENSE("GPL");
---- a/include/linux/phy.h
-+++ b/include/linux/phy.h
-@@ -21,6 +21,7 @@
- #include <linux/timer.h>
- #include <linux/workqueue.h>
- #include <linux/mod_devicetable.h>
-+#include <linux/iopoll.h>
- 
- #include <linux/atomic.h>
- 
-@@ -711,6 +712,18 @@ static inline int phy_read(struct phy_de
- 	return mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, regnum);
- }
- 
-+#define phy_read_poll_timeout(phydev, regnum, val, cond, sleep_us, \
-+				timeout_us, sleep_before_read) \
-+({ \
-+	int __ret = read_poll_timeout(phy_read, val, (cond) || val < 0, \
-+		sleep_us, timeout_us, sleep_before_read, phydev, regnum); \
-+	if (val <  0) \
-+		__ret = val; \
-+	if (__ret) \
-+		phydev_err(phydev, "%s failed: %d\n", __func__, __ret); \
-+	__ret; \
-+})
-+
- /**
-  * __phy_read - convenience function for reading a given PHY register
-  * @phydev: the phy_device struct
