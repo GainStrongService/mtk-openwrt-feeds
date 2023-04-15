@@ -1,4 +1,4 @@
-From 869f9f9b54e7fa5bb3c8cbe7e2ac67da24c8e55b Mon Sep 17 00:00:00 2001
+From ed9230087e1ef8314f3364b6a3db65165abf8934 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Sat, 1 Apr 2023 08:18:17 +0800
 Subject: [PATCH] wifi: mt76: mt7915: build pass for Linux Kernel 5.4 fixes
@@ -22,7 +22,7 @@ Subject: [PATCH] wifi: mt76: mt7915: build pass for Linux Kernel 5.4 fixes
  15 files changed, 122 insertions(+), 252 deletions(-)
 
 diff --git a/debugfs.c b/debugfs.c
-index 79064a4d..4a8e1864 100644
+index 79064a4..4a8e186 100644
 --- a/debugfs.c
 +++ b/debugfs.c
 @@ -33,8 +33,10 @@ mt76_napi_threaded_set(void *data, u64 val)
@@ -37,7 +37,7 @@ index 79064a4d..4a8e1864 100644
  	return 0;
  }
 diff --git a/dma.c b/dma.c
-index c22ea64b..e1b73a1e 100644
+index c22ea64..e1b73a1 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -173,7 +173,7 @@ mt76_free_pending_rxwi(struct mt76_dev *dev)
@@ -243,7 +243,7 @@ index c22ea64b..e1b73a1e 100644
  
  	mt76_free_pending_txwi(dev);
 diff --git a/eeprom.c b/eeprom.c
-index ea54b7af..90d36c8d 100644
+index ea54b7a..90d36c8 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -106,9 +106,15 @@ void
@@ -264,7 +264,7 @@ index ea54b7af..90d36c8d 100644
  	if (!is_valid_ether_addr(phy->macaddr)) {
  		eth_random_addr(phy->macaddr);
 diff --git a/mac80211.c b/mac80211.c
-index 87902f4b..577d81a4 100644
+index 87902f4..577d81a 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -4,7 +4,6 @@
@@ -346,7 +346,7 @@ index 87902f4b..577d81a4 100644
  {
  	struct ieee80211_hw *hw = phy->hw;
 diff --git a/mcu.c b/mcu.c
-index a8cafa39..fa4b0544 100644
+index a8cafa3..fa4b054 100644
 --- a/mcu.c
 +++ b/mcu.c
 @@ -4,6 +4,7 @@
@@ -358,7 +358,7 @@ index a8cafa39..fa4b0544 100644
  struct sk_buff *
  __mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
 diff --git a/mt76.h b/mt76.h
-index 11d49363..ffa95959 100644
+index 11d4936..ffa9595 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -202,7 +202,7 @@ struct mt76_queue {
@@ -405,7 +405,7 @@ index 11d49363..ffa95959 100644
  static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
  {
 diff --git a/mt7615/mcu.c b/mt7615/mcu.c
-index eea398c7..4593b2e1 100644
+index eea398c..4593b2e 100644
 --- a/mt7615/mcu.c
 +++ b/mt7615/mcu.c
 @@ -10,6 +10,7 @@
@@ -417,7 +417,7 @@ index eea398c7..4593b2e1 100644
  static bool prefer_offload_fw = true;
  module_param(prefer_offload_fw, bool, 0644);
 diff --git a/mt76_connac.h b/mt76_connac.h
-index b339c50b..2ee9a3c8 100644
+index b339c50..2ee9a3c 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
 @@ -42,7 +42,6 @@ enum {
@@ -437,7 +437,7 @@ index b339c50b..2ee9a3c8 100644
  
  	if (chandef->width >= ARRAY_SIZE(width_to_bw))
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index efb9bfaa..b0dcc5a6 100644
+index efb9bfa..b0dcc5a 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -4,6 +4,7 @@
@@ -509,7 +509,7 @@ index efb9bfaa..b0dcc5a6 100644
  #define DEFAULT_HE_DURATION_RTS_THRES	1023
  static void
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 40a99e0c..d5fb7a62 100644
+index 40a99e0..d5fb7a6 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1871,12 +1871,8 @@ void mt76_connac_mcu_reg_wr(struct mt76_dev *dev, u32 offset, u32 val);
@@ -526,7 +526,7 @@ index 40a99e0c..d5fb7a62 100644
  int mt76_connac_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
  			    struct mt76_connac_sta_key_conf *sta_key_conf,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 870b7b23..546a0c91 100644
+index 870b7b2..546a0c9 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -1300,22 +1300,19 @@ void mt7915_get_et_strings(struct ieee80211_hw *hw,
@@ -584,7 +584,7 @@ index 870b7b23..546a0c91 100644
  
  static void
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index a9f8a889..173dc357 100644
+index a9f8a88..173dc35 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -6,6 +6,7 @@
@@ -596,7 +596,7 @@ index a9f8a889..173dc357 100644
  #define fw_name(_dev, name, ...)	({			\
  	char *_fw;						\
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 6f0c0e2a..5ef43c44 100644
+index 6f0c0e2..5ef43c4 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -596,9 +596,13 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
@@ -700,7 +700,7 @@ index 6f0c0e2a..5ef43c44 100644
  	return -ENOMEM;
  }
 diff --git a/mt7921/main.c b/mt7921/main.c
-index a72964e7..4c400223 100644
+index a72964e..4c40022 100644
 --- a/mt7921/main.c
 +++ b/mt7921/main.c
 @@ -1090,34 +1090,17 @@ static void
@@ -766,7 +766,7 @@ index a72964e7..4c400223 100644
  
  static u64
 diff --git a/usb.c b/usb.c
-index 5e5c7bf5..3e281715 100644
+index 5e5c7bf..3e28171 100644
 --- a/usb.c
 +++ b/usb.c
 @@ -319,27 +319,29 @@ mt76u_set_endpoints(struct usb_interface *intf,

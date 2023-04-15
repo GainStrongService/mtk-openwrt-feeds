@@ -1,4 +1,4 @@
-From 51a3fc7f34b84e967497f462a2d76fcbc5950367 Mon Sep 17 00:00:00 2001
+From 5474f456818029dcc4a994257436090344f0a850 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Tue, 13 Dec 2022 17:51:26 +0800
 Subject: [PATCH 3001/3013] wifi: mt76: mt7915: wed: add wds support when wed
@@ -15,7 +15,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  6 files changed, 82 insertions(+), 10 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 278a6763..0ee2291f 100644
+index 278a676..0ee2291 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -60,6 +60,12 @@ enum mt76_wed_type {
@@ -32,10 +32,10 @@ index 278a6763..0ee2291f 100644
  	u32 (*rr)(struct mt76_dev *dev, u32 offset);
  	void (*wr)(struct mt76_dev *dev, u32 offset, u32 val);
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 3b33cdf3..c638032d 100644
+index 33df772..a8fe1a5 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -705,8 +705,15 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -706,8 +706,15 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  #endif
  	int ret, idx;
  	u32 addr;
@@ -52,7 +52,7 @@ index 3b33cdf3..c638032d 100644
  	if (idx < 0)
  		return -ENOSPC;
  
-@@ -1183,6 +1190,13 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
+@@ -1184,6 +1191,13 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
  	else
  		clear_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
  
@@ -66,7 +66,7 @@ index 3b33cdf3..c638032d 100644
  	mt76_connac_mcu_wtbl_update_hdr_trans(&dev->mt76, vif, sta);
  }
  
-@@ -1554,8 +1568,12 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1555,8 +1569,12 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	path->dev = ctx->dev;
  	path->mtk_wdma.wdma_idx = wed->wdma_idx;
  	path->mtk_wdma.bss = mvif->mt76.idx;
@@ -81,7 +81,7 @@ index 3b33cdf3..c638032d 100644
  	ctx->dev = NULL;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f87a3860..78822ccb 100644
+index f87a386..78822cc 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2427,10 +2427,18 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
@@ -108,7 +108,7 @@ index f87a3860..78822ccb 100644
  	ret = mt7915_mcu_set_mwds(dev, 1);
  	if (ret)
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index acfd7152..bd0ccb55 100644
+index acfd715..bd0ccb5 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -320,6 +320,7 @@ enum {
@@ -120,7 +120,7 @@ index acfd7152..bd0ccb55 100644
  	MCU_WA_PARAM_RED_SHOW_STA = 0xf,
  	MCU_WA_PARAM_RED_TARGET_DELAY = 0x10,
 diff --git a/util.c b/util.c
-index fc76c66f..61b2d30a 100644
+index fc76c66..61b2d30 100644
 --- a/util.c
 +++ b/util.c
 @@ -42,9 +42,14 @@ bool ____mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
@@ -188,7 +188,7 @@ index fc76c66f..61b2d30a 100644
  int mt76_get_min_avg_rssi(struct mt76_dev *dev, bool ext_phy)
  {
 diff --git a/util.h b/util.h
-index 260965dd..99b7263c 100644
+index 260965d..99b7263 100644
 --- a/util.h
 +++ b/util.h
 @@ -27,7 +27,12 @@ enum {

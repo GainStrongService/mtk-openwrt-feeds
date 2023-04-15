@@ -1,7 +1,8 @@
-From 47b475634804175c77621d492ad6129a31dcda4d Mon Sep 17 00:00:00 2001
+From 28b26529a2cd7d187df6c0b9a95f6d7d0751c205 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 17 Mar 2023 16:17:14 +0800
-Subject: [PATCH] hostapd: mtk: Add vendor for CAPI certification commands
+Subject: [PATCH 26/26] hostapd: mtk: Add vendor for CAPI certification
+ commands
 
 ---
  hostapd/ctrl_iface.c              |  95 +++++++++++++++
@@ -15,7 +16,7 @@ Subject: [PATCH] hostapd: mtk: Add vendor for CAPI certification commands
  8 files changed, 332 insertions(+), 30 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index e1e9270..58bb710 100644
+index 4c5d494..f338d0f 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -38,6 +38,7 @@
@@ -26,7 +27,7 @@ index e1e9270..58bb710 100644
  #include "crypto/tls.h"
  #include "drivers/driver.h"
  #include "eapol_auth/eapol_auth_sm.h"
-@@ -3715,6 +3716,96 @@ hostapd_ctrl_iface_get_aval_color_bmp(struct hostapd_data *hapd, char *buf,
+@@ -3726,6 +3727,96 @@ hostapd_ctrl_iface_get_aval_color_bmp(struct hostapd_data *hapd, char *buf,
  	return pos - buf;
  }
  
@@ -123,7 +124,7 @@ index e1e9270..58bb710 100644
  
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
-@@ -4286,6 +4377,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4297,6 +4388,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_get_bss_color(hapd, reply, reply_size);
  	} else if (os_strncmp(buf, "AVAL_COLOR_BMP", 14) == 0) {
  		reply_len = hostapd_ctrl_iface_get_aval_color_bmp(hapd, reply, reply_size);
@@ -256,10 +257,10 @@ index a99e6f2..32438af 100644
  	MTK_VENDOR_ATTR_BSS_COLOR_CTRL_UNSPEC,
  
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 7f6392f..d4f34b6 100644
+index 1bf0cd6..6a46832 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -4779,6 +4779,28 @@ struct wpa_driver_ops {
+@@ -4787,6 +4787,28 @@ struct wpa_driver_ops {
  	 *
  	 */
  	int (*get_aval_color_bmp)(void *priv, u64 *aval_color_bmp);
@@ -289,7 +290,7 @@ index 7f6392f..d4f34b6 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index f9a8763..9c1717f 100644
+index 945ce3e..7fae013 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -74,6 +74,57 @@ enum nlmsgerr_attrs {
@@ -350,7 +351,7 @@ index f9a8763..9c1717f 100644
  static struct nl_sock * nl_create_handle(struct nl_cb *cb, const char *dbg)
  {
  	struct nl_sock *handle;
-@@ -13005,6 +13056,137 @@ fail:
+@@ -13014,6 +13065,137 @@ fail:
  	return -ENOBUFS;
  }
  
@@ -488,7 +489,7 @@ index f9a8763..9c1717f 100644
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
  	.desc = "Linux nl80211/cfg80211",
-@@ -13162,4 +13344,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -13171,4 +13353,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.amsdu_ctrl = nl80211_enable_amsdu,
  	.amsdu_dump = nl80211_dump_amsdu,
  	.get_aval_color_bmp = nl80211_get_aval_color_bmp,

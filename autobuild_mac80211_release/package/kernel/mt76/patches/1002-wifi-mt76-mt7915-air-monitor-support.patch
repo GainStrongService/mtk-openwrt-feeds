@@ -1,7 +1,7 @@
-From 02fc623b3c08c1544ab0d79e4bd3a59ece96d1b1 Mon Sep 17 00:00:00 2001
+From ce343108ce124478d610539f672d39f343b54103 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Tue, 11 Jan 2022 12:03:23 +0800
-Subject: [PATCH 1002/1009] wifi: mt76: mt7915: air monitor support
+Subject: [PATCH 1002/1032] wifi: mt76: mt7915: air monitor support
 
 ---
  mt76_connac_mcu.h |   2 +
@@ -13,7 +13,7 @@ Subject: [PATCH 1002/1009] wifi: mt76: mt7915: air monitor support
  6 files changed, 440 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 13214452..411911c0 100644
+index 1321445..411911c 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1194,6 +1194,8 @@ enum {
@@ -26,7 +26,7 @@ index 13214452..411911c0 100644
  };
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 9ac0b427..89c86b3a 100644
+index 9ac0b42..89c86b3 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -527,6 +527,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -41,7 +41,7 @@ index 9ac0b427..89c86b3a 100644
  		status->flag |= RX_FLAG_8023;
  		mt7915_wed_check_ppe(dev, &dev->mt76.q_rx[q], msta, skb,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 9cd9b9f5..098aad38 100644
+index 9cd9b9f..098aad3 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -705,6 +705,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -55,7 +55,7 @@ index 9cd9b9f5..098aad38 100644
  }
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index e02dcd03..61a63744 100644
+index e02dcd0..61a6374 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -251,6 +251,35 @@ struct mt7915_hif {
@@ -114,7 +114,7 @@ index e02dcd03..61a63744 100644
  
  #ifdef MTK_DEBUG
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 98fd9c2d..b94d787e 100644
+index 98fd9c2..b94d787 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -430,6 +430,353 @@ out:
@@ -491,7 +491,7 @@ index 98fd9c2d..b94d787e 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 9d3db2a7..976817f3 100644
+index 9d3db2a..976817f 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -4,6 +4,7 @@

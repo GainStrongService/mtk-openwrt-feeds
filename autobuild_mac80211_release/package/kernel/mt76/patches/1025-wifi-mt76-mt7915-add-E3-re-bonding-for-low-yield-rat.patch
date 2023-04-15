@@ -1,7 +1,7 @@
-From 8072dce9210e7700a9bb074bd84c82f3a4d441f2 Mon Sep 17 00:00:00 2001
+From bcce531b2dadd05b31180658e933b2da05226f7a Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 30 Mar 2023 15:12:37 +0800
-Subject: [PATCH 1025/1031] wifi: mt76: mt7915: add E3 re-bonding for low yield
+Subject: [PATCH 1025/1032] wifi: mt76: mt7915: add E3 re-bonding for low yield
  rate issue
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -11,7 +11,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  2 files changed, 29 insertions(+)
 
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 612be3fd..c6d8ca16 100644
+index 612be3f..c6d8ca1 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -239,6 +239,32 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
@@ -57,7 +57,7 @@ index 612be3fd..c6d8ca16 100644
  	if (ret)
  		return ret;
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index a837c742..c147ca1d 100644
+index a837c74..c147ca1 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -563,6 +563,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);

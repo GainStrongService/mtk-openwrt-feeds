@@ -1,7 +1,7 @@
-From 3dbd27d810bca208af96102d52ac71d5ce8a44bb Mon Sep 17 00:00:00 2001
+From 50009a4cc5c65384e445e04c99e6d2aafbf7468d Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Jun 2022 20:13:02 +0800
-Subject: [PATCH 1001/1009] wifi: mt76: mt7915: csi: implement csi support
+Subject: [PATCH 1001/1032] wifi: mt76: mt7915: csi: implement csi support
 
 ---
  mt76_connac_mcu.h |   2 +
@@ -17,7 +17,7 @@ Subject: [PATCH 1001/1009] wifi: mt76: mt7915: csi: implement csi support
  create mode 100644 mt7915/vendor.h
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 82e323c8..13214452 100644
+index 82e323c..1321445 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1000,6 +1000,7 @@ enum {
@@ -37,7 +37,7 @@ index 82e323c8..13214452 100644
  
  enum {
 diff --git a/mt7915/Makefile b/mt7915/Makefile
-index cbcb64be..6a922a9f 100644
+index cbcb64b..6a922a9 100644
 --- a/mt7915/Makefile
 +++ b/mt7915/Makefile
 @@ -1,10 +1,10 @@
@@ -54,7 +54,7 @@ index cbcb64be..6a922a9f 100644
  mt7915e-$(CONFIG_NL80211_TESTMODE) += testmode.o
  mt7915e-$(CONFIG_MT7986_WMAC) += soc.o
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 611a82b6..d21086d1 100644
+index 611a82b..d21086d 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -666,6 +666,12 @@ mt7915_register_ext_phy(struct mt7915_dev *dev, struct mt7915_phy *phy)
@@ -132,7 +132,7 @@ index 611a82b6..d21086d1 100644
  				   ARRAY_SIZE(mt76_rates));
  	if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ec1b0e14..82cff6d3 100644
+index ec1b0e1..82cff6d 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -37,6 +37,10 @@ static bool sr_scene_detect = true;
@@ -268,7 +268,7 @@ index ec1b0e14..82cff6d3 100644
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 9b07d5d5..9a6a52a4 100644
+index 9b07d5d..9a6a52a 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -570,4 +570,81 @@ mt7915_get_power_bound(struct mt7915_phy *phy, s8 txpower)
@@ -354,7 +354,7 @@ index 9b07d5d5..9a6a52a4 100644
 +
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index a7525f33..e02dcd03 100644
+index a7525f3..e02dcd0 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -299,6 +299,20 @@ struct mt7915_phy {
@@ -393,7 +393,7 @@ index a7525f33..e02dcd03 100644
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp);
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
 new file mode 100644
-index 00000000..98fd9c2d
+index 0000000..98fd9c2
 --- /dev/null
 +++ b/mt7915/vendor.c
 @@ -0,0 +1,452 @@
@@ -851,7 +851,7 @@ index 00000000..98fd9c2d
 +}
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
 new file mode 100644
-index 00000000..9d3db2a7
+index 0000000..9d3db2a
 --- /dev/null
 +++ b/mt7915/vendor.h
 @@ -0,0 +1,60 @@

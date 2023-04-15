@@ -1,4 +1,4 @@
-From e0883db9acde00b36de60540d1fb31f89fb73ac2 Mon Sep 17 00:00:00 2001
+From 1d1fbe6a2af03b9bbeac82d36356fe6e4b8ae453 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Tue, 11 Apr 2023 10:56:17 +0800
 Subject: [PATCH 3/5] wifi: mt76: mt7915: disable wfdma tx/rx during SER
@@ -13,7 +13,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  4 files changed, 101 insertions(+), 67 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index df2ca73f..c22ea64b 100644
+index df2ca73..c22ea64 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -466,6 +466,9 @@ mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
@@ -37,7 +37,7 @@ index df2ca73f..c22ea64b 100644
  	if (!t)
  		goto free_skb;
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 43a5456d..3b8a2ab7 100644
+index 43a5456..3b8a2ab 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -250,12 +250,88 @@ static void mt7915_dma_disable(struct mt7915_dev *dev, bool rst)
@@ -218,7 +218,7 @@ index 43a5456d..3b8a2ab7 100644
  	return 0;
  }
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 97ca55d2..f1fdcfde 100644
+index 97ca55d..f1fdcfd 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -1578,6 +1578,8 @@ void mt7915_mac_reset_work(struct work_struct *work)
@@ -274,7 +274,7 @@ index 97ca55d2..f1fdcfde 100644
  		return;
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index b66938ba..376256d2 100644
+index b66938b..376256d 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -481,6 +481,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2);

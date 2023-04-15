@@ -1,7 +1,7 @@
-From 7b460803571110f55c81a377d6680ea350663adc Mon Sep 17 00:00:00 2001
+From b2dfeaa9eda6e52f2f53ac315fb4b127f6bd714d Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 21 Apr 2022 15:43:19 +0800
-Subject: [PATCH 1010/1031] wifi: mt76: testmode: additional supports
+Subject: [PATCH 1010/1032] wifi: mt76: testmode: additional supports
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -29,7 +29,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  20 files changed, 1990 insertions(+), 156 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index e1b73a1e..dc53cc7c 100644
+index e1b73a1..dc53cc7 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -574,8 +574,7 @@ free:
@@ -43,7 +43,7 @@ index e1b73a1e..dc53cc7c 100644
  #endif
  
 diff --git a/mac80211.c b/mac80211.c
-index c3fa85d9..f6fa7887 100644
+index c3fa85d..f6fa788 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -55,6 +55,13 @@ static const struct ieee80211_channel mt76_channels_5ghz[] = {
@@ -73,7 +73,7 @@ index c3fa85d9..f6fa7887 100644
  
  static const struct ieee80211_channel mt76_channels_6ghz[] = {
 diff --git a/mt76.h b/mt76.h
-index 7a4ede7a..7517135b 100644
+index 7a4ede7..7517135 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -646,6 +646,21 @@ struct mt76_testmode_ops {
@@ -235,7 +235,7 @@ index 7a4ede7a..7517135b 100644
  static inline void mt76_testmode_reset(struct mt76_phy *phy, bool disable)
  {
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 856b2897..56493774 100644
+index 856b289..5649377 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -395,6 +395,7 @@ void mt76_connac_mcu_sta_basic_tlv(struct sk_buff *skb,
@@ -257,7 +257,7 @@ index 856b2897..56493774 100644
  		return;
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index aa6d2dac..9641a080 100644
+index aa6d2da..9641a08 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -996,6 +996,7 @@ enum {
@@ -277,7 +277,7 @@ index aa6d2dac..9641a080 100644
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  };
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index a7962893..f1b14711 100644
+index a796289..f1b1471 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -126,7 +126,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
@@ -290,7 +290,7 @@ index a7962893..f1b14711 100644
  				return ret;
  		}
 diff --git a/mt7915/init.c b/mt7915/init.c
-index f6f3e8a6..2da66cb1 100644
+index f6f3e8a..2da66cb 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -697,7 +697,7 @@ static void mt7915_init_work(struct work_struct *work)
@@ -303,7 +303,7 @@ index f6f3e8a6..2da66cb1 100644
  	mt7915_init_txpower(dev, &dev->mphy.sband_2g.sband);
  	mt7915_init_txpower(dev, &dev->mphy.sband_5g.sband);
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 4554a93c..a074608b 100644
+index 4554a93..a074608 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -607,16 +607,38 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
@@ -385,7 +385,7 @@ index 4554a93c..a074608b 100644
  		goto out;
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 1988d8fd..f2dd21f2 100644
+index 1988d8f..f2dd21f 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -238,7 +238,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
@@ -398,7 +398,7 @@ index 1988d8fd..f2dd21f2 100644
  		mvif->mt76.wmm_idx += 2;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 8aec083d..5f8a6155 100644
+index 8aec083..5f8a615 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -384,6 +384,11 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -469,7 +469,7 @@ index 8aec083d..5f8a6155 100644
  
  	return 0;
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 6248e4bc..11ac2ada 100644
+index 6248e4b..11ac2ad 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -8,10 +8,15 @@
@@ -526,7 +526,7 @@ index 6248e4bc..11ac2ada 100644
  
  enum {
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 9451bf5d..22dcd18f 100644
+index 9451bf5..22dcd18 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -134,6 +134,7 @@ static const u32 mt7915_offs[] = {
@@ -546,7 +546,7 @@ index 9451bf5d..22dcd18f 100644
  	[AGG_PCR0]		= 0x040,
  	[AGG_ACR0]		= 0x054,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 9c110b37..cf4af055 100644
+index 9c110b3..cf4af05 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -328,6 +328,9 @@ struct mt7915_phy {
@@ -594,7 +594,7 @@ index 9c110b37..cf4af055 100644
  static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
  {
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index d6a05f13..e8768488 100644
+index d6a05f1..e876848 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -62,6 +62,7 @@ enum offs_rev {
@@ -615,7 +615,7 @@ index d6a05f13..e8768488 100644
  							  (_n) * 4))
  #define MT_AGG_PCR0(_band, _n)		MT_WF_AGG(_band, (__OFFS(AGG_PCR0) +	\
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 46939191..1ed2ea8c 100644
+index 4693919..1ed2ea8 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -9,6 +9,9 @@
@@ -1973,7 +1973,7 @@ index 46939191..1ed2ea8c 100644
 +	.set_eeprom = mt7915_tm_set_eeprom,
  };
 diff --git a/mt7915/testmode.h b/mt7915/testmode.h
-index a1c54c89..01b08e9e 100644
+index a1c54c8..01b08e9 100644
 --- a/mt7915/testmode.h
 +++ b/mt7915/testmode.h
 @@ -4,6 +4,8 @@
@@ -2288,7 +2288,7 @@ index a1c54c89..01b08e9e 100644
 +
  #endif
 diff --git a/testmode.c b/testmode.c
-index 1d0d5d30..fd3b9b20 100644
+index 1d0d5d3..fd3b9b2 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -27,28 +27,16 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
@@ -2759,7 +2759,7 @@ index 1d0d5d30..fd3b9b20 100644
  		a = nla_nest_start(msg, MT76_TM_ATTR_TX_POWER);
  		if (!a)
 diff --git a/testmode.h b/testmode.h
-index 89613266..57949f2b 100644
+index 8961326..57949f2 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -6,6 +6,8 @@
@@ -2864,7 +2864,7 @@ index 89613266..57949f2b 100644
 +
  #endif
 diff --git a/tools/fields.c b/tools/fields.c
-index e3f69089..7e564a3b 100644
+index e3f6908..7e564a3 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -10,6 +10,7 @@ static const char * const testmode_state[] = {
@@ -3005,7 +3005,7 @@ index e3f69089..7e564a3b 100644
  };
  
 diff --git a/tx.c b/tx.c
-index 3ad97423..cecee186 100644
+index 1f309d0..6d55566 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -250,8 +250,7 @@ void __mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *

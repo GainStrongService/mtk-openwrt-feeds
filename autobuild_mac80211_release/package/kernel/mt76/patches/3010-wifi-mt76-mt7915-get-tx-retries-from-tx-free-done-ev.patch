@@ -1,4 +1,4 @@
-From 743a604f0f80987294a33d804140aa6e6906e136 Mon Sep 17 00:00:00 2001
+From d3a40cf6ad567d4fb50d65cb6960d0672a38abe7 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 17 Jan 2023 21:15:00 +0800
 Subject: [PATCH 3010/3013] wifi: mt76: mt7915: get tx retries from tx free
@@ -11,7 +11,7 @@ Subject: [PATCH 3010/3013] wifi: mt76: mt7915: get tx retries from tx free
  3 files changed, 18 insertions(+), 7 deletions(-)
 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index d7b0e631..7690cc32 100644
+index d7b0e63..7690cc3 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -985,6 +985,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
@@ -57,7 +57,7 @@ index d7b0e631..7690cc32 100644
  
  		for (i = 0; i < 1 + v3; i++) {
 diff --git a/mt7915/mac.h b/mt7915/mac.h
-index 6fa9c79f..afadc512 100644
+index 6fa9c79..afadc51 100644
 --- a/mt7915/mac.h
 +++ b/mt7915/mac.h
 @@ -36,8 +36,11 @@ enum rx_pkt_type {
@@ -74,10 +74,10 @@ index 6fa9c79f..afadc512 100644
  
  /* will support this field in further revision */
 diff --git a/mt7915/main.c b/mt7915/main.c
-index e045bada..712f77fc 100644
+index 3074091..7cc3a99 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1117,9 +1117,6 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1118,9 +1118,6 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  		sinfo->tx_bytes = msta->wcid.stats.tx_bytes;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BYTES64);
  
@@ -87,7 +87,7 @@ index e045bada..712f77fc 100644
  		if (mtk_wed_get_rx_capa(&phy->dev->mt76.mmio.wed)) {
  			sinfo->rx_bytes = msta->wcid.stats.rx_bytes;
  			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BYTES64);
-@@ -1129,6 +1126,9 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1130,6 +1127,9 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  		}
  	}
  
