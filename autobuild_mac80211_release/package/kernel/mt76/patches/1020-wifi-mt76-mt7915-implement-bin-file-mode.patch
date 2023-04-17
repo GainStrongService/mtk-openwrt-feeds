@@ -1,7 +1,7 @@
-From bdb2cbe560a332e10d1eef8839ba3286e5ef0ca7 Mon Sep 17 00:00:00 2001
+From c8744205bdfda122ef0cc2bb7b0105dac23b6f8b Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 7 Jul 2022 11:09:59 +0800
-Subject: [PATCH 1020/1032] wifi: mt76: mt7915: implement bin file mode
+Subject: [PATCH] wifi: mt76: mt7915: implement bin file mode
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
@@ -11,8 +11,8 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  mt7915/eeprom.c      | 36 +++++++++++++++++++++++++++++++++---
  mt7915/eeprom.h      |  7 +++++++
  mt7915/mt7915.h      |  9 ++++++---
- mt7915/mtk_debugfs.c | 41 +++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 110 insertions(+), 6 deletions(-)
+ mt7915/mtk_debugfs.c | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 113 insertions(+), 6 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
 index aa88925..412740f 100644
@@ -203,7 +203,7 @@ index ca81289..17efd20 100644
  #define PKT_BIN_DEBUG_MAGIC	0xc8763123
  enum {
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 69dc311..4c94ed3 100644
+index 69dc311..53d10e3 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -3,6 +3,7 @@
@@ -214,7 +214,7 @@ index 69dc311..4c94ed3 100644
  
  #ifdef MTK_DEBUG
  #define LWTBL_IDX2BASE_ID		GENMASK(14, 8)
-@@ -3602,6 +3603,44 @@ static int mt7915_fw_wm_info_read(struct seq_file *s, void *data)
+@@ -3602,6 +3603,47 @@ static int mt7915_fw_wm_info_read(struct seq_file *s, void *data)
  	return 0;
  }
  
@@ -222,6 +222,7 @@ index 69dc311..4c94ed3 100644
 +{
 +	struct mt7915_dev *dev = dev_get_drvdata(s->private);
 +	struct mt76_dev *mdev = &dev->mt76;
++	u8 free_block_num = 0;
 +#ifdef CONFIG_NL80211_TESTMODE
 +	const char *mtd_name = mdev->test_mtd.name;
 +	u32 mtd_offset = mdev->test_mtd.offset;
@@ -238,6 +239,8 @@ index 69dc311..4c94ed3 100644
 +		break;
 +	case EFUSE_MODE:
 +		seq_printf(s, "   efuse mode\n");
++		mt7915_mcu_get_eeprom_free_block(dev, &free_block_num);
++		seq_printf(s, "   free block number = %d\n", free_block_num);
 +		break;
 +	case FLASH_MODE:
 +		if (mtd_name)
@@ -259,7 +262,7 @@ index 69dc311..4c94ed3 100644
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  {
  	struct mt7915_dev *dev = phy->dev;
-@@ -3689,6 +3728,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -3689,6 +3731,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  	debugfs_create_devm_seqfile(dev->mt76.dev, "fw_version", dir,
  				    mt7915_dump_version);
  
