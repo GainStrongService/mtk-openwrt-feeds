@@ -811,52 +811,44 @@ static int mtk_mac_pcs_get_state(struct phylink_config *config,
 		struct mtk_sgmii *ss = eth->sgmii;
 		u32 id = mtk_mac2xgmii_id(eth, mac->id);
 		u32 pmsr = mtk_r32(mac->hw, MTK_MAC_MSR(mac->id));
-		u32 rgc3, val = 0;
-
-		regmap_read(ss->pcs[id].regmap, SGMSYS_PCS_CONTROL_1, &val);
+		u32 bm, adv, rgc3, sgm_mode;
 
 		state->interface = mac->interface;
-		state->link = FIELD_GET(SGMII_LINK_STATYS, val);
 
-		if (FIELD_GET(SGMII_AN_ENABLE, val)) {
+		regmap_read(ss->pcs[id].regmap, SGMSYS_PCS_CONTROL_1, &bm);
+		if (bm & SGMII_AN_ENABLE) {
 			regmap_read(ss->pcs[id].regmap,
-				    SGMII_PCS_SPEED_ABILITY, &val);
+				    SGMSYS_PCS_ADVERTISE, &adv);
 
-			val = val >> 16;
-
-			state->duplex = FIELD_GET(SGMII_PCS_SPEED_DUPLEX, val);
-
-			switch (FIELD_GET(SGMII_PCS_SPEED_MASK, val)) {
-			case 0:
-				state->speed = SPEED_10;
-				break;
-			case 1:
-				state->speed = SPEED_100;
-				break;
-			case 2:
-				state->speed = SPEED_1000;
-				break;
-			}
+			phylink_mii_c22_pcs_decode_state(
+				state,
+				FIELD_GET(SGMII_BMSR, bm),
+				FIELD_GET(SGMII_LPA, adv));
 		} else {
+			state->link = !!(bm & SGMII_LINK_STATYS);
+
 			regmap_read(ss->pcs[id].regmap,
-				    SGMSYS_SGMII_MODE, &val);
+				    SGMSYS_SGMII_MODE, &sgm_mode);
 
-			state->duplex = !FIELD_GET(SGMII_DUPLEX_HALF, val);
-
-			switch (FIELD_GET(SGMII_SPEED_MASK, val)) {
-			case 0:
+			switch (sgm_mode & SGMII_SPEED_MASK) {
+			case SGMII_SPEED_10:
 				state->speed = SPEED_10;
 				break;
-			case 1:
+			case SGMII_SPEED_100:
 				state->speed = SPEED_100;
 				break;
-			case 2:
+			case SGMII_SPEED_1000:
 				regmap_read(ss->pcs[id].regmap,
-					    ss->pcs[id].ana_rgc3, &val);
-				rgc3 = FIELD_GET(RG_PHY_SPEED_3_125G, val);
+					    ss->pcs[id].ana_rgc3, &rgc3);
+				rgc3 = FIELD_GET(RG_PHY_SPEED_3_125G, rgc3);
 				state->speed = rgc3 ? SPEED_2500 : SPEED_1000;
 				break;
 			}
+
+			if (sgm_mode & SGMII_DUPLEX_HALF)
+				state->duplex = DUPLEX_HALF;
+			else
+				state->duplex = DUPLEX_FULL;
 		}
 
 		state->pause &= (MLO_PAUSE_RX | MLO_PAUSE_TX);

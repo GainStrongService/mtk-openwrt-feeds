@@ -820,8 +820,8 @@
 #define ETHSYS_DMA_AG_MAP_PPE	BIT(2)
 
 /* SGMII subsystem config registers */
-/* Register to auto-negotiation restart */
 #define SGMSYS_PCS_CONTROL_1	0x0
+#define SGMII_BMSR		GENMASK(31, 16)
 #define SGMII_AN_RESTART	BIT(9)
 #define SGMII_ISOLATE		BIT(10)
 #define SGMII_AN_ENABLE		BIT(12)
@@ -832,13 +832,15 @@
 #define SGMII_AN_EXPANSION_CLR	BIT(30)
 
 /* Register to set SGMII speed */
-#define SGMII_PCS_SPEED_ABILITY	0x08
-#define SGMII_PCS_SPEED_MASK	GENMASK(11, 10)
-#define SGMII_PCS_SPEED_10	0
-#define SGMII_PCS_SPEED_100	1
-#define SGMII_PCS_SPEED_1000	2
-#define SGMII_PCS_SPEED_DUPLEX	BIT(12)
-#define SGMII_PCS_SPEED_LINK	BIT(15)
+#define SGMSYS_PCS_ADVERTISE	0x08
+#define SGMII_ADVERTISE		GENMASK(15, 0)
+#define SGMII_LPA		GENMASK(31, 16)
+#define SGMII_LPA_SPEED_MASK	GENMASK(11, 10)
+#define SGMII_LPA_SPEED_10	0
+#define SGMII_LPA_SPEED_100	1
+#define SGMII_LPA_SPEED_1000	2
+#define SGMII_LPA_DUPLEX	BIT(12)
+#define SGMII_LPA_LINK		BIT(15)
 
 /* Register to programmable link timer, the unit in 2 * 8ns */
 #define SGMSYS_PCS_LINK_TIMER	0x18
@@ -846,7 +848,7 @@
 
 /* Register to control remote fault */
 #define SGMSYS_SGMII_MODE		0x20
-#define SGMII_IF_MODE_BIT0		BIT(0)
+#define SGMII_IF_MODE_SGMII		BIT(0)
 #define SGMII_SPEED_DUPLEX_AN		BIT(1)
 #define SGMII_SPEED_MASK		GENMASK(3, 2)
 #define SGMII_SPEED_10			0x0
