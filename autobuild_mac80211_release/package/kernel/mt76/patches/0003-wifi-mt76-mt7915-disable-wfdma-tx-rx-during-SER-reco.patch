@@ -1,16 +1,15 @@
-From 1d1fbe6a2af03b9bbeac82d36356fe6e4b8ae453 Mon Sep 17 00:00:00 2001
+From d0242b056d4e4f22dcdec8755798e5461cf131b5 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Tue, 11 Apr 2023 10:56:17 +0800
-Subject: [PATCH 3/5] wifi: mt76: mt7915: disable wfdma tx/rx during SER
- recovery.
+Subject: [PATCH] wifi: mt76: mt7915: disable wfdma tx/rx during SER recovery.
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
  dma.c           |   6 ++
- mt7915/dma.c    | 144 +++++++++++++++++++++++++++---------------------
+ mt7915/dma.c    | 148 +++++++++++++++++++++++++++---------------------
  mt7915/mac.c    |  17 +++++-
  mt7915/mt7915.h |   1 +
- 4 files changed, 101 insertions(+), 67 deletions(-)
+ 4 files changed, 103 insertions(+), 69 deletions(-)
 
 diff --git a/dma.c b/dma.c
 index df2ca73..c22ea64 100644
@@ -37,15 +36,15 @@ index df2ca73..c22ea64 100644
  	if (!t)
  		goto free_skb;
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 43a5456..3b8a2ab 100644
+index 43a5456..9f19609 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
-@@ -250,12 +250,88 @@ static void mt7915_dma_disable(struct mt7915_dev *dev, bool rst)
+@@ -250,12 +250,90 @@ static void mt7915_dma_disable(struct mt7915_dev *dev, bool rst)
  	}
  }
  
 -static int mt7915_dma_enable(struct mt7915_dev *dev)
-+void __mt7915_dma_enable(struct mt7915_dev *dev, bool reset, bool wed_reset)
++int __mt7915_dma_enable(struct mt7915_dev *dev, bool reset, bool wed_reset)
  {
  	struct mt76_dev *mdev = &dev->mt76;
  	u32 hif1_ofs = 0;
@@ -120,6 +119,8 @@ index 43a5456..3b8a2ab 100644
 +
 +	mt7915_irq_enable(dev, irq_mask);
 +	mt7915_irq_disable(dev, 0);
++
++	return 0;
 +}
 +
 +static int mt7915_dma_enable(struct mt7915_dev *dev, bool reset)
@@ -130,7 +131,7 @@ index 43a5456..3b8a2ab 100644
  	if (dev->hif2)
  		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
  
-@@ -322,67 +398,7 @@ static int mt7915_dma_enable(struct mt7915_dev *dev)
+@@ -322,69 +400,7 @@ static int mt7915_dma_enable(struct mt7915_dev *dev)
  	mt76_poll(dev, MT_WFDMA_EXT_CSR_HIF_MISC,
  		  MT_WFDMA_EXT_CSR_HIF_MISC_BUSY, 0, 1000);
  
@@ -195,10 +196,12 @@ index 43a5456..3b8a2ab 100644
 -	}
 -
 -	mt7915_irq_enable(dev, irq_mask);
-+	__mt7915_dma_enable(dev, reset, true);
- 
- 	return 0;
+-
+-	return 0;
++	return __mt7915_dma_enable(dev, reset, true);
  }
+ 
+ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 @@ -560,7 +576,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
  			  mt7915_poll_tx);
  	napi_enable(&dev->mt76.tx_napi);
@@ -274,14 +277,14 @@ index 97ca55d..f1fdcfd 100644
  		return;
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index b66938b..376256d 100644
+index b66938b..6c40108 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -481,6 +481,7 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2);
  void mt7915_dma_prefetch(struct mt7915_dev *dev);
  void mt7915_dma_cleanup(struct mt7915_dev *dev);
  int mt7915_dma_reset(struct mt7915_dev *dev, bool force);
-+void __mt7915_dma_enable(struct mt7915_dev *dev, bool reset, bool wed_reset);
++int __mt7915_dma_enable(struct mt7915_dev *dev, bool reset, bool wed_reset);
  int mt7915_txbf_init(struct mt7915_dev *dev);
  void mt7915_init_txpower(struct mt7915_dev *dev,
  			 struct ieee80211_supported_band *sband);
