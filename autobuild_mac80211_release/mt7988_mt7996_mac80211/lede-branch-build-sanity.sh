@@ -51,8 +51,6 @@ prepare_mac80211 ${backport_new}
 rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*
 
 # ========== specific modification on mt7996 autobuild for EHT support ==========
-# patch mac80211.sh script
-patch -p1 < ${BUILD_DIR}/autobuild/${branch_name}/0001-support-EHT-for-mac80211.sh.patch
 # patch hostapd to use latest version and add 11BE config
 patch -p1 < ${BUILD_DIR}/autobuild/${branch_name}/0002-add-EHT-config-for-hostapd.patch
 # copy DSP & testmode firmware
