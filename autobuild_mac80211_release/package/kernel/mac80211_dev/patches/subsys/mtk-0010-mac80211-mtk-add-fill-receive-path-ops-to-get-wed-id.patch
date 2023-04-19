@@ -1,7 +1,7 @@
-From 98416f74912dd94359588ef08efe7b047f028162 Mon Sep 17 00:00:00 2001
+From ea115965135f78dc8993f1a73a0600fb5b83cdf7 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Wed, 18 May 2022 15:10:22 +0800
-Subject: [PATCH 12/16] mac80211: mtk: add fill receive path ops to get wed idx
+Subject: [PATCH 10/14] mac80211: mtk: add fill receive path ops to get wed idx
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -12,10 +12,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  4 files changed, 50 insertions(+)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index decc558..33e16d2 100644
+index bd257ce..9208a8d 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -4211,6 +4211,8 @@ struct ieee80211_prep_tx_info {
+@@ -4226,6 +4226,8 @@ struct ieee80211_prep_tx_info {
   *	disable background CAC/radar detection.
   * @net_fill_forward_path: Called from .ndo_fill_forward_path in order to
   *	resolve a path for hardware flow offloading
@@ -24,7 +24,7 @@ index decc558..33e16d2 100644
   * @change_vif_links: Change the valid links on an interface, note that while
   *	removing the old link information is still valid (link_conf pointer),
   *	but may immediately disappear after the function returns. The old or
-@@ -4576,6 +4578,9 @@ struct ieee80211_ops {
+@@ -4591,6 +4593,9 @@ struct ieee80211_ops {
  				     struct ieee80211_sta *sta,
  				     struct net_device_path_ctx *ctx,
  				     struct net_device_path *path);
@@ -35,7 +35,7 @@ index decc558..33e16d2 100644
  				struct ieee80211_vif *vif,
  				u16 old_links, u16 new_links,
 diff --git a/net/mac80211/driver-ops.h b/net/mac80211/driver-ops.h
-index c5c81d5..084b710 100644
+index 37f428e..b076658 100644
 --- a/net/mac80211/driver-ops.h
 +++ b/net/mac80211/driver-ops.h
 @@ -1485,6 +1485,19 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
@@ -100,10 +100,10 @@ index a18f80d..b82065c 100644
  };
  
 diff --git a/net/mac80211/util.c b/net/mac80211/util.c
-index 608f927..fd63ee3 100644
+index 5a6c091..f6a2561 100644
 --- a/net/mac80211/util.c
 +++ b/net/mac80211/util.c
-@@ -914,6 +914,15 @@ struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
+@@ -888,6 +888,15 @@ struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
  }
  EXPORT_SYMBOL_GPL(ieee80211_vif_to_wdev);
  
@@ -120,5 +120,5 @@ index 608f927..fd63ee3 100644
   * Nothing should have been stuffed into the workqueue during
   * the suspend->resume cycle. Since we can't check each caller
 -- 
-2.18.0
+2.39.2
 

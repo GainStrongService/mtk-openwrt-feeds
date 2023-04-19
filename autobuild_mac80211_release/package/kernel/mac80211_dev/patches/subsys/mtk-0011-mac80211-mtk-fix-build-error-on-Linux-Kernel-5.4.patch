@@ -1,7 +1,7 @@
-From 2396b71e50211886c7b5f165b8baf0c1fb06d67e Mon Sep 17 00:00:00 2001
+From ecf81145d85cc3d991d360d283b83a0e91ecf1da Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Tue, 13 Dec 2022 09:04:49 +0800
-Subject: [PATCH 13/16] mac80211: mtk: fix build error on Linux Kernel 5.4
+Subject: [PATCH 11/14] mac80211: mtk: fix build error on Linux Kernel 5.4
 
 ---
  include/linux/ieee80211.h          | 8 +++-----
@@ -11,7 +11,7 @@ Subject: [PATCH 13/16] mac80211: mtk: fix build error on Linux Kernel 5.4
  4 files changed, 11 insertions(+), 7 deletions(-)
 
 diff --git a/include/linux/ieee80211.h b/include/linux/ieee80211.h
-index a1f1b57..7f5c362 100644
+index d15816f..00d381e 100644
 --- a/include/linux/ieee80211.h
 +++ b/include/linux/ieee80211.h
 @@ -310,11 +310,9 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
@@ -66,10 +66,10 @@ index 20f742b..93ec2f3 100644
  
  
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 202f802..1035f74 100644
+index 95676d9..6f1d60a 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -16441,9 +16441,11 @@ static const struct genl_ops nl80211_ops[] = {
+@@ -16457,9 +16457,11 @@ static const struct genl_ops nl80211_ops[] = {
  		/* can be retrieved by unprivileged users */
  		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WIPHY),
  	},
@@ -81,7 +81,7 @@ index 202f802..1035f74 100644
  	{
  		.cmd = NL80211_CMD_SET_WIPHY,
  		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-@@ -17280,8 +17282,10 @@ static struct genl_family nl80211_fam __genl_ro_after_init = {
+@@ -17296,8 +17298,10 @@ static struct genl_family nl80211_fam __genl_ro_after_init = {
  	.module = THIS_MODULE,
  	.ops = nl80211_ops,
  	.n_ops = ARRAY_SIZE(nl80211_ops),
@@ -93,5 +93,5 @@ index 202f802..1035f74 100644
  	.resv_start_op = NL80211_CMD_REMOVE_LINK_STA + 1,
  #endif
 -- 
-2.18.0
+2.39.2
 

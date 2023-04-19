@@ -1,7 +1,7 @@
-From 7cdaa36e98e9bdc9621614fb7b7ad088683dddb7 Mon Sep 17 00:00:00 2001
+From 5d3d13bfb9074bd384f1f079b1064496f79e5b91 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 22 Sep 2022 14:27:41 +0800
-Subject: [PATCH 08/16] cfg80211: mtk: implement DFS status show, cac and nop
+Subject: [PATCH 06/14] cfg80211: mtk: implement DFS status show, cac and nop
  skip command via debugfs
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 320 insertions(+), 7 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index d99b59f..bbd3de4 100644
+index 450de58..ddd63e7 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -4641,6 +4641,7 @@ struct cfg80211_ops {
+@@ -4647,6 +4647,7 @@ struct cfg80211_ops {
  				    struct link_station_parameters *params);
  	int	(*del_link_station)(struct wiphy *wiphy, struct net_device *dev,
  				    struct link_station_del_parameters *params);
@@ -28,10 +28,10 @@ index d99b59f..bbd3de4 100644
  
  /*
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 27f7616..3e35433 100644
+index 97f7905..36a2c8d 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -4900,6 +4900,25 @@ ieee80211_del_link_station(struct wiphy *wiphy, struct net_device *dev,
+@@ -4962,6 +4962,25 @@ ieee80211_del_link_station(struct wiphy *wiphy, struct net_device *dev,
  	return ret;
  }
  
@@ -57,14 +57,14 @@ index 27f7616..3e35433 100644
  const struct cfg80211_ops mac80211_config_ops = {
  	.add_virtual_intf = ieee80211_add_iface,
  	.del_virtual_intf = ieee80211_del_iface,
-@@ -5011,4 +5030,5 @@ const struct cfg80211_ops mac80211_config_ops = {
+@@ -5072,4 +5091,5 @@ const struct cfg80211_ops mac80211_config_ops = {
  	.add_link_station = ieee80211_add_link_station,
  	.mod_link_station = ieee80211_mod_link_station,
  	.del_link_station = ieee80211_del_link_station,
 +	.skip_cac = ieee80211_skip_cac,
  };
 diff --git a/net/wireless/core.h b/net/wireless/core.h
-index f4d3b83..b1bc314 100644
+index 382455c..c9d7712 100644
 --- a/net/wireless/core.h
 +++ b/net/wireless/core.h
 @@ -86,6 +86,9 @@ struct cfg80211_registered_device {
@@ -433,10 +433,10 @@ index ca29892..ce83152 100644
 +
  #endif /* __CFG80211_RDEV_OPS */
 diff --git a/net/wireless/trace.h b/net/wireless/trace.h
-index 8e7c00f..d3a98e8 100644
+index 4a7d0ae..4d44c55 100644
 --- a/net/wireless/trace.h
 +++ b/net/wireless/trace.h
-@@ -3901,6 +3901,18 @@ TRACE_EVENT(rdev_del_link_station,
+@@ -3909,6 +3909,18 @@ TRACE_EVENT(rdev_del_link_station,
  		  __entry->link_id)
  );
  
@@ -456,5 +456,5 @@ index 8e7c00f..d3a98e8 100644
  
  #undef TRACE_INCLUDE_PATH
 -- 
-2.18.0
+2.39.2
 

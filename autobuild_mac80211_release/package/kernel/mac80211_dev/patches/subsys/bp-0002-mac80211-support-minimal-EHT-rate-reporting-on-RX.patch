@@ -1,7 +1,7 @@
-From 438df855ef351c2a0dda7911361e1044c9ddf8bc Mon Sep 17 00:00:00 2001
+From 2ff2e76bdbbbe8fa6923c274f276110f86acfb6a Mon Sep 17 00:00:00 2001
 From: Johannes Berg <johannes.berg@intel.com>
 Date: Mon, 9 Jan 2023 13:07:21 +0200
-Subject: [PATCH 01/16] mac80211: support minimal EHT rate reporting on RX
+Subject: [PATCH 2/9] mac80211: support minimal EHT rate reporting on RX
 
 Add minimal support for RX EHT rate reporting, not yet
 adding (modifying) any radiotap headers, just statistics
@@ -17,10 +17,10 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
  5 files changed, 64 insertions(+), 10 deletions(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index c8d3c50..b8d71ab 100644
+index 9c59eb8..3388cc7 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -1462,6 +1462,7 @@ enum mac80211_rx_encoding {
+@@ -1468,6 +1468,7 @@ enum mac80211_rx_encoding {
  	RX_ENC_HT,
  	RX_ENC_VHT,
  	RX_ENC_HE,
@@ -28,7 +28,7 @@ index c8d3c50..b8d71ab 100644
  };
  
  /**
-@@ -1495,7 +1496,7 @@ enum mac80211_rx_encoding {
+@@ -1501,7 +1502,7 @@ enum mac80211_rx_encoding {
   * @antenna: antenna used
   * @rate_idx: index of data rate into band's supported rates or MCS index if
   *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
@@ -37,7 +37,7 @@ index c8d3c50..b8d71ab 100644
   * @flag: %RX_FLAG_\*
   * @encoding: &enum mac80211_rx_encoding
   * @bw: &enum rate_info_bw
-@@ -1503,6 +1504,8 @@ enum mac80211_rx_encoding {
+@@ -1509,6 +1510,8 @@ enum mac80211_rx_encoding {
   * @he_ru: HE RU, from &enum nl80211_he_ru_alloc
   * @he_gi: HE GI, from &enum nl80211_he_gi
   * @he_dcm: HE DCM value
@@ -46,7 +46,7 @@ index c8d3c50..b8d71ab 100644
   * @rx_flags: internal RX flags for mac80211
   * @ampdu_reference: A-MPDU reference number, must be a different value for
   *	each A-MPDU but the same for each subframe within one A-MPDU
-@@ -1524,8 +1527,18 @@ struct ieee80211_rx_status {
+@@ -1530,8 +1533,18 @@ struct ieee80211_rx_status {
  	u32 flag;
  	u16 freq: 13, freq_offset: 1;
  	u8 enc_flags;
@@ -68,10 +68,10 @@ index c8d3c50..b8d71ab 100644
  	u8 nss;
  	u8 rx_flags;
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 45aeb01..376e131 100644
+index 46ae9e9..fadf2be 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
-@@ -5331,6 +5331,15 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
+@@ -5328,6 +5328,15 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
  				      status->rate_idx, status->nss))
  				goto drop;
  			break;
@@ -88,7 +88,7 @@ index 45aeb01..376e131 100644
  			WARN_ON_ONCE(1);
  			fallthrough;
 diff --git a/net/mac80211/sta_info.c b/net/mac80211/sta_info.c
-index e94ff8f..a2d7bf5 100644
+index a13a8fb..50daa22 100644
 --- a/net/mac80211/sta_info.c
 +++ b/net/mac80211/sta_info.c
 @@ -4,7 +4,7 @@
@@ -164,10 +164,10 @@ index 759a1a8..ec8dff0 100644
  		WARN_ON(1);
  		return STA_STATS_RATE_INVALID;
 diff --git a/net/mac80211/util.c b/net/mac80211/util.c
-index 005a730..608f927 100644
+index 83f6c56..5a6c091 100644
 --- a/net/mac80211/util.c
 +++ b/net/mac80211/util.c
-@@ -3926,6 +3926,19 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
+@@ -3900,6 +3900,19 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
  
  	/* Fill cfg80211 rate info */
  	switch (status->encoding) {
@@ -188,5 +188,5 @@ index 005a730..608f927 100644
  		ri.flags |= RATE_INFO_FLAGS_HE_MCS;
  		ri.mcs = status->rate_idx;
 -- 
-2.18.0
+2.39.2
 
