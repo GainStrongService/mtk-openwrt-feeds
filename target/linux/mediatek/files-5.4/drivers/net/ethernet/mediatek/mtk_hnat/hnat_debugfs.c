@@ -16,6 +16,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/iopoll.h>
+#include <linux/inet.h>
+#include <net/ipv6.h>
 
 #include "hnat.h"
 #include "nf_hnat_mtk.h"
@@ -30,6 +32,8 @@ int mape_toggle;
 int qos_toggle;
 int qos_dl_toggle = 1;
 int qos_ul_toggle = 1;
+int xlat_toggle;
+struct hnat_desc headroom[DEF_ETRY_NUM];
 unsigned int dbg_cpu_reason_cnt[MAX_CRSN_NUM];
 
 static const char * const entry_state[] = { "INVALID", "UNBIND", "BIND", "FIN" };
@@ -394,8 +398,11 @@ int entry_detail(u32 ppe_id, int index)
 		pr_info("IPv4 Org IP: %pI4->%pI4\n", &saddr, &daddr);
 		pr_info("IPv4 New IP: %pI4->%pI4\n", &nsaddr, &ndaddr);
 	} else if (IS_IPV4_DSLITE(entry)) {
-		pr_info("Information Block 2: %08X\n",
-			entry->ipv4_dslite.info_blk2);
+		pr_info("Information Block 2: %08X (FP=%d FQOS=%d QID=%d)",
+			entry->ipv4_dslite.info_blk2,
+			entry->ipv4_dslite.iblk2.dp,
+			entry->ipv4_dslite.iblk2.fqos,
+			entry->ipv4_dslite.iblk2.qid);
 		pr_info("Create IPv4 Ds-Lite entry\n");
 		pr_info("IPv4 Ds-Lite: %pI4:%d->%pI4:%d\n", &saddr,
 			entry->ipv4_dslite.sport, &daddr,
@@ -463,8 +470,11 @@ int entry_detail(u32 ppe_id, int index)
 			entry->ipv6_5t_route.ipv6_dip3,
 			entry->ipv6_5t_route.dport);
 	} else if (IS_IPV6_6RD(entry)) {
-		pr_info("Information Block 2: %08X\n",
-			entry->ipv6_6rd.info_blk2);
+		pr_info("Information Block 2: %08X (FP=%d FQOS=%d QID=%d)",
+			entry->ipv6_6rd.info_blk2,
+			entry->ipv6_6rd.iblk2.dp,
+			entry->ipv6_6rd.iblk2.fqos,
+			entry->ipv6_6rd.iblk2.qid);
 		pr_info("Create IPv6 6RD entry\n");
 		pr_info("ING SIPv6->DIPv6: %08X:%08X:%08X:%08X:%d-> %08X:%08X:%08X:%08X:%d\n",
 			entry->ipv6_6rd.ipv6_sip0, entry->ipv6_6rd.ipv6_sip1,
@@ -2396,6 +2406,211 @@ static const struct file_operations hnat_hook_toggle_fops = {
 	.release = single_release,
 };
 
+static int hnat_xlat_toggle_read(struct seq_file *m, void *private)
+{
+	pr_info("value=%d, xlat is %s now!\n",
+		xlat_toggle, (xlat_toggle) ? "enabled" : "disabled");
+
+	return 0;
+}
+
+static int hnat_xlat_toggle_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hnat_xlat_toggle_read, file->private_data);
+}
+
+static ssize_t hnat_xlat_toggle_write(struct file *file,
+				      const char __user *buffer,
+				      size_t count, loff_t *data)
+{
+	char buf[8] = {0};
+	int len = count;
+	int i;
+	u32 ppe_cfg;
+
+	if ((len > 8) || copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	if (buf[0] == '1' && !xlat_toggle) {
+		pr_info("xlat is going to be enabled !\n");
+		xlat_toggle = 1;
+	} else if (buf[0] == '0' && xlat_toggle) {
+		pr_info("xlat is going to be disabled !\n");
+		xlat_toggle = 0;
+	}
+
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		ppe_cfg = readl(hnat_priv->ppe_base[i] + PPE_FLOW_CFG);
+
+		if (xlat_toggle)
+			ppe_cfg |= BIT_IPV6_464XLAT_EN;
+		else
+			ppe_cfg &= ~BIT_IPV6_464XLAT_EN;
+
+		writel(ppe_cfg, hnat_priv->ppe_base[i] + PPE_FLOW_CFG);
+	}
+
+	return len;
+}
+
+static const struct file_operations hnat_xlat_toggle_fops = {
+	.open = hnat_xlat_toggle_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = hnat_xlat_toggle_write,
+	.release = single_release,
+};
+
+int mtk_ppe_get_xlat_v6_by_v4(u32 *ipv4, struct in6_addr *ipv6,
+			      struct in6_addr *prefix)
+{
+	struct mtk_hnat *h = hnat_priv;
+	struct map46 *m = NULL;
+
+	list_for_each_entry(m, &h->xlat.map_list, list) {
+		if (m->ipv4 == *ipv4) {
+			memcpy(ipv6, &m->ipv6, sizeof(*ipv6));
+			memcpy(prefix, &h->xlat.prefix, sizeof(*ipv6));
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+int mtk_ppe_get_xlat_v4_by_v6(struct in6_addr *ipv6, u32 *ipv4)
+{
+	struct mtk_hnat *h = hnat_priv;
+	struct map46 *m = NULL;
+
+	list_for_each_entry(m, &h->xlat.map_list, list) {
+		if (ipv6_addr_equal(ipv6, &m->ipv6)) {
+			*ipv4 = m->ipv4;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+static int hnat_xlat_cfg_read(struct seq_file *m, void *private)
+{
+	pr_info("\n464XLAT Config Command Usage:\n");
+	pr_info("Show HQoS usage:\n");
+	pr_info("    cat /sys/kernel/debug/hnat/xlat_cfg\n");
+	pr_info("Set ipv6 prefix :\n");
+	pr_info("    echo prefix <prefix> > /sys/kernel/debug/hnat/xlat_cfg\n");
+	pr_info("Set ipv6 prefix len :\n");
+	pr_info("    echo pfx_len <len> > /sys/kernel/debug/hnat/xlat_cfg\n");
+	pr_info("Add map :\n");
+	pr_info("echo map add <ipv4> <ipv6> > /sys/kernel/debug/hnat/xlat_cfg\n");
+	pr_info("Delete map :\n");
+	pr_info("echo map del <ipv4> <ipv6> > /sys/kernel/debug/hnat/xlat_cfg\n");
+	pr_info("Show config:\n");
+	pr_info("echo show > /sys/kernel/debug/hnat/xlat_cfg\n");
+
+	return 0;
+}
+
+static int hnat_xlat_cfg_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hnat_xlat_cfg_read, file->private_data);
+}
+
+static ssize_t hnat_xlat_cfg_write(struct file *file, const char __user *buffer,
+				      size_t count, loff_t *data)
+{
+	struct mtk_hnat *h = hnat_priv;
+	int len = count;
+	char buf[256] = {0}, v4_str[64] = {0}, v6_str[64] = {0};
+	struct map46 *map = NULL, *m = NULL, *next = NULL;
+	struct in6_addr ipv6;
+	u32 ipv4;
+
+	if ((len > 256) || copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	if (!strncmp(buf, "prefix", 6)) {
+		if (sscanf(buf, "prefix %s\n", v6_str) != 1) {
+			pr_info("input error\n");
+			return -1;
+		}
+
+		in6_pton(v6_str, -1, (u8 *)&h->xlat.prefix, -1, NULL);
+		pr_info("set prefix = %pI6\n", &h->xlat.prefix);
+	} else if (!strncmp(buf, "pfx_len", 7)) {
+		if (sscanf(buf, "pfx_len %d", &h->xlat.prefix_len) != 1) {
+			pr_info("input error\n");
+			return -1;
+		}
+
+		pr_info("set pfx_len = %d\n", h->xlat.prefix_len);
+	} else if (!strncmp(buf, "map add", 7)) {
+		if (sscanf(buf, "map add %s %s\n", v4_str, v6_str) != 2) {
+			pr_info("input error\n");
+			return -1;
+		}
+
+		map = kmalloc(sizeof(struct map46), GFP_KERNEL);
+		if (!map)
+			return -1;
+
+		in4_pton(v4_str, -1, (u8 *)&map->ipv4, -1, NULL);
+		in6_pton(v6_str, -1, (u8 *)&map->ipv6, -1, NULL);
+		list_for_each_entry(m, &h->xlat.map_list, list) {
+			if (ipv6_addr_equal(&map->ipv6, &m->ipv6) &&
+			    map->ipv4 == m->ipv4) {
+				pr_info("this map already added.\n");
+				kfree(map);
+				return -1;
+			}
+		}
+
+		list_add(&map->list, &h->xlat.map_list);
+		pr_info("add map: %pI4<=>%pI6\n", &map->ipv4, &map->ipv6);
+	} else if (!strncmp(buf, "map del", 7)) {
+		if (sscanf(buf, "map del %s %s\n", v4_str, v6_str) != 2) {
+			pr_info("input error\n");
+			return -1;
+		}
+
+		in4_pton(v4_str, -1, (u8 *)&ipv4, -1, NULL);
+		in6_pton(v6_str, -1, (u8 *)&ipv6, -1, NULL);
+
+		list_for_each_entry_safe(m, next, &h->xlat.map_list, list) {
+			if (ipv6_addr_equal(&ipv6, &m->ipv6) &&
+			    ipv4 == m->ipv4) {
+				list_del(&m->list);
+				kfree(m);
+				pr_info("del map: %s<=>%s\n", v4_str, v6_str);
+				return len;
+			}
+		}
+
+		pr_info("not found map: %s<=>%s\n", v4_str, v6_str);
+	} else if (!strncmp(buf, "show", 4)) {
+		pr_info("prefix=%pI6\n", &h->xlat.prefix);
+		pr_info("prefix_len=%d\n", h->xlat.prefix_len);
+
+		list_for_each_entry(m, &h->xlat.map_list, list) {
+			pr_info("map: %pI4<=>%pI6\n", &m->ipv4, &m->ipv6);
+		}
+	} else {
+		pr_info("input error\n");
+		return -1;
+	}
+
+	return len;
+}
+
+static const struct file_operations hnat_xlat_cfg_fops = {
+	.open = hnat_xlat_cfg_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = hnat_xlat_cfg_write,
+	.release = single_release,
+};
+
 static void hnat_qos_toggle_usage(void)
 {
 	pr_info("\nHQoS toggle Command Usage:\n");
@@ -2594,12 +2809,33 @@ static const struct file_operations hnat_version_fops = {
 	.release = single_release,
 };
 
-static u32 hnat_get_ppe_hash(u32 sip, u32 dip, u32 sport, u32 dport)
+u32 hnat_get_ppe_hash(struct foe_entry *entry)
 {
-	u32 hv1 = sport << 16 | dport;
-	u32 hv2 = dip;
-	u32 hv3 = sip;
-	u32 hash;
+	u32 hv1, hv2, hv3, hash;
+
+	switch (entry->bfib1.pkt_type) {
+	case IPV4_HNAPT:
+	case IPV4_HNAT:
+	case IPV4_DSLITE:
+		hv1 = entry->ipv4_hnapt.sport << 16 | entry->ipv4_hnapt.dport;
+		hv2 = entry->ipv4_hnapt.dip;
+		hv3 = entry->ipv4_hnapt.sip;
+		break;
+	case IPV6_3T_ROUTE:
+	case IPV6_5T_ROUTE:
+	case IPV6_6RD:
+		hv1 = entry->ipv6_5t_route.ipv6_sip3 ^
+			  entry->ipv6_5t_route.ipv6_dip3;
+		hv1 ^= entry->ipv6_5t_route.sport << 16 |
+			   entry->ipv6_5t_route.dport;
+		hv2 = entry->ipv6_5t_route.ipv6_sip2 ^
+			  entry->ipv6_5t_route.ipv6_dip2;
+		hv2 ^= entry->ipv6_5t_route.ipv6_dip0;
+		hv3 = entry->ipv6_5t_route.ipv6_sip1 ^
+			  entry->ipv6_5t_route.ipv6_dip1;
+		hv3 ^= entry->ipv6_5t_route.ipv6_sip0;
+		break;
+	}
 
 	hash = (hv1 & hv2) | ((~hv1) & hv3);
 	hash = (hash >> 24) | ((hash & 0xffffff) << 8);
@@ -2755,12 +2991,8 @@ static ssize_t hnat_static_entry_write(struct file *file,
 	entry.ipv4_hnapt.smac_hi = swab32(*((u32 *)smac));
 	entry.ipv4_hnapt.smac_lo = swab16(*((u16 *)&smac[4]));
 
-	if (hash == -1) {
-		hash = hnat_get_ppe_hash(entry.ipv4_hnapt.sip,
-					 entry.ipv4_hnapt.dip,
-					 entry.ipv4_hnapt.sport,
-					 entry.ipv4_hnapt.dport);
-	}
+	if (hash == -1)
+		hash = hnat_get_ppe_hash(&entry);
 
 	foe = &hnat_priv->foe_table_cpu[ppe_id][hash];
 	while ((foe->ipv4_hnapt.bfib1.state == BIND) && (coll < 4)) {
@@ -2939,6 +3171,10 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 			    &hnat_ppd_if_fops);
 	debugfs_create_file("static_entry", 0444, root, h,
 			    &hnat_static_fops);
+	debugfs_create_file("xlat_toggle", 0444, root, h,
+			    &hnat_xlat_toggle_fops);
+	debugfs_create_file("xlat_cfg", 0444, root, h,
+			    &hnat_xlat_cfg_fops);
 
 	for (i = 0; i < hnat_priv->data->num_of_sch; i++) {
 		ret = snprintf(name, sizeof(name), "qdma_sch%ld", i);

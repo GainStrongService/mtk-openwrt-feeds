@@ -688,7 +688,20 @@ unsigned int do_hnat_mape_w2l_fast(struct sk_buff *skb, const struct net_device 
 	return -1;
 }
 
+void mtk_464xlat_pre_process(struct sk_buff *skb)
+{
+	struct foe_entry *foe;
 
+	foe = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
+	if (foe->bfib1.state != BIND &&
+	    skb_hnat_reason(skb) == HIT_UNBIND_RATE_REACH)
+		memcpy(&headroom[skb_hnat_entry(skb)], skb->head,
+		       sizeof(struct hnat_desc));
+
+	if (foe->bfib1.state == BIND)
+		memset(&headroom[skb_hnat_entry(skb)], 0,
+		       sizeof(struct hnat_desc));
+}
 
 static unsigned int is_ppe_support_type(struct sk_buff *skb)
 {
@@ -786,6 +799,9 @@ mtk_hnat_ipv6_nf_pre_routing(void *priv, struct sk_buff *skb,
 	if (is_from_mape(skb))
 		clr_from_extge(skb);
 #endif
+	if (xlat_toggle)
+		mtk_464xlat_pre_process(skb);
+
 	return NF_ACCEPT;
 drop:
 	if (skb)
@@ -831,6 +847,8 @@ mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 			return NF_STOLEN;
 		goto drop;
 	}
+	if (xlat_toggle)
+		mtk_464xlat_pre_process(skb);
 
 	return NF_ACCEPT;
 drop:
@@ -2113,6 +2131,288 @@ static void mtk_hnat_nf_update(struct sk_buff *skb)
 	}
 }
 
+int mtk_464xlat_fill_mac(struct foe_entry *entry, struct sk_buff *skb,
+			 const struct net_device *out, bool l2w)
+{
+	const struct in6_addr *ipv6_nexthop;
+	struct dst_entry *dst = skb_dst(skb);
+	struct neighbour *neigh = NULL;
+	struct rtable *rt = (struct rtable *)dst;
+	u32 nexthop;
+
+	rcu_read_lock_bh();
+	if (l2w) {
+		ipv6_nexthop = rt6_nexthop((struct rt6_info *)dst,
+					   &ipv6_hdr(skb)->daddr);
+		neigh = __ipv6_neigh_lookup_noref(dst->dev, ipv6_nexthop);
+		if (unlikely(!neigh)) {
+			dev_notice(hnat_priv->dev, "%s:No neigh (daddr=%pI6)\n",
+				   __func__, &ipv6_hdr(skb)->daddr);
+			rcu_read_unlock_bh();
+			return -1;
+		}
+	} else {
+		nexthop = (__force u32)rt_nexthop(rt, ip_hdr(skb)->daddr);
+		neigh = __ipv4_neigh_lookup_noref(dst->dev, nexthop);
+		if (unlikely(!neigh)) {
+			dev_notice(hnat_priv->dev, "%s:No neigh (daddr=%pI4)\n",
+				   __func__, &ip_hdr(skb)->daddr);
+			rcu_read_unlock_bh();
+			return -1;
+		}
+	}
+	rcu_read_unlock_bh();
+
+	entry->ipv4_dslite.dmac_hi = swab32(*((u32 *)neigh->ha));
+	entry->ipv4_dslite.dmac_lo = swab16(*((u16 *)&neigh->ha[4]));
+	entry->ipv4_dslite.smac_hi = swab32(*((u32 *)out->dev_addr));
+	entry->ipv4_dslite.smac_lo = swab16(*((u16 *)&out->dev_addr[4]));
+
+	return 0;
+}
+
+int mtk_464xlat_get_hash(struct sk_buff *skb, u32 *hash, bool l2w)
+{
+	struct in6_addr addr_v6, prefix;
+	struct ipv6hdr *ip6h;
+	struct iphdr *iph;
+	struct tcpudphdr *pptr, _ports;
+	struct foe_entry tmp;
+	u32 addr, protoff;
+
+	if (l2w) {
+		ip6h = ipv6_hdr(skb);
+		if (mtk_ppe_get_xlat_v4_by_v6(&ip6h->daddr, &addr))
+			return -1;
+		protoff = IPV6_HDR_LEN;
+
+		tmp.bfib1.pkt_type = IPV4_HNAPT;
+		tmp.ipv4_hnapt.sip = ntohl(ip6h->saddr.s6_addr32[3]);
+		tmp.ipv4_hnapt.dip = ntohl(addr);
+	} else {
+		iph = ip_hdr(skb);
+		if (mtk_ppe_get_xlat_v6_by_v4(&iph->saddr, &addr_v6, &prefix))
+			return -1;
+
+		protoff = iph->ihl * 4;
+
+		tmp.bfib1.pkt_type = IPV6_5T_ROUTE;
+		tmp.ipv6_5t_route.ipv6_sip0 = ntohl(addr_v6.s6_addr32[0]);
+		tmp.ipv6_5t_route.ipv6_sip1 = ntohl(addr_v6.s6_addr32[1]);
+		tmp.ipv6_5t_route.ipv6_sip2 = ntohl(addr_v6.s6_addr32[2]);
+		tmp.ipv6_5t_route.ipv6_sip3 = ntohl(addr_v6.s6_addr32[3]);
+		tmp.ipv6_5t_route.ipv6_dip0 = ntohl(prefix.s6_addr32[0]);
+		tmp.ipv6_5t_route.ipv6_dip1 = ntohl(prefix.s6_addr32[1]);
+		tmp.ipv6_5t_route.ipv6_dip2 = ntohl(prefix.s6_addr32[2]);
+		tmp.ipv6_5t_route.ipv6_dip3 = ntohl(iph->daddr);
+	}
+
+	pptr = skb_header_pointer(skb, protoff,
+				  sizeof(_ports), &_ports);
+	if (unlikely(!pptr))
+		return -1;
+
+	if (l2w) {
+		tmp.ipv4_hnapt.sport = ntohs(pptr->src);
+		tmp.ipv4_hnapt.dport = ntohs(pptr->dst);
+	} else {
+		tmp.ipv6_5t_route.sport = ntohs(pptr->src);
+		tmp.ipv6_5t_route.dport = ntohs(pptr->dst);
+	}
+
+	*hash = hnat_get_ppe_hash(&tmp);
+
+	return 0;
+}
+
+void mtk_464xlat_fill_info1(struct foe_entry *entry,
+			    struct sk_buff *skb, bool l2w)
+{
+	entry->bfib1.cah = 1;
+	entry->bfib1.ttl = 1;
+	entry->bfib1.state = BIND;
+	entry->bfib1.time_stamp = readl(hnat_priv->fe_base + 0x0010) & (0xFF);
+	if (l2w) {
+		entry->bfib1.pkt_type = IPV4_DSLITE;
+		entry->bfib1.udp = ipv6_hdr(skb)->nexthdr ==
+				   IPPROTO_UDP ? 1 : 0;
+	} else {
+		entry->bfib1.pkt_type = IPV6_6RD;
+		entry->bfib1.udp = ip_hdr(skb)->protocol ==
+				   IPPROTO_UDP ? 1 : 0;
+	}
+}
+
+void mtk_464xlat_fill_info2(struct foe_entry *entry, bool l2w)
+{
+	entry->ipv4_dslite.iblk2.mibf = 1;
+	entry->ipv4_dslite.iblk2.port_ag = 0xF;
+
+	if (l2w)
+		entry->ipv4_dslite.iblk2.dp = NR_GMAC2_PORT;
+	else
+		entry->ipv6_6rd.iblk2.dp = NR_GMAC1_PORT;
+}
+
+void mtk_464xlat_fill_ipv4(struct foe_entry *entry, struct sk_buff *skb,
+			   struct foe_entry *foe, bool l2w)
+{
+	struct iphdr *iph;
+
+	if (l2w) {
+		entry->ipv4_dslite.sip = foe->ipv4_dslite.sip;
+		entry->ipv4_dslite.dip = foe->ipv4_dslite.dip;
+		entry->ipv4_dslite.sport = foe->ipv4_dslite.sport;
+		entry->ipv4_dslite.dport = foe->ipv4_dslite.dport;
+	} else {
+		iph = ip_hdr(skb);
+		entry->ipv6_6rd.tunnel_sipv4 = ntohl(iph->saddr);
+		entry->ipv6_6rd.tunnel_dipv4 = ntohl(iph->daddr);
+		entry->ipv6_6rd.sport = foe->ipv6_6rd.sport;
+		entry->ipv6_6rd.dport = foe->ipv6_6rd.dport;
+		entry->ipv6_6rd.hdr_chksum = ppe_get_chkbase(iph);
+		entry->ipv6_6rd.ttl = iph->ttl;
+		entry->ipv6_6rd.dscp = iph->tos;
+		entry->ipv6_6rd.flag = (ntohs(iph->frag_off) >> 13);
+	}
+}
+
+int mtk_464xlat_fill_ipv6(struct foe_entry *entry, struct sk_buff *skb,
+			  struct foe_entry *foe, bool l2w)
+{
+	struct ipv6hdr *ip6h;
+	struct in6_addr addr_v6, prefix;
+	u32 addr;
+
+	if (l2w) {
+		ip6h = ipv6_hdr(skb);
+
+		if (mtk_ppe_get_xlat_v4_by_v6(&ip6h->daddr, &addr))
+			return -1;
+
+		if (mtk_ppe_get_xlat_v6_by_v4(&addr, &addr_v6, &prefix))
+			return -1;
+
+		entry->ipv4_dslite.tunnel_sipv6_0 =
+			ntohl(prefix.s6_addr32[0]);
+		entry->ipv4_dslite.tunnel_sipv6_1 =
+			ntohl(ip6h->saddr.s6_addr32[1]);
+		entry->ipv4_dslite.tunnel_sipv6_2 =
+			ntohl(ip6h->saddr.s6_addr32[2]);
+		entry->ipv4_dslite.tunnel_sipv6_3 =
+			ntohl(ip6h->saddr.s6_addr32[3]);
+		entry->ipv4_dslite.tunnel_dipv6_0 =
+			ntohl(ip6h->daddr.s6_addr32[0]);
+		entry->ipv4_dslite.tunnel_dipv6_1 =
+			ntohl(ip6h->daddr.s6_addr32[1]);
+		entry->ipv4_dslite.tunnel_dipv6_2 =
+			ntohl(ip6h->daddr.s6_addr32[2]);
+		entry->ipv4_dslite.tunnel_dipv6_3 =
+			ntohl(ip6h->daddr.s6_addr32[3]);
+
+		ppe_fill_flow_lbl(entry, ip6h);
+		entry->ipv4_dslite.priority = ip6h->priority;
+		entry->ipv4_dslite.hop_limit = ip6h->hop_limit;
+
+	} else {
+		entry->ipv6_6rd.ipv6_sip0 = foe->ipv6_6rd.ipv6_sip0;
+		entry->ipv6_6rd.ipv6_sip1 = foe->ipv6_6rd.ipv6_sip1;
+		entry->ipv6_6rd.ipv6_sip2 = foe->ipv6_6rd.ipv6_sip2;
+		entry->ipv6_6rd.ipv6_sip3 = foe->ipv6_6rd.ipv6_sip3;
+		entry->ipv6_6rd.ipv6_dip0 = foe->ipv6_6rd.ipv6_dip0;
+		entry->ipv6_6rd.ipv6_dip1 = foe->ipv6_6rd.ipv6_dip1;
+		entry->ipv6_6rd.ipv6_dip2 = foe->ipv6_6rd.ipv6_dip2;
+		entry->ipv6_6rd.ipv6_dip3 = foe->ipv6_6rd.ipv6_dip3;
+	}
+
+	return 0;
+}
+
+int mtk_464xlat_fill_l2(struct foe_entry *entry, struct sk_buff *skb,
+			const struct net_device *dev, bool l2w)
+{
+	const unsigned int *port_reg;
+	int port_index;
+	u16 sp_tag;
+
+	if (l2w)
+		entry->ipv4_dslite.etype = ETH_P_IP;
+	else {
+		if (IS_DSA_LAN(dev)) {
+			port_reg = of_get_property(dev->dev.of_node,
+						   "reg", NULL);
+			if (unlikely(!port_reg))
+				return -1;
+
+			port_index = be32_to_cpup(port_reg);
+			sp_tag = BIT(port_index);
+
+			entry->bfib1.vlan_layer = 1;
+			entry->bfib1.vpm = 0;
+			entry->ipv6_6rd.etype = sp_tag;
+		} else
+			entry->ipv6_6rd.etype = ETH_P_IPV6;
+	}
+
+	if (mtk_464xlat_fill_mac(entry, skb, dev, l2w))
+		return -1;
+
+	return 0;
+}
+
+
+int mtk_464xlat_fill_l3(struct foe_entry *entry, struct sk_buff *skb,
+			struct foe_entry *foe, bool l2w)
+{
+	mtk_464xlat_fill_ipv4(entry, skb, foe, l2w);
+
+	if (mtk_464xlat_fill_ipv6(entry, skb, foe, l2w))
+		return -1;
+
+	return 0;
+}
+
+int mtk_464xlat_post_process(struct sk_buff *skb, const struct net_device *out)
+{
+	struct foe_entry *foe, entry = {};
+	u32 hash;
+	bool l2w;
+
+	if (skb->protocol == htons(ETH_P_IPV6))
+		l2w = true;
+	else if (skb->protocol == htons(ETH_P_IP))
+		l2w = false;
+	else
+		return -1;
+
+	if (mtk_464xlat_get_hash(skb, &hash, l2w))
+		return -1;
+
+	if (hash >= hnat_priv->foe_etry_num)
+		return -1;
+
+	if (headroom[hash].crsn != HIT_UNBIND_RATE_REACH)
+		return -1;
+
+	foe = &hnat_priv->foe_table_cpu[headroom_ppe(headroom[hash])][hash];
+
+	mtk_464xlat_fill_info1(&entry, skb, l2w);
+
+	if (mtk_464xlat_fill_l3(&entry, skb, foe, l2w))
+		return -1;
+
+	mtk_464xlat_fill_info2(&entry, l2w);
+
+	if (mtk_464xlat_fill_l2(&entry, skb, out, l2w))
+		return -1;
+
+	/* We must ensure all info has been updated before set to hw */
+	wmb();
+	memcpy(foe, &entry, sizeof(struct foe_entry));
+
+	return 0;
+}
+
 static unsigned int mtk_hnat_nf_post_routing(
 	struct sk_buff *skb, const struct net_device *out,
 	unsigned int (*fn)(struct sk_buff *, const struct net_device *,
@@ -2123,6 +2423,9 @@ static unsigned int mtk_hnat_nf_post_routing(
 	struct flow_offload_hw_path hw_path = { .dev = (struct net_device*)out,
 						.virt_dev = (struct net_device*)out };
 	const struct net_device *arp_dev = out;
+
+	if (xlat_toggle && !mtk_464xlat_post_process(skb, out))
+		return 0;
 
 	if (skb_hnat_alg(skb) || unlikely(!is_magic_tag_valid(skb) ||
 					  !IS_SPACE_AVAILABLE_HEAD(skb)))

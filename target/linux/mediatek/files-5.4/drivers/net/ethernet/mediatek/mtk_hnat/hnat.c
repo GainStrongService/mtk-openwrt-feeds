@@ -862,6 +862,8 @@ static int hnat_probe(struct platform_device *pdev)
 	if (err)
 		pr_info("hnat roaming work fail\n");
 
+	INIT_LIST_HEAD(&hnat_priv->xlat.map_list);
+
 	return 0;
 
 err_out:
