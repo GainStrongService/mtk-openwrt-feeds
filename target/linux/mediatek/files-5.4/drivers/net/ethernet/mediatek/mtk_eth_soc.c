@@ -1096,7 +1096,7 @@ static int mtk_mdc_init(struct mtk_eth *eth)
 {
 	struct device_node *mii_np;
 	int max_clk = 2500000, divider;
-	int ret;
+	int ret = 0;
 	u32 val;
 
 	mii_np = of_get_child_by_name(eth->dev->of_node, "mdio-bus");
