@@ -1020,14 +1020,26 @@ static int mt7988_pcm_pins[] = { 50, 51, 52, 53 };
 static int mt7988_pcm_funcs[] = { 1, 1, 1, 1 };
 
 /* led */
-static int mt7988_gbe_led1_pins[] = { 58, 59, 60, 61 };
-static int mt7988_gbe_led1_funcs[] = { 6, 6, 6, 6 };
+static int mt7988_gbe0_led1_pins[] = { 58 };
+static int mt7988_gbe0_led1_funcs[] = { 6 };
+static int mt7988_gbe1_led1_pins[] = { 59 };
+static int mt7988_gbe1_led1_funcs[] = { 6 };
+static int mt7988_gbe2_led1_pins[] = { 60 };
+static int mt7988_gbe2_led1_funcs[] = { 6 };
+static int mt7988_gbe3_led1_pins[] = { 61 };
+static int mt7988_gbe3_led1_funcs[] = { 6 };
 
 static int mt7988_2p5gbe_led1_pins[] = { 62 };
 static int mt7988_2p5gbe_led1_funcs[] = { 6 };
 
-static int mt7988_gbe_led0_pins[] = { 64, 65, 66, 67 };
-static int mt7988_gbe_led0_funcs[] = { 1, 1, 1, 1 };
+static int mt7988_gbe0_led0_pins[] = { 64 };
+static int mt7988_gbe0_led0_funcs[] = { 1 };
+static int mt7988_gbe1_led0_pins[] = { 65 };
+static int mt7988_gbe1_led0_funcs[] = { 1 };
+static int mt7988_gbe2_led0_pins[] = { 66 };
+static int mt7988_gbe2_led0_funcs[] = { 1 };
+static int mt7988_gbe3_led0_pins[] = { 67 };
+static int mt7988_gbe3_led0_funcs[] = { 1 };
 
 static int mt7988_2p5gbe_led0_pins[] = { 68 };
 static int mt7988_2p5gbe_led0_funcs[] = { 1 };
@@ -1195,11 +1207,17 @@ static const struct group_desc mt7988_groups[] = {
 	/*  @GPIO(58,59,60,61) uart1_1 */
 	PINCTRL_PIN_GROUP("uart1_1", mt7988_uart1_1),
 	/*  @GPIO(58,59,60,61) gbe_led1 */
-	PINCTRL_PIN_GROUP("gbe_led1", mt7988_gbe_led1),
+	PINCTRL_PIN_GROUP("gbe0_led1", mt7988_gbe0_led1),
+	PINCTRL_PIN_GROUP("gbe1_led1", mt7988_gbe1_led1),
+	PINCTRL_PIN_GROUP("gbe2_led1", mt7988_gbe2_led1),
+	PINCTRL_PIN_GROUP("gbe3_led1", mt7988_gbe3_led1),
 	/*  @GPIO(62) 2p5gbe_led1 */
 	PINCTRL_PIN_GROUP("2p5gbe_led1", mt7988_2p5gbe_led1),
 	/*  @GPIO(64,65,66,67) gbe_led0 */
-	PINCTRL_PIN_GROUP("gbe_led0", mt7988_gbe_led0),
+	PINCTRL_PIN_GROUP("gbe0_led0", mt7988_gbe0_led0),
+	PINCTRL_PIN_GROUP("gbe1_led0", mt7988_gbe1_led0),
+	PINCTRL_PIN_GROUP("gbe2_led0", mt7988_gbe2_led0),
+	PINCTRL_PIN_GROUP("gbe3_led0", mt7988_gbe3_led0),
 	/*  @GPIO(68) 2p5gbe_led0 */
 	PINCTRL_PIN_GROUP("2p5gbe_led0", mt7988_2p5gbe_led0),
 	/*  @GPIO(63) drv_vbus_p1 */
@@ -1357,8 +1375,9 @@ static const char * const mt7988_audio_groups[] = {
 	"i2s", "pcm",
 };
 static const char * const mt7988_led_groups[] = {
-	"gbe_led1",    "2p5gbe_led1", "gbe_led0",
-	"2p5gbe_led0", "wf5g_led0",   "wf5g_led1",
+	"gbe0_led1", "gbe1_led1", "gbe2_led1", "gbe3_led1", "2p5gbe_led1",
+	"gbe0_led0", "gbe1_led0", "gbe2_led0", "gbe3_led0", "2p5gbe_led0",
+	"wf5g_led0",   "wf5g_led1",
 };
 static const char * const mt7988_usb_groups[] = {
 	"drv_vbus",
