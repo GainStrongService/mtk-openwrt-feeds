@@ -167,7 +167,9 @@ prepare_flowoffload() {
 
 prepare_mac80211() {
 	rm -rf ${BUILD_DIR}/package/network/services/hostapd
-	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/hostapd ${BUILD_DIR}/package/network/services
+	#cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/hostapd ${BUILD_DIR}/package/network/services
+	tar xvf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd/hostapd_v2.10_07730ff3.tar.gz -C ${BUILD_DIR}/package/network/services/
+	rm -rf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd/hostapd_v2.10_07730ff3.tar.gz
 
 	rm -rf ${BUILD_DIR}/package/libs/libnl-tiny
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/libs/libnl-tiny ${BUILD_DIR}/package/libs
