@@ -25,6 +25,8 @@ char* mtk_reset_event_name[32] = {
 static int mtk_wifi_num = 0;
 static int mtk_rest_cnt = 0;
 u32 mtk_reset_flag = MTK_FE_START_RESET;
+bool mtk_stop_fail;
+
 typedef u32 (*mtk_monitor_xdma_func) (struct mtk_eth *eth);
 
 void mtk_reset_event_update(struct mtk_eth *eth, u32 id)
@@ -51,9 +53,11 @@ int mtk_eth_cold_reset(struct mtk_eth *eth)
 #endif
 	ethsys_reset(eth, reset_bits);
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
-	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
 		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0x3ffffff);
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0x6F8FF);
 
 	return 0;
 }
@@ -144,7 +148,8 @@ u32 mtk_check_reset_event(struct mtk_eth *eth, u32 status)
 
 	if (ret) {
 		mtk_reset_event_update(eth, MTK_EVENT_TOTAL_CNT);
-		mtk_dump_netsys_info(eth);
+		if (dbg_show_level)
+			mtk_dump_netsys_info(eth);
 	}
 
 	return ret;
@@ -619,6 +624,7 @@ static int mtk_eth_netdevice_event(struct notifier_block *unused,
 	switch (event) {
 	case MTK_WIFI_RESET_DONE:
 	case MTK_FE_STOP_TRAFFIC_DONE:
+		pr_info("%s rcv done event:%x\n", __func__, event);
 		mtk_rest_cnt--;
 		if(!mtk_rest_cnt) {
 			complete(&wait_ser_done);
@@ -631,6 +637,13 @@ static int mtk_eth_netdevice_event(struct notifier_block *unused,
 		break;
 	case MTK_WIFI_CHIP_OFFLINE:
 		mtk_wifi_num--;
+		mtk_rest_cnt = mtk_wifi_num;
+		break;
+	case MTK_FE_STOP_TRAFFIC_DONE_FAIL:
+		mtk_stop_fail = true;
+		mtk_reset_flag = MTK_FE_START_RESET;
+		pr_info("%s rcv done event:%x\n", __func__, event);
+		complete(&wait_ser_done);
 		mtk_rest_cnt = mtk_wifi_num;
 		break;
 	default:

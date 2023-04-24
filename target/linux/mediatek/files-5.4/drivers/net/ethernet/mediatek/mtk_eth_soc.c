@@ -3959,8 +3959,20 @@ static void mtk_pending_work(struct work_struct *work)
 				eth->netdev[i]);
 		}
 		rtnl_unlock();
-		if (!wait_for_completion_timeout(&wait_ser_done, 3000))
+		if (!wait_for_completion_timeout(&wait_ser_done, 3000)) {
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
+				(mtk_stop_fail)) {
+				pr_info("send MTK_FE_START_RESET stop\n");
+				rtnl_lock();
+				call_netdevice_notifiers(MTK_FE_START_RESET,
+					eth->netdev[i]);
+				rtnl_unlock();
+				if (!wait_for_completion_timeout(&wait_ser_done,
+					3000))
+					pr_warn("wait for MTK_FE_START_RESET\n");
+				}
 			pr_warn("wait for MTK_FE_START_RESET\n");
+		}
 		rtnl_lock();
 		break;
 	}

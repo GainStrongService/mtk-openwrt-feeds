@@ -18,6 +18,8 @@
 #define MTK_FE_STOP_TRAFFIC	(0x2005)
 #define MTK_FE_STOP_TRAFFIC_DONE	(0x2006)
 #define MTK_FE_START_TRAFFIC	(0x2007)
+#define MTK_FE_STOP_TRAFFIC_DONE_FAIL	(0x2008)
+
 
 /* ADMA Rx Debug Monitor */
 #define MTK_ADMA_RX_DBG0	(PDMA_BASE + 0x238)
@@ -67,6 +69,7 @@ extern char* mtk_reset_event_name[32];
 extern atomic_t reset_lock;
 extern struct completion wait_nat_done;
 extern u32 mtk_reset_flag;
+extern bool mtk_stop_fail;
 
 irqreturn_t mtk_handle_fe_irq(int irq, void *_eth);
 u32 mtk_check_reset_event(struct mtk_eth *eth, u32 status);

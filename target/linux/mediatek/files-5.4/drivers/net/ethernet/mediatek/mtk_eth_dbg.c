@@ -40,6 +40,8 @@ u32 hw_lro_seq_flush_cnt[MTK_HW_LRO_RING_NUM];
 u32 hw_lro_timestamp_flush_cnt[MTK_HW_LRO_RING_NUM];
 u32 hw_lro_norule_flush_cnt[MTK_HW_LRO_RING_NUM];
 u32 mtk_hwlro_stats_ebl;
+u32 dbg_show_level;
+
 static struct proc_dir_entry *proc_hw_lro_stats, *proc_hw_lro_auto_tlb;
 typedef int (*mtk_lro_dbg_func) (int par);
 
@@ -396,6 +398,12 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 			} else
 				pr_info(" device resetting !!!\n");
 			break;
+		case 4:
+			dbg_show_level = 1;
+			break;
+		case 5:
+			dbg_show_level = 0;
+			break;
 		default:
 			pr_info("Usage: echo [level] > /sys/kernel/debug/mtketh/reset\n");
 			pr_info("Commands:	 [level]\n");
@@ -403,6 +411,8 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 			pr_info("			   1	 FE and WDMA reset\n");
 			pr_info("			   2	 enable reset\n");
 			pr_info("			   3	 FE reset\n");
+			pr_info("			   4	enable dump reset info\n");
+			pr_info("			   5	disable dump reset info\n");
 			break;
 	}
 	return count;
@@ -1846,7 +1856,7 @@ int debug_proc_init(struct mtk_eth *eth)
 	    proc_create(PROCREG_RESET_EVENT, 0, proc_reg_dir, &reset_event_fops);
 	if (!proc_reset_event)
 		pr_notice("!! FAIL to create %s PROC !!\n", PROCREG_RESET_EVENT);
-
+	dbg_show_level = 1;
 	return 0;
 }
 

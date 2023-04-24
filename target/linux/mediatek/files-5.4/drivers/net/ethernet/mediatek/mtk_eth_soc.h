@@ -1822,6 +1822,7 @@ struct mtk_mac {
 extern struct mtk_eth *g_eth;
 extern const struct of_device_id of_mtk_match[];
 extern u32 mtk_hwlro_stats_ebl;
+extern u32 dbg_show_level;
 
 /* read the hardware status register */
 void mtk_stats_update_mac(struct mtk_mac *mac);
