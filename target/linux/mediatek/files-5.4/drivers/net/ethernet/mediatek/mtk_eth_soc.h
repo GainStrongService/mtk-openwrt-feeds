@@ -761,6 +761,10 @@
 #define GPIO_BIAS_CTRL		0xed0
 #define GPIO_DRV_SEL10		0xf00
 
+/* SoC hardware version register */
+#define HWVER_BIT_NETSYS_1_2	BIT(0)
+#define HWVER_BIT_NETSYS_3	BIT(8)
+
 /* ethernet subsystem chip id register */
 #define ETHSYS_CHIPID0_3	0x0
 #define ETHSYS_CHIPID4_7	0x4
@@ -1228,6 +1232,12 @@ enum mtk_gdm_type {
 	MTK_GDM_TYPE = 0,
 	MTK_XGDM_TYPE,
 	MTK_GDM_TYPE_MAX
+};
+
+enum mtk_hw_id {
+	MTK_HWID_V1 = 0,
+	MTK_HWID_V2,
+	MTK_HWID_MAX
 };
 
 static inline const char *gdm_type(int type)
@@ -1758,6 +1768,7 @@ struct mtk_eth {
 	struct net_device		*netdev[MTK_MAX_DEVS];
 	struct mtk_mac			*mac[MTK_MAX_DEVS];
 	int				irq[MTK_MAX_IRQ_NUM];
+	u8				hwver;
 	u32				msg_enable;
 	unsigned long			sysclk;
 	struct regmap			*ethsys;
