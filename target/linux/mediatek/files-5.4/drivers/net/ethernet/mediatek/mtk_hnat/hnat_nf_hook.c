@@ -1368,8 +1368,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					foe->ipv6_5t_route.dport;
 			}
 
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
 			if (ct && (ct->status & IPS_SRC_NAT)) {
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
 				entry.bfib1.pkt_type = IPV6_HNAPT;
 
 				if (IS_WAN(dev) || IS_DSA_WAN(dev)) {
@@ -1404,8 +1404,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 				entry.ipv6_hnapt.new_sport = ntohs(pptr->src);
 				entry.ipv6_hnapt.new_dport = ntohs(pptr->dst);
-			}
+#else
+				return -1;
 #endif
+			}
 
 			entry.ipv6_5t_route.iblk2.dscp =
 				(ip6h->priority << 4 |
