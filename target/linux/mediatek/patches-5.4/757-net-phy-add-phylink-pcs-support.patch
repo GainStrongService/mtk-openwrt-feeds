@@ -426,7 +426,7 @@ index 67f34ed..ead9b37 100644
  	ASSERT_RTNL();
  
  	phylink_info(pl, "configuring for %s/%s link mode\n",
-@@ -1029,15 +1215,12 @@ void phylink_start(struct phylink *pl)
+@@ -1029,15 +1215,13 @@ void phylink_start(struct phylink *pl)
  	/* Apply the link configuration to the MAC when starting. This allows
  	 * a fixed-link to start with the correct parameters, and also
  	 * ensures that we set the appropriate advertisement for Serdes links.
@@ -441,6 +441,7 @@ index 67f34ed..ead9b37 100644
  	 * switches using 802.3z negotiation to ensure they see our modes.
  	 */
 -	phylink_mac_an_restart(pl);
++	phylink_resolve_flow(pl, &pl->link_config);
 +	phylink_mac_initial_config(pl, true);
  
  	clear_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
