@@ -26,6 +26,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a73";
 			enable-method = "psci";
+			next-level-cache = <&l2_cache>;
 			reg = <0x0>;
 			clocks = <&mcusys CK_MCU_ARM_DIV_SEL>,
 				 <&topckgen CK_TOP_CB_NET1_D4>,
@@ -43,6 +44,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a73";
 			enable-method = "psci";
+			next-level-cache = <&l2_cache>;
 			reg = <0x1>;
 			clocks = <&mcusys CK_MCU_ARM_DIV_SEL>,
 				 <&topckgen CK_TOP_CB_NET1_D4>,
@@ -60,6 +62,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a73";
 			enable-method = "psci";
+			next-level-cache = <&l2_cache>;
 			reg = <0x2>;
 			clocks = <&mcusys CK_MCU_ARM_DIV_SEL>,
 				 <&topckgen CK_TOP_CB_NET1_D4>,
@@ -77,6 +80,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a73";
 			enable-method = "psci";
+			next-level-cache = <&l2_cache>;
 			reg = <0x3>;
 			clocks = <&mcusys CK_MCU_ARM_DIV_SEL>,
 				 <&topckgen CK_TOP_CB_NET1_D4>,
@@ -88,6 +92,11 @@
 			operating-points-v2 = <&cluster0_opp>;
 			nvmem-cells = <&cpufreq_calibration>;
 			nvmem-cell-names = "calibration-data";
+		};
+
+		l2_cache: l2-cache {
+			compatible = "cache";
+			cache-level = <2>;
 		};
 
 		cluster0_opp: opp_table0 {
