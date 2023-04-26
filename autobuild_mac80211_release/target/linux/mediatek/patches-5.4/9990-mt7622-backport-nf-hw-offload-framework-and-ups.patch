@@ -6125,7 +6125,7 @@ new file mode 100644
 index 000000000..ae1eb2656
 --- /dev/null
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
-@@ -0,0 +1,785 @@
+@@ -0,0 +1,776 @@
 +/*
 + * Copyright (C) 2018-2021 Felix Fietkau <nbd@nbd.name>
 + *
@@ -6510,28 +6510,19 @@ index 000000000..ae1eb2656
 +	return dev_fill_forward_path(dev, ha, stack);
 +}
 +
-+static int nf_dev_forward_path(struct sk_buff *skb,
-+				struct nf_flow_route *route,
++static int nf_dev_forward_path(struct nf_flow_route *route,
 +				const struct nf_conn *ct,
 +				enum ip_conntrack_dir dir,
 +				struct net_device **devs)
 +{
 +	const struct dst_entry *dst = route->tuple[dir].dst;
-+	struct ethhdr *eth = eth_hdr(skb);
 +	struct net_device_path_stack stack;
 +	struct nf_forward_info info = {};
 +	unsigned char ha[ETH_ALEN];
 +	int i;
 +
-+	if (nf_dev_fill_forward_path(route, dst, ct, dir, ha, &stack) >= 0) {
-+		if (!(ct->status & IPS_NAT_MASK)) {
-+			if (dir == IP_CT_DIR_ORIGINAL)
-+				memcpy(info.h_source, eth->h_source, ETH_ALEN);
-+			else if (dir == IP_CT_DIR_REPLY)
-+				memcpy(info.h_source, eth->h_dest, ETH_ALEN);
-+		}
++	if (nf_dev_fill_forward_path(route, dst, ct, dir, ha, &stack) >= 0)
 +		nf_dev_path_info(&stack, &info, ha);
-+	}
 +
 +	devs[!dir] = (struct net_device *)info.indev;
 +	if (!info.indev)
@@ -6617,11 +6608,11 @@ index 000000000..ae1eb2656
 +	nf_default_forward_path(route, this_dst, dir, devs);
 +	nf_default_forward_path(route, other_dst, !dir, devs);
 +
-+	if (route->tuple[dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH &&
++	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH &&
 +	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
-+		if (nf_dev_forward_path(skb, route, ct, dir, devs))
++		if (nf_dev_forward_path(route, ct, dir, devs))
 +			return -1;
-+		if (nf_dev_forward_path(skb, route, ct, !dir, devs))
++		if (nf_dev_forward_path(route, ct, !dir, devs))
 +			return -1;
 +	}
 +
@@ -6648,10 +6639,10 @@ index 000000000..ae1eb2656
 +	if (ret)
 +		goto err_route_dir1;
 +
-+	if (route->tuple[dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH &&
++	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH &&
 +	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
-+		if (nf_dev_forward_path(skb, route, ct, dir, devs) ||
-+		    nf_dev_forward_path(skb, route, ct, !dir, devs)) {
++		if (nf_dev_forward_path(route, ct, dir, devs) ||
++		    nf_dev_forward_path(route, ct, !dir, devs)) {
 +			ret = -1;
 +			goto err_route_dir2;
 +		}
