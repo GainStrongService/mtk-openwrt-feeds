@@ -142,6 +142,7 @@ struct mtk_pcie_port {
 	int num_clks;
 
 	int irq;
+	int max_link_width;
 	int direct_msi_enable;
 	int direct_msi[PCIE_MSI_IRQS_PER_SET];
 	u32 saved_irq_state;
@@ -210,6 +211,26 @@ static struct pci_ops mtk_pcie_ops = {
 	.read  = mtk_pcie_config_read,
 	.write = mtk_pcie_config_write,
 };
+
+/**
+ * This function will try to find the limitation of link width by finding
+ * a property called "max-link-width" of the given device node.
+ *
+ * @node: device tree node with the max link width information
+ *
+ * Returns the associated max link width from DT, or a negative value if the
+ * required property is not found or is invalid.
+ */
+int of_pci_get_max_link_width(struct device_node *node)
+{
+	u32 max_link_width = 0;
+
+	if (of_property_read_u32(node, "max-link-width", &max_link_width) ||
+	    max_link_width == 0 || max_link_width > 2)
+		return -EINVAL;
+
+	return max_link_width;
+}
 
 static int mtk_pcie_set_trans_table(struct mtk_pcie_port *port,
 				    resource_size_t cpu_addr,
@@ -290,6 +311,16 @@ static int mtk_pcie_startup_port(struct mtk_pcie_port *port)
 	/* Set as RC mode */
 	val = readl_relaxed(port->base + PCIE_SETTING_REG);
 	val |= PCIE_RC_MODE;
+	writel_relaxed(val, port->base + PCIE_SETTING_REG);
+
+	/* Set link width*/
+	val = readl_relaxed(port->base + PCIE_SETTING_REG);
+	if (port->max_link_width == 1) {
+		val &= ~GENMASK(11, 8);
+	} else if (port->max_link_width == 2) {
+		val &= ~GENMASK(11, 8);
+		val |= BIT(8);
+	}
 	writel_relaxed(val, port->base + PCIE_SETTING_REG);
 
 	/* Set class code */
@@ -871,6 +902,10 @@ static int mtk_pcie_parse_port(struct mtk_pcie_port *port)
 		dev_err(dev, "failed to get clocks\n");
 		return port->num_clks;
 	}
+
+	port->max_link_width = of_pci_get_max_link_width(dev->of_node);
+	if (port->max_link_width < 0)
+		dev_err(dev, "failed to get max link width\n");
 
 	return 0;
 }
