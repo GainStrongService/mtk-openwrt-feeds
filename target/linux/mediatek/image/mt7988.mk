@@ -30,7 +30,7 @@ define Device/mediatek_mt7988a-gsw-10g-spim-nand-sb
   IMAGE_SIZE := 65536k
   KERNEL_IN_UBI := 1
   IMAGES += factory.bin
-  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/factory.bin := append-ubi rootfs=$$$$(IMAGE_ROOTFS)-hashed-$$(firstword $$(DEVICE_DTS)) | check-size $$$$(IMAGE_SIZE)
   IMAGE/sysupgrade.bin := sysupgrade-tar rootfs=$$$$(IMAGE_ROOTFS)-hashed-$$(firstword $$(DEVICE_DTS)) | \
 	append-metadata
   FIT_KEY_DIR := $(TOPDIR)/../../keys
