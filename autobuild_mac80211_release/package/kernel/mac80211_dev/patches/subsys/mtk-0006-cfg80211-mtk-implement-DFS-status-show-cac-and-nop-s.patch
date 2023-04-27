@@ -1,19 +1,19 @@
-From 5d3d13bfb9074bd384f1f079b1064496f79e5b91 Mon Sep 17 00:00:00 2001
+From dc8caecd0c7f5dfd542ba08f98605a7d6849e110 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 22 Sep 2022 14:27:41 +0800
-Subject: [PATCH 06/14] cfg80211: mtk: implement DFS status show, cac and nop
- skip command via debugfs
+Subject: [PATCH] cfg80211: mtk: implement DFS status show, cac and nop skip
+ command via debugfs
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  include/net/cfg80211.h  |   1 +
  net/mac80211/cfg.c      |  20 +++
  net/wireless/core.h     |   3 +
- net/wireless/debugfs.c  | 271 ++++++++++++++++++++++++++++++++++++++--
+ net/wireless/debugfs.c  | 311 +++++++++++++++++++++++++++++++++++++++-
  net/wireless/mlme.c     |   6 +
- net/wireless/rdev-ops.h |  14 +++
+ net/wireless/rdev-ops.h |  14 ++
  net/wireless/trace.h    |  12 ++
- 7 files changed, 320 insertions(+), 7 deletions(-)
+ 7 files changed, 360 insertions(+), 7 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
 index 450de58..ddd63e7 100644
@@ -78,7 +78,7 @@ index 382455c..c9d7712 100644
  	struct work_struct background_cac_abort_wk;
  
 diff --git a/net/wireless/debugfs.c b/net/wireless/debugfs.c
-index 0878b16..f5f23d0 100644
+index 0878b16..a228a14 100644
 --- a/net/wireless/debugfs.c
 +++ b/net/wireless/debugfs.c
 @@ -9,6 +9,7 @@
@@ -89,7 +89,7 @@ index 0878b16..f5f23d0 100644
  
  #define DEBUGFS_READONLY_FILE(name, buflen, fmt, value...)		\
  static ssize_t name## _read(struct file *file, char __user *userbuf,	\
-@@ -96,16 +97,272 @@ static const struct file_operations ht40allow_map_ops = {
+@@ -96,16 +97,312 @@ static const struct file_operations ht40allow_map_ops = {
  	.llseek = default_llseek,
  };
  
@@ -348,6 +348,45 @@ index 0878b16..f5f23d0 100644
 +DEFINE_DEBUGFS_ATTRIBUTE(dfs_skip_cac_ops, NULL,
 +			 dfs_cac_skip, "0x%08llx\n");
 +
++static int
++dfs_available_reset(void *data, u64 val)
++{
++	struct wiphy *wiphy = data;
++	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
++	bool en = !!val;
++	enum nl80211_band band;
++	struct ieee80211_supported_band *sband;
++	struct ieee80211_channel *chan;
++	int i;
++
++	if (!en)
++		return 0;
++
++	for (band = 0; band < NUM_NL80211_BANDS; band++) {
++		sband = wiphy->bands[band];
++		if (!sband)
++			continue;
++		for (i = 0; i < sband->n_channels; i++) {
++			chan = &sband->channels[i];
++
++			if (!(chan->flags & IEEE80211_CHAN_RADAR))
++				continue;
++
++			if (chan->dfs_state == NL80211_DFS_AVAILABLE) {
++				chan->dfs_state = NL80211_DFS_USABLE;
++				chan->dfs_state_entered = jiffies;
++			}
++		}
++	}
++
++	cfg80211_sched_dfs_chan_update(rdev);
++
++	return 0;
++}
++
++DEFINE_DEBUGFS_ATTRIBUTE(dfs_available_reset_ops, NULL,
++			 dfs_available_reset, "0x%08llx\n");
++
 +#define DEBUGFS_ADD(name, chmod)						\
 +	debugfs_create_file(#name, chmod, phyd, &rdev->wiphy, &name## _ops)
  
@@ -368,6 +407,7 @@ index 0878b16..f5f23d0 100644
 +	DEBUGFS_ADD(dfs_status, 0444);
 +	DEBUGFS_ADD(dfs_skip_nop, 0600);
 +	DEBUGFS_ADD(dfs_skip_cac, 0600);
++	DEBUGFS_ADD(dfs_available_reset, 0600);
  }
 diff --git a/net/wireless/mlme.c b/net/wireless/mlme.c
 index 5a63dba..57b9bde 100644
@@ -456,5 +496,5 @@ index 4a7d0ae..4d44c55 100644
  
  #undef TRACE_INCLUDE_PATH
 -- 
-2.39.2
+2.18.0
 
