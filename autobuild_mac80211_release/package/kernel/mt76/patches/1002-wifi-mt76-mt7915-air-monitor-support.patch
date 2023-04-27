@@ -8,9 +8,9 @@ Subject: [PATCH 1002/1032] wifi: mt76: mt7915: air monitor support
  mt7915/mac.c      |   4 +
  mt7915/main.c     |   3 +
  mt7915/mt7915.h   |  34 +++++
- mt7915/vendor.c   | 359 ++++++++++++++++++++++++++++++++++++++++++++++
+ mt7915/vendor.c   | 361 ++++++++++++++++++++++++++++++++++++++++++++++
  mt7915/vendor.h   |  38 +++++
- 6 files changed, 440 insertions(+)
+ 6 files changed, 442 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
 index 1321445..411911c 100644
@@ -64,7 +64,7 @@ index e02dcd0..61a6374 100644
  
 +#ifdef CONFIG_MTK_VENDOR
 +#define MT7915_AIR_MONITOR_MAX_ENTRY	16
-+#define MT7915_AIR_MONITOR_MAX_GROUP	MT7915_AIR_MONITOR_MAX_ENTRY >> 2
++#define MT7915_AIR_MONITOR_MAX_GROUP	MT7915_AIR_MONITOR_MAX_ENTRY >> 1
 +
 +struct mt7915_air_monitor_group {
 +	bool enable;
@@ -117,7 +117,7 @@ diff --git a/mt7915/vendor.c b/mt7915/vendor.c
 index 98fd9c2..b94d787 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
-@@ -430,6 +430,353 @@ out:
+@@ -430,6 +430,355 @@ out:
  	return err;
  }
  
@@ -265,8 +265,10 @@ index 98fd9c2..b94d787 100644
 +			group = &(amnt_ctrl->group[i]);
 +			if (group->used[0] == 0)
 +				j = 0;
-+			else
++			else if (group->used[1] == 0)
 +				j = 1;
++			else
++				continue;
 +
 +			group->enable = 1;
 +			group->used[j] = 1;
@@ -471,7 +473,7 @@ index 98fd9c2..b94d787 100644
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -442,6 +789,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -442,6 +791,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.dumpit = mt7915_vendor_csi_ctrl_dump,
  		.policy = csi_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_CSI_CTRL_MAX,
