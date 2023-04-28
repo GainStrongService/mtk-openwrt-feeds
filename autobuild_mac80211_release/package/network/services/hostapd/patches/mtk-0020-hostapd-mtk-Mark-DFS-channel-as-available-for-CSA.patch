@@ -1,7 +1,7 @@
-From bf2a83d9d233474798d20514694a83bd3a021a66 Mon Sep 17 00:00:00 2001
+From c229d874452a61f58b65473d26b89c64b4693908 Mon Sep 17 00:00:00 2001
 From: "himanshu.goyal" <himanshu.goyal@mediatek.com>
-Date: Fri, 3 Mar 2023 12:45:42 +0800
-Subject: [PATCH 20/26] hostapd: mtk: Mark DFS channel as available for CSA.
+Date: Sat, 29 Apr 2023 06:57:36 +0800
+Subject: [PATCH 20/29] hostapd: mtk: Mark DFS channel as available for CSA.
 
 ---
  hostapd/ctrl_iface.c   | 10 ++++++++++
@@ -10,11 +10,11 @@ Subject: [PATCH 20/26] hostapd: mtk: Mark DFS channel as available for CSA.
  3 files changed, 12 insertions(+), 1 deletion(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index c33b7a4..9ba6992 100644
+index 06cbea1..7b59bb5 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -2704,6 +2704,16 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
- 		settings.freq_params.he_enabled = iface->conf->ieee80211ax;
+@@ -2705,6 +2705,16 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+ 		settings.freq_params.eht_enabled = iface->conf->ieee80211be;
  	}
  
 +	if (settings.freq_params.radar_background) {
