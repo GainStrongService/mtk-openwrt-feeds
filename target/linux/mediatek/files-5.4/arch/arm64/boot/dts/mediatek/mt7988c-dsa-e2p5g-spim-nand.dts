@@ -205,6 +205,13 @@
 		};
 	};
 
+	i2p5gbe_led0_pins: 2p5gbe-pins {
+		mux {
+			function = "led";
+			groups = "2p5gbe_led0";
+		};
+	};
+
 	i2c0_pins: i2c0-pins-g0 {
 		mux {
 			function = "i2c";
@@ -289,19 +296,35 @@
 	gmac1: mac@1 {
 		compatible = "mediatek,eth-mac";
 		reg = <1>;
+		mac-type = "xgdm";
+		phy-mode = "xgmii";
+		phy-handle = <&phy0>;
+	};
+
+	gmac2: mac@2 {
+		compatible = "mediatek,eth-mac";
+		reg = <2>;
 		mac-type = "gdm";
 		phy-mode = "2500base-x";
-		phy-handle = <&phy13>;
+		phy-handle = <&phy5>;
 	};
 
 	mdio: mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		phy13: phy@13 {
+		phy0: ethernet-phy@0 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2p5gbe_led0_pins>;
+			reg = <15>;
 			compatible = "ethernet-phy-ieee802.3-c45";
-			reg = <13>;
-			reset-gpios = <&pio 1 1>;
+			phy-mode = "xgmii";
+		};
+
+		phy5: phy@5 {
+			compatible = "ethernet-phy-ieee802.3-c45";
+			reg = <5>;
+			reset-gpios = <&pio 3 1>;
 			reset-assert-us = <600>;
 			reset-deassert-us = <20000>;
 		};
