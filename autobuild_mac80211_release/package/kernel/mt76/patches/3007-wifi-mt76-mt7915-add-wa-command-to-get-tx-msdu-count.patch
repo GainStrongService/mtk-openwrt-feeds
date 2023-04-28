@@ -1,8 +1,7 @@
-From 3fe0d851df3cf107c3427116018e655ef817d9e8 Mon Sep 17 00:00:00 2001
+From 4f1290c149c6cc3ef2f2623ca09f23fe9bb4c133 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 18 Jan 2023 16:37:22 +0800
-Subject: [PATCH 3007/3013] wifi: mt76: mt7915: add wa command to get tx msdu
- count
+Subject: [PATCH] wifi: mt76: mt7915: add wa command to get tx msdu count
 
 ---
  mt76.h             |  2 +-
@@ -16,7 +15,7 @@ Subject: [PATCH 3007/3013] wifi: mt76: mt7915: add wa command to get tx msdu
  8 files changed, 79 insertions(+), 12 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index a215d2f..c7bd147 100644
+index a215d2f1..c7bd147f 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -288,7 +288,7 @@ struct mt76_sta_stats {
@@ -29,7 +28,7 @@ index a215d2f..c7bd147 100644
  	u32 tx_failed;
  	/* WED RX */
 diff --git a/mt76_connac2_mac.h b/mt76_connac2_mac.h
-index f33171b..101e760 100644
+index f33171bc..101e7602 100644
 --- a/mt76_connac2_mac.h
 +++ b/mt76_connac2_mac.h
 @@ -164,6 +164,7 @@ enum {
@@ -41,7 +40,7 @@ index f33171b..101e760 100644
  
  /* RXD DW1 */
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index 8d316d3..1816bcb 100644
+index 8d316d3a..1816bcbc 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -491,7 +491,9 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
@@ -68,7 +67,7 @@ index 8d316d3..1816bcb 100644
  			le32_get_bits(txs_data[6], MT_TXS6_MPDU_FAIL_CNT);
  		stats->tx_retries +=
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 8e559ef..dd7ee32 100644
+index 8e559efb..dd7ee32f 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1000,6 +1000,7 @@ enum {
@@ -80,10 +79,10 @@ index 8e559ef..dd7ee32 100644
  	MCU_EXT_EVENT_MURU_CTRL = 0x9f,
  	MCU_EXT_EVENT_CSI_REPORT = 0xc2,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 779d038..64709e1 100644
+index da49e318..6714f635 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1118,9 +1118,6 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1117,9 +1117,6 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  		sinfo->tx_bytes = msta->wcid.stats.tx_bytes;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BYTES64);
  
@@ -93,7 +92,7 @@ index 779d038..64709e1 100644
  		sinfo->tx_failed = msta->wcid.stats.tx_failed;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
  
-@@ -1136,6 +1133,11 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1135,6 +1132,11 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  		}
  	}
  
@@ -106,7 +105,7 @@ index 779d038..64709e1 100644
  	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL);
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 35ea3fc..fd72eba 100644
+index b5d1e637..29b2486c 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -169,7 +169,9 @@ mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
@@ -137,7 +136,7 @@ index 35ea3fc..fd72eba 100644
  		mt7915_mcu_rx_unsolicited_event(dev, skb);
  	else
  		mt76_mcu_rx_event(&dev->mt76, skb);
-@@ -4172,7 +4175,7 @@ int mt7915_mcu_get_tx_rate(struct mt7915_phy *phy, u16 wcidx)
+@@ -4272,7 +4275,7 @@ int mt7915_mcu_get_tx_rate_v2(struct mt7915_phy *phy, u16 wcidx)
  	};
  
  	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_EXT_QUERY(GET_TX_STAT),
@@ -146,8 +145,8 @@ index 35ea3fc..fd72eba 100644
  	if (ret)
  		return ret;
  
-@@ -4208,6 +4211,53 @@ out:
- 	return ret;
+@@ -4316,6 +4319,53 @@ int mt7915_mcu_get_tx_rate(struct mt7915_phy *phy, u16 wcidx)
+ 		return mt7915_mcu_get_tx_rate_v2(phy, wcidx);
  }
  
 +int mt7915_mcu_get_tx_stat_wa(struct mt7915_dev *dev, u16 wlan_idx)
@@ -201,10 +200,10 @@ index 35ea3fc..fd72eba 100644
  				struct cfg80211_he_bss_color *he_bss_color)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index bd0ccb5..f91f4bc 100644
+index d3cbe160..a7098427 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -328,6 +328,17 @@ enum {
+@@ -347,6 +347,17 @@ enum {
  	MCU_WA_PARAM_RED_SETTING = 0x40,
  };
  
@@ -223,7 +222,7 @@ index bd0ccb5..f91f4bc 100644
  	MCU_MMPS_STATIC,
  	MCU_MMPS_DYNAMIC,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 81970ef..943253c 100644
+index 8a1be2db..28a2416c 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -722,6 +722,7 @@ int mt7915_mcu_set_thermal_protect(struct mt7915_phy *phy);
