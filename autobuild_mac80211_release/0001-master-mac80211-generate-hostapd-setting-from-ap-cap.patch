@@ -1,8 +1,8 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index 02cf715d..d878cb2a 100644
+index 8ecbe30..aa542d4 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
-@@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
+@@ -19,6 +19,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
  PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/backports-$(PKG_VERSION)
  PKG_BUILD_PARALLEL:=1
  
@@ -10,7 +10,7 @@ index 02cf715d..d878cb2a 100644
  PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
  
  PKG_DRIVERS = \
-@@ -72,6 +73,10 @@ config-y:= \
+@@ -71,6 +72,10 @@ config-y:= \
  	WLAN_VENDOR_ST \
  	WLAN_VENDOR_TI \
  	WLAN_VENDOR_ZYDAS \
@@ -21,7 +21,7 @@ index 02cf715d..d878cb2a 100644
  
  config-$(call config_package,cfg80211) += CFG80211
  config-$(CONFIG_PACKAGE_CFG80211_TESTMODE) += NL80211_TESTMODE
-@@ -297,6 +302,8 @@ define Build/Prepare
+@@ -296,6 +301,8 @@ define Build/Prepare
  	mkdir -p $(PKG_BUILD_DIR)
  	$(PKG_UNPACK)
  	$(Build/Patch)
@@ -31,7 +31,7 @@ index 02cf715d..d878cb2a 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9af..ce30b61d 100644
+index ed28052..b76d601 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
@@ -144,7 +144,14 @@ index 5aaba9af..ce30b61d 100644
  			if [ "$band" = "6g" ]; then
  				case "$channel" in
  					1|5|9|13|17|21|25|29) idx=15;;
-@@ -277,6 +293,36 @@ mac80211_hostapd_setup_base() {
+@@ -271,12 +287,43 @@ mac80211_hostapd_setup_base() {
+ 				case "$channel" in
+ 					36|40|44|48|52|56|60|64) idx=50;;
+ 					100|104|108|112|116|120|124|128) idx=114;;
++					149|153|157|161|165|169|173|177) idx=163;;
+ 				esac
+ 			fi
+ 			enable_ac=1
  			vht_oper_chwidth=2
  			vht_center_seg0=$idx
  		;;
@@ -181,7 +188,7 @@ index 5aaba9af..ce30b61d 100644
  	esac
  	[ "$band" = "5g" ] && {
  		json_get_vars background_radar:0
-@@ -286,8 +332,9 @@ mac80211_hostapd_setup_base() {
+@@ -286,8 +333,9 @@ mac80211_hostapd_setup_base() {
  	[ "$band" = "6g" ] && {
  		op_class=
  		case "$htmode" in
@@ -193,7 +200,7 @@ index 5aaba9af..ce30b61d 100644
  		esac
  		[ -n "$op_class" ] && append base_cfg "op_class=$op_class" "$N"
  	}
-@@ -315,7 +362,6 @@ mac80211_hostapd_setup_base() {
+@@ -315,7 +363,6 @@ mac80211_hostapd_setup_base() {
  			vht_link_adapt:3 \
  			vht160:2
  
@@ -201,7 +208,7 @@ index 5aaba9af..ce30b61d 100644
  		append base_cfg "ieee80211ac=1" "$N"
  		vht_cap=0
  		for cap in $(iw phy "$phy" info | awk -F "[()]" '/VHT Capabilities/ { print $2 }'); do
-@@ -329,6 +375,12 @@ mac80211_hostapd_setup_base() {
+@@ -329,6 +376,12 @@ mac80211_hostapd_setup_base() {
  		[ "$rx_stbc" -lt "$cap_rx_stbc" ] && cap_rx_stbc="$rx_stbc"
  		vht_cap="$(( ($vht_cap & ~(0x700)) | ($cap_rx_stbc << 8) ))"
  
@@ -214,7 +221,7 @@ index 5aaba9af..ce30b61d 100644
  		mac80211_add_capabilities vht_capab $vht_cap \
  			RXLDPC:0x10::$rxldpc \
  			SHORT-GI-80:0x20::$short_gi_80 \
-@@ -410,7 +462,7 @@ mac80211_hostapd_setup_base() {
+@@ -410,7 +463,7 @@ mac80211_hostapd_setup_base() {
  	# 802.11ax
  	enable_ax=0
  	case "$htmode" in
@@ -223,7 +230,7 @@ index 5aaba9af..ce30b61d 100644
  	esac
  
  	if [ "$enable_ax" != "0" ]; then
-@@ -419,10 +471,11 @@ mac80211_hostapd_setup_base() {
+@@ -419,10 +472,11 @@ mac80211_hostapd_setup_base() {
  			he_su_beamformee:1 \
  			he_mu_beamformer:1 \
  			he_twt_required:0 \
@@ -236,7 +243,7 @@ index 5aaba9af..ce30b61d 100644
  			he_bss_color_enabled:1
  
  		he_phy_cap=$(iw phy "$phy" info | sed -n '/HE Iftypes: AP/,$p' | awk -F "[()]" '/HE PHY Capabilities/ { print $2 }' | head -1)
-@@ -436,6 +489,11 @@ mac80211_hostapd_setup_base() {
+@@ -436,6 +490,11 @@ mac80211_hostapd_setup_base() {
  			append base_cfg "he_oper_centr_freq_seg0_idx=$vht_center_seg0" "$N"
  		}
  
@@ -248,7 +255,7 @@ index 5aaba9af..ce30b61d 100644
  		mac80211_add_he_capabilities \
  			he_su_beamformer:${he_phy_cap:6:2}:0x80:$he_su_beamformer \
  			he_su_beamformee:${he_phy_cap:8:2}:0x1:$he_su_beamformee \
-@@ -443,7 +501,14 @@ mac80211_hostapd_setup_base() {
+@@ -443,7 +502,14 @@ mac80211_hostapd_setup_base() {
  			he_spr_psr_enabled:${he_phy_cap:14:2}:0x1:$he_spr_psr_enabled \
  			he_twt_required:${he_mac_cap:0:2}:0x6:$he_twt_required
  
@@ -263,7 +270,7 @@ index 5aaba9af..ce30b61d 100644
  			append base_cfg "he_bss_color=$he_bss_color" "$N"
  			[ "$he_spr_non_srg_obss_pd_max_offset" -gt 0 ] && { \
  				append base_cfg "he_spr_non_srg_obss_pd_max_offset=$he_spr_non_srg_obss_pd_max_offset" "$N"
-@@ -484,12 +549,46 @@ mac80211_hostapd_setup_base() {
+@@ -484,12 +550,46 @@ mac80211_hostapd_setup_base() {
  		append base_cfg "he_mu_edca_ac_vo_timer=255" "$N"
  	fi
  
@@ -310,7 +317,7 @@ index 5aaba9af..ce30b61d 100644
  $base_cfg
  
  EOF
-@@ -517,7 +616,7 @@ mac80211_hostapd_setup_bss() {
+@@ -517,7 +617,7 @@ mac80211_hostapd_setup_bss() {
  		append hostapd_cfg "wds_sta=1" "$N"
  		[ -n "$wds_bridge" ] && append hostapd_cfg "wds_bridge=$wds_bridge" "$N"
  	}
@@ -319,7 +326,7 @@ index 5aaba9af..ce30b61d 100644
  
  	cat >> /var/run/hostapd-$phy.conf <<EOF
  $hostapd_cfg
-@@ -527,6 +626,34 @@ ${max_listen_int:+max_listen_interval=$m
+@@ -527,6 +627,34 @@ ${max_listen_int:+max_listen_interval=$max_listen_int}
  EOF
  }
  
@@ -354,7 +361,7 @@ index 5aaba9af..ce30b61d 100644
  mac80211_get_addr() {
  	local phy="$1"
  	local idx="$(($2 + 1))"
-@@ -757,7 +884,13 @@ mac80211_prepare_vif() {
+@@ -757,7 +885,13 @@ mac80211_prepare_vif() {
  
  	json_select ..
  
@@ -369,7 +376,7 @@ index 5aaba9af..ce30b61d 100644
  		macaddr="$(mac80211_generate_mac $phy)"
  		macidx="$(($macidx + 1))"
  	elif [ "$macaddr" = 'random' ]; then
-@@ -1058,6 +1191,9 @@ mac80211_setup_vif() {
+@@ -1058,6 +1192,9 @@ mac80211_setup_vif() {
  
  	json_select ..
  	[ -n "$failed" ] || wireless_add_vif "$name" "$ifname"
@@ -379,7 +386,7 @@ index 5aaba9af..ce30b61d 100644
  }
  
  get_freq() {
-@@ -1122,6 +1258,10 @@ drv_mac80211_cleanup() {
+@@ -1122,6 +1259,10 @@ drv_mac80211_cleanup() {
  	hostapd_common_cleanup
  }
  
@@ -390,7 +397,7 @@ index 5aaba9af..ce30b61d 100644
  drv_mac80211_setup() {
  	json_select config
  	json_get_vars \
-@@ -1219,6 +1359,16 @@ drv_mac80211_setup() {
+@@ -1219,6 +1360,16 @@ drv_mac80211_setup() {
  	for_each_interface "sta adhoc mesh" mac80211_set_noscan
  	[ -n "$has_ap" ] && mac80211_hostapd_setup_base "$phy"
  
@@ -408,7 +415,7 @@ index 5aaba9af..ce30b61d 100644
  	for_each_interface "sta adhoc mesh monitor" mac80211_prepare_vif
  	NEWAPLIST=
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a63..80cd298c 100644
+index 3ecd932..cb85bac 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,8 @@ BEGIN {
@@ -473,7 +480,7 @@ index e24a2a63..80cd298c 100644
  
  		get_band_defaults "$dev"
  
-@@ -196,6 +216,11 @@ detect_mac80211() {
+@@ -192,6 +212,11 @@ detect_mac80211() {
  				;;
  		esac
  
@@ -485,7 +492,7 @@ index e24a2a63..80cd298c 100644
  		uci -q batch <<-EOF
  			set wireless.${name}=wifi-device
  			set wireless.${name}.type=mac80211
-@@ -210,8 +235,14 @@ detect_mac80211() {
+@@ -206,8 +231,14 @@ detect_mac80211() {
  			set wireless.default_${name}.network=lan
  			set wireless.default_${name}.mode=ap
  			set wireless.default_${name}.ssid=OpenWrt
@@ -502,7 +509,7 @@ index e24a2a63..80cd298c 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 28bd2106..5e21d0d6 100644
+index 28bd210..5e21d0d 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -376,6 +376,13 @@ hostapd_common_add_bss_config() {
