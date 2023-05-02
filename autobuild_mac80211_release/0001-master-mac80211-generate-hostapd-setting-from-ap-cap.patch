@@ -1,8 +1,8 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index 8ecbe30..aa542d4 100644
+index 02cf715d8e..d878cb2a46 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
-@@ -19,6 +19,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
+@@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
  PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/backports-$(PKG_VERSION)
  PKG_BUILD_PARALLEL:=1
  
@@ -10,7 +10,7 @@ index 8ecbe30..aa542d4 100644
  PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
  
  PKG_DRIVERS = \
-@@ -71,6 +72,10 @@ config-y:= \
+@@ -72,6 +73,10 @@ config-y:= \
  	WLAN_VENDOR_ST \
  	WLAN_VENDOR_TI \
  	WLAN_VENDOR_ZYDAS \
@@ -21,7 +21,7 @@ index 8ecbe30..aa542d4 100644
  
  config-$(call config_package,cfg80211) += CFG80211
  config-$(CONFIG_PACKAGE_CFG80211_TESTMODE) += NL80211_TESTMODE
-@@ -296,6 +301,8 @@ define Build/Prepare
+@@ -297,6 +302,8 @@ define Build/Prepare
  	mkdir -p $(PKG_BUILD_DIR)
  	$(PKG_UNPACK)
  	$(Build/Patch)
@@ -31,7 +31,7 @@ index 8ecbe30..aa542d4 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index ed28052..b76d601 100644
+index 5aaba9af26..76f5f06855 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
@@ -414,8 +414,23 @@ index ed28052..b76d601 100644
  	mac80211_prepare_iw_htmode
  	for_each_interface "sta adhoc mesh monitor" mac80211_prepare_vif
  	NEWAPLIST=
+@@ -1251,6 +1402,14 @@ drv_mac80211_setup() {
+ 		if [ "$no_reload" != "0" ]; then
+ 			add_ap=1
+ 			ubus wait_for hostapd
++
++			# each phy sleeps different times to prevent for ubus race condition.
++			if [ "$phy" = "phy1" ]; then
++				sleep 1;
++			elif [ "$phy" = "phy2" ]; then
++				sleep 2;
++			fi
++
+ 			local hostapd_res="$(ubus call hostapd config_add "{\"iface\":\"$primary_ap\", \"config\":\"${hostapd_conf_file}\"}")"
+ 			ret="$?"
+ 			[ "$ret" != 0 -o -z "$hostapd_res" ] && {
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index 3ecd932..cb85bac 100644
+index e24a2a634e..80cd298cb1 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,8 @@ BEGIN {
@@ -480,7 +495,7 @@ index 3ecd932..cb85bac 100644
  
  		get_band_defaults "$dev"
  
-@@ -192,6 +212,11 @@ detect_mac80211() {
+@@ -196,6 +216,11 @@ detect_mac80211() {
  				;;
  		esac
  
@@ -492,7 +507,7 @@ index 3ecd932..cb85bac 100644
  		uci -q batch <<-EOF
  			set wireless.${name}=wifi-device
  			set wireless.${name}.type=mac80211
-@@ -206,8 +231,14 @@ detect_mac80211() {
+@@ -210,8 +235,14 @@ detect_mac80211() {
  			set wireless.default_${name}.network=lan
  			set wireless.default_${name}.mode=ap
  			set wireless.default_${name}.ssid=OpenWrt
@@ -509,7 +524,7 @@ index 3ecd932..cb85bac 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 28bd210..5e21d0d 100644
+index 28bd210623..5e21d0d680 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -376,6 +376,13 @@ hostapd_common_add_bss_config() {
