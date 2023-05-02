@@ -692,6 +692,10 @@ void mtk_464xlat_pre_process(struct sk_buff *skb)
 {
 	struct foe_entry *foe;
 
+	if (skb_hnat_entry(skb) >= hnat_priv->foe_etry_num ||
+	    skb_hnat_ppe(skb) >= CFG_PPE_NUM)
+		return;
+
 	foe = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
 	if (foe->bfib1.state != BIND &&
 	    skb_hnat_reason(skb) == HIT_UNBIND_RATE_REACH)

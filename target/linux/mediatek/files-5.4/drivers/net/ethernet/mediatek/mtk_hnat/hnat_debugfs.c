@@ -2531,7 +2531,7 @@ static ssize_t hnat_xlat_cfg_write(struct file *file, const char __user *buffer,
 		return -EFAULT;
 
 	if (!strncmp(buf, "prefix", 6)) {
-		if (sscanf(buf, "prefix %s\n", v6_str) != 1) {
+		if (sscanf(buf, "prefix %64s\n", v6_str) != 1) {
 			pr_info("input error\n");
 			return -1;
 		}
@@ -2539,14 +2539,14 @@ static ssize_t hnat_xlat_cfg_write(struct file *file, const char __user *buffer,
 		in6_pton(v6_str, -1, (u8 *)&h->xlat.prefix, -1, NULL);
 		pr_info("set prefix = %pI6\n", &h->xlat.prefix);
 	} else if (!strncmp(buf, "pfx_len", 7)) {
-		if (sscanf(buf, "pfx_len %d", &h->xlat.prefix_len) != 1) {
+		if (sscanf(buf, "pfx_len %3d", &h->xlat.prefix_len) != 1) {
 			pr_info("input error\n");
 			return -1;
 		}
 
 		pr_info("set pfx_len = %d\n", h->xlat.prefix_len);
 	} else if (!strncmp(buf, "map add", 7)) {
-		if (sscanf(buf, "map add %s %s\n", v4_str, v6_str) != 2) {
+		if (sscanf(buf, "map add %64s %64s\n", v4_str, v6_str) != 2) {
 			pr_info("input error\n");
 			return -1;
 		}
@@ -2569,7 +2569,7 @@ static ssize_t hnat_xlat_cfg_write(struct file *file, const char __user *buffer,
 		list_add(&map->list, &h->xlat.map_list);
 		pr_info("add map: %pI4<=>%pI6\n", &map->ipv4, &map->ipv6);
 	} else if (!strncmp(buf, "map del", 7)) {
-		if (sscanf(buf, "map del %s %s\n", v4_str, v6_str) != 2) {
+		if (sscanf(buf, "map del %64s %64s\n", v4_str, v6_str) != 2) {
 			pr_info("input error\n");
 			return -1;
 		}
@@ -2811,7 +2811,7 @@ static const struct file_operations hnat_version_fops = {
 
 u32 hnat_get_ppe_hash(struct foe_entry *entry)
 {
-	u32 hv1, hv2, hv3, hash;
+	u32 hv1 = 0, hv2 = 0, hv3 = 0, hash = 0;
 
 	switch (entry->bfib1.pkt_type) {
 	case IPV4_HNAPT:
