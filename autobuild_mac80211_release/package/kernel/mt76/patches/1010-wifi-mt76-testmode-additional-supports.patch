@@ -1,7 +1,7 @@
-From b2dfeaa9eda6e52f2f53ac315fb4b127f6bd714d Mon Sep 17 00:00:00 2001
+From d56368a0d7c5146418b9906ef7b75acf119cf724 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 21 Apr 2022 15:43:19 +0800
-Subject: [PATCH 1010/1032] wifi: mt76: testmode: additional supports
+Subject: [PATCH] wifi: mt76: testmode: additional supports
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -16,7 +16,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  mt7915/mac.c      |   39 +-
  mt7915/main.c     |    2 +-
  mt7915/mcu.c      |   19 +-
- mt7915/mcu.h      |   28 +-
+ mt7915/mcu.h      |   29 +-
  mt7915/mmio.c     |    2 +
  mt7915/mt7915.h   |   16 +-
  mt7915/regs.h     |    3 +
@@ -26,7 +26,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  testmode.h        |   75 +++
  tools/fields.c    |   84 +++-
  tx.c              |    3 +-
- 20 files changed, 1990 insertions(+), 156 deletions(-)
+ 20 files changed, 1991 insertions(+), 156 deletions(-)
 
 diff --git a/dma.c b/dma.c
 index e1b73a1..dc53cc7 100644
@@ -303,7 +303,7 @@ index f6f3e8a..2da66cb 100644
  	mt7915_init_txpower(dev, &dev->mphy.sband_2g.sband);
  	mt7915_init_txpower(dev, &dev->mphy.sband_5g.sband);
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 4554a93..a074608 100644
+index 8c83507..a45e48c 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -607,16 +607,38 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
@@ -375,7 +375,7 @@ index 4554a93..a074608 100644
  #endif
  }
  
-@@ -1467,7 +1490,7 @@ mt7915_mac_restart(struct mt7915_dev *dev)
+@@ -1473,7 +1496,7 @@ mt7915_mac_restart(struct mt7915_dev *dev)
  		goto out;
  
  	/* set the necessary init items */
@@ -398,7 +398,7 @@ index 1988d8f..f2dd21f 100644
  		mvif->mt76.wmm_idx += 2;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 8aec083..5f8a615 100644
+index dca7dc8..5302813 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -384,6 +384,11 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -469,7 +469,7 @@ index 8aec083..5f8a615 100644
  
  	return 0;
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 6248e4b..11ac2ad 100644
+index 1be6cf3..0020025 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -8,10 +8,15 @@
@@ -488,7 +488,7 @@ index 6248e4b..11ac2ad 100644
  };
  
  struct mt7915_mcu_thermal_ctrl {
-@@ -508,6 +513,12 @@ enum {
+@@ -527,6 +532,12 @@ enum {
  
  enum {
  	MT_BF_SOUNDING_ON = 1,
@@ -501,7 +501,7 @@ index 6248e4b..11ac2ad 100644
  	MT_BF_TYPE_UPDATE = 20,
  	MT_BF_MODULE_UPDATE = 25
  };
-@@ -756,10 +767,19 @@ struct mt7915_muru {
+@@ -775,10 +786,20 @@ struct mt7915_muru {
  #define MURU_OFDMA_SCH_TYPE_UL          BIT(1)
  
  /* Common Config */
@@ -518,8 +518,9 @@ index 6248e4b..11ac2ad 100644
 +#define MURU_COMM_WMM          BIT(3)
 +#define MURU_COMM_SPE_IDX      BIT(4)
 +#define MURU_COMM_PROC_TYPE        BIT(5)
-+#define MURU_COMM_SET      (MURU_COMM_PPDU_FMT | MURU_COMM_BAND | \
-+				MURU_COMM_WMM | MURU_COMM_SPE_IDX)
++#define MURU_COMM_SET		(MURU_COMM_PPDU_FMT | MURU_COMM_SCH_TYPE)
++#define MURU_COMM_SET_TM	(MURU_COMM_PPDU_FMT | MURU_COMM_BAND | \
++				 MURU_COMM_WMM | MURU_COMM_SPE_IDX)
 +
 +/* DL&UL User config */
  #define MURU_USER_CNT                   BIT(4)
@@ -546,7 +547,7 @@ index 9451bf5..22dcd18 100644
  	[AGG_PCR0]		= 0x040,
  	[AGG_ACR0]		= 0x054,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 9c110b3..cf4af05 100644
+index 811d966..7ef615b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -328,6 +328,9 @@ struct mt7915_phy {
@@ -615,7 +616,7 @@ index d6a05f1..e876848 100644
  							  (_n) * 4))
  #define MT_AGG_PCR0(_band, _n)		MT_WF_AGG(_band, (__OFFS(AGG_PCR0) +	\
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 4693919..1ed2ea8 100644
+index 4693919..c44f13f 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -9,6 +9,9 @@
@@ -1600,7 +1601,7 @@ index 4693919..1ed2ea8 100644
 +		dl->user_num++;
 +	}
 +
-+	muru.cfg_comm = cpu_to_le32(MURU_COMM_SET);
++	muru.cfg_comm = cpu_to_le32(MURU_COMM_SET_TM);
 +	muru.cfg_dl = cpu_to_le32(MURU_DL_SET);
 +
 +	return mt7915_tm_set_muru_cfg(phy, &muru);
@@ -3019,5 +3020,5 @@ index 1f309d0..6d55566 100644
  			wake_up(&dev->tx_wait);
  
 -- 
-2.18.0
+2.39.0
 
