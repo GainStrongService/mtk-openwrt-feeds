@@ -403,11 +403,6 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	if (advertise < 0)
 		return advertise;
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-		mtk_sgmii_xfi_pll_enable(eth->sgmii);
-		mtk_sgmii_reset(eth, mpcs->id);
-	}
-
 	/* Clearing IF_MODE_BIT0 switches the PCS to BASE-X mode, and
 	 * we assume that fixes it's speed at bitrate = line rate (in
 	 * other words, 1000Mbps or 2500Mbps).
@@ -429,6 +424,11 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 		if (link_timer < 0)
 			return link_timer;
 
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+			mtk_sgmii_xfi_pll_enable(eth->sgmii);
+			mtk_sgmii_reset(eth, mpcs->id);
+		}
+
 		/* PHYA power down */
 		regmap_update_bits(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL,
 				   SGMII_PHYA_PWD, SGMII_PHYA_PWD);
@@ -436,6 +436,12 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 		/* Reset SGMII PCS state */
 		regmap_update_bits(mpcs->regmap, SGMII_RESERVED_0,
 				   SGMII_SW_RESET, SGMII_SW_RESET);
+
+		/* Configure the interface polarity */
+		if (MTK_HAS_FLAGS(mpcs->flags, MTK_SGMII_PN_SWAP))
+			regmap_update_bits(mpcs->regmap, SGMSYS_QPHY_WRAP_CTRL,
+					   SGMII_PN_SWAP_MASK,
+					   SGMII_PN_SWAP_TX_RX);
 
 		if (interface == PHY_INTERFACE_MODE_2500BASEX)
 			rgc3 = RG_PHY_SPEED_3_125G;
@@ -472,11 +478,13 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	usleep_range(50, 100);
 	regmap_write(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL, 0);
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-		if (interface == PHY_INTERFACE_MODE_2500BASEX)
-			mtk_sgmii_setup_phya_gen2(mpcs);
-		else
-			mtk_sgmii_setup_phya_gen1(mpcs);
+	if (mode_changed) {
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+			if (interface == PHY_INTERFACE_MODE_2500BASEX)
+				mtk_sgmii_setup_phya_gen2(mpcs);
+			else
+				mtk_sgmii_setup_phya_gen1(mpcs);
+		}
 	}
 
 	return changed || mode_changed;
