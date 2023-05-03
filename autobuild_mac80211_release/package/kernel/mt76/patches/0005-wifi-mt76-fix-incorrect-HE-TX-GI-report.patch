@@ -1,4 +1,4 @@
-From 80765449e32eba36051daeb29824cc011aecd85d Mon Sep 17 00:00:00 2001
+From e04f540b9f4ec973e0d1af2832463f771aefe2c8 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Fri, 24 Mar 2023 18:01:27 +0800
 Subject: [PATCH] wifi: mt76: fix incorrect HE TX GI report
@@ -9,12 +9,12 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 ---
  mt76.h          |   4 ++
  mt7915/init.c   |   4 ++
- mt7915/mac.c    |  60 ++++++++++------
- mt7915/main.c   |   7 ++
- mt7915/mcu.c    | 183 ++++++++++++++++++++++++++++++++++++++++++++++++
- mt7915/mcu.h    |  58 +++++++++++++++
+ mt7915/mac.c    |  60 ++++++++++++------
+ mt7915/main.c   |   7 +++
+ mt7915/mcu.c    | 161 ++++++++++++++++++++++++++++++++++++++++++++++++
+ mt7915/mcu.h    |  58 +++++++++++++++++
  mt7915/mt7915.h |   6 ++
- 7 files changed, 302 insertions(+), 20 deletions(-)
+ 7 files changed, 280 insertions(+), 20 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
 index 183b0fc5..11d49363 100644
@@ -217,10 +217,10 @@ index ea1d4e6a..870b7b23 100644
  
  static void mt7915_tx(struct ieee80211_hw *hw,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 2a5ad033..512a9d5f 100644
+index 2a5ad033..5ee2ee2b 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3752,6 +3752,189 @@ out:
+@@ -3752,6 +3752,167 @@ out:
  	return ret;
  }
  
@@ -282,7 +282,6 @@ index 2a5ad033..512a9d5f 100644
 +
 +int mt7915_mcu_get_tx_rate_v1(struct mt7915_phy *phy, u16 wcidx)
 +{
-+	struct ieee80211_tx_status status = {};
 +	struct mt7915_mcu_ra_info_v1 *rate;
 +	struct mt7915_dev *dev = phy->dev;
 +	struct mt76_phy *mphy = phy->mt76;
@@ -323,16 +322,6 @@ index 2a5ad033..512a9d5f 100644
 +
 +	ret = mt7915_mcu_parse_tx_gi(mphy->dev, rate->mode, rate->gi,
 +                                     rate->bw, &wcid->rate);
-+	if (ret)
-+		goto unlock;
-+
-+	status.sta = wcid_to_sta(wcid);
-+	if (!status.sta) {
-+		ret = -EINVAL;
-+		goto unlock;
-+	}
-+	status.rate = &wcid->rate;
-+	ieee80211_tx_status_ext(mphy->hw, &status);
 +unlock:
 +	rcu_read_unlock();
 +out:
@@ -343,7 +332,6 @@ index 2a5ad033..512a9d5f 100644
 +
 +int mt7915_mcu_get_tx_rate_v2(struct mt7915_phy *phy, u16 wcidx)
 +{
-+	struct ieee80211_tx_status status = {};
 +	struct mt7915_mcu_ra_info_v2 *rate;
 +	struct mt7915_dev *dev = phy->dev;
 +	struct mt76_phy *mphy = phy->mt76;
@@ -381,16 +369,6 @@ index 2a5ad033..512a9d5f 100644
 +
 +	ret = mt7915_mcu_parse_tx_gi(mphy->dev, rate->mode, rate->gi,
 +                                     rate->bw, &wcid->rate);
-+	if (ret)
-+		goto unlock;
-+
-+	status.sta = wcid_to_sta(wcid);
-+	if (!status.sta) {
-+		ret = -EINVAL;
-+		goto unlock;
-+	}
-+	status.rate = &wcid->rate;
-+	ieee80211_tx_status_ext(mphy->hw, &status);
 +unlock:
 +	rcu_read_unlock();
 +out:
