@@ -1162,7 +1162,8 @@ if [ "${cmd_type}" = "set" ]; then
         ## Translate to mt76-vendor command
         "csi"|"amnt"|"ap_rfeatures"|"ap_wireless"|"mu")
             if [ ${is_eagle} == "1" ]; then
-                do_cmd "hostapd_cli -i $*"
+                hostapd_cmd="$(echo $* | sed 's/set/raw/')"
+                do_cmd "hostapd_cli -i $hostapd_cmd"
             else
                 do_cmd "mt76-vendor $*"
             fi
