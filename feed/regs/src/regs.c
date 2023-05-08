@@ -46,7 +46,7 @@
 
 void dump_page(uint32_t *vaddr, uint32_t *vbase, uint32_t *pbase)
 {
-	int i =0;
+	int i = 0;
 	uint32_t *end = vaddr + (MAP_SIZE >> 6);
 	uint32_t *start = vaddr;
 
@@ -57,16 +57,17 @@ void dump_page(uint32_t *vaddr, uint32_t *vbase, uint32_t *pbase)
 	}
 }
 
-void reg_mod_bits(uint32_t *virt_addr, int data, int  start_bit, int data_len)
+void reg_mod_bits(uint32_t *virt_addr, int data, int start_bit, int data_len)
 {
-    int mask=0;
-    int value;
-    int i;
+	int mask = 0;
+	int value;
+	int i;
 
 	if ((start_bit < 0) || (start_bit > 31) ||
 	    (data_len < 1) || (data_len > 32) ||
 	    (start_bit + data_len > 32)) {
-		fprintf(stderr, "Startbit range[0~31], and DataLen range[1~32], and Startbit + DataLen <= 32\n");
+		fprintf(stderr,
+			"Startbit range[0~31], and DataLen range[1~32], and Startbit + DataLen <= 32\n");
 		return;
 	}
 
@@ -86,28 +87,80 @@ void reg_mod_bits(uint32_t *virt_addr, int data, int  start_bit, int data_len)
 	printf("Modify 0x%X[%d:%d]; ", data, start_bit + data_len - 1, start_bit);
 }
 
-void usage(void)
+void print_binary(uint32_t data)
 {
-		fprintf(stderr, "\nUsage:\tregs [Type] [ Offset:Hex ] [ Data:Hex ] [StartBit:Dec] [DataLen:Dec]\n"
-			"\tType    : access operation type : [m]odify, [w]wite, [d]ump\n"
-			"\tOffset  : offset into memory region to act upon\n"
-			"\tData    : data to be written\n"
-			"\tStartbit: Startbit of Addr that want to be modified. Range[0~31]\n"
-			"\tDataLen : Data length of Data. Range[1~32], and Startbit + DataLen <= 32\n\n"
-			"Example:\tRead/Write/Modify register \n"
-			"\tRead    : regs d 0x1b100000           //dump 0x1b100000~0x1b1000f0 \n"
-			"\tWrite   : regs w 0x1b100000 0x1234    //write 0x1b100000=0x1234\n"
-			"\tModify  : regs m 0x1b100000 0x0 29 3  //modify 0x1b100000[29:31]=0\n");
+	if (data > 1)
+		print_binary(data >> 1);
+
+	printf("%x", data % 2);
 }
 
-int main(int argc, char **argv) {
+void reg_read_bits(uint32_t *virt_addr, uint32_t *virt_base, uint32_t *phy_base,
+		   int start_bit, int data_len)
+{
+	uint32_t mask = 0;
+	uint32_t value;
+	int i;
+
+	if ((start_bit < 0) || (start_bit > 31) ||
+	    (data_len < 1) || (data_len > 32) ||
+	    (start_bit + data_len > 32)) {
+		fprintf(stderr,
+			"Startbit range[0~31], and DataLen range[1~32], and Startbit + DataLen <= 32\n");
+		return;
+	}
+
+	for (i = 0; i < data_len; i++) {
+		if (start_bit + i > 31)
+			break;
+
+		mask |= 1 << (start_bit + i);
+	}
+
+	value = *((uint32_t *)virt_addr);
+	value &= mask;
+
+	if (start_bit == 0 && data_len == 32)
+		printf("%p: %08x\n",
+		       virt_addr - virt_base + phy_base, value);
+	else {
+		printf("%p[%2d:%2d] = %x (hex)\n",
+		       virt_addr - virt_base + phy_base,
+		       start_bit + data_len - 1, start_bit,
+		       value >> start_bit);
+		printf("%17s = %d (dec)\n", "", value >> start_bit);
+		printf("%17s = ", "");
+		print_binary(value >> start_bit);
+		printf(" (bin)\n");
+	}
+}
+
+void usage(void)
+{
+	fprintf(stderr,
+		"\nUsage:\tregs [Type] [ Offset:Hex ] [ Data:Hex ] [StartBit:Dec] [DataLen:Dec]\n"
+		"\tType    : access operation type : [m]odify, [w]wite, [d]ump\n"
+		"\tOffset  : offset into memory region to act upon\n"
+		"\tData    : data to be written\n"
+		"\tStartbit: Startbit of Addr that want to be modified. Range[0~31]\n"
+		"\tDataLen : Data length of Data. Range[1~32], and Startbit + DataLen <= 32\n\n"
+		"Example:\tRead/Write/Modify register\n"
+		"\tDump    : regs d 0x1b100000           //dump 0x1b100000~0x1b1000f0\n"
+		"\tRead    : regs r 0x1b100000           //read 0x1b100000\n"
+		"\tRead    : regs r 0x1b100000 29 3      //read 0x1b100000[29:31]\n"
+		"\tWrite   : regs w 0x1b100000 0x1234    //write 0x1b100000=0x1234\n"
+		"\tModify  : regs m 0x1b100000 0x0 29 3  //modify 0x1b100000[29:31]=0\n");
+}
+
+int main(int argc, char **argv)
+{
 	int fd;
 	void *map_base = NULL;
-        void *virt_addr = NULL;
+	void *virt_addr = NULL;
 	uint32_t read_result =0;
-        uint32_t writeval = 0;
+	uint32_t writeval = 0;
 	uint32_t startbit = 0;
-       	uint32_t datalen = 0;
+	uint32_t datalen = 0;
 	char *filename = NULL;
 	off_t offset = 0;
 	int access_type = 0;
@@ -151,7 +204,23 @@ int main(int argc, char **argv) {
 			printf("Written 0x%X; ", writeval);
 			break;
 		case 'd':
-			dump_page(virt_addr, map_base, (uint32_t *)(offset & ~MAP_MASK));
+			dump_page((uint32_t *)virt_addr, (uint32_t *)map_base,
+				  (uint32_t *)(offset & ~MAP_MASK));
+			goto out;
+		case 'r':
+			if (argc == 3)
+				reg_read_bits((uint32_t *)virt_addr,
+					      (uint32_t *)map_base,
+					      (uint32_t *)(offset & ~MAP_MASK),
+					      0, 32);
+			else {
+				startbit = strtoul(argv[3], 0, 10);
+				datalen  = strtoul(argv[4], 0, 10);
+				reg_read_bits((uint32_t *)virt_addr,
+					      (uint32_t *)map_base,
+					      (uint32_t *)(offset & ~MAP_MASK),
+					      startbit, datalen);
+			}
 			goto out;
 		default:
 			fprintf(stderr, "Illegal data type '%c'.\n", access_type);
