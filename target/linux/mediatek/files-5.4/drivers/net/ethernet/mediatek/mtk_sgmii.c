@@ -144,6 +144,18 @@ void mtk_sgmii_reset(struct mtk_eth *eth, int id)
 	mdelay(1);
 }
 
+int mtk_sgmii_need_powerdown(struct mtk_sgmii_pcs *mpcs)
+{
+	u32 val;
+
+	/* need to power down sgmii if link down */
+	regmap_read(mpcs->regmap, SGMSYS_PCS_CONTROL_1, &val);
+	if (!(val & SGMII_LINK_STATYS))
+		return true;
+
+	return false;
+}
+
 void mtk_sgmii_setup_phya_gen1(struct mtk_sgmii_pcs *mpcs)
 {
 	if (!mpcs->regmap_pextp)
@@ -419,7 +431,8 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 			sgm_mode = SGMII_IF_MODE_SGMII;
 	}
 
-	if (mpcs->interface != interface) {
+	if (mpcs->interface != interface ||
+	    mtk_sgmii_need_powerdown(mpcs)) {
 		link_timer = phylink_get_link_timer_ns(interface);
 		if (link_timer < 0)
 			return link_timer;
