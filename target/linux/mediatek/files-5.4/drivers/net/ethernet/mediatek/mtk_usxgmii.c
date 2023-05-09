@@ -597,6 +597,31 @@ void mtk_usxgmii_reset(struct mtk_eth *eth, int id)
 	mdelay(10);
 }
 
+static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+				  phy_interface_t interface,
+				  const unsigned long *advertising,
+				  bool permit_pause_to_mac)
+{
+	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
+	struct mtk_eth *eth = mpcs->eth;
+	int err = 0;
+
+	mpcs->interface = interface;
+
+	mtk_usxgmii_xfi_pll_enable(eth->usxgmii);
+	mtk_usxgmii_reset(eth, mpcs->id);
+
+	/* Setup USXGMIISYS with the determined property */
+	if (interface == PHY_INTERFACE_MODE_USXGMII)
+		err = mtk_usxgmii_setup_phya_an_10000(mpcs);
+	else if (interface == PHY_INTERFACE_MODE_10GKR)
+		err = mtk_usxgmii_setup_phya_force_10000(mpcs);
+	else if (interface == PHY_INTERFACE_MODE_5GBASER)
+		err = mtk_usxgmii_setup_phya_force_5000(mpcs);
+
+	return err;
+}
+
 static void mtk_usxgmii_pcs_get_state(struct phylink_pcs *pcs,
 				    struct phylink_link_state *state)
 {
@@ -664,31 +689,10 @@ static void mtk_usxgmii_pcs_get_state(struct phylink_pcs *pcs,
 		state->link = FIELD_GET(MTK_USXGMII_PCS_LINK, val);
 		state->duplex = DUPLEX_FULL;
 	}
-}
 
-static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
-				  phy_interface_t interface,
-				  const unsigned long *advertising,
-				  bool permit_pause_to_mac)
-{
-	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
-	struct mtk_eth *eth = mpcs->eth;
-	int err = 0;
-
-	mpcs->interface = interface;
-
-	mtk_usxgmii_xfi_pll_enable(eth->usxgmii);
-	mtk_usxgmii_reset(eth, mpcs->id);
-
-	/* Setup USXGMIISYS with the determined property */
-	if (interface == PHY_INTERFACE_MODE_USXGMII)
-		err = mtk_usxgmii_setup_phya_an_10000(mpcs);
-	else if (interface == PHY_INTERFACE_MODE_10GKR)
-		err = mtk_usxgmii_setup_phya_force_10000(mpcs);
-	else if (interface == PHY_INTERFACE_MODE_5GBASER)
-		err = mtk_usxgmii_setup_phya_force_5000(mpcs);
-
-	return err;
+	if (state->link == 0)
+		mtk_usxgmii_pcs_config(pcs, MLO_AN_INBAND,
+				       state->interface, NULL, false);
 }
 
 void mtk_usxgmii_pcs_restart_an(struct phylink_pcs *pcs)

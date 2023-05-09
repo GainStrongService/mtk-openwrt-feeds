@@ -517,6 +517,15 @@ index 67f34ed..ead9b37 100644
  			val = phylink_mii_emul_read(reg, &state);
  		}
  		break;
+@@ -2010,7 +2010,7 @@ static int phylink_sfp_config(struct phylink *pl, u8 mode,
+ 
+ 	if (changed && !test_bit(PHYLINK_DISABLE_STOPPED,
+ 				 &pl->phylink_disable_state))
+-		phylink_mac_config(pl, &pl->link_config);
++		phylink_mac_initial_config(pl, false);
+ 
+ 	return ret;
+ }
 diff --git a/include/linux/phylink.h b/include/linux/phylink.h
 index 8229f56..ba0f09d 100644
 --- a/include/linux/phylink.h
