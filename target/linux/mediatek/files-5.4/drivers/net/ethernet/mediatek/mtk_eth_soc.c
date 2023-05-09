@@ -40,7 +40,6 @@
 static int mtk_msg_level = -1;
 atomic_t reset_lock = ATOMIC_INIT(0);
 atomic_t force = ATOMIC_INIT(0);
-atomic_t reset_pending = ATOMIC_INIT(0);
 
 module_param_named(msg_level, mtk_msg_level, int, 0);
 MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
@@ -462,6 +461,28 @@ static void mtk_setup_bridge_switch(struct mtk_eth *eth)
 	mtk_w32(eth, val, MTK_GSW_CFG);
 }
 
+static bool mtk_check_gmac23_idle(struct mtk_mac *mac)
+{
+	u32 mac_fsm, gdm_fsm;
+
+	mac_fsm = mtk_r32(mac->hw, MTK_MAC_FSM(mac->id));
+
+	switch (mac->id) {
+	case MTK_GMAC2_ID:
+		gdm_fsm = mtk_r32(mac->hw, MTK_FE_GDM2_FSM);
+		break;
+	case MTK_GMAC3_ID:
+		gdm_fsm = mtk_r32(mac->hw, MTK_FE_GDM3_FSM);
+		break;
+	};
+
+	if ((mac_fsm & 0xFFFF0000) == 0x01010000 &&
+	    (gdm_fsm & 0xFFFF0000) == 0x00000000)
+		return true;
+
+	return false;
+}
+
 static void mtk_setup_eee(struct mtk_mac *mac, bool enable)
 {
 	struct mtk_eth *eth = mac->hw;
@@ -765,13 +786,11 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		 * when swtiching XGDM to GDM. Therefore, here trigger an SER
 		 * to let GDM go back to the initial state.
 		 */
-		if (mac->type != mac_type) {
-			if (atomic_read(&reset_pending) == 0) {
+		if (mac->type != mac_type && !mtk_check_gmac23_idle(mac)) {
+			if (!test_bit(MTK_RESETTING, &mac->hw->state)) {
 				atomic_inc(&force);
 				schedule_work(&eth->pending_work);
-				atomic_inc(&reset_pending);
-			} else
-				atomic_dec(&reset_pending);
+			}
 		}
 	}
 
