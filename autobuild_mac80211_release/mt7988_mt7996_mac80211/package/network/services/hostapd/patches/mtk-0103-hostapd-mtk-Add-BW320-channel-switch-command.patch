@@ -1,0 +1,107 @@
+From e61b734969cd94121434adef85f241f835aa1f5a Mon Sep 17 00:00:00 2001
+From: Evelyn Tsai <evelyn.tsai@mediatek.com>
+Date: Thu, 11 May 2023 14:16:57 +0800
+Subject: [PATCH 103/103] hostapd: mtk: Add BW320 channel switch command
+
+---
+ hostapd/ctrl_iface.c              | 32 +++++++++++++++++++++++++++++++
+ src/ap/drv_callbacks.c            |  3 ++-
+ src/ap/hostapd.c                  |  4 ++++
+ src/drivers/driver_nl80211_capa.c |  2 ++
+ 4 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
+index 2d99647..274d079 100644
+--- a/hostapd/ctrl_iface.c
++++ b/hostapd/ctrl_iface.c
+@@ -2713,6 +2713,38 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
+ 			return -1;
+ 		}
+ 		break;
++	case 320:
++		if (!params->center_freq1 || params->center_freq2 ||
++		    !params->sec_channel_offset)
++			return -1;
++
++		switch (params->sec_channel_offset) {
++		case 1:
++			if (params->freq + 150 != params->center_freq1 &&
++			    params->freq + 110 != params->center_freq1 &&
++			    params->freq + 70 != params->center_freq1 &&
++			    params->freq + 30 != params->center_freq1 &&
++			    params->freq - 10 != params->center_freq1 &&
++			    params->freq - 50 != params->center_freq1 &&
++			    params->freq - 90 != params->center_freq1 &&
++			    params->freq - 130 != params->center_freq1)
++				return -1;
++			break;
++		case -1:
++			if (params->freq + 130 != params->center_freq1 &&
++			    params->freq + 90 != params->center_freq1 &&
++			    params->freq + 50 != params->center_freq1 &&
++			    params->freq + 10 != params->center_freq1 &&
++			    params->freq - 30 != params->center_freq1 &&
++			    params->freq - 70 != params->center_freq1 &&
++			    params->freq - 110 != params->center_freq1 &&
++			    params->freq - 150 != params->center_freq1)
++				return -1;
++			break;
++		default:
++			return -1;
++		}
++		break;
+ 	default:
+ 		return -1;
+ 	}
+diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
+index c1f9a0e..dccbdb6 100644
+--- a/src/ap/drv_callbacks.c
++++ b/src/ap/drv_callbacks.c
+@@ -988,7 +988,8 @@ void hostapd_event_ch_switch(struct hostapd_data *hapd, int freq, int ht,
+ 	hapd->iconf->ch_switch_eht_config = 0;
+ 
+ 	if (width == CHAN_WIDTH_40 || width == CHAN_WIDTH_80 ||
+-	    width == CHAN_WIDTH_80P80 || width == CHAN_WIDTH_160)
++	    width == CHAN_WIDTH_80P80 || width == CHAN_WIDTH_160 ||
++	    width == CHAN_WIDTH_320)
+ 		hapd->iconf->ht_capab |= HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET;
+ 	else if (width == CHAN_WIDTH_20 || width == CHAN_WIDTH_20_NOHT)
+ 		hapd->iconf->ht_capab &= ~HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET;
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index 9bd81d3..6fd5947 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -3705,6 +3705,7 @@ static int hostapd_change_config_freq(struct hostapd_data *hapd,
+ 	case 40:
+ 	case 80:
+ 	case 160:
++	case 320:
+ 		conf->ht_capab |= HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET;
+ 		break;
+ 	default:
+@@ -3777,6 +3778,9 @@ static int hostapd_fill_csa_settings(struct hostapd_data *hapd,
+ 	case 160:
+ 		bandwidth = CONF_OPER_CHWIDTH_160MHZ;
+ 		break;
++	case 320:
++		bandwidth = CONF_OPER_CHWIDTH_320MHZ;
++		break;
+ 	default:
+ 		bandwidth = CONF_OPER_CHWIDTH_USE_HT;
+ 		break;
+diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
+index 7b5079b..1a53ade 100644
+--- a/src/drivers/driver_nl80211_capa.c
++++ b/src/drivers/driver_nl80211_capa.c
+@@ -1701,6 +1701,8 @@ static void phy_info_freq(struct hostapd_hw_modes *mode,
+ 		chan->allowed_bw &= ~HOSTAPD_CHAN_WIDTH_80;
+ 	if (tb_freq[NL80211_FREQUENCY_ATTR_NO_160MHZ])
+ 		chan->allowed_bw &= ~HOSTAPD_CHAN_WIDTH_160;
++	if (tb_freq[NL80211_FREQUENCY_ATTR_NO_320MHZ])
++		chan->allowed_bw &= ~HOSTAPD_CHAN_WIDTH_320;
+ 
+ 	if (tb_freq[NL80211_FREQUENCY_ATTR_DFS_STATE]) {
+ 		enum nl80211_dfs_state state =
+-- 
+2.18.0
+

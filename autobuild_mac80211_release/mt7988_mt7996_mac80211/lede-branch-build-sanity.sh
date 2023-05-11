@@ -6,6 +6,7 @@ temp=${0%/*}
 branch_name=${temp##*/}
 hwpath=0
 backport_new=1
+hostapd_new=1
 args=
 
 for arg in $*; do
@@ -45,7 +46,7 @@ echo "CONFIG_RELAY=y" >> ${BUILD_DIR}/target/linux/mediatek/mt7988/config-5.4
 prepare_flowoffload
 
 #prepare mac80211 mt76 wifi stuff
-prepare_mac80211 ${backport_new}
+prepare_mac80211 ${backport_new} ${hostapd_new}
 
 # find ${BUILD_DIR}/package/kernel/mt76/patches -name "*-mt76-*.patch" -delete
 rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*
