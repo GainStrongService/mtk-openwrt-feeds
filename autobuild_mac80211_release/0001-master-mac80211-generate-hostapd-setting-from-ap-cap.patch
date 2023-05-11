@@ -31,7 +31,7 @@ index 02cf715d8e..d878cb2a46 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9af26..76f5f06855 100644
+index 5aaba9af26..a901b6420c 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
@@ -60,7 +60,7 @@ index 5aaba9af26..76f5f06855 100644
  
 -	json_get_vars noscan ht_coex min_tx_power:0 tx_burst
 +	json_get_vars noscan ht_coex min_tx_power:0 tx_burst mbssid mu_onoff
-+	json_get_vars etxbfen:1 itxbfen:1
++	json_get_vars etxbfen:1 itxbfen:0
  	json_get_values ht_capab_list ht_capab
  	json_get_values channel_list channels
  
@@ -430,7 +430,7 @@ index 5aaba9af26..76f5f06855 100644
  			ret="$?"
  			[ "$ret" != 0 -o -z "$hostapd_res" ] && {
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a634e..80cd298cb1 100644
+index e24a2a634e..7c836106d9 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,8 @@ BEGIN {
