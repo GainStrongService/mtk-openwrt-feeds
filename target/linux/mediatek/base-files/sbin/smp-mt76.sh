@@ -14,7 +14,8 @@ WIFI_RADIO2=0
 WIFI_RADIO3=0
 WED_ENABLE=0
 
-module_param=/sys/module/mt7915e/parameters/wed_enable
+WIFI_MODULE_LIST='mt7915e mt7996e'
+
 get_if_info()
 {
 	# try to get all wifi and eth net interface.
@@ -54,15 +55,15 @@ get_if_info()
 		fi
 	done;
 
-	WED_ENABLE_LIST=
-	if [[ -f "$module_param" ]]; then
-		WED_ENABLE_LIST=`cat $module_param`
-	fi
-	for v in $WED_ENABLE_LIST;
+
+	for v in $WIFI_MODULE_LIST;
 	do
-		dbg2 "wed enable ori info $v"
-		if [[ $v == "Y" ]]; then
-			WED_ENABLE=1
+		if [[ -f "/sys/module/$v/parameters/wed_enable" ]]; then
+			WED_ENABLE_LIST=`cat /sys/module/$v/parameters/wed_enable`
+			dbg2 "wed enable ori info $v $WED_ENABLE_LIST"
+			if [[ $WED_ENABLE_LIST == "Y" ]]; then
+				WED_ENABLE=1
+			fi
 		fi
 	done;
 	dbg2 "NUM_WIFI_CARD = $NUM_WIFI_CARD"
