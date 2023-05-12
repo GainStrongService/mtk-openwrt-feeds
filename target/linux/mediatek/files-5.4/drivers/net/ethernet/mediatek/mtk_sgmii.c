@@ -161,6 +161,7 @@ void mtk_sgmii_setup_phya_gen1(struct mtk_sgmii_pcs *mpcs)
 	if (!mpcs->regmap_pextp)
 		return;
 
+	/* Setup operation mode */
 	regmap_update_bits(mpcs->regmap_pextp, 0x9024, GENMASK(31, 0),
 			   0x00D9071C);
 	regmap_update_bits(mpcs->regmap_pextp, 0x2020, GENMASK(31, 0),
@@ -203,13 +204,17 @@ void mtk_sgmii_setup_phya_gen1(struct mtk_sgmii_pcs *mpcs)
 			   0x18190000);
 	regmap_update_bits(mpcs->regmap_pextp, 0x00F8, GENMASK(31, 0),
 			   0x00FA32FA);
+	/* Force SGDT_OUT off and select PCS */
 	regmap_update_bits(mpcs->regmap_pextp, 0x00F4, GENMASK(31, 0),
 			   0x80201F21);
+	/* Force GLB_CKDET_OUT */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0030, GENMASK(31, 0),
 			   0x00050C00);
+	/* Force AEQ on */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x02002800);
 	ndelay(1020);
+	/* Setup DA default value */
 	regmap_update_bits(mpcs->regmap_pextp, 0x30B0, GENMASK(31, 0),
 			   0x00000020);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3028, GENMASK(31, 0),
@@ -234,15 +239,18 @@ void mtk_sgmii_setup_phya_gen1(struct mtk_sgmii_pcs *mpcs)
 			   0x00050000);
 	regmap_update_bits(mpcs->regmap_pextp, 0x90D0, GENMASK(31, 0),
 			   0x00000007);
+	/* Release reset */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200E800);
 	udelay(150);
+	/* Switch to P0 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C111);
 	ndelay(1020);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C101);
 	udelay(15);
+	/* Switch to Gen2 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0201C111);
 	ndelay(1020);
@@ -263,6 +271,7 @@ void mtk_sgmii_setup_phya_gen2(struct mtk_sgmii_pcs *mpcs)
 	if (!mpcs->regmap_pextp)
 		return;
 
+	/* Setup operation mode */
 	regmap_update_bits(mpcs->regmap_pextp, 0x9024, GENMASK(31, 0),
 			   0x00D9071C);
 	regmap_update_bits(mpcs->regmap_pextp, 0x2020, GENMASK(31, 0),
@@ -305,13 +314,17 @@ void mtk_sgmii_setup_phya_gen2(struct mtk_sgmii_pcs *mpcs)
 			   0x18190000);
 	regmap_update_bits(mpcs->regmap_pextp, 0x00F8, GENMASK(31, 0),
 			   0x009C329C);
+	/* Force SGDT_OUT off and select PCS */
 	regmap_update_bits(mpcs->regmap_pextp, 0x00F4, GENMASK(31, 0),
 			   0x80201F21);
+	/* Force GLB_CKDET_OUT */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0030, GENMASK(31, 0),
 			   0x00050C00);
+	/* Force AEQ on */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x02002800);
 	ndelay(1020);
+	/* Setup DA default value */
 	regmap_update_bits(mpcs->regmap_pextp, 0x30B0, GENMASK(31, 0),
 			   0x00000020);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3028, GENMASK(31, 0),
@@ -334,15 +347,18 @@ void mtk_sgmii_setup_phya_gen2(struct mtk_sgmii_pcs *mpcs)
 			   0x00050000);
 	regmap_update_bits(mpcs->regmap_pextp, 0x90D0, GENMASK(31, 0),
 			   0x00000005);
+	/* Release reset */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200E800);
 	udelay(150);
+	/* Switch to P0 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C111);
 	ndelay(1020);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C101);
 	udelay(15);
+	/* Switch to Gen2 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0201C111);
 	ndelay(1020);
