@@ -474,6 +474,8 @@ static bool mtk_check_gmac23_idle(struct mtk_mac *mac)
 	case MTK_GMAC3_ID:
 		gdm_fsm = mtk_r32(mac->hw, MTK_FE_GDM3_FSM);
 		break;
+	default:
+		return true;
 	};
 
 	if ((mac_fsm & 0xFFFF0000) == 0x01010000 &&
