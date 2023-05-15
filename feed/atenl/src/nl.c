@@ -101,6 +101,9 @@ static u8 phy_type_to_attr(u8 phy_type)
 		[ATENL_PHY_TYPE_HE_EXT_SU] = MT76_TM_TX_MODE_HE_EXT_SU,
 		[ATENL_PHY_TYPE_HE_TB] = MT76_TM_TX_MODE_HE_TB,
 		[ATENL_PHY_TYPE_HE_MU] = MT76_TM_TX_MODE_HE_MU,
+		[ATENL_PHY_TYPE_EHT_SU] = MT76_TM_TX_MODE_EHT_SU,
+		[ATENL_PHY_TYPE_EHT_TRIG] = MT76_TM_TX_MODE_EHT_TRIG,
+		[ATENL_PHY_TYPE_EHT_MU] = MT76_TM_TX_MODE_EHT_MU,
 	};
 
 	if (phy_type >= ARRAY_SIZE(phy_type_to_attr))
@@ -287,7 +290,7 @@ atenl_nl_tx(struct atenl *an, struct atenl_data *data, struct atenl_nl_priv *nl_
 		if (get_band_val(an, band, use_tx_time))
 			nla_put_u32(msg, MT76_TM_ATTR_TX_TIME,
 				    get_band_val(an, band, tx_time));
-		else
+		else if (get_band_val(an, band, tx_mpdu_len))
 			nla_put_u32(msg, MT76_TM_ATTR_TX_LENGTH,
 				    get_band_val(an, band, tx_mpdu_len));
 
@@ -304,7 +307,7 @@ atenl_nl_tx(struct atenl *an, struct atenl_data *data, struct atenl_nl_priv *nl_
 			atenl_set_attr_antenna(an, msg, tx_antenna);
 		}
 
-		if (tx_rate_mode >= MT76_TM_TX_MODE_HE_SU) {
+		if (!is_mt7996(an) && tx_rate_mode >= MT76_TM_TX_MODE_HE_SU) {
 			u8 ofs = sgi;
 			size_t i;
 
@@ -364,7 +367,14 @@ atenl_nl_rx(struct atenl *an, struct atenl_data *data, struct atenl_nl_priv *nl_
 		v = (u32 *)(hdr->data + 18);
 
 		atenl_set_attr_antenna(an, msg, ntohl(v[0]));
-		nla_put_u8(msg, MT76_TM_ATTR_AID, ntohl(v[1]));
+		if (is_mt7996(an)) {
+			nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_MODE,
+				   phy_type_to_attr(ntohl(v[2])));
+			nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_SGI, ntohl(v[3]));
+			nla_put_u8(msg, MT76_TM_ATTR_AID, ntohl(v[4]));
+		} else {
+			nla_put_u8(msg, MT76_TM_ATTR_AID, ntohl(v[1]));
+		}
 		atenl_set_attr_state(an, msg, band, MT76_TM_STATE_RX_FRAMES);
 
 		anb->reset_rx_cnt = false;
@@ -901,7 +911,10 @@ atenl_nl_ibf_set_val(struct atenl *an, struct atenl_data *data,
 	case TXBF_ACT_TX_PKT:
 		nla_put_u8(msg, MT76_TM_ATTR_AID, val[1]);
 		nla_put_u8(msg, MT76_TM_ATTR_TXBF_ACT, MT76_TM_TXBF_ACT_TX_PREP);
-		nla_put_u32(msg, MT76_TM_ATTR_TX_COUNT, 10000000);
+		if (!val[2])
+			nla_put_u32(msg, MT76_TM_ATTR_TX_COUNT, 0xFFFFFFFF);
+		else
+			nla_put_u32(msg, MT76_TM_ATTR_TX_COUNT, val[2]);
 		nla_put_u32(msg, MT76_TM_ATTR_TX_LENGTH, 1024);
 		a = nla_nest_start(msg, MT76_TM_ATTR_TXBF_PARAM);
 		if (!a)

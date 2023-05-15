@@ -803,6 +803,9 @@ function convert_ibf {
             new_cmd="stop_sounding"
             new_param="0"
             ;;
+        "TxBfTxCmd")
+            new_cmd="txcmd"
+            ;;
         "ATEConTxETxBfGdProc")
             local tx_rate_mode=$(convert_tx_mode ${new_param:0:2})
             local tx_rate_idx=${new_param:3:2}
@@ -830,10 +833,10 @@ function convert_ibf {
             local tx_rate_nss=${new_param:9:2}
             local tx_stream=${new_param:12:2}
             local tx_power=${new_param:15:2}
-            local channel=${new_param:18:3}
+            local channel=$(echo ${new_param:18:3} | sed 's/^0//')
             local channel2=${new_param:22:3}
             local band=${new_param:26:1}
-            local tx_length=${new_param:28:5}
+            local tx_length=$(echo ${new_param:28:5} | sed 's/^0//')
 
             new_cmd="ebf_init"
             do_ate_work "ATESTART"
@@ -1249,7 +1252,7 @@ if [ "${cmd_type}" = "set" ]; then
             ;;
         "ATETxBfInit"|"ATETxBfGdInit"|"ATEIBFPhaseComp"|"ATEEBfProfileConfig"|"ATEIBfProfileConfig"| \
         "TxBfTxApply"|"ATETxPacketWithBf"|"TxBfProfileData20MAllWrite"|"ATEIBfInstCal"| \
-        "ATEIBfGdCal"|"ATEIBFPhaseE2pUpdate"|"TriggerSounding"|"StopSounding"| \
+        "ATEIBfGdCal"|"ATEIBFPhaseE2pUpdate"|"TriggerSounding"|"StopSounding"|"TxBfTxCmd"| \
         "StaRecBfRead"|"TxBfProfileTagInValid"|"TxBfProfileTagWrite"|"TxBfProfileTagRead"| \
         "ATEIBFPhaseVerify"|"ATEConTxETxBfGdProc"|"ATEConTxETxBfInitProc")
             convert_ibf ${cmd} ${param}

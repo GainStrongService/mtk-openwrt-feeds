@@ -329,6 +329,9 @@ int atenl_eeprom_init(struct atenl *an, u8 phy_idx)
 	if (get_band_val(an, 1, valid))
 		set_band_val(an, 1, phy_idx, phy_idx + 1);
 
+	if (get_band_val(an, 2, valid))
+		set_band_val(an, 2, phy_idx, phy_idx + 2);
+
 	return 0;
 }
 
