@@ -28,7 +28,16 @@
 
 /* Registers on MDIO_MMD_VEND2 */
 #define MTK_PHY_LED0_ON_CTRL			(0x24)
+#define   MTK_PHY_LED0_ON_LINK1000		BIT(0)
+#define   MTK_PHY_LED0_ON_LINK100		BIT(1)
+#define   MTK_PHY_LED0_ON_LINK10		BIT(2)
+#define   MTK_PHY_LED0_ON_LINK2500		BIT(7)
 #define   MTK_PHY_LED0_POLARITY			BIT(14)
+
+#define MTK_PHY_LED1_ON_CTRL			(0x26)
+#define   MTK_PHY_LED1_ON_FDX			BIT(4)
+#define   MTK_PHY_LED1_ON_HDX			BIT(5)
+#define   MTK_PHY_LED1_POLARITY			BIT(14)
 
 enum {
 	PHY_AUX_SPD_10 = 0,
@@ -36,22 +45,6 @@ enum {
 	PHY_AUX_SPD_1000,
 	PHY_AUX_SPD_2500,
 };
-
-static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
-{
-	struct pinctrl *pinctrl;
-
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
-			 MTK_PHY_LED0_POLARITY);
-
-	pinctrl = devm_pinctrl_get_select_default(&phydev->mdio.dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(&phydev->mdio.dev, "Fail to set LED pins!\n");
-		return PTR_ERR(pinctrl);
-	}
-
-	return 0;
-}
 
 static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 {
@@ -64,6 +57,8 @@ static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 	void __iomem *pmb_addr;
 	void __iomem *mcucsr_base;
 	u16 reg;
+	struct pinctrl *pinctrl;
+
 
 	np = of_find_compatible_node(NULL, NULL, "mediatek,2p5gphy-fw");
 	if (!np)
@@ -102,6 +97,20 @@ static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 	reg = readw(mcucsr_base + MD32_EN_CFG);
 	writew(reg | MD32_EN, mcucsr_base + MD32_EN_CFG);
 	dev_info(dev, "Firmware loading/trigger ok.\n");
+
+	/* Setup LED */
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
+			 MTK_PHY_LED0_POLARITY | MTK_PHY_LED0_ON_LINK10 |
+			 MTK_PHY_LED0_ON_LINK100 | MTK_PHY_LED0_ON_LINK1000 |
+			 MTK_PHY_LED0_ON_LINK2500);
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED1_ON_CTRL,
+			 MTK_PHY_LED1_ON_FDX | MTK_PHY_LED1_ON_HDX);
+
+	pinctrl = devm_pinctrl_get_select(&phydev->mdio.dev, "i2p5gbe-led");
+	if (IS_ERR(pinctrl)) {
+		dev_err(&phydev->mdio.dev, "Fail to set LED pins!\n");
+		return PTR_ERR(pinctrl);
+	}
 
 	return 0;
 }
@@ -221,7 +230,6 @@ static struct phy_driver mtk_gephy_driver[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x00339c11),
 		.name		= "MediaTek MT798x 2.5GbE PHY",
-		.probe		= mt798x_2p5ge_phy_probe,
 		.config_init	= mt798x_2p5ge_phy_config_init,
 		.config_aneg    = mt798x_2p5ge_phy_config_aneg,
 		.get_features	= mt798x_2p5ge_phy_get_features,
