@@ -97,10 +97,31 @@
 		};
 	};
 
-	gbe_led0_pins: gbe-pins {
+	gbe0_led0_pins: gbe0-pins {
 		mux {
 			function = "led";
-			groups = "gbe_led0";
+			groups = "gbe0_led0";
+		};
+	};
+
+	gbe1_led0_pins: gbe1-pins {
+		mux {
+			function = "led";
+			groups = "gbe1_led0";
+		};
+	};
+
+	gbe2_led0_pins: gbe2-pins {
+		mux {
+			function = "led";
+			groups = "gbe2_led0";
+		};
+	};
+
+	gbe3_led0_pins: gbe3-pins {
+		mux {
+			function = "led";
+			groups = "gbe3_led0";
 		};
 	};
 
@@ -270,15 +291,12 @@
 				compatible = "mediatek,dsa-slave-mdio";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&gbe_led0_pins>;
 
 				sphy0: switch_phy0@0 {
 					compatible = "ethernet-phy-id03a2.9481";
 					reg = <0>;
-					phy-mode = "gmii";
-					rext = "efuse";
-					tx_r50 = "efuse";
+					pinctrl-names = "gbe-led";
+					pinctrl-0 = <&gbe0_led0_pins>;
 					nvmem-cells = <&phy_calibration_p0>;
 					nvmem-cell-names = "phy-cal-data";
 				};
@@ -286,9 +304,8 @@
 				sphy1: switch_phy1@1 {
 					compatible = "ethernet-phy-id03a2.9481";
 					reg = <1>;
-					phy-mode = "gmii";
-					rext = "efuse";
-					tx_r50 = "efuse";
+					pinctrl-names = "gbe-led";
+					pinctrl-0 = <&gbe1_led0_pins>;
 					nvmem-cells = <&phy_calibration_p1>;
 					nvmem-cell-names = "phy-cal-data";
 				};
@@ -296,9 +313,8 @@
 				sphy2: switch_phy2@2 {
 					compatible = "ethernet-phy-id03a2.9481";
 					reg = <2>;
-					phy-mode = "gmii";
-					rext = "efuse";
-					tx_r50 = "efuse";
+					pinctrl-names = "gbe-led";
+					pinctrl-0 = <&gbe2_led0_pins>;
 					nvmem-cells = <&phy_calibration_p2>;
 					nvmem-cell-names = "phy-cal-data";
 				};
@@ -306,9 +322,8 @@
 				sphy3: switch_phy3@3 {
 					compatible = "ethernet-phy-id03a2.9481";
 					reg = <3>;
-					phy-mode = "gmii";
-					rext = "efuse";
-					tx_r50 = "efuse";
+					pinctrl-names = "gbe-led";
+					pinctrl-0 = <&gbe3_led0_pins>;
 					nvmem-cells = <&phy_calibration_p3>;
 					nvmem-cell-names = "phy-cal-data";
 				};
