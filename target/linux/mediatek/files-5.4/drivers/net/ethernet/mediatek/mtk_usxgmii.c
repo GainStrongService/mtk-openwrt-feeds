@@ -708,10 +708,22 @@ void mtk_usxgmii_pcs_restart_an(struct phylink_pcs *pcs)
 	regmap_write(mpcs->regmap, RG_PCS_AN_CTRL0, val);
 }
 
+static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
+				    phy_interface_t interface,
+				    int speed, int duplex)
+{
+	/* Reconfiguring USXGMII to ensure the quality of the RX signal
+	 * after the line side link up.
+	 */
+	mtk_usxgmii_pcs_config(pcs, mode,
+			       interface, NULL, false);
+}
+
 static const struct phylink_pcs_ops mtk_usxgmii_pcs_ops = {
 	.pcs_config = mtk_usxgmii_pcs_config,
 	.pcs_get_state = mtk_usxgmii_pcs_get_state,
 	.pcs_an_restart = mtk_usxgmii_pcs_restart_an,
+	.pcs_link_up = mtk_usxgmii_pcs_link_up,
 };
 
 int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r)
