@@ -31,7 +31,7 @@ index 02cf715d8e..d878cb2a46 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9af26..a901b6420c 100644
+index 5aaba9af26..2ea3e7c955 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
@@ -263,7 +263,7 @@ index 5aaba9af26..a901b6420c 100644
 +			append base_cfg "he_twt_responder=$he_twt_responder" "$N"
 +		fi
  		if [ "$he_bss_color_enabled" -gt 0 ]; then
-+			if [ -z "$he_bss_color" ]; then
++			if !([ "$he_bss_color" -gt 0 ] && [ "$he_bss_color" -le 64 ]); then
 +				rand=$(head -n 1 /dev/urandom | tr -dc 0-9 | head -c 2)
 +				he_bss_color=$((rand % 63 + 1))
 +			fi
