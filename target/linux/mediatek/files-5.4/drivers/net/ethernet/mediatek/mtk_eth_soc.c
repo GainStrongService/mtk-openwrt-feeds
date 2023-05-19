@@ -3067,10 +3067,12 @@ static int mtk_rss_init(struct mtk_eth *eth)
 	mtk_w32(eth, val, MTK_PDMA_RSS_GLO_CFG);
 
 	/* Set perRSS GRP INT */
-	mtk_w32(eth, MTK_RX_DONE_INT(MTK_RSS_RING1), MTK_PDMA_INT_GRP3);
+	mtk_w32(eth, MTK_RX_DONE_INT(MTK_RSS_RING(1)), MTK_PDMA_INT_GRP1);
+	mtk_w32(eth, MTK_RX_DONE_INT(MTK_RSS_RING(2)), MTK_PDMA_INT_GRP2);
+	mtk_w32(eth, MTK_RX_DONE_INT(MTK_RSS_RING(3)), MTK_PDMA_INT_GRP3);
 
 	/* Set GRP INT */
-	mtk_w32(eth, 0x21021030, MTK_FE_INT_GRP);
+	mtk_w32(eth, 0x210FFFF2, MTK_FE_INT_GRP);
 
 	/* Enable RSS delay interrupt */
 	mtk_w32(eth, 0x8f0f8f0f, MTK_PDMA_RSS_DELAY_INT);
@@ -3363,7 +3365,7 @@ static void mtk_poll_controller(struct net_device *dev)
 
 	mtk_tx_irq_disable(eth, MTK_TX_DONE_INT);
 	mtk_rx_irq_disable(eth, MTK_RX_DONE_INT(0));
-	mtk_handle_irq_rx(eth->irq[2], &eth->rx_napi[0]);
+	mtk_handle_irq_rx(eth->irq_fe[2], &eth->rx_napi[0]);
 	mtk_tx_irq_enable(eth, MTK_TX_DONE_INT);
 	mtk_rx_irq_enable(eth, MTK_RX_DONE_INT(0));
 }
@@ -3784,11 +3786,9 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 	mtk_rx_irq_disable(eth, ~0);
 
 	/* FE int grouping */
-	mtk_w32(eth, MTK_TX_DONE_INT, reg_map->pdma.int_grp);
-	mtk_w32(eth, MTK_RX_DONE_INT(0), reg_map->pdma.int_grp2);
 	mtk_w32(eth, MTK_TX_DONE_INT, reg_map->qdma.int_grp);
 	mtk_w32(eth, MTK_RX_DONE_INT(0), reg_map->qdma.int_grp2);
-	mtk_w32(eth, 0x21021003, MTK_FE_INT_GRP);
+	mtk_w32(eth, 0x210FFFF2, MTK_FE_INT_GRP);
 	mtk_w32(eth, MTK_FE_INT_TSO_FAIL |
 		MTK_FE_INT_TSO_ILLEGAL | MTK_FE_INT_TSO_ALIGN |
 		MTK_FE_INT_RFIFO_OV | MTK_FE_INT_RFIFO_UF, MTK_FE_INT_ENABLE);
@@ -4553,7 +4553,7 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	eth->netdev[id]->features |= eth->soc->hw_features;
 	eth->netdev[id]->ethtool_ops = &mtk_ethtool_ops;
 
-	eth->netdev[id]->irq = eth->irq[0];
+	eth->netdev[id]->irq = eth->irq_fe[0];
 	eth->netdev[id]->dev.of_node = np;
 
 	return 0;
@@ -4710,12 +4710,17 @@ static int mtk_probe(struct platform_device *pdev)
 		}
 	}
 
-	for (i = 0; i < MTK_MAX_IRQ_NUM; i++) {
+	for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
+		eth->irq_pdma[i] = platform_get_irq(pdev, i);
+
+	for (i = 0; i < MTK_FE_IRQ_NUM; i++) {
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_INT) && i > 0)
-			eth->irq[i] = eth->irq[0];
+			eth->irq_fe[i] = eth->irq_fe[0];
 		else
-			eth->irq[i] = platform_get_irq(pdev, i);
-		if (eth->irq[i] < 0) {
+			eth->irq_fe[i] =
+				platform_get_irq(pdev, i + MTK_PDMA_IRQ_NUM);
+
+		if (eth->irq_fe[i] < 0) {
 			dev_err(&pdev->dev, "no IRQ%d resource found\n", i);
 			return -ENXIO;
 		}
@@ -4765,37 +4770,35 @@ static int mtk_probe(struct platform_device *pdev)
 		goto err_free_dev;
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_INT)) {
-		err = devm_request_irq(eth->dev, eth->irq[0],
+		err = devm_request_irq(eth->dev, eth->irq_fe[0],
 				       mtk_handle_irq, 0,
 				       dev_name(eth->dev), eth);
 	} else {
-		err = devm_request_irq(eth->dev, eth->irq[1],
+		err = devm_request_irq(eth->dev, eth->irq_fe[1],
 				       mtk_handle_irq_tx, 0,
 				       dev_name(eth->dev), eth);
 		if (err)
 			goto err_free_dev;
 
-		err = devm_request_irq(eth->dev, eth->irq[2],
+		err = devm_request_irq(eth->dev, eth->irq_fe[2],
+				       mtk_handle_fe_irq, 0,
+				       dev_name(eth->dev), eth);
+		if (err)
+			goto err_free_dev;
+
+		err = devm_request_irq(eth->dev, eth->irq_pdma[0],
 				       mtk_handle_irq_rx, 0,
 				       dev_name(eth->dev), &eth->rx_napi[0]);
 		if (err)
 			goto err_free_dev;
 
-		if (MTK_MAX_IRQ_NUM > 3) {
-			if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
-				for (i = 1; i < MTK_RX_NAPI_NUM; i++) {
-					err = devm_request_irq(eth->dev,
-							       eth->irq[2 + i],
-							       mtk_handle_irq_rx, 0,
-							       dev_name(eth->dev),
-							       &eth->rx_napi[i]);
-					if (err)
-						goto err_free_dev;
-				}
-			} else {
-				err = devm_request_irq(eth->dev, eth->irq[3],
-						       mtk_handle_fe_irq, 0,
-						       dev_name(eth->dev), eth);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
+			for (i = 1; i < MTK_RX_NAPI_NUM; i++) {
+				err = devm_request_irq(eth->dev,
+						       eth->irq_pdma[i],
+						       mtk_handle_irq_rx, 0,
+						       dev_name(eth->dev),
+						       &eth->rx_napi[i]);
 				if (err)
 					goto err_free_dev;
 			}
@@ -4823,7 +4826,7 @@ static int mtk_probe(struct platform_device *pdev)
 		} else
 			netif_info(eth, probe, eth->netdev[i],
 				   "mediatek frame engine at 0x%08lx, irq %d\n",
-				   eth->netdev[i]->base_addr, eth->irq[0]);
+				   eth->netdev[i]->base_addr, eth->irq_fe[0]);
 	}
 
 	/* we run 2 devices on the same DMA ring so we need a dummy device

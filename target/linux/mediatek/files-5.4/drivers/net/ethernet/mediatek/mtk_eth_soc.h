@@ -86,6 +86,9 @@
 #define MTK_FE_INT_RFIFO_UF	BIT(19)
 #define MTK_GDM1_AF		BIT(28)
 #define MTK_GDM2_AF		BIT(29)
+#define MTK_FE_IRQ_NUM		(4)
+#define MTK_PDMA_IRQ_NUM	(4)
+#define MTK_MAX_IRQ_NUM		(MTK_FE_IRQ_NUM + MTK_PDMA_IRQ_NUM)
 
 /* PDMA HW LRO Alter Flow Timer Register */
 #define MTK_PDMA_LRO_ALT_REFRESH_TIMER	0x1c
@@ -254,14 +257,12 @@
 /* PDMA RSS Control Registers */
 #if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_PDMA_RSS_GLO_CFG		(PDMA_BASE + 0x800)
-#define MTK_RX_NAPI_NUM			(2)
-#define MTK_MAX_IRQ_NUM			(4)
+#define MTK_RX_NAPI_NUM			(4)
 #else
 #define MTK_PDMA_RSS_GLO_CFG		0x2800
 #define MTK_RX_NAPI_NUM			(1)
-#define MTK_MAX_IRQ_NUM			(3)
 #endif
-#define MTK_RSS_RING1			(1)
+#define MTK_RSS_RING(x)			(x)
 #define MTK_RSS_EN			BIT(0)
 #define MTK_RSS_CFG_REQ			BIT(2)
 #define MTK_RSS_IPV6_STATIC_HASH	(0x7 << 8)
@@ -274,7 +275,7 @@
 #define MTK_RSS_INDR_TABLE_DW5		(MTK_PDMA_RSS_GLO_CFG + 0x64)
 #define MTK_RSS_INDR_TABLE_DW6		(MTK_PDMA_RSS_GLO_CFG + 0x68)
 #define MTK_RSS_INDR_TABLE_DW7		(MTK_PDMA_RSS_GLO_CFG + 0x6C)
-#define MTK_RSS_INDR_TABLE_SIZE4	0x44444444
+#define MTK_RSS_INDR_TABLE_SIZE4	0x39393939
 
 /* PDMA Global Configuration Register */
 #define MTK_PDMA_GLO_CFG	(PDMA_BASE + 0x204)
@@ -445,12 +446,13 @@
 /* QDMA Interrupt Status Register */
 #define MTK_QDMA_INT_STATUS	(QDMA_BASE + 0x218)
 #if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
-#define MTK_RX_DONE_INT(ring_no)					\
+#define MTK_RX_DONE_INT(ring_no)						\
 	(MTK_HAS_CAPS(eth->soc->caps, MTK_RSS) ? (BIT(24 + (ring_no))) :	\
 	 ((ring_no) ? BIT(16 + (ring_no)) : BIT(14)))
 #else
-#define MTK_RX_DONE_INT(ring_no)		\
-	((ring_no)? BIT(24 + (ring_no)) : BIT(30))
+#define MTK_RX_DONE_INT(ring_no)						\
+	(MTK_HAS_CAPS(eth->soc->caps, MTK_RSS) ? (BIT(16 + (ring_no))) :	\
+	 ((ring_no) ? BIT(24 + (ring_no)) : BIT(30)))
 #endif
 #define MTK_RX_DONE_INT3	BIT(19)
 #define MTK_RX_DONE_INT2	BIT(18)
@@ -1767,7 +1769,8 @@ struct mtk_eth {
 	struct net_device		dummy_dev;
 	struct net_device		*netdev[MTK_MAX_DEVS];
 	struct mtk_mac			*mac[MTK_MAX_DEVS];
-	int				irq[MTK_MAX_IRQ_NUM];
+	int				irq_fe[MTK_FE_IRQ_NUM];
+	int				irq_pdma[MTK_PDMA_IRQ_NUM];
 	u8				hwver;
 	u32				msg_enable;
 	unsigned long			sysclk;
