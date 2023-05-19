@@ -1,7 +1,7 @@
-From 4e0f8e91e27ce57f37ae8a3f66e69a899f40b81c Mon Sep 17 00:00:00 2001
+From d85a245c188aaad1fbc08a45c147e2328ac33922 Mon Sep 17 00:00:00 2001
 From: mtk27835 <shurong.wen@mediatek.com>
 Date: Wed, 7 Sep 2022 14:01:29 -0700
-Subject: [PATCH 1024/1032] wifi: mt76: mt7915: add ibf control vendor cmd
+Subject: [PATCH 1024/1033] wifi: mt76: mt7915: add ibf control vendor cmd
 
 Signed-off-by: mtk27835 <shurong.wen@mediatek.com>
 ---
@@ -10,7 +10,7 @@ Signed-off-by: mtk27835 <shurong.wen@mediatek.com>
  2 files changed, 89 insertions(+), 1 deletion(-)
 
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index b26b1cc..3e5c479 100644
+index b651cea..b661ea4 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -86,6 +86,11 @@ edcca_dump_policy[NUM_MTK_VENDOR_ATTRS_EDCCA_DUMP] = {
@@ -25,7 +25,7 @@ index b26b1cc..3e5c479 100644
  struct csi_null_tone {
  	u8 start;
  	u8 end;
-@@ -1188,6 +1193,54 @@ static int mt7915_vendor_3wire_ctrl(struct wiphy *wiphy,
+@@ -1190,6 +1195,54 @@ static int mt7915_vendor_3wire_ctrl(struct wiphy *wiphy,
  	return mt7915_mcu_set_cfg(phy, CFGINFO_3WIRE_EN_CFG, three_wire_mode);
  }
  
@@ -80,7 +80,7 @@ index b26b1cc..3e5c479 100644
  
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
-@@ -1281,6 +1334,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1283,6 +1336,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.doit = mt7915_vendor_3wire_ctrl,
  		.policy = three_wire_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_3WIRE_CTRL_MAX,

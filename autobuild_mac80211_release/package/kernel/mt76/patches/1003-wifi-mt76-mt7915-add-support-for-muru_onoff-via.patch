@@ -1,21 +1,21 @@
-From e8e2cbb21272ed092a0b32d4fdca7fdf36ba1876 Mon Sep 17 00:00:00 2001
+From e308945d818a93dd553f5f311865b1eff33954f2 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Tue, 4 Apr 2023 02:23:57 +0800
-Subject: [PATCH 1003/1032] wifi: mt76: mt7915: add support for muru_onoff via
+Subject: [PATCH 1003/1033] wifi: mt76: mt7915: add support for muru_onoff via
 
 ---
  mt7915/init.c        |  2 ++
- mt7915/mcu.c         | 12 +++++++++---
+ mt7915/mcu.c         | 10 ++++++++--
  mt7915/mcu.h         |  6 ++++++
  mt7915/mt7915.h      |  2 ++
  mt7915/mtk_debugfs.c | 33 +++++++++++++++++++++++++++++++++
- 5 files changed, 52 insertions(+), 3 deletions(-)
+ 5 files changed, 51 insertions(+), 2 deletions(-)
 
 diff --git a/mt7915/init.c b/mt7915/init.c
-index d21086d..f6f3e8a 100644
+index 1fe123d..7250998 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -445,6 +445,8 @@ mt7915_init_wiphy(struct mt7915_phy *phy)
+@@ -449,6 +449,8 @@ mt7915_init_wiphy(struct mt7915_phy *phy)
  		mphy->leds.cdev.brightness_set = mt7915_led_set_brightness;
  		mphy->leds.cdev.blink_set = mt7915_led_set_blink;
  	}
@@ -25,27 +25,26 @@ index d21086d..f6f3e8a 100644
  
  static void
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 82cff6d..2e680f6 100644
+index b3fdcdf..68e3583 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -865,6 +865,7 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
+@@ -866,6 +866,7 @@ static void
+ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
  			struct ieee80211_sta *sta, struct ieee80211_vif *vif)
  {
- 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 +	struct mt7915_phy *phy = mvif->phy;
  	struct ieee80211_he_cap_elem *elem = &sta->deflink.he_cap.he_cap_elem;
  	struct sta_rec_muru *muru;
  	struct tlv *tlv;
-@@ -877,13 +878,18 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
+@@ -878,13 +879,18 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
  
  	muru = (struct sta_rec_muru *)tlv;
  
--	muru->cfg.mimo_dl_en = mvif->cap.he_mu_ebfer ||
--			       mvif->cap.vht_mu_ebfer ||
--			       mvif->cap.vht_mu_ebfee;
-+	muru->cfg.mimo_dl_en = (mvif->cap.he_mu_ebfer ||
-+				mvif->cap.vht_mu_ebfer ||
-+			        mvif->cap.vht_mu_ebfee) &&
+-	muru->cfg.mimo_dl_en = vif->bss_conf.he_mu_beamformer ||
++	muru->cfg.mimo_dl_en = (vif->bss_conf.he_mu_beamformer ||
+ 			       vif->bss_conf.vht_mu_beamformer ||
+-			       vif->bss_conf.vht_mu_beamformee;
++			       vif->bss_conf.vht_mu_beamformee) &&
 +			       !!(phy->muru_onoff & MUMIMO_DL);
  	if (!is_mt7915(&dev->mt76))
  		muru->cfg.mimo_ul_en = true;
@@ -59,10 +58,10 @@ index 82cff6d..2e680f6 100644
  		muru->mimo_dl.vht_mu_bfee =
  			!!(sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 9a6a52a..ac1109e 100644
+index e082511..fedae7e 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -647,4 +647,10 @@ struct csi_data {
+@@ -666,4 +666,10 @@ struct csi_data {
  };
  #endif
  
@@ -74,10 +73,10 @@ index 9a6a52a..ac1109e 100644
 +
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 61a6374..f9f8c5d 100644
+index 51d7f34..7613e60 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -308,6 +308,8 @@ struct mt7915_phy {
+@@ -301,6 +301,8 @@ struct mt7915_phy {
  	u32 rx_ampdu_ts;
  	u32 ampdu_ref;
  

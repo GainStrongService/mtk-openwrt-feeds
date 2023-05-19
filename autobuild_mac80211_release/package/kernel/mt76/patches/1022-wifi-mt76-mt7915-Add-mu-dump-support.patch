@@ -1,7 +1,7 @@
-From bddd3537739bd46e25e17ae6d365c836a65c9223 Mon Sep 17 00:00:00 2001
+From 95f591a8dcc2d3517b85147928677b60f5c9e015 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Thu, 11 Aug 2022 18:09:45 -0700
-Subject: [PATCH 1022/1032] wifi: mt76: mt7915: Add mu dump support
+Subject: [PATCH 1022/1033] wifi: mt76: mt7915: Add mu dump support
 
 Change-Id: I521214f3feb6f0d528a9f550255050ffd1ec96d2
 ---
@@ -10,7 +10,7 @@ Change-Id: I521214f3feb6f0d528a9f550255050ffd1ec96d2
  2 files changed, 25 insertions(+)
 
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index e748ab1..6915ac8 100644
+index afba18e..0c0b47e 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -37,6 +37,7 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -21,7 +21,7 @@ index e748ab1..6915ac8 100644
  };
  
  static const struct nla_policy
-@@ -1004,6 +1005,28 @@ static int mt7915_vendor_mu_ctrl(struct wiphy *wiphy,
+@@ -1006,6 +1007,28 @@ static int mt7915_vendor_mu_ctrl(struct wiphy *wiphy,
  	return 0;
  }
  
@@ -50,7 +50,7 @@ index e748ab1..6915ac8 100644
  static int
  mt7915_vendor_phy_capa_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
  			     struct sk_buff *skb, const void *data, int data_len,
-@@ -1190,6 +1213,7 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1192,6 +1215,7 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
  			WIPHY_VENDOR_CMD_NEED_RUNNING,
  		.doit = mt7915_vendor_mu_ctrl,

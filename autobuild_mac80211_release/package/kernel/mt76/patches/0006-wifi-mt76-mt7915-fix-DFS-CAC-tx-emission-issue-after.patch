@@ -1,7 +1,7 @@
-From 11737f3523ed3dff2a2ed35b658f562478022896 Mon Sep 17 00:00:00 2001
+From c32e29ad8916241b5a0bdc5f662e766687524327 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 17 May 2023 17:34:55 +0800
-Subject: [PATCH] wifi: mt76: mt7915: fix DFS CAC tx emission issue after
+Subject: [PATCH 6/6] wifi: mt76: mt7915: fix DFS CAC tx emission issue after
  interface down up
 
 FW's channel state is set during the first wifi interface setup. If the switch reason for
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index a9f8a88..a759214 100644
+index 8d8a203..9dd4e34 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2773,12 +2773,12 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
+@@ -2693,12 +2693,12 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
  	if (mt76_connac_spe_idx(phy->mt76->antenna_mask))
  		req.tx_path_num = fls(phy->mt76->antenna_mask);
  

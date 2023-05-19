@@ -1,7 +1,7 @@
-From 1965cf53639ac3ba07c3e8a53d49161559501948 Mon Sep 17 00:00:00 2001
+From 32e4319f0e34cb0a1ebb2dbb45c6561a96196a52 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 27 Oct 2022 17:42:07 +0800
-Subject: [PATCH 1013/1032] wifi: mt76: testmode: add ZWDFS test mode support
+Subject: [PATCH 1013/1033] wifi: mt76: testmode: add ZWDFS test mode support
 
 Change-Id: I14d104b7158a35acf6b0595357d07fb87f5a9d94
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -19,7 +19,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  10 files changed, 452 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index 2b0934f..3eb098f 100644
+index c632852..f4412a2 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -730,6 +730,15 @@ struct mt76_testmode_data {
@@ -39,7 +39,7 @@ index 2b0934f..3eb098f 100644
  
  struct mt76_vif {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 22d6a91..adfe677 100644
+index df7e50b..7663522 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1192,6 +1192,7 @@ enum {
@@ -59,10 +59,10 @@ index 22d6a91..adfe677 100644
  
  enum {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 60343b6..5415ce6 100644
+index abb54eb..2432e57 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2699,6 +2699,7 @@ mt7915_mcu_background_chain_ctrl(struct mt7915_phy *phy,
+@@ -2619,6 +2619,7 @@ mt7915_mcu_background_chain_ctrl(struct mt7915_phy *phy,
  		req.monitor_chan = chandef->chan->hw_value;
  		req.monitor_central_chan =
  			ieee80211_frequency_to_channel(chandef->center_freq1);
@@ -70,7 +70,7 @@ index 60343b6..5415ce6 100644
  		req.band_idx = phy->mt76->band_idx;
  		req.scan_mode = 2;
  		break;
-@@ -4634,3 +4635,68 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
+@@ -4601,3 +4602,68 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
  	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(MEC_CTRL), &req, sizeof(req), true);
  }
  #endif
@@ -140,10 +140,10 @@ index 60343b6..5415ce6 100644
 +	return 0;
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 11ac2ad..28dae7b 100644
+index 0020025..d361f63 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -667,6 +667,52 @@ struct csi_data {
+@@ -686,6 +686,52 @@ struct csi_data {
  };
  #endif
  
@@ -197,10 +197,10 @@ index 11ac2ad..28dae7b 100644
  #define OFDMA_DL                       BIT(0)
  #define OFDMA_UL                       BIT(1)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 0fcb262..003ad3c 100644
+index 54e8944..e9fc92a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -312,6 +312,7 @@ struct mt7915_phy {
+@@ -305,6 +305,7 @@ struct mt7915_phy {
  
  	struct mib_stats mib;
  	struct mt76_channel_state state_ts;
@@ -208,7 +208,7 @@ index 0fcb262..003ad3c 100644
  
  	u8 stats_work_count;
  	struct list_head stats_list;
-@@ -769,6 +770,9 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
+@@ -759,6 +760,9 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
  
@@ -219,10 +219,10 @@ index 0fcb262..003ad3c 100644
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp);
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index e876848..f4b5709 100644
+index 0339d4b..0798b08 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
-@@ -1194,6 +1194,8 @@ enum offs_rev {
+@@ -1205,6 +1205,8 @@ enum offs_rev {
  #define MT_WF_IRPI_NSS(phy, nss)	MT_WF_IRPI(0x6000 + ((phy) << 20) + ((nss) << 16))
  #define MT_WF_IRPI_NSS_MT7916(phy, nss)	MT_WF_IRPI(0x1000 + ((phy) << 20) + ((nss) << 16))
  
@@ -232,7 +232,7 @@ index e876848..f4b5709 100644
  #define MT_WF_PHY_BASE			0x83080000
  #define MT_WF_PHY(ofs)			(MT_WF_PHY_BASE + (ofs))
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index fe8bcf4..4dc63f4 100644
+index 6a18cdb..09b0e98 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -13,6 +13,12 @@ enum {

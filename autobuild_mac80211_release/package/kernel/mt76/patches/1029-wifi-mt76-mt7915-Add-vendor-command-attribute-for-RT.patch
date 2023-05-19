@@ -1,7 +1,7 @@
-From c3a3b89c1f0bb12ab9eca69ebca213a0743242bb Mon Sep 17 00:00:00 2001
+From 680ee306a830525879b8d972f8cd894b01514225 Mon Sep 17 00:00:00 2001
 From: "himanshu.goyal" <himanshu.goyal@mediatek.com>
 Date: Tue, 24 Jan 2023 14:32:08 +0800
-Subject: [PATCH 1030/1032] wifi: mt76: mt7915: Add vendor command attribute
+Subject: [PATCH 1029/1033] wifi: mt76: mt7915: Add vendor command attribute
  for RTS BW signaling.
 
 Signed-off-by: himanshu.goyal <himanshu.goyal@mediatek.com>
@@ -13,10 +13,10 @@ Signed-off-by: himanshu.goyal <himanshu.goyal@mediatek.com>
  4 files changed, 20 insertions(+)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 13b86ed..0fe15a5 100644
+index 0bec0bc..3939768 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4531,6 +4531,12 @@ int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type)
+@@ -4497,6 +4497,12 @@ int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type)
  		req.cert.length = cpu_to_le16(tlv_len);
  		req.cert.cert_program = type;
  		break;
@@ -30,10 +30,10 @@ index 13b86ed..0fe15a5 100644
  		tlv_len = sizeof(struct three_wire_cfg);
  		req.three_wire.tag = cpu_to_le16(cfg_info);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index a999e0c..acfd715 100644
+index 240a315..8ac70e5 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -905,6 +905,13 @@ struct three_wire_cfg {
+@@ -924,6 +924,13 @@ struct three_wire_cfg {
  	u8 rsv[3];
  } __packed;
  
@@ -47,7 +47,7 @@ index a999e0c..acfd715 100644
  struct cfg_basic_info {
  	u8 dbdc_idx;
  	u8 rsv[3];
-@@ -912,11 +919,13 @@ struct cfg_basic_info {
+@@ -931,11 +938,13 @@ struct cfg_basic_info {
  	union {
  		struct cert_cfg cert;
  		struct three_wire_cfg three_wire;
@@ -62,7 +62,7 @@ index a999e0c..acfd715 100644
  };
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 2e5f07c..3b7ac09 100644
+index 3d1984b..6bbdc6f 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -33,6 +33,7 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -73,7 +73,7 @@ index 2e5f07c..3b7ac09 100644
  };
  
  static const struct nla_policy
-@@ -992,6 +993,9 @@ static int mt7915_vendor_wireless_ctrl(struct wiphy *wiphy,
+@@ -994,6 +995,9 @@ static int mt7915_vendor_wireless_ctrl(struct wiphy *wiphy,
  	} else if (tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_AMSDU]) {
  		val8 = nla_get_u8(tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_AMSDU]);
  		mt7915_set_wireless_amsdu(hw, val8);

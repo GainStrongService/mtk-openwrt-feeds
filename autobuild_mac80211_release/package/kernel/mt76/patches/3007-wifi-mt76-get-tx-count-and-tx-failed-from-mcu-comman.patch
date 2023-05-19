@@ -1,7 +1,7 @@
-From 03ed3a6af6c489136ead033dfbfe6b3a67e208c0 Mon Sep 17 00:00:00 2001
+From 7624f0f425a72927b29178227f92d9bb88d5202c Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 11 Jan 2023 10:56:27 +0800
-Subject: [PATCH 3008/3013] wifi: mt76: get tx count and tx failed from mcu
+Subject: [PATCH 3007/3012] wifi: mt76: get tx count and tx failed from mcu
  command
 
 ---
@@ -15,7 +15,7 @@ Subject: [PATCH 3008/3013] wifi: mt76: get tx count and tx failed from mcu
  7 files changed, 136 insertions(+), 6 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index c7bd147..ee7e1b1 100644
+index 4794b6a..e0bb41e 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -289,6 +289,7 @@ struct mt76_sta_stats {
@@ -27,10 +27,10 @@ index c7bd147..ee7e1b1 100644
  	u32 tx_failed;
  	/* WED RX */
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index 1816bcb..abcb9a2 100644
+index ee37fe5..6cd8c27 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
-@@ -579,8 +579,6 @@ bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
+@@ -612,8 +612,6 @@ bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
  		stats->tx_bytes +=
  			le32_get_bits(txs_data[5], MT_TXS5_MPDU_TX_BYTE) -
  			le32_get_bits(txs_data[7], MT_TXS7_MPDU_RETRY_BYTE);
@@ -40,7 +40,7 @@ index 1816bcb..abcb9a2 100644
  			le32_get_bits(txs_data[7], MT_TXS7_MPDU_RETRY_CNT);
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index dd7ee32..b80a101 100644
+index 97d732a..b299a54 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1160,6 +1160,7 @@ enum {
@@ -52,10 +52,10 @@ index dd7ee32..b80a101 100644
  	MCU_EXT_CMD_SET_DRR_CTRL = 0x36,
  	MCU_EXT_CMD_SET_FEATURE_CTRL = 0x38,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 64709e1..3074091 100644
+index ccdb148..c377ef2 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1118,9 +1118,6 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1116,9 +1116,6 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  		sinfo->tx_bytes = msta->wcid.stats.tx_bytes;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BYTES64);
  
@@ -65,7 +65,7 @@ index 64709e1..3074091 100644
  		sinfo->tx_retries = msta->wcid.stats.tx_retries;
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
  
-@@ -1138,6 +1135,11 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
+@@ -1136,6 +1133,11 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_PACKETS);
  	}
  
@@ -78,10 +78,10 @@ index 64709e1..3074091 100644
  	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL);
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index fd72eba..083034e 100644
+index c27b8f9..2c6dddc 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4258,6 +4258,114 @@ out:
+@@ -4224,6 +4224,114 @@ out:
  	return ret;
  }
  
@@ -197,10 +197,10 @@ index fd72eba..083034e 100644
  				struct cfg80211_he_bss_color *he_bss_color)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index f91f4bc..73e2957 100644
+index eca028b..c712dbb 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -778,7 +778,8 @@ mt7915_get_power_bound(struct mt7915_phy *phy, s8 txpower)
+@@ -797,7 +797,8 @@ mt7915_get_power_bound(struct mt7915_phy *phy, s8 txpower)
  }
  
  enum {
@@ -210,7 +210,7 @@ index f91f4bc..73e2957 100644
  };
  
  #ifdef CONFIG_MTK_VENDOR
-@@ -1056,6 +1057,24 @@ struct mt7915_muru {
+@@ -1076,6 +1077,24 @@ struct mt7915_muru {
  /* DL&UL User config */
  #define MURU_USER_CNT                   BIT(4)
  
@@ -236,10 +236,10 @@ index f91f4bc..73e2957 100644
     CAPI_SU,
     CAPI_MU,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 943253c..4879130 100644
+index ef9b0e1..52cf748 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -723,6 +723,7 @@ int mt7915_mcu_get_tx_rate(struct mt7915_phy *phy, u16 wcidx);
+@@ -715,6 +715,7 @@ int mt7915_mcu_get_tx_rate(struct mt7915_phy *phy, u16 wcidx);
  int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
  			   struct ieee80211_sta *sta, struct rate_info *rate);
  int mt7915_mcu_get_tx_stat_wa(struct mt7915_dev *dev, u16 wcid);

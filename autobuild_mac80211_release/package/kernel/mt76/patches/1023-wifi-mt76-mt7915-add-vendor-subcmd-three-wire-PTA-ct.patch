@@ -1,7 +1,7 @@
-From 682aa9cd8ce82422216a65ec11c4e59b92194d15 Mon Sep 17 00:00:00 2001
+From ceaf2875e70fba9ac5c4a65f6cfa13c447a2cf0d Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 28 Oct 2022 10:15:56 +0800
-Subject: [PATCH 1023/1032] wifi: mt76: mt7915: add vendor subcmd three wire
+Subject: [PATCH 1023/1033] wifi: mt76: mt7915: add vendor subcmd three wire
  (PTA) ctrl
 
 Change-Id: Ic1044698f294455594a0c6254f55326fdab90580
@@ -16,7 +16,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 111 insertions(+), 29 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 1460aa8..5c7086d 100644
+index 35fb252..661d790 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1201,7 +1201,7 @@ enum {
@@ -29,10 +29,10 @@ index 1460aa8..5c7086d 100644
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 1ba96f0..cd2b313 100644
+index 9cde484..7603bd8 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4452,37 +4452,33 @@ void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable)
+@@ -4419,37 +4419,33 @@ void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable)
  			&req, sizeof(req), false);
  }
  
@@ -94,10 +94,10 @@ index 1ba96f0..cd2b313 100644
  
  void mt7915_mcu_set_bypass_smthint(struct mt7915_phy *phy, u8 val)
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 9c90854..d919da2 100644
+index 97ae882..3da650c 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -885,6 +885,35 @@ struct mt7915_mcu_rdd_ipi_scan {
+@@ -904,6 +904,35 @@ struct mt7915_mcu_rdd_ipi_scan {
  	u8 tx_assert_time;						/* unit: us */
  } __packed;
  
@@ -134,10 +134,10 @@ index 9c90854..d919da2 100644
  #define OFDMA_DL                       BIT(0)
  #define OFDMA_UL                       BIT(1)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 17efd20..a837c74 100644
+index 25f92e1..b3a0f2a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -766,6 +766,7 @@ void mt7915_mcu_set_mimo(struct mt7915_phy *phy, u8 direction);
+@@ -756,6 +756,7 @@ void mt7915_mcu_set_mimo(struct mt7915_phy *phy, u8 direction);
  void mt7915_mcu_set_dynalgo(struct mt7915_phy *phy, u8 enable);
  int mt7915_mcu_set_mu_edca(struct mt7915_phy *phy, u8 val);
  void mt7915_mcu_set_cert(struct mt7915_phy *phy, u8 type);
@@ -146,7 +146,7 @@ index 17efd20..a837c74 100644
  void mt7915_vendor_register(struct mt7915_phy *phy);
  int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 6915ac8..b26b1cc 100644
+index 0c0b47e..b651cea 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -40,6 +40,11 @@ mu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_MU_CTRL] = {
@@ -161,7 +161,7 @@ index 6915ac8..b26b1cc 100644
  static const struct nla_policy
  rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
  	[MTK_VENDOR_ATTR_RFEATURE_CTRL_HE_GI] = {.type = NLA_U8 },
-@@ -971,7 +976,7 @@ static int mt7915_vendor_wireless_ctrl(struct wiphy *wiphy,
+@@ -973,7 +978,7 @@ static int mt7915_vendor_wireless_ctrl(struct wiphy *wiphy,
  			mt7915_set_wireless_vif, &val32);
  	} else if (tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_CERT]) {
  		val8 = nla_get_u8(tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_CERT]);
@@ -170,7 +170,7 @@ index 6915ac8..b26b1cc 100644
  		mt7915_mcu_set_bypass_smthint(phy, val8); /* Cert bypass smooth interpolation */
  	}
  
-@@ -1115,6 +1120,7 @@ static int mt7915_vendor_edcca_ctrl(struct wiphy *wiphy,
+@@ -1117,6 +1122,7 @@ static int mt7915_vendor_edcca_ctrl(struct wiphy *wiphy,
  	return 0;
  }
  
@@ -178,7 +178,7 @@ index 6915ac8..b26b1cc 100644
  static int
  mt7915_vendor_edcca_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
  			     struct sk_buff *skb, const void *data, int data_len,
-@@ -1158,6 +1164,31 @@ mt7915_vendor_edcca_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
+@@ -1160,6 +1166,31 @@ mt7915_vendor_edcca_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
  	return len;
  }
  
@@ -210,7 +210,7 @@ index 6915ac8..b26b1cc 100644
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -1239,6 +1270,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1241,6 +1272,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.dumpit = mt7915_vendor_edcca_ctrl_dump,
  		.policy = edcca_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_EDCCA_CTRL_MAX,

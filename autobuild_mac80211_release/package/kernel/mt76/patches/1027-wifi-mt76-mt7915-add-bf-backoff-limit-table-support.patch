@@ -1,7 +1,7 @@
-From c1d658044e6246c3575b1b25788e711f0ee8385b Mon Sep 17 00:00:00 2001
+From cd39ff8dad3bfea4c0ec7ac7e71b92158cfa11b5 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 5 Dec 2022 18:21:51 +0800
-Subject: [PATCH 1027/1032] wifi: mt76: mt7915: add bf backoff limit table
+Subject: [PATCH 1027/1033] wifi: mt76: mt7915: add bf backoff limit table
  support
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
@@ -58,10 +58,10 @@ index 412740f..b2df0f4 100644
  }
  EXPORT_SYMBOL_GPL(mt76_get_rate_power_limits);
 diff --git a/mt76.h b/mt76.h
-index 614c607..278a676 100644
+index 668ab2b..ea43716 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -917,6 +917,14 @@ struct mt76_power_limits {
+@@ -918,6 +918,14 @@ struct mt76_power_limits {
  	s8 ofdm[8];
  	s8 mcs[4][10];
  	s8 ru[7][12];
@@ -77,7 +77,7 @@ index 614c607..278a676 100644
  
  struct mt76_ethtool_worker_info {
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index eb14910..129a15c 100644
+index 9fca009..a122457 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -1027,7 +1027,7 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
@@ -189,10 +189,10 @@ index eb14910..129a15c 100644
  				    mt7915_twt_stats);
  	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index cd2b313..ba25580 100644
+index 7603bd8..0bec0bc 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3340,7 +3340,8 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
+@@ -3260,7 +3260,8 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
  	int ret;
  	s8 txpower_sku[MT7915_SKU_RATE_NUM];
  
@@ -202,7 +202,7 @@ index cd2b313..ba25580 100644
  	if (ret)
  		return ret;
  
-@@ -3382,51 +3383,98 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
+@@ -3302,51 +3303,98 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
  
  int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
  {
@@ -326,7 +326,7 @@ index cd2b313..ba25580 100644
  	struct mt7915_dev *dev = phy->dev;
  	struct {
  		u8 format_id;
-@@ -3435,10 +3483,9 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
+@@ -3355,10 +3403,9 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
  		u8 _rsv;
  	} __packed req = {
  		.format_id = TX_POWER_LIMIT_INFO,
@@ -338,7 +338,7 @@ index cd2b313..ba25580 100644
  	struct sk_buff *skb;
  	int ret, i;
  
-@@ -3448,9 +3495,15 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
+@@ -3368,9 +3415,15 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
  	if (ret)
  		return ret;
  
@@ -357,7 +357,7 @@ index cd2b313..ba25580 100644
  
  	dev_kfree_skb(skb);
  
-@@ -3492,9 +3545,18 @@ int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable)
+@@ -3412,9 +3465,18 @@ int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable)
  		.band_idx = phy->mt76->band_idx,
  		.sku_enable = enable,
  	};
@@ -377,10 +377,10 @@ index cd2b313..ba25580 100644
  				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL), &req,
  				 sizeof(req), true);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index d919da2..a999e0c 100644
+index 3da650c..240a315 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -483,12 +483,18 @@ enum {
+@@ -502,12 +502,18 @@ enum {
  
  enum {
  	TX_POWER_LIMIT_ENABLE,
@@ -400,10 +400,10 @@ index d919da2..a999e0c 100644
  	SPR_ENABLE = 0x1,
  	SPR_ENABLE_SD = 0x3,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index c147ca1..75c2f15 100644
+index e2f196b..b4644f6 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -65,6 +65,7 @@
+@@ -72,6 +72,7 @@
  #define MT7915_CDEV_THROTTLE_MAX	99
  
  #define MT7915_SKU_RATE_NUM		161
@@ -411,7 +411,7 @@ index c147ca1..75c2f15 100644
  
  #define MT7915_MAX_TWT_AGRT		16
  #define MT7915_MAX_STA_TWT_AGRT		8
-@@ -630,7 +631,8 @@ int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
+@@ -621,7 +622,8 @@ int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
  int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band);
  int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable);
  int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy);

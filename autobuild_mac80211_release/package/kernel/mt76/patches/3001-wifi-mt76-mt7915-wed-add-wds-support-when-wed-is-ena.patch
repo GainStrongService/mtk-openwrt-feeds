@@ -1,7 +1,7 @@
-From 5474f456818029dcc4a994257436090344f0a850 Mon Sep 17 00:00:00 2001
+From 7d1859d341a5c77b206b6b72c8a3d06dcef60042 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Tue, 13 Dec 2022 17:51:26 +0800
-Subject: [PATCH 3001/3013] wifi: mt76: mt7915: wed: add wds support when wed
+Subject: [PATCH 3001/3012] wifi: mt76: mt7915: wed: add wds support when wed
  is enabled
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
@@ -15,7 +15,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  6 files changed, 82 insertions(+), 10 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 278a676..0ee2291 100644
+index ea43716..3d36913 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -60,6 +60,12 @@ enum mt76_wed_type {
@@ -32,10 +32,10 @@ index 278a676..0ee2291 100644
  	u32 (*rr)(struct mt76_dev *dev, u32 offset);
  	void (*wr)(struct mt76_dev *dev, u32 offset, u32 val);
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 33df772..a8fe1a5 100644
+index 59e879b..13e797f 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -706,8 +706,15 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -704,8 +704,15 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  #endif
  	int ret, idx;
  	u32 addr;
@@ -52,7 +52,7 @@ index 33df772..a8fe1a5 100644
  	if (idx < 0)
  		return -ENOSPC;
  
-@@ -1184,6 +1191,13 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
+@@ -1182,6 +1189,13 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
  	else
  		clear_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
  
@@ -66,7 +66,7 @@ index 33df772..a8fe1a5 100644
  	mt76_connac_mcu_wtbl_update_hdr_trans(&dev->mt76, vif, sta);
  }
  
-@@ -1555,8 +1569,12 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1553,8 +1567,12 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	path->dev = ctx->dev;
  	path->mtk_wdma.wdma_idx = wed->wdma_idx;
  	path->mtk_wdma.bss = mvif->mt76.idx;
@@ -81,10 +81,10 @@ index 33df772..a8fe1a5 100644
  	ctx->dev = NULL;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f87a386..78822cc 100644
+index 13e5a54..e9bc4b1 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2427,10 +2427,18 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
+@@ -2346,10 +2346,18 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
  	if (ret)
  		return ret;
  
@@ -108,10 +108,10 @@ index f87a386..78822cc 100644
  	ret = mt7915_mcu_set_mwds(dev, 1);
  	if (ret)
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index acfd715..bd0ccb5 100644
+index 8ac70e5..c533a7d 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -320,6 +320,7 @@ enum {
+@@ -339,6 +339,7 @@ enum {
  	MCU_WA_PARAM_PDMA_RX = 0x04,
  	MCU_WA_PARAM_CPU_UTIL = 0x0b,
  	MCU_WA_PARAM_RED = 0x0e,

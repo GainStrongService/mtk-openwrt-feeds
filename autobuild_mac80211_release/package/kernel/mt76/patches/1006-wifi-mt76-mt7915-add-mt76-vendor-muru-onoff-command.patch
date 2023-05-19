@@ -1,7 +1,7 @@
-From 7c420a8fb200fe8ce03001edd05b811ac2f12169 Mon Sep 17 00:00:00 2001
+From fb010c2d8e8e547bc52e8485840c4821f9e49d4c Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Tue, 4 Apr 2023 02:27:44 +0800
-Subject: [PATCH 1006/1032] wifi: mt76: mt7915: add mt76 vendor muru onoff
+Subject: [PATCH 1006/1033] wifi: mt76: mt7915: add mt76 vendor muru onoff
  command
 
 ---
@@ -12,10 +12,10 @@ Subject: [PATCH 1006/1032] wifi: mt76: mt7915: add mt76 vendor muru onoff
  4 files changed, 63 insertions(+)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 7d42bd0..8aec083 100644
+index 922ae18..5a68bb7 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4085,6 +4085,13 @@ void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
+@@ -4052,6 +4052,13 @@ void mt7915_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  		if (val == 0)
  			phy->muru_onoff = MUMIMO_DL_CERT | MUMIMO_DL;
  		break;
@@ -30,10 +30,10 @@ index 7d42bd0..8aec083 100644
  }
  
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 76bc066..e593520 100644
+index 765ad11..84afa7f 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -459,6 +459,7 @@ enum {
+@@ -478,6 +478,7 @@ enum {
  #ifdef CONFIG_MTK_VENDOR
  	RATE_PARAM_FIXED_MIMO = 30,
  	RATE_PARAM_FIXED_OFDMA = 31,
@@ -42,7 +42,7 @@ index 76bc066..e593520 100644
  };
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index beb0583..8d864c8 100644
+index 5a1cce1..df1cac3 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -34,6 +34,11 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -57,7 +57,7 @@ index beb0583..8d864c8 100644
  static const struct nla_policy
  rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
  	[MTK_VENDOR_ATTR_RFEATURE_CTRL_HE_GI] = {.type = NLA_U8 },
-@@ -942,6 +947,33 @@ static int mt7915_vendor_wireless_ctrl(struct wiphy *wiphy,
+@@ -944,6 +949,33 @@ static int mt7915_vendor_wireless_ctrl(struct wiphy *wiphy,
  	return 0;
  }
  
@@ -91,7 +91,7 @@ index beb0583..8d864c8 100644
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -988,6 +1020,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -990,6 +1022,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.doit = mt7915_vendor_wireless_ctrl,
  		.policy = wireless_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_WIRELESS_CTRL_MAX,

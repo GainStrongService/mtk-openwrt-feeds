@@ -1,7 +1,7 @@
-From 65e219aa7474e080497ba207c5116437596fa7cc Mon Sep 17 00:00:00 2001
+From 30912b07f4f8a8e3c6639c4d61326fe872ba8ce5 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 25 Nov 2022 10:38:53 +0800
-Subject: [PATCH 3000/3013] wifi: mt76: mt7915: wed: add wed tx support
+Subject: [PATCH 3000/3012] wifi: mt76: mt7915: wed: add wed tx support
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -13,10 +13,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  5 files changed, 14 insertions(+), 9 deletions(-)
 
 diff --git a/mt76_connac.h b/mt76_connac.h
-index 2ee9a3c..5a0a3ce 100644
+index ca26984..fc453e5 100644
 --- a/mt76_connac.h
 +++ b/mt76_connac.h
-@@ -116,6 +116,7 @@ struct mt76_connac_sta_key_conf {
+@@ -130,6 +130,7 @@ struct mt76_connac_sta_key_conf {
  };
  
  #define MT_TXP_MAX_BUF_NUM		6
@@ -25,10 +25,10 @@ index 2ee9a3c..5a0a3ce 100644
  struct mt76_connac_fw_txp {
  	__le16 flags;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 06d4f2f..d7b0e63 100644
+index 1301b61..26b5e15 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -870,9 +870,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
+@@ -866,9 +866,9 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
  
  	txp->token = cpu_to_le16(token_id);
  	txp->nbuf = 1;
@@ -40,7 +40,7 @@ index 06d4f2f..d7b0e63 100644
  }
  
  static void
-@@ -988,6 +988,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -984,6 +984,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  	LIST_HEAD(free_list);
  	void *end = data + len;
  	bool v3, wake = false;
@@ -48,7 +48,7 @@ index 06d4f2f..d7b0e63 100644
  	u16 total, count = 0;
  	u32 txd = le32_to_cpu(free->txd);
  	__le32 *cur_info;
-@@ -1051,12 +1052,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -1047,12 +1048,14 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  			txwi = mt76_token_release(mdev, msdu, &wake);
  			if (!txwi)
  				continue;
@@ -66,10 +66,10 @@ index 06d4f2f..d7b0e63 100644
  
  static void
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 0d5e527..33df772 100644
+index 8d1120c..59e879b 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1548,14 +1548,14 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1546,14 +1546,14 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	if (!mtk_wed_device_active(wed))
  		return -ENODEV;
  
@@ -87,7 +87,7 @@ index 0d5e527..33df772 100644
  
  	ctx->dev = NULL;
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index fa99df1..0e79faf 100644
+index d5198eb..3f4749b 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -13,7 +13,7 @@
@@ -117,10 +117,10 @@ index fa99df1..0e79faf 100644
  	ret = dma_set_mask(wed->dev, DMA_BIT_MASK(32));
  	if (ret)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index c379b2a..c3cc35d 100644
+index 45a5254..d0ae42f 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -55,7 +55,7 @@
+@@ -62,7 +62,7 @@
  #define MT7916_EEPROM_SIZE		4096
  
  #define MT7915_EEPROM_BLOCK_SIZE	16
