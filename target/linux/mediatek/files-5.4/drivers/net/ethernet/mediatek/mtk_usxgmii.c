@@ -489,13 +489,16 @@ int mtk_usxgmii_setup_phya_force_10000(struct mtk_usxgmii_pcs *mpcs)
 	regmap_update_bits(mpcs->regmap_pextp, 0x50B4, GENMASK(31, 0),
 			   0x06100600);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3048, GENMASK(31, 0),
-			   0x49664100);
+			   0x47684100);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3050, GENMASK(31, 0),
 			   0x00000000);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3054, GENMASK(31, 0),
 			   0x00000000);
 	regmap_update_bits(mpcs->regmap_pextp, 0x306C, GENMASK(31, 0),
 			   0x00000F00);
+	if (mpcs->id == 0)
+		regmap_update_bits(mpcs->regmap_pextp, 0xA008, GENMASK(31, 0),
+				   0x0007B400);
 	regmap_update_bits(mpcs->regmap_pextp, 0xA060, GENMASK(31, 0),
 			   0x00040000);
 	regmap_update_bits(mpcs->regmap_pextp, 0x90D0, GENMASK(31, 0),
