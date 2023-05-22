@@ -1,7 +1,7 @@
-From a23a49eb89ce2abc3370f452bc1915a061b864bd Mon Sep 17 00:00:00 2001
+From 9b6e04ff1ac32161c6aacb939b2ff51bdced9629 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 17 Feb 2023 14:13:38 +0800
-Subject: [PATCH 16/29] wifi: mt76: mt7996: add dsp firmware download
+Subject: [PATCH 09/22] wifi: mt76: mt7996: add dsp firmware download
 
 Add DSP firmware for phy related control. Without this patch,the
 firmware state would not be ready.
@@ -15,7 +15,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  4 files changed, 50 insertions(+), 53 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index fa10d82..79dde31 100644
+index c5c48349..fbb1206f 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -22,6 +22,7 @@
@@ -27,10 +27,10 @@ index fa10d82..79dde31 100644
  #define PATCH_SEC_NOT_SUPPORT		GENMASK(31, 0)
  #define PATCH_SEC_TYPE_MASK		GENMASK(15, 0)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index a949ff7..09800ff 100644
+index f3fd2fd4..73d5dedf 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2353,7 +2353,7 @@ out:
+@@ -2241,7 +2241,7 @@ out:
  static int
  mt7996_mcu_send_ram_firmware(struct mt7996_dev *dev,
  			     const struct mt7996_fw_trailer *hdr,
@@ -39,7 +39,7 @@ index a949ff7..09800ff 100644
  {
  	int i, offset = 0;
  	u32 override = 0, option = 0;
-@@ -2365,8 +2365,10 @@ mt7996_mcu_send_ram_firmware(struct mt7996_dev *dev,
+@@ -2253,8 +2253,10 @@ mt7996_mcu_send_ram_firmware(struct mt7996_dev *dev,
  
  		region = (const struct mt7996_fw_region *)((const u8 *)hdr -
  			 (hdr->n_region - i) * sizeof(*region));
@@ -51,7 +51,7 @@ index a949ff7..09800ff 100644
  		len = le32_to_cpu(region->len);
  		addr = le32_to_cpu(region->addr);
  
-@@ -2393,8 +2395,10 @@ mt7996_mcu_send_ram_firmware(struct mt7996_dev *dev,
+@@ -2281,8 +2283,10 @@ mt7996_mcu_send_ram_firmware(struct mt7996_dev *dev,
  	if (override)
  		option |= FW_START_OVERRIDE;
  
@@ -63,7 +63,7 @@ index a949ff7..09800ff 100644
  
  	return mt76_connac_mcu_start_firmware(&dev->mt76, override, option);
  }
-@@ -2405,56 +2409,40 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
+@@ -2293,56 +2297,40 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
  	const struct firmware *fw;
  	int ret;
  
@@ -155,7 +155,7 @@ index a949ff7..09800ff 100644
  	return ret;
  }
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 923e6fc..c2f8900 100644
+index 36337808..ab4521a4 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -29,6 +29,7 @@
@@ -166,7 +166,7 @@ index 923e6fc..c2f8900 100644
  #define MT7996_ROM_PATCH		"mediatek/mt7996/mt7996_rom_patch.bin"
  
  #define MT7996_EEPROM_DEFAULT		"mediatek/mt7996/mt7996_eeprom.bin"
-@@ -55,6 +56,12 @@ struct mt7996_sta;
+@@ -59,6 +60,12 @@ struct mt7996_sta;
  struct mt7996_dfs_pulse;
  struct mt7996_dfs_pattern;
  
@@ -180,7 +180,7 @@ index 923e6fc..c2f8900 100644
  	MT7996_TXQ_FWDL = 16,
  	MT7996_TXQ_MCU_WM,
 diff --git a/mt7996/pci.c b/mt7996/pci.c
-index 64aee3f..c530105 100644
+index 64aee3fb..c5301050 100644
 --- a/mt7996/pci.c
 +++ b/mt7996/pci.c
 @@ -219,4 +219,5 @@ MODULE_DEVICE_TABLE(pci, mt7996_pci_device_table);
@@ -190,5 +190,5 @@ index 64aee3f..c530105 100644
 +MODULE_FIRMWARE(MT7996_FIRMWARE_DSP);
  MODULE_FIRMWARE(MT7996_ROM_PATCH);
 -- 
-2.18.0
+2.39.2
 

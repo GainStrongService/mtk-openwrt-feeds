@@ -1,7 +1,7 @@
-From 15078cb8bc36fb6194ecaf65887d899f9a9c5435 Mon Sep 17 00:00:00 2001
+From 85fb9bc9f85a5e64d88db85fbfdef968d037fada Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 Date: Mon, 28 Nov 2022 14:36:09 +0800
-Subject: [PATCH 10/29] wifi: mt76: mt7996: add muru support
+Subject: [PATCH 05/22] wifi: mt76: mt7996: add muru support
 
 Add sta_rec_muru() and related phy cap for MU and RU support.
 
@@ -10,12 +10,11 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 Change-Id: I2206a9bb6fd6e50f4bf1380a8bea19920f1b7bfd
 ---
  mt76_connac_mcu.h |  3 ++-
- mt7996/mcu.c      | 69 ++++++++++++++++++++++++++++++++++++++++++++++-
- mt7996/mt7996.h   |  3 +++
- 3 files changed, 73 insertions(+), 2 deletions(-)
+ mt7996/mcu.c      | 57 ++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 58 insertions(+), 2 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 40a99e0..6f30a0f 100644
+index 91d98eff..8580ca59 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -518,7 +518,8 @@ struct sta_rec_muru {
@@ -29,10 +28,10 @@ index 40a99e0..6f30a0f 100644
  
  	struct {
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index f694743..b6bd36c 100644
+index 88e2f9d0..6812a47b 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1050,6 +1050,63 @@ mt7996_mcu_sta_amsdu_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -1050,6 +1050,60 @@ mt7996_mcu_sta_amsdu_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  	}
  }
  
@@ -40,7 +39,6 @@ index f694743..b6bd36c 100644
 +mt7996_mcu_sta_muru_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 +			struct ieee80211_vif *vif, struct ieee80211_sta *sta)
 +{
-+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 +	struct ieee80211_he_cap_elem *elem = &sta->deflink.he_cap.he_cap_elem;
 +	struct sta_rec_muru *muru;
 +	struct tlv *tlv;
@@ -53,12 +51,10 @@ index f694743..b6bd36c 100644
 +
 +	muru = (struct sta_rec_muru *)tlv;
 +
-+	muru->cfg.mimo_dl_en = mvif->cap.eht_mu_ebfer_bw80 ||
-+			       mvif->cap.eht_mu_ebfer_bw160 ||
-+			       mvif->cap.eht_mu_ebfer_bw320 ||
-+			       mvif->cap.he_mu_ebfer ||
-+			       mvif->cap.vht_mu_ebfer ||
-+			       mvif->cap.vht_mu_ebfee;
++	muru->cfg.mimo_dl_en = vif->bss_conf.eht_mu_beamformer ||
++			       vif->bss_conf.he_mu_beamformer ||
++			       vif->bss_conf.vht_mu_beamformer ||
++			       vif->bss_conf.vht_mu_beamformee;
 +	muru->cfg.ofdma_dl_en = true;
 +
 +	if (sta->deflink.vht_cap.vht_supported)
@@ -96,7 +92,7 @@ index f694743..b6bd36c 100644
  static inline bool
  mt7996_is_ebf_supported(struct mt7996_phy *phy, struct ieee80211_vif *vif,
  			struct ieee80211_sta *sta, bool bfee)
-@@ -1722,7 +1779,8 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -1727,7 +1781,8 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  		mt7996_mcu_sta_he_6g_tlv(skb, sta);
  		/* starec eht */
  		mt7996_mcu_sta_eht_tlv(skb, sta);
@@ -106,36 +102,6 @@ index f694743..b6bd36c 100644
  		/* starec bfee */
  		mt7996_mcu_sta_bfee_tlv(dev, skb, vif, sta);
  		/* starec hdr trans */
-@@ -2005,6 +2063,15 @@ mt7996_mcu_beacon_check_caps(struct mt7996_phy *phy, struct ieee80211_vif *vif,
- 		vc->eht_su_ebfee =
- 			EHT_PHY(CAP0_SU_BEAMFORMEE, eht->phy_cap_info[0]) &&
- 			EHT_PHY(CAP0_SU_BEAMFORMEE, pe->phy_cap_info[0]);
-+		vc->eht_mu_ebfer_bw80 =
-+			EHT_PHY(CAP7_MU_BEAMFORMER_80MHZ, eht->phy_cap_info[7]) &&
-+			EHT_PHY(CAP7_MU_BEAMFORMER_80MHZ, pe->phy_cap_info[7]);
-+		vc->eht_mu_ebfer_bw160 =
-+			EHT_PHY(CAP7_MU_BEAMFORMER_160MHZ, eht->phy_cap_info[7]) &&
-+			EHT_PHY(CAP7_MU_BEAMFORMER_160MHZ, pe->phy_cap_info[7]);
-+		vc->eht_mu_ebfer_bw320 =
-+			EHT_PHY(CAP7_MU_BEAMFORMER_320MHZ, eht->phy_cap_info[7]) &&
-+			EHT_PHY(CAP7_MU_BEAMFORMER_320MHZ, pe->phy_cap_info[7]);
- 	}
- }
- 
-diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index f9d8fbf..997a0bf 100644
---- a/mt7996/mt7996.h
-+++ b/mt7996/mt7996.h
-@@ -125,6 +125,9 @@ struct mt7996_vif_cap {
- 	bool he_mu_ebfer:1;
- 	bool eht_su_ebfer:1;
- 	bool eht_su_ebfee:1;
-+	bool eht_mu_ebfer_bw80:1;
-+	bool eht_mu_ebfer_bw160:1;
-+	bool eht_mu_ebfer_bw320:1;
- };
- 
- struct mt7996_vif {
 -- 
-2.18.0
+2.39.2
 

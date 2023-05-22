@@ -1,7 +1,7 @@
-From 3c5f2f053c8115e1a0a818c9f8ba270b30d69c88 Mon Sep 17 00:00:00 2001
+From a25714fa7b610430f9aa3d4ec24647eaea505d35 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Feb 2023 10:40:33 +0800
-Subject: [PATCH 11/29] wifi: mt76: mt7996: set txd v1
+Subject: [PATCH 06/22] wifi: mt76: mt7996: set txd v1
 
 ---
  mt7996/mac.c | 3 +++
@@ -9,10 +9,10 @@ Subject: [PATCH 11/29] wifi: mt76: mt7996: set txd v1
  2 files changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 198eb71..40ef5e4 100644
+index 23cbfdde..420c7403 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1096,6 +1096,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -1110,6 +1110,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	struct mt76_txwi_cache *t;
  	int id, i, pid, nbuf = tx_info->nbuf - 1;
  	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
@@ -20,9 +20,9 @@ index 198eb71..40ef5e4 100644
  	u8 *txwi = (u8 *)txwi_ptr;
  
  	if (unlikely(tx_info->skb->len <= ETH_HLEN))
-@@ -1127,6 +1128,8 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
- 		mt7996_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, qid,
- 				      pid, key, 0);
+@@ -1141,6 +1142,8 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 		mt7996_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, key,
+ 				      pid, qid, 0);
  
 +	txd[0] |= le32_encode_bits(1, MT_TXD0_VER);
 +
@@ -30,10 +30,10 @@ index 198eb71..40ef5e4 100644
  	for (i = 0; i < nbuf; i++) {
  		txp->fw.buf[i] = cpu_to_le32(tx_info->buf[i + 1].addr);
 diff --git a/mt7996/mac.h b/mt7996/mac.h
-index 2cc218f..4914d3e 100644
+index bc4e6c55..9ab8e8d2 100644
 --- a/mt7996/mac.h
 +++ b/mt7996/mac.h
-@@ -183,7 +183,8 @@ enum tx_mgnt_type {
+@@ -173,7 +173,8 @@ enum tx_mgnt_type {
  
  #define MT_TXD0_Q_IDX			GENMASK(31, 25)
  #define MT_TXD0_PKT_FMT			GENMASK(24, 23)
@@ -44,5 +44,5 @@ index 2cc218f..4914d3e 100644
  
  #define MT_TXD1_FIXED_RATE		BIT(31)
 -- 
-2.18.0
+2.39.2
 
