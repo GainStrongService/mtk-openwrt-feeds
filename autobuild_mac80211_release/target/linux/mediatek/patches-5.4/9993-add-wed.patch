@@ -208,9 +208,9 @@ index 819d8a0be..2121335a1
 +		mtk_wed_add_hw(np, eth, wdma, i);
 +	}
 +
- 	for (i = 0; i < MTK_MAX_IRQ_NUM; i++) {
- 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_INT) && i > 0)
- 			eth->irq[i] = eth->irq[0];
+ 	for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
+		eth->irq_pdma[i] = platform_get_irq(pdev, i);
+
 @@ -4320,10 +4397,11 @@ static int mtk_probe(struct platform_dev
  	}
  
