@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index 225649d..8a51567 100644
+index 225649d6..8a51567f 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -31,7 +31,7 @@ index 225649d..8a51567 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9a..2ea3e7c 100644
+index 5aaba9af..2ea3e7c9 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
@@ -430,7 +430,7 @@ index 5aaba9a..2ea3e7c 100644
  			ret="$?"
  			[ "$ret" != 0 -o -z "$hostapd_res" ] && {
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a6..bf518ff 100644
+index e24a2a63..bf518ff1 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -553,7 +553,7 @@ index e24a2a6..bf518ff 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 28bd210..5e21d0d 100644
+index 28bd2106..167cc0b2 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -376,6 +376,13 @@ hostapd_common_add_bss_config() {
@@ -570,6 +570,15 @@ index 28bd210..5e21d0d 100644
  }
  
  hostapd_set_vlan_file() {
+@@ -841,7 +848,7 @@ hostapd_set_bss_options() {
+ 	}
+ 
+ 	append bss_conf "ssid=$ssid" "$N"
+-	[ -n "$network_bridge" ] && append bss_conf "bridge=$network_bridge${N}wds_bridge=" "$N"
++	[ -n "$network_bridge" ] && append bss_conf "bridge=$network_bridge${N}wds_bridge=$network_bridge" "$N"
+ 	[ -n "$network_ifname" ] && append bss_conf "snoop_iface=$network_ifname" "$N"
+ 	[ -n "$iapp_interface" ] && {
+ 		local ifname
 @@ -975,7 +982,7 @@ hostapd_set_bss_options() {
  		# RSN -> allow management frame protection
  		case "$ieee80211w" in
@@ -621,6 +630,3 @@ index 28bd210..5e21d0d 100644
  	if [ "$key_mgmt" = "WPS" ]; then
  		echo "wps_cred_processing=1" >> "$_config"
  	else
--- 
-2.18.0
-
