@@ -1,8 +1,7 @@
-From 7bfb1fb85edfcbd68b4b680e387efdfcf2f00f77 Mon Sep 17 00:00:00 2001
+From d7349df90b0382edfa3bbed0e48cfcc5a989e79e Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
-Subject: [PATCH 1000/1033] wifi: mt76: mt7915: add mtk internal debug tools
- for mt76
+Subject: [PATCH] wifi: mt76: mt7915: add mtk internal debug tools for mt76
 
 ---
  mt76_connac_mcu.h     |    6 +
@@ -14,16 +13,16 @@ Subject: [PATCH 1000/1033] wifi: mt76: mt7915: add mtk internal debug tools
  mt7915/mcu.h          |    4 +
  mt7915/mt7915.h       |   43 +
  mt7915/mt7915_debug.h | 1418 ++++++++++++++++
- mt7915/mtk_debugfs.c  | 3606 +++++++++++++++++++++++++++++++++++++++++
+ mt7915/mtk_debugfs.c  | 3624 +++++++++++++++++++++++++++++++++++++++++
  mt7915/mtk_mcu.c      |   51 +
  tools/fwlog.c         |   44 +-
- 12 files changed, 5310 insertions(+), 19 deletions(-)
+ 12 files changed, 5328 insertions(+), 19 deletions(-)
  create mode 100644 mt7915/mt7915_debug.h
  create mode 100644 mt7915/mtk_debugfs.c
  create mode 100644 mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index ebb7f58..8d6c422 100644
+index ebb7f587..8d6c422b 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1148,6 +1148,7 @@ enum {
@@ -47,7 +46,7 @@ index ebb7f58..8d6c422 100644
  	MCU_EXT_CMD_CAL_CACHE = 0x67,
  	MCU_EXT_CMD_RED_ENABLE = 0x68,
 diff --git a/mt7915/Makefile b/mt7915/Makefile
-index c4dca9c..fd71141 100644
+index c4dca9c1..fd711416 100644
 --- a/mt7915/Makefile
 +++ b/mt7915/Makefile
 @@ -4,7 +4,7 @@ EXTRA_CFLAGS += -DCONFIG_MT76_LEDS
@@ -60,7 +59,7 @@ index c4dca9c..fd71141 100644
  mt7915e-$(CONFIG_NL80211_TESTMODE) += testmode.o
  mt7915e-$(CONFIG_MT798X_WMAC) += soc.o
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 879884e..9fca009 100644
+index 879884ea..9fca0093 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -8,6 +8,9 @@
@@ -232,7 +231,7 @@ index 879884e..9fca009 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index a3ed4dd..b5805bb 100644
+index 2a87b506..a62a9bca 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -275,6 +275,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -271,7 +270,7 @@ index a3ed4dd..b5805bb 100644
  }
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index f78f2bf..699f767 100644
+index f78f2bf0..699f767f 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -73,7 +73,11 @@ int mt7915_run(struct ieee80211_hw *hw)
@@ -287,7 +286,7 @@ index f78f2bf..699f767 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index dbdc48a..5acba67 100644
+index dbdc48a0..5acba67d 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -203,6 +203,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -371,7 +370,7 @@ index dbdc48a..5acba67 100644
 +}
 +#endif
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index aebacc7..daea67f 100644
+index aebacc7d..daea67f0 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -333,6 +333,10 @@ enum {
@@ -386,7 +385,7 @@ index aebacc7..daea67f 100644
  };
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 5451024..29394b6 100644
+index 4fb0a375..88e3bb3d 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -453,7 +452,7 @@ index 5451024..29394b6 100644
  #endif
 diff --git a/mt7915/mt7915_debug.h b/mt7915/mt7915_debug.h
 new file mode 100644
-index 0000000..fa8794f
+index 00000000..fa8794fd
 --- /dev/null
 +++ b/mt7915/mt7915_debug.h
 @@ -0,0 +1,1418 @@
@@ -1877,10 +1876,10 @@ index 0000000..fa8794f
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 0000000..4bbb410
+index 00000000..b1f8631c
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
-@@ -0,0 +1,3606 @@
+@@ -0,0 +1,3624 @@
 +#include<linux/inet.h>
 +#include "mt7915.h"
 +#include "mt7915_debug.h"
@@ -4805,6 +4804,22 @@ index 0000000..4bbb410
 +DEFINE_DEBUGFS_ATTRIBUTE(fops_wa_debug, NULL, mt7915_wa_debug,
 +			 "0x%llx\n");
 +
++static int mt7915_dump_version(struct seq_file *s, void *data)
++{
++	struct mt7915_dev *dev = dev_get_drvdata(s->private);
++	struct mt76_dev *mdev = NULL;
++	seq_printf(s, "Version: 2.2.11.0\n");
++
++	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
++		return 0;
++
++	mdev = &dev->mt76;
++	seq_printf(s, "Rom Patch Build Time: %.16s\n", mdev->patch_hdr->build_date);
++	seq_printf(s, "WM Patch Build Time: %.16s\n", mdev->wm_hdr->build_date);
++	seq_printf(s, "WA Patch Build Time: %.16s\n", mdev->wa_hdr->build_date);
++	return 0;
++}
++
 +static inline int mt7915_snprintf_error(size_t size, int res)
 +{
 +	return res < 0 || (unsigned int) res >= size;
@@ -5468,6 +5483,8 @@ index 0000000..4bbb410
 +
 +	debugfs_create_file("fw_wa_query", 0600, dir, dev, &fops_wa_query);
 +	debugfs_create_file("fw_wa_set", 0600, dir, dev, &fops_wa_set);
++	debugfs_create_devm_seqfile(dev->mt76.dev, "fw_version", dir,
++				    mt7915_dump_version);
 +	debugfs_create_file("fw_wa_debug", 0600, dir, dev, &fops_wa_debug);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "fw_wm_info", dir,
 +				    mt7915_fw_wm_info_read);
@@ -5489,7 +5506,7 @@ index 0000000..4bbb410
 +#endif
 diff --git a/mt7915/mtk_mcu.c b/mt7915/mtk_mcu.c
 new file mode 100644
-index 0000000..143dae2
+index 00000000..143dae26
 --- /dev/null
 +++ b/mt7915/mtk_mcu.c
 @@ -0,0 +1,51 @@
@@ -5545,7 +5562,7 @@ index 0000000..143dae2
 +				 sizeof(req), true);
 +}
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a10..3d51d9e 100644
+index e5d4a105..3d51d9ec 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)
