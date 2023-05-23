@@ -8,8 +8,8 @@
 #include "mt7988.dtsi"
 
 / {
-	model = "MediaTek MT7988C DSA 10G SPIM-NAND RFB";
-	compatible = "mediatek,mt7988c-dsa-10g-spim-snand",
+	model = "MediaTek MT7988D DSA external-2.5G SPIM-NAND RFB";
+	compatible = "mediatek,mt7988d-dsa-e2p5g-spim-snand",
 		     /* Reserve this for DVFS if creating new dts */
 		     "mediatek,mt7988";
 
@@ -71,42 +71,10 @@
 		adie_id = <7976>;
 		sku_type = <3000>;
 	};
-
-	sound_wm8960 {
-		compatible = "mediatek,mt79xx-wm8960-machine";
-		mediatek,platform = <&afe>;
-		audio-routing = "Headphone", "HP_L",
-				"Headphone", "HP_R",
-				"LINPUT1", "AMIC",
-				"RINPUT1", "AMIC";
-		mediatek,audio-codec = <&wm8960>;
-		status = "disabled";
-	};
-
-	sound_si3218x {
-		compatible = "mediatek,mt79xx-si3218x-machine";
-		mediatek,platform = <&afe>;
-		mediatek,ext-codec = <&proslic_spi>;
-		status = "disabled";
-	};
 };
 
 &fan {
 	pwms = <&pwm 0 50000 0>;
-	status = "okay";
-};
-
-&afe {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcm_pins>;
-	status = "okay";
-};
-
-&pwm {
-	status = "okay";
-};
-
-&uart0 {
 	status = "okay";
 };
 
@@ -166,11 +134,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins>;
 	status = "okay";
+};
 
-	wm8960: wm8960@1a {
-		compatible = "wlf,wm8960";
-		reg = <0x1a>;
-	};
+&pwm {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
 };
 
 &spi0 {
@@ -200,18 +171,6 @@
 	/* pin shared with snfi */
 	pinctrl-0 = <&spic_pins>;
 	status = "disabled";
-
-	proslic_spi: proslic_spi@0 {
-		compatible = "silabs,proslic_spi";
-		reg = <0>;
-		spi-max-frequency = <10000000>;
-		spi-cpha = <1>;
-		spi-cpol = <1>;
-		channel_count = <1>;
-		debug_level = <4>;       /* 1 = TRC, 2 = DBG, 4 = ERR */
-		reset_gpio = <&pio 54 0>;
-		ig,enable-spi = <1>;     /* 1: Enable, 0: Disable */
-	};
 };
 
 &pcie0 {
@@ -239,18 +198,6 @@
 };
 
 &pio {
-	mdio0_pins: mdio0-pins {
-		mux {
-			function = "mdio";
-			groups = "mdc_mdio0";
-		};
-
-		conf {
-			groups = "mdc_mdio0";
-			drive-strength = <MTK_DRIVE_8mA>;
-		};
-	};
-
 	gbe0_led0_pins: gbe0-pins {
 		mux {
 			function = "led";
@@ -290,6 +237,13 @@
 		mux {
 			function = "i2c";
 			groups = "i2c0_1";
+		};
+	};
+
+	i2c1_pins: i2c1-pins-g0 {
+		mux {
+			function = "i2c";
+			groups = "i2c1_0";
 		};
 	};
 
@@ -338,27 +292,6 @@
 			groups = "spi1";
 		};
 	};
-
-	i2c1_pins: i2c1-pins {
-		mux {
-			function = "i2c";
-			groups = "i2c1_0";
-		};
-	};
-
-	i2s_pins: i2s-pins {
-		mux {
-			function = "audio";
-			groups = "i2s";
-		};
-	};
-
-	pcm_pins: pcm-pins {
-		mux {
-			function = "audio";
-			groups = "pcm";
-		};
-	};
 };
 
 &watchdog {
@@ -366,8 +299,6 @@
 };
 
 &eth {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mdio0_pins>;
 	status = "okay";
 
 	gmac0: mac@0 {
@@ -394,15 +325,14 @@
 	gmac2: mac@2 {
 		compatible = "mediatek,eth-mac";
 		reg = <2>;
-		mac-type = "xgdm";
-		phy-mode = "usxgmii";
-		phy-handle = <&phy1>;
+		mac-type = "gdm";
+		phy-mode = "2500base-x";
+		phy-handle = <&phy5>;
 	};
 
 	mdio: mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clock-frequency = <10500000>;
 
 		phy0: ethernet-phy@0 {
 			pinctrl-names = "i2p5gbe-led";
@@ -412,12 +342,12 @@
 			phy-mode = "xgmii";
 		};
 
-		phy1: ethernet-phy@8 {
-			reg = <8>;
+		phy5: phy@5 {
 			compatible = "ethernet-phy-ieee802.3-c45";
+			reg = <5>;
 			reset-gpios = <&pio 3 1>;
-			reset-assert-us = <100000>;
-			reset-deassert-us = <221000>;
+			reset-assert-us = <600>;
+			reset-deassert-us = <20000>;
 		};
 
 		switch@0 {

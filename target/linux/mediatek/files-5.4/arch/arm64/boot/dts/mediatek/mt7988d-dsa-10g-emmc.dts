@@ -8,62 +8,19 @@
 #include "mt7988.dtsi"
 
 / {
-	model = "MediaTek MT7988C DSA 10G SNFI-NAND RFB";
-	compatible = "mediatek,mt7988c-dsa-10g-snfi-snand",
+	model = "MediaTek MT7988D DSA 10G eMMC RFB";
+	compatible = "mediatek,mt7988d-dsa-10g-emmc",
 		     /* Reserve this for DVFS if creating new dts */
 		     "mediatek,mt7988";
-
 	chosen {
 		bootargs = "console=ttyS0,115200n1 loglevel=8  \
 			    earlycon=uart8250,mmio32,0x11000000 \
-			    pci=pcie_bus_perf";
+			    root=PARTLABEL=rootfs rootwait \
+			    rootfstype=squashfs,f2fs pci=pcie_bus_perf";
 	};
 
 	memory {
 		reg = <0 0x40000000 0 0x10000000>;
-	};
-
-	nmbm_snfi {
-		compatible = "generic,nmbm";
-
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		lower-mtd-device = <&snand>;
-		forced-create;
-		empty-page-ecc-protected;
-
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			partition@0 {
-				label = "BL2";
-				reg = <0x00000 0x0100000>;
-				read-only;
-			};
-
-			partition@100000 {
-				label = "u-boot-env";
-				reg = <0x0100000 0x0080000>;
-			};
-
-			factory: partition@180000 {
-				label = "Factory";
-				reg = <0x180000 0x0400000>;
-			};
-
-			partition@580000 {
-				label = "FIP";
-				reg = <0x580000 0x0200000>;
-			};
-
-			partition@780000 {
-				label = "ubi";
-				reg = <0x780000 0x7080000>;
-			};
-		};
 	};
 
 	wsys_adie: wsys_adie@0 {
@@ -71,6 +28,24 @@
 		compatible = "mediatek,rebb-mt7988-adie";
 		adie_id = <7976>;
 		sku_type = <3000>;
+	};
+
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 };
 
@@ -198,31 +173,30 @@
 		};
 	};
 
-	snfi_pins: snfi-pins {
-		mux {
-			function = "flash";
-			groups = "snfi";
-		};
-	};
-
 	spic_pins: spi1-pins {
 		mux {
 			function = "spi";
 			groups = "spi1";
 		};
 	};
+
+	mmc0_pins_default: mmc0-pins-default {
+		mux {
+			function = "flash";
+			groups = "emmc_51";
+		};
+	};
+
+	mmc0_pins_uhs: mmc0-pins-uhs {
+		mux {
+			function = "flash";
+			groups = "emmc_51";
+		};
+	};
 };
 
 &watchdog {
 	status = "disabled";
-};
-
-&snand {
-	pinctrl-names = "default";
-	/* pin shared with spic */
-	pinctrl-0 = <&snfi_pins>;
-	status = "okay";
-	mediatek,quad-spi;
 };
 
 &eth {
@@ -379,5 +353,23 @@
 	mtketh-lan = "lan";
 	mtketh-lan2 = "eth2";
 	mtketh-max-gmac = <3>;
+	status = "okay";
+};
+
+&mmc0 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&mmc0_pins_default>;
+	pinctrl-1 = <&mmc0_pins_uhs>;
+	bus-width = <8>;
+	max-frequency = <200000000>;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	hs400-ds-delay = <0x12814>;
+	vqmmc-supply = <&reg_1p8v>;
+	vmmc-supply = <&reg_3p3v>;
+	non-removable;
+	no-sd;
+	no-sdio;
 	status = "okay";
 };

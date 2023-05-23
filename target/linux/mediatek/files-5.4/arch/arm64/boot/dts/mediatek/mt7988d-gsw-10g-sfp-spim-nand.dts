@@ -5,19 +5,17 @@
  */
 
 /dts-v1/;
-
 #include "mt7988.dtsi"
 
 / {
-	model = "MediaTek MT7988C GSW 10G SPIM-NAND RFB";
-	compatible = "mediatek,mt7988c-gsw-10g-spim-snand",
+	model = "MediaTek MT7988D GSW 10G SFP SPIM-NAND RFB";
+	compatible = "mediatek,mt7988d-gsw-10g-sfp-spim-snand",
 		     /* Reserve this for DVFS if creating new dts */
 		     "mediatek,mt7988";
 
 	chosen {
 		bootargs = "console=ttyS0,115200n1 loglevel=8  \
-			    earlycon=uart8250,mmio32,0x11000000 \
-			    pci=pcie_bus_perf";
+			    earlycon=uart8250,mmio32,0x11000000";
 	};
 
 	gsw: gsw@0 {
@@ -73,20 +71,19 @@
 		};
 	};
 
-	reg_3p3v: regulator-3p3v {
-		compatible = "regulator-fixed";
-		regulator-name = "fixed-3.3V";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
 	wsys_adie: wsys_adie@0 {
 	// fpga cases need to manual change adie_id / sku_type for dvt only
 		compatible = "mediatek,rebb-mt7988-adie";
 		adie_id = <7976>;
 		sku_type = <3000>;
+	};
+
+	sfp_esp0: sfp@0 {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c1>;
+		mod-def0-gpios = <&pio 0 1>;
+		los-gpios = <&pio 30 0>;
+		tx-disable-gpios = <&pio 29 0>;
 	};
 };
 
@@ -215,18 +212,6 @@
 };
 
 &pio {
-	mdio0_pins: mdio0-pins {
-		mux {
-			function = "mdio";
-			groups = "mdc_mdio0";
-		};
-
-		conf {
-			groups = "mdc_mdio0";
-			drive-strength = <MTK_DRIVE_8mA>;
-		};
-	};
-
 	gbe0_led0_pins: gbe0-pins {
 		mux {
 			function = "led";
@@ -272,21 +257,7 @@
 	i2c1_pins: i2c1-pins-g0 {
 		mux {
 			function = "i2c";
-			groups = "i2c1_0";
-		};
-	};
-
-	mmc0_pins_default: mmc0-pins-default {
-		mux {
-			function = "flash";
-			groups = "sdcard";
-		};
-	};
-
-	mmc0_pins_uhs: mmc0-pins-uhs {
-		mux {
-			function = "flash";
-			groups = "sdcard";
+			groups = "i2c1_sfp";
 		};
 	};
 
@@ -342,8 +313,6 @@
 };
 
 &eth {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mdio0_pins>;
 	status = "okay";
 
 	gmac0: mac@0 {
@@ -371,14 +340,14 @@
 		compatible = "mediatek,eth-mac";
 		reg = <2>;
 		mac-type = "xgdm";
-		phy-mode = "usxgmii";
-		phy-handle = <&phy1>;
+		phy-mode = "10gbase-kr";
+		managed = "in-band-status";
+		sfp = <&sfp_esp0>;
 	};
 
 	mdio: mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clock-frequency = <10500000>;
 
 		phy0: ethernet-phy@0 {
 			pinctrl-names = "i2p5gbe-led";
@@ -388,13 +357,6 @@
 			phy-mode = "xgmii";
 		};
 
-		phy1: ethernet-phy@8 {
-			reg = <8>;
-			compatible = "ethernet-phy-ieee802.3-c45";
-			reset-gpios = <&pio 3 1>;
-			reset-assert-us = <100000>;
-			reset-deassert-us = <221000>;
-		};
 	};
 };
 
@@ -465,18 +427,4 @@
 			nvmem-cell-names = "phy-cal-data";
 		};
 	};
-};
-
-&mmc0 {
-	pinctrl-names = "default", "state_uhs";
-	pinctrl-0 = <&mmc0_pins_default>;
-	pinctrl-1 = <&mmc0_pins_uhs>;
-	bus-width = <4>;
-	max-frequency = <52000000>;
-	cap-sd-highspeed;
-	vmmc-supply = <&reg_3p3v>;
-	vqmmc-supply = <&reg_3p3v>;
-	no-mmc;
-	no-sdio;
-	status = "okay";
 };

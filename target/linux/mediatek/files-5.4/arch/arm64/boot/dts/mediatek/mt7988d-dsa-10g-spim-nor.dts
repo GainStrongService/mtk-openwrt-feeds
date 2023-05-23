@@ -8,15 +8,15 @@
 #include "mt7988.dtsi"
 
 / {
-	model = "MediaTek MT7988C DSA 10G eMMC RFB";
-	compatible = "mediatek,mt7988c-dsa-10g-emmc",
+	model = "MediaTek MT7988D DSA 10G SPIM-NOR RFB";
+	compatible = "mediatek,mt7988d-dsa-10g-spim-nor",
 		     /* Reserve this for DVFS if creating new dts */
 		     "mediatek,mt7988";
+
 	chosen {
 		bootargs = "console=ttyS0,115200n1 loglevel=8  \
 			    earlycon=uart8250,mmio32,0x11000000 \
-			    root=PARTLABEL=rootfs rootwait \
-			    rootfstype=squashfs,f2fs pci=pcie_bus_perf";
+			    pci=pcie_bus_perf";
 	};
 
 	memory {
@@ -28,24 +28,6 @@
 		compatible = "mediatek,rebb-mt7988-adie";
 		adie_id = <7976>;
 		sku_type = <3000>;
-	};
-
-	reg_1p8v: regulator-1p8v {
-		compatible = "regulator-fixed";
-		regulator-name = "fixed-1.8V";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	reg_3p3v: regulator-3p3v {
-		compatible = "regulator-fixed";
-		regulator-name = "fixed-3.3V";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-boot-on;
-		regulator-always-on;
 	};
 };
 
@@ -67,6 +49,49 @@
 	/* pin shared with snfi */
 	pinctrl-0 = <&spic_pins>;
 	status = "disabled";
+};
+
+&spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi2_flash_pins>;
+	status = "okay";
+	spi_nor@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-cal-enable;
+		spi-cal-mode = "read-data";
+		spi-cal-datalen = <7>;
+		spi-cal-data = /bits/ 8 <
+			0x53 0x46 0x5F 0x42 0x4F 0x4F 0x54>; /* SF_BOOT */
+		spi-cal-addrlen = <1>;
+		spi-cal-addr = /bits/ 32 <0x0>;
+		reg = <0>;
+		spi-max-frequency = <52000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+
+		partition@00000 {
+			label = "BL2";
+			reg = <0x00000 0x0040000>;
+		};
+		partition@40000 {
+			label = "u-boot-env";
+			reg = <0x40000 0x0010000>;
+		};
+		factory: partition@50000 {
+			label = "Factory";
+			reg = <0x50000 0x0200000>;
+		};
+		partition@250000 {
+			label = "FIP";
+			reg = <0x250000 0x0080000>;
+		};
+		partition@2D0000 {
+			label = "firmware";
+			reg = <0x2D0000 0x1D30000>;
+		};
+	};
 };
 
 &pcie0 {
@@ -180,17 +205,10 @@
 		};
 	};
 
-	mmc0_pins_default: mmc0-pins-default {
+	spi2_flash_pins: spi2-pins {
 		mux {
-			function = "flash";
-			groups = "emmc_51";
-		};
-	};
-
-	mmc0_pins_uhs: mmc0-pins-uhs {
-		mux {
-			function = "flash";
-			groups = "emmc_51";
+			function = "spi";
+			groups = "spi2", "spi2_wp_hold";
 		};
 	};
 };
@@ -356,20 +374,9 @@
 	status = "okay";
 };
 
-&mmc0 {
-	pinctrl-names = "default", "state_uhs";
-	pinctrl-0 = <&mmc0_pins_default>;
-	pinctrl-1 = <&mmc0_pins_uhs>;
-	bus-width = <8>;
-	max-frequency = <200000000>;
-	cap-mmc-highspeed;
-	mmc-hs200-1_8v;
-	mmc-hs400-1_8v;
-	hs400-ds-delay = <0x12814>;
-	vqmmc-supply = <&reg_1p8v>;
-	vmmc-supply = <&reg_3p3v>;
-	non-removable;
-	no-sd;
-	no-sdio;
+&wed {
+	dy_txbm_enable = "true";
+	dy_txbm_budge = <8>;
+	txbm_init_sz = <10>;
 	status = "okay";
 };
