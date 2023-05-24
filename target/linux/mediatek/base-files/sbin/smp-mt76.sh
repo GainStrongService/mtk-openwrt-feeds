@@ -96,9 +96,12 @@ MT7988()
 	DEFAULT_RPS=0
 
 	#Physical IRQ# setting
-	eth0_irq=229
-	eth1_irq=230
-	eth2_irq=231
+	#Ethernet RSS feature enables 4 Rx rings
+	eth_irq_rx0=221
+	eth_irq_rx1=222
+	eth_irq_rx2=223
+	eth_irq_rx3=224
+	eth_irq_tx=229
 	wifi1_irq_pcie0=524288
 	wifi1_irq_pcie1=134742016
 	wifi2_irq_pcie0=
@@ -132,10 +135,10 @@ MT7988()
 	# CPU#_AFFINITY="add binding irq number here"
 	# CPU#_RPS="add binding interface name here"
 	if [ "$num_of_wifi" = "0" ]; then
-		CPU0_AFFINITY="$eth0_irq"
-		CPU1_AFFINITY="$eth1_irq"
-		CPU2_AFFINITY="$eth2_irq"
-		CPU3_AFFINITY=""
+		CPU0_AFFINITY="$eth_irq_rx0 $eth_irq_tx"
+		CPU1_AFFINITY="$eth_irq_rx1"
+		CPU2_AFFINITY="$eth_irq_rx2"
+		CPU3_AFFINITY="$eth_irq_rx3"
 
 		CPU0_RPS="$RPS_IF_LIST"
 		CPU1_RPS="$RPS_IF_LIST"
@@ -145,8 +148,8 @@ MT7988()
 		#we bound all wifi card to cpu0 and bound eth to cpu
 		CPU0_AFFINITY=""
 		CPU1_AFFINITY=""
-		CPU2_AFFINITY="$eth1_irq"
-		CPU3_AFFINITY="$eth0_irq $eth2_irq"
+		CPU2_AFFINITY="$eth_irq_rx0 $eth_irq_rx1 $eth_irq_tx"
+		CPU3_AFFINITY="$eth_irq_rx2 $eth_irq_rx3"
 
 		CPU0_RPS="$WIFI_IF_LIST"
 		CPU1_RPS="$WIFI_IF_LIST"
@@ -165,8 +168,8 @@ MT7986()
 	DEFAULT_RPS=0
 
 	#Physical IRQ# setting
-	eth0_irq=229
-	eth1_irq=230
+	eth_irq_rx=221
+	eth_irq_tx=229
 	wifi1_irq=
 	wifi2_irq=
 	wifi3_irq=
@@ -215,8 +218,8 @@ MT7986()
 	# CPU#_AFFINITY="add binding irq number here"
 	# CPU#_RPS="add binding interface name here"
 	if [ "$num_of_wifi" = "0" ]; then
-		CPU0_AFFINITY="$eth0_irq"
-		CPU1_AFFINITY="$eth1_irq"
+		CPU0_AFFINITY="$eth_irq_rx"
+		CPU1_AFFINITY="$eth_irq_tx"
 		CPU2_AFFINITY=""
 		CPU3_AFFINITY=""
 
@@ -226,8 +229,8 @@ MT7986()
 		CPU3_RPS="$RPS_IF_LIST"
 	else
 		#we bound all wifi card to cpu1 and bound eth to cpu0
-		CPU0_AFFINITY="$eth0_irq"
-		CPU1_AFFINITY="$eth1_irq"
+		CPU0_AFFINITY="$eth_irq_rx"
+		CPU1_AFFINITY="$eth_irq_tx"
 		CPU2_AFFINITY="$wifi2_irq $wifi3_irq"
 		CPU3_AFFINITY="$wifi1_irq"
 
@@ -248,8 +251,8 @@ MT7981()
 	DEFAULT_RPS=0
 
 	#Physical IRQ# setting
-	eth0_irq=229
-	eth1_irq=230
+	eth_irq_rx=221
+	eth_irq_tx=229
 	wifi1_irq=
 	wifi2_irq=
 	wifi3_irq=
@@ -261,15 +264,15 @@ MT7981()
 	# CPU#_AFFINITY="add binding irq number here"
 	# CPU#_RPS="add binding interface name here"
 	if [ "$num_of_wifi" = "0" ]; then
-		CPU0_AFFINITY="$eth0_irq"
-		CPU1_AFFINITY="$eth1_irq"
+		CPU0_AFFINITY="$eth_irq_rx"
+		CPU1_AFFINITY="$eth_irq_tx"
 
 		CPU0_RPS="$RPS_IF_LIST"
 		CPU1_RPS="$RPS_IF_LIST"
 	else
 		#we bound all wifi card to cpu0 and bound eth to cpu1
 		CPU0_AFFINITY="$wifi1_irq $wifi2_irq $wifi3_irq"
-		CPU1_AFFINITY="$eth0_irq $eth1_irq"
+		CPU1_AFFINITY="$eth_irq_rx $eth_irq_tx"
 
 		CPU0_RPS="$RPS_IF_LIST"
 		CPU1_RPS="$RPS_IF_LIST"
