@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index 225649d6..8a51567f 100644
+index 225649d..8a51567 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -31,7 +31,7 @@ index 225649d6..8a51567f 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9af..2ea3e7c9 100644
+index 5aaba9a..2ea3e7c 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
@@ -430,7 +430,7 @@ index 5aaba9af..2ea3e7c9 100644
  			ret="$?"
  			[ "$ret" != 0 -o -z "$hostapd_res" ] && {
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a63..bf518ff1 100644
+index e24a2a6..f685162 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -470,7 +470,7 @@ index e24a2a63..bf518ff1 100644
  $1 == "*" && $3 == "MHz" && $0 !~ /disabled/ && band && !channel {
          channel = $4
  }
-@@ -120,6 +136,15 @@ get_band_defaults() {
+@@ -120,6 +136,16 @@ get_band_defaults() {
  		mode_band="$band"
  		channel="$chan"
  		htmode="$mode"
@@ -481,12 +481,13 @@ index e24a2a63..bf518ff1 100644
 +			sae_pwe=2
 +			ieee80211w=2
 +		else
++			noscan=1
 +			encryption=none
 +		fi
  	done
  }
  
-@@ -153,6 +178,10 @@ detect_mac80211() {
+@@ -153,6 +179,10 @@ detect_mac80211() {
  
  	json_load_file /etc/board.json
  
@@ -497,18 +498,19 @@ index e24a2a63..bf518ff1 100644
  	for _dev in /sys/class/ieee80211/*; do
  		[ -e "$_dev" ] || continue
  
-@@ -162,6 +191,10 @@ detect_mac80211() {
+@@ -162,6 +192,11 @@ detect_mac80211() {
  		channel=""
  		htmode=""
  		ht_capab=""
 +		encryption=""
++		noscan=""
 +		key=""
 +		sae_pwe=""
 +		ieee80211w=""
  
  		get_band_defaults "$dev"
  
-@@ -196,6 +229,11 @@ detect_mac80211() {
+@@ -196,6 +231,11 @@ detect_mac80211() {
  				;;
  		esac
  
@@ -520,12 +522,13 @@ index e24a2a63..bf518ff1 100644
  		uci -q batch <<-EOF
  			set wireless.${name}=wifi-device
  			set wireless.${name}.type=mac80211
-@@ -203,15 +241,28 @@ detect_mac80211() {
+@@ -203,15 +243,29 @@ detect_mac80211() {
  			set wireless.${name}.channel=${channel}
  			set wireless.${name}.band=${mode_band}
  			set wireless.${name}.htmode=$htmode
 -			set wireless.${name}.disabled=1
 +			set wireless.${name}.country='US'
++			set wireless.${name}.noscan=${noscan}
 +			set wireless.${name}.disabled=0
  
  			set wireless.default_${name}=wifi-iface
@@ -553,7 +556,7 @@ index e24a2a63..bf518ff1 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 28bd2106..167cc0b2 100644
+index 28bd210..167cc0b 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -376,6 +376,13 @@ hostapd_common_add_bss_config() {
@@ -630,3 +633,4 @@ index 28bd2106..167cc0b2 100644
  	if [ "$key_mgmt" = "WPS" ]; then
  		echo "wps_cred_processing=1" >> "$_config"
  	else
+
