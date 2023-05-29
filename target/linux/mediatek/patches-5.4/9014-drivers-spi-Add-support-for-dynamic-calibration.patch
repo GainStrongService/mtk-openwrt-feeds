@@ -11,7 +11,7 @@ Signed-off-by: SkyLake.Huang <skylake.huang@mediatek.com>
 
 --- a/drivers/spi/spi.c
 +++ b/drivers/spi/spi.c
-@@ -1109,6 +1109,73 @@ static int spi_transfer_wait(struct spi_
+@@ -1109,6 +1109,74 @@ static int spi_transfer_wait(struct spi_
  	return 0;
  }
  
@@ -22,7 +22,7 @@ Signed-off-by: SkyLake.Huang <skylake.huang@mediatek.com>
 +	u8 *buf;
 +	int ret;
 +	int i;
-+	struct list_head *cal_head, *listptr;
++	struct list_head *pos, *tmp;
 +	struct spi_cal_target *target;
 +
 +	/* Calculate calibration result */
@@ -43,9 +43,8 @@ Signed-off-by: SkyLake.Huang <skylake.huang@mediatek.com>
 +	if (ret)
 +		goto cal_end;
 +
-+	cal_head = ctlr->cal_target;
-+	list_for_each(listptr, cal_head) {
-+		target = list_entry(listptr, struct spi_cal_target, list);
++	list_for_each_safe(pos, tmp, ctlr->cal_target) {
++		target = list_entry(pos, struct spi_cal_target, list);
 +
 +		hit = false;
 +		hit_val = 0;
@@ -73,8 +72,10 @@ Signed-off-by: SkyLake.Huang <skylake.huang@mediatek.com>
 +			dev_warn(&spi->dev, "calibration failed, fallback to default: 0x%x", origin);
 +			ret = -EIO;
 +		}
++
++		list_del(pos);
++		kfree(target);
 +	}
-+	list_del(&target->list);
 +
 +cal_end:
 +	kfree(buf);
@@ -85,7 +86,7 @@ Signed-off-by: SkyLake.Huang <skylake.huang@mediatek.com>
  static void _spi_transfer_delay_ns(u32 ns)
  {
  	if (!ns)
-@@ -1720,6 +1787,75 @@ void spi_flush_queue(struct spi_controll
+@@ -1720,6 +1788,75 @@ void spi_flush_queue(struct spi_controll
  /*-------------------------------------------------------------------------*/
  
  #if defined(CONFIG_OF)
@@ -161,7 +162,7 @@ Signed-off-by: SkyLake.Huang <skylake.huang@mediatek.com>
  static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
  			   struct device_node *nc)
  {
-@@ -1841,6 +1977,10 @@ of_register_spi_device(struct spi_contro
+@@ -1841,6 +1978,10 @@ of_register_spi_device(struct spi_contro
  	if (rc)
  		goto err_out;
  
