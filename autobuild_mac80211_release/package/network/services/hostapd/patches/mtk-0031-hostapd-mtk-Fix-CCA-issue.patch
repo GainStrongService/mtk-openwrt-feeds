@@ -1,12 +1,12 @@
-From 39a0dd44653f12ce13af68de81bfae683669623a Mon Sep 17 00:00:00 2001
-From: Evelyn Tsai <evelyn.tsai@mediatek.com>
-Date: Thu, 11 May 2023 14:08:59 +0800
-Subject: [PATCH 101/103] hostapd: mtk: Fix CCA issue
+From 7bd78e612a73df62599a3826eafd49fbc4138d10 Mon Sep 17 00:00:00 2001
+From: Michael Lee <michael-cy.lee@mediatek.com>
+Date: Wed, 3 May 2023 14:55:18 +0800
+Subject: [PATCH] hostapd: mtk: Fix CCA issue
 
-When receiving CCA related nl80211 command, hostapd used to work on
+When receiving CCA-related nl80211 commands, hostapd used to work on
 struct wpa_driver_nl80211_data, whose ctx always points to
-hostpad_iface->bss[0]. However, CCA command is sent on per-BSS based.
-This patch makes hostapd handle CCA related commands on per-BSS based.
+hostpad_iface->bss[0]. However, CCA commands are sent on a per-BSS based.
+This patch makes hostapd handle CCA-related commands on a per-BSS based.
 
 Signed-off-by: Michael Lee <michael-cy.lee@mediatek.com>
 ---
@@ -14,10 +14,10 @@ Signed-off-by: Michael Lee <michael-cy.lee@mediatek.com>
  1 file changed, 12 insertions(+), 12 deletions(-)
 
 diff --git a/src/drivers/driver_nl80211_event.c b/src/drivers/driver_nl80211_event.c
-index 67d9ce2..bcce9f5 100644
+index ee922ac..585d207 100644
 --- a/src/drivers/driver_nl80211_event.c
 +++ b/src/drivers/driver_nl80211_event.c
-@@ -3418,7 +3418,7 @@ static void nl80211_assoc_comeback(struct wpa_driver_nl80211_data *drv,
+@@ -2930,7 +2930,7 @@ static void nl80211_assoc_comeback(struct wpa_driver_nl80211_data *drv,
  
  #ifdef CONFIG_IEEE80211AX
  
@@ -26,10 +26,10 @@ index 67d9ce2..bcce9f5 100644
  					 struct nlattr *tb[])
  {
  	union wpa_event_data data;
-@@ -3432,37 +3432,37 @@ static void nl80211_obss_color_collision(struct wpa_driver_nl80211_data *drv,
+@@ -2944,37 +2944,37 @@ static void nl80211_obss_color_collision(struct wpa_driver_nl80211_data *drv,
  
- 	wpa_printf(MSG_DEBUG, "nl80211: BSS color collision - bitmap %08llx",
- 		   (long long unsigned int) data.bss_color_collision.bitmap);
+ 	wpa_printf(MSG_DEBUG, "nl80211: BSS color collision - bitmap %08lx",
+ 		   data.bss_color_collision.bitmap);
 -	wpa_supplicant_event(drv->ctx, EVENT_BSS_COLOR_COLLISION, &data);
 +	wpa_supplicant_event(bss->ctx, EVENT_BSS_COLOR_COLLISION, &data);
  }
@@ -71,7 +71,7 @@ index 67d9ce2..bcce9f5 100644
  }
  
  #endif /* CONFIG_IEEE80211AX */
-@@ -3724,16 +3724,16 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
+@@ -3230,16 +3230,16 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
  		break;
  #ifdef CONFIG_IEEE80211AX
  	case NL80211_CMD_OBSS_COLOR_COLLISION:
@@ -93,5 +93,5 @@ index 67d9ce2..bcce9f5 100644
  #endif /* CONFIG_IEEE80211AX */
  	default:
 -- 
-2.18.0
+2.25.1
 
