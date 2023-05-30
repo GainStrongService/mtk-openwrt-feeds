@@ -1,4 +1,4 @@
-From f5e235b80b57583caf590c3745022327493675a6 Mon Sep 17 00:00:00 2001
+From c4d3890bbf1bd8c8ac8bfaa56fd16e2391e05181 Mon Sep 17 00:00:00 2001
 From: Michael Lee <michael-cy.lee@mediatek.com>
 Date: Wed, 3 May 2023 16:10:57 +0800
 Subject: [PATCH] hostapd: mtk: Fix unexpected AP beacon state transition
@@ -18,18 +18,18 @@ Signed-off-by: Michael Lee <michael-cy.lee@mediatek.com>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 945ce3e..89c7d20 100644
+index 8400e57..5013207 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -4912,7 +4912,8 @@ static int wpa_driver_nl80211_set_ap(void *priv,
+@@ -5126,7 +5126,8 @@ static int wpa_driver_nl80211_set_ap(void *priv,
  			   ret, strerror(-ret));
- 		if (!bss->beacon_set)
+ 		if (!bss->flink->beacon_set)
  			ret = 0;
--		bss->beacon_set = 0;
+-		bss->flink->beacon_set = 0;
 +		if (ret != -EBUSY)
-+			bss->beacon_set = 0;
++			bss->flink->beacon_set = 0;
  	} else {
- 		bss->beacon_set = 1;
+ 		bss->flink->beacon_set = 1;
  		nl80211_set_bss(bss, params->cts_protect, params->preamble,
 -- 
 2.25.1
