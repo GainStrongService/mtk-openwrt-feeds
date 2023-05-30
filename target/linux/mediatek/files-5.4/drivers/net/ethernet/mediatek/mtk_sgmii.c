@@ -440,22 +440,18 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 		sgm_mode = SGMII_IF_MODE_SGMII |
 			   SGMII_REMOTE_FAULT_DIS |
 			   SGMII_SPEED_DUPLEX_AN;
-	} else if (phylink_autoneg_inband(mode)) {
-		/* 1000base-X or HSGMII with autoneg */
-		if (interface == PHY_INTERFACE_MODE_2500BASEX)
-			return -EINVAL;
-
+	} else if (interface == PHY_INTERFACE_MODE_2500BASEX) {
+		/* HSGMII without autoneg */
+		speed = SGMII_SPEED_1000;
+		sgm_mode = SGMII_IF_MODE_SGMII;
+	} else {
+		/* 1000base-X with/without autoneg */
 		bmcr = linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 					 advertising) ? SGMII_AN_ENABLE : 0;
 		if (bmcr)
 			sgm_mode = SGMII_SPEED_DUPLEX_AN;
 		else
 			speed = SGMII_SPEED_1000;
-	} else {
-		/* 1000base-X or HSGMII without autoneg */
-		speed = SGMII_SPEED_1000;
-		if (interface == PHY_INTERFACE_MODE_2500BASEX)
-			sgm_mode = SGMII_IF_MODE_SGMII;
 	}
 
 	if (mpcs->interface != interface ||

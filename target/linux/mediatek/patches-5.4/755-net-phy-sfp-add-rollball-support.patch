@@ -601,7 +601,18 @@
  /**
   * sfp_parse_port() - Parse the EEPROM base ID, setting the port type
   * @bus: a pointer to the &struct sfp_bus structure for the sfp module
-@@ -359,7 +272,7 @@ void sfp_parse_support(struct sfp_bus *b
+@@ -236,6 +149,10 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
+ 	unsigned int br_min, br_nom, br_max;
+ 	__ETHTOOL_DECLARE_LINK_MODE_MASK(modes) = { 0, };
+ 
++	phylink_set(modes, Autoneg);
++	phylink_set(modes, Pause);
++	phylink_set(modes, Asym_Pause);
++
+ 	/* Decode the bitrate information to MBd */
+ 	br_min = br_nom = br_max = 0;
+ 	if (id->base.br_nominal) {
+@@ -359,14 +276,10 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
  			phylink_set(modes, 1000baseX_Full);
  	}
  
@@ -610,6 +621,13 @@
  		bus->sfp_quirk->modes(id, modes);
  
  	bitmap_or(support, support, modes, __ETHTOOL_LINK_MODE_MASK_NBITS);
+-
+-	phylink_set(support, Autoneg);
+-	phylink_set(support, Pause);
+-	phylink_set(support, Asym_Pause);
+ }
+ EXPORT_SYMBOL_GPL(sfp_parse_support);
+ 
 @@ -737,12 +650,13 @@ void sfp_link_down(struct sfp_bus *bus)
  }
  EXPORT_SYMBOL_GPL(sfp_link_down);
@@ -626,9 +644,11 @@
  
  	if (ops && ops->module_insert)
  		ret = ops->module_insert(bus->upstream, id);
+diff --git a/drivers/net/phy/sfp.c b/drivers/net/phy/sfp.c
+index f8d1742..4d07752 100644
 --- a/drivers/net/phy/sfp.c
 +++ b/drivers/net/phy/sfp.c
-@@ -165,6 +165,7 @@ static const enum gpiod_flags gpio_flags
+@@ -165,6 +165,7 @@ static const enum gpiod_flags gpio_flags[] = {
   * on board (for a copper SFP) time to initialise.
   */
  #define T_WAIT			msecs_to_jiffies(50)
@@ -636,7 +656,7 @@
  #define T_START_UP		msecs_to_jiffies(300)
  #define T_START_UP_BAD_GPON	msecs_to_jiffies(60000)
  
-@@ -204,8 +205,11 @@ static const enum gpiod_flags gpio_flags
+@@ -204,8 +205,11 @@ static const enum gpiod_flags gpio_flags[] = {
  
  /* SFP modules appear to always have their PHY configured for bus address
   * 0x56 (which with mdio-i2c, translates to a PHY address of 22).
@@ -676,7 +696,26 @@
  
  #if IS_ENABLED(CONFIG_HWMON)
  	struct sfp_diag diag;
-@@ -303,6 +313,156 @@ static const struct of_device_id sfp_of_
+@@ -287,6 +297,18 @@ static bool sfp_module_supported(const struct sfp_eeprom_id *id)
+ 	    !memcmp(id->base.vendor_pn, "UF-INSTANT      ", 16))
+ 		return true;
+ 
++	/* SFP GPON module SK-LiNK SFP-GE-LX20 SM1310 and SM1550 Instant
++	 * has in its EEPROM stored phys id UNK instead of SFP. Therefore
++	 * mark this module explicitly as supported based on vendor name
++	 * and pn match.
++	 */
++	if (id->base.phys_id == SFF8024_ID_UNK &&
++	    id->base.phys_ext_id == SFP_PHYS_EXT_ID_SFP &&
++	    !memcmp(id->base.vendor_name, "SK-LINK         ", 16) &&
++	    (!memcmp(id->base.vendor_pn, "SFP-GE-LX20-SM13", 16) ||
++	     !memcmp(id->base.vendor_pn, "SFP-GE-LX-SM1550", 16)))
++		return true;
++
+ 	return false;
+ }
+ 
+@@ -303,6 +334,180 @@ static const struct of_device_id sfp_of_match[] = {
  };
  MODULE_DEVICE_TABLE(of, sfp_of_match);
  
@@ -732,6 +771,21 @@
 +	linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseSR_Full_BIT, modes);
 +}
 +
++static void sfp_quirk_disable_autoneg(const struct sfp_eeprom_id *id,
++				      unsigned long *modes)
++{
++	linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, modes);
++}
++
++static void sfp_quirk_oem_2_5g(const struct sfp_eeprom_id *id,
++			       unsigned long *modes)
++{
++	/* Copper 2.5G SFP */
++	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, modes);
++	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseX_Full_BIT, modes);
++	sfp_quirk_disable_autoneg(id, modes);
++}
++
 +static void sfp_quirk_ubnt_uf_instant(const struct sfp_eeprom_id *id,
 +				      unsigned long *modes)
 +{
@@ -773,9 +827,18 @@
 +	// 2500MBd NRZ in their EEPROM
 +	SFP_QUIRK_M("Lantech", "8330-262D-E", '\0', sfp_quirk_2500basex),
 +
++	// CISCO PLRXPL-VC-S43-CG can operate at 10000baseSR, but not report
++	// in their EEPROM
 +	SFP_QUIRK_M("CISCO-JDSU", "PLRXPL-VC-S43-CG", '\0', sfp_quirk_10000baseSR),
 +
 +	SFP_QUIRK_M("UBNT", "UF-INSTANT", '\0', sfp_quirk_ubnt_uf_instant),
++
++	// OEM SFP-2.5G-T can operate at 2500base-T, but not report
++	// in their EEPROM
++	SFP_QUIRK_M("OEM", "SFP-2.5G-T", '\0', sfp_quirk_oem_2_5g),
++	// TP-LINK TL-SM410U can operate at 2500base-T, but not report
++	// in their EEPROM
++	SFP_QUIRK_M("TP-LINK", "TL-SM410U", '\0', sfp_quirk_oem_2_5g),
 +
 +	SFP_QUIRK_F("ETU", "ESP-T5-R", '\0', sfp_fixup_rollball_cc),
 +	SFP_QUIRK_F("OEM", "SFP-10G-T", '\0', sfp_fixup_rollball_cc),
@@ -833,7 +896,7 @@
  static unsigned long poll_jiffies;
  
  static unsigned int sfp_gpio_get_state(struct sfp *sfp)
-@@ -414,9 +554,6 @@ static int sfp_i2c_write(struct sfp *sfp
+@@ -414,9 +619,6 @@ static int sfp_i2c_write(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
  
  static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
  {
@@ -843,7 +906,7 @@
  	if (!i2c_check_functionality(i2c, I2C_FUNC_I2C))
  		return -EINVAL;
  
-@@ -424,7 +561,15 @@ static int sfp_i2c_configure(struct sfp
+@@ -424,7 +626,15 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
  	sfp->read = sfp_i2c_read;
  	sfp->write = sfp_i2c_write;
  
@@ -860,7 +923,7 @@
  	if (IS_ERR(i2c_mii))
  		return PTR_ERR(i2c_mii);
  
-@@ -442,6 +587,12 @@ static int sfp_i2c_configure(struct sfp
+@@ -442,6 +652,12 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
  	return 0;
  }
  
@@ -873,7 +936,7 @@
  /* Interface */
  static int sfp_read(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
  {
-@@ -487,17 +638,18 @@ static void sfp_soft_set_state(struct sf
+@@ -487,17 +703,18 @@ static void sfp_soft_set_state(struct sfp *sfp, unsigned int state)
  static void sfp_soft_start_poll(struct sfp *sfp)
  {
  	const struct sfp_eeprom_id *id = &sfp->id;
@@ -901,7 +964,7 @@
  
  	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
  	    !sfp->need_poll)
-@@ -511,10 +663,11 @@ static void sfp_soft_stop_poll(struct sf
+@@ -511,10 +728,11 @@ static void sfp_soft_stop_poll(struct sfp *sfp)
  
  static unsigned int sfp_get_state(struct sfp *sfp)
  {
@@ -916,7 +979,7 @@
  		state |= sfp_soft_get_state(sfp);
  
  	return state;
-@@ -1448,12 +1601,12 @@ static void sfp_sm_phy_detach(struct sfp
+@@ -1448,12 +1666,12 @@ static void sfp_sm_phy_detach(struct sfp *sfp)
  	sfp->mod_phy = NULL;
  }
  
@@ -931,7 +994,7 @@
  	if (phy == ERR_PTR(-ENODEV))
  		return PTR_ERR(phy);
  	if (IS_ERR(phy)) {
-@@ -1548,6 +1701,14 @@ static void sfp_sm_fault(struct sfp *sfp
+@@ -1548,6 +1766,14 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
  	}
  }
  
@@ -946,7 +1009,7 @@
  /* Probe a SFP for a PHY device if the module supports copper - the PHY
   * normally sits at I2C bus address 0x56, and may either be a clause 22
   * or clause 45 PHY.
-@@ -1563,19 +1724,23 @@ static int sfp_sm_probe_for_phy(struct s
+@@ -1563,36 +1789,52 @@ static int sfp_sm_probe_for_phy(struct sfp *sfp)
  {
  	int err = 0;
  
@@ -979,7 +1042,6 @@
  	return err;
  }
  
-@@ -1755,17 +1783,29 @@ static int sfp_sm_probe_for_phy(struct sfp *sfp)
  static int sfp_module_parse_power(struct sfp *sfp)
  {
  	u32 power_mW = 1000;
@@ -1014,7 +1076,7 @@
  			/* The module appears not to implement bus address
  			 * 0xa2, so assume that the module powers up in the
  			 * indicated mode.
-@@ -1782,13 +1822,21 @@ static int sfp_module_parse_power(struct sfp *sfp)
+@@ -1609,13 +1851,21 @@ static int sfp_module_parse_power(struct sfp *sfp)
  		}
  	}
  
@@ -1038,7 +1100,34 @@
  			 power_mW / 1000, (power_mW / 100) % 10);
  		return 0;
  	}
-@@ -1819,11 +1984,33 @@ static int sfp_sm_mod_probe(struct sfp *
+@@ -1692,7 +1942,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
+ {
+ 	/* SFP module inserted - read I2C data */
+ 	struct sfp_eeprom_id id;
+-	bool cotsworks;
++	bool cotsworks, sklink;
+ 	u8 check;
+ 	int ret;
+ 
+@@ -1747,10 +1997,16 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
+ 	 */
+ 	cotsworks = !memcmp(id.base.vendor_name, "COTSWORKS       ", 16);
+ 
++	/* SK-LiNK do not seem to update the checksums when they
++	 * do the final programming with the final module part number,
++	 * serial number and date code.
++	 */
++	sklink = !memcmp(id.base.vendor_name, "SK-LINK         ", 16);
++
+ 	/* Validate the checksum over the base structure */
+ 	check = sfp_check(&id.base, sizeof(id.base) - 1);
+ 	if (check != id.base.cc_base) {
+-		if (cotsworks) {
++		if (cotsworks || sklink) {
+ 			dev_warn(sfp->dev,
+ 				 "EEPROM base structure checksum failure (0x%02x != 0x%02x)\n",
+ 				 check, id.base.cc_base);
+@@ -1819,11 +2075,33 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
  	if (ret < 0)
  		return ret;
  
@@ -1076,7 +1165,7 @@
  
  	return 0;
  }
-@@ -1936,7 +2123,8 @@ static void sfp_sm_module(struct sfp *sf
+@@ -1936,7 +2214,8 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
  			break;
  
  		/* Report the module insertion to the upstream device */
@@ -1086,7 +1175,7 @@
  		if (err < 0) {
  			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
  			break;
-@@ -1995,6 +2183,8 @@ static void sfp_sm_main(struct sfp *sfp,
+@@ -1995,6 +2274,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
  			sfp_module_stop(sfp->sfp_bus);
  		if (sfp->mod_phy)
  			sfp_sm_phy_detach(sfp);
@@ -1095,7 +1184,7 @@
  		sfp_module_tx_disable(sfp);
  		sfp_soft_stop_poll(sfp);
  		sfp_sm_next(sfp, SFP_S_DOWN, 0);
-@@ -2018,9 +2208,10 @@ static void sfp_sm_main(struct sfp *sfp,
+@@ -2018,9 +2299,10 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
  
  		/* We need to check the TX_FAULT state, which is not defined
  		 * while TX_DISABLE is asserted. The earliest we want to do
@@ -1108,7 +1197,7 @@
  		break;
  
  	case SFP_S_WAIT:
-@@ -2034,8 +2225,8 @@ static void sfp_sm_main(struct sfp *sfp,
+@@ -2034,8 +2316,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
  			 * deasserting.
  			 */
  			timeout = sfp->module_t_start_up;
@@ -1119,7 +1208,7 @@
  			else
  				timeout = 1;
  
-@@ -2057,6 +2248,12 @@ static void sfp_sm_main(struct sfp *sfp,
+@@ -2057,6 +2339,12 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
  				     sfp->sm_fault_retries == N_FAULT_INIT);
  		} else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR) {
  	init_done:
@@ -1132,7 +1221,7 @@
  			sfp->sm_phy_retries = R_PHY_RETRY;
  			goto phy_probe;
  		}
-@@ -2409,6 +2606,8 @@ static int sfp_probe(struct platform_dev
+@@ -2409,6 +2697,8 @@ static int sfp_probe(struct platform_device *pdev)
  				return PTR_ERR(sfp->gpio[i]);
  		}
  
@@ -1168,6 +1257,17 @@
  void sfp_module_remove(struct sfp_bus *bus);
  int sfp_module_start(struct sfp_bus *bus);
  void sfp_module_stop(struct sfp_bus *bus);
+ --- a/drivers/net/phy/marvell.c
++++ b/drivers/net/phy/marvell.c
+@@ -2175,7 +2175,7 @@ static struct phy_driver marvell_drivers[] = {
+ 		.phy_id = MARVELL_PHY_ID_88E1111,
+ 		.phy_id_mask = MARVELL_PHY_ID_MASK,
+ 		.name = "Marvell 88E1111",
+-		/* PHY_GBIT_FEATURES */
++		.features = PHY_GBIT_FEATURES,
+ 		.probe = marvell_probe,
+ 		.config_init = &m88e1111_config_init,
+ 		.config_aneg = &marvell_config_aneg,
 --- a/drivers/net/phy/marvell10g.c
 +++ b/drivers/net/phy/marvell10g.c
 @@ -32,6 +32,15 @@
