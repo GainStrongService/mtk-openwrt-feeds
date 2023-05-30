@@ -61,6 +61,7 @@
 #define PROCREG_RXRING			"rx_ring"
 #define PROCREG_DIR			"mtketh"
 #define PROCREG_DBG_REGS		"dbg_regs"
+#define PROCREG_RSS_CTRL		"rss_ctrl"
 #define PROCREG_HW_LRO_STATS		"hw_lro_stats"
 #define PROCREG_HW_LRO_AUTO_TLB		"hw_lro_auto_tlb"
 #define PROCREG_RESET_EVENT		"reset_event"

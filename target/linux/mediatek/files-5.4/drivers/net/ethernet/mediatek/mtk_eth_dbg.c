@@ -41,8 +41,10 @@ u32 hw_lro_timestamp_flush_cnt[MTK_HW_LRO_RING_NUM];
 u32 hw_lro_norule_flush_cnt[MTK_HW_LRO_RING_NUM];
 u32 mtk_hwlro_stats_ebl;
 u32 dbg_show_level;
+u32 cur_rss_num;
 
-static struct proc_dir_entry *proc_hw_lro_stats, *proc_hw_lro_auto_tlb;
+static struct proc_dir_entry *proc_hw_lro_stats, *proc_hw_lro_auto_tlb,
+			     *proc_rss_ctrl;
 typedef int (*mtk_lro_dbg_func) (int par);
 
 struct mtk_eth_debug {
@@ -1124,6 +1126,60 @@ static const struct file_operations dbg_regs_fops = {
 	.release = single_release
 };
 
+ssize_t rss_ctrl_write(struct file *file, const char __user *buffer,
+		       size_t count, loff_t *data)
+{
+	char buf[32];
+	char *p_buf;
+	char *p_token = NULL;
+	char *p_delimiter = " \t";
+	long num = 4;
+	u32 len = count;
+	int ret;
+
+	if (len >= sizeof(buf)) {
+		pr_info("Input handling fail!\n");
+		return -1;
+	}
+
+	if (copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	p_buf = buf;
+	p_token = strsep(&p_buf, p_delimiter);
+	if (!p_token)
+		num = 4;
+	else
+		ret = kstrtol(p_token, 10, &num);
+
+	if (!mtk_rss_set_indr_tbl(g_eth, num))
+		cur_rss_num = num;
+
+	return count;
+}
+
+int rss_ctrl_read(struct seq_file *seq, void *v)
+{
+	pr_info("ADMA is using %d-RSS.\n", cur_rss_num);
+	return 0;
+}
+
+static int rss_ctrl_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rss_ctrl_read, 0);
+}
+
+static const struct file_operations rss_ctrl_fops = {
+	.owner = THIS_MODULE,
+	.open = rss_ctrl_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = rss_ctrl_write,
+	.release = single_release
+};
+
 void hw_lro_stats_update(u32 ring_no, struct mtk_rx_dma_v2 *rxd)
 {
 	struct mtk_eth *eth = g_eth;
@@ -1837,6 +1893,17 @@ int debug_proc_init(struct mtk_eth *eth)
 	if (!proc_dbg_regs)
 		pr_notice("!! FAIL to create %s PROC !!\n", PROCREG_DBG_REGS);
 
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
+		proc_rss_ctrl =
+			proc_create(PROCREG_RSS_CTRL, 0, proc_reg_dir,
+				    &rss_ctrl_fops);
+		if (!proc_rss_ctrl)
+			pr_info("!! FAIL to create %s PROC !!\n",
+				PROCREG_RSS_CTRL);
+
+		cur_rss_num = g_eth->soc->rss_num;
+	}
+
 	if (g_eth->hwlro) {
 		proc_hw_lro_stats =
 			proc_create(PROCREG_HW_LRO_STATS, 0, proc_reg_dir,
@@ -1880,6 +1947,9 @@ void debug_proc_exit(void)
 
 	if (proc_dbg_regs)
 		remove_proc_entry(PROCREG_DBG_REGS, proc_reg_dir);
+
+	if (proc_rss_ctrl)
+		remove_proc_entry(PROCREG_RSS_CTRL, proc_reg_dir);
 
 	if (g_eth->hwlro) {
 		if (proc_hw_lro_stats)

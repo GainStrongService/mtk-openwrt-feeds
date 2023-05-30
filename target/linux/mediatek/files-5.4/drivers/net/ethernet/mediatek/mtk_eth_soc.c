@@ -3015,6 +3015,24 @@ static int mtk_hwlro_get_fdir_all(struct net_device *dev,
 	return 0;
 }
 
+int mtk_rss_set_indr_tbl(struct mtk_eth *eth, int num)
+{
+	u32 i, config;
+
+	if (num <= 0 || num > MTK_RX_NAPI_NUM)
+		return -EOPNOTSUPP;
+
+	for (i = 0, config = 0; i < 16; i++) {
+		config <<= 2;
+		config |= (i % num);
+	}
+
+	for (i = 0; i < 8; i++)
+		mtk_w32(eth, config, MTK_RSS_INDR_TABLE_DW(i));
+
+	return 0;
+}
+
 static int mtk_rss_init(struct mtk_eth *eth)
 {
 	u32 val;
@@ -3045,14 +3063,7 @@ static int mtk_rss_init(struct mtk_eth *eth)
 	mtk_w32(eth, val, MTK_PDMA_RSS_GLO_CFG);
 
 	/* Select the size of indirection table */
-	mtk_w32(eth, MTK_RSS_INDR_TABLE_SIZE4, MTK_RSS_INDR_TABLE_DW0);
-	mtk_w32(eth, MTK_RSS_INDR_TABLE_SIZE4, MTK_RSS_INDR_TABLE_DW1);
-	mtk_w32(eth, MTK_RSS_INDR_TABLE_SIZE4, MTK_RSS_INDR_TABLE_DW2);
-	mtk_w32(eth, MTK_RSS_INDR_TABLE_SIZE4, MTK_RSS_INDR_TABLE_DW3);
-	mtk_w32(eth, MTK_RSS_INDR_TABLE_SIZE4, MTK_RSS_INDR_TABLE_DW4);
-	mtk_w32(eth, MTK_RSS_INDR_TABLE_SIZE4, MTK_RSS_INDR_TABLE_DW5);
-	mtk_w32(eth, MTK_RSS_INDR_TABLE_SIZE4, MTK_RSS_INDR_TABLE_DW6);
-	mtk_w32(eth, MTK_RSS_INDR_TABLE_SIZE4, MTK_RSS_INDR_TABLE_DW7);
+	mtk_rss_set_indr_tbl(eth, eth->soc->rss_num);
 
 	/* Pause */
 	val |= MTK_RSS_CFG_REQ;
@@ -4911,6 +4922,7 @@ static const struct mtk_soc_data mt2701_data = {
 	.required_clks = MT7623_CLKS_BITMAP,
 	.required_pctl = true,
 	.has_sram = false,
+	.rss_num = 0,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma),
 		.rxd_size = sizeof(struct mtk_rx_dma),
@@ -4927,6 +4939,7 @@ static const struct mtk_soc_data mt7621_data = {
 	.required_clks = MT7621_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = false,
+	.rss_num = 0,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma),
 		.rx_dma_l4_valid = RX_DMA_L4_VALID,
@@ -4944,6 +4957,7 @@ static const struct mtk_soc_data mt7622_data = {
 	.required_clks = MT7622_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = false,
+	.rss_num = 0,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma),
 		.rxd_size = sizeof(struct mtk_rx_dma),
@@ -4960,6 +4974,7 @@ static const struct mtk_soc_data mt7623_data = {
 	.required_clks = MT7623_CLKS_BITMAP,
 	.required_pctl = true,
 	.has_sram = false,
+	.rss_num = 0,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma),
 		.rxd_size = sizeof(struct mtk_rx_dma),
@@ -4977,6 +4992,7 @@ static const struct mtk_soc_data mt7629_data = {
 	.required_clks = MT7629_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = false,
+	.rss_num = 0,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma),
 		.rxd_size = sizeof(struct mtk_rx_dma),
@@ -4994,6 +5010,7 @@ static const struct mtk_soc_data mt7986_data = {
 	.required_clks = MT7986_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = true,
+	.rss_num = 0,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma_v2),
 		.rxd_size = sizeof(struct mtk_rx_dma),
@@ -5011,6 +5028,7 @@ static const struct mtk_soc_data mt7981_data = {
 	.required_clks = MT7981_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = true,
+	.rss_num = 0,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma_v2),
 		.rxd_size = sizeof(struct mtk_rx_dma),
@@ -5028,6 +5046,7 @@ static const struct mtk_soc_data mt7988_data = {
 	.required_clks = MT7988_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = true,
+	.rss_num = 4,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma_v2),
 		.rxd_size = sizeof(struct mtk_rx_dma_v2),
@@ -5044,6 +5063,7 @@ static const struct mtk_soc_data rt5350_data = {
 	.required_clks = MT7628_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = false,
+	.rss_num = 0,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma),
 		.rxd_size = sizeof(struct mtk_rx_dma),

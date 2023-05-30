@@ -267,15 +267,8 @@
 #define MTK_RSS_CFG_REQ			BIT(2)
 #define MTK_RSS_IPV6_STATIC_HASH	(0x7 << 8)
 #define MTK_RSS_IPV4_STATIC_HASH	(0x7 << 12)
-#define MTK_RSS_INDR_TABLE_DW0		(MTK_PDMA_RSS_GLO_CFG + 0x50)
-#define MTK_RSS_INDR_TABLE_DW1		(MTK_PDMA_RSS_GLO_CFG + 0x54)
-#define MTK_RSS_INDR_TABLE_DW2		(MTK_PDMA_RSS_GLO_CFG + 0x58)
-#define MTK_RSS_INDR_TABLE_DW3		(MTK_PDMA_RSS_GLO_CFG + 0x5C)
-#define MTK_RSS_INDR_TABLE_DW4		(MTK_PDMA_RSS_GLO_CFG + 0x60)
-#define MTK_RSS_INDR_TABLE_DW5		(MTK_PDMA_RSS_GLO_CFG + 0x64)
-#define MTK_RSS_INDR_TABLE_DW6		(MTK_PDMA_RSS_GLO_CFG + 0x68)
-#define MTK_RSS_INDR_TABLE_DW7		(MTK_PDMA_RSS_GLO_CFG + 0x6C)
-#define MTK_RSS_INDR_TABLE_SIZE4	0x39393939
+#define MTK_RSS_INDR_TABLE_DW(x)	(MTK_PDMA_RSS_GLO_CFG + 0x50 +	\
+					 ((x) * 0x4))
 
 /* PDMA Global Configuration Register */
 #define MTK_PDMA_GLO_CFG	(PDMA_BASE + 0x204)
@@ -1614,6 +1607,7 @@ struct mtk_reg_map {
 struct mtk_soc_data {
 	const struct mtk_reg_map *reg_map;
 	u32		ana_rgc3;
+	u32		rss_num;
 	u64		caps;
 	u64		required_clks;
 	bool		required_pctl;
@@ -1870,4 +1864,5 @@ int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
 int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
 
 void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
+int mtk_rss_set_indr_tbl(struct mtk_eth *eth, int num);
 #endif /* MTK_ETH_H */
