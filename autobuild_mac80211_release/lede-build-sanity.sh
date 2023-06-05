@@ -147,7 +147,7 @@ prepare_flowoffload() {
 	rm -rf ./target/linux/generic/pending-5.4/64*.patch
 	rm -rf ./target/linux/generic/hack-5.4/647-netfilter-flow-acct.patch
 	rm -rf ./target/linux/generic/hack-5.4/650-netfilter-add-xt_OFFLOAD-target.patch
-	rm -rf ./target/linux/mediatek/patches-5.4/1002-mtkhnat-add-support-for-virtual-interface-acceleration.patch
+	rm -rf ./target/linux/mediatek/patches-5.4/999-2708-mtkhnat-add-support-for-virtual-interface-acceleration.patch
 
 	#hack mt7988 config5.4
 	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7988/config-5.4
