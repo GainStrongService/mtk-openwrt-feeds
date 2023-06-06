@@ -114,6 +114,9 @@ prepare_mtwifi() {
 
 	add_proprietary_kernel_files
 
+	#add common patch
+	cp -rfa ${BUILD_DIR}/autobuild/package ${BUILD_DIR}
+
 	#do mtk_wifi openwrt patch
 	do_patch ${BUILD_DIR}/autobuild/openwrt_patches${OPENWRT_VER}/mtk_wifi || exit 1
 }
@@ -130,18 +133,21 @@ prepare_flowoffload() {
 
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/bpf-headers ${BUILD_DIR}/package/kernel
 
-	rm -rf  ${BUILD_DIR}/package/network/utils/bpftools
-	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/bpftools ${BUILD_DIR}/package/network/utils
+	rm -rf  ${BUILD_DIR}/package/network/utils/bpftool*
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/bpftool ${BUILD_DIR}/package/network/utils
+
+	rm -rf  ${BUILD_DIR}/package/libs/libbpf
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/libs/libbpf ${BUILD_DIR}/package/libs
 
 	rm -rf  ${BUILD_DIR}/package/network/utils/iproute2
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iproute2 ${BUILD_DIR}/package/network/utils
 
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/bridger ${BUILD_DIR}/package/network/services
 
-	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0010-add-llvm_bpf-toolchain.patch
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0010-add-llvm_bpf-toolchain.patch || exit 1
 
-	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0004-2102-netfilter-remove-nf_flow_table_hw.patch
-	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0005-add-netfilter-netlink-ftnl-package.patch
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0004-2102-netfilter-remove-nf_flow_table_hw.patch || exit 1
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0005-add-netfilter-netlink-ftnl-package.patch || exit 1
 
 	#rm patches for flowblock
 	rm -rf ./target/linux/generic/pending-5.4/64*.patch
@@ -153,27 +159,33 @@ prepare_flowoffload() {
 	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7988/config-5.4
 	echo "CONFIG_NETFILTER_FAMILY_BRIDGE=y" >> ./target/linux/mediatek/mt7988/config-5.4
 	echo "CONFIG_SKB_EXTENSIONS=y" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_NETFILTER=y" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_NETFILTER_ADVANCED=y" >> ./target/linux/mediatek/mt7988/config-5.4
 
 	#hack mt7986 config5.4
 	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7986/config-5.4
 	echo "CONFIG_NETFILTER_FAMILY_BRIDGE=y" >> ./target/linux/mediatek/mt7986/config-5.4
 	echo "CONFIG_SKB_EXTENSIONS=y" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_NETFILTER=y" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_NETFILTER_ADVANCED=y" >> ./target/linux/mediatek/mt7986/config-5.4
 
 	#hack mt7622 config5.4
 	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7622/config-5.4
 	echo "CONFIG_NETFILTER_FAMILY_BRIDGE=y" >> ./target/linux/mediatek/mt7622/config-5.4
 	echo "CONFIG_SKB_EXTENSIONS=y" >> ./target/linux/mediatek/mt7622/config-5.4
+	echo "CONFIG_NETFILTER=y" >> ./target/linux/mediatek/mt7622/config-5.4
+	echo "CONFIG_NETFILTER_ADVANCED=y" >> ./target/linux/mediatek/mt7622/config-5.4
 }
 
 prepare_mac80211() {
 	rm -rf ${BUILD_DIR}/package/network/services/hostapd
 	if [ $2 = "1" ]; then
-		echo "========================Hostapd_v2.10_20230329===================="
+		echo "========================Hostapd NEW==================="
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/hostapd ${BUILD_DIR}/package/network/services
 		rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd
 		mv ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd_new ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd
 	else
-		echo "========================Hostapd_v2.10_20220729==================="
+		echo "========================Hostapd OLD==================="
 		tar xvf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd/hostapd_v2.10_07730ff3.tar.gz -C ${BUILD_DIR}/package/network/services/
 		rm -rf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd/hostapd_v2.10_07730ff3.tar.gz
 	fi
@@ -199,7 +211,7 @@ prepare_mac80211() {
 	else
 		echo "=========================MAC80211 v5.15=================="
 		tar xvf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211/mac80211_v5.15.81_077622a1.tar.gz -C ${BUILD_DIR}/package/kernel/
-		rm -rf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211/mac80211_v5.15.81_077622a1.tar.gz
+		rm -rf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211/mac80211_v5.15.81_077622a1.tar.gz 
 	fi
 
 	rm -rf ${BUILD_DIR}/package/firmware/wireless-regdb
@@ -211,8 +223,12 @@ prepare_mac80211() {
 	rm -rf ${BUILD_DIR}/package/kernel/mt76/src
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
 
-	#hack hostapd config
+	# hack hostapd config
 	echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
+	echo "CONFIG_SAE_PK=y" >> ./package/network/services/hostapd/files/hostapd-full.config
+	echo "CONFIG_TESTING_OPTIONS=y" >> ./package/network/services/hostapd/files/hostapd-full.config
+	echo "CONFIG_HS20=y" >> ./package/network/services/hostapd/files/hostapd-full.config
+	echo "CONFIG_P2P_MANAGER=y" >> ./package/network/services/hostapd/files/hostapd-full.config
 	echo "CONFIG_WPS_UPNP=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
 	echo "CONFIG_DPP=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
 	echo "CONFIG_DPP2=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
@@ -220,13 +236,38 @@ prepare_mac80211() {
 	echo "CONFIG_DPP=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
 	echo "CONFIG_DPP2=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
 	echo "CONFIG_DPP3=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
-	### add configuration for STA wireless mode setting
+	# add configuration for STA wireless mode setting
 	echo "CONFIG_HE_OVERRIDES=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
 	echo "CONFIG_EHT_OVERRIDES=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
 
-	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0001-master-mac80211-generate-hostapd-setting-from-ap-cap.patch
-	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-master-hostapd-makefile-for-utils.patch
-	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0003-master-mt76-makefile-for-new-chip.patch
+	# hack mt7988 config5.4
+	echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_BLK_MQ_VIRTIO=y" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_DEV_COREDUMP=y" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_REMOTEPROC=y" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_VIRTIO=y" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_WANT_DEV_COREDUMP=y" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_VIRTIO_CONSOLE=n" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_VIRTIO_NET=n" >> ./target/linux/mediatek/mt7988/config-5.4
+	echo "CONFIG_VIRTIO_BLK=n" >> ./target/linux/mediatek/mt7988/config-5.4
+
+	# hack mt7986 config5.4
+	echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_BLK_MQ_VIRTIO=y" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_DEV_COREDUMP=y" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_REMOTEPROC=y" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_VIRTIO=y" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_WANT_DEV_COREDUMP=y" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_VIRTIO_CONSOLE=n" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_VIRTIO_NET=n" >> ./target/linux/mediatek/mt7986/config-5.4
+	echo "CONFIG_VIRTIO_BLK=n" >> ./target/linux/mediatek/mt7986/config-5.4
+
+	# hack mt7622 config5.4
+	echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7622/config-5.4
+
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0001-master-mac80211-generate-hostapd-setting-from-ap-cap.patch || exit 1
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-master-hostapd-makefile-for-utils.patch || exit 1
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0003-master-mt76-makefile-for-new-chip.patch || exit 1
 	cp -rfa ${MTK_FEED_DIR}/autobuild_mac80211_release/package/ ${BUILD_DIR}
 	cp -rfa ${MTK_FEED_DIR}/autobuild_mac80211_release/target/ ${BUILD_DIR}
 }
@@ -304,7 +345,9 @@ install_output_at() {
 
 install_release() {
 	temp=${1#*mt}
-	chip_name=${temp:0:4}
+	if [ -z ${chip_name} ]; then
+		chip_name=${temp:0:4}
+	fi
 	temp1=`grep "CONFIG_TARGET_ramips=y" autobuild/$1/.config`
 
 	if [ "${temp1}" == "CONFIG_TARGET_ramips=y" ]; then

@@ -18,8 +18,8 @@ for arg in $*; do
 		kasan=1
 		;;
 	"dev")
-                backport_new=1
-                ;;
+		backport_new=1
+		;;
 	*)
 		args="$args $arg"
 		;;
@@ -29,7 +29,7 @@ set -- $args
 
 change_dot_config() {
 	[ "$swpath" = "1" ] && {
-                sed -i 's/CONFIG_BRIDGE_NETFILTER=y/# CONFIG_BRIDGE_NETFILTER is not set/g' ${BUILD_DIR}/target/linux/mediatek/mt7986/config-5.4
+		sed -i 's/CONFIG_BRIDGE_NETFILTER=y/# CONFIG_BRIDGE_NETFILTER is not set/g' ${BUILD_DIR}/target/linux/mediatek/mt7986/config-5.4
 		sed -i 's/CONFIG_NETFILTER_FAMILY_BRIDGE=y/# CONFIG_NETFILTER_FAMILY_BRIDGE is not set/g' ${BUILD_DIR}/target/linux/mediatek/mt7986/config-5.4
 		sed -i 's/CONFIG_SKB_EXTENSIONS=y/# CONFIG_SKB_EXTENSIONS is not set/g' ${BUILD_DIR}/target/linux/mediatek/mt7986/config-5.4
 		sed -i 's/CONFIG_BRIDGE_NETFILTER=y/# CONFIG_BRIDGE_NETFILTER is not set/g' ${BUILD_DIR}/target/linux/mediatek/mt7622/config-5.4
@@ -69,11 +69,6 @@ change_dot_config() {
 
 #do prepare stuff
 prepare
-
-#hack mt7986 config5.4
-echo "CONFIG_NETFILTER=y" >> ./target/linux/mediatek/mt7986/config-5.4
-echo "CONFIG_NETFILTER_ADVANCED=y" >> ./target/linux/mediatek/mt7986/config-5.4
-echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7986/config-5.4
 
 prepare_flowoffload
 
