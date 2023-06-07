@@ -222,8 +222,18 @@ static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 	phydev->duplex = (ret & MTK_PHY_FDX_ENABLE) ? DUPLEX_FULL : DUPLEX_HALF;
+	/* FIXME: The current firmware always enables rate adaptation mode. */
+	phydev->rate_matching = RATE_MATCH_PAUSE;
 
 	return 0;
+}
+
+static int mt798x_2p5ge_phy_get_rate_matching(struct phy_device *phydev,
+					      phy_interface_t iface)
+{
+	if (iface == PHY_INTERFACE_MODE_XGMII)
+		return RATE_MATCH_PAUSE;
+	return RATE_MATCH_NONE;
 }
 
 static struct phy_driver mtk_gephy_driver[] = {
@@ -234,6 +244,7 @@ static struct phy_driver mtk_gephy_driver[] = {
 		.config_aneg    = mt798x_2p5ge_phy_config_aneg,
 		.get_features	= mt798x_2p5ge_phy_get_features,
 		.read_status	= mt798x_2p5ge_phy_read_status,
+		.get_rate_matching	= mt798x_2p5ge_phy_get_rate_matching,
 		//.config_intr	= genphy_no_config_intr,
 		//.handle_interrupt = genphy_no_ack_interrupt,
 		//.suspend	= genphy_suspend,
