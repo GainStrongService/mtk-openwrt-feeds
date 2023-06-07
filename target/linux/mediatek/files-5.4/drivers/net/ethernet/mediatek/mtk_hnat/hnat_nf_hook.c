@@ -825,6 +825,9 @@ static unsigned int
 mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 			     const struct nf_hook_state *state)
 {
+	struct flow_offload_hw_path hw_path = { .dev = skb->dev,
+						.virt_dev = skb->dev };
+
 	if (!skb)
 		goto drop;
 
@@ -834,6 +837,19 @@ mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 	}
 
 	hnat_set_head_frags(state, skb, -1, hnat_set_iif);
+
+	/*
+	 * Avoid mistakenly binding of outer IP, ports in SW L2TP decap flow.
+	 * In pre-routing, if dev is virtual iface, TOPS module is not loaded,
+	 * and it's L2TP flow, then do not bind.
+	 */
+	if (skb_hnat_iface(skb) == FOE_MAGIC_GE_VIRTUAL
+	    && skb->dev->netdev_ops->ndo_flow_offload_check) {
+		skb->dev->netdev_ops->ndo_flow_offload_check(&hw_path);
+
+		if (hw_path.flags & FLOW_OFFLOAD_PATH_TNL)
+			skb_hnat_alg(skb) = 1;
+	}
 
 	pre_routing_print(skb, state->in, state->out, __func__);
 
