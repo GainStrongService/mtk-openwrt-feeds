@@ -1,32 +1,32 @@
-From 29deaa7cb606cf334238cb36d89891fa80bef0fc Mon Sep 17 00:00:00 2001
+From c311d022536c9c6be72f8e4a134f9dbaed13cd6d Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 21 Apr 2022 15:43:19 +0800
-Subject: [PATCH 1010/1033] wifi: mt76: testmode: additional supports
+Subject: [PATCH 1010/1014] wifi: mt76: testmode: additional supports
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  dma.c             |    3 +-
  mac80211.c        |   12 +
- mt76.h            |  108 ++++-
+ mt76.h            |  108 +++-
  mt76_connac_mcu.c |    4 +
  mt76_connac_mcu.h |    2 +
  mt7915/eeprom.c   |    2 +-
  mt7915/init.c     |    2 +-
  mt7915/mac.c      |   39 +-
  mt7915/main.c     |    2 +-
- mt7915/mcu.c      |   19 +-
+ mt7915/mcu.c      |   22 +-
  mt7915/mcu.h      |   29 +-
  mt7915/mmio.c     |    2 +
  mt7915/mt7915.h   |   16 +-
  mt7915/regs.h     |    3 +
- mt7915/testmode.c | 1184 ++++++++++++++++++++++++++++++++++++++++++---
+ mt7915/testmode.c | 1221 ++++++++++++++++++++++++++++++++++++++++++---
  mt7915/testmode.h |  278 +++++++++++
- testmode.c        |  280 +++++++++--
+ testmode.c        |  282 +++++++++--
  testmode.h        |   75 +++
  tools/fields.c    |   84 +++-
  tx.c              |    3 +-
- 20 files changed, 1991 insertions(+), 156 deletions(-)
+ 20 files changed, 2023 insertions(+), 166 deletions(-)
 
 diff --git a/dma.c b/dma.c
 index c9d2671..fc92e39 100644
@@ -398,7 +398,7 @@ index e7523c1..798eaa8 100644
  		mvif->mt76.wmm_idx += 2;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 5a68bb7..e4ab3e0 100644
+index 5a68bb7..5cea513 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -387,6 +387,11 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -421,7 +421,17 @@ index 5a68bb7..e4ab3e0 100644
  	    !rxd->seq)
  		mt7915_mcu_rx_unsolicited_event(dev, skb);
  	else
-@@ -2781,21 +2787,21 @@ static int mt7915_mcu_set_eeprom_flash(struct mt7915_dev *dev)
+@@ -2713,7 +2719,8 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
+ 	}
+ #endif
+ 
+-	if (mt76_connac_spe_idx(phy->mt76->antenna_mask))
++	if (mt76_connac_spe_idx(phy->mt76->antenna_mask) &&
++	    !mt76_testmode_enabled(phy->mt76))
+ 		req.tx_path_num = fls(phy->mt76->antenna_mask);
+ 
+ 	if (dev->mt76.hw->conf.flags & IEEE80211_CONF_MONITOR)
+@@ -2781,21 +2788,21 @@ static int mt7915_mcu_set_eeprom_flash(struct mt7915_dev *dev)
  	return 0;
  }
  
@@ -446,7 +456,7 @@ index 5a68bb7..e4ab3e0 100644
  {
  	struct mt7915_mcu_eeprom_info req = {
  		.addr = cpu_to_le32(round_down(offset,
-@@ -2804,7 +2810,7 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
+@@ -2804,7 +2811,7 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
  	struct mt7915_mcu_eeprom_info *res;
  	struct sk_buff *skb;
  	int ret;
@@ -455,7 +465,7 @@ index 5a68bb7..e4ab3e0 100644
  
  	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
  					MCU_EXT_QUERY(EFUSE_ACCESS),
-@@ -2813,8 +2819,11 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
+@@ -2813,8 +2820,11 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset)
  		return ret;
  
  	res = (struct mt7915_mcu_eeprom_info *)skb->data;
@@ -595,7 +605,7 @@ index 60364f0..83743cd 100644
  static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
  {
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index e7bc181..0339d4b 100644
+index e7bc181..b6f36f5 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -62,6 +62,7 @@ enum offs_rev {
@@ -611,12 +621,12 @@ index e7bc181..0339d4b 100644
  #define MT_WF_AGG(_band, ofs)		(MT_WF_AGG_BASE(_band) + (ofs))
  
 +#define MT_AGG_AALCR0(_band, _n)	MT_WF_AGG(_band, (__OFFS(AGG_AALCR0) +	\
-+			                                  (_n) * 4))
++							  (_n) * 4))
  #define MT_AGG_AWSCR0(_band, _n)	MT_WF_AGG(_band, (__OFFS(AGG_AWSCR0) +	\
  							  (_n) * 4))
  #define MT_AGG_PCR0(_band, _n)		MT_WF_AGG(_band, (__OFFS(AGG_PCR0) +	\
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 4693919..c44f13f 100644
+index 4693919..62ef4db 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -9,6 +9,9 @@
@@ -639,7 +649,7 @@ index 4693919..c44f13f 100644
  };
  
  struct reg_band {
-@@ -33,6 +39,38 @@ struct reg_band {
+@@ -33,6 +39,57 @@ struct reg_band {
  #define TM_REG_MAX_ID	20
  static struct reg_band reg_backup_list[TM_REG_MAX_ID];
  
@@ -664,6 +674,25 @@ index 4693919..c44f13f 100644
 +	return width_to_bw[width];
 +}
 +
++static int
++mt7915_tm_check_antenna(struct mt7915_phy *phy)
++{
++	struct mt76_testmode_data *td = &phy->mt76->test;
++	struct mt7915_dev *dev = phy->dev;
++	u8 band_idx = phy->mt76->band_idx;
++	u32 chainmask = phy->mt76->chainmask;
++
++	chainmask = chainmask >> (dev->chainshift * band_idx);
++	if (td->tx_antenna_mask & ~chainmask) {
++		dev_err(dev->mt76.dev,
++			"tx antenna mask %d exceeds hardware limitation (chainmask %d)\n",
++			td->tx_antenna_mask, chainmask);
++		return -EINVAL;
++	}
++
++	return 0;
++}
++
 +static void
 +mt7915_tm_update_channel(struct mt7915_phy *phy)
 +{
@@ -678,7 +707,7 @@ index 4693919..c44f13f 100644
  
  static int
  mt7915_tm_set_tx_power(struct mt7915_phy *phy)
-@@ -119,18 +157,28 @@ mt7915_tm_set_trx(struct mt7915_phy *phy, int type, bool en)
+@@ -119,18 +176,28 @@ mt7915_tm_set_trx(struct mt7915_phy *phy, int type, bool en)
  }
  
  static int
@@ -711,7 +740,7 @@ index 4693919..c44f13f 100644
  }
  
  static int
-@@ -141,7 +189,7 @@ mt7915_tm_set_phy_count(struct mt7915_phy *phy, u8 control)
+@@ -141,7 +208,7 @@ mt7915_tm_set_phy_count(struct mt7915_phy *phy, u8 control)
  		.testmode_en = 1,
  		.param_idx = MCU_ATE_SET_PHY_COUNT,
  		.param.cfg.enable = control,
@@ -720,7 +749,7 @@ index 4693919..c44f13f 100644
  	};
  
  	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(ATE_CTRL), &req,
-@@ -182,12 +230,738 @@ mt7915_tm_set_tam_arb(struct mt7915_phy *phy, bool enable, bool mu)
+@@ -182,12 +249,738 @@ mt7915_tm_set_tam_arb(struct mt7915_phy *phy, bool enable, bool mu)
  	return mt7915_mcu_set_muru_ctrl(dev, MURU_SET_ARB_OP_MODE, op_mode);
  }
  
@@ -1461,7 +1490,7 @@ index 4693919..c44f13f 100644
  	struct edca *e = &req.edca[0];
  
  	e->queue = qid + mvif->mt76.wmm_idx * MT76_CONNAC_MAX_WMM_SETS;
-@@ -263,7 +1037,8 @@ done:
+@@ -263,7 +1056,8 @@ done:
  
  	return mt7915_tm_set_wmm_qid(phy,
  				     mt76_connac_lmac_mapping(IEEE80211_AC_BE),
@@ -1471,7 +1500,7 @@ index 4693919..c44f13f 100644
  }
  
  static int
-@@ -339,7 +1114,7 @@ mt7915_tm_set_tx_len(struct mt7915_phy *phy, u32 tx_time)
+@@ -339,7 +1133,7 @@ mt7915_tm_set_tx_len(struct mt7915_phy *phy, u32 tx_time)
  	bitrate = cfg80211_calculate_bitrate(&rate);
  	tx_len = bitrate * tx_time / 10 / 8;
  
@@ -1480,7 +1509,7 @@ index 4693919..c44f13f 100644
  	if (ret)
  		return ret;
  
-@@ -458,64 +1233,227 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
+@@ -458,64 +1252,227 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
  
  	phy->mt76->test.flag |= MT_TM_FW_RX_COUNT;
  
@@ -1580,7 +1609,7 @@ index 4693919..c44f13f 100644
 +	comm->spe_idx = phy->test.spe_idx;
 +
 +	dl->bw = mt7915_tm_chan_bw(chandef->width);
-+	dl->gi = td->tx_rate_sgi;;
++	dl->gi = td->tx_rate_sgi;
 +	dl->ltf = td->tx_ltf;
 +	dl->tx_mode = MT_PHY_TYPE_HE_MU;
 +
@@ -1739,7 +1768,7 @@ index 4693919..c44f13f 100644
  
  	mt7915_tm_set_trx(phy, TM_MAC_TX, en);
  }
-@@ -544,10 +1482,6 @@ mt7915_tm_get_rx_stats(struct mt7915_phy *phy, bool clear)
+@@ -544,10 +1501,6 @@ mt7915_tm_get_rx_stats(struct mt7915_phy *phy, bool clear)
  		return ret;
  
  	rs_band = (struct mt7915_tm_rx_stat_band *)skb->data;
@@ -1750,7 +1779,7 @@ index 4693919..c44f13f 100644
  
  	if (!clear) {
  		enum mt76_rxq_id q = req.band ? MT_RXQ_BAND1 : MT_RXQ_MAIN;
-@@ -562,13 +1496,61 @@ mt7915_tm_get_rx_stats(struct mt7915_phy *phy, bool clear)
+@@ -562,13 +1515,61 @@ mt7915_tm_get_rx_stats(struct mt7915_phy *phy, bool clear)
  	return 0;
  }
  
@@ -1813,7 +1842,7 @@ index 4693919..c44f13f 100644
  
  		/* read-clear */
  		mt7915_tm_get_rx_stats(phy, true);
-@@ -576,9 +1558,12 @@ mt7915_tm_set_rx_frames(struct mt7915_phy *phy, bool en)
+@@ -576,9 +1577,12 @@ mt7915_tm_set_rx_frames(struct mt7915_phy *phy, bool en)
  		/* clear fw count */
  		mt7915_tm_set_phy_count(phy, 0);
  		mt7915_tm_set_phy_count(phy, 1);
@@ -1828,7 +1857,7 @@ index 4693919..c44f13f 100644
  }
  
  static int
-@@ -617,34 +1602,7 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
+@@ -617,34 +1621,7 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
  	tx_cont->tx_ant = td->tx_antenna_mask;
  	tx_cont->band = band;
  
@@ -1864,7 +1893,7 @@ index 4693919..c44f13f 100644
  
  	if (!en) {
  		req.op.rf.param.func_data = cpu_to_le32(band);
-@@ -728,6 +1686,12 @@ mt7915_tm_update_params(struct mt7915_phy *phy, u32 changed)
+@@ -728,6 +1705,12 @@ mt7915_tm_update_params(struct mt7915_phy *phy, u32 changed)
  		mt7915_tm_set_freq_offset(phy, en, en ? td->freq_offset : 0);
  	if (changed & BIT(TM_CHANGED_TXPOWER))
  		mt7915_tm_set_tx_power(phy);
@@ -1877,7 +1906,7 @@ index 4693919..c44f13f 100644
  }
  
  static int
-@@ -737,6 +1701,11 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
+@@ -737,6 +1720,11 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
  	struct mt7915_phy *phy = mphy->priv;
  	enum mt76_testmode_state prev_state = td->state;
  
@@ -1889,7 +1918,53 @@ index 4693919..c44f13f 100644
  	mphy->test.state = state;
  
  	if (prev_state == MT76_TM_STATE_TX_FRAMES ||
-@@ -807,6 +1776,7 @@ static int
+@@ -757,7 +1745,7 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
+ 	    (state == MT76_TM_STATE_OFF &&
+ 	     prev_state == MT76_TM_STATE_IDLE)) {
+ 		u32 changed = 0;
+-		int i;
++		int i, ret;
+ 
+ 		for (i = 0; i < ARRAY_SIZE(tm_change_map); i++) {
+ 			u16 cur = tm_change_map[i];
+@@ -766,6 +1754,10 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
+ 				changed |= BIT(i);
+ 		}
+ 
++		ret = mt7915_tm_check_antenna(phy);
++		if (ret)
++			return ret;
++
+ 		mt7915_tm_update_params(phy, changed);
+ 	}
+ 
+@@ -778,10 +1770,8 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
+ {
+ 	struct mt76_testmode_data *td = &mphy->test;
+ 	struct mt7915_phy *phy = mphy->priv;
+-	struct mt7915_dev *dev = phy->dev;
+-	u32 chainmask = mphy->chainmask, changed = 0;
+-	bool ext_phy = phy != &dev->phy;
+-	int i;
++	u32 changed = 0;
++	int i, ret;
+ 
+ 	BUILD_BUG_ON(NUM_TM_CHANGED >= 32);
+ 
+@@ -789,9 +1779,9 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
+ 	    td->state == MT76_TM_STATE_OFF)
+ 		return 0;
+ 
+-	chainmask = ext_phy ? chainmask >> dev->chainshift : chainmask;
+-	if (td->tx_antenna_mask > chainmask)
+-		return -EINVAL;
++	ret = mt7915_tm_check_antenna(phy);
++	if (ret)
++		return ret;
+ 
+ 	for (i = 0; i < ARRAY_SIZE(tm_change_map); i++) {
+ 		if (tb[tm_change_map[i]])
+@@ -807,6 +1797,7 @@ static int
  mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
  {
  	struct mt7915_phy *phy = mphy->priv;
@@ -1897,7 +1972,7 @@ index 4693919..c44f13f 100644
  	void *rx, *rssi;
  	int i;
  
-@@ -852,11 +1822,75 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
+@@ -852,11 +1843,75 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
  
  	nla_nest_end(msg, rx);
  
@@ -1974,7 +2049,7 @@ index 4693919..c44f13f 100644
 +	.set_eeprom = mt7915_tm_set_eeprom,
  };
 diff --git a/mt7915/testmode.h b/mt7915/testmode.h
-index a1c54c8..01b08e9 100644
+index a1c54c8..eb0e043 100644
 --- a/mt7915/testmode.h
 +++ b/mt7915/testmode.h
 @@ -4,6 +4,8 @@
@@ -2121,12 +2196,12 @@ index a1c54c8..01b08e9 100644
 +/* Common Config */
 +/* #define MURU_COMM_PPDU_FMT		BIT(0) */
 +/* #define MURU_COMM_SCH_TYPE		BIT(1) */
-+/* #define MURU_COMM_BAND			BIT(2) */
-+/* #define MURU_COMM_WMM			BIT(3) */
++/* #define MURU_COMM_BAND		BIT(2) */
++/* #define MURU_COMM_WMM		BIT(3) */
 +/* #define MURU_COMM_SPE_IDX		BIT(4) */
 +/* #define MURU_COMM_PROC_TYPE		BIT(5) */
 +/* #define MURU_COMM_SET		(MURU_COMM_PPDU_FMT | MURU_COMM_BAND | \ */
-+/* 				 MURU_COMM_WMM | MURU_COMM_SPE_IDX) */
++/*					 MURU_COMM_WMM | MURU_COMM_SPE_IDX) */
 +/* DL Config */
 +#define MURU_DL_BW			BIT(0)
 +#define MURU_DL_GI			BIT(1)
@@ -2289,7 +2364,7 @@ index a1c54c8..01b08e9 100644
 +
  #endif
 diff --git a/testmode.c b/testmode.c
-index 1d0d5d3..fd3b9b2 100644
+index 1d0d5d3..97f65fd 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -27,28 +27,16 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
@@ -2340,8 +2415,8 @@ index 1d0d5d3..fd3b9b2 100644
  		td->tx_queued++;
 +
 +		if (td->tx_rate_mode != MT76_TM_TX_MODE_HE_MU)
-+		    if (td->tx_queued - td->tx_done >= limit)
-+			    break;
++			if (td->tx_queued - td->tx_done >= limit)
++				break;
  	}
  
  	dev->queue_ops->kick(dev, q);
@@ -2368,7 +2443,7 @@ index 1d0d5d3..fd3b9b2 100644
 +		q = phy->q_tx[qid];
 +		spin_lock_bh(&q->lock);
 +		mt76_testmode_queue_tx(phy, &phy->dev->global_wcid,
-+				td->tx_skb, q, qid, tx_queued_limit);
++				       td->tx_skb, q, qid, tx_queued_limit);
 +		spin_unlock_bh(&q->lock);
 +
 +		return;
@@ -2387,7 +2462,7 @@ index 1d0d5d3..fd3b9b2 100644
 +
 +	mt76_testmode_queue_tx(phy, td->cur_entry, ed->tx_skb, q, qid, tx_queued_limit);
 +
-+	if (td->tx_pending % td->tx_count == 0 || is_mu)
++	if ((td->tx_count != UINT_MAX && td->tx_pending % td->tx_count == 0) || is_mu)
 +		td->cur_entry = list_next_entry(td->cur_entry, list);
  
  	spin_unlock_bh(&q->lock);
@@ -2686,7 +2761,7 @@ index 1d0d5d3..fd3b9b2 100644
 +
 +		if (!tb[MT76_TM_ATTR_TXBF_PARAM] ||
 +		    mt76_tm_get_u8(tb[MT76_TM_ATTR_TXBF_ACT], &td->txbf_act,
-+		    0, MT76_TM_TXBF_ACT_MAX))
++				   0, MT76_TM_TXBF_ACT_MAX))
 +			goto out;
 +
 +		memset(td->txbf_param, 0, sizeof(td->txbf_param));
@@ -2743,10 +2818,14 @@ index 1d0d5d3..fd3b9b2 100644
  	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_STBC, td->tx_rate_stbc) ||
  	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_LTF) &&
  	     nla_put_u8(msg, MT76_TM_ATTR_TX_LTF, td->tx_ltf)) ||
-@@ -643,6 +824,15 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
- 	     nla_put_u8(msg, MT76_TM_ATTR_FREQ_OFFSET, td->freq_offset)))
- 		goto out;
- 
+@@ -640,7 +821,16 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
+ 	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_POWER_CONTROL) &&
+ 	     nla_put_u8(msg, MT76_TM_ATTR_TX_POWER_CONTROL, td->tx_power_control)) ||
+ 	    (mt76_testmode_param_present(td, MT76_TM_ATTR_FREQ_OFFSET) &&
+-	     nla_put_u8(msg, MT76_TM_ATTR_FREQ_OFFSET, td->freq_offset)))
++	     nla_put_u32(msg, MT76_TM_ATTR_FREQ_OFFSET, td->freq_offset)))
++		goto out;
++
 +	if (nla_put_u32(msg, MT76_TM_ATTR_TX_LENGTH, ed->tx_mpdu_len) ||
 +	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_NSS, ed->tx_rate_nss) ||
 +	    nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_IDX, ed->tx_rate_idx) ||
@@ -2754,13 +2833,11 @@ index 1d0d5d3..fd3b9b2 100644
 +	    nla_put_u8(msg, MT76_TM_ATTR_AID, ed->aid) ||
 +	    nla_put_u8(msg, MT76_TM_ATTR_RU_ALLOC, ed->ru_alloc) ||
 +	    nla_put_u8(msg, MT76_TM_ATTR_RU_IDX, ed->ru_idx))
-+		goto out;
-+
+ 		goto out;
+ 
  	if (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_POWER)) {
- 		a = nla_nest_start(msg, MT76_TM_ATTR_TX_POWER);
- 		if (!a)
 diff --git a/testmode.h b/testmode.h
-index 8961326..57949f2 100644
+index 8961326..8c55fa0 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -6,6 +6,8 @@
@@ -2778,10 +2855,10 @@ index 8961326..57949f2 100644
   * @MT76_TM_ATTR_MAC_ADDRS: array of nested MAC addresses (nested)
 + *
 + * @MT76_TM_ATTR_EEPROM_ACTION: eeprom setting actions
-+ * 	(u8, see &enum mt76_testmode_eeprom_action)
++ *	(u8, see &enum mt76_testmode_eeprom_action)
 + * @MT76_TM_ATTR_EEPROM_OFFSET: offset of eeprom data block for writing (u32)
 + * @MT76_TM_ATTR_EEPROM_VAL: values for writing into a 16-byte data block
-+ * 	(nested, u8 attrs)
++ *	(nested, u8 attrs)
 + *
 + * @MT76_TM_ATTR_CFG: config testmode rf feature (nested, see &mt76_testmode_cfg)
 + *
@@ -2814,7 +2891,7 @@ index 8961326..57949f2 100644
 + * enum mt76_testmode_eeprom_action - eeprom setting actions
 + *
 + * @MT76_TM_EEPROM_ACTION_UPDATE_DATA: update rf values to specific
-+ * 	eeprom data block
++ *	eeprom data block
 + * @MT76_TM_EEPROM_ACTION_UPDATE_BUFFER_MODE: send updated eeprom data to fw
 + * @MT76_TM_EEPROM_ACTION_WRITE_TO_EFUSE: write eeprom data back to efuse
 + */
@@ -2832,7 +2909,7 @@ index 8961326..57949f2 100644
 + * enum mt76_testmode_cfg - packet tx phy mode
 + *
 + * @MT76_TM_EEPROM_ACTION_UPDATE_DATA: update rf values to specific
-+ * 	eeprom data block
++ *	eeprom data block
 + * @MT76_TM_EEPROM_ACTION_UPDATE_BUFFER_MODE: send updated eeprom data to fw
 + * @MT76_TM_EEPROM_ACTION_WRITE_TO_EFUSE: write eeprom data back to efuse
 + */

@@ -1,4 +1,4 @@
-From 4340e9c467389c104e62d7cd060a5494d83f24bf Mon Sep 17 00:00:00 2001
+From 44b3c5fed9a9c63e7da34004d265669f241a2886 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 15 Dec 2022 19:45:18 +0800
 Subject: [PATCH] wifi: mt76: testmode: add iBF/eBF cal and cert commands with
@@ -836,7 +836,7 @@ index 143dae26..906c8725 100644
 +}
 +#endif
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 0d90251e..a0d5324b 100644
+index a7e8598..5d91b80 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -61,6 +61,7 @@ enum offs_rev {
@@ -858,7 +858,7 @@ index 0d90251e..a0d5324b 100644
  #define MT_WF_RMAC_BASE(_band)		((_band) ? 0x820f5000 : 0x820e5000)
  #define MT_WF_RMAC(_band, ofs)		(MT_WF_RMAC_BASE(_band) + (ofs))
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 09b0e98e..b99bed54 100644
+index b98aaaa..5665da7 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -53,6 +53,8 @@ struct reg_band {
@@ -1491,7 +1491,7 @@ index 09b0e98e..b99bed54 100644
  
 -	pr_info("ibf cal process: act = %u, val = %u, %u, %u, %u, %u, %u\n",
 -		td->txbf_act, val[0], val[1], val[2], val[3], val[4], val[5]);
-+	dev_info(phy->dev->mt76.dev, "ibf cal process: act = %u, val = %u, %u, %u, %u, %u, %u\n",
++	dev_info(phy->dev->mt76.dev, "ibf cal process: act = %u, val = %u, %u, %u, %u, %u, %u, %u\n",
 +		 td->txbf_act, val[0], val[1], val[2], val[3], val[4], val[5], val[6]);
  
  	switch (td->txbf_act) {
@@ -1701,7 +1701,7 @@ index 09b0e98e..b99bed54 100644
  	rateval =  mode << 6 | rate_idx;
  	tx_cont->rateval = cpu_to_le16(rateval);
 diff --git a/mt7915/testmode.h b/mt7915/testmode.h
-index d500987d..19823694 100644
+index 7569826..5aba13c 100644
 --- a/mt7915/testmode.h
 +++ b/mt7915/testmode.h
 @@ -311,137 +311,7 @@ struct mt7915_tm_muru {
@@ -1845,7 +1845,7 @@ index d500987d..19823694 100644
  
  #endif
 diff --git a/testmode.c b/testmode.c
-index 503d714b..91638083 100644
+index 293ad98..f16c6ea 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -194,6 +194,7 @@ mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len,
@@ -1857,7 +1857,7 @@ index 503d714b..91638083 100644
  	memcpy(hdr->addr2, addr[1], ETH_ALEN);
  	memcpy(hdr->addr3, addr[2], ETH_ALEN);
 diff --git a/testmode.h b/testmode.h
-index e03fa6df..0e96173b 100644
+index 97e7596..e13920e 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -299,7 +299,10 @@ enum mt76_testmode_cfg {
