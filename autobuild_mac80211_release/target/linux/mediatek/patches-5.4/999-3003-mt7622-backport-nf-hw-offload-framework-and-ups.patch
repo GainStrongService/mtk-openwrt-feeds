@@ -1266,7 +1266,7 @@ new file mode 100644
 index 000000000..4294f0c74
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -0,0 +1,541 @@
+@@ -0,0 +1,535 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + *  Copyright (C) 2020 Felix Fietkau <nbd@nbd.name>
@@ -1735,13 +1735,10 @@ index 000000000..4294f0c74
 +{
 +	struct mtk_mac *mac = netdev_priv(dev);
 +	struct mtk_eth *eth = mac->hw;
-+	struct nf_flowtable *flowtable;
 +	static LIST_HEAD(block_cb_list);
 +	struct flow_block_cb *block_cb;
 +	flow_setup_cb_t *cb;
 +	int err = 0;
-+
-+	flowtable = container_of(f->block, struct nf_flowtable, flow_block);
 +
 +	if (!eth->ppe.foe_table)
 +		return -EOPNOTSUPP;
@@ -1751,8 +1748,6 @@ index 000000000..4294f0c74
 +
 +	cb = mtk_eth_setup_tc_block_cb;
 +	f->driver_block_list = &block_cb_list;
-+
-+	down_write(&flowtable->flow_block_lock);
 +
 +	switch (f->command) {
 +	case FLOW_BLOCK_BIND:
@@ -1788,7 +1783,6 @@ index 000000000..4294f0c74
 +	}
 +
 +unlock:
-+	up_write(&flowtable->flow_block_lock);
 +	return err;
 +}
 +
@@ -4922,7 +4916,7 @@ new file mode 100644
 index 000000000..d94c6fb92
 --- /dev/null
 +++ b/net/netfilter/nf_flow_table_offload.c
-@@ -0,0 +1,1197 @@
+@@ -0,0 +1,1199 @@
 +#include <linux/kernel.h>
 +#include <linux/init.h>
 +#include <linux/module.h>
@@ -5766,7 +5760,7 @@ index 000000000..d94c6fb92
 +	if (cmd == FLOW_CLS_REPLACE)
 +		cls_flow.rule = flow_rule->rule;
 +
-+	down_write(&flowtable->flow_block_lock);
++	down_read(&flowtable->flow_block_lock);
 +	list_for_each_entry(block_cb, block_cb_list, list) {
 +		err = block_cb->cb(TC_SETUP_CLSFLOWER, &cls_flow,
 +				   block_cb->cb_priv);
@@ -5775,7 +5769,7 @@ index 000000000..d94c6fb92
 +
 +		i++;
 +	}
-+	up_write(&flowtable->flow_block_lock);
++	up_read(&flowtable->flow_block_lock);
 +
 +	if (cmd == FLOW_CLS_STATS)
 +		memcpy(stats, &cls_flow.stats, sizeof(*stats));
@@ -5994,7 +5988,7 @@ index 000000000..d94c6fb92
 +	struct flow_block_cb *block_cb, *next;
 +	int err = 0;
 +
-+	down_read(&flowtable->flow_block_lock);
++	down_write(&flowtable->flow_block_lock);
 +
 +	switch (cmd) {
 +	case FLOW_BLOCK_BIND:
@@ -6011,7 +6005,7 @@ index 000000000..d94c6fb92
 +		err = -EOPNOTSUPP;
 +	}
 +
-+	up_read(&flowtable->flow_block_lock);
++	up_write(&flowtable->flow_block_lock);
 +
 +	return err;
 +}
@@ -6057,7 +6051,9 @@ index 000000000..d94c6fb92
 +
 +	nf_flow_table_block_offload_init(bo, dev_net(dev), cmd, flowtable,
 +					 extack);
++	down_write(&flowtable->flow_block_lock);
 +	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_FT, bo);
++	up_write(&flowtable->flow_block_lock);
 +	if (err < 0)
 +		return err;
 +

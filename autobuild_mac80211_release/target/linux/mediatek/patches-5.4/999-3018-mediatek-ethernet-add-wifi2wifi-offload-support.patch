@@ -56,7 +56,7 @@ index 2787a97..23d2048
  
  	if (!tc_can_offload(dev))
  		return -EOPNOTSUPP;
-@@ -577,17 +587,22 @@ mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_pri
+@@ -577,14 +587,19 @@ mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_pri
  	return err;
  }
  
@@ -69,7 +69,6 @@ index 2787a97..23d2048
 -	struct mtk_mac *mac = netdev_priv(dev);
 -	struct mtk_eth *eth = mac->hw;
 +	struct mtk_mac *mac;
- 	struct nf_flowtable *flowtable;
  	static LIST_HEAD(block_cb_list);
  	struct flow_block_cb *block_cb;
  	flow_setup_cb_t *cb;
@@ -80,8 +79,6 @@ index 2787a97..23d2048
 +		eth = mac->hw;
 +	}
 +
- 	flowtable = container_of(f->block, struct nf_flowtable, flow_block);
- 
  	for (i = 0; i < eth->ppe_num; i++) {
 @@ -610,7 +625,7 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
  			flow_block_cb_incref(block_cb);
