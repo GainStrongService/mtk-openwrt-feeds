@@ -1163,7 +1163,7 @@ if [ "${cmd_type}" = "set" ]; then
         ## In wifi 7 chipset, testmode & vendor command both use mwctl
         ## Therefore this wrapper would translate it to either mt76-test or mt76-vendor based on the attribute of the command
         ## Translate to mt76-vendor command
-        "csi"|"amnt"|"ap_rfeatures"|"ap_wireless"|"mu")
+        "csi"|"amnt"|"ap_rfeatures"|"ap_wireless"|"mu"|"set_muru_manual_config")
             if [ ${is_eagle} == "1" ]; then
                 hostapd_cmd="$(echo $* | sed 's/set/raw/')"
                 do_cmd "hostapd_cli -i $hostapd_cmd"
