@@ -980,10 +980,20 @@ static unsigned int hnat_ipv6_get_nexthop(struct sk_buff *skb,
 	struct neighbour *neigh = NULL;
 	struct dst_entry *dst = skb_dst(skb);
 	struct ethhdr *eth;
+	u16 eth_pppoe_hlen = ETH_HLEN + PPPOE_SES_HLEN;
 
 	if (hw_path->flags & FLOW_OFFLOAD_PATH_PPPOE) {
-		memcpy(eth_hdr(skb)->h_source, hw_path->eth_src, ETH_ALEN);
-		memcpy(eth_hdr(skb)->h_dest, hw_path->eth_dest, ETH_ALEN);
+		if (ipv6_hdr(skb)->nexthdr == NEXTHDR_IPIP) {
+			eth = (struct ethhdr *)(skb->data - eth_pppoe_hlen);
+			eth->h_proto = skb->protocol;
+			ether_addr_copy(eth->h_dest, hw_path->eth_dest);
+			ether_addr_copy(eth->h_source,  hw_path->eth_src);
+		} else {
+			eth = eth_hdr(skb);
+			memcpy(eth->h_source, hw_path->eth_src, ETH_ALEN);
+			memcpy(eth->h_dest, hw_path->eth_dest, ETH_ALEN);
+		}
+
 		return 0;
 	}
 
@@ -1166,6 +1176,20 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 	return entry;
 }
 
+static struct ethhdr *get_ipv6_ipip_ethhdr(struct sk_buff *skb,
+					   struct flow_offload_hw_path *hw_path)
+{
+	struct ethhdr *eth;
+	u16 eth_pppoe_hlen = ETH_HLEN + PPPOE_SES_HLEN;
+
+	if (hw_path->flags & FLOW_OFFLOAD_PATH_PPPOE)
+		eth = (struct ethhdr *)(skb->data - eth_pppoe_hlen);
+	else
+		eth = (struct ethhdr *)(skb->data - ETH_HLEN);
+
+	return eth;
+}
+
 static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				     const struct net_device *dev,
 				     struct foe_entry *foe,
@@ -1190,7 +1214,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 	if (ipv6_hdr(skb)->nexthdr == NEXTHDR_IPIP)
 		/* point to ethernet header for DS-Lite and MapE */
-		eth = (struct ethhdr *)(skb->data - ETH_HLEN);
+		eth = get_ipv6_ipip_ethhdr(skb, hw_path);
 	else
 		eth = eth_hdr(skb);
 
