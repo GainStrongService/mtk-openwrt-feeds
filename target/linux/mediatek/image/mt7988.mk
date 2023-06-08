@@ -39,7 +39,8 @@ define Device/mediatek_mt7988a-gsw-10g-spim-nand-sb
   AUTO_AR_CONF := $(TOPDIR)/../../auto_ar_conf.mk
   HASHED_BOOT_DEVICE := 253:0
   BASIC_KERNEL_CMDLINE := console=ttyS0,115200n1 rootfstype=squashfs loglevel=8
-  KERNEL = kernel-bin | lzma | squashfs-hashed | fw-ar-ver | \
+  KERNEL = append-opteenode $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb | \
+	   kernel-bin | lzma | squashfs-hashed | fw-ar-ver | \
 	fit-sign lzma $$(KDIR)/image-sb-$$(firstword $$(DEVICE_DTS)).dtb
   KERNEL_INITRAMFS =
 endef
@@ -63,7 +64,8 @@ define Device/mediatek_mt7988a-dsa-10g-emmc-sb
   ANTI_ROLLBACK_TABLE := $(TOPDIR)/../../fw_ar_table.xml
   AUTO_AR_CONF := $(TOPDIR)/../../auto_ar_conf.mk
   BASIC_KERNEL_CMDLINE := console=ttyS0,115200n1 rootfstype=squashfs,f2fs loglevel=8
-  KERNEL = kernel-bin | lzma | squashfs-hashed | fw-ar-ver | \
+  KERNEL = append-opteenode $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb | \
+	   kernel-bin | lzma | squashfs-hashed | fw-ar-ver | \
 	fit-sign lzma $$(KDIR)/image-sb-$$(firstword $$(DEVICE_DTS)).dtb
   KERNEL_INITRAMFS =
 endef
