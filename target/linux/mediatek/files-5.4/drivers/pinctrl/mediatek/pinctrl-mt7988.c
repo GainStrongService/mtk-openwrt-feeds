@@ -817,7 +817,7 @@ static int mt7988_i2c1_2_funcs[] = { 2, 2 };
 static int mt7988_i2c2_0_pins[] = { 69, 70 };
 static int mt7988_i2c2_0_funcs[] = { 4, 4 };
 
-static int mt7988_i2c2_1_pins[] = { 70, 71 };
+static int mt7988_i2c2_1_pins[] = { 71, 72 };
 static int mt7988_i2c2_1_funcs[] = { 1, 1 };
 
 /* eth */
