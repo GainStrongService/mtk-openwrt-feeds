@@ -1,7 +1,7 @@
-From 84d1dfb1adee1da3435b445e557396cc5318787d Mon Sep 17 00:00:00 2001
+From d0ce39f2142df00fbddff219bfe6fc6105d344cb Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 2 Sep 2022 01:03:23 +0800
-Subject: [PATCH 07/28] hostapd: mtk: Add three wire PTA ctrl hostapd vendor
+Subject: [PATCH 04/30] hostapd: mtk: Add three wire PTA ctrl hostapd vendor
  command
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -20,10 +20,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  11 files changed, 93 insertions(+)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 12741f8..860beee 100644
+index 0b36123..f34b81b 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4840,6 +4840,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -4842,6 +4842,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  			return 1;
  		}
  		conf->edcca_compensation = (s8) val;
@@ -47,7 +47,7 @@ index 1cad303..2c447ba 100644
  	return conf;
  }
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 2077c67..e784629 100644
+index 49dd8ab..1b6c049 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
 @@ -1185,6 +1185,19 @@ struct hostapd_config {
@@ -115,7 +115,7 @@ index 21aba48..2bf9fb2 100644
  	wpa_printf(MSG_DEBUG, "%s: Setup of interface done.",
  		   iface->bss[0]->conf->iface);
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index ef8618e..ed47487 100644
+index 60bc4cd..99ecbaf 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -13,6 +13,7 @@ enum mtk_nl80211_vendor_subcmds {
@@ -126,8 +126,8 @@ index ef8618e..ed47487 100644
  };
  
  enum mtk_vendor_attr_edcca_ctrl {
-@@ -55,6 +56,21 @@ static struct nla_policy edcca_ctrl_policy[NUM_MTK_VENDOR_ATTRS_EDCCA_CTRL] = {
- 	[MTK_VENDOR_ATTR_EDCCA_CTRL_COMPENSATE] = { .type = NLA_U8 },
+@@ -58,6 +59,21 @@ static struct nla_policy edcca_ctrl_policy[NUM_MTK_VENDOR_ATTRS_EDCCA_CTRL] = {
+ 	[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC160_VAL] = { .type = NLA_U8 },
  };
  
 +enum mtk_vendor_attr_3wire_ctrl {
@@ -168,10 +168,10 @@ index 1a3f070..2ced065 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index fc8422c..34bc9ac 100644
+index 5335754..1842b2d 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -13635,6 +13635,38 @@ static int nl80211_get_edcca(void *priv, const u8 mode, u8 *value)
+@@ -13644,6 +13644,38 @@ static int nl80211_get_edcca(void *priv, const u8 mode, u8 *value)
  	return ret;
  }
  
@@ -210,7 +210,7 @@ index fc8422c..34bc9ac 100644
  
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
-@@ -13794,4 +13826,5 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -13803,4 +13835,5 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.configure_edcca_enable = nl80211_configure_edcca_enable,
  	.configure_edcca_threshold = nl80211_configure_edcca_threshold,
  	.get_edcca = nl80211_get_edcca,

@@ -1,22 +1,22 @@
-From 934c90729e00901fe6785727dc9004315725b587 Mon Sep 17 00:00:00 2001
+From bc29227028570c319e8458833f4fd6a9ee007fe9 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 17 Mar 2023 16:17:14 +0800
-Subject: [PATCH 23/28] hostapd: mtk: Add vendor for CAPI certification
+Subject: [PATCH 01/11] hostapd: mtk: Add vendor for CAPI certification
  commands
 
 ---
  hostapd/ctrl_iface.c              | 95 +++++++++++++++++++++++++++++++
  src/ap/ap_drv_ops.c               | 21 +++++++
  src/ap/ap_drv_ops.h               |  3 +
- src/common/mtk_vendor.h           | 32 +----------
+ src/common/mtk_vendor.h           | 33 +----------
  src/drivers/driver.h              | 22 +++++++
- src/drivers/driver_nl80211.c      | 54 ++++++++++++++++++
+ src/drivers/driver_nl80211.c      | 55 ++++++++++++++++++
  src/drivers/driver_nl80211.h      |  1 +
  src/drivers/driver_nl80211_capa.c |  3 +
- 8 files changed, 201 insertions(+), 30 deletions(-)
+ 8 files changed, 202 insertions(+), 31 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index da6e727..79457d7 100644
+index 4c6e9c3..620729e 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -70,6 +70,7 @@
@@ -179,10 +179,10 @@ index 47356ab..bb9fdf7 100644
  #include "drivers/driver.h"
  
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index a99e6f2..32438af 100644
+index e27fe69..0b23c76 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
-@@ -48,16 +48,6 @@ enum mtk_vendor_attr_edcca_dump {
+@@ -50,17 +50,6 @@ enum mtk_vendor_attr_edcca_dump {
  		NUM_MTK_VENDOR_ATTRS_EDCCA_DUMP - 1
  };
  
@@ -194,12 +194,13 @@ index a99e6f2..32438af 100644
 -	[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC40_VAL] = { .type = NLA_U8 },
 -	[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC80_VAL] = { .type = NLA_U8 },
 -	[MTK_VENDOR_ATTR_EDCCA_CTRL_COMPENSATE] = { .type = NLA_U8 },
+-	[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC160_VAL] = { .type = NLA_U8 },
 -};
 -
  enum mtk_vendor_attr_3wire_ctrl {
  	MTK_VENDOR_ATTR_3WIRE_CTRL_UNSPEC,
  
-@@ -69,10 +59,6 @@ enum mtk_vendor_attr_3wire_ctrl {
+@@ -72,10 +61,6 @@ enum mtk_vendor_attr_3wire_ctrl {
  		NUM_MTK_VENDOR_ATTRS_3WIRE_CTRL - 1
  };
  
@@ -210,7 +211,7 @@ index a99e6f2..32438af 100644
  enum mtk_vendor_attr_csi_ctrl {
  	MTK_VENDOR_ATTR_CSI_CTRL_UNSPEC,
  
-@@ -169,7 +155,7 @@ enum mtk_vendor_attr_wireless_ctrl {
+@@ -172,7 +157,7 @@ enum mtk_vendor_attr_wireless_ctrl {
  	MTK_VENDOR_ATTR_WIRELESS_CTRL_BA_BUFFER_SIZE,
  	MTK_VENDOR_ATTR_WIRELESS_CTRL_MIMO,
  	MTK_VENDOR_ATTR_WIRELESS_CTRL_AMSDU,
@@ -219,7 +220,7 @@ index a99e6f2..32438af 100644
  	MTK_VENDOR_ATTR_WIRELESS_CTRL_RTS_SIGTA,
  
  	/* keep last */
-@@ -189,11 +175,6 @@ enum mtk_vendor_attr_wireless_dump {
+@@ -192,11 +177,6 @@ enum mtk_vendor_attr_wireless_dump {
  		NUM_MTK_VENDOR_ATTRS_WIRELESS_DUMP - 1
  };
  
@@ -231,7 +232,7 @@ index a99e6f2..32438af 100644
  enum mtk_vendor_attr_rfeature_ctrl {
  	MTK_VENDOR_ATTR_RFEATURE_CTRL_UNSPEC,
  
-@@ -203,6 +184,7 @@ enum mtk_vendor_attr_rfeature_ctrl {
+@@ -206,6 +186,7 @@ enum mtk_vendor_attr_rfeature_ctrl {
  	MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TYPE_EN,
  	MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TYPE,
  	MTK_VENDOR_ATTR_RFEATURE_CTRL_ACK_PLCY,
@@ -239,7 +240,7 @@ index a99e6f2..32438af 100644
  
  	/* keep last */
  	NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL,
-@@ -244,16 +226,6 @@ enum mtk_vendor_attr_ibf_dump {
+@@ -247,16 +228,6 @@ enum mtk_vendor_attr_ibf_dump {
  		NUM_MTK_VENDOR_ATTRS_IBF_DUMP - 1
  };
  
@@ -290,10 +291,10 @@ index f9f9fb5..ae692c2 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 18a5647..730a696 100644
+index 7081fd1..493abc4 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -76,6 +76,57 @@ enum nlmsgerr_attrs {
+@@ -76,6 +76,58 @@ enum nlmsgerr_attrs {
  #endif /* ANDROID */
  
  
@@ -318,6 +319,7 @@ index 18a5647..730a696 100644
 +	[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC40_VAL] = { .type = NLA_U8 },
 +	[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC80_VAL] = { .type = NLA_U8 },
 +	[MTK_VENDOR_ATTR_EDCCA_CTRL_COMPENSATE] = { .type = NLA_U8 },
++	[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC160_VAL] = { .type = NLA_U8 },
 +};
 +
 +static const struct nla_policy
@@ -351,7 +353,7 @@ index 18a5647..730a696 100644
  static struct nl_sock * nl_create_handle(struct nl_cb *cb, const char *dbg)
  {
  	struct nl_sock *handle;
-@@ -14246,4 +14297,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14255,4 +14307,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.amsdu_ctrl = nl80211_enable_amsdu,
  	.amsdu_dump = nl80211_dump_amsdu,
  	.get_aval_color_bmp = nl80211_get_aval_color_bmp,
