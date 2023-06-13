@@ -1,0 +1,27 @@
+From 75b684d04d569b5e83780d2296bed12d3785836c Mon Sep 17 00:00:00 2001
+From: mtk23510 <rudra.shahi@mediatek.com>
+Date: Fri, 24 Mar 2023 19:18:53 +0800
+Subject: [PATCH 1004/1015] wifi: mt76: mt7996: add driver support for wpa3 ocv
+ and bp mt76
+
+Signed-off-by: mtk23510 <rudra.shahi@mediatek.com>
+---
+ mt7996/init.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 1d4359f0..40d610ae 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -373,6 +373,8 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_ACK_SIGNAL_SUPPORT);
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
+ 
++	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION);
++	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_PROTECTION);
+ 	if (!mdev->dev->of_node ||
+ 	    !of_property_read_bool(mdev->dev->of_node,
+ 				   "mediatek,disable-radar-background"))
+-- 
+2.39.2
+

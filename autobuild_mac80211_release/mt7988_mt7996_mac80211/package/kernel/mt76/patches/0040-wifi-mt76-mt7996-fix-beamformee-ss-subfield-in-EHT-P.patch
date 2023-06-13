@@ -1,0 +1,43 @@
+From da1c93b8c6480cfcd605cd8c19111a6df8c9f8b4 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Fri, 2 Jun 2023 15:12:34 +0800
+Subject: [PATCH] wifi: mt76: mt7996: fix beamformee ss subfield in EHT PHY
+ caps IE
+
+According to P802.11be_D2.1 Table 9-401I, the minimum value of Beamformee SS shall
+be 3. Fix it to ensure that the value of Beamformee SS subfield is at least 3.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/init.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 9eba689a..96c4bb01 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -936,16 +936,17 @@ mt7996_init_eht_caps(struct mt7996_phy *phy, enum nl80211_band band,
+ 		IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMER |
+ 		IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMEE;
+ 
++	val = max_t(u8, sts - 1, 3);
+ 	eht_cap_elem->phy_cap_info[0] |=
+-		u8_encode_bits(u8_get_bits(sts - 1, BIT(0)),
++		u8_encode_bits(u8_get_bits(val, BIT(0)),
+ 			       IEEE80211_EHT_PHY_CAP0_BEAMFORMEE_SS_80MHZ_MASK);
+ 
+ 	eht_cap_elem->phy_cap_info[1] =
+-		u8_encode_bits(u8_get_bits(sts - 1, GENMASK(2, 1)),
++		u8_encode_bits(u8_get_bits(val, GENMASK(2, 1)),
+ 			       IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_80MHZ_MASK) |
+-		u8_encode_bits(sts - 1,
++		u8_encode_bits(val,
+ 			       IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_160MHZ_MASK) |
+-		u8_encode_bits(sts - 1,
++		u8_encode_bits(val,
+ 			       IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_320MHZ_MASK);
+ 
+ 	eht_cap_elem->phy_cap_info[2] =
+-- 
+2.18.0
+
