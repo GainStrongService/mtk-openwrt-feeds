@@ -1,7 +1,7 @@
-From 21b39d41faf3a67127778d85a79029002ed65291 Mon Sep 17 00:00:00 2001
+From 5a82834ed7eb4cbf0f4f5abc8665eeef023b67ff Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Sun, 25 Dec 2022 22:43:46 +0800
-Subject: [PATCH 100/102] mac80211: mtk: add EHT BA1024 support
+Subject: [PATCH 1000/1003] mac80211: mtk: add EHT BA1024 support
 
 ---
  include/linux/ieee80211.h |  2 ++
@@ -9,10 +9,10 @@ Subject: [PATCH 100/102] mac80211: mtk: add EHT BA1024 support
  2 files changed, 45 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/ieee80211.h b/include/linux/ieee80211.h
-index 6f70394..27321f2 100644
+index 00d381e..0781b76 100644
 --- a/include/linux/ieee80211.h
 +++ b/include/linux/ieee80211.h
-@@ -1270,6 +1270,8 @@ struct ieee80211_mgmt {
+@@ -1256,6 +1256,8 @@ struct ieee80211_mgmt {
  					__le16 status;
  					__le16 capab;
  					__le16 timeout;
@@ -22,7 +22,7 @@ index 6f70394..27321f2 100644
  				struct{
  					u8 action_code;
 diff --git a/net/mac80211/agg-tx.c b/net/mac80211/agg-tx.c
-index 56cd1fc..8daf292 100644
+index 752ad09..7f0e72a 100644
 --- a/net/mac80211/agg-tx.c
 +++ b/net/mac80211/agg-tx.c
 @@ -66,10 +66,17 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
@@ -73,7 +73,7 @@ index 56cd1fc..8daf292 100644
  	} else {
  		/*
  		 * We really should use what the driver told us it will
-@@ -978,13 +997,35 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
+@@ -980,13 +999,35 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
  {
  	struct tid_ampdu_tx *tid_tx;
  	struct ieee80211_txq *txq;
@@ -110,5 +110,5 @@ index 56cd1fc..8daf292 100644
  
  	txq = sta->sta.txq[tid];
 -- 
-2.18.0
+2.39.2
 

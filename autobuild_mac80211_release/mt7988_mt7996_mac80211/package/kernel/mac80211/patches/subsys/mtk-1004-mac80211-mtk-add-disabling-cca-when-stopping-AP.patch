@@ -1,0 +1,24 @@
+From 79837bcb22a80a4c95cbba77b23f16352d4e791d Mon Sep 17 00:00:00 2001
+From: Michael Lee <michael-cy.lee@mediatek.com>
+Date: Mon, 24 Apr 2023 09:59:24 +0800
+Subject: [PATCH] mac80211: mtk: add disabling cca when stopping AP.
+
+---
+ net/mac80211/cfg.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index 343ce2b..611c29e 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -1540,6 +1540,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
+ 	/* abort any running channel switch */
+ 	mutex_lock(&local->mtx);
+ 	link_conf->csa_active = false;
++	link_conf->color_change_active = false;
+ 	if (link->csa_block_tx) {
+ 		ieee80211_wake_vif_queues(local, sdata,
+ 					  IEEE80211_QUEUE_STOP_REASON_CSA);
+-- 
+2.25.1
+
