@@ -1,7 +1,7 @@
-From c6b43d63c3d4229b5f15cb7391192494b07e0fa7 Mon Sep 17 00:00:00 2001
+From 36d42fbf4ade428d85b92b0a717887c6321fb7ca Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
-Date: Mon, 27 Jun 2022 14:53:54 +0800
-Subject: [PATCH 7/8] 9996-add-wed-tx-support-for-mt7986
+Date: Tue, 13 Jun 2023 17:02:03 +0800
+Subject: [PATCH] 999-3007-add-wed-tx-support-for-mt7986
 
 ---
  arch/arm64/boot/dts/mediatek/mt7986a.dtsi     |   2 +
@@ -11,12 +11,12 @@ Subject: [PATCH 7/8] 9996-add-wed-tx-support-for-mt7986
  drivers/net/ethernet/mediatek/mtk_wed.c       | 502 +++++++++++++-----
  drivers/net/ethernet/mediatek/mtk_wed.h       |  18 +-
  .../net/ethernet/mediatek/mtk_wed_debugfs.c   |   3 +
- drivers/net/ethernet/mediatek/mtk_wed_regs.h  | 127 ++++-
- include/linux/soc/mediatek/mtk_wed.h          |  29 +-
- 9 files changed, 546 insertions(+), 150 deletions(-)
+ drivers/net/ethernet/mediatek/mtk_wed_regs.h  | 130 ++++-
+ include/linux/soc/mediatek/mtk_wed.h          |  23 +
+ 9 files changed, 545 insertions(+), 148 deletions(-)
 
 diff --git a/arch/arm64/boot/dts/mediatek/mt7986a.dtsi b/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
-index 381136c21..644255b35 100644
+index 36de771..6fe3583 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
 @@ -64,6 +64,7 @@
@@ -36,7 +36,7 @@ index 381136c21..644255b35 100644
  
  	ap2woccif: ap2woccif@151A5000 {
 diff --git a/arch/arm64/boot/dts/mediatek/mt7986b.dtsi b/arch/arm64/boot/dts/mediatek/mt7986b.dtsi
-index 0e5f116a2..67bf86f6a 100644
+index 7190874..de5bf0b 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7986b.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7986b.dtsi
 @@ -64,6 +64,7 @@
@@ -56,10 +56,10 @@ index 0e5f116a2..67bf86f6a 100644
  
  	ap2woccif: ap2woccif@151A5000 {
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 3f67bebfe..ac021e2ed 100644
+index cfe1290..933c0bb 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -3579,6 +3579,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -4636,6 +4636,7 @@ static int mtk_probe(struct platform_device *pdev)
  {
  	struct device_node *mac_np;
  	struct mtk_eth *eth;
@@ -67,15 +67,15 @@ index 3f67bebfe..ac021e2ed 100644
  	int err, i;
  
  	eth = devm_kzalloc(&pdev->dev, sizeof(*eth), GFP_KERNEL);
-@@ -3594,7 +3595,6 @@ static int mtk_probe(struct platform_device *pdev)
- 		return PTR_ERR(eth->base);
+@@ -4657,7 +4658,6 @@ static int mtk_probe(struct platform_device *pdev)
+ 	}
  
  	if(eth->soc->has_sram) {
 -		struct resource *res;
  		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
  		if (unlikely(!res))
  			return -EINVAL;
-@@ -3682,12 +3682,16 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -4758,12 +4758,16 @@ static int mtk_probe(struct platform_device *pdev)
  			MTK_WDMA1_BASE
  		};
  		void __iomem *wdma;
@@ -92,14 +92,14 @@ index 3f67bebfe..ac021e2ed 100644
 +		mtk_wed_add_hw(np, eth, wdma, wdma_phy, i);
  	}
  
- 	for (i = 0; i < MTK_MAX_IRQ_NUM; i++) {
+ 	for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index b4de7c0c6..4a69bd0cf 100644
+index c2c5037..1e9a1af 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -518,8 +518,13 @@
+@@ -565,8 +565,13 @@
  #define RX_DMA_SPORT_MASK       0x7
- #endif
+ #define RX_DMA_SPORT_MASK_V2    0xf
  
 +#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +#define MTK_WDMA0_BASE		0x4800
@@ -112,7 +112,7 @@ index b4de7c0c6..4a69bd0cf 100644
  /* QDMA descriptor txd4 */
  #define TX_DMA_CHKSUM		(0x7 << 29)
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index ea1cbdf1a..48b0353bb 100644
+index ea1cbdf..48b0353 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -18,15 +18,6 @@
@@ -199,7 +199,7 @@ index ea1cbdf1a..48b0353bb 100644
  			desc->info = 0;
  			desc++;
  
-@@ -202,12 +206,12 @@ free_pagelist:
+@@ -202,12 +206,12 @@ mtk_wed_free_buffer(struct mtk_wed_device *dev)
  }
  
  static void
@@ -845,7 +845,7 @@ index ea1cbdf1a..48b0353bb 100644
  
  	val = wed_r32(dev, MTK_WED_INT_STATUS);
  	val &= mask;
-@@ -780,7 +1007,8 @@ out:
+@@ -780,7 +1007,8 @@ void mtk_wed_flow_remove(int index)
  }
  
  void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
@@ -895,7 +895,7 @@ index ea1cbdf1a..48b0353bb 100644
  
  	hw_list[index] = hw;
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.h b/drivers/net/ethernet/mediatek/mtk_wed.h
-index 981ec613f..9b17b7405 100644
+index 981ec61..9b17b74 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.h
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.h
 @@ -8,6 +8,19 @@
@@ -944,7 +944,7 @@ index 981ec613f..9b17b7405 100644
  }
  static inline void
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c b/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
-index a81d3fd1a..f420f187e 100644
+index a81d3fd..f420f18 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
 @@ -116,6 +116,9 @@ wed_txinfo_show(struct seq_file *s, void *data)
@@ -958,7 +958,7 @@ index a81d3fd1a..f420f187e 100644
  	struct mtk_wed_hw *hw = s->private;
  	struct mtk_wed_device *dev = hw->wed_dev;
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_regs.h b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
-index 0a0465ea5..69f136ed4 100644
+index 0a0465e..a9b9e2a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_regs.h
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
 @@ -4,9 +4,15 @@
@@ -992,7 +992,7 @@ index 0a0465ea5..69f136ed4 100644
  #define MTK_WED_RESET					0x008
  #define MTK_WED_RESET_TX_BM				BIT(0)
  #define MTK_WED_RESET_TX_FREE_AGENT			BIT(4)
-@@ -41,6 +51,7 @@ struct mtk_wdma_desc {
+@@ -41,6 +55,7 @@ struct mtk_wdma_desc {
  #define MTK_WED_CTRL_RESERVE_EN				BIT(12)
  #define MTK_WED_CTRL_RESERVE_BUSY			BIT(13)
  #define MTK_WED_CTRL_FINAL_DIDX_READ			BIT(24)
@@ -1000,7 +1000,7 @@ index 0a0465ea5..69f136ed4 100644
  #define MTK_WED_CTRL_MIB_READ_CLEAR			BIT(28)
  
  #define MTK_WED_EXT_INT_STATUS				0x020
-@@ -49,6 +60,10 @@ struct mtk_wdma_desc {
+@@ -49,6 +64,10 @@ struct mtk_wdma_desc {
  #define MTK_WED_EXT_INT_STATUS_TKID_TITO_INVALID	BIT(4)
  #define MTK_WED_EXT_INT_STATUS_TX_FBUF_LO_TH		BIT(8)
  #define MTK_WED_EXT_INT_STATUS_TX_FBUF_HI_TH		BIT(9)
@@ -1011,7 +1011,7 @@ index 0a0465ea5..69f136ed4 100644
  #define MTK_WED_EXT_INT_STATUS_RX_FBUF_LO_TH		BIT(12)
  #define MTK_WED_EXT_INT_STATUS_RX_FBUF_HI_TH		BIT(13)
  #define MTK_WED_EXT_INT_STATUS_RX_DRV_R_RESP_ERR	BIT(16)
-@@ -57,16 +71,23 @@ struct mtk_wdma_desc {
+@@ -57,16 +76,23 @@ struct mtk_wdma_desc {
  #define MTK_WED_EXT_INT_STATUS_RX_DRV_INIT_WDMA_EN	BIT(19)
  #define MTK_WED_EXT_INT_STATUS_RX_DRV_BM_DMAD_COHERENT	BIT(20)
  #define MTK_WED_EXT_INT_STATUS_TX_DRV_R_RESP_ERR	BIT(21)
@@ -1038,7 +1038,7 @@ index 0a0465ea5..69f136ed4 100644
  
  #define MTK_WED_EXT_INT_MASK				0x028
  
-@@ -80,10 +103,6 @@ struct mtk_wdma_desc {
+@@ -80,10 +106,6 @@ struct mtk_wdma_desc {
  
  #define MTK_WED_TX_BM_BASE				0x084
  
@@ -1049,7 +1049,7 @@ index 0a0465ea5..69f136ed4 100644
  #define MTK_WED_TX_BM_BUF_LEN				0x08c
  
  #define MTK_WED_TX_BM_INTF				0x09c
-@@ -93,9 +112,38 @@ struct mtk_wdma_desc {
+@@ -93,9 +115,38 @@ struct mtk_wdma_desc {
  #define MTK_WED_TX_BM_INTF_TKID_READ			BIT(29)
  
  #define MTK_WED_TX_BM_DYN_THR				0x0a0
@@ -1088,7 +1088,7 @@ index 0a0465ea5..69f136ed4 100644
  #define MTK_WED_INT_STATUS				0x200
  #define MTK_WED_INT_MASK				0x204
  
-@@ -125,6 +173,7 @@ struct mtk_wdma_desc {
+@@ -125,6 +176,7 @@ struct mtk_wdma_desc {
  #define MTK_WED_RESET_IDX_RX				GENMASK(17, 16)
  
  #define MTK_WED_TX_MIB(_n)				(0x2a0 + (_n) * 4)
@@ -1096,7 +1096,7 @@ index 0a0465ea5..69f136ed4 100644
  
  #define MTK_WED_RING_TX(_n)				(0x300 + (_n) * 0x10)
  
-@@ -139,6 +188,19 @@ struct mtk_wdma_desc {
+@@ -139,6 +191,19 @@ struct mtk_wdma_desc {
  #define MTK_WED_WPDMA_GLO_CFG_TX_DRV_BUSY		BIT(1)
  #define MTK_WED_WPDMA_GLO_CFG_RX_DRV_EN			BIT(2)
  #define MTK_WED_WPDMA_GLO_CFG_RX_DRV_BUSY		BIT(3)
@@ -1116,7 +1116,7 @@ index 0a0465ea5..69f136ed4 100644
  #define MTK_WED_WPDMA_GLO_CFG_RX_BT_SIZE		GENMASK(5, 4)
  #define MTK_WED_WPDMA_GLO_CFG_TX_WB_DDONE		BIT(6)
  #define MTK_WED_WPDMA_GLO_CFG_BIG_ENDIAN		BIT(7)
-@@ -152,24 +214,54 @@ struct mtk_wdma_desc {
+@@ -152,24 +217,54 @@ struct mtk_wdma_desc {
  #define MTK_WED_WPDMA_GLO_CFG_FIRST_TOKEN_ONLY		BIT(26)
  #define MTK_WED_WPDMA_GLO_CFG_OMIT_RX_INFO		BIT(27)
  #define MTK_WED_WPDMA_GLO_CFG_OMIT_TX_INFO		BIT(28)
@@ -1172,7 +1172,7 @@ index 0a0465ea5..69f136ed4 100644
  
  #define MTK_WED_WPDMA_TX_MIB(_n)			(0x5a0 + (_n) * 4)
  #define MTK_WED_WPDMA_TX_COHERENT_MIB(_n)		(0x5d0 + (_n) * 4)
-@@ -203,14 +295,22 @@ struct mtk_wdma_desc {
+@@ -203,14 +298,22 @@ struct mtk_wdma_desc {
  #define MTK_WED_WDMA_RESET_IDX_RX			GENMASK(17, 16)
  #define MTK_WED_WDMA_RESET_IDX_DRV			GENMASK(25, 24)
  
@@ -1196,7 +1196,7 @@ index 0a0465ea5..69f136ed4 100644
  
  #define MTK_WED_WDMA_RX_MIB(_n)				(0xae0 + (_n) * 4)
  #define MTK_WED_WDMA_RX_RECYCLE_MIB(_n)			(0xae8 + (_n) * 4)
-@@ -221,14 +321,21 @@ struct mtk_wdma_desc {
+@@ -221,14 +324,21 @@ struct mtk_wdma_desc {
  #define MTK_WED_RING_OFS_CPU_IDX			0x08
  #define MTK_WED_RING_OFS_DMA_IDX			0x0c
  
@@ -1220,7 +1220,7 @@ index 0a0465ea5..69f136ed4 100644
  #define MTK_WDMA_INT_MASK				0x228
  #define MTK_WDMA_INT_MASK_TX_DONE			GENMASK(3, 0)
 diff --git a/include/linux/soc/mediatek/mtk_wed.h b/include/linux/soc/mediatek/mtk_wed.h
-index 7e00cca06..24742604b 100644
+index 7e00cca..ffd547a 100644
 --- a/include/linux/soc/mediatek/mtk_wed.h
 +++ b/include/linux/soc/mediatek/mtk_wed.h
 @@ -8,6 +8,19 @@

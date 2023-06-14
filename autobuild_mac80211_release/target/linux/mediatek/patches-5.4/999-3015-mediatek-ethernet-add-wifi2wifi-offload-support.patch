@@ -1,47 +1,43 @@
-From 4c8f0a38d9c2df3815ace32133bb63d8a4345856 Mon Sep 17 00:00:00 2001
+From ac75819cd0f956f0cfe7f9023d9ee97770fb3191 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
-Date: Tue, 27 Dec 2022 10:14:35 +0800
-Subject: [PATCH] mediatek: ethernet: add wifi2wifi offload support
+Date: Tue, 13 Jun 2023 17:11:49 +0800
+Subject: [PATCH] 
+ 999-3015-mediatek-ethernet-add-wifi2wifi-offload-support
 
-Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  2 ++
- .../net/ethernet/mediatek/mtk_ppe_offload.c   | 35 +++++++++++++------
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   | 34 ++++++++++++++-----
  drivers/net/ethernet/mediatek/mtk_wed.c       | 13 +++++++
  include/linux/soc/mediatek/mtk_wed.h          |  6 +++-
- 4 files changed, 45 insertions(+), 11 deletions(-)
- mode change 100755 => 100644 drivers/net/ethernet/mediatek/mtk_ppe_offload.c
+ 4 files changed, 45 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index b935de6..acefa48 100644
+index 3554d14..ee05787 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1767,6 +1767,8 @@ void ethsys_reset(struct mtk_eth *eth, u32 reset_bits);
- int mtk_eth_offload_init(struct mtk_eth *eth, int id);
+@@ -2020,6 +2020,8 @@ int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
+ int mtk_eth_offload_init(struct mtk_eth *eth);
  int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
  		     void *type_data);
 +int mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f,
 +			   struct mtk_eth *eth);
  void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
- 
  int mtk_ppe_debugfs_init(struct mtk_eth *eth);
+ int mtk_qdma_debugfs_init(struct mtk_eth *eth);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-old mode 100755
-new mode 100644
-index 2787a97..23d2048
+index 8a20dce..43371f3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -546,10 +546,20 @@ static int
+@@ -575,9 +575,20 @@ static int
  mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
  {
  	struct flow_cls_offload *cls = type_data;
 -	struct net_device *dev = cb_priv;
 -	struct mtk_mac *mac = netdev_priv(dev);
 -	struct mtk_eth *eth = mac->hw;
--	int err;
 +	struct mtk_eth *eth = cb_priv;
 +	struct net_device *dev = NULL;
-+	int i, err;
++	int i;
 +
 +	for (i = 0; i < MTK_MAC_COUNT; i++) {
 +		if (!eth->netdev[i])
@@ -56,8 +52,8 @@ index 2787a97..23d2048
  
  	if (!tc_can_offload(dev))
  		return -EOPNOTSUPP;
-@@ -577,14 +587,19 @@ mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_pri
- 	return err;
+@@ -588,15 +599,20 @@ mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_pri
+ 	return mtk_flow_offload_cmd(eth, cls, 0);
  }
  
 -static int
@@ -72,24 +68,25 @@ index 2787a97..23d2048
  	static LIST_HEAD(block_cb_list);
  	struct flow_block_cb *block_cb;
  	flow_setup_cb_t *cb;
- 	int i, err = 0;
  
 +	if (!eth) {
 +		mac = netdev_priv(dev);
 +		eth = mac->hw;
 +	}
 +
- 	for (i = 0; i < eth->ppe_num; i++) {
-@@ -610,7 +625,7 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
+ 	if (!eth->soc->offload_version)
+ 		return -EOPNOTSUPP;
+ 
+@@ -613,7 +629,7 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
  			flow_block_cb_incref(block_cb);
- 			goto unlock;
+ 			return 0;
  		}
 -		block_cb = flow_block_cb_alloc(cb, dev, dev, NULL);
 +		block_cb = flow_block_cb_alloc(cb, dev, eth, NULL);
- 		if (IS_ERR(block_cb)) {
- 			err = PTR_ERR(block_cb);
- 			goto unlock;
-@@ -647,7 +662,7 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
+ 		if (IS_ERR(block_cb))
+ 			return PTR_ERR(block_cb);
+ 
+@@ -642,7 +658,7 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
  	switch (type) {
  	case TC_SETUP_BLOCK:
  	case TC_SETUP_FT:
@@ -102,7 +99,7 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/medi
 index 1a615f2..37a86c3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
-@@ -1731,6 +1731,18 @@ out:
+@@ -1731,6 +1731,18 @@ void mtk_wed_flow_remove(int index)
  	mutex_unlock(&hw_lock);
  }
  

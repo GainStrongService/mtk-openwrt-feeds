@@ -1,3 +1,23 @@
+From 8a33aae934a08e28dd1e924de1fdfd76f7ddbbd9 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Tue, 13 Jun 2023 17:09:45 +0800
+Subject: [PATCH] 999-3013-update-net-bridge-for-bridger
+
+---
+ include/net/switchdev.h        |   2 +
+ net/bridge/Makefile            |   2 +-
+ net/bridge/br_mdb.c            |  32 +-
+ net/bridge/br_netlink.c        |   6 +-
+ net/bridge/br_netlink_tunnel.c |   4 +-
+ net/bridge/br_private.h        | 293 +++++++++++++-
+ net/bridge/br_private_tunnel.h |   4 +
+ net/bridge/br_vlan.c           | 698 +++++++++++++++++++++++++++++++--
+ net/bridge/br_vlan_options.c   | 346 ++++++++++++++++
+ net/core/rtnetlink.c           |   1 +
+ net/dsa/slave.c                |  11 +
+ 11 files changed, 1365 insertions(+), 34 deletions(-)
+ create mode 100644 net/bridge/br_vlan_options.c
+
 diff --git a/include/net/switchdev.h b/include/net/switchdev.h
 index 191dc34..d4d71d9 100644
 --- a/include/net/switchdev.h
@@ -1786,7 +1806,7 @@ index 0000000..5e48c29
 +	return false;
 +}
 diff --git a/net/core/rtnetlink.c b/net/core/rtnetlink.c
-index dbc9b2f..706b207 100644
+index dbc9b2f..e12590e 100644
 --- a/net/core/rtnetlink.c
 +++ b/net/core/rtnetlink.c
 @@ -1996,6 +1996,7 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
@@ -1821,3 +1841,6 @@ index 2dfaa1e..a60a26c 100644
  out_phy:
  	rtnl_lock();
  	phylink_disconnect_phy(p->dp->pl);
+-- 
+2.18.0
+

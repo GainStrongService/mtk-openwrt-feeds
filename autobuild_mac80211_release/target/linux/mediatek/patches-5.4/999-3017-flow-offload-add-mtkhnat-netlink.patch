@@ -1,3 +1,18 @@
+From f85fdb15ed758bdc2e8118e9b3efdf7aadb620a8 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Tue, 13 Jun 2023 17:13:37 +0800
+Subject: [PATCH] 999-3017-flow-offload-add-mtkhnat-netlink
+
+---
+ include/net/netfilter/nf_flow_table.h    |   1 +
+ include/uapi/linux/netfilter/nfnetlink.h |   3 +-
+ net/netfilter/Kconfig                    |   9 +
+ net/netfilter/Makefile                   |   1 +
+ net/netfilter/nf_flow_table_core.c       |  23 +++
+ net/netfilter/nf_flow_table_netlink.c    | 239 +++++++++++++++++++++++
+ 6 files changed, 275 insertions(+), 1 deletion(-)
+ create mode 100644 net/netfilter/nf_flow_table_netlink.c
+
 diff --git a/include/net/netfilter/nf_flow_table.h b/include/net/netfilter/nf_flow_table.h
 index 8a84de3..1a23c03 100644
 --- a/include/net/netfilter/nf_flow_table.h
@@ -57,10 +72,10 @@ index d93a121..fa6ffb1 100644
  # generic X tables
  obj-$(CONFIG_NETFILTER_XTABLES) += x_tables.o xt_tcpudp.o
 diff --git a/net/netfilter/nf_flow_table_core.c b/net/netfilter/nf_flow_table_core.c
-index 1036558..a0f52f6 100644
+index 0a701f0..bf71317 100644
 --- a/net/netfilter/nf_flow_table_core.c
 +++ b/net/netfilter/nf_flow_table_core.c
-@@ -373,6 +373,29 @@ void flow_offload_teardown(struct flow_offload *flow)
+@@ -354,6 +354,29 @@ void flow_offload_teardown(struct flow_offload *flow)
  }
  EXPORT_SYMBOL_GPL(flow_offload_teardown);
  
@@ -335,3 +350,6 @@ index 0000000..f05f29e
 +MODULE_LICENSE("GPL");
 +module_init(ftnetlink_init);
 +module_exit(ftnetlink_exit);
+-- 
+2.18.0
+
