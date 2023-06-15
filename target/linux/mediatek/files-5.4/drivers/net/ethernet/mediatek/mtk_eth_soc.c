@@ -1053,11 +1053,11 @@ static void mtk_validate(struct phylink_config *config,
 		/* fall through */
 	case PHY_INTERFACE_MODE_1000BASEX:
 		phylink_set(mask, 1000baseX_Full);
-		/* fall through; */
+		/* fall through */
 	case PHY_INTERFACE_MODE_2500BASEX:
 		phylink_set(mask, 2500baseX_Full);
 		phylink_set(mask, 2500baseT_Full);
-		/* fall through; */
+		/* fall through */
 	case PHY_INTERFACE_MODE_GMII:
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
@@ -3983,8 +3983,6 @@ int mtk_phy_config(struct mtk_eth *eth, int enable)
 static void mtk_pending_work(struct work_struct *work)
 {
 	struct mtk_eth *eth = container_of(work, struct mtk_eth, pending_work);
-	struct device_node *phy_node = NULL;
-	struct mtk_mac *mac = NULL;
 	int err, i = 0;
 	unsigned long restart = 0;
 	u32 val = 0;
@@ -4357,7 +4355,6 @@ static int mtk_get_eee(struct net_device *dev, struct ethtool_eee *eee)
 static int mtk_set_eee(struct net_device *dev, struct ethtool_eee *eee)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
-	struct mtk_eth *eth = mac->hw;
 
 	if (mac->type == MTK_GDM_TYPE) {
 		if (eee->tx_lpi_enabled && eee->tx_lpi_timer > 255)

@@ -304,10 +304,10 @@ static ssize_t mtketh_mt7530sw_debugfs_write(struct file *file,
 	if (kstrtoul(token, 16, (unsigned long *)&value))
 		return -EINVAL;
 
-	pr_info("%s:phy=%d, reg=0x%x, val=0x%x\n", __func__,
+	pr_info("%s:phy=%d, reg=0x%lx, val=0x%lx\n", __func__,
 		0x1f, reg, value);
 	mt7530_mdio_w32(eth, reg, value);
-	pr_info("%s:phy=%d, reg=0x%x, val=0x%x confirm..\n", __func__,
+	pr_info("%s:phy=%d, reg=0x%lx, val=0x%x confirm..\n", __func__,
 		0x1f, reg, mt7530_mdio_r32(eth, reg));
 
 	return len;
@@ -352,12 +352,12 @@ static ssize_t mtketh_debugfs_write(struct file *file, const char __user *ptr,
 	if (kstrtoul(token, 16, (unsigned long *)&value))
 		return -EINVAL;
 
-	pr_info("%s:phy=%d, reg=0x%x, val=0x%x\n", __func__,
+	pr_info("%s:phy=%ld, reg=0x%lx, val=0x%lx\n", __func__,
 		phy, reg, value);
 
 	_mtk_mdio_write(eth, phy,  reg, value);
 
-	pr_info("%s:phy=%d, reg=0x%x, val=0x%x confirm..\n", __func__,
+	pr_info("%s:phy=%ld, reg=0x%lx, val=0x%x confirm..\n", __func__,
 		phy, reg, _mtk_mdio_read(eth, phy, reg));
 
 	return len;
@@ -371,7 +371,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 	int count = len;
 	unsigned long dbg_level = 0;
 
-	len = min(count, sizeof(buf) - 1);
+	len = min((size_t)count, sizeof(buf) - 1);
 	if (copy_from_user(buf, ptr, len))
 		return -EFAULT;
 
@@ -697,8 +697,6 @@ void dump_each_port(struct seq_file *seq, struct mtk_eth *eth, u32 base)
 
 int esw_cnt_read(struct seq_file *seq, void *v)
 {
-	unsigned int pkt_cnt = 0;
-	int i = 0;
 	struct mtk_eth *eth = g_eth;
 
 	gdm_cnt_read(eth);

@@ -326,7 +326,7 @@ u32 mtk_monitor_qdma_tx(struct mtk_eth *eth)
 {
 	static u32 err_cnt_qtx;
 	u32 err_flag = 0;
-	u32 i = 0, is_rx_fc = 0;
+	u32 is_rx_fc = 0;
 
 	u32 is_qfsm_hang = (mtk_r32(eth, MTK_QDMA_FSM) & 0xF00) != 0;
 	u32 is_qfwd_hang = mtk_r32(eth, MTK_QDMA_FWD_CNT) == 0;
@@ -624,7 +624,7 @@ static int mtk_eth_netdevice_event(struct notifier_block *unused,
 	switch (event) {
 	case MTK_WIFI_RESET_DONE:
 	case MTK_FE_STOP_TRAFFIC_DONE:
-		pr_info("%s rcv done event:%x\n", __func__, event);
+		pr_info("%s rcv done event:%lx\n", __func__, event);
 		mtk_rest_cnt--;
 		if(!mtk_rest_cnt) {
 			complete(&wait_ser_done);
@@ -642,7 +642,7 @@ static int mtk_eth_netdevice_event(struct notifier_block *unused,
 	case MTK_FE_STOP_TRAFFIC_DONE_FAIL:
 		mtk_stop_fail = true;
 		mtk_reset_flag = MTK_FE_START_RESET;
-		pr_info("%s rcv done event:%x\n", __func__, event);
+		pr_info("%s rcv done event:%lx\n", __func__, event);
 		complete(&wait_ser_done);
 		mtk_rest_cnt = mtk_wifi_num;
 		break;
