@@ -1,29 +1,15 @@
-From e3e7531c6a986b0f033a1a346dd6ac8ed86bad11 Mon Sep 17 00:00:00 2001
-From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Tue, 13 Jun 2023 17:12:50 +0800
-Subject: [PATCH] 999-3016-flow-offload-add-mtkhnat-dscp
-
----
- drivers/net/ethernet/mediatek/mtk_ppe.c       | 11 +++++++
- drivers/net/ethernet/mediatek/mtk_ppe.h       |  2 ++
- .../net/ethernet/mediatek/mtk_ppe_offload.c   | 12 +++++++
- include/net/netfilter/nf_flow_table.h         |  2 ++
- net/netfilter/nf_flow_table_offload.c         |  7 +++-
- net/netfilter/xt_FLOWOFFLOAD.c                | 32 +++++++++++++++++++
- 6 files changed, 65 insertions(+), 1 deletion(-)
-
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 0d7b83a..71b59ed 100644
+index c2416b1..bc13a9b 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -508,6 +508,17 @@ int mtk_foe_entry_set_queue(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+@@ -435,6 +435,17 @@ int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid)
+ 
  	return 0;
  }
- 
-+int mtk_foe_entry_set_dscp(struct mtk_eth *eth, struct mtk_foe_entry *entry,
-+			   unsigned int dscp)
++
++int mtk_foe_entry_set_dscp(struct mtk_foe_entry *entry, int dscp)
 +{
-+	u32 *ib2 = mtk_foe_entry_ib2(eth, entry);
++	u32 *ib2 = mtk_foe_entry_ib2(entry);
 +
 +	*ib2 &= ~MTK_FOE_IB2_DSCP;
 +	*ib2 |= FIELD_PREP(MTK_FOE_IB2_DSCP, dscp);
@@ -31,27 +17,26 @@ index 0d7b83a..71b59ed 100644
 +	return 0;
 +}
 +
- static int
- mtk_flow_entry_match_len(struct mtk_eth *eth, struct mtk_foe_entry *entry)
+ static inline bool mtk_foe_entry_usable(struct mtk_foe_entry *entry)
  {
+ 	return !(entry->ib1 & MTK_FOE_IB1_STATIC) &&
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index ba71884..d5f0aa7 100644
+index e7ecbf7..df10040 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -418,6 +418,8 @@ int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
- 			   int wdma_idx, int txq, int bss, int wcid);
- int mtk_foe_entry_set_queue(struct mtk_eth *eth, struct mtk_foe_entry *entry,
- 			    unsigned int queue);
-+int mtk_foe_entry_set_dscp(struct mtk_eth *eth, struct mtk_foe_entry *entry,
-+			   unsigned int dscp);
+@@ -430,6 +430,7 @@ int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid);
+ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
+ 			   int bss, int wcid);
+ int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid);
++int mtk_foe_entry_set_dscp(struct mtk_foe_entry *entry, int dscp);
  int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
  void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
- void mtk_foe_entry_get_stats(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
+ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 43371f3..cb2bfac 100644
+index 23d2048..9bc0857 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -254,6 +254,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
+@@ -246,6 +246,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	int wed_index = -1;
  	u16 addr_type = 0;
  	u8 l4proto = 0;
@@ -59,7 +44,7 @@ index 43371f3..cb2bfac 100644
  	int err = 0;
  	int i;
  
-@@ -290,6 +291,15 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
+@@ -282,6 +283,15 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  		return -EOPNOTSUPP;
  	}
  
@@ -75,17 +60,17 @@ index 43371f3..cb2bfac 100644
  	switch (addr_type) {
  	case 0:
  		offload_type = MTK_PPE_PKT_TYPE_BRIDGE;
-@@ -448,6 +458,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
+@@ -441,6 +451,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	if (data.pppoe.num == 1)
- 		mtk_foe_entry_set_pppoe(eth, &foe, data.pppoe.sid);
+ 		mtk_foe_entry_set_pppoe(&foe, data.pppoe.sid);
  
-+	mtk_foe_entry_set_dscp(eth, &foe, dscp);
++	mtk_foe_entry_set_dscp(&foe, dscp);
 +
  	err = mtk_flow_set_output_device(eth, &foe, odev, f->flow->ct, data.eth.h_dest,
  					 &wed_index);
  	if (err)
 diff --git a/include/net/netfilter/nf_flow_table.h b/include/net/netfilter/nf_flow_table.h
-index 7cf8976..8a84de3 100644
+index 55359dd..1a23c03 100644
 --- a/include/net/netfilter/nf_flow_table.h
 +++ b/include/net/netfilter/nf_flow_table.h
 @@ -36,6 +36,7 @@ struct nf_flow_key {
@@ -105,7 +90,7 @@ index 7cf8976..8a84de3 100644
  
  struct flow_offload_tuple_rhash {
 diff --git a/net/netfilter/nf_flow_table_offload.c b/net/netfilter/nf_flow_table_offload.c
-index 2927dbc..5593e28 100644
+index 61cc518..c1a5f64 100644
 --- a/net/netfilter/nf_flow_table_offload.c
 +++ b/net/netfilter/nf_flow_table_offload.c
 @@ -104,6 +104,7 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
@@ -133,7 +118,7 @@ index 2927dbc..5593e28 100644
  }
  
 diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
-index 3437d6a..c459b7a 100644
+index 2d5c3cc..b231dd7 100644
 --- a/net/netfilter/xt_FLOWOFFLOAD.c
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
 @@ -49,6 +49,35 @@ static DEFINE_SPINLOCK(hooks_lock);
@@ -172,7 +157,7 @@ index 3437d6a..c459b7a 100644
  static unsigned int
  xt_flowoffload_net_hook(void *priv, struct sk_buff *skb,
  			const struct nf_hook_state *state)
-@@ -617,6 +646,9 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -599,6 +628,9 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  	if (flow_offload_route_init(flow, &route) < 0)
  		goto err_flow_add;
  
@@ -182,6 +167,3 @@ index 3437d6a..c459b7a 100644
  	if (tcph) {
  		ct->proto.tcp.seen[0].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
  		ct->proto.tcp.seen[1].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
--- 
-2.18.0
-
