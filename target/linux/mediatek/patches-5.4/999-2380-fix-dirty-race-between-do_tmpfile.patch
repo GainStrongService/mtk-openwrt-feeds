@@ -45,7 +45,7 @@ index 332c0b02a..97b231c43 100644
  static int do_tmpfile(struct inode *dir, struct dentry *dentry,
  		      umode_t mode, struct inode **whiteout)
  {
-@@ -364,7 +390,7 @@ static int do_tmpfile(struct inode *dir, struct dentry *dentry,
+@@ -364,7 +390,7 @@ static int do_tmpfile(struct inode *dir,
  	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
  					.dirtied_ino = 1};
  	struct ubifs_budget_req ino_req = { .dirtied_ino = 1 };
@@ -54,7 +54,7 @@ index 332c0b02a..97b231c43 100644
  	int err, instantiated = 0;
  	struct fscrypt_name nm;
  
-@@ -426,18 +452,18 @@ static int do_tmpfile(struct inode *dir, struct dentry *dentry,
+@@ -426,11 +452,11 @@ static int do_tmpfile(struct inode *dir,
  	instantiated = 1;
  	mutex_unlock(&ui->ui_mutex);
  
@@ -67,7 +67,8 @@ index 332c0b02a..97b231c43 100644
 +	unlock_2_inodes(dir, inode);
  
  	ubifs_release_budget(c, &req);
- 
+ 	fscrypt_free_filename(&nm);
+@@ -438,7 +464,7 @@ static int do_tmpfile(struct inode *dir,
  	return 0;
  
  out_cancel:
@@ -76,7 +77,7 @@ index 332c0b02a..97b231c43 100644
  out_inode:
  	make_bad_inode(inode);
  	if (!instantiated)
-@@ -672,32 +698,6 @@ static int ubifs_dir_release(struct inode *dir, struct file *file)
+@@ -673,32 +699,6 @@ static int ubifs_dir_release(struct inod
  	return 0;
  }
  
