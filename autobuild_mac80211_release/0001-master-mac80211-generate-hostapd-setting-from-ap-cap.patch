@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index a7472ee779..f06c889b0a 100644
+index a7472ee7..f06c889b 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -31,7 +31,7 @@ index a7472ee779..f06c889b0a 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9af26..2ea3e7c955 100644
+index 5aaba9af..05cf4410 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
@@ -366,7 +366,7 @@ index 5aaba9af26..2ea3e7c955 100644
  	json_select ..
  
 -	if [ -z "$macaddr" ]; then
-+	if [ "$mbssid" -gt 0 ]; then
++	if [ "$mbssid" -gt 0 ] && [ "$mode" == "ap" ]; then
 +		[ "$macidx" -eq 0 ] && {
 +			transmitted_bssid=$macaddr
 +		}
@@ -430,7 +430,7 @@ index 5aaba9af26..2ea3e7c955 100644
  			ret="$?"
  			[ "$ret" != 0 -o -z "$hostapd_res" ] && {
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a634e..f68516211e 100644
+index e24a2a63..ced3877a 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -564,10 +564,10 @@ index e24a2a634e..f68516211e 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 28bd210623..0f914a4dfd 100644
+index bf3625c9..6cac7043 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
-@@ -376,6 +376,13 @@ hostapd_common_add_bss_config() {
+@@ -379,6 +379,13 @@ hostapd_common_add_bss_config() {
  	config_add_string fils_dhcp
  
  	config_add_int ocv
@@ -581,7 +581,7 @@ index 28bd210623..0f914a4dfd 100644
  }
  
  hostapd_set_vlan_file() {
-@@ -440,11 +447,11 @@ append_iw_nai_realm() {
+@@ -443,11 +450,11 @@ append_iw_nai_realm() {
  }
  
  append_iw_venue_name() {
@@ -595,7 +595,7 @@ index 28bd210623..0f914a4dfd 100644
  }
  
  append_hs20_oper_friendly_name() {
-@@ -841,7 +848,7 @@ hostapd_set_bss_options() {
+@@ -844,7 +851,7 @@ hostapd_set_bss_options() {
  	}
  
  	append bss_conf "ssid=$ssid" "$N"
@@ -604,7 +604,7 @@ index 28bd210623..0f914a4dfd 100644
  	[ -n "$network_ifname" ] && append bss_conf "snoop_iface=$network_ifname" "$N"
  	[ -n "$iapp_interface" ] && {
  		local ifname
-@@ -975,7 +982,7 @@ hostapd_set_bss_options() {
+@@ -978,7 +985,7 @@ hostapd_set_bss_options() {
  		# RSN -> allow management frame protection
  		case "$ieee80211w" in
  			[012])
@@ -613,7 +613,7 @@ index 28bd210623..0f914a4dfd 100644
  				append bss_conf "ieee80211w=$ieee80211w" "$N"
  				[ "$ieee80211w" -gt "0" ] && {
  					if [ "$auth_type" = "eap192" ]; then
-@@ -983,6 +990,8 @@ hostapd_set_bss_options() {
+@@ -986,6 +993,8 @@ hostapd_set_bss_options() {
  					else
  						append bss_conf "group_mgmt_cipher=${ieee80211w_mgmt_cipher:-AES-128-CMAC}" "$N"
  					fi
@@ -622,7 +622,7 @@ index 28bd210623..0f914a4dfd 100644
  					[ -n "$ieee80211w_max_timeout" ] && \
  						append bss_conf "assoc_sa_query_max_timeout=$ieee80211w_max_timeout" "$N"
  					[ -n "$ieee80211w_retry_timeout" ] && \
-@@ -1047,9 +1056,10 @@ hostapd_set_bss_options() {
+@@ -1050,9 +1059,10 @@ hostapd_set_bss_options() {
  	json_get_vars iw_roaming_consortium iw_domain_name iw_anqp_3gpp_cell_net iw_nai_realm
  	json_get_vars iw_anqp_elem iw_qos_map_set iw_ipaddr_type_availability iw_gas_address3
  	json_get_vars iw_venue_name iw_venue_url
@@ -634,7 +634,7 @@ index 28bd210623..0f914a4dfd 100644
  		append bss_conf "interworking=1" "$N"
  		set_default iw_internet 1
  		set_default iw_asra 0
-@@ -1559,6 +1569,20 @@ wpa_supplicant_add_network() {
+@@ -1562,6 +1572,20 @@ wpa_supplicant_add_network() {
  	[ -n "$bssid_blacklist" ] && append network_data "bssid_blacklist=$bssid_blacklist" "$N$T"
  	[ -n "$bssid_whitelist" ] && append network_data "bssid_whitelist=$bssid_whitelist" "$N$T"
  
@@ -655,7 +655,7 @@ index 28bd210623..0f914a4dfd 100644
  	[ -n "$basic_rate" ] && {
  		local br rate_list=
  		for br in $basic_rate; do
-@@ -1573,6 +1597,11 @@ wpa_supplicant_add_network() {
+@@ -1576,6 +1600,11 @@ wpa_supplicant_add_network() {
  		append network_data "mcast_rate=$mc_rate" "$N$T"
  	}
  
@@ -667,4 +667,3 @@ index 28bd210623..0f914a4dfd 100644
  	if [ "$key_mgmt" = "WPS" ]; then
  		echo "wps_cred_processing=1" >> "$_config"
  	else
-
