@@ -1456,6 +1456,11 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			break;
 
 		case NEXTHDR_IPIP:
+			iph = (struct iphdr *)skb_inner_network_header(skb);
+			/* don't process inner fragment packets */
+			if (ip_is_fragment(iph))
+				return 0;
+
 			if ((!mape_toggle &&
 			     entry.bfib1.pkt_type == IPV4_DSLITE) ||
 			    (mape_toggle &&
@@ -2535,7 +2540,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 			entry->ipv4_hnapt.m_timestamp = foe_timestamp(hnat_priv);
 
 		if (entry_hnat_is_bound(entry)) {
-			memset(skb_hnat_info(skb), 0, FOE_INFO_LEN);
+			memset(skb_hnat_info(skb), 0, sizeof(struct hnat_desc));
 
 			return -1;
 		}
@@ -2595,6 +2600,9 @@ mtk_hnat_ipv6_nf_local_out(void *priv, struct sk_buff *skb,
 							  sizeof(_ports), &_ports);
 				if (unlikely(!pptr))
                                         return NF_ACCEPT;
+				/* don't process inner fragment packets */
+				if (ip_is_fragment(iph))
+					return NF_ACCEPT;
 
 				entry->bfib1.udp = udp;
 
