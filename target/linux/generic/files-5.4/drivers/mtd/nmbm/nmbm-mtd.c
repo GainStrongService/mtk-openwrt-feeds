@@ -141,6 +141,16 @@ static int nmbm_lower_write_page(void *arg, uint64_t addr, const void *buf,
 	return mtd_write_oob(nm->lower, addr, &ops);
 }
 
+static int nmbm_lower_panic_write_page(void *arg, uint64_t addr,
+				       const void *buf)
+{
+	struct nmbm_mtd *nm = arg;
+	size_t retlen;
+
+	return mtd_panic_write(nm->lower, addr, nm->lower->writesize, &retlen,
+			       buf);
+}
+
 static int nmbm_lower_erase_block(void *arg, uint64_t addr)
 {
 	struct nmbm_mtd *nm = arg;
@@ -538,6 +548,44 @@ static int nmbm_mtd_write_oob(struct mtd_info *mtd, loff_t to,
 	return ret;
 }
 
+static int nmbm_mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
+				size_t *retlen, const u_char *buf)
+{
+	struct nmbm_mtd *nm = container_of(mtd, struct nmbm_mtd, upper);
+	size_t chklen, wrlen = 0;
+	uint32_t col;
+	int ret;
+
+	col = to & nm->lower->writesize_mask;
+	to &= ~nm->lower->writesize_mask;
+
+	while (len) {
+		/* Move data */
+		chklen = nm->lower->writesize - col;
+		if (chklen > len)
+			chklen = len;
+
+		if (chklen < nm->lower->writesize)
+			memset(nm->page_cache, 0xff, nm->lower->writesize);
+		memcpy(nm->page_cache + col, buf + wrlen, chklen);
+
+		len -= chklen;
+		col = 0; /* (col + chklen) %  */
+		wrlen += chklen;
+
+		ret = nmbm_panic_write_single_page(nm->ni, to, nm->page_cache);
+		if (ret)
+			break;
+
+		to += nm->lower->writesize;
+	}
+
+	if (retlen)
+		*retlen = wrlen;
+
+	return 0;
+}
+
 static int nmbm_mtd_block_isbad(struct mtd_info *mtd, loff_t offs)
 {
 	struct nmbm_mtd *nm = container_of(mtd, struct nmbm_mtd, upper);
@@ -634,6 +682,7 @@ do_attach_mtd:
 
 	nld.read_page = nmbm_lower_read_page;
 	nld.write_page = nmbm_lower_write_page;
+	nld.panic_write_page = nmbm_lower_panic_write_page;
 	nld.erase_block = nmbm_lower_erase_block;
 	nld.is_bad_block = nmbm_lower_is_bad_block;
 	nld.mark_bad_block = nmbm_lower_mark_bad_block;
@@ -697,6 +746,7 @@ do_attach_mtd:
 	mtd->_erase = nmbm_mtd_erase;
 	mtd->_read_oob = nmbm_mtd_read_oob;
 	mtd->_write_oob = nmbm_mtd_write_oob;
+	mtd->_panic_write = nmbm_mtd_panic_write;
 	mtd->_block_isbad = nmbm_mtd_block_isbad;
 	mtd->_block_markbad = nmbm_mtd_block_markbad;
 	mtd->_reboot = nmbm_mtd_shutdown;
