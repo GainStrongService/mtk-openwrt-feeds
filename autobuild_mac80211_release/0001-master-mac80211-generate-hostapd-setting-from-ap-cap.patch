@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index a7472ee7..f06c889b 100644
+index a7472ee779..f06c889b0a 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -31,7 +31,7 @@ index a7472ee7..f06c889b 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9af..05cf4410 100644
+index 5aaba9af26..e76e3d3f3a 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
@@ -326,17 +326,16 @@ index 5aaba9af..05cf4410 100644
  
  	cat >> /var/run/hostapd-$phy.conf <<EOF
  $hostapd_cfg
-@@ -527,6 +627,34 @@ ${max_listen_int:+max_listen_interval=$max_listen_int}
+@@ -527,6 +627,31 @@ ${max_listen_int:+max_listen_interval=$max_listen_int}
  EOF
  }
  
 +mac80211_generate_mbssid_mac() {
 +	local phy="$1"
 +	local transmitted_bssid="$2"
-+	local id="${macidx:-0}"
++	local id="${mbssidx:-0}"
 +
 +	local ref="$(cat /sys/class/ieee80211/${phy}/macaddress)"
-+	local mask="$(cat /sys/class/ieee80211/${phy}/address_mask)"
 +
 +	if [ -z "$transmitted_bssid" ]; then
 +		transmitted_bssid=$ref
@@ -350,33 +349,37 @@ index 5aaba9af..05cf4410 100644
 +	local oIFS="$IFS"; IFS=":"; set -- $transmitted_bssid; IFS="$oIFS"
 +
 +	# Calculate nontransmitted bssid
-+	macidx=$(($id + 1))
-+	mbssid_idx=$(($macidx - 1))
 +	b6="0x$6"
 +	ref_b6=$(($b6 % $max_mbssid))
-+	b6=$(($b6 - $ref_b6 + ($ref_b6 + $mbssid_idx) % $max_mbssid))
++	b6=$(($b6 - $ref_b6 + ($ref_b6 + $id) % $max_mbssid))
 +	printf "%s:%s:%s:%s:%s:%02x" $1 $2 $3 $4 $5 $b6
 +}
 +
  mac80211_get_addr() {
  	local phy="$1"
  	local idx="$(($2 + 1))"
-@@ -757,7 +885,13 @@ mac80211_prepare_vif() {
+@@ -757,7 +882,19 @@ mac80211_prepare_vif() {
  
  	json_select ..
  
 -	if [ -z "$macaddr" ]; then
 +	if [ "$mbssid" -gt 0 ] && [ "$mode" == "ap" ]; then
-+		[ "$macidx" -eq 0 ] && {
-+			transmitted_bssid=$macaddr
++		[ "$mbssidx" -eq 0 ] && {
++			if [ -z $macaddr ]; then
++				transmitted_bssid="$(mac80211_generate_mac $phy)"
++			else
++				# uci set mac address
++				transmitted_bssid=$macaddr
++			fi
++			macidx="$(($macidx + 1))"
 +		}
 +		macaddr="$(mac80211_generate_mbssid_mac $phy $transmitted_bssid)"
-+		macidx="$(($macidx + 1))"
++		mbssidx="$(($mbssidx + 1))"
 +	elif [ -z "$macaddr" ]; then
  		macaddr="$(mac80211_generate_mac $phy)"
  		macidx="$(($macidx + 1))"
  	elif [ "$macaddr" = 'random' ]; then
-@@ -1058,6 +1192,9 @@ mac80211_setup_vif() {
+@@ -1058,6 +1195,9 @@ mac80211_setup_vif() {
  
  	json_select ..
  	[ -n "$failed" ] || wireless_add_vif "$name" "$ifname"
@@ -386,7 +389,7 @@ index 5aaba9af..05cf4410 100644
  }
  
  get_freq() {
-@@ -1122,6 +1259,10 @@ drv_mac80211_cleanup() {
+@@ -1122,6 +1262,10 @@ drv_mac80211_cleanup() {
  	hostapd_common_cleanup
  }
  
@@ -397,7 +400,15 @@ index 5aaba9af..05cf4410 100644
  drv_mac80211_setup() {
  	json_select config
  	json_get_vars \
-@@ -1219,6 +1360,16 @@ drv_mac80211_setup() {
+@@ -1180,6 +1324,7 @@ drv_mac80211_setup() {
+ 	no_ap=1
+ 	macidx=0
+ 	staidx=0
++	mbssidx=0
+ 
+ 	[ -n "$chanbw" ] && {
+ 		for file in /sys/kernel/debug/ieee80211/$phy/ath9k*/chanbw /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode; do
+@@ -1219,6 +1364,16 @@ drv_mac80211_setup() {
  	for_each_interface "sta adhoc mesh" mac80211_set_noscan
  	[ -n "$has_ap" ] && mac80211_hostapd_setup_base "$phy"
  
@@ -414,7 +425,7 @@ index 5aaba9af..05cf4410 100644
  	mac80211_prepare_iw_htmode
  	for_each_interface "sta adhoc mesh monitor" mac80211_prepare_vif
  	NEWAPLIST=
-@@ -1251,6 +1402,14 @@ drv_mac80211_setup() {
+@@ -1251,6 +1406,14 @@ drv_mac80211_setup() {
  		if [ "$no_reload" != "0" ]; then
  			add_ap=1
  			ubus wait_for hostapd
@@ -430,7 +441,7 @@ index 5aaba9af..05cf4410 100644
  			ret="$?"
  			[ "$ret" != 0 -o -z "$hostapd_res" ] && {
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a63..ced3877a 100644
+index e24a2a634e..c8965d79cb 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -513,19 +524,24 @@ index e24a2a63..ced3877a 100644
  
  		get_band_defaults "$dev"
  
-@@ -196,6 +234,11 @@ detect_mac80211() {
+@@ -196,6 +234,16 @@ detect_mac80211() {
  				;;
  		esac
  
-+		macaddr=""
-+		for i in $(seq 2 3); do
-+			macaddr=${macaddr}:$(echo $rand | cut -d ' ' -f $i)
-+		done
++		if [ $(dmesg | grep -q "eeprom load failed") ]; then
++			macaddr=""
++			for i in $(seq 2 3); do
++				macaddr=${macaddr}:$(echo $rand | cut -d ' ' -f $i)
++			done
++			macaddr="00:0$(($devidx - 1)):55:66${macaddr}"
++		else
++			macaddr="$(cat /sys/class/ieee80211/${dev}/macaddress)"
++		fi
 +
  		uci -q batch <<-EOF
  			set wireless.${name}=wifi-device
  			set wireless.${name}.type=mac80211
-@@ -203,15 +246,34 @@ detect_mac80211() {
+@@ -203,15 +251,33 @@ detect_mac80211() {
  			set wireless.${name}.channel=${channel}
  			set wireless.${name}.band=${mode_band}
  			set wireless.${name}.htmode=$htmode
@@ -547,8 +563,7 @@ index e24a2a63..ced3877a 100644
 -			set wireless.default_${name}.encryption=none
 +			set wireless.default_${name}.ssid=OpenWrt-${mode_band}
 +			set wireless.default_${name}.encryption=${encryption}
-+
-+			set wireless.default_${name}.macaddr=00:0$(($devidx - 1)):55:66${macaddr}
++			set wireless.default_${name}.macaddr=${macaddr}
 +
  EOF
 +		[ -n "$key" ] && {
@@ -564,7 +579,7 @@ index e24a2a63..ced3877a 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index bf3625c9..6cac7043 100644
+index bf3625c92d..6cac704309 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -379,6 +379,13 @@ hostapd_common_add_bss_config() {
