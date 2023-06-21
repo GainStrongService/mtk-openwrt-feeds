@@ -85,7 +85,6 @@ struct hnat_desc {
 #define HAS_HQOS_MAGIC_TAG(skb) (qos_toggle && skb->protocol == HQOS_MAGIC_TAG)
 
 #define HNAT_MAGIC_TAG 0x6789
-#define HNAT_INFO_FILLED 0x7
 #define WIFI_INFO_LEN 6
 #define FOE_INFO_LEN (10 + WIFI_INFO_LEN)
 #define IS_SPACE_AVAILABLE_HEAD(skb)                                           \
@@ -136,7 +135,6 @@ struct hnat_desc {
 #define clr_from_extge(skb) (HNAT_SKB_CB2(skb)->magic = 0x0)
 #define set_to_ppe(skb) (HNAT_SKB_CB2(skb)->magic = 0x78681415)
 #define is_from_extge(skb) (HNAT_SKB_CB2(skb)->magic == 0x78786688)
-#define is_hnat_info_filled(skb) (skb_hnat_filled(skb) == HNAT_INFO_FILLED)
 #define is_magic_tag_valid(skb) (skb_hnat_magic_tag(skb) == HNAT_MAGIC_TAG)
 #define set_from_mape(skb) (HNAT_SKB_CB2(skb)->magic = 0x78787788)
 #define is_from_mape(skb) (HNAT_SKB_CB2(skb)->magic == 0x78787788)
