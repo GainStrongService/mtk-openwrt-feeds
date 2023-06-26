@@ -441,7 +441,7 @@ index 5aaba9af26..e76e3d3f3a 100644
  			ret="$?"
  			[ "$ret" != 0 -o -z "$hostapd_res" ] && {
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a634e..c8965d79cb 100644
+index e24a2a634e..e9a159427a 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -528,7 +528,7 @@ index e24a2a634e..c8965d79cb 100644
  				;;
  		esac
  
-+		if [ $(dmesg | grep -q "eeprom load failed") ]; then
++		if (dmesg | grep -q "eeprom load fail"); then
 +			macaddr=""
 +			for i in $(seq 2 3); do
 +				macaddr=${macaddr}:$(echo $rand | cut -d ' ' -f $i)
