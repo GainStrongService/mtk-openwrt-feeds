@@ -3015,27 +3015,33 @@ static int mtk_hwlro_get_fdir_all(struct net_device *dev,
 	return 0;
 }
 
-int mtk_rss_set_indr_tbl(struct mtk_eth *eth, int num)
+u32 mtk_rss_indr_table(struct mtk_rss_params *rss_params, int index)
 {
-	u32 i, config;
+	u32 val = 0;
+	int i;
 
-	if (num <= 0 || num > MTK_RX_NAPI_NUM)
-		return -EOPNOTSUPP;
+	for (i = 16 * index; i < 16 * index + 16; i++)
+		val |= (rss_params->indirection_table[i] << (2 * (i % 16)));
 
-	for (i = 0, config = 0; i < 16; i++) {
-		config <<= 2;
-		config |= (i % num);
-	}
-
-	for (i = 0; i < 8; i++)
-		mtk_w32(eth, config, MTK_RSS_INDR_TABLE_DW(i));
-
-	return 0;
+	return val;
 }
 
 static int mtk_rss_init(struct mtk_eth *eth)
 {
+	struct mtk_rss_params *rss_params = &eth->rss_params;
+	static u8 hash_key[MTK_RSS_HASH_KEYSIZE] = {
+		0xfa, 0x01, 0xac, 0xbe, 0x3b, 0xb7, 0x42, 0x6a,
+		0x0c, 0xf2, 0x30, 0x80, 0xa3, 0x2d, 0xcb, 0x77,
+		0xb4, 0x30, 0x7b, 0xae, 0xcb, 0x2b, 0xca, 0xd0,
+		0xb0, 0x8f, 0xa3, 0x43, 0x3d, 0x25, 0x67, 0x41,
+		0xc2, 0x0e, 0x5b, 0x25, 0xda, 0x56, 0x5a, 0x6d};
 	u32 val;
+	int i;
+
+	memcpy(rss_params->hash_key, hash_key, MTK_RSS_HASH_KEYSIZE);
+
+	for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE; i++)
+		rss_params->indirection_table[i] = i % eth->soc->rss_num;
 
 	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
 		/* Set RSS rings to PSE modes */
@@ -3062,8 +3068,14 @@ static int mtk_rss_init(struct mtk_eth *eth)
 	val |= MTK_RSS_IPV6_STATIC_HASH;
 	mtk_w32(eth, val, MTK_PDMA_RSS_GLO_CFG);
 
+	/* Hash Key */
+	for (i = 0; i < MTK_RSS_HASH_KEYSIZE / sizeof(u32); i++)
+		mtk_w32(eth, rss_params->hash_key[i], MTK_RSS_HASH_KEY_DW(i));
+
 	/* Select the size of indirection table */
-	mtk_rss_set_indr_tbl(eth, eth->soc->rss_num);
+	for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE / 16; i++)
+		mtk_w32(eth, mtk_rss_indr_table(rss_params, i),
+			MTK_RSS_INDR_TABLE_DW(i));
 
 	/* Pause */
 	val |= MTK_RSS_CFG_REQ;
@@ -4255,6 +4267,8 @@ static void mtk_get_ethtool_stats(struct net_device *dev,
 static int mtk_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			 u32 *rule_locs)
 {
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
 	int ret = -EOPNOTSUPP;
 
 	switch (cmd->cmd) {
@@ -4262,12 +4276,13 @@ static int mtk_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		if (dev->hw_features & NETIF_F_LRO) {
 			cmd->data = MTK_MAX_RX_RING_NUM;
 			ret = 0;
+		} else if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
+			cmd->data = eth->soc->rss_num;
+			ret = 0;
 		}
 		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		if (dev->hw_features & NETIF_F_LRO) {
-			struct mtk_mac *mac = netdev_priv(dev);
-
 			cmd->rule_cnt = mac->hwlro_ip_cnt;
 			ret = 0;
 		}
@@ -4306,6 +4321,73 @@ static int mtk_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	}
 
 	return ret;
+}
+
+static u32 mtk_get_rxfh_key_size(struct net_device *dev)
+{
+	return MTK_RSS_HASH_KEYSIZE;
+}
+
+static u32 mtk_get_rxfh_indir_size(struct net_device *dev)
+{
+	return MTK_RSS_MAX_INDIRECTION_TABLE;
+}
+
+static int mtk_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
+			u8 *hfunc)
+{
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	struct mtk_rss_params *rss_params = &eth->rss_params;
+	int i;
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;	/* Toeplitz */
+
+	if (key) {
+		memcpy(key, rss_params->hash_key,
+		       sizeof(rss_params->hash_key));
+	}
+
+	if (indir) {
+		for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE; i++)
+			indir[i] = rss_params->indirection_table[i];
+	}
+
+	return 0;
+}
+
+static int mtk_set_rxfh(struct net_device *dev, const u32 *indir,
+			const u8 *key, const u8 hfunc)
+{
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	struct mtk_rss_params *rss_params = &eth->rss_params;
+	int i;
+
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    hfunc != ETH_RSS_HASH_TOP)
+		return -EOPNOTSUPP;
+
+	if (key) {
+		memcpy(rss_params->hash_key, key,
+		       sizeof(rss_params->hash_key));
+
+		for (i = 0; i < MTK_RSS_HASH_KEYSIZE / sizeof(u32); i++)
+			mtk_w32(eth, rss_params->hash_key[i],
+				MTK_RSS_HASH_KEY_DW(i));
+	}
+
+	if (indir) {
+		for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE; i++)
+			rss_params->indirection_table[i] = indir[i];
+
+		for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE / 16; i++)
+			mtk_w32(eth, mtk_rss_indr_table(rss_params, i),
+				MTK_RSS_INDR_TABLE_DW(i));
+	}
+
+	return 0;
 }
 
 static void mtk_get_pauseparam(struct net_device *dev, struct ethtool_pauseparam *pause)
@@ -4381,6 +4463,10 @@ static const struct ethtool_ops mtk_ethtool_ops = {
 	.get_ethtool_stats	= mtk_get_ethtool_stats,
 	.get_rxnfc		= mtk_get_rxnfc,
 	.set_rxnfc              = mtk_set_rxnfc,
+	.get_rxfh_key_size	= mtk_get_rxfh_key_size,
+	.get_rxfh_indir_size	= mtk_get_rxfh_indir_size,
+	.get_rxfh		= mtk_get_rxfh,
+	.set_rxfh		= mtk_set_rxfh,
 	.get_pauseparam		= mtk_get_pauseparam,
 	.set_pauseparam		= mtk_set_pauseparam,
 	.get_eee		= mtk_get_eee,

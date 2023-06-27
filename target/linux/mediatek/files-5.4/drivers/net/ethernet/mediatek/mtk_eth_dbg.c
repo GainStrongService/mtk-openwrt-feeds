@@ -1124,6 +1124,24 @@ static const struct file_operations dbg_regs_fops = {
 	.release = single_release
 };
 
+static int mtk_rss_set_indr_tbl(struct mtk_eth *eth, int num)
+{
+	struct mtk_rss_params *rss_params = &eth->rss_params;
+	u32 i;
+
+	if (num <= 0 || num > MTK_RX_NAPI_NUM)
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE; i++)
+		rss_params->indirection_table[i] = i % num;
+
+	for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE / 16; i++)
+		mtk_w32(eth, mtk_rss_indr_table(rss_params, i),
+			MTK_RSS_INDR_TABLE_DW(i));
+
+	return 0;
+}
+
 ssize_t rss_ctrl_write(struct file *file, const char __user *buffer,
 		       size_t count, loff_t *data)
 {

@@ -65,6 +65,9 @@
 #define	MTK_HW_LRO_REPLACE_DELTA	1000
 #define	MTK_HW_LRO_SDL_REMAIN_ROOM	1522
 
+#define MTK_RSS_HASH_KEYSIZE		40
+#define MTK_RSS_MAX_INDIRECTION_TABLE	128
+
 /* Frame Engine Global Configuration */
 #define MTK_FE_GLO_CFG		0x00
 #define MTK_FE_LINK_DOWN_P3	BIT(11)
@@ -267,6 +270,8 @@
 #define MTK_RSS_CFG_REQ			BIT(2)
 #define MTK_RSS_IPV6_STATIC_HASH	(0x7 << 8)
 #define MTK_RSS_IPV4_STATIC_HASH	(0x7 << 12)
+#define MTK_RSS_HASH_KEY_DW(x)		(MTK_PDMA_RSS_GLO_CFG + 0x20 +	\
+					 ((x) * 0x4))
 #define MTK_RSS_INDR_TABLE_DW(x)	(MTK_PDMA_RSS_GLO_CFG + 0x50 +	\
 					 ((x) * 0x4))
 
@@ -1325,6 +1330,18 @@ struct mtk_rx_ring {
 	u32 ring_no;
 };
 
+/* struct mtk_rss_params -	This is the structure holding parameters
+				for the RSS ring
+ * @hash_key			The element is used to record the
+				secret key for the RSS ring
+ * indirection_table		The element is used to record the
+				indirection table for the RSS ring
+ */
+struct mtk_rss_params {
+	u32		hash_key[MTK_RSS_HASH_KEYSIZE / sizeof(u32)];
+	u8		indirection_table[MTK_RSS_MAX_INDIRECTION_TABLE];
+};
+
 /* struct mtk_napi -	This is the structure holding NAPI-related information,
  *			and a mtk_napi struct is binding to one interrupt group
  * @napi:		The NAPI struct
@@ -1787,6 +1804,7 @@ struct mtk_eth {
 	struct mtk_rx_ring		rx_ring_qdma;
 	struct napi_struct		tx_napi;
 	struct mtk_napi			rx_napi[MTK_RX_NAPI_NUM];
+	struct mtk_rss_params		rss_params;
 	void				*scratch_ring;
 	struct mtk_reset_event		reset_event;
 	dma_addr_t			phy_scratch_ring;
@@ -1864,5 +1882,5 @@ int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
 int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
 
 void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
-int mtk_rss_set_indr_tbl(struct mtk_eth *eth, int num);
+u32 mtk_rss_indr_table(struct mtk_rss_params *rss_params, int index);
 #endif /* MTK_ETH_H */
