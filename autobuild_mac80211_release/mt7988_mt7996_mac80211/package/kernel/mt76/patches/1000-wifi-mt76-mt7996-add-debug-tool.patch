@@ -1,21 +1,21 @@
-From e7b3aa46df08dc89f0ed30c36d56ee4acf50d982 Mon Sep 17 00:00:00 2001
+From 16ea1c12d369ea1f315edcc7a8525efc6d78403a Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 24 Mar 2023 14:02:32 +0800
-Subject: [PATCH 1000/1015] wifi: mt76: mt7996: add debug tool
+Subject: [PATCH] wifi: mt76: mt7996: add debug tool
 
 Change-Id: Ie10390b01f17db893dbfbf3221bf63a4bd1fe38f
 ---
  mt7996/Makefile      |    3 +
  mt7996/coredump.c    |   10 +-
  mt7996/coredump.h    |    7 +
- mt7996/debugfs.c     |   29 +-
+ mt7996/debugfs.c     |   24 +-
  mt7996/mt7996.h      |   14 +
  mt7996/mtk_debug.h   | 2165 ++++++++++++++++++++++++++++++++++++++
  mt7996/mtk_debugfs.c | 2353 ++++++++++++++++++++++++++++++++++++++++++
  mt7996/mtk_mcu.c     |   18 +
  mt7996/mtk_mcu.h     |   16 +
  tools/fwlog.c        |   25 +-
- 10 files changed, 4622 insertions(+), 18 deletions(-)
+ 10 files changed, 4617 insertions(+), 18 deletions(-)
  create mode 100644 mt7996/mtk_debug.h
  create mode 100644 mt7996/mtk_debugfs.c
  create mode 100644 mt7996/mtk_mcu.c
@@ -113,7 +113,7 @@ index 01ed3731..93cd84a0 100644
  mt7996_crash_data *mt7996_coredump_new(struct mt7996_dev *dev, u8 type)
  {
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index ca4d615d..8a513f46 100644
+index ca4d615d..93581fef 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -301,6 +301,9 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
@@ -126,7 +126,7 @@ index ca4d615d..8a513f46 100644
  
  	if (dev->fw_debug_bin)
  		val = MCU_FW_LOG_RELAY;
-@@ -407,16 +410,22 @@ mt7996_fw_debug_bin_set(void *data, u64 val)
+@@ -407,11 +410,12 @@ mt7996_fw_debug_bin_set(void *data, u64 val)
  	};
  	struct mt7996_dev *dev = data;
  
@@ -142,17 +142,7 @@ index ca4d615d..8a513f46 100644
  
  	dev->fw_debug_bin = val;
  
- 	relay_reset(dev->relay_fwlog);
- 
-+	if (dev->relay_fwlog && !val) {
-+		relay_close(dev->relay_fwlog);
-+		dev->relay_fwlog = NULL;
-+	}
-+
- 	return mt7996_fw_debug_wm_set(dev, dev->fw_debug_wm);
- }
- 
-@@ -825,6 +834,11 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
+@@ -825,6 +829,11 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
  	if (phy == &dev->phy)
  		dev->debugfs_dir = dir;
  
@@ -164,7 +154,7 @@ index ca4d615d..8a513f46 100644
  	return 0;
  }
  
-@@ -837,6 +851,12 @@ mt7996_debugfs_write_fwlog(struct mt7996_dev *dev, const void *hdr, int hdrlen,
+@@ -837,6 +846,12 @@ mt7996_debugfs_write_fwlog(struct mt7996_dev *dev, const void *hdr, int hdrlen,
  	void *dest;
  
  	spin_lock_irqsave(&lock, flags);
@@ -177,7 +167,7 @@ index ca4d615d..8a513f46 100644
  	dest = relay_reserve(dev->relay_fwlog, hdrlen + len + 4);
  	if (dest) {
  		*(u32 *)dest = hdrlen + len;
-@@ -869,9 +889,6 @@ void mt7996_debugfs_rx_fw_monitor(struct mt7996_dev *dev, const void *data, int
+@@ -869,9 +884,6 @@ void mt7996_debugfs_rx_fw_monitor(struct mt7996_dev *dev, const void *data, int
  		.msg_type = cpu_to_le16(PKT_TYPE_RX_FW_MONITOR),
  	};
  
