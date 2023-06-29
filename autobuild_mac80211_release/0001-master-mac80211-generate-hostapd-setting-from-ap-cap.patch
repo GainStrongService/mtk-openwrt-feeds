@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index a7472ee779..f06c889b0a 100644
+index a7472ee7..f06c889b 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -31,14 +31,14 @@ index a7472ee779..f06c889b0a 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9af26..e76e3d3f3a 100644
+index 5aaba9af..d3b638a9 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
  
  	config_add_string path phy 'macaddr:macaddr'
  	config_add_string tx_burst
-+	config_add_int mbssid mu_onoff
++	config_add_int mbssid mu_onoff sr_enable sr_enhanced
  	config_add_string distance
  	config_add_int beacon_int chanbw frag rts
  	config_add_int rxantenna txantenna antenna_gain txpower min_tx_power
@@ -400,7 +400,17 @@ index 5aaba9af26..e76e3d3f3a 100644
  drv_mac80211_setup() {
  	json_select config
  	json_get_vars \
-@@ -1180,6 +1324,7 @@ drv_mac80211_setup() {
+@@ -1129,7 +1273,8 @@ drv_mac80211_setup() {
+ 		country chanbw distance \
+ 		txpower antenna_gain \
+ 		rxantenna txantenna \
+-		frag rts beacon_int:100 htmode
++		frag rts beacon_int:100 htmode \
++		sr_enable sr_enhanced
+ 	json_get_values basic_rate_list basic_rate
+ 	json_get_values scan_list scan_list
+ 	json_select ..
+@@ -1180,6 +1325,7 @@ drv_mac80211_setup() {
  	no_ap=1
  	macidx=0
  	staidx=0
@@ -408,7 +418,7 @@ index 5aaba9af26..e76e3d3f3a 100644
  
  	[ -n "$chanbw" ] && {
  		for file in /sys/kernel/debug/ieee80211/$phy/ath9k*/chanbw /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode; do
-@@ -1219,6 +1364,16 @@ drv_mac80211_setup() {
+@@ -1219,6 +1365,16 @@ drv_mac80211_setup() {
  	for_each_interface "sta adhoc mesh" mac80211_set_noscan
  	[ -n "$has_ap" ] && mac80211_hostapd_setup_base "$phy"
  
@@ -425,7 +435,7 @@ index 5aaba9af26..e76e3d3f3a 100644
  	mac80211_prepare_iw_htmode
  	for_each_interface "sta adhoc mesh monitor" mac80211_prepare_vif
  	NEWAPLIST=
-@@ -1251,6 +1406,14 @@ drv_mac80211_setup() {
+@@ -1251,6 +1407,14 @@ drv_mac80211_setup() {
  		if [ "$no_reload" != "0" ]; then
  			add_ap=1
  			ubus wait_for hostapd
@@ -440,8 +450,18 @@ index 5aaba9af26..e76e3d3f3a 100644
  			local hostapd_res="$(ubus call hostapd config_add "{\"iface\":\"$primary_ap\", \"config\":\"${hostapd_conf_file}\"}")"
  			ret="$?"
  			[ "$ret" != 0 -o -z "$hostapd_res" ] && {
+@@ -1266,6 +1430,9 @@ drv_mac80211_setup() {
+ 	[ "${add_ap}" = 1 ] && sleep 1
+ 	for_each_interface "ap" mac80211_setup_vif
+ 
++	[ -n "$sr_enable" ] && echo "$sr_enable" > /sys/kernel/debug/ieee80211/$phy/mt76/sr_enable
++	[ -n "$sr_enhanced" ] && echo "$sr_enhanced" > /sys/kernel/debug/ieee80211/$phy/mt76/sr_enhanced_enable
++
+ 	NEWSPLIST=
+ 	NEWUMLIST=
+ 
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a634e..e9a159427a 100644
+index e24a2a63..e9a15942 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -579,10 +599,45 @@ index e24a2a634e..e9a159427a 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index bf3625c92d..6cac704309 100644
+index bf3625c9..9b0e57f6 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
-@@ -379,6 +379,13 @@ hostapd_common_add_bss_config() {
+@@ -60,7 +60,14 @@ hostapd_append_wpa_key_mgmt() {
+ 			[ "${ieee80211w:-0}" -gt 0 ] && append wpa_key_mgmt "WPA-EAP-SHA256"
+ 		;;
+ 		sae)
+-			append wpa_key_mgmt "SAE"
++			case "$encryption" in
++			*sae-ext*)
++				append wpa_key_mgmt "SAE-EXT-KEY"
++			;;
++			*)
++				append wpa_key_mgmt "SAE"
++			;;
++			esac
+ 			[ "${ieee80211r:-0}" -gt 0 ] && append wpa_key_mgmt "FT-SAE"
+ 		;;
+ 		psk-sae)
+@@ -115,6 +122,7 @@ hostapd_common_add_device_config() {
+ 	config_add_int rts_threshold
+ 	config_add_int rssi_reject_assoc_rssi
+ 	config_add_int rssi_ignore_probe_request
++	config_add_int rssi_reject_assoc_timeout
+ 	config_add_int maxassoc
+ 
+ 	config_add_string acs_chan_bias
+@@ -227,8 +235,10 @@ hostapd_prepare_device_config() {
+ 		hostapd_add_rate brlist "$br"
+ 	done
+ 
++	json_get_vars rssi_reject_assoc_timeout
+ 	[ -n "$rssi_reject_assoc_rssi" ] && append base_cfg "rssi_reject_assoc_rssi=$rssi_reject_assoc_rssi" "$N"
+ 	[ -n "$rssi_ignore_probe_request" ] && append base_cfg "rssi_ignore_probe_request=$rssi_ignore_probe_request" "$N"
++	[ -n "$rssi_reject_assoc_timeout" ] && append base_cfg "rssi_reject_assoc_timeout=$rssi_reject_assoc_timeout" "$N"
+ 	[ -n "$beacon_rate" ] && append base_cfg "beacon_rate=$beacon_rate" "$N"
+ 	[ -n "$rlist" ] && append base_cfg "supported_rates=$rlist" "$N"
+ 	[ -n "$brlist" ] && append base_cfg "basic_rates=$brlist" "$N"
+@@ -379,6 +389,24 @@ hostapd_common_add_bss_config() {
  	config_add_string fils_dhcp
  
  	config_add_int ocv
@@ -593,10 +648,21 @@ index bf3625c92d..6cac704309 100644
 +	config_add_int disable_ht
 +
 +	config_add_boolean beacon_prot interworking
++
++	config_add_int unsol_bcast_probe_resp_interval
++	config_add_int fils_discovery_min_interval
++	config_add_int fils_discovery_max_interval
++	config_add_boolean rnr
++
++	config_add_array sae_groups
++	config_add_array owe_groups
++	config_add_array pairwise
++	config_add_string group_cipher
++
  }
  
  hostapd_set_vlan_file() {
-@@ -443,11 +450,11 @@ append_iw_nai_realm() {
+@@ -443,11 +471,11 @@ append_iw_nai_realm() {
  }
  
  append_iw_venue_name() {
@@ -610,7 +676,51 @@ index bf3625c92d..6cac704309 100644
  }
  
  append_hs20_oper_friendly_name() {
-@@ -844,7 +851,7 @@ hostapd_set_bss_options() {
+@@ -565,7 +593,8 @@ hostapd_set_bss_options() {
+ 		ppsk airtime_bss_weight airtime_bss_limit airtime_sta_weight \
+ 		multicast_to_unicast_all proxy_arp per_sta_vif \
+ 		eap_server eap_user_file ca_cert server_cert private_key private_key_passwd server_id \
+-		vendor_elements fils ocv
++		vendor_elements fils ocv unsol_bcast_probe_resp_interval fils_discovery_min_interval \
++		fils_discovery_max_interval rnr group_cipher
+ 
+ 	set_default fils 0
+ 	set_default isolate 0
+@@ -793,6 +822,33 @@ hostapd_set_bss_options() {
+ 	local auth_algs="$((($auth_mode_shared << 1) | $auth_mode_open))"
+ 	append bss_conf "auth_algs=${auth_algs:-1}" "$N"
+ 	append bss_conf "wpa=$wpa" "$N"
++
++	json_get_values pairwise pairwise
++	case "$pairwise" in
++		*tkip+aes|*tkip+ccmp|*aes+tkip|*ccmp+tkip)
++			wpa_cipher="CCMP TKIP"
++		;;
++		*ccmp256)
++			wpa_cipher="CCMP-256"
++		;;
++		*aes|*ccmp)
++			wpa_cipher="CCMP"
++		;;
++		*tkip)
++			wpa_cipher="TKIP"
++		;;
++		*gcmp256)
++			wpa_cipher="GCMP-256"
++		;;
++		*gcmp)
++			wpa_cipher="GCMP"
++		;;
++		*)
++			wpa_cipher=""
++		;;
++	esac
++	[ -n "$wpa_cipher" ] && wpa_pairwise="$wpa_cipher"
++
+ 	[ -n "$wpa_pairwise" ] && append bss_conf "wpa_pairwise=$wpa_pairwise" "$N"
+ 
+ 	set_default wps_pushbutton 0
+@@ -844,7 +900,7 @@ hostapd_set_bss_options() {
  	}
  
  	append bss_conf "ssid=$ssid" "$N"
@@ -619,7 +729,34 @@ index bf3625c92d..6cac704309 100644
  	[ -n "$network_ifname" ] && append bss_conf "snoop_iface=$network_ifname" "$N"
  	[ -n "$iapp_interface" ] && {
  		local ifname
-@@ -978,7 +985,7 @@ hostapd_set_bss_options() {
+@@ -957,6 +1013,8 @@ hostapd_set_bss_options() {
+ 	fi
+ 
+ 	if [ "$wpa" -ge "2" ]; then
++		json_get_values sae_groups sae_groups
++		json_get_values owe_groups owe_groups
+ 		if [ -n "$network_bridge" -a "$rsn_preauth" = 1 ]; then
+ 			set_default auth_cache 1
+ 			append bss_conf "rsn_preauth=1" "$N"
+@@ -975,17 +1033,42 @@ hostapd_set_bss_options() {
+ 		append bss_conf "okc=$auth_cache" "$N"
+ 		[ "$auth_cache" = 0 -a "$fils" = 0 ] && append bss_conf "disable_pmksa_caching=1" "$N"
+ 
++		[ -z "$group_cipher" ] && group_cipher="$wpa_cipher"
++
++		if [ -n "$sae_groups" -o -n "$owe_groups" ]; then
++			case "$auth_type" in
++			sae*)
++				append bss_conf "sae_groups=$sae_groups" "$N"
++				append bss_conf "group_cipher=$group_cipher" "$N"
++			;;
++			owe)
++				append bss_conf "owe_groups=$owe_groups" "$N"
++				append bss_conf "group_cipher=$group_cipher" "$N"
++			;;
++			esac
++		fi
++
  		# RSN -> allow management frame protection
  		case "$ieee80211w" in
  			[012])
@@ -627,8 +764,16 @@ index bf3625c92d..6cac704309 100644
 +				json_get_vars ieee80211w_mgmt_cipher ieee80211w_max_timeout ieee80211w_retry_timeout beacon_prot
  				append bss_conf "ieee80211w=$ieee80211w" "$N"
  				[ "$ieee80211w" -gt "0" ] && {
++					case "$group_cipher" in
++					CCMP*)
++						ieee80211w_mgmt_cipher="AES-128-CMAC"
++					;;
++					GCMP-256)
++						[[ "$encryption" != "*owe*" ]] && ieee80211w_mgmt_cipher="BIP-GMAC-256"
++					;;
++					esac
  					if [ "$auth_type" = "eap192" ]; then
-@@ -986,6 +993,8 @@ hostapd_set_bss_options() {
+ 						append bss_conf "group_mgmt_cipher=BIP-GMAC-256" "$N"
  					else
  						append bss_conf "group_mgmt_cipher=${ieee80211w_mgmt_cipher:-AES-128-CMAC}" "$N"
  					fi
@@ -637,7 +782,7 @@ index bf3625c92d..6cac704309 100644
  					[ -n "$ieee80211w_max_timeout" ] && \
  						append bss_conf "assoc_sa_query_max_timeout=$ieee80211w_max_timeout" "$N"
  					[ -n "$ieee80211w_retry_timeout" ] && \
-@@ -1050,9 +1059,10 @@ hostapd_set_bss_options() {
+@@ -1050,9 +1133,10 @@ hostapd_set_bss_options() {
  	json_get_vars iw_roaming_consortium iw_domain_name iw_anqp_3gpp_cell_net iw_nai_realm
  	json_get_vars iw_anqp_elem iw_qos_map_set iw_ipaddr_type_availability iw_gas_address3
  	json_get_vars iw_venue_name iw_venue_url
@@ -649,7 +794,122 @@ index bf3625c92d..6cac704309 100644
  		append bss_conf "interworking=1" "$N"
  		set_default iw_internet 1
  		set_default iw_asra 0
-@@ -1562,6 +1572,20 @@ wpa_supplicant_add_network() {
+@@ -1159,6 +1243,22 @@ hostapd_set_bss_options() {
+ 		append bss_conf "$val" "$N"
+ 	done
+ 
++	if [ "$unsol_bcast_probe_resp_interval" -gt 0 ]; then
++		append bss_conf "unsol_bcast_probe_resp_interval=$unsol_bcast_probe_resp_interval" "$N"
++	fi
++
++	if [ -n "$fils_discovery_min_interval" ]; then
++		append bss_conf "fils_discovery_min_interval=$fils_discovery_min_interval" "$N"
++	fi
++
++	if [ -n "$fils_discovery_max_interval" ]; then
++		append bss_conf "fils_discovery_max_interval=$fils_discovery_max_interval" "$N"
++	fi
++
++	if [ -n "$rnr" ]; then
++		append bss_conf "rnr=$rnr" "$N"
++	fi
++
+ 	bss_md5sum="$(echo $bss_conf | md5sum | cut -d" " -f1)"
+ 	append bss_conf "config_id=$bss_md5sum" "$N"
+ 
+@@ -1531,12 +1631,41 @@ wpa_supplicant_add_network() {
+ 		;;
+ 	esac
+ 
++	json_get_values pairwise pairwise
++	case "$pairwise" in
++		*tkip+aes|*tkip+ccmp|*aes+tkip|*ccmp+tkip)
++			wpa_cipher="CCMP TKIP"
++		;;
++		*ccmp256)
++			wpa_cipher="CCMP-256"
++		;;
++		*aes|*ccmp)
++			wpa_cipher="CCMP"
++		;;
++		*tkip)
++			wpa_cipher="TKIP"
++		;;
++		*gcmp256)
++			wpa_cipher="GCMP-256"
++		;;
++		*gcmp)
++			wpa_cipher="GCMP"
++		;;
++		*)
++			wpa_cipher=""
++		;;
++	esac
++	[ -n "$wpa_cipher" ] && wpa_pairwise="$wpa_cipher"
++
+ 	[ "$wpa_cipher" = GCMP ] && {
+ 		append network_data "pairwise=GCMP" "$N$T"
+ 		append network_data "group=GCMP" "$N$T"
+ 	}
+ 
+ 	[ "$mode" = mesh ] || {
++		json_get_values sae_groups sae_groups
++		json_get_values owe_groups owe_groups
++
+ 		case "$wpa" in
+ 			1)
+ 				append network_data "proto=WPA" "$N$T"
+@@ -1546,12 +1675,48 @@ wpa_supplicant_add_network() {
+ 			;;
+ 		esac
+ 
++		[ -n "$wpa_pairwise" ] && append network_data "pairwise=$wpa_pairwise" "$N$T"
++		[ -z "$group_cipher" ] && group_cipher="$wpa_cipher"
++
++		if [ -n "$sae_groups" -o -n "$owe_groups" ]; then
++			case "$auth_type" in
++			sae*)
++				echo "sae_groups=$sae_groups" >> "$_config"
++				append network_data "group=$group_cipher" "$N$T"
++			;;
++			owe)
++				append network_data "owe_group=$owe_groups" "$N$T"
++				append network_data "group=$group_cipher" "$N$T"
++			;;
++			esac
++		fi
++
++		# RSN -> allow management frame protection
+ 		case "$ieee80211w" in
+ 			[012])
+-				[ "$wpa" -ge 2 ] && append network_data "ieee80211w=$ieee80211w" "$N$T"
++				json_get_vars ieee80211w_mgmt_cipher ieee80211w_max_timeout ieee80211w_retry_timeout beacon_prot
++				append network_data "ieee80211w=$ieee80211w" "$N$T"
++				[ "$ieee80211w" -gt "0" ] && {
++					case "$group_cipher" in
++					CCMP*)
++						ieee80211w_mgmt_cipher="AES-128-CMAC"
++					;;
++					GCMP-256)
++						[[ "$encryption" != "*owe*" ]] && ieee80211w_mgmt_cipher="BIP-GMAC-256"
++					;;
++					esac
++					if [ "$auth_type" = "eap192" ]; then
++						append network_data "group_mgmt=BIP-GMAC-256" "$N$T"
++					else
++						append network_data "group_mgmt=${ieee80211w_mgmt_cipher:-AES-128-CMAC}" "$N$T"
++					fi
++					[ -n "$beacon_prot" ] && \
++						append network_data "beacon_prot=$beacon_prot" "$N$T"
++				}
+ 			;;
+ 		esac
+ 	}
++
+ 	[ -n "$bssid" ] && append network_data "bssid=$bssid" "$N$T"
+ 	[ -n "$beacon_int" ] && append network_data "beacon_int=$beacon_int" "$N$T"
+ 
+@@ -1562,6 +1727,20 @@ wpa_supplicant_add_network() {
  	[ -n "$bssid_blacklist" ] && append network_data "bssid_blacklist=$bssid_blacklist" "$N$T"
  	[ -n "$bssid_whitelist" ] && append network_data "bssid_whitelist=$bssid_whitelist" "$N$T"
  
@@ -670,7 +930,7 @@ index bf3625c92d..6cac704309 100644
  	[ -n "$basic_rate" ] && {
  		local br rate_list=
  		for br in $basic_rate; do
-@@ -1576,6 +1600,11 @@ wpa_supplicant_add_network() {
+@@ -1576,6 +1755,11 @@ wpa_supplicant_add_network() {
  		append network_data "mcast_rate=$mc_rate" "$N$T"
  	}
  
