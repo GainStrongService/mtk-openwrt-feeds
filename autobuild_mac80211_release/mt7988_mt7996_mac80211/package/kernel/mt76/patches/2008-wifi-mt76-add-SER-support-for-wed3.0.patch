@@ -15,7 +15,7 @@ diff --git a/dma.c b/dma.c
 index e5b4d898..e31f6390 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -770,8 +770,9 @@ int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
+@@ -778,8 +778,9 @@ int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
  				q->head = q->ndesc - 1;
  				q->queued = q->ndesc - 1;
  			}
@@ -26,7 +26,7 @@ index e5b4d898..e31f6390 100644
  			if (!ret)
  				q->wed_regs = wed->rx_ring[ring].reg_base;
  		}
-@@ -902,7 +903,9 @@ done:
+@@ -910,7 +911,9 @@ done:
  
  	/* reset WED rx queues */
  	mt76_dma_wed_setup(dev, q, true);
@@ -41,7 +41,7 @@ diff --git a/mt7996/dma.c b/mt7996/dma.c
 index c5c7f160..471ae81c 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
-@@ -495,6 +495,12 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+@@ -524,6 +524,12 @@ int mt7996_dma_init(struct mt7996_dev *dev)
  	if (mt7996_band_valid(dev, MT_BAND2)) {
  		/* rx data queue for band2 */
  		rx_base = MT_RXQ_RING_BASE(MT_RXQ_BAND2) + hif1_ofs;
@@ -54,7 +54,7 @@ index c5c7f160..471ae81c 100644
  		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_BAND2],
  				       MT_RXQ_ID(MT_RXQ_BAND2),
  				       MT7996_RX_RING_SIZE,
-@@ -582,11 +588,35 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+@@ -611,11 +617,35 @@ int mt7996_dma_init(struct mt7996_dev *dev)
  	return 0;
  }
  
@@ -90,7 +90,7 @@ index c5c7f160..471ae81c 100644
  	int i;
  
  	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
-@@ -620,21 +650,33 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
+@@ -649,21 +679,33 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
  	if (force)
  		mt7996_wfsys_reset(dev);
  
