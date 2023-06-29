@@ -679,7 +679,7 @@ static int tx_vcm_cal_sw(struct phy_device *phydev, u8 rg_txreserve_x)
 			  MTK_PHY_DA_RX_PSBN_LP_MASK,
 			  upper_idx << 12 | upper_idx << 8 |
 			  upper_idx << 4 | upper_idx);
-		phydev_dbg(phydev, "TX-VCM SW cal result: 0x%x\n", upper_idx);
+		phydev_info(phydev, "TX-VCM SW cal result: 0x%x\n", upper_idx);
 	} else if (lower_idx == TXRESERVE_MIN && upper_ret == 1 &&
 		   lower_ret == 1) {
 		ret = 0;
@@ -844,10 +844,6 @@ static void mt7988_phy_finetune(struct phy_device *phydev)
 
 	/* TCT finetune */
 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RG_TX_FILTER, 0x5);
-
-	/* Disable TX power saving */
-	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RXADC_CTRL_RG7,
-		       MTK_PHY_DA_AD_BUF_BIAS_LP_MASK, 0x3 << 8);
 
 	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_52B5);
 	/* ResetSyncOffset = 5 */
@@ -1137,7 +1133,7 @@ static int mt798x_phy_config_init(struct phy_device *phydev)
 	mt798x_phy_common_finetune(phydev);
 	mt798x_phy_eee(phydev);
 
-	return mt798x_phy_calibration(phydev);
+	return 0;
 }
 
 static int mt7988_phy_setup_led(struct phy_device *phydev)
@@ -1228,6 +1224,13 @@ static int mt7988_phy_probe(struct phy_device *phydev)
 		if (err)
 			return err;
 	}
+
+	/* Disable TX power saving at probing to:
+	 * 1. Meet common mode compliance test criteria
+	 * 2. Make sure that TX-VCM calibration works fine
+	 */
+	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_RXADC_CTRL_RG7,
+		       MTK_PHY_DA_AD_BUF_BIAS_LP_MASK, 0x3 << 8);
 
 	mt7988_phy_setup_led(phydev);
 
