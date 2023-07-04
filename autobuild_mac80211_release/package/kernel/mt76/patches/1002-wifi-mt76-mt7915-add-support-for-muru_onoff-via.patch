@@ -1,7 +1,7 @@
-From c79fc4ca594e0c4506d8601243523476b47a13eb Mon Sep 17 00:00:00 2001
+From 790ec4b2acef90cb57142b117c12aca25fa5ea41 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Tue, 4 Apr 2023 02:23:57 +0800
-Subject: [PATCH 1002/1031] wifi: mt76: mt7915: add support for muru_onoff via
+Subject: [PATCH] wifi: mt76: mt7915: add support for muru_onoff via
 
 ---
  mt7915/init.c        |  2 ++
@@ -25,26 +25,26 @@ index d42d17b..41f137c 100644
  
  static void
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 4ef5190..a4a8194 100644
+index 1dd7863..4148bcd 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -870,6 +870,7 @@ static void
- mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
- 			struct ieee80211_sta *sta, struct ieee80211_vif *vif)
+@@ -873,6 +873,7 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
  {
-+	struct mt7915_phy *phy = mvif->phy;
+ 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
  	struct ieee80211_he_cap_elem *elem = &sta->deflink.he_cap.he_cap_elem;
++	struct mt7915_phy *phy = mvif->phy;
  	struct sta_rec_muru *muru;
  	struct tlv *tlv;
-@@ -882,13 +883,18 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
+ 
+@@ -884,13 +885,18 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
  
  	muru = (struct sta_rec_muru *)tlv;
  
--	muru->cfg.mimo_dl_en = vif->bss_conf.he_mu_beamformer ||
-+	muru->cfg.mimo_dl_en = (vif->bss_conf.he_mu_beamformer ||
- 			       vif->bss_conf.vht_mu_beamformer ||
--			       vif->bss_conf.vht_mu_beamformee;
-+			       vif->bss_conf.vht_mu_beamformee) &&
+-	muru->cfg.mimo_dl_en = mvif->cap.he_mu_ebfer ||
++	muru->cfg.mimo_dl_en = (mvif->cap.he_mu_ebfer ||
+ 			       mvif->cap.vht_mu_ebfer ||
+-			       mvif->cap.vht_mu_ebfee;
++			       mvif->cap.vht_mu_ebfee) &&
 +			       !!(phy->muru_onoff & MUMIMO_DL);
  	if (!is_mt7915(&dev->mt76))
  		muru->cfg.mimo_ul_en = true;
@@ -73,10 +73,10 @@ index e082511..fedae7e 100644
 +
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 7a9752f..2befa44 100644
+index 01d487c..1663814 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -238,6 +238,8 @@ struct mt7915_phy {
+@@ -252,6 +252,8 @@ struct mt7915_phy {
  	u32 rx_ampdu_ts;
  	u32 ampdu_ref;
  
@@ -86,7 +86,7 @@ index 7a9752f..2befa44 100644
  	struct mt76_channel_state state_ts;
  
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 70e4cb2..e5fb2ce 100644
+index 5a5f14d..41148c0 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2558,6 +2558,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)

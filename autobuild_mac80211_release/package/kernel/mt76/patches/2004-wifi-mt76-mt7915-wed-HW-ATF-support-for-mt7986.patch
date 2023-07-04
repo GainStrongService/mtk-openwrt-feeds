@@ -1,7 +1,7 @@
-From 52823aad02634b30aa18c4e27d5e5df08b7d52e7 Mon Sep 17 00:00:00 2001
+From 42aa30b927d84f6765e06f63aec5dc93402ff9a7 Mon Sep 17 00:00:00 2001
 From: Lian Chen <lian.chen@mediatek.com>
 Date: Mon, 7 Nov 2022 14:47:44 +0800
-Subject: [PATCH 2004/2009] wifi: mt76: mt7915: wed: HW ATF support for mt7986
+Subject: [PATCH] wifi: mt76: mt7915: wed: HW ATF support for mt7986
 
 Signed-off-by: Lian Chen <lian.chen@mediatek.com>
 ---
@@ -526,7 +526,7 @@ index bc16f17..cf576ed 100644
  
  int mt7915_txbf_init(struct mt7915_dev *dev)
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 97c90ec..7b34162 100644
+index 6cf5f41..f29ac4f 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -217,6 +217,7 @@ int mt7915_init_vif(struct mt7915_phy *phy, struct ieee80211_vif *vif, bool bf_e
@@ -537,7 +537,7 @@ index 97c90ec..7b34162 100644
  	struct mt76_txq *mtxq;
  	bool ext_phy = phy != &dev->phy;
  	int idx, ret = 0;
-@@ -277,6 +278,9 @@ int mt7915_init_vif(struct mt7915_phy *phy, struct ieee80211_vif *vif, bool bf_e
+@@ -278,6 +279,9 @@ int mt7915_init_vif(struct mt7915_phy *phy, struct ieee80211_vif *vif, bool bf_e
  	mt7915_mcu_add_sta(dev, vif, NULL, true);
  	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
  
@@ -547,7 +547,7 @@ index 97c90ec..7b34162 100644
  	return ret;
  }
  
-@@ -725,6 +729,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -755,6 +759,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
  	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
  	bool ext_phy = mvif->phy != &dev->phy;
@@ -555,7 +555,7 @@ index 97c90ec..7b34162 100644
  #ifdef CONFIG_MTK_VENDOR
  	struct mt7915_phy *phy = ext_phy ? mt7915_ext_phy(dev) : &dev->phy;
  #endif
-@@ -775,6 +780,16 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -805,6 +810,16 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	if (phy->muru_onoff & MUMIMO_DL_CERT)
  		mt7915_mcu_set_mimo(phy, 0);
  #endif
@@ -573,10 +573,10 @@ index 97c90ec..7b34162 100644
  }
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ca472c2..7472825 100644
+index 302a022..94362c0 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3547,6 +3547,171 @@ int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)
+@@ -3550,6 +3550,171 @@ int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)
  				 &req, sizeof(req), false);
  }
  
@@ -749,7 +749,7 @@ index ca472c2..7472825 100644
  {
  #define MT_BF_PROCESSING	4
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index f4e60b2..0621684 100644
+index 36f852e..4447971 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -141,6 +141,58 @@ struct mt7915_twt_flow {
@@ -818,8 +818,8 @@ index f4e60b2..0621684 100644
 +	struct mt7915_vow_sta_cfg vow_sta_cfg;
  };
  
- struct mt7915_vif {
-@@ -402,6 +455,8 @@ struct mt7915_dev {
+ struct mt7915_vif_cap {
+@@ -416,6 +469,8 @@ struct mt7915_dev {
  	} dbg;
  	const struct mt7915_dbg_reg_desc *dbg_reg;
  #endif
@@ -828,7 +828,7 @@ index f4e60b2..0621684 100644
  };
  
  enum {
-@@ -434,6 +489,15 @@ enum mt7915_rdd_cmd {
+@@ -448,6 +503,15 @@ enum mt7915_rdd_cmd {
  	RDD_IRQ_OFF,
  };
  
@@ -844,7 +844,7 @@ index f4e60b2..0621684 100644
  static inline struct mt7915_phy *
  mt7915_hw_phy(struct ieee80211_hw *hw)
  {
-@@ -564,6 +628,10 @@ int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
+@@ -578,6 +642,10 @@ int mt7915_mcu_set_mac(struct mt7915_dev *dev, int band, bool enable,
  int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
  			      u8 en);
  int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band);
@@ -856,7 +856,7 @@ index f4e60b2..0621684 100644
  int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy);
  int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len,
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 336f38e..3eeb921 100644
+index 97eb072..a08f7ab 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -1368,7 +1368,6 @@ static EMPTY_QUEUE_INFO_T ple_txcmd_queue_empty_info[] = {
