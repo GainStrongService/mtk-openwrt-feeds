@@ -431,22 +431,29 @@ u32 mtk_monitor_adma_rx(struct mtk_eth *eth)
 u32 mtk_monitor_tdma_tx(struct mtk_eth *eth)
 {
 	static u32 err_cnt_ttx;
+	static u32 pre_ipq10;
 	static u32 pre_fsm;
 	u32 err_flag = 0;
 	u32 cur_fsm = 0;
 	u32 tx_busy = 0;
+	u32 ipq10;
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		ipq10 = mtk_r32(eth, MTK_PSE_IQ_STA(6)) & 0xFFF;
 		cur_fsm = (mtk_r32(eth, MTK_FE_CDM6_FSM) & 0x1FFF) != 0;
 		tx_busy = ((mtk_r32(eth, MTK_TDMA_GLO_CFG) & 0x2) != 0);
 
-		if (cur_fsm == pre_fsm && cur_fsm != 0 && tx_busy) {
+		if (ipq10 && cur_fsm && tx_busy
+		    && cur_fsm == pre_fsm
+		    && ipq10 == pre_ipq10) {
 			err_cnt_ttx++;
 			if (err_cnt_ttx >= 3) {
 				pr_info("TDMA Tx Info\n");
 				pr_info("err_cnt = %d", err_cnt_ttx);
-				pr_info("CDM6_FSM = %d\n",
-					mtk_r32(eth, MTK_FE_CDM6_FSM));
+				pr_info("CDM6_FSM = 0x%x, PRE_CDM6_FSM = 0x%x\n",
+					mtk_r32(eth, MTK_FE_CDM6_FSM), pre_fsm);
+				pr_info("PSE_IQ_P10 = 0x%x, PRE_PSE_IQ_P10 = 0x%x\n",
+					mtk_r32(eth, MTK_PSE_IQ_STA(6)), pre_ipq10);
 				pr_info("DMA CFG = 0x%x\n",
 					mtk_r32(eth, MTK_TDMA_GLO_CFG));
 				pr_info("==============================\n");
@@ -456,6 +463,7 @@ u32 mtk_monitor_tdma_tx(struct mtk_eth *eth)
 			err_cnt_ttx = 0;
 
 		pre_fsm = cur_fsm;
+		pre_ipq10 = ipq10;
 	}
 
 	if (err_flag)
