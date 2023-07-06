@@ -515,7 +515,7 @@ void mtk_dma_monitor(struct timer_list *t)
 	struct mtk_eth *eth = from_timer(eth, t, mtk_dma_monitor_timer);
 	u32 i = 0, ret = 0;
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < ARRAY_SIZE(mtk_reset_monitor_func); i++) {
 		ret = (*mtk_reset_monitor_func[i]) (eth);
 		if ((ret == MTK_FE_START_RESET) ||
 			(ret == MTK_FE_STOP_TRAFFIC)) {
