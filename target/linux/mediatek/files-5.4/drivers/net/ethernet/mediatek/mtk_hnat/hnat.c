@@ -33,6 +33,8 @@ int (*ra_sw_nat_hook_rx)(struct sk_buff *skb) = NULL;
 EXPORT_SYMBOL(ra_sw_nat_hook_rx);
 int (*ra_sw_nat_hook_tx)(struct sk_buff *skb, int gmac_no) = NULL;
 EXPORT_SYMBOL(ra_sw_nat_hook_tx);
+void (*ra_sw_nat_clear_bind_entries)(void) = NULL;
+EXPORT_SYMBOL(ra_sw_nat_clear_bind_entries);
 
 int (*ppe_del_entry_by_mac)(unsigned char *mac) = NULL;
 EXPORT_SYMBOL(ppe_del_entry_by_mac);
@@ -610,6 +612,7 @@ int hnat_enable_hook(void)
 		ra_sw_nat_hook_tx = mtk_sw_nat_hook_tx;
 		ppe_dev_register_hook = mtk_ppe_dev_register_hook;
 		ppe_dev_unregister_hook = mtk_ppe_dev_unregister_hook;
+		ra_sw_nat_clear_bind_entries = foe_clear_all_bind_entries;
 	}
 
 	if (hnat_register_nf_hooks())
@@ -628,6 +631,7 @@ int hnat_disable_hook(void)
 
 	ra_sw_nat_hook_tx = NULL;
 	ra_sw_nat_hook_rx = NULL;
+	ra_sw_nat_clear_bind_entries = NULL;
 	hnat_unregister_nf_hooks();
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {

@@ -1230,6 +1230,7 @@ int ext_if_del(struct extdev_entry *ext_entry);
 void cr_set_field(void __iomem *reg, u32 field, u32 val);
 int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no);
 int mtk_sw_nat_hook_rx(struct sk_buff *skb);
+void foe_clear_all_bind_entries(void);
 void mtk_ppe_dev_register_hook(struct net_device *dev);
 void mtk_ppe_dev_unregister_hook(struct net_device *dev);
 int nf_hnat_netdevice_event(struct notifier_block *unused, unsigned long event,

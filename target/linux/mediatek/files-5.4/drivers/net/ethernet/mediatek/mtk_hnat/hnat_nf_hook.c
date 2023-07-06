@@ -184,15 +184,10 @@ int ext_if_del(struct extdev_entry *ext_entry)
 	return i;
 }
 
-void foe_clear_all_bind_entries(struct net_device *dev)
+void foe_clear_all_bind_entries(void)
 {
 	int i, hash_index;
 	struct foe_entry *entry;
-
-	if (!IS_LAN_GRP(dev) && !IS_WAN(dev) &&
-	    !find_extif_from_devname(dev->name) &&
-	    !dev->netdev_ops->ndo_flow_offload_check)
-		return;
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		cr_set_field(hnat_priv->ppe_base[i] + PPE_TB_CFG,
@@ -242,7 +237,12 @@ int nf_hnat_netdevice_event(struct notifier_block *unused, unsigned long event,
 		if (!get_wifi_hook_if_index_from_dev(dev))
 			extif_put_dev(dev);
 
-		foe_clear_all_bind_entries(dev);
+		if (!IS_LAN_GRP(dev) && !IS_WAN(dev) &&
+		    !find_extif_from_devname(dev->name) &&
+		    !dev->netdev_ops->ndo_flow_offload_check)
+			break;
+
+		foe_clear_all_bind_entries();
 
 		break;
 	case NETDEV_UNREGISTER:
