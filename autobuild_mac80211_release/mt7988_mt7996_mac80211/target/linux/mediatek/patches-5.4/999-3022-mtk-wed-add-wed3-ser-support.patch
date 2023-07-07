@@ -153,7 +153,7 @@ index 6ed1c83..990888d 100644
  			if (mtk_wed_get_rx_capa(dev)) {
  				wed_set(dev, MTK_WED_WPDMA_RX_D_PREF_CFG,
  					MTK_WED_WPDMA_RX_D_PREF_EN |
-@@ -1487,13 +1590,30 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
+@@ -1465,13 +1568,30 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
  	mtk_wed_mcu_send_msg(wo, MODULE_ID_WO, MTK_WED_WO_CMD_CHANGE_STATE,
  			     &state, sizeof(state), true);
  
@@ -184,7 +184,7 @@ index 6ed1c83..990888d 100644
  		wed_w32(dev, MTK_WED_WPDMA_RX_D_RST_IDX,
  			MTK_WED_WPDMA_RX_D_RST_CRX_IDX |
  			MTK_WED_WPDMA_RX_D_RST_DRV_IDX);
-@@ -1521,6 +1641,24 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
+@@ -1499,6 +1619,24 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
  		wed_w32(dev, MTK_WED_RROQM_RST_IDX, 0);
  	}
  
@@ -209,7 +209,7 @@ index 6ed1c83..990888d 100644
  	/* reset route qm */
  	wed_clr(dev, MTK_WED_CTRL, MTK_WED_CTRL_RX_ROUTE_QM_EN);
  	busy = mtk_wed_poll_busy(dev, MTK_WED_CTRL,
-@@ -1528,8 +1666,13 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
+@@ -1506,8 +1644,13 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
  	if (busy) {
  		mtk_wed_reset(dev, MTK_WED_RESET_RX_ROUTE_QM);
  	} else {
@@ -225,7 +225,7 @@ index 6ed1c83..990888d 100644
  	}
  
  	/* reset tx wdma */
-@@ -1537,8 +1680,13 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
+@@ -1515,8 +1658,13 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
  
  	/* reset tx wdma drv */
  	wed_clr(dev, MTK_WED_WDMA_GLO_CFG, MTK_WED_WDMA_GLO_CFG_TX_DRV_EN);
@@ -241,7 +241,7 @@ index 6ed1c83..990888d 100644
  	mtk_wed_reset(dev, MTK_WED_RESET_WDMA_TX_DRV);
  
  	/* reset wed rx dma */
-@@ -1556,9 +1704,17 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
+@@ -1534,9 +1682,17 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
  	/* reset rx bm */
  	wed_clr(dev, MTK_WED_CTRL, MTK_WED_CTRL_WED_RX_BM_EN);
  	mtk_wed_poll_busy(dev, MTK_WED_CTRL,
@@ -260,7 +260,7 @@ index 6ed1c83..990888d 100644
  	/* wo change to enable state */
  	state = WO_STATE_ENABLE;
  	mtk_wed_mcu_send_msg(wo, MODULE_ID_WO, MTK_WED_WO_CMD_CHANGE_STATE,
-@@ -1575,6 +1731,9 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
+@@ -1553,6 +1709,9 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
  	}
  
  	mtk_wed_free_rx_buffer(dev);
@@ -270,7 +270,7 @@ index 6ed1c83..990888d 100644
  }
  
  
-@@ -1608,18 +1767,40 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -1586,18 +1745,40 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
  
  	/* 2. Reset WDMA Rx DMA/Driver_Engine */
  	busy = !!mtk_wdma_rx_reset(dev);
@@ -314,7 +314,7 @@ index 6ed1c83..990888d 100644
  		wed_w32(dev, MTK_WED_WDMA_RESET_IDX, 0);
  
  		wed_set(dev, MTK_WED_WDMA_GLO_CFG,
-@@ -1634,9 +1815,15 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -1612,9 +1793,15 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
  		MTK_WED_CTRL_WED_TX_FREE_AGENT_EN);
  
  	for (i = 0; i < 100; i++) {
@@ -333,7 +333,7 @@ index 6ed1c83..990888d 100644
  	}
  	mtk_wed_reset(dev, MTK_WED_RESET_TX_FREE_AGENT);
  
-@@ -1645,18 +1832,20 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -1623,18 +1810,20 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
  
  	/* 4. Reset WED WPDMA Tx Driver Engine */
  	busy = mtk_wed_poll_busy(dev, MTK_WED_WPDMA_GLO_CFG,
@@ -356,7 +356,7 @@ index 6ed1c83..990888d 100644
  	} else {
  		wed_w32(dev, MTK_WED_WPDMA_RESET_IDX,
  			MTK_WED_WPDMA_RESET_IDX_TX |
-@@ -1669,7 +1858,13 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -1647,7 +1836,13 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
  		}
  	}
  
@@ -371,7 +371,7 @@ index 6ed1c83..990888d 100644
  		dev->init_done = false;
  		mtk_wed_rx_reset(dev);
  	}
-@@ -1884,7 +2079,7 @@ mtk_wed_ppe_check(struct mtk_wed_device *dev, struct sk_buff *skb,
+@@ -1862,7 +2057,7 @@ mtk_wed_ppe_check(struct mtk_wed_device *dev, struct sk_buff *skb,
  }
  
  static void
@@ -380,7 +380,7 @@ index 6ed1c83..990888d 100644
  {
  	int idx, ret;
  
-@@ -1894,6 +2089,11 @@ mtk_wed_start_hwrro(struct mtk_wed_device *dev, u32 irq_mask)
+@@ -1872,6 +2067,11 @@ mtk_wed_start_hwrro(struct mtk_wed_device *dev, u32 irq_mask)
  	if (!mtk_wed_get_rx_capa(dev) || !dev->wlan.hwrro)
  		return;
  
