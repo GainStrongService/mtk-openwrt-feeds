@@ -881,6 +881,31 @@ function convert_ibf {
     fi
 }
 
+function convert_ruinfo {
+    local new_param=$1
+
+    do_cmd "mt76-test phy${phy_idx} set state=idle"
+    while [ -n "$new_param" ]
+    do
+        [ ${new_param:1:1} = ':' ] && {
+            new_param=${new_param:2}
+        }
+        local oIFS="$IFS"; IFS=":"; set -- $new_param; IFS="$oIFS"
+
+        parsing_ruinfo $new_param
+        new_param=${new_param:${#1}+1}
+    done
+}
+
+function parsing_ruinfo {
+    local new_param=$1
+    local oIFS="$IFS"; IFS="-:"; set -- $new_param; IFS="$oIFS"
+
+    # $7 is Start spatial stream and it should be 0, $9 is alpha, not used
+    do_cmd "mt76-test phy${phy_idx} set tx_rate_mode=he_mu tx_rate_sgi=0 tx_ltf=0 ru_alloc=$1 aid=$2 ru_idx=$3\
+        tx_rate_idx=$4 tx_rate_ldpc=$5 tx_rate_nss=$6 tx_length=$8"
+}
+
 function convert_dfs {
     local cmd=$1
     local param=$2
@@ -1270,6 +1295,10 @@ if [ "${cmd_type}" = "set" ]; then
         "WORKMODE")
             record_config "WORKMODE" ${param} ${iwpriv_file}
             echo "Entering ${param} mode in iwpriv"
+            skip=1
+            ;;
+        "ATERUINFO")
+            convert_ruinfo ${param}
             skip=1
             ;;
         *)
