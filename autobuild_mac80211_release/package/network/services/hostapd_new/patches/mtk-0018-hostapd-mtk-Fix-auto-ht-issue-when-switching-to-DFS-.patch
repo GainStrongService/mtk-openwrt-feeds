@@ -1,7 +1,8 @@
-From 705e1a59381e7bbd92043ad4338834aad504f232 Mon Sep 17 00:00:00 2001
+From cf17d8510dd96dc092b73236b6e74d8ea1c5990c Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Feb 2023 16:58:20 +0800
-Subject: [PATCH] hostapd: mtk: Fix auto ht issue when switching to DFS channel
+Subject: [PATCH 18/32] hostapd: mtk: Fix auto ht issue when switching to DFS
+ channel
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -9,10 +10,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  1 file changed, 7 insertions(+), 6 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 07de0ad..3c38df5 100644
+index ed17211e0..f89bb58f1 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -2773,6 +2773,13 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2808,6 +2808,13 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  		break;
  	}
  
@@ -26,7 +27,7 @@ index 07de0ad..3c38df5 100644
  	if (settings.freq_params.center_freq1)
  		dfs_range += hostapd_is_dfs_overlap(
  			iface, bandwidth, settings.freq_params.center_freq1);
-@@ -2810,12 +2817,6 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2845,12 +2852,6 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  		return 0;
  	}
  
@@ -40,5 +41,5 @@ index 07de0ad..3c38df5 100644
  
  		/* Save CHAN_SWITCH VHT, HE, and EHT config */
 -- 
-2.18.0
+2.39.2
 

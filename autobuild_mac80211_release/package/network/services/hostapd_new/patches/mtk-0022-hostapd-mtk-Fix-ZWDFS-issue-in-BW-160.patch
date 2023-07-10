@@ -1,7 +1,7 @@
-From f1a0b030838b8e6e6505b74bbabd7af9fa7913dc Mon Sep 17 00:00:00 2001
+From 2b0d1e11b72e96c4af1c428b9e3d4de494e40c52 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Mar 2023 16:08:30 +0800
-Subject: [PATCH 22/28] hostapd: mtk: Fix ZWDFS issue in BW 160
+Subject: [PATCH 22/32] hostapd: mtk: Fix ZWDFS issue in BW 160
 
 When background radar is enabled and bandwidth is set to 160, AP will
 fail to startup due to the lack of non-DFS channel.
@@ -14,7 +14,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  1 file changed, 79 insertions(+), 19 deletions(-)
 
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index d52a60e..2f5c86e 100644
+index d52a60e0d..2f5c86eb6 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
 @@ -69,15 +69,22 @@ static int dfs_get_used_n_chans(struct hostapd_iface *iface, int *seg1)
@@ -206,5 +206,5 @@ index d52a60e..2f5c86e 100644
  	} else if (hostapd_dfs_is_background_event(iface, freq)) {
  		iface->radar_background.cac_started = 0;
 -- 
-2.18.0
+2.39.2
 

@@ -1,7 +1,7 @@
-From c4d3890bbf1bd8c8ac8bfaa56fd16e2391e05181 Mon Sep 17 00:00:00 2001
+From 62c4fa824adefc85ec7820b431f5d617aaf07bc7 Mon Sep 17 00:00:00 2001
 From: Michael Lee <michael-cy.lee@mediatek.com>
 Date: Wed, 3 May 2023 16:10:57 +0800
-Subject: [PATCH] hostapd: mtk: Fix unexpected AP beacon state transition
+Subject: [PATCH 30/32] hostapd: mtk: Fix unexpected AP beacon state transition
 
 When AP fails to set the beacon, it assigns bss->beacon_set to 0 no
 matter what the error number is.
@@ -18,10 +18,10 @@ Signed-off-by: Michael Lee <michael-cy.lee@mediatek.com>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 8400e57..5013207 100644
+index 0e7ee4306..ab121ca16 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -5126,7 +5126,8 @@ static int wpa_driver_nl80211_set_ap(void *priv,
+@@ -5395,7 +5395,8 @@ static int wpa_driver_nl80211_set_ap(void *priv,
  			   ret, strerror(-ret));
  		if (!bss->flink->beacon_set)
  			ret = 0;
@@ -29,8 +29,8 @@ index 8400e57..5013207 100644
 +		if (ret != -EBUSY)
 +			bss->flink->beacon_set = 0;
  	} else {
- 		bss->flink->beacon_set = 1;
+ 		link->beacon_set = 1;
  		nl80211_set_bss(bss, params->cts_protect, params->preamble,
 -- 
-2.25.1
+2.39.2
 

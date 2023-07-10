@@ -1,7 +1,7 @@
-From cb7b7459ac276c5713dae22b8fe19365c2895de1 Mon Sep 17 00:00:00 2001
+From df9a616286f2d33e5c580517238b93ee22359f95 Mon Sep 17 00:00:00 2001
 From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 Date: Wed, 19 Jan 2022 19:18:07 +0800
-Subject: [PATCH 01/28] hostapd: mtk: Add neighbor report and BSS Termination
+Subject: [PATCH 01/32] hostapd: mtk: Add neighbor report and BSS Termination
  for MBO certification
 
 1. Add hostapd_neighbor_count() and hostapd_neighbor_insert_buffer ()
@@ -32,7 +32,7 @@ function will not ask to delete key as set_disassoc_timer() did.
  9 files changed, 252 insertions(+), 5 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index a0e4ecd..0355e8b 100644
+index 55711ab10..fab1287cd 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -1347,6 +1347,11 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
@@ -48,19 +48,19 @@ index a0e4ecd..0355e8b 100644
  		ret = hostapd_set_iface(hapd->iconf, hapd->conf, cmd, value);
  		if (ret)
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 2755146..9f450f6 100644
+index 41c70708d..7d0de122d 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
-@@ -170,6 +170,7 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
- 	/* comeback after 10 TUs */
+@@ -171,6 +171,7 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
  	bss->pasn_comeback_after = 10;
+ 	bss->pasn_noauth = 1;
  #endif /* CONFIG_PASN */
 +	bss->bss_termination_tsf = 0;
  }
  
  
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 7774360..af9bf92 100644
+index 02fd4940c..dc6025279 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
 @@ -558,6 +558,7 @@ struct hostapd_bss_config {
@@ -72,10 +72,10 @@ index 7774360..af9bf92 100644
  	/* IEEE 802.11u - Interworking */
  	int interworking;
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
-index d46de44..38fc8e4 100644
+index 50a4dc4d6..cf1cff447 100644
 --- a/src/ap/ctrl_iface_ap.c
 +++ b/src/ap/ctrl_iface_ap.c
-@@ -1265,6 +1265,10 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+@@ -1280,6 +1280,10 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
  			wpa_printf(MSG_DEBUG, "Invalid bss_term data");
  			return -1;
  		}
@@ -86,7 +86,7 @@ index d46de44..38fc8e4 100644
  		end++;
  		WPA_PUT_LE16(&bss_term_dur[10], atoi(end));
  	}
-@@ -1291,14 +1295,25 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+@@ -1306,14 +1310,25 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
  		req_mode |= WNM_BSS_TM_REQ_ESS_DISASSOC_IMMINENT;
  	}
  
@@ -115,7 +115,7 @@ index d46de44..38fc8e4 100644
  	if (pos) {
  		unsigned int mbo_reason, cell_pref, reassoc_delay;
 diff --git a/src/ap/gas_serv.c b/src/ap/gas_serv.c
-index 4642e49..cce6df4 100644
+index 4642e4927..cce6df41c 100644
 --- a/src/ap/gas_serv.c
 +++ b/src/ap/gas_serv.c
 @@ -19,6 +19,7 @@
@@ -183,7 +183,7 @@ index 4642e49..cce6df4 100644
  #ifdef CONFIG_FILS
  		if (info_id == ANQP_FILS_REALM_INFO &&
 diff --git a/src/ap/gas_serv.h b/src/ap/gas_serv.h
-index 7646a98..ce492b5 100644
+index 7646a98a4..ce492b53f 100644
 --- a/src/ap/gas_serv.h
 +++ b/src/ap/gas_serv.h
 @@ -40,6 +40,8 @@
@@ -196,7 +196,7 @@ index 7646a98..ce492b5 100644
   * First 15 Hotspot 2.0 vendor specific ANQP-elements can be included in the
   * optimized bitmap.
 diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
-index 5b276e8..1c14b32 100644
+index 5b276e8da..1c14b3201 100644
 --- a/src/ap/neighbor_db.c
 +++ b/src/ap/neighbor_db.c
 @@ -89,6 +89,38 @@ int hostapd_neighbor_show(struct hostapd_data *hapd, char *buf, size_t buflen)
@@ -330,7 +330,7 @@ index 5b276e8..1c14b32 100644
 +}
 +#endif
 diff --git a/src/ap/neighbor_db.h b/src/ap/neighbor_db.h
-index 992671b..a1ddc07 100644
+index 992671b62..a1ddc075b 100644
 --- a/src/ap/neighbor_db.h
 +++ b/src/ap/neighbor_db.h
 @@ -24,4 +24,13 @@ int hostapd_neighbor_remove(struct hostapd_data *hapd, const u8 *bssid,
@@ -348,7 +348,7 @@ index 992671b..a1ddc07 100644
 +#endif
  #endif /* NEIGHBOR_DB_H */
 diff --git a/src/ap/wnm_ap.c b/src/ap/wnm_ap.c
-index ba1dd2e..32ccf14 100644
+index ba1dd2ed1..32ccf14ae 100644
 --- a/src/ap/wnm_ap.c
 +++ b/src/ap/wnm_ap.c
 @@ -20,6 +20,7 @@
@@ -471,5 +471,5 @@ index ba1dd2e..32ccf14 100644
  
  	if (url) {
 -- 
-2.18.0
+2.39.2
 

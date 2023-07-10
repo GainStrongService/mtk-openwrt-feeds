@@ -1,7 +1,7 @@
-From b86163db7e137c7a91f77f35bc2d5001177c371e Mon Sep 17 00:00:00 2001
+From eb14389eb6c2e30a702ee7ebc98330fbc62edb44 Mon Sep 17 00:00:00 2001
 From: Michael Lee <michael-cy.lee@mediatek.com>
 Date: Wed, 19 Apr 2023 17:18:33 +0800
-Subject: [PATCH 25/28] hostapd: mtk: Fix scan result updating issue
+Subject: [PATCH 25/32] hostapd: mtk: Fix scan result updating issue
 
 There are no HT capability and operation in beacon of AP operating in
 NOHT.
@@ -12,7 +12,7 @@ should be assigned the default value for this kind of AP.
  1 file changed, 4 insertions(+)
 
 diff --git a/wpa_supplicant/bss.c b/wpa_supplicant/bss.c
-index 3bfcf7e..004d4a6 100644
+index 3bfcf7ef4..004d4a639 100644
 --- a/wpa_supplicant/bss.c
 +++ b/wpa_supplicant/bss.c
 @@ -307,8 +307,12 @@ static void wpa_bss_copy_res(struct wpa_bss *dst, struct wpa_scan_res *src,
@@ -29,5 +29,5 @@ index 3bfcf7e..004d4a6 100644
  	calculate_update_time(fetch_time, src->age, &dst->last_update);
  }
 -- 
-2.18.0
+2.39.2
 

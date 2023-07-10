@@ -1,7 +1,7 @@
-From c7e5ad8609443c3e484ea06df88755de55f5bda0 Mon Sep 17 00:00:00 2001
+From 713b2663c91c55f00c6b9bfbf44922306aab6ad3 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 31 May 2022 21:15:54 +0800
-Subject: [PATCH 03/28] hostapd: mtk: add support for runtime set in-band
+Subject: [PATCH 03/32] hostapd: mtk: add support for runtime set in-band
  discovery
 
 Usage:
@@ -21,7 +21,7 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  5 files changed, 98 insertions(+), 4 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 8e8a1a7..c4e344e 100644
+index 4624d9afd..d4737958a 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -827,6 +827,69 @@ static int hostapd_ctrl_iface_send_qos_map_conf(struct hostapd_data *hapd,
@@ -94,7 +94,7 @@ index 8e8a1a7..c4e344e 100644
  
  #ifdef CONFIG_WNM_AP
  
-@@ -3511,6 +3574,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -3546,6 +3609,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		if (hostapd_ctrl_iface_coloc_intf_req(hapd, buf + 15))
  			reply_len = -1;
  #endif /* CONFIG_WNM_AP */
@@ -105,7 +105,7 @@ index 8e8a1a7..c4e344e 100644
  		reply_len = hostapd_ctrl_iface_get_config(hapd, reply,
  							  reply_size);
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index bc8993f..05ac5ac 100644
+index 61f8cba12..dfc996d49 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
 @@ -655,6 +655,24 @@ static int hostapd_cli_cmd_wps_config(struct wpa_ctrl *ctrl, int argc,
@@ -143,10 +143,10 @@ index bc8993f..05ac5ac 100644
  };
  
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index 73ab31c..ddb5d03 100644
+index 78b347618..f26e5254c 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
-@@ -1618,6 +1618,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
+@@ -1648,6 +1648,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
  				   struct wpa_driver_ap_params *params)
  {
  	params->fd_max_int = hapd->conf->fils_discovery_max_int;
@@ -155,7 +155,7 @@ index 73ab31c..ddb5d03 100644
  	if (is_6ghz_op_class(hapd->iconf->op_class) &&
  	    params->fd_max_int > FD_MAX_INTERVAL_6GHZ)
  		params->fd_max_int = FD_MAX_INTERVAL_6GHZ;
-@@ -1626,7 +1628,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
+@@ -1656,7 +1658,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
  	if (params->fd_min_int > params->fd_max_int)
  		params->fd_min_int = params->fd_max_int;
  
@@ -166,10 +166,10 @@ index 73ab31c..ddb5d03 100644
  						  &params->fd_frame_tmpl_len);
  
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 4377165..d79929b 100644
+index 70d98e7d4..37e156fc8 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -4631,9 +4631,10 @@ static int nl80211_fils_discovery(struct i802_bss *bss, struct nl_msg *msg,
+@@ -4686,9 +4686,10 @@ static int nl80211_fils_discovery(struct i802_bss *bss, struct nl_msg *msg,
  			params->fd_max_int) ||
  	    (params->fd_frame_tmpl &&
  	     nla_put(msg, NL80211_FILS_DISCOVERY_ATTR_TMPL,
@@ -182,7 +182,7 @@ index 4377165..d79929b 100644
  	nla_nest_end(msg, attr);
  	return 0;
  }
-@@ -5038,7 +5039,10 @@ static int wpa_driver_nl80211_set_ap(void *priv,
+@@ -5300,7 +5301,10 @@ static int wpa_driver_nl80211_set_ap(void *priv,
  #endif /* CONFIG_SAE */
  
  #ifdef CONFIG_FILS
@@ -195,10 +195,10 @@ index 4377165..d79929b 100644
  #endif /* CONFIG_FILS */
  
 diff --git a/src/drivers/nl80211_copy.h b/src/drivers/nl80211_copy.h
-index 9a0ac03..12fc6a9 100644
+index c59fec406..82860ae32 100644
 --- a/src/drivers/nl80211_copy.h
 +++ b/src/drivers/nl80211_copy.h
-@@ -7569,6 +7569,7 @@ enum nl80211_fils_discovery_attributes {
+@@ -7591,6 +7591,7 @@ enum nl80211_fils_discovery_attributes {
  	NL80211_FILS_DISCOVERY_ATTR_INT_MIN,
  	NL80211_FILS_DISCOVERY_ATTR_INT_MAX,
  	NL80211_FILS_DISCOVERY_ATTR_TMPL,
@@ -207,5 +207,5 @@ index 9a0ac03..12fc6a9 100644
  	/* keep last */
  	__NL80211_FILS_DISCOVERY_ATTR_LAST,
 -- 
-2.18.0
+2.39.2
 

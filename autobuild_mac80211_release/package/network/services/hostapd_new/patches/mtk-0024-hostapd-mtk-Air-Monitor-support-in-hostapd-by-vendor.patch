@@ -1,7 +1,7 @@
-From c8a55373f42c6149df669ba74ffbff70ec74d8db Mon Sep 17 00:00:00 2001
+From 06f750bee3e0a9798aa583b27257ef26dd4a1a8c Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 12 May 2023 05:18:48 +0800
-Subject: [PATCH 24/28] hostapd: mtk: Air Monitor support in hostapd by vendor
+Subject: [PATCH 24/32] hostapd: mtk: Air Monitor support in hostapd by vendor
 
 Signed-off-by: mtk23888 <dipanshu.mittal@mediatek.com>
 ---
@@ -17,10 +17,10 @@ Signed-off-by: mtk23888 <dipanshu.mittal@mediatek.com>
  9 files changed, 352 insertions(+)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 79457d7..234b800 100644
+index e0ed700db..9989a04ce 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3840,6 +3840,44 @@ hostapd_ctrl_iface_ap_wireless(struct hostapd_data *hapd, char *cmd,
+@@ -3876,6 +3876,44 @@ hostapd_ctrl_iface_ap_wireless(struct hostapd_data *hapd, char *cmd,
  
  	if (hostapd_drv_ap_wireless(hapd, (u8) sub_cmd, atoi(value)) != 0)
  		return -1;
@@ -65,7 +65,7 @@ index 79457d7..234b800 100644
  
  	return os_snprintf(buf, buflen, "OK\n");
  }
-@@ -3893,6 +3931,75 @@ exit:
+@@ -3929,6 +3967,75 @@ exit:
  	return os_snprintf(buf, buflen, "OK\n");
  }
  
@@ -141,7 +141,7 @@ index 79457d7..234b800 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4476,6 +4583,12 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4512,6 +4619,12 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_ap_wireless(hapd, buf + 12, reply, reply_size);
  	} else if (os_strncmp(buf, "ap_rfeatures ", 13) == 0) {
  		reply_len = hostapd_ctrl_iface_ap_rfeatures(hapd, buf + 13, reply, reply_size);
@@ -155,7 +155,7 @@ index 79457d7..234b800 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index dc01ad9..02f8546 100644
+index e9e156d28..6d763f327 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
 @@ -1633,6 +1633,17 @@ static int hostapd_cli_cmd_get_amsdu(struct wpa_ctrl *ctrl, int argc,
@@ -188,10 +188,10 @@ index dc01ad9..02f8546 100644
  };
  
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index 78b52c8..0052a6d 100644
+index 11444c7eb..b90dd5722 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
-@@ -1160,3 +1160,17 @@ int hostapd_drv_ap_trig_type(struct hostapd_data *hapd, u8 enable, u8 type)
+@@ -1243,3 +1243,17 @@ int hostapd_drv_ap_trig_type(struct hostapd_data *hapd, u8 enable, u8 type)
  		return 0;
  	return hapd->driver->ap_trigtype(hapd->drv_priv, enable, type);
  }
@@ -210,7 +210,7 @@ index 78b52c8..0052a6d 100644
 +	return hapd->driver->amnt_dump(hapd->drv_priv, amnt_idx, amnt_dump_buf);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index bb9fdf7..9d5a23b 100644
+index 946ee2d68..1e2a92acb 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -161,6 +161,9 @@ int hostapd_drv_ap_wireless(struct hostapd_data *hapd, u8 sub_vendor_id, int val
@@ -224,10 +224,10 @@ index bb9fdf7..9d5a23b 100644
  
  int hostapd_drv_wnm_oper(struct hostapd_data *hapd,
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index 32438af..74f467c 100644
+index 0b23c76ad..dd1ca2164 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
-@@ -256,10 +256,18 @@ struct csi_data {
+@@ -258,10 +258,18 @@ struct csi_data {
  	u16 rx_idx;
  };
  
@@ -247,10 +247,10 @@ index 32438af..74f467c 100644
 +
  #endif /* MTK_VENDOR_H */
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index ae692c2..cb885f9 100644
+index 3efea9f68..5c70ec78f 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5084,6 +5084,22 @@ struct wpa_driver_ops {
+@@ -5163,6 +5163,22 @@ struct wpa_driver_ops {
  	* @type: trigger type
  	*/
  	int (*ap_trigtype)(void *priv, u8 enable, u8 type);
@@ -274,10 +274,10 @@ index ae692c2..cb885f9 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 730a696..088f625 100644
+index 642d75bd1..b923e5c7e 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -127,6 +127,19 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
+@@ -128,6 +128,19 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
  	[MTK_VENDOR_ATTR_WIRELESS_CTRL_CERT] = {.type = NLA_U8 },
  };
  
@@ -297,7 +297,7 @@ index 730a696..088f625 100644
  static struct nl_sock * nl_create_handle(struct nl_cb *cb, const char *dbg)
  {
  	struct nl_sock *handle;
-@@ -14133,6 +14146,171 @@ fail:
+@@ -14412,6 +14425,171 @@ fail:
  	return -ENOBUFS;
  }
  
@@ -469,7 +469,7 @@ index 730a696..088f625 100644
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
  	.desc = "Linux nl80211/cfg80211",
-@@ -14300,4 +14478,6 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14580,4 +14758,6 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.ap_wireless = nl80211_ap_wireless,
  	.ap_rfeatures = nl80211_ap_rfeatures,
  	.ap_trigtype = nl80211_ap_trigtype,
@@ -477,10 +477,10 @@ index 730a696..088f625 100644
 +	.amnt_dump = nl80211_amnt_dump,
  };
 diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
-index 49588e6..e64a12e 100644
+index fc5217d61..0d85adfee 100644
 --- a/src/drivers/driver_nl80211.h
 +++ b/src/drivers/driver_nl80211.h
-@@ -206,6 +206,7 @@ struct wpa_driver_nl80211_data {
+@@ -209,6 +209,7 @@ struct wpa_driver_nl80211_data {
  	unsigned int mtk_wireless_vendor_cmd_avail:1;
  	unsigned int mtk_bss_color_vendor_cmd_avail:1;
  	unsigned int mtk_rfeatures_vendor_cmd_avail:1;
@@ -489,10 +489,10 @@ index 49588e6..e64a12e 100644
  	u64 vendor_scan_cookie;
  	u64 remain_on_chan_cookie;
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index 0674b66..7b5079b 100644
+index c1cf5b533..8c8b84ed3 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
-@@ -1119,6 +1119,8 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
+@@ -1127,6 +1127,8 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
  					break;
  				case MTK_NL80211_VENDOR_SUBCMD_BSS_COLOR_CTRL :
  					drv->mtk_bss_color_vendor_cmd_avail = 1;
@@ -502,5 +502,5 @@ index 0674b66..7b5079b 100644
  				case MTK_NL80211_VENDOR_SUBCMD_RFEATURE_CTRL:
  					drv->mtk_rfeatures_vendor_cmd_avail = 1;
 -- 
-2.18.0
+2.39.2
 

@@ -1,7 +1,7 @@
-From bc29227028570c319e8458833f4fd6a9ee007fe9 Mon Sep 17 00:00:00 2001
+From 69b54dc64a95701f5e949e55399dacb598d23142 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 17 Mar 2023 16:17:14 +0800
-Subject: [PATCH 01/11] hostapd: mtk: Add vendor for CAPI certification
+Subject: [PATCH 23/32] hostapd: mtk: Add vendor for CAPI certification
  commands
 
 ---
@@ -16,7 +16,7 @@ Subject: [PATCH 01/11] hostapd: mtk: Add vendor for CAPI certification
  8 files changed, 202 insertions(+), 31 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 4c6e9c3..620729e 100644
+index 3abf06a09..e0ed700db 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -70,6 +70,7 @@
@@ -27,7 +27,7 @@ index 4c6e9c3..620729e 100644
  
  #define HOSTAPD_CLI_DUP_VALUE_MAX_LEN 256
  
-@@ -3801,6 +3802,96 @@ hostapd_ctrl_iface_get_aval_color_bmp(struct hostapd_data *hapd, char *buf,
+@@ -3837,6 +3838,96 @@ hostapd_ctrl_iface_get_aval_color_bmp(struct hostapd_data *hapd, char *buf,
  	return pos - buf;
  }
  
@@ -124,7 +124,7 @@ index 4c6e9c3..620729e 100644
  
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
-@@ -4381,6 +4472,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4417,6 +4508,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_get_bss_color(hapd, reply, reply_size);
  	} else if (os_strncmp(buf, "AVAL_COLOR_BMP", 14) == 0) {
  		reply_len = hostapd_ctrl_iface_get_aval_color_bmp(hapd, reply, reply_size);
@@ -136,10 +136,10 @@ index 4c6e9c3..620729e 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index 7b686e5..78b52c8 100644
+index 9615ca8ce..11444c7eb 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
-@@ -1139,3 +1139,24 @@ int hostapd_drv_get_aval_bss_color_bmp(struct hostapd_data *hapd, u64 *aval_colo
+@@ -1222,3 +1222,24 @@ int hostapd_drv_get_aval_bss_color_bmp(struct hostapd_data *hapd, u64 *aval_colo
  		return 0;
  	return hapd->driver->get_aval_color_bmp(hapd->drv_priv, aval_color_bmp);
  }
@@ -165,7 +165,7 @@ index 7b686e5..78b52c8 100644
 +	return hapd->driver->ap_trigtype(hapd->drv_priv, enable, type);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 47356ab..bb9fdf7 100644
+index 136ea2349..946ee2d68 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -157,6 +157,9 @@ int hostapd_drv_amsdu_ctrl(struct hostapd_data *hapd);
@@ -179,7 +179,7 @@ index 47356ab..bb9fdf7 100644
  #include "drivers/driver.h"
  
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index e27fe69..0b23c76 100644
+index e27fe69b3..0b23c76ad 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -50,17 +50,6 @@ enum mtk_vendor_attr_edcca_dump {
@@ -258,10 +258,10 @@ index e27fe69..0b23c76 100644
  	MTK_VENDOR_ATTR_BSS_COLOR_CTRL_UNSPEC,
  
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index f9f9fb5..ae692c2 100644
+index 91cb475ac..3efea9f68 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5062,6 +5062,28 @@ struct wpa_driver_ops {
+@@ -5141,6 +5141,28 @@ struct wpa_driver_ops {
  	 *
  	 */
  	int (*get_aval_color_bmp)(void *priv, u64 *aval_color_bmp);
@@ -291,7 +291,7 @@ index f9f9fb5..ae692c2 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 7081fd1..493abc4 100644
+index b8730472d..642d75bd1 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -76,6 +76,58 @@ enum nlmsgerr_attrs {
@@ -353,7 +353,7 @@ index 7081fd1..493abc4 100644
  static struct nl_sock * nl_create_handle(struct nl_cb *cb, const char *dbg)
  {
  	struct nl_sock *handle;
-@@ -14255,4 +14307,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14525,4 +14577,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.amsdu_ctrl = nl80211_enable_amsdu,
  	.amsdu_dump = nl80211_dump_amsdu,
  	.get_aval_color_bmp = nl80211_get_aval_color_bmp,
@@ -362,10 +362,10 @@ index 7081fd1..493abc4 100644
 +	.ap_trigtype = nl80211_ap_trigtype,
  };
 diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
-index 190e7a5..49588e6 100644
+index fd1e57cc2..fc5217d61 100644
 --- a/src/drivers/driver_nl80211.h
 +++ b/src/drivers/driver_nl80211.h
-@@ -205,6 +205,7 @@ struct wpa_driver_nl80211_data {
+@@ -208,6 +208,7 @@ struct wpa_driver_nl80211_data {
  	unsigned int mtk_ibf_vendor_cmd_avail:1;
  	unsigned int mtk_wireless_vendor_cmd_avail:1;
  	unsigned int mtk_bss_color_vendor_cmd_avail:1;
@@ -374,10 +374,10 @@ index 190e7a5..49588e6 100644
  	u64 vendor_scan_cookie;
  	u64 remain_on_chan_cookie;
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index a266926..0674b66 100644
+index 4f8e92024..c1cf5b533 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
-@@ -1120,6 +1120,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
+@@ -1128,6 +1128,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
  				case MTK_NL80211_VENDOR_SUBCMD_BSS_COLOR_CTRL :
  					drv->mtk_bss_color_vendor_cmd_avail = 1;
  					break;
@@ -388,5 +388,5 @@ index a266926..0674b66 100644
  			}
  
 -- 
-2.18.0
+2.39.2
 

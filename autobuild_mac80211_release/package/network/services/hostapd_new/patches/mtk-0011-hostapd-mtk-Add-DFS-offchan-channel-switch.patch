@@ -1,7 +1,7 @@
-From b0a253a420b901e3f5b7b069a85a135835a702ff Mon Sep 17 00:00:00 2001
+From 575a8605a68d47f7ecf45ab81f704cc49a8aef65 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Feb 2023 14:56:55 +0800
-Subject: [PATCH 11/28] hostapd: mtk: Add DFS offchan channel switch
+Subject: [PATCH 11/32] hostapd: mtk: Add DFS offchan channel switch
 
 Add DFS background chain channel switch command for testing purpose.
 This feature is implemented via hostapd_cli command.
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 96 insertions(+), 16 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 5ea8934..40fb0d4 100644
+index 0d978be7e..78eb80bf0 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3617,6 +3617,76 @@ hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,
+@@ -3652,6 +3652,76 @@ hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,
  }
  
  
@@ -96,7 +96,7 @@ index 5ea8934..40fb0d4 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4188,6 +4258,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4223,6 +4293,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "DFS_DETECT_MODE ", 16) == 0) {
  		reply_len = hostapd_ctrl_iface_set_dfs_detect_mode(hapd, buf + 16,
  								   reply, reply_size);
@@ -106,7 +106,7 @@ index 5ea8934..40fb0d4 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index 644a7ea..48c5fc9 100644
+index 644a7eae7..48c5fc917 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
 @@ -19,13 +19,6 @@
@@ -156,7 +156,7 @@ index 644a7ea..48c5fc9 100644
  	if (!iface->conf->ieee80211ac && !iface->conf->ieee80211ax)
  		return;
 diff --git a/src/ap/dfs.h b/src/ap/dfs.h
-index 606c1b3..c2556d2 100644
+index 606c1b393..c2556d2d9 100644
 --- a/src/ap/dfs.h
 +++ b/src/ap/dfs.h
 @@ -9,6 +9,12 @@
@@ -188,5 +188,5 @@ index 606c1b3..c2556d2 100644
  
  #endif /* DFS_H */
 -- 
-2.18.0
+2.39.2
 

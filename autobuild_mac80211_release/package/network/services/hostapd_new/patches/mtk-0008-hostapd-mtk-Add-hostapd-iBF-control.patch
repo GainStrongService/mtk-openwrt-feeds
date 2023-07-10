@@ -1,7 +1,7 @@
-From 7011a7a5503e76228d475060a72b3a168fac1b54 Mon Sep 17 00:00:00 2001
+From 0ec269fc9ad3ceb566093ee1b67ea73da7efa8e4 Mon Sep 17 00:00:00 2001
 From: mtk27835 <shurong.wen@mediatek.com>
 Date: Wed, 7 Sep 2022 14:41:51 -0700
-Subject: [PATCH 08/28] hostapd: mtk: Add hostapd iBF control
+Subject: [PATCH 08/32] hostapd: mtk: Add hostapd iBF control
 
 Signed-off-by: mtk27835 <shurong.wen@mediatek.com>
 ---
@@ -21,10 +21,10 @@ Signed-off-by: mtk27835 <shurong.wen@mediatek.com>
  13 files changed, 224 insertions(+), 1 deletion(-)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 860beee..e1dd540 100644
+index 01880249d..81bfe81d5 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4844,6 +4844,9 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -4852,6 +4852,9 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  		u8 en = atoi(pos);
  
  		conf->three_wire_enable = en;
@@ -35,10 +35,10 @@ index 860beee..e1dd540 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index b317a65..45797cd 100644
+index 342cec820..f2cb7af1e 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3573,6 +3573,30 @@ hostapd_ctrl_iface_get_mu(struct hostapd_data *hapd, char *buf,
+@@ -3608,6 +3608,30 @@ hostapd_ctrl_iface_get_mu(struct hostapd_data *hapd, char *buf,
  }
  
  
@@ -69,7 +69,7 @@ index b317a65..45797cd 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4139,6 +4163,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4174,6 +4198,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  							  reply_size);
  	} else if (os_strncmp(buf, "GET_MU", 6) == 0) {
  		reply_len = hostapd_ctrl_iface_get_mu(hapd, reply, reply_size);
@@ -79,7 +79,7 @@ index b317a65..45797cd 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index 285aeba..5922fe3 100644
+index 98892ee9d..4fa2d323d 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
 @@ -1606,6 +1606,13 @@ static int hostapd_cli_cmd_driver(struct wpa_ctrl *ctrl, int argc, char *argv[])
@@ -106,10 +106,10 @@ index 285aeba..5922fe3 100644
  };
  
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 2c447ba..a9f77e0 100644
+index 8a1d51382..7fd9dce48 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
-@@ -298,6 +298,7 @@ struct hostapd_config * hostapd_config_defaults(void)
+@@ -299,6 +299,7 @@ struct hostapd_config * hostapd_config_defaults(void)
  	conf->edcca_enable = EDCCA_MODE_AUTO;
  	conf->edcca_compensation = EDCCA_DEFAULT_COMPENSATION;
  	conf->three_wire_enable = THREE_WIRE_MODE_DISABLE;
@@ -118,10 +118,10 @@ index 2c447ba..a9f77e0 100644
  	return conf;
  }
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index e784629..c88c8ae 100644
+index e42656f82..3a3d2b542 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1186,6 +1186,7 @@ struct hostapd_config {
+@@ -1197,6 +1197,7 @@ struct hostapd_config {
  	s8 edcca_compensation;
  	int *edcca_threshold;
  	u8 three_wire_enable;
@@ -129,7 +129,7 @@ index e784629..c88c8ae 100644
  };
  
  enum three_wire_mode {
-@@ -1310,6 +1311,7 @@ hostapd_set_oper_centr_freq_seg1_idx(struct hostapd_config *conf,
+@@ -1322,6 +1323,7 @@ hostapd_set_oper_centr_freq_seg1_idx(struct hostapd_config *conf,
  	conf->vht_oper_centr_freq_seg1_idx = oper_centr_freq_seg1_idx;
  }
  
@@ -138,10 +138,10 @@ index e784629..c88c8ae 100644
  int hostapd_mac_comp(const void *a, const void *b);
  struct hostapd_config * hostapd_config_defaults(void);
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index ff2c6f8..91ade16 100644
+index 2f15f99f4..41e76aa54 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
-@@ -1103,3 +1103,17 @@ int hostapd_drv_three_wire_ctrl(struct hostapd_data *hapd)
+@@ -1186,3 +1186,17 @@ int hostapd_drv_three_wire_ctrl(struct hostapd_data *hapd)
  	}
  	return hapd->driver->three_wire_ctrl(hapd->drv_priv, hapd->iconf->three_wire_enable);
  }
@@ -161,7 +161,7 @@ index ff2c6f8..91ade16 100644
 +}
 \ No newline at end of file
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index e760658..2cc39b7 100644
+index 960a110b7..3f1df5d2c 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -151,6 +151,8 @@ int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value);
@@ -174,10 +174,10 @@ index e760658..2cc39b7 100644
  #include "drivers/driver.h"
  
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 2bf9fb2..2deb9a3 100644
+index eb39b9ae3..4212f3fcd 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -2400,6 +2400,8 @@ dfs_offload:
+@@ -2569,6 +2569,8 @@ dfs_offload:
  		goto fail;
  	if (hostapd_drv_three_wire_ctrl(hapd) < 0)
  		goto fail;
@@ -187,7 +187,7 @@ index 2bf9fb2..2deb9a3 100644
  	wpa_printf(MSG_DEBUG, "%s: Setup of interface done.",
  		   iface->bss[0]->conf->iface);
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index ed47487..7b7aeaa 100644
+index 99ecbaf71..9811f266e 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -13,7 +13,8 @@ enum mtk_nl80211_vendor_subcmds {
@@ -200,7 +200,7 @@ index ed47487..7b7aeaa 100644
  };
  
  enum mtk_vendor_attr_edcca_ctrl {
-@@ -204,6 +205,38 @@ enum mtk_vendor_attr_mu_ctrl {
+@@ -207,6 +208,38 @@ enum mtk_vendor_attr_mu_ctrl {
  		NUM_MTK_VENDOR_ATTRS_MU_CTRL - 1
  };
  
@@ -240,10 +240,10 @@ index ed47487..7b7aeaa 100644
  #define CSI_MAX_COUNT 256
  #define ETH_ALEN 6
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 2ced065..9e12e42 100644
+index cd7afef33..7ac02845b 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -1735,6 +1735,11 @@ struct wpa_driver_ap_params {
+@@ -181,6 +181,11 @@ struct hostapd_channel_data {
  	 * mu onoff=<val> (bitmap- UL MU-MIMO(bit3), DL MU-MIMO(bit2), UL OFDMA(bit1), DL OFDMA(bit0))
  	 */
  	u8 mu_onoff;
@@ -254,8 +254,8 @@ index 2ced065..9e12e42 100644
 +	u8 ibf_enable;
  };
  
- struct wpa_driver_mesh_bss_params {
-@@ -5026,6 +5031,20 @@ struct wpa_driver_ops {
+ #define HE_MAC_CAPAB_0		0
+@@ -5105,6 +5110,20 @@ struct wpa_driver_ops {
  	 *
  	 */
  	 int (*three_wire_ctrl)(void *priv, u8 three_wire_enable);
@@ -277,10 +277,10 @@ index 2ced065..9e12e42 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 34bc9ac..641b894 100644
+index 86d08a721..ec85621ab 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -13668,6 +13668,112 @@ static int nl80211_enable_three_wire(void *priv, const u8 three_wire_enable)
+@@ -13946,6 +13946,112 @@ static int nl80211_enable_three_wire(void *priv, const u8 three_wire_enable)
  	return ret;
  }
  
@@ -393,7 +393,7 @@ index 34bc9ac..641b894 100644
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
  	.desc = "Linux nl80211/cfg80211",
-@@ -13827,4 +13933,6 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14106,4 +14212,6 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.configure_edcca_threshold = nl80211_configure_edcca_threshold,
  	.get_edcca = nl80211_get_edcca,
  	.three_wire_ctrl = nl80211_enable_three_wire,
@@ -401,10 +401,10 @@ index 34bc9ac..641b894 100644
 +	.ibf_dump = nl80211_ibf_dump,
  };
 diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
-index 92da450..9ef313b 100644
+index 99af8b075..4e64e7d31 100644
 --- a/src/drivers/driver_nl80211.h
 +++ b/src/drivers/driver_nl80211.h
-@@ -202,6 +202,7 @@ struct wpa_driver_nl80211_data {
+@@ -205,6 +205,7 @@ struct wpa_driver_nl80211_data {
  	unsigned int mtk_edcca_vendor_cmd_avail:1;
  	unsigned int mtk_mu_vendor_cmd_avail:1;
  	unsigned int mtk_3wire_vendor_cmd_avail:1;
@@ -413,10 +413,10 @@ index 92da450..9ef313b 100644
  	u64 vendor_scan_cookie;
  	u64 remain_on_chan_cookie;
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index 3b25754..5c6bb36 100644
+index 3ff47f3e8..7ad15bafd 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
-@@ -1111,6 +1111,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
+@@ -1119,6 +1119,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
  				case MTK_NL80211_VENDOR_SUBCMD_3WIRE_CTRL :
  					drv->mtk_3wire_vendor_cmd_avail = 1;
  					break;
@@ -427,5 +427,5 @@ index 3b25754..5c6bb36 100644
  			}
  
 -- 
-2.18.0
+2.39.2
 

@@ -1,7 +1,7 @@
-From d0ce39f2142df00fbddff219bfe6fc6105d344cb Mon Sep 17 00:00:00 2001
+From 9b68a2d7cbffa1c1ee28c6a785649d90b621b95b Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 2 Sep 2022 01:03:23 +0800
-Subject: [PATCH 04/30] hostapd: mtk: Add three wire PTA ctrl hostapd vendor
+Subject: [PATCH 07/32] hostapd: mtk: Add three wire PTA ctrl hostapd vendor
  command
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -20,10 +20,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  11 files changed, 93 insertions(+)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 0b36123..f34b81b 100644
+index 1918d0340..01880249d 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4842,6 +4842,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -4848,6 +4848,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  			return 1;
  		}
  		conf->edcca_compensation = (s8) val;
@@ -35,10 +35,10 @@ index 0b36123..f34b81b 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 1cad303..2c447ba 100644
+index 5d04e60c1..8a1d51382 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
-@@ -297,6 +297,7 @@ struct hostapd_config * hostapd_config_defaults(void)
+@@ -298,6 +298,7 @@ struct hostapd_config * hostapd_config_defaults(void)
  
  	conf->edcca_enable = EDCCA_MODE_AUTO;
  	conf->edcca_compensation = EDCCA_DEFAULT_COMPENSATION;
@@ -47,10 +47,10 @@ index 1cad303..2c447ba 100644
  	return conf;
  }
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 49dd8ab..1b6c049 100644
+index 3df378ed2..e42656f82 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1185,6 +1185,19 @@ struct hostapd_config {
+@@ -1196,6 +1196,19 @@ struct hostapd_config {
  	u8 edcca_enable;
  	s8 edcca_compensation;
  	int *edcca_threshold;
@@ -71,10 +71,10 @@ index 49dd8ab..1b6c049 100644
  
  enum edcca_mode {
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index d290a00..ff2c6f8 100644
+index 44f494ed9..2f15f99f4 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
-@@ -1092,3 +1092,14 @@ int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff)
+@@ -1175,3 +1175,14 @@ int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff)
  		return 0;
  	return hapd->driver->mu_dump(hapd->drv_priv, mu_onoff);
  }
@@ -90,7 +90,7 @@ index d290a00..ff2c6f8 100644
 +	return hapd->driver->three_wire_ctrl(hapd->drv_priv, hapd->iconf->three_wire_enable);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 1565bfa..e760658 100644
+index 6e0cf814c..960a110b7 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -150,6 +150,7 @@ int hostapd_drv_configure_edcca_threshold(struct hostapd_data *hapd,
@@ -102,10 +102,10 @@ index 1565bfa..e760658 100644
  #include "drivers/driver.h"
  
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 21aba48..2bf9fb2 100644
+index aa0568175..eb39b9ae3 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -2398,6 +2398,8 @@ dfs_offload:
+@@ -2567,6 +2567,8 @@ dfs_offload:
  		goto fail;
  	if (hostapd_drv_mu_ctrl(hapd) < 0)
  		goto fail;
@@ -115,7 +115,7 @@ index 21aba48..2bf9fb2 100644
  	wpa_printf(MSG_DEBUG, "%s: Setup of interface done.",
  		   iface->bss[0]->conf->iface);
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index 60bc4cd..99ecbaf 100644
+index 60bc4cd4c..99ecbaf71 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -13,6 +13,7 @@ enum mtk_nl80211_vendor_subcmds {
@@ -149,10 +149,10 @@ index 60bc4cd..99ecbaf 100644
  	MTK_VENDOR_ATTR_CSI_CTRL_UNSPEC,
  
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 1a3f070..2ced065 100644
+index 1471ba2ef..cd7afef33 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5018,6 +5018,14 @@ struct wpa_driver_ops {
+@@ -5097,6 +5097,14 @@ struct wpa_driver_ops {
  	 */
  	 int (*mu_ctrl)(void *priv, u8 mu_onoff);
  	 int (*mu_dump)(void *priv, u8 *mu_onoff);
@@ -168,10 +168,10 @@ index 1a3f070..2ced065 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 5335754..1842b2d 100644
+index e7bfc35fa..86d08a721 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -13644,6 +13644,38 @@ static int nl80211_get_edcca(void *priv, const u8 mode, u8 *value)
+@@ -13913,6 +13913,38 @@ static int nl80211_get_edcca(void *priv, const u8 mode, u8 *value)
  	return ret;
  }
  
@@ -210,18 +210,18 @@ index 5335754..1842b2d 100644
  
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
-@@ -13803,4 +13835,5 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14073,4 +14105,5 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.configure_edcca_enable = nl80211_configure_edcca_enable,
  	.configure_edcca_threshold = nl80211_configure_edcca_threshold,
  	.get_edcca = nl80211_get_edcca,
 +	.three_wire_ctrl = nl80211_enable_three_wire,
  };
 diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
-index f3a45ec..92da450 100644
+index bd5d28404..99af8b075 100644
 --- a/src/drivers/driver_nl80211.h
 +++ b/src/drivers/driver_nl80211.h
-@@ -201,6 +201,7 @@ struct wpa_driver_nl80211_data {
- 	unsigned int puncturing:1;
+@@ -204,6 +204,7 @@ struct wpa_driver_nl80211_data {
+ 	unsigned int qca_ap_allowed_freqs:1;
  	unsigned int mtk_edcca_vendor_cmd_avail:1;
  	unsigned int mtk_mu_vendor_cmd_avail:1;
 +	unsigned int mtk_3wire_vendor_cmd_avail:1;
@@ -229,10 +229,10 @@ index f3a45ec..92da450 100644
  	u64 vendor_scan_cookie;
  	u64 remain_on_chan_cookie;
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index dcd1bcd..3b25754 100644
+index ac66a916b..3ff47f3e8 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
-@@ -1108,6 +1108,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
+@@ -1116,6 +1116,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
  				case MTK_NL80211_VENDOR_SUBCMD_MU_CTRL :
  					drv->mtk_mu_vendor_cmd_avail = 1;
  					break;
@@ -243,5 +243,5 @@ index dcd1bcd..3b25754 100644
  			}
  
 -- 
-2.18.0
+2.39.2
 
