@@ -23,7 +23,7 @@ Index: a/drivers/mtd/nand/spi/etron.c
 ===================================================================
 --- /dev/null
 +++ b/drivers/mtd/nand/spi/etron.c
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,180 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (c) 2020 Etron Technology, Inc.
@@ -92,6 +92,8 @@ Index: a/drivers/mtd/nand/spi/etron.c
 +static int etron_ecc_get_status(struct spinand_device *spinand,
 +				   u8 status)
 +{
++	struct nand_device *nand = spinand_to_nand(spinand);
++
 +	switch (status & STATUS_ECC_MASK) {
 +	case STATUS_ECC_NO_BITFLIPS:
 +		return 0;
@@ -100,11 +102,10 @@ Index: a/drivers/mtd/nand/spi/etron.c
 +		return -EBADMSG;
 +
 +	case STATUS_ECC_HAS_BITFLIPS:
-+		return 1;
++		return nand->eccreq.strength >> 1;
 +
 +	case STATUS_ECC_LIMIT_BITFLIPS:
-+		return 3;
-+
++		return nand->eccreq.strength;
 +
 +	default:
 +		break;
@@ -191,23 +192,6 @@ Index: a/drivers/mtd/nand/spi/etron.c
 +		     SPINAND_HAS_QE_BIT,
 +		     SPINAND_ECCINFO(&etron_ooblayout, etron_ecc_get_status)),
 +};
-+
-+static int etron_spinand_detect(struct spinand_device *spinand)
-+{
-+	u8 *id = spinand->id.data;
-+	int ret;
-+
-+	if (id[1] != SPINAND_MFR_ETRON)
-+		return 0;
-+
-+	ret = spinand_match_and_init(spinand, etron_spinand_table,
-+				     ARRAY_SIZE(etron_spinand_table),
-+				     id[2]);
-+	if (ret)
-+		return ret;
-+
-+	return 1;
-+}
 +
 +static const struct spinand_manufacturer_ops etron_spinand_manuf_ops = {
 +};
