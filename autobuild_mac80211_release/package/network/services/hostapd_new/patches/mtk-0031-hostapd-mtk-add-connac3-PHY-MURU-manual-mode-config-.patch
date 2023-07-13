@@ -1,8 +1,7 @@
-From aa184b8a2051fa0879116c4b2d738a90d654ba60 Mon Sep 17 00:00:00 2001
+From 78107269ba6f1ef6449e385e0182970ad85d7f43 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Sat, 3 Jun 2023 17:12:15 +0800
-Subject: [PATCH 31/32] hostapd: mtk: add connac3 PHY MURU manual mode config
- support
+Subject: [PATCH] hostapd: mtk: add connac3 PHY MURU manual mode config support
 
 This commit supports read the following two formats to set MU/RU manual
 mode:
@@ -47,7 +46,7 @@ code flow that different generations will go through.
  8 files changed, 390 insertions(+), 43 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 972393e77..7d71a9ecb 100644
+index 972393e..b280a04 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -3579,22 +3579,61 @@ hostapd_ctrl_iface_get_edcca(struct hostapd_data *hapd, char *cmd, char *buf,
@@ -187,7 +186,7 @@ index 972393e77..7d71a9ecb 100644
 +		for (i = 0; i < dl->user_num; i++) {
 +			dl->usr[i].ru_alloc_seg = (val[2 * i] & 0x1);
 +			dl->usr[i].ru_allo_ps160 = ((val[2 * i] & 0x2) >> 1);
-+			dl->usr[i].ru_idx = (val[(2 * i) + 1] & 0x1);
++			dl->usr[i].ru_idx = val[(2 * i) + 1];
 +		}
 +		os_free(val);
 +		muru->cfg_dl |= host_to_le32(MURU_FIXED_USER_DL_RU_ALLOC);
@@ -201,7 +200,7 @@ index 972393e77..7d71a9ecb 100644
 +		for (i = 0; i < ul->user_num; i++) {
 +			ul->usr[i].ru_alloc_seg = (val[2 * i] & 0x1);
 +			ul->usr[i].ru_allo_ps160 = ((val[2 * i] & 0x2) >> 1);
-+			ul->usr[i].ru_idx = (val[(2 * i) + 1] & 0x1);
++			ul->usr[i].ru_idx = val[(2 * i) + 1];
 +		}
 +		os_free(val);
 +		muru->cfg_ul |= host_to_le32(MURU_FIXED_USER_UL_RU_ALLOC);
@@ -327,7 +326,7 @@ index 972393e77..7d71a9ecb 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 1eb871f10..4e38e6785 100644
+index 1eb871f..4e38e67 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
 @@ -1201,6 +1201,7 @@ struct hostapd_config {
@@ -339,7 +338,7 @@ index 1eb871f10..4e38e6785 100644
  
  enum three_wire_mode {
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index 0aec9e925..721bfa053 100644
+index 0aec9e9..721bfa0 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
 @@ -1162,11 +1162,11 @@ int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value)
@@ -357,7 +356,7 @@ index 0aec9e925..721bfa053 100644
  
  int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff)
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 5dd701e10..741fdab5d 100644
+index 5dd701e..741fdab 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -148,7 +148,7 @@ int hostapd_drv_configure_edcca_enable(struct hostapd_data *hapd);
@@ -370,7 +369,7 @@ index 5dd701e10..741fdab5d 100644
  int hostapd_drv_three_wire_ctrl(struct hostapd_data *hapd);
  int hostapd_drv_ibf_ctrl(struct hostapd_data *hapd);
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index c684d7e39..52d04d660 100644
+index c684d7e..52d04d6 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -2568,7 +2568,7 @@ dfs_offload:
@@ -383,7 +382,7 @@ index c684d7e39..52d04d660 100644
  	if (hostapd_drv_three_wire_ctrl(hapd) < 0)
  		goto fail;
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index 99371bf73..e140de60b 100644
+index 99371bf..e140de6 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -199,8 +199,11 @@ enum mtk_vendor_attr_mu_ctrl {
@@ -567,7 +566,7 @@ index 99371bf73..e140de60b 100644
 +
  #endif /* MTK_VENDOR_H */
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 84387a6d7..9ec0e963c 100644
+index 84387a6..9ec0e96 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
 @@ -5100,7 +5100,7 @@ struct wpa_driver_ops {
@@ -580,7 +579,7 @@ index 84387a6d7..9ec0e963c 100644
  
  	/**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index ab121ca16..fdd8505ca 100644
+index ab121ca..fdd8505 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -13566,12 +13566,13 @@ fail:
@@ -635,5 +634,5 @@ index ab121ca16..fdd8505ca 100644
  
  fail:
 -- 
-2.39.2
+2.18.0
 
