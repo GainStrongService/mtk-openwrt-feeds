@@ -31,7 +31,7 @@ index a7472ee7..f06c889b 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9af..d3b638a9 100644
+index 5aaba9af..a1856296 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
@@ -274,7 +274,7 @@ index 5aaba9af..d3b638a9 100644
  		append base_cfg "he_mu_edca_ac_vo_timer=255" "$N"
  	fi
  
-+	set_default tx_burst 5.9
++	set_default tx_burst 2
 +
 +	# 802.11be
 +	enable_be=0
@@ -599,7 +599,7 @@ index e24a2a63..e9a15942 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index bf3625c9..9b0e57f6 100644
+index bf3625c9..cedc39d1 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -60,7 +60,14 @@ hostapd_append_wpa_key_mgmt() {
@@ -817,7 +817,23 @@ index bf3625c9..9b0e57f6 100644
  	bss_md5sum="$(echo $bss_conf | md5sum | cut -d" " -f1)"
  	append bss_conf "config_id=$bss_md5sum" "$N"
  
-@@ -1531,12 +1631,41 @@ wpa_supplicant_add_network() {
+@@ -1249,6 +1349,7 @@ wpa_supplicant_prepare_interface() {
+ 		country_str="country=$country"
+ 	}
+ 
++	local tx_queue_data2_burst="tx_queue_data2_burst=2"
+ 	multiap_flag_file="${_config}.is_multiap"
+ 	if [ "$multi_ap" = "1" ]; then
+ 		touch "$multiap_flag_file"
+@@ -1260,6 +1361,7 @@ wpa_supplicant_prepare_interface() {
+ ${scan_list:+freq_list=$scan_list}
+ $ap_scan
+ $country_str
++$tx_queue_data2_burst
+ EOF
+ 	return 0
+ }
+@@ -1531,12 +1633,41 @@ wpa_supplicant_add_network() {
  		;;
  	esac
  
@@ -859,7 +875,7 @@ index bf3625c9..9b0e57f6 100644
  		case "$wpa" in
  			1)
  				append network_data "proto=WPA" "$N$T"
-@@ -1546,12 +1675,48 @@ wpa_supplicant_add_network() {
+@@ -1546,12 +1677,48 @@ wpa_supplicant_add_network() {
  			;;
  		esac
  
@@ -909,7 +925,7 @@ index bf3625c9..9b0e57f6 100644
  	[ -n "$bssid" ] && append network_data "bssid=$bssid" "$N$T"
  	[ -n "$beacon_int" ] && append network_data "beacon_int=$beacon_int" "$N$T"
  
-@@ -1562,6 +1727,20 @@ wpa_supplicant_add_network() {
+@@ -1562,6 +1729,20 @@ wpa_supplicant_add_network() {
  	[ -n "$bssid_blacklist" ] && append network_data "bssid_blacklist=$bssid_blacklist" "$N$T"
  	[ -n "$bssid_whitelist" ] && append network_data "bssid_whitelist=$bssid_whitelist" "$N$T"
  
@@ -930,7 +946,7 @@ index bf3625c9..9b0e57f6 100644
  	[ -n "$basic_rate" ] && {
  		local br rate_list=
  		for br in $basic_rate; do
-@@ -1576,6 +1755,11 @@ wpa_supplicant_add_network() {
+@@ -1576,6 +1757,11 @@ wpa_supplicant_add_network() {
  		append network_data "mcast_rate=$mc_rate" "$N$T"
  	}
  
@@ -942,3 +958,6 @@ index bf3625c9..9b0e57f6 100644
  	if [ "$key_mgmt" = "WPS" ]; then
  		echo "wps_cred_processing=1" >> "$_config"
  	else
+-- 
+2.25.1
+
