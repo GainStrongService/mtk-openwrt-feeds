@@ -240,19 +240,41 @@ index f258539..3b17819 100755
  			   int *wed_index)
  {
  	struct mtk_wdma_info info = {};
-@@ -211,6 +211,11 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+@@ -209,6 +211,9 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  	if (dsa_port >= 0)
- 	mtk_foe_entry_set_dsa(foe, dsa_port);
+ 		mtk_foe_entry_set_dsa(foe, dsa_port);
  
-+	if (eth->qos_toggle == 1 || ct->mark >= 6)
-+		mtk_foe_entry_set_qid(foe, ct->mark & MTK_QDMA_TX_MASK);
 +	if (eth->qos_toggle == 2 && dsa_port >= 0)
 +		mtk_foe_entry_set_qid(foe, dsa_port & MTK_QDMA_TX_MASK);
 +
  	if (dev == eth->netdev[0])
  		pse_port = PSE_GDM1_PORT;
  	else if (dev == eth->netdev[1])
-@@ -433,7 +443,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -217,6 +222,23 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 		return -EOPNOTSUPP;
+ 
+ out:
++	if (eth->qos_toggle == 1 || (ct->mark & MTK_QDMA_TX_MASK) >= 6) {
++		u8 qos_ul_toggle;
++
++		if (eth->qos_toggle == 2)
++			qos_ul_toggle = ((ct->mark >> 16) & MTK_QDMA_TX_MASK) >= 6 ? 1 : 0;
++		else
++			qos_ul_toggle = ((ct->mark >> 16) & MTK_QDMA_TX_MASK) >= 1 ? 1 : 0;
++
++		if (qos_ul_toggle == 1) {
++			if (dev == eth->netdev[1])
++				mtk_foe_entry_set_qid(foe, (ct->mark >> 16) & MTK_QDMA_TX_MASK);
++			else
++				mtk_foe_entry_set_qid(foe, ct->mark & MTK_QDMA_TX_MASK);
++		} else
++			mtk_foe_entry_set_qid(foe, ct->mark & MTK_QDMA_TX_MASK);
++	}
++
+ 	mtk_foe_entry_set_pse_port(foe, pse_port);
+ 
+ 	return 0;
+@@ -432,7 +455,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	if (data.pppoe.num == 1)
  		mtk_foe_entry_set_pppoe(&foe, data.pppoe.sid);
  
