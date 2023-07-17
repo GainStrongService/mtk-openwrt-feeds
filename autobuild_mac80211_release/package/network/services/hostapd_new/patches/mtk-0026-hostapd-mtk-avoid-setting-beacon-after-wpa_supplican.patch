@@ -1,8 +1,8 @@
-From 9444dedd3f8bd97887c9cf274587b4c76f94d621 Mon Sep 17 00:00:00 2001
+From ff273381d463d82898df70cb7b43341405e3d943 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 12 May 2023 05:21:28 +0800
-Subject: [PATCH 26/32] hostapd: mtk: avoid setting beacon after wpa_supplicant
- stop the AP
+Subject: [PATCH] hostapd: mtk: Avoid setting beacon after wpa_supplicant stop
+ the AP
 
 Add a new variable 'stopped_by_supplicant' to indicate the AP
 interface is currently stopped by co-locating STA interface.
@@ -10,16 +10,16 @@ After the STA interface finishes association with some other APs, it
 will reload the co-locating AP interfaces and marks the
 'stopped_by_supplicant' as 0.
 ---
- hostapd/ctrl_iface.c   | 4 ++++
- src/ap/beacon.c        | 4 ++++
- src/ap/bss_load.c      | 3 ++-
- src/ap/ctrl_iface_ap.c | 4 +++-
- src/ap/hostapd.c       | 2 ++
- src/ap/hostapd.h       | 1 +
- 6 files changed, 16 insertions(+), 2 deletions(-)
+ hostapd/ctrl_iface.c   |  4 ++++
+ src/ap/beacon.c        |  5 ++++-
+ src/ap/bss_load.c      | 10 +++++++---
+ src/ap/ctrl_iface_ap.c |  4 +++-
+ src/ap/hostapd.c       |  4 +++-
+ src/ap/hostapd.h       |  1 +
+ 6 files changed, 22 insertions(+), 6 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 9989a04ce..4952bef89 100644
+index 9989a04..4952bef 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -194,11 +194,15 @@ static int hostapd_ctrl_iface_update(struct hostapd_data *hapd, char *txt)
@@ -39,19 +39,20 @@ index 9989a04ce..4952bef89 100644
  
  	iface->interfaces->config_read_cb = config_read_cb;
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index f26e5254c..24144feff 100644
+index f26e525..1aaeaa8 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
-@@ -2247,6 +2247,8 @@ int ieee802_11_set_beacon(struct hostapd_data *hapd)
+@@ -2246,7 +2246,8 @@ int ieee802_11_set_beacon(struct hostapd_data *hapd)
+ 			continue;
  
  		for (i = 0; i < other->num_bss; i++) {
- 			if (other->bss[i] && other->bss[i]->started)
+-			if (other->bss[i] && other->bss[i]->started)
 +			if (other->bss[i] && other->bss[i]->started &&
 +			    !other->bss[i]->stopped_by_supplicant)
  				__ieee802_11_set_beacon(other->bss[i]);
  		}
  	}
-@@ -2262,6 +2264,7 @@ int ieee802_11_set_beacons(struct hostapd_iface *iface)
+@@ -2262,6 +2263,7 @@ int ieee802_11_set_beacons(struct hostapd_iface *iface)
  
  	for (i = 0; i < iface->num_bss; i++) {
  		if (iface->bss[i]->started &&
@@ -59,7 +60,7 @@ index f26e5254c..24144feff 100644
  		    ieee802_11_set_beacon(iface->bss[i]) < 0)
  			ret = -1;
  	}
-@@ -2278,6 +2281,7 @@ int ieee802_11_update_beacons(struct hostapd_iface *iface)
+@@ -2278,6 +2280,7 @@ int ieee802_11_update_beacons(struct hostapd_iface *iface)
  
  	for (i = 0; i < iface->num_bss; i++) {
  		if (iface->bss[i]->beacon_set_done && iface->bss[i]->started &&
@@ -68,21 +69,42 @@ index f26e5254c..24144feff 100644
  			ret = -1;
  	}
 diff --git a/src/ap/bss_load.c b/src/ap/bss_load.c
-index 725d3cd34..ae5552140 100644
+index 725d3cd..f2a1a10 100644
 --- a/src/ap/bss_load.c
 +++ b/src/ap/bss_load.c
-@@ -46,7 +46,8 @@ static void update_channel_utilization(void *eloop_data, void *user_data)
- 	int err;
- 	struct hostapd_iface *iface = hapd->iface;
- 
--	if (!(hapd->beacon_set_done && hapd->started))
-+	if (!(hapd->beacon_set_done && hapd->started &&
-+	      !hapd->stopped_by_supplicant))
+@@ -49,6 +49,9 @@ static void update_channel_utilization(void *eloop_data, void *user_data)
+ 	if (!(hapd->beacon_set_done && hapd->started))
  		return;
  
++	if(hapd->stopped_by_supplicant)
++		goto skip_update;
++
  	err = hostapd_drv_get_survey(hapd, hapd->iface->freq);
+ 	if (err) {
+ 		wpa_printf(MSG_ERROR, "BSS Load: Failed to get survey data");
+@@ -57,9 +60,6 @@ static void update_channel_utilization(void *eloop_data, void *user_data)
+ 
+ 	ieee802_11_set_beacon(hapd);
+ 
+-	if (get_bss_load_update_timeout(hapd, &sec, &usec) < 0)
+-		return;
+-
+ 	if (hapd->conf->chan_util_avg_period) {
+ 		iface->chan_util_samples_sum += iface->channel_utilization;
+ 		iface->chan_util_num_sample_periods +=
+@@ -75,6 +75,10 @@ static void update_channel_utilization(void *eloop_data, void *user_data)
+ 		}
+ 	}
+ 
++skip_update:
++	if (get_bss_load_update_timeout(hapd, &sec, &usec) < 0)
++		return;
++
+ 	eloop_register_timeout(sec, usec, update_channel_utilization, hapd,
+ 			       NULL);
+ }
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
-index aab8a4665..d52188bb7 100644
+index aab8a46..d52188b 100644
 --- a/src/ap/ctrl_iface_ap.c
 +++ b/src/ap/ctrl_iface_ap.c
 @@ -1028,8 +1028,10 @@ int hostapd_ctrl_iface_stop_ap(struct hostapd_data *hapd)
@@ -98,7 +120,7 @@ index aab8a4665..d52188bb7 100644
  	return 0;
  }
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index abadd1ad0..6e6ae77d7 100644
+index abadd1a..afe0611 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -508,6 +508,7 @@ void hostapd_free_hapd_data(struct hostapd_data *hapd)
@@ -117,8 +139,17 @@ index abadd1ad0..6e6ae77d7 100644
  
  	if (!first || first == -1) {
  		u8 *addr = hapd->own_addr;
+@@ -4285,7 +4287,7 @@ void hostapd_switch_color(struct hostapd_data *hapd, u64 bitmap)
+ {
+ 	struct os_reltime now;
+ 
+-	if (hapd->cca_in_progress)
++	if (hapd->cca_in_progress || hapd->stopped_by_supplicant)
+ 		return;
+ 
+ 	if (os_get_reltime(&now))
 diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
-index 072205c3c..4f1f98824 100644
+index 072205c..4f1f988 100644
 --- a/src/ap/hostapd.h
 +++ b/src/ap/hostapd.h
 @@ -191,6 +191,7 @@ struct hostapd_data {
@@ -130,5 +161,5 @@ index 072205c3c..4f1f98824 100644
  	u8 own_addr[ETH_ALEN];
  	u8 mld_addr[ETH_ALEN];
 -- 
-2.39.2
+2.25.1
 
