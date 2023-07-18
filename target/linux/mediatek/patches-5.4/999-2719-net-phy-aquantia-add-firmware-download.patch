@@ -153,7 +153,7 @@ new file mode 100644
 index 000000000..d2828aad4
 --- /dev/null
 +++ b/drivers/net/phy/aquantia_firmware.c
-@@ -0,0 +1,1091 @@
+@@ -0,0 +1,1100 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/* FW download driver for Aquantia PHY
 + */
@@ -299,6 +299,7 @@ index 000000000..d2828aad4
 +
 +struct task_struct *gangload_kthread = NULL;
 +struct phy_device *gangload_phydevs[MAX_GANGLOAD_DEVICES];
++static unsigned long gangload_timeout = 0;
 +static int gangload = 0;
 +
 +static int aqr_firmware_download_single(struct phy_device *phydev);
@@ -1092,7 +1093,7 @@ index 000000000..d2828aad4
 +		return;
 +
 +	num_phydevs = priv->fw_dl_mode == FW_DL_GNAGLOAD ?
-+		      MAX_GANGLOAD_DEVICES : 1;
++		      gangload : 1;
 +
 +retry:
 +	if (gandload_phydev->state == PHY_HALTED) {
@@ -1178,8 +1179,9 @@ index 000000000..d2828aad4
 +		if (kthread_should_stop())
 +			break;
 +
-+		/* reach maximum gangload phy devices */
-+		if (gangload == MAX_GANGLOAD_DEVICES) {
++		/* either maximum gangload phy devices or timeout is reached */
++		if (gangload == MAX_GANGLOAD_DEVICES ||
++		    time_after(jiffies, gangload_timeout)) {
 +			ret = request_firmware_nowait(THIS_MODULE, true, AQR_FIRMWARE, dev,
 +						      GFP_KERNEL, phydevs, aqr_firmware_download_cb);
 +			if (ret) {
@@ -1206,6 +1208,9 @@ index 000000000..d2828aad4
 +		return 0;
 +
 +	if (!gangload_kthread) {
++		/* setup a maximum wait time limit for gangload mode */
++		gangload_timeout = jiffies + 5 * HZ;
++
 +		/* create a thread for monitor gangload devices */
 +		gangload_kthread = kthread_create(aqr_firmware_gandload_thread,
 +						  gangload_phydevs,
@@ -1218,6 +1223,10 @@ index 000000000..d2828aad4
 +		}
 +		wake_up_process(gangload_kthread);
 +	}
++
++	/* fall back to single mode if timeout is reached */
++	if (time_after(jiffies, gangload_timeout))
++		return aqr_firmware_download_single(phydev);
 +
 +	for (i = 0; i < gangload; i++) {
 +		if (gangload_phydevs[i] == phydev) {
