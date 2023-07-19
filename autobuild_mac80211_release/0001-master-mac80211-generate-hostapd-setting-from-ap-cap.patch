@@ -601,7 +601,7 @@ index e24a2a63..18213d54 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index bf3625c9..cedc39d1 100644
+index bf3625c9..6ce28b4c 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -60,7 +60,14 @@ hostapd_append_wpa_key_mgmt() {
@@ -688,41 +688,43 @@ index bf3625c9..cedc39d1 100644
  
  	set_default fils 0
  	set_default isolate 0
-@@ -793,6 +822,33 @@ hostapd_set_bss_options() {
+@@ -793,6 +822,35 @@ hostapd_set_bss_options() {
  	local auth_algs="$((($auth_mode_shared << 1) | $auth_mode_open))"
  	append bss_conf "auth_algs=${auth_algs:-1}" "$N"
  	append bss_conf "wpa=$wpa" "$N"
 +
 +	json_get_values pairwise pairwise
-+	case "$pairwise" in
-+		*tkip+aes|*tkip+ccmp|*aes+tkip|*ccmp+tkip)
-+			wpa_cipher="CCMP TKIP"
-+		;;
-+		*ccmp256)
-+			wpa_cipher="CCMP-256"
-+		;;
-+		*aes|*ccmp)
-+			wpa_cipher="CCMP"
-+		;;
-+		*tkip)
-+			wpa_cipher="TKIP"
-+		;;
-+		*gcmp256)
-+			wpa_cipher="GCMP-256"
-+		;;
-+		*gcmp)
-+			wpa_cipher="GCMP"
-+		;;
-+		*)
-+			wpa_cipher=""
-+		;;
-+	esac
++	if [ -n "$pairwise" ]; then
++		case "$pairwise" in
++			*tkip+aes|*tkip+ccmp|*aes+tkip|*ccmp+tkip)
++				wpa_cipher="CCMP TKIP"
++			;;
++			*ccmp256)
++				wpa_cipher="CCMP-256"
++			;;
++			*aes|*ccmp)
++				wpa_cipher="CCMP"
++			;;
++			*tkip)
++				wpa_cipher="TKIP"
++			;;
++			*gcmp256)
++				wpa_cipher="GCMP-256"
++			;;
++			*gcmp)
++				wpa_cipher="GCMP"
++			;;
++			*)
++				wpa_cipher=""
++			;;
++		esac
++	fi
 +	[ -n "$wpa_cipher" ] && wpa_pairwise="$wpa_cipher"
 +
  	[ -n "$wpa_pairwise" ] && append bss_conf "wpa_pairwise=$wpa_pairwise" "$N"
  
  	set_default wps_pushbutton 0
-@@ -844,7 +900,7 @@ hostapd_set_bss_options() {
+@@ -844,7 +902,7 @@ hostapd_set_bss_options() {
  	}
  
  	append bss_conf "ssid=$ssid" "$N"
@@ -731,7 +733,7 @@ index bf3625c9..cedc39d1 100644
  	[ -n "$network_ifname" ] && append bss_conf "snoop_iface=$network_ifname" "$N"
  	[ -n "$iapp_interface" ] && {
  		local ifname
-@@ -957,6 +1013,8 @@ hostapd_set_bss_options() {
+@@ -957,6 +1015,8 @@ hostapd_set_bss_options() {
  	fi
  
  	if [ "$wpa" -ge "2" ]; then
@@ -740,7 +742,7 @@ index bf3625c9..cedc39d1 100644
  		if [ -n "$network_bridge" -a "$rsn_preauth" = 1 ]; then
  			set_default auth_cache 1
  			append bss_conf "rsn_preauth=1" "$N"
-@@ -975,17 +1033,42 @@ hostapd_set_bss_options() {
+@@ -975,17 +1035,42 @@ hostapd_set_bss_options() {
  		append bss_conf "okc=$auth_cache" "$N"
  		[ "$auth_cache" = 0 -a "$fils" = 0 ] && append bss_conf "disable_pmksa_caching=1" "$N"
  
@@ -784,7 +786,7 @@ index bf3625c9..cedc39d1 100644
  					[ -n "$ieee80211w_max_timeout" ] && \
  						append bss_conf "assoc_sa_query_max_timeout=$ieee80211w_max_timeout" "$N"
  					[ -n "$ieee80211w_retry_timeout" ] && \
-@@ -1050,9 +1133,10 @@ hostapd_set_bss_options() {
+@@ -1050,9 +1135,10 @@ hostapd_set_bss_options() {
  	json_get_vars iw_roaming_consortium iw_domain_name iw_anqp_3gpp_cell_net iw_nai_realm
  	json_get_vars iw_anqp_elem iw_qos_map_set iw_ipaddr_type_availability iw_gas_address3
  	json_get_vars iw_venue_name iw_venue_url
@@ -796,7 +798,7 @@ index bf3625c9..cedc39d1 100644
  		append bss_conf "interworking=1" "$N"
  		set_default iw_internet 1
  		set_default iw_asra 0
-@@ -1159,6 +1243,22 @@ hostapd_set_bss_options() {
+@@ -1159,6 +1245,22 @@ hostapd_set_bss_options() {
  		append bss_conf "$val" "$N"
  	done
  
@@ -819,7 +821,7 @@ index bf3625c9..cedc39d1 100644
  	bss_md5sum="$(echo $bss_conf | md5sum | cut -d" " -f1)"
  	append bss_conf "config_id=$bss_md5sum" "$N"
  
-@@ -1249,6 +1349,7 @@ wpa_supplicant_prepare_interface() {
+@@ -1249,6 +1351,7 @@ wpa_supplicant_prepare_interface() {
  		country_str="country=$country"
  	}
  
@@ -827,7 +829,7 @@ index bf3625c9..cedc39d1 100644
  	multiap_flag_file="${_config}.is_multiap"
  	if [ "$multi_ap" = "1" ]; then
  		touch "$multiap_flag_file"
-@@ -1260,6 +1361,7 @@ wpa_supplicant_prepare_interface() {
+@@ -1260,6 +1363,7 @@ wpa_supplicant_prepare_interface() {
  ${scan_list:+freq_list=$scan_list}
  $ap_scan
  $country_str
@@ -835,34 +837,36 @@ index bf3625c9..cedc39d1 100644
  EOF
  	return 0
  }
-@@ -1531,12 +1633,41 @@ wpa_supplicant_add_network() {
+@@ -1531,12 +1635,43 @@ wpa_supplicant_add_network() {
  		;;
  	esac
  
 +	json_get_values pairwise pairwise
-+	case "$pairwise" in
-+		*tkip+aes|*tkip+ccmp|*aes+tkip|*ccmp+tkip)
-+			wpa_cipher="CCMP TKIP"
-+		;;
-+		*ccmp256)
-+			wpa_cipher="CCMP-256"
-+		;;
-+		*aes|*ccmp)
-+			wpa_cipher="CCMP"
-+		;;
-+		*tkip)
-+			wpa_cipher="TKIP"
-+		;;
-+		*gcmp256)
-+			wpa_cipher="GCMP-256"
-+		;;
-+		*gcmp)
-+			wpa_cipher="GCMP"
-+		;;
-+		*)
-+			wpa_cipher=""
-+		;;
-+	esac
++	if [ -n "$pairwise" ]; then
++		case "$pairwise" in
++			*tkip+aes|*tkip+ccmp|*aes+tkip|*ccmp+tkip)
++				wpa_cipher="CCMP TKIP"
++			;;
++			*ccmp256)
++				wpa_cipher="CCMP-256"
++			;;
++			*aes|*ccmp)
++				wpa_cipher="CCMP"
++			;;
++			*tkip)
++				wpa_cipher="TKIP"
++			;;
++			*gcmp256)
++				wpa_cipher="GCMP-256"
++			;;
++			*gcmp)
++				wpa_cipher="GCMP"
++			;;
++			*)
++				wpa_cipher=""
++			;;
++		esac
++	fi
 +	[ -n "$wpa_cipher" ] && wpa_pairwise="$wpa_cipher"
 +
  	[ "$wpa_cipher" = GCMP ] && {
@@ -877,7 +881,7 @@ index bf3625c9..cedc39d1 100644
  		case "$wpa" in
  			1)
  				append network_data "proto=WPA" "$N$T"
-@@ -1546,12 +1677,48 @@ wpa_supplicant_add_network() {
+@@ -1546,12 +1681,48 @@ wpa_supplicant_add_network() {
  			;;
  		esac
  
@@ -927,7 +931,7 @@ index bf3625c9..cedc39d1 100644
  	[ -n "$bssid" ] && append network_data "bssid=$bssid" "$N$T"
  	[ -n "$beacon_int" ] && append network_data "beacon_int=$beacon_int" "$N$T"
  
-@@ -1562,6 +1729,20 @@ wpa_supplicant_add_network() {
+@@ -1562,6 +1733,20 @@ wpa_supplicant_add_network() {
  	[ -n "$bssid_blacklist" ] && append network_data "bssid_blacklist=$bssid_blacklist" "$N$T"
  	[ -n "$bssid_whitelist" ] && append network_data "bssid_whitelist=$bssid_whitelist" "$N$T"
  
@@ -948,7 +952,7 @@ index bf3625c9..cedc39d1 100644
  	[ -n "$basic_rate" ] && {
  		local br rate_list=
  		for br in $basic_rate; do
-@@ -1576,6 +1757,11 @@ wpa_supplicant_add_network() {
+@@ -1576,6 +1761,11 @@ wpa_supplicant_add_network() {
  		append network_data "mcast_rate=$mc_rate" "$N$T"
  	}
  
@@ -960,6 +964,3 @@ index bf3625c9..cedc39d1 100644
  	if [ "$key_mgmt" = "WPS" ]; then
  		echo "wps_cred_processing=1" >> "$_config"
  	else
--- 
-2.25.1
-
