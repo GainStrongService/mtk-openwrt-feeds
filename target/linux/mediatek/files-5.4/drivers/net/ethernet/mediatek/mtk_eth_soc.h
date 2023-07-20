@@ -291,6 +291,9 @@
 #define MTK_PST_DRX_IDX0	BIT(16)
 #define MTK_PST_DRX_IDX_CFG(x)	(MTK_PST_DRX_IDX0 << (x))
 
+/*PDMA HW RX Index Register*/
+#define MTK_ADMA_DRX_PTR	(PDMA_BASE + 0x10C)
+
 /* PDMA Delay Interrupt Register */
 #define MTK_PDMA_DELAY_INT		(PDMA_BASE + 0x20c)
 #if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)

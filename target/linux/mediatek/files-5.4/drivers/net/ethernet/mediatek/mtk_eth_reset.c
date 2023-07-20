@@ -314,7 +314,7 @@ u32 mtk_monitor_rx_fc(struct mtk_eth *eth)
 	u32 i = 0, mib_base = 0, gdm_fc = 0;
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		mib_base = MTK_GDM1_TX_GBCNT + MTK_STAT_OFFSET*i;
+		mib_base = MTK_GDM1_TX_GBCNT + MTK_STAT_OFFSET*i + MTK_GDM_RX_FC;
 		gdm_fc =  mtk_r32(eth, mib_base);
 		if (gdm_fc < 1)
 			return 1;
@@ -396,14 +396,16 @@ u32 mtk_monitor_qdma_rx(struct mtk_eth *eth)
 
 u32 mtk_monitor_adma_rx(struct mtk_eth *eth)
 {
-	static u32 err_cnt_arx;
-	u32 err_flag = 0;
+	static u32 err_cnt_arx, pre_drx;
+	u32 err_flag = 0, cur_drx = 0;
+
 	u32 opq0 = (mtk_r32(eth, MTK_PSE_OQ_STA(0)) & 0x1FF) != 0;
 	u32 cdm1_fsm = (mtk_r32(eth, MTK_FE_CDM1_FSM) & 0xFFFF0000) != 0;
 	u32 cur_stat = ((mtk_r32(eth, MTK_ADMA_RX_DBG0) & 0x1F) == 0);
 	u32 fifo_rdy = ((mtk_r32(eth, MTK_ADMA_RX_DBG0) & 0x40) == 0);
+	cur_drx = mtk_r32(eth, MTK_ADMA_DRX_PTR);
 
-	if (opq0 && cdm1_fsm && cur_stat && fifo_rdy) {
+	if (opq0 && cdm1_fsm && cur_stat && fifo_rdy && (cur_drx == pre_drx)) {
 		err_cnt_arx++;
 		if (err_cnt_arx >= 3) {
 			pr_info("ADMA Rx Info\n");
@@ -416,12 +418,15 @@ u32 mtk_monitor_adma_rx(struct mtk_eth *eth)
 				mtk_r32(eth, MTK_ADMA_RX_DBG0));
 			pr_info("MTK_ADMA_RX_DBG1 = 0x%x\n",
 				mtk_r32(eth, MTK_ADMA_RX_DBG1));
+			pr_info("MTK_ADMA_DRX_PTR = 0x%x\n",
+				mtk_r32(eth, MTK_ADMA_DRX_PTR));
 			pr_info("==============================\n");
 			err_flag = 1;
 		}
 	} else
 		err_cnt_arx = 0;
 
+	pre_drx = cur_drx;
 	if (err_flag)
 		return MTK_FE_STOP_TRAFFIC;
 	else

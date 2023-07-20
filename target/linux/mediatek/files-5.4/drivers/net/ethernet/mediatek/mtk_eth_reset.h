@@ -20,6 +20,8 @@
 #define MTK_FE_START_TRAFFIC	(0x2007)
 #define MTK_FE_STOP_TRAFFIC_DONE_FAIL	(0x2008)
 
+/*FE GDM Counter */
+#define MTK_GDM_RX_FC	(0x24)
 
 /* ADMA Rx Debug Monitor */
 #define MTK_ADMA_RX_DBG0	(PDMA_BASE + 0x238)
