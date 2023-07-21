@@ -878,6 +878,8 @@ function convert_ibf {
         do_cmd "mt76-test phy${phy_idx} set aid=1"
     elif [ "${cmd}" = "ATETxBfGdInit" ]; then
         do_cmd "mt76-test phy${phy_idx} set aid=1"
+    elif [ "${cmd}" = "ATEIBFPhaseE2pUpdate" ]; then
+        do_cmd "atenl -i phy${phy_idx} -c \"eeprom ibf sync\""
     fi
 }
 

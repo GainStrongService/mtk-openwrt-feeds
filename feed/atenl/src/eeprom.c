@@ -541,9 +541,11 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 			} else if (!strncmp(s, "sync", 4)) {
 				atenl_nl_precal_sync_from_driver(an, PREK_SYNC_ALL);
 			}
+		} else if (!strncmp(s, "ibf sync", 8)) {
+			atenl_get_ibf_cal_result(an);
 		} else {
-            atenl_err("Unknown eeprom command: %s\n", cmd);
-        }
+			atenl_err("Unknown eeprom command: %s\n", cmd);
+		}
 	} else {
 		atenl_err("Unknown command: %s\n", cmd);
 	}

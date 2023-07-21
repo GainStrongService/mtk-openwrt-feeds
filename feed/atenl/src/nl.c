@@ -826,7 +826,7 @@ out:
 	return ret;
 }
 
-static void
+void
 atenl_get_ibf_cal_result(struct atenl *an)
 {
 	u16 offset;

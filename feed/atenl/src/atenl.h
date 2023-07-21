@@ -424,6 +424,7 @@ int atenl_nl_set_state(struct atenl *an, u8 band,
 		       enum mt76_testmode_state state);
 int atenl_nl_set_aid(struct atenl *an, u8 band, u8 aid);
 int atenl_nl_precal_sync_from_driver(struct atenl *an, enum prek_ops ops);
+void atenl_get_ibf_cal_result(struct atenl *an);
 int atenl_eeprom_init(struct atenl *an, u8 phy_idx);
 void atenl_eeprom_close(struct atenl *an);
 int atenl_eeprom_write_mtd(struct atenl *an);
