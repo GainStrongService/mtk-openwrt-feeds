@@ -31,14 +31,14 @@ index a7472ee7..f06c889b 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 5aaba9af..a1856296 100644
+index 5aaba9af..e6e9e540 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
  
  	config_add_string path phy 'macaddr:macaddr'
  	config_add_string tx_burst
-+	config_add_int mbssid mu_onoff sr_enable sr_enhanced
++	config_add_int mbssid mu_onoff sr_enable sr_enhanced rnr
  	config_add_string distance
  	config_add_int beacon_int chanbw frag rts
  	config_add_int rxantenna txantenna antenna_gain txpower min_tx_power
@@ -59,7 +59,7 @@ index 5aaba9af..a1856296 100644
  		append base_cfg "acs_exclude_dfs=1" "$N"
  
 -	json_get_vars noscan ht_coex min_tx_power:0 tx_burst
-+	json_get_vars noscan ht_coex min_tx_power:0 tx_burst mbssid mu_onoff
++	json_get_vars noscan ht_coex min_tx_power:0 tx_burst mbssid mu_onoff rnr
 +	json_get_vars etxbfen:1 itxbfen:0
  	json_get_values ht_capab_list ht_capab
  	json_get_values channel_list channels
@@ -270,7 +270,7 @@ index 5aaba9af..a1856296 100644
  			append base_cfg "he_bss_color=$he_bss_color" "$N"
  			[ "$he_spr_non_srg_obss_pd_max_offset" -gt 0 ] && { \
  				append base_cfg "he_spr_non_srg_obss_pd_max_offset=$he_spr_non_srg_obss_pd_max_offset" "$N"
-@@ -484,12 +550,46 @@ mac80211_hostapd_setup_base() {
+@@ -484,12 +550,47 @@ mac80211_hostapd_setup_base() {
  		append base_cfg "he_mu_edca_ac_vo_timer=255" "$N"
  	fi
  
@@ -314,10 +314,11 @@ index 5aaba9af..a1856296 100644
 +${mbssid:+mbssid=$mbssid}
 +${mu_onoff:+mu_onoff=$mu_onoff}
 +${itxbfen:+ibf_enable=$itxbfen}
++${rnr:+rnr=$rnr}
  $base_cfg
  
  EOF
-@@ -517,7 +617,7 @@ mac80211_hostapd_setup_bss() {
+@@ -517,7 +618,7 @@ mac80211_hostapd_setup_bss() {
  		append hostapd_cfg "wds_sta=1" "$N"
  		[ -n "$wds_bridge" ] && append hostapd_cfg "wds_bridge=$wds_bridge" "$N"
  	}
@@ -326,7 +327,7 @@ index 5aaba9af..a1856296 100644
  
  	cat >> /var/run/hostapd-$phy.conf <<EOF
  $hostapd_cfg
-@@ -527,6 +627,31 @@ ${max_listen_int:+max_listen_interval=$max_listen_int}
+@@ -527,6 +628,31 @@ ${max_listen_int:+max_listen_interval=$max_listen_int}
  EOF
  }
  
@@ -358,7 +359,7 @@ index 5aaba9af..a1856296 100644
  mac80211_get_addr() {
  	local phy="$1"
  	local idx="$(($2 + 1))"
-@@ -757,7 +882,19 @@ mac80211_prepare_vif() {
+@@ -757,7 +883,19 @@ mac80211_prepare_vif() {
  
  	json_select ..
  
@@ -379,7 +380,7 @@ index 5aaba9af..a1856296 100644
  		macaddr="$(mac80211_generate_mac $phy)"
  		macidx="$(($macidx + 1))"
  	elif [ "$macaddr" = 'random' ]; then
-@@ -1058,6 +1195,9 @@ mac80211_setup_vif() {
+@@ -1058,6 +1196,9 @@ mac80211_setup_vif() {
  
  	json_select ..
  	[ -n "$failed" ] || wireless_add_vif "$name" "$ifname"
@@ -389,7 +390,7 @@ index 5aaba9af..a1856296 100644
  }
  
  get_freq() {
-@@ -1122,6 +1262,10 @@ drv_mac80211_cleanup() {
+@@ -1122,6 +1263,10 @@ drv_mac80211_cleanup() {
  	hostapd_common_cleanup
  }
  
@@ -400,7 +401,7 @@ index 5aaba9af..a1856296 100644
  drv_mac80211_setup() {
  	json_select config
  	json_get_vars \
-@@ -1129,7 +1273,8 @@ drv_mac80211_setup() {
+@@ -1129,7 +1274,8 @@ drv_mac80211_setup() {
  		country chanbw distance \
  		txpower antenna_gain \
  		rxantenna txantenna \
@@ -410,7 +411,7 @@ index 5aaba9af..a1856296 100644
  	json_get_values basic_rate_list basic_rate
  	json_get_values scan_list scan_list
  	json_select ..
-@@ -1180,6 +1325,7 @@ drv_mac80211_setup() {
+@@ -1180,6 +1326,7 @@ drv_mac80211_setup() {
  	no_ap=1
  	macidx=0
  	staidx=0
@@ -418,7 +419,7 @@ index 5aaba9af..a1856296 100644
  
  	[ -n "$chanbw" ] && {
  		for file in /sys/kernel/debug/ieee80211/$phy/ath9k*/chanbw /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode; do
-@@ -1219,6 +1365,16 @@ drv_mac80211_setup() {
+@@ -1219,6 +1366,16 @@ drv_mac80211_setup() {
  	for_each_interface "sta adhoc mesh" mac80211_set_noscan
  	[ -n "$has_ap" ] && mac80211_hostapd_setup_base "$phy"
  
@@ -435,7 +436,7 @@ index 5aaba9af..a1856296 100644
  	mac80211_prepare_iw_htmode
  	for_each_interface "sta adhoc mesh monitor" mac80211_prepare_vif
  	NEWAPLIST=
-@@ -1251,6 +1407,14 @@ drv_mac80211_setup() {
+@@ -1251,6 +1408,14 @@ drv_mac80211_setup() {
  		if [ "$no_reload" != "0" ]; then
  			add_ap=1
  			ubus wait_for hostapd
@@ -450,7 +451,7 @@ index 5aaba9af..a1856296 100644
  			local hostapd_res="$(ubus call hostapd config_add "{\"iface\":\"$primary_ap\", \"config\":\"${hostapd_conf_file}\"}")"
  			ret="$?"
  			[ "$ret" != 0 -o -z "$hostapd_res" ] && {
-@@ -1266,6 +1430,9 @@ drv_mac80211_setup() {
+@@ -1266,6 +1431,9 @@ drv_mac80211_setup() {
  	[ "${add_ap}" = 1 ] && sleep 1
  	for_each_interface "ap" mac80211_setup_vif
  
@@ -461,7 +462,7 @@ index 5aaba9af..a1856296 100644
  	NEWUMLIST=
  
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a63..18213d54 100644
+index e24a2a63..20e60688 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -501,7 +502,7 @@ index e24a2a63..18213d54 100644
  $1 == "*" && $3 == "MHz" && $0 !~ /disabled/ && band && !channel {
          channel = $4
  }
-@@ -120,6 +136,18 @@ get_band_defaults() {
+@@ -120,6 +136,19 @@ get_band_defaults() {
  		mode_band="$band"
  		channel="$chan"
  		htmode="$mode"
@@ -516,11 +517,12 @@ index e24a2a63..18213d54 100644
 +		else
 +			noscan=1
 +			encryption=none
++			rnr=1
 +		fi
  	done
  }
  
-@@ -153,6 +181,10 @@ detect_mac80211() {
+@@ -153,6 +182,10 @@ detect_mac80211() {
  
  	json_load_file /etc/board.json
  
@@ -531,7 +533,7 @@ index e24a2a63..18213d54 100644
  	for _dev in /sys/class/ieee80211/*; do
  		[ -e "$_dev" ] || continue
  
-@@ -162,6 +194,12 @@ detect_mac80211() {
+@@ -162,6 +195,13 @@ detect_mac80211() {
  		channel=""
  		htmode=""
  		ht_capab=""
@@ -541,10 +543,11 @@ index e24a2a63..18213d54 100644
 +		sae_pwe=""
 +		ieee80211w=""
 +		mbssid=""
++		rnr=""
  
  		get_band_defaults "$dev"
  
-@@ -196,6 +234,14 @@ detect_mac80211() {
+@@ -196,6 +236,14 @@ detect_mac80211() {
  				;;
  		esac
  
@@ -559,7 +562,7 @@ index e24a2a63..18213d54 100644
  		uci -q batch <<-EOF
  			set wireless.${name}=wifi-device
  			set wireless.${name}.type=mac80211
-@@ -203,15 +249,37 @@ detect_mac80211() {
+@@ -203,15 +251,40 @@ detect_mac80211() {
  			set wireless.${name}.channel=${channel}
  			set wireless.${name}.band=${mode_band}
  			set wireless.${name}.htmode=$htmode
@@ -570,6 +573,9 @@ index e24a2a63..18213d54 100644
 +EOF
 +		[ -n "$mbssid" ] && {
 +			uci -q set wireless.${name}.mbssid=${mbssid}
++		}
++		[ -n "$rnr" ] && {
++			uci -q set wireless.${name}.rnr=${rnr}
 +		}
  
 +		uci -q batch <<-EOF
