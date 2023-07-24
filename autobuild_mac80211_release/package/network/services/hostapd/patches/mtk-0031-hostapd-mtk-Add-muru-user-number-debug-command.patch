@@ -1,7 +1,7 @@
-From 985f076026a2e4d7083272da975601be9b74d806 Mon Sep 17 00:00:00 2001
+From e947f264269a21994803aa324ef331bc696090c9 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Thu, 27 Apr 2023 15:28:43 +0800
-Subject: [PATCH] hostapd: mtk: Add muru user number debug command
+Subject: [PATCH 31/35] hostapd: mtk: Add muru user number debug command
 
 ---
  hostapd/ctrl_iface.c         | 11 ++++++++++-
@@ -14,10 +14,10 @@ Subject: [PATCH] hostapd: mtk: Add muru user number debug command
  7 files changed, 53 insertions(+), 16 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index becb09c..3391015 100644
+index 8c48d8f..bf5eeb7 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3473,6 +3473,8 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -3472,6 +3472,8 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  					 char *buf, size_t buflen)
  {
  	char *pos, *config, *value;
@@ -26,7 +26,7 @@ index becb09c..3391015 100644
  	config = cmd;
  	pos = os_strchr(config, ' ');
  	if (pos == NULL)
-@@ -3490,13 +3492,20 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -3489,13 +3491,20 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  			return -1;
  		}
  		hapd->iconf->mu_onoff = (u8) mu;
@@ -80,7 +80,7 @@ index 28f2a4d..2a89b99 100644
  int hostapd_drv_three_wire_ctrl(struct hostapd_data *hapd);
  int hostapd_drv_ibf_ctrl(struct hostapd_data *hapd);
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index b2fd9b9..49a1d30 100644
+index b372977..b1a7196 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -55,7 +55,7 @@
@@ -216,5 +216,5 @@ index 0470079..3d71405 100644
  #ifdef CONFIG_DPP
  	.dpp_listen = nl80211_dpp_listen,
 -- 
-2.39.0
+2.18.0
 

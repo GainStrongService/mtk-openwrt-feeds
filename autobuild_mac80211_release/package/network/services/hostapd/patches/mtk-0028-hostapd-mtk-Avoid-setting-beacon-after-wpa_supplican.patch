@@ -1,8 +1,8 @@
-From 1d21cddd0fc1c715ad0b3e9bd997124861cffa16 Mon Sep 17 00:00:00 2001
+From 203fe076218129d727229a0eb71b6f5fb4c6e8a9 Mon Sep 17 00:00:00 2001
 From: Michael Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 28 Apr 2023 10:22:58 +0800
-Subject: [PATCH] hostapd: mtk: Avoid setting beacon after wpa_supplicant stop
- the AP
+Subject: [PATCH 28/35] hostapd: mtk: Avoid setting beacon after wpa_supplicant
+ stop the AP
 
 Add a new variable 'stopped_by_supplicant' to indicate the AP
 interface is currently stopped by co-locating STA interface.
@@ -69,7 +69,7 @@ index ad56046..c67d08b 100644
  			ret = -1;
  	}
 diff --git a/src/ap/bss_load.c b/src/ap/bss_load.c
-index 725d3cd..f2a1a10 100644
+index 725d3cd..78fd9d8 100644
 --- a/src/ap/bss_load.c
 +++ b/src/ap/bss_load.c
 @@ -49,6 +49,9 @@ static void update_channel_utilization(void *eloop_data, void *user_data)
@@ -161,5 +161,5 @@ index 093c28a..3b51050 100644
  	u8 own_addr[ETH_ALEN];
  
 -- 
-2.25.1
+2.18.0
 
