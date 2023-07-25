@@ -586,7 +586,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 					   phylink_config);
 	struct mtk_eth *eth = mac->hw;
 	u32 sid, i;
-	int val = 0, ge_mode, force_link, err = 0;
+	int val = 0, ge_mode, err = 0;
 	unsigned int mac_type = mac->type;
 
 	/* MT76x8 has no hardware settings between for the MAC */
@@ -747,42 +747,13 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		mtk_w32(mac->hw, MAC_MCR_FORCE_LINK_DOWN, MTK_MAC_MCR(mac->id));
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-			switch (mac->id) {
-			case MTK_GMAC1_ID:
+			if (mac->id == MTK_GMAC1_ID)
 				mtk_setup_bridge_switch(eth);
-				break;
-			case MTK_GMAC2_ID:
-				force_link = (mac->interface ==
-					      PHY_INTERFACE_MODE_XGMII) ?
-					      MTK_XGMAC_FORCE_LINK(mac->id) : 0;
-				val = mtk_r32(eth, MTK_XGMAC_STS(mac->id));
-				mtk_w32(eth, val | force_link,
-					MTK_XGMAC_STS(mac->id));
-				break;
-			case MTK_GMAC3_ID:
-				val = mtk_r32(eth, MTK_XGMAC_STS(mac->id));
-				mtk_w32(eth,
-					val | MTK_XGMAC_FORCE_LINK(mac->id),
-					MTK_XGMAC_STS(mac->id));
-				break;
-			}
 		}
 	} else if (mac->type == MTK_GDM_TYPE) {
 		val = mtk_r32(eth, MTK_GDMA_EG_CTRL(mac->id));
 		mtk_w32(eth, val & ~MTK_GDMA_XGDM_SEL,
 			MTK_GDMA_EG_CTRL(mac->id));
-
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-			switch (mac->id) {
-			case MTK_GMAC2_ID:
-			case MTK_GMAC3_ID:
-				val = mtk_r32(eth, MTK_XGMAC_STS(mac->id));
-				mtk_w32(eth,
-					val & ~MTK_XGMAC_FORCE_LINK(mac->id),
-					MTK_XGMAC_STS(mac->id));
-				break;
-			}
-		}
 
 		/* FIXME: In current hardware design, we have to reset FE
 		 * when swtiching XGDM to GDM. Therefore, here trigger an SER
@@ -915,7 +886,7 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 {
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
-	u32 mcr;
+	u32 mcr, sts;
 
 	if (mac->type == MTK_GDM_TYPE) {
 		mcr = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
@@ -927,6 +898,10 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 		mcr &= 0xfffffff0;
 		mcr |= XMAC_MCR_TRX_DISABLE;
 		mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
+
+		sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
+		sts &= ~MTK_XGMAC_FORCE_LINK(mac->id);
+		mtk_w32(mac->hw, sts, MTK_XGMAC_STS(mac->id));
 	}
 }
 
@@ -936,7 +911,7 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 {
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
-	u32 mcr, mcr_cur;
+	u32 mcr, mcr_cur, sts, force_link;
 
 	mac->speed = speed;
 
@@ -981,6 +956,28 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 		if (mode == MLO_AN_PHY && phy)
 			mtk_setup_eee(mac, phy_init_eee(phy, false) >= 0);
 	} else if (mac->type == MTK_XGDM_TYPE && mac->id != MTK_GMAC1_ID) {
+		/* Eliminate the interference(before link-up) caused by PHY noise */
+		mtk_m32(mac->hw, XMAC_LOGIC_RST, 0x0, MTK_XMAC_LOGIC_RST(mac->id));
+		mdelay(20);
+		mtk_m32(mac->hw, XMAC_GLB_CNTCLR, 0x1, MTK_XMAC_CNT_CTRL(mac->id));
+
+		switch (mac->id) {
+		case MTK_GMAC2_ID:
+			force_link = (mac->interface ==
+				      PHY_INTERFACE_MODE_XGMII) ?
+				      MTK_XGMAC_FORCE_LINK(mac->id) : 0;
+			sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
+			mtk_w32(mac->hw, sts | force_link,
+				MTK_XGMAC_STS(mac->id));
+			break;
+		case MTK_GMAC3_ID:
+			sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
+			mtk_w32(mac->hw,
+				sts | MTK_XGMAC_FORCE_LINK(mac->id),
+				MTK_XGMAC_STS(mac->id));
+			break;
+		}
+
 		mcr = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
 
 		mcr &= ~(XMAC_MCR_FORCE_TX_FC |	XMAC_MCR_FORCE_RX_FC);
