@@ -1,7 +1,7 @@
-From a02364eee1308512fd25d3647238dd8da9cf3ae2 Mon Sep 17 00:00:00 2001
+From 1e7cc5cecfcf8f233742468d6b60e3619fbf9678 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Thu, 18 May 2023 18:11:37 +0800
-Subject: [PATCH 3/7] wifi: mt76: fix incorrect HE TX GI report
+Subject: [PATCH 3/8] wifi: mt76: fix incorrect HE TX GI report
 
 Change GI reporting source from static capability to rate-tuning module.
 
@@ -38,10 +38,10 @@ index 034ab90..1ca23c9 100644
  	MT_PHY_TYPE_HE_EXT_SU,
  	MT_PHY_TYPE_HE_TB,
 diff --git a/mt7915/init.c b/mt7915/init.c
-index e156a3c..a47a980 100644
+index 688e6bc..5baa571 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -656,6 +656,8 @@ mt7915_register_ext_phy(struct mt7915_dev *dev, struct mt7915_phy *phy)
+@@ -655,6 +655,8 @@ mt7915_register_ext_phy(struct mt7915_dev *dev, struct mt7915_phy *phy)
  	struct mt76_phy *mphy = phy->mt76;
  	int ret;
  
@@ -50,7 +50,7 @@ index e156a3c..a47a980 100644
  	INIT_DELAYED_WORK(&mphy->mac_work, mt7915_mac_work);
  
  	mt7915_eeprom_parse_hw_cap(dev, phy);
-@@ -1188,6 +1190,8 @@ int mt7915_register_device(struct mt7915_dev *dev)
+@@ -1187,6 +1189,8 @@ int mt7915_register_device(struct mt7915_dev *dev)
  	dev->phy.dev = dev;
  	dev->phy.mt76 = &dev->mt76.phy;
  	dev->mt76.phy.priv = &dev->phy;
@@ -188,10 +188,10 @@ index b8b0c0f..789f86a 100644
  
  	mt76_tx_status_check(mphy->dev, false);
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 0d94090..06e4291 100644
+index f741517..86f794f 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -708,6 +708,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -738,6 +738,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  
  	INIT_LIST_HEAD(&msta->rc_list);
  	INIT_LIST_HEAD(&msta->wcid.poll_list);
@@ -199,7 +199,7 @@ index 0d94090..06e4291 100644
  	msta->vif = mvif;
  	msta->wcid.sta = 1;
  	msta->wcid.idx = idx;
-@@ -732,6 +733,7 @@ void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -762,6 +763,7 @@ void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  {
  	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
  	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
@@ -207,7 +207,7 @@ index 0d94090..06e4291 100644
  	int i;
  
  	mt7915_mcu_add_sta(dev, vif, sta, false);
-@@ -748,6 +750,11 @@ void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -778,6 +780,11 @@ void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	if (!list_empty(&msta->rc_list))
  		list_del_init(&msta->rc_list);
  	spin_unlock_bh(&mdev->sta_poll_lock);
@@ -220,10 +220,10 @@ index 0d94090..06e4291 100644
  
  static void mt7915_tx(struct ieee80211_hw *hw,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index e820de6..87cc8d9 100644
+index f2ffa6c..e53d83b 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3711,6 +3711,167 @@ out:
+@@ -3714,6 +3714,167 @@ out:
  	return ret;
  }
  
@@ -466,7 +466,7 @@ index 1592b5d..aebacc7 100644
 +};
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index fe46a36..6abe931 100644
+index 21984e9..3510dbc 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -137,6 +137,7 @@ struct mt7915_sta {
@@ -477,7 +477,7 @@ index fe46a36..6abe931 100644
  	u32 airtime_ac[8];
  
  	int ack_signal;
-@@ -210,6 +211,10 @@ struct mt7915_phy {
+@@ -224,6 +225,10 @@ struct mt7915_phy {
  	struct mt76_mib_stats mib;
  	struct mt76_channel_state state_ts;
  
@@ -488,7 +488,7 @@ index fe46a36..6abe931 100644
  #ifdef CONFIG_NL80211_TESTMODE
  	struct {
  		u32 *reg_backup;
-@@ -479,6 +484,7 @@ int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch);
+@@ -493,6 +498,7 @@ int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch);
  int mt7915_mcu_get_temperature(struct mt7915_phy *phy);
  int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state);
  int mt7915_mcu_set_thermal_protect(struct mt7915_phy *phy);
