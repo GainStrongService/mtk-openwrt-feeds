@@ -1,7 +1,7 @@
-From 49f5a07866ca6a6be26cec9886e702d54308a78c Mon Sep 17 00:00:00 2001
+From 7a5c5d30c9f95cf990c415c4edb3359ac1c1ab5b Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Feb 2023 14:25:24 +0800
-Subject: [PATCH 13/17] mac80211: mtk: add sta-assisted DFS state update
+Subject: [PATCH 13/19] mac80211: mtk: add sta-assisted DFS state update
  mechanism
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -13,10 +13,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 91 insertions(+)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index b97ddbd..02ad2b2 100644
+index 77276db..03f072f 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -7641,6 +7641,20 @@ void cfg80211_cac_event(struct net_device *netdev,
+@@ -7642,6 +7642,20 @@ void cfg80211_cac_event(struct net_device *netdev,
  			const struct cfg80211_chan_def *chandef,
  			enum nl80211_radar_event event, gfp_t gfp);
  
@@ -98,7 +98,7 @@ index 8ee325a..48053e4 100644
  		/*
  		 * destroy assoc_data afterwards, as otherwise an idle
 diff --git a/net/wireless/chan.c b/net/wireless/chan.c
-index 5f50ac4..0309758 100644
+index c217276..9f651f9 100644
 --- a/net/wireless/chan.c
 +++ b/net/wireless/chan.c
 @@ -14,6 +14,7 @@
@@ -109,7 +109,7 @@ index 5f50ac4..0309758 100644
  
  static bool cfg80211_valid_60g_freq(u32 freq)
  {
-@@ -1386,3 +1387,62 @@ bool cfg80211_any_usable_channels(struct wiphy *wiphy,
+@@ -1393,3 +1394,62 @@ bool cfg80211_any_usable_channels(struct wiphy *wiphy,
  	return false;
  }
  EXPORT_SYMBOL(cfg80211_any_usable_channels);

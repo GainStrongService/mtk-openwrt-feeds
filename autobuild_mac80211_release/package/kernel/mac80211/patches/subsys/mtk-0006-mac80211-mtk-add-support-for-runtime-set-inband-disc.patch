@@ -1,7 +1,7 @@
-From 8f8598d2e6a82a2a1d43e8e86a8d43e185cd1807 Mon Sep 17 00:00:00 2001
+From 31a0ee224e1a8d9764c462e1ab1cc1a8775733be Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Wed, 19 Oct 2022 13:45:42 +0800
-Subject: [PATCH 06/17] mac80211: mtk: add support for runtime set inband
+Subject: [PATCH 06/19] mac80211: mtk: add support for runtime set inband
  discovery
 
 Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
@@ -14,10 +14,10 @@ Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
  5 files changed, 61 insertions(+), 5 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 8e05f55..ae2af09 100644
+index d1a88e2..1170703 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -1158,6 +1158,7 @@ struct cfg80211_fils_discovery {
+@@ -1159,6 +1159,7 @@ struct cfg80211_fils_discovery {
  	u32 max_interval;
  	size_t tmpl_len;
  	const u8 *tmpl;
@@ -26,7 +26,7 @@ index 8e05f55..ae2af09 100644
  
  /**
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 7edb0f0..587a1d6 100644
+index 04c0d09..4727393 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -505,6 +505,7 @@ struct ieee80211_ftm_responder_params {
@@ -50,7 +50,7 @@ index 019f065..e674aa7 100644
  	/* keep last */
  	__NL80211_FILS_DISCOVERY_ATTR_LAST,
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 0711c75..544dcf5 100644
+index 79995f3..e008a1e 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
 @@ -906,6 +906,7 @@ static int ieee80211_set_fils_discovery(struct ieee80211_sub_if_data *sdata,
@@ -107,7 +107,7 @@ index 0711c75..544dcf5 100644
  }
  
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 1292634..a20aba5 100644
+index 4631bb1..c41675f 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
 @@ -421,6 +421,7 @@ nl80211_fils_discovery_policy[NL80211_FILS_DISCOVERY_ATTR_MAX + 1] = {

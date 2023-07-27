@@ -1,8 +1,8 @@
-From cc87cfb17dfe07759d56dc3cd2fe05477cf3daa4 Mon Sep 17 00:00:00 2001
+From 822360269ad225fe0c1c1e39c50d572159edeb28 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 22 Sep 2022 14:27:41 +0800
-Subject: [PATCH] cfg80211: mtk: implement DFS status show, cac and nop skip
- command via debugfs
+Subject: [PATCH 09/19] cfg80211: mtk: implement DFS status show, cac and nop
+ skip command via debugfs
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 358 insertions(+), 7 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index ae2af09..b97ddbd 100644
+index 1170703..77276db 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -4401,6 +4401,7 @@ struct cfg80211_ops {
+@@ -4402,6 +4402,7 @@ struct cfg80211_ops {
  				struct cfg80211_color_change_settings *params);
  	int	(*set_radar_background)(struct wiphy *wiphy,
  					struct cfg80211_chan_def *chandef);
@@ -28,7 +28,7 @@ index ae2af09..b97ddbd 100644
  
  /*
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 544dcf5..0a6257d 100644
+index e008a1e..2a173dd 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
 @@ -4501,6 +4501,24 @@ ieee80211_set_radar_background(struct wiphy *wiphy,

@@ -1,7 +1,7 @@
-From 61d499cf2de7201642cd7175b5c067b1e17309c2 Mon Sep 17 00:00:00 2001
+From 9d897fd1187c4c3be62b441b6fb81295eb2e7313 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Wed, 8 Mar 2023 06:32:42 +0800
-Subject: [PATCH 16/17] mac80211: mtk: ageout color bitmap
+Subject: [PATCH 16/19] mac80211: mtk: ageout color bitmap
 
 Adding a periodic work which runs once per second to check BSS color.
 OBSS BSS Color will be ageout if not seen for 10 seconds.
@@ -14,7 +14,7 @@ OBSS BSS Color will be ageout if not seen for 10 seconds.
  5 files changed, 43 insertions(+)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 1a26ccd..28ec7e8 100644
+index ba19152..3e50a72 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -700,6 +700,7 @@ struct ieee80211_bss_conf {
@@ -26,7 +26,7 @@ index 1a26ccd..28ec7e8 100644
  	u32 unsol_bcast_probe_resp_interval;
  	bool s1g;
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 86d231b..7449777 100644
+index 81cfaa6..95ca8a4 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
 @@ -4425,6 +4425,35 @@ unlock:
@@ -123,7 +123,7 @@ index d314f39..00b0443 100644
  	for (i = 0; i < NUM_NL80211_BANDS; i++) {
  		struct ieee80211_supported_band *sband;
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 36fcf97..838085f 100644
+index feb9f90..6d8ce15 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
 @@ -3221,6 +3221,7 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)

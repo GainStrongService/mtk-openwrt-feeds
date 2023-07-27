@@ -1,7 +1,8 @@
-From 29de32dac9d97caf3e40cdae58b78a18d6277cf1 Mon Sep 17 00:00:00 2001
+From 758c358967c017318904a48f82857b75c16e4973 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Thu, 13 Jul 2023 08:27:37 +0800
-Subject: [PATCH] mac80211: mtk: export ieee80211_tpt_led_trig_tx/rx for driver
+Subject: [PATCH 19/19] mac80211: mtk: export ieee80211_tpt_led_trig_tx/rx for
+ driver
 
 Whenever the H/W path is enabled and traffic is in the binding state,
 mac80211 is not aware of the traffic. Consequently, the LED does not
@@ -21,7 +22,7 @@ Signed-off-by: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
  5 files changed, 36 insertions(+), 20 deletions(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 28ec7e8..644ea36 100644
+index 3e50a72..91affd5 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -4404,6 +4404,8 @@ __ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
@@ -110,10 +111,10 @@ index 2abb1d0..b18ae9d 100644
 -#endif
 -}
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 838085f..492f389 100644
+index 6d8ce15..a9fcc7a 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
-@@ -5047,7 +5047,7 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
+@@ -5048,7 +5048,7 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
  	if (skb) {
  		if ((status->flag & RX_FLAG_8023) ||
  			ieee80211_is_data_present(hdr->frame_control))
@@ -145,5 +146,5 @@ index 9b66cc0..50ba10c 100644
  	ieee80211_tx_8023(sdata, skb, sta, false);
  
 -- 
-2.39.0
+2.18.0
 

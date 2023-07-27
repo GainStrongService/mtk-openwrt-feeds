@@ -1,7 +1,8 @@
-From 1eb46f8a687f8c458893c63344e63c63bcdb81f1 Mon Sep 17 00:00:00 2001
+From 6bd3d906bd48ebe0e65c7173af1c7f59e4230d04 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 29 Mar 2022 16:06:30 +0800
-Subject: [PATCH] cfg80211: mtk: extend CAC time for weather radar channels
+Subject: [PATCH 02/19] cfg80211: mtk: extend CAC time for weather radar
+ channels
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -12,7 +13,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 11 insertions(+)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 8e05f55..585d934 100644
+index 4277f96..d1a88e2 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
 @@ -142,6 +142,7 @@ enum ieee80211_channel_flags {
@@ -24,7 +25,7 @@ index 8e05f55..585d934 100644
  
  /**
 diff --git a/net/wireless/chan.c b/net/wireless/chan.c
-index 5f50ac4..51506f8 100644
+index 5f50ac4..c217276 100644
 --- a/net/wireless/chan.c
 +++ b/net/wireless/chan.c
 @@ -843,6 +843,13 @@ static unsigned int cfg80211_get_chans_dfs_cac_time(struct wiphy *wiphy,
