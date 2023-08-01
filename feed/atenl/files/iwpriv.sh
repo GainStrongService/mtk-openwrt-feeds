@@ -6,7 +6,7 @@ full_cmd=$3
 interface_ori=${interface}
 SOC_start_idx="0"
 SOC_end_idx="0"
-is_eagle="0"
+is_connac3="0"
 
 work_mode="RUN" # RUN/PRINT/DEBUG
 iwpriv_file="/tmp/iwpriv_wrapper"
@@ -90,54 +90,62 @@ function get_config() {
 function parse_sku {
     SOC_start_idx=$(get_config "STARTIDX" ${interface_file})
     SOC_end_idx=$(get_config "ENDIDX" ${interface_file})
-    is_eagle=$(get_config "IS_EAGLE" ${interface_file})
+    is_connac3=$(get_config "IS_CONNAC3" ${interface_file})
     local eeprom_file=/sys/kernel/debug/ieee80211/phy0/mt76/eeprom
-    if [ -z "${SOC_start_idx}" ] || [ -z "${SOC_end_idx}" ] || [ -z "${is_eagle}" ]; then
+    if [ -z "${SOC_start_idx}" ] || [ -z "${SOC_end_idx}" ] || [ -z "${is_connac3}" ]; then
         if [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7916")" ]; then
             SOC_start_idx="2"
             SOC_end_idx="3"
-            is_eagle="0"
+            is_connac3="0"
         elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7915")" ]; then
             SOC_start_idx="1"
             SOC_end_idx="2"
-            is_eagle="0"
+            is_connac3="0"
         elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7986")" ]; then
             SOC_start_idx="0"
             SOC_end_idx="1"
-            is_eagle="0"
+            is_connac3="0"
         elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7990")" ]; then
             SOC_start_idx="0"
             SOC_end_idx="2"
-            is_eagle="1"
+            is_connac3="1"
+        elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7992")" ]; then
+            SOC_start_idx="0"
+            SOC_end_idx="1"
+            is_connac3="1"
         else
             echo "Interface Conversion Failed!"
             echo "Please use iwpriv <phy0/phy1/..> set <...> or configure the sku of your board manually by the following commands"
             echo "For AX6000:"
             echo "      echo STARTIDX=0 >> ${interface_file}"
             echo "      echo ENDIDX=1 >> ${interface_file}"
-            echo "      echo IS_EAGLE=0 >> ${interface_file}"
+            echo "      echo IS_CONNAC3=0 >> ${interface_file}"
             echo "For AX7800:"
             echo "      echo STARTIDX=2 >> ${interface_file}"
             echo "      echo ENDIDX=3 >> ${interface_file}"
-            echo "      echo IS_EAGLE=0 >> ${interface_file}"
+            echo "      echo IS_CONNAC3=0 >> ${interface_file}"
             echo "For AX8400:"
             echo "      echo STARTIDX=1 >> ${interface_file}"
             echo "      echo ENDIDX=2 >> ${interface_file}"
-            echo "      echo IS_EAGLE=0 >> ${interface_file}"
+            echo "      echo IS_CONNAC3=0 >> ${interface_file}"
             echo "For Eagle:"
-            echo "      echo STARTIDX=1 >> ${interface_file}"
+            echo "      echo STARTIDX=0 >> ${interface_file}"
             echo "      echo ENDIDX=2 >> ${interface_file}"
-            echo "      echo IS_EAGLE=1 >> ${interface_file}"
+            echo "      echo IS_CONNAC3=1 >> ${interface_file}"
+            echo "For Kite:"
+            echo "      echo STARTIDX=0 >> ${interface_file}"
+            echo "      echo ENDIDX=1 >> ${interface_file}"
+            echo "      echo IS_CONNAC3=1 >> ${interface_file}"
             exit 0
         fi
         record_config "STARTIDX" ${SOC_start_idx} ${interface_file}
         record_config "ENDIDX" ${SOC_end_idx} ${interface_file}
-        record_config "IS_EAGLE" ${is_eagle} ${interface_file}
+        record_config "IS_CONNAC3" ${is_connac3} ${interface_file}
     fi
 }
 
 function convert_interface {
-    if [ ${is_eagle} == "0" ]; then
+    if [ ${is_connac3} == "0" ]; then
         if [[ $1 == "raix"* ]]; then
             phy_idx=1
         elif [[ $1 == "rai"* ]]; then
@@ -855,7 +863,7 @@ function convert_ibf {
         do_cmd "mt76-test phy${phy_idx} set state=tx_frames"
     elif [ "${cmd}" = "ATEConTxETxBfInitProc" ]; then
         local wlan_idx="1"
-        if [ ${is_eagle} == "1" ]; then
+        if [ ${is_connac3} == "1" ]; then
             local wlan_idx=$((phy_idx+1))
         fi
         do_cmd "mt76-test phy${phy_idx} set aid=1"
@@ -863,7 +871,7 @@ function convert_ibf {
         do_cmd "mt76-test phy${phy_idx} set txbf_act=update_ch txbf_param=1"
         do_cmd "mt76-test phy${phy_idx} set txbf_act=ebf_prof_update txbf_param=0,0,0"
         do_cmd "mt76-test phy${phy_idx} set txbf_act=apply_tx txbf_param=${wlan_idx},1,0,0,0"
-        if [ ${is_eagle} == "1" ]; then
+        if [ ${is_connac3} == "1" ]; then
             do_cmd "mt76-test phy${phy_idx} set txbf_act=txcmd txbf_param=1,1,1"
         fi
         do_cmd "mt76-test phy${phy_idx} set txbf_act=pfmu_tag_read txbf_param=0,1"
@@ -1191,7 +1199,7 @@ if [ "${cmd_type}" = "set" ]; then
         ## Therefore this wrapper would translate it to either mt76-test or mt76-vendor based on the attribute of the command
         ## Translate to mt76-vendor command
         "csi"|"amnt"|"ap_rfeatures"|"ap_wireless"|"mu"|"set_muru_manual_config")
-            if [ ${is_eagle} == "1" ]; then
+            if [ ${is_connac3} == "1" ]; then
                 hostapd_cmd="$(echo $* | sed 's/set/raw/')"
                 do_cmd "hostapd_cli -i $hostapd_cmd"
             else
@@ -1221,7 +1229,7 @@ if [ "${cmd_type}" = "set" ]; then
             param_new=${param}
             ;;
         "ATETXGI")
-            if [ ${is_eagle} == "0" ]; then
+            if [ ${is_connac3} == "0" ]; then
                 tx_mode=$(convert_tx_mode $(get_config "ATETXMODE" ${iwpriv_file}))
                 convert_gi ${tx_mode} ${param}
                 skip=1
@@ -1408,7 +1416,7 @@ elif [ "${cmd_type}" = "switch" ]; then
     eeprom_testmode_offset="1af"
     testmode_enable="0"
 
-    if [ ${is_eagle} == "0" ]; then
+    if [ ${is_connac3} == "0" ]; then
         return
     fi
 
