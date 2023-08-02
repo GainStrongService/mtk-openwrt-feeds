@@ -1,4 +1,4 @@
-From 1097afc656ceddb72e9979352e755a41b05ed429 Mon Sep 17 00:00:00 2001
+From 439452d1e6ee75c69c94292b50e065b2f1ee0112 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 12 Sep 2022 18:16:54 +0800
 Subject: [PATCH 1011/1034] wifi: mt76: testmode: add iBF command mode support
@@ -12,7 +12,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 85 insertions(+), 7 deletions(-)
 
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 7d285eb..f735cae 100644
+index 7d285ebc..f735cae8 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -720,6 +720,7 @@ mt7915_tm_txbf_profile_update(struct mt7915_phy *phy, u16 *val, bool ebf)
@@ -104,10 +104,10 @@ index 7d285eb..f735cae 100644
  		mt7915_tm_set_tx_len(phy, tx_time);
  
 diff --git a/testmode.c b/testmode.c
-index 21362bd..39cacb2 100644
+index b1b643c3..f415beca 100644
 --- a/testmode.c
 +++ b/testmode.c
-@@ -533,6 +533,42 @@ out:
+@@ -534,6 +534,42 @@ out:
  	return err;
  }
  
@@ -150,7 +150,7 @@ index 21362bd..39cacb2 100644
  int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		      void *data, int len)
  {
-@@ -671,6 +707,11 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -672,6 +708,11 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  				   0, MT76_TM_TXBF_ACT_MAX))
  			goto out;
  
@@ -163,7 +163,7 @@ index 21362bd..39cacb2 100644
  		nla_for_each_nested(cur, tb[MT76_TM_ATTR_TXBF_PARAM], rem) {
  			if (nla_len(cur) != 2 ||
 diff --git a/testmode.h b/testmode.h
-index 109a556..d2675dd 100644
+index 109a556a..d2675ddc 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -281,8 +281,10 @@ enum mt76_testmode_txbf_act {
@@ -178,7 +178,7 @@ index 109a556..d2675dd 100644
  
  	/* keep last */
 diff --git a/tools/fields.c b/tools/fields.c
-index 3ca5cd1..6bf4c04 100644
+index 3ca5cd1f..6bf4c046 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -32,6 +32,20 @@ static const char * const testmode_tx_mode[] = {
@@ -238,5 +238,5 @@ index 3ca5cd1..6bf4c04 100644
  
  const struct tm_field msg_field = {
 -- 
-2.18.0
+2.39.2
 

@@ -1,4 +1,4 @@
-From d8e0738120aa767d990e2879b944716242b0f38d Mon Sep 17 00:00:00 2001
+From de4b50e7a8564367603e5de2e967315fd13ffb82 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 5 Dec 2022 18:21:51 +0800
 Subject: [PATCH 1025/1034] wifi: mt76: mt7915: add bf backoff limit table
@@ -10,14 +10,13 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  eeprom.c         |  34 +++++++++++-
  mt76.h           |   8 +++
  mt7915/debugfs.c |  73 ++++++++++++++++++++++++--
- mt7915/main.c    |   2 +-
  mt7915/mcu.c     | 132 ++++++++++++++++++++++++++++++++++++-----------
  mt7915/mcu.h     |   6 +++
  mt7915/mt7915.h  |   4 +-
- 8 files changed, 221 insertions(+), 40 deletions(-)
+ 7 files changed, 220 insertions(+), 39 deletions(-)
 
 diff --git a/debugfs.c b/debugfs.c
-index 4a8e186..4bb4679 100644
+index 4a8e1864..4bb46799 100644
 --- a/debugfs.c
 +++ b/debugfs.c
 @@ -95,7 +95,7 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
@@ -30,10 +29,10 @@ index 4a8e186..4bb4679 100644
  		seq_printf(file, " %2d", val[i]);
  	seq_puts(file, "\n");
 diff --git a/eeprom.c b/eeprom.c
-index 6b72774..5cbd56f 100644
+index eb532c77..41895252 100644
 --- a/eeprom.c
 +++ b/eeprom.c
-@@ -312,12 +312,16 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
+@@ -367,12 +367,16 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
  	char band;
  	size_t len;
  	s8 max_power = -127;
@@ -51,7 +50,7 @@ index 6b72774..5cbd56f 100644
  
  	if (!IS_ENABLED(CONFIG_OF))
  		return target_power;
-@@ -370,7 +374,33 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
+@@ -425,7 +429,33 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
  				     ARRAY_SIZE(dest->ru), val, len,
  				     target_power, txs_delta, &max_power);
  
@@ -87,7 +86,7 @@ index 6b72774..5cbd56f 100644
  EXPORT_SYMBOL_GPL(mt76_get_rate_power_limits);
  
 diff --git a/mt76.h b/mt76.h
-index b4e3429..2f801de 100644
+index b4e34296..2f801de4 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -1030,6 +1030,14 @@ struct mt76_power_limits {
@@ -106,7 +105,7 @@ index b4e3429..2f801de 100644
  
  struct mt76_ethtool_worker_info {
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index f181377..19a37b5 100644
+index f1813776..19a37b53 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -1019,7 +1019,7 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
@@ -217,21 +216,8 @@ index f181377..19a37b5 100644
  	debugfs_create_devm_seqfile(dev->mt76.dev, "twt_stats", dir,
  				    mt7915_twt_stats);
  	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
-diff --git a/mt7915/main.c b/mt7915/main.c
-index dc6ef88..bd2c1cf 100644
---- a/mt7915/main.c
-+++ b/mt7915/main.c
-@@ -488,7 +488,7 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
- 		ieee80211_wake_queues(hw);
- 	}
- 
--	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-+	if (changed & (IEEE80211_CONF_CHANGE_POWER | IEEE80211_CONF_CHANGE_CHANNEL)) {
- 		ret = mt7915_mcu_set_txpower_sku(phy);
- 		if (ret)
- 			return ret;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 4aee126..10fade2 100644
+index 4aee1268..10fade27 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -3302,7 +3302,8 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
@@ -427,7 +413,7 @@ index 4aee126..10fade2 100644
  				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL), &req,
  				 sizeof(req), true);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 5fc4e2e..142bfc1 100644
+index 5fc4e2ef..142bfc1f 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -502,12 +502,18 @@ enum {
@@ -450,7 +436,7 @@ index 5fc4e2e..142bfc1 100644
  	SPR_ENABLE = 0x1,
  	SPR_ENABLE_SD = 0x3,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index bbcdd93..b80c607 100644
+index 851caa99..04cf2dc3 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -72,6 +72,7 @@
@@ -461,7 +447,7 @@ index bbcdd93..b80c607 100644
  
  #define MT7915_MAX_TWT_AGRT		16
  #define MT7915_MAX_STA_TWT_AGRT		8
-@@ -570,7 +571,8 @@ int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
+@@ -569,7 +570,8 @@ int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
  int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band);
  int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable);
  int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy);
@@ -472,5 +458,5 @@ index bbcdd93..b80c607 100644
  int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
  				 struct ieee80211_vif *vif,
 -- 
-2.18.0
+2.39.2
 

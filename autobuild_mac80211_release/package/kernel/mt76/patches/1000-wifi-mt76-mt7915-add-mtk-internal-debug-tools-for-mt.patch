@@ -1,4 +1,4 @@
-From f9e516070e0a7710b044a563cdff25defc9ec5d5 Mon Sep 17 00:00:00 2001
+From a1535dbab257d4916f6f7a9abb141f3bd8b9e4c1 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
 Subject: [PATCH 1000/1034] wifi: mt76: mt7915: add mtk internal debug tools
@@ -23,7 +23,7 @@ Subject: [PATCH 1000/1034] wifi: mt76: mt7915: add mtk internal debug tools
  create mode 100644 mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index bd0bf4b..ab3b58e 100644
+index bd0bf4bb..ab3b58e1 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1151,6 +1151,7 @@ enum {
@@ -47,7 +47,7 @@ index bd0bf4b..ab3b58e 100644
  	MCU_EXT_CMD_CAL_CACHE = 0x67,
  	MCU_EXT_CMD_RED_ENABLE = 0x68,
 diff --git a/mt7915/Makefile b/mt7915/Makefile
-index c4dca9c..fd71141 100644
+index c4dca9c1..fd711416 100644
 --- a/mt7915/Makefile
 +++ b/mt7915/Makefile
 @@ -4,7 +4,7 @@ EXTRA_CFLAGS += -DCONFIG_MT76_LEDS
@@ -60,7 +60,7 @@ index c4dca9c..fd71141 100644
  mt7915e-$(CONFIG_NL80211_TESTMODE) += testmode.o
  mt7915e-$(CONFIG_MT798X_WMAC) += soc.o
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 93e549c..f181377 100644
+index 93e549c3..f1813776 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -8,6 +8,9 @@
@@ -232,7 +232,7 @@ index 93e549c..f181377 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 67e7b26..99cbabd 100644
+index d9d5aad4..d22a4079 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -275,6 +275,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -271,7 +271,7 @@ index 67e7b26..99cbabd 100644
  }
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 7223b4c..e0973fb 100644
+index 48970349..df506b01 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -73,7 +73,11 @@ int mt7915_run(struct ieee80211_hw *hw)
@@ -287,7 +287,7 @@ index 7223b4c..e0973fb 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 50b49e5..897e0dd 100644
+index 50b49e54..897e0dd9 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -205,6 +205,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -371,7 +371,7 @@ index 50b49e5..897e0dd 100644
 +}
 +#endif
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 8f36546..dd3b506 100644
+index 8f365461..dd3b5062 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -333,6 +333,10 @@ enum {
@@ -386,7 +386,7 @@ index 8f36546..dd3b506 100644
  };
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index eb66fcd..51e1301 100644
+index f0809291..00476647 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -9,6 +9,7 @@
@@ -426,7 +426,7 @@ index eb66fcd..51e1301 100644
  };
  
  enum {
-@@ -599,4 +622,24 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -598,4 +621,24 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  			 bool pci, int *irq);
  
@@ -453,7 +453,7 @@ index eb66fcd..51e1301 100644
  #endif
 diff --git a/mt7915/mt7915_debug.h b/mt7915/mt7915_debug.h
 new file mode 100644
-index 0000000..fa8794f
+index 00000000..fa8794fd
 --- /dev/null
 +++ b/mt7915/mt7915_debug.h
 @@ -0,0 +1,1418 @@
@@ -1877,7 +1877,7 @@ index 0000000..fa8794f
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 0000000..e6796bc
+index 00000000..e6796bc3
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
 @@ -0,0 +1,3624 @@
@@ -5507,7 +5507,7 @@ index 0000000..e6796bc
 +#endif
 diff --git a/mt7915/mtk_mcu.c b/mt7915/mtk_mcu.c
 new file mode 100644
-index 0000000..143dae2
+index 00000000..143dae26
 --- /dev/null
 +++ b/mt7915/mtk_mcu.c
 @@ -0,0 +1,51 @@
@@ -5563,7 +5563,7 @@ index 0000000..143dae2
 +				 sizeof(req), true);
 +}
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a10..3d51d9e 100644
+index e5d4a105..3d51d9ec 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)
@@ -5677,5 +5677,5 @@ index e5d4a10..3d51d9e 100644
  	return ret;
  }
 -- 
-2.18.0
+2.39.2
 

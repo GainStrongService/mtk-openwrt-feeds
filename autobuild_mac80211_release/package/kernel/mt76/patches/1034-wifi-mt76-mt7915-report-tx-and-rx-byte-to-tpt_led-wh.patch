@@ -1,4 +1,4 @@
-From 6620ffe4284776c22d1cc980e8f5b77d6c236f84 Mon Sep 17 00:00:00 2001
+From a6806476cc67d25ab77a3b0aef4fbc4870f12cbe Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Fri, 23 Jun 2023 06:06:21 +0800
 Subject: [PATCH 1034/1034] wifi: mt76: mt7915: report tx and rx byte to
@@ -11,7 +11,7 @@ Signed-off-by: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
  2 files changed, 11 insertions(+), 4 deletions(-)
 
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index ee5177f..ff3cefa 100644
+index ee5177fd..ff3cefad 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -608,9 +608,15 @@ bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
@@ -42,7 +42,7 @@ index ee5177f..ff3cefa 100644
  			sband = &mphy->sband_5g.sband;
  		else if (mphy->chandef.chan->band == NL80211_BAND_6GHZ)
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 25c3fe2..57dfda3 100644
+index 25c3fe2b..57dfda3a 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -666,6 +666,7 @@ static void mt7915_mmio_wed_update_rx_stats(struct mtk_wed_device *wed,
@@ -65,5 +65,5 @@ index 25c3fe2..57dfda3 100644
  		wcid->stats.rx_packets += le32_to_cpu(stats->rx_pkt_cnt);
  		wcid->stats.rx_errors += le32_to_cpu(stats->rx_err_cnt);
 -- 
-2.18.0
+2.39.2
 
