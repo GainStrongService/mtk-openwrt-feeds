@@ -1834,7 +1834,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		skb_hnat_wc_id(skb), skb_hnat_rx_id(skb));
 
 	if ((gmac_no != NR_WDMA0_PORT) && (gmac_no != NR_WDMA1_PORT) &&
-	    (gmac_no != NR_WHNAT_WDMA_PORT))
+	    (gmac_no != NR_WDMA2_PORT) && (gmac_no != NR_WHNAT_WDMA_PORT))
 		return NF_ACCEPT;
 
 	if (unlikely(!skb_mac_header_was_set(skb)))
@@ -1914,7 +1914,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		     gmac_no == NR_WHNAT_WDMA_PORT) ||
 		    ((hnat_priv->data->version == MTK_HNAT_V2 ||
 		      hnat_priv->data->version == MTK_HNAT_V3) &&
-		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT))) {
+		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT ||
+		      gmac_no == NR_WDMA2_PORT))) {
 			entry->ipv4_hnapt.winfo.bssid = skb_hnat_bss_id(skb);
 			entry->ipv4_hnapt.winfo.wcid = skb_hnat_wc_id(skb);
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -1984,7 +1985,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		     gmac_no == NR_WHNAT_WDMA_PORT) ||
 		    ((hnat_priv->data->version == MTK_HNAT_V2 ||
 		      hnat_priv->data->version == MTK_HNAT_V3) &&
-		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT))) {
+		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT ||
+		      gmac_no == NR_WDMA2_PORT))) {
 			entry->ipv6_5t_route.winfo.bssid = skb_hnat_bss_id(skb);
 			entry->ipv6_5t_route.winfo.wcid = skb_hnat_wc_id(skb);
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -2063,6 +2065,8 @@ int mtk_sw_nat_hook_rx(struct sk_buff *skb)
 		skb_hnat_sport(skb) = NR_WDMA0_PORT;
 	else if (skb_hnat_iface(skb) == FOE_MAGIC_WED1)
 		skb_hnat_sport(skb) = NR_WDMA1_PORT;
+	else if (skb_hnat_iface(skb) == FOE_MAGIC_WED2)
+		skb_hnat_sport(skb) = NR_WDMA2_PORT;
 
 	return NF_ACCEPT;
 }

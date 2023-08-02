@@ -1048,7 +1048,8 @@ enum FoeIpAct {
 #define FROM_GE_VIRTUAL(skb) (skb_hnat_iface(skb) == FOE_MAGIC_GE_VIRTUAL)
 #define FROM_EXT(skb) (skb_hnat_iface(skb) == FOE_MAGIC_EXT)
 #define FROM_WED(skb) ((skb_hnat_iface(skb) == FOE_MAGIC_WED0) ||		\
-		       (skb_hnat_iface(skb) == FOE_MAGIC_WED1))
+		       (skb_hnat_iface(skb) == FOE_MAGIC_WED1) ||		\
+		       (skb_hnat_iface(skb) == FOE_MAGIC_WED2))
 #define FOE_MAGIC_GE_LAN 0x1
 #define FOE_MAGIC_GE_WAN 0x2
 #define FOE_MAGIC_EXT 0x3
@@ -1084,6 +1085,7 @@ enum FoeIpAct {
 #define NR_DISCARD 7
 #define NR_WDMA0_PORT 8
 #define NR_WDMA1_PORT 9
+#define NR_WDMA2_PORT 13
 #define NR_GMAC3_PORT 15
 #define LAN_DEV_NAME hnat_priv->lan
 #define LAN2_DEV_NAME hnat_priv->lan2
