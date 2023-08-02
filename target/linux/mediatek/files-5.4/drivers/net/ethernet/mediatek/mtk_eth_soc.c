@@ -875,6 +875,82 @@ static int mtk_mac_pcs_get_state(struct phylink_config *config,
 	return 1;
 }
 
+static int mtk_gdm_fsm_get(struct mtk_mac *mac, u32 gdm)
+{
+	u32 fsm = mtk_r32(mac->hw, gdm);
+	u32 ret = 0;
+
+	if (mac->type == MTK_GDM_TYPE)
+		ret = fsm == 0;
+	else if (mac->type == MTK_XGDM_TYPE) {
+		if (mac->id == MTK_GMAC1_ID) {
+			if (((fsm & 0x7ffffff) == 0) &&
+				(mtk_r32(mac->hw, MTK_MAC_FSM(mac->id)) == 0x1010000))
+				ret = 1;
+		} else
+			ret = ((mac->interface == PHY_INTERFACE_MODE_XGMII) ?
+				((fsm & 0xfffffff) == 0) : ((fsm & 0x0ffffff) == 0));
+	}
+
+	return ret;
+}
+
+static void mtk_gdm_fsm_poll(struct mtk_mac *mac)
+{
+	u32 gdm = 0, i = 0;
+
+	switch (mac->id) {
+	case MTK_GMAC1_ID:
+		gdm = MTK_FE_GDM1_FSM;
+		break;
+	case MTK_GMAC2_ID:
+		gdm = MTK_FE_GDM2_FSM;
+		break;
+	case MTK_GMAC3_ID:
+		gdm = MTK_FE_GDM3_FSM;
+		break;
+	default:
+		pr_info("%s mac id invalid", __func__);
+		break;
+	}
+	msleep(500);
+	while (i < 3) {
+		if (mtk_gdm_fsm_get(mac, gdm))
+			break;
+		msleep(500);
+		i++;
+	}
+
+	if (i == 3)
+		pr_info("%s fsm invalid", __func__);
+}
+
+static void mtk_pse_port_link_set(struct mtk_mac *mac, bool up)
+{
+	u32 fe_glo_cfg, val;
+
+	fe_glo_cfg = mtk_r32(mac->hw, MTK_FE_GLO_CFG(mac->id));
+	switch (mac->id) {
+	case MTK_GMAC1_ID:
+		val = MTK_FE_LINK_DOWN_P1;
+		break;
+	case MTK_GMAC2_ID:
+		val = MTK_FE_LINK_DOWN_P2;
+		break;
+	case MTK_GMAC3_ID:
+		val = MTK_FE_LINK_DOWN_P15;
+		break;
+	}
+
+	if (!up)
+		fe_glo_cfg |= val;
+	else
+		fe_glo_cfg &= ~val;
+
+	mtk_w32(mac->hw, fe_glo_cfg, MTK_FE_GLO_CFG(mac->id));
+	mtk_gdm_fsm_poll(mac);
+}
+
 static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 			      phy_interface_t interface)
 {
@@ -882,9 +958,10 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 					   phylink_config);
 	u32 mcr, sts;
 
+	mtk_pse_port_link_set(mac, false);
 	if (mac->type == MTK_GDM_TYPE) {
 		mcr = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
-		mcr &= ~(MAC_MCR_TX_EN | MAC_MCR_RX_EN);
+		mcr &= ~(MAC_MCR_TX_EN | MAC_MCR_RX_EN | MAC_MCR_FORCE_LINK);
 		mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
 	} else if (mac->type == MTK_XGDM_TYPE && mac->id != MTK_GMAC1_ID) {
 		mcr = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
@@ -986,6 +1063,7 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 		mcr &= ~(XMAC_MCR_TRX_DISABLE);
 		mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
 	}
+	mtk_pse_port_link_set(mac, true);
 }
 
 static void mtk_validate(struct phylink_config *config,
