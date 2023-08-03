@@ -218,6 +218,15 @@ prepare_mac80211() {
 	rm -rf ${BUILD_DIR}/package/firmware/wireless-regdb
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/firmware/wireless-regdb ${BUILD_DIR}/package/firmware
 
+	rm -rf ${BUILD_DIR}/package/utils/ucode
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/utils/ucode ${BUILD_DIR}/package/utils
+	rm -rf ${BUILD_DIR}/package/libs/libubox
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/libs/libubox ${BUILD_DIR}/package/libs
+	rm -rf ${BUILD_DIR}/package/system/rpcd
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/system/rpcd ${BUILD_DIR}/package/system
+	rm -rf ${BUILD_DIR}/package/system/procd
+	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/system/procd ${BUILD_DIR}/package/system
+
 	# do not directly remove mt76 folder, since the firmware folder will also be removed and enter an unsync state
 	rm -rf ${BUILD_DIR}/package/kernel/mt76/Makefile
 	rm -rf ${BUILD_DIR}/package/kernel/mt76/patches
