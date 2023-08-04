@@ -1,8 +1,8 @@
-From 4bffcebdfcad62a1c6741c2bb7d4c023adf360d2 Mon Sep 17 00:00:00 2001
+From 7598ccc4626d9d41807a59fa8304649a7260b9ed Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 15 Dec 2022 19:45:18 +0800
-Subject: [PATCH 1013/1034] wifi: mt76: testmode: add iBF/eBF cal and cert
- commands with golden
+Subject: [PATCH] wifi: mt76: testmode: add iBF/eBF cal and cert commands with
+ golden
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -17,15 +17,15 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  mt7915/mtk_debugfs.c |  35 ++++
  mt7915/mtk_mcu.c     | 246 ++++++++++++++++++++++-
  mt7915/regs.h        |   4 +
- mt7915/testmode.c    | 460 ++++++++++++++++++++++++++++---------------
+ mt7915/testmode.c    | 461 ++++++++++++++++++++++++++++---------------
  mt7915/testmode.h    | 134 +------------
  testmode.c           |   1 +
  testmode.h           |   9 +
  tools/fields.c       |   9 +
- 16 files changed, 856 insertions(+), 324 deletions(-)
+ 16 files changed, 857 insertions(+), 324 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 75b28748..af29bdeb 100644
+index 75b2874..af29bde 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -703,6 +703,7 @@ struct mt76_testmode_data {
@@ -47,7 +47,7 @@ index 75b28748..af29bdeb 100644
  	u32 tx_pending;
  	u32 tx_queued;
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 74b63f0f..e6b468c4 100644
+index 74b63f0..e6b468c 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -2767,6 +2767,7 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
@@ -68,7 +68,7 @@ index 74b63f0f..e6b468c4 100644
  		memcpy(bss->bssid, phy->macaddr, ETH_ALEN);
  	}
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 6c9401dd..1e0bee7b 100644
+index 6c9401d..1e0bee7 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -729,8 +729,10 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
@@ -84,7 +84,7 @@ index 6c9401dd..1e0bee7b 100644
  	txwi[6] |= cpu_to_le32(val);
  #endif
 diff --git a/mt7915/main.c b/mt7915/main.c
-index d7bcd5f8..9694bd71 100644
+index d7bcd5f..9694bd7 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -205,46 +205,37 @@ static void mt7915_init_bitrate_mask(struct ieee80211_vif *vif)
@@ -175,7 +175,7 @@ index d7bcd5f8..9694bd71 100644
  
  	return ret;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 020780d3..c8b97e89 100644
+index 020780d..c8b97e8 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -199,6 +199,7 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -254,7 +254,7 @@ index 020780d3..c8b97e89 100644
  		return -EINVAL;
  	}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index f4c3bf4e..c95d9900 100644
+index f4c3bf4..c95d990 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -531,10 +531,12 @@ enum {
@@ -448,7 +448,7 @@ index f4c3bf4e..c95d9900 100644
  	MURU_SET_ARB_OP_MODE = 14,
  	MURU_SET_PLATFORM_TYPE = 25,
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 6505d763..25c3fe2b 100644
+index 6505d76..25c3fe2 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -133,6 +133,7 @@ static const u32 mt7915_offs[] = {
@@ -468,7 +468,7 @@ index 6505d763..25c3fe2b 100644
  	[AGG_AALCR0]		= 0x028,
  	[AGG_AWSCR0]		= 0x030,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 88e45298..4572066b 100644
+index 88e4529..4572066 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -274,7 +274,6 @@ struct mt7915_phy {
@@ -520,7 +520,7 @@ index 88e45298..4572066b 100644
 +
  #endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 9bb6dd05..6d9d009d 100644
+index 9bb6dd0..6d9d009 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2892,6 +2892,36 @@ mt7915_txpower_level_set(void *data, u64 val)
@@ -573,7 +573,7 @@ index 9bb6dd05..6d9d009d 100644
  
  	return 0;
 diff --git a/mt7915/mtk_mcu.c b/mt7915/mtk_mcu.c
-index 143dae26..906c8725 100644
+index 143dae2..906c872 100644
 --- a/mt7915/mtk_mcu.c
 +++ b/mt7915/mtk_mcu.c
 @@ -1,9 +1,10 @@
@@ -836,7 +836,7 @@ index 143dae26..906c8725 100644
 +}
 +#endif
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 482b3fee..44da7b82 100644
+index 482b3fe..44da7b8 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -61,6 +61,7 @@ enum offs_rev {
@@ -858,7 +858,7 @@ index 482b3fee..44da7b82 100644
  #define MT_WF_RMAC_BASE(_band)		((_band) ? 0x820f5000 : 0x820e5000)
  #define MT_WF_RMAC(_band, ofs)		(MT_WF_RMAC_BASE(_band) + (ofs))
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 2e51dcd5..fafe9095 100644
+index e321848..d5c74df 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -53,6 +53,8 @@ struct reg_band {
@@ -1262,7 +1262,7 @@ index 2e51dcd5..fafe9095 100644
  	} else {
  		tag->t1.row_id1 = 4;
  		tag->t1.row_id2 = 5;
-@@ -780,6 +876,19 @@ mt7915_tm_txbf_profile_update(struct mt7915_phy *phy, u16 *val, bool ebf)
+@@ -780,6 +876,20 @@ mt7915_tm_txbf_profile_update(struct mt7915_phy *phy, u16 *val, bool ebf)
  	if (ret)
  		return ret;
  
@@ -1273,7 +1273,8 @@ index 2e51dcd5..fafe9095 100644
 +			 mt76_rr(dev, MT_ARB_TQSAXM0(phy->mt76->band_idx)));
 +	} else if (!td->ebf && ebf) {
 +		/* iBF's ebf profile update */
-+		mt76_set(dev, MT_ARB_TQSAXM0(phy->mt76->band_idx), MT_ARB_IBF_ENABLE);
++		if (!is_mt7915(&dev->mt76) || !dev->dbdc_support)
++			mt76_set(dev, MT_ARB_TQSAXM0(phy->mt76->band_idx), MT_ARB_IBF_ENABLE);
 +		dev_info(dev->mt76.dev, "Set TX queue start CR for AX management (0x%x) = 0x%x\n",
 +			 MT_ARB_TQSAXM0(phy->mt76->band_idx),
 +			 mt76_rr(dev, MT_ARB_TQSAXM0(phy->mt76->band_idx)));
@@ -1282,7 +1283,7 @@ index 2e51dcd5..fafe9095 100644
  	if (!ebf && is_atenl)
  		return mt7915_tm_txbf_apply_tx(phy, 1, false, true, true);
  
-@@ -797,7 +906,7 @@ mt7915_tm_txbf_phase_cal(struct mt7915_phy *phy, u16 *val)
+@@ -797,7 +907,7 @@ mt7915_tm_txbf_phase_cal(struct mt7915_phy *phy, u16 *val)
  		u8 category;
  		u8 group_l_m_n;
  		u8 group;
@@ -1291,7 +1292,7 @@ index 2e51dcd5..fafe9095 100644
  		u8 cal_type;
  		u8 lna_gain_level;
  		u8 _rsv[2];
-@@ -805,12 +914,12 @@ mt7915_tm_txbf_phase_cal(struct mt7915_phy *phy, u16 *val)
+@@ -805,12 +915,12 @@ mt7915_tm_txbf_phase_cal(struct mt7915_phy *phy, u16 *val)
  		.category = MT_BF_PHASE_CAL,
  		.group = val[0],
  		.group_l_m_n = val[1],
@@ -1307,7 +1308,7 @@ index 2e51dcd5..fafe9095 100644
  
  	phase[req.group].status = 0;
  
-@@ -818,53 +927,10 @@ mt7915_tm_txbf_phase_cal(struct mt7915_phy *phy, u16 *val)
+@@ -818,53 +928,10 @@ mt7915_tm_txbf_phase_cal(struct mt7915_phy *phy, u16 *val)
  				 sizeof(req), true);
  }
  
@@ -1360,9 +1361,9 @@ index 2e51dcd5..fafe9095 100644
  {
 +#define MT7915_TXBF_PFMU_DATA_LEN	(MT7915_TXBF_SUBCAR_NUM * sizeof(struct mt7915_pfmu_data))
  	struct mt76_testmode_data *td = &phy->mt76->test;
+ 	u8 nss = hweight8(td->tx_antenna_mask);
  	u16 pfmu_idx = val[0];
- 	u16 subc_id = val[1];
-@@ -873,9 +939,9 @@ mt7915_tm_txbf_profile_update_all(struct mt7915_phy *phy, u16 *val)
+@@ -874,9 +941,9 @@ mt7915_tm_txbf_profile_update_all(struct mt7915_phy *phy, u16 *val)
  	u16 angle31 = val[4];
  	u16 angle41 = val[5];
  	s16 phi11 = 0, phi21 = 0, phi31 = 0;
@@ -1373,8 +1374,8 @@ index 2e51dcd5..fafe9095 100644
 +	if (subc_id > MT7915_TXBF_SUBCAR_NUM - 1)
  		return -EINVAL;
  
- 	if (td->tx_antenna_mask == 2) {
-@@ -889,7 +955,7 @@ mt7915_tm_txbf_profile_update_all(struct mt7915_phy *phy, u16 *val)
+ 	if (nss == 2) {
+@@ -890,7 +957,7 @@ mt7915_tm_txbf_profile_update_all(struct mt7915_phy *phy, u16 *val)
  		phi31 = (s16)(angle41 - angle31);
  	}
  
@@ -1383,7 +1384,7 @@ index 2e51dcd5..fafe9095 100644
  	pfmu_data = &pfmu_data[subc_id];
  
  	if (subc_id < 32)
-@@ -899,21 +965,21 @@ mt7915_tm_txbf_profile_update_all(struct mt7915_phy *phy, u16 *val)
+@@ -900,21 +967,21 @@ mt7915_tm_txbf_profile_update_all(struct mt7915_phy *phy, u16 *val)
  	pfmu_data->phi11 = cpu_to_le16(phi11);
  	pfmu_data->phi21 = cpu_to_le16(phi21);
  	pfmu_data->phi31 = cpu_to_le16(phi31);
@@ -1408,7 +1409,7 @@ index 2e51dcd5..fafe9095 100644
  
  		return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(TXBF_ACTION),
  					 &req, sizeof(req), true);
-@@ -925,7 +991,7 @@ mt7915_tm_txbf_profile_update_all(struct mt7915_phy *phy, u16 *val)
+@@ -926,7 +993,7 @@ mt7915_tm_txbf_profile_update_all(struct mt7915_phy *phy, u16 *val)
  static int
  mt7915_tm_txbf_e2p_update(struct mt7915_phy *phy)
  {
@@ -1417,7 +1418,7 @@ index 2e51dcd5..fafe9095 100644
  	struct mt7915_dev *dev = phy->dev;
  	u8 *eeprom = dev->mt76.eeprom.data;
  	u16 offset;
-@@ -935,7 +1001,7 @@ mt7915_tm_txbf_e2p_update(struct mt7915_phy *phy)
+@@ -936,7 +1003,7 @@ mt7915_tm_txbf_e2p_update(struct mt7915_phy *phy)
  	is_7976 = mt7915_check_adie(dev, false) || is_mt7916(&dev->mt76);
  	offset = is_7976 ? 0x60a : 0x651;
  
@@ -1426,7 +1427,7 @@ index 2e51dcd5..fafe9095 100644
  	for (i = 0; i < MAX_PHASE_GROUP_NUM; i++) {
  		p = &phase[i];
  
-@@ -950,17 +1016,75 @@ mt7915_tm_txbf_e2p_update(struct mt7915_phy *phy)
+@@ -951,17 +1018,75 @@ mt7915_tm_txbf_e2p_update(struct mt7915_phy *phy)
  	return 0;
  }
  
@@ -1504,7 +1505,7 @@ index 2e51dcd5..fafe9095 100644
  		return mt7915_tm_txbf_init(phy, val);
  	case MT76_TM_TXBF_ACT_UPDATE_CH:
  		mt7915_tm_update_channel(phy);
-@@ -986,6 +1110,36 @@ mt7915_tm_set_txbf(struct mt7915_phy *phy)
+@@ -987,6 +1112,36 @@ mt7915_tm_set_txbf(struct mt7915_phy *phy)
  
  		return mt7915_tm_txbf_apply_tx(phy, wlan_idx, ebf, ibf, phase_cal);
  	}
@@ -1541,7 +1542,7 @@ index 2e51dcd5..fafe9095 100644
  	default:
  		break;
  	};
-@@ -1261,9 +1415,10 @@ mt7915_tm_set_ipi(struct mt7915_phy *phy)
+@@ -1262,9 +1417,10 @@ mt7915_tm_set_ipi(struct mt7915_phy *phy)
  
  static int
  mt7915_tm_set_wmm_qid(struct mt7915_phy *phy, u8 qid, u8 aifs, u8 cw_min,
@@ -1554,7 +1555,7 @@ index 2e51dcd5..fafe9095 100644
  	struct mt7915_mcu_tx req = {
  		.valid = true,
  		.mode = tx_cmd,
-@@ -1271,6 +1426,9 @@ mt7915_tm_set_wmm_qid(struct mt7915_phy *phy, u8 qid, u8 aifs, u8 cw_min,
+@@ -1272,6 +1428,9 @@ mt7915_tm_set_wmm_qid(struct mt7915_phy *phy, u8 qid, u8 aifs, u8 cw_min,
  	};
  	struct edca *e = &req.edca[0];
  
@@ -1564,7 +1565,7 @@ index 2e51dcd5..fafe9095 100644
  	e->queue = qid + mvif->mt76.wmm_idx * MT76_CONNAC_MAX_WMM_SETS;
  	e->set = WMM_PARAM_SET;
  
-@@ -1283,17 +1441,19 @@ mt7915_tm_set_wmm_qid(struct mt7915_phy *phy, u8 qid, u8 aifs, u8 cw_min,
+@@ -1284,17 +1443,19 @@ mt7915_tm_set_wmm_qid(struct mt7915_phy *phy, u8 qid, u8 aifs, u8 cw_min,
  }
  
  static int
@@ -1585,7 +1586,7 @@ index 2e51dcd5..fafe9095 100644
  	u8 band = phy->mt76->band_idx;
  	u32 i2t_time, tr2t_time, txv_time;
  	u16 cw = 0;
-@@ -1307,6 +1467,7 @@ mt7915_tm_set_ipg_params(struct mt7915_phy *phy, u32 ipg, u8 mode)
+@@ -1308,6 +1469,7 @@ mt7915_tm_set_ipg_params(struct mt7915_phy *phy, u32 ipg, u8 mode)
  	ipg -= sig_ext;
  
  	if (ipg <= (TM_MAX_SIFS + slot_time)) {
@@ -1593,7 +1594,7 @@ index 2e51dcd5..fafe9095 100644
  		sifs = ipg - slot_time;
  	} else {
  		u32 val = (ipg + slot_time) / slot_time;
-@@ -1342,10 +1503,12 @@ done:
+@@ -1343,10 +1505,12 @@ done:
  
  	mt7915_tm_set_slot_time(phy, slot_time, sifs);
  
@@ -1608,7 +1609,7 @@ index 2e51dcd5..fafe9095 100644
  }
  
  static int
-@@ -1544,7 +1707,7 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
+@@ -1545,7 +1709,7 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
  
  		phy->mt76->test.aid = 0;
  		phy->mt76->test.tx_mpdu_len = 0;
@@ -1617,7 +1618,7 @@ index 2e51dcd5..fafe9095 100644
  		mt7915_tm_set_entry(phy);
  	} else {
  		INIT_DELAYED_WORK(&phy->ipi_work, mt7915_tm_ipi_work);
-@@ -1729,7 +1892,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
+@@ -1730,7 +1894,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
  		u32 tx_time = td->tx_time, ipg = td->tx_ipg;
  		u8 duty_cycle = td->tx_duty_cycle;
  
@@ -1626,7 +1627,7 @@ index 2e51dcd5..fafe9095 100644
  			mt7915_tm_update_channel(phy);
  
  		if (td->tx_spe_idx)
-@@ -1744,7 +1907,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
+@@ -1745,7 +1909,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
  			if (duty_cycle < 100)
  				tx_time = duty_cycle * ipg / (100 - duty_cycle);
  		}
@@ -1635,7 +1636,7 @@ index 2e51dcd5..fafe9095 100644
  		mt7915_tm_set_tx_len(phy, tx_time);
  
  		if (ipg)
-@@ -1763,6 +1926,9 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
+@@ -1764,6 +1928,9 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
  		mt7915_tm_tx_frames_mu(phy, en);
  
  	mt7915_tm_set_trx(phy, TM_MAC_TX, en);
@@ -1645,7 +1646,7 @@ index 2e51dcd5..fafe9095 100644
  }
  
  static int
-@@ -1854,7 +2020,7 @@ mt7915_tm_set_rx_frames(struct mt7915_phy *phy, bool en)
+@@ -1855,7 +2022,7 @@ mt7915_tm_set_rx_frames(struct mt7915_phy *phy, bool en)
  	mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, false);
  
  	if (en) {
@@ -1654,7 +1655,7 @@ index 2e51dcd5..fafe9095 100644
  			mt7915_tm_update_channel(phy);
  		if (td->aid)
  			mt7915_tm_set_rx_user_idx(phy, td->aid);
-@@ -1871,6 +2037,9 @@ mt7915_tm_set_rx_frames(struct mt7915_phy *phy, bool en)
+@@ -1872,6 +2039,9 @@ mt7915_tm_set_rx_frames(struct mt7915_phy *phy, bool en)
  		mt7915_tm_set_muru_aid(phy, en ? td->aid : 0xf800);
  
  	mt7915_tm_set_trx(phy, TM_MAC_RX_RXV, en);
@@ -1664,7 +1665,7 @@ index 2e51dcd5..fafe9095 100644
  }
  
  static int
-@@ -1930,34 +2099,7 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
+@@ -1931,34 +2101,7 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
  		rate_idx = sband->bitrates[idx].hw_value & 0xff;
  	}
  
@@ -1701,7 +1702,7 @@ index 2e51dcd5..fafe9095 100644
  	rateval =  mode << 6 | rate_idx;
  	tx_cont->rateval = cpu_to_le16(rateval);
 diff --git a/mt7915/testmode.h b/mt7915/testmode.h
-index 75698261..5aba13cf 100644
+index 7569826..5aba13c 100644
 --- a/mt7915/testmode.h
 +++ b/mt7915/testmode.h
 @@ -311,137 +311,7 @@ struct mt7915_tm_muru {
@@ -1845,7 +1846,7 @@ index 75698261..5aba13cf 100644
  
  #endif
 diff --git a/testmode.c b/testmode.c
-index babae8d4..4ea58777 100644
+index babae8d..4ea5877 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -195,6 +195,7 @@ mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len,
@@ -1857,7 +1858,7 @@ index babae8d4..4ea58777 100644
  	memcpy(hdr->addr2, addr[1], ETH_ALEN);
  	memcpy(hdr->addr3, addr[2], ETH_ALEN);
 diff --git a/testmode.h b/testmode.h
-index 97e75964..e13920ec 100644
+index 97e7596..e13920e 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -299,7 +299,10 @@ enum mt76_testmode_cfg {
@@ -1885,7 +1886,7 @@ index 97e75964..e13920ec 100644
  	/* keep last */
  	NUM_MT76_TM_TXBF_ACT,
 diff --git a/tools/fields.c b/tools/fields.c
-index fc01043e..7caacb94 100644
+index fc01043..7caacb9 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -33,7 +33,10 @@ static const char * const testmode_tx_mode[] = {
@@ -1913,5 +1914,5 @@ index fc01043e..7caacb94 100644
  
  static const char * const testmode_offchan_bw[] = {
 -- 
-2.39.2
+2.18.0
 
