@@ -1,7 +1,7 @@
-From e063e89785d74506976e34a0a3cbb14836d6b8e3 Mon Sep 17 00:00:00 2001
+From 53a7b7af61b75ea0e3f9d12d3d6302cf40941a8a Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Tue, 9 Aug 2022 10:23:44 -0700
-Subject: [PATCH 06/35] hostapd: mtk: Add hostapd MU SET/GET control
+Subject: [PATCH 06/37] hostapd: mtk: Add hostapd MU SET/GET control
 
 ---
  hostapd/config_file.c             |   9 +++
@@ -156,14 +156,14 @@ index db21258..e16a1dc 100644
  	{ "dpp_qr_code", hostapd_cli_cmd_dpp_qr_code, NULL,
  	  "report a scanned DPP URI from a QR Code" },
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 344585a..d4fc191 100644
+index 344585a..1b0e990 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -280,6 +280,7 @@ struct hostapd_config * hostapd_config_defaults(void)
  	conf->he_6ghz_max_ampdu_len_exp = 7;
  	conf->he_6ghz_rx_ant_pat = 1;
  	conf->he_6ghz_tx_ant_pat = 1;
-+	conf->mu_onoff = 13;
++	conf->mu_onoff = 0xf;
  #endif /* CONFIG_IEEE80211AX */
  
  	/* The third octet of the country string uses an ASCII space character
@@ -446,5 +446,5 @@ index 732ae29..cc11891 100644
  			}
  
 -- 
-2.18.0
+2.39.0
 

@@ -1,31 +1,17 @@
-From dd220c1cfc8ee158895cfa31901ef625ac3a0a4d Mon Sep 17 00:00:00 2001
+From a5abc630e8bf65e4ca21bc1cf1b74db7df6cd6d1 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Tue, 4 Apr 2023 02:23:57 +0800
 Subject: [PATCH 1003/1034] wifi: mt76: mt7915: add support for muru_onoff via
 
 ---
- mt7915/init.c        |  2 ++
  mt7915/mcu.c         | 10 ++++++++--
  mt7915/mcu.h         |  6 ++++++
  mt7915/mt7915.h      |  2 ++
  mt7915/mtk_debugfs.c | 33 +++++++++++++++++++++++++++++++++
- 5 files changed, 51 insertions(+), 2 deletions(-)
+ 4 files changed, 49 insertions(+), 2 deletions(-)
 
-diff --git a/mt7915/init.c b/mt7915/init.c
-index 0ea2af17..361c3847 100644
---- a/mt7915/init.c
-+++ b/mt7915/init.c
-@@ -470,6 +470,8 @@ mt7915_init_wiphy(struct mt7915_phy *phy)
- 		mphy->leds.cdev.brightness_set = mt7915_led_set_brightness;
- 		mphy->leds.cdev.blink_set = mt7915_led_set_blink;
- 	}
-+
-+	phy->muru_onoff = OFDMA_DL | MUMIMO_UL | MUMIMO_DL;
- }
- 
- static void
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 8994ea6a..fdb6bc5f 100644
+index 8994ea6..fdb6bc5 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -873,6 +873,7 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -58,7 +44,7 @@ index 8994ea6a..fdb6bc5f 100644
  		muru->mimo_dl.vht_mu_bfee =
  			!!(sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 67eac5c9..84c52d9b 100644
+index 67eac5c..84c52d9 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -666,4 +666,10 @@ struct csi_data {
@@ -73,7 +59,7 @@ index 67eac5c9..84c52d9b 100644
 +
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index c733035b..bd5543b5 100644
+index c733035..bd5543b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -252,6 +252,8 @@ struct mt7915_phy {
@@ -86,7 +72,7 @@ index c733035b..bd5543b5 100644
  	struct mt76_channel_state state_ts;
  
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index e6796bc3..e1758edb 100644
+index e6796bc..e1758ed 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2558,6 +2558,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)
@@ -137,5 +123,5 @@ index e6796bc3..e1758edb 100644
  			    &fops_fw_debug_module);
  	debugfs_create_file("fw_debug_level", 0600, dir, dev,
 -- 
-2.39.2
+2.39.0
 
