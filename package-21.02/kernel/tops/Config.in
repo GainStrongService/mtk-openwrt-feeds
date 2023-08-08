@@ -1,0 +1,53 @@
+menu "TOPS configuration"
+	depends on PACKAGE_kmod-tops
+
+source "Config-protocols.in"
+
+choice
+	prompt "TOPS Tunnel Count"
+	default TOPS_TNL_32
+	help
+	  Determine number of TOPS tunnel
+
+config TOPS_TNL_32
+	bool "32 TOPS Tunnel"
+
+endchoice
+
+choice
+	prompt "TOPS Firmware Target"
+	default MTK_TOPS_FIRMWARE_RELEASE
+	help
+	  Select TOPS firmware target. Either release or latest firmware
+
+config MTK_TOPS_FIRMWARE_RELEASE
+	bool "MTK TOPS Firmware Release Build"
+	select PACKAGE_tops-rebb-fw-release
+
+config MTK_TOPS_FIRMWARE_LATEST
+	bool "MTK TOPS Firmware Latest Build"
+	select PACKAGE_tops-rebb-fw
+
+endchoice
+
+config MTK_TOPS_SECURE_FW
+	bool "TOPS Secure Firmware Load"
+	default n
+	help
+	  Enable TOPS secure firmware load
+
+config TOPS_TNL_NUM
+	int
+	default 32 if TOPS_TNL_32
+	help
+	  Configuration for TOPS tunnel count. This value should be
+	  2 ^ TOPS_TNL_MAP_BIT.
+
+config TOPS_TNL_MAP_BIT
+	int
+	default 5 if TOPS_TNL_32
+	help
+	  Configuration for TOPS tunnel map bit. This value should be the log
+	  of TOPS_TNL_NUM.
+
+endmenu
