@@ -1,4 +1,4 @@
-From ff273381d463d82898df70cb7b43341405e3d943 Mon Sep 17 00:00:00 2001
+From 67e2363c4875dd918418dd84b43f86041db690c7 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 12 May 2023 05:21:28 +0800
 Subject: [PATCH] hostapd: mtk: Avoid setting beacon after wpa_supplicant stop
@@ -19,7 +19,7 @@ will reload the co-locating AP interfaces and marks the
  6 files changed, 22 insertions(+), 6 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 9989a04..4952bef 100644
+index e575c37d1..0e352c5c7 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -194,11 +194,15 @@ static int hostapd_ctrl_iface_update(struct hostapd_data *hapd, char *txt)
@@ -39,7 +39,7 @@ index 9989a04..4952bef 100644
  
  	iface->interfaces->config_read_cb = config_read_cb;
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index f26e525..1aaeaa8 100644
+index f26e5254c..1aaeaa8e4 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
 @@ -2246,7 +2246,8 @@ int ieee802_11_set_beacon(struct hostapd_data *hapd)
@@ -69,7 +69,7 @@ index f26e525..1aaeaa8 100644
  			ret = -1;
  	}
 diff --git a/src/ap/bss_load.c b/src/ap/bss_load.c
-index 725d3cd..f2a1a10 100644
+index 725d3cd34..78fd9d8ec 100644
 --- a/src/ap/bss_load.c
 +++ b/src/ap/bss_load.c
 @@ -49,6 +49,9 @@ static void update_channel_utilization(void *eloop_data, void *user_data)
@@ -104,7 +104,7 @@ index 725d3cd..f2a1a10 100644
  			       NULL);
  }
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
-index aab8a46..d52188b 100644
+index aab8a4665..d52188bb7 100644
 --- a/src/ap/ctrl_iface_ap.c
 +++ b/src/ap/ctrl_iface_ap.c
 @@ -1028,8 +1028,10 @@ int hostapd_ctrl_iface_stop_ap(struct hostapd_data *hapd)
@@ -120,18 +120,18 @@ index aab8a46..d52188b 100644
  	return 0;
  }
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index abadd1a..afe0611 100644
+index 28e549b61..be75613c8 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -508,6 +508,7 @@ void hostapd_free_hapd_data(struct hostapd_data *hapd)
+@@ -510,6 +510,7 @@ void hostapd_free_hapd_data(struct hostapd_data *hapd)
  	}
  	hapd->started = 0;
  	hapd->beacon_set_done = 0;
 +	hapd->stopped_by_supplicant = 0;
  
  	wpa_printf(MSG_DEBUG, "%s(%s)", __func__, hapd->conf->iface);
- 	hostapd_ubus_free_bss(hapd);
-@@ -1316,6 +1317,7 @@ static int hostapd_setup_bss(struct hostapd_data *hapd, int first,
+ 	hostapd_ucode_free_bss(hapd);
+@@ -1320,6 +1321,7 @@ int hostapd_setup_bss(struct hostapd_data *hapd, int first, bool start_beacon)
  		return -1;
  	}
  	hapd->started = 1;
@@ -139,7 +139,7 @@ index abadd1a..afe0611 100644
  
  	if (!first || first == -1) {
  		u8 *addr = hapd->own_addr;
-@@ -4285,7 +4287,7 @@ void hostapd_switch_color(struct hostapd_data *hapd, u64 bitmap)
+@@ -4289,7 +4291,7 @@ void hostapd_switch_color(struct hostapd_data *hapd, u64 bitmap)
  {
  	struct os_reltime now;
  
@@ -149,10 +149,10 @@ index abadd1a..afe0611 100644
  
  	if (os_get_reltime(&now))
 diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
-index 072205c..4f1f988 100644
+index 5bd1537fe..435dbd027 100644
 --- a/src/ap/hostapd.h
 +++ b/src/ap/hostapd.h
-@@ -191,6 +191,7 @@ struct hostapd_data {
+@@ -197,6 +197,7 @@ struct hostapd_data {
  	unsigned int started:1;
  	unsigned int disabled:1;
  	unsigned int reenable_beacon:1;
@@ -161,5 +161,5 @@ index 072205c..4f1f988 100644
  	u8 own_addr[ETH_ALEN];
  	u8 mld_addr[ETH_ALEN];
 -- 
-2.25.1
+2.39.2
 
