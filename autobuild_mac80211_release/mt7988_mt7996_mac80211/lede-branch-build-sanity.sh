@@ -69,6 +69,9 @@ prepare_mac80211 ${backport_new} ${hostapd_new}
 # find ${BUILD_DIR}/package/kernel/mt76/patches -name "*-mt76-*.patch" -delete
 rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*
 
+# remove crypto-eip package since it not support at mt76 yet
+rm -rf ${BUILD_DIR}/package/mtk_soc/drivers/crypto-eip/
+
 # ========== specific modification on mt7996 autobuild for EHT support ==========
 # patch hostapd to use latest version and add 11BE config
 patch -p1 < ${BUILD_DIR}/autobuild/${branch_name}/0002-add-EHT-config-for-hostapd.patch || exit 1
