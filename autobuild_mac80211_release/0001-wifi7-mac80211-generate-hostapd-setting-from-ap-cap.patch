@@ -31,7 +31,7 @@ index a7472ee..f06c889 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index a2a7bdb..a51ca99 100644
+index 3968337..238dde2 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -24,6 +24,7 @@ drv_mac80211_init_device_config() {
@@ -318,7 +318,7 @@ index a2a7bdb..a51ca99 100644
  $base_cfg
  
  EOF
-@@ -514,7 +615,7 @@ mac80211_hostapd_setup_bss() {
+@@ -512,7 +613,7 @@ mac80211_hostapd_setup_bss() {
  		append hostapd_cfg "wds_sta=1" "$N"
  		[ -n "$wds_bridge" ] && append hostapd_cfg "wds_bridge=$wds_bridge" "$N"
  	}
@@ -327,7 +327,7 @@ index a2a7bdb..a51ca99 100644
  
  	cat >> /var/run/hostapd-$phy.conf <<EOF
  $hostapd_cfg
-@@ -524,6 +625,31 @@ ${max_listen_int:+max_listen_interval=$max_listen_int}
+@@ -522,6 +623,31 @@ ${max_listen_int:+max_listen_interval=$max_listen_int}
  EOF
  }
  
@@ -359,7 +359,7 @@ index a2a7bdb..a51ca99 100644
  mac80211_get_addr() {
  	local phy="$1"
  	local idx="$(($2 + 1))"
-@@ -686,7 +812,19 @@ mac80211_prepare_vif() {
+@@ -684,7 +810,19 @@ mac80211_prepare_vif() {
  	set_default powersave 0
  	json_add_string _ifname "$ifname"
  
@@ -380,7 +380,7 @@ index a2a7bdb..a51ca99 100644
  		macaddr="$(mac80211_generate_mac $phy)"
  		macidx="$(($macidx + 1))"
  	elif [ "$macaddr" = 'random' ]; then
-@@ -950,6 +1088,14 @@ hostapd_set_config() {
+@@ -948,6 +1086,14 @@ hostapd_set_config() {
  	}
  
  	ubus wait_for hostapd
@@ -395,7 +395,7 @@ index a2a7bdb..a51ca99 100644
  	local hostapd_res="$(ubus call hostapd config_set "{ \"phy\": \"$phy\", \"config\":\"${hostapd_conf_file}\", \"prev_config\": \"${hostapd_conf_file}.prev\"}")"
  	ret="$?"
  	[ "$ret" != 0 -o -z "$hostapd_res" ] && {
-@@ -1026,6 +1172,9 @@ mac80211_setup_vif() {
+@@ -1024,6 +1170,9 @@ mac80211_setup_vif() {
  
  	json_select ..
  	[ -n "$failed" ] || wireless_add_vif "$name" "$ifname"
@@ -405,7 +405,7 @@ index a2a7bdb..a51ca99 100644
  }
  
  get_freq() {
-@@ -1077,6 +1226,10 @@ mac80211_reset_config() {
+@@ -1075,6 +1224,10 @@ mac80211_reset_config() {
  	wdev_tool "$phy" '{}'
  }
  
@@ -416,7 +416,7 @@ index a2a7bdb..a51ca99 100644
  drv_mac80211_setup() {
  	json_select config
  	json_get_vars \
-@@ -1084,7 +1237,8 @@ drv_mac80211_setup() {
+@@ -1082,7 +1235,8 @@ drv_mac80211_setup() {
  		country chanbw distance \
  		txpower antenna_gain \
  		rxantenna txantenna \
@@ -426,7 +426,7 @@ index a2a7bdb..a51ca99 100644
  	json_get_values basic_rate_list basic_rate
  	json_get_values scan_list scan_list
  	json_select ..
-@@ -1115,6 +1269,7 @@ drv_mac80211_setup() {
+@@ -1117,6 +1271,7 @@ drv_mac80211_setup() {
  
  	macidx=0
  	staidx=0
@@ -434,7 +434,7 @@ index a2a7bdb..a51ca99 100644
  
  	[ -n "$chanbw" ] && {
  		for file in /sys/kernel/debug/ieee80211/$phy/ath9k*/chanbw /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode; do
-@@ -1162,6 +1317,16 @@ drv_mac80211_setup() {
+@@ -1167,6 +1322,16 @@ drv_mac80211_setup() {
  
  	wpa_supplicant_init_config
  
@@ -451,7 +451,7 @@ index a2a7bdb..a51ca99 100644
  	mac80211_prepare_iw_htmode
  	active_ifnames=
  	for_each_interface "ap sta adhoc mesh monitor" mac80211_prepare_vif
-@@ -1170,6 +1335,9 @@ drv_mac80211_setup() {
+@@ -1175,6 +1340,9 @@ drv_mac80211_setup() {
  	[ -x /usr/sbin/wpa_supplicant ] && wpa_supplicant_set_config "$phy"
  	[ -x /usr/sbin/hostapd ] && hostapd_set_config "$phy"
  
@@ -607,7 +607,7 @@ index e24a2a6..20e6068 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 49db03e..c7d7efa 100644
+index 65ae662..6eab470 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -60,7 +60,14 @@ hostapd_append_wpa_key_mgmt() {
@@ -824,10 +824,10 @@ index 49db03e..c7d7efa 100644
 +		append bss_conf "rnr=$rnr" "$N"
 +	fi
 +
- 	bss_md5sum="$(echo $bss_conf | md5sum | cut -d" " -f1)"
- 	append bss_conf "config_id=$bss_md5sum" "$N"
- 
-@@ -1249,6 +1351,7 @@ wpa_supplicant_prepare_interface() {
+ 	append "$var" "$bss_conf" "$N"
+ 	return 0
+ }
+@@ -1246,6 +1348,7 @@ wpa_supplicant_prepare_interface() {
  		country_str="country=$country"
  	}
  
@@ -835,7 +835,7 @@ index 49db03e..c7d7efa 100644
  	multiap_flag_file="${_config}.is_multiap"
  	if [ "$multi_ap" = "1" ]; then
  		touch "$multiap_flag_file"
-@@ -1260,6 +1363,7 @@ wpa_supplicant_prepare_interface() {
+@@ -1257,6 +1360,7 @@ wpa_supplicant_prepare_interface() {
  ${scan_list:+freq_list=$scan_list}
  $ap_scan
  $country_str
@@ -843,7 +843,7 @@ index 49db03e..c7d7efa 100644
  EOF
  	return 0
  }
-@@ -1531,12 +1635,38 @@ wpa_supplicant_add_network() {
+@@ -1528,12 +1632,38 @@ wpa_supplicant_add_network() {
  		;;
  	esac
  
@@ -886,7 +886,7 @@ index 49db03e..c7d7efa 100644
  		case "$wpa" in
  			1)
  				append network_data "proto=WPA" "$N$T"
-@@ -1546,12 +1676,48 @@ wpa_supplicant_add_network() {
+@@ -1543,12 +1673,48 @@ wpa_supplicant_add_network() {
  			;;
  		esac
  
@@ -936,7 +936,7 @@ index 49db03e..c7d7efa 100644
  	[ -n "$bssid" ] && append network_data "bssid=$bssid" "$N$T"
  	[ -n "$beacon_int" ] && append network_data "beacon_int=$beacon_int" "$N$T"
  
-@@ -1562,6 +1728,20 @@ wpa_supplicant_add_network() {
+@@ -1559,6 +1725,20 @@ wpa_supplicant_add_network() {
  	[ -n "$bssid_blacklist" ] && append network_data "bssid_blacklist=$bssid_blacklist" "$N$T"
  	[ -n "$bssid_whitelist" ] && append network_data "bssid_whitelist=$bssid_whitelist" "$N$T"
  
@@ -957,7 +957,7 @@ index 49db03e..c7d7efa 100644
  	[ -n "$basic_rate" ] && {
  		local br rate_list=
  		for br in $basic_rate; do
-@@ -1576,6 +1756,11 @@ wpa_supplicant_add_network() {
+@@ -1573,6 +1753,11 @@ wpa_supplicant_add_network() {
  		append network_data "mcast_rate=$mc_rate" "$N$T"
  	}
  
@@ -969,4 +969,3 @@ index 49db03e..c7d7efa 100644
  	if [ "$key_mgmt" = "WPS" ]; then
  		echo "wps_cred_processing=1" >> "$_config"
  	else
-
