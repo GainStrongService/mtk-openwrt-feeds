@@ -1,7 +1,7 @@
-From 0a99124e2d3cd3c5d34903c92cedff7461284993 Mon Sep 17 00:00:00 2001
+From dd1fc5e8ea8df5f6a5e0b87957872053d13b3278 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Mon, 13 Mar 2023 05:36:59 +0800
-Subject: [PATCH 13/14] mac80211: mtk: ageout color bitmap
+Subject: [PATCH] mac80211: mtk: ageout color bitmap
 
 Adding a periodic work which runs once per second to check BSS color.
 OBSS BSS Color will be ageout if not seen for 10 seconds.
@@ -11,8 +11,8 @@ OBSS BSS Color will be ageout if not seen for 10 seconds.
  net/mac80211/ieee80211_i.h |  5 +++++
  net/mac80211/iface.c       |  5 +++++
  net/mac80211/link.c        |  2 ++
- net/mac80211/rx.c          |  1 +
- 6 files changed, 44 insertions(+)
+ net/mac80211/rx.c          |  3 ++-
+ 6 files changed, 45 insertions(+), 1 deletion(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
 index 299425a..b4f156e 100644
@@ -130,17 +130,20 @@ index a1b3031..7d4cdfb 100644
  	if (!deflink) {
  		switch (sdata->vif.type) {
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 0048c22..d953e46 100644
+index 0048c22..6b0fb01 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
-@@ -3340,6 +3340,7 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
+@@ -3340,8 +3340,9 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
  				      IEEE80211_HE_OPERATION_BSS_COLOR_MASK);
  
  		bss_conf->used_color_bitmap |= BIT_ULL(color);
 +		bss_conf->color_last_seen[color] = jiffies;
  
- 		trace_bss_color_bitmap(color, bss_conf->used_color_bitmap);
+-		trace_bss_color_bitmap(color, bss_conf->used_color_bitmap);
++		/* trace_bss_color_bitmap(color, bss_conf->used_color_bitmap); */
  
+ 		if (color == bss_conf->he_bss_color.color)
+ 			ieee80211_obss_color_collision_notify(&rx->sdata->vif,
 -- 
 2.39.2
 
