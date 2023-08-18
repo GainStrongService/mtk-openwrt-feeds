@@ -156,6 +156,11 @@ prepare_flowoffload() {
 	rm -rf ./target/linux/mediatek/patches-5.4/999-2708-mtkhnat-add-support-for-virtual-interface-acceleration.patch
 	rm -rf ./target/linux/mediatek/patches-5.4/999-2726-mtkhnat-tnl-interface-offload-check.patch
 
+	# remove patches and packages of tops
+	rm -rf ./target/linux/mediatek/patches-5.4/*mtk-tops*.patch
+	rm -rf ${BUILD_DIR}/package/kernel/tops
+	rm -rf ${BUILD_DIR}/package/feeds/mtk_openwrt_feed/tops-tool
+
 	#hack mt7988 config5.4
 	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7988/config-5.4
 	echo "CONFIG_NETFILTER_FAMILY_BRIDGE=y" >> ./target/linux/mediatek/mt7988/config-5.4
