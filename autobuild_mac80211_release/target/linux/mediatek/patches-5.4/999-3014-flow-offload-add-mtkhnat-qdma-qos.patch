@@ -1,5 +1,23 @@
+From 1a2252c2c16462f065983f18dfb45c2b9e6ca324 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Wed, 23 Aug 2023 12:56:42 +0800
+Subject: [PATCH] 999-3014-flow-offload-add-mtkhnat-qdma-qos
+
+---
+ drivers/net/ethernet/mediatek/Makefile        |   2 +-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  10 +
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  49 +-
+ drivers/net/ethernet/mediatek/mtk_ppe.c       |  28 +-
+ drivers/net/ethernet/mediatek/mtk_ppe.h       |  28 ++
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   |  28 +-
+ .../net/ethernet/mediatek/mtk_qdma_debugfs.c  | 439 ++++++++++++++++++
+ include/net/flow_offload.h                    |   1 +
+ net/netfilter/nf_flow_table_offload.c         |   4 +-
+ 9 files changed, 583 insertions(+), 6 deletions(-)
+ create mode 100644 drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c
+
 diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
-index 0c724a5..93cd55f 100644
+index fdbb90f..c7d2296 100644
 --- a/drivers/net/ethernet/mediatek/Makefile
 +++ b/drivers/net/ethernet/mediatek/Makefile
 @@ -5,7 +5,7 @@
@@ -12,10 +30,10 @@ index 0c724a5..93cd55f 100644
  ifdef CONFIG_DEBUG_FS
  mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index ca76047..809c735 100644
+index ab09bec..1dcdd17 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4787,6 +4787,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5014,6 +5014,8 @@ static int mtk_probe(struct platform_device *pdev)
  		}
  
  		mtk_ppe_debugfs_init(eth);
@@ -24,7 +42,7 @@ index ca76047..809c735 100644
  	}
  
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
-@@ -4901,6 +4903,7 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -5126,6 +5128,7 @@ static const struct mtk_soc_data mt2701_data = {
  		.rx_dma_l4_valid = RX_DMA_L4_VALID,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
@@ -32,7 +50,7 @@ index ca76047..809c735 100644
  	},
  };
  
-@@ -4920,6 +4923,7 @@ static const struct mtk_soc_data mt7621_data = {
+@@ -5146,6 +5149,7 @@ static const struct mtk_soc_data mt7621_data = {
  		.rxd_size = sizeof(struct mtk_rx_dma),
  		.dma_max_len = MTK_TX_DMA_BUF_LEN,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
@@ -40,7 +58,7 @@ index ca76047..809c735 100644
  	},
  };
  
-@@ -4940,6 +4944,7 @@ static const struct mtk_soc_data mt7622_data = {
+@@ -5167,6 +5171,7 @@ static const struct mtk_soc_data mt7622_data = {
  		.rx_dma_l4_valid = RX_DMA_L4_VALID,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
@@ -48,7 +66,7 @@ index ca76047..809c735 100644
  	},
  };
  
-@@ -4959,6 +4964,7 @@ static const struct mtk_soc_data mt7623_data = {
+@@ -5187,6 +5192,7 @@ static const struct mtk_soc_data mt7623_data = {
  		.rx_dma_l4_valid = RX_DMA_L4_VALID,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
@@ -56,7 +74,7 @@ index ca76047..809c735 100644
  	},
  };
  
-@@ -4997,6 +5003,7 @@ static const struct mtk_soc_data mt7986_data = {
+@@ -5227,6 +5233,7 @@ static const struct mtk_soc_data mt7986_data = {
  		.rx_dma_l4_valid = RX_DMA_L4_VALID_V2,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
@@ -64,7 +82,7 @@ index ca76047..809c735 100644
  	},
  };
  
-@@ -5017,6 +5024,7 @@ static const struct mtk_soc_data mt7981_data = {
+@@ -5248,6 +5255,7 @@ static const struct mtk_soc_data mt7981_data = {
  		.rx_dma_l4_valid = RX_DMA_L4_VALID_V2,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
@@ -72,7 +90,7 @@ index ca76047..809c735 100644
  	},
  };
  
-@@ -5034,6 +5042,7 @@ static const struct mtk_soc_data mt7988_data = {
+@@ -5266,6 +5274,7 @@ static const struct mtk_soc_data mt7988_data = {
  		.rx_dma_l4_valid = RX_DMA_L4_VALID_V2,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
@@ -80,7 +98,7 @@ index ca76047..809c735 100644
  	},
  };
  
-@@ -5051,6 +5060,7 @@ static const struct mtk_soc_data rt5350_data = {
+@@ -5284,6 +5293,7 @@ static const struct mtk_soc_data rt5350_data = {
  		.rx_dma_l4_valid = RX_DMA_L4_VALID_PDMA,
  		.dma_max_len = MTK_TX_DMA_BUF_LEN,
  		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
@@ -89,10 +107,10 @@ index ca76047..809c735 100644
  };
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index c6afff5..bd73c27 100644
+index ee4c851..83a5fec 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -385,10 +385,21 @@
+@@ -398,10 +398,21 @@
  
  /* QDMA TX Queue Configuration Registers */
  #define MTK_QTX_CFG(x)		(QDMA_BASE + (x * 0x10))
@@ -114,7 +132,7 @@ index c6afff5..bd73c27 100644
  
  /* QDMA RX Base Pointer Register */
  #define MTK_QRX_BASE_PTR0	(QDMA_BASE + 0x100)
-@@ -406,7 +417,9 @@
+@@ -419,7 +430,9 @@
  #define MTK_QRX_DRX_IDX0	(QDMA_BASE + 0x10c)
  
  /* QDMA Page Configuration Register */
@@ -125,7 +143,7 @@ index c6afff5..bd73c27 100644
  
  /* QDMA Global Configuration Register */
  #define MTK_QDMA_GLO_CFG	(QDMA_BASE + 0x204)
-@@ -443,6 +456,9 @@
+@@ -456,6 +469,9 @@
  #define FC_THRES_DROP_EN	(7 << 16)
  #define FC_THRES_MIN		0x4444
  
@@ -134,8 +152,8 @@ index c6afff5..bd73c27 100644
 +
  /* QDMA Interrupt Status Register */
  #define MTK_QDMA_INT_STATUS	(QDMA_BASE + 0x218)
- #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
-@@ -478,6 +494,11 @@
+ #if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+@@ -492,6 +508,11 @@
  /* QDMA Interrupt Mask Register */
  #define MTK_QDMA_HRED2		(QDMA_BASE + 0x244)
  
@@ -147,7 +165,7 @@ index c6afff5..bd73c27 100644
  /* QDMA TX Forward CPU Pointer Register */
  #define MTK_QTX_CTX_PTR		(QDMA_BASE +0x300)
  
-@@ -505,6 +526,14 @@
+@@ -519,6 +540,14 @@
  /* QDMA FQ Free Page Buffer Length Register */
  #define MTK_QDMA_FQ_BLEN	(QDMA_BASE +0x32c)
  
@@ -162,7 +180,7 @@ index c6afff5..bd73c27 100644
  /* WDMA Registers */
  #define MTK_WDMA_CTX_PTR(x)	(WDMA_BASE(x) + 0x8)
  #define MTK_WDMA_DTX_PTR(x)	(WDMA_BASE(x) + 0xC)
-@@ -1596,6 +1625,7 @@ struct mtk_soc_data {
+@@ -1682,6 +1711,7 @@ struct mtk_soc_data {
  		u32	rx_dma_l4_valid;
  		u32	dma_max_len;
  		u32	dma_len_offset;
@@ -170,7 +188,7 @@ index c6afff5..bd73c27 100644
  	} txrx;
  };
  
-@@ -1736,6 +1766,7 @@ struct mtk_eth {
+@@ -1868,6 +1898,7 @@ struct mtk_eth {
  	spinlock_t			syscfg0_lock;
  	struct timer_list		mtk_dma_monitor_timer;
  
@@ -178,18 +196,48 @@ index c6afff5..bd73c27 100644
  	u8				ppe_num;
  	struct mtk_ppe			*ppe[MTK_MAX_PPE_NUM];
  	struct rhashtable		flow_table;
-@@ -1815,4 +1846,6 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
- void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
+@@ -1906,6 +1937,20 @@ extern const struct of_device_id of_mtk_match[];
+ extern u32 mtk_hwlro_stats_ebl;
+ extern u32 dbg_show_level;
+ 
++static inline int
++mtk_ppe_check_pppq_path(struct mtk_foe_entry *foe, int dsa_port)
++{
++	u32 sp;
++
++	if ((dsa_port >= 0 && dsa_port <= 4) ||
++	    (dsa_port == 5 && (sp == PSE_WDMA0_PORT ||
++			       sp == PSE_WDMA1_PORT ||
++			       sp == PSE_WDMA2_PORT)))
++		return 1;
++
++	return 0;
++}
++
+ /* read the hardware status register */
+ void mtk_stats_update_mac(struct mtk_mac *mac);
+ 
+@@ -1938,4 +1983,6 @@ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
+ u32 mtk_rss_indr_table(struct mtk_rss_params *rss_params, int index);
  
  int mtk_ppe_debugfs_init(struct mtk_eth *eth);
 +
 +int mtk_qdma_debugfs_init(struct mtk_eth *eth);
  #endif /* MTK_ETH_H */
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index a49275f..1767823 100755
+index 107f5a1..ed677e1 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -406,6 +406,16 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
+@@ -128,7 +128,7 @@ static void mtk_ppe_cache_enable(struct mtk_ppe *ppe, bool enable)
+ 		enable * MTK_PPE_CACHE_CTL_EN);
+ }
+ 
+-static u32 mtk_ppe_hash_entry(struct mtk_ppe *ppe, struct mtk_foe_entry *e)
++u32 mtk_ppe_hash_entry(struct mtk_ppe *ppe, struct mtk_foe_entry *e)
+ {
+ 	u32 hv1, hv2, hv3;
+ 	u32 hash;
+@@ -420,12 +420,38 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
  	return 0;
  }
  
@@ -206,20 +254,72 @@ index a49275f..1767823 100755
  static inline bool mtk_foe_entry_usable(struct mtk_foe_entry *entry)
  {
  	return !(entry->ib1 & MTK_FOE_IB1_STATIC) &&
+ 	       FIELD_GET(MTK_FOE_IB1_STATE, entry->ib1) != MTK_FOE_STATE_BIND;
+ }
+ 
++bool mtk_foe_entry_match(struct mtk_foe_entry *entry, struct mtk_foe_entry *data)
++{
++	int type, len;
++
++	if ((data->ib1 ^ entry->ib1) & MTK_FOE_IB1_UDP)
++		return false;
++
++	type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->ib1);
++	if (type > MTK_PPE_PKT_TYPE_IPV4_DSLITE)
++		len = offsetof(struct mtk_foe_entry, ipv6._rsv);
++	else
++		len = offsetof(struct mtk_foe_entry, ipv4.ib2);
++
++	return !memcmp(&entry->data, &data->data, len - 4);
++}
++
+ static bool
+ mtk_flow_entry_match(struct mtk_flow_entry *entry, struct mtk_foe_entry *data)
+ {
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 8076e5d..c46c4d9 100644
+index 86288b0..53bb6d2 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -356,6 +356,7 @@ int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid);
+@@ -403,9 +403,37 @@ int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid);
  int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid);
  int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
  			   int bss, int wcid);
 +int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid);
++bool mtk_foe_entry_match(struct mtk_foe_entry *entry, struct mtk_foe_entry *data);
  int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
  void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
  int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
+ struct mtk_foe_accounting *mtk_foe_entry_get_mib(struct mtk_ppe *ppe, u32 index, struct mtk_foe_accounting *diff);
++u32 mtk_ppe_hash_entry(struct mtk_ppe *ppe, struct mtk_foe_entry *e);
++
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++static inline int
++mtk_foe_entry_set_sp(struct mtk_ppe *ppe, struct mtk_foe_entry *entry)
++{
++	struct mtk_foe_entry *hwe;
++	u32 sp, hash;
++	int i;
++
++	sp = 0;
++	hash = mtk_ppe_hash_entry(ppe, entry);
++	for (i = 0; i < ppe->way; i++) {
++		hwe = &ppe->foe_table[hash + i];
++		if (mtk_foe_entry_match(hwe, entry)) {
++			sp = FIELD_GET(MTK_FOE_IB1_UNBIND_SRC_PORT, hwe->ib1);
++			break;
++		}
++	}
++	entry->ib1 |= FIELD_PREP(MTK_FOE_IB1_UNBIND_SRC_PORT, sp);
++
++	return 0;
++}
++#else
++static inline int mtk_foe_entry_set_sp(struct mtk_ppe *ppe, struct mtk_foe_entry *entry);
++#endif
+ 
+ #endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index f258539..3b17819 100755
+index f7af72a..d71878c 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 @@ -9,6 +9,8 @@
@@ -244,7 +344,7 @@ index f258539..3b17819 100755
  	if (dsa_port >= 0)
  		mtk_foe_entry_set_dsa(foe, dsa_port);
  
-+	if (eth->qos_toggle == 2 && dsa_port >= 0)
++	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(foe, dsa_port))
 +		mtk_foe_entry_set_qid(foe, dsa_port & MTK_QDMA_TX_MASK);
 +
  	if (dev == eth->netdev[0])
@@ -274,60 +374,23 @@ index f258539..3b17819 100755
  	mtk_foe_entry_set_pse_port(foe, pse_port);
  
  	return 0;
-@@ -432,7 +455,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -447,7 +469,9 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	if (data.pppoe.num == 1)
  		mtk_foe_entry_set_pppoe(&foe, data.pppoe.sid);
  
 -	err = mtk_flow_set_output_device(eth, &foe, odev, data.eth.h_dest,
++	mtk_foe_entry_set_sp(eth->ppe[ppe_index], &foe);
++
 +	err = mtk_flow_set_output_device(eth, &foe, odev, f->flow->ct, data.eth.h_dest,
  					 &wed_index);
  	if (err)
  		return err;
-diff --git a/include/net/flow_offload.h b/include/net/flow_offload.h
-index 59b8736..7261b6d 100644
---- a/include/net/flow_offload.h
-+++ b/include/net/flow_offload.h
-@@ -365,6 +378,7 @@ struct flow_cls_offload {
- 	struct flow_cls_common_offload common;
- 	enum flow_cls_command command;
- 	unsigned long cookie;
-+	struct flow_offload *flow;
- 	struct flow_rule *rule;
- 	struct flow_stats stats;
- 	u32 classid;
-diff --git a/net/netfilter/nf_flow_table_offload.c b/net/netfilter/nf_flow_table_offload.c
-index d94c6fb..886ced5 100644
---- a/net/netfilter/nf_flow_table_offload.c
-+++ b/net/netfilter/nf_flow_table_offload.c
-@@ -810,11 +810,13 @@ static int nf_flow_offload_alloc(const struct flow_offload_work *offload,
- }
- 
- static void nf_flow_offload_init(struct flow_cls_offload *cls_flow,
-+				 struct flow_offload *flow,
- 				 __be16 proto, int priority,
- 				 enum flow_cls_command cmd,
- 				 const struct flow_offload_tuple *tuple,
- 				 struct netlink_ext_ack *extack)
- {
-+	cls_flow->flow = flow;
- 	cls_flow->common.protocol = proto;
- 	cls_flow->common.prio = priority;
- 	cls_flow->common.extack = extack;
-@@ -836,7 +838,7 @@ static int nf_flow_offload_tuple(struct nf_flowtable *flowtable,
- 	__be16 proto = ETH_P_ALL;
- 	int err, i = 0;
- 
--	nf_flow_offload_init(&cls_flow, proto, priority, cmd,
-+	nf_flow_offload_init(&cls_flow, flow, proto, priority, cmd,
- 			     &flow->tuplehash[dir].tuple, &extack);
- 	if (cmd == FLOW_CLS_REPLACE)
- 		cls_flow.rule = flow_rule->rule;
 diff --git a/drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c b/drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c
 new file mode 100644
-index 0000000..198b924
+index 0000000..3a7c585
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c
-@@ -0,0 +1,435 @@
+@@ -0,0 +1,439 @@
 +/* SPDX-License-Identifier: GPL-2.0
 + *
 + * Copyright (c) 2022 MediaTek Inc.
@@ -435,8 +498,12 @@ index 0000000..198b924
 +{
 +	struct mtk_eth *eth = m->private;
 +
-+	seq_printf(m, "value=%d, HQoS is %s now!\n",
-+		   eth->qos_toggle, (eth->qos_toggle) ? "enabled" : "disabled");
++	if (eth->qos_toggle == 0)
++		pr_info("HQoS is disabled now!\n");
++	else if (eth->qos_toggle == 1)
++		pr_info("HQoS is enabled now!\n");
++	else if (eth->qos_toggle == 2)
++		pr_info("Per-port-per-queue mode is enabled!\n");
 +
 +	return 0;
 +}
@@ -763,3 +830,45 @@ index 0000000..198b924
 +
 +	return 0;
 +}
+diff --git a/include/net/flow_offload.h b/include/net/flow_offload.h
+index 59b8736..c4eb45c 100644
+--- a/include/net/flow_offload.h
++++ b/include/net/flow_offload.h
+@@ -365,6 +365,7 @@ struct flow_cls_offload {
+ 	struct flow_cls_common_offload common;
+ 	enum flow_cls_command command;
+ 	unsigned long cookie;
++	struct flow_offload *flow;
+ 	struct flow_rule *rule;
+ 	struct flow_stats stats;
+ 	u32 classid;
+diff --git a/net/netfilter/nf_flow_table_offload.c b/net/netfilter/nf_flow_table_offload.c
+index 50f2f2e..ba34572 100644
+--- a/net/netfilter/nf_flow_table_offload.c
++++ b/net/netfilter/nf_flow_table_offload.c
+@@ -810,11 +810,13 @@ static int nf_flow_offload_alloc(const struct flow_offload_work *offload,
+ }
+ 
+ static void nf_flow_offload_init(struct flow_cls_offload *cls_flow,
++				 struct flow_offload *flow,
+ 				 __be16 proto, int priority,
+ 				 enum flow_cls_command cmd,
+ 				 const struct flow_offload_tuple *tuple,
+ 				 struct netlink_ext_ack *extack)
+ {
++	cls_flow->flow = flow;
+ 	cls_flow->common.protocol = proto;
+ 	cls_flow->common.prio = priority;
+ 	cls_flow->common.extack = extack;
+@@ -836,7 +838,7 @@ static int nf_flow_offload_tuple(struct nf_flowtable *flowtable,
+ 	__be16 proto = ETH_P_ALL;
+ 	int err, i = 0;
+ 
+-	nf_flow_offload_init(&cls_flow, proto, priority, cmd,
++	nf_flow_offload_init(&cls_flow, flow, proto, priority, cmd,
+ 			     &flow->tuplehash[dir].tuple, &extack);
+ 	if (cmd == FLOW_CLS_REPLACE)
+ 		cls_flow.rule = flow_rule->rule;
+-- 
+2.18.0
+

@@ -1,25 +1,25 @@
-From a59cb5c770a694cb34ab179ec59e91ba5c39908b Mon Sep 17 00:00:00 2001
-From: Bo Jiao <Bo.Jiao@mediatek.com>
-Date: Mon, 27 Jun 2022 14:48:35 +0800
-Subject: [PATCH 6/8] 9995-flow-offload-add-mkhnat-dual-ppe-new-v2
+From 8341e1b35ca14f303f828f96f5e63719f80be88e Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Wed, 23 Aug 2023 11:36:05 +0800
+Subject: [PATCH] 999-3007-flow-offload-add-mkhnat-dual-ppe-new-v2
 
 ---
  arch/arm64/boot/dts/mediatek/mt7986a.dtsi     |  1 +
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   | 67 ++++++++++++++-----
- drivers/net/ethernet/mediatek/mtk_eth_soc.h   | 10 ++-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h   | 14 +++-
  drivers/net/ethernet/mediatek/mtk_ppe.c       |  5 +-
  drivers/net/ethernet/mediatek/mtk_ppe.h       |  7 +-
  .../net/ethernet/mediatek/mtk_ppe_debugfs.c   | 27 ++++++--
- .../net/ethernet/mediatek/mtk_ppe_offload.c   | 45 ++++++++++---
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   | 48 ++++++++++---
  include/linux/netdevice.h                     |  4 ++
- 8 files changed, 125 insertions(+), 41 deletions(-)
+ 8 files changed, 131 insertions(+), 42 deletions(-)
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 
 diff --git a/arch/arm64/boot/dts/mediatek/mt7986a.dtsi b/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
-index 7f78de6b9..381136c21 100644
+index e5d4e12..0c54e12 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
-@@ -479,6 +479,7 @@
+@@ -496,6 +496,7 @@
                  mediatek,ethsys = <&ethsys>;
  		mediatek,sgmiisys = <&sgmiisys0>, <&sgmiisys1>;
  		mediatek,wed = <&wed0>, <&wed1>;
@@ -28,10 +28,10 @@ index 7f78de6b9..381136c21 100644
                  #address-cells = <1>;
                  #size-cells = <0>;
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 01fc1e5c0..3f67bebfe 100644
+index f019c56..81b68d6 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -1732,6 +1732,7 @@ static int mtk_poll_rx(struct napi_struc
+@@ -2097,6 +2097,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  	u8 *data, *new_data;
  	struct mtk_rx_dma_v2 *rxd, trxd;
  	int done = 0;
@@ -39,7 +39,7 @@ index 01fc1e5c0..3f67bebfe 100644
  
  	if (unlikely(!ring))
  		goto rx_done;
-@@ -1843,14 +1844,20 @@ static int mtk_poll_rx(struct napi_struc
+@@ -2209,14 +2210,20 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  
  #if defined(CONFIG_MEDIATEK_NETSYS_RX_V2)
  		reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON_V2, trxd.rxd5);
@@ -66,9 +66,9 @@ index 01fc1e5c0..3f67bebfe 100644
  #endif
  
  		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
-@@ -3184,8 +3191,12 @@ static int mtk_open(struct net_device *d
- 	if (!phy_node && eth->xgmii->regmap_sgmii[mac->id])
- 		regmap_write(eth->xgmii->regmap_sgmii[mac->id], SGMSYS_QPHY_PWR_STATE_CTRL, 0);
+@@ -3588,8 +3595,12 @@ static int mtk_open(struct net_device *dev)
+ 		regmap_write(eth->sgmii->pcs[id].regmap,
+ 			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
 -	if (eth->soc->offload_version && mtk_ppe_start(&eth->ppe) == 0)
 -			gdm_config = MTK_GDMA_TO_PPE;
@@ -81,7 +81,7 @@ index 01fc1e5c0..3f67bebfe 100644
  
  	mtk_gdm_config(eth, mac->id, gdm_config);
  
-@@ -3268,8 +3279,10 @@ static int mtk_stop(struct net_device *d
+@@ -3671,8 +3682,10 @@ static int mtk_stop(struct net_device *dev)
  
  	mtk_dma_free(eth);
  
@@ -94,7 +94,7 @@ index 01fc1e5c0..3f67bebfe 100644
  
  	return 0;
  }
-@@ -4408,15 +4421,35 @@ static int mtk_probe(struct platform_dev
+@@ -4958,15 +4971,35 @@ static int mtk_probe(struct platform_device *pdev)
  	}
  
  	if (eth->soc->offload_version) {
@@ -138,10 +138,10 @@ index 01fc1e5c0..3f67bebfe 100644
  
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index fce1a7172..b4de7c0c6 100644
+index 8675c86..fad3e73 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -118,7 +118,12 @@
+@@ -130,7 +130,12 @@
  #define MTK_GDMA_UCS_EN		BIT(20)
  #define MTK_GDMA_STRP_CRC	BIT(16)
  #define MTK_GDMA_TO_PDMA	0x0
@@ -155,7 +155,7 @@ index fce1a7172..b4de7c0c6 100644
  #define MTK_GDMA_DROP_ALL	0x7777
  
  /* GDM Egress Control Register */
-@@ -1612,7 +1617,8 @@ struct mtk_eth {
+@@ -1856,7 +1861,8 @@ struct mtk_eth {
  	spinlock_t			syscfg0_lock;
  	struct timer_list		mtk_dma_monitor_timer;
  
@@ -165,8 +165,8 @@ index fce1a7172..b4de7c0c6 100644
  	struct rhashtable		flow_table;
  };
  
-@@ -1668,9 +1674,11 @@ int mtk_gmac_usxgmii_path_setup(struct m
- void mtk_usxgmii_reset(struct mtk_xgmii *ss, int mac_id);
+@@ -1918,9 +1924,11 @@ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r);
+ int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
  int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
  
 -int mtk_eth_offload_init(struct mtk_eth *eth);
@@ -179,10 +179,10 @@ index fce1a7172..b4de7c0c6 100644
 +int mtk_ppe_debugfs_init(struct mtk_eth *eth);
  #endif /* MTK_ETH_H */
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index d46e91178..3d6ff30ba 100755
+index 7506670..0ff1fef 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -677,7 +677,7 @@ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
+@@ -696,7 +696,7 @@ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
  }
  
  struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
@@ -191,7 +191,7 @@ index d46e91178..3d6ff30ba 100755
  {
  	struct device *dev = eth->dev;
  	struct mtk_foe_entry *foe;
-@@ -696,6 +696,7 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
+@@ -715,6 +715,7 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
  	ppe->eth = eth;
  	ppe->dev = dev;
  	ppe->version = version;
@@ -199,7 +199,7 @@ index d46e91178..3d6ff30ba 100755
  
  	foe = dmam_alloc_coherent(ppe->dev, MTK_PPE_ENTRIES * sizeof(*foe),
  				  &ppe->foe_phys, GFP_KERNEL);
-@@ -704,8 +705,6 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
+@@ -723,8 +724,6 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
  
  	ppe->foe_table = foe;
  
@@ -209,11 +209,10 @@ index d46e91178..3d6ff30ba 100755
  }
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index a76f4b0ac..21cc55145 100644
+index 7012351..86bbac8 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -8,10 +8,12 @@
- #include <linux/bitfield.h>
+@@ -9,8 +9,10 @@
  #include <linux/rhashtable.h>
  
  #if defined(CONFIG_MEDIATEK_NETSYS_V2)
@@ -224,8 +223,7 @@ index a76f4b0ac..21cc55145 100644
  #define MTK_ETH_PPE_BASE		0xc00
  #endif
  
- #define MTK_PPE_ENTRIES_SHIFT		3
-@@ -253,6 +255,7 @@ struct mtk_flow_entry {
+@@ -299,6 +301,7 @@ struct mtk_flow_entry {
  		};
  	};
  	u8 type;
@@ -233,7 +231,7 @@ index a76f4b0ac..21cc55145 100644
  	s8 wed_index;
  	u16 hash;
  	union {
-@@ -272,6 +275,7 @@ struct mtk_ppe {
+@@ -318,6 +321,7 @@ struct mtk_ppe {
  	struct device *dev;
  	void __iomem *base;
  	int version;
@@ -241,7 +239,7 @@ index a76f4b0ac..21cc55145 100644
  
  	struct mtk_foe_entry *foe_table;
  	dma_addr_t foe_phys;
-@@ -284,7 +288,7 @@ struct mtk_ppe {
+@@ -330,7 +334,7 @@ struct mtk_ppe {
  	void *acct_table;
  };
  
@@ -250,7 +248,7 @@ index a76f4b0ac..21cc55145 100644
  int mtk_ppe_start(struct mtk_ppe *ppe);
  int mtk_ppe_stop(struct mtk_ppe *ppe);
  
-@@ -335,6 +339,5 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
+@@ -381,6 +385,5 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
  int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
  void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
  int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
@@ -258,7 +256,7 @@ index a76f4b0ac..21cc55145 100644
  
  #endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c b/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
-index a591ab1fd..f4ebe5944 100644
+index a591ab1..f4ebe59 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
 @@ -73,9 +73,8 @@ mtk_print_addr_info(struct seq_file *m, struct mtk_flow_addr_info *ai)
@@ -332,10 +330,10 @@ index a591ab1fd..f4ebe5944 100644
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 old mode 100644
 new mode 100755
-index 5a4201447..2f7d76d3b
+index 77594f3..18f6333
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -226,8 +226,10 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -229,9 +229,12 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	struct flow_action_entry *act;
  	struct mtk_flow_data data = {};
  	struct mtk_foe_entry foe;
@@ -345,9 +343,11 @@ index 5a4201447..2f7d76d3b
 +	struct net_device_path_ctx ctx = {};
 +	struct net_device_path path = {};
  	int offload_type = 0;
++	int ppe_index = 0;
  	int wed_index = -1;
  	u16 addr_type = 0;
-@@ -242,6 +244,10 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+ 	u8 l4proto = 0;
+@@ -245,6 +248,10 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  		struct flow_match_meta match;
  
  		flow_rule_match_meta(rule, &match);
@@ -358,45 +358,49 @@ index 5a4201447..2f7d76d3b
  	} else {
  		return -EOPNOTSUPP;
  	}
-@@ -435,11 +441,27 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
- 	if (!entry)
- 		return -ENOMEM;
+@@ -347,6 +354,20 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+ 	if (err)
+ 		return err;
  
-+	i = 0;
 +#if defined(CONFIG_MEDIATEK_NETSYS_V2)
 +	if (idev && idev->netdev_ops->ndo_fill_receive_path) {
 +		ctx.dev = idev;
 +		idev->netdev_ops->ndo_fill_receive_path(&ctx, &path);
-+		i = path.mtk_wdma.wdma_idx;
-+		if (i >= eth->ppe_num) {
++		ppe_index = path.mtk_wdma.wdma_idx;
++		if (ppe_index >= eth->ppe_num) {
 +			if (printk_ratelimit())
-+				pr_info("[%s] PPE%d doesn't exist, please check mtketh-ppe-num in dts !\n", __func__, i);
++				pr_info("[%s] PPE%d doesn't exist, please check mtketh-ppe-num in dts !\n", __func__, ppe_index);
 +
 +			return -EINVAL;
 +		}
 +	}
 +#endif
 +
+ 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
+ 		struct flow_match_ports ports;
+ 
+@@ -440,9 +461,10 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+ 
  	entry->cookie = f->cookie;
  	memcpy(&entry->data, &foe, sizeof(entry->data));
-+	entry->ppe_index = i;
++	entry->ppe_index = ppe_index;
  	entry->wed_index = wed_index;
  
 -	if (mtk_foe_entry_commit(eth->ppe, entry) < 0)
-+	if (mtk_foe_entry_commit(eth->ppe[i], entry) < 0)
++	if (mtk_foe_entry_commit(eth->ppe[ppe_index], entry) < 0)
  		goto free;
  
  	err = rhashtable_insert_fast(&eth->flow_table, &entry->node,
-@@ -450,7 +470,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -453,7 +475,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	return 0;
  
  clear:
 -	mtk_foe_entry_clear(eth->ppe, entry);
-+	mtk_foe_entry_clear(eth->ppe[i], entry);
++	mtk_foe_entry_clear(eth->ppe[ppe_index], entry);
  free:
  	kfree(entry);
  	if (wed_index >= 0)
-@@ -462,13 +482,15 @@ static int
+@@ -465,13 +487,15 @@ static int
  mtk_flow_offload_destroy(struct mtk_eth *eth, struct flow_cls_offload *f)
  {
  	struct mtk_flow_entry *entry;
@@ -413,7 +417,7 @@ index 5a4201447..2f7d76d3b
  	rhashtable_remove_fast(&eth->flow_table, &entry->node,
  			       mtk_flow_ht_params);
  	if (entry->wed_index >= 0)
-@@ -483,13 +505,15 @@ mtk_flow_offload_stats(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -486,13 +510,15 @@ mtk_flow_offload_stats(struct mtk_eth *eth, struct flow_cls_offload *f)
  {
  	struct mtk_flow_entry *entry;
  	u32 idle;
@@ -430,7 +434,7 @@ index 5a4201447..2f7d76d3b
  	f->stats.lastused = jiffies - idle * HZ;
  
  	return 0;
-@@ -540,10 +564,12 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
+@@ -543,10 +569,12 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
  	static LIST_HEAD(block_cb_list);
  	struct flow_block_cb *block_cb;
  	flow_setup_cb_t *cb;
@@ -446,7 +450,7 @@ index 5a4201447..2f7d76d3b
  
  	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
  		return -EOPNOTSUPP;
-@@ -591,9 +618,9 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
+@@ -603,9 +631,9 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
  	}
  }
  
@@ -459,10 +463,10 @@ index 5a4201447..2f7d76d3b
  
  	return rhashtable_init(&eth->flow_table, &mtk_flow_ht_params);
 diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index 35998b1a7..0ada2461b 100644
+index 59a3e96..0967dc2 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
-@@ -1302,6 +1302,8 @@ struct tlsdev_ops;
+@@ -1311,6 +1311,8 @@ struct tlsdev_ops;
   *	rtnl_lock is not held.
   * int (*ndo_fill_forward_path)(struct net_device_path_ctx *ctx, struct net_device_path *path);
   *     Get the forwarding path to reach the real device from the HW destination address
@@ -471,7 +475,7 @@ index 35998b1a7..0ada2461b 100644
   */
  struct net_device_ops {
  	int			(*ndo_init)(struct net_device *dev);
-@@ -1501,6 +1503,8 @@ struct net_device_ops {
+@@ -1510,6 +1512,8 @@ struct net_device_ops {
  	struct devlink_port *	(*ndo_get_devlink_port)(struct net_device *dev);
  	int                     (*ndo_fill_forward_path)(struct net_device_path_ctx *ctx,
                                                           struct net_device_path *path);
