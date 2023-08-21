@@ -14,6 +14,7 @@
 
 #include "internal.h"
 #include "mcu.h"
+#include "trm-debugfs.h"
 #include "trm-fs.h"
 #include "trm-mcu.h"
 #include "trm.h"
@@ -342,6 +343,10 @@ static int mtk_tops_ocd_probe(struct platform_device *pdev)
 	if (!ocd.base)
 		return -ENOMEM;
 
+	ret = mtk_trm_debugfs_init();
+	if (ret)
+		return ret;
+
 	ret = mtk_trm_fs_init();
 	if (ret)
 		return ret;
@@ -354,6 +359,8 @@ static int mtk_tops_ocd_probe(struct platform_device *pdev)
 static int mtk_tops_ocd_remove(struct platform_device *pdev)
 {
 	mtk_trm_fs_deinit();
+
+	mtk_trm_debugfs_deinit();
 
 	return 0;
 }

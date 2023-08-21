@@ -12,7 +12,7 @@
 
 #define DUMP_INFO_NAME_MAX_LEN		32
 #define RELAY_DUMP_SUBBUF_SIZE		2048
-#define DUMP_DATA_PATH			"/sys/kernel/debug/tops/dump_data"
+#define DUMP_DATA_PATH			"/sys/kernel/debug/tops/trm/dump-data"
 
 #define DUMP_LOG_FMT(FMT) "[TOPS_TOOL] [%s]: " FMT, __func__
 

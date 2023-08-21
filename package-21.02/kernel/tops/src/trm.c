@@ -17,6 +17,7 @@
 #include <linux/relay.h>
 #include <linux/types.h>
 
+#include "internal.h"
 #include "mbox.h"
 #include "mcu.h"
 #include "netsys.h"
@@ -27,6 +28,11 @@
 #define TRM_HDR_LEN				(sizeof(struct trm_header))
 
 #define RLY_DUMP_SUBBUF_DATA_MAX		(RLY_DUMP_SUBBUF_SZ - TRM_HDR_LEN)
+
+struct tops_runtime_monitor {
+	struct mailbox_dev mgmt_send_mdev;
+	struct mailbox_dev offload_send_mdev[CORE_OFFLOAD_NUM];
+};
 
 struct trm_info {
 	char name[TRM_CONFIG_NAME_MAX_LEN];
@@ -45,6 +51,15 @@ struct trm_header {
 
 struct device *trm_dev;
 
+static struct tops_runtime_monitor trm = {
+	.mgmt_send_mdev = MBOX_SEND_MGMT_DEV(TRM),
+	.offload_send_mdev = {
+		[CORE_OFFLOAD_0] = MBOX_SEND_OFFLOAD_DEV(0, TRM),
+		[CORE_OFFLOAD_1] = MBOX_SEND_OFFLOAD_DEV(1, TRM),
+		[CORE_OFFLOAD_2] = MBOX_SEND_OFFLOAD_DEV(2, TRM),
+		[CORE_OFFLOAD_3] = MBOX_SEND_OFFLOAD_DEV(3, TRM),
+	},
+};
 static struct trm_hw_config *trm_hw_configs[__TRM_HARDWARE_MAX];
 struct mutex trm_lock;
 
@@ -205,6 +220,55 @@ static int __mtk_trm_dump(struct trm_hw_config *trm_hw_cfg,
 	return 0;
 }
 
+static void trm_cpu_utilization_ret_handler(void *priv,
+					    struct mailbox_msg *msg)
+{
+	u32 *cpu_utilization = priv;
+
+	/*
+	 * msg1: ticks of idle task
+	 * msg2: ticks of this statistic period
+	 */
+	if (msg->msg2 != 0)
+		*cpu_utilization = (msg->msg2 - msg->msg1) * 100U / msg->msg2;
+}
+
+int mtk_trm_cpu_utilization(enum core_id core, u32 *cpu_utilization)
+{
+	struct mailbox_dev *send_mdev;
+	struct mailbox_msg msg;
+	int ret;
+
+	if (core > CORE_MGMT || !cpu_utilization)
+		return -EINVAL;
+
+	if (!mtk_tops_mcu_alive()) {
+		TRM_ERR("mcu not alive\n");
+		return -EAGAIN;
+	}
+
+	memset(&msg, 0, sizeof(struct mailbox_msg));
+	msg.msg1 = TRM_CMD_TYPE_CPU_UTILIZATION;
+
+	*cpu_utilization = 0;
+
+	if (core == CORE_MGMT)
+		send_mdev = &trm.mgmt_send_mdev;
+	else
+		send_mdev = &trm.offload_send_mdev[core];
+
+	ret = mbox_send_msg(send_mdev,
+			    &msg,
+			    cpu_utilization,
+			    trm_cpu_utilization_ret_handler);
+	if (ret) {
+		TRM_ERR("send CPU_UTILIZATION cmd failed(%d)\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 int mtk_trm_dump(u32 rsn)
 {
 	u64 time = ktime_to_ns(ktime_get_real()) / 1000000000;
@@ -253,15 +317,64 @@ out:
 	return ret;
 }
 
+static int mtk_tops_trm_register_mbox(void)
+{
+	int ret;
+	int i;
+
+	ret = register_mbox_dev(MBOX_SEND, &trm.mgmt_send_mdev);
+	if (ret) {
+		TRM_ERR("register trm mgmt mbox send failed: %d\n", ret);
+		return ret;
+	}
+
+	for (i = 0; i < CORE_OFFLOAD_NUM; i++) {
+		ret = register_mbox_dev(MBOX_SEND, &trm.offload_send_mdev[i]);
+		if (ret) {
+			TRM_ERR("register trm offload %d mbox send failed: %d\n",
+				i, ret);
+			goto err_unregister_offload_mbox;
+		}
+	}
+
+	return ret;
+
+err_unregister_offload_mbox:
+	for (i -= 1; i >= 0; i--)
+		unregister_mbox_dev(MBOX_SEND, &trm.offload_send_mdev[i]);
+
+	unregister_mbox_dev(MBOX_SEND, &trm.mgmt_send_mdev);
+
+	return ret;
+}
+
+static void mtk_tops_trm_unregister_mbox(void)
+{
+	int i;
+
+	unregister_mbox_dev(MBOX_SEND, &trm.mgmt_send_mdev);
+
+	for (i = 0; i < CORE_OFFLOAD_NUM; i++)
+		unregister_mbox_dev(MBOX_SEND, &trm.offload_send_mdev[i]);
+}
+
 int __init mtk_tops_trm_init(void)
 {
+	int ret;
+
 	mutex_init(&trm_lock);
+
+	ret = mtk_tops_trm_register_mbox();
+	if (ret)
+		return ret;
 
 	return mtk_tops_trm_mcu_init();
 }
 
 void __exit mtk_tops_trm_exit(void)
 {
+	mtk_tops_trm_unregister_mbox();
+
 	mtk_tops_trm_mcu_exit();
 }
 

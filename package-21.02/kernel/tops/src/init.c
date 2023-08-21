@@ -9,6 +9,7 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/debugfs.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
@@ -29,6 +30,7 @@
 #include "wdt.h"
 
 struct device *tops_dev;
+struct dentry *tops_debugfs_root;
 
 static int mtk_tops_post_init(struct platform_device *pdev)
 {
@@ -200,6 +202,12 @@ static struct platform_driver mtk_tops_driver = {
 
 static int __init mtk_tops_init(void)
 {
+	tops_debugfs_root = debugfs_create_dir("tops", NULL);
+	if (IS_ERR(tops_debugfs_root)) {
+		TOPS_ERR("create tops debugfs root directory failed\n");
+		return PTR_ERR(tops_debugfs_root);
+	}
+
 	mtk_tops_mbox_init();
 
 	mtk_tops_hpdma_init();
@@ -218,6 +226,8 @@ static void __exit mtk_tops_exit(void)
 	mtk_tops_hpdma_exit();
 
 	mtk_tops_mbox_exit();
+
+	debugfs_remove_recursive(tops_debugfs_root);
 }
 
 module_init(mtk_tops_init);

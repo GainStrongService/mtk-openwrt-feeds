@@ -56,6 +56,13 @@ extern struct device *trm_dev;
 #define TRM_RSN_FE_RESET			(TRM_RSN(FE_RESET))
 #define TRM_RSN_MCU_STATE_ACT_FAIL		(TRM_RSN(MCU_STATE_ACT_FAIL))
 
+enum trm_cmd_type {
+	TRM_CMD_TYPE_NULL,
+	TRM_CMD_TYPE_CPU_UTILIZATION,
+
+	__TRM_CMD_TYPE_MAX,
+};
+
 enum trm_config_flag {
 	TRM_CONFIG_F_ENABLE_BIT,
 	TRM_CONFIG_F_CORE_DUMP_BIT,
@@ -97,6 +104,7 @@ struct trm_hw_config {
 	int (*trm_hw_dump)(void *dst, u32 ofs, u32 len);
 };
 
+int mtk_trm_cpu_utilization(enum core_id core, u32 *cpu_utilization);
 int mtk_trm_dump(u32 dump_rsn);
 int mtk_trm_cfg_setup(char *name, u32 offset, u32 size, u8 enable);
 int mtk_tops_trm_init(void);

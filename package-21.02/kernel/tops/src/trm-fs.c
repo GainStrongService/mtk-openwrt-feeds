@@ -11,13 +11,13 @@
 #include <linux/err.h>
 #include <linux/relay.h>
 
+#include "trm-debugfs.h"
 #include "trm-fs.h"
 #include "trm-mcu.h"
 #include "trm.h"
 
 #define RLY_RETRY_NUM				3
 
-static struct dentry *debugfs_dir;
 static struct rchan *relay;
 static bool trm_fs_is_init;
 
@@ -56,7 +56,7 @@ static struct dentry *trm_fs_create_buf_file_cb(const char *filename,
 {
 	struct dentry *debugfs_file;
 
-	debugfs_file = debugfs_create_file("dump_data", mode,
+	debugfs_file = debugfs_create_file("dump-data", mode,
 					   parent, buf,
 					   &relay_file_operations);
 
@@ -80,38 +80,21 @@ int mtk_trm_fs_init(void)
 	};
 	int ret = 0;
 
-	if (!debugfs_dir) {
-		debugfs_dir = debugfs_create_dir("tops", NULL);
-		if (IS_ERR(debugfs_dir)) {
-			ret = PTR_ERR(debugfs_dir);
-			goto out;
-		}
-	}
+	if (!trm_debugfs_root)
+		return -ENOENT;
 
 	if (!relay) {
-		relay = relay_open("dump_data", debugfs_dir,
+		relay = relay_open("dump-data", trm_debugfs_root,
 				   RLY_DUMP_SUBBUF_SZ,
 				   RLY_DUMP_SUBBUF_NUM,
 				   &relay_cb, NULL);
-		if (!relay) {
-			ret = -EINVAL;
-			goto err_debugfs_remove;
-		}
+		if (!relay)
+			return -EINVAL;
 	}
 
 	relay_reset(relay);
 
 	trm_fs_is_init = true;
-
-out:
-	return ret;
-
-err_debugfs_remove:
-	trm_fs_is_init = false;
-
-	debugfs_remove(debugfs_dir);
-
-	debugfs_dir = NULL;
 
 	return ret;
 }
@@ -121,6 +104,4 @@ void mtk_trm_fs_deinit(void)
 	trm_fs_is_init = false;
 
 	relay_close(relay);
-
-	debugfs_remove(debugfs_dir);
 }

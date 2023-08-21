@@ -24,6 +24,7 @@ tops-y += ser.o
 tops-y += tdma.o
 tops-y += trm-fs.o
 tops-y += trm-mcu.o
+tops-y += trm-debugfs.o
 tops-y += trm.o
 tops-y += wdt.o
 
