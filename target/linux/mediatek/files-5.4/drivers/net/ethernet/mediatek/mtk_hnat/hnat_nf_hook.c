@@ -1246,6 +1246,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	switch (ntohs(eth->h_proto)) {
 	case ETH_P_IP:
 		iph = ip_hdr(skb);
+		/* Do not bind if pkt is fragmented */
+		if (ip_is_fragment(iph))
+			return 0;
+
 		switch (iph->protocol) {
 		case IPPROTO_UDP:
 			udp = 1;
@@ -2519,10 +2523,6 @@ static unsigned int mtk_hnat_nf_post_routing(
 		return 0;
 
 	if (unlikely(!skb_hnat_is_hashed(skb)))
-		return 0;
-
-	/* Do not bind if pkt is fragmented */
-	if (ip_is_fragment(ip_hdr(skb)))
 		return 0;
 
 	if (out->netdev_ops->ndo_flow_offload_check) {
