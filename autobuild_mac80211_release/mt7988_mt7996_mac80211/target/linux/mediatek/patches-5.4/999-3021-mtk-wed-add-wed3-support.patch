@@ -13,7 +13,7 @@ Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_ppe.c       |   17 +-
  drivers/net/ethernet/mediatek/mtk_ppe.h       |    2 +-
  .../net/ethernet/mediatek/mtk_ppe_offload.c   |   13 +-
- drivers/net/ethernet/mediatek/mtk_wed.c       | 1148 +++++++++++++----
+ drivers/net/ethernet/mediatek/mtk_wed.c       | 1155 +++++++++++++----
  drivers/net/ethernet/mediatek/mtk_wed.h       |   25 +-
  .../net/ethernet/mediatek/mtk_wed_debugfs.c   |  584 ++++++++-
  drivers/net/ethernet/mediatek/mtk_wed_mcu.c   |   13 +-
@@ -1018,10 +1018,10 @@ index 37a86c3..e3809db 100644
 -#define MTK_WFMDA_RX_DMA_EN 	BIT(2)
 +	if (!mtk_wed_get_rx_capa(dev))
 +		return 0;
- 
++
 +	wed_set(dev, MTK_WED_RRO_PG_BM_RX_DMAM,
 +		FIELD_PREP(MTK_WED_RRO_PG_BM_RX_SDL0, 128));
-+
+ 
 +	wed_w32(dev, MTK_WED_RRO_PG_BM_BASE,
 +		dev->rx_page_buf_ring.desc_phys);
 +
@@ -1323,12 +1323,12 @@ index 37a86c3..e3809db 100644
 -		value = wed_r32(dev, MTK_WED_PCIE_CFG_BASE);
 -		wed_w32(dev, MTK_WED_PCIE_CFG_INTM, PCIE_BASE_ADDR0 | 0x180);
 -		wed_w32(dev, MTK_WED_PCIE_CFG_BASE, PCIE_BASE_ADDR0 | 0x184);
--
--		value = wed_r32(dev, MTK_WED_PCIE_CFG_INTM);
--		value = wed_r32(dev, MTK_WED_PCIE_CFG_BASE);
 +			MTK_WED_PCIE_INT_CTRL_MSK_IRQ_FILTER |
 +			FIELD_PREP(MTK_WED_PCIE_INT_CTRL_SRC_SEL, dev->hw->index));
  
+-		value = wed_r32(dev, MTK_WED_PCIE_CFG_INTM);
+-		value = wed_r32(dev, MTK_WED_PCIE_CFG_BASE);
+-
 -		wed_w32(dev, MTK_WED_PCIE_INT_TRIGGER, BIT(24));
 -		wed_r32(dev, MTK_WED_PCIE_INT_TRIGGER);
 -
@@ -2088,16 +2088,24 @@ index 37a86c3..e3809db 100644
  static u32
  mtk_wed_irq_get(struct mtk_wed_device *dev, u32 mask)
  {
-@@ -1660,6 +2335,8 @@ mtk_wed_irq_get(struct mtk_wed_device *dev, u32 mask)
+@@ -1659,9 +2334,13 @@ mtk_wed_irq_get(struct mtk_wed_device *dev, u32 mask)
+ 
  	val = wed_r32(dev, MTK_WED_EXT_INT_STATUS);
  	wed_w32(dev, MTK_WED_EXT_INT_STATUS, val);
- 	val &= MTK_WED_EXT_INT_STATUS_ERROR_MASK;
-+	if (dev->hw->version == 3)
+-	val &= MTK_WED_EXT_INT_STATUS_ERROR_MASK;
+-	if (!dev->hw->num_flows)
+-		val &= ~MTK_WED_EXT_INT_STATUS_TKID_WO_PYLD;
++	if (dev->hw->version == 3) {
 +		val &= MTK_WED_EXT_INT_STATUS_RX_DRV_COHERENT;
- 	WARN_RATELIMIT(val, "mtk_wed%d: error status=%08x\n",
- 		       dev->hw->index, val);
++	} else {
++		val &= MTK_WED_EXT_INT_STATUS_ERROR_MASK;	
++		if (!dev->hw->num_flows)
++			val &= ~MTK_WED_EXT_INT_STATUS_TKID_WO_PYLD;	
++	}
+ 	if (val && net_ratelimit())
+ 		pr_err("mtk_wed%d: error status=%08x\n", dev->hw->index, val);
  
-@@ -1752,6 +2429,9 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -1754,6 +2433,9 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  		.tx_ring_setup = mtk_wed_tx_ring_setup,
  		.txfree_ring_setup = mtk_wed_txfree_ring_setup,
  		.rx_ring_setup = mtk_wed_rx_ring_setup,
@@ -2107,7 +2115,7 @@ index 37a86c3..e3809db 100644
  		.msg_update = mtk_wed_send_msg,
  		.start = mtk_wed_start,
  		.stop = mtk_wed_stop,
-@@ -1763,6 +2443,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -1765,6 +2447,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  		.detach = mtk_wed_detach,
  		.setup_tc = mtk_wed_eth_setup_tc,
  		.ppe_check = mtk_wed_ppe_check,
@@ -2115,7 +2123,7 @@ index 37a86c3..e3809db 100644
  	};
  	struct device_node *eth_np = eth->dev->of_node;
  	struct platform_device *pdev;
-@@ -1802,9 +2483,10 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -1804,9 +2487,10 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  	hw->wdma_phy = wdma_phy;
  	hw->index = index;
  	hw->irq = irq;
@@ -2128,7 +2136,7 @@ index 37a86c3..e3809db 100644
  		hw->mirror = syscon_regmap_lookup_by_phandle(eth_np,
  							     "mediatek,pcie-mirror");
  		hw->hifsys = syscon_regmap_lookup_by_phandle(eth_np,
-@@ -1819,7 +2501,6 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -1821,7 +2505,6 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  			regmap_write(hw->mirror, 0, 0);
  			regmap_write(hw->mirror, 4, 0);
  		}
