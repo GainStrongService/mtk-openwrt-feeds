@@ -31,24 +31,6 @@ struct cdrt_hardware {
 
 struct cdrt_hardware cdrt_hw;
 
-int mtk_pce_cdrt_update_cls_rule(u32 cdrt_idx)
-{
-	struct cdrt_entry *cdrt;
-
-	if (!cdrt_idx || cdrt_idx >= FE_MEM_CDRT_MAX_INDEX)
-		return -EINVAL;
-
-	if (cdrt_idx >= CDRT_ENC_MAX_ENTRY)
-		cdrt = &cdrt_hw.enc_tbl[cdrt_idx - CDRT_ENC_IDX_OFS];
-	else
-		cdrt = &cdrt_hw.dec_tbl[cdrt_idx - CDRT_DEC_IDX_OFS];
-
-	if (cdrt->update_cls_rule)
-		return cdrt->update_cls_rule(cdrt);
-
-	return 0;
-}
-
 int mtk_pce_cdrt_desc_write(struct cdrt_desc *desc, u32 idx)
 {
 	struct fe_mem_msg msg;
@@ -136,6 +118,37 @@ int mtk_pce_cdrt_entry_write(struct cdrt_entry *cdrt)
 }
 EXPORT_SYMBOL(mtk_pce_cdrt_entry_write);
 
+struct cdrt_entry *mtk_pce_cdrt_entry_find(u32 cdrt_idx)
+{
+	struct cdrt_entry *cdrt;
+	unsigned long flag;
+	u32 idx;
+
+	if (unlikely(!cdrt_idx || cdrt_idx >= FE_MEM_CDRT_MAX_INDEX))
+		return ERR_PTR(-EINVAL);
+
+	spin_lock_irqsave(&cdrt_hw.lock, flag);
+
+	if (cdrt_idx < CDRT_DEC_IDX_OFS + CDRT_DEC_MAX_ENTRY) {
+		idx = cdrt_idx - CDRT_DEC_IDX_OFS;
+		if (!test_bit(idx, cdrt_hw.dec_used))
+			return ERR_PTR(-ENODEV);
+
+		cdrt = &cdrt_hw.dec_tbl[idx];
+	} else {
+		idx = cdrt_idx - CDRT_ENC_IDX_OFS;
+		if (!test_bit(idx, cdrt_hw.enc_used))
+			return ERR_PTR(-ENODEV);
+
+		cdrt = &cdrt_hw.enc_tbl[idx];
+	}
+
+	spin_unlock_irqrestore(&cdrt_hw.lock, flag);
+
+	return cdrt;
+}
+EXPORT_SYMBOL(mtk_pce_cdrt_entry_find);
+
 static struct cdrt_entry *mtk_pce_cdrt_entry_encrypt_alloc(void)
 {
 	u32 idx;
@@ -195,7 +208,6 @@ void mtk_pce_cdrt_entry_free(struct cdrt_entry *cdrt)
 		return;
 
 	cdrt->cls = NULL;
-	cdrt->update_cls_rule = NULL;
 
 	memset(&cdrt->desc.raw1, 0, sizeof(cdrt->desc.raw1));
 	memset(&cdrt->desc.raw2, 0, sizeof(cdrt->desc.raw2));

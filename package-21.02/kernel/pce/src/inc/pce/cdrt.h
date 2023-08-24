@@ -25,16 +25,14 @@ struct cdrt_entry {
 	enum cdrt_type type;
 	struct cdrt_desc desc;
 	struct cls_entry *cls;
-	int (*update_cls_rule)(struct cdrt_entry *cdrt);
 };
-
-int mtk_pce_cdrt_update_cls_rule(u32 cdrt_idx);
 
 int mtk_pce_cdrt_desc_write(struct cdrt_desc *desc, u32 idx);
 int mtk_pce_cdrt_desc_read(struct cdrt_desc *desc, u32 idx);
 
 int mtk_pce_cdrt_entry_write(struct cdrt_entry *cdrt);
 
+struct cdrt_entry *mtk_pce_cdrt_entry_find(u32 cdrt_idx);
 struct cdrt_entry *mtk_pce_cdrt_entry_alloc(enum cdrt_type type);
 void mtk_pce_cdrt_entry_free(struct cdrt_entry *cdrt);
 
