@@ -127,6 +127,7 @@ struct tops_tnl_params {
 	u16 protocol;
 	u8 tops_entry_proto;
 	u8 cls_entry;
+	u8 cdrt;
 	u8 flag; /* bit: enum tops_tnl_params_flag */
 	union {
 		struct l2tp_param l2tp; /* 4B */
@@ -147,6 +148,13 @@ struct tops_tnl_info {
 	u32 flag; /* bit: enum tops_tnl_info_flag */
 } __aligned(16);
 
+/*
+ * tnl_l2_param_update:
+ *	update tunnel l2 info only
+ *	return 1 on l2 params have difference
+ *	return 0 on l2 params are the same
+ *	return negative value on error
+ */
 struct tops_tnl_type {
 	const char *type_name;
 	enum tops_entry_type tops_entry;
@@ -162,6 +170,8 @@ struct tops_tnl_type {
 				     struct tops_tnl_params *tnl_params);
 	int (*tnl_debug_param_setup)(const char *buf, int *ofs,
 				     struct tops_tnl_params *tnl_params);
+	int (*tnl_l2_param_update)(struct sk_buff *skb,
+				   struct tops_tnl_params *tnl_params);
 	int (*tnl_dump_param)(char *buf, struct tops_tnl_params *tnl_params);
 	bool (*tnl_info_match)(struct tops_tnl_params *params1,
 			       struct tops_tnl_params *params2);

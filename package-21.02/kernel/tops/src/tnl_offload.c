@@ -22,6 +22,8 @@
 #include <mtk_hnat/hnat.h>
 #include <mtk_hnat/nf_hnat_mtk.h>
 
+#include <pce/cdrt.h>
+#include <pce/cls.h>
 #include <pce/dipfilter.h>
 #include <pce/pce.h>
 
@@ -123,7 +125,7 @@ static inline void skb_set_tops_tnl_idx(struct sk_buff *skb, u32 tnl_idx)
 
 static inline bool skb_tops_valid(struct sk_buff *skb)
 {
-	return (skb && skb_hnat_tops(skb) <= __TOPS_ENTRY_MAX);
+	return (skb && skb_hnat_tops(skb) < __TOPS_ENTRY_MAX);
 }
 
 static inline struct tops_tnl_type *skb_to_tnl_type(struct sk_buff *skb)
@@ -137,6 +139,19 @@ static inline struct tops_tnl_type *skb_to_tnl_type(struct sk_buff *skb)
 	tnl_type = tops_tnl.offload_tnl_types[tops_entry];
 
 	return tnl_type ? tnl_type : ERR_PTR(-ENODEV);
+}
+
+static inline struct tops_tnl_info *skb_to_tnl_info(struct sk_buff *skb)
+{
+	u32 tnl_idx = skb_hnat_tops(skb) - __TOPS_ENTRY_MAX;
+
+	if (tnl_idx >= CONFIG_TOPS_TNL_NUM)
+		return ERR_PTR(-EINVAL);
+
+	if (!test_bit(tnl_idx, tops_tnl.tnl_used))
+		return ERR_PTR(-EACCES);
+
+	return &tops_tnl.tnl_infos[tnl_idx];
 }
 
 static inline void skb_mark_unbind(struct sk_buff *skb)
@@ -331,25 +346,30 @@ static void mtk_tops_tnl_info_cls_update_idx(struct tops_tnl_info *tnl_info)
 	unsigned long flag;
 
 	tnl_info->tnl_params.cls_entry = tnl_info->tcls->cls->idx;
-	TOPS_NOTICE("cls entry: %u\n", tnl_info->tcls->cls->idx);
 
 	spin_lock_irqsave(&tnl_info->lock, flag);
 	tnl_info->cache.cls_entry = tnl_info->tcls->cls->idx;
 	spin_unlock_irqrestore(&tnl_info->lock, flag);
 }
 
-static void mtk_tops_tnl_info_cls_entry_unprepare(struct tops_tnl_info *tnl_info)
+static void mtk_tops_tnl_info_cls_entry_unprepare(struct tops_tnl_info *tnl_info,
+						  struct tops_tnl_params *tnl_params)
 {
 	struct tops_cls_entry *tcls = tnl_info->tcls;
 
-	pr_notice("cls entry unprepare\n");
 	tnl_info->tcls = NULL;
 
 	if (refcount_dec_and_test(&tcls->refcnt)) {
-		pr_notice("cls entry delete\n");
 		list_del(&tcls->node);
 
-		memset(&tcls->cls->cdesc, 0, sizeof(tcls->cls->cdesc));
+		if (!tnl_params->cdrt)
+			memset(&tcls->cls->cdesc, 0, sizeof(tcls->cls->cdesc));
+		else
+			/*
+			 * recover tport_ix to let match packets to
+			 * go through EIP197 only
+			 */
+			CLS_DESC_DATA(&tcls->cls->cdesc, tport_idx, 2);
 
 		mtk_pce_cls_entry_write(tcls->cls);
 
@@ -360,7 +380,8 @@ static void mtk_tops_tnl_info_cls_entry_unprepare(struct tops_tnl_info *tnl_info
 }
 
 static struct tops_cls_entry *
-mtk_tops_tnl_info_cls_entry_prepare(struct tops_tnl_info *tnl_info)
+mtk_tops_tnl_info_cls_entry_prepare(struct tops_tnl_info *tnl_info,
+				    struct tops_tnl_params *tnl_params)
 {
 	struct tops_cls_entry *tcls;
 	int ret;
@@ -369,10 +390,21 @@ mtk_tops_tnl_info_cls_entry_prepare(struct tops_tnl_info *tnl_info)
 	if (!tcls)
 		return ERR_PTR(-ENOMEM);
 
-	tcls->cls = mtk_pce_cls_entry_alloc();
-	if (IS_ERR(tcls->cls)) {
-		ret = PTR_ERR(tcls->cls);
-		goto free_tcls;
+	if (!tnl_params->cdrt) {
+		tcls->cls = mtk_pce_cls_entry_alloc();
+		if (IS_ERR(tcls->cls)) {
+			ret = PTR_ERR(tcls->cls);
+			goto free_tcls;
+		}
+	} else {
+		struct cdrt_entry *cdrt = mtk_pce_cdrt_entry_find(tnl_params->cdrt);
+
+		if (IS_ERR(cdrt)) {
+			ret = PTR_ERR(cdrt);
+			goto free_tcls;
+		}
+
+		tcls->cls = cdrt->cls;
 	}
 
 	INIT_LIST_HEAD(&tcls->node);
@@ -397,10 +429,8 @@ static int mtk_tops_tnl_info_cls_entry_write(struct tops_tnl_info *tnl_info)
 		return -EINVAL;
 
 	ret = mtk_pce_cls_entry_write(tnl_info->tcls->cls);
-	if (ret) {
-		mtk_tops_tnl_info_cls_entry_unprepare(tnl_info);
+	if (ret)
 		return ret;
-	}
 
 	tnl_info->tcls->updated = true;
 
@@ -409,9 +439,10 @@ static int mtk_tops_tnl_info_cls_entry_write(struct tops_tnl_info *tnl_info)
 	return 0;
 }
 
-static int mtk_tops_tnl_info_cls_tear_down(struct tops_tnl_info *tnl_info)
+static int mtk_tops_tnl_info_cls_tear_down(struct tops_tnl_info *tnl_info,
+					   struct tops_tnl_params *tnl_params)
 {
-	mtk_tops_tnl_info_cls_entry_unprepare(tnl_info);
+	mtk_tops_tnl_info_cls_entry_unprepare(tnl_info, tnl_params);
 
 	return 0;
 }
@@ -452,6 +483,7 @@ static bool mtk_tops_tnl_info_cls_single_is_updated(struct tops_tnl_info *tnl_in
 }
 
 static int mtk_tops_tnl_info_cls_single_setup(struct tops_tnl_info *tnl_info,
+					      struct tops_tnl_params *tnl_params,
 					      struct tops_tnl_type *tnl_type)
 {
 	struct tops_cls_entry *tcls;
@@ -461,20 +493,34 @@ static int mtk_tops_tnl_info_cls_single_setup(struct tops_tnl_info *tnl_info,
 		return 0;
 
 	if (tnl_info->tcls)
-		return mtk_tops_tnl_info_cls_entry_write(tnl_info);
+		goto cls_entry_write;
 
-	tcls = mtk_tops_tnl_info_cls_entry_prepare(tnl_info);
+	tcls = mtk_tops_tnl_info_cls_entry_prepare(tnl_info, tnl_params);
 	if (IS_ERR(tcls))
 		return PTR_ERR(tcls);
 
-	ret = tnl_type->cls_entry_setup(tnl_info, &tcls->cls->cdesc);
-	if (ret) {
-		TOPS_ERR("tops cls entry setup failed: %d\n", ret);
-		mtk_tops_tnl_info_cls_entry_unprepare(tnl_info);
-		return ret;
+	if (!tnl_params->cdrt) {
+		ret = tnl_type->cls_entry_setup(tnl_info, &tcls->cls->cdesc);
+		if (ret) {
+			TOPS_ERR("tops cls entry setup failed: %d\n", ret);
+			goto cls_entry_unprepare;
+		}
+	} else {
+		/*
+		 * since CLS is already filled up with outer protocol rule
+		 * we only update CLS tport here to let matched packet stop by TOPS
+		 */
+		CLS_DESC_DATA(&tcls->cls->cdesc, tport_idx, 0x7);
 	}
 
-	return mtk_tops_tnl_info_cls_entry_write(tnl_info);
+cls_entry_write:
+	ret = mtk_tops_tnl_info_cls_entry_write(tnl_info);
+
+cls_entry_unprepare:
+	if (ret)
+		mtk_tops_tnl_info_cls_entry_unprepare(tnl_info, tnl_params);
+
+	return ret;
 }
 
 static struct tops_cls_entry *
@@ -490,7 +536,7 @@ mtk_tops_tnl_info_cls_entry_find(struct tops_tnl_type *tnl_type,
 	return NULL;
 }
 
-static bool mtk_tops_tnl_infO_cls_multi_is_updated(struct tops_tnl_info *tnl_info,
+static bool mtk_tops_tnl_info_cls_multi_is_updated(struct tops_tnl_info *tnl_info,
 						   struct tops_tnl_type *tnl_type,
 						   struct cls_desc *cdesc)
 {
@@ -520,19 +566,35 @@ static bool mtk_tops_tnl_infO_cls_multi_is_updated(struct tops_tnl_info *tnl_inf
 }
 
 static int mtk_tops_tnl_info_cls_multi_setup(struct tops_tnl_info *tnl_info,
+					     struct tops_tnl_params *tnl_params,
 					     struct tops_tnl_type *tnl_type)
 {
 	struct tops_cls_entry *tcls;
 	struct cls_desc cdesc;
+
 	int ret;
 
-	memset(&cdesc, 0, sizeof(struct cls_desc));
+	if (!tnl_params->cdrt) {
+		memset(&cdesc, 0, sizeof(struct cls_desc));
 
-	/* prepare cls_desc from tnl_type */
-	ret = tnl_type->cls_entry_setup(tnl_info, &cdesc);
-	if (ret) {
-		TOPS_ERR("tops cls entry setup failed: %d\n", ret);
-		return ret;
+		/* prepare cls_desc from tnl_type */
+		ret = tnl_type->cls_entry_setup(tnl_info, &cdesc);
+		if (ret) {
+			TOPS_ERR("tops cls entry setup failed: %d\n", ret);
+			return ret;
+		}
+	} else {
+		struct cdrt_entry *cdrt = mtk_pce_cdrt_entry_find(tnl_params->cdrt);
+
+		if (IS_ERR(cdrt)) {
+			TOPS_ERR("no cdrt idx: %u related CDRT found\n",
+				 tnl_params->cdrt);
+			return ret;
+		}
+
+		memcpy(&cdesc, &cdrt->cls->cdesc, sizeof(struct cls_desc));
+
+		CLS_DESC_DATA(&cdesc, tport_idx, 0x7);
 	}
 
 	/*
@@ -544,7 +606,7 @@ static int mtk_tops_tnl_info_cls_multi_setup(struct tops_tnl_info *tnl_info,
 	 * a tcls is not yet updated or
 	 * tnl_info is not yet associated to a tcls
 	 */
-	if (mtk_tops_tnl_infO_cls_multi_is_updated(tnl_info, tnl_type, &cdesc))
+	if (mtk_tops_tnl_info_cls_multi_is_updated(tnl_info, tnl_type, &cdesc))
 		return 0;
 
 	/* tcls is not yet updated, update this tcls */
@@ -552,16 +614,21 @@ static int mtk_tops_tnl_info_cls_multi_setup(struct tops_tnl_info *tnl_info,
 		return mtk_tops_tnl_info_cls_entry_write(tnl_info);
 
 	/* create a new tcls entry and associate with tnl_info */
-	tcls = mtk_tops_tnl_info_cls_entry_prepare(tnl_info);
+	tcls = mtk_tops_tnl_info_cls_entry_prepare(tnl_info, tnl_params);
 	if (IS_ERR(tcls))
 		return PTR_ERR(tcls);
 
 	memcpy(&tcls->cls->cdesc, &cdesc, sizeof(struct cls_desc));
 
-	return mtk_tops_tnl_info_cls_entry_write(tnl_info);
+	ret = mtk_tops_tnl_info_cls_entry_write(tnl_info);
+	if (ret)
+		mtk_tops_tnl_info_cls_entry_unprepare(tnl_info, tnl_params);
+
+	return ret;
 }
 
-static int mtk_tops_tnl_info_cls_setup(struct tops_tnl_info *tnl_info)
+static int mtk_tops_tnl_info_cls_setup(struct tops_tnl_info *tnl_info,
+				       struct tops_tnl_params *tnl_params)
 {
 	struct tops_tnl_type *tnl_type;
 
@@ -573,9 +640,11 @@ static int mtk_tops_tnl_info_cls_setup(struct tops_tnl_info *tnl_info)
 		return -EINVAL;
 
 	if (!tnl_type->use_multi_cls)
-		return mtk_tops_tnl_info_cls_single_setup(tnl_info, tnl_type);
+		return mtk_tops_tnl_info_cls_single_setup(tnl_info,
+							  tnl_params,
+							  tnl_type);
 
-	return mtk_tops_tnl_info_cls_multi_setup(tnl_info, tnl_type);
+	return mtk_tops_tnl_info_cls_multi_setup(tnl_info, tnl_params, tnl_type);
 }
 
 static int mtk_tops_tnl_info_dipfilter_tear_down(struct tops_tnl_info *tnl_info)
@@ -712,8 +781,11 @@ static int mtk_tops_tnl_info_setup(struct sk_buff *skb,
 
 	lockdep_assert_held(&tnl_info->lock);
 
+	/* manually preserve essential data among encapsulation and decapsulation */
 	tnl_params->flag |= tnl_info->cache.flag;
 	tnl_params->cls_entry = tnl_info->cache.cls_entry;
+	if (tnl_info->cache.cdrt)
+		tnl_params->cdrt = tnl_info->cache.cdrt;
 
 	if (memcmp(&tnl_info->cache, tnl_params, sizeof(struct tops_tnl_params))) {
 		memcpy(&tnl_info->cache, tnl_params, sizeof(struct tops_tnl_params));
@@ -876,6 +948,34 @@ err_out:
 	return ret;
 }
 
+static int mtk_tops_tnl_l2_update(struct sk_buff *skb)
+{
+	struct tops_tnl_info *tnl_info = skb_to_tnl_info(skb);
+	struct tops_tnl_type *tnl_type;
+	unsigned long flag;
+	int ret;
+
+	if (IS_ERR(tnl_info))
+		return PTR_ERR(tnl_info);
+
+	tnl_type = tnl_info->tnl_type;
+	if (!tnl_type->tnl_l2_param_update)
+		return -ENODEV;
+
+	spin_lock_irqsave(&tnl_info->lock, flag);
+
+	ret = tnl_type->tnl_l2_param_update(skb, &tnl_info->cache);
+	/* tnl params need to be updated */
+	if (ret == 1) {
+		mtk_tops_tnl_info_submit_no_tnl_lock(tnl_info);
+		ret = 0;
+	}
+
+	spin_unlock_irqrestore(&tnl_info->lock, flag);
+
+	return ret;
+}
+
 static bool mtk_tops_tnl_decap_offloadable(struct sk_buff *skb)
 {
 	struct tops_tnl_type *tnl_type;
@@ -962,6 +1062,7 @@ static int mtk_tops_tnl_decap_offload(struct sk_buff *skb)
 	}
 
 	tnl_params.tops_entry_proto = tnl_type->tops_entry;
+	tnl_params.cdrt = skb_hnat_cdrt(skb);
 
 	ret = mtk_tops_tnl_offload(skb, tnl_type, &tnl_params);
 
@@ -976,19 +1077,11 @@ static int mtk_tops_tnl_decap_offload(struct sk_buff *skb)
 	return ret;
 }
 
-static int mtk_tops_tnl_encap_offload(struct sk_buff *skb)
+static int __mtk_tops_tnl_encap_offload(struct sk_buff *skb)
 {
 	struct tops_tnl_params tnl_params;
 	struct tops_tnl_type *tnl_type;
 	int ret;
-
-	if (unlikely(!mtk_tops_mcu_alive())) {
-		skb_mark_unbind(skb);
-		return -EAGAIN;
-	}
-
-	if (unlikely(!skb_tops_valid(skb) || !skb_hnat_is_encap(skb)))
-		return -EPERM;
 
 	tnl_type = skb_to_tnl_type(skb);
 	if (IS_ERR(tnl_type))
@@ -1003,8 +1096,25 @@ static int mtk_tops_tnl_encap_offload(struct sk_buff *skb)
 	if (unlikely(ret))
 		return ret;
 	tnl_params.tops_entry_proto = tnl_type->tops_entry;
+	tnl_params.cdrt = skb_hnat_cdrt(skb);
 
 	return mtk_tops_tnl_offload(skb, tnl_type, &tnl_params);
+}
+
+static int mtk_tops_tnl_encap_offload(struct sk_buff *skb)
+{
+	if (unlikely(!mtk_tops_mcu_alive())) {
+		skb_mark_unbind(skb);
+		return -EAGAIN;
+	}
+
+	if (!skb_hnat_is_encap(skb))
+		return -EPERM;
+
+	if (unlikely(skb_hnat_cdrt(skb)))
+		return mtk_tops_tnl_l2_update(skb);
+
+	return __mtk_tops_tnl_encap_offload(skb);
 }
 
 static struct net_device *mtk_tops_get_tnl_dev(int tnl_idx)
@@ -1136,6 +1246,7 @@ static int __mtk_tops_tnl_sync_param_delete(struct tops_tnl_info *tnl_info)
 
 static int mtk_tops_tnl_sync_param_delete(struct tops_tnl_info *tnl_info)
 {
+	struct tops_tnl_params tnl_params;
 	int ret;
 
 	ret = mtk_tops_tnl_info_dipfilter_tear_down(tnl_info);
@@ -1145,13 +1256,14 @@ static int mtk_tops_tnl_sync_param_delete(struct tops_tnl_info *tnl_info)
 		return ret;
 	}
 
+	memcpy(&tnl_params, &tnl_info->tnl_params, sizeof(struct tops_tnl_params));
 	ret = __mtk_tops_tnl_sync_param_delete(tnl_info);
 	if (ret) {
 		TOPS_ERR("tnl sync deletion failed: %d\n", ret);
 		return ret;
 	}
 
-	ret = mtk_tops_tnl_info_cls_tear_down(tnl_info);
+	ret = mtk_tops_tnl_info_cls_tear_down(tnl_info, &tnl_params);
 	if (ret) {
 		TOPS_ERR("tnl sync cls tear down faild: %d\n",
 			 ret);
@@ -1200,7 +1312,7 @@ static int mtk_tops_tnl_sync_param_update(struct tops_tnl_info *tnl_info,
 	int ret;
 
 	if (setup_pce) {
-		ret = mtk_tops_tnl_info_cls_setup(tnl_info);
+		ret = mtk_tops_tnl_info_cls_setup(tnl_info, &tnl_info->tnl_params);
 		if (ret) {
 			TOPS_ERR("tnl cls setup failed: %d\n", ret);
 			return ret;
@@ -1227,7 +1339,7 @@ static int mtk_tops_tnl_sync_param_update(struct tops_tnl_info *tnl_info,
 	return ret;
 
 cls_tear_down:
-	mtk_tops_tnl_info_cls_tear_down(tnl_info);
+	mtk_tops_tnl_info_cls_tear_down(tnl_info, &tnl_info->tnl_params);
 
 	return ret;
 }
@@ -1532,7 +1644,7 @@ void mtk_tops_tnl_offload_pce_clean_up(void)
 
 		mtk_tops_tnl_info_dipfilter_tear_down(tnl_info);
 
-		mtk_tops_tnl_info_cls_tear_down(tnl_info);
+		mtk_tops_tnl_info_cls_tear_down(tnl_info, &tnl_info->tnl_params);
 	}
 
 	spin_unlock_irqrestore(&tops_tnl.tbl_lock, flag);

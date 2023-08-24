@@ -10,7 +10,7 @@
  		skb_hnat_set_is_decap(skb, 0);
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat_nf_hook.c
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat_nf_hook.c
-@@ -1075,6 +1075,9 @@ static unsigned int hnat_ipv4_get_nextho
+@@ -1076,6 +1076,9 @@ static unsigned int hnat_ipv4_get_nextho
  		return 0;
  	}
  
@@ -20,7 +20,7 @@
  	rcu_read_lock_bh();
  	nexthop = (__force u32)rt_nexthop(rt, ip_hdr(skb)->daddr);
  	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
-@@ -1096,7 +1099,7 @@ static unsigned int hnat_ipv4_get_nextho
+@@ -1097,7 +1100,7 @@ static unsigned int hnat_ipv4_get_nextho
  	 * outer header, we must update its outer mac header pointer
  	 * before filling outer mac or it may screw up inner mac
  	 */
@@ -29,7 +29,7 @@
  		skb_push(skb, sizeof(struct ethhdr));
  		skb_reset_mac_header(skb);
  	}
-@@ -1104,7 +1107,7 @@ static unsigned int hnat_ipv4_get_nextho
+@@ -1105,7 +1108,7 @@ static unsigned int hnat_ipv4_get_nextho
  	memcpy(eth_hdr(skb)->h_dest, neigh->ha, ETH_ALEN);
  	memcpy(eth_hdr(skb)->h_source, out->dev_addr, ETH_ALEN);
  
@@ -38,7 +38,7 @@
  		skb_pull(skb, sizeof(struct ethhdr));
  
  	rcu_read_unlock_bh();
-@@ -1289,6 +1292,9 @@ static inline void hnat_fill_offload_eng
+@@ -1299,6 +1302,9 @@ static inline void hnat_fill_offload_eng
  		 */
  		entry->ipv4_hnapt.tport_id = NR_TDMA_QDMA_TPORT;
  		entry->ipv4_hnapt.tops_entry = skb_hnat_tops(skb);
@@ -48,7 +48,7 @@
  	} else {
  		return;
  	}
-@@ -1334,7 +1340,8 @@ static unsigned int skb_to_hnat_info(str
+@@ -1344,7 +1350,8 @@ static unsigned int skb_to_hnat_info(str
  	if (whnat && is_hnat_pre_filled(foe))
  		return 0;
  
@@ -58,7 +58,7 @@
  		hnat_get_filled_unbind_entry(skb, &entry);
  		goto hnat_entry_bind;
  	}
-@@ -1734,7 +1741,8 @@ static unsigned int skb_to_hnat_info(str
+@@ -1744,7 +1751,8 @@ static unsigned int skb_to_hnat_info(str
  	/* Fill Layer2 Info.*/
  	entry = ppe_fill_L2_info(eth, entry, hw_path);
  
@@ -68,7 +68,7 @@
  		goto hnat_entry_skip_bind;
  
  hnat_entry_bind:
-@@ -1938,6 +1946,8 @@ hnat_entry_bind:
+@@ -1950,6 +1958,8 @@ hnat_entry_bind:
  
  #if defined(CONFIG_MEDIATEK_NETSYS_V3)
  	hnat_fill_offload_engine_entry(skb, &entry, dev);
@@ -77,7 +77,7 @@
  #endif
  
  hnat_entry_skip_bind:
-@@ -2215,6 +2225,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
+@@ -2227,6 +2237,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
  
  	skb_hnat_alg(skb) = 0;
  	skb_hnat_set_tops(skb, 0);
@@ -85,7 +85,7 @@
  	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
  
  	if (skb_hnat_iface(skb) == FOE_MAGIC_WED0)
-@@ -2301,7 +2312,8 @@ static unsigned int mtk_hnat_accel_type(
+@@ -2313,7 +2324,8 @@ static unsigned int mtk_hnat_accel_type(
  	 * is from local_out which is also filtered in sanity check.
  	 */
  	dst = skb_dst(skb);
@@ -95,7 +95,7 @@
  		return 0;
  
  	ct = nf_ct_get(skb, &ctinfo);
-@@ -2993,7 +3005,10 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
+@@ -3005,7 +3017,10 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
  	if (iph->protocol == IPPROTO_IPV6) {
  		entry->udib1.pkt_type = IPV6_6RD;
  		hnat_set_head_frags(state, skb, 0, hnat_set_alg);
