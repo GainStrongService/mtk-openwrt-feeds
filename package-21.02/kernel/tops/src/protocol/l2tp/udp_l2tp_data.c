@@ -12,31 +12,31 @@
 #include <linux/udp.h>
 
 #include <pce/cls.h>
+#include <pce/netsys.h>
 #include <pce/pce.h>
 
 #include "protocol/l2tp/l2tp.h"
 #include "protocol/ppp/ppp.h"
 #include "tunnel.h"
 
-static struct cls_entry udp_l2tp_data_cls_entry = {
-	.entry = CLS_ENTRY_UDP_L2TP_DATA,
-	.cdesc = {
-		.fport = 0x3,
-		.tport_idx = 0x4,
-		.tag_m = 0x3,
-		.tag = 0x2,
-		.dip_match_m = 0x1,
-		.dip_match = 0x1,
-		.l4_type_m = 0xFF,
-		.l4_type = 0x11,
-		.l4_valid_m = 0x7,
-		.l4_valid = 0x7,
-		.l4_dport_m = 0xFFFF,
-		.l4_dport = 1701,
-		.l4_hdr_usr_data_m = 0x80030000,
-		.l4_hdr_usr_data = 0x00020000,
-	},
-};
+static int udp_l2tp_data_cls_entry_setup(struct tops_tnl_info *tnl_info,
+					 struct cls_desc *cdesc)
+{
+	CLS_DESC_DATA(cdesc, fport, PSE_PORT_PPE0);
+	CLS_DESC_DATA(cdesc, tport_idx, 0x4);
+	CLS_DESC_MASK_DATA(cdesc, tag, CLS_DESC_TAG_MASK, CLS_DESC_TAG_MATCH_L4_USR);
+	CLS_DESC_MASK_DATA(cdesc, dip_match, CLS_DESC_DIP_MATCH, CLS_DESC_DIP_MATCH);
+	CLS_DESC_MASK_DATA(cdesc, l4_type, CLS_DESC_L4_TYPE_MASK, IPPROTO_UDP);
+	CLS_DESC_MASK_DATA(cdesc, l4_valid,
+			   CLS_DESC_L4_VALID_MASK,
+			   CLS_DESC_VALID_UPPER_HALF_WORD_BIT |
+			   CLS_DESC_VALID_LOWER_HALF_WORD_BIT |
+			   CLS_DESC_VALID_DPORT_BIT);
+	CLS_DESC_MASK_DATA(cdesc, l4_dport, CLS_DESC_L4_DPORT_MASK, 1701);
+	CLS_DESC_MASK_DATA(cdesc, l4_hdr_usr_data, 0x80030000, 0x00020000);
+
+	return 0;
+}
 
 static inline bool l2tpv2_offload_match(struct udp_l2tp_data_hdr *l2tp)
 {
@@ -293,6 +293,7 @@ static bool udp_l2tp_data_tnl_decap_offloadable(struct sk_buff *skb)
 
 static struct tops_tnl_type udp_l2tp_data_type = {
 	.type_name = "udp-l2tp-data",
+	.cls_entry_setup = udp_l2tp_data_cls_entry_setup,
 	.tnl_decap_param_setup = udp_l2tp_data_tnl_decap_param_setup,
 	.tnl_encap_param_setup = udp_l2tp_data_tnl_encap_param_setup,
 	.tnl_debug_param_setup = udp_l2tp_data_tnl_debug_param_setup,
@@ -304,24 +305,10 @@ static struct tops_tnl_type udp_l2tp_data_type = {
 
 int mtk_tops_udp_l2tp_data_init(void)
 {
-	int ret = 0;
-
-	ret = mtk_tops_tnl_type_register(&udp_l2tp_data_type);
-	if (ret)
-		return ret;
-
-	ret = mtk_pce_cls_entry_register(&udp_l2tp_data_cls_entry);
-	if (ret) {
-		mtk_tops_tnl_type_unregister(&udp_l2tp_data_type);
-		return ret;
-	}
-
-	return ret;
+	return mtk_tops_tnl_type_register(&udp_l2tp_data_type);
 }
 
 void mtk_tops_udp_l2tp_data_deinit(void)
 {
-	mtk_pce_cls_entry_unregister(&udp_l2tp_data_cls_entry);
-
 	mtk_tops_tnl_type_unregister(&udp_l2tp_data_type);
 }

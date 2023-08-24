@@ -163,7 +163,7 @@ static int mtk_tops_ctrl_add_tnl(const char *buf)
 	tnl_params.flag |= TNL_ENCAP_ENABLE;
 	tnl_params.tops_entry_proto = tnl_type->tops_entry;
 
-	tnl_info = mtk_tops_tnl_info_alloc();
+	tnl_info = mtk_tops_tnl_info_alloc(tnl_type);
 	if (IS_ERR(tnl_info))
 		return -ENOMEM;
 

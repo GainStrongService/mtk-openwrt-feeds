@@ -8,29 +8,30 @@
 #include <net/gre.h>
 
 #include <pce/cls.h>
+#include <pce/netsys.h>
 #include <pce/pce.h>
 
 #include "tunnel.h"
 
-static struct cls_entry gretap_cls_entry = {
-	.entry = CLS_ENTRY_GRETAP,
-	.cdesc = {
-		.fport = 0x3,
-		.tport_idx = 0x4,
-		.tag_m = 0x3,
-		.tag = 0x1,
-		.dip_match_m = 0x1,
-		.dip_match = 0x1,
-		.l4_type_m = 0xFF,
-		.l4_type = 0x2F,
-		.l4_udp_hdr_nez_m = 0x1,
-		.l4_udp_hdr_nez = 0x1,
-		.l4_valid_m = 0x7,
-		.l4_valid = 0x3,
-		.l4_hdr_usr_data_m = 0xFFFF,
-		.l4_hdr_usr_data = 0x6558,
-	},
-};
+static int gretap_cls_entry_setup(struct tops_tnl_info *tnl_info,
+				  struct cls_desc *cdesc)
+{
+	CLS_DESC_DATA(cdesc, fport, PSE_PORT_PPE0);
+	CLS_DESC_DATA(cdesc, tport_idx, 0x4);
+	CLS_DESC_MASK_DATA(cdesc, tag, CLS_DESC_TAG_MASK, CLS_DESC_TAG_MATCH_L4_HDR);
+	CLS_DESC_MASK_DATA(cdesc, dip_match, CLS_DESC_DIP_MATCH, CLS_DESC_DIP_MATCH);
+	CLS_DESC_MASK_DATA(cdesc, l4_type, CLS_DESC_L4_TYPE_MASK, IPPROTO_GRE);
+	CLS_DESC_MASK_DATA(cdesc, l4_udp_hdr_nez,
+			   CLS_DESC_UDPLITE_L4_HDR_NEZ_MASK,
+			   CLS_DESC_UDPLITE_L4_HDR_NEZ_MASK);
+	CLS_DESC_MASK_DATA(cdesc, l4_valid,
+			   CLS_DESC_L4_VALID_MASK,
+			   CLS_DESC_VALID_UPPER_HALF_WORD_BIT |
+			   CLS_DESC_VALID_LOWER_HALF_WORD_BIT);
+	CLS_DESC_MASK_DATA(cdesc, l4_hdr_usr_data, 0x0000FFFF, 0x00006558);
+
+	return 0;
+}
 
 static int gretap_tnl_decap_param_setup(struct sk_buff *skb,
 					struct tops_tnl_params *tnl_params)
@@ -171,6 +172,7 @@ static bool gretap_tnl_decap_offloadable(struct sk_buff *skb)
 
 static struct tops_tnl_type gretap_type = {
 	.type_name = "gretap",
+	.cls_entry_setup = gretap_cls_entry_setup,
 	.tnl_decap_param_setup = gretap_tnl_decap_param_setup,
 	.tnl_encap_param_setup = gretap_tnl_encap_param_setup,
 	.tnl_debug_param_setup = gretap_tnl_debug_param_setup,
@@ -182,24 +184,10 @@ static struct tops_tnl_type gretap_type = {
 
 int mtk_tops_gretap_init(void)
 {
-	int ret;
-
-	ret = mtk_tops_tnl_type_register(&gretap_type);
-	if (ret)
-		return ret;
-
-	ret = mtk_pce_cls_entry_register(&gretap_cls_entry);
-	if (ret) {
-		mtk_tops_tnl_type_unregister(&gretap_type);
-		return ret;
-	}
-
-	return ret;
+	return mtk_tops_tnl_type_register(&gretap_type);
 }
 
 void mtk_tops_gretap_deinit(void)
 {
-	mtk_pce_cls_entry_unregister(&gretap_cls_entry);
-
 	mtk_tops_tnl_type_unregister(&gretap_type);
 }

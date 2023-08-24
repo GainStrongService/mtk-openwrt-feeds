@@ -18,6 +18,8 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
+#include <pce/cls.h>
+
 #include "protocol/l2tp/l2tp.h"
 
 /* tunnel info status */
@@ -107,6 +109,13 @@ enum tops_tnl_info_flag {
 	TNL_INFO_DEBUG_BIT,
 };
 
+struct tops_cls_entry {
+	struct cls_entry *cls;
+	struct list_head node;
+	refcount_t refcnt;
+	bool updated;
+};
+
 /* record outer tunnel header data for HW offloading */
 struct tops_tnl_params {
 	u8 daddr[ETH_ALEN];
@@ -117,6 +126,7 @@ struct tops_tnl_params {
 	__be16 sport;
 	u16 protocol;
 	u8 tops_entry_proto;
+	u8 cls_entry;
 	u8 flag; /* bit: enum tops_tnl_params_flag */
 	union {
 		struct l2tp_param l2tp; /* 4B */
@@ -126,19 +136,26 @@ struct tops_tnl_params {
 struct tops_tnl_info {
 	struct tops_tnl_params tnl_params;
 	struct tops_tnl_params cache;
+	struct tops_tnl_type *tnl_type;
+	struct tops_cls_entry *tcls;
 	struct list_head sync_node;
 	struct hlist_node hlist;
 	struct net_device *dev;
-	struct timer_list taging;
 	spinlock_t lock;
 	u32 tnl_idx;
 	u32 status;
 	u32 flag; /* bit: enum tops_tnl_info_flag */
-	refcount_t refcnt;
 } __aligned(16);
 
 struct tops_tnl_type {
 	const char *type_name;
+	enum tops_entry_type tops_entry;
+
+	int (*cls_entry_setup)(struct tops_tnl_info *tnl_info,
+			       struct cls_desc *cdesc);
+	struct list_head tcls_head;
+	bool use_multi_cls;
+
 	int (*tnl_decap_param_setup)(struct sk_buff *skb,
 				     struct tops_tnl_params *tnl_params);
 	int (*tnl_encap_param_setup)(struct sk_buff *skb,
@@ -149,14 +166,13 @@ struct tops_tnl_type {
 	bool (*tnl_info_match)(struct tops_tnl_params *params1,
 			       struct tops_tnl_params *params2);
 	bool (*tnl_decap_offloadable)(struct sk_buff *skb);
-	enum tops_entry_type tops_entry;
 	bool has_inner_eth;
 };
 
 void mtk_tops_tnl_info_submit_no_tnl_lock(struct tops_tnl_info *tnl_info);
 void mtk_tops_tnl_info_submit(struct tops_tnl_info *tnl_info);
 struct tops_tnl_info *mtk_tops_tnl_info_find(struct tops_tnl_params *tnl_params);
-struct tops_tnl_info *mtk_tops_tnl_info_alloc(void);
+struct tops_tnl_info *mtk_tops_tnl_info_alloc(struct tops_tnl_type *tnl_type);
 void mtk_tops_tnl_info_hash(struct tops_tnl_info *tnl_info);
 
 int mtk_tops_tnl_offload_init(struct platform_device *pdev);
