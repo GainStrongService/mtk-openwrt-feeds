@@ -120,13 +120,11 @@ int mtk_trm_cfg_setup(char *name, u32 offset, u32 size, u8 enable)
 
 	for (i = 0; i < __TRM_HARDWARE_MAX; i++) {
 		trm_hw_cfg = trm_hw_configs[i];
-		if (unlikely(!trm_hw_cfg))
+		if (unlikely(!trm_hw_cfg || !trm_hw_cfg->trm_cfgs))
 			continue;
 
 		for (j = 0; j < trm_hw_cfg->cfg_len; j++) {
 			trm_cfg = &trm_hw_cfg->trm_cfgs[j];
-			if (unlikely(!trm_cfg))
-				continue;
 
 			if (!strncmp(trm_cfg->name, name, strlen(name))) {
 				mutex_lock(&trm_lock);
@@ -178,7 +176,7 @@ static int __mtk_trm_dump(struct trm_hw_config *trm_hw_cfg,
 			total -= RLY_DUMP_SUBBUF_DATA_MAX;
 		} else {
 			frag_len = total;
-			total -= total;
+			total = 0;
 			trm_hdr.last_frag = true;
 		}
 

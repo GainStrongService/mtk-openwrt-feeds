@@ -1387,7 +1387,7 @@ static int mtk_tops_mcu_pm_domain_attach(struct platform_device *pdev)
 		return -ENOMEM;
 
 	npu.pd_links = devm_kmalloc_array(dev, npu.pd_num,
-					  sizeof(struct device_link),
+					  sizeof(*npu.pd_links),
 					  GFP_KERNEL);
 	if (!npu.pd_links)
 		return -ENOMEM;

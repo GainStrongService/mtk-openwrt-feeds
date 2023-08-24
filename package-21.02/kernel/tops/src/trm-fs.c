@@ -36,10 +36,8 @@ void *mtk_trm_fs_relay_reserve(u32 size)
 		if (likely(dst))
 			return dst;
 
-		if (rty++ < 3)
-			msleep(100);
-		else
-			break;
+		rty++;
+		msleep(100);
 	}
 
 	return ERR_PTR(-ENOMEM);

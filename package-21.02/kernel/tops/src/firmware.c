@@ -377,7 +377,7 @@ static u32 mtk_tops_fw_get_boot_addr(struct tops_fw_part *part)
 	u32 boot_addr = TOPS_DEFAULT_BOOT_ADDR;
 	u32 i;
 
-	for (i = TOPS_PART_TYPE_IRAM0; i < __TOPS_PART_TYPE_MAX; i++) {
+	for (i = TOPS_PART_TYPE_IRAM0; i < TOPS_PART_TYPE_METADATA; i++) {
 		hdr = part->hdr[i];
 
 		if (le16_to_cpu(hdr->flags) & FW_PART_BOOT_OVERRIDE) {
@@ -565,19 +565,21 @@ static int mtk_tops_fw_get_info(const struct tops_fw *tfw, struct tops_fw_part *
 	u32 meta_len;
 	u32 ofs = 0;
 	u32 nattr;
-	u32 i;
+	int i;
 
 	if (!tfw || !part)
 		return -EINVAL;
 
-	if (FW_ROLE(tfw) > __TOPS_ROLE_TYPE_MAX)
+	if (FW_ROLE(tfw) >= __TOPS_ROLE_TYPE_MAX)
 		return -EINVAL;
 
 	phdr = part->hdr[TOPS_PART_TYPE_METADATA];
 	payload = part->payload[TOPS_PART_TYPE_METADATA];
-	meta_len = le32_to_cpu(phdr->size);
+	if (!phdr || !payload)
+		return 0;
 
-	if (!phdr || !payload || !meta_len)
+	meta_len = le32_to_cpu(phdr->size);
+	if (!meta_len)
 		return 0;
 
 	fw_info = &npu.fw_info[FW_ROLE(tfw)];

@@ -123,9 +123,7 @@ static inline void skb_set_tops_tnl_idx(struct sk_buff *skb, u32 tnl_idx)
 
 static inline bool skb_tops_valid(struct sk_buff *skb)
 {
-	return (skb
-		&& skb_hnat_tops(skb) >= 0
-		&& skb_hnat_tops(skb) <= __TOPS_ENTRY_MAX);
+	return (skb && skb_hnat_tops(skb) <= __TOPS_ENTRY_MAX);
 }
 
 static inline struct tops_tnl_type *skb_to_tnl_type(struct sk_buff *skb)
