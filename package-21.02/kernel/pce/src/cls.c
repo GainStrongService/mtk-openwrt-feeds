@@ -5,6 +5,8 @@
  * Author: Ren-Ting Wang <ren-ting.wang@mediatek.com>
  */
 
+#include <linux/bitmap.h>
+#include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/lockdep.h>
 #include <linux/spinlock.h>
@@ -14,7 +16,8 @@
 #include "pce/netsys.h"
 
 struct cls_hw {
-	struct cls_entry *cls_tbl[FE_MEM_CLS_MAX_INDEX];
+	struct cls_entry cls_tbl[FE_MEM_CLS_MAX_INDEX];
+	DECLARE_BITMAP(cls_used, FE_MEM_CLS_MAX_INDEX);
 	spinlock_t lock;
 };
 
@@ -60,9 +63,14 @@ unlock:
 
 int mtk_pce_cls_init(struct platform_device *pdev)
 {
+	u32 i;
+
 	spin_lock_init(&cls_hw.lock);
 
 	mtk_pce_cls_clean_up();
+
+	for (i = 0; i < FE_MEM_CLS_MAX_INDEX; i++)
+		cls_hw.cls_tbl[i].idx = i + 1;
 
 	return 0;
 }
@@ -72,18 +80,15 @@ void mtk_pce_cls_deinit(struct platform_device *pdev)
 	mtk_pce_cls_clean_up();
 }
 
-/*
- * Read a cls_desc without checking it is in used or not
- * cls_hw.lock should be held before calling this function
- */
-static int __mtk_pce_cls_desc_read(struct cls_desc *cdesc, enum cls_entry_type entry)
+int mtk_pce_cls_desc_read(struct cls_desc *cdesc, u32 idx)
 {
 	struct fe_mem_msg msg;
 	int ret;
 
-	lockdep_assert_held(&cls_hw.lock);
+	if (unlikely(!cdesc || !idx || idx >= FE_MEM_CLS_MAX_INDEX))
+		return -EINVAL;
 
-	mtk_pce_fe_mem_msg_config(&msg, FE_MEM_CMD_READ, FE_MEM_TYPE_CLS, entry);
+	mtk_pce_fe_mem_msg_config(&msg, FE_MEM_CMD_READ, FE_MEM_TYPE_CLS, idx);
 
 	memset(&msg.raw, 0, sizeof(msg.raw));
 
@@ -96,39 +101,14 @@ static int __mtk_pce_cls_desc_read(struct cls_desc *cdesc, enum cls_entry_type e
 	return ret;
 }
 
-/*
- * Read a cls_desc without checking it is in used or not
- * This function is only used for debugging purpose
- */
-int mtk_pce_cls_desc_read(struct cls_desc *cdesc, enum cls_entry_type entry)
-{
-	unsigned long flag;
-	int ret;
-
-	if (unlikely(entry == CLS_ENTRY_NONE || entry >= __CLS_ENTRY_MAX)) {
-		PCE_ERR("invalid cls entry: %u\n", entry);
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&cls_hw.lock, flag);
-	ret = __mtk_pce_cls_desc_read(cdesc, entry);
-	spin_unlock_irqrestore(&cls_hw.lock, flag);
-
-	return ret;
-}
-
-/*
- * Write a cls_desc to an entry without checking the entry is occupied
- * cls_hw.lock should be held before calling this function
- */
-static int __mtk_pce_cls_desc_write(struct cls_desc *cdesc,
-				    enum cls_entry_type entry)
+int mtk_pce_cls_desc_write(struct cls_desc *cdesc, u32 idx)
 {
 	struct fe_mem_msg msg;
 
-	lockdep_assert_held(&cls_hw.lock);
+	if (unlikely(!cdesc || !idx || idx >= FE_MEM_CLS_MAX_INDEX))
+		return -EINVAL;
 
-	mtk_pce_fe_mem_msg_config(&msg, FE_MEM_CMD_WRITE, FE_MEM_TYPE_CLS, entry);
+	mtk_pce_fe_mem_msg_config(&msg, FE_MEM_CMD_WRITE, FE_MEM_TYPE_CLS, idx);
 
 	memset(&msg.raw, 0, sizeof(msg.raw));
 	memcpy(&msg.cdesc, cdesc, sizeof(struct cls_desc));
@@ -136,96 +116,51 @@ static int __mtk_pce_cls_desc_write(struct cls_desc *cdesc,
 	return mtk_pce_fe_mem_msg_send(&msg);
 }
 
-/*
- * Write a cls_desc to an entry without checking the entry is used by others.
- * The user should check the entry is occupied by themselves or use the standard API
- * mtk_pce_cls_entry_register().
- *
- * This function is only used for debugging purpose
- */
-int mtk_pce_cls_desc_write(struct cls_desc *cdesc, enum cls_entry_type entry)
+int mtk_pce_cls_entry_write(struct cls_entry *cls)
 {
-	unsigned long flag;
-	int ret;
-
-	if (unlikely(!cdesc))
-		return -EINVAL;
-
-	spin_lock_irqsave(&cls_hw.lock, flag);
-	ret = __mtk_pce_cls_desc_write(cdesc, entry);
-	spin_unlock_irqrestore(&cls_hw.lock, flag);
-
-	return ret;
-}
-
-int mtk_pce_cls_entry_register(struct cls_entry *cls)
-{
-	unsigned long flag;
-	int ret = 0;
-
 	if (unlikely(!cls))
 		return -EINVAL;
 
-	if (unlikely(cls->entry == CLS_ENTRY_NONE || cls->entry >= __CLS_ENTRY_MAX)) {
-		PCE_ERR("invalid cls entry: %u\n", cls->entry);
-		return -EINVAL;
-	}
+	return mtk_pce_cls_desc_write(&cls->cdesc, cls->idx);
+}
+EXPORT_SYMBOL(mtk_pce_cls_entry_write);
+
+struct cls_entry *mtk_pce_cls_entry_alloc(void)
+{
+	struct cls_entry *cls;
+	unsigned long flag;
+	u32 idx;
 
 	spin_lock_irqsave(&cls_hw.lock, flag);
 
-	if (cls_hw.cls_tbl[cls->entry]) {
-		PCE_ERR("cls rules already registered ofr entry: %u\n", cls->entry);
-		ret = -EBUSY;
+	idx = find_first_zero_bit(cls_hw.cls_used, FE_MEM_CLS_MAX_INDEX);
+	if (idx == FE_MEM_CLS_MAX_INDEX) {
+		cls = ERR_PTR(-ENOMEM);
 		goto unlock;
 	}
 
-	ret = __mtk_pce_cls_desc_write(&cls->cdesc, cls->entry);
-	if (ret) {
-		PCE_NOTICE("send cls message failed: %d\n", ret);
-		goto unlock;
-	}
+	set_bit(idx, cls_hw.cls_used);
 
-	cls_hw.cls_tbl[cls->entry] = cls;
+	cls = &cls_hw.cls_tbl[idx];
+
+	memset(&cls->cdesc, 0, sizeof(cls->cdesc));
 
 unlock:
 	spin_unlock_irqrestore(&cls_hw.lock, flag);
 
-	return ret;
+	return cls;
 }
-EXPORT_SYMBOL(mtk_pce_cls_entry_register);
+EXPORT_SYMBOL(mtk_pce_cls_entry_alloc);
 
-void mtk_pce_cls_entry_unregister(struct cls_entry *cls)
+void mtk_pce_cls_entry_free(struct cls_entry *cls)
 {
-	struct cls_desc cdesc;
 	unsigned long flag;
-	int ret = 0;
 
-	if (unlikely(!cls))
+	if (!cls)
 		return;
-
-	if (unlikely(cls->entry == CLS_ENTRY_NONE || cls->entry >= __CLS_ENTRY_MAX)) {
-		PCE_ERR("invalid cls entry: %u\n", cls->entry);
-		return;
-	}
 
 	spin_lock_irqsave(&cls_hw.lock, flag);
-
-	if (cls_hw.cls_tbl[cls->entry] != cls) {
-		PCE_ERR("cls rules is registered by others\n");
-		goto unlock;
-	}
-
-	memset(&cdesc, 0, sizeof(struct cls_desc));
-
-	ret = __mtk_pce_cls_desc_write(&cdesc, cls->entry);
-	if (ret) {
-		PCE_NOTICE("fe send cls message failed: %d\n", ret);
-		goto unlock;
-	}
-
-	cls_hw.cls_tbl[cls->entry] = NULL;
-
-unlock:
+	clear_bit(cls->idx - 1, cls_hw.cls_used);
 	spin_unlock_irqrestore(&cls_hw.lock, flag);
 }
-EXPORT_SYMBOL(mtk_pce_cls_entry_unregister);
+EXPORT_SYMBOL(mtk_pce_cls_entry_free);

@@ -100,7 +100,7 @@ static int cls_entry_debug_read(struct seq_file *s, void *private)
 	int ret;
 	u32 i;
 
-	for (i = CLS_ENTRY_NONE + 1; i < FE_MEM_CLS_MAX_INDEX; i++) {
+	for (i = 1; i < FE_MEM_CLS_MAX_INDEX; i++) {
 		ret = mtk_pce_cls_desc_read(&cdesc, i);
 
 		if (ret) {
@@ -399,9 +399,9 @@ static ssize_t cls_entry_debug_write(struct file *file, const char __user *buffe
 {
 	struct cls_desc cdesc;
 	char buf[512];
-	u32 cls_entry = 0;
 	u32 nchar = 0;
 	u32 ofs = 0;
+	u32 idx = 0;
 	int ret;
 
 	if (count > sizeof(buf))
@@ -414,14 +414,14 @@ static ssize_t cls_entry_debug_write(struct file *file, const char __user *buffe
 
 	memset(&cdesc, 0, sizeof(struct cls_desc));
 
-	ret = sscanf(buf + ofs, "%u %n\n", &cls_entry, &nchar);
+	ret = sscanf(buf + ofs, "%u %n\n", &idx, &nchar);
 	if (ret != 1)
 		return -EINVAL;
 
 	ofs += nchar;
 
-	if (cls_entry == CLS_ENTRY_NONE || cls_entry > __CLS_ENTRY_MAX) {
-		PCE_ERR("invalid cls entry: %u\n", cls_entry);
+	if (!idx || idx >= FE_MEM_CLS_MAX_INDEX) {
+		PCE_ERR("invalid cls entry: %u\n", idx);
 		return -EINVAL;
 	}
 
@@ -434,7 +434,7 @@ static ssize_t cls_entry_debug_write(struct file *file, const char __user *buffe
 			return ret;
 	}
 
-	ret = mtk_pce_cls_desc_write(&cdesc, cls_entry);
+	ret = mtk_pce_cls_desc_write(&cdesc, idx);
 	if (ret)
 		return ret;
 
