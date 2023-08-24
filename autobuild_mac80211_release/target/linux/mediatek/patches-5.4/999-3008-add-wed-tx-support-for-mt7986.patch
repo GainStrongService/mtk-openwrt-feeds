@@ -6,12 +6,12 @@ Subject: [PATCH 7/8] 9996-add-wed-tx-support-for-mt7986
 ---
  arch/arm64/boot/dts/mediatek/mt7986a.dtsi     |   2 +
  arch/arm64/boot/dts/mediatek/mt7986b.dtsi     |   2 +
- drivers/net/ethernet/mediatek/mtk_eth_soc.c   |   8 +-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  17 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |   5 +
- drivers/net/ethernet/mediatek/mtk_wed.c       | 502 +++++++++++++-----
+ drivers/net/ethernet/mediatek/mtk_wed.c       | 496 +++++++++++++-----
  drivers/net/ethernet/mediatek/mtk_wed.h       |  18 +-
  .../net/ethernet/mediatek/mtk_wed_debugfs.c   |   3 +
- drivers/net/ethernet/mediatek/mtk_wed_regs.h  | 127 ++++-
+ drivers/net/ethernet/mediatek/mtk_wed_regs.h  | 130 ++++-
  include/linux/soc/mediatek/mtk_wed.h          |  29 +-
  9 files changed, 546 insertions(+), 150 deletions(-)
 
@@ -59,7 +59,7 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/
 index 3f67bebfe..ac021e2ed 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -3579,6 +3579,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -4807,6 +4807,7 @@ static int mtk_probe(struct platform_device *pdev)
  {
  	struct device_node *mac_np;
  	struct mtk_eth *eth;
@@ -67,15 +67,26 @@ index 3f67bebfe..ac021e2ed 100644
  	int err, i;
  
  	eth = devm_kzalloc(&pdev->dev, sizeof(*eth), GFP_KERNEL);
-@@ -3594,7 +3595,6 @@ static int mtk_probe(struct platform_device *pdev)
- 		return PTR_ERR(eth->base);
+@@ -4827,13 +4828,12 @@ static int mtk_probe(struct platform_device *pdev)
+ 			return PTR_ERR(eth->sram_base);
+ 	}
  
- 	if(eth->soc->has_sram) {
+-	if(eth->soc->has_sram) {
 -		struct resource *res;
- 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
- 		if (unlikely(!res))
- 			return -EINVAL;
-@@ -3682,12 +3682,16 @@ static int mtk_probe(struct platform_device *pdev)
+-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+-		if (unlikely(!res))
+-			return -EINVAL;
++	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (unlikely(!res))
++		return -EINVAL;
++
++	if(eth->soc->has_sram)
+ 		eth->phy_scratch_ring = res->start + MTK_ETH_SRAM_OFFSET;
+-	}
+ 
+ 	mtk_get_hwver(eth);
+ 
+@@ -4929,12 +4929,15 @@ static int mtk_probe(struct platform_device *pdev)
  			MTK_WDMA1_BASE
  		};
  		void __iomem *wdma;
@@ -86,8 +97,7 @@ index 3f67bebfe..ac021e2ed 100644
  
  		wdma = eth->base + wdma_regs[i];
 -		mtk_wed_add_hw(np, eth, wdma, i);
-+		if (res)
-+			wdma_phy = res->start + wdma_regs[i];
++		wdma_phy = res->start + wdma_regs[i];
 +
 +		mtk_wed_add_hw(np, eth, wdma, wdma_phy, i);
  	}
