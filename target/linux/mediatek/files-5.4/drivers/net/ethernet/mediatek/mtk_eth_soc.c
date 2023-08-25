@@ -3345,7 +3345,7 @@ static void mtk_dma_free(struct mtk_eth *eth)
 	if (eth->hwlro) {
 		mtk_hwlro_rx_uninit(eth);
 
-		i = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V1)) ? 1 : 4;
+		i = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) ? 4 : 1;
 		for (; i < MTK_MAX_RX_RING_NUM; i++)
 			mtk_rx_clean(eth, &eth->rx_ring[i], 0);
 	}
