@@ -1,21 +1,21 @@
-From 108924394ac7634ddae0a87c9108e0cadcd7c9df Mon Sep 17 00:00:00 2001
+From 06c3b8d434290affb720808a38315a78e94c9923 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Wed, 23 Aug 2023 13:46:31 +0800
+Date: Sat, 26 Aug 2023 00:45:40 +0800
 Subject: [PATCH] 999-3017-ethernet-update-ppe-from-mt7986-to-mt7988
 
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   | 14 ++++---
- drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  3 +-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  9 +++--
  drivers/net/ethernet/mediatek/mtk_ppe.c       | 18 ++++++---
- drivers/net/ethernet/mediatek/mtk_ppe.h       | 40 +++++++++++++++----
+ drivers/net/ethernet/mediatek/mtk_ppe.h       | 38 ++++++++++++++++---
  .../net/ethernet/mediatek/mtk_ppe_offload.c   |  6 ++-
- 5 files changed, 61 insertions(+), 20 deletions(-)
+ 5 files changed, 64 insertions(+), 21 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 1dcdd17..a1b4c80 100644
+index a370547..239c25d 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2198,17 +2198,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2272,17 +2272,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
@@ -37,7 +37,7 @@ index 1dcdd17..a1b4c80 100644
  		reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON_V2, trxd.rxd5);
  		if (reason == MTK_PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED) {
  			for (i = 0; i < eth->ppe_num; i++) {
-@@ -5000,7 +5000,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5071,7 +5071,8 @@ static int mtk_probe(struct platform_device *pdev)
  
  		for (i = 0; i < eth->ppe_num; i++) {
  			eth->ppe[i] = mtk_ppe_init(eth,
@@ -47,7 +47,7 @@ index 1dcdd17..a1b4c80 100644
  						   2, eth->soc->hash_way, i,
  						   eth->soc->has_accounting);
  			if (!eth->ppe[i]) {
-@@ -5267,6 +5268,9 @@ static const struct mtk_soc_data mt7988_data = {
+@@ -5338,6 +5339,9 @@ static const struct mtk_soc_data mt7988_data = {
  	.required_clks = MT7988_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = true,
@@ -58,7 +58,7 @@ index 1dcdd17..a1b4c80 100644
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 83a5fec..443120f 100644
+index a7892e2..cd19c8d 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -130,9 +130,10 @@
@@ -73,8 +73,26 @@ index 83a5fec..443120f 100644
  #else
  #define MTK_GDMA_TO_PPE0	0x4444
  #endif
+@@ -1939,13 +1940,15 @@ extern u32 dbg_show_level;
+ 
+ static inline void mtk_set_ib1_sp(struct mtk_eth *eth, struct mtk_foe_entry *foe, u32 val)
+ {
+-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
++	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
++	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+ 		foe->ib1 |= FIELD_PREP(MTK_FOE_IB1_UNBIND_SRC_PORT, val);
+ }
+ 
+ static inline u32 mtk_get_ib1_sp(struct mtk_eth *eth, struct mtk_foe_entry *foe)
+ {
+-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
++	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
++	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+ 		return FIELD_GET(MTK_FOE_IB1_UNBIND_SRC_PORT, foe->ib1);
+ 
+ 	return 0;
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index ed677e1..4c17a4e 100755
+index 0d4ae28..308d5a1 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -211,7 +211,7 @@ int mtk_foe_entry_prepare(struct mtk_foe_entry *entry, int type, int l4proto,
@@ -112,7 +130,7 @@ index ed677e1..4c17a4e 100755
  
  	return 0;
  }
-@@ -902,13 +907,16 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
+@@ -922,13 +927,16 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
  	mtk_ppe_init_foe_table(ppe);
  	ppe_w32(ppe, MTK_PPE_TB_BASE, ppe->foe_phys);
  
@@ -131,7 +149,7 @@ index ed677e1..4c17a4e 100755
  	      MTK_PPE_TB_CFG_INFO_SEL |
  #endif
  	      FIELD_PREP(MTK_PPE_TB_CFG_SEARCH_MISS,
-@@ -972,7 +980,7 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
+@@ -992,7 +1000,7 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
  
  	ppe_w32(ppe, MTK_PPE_DEFAULT_CPU_PORT, 0);
  
@@ -141,7 +159,7 @@ index ed677e1..4c17a4e 100755
  	ppe_w32(ppe, MTK_PPE_SBW_CTRL, 0x7f);
  #endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index e954e73..4abed85 100644
+index 5ab864f..5529d64 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
 @@ -8,7 +8,10 @@
@@ -224,17 +242,8 @@ index e954e73..4abed85 100644
  		u32 data[23];
  #else
  		u32 data[19];
-@@ -411,7 +437,7 @@ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
- struct mtk_foe_accounting *mtk_foe_entry_get_mib(struct mtk_ppe *ppe, u32 index, struct mtk_foe_accounting *diff);
- u32 mtk_ppe_hash_entry(struct mtk_ppe *ppe, struct mtk_foe_entry *e);
- 
--#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
- static inline int
- mtk_foe_entry_set_sp(struct mtk_ppe *ppe, struct mtk_foe_entry *entry)
- {
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 1d56e2c..8cd8dc7 100755
+index 3bc50a4..f0c63da 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 @@ -195,7 +195,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
