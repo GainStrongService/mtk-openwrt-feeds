@@ -927,7 +927,7 @@ static void mtk_gdm_fsm_poll(struct mtk_mac *mac)
 
 static void mtk_pse_port_link_set(struct mtk_mac *mac, bool up)
 {
-	u32 fe_glo_cfg, val;
+	u32 fe_glo_cfg, val = 0;
 
 	fe_glo_cfg = mtk_r32(mac->hw, MTK_FE_GLO_CFG(mac->id));
 	switch (mac->id) {
