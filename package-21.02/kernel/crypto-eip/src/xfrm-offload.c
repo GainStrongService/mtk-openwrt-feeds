@@ -48,33 +48,44 @@ static int mtk_xfrm_offload_cdrt_setup(struct mtk_xfrm_params *xfrm_params)
 	return mtk_pce_cdrt_entry_write(xfrm_params->cdrt);
 }
 
+static void mtk_xfrm_offload_cls_entry_tear_down(struct mtk_xfrm_params *xfrm_params)
+{
+	memset(&xfrm_params->cdrt->cls->cdesc, 0, sizeof(struct cls_desc));
+
+	mtk_pce_cls_entry_write(xfrm_params->cdrt->cls);
+
+	mtk_pce_cls_entry_free(xfrm_params->cdrt->cls);
+}
+
 static int mtk_xfrm_offload_cls_entry_setup(struct mtk_xfrm_params *xfrm_params)
 {
-	struct cls_entry esp_cls_entry = {
-		.entry = xfrm_params->cdrt->idx + 10, /* TODO: need update */
-		.cdesc = {
-			.fport = 0x3,
-			.tport_idx = 0x2,
-			.cdrt_idx = xfrm_params->cdrt->idx,
+	struct cls_desc *cdesc;
 
-			.l4_udp_hdr_nez_m = 0x1,
-			.l4_udp_hdr_nez = 0x1,
-			.l4_hdr_usr_data_m = 0xffffffff,
-			.l4_hdr_usr_data = be32_to_cpu(xfrm_params->xs->id.spi),
-			.l4_valid_m = 0x3,
-			.l4_valid = 0x3,
-			.l4_dport_m = 0x0,
-			.l4_dport = 0x0,
-			.tag_m = 0x3,
-			.tag = 0x1,
-			.dip_match_m = 0x0,
-			.dip_match = 0x0,
-			.l4_type_m = 0xff,
-			.l4_type = 0x32,
-		},
-	};
+	xfrm_params->cdrt->cls = mtk_pce_cls_entry_alloc();
+	if (IS_ERR(xfrm_params->cdrt->cls))
+		return PTR_ERR(xfrm_params->cdrt->cls);
 
-	return mtk_pce_cls_entry_register(&esp_cls_entry);
+	cdesc = &xfrm_params->cdrt->cls->cdesc;
+
+	CLS_DESC_DATA(cdesc, fport, PSE_PORT_PPE0);
+	CLS_DESC_DATA(cdesc, tport_idx, 0x2);
+	CLS_DESC_DATA(cdesc, cdrt_idx, xfrm_params->cdrt->idx);
+
+	CLS_DESC_MASK_DATA(cdesc, tag,
+			   CLS_DESC_TAG_MASK, CLS_DESC_TAG_MATCH_L4_HDR);
+	CLS_DESC_MASK_DATA(cdesc, l4_udp_hdr_nez,
+			   CLS_DESC_UDPLITE_L4_HDR_NEZ_MASK,
+			   CLS_DESC_UDPLITE_L4_HDR_NEZ_MASK);
+	CLS_DESC_MASK_DATA(cdesc, l4_type,
+			   CLS_DESC_L4_TYPE_MASK, IPPROTO_ESP);
+	CLS_DESC_MASK_DATA(cdesc, l4_valid,
+			   0x3,
+			   CLS_DESC_VALID_UPPER_HALF_WORD_BIT |
+			   CLS_DESC_VALID_LOWER_HALF_WORD_BIT);
+	CLS_DESC_MASK_DATA(cdesc, l4_hdr_usr_data,
+			   0xFFFFFFFF, be32_to_cpu(xfrm_params->xs->id.spi));
+
+	return mtk_pce_cls_entry_write(xfrm_params->cdrt->cls);
 }
 
 static void mtk_xfrm_offload_context_tear_down(struct mtk_xfrm_params *xfrm_params)
@@ -244,7 +255,7 @@ void mtk_xfrm_offload_state_free(struct xfrm_state *xs)
 	list_del(&xfrm_params->node);
 
 	if (xs->xso.flags & XFRM_OFFLOAD_INBOUND)
-		mtk_pce_cdrt_entry_free(xfrm_params->cdrt);
+		mtk_xfrm_offload_cls_entry_tear_down(xfrm_params);
 
 	mtk_xfrm_offload_context_tear_down(xfrm_params);
 
