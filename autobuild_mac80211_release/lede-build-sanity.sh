@@ -303,6 +303,9 @@ prepare_mac80211() {
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0003-master-mt76-makefile-for-new-chip.patch || exit 1
 	cp -rfa ${MTK_FEED_DIR}/autobuild_mac80211_release/package/ ${BUILD_DIR}
 	cp -rfa ${MTK_FEED_DIR}/autobuild_mac80211_release/target/ ${BUILD_DIR}
+
+	# Bridge Default Setting
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0006-network-enable-bridge-igmp_snooping-by-default.patch || exit 1
 }
 
 copy_main_Config() {
