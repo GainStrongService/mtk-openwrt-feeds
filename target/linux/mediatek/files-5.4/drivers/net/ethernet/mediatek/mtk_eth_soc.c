@@ -878,18 +878,26 @@ static int mtk_mac_pcs_get_state(struct phylink_config *config,
 static int mtk_gdm_fsm_get(struct mtk_mac *mac, u32 gdm)
 {
 	u32 fsm = mtk_r32(mac->hw, gdm);
-	u32 ret = 0;
+	u32 ret = 0, val = 0;
 
-	if (mac->type == MTK_GDM_TYPE)
+	switch (mac->type) {
+	case MTK_GDM_TYPE:
 		ret = fsm == 0;
-	else if (mac->type == MTK_XGDM_TYPE) {
-		if (mac->id == MTK_GMAC1_ID) {
-			if (((fsm & 0x7ffffff) == 0) &&
-				(mtk_r32(mac->hw, MTK_MAC_FSM(mac->id)) == 0x1010000))
-				ret = 1;
+		break;
+	case MTK_XGDM_TYPE:
+		ret = fsm == 0x10000000;
+		break;
+	default:
+		break;
+	}
+
+	if ((mac->type == MTK_XGDM_TYPE) && (mac->id != MTK_GMAC1_ID)) {
+		val = mtk_r32(mac->hw, MTK_MAC_FSM(mac->id));
+		if ((val == 0x02010100) || (val == 0x01010100)) {
+			ret = (mac->interface == PHY_INTERFACE_MODE_XGMII) ?
+				((fsm & 0x0fffffff) == 0) : ((fsm & 0x00ffffff) == 0);
 		} else
-			ret = ((mac->interface == PHY_INTERFACE_MODE_XGMII) ?
-				((fsm & 0xfffffff) == 0) : ((fsm & 0x0ffffff) == 0));
+			ret = 0;
 	}
 
 	return ret;
@@ -913,7 +921,7 @@ static void mtk_gdm_fsm_poll(struct mtk_mac *mac)
 		pr_info("%s mac id invalid", __func__);
 		break;
 	}
-	msleep(500);
+
 	while (i < 3) {
 		if (mtk_gdm_fsm_get(mac, gdm))
 			break;
