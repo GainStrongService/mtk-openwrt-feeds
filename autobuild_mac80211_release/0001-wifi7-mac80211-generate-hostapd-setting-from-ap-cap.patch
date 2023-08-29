@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index a7472ee..f06c889 100644
+index a7472ee7..f06c889b 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -31,7 +31,7 @@ index a7472ee..f06c889 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 3968337..238dde2 100644
+index 39683376..3b1b5a55 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -24,6 +24,7 @@ drv_mac80211_init_device_config() {
@@ -270,7 +270,33 @@ index 3968337..238dde2 100644
  			append base_cfg "he_bss_color=$he_bss_color" "$N"
  			[ "$he_spr_non_srg_obss_pd_max_offset" -gt 0 ] && { \
  				append base_cfg "he_spr_non_srg_obss_pd_max_offset=$he_spr_non_srg_obss_pd_max_offset" "$N"
-@@ -481,12 +547,47 @@ mac80211_hostapd_setup_base() {
+@@ -459,34 +525,69 @@ mac80211_hostapd_setup_base() {
+ 		append base_cfg "he_mu_edca_qos_info_q_ack=0" "$N"
+ 		append base_cfg "he_mu_edca_qos_info_queue_request=0" "$N"
+ 		append base_cfg "he_mu_edca_qos_info_txop_request=0" "$N"
+-		append base_cfg "he_mu_edca_ac_be_aifsn=8" "$N"
++		append base_cfg "he_mu_edca_ac_be_aifsn=0" "$N"
+ 		append base_cfg "he_mu_edca_ac_be_aci=0" "$N"
+ 		append base_cfg "he_mu_edca_ac_be_ecwmin=9" "$N"
+ 		append base_cfg "he_mu_edca_ac_be_ecwmax=10" "$N"
+ 		append base_cfg "he_mu_edca_ac_be_timer=255" "$N"
+-		append base_cfg "he_mu_edca_ac_bk_aifsn=15" "$N"
++		append base_cfg "he_mu_edca_ac_bk_aifsn=0" "$N"
+ 		append base_cfg "he_mu_edca_ac_bk_aci=1" "$N"
+ 		append base_cfg "he_mu_edca_ac_bk_ecwmin=9" "$N"
+ 		append base_cfg "he_mu_edca_ac_bk_ecwmax=10" "$N"
+ 		append base_cfg "he_mu_edca_ac_bk_timer=255" "$N"
+ 		append base_cfg "he_mu_edca_ac_vi_ecwmin=5" "$N"
+ 		append base_cfg "he_mu_edca_ac_vi_ecwmax=7" "$N"
+-		append base_cfg "he_mu_edca_ac_vi_aifsn=5" "$N"
++		append base_cfg "he_mu_edca_ac_vi_aifsn=0" "$N"
+ 		append base_cfg "he_mu_edca_ac_vi_aci=2" "$N"
+ 		append base_cfg "he_mu_edca_ac_vi_timer=255" "$N"
+-		append base_cfg "he_mu_edca_ac_vo_aifsn=5" "$N"
++		append base_cfg "he_mu_edca_ac_vo_aifsn=0" "$N"
+ 		append base_cfg "he_mu_edca_ac_vo_aci=3" "$N"
+ 		append base_cfg "he_mu_edca_ac_vo_ecwmin=5" "$N"
+ 		append base_cfg "he_mu_edca_ac_vo_ecwmax=7" "$N"
  		append base_cfg "he_mu_edca_ac_vo_timer=255" "$N"
  	fi
  
@@ -462,7 +488,7 @@ index 3968337..238dde2 100644
  
  	json_set_namespace wdev_uc prev
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a6..20e6068 100644
+index e24a2a63..20e60688 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -607,7 +633,7 @@ index e24a2a6..20e6068 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 65ae662..6eab470 100644
+index 65ae662c..6eab470d 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -60,7 +60,14 @@ hostapd_append_wpa_key_mgmt() {
