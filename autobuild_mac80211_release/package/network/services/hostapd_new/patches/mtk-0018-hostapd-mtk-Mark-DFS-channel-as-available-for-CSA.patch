@@ -1,7 +1,7 @@
-From ece45354ac0191c2474b3f57cdfc26060db9efec Mon Sep 17 00:00:00 2001
+From 2471c86d25da6898dd8840b7267211a5dba036b1 Mon Sep 17 00:00:00 2001
 From: "himanshu.goyal" <himanshu.goyal@mediatek.com>
 Date: Fri, 3 Mar 2023 12:45:42 +0800
-Subject: [PATCH 19/32] hostapd: mtk: Mark DFS channel as available for CSA.
+Subject: [PATCH 18/40] hostapd: mtk: Mark DFS channel as available for CSA.
 
 ---
  hostapd/ctrl_iface.c   | 10 ++++++++++
@@ -10,11 +10,11 @@ Subject: [PATCH 19/32] hostapd: mtk: Mark DFS channel as available for CSA.
  3 files changed, 12 insertions(+), 1 deletion(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index f89bb58f1..bad9790ca 100644
+index c54cbb9..aab5c0a 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -2815,6 +2815,16 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
- 		settings.freq_params.eht_enabled = iface->conf->ieee80211be;
+@@ -2751,6 +2751,16 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+ 		break;
  	}
  
 +	if (settings.freq_params.radar_background) {
@@ -31,7 +31,7 @@ index f89bb58f1..bad9790ca 100644
  		dfs_range += hostapd_is_dfs_overlap(
  			iface, bandwidth, settings.freq_params.center_freq1);
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index d59373062..0a374be8e 100644
+index d593730..0a374be 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
 @@ -1715,7 +1715,7 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
@@ -44,7 +44,7 @@ index d59373062..0a374be8e 100644
  	{ "hs20_wnm_notif", hostapd_cli_cmd_hs20_wnm_notif, NULL,
  	  "<addr> <url>\n"
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
-index cf1cff447..aab8a4665 100644
+index 0e173f1..7bdefb4 100644
 --- a/src/ap/ctrl_iface_ap.c
 +++ b/src/ap/ctrl_iface_ap.c
 @@ -1014,6 +1014,7 @@ int hostapd_parse_csa_settings(const char *pos,
@@ -56,5 +56,5 @@ index cf1cff447..aab8a4665 100644
  #undef SET_CSA_SETTING
  #undef SET_CSA_SETTING_EXT
 -- 
-2.39.2
+2.18.0
 

@@ -194,11 +194,11 @@ prepare_mac80211() {
 		echo "========================Hostapd NEW==================="
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/hostapd ${BUILD_DIR}/package/network/services
 		rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd
-		mv ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd_new ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd
+		cp -fpR ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd_new ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd
+		do_patch ${MTK_FEED_DIR}/autobuild_mac80211_release/openwrt_patches${OPENWRT_VER}/hostapd || exit 1
 	else
 		echo "========================Hostapd OLD==================="
 		tar xvf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd/hostapd_v2.10_07730ff3.tar.gz -C ${BUILD_DIR}/package/network/services/
-		rm -rf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd/hostapd_v2.10_07730ff3.tar.gz
 	fi
 
 	rm -rf ${BUILD_DIR}/package/libs/libnl-tiny
@@ -218,11 +218,10 @@ prepare_mac80211() {
 		echo "=========================MAC80211 v6.1==================="
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/package/kernel
 		rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211
-		mv ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211_dev ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211
+		cp -fpR ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211_dev ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211
 	else
 		echo "=========================MAC80211 v5.15=================="
 		tar xvf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211/mac80211_v5.15.81_077622a1.tar.gz -C ${BUILD_DIR}/package/kernel/
-		rm -rf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211/mac80211_v5.15.81_077622a1.tar.gz 
 	fi
 
 	rm -rf ${BUILD_DIR}/package/firmware/wireless-regdb

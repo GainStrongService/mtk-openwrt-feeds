@@ -1,7 +1,7 @@
-From 0ae156269553de37eb63d5f138197c1ecc108f49 Mon Sep 17 00:00:00 2001
+From 014cf359542aeefc995d936ab4843491c4a3b8b6 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 17 Mar 2023 16:17:14 +0800
-Subject: [PATCH 23/45] hostapd: mtk: Add vendor for CAPI certification
+Subject: [PATCH 21/40] hostapd: mtk: Add vendor for CAPI certification
  commands
 
 ---
@@ -16,18 +16,18 @@ Subject: [PATCH 23/45] hostapd: mtk: Add vendor for CAPI certification
  8 files changed, 204 insertions(+), 31 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 464fe74..a9333b3 100644
+index a6be199..92c94c0 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -70,6 +70,7 @@
- #include "ctrl_iface.h"
+@@ -69,6 +69,7 @@
  #include "config_file.h"
+ #include "ctrl_iface.h"
  
 +#include "common/mtk_vendor.h"
  
  #define HOSTAPD_CLI_DUP_VALUE_MAX_LEN 256
  
-@@ -3837,6 +3838,98 @@ hostapd_ctrl_iface_get_aval_color_bmp(struct hostapd_data *hapd, char *buf,
+@@ -3762,6 +3763,98 @@ hostapd_ctrl_iface_get_aval_color_bmp(struct hostapd_data *hapd, char *buf,
  	return pos - buf;
  }
  
@@ -126,7 +126,7 @@ index 464fe74..a9333b3 100644
  
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
-@@ -4417,6 +4510,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4340,6 +4433,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_get_bss_color(hapd, reply, reply_size);
  	} else if (os_strncmp(buf, "AVAL_COLOR_BMP", 14) == 0) {
  		reply_len = hostapd_ctrl_iface_get_aval_color_bmp(hapd, reply, reply_size);
@@ -293,7 +293,7 @@ index 91cb475..3efea9f 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index b873047..642d75b 100644
+index 8b8ddfa..6a42633 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -76,6 +76,58 @@ enum nlmsgerr_attrs {
@@ -355,7 +355,7 @@ index b873047..642d75b 100644
  static struct nl_sock * nl_create_handle(struct nl_cb *cb, const char *dbg)
  {
  	struct nl_sock *handle;
-@@ -14525,4 +14577,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14522,4 +14574,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.amsdu_ctrl = nl80211_enable_amsdu,
  	.amsdu_dump = nl80211_dump_amsdu,
  	.get_aval_color_bmp = nl80211_get_aval_color_bmp,
@@ -390,5 +390,5 @@ index 4f8e920..c1cf5b5 100644
  			}
  
 -- 
-2.39.0
+2.18.0
 

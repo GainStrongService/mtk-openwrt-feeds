@@ -1,7 +1,8 @@
-From 78107269ba6f1ef6449e385e0182970ad85d7f43 Mon Sep 17 00:00:00 2001
+From 7f1a652729514a0f9a885be30185810c18110c4d Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Sat, 3 Jun 2023 17:12:15 +0800
-Subject: [PATCH] hostapd: mtk: add connac3 PHY MURU manual mode config support
+Subject: [PATCH 25/40] hostapd: mtk: add connac3 PHY MURU manual mode config
+ support
 
 This commit supports read the following two formats to set MU/RU manual
 mode:
@@ -46,10 +47,10 @@ code flow that different generations will go through.
  8 files changed, 390 insertions(+), 43 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 972393e..b280a04 100644
+index f36c138..c288352 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3579,22 +3579,61 @@ hostapd_ctrl_iface_get_edcca(struct hostapd_data *hapd, char *cmd, char *buf,
+@@ -3500,22 +3500,61 @@ hostapd_ctrl_iface_get_edcca(struct hostapd_data *hapd, char *cmd, char *buf,
  	}
  }
  
@@ -118,7 +119,7 @@ index 972393e..b280a04 100644
  	value = pos;
  
  	if (os_strcmp(config, "onoff") == 0) {
-@@ -3604,24 +3643,167 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -3525,24 +3564,167 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  			return -1;
  		}
  		hapd->iconf->mu_onoff = (u8) mu;
@@ -300,7 +301,7 @@ index 972393e..b280a04 100644
  }
  
  
-@@ -4613,8 +4795,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4534,8 +4716,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_get_edcca(hapd, buf+10, reply,
  							  reply_size);
  	} else if (os_strncmp(buf, "SET_MU ", 7) == 0) {
@@ -310,7 +311,7 @@ index 972393e..b280a04 100644
  	} else if (os_strncmp(buf, "GET_MU", 6) == 0) {
  		reply_len = hostapd_ctrl_iface_get_mu(hapd, reply, reply_size);
  	} else if (os_strncmp(buf, "GET_IBF", 7) == 0) {
-@@ -4640,6 +4821,14 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4561,6 +4742,14 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "DUMP_AMNT", 9) == 0) {
  		reply_len = hostapd_ctrl_iface_dump_amnt(hapd, buf+10,
  							reply, reply_size);
@@ -326,10 +327,10 @@ index 972393e..b280a04 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 1eb871f..4e38e67 100644
+index b329e81..d43f1a6 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1201,6 +1201,7 @@ struct hostapd_config {
+@@ -1200,6 +1200,7 @@ struct hostapd_config {
  	u8 ibf_enable;
  	u8 dfs_detect_mode;
  	u8 amsdu;
@@ -369,10 +370,10 @@ index 5dd701e..741fdab 100644
  int hostapd_drv_three_wire_ctrl(struct hostapd_data *hapd);
  int hostapd_drv_ibf_ctrl(struct hostapd_data *hapd);
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index c684d7e..52d04d6 100644
+index 25ae08f..0dc86bf 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -2568,7 +2568,7 @@ dfs_offload:
+@@ -2518,7 +2518,7 @@ dfs_offload:
  	if (hostapd_drv_configure_edcca_threshold(hapd,
  						  hapd->iconf->edcca_threshold) < 0)
  		goto fail;
@@ -579,10 +580,10 @@ index 84387a6..9ec0e96 100644
  
  	/**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index ab121ca..fdd8505 100644
+index b682620..22c56f9 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -13566,12 +13566,13 @@ fail:
+@@ -13562,12 +13562,13 @@ fail:
  
  
  #ifdef CONFIG_IEEE80211AX
@@ -597,7 +598,7 @@ index ab121ca..fdd8505 100644
  	int ret = -ENOBUFS;
  
  	if (!drv->mtk_mu_vendor_cmd_avail) {
-@@ -13588,17 +13589,16 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, u8 val)
+@@ -13584,17 +13585,16 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, u8 val)
  
  	switch (mode) {
  	case MU_CTRL_ONOFF:
@@ -622,7 +623,7 @@ index ab121ca..fdd8505 100644
  		ret = -EINVAL;
  		goto fail;
  	}
-@@ -13606,9 +13606,8 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, u8 val)
+@@ -13602,9 +13602,8 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, u8 val)
  	nla_nest_end(msg, data);
  
  	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);

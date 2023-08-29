@@ -1,8 +1,8 @@
-From bfca3c43597bf827e4d5faec91ac8f420d33c921 Mon Sep 17 00:00:00 2001
+From 66102db35a595a1b2754e13a95123e55d378332e Mon Sep 17 00:00:00 2001
 From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 Date: Wed, 19 Jan 2022 19:18:07 +0800
-Subject: [PATCH] hostapd: mtk: Add neighbor report and BSS Termination for MBO
- certification
+Subject: [PATCH 01/40] hostapd: mtk: Add neighbor report and BSS Termination
+ for MBO certification
 
 1. Add hostapd_neighbor_count() and hostapd_neighbor_insert_buffer ()
 The first function can count the number of neighbor report in neighbore report
@@ -31,10 +31,10 @@ Revert set_send_disassoc_frame_timer
  9 files changed, 223 insertions(+), 4 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 55711ab..fab1287 100644
+index 0a892c9..98d598e 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -1347,6 +1347,11 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
+@@ -1290,6 +1290,11 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
  #endif /* CONFIG_DPP */
  	} else if (os_strcasecmp(cmd, "setband") == 0) {
  		ret = hostapd_ctrl_iface_set_band(hapd, value);
@@ -47,7 +47,7 @@ index 55711ab..fab1287 100644
  		ret = hostapd_set_iface(hapd->iconf, hapd->conf, cmd, value);
  		if (ret)
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 41c7070..7d0de12 100644
+index 298216a..73b33b4 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -171,6 +171,7 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
@@ -59,7 +59,7 @@ index 41c7070..7d0de12 100644
  
  
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 02fd494..dc60252 100644
+index 44b62f8..774f64e 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
 @@ -558,6 +558,7 @@ struct hostapd_bss_config {
@@ -71,10 +71,10 @@ index 02fd494..dc60252 100644
  	/* IEEE 802.11u - Interworking */
  	int interworking;
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
-index 50a4dc4..cf1cff4 100644
+index 42c9593..0e173f1 100644
 --- a/src/ap/ctrl_iface_ap.c
 +++ b/src/ap/ctrl_iface_ap.c
-@@ -1280,6 +1280,10 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+@@ -1274,6 +1274,10 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
  			wpa_printf(MSG_DEBUG, "Invalid bss_term data");
  			return -1;
  		}
@@ -85,7 +85,7 @@ index 50a4dc4..cf1cff4 100644
  		end++;
  		WPA_PUT_LE16(&bss_term_dur[10], atoi(end));
  	}
-@@ -1306,14 +1310,25 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+@@ -1300,14 +1304,25 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
  		req_mode |= WNM_BSS_TM_REQ_ESS_DISASSOC_IMMINENT;
  	}
  

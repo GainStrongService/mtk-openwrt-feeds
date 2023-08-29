@@ -1,7 +1,7 @@
-From 71b229a9e0a12ebc6d5f298f40042cc67fb285e1 Mon Sep 17 00:00:00 2001
+From 236e82d01cd015135468166e6d00b05b16e4c5f8 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Thu, 26 Jan 2023 09:16:00 +0800
-Subject: [PATCH 20/32] hostapd: mtk: Add available color bitmap
+Subject: [PATCH 19/40] hostapd: mtk: Add available color bitmap
 
 Signed-off-by: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 ---
@@ -17,10 +17,10 @@ Signed-off-by: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
  9 files changed, 324 insertions(+), 2 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index bad9790ca..997b50aad 100644
+index aab5c0a..a6be199 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3756,6 +3756,76 @@ hostapd_ctrl_iface_get_amsdu(struct hostapd_data *hapd, char *buf,
+@@ -3692,6 +3692,76 @@ hostapd_ctrl_iface_get_amsdu(struct hostapd_data *hapd, char *buf,
  	return ret;
  }
  
@@ -97,7 +97,7 @@ index bad9790ca..997b50aad 100644
  
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
-@@ -4332,6 +4402,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4266,6 +4336,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_set_offchan_ctrl(hapd, buf + 16, reply, reply_size);
  	} else if (os_strncmp(buf, "GET_AMSDU", 9) == 0) {
  		reply_len = hostapd_ctrl_iface_get_amsdu(hapd, reply, reply_size);
@@ -109,7 +109,7 @@ index bad9790ca..997b50aad 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index 0a374be8e..e9e156d28 100644
+index 0a374be..e9e156d 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
 @@ -1598,6 +1598,20 @@ static int hostapd_cli_cmd_reload_wpa_psk(struct wpa_ctrl *ctrl, int argc,
@@ -145,7 +145,7 @@ index 0a374be8e..e9e156d28 100644
  	{ "driver", hostapd_cli_cmd_driver, NULL,
  	  "<driver sub command> [<hex formatted data>] = send driver command data" },
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index a7226cfa9..9615ca8ce 100644
+index a7226cf..9615ca8 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
 @@ -1213,4 +1213,12 @@ int hostapd_drv_amsdu_dump(struct hostapd_data *hapd, u8 *amsdu)
@@ -164,7 +164,7 @@ index a7226cfa9..9615ca8ce 100644
 +	return hapd->driver->get_aval_color_bmp(hapd->drv_priv, aval_color_bmp);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 422cb5222..136ea2349 100644
+index 422cb52..136ea23 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -155,6 +155,8 @@ int hostapd_drv_ibf_ctrl(struct hostapd_data *hapd);
@@ -177,7 +177,7 @@ index 422cb5222..136ea2349 100644
  #include "drivers/driver.h"
  
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index ace993bc8..e27fe69b3 100644
+index ace993b..e27fe69 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -15,6 +15,7 @@ enum mtk_nl80211_vendor_subcmds {
@@ -206,7 +206,7 @@ index ace993bc8..e27fe69b3 100644
  #define CSI_MAX_COUNT 256
  #define ETH_ALEN 6
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 592f506ec..91cb475ac 100644
+index 592f506..91cb475 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
 @@ -5133,6 +5133,14 @@ struct wpa_driver_ops {
@@ -225,10 +225,10 @@ index 592f506ec..91cb475ac 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 4ac8b6e0b..b8730472d 100644
+index ce09d9f..8b8ddfa 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -12736,7 +12736,6 @@ static void nl80211_parse_btm_candidate_info(struct candidate_list *candidate,
+@@ -12733,7 +12733,6 @@ static void nl80211_parse_btm_candidate_info(struct candidate_list *candidate,
  		   num, MAC2STR(candidate->bssid), buf);
  }
  
@@ -236,7 +236,7 @@ index 4ac8b6e0b..b8730472d 100644
  static int
  nl80211_get_bss_transition_status_handler(struct nl_msg *msg, void *arg)
  {
-@@ -14164,6 +14163,203 @@ fail:
+@@ -14161,6 +14160,203 @@ fail:
  	return -ENOBUFS;
  }
  
@@ -440,14 +440,14 @@ index 4ac8b6e0b..b8730472d 100644
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
  	.desc = "Linux nl80211/cfg80211",
-@@ -14328,4 +14524,5 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14325,4 +14521,5 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.ibf_dump = nl80211_ibf_dump,
  	.amsdu_ctrl = nl80211_enable_amsdu,
  	.amsdu_dump = nl80211_dump_amsdu,
 +	.get_aval_color_bmp = nl80211_get_aval_color_bmp,
  };
 diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
-index 0100314ba..fd1e57cc2 100644
+index 0100314..fd1e57c 100644
 --- a/src/drivers/driver_nl80211.h
 +++ b/src/drivers/driver_nl80211.h
 @@ -207,6 +207,7 @@ struct wpa_driver_nl80211_data {
@@ -459,7 +459,7 @@ index 0100314ba..fd1e57cc2 100644
  	u64 vendor_scan_cookie;
  	u64 remain_on_chan_cookie;
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index f14706d77..4f8e92024 100644
+index f14706d..4f8e920 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
 @@ -1125,6 +1125,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
@@ -473,5 +473,5 @@ index f14706d77..4f8e92024 100644
  			}
  
 -- 
-2.39.2
+2.18.0
 

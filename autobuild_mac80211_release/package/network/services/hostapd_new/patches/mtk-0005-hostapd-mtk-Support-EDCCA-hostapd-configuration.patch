@@ -1,7 +1,7 @@
-From 68bb1314767dfb84656385e38a1c05862312d76e Mon Sep 17 00:00:00 2001
+From 6b321709940a2feaa79a5e6d63f19a83bde83bb7 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 30 May 2022 16:31:34 +0800
-Subject: [PATCH 05/32] hostapd: mtk: Support EDCCA hostapd configuration
+Subject: [PATCH 05/40] hostapd: mtk: Support EDCCA hostapd configuration
 
 edcca_enable and edcca_compensation and implement edcca related handlers.
 ---
@@ -20,10 +20,10 @@ edcca_enable and edcca_compensation and implement edcca related handlers.
  12 files changed, 428 insertions(+), 6 deletions(-)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 45b4d457b..339d6915e 100644
+index 3557bef..1fc6456 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4805,6 +4805,40 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -4803,6 +4803,40 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  	} else if (os_strcmp(buf, "mld_id") == 0) {
  		bss->mld_id = atoi(pos);
  #endif /* CONFIG_IEEE80211BE */
@@ -65,10 +65,10 @@ index 45b4d457b..339d6915e 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index d4737958a..d8afba992 100644
+index ee6d492..cad3f86 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -599,6 +599,19 @@ static const char * pbc_status_str(enum pbc_status status)
+@@ -542,6 +542,19 @@ static const char * pbc_status_str(enum pbc_status status)
  }
  
  
@@ -88,7 +88,7 @@ index d4737958a..d8afba992 100644
  static int hostapd_ctrl_iface_wps_get_status(struct hostapd_data *hapd,
  					     char *buf, size_t buflen)
  {
-@@ -3432,6 +3445,112 @@ static int hostapd_ctrl_iface_driver_cmd(struct hostapd_data *hapd, char *cmd,
+@@ -3369,6 +3382,112 @@ static int hostapd_ctrl_iface_driver_cmd(struct hostapd_data *hapd, char *cmd,
  #endif /* ANDROID */
  
  
@@ -201,7 +201,7 @@ index d4737958a..d8afba992 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -3987,6 +4106,12 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -3922,6 +4041,12 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_driver_cmd(hapd, buf + 7, reply,
  							  reply_size);
  #endif /* ANDROID */
@@ -215,7 +215,7 @@ index d4737958a..d8afba992 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 7d0de122d..35ea6b7f3 100644
+index 73b33b4..8e56d10 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -295,6 +295,9 @@ struct hostapd_config * hostapd_config_defaults(void)
@@ -228,7 +228,7 @@ index 7d0de122d..35ea6b7f3 100644
  	return conf;
  }
  
-@@ -1009,6 +1012,7 @@ void hostapd_config_free(struct hostapd_config *conf)
+@@ -1008,6 +1011,7 @@ void hostapd_config_free(struct hostapd_config *conf)
  #ifdef CONFIG_ACS
  	os_free(conf->acs_chan_bias);
  #endif /* CONFIG_ACS */
@@ -237,10 +237,10 @@ index 7d0de122d..35ea6b7f3 100644
  	wpabuf_free(conf->civic);
  
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index dc6025279..9186fbda8 100644
+index 774f64e..0e829c0 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1191,8 +1191,38 @@ struct hostapd_config {
+@@ -1190,8 +1190,38 @@ struct hostapd_config {
  		MBSSID_ENABLED = 1,
  		ENHANCED_MBSSID_ENABLED = 2,
  	} mbssid;
@@ -280,7 +280,7 @@ index dc6025279..9186fbda8 100644
  static inline enum oper_chan_width
  hostapd_get_oper_chwidth(struct hostapd_config *conf)
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index 75ddfa15c..99ba973aa 100644
+index 75ddfa1..99ba973 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
 @@ -1137,3 +1137,27 @@ int hostapd_drv_set_secure_ranging_ctx(struct hostapd_data *hapd,
@@ -312,7 +312,7 @@ index 75ddfa15c..99ba973aa 100644
 +	return hapd->driver->get_edcca(hapd->drv_priv, mode, value);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 331b0eaf4..8806217bb 100644
+index 331b0ea..8806217 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -144,6 +144,10 @@ int hostapd_drv_set_secure_ranging_ctx(struct hostapd_data *hapd,
@@ -327,10 +327,10 @@ index 331b0eaf4..8806217bb 100644
  #include "drivers/driver.h"
  
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 0b7d2c1f4..b67698a72 100644
+index 96ab02b..b34c9d2 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -2559,6 +2559,13 @@ dfs_offload:
+@@ -2511,6 +2511,13 @@ dfs_offload:
  	}
  #endif /* CONFIG_MESH */
  
@@ -345,7 +345,7 @@ index 0b7d2c1f4..b67698a72 100644
  		   iface->bss[0]->conf->iface);
  	if (iface->interfaces && iface->interfaces->terminate_on_error > 0)
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index 4a19d2fc9..6121857dd 100644
+index 4a19d2f..6121857 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -30,14 +30,22 @@ enum mtk_vendor_attr_edcca_ctrl {
@@ -378,7 +378,7 @@ index 4a19d2fc9..6121857dd 100644
  	[MTK_VENDOR_ATTR_EDCCA_CTRL_MODE] = { .type = NLA_U8 },
  	[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL] = { .type = NLA_U8 },
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 969cbda6b..443c4a79d 100644
+index 969cbda..443c4a7 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
 @@ -5080,6 +5080,10 @@ struct wpa_driver_ops {
@@ -393,7 +393,7 @@ index 969cbda6b..443c4a79d 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 37e156fc8..c4e0bc9fe 100644
+index 7867e69..5a3e208 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -37,6 +37,8 @@
@@ -405,7 +405,7 @@ index 37e156fc8..c4e0bc9fe 100644
  
  
  #ifndef NETLINK_CAP_ACK
-@@ -13635,6 +13637,174 @@ static int testing_nl80211_radio_disable(void *priv, int disabled)
+@@ -13632,6 +13634,174 @@ static int testing_nl80211_radio_disable(void *priv, int disabled)
  
  #endif /* CONFIG_TESTING_OPTIONS */
  
@@ -580,7 +580,7 @@ index 37e156fc8..c4e0bc9fe 100644
  
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
-@@ -13789,4 +13959,8 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -13786,4 +13956,8 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.register_frame = testing_nl80211_register_frame,
  	.radio_disable = testing_nl80211_radio_disable,
  #endif /* CONFIG_TESTING_OPTIONS */
@@ -590,7 +590,7 @@ index 37e156fc8..c4e0bc9fe 100644
 +	.get_edcca = nl80211_get_edcca,
  };
 diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
-index aee8c4512..51b3fbec8 100644
+index aee8c45..51b3fbe 100644
 --- a/src/drivers/driver_nl80211.h
 +++ b/src/drivers/driver_nl80211.h
 @@ -202,6 +202,7 @@ struct wpa_driver_nl80211_data {
@@ -602,7 +602,7 @@ index aee8c4512..51b3fbec8 100644
  	u64 vendor_scan_cookie;
  	u64 remain_on_chan_cookie;
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index 5e6406885..5dadf2450 100644
+index 5e64068..5dadf24 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
 @@ -18,6 +18,7 @@
@@ -627,5 +627,5 @@ index 5e6406885..5dadf2450 100644
  
  			wpa_printf(MSG_DEBUG, "nl80211: Supported vendor command: vendor_id=0x%x subcmd=%u",
 -- 
-2.39.2
+2.18.0
 

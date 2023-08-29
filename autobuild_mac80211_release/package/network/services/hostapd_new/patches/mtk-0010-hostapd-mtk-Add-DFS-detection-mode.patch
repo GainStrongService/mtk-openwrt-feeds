@@ -1,7 +1,7 @@
-From 28af790c74e862e0c23ced4e458e4149e69a1427 Mon Sep 17 00:00:00 2001
+From a257091386c0bf12de2934730b874d240f34d1bb Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Feb 2023 14:55:49 +0800
-Subject: [PATCH 10/32] hostapd: mtk: Add DFS detection mode
+Subject: [PATCH 10/40] hostapd: mtk: Add DFS detection mode
 
 Add DFS detection mode for testing radar detection rate.
 If DFS detection mode is on, AP will not switch channels when receiving
@@ -17,10 +17,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 50 insertions(+)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 81bfe81d5..d4eed008c 100644
+index dea124a..a4a8e71 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4855,6 +4855,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -4853,6 +4853,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  	} else if (os_strcmp(buf, "ibf_enable") == 0) { /*ibf setting is per device*/
  		int val = atoi(pos);
  		conf->ibf_enable = !!val;
@@ -32,10 +32,10 @@ index 81bfe81d5..d4eed008c 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index f2cb7af1e..0d978be7e 100644
+index 7d7ebe3..d8f6663 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3632,6 +3632,26 @@ hostapd_ctrl_iface_get_ibf(struct hostapd_data *hapd, char *buf,
+@@ -3569,6 +3569,26 @@ hostapd_ctrl_iface_get_ibf(struct hostapd_data *hapd, char *buf,
  }
  
  
@@ -62,7 +62,7 @@ index f2cb7af1e..0d978be7e 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4200,6 +4220,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4135,6 +4155,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_get_mu(hapd, reply, reply_size);
  	} else if (os_strncmp(buf, "GET_IBF", 7) == 0) {
  		reply_len = hostapd_ctrl_iface_get_ibf(hapd, reply, reply_size);
@@ -73,10 +73,10 @@ index f2cb7af1e..0d978be7e 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 3a3d2b542..7b3e21f7b 100644
+index 9758439..c50c2e2 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1198,6 +1198,7 @@ struct hostapd_config {
+@@ -1197,6 +1197,7 @@ struct hostapd_config {
  	int *edcca_threshold;
  	u8 three_wire_enable;
  	u8 ibf_enable;
@@ -84,7 +84,7 @@ index 3a3d2b542..7b3e21f7b 100644
  };
  
  enum three_wire_mode {
-@@ -1212,6 +1213,18 @@ enum three_wire_mode {
+@@ -1211,6 +1212,18 @@ enum three_wire_mode {
  		NUM_THREE_WIRE_MODE - 1
  };
  
@@ -104,7 +104,7 @@ index 3a3d2b542..7b3e21f7b 100644
  	EDCCA_MODE_FORCE_DISABLE = 0,
  	EDCCA_MODE_AUTO = 1,
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index a19afb03f..644a7eae7 100644
+index a19afb0..644a7ea 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
 @@ -1322,6 +1322,11 @@ hostapd_dfs_background_start_channel_switch(struct hostapd_iface *iface,
@@ -132,5 +132,5 @@ index a19afb03f..644a7eae7 100644
  	if (hostapd_csa_in_progress(iface))
  		return 0;
 -- 
-2.39.2
+2.18.0
 

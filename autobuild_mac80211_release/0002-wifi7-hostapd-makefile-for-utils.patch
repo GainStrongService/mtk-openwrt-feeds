@@ -1,8 +1,34 @@
+diff --git a/package/network/config/netifd/Makefile b/package/network/config/netifd/Makefile
+index 8084327..8fd4c85 100644
+--- a/package/network/config/netifd/Makefile
++++ b/package/network/config/netifd/Makefile
+@@ -5,9 +5,9 @@ PKG_RELEASE:=3
+ 
+ PKG_SOURCE_PROTO:=git
+ PKG_SOURCE_URL=$(PROJECT_GIT)/project/netifd.git
+-PKG_SOURCE_DATE:=2023-08-31
+-PKG_SOURCE_VERSION:=1a07f1dff32b3af49e39533e33e8964b59535662
+-PKG_MIRROR_HASH:=dc621dd04c3c9631002f929cf10a4620f57af8b0baf614c590bda17957fa6201
++PKG_SOURCE_DATE:=2023-07-17
++PKG_SOURCE_VERSION:=0ff22a6a68ce942d4c9e7d58355d128dd3793b06
++PKG_MIRROR_HASH:=4cc81829fa6eb571d67f6879c78d2f514b757a34cc963b7627d55a7a8deffb75
+ PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
+ 
+ PKG_LICENSE:=GPL-2.0
 diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index f147c42..7a31c36 100644
+index 4bc1b94..348c94d 100644
 --- a/package/network/services/hostapd/Makefile
 +++ b/package/network/services/hostapd/Makefile
-@@ -501,7 +501,6 @@ define Package/hostapd-utils
+@@ -80,7 +80,7 @@ ifneq ($(CONFIG_DRIVER_11AX_SUPPORT),)
+ endif
+ 
+ CORE_DEPENDS = +ucode +libubus +libucode +ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop +libblobmsg-json
+-OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl +PACKAGE_$(1):libopenssl-legacy
++OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl
+ 
+ DRIVER_MAKEOPTS= \
+ 	CONFIG_ACS=y CONFIG_DRIVER_NL80211=y \
+@@ -498,7 +498,6 @@ define Package/hostapd-utils
    TITLE:=IEEE 802.1x Authenticator (utils)
    URL:=http://hostap.epitest.fi/
    DEPENDS:=@$(subst $(space),||,$(foreach pkg,$(HOSTAPD_PROVIDERS),PACKAGE_$(pkg)))
@@ -10,7 +36,7 @@ index f147c42..7a31c36 100644
  endef
  
  define Package/hostapd-utils/description
-@@ -515,7 +514,6 @@ define Package/wpa-cli
+@@ -512,7 +511,6 @@ define Package/wpa-cli
    SUBMENU:=WirelessAPD
    DEPENDS:=@$(subst $(space),||,$(foreach pkg,$(SUPPLICANT_PROVIDERS),PACKAGE_$(pkg)))
    TITLE:=WPA Supplicant command line control utility
@@ -18,7 +44,7 @@ index f147c42..7a31c36 100644
  endef
  
  define Package/eapol-test/Default
-@@ -726,6 +724,9 @@ define Package/hostapd-common/install
+@@ -719,6 +717,9 @@ define Package/hostapd-common/install
  	$(INSTALL_DATA) ./files/wpad.json $(1)/etc/capabilities
  	$(INSTALL_DATA) ./files/common.uc $(1)/usr/share/hostap/
  	$(INSTALL_DATA) ./files/wdev.uc $(1)/usr/share/hostap/

@@ -1,7 +1,7 @@
-From 65f862e0db364352657f0f19245339208dc0a966 Mon Sep 17 00:00:00 2001
+From ea7da2297d396febe75de0d7cf77cba9d2eab778 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Thu, 12 Jan 2023 15:18:19 +0800
-Subject: [PATCH 13/32] hostapd: mtk: Add he_ldpc configuration
+Subject: [PATCH 13/40] hostapd: mtk: Add he_ldpc configuration
 
 ---
  hostapd/config_file.c        | 2 ++
@@ -13,10 +13,10 @@ Subject: [PATCH 13/32] hostapd: mtk: Add he_ldpc configuration
  6 files changed, 19 insertions(+)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index ecd290717..8c5831dbb 100644
+index d17e50e..04ca433 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -3517,6 +3517,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -3515,6 +3515,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  		conf->he_phy_capab.he_su_beamformee = atoi(pos);
  	} else if (os_strcmp(buf, "he_mu_beamformer") == 0) {
  		conf->he_phy_capab.he_mu_beamformer = atoi(pos);
@@ -26,7 +26,7 @@ index ecd290717..8c5831dbb 100644
  		conf->he_op.he_bss_color = atoi(pos) & 0x3f;
  		conf->he_op.he_bss_color_disabled = 0;
 diff --git a/hostapd/hostapd.conf b/hostapd/hostapd.conf
-index 30fb06d1c..fd42c5038 100644
+index 30fb06d..fd42c50 100644
 --- a/hostapd/hostapd.conf
 +++ b/hostapd/hostapd.conf
 @@ -833,6 +833,11 @@ wmm_ac_vo_acm=0
@@ -42,7 +42,7 @@ index 30fb06d1c..fd42c5038 100644
  #he_bss_color=1
  
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 83e2ea121..1f27543bf 100644
+index f519a76..223db56 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -269,6 +269,7 @@ struct hostapd_config * hostapd_config_defaults(void)
@@ -54,7 +54,7 @@ index 83e2ea121..1f27543bf 100644
  		HE_OPERATION_RTS_THRESHOLD_OFFSET;
  	/* Set default basic MCS/NSS set to single stream MCS 0-7 */
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 94056157b..195816c28 100644
+index b8f6680..5b2dbff 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
 @@ -956,6 +956,7 @@ struct hostapd_bss_config {
@@ -66,7 +66,7 @@ index 94056157b..195816c28 100644
  	bool he_su_beamformee;
  	bool he_mu_beamformer;
 diff --git a/src/ap/ieee802_11_he.c b/src/ap/ieee802_11_he.c
-index 548a44821..9407dd6e5 100644
+index 548a448..9407dd6 100644
 --- a/src/ap/ieee802_11_he.c
 +++ b/src/ap/ieee802_11_he.c
 @@ -138,6 +138,13 @@ u8 * hostapd_eid_he_capab(struct hostapd_data *hapd, u8 *eid,
@@ -84,10 +84,10 @@ index 548a44821..9407dd6e5 100644
  		cap->he_phy_capab_info[HE_PHYCAP_SU_BEAMFORMER_CAPAB_IDX] |=
  			HE_PHYCAP_SU_BEAMFORMER_CAPAB;
 diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
-index 571ace2f5..74301178f 100644
+index 0b7b776..cf3ef98 100644
 --- a/src/common/ieee802_11_defs.h
 +++ b/src/common/ieee802_11_defs.h
-@@ -2355,6 +2355,9 @@ struct ieee80211_spatial_reuse {
+@@ -2357,6 +2357,9 @@ struct ieee80211_spatial_reuse {
  #define HE_PHYCAP_CHANNEL_WIDTH_SET_160MHZ_IN_5G	((u8) BIT(3))
  #define HE_PHYCAP_CHANNEL_WIDTH_SET_80PLUS80MHZ_IN_5G	((u8) BIT(4))
  
@@ -98,5 +98,5 @@ index 571ace2f5..74301178f 100644
  #define HE_PHYCAP_SU_BEAMFORMER_CAPAB		((u8) BIT(7))
  #define HE_PHYCAP_SU_BEAMFORMEE_CAPAB_IDX	4
 -- 
-2.39.2
+2.18.0
 

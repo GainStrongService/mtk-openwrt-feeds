@@ -1,7 +1,7 @@
-From b232336ca798430ca9d920d1fa58b1418999eeb0 Mon Sep 17 00:00:00 2001
+From de53629544ee0f9508554049bc5927ce2f04fcf9 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 12 May 2023 05:24:19 +0800
-Subject: [PATCH 28/32] hostapd: mtk: Add muru user number debug command
+Subject: [PATCH 24/40] hostapd: mtk: Add muru user number debug command
 
 ---
  hostapd/ctrl_iface.c         | 13 ++++++++++++-
@@ -14,10 +14,10 @@ Subject: [PATCH 28/32] hostapd: mtk: Add muru user number debug command
  7 files changed, 55 insertions(+), 15 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 4952bef89..972393e77 100644
+index 1bb64ea..f36c138 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3477,6 +3477,8 @@ hostapd_ctrl_iface_set_edcca(struct hostapd_data *hapd, char *cmd,
+@@ -3398,6 +3398,8 @@ hostapd_ctrl_iface_set_edcca(struct hostapd_data *hapd, char *cmd,
  					 char *buf, size_t buflen)
  {
  	char *pos, *config, *value;
@@ -26,7 +26,7 @@ index 4952bef89..972393e77 100644
  	config = cmd;
  	pos = os_strchr(config, ' ');
  	if (pos == NULL)
-@@ -3583,6 +3585,8 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -3504,6 +3506,8 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  					 char *buf, size_t buflen)
  {
  	char *pos, *config, *value;
@@ -35,7 +35,7 @@ index 4952bef89..972393e77 100644
  	config = cmd;
  	pos = os_strchr(config, ' ');
  	if (pos == NULL)
-@@ -3600,13 +3604,20 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -3521,13 +3525,20 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  			return -1;
  		}
  		hapd->iconf->mu_onoff = (u8) mu;
@@ -58,7 +58,7 @@ index 4952bef89..972393e77 100644
  	} else {
  		return -1;
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index b90dd5722..0aec9e925 100644
+index b90dd57..0aec9e9 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
 @@ -1162,11 +1162,11 @@ int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value)
@@ -76,7 +76,7 @@ index b90dd5722..0aec9e925 100644
  
  int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff)
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 1e2a92acb..5dd701e10 100644
+index 1e2a92a..5dd701e 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -148,7 +148,7 @@ int hostapd_drv_configure_edcca_enable(struct hostapd_data *hapd);
@@ -89,7 +89,7 @@ index 1e2a92acb..5dd701e10 100644
  int hostapd_drv_three_wire_ctrl(struct hostapd_data *hapd);
  int hostapd_drv_ibf_ctrl(struct hostapd_data *hapd);
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 6e6ae77d7..c684d7e39 100644
+index 24e5df8..25ae08f 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -57,6 +57,7 @@
@@ -100,7 +100,7 @@ index 6e6ae77d7..c684d7e39 100644
  
  static int hostapd_flush_old_stations(struct hostapd_data *hapd, u16 reason);
  #ifdef CONFIG_WEP
-@@ -2567,7 +2568,7 @@ dfs_offload:
+@@ -2517,7 +2518,7 @@ dfs_offload:
  	if (hostapd_drv_configure_edcca_threshold(hapd,
  						  hapd->iconf->edcca_threshold) < 0)
  		goto fail;
@@ -110,7 +110,7 @@ index 6e6ae77d7..c684d7e39 100644
  	if (hostapd_drv_three_wire_ctrl(hapd) < 0)
  		goto fail;
 diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
-index dd1ca2164..99371bf73 100644
+index dd1ca21..99371bf 100644
 --- a/src/common/mtk_vendor.h
 +++ b/src/common/mtk_vendor.h
 @@ -199,6 +199,8 @@ enum mtk_vendor_attr_mu_ctrl {
@@ -133,7 +133,7 @@ index dd1ca2164..99371bf73 100644
 +};
  #endif /* MTK_VENDOR_H */
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 5c70ec78f..84387a6d7 100644
+index 5c70ec7..84387a6 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
 @@ -5096,11 +5096,11 @@ struct wpa_driver_ops {
@@ -151,10 +151,10 @@ index 5c70ec78f..84387a6d7 100644
  
  	/**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index b923e5c7e..0e7ee4306 100644
+index 3d8cb95..b682620 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -13565,13 +13565,13 @@ fail:
+@@ -13562,13 +13562,13 @@ fail:
  
  
  #ifdef CONFIG_IEEE80211AX
@@ -170,7 +170,7 @@ index b923e5c7e..0e7ee4306 100644
  
  	if (!drv->mtk_mu_vendor_cmd_avail) {
  		wpa_printf(MSG_INFO,
-@@ -13582,17 +13582,38 @@ static int nl80211_mu_onoff(void *priv, u8 mu_onoff)
+@@ -13579,17 +13579,38 @@ static int nl80211_mu_onoff(void *priv, u8 mu_onoff)
  	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR)) ||
  		nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_MTK) ||
  		nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_MU_CTRL) ||
@@ -214,7 +214,7 @@ index b923e5c7e..0e7ee4306 100644
  }
  
  
-@@ -14734,7 +14755,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14731,7 +14752,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.update_connect_params = nl80211_update_connection_params,
  	.send_external_auth_status = nl80211_send_external_auth_status,
  	.set_4addr_mode = nl80211_set_4addr_mode,
@@ -224,5 +224,5 @@ index b923e5c7e..0e7ee4306 100644
  #ifdef CONFIG_DPP
  	.dpp_listen = nl80211_dpp_listen,
 -- 
-2.39.2
+2.18.0
 
