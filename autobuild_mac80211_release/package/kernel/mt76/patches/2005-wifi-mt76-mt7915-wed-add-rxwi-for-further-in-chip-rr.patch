@@ -1,8 +1,7 @@
-From c3a50c7e22166936473ecc6116a33660d0df6f52 Mon Sep 17 00:00:00 2001
+From cc7a9202984360cdc476d3aa860bebd9fc248a16 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 6 Jan 2023 18:18:50 +0800
-Subject: [PATCH 2005/2010] wifi: mt76: mt7915: wed: add rxwi for further in
- chip rro
+Subject: [PATCH] wifi: mt76: mt7915: wed: add rxwi for further in chip rro
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -264,7 +263,7 @@ index 25ec4330..35cd297c 100644
  	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
  		skb_queue_head_init(&dev->rx_skb[i]);
 diff --git a/mt76.h b/mt76.h
-index e315fc1e..6c488bd1 100644
+index 70146064..828d3e8b 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -173,6 +173,7 @@ struct mt76_queue_entry {
@@ -275,9 +274,9 @@ index e315fc1e..6c488bd1 100644
  		struct urb *urb;
  		int buf_sz;
  	};
-@@ -371,10 +372,15 @@ struct mt76_txwi_cache {
- 	struct list_head list;
- 	dma_addr_t dma_addr;
+@@ -373,10 +374,15 @@ struct mt76_txwi_cache {
+ 
+ 	unsigned long jiffies;
  
 -	union {
 -		struct sk_buff *skb;
@@ -295,7 +294,7 @@ index e315fc1e..6c488bd1 100644
  };
  
  struct mt76_rx_tid {
-@@ -460,6 +466,7 @@ struct mt76_driver_ops {
+@@ -462,6 +468,7 @@ struct mt76_driver_ops {
  	u16 txwi_size;
  	u16 token_size;
  	u8 mcs_rates;
@@ -303,7 +302,7 @@ index e315fc1e..6c488bd1 100644
  
  	void (*update_survey)(struct mt76_phy *phy);
  
-@@ -833,7 +840,6 @@ struct mt76_dev {
+@@ -835,7 +842,6 @@ struct mt76_dev {
  
  	struct ieee80211_hw *hw;
  
@@ -311,7 +310,7 @@ index e315fc1e..6c488bd1 100644
  	spinlock_t lock;
  	spinlock_t cc_lock;
  
-@@ -1523,8 +1529,8 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+@@ -1525,8 +1531,8 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
  }
  
  void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
@@ -322,7 +321,7 @@ index e315fc1e..6c488bd1 100644
  void mt76_free_pending_rxwi(struct mt76_dev *dev);
  void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
  		      struct napi_struct *napi);
-@@ -1676,9 +1682,9 @@ struct mt76_txwi_cache *
+@@ -1681,9 +1687,9 @@ struct mt76_txwi_cache *
  mt76_token_release(struct mt76_dev *dev, int token, bool *wake);
  int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi);
  void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
@@ -355,10 +354,10 @@ index 59a44d79..326c8c8c 100644
  
  		/* rx data queue for band1 */
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index cb0893e2..a59e3118 100644
+index cae8b810..d7393901 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
-@@ -584,18 +584,18 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
+@@ -622,18 +622,18 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
  				sizeof(struct skb_shared_info));
  
  	for (i = 0; i < dev->mt76.rx_token_size; i++) {
@@ -384,7 +383,7 @@ index cb0893e2..a59e3118 100644
  	}
  
  	mt76_free_pending_rxwi(&dev->mt76);
-@@ -613,18 +613,18 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+@@ -651,18 +651,18 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
  				sizeof(struct skb_shared_info));
  
  	for (i = 0; i < size; i++) {
@@ -406,7 +405,7 @@ index cb0893e2..a59e3118 100644
  			goto unmap;
  		}
  
-@@ -634,17 +634,17 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+@@ -672,17 +672,17 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
  					  DMA_TO_DEVICE);
  		if (unlikely(dma_mapping_error(dev->mt76.dev, phy_addr))) {
  			__free_pages(page, get_order(length));
@@ -427,7 +426,7 @@ index cb0893e2..a59e3118 100644
  			goto unmap;
  		}
  
-@@ -810,7 +810,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -848,7 +848,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  	wed->wlan.reset = mt7915_mmio_wed_reset;
  	wed->wlan.reset_complete = mt7915_mmio_wed_reset_complete;
  
@@ -436,7 +435,7 @@ index cb0893e2..a59e3118 100644
  
  	if (mtk_wed_device_attach(wed))
  		return 0;
-@@ -1017,6 +1017,7 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
+@@ -1056,6 +1056,7 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
  				SURVEY_INFO_TIME_RX |
  				SURVEY_INFO_TIME_BSS_RX,
  		.token_size = MT7915_TOKEN_SIZE,
@@ -445,7 +444,7 @@ index cb0893e2..a59e3118 100644
  		.tx_complete_skb = mt76_connac_tx_complete_skb,
  		.rx_skb = mt7915_queue_rx_skb,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 6123a2db..3734c8e9 100644
+index c60521b1..4d3ff13b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -64,6 +64,7 @@
@@ -502,5 +501,5 @@ index 5d7bf340..2594a625 100644
  }
  EXPORT_SYMBOL_GPL(mt76_rx_token_release);
 -- 
-2.39.2
+2.18.0
 
