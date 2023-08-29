@@ -235,6 +235,17 @@ static int udp_l2tp_data_tnl_debug_param_setup(const char *buf, int *ofs,
 	return -EPERM; //TODO: not implemented
 }
 
+static int udp_l2tp_data_tnl_l2_param_update(struct sk_buff *skb,
+					     struct tops_tnl_params *tnl_params)
+{
+	struct ethhdr *eth = eth_hdr(skb);
+
+	memcpy(&tnl_params->saddr, eth->h_source, sizeof(u8) * ETH_ALEN);
+	memcpy(&tnl_params->daddr, eth->h_dest, sizeof(u8) * ETH_ALEN);
+
+	return 1;
+}
+
 static bool udp_l2tp_data_tnl_info_match(struct tops_tnl_params *params1,
 					 struct tops_tnl_params *params2)
 {
@@ -243,9 +254,7 @@ static bool udp_l2tp_data_tnl_info_match(struct tops_tnl_params *params1,
 	    && params1->sport == params2->sport
 	    && params1->dport == params2->dport
 	    && params1->priv.l2tp.tid == params2->priv.l2tp.tid
-	    && params1->priv.l2tp.sid == params2->priv.l2tp.sid
-	    && !memcmp(params1->saddr, params2->saddr, sizeof(u8) * ETH_ALEN)
-	    && !memcmp(params1->daddr, params2->daddr, sizeof(u8) * ETH_ALEN))
+	    && params1->priv.l2tp.sid == params2->priv.l2tp.sid)
 		return true;
 
 	return false;
@@ -297,6 +306,7 @@ static struct tops_tnl_type udp_l2tp_data_type = {
 	.tnl_decap_param_setup = udp_l2tp_data_tnl_decap_param_setup,
 	.tnl_encap_param_setup = udp_l2tp_data_tnl_encap_param_setup,
 	.tnl_debug_param_setup = udp_l2tp_data_tnl_debug_param_setup,
+	.tnl_l2_param_update = udp_l2tp_data_tnl_l2_param_update,
 	.tnl_info_match = udp_l2tp_data_tnl_info_match,
 	.tnl_decap_offloadable = udp_l2tp_data_tnl_decap_offloadable,
 	.tops_entry = TOPS_ENTRY_UDP_L2TP_DATA,
