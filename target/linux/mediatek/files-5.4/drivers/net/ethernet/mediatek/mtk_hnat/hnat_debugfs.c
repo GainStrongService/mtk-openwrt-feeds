@@ -371,7 +371,11 @@ int entry_detail(u32 ppe_id, int index)
 	pr_info("==========<PPE_ID=%d, Flow Table Entry=%d (%p)>===============\n",
 		ppe_id, index, entry);
 	if (debug_level >= 2) {
-		print_cnt = 20;
+		if (hnat_priv->data->version == MTK_HNAT_V3)
+			print_cnt = 28;
+		else
+			print_cnt = 20;
+
 		for (i = 0; i < print_cnt; i++)
 			pr_info("%02d: %08X\n", i, *(p + i));
 	}
@@ -619,10 +623,23 @@ int entry_detail(u32 ppe_id, int index)
 			"TCP" :	entry->ipv6_5t_route.bfib1.udp == 1 ?
 			"UDP" :	"Unknown");
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-		pr_info("tport_id = %d, tops_entry = %d, cdrt_id = %d\n",
-			entry->ipv6_5t_route.tport_id,
-			entry->ipv6_5t_route.tops_entry,
-			entry->ipv6_5t_route.cdrt_id);
+		if (IS_IPV6_HNAT(entry) || IS_IPV6_HNAPT(entry)) {
+			pr_info("tport_id = %d, tops_entry = %d, cdrt_id = %d\n",
+				entry->ipv6_hnapt.tport_id,
+				entry->ipv6_hnapt.tops_entry,
+				entry->ipv6_hnapt.cdrt_id);
+
+		} else if (IS_IPV4_MAPE(entry) || IS_IPV4_MAPT(entry)) {
+			pr_info("tport_id = %d, tops_entry = %d, cdrt_id = %d\n",
+				entry->ipv4_mape.tport_id,
+				entry->ipv4_mape.tops_entry,
+				entry->ipv4_mape.cdrt_id);
+		} else {
+			pr_info("tport_id = %d, tops_entry = %d, cdrt_id = %d\n",
+				entry->ipv6_5t_route.tport_id,
+				entry->ipv6_5t_route.tops_entry,
+				entry->ipv6_5t_route.cdrt_id);
+		}
 #endif
 		pr_info("=========================================\n\n");
 	}
