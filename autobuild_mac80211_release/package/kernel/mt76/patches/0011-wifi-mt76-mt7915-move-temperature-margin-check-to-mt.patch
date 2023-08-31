@@ -1,7 +1,7 @@
-From f15732280a08c2c9f5fb3b18b40fb047189830a5 Mon Sep 17 00:00:00 2001
+From b7d4a039b0f828dfc7758a364c72c389cc500093 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 13 Jul 2023 15:50:00 +0800
-Subject: [PATCH 7/8] wifi: mt76: mt7915: move temperature margin check to
+Subject: [PATCH 11/15] wifi: mt76: mt7915: move temperature margin check to
  mt7915_thermal_temp_store()
 
 Originally, we would reduce the 10-degree margin to the restore
@@ -17,7 +17,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  2 files changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 2eec451..bcd3717 100644
+index 2eec451f..bcd37172 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -83,12 +83,13 @@ static ssize_t mt7915_thermal_temp_store(struct device *dev,
@@ -38,10 +38,10 @@ index 2eec451..bcd3717 100644
  		return -EINVAL;
  	}
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index bed4bdc..cc91df8 100644
+index 0660843c..ae488039 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3147,8 +3147,7 @@ int mt7915_mcu_set_thermal_protect(struct mt7915_phy *phy)
+@@ -3154,8 +3154,7 @@ int mt7915_mcu_set_thermal_protect(struct mt7915_phy *phy)
  
  	/* set high-temperature trigger threshold */
  	req.ctrl.ctrl_id = THERMAL_PROTECT_ENABLE;
@@ -52,5 +52,5 @@ index bed4bdc..cc91df8 100644
  	req.sustain_time = cpu_to_le16(10);
  
 -- 
-2.18.0
+2.39.2
 
