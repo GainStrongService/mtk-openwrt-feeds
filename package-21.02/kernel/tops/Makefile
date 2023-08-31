@@ -13,26 +13,6 @@ PKG_RELEASE:=1
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/package-defaults.mk
 
-EXTRA_KCONFIG+= \
-	CONFIG_MTK_TOPS_SUPPORT=m \
-	CONFIG_MTK_TOPS_GRE=$(CONFIG_MTK_TOPS_GRE) \
-	CONFIG_MTK_TOPS_GRETAP=$(CONFIG_MTK_TOPS_GRETAP) \
-	CONFIG_MTK_TOPS_L2TP=$(CONFIG_MTK_TOPS_L2TP) \
-	CONFIG_MTK_TOPS_UDP_L2TP_DATA=$(CONFIG_MTK_TOPS_UDP_L2TP_DATA) \
-	CONFIG_MTK_TOPS_SECURE_FW=$(CONFIG_MTK_TOPS_SECURE_FW)
-
-EXTRA_CFLAGS+= \
-	$(patsubst CONFIG_%, -DCONFIG_%=1, $(patsubst %=m,%,$(filter %=m,$(EXTRA_KCONFIG)))) \
-	$(patsubst CONFIG_%, -DCONFIG_%=1, $(patsubst %=y,%,$(filter %=y,$(EXTRA_KCONFIG))))
-
-EXTRA_CFLAGS+= \
-	-I$(LINUX_DIR)/drivers/net/ethernet/mediatek/ \
-	-I$(LINUX_DIR)/drivers/dma/ \
-	-I$(KERNEL_BUILD_DIR)/pce/inc/ \
-	-DCONFIG_TOPS_TNL_NUM=$(CONFIG_TOPS_TNL_NUM) \
-	-DCONFIG_TOPS_TNL_MAP_BIT=$(CONFIG_TOPS_TNL_MAP_BIT) \
-	-Wall -Werror
-
 define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
 	$(CP) ./firmware $(PKG_BUILD_DIR)/firmware
@@ -40,16 +20,18 @@ define Build/Prepare
 endef
 
 define Package/tops-rebb-fw-release
-  TITLE:=Mediatek Tunnel Offload Processor System ReBB Firmware
+  TITLE:=Mediatek Tunnel Offload Processor System ReBB Release Firmware
   SECTION:=firmware
   CATEGORY:=Firmware
-  DEPENDS:=@MTK_TOPS_FIRMWARE_RELEASE
+  DEPENDS:= \
+	@MTK_TOPS_RELEASE_TARGET \
+	kmod-tops-release
 endef
 
 define Package/tops-rebb-fw-release/description
-  Support for Mediatek Tunnel Offload Processor System ReBB firmware. The
-  firmware offload and accerlerate APMCU's tunnel protocols traffic. Available
-  offload tunnel include L2oGRE, L2TP.
+  Support for Mediatek Tunnel Offload Processor System ReBB release firmware.
+  The firmware offload and accerlerate APMCU's tunnel protocols traffic.
+  Available offload tunnel include L2oGRE, L2TP.
 endef
 
 define Package/tops-rebb-fw-release/install
@@ -60,44 +42,59 @@ define Package/tops-rebb-fw-release/install
 		$(1)/lib/firmware/mediatek
 endef
 
-define KernelPackage/tops
+define KernelPackage/tops-release
   CATEGORY:=MTK Properties
   SUBMENU:=Drivers
-  TITLE:= MTK Tunnel Offload Processor System Driver
+  TITLE:= MTK Tunnel Offload Processor System Kernel Driver
   FILES+=$(PKG_BUILD_DIR)/tops.ko
   KCONFIG:=
-  DEFAULT:=y
   DEPENDS:= \
-	@TARGET_mediatek_mt7988 \
+	@MTK_TOPS_RELEASE_TARGET \
 	kmod-mediatek_hnat \
+	kmod-tops \
 	+kmod-pce \
 	+@KERNEL_RELAY
 endef
 
-define KernelPackage/tops/description
-  Support for MTK Tunnel Offload Processor System. This system reduces the
-  loading of APMCU's tunnel protocol overhead and improve tunnel protocol's
-  throughput.
+define KernelPackage/tops-release/description
+  Support for MTK Tunnel Offload Processor System Released Driver. The driver
+  controls the TOPS system to reduce the loading of tunnel protocol processing
+  in APMCU.
 endef
 
-define KernelPackage/tops/config
-	source "$(SOURCE)/Config.in"
-endef
-
-define KernelPackage/tops-autoload
+define KernelPackage/tops-release-autoload
   CATEGORY:=MTK Properties
   SUBMENU:=Drivers
   TITLE:= MTK Tunnel Offload Processor System Auto Load
   AUTOLOAD:=$(call AutoLoad,51,tops)
   KCONFIG:=
   DEPENDS:= \
-	kmod-tops \
+	kmod-tops-release \
 	+kmod-pce-autoload
 endef
 
-define KernelPackage/tops-autoload/description
+define KernelPackage/tops-release-autoload/description
   Support for MTK Tunnel Offload Processor System auto load on system
   boot process.
+endef
+
+define KernelPackage/tops
+  CATEGORY:=MTK Properties
+  TITLE:=Mediatek Tunnel Offload Processor System
+  SUBMENU:=Drivers
+  DEFAULT:=y
+  DEPENDS:= \
+	@TARGET_mediatek_mt7988
+endef
+
+define KernelPackage/tops/config
+	source "$(SOURCE)/Config.in"
+endef
+
+define KernelPackage/tops/description
+  Support for MTK Tunnel Offload Processor System. This system reduces the
+  loading of APMCU's tunnel protocol overhead and improve tunnel protocol's
+  throughput.
 endef
 
 define Build/Compile
@@ -109,6 +106,10 @@ define Build/Compile
 		modules
 endef
 
+include tops.mk
+include $(filter-out tops.mk,$(wildcard *.mk))
+
 $(eval $(call BuildPackage,tops-rebb-fw-release))
 $(eval $(call KernelPackage,tops))
-$(eval $(call KernelPackage,tops-autoload))
+$(eval $(call KernelPackage,tops-release))
+$(eval $(call KernelPackage,tops-release-autoload))
