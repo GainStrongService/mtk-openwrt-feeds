@@ -921,26 +921,30 @@ static const struct file_operations hwtx_ring_fops = {
 int rx_ring_read(struct seq_file *seq, void *v)
 {
 	struct mtk_eth *eth = g_eth;
-	struct mtk_rx_ring *ring = &g_eth->rx_ring[0];
+	struct mtk_rx_ring *ring;
 	struct mtk_rx_dma_v2 *rx_ring;
-	int i = 0;
+	int i = 0, j = 0;
 
-	seq_printf(seq, "next to read: %d\n",
-		   NEXT_DESP_IDX(ring->calc_idx, MTK_DMA_SIZE));
-	for (i = 0; i < MTK_DMA_SIZE; i++) {
-		rx_ring = ring->dma + i * eth->soc->txrx.rxd_size;
+	for (j = 0; j < MTK_RX_NAPI_NUM; j++) {
+		ring = &g_eth->rx_ring[j];
 
-		seq_printf(seq, "%d: %08x %08x %08x %08x", i,
-			   rx_ring->rxd1, rx_ring->rxd2,
-			   rx_ring->rxd3, rx_ring->rxd4);
+		seq_printf(seq, "[Ring%d] next to read: %d\n", j,
+			   NEXT_DESP_IDX(ring->calc_idx, MTK_DMA_SIZE));
+		for (i = 0; i < MTK_DMA_SIZE; i++) {
+			rx_ring = ring->dma + i * eth->soc->txrx.rxd_size;
 
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
-			seq_printf(seq, " %08x %08x %08x %08x",
-				   rx_ring->rxd5, rx_ring->rxd6,
-				   rx_ring->rxd7, rx_ring->rxd8);
+			seq_printf(seq, "%d: %08x %08x %08x %08x", i,
+				   rx_ring->rxd1, rx_ring->rxd2,
+				   rx_ring->rxd3, rx_ring->rxd4);
+
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
+				seq_printf(seq, " %08x %08x %08x %08x",
+					   rx_ring->rxd5, rx_ring->rxd6,
+					   rx_ring->rxd7, rx_ring->rxd8);
+			}
+
+			seq_puts(seq, "\n");
 		}
-
-		seq_printf(seq, "\n");
 	}
 
 	return 0;
