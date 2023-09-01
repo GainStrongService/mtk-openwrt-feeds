@@ -1,0 +1,32 @@
+diff --git a/package/network/services/hostapd/files/hostapd.uc b/package/network/services/hostapd/files/hostapd.uc
+index 43637ac..feba364 100644
+--- a/package/network/services/hostapd/files/hostapd.uc
++++ b/package/network/services/hostapd/files/hostapd.uc
+@@ -84,6 +84,7 @@ function iface_freq_info(iface, config, params)
+ 	if (freq < 4000)
+ 		width = 0;
+ 
++	width = req.args.ch_width;
+ 	return hostapd.freq_info(freq, sec_offset, width);
+ }
+ 
+@@ -386,6 +387,7 @@ let main_obj = {
+ 			up: true,
+ 			frequency: 0,
+ 			sec_chan_offset: 0,
++			ch_width: 0,
+ 			csa: true,
+ 			csa_count: 0,
+ 		},
+diff --git a/package/network/services/hostapd/files/wpa_supplicant.uc b/package/network/services/hostapd/files/wpa_supplicant.uc
+index f8a3fcb..45ddbb7 100644
+--- a/package/network/services/hostapd/files/wpa_supplicant.uc
++++ b/package/network/services/hostapd/files/wpa_supplicant.uc
+@@ -240,6 +240,7 @@ function iface_hostapd_notify(phy, ifname, iface, state)
+ 		msg.up = true;
+ 		msg.frequency = status.frequency;
+ 		msg.sec_chan_offset = status.sec_chan_offset;
++		msg.ch_width = status.ch_width;
+ 		break;
+ 	default:
+ 		return;
