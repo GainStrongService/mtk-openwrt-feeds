@@ -282,6 +282,16 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 {
 	struct mtk_xfrm_params *xfrm_params;
 
+	/*
+	 * EIP197 does not support fragmentation. As a result, we can not bind UDP
+	 * flow since it may cause network fail due to fragmentation
+	 */
+	if (ntohs(skb->protocol) != ETH_P_IP
+	    || ip_hdr(skb)->protocol != IPPROTO_TCP) {
+		skb_hnat_alg(skb) = 1;
+		return false;
+	}
+
 	xfrm_params = (struct mtk_xfrm_params *)xs->xso.offload_handle;
 	skb_hnat_cdrt(skb) = xfrm_params->cdrt->idx;
 
