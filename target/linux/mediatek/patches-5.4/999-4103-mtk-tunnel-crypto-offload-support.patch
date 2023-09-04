@@ -11,7 +11,7 @@
  #define IS_WAN(dev)                                                            \
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat_nf_hook.c
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat_nf_hook.c
-@@ -1100,7 +1100,8 @@ static unsigned int hnat_ipv4_get_nextho
+@@ -1099,7 +1099,8 @@ static unsigned int hnat_ipv4_get_nextho
  	 * outer header, we must update its outer mac header pointer
  	 * before filling outer mac or it may screw up inner mac
  	 */
@@ -21,7 +21,7 @@
  		skb_push(skb, sizeof(struct ethhdr));
  		skb_reset_mac_header(skb);
  	}
-@@ -1108,7 +1109,8 @@ static unsigned int hnat_ipv4_get_nextho
+@@ -1107,7 +1108,8 @@ static unsigned int hnat_ipv4_get_nextho
  	memcpy(eth_hdr(skb)->h_dest, neigh->ha, ETH_ALEN);
  	memcpy(eth_hdr(skb)->h_source, out->dev_addr, ETH_ALEN);
  
@@ -31,7 +31,7 @@
  		skb_pull(skb, sizeof(struct ethhdr));
  
  	rcu_read_unlock_bh();
-@@ -1256,6 +1258,38 @@ static inline void hnat_get_filled_unbin
+@@ -1255,6 +1257,38 @@ static inline void hnat_get_filled_unbin
  	entry->bfib1.ps = 0;
  }
  
@@ -70,7 +70,7 @@
  static inline void hnat_qos_tnl(u32 id, const struct net_device *dev)
  {
  	u32 cfg;
-@@ -1300,9 +1334,15 @@ static inline void hnat_fill_offload_eng
+@@ -1299,9 +1333,15 @@ static inline void hnat_fill_offload_eng
  		 * we fill in hnat tport and tops_entry for tunnel encapsulation
  		 * offloading
  		 */
@@ -88,7 +88,7 @@
  		entry->ipv4_hnapt.tport_id = NR_EIP197_QDMA_TPORT;
  		entry->ipv4_hnapt.cdrt_id = skb_hnat_cdrt(skb);
  	} else {
-@@ -1334,6 +1374,7 @@ static unsigned int skb_to_hnat_info(str
+@@ -1333,6 +1373,7 @@ static unsigned int skb_to_hnat_info(str
  	u32 port_id = 0;
  	u32 payload_len = 0;
  	int mape = 0;
@@ -96,7 +96,7 @@
  
  	ct = nf_ct_get(skb, &ctinfo);
  
-@@ -1350,10 +1391,12 @@ static unsigned int skb_to_hnat_info(str
+@@ -1349,10 +1390,12 @@ static unsigned int skb_to_hnat_info(str
  	if (whnat && is_hnat_pre_filled(foe))
  		return 0;
  
@@ -111,7 +111,7 @@
  	}
  
  	entry.bfib1.pkt_type = foe->udib1.pkt_type; /* Get packte type state*/
-@@ -1752,7 +1795,8 @@ static unsigned int skb_to_hnat_info(str
+@@ -1751,7 +1794,8 @@ static unsigned int skb_to_hnat_info(str
  	entry = ppe_fill_L2_info(eth, entry, hw_path);
  
  	if ((skb_hnat_tops(skb) && hw_path->flags & FLOW_OFFLOAD_PATH_TNL)
@@ -121,7 +121,7 @@
  		goto hnat_entry_skip_bind;
  
  hnat_entry_bind:
-@@ -1958,7 +2002,7 @@ hnat_entry_bind:
+@@ -1957,7 +2001,7 @@ hnat_entry_bind:
  
  #if defined(CONFIG_MEDIATEK_NETSYS_V3)
  	hnat_fill_offload_engine_entry(skb, &entry, dev);
@@ -130,7 +130,7 @@
  		entry = ppe_fill_L2_info(eth, entry, hw_path);
  #endif
  
-@@ -2238,6 +2282,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
+@@ -2237,6 +2281,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
  	skb_hnat_alg(skb) = 0;
  	skb_hnat_set_tops(skb, 0);
  	skb_hnat_set_cdrt(skb, 0);
@@ -138,7 +138,7 @@
  	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
  
  	if (skb_hnat_iface(skb) == FOE_MAGIC_WED0)
-@@ -3018,7 +3063,8 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
+@@ -3017,7 +3062,8 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
  		entry->udib1.pkt_type = IPV6_6RD;
  		hnat_set_head_frags(state, skb, 0, hnat_set_alg);
  	} else if (is_magic_tag_valid(skb)
@@ -150,7 +150,7 @@
  		hnat_set_head_frags(state, skb, 1, hnat_set_alg);
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2316,11 +2316,14 @@ static int mtk_poll_rx(struct napi_struc
+@@ -2324,10 +2324,11 @@ static int mtk_poll_rx(struct napi_struc
  
  		skb_hnat_alg(skb) = 0;
  		skb_hnat_filled(skb) = 0;
@@ -159,13 +159,10 @@
  		skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
  		skb_hnat_set_tops(skb, 0);
  		skb_hnat_set_is_decap(skb, 0);
++		skb_hnat_set_is_decrypt(skb, (skb_hnat_cdrt(skb) ? 1 : 0));
  
-+		if (skb_hnat_cdrt(skb))
-+			skb_hnat_set_is_decrypt(skb, 1);
-+
  		if (skb_hnat_reason(skb) == HIT_BIND_FORCE_TO_CPU) {
  			trace_printk("[%s] reason=0x%x(force to CPU) from WAN to Ext\n",
- 				     __func__, skb_hnat_reason(skb));
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -640,6 +640,9 @@
