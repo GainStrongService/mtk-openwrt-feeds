@@ -22,7 +22,10 @@ define Package/tops-tool
 endef
 
 define Package/tops-tool/description
-  Mediatek Tunnel Offload Processor System User Tool
+  This package is support for MediaTek tunnel offload processor system user tool.
+  The tool will monitor TOPS status, such as TOPS core utilization rate and core
+  debug dump info. Some features are not monitored by default unless user trigger
+  it to start. The tool will support logging functionality in the future.
 endef
 
 TARGET_CFLAGS += \
@@ -38,9 +41,26 @@ endef
 define Package/tops-tool/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tops-tool $(1)/usr/sbin/
+endef
 
+define Package/tops-tool-autoload
+  TITLE:=Mediatek Tunnel Offload Processor System User Tool Auto Load
+  CATEGORY:=MTK Properties
+  SUBMENU:=Applications
+  DEPENDS:=tops-tool
+  DEFAULT:=y if PACKAGE_kmod-tops-release-autoload || PACKAGE_kmod-tops-dev-autoload
+endef
+
+define Package/tops-tool-autoload/description
+  This package is support for MediaTek tunnel offload processor system user tool
+  autoload. The tool will automatically start monitor TOPS status when system
+  boot up.
+endef
+
+define Package/tops-tool-autoload/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/tops-tool.init $(1)/etc/init.d/tops-tool
 endef
 
 $(eval $(call BuildPackage,tops-tool))
+$(eval $(call BuildPackage,tops-tool-autoload))

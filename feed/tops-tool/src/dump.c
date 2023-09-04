@@ -88,7 +88,7 @@ static int save_dump_data(char *dump_root_dir,
 		/* TODO: only keep latest three dump directories */
 	}
 
-	fd = open(dump_file, 0664);
+	fd = open(dump_file, O_WRONLY | O_CREAT, 0664);
 	if (fd < 0) {
 		fprintf(stderr,
 			DUMP_LOG_FMT("open(%s) fail(%s)\n"),
