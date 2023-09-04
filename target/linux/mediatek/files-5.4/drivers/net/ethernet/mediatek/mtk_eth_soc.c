@@ -964,6 +964,8 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 {
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
+	struct mtk_eth *eth = mac->hw;
+	unsigned int id;
 	u32 mcr, sts;
 
 	mtk_pse_port_link_set(mac, false);
@@ -972,8 +974,9 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 		mcr &= ~(MAC_MCR_TX_EN | MAC_MCR_RX_EN | MAC_MCR_FORCE_LINK);
 		mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
 	} else if (mac->type == MTK_XGDM_TYPE && mac->id != MTK_GMAC1_ID) {
-		mcr = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
+		struct mtk_usxgmii_pcs *mpcs;
 
+		mcr = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
 		mcr &= 0xfffffff0;
 		mcr |= XMAC_MCR_TRX_DISABLE;
 		mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
@@ -981,6 +984,10 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 		sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
 		sts &= ~MTK_XGMAC_FORCE_LINK(mac->id);
 		mtk_w32(mac->hw, sts, MTK_XGMAC_STS(mac->id));
+
+		id = mtk_mac2xgmii_id(eth, mac->id);
+		mpcs = &eth->usxgmii->pcs[id];
+		cancel_delayed_work_sync(&mpcs->link_poll);
 	}
 }
 

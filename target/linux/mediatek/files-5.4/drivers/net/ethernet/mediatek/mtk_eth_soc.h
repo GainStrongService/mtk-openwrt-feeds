@@ -945,6 +945,11 @@
 #define USXGMII_LPA_LINK	BIT(15)
 #define USXGMII_LPA_LATCH	BIT(31)
 
+/* Register to read PCS Link status */
+#define RG_PCS_RX_STATUS0	0x904
+#define RG_PCS_RX_STATUS_UPDATE	BIT(16)
+#define RG_PCS_RX_LINK_STATUS	BIT(2)
+
 /* Register to control USXGMII XFI PLL digital */
 #define XFI_PLL_DIG_GLB8	0x08
 #define RG_XFI_PLL_EN		BIT(31)
@@ -1715,7 +1720,9 @@ struct mtk_usxgmii_pcs {
 	struct mtk_eth		*eth;
 	struct regmap		*regmap;
 	struct regmap		*regmap_pextp;
+	struct delayed_work	link_poll;
 	phy_interface_t		interface;
+	unsigned int		mode;
 	u8			id;
 	struct phylink_pcs	pcs;
 };
@@ -1895,6 +1902,7 @@ struct phylink_pcs *mtk_usxgmii_select_pcs(struct mtk_usxgmii *ss, int id);
 int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r);
 int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
 int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
+void mtk_usxgmii_link_poll(struct work_struct *work);
 
 void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
 u32 mtk_rss_indr_table(struct mtk_rss_params *rss_params, int index);

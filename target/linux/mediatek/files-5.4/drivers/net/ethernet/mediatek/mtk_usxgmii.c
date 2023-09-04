@@ -468,6 +468,25 @@ void mtk_usxgmii_setup_phya_10gbaser(struct mtk_usxgmii_pcs *mpcs)
 	udelay(400);
 }
 
+int mtk_usxgmii_link_status(struct mtk_usxgmii_pcs *mpcs)
+{
+	unsigned int val;
+
+	/* Refresh USXGMII link status by toggling RG_PCS_RX_STATUS_UPDATE */
+	regmap_read(mpcs->regmap, RG_PCS_RX_STATUS0, &val);
+	val |= RG_PCS_RX_STATUS_UPDATE;
+	regmap_write(mpcs->regmap, RG_PCS_RX_STATUS0, val);
+
+	regmap_read(mpcs->regmap, RG_PCS_RX_STATUS0, &val);
+	val &= ~RG_PCS_RX_STATUS_UPDATE;
+	regmap_write(mpcs->regmap, RG_PCS_RX_STATUS0, val);
+
+	/* Read USXGMII link status */
+	regmap_read(mpcs->regmap, RG_PCS_RX_STATUS0, &val);
+
+	return FIELD_GET(RG_PCS_RX_LINK_STATUS, val);
+}
+
 void mtk_usxgmii_reset(struct mtk_eth *eth, int id)
 {
 	u32 val = 0;
@@ -580,6 +599,7 @@ static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 
 	if (mpcs->interface != interface) {
 		mpcs->interface = interface;
+		mpcs->mode = mode;
 		mode_changed = true;
 	}
 
@@ -725,15 +745,34 @@ void mtk_usxgmii_pcs_restart_an(struct phylink_pcs *pcs)
 	regmap_write(mpcs->regmap, RG_PCS_AN_CTRL0, val);
 }
 
+void mtk_usxgmii_link_poll(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct mtk_usxgmii_pcs *mpcs = container_of(dwork, struct mtk_usxgmii_pcs, link_poll);
+
+	if (!mtk_usxgmii_link_status(mpcs)) {
+		mtk_usxgmii_pcs_config(&mpcs->pcs, mpcs->mode,
+				       mpcs->interface, NULL, false);
+
+		queue_delayed_work(system_power_efficient_wq, &mpcs->link_poll,
+				   msecs_to_jiffies(1000));
+	}
+}
+
 static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 				    phy_interface_t interface,
 				    int speed, int duplex)
 {
+	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
+
 	/* Reconfiguring USXGMII to ensure the quality of the RX signal
 	 * after the line side link up.
 	 */
 	mtk_usxgmii_pcs_config(pcs, mode,
 			       interface, NULL, false);
+
+	queue_delayed_work(system_power_efficient_wq, &mpcs->link_poll,
+			   msecs_to_jiffies(1000));
 }
 
 static const struct phylink_pcs_ops mtk_usxgmii_pcs_ops = {
@@ -764,6 +803,8 @@ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r)
 		ss->pcs[i].pcs.ops = &mtk_usxgmii_pcs_ops;
 		ss->pcs[i].pcs.poll = true;
 		ss->pcs[i].interface = PHY_INTERFACE_MODE_NA;
+
+		INIT_DELAYED_WORK(&ss->pcs[i].link_poll, mtk_usxgmii_link_poll);
 
 		of_node_put(np);
 	}
