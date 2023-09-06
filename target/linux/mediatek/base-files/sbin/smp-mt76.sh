@@ -214,6 +214,15 @@ MT7986()
 		#	wifi3_irq=247
 		#fi
 	fi
+
+	for vif in $NET_IF_LIST;
+	do
+		if [[ "$vif" == "lan"* ]] ||  \
+		[[ "$vif" == "wlan"* ]] || [[ "$vif" == "phy"* ]]; then
+			LAN_IF_LIST="$LAN_IF_LIST $vif"
+		fi
+	done;
+	dbg2 "$LAN_IF_LIST = $LAN_IF_LIST"
 	# Please update the CPU binding in each cases.
 	# CPU#_AFFINITY="add binding irq number here"
 	# CPU#_RPS="add binding interface name here"
@@ -234,8 +243,8 @@ MT7986()
 		CPU2_AFFINITY="$wifi2_irq $wifi3_irq"
 		CPU3_AFFINITY="$wifi1_irq"
 
-		CPU0_RPS="$RPS_IF_LIST"
-		CPU1_RPS="$RPS_IF_LIST"
+		CPU0_RPS="$LAN_IF_LIST"
+		CPU1_RPS="$LAN_IF_LIST"
 		CPU2_RPS="$RPS_IF_LIST"
 		CPU3_RPS="$RPS_IF_LIST"
 	fi
