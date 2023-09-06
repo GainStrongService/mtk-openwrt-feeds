@@ -1,8 +1,7 @@
-From cffa7c8bb58e234747364d4bb702d52bf6e77e24 Mon Sep 17 00:00:00 2001
+From 99ebe10c9bc4259528c225fd6ab64edaa02d9d15 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 11 Jan 2023 10:56:27 +0800
-Subject: [PATCH 2006/2010] wifi: mt76: add debugfs knob to show packet error
- rate
+Subject: [PATCH] wifi: mt76: add debugfs knob to show packet error rate
 
 Get tx count and tx failed from mcu command
 ---
@@ -15,7 +14,7 @@ Get tx count and tx failed from mcu command
  6 files changed, 194 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index 6c488bd1..cbd63695 100644
+index 828d3e8..3fbe02a 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -297,8 +297,10 @@ struct mt76_sta_stats {
@@ -30,7 +29,7 @@ index 6c488bd1..cbd63695 100644
  	u64 rx_bytes;
  	u32 rx_packets;
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 1257dfa1..cfdee7c1 100644
+index 1257dfa..cfdee7c 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1162,6 +1162,7 @@ enum {
@@ -42,10 +41,10 @@ index 1257dfa1..cfdee7c1 100644
  	MCU_EXT_CMD_SET_DRR_CTRL = 0x36,
  	MCU_EXT_CMD_SET_FEATURE_CTRL = 0x38,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 9e282b88..a4225675 100644
+index 170b3f1..148a687 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4226,6 +4226,114 @@ int mt7915_mcu_get_tx_rate(struct mt7915_phy *phy, u16 wcidx)
+@@ -4232,6 +4232,114 @@ int mt7915_mcu_get_tx_rate(struct mt7915_phy *phy, u16 wcidx)
  		return mt7915_mcu_get_tx_rate_v2(phy, wcidx);
  }
  
@@ -161,7 +160,7 @@ index 9e282b88..a4225675 100644
  				struct cfg80211_he_bss_color *he_bss_color)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 825bb7df..12c98c5e 100644
+index 825bb7d..12c98c5 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -791,7 +791,8 @@ mt7915_get_power_bound(struct mt7915_phy *phy, s8 txpower)
@@ -200,10 +199,10 @@ index 825bb7df..12c98c5e 100644
     CAPI_SU,
     CAPI_MU,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 3734c8e9..70e92734 100644
+index e36fb84..e8f7ca5 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -674,6 +674,7 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
+@@ -675,6 +675,7 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
  int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
  				     struct cfg80211_chan_def *chandef);
  int mt7915_mcu_wed_wa_tx_stats(struct mt7915_dev *dev, u16 wcid);
@@ -212,12 +211,12 @@ index 3734c8e9..70e92734 100644
  int mt7915_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
  int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 75ce5f99..401b4dd6 100644
+index 928bb50..4defc17 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -3790,6 +3790,66 @@ mt7915_sw_aci_set(void *data, u64 val)
- DEFINE_DEBUGFS_ATTRIBUTE(fops_sw_aci, NULL,
- 			 mt7915_sw_aci_set, "%llx\n");
+@@ -3795,6 +3795,66 @@ mt7915_sr_enable_set(void *data, u64 val)
+ DEFINE_DEBUGFS_ATTRIBUTE(fops_sr_enable, NULL,
+ 			 mt7915_sr_enable_set, "%llx\n");
  
 +static int mt7915_reset_counter(void *data, u64 val)
 +{
@@ -282,15 +281,15 @@ index 75ce5f99..401b4dd6 100644
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  {
  	struct mt7915_dev *dev = phy->dev;
-@@ -3880,6 +3940,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
- 				    mt7915_show_eeprom_mode);
+@@ -3886,6 +3946,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  	debugfs_create_file("sw_aci", 0600, dir, dev,
  			    &fops_sw_aci);
+ 	debugfs_create_file("sr_enable", 0200, dir, phy, &fops_sr_enable);
 +	debugfs_create_file("reset_counter", 0200, dir, dev, &fops_reset_counter);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "per", dir, mt7915_per_read);
  	return 0;
  }
  #endif
 -- 
-2.39.2
+2.18.0
 
