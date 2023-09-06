@@ -1,8 +1,25 @@
-Index: lede/package/network/services/hostapd/Makefile
-===================================================================
---- lede.orig/package/network/services/hostapd/Makefile
-+++ lede/package/network/services/hostapd/Makefile
-@@ -429,7 +429,6 @@ define Package/hostapd-utils
+diff --git a/package/network/config/netifd/Makefile b/package/network/config/netifd/Makefile
+index 8084327..8fd4c85 100644
+--- a/package/network/config/netifd/Makefile
++++ b/package/network/config/netifd/Makefile
+@@ -5,9 +5,9 @@ PKG_RELEASE:=3
+ 
+ PKG_SOURCE_PROTO:=git
+ PKG_SOURCE_URL=$(PROJECT_GIT)/project/netifd.git
+-PKG_SOURCE_DATE:=2023-08-31
+-PKG_SOURCE_VERSION:=1a07f1dff32b3af49e39533e33e8964b59535662
+-PKG_MIRROR_HASH:=dc621dd04c3c9631002f929cf10a4620f57af8b0baf614c590bda17957fa6201
++PKG_SOURCE_DATE:=2023-07-17
++PKG_SOURCE_VERSION:=0ff22a6a68ce942d4c9e7d58355d128dd3793b06
++PKG_MIRROR_HASH:=4cc81829fa6eb571d67f6879c78d2f514b757a34cc963b7627d55a7a8deffb75
+ PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
+ 
+ PKG_LICENSE:=GPL-2.0
+diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
+index f184830..3af18c6 100644
+--- a/package/network/services/hostapd/Makefile
++++ b/package/network/services/hostapd/Makefile
+@@ -500,7 +500,6 @@ define Package/hostapd-utils
    TITLE:=IEEE 802.1x Authenticator (utils)
    URL:=http://hostap.epitest.fi/
    DEPENDS:=@$(subst $(space),||,$(foreach pkg,$(HOSTAPD_PROVIDERS),PACKAGE_$(pkg)))
@@ -10,7 +27,7 @@ Index: lede/package/network/services/hostapd/Makefile
  endef
  
  define Package/hostapd-utils/description
-@@ -443,7 +442,6 @@ define Package/wpa-cli
+@@ -514,7 +513,6 @@ define Package/wpa-cli
    SUBMENU:=WirelessAPD
    DEPENDS:=@$(subst $(space),||,$(foreach pkg,$(SUPPLICANT_PROVIDERS),PACKAGE_$(pkg)))
    TITLE:=WPA Supplicant command line control utility
@@ -18,7 +35,7 @@ Index: lede/package/network/services/hostapd/Makefile
  endef
  
  define Package/eapol-test/Default
-@@ -607,6 +605,9 @@ define Package/hostapd-common/install
+@@ -692,6 +690,9 @@ define Package/hostapd-common/install
  	$(INSTALL_BIN) ./files/wps-hotplug.sh $(1)/etc/rc.button/wps
  	$(INSTALL_DATA) ./files/wpad_acl.json $(1)/usr/share/acl.d
  	$(INSTALL_DATA) ./files/wpad.json $(1)/etc/capabilities
