@@ -1040,6 +1040,7 @@ struct mtk_tx_dma_v2 {
 
 struct mtk_eth;
 struct mtk_mac;
+struct mtk_mux;
 
 /* struct mtk_hw_stats - the structure that holds the traffic statistics.
  * @stats_lock:		make sure that stats operations are atomic
@@ -1808,6 +1809,7 @@ struct mtk_eth {
 	struct net_device		dummy_dev;
 	struct net_device		*netdev[MTK_MAX_DEVS];
 	struct mtk_mac			*mac[MTK_MAX_DEVS];
+	struct mtk_mux			*mux[MTK_MAX_DEVS];
 	int				irq_fe[MTK_FE_IRQ_NUM];
 	int				irq_pdma[MTK_PDMA_IRQ_NUM];
 	u8				hwver;
@@ -1870,6 +1872,25 @@ struct mtk_mac {
 	unsigned int			syscfg0;
 	bool				tx_lpi_enabled;
 	u32				tx_lpi_timer;
+};
+
+/* struct mtk_mux_data -	the structure that holds the private data about the
+ *			 Passive MUXs of the SoC
+ */
+struct mtk_mux_data {
+	struct device_node		*of_node;
+	struct phylink			*phylink;
+};
+
+/* struct mtk_mux -	the structure that holds the info about the Passive MUXs of the
+ *			SoC
+ */
+struct mtk_mux {
+	struct delayed_work		poll;
+	struct gpio_desc		*gpio[2];
+	struct mtk_mux_data		*data[2];
+	struct mtk_mac			*mac;
+	unsigned int			channel;
 };
 
 /* the struct describing the SoC. these are declared in the soc_xyz.c files */
