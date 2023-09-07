@@ -124,3 +124,21 @@ define KernelPackage/aquantia_aqtion/description
 endef
 
 $(eval $(call KernelPackage,aquantia_aqtion))
+
+define KernelPackage/phy-air_en8811h
+  SUBMENU:=Network Devices
+  TITLE:=Airoha EN8811H PHY driver
+  DEPENDS:=@TARGET_mediatek
+  KCONFIG:= \
+	CONFIG_AIROHA_EN8811H_PHY \
+	CONFIG_AIROHA_EN8811H_PHY_DEBUGFS=y
+  FILES:= \
+	$(LINUX_DIR)/drivers/net/phy/air_en8811h.ko
+  AUTOLOAD:=$(call AutoLoad,20,air_en8811h,1)
+endef
+
+define KernelPackage/phy-air_en8811h/description
+  kernel modules for Airoha EN8811H PHY driver
+endef
+
+$(eval $(call KernelPackage,phy-air_en8811h))
