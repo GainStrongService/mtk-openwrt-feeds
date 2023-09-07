@@ -41,7 +41,8 @@ $(eval $(call KernelPackage,sdhci-mtk))
 
 define KernelPackage/crypto-eip197
   TITLE:= EIP-197 Crypto Engine module
-  DEPENDS:=@TARGET_mediatek
+  DEPENDS:=@TARGET_mediatek_mt7988 +eip197-mini-firmware
+  DEFAULT:=y
   KCONFIG:= \
 	CONFIG_CRYPTO_HW=y \
 	CONFIG_CRYPTO_AUTHENC=y \
