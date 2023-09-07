@@ -286,8 +286,9 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 	 * EIP197 does not support fragmentation. As a result, we can not bind UDP
 	 * flow since it may cause network fail due to fragmentation
 	 */
-	if (ntohs(skb->protocol) != ETH_P_IP
-	    || ip_hdr(skb)->protocol != IPPROTO_TCP) {
+	if (!skb_hnat_tops(skb)
+	    && (ntohs(skb->protocol) != ETH_P_IP
+		|| ip_hdr(skb)->protocol != IPPROTO_TCP)) {
 		skb_hnat_alg(skb) = 1;
 		return false;
 	}
