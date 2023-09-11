@@ -14,8 +14,6 @@
 #define RELAY_DUMP_SUBBUF_SIZE		2048
 #define DUMP_DATA_PATH			"/sys/kernel/debug/tops/trm/dump-data"
 
-#define DUMP_LOG_FMT(FMT) "[TOPS_TOOL] [%s]: " FMT, __func__
-
 struct dump_info {
 	char name[DUMP_INFO_NAME_MAX_LEN];
 	uint64_t dump_time_sec;
@@ -38,6 +36,6 @@ struct dump_data_header {
 	uint8_t last_frag;
 };
 
-int tops_save_dump_data(char *dump_dir);
+int tops_tool_save_dump_data(int argc, char *argv[]);
 
 #endif /* __DUMP_H__ */

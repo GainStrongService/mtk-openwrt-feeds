@@ -12,6 +12,16 @@ PKG_RELEASE:=1
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/package-defaults.mk
 
+
+TOPS_TOOL_CONFIGS += \
+	CONFIG_MTK_TOPS_TOOL_SAVE_LOG=$(CONFIG_MTK_TOPS_TOOL_SAVE_LOG)
+
+MAKE_VARS += $(TOPS_TOOL_CONFIGS)
+
+EXTRA_CFLAGS += \
+	-I$(PKG_BUILD_DIR)/inc \
+	$(patsubst CONFIG_%=y, -DCONFIG_%=1, $(filter %=y,$(TOPS_TOOL_CONFIGS)))
+
 define Package/tops-tool
   TITLE:=Mediatek Tunnel Offload Processor System User Tool
   SECTION:=MTK Properties
@@ -28,14 +38,8 @@ define Package/tops-tool/description
   it to start. The tool will support logging functionality in the future.
 endef
 
-TARGET_CFLAGS += \
-	-I$(PKG_BUILD_DIR)/inc
-
-define Build/Compile
-	$(MAKE) -C $(PKG_BUILD_DIR) \
-		CC="$(TARGET_CC)" \
-		CFLAGS="$(TARGET_CFLAGS) -Wall -Wextra" \
-		LDFLAGS="$(TARGET_LDFLAGS)"
+define Package/tops-tool/config
+	source "$(SOURCE)/Config.in"
 endef
 
 define Package/tops-tool/install
@@ -57,9 +61,18 @@ define Package/tops-tool-autoload/description
   boot up.
 endef
 
+TOPS_TOOL_INIT_FILES := \
+	./files/tops-tool.init \
+	./files/tops-tool-dump.init
+ifeq ($(CONFIG_MTK_TOPS_TOOL_SAVE_LOG), y)
+TOPS_TOOL_INIT_FILES += \
+	./files/tops-tool-log.init
+endif
+
 define Package/tops-tool-autoload/install
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/tops-tool.init $(1)/etc/init.d/tops-tool
+	$(foreach file, $(TOPS_TOOL_INIT_FILES), \
+		$(INSTALL_BIN) $(file) $(1)/etc/init.d/$(notdir $(basename $(file)));)
 endef
 
 $(eval $(call BuildPackage,tops-tool))

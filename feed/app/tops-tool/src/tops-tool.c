@@ -9,60 +9,73 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "dump.h"
+#include "common.h"
+#include "tops-tool.h"
+
+static struct tops_tool_cmd cmds[] = {
+	TOPS_TOOL_CMD(SAVE_DUMP)
+	TOPS_TOOL_CMD(SAVE_LOG)
+};
 
 static void print_usage(void)
 {
+	unsigned int idx;
+
 	printf("Usage:\n");
-	printf(" tops-tool [CMD] [DUMP_DIR]\n");
-	printf(" [CMD] are:\n");
-	printf("    save_dump   save dump data as file in directory [DUMP_DIR]\n");
-	printf(" [DUMP_DIR] is directory of dump file\n");
+	printf("tops-tool [CMD]\n");
+	printf("[CMD] are:\n");
+	for (idx = 0; idx < ARRAY_SIZE(cmds); idx++)
+		printf("\t%s\n\t%s\n\n", cmds[idx].usage, cmds[idx].desc);
 }
 
-static int verify_parameters(int argc,
-			     char *argv[])
+static int verify_parameters(int argc, char *argv[], unsigned int *cmd_idx)
 {
+	unsigned int idx;
 	char *cmd;
 
 	if (argc < 2) {
-		fprintf(stderr, DUMP_LOG_FMT("missing cmd\n"));
+		fprintf(stderr, LOG_FMT("CMD missing\n"));
 		return -EINVAL;
 	}
 
 	cmd = argv[1];
-	if (!strncmp(cmd, "save_dump", 9)) {
-		if (argc < 3) {
-			fprintf(stderr, DUMP_LOG_FMT("too few parameters\n"));
-			return -EINVAL;
+	for (idx = 0; idx < ARRAY_SIZE(cmds); idx++) {
+		if (!strncmp(cmds[idx].name, cmd, strlen(cmds[idx].name))) {
+			if (argc - 2 < cmds[idx].num_of_parms) {
+				fprintf(stderr,
+					LOG_FMT("CMD(%s) needs %d parameter(s)\n"),
+					cmds[idx].name,
+					cmds[idx].num_of_parms);
+				return -EINVAL;
+			}
+
+			*cmd_idx = idx;
+
+			return 0;
 		}
 	}
 
-	return 0;
+	fprintf(stderr, LOG_FMT("CMD(%s) not support\n"), cmd);
+
+	return -EINVAL;
 }
 
 int main(int argc, char *argv[])
 {
+	unsigned int cmd_idx;
 	int ret = 0;
-	char *cmd;
 
-	ret = verify_parameters(argc, argv);
+	ret = verify_parameters(argc, argv, &cmd_idx);
 	if (ret) {
 		print_usage();
 		goto error;
 	}
 
-	cmd = argv[1];
-	if (!strncmp(cmd, "save_dump", 9)) {
-		ret = tops_save_dump_data(argv[2]);
-		if (ret) {
-			fprintf(stderr,
-				DUMP_LOG_FMT("cmd %s: save dump data fail(%d)\n"),
-					     cmd, ret);
-			goto error;
-		}
-	} else {
-		fprintf(stderr, DUMP_LOG_FMT("unsupported cmd %s\n"), cmd);
+	ret = cmds[cmd_idx].func(argc, argv);
+	if (ret) {
+		fprintf(stderr,
+			LOG_FMT("CMD(%s) execution failed(%d)\n"),
+			cmds[cmd_idx].name, ret);
 		goto error;
 	}
 

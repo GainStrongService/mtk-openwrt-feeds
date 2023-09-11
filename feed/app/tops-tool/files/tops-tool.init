@@ -8,10 +8,11 @@ NAME=tops-tool
 PROG=/usr/sbin/tops-tool
 
 start_service() {
-	procd_open_instance
-	procd_set_param command "${PROG}" save_dump /log/tops
-	procd_set_param respawn
-	procd_close_instance
+	for script in /etc/init.d/tops-tool*; do
+		if [[ -f "$script" && -x "$script" ]]; then
+			source "$script"
+		fi
+	done
 }
 
 stop_service() {
