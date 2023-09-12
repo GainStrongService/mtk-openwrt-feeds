@@ -1,7 +1,7 @@
-From a7b0e17e0dafe6cfe58f88465006cd0c9e7c3217 Mon Sep 17 00:00:00 2001
+From 529ea5156b39398b24801eabcb3f1531ca53d3ca Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Mon, 13 Mar 2023 05:23:37 +0800
-Subject: [PATCH 12/14] mac80211: mtk: track obss color bitmap
+Subject: [PATCH 12/21] mac80211: mtk: track obss color bitmap
 
 Track OBSS BSS color when receive their beacon.
 
@@ -9,17 +9,16 @@ Adding 2 tracepoint for debug, usage:
 echo 1 > /sys/kernel/debug/tracing/events/mac80211/bss_color_bitmap/enable
 echo 1 > /sys/kernel/debug/tracing/events/mac80211/bss_color_collision/enable
 ---
- include/net/mac80211.h |  5 +++--
- net/mac80211/cfg.c     |  4 ++--
- net/mac80211/rx.c      |  9 +++++++--
+ include/net/mac80211.h |  1 +
+ net/mac80211/rx.c      |  6 +++++-
  net/mac80211/trace.h   | 21 +++++++++++++++++++++
- 4 files changed, 33 insertions(+), 6 deletions(-)
+ 3 files changed, 27 insertions(+), 1 deletion(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 9208a8d..299425a 100644
+index 2c282e6..b90e828 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -741,6 +741,7 @@ struct ieee80211_bss_conf {
+@@ -744,6 +744,7 @@ struct ieee80211_bss_conf {
  	} he_oper;
  	struct ieee80211_he_obss_pd he_obss_pd;
  	struct cfg80211_he_bss_color he_bss_color;
@@ -27,72 +26,30 @@ index 9208a8d..299425a 100644
  	struct ieee80211_fils_discovery fils_discovery;
  	u32 unsol_bcast_probe_resp_interval;
  	struct cfg80211_bitrate_mask beacon_tx_rate;
-@@ -7269,7 +7270,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
- 					  struct ieee80211_vif *vif);
- 
- /**
-- * ieeee80211_obss_color_collision_notify - notify userland about a BSS color
-+ * ieee80211_obss_color_collision_notify - notify userland about a BSS color
-  * collision.
-  *
-  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
-@@ -7278,7 +7279,7 @@ ieee80211_get_unsol_bcast_probe_resp_tmpl(struct ieee80211_hw *hw,
-  * @gfp: allocation flags
-  */
- void
--ieeee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
-+ieee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
- 				       u64 color_bitmap, gfp_t gfp);
- 
- /**
-diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 36a2c8d..0ecc026 100644
---- a/net/mac80211/cfg.c
-+++ b/net/mac80211/cfg.c
-@@ -4750,7 +4750,7 @@ void ieee80211_color_change_finish(struct ieee80211_vif *vif)
- EXPORT_SYMBOL_GPL(ieee80211_color_change_finish);
- 
- void
--ieeee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
-+ieee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
- 				       u64 color_bitmap, gfp_t gfp)
- {
- 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-@@ -4770,7 +4770,7 @@ ieeee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
- 				     &link->color_collision_detect_work,
- 				     msecs_to_jiffies(500));
- }
--EXPORT_SYMBOL_GPL(ieeee80211_obss_color_collision_notify);
-+EXPORT_SYMBOL_GPL(ieee80211_obss_color_collision_notify);
- 
- static int
- ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 54dcaf6..0048c22 100644
+index 56abe67..cf41b93 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
-@@ -3338,9 +3338,14 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
+@@ -3349,9 +3349,13 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
  
  		color = le32_get_bits(he_oper->he_oper_params,
  				      IEEE80211_HE_OPERATION_BSS_COLOR_MASK);
 +
 +		bss_conf->used_color_bitmap |= BIT_ULL(color);
 +
-+		trace_bss_color_bitmap(color, bss_conf->used_color_bitmap);
-+
++		// trace_bss_color_bitmap(color, bss_conf->used_color_bitmap);
  		if (color == bss_conf->he_bss_color.color)
--			ieeee80211_obss_color_collision_notify(&rx->sdata->vif,
--							       BIT_ULL(color),
-+			ieee80211_obss_color_collision_notify(&rx->sdata->vif,
-+							       bss_conf->used_color_bitmap,
- 							       GFP_ATOMIC);
+ 			ieee80211_obss_color_collision_notify(&rx->sdata->vif,
+-							      BIT_ULL(color),
++							      bss_conf->used_color_bitmap,
+ 							      GFP_ATOMIC);
  	}
  }
 diff --git a/net/mac80211/trace.h b/net/mac80211/trace.h
-index de5d69f..cad6597 100644
+index b8c53b4..814aed6 100644
 --- a/net/mac80211/trace.h
 +++ b/net/mac80211/trace.h
-@@ -3058,6 +3058,27 @@ TRACE_EVENT(stop_queue,
+@@ -3060,6 +3060,27 @@ TRACE_EVENT(stop_queue,
  	)
  );
  

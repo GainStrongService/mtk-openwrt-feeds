@@ -1,7 +1,7 @@
-From e12f4ecc226a21580958bcbb2f418ae979e49a36 Mon Sep 17 00:00:00 2001
+From 3a7bbbffc4870e413856f3f3d7e54066117d13ed Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Wed, 14 Dec 2022 00:26:50 -0800
-Subject: [PATCH 09/14] mac80211: mtk: fix tx amsdu aggregation
+Subject: [PATCH 09/21] mac80211: mtk: fix tx amsdu aggregation
 
 ---
  include/net/mac80211.h | 7 +++++++
@@ -9,10 +9,10 @@ Subject: [PATCH 09/14] mac80211: mtk: fix tx amsdu aggregation
  2 files changed, 11 insertions(+), 2 deletions(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 09fad2b..bd257ce 100644
+index 96e4ec9..eb229aa 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -2905,6 +2905,13 @@ static inline void _ieee80211_hw_set(struct ieee80211_hw *hw,
+@@ -2921,6 +2921,13 @@ static inline void _ieee80211_hw_set(struct ieee80211_hw *hw,
  }
  #define ieee80211_hw_set(hw, flg)	_ieee80211_hw_set(hw, IEEE80211_HW_##flg)
  
@@ -27,7 +27,7 @@ index 09fad2b..bd257ce 100644
   * struct ieee80211_scan_request - hw scan request
   *
 diff --git a/net/mac80211/agg-tx.c b/net/mac80211/agg-tx.c
-index 6597607..752ad09 100644
+index b6b7726..80cd642 100644
 --- a/net/mac80211/agg-tx.c
 +++ b/net/mac80211/agg-tx.c
 @@ -66,7 +66,8 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,

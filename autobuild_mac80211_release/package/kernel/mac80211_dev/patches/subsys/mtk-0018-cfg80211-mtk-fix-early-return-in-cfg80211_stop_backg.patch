@@ -1,7 +1,7 @@
-From 435bf8765d44b694b86a400fb128fcf6d72b8aa6 Mon Sep 17 00:00:00 2001
+From ca445932b19fb346ea7cb33a5d23d94f979a2603 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 27 Jul 2023 10:25:59 +0800
-Subject: [PATCH 18/19] cfg80211: mtk: fix early return in
+Subject: [PATCH 18/21] cfg80211: mtk: fix early return in
  cfg80211_stop_background_radar_detection
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -10,10 +10,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/net/wireless/mlme.c b/net/wireless/mlme.c
-index 57b9bde..c2cf8aa 100644
+index e3cbfc0..d345c72 100644
 --- a/net/wireless/mlme.c
 +++ b/net/wireless/mlme.c
-@@ -1145,9 +1145,9 @@ void cfg80211_stop_background_radar_detection(struct wireless_dev *wdev)
+@@ -1169,9 +1169,9 @@ void cfg80211_stop_background_radar_detection(struct wireless_dev *wdev)
  		return;
  
  	rdev_set_radar_background(rdev, NULL);
@@ -25,5 +25,5 @@ index 57b9bde..c2cf8aa 100644
 +	rdev->background_radar_wdev = NULL; /* Release offchain ownership */
  }
 -- 
-2.18.0
+2.39.2
 
