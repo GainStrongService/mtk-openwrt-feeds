@@ -177,7 +177,6 @@ int mtk_pce_dipfilter_entry_del(struct dip_desc *ddesc)
 	struct dipfilter_entry *dip_entry;
 	unsigned long flag;
 	int ret;
-	u32 idx;
 
 	if (!ddesc)
 		return 0;
@@ -188,12 +187,12 @@ int mtk_pce_dipfilter_entry_del(struct dip_desc *ddesc)
 	if (!dip_entry)
 		goto unlock;
 
-	dip_entry = &dip_hw.dip_entries[idx];
 	if (!refcount_dec_and_test(&dip_entry->refcnt))
 		/* dipfilter descriptor is still in use */
 		return 0;
 
-	mtk_pce_fe_mem_msg_config(&fmsg, FE_MEM_CMD_WRITE, FE_MEM_TYPE_DIPFILTER, idx);
+	mtk_pce_fe_mem_msg_config(&fmsg, FE_MEM_CMD_WRITE, FE_MEM_TYPE_DIPFILTER,
+				  dip_entry->index);
 	memset(&fmsg.raw, 0, sizeof(fmsg.raw));
 
 	ret = mtk_pce_fe_mem_msg_send(&fmsg);
@@ -203,7 +202,7 @@ int mtk_pce_dipfilter_entry_del(struct dip_desc *ddesc)
 	}
 
 	memset(&dip_entry->ddesc, 0, sizeof(struct dip_desc));
-	clear_bit(idx, dip_hw.dip_tbl);
+	clear_bit(dip_entry->index, dip_hw.dip_tbl);
 
 unlock:
 	spin_unlock_irqrestore(&dip_hw.lock, flag);
