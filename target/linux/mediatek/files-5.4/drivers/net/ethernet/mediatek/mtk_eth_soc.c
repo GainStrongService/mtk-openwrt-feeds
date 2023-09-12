@@ -3141,9 +3141,6 @@ static int mtk_rss_init(struct mtk_eth *eth)
 		/* Enable RSS dly int supoort */
 		val |= MTK_LRO_DLY_INT_EN;
 		mtk_w32(eth, val, MTK_PDMA_LRO_CTRL_DW0);
-
-		/* Set RSS delay config int ring1 */
-		mtk_w32(eth, MTK_MAX_DELAY_INT, MTK_LRO_RX1_DLY_INT);
 	}
 
 	/* Hash Type */
@@ -3182,7 +3179,12 @@ static int mtk_rss_init(struct mtk_eth *eth)
 	mtk_w32(eth, 0x210FFFF2, MTK_FE_INT_GRP);
 
 	/* Enable RSS delay interrupt */
-	mtk_w32(eth, 0x8f0f8f0f, MTK_PDMA_RSS_DELAY_INT);
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
+		mtk_w32(eth, MTK_MAX_DELAY_INT, MTK_LRO_RX1_DLY_INT);
+		mtk_w32(eth, MTK_MAX_DELAY_INT, MTK_LRO_RX2_DLY_INT);
+		mtk_w32(eth, MTK_MAX_DELAY_INT, MTK_LRO_RX3_DLY_INT);
+	} else
+		mtk_w32(eth, MTK_MAX_DELAY_INT_V2, MTK_PDMA_RSS_DELAY_INT);
 
 	return 0;
 }
@@ -5339,7 +5341,7 @@ static const struct mtk_soc_data mt7986_data = {
 	.required_clks = MT7986_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = false,
-	.rss_num = 0,
+	.rss_num = 4,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma_v2),
 		.rxd_size = sizeof(struct mtk_rx_dma),
@@ -5357,7 +5359,7 @@ static const struct mtk_soc_data mt7981_data = {
 	.required_clks = MT7981_CLKS_BITMAP,
 	.required_pctl = false,
 	.has_sram = false,
-	.rss_num = 0,
+	.rss_num = 4,
 	.txrx = {
 		.txd_size = sizeof(struct mtk_tx_dma_v2),
 		.rxd_size = sizeof(struct mtk_rx_dma),
