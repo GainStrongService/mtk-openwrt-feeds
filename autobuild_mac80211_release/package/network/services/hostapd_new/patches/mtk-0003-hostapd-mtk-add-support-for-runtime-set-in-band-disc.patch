@@ -1,7 +1,7 @@
-From e2ecc047a72c3069c9f05975e612a37864da5885 Mon Sep 17 00:00:00 2001
+From 9aaf05a3b4ec0cf420a20cbb5b2dc65b66eacb49 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 31 May 2022 21:15:54 +0800
-Subject: [PATCH 03/40] hostapd: mtk: add support for runtime set in-band
+Subject: [PATCH 03/38] hostapd: mtk: add support for runtime set in-band
  discovery
 
 Usage:
@@ -143,7 +143,7 @@ index 61f8cba..dfc996d 100644
  };
  
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index 9454cdf..3dc217f 100644
+index 6366d77..d160675 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
 @@ -1648,6 +1648,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
@@ -166,7 +166,7 @@ index 9454cdf..3dc217f 100644
  						  &params->fd_frame_tmpl_len);
  
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 99870a6..7867e69 100644
+index f6c5df9..c7745b6 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -4686,9 +4686,10 @@ static int nl80211_fils_discovery(struct i802_bss *bss, struct nl_msg *msg,

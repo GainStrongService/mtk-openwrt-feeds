@@ -1,7 +1,7 @@
-From 014cf359542aeefc995d936ab4843491c4a3b8b6 Mon Sep 17 00:00:00 2001
+From 3e51ee9efe44904b7b41402fd40a25d5e34614f3 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 17 Mar 2023 16:17:14 +0800
-Subject: [PATCH 21/40] hostapd: mtk: Add vendor for CAPI certification
+Subject: [PATCH 21/38] hostapd: mtk: Add vendor for CAPI certification
  commands
 
 ---
@@ -167,7 +167,7 @@ index 9615ca8..11444c7 100644
 +	return hapd->driver->ap_trigtype(hapd->drv_priv, enable, type);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 136ea23..946ee2d 100644
+index ecaa71f..32e6fc1 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -157,6 +157,9 @@ int hostapd_drv_amsdu_ctrl(struct hostapd_data *hapd);
@@ -260,10 +260,10 @@ index e27fe69..0b23c76 100644
  	MTK_VENDOR_ATTR_BSS_COLOR_CTRL_UNSPEC,
  
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 91cb475..3efea9f 100644
+index 130143e..91aa9b1 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5141,6 +5141,28 @@ struct wpa_driver_ops {
+@@ -5163,6 +5163,28 @@ struct wpa_driver_ops {
  	 *
  	 */
  	int (*get_aval_color_bmp)(void *priv, u64 *aval_color_bmp);
@@ -293,7 +293,7 @@ index 91cb475..3efea9f 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 8b8ddfa..6a42633 100644
+index ee0912f..592435c 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -76,6 +76,58 @@ enum nlmsgerr_attrs {
@@ -355,7 +355,7 @@ index 8b8ddfa..6a42633 100644
  static struct nl_sock * nl_create_handle(struct nl_cb *cb, const char *dbg)
  {
  	struct nl_sock *handle;
-@@ -14522,4 +14574,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14640,4 +14692,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.amsdu_ctrl = nl80211_enable_amsdu,
  	.amsdu_dump = nl80211_dump_amsdu,
  	.get_aval_color_bmp = nl80211_get_aval_color_bmp,

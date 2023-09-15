@@ -1,7 +1,7 @@
-From 4f54451e436ca42946b3f0f294b6e784d2f61862 Mon Sep 17 00:00:00 2001
+From 2c3c314405d088440feccf8fb596849d99cce6f8 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 16 Dec 2022 03:57:11 +0800
-Subject: [PATCH 12/40] hostapd: mtk: Add amsdu set get ctrl
+Subject: [PATCH 12/38] hostapd: mtk: Add amsdu set get ctrl
 
 ---
  hostapd/config_file.c             |   9 +++
@@ -20,10 +20,10 @@ Subject: [PATCH 12/40] hostapd: mtk: Add amsdu set get ctrl
  13 files changed, 207 insertions(+), 1 deletion(-)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index a4a8e71..d17e50e 100644
+index 50e2993..0b2f3dc 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4857,6 +4857,15 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -4863,6 +4863,15 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  		u8 en = strtol(pos, NULL, 10);
  
  		conf->dfs_detect_mode = en;
@@ -123,10 +123,10 @@ index c9b9683..f519a76 100644
  	return conf;
  }
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index c50c2e2..b8f6680 100644
+index 6576d79..9f3cea2 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1198,6 +1198,7 @@ struct hostapd_config {
+@@ -1201,6 +1201,7 @@ struct hostapd_config {
  	u8 three_wire_enable;
  	u8 ibf_enable;
  	u8 dfs_detect_mode;
@@ -159,7 +159,7 @@ index 41e76aa..a7226cf 100644
  }
 \ No newline at end of file
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 3f1df5d..422cb52 100644
+index 2958661..88bc430 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -153,6 +153,8 @@ int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff);
@@ -172,7 +172,7 @@ index 3f1df5d..422cb52 100644
  #include "drivers/driver.h"
  
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index a513236..24e5df8 100644
+index 227580e..a166de4 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -2523,6 +2523,8 @@ dfs_offload:
@@ -220,10 +220,10 @@ index 9811f26..7b4d7c1 100644
  	MTK_VENDOR_ATTR_RFEATURE_CTRL_UNSPEC,
  
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 7ac0284..87a5a9b 100644
+index 0a99078..38f6e8b 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5124,6 +5124,15 @@ struct wpa_driver_ops {
+@@ -5146,6 +5146,15 @@ struct wpa_driver_ops {
  	 *
  	 */
  	int (*ibf_dump)(void *priv, u8 *ibf_enable);
@@ -240,10 +240,10 @@ index 7ac0284..87a5a9b 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 936a4f8..ce09d9f 100644
+index a05e047..808db17 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -14049,6 +14049,118 @@ fail:
+@@ -14165,6 +14165,118 @@ fail:
  	return -ENOBUFS;
  }
  
@@ -362,7 +362,7 @@ index 936a4f8..ce09d9f 100644
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
  	.desc = "Linux nl80211/cfg80211",
-@@ -14211,4 +14323,6 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14329,4 +14441,6 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.three_wire_ctrl = nl80211_enable_three_wire,
  	.ibf_ctrl = nl80211_ibf_enable,
  	.ibf_dump = nl80211_ibf_dump,

@@ -1,7 +1,7 @@
-From 7f1a652729514a0f9a885be30185810c18110c4d Mon Sep 17 00:00:00 2001
+From 033f4f509e60c698d9754057e194f4760af39845 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Sat, 3 Jun 2023 17:12:15 +0800
-Subject: [PATCH 25/40] hostapd: mtk: add connac3 PHY MURU manual mode config
+Subject: [PATCH 25/38] hostapd: mtk: add connac3 PHY MURU manual mode config
  support
 
 This commit supports read the following two formats to set MU/RU manual
@@ -327,10 +327,10 @@ index f36c138..c288352 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index b329e81..d43f1a6 100644
+index f03a957..7c0d12a 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1200,6 +1200,7 @@ struct hostapd_config {
+@@ -1203,6 +1203,7 @@ struct hostapd_config {
  	u8 ibf_enable;
  	u8 dfs_detect_mode;
  	u8 amsdu;
@@ -357,7 +357,7 @@ index 0aec9e9..721bfa0 100644
  
  int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff)
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 5dd701e..741fdab 100644
+index 464efba..1e7ae7a 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -148,7 +148,7 @@ int hostapd_drv_configure_edcca_enable(struct hostapd_data *hapd);
@@ -370,7 +370,7 @@ index 5dd701e..741fdab 100644
  int hostapd_drv_three_wire_ctrl(struct hostapd_data *hapd);
  int hostapd_drv_ibf_ctrl(struct hostapd_data *hapd);
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 25ae08f..0dc86bf 100644
+index 28482c6..3e184b5 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -2518,7 +2518,7 @@ dfs_offload:
@@ -567,10 +567,10 @@ index 99371bf..e140de6 100644
 +
  #endif /* MTK_VENDOR_H */
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 84387a6..9ec0e96 100644
+index a29b6ff..ebc1d27 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5100,7 +5100,7 @@ struct wpa_driver_ops {
+@@ -5122,7 +5122,7 @@ struct wpa_driver_ops {
  	 * @priv: Private driver interface data
  	 *
  	 */
@@ -580,10 +580,10 @@ index 84387a6..9ec0e96 100644
  
  	/**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index b682620..22c56f9 100644
+index fce3ec9..25e5910 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -13562,12 +13562,13 @@ fail:
+@@ -13678,12 +13678,13 @@ fail:
  
  
  #ifdef CONFIG_IEEE80211AX
@@ -598,7 +598,7 @@ index b682620..22c56f9 100644
  	int ret = -ENOBUFS;
  
  	if (!drv->mtk_mu_vendor_cmd_avail) {
-@@ -13584,17 +13585,16 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, u8 val)
+@@ -13700,17 +13701,16 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, u8 val)
  
  	switch (mode) {
  	case MU_CTRL_ONOFF:
@@ -623,7 +623,7 @@ index b682620..22c56f9 100644
  		ret = -EINVAL;
  		goto fail;
  	}
-@@ -13602,9 +13602,8 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, u8 val)
+@@ -13718,9 +13718,8 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, u8 val)
  	nla_nest_end(msg, data);
  
  	ret = send_and_recv_msgs(drv, msg, NULL, NULL, NULL, NULL);

@@ -1,7 +1,7 @@
-From 20f21e3ff3c5d5db5daea650e22c6fa8ca6071a4 Mon Sep 17 00:00:00 2001
+From aa33ef52222963f20b152120ad84b6614b8421a1 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Feb 2023 10:51:47 +0800
-Subject: [PATCH 17/40] hostapd: mtk: Add sta-assisted DFS state update
+Subject: [PATCH 17/38] hostapd: mtk: Add sta-assisted DFS state update
  mechanism
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 78 insertions(+)
 
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index e5ed645..d52a60e 100644
+index cfc3508..9d002cf 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
-@@ -1508,6 +1508,26 @@ int hostapd_dfs_nop_finished(struct hostapd_iface *iface, int freq,
+@@ -1513,6 +1513,26 @@ int hostapd_dfs_nop_finished(struct hostapd_iface *iface, int freq,
  }
  
  
@@ -61,10 +61,10 @@ index c2556d2..25ba29c 100644
  int hostapd_is_dfs_chan_available(struct hostapd_iface *iface);
  int hostapd_dfs_start_cac(struct hostapd_iface *iface, int freq,
 diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
-index 903eab3..c3fc419 100644
+index f6093c1..e7f1f19 100644
 --- a/src/ap/drv_callbacks.c
 +++ b/src/ap/drv_callbacks.c
-@@ -1912,6 +1912,24 @@ static void hostapd_event_dfs_cac_started(struct hostapd_data *hapd,
+@@ -2086,6 +2086,24 @@ static void hostapd_event_dfs_cac_started(struct hostapd_data *hapd,
  			      radar->cf1, radar->cf2);
  }
  
@@ -89,7 +89,7 @@ index 903eab3..c3fc419 100644
  #endif /* NEED_AP_MLME */
  
  
-@@ -2190,6 +2208,16 @@ void hostapd_wpa_event(void *ctx, enum wpa_event_type event,
+@@ -2407,6 +2425,16 @@ void hostapd_wpa_event(void *ctx, enum wpa_event_type event,
  			break;
  		hostapd_event_dfs_nop_finished(hapd, &data->dfs_event);
  		break;
@@ -107,7 +107,7 @@ index 903eab3..c3fc419 100644
  		/* channel list changed (regulatory?), update channel list */
  		/* TODO: check this. hostapd_get_hw_features() initializes
 diff --git a/src/common/wpa_ctrl.h b/src/common/wpa_ctrl.h
-index ccff0ee..e209ac6 100644
+index 416e0d6..62f042e 100644
 --- a/src/common/wpa_ctrl.h
 +++ b/src/common/wpa_ctrl.h
 @@ -374,6 +374,7 @@ extern "C" {
@@ -119,10 +119,10 @@ index ccff0ee..e209ac6 100644
  #define AP_CSA_FINISHED "AP-CSA-FINISHED "
  
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 87a5a9b..592f506 100644
+index 38f6e8b..0469694 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5760,6 +5760,20 @@ enum wpa_event_type {
+@@ -5782,6 +5782,20 @@ enum wpa_event_type {
  	 * EVENT_LINK_RECONFIG - Notification that AP links removed
  	 */
  	EVENT_LINK_RECONFIG,
@@ -144,10 +144,10 @@ index 87a5a9b..592f506 100644
  
  
 diff --git a/src/drivers/driver_nl80211_event.c b/src/drivers/driver_nl80211_event.c
-index 8566b2a..ab988fa 100644
+index 701c32e..63d4401 100644
 --- a/src/drivers/driver_nl80211_event.c
 +++ b/src/drivers/driver_nl80211_event.c
-@@ -2447,6 +2447,12 @@ static void nl80211_radar_event(struct wpa_driver_nl80211_data *drv,
+@@ -2514,6 +2514,12 @@ static void nl80211_radar_event(struct wpa_driver_nl80211_data *drv,
  	case NL80211_RADAR_CAC_STARTED:
  		wpa_supplicant_event(drv->ctx, EVENT_DFS_CAC_STARTED, &data);
  		break;

@@ -1,7 +1,7 @@
-From b79b625e3790f0d9152f736629fbc0dcd826bf62 Mon Sep 17 00:00:00 2001
+From c1687a93fb5b8d72f7d68ea761a1fbaf80bf1de4 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 5 Jul 2023 10:44:15 +0800
-Subject: [PATCH 27/40] hostapd: mtk: Fix background channel overlapping
+Subject: [PATCH 27/38] hostapd: mtk: Fix background channel overlapping
  operating channel issue
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -10,10 +10,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  1 file changed, 18 insertions(+)
 
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index 2f5c86e..c9a9c6c 100644
+index 3b1df6d..6f76354 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
-@@ -807,6 +807,20 @@ static int dfs_are_channels_overlapped(struct hostapd_iface *iface, int freq,
+@@ -812,6 +812,20 @@ static int dfs_are_channels_overlapped(struct hostapd_iface *iface, int freq,
  }
  
  
@@ -34,7 +34,7 @@ index 2f5c86e..c9a9c6c 100644
  static unsigned int dfs_get_cac_time(struct hostapd_iface *iface,
  				     int start_chan_idx, int n_chans)
  {
-@@ -1127,6 +1141,8 @@ static void hostpad_dfs_update_background_chain(struct hostapd_iface *iface)
+@@ -1132,6 +1146,8 @@ static void hostpad_dfs_update_background_chain(struct hostapd_iface *iface)
  						  &oper_centr_freq_seg1_idx,
  						  &channel_type);
  	if (!channel ||
@@ -43,7 +43,7 @@ index 2f5c86e..c9a9c6c 100644
  	    hostapd_start_dfs_cac(iface, iface->conf->hw_mode,
  				  channel->freq, channel->chan,
  				  iface->conf->ieee80211n,
-@@ -1361,6 +1377,7 @@ static int hostapd_dfs_start_channel_switch_cac(struct hostapd_iface *iface)
+@@ -1366,6 +1382,7 @@ static int hostapd_dfs_start_channel_switch_cac(struct hostapd_iface *iface)
  	hostapd_set_oper_centr_freq_seg1_idx(iface->conf,
  					     oper_centr_freq_seg1_idx);
  	err = 0;
@@ -51,7 +51,7 @@ index 2f5c86e..c9a9c6c 100644
  
  	hostapd_setup_interface_complete(iface, err);
  	return err;
-@@ -1488,6 +1505,7 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
+@@ -1493,6 +1510,7 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
  			hostapd_set_oper_centr_freq_seg1_idx(
  				iface->conf, oper_centr_freq_seg1_idx);
  

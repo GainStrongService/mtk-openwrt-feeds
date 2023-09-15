@@ -1,7 +1,7 @@
-From 55837ad406c9af8a398d6073809151f7a3779b74 Mon Sep 17 00:00:00 2001
+From 33cbd77949640d337e4e39d462bbb6b575792de3 Mon Sep 17 00:00:00 2001
 From: Michael Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 7 Jul 2023 17:16:11 +0800
-Subject: [PATCH 39/40] hostapd: mtk: Set STA TX queue parameters configuration
+Subject: [PATCH 37/38] hostapd: mtk: Set STA TX queue parameters configuration
  after association
 
 This patch adds the way for wpa_supplicant to set driver's TX queue
@@ -17,7 +17,7 @@ Signed-off-by: Michael Lee <michael-cy.lee@mediatek.com>
  2 files changed, 28 insertions(+)
 
 diff --git a/wpa_supplicant/driver_i.h b/wpa_supplicant/driver_i.h
-index 48953c1..0699689 100644
+index dcf5764..36ff854 100644
 --- a/wpa_supplicant/driver_i.h
 +++ b/wpa_supplicant/driver_i.h
 @@ -321,6 +321,18 @@ static inline int wpa_drv_set_country(struct wpa_supplicant *wpa_s,
@@ -40,10 +40,10 @@ index 48953c1..0699689 100644
  				    const u8 *data, size_t data_len, int noack,
  				    unsigned int freq, unsigned int wait)
 diff --git a/wpa_supplicant/events.c b/wpa_supplicant/events.c
-index 03442f5..5eb5248 100644
+index 3b8596d..f5ac62e 100644
 --- a/wpa_supplicant/events.c
 +++ b/wpa_supplicant/events.c
-@@ -3557,6 +3557,20 @@ out:
+@@ -3559,6 +3559,20 @@ out:
  	return wpa_sm_set_mlo_params(wpa_s->wpa, &wpa_mlo);
  }
  
@@ -64,7 +64,7 @@ index 03442f5..5eb5248 100644
  
  static void wpa_supplicant_event_assoc(struct wpa_supplicant *wpa_s,
  				       union wpa_event_data *data)
-@@ -3884,6 +3898,8 @@ static void wpa_supplicant_event_assoc(struct wpa_supplicant *wpa_s,
+@@ -3886,6 +3900,8 @@ static void wpa_supplicant_event_assoc(struct wpa_supplicant *wpa_s,
  
  	if (wpa_s->current_ssid && wpa_s->current_ssid->enable_4addr_mode)
  		wpa_supplicant_set_4addr_mode(wpa_s);

@@ -1,7 +1,7 @@
-From de53629544ee0f9508554049bc5927ce2f04fcf9 Mon Sep 17 00:00:00 2001
+From 5644beb4dc1a11a236d909d4a8f8ad4aa86c6c34 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 12 May 2023 05:24:19 +0800
-Subject: [PATCH 24/40] hostapd: mtk: Add muru user number debug command
+Subject: [PATCH 24/38] hostapd: mtk: Add muru user number debug command
 
 ---
  hostapd/ctrl_iface.c         | 13 ++++++++++++-
@@ -76,7 +76,7 @@ index b90dd57..0aec9e9 100644
  
  int hostapd_drv_mu_dump(struct hostapd_data *hapd, u8 *mu_onoff)
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 1e2a92a..5dd701e 100644
+index 8a97e0f..464efba 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -148,7 +148,7 @@ int hostapd_drv_configure_edcca_enable(struct hostapd_data *hapd);
@@ -89,7 +89,7 @@ index 1e2a92a..5dd701e 100644
  int hostapd_drv_three_wire_ctrl(struct hostapd_data *hapd);
  int hostapd_drv_ibf_ctrl(struct hostapd_data *hapd);
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 24e5df8..25ae08f 100644
+index a166de4..28482c6 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -57,6 +57,7 @@
@@ -133,10 +133,10 @@ index dd1ca21..99371bf 100644
 +};
  #endif /* MTK_VENDOR_H */
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 5c70ec7..84387a6 100644
+index 8733bb5..a29b6ff 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5096,11 +5096,11 @@ struct wpa_driver_ops {
+@@ -5118,11 +5118,11 @@ struct wpa_driver_ops {
  	int (*get_edcca)(void *priv, const u8 mode, u8 *value);
  
  	/**
@@ -151,10 +151,10 @@ index 5c70ec7..84387a6 100644
  
  	/**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 3d8cb95..b682620 100644
+index c55d034..fce3ec9 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -13562,13 +13562,13 @@ fail:
+@@ -13678,13 +13678,13 @@ fail:
  
  
  #ifdef CONFIG_IEEE80211AX
@@ -170,7 +170,7 @@ index 3d8cb95..b682620 100644
  
  	if (!drv->mtk_mu_vendor_cmd_avail) {
  		wpa_printf(MSG_INFO,
-@@ -13579,17 +13579,38 @@ static int nl80211_mu_onoff(void *priv, u8 mu_onoff)
+@@ -13695,17 +13695,38 @@ static int nl80211_mu_onoff(void *priv, u8 mu_onoff)
  	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR)) ||
  		nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_MTK) ||
  		nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_MU_CTRL) ||
@@ -214,7 +214,7 @@ index 3d8cb95..b682620 100644
  }
  
  
-@@ -14731,7 +14752,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14849,7 +14870,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.update_connect_params = nl80211_update_connection_params,
  	.send_external_auth_status = nl80211_send_external_auth_status,
  	.set_4addr_mode = nl80211_set_4addr_mode,

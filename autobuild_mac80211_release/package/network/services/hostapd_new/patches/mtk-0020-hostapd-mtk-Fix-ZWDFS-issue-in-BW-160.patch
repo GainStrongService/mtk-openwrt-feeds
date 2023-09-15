@@ -1,7 +1,7 @@
-From 4518e45497260d319663621eca8cea4c0f79b668 Mon Sep 17 00:00:00 2001
+From 181312213a4e8a04be652734ae3ffad12c45b8ae Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Mar 2023 16:08:30 +0800
-Subject: [PATCH 20/40] hostapd: mtk: Fix ZWDFS issue in BW 160
+Subject: [PATCH 20/38] hostapd: mtk: Fix ZWDFS issue in BW 160
 
 When background radar is enabled and bandwidth is set to 160, AP will
 fail to startup due to the lack of non-DFS channel.
@@ -14,7 +14,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  1 file changed, 79 insertions(+), 19 deletions(-)
 
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index d52a60e..2f5c86e 100644
+index 9d002cf..3b1df6d 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
 @@ -69,15 +69,22 @@ static int dfs_get_used_n_chans(struct hostapd_iface *iface, int *seg1)
@@ -96,7 +96,7 @@ index d52a60e..2f5c86e 100644
  }
  
  
-@@ -831,8 +839,12 @@ static unsigned int dfs_get_cac_time(struct hostapd_iface *iface,
+@@ -836,8 +844,12 @@ static unsigned int dfs_get_cac_time(struct hostapd_iface *iface,
   */
  int hostapd_handle_dfs(struct hostapd_iface *iface)
  {
@@ -110,7 +110,7 @@ index d52a60e..2f5c86e 100644
  
  	if (is_6ghz_freq(iface->freq))
  		return 1;
-@@ -895,7 +907,7 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
+@@ -900,7 +912,7 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
  	/* Finally start CAC */
  	hostapd_set_state(iface, HAPD_IFACE_DFS);
  	wpa_printf(MSG_DEBUG, "DFS start CAC on %d MHz%s", iface->freq,
@@ -119,7 +119,7 @@ index d52a60e..2f5c86e 100644
  	wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO, DFS_EVENT_CAC_START
  		"freq=%d chan=%d sec_chan=%d, width=%d, seg0=%d, seg1=%d, cac_time=%ds",
  		iface->freq,
-@@ -905,6 +917,16 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
+@@ -910,6 +922,16 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
  		hostapd_get_oper_centr_freq_seg1_idx(iface->conf),
  		iface->dfs_cac_ms / 1000);
  
@@ -136,7 +136,7 @@ index d52a60e..2f5c86e 100644
  	res = hostapd_start_dfs_cac(
  		iface, iface->conf->hw_mode, iface->freq, iface->conf->channel,
  		iface->conf->ieee80211n, iface->conf->ieee80211ac,
-@@ -913,14 +935,14 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
+@@ -918,14 +940,14 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
  		hostapd_get_oper_chwidth(iface->conf),
  		hostapd_get_oper_centr_freq_seg0_idx(iface->conf),
  		hostapd_get_oper_centr_freq_seg1_idx(iface->conf),
@@ -153,7 +153,7 @@ index d52a60e..2f5c86e 100644
  		/* Cache background radar parameters. */
  		iface->radar_background.channel = iface->conf->channel;
  		iface->radar_background.secondary_channel =
-@@ -941,6 +963,35 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
+@@ -946,6 +968,35 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
  
  		iface->radar_background.temp_ch = 1;
  		return 1;
@@ -189,7 +189,7 @@ index d52a60e..2f5c86e 100644
  	}
  
  	return 0;
-@@ -1190,6 +1241,15 @@ int hostapd_dfs_complete_cac(struct hostapd_iface *iface, int success, int freq,
+@@ -1195,6 +1246,15 @@ int hostapd_dfs_complete_cac(struct hostapd_iface *iface, int success, int freq,
  				hostapd_setup_interface_complete(iface, 0);
  				iface->cac_started = 0;
  			}

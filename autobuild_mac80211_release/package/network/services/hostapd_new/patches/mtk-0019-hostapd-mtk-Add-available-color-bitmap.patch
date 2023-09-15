@@ -1,7 +1,7 @@
-From 236e82d01cd015135468166e6d00b05b16e4c5f8 Mon Sep 17 00:00:00 2001
+From d77b2e1d3821e51f557f1292a0ccaa0a211ea11f Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Thu, 26 Jan 2023 09:16:00 +0800
-Subject: [PATCH 19/40] hostapd: mtk: Add available color bitmap
+Subject: [PATCH 19/38] hostapd: mtk: Add available color bitmap
 
 Signed-off-by: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 ---
@@ -164,7 +164,7 @@ index a7226cf..9615ca8 100644
 +	return hapd->driver->get_aval_color_bmp(hapd->drv_priv, aval_color_bmp);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 422cb52..136ea23 100644
+index 88bc430..ecaa71f 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -155,6 +155,8 @@ int hostapd_drv_ibf_ctrl(struct hostapd_data *hapd);
@@ -206,10 +206,10 @@ index ace993b..e27fe69 100644
  #define CSI_MAX_COUNT 256
  #define ETH_ALEN 6
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 592f506..91cb475 100644
+index 0469694..130143e 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5133,6 +5133,14 @@ struct wpa_driver_ops {
+@@ -5155,6 +5155,14 @@ struct wpa_driver_ops {
  	 */
  	int (*amsdu_ctrl)(void *priv, u8 amsdu);
  	int (*amsdu_dump)(void *priv, u8 *amsdu);
@@ -225,10 +225,10 @@ index 592f506..91cb475 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index ce09d9f..8b8ddfa 100644
+index 808db17..ee0912f 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -12733,7 +12733,6 @@ static void nl80211_parse_btm_candidate_info(struct candidate_list *candidate,
+@@ -12849,7 +12849,6 @@ static void nl80211_parse_btm_candidate_info(struct candidate_list *candidate,
  		   num, MAC2STR(candidate->bssid), buf);
  }
  
@@ -236,7 +236,7 @@ index ce09d9f..8b8ddfa 100644
  static int
  nl80211_get_bss_transition_status_handler(struct nl_msg *msg, void *arg)
  {
-@@ -14161,6 +14160,203 @@ fail:
+@@ -14277,6 +14276,203 @@ fail:
  	return -ENOBUFS;
  }
  
@@ -440,7 +440,7 @@ index ce09d9f..8b8ddfa 100644
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
  	.desc = "Linux nl80211/cfg80211",
-@@ -14325,4 +14521,5 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14443,4 +14639,5 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.ibf_dump = nl80211_ibf_dump,
  	.amsdu_ctrl = nl80211_enable_amsdu,
  	.amsdu_dump = nl80211_dump_amsdu,

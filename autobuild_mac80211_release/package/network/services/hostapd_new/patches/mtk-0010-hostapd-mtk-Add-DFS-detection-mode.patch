@@ -1,7 +1,7 @@
-From a257091386c0bf12de2934730b874d240f34d1bb Mon Sep 17 00:00:00 2001
+From e825b01701aeb6536321a9bf1bd5b4760a0cdc04 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Feb 2023 14:55:49 +0800
-Subject: [PATCH 10/40] hostapd: mtk: Add DFS detection mode
+Subject: [PATCH 10/38] hostapd: mtk: Add DFS detection mode
 
 Add DFS detection mode for testing radar detection rate.
 If DFS detection mode is on, AP will not switch channels when receiving
@@ -17,10 +17,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 50 insertions(+)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index dea124a..a4a8e71 100644
+index f8560a7..50e2993 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4853,6 +4853,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -4859,6 +4859,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  	} else if (os_strcmp(buf, "ibf_enable") == 0) { /*ibf setting is per device*/
  		int val = atoi(pos);
  		conf->ibf_enable = !!val;
@@ -73,10 +73,10 @@ index 7d7ebe3..d8f6663 100644
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 9758439..c50c2e2 100644
+index ffbc4fb..6576d79 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1197,6 +1197,7 @@ struct hostapd_config {
+@@ -1200,6 +1200,7 @@ struct hostapd_config {
  	int *edcca_threshold;
  	u8 three_wire_enable;
  	u8 ibf_enable;
@@ -84,7 +84,7 @@ index 9758439..c50c2e2 100644
  };
  
  enum three_wire_mode {
-@@ -1211,6 +1212,18 @@ enum three_wire_mode {
+@@ -1214,6 +1215,18 @@ enum three_wire_mode {
  		NUM_THREE_WIRE_MODE - 1
  };
  
@@ -104,10 +104,10 @@ index 9758439..c50c2e2 100644
  	EDCCA_MODE_FORCE_DISABLE = 0,
  	EDCCA_MODE_AUTO = 1,
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index a19afb0..644a7ea 100644
+index 29d2683..2e138e2 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
-@@ -1322,6 +1322,11 @@ hostapd_dfs_background_start_channel_switch(struct hostapd_iface *iface,
+@@ -1327,6 +1327,11 @@ hostapd_dfs_background_start_channel_switch(struct hostapd_iface *iface,
  		   __func__, iface->radar_background.cac_started ? "yes" : "no",
  		   hostapd_csa_in_progress(iface) ? "yes" : "no");
  
@@ -119,7 +119,7 @@ index a19afb0..644a7ea 100644
  	/* Check if CSA in progress */
  	if (hostapd_csa_in_progress(iface))
  		return 0;
-@@ -1370,6 +1375,11 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
+@@ -1375,6 +1380,11 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
  		   __func__, iface->cac_started ? "yes" : "no",
  		   hostapd_csa_in_progress(iface) ? "yes" : "no");
  

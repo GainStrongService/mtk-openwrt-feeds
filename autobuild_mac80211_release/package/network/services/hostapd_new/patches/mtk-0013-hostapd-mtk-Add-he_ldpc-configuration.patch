@@ -1,7 +1,7 @@
-From ea7da2297d396febe75de0d7cf77cba9d2eab778 Mon Sep 17 00:00:00 2001
+From 29d69687f1ef2150b1c81dc9a778755aa7095f2f Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Thu, 12 Jan 2023 15:18:19 +0800
-Subject: [PATCH 13/40] hostapd: mtk: Add he_ldpc configuration
+Subject: [PATCH 13/38] hostapd: mtk: Add he_ldpc configuration
 
 ---
  hostapd/config_file.c        | 2 ++
@@ -13,7 +13,7 @@ Subject: [PATCH 13/40] hostapd: mtk: Add he_ldpc configuration
  6 files changed, 19 insertions(+)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index d17e50e..04ca433 100644
+index 0b2f3dc..9e3dbb2 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
 @@ -3515,6 +3515,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
@@ -26,7 +26,7 @@ index d17e50e..04ca433 100644
  		conf->he_op.he_bss_color = atoi(pos) & 0x3f;
  		conf->he_op.he_bss_color_disabled = 0;
 diff --git a/hostapd/hostapd.conf b/hostapd/hostapd.conf
-index 30fb06d..fd42c50 100644
+index bafc923..f16e3b0 100644
 --- a/hostapd/hostapd.conf
 +++ b/hostapd/hostapd.conf
 @@ -833,6 +833,11 @@ wmm_ac_vo_acm=0
@@ -54,10 +54,10 @@ index f519a76..223db56 100644
  		HE_OPERATION_RTS_THRESHOLD_OFFSET;
  	/* Set default basic MCS/NSS set to single stream MCS 0-7 */
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index b8f6680..5b2dbff 100644
+index 9f3cea2..d0e27b2 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -956,6 +956,7 @@ struct hostapd_bss_config {
+@@ -959,6 +959,7 @@ struct hostapd_bss_config {
   * struct he_phy_capabilities_info - HE PHY capabilities
   */
  struct he_phy_capabilities_info {
@@ -84,10 +84,10 @@ index 548a448..9407dd6 100644
  		cap->he_phy_capab_info[HE_PHYCAP_SU_BEAMFORMER_CAPAB_IDX] |=
  			HE_PHYCAP_SU_BEAMFORMER_CAPAB;
 diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
-index 0b7b776..cf3ef98 100644
+index e7c3f17..69f1591 100644
 --- a/src/common/ieee802_11_defs.h
 +++ b/src/common/ieee802_11_defs.h
-@@ -2357,6 +2357,9 @@ struct ieee80211_spatial_reuse {
+@@ -2358,6 +2358,9 @@ struct ieee80211_spatial_reuse {
  #define HE_PHYCAP_CHANNEL_WIDTH_SET_160MHZ_IN_5G	((u8) BIT(3))
  #define HE_PHYCAP_CHANNEL_WIDTH_SET_80PLUS80MHZ_IN_5G	((u8) BIT(4))
  

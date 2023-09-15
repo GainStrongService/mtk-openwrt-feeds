@@ -1,7 +1,7 @@
-From 6b321709940a2feaa79a5e6d63f19a83bde83bb7 Mon Sep 17 00:00:00 2001
+From 906a70c7df5918c40c9552e078690ab7305ed40e Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 30 May 2022 16:31:34 +0800
-Subject: [PATCH 05/40] hostapd: mtk: Support EDCCA hostapd configuration
+Subject: [PATCH 05/38] hostapd: mtk: Support EDCCA hostapd configuration
 
 edcca_enable and edcca_compensation and implement edcca related handlers.
 ---
@@ -20,12 +20,12 @@ edcca_enable and edcca_compensation and implement edcca related handlers.
  12 files changed, 428 insertions(+), 6 deletions(-)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 3557bef..1fc6456 100644
+index 4b0f99f..d281026 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4803,6 +4803,40 @@ static int hostapd_config_fill(struct hostapd_config *conf,
- 	} else if (os_strcmp(buf, "mld_id") == 0) {
- 		bss->mld_id = atoi(pos);
+@@ -4809,6 +4809,40 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+ 			return 1;
+ 		}
  #endif /* CONFIG_IEEE80211BE */
 +	} else if (os_strcmp(buf, "edcca_threshold") == 0) {
 +		if (hostapd_parse_intlist(&conf->edcca_threshold, pos) ||
@@ -237,10 +237,10 @@ index 73b33b4..8e56d10 100644
  	wpabuf_free(conf->civic);
  
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 774f64e..0e829c0 100644
+index 82338e2..24d540d 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1190,8 +1190,38 @@ struct hostapd_config {
+@@ -1193,8 +1193,38 @@ struct hostapd_config {
  		MBSSID_ENABLED = 1,
  		ENHANCED_MBSSID_ENABLED = 2,
  	} mbssid;
@@ -312,7 +312,7 @@ index 75ddfa1..99ba973 100644
 +	return hapd->driver->get_edcca(hapd->drv_priv, mode, value);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 331b0ea..8806217 100644
+index 96c8c4e..6ca693b 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
 @@ -144,6 +144,10 @@ int hostapd_drv_set_secure_ranging_ctx(struct hostapd_data *hapd,
@@ -327,7 +327,7 @@ index 331b0ea..8806217 100644
  #include "drivers/driver.h"
  
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 96ab02b..b34c9d2 100644
+index 6746de2..1b9ce6f 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -2511,6 +2511,13 @@ dfs_offload:
@@ -378,10 +378,10 @@ index 4a19d2f..6121857 100644
  	[MTK_VENDOR_ATTR_EDCCA_CTRL_MODE] = { .type = NLA_U8 },
  	[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL] = { .type = NLA_U8 },
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 969cbda..443c4a7 100644
+index cc49011..fca2035 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -5080,6 +5080,10 @@ struct wpa_driver_ops {
+@@ -5102,6 +5102,10 @@ struct wpa_driver_ops {
  			      const u8 *match, size_t match_len,
  			      bool multicast);
  #endif /* CONFIG_TESTING_OPTIONS */
@@ -393,7 +393,7 @@ index 969cbda..443c4a7 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 7867e69..5a3e208 100644
+index c7745b6..0a159d5 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -37,6 +37,8 @@
@@ -405,7 +405,7 @@ index 7867e69..5a3e208 100644
  
  
  #ifndef NETLINK_CAP_ACK
-@@ -13632,6 +13634,174 @@ static int testing_nl80211_radio_disable(void *priv, int disabled)
+@@ -13748,6 +13750,174 @@ static int testing_nl80211_radio_disable(void *priv, int disabled)
  
  #endif /* CONFIG_TESTING_OPTIONS */
  
@@ -580,7 +580,7 @@ index 7867e69..5a3e208 100644
  
  const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.name = "nl80211",
-@@ -13786,4 +13956,8 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -13904,4 +14074,8 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.register_frame = testing_nl80211_register_frame,
  	.radio_disable = testing_nl80211_radio_disable,
  #endif /* CONFIG_TESTING_OPTIONS */
