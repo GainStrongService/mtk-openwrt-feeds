@@ -1,7 +1,7 @@
-From 72dd3b798e3a08122e9a769d6f0197b0f357478e Mon Sep 17 00:00:00 2001
-From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Wed, 23 Aug 2023 14:03:52 +0800
-Subject: [PATCH] 999-3019-flow-offload-add-mtkhnat-dscp
+From 3e4d44d8da90b9ba20abc5cec255d92b67e3fb00 Mon Sep 17 00:00:00 2001
+From: Bc-bocun Chen <bc-bocun.chen@mediatek.com>
+Date: Mon, 18 Sep 2023 11:17:24 +0800
+Subject: [PATCH 18/22] flow-offload-add-mtkhnat-dscp
 
 ---
  drivers/net/ethernet/mediatek/mtk_ppe.c       | 11 +++++++
@@ -13,7 +13,7 @@ Subject: [PATCH] 999-3019-flow-offload-add-mtkhnat-dscp
  6 files changed, 64 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 4c17a4e..2860e99 100755
+index 446acca..384e811 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -435,6 +435,17 @@ int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid)
@@ -35,7 +35,7 @@ index 4c17a4e..2860e99 100755
  {
  	return !(entry->ib1 & MTK_FOE_IB1_STATIC) &&
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 4abed85..57251d3 100644
+index 5529d64..2a8b6ef 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
 @@ -430,6 +430,7 @@ int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid);
@@ -44,10 +44,10 @@ index 4abed85..57251d3 100644
  int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid);
 +int mtk_foe_entry_set_dscp(struct mtk_foe_entry *entry, int dscp);
  bool mtk_foe_entry_match(struct mtk_foe_entry *entry, struct mtk_foe_entry *data);
+ int mtk_foe_entry_set_sp(struct mtk_ppe *ppe, struct mtk_foe_entry *entry);
  int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
- void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 989b412..f89875d 100644
+index c1cce76..95174b7 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 @@ -262,6 +262,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)

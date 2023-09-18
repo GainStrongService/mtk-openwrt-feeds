@@ -1,9 +1,8 @@
-From f70e83ccdca85840c3bf9e7a31fb871a12724dc2 Mon Sep 17 00:00:00 2001
+From de9cc10d4e2d5aad4801dc92fb37c42478a4ab68 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
-Date: Thu, 28 Jul 2022 14:49:16 +0800
-Subject: [PATCH 3/3] add wed ser support
+Date: Mon, 18 Sep 2023 11:05:45 +0800
+Subject: [PATCH 10/22] add-wed-ser-support
 
-Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c  |   8 +
  drivers/net/ethernet/mediatek/mtk_wed.c      | 361 ++++++++++++++-----
@@ -13,10 +12,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  5 files changed, 320 insertions(+), 99 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 2b52fa0..2f98525 100644
+index 2cab49a..c1399c5 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -3680,6 +3680,9 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -4158,6 +4158,9 @@ static void mtk_pending_work(struct work_struct *work)
  	for (i = 0; i < MTK_MAC_COUNT; i++) {
  		if (!eth->netdev[i])
  			continue;
@@ -26,15 +25,15 @@ index 2b52fa0..2f98525 100644
  		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
  			pr_info("send MTK_FE_STOP_TRAFFIC event\n");
  			call_netdevice_notifiers(MTK_FE_STOP_TRAFFIC,
-@@ -3693,6 +3696,7 @@ static void mtk_pending_work(struct work_struct *work)
- 		if (!wait_for_completion_timeout(&wait_ser_done, 3000))
+@@ -4183,6 +4186,7 @@ static void mtk_pending_work(struct work_struct *work)
  			pr_warn("wait for MTK_FE_START_RESET\n");
+ 		}
  		rtnl_lock();
 +#endif
  		break;
  	}
  
-@@ -3731,6 +3735,9 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -4221,6 +4225,9 @@ static void mtk_pending_work(struct work_struct *work)
  	for (i = 0; i < MTK_MAC_COUNT; i++) {
  		if (!eth->netdev[i])
  			continue;
@@ -44,7 +43,7 @@ index 2b52fa0..2f98525 100644
  		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
  			pr_info("send MTK_FE_START_TRAFFIC event\n");
  			call_netdevice_notifiers(MTK_FE_START_TRAFFIC,
-@@ -3740,6 +3747,7 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -4230,6 +4237,7 @@ static void mtk_pending_work(struct work_struct *work)
  			call_netdevice_notifiers(MTK_FE_RESET_DONE,
  				eth->netdev[i]);
  		}
@@ -53,7 +52,7 @@ index 2b52fa0..2f98525 100644
  			eth->netdev[i]);
  		break;
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index ff8f658..0917a5a 100644
+index 4b2f1a2..ae31412 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -13,8 +13,10 @@
@@ -613,7 +612,7 @@ index ff8f658..0917a5a 100644
  	if (dev->ver == MTK_WED_V1)
  		regmap_update_bits(hw->hifsys, HIFSYS_DMA_AG_MAP,
  				   BIT(hw->index), 0);
-@@ -1374,7 +1549,8 @@ out:
+@@ -1374,7 +1549,8 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  }
  
  static int
@@ -706,7 +705,7 @@ index 8ef5253..490873c 100644
  
  #ifdef CONFIG_DEBUG_FS
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_regs.h b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
-index 9d021e2..cfcd94f 100644
+index 31871f7..403a36b 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_regs.h
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
 @@ -38,11 +38,15 @@ struct mtk_wdma_desc {
@@ -725,7 +724,7 @@ index 9d021e2..cfcd94f 100644
  #define MTK_WED_RESET_WDMA_RX_DRV			BIT(17)
  #define MTK_WED_RESET_WDMA_INT_AGENT			BIT(19)
  #define MTK_WED_RESET_RX_RRO_QM				BIT(20)
-@@ -186,7 +190,12 @@ struct mtk_wdma_desc {
+@@ -185,7 +189,12 @@ struct mtk_wdma_desc {
  
  #define MTK_WED_RESET_IDX				0x20c
  #define MTK_WED_RESET_IDX_TX				GENMASK(3, 0)
@@ -738,7 +737,7 @@ index 9d021e2..cfcd94f 100644
  
  #define MTK_WED_TX_MIB(_n)				(0x2a0 + (_n) * 4)
  #define MTK_WED_RX_MIB(_n)				(0x2e0 + (_n) * 4)
-@@ -300,6 +309,9 @@ struct mtk_wdma_desc {
+@@ -299,6 +308,9 @@ struct mtk_wdma_desc {
  
  #define MTK_WED_WPDMA_RX_D_GLO_CFG			0x75c
  #define MTK_WED_WPDMA_RX_D_RX_DRV_EN			BIT(0)

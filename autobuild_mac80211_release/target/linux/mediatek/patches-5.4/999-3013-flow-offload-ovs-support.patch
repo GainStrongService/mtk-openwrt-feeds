@@ -1,11 +1,20 @@
-Index: net/openvswitch/vport-internal_dev.c
-===================================================================
+From 842a435bd21807447504a387e5ebb8071b0db93f Mon Sep 17 00:00:00 2001
+From: Evelyn Tsai <evelyn.tsai@mediatek.com>
+Date: Mon, 18 Sep 2023 11:11:41 +0800
+Subject: [PATCH 14/22] flow-offload-ovs-support
+
+---
+ net/openvswitch/vport-internal_dev.c | 46 ++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)
+
+diff --git a/net/openvswitch/vport-internal_dev.c b/net/openvswitch/vport-internal_dev.c
+index 58a7b83..8475727 100644
 --- a/net/openvswitch/vport-internal_dev.c
 +++ b/net/openvswitch/vport-internal_dev.c
-@@ -113,12 +113,58 @@ internal_get_stats(struct net_device *de
+@@ -113,12 +113,58 @@ internal_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
  	}
  }
-
+ 
 +static int internal_dev_fill_forward_path(struct net_device_path_ctx *ctx, struct net_device_path *path)
 +{
 +	struct vport *vport;
@@ -59,5 +68,8 @@ Index: net/openvswitch/vport-internal_dev.c
  	.ndo_get_stats64 = internal_get_stats,
 +	.ndo_fill_forward_path	 = internal_dev_fill_forward_path,
  };
-
+ 
  static struct rtnl_link_ops internal_dev_link_ops __read_mostly = {
+-- 
+2.18.0
+

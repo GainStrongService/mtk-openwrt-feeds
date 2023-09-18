@@ -1,9 +1,8 @@
-From 4c8f0a38d9c2df3815ace32133bb63d8a4345856 Mon Sep 17 00:00:00 2001
+From d3183ad9ed0a8a35047a37f30d85f920a729897c Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
-Date: Tue, 27 Dec 2022 10:14:35 +0800
-Subject: [PATCH] mediatek: ethernet: add wifi2wifi offload support
+Date: Mon, 18 Sep 2023 11:16:18 +0800
+Subject: [PATCH 17/22] mediatek-ethernet-add-wifi2wifi-offload-support
 
-Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  2 ++
  .../net/ethernet/mediatek/mtk_ppe_offload.c   | 35 +++++++++++++------
@@ -13,25 +12,25 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index b935de6..acefa48 100644
+index 23c5f49..ee89b4c 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1767,6 +1767,8 @@ void ethsys_reset(struct mtk_eth *eth, u32 reset_bits);
+@@ -2027,6 +2027,8 @@ void mtk_usxgmii_link_poll(struct work_struct *work);
  int mtk_eth_offload_init(struct mtk_eth *eth, int id);
  int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
  		     void *type_data);
 +int mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f,
 +			   struct mtk_eth *eth);
  void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
+ u32 mtk_rss_indr_table(struct mtk_rss_params *rss_params, int index);
  
- int mtk_ppe_debugfs_init(struct mtk_eth *eth);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 old mode 100755
 new mode 100644
-index 2787a97..23d2048
+index f0c63da..c1cce76
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -546,10 +546,20 @@ static int
+@@ -563,10 +563,20 @@ static int
  mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_priv)
  {
  	struct flow_cls_offload *cls = type_data;
@@ -56,7 +55,7 @@ index 2787a97..23d2048
  
  	if (!tc_can_offload(dev))
  		return -EOPNOTSUPP;
-@@ -577,14 +587,19 @@ mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_pri
+@@ -594,16 +604,21 @@ mtk_eth_setup_tc_block_cb(enum tc_setup_type type, void *type_data, void *cb_pri
  	return err;
  }
  
@@ -80,7 +79,9 @@ index 2787a97..23d2048
 +	}
 +
  	for (i = 0; i < eth->ppe_num; i++) {
-@@ -610,7 +625,7 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
+ 		if (!eth->ppe[i] || !eth->ppe[i]->foe_table)
+ 			return -EOPNOTSUPP;
+@@ -622,7 +637,7 @@ mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f)
  			flow_block_cb_incref(block_cb);
  			goto unlock;
  		}
@@ -89,7 +90,7 @@ index 2787a97..23d2048
  		if (IS_ERR(block_cb)) {
  			err = PTR_ERR(block_cb);
  			goto unlock;
-@@ -647,7 +662,7 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
+@@ -658,7 +673,7 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
  	switch (type) {
  	case TC_SETUP_BLOCK:
  	case TC_SETUP_FT:
@@ -99,10 +100,10 @@ index 2787a97..23d2048
  		return -EOPNOTSUPP;
  	}
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 1a615f2..37a86c3 100644
+index ae31412..3e760f7 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
-@@ -1731,6 +1731,18 @@ out:
+@@ -1733,6 +1733,18 @@ void mtk_wed_flow_remove(int index)
  	mutex_unlock(&hw_lock);
  }
  
@@ -121,7 +122,7 @@ index 1a615f2..37a86c3 100644
  void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  			void __iomem *wdma, u32 wdma_phy, int index)
  
-@@ -1749,6 +1761,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -1751,6 +1763,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  		.irq_get = mtk_wed_irq_get,
  		.irq_set_mask = mtk_wed_irq_set_mask,
  		.detach = mtk_wed_detach,

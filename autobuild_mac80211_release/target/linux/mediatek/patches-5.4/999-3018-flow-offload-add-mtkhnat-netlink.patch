@@ -1,8 +1,23 @@
+From 6bda18f107acbf04f01c18ad5964be6f7404d3cf Mon Sep 17 00:00:00 2001
+From: Bc-bocun Chen <bc-bocun.chen@mediatek.com>
+Date: Mon, 18 Sep 2023 13:14:08 +0800
+Subject: [PATCH 19/22] flow-offload-add-mtkhnat-netlink
+
+---
+ include/net/netfilter/nf_flow_table.h    |   1 +
+ include/uapi/linux/netfilter/nfnetlink.h |   3 +-
+ net/netfilter/Kconfig                    |   9 +
+ net/netfilter/Makefile                   |   1 +
+ net/netfilter/nf_flow_table_core.c       |  23 +++
+ net/netfilter/nf_flow_table_netlink.c    | 239 +++++++++++++++++++++++
+ 6 files changed, 275 insertions(+), 1 deletion(-)
+ create mode 100644 net/netfilter/nf_flow_table_netlink.c
+
 diff --git a/include/net/netfilter/nf_flow_table.h b/include/net/netfilter/nf_flow_table.h
-index 8a84de3..1a23c03 100644
+index 97a277d..3490d90 100644
 --- a/include/net/netfilter/nf_flow_table.h
 +++ b/include/net/netfilter/nf_flow_table.h
-@@ -276,6 +276,7 @@ int nf_flow_table_init(struct nf_flowtable *flow_table);
+@@ -277,6 +277,7 @@ int nf_flow_table_init(struct nf_flowtable *flow_table);
  void nf_flow_table_free(struct nf_flowtable *flow_table);
  
  void flow_offload_teardown(struct flow_offload *flow);
@@ -57,7 +72,7 @@ index d93a121..fa6ffb1 100644
  # generic X tables
  obj-$(CONFIG_NETFILTER_XTABLES) += x_tables.o xt_tcpudp.o
 diff --git a/net/netfilter/nf_flow_table_core.c b/net/netfilter/nf_flow_table_core.c
-index 1036558..a0f52f6 100644
+index c3054af..fb06755 100644
 --- a/net/netfilter/nf_flow_table_core.c
 +++ b/net/netfilter/nf_flow_table_core.c
 @@ -373,6 +373,29 @@ void flow_offload_teardown(struct flow_offload *flow)
@@ -335,3 +350,6 @@ index 0000000..f05f29e
 +MODULE_LICENSE("GPL");
 +module_init(ftnetlink_init);
 +module_exit(ftnetlink_exit);
+-- 
+2.18.0
+

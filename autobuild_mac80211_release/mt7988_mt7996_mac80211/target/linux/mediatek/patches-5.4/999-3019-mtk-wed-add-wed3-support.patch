@@ -1,9 +1,8 @@
-From 400f8349a31ffc48538aa7df64a88111de9a738b Mon Sep 17 00:00:00 2001
+From d7b7f03e5ab30b0420d0c97d6112dc3fa6e64d71 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
-Date: Thu, 13 Apr 2023 15:51:08 +0800
-Subject: [PATCH] mtk:wed:add wed3 support
+Date: Mon, 18 Sep 2023 13:21:15 +0800
+Subject: [PATCH 20/22] mtk:wed:add wed3 support
 
-Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
 ---
  arch/arm64/boot/dts/mediatek/mt7988.dtsi      |  152 ++-
  .../dts/mediatek/mt7988a-dsa-10g-spim-nor.dts |   16 +-
@@ -20,15 +19,15 @@ Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
  drivers/net/ethernet/mediatek/mtk_wed_mcu.h   |    5 +-
  drivers/net/ethernet/mediatek/mtk_wed_regs.h  |  338 ++++-
  include/linux/netdevice.h                     |    7 +
- include/linux/soc/mediatek/mtk_wed.h          |   81 +-
- 16 files changed, 1446 insertions(+), 333 deletions(-)
+ include/linux/soc/mediatek/mtk_wed.h          |   83 +-
+ 16 files changed, 2056 insertions(+), 388 deletions(-)
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/mtk_ppe.c
 
 diff --git a/arch/arm64/boot/dts/mediatek/mt7988.dtsi b/arch/arm64/boot/dts/mediatek/mt7988.dtsi
-index 364deef..f9a0120 100644
+index 561450e..8995ea3 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7988.dtsi
-@@ -191,44 +191,49 @@
+@@ -205,44 +205,49 @@
  		status = "disabled";
  	};
  
@@ -113,7 +112,7 @@ index 364deef..f9a0120 100644
  	};
  
  	wdma: wdma@15104800 {
-@@ -238,15 +243,25 @@
+@@ -252,15 +257,25 @@
  		      <0 0x15105000 0 0x400>;
  	};
  
@@ -147,7 +146,7 @@ index 364deef..f9a0120 100644
  	};
  
  	wocpu0_ilm: wocpu0_ilm@151E0000 {
-@@ -254,31 +269,53 @@
+@@ -268,31 +283,53 @@
  		reg = <0 0x151E0000 0 0x8000>;
  	};
  
@@ -215,7 +214,7 @@ index 364deef..f9a0120 100644
  	};
  
  	reserved-memory {
-@@ -827,6 +864,7 @@
+@@ -902,6 +939,7 @@
  					 <&topckgen CK_TOP_CB_SGM_325M>;
  		mediatek,ethsys = <&ethsys>;
  		mediatek,sgmiisys = <&sgmiisys0>, <&sgmiisys1>;
@@ -224,10 +223,10 @@ index 364deef..f9a0120 100644
  		mediatek,xfi_pextp = <&xfi_pextp0>, <&xfi_pextp1>;
  		mediatek,xfi_pll = <&xfi_pll>;
 diff --git a/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts b/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts
-index 7db5164..0a6db8b 100644
+index 70a7554..bed27b4 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts
 +++ b/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts
-@@ -341,9 +341,23 @@
+@@ -369,9 +369,23 @@
  	status = "okay";
  };
  
@@ -254,10 +253,10 @@ index 7db5164..0a6db8b 100644
 +};
 \ No newline at end of file
 diff --git a/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts b/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts
-index 67c6508..c407b33 100644
+index e8e3a69..5dd481b 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts
 +++ b/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts
-@@ -325,9 +325,23 @@
+@@ -379,9 +379,23 @@
  	status = "okay";
  };
  
@@ -284,10 +283,10 @@ index 67c6508..c407b33 100644
 +};
 \ No newline at end of file
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 388982c..d59c29f 100644
+index 8bd526a..dea66d7 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4865,7 +4865,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5095,7 +5095,8 @@ static int mtk_probe(struct platform_device *pdev)
  							  "mediatek,wed", i);
  		static const u32 wdma_regs[] = {
  			MTK_WDMA0_BASE,
@@ -298,10 +297,10 @@ index 388982c..d59c29f 100644
  		void __iomem *wdma;
  		u32 wdma_phy;
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index a9feaed..70e8377 100644
+index ee89b4c..8656b5f 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -605,9 +605,12 @@
+@@ -613,9 +613,12 @@
  #define RX_DMA_SPORT_MASK       0x7
  #define RX_DMA_SPORT_MASK_V2    0xf
  
@@ -318,7 +317,7 @@ index a9feaed..70e8377 100644
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 old mode 100755
 new mode 100644
-index bc13a9b..3910163
+index 384e811..eda23c2
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -9,6 +9,7 @@
@@ -367,7 +366,7 @@ index bc13a9b..3910163
  }
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index df10040..9e7d5aa 100644
+index 2a8b6ef..66c7f10 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
 @@ -428,7 +428,7 @@ int mtk_foe_entry_set_dsa(struct mtk_foe_entry *entry, int port);
@@ -378,9 +377,9 @@ index df10040..9e7d5aa 100644
 +			   int bss, int wcid, bool amsdu_en);
  int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid);
  int mtk_foe_entry_set_dscp(struct mtk_foe_entry *entry, int dscp);
- int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
+ bool mtk_foe_entry_match(struct mtk_foe_entry *entry, struct mtk_foe_entry *data);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 9bc0857..86fc9a1 100644
+index 95174b7..eab9e9d 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 @@ -112,6 +112,7 @@ mtk_flow_get_wdma_info(struct net_device *dev, const u8 *addr, struct mtk_wdma_i
@@ -408,7 +407,7 @@ index 9bc0857..86fc9a1 100644
  		else
  			return -EOPNOTSUPP;
  #endif
-@@ -458,8 +461,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -490,8 +493,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	if (err)
  		return err;
  
@@ -419,8 +418,8 @@ index 9bc0857..86fc9a1 100644
  
  	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
  	if (!entry)
-@@ -499,8 +502,8 @@ clear:
- 	mtk_foe_entry_clear(eth->ppe[i], entry);
+@@ -516,8 +519,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+ 	mtk_foe_entry_clear(eth->ppe[ppe_index], entry);
  free:
  	kfree(entry);
 -	if (wed_index >= 0)
@@ -431,7 +430,7 @@ index 9bc0857..86fc9a1 100644
  }
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 37a86c3..e3809db 100644
+index 3e760f7..9047cb0 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -28,7 +28,7 @@ struct wo_cmd_ring {
@@ -2976,7 +2975,7 @@ index 19e1199..c07bdb6 100644
  #define WOCPU_EMI_DEV_NODE		"mediatek,wocpu_emi"
  #define WOCPU_ILM_DEV_NODE		"mediatek,wocpu_ilm"
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_regs.h b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
-index 403a36b..4e619ff 100644
+index 403a36b..25be547 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_regs.h
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
 @@ -20,6 +20,9 @@
@@ -3479,10 +3478,10 @@ index 403a36b..4e619ff 100644
 +#define MTK_WED_PCIE_BASE2			0x11290000
  #endif
 diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index 58b5ce6..5e51790 100644
+index 0967dc2..3211f34 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
-@@ -873,6 +873,13 @@ struct net_device_path {
+@@ -875,6 +875,13 @@ struct net_device_path {
  			u8 queue;
  			u16 wcid;
  			u8 bss;
@@ -3497,7 +3496,7 @@ index 58b5ce6..5e51790 100644
  	};
  };
 diff --git a/include/linux/soc/mediatek/mtk_wed.h b/include/linux/soc/mediatek/mtk_wed.h
-index 27cf284..60336e0 100644
+index 27cf284..92df4ba 100644
 --- a/include/linux/soc/mediatek/mtk_wed.h
 +++ b/include/linux/soc/mediatek/mtk_wed.h
 @@ -5,11 +5,14 @@
@@ -3591,7 +3590,8 @@ index 27cf284..60336e0 100644
  		u32 phy_base;
  
  		u32 wpdma_phys;
-@@ -142,9 +163,13 @@ struct mtk_wed_device {
+@@ -141,10 +162,14 @@ struct mtk_wed_device {
+ 		u32 wpdma_tx;
  		u32 wpdma_txfree;
  		u32 wpdma_rx_glo;
 -		u32 wpdma_rx;
