@@ -25,6 +25,7 @@
 #include <pce/cdrt.h>
 #include <pce/cls.h>
 #include <pce/dipfilter.h>
+#include <pce/netsys.h>
 #include <pce/pce.h>
 
 #include "internal.h"
@@ -508,9 +509,12 @@ static int mtk_tops_tnl_info_cls_single_setup(struct tops_tnl_info *tnl_info,
 	} else {
 		/*
 		 * since CLS is already filled up with outer protocol rule
-		 * we only update CLS tport here to let matched packet stop by TOPS
+		 * we only update CLS tport here to let matched packet to go through
+		 * QDMA and specify the destination port to TOPS
 		 */
-		CLS_DESC_DATA(&tcls->cls->cdesc, tport_idx, 0x7);
+		CLS_DESC_DATA(&tcls->cls->cdesc, tport_idx, NR_EIP197_QDMA_TPORT);
+		CLS_DESC_DATA(&tcls->cls->cdesc, fport, PSE_PORT_TDMA);
+		CLS_DESC_DATA(&tcls->cls->cdesc, qid, 12);
 	}
 
 cls_entry_write:

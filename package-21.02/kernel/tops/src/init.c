@@ -5,11 +5,13 @@
  * Author: Ren-Ting Wang <ren-ting.wang@mediatek.com>
  */
 
-#include <linux/of.h>
-#include <linux/err.h>
-#include <linux/device.h>
-#include <linux/module.h>
 #include <linux/debugfs.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/io.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
@@ -28,6 +30,8 @@
 #include "trm.h"
 #include "tunnel.h"
 #include "wdt.h"
+
+#define EFUSE_TOPS_POWER_OFF		(0xD08)
 
 struct device *tops_dev;
 struct dentry *tops_debugfs_root;
@@ -200,8 +204,52 @@ static struct platform_driver mtk_tops_driver = {
 	},
 };
 
+static int __init mtk_tops_hw_disabled(void)
+{
+	struct platform_device *efuse_pdev;
+	struct device_node *efuse_node;
+	struct resource res;
+	void __iomem *efuse_base;
+	int ret = 0;
+
+	efuse_node = of_find_compatible_node(NULL, NULL, "mediatek,efuse");
+	if (!efuse_node)
+		return -ENODEV;
+
+	efuse_pdev = of_find_device_by_node(efuse_node);
+	if (!efuse_pdev) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	if (of_address_to_resource(efuse_node, 0, &res)) {
+		ret = -ENXIO;
+		goto out;
+	}
+
+	/* since we are not probed yet, we cannot use devm_* API */
+	efuse_base = ioremap(res.start, resource_size(&res));
+	if (!efuse_base) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	if (readl(efuse_base + EFUSE_TOPS_POWER_OFF))
+		ret = -ENODEV;
+
+	iounmap(efuse_base);
+
+out:
+	of_node_put(efuse_node);
+
+	return ret;
+}
+
 static int __init mtk_tops_init(void)
 {
+	if (mtk_tops_hw_disabled())
+		return -ENODEV;
+
 	tops_debugfs_root = debugfs_create_dir("tops", NULL);
 	if (IS_ERR(tops_debugfs_root)) {
 		TOPS_ERR("create tops debugfs root directory failed\n");
