@@ -211,6 +211,15 @@ prepare_mac80211() {
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iwinfo ${BUILD_DIR}/package/network/utils
 
 	rm -rf ${BUILD_DIR}/package/network/config/netifd
+	if [ $2 = "1" ]; then
+		echo "=========================Netifd NEW====================="
+		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/config/netifd ${BUILD_DIR}/package/network/config
+		rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/config/netifd
+		cp -fpR ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/config/netifd_new ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/config/netifd
+	else
+		echo "=========================Netifd OLD====================="
+	fi
+
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/config/netifd ${BUILD_DIR}/package/network/config
 
 	rm -rf ${BUILD_DIR}/package/kernel/mac80211
