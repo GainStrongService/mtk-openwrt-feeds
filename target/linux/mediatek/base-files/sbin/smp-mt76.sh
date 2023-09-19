@@ -168,7 +168,11 @@ MT7986()
 	DEFAULT_RPS=0
 
 	#Physical IRQ# setting
-	eth_irq_rx=221
+	#Ethernet RSS feature enables 4 Rx rings
+	eth_irq_rx0=221
+	eth_irq_rx1=222
+	eth_irq_rx2=223
+	eth_irq_rx3=224
 	eth_irq_tx=229
 	wifi1_irq=
 	wifi2_irq=
@@ -217,36 +221,35 @@ MT7986()
 
 	for vif in $NET_IF_LIST;
 	do
-		if [[ "$vif" == "lan"* ]] ||  \
-		[[ "$vif" == "wlan"* ]] || [[ "$vif" == "phy"* ]]; then
-			LAN_IF_LIST="$LAN_IF_LIST $vif"
+		if [[ "$vif" == "wlan"* ]] || [[ "$vif" == "phy"* ]]; then
+			WIFI_IF_LIST="$WIFI_IF_LIST $vif"
 		fi
 	done;
-	dbg2 "$LAN_IF_LIST = $LAN_IF_LIST"
+	dbg2 "$WIFI_IF_LIST = $WIFI_IF_LIST"
 	# Please update the CPU binding in each cases.
 	# CPU#_AFFINITY="add binding irq number here"
 	# CPU#_RPS="add binding interface name here"
 	if [ "$num_of_wifi" = "0" ]; then
-		CPU0_AFFINITY="$eth_irq_rx"
-		CPU1_AFFINITY="$eth_irq_tx"
-		CPU2_AFFINITY=""
-		CPU3_AFFINITY=""
+		CPU0_AFFINITY="$eth_irq_rx0"
+		CPU1_AFFINITY="$eth_irq_rx1 $eth_irq_tx"
+		CPU2_AFFINITY="$eth_irq_rx2"
+		CPU3_AFFINITY="$eth_irq_rx3"
 
-		CPU0_RPS="$RPS_IF_LIST"
-		CPU1_RPS="$RPS_IF_LIST"
-		CPU2_RPS="$RPS_IF_LIST"
-		CPU3_RPS="$RPS_IF_LIST"
+		CPU0_RPS=""
+		CPU1_RPS=""
+		CPU2_RPS=""
+		CPU3_RPS=""
 	else
 		#we bound all wifi card to cpu1 and bound eth to cpu0
-		CPU0_AFFINITY="$eth_irq_rx"
-		CPU1_AFFINITY="$eth_irq_tx"
-		CPU2_AFFINITY="$wifi2_irq $wifi3_irq"
-		CPU3_AFFINITY="$wifi1_irq"
+		CPU0_AFFINITY="$eth_irq_rx0"
+		CPU1_AFFINITY="$eth_irq_rx1 $eth_irq_tx"
+		CPU2_AFFINITY="$eth_irq_rx2 $wifi2_irq $wifi3_irq"
+		CPU3_AFFINITY="$eth_irq_rx3 $wifi1_irq"
 
-		CPU0_RPS="$LAN_IF_LIST"
-		CPU1_RPS="$LAN_IF_LIST"
-		CPU2_RPS="$RPS_IF_LIST"
-		CPU3_RPS="$RPS_IF_LIST"
+		CPU0_RPS="$WIFI_IF_LIST"
+		CPU1_RPS="$WIFI_IF_LIST"
+		CPU2_RPS="$WIFI_IF_LIST"
+		CPU3_RPS="$WIFI_IF_LIST"
 	fi
 	dbg2 "CPU0_AFFINITY = $CPU0_AFFINITY"
 	dbg2 "CPU1_AFFINITY = $CPU1_AFFINITY"
