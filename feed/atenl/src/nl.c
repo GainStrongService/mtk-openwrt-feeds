@@ -27,6 +27,7 @@ static struct nla_policy testdata_policy[NUM_MT76_TM_ATTRS] = {
 	[MT76_TM_ATTR_MTD_PART] = { .type = NLA_STRING },
 	[MT76_TM_ATTR_MTD_OFFSET] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_BAND_IDX] = { .type = NLA_U8 },
+	[MT76_TM_ATTR_SKU_EN] = { .type = NLA_U8 },
 	[MT76_TM_ATTR_TX_COUNT] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_TX_LENGTH] = { .type = NLA_U32 },
 	[MT76_TM_ATTR_TX_RATE_MODE] = { .type = NLA_U8 },
@@ -55,6 +56,7 @@ static struct nla_policy stats_policy[NUM_MT76_TM_STATS_ATTRS] = {
 static struct nla_policy rx_policy[NUM_MT76_TM_RX_ATTRS] = {
 	[MT76_TM_RX_ATTR_FREQ_OFFSET] = { .type = NLA_U32 },
 	[MT76_TM_RX_ATTR_RCPI] = { .type = NLA_NESTED },
+	[MT76_TM_RX_ATTR_RSSI] = { .type = NLA_NESTED },
 	[MT76_TM_RX_ATTR_IB_RSSI] = { .type = NLA_NESTED },
 	[MT76_TM_RX_ATTR_WB_RSSI] = { .type = NLA_NESTED },
 	[MT76_TM_RX_ATTR_SNR] = { .type = NLA_U8 },
