@@ -1,7 +1,8 @@
-From 182e4031ab7bdd94ac4791ea183a17cb3f1d3e0c Mon Sep 17 00:00:00 2001
+From 467bdd35a3ec4603761f1a7e2281a78a3776a0bb Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Mon, 11 Sep 2023 17:57:32 +0800
-Subject: [PATCH 1/2] mt76: wifi: mt7915: wed: setting wed hw tx token to 8192
+Subject: [PATCH 2011/2011] mt76: wifi: mt7915: wed: setting wed hw tx token to
+ 8192
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
 ---
@@ -11,7 +12,7 @@ Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
  3 files changed, 14 insertions(+), 24 deletions(-)
 
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index aa5c5dd6..b6779474 100644
+index aa5c5dd..b677947 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -593,7 +593,7 @@ static int mt7915_mmio_wed_offload_enable(struct mtk_wed_device *wed)
@@ -51,7 +52,7 @@ index aa5c5dd6..b6779474 100644
  	ret = dma_set_mask(wed->dev, DMA_BIT_MASK(32));
  	if (ret)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index e8f7ca58..d3054be0 100644
+index d47abcf..5f3b84e 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -62,8 +62,8 @@
@@ -66,10 +67,10 @@ index e8f7ca58..d3054be0 100644
  
  #define MT7915_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
 diff --git a/tx.c b/tx.c
-index 2594a625..c88fb290 100644
+index e290aef..96f9009 100644
 --- a/tx.c
 +++ b/tx.c
-@@ -750,20 +750,18 @@ EXPORT_SYMBOL_GPL(__mt76_set_tx_blocked);
+@@ -818,20 +818,18 @@ EXPORT_SYMBOL_GPL(__mt76_set_tx_blocked);
  
  int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
  {
@@ -97,7 +98,7 @@ index 2594a625..c88fb290 100644
  	if (dev->token_count >= dev->token_size - MT76_TOKEN_FREE_THR)
  		__mt76_set_tx_blocked(dev, true);
  
-@@ -799,17 +797,9 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
+@@ -867,17 +865,9 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
  	spin_lock_bh(&dev->token_lock);
  
  	txwi = idr_remove(&dev->token, token);

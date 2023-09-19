@@ -1,7 +1,7 @@
-From b3ecd93f877b8ec4577996607a5d884979062b48 Mon Sep 17 00:00:00 2001
+From 7bf557aff6961e6d224f599b1be6068393c68bfc Mon Sep 17 00:00:00 2001
 From: "himanshu.goyal" <himanshu.goyal@mediatek.com>
 Date: Tue, 24 Jan 2023 14:32:08 +0800
-Subject: [PATCH 1027/1034] wifi: mt76: mt7915: Add vendor command attribute
+Subject: [PATCH 1027/1040] wifi: mt76: mt7915: Add vendor command attribute
  for RTS BW signaling.
 
 Signed-off-by: himanshu.goyal <himanshu.goyal@mediatek.com>
@@ -13,10 +13,10 @@ Signed-off-by: himanshu.goyal <himanshu.goyal@mediatek.com>
  4 files changed, 20 insertions(+)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 10fade27..15915c97 100644
+index f65f0ec..12ee063 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4603,6 +4603,12 @@ int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type)
+@@ -4612,6 +4612,12 @@ int mt7915_mcu_set_cfg(struct mt7915_phy *phy, u8 cfg_info, u8 type)
  		req.cert.length = cpu_to_le16(tlv_len);
  		req.cert.cert_program = type;
  		break;
@@ -30,7 +30,7 @@ index 10fade27..15915c97 100644
  		tlv_len = sizeof(struct three_wire_cfg);
  		req.three_wire.tag = cpu_to_le16(cfg_info);
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 142bfc1f..286f7a59 100644
+index 142bfc1..286f7a5 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -924,6 +924,13 @@ struct three_wire_cfg {
@@ -62,7 +62,7 @@ index 142bfc1f..286f7a59 100644
  };
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 0105d2f0..fb2fe829 100644
+index 0105d2f..fb2fe82 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -33,6 +33,7 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -84,7 +84,7 @@ index 0105d2f0..fb2fe829 100644
  
  	return 0;
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 33c75dc9..6001ce4a 100644
+index 33c75dc..6001ce4 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -76,6 +76,7 @@ enum mtk_vendor_attr_wireless_ctrl {
@@ -96,5 +96,5 @@ index 33c75dc9..6001ce4a 100644
  	MTK_VENDOR_ATTR_WIRELESS_CTRL_MU_EDCA, /* reserve */
  	/* keep last */
 -- 
-2.39.2
+2.18.0
 

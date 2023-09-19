@@ -1,7 +1,7 @@
-From ea7179a6774f9ca965731738b4e171f26767ae4e Mon Sep 17 00:00:00 2001
+From bf55d4819b6c12dd7c6e13a51f8ee28636265345 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 14 Oct 2022 11:15:13 +0800
-Subject: [PATCH 1024/1034] wifi: mt76: mt7915: support on off SW ACI through
+Subject: [PATCH 1024/1040] wifi: mt76: mt7915: support on off SW ACI through
  debugfs
 
 Signed-off-by: Evelyn Tsai <evelyn.tsai@mediatek.com>
@@ -12,10 +12,10 @@ Change-Id: I8a9c277c41d1ba76f9737d8af6f42e5e8f00ba64
  2 files changed, 22 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index daeec01f..8228bbb1 100644
+index 3b5c58b..4925890 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1206,6 +1206,7 @@ enum {
+@@ -1217,6 +1217,7 @@ enum {
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_SET_CFG = 0xb7,
  	MCU_EXT_CMD_EDCCA = 0xba,
@@ -24,10 +24,10 @@ index daeec01f..8228bbb1 100644
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index bc683db8..48e2edcf 100644
+index b949ad7..ef5d581 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -3644,6 +3644,25 @@ static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)
+@@ -3642,6 +3642,25 @@ static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)
  	return 0;
  }
  
@@ -53,7 +53,7 @@ index bc683db8..48e2edcf 100644
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  {
  	struct mt7915_dev *dev = phy->dev;
-@@ -3732,6 +3751,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -3730,6 +3749,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  
  	debugfs_create_devm_seqfile(dev->mt76.dev, "eeprom_mode", dir,
  				    mt7915_show_eeprom_mode);
@@ -63,5 +63,5 @@ index bc683db8..48e2edcf 100644
  }
  #endif
 -- 
-2.39.2
+2.18.0
 

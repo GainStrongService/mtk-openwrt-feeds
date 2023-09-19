@@ -1,7 +1,7 @@
-From 738d720905afdf9abcb85cb6d6e8cd48a69cb82f Mon Sep 17 00:00:00 2001
+From 5fe1dd7724e7af4cb508af3147ddc9e1f12d2dc7 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 31 Jul 2023 11:07:35 +0800
-Subject: [PATCH 13/15] wifi: mt76: mt7915: rework init txpower
+Subject: [PATCH 5/7] wifi: mt76: mt7915: rework init txpower
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
@@ -11,10 +11,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  3 files changed, 23 insertions(+), 14 deletions(-)
 
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 15b719fa..5ac1f995 100644
+index d8fd8d6..0d2587c 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -278,10 +278,11 @@ static void mt7915_led_set_brightness(struct led_classdev *led_cdev,
+@@ -275,10 +275,11 @@ static void mt7915_led_set_brightness(struct led_classdev *led_cdev,
  		mt7915_led_set_config(led_cdev, 0xff, 0);
  }
  
@@ -29,7 +29,7 @@ index 15b719fa..5ac1f995 100644
  	int nss_delta = mt76_tx_power_nss_delta(n_chains);
  	int pwr_delta = mt7915_eeprom_get_power_delta(dev, sband->band);
  	struct mt76_power_limits limits;
-@@ -299,7 +300,7 @@ void mt7915_init_txpower(struct mt7915_dev *dev,
+@@ -296,7 +297,7 @@ void mt7915_init_txpower(struct mt7915_dev *dev,
  		}
  
  		target_power += pwr_delta;
@@ -38,7 +38,7 @@ index 15b719fa..5ac1f995 100644
  							  &limits,
  							  target_power);
  		target_power += nss_delta;
-@@ -310,6 +311,19 @@ void mt7915_init_txpower(struct mt7915_dev *dev,
+@@ -307,6 +308,19 @@ void mt7915_init_txpower(struct mt7915_dev *dev,
  	}
  }
  
@@ -58,7 +58,7 @@ index 15b719fa..5ac1f995 100644
  static void
  mt7915_regd_notifier(struct wiphy *wiphy,
  		     struct regulatory_request *request)
-@@ -325,9 +339,7 @@ mt7915_regd_notifier(struct wiphy *wiphy,
+@@ -322,9 +336,7 @@ mt7915_regd_notifier(struct wiphy *wiphy,
  	if (dev->mt76.region == NL80211_DFS_UNSET)
  		mt7915_mcu_rdd_background_enable(phy, NULL);
  
@@ -69,7 +69,7 @@ index 15b719fa..5ac1f995 100644
  
  	mphy->dfs_state = MT_DFS_STATE_UNKNOWN;
  	mt7915_dfs_init_radar_detector(phy);
-@@ -448,6 +460,7 @@ mt7915_init_wiphy(struct mt7915_phy *phy)
+@@ -445,6 +457,7 @@ mt7915_init_wiphy(struct mt7915_phy *phy)
  	mt76_set_stream_caps(phy->mt76, true);
  	mt7915_set_stream_vht_txbf_caps(phy);
  	mt7915_set_stream_he_caps(phy);
@@ -77,7 +77,7 @@ index 15b719fa..5ac1f995 100644
  
  	wiphy->available_antennas_rx = phy->mt76->antenna_mask;
  	wiphy->available_antennas_tx = phy->mt76->antenna_mask;
-@@ -711,9 +724,6 @@ static void mt7915_init_work(struct work_struct *work)
+@@ -708,9 +721,6 @@ static void mt7915_init_work(struct work_struct *work)
  
  	mt7915_mcu_set_eeprom(dev);
  	mt7915_mac_init(dev);
@@ -88,7 +88,7 @@ index 15b719fa..5ac1f995 100644
  }
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 67e7b264..d9d5aad4 100644
+index d81fae9..a9bdb65 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -1395,8 +1395,8 @@ mt7915_mac_restart(struct mt7915_dev *dev)
@@ -103,10 +103,10 @@ index 67e7b264..d9d5aad4 100644
  
  	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state)) {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index eb66fcda..f0809291 100644
+index 2c5d929..4293385 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -428,8 +428,7 @@ void mt7915_dma_cleanup(struct mt7915_dev *dev);
+@@ -430,8 +430,7 @@ void mt7915_dma_cleanup(struct mt7915_dev *dev);
  int mt7915_dma_reset(struct mt7915_dev *dev, bool force);
  int mt7915_dma_start(struct mt7915_dev *dev, bool reset, bool wed_reset);
  int mt7915_txbf_init(struct mt7915_dev *dev);
@@ -117,5 +117,5 @@ index eb66fcda..f0809291 100644
  int mt7915_run(struct ieee80211_hw *hw);
  int mt7915_mcu_init(struct mt7915_dev *dev);
 -- 
-2.39.2
+2.18.0
 

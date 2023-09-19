@@ -1,7 +1,8 @@
-From 47058b5552a9597c2dad3e45b3d0396a5b69dfd7 Mon Sep 17 00:00:00 2001
+From e4019ba63d7bb60ac0b56618e3fd9421c97ce474 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 29 Aug 2023 09:22:18 +0800
-Subject: [PATCH] wifi: mt76: update debugfs knob to dump token pending time
+Subject: [PATCH 1038/1040] wifi: mt76: update debugfs knob to dump token
+ pending time
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
@@ -11,10 +12,10 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 10 insertions(+), 4 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index aece4eca..9237b22e 100644
+index 91da8c5..ad1402a 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -365,6 +365,8 @@ struct mt76_txwi_cache {
+@@ -368,6 +368,8 @@ struct mt76_txwi_cache {
  	struct list_head list;
  	dma_addr_t dma_addr;
  
@@ -24,7 +25,7 @@ index aece4eca..9237b22e 100644
  		struct sk_buff *skb;
  		void *ptr;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 21e8383a..67b42006 100644
+index e4f46e0..817763a 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -802,6 +802,8 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -55,7 +56,7 @@ index 21e8383a..67b42006 100644
  	}
  
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 80b7bc1a..46f1b0b6 100644
+index 80b7bc1..46f1b0b 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2211,10 +2211,8 @@ static int mt7915_token_read(struct seq_file *s, void *data)

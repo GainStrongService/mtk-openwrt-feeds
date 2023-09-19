@@ -1,7 +1,7 @@
-From 5a6a17438c96f92e7fa27123467384ad6e8dbd7f Mon Sep 17 00:00:00 2001
+From 7a963d92dd37bb16d00cc9ba7684f131d3331a78 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Thu, 5 Jan 2023 16:43:57 +0800
-Subject: [PATCH 2008/2010] wifi: mt76: connac: wed: add wed rx copy skb
+Subject: [PATCH 2008/2011] wifi: mt76: connac: wed: add wed rx copy skb
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -10,10 +10,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  2 files changed, 85 insertions(+), 26 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index b210e39c..4daa64da 100644
+index e3e2f38..7c5e623 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -208,11 +208,11 @@ mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -213,11 +213,11 @@ mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q)
  
  static int
  mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
@@ -27,7 +27,7 @@ index b210e39c..4daa64da 100644
  	u32 buf1 = 0, ctrl;
  	int idx = q->head;
  	int rx_token;
-@@ -220,9 +220,11 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -225,9 +225,11 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
  	ctrl = FIELD_PREP(MT_DMA_CTL_SD_LEN0, buf[0].len);
  
  	if (mt76_queue_is_wed_rx(q)) {
@@ -42,7 +42,7 @@ index b210e39c..4daa64da 100644
  
  		rx_token = mt76_rx_token_consume(dev, data, rxwi, buf->addr);
  		if (rx_token < 0) {
-@@ -387,7 +389,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
+@@ -389,7 +391,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
  
  static void *
  mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
@@ -51,7 +51,7 @@ index b210e39c..4daa64da 100644
  {
  	struct mt76_queue_entry *e = &q->entry[idx];
  	struct mt76_desc *desc = &q->desc[idx];
-@@ -437,11 +439,43 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+@@ -439,11 +441,43 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  				 SKB_WITH_OVERHEAD(q->buf_size),
  				 DMA_FROM_DEVICE);
  
@@ -99,7 +99,7 @@ index b210e39c..4daa64da 100644
  
  		if (drop) {
  			u32 ctrl = le32_to_cpu(READ_ONCE(desc->ctrl));
-@@ -480,7 +514,7 @@ mt76_dma_dequeue(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
+@@ -482,7 +516,7 @@ mt76_dma_dequeue(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
  	q->tail = (q->tail + 1) % q->ndesc;
  	q->queued--;
  
@@ -108,7 +108,7 @@ index b210e39c..4daa64da 100644
  }
  
  static int
-@@ -620,6 +654,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -622,6 +656,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
  	int len = SKB_WITH_OVERHEAD(q->buf_size);
  	int frames = 0, offset = q->buf_offset;
  	dma_addr_t addr;
@@ -116,7 +116,7 @@ index b210e39c..4daa64da 100644
  
  	if (!q->ndesc)
  		return 0;
-@@ -643,7 +678,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -645,7 +680,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
  		qbuf.addr = addr + offset;
  		qbuf.len = len - offset;
  		qbuf.skip_unmap = false;
@@ -125,7 +125,7 @@ index b210e39c..4daa64da 100644
  			dma_unmap_single(dev->dma_dev, addr, len,
  					 DMA_FROM_DEVICE);
  			skb_free_frag(buf);
-@@ -652,7 +687,10 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -654,7 +689,10 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
  		frames++;
  	}
  
@@ -137,7 +137,7 @@ index b210e39c..4daa64da 100644
  		mt76_dma_kick_queue(dev, q);
  
  	spin_unlock_bh(&q->lock);
-@@ -775,12 +813,14 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -777,12 +815,14 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
  
  	spin_unlock_bh(&q->lock);
  
@@ -158,10 +158,10 @@ index b210e39c..4daa64da 100644
  
  static void
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index a59e3118..89523a52 100644
+index d739390..aa5c5dd 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
-@@ -576,6 +576,7 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
+@@ -614,6 +614,7 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
  static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
  {
  	struct mt7915_dev *dev;
@@ -169,7 +169,7 @@ index a59e3118..89523a52 100644
  	u32 length;
  	int i;
  
-@@ -592,13 +593,33 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
+@@ -630,13 +631,33 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
  
  		dma_unmap_single(dev->mt76.dma_dev, r->dma_addr,
  				 wed->wlan.rx_size, DMA_FROM_DEVICE);
@@ -204,7 +204,7 @@ index a59e3118..89523a52 100644
  }
  
  static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
-@@ -615,35 +636,33 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+@@ -653,35 +674,33 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
  	for (i = 0; i < size; i++) {
  		struct mt76_rxwi_cache *r = mt76_get_rxwi(&dev->mt76);
  		dma_addr_t phy_addr;
@@ -246,5 +246,5 @@ index a59e3118..89523a52 100644
  			goto unmap;
  		}
 -- 
-2.39.2
+2.18.0
 

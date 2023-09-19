@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mt76/Makefile b/package/kernel/mt76/Makefile
-index 9a3597f..f22bd9e 100644
+index 9a3597f..cfb48d4 100644
 --- a/package/kernel/mt76/Makefile
 +++ b/package/kernel/mt76/Makefile
 @@ -233,7 +233,7 @@ endef
@@ -20,11 +20,13 @@ index 9a3597f..f22bd9e 100644
    TITLE:=MediaTek MT7986 firmware
  endef
  
-@@ -313,7 +313,7 @@ endef
+@@ -312,8 +312,8 @@ endef
+ 
  define KernelPackage/mt7996e
    $(KernelPackage/mt76-default)
-   TITLE:=MediaTek MT7996E wireless driver
+-  TITLE:=MediaTek MT7996E wireless driver
 -  DEPENDS+=@PCI_SUPPORT +kmod-mt76-connac
++  TITLE:=MediaTek MT7996/MT7995/MT7919 wireless driver
 +  DEPENDS+=@PCI_SUPPORT +kmod-mt76-core +kmod-mt76-connac +kmod-hwmon-core +kmod-thermal +@DRIVER_11AX_SUPPORT +@DRIVER_11BE_SUPPORT
    FILES:= $(PKG_BUILD_DIR)/mt7996/mt7996e.ko
    AUTOLOAD:=$(call AutoProbe,mt7996e)

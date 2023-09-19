@@ -1,7 +1,7 @@
-From 99a9068d0e73d70b9587febcb6763882eecc0fba Mon Sep 17 00:00:00 2001
+From 9720802e9abc886c7676d3994e3735aa440ed78e Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Feb 2023 16:29:42 +0800
-Subject: [PATCH 1029/1034] wifi: mt76: mt7915: disable SW-ACI by default
+Subject: [PATCH 1029/1040] wifi: mt76: mt7915: disable SW-ACI by default
 
 Support to enable/disable SW-ACI by module parameter "sw_aci_enable".
 SW-ACI feature is disable by default.
@@ -13,7 +13,7 @@ SW-ACI feature is disable by default.
  4 files changed, 29 insertions(+), 9 deletions(-)
 
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 85524e91..9011d69b 100644
+index 287ca99..5b4581c 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -8,6 +8,10 @@
@@ -39,10 +39,10 @@ index 85524e91..9011d69b 100644
  
  	if (phy != &dev->phy) {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 15915c97..a542031b 100644
+index 12ee063..fe00519 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4963,3 +4963,18 @@ int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value)
+@@ -4972,3 +4972,18 @@ int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value)
  
  	return 0;
  }
@@ -62,10 +62,10 @@ index 15915c97..a542031b 100644
 +				 sizeof(req), NULL);
 +}
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index b4727082..38486776 100644
+index 75967f9..722f3bc 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -719,6 +719,7 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
+@@ -722,6 +722,7 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  #endif
  int mt7915_mcu_set_edcca(struct mt7915_phy *phy, int mode, u8 *value, s8 compensation);
  int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value);
@@ -74,10 +74,10 @@ index b4727082..38486776 100644
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
  
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 48e2edcf..55c54436 100644
+index ef5d581..80b7bc1 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -3647,16 +3647,12 @@ static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)
+@@ -3645,16 +3645,12 @@ static int mt7915_show_eeprom_mode(struct seq_file *s, void *data)
  static int
  mt7915_sw_aci_set(void *data, u64 val)
  {
@@ -100,5 +100,5 @@ index 48e2edcf..55c54436 100644
  
  
 -- 
-2.39.2
+2.18.0
 

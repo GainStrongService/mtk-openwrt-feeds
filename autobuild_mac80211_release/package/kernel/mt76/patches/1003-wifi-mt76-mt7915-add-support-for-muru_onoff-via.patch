@@ -1,7 +1,7 @@
-From a5abc630e8bf65e4ca21bc1cf1b74db7df6cd6d1 Mon Sep 17 00:00:00 2001
+From 74fffd688572bd2f2f9633f0acb0da2dba249aa7 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Tue, 4 Apr 2023 02:23:57 +0800
-Subject: [PATCH 1003/1034] wifi: mt76: mt7915: add support for muru_onoff via
+Subject: [PATCH 1003/1040] wifi: mt76: mt7915: add support for muru_onoff via
 
 ---
  mt7915/mcu.c         | 10 ++++++++--
@@ -11,10 +11,10 @@ Subject: [PATCH 1003/1034] wifi: mt76: mt7915: add support for muru_onoff via
  4 files changed, 49 insertions(+), 2 deletions(-)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 8994ea6..fdb6bc5 100644
+index 729a41d..66ec469 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -873,6 +873,7 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
+@@ -875,6 +875,7 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
  {
  	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
  	struct ieee80211_he_cap_elem *elem = &sta->deflink.he_cap.he_cap_elem;
@@ -22,7 +22,7 @@ index 8994ea6..fdb6bc5 100644
  	struct sta_rec_muru *muru;
  	struct tlv *tlv;
  
-@@ -884,13 +885,18 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
+@@ -886,13 +887,18 @@ mt7915_mcu_sta_muru_tlv(struct mt7915_dev *dev, struct sk_buff *skb,
  
  	muru = (struct sta_rec_muru *)tlv;
  
@@ -59,7 +59,7 @@ index 67eac5c..84c52d9 100644
 +
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index c733035..bd5543b 100644
+index 6192e81..e45e2fb 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -252,6 +252,8 @@ struct mt7915_phy {
@@ -72,10 +72,10 @@ index c733035..bd5543b 100644
  	struct mt76_channel_state state_ts;
  
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index e6796bc..e1758ed 100644
+index 275acc6..b7c54cc 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -2558,6 +2558,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)
+@@ -2556,6 +2556,38 @@ static int mt7915_token_txd_read(struct seq_file *s, void *data)
  	return 0;
  }
  
@@ -114,7 +114,7 @@ index e6796bc..e1758ed 100644
  static int mt7915_amsduinfo_read(struct seq_file *s, void *data)
  {
  	struct mt7915_dev *dev = dev_get_drvdata(s->private);
-@@ -3554,6 +3586,7 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -3552,6 +3584,7 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  
  	mt7915_mcu_fw_log_2_host(dev, MCU_FW_LOG_WM, 0);
  
@@ -123,5 +123,5 @@ index e6796bc..e1758ed 100644
  			    &fops_fw_debug_module);
  	debugfs_create_file("fw_debug_level", 0600, dir, dev,
 -- 
-2.39.0
+2.18.0
 

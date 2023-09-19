@@ -1,7 +1,7 @@
-From c13fe2649dddd5f918ab7d93a13e839c11e258a1 Mon Sep 17 00:00:00 2001
+From 9887703630f6949fffbbca476a121a38afc2d558 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Tue, 11 Jan 2022 12:03:23 +0800
-Subject: [PATCH 1002/1034] wifi: mt76: mt7915: air monitor support
+Subject: [PATCH 1002/1040] wifi: mt76: mt7915: air monitor support
 
 ---
  mt76_connac_mcu.h |   2 +
@@ -13,10 +13,10 @@ Subject: [PATCH 1002/1034] wifi: mt76: mt7915: air monitor support
  6 files changed, 442 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index f6738bc6..c24fa8e8 100644
+index 8a377dd..c1d9191 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1197,6 +1197,8 @@ enum {
+@@ -1208,6 +1208,8 @@ enum {
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
  	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
@@ -26,7 +26,7 @@ index f6738bc6..c24fa8e8 100644
  };
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index d22a4079..0e74c0d4 100644
+index 2650b87..f171e97 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -524,6 +524,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -41,10 +41,10 @@ index d22a4079..0e74c0d4 100644
  		status->flag |= RX_FLAG_8023;
  		mt7915_wed_check_ppe(dev, &dev->mt76.q_rx[q], msta, skb,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index df506b01..7896c824 100644
+index b4dfe4b..d667b44 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -760,6 +760,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -772,6 +772,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	if (ret)
  		return ret;
  
@@ -55,7 +55,7 @@ index df506b01..7896c824 100644
  }
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 23119d0d..c733035b 100644
+index 6a96996..6192e81 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -195,6 +195,35 @@ struct mt7915_hif {
@@ -103,7 +103,7 @@ index 23119d0d..c733035b 100644
  #endif
  };
  
-@@ -639,6 +670,9 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -642,6 +673,9 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  void mt7915_vendor_register(struct mt7915_phy *phy);
  int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
  			u8 cfg, u8 v1, u32 v2, u8 *mac_addr);
@@ -114,7 +114,7 @@ index 23119d0d..c733035b 100644
  
  #ifdef MTK_DEBUG
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 98fd9c2d..43f96903 100644
+index 98fd9c2..43f9690 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -430,6 +430,355 @@ out:
@@ -493,7 +493,7 @@ index 98fd9c2d..43f96903 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 9d3db2a7..976817f3 100644
+index 9d3db2a..976817f 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -4,6 +4,7 @@
@@ -547,5 +547,5 @@ index 9d3db2a7..976817f3 100644
 +
  #endif
 -- 
-2.39.2
+2.18.0
 

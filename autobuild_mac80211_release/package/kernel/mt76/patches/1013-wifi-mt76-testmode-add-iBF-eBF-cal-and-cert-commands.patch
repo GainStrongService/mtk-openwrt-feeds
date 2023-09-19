@@ -1,8 +1,8 @@
-From 7598ccc4626d9d41807a59fa8304649a7260b9ed Mon Sep 17 00:00:00 2001
+From ea0393c4c9076db02c3ebe34b87dc381c34e5a3d Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 15 Dec 2022 19:45:18 +0800
-Subject: [PATCH] wifi: mt76: testmode: add iBF/eBF cal and cert commands with
- golden
+Subject: [PATCH 1013/1040] wifi: mt76: testmode: add iBF/eBF cal and cert
+ commands with golden
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -25,10 +25,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  16 files changed, 857 insertions(+), 324 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 75b2874..af29bde 100644
+index ed69106..fa9c6a4 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -703,6 +703,7 @@ struct mt76_testmode_data {
+@@ -716,6 +716,7 @@ struct mt76_testmode_data {
  
  	struct list_head tm_entry_list;
  	struct mt76_wcid *cur_entry;
@@ -36,7 +36,7 @@ index 75b2874..af29bde 100644
  	u8 entry_num;
  	union {
  		struct mt76_testmode_entry_data ed;
-@@ -731,6 +732,9 @@ struct mt76_testmode_data {
+@@ -744,6 +745,9 @@ struct mt76_testmode_data {
  
  	u8 txbf_act;
  	u16 txbf_param[8];
@@ -47,10 +47,10 @@ index 75b2874..af29bde 100644
  	u32 tx_pending;
  	u32 tx_queued;
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 74b63f0..e6b468c 100644
+index 60e159c..07bd57b 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -2767,6 +2767,7 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
+@@ -2796,6 +2796,7 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
  	u32 type = vif->p2p ? NETWORK_P2P : NETWORK_INFRA;
  	struct bss_info_basic *bss;
  	struct tlv *tlv;
@@ -58,7 +58,7 @@ index 74b63f0..e6b468c 100644
  
  	tlv = mt76_connac_mcu_add_tlv(skb, BSS_INFO_BASIC, sizeof(*bss));
  	bss = (struct bss_info_basic *)tlv;
-@@ -2826,6 +2827,8 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
+@@ -2855,6 +2856,8 @@ int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
  		bss->dtim_period = vif->bss_conf.dtim_period;
  		bss->phy_mode = mt76_connac_get_phy_mode(phy, vif,
  							 chandef->chan->band, NULL);
@@ -68,7 +68,7 @@ index 74b63f0..e6b468c 100644
  		memcpy(bss->bssid, phy->macaddr, ETH_ALEN);
  	}
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 6c9401d..1e0bee7 100644
+index bd0efd5..4244177 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -729,8 +729,10 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
@@ -84,7 +84,7 @@ index 6c9401d..1e0bee7 100644
  	txwi[6] |= cpu_to_le32(val);
  #endif
 diff --git a/mt7915/main.c b/mt7915/main.c
-index d7bcd5f..9694bd7 100644
+index 3b18c95..169d597 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -205,46 +205,37 @@ static void mt7915_init_bitrate_mask(struct ieee80211_vif *vif)
@@ -175,7 +175,7 @@ index d7bcd5f..9694bd7 100644
  
  	return ret;
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 020780d..c8b97e8 100644
+index 2cd772b..83d974c 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -199,6 +199,7 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -186,7 +186,7 @@ index 020780d..c8b97e8 100644
  	if (ret)
  		return ret;
  
-@@ -389,10 +390,12 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
+@@ -391,10 +392,12 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
  	case MCU_EXT_EVENT_BCC_NOTIFY:
  		mt7915_mcu_rx_bcc_notify(dev, skb);
  		break;
@@ -201,7 +201,7 @@ index 020780d..c8b97e8 100644
  	case MCU_EXT_EVENT_RF_TEST:
  		mt7915_tm_rf_test_event(dev, skb);
  		break;
-@@ -681,11 +684,22 @@ int mt7915_mcu_add_bss_info(struct mt7915_phy *phy,
+@@ -683,11 +686,22 @@ int mt7915_mcu_add_bss_info(struct mt7915_phy *phy,
  	if (enable)
  		mt76_connac_mcu_bss_omac_tlv(skb, vif);
  
@@ -227,7 +227,7 @@ index 020780d..c8b97e8 100644
  
  	if (enable) {
  		mt7915_mcu_bss_rfch_tlv(skb, vif, phy);
-@@ -3431,6 +3445,7 @@ int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)
+@@ -3440,6 +3454,7 @@ int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)
  
  int mt7915_mcu_set_txbf(struct mt7915_dev *dev, u8 action)
  {
@@ -235,7 +235,7 @@ index 020780d..c8b97e8 100644
  	struct {
  		u8 action;
  		union {
-@@ -3457,7 +3472,6 @@ int mt7915_mcu_set_txbf(struct mt7915_dev *dev, u8 action)
+@@ -3466,7 +3481,6 @@ int mt7915_mcu_set_txbf(struct mt7915_dev *dev, u8 action)
  		.action = action,
  	};
  
@@ -243,7 +243,7 @@ index 020780d..c8b97e8 100644
  	switch (action) {
  	case MT_BF_SOUNDING_ON:
  		req.snd.snd_mode = MT_BF_PROCESSING;
-@@ -4592,6 +4606,9 @@ int mt7915_mcu_set_txbf_sound_info(struct mt7915_phy *phy, u8 action,
+@@ -4601,6 +4615,9 @@ int mt7915_mcu_set_txbf_sound_info(struct mt7915_phy *phy, u8 action,
  		req.he_opt = v2;
  		req.glo_opt = v3;
  		break;
@@ -448,7 +448,7 @@ index f4c3bf4..c95d990 100644
  	MURU_SET_ARB_OP_MODE = 14,
  	MURU_SET_PLATFORM_TYPE = 25,
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 6505d76..25c3fe2 100644
+index 87a5c5c..6dd6eca 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -133,6 +133,7 @@ static const u32 mt7915_offs[] = {
@@ -468,7 +468,7 @@ index 6505d76..25c3fe2 100644
  	[AGG_AALCR0]		= 0x028,
  	[AGG_AWSCR0]		= 0x030,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 88e4529..4572066 100644
+index 33ac2d2..135b39b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -274,7 +274,6 @@ struct mt7915_phy {
@@ -479,7 +479,7 @@ index 88e4529..4572066 100644
  		bool bf_ever_en;
  	} test;
  #endif
-@@ -376,7 +375,7 @@ struct mt7915_dev {
+@@ -379,7 +378,7 @@ struct mt7915_dev {
  	void __iomem *dcm;
  	void __iomem *sku;
  
@@ -488,7 +488,7 @@ index 88e4529..4572066 100644
  	struct {
  		void *txbf_phase_cal;
  		void *txbf_pfmu_data;
-@@ -515,6 +514,7 @@ int mt7915_dma_reset(struct mt7915_dev *dev, bool force);
+@@ -518,6 +517,7 @@ int mt7915_dma_reset(struct mt7915_dev *dev, bool force);
  int mt7915_dma_start(struct mt7915_dev *dev, bool reset, bool wed_reset);
  int mt7915_txbf_init(struct mt7915_dev *dev);
  void mt7915_init_txpower(struct mt7915_phy *phy);
@@ -496,7 +496,7 @@ index 88e4529..4572066 100644
  void mt7915_reset(struct mt7915_dev *dev);
  int mt7915_run(struct ieee80211_hw *hw);
  int mt7915_mcu_init(struct mt7915_dev *dev);
-@@ -595,8 +595,10 @@ int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
+@@ -598,8 +598,10 @@ int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
  int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level);
  void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb);
  void mt7915_mcu_exit(struct mt7915_dev *dev);
@@ -508,7 +508,7 @@ index 88e4529..4572066 100644
  
  static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
  {
-@@ -731,4 +733,10 @@ enum {
+@@ -734,4 +736,10 @@ enum {
  
  #endif
  
@@ -520,10 +520,10 @@ index 88e4529..4572066 100644
 +
  #endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 9bb6dd0..6d9d009 100644
+index 96655db..7fc6a3f 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -2892,6 +2892,36 @@ mt7915_txpower_level_set(void *data, u64 val)
+@@ -2890,6 +2890,36 @@ mt7915_txpower_level_set(void *data, u64 val)
  DEFINE_DEBUGFS_ATTRIBUTE(fops_txpower_level, NULL,
  			 mt7915_txpower_level_set, "%lld\n");
  
@@ -560,7 +560,7 @@ index 9bb6dd0..6d9d009 100644
  /* usage: echo 0x[arg3][arg2][arg1] > fw_wa_set */
  static int
  mt7915_wa_set(void *data, u64 val)
-@@ -3651,6 +3681,11 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -3649,6 +3679,11 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  	debugfs_create_file("txpower_level", 0400, dir, dev,
  			    &fops_txpower_level);
  
@@ -836,7 +836,7 @@ index 143dae2..906c872 100644
 +}
 +#endif
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 482b3fe..44da7b8 100644
+index 44863e8..1f1f8b9 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -61,6 +61,7 @@ enum offs_rev {
@@ -847,7 +847,7 @@ index 482b3fe..44da7b8 100644
  	RMAC_MIB_AIRTIME14,
  	AGG_AALCR0,
  	AGG_AWSCR0,
-@@ -533,6 +534,9 @@ enum offs_rev {
+@@ -534,6 +535,9 @@ enum offs_rev {
  #define MT_ARB_DRNGR0(_band, _n)	MT_WF_ARB(_band, (__OFFS(ARB_DRNGR0) +	\
  							  (_n) * 4))
  

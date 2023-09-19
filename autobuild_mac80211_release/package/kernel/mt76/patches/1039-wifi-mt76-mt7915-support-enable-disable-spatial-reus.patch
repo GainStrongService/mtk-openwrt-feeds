@@ -1,8 +1,8 @@
-From f8b4b17a84bf10198c67434b246de4a05e3e54dd Mon Sep 17 00:00:00 2001
+From ac7a0356360173149824d63e9f5803adb7c94ae4 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Tue, 5 Sep 2023 20:17:19 +0800
-Subject: [PATCH] wifi: mt76: mt7915: support enable/disable spatial reuse
- through debugfs
+Subject: [PATCH 1039/1040] wifi: mt76: mt7915: support enable/disable spatial
+ reuse through debugfs
 
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 ---
@@ -12,10 +12,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  3 files changed, 14 insertions(+), 2 deletions(-)
 
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f6ba2d5..e8e563e 100644
+index 344ba85..cd4f472 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3607,8 +3607,7 @@ int mt7915_mcu_set_txbf(struct mt7915_dev *dev, u8 action)
+@@ -3609,8 +3609,7 @@ int mt7915_mcu_set_txbf(struct mt7915_dev *dev, u8 action)
  				 sizeof(req), true);
  }
  
@@ -26,10 +26,10 @@ index f6ba2d5..e8e563e 100644
  	struct mt7915_dev *dev = phy->dev;
  	struct mt7915_mcu_sr_ctrl req = {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 1c2f113..12049d1 100644
+index 16f2661..72d6cc0 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -733,6 +733,7 @@ int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value);
+@@ -735,6 +735,7 @@ int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value);
  int mt7915_mcu_sw_aci_set(struct mt7915_dev *dev, bool val);
  int mt7915_mcu_ipi_hist_ctrl(struct mt7915_phy *phy, void *data, u8 cmd, bool wait_resp);
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);

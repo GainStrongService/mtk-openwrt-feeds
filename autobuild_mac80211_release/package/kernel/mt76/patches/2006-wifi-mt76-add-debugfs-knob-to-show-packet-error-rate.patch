@@ -1,7 +1,8 @@
-From 99ebe10c9bc4259528c225fd6ab64edaa02d9d15 Mon Sep 17 00:00:00 2001
+From 999021989ad387b46c8ff4ffed43cc0017322c5e Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 11 Jan 2023 10:56:27 +0800
-Subject: [PATCH] wifi: mt76: add debugfs knob to show packet error rate
+Subject: [PATCH 2006/2011] wifi: mt76: add debugfs knob to show packet error
+ rate
 
 Get tx count and tx failed from mcu command
 ---
@@ -14,7 +15,7 @@ Get tx count and tx failed from mcu command
  6 files changed, 194 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index 828d3e8..3fbe02a 100644
+index 968bf08..3032cdd 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -297,8 +297,10 @@ struct mt76_sta_stats {
@@ -29,10 +30,10 @@ index 828d3e8..3fbe02a 100644
  	u64 rx_bytes;
  	u32 rx_packets;
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 1257dfa..cfdee7c 100644
+index 9ad1883..2d6e610 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1162,6 +1162,7 @@ enum {
+@@ -1173,6 +1173,7 @@ enum {
  	MCU_EXT_CMD_EDCA_UPDATE = 0x27,
  	MCU_EXT_CMD_DEV_INFO_UPDATE = 0x2A,
  	MCU_EXT_CMD_THERMAL_CTRL = 0x2c,
@@ -41,10 +42,10 @@ index 1257dfa..cfdee7c 100644
  	MCU_EXT_CMD_SET_DRR_CTRL = 0x36,
  	MCU_EXT_CMD_SET_FEATURE_CTRL = 0x38,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 170b3f1..148a687 100644
+index b2b5c76..d4b0617 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4232,6 +4232,114 @@ int mt7915_mcu_get_tx_rate(struct mt7915_phy *phy, u16 wcidx)
+@@ -4233,6 +4233,114 @@ int mt7915_mcu_get_tx_rate(struct mt7915_phy *phy, u16 wcidx)
  		return mt7915_mcu_get_tx_rate_v2(phy, wcidx);
  }
  
@@ -199,10 +200,10 @@ index 825bb7d..12c98c5 100644
     CAPI_SU,
     CAPI_MU,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index e36fb84..e8f7ca5 100644
+index c1f3a0a..d47abcf 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -675,6 +675,7 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
+@@ -677,6 +677,7 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
  int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
  				     struct cfg80211_chan_def *chandef);
  int mt7915_mcu_wed_wa_tx_stats(struct mt7915_dev *dev, u16 wcid);

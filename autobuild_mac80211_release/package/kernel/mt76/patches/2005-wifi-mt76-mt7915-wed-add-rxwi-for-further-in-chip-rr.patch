@@ -1,7 +1,8 @@
-From cc7a9202984360cdc476d3aa860bebd9fc248a16 Mon Sep 17 00:00:00 2001
+From a71cacc640b5c4ddacdb4e3ce7c3571a08a2daa4 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Fri, 6 Jan 2023 18:18:50 +0800
-Subject: [PATCH] wifi: mt76: mt7915: wed: add rxwi for further in chip rro
+Subject: [PATCH 2005/2011] wifi: mt76: mt7915: wed: add rxwi for further in
+ chip rro
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
@@ -15,10 +16,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  7 files changed, 87 insertions(+), 80 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 3047f8ba..b210e39c 100644
+index e877d26..e3e2f38 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -59,17 +59,17 @@ mt76_alloc_txwi(struct mt76_dev *dev)
+@@ -64,17 +64,17 @@ mt76_alloc_txwi(struct mt76_dev *dev)
  	return t;
  }
  
@@ -42,7 +43,7 @@ index 3047f8ba..b210e39c 100644
  }
  
  static struct mt76_txwi_cache *
-@@ -88,20 +88,20 @@ __mt76_get_txwi(struct mt76_dev *dev)
+@@ -93,20 +93,20 @@ __mt76_get_txwi(struct mt76_dev *dev)
  	return t;
  }
  
@@ -70,7 +71,7 @@ index 3047f8ba..b210e39c 100644
  }
  
  static struct mt76_txwi_cache *
-@@ -115,13 +115,13 @@ mt76_get_txwi(struct mt76_dev *dev)
+@@ -120,13 +120,13 @@ mt76_get_txwi(struct mt76_dev *dev)
  	return mt76_alloc_txwi(dev);
  }
  
@@ -88,7 +89,7 @@ index 3047f8ba..b210e39c 100644
  
  	return mt76_alloc_rxwi(dev);
  }
-@@ -140,14 +140,14 @@ mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+@@ -145,14 +145,14 @@ mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t)
  EXPORT_SYMBOL_GPL(mt76_put_txwi);
  
  void
@@ -108,7 +109,7 @@ index 3047f8ba..b210e39c 100644
  }
  EXPORT_SYMBOL_GPL(mt76_put_rxwi);
  
-@@ -168,13 +168,13 @@ mt76_free_pending_txwi(struct mt76_dev *dev)
+@@ -173,13 +173,13 @@ mt76_free_pending_txwi(struct mt76_dev *dev)
  void
  mt76_free_pending_rxwi(struct mt76_dev *dev)
  {
@@ -127,7 +128,7 @@ index 3047f8ba..b210e39c 100644
  	}
  	local_bh_enable();
  }
-@@ -212,7 +212,7 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -217,7 +217,7 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
  {
  	struct mt76_desc *desc = &q->desc[q->head];
  	struct mt76_queue_entry *entry = &q->entry[q->head];
@@ -136,7 +137,7 @@ index 3047f8ba..b210e39c 100644
  	u32 buf1 = 0, ctrl;
  	int idx = q->head;
  	int rx_token;
-@@ -220,13 +220,13 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -225,13 +225,13 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
  	ctrl = FIELD_PREP(MT_DMA_CTL_SD_LEN0, buf[0].len);
  
  	if (mt76_queue_is_wed_rx(q)) {
@@ -154,7 +155,7 @@ index 3047f8ba..b210e39c 100644
  			return -ENOMEM;
  		}
  
-@@ -241,7 +241,7 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -246,7 +246,7 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
  
  	entry->dma_addr[0] = buf->addr;
  	entry->dma_len[0] = buf->len;
@@ -163,7 +164,7 @@ index 3047f8ba..b210e39c 100644
  	entry->buf = data;
  	entry->wcid = 0xffff;
  	entry->skip_buf1 = true;
-@@ -254,7 +254,7 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -259,7 +259,7 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
  static int
  mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
  		 struct mt76_queue_buf *buf, int nbufs, u32 info,
@@ -172,7 +173,7 @@ index 3047f8ba..b210e39c 100644
  {
  	struct mt76_queue_entry *entry;
  	struct mt76_desc *desc;
-@@ -307,6 +307,7 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -312,6 +312,7 @@ mt76_dma_add_buf(struct mt76_dev *dev, struct mt76_queue *q,
  	}
  
  	q->entry[idx].txwi = txwi;
@@ -180,7 +181,7 @@ index 3047f8ba..b210e39c 100644
  	q->entry[idx].skb = skb;
  	q->entry[idx].wcid = 0xffff;
  
-@@ -405,13 +406,13 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+@@ -407,13 +408,13 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  		u32 buf1 = le32_to_cpu(desc->buf1);
  		u32 id, find = 0;
  		u32 token = FIELD_GET(MT_DMA_CTL_TOKEN, buf1);
@@ -197,7 +198,7 @@ index 3047f8ba..b210e39c 100644
  					find = 1;
  					token = id;
  
-@@ -428,19 +429,19 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+@@ -430,19 +431,19 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  				return NULL;
  		}
  
@@ -224,7 +225,7 @@ index 3047f8ba..b210e39c 100644
  
  		if (drop) {
  			u32 ctrl = le32_to_cpu(READ_ONCE(desc->ctrl));
-@@ -504,7 +505,7 @@ mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -506,7 +507,7 @@ mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
  	buf.len = skb->len;
  
  	spin_lock_bh(&q->lock);
@@ -233,7 +234,7 @@ index 3047f8ba..b210e39c 100644
  	mt76_dma_kick_queue(dev, q);
  	spin_unlock_bh(&q->lock);
  
-@@ -584,7 +585,7 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -586,7 +587,7 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
  		goto unmap;
  
  	return mt76_dma_add_buf(dev, q, tx_info.buf, tx_info.nbuf,
@@ -243,10 +244,10 @@ index 3047f8ba..b210e39c 100644
  unmap:
  	for (n--; n > 0; n--)
 diff --git a/mac80211.c b/mac80211.c
-index 25ec4330..35cd297c 100644
+index ad3a5e2..6232534 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -603,7 +603,6 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
+@@ -607,7 +607,6 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
  	spin_lock_init(&dev->lock);
  	spin_lock_init(&dev->cc_lock);
  	spin_lock_init(&dev->status_lock);
@@ -254,7 +255,7 @@ index 25ec4330..35cd297c 100644
  	mutex_init(&dev->mutex);
  	init_waitqueue_head(&dev->tx_wait);
  
-@@ -636,6 +635,7 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
+@@ -640,6 +639,7 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
  	INIT_LIST_HEAD(&dev->txwi_cache);
  	INIT_LIST_HEAD(&dev->rxwi_cache);
  	dev->token_size = dev->drv->token_size;
@@ -263,7 +264,7 @@ index 25ec4330..35cd297c 100644
  	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
  		skb_queue_head_init(&dev->rx_skb[i]);
 diff --git a/mt76.h b/mt76.h
-index 70146064..828d3e8b 100644
+index d00ef21..968bf08 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -173,6 +173,7 @@ struct mt76_queue_entry {
@@ -274,7 +275,7 @@ index 70146064..828d3e8b 100644
  		struct urb *urb;
  		int buf_sz;
  	};
-@@ -373,10 +374,15 @@ struct mt76_txwi_cache {
+@@ -376,10 +377,15 @@ struct mt76_txwi_cache {
  
  	unsigned long jiffies;
  
@@ -294,7 +295,7 @@ index 70146064..828d3e8b 100644
  };
  
  struct mt76_rx_tid {
-@@ -462,6 +468,7 @@ struct mt76_driver_ops {
+@@ -465,6 +471,7 @@ struct mt76_driver_ops {
  	u16 txwi_size;
  	u16 token_size;
  	u8 mcs_rates;
@@ -302,7 +303,7 @@ index 70146064..828d3e8b 100644
  
  	void (*update_survey)(struct mt76_phy *phy);
  
-@@ -835,7 +842,6 @@ struct mt76_dev {
+@@ -851,7 +858,6 @@ struct mt76_dev {
  
  	struct ieee80211_hw *hw;
  
@@ -310,7 +311,7 @@ index 70146064..828d3e8b 100644
  	spinlock_t lock;
  	spinlock_t cc_lock;
  
-@@ -1525,8 +1531,8 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+@@ -1543,8 +1549,8 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
  }
  
  void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
@@ -321,7 +322,7 @@ index 70146064..828d3e8b 100644
  void mt76_free_pending_rxwi(struct mt76_dev *dev);
  void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
  		      struct napi_struct *napi);
-@@ -1681,9 +1687,9 @@ struct mt76_txwi_cache *
+@@ -1699,9 +1705,9 @@ struct mt76_txwi_cache *
  mt76_token_release(struct mt76_dev *dev, int token, bool *wake);
  int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi);
  void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
@@ -334,7 +335,7 @@ index 70146064..828d3e8b 100644
  static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
  {
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index 59a44d79..326c8c8c 100644
+index 59a44d7..326c8c8 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -509,7 +509,6 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -354,7 +355,7 @@ index 59a44d79..326c8c8c 100644
  
  		/* rx data queue for band1 */
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index cae8b810..d7393901 100644
+index cae8b81..d739390 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -622,18 +622,18 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
@@ -444,7 +445,7 @@ index cae8b810..d7393901 100644
  		.tx_complete_skb = mt76_connac_tx_complete_skb,
  		.rx_skb = mt7915_queue_rx_skb,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index c60521b1..4d3ff13b 100644
+index 764edc5..c1f3a0a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -64,6 +64,7 @@
@@ -456,10 +457,10 @@ index c60521b1..4d3ff13b 100644
  #define MT7915_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
  #define MT7915_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 diff --git a/tx.c b/tx.c
-index 5d7bf340..2594a625 100644
+index f1dd9f6..e290aef 100644
 --- a/tx.c
 +++ b/tx.c
-@@ -774,16 +774,16 @@ int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
+@@ -842,16 +842,16 @@ int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
  EXPORT_SYMBOL_GPL(mt76_token_consume);
  
  int mt76_rx_token_consume(struct mt76_dev *dev, void *ptr,
@@ -480,7 +481,7 @@ index 5d7bf340..2594a625 100644
  	}
  	spin_unlock_bh(&dev->rx_token_lock);
  
-@@ -820,15 +820,15 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
+@@ -888,15 +888,15 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
  }
  EXPORT_SYMBOL_GPL(mt76_token_release);
  

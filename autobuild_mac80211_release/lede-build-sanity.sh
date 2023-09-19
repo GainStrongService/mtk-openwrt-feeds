@@ -190,7 +190,7 @@ prepare_flowoffload() {
 
 prepare_mac80211() {
 	rm -rf ${BUILD_DIR}/package/network/services/hostapd
-	if [ $2 = "1" ]; then
+	if [ "$2" = "1" ]; then
 		echo "========================Hostapd NEW==================="
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/hostapd ${BUILD_DIR}/package/network/services
 		rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/services/hostapd
@@ -211,7 +211,7 @@ prepare_mac80211() {
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iwinfo ${BUILD_DIR}/package/network/utils
 
 	rm -rf ${BUILD_DIR}/package/network/config/netifd
-	if [ $2 = "1" ]; then
+	if [ "$2" = "1" ]; then
 		echo "=========================Netifd NEW====================="
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/config/netifd ${BUILD_DIR}/package/network/config
 		rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/config/netifd
@@ -223,7 +223,7 @@ prepare_mac80211() {
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/config/netifd ${BUILD_DIR}/package/network/config
 
 	rm -rf ${BUILD_DIR}/package/kernel/mac80211
-	if [ $1 = "1" ]; then
+	if [ "$1" = "1" ]; then
 		echo "=========================MAC80211 v6.1==================="
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/package/kernel
 		rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/kernel/mac80211
@@ -294,14 +294,14 @@ prepare_mac80211() {
 	echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7622/config-5.4
 
 	# MAC80211/Hostapd Script
-	if [ $1 = "1" ]; then
+	if [ "$1" = "1" ]; then
 			patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0001-wifi7-mac80211-generate-hostapd-setting-from-ap-cap.patch || exit 1
 	else
 			patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0001-wifi6-mac80211-generate-hostapd-setting-from-ap-cap.patch || exit 1
 	fi
 
 	# Hostapd Makefile
-	if [ $2 = "1" ]; then
+	if [ "$2" = "1" ]; then
 			patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-wifi7-hostapd-makefile-for-utils.patch || exit 1
 	else
 			patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-wifi6-hostapd-makefile-for-utils.patch || exit 1
