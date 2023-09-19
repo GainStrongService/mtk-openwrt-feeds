@@ -1,0 +1,27 @@
+From 038619058f50eaded0f039e001bc11591abf8741 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Tue, 19 Sep 2023 09:58:06 +0800
+Subject: [PATCH] netifd: mtk: not to cache previous config to avoid wifi down
+ failure
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ wireless.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/wireless.c b/wireless.c
+index 50f40c4..f694efd 100644
+--- a/wireless.c
++++ b/wireless.c
+@@ -451,8 +451,6 @@ wireless_device_run_handler(struct wireless_device *wdev, bool up)
+ 		wdev->prev_config = NULL;
+ 	} else {
+ 		prepare_config(wdev, &b, up);
+-		free(wdev->prev_config);
+-		wdev->prev_config = up ? blob_memdup(b.head) : NULL;
+ 		config = blobmsg_format_json(b.head, true);
+ 	}
+ 
+-- 
+2.25.1
+
