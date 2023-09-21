@@ -917,7 +917,7 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 	entry = h->foe_table_cpu[ppe_id];
 	end = h->foe_table_cpu[ppe_id] + hnat_priv->foe_etry_num;
 	while (entry < end) {
-		if (!entry->bfib1.state) {
+		if ((!entry->bfib1.state) && (debug_level < 7)) {
 			entry++;
 			entry_index++;
 			continue;

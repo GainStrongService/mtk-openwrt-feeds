@@ -146,6 +146,7 @@
 #define SCAN_MODE (0x3 << 16) /* RW */
 #define XMODE (0x3 << 18) /* RW */
 #define TICK_SEL (0x1 << 24) /* RW */
+#define DSCP_TRFC_ECN_EN (0x1 << 25) /* RW */
 
 
 /*PPE_CAH_CTRL mask*/
@@ -183,6 +184,7 @@
 
 /*PPE_GLO_CFG mask*/
 #define PPE_EN (0x1 << 0) /* RW */
+#define TSID_EN (0x1 << 1) /* RW */
 #define TTL0_DRP (0x1 << 4) /* RW */
 #define MCAST_TB_EN (0x1 << 7) /* RW */
 #define MCAST_HASH (0x3 << 12) /* RW */
@@ -378,7 +380,14 @@ struct hnat_ipv4_hnapt {
 	u16 m_timestamp; /* For mcast*/
 	u16 resv1;
 	u32 resv2;
-	u32 resv3 : 26;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	u32 resv3_1 : 9;
+	u32 eg_keep_ecn : 1;
+	u32 eg_keep_dscp : 1;
+	u32 resv3_2:15;
+#else
+	u32 resv3:26;
+#endif
 	u32 act_dp : 6; /* UDF */
 	u16 vlan1;
 	u16 etype;
@@ -433,7 +442,14 @@ struct hnat_ipv4_dslite {
 	u8 flow_lbl[3]; /* in order to consist with Linux kernel (should be 20bits) */
 	u8 priority;    /* in order to consist with Linux kernel (should be 8bits) */
 	u32 hop_limit : 8;
-	u32 resv2 : 18;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+		u32 resv2_1 : 1;
+		u32 eg_keep_ecn : 1;
+		u32 eg_keep_cls : 1;
+		u32 resv2_2 : 15;
+#else
+		u32 resv2 : 18;
+#endif
 	u32 act_dp : 6; /* UDF */
 
 	union {
@@ -495,7 +511,14 @@ struct hnat_ipv4_mape {
 	u8 flow_lbl[3]; /* in order to consist with Linux kernel (should be 20bits) */
 	u8 priority;    /* in order to consist with Linux kernel (should be 8bits) */
 	u32 hop_limit : 8;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+		u32 resv2_1 : 1;
+		u32 eg_keep_ecn : 1;
+		u32 eg_keep_dscp : 1;
+		u32 resv2_2 : 15;
+#else
 	u32 resv2 : 18;
+#endif
 	u32 act_dp : 6; /* UDF */
 
 	union {
@@ -561,7 +584,14 @@ struct hnat_ipv6_3t_route {
 	u32 resv1;
 	u32 resv2;
 	u32 resv3;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	u32 resv4_1 : 9;
+	u32 eg_keep_ecn : 1;
+	u32 eg_keep_cls : 1;
+	u32 resv4_2 : 15;
+#else
 	u32 resv4 : 26;
+#endif
 	u32 act_dp : 6; /* UDF */
 
 	union {
@@ -618,7 +648,14 @@ struct hnat_ipv6_5t_route {
 	u32 resv1;
 	u32 resv2;
 	u32 resv3;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	u32 resv4_1 : 9;
+	u32 eg_keep_ecn : 1;
+	u32 eg_keep_cls : 1;
+	u32 resv4_2 : 15;
+#else
 	u32 resv4 : 26;
+#endif
 	u32 act_dp : 6; /* UDF */
 
 	union {
@@ -679,9 +716,19 @@ struct hnat_ipv6_6rd {
 	u32 dscp : 8;
 	u32 ttl : 8;
 	u32 flag : 3;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	u32 resv1_1 : 6;
+	u32 eg_keep_ecn : 1;
+	u32 eg_keep_cls : 1;
+	u32 eg_keep_tnl_qos : 1;
+	u32 resv1_2 : 4;
+	u32 per_flow_6rd_id : 1;
+	u32 resv2 : 9;
+#else
 	u32 resv1 : 13;
 	u32 per_flow_6rd_id : 1;
 	u32 resv2 : 9;
+#endif
 	u32 act_dp : 6; /* UDF */
 
 	union {
@@ -904,6 +951,7 @@ struct mtk_hnat {
 	struct timer_list hnat_mcast_check_timer;
 	bool nf_stat_en;
 	struct xlat_conf xlat;
+	spinlock_t		entry_lock;
 };
 
 struct extdev_entry {

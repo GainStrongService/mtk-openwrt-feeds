@@ -409,8 +409,13 @@ static int hnat_hw_init(u32 ppe_id)
 	hnat_priv->g_ppdev = dev_get_by_name(&init_net, hnat_priv->ppd);
 	hnat_priv->g_wandev = dev_get_by_name(&init_net, hnat_priv->wan);
 
+	if (hnat_priv->data->version == MTK_HNAT_V3) {
+		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG, TSID_EN, 1);
+		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, DSCP_TRFC_ECN_EN, 1);
+	}
 	dev_info(hnat_priv->dev, "PPE%d hwnat start\n", ppe_id);
 
+	spin_lock_init(&hnat_priv->entry_lock);
 	return 0;
 }
 

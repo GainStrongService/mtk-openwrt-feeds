@@ -1284,6 +1284,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 							ntohs(pptr->src);
 					entry.ipv4_mape.new_dport =
 							ntohs(pptr->dst);
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+					entry.ipv4_mape.eg_keep_ecn = 1;
+					entry.ipv4_mape.eg_keep_dscp = 1;
+#endif
 				}
 #endif
 
@@ -1310,6 +1314,11 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv4_dslite.vlan1 = hw_path->vlan_id;
 				if (hnat_priv->data->per_flow_accounting)
 					entry.ipv4_dslite.iblk2.mibf = 1;
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+				entry.ipv4_dslite.eg_keep_ecn = 1;
+				entry.ipv4_dslite.eg_keep_cls = 1;
+#endif
 
 			} else {
 				entry.ipv4_hnapt.iblk2.dscp = iph->tos;
@@ -1349,6 +1358,11 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv4_hnapt.new_sport = ntohs(pptr->src);
 				entry.ipv4_hnapt.new_dport = ntohs(pptr->dst);
 			}
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+			entry.ipv4_hnapt.eg_keep_ecn = 1;
+			entry.ipv4_hnapt.eg_keep_dscp = 1;
+#endif
 
 			break;
 
@@ -1393,6 +1407,11 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					foe->ipv6_6rd.tunnel_sipv4;
 				entry.ipv6_6rd.tunnel_dipv4 =
 					foe->ipv6_6rd.tunnel_dipv4;
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+				entry.ipv6_6rd.eg_keep_ecn = 1;
+				entry.ipv6_6rd.eg_keep_cls = 1;
+#endif
 			}
 
 			entry.ipv6_3t_route.ipv6_sip0 =
@@ -1418,6 +1437,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					foe->ipv6_3t_route.prot;
 				entry.ipv6_3t_route.hph =
 					foe->ipv6_3t_route.hph;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+				entry.ipv6_3t_route.eg_keep_ecn = 1;
+				entry.ipv6_3t_route.eg_keep_cls = 1;
+#endif
 			}
 
 			if (IS_IPV6_5T_ROUTE(foe) || IS_IPV6_6RD(foe)) {
@@ -1425,6 +1448,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					foe->ipv6_5t_route.sport;
 				entry.ipv6_5t_route.dport =
 					foe->ipv6_5t_route.dport;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+				entry.ipv6_5t_route.eg_keep_ecn = 1;
+				entry.ipv6_5t_route.eg_keep_cls = 1;
+#endif
 			}
 
 			if (ct && (ct->status & IPS_SRC_NAT)) {
@@ -1463,6 +1490,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 				entry.ipv6_hnapt.new_sport = ntohs(pptr->src);
 				entry.ipv6_hnapt.new_dport = ntohs(pptr->dst);
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+				entry.ipv6_hnapt.eg_keep_ecn = 1;
+				entry.ipv6_hnapt.eg_keep_cls = 1;
+#endif
 #else
 				return -1;
 #endif
@@ -1518,6 +1549,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv4_dslite.vlan1 = hw_path->vlan_id;
 				if (hnat_priv->data->per_flow_accounting)
 					entry.ipv4_dslite.iblk2.mibf = 1;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+				entry.ipv4_dslite.eg_keep_ecn = 1;
+				entry.ipv4_dslite.eg_keep_cls = 1;
+#endif
 				/* Map-E LAN->WAN record inner IPv4 header info. */
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 				if (mape_toggle) {
@@ -1526,6 +1561,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					entry.ipv4_mape.new_dip = foe->ipv4_mape.new_dip;
 					entry.ipv4_mape.new_sport = foe->ipv4_mape.new_sport;
 					entry.ipv4_mape.new_dport = foe->ipv4_mape.new_dport;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+					entry.ipv4_mape.eg_keep_ecn = 1;
+					entry.ipv4_mape.eg_keep_dscp = 1;
+#endif
 				}
 #endif
 			} else if (mape_toggle &&
@@ -1582,6 +1621,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv4_hnapt.new_dport =
 					foe->ipv4_hnapt.new_dport;
 				mape_l2w_v6h = *ip6h;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+				entry.ipv4_hnapt.eg_keep_ecn = 1;
+				entry.ipv4_hnapt.eg_keep_dscp = 1;
+#endif
 			}
 			break;
 
@@ -1621,6 +1664,11 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			entry.ipv6_6rd.vlan1 = hw_path->vlan_id;
 			if (hnat_priv->data->per_flow_accounting)
 				entry.ipv6_6rd.iblk2.mibf = 1;
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+			entry.ipv6_6rd.eg_keep_ecn = 1;
+			entry.ipv6_6rd.eg_keep_cls = 1;
+#endif
 			break;
 
 		default:
@@ -1823,9 +1871,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 {
-	struct foe_entry *entry;
+	struct foe_entry *hw_entry, entry;
 	struct ethhdr *eth;
-	struct hnat_bind_info_blk bfib1_tx;
 
 	if (skb_hnat_alg(skb) ||
 	    !is_magic_tag_valid(skb) || !IS_SPACE_AVAILABLE_HEAD(skb))
@@ -1851,38 +1898,39 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	    skb_hnat_ppe(skb) >= CFG_PPE_NUM)
 		return NF_ACCEPT;
 
-	entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
-	if (entry_hnat_is_bound(entry))
+	hw_entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
+	memcpy(&entry, hw_entry, sizeof(entry));
+	if (entry.bfib1.state == BIND)
 		return NF_ACCEPT;
 
 	if (skb_hnat_reason(skb) != HIT_UNBIND_RATE_REACH)
 		return NF_ACCEPT;
 
-	if (!is_hnat_pre_filled(entry))
+	if (!is_hnat_pre_filled(&entry))
 		return NF_ACCEPT;
 
 	eth = eth_hdr(skb);
-	memcpy(&bfib1_tx, &entry->bfib1, sizeof(entry->bfib1));
 
 	/*not bind multicast if PPE mcast not enable*/
 	if (!hnat_priv->data->mcast) {
 		if (is_multicast_ether_addr(eth->h_dest))
 			return NF_ACCEPT;
 
-		if (IS_IPV4_GRP(entry))
-			entry->ipv4_hnapt.iblk2.mcast = 0;
+		if (IS_IPV4_GRP(&entry))
+			entry.ipv4_hnapt.iblk2.mcast = 0;
 		else
-			entry->ipv6_5t_route.iblk2.mcast = 0;
+			entry.ipv6_5t_route.iblk2.mcast = 0;
 	}
 
+	spin_lock(&hnat_priv->entry_lock);
 	/* Some mt_wifi virtual interfaces, such as apcli,
 	 * will change the smac for specail purpose.
 	 */
-	switch ((int)bfib1_tx.pkt_type) {
+	switch ((int)entry.bfib1.pkt_type) {
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
-		entry->ipv4_hnapt.smac_hi = swab32(*((u32 *)eth->h_source));
-		entry->ipv4_hnapt.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
+		entry.ipv4_hnapt.smac_hi = swab32(*((u32 *)eth->h_source));
+		entry.ipv4_hnapt.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
 		break;
 	case IPV4_DSLITE:
 	case IPV4_MAP_E:
@@ -1891,167 +1939,221 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	case IPV6_3T_ROUTE:
 	case IPV6_HNAPT:
 	case IPV6_HNAT:
-		entry->ipv6_5t_route.smac_hi = swab32(*((u32 *)eth->h_source));
-		entry->ipv6_5t_route.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
+		entry.ipv6_5t_route.smac_hi = swab32(*((u32 *)eth->h_source));
+		entry.ipv6_5t_route.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
 		break;
 	}
 
 	if (skb_vlan_tagged(skb)) {
-		bfib1_tx.vlan_layer = 1;
-		bfib1_tx.vpm = 1;
-		if (IS_IPV4_GRP(entry)) {
-			entry->ipv4_hnapt.etype = htons(ETH_P_8021Q);
-			entry->ipv4_hnapt.vlan1 = skb->vlan_tci;
-		} else if (IS_IPV6_GRP(entry)) {
-			entry->ipv6_5t_route.etype = htons(ETH_P_8021Q);
-			entry->ipv6_5t_route.vlan1 = skb->vlan_tci;
+		entry.bfib1.vlan_layer = 1;
+		entry.bfib1.vpm = 1;
+		if (IS_IPV4_GRP(&entry)) {
+			entry.ipv4_hnapt.etype = htons(ETH_P_8021Q);
+			entry.ipv4_hnapt.vlan1 = skb->vlan_tci;
+		} else if (IS_IPV6_GRP(&entry)) {
+			entry.ipv6_5t_route.etype = htons(ETH_P_8021Q);
+			entry.ipv6_5t_route.vlan1 = skb->vlan_tci;
 		}
 	} else {
-		bfib1_tx.vpm = 0;
-		bfib1_tx.vlan_layer = 0;
+		entry.bfib1.vpm = 0;
+		entry.bfib1.vlan_layer = 0;
 	}
 
 	/* MT7622 wifi hw_nat not support QoS */
-	if (IS_IPV4_GRP(entry)) {
-		entry->ipv4_hnapt.iblk2.fqos = 0;
+	if (IS_IPV4_GRP(&entry)) {
+		entry.ipv4_hnapt.iblk2.fqos = 0;
 		if ((hnat_priv->data->version == MTK_HNAT_V1_2 &&
 		     gmac_no == NR_WHNAT_WDMA_PORT) ||
 		    ((hnat_priv->data->version == MTK_HNAT_V2 ||
 		      hnat_priv->data->version == MTK_HNAT_V3) &&
 		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT ||
 		      gmac_no == NR_WDMA2_PORT))) {
-			entry->ipv4_hnapt.winfo.bssid = skb_hnat_bss_id(skb);
-			entry->ipv4_hnapt.winfo.wcid = skb_hnat_wc_id(skb);
+			entry.ipv4_hnapt.winfo.bssid = skb_hnat_bss_id(skb);
+			entry.ipv4_hnapt.winfo.wcid = skb_hnat_wc_id(skb);
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-			entry->ipv4_hnapt.tport_id = IS_HQOS_DL_MODE ? 1 : 0;
-			entry->ipv4_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
-			entry->ipv4_hnapt.iblk2.winfoi = 1;
-			entry->ipv4_hnapt.winfo_pao.usr_info =
+			entry.ipv4_hnapt.tport_id = IS_HQOS_DL_MODE ? 1 : 0;
+			entry.ipv4_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
+			entry.ipv4_hnapt.iblk2.winfoi = 1;
+			entry.ipv4_hnapt.winfo_pao.usr_info =
 				skb_hnat_usr_info(skb);
-			entry->ipv4_hnapt.winfo_pao.tid = skb_hnat_tid(skb);
-			entry->ipv4_hnapt.winfo_pao.is_fixedrate =
+			entry.ipv4_hnapt.winfo_pao.tid = skb_hnat_tid(skb);
+			entry.ipv4_hnapt.winfo_pao.is_fixedrate =
 				skb_hnat_is_fixedrate(skb);
-			entry->ipv4_hnapt.winfo_pao.is_prior =
+			entry.ipv4_hnapt.winfo_pao.is_prior =
 				skb_hnat_is_prior(skb);
-			entry->ipv4_hnapt.winfo_pao.is_sp = skb_hnat_is_sp(skb);
-			entry->ipv4_hnapt.winfo_pao.hf = skb_hnat_hf(skb);
-			entry->ipv4_hnapt.winfo_pao.amsdu = skb_hnat_amsdu(skb);
+			entry.ipv4_hnapt.winfo_pao.is_sp = skb_hnat_is_sp(skb);
+			entry.ipv4_hnapt.winfo_pao.hf = skb_hnat_hf(skb);
+			entry.ipv4_hnapt.winfo_pao.amsdu = skb_hnat_amsdu(skb);
 #elif defined(CONFIG_MEDIATEK_NETSYS_V2)
-			entry->ipv4_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
-			entry->ipv4_hnapt.iblk2.winfoi = 1;
+			entry.ipv4_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
+			entry.ipv4_hnapt.iblk2.winfoi = 1;
 #else
-			entry->ipv4_hnapt.winfo.rxid = skb_hnat_rx_id(skb);
-			entry->ipv4_hnapt.iblk2w.winfoi = 1;
-			entry->ipv4_hnapt.iblk2w.wdmaid = skb_hnat_wdma_id(skb);
+			entry.ipv4_hnapt.winfo.rxid = skb_hnat_rx_id(skb);
+			entry.ipv4_hnapt.iblk2w.winfoi = 1;
+			entry.ipv4_hnapt.iblk2w.wdmaid = skb_hnat_wdma_id(skb);
 #endif
 		} else {
 			if (IS_GMAC1_MODE && !hnat_dsa_is_enable(hnat_priv)) {
-				bfib1_tx.vpm = 1;
-				bfib1_tx.vlan_layer = 1;
+				entry.bfib1.vpm = 1;
+				entry.bfib1.vlan_layer = 1;
 
 				if (FROM_GE_LAN_GRP(skb))
-					entry->ipv4_hnapt.vlan1 = 1;
+					entry.ipv4_hnapt.vlan1 = 1;
 				else if (FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))
-					entry->ipv4_hnapt.vlan1 = 2;
+					entry.ipv4_hnapt.vlan1 = 2;
 			}
 
 			if (IS_HQOS_MODE &&
 			    (FROM_GE_LAN_GRP(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
-				bfib1_tx.vpm = 0;
-				bfib1_tx.vlan_layer = 1;
-				entry->ipv4_hnapt.etype = htons(HQOS_MAGIC_TAG);
-				entry->ipv4_hnapt.vlan1 = skb_hnat_entry(skb);
-				entry->ipv4_hnapt.iblk2.fqos = 1;
+				entry.bfib1.vpm = 0;
+				entry.bfib1.vlan_layer = 1;
+				entry.ipv4_hnapt.etype = htons(HQOS_MAGIC_TAG);
+				entry.ipv4_hnapt.vlan1 = skb_hnat_entry(skb);
+				entry.ipv4_hnapt.iblk2.fqos = 1;
 			}
 		}
-		entry->ipv4_hnapt.iblk2.dp = gmac_no;
+		entry.ipv4_hnapt.iblk2.dp = gmac_no;
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-	} else if (IS_IPV6_HNAPT(entry) || IS_IPV6_HNAT(entry)) {
-		entry->ipv6_hnapt.iblk2.dp = gmac_no;
-		entry->ipv6_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
-		entry->ipv6_hnapt.iblk2.winfoi = 1;
+	} else if (IS_IPV6_HNAPT(&entry) || IS_IPV6_HNAT(&entry)) {
+		entry.ipv6_hnapt.iblk2.dp = gmac_no;
+		entry.ipv6_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
+		entry.ipv6_hnapt.iblk2.winfoi = 1;
 
-		entry->ipv6_hnapt.winfo.bssid = skb_hnat_bss_id(skb);
-		entry->ipv6_hnapt.winfo.wcid = skb_hnat_wc_id(skb);
-		entry->ipv6_hnapt.winfo_pao.usr_info = skb_hnat_usr_info(skb);
-		entry->ipv6_hnapt.winfo_pao.tid = skb_hnat_tid(skb);
-		entry->ipv6_hnapt.winfo_pao.is_fixedrate =
+		entry.ipv6_hnapt.winfo.bssid = skb_hnat_bss_id(skb);
+		entry.ipv6_hnapt.winfo.wcid = skb_hnat_wc_id(skb);
+		entry.ipv6_hnapt.winfo_pao.usr_info = skb_hnat_usr_info(skb);
+		entry.ipv6_hnapt.winfo_pao.tid = skb_hnat_tid(skb);
+		entry.ipv6_hnapt.winfo_pao.is_fixedrate =
 			skb_hnat_is_fixedrate(skb);
-		entry->ipv6_hnapt.winfo_pao.is_prior = skb_hnat_is_prior(skb);
-		entry->ipv6_hnapt.winfo_pao.is_sp = skb_hnat_is_sp(skb);
-		entry->ipv6_hnapt.winfo_pao.hf = skb_hnat_hf(skb);
-		entry->ipv6_hnapt.winfo_pao.amsdu = skb_hnat_amsdu(skb);
-		entry->ipv6_hnapt.tport_id = IS_HQOS_DL_MODE ? 1 : 0;
+		entry.ipv6_hnapt.winfo_pao.is_prior = skb_hnat_is_prior(skb);
+		entry.ipv6_hnapt.winfo_pao.is_sp = skb_hnat_is_sp(skb);
+		entry.ipv6_hnapt.winfo_pao.hf = skb_hnat_hf(skb);
+		entry.ipv6_hnapt.winfo_pao.amsdu = skb_hnat_amsdu(skb);
+		entry.ipv6_hnapt.tport_id = IS_HQOS_DL_MODE ? 1 : 0;
 #endif
 	} else {
-		entry->ipv6_5t_route.iblk2.fqos = 0;
+		entry.ipv6_5t_route.iblk2.fqos = 0;
 		if ((hnat_priv->data->version == MTK_HNAT_V1_2 &&
 		     gmac_no == NR_WHNAT_WDMA_PORT) ||
 		    ((hnat_priv->data->version == MTK_HNAT_V2 ||
 		      hnat_priv->data->version == MTK_HNAT_V3) &&
 		     (gmac_no == NR_WDMA0_PORT || gmac_no == NR_WDMA1_PORT ||
 		      gmac_no == NR_WDMA2_PORT))) {
-			entry->ipv6_5t_route.winfo.bssid = skb_hnat_bss_id(skb);
-			entry->ipv6_5t_route.winfo.wcid = skb_hnat_wc_id(skb);
+			entry.ipv6_5t_route.winfo.bssid = skb_hnat_bss_id(skb);
+			entry.ipv6_5t_route.winfo.wcid = skb_hnat_wc_id(skb);
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-			entry->ipv6_5t_route.tport_id = IS_HQOS_DL_MODE ? 1 : 0;
-			entry->ipv6_5t_route.iblk2.rxid = skb_hnat_rx_id(skb);
-			entry->ipv6_5t_route.iblk2.winfoi = 1;
-			entry->ipv6_5t_route.winfo_pao.usr_info =
+			entry.ipv6_5t_route.tport_id = IS_HQOS_DL_MODE ? 1 : 0;
+			entry.ipv6_5t_route.iblk2.rxid = skb_hnat_rx_id(skb);
+			entry.ipv6_5t_route.iblk2.winfoi = 1;
+			entry.ipv6_5t_route.winfo_pao.usr_info =
 				skb_hnat_usr_info(skb);
-			entry->ipv6_5t_route.winfo_pao.tid =
+			entry.ipv6_5t_route.winfo_pao.tid =
 				skb_hnat_tid(skb);
-			entry->ipv6_5t_route.winfo_pao.is_fixedrate =
+			entry.ipv6_5t_route.winfo_pao.is_fixedrate =
 				skb_hnat_is_fixedrate(skb);
-			entry->ipv6_5t_route.winfo_pao.is_prior =
+			entry.ipv6_5t_route.winfo_pao.is_prior =
 				skb_hnat_is_prior(skb);
-			entry->ipv6_5t_route.winfo_pao.is_sp =
+			entry.ipv6_5t_route.winfo_pao.is_sp =
 				skb_hnat_is_sp(skb);
-			entry->ipv6_5t_route.winfo_pao.hf =
+			entry.ipv6_5t_route.winfo_pao.hf =
 				skb_hnat_hf(skb);
-			entry->ipv6_5t_route.winfo_pao.amsdu =
+			entry.ipv6_5t_route.winfo_pao.amsdu =
 				skb_hnat_amsdu(skb);
 #elif defined(CONFIG_MEDIATEK_NETSYS_V2)
-			entry->ipv6_5t_route.iblk2.rxid = skb_hnat_rx_id(skb);
-			entry->ipv6_5t_route.iblk2.winfoi = 1;
+			entry.ipv6_5t_route.iblk2.rxid = skb_hnat_rx_id(skb);
+			entry.ipv6_5t_route.iblk2.winfoi = 1;
 #else
-			entry->ipv6_5t_route.winfo.rxid = skb_hnat_rx_id(skb);
-			entry->ipv6_5t_route.iblk2w.winfoi = 1;
-			entry->ipv6_5t_route.iblk2w.wdmaid = skb_hnat_wdma_id(skb);
+			entry.ipv6_5t_route.winfo.rxid = skb_hnat_rx_id(skb);
+			entry.ipv6_5t_route.iblk2w.winfoi = 1;
+			entry.ipv6_5t_route.iblk2w.wdmaid = skb_hnat_wdma_id(skb);
 #endif
 		} else {
 			if (IS_GMAC1_MODE && !hnat_dsa_is_enable(hnat_priv)) {
-				bfib1_tx.vpm = 1;
-				bfib1_tx.vlan_layer = 1;
+				entry.bfib1.vpm = 1;
+				entry.bfib1.vlan_layer = 1;
 
 				if (FROM_GE_LAN_GRP(skb))
-					entry->ipv6_5t_route.vlan1 = 1;
+					entry.ipv6_5t_route.vlan1 = 1;
 				else if (FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))
-					entry->ipv6_5t_route.vlan1 = 2;
+					entry.ipv6_5t_route.vlan1 = 2;
 			}
 
 			if (IS_HQOS_MODE &&
 			    (FROM_GE_LAN_GRP(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
-				bfib1_tx.vpm = 0;
-				bfib1_tx.vlan_layer = 1;
-				entry->ipv6_5t_route.etype = htons(HQOS_MAGIC_TAG);
-				entry->ipv6_5t_route.vlan1 = skb_hnat_entry(skb);
-				entry->ipv6_5t_route.iblk2.fqos = 1;
+				entry.bfib1.vpm = 0;
+				entry.bfib1.vlan_layer = 1;
+				entry.ipv6_5t_route.etype = htons(HQOS_MAGIC_TAG);
+				entry.ipv6_5t_route.vlan1 = skb_hnat_entry(skb);
+				entry.ipv6_5t_route.iblk2.fqos = 1;
 			}
 		}
-		entry->ipv6_5t_route.iblk2.dp = gmac_no;
+		entry.ipv6_5t_route.iblk2.dp = gmac_no;
 	}
 
-	bfib1_tx.ttl = 1;
-	bfib1_tx.state = BIND;
-	wmb();
-	memcpy(&entry->bfib1, &bfib1_tx, sizeof(bfib1_tx));
-
-	if (IS_IPV4_GRP(entry))
-		entry->ipv4_hnapt.act_dp &= ~UDF_HNAT_PRE_FILLED;
+	entry.bfib1.ttl = 1;
+	entry.bfib1.state = BIND;
+	if (IS_IPV4_GRP(&entry))
+		entry.ipv4_hnapt.act_dp &= ~UDF_HNAT_PRE_FILLED;
 	else
-		entry->ipv6_5t_route.act_dp &= ~UDF_HNAT_PRE_FILLED;
+		entry.ipv6_5t_route.act_dp &= ~UDF_HNAT_PRE_FILLED;
+	/* We must ensure all info has been updated before set to hw */
+	wmb();
+	memcpy(hw_entry, &entry, sizeof(entry));
 
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	if (debug_level >= 7) {
+		pr_info("%s %d dp:%d rxid:%d tid:%d usr_info:%d bssid:%d wcid:%d hsh-idx:%d sp:%d\n",
+			__func__, __LINE__,
+			gmac_no, skb_hnat_rx_id(skb), skb_hnat_tid(skb),
+			skb_hnat_usr_info(skb), skb_hnat_bss_id(skb),
+			skb_hnat_wc_id(skb), skb_hnat_entry(skb),
+			skb_hnat_sport(skb));
+
+		if (IS_IPV4_GRP(&entry)) {
+			pr_info("%s %d dp:%d rxid:%d tid:%d uinfo:%d bssid:%d wcid:%d hsh-idx:%d sp:%d\n",
+				__func__, __LINE__,
+				(hw_entry->ipv4_hnapt.iblk2.dp),
+				(hw_entry->ipv4_hnapt.iblk2.rxid),
+				(hw_entry->ipv4_hnapt.winfo_pao.tid),
+				(hw_entry->ipv4_hnapt.winfo_pao.usr_info),
+				(hw_entry->ipv4_hnapt.winfo.bssid),
+				(hw_entry->ipv4_hnapt.winfo.wcid),
+				skb_hnat_entry(skb), skb_hnat_sport(skb));
+			pr_info("%s %d dip:%x sip:%x dp:%x sp:%x hsh-idx:%d\n",
+				__func__, __LINE__,
+				hw_entry->ipv4_hnapt.dip, hw_entry->ipv4_hnapt.sip,
+				hw_entry->ipv4_hnapt.dport, hw_entry->ipv4_hnapt.sport,
+				skb_hnat_entry(skb));
+			pr_info("%s %d new_dip:%x new_sip:%x new_dp:%x new_sp:%x hsh-idx:%d\n",
+				__func__, __LINE__,
+				hw_entry->ipv4_hnapt.new_dip, hw_entry->ipv4_hnapt.new_sip,
+				hw_entry->ipv4_hnapt.new_dport,
+				hw_entry->ipv4_hnapt.new_sport, skb_hnat_entry(skb));
+		} else {
+			pr_info("%s %d dp:%d rxid:%d tid:%d uinfo:%d bssid:%d wcid:%d hidx:%d sp:%d\n",
+				__func__, __LINE__,
+				(hw_entry->ipv6_5t_route.iblk2.dp),
+				(hw_entry->ipv6_5t_route.iblk2.rxid),
+				(hw_entry->ipv6_5t_route.winfo_pao.tid),
+				(hw_entry->ipv6_5t_route.winfo_pao.usr_info),
+				(hw_entry->ipv6_5t_route.winfo.bssid),
+				(hw_entry->ipv6_5t_route.winfo.wcid),
+				skb_hnat_entry(skb), skb_hnat_sport(skb));
+			pr_info("sip:%x-:%x-:%x-:%x dip0:%x-:%x-:%x-:%x dport:%x sport:%x\n",
+				hw_entry->ipv6_5t_route.ipv6_sip0,
+				hw_entry->ipv6_5t_route.ipv6_sip1,
+				hw_entry->ipv6_5t_route.ipv6_sip2,
+				hw_entry->ipv6_5t_route.ipv6_sip3,
+				hw_entry->ipv6_5t_route.ipv6_dip0,
+				hw_entry->ipv6_5t_route.ipv6_dip1,
+				hw_entry->ipv6_5t_route.ipv6_dip2,
+				hw_entry->ipv6_5t_route.ipv6_dip3,
+				hw_entry->ipv6_5t_route.dport,
+				hw_entry->ipv6_5t_route.sport);
+		}
+	}
+#endif
+	spin_unlock(&hnat_priv->entry_lock);
 	return NF_ACCEPT;
 }
 
@@ -2190,8 +2292,9 @@ static void mtk_hnat_dscp_update(struct sk_buff *skb, struct foe_entry *entry)
 	}
 
 	if (flag) {
-		if (debug_level >= 2)
-			pr_info("Delete entry idx=%d.\n", skb_hnat_entry(skb));
+		if (debug_level >= 7)
+			pr_info("%s %d Delete entry idx=%d\n", __func__, __LINE__,
+			skb_hnat_entry(skb));
 		memset(entry, 0, sizeof(struct foe_entry));
 		hnat_cache_ebl(1);
 	}
@@ -2553,7 +2656,9 @@ static unsigned int mtk_hnat_nf_post_routing(
 		if (fn && fn(skb, arp_dev, &hw_path))
 			break;
 
+		spin_lock(&hnat_priv->entry_lock);
 		skb_to_hnat_info(skb, out, entry, &hw_path);
+		spin_unlock(&hnat_priv->entry_lock);
 		break;
 	case HIT_BIND_KEEPALIVE_DUP_OLD_HDR:
 		/* update hnat count to nf_conntrack by keepalive */
@@ -2564,7 +2669,8 @@ static unsigned int mtk_hnat_nf_post_routing(
 			break;
 
 		/* update dscp for qos */
-		mtk_hnat_dscp_update(skb, entry);
+		if (hnat_priv->data->version != MTK_HNAT_V3)
+			mtk_hnat_dscp_update(skb, entry);
 
 		/* update mcast timestamp*/
 		if (hnat_priv->data->version == MTK_HNAT_V1_3 &&
