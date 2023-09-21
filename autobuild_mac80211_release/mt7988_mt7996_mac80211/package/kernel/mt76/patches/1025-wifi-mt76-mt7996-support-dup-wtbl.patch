@@ -1,0 +1,72 @@
+From 0b429d84b4fe85431a273899e89bcbb65ae3df38 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Thu, 21 Sep 2023 00:52:46 +0800
+Subject: [PATCH] wifi: mt76: mt7996: support dup wtbl
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+Change-Id: I14ba41ace8341c23c1cfb6e9c4fbb2d5e93a5714
+---
+ mt7996/init.c    |  1 +
+ mt7996/mt7996.h  |  1 +
+ mt7996/mtk_mcu.c | 23 +++++++++++++++++++++++
+ 3 files changed, 25 insertions(+)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 5d8ecf038..3001db325 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -641,6 +641,7 @@ static void mt7996_init_work(struct work_struct *work)
+ 	mt7996_init_txpower(dev, &dev->mphy.sband_5g.sband);
+ 	mt7996_init_txpower(dev, &dev->mphy.sband_6g.sband);
+ 	mt7996_txbf_init(dev);
++	mt7996_mcu_set_dup_wtbl(dev);
+ }
+ 
+ void mt7996_wfsys_reset(struct mt7996_dev *dev)
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 6447b2c90..d1633494c 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -707,6 +707,7 @@ enum edcca_bw_id {
+ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir);
+ int mt7996_mcu_set_sr_enable(struct mt7996_phy *phy, u8 action, u64 val, bool set);
+ void mt7996_mcu_rx_sr_event(struct mt7996_dev *dev, struct sk_buff *skb);
++int mt7996_mcu_set_dup_wtbl(struct mt7996_dev *dev);
+ #endif
+ 
+ #endif
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 3256de7f5..149694c19 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -235,4 +235,27 @@ void mt7996_mcu_rx_sr_event(struct mt7996_dev *dev, struct sk_buff *skb)
+ 			 le16_to_cpu(event->basic.tag));
+ 	}
+ }
++
++int mt7996_mcu_set_dup_wtbl(struct mt7996_dev *dev)
++{
++#define CHIP_CONFIG_DUP_WTBL	4
++#define DUP_WTBL_NUM	80
++	struct {
++		u8 _rsv[4];
++
++		__le16 tag;
++		__le16 len;
++		__le16 base;
++		__le16 num;
++		u8 _rsv2[4];
++	} __packed req = {
++		.tag = cpu_to_le16(CHIP_CONFIG_DUP_WTBL),
++		.len = cpu_to_le16(sizeof(req) - 4),
++		.base = cpu_to_le16(MT7996_WTBL_STA - DUP_WTBL_NUM + 1),
++		.num = cpu_to_le16(DUP_WTBL_NUM),
++	};
++
++	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(CHIP_CONFIG), &req,
++				 sizeof(req), true);
++}
+ #endif
+-- 
+2.39.2
+

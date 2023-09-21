@@ -1,21 +1,21 @@
-From 5df084a32eac68dd66a3b833cf5f718118850b08 Mon Sep 17 00:00:00 2001
+From e13a81689d5df310915182b8b7f2858ac65a0472 Mon Sep 17 00:00:00 2001
 From: mtk27745 <rex.lu@mediatek.com>
 Date: Tue, 23 May 2023 12:06:29 +0800
-Subject: [PATCH 2008/2008] wifi: mt76: add SER support for wed3.0
+Subject: [PATCH 2008/2012] wifi: mt76: add SER support for wed3.0
 
 Change-Id: I2711b9dc336fca9a1ae32a8fbf27810a7e27b1e3
 ---
  dma.c         |  7 +++++--
- mt7996/dma.c  | 48 +++++++++++++++++++++++++++++++++++++++++++++---
+ mt7996/dma.c  | 42 +++++++++++++++++++++++++++++++++++++++---
  mt7996/mac.c  | 49 ++++++++++++++++++++++++++++++++++++++++++++++++-
  mt7996/mmio.c | 47 +++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 145 insertions(+), 6 deletions(-)
+ 4 files changed, 139 insertions(+), 6 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index e5b4d898..e31f6390 100644
+index 8097a3121..bfe188134 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -778,8 +778,9 @@ int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
+@@ -772,8 +772,9 @@ int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
  				q->head = q->ndesc - 1;
  				q->queued = q->ndesc - 1;
  			}
@@ -26,7 +26,7 @@ index e5b4d898..e31f6390 100644
  			if (!ret)
  				q->wed_regs = wed->rx_ring[ring].reg_base;
  		}
-@@ -910,7 +911,9 @@ done:
+@@ -904,7 +905,9 @@ done:
  
  	/* reset WED rx queues */
  	mt76_dma_wed_setup(dev, q, true);
@@ -38,23 +38,10 @@ index e5b4d898..e31f6390 100644
  		mt76_dma_rx_fill(dev, q);
  	}
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index c5c7f160..471ae81c 100644
+index 309cc242e..9416d7947 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
-@@ -524,6 +524,12 @@ int mt7996_dma_init(struct mt7996_dev *dev)
- 	if (mt7996_band_valid(dev, MT_BAND2)) {
- 		/* rx data queue for band2 */
- 		rx_base = MT_RXQ_RING_BASE(MT_RXQ_BAND2) + hif1_ofs;
-+		if (mtk_wed_device_active(wed)) {
-+			rx_base = MT_RXQ_RING_BASE(MT_RXQ_BAND2);
-+			if (mtk_wed_get_rx_capa(wed))
-+				dev->mt76.q_rx[MT_RXQ_BAND2].flags = MT_WED_Q_RX(1);
-+		}
-+
- 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_BAND2],
- 				       MT_RXQ_ID(MT_RXQ_BAND2),
- 				       MT7996_RX_RING_SIZE,
-@@ -611,11 +617,35 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+@@ -611,11 +611,35 @@ int mt7996_dma_init(struct mt7996_dev *dev)
  	return 0;
  }
  
@@ -90,7 +77,7 @@ index c5c7f160..471ae81c 100644
  	int i;
  
  	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
-@@ -649,21 +679,33 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
+@@ -649,21 +673,33 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
  	if (force)
  		mt7996_wfsys_reset(dev);
  
@@ -128,10 +115,10 @@ index c5c7f160..471ae81c 100644
  	}
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 3a89013c..d1082e89 100644
+index e331594d3..f994203aa 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2002,6 +2002,10 @@ mt7996_mac_restart(struct mt7996_dev *dev)
+@@ -1804,6 +1804,10 @@ mt7996_mac_restart(struct mt7996_dev *dev)
  	/* disable all tx/rx napi */
  	mt76_worker_disable(&dev->mt76.tx_worker);
  	mt76_for_each_q_rx(mdev, i) {
@@ -142,7 +129,7 @@ index 3a89013c..d1082e89 100644
  		if (mdev->q_rx[i].ndesc)
  			napi_disable(&dev->mt76.napi[i]);
  	}
-@@ -2015,6 +2019,10 @@ mt7996_mac_restart(struct mt7996_dev *dev)
+@@ -1817,6 +1821,10 @@ mt7996_mac_restart(struct mt7996_dev *dev)
  
  	local_bh_disable();
  	mt76_for_each_q_rx(mdev, i) {
@@ -153,7 +140,7 @@ index 3a89013c..d1082e89 100644
  		if (mdev->q_rx[i].ndesc) {
  			napi_enable(&dev->mt76.napi[i]);
  			napi_schedule(&dev->mt76.napi[i]);
-@@ -2189,6 +2197,13 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -1991,6 +1999,13 @@ void mt7996_mac_reset_work(struct work_struct *work)
  
  	dev_info(dev->mt76.dev,"\n%s L1 SER recovery start.",
  		 wiphy_name(dev->mt76.hw->wiphy));
@@ -167,7 +154,7 @@ index 3a89013c..d1082e89 100644
  	ieee80211_stop_queues(mt76_hw(dev));
  	if (phy2)
  		ieee80211_stop_queues(phy2->mt76->hw);
-@@ -2212,8 +2227,13 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -2014,8 +2029,13 @@ void mt7996_mac_reset_work(struct work_struct *work)
  		cancel_delayed_work_sync(&phy3->mt76->mac_work);
  	}
  	mt76_worker_disable(&dev->mt76.tx_worker);
@@ -182,9 +169,9 @@ index 3a89013c..d1082e89 100644
  	napi_disable(&dev->mt76.tx_napi);
  
  	mutex_lock(&dev->mt76.mutex);
-@@ -2236,6 +2256,29 @@ void mt7996_mac_reset_work(struct work_struct *work)
- 	/* enable dma tx/rx and interrupt */
- 	__mt7996_dma_enable(dev, false, false);
+@@ -2038,6 +2058,29 @@ void mt7996_mac_reset_work(struct work_struct *work)
+ 	/* enable DMA Tx/Tx and interrupt */
+ 	mt7996_dma_start(dev, false, false);
  
 +
 +	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
@@ -212,7 +199,7 @@ index 3a89013c..d1082e89 100644
  	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
  	clear_bit(MT76_RESET, &dev->mphy.state);
  	if (phy2)
-@@ -2245,6 +2288,10 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -2047,6 +2090,10 @@ void mt7996_mac_reset_work(struct work_struct *work)
  
  	local_bh_disable();
  	mt76_for_each_q_rx(&dev->mt76, i) {
@@ -224,7 +211,7 @@ index 3a89013c..d1082e89 100644
  		napi_schedule(&dev->mt76.napi[i]);
  	}
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index 9960dca7..fe34bb7d 100644
+index 1805d892f..940f94998 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
 @@ -6,9 +6,11 @@
@@ -239,7 +226,7 @@ index 9960dca7..fe34bb7d 100644
  #include "../trace.h"
  #include "../dma.h"
  
-@@ -297,6 +299,43 @@ unmap:
+@@ -320,6 +322,43 @@ unmap:
  	mt7996_mmio_wed_release_rx_buf(wed);
  	return -ENOMEM;
  }
@@ -283,7 +270,7 @@ index 9960dca7..fe34bb7d 100644
  #endif
  
  int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
-@@ -421,6 +460,14 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -445,6 +484,14 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  	wed->wlan.init_rx_buf = mt7996_mmio_wed_init_rx_buf;
  	wed->wlan.release_rx_buf = mt7996_mmio_wed_release_rx_buf;
  	wed->wlan.update_wo_rx_stats = NULL;

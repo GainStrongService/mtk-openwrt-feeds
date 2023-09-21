@@ -1,7 +1,7 @@
-From 5a82834ed7eb4cbf0f4f5abc8665eeef023b67ff Mon Sep 17 00:00:00 2001
+From 1a54516b2d934f80a80c6e1bb0fe824ceb63cd3b Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Sun, 25 Dec 2022 22:43:46 +0800
-Subject: [PATCH 1000/1003] mac80211: mtk: add EHT BA1024 support
+Subject: [PATCH 1000/1006] mac80211: mtk: add EHT BA1024 support
 
 ---
  include/linux/ieee80211.h |  2 ++
@@ -9,10 +9,10 @@ Subject: [PATCH 1000/1003] mac80211: mtk: add EHT BA1024 support
  2 files changed, 45 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/ieee80211.h b/include/linux/ieee80211.h
-index 00d381e..0781b76 100644
+index 7aaae32..3308e85 100644
 --- a/include/linux/ieee80211.h
 +++ b/include/linux/ieee80211.h
-@@ -1256,6 +1256,8 @@ struct ieee80211_mgmt {
+@@ -1267,6 +1267,8 @@ struct ieee80211_mgmt {
  					__le16 status;
  					__le16 capab;
  					__le16 timeout;
@@ -22,10 +22,10 @@ index 00d381e..0781b76 100644
  				struct{
  					u8 action_code;
 diff --git a/net/mac80211/agg-tx.c b/net/mac80211/agg-tx.c
-index 752ad09..7f0e72a 100644
+index 7f66e69..b8b8e22 100644
 --- a/net/mac80211/agg-tx.c
 +++ b/net/mac80211/agg-tx.c
-@@ -66,10 +66,17 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
+@@ -72,10 +72,17 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
  	struct ieee80211_local *local = sdata->local;
  	struct sk_buff *skb;
  	struct ieee80211_mgmt *mgmt;
@@ -44,7 +44,7 @@ index 752ad09..7f0e72a 100644
  
  	if (!skb)
  		return;
-@@ -108,6 +115,15 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
+@@ -114,6 +121,15 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
  	mgmt->u.action.u.addba_req.start_seq_num =
  					cpu_to_le16(start_seq_num << 4);
  
@@ -60,7 +60,7 @@ index 752ad09..7f0e72a 100644
  	ieee80211_tx_skb_tid(sdata, skb, tid, -1);
  }
  
-@@ -469,8 +485,11 @@ static void ieee80211_send_addba_with_timeout(struct sta_info *sta,
+@@ -481,8 +497,11 @@ static void ieee80211_send_addba_with_timeout(struct sta_info *sta,
  	sta->ampdu_mlme.addba_req_num[tid]++;
  	spin_unlock_bh(&sta->lock);
  
@@ -73,7 +73,7 @@ index 752ad09..7f0e72a 100644
  	} else {
  		/*
  		 * We really should use what the driver told us it will
-@@ -980,13 +999,35 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
+@@ -998,13 +1017,35 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
  {
  	struct tid_ampdu_tx *tid_tx;
  	struct ieee80211_txq *txq;

@@ -1,45 +1,46 @@
-From 16ea1c12d369ea1f315edcc7a8525efc6d78403a Mon Sep 17 00:00:00 2001
+From 36a71ed07925573d2eff73f7be91c86763151470 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 24 Mar 2023 14:02:32 +0800
-Subject: [PATCH] wifi: mt76: mt7996: add debug tool
+Subject: [PATCH 1000/1024] wifi: mt76: mt7996: add debug tool
 
 Change-Id: Ie10390b01f17db893dbfbf3221bf63a4bd1fe38f
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- mt7996/Makefile      |    3 +
+ mt7996/Makefile      |    4 +
  mt7996/coredump.c    |   10 +-
  mt7996/coredump.h    |    7 +
- mt7996/debugfs.c     |   24 +-
+ mt7996/debugfs.c     |   34 +-
  mt7996/mt7996.h      |   14 +
- mt7996/mtk_debug.h   | 2165 ++++++++++++++++++++++++++++++++++++++
- mt7996/mtk_debugfs.c | 2353 ++++++++++++++++++++++++++++++++++++++++++
+ mt7996/mtk_debug.h   | 2147 ++++++++++++++++++++++++++++++++++++++
+ mt7996/mtk_debugfs.c | 2379 ++++++++++++++++++++++++++++++++++++++++++
  mt7996/mtk_mcu.c     |   18 +
  mt7996/mtk_mcu.h     |   16 +
  tools/fwlog.c        |   25 +-
- 10 files changed, 4617 insertions(+), 18 deletions(-)
+ 10 files changed, 4634 insertions(+), 20 deletions(-)
  create mode 100644 mt7996/mtk_debug.h
  create mode 100644 mt7996/mtk_debugfs.c
  create mode 100644 mt7996/mtk_mcu.c
  create mode 100644 mt7996/mtk_mcu.h
 
 diff --git a/mt7996/Makefile b/mt7996/Makefile
-index 7c2514a6..df131869 100644
+index 07c8b555c..a056b40e0 100644
 --- a/mt7996/Makefile
 +++ b/mt7996/Makefile
-@@ -1,5 +1,6 @@
+@@ -1,4 +1,6 @@
  # SPDX-License-Identifier: ISC
- EXTRA_CFLAGS += -DCONFIG_MT76_LEDS
++EXTRA_CFLAGS += -DCONFIG_MT76_LEDS
 +EXTRA_CFLAGS += -DCONFIG_MTK_DEBUG
  
  obj-$(CONFIG_MT7996E) += mt7996e.o
  
-@@ -9,3 +10,5 @@ mt7996e-y := pci.o init.o dma.o eeprom.o main.o mcu.o mac.o \
- mt7996e-$(CONFIG_DEV_COREDUMP) += coredump.o
+@@ -6,3 +8,5 @@ mt7996e-y := pci.o init.o dma.o eeprom.o main.o mcu.o mac.o \
+ 	     debugfs.o mmio.o
  
- mt7996e-$(CONFIG_NL80211_TESTMODE) += testmode.o
+ mt7996e-$(CONFIG_DEV_COREDUMP) += coredump.o
 +
 +mt7996e-y += mtk_debugfs.o mtk_mcu.o
 diff --git a/mt7996/coredump.c b/mt7996/coredump.c
-index 60b88085..a7f91b56 100644
+index 60b88085c..a7f91b56d 100644
 --- a/mt7996/coredump.c
 +++ b/mt7996/coredump.c
 @@ -195,7 +195,7 @@ mt7996_coredump_fw_stack(struct mt7996_dev *dev, u8 type, struct mt7996_coredump
@@ -88,7 +89,7 @@ index 60b88085..a7f91b56 100644
  		dev_warn(dev->mt76.dev, "no crash dump data found\n");
  		return -ENODATA;
 diff --git a/mt7996/coredump.h b/mt7996/coredump.h
-index 01ed3731..93cd84a0 100644
+index 01ed3731c..93cd84a03 100644
 --- a/mt7996/coredump.h
 +++ b/mt7996/coredump.h
 @@ -75,6 +75,7 @@ struct mt7996_mem_region {
@@ -113,10 +114,21 @@ index 01ed3731..93cd84a0 100644
  mt7996_crash_data *mt7996_coredump_new(struct mt7996_dev *dev, u8 type)
  {
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index ca4d615d..93581fef 100644
+index 9bd953586..92aa1644f 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
-@@ -301,6 +301,9 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
+@@ -290,11 +290,20 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
+ 		DEBUG_SPL,
+ 		DEBUG_RPT_RX,
+ 		DEBUG_RPT_RA = 68,
++		DEBUG_IDS_PP = 93,
++		DEBUG_IDS_RA = 94,
++		DEBUG_IDS_BF = 95,
++		DEBUG_IDS_SR = 96,
++		DEBUG_IDS_RU = 97,
++		DEBUG_IDS_MUMIMO = 98,
+ 	} debug;
+ 	bool tx, rx, en;
  	int ret;
  
  	dev->fw_debug_wm = val ? MCU_FW_LOG_TO_HOST : 0;
@@ -126,7 +138,18 @@ index ca4d615d..93581fef 100644
  
  	if (dev->fw_debug_bin)
  		val = MCU_FW_LOG_RELAY;
-@@ -407,11 +410,12 @@ mt7996_fw_debug_bin_set(void *data, u64 val)
+@@ -309,8 +318,8 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
+ 	if (ret)
+ 		return ret;
+ 
+-	for (debug = DEBUG_TXCMD; debug <= DEBUG_RPT_RA; debug++) {
+-		if (debug == 67)
++	for (debug = DEBUG_TXCMD; debug <= DEBUG_IDS_MUMIMO; debug++) {
++		if (debug == 67 || (debug > DEBUG_RPT_RA && debug < DEBUG_IDS_PP))
+ 			continue;
+ 
+ 		if (debug == DEBUG_RPT_RX)
+@@ -401,11 +410,12 @@ mt7996_fw_debug_bin_set(void *data, u64 val)
  	};
  	struct mt7996_dev *dev = data;
  
@@ -142,7 +165,7 @@ index ca4d615d..93581fef 100644
  
  	dev->fw_debug_bin = val;
  
-@@ -825,6 +829,11 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
+@@ -819,6 +829,11 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
  	if (phy == &dev->phy)
  		dev->debugfs_dir = dir;
  
@@ -154,7 +177,7 @@ index ca4d615d..93581fef 100644
  	return 0;
  }
  
-@@ -837,6 +846,12 @@ mt7996_debugfs_write_fwlog(struct mt7996_dev *dev, const void *hdr, int hdrlen,
+@@ -831,6 +846,12 @@ mt7996_debugfs_write_fwlog(struct mt7996_dev *dev, const void *hdr, int hdrlen,
  	void *dest;
  
  	spin_lock_irqsave(&lock, flags);
@@ -167,7 +190,7 @@ index ca4d615d..93581fef 100644
  	dest = relay_reserve(dev->relay_fwlog, hdrlen + len + 4);
  	if (dest) {
  		*(u32 *)dest = hdrlen + len;
-@@ -869,9 +884,6 @@ void mt7996_debugfs_rx_fw_monitor(struct mt7996_dev *dev, const void *data, int
+@@ -863,9 +884,6 @@ void mt7996_debugfs_rx_fw_monitor(struct mt7996_dev *dev, const void *data, int
  		.msg_type = cpu_to_le16(PKT_TYPE_RX_FW_MONITOR),
  	};
  
@@ -178,11 +201,11 @@ index ca4d615d..93581fef 100644
  	hdr.timestamp = cpu_to_le32(mt76_rr(dev, MT_LPON_FRCR(0)));
  	hdr.len = *(__le16 *)data;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 286fc1eb..6c76ec20 100644
+index 4477b95d6..8aa124a0c 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -363,6 +363,16 @@ struct mt7996_dev {
- 	u32 reg_l2_backup;
+@@ -264,6 +264,16 @@ struct mt7996_dev {
+ 	spinlock_t reg_lock;
  
  	u8 wtbl_size_group;
 +
@@ -198,7 +221,7 @@ index 286fc1eb..6c76ec20 100644
  };
  
  enum {
-@@ -659,4 +669,8 @@ void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -544,4 +554,8 @@ void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			    struct ieee80211_sta *sta, struct dentry *dir);
  #endif
  
@@ -209,10 +232,10 @@ index 286fc1eb..6c76ec20 100644
  #endif
 diff --git a/mt7996/mtk_debug.h b/mt7996/mtk_debug.h
 new file mode 100644
-index 00000000..eb40f9cb
+index 000000000..368f0bcf0
 --- /dev/null
 +++ b/mt7996/mtk_debug.h
-@@ -0,0 +1,2165 @@
+@@ -0,0 +1,2147 @@
 +#ifndef __MTK_DEBUG_H
 +#define __MTK_DEBUG_H
 +
@@ -289,23 +312,23 @@ index 00000000..eb40f9cb
 +#define BN0_WF_AGG_TOP_TWTEDTB_ADDR                            (BN0_WF_AGG_TOP_BASE + 0xe4) // 20E4
 +#define BN0_WF_AGG_TOP_TWTEETB_ADDR                            (BN0_WF_AGG_TOP_BASE + 0xe8) // 20E8
 +#define BN0_WF_AGG_TOP_TWTEFTB_ADDR                            (BN0_WF_AGG_TOP_BASE + 0xec) // 20EC
-+#define BN0_WF_AGG_TOP_AALCR2_ADDR                             (BN0_WF_AGG_TOP_BASE + 0xf0) // 20F0
-+#define BN0_WF_AGG_TOP_AALCR3_ADDR                             (BN0_WF_AGG_TOP_BASE + 0xf4) // 20F4
-+#define BN0_WF_AGG_TOP_AALCR4_ADDR                             (BN0_WF_AGG_TOP_BASE + 0xf8) // 20F8
-+#define BN0_WF_AGG_TOP_AALCR5_ADDR                             (BN0_WF_AGG_TOP_BASE + 0xfc) // 20FC
-+#define BN0_WF_AGG_TOP_AALCR6_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x100) // 2100
-+#define BN0_WF_AGG_TOP_AALCR7_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x104) // 2104
 +#define BN0_WF_AGG_TOP_ATCR0_ADDR                              (BN0_WF_AGG_TOP_BASE + 0x108) // 2108
 +#define BN0_WF_AGG_TOP_ATCR1_ADDR                              (BN0_WF_AGG_TOP_BASE + 0x10c) // 210C
 +#define BN0_WF_AGG_TOP_TCCR_ADDR                               (BN0_WF_AGG_TOP_BASE + 0x110) // 2110
 +#define BN0_WF_AGG_TOP_TFCR_ADDR                               (BN0_WF_AGG_TOP_BASE + 0x114) // 2114
 +#define BN0_WF_AGG_TOP_MUCR0_ADDR                              (BN0_WF_AGG_TOP_BASE + 0x118) // 2118
 +#define BN0_WF_AGG_TOP_MUCR1_ADDR                              (BN0_WF_AGG_TOP_BASE + 0x11c) // 211C
-+#define BN0_WF_AGG_TOP_CSDCR0_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x120) // 2120
-+#define BN0_WF_AGG_TOP_CSDCR1_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x124) // 2124
-+#define BN0_WF_AGG_TOP_CSDCR2_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x128) // 2128
-+#define BN0_WF_AGG_TOP_CSDCR3_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x12c) // 212C
-+#define BN0_WF_AGG_TOP_CSDCR4_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x130) // 2130
++#define BN0_WF_AGG_TOP_AALCR2_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x128) // 2128
++#define BN0_WF_AGG_TOP_AALCR3_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x12c) // 212C
++#define BN0_WF_AGG_TOP_AALCR4_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x130) // 2130
++#define BN0_WF_AGG_TOP_AALCR5_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x134) // 2134
++#define BN0_WF_AGG_TOP_AALCR6_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x138) // 2138
++#define BN0_WF_AGG_TOP_AALCR7_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x13c) // 213C
++#define BN0_WF_AGG_TOP_CSDCR0_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x150) // 2150
++#define BN0_WF_AGG_TOP_CSDCR1_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x154) // 2154
++#define BN0_WF_AGG_TOP_CSDCR2_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x158) // 2158
++#define BN0_WF_AGG_TOP_CSDCR3_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x15c) // 215C
++#define BN0_WF_AGG_TOP_CSDCR4_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x160) // 2160
 +#define BN0_WF_AGG_TOP_DYNSCR_ADDR                             (BN0_WF_AGG_TOP_BASE + 0x178) // 2178
 +#define BN0_WF_AGG_TOP_DYNSSCR_ADDR                            (BN0_WF_AGG_TOP_BASE + 0x198) // 2198
 +#define BN0_WF_AGG_TOP_TCDCNT0_ADDR                            (BN0_WF_AGG_TOP_BASE + 0x2c8) // 22C8
@@ -912,22 +935,22 @@ index 00000000..eb40f9cb
 +#define BN0_WF_MIB_TOP_TRARC6_ADDR                             (BN0_WF_MIB_TOP_BASE + 0x0C8) // D0C8
 +#define BN0_WF_MIB_TOP_TRARC7_ADDR                             (BN0_WF_MIB_TOP_BASE + 0x0CC) // D0CC
 +
-+#define BN0_WF_MIB_TOP_TRDR0_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x9B4) // D9B4
-+#define BN0_WF_MIB_TOP_TRDR1_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x9B8) // D9B8
-+#define BN0_WF_MIB_TOP_TRDR2_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x9BC) // D9BC
-+#define BN0_WF_MIB_TOP_TRDR3_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x9C0) // D9C0
-+#define BN0_WF_MIB_TOP_TRDR4_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x9C4) // D9C4
-+#define BN0_WF_MIB_TOP_TRDR5_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x9C8) // D9C8
-+#define BN0_WF_MIB_TOP_TRDR6_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x9CC) // D9CC
-+#define BN0_WF_MIB_TOP_TRDR7_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x9D0) // D9D0
-+#define BN0_WF_MIB_TOP_TRDR8_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x9D4) // D9D4
-+#define BN0_WF_MIB_TOP_TRDR9_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x9D8) // D9D8
-+#define BN0_WF_MIB_TOP_TRDR10_ADDR                             (BN0_WF_MIB_TOP_BASE + 0x9DC) // D9DC
-+#define BN0_WF_MIB_TOP_TRDR11_ADDR                             (BN0_WF_MIB_TOP_BASE + 0x9E0) // D9E0
-+#define BN0_WF_MIB_TOP_TRDR12_ADDR                             (BN0_WF_MIB_TOP_BASE + 0x9E4) // D9E4
-+#define BN0_WF_MIB_TOP_TRDR13_ADDR                             (BN0_WF_MIB_TOP_BASE + 0x9E8) // D9E8
-+#define BN0_WF_MIB_TOP_TRDR14_ADDR                             (BN0_WF_MIB_TOP_BASE + 0x9EC) // D9EC
-+#define BN0_WF_MIB_TOP_TRDR15_ADDR                             (BN0_WF_MIB_TOP_BASE + 0x9F0) // D9F0
++#define BN0_WF_MIB_TOP_TRDR0_ADDR                              (BN0_WF_MIB_TOP_BASE + 0xA24) // DA24
++#define BN0_WF_MIB_TOP_TRDR1_ADDR                              (BN0_WF_MIB_TOP_BASE + 0xA28) // DA28
++#define BN0_WF_MIB_TOP_TRDR2_ADDR                              (BN0_WF_MIB_TOP_BASE + 0xA2C) // DA2C
++#define BN0_WF_MIB_TOP_TRDR3_ADDR                              (BN0_WF_MIB_TOP_BASE + 0xA30) // DA30
++#define BN0_WF_MIB_TOP_TRDR4_ADDR                              (BN0_WF_MIB_TOP_BASE + 0xA34) // DA34
++#define BN0_WF_MIB_TOP_TRDR5_ADDR                              (BN0_WF_MIB_TOP_BASE + 0xA38) // DA38
++#define BN0_WF_MIB_TOP_TRDR6_ADDR                              (BN0_WF_MIB_TOP_BASE + 0xA3C) // DA3C
++#define BN0_WF_MIB_TOP_TRDR7_ADDR                              (BN0_WF_MIB_TOP_BASE + 0xA40) // DA40
++#define BN0_WF_MIB_TOP_TRDR8_ADDR                              (BN0_WF_MIB_TOP_BASE + 0xA44) // DA44
++#define BN0_WF_MIB_TOP_TRDR9_ADDR                              (BN0_WF_MIB_TOP_BASE + 0xA48) // DA48
++#define BN0_WF_MIB_TOP_TRDR10_ADDR                             (BN0_WF_MIB_TOP_BASE + 0xA4C) // DA4C
++#define BN0_WF_MIB_TOP_TRDR11_ADDR                             (BN0_WF_MIB_TOP_BASE + 0xA50) // DA50
++#define BN0_WF_MIB_TOP_TRDR12_ADDR                             (BN0_WF_MIB_TOP_BASE + 0xA54) // DA54
++#define BN0_WF_MIB_TOP_TRDR13_ADDR                             (BN0_WF_MIB_TOP_BASE + 0xA58) // DA58
++#define BN0_WF_MIB_TOP_TRDR14_ADDR                             (BN0_WF_MIB_TOP_BASE + 0xA5C) // DA5C
++#define BN0_WF_MIB_TOP_TRDR15_ADDR                             (BN0_WF_MIB_TOP_BASE + 0xA60) // DA60
 +
 +#define BN0_WF_MIB_TOP_TRARC0_AGG_RANG_SEL_1_ADDR              BN0_WF_MIB_TOP_TRARC0_ADDR
 +#define BN0_WF_MIB_TOP_TRARC0_AGG_RANG_SEL_1_MASK              0x03FF0000                // AGG_RANG_SEL_1[25..16]
@@ -1178,6 +1201,10 @@ index 00000000..eb40f9cb
 +#define WF_UWTBL_AMSDU_CFG_ADDR                                     32
 +#define WF_UWTBL_AMSDU_CFG_MASK                                     0x00000fff // 11- 0
 +#define WF_UWTBL_AMSDU_CFG_SHIFT                                    0
++#define WF_UWTBL_SEC_ADDR_MODE_DW                                   8
++#define WF_UWTBL_SEC_ADDR_MODE_ADDR                                 32
++#define WF_UWTBL_SEC_ADDR_MODE_MASK                                 0x00300000 // 21-20
++#define WF_UWTBL_SEC_ADDR_MODE_SHIFT                                20
 +#define WF_UWTBL_WMM_Q_DW                                           8
 +#define WF_UWTBL_WMM_Q_ADDR                                         32
 +#define WF_UWTBL_WMM_Q_MASK                                         0x06000000 // 26-25
@@ -1405,6 +1432,11 @@ index 00000000..eb40f9cb
 +#define WF_LWTBL_ULPF_MASK \
 +	0x02000000 // 25-25
 +#define WF_LWTBL_ULPF_SHIFT                                         25
++#define WF_LWTBL_BYPASS_TXSMM_DW                                    3
++#define WF_LWTBL_BYPASS_TXSMM_ADDR                                  12
++#define WF_LWTBL_BYPASS_TXSMM_MASK \
++	0x04000000 // 26-26
++#define WF_LWTBL_BYPASS_TXSMM_SHIFT                                 26
 +#define WF_LWTBL_TBF_HT_DW                                          3
 +#define WF_LWTBL_TBF_HT_ADDR                                        12
 +#define WF_LWTBL_TBF_HT_MASK \
@@ -1431,46 +1463,46 @@ index 00000000..eb40f9cb
 +	0x80000000 // 31-31
 +#define WF_LWTBL_IGN_FBK_SHIFT                                      31
 +// DW4
-+#define WF_LWTBL_ANT_ID0_DW                                         4
-+#define WF_LWTBL_ANT_ID0_ADDR                                       16
-+#define WF_LWTBL_ANT_ID0_MASK \
++#define WF_LWTBL_NEGOTIATED_WINSIZE0_DW                             4
++#define WF_LWTBL_NEGOTIATED_WINSIZE0_ADDR                           16
++#define WF_LWTBL_NEGOTIATED_WINSIZE0_MASK \
 +	0x00000007 // 2- 0
-+#define WF_LWTBL_ANT_ID0_SHIFT                                      0
-+#define WF_LWTBL_ANT_ID1_DW                                         4
-+#define WF_LWTBL_ANT_ID1_ADDR                                       16
-+#define WF_LWTBL_ANT_ID1_MASK \
++#define WF_LWTBL_NEGOTIATED_WINSIZE0_SHIFT                          0
++#define WF_LWTBL_NEGOTIATED_WINSIZE1_DW                             4
++#define WF_LWTBL_NEGOTIATED_WINSIZE1_ADDR                           16
++#define WF_LWTBL_NEGOTIATED_WINSIZE1_MASK \
 +	0x00000038 // 5- 3
-+#define WF_LWTBL_ANT_ID1_SHIFT                                      3
-+#define WF_LWTBL_ANT_ID2_DW                                         4
-+#define WF_LWTBL_ANT_ID2_ADDR                                       16
-+#define WF_LWTBL_ANT_ID2_MASK \
++#define WF_LWTBL_NEGOTIATED_WINSIZE1_SHIFT                          3
++#define WF_LWTBL_NEGOTIATED_WINSIZE2_DW                             4
++#define WF_LWTBL_NEGOTIATED_WINSIZE2_ADDR                           16
++#define WF_LWTBL_NEGOTIATED_WINSIZE2_MASK \
 +	0x000001c0 // 8- 6
-+#define WF_LWTBL_ANT_ID2_SHIFT                                      6
-+#define WF_LWTBL_ANT_ID3_DW                                         4
-+#define WF_LWTBL_ANT_ID3_ADDR                                       16
-+#define WF_LWTBL_ANT_ID3_MASK \
++#define WF_LWTBL_NEGOTIATED_WINSIZE2_SHIFT                          6
++#define WF_LWTBL_NEGOTIATED_WINSIZE3_DW                             4
++#define WF_LWTBL_NEGOTIATED_WINSIZE3_ADDR                           16
++#define WF_LWTBL_NEGOTIATED_WINSIZE3_MASK \
 +	0x00000e00 // 11- 9
-+#define WF_LWTBL_ANT_ID3_SHIFT                                      9
-+#define WF_LWTBL_ANT_ID4_DW                                         4
-+#define WF_LWTBL_ANT_ID4_ADDR                                       16
-+#define WF_LWTBL_ANT_ID4_MASK \
++#define WF_LWTBL_NEGOTIATED_WINSIZE3_SHIFT                          9
++#define WF_LWTBL_NEGOTIATED_WINSIZE4_DW                             4
++#define WF_LWTBL_NEGOTIATED_WINSIZE4_ADDR                           16
++#define WF_LWTBL_NEGOTIATED_WINSIZE4_MASK \
 +	0x00007000 // 14-12
-+#define WF_LWTBL_ANT_ID4_SHIFT                                      12
-+#define WF_LWTBL_ANT_ID5_DW                                         4
-+#define WF_LWTBL_ANT_ID5_ADDR                                       16
-+#define WF_LWTBL_ANT_ID5_MASK \
++#define WF_LWTBL_NEGOTIATED_WINSIZE4_SHIFT                          12
++#define WF_LWTBL_NEGOTIATED_WINSIZE5_DW                             4
++#define WF_LWTBL_NEGOTIATED_WINSIZE5_ADDR                           16
++#define WF_LWTBL_NEGOTIATED_WINSIZE5_MASK \
 +	0x00038000 // 17-15
-+#define WF_LWTBL_ANT_ID5_SHIFT                                      15
-+#define WF_LWTBL_ANT_ID6_DW                                         4
-+#define WF_LWTBL_ANT_ID6_ADDR                                       16
-+#define WF_LWTBL_ANT_ID6_MASK \
++#define WF_LWTBL_NEGOTIATED_WINSIZE5_SHIFT                          15
++#define WF_LWTBL_NEGOTIATED_WINSIZE6_DW                             4
++#define WF_LWTBL_NEGOTIATED_WINSIZE6_ADDR                           16
++#define WF_LWTBL_NEGOTIATED_WINSIZE6_MASK \
 +	0x001c0000 // 20-18
-+#define WF_LWTBL_ANT_ID6_SHIFT                                      18
-+#define WF_LWTBL_ANT_ID7_DW                                         4
-+#define WF_LWTBL_ANT_ID7_ADDR                                       16
-+#define WF_LWTBL_ANT_ID7_MASK \
++#define WF_LWTBL_NEGOTIATED_WINSIZE6_SHIFT                          18
++#define WF_LWTBL_NEGOTIATED_WINSIZE7_DW                             4
++#define WF_LWTBL_NEGOTIATED_WINSIZE7_ADDR                           16
++#define WF_LWTBL_NEGOTIATED_WINSIZE7_MASK \
 +	0x00e00000 // 23-21
-+#define WF_LWTBL_ANT_ID7_SHIFT                                      21
++#define WF_LWTBL_NEGOTIATED_WINSIZE7_SHIFT                          21
 +#define WF_LWTBL_PE_DW                                              4
 +#define WF_LWTBL_PE_ADDR                                            16
 +#define WF_LWTBL_PE_MASK \
@@ -1501,6 +1533,11 @@ index 00000000..eb40f9cb
 +#define WF_LWTBL_LDPC_EHT_MASK \
 +	0x40000000 // 30-30
 +#define WF_LWTBL_LDPC_EHT_SHIFT                                     30
++#define WF_LWTBL_BA_MODE_DW                                         4
++#define WF_LWTBL_BA_MODE_ADDR                                       16
++#define WF_LWTBL_BA_MODE_MASK \
++	0x80000000 // 31-31
++#define WF_LWTBL_BA_MODE_SHIFT                                      31
 +// DW5
 +#define WF_LWTBL_AF_DW                                              5
 +#define WF_LWTBL_AF_ADDR                                            20
@@ -2087,46 +2124,15 @@ index 00000000..eb40f9cb
 +	0xffff0000 // 31-16
 +#define WF_LWTBL_LINK_MGF_SHIFT                                     16
 +// DW31
-+#define WF_LWTBL_NEGOTIATED_WINSIZE0_DW                             31
-+#define WF_LWTBL_NEGOTIATED_WINSIZE0_ADDR                           124
-+#define WF_LWTBL_NEGOTIATED_WINSIZE0_MASK \
-+	0x00000007 // 2- 0
-+#define WF_LWTBL_NEGOTIATED_WINSIZE0_SHIFT                          0
-+#define WF_LWTBL_NEGOTIATED_WINSIZE1_DW                             31
-+#define WF_LWTBL_NEGOTIATED_WINSIZE1_ADDR                           124
-+#define WF_LWTBL_NEGOTIATED_WINSIZE1_MASK \
-+	0x00000038 // 5- 3
-+#define WF_LWTBL_NEGOTIATED_WINSIZE1_SHIFT                          3
-+#define WF_LWTBL_NEGOTIATED_WINSIZE2_DW                             31
-+#define WF_LWTBL_NEGOTIATED_WINSIZE2_ADDR                           124
-+#define WF_LWTBL_NEGOTIATED_WINSIZE2_MASK \
-+	0x000001c0 // 8- 6
-+#define WF_LWTBL_NEGOTIATED_WINSIZE2_SHIFT                          6
-+#define WF_LWTBL_NEGOTIATED_WINSIZE3_DW                             31
-+#define WF_LWTBL_NEGOTIATED_WINSIZE3_ADDR                           124
-+#define WF_LWTBL_NEGOTIATED_WINSIZE3_MASK \
-+	0x00000e00 // 11- 9
-+#define WF_LWTBL_NEGOTIATED_WINSIZE3_SHIFT                          9
-+#define WF_LWTBL_NEGOTIATED_WINSIZE4_DW                             31
-+#define WF_LWTBL_NEGOTIATED_WINSIZE4_ADDR                           124
-+#define WF_LWTBL_NEGOTIATED_WINSIZE4_MASK \
-+	0x00007000 // 14-12
-+#define WF_LWTBL_NEGOTIATED_WINSIZE4_SHIFT                          12
-+#define WF_LWTBL_NEGOTIATED_WINSIZE5_DW                             31
-+#define WF_LWTBL_NEGOTIATED_WINSIZE5_ADDR                           124
-+#define WF_LWTBL_NEGOTIATED_WINSIZE5_MASK \
-+	0x00038000 // 17-15
-+#define WF_LWTBL_NEGOTIATED_WINSIZE5_SHIFT                          15
-+#define WF_LWTBL_NEGOTIATED_WINSIZE6_DW                             31
-+#define WF_LWTBL_NEGOTIATED_WINSIZE6_ADDR                           124
-+#define WF_LWTBL_NEGOTIATED_WINSIZE6_MASK \
-+	0x001c0000 // 20-18
-+#define WF_LWTBL_NEGOTIATED_WINSIZE6_SHIFT                          18
-+#define WF_LWTBL_NEGOTIATED_WINSIZE7_DW                             31
-+#define WF_LWTBL_NEGOTIATED_WINSIZE7_ADDR                           124
-+#define WF_LWTBL_NEGOTIATED_WINSIZE7_MASK \
-+	0x00e00000 // 23-21
-+#define WF_LWTBL_NEGOTIATED_WINSIZE7_SHIFT                          21
++#define WF_LWTBL_BFTX_TB_DW                                         31
++#define WF_LWTBL_BFTX_TB_ADDR                                       124
++#define WF_LWTBL_BFTX_TB_MASK \
++	0x00800000 // 23-23
++#define WF_LWTBL_DROP_DW                                            31
++#define WF_LWTBL_DROP_ADDR                                          124
++#define WF_LWTBL_DROP_MASK \
++	0x01000000 // 24-24
++#define WF_LWTBL_DROP_SHIFT                                         24
 +#define WF_LWTBL_CASCAD_DW                                          31
 +#define WF_LWTBL_CASCAD_ADDR                                        124
 +#define WF_LWTBL_CASCAD_MASK \
@@ -2142,42 +2148,37 @@ index 00000000..eb40f9cb
 +#define WF_LWTBL_MPDU_SIZE_MASK \
 +	0x18000000 // 28-27
 +#define WF_LWTBL_MPDU_SIZE_SHIFT                                    27
-+#define WF_LWTBL_BA_MODE_DW                                         31
-+#define WF_LWTBL_BA_MODE_ADDR                                       124
-+#define WF_LWTBL_BA_MODE_MASK \
-+	0xe0000000 // 31-29
-+#define WF_LWTBL_BA_MODE_SHIFT                                      29
++#define WF_LWTBL_RXD_DUP_MODE_DW                                    31
++#define WF_LWTBL_RXD_DUP_MODE_ADDR                                  124
++#define WF_LWTBL_RXD_DUP_MODE_MASK \
++	0x60000000 // 30-29
++#define WF_LWTBL_RXD_DUP_MODE_SHIFT                                 29
++#define WF_LWTBL_ACK_EN_DW                                          31
++#define WF_LWTBL_ACK_EN_ADDR                                        128
++#define WF_LWTBL_ACK_EN_MASK \
++	0x80000000 // 31-31
++#define WF_LWTBL_ACK_EN_SHIFT                                       31
 +// DW32
 +#define WF_LWTBL_OM_INFO_DW                                         32
 +#define WF_LWTBL_OM_INFO_ADDR                                       128
 +#define WF_LWTBL_OM_INFO_MASK \
 +	0x00000fff // 11- 0
 +#define WF_LWTBL_OM_INFO_SHIFT                                      0
++#define WF_LWTBL_OM_INFO_EHT_DW                                     32
++#define WF_LWTBL_OM_INFO_EHT_ADDR                                   128
++#define WF_LWTBL_OM_INFO_EHT_MASK \
++	0x0000f000 // 15-12
++#define WF_LWTBL_OM_INFO_EHT_SHIFT                                  12
 +#define WF_LWTBL_RXD_DUP_FOR_OM_CHG_DW                              32
 +#define WF_LWTBL_RXD_DUP_FOR_OM_CHG_ADDR                            128
 +#define WF_LWTBL_RXD_DUP_FOR_OM_CHG_MASK \
-+	0x00001000 // 12-12
-+#define WF_LWTBL_RXD_DUP_FOR_OM_CHG_SHIFT                           12
++	0x00010000 // 16-16
++#define WF_LWTBL_RXD_DUP_FOR_OM_CHG_SHIFT                           16
 +#define WF_LWTBL_RXD_DUP_WHITE_LIST_DW                              32
 +#define WF_LWTBL_RXD_DUP_WHITE_LIST_ADDR                            128
 +#define WF_LWTBL_RXD_DUP_WHITE_LIST_MASK \
-+	0x01ffe000 // 24-13
-+#define WF_LWTBL_RXD_DUP_WHITE_LIST_SHIFT                           13
-+#define WF_LWTBL_RXD_DUP_MODE_DW                                    32
-+#define WF_LWTBL_RXD_DUP_MODE_ADDR                                  128
-+#define WF_LWTBL_RXD_DUP_MODE_MASK \
-+	0x06000000 // 26-25
-+#define WF_LWTBL_RXD_DUP_MODE_SHIFT                                 25
-+#define WF_LWTBL_DROP_DW                                            32
-+#define WF_LWTBL_DROP_ADDR                                          128
-+#define WF_LWTBL_DROP_MASK \
-+	0x40000000 // 30-30
-+#define WF_LWTBL_DROP_SHIFT                                         30
-+#define WF_LWTBL_ACK_EN_DW                                          32
-+#define WF_LWTBL_ACK_EN_ADDR                                        128
-+#define WF_LWTBL_ACK_EN_MASK \
-+	0x80000000 // 31-31
-+#define WF_LWTBL_ACK_EN_SHIFT                                       31
++	0x1ffe0000 // 28-17
++#define WF_LWTBL_RXD_DUP_WHITE_LIST_SHIFT                           17
 +// DW33
 +#define WF_LWTBL_USER_RSSI_DW                                       33
 +#define WF_LWTBL_USER_RSSI_ADDR                                     132
@@ -2288,6 +2289,10 @@ index 00000000..eb40f9cb
 +#define WTBL_AMSDU_EN_MASK              BIT(11)
 +#define WTBL_AMSDU_EN_OFFSET            11
 +
++/* UWTBL DW 8 */
++#define WTBL_SEC_ADDR_MODE_MASK		BITS(20, 21)
++#define WTBL_SEC_ADDR_MODE_OFFSET	20
++
 +/* LWTBL Rate field */
 +#define WTBL_RATE_TX_RATE_MASK          BITS(0, 5)
 +#define WTBL_RATE_TX_RATE_OFFSET        0
@@ -2380,10 +2385,10 @@ index 00000000..eb40f9cb
 +#endif
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
 new file mode 100644
-index 00000000..f04c300f
+index 000000000..5aa5c94f3
 --- /dev/null
 +++ b/mt7996/mtk_debugfs.c
-@@ -0,0 +1,2353 @@
+@@ -0,0 +1,2379 @@
 +// SPDX-License-Identifier: ISC
 +/*
 + * Copyright (C) 2023 MediaTek Inc.
@@ -2406,7 +2411,7 @@ index 00000000..f04c300f
 +	struct mt7996_dev *dev = dev_get_drvdata(s->private);
 +	u64 total_burst, total_ampdu, ampdu_cnt[16];
 +	u32 value, idx, row_idx, col_idx, start_range, agg_rang_sel[16], burst_cnt[16], band_offset = 0;
-+	u8 readFW = 0, partial_str[16] = {}, full_str[64] = {};
++	u8 partial_str[16] = {}, full_str[64] = {};
 +
 +	switch (band_idx) {
 +	case 0:
@@ -2465,50 +2470,46 @@ index 00000000..f04c300f
 +
 +	seq_printf(s, "===AMPDU Related Counters===\n");
 +
-+	if (readFW) {
-+		/* BELLWETHER TODO: Wait MIB counter API implement complete */
-+	} else {
-+		value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC0_ADDR + band_offset);
-+		agg_rang_sel[0] = (value & BN0_WF_MIB_TOP_TRARC0_AGG_RANG_SEL_0_MASK) >> BN0_WF_MIB_TOP_TRARC0_AGG_RANG_SEL_0_SHFT;
-+		agg_rang_sel[1] = (value & BN0_WF_MIB_TOP_TRARC0_AGG_RANG_SEL_1_MASK) >> BN0_WF_MIB_TOP_TRARC0_AGG_RANG_SEL_1_SHFT;
-+		value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC1_ADDR + band_offset);
-+		agg_rang_sel[2] = (value & BN0_WF_MIB_TOP_TRARC1_AGG_RANG_SEL_2_MASK) >> BN0_WF_MIB_TOP_TRARC1_AGG_RANG_SEL_2_SHFT;
-+		agg_rang_sel[3] = (value & BN0_WF_MIB_TOP_TRARC1_AGG_RANG_SEL_3_MASK) >> BN0_WF_MIB_TOP_TRARC1_AGG_RANG_SEL_3_SHFT;
-+		value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC2_ADDR + band_offset);
-+		agg_rang_sel[4] = (value & BN0_WF_MIB_TOP_TRARC2_AGG_RANG_SEL_4_MASK) >> BN0_WF_MIB_TOP_TRARC2_AGG_RANG_SEL_4_SHFT;
-+		agg_rang_sel[5] = (value & BN0_WF_MIB_TOP_TRARC2_AGG_RANG_SEL_5_MASK) >> BN0_WF_MIB_TOP_TRARC2_AGG_RANG_SEL_5_SHFT;
-+		value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC3_ADDR + band_offset);
-+		agg_rang_sel[6] = (value & BN0_WF_MIB_TOP_TRARC3_AGG_RANG_SEL_6_MASK) >> BN0_WF_MIB_TOP_TRARC3_AGG_RANG_SEL_6_SHFT;
-+		agg_rang_sel[7] = (value & BN0_WF_MIB_TOP_TRARC3_AGG_RANG_SEL_7_MASK) >> BN0_WF_MIB_TOP_TRARC3_AGG_RANG_SEL_7_SHFT;
-+		value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC4_ADDR + band_offset);
-+		agg_rang_sel[8] = (value & BN0_WF_MIB_TOP_TRARC4_AGG_RANG_SEL_8_MASK) >> BN0_WF_MIB_TOP_TRARC4_AGG_RANG_SEL_8_SHFT;
-+		agg_rang_sel[9] = (value & BN0_WF_MIB_TOP_TRARC4_AGG_RANG_SEL_9_MASK) >> BN0_WF_MIB_TOP_TRARC4_AGG_RANG_SEL_9_SHFT;
-+		value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC5_ADDR + band_offset);
-+		agg_rang_sel[10] = (value & BN0_WF_MIB_TOP_TRARC5_AGG_RANG_SEL_10_MASK) >> BN0_WF_MIB_TOP_TRARC5_AGG_RANG_SEL_10_SHFT;
-+		agg_rang_sel[11] = (value & BN0_WF_MIB_TOP_TRARC5_AGG_RANG_SEL_11_MASK) >> BN0_WF_MIB_TOP_TRARC5_AGG_RANG_SEL_11_SHFT;
-+		value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC6_ADDR + band_offset);
-+		agg_rang_sel[12] = (value & BN0_WF_MIB_TOP_TRARC6_AGG_RANG_SEL_12_MASK) >> BN0_WF_MIB_TOP_TRARC6_AGG_RANG_SEL_12_SHFT;
-+		agg_rang_sel[13] = (value & BN0_WF_MIB_TOP_TRARC6_AGG_RANG_SEL_13_MASK) >> BN0_WF_MIB_TOP_TRARC6_AGG_RANG_SEL_13_SHFT;
-+		value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC7_ADDR + band_offset);
-+		agg_rang_sel[14] = (value & BN0_WF_MIB_TOP_TRARC7_AGG_RANG_SEL_14_MASK) >> BN0_WF_MIB_TOP_TRARC7_AGG_RANG_SEL_14_SHFT;
++	value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC0_ADDR + band_offset);
++	agg_rang_sel[0] = (value & BN0_WF_MIB_TOP_TRARC0_AGG_RANG_SEL_0_MASK) >> BN0_WF_MIB_TOP_TRARC0_AGG_RANG_SEL_0_SHFT;
++	agg_rang_sel[1] = (value & BN0_WF_MIB_TOP_TRARC0_AGG_RANG_SEL_1_MASK) >> BN0_WF_MIB_TOP_TRARC0_AGG_RANG_SEL_1_SHFT;
++	value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC1_ADDR + band_offset);
++	agg_rang_sel[2] = (value & BN0_WF_MIB_TOP_TRARC1_AGG_RANG_SEL_2_MASK) >> BN0_WF_MIB_TOP_TRARC1_AGG_RANG_SEL_2_SHFT;
++	agg_rang_sel[3] = (value & BN0_WF_MIB_TOP_TRARC1_AGG_RANG_SEL_3_MASK) >> BN0_WF_MIB_TOP_TRARC1_AGG_RANG_SEL_3_SHFT;
++	value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC2_ADDR + band_offset);
++	agg_rang_sel[4] = (value & BN0_WF_MIB_TOP_TRARC2_AGG_RANG_SEL_4_MASK) >> BN0_WF_MIB_TOP_TRARC2_AGG_RANG_SEL_4_SHFT;
++	agg_rang_sel[5] = (value & BN0_WF_MIB_TOP_TRARC2_AGG_RANG_SEL_5_MASK) >> BN0_WF_MIB_TOP_TRARC2_AGG_RANG_SEL_5_SHFT;
++	value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC3_ADDR + band_offset);
++	agg_rang_sel[6] = (value & BN0_WF_MIB_TOP_TRARC3_AGG_RANG_SEL_6_MASK) >> BN0_WF_MIB_TOP_TRARC3_AGG_RANG_SEL_6_SHFT;
++	agg_rang_sel[7] = (value & BN0_WF_MIB_TOP_TRARC3_AGG_RANG_SEL_7_MASK) >> BN0_WF_MIB_TOP_TRARC3_AGG_RANG_SEL_7_SHFT;
++	value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC4_ADDR + band_offset);
++	agg_rang_sel[8] = (value & BN0_WF_MIB_TOP_TRARC4_AGG_RANG_SEL_8_MASK) >> BN0_WF_MIB_TOP_TRARC4_AGG_RANG_SEL_8_SHFT;
++	agg_rang_sel[9] = (value & BN0_WF_MIB_TOP_TRARC4_AGG_RANG_SEL_9_MASK) >> BN0_WF_MIB_TOP_TRARC4_AGG_RANG_SEL_9_SHFT;
++	value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC5_ADDR + band_offset);
++	agg_rang_sel[10] = (value & BN0_WF_MIB_TOP_TRARC5_AGG_RANG_SEL_10_MASK) >> BN0_WF_MIB_TOP_TRARC5_AGG_RANG_SEL_10_SHFT;
++	agg_rang_sel[11] = (value & BN0_WF_MIB_TOP_TRARC5_AGG_RANG_SEL_11_MASK) >> BN0_WF_MIB_TOP_TRARC5_AGG_RANG_SEL_11_SHFT;
++	value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC6_ADDR + band_offset);
++	agg_rang_sel[12] = (value & BN0_WF_MIB_TOP_TRARC6_AGG_RANG_SEL_12_MASK) >> BN0_WF_MIB_TOP_TRARC6_AGG_RANG_SEL_12_SHFT;
++	agg_rang_sel[13] = (value & BN0_WF_MIB_TOP_TRARC6_AGG_RANG_SEL_13_MASK) >> BN0_WF_MIB_TOP_TRARC6_AGG_RANG_SEL_13_SHFT;
++	value = mt76_rr(dev, BN0_WF_MIB_TOP_TRARC7_ADDR + band_offset);
++	agg_rang_sel[14] = (value & BN0_WF_MIB_TOP_TRARC7_AGG_RANG_SEL_14_MASK) >> BN0_WF_MIB_TOP_TRARC7_AGG_RANG_SEL_14_SHFT;
 +
-+		burst_cnt[0] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR0_ADDR + band_offset);
-+		burst_cnt[1] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR1_ADDR + band_offset);
-+		burst_cnt[2] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR2_ADDR + band_offset);
-+		burst_cnt[3] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR3_ADDR + band_offset);
-+		burst_cnt[4] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR4_ADDR + band_offset);
-+		burst_cnt[5] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR5_ADDR + band_offset);
-+		burst_cnt[6] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR6_ADDR + band_offset);
-+		burst_cnt[7] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR7_ADDR + band_offset);
-+		burst_cnt[8] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR8_ADDR + band_offset);
-+		burst_cnt[9] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR9_ADDR + band_offset);
-+		burst_cnt[10] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR10_ADDR + band_offset);
-+		burst_cnt[11] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR11_ADDR + band_offset);
-+		burst_cnt[12] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR12_ADDR + band_offset);
-+		burst_cnt[13] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR13_ADDR + band_offset);
-+		burst_cnt[14] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR14_ADDR + band_offset);
-+		burst_cnt[15] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR15_ADDR + band_offset);
-+	}
++	burst_cnt[0] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR0_ADDR + band_offset);
++	burst_cnt[1] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR1_ADDR + band_offset);
++	burst_cnt[2] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR2_ADDR + band_offset);
++	burst_cnt[3] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR3_ADDR + band_offset);
++	burst_cnt[4] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR4_ADDR + band_offset);
++	burst_cnt[5] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR5_ADDR + band_offset);
++	burst_cnt[6] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR6_ADDR + band_offset);
++	burst_cnt[7] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR7_ADDR + band_offset);
++	burst_cnt[8] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR8_ADDR + band_offset);
++	burst_cnt[9] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR9_ADDR + band_offset);
++	burst_cnt[10] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR10_ADDR + band_offset);
++	burst_cnt[11] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR11_ADDR + band_offset);
++	burst_cnt[12] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR12_ADDR + band_offset);
++	burst_cnt[13] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR13_ADDR + band_offset);
++	burst_cnt[14] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR14_ADDR + band_offset);
++	burst_cnt[15] = mt76_rr(dev, BN0_WF_MIB_TOP_TRDR15_ADDR + band_offset);
 +
 +	start_range = 1;
 +	total_burst = 0;
@@ -3455,7 +3456,8 @@ index 00000000..f04c300f
 +	{"PFMU_IDX",	    WF_LWTBL_PFMU_IDX_MASK,		WF_LWTBL_PFMU_IDX_SHIFT,	false},
 +	{"ULPF_IDX",	    WF_LWTBL_ULPF_IDX_MASK,		WF_LWTBL_ULPF_IDX_SHIFT,	false},
 +	{"RIBF",	    WF_LWTBL_RIBF_MASK,			NO_SHIFT_DEFINE,		false},
-+	{"ULPF",	    WF_LWTBL_ULPF_MASK,			NO_SHIFT_DEFINE,		true},
++	{"ULPF",	    WF_LWTBL_ULPF_MASK,			NO_SHIFT_DEFINE,		false},
++	{"BYPASS_TXSMM",    WF_LWTBL_BYPASS_TXSMM_MASK,         NO_SHIFT_DEFINE,		true},
 +	{"TBF_HT",          WF_LWTBL_TBF_HT_MASK,		NO_SHIFT_DEFINE,		false},
 +	{"TBF_VHT",         WF_LWTBL_TBF_VHT_MASK,		NO_SHIFT_DEFINE,		false},
 +	{"TBF_HE",          WF_LWTBL_TBF_HE_MASK,		NO_SHIFT_DEFINE,		false},
@@ -3489,20 +3491,21 @@ index 00000000..f04c300f
 +}
 +
 +static const struct berse_wtbl_parse WTBL_LMAC_DW4[] = {
-+	{"ANT_ID_STS0",     WF_LWTBL_ANT_ID0_MASK,      WF_LWTBL_ANT_ID0_SHIFT,	false},
-+	{"STS1",            WF_LWTBL_ANT_ID1_MASK,      WF_LWTBL_ANT_ID1_SHIFT,	false},
-+	{"STS2",            WF_LWTBL_ANT_ID2_MASK,      WF_LWTBL_ANT_ID2_SHIFT,	false},
-+	{"STS3",            WF_LWTBL_ANT_ID3_MASK,      WF_LWTBL_ANT_ID3_SHIFT,	true},
-+	{"ANT_ID_STS4",     WF_LWTBL_ANT_ID4_MASK,      WF_LWTBL_ANT_ID4_SHIFT,	false},
-+	{"STS5",            WF_LWTBL_ANT_ID5_MASK,      WF_LWTBL_ANT_ID5_SHIFT,	false},
-+	{"STS6",            WF_LWTBL_ANT_ID6_MASK,      WF_LWTBL_ANT_ID6_SHIFT,	false},
-+	{"STS7",            WF_LWTBL_ANT_ID7_MASK,      WF_LWTBL_ANT_ID7_SHIFT,	true},
++	{"NEGOTIATED_WINSIZE0",	WF_LWTBL_NEGOTIATED_WINSIZE0_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE0_SHIFT,    false},
++	{"WINSIZE1",	WF_LWTBL_NEGOTIATED_WINSIZE1_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE1_SHIFT,    false},
++	{"WINSIZE2",	WF_LWTBL_NEGOTIATED_WINSIZE2_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE2_SHIFT,    false},
++	{"WINSIZE3",	WF_LWTBL_NEGOTIATED_WINSIZE3_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE3_SHIFT,    true},
++	{"WINSIZE4",	WF_LWTBL_NEGOTIATED_WINSIZE4_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE4_SHIFT,    false},
++	{"WINSIZE5",	WF_LWTBL_NEGOTIATED_WINSIZE5_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE5_SHIFT,    false},
++	{"WINSIZE6",	WF_LWTBL_NEGOTIATED_WINSIZE6_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE6_SHIFT,    false},
++	{"WINSIZE7",	WF_LWTBL_NEGOTIATED_WINSIZE7_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE7_SHIFT,    true},
 +	{"PE",              WF_LWTBL_PE_MASK,           WF_LWTBL_PE_SHIFT,	false},
 +	{"DIS_RHTR",        WF_LWTBL_DIS_RHTR_MASK,     NO_SHIFT_DEFINE,	false},
 +	{"LDPC_HT",         WF_LWTBL_LDPC_HT_MASK,      NO_SHIFT_DEFINE,	false},
 +	{"LDPC_VHT",        WF_LWTBL_LDPC_VHT_MASK,     NO_SHIFT_DEFINE,	false},
 +	{"LDPC_HE",         WF_LWTBL_LDPC_HE_MASK,      NO_SHIFT_DEFINE,	false},
 +	{"LDPC_EHT",	    WF_LWTBL_LDPC_EHT_MASK,	NO_SHIFT_DEFINE,	true},
++	{"BA_MODE",	    WF_LWTBL_BA_MODE_MASK,	NO_SHIFT_DEFINE,	true},
 +	{NULL,}
 +};
 +
@@ -3888,6 +3891,12 @@ index 00000000..f04c300f
 +	{NULL,}
 +};
 +
++static const struct berse_wtbl_parse WTBL_LMAC_DW14[] = {
++	{"RATE1_TX_CNT",      WF_LWTBL_RATE1_TX_CNT_MASK,     WF_LWTBL_RATE1_TX_CNT_SHIFT,   false},
++	{"RATE1_FAIL_CNT",    WF_LWTBL_RATE1_FAIL_CNT_MASK,   WF_LWTBL_RATE1_FAIL_CNT_SHIFT, true},
++	{NULL,}
++};
++
 +static void parse_fmac_lwtbl_dw14(struct seq_file *s, u8 *lwtbl)
 +{
 +	u32 *addr, *muar_addr = 0;
@@ -3906,7 +3915,27 @@ index 00000000..f04c300f
 +		dw_value = *addr;
 +
 +		while (WTBL_LMAC_DW14_BMC[i].name) {
-+			parse_rate(s, i+6, (dw_value & WTBL_LMAC_DW14_BMC[i].mask) >> WTBL_LMAC_DW14_BMC[i].shift);
++			if (WTBL_LMAC_DW14_BMC[i].shift == NO_SHIFT_DEFINE)
++				seq_printf(s, "\t%s:%d\n", WTBL_LMAC_DW14_BMC[i].name,
++					(dw_value & WTBL_LMAC_DW14_BMC[i].mask) ? 1 : 0);
++			else
++				seq_printf(s, "\t%s:%u\n", WTBL_LMAC_DW14_BMC[i].name,
++					(dw_value & WTBL_LMAC_DW14_BMC[i].mask) >> WTBL_LMAC_DW14_BMC[i].shift);
++			i++;
++		}
++	} else {
++		seq_printf(s, "\t\n");
++		seq_printf(s, "LWTBL DW 14\n");
++		addr = (u32 *)&(lwtbl[WF_LWTBL_CIPHER_SUIT_IGTK_DW*4]);
++		dw_value = *addr;
++
++		while (WTBL_LMAC_DW14[i].name) {
++			if (WTBL_LMAC_DW14[i].shift == NO_SHIFT_DEFINE)
++				seq_printf(s, "\t%s:%d\n", WTBL_LMAC_DW14[i].name,
++					(dw_value & WTBL_LMAC_DW14[i].mask) ? 1 : 0);
++			else
++				seq_printf(s, "\t%s:%u\n", WTBL_LMAC_DW14[i].name,
++					(dw_value & WTBL_LMAC_DW14[i].mask) >> WTBL_LMAC_DW14[i].shift);
 +			i++;
 +		}
 +	}
@@ -3916,7 +3945,7 @@ index 00000000..f04c300f
 +	{"RELATED_IDX0",	WF_LWTBL_RELATED_IDX0_MASK,		WF_LWTBL_RELATED_IDX0_SHIFT,	false},
 +	{"RELATED_BAND0",	WF_LWTBL_RELATED_BAND0_MASK,		WF_LWTBL_RELATED_BAND0_SHIFT,	false},
 +	{"PRI_MLD_BAND",    WF_LWTBL_PRIMARY_MLD_BAND_MASK,		WF_LWTBL_PRIMARY_MLD_BAND_SHIFT,	true},
-+	{"RELATED_IDX0",	WF_LWTBL_RELATED_IDX1_MASK,		WF_LWTBL_RELATED_IDX1_SHIFT,	false},
++	{"RELATED_IDX1",	WF_LWTBL_RELATED_IDX1_MASK,		WF_LWTBL_RELATED_IDX1_SHIFT,	false},
 +	{"RELATED_BAND1",   WF_LWTBL_RELATED_BAND1_MASK,		WF_LWTBL_RELATED_BAND1_SHIFT,	false},
 +	{"SEC_MLD_BAND",	WF_LWTBL_SECONDARY_MLD_BAND_MASK,	WF_LWTBL_SECONDARY_MLD_BAND_SHIFT,	true},
 +	{NULL,}
@@ -4022,18 +4051,13 @@ index 00000000..f04c300f
 +}
 +
 +static const struct berse_wtbl_parse WTBL_LMAC_DW31[] = {
-+	{"NEGO_WINSIZE0",	WF_LWTBL_NEGOTIATED_WINSIZE0_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE0_SHIFT,    false},
-+	{"WINSIZE1",	WF_LWTBL_NEGOTIATED_WINSIZE1_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE1_SHIFT,    false},
-+	{"WINSIZE2",	WF_LWTBL_NEGOTIATED_WINSIZE2_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE2_SHIFT,    false},
-+	{"WINSIZE3",	WF_LWTBL_NEGOTIATED_WINSIZE3_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE3_SHIFT,    true},
-+	{"WINSIZE4",	WF_LWTBL_NEGOTIATED_WINSIZE4_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE4_SHIFT,    false},
-+	{"WINSIZE5",	WF_LWTBL_NEGOTIATED_WINSIZE5_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE5_SHIFT,    false},
-+	{"WINSIZE6",	WF_LWTBL_NEGOTIATED_WINSIZE6_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE6_SHIFT,    false},
-+	{"WINSIZE7",	WF_LWTBL_NEGOTIATED_WINSIZE7_MASK,	WF_LWTBL_NEGOTIATED_WINSIZE7_SHIFT,    true},
++	{"BFTX_TB",          WF_LWTBL_BFTX_TB_MASK,                 NO_SHIFT_DEFINE,    false},
++	{"DROP",          WF_LWTBL_DROP_MASK,                 NO_SHIFT_DEFINE,    false},
 +	{"CASCAD",	        WF_LWTBL_CASCAD_MASK,			NO_SHIFT_DEFINE,    false},
 +	{"ALL_ACK",	        WF_LWTBL_ALL_ACK_MASK,			NO_SHIFT_DEFINE,    false},
 +	{"MPDU_SIZE",	WF_LWTBL_MPDU_SIZE_MASK,		WF_LWTBL_MPDU_SIZE_SHIFT,  false},
-+	{"BA_MODE",		WF_LWTBL_BA_MODE_MASK,			WF_LWTBL_BA_MODE_SHIFT,  true},
++	{"RXD_DUP_MODE",	WF_LWTBL_RXD_DUP_MODE_MASK,			WF_LWTBL_RXD_DUP_MODE_SHIFT,  true},
++	{"ACK_EN",		WF_LWTBL_ACK_EN_MASK,			NO_SHIFT_DEFINE,		true},
 +	{NULL,}
 +};
 +
@@ -4063,11 +4087,9 @@ index 00000000..f04c300f
 +
 +static const struct berse_wtbl_parse WTBL_LMAC_DW32[] = {
 +	{"OM_INFO",			WF_LWTBL_OM_INFO_MASK,			WF_LWTBL_OM_INFO_SHIFT,		false},
-+	{"OM_RXD_DUP_MODE",		WF_LWTBL_RXD_DUP_FOR_OM_CHG_MASK,	NO_SHIFT_DEFINE,		false},
++	{"OM_INFO_EHT",         WF_LWTBL_OM_INFO_EHT_MASK,         WF_LWTBL_OM_INFO_EHT_SHIFT,  false},
++	{"RXD_DUP_FOR_OM_CHG",		WF_LWTBL_RXD_DUP_FOR_OM_CHG_MASK,	NO_SHIFT_DEFINE,		false},
 +	{"RXD_DUP_WHITE_LIST",	WF_LWTBL_RXD_DUP_WHITE_LIST_MASK,	WF_LWTBL_RXD_DUP_WHITE_LIST_SHIFT,	false},
-+	{"RXD_DUP_MODE",		WF_LWTBL_RXD_DUP_MODE_MASK,		WF_LWTBL_RXD_DUP_MODE_SHIFT,	false},
-+	{"DROP",			WF_LWTBL_DROP_MASK,			NO_SHIFT_DEFINE,		false},
-+	{"ACK_EN",			WF_LWTBL_ACK_EN_MASK,			NO_SHIFT_DEFINE,		true},
 +	{NULL,}
 +};
 +
@@ -4212,7 +4234,7 @@ index 00000000..f04c300f
 +	{"RELATED_IDX0",	WF_UWTBL_RELATED_IDX0_MASK,		WF_UWTBL_RELATED_IDX0_SHIFT,	false},
 +	{"RELATED_BAND0",	WF_UWTBL_RELATED_BAND0_MASK,		WF_UWTBL_RELATED_BAND0_SHIFT,	false},
 +	{"PRI_MLD_BAND",    WF_UWTBL_PRIMARY_MLD_BAND_MASK,		WF_UWTBL_PRIMARY_MLD_BAND_SHIFT,	true},
-+	{"RELATED_IDX0",	WF_UWTBL_RELATED_IDX1_MASK,		WF_UWTBL_RELATED_IDX1_SHIFT,	false},
++	{"RELATED_IDX1",	WF_UWTBL_RELATED_IDX1_MASK,		WF_UWTBL_RELATED_IDX1_SHIFT,	false},
 +	{"RELATED_BAND1",   WF_UWTBL_RELATED_BAND1_MASK,		WF_UWTBL_RELATED_BAND1_SHIFT,	false},
 +	{"SEC_MLD_BAND",	WF_UWTBL_SECONDARY_MLD_BAND_MASK,	WF_UWTBL_SECONDARY_MLD_BAND_SHIFT,	true},
 +	{NULL,}
@@ -4287,6 +4309,7 @@ index 00000000..f04c300f
 +static const struct berse_wtbl_parse WTBL_UMAC_DW3[] = {
 +	{"PN4",     WTBL_PN4_MASK,      WTBL_PN4_OFFSET,	false},
 +	{"PN5",     WTBL_PN5_MASK,      WTBL_PN5_OFFSET,	true},
++	{"COM_SN",     WF_UWTBL_COM_SN_MASK,     WF_UWTBL_COM_SN_SHIFT,	true},
 +	{NULL,}
 +};
 +
@@ -4299,8 +4322,8 @@ index 00000000..f04c300f
 +};
 +
 +static const struct berse_wtbl_parse WTBL_UMAC_DW5_BIPN[] = {
-+	{"BIPN4",	WTBL_BIPN0_MASK,	WTBL_BIPN0_OFFSET,	false},
-+	{"BIPN5",	WTBL_BIPN1_MASK,	WTBL_BIPN1_OFFSET,	true},
++	{"BIPN4",	WTBL_BIPN4_MASK,	WTBL_BIPN4_OFFSET,	false},
++	{"BIPN5",	WTBL_BIPN5_MASK,	WTBL_BIPN5_OFFSET,	true},
 +	{NULL,}
 +};
 +
@@ -4515,6 +4538,8 @@ index 00000000..f04c300f
 +
 +	/* UMAC WTBL DW 6 for BIGTK */
 +	if (is_wtbl_bigtk_exist(lwtbl) == true) {
++		addr = (u32 *)&(uwtbl[WF_UWTBL_KEY_LOC2_DW*4]);
++		dw_value = *addr;
 +		keyloc2 = (dw_value & WF_UWTBL_KEY_LOC2_MASK) >>
 +			WF_UWTBL_KEY_LOC2_SHIFT;
 +		seq_printf(s, "\t%s:%u\n", "Key Loc 2", keyloc2);
@@ -4557,6 +4582,12 @@ index 00000000..f04c300f
 +					WTBL_UMAC_DW8[i].shift);
 +		i++;
 +	}
++
++	/* UMAC WTBL DW 8 - SEC_ADDR_MODE */
++	addr = (u32 *)&(uwtbl[WF_UWTBL_SEC_ADDR_MODE_DW*4]);
++	dw_value = *addr;
++	seq_printf(s, "\t%s:%lu\n", "SEC_ADDR_MODE",
++		(dw_value & WTBL_SEC_ADDR_MODE_MASK) >> WTBL_SEC_ADDR_MODE_OFFSET);
 +
 +	/* UMAC WTBL DW 8 - AMSDU_CFG */
 +	seq_printf(s, "\t%s:%d\n", "HW AMSDU Enable",
@@ -4739,7 +4770,7 @@ index 00000000..f04c300f
 +#endif
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
 new file mode 100644
-index 00000000..e8870166
+index 000000000..e88701667
 --- /dev/null
 +++ b/mt7996/mtk_mcu.c
 @@ -0,0 +1,18 @@
@@ -4763,7 +4794,7 @@ index 00000000..e8870166
 +#endif
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
 new file mode 100644
-index 00000000..e741aa27
+index 000000000..e741aa278
 --- /dev/null
 +++ b/mt7996/mtk_mcu.h
 @@ -0,0 +1,16 @@
@@ -4784,7 +4815,7 @@ index 00000000..e741aa27
 +
 +#endif
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a105..3c6a61d7 100644
+index e5d4a1051..3c6a61d71 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)
