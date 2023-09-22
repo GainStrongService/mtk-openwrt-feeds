@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mt76/Makefile b/package/kernel/mt76/Makefile
-index 9a3597f..cfb48d4 100644
+index 9a3597f..b8639e5 100644
 --- a/package/kernel/mt76/Makefile
 +++ b/package/kernel/mt76/Makefile
 @@ -233,7 +233,7 @@ endef
@@ -79,19 +79,33 @@ index 9a3597f..cfb48d4 100644
  		$(1)/lib/firmware/mediatek
  endef
  
-@@ -588,9 +597,34 @@ define KernelPackage/mt7986-firmware/install
+@@ -575,7 +584,13 @@ define KernelPackage/mt7981-firmware/install
+ 		$(PKG_BUILD_DIR)/firmware/mt7981_wa.bin \
+ 		$(PKG_BUILD_DIR)/firmware/mt7981_wm.bin \
+ 		$(PKG_BUILD_DIR)/firmware/mt7981_rom_patch.bin \
++		$(PKG_BUILD_DIR)/firmware/mt7981_eeprom.bin \
+ 		$(1)/lib/firmware/mediatek
++ifdef CONFIG_NET_MEDIATEK_SOC_WED
++	cp \
++		$(PKG_BUILD_DIR)/firmware/mt7981_wo.bin \
++		$(1)/lib/firmware/mediatek
++endif
+ endef
+ 
+ define KernelPackage/mt7986-firmware/install
+@@ -588,9 +603,34 @@ define KernelPackage/mt7986-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7986_rom_patch.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7975_dual.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7976_dual.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7975.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7976.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7976_dbdc.bin \
- 		$(1)/lib/firmware/mediatek
++		$(1)/lib/firmware/mediatek
 +ifdef CONFIG_NET_MEDIATEK_SOC_WED
 +	cp \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_wo_0.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_wo_1.bin \
-+		$(1)/lib/firmware/mediatek
+ 		$(1)/lib/firmware/mediatek
 +endif
  endef
  
