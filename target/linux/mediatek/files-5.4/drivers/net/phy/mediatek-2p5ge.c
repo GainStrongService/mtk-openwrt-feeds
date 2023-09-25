@@ -26,6 +26,9 @@
 #define MTK_PHY_LINK_STATUS_MISC               (0xa2)
 #define   MTK_PHY_FDX_ENABLE                   BIT(5)
 
+#define MTK_PHY_LPI_PCS_DSP_CTRL		(0x121)
+#define   MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK	GENMASK(12, 8)
+
 /* Registers on MDIO_MMD_VEND2 */
 #define MTK_PHY_LED0_ON_CTRL			(0x24)
 #define   MTK_PHY_LED0_ON_LINK1000		BIT(0)
@@ -97,6 +100,9 @@ static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 	reg = readw(mcucsr_base + MD32_EN_CFG);
 	writew(reg | MD32_EN, mcucsr_base + MD32_EN_CFG);
 	dev_info(dev, "Firmware loading/trigger ok.\n");
+
+	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LPI_PCS_DSP_CTRL,
+		       MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK, 0);
 
 	/* Setup LED */
 	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
