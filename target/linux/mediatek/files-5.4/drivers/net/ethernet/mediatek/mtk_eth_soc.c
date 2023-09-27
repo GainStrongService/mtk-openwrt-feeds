@@ -4669,8 +4669,7 @@ static int mtk_add_mux(struct mtk_eth *eth, struct device_node *np)
 	const __be32 *_id = of_get_property(np, "reg", NULL);
 	struct device_node *child;
 	struct mtk_mux *mux;
-	unsigned int id;
-	int err;
+	int id, err;
 
 	if (!_id) {
 		dev_err(eth->dev, "missing attach mac id\n");
