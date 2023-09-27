@@ -68,7 +68,7 @@ void reg_mod_bits(uint32_t *virt_addr, int data, int start_bit, int data_len)
 	    (start_bit + data_len > 32)) {
 		fprintf(stderr,
 			"Startbit range[0~31], and DataLen range[1~32], and Startbit + DataLen <= 32\n");
-		return;
+		exit(1);
 	}
 
 	for (i = 0; i < data_len; i++) {
@@ -107,7 +107,7 @@ void reg_read_bits(uint32_t *virt_addr, uint32_t *virt_base, uint32_t *phy_base,
 	    (start_bit + data_len > 32)) {
 		fprintf(stderr,
 			"Startbit range[0~31], and DataLen range[1~32], and Startbit + DataLen <= 32\n");
-		return;
+		exit(1);
 	}
 
 	for (i = 0; i < data_len; i++) {
@@ -150,6 +150,7 @@ void usage(void)
 		"\tRead    : regs r 0x1b100000 29 3      //read 0x1b100000[29:31]\n"
 		"\tWrite   : regs w 0x1b100000 0x1234    //write 0x1b100000=0x1234\n"
 		"\tModify  : regs m 0x1b100000 0x0 29 3  //modify 0x1b100000[29:31]=0\n");
+	exit(1);
 }
 
 int main(int argc, char **argv)
@@ -182,7 +183,11 @@ int main(int argc, char **argv)
 
 	/* Map one page */
 	offset = strtoul(argv[2], NULL, 16);
-	map_base = mmap(0, 2*MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset & ~MAP_MASK);
+	if (offset > 0xFFFFFFFFFFFF)
+		PRINT_ERROR;
+
+	map_base = mmap(0, 2 * MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+			fd, offset & ~MAP_MASK);
 	if(map_base == (void *) -1)
 		PRINT_ERROR;
 
@@ -194,12 +199,20 @@ int main(int argc, char **argv)
 	switch(access_type) {
 		case 'm':
 			writeval = strtoul(argv[3], 0, 16);
+			if (writeval > UINT_MAX)
+				PRINT_ERROR;
 			startbit = strtoul(argv[4], 0, 10);
+			if (startbit > 32)
+				PRINT_ERROR;
 			datalen  = strtoul(argv[5], 0, 10);
+			if (datalen > 32)
+				PRINT_ERROR;
 			reg_mod_bits((uint32_t *)virt_addr, writeval, startbit, datalen);
 			break;
 		case 'w':
 			writeval = strtoul(argv[3], 0, 16);
+			if (writeval > UINT_MAX)
+				PRINT_ERROR;
 			*((uint32_t *) virt_addr) = writeval;
 			printf("Written 0x%X; ", writeval);
 			break;
@@ -215,7 +228,11 @@ int main(int argc, char **argv)
 					      0, 32);
 			else {
 				startbit = strtoul(argv[3], 0, 10);
-				datalen  = strtoul(argv[4], 0, 10);
+				if (startbit > 32)
+					PRINT_ERROR;
+				datalen = strtoul(argv[4], 0, 10);
+				if (datalen > 32)
+					PRINT_ERROR;
 				reg_read_bits((uint32_t *)virt_addr,
 					      (uint32_t *)map_base,
 					      (uint32_t *)(offset & ~MAP_MASK),
@@ -223,7 +240,7 @@ int main(int argc, char **argv)
 			}
 			goto out;
 		default:
-			fprintf(stderr, "Illegal data type '%c'.\n", access_type);
+			printf("Illegal data type '%c'.\n", access_type);
 			goto out;
 	}
 
