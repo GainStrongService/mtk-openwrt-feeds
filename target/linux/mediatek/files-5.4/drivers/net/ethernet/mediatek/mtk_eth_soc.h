@@ -457,8 +457,8 @@
 	 ((ring_no) ? BIT(16 + (ring_no)) : BIT(14)))
 #else
 #define MTK_RX_DONE_INT(ring_no)						\
-	(MTK_HAS_CAPS(eth->soc->caps, MTK_RSS) ? (BIT(16 + (ring_no))) :	\
-	 ((ring_no) ? BIT(24 + (ring_no)) : BIT(30)))
+	(MTK_HAS_CAPS(eth->soc->caps, MTK_RSS) ? ((ring_no) ? BIT(24 + (ring_no)) : BIT(30)) :	\
+	 (BIT(16 + (ring_no))))
 #endif
 #define MTK_RX_DONE_INT3	BIT(19)
 #define MTK_RX_DONE_INT2	BIT(18)
