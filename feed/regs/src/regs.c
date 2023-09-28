@@ -183,7 +183,7 @@ int main(int argc, char **argv)
 
 	/* Map one page */
 	offset = strtoul(argv[2], NULL, 16);
-	if (offset > 0xFFFFFFFFFFFF)
+	if (offset > 0xFFFFFFFFFFFFUL)
 		PRINT_ERROR;
 
 	map_base = mmap(0, 2 * MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
@@ -199,7 +199,7 @@ int main(int argc, char **argv)
 	switch(access_type) {
 		case 'm':
 			writeval = strtoul(argv[3], 0, 16);
-			if (writeval > UINT_MAX)
+			if (writeval > 0xFFFFFFFFUL)
 				PRINT_ERROR;
 			startbit = strtoul(argv[4], 0, 10);
 			if (startbit > 32)
@@ -211,7 +211,7 @@ int main(int argc, char **argv)
 			break;
 		case 'w':
 			writeval = strtoul(argv[3], 0, 16);
-			if (writeval > UINT_MAX)
+			if (writeval > 0xFFFFFFFFUL)
 				PRINT_ERROR;
 			*((uint32_t *) virt_addr) = writeval;
 			printf("Written 0x%X; ", writeval);
