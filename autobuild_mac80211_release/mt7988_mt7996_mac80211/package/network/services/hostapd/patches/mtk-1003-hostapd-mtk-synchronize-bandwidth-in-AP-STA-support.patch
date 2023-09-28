@@ -1,38 +1,40 @@
-From 6219efda5b74baf62086236cc7f368f4307b9869 Mon Sep 17 00:00:00 2001
+From 804f9b03e7f143d3a80741cb67721810e27ed2d8 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 11 Sep 2023 10:16:35 +0800
 Subject: [PATCH] hostapd: mtk: synchronize bandwidth in AP/STA support
 
 Signed-off-by: Michael Lee <michael-cy.lee@mediatek.com>
 ---
- src/ap/ucode.c         | 39 ++++++++++++++++++--
+ src/ap/ucode.c         | 41 +++++++++++++++++++--
  src/utils/ucode.c      | 12 +++++--
  wpa_supplicant/ucode.c | 82 ++++++++++++++++++++++++++++++++++--------
- 3 files changed, 115 insertions(+), 18 deletions(-)
+ 3 files changed, 117 insertions(+), 18 deletions(-)
 
 diff --git a/src/ap/ucode.c b/src/ap/ucode.c
-index 7bc797a..a3716ea 100644
+index af97091..79d568f 100644
 --- a/src/ap/ucode.c
 +++ b/src/ap/ucode.c
-@@ -382,6 +382,9 @@ uc_hostapd_iface_stop(uc_vm_t *vm, size_t nargs)
+@@ -489,6 +489,9 @@ uc_hostapd_iface_stop(uc_vm_t *vm, size_t nargs)
  	struct hostapd_iface *iface = uc_fn_thisval("hostapd.iface");
  	int i;
  
 +	wpa_printf(MSG_INFO, "ucode: mtk: stop iface for %s in state %s\n",
 +			iface->phy, hostapd_state_text(iface->state));
 +
- 	switch (iface->state) {
- 	case HAPD_IFACE_ENABLED:
- 	case HAPD_IFACE_DISABLED:
-@@ -420,6 +423,7 @@ uc_hostapd_iface_start(uc_vm_t *vm, size_t nargs)
- 	uint64_t intval;
- 	int i;
- 
-+	wpa_printf(MSG_INFO, "ucode: mtk: start iface for %s\n", iface->phy);
  	if (!iface)
  		return NULL;
  
-@@ -442,7 +446,13 @@ uc_hostapd_iface_start(uc_vm_t *vm, size_t nargs)
+@@ -515,6 +518,9 @@ uc_hostapd_iface_start(uc_vm_t *vm, size_t nargs)
+ 	uint64_t intval;
+ 	int i;
+ 
++	wpa_printf(MSG_INFO, "ucode: mtk: start iface for %s in state %s\n",
++			iface->phy, hostapd_state_text(iface->state));
++
+ 	if (!iface)
+ 		return NULL;
+ 
+@@ -537,7 +543,13 @@ uc_hostapd_iface_start(uc_vm_t *vm, size_t nargs)
  	UPDATE_VAL(op_class, "op_class");
  	UPDATE_VAL(hw_mode, "hw_mode");
  	UPDATE_VAL(channel, "channel");
@@ -47,7 +49,7 @@ index 7bc797a..a3716ea 100644
  	if (!changed &&
  	    (iface->bss[0]->beacon_set_done ||
  	     iface->state == HAPD_IFACE_DFS))
-@@ -490,6 +500,18 @@ out:
+@@ -583,6 +595,18 @@ out:
  		return ucv_boolean_new(true);
  	}
  
@@ -66,7 +68,7 @@ index 7bc797a..a3716ea 100644
  	for (i = 0; i < iface->num_bss; i++) {
  		struct hostapd_data *hapd = iface->bss[i];
  		int ret;
-@@ -524,6 +546,7 @@ uc_hostapd_iface_switch_channel(uc_vm_t *vm, size_t nargs)
+@@ -617,6 +641,7 @@ uc_hostapd_iface_switch_channel(uc_vm_t *vm, size_t nargs)
  	uint64_t intval;
  	int i, ret = 0;
  
@@ -74,7 +76,7 @@ index 7bc797a..a3716ea 100644
  	if (!iface || ucv_type(info) != UC_OBJECT)
  		return NULL;
  
-@@ -543,7 +566,8 @@ uc_hostapd_iface_switch_channel(uc_vm_t *vm, size_t nargs)
+@@ -636,7 +661,8 @@ uc_hostapd_iface_switch_channel(uc_vm_t *vm, size_t nargs)
  	if (errno)
  		intval = hostapd_get_oper_chwidth(conf);
  	if (intval)
@@ -84,7 +86,7 @@ index 7bc797a..a3716ea 100644
  	else
  		csa.freq_params.bandwidth = csa.freq_params.sec_channel_offset ? 40 : 20;
  
-@@ -554,6 +578,17 @@ uc_hostapd_iface_switch_channel(uc_vm_t *vm, size_t nargs)
+@@ -647,6 +673,17 @@ uc_hostapd_iface_switch_channel(uc_vm_t *vm, size_t nargs)
  	if ((intval = ucv_int64_get(ucv_object_get(info, "center_freq2", NULL))) && !errno)
  		csa.freq_params.center_freq2 = intval;
  
@@ -144,7 +146,7 @@ index 122c619..0990e7b 100644
  		center_ofs = 20;
  	else
 diff --git a/wpa_supplicant/ucode.c b/wpa_supplicant/ucode.c
-index 55d2258..d8a19b8 100644
+index 6cba73d..d5489ea 100644
 --- a/wpa_supplicant/ucode.c
 +++ b/wpa_supplicant/ucode.c
 @@ -7,6 +7,8 @@
@@ -209,7 +211,7 @@ index 55d2258..d8a19b8 100644
  	}
  
  	ucv_put(wpa_ucode_call(4));
-@@ -195,6 +230,11 @@ uc_wpas_iface_status(uc_vm_t *vm, size_t nargs)
+@@ -212,6 +247,11 @@ uc_wpas_iface_status(uc_vm_t *vm, size_t nargs)
  	struct wpa_supplicant *wpa_s = uc_fn_thisval("wpas.iface");
  	struct wpa_bss *bss;
  	uc_value_t *ret, *val;
@@ -221,7 +223,7 @@ index 55d2258..d8a19b8 100644
  
  	if (!wpa_s)
  		return NULL;
-@@ -207,23 +247,37 @@ uc_wpas_iface_status(uc_vm_t *vm, size_t nargs)
+@@ -224,23 +264,37 @@ uc_wpas_iface_status(uc_vm_t *vm, size_t nargs)
  	bss = wpa_s->current_bss;
  	if (bss) {
  		int sec_chan = 0;
