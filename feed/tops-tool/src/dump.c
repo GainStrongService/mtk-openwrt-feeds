@@ -46,7 +46,8 @@ static int save_dump_data(char *dump_root_dir,
 	struct stat st = { 0 };
 	char *dump_file = NULL;
 	char *dump_dir = NULL;
-	int ret = 0;
+	size_t path_len;
+	int ret;
 	int fd;
 
 	ret = time_to_str((time_t *)&dd_hdr->info.dump_time_sec,
@@ -55,78 +56,101 @@ static int save_dump_data(char *dump_root_dir,
 		fprintf(stderr,
 			DUMP_LOG_FMT("time_to_str(%lu) fail(%d)\n"),
 			dd_hdr->info.dump_time_sec, ret);
-		ret = -1;
-		goto out;
+		return ret;
 	}
 
-	dump_dir = malloc(strlen(dump_root_dir) + 1 +
-			  strlen(dump_time_str) + 1);
-	if (!dump_dir) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	sprintf(dump_dir, "%s/%s", dump_root_dir, dump_time_str);
+	/* create the dump directory */
+	path_len = strlen(dump_root_dir) + 1 + strlen(dump_time_str) + 1;
+	dump_dir = malloc(path_len);
+	if (!dump_dir)
+		return -ENOMEM;
 
-	dump_file = malloc(strlen(dump_dir) + 1 +
-			   strlen(dd_hdr->info.name) + 1);
+	ret = snprintf(dump_dir, path_len, "%s/%s", dump_root_dir, dump_time_str);
+	if (ret < 0)
+		goto free_dump_dir;
+
+	ret = mkdir(dump_dir, 0775);
+	if (ret && errno != EEXIST) {
+		fprintf(stderr,
+			DUMP_LOG_FMT("mkdir(%s) fail(%s)\n"),
+			dump_dir, strerror(errno));
+		goto free_dump_dir;
+	}
+
+	/* TODO: only keep latest three dump directories */
+
+	/* create the dump file */
+	path_len = strlen(dump_dir) + 1 + strlen(dd_hdr->info.name) + 1;
+	dump_file = malloc(path_len);
 	if (!dump_file) {
 		ret = -ENOMEM;
 		goto free_dump_dir;
 	}
-	sprintf(dump_file, "%s/%s", dump_dir, dd_hdr->info.name);
 
-	if (stat(dump_dir, &st)) {
-		ret = mkdir(dump_dir, 0775);
-		if (ret) {
-			fprintf(stderr,
-				DUMP_LOG_FMT("mkdir(%s) fail(%s)\n"),
-				dump_dir, strerror(errno));
-			ret = -1;
-			goto free_dump_file;
-		}
-
-		/* TODO: only keep latest three dump directories */
-	}
+	ret = snprintf(dump_file, path_len, "%s/%s", dump_dir, dd_hdr->info.name);
+	if (ret < 0)
+		goto free_dump_file;
 
 	fd = open(dump_file, O_WRONLY | O_CREAT, 0664);
 	if (fd < 0) {
 		fprintf(stderr,
 			DUMP_LOG_FMT("open(%s) fail(%s)\n"),
 			dump_file, strerror(errno));
-		ret = -1;
+		ret = fd;
 		goto free_dump_file;
 	}
 
-	/* write information of dump at begining of the file */
-	lseek(fd, 0, SEEK_SET);
+	/* write the dump information at the begining of dump file */
+	ret = lseek(fd, 0, SEEK_SET);
+	if (ret < 0) {
+		fprintf(stderr,
+			DUMP_LOG_FMT("lseek fail(%s)\n"),
+			strerror(errno));
+		goto close_dump_file;
+	}
+
 	write(fd, &dd_hdr->info, sizeof(struct dump_info));
 
-	/* write data of dump start from data offset of the file */
-	lseek(fd, dd_hdr->data_offset, SEEK_CUR);
+	/* write the dump data start from dump information plus data offset */
+	ret = lseek(fd, dd_hdr->data_offset, SEEK_CUR);
+	if (ret < 0) {
+		fprintf(stderr,
+			DUMP_LOG_FMT("lseek fail(%s)\n"),
+			strerror(errno));
+		goto close_dump_file;
+	}
+
 	write(fd, dd, dd_hdr->data_len);
 
-	close(fd);
-
 	if (dd_hdr->last_frag) {
-		stat(dump_file, &st);
+		ret = stat(dump_file, &st);
+		if (ret < 0) {
+			fprintf(stderr,
+				DUMP_LOG_FMT("stat(%s) fail(%s)\n"),
+				dump_file, strerror(errno));
+			goto close_dump_file;
+		}
+
 		if ((size_t)st.st_size != dump_file_size) {
 			fprintf(stderr,
 				DUMP_LOG_FMT("file(%s) size %zu != %zu\n"),
 				dump_file, st.st_size, dump_file_size);
-			ret = -1;
-			goto free_dump_file;
+			ret = -EINVAL;
+			goto close_dump_file;
 		}
 	}
 
+	ret = 0;
+
+close_dump_file:
+	close(fd);
+
 free_dump_file:
 	free(dump_file);
-	dump_file = NULL;
 
 free_dump_dir:
 	free(dump_dir);
-	dump_dir = NULL;
 
-out:
 	return ret;
 }
 
@@ -141,11 +165,11 @@ static int read_retry(int fd, void *buf, int len)
 			if (errno == EINTR || errno == EAGAIN)
 				continue;
 
-			return -1;
+			return ret;
 		}
 
 		if (!ret)
-			return 0;
+			break;
 
 		out_len += ret;
 		len -= ret;
@@ -157,64 +181,69 @@ static int read_retry(int fd, void *buf, int len)
 
 static int mkdir_p(char *path, mode_t mode)
 {
-	struct stat st = { 0 };
-	char *cpy_path = NULL;
-	char *cur_path = NULL;
-	char *tmp_path = NULL;
-	int ret = 0;
+	size_t path_len;
+	char *cpy_path;
+	char *cur_path;
+	char *tmp_path;
 	char *dir;
+	int ret;
 
-	cpy_path = malloc(strlen(path) + 1);
-	if (!cpy_path) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	strcpy(cpy_path, path);
+	path_len = strlen(path) + 1;
+	if (path_len == 0)
+		return -EINVAL;
 
-	cur_path = malloc(strlen(path) + 1);
+	cpy_path = malloc(path_len);
+	if (!cpy_path)
+		return -ENOMEM;
+	strncpy(cpy_path, path, path_len);
+
+	cur_path = calloc(1, path_len);
 	if (!cur_path) {
 		ret = -ENOMEM;
 		goto free_cpy_path;
 	}
-	memset(cur_path, 0, strlen(path) + 1);
+
+	tmp_path = malloc(path_len);
+	if (!tmp_path) {
+		ret = -ENOMEM;
+		goto free_cur_path;
+	}
 
 	for (dir = strtok(cpy_path, "/");
 	     dir != NULL;
 	     dir = strtok(NULL, "/")) {
 		/* keep current path */
-		tmp_path = malloc(strlen(cur_path) + 1);
-		if (!tmp_path) {
-			ret = -ENOMEM;
-			goto free_cur_path;
-		}
-		strcpy(tmp_path, cur_path);
+		strncpy(tmp_path, cur_path, path_len);
 
 		/* append directory in current path */
-		sprintf(cur_path, "%s/%s", tmp_path, dir);
+		ret = snprintf(cur_path, path_len, "%s/%s", tmp_path, dir);
+		if (ret < 0) {
+			fprintf(stderr,
+				DUMP_LOG_FMT("append dir(%s) in cur_path(%s) fail(%d)\n"),
+				dir, cur_path, ret);
+			goto free_tmp_path;
+		}
 
-		free(tmp_path);
-		tmp_path = NULL;
-
-		if (stat(cur_path, &st)) {
-			ret = mkdir(cur_path, mode);
-			if (ret) {
-				fprintf(stderr,
-					DUMP_LOG_FMT("mkdir(%s) fail(%s)\n"),
-					cur_path, strerror(errno));
-				goto free_cur_path;
-			}
+		ret = mkdir(cur_path, mode);
+		if (ret && errno != EEXIST) {
+			fprintf(stderr,
+				DUMP_LOG_FMT("mkdir(%s) fail(%s)\n"),
+				cur_path, strerror(errno));
+			goto free_tmp_path;
 		}
 	}
 
+	ret = 0;
+
+free_tmp_path:
+	free(tmp_path);
+
 free_cur_path:
 	free(cur_path);
-	cur_path = NULL;
 
 free_cpy_path:
 	free(cpy_path);
-	cpy_path = NULL;
 
-out:
 	return ret;
 }
 
@@ -224,28 +253,23 @@ int tops_save_dump_data(char *dump_root_dir)
 	int ret = 0;
 	int fd;
 
-	if (!dump_root_dir) {
-		ret = -1;
-		goto out;
-	}
+	if (!dump_root_dir)
+		return -EINVAL;
 
 	/* reserve 256 bytes for saving name of dump directory and dump file */
 	if (strlen(dump_root_dir) > (PATH_MAX - 256)) {
 		fprintf(stderr,
 			DUMP_LOG_FMT("dump_root_dir(%s) length %zu > %u\n"),
 			dump_root_dir, strlen(dump_root_dir), PATH_MAX - 256);
-		return -1;
+		return -EINVAL;
 	}
 
-	if (stat(dump_root_dir, &st)) {
-		ret = mkdir_p(dump_root_dir, 0775);
-		if (ret) {
-			fprintf(stderr,
-				DUMP_LOG_FMT("mkdir_p(%s) fail(%d)\n"),
-				dump_root_dir, ret);
-			ret = -1;
-			goto out;
-		}
+	ret = mkdir_p(dump_root_dir, 0775);
+	if (ret < 0) {
+		fprintf(stderr,
+			DUMP_LOG_FMT("mkdir_p(%s) fail(%d)\n"),
+			dump_root_dir, ret);
+		return ret;
 	}
 
 	fd = open(DUMP_DATA_PATH, O_RDONLY);
@@ -253,8 +277,7 @@ int tops_save_dump_data(char *dump_root_dir)
 		fprintf(stderr,
 			DUMP_LOG_FMT("open(%s) fail(%s)\n"),
 			DUMP_DATA_PATH, strerror(errno));
-		ret = -1;
-		goto out;
+		return fd;
 	}
 
 	while (1) {
@@ -265,13 +288,18 @@ int tops_save_dump_data(char *dump_root_dir)
 			.events = POLLIN | POLLHUP | POLLERR,
 		};
 
-		poll(&pfd, 1, -1);
+		ret = poll(&pfd, 1, -1);
+		if (ret < 0) {
+			fprintf(stderr,
+				DUMP_LOG_FMT("poll fail(%s)\n"),
+				strerror(errno));
+			break;
+		}
 
 		ret = read_retry(fd, &dd_hdr, sizeof(struct dump_data_header));
 		if (ret < 0) {
 			fprintf(stderr,
 				DUMP_LOG_FMT("read dd_hdr fail(%d)\n"), ret);
-			ret = -1;
 			break;
 		}
 
@@ -288,7 +316,7 @@ int tops_save_dump_data(char *dump_root_dir)
 			fprintf(stderr,
 				DUMP_LOG_FMT("data length %u > %lu\n"),
 				dd_hdr.data_len, sizeof(dd));
-			ret = -1;
+			ret = -ENOMEM;
 			break;
 		}
 
@@ -296,7 +324,6 @@ int tops_save_dump_data(char *dump_root_dir)
 		if (ret < 0) {
 			fprintf(stderr,
 				DUMP_LOG_FMT("read dd fail(%d)\n"), ret);
-			ret = -1;
 			break;
 		}
 
@@ -304,7 +331,7 @@ int tops_save_dump_data(char *dump_root_dir)
 			fprintf(stderr,
 				DUMP_LOG_FMT("read dd length %u != %u\n"),
 				(uint32_t)ret, dd_hdr.data_len);
-			ret = -1;
+			ret = -EAGAIN;
 			break;
 		}
 
@@ -319,6 +346,5 @@ int tops_save_dump_data(char *dump_root_dir)
 
 	close(fd);
 
-out:
 	return ret;
 }
