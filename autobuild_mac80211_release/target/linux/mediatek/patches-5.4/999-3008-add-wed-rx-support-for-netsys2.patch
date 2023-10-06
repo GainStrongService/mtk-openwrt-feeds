@@ -168,6 +168,50 @@ index 043e509..bfd2a02 100644
  
  		resets = <&ethsysrst 0>;
  		reset-names = "wocpu_rst";
+diff --git a/arch/arm64/boot/dts/mediatek/mt7981.dtsi b/arch/arm64/boot/dts/mediatek/mt7981.dtsi
+index d34943e7..512fb5d6 100644
+--- a/arch/arm64/boot/dts/mediatek/mt7981.dtsi
++++ b/arch/arm64/boot/dts/mediatek/mt7981.dtsi
+@@ -97,26 +97,29 @@
+ 		interrupt-parent = <&gic>;
+ 		interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
+ 		mediatek,wed_pcie = <&wed_pcie>;
++		mediatek,ap2woccif = <&ap2woccif0>;
++		mediatek,wocpu_ilm = <&wocpu0_ilm>;
++		mediatek,wocpu_dlm = <&wocpu0_dlm>;
++		mediatek,wocpu_boot = <&cpu_boot>;
++		mediatek,wocpu_emi = <&wocpu0_emi>;
++		mediatek,wocpu_data = <&wocpu_data>;
+ 	};
+ 
+-	ap2woccif: ap2woccif@151A5000 {
+-		compatible = "mediatek,ap2woccif";
+-		reg = <0 0x151A5000 0 0x1000>,
+-		      <0 0x151AD000 0 0x1000>;
++	ap2woccif0: ap2woccif@151A5000 {
++		compatible = "mediatek,ap2woccif", "syscon";
++		reg = <0 0x151A5000 0 0x1000>;
+ 		interrupt-parent = <&gic>;
+-		interrupts = <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,
+-			     <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>;
+-        };
++		interrupts = <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>;
++	};
+ 
+ 	wocpu0_ilm: wocpu0_ilm@151E0000 {
+ 		compatible = "mediatek,wocpu0_ilm";
+ 		reg = <0 0x151E0000 0 0x8000>;
+ 	};
+ 
+-	wocpu_dlm: wocpu_dlm@151E8000 {
++	wocpu0_dlm: wocpu_dlm@151E8000 {
+ 		compatible = "mediatek,wocpu_dlm";
+-		reg = <0 0x151E8000 0 0x2000>,
+-		      <0 0x151F8000 0 0x2000>;
++		reg = <0 0x151E8000 0 0x2000>;
+ 
+ 		resets = <&ethsysrst 0>;
+ 		reset-names = "wocpu_rst";
 diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
 index 4090132..fdbb90f 100644
 --- a/drivers/net/ethernet/mediatek/Makefile
@@ -1610,7 +1654,7 @@ new file mode 100644
 index 0000000..96e30a3
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
-@@ -0,0 +1,586 @@
+@@ -0,0 +1,590 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#include <linux/skbuff.h>
@@ -1855,7 +1899,11 @@ index 0000000..96e30a3
 +	u32 ofs = 0;
 +	u32 boot_cr, val;
 +
-+	mcu = wo->hw->index ? MT7986_FIRMWARE_WO_2 : MT7986_FIRMWARE_WO_1;
++	if (of_device_is_compatible(wo->hw->node, "mediatek,mt7981-wed"))
++		mcu = MT7981_FIRMWARE_WO;
++	else
++		mcu = wo->hw->index ? MT7986_FIRMWARE_WO_2 :
++				      MT7986_FIRMWARE_WO_1;
 +
 +	ret = request_firmware(&fw, mcu, wo->hw->dev);
 +	if (ret)
@@ -2202,7 +2250,7 @@ new file mode 100644
 index 0000000..19e1199
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_mcu.h
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,97 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#ifndef __MTK_WED_MCU_H
@@ -2221,6 +2269,7 @@ index 0000000..19e1199
 +#define WARP_OK_STATUS (0)
 +#define WARP_ALREADY_DONE_STATUS (1)
 +
++#define MT7981_FIRMWARE_WO		"mediatek/mt7981_wo.bin"
 +#define MT7986_FIRMWARE_WO_1		"mediatek/mt7986_wo_0.bin"
 +#define MT7986_FIRMWARE_WO_2		"mediatek/mt7986_wo_1.bin"
 +
