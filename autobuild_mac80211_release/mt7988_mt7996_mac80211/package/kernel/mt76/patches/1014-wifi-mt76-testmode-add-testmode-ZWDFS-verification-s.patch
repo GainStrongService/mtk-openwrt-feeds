@@ -1,8 +1,8 @@
-From f6c3798a8abc8c28a509ed11b024ada9153820eb Mon Sep 17 00:00:00 2001
+From 9bbc79e25d5fe7c14ec520413f4fb0625af9c630 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 22 Mar 2023 11:19:52 +0800
-Subject: [PATCH 1014/1024] wifi: mt76: testmode: add testmode ZWDFS
- verification support
+Subject: [PATCH 47/98] wifi: mt76: testmode: add testmode ZWDFS verification
+ support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -15,10 +15,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 326 insertions(+), 12 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index e6604de45..0946a3bfb 100644
+index 0bf0177..0096c7f 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -740,6 +740,14 @@ struct mt76_testmode_data {
+@@ -774,6 +774,14 @@ struct mt76_testmode_data {
  	} cfg;
  
  	u8 aid;
@@ -34,10 +34,10 @@ index e6604de45..0946a3bfb 100644
  
  struct mt76_vif {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index b75523ff4..e3b014889 100644
+index 9f99d13..7269076 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -236,6 +236,7 @@ struct mt7996_phy {
+@@ -272,6 +272,7 @@ struct mt7996_phy {
  
  	struct mt76_mib_stats mib;
  	struct mt76_channel_state state_ts;
@@ -46,7 +46,7 @@ index b75523ff4..e3b014889 100644
  	bool has_aux_rx;
  
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 8ceea00b1..c52bf41bd 100644
+index 8ceea00..c52bf41 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -17,6 +17,12 @@ enum {
@@ -336,7 +336,7 @@ index 8ceea00b1..c52bf41bd 100644
  
  static int
 diff --git a/mt7996/testmode.h b/mt7996/testmode.h
-index 17c1456d3..57fde8c0a 100644
+index 17c1456..57fde8c 100644
 --- a/mt7996/testmode.h
 +++ b/mt7996/testmode.h
 @@ -27,9 +27,15 @@ enum {
@@ -399,7 +399,7 @@ index 17c1456d3..57fde8c0a 100644
 +
  #endif
 diff --git a/testmode.c b/testmode.c
-index e66b54ae5..bce3a9c1a 100644
+index e66b54a..bce3a9c 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -27,6 +27,13 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
@@ -453,7 +453,7 @@ index e66b54ae5..bce3a9c1a 100644
  	     nla_put_u8(msg, MT76_TM_ATTR_TX_LTF, td->tx_ltf)) ||
  	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_ANTENNA) &&
 diff --git a/tools/fields.c b/tools/fields.c
-index b01227638..77696ce7b 100644
+index b012276..77696ce 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -35,6 +35,15 @@ static const char * const testmode_tx_mode[] = {
@@ -486,5 +486,5 @@ index b01227638..77696ce7b 100644
  	FIELD_NESTED_RO(STATS, stats, "",
  			.print_extra = print_extra_stats),
 -- 
-2.39.2
+2.18.0
 

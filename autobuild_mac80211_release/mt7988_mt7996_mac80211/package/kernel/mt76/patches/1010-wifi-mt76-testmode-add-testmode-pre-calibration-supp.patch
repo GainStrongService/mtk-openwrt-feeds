@@ -1,7 +1,7 @@
-From 8cbf5b49e3ecfa038198362d6141c195d12753bd Mon Sep 17 00:00:00 2001
+From db3b9fa4bc9c70231b7237dee2f7bcf35c6135f2 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 31 Mar 2023 11:27:24 +0800
-Subject: [PATCH 1010/1024] wifi: mt76: testmode: add testmode pre-calibration
+Subject: [PATCH 43/98] wifi: mt76: testmode: add testmode pre-calibration
  support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -22,7 +22,7 @@ Change-Id: If8a6cc02fa20e35f079c826e0571e8c04c3f9c7e
  12 files changed, 632 insertions(+), 23 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 5740ba061..ef4b83244 100644
+index f10ca90..9c582cb 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -7,27 +7,6 @@
@@ -54,7 +54,7 @@ index 5740ba061..ef4b83244 100644
  	CHAN2G(1, 2412),
  	CHAN2G(2, 2417),
 diff --git a/mt76.h b/mt76.h
-index ad1123c4a..f58a955d6 100644
+index feb861c..fc69d3e 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -18,6 +18,27 @@
@@ -85,7 +85,7 @@ index ad1123c4a..f58a955d6 100644
  #define MT_MCU_RING_SIZE	32
  #define MT_RX_BUF_SIZE		2048
  #define MT_SKB_HEAD_LEN		256
-@@ -660,6 +681,7 @@ struct mt76_testmode_ops {
+@@ -694,6 +715,7 @@ struct mt76_testmode_ops {
  	int (*dump_stats)(struct mt76_phy *phy, struct sk_buff *msg);
  	void (*reset_rx_stats)(struct mt76_phy *phy);
  	void (*tx_stop)(struct mt76_phy *phy);
@@ -94,10 +94,10 @@ index ad1123c4a..f58a955d6 100644
  
  #define MT_TM_FW_RX_COUNT	BIT(0)
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 6d9b0df2d..b2c22568d 100644
+index bbf600b..d65ecf0 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1021,8 +1021,10 @@ enum {
+@@ -1023,8 +1023,10 @@ enum {
  	MCU_UNI_EVENT_RDD_REPORT = 0x11,
  	MCU_UNI_EVENT_ROC = 0x27,
  	MCU_UNI_EVENT_TX_DONE = 0x2d,
@@ -109,7 +109,7 @@ index 6d9b0df2d..b2c22568d 100644
  	MCU_UNI_EVENT_ALL_STA_INFO = 0x6e,
  };
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index bdb81018b..374f0e558 100644
+index e4c4b86..b88fd64 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -12,6 +12,42 @@ static bool testmode_enable;
@@ -193,7 +193,7 @@ index bdb81018b..374f0e558 100644
  mt7996_eeprom_load_default(struct mt7996_dev *dev)
  {
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index 343e65e18..7ff290f40 100644
+index 343e65e..7ff290f 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -14,6 +14,7 @@ enum mt7996_eeprom_field {
@@ -258,7 +258,7 @@ index 343e65e18..7ff290f40 100644
  #define MT_EE_WIFI_CONF2_TX_PATH_BAND1		GENMASK(2, 0)
  #define MT_EE_WIFI_CONF2_TX_PATH_BAND2		GENMASK(5, 3)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 554f40ca2..dd3374a99 100644
+index a008c08..d6f4e22 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -623,6 +623,11 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -274,10 +274,10 @@ index 554f40ca2..dd3374a99 100644
  		break;
  	}
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 2f4bbee70..91d759ec4 100644
+index 3c535be..684c254 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -333,6 +333,9 @@ struct mt7996_dev {
+@@ -385,6 +385,9 @@ struct mt7996_dev {
  	struct dentry *debugfs_dir;
  	struct rchan *relay_fwlog;
  
@@ -287,7 +287,7 @@ index 2f4bbee70..91d759ec4 100644
  	struct {
  		u8 table_mask;
  		u8 n_agrt;
-@@ -466,6 +469,7 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy);
+@@ -521,6 +524,7 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy);
  int mt7996_eeprom_get_target_power(struct mt7996_dev *dev,
  				   struct ieee80211_channel *chan);
  s8 mt7996_eeprom_get_power_delta(struct mt7996_dev *dev, int band);
@@ -295,7 +295,7 @@ index 2f4bbee70..91d759ec4 100644
  int mt7996_dma_init(struct mt7996_dev *dev);
  void mt7996_dma_reset(struct mt7996_dev *dev, bool force);
  void mt7996_dma_prefetch(struct mt7996_dev *dev);
-@@ -549,6 +553,9 @@ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 da
+@@ -606,6 +610,9 @@ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 da
  int mt7996_mcu_get_tx_power_info(struct mt7996_phy *phy, u8 category, void *event);
  int mt7996_mcu_set_scs(struct mt7996_phy *phy, u8 enable);
  void mt7996_mcu_scs_sta_poll(struct work_struct *work);
@@ -306,7 +306,7 @@ index 2f4bbee70..91d759ec4 100644
  static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
  {
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index fb041c336..8ceea00b1 100644
+index fb041c3..8ceea00 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -7,6 +7,8 @@
@@ -773,7 +773,7 @@ index fb041c336..8ceea00b1 100644
 +	.dump_precal = mt7996_tm_dump_precal,
  };
 diff --git a/mt7996/testmode.h b/mt7996/testmode.h
-index e4d55a61a..17c1456d3 100644
+index e4d55a6..17c1456 100644
 --- a/mt7996/testmode.h
 +++ b/mt7996/testmode.h
 @@ -34,6 +34,12 @@ enum bw_mapping_method {
@@ -835,7 +835,7 @@ index e4d55a61a..17c1456d3 100644
  	RF_OPER_NORMAL,
  	RF_OPER_RF_TEST,
 diff --git a/testmode.c b/testmode.c
-index bbe8230fd..e66b54ae5 100644
+index bbe8230..e66b54a 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -631,6 +631,18 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
@@ -858,7 +858,7 @@ index bbe8230fd..e66b54ae5 100644
  		err = -EINVAL;
  
 diff --git a/testmode.h b/testmode.h
-index 141bb8625..db8ff53db 100644
+index 141bb86..db8ff53 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -219,6 +219,14 @@ enum mt76_testmode_state {
@@ -877,7 +877,7 @@ index 141bb8625..db8ff53db 100644
  
  	/* keep last */
 diff --git a/tools/fields.c b/tools/fields.c
-index 055f90f3c..b01227638 100644
+index 055f90f..b012276 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -11,6 +11,14 @@ static const char * const testmode_state[] = {
@@ -896,5 +896,5 @@ index 055f90f3c..b01227638 100644
  
  static const char * const testmode_tx_mode[] = {
 -- 
-2.39.2
+2.18.0
 

@@ -1,7 +1,7 @@
-From 5b806ed8a6d74c27ff9752af8a2a92ce2d141427 Mon Sep 17 00:00:00 2001
+From 7556e60ec860e301a053dad4b16b7e88ccd9baa7 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Fri, 19 May 2023 14:56:07 +0800
-Subject: [PATCH 1017/1024] wifi: mt76: mt7996: add debugfs for fw coredump.
+Subject: [PATCH 50/98] wifi: mt76: mt7996: add debugfs for fw coredump.
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
@@ -12,7 +12,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  4 files changed, 56 insertions(+), 5 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 92aa1644f..2c1183723 100644
+index 92aa164..2c11837 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -84,6 +84,8 @@ mt7996_sys_recovery_set(struct file *file, const char __user *user_buf,
@@ -64,10 +64,10 @@ index 92aa1644f..2c1183723 100644
  	desc += scnprintf(buff + desc, bufsz - desc,
  			  "\nlet's dump firmware SER statistics...\n");
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 6b8000303..6e79be8de 100644
+index ee17d59..37cc94e 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1961,15 +1961,36 @@ void mt7996_mac_dump_work(struct work_struct *work)
+@@ -2021,15 +2021,36 @@ void mt7996_mac_dump_work(struct work_struct *work)
  	struct mt7996_dev *dev;
  
  	dev = container_of(work, struct mt7996_dev, dump_work);
@@ -107,7 +107,7 @@ index 6b8000303..6e79be8de 100644
  void mt7996_reset(struct mt7996_dev *dev)
  {
  	if (!dev->recovery.hw_init_done)
-@@ -1987,6 +2008,7 @@ void mt7996_reset(struct mt7996_dev *dev)
+@@ -2047,6 +2068,7 @@ void mt7996_reset(struct mt7996_dev *dev)
  
  		mt7996_irq_disable(dev, MT_INT_MCU_CMD);
  		queue_work(dev->mt76.wq, &dev->dump_work);
@@ -116,10 +116,10 @@ index 6b8000303..6e79be8de 100644
  	}
  
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index f6a8ee348..1b1f605d1 100644
+index 6fc5ab3..989a2ff 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
-@@ -904,7 +904,11 @@ enum {
+@@ -900,7 +900,11 @@ enum {
  	UNI_CMD_SER_SET_RECOVER_L3_BF,
  	UNI_CMD_SER_SET_RECOVER_L4_MDP,
  	UNI_CMD_SER_SET_RECOVER_FULL,
@@ -132,10 +132,10 @@ index f6a8ee348..1b1f605d1 100644
  	UNI_CMD_SER_ENABLE = 1,
  	UNI_CMD_SER_SET,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index a5f97b55b..43154e542 100644
+index 34c8fe6..9b110cf 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -82,6 +82,14 @@ enum mt7996_ram_type {
+@@ -100,6 +100,14 @@ enum mt7996_ram_type {
  	__MT7996_RAM_TYPE_MAX,
  };
  
@@ -150,7 +150,7 @@ index a5f97b55b..43154e542 100644
  enum mt7996_txq_id {
  	MT7996_TXQ_FWDL = 16,
  	MT7996_TXQ_MCU_WM,
-@@ -306,6 +314,7 @@ struct mt7996_dev {
+@@ -342,6 +350,7 @@ struct mt7996_dev {
  
  	/* protects coredump data */
  	struct mutex dump_mutex;
@@ -158,7 +158,7 @@ index a5f97b55b..43154e542 100644
  #ifdef CONFIG_DEV_COREDUMP
  	struct {
  		struct mt7996_crash_data *crash_data[__MT7996_RAM_TYPE_MAX];
-@@ -484,6 +493,7 @@ void mt7996_init_txpower(struct mt7996_dev *dev,
+@@ -541,6 +550,7 @@ void mt7996_init_txpower(struct mt7996_dev *dev,
  			 struct ieee80211_supported_band *sband);
  int mt7996_txbf_init(struct mt7996_dev *dev);
  void mt7996_reset(struct mt7996_dev *dev);
@@ -167,5 +167,5 @@ index a5f97b55b..43154e542 100644
  int mt7996_mcu_init(struct mt7996_dev *dev);
  int mt7996_mcu_init_firmware(struct mt7996_dev *dev);
 -- 
-2.39.2
+2.18.0
 

@@ -1,7 +1,7 @@
-From fe8bcf023b97cb281774611d95745bd2b1c14d9c Mon Sep 17 00:00:00 2001
+From a20311a499edde8f5b8e6b4bced55bd5e0f25884 Mon Sep 17 00:00:00 2001
 From: mtk23510 <rudra.shahi@mediatek.com>
 Date: Wed, 26 Apr 2023 20:08:10 +0800
-Subject: [PATCH 1013/1024] wifi: mt76: mt7996: Beacon protection feature added
+Subject: [PATCH 46/98] wifi: mt76: mt7996: Beacon protection feature added
 
 Signed-off-by: mtk23510 <rudra.shahi@mediatek.com>
 Signed-off-by: Allen.Ye <allen.ye@mediatek.com>
@@ -14,10 +14,10 @@ Signed-off-by: Allen.Ye <allen.ye@mediatek.com>
  5 files changed, 153 insertions(+), 43 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 196b4921d..21cae4bf4 100644
+index 762ac29..42eb64c 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -416,6 +416,14 @@ struct sta_rec_he_6g_capa {
+@@ -418,6 +418,14 @@ struct sta_rec_he_6g_capa {
  	u8 rsv[2];
  } __packed;
  
@@ -32,7 +32,7 @@ index 196b4921d..21cae4bf4 100644
  struct sec_key {
  	u8 cipher_id;
  	u8 cipher_len;
-@@ -768,6 +776,7 @@ struct wtbl_raw {
+@@ -770,6 +778,7 @@ struct wtbl_raw {
  					 sizeof(struct sta_rec_sec) +	\
  					 sizeof(struct sta_rec_ra_fixed) + \
  					 sizeof(struct sta_rec_he_6g_capa) + \
@@ -40,7 +40,7 @@ index 196b4921d..21cae4bf4 100644
  					 sizeof(struct tlv) +		\
  					 MT76_CONNAC_WTBL_UPDATE_MAX_SIZE)
  
-@@ -798,6 +807,7 @@ enum {
+@@ -800,6 +809,7 @@ enum {
  	STA_REC_HE_V2 = 0x19,
  	STA_REC_MLD = 0x20,
  	STA_REC_EHT = 0x22,
@@ -48,7 +48,7 @@ index 196b4921d..21cae4bf4 100644
  	STA_REC_HDRT = 0x28,
  	STA_REC_HDR_TRANS = 0x2B,
  	STA_REC_MAX_NUM
-@@ -1091,6 +1101,13 @@ enum mcu_cipher_type {
+@@ -1093,6 +1103,13 @@ enum mcu_cipher_type {
  	MCU_CIPHER_GCMP_256,
  	MCU_CIPHER_WAPI,
  	MCU_CIPHER_BIP_CMAC_128,
@@ -62,7 +62,7 @@ index 196b4921d..21cae4bf4 100644
  };
  
  enum {
-@@ -1316,6 +1333,7 @@ enum {
+@@ -1319,6 +1336,7 @@ enum {
  	UNI_BSS_INFO_RATE = 11,
  	UNI_BSS_INFO_QBSS = 15,
  	UNI_BSS_INFO_SEC = 16,
@@ -70,7 +70,7 @@ index 196b4921d..21cae4bf4 100644
  	UNI_BSS_INFO_TXCMD = 18,
  	UNI_BSS_INFO_UAPSD = 19,
  	UNI_BSS_INFO_PS = 21,
-@@ -1776,6 +1794,12 @@ mt76_connac_mcu_get_cipher(int cipher)
+@@ -1779,6 +1797,12 @@ mt76_connac_mcu_get_cipher(int cipher)
  		return MCU_CIPHER_GCMP;
  	case WLAN_CIPHER_SUITE_GCMP_256:
  		return MCU_CIPHER_GCMP_256;
@@ -84,7 +84,7 @@ index 196b4921d..21cae4bf4 100644
  		return MCU_CIPHER_WAPI;
  	default:
 diff --git a/mt7996/main.c b/mt7996/main.c
-index f2e2de850..d8c8a5fac 100644
+index 7d1bd42..0ea006c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -368,8 +368,10 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -117,10 +117,10 @@ index f2e2de850..d8c8a5fac 100644
  	mutex_unlock(&dev->mt76.mutex);
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 802b21685..22417e410 100644
+index 695d5f0..1a1c732 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2155,7 +2155,6 @@ out:
+@@ -2118,7 +2118,6 @@ out:
  
  static int
  mt7996_mcu_sta_key_tlv(struct mt76_wcid *wcid,
@@ -128,7 +128,7 @@ index 802b21685..22417e410 100644
  		       struct sk_buff *skb,
  		       struct ieee80211_key_conf *key,
  		       enum set_key_cmd cmd)
-@@ -2176,43 +2175,22 @@ mt7996_mcu_sta_key_tlv(struct mt76_wcid *wcid,
+@@ -2139,43 +2138,22 @@ mt7996_mcu_sta_key_tlv(struct mt76_wcid *wcid,
  			return -EOPNOTSUPP;
  
  		sec_key = &sec->key[0];
@@ -186,7 +186,7 @@ index 802b21685..22417e410 100644
  	} else {
  		sec->n_cipher = 0;
  	}
-@@ -2221,7 +2199,6 @@ mt7996_mcu_sta_key_tlv(struct mt76_wcid *wcid,
+@@ -2184,7 +2162,6 @@ mt7996_mcu_sta_key_tlv(struct mt76_wcid *wcid,
  }
  
  int mt7996_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
@@ -194,7 +194,7 @@ index 802b21685..22417e410 100644
  		       struct ieee80211_key_conf *key, int mcu_cmd,
  		       struct mt76_wcid *wcid, enum set_key_cmd cmd)
  {
-@@ -2234,13 +2211,98 @@ int mt7996_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
+@@ -2197,13 +2174,98 @@ int mt7996_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
  	if (IS_ERR(skb))
  		return PTR_ERR(skb);
  
@@ -295,10 +295,10 @@ index 802b21685..22417e410 100644
  			    struct ieee80211_vif *vif, bool enable)
  {
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 1d7748771..512d8543b 100644
+index c5c0a44..7808c35 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
-@@ -313,6 +313,23 @@ struct bss_rate_tlv {
+@@ -310,6 +310,23 @@ struct bss_rate_tlv {
  	u8 __rsv2[9];
  } __packed;
  
@@ -323,10 +323,10 @@ index 1d7748771..512d8543b 100644
  	__le16 tag;
  	__le16 len;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 99d4659f1..b75523ff4 100644
+index 80a10bf..9f99d13 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -654,9 +654,10 @@ int mt7996_init_debugfs(struct mt7996_phy *phy);
+@@ -712,9 +712,10 @@ int mt7996_init_debugfs(struct mt7996_phy *phy);
  void mt7996_debugfs_rx_fw_monitor(struct mt7996_dev *dev, const void *data, int len);
  bool mt7996_debugfs_rx_log(struct mt7996_dev *dev, const void *data, int len);
  int mt7996_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
@@ -339,5 +339,5 @@ index 99d4659f1..b75523ff4 100644
  				     struct ieee80211_vif *vif,
  				     struct ieee80211_sta *sta);
 -- 
-2.39.2
+2.18.0
 

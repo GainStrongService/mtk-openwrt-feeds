@@ -1,8 +1,7 @@
-From d94e9301ccfd6ffd35ead052ebaa89afaefb9a88 Mon Sep 17 00:00:00 2001
+From 140f810c788ffccc605fa979635c9be2db4b9748 Mon Sep 17 00:00:00 2001
 From: mtk27745 <rex.lu@mediatek.com>
 Date: Thu, 8 Jun 2023 20:21:04 +0800
-Subject: [PATCH 1019/1024] wifi: mt76: mt7996: add vendor subcmd EDCCA ctrl
- enable
+Subject: [PATCH 52/98] wifi: mt76: mt7996: add vendor subcmd EDCCA ctrl enable
 
 ---
  mt7996/main.c    |   3 ++
@@ -15,7 +14,7 @@ Subject: [PATCH 1019/1024] wifi: mt76: mt7996: add vendor subcmd EDCCA ctrl
  7 files changed, 282 insertions(+)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index b97483b6f..3ce31786a 100644
+index 9e3e4ed..d928564 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -431,6 +431,9 @@ static int mt7996_config(struct ieee80211_hw *hw, u32 changed)
@@ -29,10 +28,10 @@ index b97483b6f..3ce31786a 100644
  		ret = mt7996_set_channel(phy);
  		if (ret)
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 1b1f605d1..47fd1874d 100644
+index 989a2ff..bb876f3 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
-@@ -795,6 +795,8 @@ mt7996_get_power_bound(struct mt7996_phy *phy, s8 txpower)
+@@ -791,6 +791,8 @@ mt7996_get_power_bound(struct mt7996_phy *phy, s8 txpower)
  
  enum {
  	UNI_BAND_CONFIG_RADIO_ENABLE,
@@ -42,10 +41,10 @@ index 1b1f605d1..47fd1874d 100644
  };
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 43154e542..eda74f7a9 100644
+index 9b110cf..8fd29d7 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -687,6 +687,17 @@ int mt7996_vendor_amnt_sta_remove(struct mt7996_phy *phy,
+@@ -750,6 +750,17 @@ int mt7996_vendor_amnt_sta_remove(struct mt7996_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
  
@@ -64,7 +63,7 @@ index 43154e542..eda74f7a9 100644
  int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir);
  #endif
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index f772243b8..048c53475 100644
+index f772243..048c534 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -38,4 +38,90 @@ int mt7996_mcu_get_tx_power_info(struct mt7996_phy *phy, u8 category, void *even
@@ -159,7 +158,7 @@ index f772243b8..048c53475 100644
 +
  #endif
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
-index beb1aba24..9c0db87bb 100644
+index beb1aba..9c0db87 100644
 --- a/mt7996/mtk_mcu.h
 +++ b/mt7996/mtk_mcu.h
 @@ -89,6 +89,21 @@ enum txpower_event {
@@ -185,7 +184,7 @@ index beb1aba24..9c0db87bb 100644
  
  #endif
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index 391015777..9f333d0ee 100644
+index 3910157..9f333d0 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -40,6 +40,26 @@ bss_color_ctrl_policy[NUM_MTK_VENDOR_ATTRS_BSS_COLOR_CTRL] = {
@@ -342,7 +341,7 @@ index 391015777..9f333d0ee 100644
  
  void mt7996_vendor_register(struct mt7996_phy *phy)
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index eec9e74a2..4465bc9df 100644
+index eec9e74..4465bc9 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -6,9 +6,42 @@
@@ -389,5 +388,5 @@ index eec9e74a2..4465bc9df 100644
  	MTK_VENDOR_ATTR_MU_CTRL_UNSPEC,
  
 -- 
-2.39.2
+2.18.0
 

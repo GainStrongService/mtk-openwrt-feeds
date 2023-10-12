@@ -1,7 +1,7 @@
-From 36a71ed07925573d2eff73f7be91c86763151470 Mon Sep 17 00:00:00 2001
+From 393f2e0f06e9a6ead8ffd64c904b6e24ff6c92f1 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 24 Mar 2023 14:02:32 +0800
-Subject: [PATCH 1000/1024] wifi: mt76: mt7996: add debug tool
+Subject: [PATCH 33/98] wifi: mt76: mt7996: add debug tool
 
 Change-Id: Ie10390b01f17db893dbfbf3221bf63a4bd1fe38f
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -10,20 +10,20 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  mt7996/coredump.c    |   10 +-
  mt7996/coredump.h    |    7 +
  mt7996/debugfs.c     |   34 +-
- mt7996/mt7996.h      |   14 +
+ mt7996/mt7996.h      |   10 +
  mt7996/mtk_debug.h   | 2147 ++++++++++++++++++++++++++++++++++++++
  mt7996/mtk_debugfs.c | 2379 ++++++++++++++++++++++++++++++++++++++++++
  mt7996/mtk_mcu.c     |   18 +
  mt7996/mtk_mcu.h     |   16 +
  tools/fwlog.c        |   25 +-
- 10 files changed, 4634 insertions(+), 20 deletions(-)
+ 10 files changed, 4630 insertions(+), 20 deletions(-)
  create mode 100644 mt7996/mtk_debug.h
  create mode 100644 mt7996/mtk_debugfs.c
  create mode 100644 mt7996/mtk_mcu.c
  create mode 100644 mt7996/mtk_mcu.h
 
 diff --git a/mt7996/Makefile b/mt7996/Makefile
-index 07c8b555c..a056b40e0 100644
+index 07c8b55..a056b40 100644
 --- a/mt7996/Makefile
 +++ b/mt7996/Makefile
 @@ -1,4 +1,6 @@
@@ -40,7 +40,7 @@ index 07c8b555c..a056b40e0 100644
 +
 +mt7996e-y += mtk_debugfs.o mtk_mcu.o
 diff --git a/mt7996/coredump.c b/mt7996/coredump.c
-index 60b88085c..a7f91b56d 100644
+index 60b8808..a7f91b5 100644
 --- a/mt7996/coredump.c
 +++ b/mt7996/coredump.c
 @@ -195,7 +195,7 @@ mt7996_coredump_fw_stack(struct mt7996_dev *dev, u8 type, struct mt7996_coredump
@@ -89,7 +89,7 @@ index 60b88085c..a7f91b56d 100644
  		dev_warn(dev->mt76.dev, "no crash dump data found\n");
  		return -ENODATA;
 diff --git a/mt7996/coredump.h b/mt7996/coredump.h
-index 01ed3731c..93cd84a03 100644
+index 01ed373..93cd84a 100644
 --- a/mt7996/coredump.h
 +++ b/mt7996/coredump.h
 @@ -75,6 +75,7 @@ struct mt7996_mem_region {
@@ -114,7 +114,7 @@ index 01ed3731c..93cd84a03 100644
  mt7996_crash_data *mt7996_coredump_new(struct mt7996_dev *dev, u8 type)
  {
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 9bd953586..92aa1644f 100644
+index 9bd9535..92aa164 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -290,11 +290,20 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
@@ -201,10 +201,10 @@ index 9bd953586..92aa1644f 100644
  	hdr.timestamp = cpu_to_le32(mt76_rr(dev, MT_LPON_FRCR(0)));
  	hdr.len = *(__le16 *)data;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 4477b95d6..8aa124a0c 100644
+index c4d74a0..8801956 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -264,6 +264,16 @@ struct mt7996_dev {
+@@ -317,6 +317,16 @@ struct mt7996_dev {
  	spinlock_t reg_lock;
  
  	u8 wtbl_size_group;
@@ -221,18 +221,9 @@ index 4477b95d6..8aa124a0c 100644
  };
  
  enum {
-@@ -544,4 +554,8 @@ void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
- 			    struct ieee80211_sta *sta, struct dentry *dir);
- #endif
- 
-+#ifdef CONFIG_MTK_DEBUG
-+int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir);
-+#endif
-+
- #endif
 diff --git a/mt7996/mtk_debug.h b/mt7996/mtk_debug.h
 new file mode 100644
-index 000000000..368f0bcf0
+index 0000000..368f0bc
 --- /dev/null
 +++ b/mt7996/mtk_debug.h
 @@ -0,0 +1,2147 @@
@@ -2385,7 +2376,7 @@ index 000000000..368f0bcf0
 +#endif
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
 new file mode 100644
-index 000000000..5aa5c94f3
+index 0000000..5aa5c94
 --- /dev/null
 +++ b/mt7996/mtk_debugfs.c
 @@ -0,0 +1,2379 @@
@@ -2726,7 +2717,7 @@ index 000000000..5aa5c94f3
 +static int mt7996_dump_version(struct seq_file *s, void *data)
 +{
 +	struct mt7996_dev *dev = dev_get_drvdata(s->private);
-+	seq_printf(s, "Version: 3.3.14.0\n");
++	seq_printf(s, "Version: 3.3.10.0\n");
 +
 +	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
 +		return 0;
@@ -4770,7 +4761,7 @@ index 000000000..5aa5c94f3
 +#endif
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
 new file mode 100644
-index 000000000..e88701667
+index 0000000..e887016
 --- /dev/null
 +++ b/mt7996/mtk_mcu.c
 @@ -0,0 +1,18 @@
@@ -4794,7 +4785,7 @@ index 000000000..e88701667
 +#endif
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
 new file mode 100644
-index 000000000..e741aa278
+index 0000000..e741aa2
 --- /dev/null
 +++ b/mt7996/mtk_mcu.h
 @@ -0,0 +1,16 @@
@@ -4815,7 +4806,7 @@ index 000000000..e741aa278
 +
 +#endif
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a1051..3c6a61d71 100644
+index e5d4a10..3c6a61d 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)
@@ -4899,5 +4890,5 @@ index e5d4a1051..3c6a61d71 100644
  	return ret;
  }
 -- 
-2.39.2
+2.18.0
 

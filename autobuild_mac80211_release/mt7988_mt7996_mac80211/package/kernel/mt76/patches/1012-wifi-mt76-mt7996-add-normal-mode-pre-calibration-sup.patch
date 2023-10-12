@@ -1,7 +1,7 @@
-From 43266cd8b1ba9bedd0541e994435017bb1bcbec6 Mon Sep 17 00:00:00 2001
+From 114d3abef99827bcc848e6aef393be79a7c34e71 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 1 Mar 2023 12:12:51 +0800
-Subject: [PATCH 1012/1024] wifi: mt76: mt7996: add normal mode pre-calibration
+Subject: [PATCH 45/98] wifi: mt76: mt7996: add normal mode pre-calibration
  support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -16,11 +16,11 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 206 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index b2c22568d..196b4921d 100644
+index d65ecf0..762ac29 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1248,6 +1248,7 @@ enum {
- 	MCU_UNI_CMD_VOW = 0x37,
+@@ -1251,6 +1251,7 @@ enum {
+ 	MCU_UNI_CMD_PP = 0x38,
  	MCU_UNI_CMD_FIXED_RATE_TABLE = 0x40,
  	MCU_UNI_CMD_TESTMODE_CTRL = 0x46,
 +	MCU_UNI_CMD_PRECAL_RESULT = 0x47,
@@ -28,10 +28,10 @@ index b2c22568d..196b4921d 100644
  	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
  	MCU_UNI_CMD_PER_STA_INFO = 0x6d,
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 4e50460be..ac8e229a8 100644
+index ca91c69..56605de 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
-@@ -332,6 +332,25 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
+@@ -333,6 +333,25 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
  	return mt7996_eeprom_parse_band_config(phy);
  }
  
@@ -57,7 +57,7 @@ index 4e50460be..ac8e229a8 100644
  int mt7996_eeprom_init(struct mt7996_dev *dev)
  {
  	int ret;
-@@ -349,6 +368,10 @@ int mt7996_eeprom_init(struct mt7996_dev *dev)
+@@ -350,6 +369,10 @@ int mt7996_eeprom_init(struct mt7996_dev *dev)
  			return ret;
  	}
  
@@ -69,7 +69,7 @@ index 4e50460be..ac8e229a8 100644
  	if (ret < 0)
  		return ret;
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index 20dd87714..0f3f31d8f 100644
+index 20dd877..0f3f31d 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -25,6 +25,8 @@ enum mt7996_eeprom_field {
@@ -82,10 +82,10 @@ index 20dd87714..0f3f31d8f 100644
  
  #define MT_EE_WIFI_CONF0_TX_PATH		GENMASK(2, 0)
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 70af2f964..06e6f30f3 100644
+index 5940e41..bf3479e 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -685,6 +685,12 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
+@@ -826,6 +826,12 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
  	if (ret < 0)
  		return ret;
  
@@ -99,7 +99,7 @@ index 70af2f964..06e6f30f3 100644
  	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7996_WTBL_STA);
  	if (idx)
 diff --git a/mt7996/main.c b/mt7996/main.c
-index c1d4b3805..f2e2de850 100644
+index 804c0c1..7d1bd42 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -312,6 +312,12 @@ int mt7996_set_channel(struct mt7996_phy *phy)
@@ -116,10 +116,10 @@ index c1d4b3805..f2e2de850 100644
  	if (ret)
  		goto out;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index dd3374a99..802b21685 100644
+index d6f4e22..695d5f0 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3493,6 +3493,172 @@ int mt7996_mcu_get_eeprom_free_block(struct mt7996_dev *dev, u8 *block_num)
+@@ -3456,6 +3456,172 @@ int mt7996_mcu_get_eeprom_free_block(struct mt7996_dev *dev, u8 *block_num)
  	return 0;
  }
  
@@ -293,11 +293,11 @@ index dd3374a99..802b21685 100644
  {
  #define NIC_CAP	3
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 64e1bebf7..99d4659f1 100644
+index cda557e..80a10bf 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -554,6 +554,8 @@ void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
- void mt7996_mcu_exit(struct mt7996_dev *dev);
+@@ -611,6 +611,8 @@ void mt7996_mcu_exit(struct mt7996_dev *dev);
+ int mt7996_mcu_get_all_sta_info(struct mt7996_phy *phy, u16 tag);
  int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 data);
  int mt7996_mcu_get_tx_power_info(struct mt7996_phy *phy, u8 category, void *event);
 +int mt7996_mcu_apply_group_cal(struct mt7996_dev *dev);
@@ -306,5 +306,5 @@ index 64e1bebf7..99d4659f1 100644
  void mt7996_mcu_scs_sta_poll(struct work_struct *work);
  #ifdef CONFIG_NL80211_TESTMODE
 -- 
-2.39.2
+2.18.0
 
