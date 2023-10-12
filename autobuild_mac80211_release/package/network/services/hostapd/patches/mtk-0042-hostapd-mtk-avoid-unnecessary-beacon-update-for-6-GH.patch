@@ -1,33 +1,39 @@
-From f5cc0d52ec316c7b0069a209070b6cb78e34b37b Mon Sep 17 00:00:00 2001
+From 401cb8a661c5e7d796a17bb289209663a6c42741 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Wed, 4 Oct 2023 11:12:52 +0800
-Subject: [PATCH] hostapd: mtk: Not to update beacon for 6 GHz co-location when
- BSS load update
+Subject: [PATCH] hostapd: mtk: avoid unnecessary beacon update for 6 GHz
+ co-location
 
-There are two reason to update beacon for 6 GHz co-location:
+There are two reasons to update beacon for 6 GHz co-location:
 1. 6 GHz out-of-band discovery
 2. MLD operational parameters update
 
-BSS load update is unrelated with the above two reasons, so it is
-unnecessary to update beacon for 6 GHz co-location.
+BSS load update is unrelated with the above two reasons, and therefore is
+not a case to update beacon for 6 GHz co-location.
 Moreover, updating beacon for 6 GHz co-location when BSS load update
 makes hostapd set beacon too frequently in a multiple BSSes case.
 
-This patch adds a new function to update beacon only for current BSS,
+Besides, it is also not necessary to update beacon for 6 GHz BSS when
+setting 2/5 GHz beacon. (i.e., no need for 2/5 GHz co-location)
+
+This patch adds an new function to update beacon only for current BSS,
 and uses the function duriong BSS load update.
+Also it changes the condition check to make beacon update only for 6 GHz
+co-location.
 
 Signed-off-by: Michael Lee <michael-cy.lee@mediatek.com>
+Signed-off-by: Money Wang <money.wang@mediatek.com>
 ---
- src/ap/beacon.c   | 6 ++++++
+ src/ap/beacon.c   | 8 +++++++-
  src/ap/beacon.h   | 1 +
  src/ap/bss_load.c | 2 +-
- 3 files changed, 8 insertions(+), 1 deletion(-)
+ 3 files changed, 9 insertions(+), 2 deletions(-)
 
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index d160675..b74396a 100644
+index c67d08b..02f4f87 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
-@@ -2216,6 +2216,12 @@ fail:
+@@ -2098,6 +2098,12 @@ fail:
  }
  
  
@@ -40,6 +46,15 @@ index d160675..b74396a 100644
  int ieee802_11_set_beacon(struct hostapd_data *hapd)
  {
  	struct hostapd_iface *iface = hapd->iface;
+@@ -2121,7 +2127,7 @@ int ieee802_11_set_beacon(struct hostapd_data *hapd)
+ 		if (colocated == iface || !colocated || !colocated->conf)
+ 			continue;
+ 
+-		if (is_6g == is_6ghz_op_class(colocated->conf->op_class))
++		if (!is_6g || is_6ghz_op_class(colocated->conf->op_class))
+ 			continue;
+ 
+ 		for (i = 0; i < colocated->num_bss; i++) {
 diff --git a/src/ap/beacon.h b/src/ap/beacon.h
 index c320825..b32b2a7 100644
 --- a/src/ap/beacon.h
@@ -53,18 +68,18 @@ index c320825..b32b2a7 100644
  int ieee802_11_set_beacons(struct hostapd_iface *iface);
  int ieee802_11_update_beacons(struct hostapd_iface *iface);
 diff --git a/src/ap/bss_load.c b/src/ap/bss_load.c
-index 725d3cd..e9baafc 100644
+index 78fd9d8..9e247da 100644
 --- a/src/ap/bss_load.c
 +++ b/src/ap/bss_load.c
-@@ -55,7 +55,7 @@ static void update_channel_utilization(void *eloop_data, void *user_data)
+@@ -58,7 +58,7 @@ static void update_channel_utilization(void *eloop_data, void *user_data)
  		return;
  	}
  
 -	ieee802_11_set_beacon(hapd);
 +	ieee802_11_set_beacon_per_bss_only(hapd);
  
- 	if (get_bss_load_update_timeout(hapd, &sec, &usec) < 0)
- 		return;
+ 	if (hapd->conf->chan_util_avg_period) {
+ 		iface->chan_util_samples_sum += iface->channel_utilization;
 -- 
 2.25.1
 
