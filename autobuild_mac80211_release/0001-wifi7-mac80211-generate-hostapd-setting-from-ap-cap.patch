@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index c9e2a37f..af1932ff 100644
+index c9e2a37..af1932f 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -31,7 +31,7 @@ index c9e2a37f..af1932ff 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 86060930..d68c5044 100644
+index 8606093..e1091df 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -25,10 +25,12 @@ drv_mac80211_init_device_config() {
@@ -456,9 +456,9 @@ index 86060930..d68c5044 100644
 +
 +	# each phy sleeps different times to prevent for ubus race condition.
 +	if [ "$phy" = "phy1" ]; then
-+		sleep 1;
++		sleep 3;
 +	elif [ "$phy" = "phy2" ]; then
-+		sleep 2;
++		sleep 6;
 +	fi
 +
  	local hostapd_res="$(ubus call hostapd config_set "{ \"phy\": \"$phy\", \"config\":\"${hostapd_conf_file}\", \"prev_config\": \"${hostapd_conf_file}.prev\"}")"
@@ -531,7 +531,7 @@ index 86060930..d68c5044 100644
  
  	json_set_namespace wdev_uc prev
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a63..da3ee8cc 100644
+index e24a2a6..da3ee8c 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -686,7 +686,7 @@ index e24a2a63..da3ee8cc 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 271c1f7b..4482c179 100644
+index 271c1f7..4482c17 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -60,7 +60,14 @@ hostapd_append_wpa_key_mgmt() {
