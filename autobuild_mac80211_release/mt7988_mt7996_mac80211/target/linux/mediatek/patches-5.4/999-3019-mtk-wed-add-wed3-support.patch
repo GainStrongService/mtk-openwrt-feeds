@@ -2944,12 +2944,13 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_wed_mcu.c b/drivers/net/ethernet/
 index 96e30a3..055594d 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
-@@ -242,7 +242,7 @@ mtk_wed_load_firmware(struct mtk_wed_wo *wo)
- 	u32 ofs = 0;
- 	u32 boot_cr, val;
- 
--	mcu = wo->hw->index ? MT7986_FIRMWARE_WO_2 : MT7986_FIRMWARE_WO_1;
-+	mcu = wo->hw->index ? MTK_FIRMWARE_WO_1 : MTK_FIRMWARE_WO_0;
+@@ -245,8 +245,7 @@ mtk_wed_load_firmware(struct mtk_wed_wo *wo)
+ 	if (of_device_is_compatible(wo->hw->node, "mediatek,mt7981-wed"))
+ 		mcu = MT7981_FIRMWARE_WO;
+ 	else
+-		mcu = wo->hw->index ? MT7986_FIRMWARE_WO_2 :
+-				      MT7986_FIRMWARE_WO_1;
++		mcu = wo->hw->index ? MTK_FIRMWARE_WO_1 : MTK_FIRMWARE_WO_0;
  
  	ret = request_firmware(&fw, mcu, wo->hw->dev);
  	if (ret)
@@ -2982,10 +2983,10 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_wed_mcu.h b/drivers/net/ethernet/
 index 19e1199..c07bdb6 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_mcu.h
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_mcu.h
-@@ -16,8 +16,9 @@
- #define WARP_OK_STATUS (0)
+@@ -17,8 +17,9 @@
  #define WARP_ALREADY_DONE_STATUS (1)
  
+ #define MT7981_FIRMWARE_WO		"mediatek/mt7981_wo.bin"
 -#define MT7986_FIRMWARE_WO_1		"mediatek/mt7986_wo_0.bin"
 -#define MT7986_FIRMWARE_WO_2		"mediatek/mt7986_wo_1.bin"
 +#define MTK_FIRMWARE_WO_0		"mediatek/mtk_wo_0.bin"
