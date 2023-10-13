@@ -1411,7 +1411,7 @@ elif [ "${cmd_type}" = "mac" ]; then
 elif [ "${cmd_type}" = "dump" ]; then
     do_cmd "mt76-vendor $*"
 elif [ "${cmd_type}" = "switch" ]; then
-    eeprom_mode_file=sys/kernel/debug/ieee80211/phy0/mt76/eeprom_mode
+    eeprom_mode_file=/sys/kernel/debug/ieee80211/phy0/mt76/eeprom_mode
     eeprom_mode=$(cat ${eeprom_mode_file} | grep "mode" | sed -n 2p | cut -d " " -f 4)
     eeprom_testmode_offset="1af"
     testmode_enable="0"

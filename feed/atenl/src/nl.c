@@ -309,7 +309,7 @@ atenl_nl_tx(struct atenl *an, struct atenl_data *data, struct atenl_nl_priv *nl_
 			atenl_set_attr_antenna(an, msg, tx_antenna);
 		}
 
-		if (!is_mt7996(an) && tx_rate_mode >= MT76_TM_TX_MODE_HE_SU) {
+		if (!is_connac3(an) && tx_rate_mode >= MT76_TM_TX_MODE_HE_SU) {
 			u8 ofs = sgi;
 			size_t i;
 
@@ -369,7 +369,7 @@ atenl_nl_rx(struct atenl *an, struct atenl_data *data, struct atenl_nl_priv *nl_
 		v = (u32 *)(hdr->data + 18);
 
 		atenl_set_attr_antenna(an, msg, ntohl(v[0]));
-		if (is_mt7996(an)) {
+		if (is_connac3(an)) {
 			nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_MODE,
 				   phy_type_to_attr(ntohl(v[2])));
 			nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_SGI, ntohl(v[3]));
@@ -903,7 +903,7 @@ atenl_nl_ibf_set_val(struct atenl *an, struct atenl_data *data,
 		 */
 		an->ibf_mcs = val[0];
 		nla_put_u8(msg, MT76_TM_ATTR_TX_RATE_IDX, an->ibf_mcs);
-		if (!is_mt7996(an)) {
+		if (!is_connac3(an)) {
 			an->ibf_ant = tmp_ant;
 			nla_put_u8(msg, MT76_TM_ATTR_TX_ANTENNA, an->ibf_ant);
 		}
@@ -948,7 +948,7 @@ atenl_nl_ibf_set_val(struct atenl *an, struct atenl_data *data,
 		 * reset to 1 (mid gain) and 0 for wifi 7 and wifi 6, respectively
 		 */
 		if (action == TXBF_ACT_IBF_PHASE_CAL)
-			val[4] = is_mt7996(an) ? 1 : 0;
+			val[4] = is_connac3(an) ? 1 : 0;
 		for (i = 0; i < 5; i++)
 			nla_put_u16(msg, i, val[i]);
 		/* Used to distinguish between command mode and HQADLL mode */
@@ -1424,8 +1424,8 @@ int atenl_nl_precal_sync_from_driver(struct atenl *an, enum prek_ops ops)
 
 	offs = an->eeprom_prek_offs;
 	cal_indicator = an->eeprom_data[offs];
-	group_ind_mask = is_mt7996(an) ? GROUP_IND_MASK_7996 : GROUP_IND_MASK;
-	dpd_ind_mask = is_mt7996(an) ? DPD_IND_MASK_7996 : DPD_IND_MASK;
+	group_ind_mask = is_connac3(an) ? GROUP_IND_MASK_7996 : GROUP_IND_MASK;
+	dpd_ind_mask = is_connac3(an) ? DPD_IND_MASK_7996 : DPD_IND_MASK;
 
 	if (cal_indicator) {
 		precal_info = an->eeprom_data + an->eeprom_size;
@@ -1459,17 +1459,17 @@ int atenl_nl_precal_sync_from_driver(struct atenl *an, enum prek_ops ops)
 	case PREK_SYNC_DPD_6G:
 		size_ptr = &dpd_size;
 		base_idx = 0;
-		dpd_base_map = is_mt7996(an) ? GENMASK(2, 1) : 0;
+		dpd_base_map = is_connac3(an) ? GENMASK(2, 1) : 0;
 		goto start;
 	case PREK_SYNC_DPD_5G:
 		size_ptr = &dpd_size;
 		base_idx = 1;
-		dpd_base_map = is_mt7996(an) ? BIT(2) : BIT(0);
+		dpd_base_map = is_connac3(an) ? BIT(2) : BIT(0);
 		goto start;
 	case PREK_SYNC_DPD_2G:
 		size_ptr = &dpd_size;
 		base_idx = 2;
-		dpd_base_map = is_mt7996(an) ? 0 : GENMASK(1, 0);
+		dpd_base_map = is_connac3(an) ? 0 : GENMASK(1, 0);
 
 start:
 		if (unl_genl_init(&nl_priv.unl, "nl80211") < 0) {

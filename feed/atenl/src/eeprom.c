@@ -149,6 +149,8 @@ atenl_eeprom_init_chip_id(struct atenl *an)
 		an->adie_id = is_7975 ? 0x7975 : 0x7976;
 	} else if (is_mt7996(an)) {
 		/* TODO: parse info if required */
+	} else if (is_mt7992(an)) {
+		/* TODO: parse info if required */
 	}
 }
 
@@ -167,6 +169,7 @@ atenl_eeprom_init_max_size(struct atenl *an)
 		an->eeprom_prek_offs = 0x19a;
 		break;
 	case 0x7990:
+	case 0x7992:
 		an->eeprom_size = 7680;
 		an->eeprom_prek_offs = 0x1a5;
 	default:
@@ -264,29 +267,70 @@ atenl_eeprom_init_band_cap(struct atenl *an)
 				break;
 			}
 		}
+	} else if (is_mt7992(an)) {
+		struct atenl_band *anb;
+		u8 val, band_sel;
+		u8 band_sel_mask[2] = {EAGLE_BAND_SEL(0), EAGLE_BAND_SEL(1)};
+		int i;
+
+		for (i = 0; i < 2; i++) {
+			val = eeprom[MT_EE_WIFI_CONF + i];
+			band_sel = FIELD_GET(band_sel_mask[i], val);
+			anb = &an->anb[i];
+
+			anb->valid = true;
+			switch (band_sel) {
+			case MT_EE_EAGLE_BAND_SEL_2GHZ:
+				anb->cap = BAND_TYPE_2G;
+				break;
+			case MT_EE_EAGLE_BAND_SEL_5GHZ:
+				anb->cap = BAND_TYPE_5G;
+				break;
+			case MT_EE_EAGLE_BAND_SEL_6GHZ:
+				anb->cap = BAND_TYPE_6G;
+				break;
+			case MT_EE_EAGLE_BAND_SEL_5GHZ_6GHZ:
+				anb->cap = BAND_TYPE_5G_6G;
+				break;
+			default:
+				break;
+			}
+		}
 	}
 }
 
 static void
 atenl_eeprom_init_antenna_cap(struct atenl *an)
 {
-	if (is_mt7915(an)) {
+	switch (an->chip_id) {
+	case 0x7915:
 		if (an->anb[0].cap == BAND_TYPE_2G_5G)
 			an->anb[0].chainmask = 0xf;
 		else {
 			an->anb[0].chainmask = 0x3;
 			an->anb[1].chainmask = 0xc;
 		}
-	} else if (is_mt7916(an)) {
+		break;
+	case 0x7906:
+	case 0x7916:
 		an->anb[0].chainmask = 0x3;
 		an->anb[1].chainmask = 0x3;
-	} else if (is_mt7986(an)) {
+		break;
+	case 0x7986:
 		an->anb[0].chainmask = 0xf;
 		an->anb[1].chainmask = 0xf;
-	} else if (is_mt7996(an)) {
+		break;
+	case 0x7990:
 		an->anb[0].chainmask = 0xf;
 		an->anb[1].chainmask = 0xf;
 		an->anb[2].chainmask = 0xf;
+		break;
+	case 0x7992:
+		an->anb[0].chainmask = 0xf;
+		an->anb[1].chainmask = 0xf;
+		break;
+	default:
+		break;
 	}
 }
 
@@ -502,10 +546,10 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 
 			if (!strncmp(s, "flash", 5)) {
 				atenl_eeprom_write_mtd(an);
-            } else if (!strncmp(s, "to efuse", 8)) {
-                atenl_eeprom_sync_to_driver(an);
-                atenl_nl_write_efuse_all(an);
-            }
+			} else if (!strncmp(s, "to efuse", 8)) {
+				atenl_eeprom_sync_to_driver(an);
+				atenl_nl_write_efuse_all(an);
+			}
 		} else if (!strncmp(s, "read", 4)) {
 			u32 offset;
 

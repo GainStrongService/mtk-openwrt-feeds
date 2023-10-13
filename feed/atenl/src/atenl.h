@@ -410,6 +410,16 @@ static inline bool is_mt7996(struct atenl *an)
 	return an->chip_id == 0x7990;
 }
 
+static inline bool is_mt7992(struct atenl *an)
+{
+	return an->chip_id == 0x7992;
+}
+
+static inline bool is_connac3(struct atenl *an)
+{
+	return is_mt7996(an) || is_mt7992(an);
+}
+
 int atenl_eth_init(struct atenl *an);
 int atenl_eth_recv(struct atenl *an, struct atenl_data *data);
 int atenl_eth_send(struct atenl *an, struct atenl_data *data);
