@@ -1,4 +1,4 @@
-From f2346c4a30dd7be798f2a9d8575f8edce64ff8eb Mon Sep 17 00:00:00 2001
+From 09961de38c33d2cf5ba12679862726e6937e5c58 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
 Subject: [PATCH] wifi: mt76: mt7915: add mtk internal debug tools for mt76
@@ -1884,7 +1884,7 @@ index 00000000..fa8794fd
 +#endif
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
 new file mode 100644
-index 00000000..772adbb3
+index 00000000..d7bbc598
 --- /dev/null
 +++ b/mt7915/mtk_debugfs.c
 @@ -0,0 +1,3622 @@
@@ -3306,10 +3306,10 @@ index 00000000..772adbb3
 +				seq_printf(s, "tail/head fid = 0x%03x/0x%03x, pkt cnt = 0x%03x",
 +						  tfid, hfid, pktcnt);
 +
-+				if (((sta_pause[j % 6] & 0x1 << i) >> i) == 1)
++				if (((sta_pause[j % ac_num] & 0x1 << i) >> i) == 1)
 +					ctrl = 2;
 +
-+				if (((dis_sta_map[j % 6] & 0x1 << i) >> i) == 1)
++				if (((dis_sta_map[j % ac_num] & 0x1 << i) >> i) == 1)
 +					ctrl = 1;
 +
 +				seq_printf(s, " ctrl = %s", sta_ctrl_reg[ctrl]);
