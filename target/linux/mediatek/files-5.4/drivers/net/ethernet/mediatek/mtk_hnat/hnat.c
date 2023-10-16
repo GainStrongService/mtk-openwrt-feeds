@@ -151,9 +151,11 @@ void set_gmac_ppe_fwd(int id, int enable)
 			cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE2);
 		else if (CFG_PPE_NUM == 3 && id == NR_GMAC2_PORT)
 			cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE1);
-#endif
+		else
+			cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE);
+#else
 		cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE);
-
+#endif
 		return;
 	}
 
