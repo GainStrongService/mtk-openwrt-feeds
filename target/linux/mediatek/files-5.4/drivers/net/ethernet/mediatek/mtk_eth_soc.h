@@ -52,7 +52,7 @@
 
 #define MTK_QRX_OFFSET		0x10
 
-#define MTK_HW_LRO_DMA_SIZE	8
+#define MTK_HW_LRO_DMA_SIZE	512
 
 #define	MTK_MAX_LRO_RX_LENGTH		(4096 * 3)
 #define	MTK_MAX_LRO_IP_CNT		2
@@ -220,6 +220,7 @@
 #if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_MAX_RX_RING_NUM		(8)
 #define MTK_HW_LRO_RING_NUM		(4)
+#define MTK_HW_LRO_RING(x)		((x) + 4)
 #define IS_HW_LRO_RING(ring_no)		(((ring_no) > 3) && ((ring_no) < 8))
 #define MTK_PDMA_LRO_CTRL_DW0		(PDMA_BASE + 0x408)
 #define MTK_LRO_ALT_SCORE_DELTA		(PDMA_BASE + 0x41c)
@@ -233,6 +234,7 @@
 #else
 #define MTK_MAX_RX_RING_NUM		(4)
 #define MTK_HW_LRO_RING_NUM		(3)
+#define MTK_HW_LRO_RING(x)		((x) + 1)
 #define IS_HW_LRO_RING(ring_no)		(((ring_no) > 0) && ((ring_no) < 4))
 #define MTK_PDMA_LRO_CTRL_DW0		(PDMA_BASE + 0x180)
 #define MTK_LRO_ALT_SCORE_DELTA		(PDMA_BASE + 0x24c)
@@ -266,8 +268,9 @@
 #else
 #define MTK_PDMA_RSS_GLO_CFG		0x2800
 #endif
-#define MTK_RX_NAPI_NUM			(4)
-#define MTK_RSS_RING(x)			(x)
+#define MTK_RX_NAPI_NUM			(8)
+#define MTK_RX_RSS_NUM			(3)
+#define MTK_RSS_RING(x)			((x) + 1)
 #define MTK_RSS_EN			BIT(0)
 #define MTK_RSS_CFG_REQ			BIT(2)
 #define MTK_RSS_IPV6_STATIC_HASH	(0x7 << 8)
