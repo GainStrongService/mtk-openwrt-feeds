@@ -11,6 +11,15 @@ index cc8221d7..aba9eaed 100644
    DEPENDS+=@PCI_SUPPORT +kmod-mt76-connac +kmod-hwmon-core +kmod-thermal +@DRIVER_11AX_SUPPORT +@KERNEL_RELAY
    FILES:= $(PKG_BUILD_DIR)/mt7915/mt7915e.ko
    AUTOLOAD:=$(call AutoProbe,mt7915e)
+@@ -247,7 +247,7 @@ endef
+ 
+ define KernelPackage/mt7981-firmware
+   $(KernelPackage/mt76-default)
+-  DEPENDS:=@TARGET_mediatek_filogic
++  DEPENDS:=+@TARGET_mediatek_mt7981
+   TITLE:=MediaTek MT7981 firmware
+ endef
+ 
 @@ -253,7 +253,7 @@ endef
  
  define KernelPackage/mt7986-firmware
@@ -52,6 +61,17 @@ index cc8221d7..aba9eaed 100644
      PKG_MAKE_FLAGS += CONFIG_MT798X_WMAC=y
      NOSTDINC_FLAGS += -DCONFIG_MT798X_WMAC
    endif
+@@ -436,6 +436,10 @@ ifdef CONFIG_PACKAGE_kmod-mt7915e
+     PKG_MAKE_FLAGS += CONFIG_MT798X_WMAC=y
+     NOSTDINC_FLAGS += -DCONFIG_MT798X_WMAC
+   endif
++  ifdef CONFIG_TARGET_mediatek_mt7981
++    PKG_MAKE_FLAGS += CONFIG_MT798X_WMAC=y
++    NOSTDINC_FLAGS += -DCONFIG_MT798X_WMAC
++  endif
+ endif
+ ifdef CONFIG_PACKAGE_kmod-mt792x-common
+   PKG_MAKE_FLAGS += CONFIG_MT792x_LIB=m
 @@ -464,7 +469,8 @@ ifdef CONFIG_PACKAGE_kmod-mt7925e
  endif
  
@@ -83,7 +103,7 @@ index cc8221d7..aba9eaed 100644
  		$(PKG_BUILD_DIR)/firmware/mt7981_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7981_wm.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7981_rom_patch.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7981_eeprom.bin \
++		$(PKG_BUILD_DIR)/firmware/mt7981_eeprom_mt7976_dbdc.bin \
  		$(1)/lib/firmware/mediatek
 +ifdef CONFIG_NET_MEDIATEK_SOC_WED
 +	cp \

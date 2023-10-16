@@ -268,10 +268,34 @@ MT7981()
 	wifi1_irq=
 	wifi2_irq=
 	wifi3_irq=
+
 	#AX3000
-	if [[ "$WIFI_RADIO1" -eq "1" ]]; then
-		wifi1_irq=245
+	if [[ "$WED_ENABLE" -eq "1" ]]; then
+		dbg2 "WED_ENABLE ON irq/iptable setting"
+		#TCP Binding
+		iptables -D FORWARD -p tcp -m conntrack --ctstate	\
+				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
+		iptables -I FORWARD -p tcp -m conntrack --ctstate	\
+				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
+		ip6tables -D FORWARD -p tcp -m conntrack --ctstate	\
+				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
+		ip6tables -I FORWARD -p tcp -m conntrack --ctstate	\
+				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
+		#UDP Binding
+		iptables -D FORWARD -p udp -j FLOWOFFLOAD --hw
+		iptables -I FORWARD -p udp -j FLOWOFFLOAD --hw
+		ip6tables -D FORWARD -p udp -j FLOWOFFLOAD --hw
+		ip6tables -I FORWARD -p udp -j FLOWOFFLOAD --hw
+
+		if [[ "$WIFI_RADIO1" -eq "1" ]]; then
+			wifi1_irq=237
+		fi
+	else
+		if [[ "$WIFI_RADIO1" -eq "1" ]]; then
+			wifi1_irq=245
+		fi
 	fi
+
 	# Please update the CPU binding in each cases.
 	# CPU#_AFFINITY="add binding irq number here"
 	# CPU#_RPS="add binding interface name here"
