@@ -26,6 +26,22 @@
 
 static LIST_HEAD(xfrm_params_head);
 
+static inline bool is_tops_udp_tunnel(struct sk_buff *skb)
+{
+	return skb_hnat_tops(skb) && (ntohs(skb->protocol) == ETH_P_IP) &&
+			(ip_hdr(skb)->protocol == IPPROTO_UDP);
+}
+
+static inline bool is_tcp(struct sk_buff *skb)
+{
+	return (ntohs(skb->protocol) == ETH_P_IP) && (ip_hdr(skb)->protocol == IPPROTO_TCP);
+}
+
+static inline bool is_hnat_rate_reach(struct sk_buff *skb)
+{
+	return is_magic_tag_valid(skb) && (skb_hnat_reason(skb) == HIT_UNBIND_RATE_REACH);
+}
+
 static void mtk_xfrm_offload_cdrt_tear_down(struct mtk_xfrm_params *xfrm_params)
 {
 	memset(&xfrm_params->cdrt->desc, 0, sizeof(struct cdrt_desc));
@@ -277,24 +293,70 @@ int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp)
 	return 0;
 }
 
+static inline struct neighbour *mtk_crypto_find_dst_mac(struct sk_buff *skb,  struct xfrm_state *xs)
+{
+	struct neighbour *neigh;
+	u32 nexthop;
+	struct dst_entry *dst = skb_dst(skb);
+	struct rtable *rt = (struct rtable *) dst;
+
+	nexthop = (__force u32) rt_nexthop(rt, xs->id.daddr.a4);
+	neigh = __ipv4_neigh_lookup_noref(dst->dev, nexthop);
+	if (unlikely(!neigh)) {
+		CRYPTO_INFO("%s: %s No neigh (daddr=%pI4)\n", __func__, dst->dev->name,
+				&xs->id.daddr.a4);
+		neigh = __neigh_create(&arp_tbl, &xs->id.daddr.a4, dst->dev, false);
+		neigh_output(neigh, NULL, false);
+		return NULL;
+	}
+
+	return neigh;
+}
+
 bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 			 struct xfrm_state *xs)
 {
 	struct mtk_xfrm_params *xfrm_params;
+	struct neighbour *neigh;
+	struct dst_entry *dst = skb_dst(skb);
+
+	rcu_read_lock_bh();
+
+	neigh = mtk_crypto_find_dst_mac(skb, xs);
+	if (!neigh) {
+		rcu_read_unlock_bh();
+		return true;
+	}
+
+	skb_push(skb, sizeof(struct ethhdr));
+	skb_reset_mac_header(skb);
+
+	eth_hdr(skb)->h_proto = htons(ETH_P_IP);
+	memcpy(eth_hdr(skb)->h_dest, neigh->ha, ETH_ALEN);
+	memcpy(eth_hdr(skb)->h_source, dst->dev->dev_addr, ETH_ALEN);
+
+	rcu_read_unlock_bh();
+
+	xfrm_params = (struct mtk_xfrm_params *)xs->xso.offload_handle;
+	skb_hnat_cdrt(skb) = xfrm_params->cdrt->idx;
 
 	/*
 	 * EIP197 does not support fragmentation. As a result, we can not bind UDP
 	 * flow since it may cause network fail due to fragmentation
 	 */
-	if (!skb_hnat_tops(skb)
-	    && (ntohs(skb->protocol) != ETH_P_IP
-		|| ip_hdr(skb)->protocol != IPPROTO_TCP)) {
-		skb_hnat_alg(skb) = 1;
-		return false;
-	}
+	if ((is_tops_udp_tunnel(skb) || is_tcp(skb)) && is_hnat_rate_reach(skb))
+		hnat_bind_crypto_entry(skb, dst->dev);
 
-	xfrm_params = (struct mtk_xfrm_params *)xs->xso.offload_handle;
-	skb_hnat_cdrt(skb) = xfrm_params->cdrt->idx;
+	/* Since we're going to tx directly, set skb->dev to dst->dev */
+	skb->dev = dst->dev;
+	/* Set magic tag for tport setting, reset to 0 after tport is set */
+	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
+	/*
+	 * Tx packet to EIP197.
+	 * To avoid conflict of SW and HW sequence number
+	 * All offloadable packets send to EIP197
+	 */
+	dev_queue_xmit(skb);
 
-	return false;
+	return true;
 }
