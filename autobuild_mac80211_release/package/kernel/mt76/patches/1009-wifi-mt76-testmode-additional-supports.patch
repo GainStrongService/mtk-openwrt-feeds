@@ -1,7 +1,7 @@
-From 555abaed13e0426eb3295c7f7b02de57320a63e6 Mon Sep 17 00:00:00 2001
+From e7c6d49d0b5582ba7cb37d9d844a341b18c5a393 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 21 Apr 2022 15:43:19 +0800
-Subject: [PATCH] wifi: mt76: testmode: additional supports
+Subject: [PATCH 1009/1042] wifi: mt76: testmode: additional supports
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -20,13 +20,13 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  mt7915/mmio.c     |    2 +
  mt7915/mt7915.h   |   17 +-
  mt7915/regs.h     |    3 +
- mt7915/testmode.c | 1238 ++++++++++++++++++++++++++++++++++++++++++---
+ mt7915/testmode.c | 1244 ++++++++++++++++++++++++++++++++++++++++++---
  mt7915/testmode.h |  278 ++++++++++
  testmode.c        |  287 +++++++++--
  testmode.h        |   79 +++
  tools/fields.c    |   90 +++-
  tx.c              |    3 +-
- 20 files changed, 2058 insertions(+), 167 deletions(-)
+ 20 files changed, 2063 insertions(+), 168 deletions(-)
 
 diff --git a/dma.c b/dma.c
 index 24b44e7..8049830 100644
@@ -395,7 +395,7 @@ index f1c78ec..06a5fb1 100644
  		goto out;
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index ce5dcb3..3b18c95 100644
+index 0b6622e..44a1b21 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -238,7 +238,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
@@ -642,7 +642,7 @@ index 2a9e50b..6783797 100644
  							  (_n) * 4))
  #define MT_AGG_PCR0(_band, _n)		MT_WF_AGG(_band, (__OFFS(AGG_PCR0) +	\
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 4693919..8367204 100644
+index 4693919..32dc85c 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -9,6 +9,10 @@
@@ -1528,7 +1528,18 @@ index 4693919..8367204 100644
  	if (ret)
  		return ret;
  
-@@ -458,64 +1255,227 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
+@@ -447,7 +1244,9 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
+ 	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
+ 		return;
+ 
+-	mt7915_mcu_set_sku_en(phy, !en);
++	phy->sku_limit_en = !en;
++	phy->sku_path_en = !en;
++	mt7915_mcu_set_sku_en(phy);
+ 
+ 	mt7915_tm_mode_ctrl(dev, en);
+ 	mt7915_tm_reg_backup_restore(phy);
+@@ -458,64 +1257,227 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
  
  	phy->mt76->test.flag |= MT_TM_FW_RX_COUNT;
  
@@ -1787,7 +1798,7 @@ index 4693919..8367204 100644
  
  	mt7915_tm_set_trx(phy, TM_MAC_TX, en);
  }
-@@ -544,10 +1504,6 @@ mt7915_tm_get_rx_stats(struct mt7915_phy *phy, bool clear)
+@@ -544,10 +1506,6 @@ mt7915_tm_get_rx_stats(struct mt7915_phy *phy, bool clear)
  		return ret;
  
  	rs_band = (struct mt7915_tm_rx_stat_band *)skb->data;
@@ -1798,7 +1809,7 @@ index 4693919..8367204 100644
  
  	if (!clear) {
  		enum mt76_rxq_id q = req.band ? MT_RXQ_BAND1 : MT_RXQ_MAIN;
-@@ -562,13 +1518,61 @@ mt7915_tm_get_rx_stats(struct mt7915_phy *phy, bool clear)
+@@ -562,13 +1520,61 @@ mt7915_tm_get_rx_stats(struct mt7915_phy *phy, bool clear)
  	return 0;
  }
  
@@ -1861,7 +1872,7 @@ index 4693919..8367204 100644
  
  		/* read-clear */
  		mt7915_tm_get_rx_stats(phy, true);
-@@ -576,9 +1580,12 @@ mt7915_tm_set_rx_frames(struct mt7915_phy *phy, bool en)
+@@ -576,9 +1582,12 @@ mt7915_tm_set_rx_frames(struct mt7915_phy *phy, bool en)
  		/* clear fw count */
  		mt7915_tm_set_phy_count(phy, 0);
  		mt7915_tm_set_phy_count(phy, 1);
@@ -1876,7 +1887,7 @@ index 4693919..8367204 100644
  }
  
  static int
-@@ -617,34 +1624,7 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
+@@ -617,34 +1626,7 @@ mt7915_tm_set_tx_cont(struct mt7915_phy *phy, bool en)
  	tx_cont->tx_ant = td->tx_antenna_mask;
  	tx_cont->band = band;
  
@@ -1912,12 +1923,14 @@ index 4693919..8367204 100644
  
  	if (!en) {
  		req.op.rf.param.func_data = cpu_to_le32(band);
-@@ -728,6 +1708,16 @@ mt7915_tm_update_params(struct mt7915_phy *phy, u32 changed)
+@@ -728,6 +1710,18 @@ mt7915_tm_update_params(struct mt7915_phy *phy, u32 changed)
  		mt7915_tm_set_freq_offset(phy, en, en ? td->freq_offset : 0);
  	if (changed & BIT(TM_CHANGED_TXPOWER))
  		mt7915_tm_set_tx_power(phy);
 +	if (changed & BIT(TM_CHANGED_SKU_EN)) {
-+		mt7915_mcu_set_sku_en(phy, td->sku_en);
++		phy->sku_limit_en = td->sku_en;
++		phy->sku_path_en = td->sku_en;
++		mt7915_mcu_set_sku_en(phy);
 +		mt7915_mcu_set_txpower_sku(phy);
 +	}
 +	if (changed & BIT(TM_CHANGED_AID))
@@ -1929,7 +1942,7 @@ index 4693919..8367204 100644
  }
  
  static int
-@@ -737,6 +1727,11 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
+@@ -737,6 +1731,11 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
  	struct mt7915_phy *phy = mphy->priv;
  	enum mt76_testmode_state prev_state = td->state;
  
@@ -1941,7 +1954,7 @@ index 4693919..8367204 100644
  	mphy->test.state = state;
  
  	if (prev_state == MT76_TM_STATE_TX_FRAMES ||
-@@ -757,7 +1752,7 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
+@@ -757,7 +1756,7 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
  	    (state == MT76_TM_STATE_OFF &&
  	     prev_state == MT76_TM_STATE_IDLE)) {
  		u32 changed = 0;
@@ -1950,7 +1963,7 @@ index 4693919..8367204 100644
  
  		for (i = 0; i < ARRAY_SIZE(tm_change_map); i++) {
  			u16 cur = tm_change_map[i];
-@@ -766,6 +1761,10 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
+@@ -766,6 +1765,10 @@ mt7915_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
  				changed |= BIT(i);
  		}
  
@@ -1961,7 +1974,7 @@ index 4693919..8367204 100644
  		mt7915_tm_update_params(phy, changed);
  	}
  
-@@ -778,10 +1777,8 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
+@@ -778,10 +1781,8 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
  {
  	struct mt76_testmode_data *td = &mphy->test;
  	struct mt7915_phy *phy = mphy->priv;
@@ -1974,7 +1987,7 @@ index 4693919..8367204 100644
  
  	BUILD_BUG_ON(NUM_TM_CHANGED >= 32);
  
-@@ -789,9 +1786,9 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
+@@ -789,9 +1790,9 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
  	    td->state == MT76_TM_STATE_OFF)
  		return 0;
  
@@ -1987,7 +2000,7 @@ index 4693919..8367204 100644
  
  	for (i = 0; i < ARRAY_SIZE(tm_change_map); i++) {
  		if (tb[tm_change_map[i]])
-@@ -807,6 +1804,7 @@ static int
+@@ -807,6 +1808,7 @@ static int
  mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
  {
  	struct mt7915_phy *phy = mphy->priv;
@@ -1995,7 +2008,7 @@ index 4693919..8367204 100644
  	void *rx, *rssi;
  	int i;
  
-@@ -827,6 +1825,16 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
+@@ -827,6 +1829,16 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
  
  	nla_nest_end(msg, rssi);
  
@@ -2012,7 +2025,7 @@ index 4693919..8367204 100644
  	rssi = nla_nest_start(msg, MT76_TM_RX_ATTR_IB_RSSI);
  	if (!rssi)
  		return -ENOMEM;
-@@ -852,11 +1860,75 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
+@@ -852,11 +1864,75 @@ mt7915_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
  
  	nla_nest_end(msg, rx);
  
