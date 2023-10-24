@@ -1558,6 +1558,7 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	dma_addr_t phy_ring_tail;
 	int cnt = MTK_DMA_SIZE;
 	dma_addr_t dma_addr;
+	u64 addr64 = 0;
 	int i;
 
 	if (!eth->soc->has_sram) {
@@ -1597,7 +1598,10 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 			txd->txd2 = eth->phy_scratch_ring +
 				(i + 1) * soc->txrx.txd_size;
 
-		txd->txd3 = TX_DMA_PLEN0(MTK_QDMA_PAGE_SIZE);
+		addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
+			  TX_DMA_SDP1(dma_addr + i * MTK_QDMA_PAGE_SIZE) : 0;
+
+		txd->txd3 = TX_DMA_PLEN0(MTK_QDMA_PAGE_SIZE) | addr64;
 		txd->txd4 = 0;
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
@@ -4954,7 +4958,7 @@ static int mtk_probe(struct platform_device *pdev)
 		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
 		if (!err) {
 			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(36));
+						    DMA_BIT_MASK(32));
 			if (err) {
 				dev_err(&pdev->dev, "Wrong DMA config\n");
 				return -EINVAL;
