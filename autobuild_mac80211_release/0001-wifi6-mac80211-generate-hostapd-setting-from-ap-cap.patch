@@ -639,7 +639,7 @@ index 3ecd932..69ecbbf 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 28bd210..dc315da 100644
+index 28bd210..3bdf3c0 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -60,7 +60,14 @@ hostapd_append_wpa_key_mgmt() {
@@ -726,12 +726,13 @@ index 28bd210..dc315da 100644
  
  	set_default fils 0
  	set_default isolate 0
-@@ -790,6 +819,35 @@ hostapd_set_bss_options() {
+@@ -790,6 +819,36 @@ hostapd_set_bss_options() {
  	local auth_algs="$((($auth_mode_shared << 1) | $auth_mode_open))"
  	append bss_conf "auth_algs=${auth_algs:-1}" "$N"
  	append bss_conf "wpa=$wpa" "$N"
 +
 +	json_get_values pairwise pairwise
++	json_get_vars group_cipher
 +	if [ -n "$pairwise" ]; then
 +		case "$pairwise" in
 +			*tkip+aes|*tkip+ccmp|*aes+tkip|*ccmp+tkip)
@@ -762,7 +763,7 @@ index 28bd210..dc315da 100644
  	[ -n "$wpa_pairwise" ] && append bss_conf "wpa_pairwise=$wpa_pairwise" "$N"
  
  	set_default wps_pushbutton 0
-@@ -841,7 +899,7 @@ hostapd_set_bss_options() {
+@@ -841,7 +900,7 @@ hostapd_set_bss_options() {
  	}
  
  	append bss_conf "ssid=$ssid" "$N"
@@ -771,7 +772,7 @@ index 28bd210..dc315da 100644
  	[ -n "$network_ifname" ] && append bss_conf "snoop_iface=$network_ifname" "$N"
  	[ -n "$iapp_interface" ] && {
  		local ifname
-@@ -954,6 +1012,8 @@ hostapd_set_bss_options() {
+@@ -954,6 +1013,8 @@ hostapd_set_bss_options() {
  	fi
  
  	if [ "$wpa" -ge "2" ]; then
@@ -780,7 +781,7 @@ index 28bd210..dc315da 100644
  		if [ -n "$network_bridge" -a "$rsn_preauth" = 1 ]; then
  			set_default auth_cache 1
  			append bss_conf "rsn_preauth=1" "$N"
-@@ -972,17 +1032,42 @@ hostapd_set_bss_options() {
+@@ -972,17 +1033,42 @@ hostapd_set_bss_options() {
  		append bss_conf "okc=$auth_cache" "$N"
  		[ "$auth_cache" = 0 -a "$fils" = 0 ] && append bss_conf "disable_pmksa_caching=1" "$N"
  
@@ -824,7 +825,7 @@ index 28bd210..dc315da 100644
  					[ -n "$ieee80211w_max_timeout" ] && \
  						append bss_conf "assoc_sa_query_max_timeout=$ieee80211w_max_timeout" "$N"
  					[ -n "$ieee80211w_retry_timeout" ] && \
-@@ -1047,9 +1132,10 @@ hostapd_set_bss_options() {
+@@ -1047,9 +1133,10 @@ hostapd_set_bss_options() {
  	json_get_vars iw_roaming_consortium iw_domain_name iw_anqp_3gpp_cell_net iw_nai_realm
  	json_get_vars iw_anqp_elem iw_qos_map_set iw_ipaddr_type_availability iw_gas_address3
  	json_get_vars iw_venue_name iw_venue_url
@@ -836,7 +837,7 @@ index 28bd210..dc315da 100644
  		append bss_conf "interworking=1" "$N"
  		set_default iw_internet 1
  		set_default iw_asra 0
-@@ -1156,6 +1242,22 @@ hostapd_set_bss_options() {
+@@ -1156,6 +1243,22 @@ hostapd_set_bss_options() {
  		append bss_conf "$val" "$N"
  	done
  
@@ -859,7 +860,7 @@ index 28bd210..dc315da 100644
  	bss_md5sum="$(echo $bss_conf | md5sum | cut -d" " -f1)"
  	append bss_conf "config_id=$bss_md5sum" "$N"
  
-@@ -1246,6 +1348,7 @@ wpa_supplicant_prepare_interface() {
+@@ -1246,6 +1349,7 @@ wpa_supplicant_prepare_interface() {
  		country_str="country=$country"
  	}
  
@@ -867,7 +868,7 @@ index 28bd210..dc315da 100644
  	multiap_flag_file="${_config}.is_multiap"
  	if [ "$multi_ap" = "1" ]; then
  		touch "$multiap_flag_file"
-@@ -1257,6 +1360,7 @@ wpa_supplicant_prepare_interface() {
+@@ -1257,6 +1361,7 @@ wpa_supplicant_prepare_interface() {
  ${scan_list:+freq_list=$scan_list}
  $ap_scan
  $country_str
@@ -875,7 +876,7 @@ index 28bd210..dc315da 100644
  EOF
  	return 0
  }
-@@ -1528,12 +1632,38 @@ wpa_supplicant_add_network() {
+@@ -1528,12 +1633,39 @@ wpa_supplicant_add_network() {
  		;;
  	esac
  
@@ -884,6 +885,7 @@ index 28bd210..dc315da 100644
 -		append network_data "group=GCMP" "$N$T"
 -	}
 +	json_get_values pairwise pairwise
++	json_get_vars group_cipher
 +	if [ -n "$pairwise" ]; then
 +		case "$pairwise" in
 +			*tkip+aes|*tkip+ccmp|*aes+tkip|*ccmp+tkip)
@@ -918,7 +920,7 @@ index 28bd210..dc315da 100644
  		case "$wpa" in
  			1)
  				append network_data "proto=WPA" "$N$T"
-@@ -1543,12 +1673,48 @@ wpa_supplicant_add_network() {
+@@ -1543,12 +1675,48 @@ wpa_supplicant_add_network() {
  			;;
  		esac
  
@@ -968,7 +970,7 @@ index 28bd210..dc315da 100644
  	[ -n "$bssid" ] && append network_data "bssid=$bssid" "$N$T"
  	[ -n "$beacon_int" ] && append network_data "beacon_int=$beacon_int" "$N$T"
  
-@@ -1559,6 +1725,20 @@ wpa_supplicant_add_network() {
+@@ -1559,6 +1727,20 @@ wpa_supplicant_add_network() {
  	[ -n "$bssid_blacklist" ] && append network_data "bssid_blacklist=$bssid_blacklist" "$N$T"
  	[ -n "$bssid_whitelist" ] && append network_data "bssid_whitelist=$bssid_whitelist" "$N$T"
  
@@ -989,7 +991,7 @@ index 28bd210..dc315da 100644
  	[ -n "$basic_rate" ] && {
  		local br rate_list=
  		for br in $basic_rate; do
-@@ -1573,6 +1753,11 @@ wpa_supplicant_add_network() {
+@@ -1573,6 +1755,11 @@ wpa_supplicant_add_network() {
  		append network_data "mcast_rate=$mc_rate" "$N$T"
  	}
  
