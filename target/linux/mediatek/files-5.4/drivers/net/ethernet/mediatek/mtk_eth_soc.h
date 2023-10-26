@@ -52,7 +52,7 @@
 
 #define MTK_QRX_OFFSET		0x10
 
-#define MTK_HW_LRO_DMA_SIZE	512
+#define MTK_HW_LRO_DMA_SIZE	64
 
 #define	MTK_MAX_LRO_RX_LENGTH		(4096 * 3)
 #define	MTK_MAX_LRO_IP_CNT		2
