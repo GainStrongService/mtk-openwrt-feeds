@@ -196,22 +196,24 @@ index 101c233..7ea380e 100644
  	u8				ppe_num;
  	struct mtk_ppe			*ppe[MTK_MAX_PPE_NUM];
  	struct rhashtable		flow_table;
-@@ -1936,6 +1967,34 @@ extern const struct of_device_id of_mtk_match[];
+@@ -1936,6 +1967,36 @@ extern const struct of_device_id of_mtk_match[];
  extern u32 mtk_hwlro_stats_ebl;
  extern u32 dbg_show_level;
  
 +static inline void mtk_set_ib1_sp(struct mtk_eth *eth, struct mtk_foe_entry *foe, u32 val)
 +{
-+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
-+		foe->ib1 |= FIELD_PREP(MTK_FOE_IB1_UNBIND_SRC_PORT, val);
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++	foe->ib1 |= FIELD_PREP(MTK_FOE_IB1_UNBIND_SRC_PORT, val);
++#endif
 +}
 +
 +static inline u32 mtk_get_ib1_sp(struct mtk_eth *eth, struct mtk_foe_entry *foe)
 +{
-+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
-+		return FIELD_GET(MTK_FOE_IB1_UNBIND_SRC_PORT, foe->ib1);
-+
++#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++	return FIELD_GET(MTK_FOE_IB1_UNBIND_SRC_PORT, foe->ib1);
++#else
 +	return 0;
++#endif
 +}
 +
 +static inline int

@@ -74,24 +74,24 @@ index 0282d25..48ecdc8 100644
  #else
  #define MTK_GDMA_TO_PPE0	0x4444
  #endif
-@@ -1972,13 +1973,15 @@ extern u32 dbg_show_level;
+@@ -1972,13 +1973,13 @@ extern u32 dbg_show_level;
  
  static inline void mtk_set_ib1_sp(struct mtk_eth *eth, struct mtk_foe_entry *foe, u32 val)
  {
--	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
-+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
-+	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
- 		foe->ib1 |= FIELD_PREP(MTK_FOE_IB1_UNBIND_SRC_PORT, val);
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ 	foe->ib1 |= FIELD_PREP(MTK_FOE_IB1_UNBIND_SRC_PORT, val);
+ #endif
  }
  
  static inline u32 mtk_get_ib1_sp(struct mtk_eth *eth, struct mtk_foe_entry *foe)
  {
--	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
-+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
-+	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
- 		return FIELD_GET(MTK_FOE_IB1_UNBIND_SRC_PORT, foe->ib1);
- 
+-#if defined(CONFIG_MEDIATEK_NETSYS_V2)
++#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+ 	return FIELD_GET(MTK_FOE_IB1_UNBIND_SRC_PORT, foe->ib1);
+ #else
  	return 0;
+ #endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 index 1ed1b60..5a1036f 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
