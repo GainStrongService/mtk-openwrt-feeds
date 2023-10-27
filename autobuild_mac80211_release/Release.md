@@ -1,5 +1,64 @@
 # Mediatek Upstrem WiFi Driver - MT76 Release Note
 
+## Filogic 830 MP2.2 Release (20231027)
+### External Release
+
+```
+#Get Openwrt 21.02 source code from Git server
+git clone --branch openwrt-21.02 https://git.openwrt.org/openwrt/openwrt.git
+cd openwrt; git checkout 18f12e6f69a9597c13d2d18f5eb661f4549331e4; cd -;
+
+#Get Openwrt master source code from Git Server
+git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_package
+cd mac80211_package; git checkout e4ebc7b5662d6436fcc84b8e1583204b96fb0503; cd -;
+
+#Get mtk-openwrt-feeds source code
+git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+cd mtk-openwrt-feeds; git checkout c1d06e11a5c38f2ca84d5f9f3a1157dc6adbffa6; cd -;
+
+#Change to openwrt folder
+cp -rf mtk-openwrt-feeds/autobuild_mac80211_release openwrt
+cd openwrt; mv autobuild_mac80211_release autobuild
+
+#Add MTK feed
+echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+
+#!!! CAUTION!!! Modify feed's revision
+
+#Run Filogic830 auto build script (APSoC: MT7986A/B , PCIE: MT7915A/D, MT7916) 
+./autobuild/mt7986_mac80211/lede-branch-build-sanity.sh
+
+#Further Build (After 1st full build)
+./scripts/feeds update –a
+make V=s
+```
+### Feeds Revision
+```
+#vim autobuild/feeds.conf.default-21.02
+src-git packages https://git.openwrt.org/feed/packages.git^8df2214
+src-git luci https://git.openwrt.org/project/luci.git^e98243e
+src-git routing https://git.openwrt.org/feed/routing.git^d79f2b5
+src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^c1d06e1
+```
+### WiFi Package Version
+
+| Platform                 | OpenWrt/21.02                 | GIT01.mediatek.com                                                                |
+|--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
+| Kernel                   | 5.4.246                       | autobuild_mac80211_release /target/linux/mediatek/patches-5.4                     |
+| WiFi Package             | OpenWrt/master                | MTK Internal Patches                                                              |
+| Hostapd                  | PKG_SOURCE_DATE:=2022-07-29   | autobuild_mac80211_release/package/network/services/hostapd/patches               |
+| libnl-tiny               | PKG_SOURCE_DATE:=2023-07-27   | N/A                                                                               |
+| iw                       | PKG_VERSION:=5.19             | N/A                                                                               |
+| iwinfo                   | PKG_SOURCE_DATE:=2023-07-01   | N/A                                                                               |
+| wireless-regdb           | PKG_VERSION:=2023.09.01       | autobuild_mac80211_release/package/firmware/wireless-regdb/patches                |
+| netifd                   | PKG_VERSION:=2023-07-17       | autobuild_mac80211_release/package/network/config/netifd/patches                  |
+| MAC80211                 | PKG_VERSION:=5.15.81-1        | autobuild_mac80211_release/package/kernel/mac80211/patches/subsys                 |
+| MT76                     | PKG_SOURCE_DATE:=2023-09-18   | **Patches**: autobuild_mac80211_release/package/kernel/mt76/patches **Firmware** autobuild_mac80211_release/package/kernel/mt76/src/firmware|
+| Utility                  | Formal                        |                                                                                   |
+| Manufacture Tool (ATENL) | feed/atenl                    |                                                                                   |
+| Manufacture Tool (CMD)   | mt76/tools                    |                                                                                   |
+| Vendor Tool              | feed/mt76-vendor              |                                                                                   |
+
 ## Filogic 630/830 MP2.1 Release (20230508)
 ### External Release
 
