@@ -253,8 +253,8 @@ static struct phy_driver mtk_gephy_driver[] = {
 		.get_rate_matching	= mt798x_2p5ge_phy_get_rate_matching,
 		//.config_intr	= genphy_no_config_intr,
 		//.handle_interrupt = genphy_no_ack_interrupt,
-		//.suspend	= genphy_suspend,
-		//.resume		= genphy_resume,
+		.suspend	= genphy_suspend,
+		.resume		= genphy_resume,
 	},
 };
 
