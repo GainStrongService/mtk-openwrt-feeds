@@ -1,19 +1,19 @@
-From c499d09d496d723dab109aee2e3af8a28278a54c Mon Sep 17 00:00:00 2001
+From 378077f87cb5c696dbb2b313d9d4ef08383b1a6e Mon Sep 17 00:00:00 2001
 From: "Allen.Ye" <allen.ye@mediatek.com>
 Date: Fri, 11 Aug 2023 16:46:53 +0800
-Subject: [PATCH 1036/1040] wifi: mt76: mt7915: Disable RegDB when enable
+Subject: [PATCH 1036/1042] wifi: mt76: mt7915: Disable RegDB when enable
  single sku
 
 ---
  eeprom.c         |  3 ++-
  mt76.h           |  3 +++
  mt7915/debugfs.c | 49 +++++++++++++++++++++++++++++++++++++++++++-----
- mt7915/init.c    |  9 ++++++++-
+ mt7915/init.c    | 11 +++++++++--
  mt7915/regs.h    |  8 ++++----
- 5 files changed, 61 insertions(+), 11 deletions(-)
+ 5 files changed, 62 insertions(+), 12 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index 4189525..38b0a58 100644
+index c0536f1..cf5e933 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -216,7 +216,7 @@ static bool mt76_string_prop_find(struct property *prop, const char *str)
@@ -34,10 +34,10 @@ index 4189525..38b0a58 100644
  static const __be32 *
  mt76_get_of_array(struct device_node *np, char *name, size_t *len, int min)
 diff --git a/mt76.h b/mt76.h
-index 05c1874..91da8c5 100644
+index 6ed3e1e..e3f0dff 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1673,6 +1673,9 @@ mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
+@@ -1675,6 +1675,9 @@ mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
  
  void mt76_set_irq_mask(struct mt76_dev *dev, u32 addr, u32 clear, u32 set);
  
@@ -140,29 +140,32 @@ index 2bf907c..6dcee10 100644
  	return ret;
  }
 diff --git a/mt7915/init.c b/mt7915/init.c
-index a942bc2..82fe443 100644
+index 39bc2f6..fdfd284 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -283,7 +283,9 @@ void __mt7915_init_txpower(struct mt7915_phy *phy,
+@@ -283,9 +283,11 @@ void __mt7915_init_txpower(struct mt7915_phy *phy,
  	int nss_delta = mt76_tx_power_nss_delta(n_chains);
  	int pwr_delta = mt7915_eeprom_get_power_delta(dev, sband->band);
  	struct mt76_power_limits limits;
 +	struct device_node *np;
  
+ 	phy->sku_limit_en = true;
+ 	phy->sku_path_en = true;
 +	np = mt76_find_power_limits_node(&dev->mt76);
  	for (i = 0; i < sband->n_channels; i++) {
  		struct ieee80211_channel *chan = &sband->channels[i];
  		u32 target_power = 0;
-@@ -302,8 +304,13 @@ void __mt7915_init_txpower(struct mt7915_phy *phy,
- 							  target_power);
+@@ -309,8 +311,13 @@ void __mt7915_init_txpower(struct mt7915_phy *phy,
+ 
  		target_power += nss_delta;
  		target_power = DIV_ROUND_UP(target_power, 2);
 -		chan->max_power = min_t(int, chan->max_reg_power,
+-					target_power);
 +
 +		/* can NOT find country node in dts */
 +		if (!np)
 +			chan->max_power = min_t(int, chan->max_reg_power,
- 					target_power);
++						target_power);
 +		else
 +			chan->max_power = target_power;
  		chan->orig_mpwr = target_power;
