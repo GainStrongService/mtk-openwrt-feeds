@@ -18,10 +18,10 @@ atenl_create_file(struct atenl *an, bool flash_mode)
 
 	/* reserve space for pre-cal data in flash mode */
 	if (flash_mode) {
-		atenl_dbg("%s: init eeprom with flash mode\n", __func__);
+		atenl_dbg("%s: init eeprom with flash / binfile mode\n", __func__);
 		max_len = EEPROM_PART_SIZE;
 	} else {
-		atenl_dbg("%s: init eeprom with efuse mode\n", __func__);
+		atenl_dbg("%s: init eeprom with efuse / default bin mode\n", __func__);
 		max_len = 0x1e00;
 	}
 
@@ -419,11 +419,10 @@ int atenl_eeprom_update_precal(struct atenl *an, int write_offs, int size)
 
 int atenl_eeprom_write_mtd(struct atenl *an)
 {
-	bool flash_mode = an->mtd_part != NULL;
 	pid_t pid;
 	char offset[10];
 
-	if (!flash_mode)
+	if (an->mtd_part == NULL || !(~an->mtd_offset))
 		return 0;
 
 	pid = fork();
@@ -498,12 +497,9 @@ atenl_eeprom_sync_to_driver(struct atenl *an)
 
 void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 {
-	bool flash_mode;
-
 	an->cmd_mode = true;
 
 	atenl_eeprom_init(an, phy_idx);
-	flash_mode = an->mtd_part != NULL;
 
 	if (!strncmp(cmd, "sync eeprom all", 15)) {
 		atenl_eeprom_write_mtd(an);
@@ -520,7 +516,11 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 			unlink(eeprom_file);
 		} else if (!strncmp(s, "file", 4)) {
 			atenl_info("%s\n", eeprom_file);
-			atenl_info("Flash mode: %d\n", flash_mode);
+			if (an->mtd_part != NULL)
+				atenl_info("%s mode\n",
+					   ~an->mtd_offset == 0 ? "Binfile" : "Flash");
+			else
+				atenl_info("Efuse / Default bin mode\n");
 		} else if (!strncmp(s, "set", 3)) {
 			u32 offset, val;
 
