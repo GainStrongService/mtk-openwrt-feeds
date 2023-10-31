@@ -2313,15 +2313,20 @@ static void mtk_hnat_dscp_update(struct sk_buff *skb, struct foe_entry *entry)
 	switch (ntohs(eth->h_proto)) {
 	case ETH_P_IP:
 		iph = ip_hdr(skb);
-		if (IS_IPV4_GRP(entry) && entry->ipv4_hnapt.iblk2.dscp != iph->tos)
+		if (IS_IPV4_GRP(entry) && entry->ipv4_hnapt.iblk2.dscp != iph->tos) {
+			entry->ipv4_hnapt.iblk2.dscp = iph->tos;
 			flag = true;
+		}
 		break;
 	case ETH_P_IPV6:
 		ip6h = ipv6_hdr(skb);
 		if ((IS_IPV6_3T_ROUTE(entry) || IS_IPV6_5T_ROUTE(entry)) &&
 			(entry->ipv6_5t_route.iblk2.dscp !=
-			(ip6h->priority << 4 | (ip6h->flow_lbl[0] >> 4))))
+			(ip6h->priority << 4 | (ip6h->flow_lbl[0] >> 4)))) {
+			entry->ipv6_5t_route.iblk2.dscp =
+				(ip6h->priority << 4 | (ip6h->flow_lbl[0] >> 4));
 			flag = true;
+		}
 		break;
 	default:
 		return;
@@ -2329,9 +2334,8 @@ static void mtk_hnat_dscp_update(struct sk_buff *skb, struct foe_entry *entry)
 
 	if (flag) {
 		if (debug_level >= 7)
-			pr_info("%s %d Delete entry idx=%d\n", __func__, __LINE__,
+			pr_info("%s %d update entry idx=%d\n", __func__, __LINE__,
 			skb_hnat_entry(skb));
-		memset(entry, 0, sizeof(struct foe_entry));
 		hnat_cache_ebl(1);
 	}
 }
@@ -2705,8 +2709,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 			break;
 
 		/* update dscp for qos */
-		if (hnat_priv->data->version != MTK_HNAT_V3)
-			mtk_hnat_dscp_update(skb, entry);
+		mtk_hnat_dscp_update(skb, entry);
 
 		/* update mcast timestamp*/
 		if (hnat_priv->data->version == MTK_HNAT_V1_3 &&
