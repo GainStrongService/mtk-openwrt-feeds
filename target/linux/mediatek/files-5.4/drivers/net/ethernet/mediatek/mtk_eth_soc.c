@@ -3898,7 +3898,12 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 	/* FE int grouping */
 	mtk_w32(eth, MTK_TX_DONE_INT, reg_map->qdma.int_grp);
 	mtk_w32(eth, MTK_RX_DONE_INT(0), reg_map->qdma.int_grp2);
-	mtk_w32(eth, 0x210FFFF2, MTK_FE_INT_GRP);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT))
+		mtk_w32(eth, 0x210FFFF2, MTK_FE_INT_GRP);
+	else {
+		mtk_w32(eth, MTK_RX_DONE_INT(0), reg_map->pdma.int_grp);
+		mtk_w32(eth, 0x210F2FF3, MTK_FE_INT_GRP);
+	}
 	mtk_w32(eth, MTK_FE_INT_TSO_FAIL |
 		MTK_FE_INT_TSO_ILLEGAL | MTK_FE_INT_TSO_ALIGN |
 		MTK_FE_INT_RFIFO_OV | MTK_FE_INT_RFIFO_UF, MTK_FE_INT_ENABLE);
@@ -5035,15 +5040,19 @@ static int mtk_probe(struct platform_device *pdev)
 		}
 	}
 
-	for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
-		eth->irq_pdma[i] = platform_get_irq(pdev, i);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
+		for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
+			eth->irq_pdma[i] = platform_get_irq(pdev, i);
+	}
 
 	for (i = 0; i < MTK_FE_IRQ_NUM; i++) {
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_INT) && i > 0)
 			eth->irq_fe[i] = eth->irq_fe[0];
-		else
+		else if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT))
 			eth->irq_fe[i] =
 				platform_get_irq(pdev, i + MTK_PDMA_IRQ_NUM);
+		else
+			eth->irq_fe[i] = platform_get_irq(pdev, i);
 
 		if (eth->irq_fe[i] < 0) {
 			dev_err(&pdev->dev, "no IRQ%d resource found\n", i);
@@ -5125,39 +5134,55 @@ static int mtk_probe(struct platform_device *pdev)
 		if (err)
 			goto err_free_dev;
 
-		err = devm_request_irq(eth->dev, eth->irq_fe[2],
-				       mtk_handle_fe_irq, 0,
-				       dev_name(eth->dev), eth);
-		if (err)
-			goto err_free_dev;
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
+			err = devm_request_irq(eth->dev, eth->irq_fe[2],
+					       mtk_handle_fe_irq, 0,
+					       dev_name(eth->dev), eth);
+			if (err)
+				goto err_free_dev;
 
-		err = devm_request_irq(eth->dev, eth->irq_pdma[0],
-				       mtk_handle_irq_rx, IRQF_SHARED,
-				       dev_name(eth->dev), &eth->rx_napi[0]);
-		if (err)
-			goto err_free_dev;
+			err = devm_request_irq(eth->dev, eth->irq_pdma[0],
+					       mtk_handle_irq_rx, IRQF_SHARED,
+					       dev_name(eth->dev), &eth->rx_napi[0]);
+			if (err)
+				goto err_free_dev;
 
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
-			for (i = 0; i < MTK_RX_RSS_NUM; i++) {
-				err = devm_request_irq(eth->dev,
-						       eth->irq_pdma[MTK_RSS_RING(i)],
-						       mtk_handle_irq_rx, IRQF_SHARED,
-						       dev_name(eth->dev),
-						       &eth->rx_napi[MTK_RSS_RING(i)]);
-				if (err)
-					goto err_free_dev;
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
+				for (i = 0; i < MTK_RX_RSS_NUM; i++) {
+					err = devm_request_irq(eth->dev,
+							       eth->irq_pdma[MTK_RSS_RING(i)],
+							       mtk_handle_irq_rx, IRQF_SHARED,
+							       dev_name(eth->dev),
+							       &eth->rx_napi[MTK_RSS_RING(i)]);
+					if (err)
+						goto err_free_dev;
+				}
 			}
-		}
 
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO)) {
-			i = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ||
-			     MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) ? 0 : 1;
-			for (; i < MTK_HW_LRO_RING_NUM; i++) {
-				err = devm_request_irq(eth->dev,
-						       eth->irq_pdma[i],
-						       mtk_handle_irq_rx, IRQF_SHARED,
-						       dev_name(eth->dev),
-						       &eth->rx_napi[MTK_HW_LRO_RING(i)]);
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO)) {
+				i = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ||
+				     MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) ? 0 : 1;
+				for (; i < MTK_HW_LRO_RING_NUM; i++) {
+					err = devm_request_irq(eth->dev,
+							       eth->irq_pdma[i],
+							       mtk_handle_irq_rx, IRQF_SHARED,
+							       dev_name(eth->dev),
+							       &eth->rx_napi[MTK_HW_LRO_RING(i)]);
+					if (err)
+						goto err_free_dev;
+				}
+			}
+		} else {
+			err = devm_request_irq(eth->dev, eth->irq_fe[2],
+					       mtk_handle_irq_rx, 0,
+					       dev_name(eth->dev), &eth->rx_napi[0]);
+			if (err)
+				goto err_free_dev;
+
+			if (MTK_FE_IRQ_NUM > 3) {
+				err = devm_request_irq(eth->dev, eth->irq_fe[3],
+						       mtk_handle_fe_irq, 0,
+						       dev_name(eth->dev), eth);
 				if (err)
 					goto err_free_dev;
 			}

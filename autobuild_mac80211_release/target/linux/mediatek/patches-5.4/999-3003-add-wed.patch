@@ -206,8 +206,8 @@ index 9c85e16..88b38e2
 +		mtk_wed_add_hw(np, eth, wdma, i);
 +	}
 +
- 	for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
- 		eth->irq_pdma[i] = platform_get_irq(pdev, i);
+ 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
+ 		for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
  
 @@ -5170,10 +5200,11 @@ static int mtk_probe(struct platform_device *pdev)
  	}
