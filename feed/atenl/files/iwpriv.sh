@@ -101,6 +101,10 @@ function parse_sku {
             SOC_start_idx="1"
             SOC_end_idx="2"
             is_connac3="0"
+        elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7981")" ]; then
+            SOC_start_idx="0"
+            SOC_end_idx="1"
+            is_connac3="0"
         elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7986")" ]; then
             SOC_start_idx="0"
             SOC_end_idx="1"
@@ -116,7 +120,7 @@ function parse_sku {
         else
             echo "Interface Conversion Failed!"
             echo "Please use iwpriv <phy0/phy1/..> set <...> or configure the sku of your board manually by the following commands"
-            echo "For AX6000:"
+            echo "For AX3000/AX6000:"
             echo "      echo STARTIDX=0 >> ${interface_file}"
             echo "      echo ENDIDX=1 >> ${interface_file}"
             echo "      echo IS_CONNAC3=0 >> ${interface_file}"

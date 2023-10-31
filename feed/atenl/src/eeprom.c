@@ -117,7 +117,7 @@ atenl_eeprom_init_chip_id(struct atenl *an)
 
 	if (is_mt7915(an)) {
 		an->adie_id = 0x7975;
-	} else if (is_mt7916(an)) {
+	} else if (is_mt7916(an) || is_mt7981(an)) {
 		an->adie_id = 0x7976;
 	} else if (is_mt7986(an)) {
 		bool is_7975 = false;
@@ -164,6 +164,7 @@ atenl_eeprom_init_max_size(struct atenl *an)
 		break;
 	case 0x7906:
 	case 0x7916:
+	case 0x7981:
 	case 0x7986:
 		an->eeprom_size = 4096;
 		an->eeprom_prek_offs = 0x19a;
@@ -209,7 +210,7 @@ atenl_eeprom_init_band_cap(struct atenl *an)
 			anb->valid = true;
 			anb->cap = BAND_TYPE_5G;
 		}
-	} else if (is_mt7916(an) || is_mt7986(an)) {
+	} else if (is_mt7916(an) || is_mt7981(an) || is_mt7986(an)) {
 		struct atenl_band *anb;
 		u8 val, band_sel;
 		int i;
@@ -315,6 +316,10 @@ atenl_eeprom_init_antenna_cap(struct atenl *an)
 	case 0x7916:
 		an->anb[0].chainmask = 0x3;
 		an->anb[1].chainmask = 0x3;
+		break;
+	case 0x7981:
+		an->anb[0].chainmask = 0x3;
+		an->anb[1].chainmask = 0x7;
 		break;
 	case 0x7986:
 		an->anb[0].chainmask = 0xf;

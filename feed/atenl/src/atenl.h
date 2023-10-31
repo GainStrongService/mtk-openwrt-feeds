@@ -270,7 +270,7 @@ enum {
 	MT_EE_BAND_SEL_DUAL,
 };
 
-/* for mt7916/mt7986 */
+/* for mt7916/mt7981/mt7986 */
 enum {
 	MT_EE_BAND_SEL_2G,
 	MT_EE_BAND_SEL_5G,
@@ -398,6 +398,11 @@ static inline bool is_mt7915(struct atenl *an)
 static inline bool is_mt7916(struct atenl *an)
 {
 	return (an->chip_id == 0x7916) || (an->chip_id == 0x7906);
+}
+
+static inline bool is_mt7981(struct atenl *an)
+{
+	return an->chip_id == 0x7981;
 }
 
 static inline bool is_mt7986(struct atenl *an)
