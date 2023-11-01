@@ -1,7 +1,7 @@
-From 87cc43ed074bca81b765e0961bd24da23f6e997e Mon Sep 17 00:00:00 2001
+From 8a9009b2bed6a9ae4c7a3a4d12fe8d7e15293103 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 5 Apr 2023 08:29:19 +0800
-Subject: [PATCH] mt76: revert for backports-5.15 wireless stack
+Subject: [PATCH 6/6] mt76: revert for backports-5.15 wireless stack
 
 wifi: mt76: mt7915: add support for he ldpc control from hostapd
 ---
@@ -24,7 +24,7 @@ wifi: mt76: mt7915: add support for he ldpc control from hostapd
  16 files changed, 259 insertions(+), 226 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 7c5e623c..908852c0 100644
+index 7c5e623..908852c 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -996,7 +996,7 @@ mt76_dma_init(struct mt76_dev *dev,
@@ -37,10 +37,10 @@ index 7c5e623c..908852c0 100644
  		napi_enable(&dev->napi[i]);
  	}
 diff --git a/mac80211.c b/mac80211.c
-index 62325345..137c5204 100644
+index 4caa714..923c6a3 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -1046,14 +1046,9 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
+@@ -1041,14 +1041,9 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
  	status->enc_flags = mstat.enc_flags;
  	status->encoding = mstat.encoding;
  	status->bw = mstat.bw;
@@ -58,7 +58,7 @@ index 62325345..137c5204 100644
  	status->rate_idx = mstat.rate_idx;
  	status->nss = mstat.nss;
  	status->band = mstat.band;
-@@ -1573,7 +1568,7 @@ EXPORT_SYMBOL_GPL(mt76_get_sar_power);
+@@ -1546,7 +1541,7 @@ EXPORT_SYMBOL_GPL(mt76_get_sar_power);
  static void
  __mt76_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
  {
@@ -67,7 +67,7 @@ index 62325345..137c5204 100644
  		ieee80211_csa_finish(vif);
  }
  
-@@ -1595,7 +1590,7 @@ __mt76_csa_check(void *priv, u8 *mac, struct ieee80211_vif *vif)
+@@ -1568,7 +1563,7 @@ __mt76_csa_check(void *priv, u8 *mac, struct ieee80211_vif *vif)
  {
  	struct mt76_dev *dev = priv;
  
@@ -77,7 +77,7 @@ index 62325345..137c5204 100644
  
  	dev->csa_complete |= ieee80211_beacon_cntdwn_is_complete(vif);
 diff --git a/mt7615/dma.c b/mt7615/dma.c
-index 0ce01ccc..ad324850 100644
+index 0ce01cc..ad32485 100644
 --- a/mt7615/dma.c
 +++ b/mt7615/dma.c
 @@ -282,8 +282,8 @@ int mt7615_dma_init(struct mt7615_dev *dev)
@@ -92,7 +92,7 @@ index 0ce01ccc..ad324850 100644
  
  	mt76_poll(dev, MT_WPDMA_GLO_CFG,
 diff --git a/mt7615/main.c b/mt7615/main.c
-index dab16b5f..d32a7520 100644
+index dab16b5..d32a752 100644
 --- a/mt7615/main.c
 +++ b/mt7615/main.c
 @@ -473,7 +473,7 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
@@ -123,7 +123,7 @@ index dab16b5f..d32a7520 100644
  	if (changed & BSS_CHANGED_MU_GROUPS)
  		 mt7615_update_mu_group(hw, vif, info);
 diff --git a/mt7615/mcu.c b/mt7615/mcu.c
-index db337aad..c4d97434 100644
+index db337aa..c4d9743 100644
 --- a/mt7615/mcu.c
 +++ b/mt7615/mcu.c
 @@ -353,7 +353,7 @@ out:
@@ -163,10 +163,10 @@ index db337aad..c4d97434 100644
  		.bcn_interval = cpu_to_le16(vif->bss_conf.beacon_int),
  	};
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index 02d52328..faeae26d 100644
+index f2b4ec9..431d60d 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
-@@ -1110,7 +1110,7 @@ void mt76_connac2_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
+@@ -1107,7 +1107,7 @@ void mt76_connac2_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
  	u32 val;
  
  	if (!sta ||
@@ -176,7 +176,7 @@ index 02d52328..faeae26d 100644
  
  	tid = le32_get_bits(txwi[1], MT_TXD1_TID);
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 07bd57b8..aa99bd78 100644
+index 1d22ab9..3a6404a 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -198,7 +198,7 @@ int mt76_connac_mcu_set_vif_ps(struct mt76_dev *dev, struct ieee80211_vif *vif)
@@ -314,7 +314,7 @@ index 07bd57b8..aa99bd78 100644
  	}
  
  	return mode;
-@@ -858,25 +849,25 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
+@@ -856,25 +847,25 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
  	u16 supp_rates;
  
  	/* starec ht */
@@ -346,7 +346,7 @@ index 07bd57b8..aa99bd78 100644
  	}
  
  	/* starec uapsd */
-@@ -885,11 +876,11 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
+@@ -883,11 +874,11 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
  	if (!is_mt7921(dev))
  		return;
  
@@ -360,7 +360,7 @@ index 07bd57b8..aa99bd78 100644
  		mt76_connac_mcu_sta_he_tlv(skb, sta);
  		mt76_connac_mcu_sta_he_tlv_v2(skb, sta);
  		if (band == NL80211_BAND_6GHZ &&
-@@ -899,7 +890,7 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
+@@ -897,7 +888,7 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
  			tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_HE_6G,
  						      sizeof(*he_6g_capa));
  			he_6g_capa = (struct sta_rec_he_6g_capa *)tlv;
@@ -369,7 +369,7 @@ index 07bd57b8..aa99bd78 100644
  		}
  	}
  
-@@ -909,14 +900,14 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
+@@ -907,14 +898,14 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
  	phy->basic_rate = cpu_to_le16((u16)vif->bss_conf.basic_rates);
  	phy->rcpi = rcpi;
  	phy->ampdu = FIELD_PREP(IEEE80211_HT_AMPDU_PARM_FACTOR,
@@ -387,7 +387,7 @@ index 07bd57b8..aa99bd78 100644
  	if (band == NL80211_BAND_2GHZ)
  		supp_rates = FIELD_PREP(RA_LEGACY_OFDM, supp_rates >> 4) |
  			     FIELD_PREP(RA_LEGACY_CCK, supp_rates & 0xf);
-@@ -925,18 +916,18 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
+@@ -923,18 +914,18 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
  
  	ra_info->legacy = cpu_to_le16(supp_rates);
  
@@ -411,7 +411,7 @@ index 07bd57b8..aa99bd78 100644
  			IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT;
  	}
  }
-@@ -952,7 +943,7 @@ void mt76_connac_mcu_wtbl_smps_tlv(struct sk_buff *skb,
+@@ -950,7 +941,7 @@ void mt76_connac_mcu_wtbl_smps_tlv(struct sk_buff *skb,
  	tlv = mt76_connac_mcu_add_nested_tlv(skb, WTBL_SMPS, sizeof(*smps),
  					     wtbl_tlv, sta_wtbl);
  	smps = (struct wtbl_smps *)tlv;
@@ -420,7 +420,7 @@ index 07bd57b8..aa99bd78 100644
  }
  EXPORT_SYMBOL_GPL(mt76_connac_mcu_wtbl_smps_tlv);
  
-@@ -964,27 +955,27 @@ void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
+@@ -962,27 +953,27 @@ void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
  	struct tlv *tlv;
  	u32 flags = 0;
  
@@ -456,7 +456,7 @@ index 07bd57b8..aa99bd78 100644
  		struct wtbl_vht *vht;
  		u8 af;
  
-@@ -993,18 +984,18 @@ void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
+@@ -991,18 +982,18 @@ void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
  						     sta_wtbl);
  		vht = (struct wtbl_vht *)tlv;
  		vht->ldpc = vht_ldpc &&
@@ -478,7 +478,7 @@ index 07bd57b8..aa99bd78 100644
  		/* sgi */
  		u32 msk = MT_WTBL_W5_SHORT_GI_20 | MT_WTBL_W5_SHORT_GI_40 |
  			  MT_WTBL_W5_SHORT_GI_80 | MT_WTBL_W5_SHORT_GI_160;
-@@ -1014,15 +1005,15 @@ void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
+@@ -1012,15 +1003,15 @@ void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
  						     sizeof(*raw), wtbl_tlv,
  						     sta_wtbl);
  
@@ -499,7 +499,7 @@ index 07bd57b8..aa99bd78 100644
  				flags |= MT_WTBL_W5_SHORT_GI_160;
  		}
  		raw = (struct wtbl_raw *)tlv;
-@@ -1311,9 +1302,9 @@ u8 mt76_connac_get_phy_mode(struct mt76_phy *phy, struct ieee80211_vif *vif,
+@@ -1309,9 +1300,9 @@ u8 mt76_connac_get_phy_mode(struct mt76_phy *phy, struct ieee80211_vif *vif,
  		return 0x38;
  
  	if (sta) {
@@ -512,7 +512,7 @@ index 07bd57b8..aa99bd78 100644
  	} else {
  		struct ieee80211_supported_band *sband;
  
-@@ -1636,7 +1627,6 @@ int mt76_connac_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
+@@ -1631,7 +1622,6 @@ int mt76_connac_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
  	for (i = 0; i < sreq->n_ssids; i++) {
  		if (!sreq->ssids[i].ssid_len)
  			continue;
@@ -520,7 +520,7 @@ index 07bd57b8..aa99bd78 100644
  		req->ssids[i].ssid_len = cpu_to_le32(sreq->ssids[i].ssid_len);
  		memcpy(req->ssids[i].ssid, sreq->ssids[i].ssid,
  		       sreq->ssids[i].ssid_len);
-@@ -1776,7 +1766,6 @@ int mt76_connac_mcu_sched_scan_req(struct mt76_phy *phy,
+@@ -1771,7 +1761,6 @@ int mt76_connac_mcu_sched_scan_req(struct mt76_phy *phy,
  		memcpy(req->ssids[i].ssid, ssid->ssid, ssid->ssid_len);
  		req->ssids[i].ssid_len = cpu_to_le32(ssid->ssid_len);
  	}
@@ -528,7 +528,7 @@ index 07bd57b8..aa99bd78 100644
  	req->match_num = sreq->n_match_sets;
  	for (i = 0; i < req->match_num; i++) {
  		match = &sreq->match_sets[i];
-@@ -2272,10 +2261,8 @@ int mt76_connac_mcu_update_arp_filter(struct mt76_dev *dev,
+@@ -2267,10 +2256,8 @@ int mt76_connac_mcu_update_arp_filter(struct mt76_dev *dev,
  				      struct mt76_vif *vif,
  				      struct ieee80211_bss_conf *info)
  {
@@ -540,7 +540,7 @@ index 07bd57b8..aa99bd78 100644
  			   IEEE80211_BSS_ARP_ADDR_LIST_LEN);
  	struct {
  		struct {
-@@ -2303,7 +2290,7 @@ int mt76_connac_mcu_update_arp_filter(struct mt76_dev *dev,
+@@ -2298,7 +2285,7 @@ int mt76_connac_mcu_update_arp_filter(struct mt76_dev *dev,
  
  	skb_put_data(skb, &req_hdr, sizeof(req_hdr));
  	for (i = 0; i < len; i++)
@@ -550,7 +550,7 @@ index 07bd57b8..aa99bd78 100644
  	return mt76_mcu_skb_send_msg(dev, skb, MCU_UNI_CMD(OFFLOAD), true);
  }
 diff --git a/mt76x02_mac.c b/mt76x02_mac.c
-index d5db6ffd..fec3d10d 100644
+index d5db6ff..fec3d10 100644
 --- a/mt76x02_mac.c
 +++ b/mt76x02_mac.c
 @@ -404,7 +404,7 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
@@ -575,7 +575,7 @@ index d5db6ffd..fec3d10d 100644
  		if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
  			ba_size = 0;
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index fd35b579..117ebb56 100644
+index fd35b57..117ebb5 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -2049,8 +2049,8 @@ static ssize_t mt7915_sta_fixed_rate_set(struct file *file,
@@ -590,7 +590,7 @@ index fd35b579..117ebb56 100644
  	field = RATE_PARAM_FIXED;
  
 diff --git a/mt7915/dma.c b/mt7915/dma.c
-index f71ec55b..b4e231b7 100644
+index f71ec55..b4e231b 100644
 --- a/mt7915/dma.c
 +++ b/mt7915/dma.c
 @@ -590,8 +590,8 @@ int mt7915_dma_init(struct mt7915_dev *dev, struct mt7915_phy *phy2)
@@ -605,10 +605,10 @@ index f71ec55b..b4e231b7 100644
  
  	mt7915_dma_enable(dev, false);
 diff --git a/mt7915/init.c b/mt7915/init.c
-index db627500..0ce17775 100644
+index 9978edb..d50e694 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -1173,8 +1173,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
+@@ -1181,8 +1181,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
  			mt76_connac_gen_ppe_thresh(he_cap->ppe_thres, nss);
  		} else {
  			he_cap_elem->phy_cap_info[9] |=
@@ -619,10 +619,10 @@ index db627500..0ce17775 100644
  
  		if (band == NL80211_BAND_6GHZ) {
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 8bcffd3f..7af49404 100644
+index 9595b55..29bfec8 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -538,7 +538,7 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
+@@ -540,7 +540,7 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
  
  static int
  mt7915_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -631,7 +631,7 @@ index 8bcffd3f..7af49404 100644
  	       const struct ieee80211_tx_queue_params *params)
  {
  	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
-@@ -639,7 +639,7 @@ mt7915_update_bss_color(struct ieee80211_hw *hw,
+@@ -641,7 +641,7 @@ mt7915_update_bss_color(struct ieee80211_hw *hw,
  static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
  				    struct ieee80211_vif *vif,
  				    struct ieee80211_bss_conf *info,
@@ -640,7 +640,7 @@ index 8bcffd3f..7af49404 100644
  {
  	struct mt7915_phy *phy = mt7915_hw_phy(hw);
  	struct mt7915_dev *dev = mt7915_hw_dev(hw);
-@@ -655,7 +655,7 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
+@@ -657,7 +657,7 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
  	    vif->type == NL80211_IFTYPE_STATION)
  		set_bss_info = set_sta = !is_zero_ether_addr(info->bssid);
  	if (changed & BSS_CHANGED_ASSOC)
@@ -649,7 +649,7 @@ index 8bcffd3f..7af49404 100644
  	if (changed & BSS_CHANGED_BEACON_ENABLED &&
  	    vif->type != NL80211_IFTYPE_AP)
  		set_bss_info = set_sta = info->enable_beacon;
-@@ -703,27 +703,8 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
+@@ -705,27 +705,8 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
  	mutex_unlock(&dev->mt76.mutex);
  }
  
@@ -678,7 +678,7 @@ index 8bcffd3f..7af49404 100644
  {
  	struct mt7915_phy *phy = mt7915_hw_phy(hw);
  	struct mt7915_dev *dev = mt7915_hw_dev(hw);
-@@ -731,8 +712,6 @@ mt7915_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -733,8 +714,6 @@ mt7915_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  
  	mutex_lock(&dev->mt76.mutex);
  
@@ -687,7 +687,7 @@ index 8bcffd3f..7af49404 100644
  	err = mt7915_mcu_add_bss_info(phy, vif, true);
  	if (err)
  		goto out;
-@@ -744,8 +723,7 @@ out:
+@@ -746,8 +725,7 @@ out:
  }
  
  static void
@@ -697,7 +697,7 @@ index 8bcffd3f..7af49404 100644
  {
  	struct mt7915_dev *dev = mt7915_hw_dev(hw);
  
-@@ -1307,10 +1285,10 @@ static int mt7915_sta_set_txpwr(struct ieee80211_hw *hw,
+@@ -1317,10 +1295,10 @@ static int mt7915_sta_set_txpwr(struct ieee80211_hw *hw,
  {
  	struct mt7915_phy *phy = mt7915_hw_phy(hw);
  	struct mt7915_dev *dev = mt7915_hw_dev(hw);
@@ -711,7 +711,7 @@ index 8bcffd3f..7af49404 100644
  
  	mutex_lock(&dev->mt76.mutex);
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ebacfd27..95c4188d 100644
+index 72f74e1..cb534af 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -67,7 +67,7 @@ mt7915_mcu_set_sta_he_mcs(struct ieee80211_sta *sta, __le16 *he_mcs,
@@ -1303,7 +1303,7 @@ index ebacfd27..95c4188d 100644
  	mt7915_mcu_beacon_cntdwn(vif, rskb, skb, bcn, &offs);
  	mt7915_mcu_beacon_mbss(rskb, skb, vif, bcn, &offs);
  	mt7915_mcu_beacon_cont(dev, vif, rskb, skb, bcn, &offs);
-@@ -3331,17 +3411,17 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
+@@ -3351,17 +3431,17 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
  	if (txpower) {
  		u32 offs, len, i;
  
@@ -1325,7 +1325,7 @@ index ebacfd27..95c4188d 100644
  					len = sku_len[SKU_HE_RU242] * 4;
  				}
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index b6779474..1e998113 100644
+index ce976b4..3755690 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -689,7 +689,7 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
@@ -1338,7 +1338,7 @@ index b6779474..1e998113 100644
  			skb_free_frag(ptr);
  			mt76_put_rxwi(&dev->mt76, r);
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 5e20cb9e..a765f387 100644
+index ecd6271..b2c442b 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -418,12 +418,12 @@ mt7915_tm_entry_add(struct mt7915_phy *phy, u8 aid)
@@ -1359,7 +1359,7 @@ index 5e20cb9e..a765f387 100644
  	sta->wme = 1;
  
 diff --git a/tx.c b/tx.c
-index 96f9009b..23a1e4e2 100644
+index c88fb29..9dfc289 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -60,20 +60,15 @@ mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)

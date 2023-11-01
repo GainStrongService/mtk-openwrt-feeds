@@ -1,7 +1,7 @@
-From 20d498a3d24a4c20a421bc6bc19a058620aa86ec Mon Sep 17 00:00:00 2001
+From 04de28f9fec0bce1f37dd6bb3c2081d91bdc218e Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 23 Oct 2023 10:26:01 +0800
-Subject: [PATCH 2015/2015] Revert "wifi: mt76: fix race condition related to
+Subject: [PATCH 5/6] Revert "wifi: mt76: fix race condition related to
  checking tx queue fill status"
 
 This reverts commit f1e1e67d97d1e9a8bb01b59ab20c45ebc985a958.
@@ -12,7 +12,7 @@ This reverts commit f1e1e67d97d1e9a8bb01b59ab20c45ebc985a958.
  3 files changed, 20 insertions(+), 120 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 37e6a627..923c6a31 100644
+index e7c4dc4..4caa714 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -427,9 +427,6 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
@@ -41,7 +41,7 @@ index 37e6a627..923c6a31 100644
  	ieee80211_unregister_hw(hw);
  }
  EXPORT_SYMBOL_GPL(mt76_unregister_device);
-@@ -1460,9 +1455,6 @@ EXPORT_SYMBOL_GPL(mt76_sta_pre_rcu_remove);
+@@ -1465,9 +1460,6 @@ EXPORT_SYMBOL_GPL(mt76_sta_pre_rcu_remove);
  
  void mt76_wcid_init(struct mt76_wcid *wcid)
  {
@@ -51,7 +51,7 @@ index 37e6a627..923c6a31 100644
  	INIT_LIST_HEAD(&wcid->list);
  	idr_init(&wcid->pktid);
  }
-@@ -1470,32 +1462,13 @@ EXPORT_SYMBOL_GPL(mt76_wcid_init);
+@@ -1475,32 +1467,13 @@ EXPORT_SYMBOL_GPL(mt76_wcid_init);
  
  void mt76_wcid_cleanup(struct mt76_dev *dev, struct mt76_wcid *wcid)
  {
@@ -85,7 +85,7 @@ index 37e6a627..923c6a31 100644
  EXPORT_SYMBOL_GPL(mt76_wcid_cleanup);
  
 diff --git a/mt76.h b/mt76.h
-index 3ff348f2..5eb571ef 100644
+index 3ff348f..5eb571e 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -354,9 +354,6 @@ struct mt76_wcid {
@@ -108,10 +108,10 @@ index 3ff348f2..5eb571ef 100644
  
  	struct cfg80211_chan_def chandef;
 diff --git a/tx.c b/tx.c
-index 23a1e4e2..9dfc2890 100644
+index 96f9009..c88fb29 100644
 --- a/tx.c
 +++ b/tx.c
-@@ -322,32 +322,40 @@ void
+@@ -328,32 +328,40 @@ void
  mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
  	struct mt76_wcid *wcid, struct sk_buff *skb)
  {
@@ -164,7 +164,7 @@ index 23a1e4e2..9dfc2890 100644
  }
  EXPORT_SYMBOL_GPL(mt76_tx);
  
-@@ -578,86 +586,10 @@ void mt76_txq_schedule(struct mt76_phy *phy, enum mt76_txq_id qid)
+@@ -584,86 +592,10 @@ void mt76_txq_schedule(struct mt76_phy *phy, enum mt76_txq_id qid)
  }
  EXPORT_SYMBOL_GPL(mt76_txq_schedule);
  

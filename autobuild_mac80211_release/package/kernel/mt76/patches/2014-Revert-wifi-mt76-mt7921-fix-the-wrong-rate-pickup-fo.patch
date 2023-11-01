@@ -1,8 +1,8 @@
-From b5cc571132a848d5daa3bec3ee07274205a98df0 Mon Sep 17 00:00:00 2001
+From 8beef73782b0b068ed1d86dcfec92f16e8297d4e Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 23 Oct 2023 10:25:18 +0800
-Subject: [PATCH 2013/2015] Revert "wifi: mt76: mt7921: fix the wrong rate
- pickup for the chanctx driver"
+Subject: [PATCH 3/6] Revert "wifi: mt76: mt7921: fix the wrong rate pickup for
+ the chanctx driver"
 
 This reverts commit 66d5694e1898c5584a83c60876bec16909ebe2b0.
 ---
@@ -12,10 +12,10 @@ This reverts commit 66d5694e1898c5584a83c60876bec16909ebe2b0.
  3 files changed, 5 insertions(+), 14 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 137c5204..37e6a627 100644
+index 6232534..e7c4dc4 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -1710,16 +1710,11 @@ mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
+@@ -1715,16 +1715,11 @@ mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
  }
  EXPORT_SYMBOL_GPL(mt76_init_queue);
  
@@ -35,7 +35,7 @@ index 137c5204..37e6a627 100644
  
  	/* pick the lowest rate for hidden nodes */
 diff --git a/mt76.h b/mt76.h
-index 0a7f4f14..05144b2c 100644
+index 0a7f4f1..05144b2 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -1207,8 +1207,7 @@ bool mt76_check_bin_file_mode(struct mt76_dev *dev);
@@ -49,7 +49,7 @@ index 0a7f4f14..05144b2c 100644
  				     int n_desc, int ring_base, u32 flags)
  {
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index faeae26d..431d60d3 100644
+index 02d5232..f2b4ec9 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -293,10 +293,7 @@ u16 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy,
