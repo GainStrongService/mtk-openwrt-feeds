@@ -317,6 +317,8 @@ int entry_set_usage(int level)
 	pr_info("              3   <entry_idx>  Delete PPE0 specific foe entry of assigned <entry_idx>\n");
 	pr_info("              4   <entry_idx>  Show PPE1 specific foe entry info. of assigned <entry_idx>\n");
 	pr_info("              5   <entry_idx>  Delete PPE1 specific foe entry of assigned <entry_idx>\n");
+	pr_info("              6   <entry_idx>  Show PPE2 specific foe entry info. of assigned <entry_idx>\n");
+	pr_info("              7   <entry_idx>  Delete PPE2 specific foe entry of assigned <entry_idx>\n");
 	pr_info("                               When entry_idx is -1, clear all entries\n");
 
 	return 0;
@@ -333,13 +335,21 @@ int entry_set_state(int state)
 	return 0;
 }
 
-int wrapped_ppe0_entry_detail(int index) {
+int wrapped_ppe0_entry_detail(int index)
+{
 	entry_detail(0, index);
 	return 0;
 }
 
-int wrapped_ppe1_entry_detail(int index) {
+int wrapped_ppe1_entry_detail(int index)
+{
 	entry_detail(1, index);
+	return 0;
+}
+
+int wrapped_ppe2_entry_detail(int index)
+{
+	entry_detail(2, index);
 	return 0;
 }
 
@@ -646,13 +656,21 @@ int entry_detail(u32 ppe_id, int index)
 	return 0;
 }
 
-int wrapped_ppe0_entry_delete(int index) {
+int wrapped_ppe0_entry_delete(int index)
+{
 	entry_delete(0, index);
 	return 0;
 }
 
-int wrapped_ppe1_entry_delete(int index) {
+int wrapped_ppe1_entry_delete(int index)
+{
 	entry_delete(1, index);
+	return 0;
+}
+
+int wrapped_ppe2_entry_delete(int index)
+{
+	entry_delete(2, index);
 	return 0;
 }
 
@@ -825,6 +843,8 @@ static const debugfs_write_func entry_set_func[] = {
 	[3] = wrapped_ppe0_entry_delete,
 	[4] = wrapped_ppe1_entry_detail,
 	[5] = wrapped_ppe1_entry_delete,
+	[6] = wrapped_ppe2_entry_detail,
+	[7] = wrapped_ppe2_entry_delete,
 };
 
 static const debugfs_write_func cr_set_func[] = {
@@ -1735,6 +1755,8 @@ ssize_t hnat_entry_write(struct file *file, const char __user *buffer,
 	case 3:
 	case 4:
 	case 5:
+	case 6:
+	case 7:
 		p_token = strsep(&p_buf, p_delimiter);
 		if (!p_token)
 			arg1 = 0;
