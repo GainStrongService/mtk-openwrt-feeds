@@ -211,11 +211,13 @@ void foe_clear_all_bind_entries(void)
 
 static void gmac_ppe_fwd_enable(struct net_device *dev)
 {
+	struct mtk_mac *mac = netdev_priv(dev);
+
 	if (IS_LAN(dev) || IS_GMAC1_MODE)
 		set_gmac_ppe_fwd(NR_GMAC1_PORT, 1);
-	else if (IS_WAN(dev))
+	else if (mac->id == MTK_GMAC2_ID)
 		set_gmac_ppe_fwd(NR_GMAC2_PORT, 1);
-	else if (IS_LAN2(dev))
+	else if (mac->id == MTK_GMAC3_ID)
 		set_gmac_ppe_fwd(NR_GMAC3_PORT, 1);
 }
 
@@ -1220,6 +1222,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	u32 qid = 0;
 	u32 port_id = 0;
 	int mape = 0;
+	struct mtk_mac *mac = netdev_priv(dev);
 
 	ct = nf_ct_get(skb, &ctinfo);
 
@@ -1694,7 +1697,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		else
 			gmac = NR_GMAC1_PORT;
 	} else if (IS_LAN2(dev)) {
-		gmac = NR_GMAC3_PORT;
+		gmac = (mac->id == MTK_GMAC2_ID) ? NR_GMAC2_PORT : NR_GMAC3_PORT;
 	} else if (IS_WAN(dev)) {
 		if (IS_DSA_WAN(dev))
 			port_id = hnat_dsa_fill_stag(dev,&entry, hw_path,
@@ -1706,7 +1709,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			entry.ipv4_hnapt.act_dp &= ~UDF_PINGPONG_IFIDX;
 			entry.ipv4_hnapt.act_dp |= dev->ifindex & UDF_PINGPONG_IFIDX;
 		} else {
-			gmac = (IS_GMAC1_MODE) ? NR_GMAC1_PORT : NR_GMAC2_PORT;
+			if (IS_GMAC1_MODE)
+				gmac = NR_GMAC1_PORT;
+			else
+				gmac = (mac->id == MTK_GMAC2_ID) ? NR_GMAC2_PORT : NR_GMAC3_PORT;
 		}
 	} else if (IS_EXT(dev) && (FROM_GE_PPD(skb) || FROM_GE_LAN_GRP(skb) ||
 		   FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb) || FROM_WED(skb))) {
