@@ -1219,10 +1219,11 @@ enum FoeIpAct {
 #define UDF_HNAT_PRE_FILLED BIT(4)
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-#define TPORT_FLAG(dev, skb)				\
+#define TPORT_FLAG(dev, skb, qid)			\
 	((IS_HQOS_UL_MODE && IS_WAN(dev)) ||		\
 	 (IS_HQOS_DL_MODE && IS_LAN_GRP(dev)) ||	\
-	 (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb)))
+	 (IS_PPPQ_MODE && (IS_PPPQ_PATH(dev, skb) ||	\
+			   qid >= MAX_PPPQ_PORT_NUM)))
 #endif
 
 extern const struct of_device_id of_hnat_match[];

@@ -1781,17 +1781,12 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			}
 
 			if (FROM_EXT(skb) || skb_hnat_sport(skb) == NR_QDMA_PORT ||
-			    (IS_PPPQ_MODE && !IS_DSA_LAN(dev) && !IS_DSA_WAN(dev)))
+			    (IS_PPPQ_MODE && (qid < MAX_PPPQ_PORT_NUM) &&
+			     !IS_DSA_LAN(dev) && !IS_DSA_WAN(dev)))
 				entry.ipv4_hnapt.iblk2.fqos = 0;
 			else
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-				if ((IS_HQOS_UL_MODE && IS_WAN(dev)) ||
-				    (IS_HQOS_DL_MODE && IS_LAN_GRP(dev)) ||
-				    (IS_PPPQ_MODE &&
-				     IS_PPPQ_PATH(dev, skb)))
-					entry.ipv4_hnapt.tport_id = 1;
-				else
-					entry.ipv4_hnapt.tport_id = 0;
+				entry.ipv4_hnapt.tport_id = TPORT_FLAG(dev, skb, qid) ? 1 : 0;
 #else
 				entry.ipv4_hnapt.iblk2.fqos =
 					(!IS_PPPQ_MODE ||
@@ -1827,21 +1822,25 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			}
 
 			if (FROM_EXT(skb) ||
-			    (IS_PPPQ_MODE && !IS_DSA_LAN(dev) && !IS_DSA_WAN(dev)))
+			    (IS_PPPQ_MODE && (qid < MAX_PPPQ_PORT_NUM) &&
+			     !IS_DSA_LAN(dev) && !IS_DSA_WAN(dev)))
 				entry.ipv6_5t_route.iblk2.fqos = 0;
 			else
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 				switch (foe->bfib1.pkt_type) {
 				case IPV4_MAP_E:
 				case IPV4_MAP_T:
-					entry.ipv4_mape.tport_id = TPORT_FLAG(dev, skb) ? 1 : 0;
+					entry.ipv4_mape.tport_id =
+						TPORT_FLAG(dev, skb, qid) ? 1 : 0;
 					break;
 				case IPV6_HNAPT:
 				case IPV6_HNAT:
-					entry.ipv6_hnapt.tport_id = TPORT_FLAG(dev, skb) ? 1 : 0;
+					entry.ipv6_hnapt.tport_id =
+						TPORT_FLAG(dev, skb, qid) ? 1 : 0;
 					break;
 				default:
-					entry.ipv6_5t_route.tport_id = TPORT_FLAG(dev, skb) ? 1 : 0;
+					entry.ipv6_5t_route.tport_id =
+						TPORT_FLAG(dev, skb, qid) ? 1 : 0;
 					break;
 				}
 #else
