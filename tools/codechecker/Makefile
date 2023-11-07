@@ -16,11 +16,11 @@ PKG_MIRROR_HASH:=6dddd1c7455e1c6d2115ccffcad831a51826f0f1dce18928d651d2665aa41f6
 include $(INCLUDE_DIR)/host-build.mk
 
 define Host/Compile
-	$(MAKE) -C $(HOST_BUILD_DIR)/analyzer/tools/build-logger all
+	$(MAKE) -C $(HOST_BUILD_DIR)/analyzer/tools/build-logger -f Makefile.native ldlogger.so
 endef
 
 define Host/Install
-	$(INSTALL_DATA) $(HOST_BUILD_DIR)/analyzer/tools/build-logger/build/lib/`uname -m`/ldlogger.so $(STAGING_DIR_HOST)/lib/
+	$(INSTALL_DATA) $(HOST_BUILD_DIR)/analyzer/tools/build-logger/ldlogger.so $(STAGING_DIR_HOST)/lib/
 endef
 
 define Host/Clean
