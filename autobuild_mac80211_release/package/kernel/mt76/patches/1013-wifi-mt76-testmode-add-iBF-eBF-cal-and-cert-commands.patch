@@ -1,4 +1,4 @@
-From 404ed4dacc3558345f56a49bbe4234387ac06a63 Mon Sep 17 00:00:00 2001
+From abf253c784db9cb42cf14ca7b825227ef982c3cd Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 15 Dec 2022 19:45:18 +0800
 Subject: [PATCH] wifi: mt76: testmode: add iBF/eBF cal and cert commands with
@@ -15,14 +15,14 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  mt7915/mmio.c        |   2 +
  mt7915/mt7915.h      |  14 +-
  mt7915/mtk_debugfs.c |  35 ++++
- mt7915/mtk_mcu.c     | 246 ++++++++++++++++++++++-
+ mt7915/mtk_mcu.c     | 247 ++++++++++++++++++++++-
  mt7915/regs.h        |   4 +
  mt7915/testmode.c    | 461 ++++++++++++++++++++++++++++---------------
  mt7915/testmode.h    | 134 +------------
  testmode.c           |   1 +
  testmode.h           |   9 +
  tools/fields.c       |   9 +
- 16 files changed, 857 insertions(+), 324 deletions(-)
+ 16 files changed, 858 insertions(+), 324 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
 index 7ae061d..d16accd 100644
@@ -84,7 +84,7 @@ index 06a5fb1..948f07b 100644
  	txwi[6] |= cpu_to_le32(val);
  #endif
 diff --git a/mt7915/main.c b/mt7915/main.c
-index ca946f9..8d33291 100644
+index 44a1b21..8c9b0b2 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -205,46 +205,37 @@ static void mt7915_init_bitrate_mask(struct ieee80211_vif *vif)
@@ -573,7 +573,7 @@ index 587497b..2ce1837 100644
  
  	return 0;
 diff --git a/mt7915/mtk_mcu.c b/mt7915/mtk_mcu.c
-index 143dae2..906c872 100644
+index 143dae2..7a2d28c 100644
 --- a/mt7915/mtk_mcu.c
 +++ b/mt7915/mtk_mcu.c
 @@ -1,9 +1,10 @@
@@ -588,7 +588,7 @@ index 143dae2..906c872 100644
  
  int mt7915_mcu_set_txpower_level(struct mt7915_phy *phy, u8 drop_level)
  {
-@@ -49,3 +50,246 @@ int mt7915_mcu_set_txpower_level(struct mt7915_phy *phy, u8 drop_level)
+@@ -49,3 +50,247 @@ int mt7915_mcu_set_txpower_level(struct mt7915_phy *phy, u8 drop_level)
  				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL), &req,
  				 sizeof(req), true);
  }
@@ -809,10 +809,11 @@ index 143dae2..906c872 100644
 +		.bfer = bfer,
 +		.dbdc_idx = phy->mt76->band_idx,
 +	};
-+	struct mt7915_pfmu_tag *tag = phy->dev->test.txbf_pfmu_tag;
++	struct mt7915_pfmu_tag *tag = dev->test.txbf_pfmu_tag;
 +
 +	/* Reset to 0 for mt7915_tm_txbf_profile_tag_write wait_event */
-+	tag->t1.pfmu_idx = 0;
++	if (tag)
++		tag->t1.pfmu_idx = 0;
 +
 +	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(TXBF_ACTION), &req,
 +				 sizeof(req), true);
