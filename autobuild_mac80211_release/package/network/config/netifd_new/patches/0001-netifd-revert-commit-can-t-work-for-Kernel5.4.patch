@@ -1,7 +1,7 @@
-From f73e9179da805301affa628de794046ef8ef2ff0 Mon Sep 17 00:00:00 2001
+From 2c1c1d9cd52d674295504af20e7409ba83d9ecc6 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Sun, 17 Sep 2023 12:28:35 +0800
-Subject: [PATCH 1/4] netifd: revert: commit can't work for Kernel5.4
+Subject: [PATCH] netifd: revert: commit can't work for Kernel5.4
 
 Revert "make_ethtool_modes_h.sh: apply anti-bashism"
 This reverts commit 1a07f1dff32b3af49e39533e33e8964b59535662.
@@ -40,10 +40,10 @@ index 8064485..5ad8695 100644
  )
 -ADD_DEPENDENCIES(netifd ethtool-modes-h)
 diff --git a/device.c b/device.c
-index 2417556..92c814c 100644
+index 9a9e249..f6ac806 100644
 --- a/device.c
 +++ b/device.c
-@@ -64,11 +64,6 @@ static const struct blobmsg_policy dev_attrs[__DEV_ATTR_MAX] = {
+@@ -67,11 +67,6 @@ static const struct blobmsg_policy dev_attrs[__DEV_ATTR_MAX] = {
  	[DEV_ATTR_SPEED] = { .name = "speed", .type = BLOBMSG_TYPE_INT32 },
  	[DEV_ATTR_DUPLEX] = { .name = "duplex", .type = BLOBMSG_TYPE_BOOL },
  	[DEV_ATTR_VLAN] = { .name = "vlan", .type = BLOBMSG_TYPE_ARRAY },
@@ -55,7 +55,7 @@ index 2417556..92c814c 100644
  };
  
  const struct uci_blob_param_list device_attr_list = {
-@@ -286,11 +281,6 @@ device_merge_settings(struct device *dev, struct device_settings *n)
+@@ -289,11 +284,6 @@ device_merge_settings(struct device *dev, struct device_settings *n)
  	n->auth = s->flags & DEV_OPT_AUTH ? s->auth : os->auth;
  	n->speed = s->flags & DEV_OPT_SPEED ? s->speed : os->speed;
  	n->duplex = s->flags & DEV_OPT_DUPLEX ? s->duplex : os->duplex;
@@ -67,11 +67,10 @@ index 2417556..92c814c 100644
  	n->flags = s->flags | os->flags | os->valid_flags;
  }
  
-@@ -515,31 +505,6 @@ device_init_settings(struct device *dev, struct blob_attr **tb)
- 		s->duplex = blobmsg_get_bool(cur);
+@@ -519,31 +509,6 @@ device_init_settings(struct device *dev, struct blob_attr **tb)
  		s->flags |= DEV_OPT_DUPLEX;
  	}
--
+ 
 -	if ((cur = tb[DEV_ATTR_PAUSE])) {
 -		s->pause = blobmsg_get_bool(cur);
 -		s->flags |= DEV_OPT_PAUSE;
@@ -96,14 +95,15 @@ index 2417556..92c814c 100644
 -		s->autoneg = blobmsg_get_bool(cur);
 -		s->flags |= DEV_OPT_AUTONEG;
 -	}
- 	device_set_extra_vlans(dev, tb[DEV_ATTR_VLAN]);
- 	device_set_disabled(dev, disabled);
- }
+-
+ 	cur = tb[DEV_ATTR_AUTH_VLAN];
+ 	free(dev->config_auth_vlans);
+ 	dev->config_auth_vlans = cur ? blob_memdup(cur) : NULL;
 diff --git a/device.h b/device.h
-index 14d7486..aa4da18 100644
+index 12927de..c3bccbb 100644
 --- a/device.h
 +++ b/device.h
-@@ -63,11 +63,6 @@ enum {
+@@ -64,11 +64,6 @@ enum {
  	DEV_ATTR_SPEED,
  	DEV_ATTR_DUPLEX,
  	DEV_ATTR_VLAN,
@@ -115,7 +115,7 @@ index 14d7486..aa4da18 100644
  	__DEV_ATTR_MAX,
  };
  
-@@ -132,11 +127,6 @@ enum {
+@@ -133,11 +128,6 @@ enum {
  	DEV_OPT_ARP_ACCEPT		= (1ULL << 29),
  	DEV_OPT_SPEED			= (1ULL << 30),
  	DEV_OPT_DUPLEX			= (1ULL << 31),
@@ -127,7 +127,7 @@ index 14d7486..aa4da18 100644
  };
  
  /* events broadcasted to all users of a device */
-@@ -214,11 +204,6 @@ struct device_settings {
+@@ -215,11 +205,6 @@ struct device_settings {
  	bool auth;
  	unsigned int speed;
  	bool duplex;
@@ -212,7 +212,7 @@ index 7f5ac7b..0000000
 -	LC_ALL=C sort -g | sed -r 's/[0-9]* (.*)/\1/'
 -echo "};"
 diff --git a/system-linux.c b/system-linux.c
-index e437377..0760e73 100644
+index bb23404..d3bfadc 100644
 --- a/system-linux.c
 +++ b/system-linux.c
 @@ -48,8 +48,6 @@
@@ -224,7 +224,7 @@ index e437377..0760e73 100644
  #ifndef RTN_FAILED_POLICY
  #define RTN_FAILED_POLICY 12
  #endif
-@@ -1704,149 +1702,54 @@ int system_vlandev_del(struct device *vlandev)
+@@ -1714,149 +1712,54 @@ int system_vlandev_del(struct device *vlandev)
  	return system_link_del(vlandev->ifname);
  }
  
@@ -401,7 +401,7 @@ index e437377..0760e73 100644
  	ioctl(sock_ioctl, SIOCETHTOOL, &ifr);
  }
  
-@@ -2429,6 +2332,45 @@ read_uint64_file(int dir_fd, const char *file, uint64_t *val)
+@@ -2432,6 +2335,45 @@ read_uint64_file(int dir_fd, const char *file, uint64_t *val)
  	return ret;
  }
  
@@ -447,7 +447,7 @@ index e437377..0760e73 100644
  bool
  system_if_force_external(const char *ifname)
  {
-@@ -2603,213 +2545,41 @@ ethtool_feature_value(const char *ifname, const char *keyname)
+@@ -2606,213 +2548,41 @@ ethtool_feature_value(const char *ifname, const char *keyname)
  	return active;
  }
  
