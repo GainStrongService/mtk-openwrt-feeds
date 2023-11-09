@@ -8,6 +8,8 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
@@ -15,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/msi.h>
+#include <linux/of_gpio.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
@@ -178,6 +181,9 @@ struct mtk_pcie_port {
 	struct clk_bulk_data *clks;
 	int num_clks;
 	int max_link_width;
+
+	struct gpio_desc *wifi_reset;
+	u32 wifi_reset_delay_ms;
 
 	int irq;
 	int num_irqs;
@@ -378,6 +384,12 @@ static int mtk_pcie_startup_port(struct mtk_pcie_port *port)
 	val = readl_relaxed(port->base + PCIE_INT_ENABLE_REG);
 	val &= ~PCIE_INTX_ENABLE;
 	writel_relaxed(val, port->base + PCIE_INT_ENABLE_REG);
+
+	if (port->wifi_reset) {
+		gpiod_set_value_cansleep(port->wifi_reset, 0);
+		msleep(port->wifi_reset_delay_ms);
+		gpiod_set_value_cansleep(port->wifi_reset, 1);
+	}
 
 	/* Assert all reset signals */
 	val = readl_relaxed(port->base + PCIE_RST_CTRL_REG);
@@ -963,6 +975,8 @@ static int mtk_pcie_parse_port(struct mtk_pcie_port *port)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct list_head *windows = &host->windows;
 	struct resource *regs, *bus;
+	enum of_gpio_flags flags;
+	enum gpiod_flags wifi_reset_init_flags;
 	int ret;
 
 	ret = pci_parse_request_of_pci_ranges(dev, windows, &bus);
@@ -1020,6 +1034,28 @@ static int mtk_pcie_parse_port(struct mtk_pcie_port *port)
 	ret = mtk_pcie_parse_msi(port);
 	if (ret) {
 		dev_err(dev, "failed to parse msi\n");
+		return ret;
+	}
+
+	ret = of_get_named_gpio_flags(dev->of_node, "wifi-reset-gpios", 0,
+				      &flags);
+	if (ret >= 0) {
+		if (flags & OF_GPIO_ACTIVE_LOW)
+			wifi_reset_init_flags = GPIOD_OUT_HIGH;
+		else
+			wifi_reset_init_flags = GPIOD_OUT_LOW;
+		port->wifi_reset = devm_gpiod_get_optional(dev, "wifi-reset",
+							   wifi_reset_init_flags);
+		if (IS_ERR(port->wifi_reset)) {
+			ret = PTR_ERR(port->wifi_reset);
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev,
+					"failed to request WIFI reset gpio\n");
+			return ret;
+		}
+		of_property_read_u32(dev->of_node, "wifi-reset-msleep",
+				     &port->wifi_reset_delay_ms);
+	} else if (ret == -EPROBE_DEFER) {
 		return ret;
 	}
 
