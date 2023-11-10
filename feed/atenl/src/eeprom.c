@@ -424,30 +424,27 @@ int atenl_eeprom_update_precal(struct atenl *an, int write_offs, int size)
 
 int atenl_eeprom_write_mtd(struct atenl *an)
 {
+#define TMP_FILE	"/tmp/tmp_eeprom.bin"
 	pid_t pid;
-	char offset[10];
+	u32 size = an->eeprom_size;
+	u32 *precal_info = an->eeprom_data + an->eeprom_size;
+	u32 precal_size = precal_info[0] + precal_info[1];
+	char cmd[100];
 
 	if (an->mtd_part == NULL || !(~an->mtd_offset))
 		return 0;
 
-	pid = fork();
-	if (pid < 0) {
-		perror("Fork");
-		return EXIT_FAILURE;
-	} else if (pid == 0) {
-		int ret;
-		char *part = strdup(an->mtd_part);
-		snprintf(offset, sizeof(offset), "%d", an->mtd_offset);
-		char *cmd[] = {"mtd", "-p", offset, "write", eeprom_file, part, NULL};
+	if (precal_size)
+		size += PRE_CAL_INFO + precal_size;
 
-		ret = execvp("mtd", cmd);
-		if (ret < 0) {
-			atenl_err("%s: exec error\n", __func__);
-			exit(0);
-		}
-	} else {
-		wait(&pid);
-	}
+	sprintf(cmd, "dd if=%s of=%s bs=1 count=%d", eeprom_file, TMP_FILE, size);
+	system(cmd);
+
+	sprintf(cmd, "mtd -p %d write %s %s", an->mtd_offset, TMP_FILE, an->mtd_part);
+	system(cmd);
+
+	sprintf(cmd, "rm %s", TMP_FILE);
+	system(cmd);
 
 	return 0;
 }
