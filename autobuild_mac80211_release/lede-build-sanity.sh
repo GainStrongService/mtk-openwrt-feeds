@@ -180,6 +180,13 @@ prepare_flowoffload() {
 	echo "CONFIG_NETFILTER=y" >> ./target/linux/mediatek/mt7986/config-5.4
 	echo "CONFIG_NETFILTER_ADVANCED=y" >> ./target/linux/mediatek/mt7986/config-5.4
 
+	#hack mt7981 config5.4
+	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_NETFILTER_FAMILY_BRIDGE=y" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_SKB_EXTENSIONS=y" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_NETFILTER=y" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_NETFILTER_ADVANCED=y" >> ./target/linux/mediatek/mt7981/config-5.4
+
 	#hack mt7622 config5.4
 	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7622/config-5.4
 	echo "CONFIG_NETFILTER_FAMILY_BRIDGE=y" >> ./target/linux/mediatek/mt7622/config-5.4
