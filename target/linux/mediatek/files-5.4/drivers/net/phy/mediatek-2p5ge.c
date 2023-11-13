@@ -7,12 +7,14 @@
 #include <linux/of_platform.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/phy.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 
-#define MEDAITEK_2P5GE_PHY_DMB_FW "mediatek-2p5ge-phy-dmb.bin"
-#define MEDIATEK_2P5GE_PHY_PMB_FW "mediatek-2p5ge-phy-pmb.bin"
+#define MT7988_2P5GE_PMB "mediatek/mt7988/i2p5ge-phy-pmb.bin"
 
-#define MD32_EN_CFG	0x18
-#define   MD32_EN	BIT(0)
+#define MD32_EN			BIT(0)
+#define PMEM_PRIORITY		BIT(8)
+#define DMEM_PRIORITY		BIT(16)
 
 #define BASE100T_STATUS_EXTEND		(0x10)
 #define BASE1000T_STATUS_EXTEND		(0x11)
@@ -42,6 +44,14 @@
 #define   MTK_PHY_LED1_ON_HDX			BIT(5)
 #define   MTK_PHY_LED1_POLARITY			BIT(14)
 
+#define MTK_EXT_PAGE_ACCESS			0x1f
+#define MTK_PHY_PAGE_STANDARD			0x0000
+#define MTK_PHY_PAGE_EXTENDED_52B5		0x52b5
+
+struct mtk_i2p5ge_phy_priv {
+	bool fw_loaded;
+};
+
 enum {
 	PHY_AUX_SPD_10 = 0,
 	PHY_AUX_SPD_100,
@@ -49,60 +59,100 @@ enum {
 	PHY_AUX_SPD_2500,
 };
 
-static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
+static int mtk_2p5ge_phy_read_page(struct phy_device *phydev)
 {
-	int ret;
-	int i;
+	return __phy_read(phydev, MTK_EXT_PAGE_ACCESS);
+}
+
+static int mtk_2p5ge_phy_write_page(struct phy_device *phydev, int page)
+{
+	return __phy_write(phydev, MTK_EXT_PAGE_ACCESS, page);
+}
+
+static int mt7988_2p5ge_phy_probe(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_phy_priv *phy_priv;
+
+	phy_priv = devm_kzalloc(&phydev->mdio.dev,
+				sizeof(struct mtk_i2p5ge_phy_priv), GFP_KERNEL);
+	if (!phy_priv)
+		return -ENOMEM;
+
+	phydev->priv = phy_priv;
+
+	return 0;
+}
+
+static int mt7988_2p5ge_phy_config_init(struct phy_device *phydev)
+{
+	int ret, i;
 	const struct firmware *fw;
 	struct device *dev = &phydev->mdio.dev;
+	struct device *pm_dev;
 	struct device_node *np;
-	void __iomem *dmb_addr;
 	void __iomem *pmb_addr;
-	void __iomem *mcucsr_base;
+	void __iomem *md32_en_cfg_base;
+	struct mtk_i2p5ge_phy_priv *phy_priv = phydev->priv;
 	u16 reg;
 	struct pinctrl *pinctrl;
 
+	if (!phy_priv->fw_loaded) {
+		pm_dev = dev_pm_domain_attach_by_name(dev, "i2p5gbe-pd");
+		if (IS_ERR(pm_dev)) {
+			ret = PTR_ERR(pm_dev);
+			dev_err(dev, "failed to get i2p5g pm-domain: %d\n", ret);
+			return ret;
+		}
+		if (!pm_dev->pm_domain)
+			dev_info(dev, "pm_dev domain is not ready yet\n");
 
-	np = of_find_compatible_node(NULL, NULL, "mediatek,2p5gphy-fw");
-	if (!np)
-		return -ENOENT;
+		/* We need to add 1 to power domain counter first so that
+		 * we can correctly power off internal 2.5Gphy
+		 */
+		ret = pm_runtime_get_sync(pm_dev);
+		if (ret < 0) {
+			dev_err(&phydev->mdio.dev, "failed to power on!\n");
+			return ret;
+		}
+		pm_runtime_put_sync(pm_dev);
+		ret = pm_runtime_get_sync(pm_dev);
+		if (ret < 0) {
+			dev_err(&phydev->mdio.dev, "failed to power on!\n");
+			return ret;
+		}
 
-	dmb_addr = of_iomap(np, 0);
-	if (!dmb_addr)
-		return -ENOMEM;
-	pmb_addr = of_iomap(np, 1);
-	if (!pmb_addr)
-		return -ENOMEM;
-	mcucsr_base = of_iomap(np, 2);
-	if (!mcucsr_base)
-		return -ENOMEM;
+		np = of_find_compatible_node(NULL, NULL, "mediatek,2p5gphy-fw");
+		if (!np)
+			return -ENOENT;
+		pmb_addr = of_iomap(np, 0);
+		if (!pmb_addr)
+			return -ENOMEM;
+		md32_en_cfg_base = of_iomap(np, 1);
+		if (!md32_en_cfg_base)
+			return -ENOMEM;
 
-	ret = request_firmware(&fw, MEDAITEK_2P5GE_PHY_DMB_FW, dev);
-	if (ret) {
-		dev_err(dev, "failed to load firmware: %s, ret: %d\n",
-			MEDAITEK_2P5GE_PHY_DMB_FW, ret);
-		return ret;
+		ret = request_firmware(&fw, MT7988_2P5GE_PMB, dev);
+		if (ret) {
+			dev_err(dev, "failed to load firmware: %s, ret: %d\n",
+				MT7988_2P5GE_PMB, ret);
+			return ret;
+		}
+
+		reg = readw(md32_en_cfg_base);
+		writew(reg | DMEM_PRIORITY | PMEM_PRIORITY, md32_en_cfg_base);
+
+		for (i = 0; i < fw->size - 1; i += 4)
+			writel(*((uint32_t *)(fw->data + i)), pmb_addr + i);
+		release_firmware(fw);
+
+		reg = readw(md32_en_cfg_base);
+		reg &= ~(DMEM_PRIORITY | PMEM_PRIORITY | MD32_EN);
+		writew(reg, md32_en_cfg_base);
+		writew(reg | MD32_EN, md32_en_cfg_base);
+		dev_info(dev, "Firmware loading/trigger ok.\n");
+
+		phy_priv->fw_loaded = true;
 	}
-	for (i = 0; i < fw->size - 1; i += 4)
-		writel(*((uint32_t *)(fw->data + i)), dmb_addr + i);
-	release_firmware(fw);
-
-	ret = request_firmware(&fw, MEDIATEK_2P5GE_PHY_PMB_FW, dev);
-	if (ret) {
-		dev_err(dev, "failed to load firmware: %s, ret: %d\n",
-			MEDIATEK_2P5GE_PHY_PMB_FW, ret);
-		return ret;
-	}
-	for (i = 0; i < fw->size - 1; i += 4)
-		writel(*((uint32_t *)(fw->data + i)), pmb_addr + i);
-	release_firmware(fw);
-
-	reg = readw(mcucsr_base + MD32_EN_CFG);
-	writew(reg | MD32_EN, mcucsr_base + MD32_EN_CFG);
-	dev_info(dev, "Firmware loading/trigger ok.\n");
-
-	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LPI_PCS_DSP_CTRL,
-		       MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK, 0);
 
 	/* Setup LED */
 	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
@@ -118,10 +168,20 @@ static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 		return PTR_ERR(pinctrl);
 	}
 
+	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LPI_PCS_DSP_CTRL,
+		       MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK, 0);
+
+	/* Enable 16-bit next page exchange bit if 1000-BT isn't advertizing */
+	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_52B5);
+	__phy_write(phydev, 0x11, 0xfbfa);
+	__phy_write(phydev, 0x12, 0xc3);
+	__phy_write(phydev, 0x10, 0x87f8);
+	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
+
 	return 0;
 }
 
-static int mt798x_2p5ge_phy_config_aneg(struct phy_device *phydev)
+static int mt7988_2p5ge_phy_config_aneg(struct phy_device *phydev)
 {
 	bool changed = false;
 	u32 adv;
@@ -154,7 +214,7 @@ static int mt798x_2p5ge_phy_config_aneg(struct phy_device *phydev)
 	return genphy_c45_check_and_restart_aneg(phydev, changed);
 }
 
-static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
+static int mt7988_2p5ge_phy_get_features(struct phy_device *phydev)
 {
 	int ret;
 
@@ -162,7 +222,7 @@ static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	/* We don't support HDX at MAC layer on mt798x.
+	/* We don't support HDX at MAC layer on mt7988.
 	 * So mask phy's HDX capabilities, too.
 	 */
 	linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
@@ -178,7 +238,7 @@ static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
 	return 0;
 }
 
-static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
+static int mt7988_2p5ge_phy_read_status(struct phy_device *phydev)
 {
 	int ret;
 
@@ -234,7 +294,7 @@ static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
 	return 0;
 }
 
-static int mt798x_2p5ge_phy_get_rate_matching(struct phy_device *phydev,
+static int mt7988_2p5ge_phy_get_rate_matching(struct phy_device *phydev,
 					      phy_interface_t iface)
 {
 	if (iface == PHY_INTERFACE_MODE_XGMII)
@@ -244,17 +304,18 @@ static int mt798x_2p5ge_phy_get_rate_matching(struct phy_device *phydev,
 
 static struct phy_driver mtk_gephy_driver[] = {
 	{
-		PHY_ID_MATCH_EXACT(0x00339c11),
+		PHY_ID_MATCH_MODEL(0x00339c11),
 		.name		= "MediaTek MT798x 2.5GbE PHY",
-		.config_init	= mt798x_2p5ge_phy_config_init,
-		.config_aneg    = mt798x_2p5ge_phy_config_aneg,
-		.get_features	= mt798x_2p5ge_phy_get_features,
-		.read_status	= mt798x_2p5ge_phy_read_status,
-		.get_rate_matching	= mt798x_2p5ge_phy_get_rate_matching,
-		//.config_intr	= genphy_no_config_intr,
-		//.handle_interrupt = genphy_no_ack_interrupt,
+		.probe		= mt7988_2p5ge_phy_probe,
+		.config_init	= mt7988_2p5ge_phy_config_init,
+		.config_aneg    = mt7988_2p5ge_phy_config_aneg,
+		.get_features	= mt7988_2p5ge_phy_get_features,
+		.read_status	= mt7988_2p5ge_phy_read_status,
+		.get_rate_matching	= mt7988_2p5ge_phy_get_rate_matching,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
+		.read_page	= mtk_2p5ge_phy_read_page,
+		.write_page	= mtk_2p5ge_phy_write_page,
 	},
 };
 
