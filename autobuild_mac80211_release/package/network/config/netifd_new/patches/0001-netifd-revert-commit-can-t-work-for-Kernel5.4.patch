@@ -1,4 +1,4 @@
-From 2c1c1d9cd52d674295504af20e7409ba83d9ecc6 Mon Sep 17 00:00:00 2001
+From a7e24be75b6a05bc06073163c124f4d17eb1e963 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Sun, 17 Sep 2023 12:28:35 +0800
 Subject: [PATCH] netifd: revert: commit can't work for Kernel5.4
@@ -12,8 +12,8 @@ This reverts commit f429bd94f99e55548bf4fa8156c165017ce3c41c.
  device.c                |  35 ----
  device.h                |  15 --
  make_ethtool_modes_h.sh |  66 -------
- system-linux.c          | 404 +++++++++-------------------------------
- 5 files changed, 87 insertions(+), 441 deletions(-)
+ system-linux.c          | 406 +++++++++-------------------------------
+ 5 files changed, 87 insertions(+), 443 deletions(-)
  delete mode 100755 make_ethtool_modes_h.sh
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
@@ -40,7 +40,7 @@ index 8064485..5ad8695 100644
  )
 -ADD_DEPENDENCIES(netifd ethtool-modes-h)
 diff --git a/device.c b/device.c
-index 9a9e249..f6ac806 100644
+index 1370335..0474c65 100644
 --- a/device.c
 +++ b/device.c
 @@ -67,11 +67,6 @@ static const struct blobmsg_policy dev_attrs[__DEV_ATTR_MAX] = {
@@ -52,10 +52,10 @@ index 9a9e249..f6ac806 100644
 -	[DEV_ATTR_RXPAUSE] = { .name = "rxpause", .type = BLOBMSG_TYPE_BOOL },
 -	[DEV_ATTR_TXPAUSE] = { .name = "txpause", .type = BLOBMSG_TYPE_BOOL },
 -	[DEV_ATTR_AUTONEG] = { .name = "autoneg", .type = BLOBMSG_TYPE_BOOL },
- };
- 
- const struct uci_blob_param_list device_attr_list = {
-@@ -289,11 +284,6 @@ device_merge_settings(struct device *dev, struct device_settings *n)
+ 	[DEV_ATTR_GRO] = { .name = "gro", .type = BLOBMSG_TYPE_BOOL },
+ 	[DEV_ATTR_MASTER] = { .name = "conduit", .type = BLOBMSG_TYPE_STRING },
+ 	[DEV_ATTR_EEE] = { .name = "eee", .type = BLOBMSG_TYPE_BOOL },
+@@ -294,11 +289,6 @@ device_merge_settings(struct device *dev, struct device_settings *n)
  	n->auth = s->flags & DEV_OPT_AUTH ? s->auth : os->auth;
  	n->speed = s->flags & DEV_OPT_SPEED ? s->speed : os->speed;
  	n->duplex = s->flags & DEV_OPT_DUPLEX ? s->duplex : os->duplex;
@@ -64,10 +64,10 @@ index 9a9e249..f6ac806 100644
 -	n->rxpause = s->flags & DEV_OPT_RXPAUSE ? s->rxpause : os->rxpause;
 -	n->txpause = s->flags & DEV_OPT_TXPAUSE ? s->txpause : os->txpause;
 -	n->autoneg = s->flags & DEV_OPT_AUTONEG ? s->autoneg : os->autoneg;
- 	n->flags = s->flags | os->flags | os->valid_flags;
- }
- 
-@@ -519,31 +509,6 @@ device_init_settings(struct device *dev, struct blob_attr **tb)
+ 	n->gro = s->flags & DEV_OPT_GRO ? s->gro : os->gro;
+ 	n->eee = s->flags & DEV_OPT_EEE ? s->eee : os->eee;
+ 	n->master_ifindex = s->flags & DEV_OPT_MASTER ? s->master_ifindex : os->master_ifindex;
+@@ -527,31 +517,6 @@ device_init_settings(struct device *dev, struct blob_attr **tb)
  		s->flags |= DEV_OPT_DUPLEX;
  	}
  
@@ -96,11 +96,11 @@ index 9a9e249..f6ac806 100644
 -		s->flags |= DEV_OPT_AUTONEG;
 -	}
 -
- 	cur = tb[DEV_ATTR_AUTH_VLAN];
- 	free(dev->config_auth_vlans);
- 	dev->config_auth_vlans = cur ? blob_memdup(cur) : NULL;
+ 	if ((cur = tb[DEV_ATTR_GRO])) {
+ 		s->gro = blobmsg_get_bool(cur);
+ 		s->flags |= DEV_OPT_GRO;
 diff --git a/device.h b/device.h
-index 12927de..c3bccbb 100644
+index b2ea0fa..9a77015 100644
 --- a/device.h
 +++ b/device.h
 @@ -64,11 +64,6 @@ enum {
@@ -112,10 +112,10 @@ index 12927de..c3bccbb 100644
 -	DEV_ATTR_RXPAUSE,
 -	DEV_ATTR_TXPAUSE,
 -	DEV_ATTR_AUTONEG,
- 	__DEV_ATTR_MAX,
- };
- 
-@@ -133,11 +128,6 @@ enum {
+ 	DEV_ATTR_GRO,
+ 	DEV_ATTR_MASTER,
+ 	DEV_ATTR_EEE,
+@@ -136,11 +131,6 @@ enum {
  	DEV_OPT_ARP_ACCEPT		= (1ULL << 29),
  	DEV_OPT_SPEED			= (1ULL << 30),
  	DEV_OPT_DUPLEX			= (1ULL << 31),
@@ -124,10 +124,10 @@ index 12927de..c3bccbb 100644
 -	DEV_OPT_RXPAUSE			= (1ULL << 34),
 -	DEV_OPT_TXPAUSE			= (1ULL << 35),
 -	DEV_OPT_AUTONEG			= (1ULL << 36),
- };
- 
- /* events broadcasted to all users of a device */
-@@ -215,11 +205,6 @@ struct device_settings {
+ 	DEV_OPT_GRO			= (1ULL << 37),
+ 	DEV_OPT_MASTER			= (1ULL << 38),
+ 	DEV_OPT_EEE			= (1ULL << 39),
+@@ -221,11 +211,6 @@ struct device_settings {
  	bool auth;
  	unsigned int speed;
  	bool duplex;
@@ -136,9 +136,9 @@ index 12927de..c3bccbb 100644
 -	bool rxpause;
 -	bool txpause;
 -	bool autoneg;
- };
- 
- struct device_vlan_range {
+ 	bool gro;
+ 	int master_ifindex;
+ 	bool eee;
 diff --git a/make_ethtool_modes_h.sh b/make_ethtool_modes_h.sh
 deleted file mode 100755
 index 7f5ac7b..0000000
@@ -212,7 +212,7 @@ index 7f5ac7b..0000000
 -	LC_ALL=C sort -g | sed -r 's/[0-9]* (.*)/\1/'
 -echo "};"
 diff --git a/system-linux.c b/system-linux.c
-index bb23404..d3bfadc 100644
+index cc1b5e9..5b97d86 100644
 --- a/system-linux.c
 +++ b/system-linux.c
 @@ -48,8 +48,6 @@
@@ -224,9 +224,9 @@ index bb23404..d3bfadc 100644
  #ifndef RTN_FAILED_POLICY
  #define RTN_FAILED_POLICY 12
  #endif
-@@ -1714,149 +1712,54 @@ int system_vlandev_del(struct device *vlandev)
- 	return system_link_del(vlandev->ifname);
+@@ -1888,28 +1886,6 @@ failure:
  }
+ #endif
  
 -static void ethtool_link_mode_clear_bit(__s8 nwords, int nr, __u32 *mask)
 -{
@@ -250,6 +250,13 @@ index bb23404..d3bfadc 100644
 -	return !!(mask[nr / 32] & (1U << (nr % 32)));
 -}
 -
+ static int
+ system_get_ethtool_gro(struct device *dev)
+ {
+@@ -1944,55 +1920,6 @@ system_set_ethtool_gro(struct device *dev, struct device_settings *s)
+ 	ioctl(sock_ioctl, SIOCETHTOOL, &ifr);
+ }
+ 
 -static void
 -system_set_ethtool_pause(struct device *dev, struct device_settings *s)
 -{
@@ -300,6 +307,10 @@ index bb23404..d3bfadc 100644
 -}
 -
  static void
+ system_set_ethtool_eee_settings(struct device *dev, struct device_settings *s)
+ {
+@@ -2013,78 +1940,52 @@ system_set_ethtool_eee_settings(struct device *dev, struct device_settings *s)
+ static void
  system_set_ethtool_settings(struct device *dev, struct device_settings *s)
  {
 -	struct {
@@ -325,9 +336,12 @@ index bb23404..d3bfadc 100644
  	size_t i;
 -	__s8 nwords;
 -	__u32 *supported, *advertising;
- 
--	system_set_ethtool_pause(dev, s);
 -
+-	system_set_ethtool_pause(dev, s);
+ 
+ 	if (s->flags & DEV_OPT_EEE)
+ 		system_set_ethtool_eee_settings(dev, s);
+ 
 -	memset(&ecmd, 0, sizeof(ecmd));
 -	ecmd.req.cmd = ETHTOOL_GLINKSETTINGS;
  	strncpy(ifr.ifr_name, dev->ifname, sizeof(ifr.ifr_name) - 1);
@@ -361,7 +375,6 @@ index bb23404..d3bfadc 100644
 +			int bit = s->duplex ? speed_mask[i].bit_half : speed_mask[i].bit_full;
 +			adv &= ~(1 << bit);
  		}
-+
  		if (!(s->flags & DEV_OPT_SPEED) ||
 -		    s->speed == ethtool_modes[i].speed)
 +		    s->speed == speed_mask[i].speed)
@@ -376,7 +389,7 @@ index bb23404..d3bfadc 100644
 -	if (s->flags & DEV_OPT_PAUSE)
 -		if (!s->pause)
 -			ethtool_link_mode_clear_bit(nwords, ETHTOOL_LINK_MODE_Pause_BIT, advertising);
- 
+-
 -	if (s->flags & DEV_OPT_ASYM_PAUSE)
 -		if (!s->asym_pause)
 -			ethtool_link_mode_clear_bit(nwords, ETHTOOL_LINK_MODE_Asym_Pause_BIT, advertising);
@@ -401,7 +414,7 @@ index bb23404..d3bfadc 100644
  	ioctl(sock_ioctl, SIOCETHTOOL, &ifr);
  }
  
-@@ -2432,6 +2335,45 @@ read_uint64_file(int dir_fd, const char *file, uint64_t *val)
+@@ -2695,6 +2596,45 @@ read_uint64_file(int dir_fd, const char *file, uint64_t *val)
  	return ret;
  }
  
@@ -447,7 +460,7 @@ index bb23404..d3bfadc 100644
  bool
  system_if_force_external(const char *ifname)
  {
-@@ -2606,213 +2548,41 @@ ethtool_feature_value(const char *ifname, const char *keyname)
+@@ -2869,213 +2809,41 @@ ethtool_feature_value(const char *ifname, const char *keyname)
  	return active;
  }
  
@@ -682,6 +695,15 @@ index bb23404..d3bfadc 100644
  	blobmsg_add_u8(b, "hw-tc-offload",
  		ethtool_feature_value(dev->ifname, "hw-tc-offload"));
  
+@@ -4203,7 +3971,7 @@ static void system_vxlan_map_bool_attr(struct nl_msg *msg, struct blob_attr **tb
+ 
+ 		if ((attrtype == IFLA_VXLAN_GBP) && val)
+ 			nla_put_flag(msg, attrtype);
+-		else 
++		else
+ 			nla_put_u8(msg, attrtype, val);
+ 
+ 	}
 -- 
 2.18.0
 
