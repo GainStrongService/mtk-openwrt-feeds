@@ -288,6 +288,17 @@ prepare_mac80211() {
 	echo "CONFIG_VIRTIO_NET=n" >> ./target/linux/mediatek/mt7986/config-5.4
 	echo "CONFIG_VIRTIO_BLK=n" >> ./target/linux/mediatek/mt7986/config-5.4
 
+	# hack mt7981 config5.4
+	echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_BLK_MQ_VIRTIO=y" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_DEV_COREDUMP=y" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_REMOTEPROC=y" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_VIRTIO=y" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_WANT_DEV_COREDUMP=y" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_VIRTIO_CONSOLE=n" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_VIRTIO_NET=n" >> ./target/linux/mediatek/mt7981/config-5.4
+	echo "CONFIG_VIRTIO_BLK=n" >> ./target/linux/mediatek/mt7981/config-5.4
+
 	# hack mt7622 config5.4
 	echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7622/config-5.4
 
