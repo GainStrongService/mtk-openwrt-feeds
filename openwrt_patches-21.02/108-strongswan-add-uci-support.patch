@@ -1,21 +1,48 @@
 --- a/feeds/packages/net/strongswan/Makefile
 +++ b/feeds/packages/net/strongswan/Makefile
-@@ -544,6 +544,8 @@ define Package/strongswan-ipsec/install
- 	$(INSTALL_CONF) ./files/ipsec.user $(1)/etc/
- 	$(INSTALL_DIR) $(1)/etc/init.d
- 	$(INSTALL_BIN) ./files/ipsec.init $(1)/etc/init.d/ipsec
-+	$(INSTALL_DIR) $(1)/etc/config
-+	$(INSTALL_DATA) ./files/ipsec.conf $(1)/etc/config/ipsec
- 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/ipsec $(1)/usr/sbin/
+@@ -259,6 +259,7 @@ $(call Package/strongswan/Default)
+   TITLE+= (default)
+   DEPENDS:= strongswan \
+ 	+strongswan-charon \
++	+strongswan-ipsec \
+ 	+strongswan-mod-aes \
+ 	+strongswan-mod-attr \
+ 	+strongswan-mod-connmark \
+@@ -536,25 +537,8 @@ define Package/strongswan-ipsec/conffile
  endef
  
+ define Package/strongswan-ipsec/install
+-	$(INSTALL_DIR) $(1)/etc/ $(1)/usr/sbin
+-	$(INSTALL_CONF) $(PKG_INSTALL_DIR)/etc/ipsec.conf $(1)/etc/
+-	echo -e "\ninclude /var/ipsec/ipsec.conf" >> $(1)/etc/ipsec.conf
+-	$(INSTALL_CONF) ./files/ipsec.secrets $(1)/etc/
+-	echo -e "\ninclude /var/ipsec/ipsec.secrets" >> $(1)/etc/ipsec.secrets
+-	$(INSTALL_CONF) ./files/ipsec.user $(1)/etc/
+-	$(INSTALL_DIR) $(1)/etc/init.d
+-	$(INSTALL_BIN) ./files/ipsec.init $(1)/etc/init.d/ipsec
+-	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/ipsec $(1)/usr/sbin/
+-endef
+-
+-define Package/strongswan-ipsec/postinst
+-#!/bin/sh
+-
+-[ -z "$${IPKG_INSTROOT}" ] || exit 0
+-
+-opkg list-changed-conffiles | grep -qx /etc/ipsec.conf || {
+-	rm -f /etc/ipsec.conf-opkg
+-}
++	$(INSTALL_DIR) $(1)/etc/config
++	$(INSTALL_DATA) ./files/ipsec.conf $(1)/etc/config/ipsec
+ endef
+ 
+ define Package/strongswan-libnttfft/install
 --- /dev/null
 +++ b/feeds/packages/net/strongswan/files/ipsec.conf
 @@ -0,0 +1,28 @@
 +config 'ipsec'
 +
 +config 'remote' 'TEST'
-+	option 'enabled' '1'
++	option 'enabled' '0'
 +	option 'gateway' '10.10.20.253'
 +	option 'authentication_method' 'psk'
 +	option 'pre_shared_key' '123456789'
