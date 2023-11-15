@@ -2673,6 +2673,9 @@ static unsigned int mtk_hnat_nf_post_routing(
 	if (unlikely(!skb_hnat_is_hashed(skb)))
 		return 0;
 
+	if (unlikely(skb->mark == HNAT_EXCEPTION_TAG))
+		return 0;
+
 	if (out->netdev_ops->ndo_flow_offload_check) {
 		out->netdev_ops->ndo_flow_offload_check(&hw_path);
 		out = (IS_GMAC1_MODE) ? hw_path.virt_dev : hw_path.dev;

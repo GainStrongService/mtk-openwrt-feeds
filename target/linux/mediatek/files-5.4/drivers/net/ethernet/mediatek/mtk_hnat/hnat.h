@@ -867,6 +867,11 @@ struct foe_entry {
 #endif
 #define CFG_PPE_NUM		(hnat_priv->ppe_num)
 
+/* If the user wants to set skb->mark to prevent hardware acceleration
+ * for the packet flow.
+ */
+#define HNAT_EXCEPTION_TAG	0x99
+
 struct mib_entry {
 	u32 byt_cnt_l;
 	u16 byt_cnt_h;
