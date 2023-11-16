@@ -702,6 +702,9 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		regmap_write(eth->ethsys, ETHSYS_SYSCFG0, val);
 		spin_unlock(&eth->syscfg0_lock);
 
+		/* Save the syscfg0 value for mac_finish */
+		mac->syscfg0 = val;
+
 		mac->interface = state->interface;
 	}
 
@@ -721,9 +724,6 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		/* Decide how GMAC and SGMIISYS be mapped */
 		sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
 		       0 : mac->id;
-
-		/* Save the syscfg0 value for mac_finish */
-		mac->syscfg0 = val;
 		spin_unlock(&eth->syscfg0_lock);
 	} else if (state->interface == PHY_INTERFACE_MODE_USXGMII ||
 		   state->interface == PHY_INTERFACE_MODE_10GKR ||
