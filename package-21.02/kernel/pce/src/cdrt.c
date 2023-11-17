@@ -124,7 +124,7 @@ struct cdrt_entry *mtk_pce_cdrt_entry_find(u32 cdrt_idx)
 	unsigned long flag;
 	u32 idx;
 
-	if (unlikely(!cdrt_idx || cdrt_idx >= FE_MEM_CDRT_MAX_INDEX))
+	if (unlikely(!cdrt_idx || cdrt_idx > CDRT_DEC_MAX_ENTRY + CDRT_ENC_MAX_ENTRY))
 		return ERR_PTR(-EINVAL);
 
 	spin_lock_irqsave(&cdrt_hw.lock, flag);
