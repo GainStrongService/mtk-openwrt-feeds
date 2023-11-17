@@ -1,0 +1,36 @@
+From 063ffcd8a8fdb835e3d74082b4dc411750f2a234 Mon Sep 17 00:00:00 2001
+From: Evelyn Tsai <evelyn.tsai@mediatek.com>
+Date: Sat, 18 Nov 2023 07:36:45 +0800
+Subject: [PATCH] wifi: mt76: ACS channel time too long on duty channel
+
+Step and issue:
+1. Set channel to 36 in hostapd config;
+2. Bootup;
+3. Enable ACS through UCI command and reload;
+4. Check hostapd log, channel 36 channel_time is much longer than other channels.
+
+Root cause:
+The reset chan_stat condition missed duty channel.
+
+Solution:
+When scan start, need to reset chan_stat in each channel switch.
+---
+ mac80211.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mac80211.c b/mac80211.c
+index aaaf6a9..0b13602 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -931,7 +931,7 @@ void mt76_set_channel(struct mt76_phy *phy)
+ 	if (!offchannel)
+ 		phy->main_chan = chandef->chan;
+ 
+-	if (chandef->chan != phy->main_chan)
++	if (chandef->chan != phy->main_chan || test_bit(MT76_SCANNING, &phy->state))
+ 		memset(phy->chan_state, 0, sizeof(*phy->chan_state));
+ }
+ EXPORT_SYMBOL_GPL(mt76_set_channel);
+-- 
+2.18.0
+
