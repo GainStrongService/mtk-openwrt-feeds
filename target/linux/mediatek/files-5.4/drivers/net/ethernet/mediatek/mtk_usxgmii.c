@@ -757,6 +757,8 @@ void mtk_usxgmii_link_poll(struct work_struct *work)
 		queue_delayed_work(system_power_efficient_wq, &mpcs->link_poll,
 				   msecs_to_jiffies(1000));
 	}
+
+	complete(&mpcs->link_poll_completion);
 }
 
 static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
@@ -771,8 +773,14 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 	mtk_usxgmii_pcs_config(pcs, mode,
 			       interface, NULL, false);
 
+	reinit_completion(&mpcs->link_poll_completion);
+
 	queue_delayed_work(system_power_efficient_wq, &mpcs->link_poll,
 			   msecs_to_jiffies(1000));
+
+	if (!wait_for_completion_timeout(&mpcs->link_poll_completion,
+					 msecs_to_jiffies(3000)))
+		pr_warn("%s wait link poll complete timeout!\n", __func__);
 }
 
 static const struct phylink_pcs_ops mtk_usxgmii_pcs_ops = {
@@ -804,6 +812,7 @@ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r)
 		ss->pcs[i].pcs.poll = true;
 		ss->pcs[i].interface = PHY_INTERFACE_MODE_NA;
 
+		init_completion(&ss->pcs[i].link_poll_completion);
 		INIT_DELAYED_WORK(&ss->pcs[i].link_poll, mtk_usxgmii_link_poll);
 
 		of_node_put(np);

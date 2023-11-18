@@ -444,7 +444,7 @@ static void mtk_setup_bridge_switch(struct mtk_eth *eth)
 
 	/* Force Port1 XGMAC Link Up */
 	val = mtk_r32(eth, MTK_XGMAC_STS(MTK_GMAC1_ID));
-	mtk_w32(eth, val | MTK_XGMAC_FORCE_LINK(MTK_GMAC1_ID),
+	mtk_w32(eth, val | MTK_XGMAC_FORCE_MODE(MTK_GMAC1_ID),
 		MTK_XGMAC_STS(MTK_GMAC1_ID));
 
 	/* Adjust GSW bridge IPG to 11*/
@@ -571,6 +571,28 @@ static struct phylink_pcs *mtk_mac_select_pcs(struct phylink_config *config,
 	}
 
 	return NULL;
+}
+
+static int mtk_mac_prepare(struct phylink_config *config, unsigned int mode,
+			   phy_interface_t iface)
+{
+	struct mtk_mac *mac = container_of(config, struct mtk_mac,
+					   phylink_config);
+	u32 val;
+
+	if (mac->type == MTK_XGDM_TYPE && mac->id != MTK_GMAC1_ID) {
+		val = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
+		val &= 0xfffffff0;
+		val |= XMAC_MCR_TRX_DISABLE;
+		mtk_w32(mac->hw, val, MTK_XMAC_MCR(mac->id));
+
+		val = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
+		val |= MTK_XGMAC_FORCE_MODE(mac->id);
+		val &= ~MTK_XGMAC_FORCE_LINK(mac->id);
+		mtk_w32(mac->hw, val, MTK_XGMAC_STS(mac->id));
+	}
+
+	return 0;
 }
 
 static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
@@ -997,7 +1019,7 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 {
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
-	u32 mcr, mcr_cur, sts, force_link;
+	u32 mcr, mcr_cur, sts;
 
 	mac->speed = speed;
 
@@ -1043,27 +1065,17 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 		if (mode == MLO_AN_PHY && phy)
 			mtk_setup_eee(mac, phy_init_eee(phy, false) >= 0);
 	} else if (mac->type == MTK_XGDM_TYPE && mac->id != MTK_GMAC1_ID) {
+		if (mode == MLO_AN_INBAND)
+			mdelay(1000);
+
 		/* Eliminate the interference(before link-up) caused by PHY noise */
 		mtk_m32(mac->hw, XMAC_LOGIC_RST, 0x0, MTK_XMAC_LOGIC_RST(mac->id));
 		mdelay(20);
 		mtk_m32(mac->hw, XMAC_GLB_CNTCLR, 0x1, MTK_XMAC_CNT_CTRL(mac->id));
 
-		switch (mac->id) {
-		case MTK_GMAC2_ID:
-			force_link = (mac->interface ==
-				      PHY_INTERFACE_MODE_XGMII) ?
-				      MTK_XGMAC_FORCE_LINK(mac->id) : 0;
-			sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
-			mtk_w32(mac->hw, sts | force_link,
-				MTK_XGMAC_STS(mac->id));
-			break;
-		case MTK_GMAC3_ID:
-			sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
-			mtk_w32(mac->hw,
-				sts | MTK_XGMAC_FORCE_LINK(mac->id),
-				MTK_XGMAC_STS(mac->id));
-			break;
-		}
+		sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
+		sts |= MTK_XGMAC_FORCE_LINK(mac->id);
+		mtk_w32(mac->hw, sts, MTK_XGMAC_STS(mac->id));
 
 		mcr = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
 
@@ -1221,6 +1233,7 @@ static const struct phylink_mac_ops mtk_phylink_ops = {
 	.validate = mtk_validate,
 	.mac_select_pcs = mtk_mac_select_pcs,
 	.mac_link_state = mtk_mac_pcs_get_state,
+	.mac_prepare = mtk_mac_prepare,
 	.mac_config = mtk_mac_config,
 	.mac_finish = mtk_mac_finish,
 	.mac_link_down = mtk_mac_link_down,

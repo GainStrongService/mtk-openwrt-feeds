@@ -676,7 +676,8 @@
 
 /* XMAC status registers */
 #define MTK_XGMAC_STS(x)	((x == MTK_GMAC3_ID) ? 0x1001C : 0x1000C)
-#define MTK_XGMAC_FORCE_LINK(x)	((x == MTK_GMAC2_ID) ? BIT(31) : BIT(15))
+#define MTK_XGMAC_FORCE_MODE(x)	((x == MTK_GMAC2_ID) ? BIT(31) : BIT(15))
+#define MTK_XGMAC_FORCE_LINK(x)	((x == MTK_GMAC2_ID) ? BIT(27) : BIT(11))
 #define MTK_USXGMII_PCS_LINK	BIT(8)
 #define MTK_XGMAC_RX_FC		BIT(5)
 #define MTK_XGMAC_TX_FC		BIT(4)
@@ -1733,6 +1734,7 @@ struct mtk_usxgmii_pcs {
 	struct regmap		*regmap;
 	struct regmap		*regmap_pextp;
 	struct delayed_work	link_poll;
+	struct completion	link_poll_completion;
 	phy_interface_t		interface;
 	unsigned int		mode;
 	u8			id;
