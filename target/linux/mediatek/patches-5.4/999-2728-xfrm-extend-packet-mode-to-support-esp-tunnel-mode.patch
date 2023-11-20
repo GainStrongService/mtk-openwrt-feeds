@@ -33,3 +33,31 @@
  		if (skb_is_gso(skb))
  			return xfrm_output_gso(net, sk, skb);
  	}
+--- a/net/xfrm/xfrm_policy.c
++++ b/net/xfrm/xfrm_policy.c
+@@ -3703,6 +3703,10 @@ int __xfrm_policy_check(struct sock *sk,
+ 		}
+ 	}
+ #endif
++	/* Inbound HW offload packets, pass the check directly */
++	if (pol->xdo.type == XFRM_DEV_OFFLOAD_PACKET &&
++	    (pol->xdo.dir == XFRM_DEV_OFFLOAD_IN || pol->xdo.dir == XFRM_DEV_OFFLOAD_FWD))
++		return 1;
+ 
+ 	if (pol->action == XFRM_POLICY_ALLOW) {
+ 		static struct sec_path dummy;
+@@ -3712,6 +3716,14 @@ int __xfrm_policy_check(struct sock *sk,
+ 		int ti = 0;
+ 		int i, k;
+ 
++		/* Strongswan install FWD policy for inbound HW offload
++		 * packets. But cannot find corresponding packet offload
++		 * state here and will be drop. So, we bypass following
++		 * check for FWD policy with acction allow.
++		 */
++		if (dir == XFRM_POLICY_FWD)
++			return 1;
++
+ 		sp = skb_sec_path(skb);
+ 		if (!sp)
+ 			sp = &dummy;
