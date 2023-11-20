@@ -1022,7 +1022,8 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 		}
 
 		/* Configure duplex */
-		if (duplex == DUPLEX_FULL)
+		if (duplex == DUPLEX_FULL ||
+		    interface == PHY_INTERFACE_MODE_SGMII)
 			mcr |= MAC_MCR_FORCE_DPX;
 
 		/* Configure pause modes -
