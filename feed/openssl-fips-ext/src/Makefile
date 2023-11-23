@@ -18,4 +18,4 @@ common.o: common.c
 	$(CC) $(CFLAGS) -c -o common.o $< $(LDFLAGS)
 
 clean:
-	$(RM) openssl-fips-ext
+	$(RM) openssl-fips-ext *.o

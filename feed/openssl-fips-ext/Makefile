@@ -25,14 +25,8 @@ define Package/openssl-fips-ext/description
 	Simple tool for gcm and ccm
 endef
 
-define Build/Prepare
-	mkdir -p $(PKG_BUILD_DIR)
-	mkdir -p $(PKG_BUILD_DIR)/src
-	$(CP) ./src/* $(PKG_BUILD_DIR)/src
-endef
-
 define Build/Compile
-	make -C ./src \
+	make -C $(PKG_BUILD_DIR) \
 		CC="$(TARGET_CC)" \
 		OPENSSL_INCS_LOCATION=-I$(STAGING_DIR)/usr/include/openssl \
 		OPENSSL_LIBS_LOCATION=-L$(STAGING_DIR)/usr/lib
@@ -40,8 +34,7 @@ endef
 
 define Package/openssl-fips-ext/install
 	$(INSTALL_DIR) $(1)/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/openssl-fips-ext $(1)/bin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/openssl-fips-ext $(1)/bin/
 endef
 
 $(eval $(call BuildPackage,openssl-fips-ext))
-
