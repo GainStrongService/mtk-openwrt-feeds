@@ -14,9 +14,9 @@ PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
 include $(INCLUDE_DIR)/package.mk
 
 define Package/openssl-fips-ext
-	CATEGORY:=MTK Properties
-	SECTION:=MTK Properties
-	SUBMENU:=Applications
+	CATEGORY:=Utilities
+	SECTION:=Utilities
+	SUBMENU:=FIPS
 	TITLE:=openssl-fips-ext -- simple tool for gcm and ccm based on openssl api
 	DEPENDS:= libopenssl
 endef
