@@ -404,7 +404,7 @@ static ssize_t cls_entry_debug_write(struct file *file, const char __user *buffe
 	u32 idx = 0;
 	int ret;
 
-	if (count > sizeof(buf))
+	if (count > sizeof(buf) - 1)
 		return -ENOMEM;
 
 	if (copy_from_user(buf, buffer, count))
@@ -491,7 +491,7 @@ static ssize_t dipfilter_debug_write(struct file *file, const char __user *buffe
 	char s_dip[40];
 	int ret;
 
-	if (count > sizeof(buf))
+	if (count > sizeof(buf) - 1)
 		return -ENOMEM;
 
 	if (copy_from_user(buf, buffer, count))
@@ -501,7 +501,7 @@ static ssize_t dipfilter_debug_write(struct file *file, const char __user *buffe
 
 	memset(&ddesc, 0, sizeof(struct dip_desc));
 
-	ret = sscanf(buf, "%s %s", arg, s_dip);
+	ret = sscanf(buf, "%4s %39s", arg, s_dip);
 	if (ret != 2)
 		return -EINVAL;
 
@@ -551,7 +551,7 @@ static int tport_map_debug_read(struct seq_file *s, void *private)
 			seq_printf(s, "default CDRT_IDX: %02u, ", tdesc.cdrt_idx);
 			seq_printf(s, "default TOPS_ENTRY: %02u\n", tdesc.tops_entry);
 		} else if (PSE_PORT_PPE_MASK & BIT(i)) {
-			ret = mtk_pce_tport_map_ppe_read(i, &map);
+			ret = mtk_pce_tport_map_ppe_read((enum pse_port)i, &map);
 			if (ret)
 				return ret;
 
@@ -627,7 +627,7 @@ static ssize_t tport_map_debug_write(struct file *file, const char __user *buffe
 	int nchar = 0;
 	int ret;
 
-	if (count > sizeof(buf))
+	if (count > sizeof(buf) - 1)
 		return -ENOMEM;
 
 	if (copy_from_user(buf, buffer, count))

@@ -88,6 +88,9 @@ static int mtk_pce_tport_map_update_ts_config(enum ts_config_entry entry,
 					      u32 tport_idx,
 					      enum pse_port target)
 {
+	u32 shift = (tport_idx % TPORT_IDX_PER_REG) * PSE_PER_PORT_BITS;
+	u32 val = (target & PSE_PER_PORT_MASK) << shift;
+	u32 mask = PSE_PER_PORT_MASK << shift;
 	struct tsc_desc ts_cfg;
 	int ret = 0;
 
@@ -96,11 +99,11 @@ static int mtk_pce_tport_map_update_ts_config(enum ts_config_entry entry,
 		return ret;
 
 	if (tport_idx < TPORT_IDX_MAX / 2) {
-		ts_cfg.tport_map_lower &= (~(0xF << (tport_idx * PSE_PER_PORT_BITS)));
-		ts_cfg.tport_map_lower |= (target << (tport_idx * PSE_PER_PORT_BITS));
+		ts_cfg.tport_map_lower &= ~mask;
+		ts_cfg.tport_map_lower |= val;
 	} else {
-		ts_cfg.tport_map_upper &= (~(0xF << (tport_idx * PSE_PER_PORT_BITS)));
-		ts_cfg.tport_map_upper |= (target << (tport_idx * PSE_PER_PORT_BITS));
+		ts_cfg.tport_map_upper &= ~mask;
+		ts_cfg.tport_map_upper |= val;
 	}
 
 	ret = mtk_pce_tport_map_ts_config_write(entry, &ts_cfg);
@@ -114,10 +117,9 @@ static int mtk_pce_tport_map_update_ppe(enum pse_port ppe,
 					u32 tport_idx,
 					enum pse_port target)
 {
-	u32 mask = (PSE_PER_PORT_MASK
-		    << ((tport_idx % (TPORT_IDX_MAX / 2)) * PSE_PER_PORT_BITS));
-	u32 val = ((target & PSE_PER_PORT_MASK)
-		   << ((tport_idx % (TPORT_IDX_MAX / 2)) * PSE_PER_PORT_BITS));
+	u32 shift = (tport_idx % TPORT_IDX_PER_REG) * PSE_PER_PORT_BITS;
+	u32 val = (target & PSE_PER_PORT_MASK) << shift;
+	u32 mask = PSE_PER_PORT_MASK << shift;
 
 	if (tport_idx < TPORT_IDX_MAX / 2)
 		mtk_pce_ppe_rmw(ppe, PPE_TPORT_TBL_0, mask, val);
@@ -150,7 +152,8 @@ int mtk_pce_tport_map_pse_port_update(enum pse_port pse_port,
 	}
 
 	if (TS_CONFIG_MASK & BIT(pse_port))
-		ret = mtk_pce_tport_map_update_ts_config(pse_port, tport_idx, target);
+		ret = mtk_pce_tport_map_update_ts_config((enum ts_config_entry)pse_port,
+							 tport_idx, target);
 	else if (PSE_PORT_PPE_MASK & BIT(pse_port))
 		ret = mtk_pce_tport_map_update_ppe(pse_port, tport_idx, target);
 	else

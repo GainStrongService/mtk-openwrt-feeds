@@ -43,6 +43,7 @@
 
 /* TPORT setting etc. */
 #define TPORT_IDX_MAX				(16)
+#define TPORT_IDX_PER_REG			(8)
 #define TS_CONFIG_MASK				(0xE746)
 #define PSE_PORT_PPE_MASK			(BIT(PSE_PORT_PPE0) \
 						| BIT(PSE_PORT_PPE1) \
