@@ -1747,7 +1747,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		return 0;
 	}
 
-	if (IS_HQOS_MODE || skb->mark >= MAX_PPPQ_PORT_NUM)
+	if (IS_HQOS_MODE || (skb->mark & MTK_QDMA_TX_MASK) >= MAX_PPPQ_PORT_NUM)
 		qid = skb->mark & (MTK_QDMA_TX_MASK);
 	else if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb))
 		qid = port_id & MTK_QDMA_TX_MASK;
@@ -1780,18 +1780,13 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				}
 			}
 
-			if (FROM_EXT(skb) || skb_hnat_sport(skb) == NR_QDMA_PORT ||
-			    (IS_PPPQ_MODE && (qid < MAX_PPPQ_PORT_NUM) &&
-			     !IS_DSA_LAN(dev) && !IS_DSA_WAN(dev)))
+			if (FROM_EXT(skb) || skb_hnat_sport(skb) == NR_QDMA_PORT)
 				entry.ipv4_hnapt.iblk2.fqos = 0;
 			else
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-				entry.ipv4_hnapt.tport_id = TPORT_FLAG(dev, skb, qid) ? 1 : 0;
+				entry.ipv4_hnapt.tport_id = HQOS_FLAG(dev, skb, qid) ? 1 : 0;
 #else
-				entry.ipv4_hnapt.iblk2.fqos =
-					(!IS_PPPQ_MODE ||
-					(IS_PPPQ_MODE &&
-					 IS_PPPQ_PATH(dev, skb)));
+				entry.ipv4_hnapt.iblk2.fqos = HQOS_FLAG(dev, skb, qid) ? 1 : 0;
 #endif
 		} else {
 			entry.ipv4_hnapt.iblk2.fqos = 0;
@@ -1821,9 +1816,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				}
 			}
 
-			if (FROM_EXT(skb) ||
-			    (IS_PPPQ_MODE && (qid < MAX_PPPQ_PORT_NUM) &&
-			     !IS_DSA_LAN(dev) && !IS_DSA_WAN(dev)))
+			if (FROM_EXT(skb) || skb_hnat_sport(skb) == NR_QDMA_PORT)
 				entry.ipv6_5t_route.iblk2.fqos = 0;
 			else
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -1831,23 +1824,20 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				case IPV4_MAP_E:
 				case IPV4_MAP_T:
 					entry.ipv4_mape.tport_id =
-						TPORT_FLAG(dev, skb, qid) ? 1 : 0;
+						HQOS_FLAG(dev, skb, qid) ? 1 : 0;
 					break;
 				case IPV6_HNAPT:
 				case IPV6_HNAT:
 					entry.ipv6_hnapt.tport_id =
-						TPORT_FLAG(dev, skb, qid) ? 1 : 0;
+						HQOS_FLAG(dev, skb, qid) ? 1 : 0;
 					break;
 				default:
 					entry.ipv6_5t_route.tport_id =
-						TPORT_FLAG(dev, skb, qid) ? 1 : 0;
+						HQOS_FLAG(dev, skb, qid) ? 1 : 0;
 					break;
 				}
 #else
-				entry.ipv6_5t_route.iblk2.fqos =
-					(!IS_PPPQ_MODE ||
-					 (IS_PPPQ_MODE &&
-					  IS_PPPQ_PATH(dev, skb)));
+				entry.ipv6_5t_route.iblk2.fqos = HQOS_FLAG(dev, skb, qid) ? 1 : 0;
 #endif
 		} else {
 			entry.ipv6_5t_route.iblk2.fqos = 0;
