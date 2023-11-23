@@ -68,7 +68,10 @@ int ccm_encrypt(void)
 		EVP_EncryptUpdate(ctx, outbuf, &outlen, data.payload, data.payload_size);
 		printf("Ciphertext: ");
 		print_hex(outbuf, outlen);
+	} else {
+		EVP_EncryptUpdate(ctx, outbuf, &outlen, "", data.payload_size);
 	}
+
 	EVP_EncryptFinal_ex(ctx, outbuf, &outlen);
 	EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, data.tag_size, outbuf);
 	printf("Tags: ");
