@@ -30,7 +30,7 @@ index c9e2a37f..3cac683d 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index 86060930..220621cb 100644
+index 1bf4db6e..9176706d 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -25,10 +25,12 @@ drv_mac80211_init_device_config() {
@@ -318,7 +318,7 @@ index 86060930..220621cb 100644
  			append base_cfg "he_bss_color=$he_bss_color" "$N"
  			[ "$he_spr_non_srg_obss_pd_max_offset" -gt 0 ] && { \
  				append base_cfg "he_spr_non_srg_obss_pd_max_offset=$he_spr_non_srg_obss_pd_max_offset" "$N"
-@@ -460,34 +547,70 @@ mac80211_hostapd_setup_base() {
+@@ -460,26 +547,58 @@ mac80211_hostapd_setup_base() {
  		append base_cfg "he_mu_edca_qos_info_q_ack=0" "$N"
  		append base_cfg "he_mu_edca_qos_info_queue_request=0" "$N"
  		append base_cfg "he_mu_edca_qos_info_txop_request=0" "$N"
@@ -327,27 +327,31 @@ index 86060930..220621cb 100644
  		append base_cfg "he_mu_edca_ac_be_aci=0" "$N"
  		append base_cfg "he_mu_edca_ac_be_ecwmin=9" "$N"
  		append base_cfg "he_mu_edca_ac_be_ecwmax=10" "$N"
- 		append base_cfg "he_mu_edca_ac_be_timer=255" "$N"
+-		append base_cfg "he_mu_edca_ac_be_timer=255" "$N"
 -		append base_cfg "he_mu_edca_ac_bk_aifsn=15" "$N"
++		append base_cfg "he_mu_edca_ac_be_timer=3" "$N"
 +		append base_cfg "he_mu_edca_ac_bk_aifsn=0" "$N"
  		append base_cfg "he_mu_edca_ac_bk_aci=1" "$N"
  		append base_cfg "he_mu_edca_ac_bk_ecwmin=9" "$N"
  		append base_cfg "he_mu_edca_ac_bk_ecwmax=10" "$N"
- 		append base_cfg "he_mu_edca_ac_bk_timer=255" "$N"
+-		append base_cfg "he_mu_edca_ac_bk_timer=255" "$N"
++		append base_cfg "he_mu_edca_ac_bk_timer=3" "$N"
  		append base_cfg "he_mu_edca_ac_vi_ecwmin=5" "$N"
  		append base_cfg "he_mu_edca_ac_vi_ecwmax=7" "$N"
 -		append base_cfg "he_mu_edca_ac_vi_aifsn=5" "$N"
 +		append base_cfg "he_mu_edca_ac_vi_aifsn=0" "$N"
  		append base_cfg "he_mu_edca_ac_vi_aci=2" "$N"
- 		append base_cfg "he_mu_edca_ac_vi_timer=255" "$N"
+-		append base_cfg "he_mu_edca_ac_vi_timer=255" "$N"
 -		append base_cfg "he_mu_edca_ac_vo_aifsn=5" "$N"
++		append base_cfg "he_mu_edca_ac_vi_timer=3" "$N"
 +		append base_cfg "he_mu_edca_ac_vo_aifsn=0" "$N"
  		append base_cfg "he_mu_edca_ac_vo_aci=3" "$N"
  		append base_cfg "he_mu_edca_ac_vo_ecwmin=5" "$N"
  		append base_cfg "he_mu_edca_ac_vo_ecwmax=7" "$N"
- 		append base_cfg "he_mu_edca_ac_vo_timer=255" "$N"
- 	fi
- 
+-		append base_cfg "he_mu_edca_ac_vo_timer=255" "$N"
++		append base_cfg "he_mu_edca_ac_vo_timer=3" "$N"
++	fi
++
 +	set_default tx_burst 2
 +
 +	# 802.11be
@@ -378,11 +382,10 @@ index 86060930..220621cb 100644
 +				;;
 +			esac
 +		}
-+	fi
-+
+ 	fi
+ 
  	hostapd_prepare_device_config "$hostapd_conf_file" nl80211
- 	cat >> "$hostapd_conf_file" <<EOF
- ${channel:+channel=$channel}
+@@ -488,6 +607,10 @@ ${channel:+channel=$channel}
  ${channel_list:+chanlist=$channel_list}
  ${hostapd_noscan:+noscan=1}
  ${tx_burst:+tx_queue_data2_burst=$tx_burst}
