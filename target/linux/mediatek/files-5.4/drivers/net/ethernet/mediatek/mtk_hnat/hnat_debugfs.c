@@ -2069,11 +2069,9 @@ static ssize_t hnat_sched_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-	if (rate > 100000000 || rate < 0 ||
-	    rate > 100000000 || rate < 0)
+	if (rate > 10000000 || rate < 0)
 #else
-	if (rate > 10000000 || rate < 0 ||
-	    rate > 10000000 || rate < 0)
+	if (rate > 1000000 || rate < 0)
 #endif
 		return -EINVAL;
 
@@ -2228,11 +2226,11 @@ static ssize_t hnat_queue_write(struct file *file, const char __user *buf,
 	line[length] = '\0';
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-	if (max_rate > 100000000 || max_rate < 0 ||
-	    min_rate > 100000000 || min_rate < 0)
-#else
 	if (max_rate > 10000000 || max_rate < 0 ||
 	    min_rate > 10000000 || min_rate < 0)
+#else
+	if (max_rate > 1000000 || max_rate < 0 ||
+	    min_rate > 1000000 || min_rate < 0)
 #endif
 		return -EINVAL;
 
