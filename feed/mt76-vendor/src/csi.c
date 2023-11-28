@@ -14,6 +14,7 @@ static struct nla_policy csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
 	[MTK_VENDOR_ATTR_CSI_CTRL_CFG_VAL2] = { .type = NLA_U8 },
 	[MTK_VENDOR_ATTR_CSI_CTRL_MAC_ADDR] = { .type = NLA_NESTED },
 	[MTK_VENDOR_ATTR_CSI_CTRL_INTERVAL] = { .type = NLA_U32 },
+	[MTK_VENDOR_ATTR_CSI_CTRL_STA_INTERVAL] = { .type = NLA_U32 },
 	[MTK_VENDOR_ATTR_CSI_CTRL_DUMP_NUM] = { .type = NLA_U16 },
 	[MTK_VENDOR_ATTR_CSI_CTRL_DATA] = { .type = NLA_NESTED },
 };
@@ -26,13 +27,14 @@ static struct nla_policy csi_data_policy[NUM_MTK_VENDOR_ATTRS_CSI_DATA] = {
 	[MTK_VENDOR_ATTR_CSI_DATA_BW] = { .type = NLA_U8 },
 	[MTK_VENDOR_ATTR_CSI_DATA_CH_IDX] = { .type = NLA_U8 },
 	[MTK_VENDOR_ATTR_CSI_DATA_TA] = { .type = NLA_NESTED },
+	[MTK_VENDOR_ATTR_CSI_DATA_NUM] = { .type = NLA_U32 },
 	[MTK_VENDOR_ATTR_CSI_DATA_I] = { .type = NLA_NESTED },
 	[MTK_VENDOR_ATTR_CSI_DATA_Q] = { .type = NLA_NESTED },
 	[MTK_VENDOR_ATTR_CSI_DATA_INFO] = { .type = NLA_U32 },
 	[MTK_VENDOR_ATTR_CSI_DATA_TX_ANT] = { .type = NLA_U8 },
 	[MTK_VENDOR_ATTR_CSI_DATA_RX_ANT] = { .type = NLA_U8 },
 	[MTK_VENDOR_ATTR_CSI_DATA_MODE] = { .type = NLA_U8 },
-	[MTK_VENDOR_ATTR_CSI_DATA_H_IDX] = { .type = NLA_U32 },
+	[MTK_VENDOR_ATTR_CSI_DATA_CHAIN_INFO] = { .type = NLA_U32 },
 };
 
 static int mt76_csi_dump_cb(struct nl_msg *msg, void *arg)
@@ -71,7 +73,7 @@ static int mt76_csi_dump_cb(struct nl_msg *msg, void *arg)
 	      tb_data[MTK_VENDOR_ATTR_CSI_DATA_Q] &&
 	      tb_data[MTK_VENDOR_ATTR_CSI_DATA_INFO] &&
 	      tb_data[MTK_VENDOR_ATTR_CSI_DATA_MODE] &&
-	      tb_data[MTK_VENDOR_ATTR_CSI_DATA_H_IDX])) {
+	      tb_data[MTK_VENDOR_ATTR_CSI_DATA_CHAIN_INFO])) {
 		fprintf(stderr, "Attributes error for CSI data\n");
 		return NL_SKIP;
 	}
@@ -85,10 +87,12 @@ static int mt76_csi_dump_cb(struct nl_msg *msg, void *arg)
 	c->tx_idx = nla_get_u16(tb_data[MTK_VENDOR_ATTR_CSI_DATA_TX_ANT]);
 	c->rx_idx = nla_get_u16(tb_data[MTK_VENDOR_ATTR_CSI_DATA_RX_ANT]);
 
-	c->info = nla_get_u32(tb_data[MTK_VENDOR_ATTR_CSI_DATA_INFO]);
-	c->h_idx = nla_get_u32(tb_data[MTK_VENDOR_ATTR_CSI_DATA_H_IDX]);
+	c->ext_info = nla_get_u32(tb_data[MTK_VENDOR_ATTR_CSI_DATA_INFO]);
+	c->chain_info = nla_get_u32(tb_data[MTK_VENDOR_ATTR_CSI_DATA_CHAIN_INFO]);
 
 	c->ts = nla_get_u32(tb_data[MTK_VENDOR_ATTR_CSI_DATA_TS]);
+
+	c->data_num = nla_get_u32(tb_data[MTK_VENDOR_ATTR_CSI_DATA_NUM]);
 
 	idx = 0;
 	nla_for_each_nested(cur, tb_data[MTK_VENDOR_ATTR_CSI_DATA_TA], rem) {
@@ -98,13 +102,13 @@ static int mt76_csi_dump_cb(struct nl_msg *msg, void *arg)
 
 	idx = 0;
 	nla_for_each_nested(cur, tb_data[MTK_VENDOR_ATTR_CSI_DATA_I], rem) {
-		if (idx < CSI_MAX_COUNT)
+		if (idx < c->data_num)
 			c->data_i[idx++] = nla_get_u16(cur);
 	}
 
 	idx = 0;
 	nla_for_each_nested(cur, tb_data[MTK_VENDOR_ATTR_CSI_DATA_Q], rem) {
-		if (idx < CSI_MAX_COUNT)
+		if (idx < c->data_num)
 			c->data_q[idx++] = nla_get_u16(cur);
 	}
 
@@ -152,21 +156,21 @@ static int mt76_csi_to_json(const char *name)
 		pos += snprintf(pos, MAX_BUF_SIZE, "%u,", c->rx_mode);
 		pos += snprintf(pos, MAX_BUF_SIZE, "%d,", c->tx_idx);
 		pos += snprintf(pos, MAX_BUF_SIZE, "%d,", c->rx_idx);
-		pos += snprintf(pos, MAX_BUF_SIZE, "%d,", c->h_idx);
-		pos += snprintf(pos, MAX_BUF_SIZE, "%d,", c->info);
+		pos += snprintf(pos, MAX_BUF_SIZE, "%d,", c->chain_info);
+		pos += snprintf(pos, MAX_BUF_SIZE, "%d,", c->ext_info);
 
 		pos += snprintf(pos, MAX_BUF_SIZE, "%c", '[');
-		for (j = 0; j < 256; j++) {
+		for (j = 0; j < c->data_num; j++) {
 			pos += snprintf(pos, MAX_BUF_SIZE, "%d", c->data_i[j]);
-			if (j != 255)
+			if (j != (c->data_num - 1))
 				pos += snprintf(pos, MAX_BUF_SIZE, ",");
 		}
 		pos += snprintf(pos, MAX_BUF_SIZE, "%c,", ']');
 
 		pos += snprintf(pos, MAX_BUF_SIZE, "%c", '[');
-		for (j = 0; j < 256; j++) {
+		for (j = 0; j < c->data_num; j++) {
 			pos += snprintf(pos, MAX_BUF_SIZE, "%d", c->data_q[j]);
-			if (j != 255)
+			if (j != (c->data_num - 1))
 				pos += snprintf(pos, MAX_BUF_SIZE, ",");
 		}
 		pos += snprintf(pos, MAX_BUF_SIZE, "%c", ']');
@@ -241,6 +245,7 @@ int mt76_csi_dump(int idx, int argc, char **argv)
 			fprintf(stderr, "nl80211 call failed: %s\n", strerror(-ret));
 
 		unl_free(&unl);
+
 	}
 
 	mt76_csi_to_json(argv[1]);
@@ -278,7 +283,7 @@ static int mt76_csi_set_attr(struct nl_msg *msg, int argc, char **argv)
 
 		free(s2);
 
-		if (argc == 2 &&
+		if ((argc == 2 || argc == 3) &&
 		!strncmp(argv[1], "mac_addr", strlen("mac_addr"))) {
 			u8 a[ETH_ALEN];
 			int matches, i;
@@ -303,6 +308,24 @@ static int mt76_csi_set_attr(struct nl_msg *msg, int argc, char **argv)
 
 			nla_nest_end(msg, data);
 		}
+
+		if (argc == 3 &&
+		!strncmp(argv[2], "sta_interval", strlen("sta_interval"))) {
+			u32 sta_interval = 0;
+
+			val = strchr(argv[2], '=');
+
+			*(val++) = 0;
+
+			if (!val)
+				return -EINVAL;
+
+			sta_interval = strtoul(val, NULL, 0);
+
+			nla_put_u32(msg, MTK_VENDOR_ATTR_CSI_CTRL_STA_INTERVAL, sta_interval);
+
+		}
+
 	} else if (!strncmp(argv[0], "interval", 8)) {
 		u32 interval = strtoul(val, NULL, 0);
 
