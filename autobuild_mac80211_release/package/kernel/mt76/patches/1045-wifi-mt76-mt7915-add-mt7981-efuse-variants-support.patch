@@ -1,0 +1,126 @@
+diff --git a/eeprom.c b/eeprom.c
+index 82c5af5..31ee191 100644
+--- a/eeprom.c
++++ b/eeprom.c
+@@ -108,7 +108,8 @@ out_put_node:
+ #endif
+ }
+ 
+-static int mt76_get_of_epprom_from_nvmem(struct mt76_dev *dev, void *eep, int len)
++int mt76_get_of_eeprom_from_nvmem(struct mt76_dev *dev, const char *name,
++				  void *buf, int len)
+ {
+ 	struct device_node *np = dev->dev->of_node;
+ 	struct nvmem_cell *cell;
+@@ -116,7 +117,7 @@ static int mt76_get_of_epprom_from_nvmem(struct mt76_dev *dev, void *eep, int le
+ 	size_t retlen;
+ 	int ret = 0;
+ 
+-	cell = of_nvmem_cell_get(np, "eeprom");
++	cell = of_nvmem_cell_get(np, name);
+ 	if (IS_ERR(cell))
+ 		return PTR_ERR(cell);
+ 
+@@ -131,13 +132,14 @@ static int mt76_get_of_epprom_from_nvmem(struct mt76_dev *dev, void *eep, int le
+ 		goto exit;
+ 	}
+ 
+-	memcpy(eep, data, len);
++	memcpy(buf, data, len);
+ 
+ exit:
+ 	kfree(data);
+ 
+ 	return ret;
+ }
++EXPORT_SYMBOL_GPL(mt76_get_of_eeprom_from_nvmem);
+ 
+ int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
+ {
+@@ -155,7 +157,7 @@ int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
+ 	if (!ret)
+ 		return 0;
+ 
+-	return mt76_get_of_epprom_from_nvmem(dev, eep, len);
++	return mt76_get_of_eeprom_from_nvmem(dev, "eeprom", eep, len);
+ }
+ EXPORT_SYMBOL_GPL(mt76_get_of_eeprom);
+ 
+diff --git a/mt76.h b/mt76.h
+index 5eb571e..ff89e62 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -1195,6 +1195,8 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
+ 
+ int mt76_eeprom_init(struct mt76_dev *dev, int len);
+ void mt76_eeprom_override(struct mt76_phy *phy);
++int mt76_get_of_eeprom_from_nvmem(struct mt76_dev *dev, const char *name,
++				  void *buf, int len);
+ int mt76_get_of_eeprom(struct mt76_dev *dev, void *data, int offset, int len);
+ bool mt76_check_bin_file_mode(struct mt76_dev *dev);
+ 
+diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
+index c8ea1d9..0ea0f9c 100644
+--- a/mt7915/eeprom.c
++++ b/mt7915/eeprom.c
+@@ -174,6 +174,21 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
+ 	return mt7915_check_eeprom(dev);
+ }
+ 
++static int mt7915_eeprom_parse_efuse_hw_cap(struct mt7915_dev *dev)
++{
++#define WTBL_SIZE_GROUP		GENMASK(1, 0)
++	u32 buf;
++	int ret;
++
++	ret = mt76_get_of_eeprom_from_nvmem(&dev->mt76, "variant", &buf, 4);
++	if (ret)
++		return ret;
++
++	dev->limited_wtbl_size = buf & WTBL_SIZE_GROUP;
++
++	return 0;
++}
++
+ static void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
+ {
+ 	struct mt7915_dev *dev = phy->dev;
+@@ -224,6 +239,13 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
+ 	u8 path, nss, nss_max = 4, *eeprom = dev->mt76.eeprom.data;
+ 	struct mt76_phy *mphy = phy->mt76;
+ 	u8 band = phy->mt76->band_idx;
++	int ret;
++
++	if (is_mt7981(&dev->mt76)) {
++		ret = mt7915_eeprom_parse_efuse_hw_cap(dev);
++		if (ret)
++			dev->limited_wtbl_size = true;
++	}
+ 
+ 	mt7915_eeprom_parse_band_config(phy);
+ 
+diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
+index 1510f10..1affbcf 100644
+--- a/mt7915/mt7915.h
++++ b/mt7915/mt7915.h
+@@ -417,6 +417,7 @@ struct mt7915_dev {
+ 
+ 	u32 hw_pattern;
+ 
++	bool limited_wtbl_size;
+ 	bool dbdc_support;
+ 	bool flash_mode;
+ 	bool bin_file_mode;
+@@ -699,7 +700,11 @@ void mt7915_tm_rf_test_event(struct mt7915_dev *dev, struct sk_buff *skb);
+ 
+ static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
+ {
+-	return is_mt7915(&dev->mt76) ? MT7915_WTBL_SIZE : MT7916_WTBL_SIZE;
++	if (is_mt7915(&dev->mt76) ||
++	    (is_mt7981(&dev->mt76) && dev->limited_wtbl_size))
++		return MT7915_WTBL_SIZE;
++
++	return MT7916_WTBL_SIZE;
+ }
+ 
+ static inline u16 mt7915_eeprom_size(struct mt7915_dev *dev)
