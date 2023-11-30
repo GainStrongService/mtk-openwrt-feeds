@@ -644,7 +644,7 @@
  static void xfrm_hash_transfer(struct hlist_head *list,
  			       struct hlist_head *ndsttable,
  			       struct hlist_head *nsrctable,
-@@ -93,18 +112,20 @@ static void xfrm_hash_transfer(struct hl
+@@ -93,18 +112,19 @@ static void xfrm_hash_transfer(struct hl
  		h = __xfrm_dst_hash(&x->id.daddr, &x->props.saddr,
  				    x->props.reqid, x->props.family,
  				    nhashmask);
@@ -661,13 +661,13 @@
  			h = __xfrm_spi_hash(&x->id.daddr, x->id.spi,
  					    x->id.proto, x->props.family,
  					    nhashmask);
- 			hlist_add_head_rcu(&x->byspi, nspitable + h);
+-			hlist_add_head_rcu(&x->byspi, nspitable + h);
 +			XFRM_STATE_INSERT(byspi, &x->byspi, nspitable + h,
 +					  x->xso.type);
  		}
  	}
  }
-@@ -527,6 +548,8 @@ static enum hrtimer_restart xfrm_timer_h
+@@ -527,6 +547,8 @@ static enum hrtimer_restart xfrm_timer_h
  	int err = 0;
  
  	spin_lock(&x->lock);
@@ -676,7 +676,7 @@
  	if (x->km.state == XFRM_STATE_DEAD)
  		goto out;
  	if (x->km.state == XFRM_STATE_EXPIRED)
-@@ -923,6 +946,49 @@ xfrm_init_tempstate(struct xfrm_state *x
+@@ -923,6 +945,49 @@ xfrm_init_tempstate(struct xfrm_state *x
  	x->props.family = tmpl->encap_family;
  }
  
@@ -726,7 +726,7 @@
  static struct xfrm_state *__xfrm_state_lookup(struct net *net, u32 mark,
  					      const xfrm_address_t *daddr,
  					      __be32 spi, u8 proto,
-@@ -1062,6 +1128,23 @@ xfrm_state_find(const xfrm_address_t *da
+@@ -1062,6 +1127,23 @@ xfrm_state_find(const xfrm_address_t *da
  	rcu_read_lock();
  	h = xfrm_dst_hash(net, daddr, saddr, tmpl->reqid, encap_family);
  	hlist_for_each_entry_rcu(x, net->xfrm.state_bydst + h, bydst) {
@@ -750,7 +750,7 @@
  		if (x->props.family == encap_family &&
  		    x->props.reqid == tmpl->reqid &&
  		    (mark & x->mark.m) == x->mark.v &&
-@@ -1079,6 +1162,23 @@ xfrm_state_find(const xfrm_address_t *da
+@@ -1079,6 +1161,23 @@ xfrm_state_find(const xfrm_address_t *da
  
  	h_wildcard = xfrm_dst_hash(net, daddr, &saddr_wildcard, tmpl->reqid, encap_family);
  	hlist_for_each_entry_rcu(x, net->xfrm.state_bydst + h_wildcard, bydst) {
@@ -774,7 +774,7 @@
  		if (x->props.family == encap_family &&
  		    x->props.reqid == tmpl->reqid &&
  		    (mark & x->mark.m) == x->mark.v &&
-@@ -1096,8 +1196,10 @@ found:
+@@ -1096,8 +1195,10 @@ found:
  	x = best;
  	if (!x && !error && !acquire_in_progress) {
  		if (tmpl->id.spi &&
@@ -787,7 +787,7 @@
  			to_put = x0;
  			error = -EEXIST;
  			goto out;
-@@ -1131,17 +1233,42 @@ found:
+@@ -1131,17 +1232,42 @@ found:
  			x = NULL;
  			goto out;
  		}
@@ -834,7 +834,7 @@
  			}
  			x->lft.hard_add_expires_seconds = net->xfrm.sysctl_acq_expires;
  			hrtimer_start(&x->mtimer,
-@@ -1151,6 +1278,16 @@ found:
+@@ -1151,6 +1277,16 @@ found:
  			xfrm_hash_grow_check(net, x->bydst.next != NULL);
  			spin_unlock_bh(&net->xfrm.xfrm_state_lock);
  		} else {
@@ -851,7 +851,7 @@
  			x->km.state = XFRM_STATE_DEAD;
  			to_put = x;
  			x = NULL;
-@@ -1246,16 +1383,19 @@ static void __xfrm_state_insert(struct x
+@@ -1246,16 +1382,19 @@ static void __xfrm_state_insert(struct x
  
  	h = xfrm_dst_hash(net, &x->id.daddr, &x->props.saddr,
  			  x->props.reqid, x->props.family);
@@ -874,7 +874,7 @@
  	}
  
  	hrtimer_start(&x->mtimer, ktime_set(1, 0), HRTIMER_MODE_REL_SOFT);
-@@ -1369,9 +1509,11 @@ static struct xfrm_state *__find_acq_cor
+@@ -1369,9 +1508,11 @@ static struct xfrm_state *__find_acq_cor
  			      ktime_set(net->xfrm.sysctl_acq_expires, 0),
  			      HRTIMER_MODE_REL_SOFT);
  		list_add(&x->km.all, &net->xfrm.state_all);
@@ -888,7 +888,7 @@
  
  		net->xfrm.state_num++;
  
-@@ -1742,6 +1884,8 @@ EXPORT_SYMBOL(xfrm_state_update);
+@@ -1742,6 +1883,8 @@ EXPORT_SYMBOL(xfrm_state_update);
  
  int xfrm_state_check_expire(struct xfrm_state *x)
  {
@@ -897,7 +897,7 @@
  	if (!x->curlft.use_time)
  		x->curlft.use_time = ktime_get_real_seconds();
  
-@@ -2043,7 +2187,8 @@ int xfrm_alloc_spi(struct xfrm_state *x,
+@@ -2043,7 +2186,8 @@ int xfrm_alloc_spi(struct xfrm_state *x,
  		spin_lock_bh(&net->xfrm.xfrm_state_lock);
  		x->id.spi = newspi;
  		h = xfrm_spi_hash(net, &x->id.daddr, x->id.spi, x->id.proto, x->props.family);
