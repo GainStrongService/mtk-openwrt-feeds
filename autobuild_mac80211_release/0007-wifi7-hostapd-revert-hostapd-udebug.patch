@@ -1,525 +1,303 @@
-diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index 61410069b6f..089c073011b 100644
---- a/package/network/services/hostapd/Makefile
-+++ b/package/network/services/hostapd/Makefile
-@@ -79,7 +79,7 @@ ifneq ($(CONFIG_DRIVER_11AX_SUPPORT),)
-   HOSTAPD_IEEE80211AX:=y
- endif
+From 73016210704fbe266c98d470f1ffaabfc4d97bc1 Mon Sep 17 00:00:00 2001
+From: Evelyn Tsai <evelyn.tsai@mediatek.com>
+Date: Sat, 2 Dec 2023 07:06:57 +0800
+Subject: [PATCH] Revert "hostapd: use new udebug ubus api to make debug rings
+ configurable"
+
+This reverts commit f909059b7473992e84d5701fa5021faa5bd76e67.
+---
+ package/libs/udebug/files/udebug.config       |   8 -
+ .../network/services/hostapd/files/hostapd.uc |  27 +++-
+ .../services/hostapd/files/wpa_supplicant.uc  |  25 ++-
+ .../services/hostapd/src/src/utils/ucode.c    | 144 ++++++------------
+ 4 files changed, 96 insertions(+), 108 deletions(-)
+
+diff --git a/package/libs/udebug/files/udebug.config b/package/libs/udebug/files/udebug.config
+index 21d1ecb1..23d4281b 100644
+--- a/package/libs/udebug/files/udebug.config
++++ b/package/libs/udebug/files/udebug.config
+@@ -9,17 +9,9 @@ config service log
  
--CORE_DEPENDS = +ucode +libubus +libucode +ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop +libblobmsg-json +libudebug
-+CORE_DEPENDS = +ucode +libubus +libucode +ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop +libblobmsg-json
- OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl
+ config service hostapd
+ 	option enabled 0
+-	option wpa_log 1
+-	option wpa_nl_rx 0
+-	option wpa_nl_tx 0
+-	option wpa_nl_ctrl 0
  
- DRIVER_MAKEOPTS= \
-@@ -583,7 +583,7 @@ TARGET_CPPFLAGS := \
- 	-D_GNU_SOURCE \
- 	$(if $(CONFIG_WPA_MSG_MIN_PRIORITY),-DCONFIG_MSG_MIN_PRIORITY=$(CONFIG_WPA_MSG_MIN_PRIORITY))
+ config service wpa_supplicant
+ 	option enabled 0
+-	option wpa_log 1
+-	option wpa_nl_rx 0
+-	option wpa_nl_tx 0
+-	option wpa_nl_ctrl 0
  
--TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lucode -lm -lnl-tiny -ludebug
-+TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lucode -lm -lnl-tiny
- 
- ifdef CONFIG_WPA_ENABLE_WEP
-     DRIVER_MAKEOPTS += CONFIG_WEP=y
+ config service netifd
+ 	option enabled 0
 diff --git a/package/network/services/hostapd/files/hostapd.uc b/package/network/services/hostapd/files/hostapd.uc
-index 84138f29a58..750fd535a4a 100644
+index b85f523b..84138f29 100644
 --- a/package/network/services/hostapd/files/hostapd.uc
 +++ b/package/network/services/hostapd/files/hostapd.uc
-@@ -782,33 +782,8 @@ let main_obj = {
+@@ -782,9 +782,33 @@ let main_obj = {
  	},
  };
  
--function handle_debug_config(cfg) {
--	hostapd.printf(`handle_debug_config: ${cfg}\n`);
--	if (!cfg)
--		return;
--
--	let data = cfg.service;
--	if (!data)
--		return;
--
--	data = data.hostapd;
--	if (!data)
--		return;
--
--	hostapd.udebug_set(!!+data.enabled);
--}
--
++function handle_debug_config(cfg) {
++	hostapd.printf(`handle_debug_config: ${cfg}\n`);
++	if (!cfg)
++		return;
++
++	let data = cfg.service;
++	if (!data)
++		return;
++
++	data = data.hostapd;
++	if (!data)
++		return;
++
++	hostapd.udebug_set(!!+data.enabled);
++}
++
  hostapd.data.ubus = ubus;
  hostapd.data.obj = ubus.publish("hostapd", main_obj);
--hostapd.data.debug_sub = ubus.subscriber((req) => {
--	if (req.type != "config")
--		return;
--
--	handle_debug_config(req.data);
--});
--
--hostapd.data.debug_sub.subscribe("udebug");
--handle_debug_config(ubus.call("udebug", "get_config", {}));
+-hostapd.udebug_set("hostapd", hostapd.data.ubus);
++hostapd.data.debug_sub = ubus.subscriber((req) => {
++	if (req.type != "config")
++		return;
++
++	handle_debug_config(req.data);
++});
++
++hostapd.data.debug_sub.subscribe("udebug");
++handle_debug_config(ubus.call("udebug", "get_config", {}));
  
  function bss_event(type, name, data) {
  	let ubus = hostapd.data.ubus;
+@@ -799,7 +823,6 @@ return {
+ 	shutdown: function() {
+ 		for (let phy in hostapd.data.config)
+ 			iface_set_config(phy, null);
+-		hostapd.udebug_set(null);
+ 		hostapd.ubus.disconnect();
+ 	},
+ 	bss_add: function(name, obj) {
 diff --git a/package/network/services/hostapd/files/wpa_supplicant.uc b/package/network/services/hostapd/files/wpa_supplicant.uc
-index aac144b3399..d624f27cddc 100644
+index 1709bb01..aac144b3 100644
 --- a/package/network/services/hostapd/files/wpa_supplicant.uc
 +++ b/package/network/services/hostapd/files/wpa_supplicant.uc
-@@ -244,32 +244,8 @@ let main_obj = {
+@@ -244,9 +244,32 @@ let main_obj = {
  	},
  };
  
--function handle_debug_config(cfg) {
--	if (!cfg)
--		return;
--
--	let data = cfg.service;
--	if (!data)
--		return;
--
--	data = data.wpa_supplicant;
--	if (!data)
--		return;
--
--	wpas.udebug_set(!!+data.enabled);
--}
--
++function handle_debug_config(cfg) {
++	if (!cfg)
++		return;
++
++	let data = cfg.service;
++	if (!data)
++		return;
++
++	data = data.wpa_supplicant;
++	if (!data)
++		return;
++
++	wpas.udebug_set(!!+data.enabled);
++}
++
  wpas.data.ubus = ubus;
  wpas.data.obj = ubus.publish("wpa_supplicant", main_obj);
--wpas.data.debug_sub = ubus.subscriber((req) => {
--	if (req.type != "config")
--		return;
--
--	handle_debug_config(req.data);
--});
--
--wpas.data.debug_sub.subscribe("udebug");
--handle_debug_config(ubus.call("udebug", "get_config", {}));
+-wpas.udebug_set("wpa_supplicant", wpas.data.ubus);
++wpas.data.debug_sub = ubus.subscriber((req) => {
++	if (req.type != "config")
++		return;
++
++	handle_debug_config(req.data);
++});
++
++wpas.data.debug_sub.subscribe("udebug");
++handle_debug_config(ubus.call("udebug", "get_config", {}));
  
  function iface_event(type, name, data) {
  	let ubus = wpas.data.ubus;
-diff --git a/package/network/services/hostapd/files/wpad_acl.json b/package/network/services/hostapd/files/wpad_acl.json
-index 7532953cabd..d00fd945ba5 100644
---- a/package/network/services/hostapd/files/wpad_acl.json
-+++ b/package/network/services/hostapd/files/wpad_acl.json
-@@ -9,12 +9,8 @@
- 		},
- 		"hostapd": {
- 			"methods": [ "apsta_state" ]
--		},
--		"udebug": {
--			"methods": [ "get_config" ]
- 		}
- 	},
--	"subscribe": [ "udebug" ],
- 	"publish": [ "hostapd", "hostapd.*", "wpa_supplicant", "wpa_supplicant.*" ],
- 	"send": [ "bss.*", "wps_credentials" ]
- }
-diff --git a/package/network/services/hostapd/patches/601-ucode_support.patch b/package/network/services/hostapd/patches/601-ucode_support.patch
-index cfdb51f356c..23f535b6852 100644
---- a/package/network/services/hostapd/patches/601-ucode_support.patch
-+++ b/package/network/services/hostapd/patches/601-ucode_support.patch
-@@ -196,7 +196,7 @@
-  
-  #ifdef CONFIG_BGSCAN
-  	if (state == WPA_COMPLETED && wpa_s->current_ssid != wpa_s->bgscan_ssid)
--@@ -7594,6 +7595,7 @@ struct wpa_supplicant * wpa_supplicant_a
-+@@ -7596,6 +7597,7 @@ struct wpa_supplicant * wpa_supplicant_a
-  #endif /* CONFIG_P2P */
-  
-  	wpas_ubus_add_bss(wpa_s);
-@@ -204,7 +204,7 @@
-  
-  	return wpa_s;
-  }
--@@ -7621,6 +7623,7 @@ int wpa_supplicant_remove_iface(struct w
-+@@ -7623,6 +7625,7 @@ int wpa_supplicant_remove_iface(struct w
-  	struct wpa_supplicant *parent = wpa_s->parent;
-  #endif /* CONFIG_MESH */
-  
-@@ -212,7 +212,7 @@
-  	wpas_ubus_free_bss(wpa_s);
-  
-  	/* Remove interface from the global list of interfaces */
--@@ -7931,6 +7934,7 @@ struct wpa_global * wpa_supplicant_init(
-+@@ -7933,6 +7936,7 @@ struct wpa_global * wpa_supplicant_init(
-  
-  	eloop_register_timeout(WPA_SUPPLICANT_CLEANUP_INTERVAL, 0,
-  			       wpas_periodic, global, NULL);
-@@ -220,7 +220,7 @@
-  
-  	return global;
-  }
--@@ -7969,12 +7973,8 @@ int wpa_supplicant_run(struct wpa_global
-+@@ -7971,12 +7975,8 @@ int wpa_supplicant_run(struct wpa_global
-  	eloop_register_signal_terminate(wpa_supplicant_terminate, global);
-  	eloop_register_signal_reconfig(wpa_supplicant_reconfig, global);
-  
-@@ -233,7 +233,7 @@
-  	return 0;
-  }
-  
--@@ -8007,6 +8007,8 @@ void wpa_supplicant_deinit(struct wpa_gl
-+@@ -8009,6 +8009,8 @@ void wpa_supplicant_deinit(struct wpa_gl
-  
-  	wpas_notify_supplicant_deinitialized(global);
-  
-@@ -395,60 +395,7 @@
-  {
- --- a/src/drivers/driver_nl80211.c
- +++ b/src/drivers/driver_nl80211.c
--@@ -73,6 +73,16 @@ enum nlmsgerr_attrs {
-- 
-- #endif /* ANDROID */
-- 
--+static void handle_nl_debug_hook(struct nl_msg *msg, int tx)
--+{
--+	const struct nlmsghdr *nlh;
--+
--+	if (!wpa_netlink_hook)
--+		return;
--+
--+	nlh = nlmsg_hdr(msg);
--+	wpa_netlink_hook(tx, nlh, nlh->nlmsg_len);
--+}
-- 
-- static struct nl_sock * nl_create_handle(struct nl_cb *cb, const char *dbg)
-- {
--@@ -379,6 +389,11 @@ static int no_seq_check(struct nl_msg *m
-- 	return NL_OK;
-- }
-- 
--+static int debug_handler(struct nl_msg *msg, void *arg)
--+{
--+	handle_nl_debug_hook(msg, 0);
--+	return NL_OK;
--+}
-- 
-- static void nl80211_nlmsg_clear(struct nl_msg *msg)
-- {
--@@ -415,6 +430,7 @@ static int send_and_recv(struct nl80211_
-- 	if (!msg)
-- 		return -ENOMEM;
-- 
--+	handle_nl_debug_hook(msg, 1);
-- 	cb = nl_cb_clone(global->nl_cb);
-- 	if (!cb)
-- 		goto out;
--@@ -443,6 +459,7 @@ static int send_and_recv(struct nl80211_
-- 
-- 	err = 1;
-- 
--+	nl_cb_set(cb, NL_CB_MSG_IN, NL_CB_CUSTOM, debug_handler, NULL);
-- 	nl_cb_err(cb, NL_CB_CUSTOM, error_handler, &err);
-- 	nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, finish_handler, &err);
-- 	if (ack_handler_custom) {
--@@ -919,6 +936,7 @@ nl80211_get_wiphy_data_ap(struct i802_bs
-- 			os_free(w);
-- 			return NULL;
-- 		}
--+		nl_cb_set(w->nl_cb, NL_CB_MSG_IN, NL_CB_CUSTOM, debug_handler, NULL);
-- 		nl_cb_set(w->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM,
-- 			  no_seq_check, NULL);
-- 		nl_cb_set(w->nl_cb, NL_CB_VALID, NL_CB_CUSTOM,
--@@ -1333,7 +1351,7 @@ static void wpa_driver_nl80211_event_rtm
-+@@ -1333,7 +1333,7 @@ static void wpa_driver_nl80211_event_rtm
-  		}
-  		wpa_printf(MSG_DEBUG, "nl80211: Interface down (%s/%s)",
-  			   namebuf, ifname);
-@@ -457,7 +404,7 @@
-  			wpa_printf(MSG_DEBUG,
-  				   "nl80211: Not the main interface (%s) - do not indicate interface down",
-  				   drv->first_bss->ifname);
--@@ -1369,7 +1387,7 @@ static void wpa_driver_nl80211_event_rtm
-+@@ -1369,7 +1369,7 @@ static void wpa_driver_nl80211_event_rtm
-  		}
-  		wpa_printf(MSG_DEBUG, "nl80211: Interface up (%s/%s)",
-  			   namebuf, ifname);
-@@ -466,23 +413,7 @@
-  			wpa_printf(MSG_DEBUG,
-  				   "nl80211: Not the main interface (%s) - do not indicate interface up",
-  				   drv->first_bss->ifname);
--@@ -1992,6 +2010,7 @@ static int wpa_driver_nl80211_init_nl_gl
-- 		/* Continue without vendor events */
-- 	}
-- 
--+	nl_cb_set(global->nl_cb, NL_CB_MSG_IN, NL_CB_CUSTOM, debug_handler, NULL);
-- 	nl_cb_set(global->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM,
-- 		  no_seq_check, NULL);
-- 	nl_cb_set(global->nl_cb, NL_CB_VALID, NL_CB_CUSTOM,
--@@ -2160,6 +2179,7 @@ static int nl80211_init_bss(struct i802_
-- 	if (!bss->nl_cb)
-- 		return -1;
-- 
--+	nl_cb_set(bss->nl_cb, NL_CB_MSG_IN, NL_CB_CUSTOM, debug_handler, NULL);
-- 	nl_cb_set(bss->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM,
-- 		  no_seq_check, NULL);
-- 	nl_cb_set(bss->nl_cb, NL_CB_VALID, NL_CB_CUSTOM,
--@@ -8432,6 +8452,7 @@ static void *i802_init(struct hostapd_da
-+@@ -8432,6 +8432,7 @@ static void *i802_init(struct hostapd_da
-  	char master_ifname[IFNAMSIZ];
-  	int ifindex, br_ifindex = 0;
-  	int br_added = 0;
-@@ -490,7 +421,7 @@
-  
-  	bss = wpa_driver_nl80211_drv_init(hapd, params->ifname,
-  					  params->global_priv, 1,
--@@ -8491,21 +8512,17 @@ static void *i802_init(struct hostapd_da
-+@@ -8491,21 +8492,17 @@ static void *i802_init(struct hostapd_da
-  	    (params->num_bridge == 0 || !params->bridge[0]))
-  		add_ifidx(drv, br_ifindex, drv->ifindex);
-  
-@@ -522,7 +453,7 @@
-  	}
-  
-  	if (drv->capa.flags2 & WPA_DRIVER_FLAGS2_CONTROL_PORT_RX) {
--@@ -8875,6 +8892,50 @@ static int wpa_driver_nl80211_if_remove(
-+@@ -8875,6 +8872,50 @@ static int wpa_driver_nl80211_if_remove(
-  	return 0;
-  }
-  
-@@ -573,7 +504,7 @@
-  
-  static int cookie_handler(struct nl_msg *msg, void *arg)
-  {
--@@ -10513,6 +10574,37 @@ static int driver_nl80211_if_remove(void
-+@@ -10513,6 +10554,37 @@ static int driver_nl80211_if_remove(void
-  }
-  
-  
-@@ -611,7 +542,7 @@
-  static int driver_nl80211_send_mlme(void *priv, const u8 *data,
-  				    size_t data_len, int noack,
-  				    unsigned int freq,
--@@ -13697,6 +13789,8 @@ const struct wpa_driver_ops wpa_driver_n
-+@@ -13697,6 +13769,8 @@ const struct wpa_driver_ops wpa_driver_n
-  	.set_acl = wpa_driver_nl80211_set_acl,
-  	.if_add = wpa_driver_nl80211_if_add,
-  	.if_remove = driver_nl80211_if_remove,
-@@ -620,52 +551,3 @@
-  	.send_mlme = driver_nl80211_send_mlme,
-  	.get_hw_feature_data = nl80211_get_hw_feature_data,
-  	.sta_add = wpa_driver_nl80211_sta_add,
----- a/src/utils/wpa_debug.c
--+++ b/src/utils/wpa_debug.c
--@@ -26,6 +26,10 @@ static FILE *wpa_debug_tracing_file = NU
-- #define WPAS_TRACE_PFX "wpas <%d>: "
-- #endif /* CONFIG_DEBUG_LINUX_TRACING */
-- 
--+void (*wpa_printf_hook)(int level, const char *fmt, va_list ap);
--+void (*wpa_hexdump_hook)(int level, const char *title, const void *buf,
--+			 size_t len);
--+void (*wpa_netlink_hook)(int tx, const void *data, size_t len);
-- 
-- int wpa_debug_level = MSG_INFO;
-- int wpa_debug_show_keys = 0;
--@@ -210,6 +214,12 @@ void _wpa_printf(int level, const char *
-- {
-- 	va_list ap;
-- 
--+	if (wpa_printf_hook) {
--+		va_start(ap, fmt);
--+		wpa_printf_hook(level, fmt, ap);
--+		va_end(ap);
--+	}
--+
-- 	if (level >= wpa_debug_level) {
-- #ifdef CONFIG_ANDROID_LOG
-- 		va_start(ap, fmt);
--@@ -260,6 +270,9 @@ void _wpa_hexdump(int level, const char
-- {
-- 	size_t i;
-- 
--+	if (wpa_hexdump_hook)
--+		wpa_hexdump_hook(level, title, buf, len);
--+
-- #ifdef CONFIG_DEBUG_LINUX_TRACING
-- 	if (wpa_debug_tracing_file != NULL) {
-- 		fprintf(wpa_debug_tracing_file,
----- a/src/utils/wpa_debug.h
--+++ b/src/utils/wpa_debug.h
--@@ -11,6 +11,10 @@
-- 
-- #include "wpabuf.h"
-- 
--+extern void (*wpa_printf_hook)(int level, const char *fmt, va_list ap);
--+extern void (*wpa_hexdump_hook)(int level, const char *title,
--+				const void *buf, size_t len);
--+extern void (*wpa_netlink_hook)(int tx, const void *data, size_t len);
-- extern int wpa_debug_level;
-- extern int wpa_debug_show_keys;
-- extern int wpa_debug_timestamp;
-diff --git a/package/network/services/hostapd/src/src/ap/ucode.c b/package/network/services/hostapd/src/src/ap/ucode.c
-index 16d1b515360..af97091be55 100644
---- a/package/network/services/hostapd/src/src/ap/ucode.c
-+++ b/package/network/services/hostapd/src/src/ap/ucode.c
-@@ -711,7 +711,6 @@ int hostapd_ucode_init(struct hapd_interfaces *ifaces)
- 		{ "freq_info", uc_wpa_freq_info },
- 		{ "add_iface", uc_hostapd_add_iface },
- 		{ "remove_iface", uc_hostapd_remove_iface },
--		{ "udebug_set", uc_wpa_udebug_set },
- 	};
- 	static const uc_function_list_t bss_fns[] = {
- 		{ "ctrl", uc_hostapd_bss_ctrl },
 diff --git a/package/network/services/hostapd/src/src/utils/ucode.c b/package/network/services/hostapd/src/src/utils/ucode.c
-index 14fd6bc5ec9..2beeb9a7ff6 100644
+index 29c753c3..14fd6bc5 100644
 --- a/package/network/services/hostapd/src/src/utils/ucode.c
 +++ b/package/network/services/hostapd/src/src/utils/ucode.c
-@@ -4,20 +4,12 @@
- #include "crypto/crypto.h"
- #include "crypto/sha1.h"
- #include "common/ieee802_11_common.h"
--#include <linux/netlink.h>
--#include <linux/genetlink.h>
--#include <linux/nl80211.h>
- #include <libubox/uloop.h>
- #include <ucode/compiler.h>
--#include <udebug.h>
- 
- static uc_value_t *registry;
- static uc_vm_t vm;
+@@ -16,59 +16,8 @@ static uc_vm_t vm;
  static struct uloop_timeout gc_timer;
--static struct udebug ud;
--static struct udebug_buf ud_log, ud_nl[3];
--
--#define UDEBUG_FLAG_RX_FRAME	(1ULL << 0)
+ static struct udebug ud;
+ static struct udebug_buf ud_log, ud_nl[3];
+-static const struct udebug_buf_meta meta_log = {
+-	.name = "wpa_log",
+-	.format = UDEBUG_FORMAT_STRING,
+-};
+-static const struct udebug_buf_meta meta_nl_ll = {
+-	.name = "wpa_nl_ctrl",
+-	.format = UDEBUG_FORMAT_PACKET,
+-	.sub_format = UDEBUG_DLT_NETLINK,
+-};
+-static const struct udebug_buf_meta meta_nl_tx = {
+-	.name = "wpa_nl_tx",
+-	.format = UDEBUG_FORMAT_PACKET,
+-	.sub_format = UDEBUG_DLT_NETLINK,
+-};
++
+ #define UDEBUG_FLAG_RX_FRAME	(1ULL << 0)
+-static const struct udebug_buf_flag rx_flags[] = {
+-	{  "rx_frame", UDEBUG_FLAG_RX_FRAME },
+-};
+-static const struct udebug_buf_meta meta_nl_rx = {
+-	.name = "wpa_nl_rx",
+-	.format = UDEBUG_FORMAT_PACKET,
+-	.sub_format = UDEBUG_DLT_NETLINK,
+-	.flags = rx_flags,
+-	.n_flags = ARRAY_SIZE(rx_flags),
+-};
+-static struct udebug_ubus_ring udebug_rings[] = {
+-	{
+-		.buf = &ud_log,
+-		.meta = &meta_log,
+-		.default_entries = 1024,
+-		.default_size = 64 * 1024
+-	},
+-	{
+-		.buf = &ud_nl[0],
+-		.meta = &meta_nl_rx,
+-		.default_entries = 1024,
+-		.default_size = 256 * 1024,
+-	},
+-	{
+-		.buf = &ud_nl[1],
+-		.meta = &meta_nl_tx,
+-		.default_entries = 1024,
+-		.default_size = 64 * 1024,
+-	},
+-	{
+-		.buf = &ud_nl[2],
+-		.meta = &meta_nl_ll,
+-		.default_entries = 1024,
+-		.default_size = 32 * 1024,
+-	}
+-};
+-char *udebug_service;
+-struct udebug_ubus ud_ubus;
  
  static void uc_gc_timer(struct uloop_timeout *timeout)
  {
-@@ -259,115 +251,6 @@ int wpa_ucode_call_prepare(const char *fname)
- 	return 0;
- }
+@@ -352,67 +301,68 @@ static void udebug_netlink_hook(int tx, const void *data, size_t len)
+ 	         !(udebug_buf_flags(buf) & UDEBUG_FLAG_RX_FRAME))
+ 		return;
  
--static void udebug_printf_hook(int level, const char *fmt, va_list ap)
--{
--	udebug_entry_init(&ud_log);
--	udebug_entry_vprintf(&ud_log, fmt, ap);
--	udebug_entry_add(&ud_log);
--}
--
--static void udebug_hexdump_hook(int level, const char *title,
--                const void *data, size_t len)
--{
--	char *buf;
--
--	udebug_entry_init(&ud_log);
--	udebug_entry_printf(&ud_log, "%s - hexdump:", title);
--	buf = udebug_entry_append(&ud_log, NULL, 3 * len);
--	for (size_t i = 0; i < len; i++)
--		buf += sprintf(buf, " %02x", *(uint8_t *)(data + i));
--	udebug_entry_add(&ud_log);
--}
--
--static void udebug_netlink_hook(int tx, const void *data, size_t len)
--{
--	struct {
--		uint16_t pkttype;
--		uint16_t arphdr;
--		uint16_t _pad[5];
--		uint16_t proto;
--	} hdr = {
--		.pkttype = host_to_be16(tx ? 7 : 6),
--		.arphdr = host_to_be16(824),
--		.proto = host_to_be16(16),
--	};
--	const struct nlmsghdr *nlh = data;
--	const struct genlmsghdr *gnlh = data + NLMSG_HDRLEN;
--	struct udebug_buf *buf = &ud_nl[!!tx];
--
--	if (nlh->nlmsg_type == 0x10)
--		buf = &ud_nl[2];
--	else if (!tx && gnlh->cmd == NL80211_CMD_FRAME &&
--	         !(udebug_buf_flags(buf) & UDEBUG_FLAG_RX_FRAME))
+-	if (!udebug_buf_valid(buf))
 -		return;
 -
--	udebug_entry_init(buf);
--	udebug_entry_append(buf, &hdr, sizeof(hdr));
--	udebug_entry_append(buf, data, len);
--	udebug_entry_add(buf);
--}
--
--uc_value_t *uc_wpa_udebug_set(uc_vm_t *vm, size_t nargs)
+ 	udebug_entry_init(buf);
+ 	udebug_entry_append(buf, &hdr, sizeof(hdr));
+ 	udebug_entry_append(buf, data, len);
+ 	udebug_entry_add(buf);
+ }
+ 
+-static void
+-wpa_udebug_config(struct udebug_ubus *ctx, struct blob_attr *data,
+-		  bool enabled)
 -{
--	static const struct udebug_buf_meta meta_log = {
--		.name = "wpa_log",
--		.format = UDEBUG_FORMAT_STRING,
--	};
--	static const struct udebug_buf_meta meta_nl_ll = {
--		.name = "wpa_nl_ctrl",
--		.format = UDEBUG_FORMAT_PACKET,
--		.sub_format = UDEBUG_DLT_NETLINK,
--	};
--	static const struct udebug_buf_meta meta_nl_tx = {
--		.name = "wpa_nl_tx",
--		.format = UDEBUG_FORMAT_PACKET,
--		.sub_format = UDEBUG_DLT_NETLINK,
--	};
--	static const struct udebug_buf_flag rx_flags[] = {
--		{  "rx_frame", UDEBUG_FLAG_RX_FRAME },
--	};
--	static const struct udebug_buf_meta meta_nl_rx = {
--		.name = "wpa_nl_rx",
--		.format = UDEBUG_FORMAT_PACKET,
--		.sub_format = UDEBUG_DLT_NETLINK,
--		.flags = rx_flags,
--		.n_flags = ARRAY_SIZE(rx_flags),
--	};
--	bool val = ucv_is_truish(uc_fn_arg(0));
--	static bool enabled = false;
+-	udebug_ubus_apply_config(&ud, udebug_rings, ARRAY_SIZE(udebug_rings),
+-				 data, enabled);
 -
--	if (enabled == val)
--		return ucv_boolean_new(true);
--
--	enabled = val;
--	if (val) {
--		udebug_init(&ud);
--		udebug_auto_connect(&ud, NULL);
--		udebug_buf_init(&ud_log, 1024, 64 * 1024);
--		udebug_buf_add(&ud, &ud_log, &meta_log);
--		udebug_buf_init(&ud_nl[0], 1024, 256 * 1024);
--		udebug_buf_add(&ud, &ud_nl[0], &meta_nl_rx);
--		udebug_buf_init(&ud_nl[1], 1024, 64 * 1024);
--		udebug_buf_add(&ud, &ud_nl[1], &meta_nl_tx);
--		udebug_buf_init(&ud_nl[2], 256, 32 * 1024);
--		udebug_buf_add(&ud, &ud_nl[2], &meta_nl_ll);
--
+-	if (udebug_buf_valid(&ud_log)) {
 -		wpa_printf_hook = udebug_printf_hook;
 -		wpa_hexdump_hook = udebug_hexdump_hook;
--		wpa_netlink_hook = udebug_netlink_hook;
 -	} else {
--		for (size_t i = 0; i < ARRAY_SIZE(ud_nl); i++)
--			udebug_buf_free(&ud_nl[i]);
--		udebug_buf_free(&ud_log);
--		udebug_free(&ud);
 -		wpa_printf_hook = NULL;
 -		wpa_hexdump_hook = NULL;
--		wpa_netlink_hook = NULL;
 -	}
 -
--	return ucv_boolean_new(true);
+-	if (udebug_buf_valid(&ud_nl[0]) ||
+-	    udebug_buf_valid(&ud_nl[1]) ||
+-	    udebug_buf_valid(&ud_nl[2]))
+-		wpa_netlink_hook = udebug_netlink_hook;
+-	else
+-		wpa_netlink_hook = NULL;
 -}
 -
- uc_value_t *wpa_ucode_global_init(const char *name, uc_resource_type_t *global_type)
+ uc_value_t *uc_wpa_udebug_set(uc_vm_t *vm, size_t nargs)
  {
- 	uc_value_t *global = uc_resource_new(global_type, NULL);
-diff --git a/package/network/services/hostapd/src/src/utils/ucode.h b/package/network/services/hostapd/src/src/utils/ucode.h
-index c083241e079..2c1886976ee 100644
---- a/package/network/services/hostapd/src/src/utils/ucode.h
-+++ b/package/network/services/hostapd/src/src/utils/ucode.h
-@@ -21,7 +21,6 @@ int wpa_ucode_registry_add(uc_value_t *reg, uc_value_t *val);
- uc_value_t *wpa_ucode_registry_get(uc_value_t *reg, int idx);
- uc_value_t *wpa_ucode_registry_remove(uc_value_t *reg, int idx);
+-	uc_value_t *name = uc_fn_arg(0);
+-	uc_value_t *ubus = uc_fn_arg(1);
++	static const struct udebug_buf_meta meta_log = {
++		.name = "wpa_log",
++		.format = UDEBUG_FORMAT_STRING,
++	};
++	static const struct udebug_buf_meta meta_nl_ll = {
++		.name = "wpa_nl_ctrl",
++		.format = UDEBUG_FORMAT_PACKET,
++		.sub_format = UDEBUG_DLT_NETLINK,
++	};
++	static const struct udebug_buf_meta meta_nl_tx = {
++		.name = "wpa_nl_tx",
++		.format = UDEBUG_FORMAT_PACKET,
++		.sub_format = UDEBUG_DLT_NETLINK,
++	};
++	static const struct udebug_buf_flag rx_flags[] = {
++		{  "rx_frame", UDEBUG_FLAG_RX_FRAME },
++	};
++	static const struct udebug_buf_meta meta_nl_rx = {
++		.name = "wpa_nl_rx",
++		.format = UDEBUG_FORMAT_PACKET,
++		.sub_format = UDEBUG_DLT_NETLINK,
++		.flags = rx_flags,
++		.n_flags = ARRAY_SIZE(rx_flags),
++	};
++	bool val = ucv_is_truish(uc_fn_arg(0));
+ 	static bool enabled = false;
+-	struct ubus_context *ctx;
+-	bool cur_en;
+-
+-	cur_en = ucv_type(name) == UC_STRING;
+-	ctx = ucv_resource_data(ubus, "ubus.connection");
+-	if (!ctx)
+-		cur_en = false;
  
--uc_value_t *uc_wpa_udebug_set(uc_vm_t *vm, size_t nargs);
- uc_value_t *uc_wpa_printf(uc_vm_t *vm, size_t nargs);
- uc_value_t *uc_wpa_getpid(uc_vm_t *vm, size_t nargs);
- uc_value_t *uc_wpa_sha1(uc_vm_t *vm, size_t nargs);
-diff --git a/package/network/services/hostapd/src/wpa_supplicant/ucode.c b/package/network/services/hostapd/src/wpa_supplicant/ucode.c
-index 397f85bde7f..6cba73dcd53 100644
---- a/package/network/services/hostapd/src/wpa_supplicant/ucode.c
-+++ b/package/network/services/hostapd/src/wpa_supplicant/ucode.c
-@@ -262,7 +262,6 @@ int wpas_ucode_init(struct wpa_global *gl)
- 		{ "getpid", uc_wpa_getpid },
- 		{ "add_iface", uc_wpas_add_iface },
- 		{ "remove_iface", uc_wpas_remove_iface },
--		{ "udebug_set", uc_wpa_udebug_set },
- 	};
- 	static const uc_function_list_t iface_fns[] = {
- 		{ "status", uc_wpas_iface_status },
+-	if (enabled == cur_en)
++	if (enabled == val)
+ 		return ucv_boolean_new(true);
+ 
+-	enabled = cur_en;
+-	if (enabled) {
+-		udebug_service = strdup(ucv_string_get(name));
++	enabled = val;
++	if (val) {
+ 		udebug_init(&ud);
+ 		udebug_auto_connect(&ud, NULL);
+-		udebug_ubus_init(&ud_ubus, ctx, udebug_service, wpa_udebug_config);
++		udebug_buf_init(&ud_log, 1024, 64 * 1024);
++		udebug_buf_add(&ud, &ud_log, &meta_log);
++		udebug_buf_init(&ud_nl[0], 1024, 256 * 1024);
++		udebug_buf_add(&ud, &ud_nl[0], &meta_nl_rx);
++		udebug_buf_init(&ud_nl[1], 1024, 64 * 1024);
++		udebug_buf_add(&ud, &ud_nl[1], &meta_nl_tx);
++		udebug_buf_init(&ud_nl[2], 256, 32 * 1024);
++		udebug_buf_add(&ud, &ud_nl[2], &meta_nl_ll);
++
++		wpa_printf_hook = udebug_printf_hook;
++		wpa_hexdump_hook = udebug_hexdump_hook;
++		wpa_netlink_hook = udebug_netlink_hook;
+ 	} else {
+-		udebug_ubus_free(&ud_ubus);
+-		for (size_t i = 0; i < ARRAY_SIZE(udebug_rings); i++)
+-			if (udebug_buf_valid(udebug_rings[i].buf))
+-				udebug_buf_free(udebug_rings[i].buf);
++		for (size_t i = 0; i < ARRAY_SIZE(ud_nl); i++)
++			udebug_buf_free(&ud_nl[i]);
++		udebug_buf_free(&ud_log);
+ 		udebug_free(&ud);
+-		free(udebug_service);
++		wpa_printf_hook = NULL;
++		wpa_hexdump_hook = NULL;
++		wpa_netlink_hook = NULL;
+ 	}
+ 
+ 	return ucv_boolean_new(true);
+-- 
+2.18.0
+

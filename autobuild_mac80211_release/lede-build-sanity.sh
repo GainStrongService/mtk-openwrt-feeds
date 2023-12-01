@@ -223,18 +223,33 @@ prepare_mac80211() {
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/config/netifd ${BUILD_DIR}/package/network/config
 		rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/config/netifd
 		cp -fpR ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/config/netifd_new ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/config/netifd
+		#ucode
+		rm -rf ${BUILD_DIR}/package/utils/ucode
+		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/utils/ucode ${BUILD_DIR}/package/utils
+		#ubus
+		rm -rf ${BUILD_DIR}/package/system/ubus
+		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/system/ubus ${BUILD_DIR}/package/system
+		#ubox & libubox
+		rm -rf ${BUILD_DIR}/package/system/ubox
+		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/system/ubox ${BUILD_DIR}/package/system
+		rm -rf ${BUILD_DIR}/package/libs/libubox
+		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/libs/libubox ${BUILD_DIR}/package/libs
+		#udebug
+		rm -rf ${BUILD_DIR}/package/libs/udebug
+		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/libs/udebug ${BUILD_DIR}/package/libs
+		#umdns
+		rm -rf ${BUILD_DIR}/package/network/services/umdns
+		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/umdns ${BUILD_DIR}/package/network/services
+		#rpcd
+		rm -rf ${BUILD_DIR}/package/system/rpcd
+		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/system/rpcd ${BUILD_DIR}/package/system
+		rm -rf ${MTK_FEED_DIR}/autobuild_mac80211_release/package/system/rpcd
+		#procd
+		rm -rf ${BUILD_DIR}/package/system/procd
+		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/system/procd ${BUILD_DIR}/package/system
 	else
 		echo "=========================Netifd OLD====================="
 	fi
-
-	rm -rf ${BUILD_DIR}/package/utils/ucode
-	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/utils/ucode ${BUILD_DIR}/package/utils
-	rm -rf ${BUILD_DIR}/package/libs/libubox
-	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/libs/libubox ${BUILD_DIR}/package/libs
-	rm -rf ${BUILD_DIR}/package/system/rpcd
-	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/system/rpcd ${BUILD_DIR}/package/system
-	rm -rf ${BUILD_DIR}/package/system/procd
-	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/system/procd ${BUILD_DIR}/package/system
 
 	rm -rf ${BUILD_DIR}/package/kernel/mac80211
 	if [ "$1" = "1" ]; then
@@ -319,6 +334,7 @@ prepare_mac80211() {
 	# Hostapd Makefile
 	if [ "$2" = "1" ]; then
 			patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-wifi7-hostapd-makefile-for-utils.patch || exit 1
+			patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0007-wifi7-hostapd-revert-hostapd-udebug.patch || exit 1
 	else
 			patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-wifi6-hostapd-makefile-for-utils.patch || exit 1
 	fi
