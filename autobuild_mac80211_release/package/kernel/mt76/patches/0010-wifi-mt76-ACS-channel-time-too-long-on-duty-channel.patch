@@ -1,33 +1,48 @@
-From 063ffcd8a8fdb835e3d74082b4dc411750f2a234 Mon Sep 17 00:00:00 2001
+From 794343847530aaa70165e8d764afee1236d6048a Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Sat, 18 Nov 2023 07:36:45 +0800
 Subject: [PATCH] wifi: mt76: ACS channel time too long on duty channel
 
-Step and issue:
-1. Set channel to 36 in hostapd config;
-2. Bootup;
-3. Enable ACS through UCI command and reload;
-4. Check hostapd log, channel 36 channel_time is much longer than other channels.
+Issue:
+There's a chance that the channel time for duty channel is zero in ACS
+scan.
 
 Root cause:
-The reset chan_stat condition missed duty channel.
+The chan_stat may be reset when restore to duty channel.
+Mac80211 will notify to hostapd when scan done and then restore to duty
+channel.
+And mt76 will clear scan flag after restore done.
+If hostapd get the chan_stat before channel_restore, will get the
+correct channel time;
+If hostapd get the chan_stat after channel_restore, will get zero
+channel time;
 
 Solution:
-When scan start, need to reset chan_stat in each channel switch.
+When channel switch, will check the mac80211 scan state but not the mt76 scan flag.
+Mac80211 scan state will be set in scanning, and will be reset after
+scan done and before restore to duty channel.
 ---
- mac80211.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mac80211.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index aaaf6a9..0b13602 100644
+index aaaf6a9..3a7ec88 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -931,7 +931,7 @@ void mt76_set_channel(struct mt76_phy *phy)
+@@ -917,6 +917,7 @@ void mt76_set_channel(struct mt76_phy *phy)
+ 	struct cfg80211_chan_def *chandef = &hw->conf.chandef;
+ 	bool offchannel = hw->conf.flags & IEEE80211_CONF_OFFCHANNEL;
+ 	int timeout = HZ / 5;
++	unsigned long was_scanning = ieee80211_get_scanning(hw);
+ 
+ 	wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(phy), timeout);
+ 	mt76_update_survey(phy);
+@@ -931,7 +932,7 @@ void mt76_set_channel(struct mt76_phy *phy)
  	if (!offchannel)
  		phy->main_chan = chandef->chan;
  
 -	if (chandef->chan != phy->main_chan)
-+	if (chandef->chan != phy->main_chan || test_bit(MT76_SCANNING, &phy->state))
++	if (chandef->chan != phy->main_chan || was_scanning)
  		memset(phy->chan_state, 0, sizeof(*phy->chan_state));
  }
  EXPORT_SYMBOL_GPL(mt76_set_channel);
