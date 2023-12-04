@@ -12,9 +12,9 @@
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
 
-#include "net-event.h"
-#include "mcu.h"
-#include "wdt.h"
+#include "tops/net-event.h"
+#include "tops/mcu.h"
+#include "tops/wdt.h"
 
 enum tops_ser_type {
 	TOPS_SER_NETSYS_FE_RST,

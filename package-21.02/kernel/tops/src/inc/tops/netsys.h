@@ -12,7 +12,7 @@
 #include <linux/bitfield.h>
 #include <linux/platform_device.h>
 
-#include "tunnel.h"
+#include "tops/tunnel.h"
 
 /* FE BASE */
 #define FE_BASE					(0x0000)

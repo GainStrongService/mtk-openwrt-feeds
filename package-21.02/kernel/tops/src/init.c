@@ -15,21 +15,22 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
-#include "ctrl.h"
-#include "firmware.h"
-#include "hpdma.h"
-#include "hwspinlock.h"
-#include "internal.h"
-#include "mbox.h"
-#include "mcu.h"
-#include "netsys.h"
-#include "net-event.h"
-#include "ser.h"
-#include "tdma.h"
-#include "trm-mcu.h"
-#include "trm.h"
-#include "tunnel.h"
-#include "wdt.h"
+#include "tops/ctrl.h"
+#include "tops/debugfs.h"
+#include "tops/firmware.h"
+#include "tops/hpdma.h"
+#include "tops/hwspinlock.h"
+#include "tops/internal.h"
+#include "tops/mbox.h"
+#include "tops/mcu.h"
+#include "tops/netsys.h"
+#include "tops/net-event.h"
+#include "tops/ser.h"
+#include "tops/tdma.h"
+#include "tops/trm-mcu.h"
+#include "tops/trm.h"
+#include "tops/tunnel.h"
+#include "tops/wdt.h"
 
 #define EFUSE_TOPS_POWER_OFF		(0xD08)
 
@@ -79,7 +80,16 @@ static int mtk_tops_post_init(struct platform_device *pdev)
 		goto err_ser_deinit;
 	}
 
+	ret = mtk_tops_debugfs_init(pdev);
+	if (ret) {
+		TOPS_ERR("debugfs init failed: %d\n", ret);
+		goto err_wdt_deinit;
+	}
+
 	return ret;
+
+err_wdt_deinit:
+	mtk_tops_wdt_deinit(pdev);
 
 err_ser_deinit:
 	mtk_tops_ser_deinit(pdev);
@@ -165,6 +175,8 @@ err_mcu_deinit:
 
 static int mtk_tops_remove(struct platform_device *pdev)
 {
+	mtk_tops_debugfs_init(pdev);
+
 	mtk_tops_wdt_deinit(pdev);
 
 	mtk_tops_ser_deinit(pdev);

@@ -18,7 +18,7 @@
 
 #define UDP_L2TP_PORT		1701
 
-struct l2tp_param {
+struct tops_l2tp_params {
 	u16 tid; /* l2tp tunnel id */
 	u16 sid; /* l2tp session id */
 };
@@ -29,5 +29,4 @@ struct udp_l2tp_data_hdr {
 	u16 tid;
 	u16 sid;
 };
-
 #endif /* _TOPS_L2TP_H_ */

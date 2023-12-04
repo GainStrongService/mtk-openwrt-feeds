@@ -17,13 +17,13 @@
 #include <linux/relay.h>
 #include <linux/types.h>
 
-#include "internal.h"
-#include "mbox.h"
-#include "mcu.h"
-#include "netsys.h"
-#include "trm-fs.h"
-#include "trm-mcu.h"
-#include "trm.h"
+#include "tops/internal.h"
+#include "tops/mbox.h"
+#include "tops/mcu.h"
+#include "tops/netsys.h"
+#include "tops/trm-fs.h"
+#include "tops/trm-mcu.h"
+#include "tops/trm.h"
 
 #define TRM_HDR_LEN				(sizeof(struct trm_header))
 
@@ -75,6 +75,7 @@ static inline void trm_hdr_init(struct trm_header *trm_hdr,
 	memset(trm_hdr, 0, TRM_HDR_LEN);
 
 	strncpy(trm_hdr->info.name, trm_cfg->name, TRM_CONFIG_NAME_MAX_LEN);
+	trm_hdr->info.name[TRM_CONFIG_NAME_MAX_LEN - 1] = '\0';
 	trm_hdr->info.start_addr = trm_cfg->addr + trm_cfg->offset;
 	trm_hdr->info.size = size;
 	trm_hdr->info.dump_time = dump_time;

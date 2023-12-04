@@ -10,7 +10,7 @@
 
 #include <linux/platform_device.h>
 
-#include "tops.h"
+#include "tops/tops.h"
 
 enum wdt_cmd {
 	WDT_CMD_TRIGGER_TIMEOUT,

@@ -1,6 +1,6 @@
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -245,6 +245,9 @@ static const char * const mtk_clks_source_name[] = {
+@@ -245,6 +245,9 @@ static const char * const mtk_clks_sourc
  	"top_netsys_warp_sel",
  };
  
@@ -10,7 +10,7 @@
  void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
  {
  	__raw_writel(val, eth->base + reg);
-@@ -2186,6 +2189,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2168,6 +2171,7 @@ static int mtk_poll_rx(struct napi_struc
  	u64 addr64 = 0;
  	u8 *data, *new_data;
  	struct mtk_rx_dma_v2 *rxd, trxd;
@@ -18,7 +18,7 @@
  	int done = 0;
  
  	if (unlikely(!ring))
-@@ -2229,11 +2233,20 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2205,11 +2209,20 @@ static int mtk_poll_rx(struct napi_struc
  				      0 : RX_DMA_GET_SPORT(trxd.rxd4) - 1;
  		}
  
@@ -43,7 +43,7 @@
  
  		if (unlikely(test_bit(MTK_RESETTING, &eth->state)))
  			goto release_desc;
-@@ -2318,6 +2331,8 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2294,6 +2307,8 @@ static int mtk_poll_rx(struct napi_struc
  		skb_hnat_alg(skb) = 0;
  		skb_hnat_filled(skb) = 0;
  		skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
@@ -52,9 +52,21 @@
  
  		if (skb_hnat_reason(skb) == HIT_BIND_FORCE_TO_CPU) {
  			trace_printk("[%s] reason=0x%x(force to CPU) from WAN to Ext\n",
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -1915,6 +1915,9 @@ extern const struct of_device_id of_mtk_
+ extern u32 mtk_hwlro_stats_ebl;
+ extern u32 dbg_show_level;
+ 
++/* tunnel offload related */
++extern struct net_device *(*mtk_get_tnl_dev)(int tnl_idx);
++
+ /* read the hardware status register */
+ void mtk_stats_update_mac(struct mtk_mac *mac);
+ 
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
-@@ -43,6 +43,12 @@ void (*ppe_dev_register_hook)(struct net_device *dev) = NULL;
+@@ -43,6 +43,12 @@ void (*ppe_dev_register_hook)(struct net
  EXPORT_SYMBOL(ppe_dev_register_hook);
  void (*ppe_dev_unregister_hook)(struct net_device *dev) = NULL;
  EXPORT_SYMBOL(ppe_dev_unregister_hook);
@@ -67,7 +79,7 @@
  
  static void hnat_sma_build_entry(struct timer_list *t)
  {
-@@ -53,6 +59,16 @@ static void hnat_sma_build_entry(struct timer_list *t)
+@@ -53,6 +59,16 @@ static void hnat_sma_build_entry(struct
  			     SMA, SMA_FWD_CPU_BUILD_ENTRY);
  }
  
@@ -94,7 +106,7 @@
  {
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat.h
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat.h
-@@ -1133,6 +1133,8 @@ enum FoeIpAct {
+@@ -1140,6 +1140,8 @@ enum FoeIpAct {
  #define NR_WDMA1_PORT 9
  #define NR_WDMA2_PORT 13
  #define NR_GMAC3_PORT 15
@@ -103,7 +115,7 @@
  #define LAN_DEV_NAME hnat_priv->lan
  #define LAN2_DEV_NAME hnat_priv->lan2
  #define IS_WAN(dev)                                                            \
-@@ -1256,6 +1258,8 @@ static inline bool hnat_dsa_is_enable(struct mtk_hnat *priv)
+@@ -1269,6 +1271,8 @@ static inline bool hnat_dsa_is_enable(st
  }
  #endif
  
@@ -112,7 +124,7 @@
  void hnat_deinit_debugfs(struct mtk_hnat *h);
  int hnat_init_debugfs(struct mtk_hnat *h);
  int hnat_register_nf_hooks(void);
-@@ -1272,6 +1276,9 @@ extern int qos_ul_toggle;
+@@ -1285,6 +1289,9 @@ extern int qos_ul_toggle;
  extern int hook_toggle;
  extern int mape_toggle;
  extern int qos_toggle;
@@ -124,7 +136,7 @@
  int ext_if_del(struct extdev_entry *ext_entry);
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat_nf_hook.c
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat_nf_hook.c
-@@ -726,10 +726,14 @@ static unsigned int is_ppe_support_type(struct sk_buff *skb)
+@@ -728,10 +728,14 @@ static unsigned int is_ppe_support_type(
  	case ETH_P_IP:
  		iph = ip_hdr(skb);
  
@@ -141,7 +153,7 @@
  			return 1;
  		}
  
-@@ -846,6 +850,13 @@ mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
+@@ -848,6 +852,13 @@ mtk_hnat_ipv4_nf_pre_routing(void *priv,
  
  	hnat_set_head_frags(state, skb, -1, hnat_set_iif);
  
@@ -155,7 +167,7 @@
  	/*
  	 * Avoid mistakenly binding of outer IP, ports in SW L2TP decap flow.
  	 * In pre-routing, if dev is virtual iface, TOPS module is not loaded,
-@@ -921,6 +932,13 @@ mtk_hnat_br_nf_local_in(void *priv, struct sk_buff *skb,
+@@ -923,6 +934,13 @@ mtk_hnat_br_nf_local_in(void *priv, stru
  
  	hnat_set_head_frags(state, skb, -1, hnat_set_iif);
  
@@ -169,7 +181,7 @@
  	pre_routing_print(skb, state->in, state->out, __func__);
  
  	if (unlikely(debug_level >= 7)) {
-@@ -1073,9 +1091,22 @@ static unsigned int hnat_ipv4_get_nexthop(struct sk_buff *skb,
+@@ -1075,8 +1093,22 @@ static unsigned int hnat_ipv4_get_nextho
  		return -1;
  	}
  
@@ -185,14 +197,14 @@
 +
  	memcpy(eth_hdr(skb)->h_dest, neigh->ha, ETH_ALEN);
  	memcpy(eth_hdr(skb)->h_source, out->dev_addr, ETH_ALEN);
- 
++	eth_hdr(skb)->h_proto = htons(ETH_P_IP);
++
 +	if (skb_hnat_tops(skb) && skb_hnat_is_encap(skb))
 +		skb_pull(skb, sizeof(struct ethhdr));
-+
+ 
  	rcu_read_unlock_bh();
  
- 	return 0;
-@@ -1201,6 +1232,81 @@ static struct ethhdr *get_ipv6_ipip_ethhdr(struct sk_buff *skb,
+@@ -1203,6 +1235,81 @@ static struct ethhdr *get_ipv6_ipip_ethh
  	return eth;
  }
  
@@ -274,7 +286,7 @@
  static unsigned int skb_to_hnat_info(struct sk_buff *skb,
  				     const struct net_device *dev,
  				     struct foe_entry *foe,
-@@ -1237,6 +1343,11 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
+@@ -1240,6 +1347,11 @@ static unsigned int skb_to_hnat_info(str
  	if (whnat && is_hnat_pre_filled(foe))
  		return 0;
  
@@ -286,7 +298,7 @@
  	entry.bfib1.pkt_type = foe->udib1.pkt_type; /* Get packte type state*/
  	entry.bfib1.state = foe->udib1.state;
  
-@@ -1679,6 +1790,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
+@@ -1683,6 +1795,10 @@ static unsigned int skb_to_hnat_info(str
  	/* Fill Layer2 Info.*/
  	entry = ppe_fill_L2_info(eth, entry, hw_path);
  
@@ -297,7 +309,7 @@
  	/* Fill Info Blk*/
  	entry = ppe_fill_info_blk(eth, entry, hw_path);
  
-@@ -1879,7 +1994,20 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
+@@ -1881,7 +1997,20 @@ static unsigned int skb_to_hnat_info(str
  			entry.ipv6_5t_route.act_dp |= UDF_HNAT_PRE_FILLED;
  	}
  
@@ -318,7 +330,7 @@
  	memcpy(foe, &entry, sizeof(entry));
  	/*reset statistic for this entry*/
  	if (hnat_priv->data->per_flow_accounting &&
-@@ -1951,6 +2079,12 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
+@@ -1953,6 +2082,12 @@ int mtk_sw_nat_hook_tx(struct sk_buff *s
  	switch ((int)entry.bfib1.pkt_type) {
  	case IPV4_HNAPT:
  	case IPV4_HNAT:
@@ -331,7 +343,7 @@
  		entry.ipv4_hnapt.smac_hi = swab32(*((u32 *)eth->h_source));
  		entry.ipv4_hnapt.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
  		break;
-@@ -2112,6 +2246,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
+@@ -2144,6 +2279,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *s
  		entry.ipv6_5t_route.iblk2.dp = gmac_no;
  	}
  
@@ -341,8 +353,8 @@
 +
  	entry.bfib1.ttl = 1;
  	entry.bfib1.state = BIND;
- 
-@@ -2187,6 +2325,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *skb)
+ 	if (IS_IPV4_GRP(&entry))
+@@ -2219,6 +2358,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
  	}
  
  	skb_hnat_alg(skb) = 0;
@@ -350,7 +362,7 @@
  	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
  
  	if (skb_hnat_iface(skb) == FOE_MAGIC_WED0)
-@@ -2636,6 +2775,7 @@ static unsigned int mtk_hnat_nf_post_routing(
+@@ -2672,6 +2812,7 @@ static unsigned int mtk_hnat_nf_post_rou
  	struct flow_offload_hw_path hw_path = { .dev = (struct net_device*)out,
  						.virt_dev = (struct net_device*)out };
  	const struct net_device *arp_dev = out;
@@ -358,7 +370,7 @@
  
  	if (xlat_toggle && !mtk_464xlat_post_process(skb, out))
  		return 0;
-@@ -2652,10 +2792,29 @@ static unsigned int mtk_hnat_nf_post_routing(
+@@ -2691,10 +2832,29 @@ static unsigned int mtk_hnat_nf_post_rou
  
  	if (out->netdev_ops->ndo_flow_offload_check) {
  		out->netdev_ops->ndo_flow_offload_check(&hw_path);
@@ -388,7 +400,7 @@
  		return 0;
  
  	trace_printk("[%s] case hit, %x-->%s, reason=%x\n", __func__,
-@@ -2675,9 +2834,18 @@ static unsigned int mtk_hnat_nf_post_routing(
+@@ -2714,9 +2874,18 @@ static unsigned int mtk_hnat_nf_post_rou
  		if (fn && !mtk_hnat_accel_type(skb))
  			break;
  
@@ -408,7 +420,7 @@
  		spin_lock(&hnat_priv->entry_lock);
  		skb_to_hnat_info(skb, out, entry, &hw_path);
  		spin_unlock(&hnat_priv->entry_lock);
-@@ -2951,7 +3119,7 @@ mtk_hnat_ipv4_nf_local_out(void *priv, struct sk_buff *skb,
+@@ -2989,7 +3158,7 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
  	if (iph->protocol == IPPROTO_IPV6) {
  		entry->udib1.pkt_type = IPV6_6RD;
  		hnat_set_head_frags(state, skb, 0, hnat_set_alg);
@@ -452,16 +464,15 @@
  #define skb_hnat_entry(skb) (((struct hnat_desc *)(skb->head))->entry)
 --- a/include/net/netfilter/nf_flow_table.h
 +++ b/include/net/netfilter/nf_flow_table.h
-@@ -98,10 +98,22 @@ struct flow_offload {
+@@ -98,10 +98,21 @@ struct flow_offload {
  #define FLOW_OFFLOAD_PATH_6RD		BIT(5)
  #define FLOW_OFFLOAD_PATH_TNL		BIT(6)
  
 +enum flow_offload_tnl {
 +	FLOW_OFFLOAD_TNL_GRETAP,
 +	FLOW_OFFLOAD_TNL_PPTP,
-+	FLOW_OFFLOAD_TNL_IP_L2TP,
-+	FLOW_OFFLOAD_TNL_UDP_L2TP_CTRL,
-+	FLOW_OFFLOAD_TNL_UDP_L2TP_DATA,
++	FLOW_OFFLOAD_TNL_L2TP_V2,
++	FLOW_OFFLOAD_TNL_L2TP_V3,
 +	FLOW_OFFLOAD_VXLAN,
 +	FLOW_OFFLOAD_NATT,
 +	__FLOW_OFFLOAD_MAX,
@@ -475,15 +486,3 @@
  
  	u8 eth_src[ETH_ALEN];
  	u8 eth_dest[ETH_ALEN];
---- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-+++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1904,6 +1904,9 @@ extern const struct of_device_id of_mtk_match[];
- extern u32 mtk_hwlro_stats_ebl;
- extern u32 dbg_show_level;
- 
-+/* tunnel offload related */
-+extern struct net_device *(*mtk_get_tnl_dev)(int tnl_idx);
-+
- /* read the hardware status register */
- void mtk_stats_update_mac(struct mtk_mac *mac);
- 

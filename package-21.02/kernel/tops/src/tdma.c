@@ -14,12 +14,12 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 
-#include "internal.h"
-#include "mbox.h"
-#include "mcu.h"
-#include "tdma.h"
-#include "tops.h"
-#include "trm.h"
+#include "tops/internal.h"
+#include "tops/mbox.h"
+#include "tops/mcu.h"
+#include "tops/tdma.h"
+#include "tops/tops.h"
+#include "tops/trm.h"
 
 /* TDMA dump length */
 #define TDMA_BASE_LEN				(0x400)

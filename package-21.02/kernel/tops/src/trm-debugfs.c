@@ -8,11 +8,11 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 
-#include "debugfs.h"
-#include "internal.h"
-#include "tops.h"
-#include "trm-debugfs.h"
-#include "trm.h"
+#include "tops/debugfs.h"
+#include "tops/internal.h"
+#include "tops/tops.h"
+#include "tops/trm-debugfs.h"
+#include "tops/trm.h"
 
 struct dentry *trm_debugfs_root;
 

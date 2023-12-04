@@ -11,7 +11,8 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 
-#include "hwspinlock.h"
+#include "tops/hwspinlock.h"
+#include "tops/tops.h"
 
 #define SEMA_ID				(BIT(CORE_AP))
 

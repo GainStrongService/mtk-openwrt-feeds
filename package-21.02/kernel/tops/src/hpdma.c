@@ -17,11 +17,11 @@
 
 #include <virt-dma.h>
 
-#include "hpdma.h"
-#include "hwspinlock.h"
-#include "internal.h"
-#include "mbox.h"
-#include "mcu.h"
+#include "tops/hpdma.h"
+#include "tops/hwspinlock.h"
+#include "tops/internal.h"
+#include "tops/mbox.h"
+#include "tops/mcu.h"
 
 #define HPDMA_CHAN_NUM			(4)
 
@@ -307,11 +307,8 @@ static int mtk_hpdma_config_desc(struct hpdma_vdesc *hvdesc)
 	 * axsize can be 1, 2, 4, 8, 16 bytes
 	 * calculate axsize
 	 */
-	while (hvdesc->axsize >= 0 && hvdesc->len % (0x1 << hvdesc->axsize))
+	while (hvdesc->axsize > 0 && hvdesc->len % (0x1 << hvdesc->axsize))
 		hvdesc->axsize--;
-
-	if (hvdesc->axsize < 0)
-		return -EINVAL;
 
 	hvdesc->total_num = hvdesc->len / (0x1 << hvdesc->axsize);
 

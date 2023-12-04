@@ -12,12 +12,12 @@
 #include <linux/io.h>
 #include <linux/of.h>
 
-#include "internal.h"
-#include "mcu.h"
-#include "trm-debugfs.h"
-#include "trm-fs.h"
-#include "trm-mcu.h"
-#include "trm.h"
+#include "tops/internal.h"
+#include "tops/mcu.h"
+#include "tops/trm-debugfs.h"
+#include "tops/trm-fs.h"
+#include "tops/trm-mcu.h"
+#include "tops/trm.h"
 
 #define TOPS_OCD_RETRY_TIMES		(3)
 

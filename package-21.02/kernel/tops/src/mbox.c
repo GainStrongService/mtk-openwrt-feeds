@@ -15,9 +15,9 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 
-#include "mcu.h"
-#include "mbox.h"
-#include "internal.h"
+#include "tops/mcu.h"
+#include "tops/mbox.h"
+#include "tops/internal.h"
 
 #define MBOX_SEND_TIMEOUT		(2000)
 

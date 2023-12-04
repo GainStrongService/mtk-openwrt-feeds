@@ -28,20 +28,20 @@
 #include <pce/netsys.h>
 #include <pce/pce.h>
 
-#include "internal.h"
-#include "mbox.h"
-#include "mcu.h"
-#include "netsys.h"
-#include "protocol/gre/gretap.h"
-#include "protocol/l2tp/udp_l2tp_data.h"
-#include "tunnel.h"
+#include "tops/internal.h"
+#include "tops/mbox.h"
+#include "tops/mcu.h"
+#include "tops/netsys.h"
+#include "tops/protocol/tunnel/gre/gretap.h"
+#include "tops/protocol/tunnel/l2tp/l2tpv2.h"
+#include "tops/tunnel.h"
 
 #define TOPS_PPE_ENTRY_BUCKETS		(64)
 #define TOPS_PPE_ENTRY_BUCKETS_BIT	(6)
 
 struct tops_tnl {
 	/* tunnel types */
-	struct tops_tnl_type *offload_tnl_types[__TOPS_ENTRY_MAX];
+	struct tops_tnl_type *offload_tnl_types[__TOPS_TUNNEL_TYPE_MAX];
 	u32 offload_tnl_type_num;
 	u32 tnl_base_addr;
 
@@ -104,7 +104,7 @@ static inline void tnl_flush_ppe_entry(struct foe_entry *entry, u32 tnl_idx)
 		    &&  entry->ipv4_hnapt.tport_id != NR_TDMA_QDMA_TPORT)
 			return;
 
-		bind_tnl_idx = entry->ipv4_hnapt.tops_entry - __TOPS_ENTRY_MAX;
+		bind_tnl_idx = entry->ipv4_hnapt.tops_entry - __TOPS_TUNNEL_TYPE_MAX;
 
 		break;
 	default:
@@ -112,39 +112,39 @@ static inline void tnl_flush_ppe_entry(struct foe_entry *entry, u32 tnl_idx)
 	}
 
 	/* unexpected tunnel index */
-	if (bind_tnl_idx >= __TOPS_ENTRY_MAX)
+	if (bind_tnl_idx >= __TOPS_TUNNEL_TYPE_MAX)
 		return;
 
-	if (tnl_idx == __TOPS_ENTRY_MAX || tnl_idx == bind_tnl_idx)
+	if (tnl_idx == __TOPS_TUNNEL_TYPE_MAX || tnl_idx == bind_tnl_idx)
 		memset(entry, 0, sizeof(*entry));
 }
 
 static inline void skb_set_tops_tnl_idx(struct sk_buff *skb, u32 tnl_idx)
 {
-	skb_hnat_tops(skb) = tnl_idx + __TOPS_ENTRY_MAX;
+	skb_hnat_tops(skb) = tnl_idx + __TOPS_TUNNEL_TYPE_MAX;
 }
 
 static inline bool skb_tops_valid(struct sk_buff *skb)
 {
-	return (skb && skb_hnat_tops(skb) < __TOPS_ENTRY_MAX);
+	return (skb && skb_hnat_tops(skb) < __TOPS_TUNNEL_TYPE_MAX);
 }
 
 static inline struct tops_tnl_type *skb_to_tnl_type(struct sk_buff *skb)
 {
-	enum tops_entry_type tops_entry = skb_hnat_tops(skb);
+	enum tops_tunnel_type tnl_proto_type = skb_hnat_tops(skb);
 	struct tops_tnl_type *tnl_type;
 
-	if (unlikely(!tops_entry || tops_entry >= __TOPS_ENTRY_MAX))
+	if (unlikely(!tnl_proto_type || tnl_proto_type >= __TOPS_TUNNEL_TYPE_MAX))
 		return ERR_PTR(-EINVAL);
 
-	tnl_type = tops_tnl.offload_tnl_types[tops_entry];
+	tnl_type = tops_tnl.offload_tnl_types[tnl_proto_type];
 
 	return tnl_type ? tnl_type : ERR_PTR(-ENODEV);
 }
 
 static inline struct tops_tnl_info *skb_to_tnl_info(struct sk_buff *skb)
 {
-	u32 tnl_idx = skb_hnat_tops(skb) - __TOPS_ENTRY_MAX;
+	u32 tnl_idx = skb_hnat_tops(skb) - __TOPS_TUNNEL_TYPE_MAX;
 
 	if (tnl_idx >= CONFIG_TOPS_TNL_NUM)
 		return ERR_PTR(-EINVAL);
@@ -168,7 +168,7 @@ static inline u32 tnl_params_hash(struct tops_tnl_params *tnl_params)
 		return 0;
 
 	/* TODO: check collision possibility? */
-	return (tnl_params->sip ^ tnl_params->dip);
+	return (tnl_params->params.network.ip.sip ^ tnl_params->params.network.ip.dip);
 }
 
 static inline bool tnl_info_decap_is_enable(struct tops_tnl_info *tnl_info)
@@ -404,6 +404,10 @@ mtk_tops_tnl_info_cls_entry_prepare(struct tops_tnl_info *tnl_info,
 			ret = PTR_ERR(cdrt);
 			goto free_tcls;
 		}
+		if (unlikely(!cdrt->cls)) {
+			ret = -ENODEV;
+			goto free_tcls;
+		}
 
 		tcls->cls = cdrt->cls;
 	}
@@ -593,7 +597,7 @@ static int mtk_tops_tnl_info_cls_multi_setup(struct tops_tnl_info *tnl_info,
 		if (IS_ERR(cdrt)) {
 			TOPS_ERR("no cdrt idx: %u related CDRT found\n",
 				 tnl_params->cdrt);
-			return ret;
+			return PTR_ERR(cdrt);
 		}
 
 		memcpy(&cdesc, &cdrt->cls->cdesc, sizeof(struct cls_desc));
@@ -657,7 +661,7 @@ static int mtk_tops_tnl_info_dipfilter_tear_down(struct tops_tnl_info *tnl_info)
 
 	memset(&dipd, 0, sizeof(struct dip_desc));
 
-	dipd.ipv4 = be32_to_cpu(tnl_info->tnl_params.sip);
+	dipd.ipv4 = be32_to_cpu(tnl_info->tnl_params.params.network.ip.sip);
 	dipd.tag = DIPFILTER_IPV4;
 
 	return mtk_pce_dipfilter_entry_del(&dipd);
@@ -670,7 +674,7 @@ static int mtk_tops_tnl_info_dipfilter_setup(struct tops_tnl_info *tnl_info)
 	/* setup dipfilter */
 	memset(&dipd, 0, sizeof(struct dip_desc));
 
-	dipd.ipv4 = be32_to_cpu(tnl_info->tnl_params.sip);
+	dipd.ipv4 = be32_to_cpu(tnl_info->tnl_params.params.network.ip.sip);
 	dipd.tag = DIPFILTER_IPV4;
 
 	return mtk_pce_dipfilter_entry_add(&dipd);
@@ -731,69 +735,92 @@ void mtk_tops_tnl_info_hash(struct tops_tnl_info *tnl_info)
 	spin_unlock_irqrestore(&tops_tnl.tbl_lock, flag);
 }
 
+struct tops_tnl_info *mtk_tops_tnl_info_get_by_idx(u32 tnl_idx)
+{
+	if (tnl_idx >= CONFIG_TOPS_TNL_NUM)
+		return ERR_PTR(-EINVAL);
+
+	if (!test_bit(tnl_idx, tops_tnl.tnl_used))
+		return ERR_PTR(-EACCES);
+
+	return &tops_tnl.tnl_infos[tnl_idx];
+}
+
 static bool mtk_tops_tnl_info_match(struct tops_tnl_type *tnl_type,
 				    struct tops_tnl_info *tnl_info,
-				    struct tops_tnl_params *match_data)
+				    struct tops_params *target)
 {
+	struct tops_params *p = &tnl_info->cache.params;
 	unsigned long flag = 0;
 	bool match;
 
 	spin_lock_irqsave(&tnl_info->lock, flag);
 
-	match = tnl_type->tnl_info_match(&tnl_info->cache, match_data);
+	match = (p->tunnel.type == target->tunnel.type
+		 && mtk_tops_params_match(p, target)
+		 && tnl_type->tnl_param_match(p, target));
 
 	spin_unlock_irqrestore(&tnl_info->lock, flag);
 
 	return match;
 }
 
-struct tops_tnl_info *mtk_tops_tnl_info_find(struct tops_tnl_params *tnl_params)
+struct tops_tnl_info *mtk_tops_tnl_info_find(struct tops_tnl_type *tnl_type,
+					     struct tops_tnl_params *tnl_params)
 {
 	struct tops_tnl_info *tnl_info;
-	struct tops_tnl_type *tnl_type;
 
 	lockdep_assert_held(&tops_tnl.tbl_lock);
 
 	if (unlikely(!tnl_params->tops_entry_proto
-		     || tnl_params->tops_entry_proto >= __TOPS_ENTRY_MAX))
+		     || tnl_params->tops_entry_proto >= __TOPS_TUNNEL_TYPE_MAX))
 		return ERR_PTR(-EINVAL);
-
-	tnl_type = tops_tnl.offload_tnl_types[tnl_params->tops_entry_proto];
-	if (unlikely(!tnl_type))
-		return ERR_PTR(-EINVAL);
-
-	if (unlikely(!tnl_type->tnl_info_match))
-		return ERR_PTR(-ENXIO);
 
 	hash_for_each_possible(tops_tnl.ht,
 			       tnl_info,
 			       hlist,
 			       tnl_params_hash(tnl_params))
-		if (mtk_tops_tnl_info_match(tnl_type, tnl_info, tnl_params))
+		if (mtk_tops_tnl_info_match(tnl_type, tnl_info, &tnl_params->params))
 			return tnl_info;
 
 	return ERR_PTR(-ENODEV);
 }
 
+static inline void mtk_tops_tnl_info_preserve(struct tops_tnl_type *tnl_type,
+					      struct tops_tnl_params *old,
+					      struct tops_tnl_params *new)
+{
+	new->flag |= old->flag;
+	new->cls_entry = old->cls_entry;
+	if (old->cdrt)
+		new->cdrt = old->cdrt;
+
+	/* we can only get ttl from encapsulation */
+	if (new->params.network.ip.ttl == 128 && old->params.network.ip.ttl != 0)
+		new->params.network.ip.ttl = old->params.network.ip.ttl;
+
+	if (tnl_type->tnl_param_restore)
+		tnl_type->tnl_param_restore(&old->params, &new->params);
+}
+
 /* tnl_info->lock should be held before calling this function */
 static int mtk_tops_tnl_info_setup(struct sk_buff *skb,
+				   struct tops_tnl_type *tnl_type,
 				   struct tops_tnl_info *tnl_info,
 				   struct tops_tnl_params *tnl_params)
 {
+	bool has_diff = false;
+
 	if (unlikely(!skb || !tnl_info || !tnl_params))
 		return -EPERM;
 
 	lockdep_assert_held(&tnl_info->lock);
 
-	/* manually preserve essential data among encapsulation and decapsulation */
-	tnl_params->flag |= tnl_info->cache.flag;
-	tnl_params->cls_entry = tnl_info->cache.cls_entry;
-	if (tnl_info->cache.cdrt)
-		tnl_params->cdrt = tnl_info->cache.cdrt;
+	mtk_tops_tnl_info_preserve(tnl_type, &tnl_info->cache, tnl_params);
 
-	if (memcmp(&tnl_info->cache, tnl_params, sizeof(struct tops_tnl_params))) {
-		memcpy(&tnl_info->cache, tnl_params, sizeof(struct tops_tnl_params));
-
+	has_diff = memcmp(&tnl_info->cache, tnl_params, sizeof(*tnl_params));
+	if (has_diff) {
+		memcpy(&tnl_info->cache, tnl_params, sizeof(*tnl_params));
 		mtk_tops_tnl_info_hash_no_lock(tnl_info);
 	}
 
@@ -801,19 +828,20 @@ static int mtk_tops_tnl_info_setup(struct sk_buff *skb,
 		/* the net_device is used to forward pkt to decap'ed inf when Rx */
 		tnl_info->dev = skb->dev;
 		if (!tnl_info_decap_is_enable(tnl_info)) {
+			has_diff = true;
 			tnl_info_decap_enable(tnl_info);
-
-			mtk_tops_tnl_info_submit_no_tnl_lock(tnl_info);
 		}
 	} else if (skb_hnat_is_encap(skb)) {
 		/* set skb_hnat_tops(skb) to tunnel index for ppe binding */
 		skb_set_tops_tnl_idx(skb, tnl_info->tnl_idx);
 		if (!tnl_info_encap_is_enable(tnl_info)) {
+			has_diff = true;
 			tnl_info_encap_enable(tnl_info);
-
-			mtk_tops_tnl_info_submit_no_tnl_lock(tnl_info);
 		}
 	}
+
+	if (has_diff)
+		mtk_tops_tnl_info_submit_no_tnl_lock(tnl_info);
 
 	return 0;
 }
@@ -926,7 +954,7 @@ static int mtk_tops_tnl_offload(struct sk_buff *skb,
 	/* prepare tnl_info */
 	spin_lock_irqsave(&tops_tnl.tbl_lock, flag);
 
-	tnl_info = mtk_tops_tnl_info_find(tnl_params);
+	tnl_info = mtk_tops_tnl_info_find(tnl_type, tnl_params);
 	if (IS_ERR(tnl_info) && PTR_ERR(tnl_info) != -ENODEV) {
 		/* error */
 		ret = PTR_ERR(tnl_info);
@@ -943,7 +971,7 @@ static int mtk_tops_tnl_offload(struct sk_buff *skb,
 	}
 
 	spin_lock(&tnl_info->lock);
-	ret = mtk_tops_tnl_info_setup(skb, tnl_info, tnl_params);
+	ret = mtk_tops_tnl_info_setup(skb, tnl_type, tnl_info, tnl_params);
 	spin_unlock(&tnl_info->lock);
 
 err_out:
@@ -968,7 +996,7 @@ static int mtk_tops_tnl_l2_update(struct sk_buff *skb)
 
 	spin_lock_irqsave(&tnl_info->lock, flag);
 
-	ret = tnl_type->tnl_l2_param_update(skb, &tnl_info->cache);
+	ret = tnl_type->tnl_l2_param_update(skb, &tnl_info->cache.params);
 	/* tnl params need to be updated */
 	if (ret == 1) {
 		mtk_tops_tnl_info_submit_no_tnl_lock(tnl_info);
@@ -1003,8 +1031,8 @@ static bool mtk_tops_tnl_decap_offloadable(struct sk_buff *skb)
 		return false;
 
 	/* TODO: may can be optimized */
-	for (i = TOPS_ENTRY_GRETAP, cnt = 0;
-	     i < __TOPS_ENTRY_MAX && cnt < tops_tnl.offload_tnl_type_num;
+	for (i = TOPS_TUNNEL_GRETAP, cnt = 0;
+	     i < __TOPS_TUNNEL_TYPE_MAX && cnt < tops_tnl.offload_tnl_type_num;
 	     i++) {
 		tnl_type = tops_tnl.offload_tnl_types[i];
 		if (unlikely(!tnl_type))
@@ -1013,7 +1041,7 @@ static bool mtk_tops_tnl_decap_offloadable(struct sk_buff *skb)
 		cnt++;
 		if (tnl_type->tnl_decap_offloadable
 		    && tnl_type->tnl_decap_offloadable(skb)) {
-			skb_hnat_tops(skb) = tnl_type->tops_entry;
+			skb_hnat_tops(skb) = tnl_type->tnl_proto_type;
 			return true;
 		}
 	}
@@ -1043,7 +1071,7 @@ static int mtk_tops_tnl_decap_offload(struct sk_buff *skb)
 		return PTR_ERR(tnl_type);
 	}
 
-	if (unlikely(!tnl_type->tnl_decap_param_setup)) {
+	if (unlikely(!tnl_type->tnl_decap_param_setup || !tnl_type->tnl_param_match)) {
 		skb_mark_unbind(skb);
 		return -ENODEV;
 	}
@@ -1054,7 +1082,9 @@ static int mtk_tops_tnl_decap_offload(struct sk_buff *skb)
 	if (tnl_type->has_inner_eth)
 		skb_push(skb, sizeof(struct ethhdr));
 
-	ret = tnl_type->tnl_decap_param_setup(skb, &tnl_params);
+	ret = mtk_tops_decap_param_setup(skb,
+					 &tnl_params.params,
+					 tnl_type->tnl_decap_param_setup);
 
 	/* pull ethernet header to restore skb->data to ip start */
 	if (tnl_type->has_inner_eth)
@@ -1065,7 +1095,7 @@ static int mtk_tops_tnl_decap_offload(struct sk_buff *skb)
 		return ret;
 	}
 
-	tnl_params.tops_entry_proto = tnl_type->tops_entry;
+	tnl_params.tops_entry_proto = tnl_type->tnl_proto_type;
 	tnl_params.cdrt = skb_hnat_cdrt(skb);
 
 	ret = mtk_tops_tnl_offload(skb, tnl_type, &tnl_params);
@@ -1091,15 +1121,18 @@ static int __mtk_tops_tnl_encap_offload(struct sk_buff *skb)
 	if (IS_ERR(tnl_type))
 		return PTR_ERR(tnl_type);
 
-	if (unlikely(!tnl_type->tnl_encap_param_setup))
+	if (unlikely(!tnl_type->tnl_encap_param_setup || !tnl_type->tnl_param_match))
 		return -ENODEV;
 
 	memset(&tnl_params, 0, sizeof(struct tops_tnl_params));
 
-	ret = tnl_type->tnl_encap_param_setup(skb, &tnl_params);
+	ret = mtk_tops_encap_param_setup(skb,
+					 &tnl_params.params,
+					 tnl_type->tnl_encap_param_setup);
 	if (unlikely(ret))
 		return ret;
-	tnl_params.tops_entry_proto = tnl_type->tops_entry;
+
+	tnl_params.tops_entry_proto = tnl_type->tnl_proto_type;
 	tnl_params.cdrt = skb_hnat_cdrt(skb);
 
 	return mtk_tops_tnl_offload(skb, tnl_type, &tnl_params);
@@ -1535,7 +1568,7 @@ void mtk_tops_tnl_offload_flush(void)
 			if (!entry_hnat_is_bound(entry))
 				continue;
 
-			tnl_flush_ppe_entry(entry, __TOPS_ENTRY_MAX);
+			tnl_flush_ppe_entry(entry, __TOPS_TUNNEL_TYPE_MAX);
 		}
 	}
 	hnat_cache_ebl(1);
@@ -1672,7 +1705,7 @@ int mtk_tops_tnl_offload_proto_setup(struct platform_device *pdev)
 {
 	mtk_tops_gretap_init();
 
-	mtk_tops_udp_l2tp_data_init();
+	mtk_tops_l2tpv2_init();
 
 	return 0;
 }
@@ -1681,19 +1714,19 @@ void mtk_tops_tnl_offload_proto_teardown(struct platform_device *pdev)
 {
 	mtk_tops_gretap_deinit();
 
-	mtk_tops_udp_l2tp_data_deinit();
+	mtk_tops_l2tpv2_deinit();
 }
 
 struct tops_tnl_type *mtk_tops_tnl_type_get_by_name(const char *name)
 {
-	enum tops_entry_type tops_entry = TOPS_ENTRY_NONE + 1;
+	enum tops_tunnel_type tnl_proto_type = TOPS_TUNNEL_NONE + 1;
 	struct tops_tnl_type *tnl_type;
 
 	if (unlikely(!name))
 		return ERR_PTR(-EPERM);
 
-	for (; tops_entry < __TOPS_ENTRY_MAX; tops_entry++) {
-		tnl_type = tops_tnl.offload_tnl_types[tops_entry];
+	for (; tnl_proto_type < __TOPS_TUNNEL_TYPE_MAX; tnl_proto_type++) {
+		tnl_type = tops_tnl.offload_tnl_types[tnl_proto_type];
 		if (tnl_type && !strcmp(name, tnl_type->type_name))
 			break;
 	}
@@ -1703,24 +1736,25 @@ struct tops_tnl_type *mtk_tops_tnl_type_get_by_name(const char *name)
 
 int mtk_tops_tnl_type_register(struct tops_tnl_type *tnl_type)
 {
-	enum tops_entry_type tops_entry = tnl_type->tops_entry;
+	enum tops_tunnel_type tnl_proto_type = tnl_type->tnl_proto_type;
 
-	if (unlikely(tops_entry == TOPS_ENTRY_NONE
-		     || tops_entry >= __TOPS_ENTRY_MAX)) {
-		TOPS_ERR("invalid tops_entry: %u\n", tops_entry);
+	if (unlikely(tnl_proto_type == TOPS_TUNNEL_NONE
+		     || tnl_proto_type >= __TOPS_TUNNEL_TYPE_MAX)) {
+		TOPS_ERR("invalid tnl_proto_type: %u\n", tnl_proto_type);
 		return -EINVAL;
 	}
 
 	if (unlikely(!tnl_type))
 		return -EINVAL;
 
-	if (tops_tnl.offload_tnl_types[tops_entry]) {
-		TOPS_ERR("offload tnl type is already registered: %u\n", tops_entry);
+	if (tops_tnl.offload_tnl_types[tnl_proto_type]) {
+		TOPS_ERR("offload tnl type is already registered: %u\n",
+			 tnl_proto_type);
 		return -EBUSY;
 	}
 
 	INIT_LIST_HEAD(&tnl_type->tcls_head);
-	tops_tnl.offload_tnl_types[tops_entry] = tnl_type;
+	tops_tnl.offload_tnl_types[tnl_proto_type] = tnl_type;
 	tops_tnl.offload_tnl_type_num++;
 
 	return 0;
@@ -1728,22 +1762,22 @@ int mtk_tops_tnl_type_register(struct tops_tnl_type *tnl_type)
 
 void mtk_tops_tnl_type_unregister(struct tops_tnl_type *tnl_type)
 {
-	enum tops_entry_type tops_entry = tnl_type->tops_entry;
+	enum tops_tunnel_type tnl_proto_type = tnl_type->tnl_proto_type;
 
-	if (unlikely(tops_entry == TOPS_ENTRY_NONE
-		     || tops_entry >= __TOPS_ENTRY_MAX)) {
-		TOPS_ERR("invalid tops_entry: %u\n", tops_entry);
+	if (unlikely(tnl_proto_type == TOPS_TUNNEL_NONE
+		     || tnl_proto_type >= __TOPS_TUNNEL_TYPE_MAX)) {
+		TOPS_ERR("invalid tnl_proto_type: %u\n", tnl_proto_type);
 		return;
 	}
 
 	if (unlikely(!tnl_type))
 		return;
 
-	if (tops_tnl.offload_tnl_types[tops_entry] != tnl_type) {
+	if (tops_tnl.offload_tnl_types[tnl_proto_type] != tnl_type) {
 		TOPS_ERR("offload tnl type is registered by others\n");
 		return;
 	}
 
-	tops_tnl.offload_tnl_types[tops_entry] = NULL;
+	tops_tnl.offload_tnl_types[tnl_proto_type] = NULL;
 	tops_tnl.offload_tnl_type_num--;
 }

@@ -18,7 +18,7 @@
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
 
-#include "tops.h"
+#include "tops/tops.h"
 
 struct mcu_state;
 

@@ -16,12 +16,12 @@
 
 #include <pce/netsys.h>
 
-#include "hpdma.h"
-#include "internal.h"
-#include "mcu.h"
-#include "netsys.h"
-#include "tdma.h"
-#include "trm.h"
+#include "tops/hpdma.h"
+#include "tops/internal.h"
+#include "tops/mcu.h"
+#include "tops/netsys.h"
+#include "tops/tdma.h"
+#include "tops/trm.h"
 
 /* Netsys dump length */
 #define FE_BASE_LEN				(0x2900)

@@ -8,11 +8,11 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 
-#include "internal.h"
-#include "mbox.h"
-#include "ser.h"
-#include "trm.h"
-#include "wdt.h"
+#include "tops/internal.h"
+#include "tops/mbox.h"
+#include "tops/ser.h"
+#include "tops/trm.h"
+#include "tops/wdt.h"
 
 #define WDT_IRQ_STATUS			0x0140B0
 #define TOP_WDT_MODE			0x012000

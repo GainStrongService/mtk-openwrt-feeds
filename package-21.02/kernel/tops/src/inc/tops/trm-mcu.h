@@ -9,7 +9,7 @@
 #ifndef _TOPS_TRM_MCU_H_
 #define _TOPS_TRM_MCU_H_
 
-#include "tops.h"
+#include "tops/tops.h"
 
 #define XCHAL_NUM_AREG                  (32)
 #define CORE_DUMP_FRAM_MAGIC            (0x00BE00BE)

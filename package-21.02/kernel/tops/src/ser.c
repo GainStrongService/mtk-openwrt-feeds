@@ -10,10 +10,10 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 
-#include "internal.h"
-#include "net-event.h"
-#include "ser.h"
-#include "trm.h"
+#include "tops/internal.h"
+#include "tops/net-event.h"
+#include "tops/ser.h"
+#include "tops/trm.h"
 
 struct tops_ser {
 	struct work_struct work;

@@ -10,8 +10,8 @@
 
 #include <linux/list.h>
 
-#include "mbox_id.h"
-#include "tops.h"
+#include "tops/mbox_id.h"
+#include "tops/tops.h"
 
 /* mbox device macros */
 #define MBOX_DEV(core_id, cmd)				\

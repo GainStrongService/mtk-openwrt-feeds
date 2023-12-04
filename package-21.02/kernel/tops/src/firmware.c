@@ -16,9 +16,9 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
-#include "firmware.h"
-#include "internal.h"
-#include "mcu.h"
+#include "tops/firmware.h"
+#include "tops/internal.h"
+#include "tops/mcu.h"
 
 #define TOPS_MGMT_IMG				"mediatek/tops-mgmt.img"
 #define TOPS_OFFLOAD_IMG			"mediatek/tops-offload.img"

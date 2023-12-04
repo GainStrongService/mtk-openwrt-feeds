@@ -10,8 +10,6 @@
 
 #include <linux/types.h>
 
-#include "mbox.h"
-
 #define HWSPINLOCK_SLOT_MAX		16
 
 #define HWSPINLOCK_TOP_BASE		0x10100

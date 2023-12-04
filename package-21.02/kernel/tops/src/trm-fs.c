@@ -11,10 +11,10 @@
 #include <linux/err.h>
 #include <linux/relay.h>
 
-#include "trm-debugfs.h"
-#include "trm-fs.h"
-#include "trm-mcu.h"
-#include "trm.h"
+#include "tops/trm-debugfs.h"
+#include "tops/trm-fs.h"
+#include "tops/trm-mcu.h"
+#include "tops/trm.h"
 
 #define RLY_RETRY_NUM				3
 

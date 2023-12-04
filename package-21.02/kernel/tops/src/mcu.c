@@ -22,15 +22,15 @@
 
 #include <pce/pce.h>
 
-#include "ctrl.h"
-#include "firmware.h"
-#include "hpdma.h"
-#include "internal.h"
-#include "mbox.h"
-#include "mcu.h"
-#include "netsys.h"
-#include "tdma.h"
-#include "trm.h"
+#include "tops/ctrl.h"
+#include "tops/firmware.h"
+#include "tops/hpdma.h"
+#include "tops/internal.h"
+#include "tops/mbox.h"
+#include "tops/mcu.h"
+#include "tops/netsys.h"
+#include "tops/tdma.h"
+#include "tops/trm.h"
 
 #define TDMA_TIMEOUT_MAX_CNT			(3)
 #define TDMA_TIMEOUT_DELAY			(100) /* 100ms */

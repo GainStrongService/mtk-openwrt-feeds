@@ -20,13 +20,13 @@
 #include <net/neighbour.h>
 #include <net/route.h>
 
-#include "internal.h"
-#include "netsys.h"
-#include "net-event.h"
-#include "mcu.h"
-#include "ser.h"
-#include "trm.h"
-#include "tunnel.h"
+#include "tops/internal.h"
+#include "tops/netsys.h"
+#include "tops/net-event.h"
+#include "tops/mcu.h"
+#include "tops/ser.h"
+#include "tops/trm.h"
+#include "tops/tunnel.h"
 
 static struct completion wait_fe_reset_done;
 

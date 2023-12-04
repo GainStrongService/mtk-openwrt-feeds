@@ -11,6 +11,7 @@ ccflags-y += -I$(src)/inc
 ccflags-y += -I$(src)/protocol/inc
 
 tops-y += ctrl.o
+tops-y += debugfs.o
 tops-y += firmware.o
 tops-y += init.o
 tops-y += hpdma.o
@@ -19,6 +20,7 @@ tops-y += mbox.o
 tops-y += mcu.o
 tops-y += netsys.o
 tops-y += net-event.o
+tops-y += tops_params.o
 tops-y += tnl_offload.o
 tops-y += ser.o
 tops-y += tdma.o
@@ -28,7 +30,11 @@ tops-y += trm-debugfs.o
 tops-y += trm.o
 tops-y += wdt.o
 
-tops-$(CONFIG_MTK_TOPS_GRETAP) += protocol/gre/gretap.o
-tops-$(CONFIG_MTK_TOPS_UDP_L2TP_DATA) += protocol/l2tp/udp_l2tp_data.o
+tops-y += protocol/mac/eth.o
+tops-y += protocol/mac/ppp.o
+tops-y += protocol/network/ip.o
+tops-y += protocol/transport/udp.o
+tops-$(CONFIG_MTK_TOPS_GRETAP) += protocol/tunnel/gre/gretap.o
+tops-$(CONFIG_MTK_TOPS_L2TP_V2) += protocol/tunnel/l2tp/l2tpv2.o
 
 include $(wildcard $(src)/*.mk)
