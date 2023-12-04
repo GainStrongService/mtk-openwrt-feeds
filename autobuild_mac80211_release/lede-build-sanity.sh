@@ -334,7 +334,6 @@ prepare_mac80211() {
 	# Hostapd Makefile
 	if [ "$2" = "1" ]; then
 			patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-wifi7-hostapd-makefile-for-utils.patch || exit 1
-			patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0007-wifi7-hostapd-revert-hostapd-udebug.patch || exit 1
 	else
 			patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0002-wifi6-hostapd-makefile-for-utils.patch || exit 1
 	fi
