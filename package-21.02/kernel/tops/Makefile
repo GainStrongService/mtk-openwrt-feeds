@@ -54,6 +54,9 @@ define KernelPackage/tops-release
 	kmod-tops \
 	+kmod-pce \
 	+@KERNEL_RELAY
+ifeq ($(CONFIG_MTK_TOPS_PPTP), y)
+  DEPENDS+= +kmod-pptp
+endif
 endef
 
 define KernelPackage/tops-release/description

@@ -19,8 +19,10 @@
 #define UDP_L2TP_PORT		1701
 
 struct tops_l2tp_params {
-	u16 tid; /* l2tp tunnel id */
-	u16 sid; /* l2tp session id */
+	u16 dl_tid; /* l2tp tunnel id for DL */
+	u16 dl_sid; /* l2tp session id for DL */
+	u16 ul_tid; /* l2tp tunnel id for UL */
+	u16 ul_sid; /* l2tp session id for UL */
 };
 
 /* Limited support: L2TPv2 only, no length field, no options */

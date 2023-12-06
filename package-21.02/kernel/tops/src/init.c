@@ -31,6 +31,7 @@
 #include "tops/trm.h"
 #include "tops/tunnel.h"
 #include "tops/wdt.h"
+#include "tops/seq_gen.h"
 
 #define EFUSE_TOPS_POWER_OFF		(0xD08)
 
@@ -143,6 +144,12 @@ static int mtk_tops_probe(struct platform_device *pdev)
 	if (ret) {
 		TOPS_ERR("tdma init failed: %d\n", ret);
 		goto err_netsys_deinit;
+	}
+
+	ret = mtk_tops_seq_gen_init(pdev);
+	if (ret) {
+		TOPS_ERR("sequence generator init failed: %d\n", ret);
+		goto err_tdma_deinit;
 	}
 
 	ret = mtk_tops_tnl_offload_init(pdev);

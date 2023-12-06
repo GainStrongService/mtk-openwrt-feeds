@@ -34,6 +34,7 @@
 #include "tops/netsys.h"
 #include "tops/protocol/tunnel/gre/gretap.h"
 #include "tops/protocol/tunnel/l2tp/l2tpv2.h"
+#include "tops/protocol/tunnel/pptp/pptp.h"
 #include "tops/tunnel.h"
 
 #define TOPS_PPE_ENTRY_BUCKETS		(64)
@@ -1707,14 +1708,18 @@ int mtk_tops_tnl_offload_proto_setup(struct platform_device *pdev)
 
 	mtk_tops_l2tpv2_init();
 
+	mtk_tops_pptp_init();
+
 	return 0;
 }
 
 void mtk_tops_tnl_offload_proto_teardown(struct platform_device *pdev)
 {
-	mtk_tops_gretap_deinit();
+	mtk_tops_pptp_deinit();
 
 	mtk_tops_l2tpv2_deinit();
+
+	mtk_tops_gretap_deinit();
 }
 
 struct tops_tnl_type *mtk_tops_tnl_type_get_by_name(const char *name)

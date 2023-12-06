@@ -15,6 +15,7 @@
 #include "tops/protocol/network/ip_params.h"
 #include "tops/protocol/transport/udp_params.h"
 #include "tops/protocol/tunnel/l2tp/l2tp_params.h"
+#include "tops/protocol/tunnel/pptp/pptp_params.h"
 
 /* tunnel params flags */
 #define TNL_DECAP_ENABLE	(BIT(TNL_PARAMS_DECAP_ENABLE_BIT))
@@ -94,6 +95,7 @@ struct tops_transport_params {
 struct tops_tunnel_params {
 	union {
 		struct tops_l2tp_params l2tp;
+		struct tops_pptp_params pptp;
 	};
 	enum tops_tunnel_type type;
 };

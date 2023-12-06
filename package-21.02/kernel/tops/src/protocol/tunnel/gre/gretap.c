@@ -87,8 +87,18 @@ static int gretap_tnl_debug_param_setup(const char *buf, int *ofs,
 static bool gretap_tnl_decap_offloadable(struct sk_buff *skb)
 {
 	struct iphdr *ip = ip_hdr(skb);
+	struct gre_base_hdr *pgre;
+	struct gre_base_hdr greh;
 
 	if (ip->protocol != IPPROTO_GRE)
+		return false;
+
+	pgre = skb_header_pointer(skb, ip_hdr(skb)->ihl * 4,
+				  sizeof(struct gre_base_hdr), &greh);
+	if (unlikely(!pgre))
+		return false;
+
+	if (ntohs(pgre->protocol) != ETH_P_TEB)
 		return false;
 
 	return true;
