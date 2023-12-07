@@ -2980,6 +2980,68 @@ static int mtk_hwlro_get_ip_cnt(struct mtk_mac *mac)
 	return cnt;
 }
 
+static int mtk_hwlro_add_ipaddr_idx(struct net_device *dev, u32 ip4dst)
+{
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	u32 reg_val;
+	int i;
+
+	/* check for duplicate IP address in the current DIP list */
+	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++) {
+		reg_val = mtk_r32(eth, MTK_LRO_DIP_DW0_CFG(i));
+		if (reg_val == ip4dst)
+			break;
+	}
+
+	if (i <= MTK_HW_LRO_RING_NUM) {
+		netdev_warn(dev, "Duplicate IP address at DIP(%d)!\n", i);
+		return -EEXIST;
+	}
+
+	/* find out available DIP index */
+	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++) {
+		reg_val = mtk_r32(eth, MTK_LRO_DIP_DW0_CFG(i));
+		if (reg_val == 0UL)
+			break;
+	}
+
+	if (i > MTK_HW_LRO_RING_NUM) {
+		netdev_warn(dev, "DIP index is currently out of resource!\n");
+		return -EBUSY;
+	}
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2))
+		i -= 1;
+
+	return i;
+}
+
+static int mtk_hwlro_get_ipaddr_idx(struct net_device *dev, u32 ip4dst)
+{
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	u32 reg_val;
+	int i;
+
+	/* find out DIP index that matches the given IP address */
+	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++) {
+		reg_val = mtk_r32(eth, MTK_LRO_DIP_DW0_CFG(i));
+		if (reg_val == ip4dst)
+			break;
+	}
+
+	if (i > MTK_HW_LRO_RING_NUM) {
+		netdev_warn(dev, "DIP address is not exist!\n");
+		return -ENOENT;
+	}
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2))
+		i -= 1;
+
+	return i;
+}
+
 static int mtk_hwlro_add_ipaddr(struct net_device *dev,
 				struct ethtool_rxnfc *cmd)
 {
@@ -2988,15 +3050,19 @@ static int mtk_hwlro_add_ipaddr(struct net_device *dev,
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 	int hwlro_idx;
+	u32 ip4dst;
 
 	if ((fsp->flow_type != TCP_V4_FLOW) ||
 	    (!fsp->h_u.tcp_ip4_spec.ip4dst) ||
 	    (fsp->location > 1))
 		return -EINVAL;
 
-	mac->hwlro_ip[fsp->location] = htonl(fsp->h_u.tcp_ip4_spec.ip4dst);
-	hwlro_idx = (mac->id * MTK_MAX_LRO_IP_CNT) + fsp->location;
+	ip4dst = htonl(fsp->h_u.tcp_ip4_spec.ip4dst);
+	hwlro_idx = mtk_hwlro_add_ipaddr_idx(dev, ip4dst);
+	if (hwlro_idx < 0)
+		return hwlro_idx;
 
+	mac->hwlro_ip[fsp->location] = ip4dst;
 	mac->hwlro_ip_cnt = mtk_hwlro_get_ip_cnt(mac);
 
 	mtk_hwlro_val_ipaddr(eth, hwlro_idx, mac->hwlro_ip[fsp->location]);
@@ -3012,18 +3078,40 @@ static int mtk_hwlro_del_ipaddr(struct net_device *dev,
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 	int hwlro_idx;
+	u32 ip4dst;
 
 	if (fsp->location > 1)
 		return -EINVAL;
 
-	mac->hwlro_ip[fsp->location] = 0;
-	hwlro_idx = (mac->id * MTK_MAX_LRO_IP_CNT) + fsp->location;
+	ip4dst = mac->hwlro_ip[fsp->location];
+	hwlro_idx = mtk_hwlro_get_ipaddr_idx(dev, ip4dst);
+	if (hwlro_idx < 0)
+		return hwlro_idx;
 
+	mac->hwlro_ip[fsp->location] = 0;
 	mac->hwlro_ip_cnt = mtk_hwlro_get_ip_cnt(mac);
 
 	mtk_hwlro_inval_ipaddr(eth, hwlro_idx);
 
 	return 0;
+}
+
+static void mtk_hwlro_netdev_enable(struct net_device *dev)
+{
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	int i, hwlro_idx;
+
+	for (i = 0; i < MTK_MAX_LRO_IP_CNT; i++) {
+		if (mac->hwlro_ip[i] == 0)
+			continue;
+
+		hwlro_idx = mtk_hwlro_get_ipaddr_idx(dev, mac->hwlro_ip[i]);
+		if (hwlro_idx < 0)
+			continue;
+
+		mtk_hwlro_val_ipaddr(eth, hwlro_idx, mac->hwlro_ip[i]);
+	}
 }
 
 static void mtk_hwlro_netdev_disable(struct net_device *dev)
@@ -3033,8 +3121,14 @@ static void mtk_hwlro_netdev_disable(struct net_device *dev)
 	int i, hwlro_idx;
 
 	for (i = 0; i < MTK_MAX_LRO_IP_CNT; i++) {
+		if (mac->hwlro_ip[i] == 0)
+			continue;
+
+		hwlro_idx = mtk_hwlro_get_ipaddr_idx(dev, mac->hwlro_ip[i]);
+		if (hwlro_idx < 0)
+			continue;
+
 		mac->hwlro_ip[i] = 0;
-		hwlro_idx = (mac->id * MTK_MAX_LRO_IP_CNT) + i;
 
 		mtk_hwlro_inval_ipaddr(eth, hwlro_idx);
 	}
@@ -3224,13 +3318,17 @@ static int mtk_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
+	netdev_features_t lro;
 	int err = 0;
 
 	if (!((dev->features ^ features) & MTK_SET_FEATURES))
 		return 0;
 
-	if (!(features & NETIF_F_LRO))
+	lro = dev->features & NETIF_F_LRO;
+	if (!(features & NETIF_F_LRO) && lro)
 		mtk_hwlro_netdev_disable(dev);
+	else if ((features & NETIF_F_LRO) && !lro)
+		mtk_hwlro_netdev_enable(dev);
 
 	if (!(features & NETIF_F_HW_VLAN_CTAG_RX))
 		mtk_w32(eth, 0, MTK_CDMP_EG_CTRL);
