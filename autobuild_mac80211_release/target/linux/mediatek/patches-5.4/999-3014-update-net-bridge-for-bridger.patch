@@ -14,8 +14,7 @@ Subject: [PATCH 15/22] update-net-bridge-for-bridger
  net/bridge/br_vlan.c           | 698 +++++++++++++++++++++++++++++++--
  net/bridge/br_vlan_options.c   | 346 ++++++++++++++++
  net/core/rtnetlink.c           |   1 +
- net/dsa/slave.c                |  11 +
- 11 files changed, 1365 insertions(+), 34 deletions(-)
+ 10 files changed, 1354 insertions(+), 34 deletions(-)
  create mode 100644 net/bridge/br_vlan_options.c
 
 diff --git a/include/net/switchdev.h b/include/net/switchdev.h
@@ -1817,30 +1816,6 @@ index da1ef00..b896f71 100644
  			err = rtnl_fill_ifinfo(skb, dev, net,
  					       RTM_NEWLINK,
  					       NETLINK_CB(cb->skb).portid,
-diff --git a/net/dsa/slave.c b/net/dsa/slave.c
-index 2dfaa1e..a60a26c 100644
---- a/net/dsa/slave.c
-+++ b/net/dsa/slave.c
-@@ -1495,8 +1495,19 @@ int dsa_slave_create(struct dsa_port *port)
- 		goto out_phy;
- 	}
- 
-+	rtnl_lock();
-+
-+	ret = netdev_upper_dev_link(master, slave_dev, NULL);
-+
-+	rtnl_unlock();
-+
-+	if (ret)
-+		goto out_unregister;
-+
- 	return 0;
- 
-+out_unregister:
-+	unregister_netdev(slave_dev);
- out_phy:
- 	rtnl_lock();
- 	phylink_disconnect_phy(p->dp->pl);
 -- 
 2.18.0
 
