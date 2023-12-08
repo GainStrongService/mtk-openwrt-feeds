@@ -1,11 +1,11 @@
-From 53a7b7af61b75ea0e3f9d12d3d6302cf40941a8a Mon Sep 17 00:00:00 2001
+From adc0d43ecd5ad2f8932c7a25c6b0e1dea336aef8 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Tue, 9 Aug 2022 10:23:44 -0700
-Subject: [PATCH 06/37] hostapd: mtk: Add hostapd MU SET/GET control
+Subject: [PATCH] hostapd: mtk: Add hostapd MU SET/GET control
 
 ---
  hostapd/config_file.c             |   9 +++
- hostapd/ctrl_iface.c              |  62 +++++++++++++++++
+ hostapd/ctrl_iface.c              |  66 ++++++++++++++++++
  hostapd/hostapd_cli.c             |  18 +++++
  src/ap/ap_config.c                |   1 +
  src/ap/ap_config.h                |   1 +
@@ -17,7 +17,7 @@ Subject: [PATCH 06/37] hostapd: mtk: Add hostapd MU SET/GET control
  src/drivers/driver_nl80211.c      | 110 ++++++++++++++++++++++++++++++
  src/drivers/driver_nl80211.h      |   1 +
  src/drivers/driver_nl80211_capa.c |   3 +
- 13 files changed, 251 insertions(+)
+ 13 files changed, 255 insertions(+)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
 index b5024cc..62e8b33 100644
@@ -40,10 +40,10 @@ index b5024cc..62e8b33 100644
  	} else if (os_strcmp(buf, "max_listen_interval") == 0) {
  		bss->max_listen_interval = atoi(pos);
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 9c70d54..c72f336 100644
+index 9c70d54..894c47a 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3441,6 +3441,63 @@ hostapd_ctrl_iface_get_edcca(struct hostapd_data *hapd, char *cmd, char *buf,
+@@ -3441,6 +3441,67 @@ hostapd_ctrl_iface_get_edcca(struct hostapd_data *hapd, char *cmd, char *buf,
  }
  
  
@@ -93,6 +93,10 @@ index 9c70d54..c72f336 100644
 +	pos = buf;
 +	end = buf + buflen;
 +
++	if (hapd->iface->state != HAPD_IFACE_ENABLED)
++		return os_snprintf(pos, end - pos, "Not allowed to get_mu when current state is %s\n",
++				   hostapd_state_text(hapd->iface->state));
++
 +	if (hostapd_drv_mu_dump(hapd, &mu_onoff) == 0) {
 +		hapd->iconf->mu_onoff = mu_onoff;
 +		return os_snprintf(pos, end - pos, "[hostapd_cli] = UL MU-MIMO: %d, DL MU-MIMO: %d, UL OFDMA: %d, DL OFDMA: %d\n",
@@ -107,7 +111,7 @@ index 9c70d54..c72f336 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -3993,6 +4050,11 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -3993,6 +4054,11 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "GET_EDCCA ", 10) == 0) {
  		reply_len = hostapd_ctrl_iface_get_edcca(hapd, buf+10, reply,
  							  reply_size);
@@ -156,7 +160,7 @@ index db21258..e16a1dc 100644
  	{ "dpp_qr_code", hostapd_cli_cmd_dpp_qr_code, NULL,
  	  "report a scanned DPP URI from a QR Code" },
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 344585a..1b0e990 100644
+index 344585a..9e5a2ec 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -280,6 +280,7 @@ struct hostapd_config * hostapd_config_defaults(void)
@@ -446,5 +450,5 @@ index 732ae29..cc11891 100644
  			}
  
 -- 
-2.39.0
+2.18.0
 
