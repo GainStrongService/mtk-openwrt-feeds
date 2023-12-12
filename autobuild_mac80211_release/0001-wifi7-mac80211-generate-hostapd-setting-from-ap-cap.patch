@@ -572,7 +572,7 @@ index 1bf4db6e..4ce420a5 100644
  
  	json_set_namespace wdev_uc prev
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a63..88dfaa36 100644
+index e24a2a63..58a0c9ff 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -665,7 +665,7 @@ index e24a2a63..88dfaa36 100644
  
  		get_band_defaults "$dev"
  
-@@ -196,6 +244,14 @@ detect_mac80211() {
+@@ -196,6 +244,19 @@ detect_mac80211() {
  				;;
  		esac
  
@@ -677,10 +677,15 @@ index e24a2a63..88dfaa36 100644
 +			macaddr="00:0$(($devidx - 1)):55:66${macaddr}"
 +		fi
 +
++		tx_burst=""
++		if (lspci | grep -q "7992"); then
++			tx_burst=0.0
++		fi
++
  		uci -q batch <<-EOF
  			set wireless.${name}=wifi-device
  			set wireless.${name}.type=mac80211
-@@ -203,15 +259,46 @@ detect_mac80211() {
+@@ -203,15 +264,49 @@ detect_mac80211() {
  			set wireless.${name}.channel=${channel}
  			set wireless.${name}.band=${mode_band}
  			set wireless.${name}.htmode=$htmode
@@ -697,6 +702,9 @@ index e24a2a63..88dfaa36 100644
 +		}
 +		[ -n "$background_radar" ] && {
 +			uci -q set wireless.${name}.background_radar=${background_radar}
++		}
++		[ -n "$tx_burst" ] && {
++			uci -q set wireless.${name}.tx_burst=${tx_burst}
 +		}
  
 +		uci -q batch <<-EOF
