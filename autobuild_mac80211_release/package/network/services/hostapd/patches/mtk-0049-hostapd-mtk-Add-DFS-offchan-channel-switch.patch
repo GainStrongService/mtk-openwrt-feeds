@@ -1,7 +1,7 @@
-From b087dbc78f6911b16c9c00ac0a9246a89871225f Mon Sep 17 00:00:00 2001
+From 49f5a5c4430e59dec7dc135773636da2e889ce05 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Feb 2023 14:56:55 +0800
-Subject: [PATCH 11/35] hostapd: mtk: Add DFS offchan channel switch
+Subject: [PATCH 49/49] hostapd: mtk: Add DFS offchan channel switch
 
 Add DFS background chain channel switch command for testing purpose.
 This feature is implemented via hostapd_cli command.
@@ -12,16 +12,16 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  hostapd/ctrl_iface.c | 72 ++++++++++++++++++++++++++++++++++++++++++++
  src/ap/dfs.c         | 25 ++++++---------
- src/ap/dfs.h         | 15 +++++++++
- 3 files changed, 96 insertions(+), 16 deletions(-)
+ src/ap/dfs.h         | 16 +++++++++-
+ 3 files changed, 96 insertions(+), 17 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index fcbc4ae..37a1b2a 100644
+index 328f7c2..97d807a 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3542,6 +3542,76 @@ hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,
+@@ -3951,6 +3951,76 @@ hostapd_ctrl_iface_dump_amnt(struct hostapd_data *hapd, char *cmd,
+ 		return pos - buf;
  }
- 
  
 +static int
 +hostapd_ctrl_iface_set_offchan_ctrl(struct hostapd_data *hapd, char *cmd,
@@ -48,9 +48,9 @@ index fcbc4ae..37a1b2a 100644
 +	else
 +		return -1;
 +
-+	num_available_chandefs = dfs_find_channel(iface, NULL, 0, type);
++	num_available_chandefs = dfs_find_channel(iface, NULL, 0, 0, type);
 +	for (i = 0; i < num_available_chandefs; i++) {
-+		dfs_find_channel(iface, &chan, i, type);
++		dfs_find_channel(iface, &chan, 0, i, type);
 +		if (chan->chan == channel) {
 +			chan_found = true;
 +			break;
@@ -96,17 +96,17 @@ index fcbc4ae..37a1b2a 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4104,6 +4174,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
- 	} else if (os_strncmp(buf, "DFS_DETECT_MODE ", 16) == 0) {
- 		reply_len = hostapd_ctrl_iface_set_dfs_detect_mode(hapd, buf + 16,
- 								   reply, reply_size);
+@@ -4529,6 +4599,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+ 	} else if (os_strncmp(buf, "DUMP_AMNT", 9) == 0) {
+ 		reply_len = hostapd_ctrl_iface_dump_amnt(hapd, buf+10,
+ 							reply, reply_size);
 +	} else if (os_strncmp(buf, "SET_OFFCHAN_CTRL", 16) == 0) {
 +		reply_len = hostapd_ctrl_iface_set_offchan_ctrl(hapd, buf + 16, reply, reply_size);
  	} else {
  		os_memcpy(reply, "UNKNOWN COMMAND\n", 16);
  		reply_len = 16;
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index 5cb7799..1c3f678 100644
+index a558d4e..bb5702b 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
 @@ -19,13 +19,6 @@
@@ -123,20 +123,20 @@ index 5cb7799..1c3f678 100644
  static struct hostapd_channel_data *
  dfs_downgrade_bandwidth(struct hostapd_iface *iface, int *secondary_channel,
  			u8 *oper_centr_freq_seg0_idx,
-@@ -238,9 +231,9 @@ static int is_in_chanlist(struct hostapd_iface *iface,
+@@ -246,9 +239,9 @@ static int is_in_chanlist(struct hostapd_iface *iface,
   *  - hapd->vht/he_oper_centr_freq_seg0_idx
   *  - hapd->vht/he_oper_centr_freq_seg1_idx
   */
 -static int dfs_find_channel(struct hostapd_iface *iface,
 -			    struct hostapd_channel_data **ret_chan,
--			    int idx, enum dfs_channel_type type)
+-			    int n_chans, int idx, enum dfs_channel_type type)
 +int dfs_find_channel(struct hostapd_iface *iface,
 +		     struct hostapd_channel_data **ret_chan,
-+		     int idx, enum dfs_channel_type type)
++		     int n_chans, int idx, enum dfs_channel_type type)
  {
  	struct hostapd_hw_modes *mode;
  	struct hostapd_channel_data *chan;
-@@ -299,12 +292,12 @@ static int dfs_find_channel(struct hostapd_iface *iface,
+@@ -308,12 +301,12 @@ static int dfs_find_channel(struct hostapd_iface *iface,
  }
  
  
@@ -156,7 +156,7 @@ index 5cb7799..1c3f678 100644
  	if (!iface->conf->ieee80211ac && !iface->conf->ieee80211ax)
  		return;
 diff --git a/src/ap/dfs.h b/src/ap/dfs.h
-index 606c1b3..c2556d2 100644
+index 0a7c25d..e88ea24 100644
 --- a/src/ap/dfs.h
 +++ b/src/ap/dfs.h
 @@ -9,6 +9,12 @@
@@ -172,13 +172,14 @@ index 606c1b3..c2556d2 100644
  int hostapd_handle_dfs(struct hostapd_iface *iface);
  
  int hostapd_dfs_complete_cac(struct hostapd_iface *iface, int success, int freq,
-@@ -32,5 +38,14 @@ int hostapd_dfs_start_cac(struct hostapd_iface *iface, int freq,
- int hostapd_handle_dfs_offload(struct hostapd_iface *iface);
- int hostapd_is_dfs_overlap(struct hostapd_iface *iface, enum chan_width width,
- 			   int center_freq);
+@@ -39,6 +45,14 @@ int hostapd_dfs_handle_csa(struct hostapd_iface *iface,
+ 			   struct csa_settings *settings,
+ 			   struct csa_settings *background_settings,
+ 			   bool cac_required, bool bw_changed);
+-
 +int dfs_find_channel(struct hostapd_iface *iface,
 +		     struct hostapd_channel_data **ret_chan,
-+		     int idx, enum dfs_channel_type type);
++		     int n_chans, int idx, enum dfs_channel_type type);
 +void dfs_adjust_center_freq(struct hostapd_iface *iface,
 +			    struct hostapd_channel_data *chan,
 +			    int secondary_channel,

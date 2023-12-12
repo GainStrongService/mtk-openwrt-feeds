@@ -1,7 +1,7 @@
-From 9b82b5966b57403f389759b6dfb8318dd862b480 Mon Sep 17 00:00:00 2001
+From 8b9963570219d1ba217da21d02fa193ee8aef4ae Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 16 Dec 2022 03:57:11 +0800
-Subject: [PATCH 12/35] hostapd: mtk: Add amsdu set get ctrl
+Subject: [PATCH] hostapd: mtk: Add amsdu set get ctrl
 
 ---
  hostapd/config_file.c             |   9 +++
@@ -40,10 +40,10 @@ index 8a61726..017c21e 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 37a1b2a..61c9e80 100644
+index fcbc4ae..8ed56e4 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3612,6 +3612,30 @@ hostapd_ctrl_iface_set_offchan_ctrl(struct hostapd_data *hapd, char *cmd,
+@@ -3542,6 +3542,30 @@ hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,
  }
  
  
@@ -74,10 +74,10 @@ index 37a1b2a..61c9e80 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4176,6 +4200,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4104,6 +4128,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+ 	} else if (os_strncmp(buf, "DFS_DETECT_MODE ", 16) == 0) {
+ 		reply_len = hostapd_ctrl_iface_set_dfs_detect_mode(hapd, buf + 16,
  								   reply, reply_size);
- 	} else if (os_strncmp(buf, "SET_OFFCHAN_CTRL", 16) == 0) {
- 		reply_len = hostapd_ctrl_iface_set_offchan_ctrl(hapd, buf + 16, reply, reply_size);
 +	} else if (os_strncmp(buf, "GET_AMSDU", 9) == 0) {
 +		reply_len = hostapd_ctrl_iface_get_amsdu(hapd, reply, reply_size);
  	} else {
@@ -111,7 +111,7 @@ index 1f7013e..0da18e2 100644
  };
  
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index df90814..24fc0f5 100644
+index c47418a..b351edb 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -299,6 +299,7 @@ struct hostapd_config * hostapd_config_defaults(void)
