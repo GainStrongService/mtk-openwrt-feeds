@@ -1,8 +1,7 @@
-From 51e7036b3f6295eb7a8e5925dea43cb71998f0dd Mon Sep 17 00:00:00 2001
+From 2a604d8b017da2ff941a7e10535af8d4d49c5ce8 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 5 Dec 2022 18:21:51 +0800
-Subject: [PATCH 1025/1042] wifi: mt76: mt7915: add bf backoff limit table
- support
+Subject: [PATCH 37/76] wifi: mt76: mt7915: add bf backoff limit table support
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
@@ -31,10 +30,10 @@ index 1c8328d..19a835c 100644
  		seq_printf(file, " %2d", val[i]);
  	seq_puts(file, "\n");
 diff --git a/eeprom.c b/eeprom.c
-index eb532c7..c0536f1 100644
+index 8f8e375..cf142c5 100644
 --- a/eeprom.c
 +++ b/eeprom.c
-@@ -326,9 +326,10 @@ mt76_apply_array_limit(s8 *pwr, size_t pwr_len, const __be32 *data,
+@@ -337,9 +337,10 @@ mt76_apply_array_limit(s8 *pwr, size_t pwr_len, const __be32 *data,
  static void
  mt76_apply_multi_array_limit(s8 *pwr, size_t pwr_len, s8 pwr_num,
  			     const __be32 *data, size_t len, s8 target_power,
@@ -46,7 +45,7 @@ index eb532c7..c0536f1 100644
  
  	if (!data)
  		return;
-@@ -340,7 +341,7 @@ mt76_apply_multi_array_limit(s8 *pwr, size_t pwr_len, s8 pwr_num,
+@@ -351,7 +352,7 @@ mt76_apply_multi_array_limit(s8 *pwr, size_t pwr_len, s8 pwr_num,
  			break;
  
  		mt76_apply_array_limit(pwr + pwr_len * i, pwr_len, data + 1,
@@ -55,7 +54,7 @@ index eb532c7..c0536f1 100644
  		if (--cur > 0)
  			continue;
  
-@@ -367,12 +368,16 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
+@@ -378,12 +379,16 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
  	char band;
  	size_t len;
  	s8 max_power = -127;
@@ -73,7 +72,7 @@ index eb532c7..c0536f1 100644
  
  	if (!IS_ENABLED(CONFIG_OF))
  		return target_power;
-@@ -418,14 +423,40 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
+@@ -429,14 +434,40 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
  	val = mt76_get_of_array(np, "rates-mcs", &len, mcs_rates + 1);
  	mt76_apply_multi_array_limit(dest->mcs[0], ARRAY_SIZE(dest->mcs[0]),
  				     ARRAY_SIZE(dest->mcs), val, len,
@@ -118,10 +117,10 @@ index eb532c7..c0536f1 100644
  EXPORT_SYMBOL_GPL(mt76_get_rate_power_limits);
  
 diff --git a/mt76.h b/mt76.h
-index 9673926..6ed3e1e 100644
+index 99f21e2..c322135 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1049,6 +1049,14 @@ struct mt76_power_limits {
+@@ -1083,6 +1083,14 @@ struct mt76_power_limits {
  	s8 mcs[4][10];
  	s8 ru[7][12];
  	s8 eht[16][16];
@@ -249,10 +248,10 @@ index f181377..19a37b5 100644
  				    mt7915_twt_stats);
  	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
 diff --git a/mt7915/init.c b/mt7915/init.c
-index d908a58..b2fdd43 100644
+index db61953..82fbec4 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -284,6 +284,8 @@ void __mt7915_init_txpower(struct mt7915_phy *phy,
+@@ -284,6 +284,8 @@ static void __mt7915_init_txpower(struct mt7915_phy *phy,
  	int pwr_delta = mt7915_eeprom_get_power_delta(dev, sband->band);
  	struct mt76_power_limits limits;
  
@@ -261,7 +260,7 @@ index d908a58..b2fdd43 100644
  	for (i = 0; i < sband->n_channels; i++) {
  		struct ieee80211_channel *chan = &sband->channels[i];
  		u32 target_power = 0;
-@@ -300,6 +302,11 @@ void __mt7915_init_txpower(struct mt7915_phy *phy,
+@@ -300,6 +302,11 @@ static void __mt7915_init_txpower(struct mt7915_phy *phy,
  		target_power = mt76_get_rate_power_limits(phy->mt76, chan,
  							  &limits,
  							  target_power);
@@ -274,7 +273,7 @@ index d908a58..b2fdd43 100644
  		target_power = DIV_ROUND_UP(target_power, 2);
  		chan->max_power = min_t(int, chan->max_reg_power,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index da9cfc6..df7aab5 100644
+index f7fee40..0ac81ad 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -74,10 +74,12 @@ int mt7915_run(struct ieee80211_hw *hw)
@@ -294,10 +293,10 @@ index da9cfc6..df7aab5 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 7e33386..224ce21 100644
+index d3ed33a..62aad77 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3311,7 +3311,8 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
+@@ -3316,7 +3316,8 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
  	int ret;
  	s8 txpower_sku[MT7915_SKU_RATE_NUM];
  
@@ -307,7 +306,7 @@ index 7e33386..224ce21 100644
  	if (ret)
  		return ret;
  
-@@ -3351,53 +3352,139 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
+@@ -3356,53 +3357,139 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
  				 sizeof(req), true);
  }
  
@@ -474,7 +473,7 @@ index 7e33386..224ce21 100644
  	struct mt7915_dev *dev = phy->dev;
  	struct {
  		u8 format_id;
-@@ -3406,10 +3493,9 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
+@@ -3411,10 +3498,9 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
  		u8 _rsv;
  	} __packed req = {
  		.format_id = TX_POWER_LIMIT_INFO,
@@ -486,7 +485,7 @@ index 7e33386..224ce21 100644
  	struct sk_buff *skb;
  	int ret, i;
  
-@@ -3419,9 +3505,15 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
+@@ -3424,9 +3510,15 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len)
  	if (ret)
  		return ret;
  
@@ -505,7 +504,7 @@ index 7e33386..224ce21 100644
  
  	dev_kfree_skb(skb);
  
-@@ -3450,7 +3542,7 @@ int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
+@@ -3455,7 +3547,7 @@ int mt7915_mcu_set_test_param(struct mt7915_dev *dev, u8 param, bool test_mode,
  				 sizeof(req), false);
  }
  
@@ -514,7 +513,7 @@ index 7e33386..224ce21 100644
  {
  	struct mt7915_dev *dev = phy->dev;
  	struct mt7915_sku {
-@@ -3461,10 +3553,21 @@ int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable)
+@@ -3466,10 +3558,21 @@ int mt7915_mcu_set_sku_en(struct mt7915_phy *phy, bool enable)
  	} __packed req = {
  		.format_id = TX_POWER_LIMIT_ENABLE,
  		.band_idx = phy->mt76->band_idx,

@@ -1,7 +1,7 @@
-From e6ccf89484d41dbd38992cf60150ef0db4bbafb2 Mon Sep 17 00:00:00 2001
+From 3bd991736eedbd43fe8ef3bfe61540af527430c1 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Jun 2022 20:13:02 +0800
-Subject: [PATCH 1001/1040] wifi: mt76: mt7915: csi: implement csi support
+Subject: [PATCH 13/76] wifi: mt76: mt7915: csi: implement csi support
 
 ---
  mt76_connac_mcu.h |   2 +
@@ -17,10 +17,10 @@ Subject: [PATCH 1001/1040] wifi: mt76: mt7915: csi: implement csi support
  create mode 100644 mt7915/vendor.h
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 8b3b7c0..8a377dd 100644
+index d28ee91..b31f19a 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1007,6 +1007,7 @@ enum {
+@@ -1017,6 +1017,7 @@ enum {
  	MCU_EXT_EVENT_WA_TX_STAT = 0x74,
  	MCU_EXT_EVENT_BCC_NOTIFY = 0x75,
  	MCU_EXT_EVENT_MURU_CTRL = 0x9f,
@@ -28,7 +28,7 @@ index 8b3b7c0..8a377dd 100644
  };
  
  /* unified event table */
-@@ -1207,6 +1208,7 @@ enum {
+@@ -1228,6 +1229,7 @@ enum {
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
  	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
@@ -54,7 +54,7 @@ index fd71141..65129b4 100644
  mt7915e-$(CONFIG_NL80211_TESTMODE) += testmode.o
  mt7915e-$(CONFIG_MT798X_WMAC) += soc.o
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 0d2587c..607d881 100644
+index d5d9cbf..46d9499 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -696,6 +696,12 @@ mt7915_register_ext_phy(struct mt7915_dev *dev, struct mt7915_phy *phy)
@@ -132,7 +132,7 @@ index 0d2587c..607d881 100644
  				   ARRAY_SIZE(mt76_rates));
  	if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 47e178f..729a41d 100644
+index 1cb462f..d43b597 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -40,6 +40,10 @@ static bool sr_scene_detect = true;

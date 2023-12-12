@@ -1,7 +1,7 @@
-From d3a8d59521557c7b5b2a5ac62119739275829373 Mon Sep 17 00:00:00 2001
+From 1313d834950f271d6b84dd71b89535e6e9af1095 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 8 Dec 2023 07:35:39 +0800
-Subject: [PATCH] wifi: mt76: check txs format before getting skb by pid
+Subject: [PATCH 10/76] wifi: mt76: check txs format before getting skb by pid
 
 The PPDU TxS does not include the error bit so it cannot use to report
 status to mac80211.
@@ -29,10 +29,10 @@ index bd2a924..5f13211 100644
  #define MT_TX_FREE_WLAN_ID		GENMASK(23, 14)
  #define MT_TX_FREE_COUNT		GENMASK(12, 0)
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index e26fcf8..9978a8c 100644
+index 630c640..31d2474 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
-@@ -713,10 +713,13 @@ bool mt76_connac2_mac_add_txs_skb(struct mt76_dev *dev, struct mt76_wcid *wcid,
+@@ -714,10 +714,13 @@ bool mt76_connac2_mac_add_txs_skb(struct mt76_dev *dev, struct mt76_wcid *wcid,
  				  int pid, __le32 *txs_data)
  {
  	struct sk_buff_head list;

@@ -1,8 +1,8 @@
-From e4019ba63d7bb60ac0b56618e3fd9421c97ce474 Mon Sep 17 00:00:00 2001
+From ad7d61fd7de176ea7bec5b675ddfc355070833f7 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 29 Aug 2023 09:22:18 +0800
-Subject: [PATCH 1038/1040] wifi: mt76: update debugfs knob to dump token
- pending time
+Subject: [PATCH 50/76] wifi: mt76: update debugfs knob to dump token pending
+ time
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
@@ -12,10 +12,10 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 10 insertions(+), 4 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 91da8c5..ad1402a 100644
+index c322135..4704c50 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -368,6 +368,8 @@ struct mt76_txwi_cache {
+@@ -401,6 +401,8 @@ struct mt76_txwi_cache {
  	struct list_head list;
  	dma_addr_t dma_addr;
  
@@ -25,10 +25,10 @@ index 91da8c5..ad1402a 100644
  		struct sk_buff *skb;
  		void *ptr;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index e4f46e0..817763a 100644
+index 07f0e30..170a51b 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -802,6 +802,8 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -803,6 +803,8 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	if (id < 0)
  		return id;
  
@@ -37,7 +37,7 @@ index e4f46e0..817763a 100644
  	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
  	mt7915_mac_write_txwi(mdev, txwi_ptr, tx_info->skb, wcid, pid, key,
  			      qid, 0);
-@@ -1000,6 +1002,8 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
+@@ -1001,6 +1003,8 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
  			if (!txwi)
  				continue;
  
@@ -46,7 +46,7 @@ index e4f46e0..817763a 100644
  			mt76_connac2_txwi_free(mdev, txwi, sta, &free_list);
  		}
  	}
-@@ -1032,6 +1036,8 @@ mt7915_mac_tx_free_v0(struct mt7915_dev *dev, void *data, int len)
+@@ -1033,6 +1037,8 @@ mt7915_mac_tx_free_v0(struct mt7915_dev *dev, void *data, int len)
  		if (!txwi)
  			continue;
  
@@ -56,7 +56,7 @@ index e4f46e0..817763a 100644
  	}
  
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 80b7bc1..46f1b0b 100644
+index 671791e..f4bc89c 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -2211,10 +2211,8 @@ static int mt7915_token_read(struct seq_file *s, void *data)

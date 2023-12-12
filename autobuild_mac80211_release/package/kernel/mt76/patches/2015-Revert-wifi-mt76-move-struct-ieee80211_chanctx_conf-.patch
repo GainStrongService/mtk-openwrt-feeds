@@ -1,8 +1,8 @@
-From 7ff6353fd667964cc3e814dce1d79859e07fbdf4 Mon Sep 17 00:00:00 2001
+From c5df80abbbbcfe8b3845a03ca48fc7745ba0d972 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 23 Oct 2023 10:25:25 +0800
-Subject: [PATCH 4/6] Revert "wifi: mt76: move struct ieee80211_chanctx_conf up
- to struct mt76_vif"
+Subject: [PATCH 73/76] Revert "wifi: mt76: move struct ieee80211_chanctx_conf
+ up to struct mt76_vif"
 
 This reverts commit d1881b1b2bf6018d1cb1b91e4301a60021cacaa3.
 ---
@@ -13,10 +13,10 @@ This reverts commit d1881b1b2bf6018d1cb1b91e4301a60021cacaa3.
  4 files changed, 9 insertions(+), 9 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 05144b2..3ff348f 100644
+index d082b24..699d84e 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -798,7 +798,6 @@ struct mt76_vif {
+@@ -836,7 +836,6 @@ struct mt76_vif {
  	u8 basic_rates_idx;
  	u8 mcast_rates_idx;
  	u8 beacon_rates_idx;
@@ -25,10 +25,10 @@ index 05144b2..3ff348f 100644
  
  struct mt76_phy {
 diff --git a/mt7921/main.c b/mt7921/main.c
-index 6a5c2ca..28c7e04 100644
+index aa0cd78..ffcad1e 100644
 --- a/mt7921/main.c
 +++ b/mt7921/main.c
-@@ -756,7 +756,7 @@ void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -801,7 +801,7 @@ void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  
  	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
  		mt76_connac_mcu_uni_add_bss(&dev->mphy, vif, &mvif->sta.wcid,
@@ -37,7 +37,7 @@ index 6a5c2ca..28c7e04 100644
  
  	ewma_avg_signal_init(&msta->avg_ack_signal);
  
-@@ -791,7 +791,7 @@ void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -836,7 +836,7 @@ void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  		if (!sta->tdls)
  			mt76_connac_mcu_uni_add_bss(&dev->mphy, vif,
  						    &mvif->sta.wcid, false,
@@ -46,7 +46,7 @@ index 6a5c2ca..28c7e04 100644
  	}
  
  	spin_lock_bh(&dev->mt76.sta_poll_lock);
-@@ -1208,7 +1208,7 @@ mt7921_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1255,7 +1255,7 @@ mt7921_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	mt792x_mutex_acquire(dev);
  
  	err = mt76_connac_mcu_uni_add_bss(phy->mt76, vif, &mvif->sta.wcid,
@@ -55,7 +55,7 @@ index 6a5c2ca..28c7e04 100644
  	if (err)
  		goto out;
  
-@@ -1240,7 +1240,7 @@ mt7921_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1287,7 +1287,7 @@ mt7921_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		goto out;
  
  	mt76_connac_mcu_uni_add_bss(phy->mt76, vif, &mvif->sta.wcid, false,
@@ -64,7 +64,7 @@ index 6a5c2ca..28c7e04 100644
  
  out:
  	mt792x_mutex_release(dev);
-@@ -1265,7 +1265,7 @@ static void mt7921_ctx_iter(void *priv, u8 *mac,
+@@ -1312,7 +1312,7 @@ static void mt7921_ctx_iter(void *priv, u8 *mac,
  	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
  	struct ieee80211_chanctx_conf *ctx = priv;
  
@@ -73,7 +73,7 @@ index 6a5c2ca..28c7e04 100644
  		return;
  
  	if (vif->type == NL80211_IFTYPE_MONITOR)
-@@ -1298,7 +1298,7 @@ static void mt7921_mgd_prepare_tx(struct ieee80211_hw *hw,
+@@ -1345,7 +1345,7 @@ static void mt7921_mgd_prepare_tx(struct ieee80211_hw *hw,
  		       jiffies_to_msecs(HZ);
  
  	mt792x_mutex_acquire(dev);
@@ -83,10 +83,10 @@ index 6a5c2ca..28c7e04 100644
  	mt792x_mutex_release(dev);
  }
 diff --git a/mt792x.h b/mt792x.h
-index 548e89f..39cbd13 100644
+index 3c897b3..558753f 100644
 --- a/mt792x.h
 +++ b/mt792x.h
-@@ -93,6 +93,7 @@ struct mt792x_vif {
+@@ -106,6 +106,7 @@ struct mt792x_vif {
  	struct ewma_rssi rssi;
  
  	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
@@ -95,10 +95,10 @@ index 548e89f..39cbd13 100644
  
  struct mt792x_phy {
 diff --git a/mt792x_core.c b/mt792x_core.c
-index 7c4a74f..8c97ac0 100644
+index 502be22..1228a8a 100644
 --- a/mt792x_core.c
 +++ b/mt792x_core.c
-@@ -243,7 +243,7 @@ int mt792x_assign_vif_chanctx(struct ieee80211_hw *hw,
+@@ -265,7 +265,7 @@ int mt792x_assign_vif_chanctx(struct ieee80211_hw *hw,
  	struct mt792x_dev *dev = mt792x_hw_dev(hw);
  
  	mutex_lock(&dev->mt76.mutex);
@@ -107,7 +107,7 @@ index 7c4a74f..8c97ac0 100644
  	mutex_unlock(&dev->mt76.mutex);
  
  	return 0;
-@@ -259,7 +259,7 @@ void mt792x_unassign_vif_chanctx(struct ieee80211_hw *hw,
+@@ -281,7 +281,7 @@ void mt792x_unassign_vif_chanctx(struct ieee80211_hw *hw,
  	struct mt792x_dev *dev = mt792x_hw_dev(hw);
  
  	mutex_lock(&dev->mt76.mutex);

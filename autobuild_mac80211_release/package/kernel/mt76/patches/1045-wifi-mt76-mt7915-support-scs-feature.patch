@@ -1,7 +1,7 @@
-From dd5ff4c0e6542290114c8d55297dd41c0e8e5eca Mon Sep 17 00:00:00 2001
+From e60a464f34f516a977c952cfaf53f355de50bfbd Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Wed, 6 Dec 2023 08:53:03 +0800
-Subject: [PATCH] wifi: mt76: mt7915: support scs feature
+Subject: [PATCH 57/76] wifi: mt76: mt7915: support scs feature
 
 Add support scs feature for connac2 codebase. This commit includes three
 parts.
@@ -29,10 +29,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  9 files changed, 186 insertions(+)
 
 diff --git a/mt76.h b/mt76.h
-index a8e6a60..d841918 100644
+index 4704c50..c0fdbd6 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -288,6 +288,7 @@ struct mt76_sta_stats {
+@@ -310,6 +310,7 @@ struct mt76_sta_stats {
  	u64 tx_nss[4];		/* 1, 2, 3, 4 */
  	u64 tx_mcs[16];		/* mcs idx */
  	u64 tx_bytes;
@@ -40,7 +40,7 @@ index a8e6a60..d841918 100644
  	/* WED TX */
  	u32 tx_packets;		/* unit: MSDU */
  	u32 tx_retries;
-@@ -297,6 +298,7 @@ struct mt76_sta_stats {
+@@ -319,6 +320,7 @@ struct mt76_sta_stats {
  	u32 rx_packets;
  	u32 rx_errors;
  	u32 rx_drops;
@@ -49,10 +49,10 @@ index a8e6a60..d841918 100644
  
  enum mt76_wcid_flags {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 4925890..5434e18 100644
+index bf5ab81..48874d1 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1201,6 +1201,7 @@ enum {
+@@ -1222,6 +1222,7 @@ enum {
  	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
  	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
  	MCU_EXT_CMD_SET_SER_TRIGGER = 0x81,
@@ -61,7 +61,7 @@ index 4925890..5434e18 100644
  	MCU_EXT_CMD_FW_DBG_CTRL = 0x95,
  	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,
 diff --git a/mt7915/init.c b/mt7915/init.c
-index e31a5a6..3e0c5fd 100644
+index ff7bd11..5467418 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -1243,6 +1243,7 @@ int mt7915_register_device(struct mt7915_dev *dev)
@@ -73,7 +73,7 @@ index e31a5a6..3e0c5fd 100644
  	INIT_LIST_HEAD(&dev->twt_list);
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index b696f02..6bed732 100644
+index e5480ee..0e8c64e 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -1503,6 +1503,8 @@ mt7915_mac_full_reset(struct mt7915_dev *dev)
@@ -116,7 +116,7 @@ index b696f02..6bed732 100644
  		 wiphy_name(dev->mt76.hw->wiphy));
  }
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 85712e6..e8a08e1 100644
+index 0318254..2e1f4b9 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -95,12 +95,24 @@ int mt7915_run(struct ieee80211_hw *hw)
@@ -145,7 +145,7 @@ index 85712e6..e8a08e1 100644
  		mt7915_mac_reset_counters(phy);
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 258a839..41b9451 100644
+index 2b41feb..38679d2 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -5043,3 +5043,121 @@ int mt7915_mcu_sw_aci_set(struct mt7915_dev *dev, bool val)

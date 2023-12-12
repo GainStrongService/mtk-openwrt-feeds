@@ -1,19 +1,19 @@
-From 7a963d92dd37bb16d00cc9ba7684f131d3331a78 Mon Sep 17 00:00:00 2001
+From 9e48b3a3d1ddfd625bedf7fdd7aac2121ba03e71 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Thu, 5 Jan 2023 16:43:57 +0800
-Subject: [PATCH 2008/2011] wifi: mt76: connac: wed: add wed rx copy skb
+Subject: [PATCH 66/76] wifi: mt76: connac: wed: add wed rx copy skb
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
 ---
- dma.c         | 76 +++++++++++++++++++++++++++++++++++++++------------
- mt7915/mmio.c | 35 ++++++++++++++++++------
- 2 files changed, 85 insertions(+), 26 deletions(-)
+ dma.c  | 71 ++++++++++++++++++++++++++++++++++++++++++++--------------
+ mmio.c | 37 +++++++++++++++++++++---------
+ 2 files changed, 80 insertions(+), 28 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index e3e2f38..7c5e623 100644
+index cf6ca04..dfedbcd 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -213,11 +213,11 @@ mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -227,10 +227,10 @@ mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q)
  
  static int
  mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
@@ -21,14 +21,13 @@ index e3e2f38..7c5e623 100644
 +		    struct mt76_queue_buf *buf, void *data,
 +		    struct mt76_rxwi_cache *rxwi)
  {
- 	struct mt76_desc *desc = &q->desc[q->head];
  	struct mt76_queue_entry *entry = &q->entry[q->head];
 -	struct mt76_rxwi_cache *rxwi = NULL;
- 	u32 buf1 = 0, ctrl;
+ 	struct mt76_desc *desc;
  	int idx = q->head;
- 	int rx_token;
-@@ -225,9 +225,11 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
- 	ctrl = FIELD_PREP(MT_DMA_CTL_SD_LEN0, buf[0].len);
+ 	u32 buf1 = 0, ctrl;
+@@ -251,9 +251,11 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
+ #endif
  
  	if (mt76_queue_is_wed_rx(q)) {
 -		rxwi = mt76_get_rxwi(dev);
@@ -42,7 +41,7 @@ index e3e2f38..7c5e623 100644
  
  		rx_token = mt76_rx_token_consume(dev, data, rxwi, buf->addr);
  		if (rx_token < 0) {
-@@ -389,7 +391,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
+@@ -423,7 +425,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
  
  static void *
  mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
@@ -51,7 +50,7 @@ index e3e2f38..7c5e623 100644
  {
  	struct mt76_queue_entry *e = &q->entry[idx];
  	struct mt76_desc *desc = &q->desc[idx];
-@@ -439,11 +441,43 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+@@ -480,11 +482,44 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  				 SKB_WITH_OVERHEAD(q->buf_size),
  				 DMA_FROM_DEVICE);
  
@@ -62,13 +61,12 @@ index e3e2f38..7c5e623 100644
 +			buf = r->ptr;
 +			r->dma_addr = 0;
 +			r->ptr = NULL;
- 
--		mt76_put_rxwi(dev, r);
++
 +			mt76_put_rxwi(dev, r);
 +		} else {
 +			struct mt76_queue_buf qbuf;
 +
-+			buf = page_frag_alloc(&q->rx_page, q->buf_size, GFP_ATOMIC);
++			buf = page_frag_alloc(&q->rx_page, q->buf_size, GFP_ATOMIC | GFP_DMA32);
 +			if (!buf)
 +				return NULL;
 +
@@ -97,9 +95,11 @@ index e3e2f38..7c5e623 100644
 +			}
 +		}
  
- 		if (drop) {
- 			u32 ctrl = le32_to_cpu(READ_ONCE(desc->ctrl));
-@@ -482,7 +516,7 @@ mt76_dma_dequeue(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
+-		mt76_put_rxwi(dev, r);
+ 		if (drop)
+ 			*drop |= !!(buf1 & MT_DMA_CTL_WO_DROP);
+ 	} else {
+@@ -521,7 +556,7 @@ mt76_dma_dequeue(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
  	q->tail = (q->tail + 1) % q->ndesc;
  	q->queued--;
  
@@ -108,16 +108,8 @@ index e3e2f38..7c5e623 100644
  }
  
  static int
-@@ -622,6 +656,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
- 	int len = SKB_WITH_OVERHEAD(q->buf_size);
- 	int frames = 0, offset = q->buf_offset;
- 	dma_addr_t addr;
-+	bool flags = false;
- 
- 	if (!q->ndesc)
- 		return 0;
-@@ -645,7 +680,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
- 		qbuf.addr = addr + offset;
+@@ -688,7 +723,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
+ done:
  		qbuf.len = len - offset;
  		qbuf.skip_unmap = false;
 -		if (mt76_dma_add_rx_buf(dev, q, &qbuf, buf) < 0) {
@@ -125,19 +117,7 @@ index e3e2f38..7c5e623 100644
  			dma_unmap_single(dev->dma_dev, addr, len,
  					 DMA_FROM_DEVICE);
  			skb_free_frag(buf);
-@@ -654,7 +689,10 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
- 		frames++;
- 	}
- 
--	if (frames)
-+	flags = (q->flags & MT_QFLAG_WED) &&
-+		FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX;
-+
-+	if (frames || flags)
- 		mt76_dma_kick_queue(dev, q);
- 
- 	spin_unlock_bh(&q->lock);
-@@ -777,12 +815,14 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -864,12 +899,14 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
  
  	spin_unlock_bh(&q->lock);
  
@@ -157,33 +137,39 @@ index e3e2f38..7c5e623 100644
  }
  
  static void
-diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index d739390..aa5c5dd 100644
---- a/mt7915/mmio.c
-+++ b/mt7915/mmio.c
-@@ -614,6 +614,7 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
- static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
+diff --git a/mmio.c b/mmio.c
+index edc3cac..cdd5595 100644
+--- a/mmio.c
++++ b/mmio.c
+@@ -89,12 +89,9 @@ EXPORT_SYMBOL_GPL(mt76_set_irq_mask);
+ void mt76_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
  {
- 	struct mt7915_dev *dev;
+ 	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
+-	u32 length;
 +	struct page *page;
- 	u32 length;
  	int i;
  
-@@ -630,13 +631,33 @@ static void mt7915_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
+-	length = SKB_DATA_ALIGN(NET_SKB_PAD + wed->wlan.rx_size +
+-				sizeof(struct skb_shared_info));
+-
+ 	for (i = 0; i < dev->rx_token_size; i++) {
+ 		struct mt76_rxwi_cache *r;
  
- 		dma_unmap_single(dev->mt76.dma_dev, r->dma_addr,
+@@ -104,13 +101,33 @@ void mt76_mmio_wed_release_rx_buf(struct mtk_wed_device *wed)
+ 
+ 		dma_unmap_single(dev->dma_dev, r->dma_addr,
  				 wed->wlan.rx_size, DMA_FROM_DEVICE);
 -		__free_pages(virt_to_page(r->ptr), get_order(length));
 +		skb_free_frag(r->ptr);
  		r->ptr = NULL;
  
- 		mt76_put_rxwi(&dev->mt76, r);
+ 		mt76_put_rxwi(dev, r);
  	}
  
- 	mt76_free_pending_rxwi(&dev->mt76);
+ 	mt76_free_pending_rxwi(dev);
 +
-+	mt76_for_each_q_rx(&dev->mt76, i) {
-+		struct mt76_queue *q = &dev->mt76.q_rx[i];
++	mt76_for_each_q_rx(dev, i) {
++		struct mt76_queue *q = &dev->q_rx[i];
 +
 +		if (mt76_queue_is_wed_rx(q)) {
 +			if (!q->rx_page.va)
@@ -202,11 +188,11 @@ index d739390..aa5c5dd 100644
 +	__page_frag_cache_drain(page, wed->rx_buf_ring.rx_page.pagecnt_bias);
 +	memset(&wed->rx_buf_ring.rx_page, 0, sizeof(wed->rx_buf_ring.rx_page));
  }
+ EXPORT_SYMBOL_GPL(mt76_mmio_wed_release_rx_buf);
  
- static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
-@@ -653,35 +674,33 @@ static u32 mt7915_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+@@ -127,25 +144,23 @@ u32 mt76_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
  	for (i = 0; i < size; i++) {
- 		struct mt76_rxwi_cache *r = mt76_get_rxwi(&dev->mt76);
+ 		struct mt76_rxwi_cache *r = mt76_get_rxwi(dev);
  		dma_addr_t phy_addr;
 -		struct page *page;
  		int token;
@@ -219,30 +205,27 @@ index d739390..aa5c5dd 100644
 -		if (!page) {
 +		ptr = page_frag_alloc(&wed->rx_buf_ring.rx_page, length, GFP_ATOMIC);
 +		if (!ptr) {
- 			mt76_put_rxwi(&dev->mt76, r);
+ 			mt76_put_rxwi(dev, r);
  			goto unmap;
  		}
  
 -		ptr = page_address(page);
- 		phy_addr = dma_map_single(dev->mt76.dma_dev, ptr,
+ 		phy_addr = dma_map_single(dev->dma_dev, ptr,
  					  wed->wlan.rx_size,
  					  DMA_TO_DEVICE);
-+		
- 		if (unlikely(dma_mapping_error(dev->mt76.dev, phy_addr))) {
+ 		if (unlikely(dma_mapping_error(dev->dev, phy_addr))) {
 -			__free_pages(page, get_order(length));
 +			skb_free_frag(ptr);
- 			mt76_put_rxwi(&dev->mt76, r);
+ 			mt76_put_rxwi(dev, r);
  			goto unmap;
  		}
--
- 		desc->buf0 = cpu_to_le32(phy_addr);
- 		token = mt76_rx_token_consume(&dev->mt76, ptr, r, phy_addr);
+@@ -155,7 +170,7 @@ u32 mt76_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
  		if (token < 0) {
- 			dma_unmap_single(dev->mt76.dma_dev, phy_addr,
+ 			dma_unmap_single(dev->dma_dev, phy_addr,
  					 wed->wlan.rx_size, DMA_TO_DEVICE);
 -			__free_pages(page, get_order(length));
 +			skb_free_frag(ptr);
- 			mt76_put_rxwi(&dev->mt76, r);
+ 			mt76_put_rxwi(dev, r);
  			goto unmap;
  		}
 -- 

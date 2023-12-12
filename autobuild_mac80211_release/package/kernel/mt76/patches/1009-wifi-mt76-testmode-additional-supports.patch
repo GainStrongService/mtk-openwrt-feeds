@@ -1,7 +1,7 @@
-From 49238ab5d438d7110060e6cd21f35247d6ce3cb5 Mon Sep 17 00:00:00 2001
+From c568828715236c265d20d3791948041cb23de480 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 21 Apr 2022 15:43:19 +0800
-Subject: [PATCH] wifi: mt76: testmode: additional supports
+Subject: [PATCH 21/76] wifi: mt76: testmode: additional supports
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -29,10 +29,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  20 files changed, 2064 insertions(+), 169 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 24b44e7..8049830 100644
+index 9eb2b8f..d338424 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -576,8 +576,7 @@ free:
+@@ -615,8 +615,7 @@ free:
  	if (mt76_is_testmode_skb(dev, skb, &hw)) {
  		struct mt76_phy *phy = hw->priv;
  
@@ -43,7 +43,7 @@ index 24b44e7..8049830 100644
  #endif
  
 diff --git a/mac80211.c b/mac80211.c
-index 430ed1c..fccf26d 100644
+index 432bc40..241621c 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -55,6 +55,13 @@ static const struct ieee80211_channel mt76_channels_5ghz[] = {
@@ -73,10 +73,10 @@ index 430ed1c..fccf26d 100644
  
  static const struct ieee80211_channel mt76_channels_6ghz[] = {
 diff --git a/mt76.h b/mt76.h
-index d66f4d0..597488d 100644
+index 2244ab5..7924cca 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -670,6 +670,21 @@ struct mt76_testmode_ops {
+@@ -704,6 +704,21 @@ struct mt76_testmode_ops {
  	int (*set_params)(struct mt76_phy *phy, struct nlattr **tb,
  			  enum mt76_testmode_state new_state);
  	int (*dump_stats)(struct mt76_phy *phy, struct sk_buff *msg);
@@ -98,7 +98,7 @@ index d66f4d0..597488d 100644
  };
  
  #define MT_TM_FW_RX_COUNT	BIT(0)
-@@ -678,16 +693,13 @@ struct mt76_testmode_data {
+@@ -712,16 +727,13 @@ struct mt76_testmode_data {
  	enum mt76_testmode_state state;
  
  	u32 param_set[DIV_ROUND_UP(NUM_MT76_TM_ATTRS, 32)];
@@ -117,7 +117,7 @@ index d66f4d0..597488d 100644
  	u8 tx_rate_stbc;
  	u8 tx_ltf;
  
-@@ -703,10 +715,37 @@ struct mt76_testmode_data {
+@@ -737,10 +749,37 @@ struct mt76_testmode_data {
  	u8 tx_power[4];
  	u8 tx_power_control;
  
@@ -156,7 +156,7 @@ index d66f4d0..597488d 100644
  	u32 tx_pending;
  	u32 tx_queued;
  	u16 tx_queued_limit;
-@@ -1276,6 +1315,59 @@ static inline bool mt76_testmode_enabled(struct mt76_phy *phy)
+@@ -1327,6 +1366,59 @@ static inline bool mt76_testmode_enabled(struct mt76_phy *phy)
  #endif
  }
  
@@ -216,7 +216,7 @@ index d66f4d0..597488d 100644
  static inline bool mt76_is_testmode_skb(struct mt76_dev *dev,
  					struct sk_buff *skb,
  					struct ieee80211_hw **hw)
-@@ -1286,7 +1378,8 @@ static inline bool mt76_is_testmode_skb(struct mt76_dev *dev,
+@@ -1337,7 +1429,8 @@ static inline bool mt76_is_testmode_skb(struct mt76_dev *dev,
  	for (i = 0; i < ARRAY_SIZE(dev->phys); i++) {
  		struct mt76_phy *phy = dev->phys[i];
  
@@ -226,7 +226,7 @@ index d66f4d0..597488d 100644
  			*hw = dev->phys[i]->hw;
  			return true;
  		}
-@@ -1388,7 +1481,8 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1439,7 +1532,8 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
  		       struct netlink_callback *cb, void *data, int len);
  int mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state);
@@ -237,10 +237,10 @@ index d66f4d0..597488d 100644
  static inline void mt76_testmode_reset(struct mt76_phy *phy, bool disable)
  {
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index f06a81d..60e159c 100644
+index eea6831..69babba 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -396,6 +396,7 @@ void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
+@@ -397,6 +397,7 @@ void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
  	switch (vif->type) {
  	case NL80211_IFTYPE_MESH_POINT:
  	case NL80211_IFTYPE_AP:
@@ -248,7 +248,7 @@ index f06a81d..60e159c 100644
  		if (vif->p2p && !is_mt7921(dev))
  			conn_type = CONNECTION_P2P_GC;
  		else
-@@ -577,6 +578,9 @@ void mt76_connac_mcu_wtbl_generic_tlv(struct mt76_dev *dev,
+@@ -578,6 +579,9 @@ void mt76_connac_mcu_wtbl_generic_tlv(struct mt76_dev *dev,
  	rx->rca2 = 1;
  	rx->rv = 1;
  
@@ -259,10 +259,10 @@ index f06a81d..60e159c 100644
  		return;
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index cb68141..7a7dbf4 100644
+index d4254be..b61c195 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1002,6 +1002,7 @@ enum {
+@@ -1012,6 +1012,7 @@ enum {
  	MCU_EXT_EVENT_FW_LOG_2_HOST = 0x13,
  	MCU_EXT_EVENT_THERMAL_PROTECT = 0x22,
  	MCU_EXT_EVENT_ASSERT_DUMP = 0x23,
@@ -270,7 +270,7 @@ index cb68141..7a7dbf4 100644
  	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
  	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
  	MCU_EXT_EVENT_WA_TX_STAT = 0x74,
-@@ -1211,6 +1212,7 @@ enum {
+@@ -1232,6 +1233,7 @@ enum {
  	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
  	/* for vendor csi and air monitor */
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
@@ -279,10 +279,10 @@ index cb68141..7a7dbf4 100644
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  };
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 76be730..f5ab331 100644
+index 3bb2643..0441d91 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
-@@ -131,7 +131,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
+@@ -136,7 +136,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
  		/* read eeprom data from efuse */
  		block_num = DIV_ROUND_UP(eeprom_size, eeprom_blk_size);
  		for (i = 0; i < block_num; i++) {
@@ -292,7 +292,7 @@ index 76be730..f5ab331 100644
  				return ret;
  		}
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 607d881..d908a58 100644
+index 46d9499..db61953 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -725,7 +725,7 @@ static void mt7915_init_work(struct work_struct *work)
@@ -305,7 +305,7 @@ index 607d881..d908a58 100644
  	mt7915_txbf_init(dev);
  }
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index f1c78ec..06a5fb1 100644
+index 6047121..d3b4a60 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -579,6 +579,7 @@ mt7915_mac_fill_rx_vector(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -395,7 +395,7 @@ index f1c78ec..06a5fb1 100644
  		goto out;
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 0b6622e..44a1b21 100644
+index 76d1cd7..7124e18 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -238,7 +238,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
@@ -408,7 +408,7 @@ index 0b6622e..44a1b21 100644
  		mvif->mt76.wmm_idx += 2;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 7b3c70e..0d1e09c 100644
+index 9bd9253..8288589 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -391,6 +391,11 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -547,7 +547,7 @@ index c15b4b7..9982735 100644
  
  enum {
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 10c2c7d..87a5c5c 100644
+index 0fd1a34..c0cf8fb 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -134,6 +134,7 @@ static const u32 mt7915_offs[] = {

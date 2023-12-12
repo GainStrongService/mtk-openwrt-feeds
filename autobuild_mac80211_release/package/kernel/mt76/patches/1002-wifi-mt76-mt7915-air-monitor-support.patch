@@ -1,7 +1,7 @@
-From 9887703630f6949fffbbca476a121a38afc2d558 Mon Sep 17 00:00:00 2001
+From 5ab9578a1e2d4b4092b4108508347627da897cf8 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Tue, 11 Jan 2022 12:03:23 +0800
-Subject: [PATCH 1002/1040] wifi: mt76: mt7915: air monitor support
+Subject: [PATCH 14/76] wifi: mt76: mt7915: air monitor support
 
 ---
  mt76_connac_mcu.h |   2 +
@@ -13,10 +13,10 @@ Subject: [PATCH 1002/1040] wifi: mt76: mt7915: air monitor support
  6 files changed, 442 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 8a377dd..c1d9191 100644
+index b31f19a..b758679 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1208,6 +1208,8 @@ enum {
+@@ -1229,6 +1229,8 @@ enum {
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
  	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
@@ -26,7 +26,7 @@ index 8a377dd..c1d9191 100644
  };
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 2650b87..f171e97 100644
+index d7b7e78..c0a390d 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -524,6 +524,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -41,10 +41,10 @@ index 2650b87..f171e97 100644
  		status->flag |= RX_FLAG_8023;
  		mt7915_wed_check_ppe(dev, &dev->mt76.q_rx[q], msta, skb,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index b4dfe4b..d667b44 100644
+index 38ffd90..3b33659 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -772,6 +772,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -773,6 +773,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	if (ret)
  		return ret;
  

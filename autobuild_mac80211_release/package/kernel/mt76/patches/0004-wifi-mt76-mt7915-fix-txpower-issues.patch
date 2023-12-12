@@ -1,22 +1,19 @@
-From 6cb2b319acc161e61dd875536bb2c8ee86efcad8 Mon Sep 17 00:00:00 2001
+From dc05c83d0f280b199b2bfdebb33acce008b57609 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Sat, 29 Jul 2023 04:53:47 +0800
-Subject: [PATCH 4/7] wifi: mt76: mt7915: fix txpower issues
+Subject: [PATCH 04/76] wifi: mt76: mt7915: fix txpower issues
 
 ---
- eeprom.c         |  4 ++--
- mac80211.c       |  2 +-
+ eeprom.c         |  2 +-
  mt7915/debugfs.c | 48 ++++++++++++++++++++++++++----------------------
- mt7915/init.c    |  2 +-
  mt7915/main.c    |  1 +
- mt7915/mcu.h     |  2 +-
- 6 files changed, 32 insertions(+), 27 deletions(-)
+ 3 files changed, 28 insertions(+), 23 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index 2558788..750e031 100644
+index 0bc66cc..ecd09c0 100644
 --- a/eeprom.c
 +++ b/eeprom.c
-@@ -338,7 +338,7 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
+@@ -343,7 +343,7 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
  	u32 ru_rates = ARRAY_SIZE(dest->ru[0]);
  	char band;
  	size_t len;
@@ -25,28 +22,6 @@ index 2558788..750e031 100644
  	s8 txs_delta;
  
  	if (!mcs_rates)
-@@ -376,7 +376,7 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
- 	if (!np)
- 		return target_power;
- 
--	txs_delta = mt76_get_txs_delta(np, hweight8(phy->antenna_mask));
-+	txs_delta = mt76_get_txs_delta(np, hweight16(phy->chainmask));
- 
- 	val = mt76_get_of_array(np, "rates-cck", &len, ARRAY_SIZE(dest->cck));
- 	mt76_apply_array_limit(dest->cck, ARRAY_SIZE(dest->cck), val,
-diff --git a/mac80211.c b/mac80211.c
-index 12fcb2b..aaaf6a9 100644
---- a/mac80211.c
-+++ b/mac80211.c
-@@ -1538,7 +1538,7 @@ int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
- 		     int *dbm)
- {
- 	struct mt76_phy *phy = hw->priv;
--	int n_chains = hweight8(phy->antenna_mask);
-+	int n_chains = hweight16(phy->chainmask);
- 	int delta = mt76_tx_power_nss_delta(n_chains);
- 
- 	*dbm = DIV_ROUND_UP(phy->txpower_cur + delta, 2);
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
 index 6c3696c..93e549c 100644
 --- a/mt7915/debugfs.c
@@ -131,24 +106,11 @@ index 6c3696c..93e549c 100644
  
  	reg = is_mt7915(&dev->mt76) ? MT_WF_PHY_TPC_CTRL_STAT(band) :
  	      MT_WF_PHY_TPC_CTRL_STAT_MT7916(band);
-diff --git a/mt7915/init.c b/mt7915/init.c
-index 294876a..d8fd8d6 100644
---- a/mt7915/init.c
-+++ b/mt7915/init.c
-@@ -278,7 +278,7 @@ static void mt7915_led_set_brightness(struct led_classdev *led_cdev,
- void mt7915_init_txpower(struct mt7915_dev *dev,
- 			 struct ieee80211_supported_band *sband)
- {
--	int i, n_chains = hweight8(dev->mphy.antenna_mask);
-+	int i, n_chains = hweight16(dev->mphy.chainmask);
- 	int nss_delta = mt76_tx_power_nss_delta(n_chains);
- 	int pwr_delta = mt7915_eeprom_get_power_delta(dev, sband->band);
- 	struct mt76_power_limits limits;
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 449c2ee..96336b6 100644
+index 1949f9a..4e0216e 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1075,6 +1075,7 @@ mt7915_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+@@ -1076,6 +1076,7 @@ mt7915_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
  	mt76_set_stream_caps(phy->mt76, true);
  	mt7915_set_stream_vht_txbf_caps(phy);
  	mt7915_set_stream_he_caps(phy);
@@ -156,19 +118,6 @@ index 449c2ee..96336b6 100644
  
  	mutex_unlock(&dev->mt76.mutex);
  
-diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index aebacc7..8f36546 100644
---- a/mt7915/mcu.h
-+++ b/mt7915/mcu.h
-@@ -574,7 +574,7 @@ static inline s8
- mt7915_get_power_bound(struct mt7915_phy *phy, s8 txpower)
- {
- 	struct mt76_phy *mphy = phy->mt76;
--	int n_chains = hweight8(mphy->antenna_mask);
-+	int n_chains = hweight16(mphy->chainmask);
- 
- 	txpower = mt76_get_sar_power(mphy, mphy->chandef.chan, txpower * 2);
- 	txpower -= mt76_tx_power_nss_delta(n_chains);
 -- 
 2.18.0
 

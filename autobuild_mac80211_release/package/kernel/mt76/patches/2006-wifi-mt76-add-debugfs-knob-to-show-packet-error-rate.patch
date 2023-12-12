@@ -1,7 +1,7 @@
-From f0c849b320b0521cae47f8bf22968b47d878f6f7 Mon Sep 17 00:00:00 2001
+From 3f8204402961042f92bcc4d7b3aa9e9bbb89c923 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 11 Jan 2023 10:56:27 +0800
-Subject: [PATCH] wifi: mt76: add debugfs knob to show packet error rate
+Subject: [PATCH 64/76] wifi: mt76: add debugfs knob to show packet error rate
 
 Get tx count and tx failed from mcu command
 ---
@@ -14,10 +14,10 @@ Get tx count and tx failed from mcu command
  6 files changed, 194 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index f6125fc..2aeb3bb 100644
+index 981445a..f5776ab 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -298,8 +298,10 @@ struct mt76_sta_stats {
+@@ -320,8 +320,10 @@ struct mt76_sta_stats {
  	u64 last_tx_bytes;
  	/* WED TX */
  	u32 tx_packets;		/* unit: MSDU */
@@ -29,10 +29,10 @@ index f6125fc..2aeb3bb 100644
  	u64 rx_bytes;
  	u32 rx_packets;
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 0229fe8..502e983 100644
+index 22a6779..66aca6d 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1173,6 +1173,7 @@ enum {
+@@ -1194,6 +1194,7 @@ enum {
  	MCU_EXT_CMD_EDCA_UPDATE = 0x27,
  	MCU_EXT_CMD_DEV_INFO_UPDATE = 0x2A,
  	MCU_EXT_CMD_THERMAL_CTRL = 0x2c,
@@ -41,7 +41,7 @@ index 0229fe8..502e983 100644
  	MCU_EXT_CMD_SET_DRR_CTRL = 0x36,
  	MCU_EXT_CMD_SET_FEATURE_CTRL = 0x38,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 920ddab..a674aa6 100644
+index d66b42a..19d5aa5 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -4287,6 +4287,114 @@ int mt7915_mcu_get_tx_rate(struct mt7915_phy *phy, u16 wcidx)

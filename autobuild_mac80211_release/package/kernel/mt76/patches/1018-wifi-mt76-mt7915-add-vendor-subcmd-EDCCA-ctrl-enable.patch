@@ -1,7 +1,7 @@
-From fb237147a73b10808a651273198583b938003338 Mon Sep 17 00:00:00 2001
+From 8fa041e702bd756560a1f409f4ad783f90b412d9 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
-Subject: [PATCH 1018/1040] wifi: mt76: mt7915: add vendor subcmd EDCCA ctrl
+Subject: [PATCH 30/76] wifi: mt76: mt7915: add vendor subcmd EDCCA ctrl
  enable/threshold/compensation
 
 Change-Id: I06a3f94d5e444be894200e2b6588d76ed38d09d0
@@ -16,10 +16,10 @@ Change-Id: I06a3f94d5e444be894200e2b6588d76ed38d09d0
  7 files changed, 265 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 2848179..4905411 100644
+index efb87d3..9e40749 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1216,6 +1216,7 @@ enum {
+@@ -1237,6 +1237,7 @@ enum {
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
@@ -28,10 +28,10 @@ index 2848179..4905411 100644
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/main.c b/mt7915/main.c
-index e11ae9f..287ca99 100644
+index d73cf9f..f7fee40 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -478,6 +478,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
+@@ -479,6 +479,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
  			mutex_unlock(&dev->mt76.mutex);
  		}
  #endif
@@ -42,7 +42,7 @@ index e11ae9f..287ca99 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 8202a4e..83ceb2e 100644
+index 174e1b0..884b394 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -4827,3 +4827,76 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
@@ -155,10 +155,10 @@ index c95d990..d271e2b 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index b41c96b..c5f4e94 100644
+index 053c6a8..795af63 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -713,7 +713,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
+@@ -714,7 +714,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
  int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
@@ -169,7 +169,7 @@ index b41c96b..c5f4e94 100644
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 3dbbd32..afba18e 100644
+index a801315..635c218 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -62,6 +62,24 @@ phy_capa_dump_policy[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP] = {
@@ -197,7 +197,7 @@ index 3dbbd32..afba18e 100644
  struct csi_null_tone {
  	u8 start;
  	u8 end;
-@@ -1017,6 +1035,108 @@ mt7915_vendor_phy_capa_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
+@@ -1018,6 +1036,108 @@ mt7915_vendor_phy_capa_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
  	return len;
  }
  
@@ -306,7 +306,7 @@ index 3dbbd32..afba18e 100644
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -1085,6 +1205,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1086,6 +1206,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.dumpit = mt7915_vendor_phy_capa_ctrl_dump,
  		.policy = phy_capa_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_PHY_CAPA_CTRL_MAX,

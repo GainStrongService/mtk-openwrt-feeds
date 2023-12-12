@@ -1,8 +1,7 @@
-From 4bca02444e44f948a9d8d26fb155c7c1f1304f31 Mon Sep 17 00:00:00 2001
+From 7144ac4907d9ca8d2364ad29e380f3d27fadc493 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
 Date: Tue, 12 Jul 2022 10:04:35 -0700
-Subject: [PATCH 1017/1040] wifi: mt76: mt7915: add phy capability vendor
- command
+Subject: [PATCH 29/76] wifi: mt76: mt7915: add phy capability vendor command
 
 ---
  mt7915/mt7915.h |  1 +
@@ -11,7 +10,7 @@ Subject: [PATCH 1017/1040] wifi: mt76: mt7915: add phy capability vendor
  3 files changed, 78 insertions(+)
 
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 135b39b..b41c96b 100644
+index 2ef63a3..053c6a8 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -11,6 +11,7 @@
@@ -23,7 +22,7 @@ index 135b39b..b41c96b 100644
  #define MT7916_WTBL_SIZE		544
  #define MT7915_WTBL_RESERVED		(mt7915_wtbl_size(dev) - 1)
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index df1cac3..3dbbd32 100644
+index 6fc88f9..a801315 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -50,6 +50,18 @@ rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
@@ -45,7 +44,7 @@ index df1cac3..3dbbd32 100644
  struct csi_null_tone {
  	u8 start;
  	u8 end;
-@@ -976,6 +988,35 @@ static int mt7915_vendor_mu_ctrl(struct wiphy *wiphy,
+@@ -977,6 +989,35 @@ static int mt7915_vendor_mu_ctrl(struct wiphy *wiphy,
  	return 0;
  }
  
@@ -81,7 +80,7 @@ index df1cac3..3dbbd32 100644
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -1033,6 +1074,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1034,6 +1075,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.doit = mt7915_vendor_mu_ctrl,
  		.policy = mu_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_MU_CTRL_MAX,

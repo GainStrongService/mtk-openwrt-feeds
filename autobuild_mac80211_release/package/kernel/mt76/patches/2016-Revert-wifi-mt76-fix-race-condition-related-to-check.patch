@@ -1,7 +1,7 @@
-From 04de28f9fec0bce1f37dd6bb3c2081d91bdc218e Mon Sep 17 00:00:00 2001
+From 32681b271d223bd7646372cae382c11d8784797b Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 23 Oct 2023 10:26:01 +0800
-Subject: [PATCH 5/6] Revert "wifi: mt76: fix race condition related to
+Subject: [PATCH 74/76] Revert "wifi: mt76: fix race condition related to
  checking tx queue fill status"
 
 This reverts commit f1e1e67d97d1e9a8bb01b59ab20c45ebc985a958.
@@ -12,10 +12,10 @@ This reverts commit f1e1e67d97d1e9a8bb01b59ab20c45ebc985a958.
  3 files changed, 20 insertions(+), 120 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index e7c4dc4..4caa714 100644
+index 09c9eb2..5e01353 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -427,9 +427,6 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
+@@ -438,9 +438,6 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
  	struct mt76_dev *dev = phy->dev;
  	struct wiphy *wiphy = hw->wiphy;
  
@@ -25,7 +25,7 @@ index e7c4dc4..4caa714 100644
  	SET_IEEE80211_DEV(hw, dev->dev);
  	SET_IEEE80211_PERM_ADDR(hw, phy->macaddr);
  
-@@ -662,7 +659,6 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
+@@ -673,7 +670,6 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
  	int ret;
  
  	dev_set_drvdata(dev->dev, dev);
@@ -33,7 +33,7 @@ index e7c4dc4..4caa714 100644
  	ret = mt76_phy_init(phy, hw);
  	if (ret)
  		return ret;
-@@ -718,7 +714,6 @@ void mt76_unregister_device(struct mt76_dev *dev)
+@@ -729,7 +725,6 @@ void mt76_unregister_device(struct mt76_dev *dev)
  	if (IS_ENABLED(CONFIG_MT76_LEDS))
  		mt76_led_cleanup(&dev->phy);
  	mt76_tx_status_check(dev, true);
@@ -41,7 +41,7 @@ index e7c4dc4..4caa714 100644
  	ieee80211_unregister_hw(hw);
  }
  EXPORT_SYMBOL_GPL(mt76_unregister_device);
-@@ -1465,9 +1460,6 @@ EXPORT_SYMBOL_GPL(mt76_sta_pre_rcu_remove);
+@@ -1477,9 +1472,6 @@ EXPORT_SYMBOL_GPL(mt76_sta_pre_rcu_remove);
  
  void mt76_wcid_init(struct mt76_wcid *wcid)
  {
@@ -51,7 +51,7 @@ index e7c4dc4..4caa714 100644
  	INIT_LIST_HEAD(&wcid->list);
  	idr_init(&wcid->pktid);
  }
-@@ -1475,32 +1467,13 @@ EXPORT_SYMBOL_GPL(mt76_wcid_init);
+@@ -1487,32 +1479,13 @@ EXPORT_SYMBOL_GPL(mt76_wcid_init);
  
  void mt76_wcid_cleanup(struct mt76_dev *dev, struct mt76_wcid *wcid)
  {
@@ -85,10 +85,10 @@ index e7c4dc4..4caa714 100644
  EXPORT_SYMBOL_GPL(mt76_wcid_cleanup);
  
 diff --git a/mt76.h b/mt76.h
-index 3ff348f..5eb571e 100644
+index 699d84e..70801f7 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -354,9 +354,6 @@ struct mt76_wcid {
+@@ -380,9 +380,6 @@ struct mt76_wcid {
  	u32 tx_info;
  	bool sw_iv;
  
@@ -98,7 +98,7 @@ index 3ff348f..5eb571e 100644
  	struct list_head list;
  	struct idr pktid;
  
-@@ -808,8 +805,6 @@ struct mt76_phy {
+@@ -846,8 +843,6 @@ struct mt76_phy {
  	unsigned long state;
  	u8 band_idx;
  
