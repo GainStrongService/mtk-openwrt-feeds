@@ -479,6 +479,13 @@ u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
 		return (u32 *) sa_handle.p;
 	}
 
+	/* No support for aead now */
+	if (xs->aead) {
+		CRYPTO_ERR("AEAD not supported\n");
+		sa_handle.p = NULL;
+		return (u32 *) sa_handle.p;
+	}
+
 	/* Add crypto key and parameters */
 	params.CryptoAlgo = set_crypto_algo(xs->ealg);
 	params.CryptoMode = SAB_CRYPTO_MODE_CBC;
