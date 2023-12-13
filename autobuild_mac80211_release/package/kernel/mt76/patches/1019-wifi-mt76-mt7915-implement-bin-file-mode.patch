@@ -1,27 +1,27 @@
-From f0e657bc8a708806aa4cd3f6cee3e36ee5649ac3 Mon Sep 17 00:00:00 2001
+From 2b5f249307be0134f4ee8ee3ddf7a5374294ffce Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 7 Jul 2022 11:09:59 +0800
-Subject: [PATCH 31/76] wifi: mt76: mt7915: implement bin file mode
+Subject: [PATCH] wifi: mt76: mt7915: implement bin file mode
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
- eeprom.c             | 25 +++++++++++++++++
+ eeprom.c             | 25 ++++++++++++++++++
  mt76.h               |  4 +++
- mt7915/eeprom.c      | 65 +++++++++++++++++++++++++++++++++++++++++---
+ mt7915/eeprom.c      | 63 +++++++++++++++++++++++++++++++++++++++++---
  mt7915/eeprom.h      |  7 +++++
- mt7915/mt7915.h      |  3 ++
- mt7915/mtk_debugfs.c | 44 ++++++++++++++++++++++++++++++
+ mt7915/mt7915.h      |  3 +++
+ mt7915/mtk_debugfs.c | 44 +++++++++++++++++++++++++++++++
  testmode.h           |  2 +-
- 7 files changed, 145 insertions(+), 5 deletions(-)
+ 7 files changed, 144 insertions(+), 4 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index d4306c6..8f8e375 100644
+index 3625b16..9d029c0 100644
 --- a/eeprom.c
 +++ b/eeprom.c
-@@ -162,6 +162,31 @@ int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
+@@ -161,6 +161,31 @@ static int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int len)
+ 	return mt76_get_of_data_from_nvmem(dev, eep, "eeprom", len);
  }
- EXPORT_SYMBOL_GPL(mt76_get_of_eeprom);
  
 +bool mt76_check_bin_file_mode(struct mt76_dev *dev)
 +{
@@ -52,7 +52,7 @@ index d4306c6..8f8e375 100644
  mt76_eeprom_override(struct mt76_phy *phy)
  {
 diff --git a/mt76.h b/mt76.h
-index 8eb6578..99f21e2 100644
+index 87bb745..3f55022 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -977,6 +977,9 @@ struct mt76_dev {
@@ -65,16 +65,16 @@ index 8eb6578..99f21e2 100644
  };
  
  /* per-phy stats.  */
-@@ -1226,6 +1229,7 @@ int mt76_get_of_data_from_mtd(struct mt76_dev *dev, void *eep, int offset, int l
+@@ -1225,6 +1228,7 @@ void mt76_eeprom_override(struct mt76_phy *phy);
+ int mt76_get_of_data_from_mtd(struct mt76_dev *dev, void *eep, int offset, int len);
  int mt76_get_of_data_from_nvmem(struct mt76_dev *dev, void *eep,
  				const char *cell_name, int len);
- int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len);
 +bool mt76_check_bin_file_mode(struct mt76_dev *dev);
  
  struct mt76_queue *
  mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index a5c99a5..5eb9f88 100644
+index 5e74b5f..3c99b4d 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -5,6 +5,30 @@
@@ -108,19 +108,17 @@ index a5c99a5..5eb9f88 100644
  static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
  {
  	struct mt76_dev *mdev = &dev->mt76;
-@@ -24,7 +48,10 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
+@@ -25,6 +49,9 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
  
  	offs = is_mt7915(&dev->mt76) ? MT_EE_PRECAL : MT_EE_PRECAL_V2;
  
--	return mt76_get_of_eeprom(mdev, dev->cal, offs, size);
-+	if (!dev->bin_file_mode)
-+		return mt76_get_of_eeprom(mdev, dev->cal, offs, size);
-+	else
++	if (dev->bin_file_mode)
 +		return mt7915_eeprom_load_precal_binfile(dev, offs, size);
- }
- 
- static int mt7915_check_eeprom(struct mt7915_dev *dev)
-@@ -47,8 +74,11 @@ static int mt7915_check_eeprom(struct mt7915_dev *dev)
++
+ 	ret = mt76_get_of_data_from_mtd(mdev, dev->cal, offs, size);
+ 	if (!ret)
+ 		return ret;
+@@ -52,8 +79,11 @@ static int mt7915_check_eeprom(struct mt7915_dev *dev)
  	}
  }
  
@@ -133,7 +131,7 @@ index a5c99a5..5eb9f88 100644
  	switch (mt76_chip(&dev->mt76)) {
  	case 0x7915:
  		return dev->dbdc_support ?
-@@ -89,7 +119,10 @@ mt7915_eeprom_load_default(struct mt7915_dev *dev)
+@@ -94,7 +124,10 @@ mt7915_eeprom_load_default(struct mt7915_dev *dev)
  		return ret;
  
  	if (!fw || !fw->data) {
@@ -145,7 +143,7 @@ index a5c99a5..5eb9f88 100644
  		ret = -EINVAL;
  		goto out;
  	}
-@@ -114,6 +147,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
+@@ -119,6 +152,7 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
  
  	if (ret) {
  		dev->flash_mode = true;
@@ -153,7 +151,7 @@ index a5c99a5..5eb9f88 100644
  	} else {
  		u8 free_block_num;
  		u32 block_num, i;
-@@ -134,6 +168,8 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
+@@ -139,6 +173,8 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
  			if (ret < 0)
  				return ret;
  		}
@@ -162,7 +160,7 @@ index a5c99a5..5eb9f88 100644
  	}
  
  	return mt7915_check_eeprom(dev);
-@@ -239,12 +275,33 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
+@@ -244,12 +280,33 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
  {
  	int ret;
  

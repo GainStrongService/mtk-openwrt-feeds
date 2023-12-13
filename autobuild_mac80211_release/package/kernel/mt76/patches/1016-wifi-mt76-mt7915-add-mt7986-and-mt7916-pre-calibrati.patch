@@ -1,83 +1,33 @@
-From 5b989d40d72d01529ac7145fb11ebb0ebe13ba75 Mon Sep 17 00:00:00 2001
+From 3139498918652ecf180fa6ccfa465cbcdf5185fc Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
-Date: Fri, 20 May 2022 19:19:25 +0800
-Subject: [PATCH 28/76] wifi: mt76: mt7915: add mt7986 and mt7916
- pre-calibration
+Date: Wed, 13 Dec 2023 09:55:27 +0800
+Subject: [PATCH] wifi: mt76: mt7915: add mt7986 and mt7916 pre-calibration
 
 Add pre-calibration for mt7986 and mt7916. It has different data size
 with mt7915. Group cal needs 54k and 94k for 2G + 5G and 2G + 6G,
 respectively. DPD cal needs 300k.
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- eeprom.c        |  7 ++---
- mt76.h          |  1 +
- mt7915/eeprom.c | 20 +++++---------
+ mt7915/eeprom.c | 17 ++++++------
  mt7915/eeprom.h |  1 +
  mt7915/mcu.c    | 72 ++++++++++++++++++++++++++++++++++++-------------
- 5 files changed, 67 insertions(+), 34 deletions(-)
+ 3 files changed, 63 insertions(+), 27 deletions(-)
 
-diff --git a/eeprom.c b/eeprom.c
-index 3625b16..d4306c6 100644
---- a/eeprom.c
-+++ b/eeprom.c
-@@ -142,7 +142,7 @@ exit:
- }
- EXPORT_SYMBOL_GPL(mt76_get_of_data_from_nvmem);
- 
--static int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int len)
-+int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
- {
- 	struct device_node *np = dev->dev->of_node;
- 	int ret;
-@@ -154,12 +154,13 @@ static int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int len)
- 	if (!ret)
- 		return 0;
- 
--	ret = mt76_get_of_data_from_mtd(dev, eep, 0, len);
-+	ret = mt76_get_of_data_from_mtd(dev, eep, offset, len);
- 	if (!ret)
- 		return 0;
- 
- 	return mt76_get_of_data_from_nvmem(dev, eep, "eeprom", len);
- }
-+EXPORT_SYMBOL_GPL(mt76_get_of_eeprom);
- 
- void
- mt76_eeprom_override(struct mt76_phy *phy)
-@@ -422,6 +423,6 @@ mt76_eeprom_init(struct mt76_dev *dev, int len)
- 	if (!dev->eeprom.data)
- 		return -ENOMEM;
- 
--	return !mt76_get_of_eeprom(dev, dev->eeprom.data, len);
-+	return !mt76_get_of_eeprom(dev, dev->eeprom.data, 0, len);
- }
- EXPORT_SYMBOL_GPL(mt76_eeprom_init);
-diff --git a/mt76.h b/mt76.h
-index 87bb745..8eb6578 100644
---- a/mt76.h
-+++ b/mt76.h
-@@ -1225,6 +1225,7 @@ void mt76_eeprom_override(struct mt76_phy *phy);
- int mt76_get_of_data_from_mtd(struct mt76_dev *dev, void *eep, int offset, int len);
- int mt76_get_of_data_from_nvmem(struct mt76_dev *dev, void *eep,
- 				const char *cell_name, int len);
-+int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len);
- 
- struct mt76_queue *
- mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 0441d91..a5c99a5 100644
+index 0441d91..5e74b5f 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
-@@ -9,28 +9,22 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
+@@ -9,28 +9,27 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
  {
  	struct mt76_dev *mdev = &dev->mt76;
  	u8 *eeprom = mdev->eeprom.data;
 -	u32 val = eeprom[MT_EE_DO_PRE_CAL];
 -	u32 offs;
--	int ret;
 +	u32 offs = is_mt7915(&dev->mt76) ? MT_EE_DO_PRE_CAL : MT_EE_DO_PRE_CAL_V2;
 +	u32 size, val = eeprom[offs];
+ 	int ret;
  
 -	if (!dev->flash_mode)
 +	if (!dev->flash_mode || !val)
@@ -97,11 +47,12 @@ index 0441d91..a5c99a5 100644
  	offs = is_mt7915(&dev->mt76) ? MT_EE_PRECAL : MT_EE_PRECAL_V2;
  
 -	ret = mt76_get_of_data_from_mtd(mdev, dev->cal, offs, val);
--	if (!ret)
--		return ret;
--
++	ret = mt76_get_of_data_from_mtd(mdev, dev->cal, offs, size);
+ 	if (!ret)
+ 		return ret;
+ 
 -	return mt76_get_of_data_from_nvmem(mdev, dev->cal, "precal", val);
-+	return mt76_get_of_eeprom(mdev, dev->cal, offs, size);
++	return mt76_get_of_data_from_nvmem(mdev, dev->cal, "precal", size);
  }
  
  static int mt7915_check_eeprom(struct mt7915_dev *dev)
