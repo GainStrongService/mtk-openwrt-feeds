@@ -1733,8 +1733,7 @@ struct mtk_usxgmii_pcs {
 	struct mtk_eth		*eth;
 	struct regmap		*regmap;
 	struct regmap		*regmap_pextp;
-	struct delayed_work	link_poll;
-	struct completion	link_poll_completion;
+	spinlock_t		regmap_lock;
 	phy_interface_t		interface;
 	unsigned int		mode;
 	u8			id;

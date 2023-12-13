@@ -1009,7 +1009,6 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 
 		id = mtk_mac2xgmii_id(eth, mac->id);
 		mpcs = &eth->usxgmii->pcs[id];
-		cancel_delayed_work_sync(&mpcs->link_poll);
 	}
 }
 
