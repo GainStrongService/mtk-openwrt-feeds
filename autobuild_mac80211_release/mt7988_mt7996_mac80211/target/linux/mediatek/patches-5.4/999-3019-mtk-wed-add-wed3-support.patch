@@ -1,4 +1,4 @@
-From b54ca484993804cec5941bd12c6cafc9ce51e4dc Mon Sep 17 00:00:00 2001
+From 7d891b389a58e3f8c99782339df7c0b023440558 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 13:21:15 +0800
 Subject: [PATCH] mtk:wed:add wed3 support
@@ -11,20 +11,20 @@ Subject: [PATCH] mtk:wed:add wed3 support
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |    5 +-
  drivers/net/ethernet/mediatek/mtk_ppe.c       |   17 +-
  drivers/net/ethernet/mediatek/mtk_ppe.h       |    2 +-
- .../net/ethernet/mediatek/mtk_ppe_offload.c   |   13 +-
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   |   16 +-
  drivers/net/ethernet/mediatek/mtk_wed.c       | 1178 +++++++++++++----
  drivers/net/ethernet/mediatek/mtk_wed.h       |   25 +-
  .../net/ethernet/mediatek/mtk_wed_debugfs.c   |  584 +++++++-
- drivers/net/ethernet/mediatek/mtk_wed_mcu.c   |   13 +-
+ drivers/net/ethernet/mediatek/mtk_wed_mcu.c   |   14 +-
  drivers/net/ethernet/mediatek/mtk_wed_mcu.h   |    5 +-
  drivers/net/ethernet/mediatek/mtk_wed_regs.h  |  338 ++++-
  include/linux/netdevice.h                     |    7 +
  include/linux/soc/mediatek/mtk_wed.h          |   83 +-
- 16 files changed, 2069 insertions(+), 388 deletions(-)
+ 16 files changed, 2070 insertions(+), 391 deletions(-)
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/mtk_ppe.c
 
 diff --git a/arch/arm64/boot/dts/mediatek/mt7988.dtsi b/arch/arm64/boot/dts/mediatek/mt7988.dtsi
-index 561450e..8995ea3 100644
+index bcfa581..c866d85 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7988.dtsi
 @@ -205,44 +205,49 @@
@@ -214,7 +214,7 @@ index 561450e..8995ea3 100644
  	};
  
  	reserved-memory {
-@@ -902,6 +939,7 @@
+@@ -906,6 +943,7 @@
  					 <&topckgen CK_TOP_CB_SGM_325M>;
  		mediatek,ethsys = <&ethsys>;
  		mediatek,sgmiisys = <&sgmiisys0>, <&sgmiisys1>;
@@ -283,10 +283,10 @@ index e8e3a69..5dd481b 100644
 +};
 \ No newline at end of file
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 8bd526a..dea66d7 100644
+index 86ab1f1..ec5e5ec 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -5095,7 +5095,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5218,7 +5218,8 @@ static int mtk_probe(struct platform_device *pdev)
  							  "mediatek,wed", i);
  		static const u32 wdma_regs[] = {
  			MTK_WDMA0_BASE,
@@ -297,10 +297,10 @@ index 8bd526a..dea66d7 100644
  		void __iomem *wdma;
  		u32 wdma_phy;
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index ee89b4c..8656b5f 100644
+index 3ab8ab5..f10fed1 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -613,9 +613,12 @@
+@@ -623,9 +623,12 @@
  #define RX_DMA_SPORT_MASK       0x7
  #define RX_DMA_SPORT_MASK_V2    0xf
  
@@ -317,7 +317,7 @@ index ee89b4c..8656b5f 100644
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 old mode 100755
 new mode 100644
-index 384e811..eda23c2
+index 0e9c0bd..ae0acd5
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -9,6 +9,7 @@
@@ -328,7 +328,7 @@ index 384e811..eda23c2
  #include "mtk_eth_soc.h"
  #include "mtk_ppe.h"
  #include "mtk_ppe_regs.h"
-@@ -396,7 +397,7 @@ int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid)
+@@ -407,7 +408,7 @@ int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid)
  }
  
  int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
@@ -337,7 +337,7 @@ index 384e811..eda23c2
  {
  	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(entry);
  	u32 *ib2 = mtk_foe_entry_ib2(entry);
-@@ -408,6 +409,9 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
+@@ -419,6 +420,9 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
  
  	l2->winfo = FIELD_PREP(MTK_FOE_WINFO_WCID, wcid) |
  		    FIELD_PREP(MTK_FOE_WINFO_BSS, bss);
@@ -347,7 +347,7 @@ index 384e811..eda23c2
  #else
  	if (wdma_idx)
  		*ib2 |= MTK_FOE_IB2_WDMA_DEVIDX;
-@@ -443,6 +447,17 @@ int mtk_foe_entry_set_dscp(struct mtk_foe_entry *entry, int dscp)
+@@ -454,6 +458,17 @@ int mtk_foe_entry_set_dscp(struct mtk_foe_entry *entry, int dscp)
  	*ib2 &= ~MTK_FOE_IB2_DSCP;
  	*ib2 |= FIELD_PREP(MTK_FOE_IB2_DSCP, dscp);
  
@@ -356,7 +356,7 @@ index 384e811..eda23c2
 +
 +	if (*ib2 & MTK_FOE_IB2_WDMA_WINFO &&
 +	    l2->winfo_pao & MTK_FOE_WINFO_PAO_AMSDU_EN) {
-+		u8 tid = rt_tos2priority(dscp) & 0xf;
++		u8 tid = (dscp >> 5) & 0xf;
 +
 +		l2->winfo_pao |= FIELD_PREP(MTK_FOE_WINFO_PAO_TID, tid);
 +	}
@@ -379,7 +379,7 @@ index 2a8b6ef..66c7f10 100644
  int mtk_foe_entry_set_dscp(struct mtk_foe_entry *entry, int dscp);
  bool mtk_foe_entry_match(struct mtk_foe_entry *entry, struct mtk_foe_entry *data);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 95174b7..eab9e9d 100644
+index 95174b7..339359e 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 @@ -112,6 +112,7 @@ mtk_flow_get_wdma_info(struct net_device *dev, const u8 *addr, struct mtk_wdma_i
@@ -407,18 +407,28 @@ index 95174b7..eab9e9d 100644
  		else
  			return -EOPNOTSUPP;
  #endif
-@@ -490,8 +493,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -481,8 +484,6 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+ 	if (data.pppoe.num == 1)
+ 		mtk_foe_entry_set_pppoe(&foe, data.pppoe.sid);
+ 
+-	mtk_foe_entry_set_dscp(&foe, dscp);
+-
+ 	mtk_foe_entry_set_sp(eth->ppe[ppe_index], &foe);
+ 
+ 	err = mtk_flow_set_output_device(eth, &foe, odev, f->flow->ct, data.eth.h_dest,
+@@ -490,8 +491,9 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	if (err)
  		return err;
  
 -	if (wed_index >= 0 && (err = mtk_wed_flow_add(wed_index)) < 0)
 -		return err;
++	mtk_foe_entry_set_dscp(&foe, dscp);
 +	/*if (wed_index >= 0 && (err = mtk_wed_flow_add(wed_index)) < 0)
 +		return err;*/
  
  	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
  	if (!entry)
-@@ -516,8 +519,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -516,8 +518,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	mtk_foe_entry_clear(eth->ppe[ppe_index], entry);
  free:
  	kfree(entry);
@@ -2941,7 +2951,7 @@ index 4a9e684..51e3d7c 100644
  	}
  }
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_mcu.c b/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
-index 96e30a3..055594d 100644
+index b5a86f6..c2d060b 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
 @@ -245,8 +245,7 @@ mtk_wed_load_firmware(struct mtk_wed_wo *wo)
@@ -2954,7 +2964,7 @@ index 96e30a3..055594d 100644
  
  	ret = request_firmware(&fw, mcu, wo->hw->dev);
  	if (ret)
-@@ -289,8 +289,12 @@ mtk_wed_load_firmware(struct mtk_wed_wo *wo)
+@@ -293,8 +292,12 @@ mtk_wed_load_firmware(struct mtk_wed_wo *wo)
  	}
  
  	/* write the start address */
@@ -2969,7 +2979,7 @@ index 96e30a3..055594d 100644
  	wo_w32(wo, boot_cr, (wo->region[WO_REGION_EMI].addr_pa >> 16));
  
  	/* wo firmware reset */
-@@ -298,8 +302,7 @@ mtk_wed_load_firmware(struct mtk_wed_wo *wo)
+@@ -302,8 +305,7 @@ mtk_wed_load_firmware(struct mtk_wed_wo *wo)
  
  	val = wo_r32(wo, WOX_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR);
  
@@ -2980,7 +2990,7 @@ index 96e30a3..055594d 100644
  	wo_w32(wo, WOX_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR, val);
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_mcu.h b/drivers/net/ethernet/mediatek/mtk_wed_mcu.h
-index 19e1199..c07bdb6 100644
+index dbb17ae..a533b6e 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_mcu.h
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_mcu.h
 @@ -17,8 +17,9 @@
