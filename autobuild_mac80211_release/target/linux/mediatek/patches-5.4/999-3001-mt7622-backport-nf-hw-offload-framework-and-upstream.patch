@@ -6136,7 +6136,7 @@ new file mode 100644
 index 0000000..2cab008
 --- /dev/null
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
-@@ -0,0 +1,794 @@
+@@ -0,0 +1,799 @@
 +/*
 + * Copyright (C) 2018-2021 Felix Fietkau <nbd@nbd.name>
 + *
@@ -6494,7 +6494,8 @@ index 0000000..2cab008
 +				     const struct dst_entry *dst_cache,
 +				     const struct nf_conn *ct,
 +				     enum ip_conntrack_dir dir, u8 *ha,
-+				     struct net_device_path_stack *stack)
++				     struct net_device_path_stack *stack,
++				     bool is_bridge)
 +{
 +	const void *daddr = &ct->tuplehash[!dir].tuple.src.u3;
 +	struct net_device *dev = dst_cache->dev;
@@ -6504,7 +6505,7 @@ index 0000000..2cab008
 +	if (!nf_is_valid_ether_device(dev))
 +		goto out;
 +
-+	if (ct->status & IPS_NAT_MASK) {
++	if (!is_bridge) {
 +		n = dst_neigh_lookup(dst_cache, daddr);
 +		if (!n)
 +			return -1;
@@ -6535,9 +6536,13 @@ index 0000000..2cab008
 +	struct net_device_path_stack stack;
 +	struct nf_forward_info info = {};
 +	unsigned char ha[ETH_ALEN];
++	bool is_bridge = false;
 +	int i;
 +
-+	if (!(ct->status & IPS_NAT_MASK) && skb_mac_header_was_set(skb)) {
++	if (devs[dir] == devs[!dir])
++		is_bridge = true;
++
++	if (is_bridge && skb_mac_header_was_set(skb)) {
 +		eth = eth_hdr(skb);
 +		skb_dir = CTINFO2DIR(skb_get_nfct(skb) & NFCT_INFOMASK);
 +
@@ -6550,7 +6555,7 @@ index 0000000..2cab008
 +		}
 +	}
 +
-+	if (nf_dev_fill_forward_path(route, dst, ct, dir, ha, &stack) >= 0)
++	if (nf_dev_fill_forward_path(route, dst, ct, dir, ha, &stack, is_bridge) >= 0)
 +		nf_dev_path_info(&stack, &info, ha);
 +
 +	devs[!dir] = (struct net_device *)info.indev;
