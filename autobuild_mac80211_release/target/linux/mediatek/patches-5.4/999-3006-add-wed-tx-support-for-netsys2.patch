@@ -1,22 +1,35 @@
-From a0b64514c2bfe883d0128ce5bb26559c34185d90 Mon Sep 17 00:00:00 2001
+From d76914437a405265b298b7b01235a7304634c567 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 18 Sep 2023 11:01:55 +0800
-Subject: [PATCH 07/22] add-wed-tx-support-for-mt7986
+Subject: [PATCH] add-wed-tx-support-for-mt7986
 
 ---
+ arch/arm64/boot/dts/mediatek/mt7981.dtsi      |   1 +
  arch/arm64/boot/dts/mediatek/mt7986a.dtsi     |   2 +
  arch/arm64/boot/dts/mediatek/mt7986b.dtsi     |   2 +
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  17 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |   5 +
- drivers/net/ethernet/mediatek/mtk_wed.c       | 496 +++++++++++++-----
+ drivers/net/ethernet/mediatek/mtk_wed.c       | 498 +++++++++++++-----
  drivers/net/ethernet/mediatek/mtk_wed.h       |  18 +-
  .../net/ethernet/mediatek/mtk_wed_debugfs.c   |   3 +
  drivers/net/ethernet/mediatek/mtk_wed_regs.h  | 130 ++++-
  include/linux/soc/mediatek/mtk_wed.h          |  23 +
- 9 files changed, 547 insertions(+), 149 deletions(-)
+ 10 files changed, 549 insertions(+), 150 deletions(-)
 
+diff --git a/arch/arm64/boot/dts/mediatek/mt7981.dtsi b/arch/arm64/boot/dts/mediatek/mt7981.dtsi
+index e1b9b2c..3e0d2c0 100644
+--- a/arch/arm64/boot/dts/mediatek/mt7981.dtsi
++++ b/arch/arm64/boot/dts/mediatek/mt7981.dtsi
+@@ -96,6 +96,7 @@
+ 		reg = <0 0x15010000 0 0x1000>;
+ 		interrupt-parent = <&gic>;
+ 		interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
++		mediatek,wed_pcie = <&wed_pcie>;
+ 	};
+ 
+ 	ap2woccif: ap2woccif@151A5000 {
 diff --git a/arch/arm64/boot/dts/mediatek/mt7986a.dtsi b/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
-index 0c54e12..3ff8994 100644
+index 7e3101c..e9756bd 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7986a.dtsi
 @@ -64,6 +64,7 @@
@@ -36,7 +49,7 @@ index 0c54e12..3ff8994 100644
  
  	ap2woccif: ap2woccif@151A5000 {
 diff --git a/arch/arm64/boot/dts/mediatek/mt7986b.dtsi b/arch/arm64/boot/dts/mediatek/mt7986b.dtsi
-index 2d2207f..043e509 100644
+index a780cfb..eafe314 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7986b.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7986b.dtsi
 @@ -64,6 +64,7 @@
@@ -55,23 +68,11 @@ index 2d2207f..043e509 100644
  	};
  
  	ap2woccif: ap2woccif@151A5000 {
-diff --git a/arch/arm64/boot/dts/mediatek/mt7981.dtsi b/arch/arm64/boot/dts/mediatek/mt7981.dtsi
-index b2f53b13..d34943e7 100644
---- a/arch/arm64/boot/dts/mediatek/mt7981.dtsi
-+++ b/arch/arm64/boot/dts/mediatek/mt7981.dtsi
-@@ -96,6 +96,7 @@
- 		reg = <0 0x15010000 0 0x1000>;
- 		interrupt-parent = <&gic>;
- 		interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
-+		mediatek,wed_pcie = <&wed_pcie>;
- 	};
- 
- 	ap2woccif: ap2woccif@151A5000 {
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index ee5e0c6..2cab49a 100644
+index 3685926..51fe4b3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4968,6 +4968,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5091,6 +5091,7 @@ static int mtk_probe(struct platform_device *pdev)
  {
  	struct device_node *mac_np, *mux_np;
  	struct mtk_eth *eth;
@@ -79,7 +80,7 @@ index ee5e0c6..2cab49a 100644
  	int err, i;
  
  	eth = devm_kzalloc(&pdev->dev, sizeof(*eth), GFP_KERNEL);
-@@ -4988,13 +4989,12 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5111,13 +5112,12 @@ static int mtk_probe(struct platform_device *pdev)
  			return PTR_ERR(eth->sram_base);
  	}
  
@@ -98,7 +99,7 @@ index ee5e0c6..2cab49a 100644
  
  	mtk_get_hwver(eth);
  
-@@ -5090,12 +5090,15 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5213,12 +5213,15 @@ static int mtk_probe(struct platform_device *pdev)
  			MTK_WDMA1_BASE
  		};
  		void __iomem *wdma;
@@ -114,12 +115,12 @@ index ee5e0c6..2cab49a 100644
 +		mtk_wed_add_hw(np, eth, wdma, wdma_phy, i);
  	}
  
- 	for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
+ 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 783166d..960b979 100644
+index b714c27..e9d88f1 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -583,8 +583,13 @@
+@@ -593,8 +593,13 @@
  #define RX_DMA_SPORT_MASK       0x7
  #define RX_DMA_SPORT_MASK_V2    0xf
  
@@ -134,7 +135,7 @@ index 783166d..960b979 100644
  /* QDMA descriptor txd4 */
  #define TX_DMA_CHKSUM		(0x7 << 29)
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index ea1cbdf..0588e32 100644
+index ea1cbdf..948f013 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -18,15 +18,6 @@
@@ -434,7 +435,7 @@ index ea1cbdf..0588e32 100644
  	struct mtk_wed_hw *hw = dev->hw;
  
  	mutex_lock(&hw_lock);
-@@ -279,9 +420,12 @@ mtk_wed_detach(struct mtk_wed_device *dev)
+@@ -279,11 +420,14 @@ mtk_wed_detach(struct mtk_wed_device *dev)
  	mtk_wed_free_buffer(dev);
  	mtk_wed_free_tx_rings(dev);
  
@@ -448,8 +449,11 @@ index ea1cbdf..0588e32 100644
 +					   BIT(hw->index), BIT(hw->index));
 +	}
  
- 	if (!hw_list[!hw->index]->wed_dev &&
+-	if (!hw_list[!hw->index]->wed_dev &&
++	if ((!hw_list[!hw->index] || !hw_list[!hw->index]->wed_dev) &&
  	    hw->eth->dma_dev != hw->eth->dev)
+ 		mtk_eth_set_dma_device(hw->eth, hw->eth->dev);
+ 
 @@ -294,15 +438,87 @@ mtk_wed_detach(struct mtk_wed_device *dev)
  	mutex_unlock(&hw_lock);
  }
