@@ -1,4 +1,4 @@
-From bc355858a09c6a700a08bc1141912afc515e6106 Mon Sep 17 00:00:00 2001
+From a0538a9373ec7def76048e020fcb6ecfec53f3db Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 16 Nov 2023 13:18:48 +0800
 Subject: [PATCH] hostapd: mtk: add support for channel switching with csa sent
@@ -6,14 +6,14 @@ Subject: [PATCH] hostapd: mtk: add support for channel switching with csa sent
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- hostapd/ctrl_iface.c   |  83 +++++++++++++++++-----
+ hostapd/ctrl_iface.c   |  82 +++++++++++++++++-----
  src/ap/ctrl_iface_ap.c |   5 +-
- src/ap/dfs.c           | 153 +++++++++++++++++++++++++++++++++++------
+ src/ap/dfs.c           | 156 +++++++++++++++++++++++++++++++++++------
  src/ap/dfs.h           |   9 ++-
- 4 files changed, 210 insertions(+), 40 deletions(-)
+ 4 files changed, 212 insertions(+), 40 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 0afa6a2..1208241 100644
+index 0afa6a2..44903e0 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -2742,11 +2742,12 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
@@ -63,7 +63,7 @@ index 0afa6a2..1208241 100644
  		break;
  	}
  
-@@ -2797,19 +2805,30 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2797,19 +2805,29 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  	}
  
  	if (settings.freq_params.center_freq1)
@@ -97,16 +97,15 @@ index 0afa6a2..1208241 100644
 +							  bw_changed);
 +		break;
 +	case HOSTAPD_CHAN_DFS_UNAVAILABLE:
-+	case HOSTAPD_CHAN_DFS_UNKNOWN:
-+	default:
 +		wpa_printf(MSG_INFO,
-+			   "chanswitch: the dfs state of target channel is %s, so stop switching",
-+			   state == HOSTAPD_CHAN_DFS_UNAVAILABLE ? "UNAVAILABLE" : "UNKNOWN");
++			   "chanswitch: target channel is UNAVAILABLE, so stop switching");
 +		return -1;
++	default:
++		break;
  	}
  
  	for (i = 0; i < iface->num_bss; i++) {
-@@ -2826,6 +2845,36 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2826,6 +2844,36 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  		}
  	}
  
@@ -167,7 +166,7 @@ index 86e8729..005c9fa 100644
  		return -1;
  	}
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index 012050c..a73f4ba 100644
+index 012050c..5108e0a 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
 @@ -248,14 +248,15 @@ static int is_in_chanlist(struct hostapd_iface *iface,
@@ -239,14 +238,14 @@ index 012050c..a73f4ba 100644
  	struct hostapd_hw_modes *mode = iface->current_mode;
 -	int half_width;
 -	int res = 0;
-+	int half_width, state, chan_state;
++	int half_width, chan_state, state = 0;
 +	int upper, lower;
  	int i;
 +	bool in_range;
  
  	if (!iface->conf->ieee80211h || !mode ||
  	    mode->mode != HOSTAPD_MODE_IEEE80211A)
-@@ -1755,18 +1760,126 @@ int hostapd_is_dfs_overlap(struct hostapd_iface *iface, enum chan_width width,
+@@ -1755,18 +1760,129 @@ int hostapd_is_dfs_overlap(struct hostapd_iface *iface, enum chan_width width,
  		if (!(chan->flag & HOSTAPD_CHAN_RADAR))
  			continue;
  
@@ -267,8 +266,11 @@ index 012050c..a73f4ba 100644
 +				if (state != HOSTAPD_CHAN_DFS_USABLE)
 +					state = HOSTAPD_CHAN_DFS_AVAILABLE;
 +				break;
-+			case HOSTAPD_CHAN_DFS_UNAVAILABLE:
 +			case HOSTAPD_CHAN_DFS_UNKNOWN:
++				wpa_printf(MSG_WARNING, "chan %d DFS state: UNKNOWN",
++					   chan->freq);
++				/* fallthrough */
++			case HOSTAPD_CHAN_DFS_UNAVAILABLE:
 +			default:
 +				return HOSTAPD_CHAN_DFS_UNAVAILABLE;
 +			}
