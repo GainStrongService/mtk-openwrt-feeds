@@ -45,8 +45,8 @@ Subject: [PATCH 02/22] mt7622 backport nf hw offload framework and upstream
  net/netfilter/nf_flow_table_core.c            |  462 ++++---
  net/netfilter/nf_flow_table_ip.c              |  447 +++---
  net/netfilter/nf_flow_table_offload.c         | 1199 +++++++++++++++++
- net/netfilter/xt_FLOWOFFLOAD.c                |  798 +++++++++++
- 41 files changed, 4993 insertions(+), 435 deletions(-)
+ net/netfilter/xt_FLOWOFFLOAD.c                |  800 +++++++++++
+ 41 files changed, 4995 insertions(+), 435 deletions(-)
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/Makefile
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/mtk_eth_soc.c
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/mtk_eth_soc.h
@@ -6089,7 +6089,7 @@ new file mode 100644
 index 0000000..2cab008
 --- /dev/null
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
-@@ -0,0 +1,798 @@
+@@ -0,0 +1,800 @@
 +/*
 + * Copyright (C) 2018-2021 Felix Fietkau <nbd@nbd.name>
 + *
@@ -6697,6 +6697,8 @@ index 0000000..2cab008
 +
 +	if (skb->protocol == htons(ETH_P_IPV6))
 +		ct->inet6_mode = CT_INET_MODE_IPV6;
++	else
++		ct->inet6_mode = 0;
 +
 +	if (ct->status & IPS_NAT_MASK) {
 +		if (xt_flowoffload_route_nat(skb, ct, par, &route, dir, devs) < 0)
