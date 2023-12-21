@@ -1,7 +1,7 @@
-From 3f8204402961042f92bcc4d7b3aa9e9bbb89c923 Mon Sep 17 00:00:00 2001
+From 78305a57eb61142d2dcabe1c733d9014792c56d1 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 11 Jan 2023 10:56:27 +0800
-Subject: [PATCH 64/76] wifi: mt76: add debugfs knob to show packet error rate
+Subject: [PATCH] wifi: mt76: add debugfs knob to show packet error rate
 
 Get tx count and tx failed from mcu command
 ---
@@ -14,7 +14,7 @@ Get tx count and tx failed from mcu command
  6 files changed, 194 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index 981445a..f5776ab 100644
+index 2b026f7..18488f9 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -320,8 +320,10 @@ struct mt76_sta_stats {
@@ -29,7 +29,7 @@ index 981445a..f5776ab 100644
  	u64 rx_bytes;
  	u32 rx_packets;
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 22a6779..66aca6d 100644
+index ddcb2ea..ced784c 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1194,6 +1194,7 @@ enum {
@@ -41,7 +41,7 @@ index 22a6779..66aca6d 100644
  	MCU_EXT_CMD_SET_DRR_CTRL = 0x36,
  	MCU_EXT_CMD_SET_FEATURE_CTRL = 0x38,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index d66b42a..19d5aa5 100644
+index d059a03..12ead54 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -4287,6 +4287,114 @@ int mt7915_mcu_get_tx_rate(struct mt7915_phy *phy, u16 wcidx)
@@ -160,7 +160,7 @@ index d66b42a..19d5aa5 100644
  				struct cfg80211_he_bss_color *he_bss_color)
  {
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 3b169d6..7a2732c 100644
+index 675b2cc..2cb8f72 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -791,7 +791,8 @@ mt7915_get_power_bound(struct mt7915_phy *phy, s8 txpower)
@@ -173,7 +173,7 @@ index 3b169d6..7a2732c 100644
  };
  
  #ifdef CONFIG_MTK_VENDOR
-@@ -1070,6 +1071,24 @@ struct mt7915_muru {
+@@ -1067,6 +1068,24 @@ struct mt7915_muru {
  /* DL&UL User config */
  #define MURU_USER_CNT                   BIT(4)
  
@@ -199,10 +199,10 @@ index 3b169d6..7a2732c 100644
     CAPI_SU,
     CAPI_MU,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 8dd9386..79e0fae 100644
+index 5be0844..aa8ed48 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -694,6 +694,7 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
+@@ -732,6 +732,7 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
  int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
  				     struct cfg80211_chan_def *chandef);
  int mt7915_mcu_wed_wa_tx_stats(struct mt7915_dev *dev, u16 wcid);
@@ -211,12 +211,12 @@ index 8dd9386..79e0fae 100644
  int mt7915_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
  int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 40a6dfb..367f41d 100644
+index 06f6383..3aa7c0e 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -3828,6 +3828,66 @@ mt7915_scs_enable_set(void *data, u64 val)
- DEFINE_DEBUGFS_ATTRIBUTE(fops_scs_enable, NULL,
- 			 mt7915_scs_enable_set, "%lld\n");
+@@ -3966,6 +3966,66 @@ mt7915_thermal_recal_set(void *data, u64 val)
+ DEFINE_DEBUGFS_ATTRIBUTE(fops_thermal_recal, NULL,
+ 			 mt7915_thermal_recal_set, "%llu\n");
  
 +static int mt7915_reset_counter(void *data, u64 val)
 +{
@@ -281,15 +281,15 @@ index 40a6dfb..367f41d 100644
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  {
  	struct mt7915_dev *dev = phy->dev;
-@@ -3921,6 +3981,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
- 			    &fops_sw_aci);
+@@ -4060,6 +4120,8 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  	debugfs_create_file("sr_enable", 0200, dir, phy, &fops_sr_enable);
  	debugfs_create_file("scs_enable", 0200, dir, phy, &fops_scs_enable);
+ 	debugfs_create_file("thermal_recal", 0200, dir, dev, &fops_thermal_recal);
 +	debugfs_create_file("reset_counter", 0200, dir, dev, &fops_reset_counter);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "per", dir, mt7915_per_read);
+ 
  	return 0;
  }
- #endif
 -- 
 2.18.0
 
