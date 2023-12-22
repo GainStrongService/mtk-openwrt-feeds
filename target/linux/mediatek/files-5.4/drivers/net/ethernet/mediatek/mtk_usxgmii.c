@@ -594,8 +594,10 @@ static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 		xfi_mode = FIELD_PREP(USXGMII_XFI_RX_MODE, USXGMII_XFI_RX_MODE_5G) |
 			   FIELD_PREP(USXGMII_XFI_TX_MODE, USXGMII_XFI_TX_MODE_5G);
 		adapt_mode = USXGMII_RATE_UPDATE_MODE;
-	} else
+	} else {
+		spin_unlock(&mpcs->regmap_lock);
 		return -EINVAL;
+	}
 
 	adapt_mode |= FIELD_PREP(USXGMII_RATE_ADAPT_MODE, USXGMII_RATE_ADAPT_MODE_X1);
 
