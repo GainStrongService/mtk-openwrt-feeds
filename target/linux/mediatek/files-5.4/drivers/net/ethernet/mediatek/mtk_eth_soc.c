@@ -2170,8 +2170,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 	while (done < budget) {
 		unsigned int pktlen, *rxdcsum;
 		struct net_device *netdev = NULL;
-		dma_addr_t dma_addr = 0;
+		dma_addr_t dma_addr;
 		int mac = 0;
+
+		dma_addr = DMA_MAPPING_ERROR;
 
 		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
 		rxd = ring->dma + idx * eth->soc->txrx.rxd_size;
@@ -2229,7 +2231,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			  ((u64)(trxd.rxd2 & 0xf)) << 32 : 0;
 
 		dma_unmap_single(eth->dma_dev,
-				 (u64)(trxd.rxd1 | addr64),
+				 ((u64)(trxd.rxd1) | addr64),
 				 ring->buf_size, DMA_FROM_DEVICE);
 
 		/* receive data */
@@ -2318,7 +2320,7 @@ release_desc:
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
 			rxd->rxd2 = RX_DMA_LSO;
-		else
+		else if (dma_addr != DMA_MAPPING_ERROR)
 			rxd->rxd2 = RX_DMA_PLEN0(ring->buf_size) | addr64;
 
 		ring->calc_idx = idx;
@@ -2800,7 +2802,7 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring, int in_s
 				  ((u64)(rxd->rxd2 & 0xf)) << 32 : 0;
 
 			dma_unmap_single(eth->dma_dev,
-					 (u64)(rxd->rxd1 | addr64),
+					 ((u64)(rxd->rxd1) | addr64),
 					 ring->buf_size,
 					 DMA_FROM_DEVICE);
 			skb_free_frag(ring->data[i]);
