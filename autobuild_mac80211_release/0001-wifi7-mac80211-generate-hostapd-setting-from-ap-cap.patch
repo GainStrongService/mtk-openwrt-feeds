@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index 17e0d945..c73238a2 100644
+index 17e0d94..c73238a 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -20,6 +20,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -30,7 +30,7 @@ index 17e0d945..c73238a2 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index b5378e55..09cc2c0c 100644
+index b5378e5..0aef404 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -25,10 +25,12 @@ drv_mac80211_init_device_config() {
@@ -437,7 +437,49 @@ index b5378e55..09cc2c0c 100644
  mac80211_get_addr() {
  	local phy="$1"
  	local idx="$(($2 + 1))"
-@@ -649,7 +797,19 @@ mac80211_prepare_vif() {
+@@ -626,9 +774,41 @@ mac80211_set_ifname() {
+ 	eval "ifname=\"$phy-$prefix\${idx_$prefix:-0}\"; idx_$prefix=\$((\${idx_$prefix:-0 } + 1))"
+ }
+ 
++fill_mld_params() {
++	local target_mld_id=$1
++	local found_mld=0
++
++        mld_list="$(cat /etc/config/wireless | grep wifi-mld | cut -d ' ' -f3 | tr -s "'\n" ' ')"
++        for m in $mld_list
++        do
++		local mld_id="$(uci show wireless.$m | grep "mld_id" | cut -d '=' -f2 | tr -d "'")"
++		[ $mld_id = $target_mld_id ] || continue
++		found_mld=1
++
++                option_list="$(uci show wireless.$m | tr -s "\n" ' ')"
++                for option in $option_list
++                do
++                        local key="$(echo $option | cut -d '.' -f3 | cut -d '=' -f1)"
++                        local val="$(echo $option | cut -d '.' -f3 | cut -d '=' -f2 | tr -d "'")"
++			[ -n "$key" ] && json_add_string $key $val
++                done
++        done
++
++	if [ $found_mld -eq 0 ]; then
++		echo "mld_id $target_mld_id is not found"
++		return 1
++	fi
++	return 0
++}
++
+ mac80211_prepare_vif() {
+ 	json_select config
+ 
++	json_get_vars mld_id
++	if [ -n "$mld_id" ]; then
++		fill_mld_params $mld_id || return
++	fi
++
+ 	json_get_vars ifname mode ssid wds powersave macaddr enable wpa_psk_file vlan_file
+ 
+ 	[ -n "$ifname" ] || {
+@@ -649,7 +829,19 @@ mac80211_prepare_vif() {
  	json_add_string _ifname "$ifname"
  
  	default_macaddr=
@@ -458,7 +500,7 @@ index b5378e55..09cc2c0c 100644
  		macaddr="$(mac80211_generate_mac $phy)"
  		macidx="$(($macidx + 1))"
  		default_macaddr=1
-@@ -907,12 +1067,28 @@ wpa_supplicant_set_config() {
+@@ -907,12 +1099,28 @@ wpa_supplicant_set_config() {
  }
  
  hostapd_set_config() {
@@ -487,7 +529,7 @@ index b5378e55..09cc2c0c 100644
  	local hostapd_res="$(ubus call hostapd config_set "{ \"phy\": \"$phy\", \"config\":\"${hostapd_conf_file}\", \"prev_config\": \"${hostapd_conf_file}.prev\"}")"
  	ret="$?"
  	[ "$ret" != 0 -o -z "$hostapd_res" ] && {
-@@ -990,6 +1166,9 @@ mac80211_setup_vif() {
+@@ -990,6 +1198,9 @@ mac80211_setup_vif() {
  
  	json_select ..
  	[ -n "$failed" ] || wireless_add_vif "$name" "$ifname"
@@ -497,7 +539,7 @@ index b5378e55..09cc2c0c 100644
  }
  
  get_freq() {
-@@ -1041,6 +1220,25 @@ mac80211_reset_config() {
+@@ -1041,6 +1252,25 @@ mac80211_reset_config() {
  	wdev_tool "$phy" set_config '{}'
  }
  
@@ -523,7 +565,7 @@ index b5378e55..09cc2c0c 100644
  drv_mac80211_setup() {
  	json_select config
  	json_get_vars \
-@@ -1049,7 +1247,8 @@ drv_mac80211_setup() {
+@@ -1049,7 +1279,8 @@ drv_mac80211_setup() {
  		txpower \
  		rxantenna txantenna \
  		frag rts beacon_int:100 htmode \
@@ -533,7 +575,7 @@ index b5378e55..09cc2c0c 100644
  	json_get_values basic_rate_list basic_rate
  	json_get_values scan_list scan_list
  	json_select ..
-@@ -1084,6 +1283,7 @@ drv_mac80211_setup() {
+@@ -1084,6 +1315,7 @@ drv_mac80211_setup() {
  
  	macidx=0
  	staidx=0
@@ -541,7 +583,7 @@ index b5378e55..09cc2c0c 100644
  
  	[ -n "$chanbw" ] && {
  		for file in /sys/kernel/debug/ieee80211/$phy/ath9k*/chanbw /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode; do
-@@ -1132,14 +1332,29 @@ drv_mac80211_setup() {
+@@ -1132,14 +1364,29 @@ drv_mac80211_setup() {
  
  	wpa_supplicant_init_config
  
@@ -572,7 +614,7 @@ index b5378e55..09cc2c0c 100644
  
  	json_set_namespace wdev_uc prev
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index e24a2a63..58a0c9ff 100644
+index e24a2a6..58a0c9f 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -739,7 +781,7 @@ index e24a2a63..58a0c9ff 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 271c1f7b..80b95116 100644
+index 271c1f7..ccfeed6 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -60,7 +60,14 @@ hostapd_append_wpa_key_mgmt() {
@@ -777,7 +819,7 @@ index 271c1f7b..80b95116 100644
  	[ -n "$beacon_rate" ] && append base_cfg "beacon_rate=$beacon_rate" "$N"
  	[ -n "$rlist" ] && append base_cfg "supported_rates=$rlist" "$N"
  	[ -n "$brlist" ] && append base_cfg "basic_rates=$brlist" "$N"
-@@ -383,6 +393,25 @@ hostapd_common_add_bss_config() {
+@@ -383,6 +393,28 @@ hostapd_common_add_bss_config() {
  	config_add_string fils_dhcp
  
  	config_add_int ocv
@@ -800,10 +842,13 @@ index 271c1f7b..80b95116 100644
 +	config_add_string group_cipher
 +	config_add_string group_mgmt_cipher
 +
++	config_add_int mld_id
++	config_add_boolean mld_primary mld_single_link
++	config_add_string mld_addr
  }
  
  hostapd_set_vlan_file() {
-@@ -447,11 +476,11 @@ append_iw_nai_realm() {
+@@ -447,11 +479,11 @@ append_iw_nai_realm() {
  }
  
  append_iw_venue_name() {
@@ -817,17 +862,30 @@ index 271c1f7b..80b95116 100644
  }
  
  append_hs20_oper_friendly_name() {
-@@ -569,7 +598,8 @@ hostapd_set_bss_options() {
+@@ -569,7 +601,9 @@ hostapd_set_bss_options() {
  		ppsk airtime_bss_weight airtime_bss_limit airtime_sta_weight \
  		multicast_to_unicast_all proxy_arp per_sta_vif \
  		eap_server eap_user_file ca_cert server_cert private_key private_key_passwd server_id \
 -		vendor_elements fils ocv
 +		vendor_elements fils ocv unsol_bcast_probe_resp_interval fils_discovery_min_interval \
-+		fils_discovery_max_interval rnr group_cipher group_mgmt_cipher
++		fils_discovery_max_interval rnr group_cipher group_mgmt_cipher \
++		mld_id mld_primary mld_addr
  
  	set_default fils 0
  	set_default isolate 0
-@@ -796,6 +826,36 @@ hostapd_set_bss_options() {
+@@ -596,7 +630,10 @@ hostapd_set_bss_options() {
+ 
+ 	/usr/sbin/hostapd -vfils || fils=0
+ 
+-	append bss_conf "ctrl_interface=/var/run/hostapd"
++	if [ -z $mld_id ] || [ "$mld_primary" = "1" ]; then
++		append bss_conf "ctrl_interface=/var/run/hostapd"
++	fi
++
+ 	if [ "$isolate" -gt 0 ]; then
+ 		append bss_conf "ap_isolate=$isolate" "$N"
+ 	fi
+@@ -796,6 +833,36 @@ hostapd_set_bss_options() {
  	local auth_algs="$((($auth_mode_shared << 1) | $auth_mode_open))"
  	append bss_conf "auth_algs=${auth_algs:-1}" "$N"
  	append bss_conf "wpa=$wpa" "$N"
@@ -864,7 +922,7 @@ index 271c1f7b..80b95116 100644
  	[ -n "$wpa_pairwise" ] && append bss_conf "wpa_pairwise=$wpa_pairwise" "$N"
  
  	set_default wps_pushbutton 0
-@@ -847,7 +907,7 @@ hostapd_set_bss_options() {
+@@ -847,7 +914,7 @@ hostapd_set_bss_options() {
  	}
  
  	append bss_conf "ssid=$ssid" "$N"
@@ -873,7 +931,7 @@ index 271c1f7b..80b95116 100644
  	[ -n "$network_ifname" ] && append bss_conf "snoop_iface=$network_ifname" "$N"
  	[ -n "$iapp_interface" ] && {
  		local ifname
-@@ -962,6 +1022,8 @@ hostapd_set_bss_options() {
+@@ -962,6 +1029,8 @@ hostapd_set_bss_options() {
  	fi
  
  	if [ "$wpa" -ge "2" ]; then
@@ -882,7 +940,7 @@ index 271c1f7b..80b95116 100644
  		if [ -n "$network_bridge" -a "$rsn_preauth" = 1 ]; then
  			set_default auth_cache 1
  			append bss_conf "rsn_preauth=1" "$N"
-@@ -980,17 +1042,52 @@ hostapd_set_bss_options() {
+@@ -980,17 +1049,52 @@ hostapd_set_bss_options() {
  		append bss_conf "okc=$auth_cache" "$N"
  		[ "$auth_cache" = 0 -a "$fils" = 0 ] && append bss_conf "disable_pmksa_caching=1" "$N"
  
@@ -936,7 +994,7 @@ index 271c1f7b..80b95116 100644
  					[ -n "$ieee80211w_max_timeout" ] && \
  						append bss_conf "assoc_sa_query_max_timeout=$ieee80211w_max_timeout" "$N"
  					[ -n "$ieee80211w_retry_timeout" ] && \
-@@ -1055,9 +1152,10 @@ hostapd_set_bss_options() {
+@@ -1055,9 +1159,10 @@ hostapd_set_bss_options() {
  	json_get_vars iw_roaming_consortium iw_domain_name iw_anqp_3gpp_cell_net iw_nai_realm
  	json_get_vars iw_anqp_elem iw_qos_map_set iw_ipaddr_type_availability iw_gas_address3
  	json_get_vars iw_venue_name iw_venue_url
@@ -948,7 +1006,7 @@ index 271c1f7b..80b95116 100644
  		append bss_conf "interworking=1" "$N"
  		set_default iw_internet 1
  		set_default iw_asra 0
-@@ -1164,6 +1262,22 @@ hostapd_set_bss_options() {
+@@ -1164,6 +1269,38 @@ hostapd_set_bss_options() {
  		append bss_conf "$val" "$N"
  	done
  
@@ -968,26 +1026,69 @@ index 271c1f7b..80b95116 100644
 +		append bss_conf "rnr=$rnr" "$N"
 +	fi
 +
++	if [ -n "$mld_id" ]; then
++		if !([ "$mld_id" -ge 0 ] && [ "$mld_id" -le 255 ]); then
++			echo "Invalid mld_id: ${mld_id}"
++			return 1
++		fi
++		append bss_conf "mld_ap=1" "$N"
++		append bss_conf "mld_id=$mld_id" "$N"
++		if [ -n "$mld_addr" ]; then
++			append bss_conf "mld_addr=$mld_addr" "$N"
++		fi
++	fi
++
++	if [ "$mld_primary" -gt 0 ]; then
++		append bss_conf "mld_primary=${mld_primary}" "$N"
++	fi
++
  	append "$var" "$bss_conf" "$N"
  	return 0
  }
-@@ -1251,6 +1365,7 @@ wpa_supplicant_prepare_interface() {
+@@ -1219,7 +1356,7 @@ wpa_supplicant_prepare_interface() {
+ 
+ 	_wpa_supplicant_common "$1"
+ 
+-	json_get_vars mode wds multi_ap
++	json_get_vars mode wds multi_ap mld_single_link mld_primary
+ 
+ 	[ -n "$network_bridge" ] && {
+ 		fail=
+@@ -1251,6 +1388,23 @@ wpa_supplicant_prepare_interface() {
  		country_str="country=$country"
  	}
  
++	local mld_force_single_link=0
++	[ -n "$mld_single_link" ] && {
++		mld_force_single_link=$mld_single_link
++	}
++
++	local mld_connect_band_pref=0
++	[ "$mld_primary" -gt 0 ] && {
++		if [ "$phy" = "phy0" ]; then
++			mld_connect_band_pref=1
++		elif [ "$phy" = "phy1" ]; then
++			mld_connect_band_pref=2
++		elif [ "$phy" = "phy2" ]; then
++			mld_connect_band_pref=3
++		fi
++	}
++
 +	local tx_queue_data2_burst="tx_queue_data2_burst=0"
  	multiap_flag_file="${_config}.is_multiap"
  	if [ "$multi_ap" = "1" ]; then
  		touch "$multiap_flag_file"
-@@ -1262,6 +1377,7 @@ wpa_supplicant_prepare_interface() {
+@@ -1262,6 +1416,9 @@ wpa_supplicant_prepare_interface() {
  ${scan_list:+freq_list=$scan_list}
  $ap_scan
  $country_str
 +$tx_queue_data2_burst
++mld_connect_band_pref=$mld_connect_band_pref
++mld_force_single_link=$mld_force_single_link
  EOF
  	return 0
  }
-@@ -1533,12 +1649,39 @@ wpa_supplicant_add_network() {
+@@ -1533,12 +1690,39 @@ wpa_supplicant_add_network() {
  		;;
  	esac
  
@@ -1031,7 +1132,7 @@ index 271c1f7b..80b95116 100644
  		case "$wpa" in
  			1)
  				append network_data "proto=WPA" "$N$T"
-@@ -1548,12 +1691,58 @@ wpa_supplicant_add_network() {
+@@ -1548,12 +1732,58 @@ wpa_supplicant_add_network() {
  			;;
  		esac
  
@@ -1091,7 +1192,7 @@ index 271c1f7b..80b95116 100644
  	[ -n "$bssid" ] && append network_data "bssid=$bssid" "$N$T"
  	[ -n "$beacon_int" ] && append network_data "beacon_int=$beacon_int" "$N$T"
  
-@@ -1564,6 +1753,20 @@ wpa_supplicant_add_network() {
+@@ -1564,6 +1794,20 @@ wpa_supplicant_add_network() {
  	[ -n "$bssid_blacklist" ] && append network_data "bssid_blacklist=$bssid_blacklist" "$N$T"
  	[ -n "$bssid_whitelist" ] && append network_data "bssid_whitelist=$bssid_whitelist" "$N$T"
  
@@ -1112,7 +1213,7 @@ index 271c1f7b..80b95116 100644
  	[ -n "$basic_rate" ] && {
  		local br rate_list=
  		for br in $basic_rate; do
-@@ -1578,6 +1781,11 @@ wpa_supplicant_add_network() {
+@@ -1578,6 +1822,11 @@ wpa_supplicant_add_network() {
  		append network_data "mcast_rate=$mc_rate" "$N$T"
  	}
  
