@@ -1702,7 +1702,9 @@ struct mtk_sgmii_pcs {
 	struct mtk_eth		*eth;
 	struct regmap		*regmap;
 	struct regmap		*regmap_pextp;
+	spinlock_t		regmap_lock;
 	phy_interface_t		interface;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
 	u32			flags;
 	u32			ana_rgc3;
 	u8			id;
