@@ -1,0 +1,55 @@
+From ae11f63f8bdea17c9814386b39d64c9236e37c1a Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Tue, 26 Dec 2023 10:56:17 +0800
+Subject: [PATCH] hostapd: ucode: not to remove/create iw interface in MLD
+
+---
+ .../network/services/hostapd/files/hostapd.uc  | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/package/network/services/hostapd/files/hostapd.uc b/package/network/services/hostapd/files/hostapd.uc
+index 163d619..3782cad 100644
+--- a/package/network/services/hostapd/files/hostapd.uc
++++ b/package/network/services/hostapd/files/hostapd.uc
+@@ -27,7 +27,8 @@ function iface_remove(cfg)
+ 		return;
+ 
+ 	for (let bss in cfg.bss)
+-		wdev_remove(bss.ifname);
++		if (!bss.mld_ap || bss.mld_primary == 1)
++			wdev_remove(bss.ifname);
+ }
+ 
+ function iface_gen_config(phy, config, start_disabled)
+@@ -158,9 +159,12 @@ function iface_restart(phydev, config, old_config)
+ 	iface_update_supplicant_macaddr(phy, config);
+ 
+ 	let bss = config.bss[0];
+-	let err = wdev_create(phy, bss.ifname, { mode: "ap" });
+-	if (err)
+-		hostapd.printf(`Failed to create ${bss.ifname} on phy ${phy}: ${err}`);
++
++	if (!bss.mld_ap || bss.mld_primary == 1) {
++		let err = wdev_create(phy, bss.ifname, { mode: "ap" });
++		if (err)
++			hostapd.printf(`Failed to create ${bss.ifname} on phy ${phy}: ${err}`);
++	}
+ 
+ 	let ubus = hostapd.data.ubus;
+ 	let phy_status = ubus.call("wpa_supplicant", "phy_status", { phy: phy });
+@@ -611,6 +615,12 @@ function iface_load_config(filename)
+ 			continue;
+ 		}
+ 
++		if (val[0] == "mld_ap" && int(val[1]) == 1)
++			bss.mld_ap = 1;
++
++		if (val[0] == "mld_primary" && int(val[1]) == 1)
++			bss.mld_primary = 1;
++
+ 		if (val[0] == "nas_identifier")
+ 			bss.nasid = val[1];
+ 
+-- 
+2.25.1
+
