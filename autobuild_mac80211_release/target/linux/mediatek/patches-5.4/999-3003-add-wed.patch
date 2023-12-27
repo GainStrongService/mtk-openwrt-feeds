@@ -152,13 +152,13 @@ index 9c85e16..88b38e2
  #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
  #include "mtk_hnat/nf_hnat_mtk.h"
 @@ -2191,6 +2193,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
- 		unsigned int pktlen, *rxdcsum;
  		struct net_device *netdev = NULL;
- 		dma_addr_t dma_addr;
+ 		dma_addr_t dma_addr = DMA_MAPPING_ERROR;
+ 		u64 addr64 = 0;
 +		u32 hash, reason;
  		int mac = 0;
  
- 		dma_addr = DMA_MAPPING_ERROR;
+ 		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
 @@ -2282,6 +2285,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);

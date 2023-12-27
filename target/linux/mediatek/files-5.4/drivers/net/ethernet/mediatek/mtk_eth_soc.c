@@ -2159,7 +2159,6 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 	struct mtk_rx_ring *ring = rx_napi->rx_ring;
 	int idx;
 	struct sk_buff *skb;
-	u64 addr64 = 0;
 	u8 *data, *new_data;
 	struct mtk_rx_dma_v2 *rxd, trxd;
 	int done = 0;
@@ -2170,10 +2169,9 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 	while (done < budget) {
 		unsigned int pktlen, *rxdcsum;
 		struct net_device *netdev = NULL;
-		dma_addr_t dma_addr;
+		dma_addr_t dma_addr = DMA_MAPPING_ERROR;
+		u64 addr64 = 0;
 		int mac = 0;
-
-		dma_addr = DMA_MAPPING_ERROR;
 
 		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
 		rxd = ring->dma + idx * eth->soc->txrx.rxd_size;
@@ -2315,12 +2313,16 @@ skip_rx:
 		rxd->rxd1 = (unsigned int)dma_addr;
 
 release_desc:
-		addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
-			  RX_DMA_SDP1(dma_addr) : 0;
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) {
+			if (unlikely(dma_addr == DMA_MAPPING_ERROR))
+				addr64 = RX_DMA_GET_SDP1(rxd->rxd2);
+			else
+				addr64 = RX_DMA_SDP1(dma_addr);
+		}
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
 			rxd->rxd2 = RX_DMA_LSO;
-		else if (dma_addr != DMA_MAPPING_ERROR)
+		else
 			rxd->rxd2 = RX_DMA_PLEN0(ring->buf_size) | addr64;
 
 		ring->calc_idx = idx;

@@ -618,6 +618,7 @@
 #define RX_DMA_GET_REV(_x)	(((_x) >> 10) & 0x1f)
 #define RX_DMA_VTAG		BIT(15)
 #define RX_DMA_SDP1(_x)		((((u64)(_x)) >> 32) & 0xf)
+#define RX_DMA_GET_SDP1(_x)	((_x) & 0xf)
 
 /* QDMA descriptor rxd3 */
 #define RX_DMA_VID(_x)		((_x) & VLAN_VID_MASK)
