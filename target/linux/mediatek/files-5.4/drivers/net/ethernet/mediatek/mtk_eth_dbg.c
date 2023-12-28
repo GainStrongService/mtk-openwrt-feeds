@@ -925,12 +925,14 @@ int rx_ring_read(struct seq_file *seq, void *v)
 	struct mtk_rx_dma_v2 *rx_ring;
 	int i = 0, j = 0;
 
-	for (j = 0; j < MTK_RX_NAPI_NUM; j++) {
+	for (j = 0; j < MTK_MAX_RX_RING_NUM; j++) {
 		ring = &g_eth->rx_ring[j];
+		if (!ring->dma)
+			continue;
 
 		seq_printf(seq, "[Ring%d] next to read: %d\n", j,
 			   NEXT_DESP_IDX(ring->calc_idx, MTK_DMA_SIZE));
-		for (i = 0; i < MTK_DMA_SIZE; i++) {
+		for (i = 0; i < ring->dma_size; i++) {
 			rx_ring = ring->dma + i * eth->soc->txrx.rxd_size;
 
 			seq_printf(seq, "%d: %08x %08x %08x %08x", i,
