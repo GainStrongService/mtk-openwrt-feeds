@@ -384,11 +384,11 @@ struct hnat_ipv4_hnapt {
 	u32 resv3_1 : 9;
 	u32 eg_keep_ecn : 1;
 	u32 eg_keep_dscp : 1;
-	u32 resv3_2:15;
+	u32 resv3_2:13;
 #else
-	u32 resv3:26;
+	u32 resv3:24;
 #endif
-	u32 act_dp : 6; /* UDF */
+	u32 act_dp : 8; /* UDF */
 	u16 vlan1;
 	u16 etype;
 	u32 dmac_hi;
@@ -446,11 +446,11 @@ struct hnat_ipv4_dslite {
 		u32 resv2_1 : 1;
 		u32 eg_keep_ecn : 1;
 		u32 eg_keep_cls : 1;
-		u32 resv2_2 : 15;
+		u32 resv2_2 : 13;
 #else
-		u32 resv2 : 18;
+		u32 resv2 : 16;
 #endif
-	u32 act_dp : 6; /* UDF */
+	u32 act_dp : 8; /* UDF */
 
 	union {
 		struct hnat_info_blk2 iblk2;
@@ -515,11 +515,11 @@ struct hnat_ipv4_mape {
 		u32 resv2_1 : 1;
 		u32 eg_keep_ecn : 1;
 		u32 eg_keep_dscp : 1;
-		u32 resv2_2 : 15;
+		u32 resv2_2 : 13;
 #else
-	u32 resv2 : 18;
+	u32 resv2 : 16;
 #endif
-	u32 act_dp : 6; /* UDF */
+	u32 act_dp : 8; /* UDF */
 
 	union {
 		struct hnat_info_blk2 iblk2;
@@ -588,11 +588,11 @@ struct hnat_ipv6_3t_route {
 	u32 resv4_1 : 9;
 	u32 eg_keep_ecn : 1;
 	u32 eg_keep_cls : 1;
-	u32 resv4_2 : 15;
+	u32 resv4_2 : 13;
 #else
-	u32 resv4 : 26;
+	u32 resv4 : 24;
 #endif
-	u32 act_dp : 6; /* UDF */
+	u32 act_dp : 8; /* UDF */
 
 	union {
 		struct hnat_info_blk2 iblk2;
@@ -652,11 +652,11 @@ struct hnat_ipv6_5t_route {
 	u32 resv4_1 : 9;
 	u32 eg_keep_ecn : 1;
 	u32 eg_keep_cls : 1;
-	u32 resv4_2 : 15;
+	u32 resv4_2 : 13;
 #else
-	u32 resv4 : 26;
+	u32 resv4 : 24;
 #endif
-	u32 act_dp : 6; /* UDF */
+	u32 act_dp : 8; /* UDF */
 
 	union {
 		struct hnat_info_blk2 iblk2;
@@ -723,13 +723,13 @@ struct hnat_ipv6_6rd {
 	u32 eg_keep_tnl_qos : 1;
 	u32 resv1_2 : 4;
 	u32 per_flow_6rd_id : 1;
-	u32 resv2 : 9;
+	u32 resv2 : 7;
 #else
 	u32 resv1 : 13;
 	u32 per_flow_6rd_id : 1;
-	u32 resv2 : 9;
+	u32 resv2 : 7;
 #endif
-	u32 act_dp : 6; /* UDF */
+	u32 act_dp : 8; /* UDF */
 
 	union {
 		struct hnat_info_blk2 iblk2;
@@ -790,8 +790,8 @@ struct hnat_ipv6_hnapt {
 	u32 eg_ipv6_dir : 1;
 	u32 eg_keep_ecn : 1;
 	u32 eg_keep_cls : 1;
-	u32 resv5 : 15;
-	u32 act_dp : 6; /* UDF */
+	u32 resv5 : 13;
+	u32 act_dp : 8; /* UDF */
 
 	union {
 		struct hnat_info_blk2 iblk2;
@@ -1220,8 +1220,8 @@ enum FoeIpAct {
 #define NEXTHDR_IPIP 4
 #endif
 
-#define UDF_PINGPONG_IFIDX GENMASK(3, 0)
-#define UDF_HNAT_PRE_FILLED BIT(4)
+#define UDF_PINGPONG_IFIDX GENMASK(6, 0)
+#define UDF_HNAT_PRE_FILLED BIT(7)
 
 #define HQOS_FLAG(dev, skb, qid)			\
 	((IS_HQOS_UL_MODE && IS_WAN(dev)) ||		\
