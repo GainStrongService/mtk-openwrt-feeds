@@ -2971,66 +2971,158 @@ static ssize_t hnat_static_entry_write(struct file *file,
 	}
 
 	buf[len] = '\0';
+
+	if (sscanf(buf, "%5d %8x", &hash, &entry.ipv4_hnapt.info_blk1) != 2) {
+		pr_info("Unknown input format!\n");
+		return -EFAULT;
+	}
+
+	if (entry.ipv4_hnapt.bfib1.pkt_type == IPV4_HNAPT) {
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-	if (sscanf(buf,
-		   "%5d %8x %8x %8x %hx %hx %8x %8x %8x %hx %hx %18s %18s %4x %4x %4x",
-		   &hash,
-		   &entry.ipv4_hnapt.info_blk1,
-		   &entry.ipv4_hnapt.sip,
-		   &entry.ipv4_hnapt.dip,
-		   &entry.ipv4_hnapt.sport,
-		   &entry.ipv4_hnapt.dport,
-		   &entry.ipv4_hnapt.info_blk2,
-		   &entry.ipv4_hnapt.new_sip,
-		   &entry.ipv4_hnapt.new_dip,
-		   &entry.ipv4_hnapt.new_sport,
-		   &entry.ipv4_hnapt.new_dport,
-		   dmac_str, smac_str, &tport_id, &tops_entry, &cdrt_id) != 16)
-		return -EFAULT;
+		if (sscanf(buf,
+			"%5d %8x %8x %8x %hx %hx %8x %8x %8x %hx %hx %18s %18s %4x %4x %4x",
+			&hash,
+			&entry.ipv4_hnapt.info_blk1,
+			&entry.ipv4_hnapt.sip,
+			&entry.ipv4_hnapt.dip,
+			&entry.ipv4_hnapt.sport,
+			&entry.ipv4_hnapt.dport,
+			&entry.ipv4_hnapt.info_blk2,
+			&entry.ipv4_hnapt.new_sip,
+			&entry.ipv4_hnapt.new_dip,
+			&entry.ipv4_hnapt.new_sport,
+			&entry.ipv4_hnapt.new_dport,
+			dmac_str, smac_str, &tport_id, &tops_entry, &cdrt_id) != 16)
+			return -EFAULT;
 
-	if ((hash >= (int)hnat_priv->foe_etry_num) || (hash < -1) ||
-	    (TPORT_ID(tport_id) != tport_id) ||
-	    (TOPS_ENTRY(tops_entry) != tops_entry) ||
-	    (CDRT_ID(cdrt_id) != cdrt_id)) {
-		hnat_static_entry_help();
-		return -EFAULT;
-	}
+		if ((hash >= (int)hnat_priv->foe_etry_num) || (hash < -1) ||
+			(TPORT_ID(tport_id) != tport_id) ||
+			(TOPS_ENTRY(tops_entry) != tops_entry) ||
+			(CDRT_ID(cdrt_id) != cdrt_id)) {
+			hnat_static_entry_help();
+			return -EFAULT;
+		}
 
-	entry.ipv4_hnapt.tport_id = tport_id;
-	entry.ipv4_hnapt.tops_entry = tops_entry;
-	entry.ipv4_hnapt.cdrt_id = cdrt_id;
+		entry.ipv4_hnapt.tport_id = tport_id;
+		entry.ipv4_hnapt.tops_entry = tops_entry;
+		entry.ipv4_hnapt.cdrt_id = cdrt_id;
 #else
-	if (sscanf(buf,
-		   "%5d %8x %8x %8x %hx %hx %8x %8x %8x %hx %hx %18s %18s",
-		   &hash,
-		   &entry.ipv4_hnapt.info_blk1,
-		   &entry.ipv4_hnapt.sip,
-		   &entry.ipv4_hnapt.dip,
-		   &entry.ipv4_hnapt.sport,
-		   &entry.ipv4_hnapt.dport,
-		   &entry.ipv4_hnapt.info_blk2,
-		   &entry.ipv4_hnapt.new_sip,
-		   &entry.ipv4_hnapt.new_dip,
-		   &entry.ipv4_hnapt.new_sport,
-		   &entry.ipv4_hnapt.new_dport,
-		   dmac_str, smac_str) != 13)
-		return -EFAULT;
+		if (sscanf(buf,
+			"%5d %8x %8x %8x %hx %hx %8x %8x %8x %hx %hx %18s %18s",
+			&hash,
+			&entry.ipv4_hnapt.info_blk1,
+			&entry.ipv4_hnapt.sip,
+			&entry.ipv4_hnapt.dip,
+			&entry.ipv4_hnapt.sport,
+			&entry.ipv4_hnapt.dport,
+			&entry.ipv4_hnapt.info_blk2,
+			&entry.ipv4_hnapt.new_sip,
+			&entry.ipv4_hnapt.new_dip,
+			&entry.ipv4_hnapt.new_sport,
+			&entry.ipv4_hnapt.new_dport,
+			dmac_str, smac_str) != 13)
+			return -EFAULT;
 
-	if ((hash >= (int)hnat_priv->foe_etry_num) || (hash < -1)) {
-		hnat_static_entry_help();
+		if ((hash >= (int)hnat_priv->foe_etry_num) || (hash < -1)) {
+			hnat_static_entry_help();
+			return -EFAULT;
+		}
+#endif
+	} else if (entry.ipv4_hnapt.bfib1.pkt_type == IPV6_5T_ROUTE) {
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+		if (sscanf(buf,
+			"%5d %8x %8x%8x%8x%8x %8x%8x%8x%8x %hx %hx %8x %18s %18s %4x %4x %4x",
+			&hash,
+			&entry.ipv6_5t_route.info_blk1,
+			&entry.ipv6_5t_route.ipv6_sip0,
+			&entry.ipv6_5t_route.ipv6_sip1,
+			&entry.ipv6_5t_route.ipv6_sip2,
+			&entry.ipv6_5t_route.ipv6_sip3,
+			&entry.ipv6_5t_route.ipv6_dip0,
+			&entry.ipv6_5t_route.ipv6_dip1,
+			&entry.ipv6_5t_route.ipv6_dip2,
+			&entry.ipv6_5t_route.ipv6_dip3,
+			&entry.ipv6_5t_route.sport,
+			&entry.ipv6_5t_route.dport,
+			&entry.ipv6_5t_route.info_blk2,
+			dmac_str, smac_str, &tport_id, &tops_entry, &cdrt_id) != 18)
+			return -EFAULT;
+
+		if ((hash >= (int)hnat_priv->foe_etry_num) || (hash < -1) ||
+			(TPORT_ID(tport_id) != tport_id) ||
+			(TOPS_ENTRY(tops_entry) != tops_entry) ||
+			(CDRT_ID(cdrt_id) != cdrt_id)) {
+			hnat_static_entry_help();
+			return -EFAULT;
+		}
+
+		entry.ipv6_5t_route.tport_id = tport_id;
+		entry.ipv6_5t_route.tops_entry = tops_entry;
+		entry.ipv6_5t_route.cdrt_id = cdrt_id;
+#else
+		if (sscanf(buf,
+			"%5d %8x %8x%8x%8x%8x %8x%8x%8x%8x %hx %hx %8x %18s %18s",
+			&hash,
+			&entry.ipv6_5t_route.info_blk1,
+			&entry.ipv6_5t_route.ipv6_sip0,
+			&entry.ipv6_5t_route.ipv6_sip1,
+			&entry.ipv6_5t_route.ipv6_sip2,
+			&entry.ipv6_5t_route.ipv6_sip3,
+			&entry.ipv6_5t_route.ipv6_dip0,
+			&entry.ipv6_5t_route.ipv6_dip1,
+			&entry.ipv6_5t_route.ipv6_dip2,
+			&entry.ipv6_5t_route.ipv6_dip3,
+			&entry.ipv6_5t_route.sport,
+			&entry.ipv6_5t_route.dport,
+			&entry.ipv6_5t_route.info_blk2,
+			dmac_str, smac_str) != 15)
+			return -EFAULT;
+
+		if ((hash >= (int)hnat_priv->foe_etry_num) || (hash < -1)) {
+			hnat_static_entry_help();
+			return -EFAULT;
+		}
+#endif
+	} else {
+		pr_info("Unknown packet type!\n");
 		return -EFAULT;
 	}
-#endif
+
 
 	hnat_parse_mac(smac_str, smac);
 	hnat_parse_mac(dmac_str, dmac);
-	entry.ipv4_hnapt.dmac_hi = swab32(*((u32 *)dmac));
-	entry.ipv4_hnapt.dmac_lo = swab16(*((u16 *)&dmac[4]));
-	entry.ipv4_hnapt.smac_hi = swab32(*((u32 *)smac));
-	entry.ipv4_hnapt.smac_lo = swab16(*((u16 *)&smac[4]));
+	if (entry.ipv4_hnapt.bfib1.pkt_type == IPV4_HNAPT) {
+		entry.ipv4_hnapt.dmac_hi = swab32(*((u32 *)dmac));
+		entry.ipv4_hnapt.dmac_lo = swab16(*((u16 *)&dmac[4]));
+		entry.ipv4_hnapt.smac_hi = swab32(*((u32 *)smac));
+		entry.ipv4_hnapt.smac_lo = swab16(*((u16 *)&smac[4]));
+	} else if (entry.ipv4_hnapt.bfib1.pkt_type == IPV6_5T_ROUTE) {
+		entry.ipv6_5t_route.dmac_hi = swab32(*((u32 *)dmac));
+		entry.ipv6_5t_route.dmac_lo = swab16(*((u16 *)&dmac[4]));
+		entry.ipv6_5t_route.smac_hi = swab32(*((u32 *)smac));
+		entry.ipv6_5t_route.smac_lo = swab16(*((u16 *)&smac[4]));
+	}
 
 	if (hash == -1)
 		hash = hnat_get_ppe_hash(&entry);
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	if (CFG_PPE_NUM == 3) {
+		switch (entry.ipv4_hnapt.bfib1.sp) {
+		case NR_GMAC1_PORT:
+			ppe_id = 0;
+			break;
+		case NR_GMAC2_PORT:
+			ppe_id = 1;
+			break;
+		case NR_GMAC3_PORT:
+			ppe_id = 2;
+			break;
+		default:
+			break;
+		}
+	}
+#endif
 
 	foe = &hnat_priv->foe_table_cpu[ppe_id][hash];
 	while ((foe->ipv4_hnapt.bfib1.state == BIND) && (coll < 4)) {
@@ -3038,6 +3130,9 @@ static ssize_t hnat_static_entry_write(struct file *file,
 		coll++;
 		foe = &hnat_priv->foe_table_cpu[ppe_id][hash];
 	};
+
+	/* We must ensure all info has been updated before set to hw */
+	wmb();
 	memcpy(foe, &entry, sizeof(entry));
 
 	debug_level = 7;
