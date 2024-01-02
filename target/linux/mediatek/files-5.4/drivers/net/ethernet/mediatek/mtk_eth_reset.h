@@ -43,8 +43,14 @@
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_WDMA_CNT	(0x3)
+#define MTK_GDM_RX_BASE	(0x8)
+#define MTK_GDM_CNT_OFFSET	(0x80)
+#define MTK_GDM_TX_BASE	(0x48)
 #else
 #define MTK_WDMA_CNT	(0x2)
+#define MTK_GDM_RX_BASE	(0x8)
+#define MTK_GDM_CNT_OFFSET	(0x40)
+#define MTK_GDM_TX_BASE	(0x38)
 #endif
 
 enum mtk_reset_type {

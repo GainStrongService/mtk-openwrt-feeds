@@ -225,15 +225,12 @@ u32 mtk_monitor_wdma_tx(struct mtk_eth *eth)
 {
 	static u32 pre_dtx[MTK_WDMA_CNT];
 	static u32 err_cnt[MTK_WDMA_CNT];
-	u32 i = 0, cur_dtx = 0, tx_busy = 0, tx_rdy = 0, err_flag = 0;
-	u32 dbg_mon = 0;
+	u32 i, cur_dtx, tx_busy, err_flag = 0;
 
 	for (i = 0; i < MTK_WDMA_CNT; i++) {
 		cur_dtx = mtk_r32(eth, MTK_WDMA_DTX_PTR(i));
 		tx_busy = mtk_r32(eth, MTK_WDMA_GLO_CFG(i)) & MTK_TX_DMA_BUSY;
-		dbg_mon = mtk_r32(eth, MTK_WDMA_TX_DBG_MON0(i));
-		tx_rdy = !(dbg_mon & MTK_CDM_TXFIFO_RDY);
-		if (cur_dtx == pre_dtx[i] && tx_busy && tx_rdy) {
+		if (cur_dtx == pre_dtx[i] && tx_busy) {
 			err_cnt[i]++;
 			if (err_cnt[i] >= 3) {
 				pr_info("WDMA %d Info\n", i);
@@ -513,6 +510,111 @@ u32 mtk_monitor_tdma_rx(struct mtk_eth *eth)
 		return 0;
 }
 
+u32 mtk_monitor_gdm_rx(struct mtk_eth *eth)
+{
+	static u32 gmac_cnt[MTK_MAX_DEVS];
+	static u32 gdm_cnt[MTK_MAX_DEVS];
+	static u32 pre_fsm[MTK_MAX_DEVS];
+	static u32 pre_ipq[MTK_MAX_DEVS];
+	u32 mib_base = MTK_GDM1_TX_GBCNT;
+	u32 gmac_rxcnt[MTK_MAX_DEVS];
+	u32 is_gmac_rx[MTK_MAX_DEVS];
+	u32 cur_fsm, pse_ipq, err_flag = 0, i;
+
+	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		is_gmac_rx[i] = (mtk_r32(eth, MTK_MAC_FSM(i)) & 0xFF0000) != 0x10000;
+		gmac_rxcnt[i] =
+			mtk_r32(eth, mib_base + MTK_GDM_RX_BASE + i * MTK_GDM_CNT_OFFSET);
+		if (is_gmac_rx[i] && (gmac_rxcnt[i] == 0))
+			gmac_cnt[i]++;
+		if (gmac_cnt[i] > 4) {
+			pr_info("GMAC%d Rx Info\n", i+1);
+			pr_info("err_cnt = %d", gmac_cnt[i]);
+			pr_info("GMAC_FSM = 0x%x\n",
+				mtk_r32(eth, MTK_MAC_FSM(i)));
+			err_flag = 1;
+		} else
+			gmac_cnt[i] = 0;
+	}
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		for (i = 0; i < MTK_MAX_DEVS; i++) {
+			if (i == 0) {
+				pse_ipq = (mtk_r32(eth, MTK_PSE_IQ_STA(0)) >> 16) & 0xFFF;
+				cur_fsm = mtk_r32(eth, MTK_FE_GDM1_FSM) & 0xFF;
+			} else if (i == 1) {
+				pse_ipq = mtk_r32(eth, MTK_PSE_IQ_STA(1)) & 0xFFF;
+				cur_fsm = mtk_r32(eth, MTK_FE_GDM2_FSM) & 0xFF;
+			} else {
+				pse_ipq = (mtk_r32(eth, MTK_PSE_IQ_STA(7)) >> 16) & 0xFFF;
+				cur_fsm = mtk_r32(eth, MTK_FE_GDM3_FSM) & 0xFF;
+			}
+
+			if (((cur_fsm == pre_fsm[i] && cur_fsm == 0x23) ||
+				(cur_fsm == pre_fsm[i] && cur_fsm == 0x24)) &&
+				(pse_ipq == pre_ipq[i] && pse_ipq != 0x00)) {
+				gdm_cnt[i]++;
+				if (gdm_cnt[i] >= 3) {
+					pr_info("GDM%d Rx Info\n", i + 1);
+					pr_info("err_cnt = %d", gdm_cnt[i]);
+					pr_info("GDM%d_FSM = %x\n", i + 1,
+						mtk_r32(eth, MTK_FE_GDM_FSM(i)));
+					pr_info("==============================\n");
+					err_flag = 1;
+				}
+			} else
+				gdm_cnt[i] = 0;
+
+			pre_fsm[i] = cur_fsm;
+			pre_ipq[i] = pse_ipq;
+		}
+	}
+
+	if (err_flag)
+		return MTK_FE_STOP_TRAFFIC;
+	else
+		return 0;
+}
+
+u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
+{
+	static u32 err_cnt[MTK_MAX_DEVS];
+	u32 mib_base = MTK_GDM1_TX_GBCNT;
+	u32 gmac_txcnt[MTK_MAX_DEVS];
+	u32 is_gmac_tx[MTK_MAX_DEVS];
+	u32 err_flag = 0, i, pse_opq;
+
+	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		is_gmac_tx[i] =
+			(mtk_r32(eth, MTK_MAC_FSM(i)) & 0xFF000000) != 0x1000000;
+		gmac_txcnt[i] =
+			mtk_r32(eth, mib_base + MTK_GDM_TX_BASE + i * MTK_GDM_CNT_OFFSET);
+		if (i == 0)
+			pse_opq = (mtk_r32(eth, MTK_PSE_OQ_STA(0)) >> 16) & 0xFFF;
+		else if (i == 1)
+			pse_opq = mtk_r32(eth, MTK_PSE_OQ_STA(1)) & 0xFFF;
+		else
+			pse_opq = (mtk_r32(eth, MTK_PSE_OQ_STA(7)) >> 16) & 0xFFF;
+
+		if (is_gmac_tx[i] && (gmac_txcnt[i] == 0) && (pse_opq > 0))
+			err_cnt[i]++;
+		if (err_cnt[i] > 4) {
+			pr_info("GMAC%d Tx Info\n", i+1);
+			pr_info("err_cnt = %d", err_cnt[i]);
+			pr_info("GMAC_FSM = 0x%x\n",
+				mtk_r32(eth, MTK_MAC_FSM(i)));
+			err_flag = 1;
+		} else
+			err_cnt[i] = 0;
+
+	}
+
+	if (err_flag)
+		return MTK_FE_STOP_TRAFFIC;
+	else
+		return 0;
+}
+
 static const mtk_monitor_xdma_func mtk_reset_monitor_func[] = {
 	[0] = mtk_monitor_wdma_tx,
 	[1] = mtk_monitor_wdma_rx,
@@ -521,6 +623,8 @@ static const mtk_monitor_xdma_func mtk_reset_monitor_func[] = {
 	[4] = mtk_monitor_adma_rx,
 	[5] = mtk_monitor_tdma_tx,
 	[6] = mtk_monitor_tdma_rx,
+	[7] = mtk_monitor_gdm_tx,
+	[8] = mtk_monitor_gdm_rx,
 };
 
 void mtk_dma_monitor(struct timer_list *t)
