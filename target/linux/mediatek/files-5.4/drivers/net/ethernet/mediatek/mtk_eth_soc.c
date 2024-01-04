@@ -242,7 +242,7 @@ static const char * const mtk_clks_source_name[] = {
 	"top_eth_xgmii_sel", "top_eth_mii_sel", "top_netsys_sel",
 	"top_netsys_500m_sel", "top_netsys_pao_2x_sel",
 	"top_netsys_sync_250m_sel", "top_netsys_ppefb_250m_sel",
-	"top_netsys_warp_sel",
+	"top_netsys_warp_sel", "top_macsec_sel", "macsec_bus_clk",
 };
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
