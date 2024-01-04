@@ -351,6 +351,14 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 	skb->dev = dst->dev;
 	/* Set magic tag for tport setting, reset to 0 after tport is set */
 	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
+
+	/*
+	 * Since skb headroom may not be copy when segment, we cannot rely on
+	 * headroom data (ex. cdrt) to decide packets should send to EIP197.
+	 * Here is a workaround that only skb with inner_protocol = ESP will
+	 * be sent to EIP197.
+	 */
+	skb->inner_protocol = IPPROTO_ESP;
 	/*
 	 * Tx packet to EIP197.
 	 * To avoid conflict of SW and HW sequence number
