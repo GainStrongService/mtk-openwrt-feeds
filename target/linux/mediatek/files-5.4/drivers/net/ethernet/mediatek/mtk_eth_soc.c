@@ -3506,6 +3506,7 @@ static irqreturn_t mtk_handle_irq_rx(int irq, void *priv)
 	struct mtk_rx_ring *ring = rx_napi->rx_ring;
 
 	if (unlikely(!(mtk_r32(eth, eth->soc->reg_map->pdma.irq_status) &
+		       mtk_r32(eth, eth->soc->reg_map->pdma.irq_mask) &
 		       MTK_RX_DONE_INT(ring->ring_no))))
 		return IRQ_NONE;
 
