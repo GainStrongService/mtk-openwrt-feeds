@@ -306,7 +306,7 @@ static inline struct neighbour *mtk_crypto_find_dst_mac(struct sk_buff *skb,  st
 		CRYPTO_INFO("%s: %s No neigh (daddr=%pI4)\n", __func__, dst->dev->name,
 				&xs->id.daddr.a4);
 		neigh = __neigh_create(&arp_tbl, &xs->id.daddr.a4, dst->dev, false);
-		neigh_output(neigh, NULL, false);
+		neigh_output(neigh, skb, false);
 		return NULL;
 	}
 
