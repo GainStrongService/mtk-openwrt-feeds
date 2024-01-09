@@ -1,7 +1,7 @@
-From 7d891b389a58e3f8c99782339df7c0b023440558 Mon Sep 17 00:00:00 2001
+From 542064ad977706558be071e0f7d706f5aa37f390 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 13:21:15 +0800
-Subject: [PATCH] mtk:wed:add wed3 support
+Subject: [PATCH 1/5] mtk:wed:add wed3 support
 
 ---
  arch/arm64/boot/dts/mediatek/mt7988.dtsi      |  152 ++-
@@ -24,10 +24,10 @@ Subject: [PATCH] mtk:wed:add wed3 support
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/mtk_ppe.c
 
 diff --git a/arch/arm64/boot/dts/mediatek/mt7988.dtsi b/arch/arm64/boot/dts/mediatek/mt7988.dtsi
-index bcfa581..c866d85 100644
+index 7e96640..3368240 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7988.dtsi
-@@ -205,44 +205,49 @@
+@@ -193,44 +193,49 @@
  		status = "disabled";
  	};
  
@@ -112,7 +112,7 @@ index bcfa581..c866d85 100644
  	};
  
  	wdma: wdma@15104800 {
-@@ -252,15 +257,25 @@
+@@ -240,15 +245,25 @@
  		      <0 0x15105000 0 0x400>;
  	};
  
@@ -146,7 +146,7 @@ index bcfa581..c866d85 100644
  	};
  
  	wocpu0_ilm: wocpu0_ilm@151E0000 {
-@@ -268,31 +283,53 @@
+@@ -256,31 +271,53 @@
  		reg = <0 0x151E0000 0 0x8000>;
  	};
  
@@ -214,8 +214,8 @@ index bcfa581..c866d85 100644
  	};
  
  	reserved-memory {
-@@ -906,6 +943,7 @@
- 					 <&topckgen CK_TOP_CB_SGM_325M>;
+@@ -901,6 +938,7 @@
+ 					 <&topckgen CK_TOP_CB_NET2_D2>;
  		mediatek,ethsys = <&ethsys>;
  		mediatek,sgmiisys = <&sgmiisys0>, <&sgmiisys1>;
 +		mediatek,wed = <&wed0>, <&wed1>, <&wed2>;
@@ -223,7 +223,7 @@ index bcfa581..c866d85 100644
  		mediatek,xfi_pextp = <&xfi_pextp0>, <&xfi_pextp1>;
  		mediatek,xfi_pll = <&xfi_pll>;
 diff --git a/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts b/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts
-index 70a7554..bed27b4 100644
+index 578a489..596f0ca 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts
 +++ b/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts
 @@ -369,9 +369,23 @@
@@ -253,10 +253,10 @@ index 70a7554..bed27b4 100644
 +};
 \ No newline at end of file
 diff --git a/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts b/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts
-index e8e3a69..5dd481b 100644
+index e743718..f430118 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts
 +++ b/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts
-@@ -379,9 +379,23 @@
+@@ -381,9 +381,23 @@
  	status = "okay";
  };
  
@@ -283,10 +283,10 @@ index e8e3a69..5dd481b 100644
 +};
 \ No newline at end of file
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 86ab1f1..ec5e5ec 100644
+index c75ce25..ec78adf 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -5218,7 +5218,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5216,7 +5216,8 @@ static int mtk_probe(struct platform_device *pdev)
  							  "mediatek,wed", i);
  		static const u32 wdma_regs[] = {
  			MTK_WDMA0_BASE,
@@ -297,7 +297,7 @@ index 86ab1f1..ec5e5ec 100644
  		void __iomem *wdma;
  		u32 wdma_phy;
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 3ab8ab5..f10fed1 100644
+index 1074f46..a788d43 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -623,9 +623,12 @@
@@ -440,7 +440,7 @@ index 95174b7..339359e 100644
  }
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 3e760f7..7b2e199 100644
+index 48c35ae..561fc6c 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -28,7 +28,7 @@ struct wo_cmd_ring {
@@ -3509,10 +3509,10 @@ index 403a36b..25be547 100644
 +#define MTK_WED_PCIE_BASE2			0x11290000
  #endif
 diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index 0967dc2..3211f34 100644
+index b2abebe..204051d 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
-@@ -875,6 +875,13 @@ struct net_device_path {
+@@ -880,6 +880,13 @@ struct net_device_path {
  			u8 queue;
  			u16 wcid;
  			u8 bss;
