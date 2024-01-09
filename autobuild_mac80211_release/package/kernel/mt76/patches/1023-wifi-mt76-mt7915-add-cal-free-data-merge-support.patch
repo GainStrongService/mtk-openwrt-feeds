@@ -1,24 +1,87 @@
-From 2b1ca7b7f8e5c65abd254b51a7a79418457684ea Mon Sep 17 00:00:00 2001
+From 33500b2f6cfab35577934ce0e97fe2d18382eb71 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 30 Mar 2023 15:12:37 +0800
-Subject: [PATCH 35/76] wifi: mt76: mt7915: add cal free data merge support
+Subject: [PATCH] wifi: mt76: mt7915: add cal free data merge support
 
 1. add basic cal free data support
 2. add E3 low yield rate workaround for panther E3 with 7976 adie
 3. add Harrier freq offset workaround
+4. add efuse dump command for verification
+   (/sys/kernel/debug/ieee80211/phyX/mt76/otp)
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- mt7915/eeprom.c | 188 ++++++++++++++++++++++++++++++++++++++++++++++++
- mt7915/mcu.c    |  13 ++--
- mt7915/mt7915.h |   1 +
- 3 files changed, 198 insertions(+), 4 deletions(-)
+ mt7915/debugfs.c |  41 +++++++++++
+ mt7915/eeprom.c  | 187 +++++++++++++++++++++++++++++++++++++++++++++++
+ mt7915/eeprom.h  |   2 +
+ mt7915/mcu.c     |  13 +++-
+ mt7915/mt7915.h  |   1 +
+ 5 files changed, 240 insertions(+), 4 deletions(-)
 
+diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
+index f181377..40a126f 100644
+--- a/mt7915/debugfs.c
++++ b/mt7915/debugfs.c
+@@ -1240,6 +1240,46 @@ mt7915_rf_regval_set(void *data, u64 val)
+ DEFINE_DEBUGFS_ATTRIBUTE(fops_rf_regval, mt7915_rf_regval_get,
+ 			 mt7915_rf_regval_set, "0x%08llx\n");
+ 
++static ssize_t
++mt7915_efuse_get(struct file *file, char __user *user_buf,
++		 size_t count, loff_t *ppos)
++{
++	struct mt7915_dev *dev = file->private_data;
++	struct mt76_dev *mdev = &dev->mt76;
++	u8 *buff = mdev->otp.data;
++	int i;
++	ssize_t ret;
++	u32 block_num;
++
++	mdev->otp.size = mt7915_eeprom_size(dev);
++	if (is_mt7986(&dev->mt76))
++		mdev->otp.size += MT_EE_ADIE1_BASE_7896;
++
++	if (!mdev->otp.data) {
++		mdev->otp.data = devm_kzalloc(mdev->dev, mdev->otp.size, GFP_KERNEL);
++		if (!mdev->otp.data)
++			return -ENOMEM;
++
++		block_num = DIV_ROUND_UP(mdev->otp.size, MT7915_EEPROM_BLOCK_SIZE);
++		for (i = 0; i < block_num; i++) {
++			buff = mdev->otp.data + i * MT7915_EEPROM_BLOCK_SIZE;
++			ret = mt7915_mcu_get_eeprom(dev, i * MT7915_EEPROM_BLOCK_SIZE, buff);
++			if (ret)
++				continue;
++		}
++	}
++
++	ret = simple_read_from_buffer(user_buf, count, ppos, mdev->otp.data, mdev->otp.size);
++
++	return ret;
++}
++
++static const struct file_operations mt7915_efuse_ops = {
++	.read = mt7915_efuse_get,
++	.open = simple_open,
++	.llseek = default_llseek,
++};
++
+ int mt7915_init_debugfs(struct mt7915_phy *phy)
+ {
+ 	struct mt7915_dev *dev = phy->dev;
+@@ -1282,6 +1322,7 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
+ 		debugfs_create_devm_seqfile(dev->mt76.dev, "rdd_monitor", dir,
+ 					    mt7915_rdd_monitor);
+ 	}
++	debugfs_create_file("otp", 0400, dir, dev, &mt7915_efuse_ops);
+ 
+ 	if (!ext_phy)
+ 		dev->debugfs_dir = dir;
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 5eb9f88..b96776d 100644
+index 3c99b4d..e11ae5e 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
-@@ -271,6 +271,190 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
+@@ -276,6 +276,189 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
  	dev->chainshift = hweight8(dev->mphy.chainmask);
  }
  
@@ -29,7 +92,6 @@ index 5eb9f88..b96776d 100644
 +#define MT_EE_ADIE1_MT7976C_OFFSET	0x270
 +#define MT_EE_ADIE1_E3_OFFSET		0x271
 +#define MT_EE_END_OFFSET		0xffff
-+#define MT_EE_ADIE1_BASE_7896		0x1000
 +	enum adie_type {
 +		ADIE_7975,
 +		ADIE_7976,
@@ -209,7 +271,7 @@ index 5eb9f88..b96776d 100644
  int mt7915_eeprom_init(struct mt7915_dev *dev)
  {
  	int ret;
-@@ -311,6 +495,10 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
+@@ -316,6 +499,10 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
  	if (ret)
  		return ret;
  
@@ -220,8 +282,21 @@ index 5eb9f88..b96776d 100644
  	mt7915_eeprom_parse_hw_cap(dev, &dev->phy);
  	memcpy(dev->mphy.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
  	       ETH_ALEN);
+diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
+index a1ab05a..dd450aa 100644
+--- a/mt7915/eeprom.h
++++ b/mt7915/eeprom.h
+@@ -67,6 +67,8 @@ enum mt7915_eeprom_field {
+ #define MT_EE_RATE_DELTA_SIGN			BIT(6)
+ #define MT_EE_RATE_DELTA_EN			BIT(7)
+ 
++#define MT_EE_ADIE1_BASE_7896			0x1000
++
+ enum mt7915_adie_sku {
+ 	MT7976_ONE_ADIE_DBDC = 0x7,
+ 	MT7975_ONE_ADIE	= 0x8,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 42f699f..d3ed33a 100644
+index bff2c97..5312806 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2879,6 +2879,7 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset, u8 *read_buf)
@@ -252,10 +327,10 @@ index 42f699f..d3ed33a 100644
  	dev_kfree_skb(skb);
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 8730655..25a6815 100644
+index ca54b33..3895ea4 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -507,6 +507,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
+@@ -545,6 +545,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
  
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);
