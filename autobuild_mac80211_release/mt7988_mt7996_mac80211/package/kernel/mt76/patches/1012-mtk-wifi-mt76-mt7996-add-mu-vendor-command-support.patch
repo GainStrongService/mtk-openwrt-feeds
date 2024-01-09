@@ -1,7 +1,7 @@
-From 842decc15bd36d4a61f17cb8927fba77b6c58999 Mon Sep 17 00:00:00 2001
+From c00796c518d5b534f77ebe2a479103dffb3488e1 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 13 Dec 2022 15:17:43 +0800
-Subject: [PATCH 1012/1041] mtk: wifi: mt76: mt7996: add mu vendor command
+Subject: [PATCH 1012/1044] mtk: wifi: mt76: mt7996: add mu vendor command
  support
 
 mtk: wifi: mt76: fix muru_onoff as all enabled by default
@@ -42,7 +42,7 @@ index 7bb17f44..6643c7a3 100644
  mt7996e-$(CONFIG_DEV_COREDUMP) += coredump.o
  mt7996e-$(CONFIG_NL80211_TESTMODE) += testmode.o
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 7cf7b0c2..c4f0ec70 100644
+index 2d8d0f42..49884cd4 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -368,6 +368,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
@@ -53,7 +53,7 @@ index 7cf7b0c2..c4f0ec70 100644
  
  	hw->sta_data_size = sizeof(struct mt7996_sta);
  	hw->vif_data_size = sizeof(struct mt7996_vif);
-@@ -621,6 +622,10 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+@@ -616,6 +617,10 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  	if (ret)
  		goto error;
  
@@ -64,7 +64,7 @@ index 7cf7b0c2..c4f0ec70 100644
  	ret = mt76_register_phy(mphy, true, mt76_rates,
  				ARRAY_SIZE(mt76_rates));
  	if (ret)
-@@ -1405,6 +1410,10 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1401,6 +1406,10 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	dev->mt76.test_ops = &mt7996_testmode_ops;
  #endif
  
@@ -76,7 +76,7 @@ index 7cf7b0c2..c4f0ec70 100644
  				   ARRAY_SIZE(mt76_rates));
  	if (ret)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index fdddf457..05fa855b 100644
+index da01f111..4ed4c8a4 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1383,6 +1383,8 @@ static void
@@ -108,7 +108,7 @@ index fdddf457..05fa855b 100644
  
  	if (sta->deflink.vht_cap.vht_supported)
  		muru->mimo_dl.vht_mu_bfee =
-@@ -4913,3 +4918,25 @@ int mt7996_mcu_set_scs(struct mt7996_phy *phy, u8 enable)
+@@ -4928,3 +4933,25 @@ int mt7996_mcu_set_scs(struct mt7996_phy *phy, u8 enable)
  	return mt76_mcu_send_msg(&phy->dev->mt76, MCU_WM_UNI_CMD(SCS),
  				 &req, sizeof(req), false);
  }

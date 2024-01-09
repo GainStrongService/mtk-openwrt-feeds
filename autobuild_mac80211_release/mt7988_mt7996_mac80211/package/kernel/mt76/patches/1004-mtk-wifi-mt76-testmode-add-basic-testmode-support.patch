@@ -1,7 +1,7 @@
-From 5ada52c4318533dafc3a77110ff161849508175c Mon Sep 17 00:00:00 2001
+From 06208f297f532c17779277a8dec486f466631791 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 1 Mar 2023 11:59:16 +0800
-Subject: [PATCH 1004/1041] mtk: wifi: mt76: testmode: add basic testmode
+Subject: [PATCH 1004/1044] mtk: wifi: mt76: testmode: add basic testmode
  support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -161,10 +161,10 @@ index de0021e4..7951b90e 100644
  {
  #ifdef CONFIG_NL80211_TESTMODE
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 823b3626..0a55a4be 100644
+index d3c05894..4796c255 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1255,12 +1255,14 @@ enum {
+@@ -1262,12 +1262,14 @@ enum {
  	MCU_UNI_CMD_EFUSE_CTRL = 0x2d,
  	MCU_UNI_CMD_RA = 0x2f,
  	MCU_UNI_CMD_MURU = 0x31,
@@ -191,7 +191,7 @@ index a056b40e..7bb17f44 100644
  
  mt7996e-y += mtk_debugfs.o mtk_mcu.o
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 7d07c1b1..8fb1015e 100644
+index 121a3c95..2299793d 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -6,6 +6,11 @@
@@ -206,7 +206,7 @@ index 7d07c1b1..8fb1015e 100644
  
  static int mt7996_check_eeprom(struct mt7996_dev *dev)
  {
-@@ -40,6 +45,9 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
+@@ -43,6 +48,9 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
  
  static char *mt7996_eeprom_name(struct mt7996_dev *dev)
  {
@@ -216,7 +216,7 @@ index 7d07c1b1..8fb1015e 100644
  	switch (mt76_chip(&dev->mt76)) {
  	case 0x7990:
  		if (dev->chip_sku == MT7996_SKU_404)
-@@ -89,21 +97,36 @@ out:
+@@ -92,21 +100,36 @@ out:
  	return ret;
  }
  
@@ -258,7 +258,7 @@ index 7d07c1b1..8fb1015e 100644
  		ret = mt7996_mcu_get_eeprom_free_block(dev, &free_block_num);
  		if (ret < 0)
  			return ret;
-@@ -115,7 +138,7 @@ static int mt7996_eeprom_load(struct mt7996_dev *dev)
+@@ -118,7 +141,7 @@ static int mt7996_eeprom_load(struct mt7996_dev *dev)
  		/* read eeprom data from efuse */
  		block_num = DIV_ROUND_UP(MT7996_EEPROM_SIZE, eeprom_blk_size);
  		for (i = 0; i < block_num; i++) {
@@ -280,10 +280,10 @@ index 72c38ad3..de3ff4e2 100644
  	MT_EE_RATE_DELTA_2G =	0x1400,
  	MT_EE_RATE_DELTA_5G =	0x147d,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index dae640e9..7bfebd38 100644
+index 5db85939..42e7071c 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -970,6 +970,10 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
+@@ -966,6 +966,10 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
  
  	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
  
@@ -294,7 +294,7 @@ index dae640e9..7bfebd38 100644
  	ret = mt7996_mcu_init(dev);
  	if (ret)
  		return ret;
-@@ -1388,6 +1392,10 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1384,6 +1388,10 @@ int mt7996_register_device(struct mt7996_dev *dev)
  
  	mt7996_init_wiphy(hw, &dev->mt76.mmio.wed);
  
@@ -385,10 +385,10 @@ index 9fbd87d5..2a93e8c2 100644
  	.sta_add_debugfs = mt7996_sta_add_debugfs,
  #endif
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b379b226..099ff74f 100644
+index 388b593d..6c89d711 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2858,8 +2858,12 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
+@@ -2873,8 +2873,12 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
  {
  	int ret;
  
@@ -403,7 +403,7 @@ index b379b226..099ff74f 100644
  	if (ret)
  		return ret;
  
-@@ -3550,17 +3554,9 @@ int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
+@@ -3565,17 +3569,9 @@ int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
  				 &req, sizeof(req), true);
  }
  
@@ -423,7 +423,7 @@ index b379b226..099ff74f 100644
  		.tag = cpu_to_le16(UNI_EFUSE_ACCESS),
  		.len = cpu_to_le16(sizeof(req) - 4),
  		.addr = cpu_to_le32(round_down(offset,
-@@ -3569,6 +3565,7 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
+@@ -3584,6 +3580,7 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
  	struct sk_buff *skb;
  	bool valid;
  	int ret;
@@ -431,7 +431,7 @@ index b379b226..099ff74f 100644
  
  	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
  					MCU_WM_UNI_CMD_QUERY(EFUSE_CTRL),
-@@ -3579,7 +3576,9 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
+@@ -3594,7 +3591,9 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
  	valid = le32_to_cpu(*(__le32 *)(skb->data + 16));
  	if (valid) {
  		u32 addr = le32_to_cpu(*(__le32 *)(skb->data + 12));
@@ -442,7 +442,7 @@ index b379b226..099ff74f 100644
  
  		skb_pull(skb, 48);
  		memcpy(buf, skb->data, MT7996_EEPROM_BLOCK_SIZE);
-@@ -4571,3 +4570,37 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, bool auto_mode,
+@@ -4586,3 +4585,37 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, bool auto_mode,
  	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(PP),
  				 &req, sizeof(req), false);
  }

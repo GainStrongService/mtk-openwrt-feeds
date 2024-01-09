@@ -1,7 +1,7 @@
-From d96436bbd8f0aa903bb0ee905a2654f81ebbfbff Mon Sep 17 00:00:00 2001
+From 9ce66350f74d9addf51f8c5742ef5adde6deaf45 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 8 May 2023 09:03:50 +0800
-Subject: [PATCH 1006/1041] mtk: wifi: mt76: mt7996: enable SCS feature for
+Subject: [PATCH 1006/1044] mtk: wifi: mt76: mt7996: enable SCS feature for
  mt7996 driver
 
 Enable Smart Carrier Sense algorithn by default to improve performance
@@ -20,10 +20,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  8 files changed, 148 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 3447f523..5e1b15c4 100644
+index e4783433..23310c4f 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1250,6 +1250,7 @@ enum {
+@@ -1257,6 +1257,7 @@ enum {
  	MCU_UNI_CMD_GET_STAT_INFO = 0x23,
  	MCU_UNI_CMD_SNIFFER = 0x24,
  	MCU_UNI_CMD_SR = 0x25,
@@ -32,10 +32,10 @@ index 3447f523..5e1b15c4 100644
  	MCU_UNI_CMD_SET_DBDC_PARMS = 0x28,
  	MCU_UNI_CMD_TXPOWER = 0x2b,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 7bfebd38..c9c7c20a 100644
+index 42e7071c..23b7e5f8 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -1378,6 +1378,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1374,6 +1374,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	dev->mt76.phy.priv = &dev->phy;
  	INIT_WORK(&dev->rc_work, mt7996_mac_sta_rc_work);
  	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt7996_mac_work);
@@ -94,10 +94,10 @@ index 2a93e8c2..97f1ef8c 100644
  	mutex_lock(&dev->mt76.mutex);
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index eb346a9c..cc417039 100644
+index 151f3788..af4d2023 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -4609,3 +4609,108 @@ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 da
+@@ -4624,3 +4624,108 @@ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 da
  	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(TXPOWER),
  				 &req, sizeof(req), false);
  }
@@ -271,7 +271,7 @@ index e7609c63..384157c8 100644
  static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
  {
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 53b11d54..ccb147e9 100644
+index ab97a372..360c4c7e 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2407,6 +2407,16 @@ static int mt7996_token_read(struct seq_file *s, void *data)

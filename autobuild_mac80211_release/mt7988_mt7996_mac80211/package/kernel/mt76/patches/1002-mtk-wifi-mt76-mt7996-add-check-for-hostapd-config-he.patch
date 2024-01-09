@@ -1,7 +1,7 @@
-From 9b07919cd131c27ae7507632a57767727815bbd9 Mon Sep 17 00:00:00 2001
+From ce7f8d1d0b181442e5a03b5f8aa9920491a8e0d5 Mon Sep 17 00:00:00 2001
 From: "Allen.Ye" <allen.ye@mediatek.com>
 Date: Thu, 8 Jun 2023 17:32:33 +0800
-Subject: [PATCH 1002/1041] mtk: wifi: mt76: mt7996: add check for hostapd
+Subject: [PATCH 1002/1044] mtk: wifi: mt76: mt7996: add check for hostapd
  config he_ldpc
 
 Add check for hostapd config he_ldpc.
@@ -15,7 +15,7 @@ Signed-off-by: Allen.Ye <allen.ye@mediatek.com>
  1 file changed, 9 insertions(+), 3 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 3ecdde86..b379b226 100644
+index ae78141e..388b593d 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1182,7 +1182,8 @@ int mt7996_mcu_add_rx_ba(struct mt7996_dev *dev,
@@ -40,7 +40,7 @@ index 3ecdde86..b379b226 100644
  	mcs_map = sta->deflink.he_cap.he_mcs_nss_supp;
  	switch (sta->deflink.bandwidth) {
  	case IEEE80211_STA_RX_BW_160:
-@@ -2108,7 +2114,7 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -2121,7 +2127,7 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  	 * update sta_rec_he here.
  	 */
  	if (changed)
@@ -49,7 +49,7 @@ index 3ecdde86..b379b226 100644
  
  	/* sta_rec_ra accommodates BW, NSS and only MCS range format
  	 * i.e 0-{7,8,9} for VHT.
-@@ -2194,7 +2200,7 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -2209,7 +2215,7 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  		/* starec amsdu */
  		mt7996_mcu_sta_amsdu_tlv(dev, skb, vif, sta);
  		/* starec he */

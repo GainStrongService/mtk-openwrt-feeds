@@ -1,7 +1,7 @@
-From 6f2a22fee13ed919b2867ed08f106a4a31e8db79 Mon Sep 17 00:00:00 2001
+From 516fdeb45c9a8c2b8af89e6edab766a4d828e8db Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 1 Mar 2023 12:12:51 +0800
-Subject: [PATCH 1010/1041] mtk: wifi: mt76: mt7996: add normal mode
+Subject: [PATCH 1010/1044] mtk: wifi: mt76: mt7996: add normal mode
  pre-calibration support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 188 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 5e1b15c4..1f0cd6e8 100644
+index 23310c4f..6a1ee3e2 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1266,6 +1266,7 @@ enum {
+@@ -1273,6 +1273,7 @@ enum {
  	MCU_UNI_CMD_PP = 0x38,
  	MCU_UNI_CMD_FIXED_RATE_TABLE = 0x40,
  	MCU_UNI_CMD_TESTMODE_CTRL = 0x46,
@@ -28,10 +28,10 @@ index 5e1b15c4..1f0cd6e8 100644
  	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
  	MCU_UNI_CMD_PER_STA_INFO = 0x6d,
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index c553a0f5..372a822f 100644
+index c334f849..d93b1558 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
-@@ -446,6 +446,10 @@ int mt7996_eeprom_init(struct mt7996_dev *dev)
+@@ -449,6 +449,10 @@ int mt7996_eeprom_init(struct mt7996_dev *dev)
  			return ret;
  	}
  
@@ -56,10 +56,10 @@ index 8b555aeb..8f0f87b6 100644
  
  #define MT_EE_WIFI_CONF0_TX_PATH		GENMASK(2, 0)
 diff --git a/mt7996/init.c b/mt7996/init.c
-index af2f4143..7cf7b0c2 100644
+index 188d4f1f..2d8d0f42 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -988,6 +988,12 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
+@@ -984,6 +984,12 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
  	if (ret < 0)
  		return ret;
  
@@ -90,10 +90,10 @@ index 9481fc5c..ae9484c3 100644
  		mt7996_tm_update_channel(phy);
  		goto out;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index d8e5c220..fdddf457 100644
+index 19b5a173..da01f111 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3624,6 +3624,172 @@ int mt7996_mcu_get_eeprom_free_block(struct mt7996_dev *dev, u8 *block_num)
+@@ -3639,6 +3639,172 @@ int mt7996_mcu_get_eeprom_free_block(struct mt7996_dev *dev, u8 *block_num)
  	return 0;
  }
  

@@ -1,7 +1,7 @@
-From f738720718ccb088c71be5dfa9bd5b9a2b7cb78e Mon Sep 17 00:00:00 2001
+From 41bbf8a772f11e565ea2a6ee7b3fd26e43f315a3 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Fri, 18 Aug 2023 10:17:08 +0800
-Subject: [PATCH 2009/2020] mtk: wifi: mt76: mt7996: add per bss statistic info
+Subject: [PATCH 2009/2028] mtk: wifi: mt76: mt7996: add per bss statistic info
 
 Whenever WED is enabled, unicast traffic might run through HW path.
 As a result, we need to count them using WM event.
@@ -22,7 +22,7 @@ as they always go through SW path and thus mac80211 can always see and count the
  3 files changed, 37 insertions(+), 5 deletions(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 10b17f7d..d807c357 100644
+index d908c795..19a7cd10 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -390,6 +390,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
@@ -34,7 +34,7 @@ index 10b17f7d..d807c357 100644
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION);
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_PROTECTION);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 5a5b549a..939b0943 100644
+index f4d50ec1..3d6cc25a 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -251,6 +251,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
@@ -46,7 +46,7 @@ index 5a5b549a..939b0943 100644
  
  	mt7996_mac_wtbl_update(dev, idx,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index e893e79b..c5167732 100644
+index 97874bb4..9076020e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -521,6 +521,27 @@ mt7996_mcu_update_tx_gi(struct rate_info *rate, struct all_sta_trx_rate *mcu_rat

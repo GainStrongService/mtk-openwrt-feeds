@@ -1,7 +1,7 @@
-From fe2c7b5514551f1b61404e9bc11cea12c6ae77de Mon Sep 17 00:00:00 2001
+From e38f980034dbfe7b9345347035e6e4042c5deadd Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Fri, 8 Sep 2023 11:57:39 +0800
-Subject: [PATCH 2014/2020] mtk: wifi: mt76: mt7996: wed: add wed support for
+Subject: [PATCH 2014/2028] mtk: wifi: mt76: mt7996: wed: add wed support for
  mt7992
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
@@ -168,10 +168,10 @@ index 773bab71..4c92f13b 100644
  		if (mt7996_band_valid(dev, MT_BAND2)) {
  			/* rx rro data queue for band2 */
 diff --git a/mt7996/init.c b/mt7996/init.c
-index a1b76e33..cc7d570a 100644
+index 32f2db33..12682c9b 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -806,6 +806,7 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
+@@ -802,6 +802,7 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
  	/* interrupt enable */
  	mt76_wr(dev, MT_RRO_HOST_INT_ENA,
  		MT_RRO_HOST_INT_ENA_HOST_RRO_DONE_ENA);
@@ -179,7 +179,7 @@ index a1b76e33..cc7d570a 100644
  #endif
  }
  
-@@ -858,6 +859,17 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
+@@ -854,6 +855,17 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
  			dev->wed_rro.addr_elem[i].phy_addr;
  	}
  
@@ -305,7 +305,7 @@ index 69d16dad..b5b97dcb 100644
  		dev->mt76.rx_token_size = MT7996_TOKEN_SIZE + wed->wlan.rx_npkt;
  	}
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 056d07fe..677f00b0 100644
+index 3ba40c3a..d1d35e56 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -122,6 +122,10 @@
@@ -328,7 +328,7 @@ index 056d07fe..677f00b0 100644
  	MT7996_RXQ_RRO_BAND2 = 6,
  	MT7996_RXQ_MSDU_PG_BAND0 = 10,
  	MT7996_RXQ_MSDU_PG_BAND1 = 11,
-@@ -540,6 +544,10 @@ struct mt7996_dev {
+@@ -541,6 +545,10 @@ struct mt7996_dev {
  			void *ptr;
  			dma_addr_t phy_addr;
  		} session;

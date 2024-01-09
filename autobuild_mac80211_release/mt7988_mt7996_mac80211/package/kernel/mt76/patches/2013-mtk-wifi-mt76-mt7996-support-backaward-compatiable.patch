@@ -1,7 +1,7 @@
-From 68d3bbf7120da35068e5983d89cae5ee470e55f4 Mon Sep 17 00:00:00 2001
+From 5fcb64a1ec7d90bdecd63ebcdb5676c4616d20cd Mon Sep 17 00:00:00 2001
 From: mtk27745 <rex.lu@mediatek.com>
 Date: Fri, 6 Oct 2023 20:59:42 +0800
-Subject: [PATCH 2013/2020] mtk: wifi: mt76: mt7996: support backaward
+Subject: [PATCH 2013/2028] mtk: wifi: mt76: mt7996: support backaward
  compatiable
 
 revert upstream wed trigger mode to polling mode
@@ -66,10 +66,10 @@ index 19e66256..8171a43d 100644
  		mt7996_irq_enable(dev, wed_irq_mask);
  		mt7996_irq_disable(dev, 0);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 939b0943..45461949 100644
+index 3d6cc25a..73bf5eea 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1593,10 +1593,10 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1601,10 +1601,10 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  	path->mtk_wdma.wcid = msta->wcid.idx;
  
  	if (ieee80211_hw_check(hw, SUPPORTS_AMSDU_IN_AMPDU) &&
@@ -84,10 +84,10 @@ index 939b0943..45461949 100644
  	ctx->dev = NULL;
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 45a44cd8..57af55ec 100644
+index c7f9e308..0fe713d6 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3247,7 +3247,7 @@ static int mt7996_mcu_wa_red_config(struct mt7996_dev *dev)
+@@ -3262,7 +3262,7 @@ static int mt7996_mcu_wa_red_config(struct mt7996_dev *dev)
  
  	if (!mtk_wed_device_active(&dev->mt76.mmio.wed))
  		req.token_per_src[RED_TOKEN_SRC_CNT - 1] =
@@ -162,7 +162,7 @@ index 488f5103..69d16dad 100644
  #else
  	return 0;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 7a1cae71..056d07fe 100644
+index 84b34ea9..3ba40c3a 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -74,6 +74,7 @@

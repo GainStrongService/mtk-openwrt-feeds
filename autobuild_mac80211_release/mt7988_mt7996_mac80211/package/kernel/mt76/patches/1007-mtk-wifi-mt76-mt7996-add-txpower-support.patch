@@ -1,25 +1,25 @@
-From f656a23959ac8662dbb38b079a7afd440367578c Mon Sep 17 00:00:00 2001
+From b02c3175d355a3cf35924ad866e92013d62dbc66 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 24 Mar 2023 23:35:30 +0800
-Subject: [PATCH 1007/1041] mtk: wifi: mt76: mt7996: add txpower support
+Subject: [PATCH 1007/1044] mtk: wifi: mt76: mt7996: add txpower support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- mt7996/eeprom.c      |  34 +++++++
- mt7996/eeprom.h      |  42 ++++++++
+ mt7996/eeprom.c      |  34 +++++
+ mt7996/eeprom.h      |  42 ++++++
  mt7996/mcu.h         |   2 +
  mt7996/mt7996.h      |   1 +
- mt7996/mtk_debugfs.c | 229 +++++++++++++++++++++++++++++++++++++++++++
- mt7996/mtk_mcu.c     |  23 +++++
- mt7996/mtk_mcu.h     |  79 +++++++++++++++
- mt7996/regs.h        |  29 +++---
- 8 files changed, 428 insertions(+), 11 deletions(-)
+ mt7996/mtk_debugfs.c | 326 +++++++++++++++++++++++++++++++++++++++++++
+ mt7996/mtk_mcu.c     |  23 +++
+ mt7996/mtk_mcu.h     |  92 ++++++++++++
+ mt7996/regs.h        |  29 ++--
+ 8 files changed, 538 insertions(+), 11 deletions(-)
 
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 29a245ce..6c1966b7 100644
+index 3aeffdfb..acc33cfe 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
-@@ -401,3 +401,37 @@ s8 mt7996_eeprom_get_power_delta(struct mt7996_dev *dev, int band)
+@@ -404,3 +404,37 @@ s8 mt7996_eeprom_get_power_delta(struct mt7996_dev *dev, int band)
  
  	return val & MT_EE_RATE_DELTA_SIGN ? delta : -delta;
  }
@@ -141,10 +141,10 @@ index 384157c8..18a6a46d 100644
  void mt7996_mcu_scs_sta_poll(struct work_struct *work);
  
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index ccb147e9..93428851 100644
+index 360c4c7e..c9b835b2 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -2417,6 +2417,232 @@ mt7996_scs_enable_set(void *data, u64 val)
+@@ -2417,6 +2417,328 @@ mt7996_scs_enable_set(void *data, u64 val)
  DEFINE_DEBUGFS_ATTRIBUTE(fops_scs_enable, NULL,
  			 mt7996_scs_enable_set, "%lld\n");
  
@@ -181,8 +181,10 @@ index ccb147e9..93428851 100644
 +
 +	buf = kzalloc(size, GFP_KERNEL);
 +	event = kzalloc(sizeof(*event), GFP_KERNEL);
-+	if (!buf || !event)
-+		return -ENOMEM;
++	if (!buf || !event) {
++		ret = -ENOMEM;
++		goto out;
++	}
 +
 +	ret = mt7996_mcu_get_tx_power_info(phy, BASIC_INFO, event);
 +	if (ret ||
@@ -269,8 +271,10 @@ index ccb147e9..93428851 100644
 +
 +	buf = kzalloc(size, GFP_KERNEL);
 +	event = kzalloc(sizeof(*event), GFP_KERNEL);
-+	if (!buf)
-+		return -ENOMEM;
++	if (!buf || !event) {
++		ret = -ENOMEM;
++		goto out;
++	}
 +
 +	ret = mt7996_mcu_get_tx_power_info(phy, PHY_RATE_INFO, event);
 +	if (ret ||
@@ -374,16 +378,109 @@ index ccb147e9..93428851 100644
 +	.llseek = default_llseek,
 +};
 +
++#define mt7996_txpower_path_puts(rate, arr_length)					\
++({											\
++	len += scnprintf(buf + len, size - len, "%-23s:", #rate " (TMAC)");		\
++	for (i = 0; i < arr_length; i++, offs++)					\
++		len += scnprintf(buf + len, size - len, " %4d",				\
++				 event->backoff_table_info.frame_power[offs]);		\
++	len += scnprintf(buf + len, size - len, "\n");					\
++})
++
++static ssize_t
++mt7996_get_txpower_path(struct file *file, char __user *user_buf,
++		       size_t count, loff_t *ppos)
++{
++	struct mt7996_phy *phy = file->private_data;
++	struct mt7996_mcu_txpower_event *event;
++	static const size_t size = 5120;
++	int i, offs = 0, len = 0;
++	ssize_t ret;
++	char *buf;
++
++	buf = kzalloc(size, GFP_KERNEL);
++	event = kzalloc(sizeof(*event), GFP_KERNEL);
++	if (!buf || !event) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	ret = mt7996_mcu_get_tx_power_info(phy, BACKOFF_TABLE_INFO, event);
++	if (ret ||
++	    le32_to_cpu(event->phy_rate_info.category) != UNI_TXPOWER_BACKOFF_TABLE_SHOW_INFO)
++		goto out;
++
++	len += scnprintf(buf + len, size - len, "\n%*c", 25, ' ');
++	len += scnprintf(buf + len, size - len, "1T1S/2T1S/3T1S/4T1S/5T1S/2T2S/3T2S/4T2S/5T2S/"
++			 "3T3S/4T3S/5T3S/4T4S/5T4S/5T5S\n");
++
++	mt7996_txpower_path_puts(CCK, 5);
++	mt7996_txpower_path_puts(OFDM, 5);
++	mt7996_txpower_path_puts(BF-OFDM, 4);
++
++	mt7996_txpower_path_puts(RU26, 15);
++	mt7996_txpower_path_puts(BF-RU26, 15);
++	mt7996_txpower_path_puts(RU52, 15);
++	mt7996_txpower_path_puts(BF-RU52, 15);
++	mt7996_txpower_path_puts(RU26_52, 15);
++	mt7996_txpower_path_puts(BF-RU26_52, 15);
++	mt7996_txpower_path_puts(RU106, 15);
++	mt7996_txpower_path_puts(BF-RU106, 15);
++	mt7996_txpower_path_puts(RU106_52, 15);
++	mt7996_txpower_path_puts(BF-RU106_52, 15);
++
++	mt7996_txpower_path_puts(BW20/RU242, 15);
++	mt7996_txpower_path_puts(BF-BW20/RU242, 15);
++	mt7996_txpower_path_puts(BW40/RU484, 15);
++	mt7996_txpower_path_puts(BF-BW40/RU484, 15);
++	mt7996_txpower_path_puts(RU242_484, 15);
++	mt7996_txpower_path_puts(BF-RU242_484, 15);
++	mt7996_txpower_path_puts(BW80/RU996, 15);
++	mt7996_txpower_path_puts(BF-BW80/RU996, 15);
++	mt7996_txpower_path_puts(RU484_996, 15);
++	mt7996_txpower_path_puts(BF-RU484_996, 15);
++	mt7996_txpower_path_puts(RU242_484_996, 15);
++	mt7996_txpower_path_puts(BF-RU242_484_996, 15);
++	mt7996_txpower_path_puts(BW160/RU996x2, 15);
++	mt7996_txpower_path_puts(BF-BW160/RU996x2, 15);
++	mt7996_txpower_path_puts(RU484_996x2, 15);
++	mt7996_txpower_path_puts(BF-RU484_996x2, 15);
++	mt7996_txpower_path_puts(RU996x3, 15);
++	mt7996_txpower_path_puts(BF-RU996x3, 15);
++	mt7996_txpower_path_puts(RU484_996x3, 15);
++	mt7996_txpower_path_puts(BF-RU484_996x3, 15);
++	mt7996_txpower_path_puts(BW320/RU996x4, 15);
++	mt7996_txpower_path_puts(BF-BW320/RU996x4, 15);
++
++	len += scnprintf(buf + len, size - len, "\nBackoff table: %s\n",
++			 event->backoff_table_info.backoff_en ? "enable" : "disable");
++
++	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
++
++out:
++	kfree(buf);
++	kfree(event);
++	return ret;
++}
++
++static const struct file_operations mt7996_txpower_path_fops = {
++	.read = mt7996_get_txpower_path,
++	.open = simple_open,
++	.owner = THIS_MODULE,
++	.llseek = default_llseek,
++};
++
  int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  {
  	struct mt7996_dev *dev = phy->dev;
-@@ -2480,6 +2706,9 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -2480,6 +2802,10 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  
  	debugfs_create_devm_seqfile(dev->mt76.dev, "tr_info", dir,
  				    mt7996_trinfo_read);
 +	debugfs_create_file("txpower_level", 0600, dir, phy, &fops_txpower_level);
 +	debugfs_create_file("txpower_info", 0600, dir, phy, &mt7996_txpower_info_fops);
 +	debugfs_create_file("txpower_sku", 0600, dir, phy, &mt7996_txpower_sku_fops);
++	debugfs_create_file("txpower_path", 0600, dir, phy, &mt7996_txpower_path_fops);
  
  	debugfs_create_devm_seqfile(dev->mt76.dev, "wtbl_info", dir,
  				    mt7996_wtbl_read);
@@ -424,10 +521,10 @@ index c16b25ab..e56ddd8f 100644
  int mt7996_mcu_muru_dbg_info(struct mt7996_dev *dev, u16 item, u8 val)
  {
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
-index 7f4d4e02..1eb27831 100644
+index 7f4d4e02..c30418ca 100644
 --- a/mt7996/mtk_mcu.h
 +++ b/mt7996/mtk_mcu.h
-@@ -14,6 +14,85 @@ enum {
+@@ -14,6 +14,98 @@ enum {
  	UNI_CMD_MURU_DBG_INFO = 0x18,
  };
  
@@ -488,6 +585,16 @@ index 7f4d4e02..1eb27831 100644
 +	u8 rsv1;
 +};
 +
++struct txpower_backoff_table_info {
++	u8 category;
++	u8 band_idx;
++	u8 band;
++	u8 backoff_en;
++
++	s8 frame_power[MT7996_SKU_PATH_NUM];
++	u8 rsv[3];
++};
++
 +struct mt7996_mcu_txpower_event {
 +	u8 _rsv[4];
 +
@@ -497,16 +604,19 @@ index 7f4d4e02..1eb27831 100644
 +	union {
 +		struct txpower_basic_info basic_info;
 +		struct txpower_phy_rate_info phy_rate_info;
++		struct txpower_backoff_table_info backoff_table_info;
 +	};
 +};
 +
 +enum txpower_category {
 +	BASIC_INFO,
-+	PHY_RATE_INFO = 2,
++	BACKOFF_TABLE_INFO,
++	PHY_RATE_INFO,
 +};
 +
 +enum txpower_event {
 +	UNI_TXPOWER_BASIC_INFO = 0,
++	UNI_TXPOWER_BACKOFF_TABLE_SHOW_INFO = 3,
 +	UNI_TXPOWER_PHY_RATE_INFO = 5,
 +};
 +

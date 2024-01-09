@@ -1,7 +1,7 @@
-From 646335d03eb96579459ba8f07c2e721d77188b10 Mon Sep 17 00:00:00 2001
+From de616f497d5c3b731ae7916afa60003c8c3a96f9 Mon Sep 17 00:00:00 2001
 From: "Allen.Ye" <allen.ye@mediatek.com>
 Date: Mon, 10 Jul 2023 19:56:16 +0800
-Subject: [PATCH 1008/1041] mtk: wifi: mt76: mt7996: add single sku
+Subject: [PATCH 1008/1044] mtk: wifi: mt76: mt7996: add single sku
 
 Add single sku and default enable sku.
 
@@ -143,7 +143,7 @@ index 52237583..6cb47699 100644
  			tx_power_tlv.last_msg = ch_list[idx] == last_ch;
  			sku_tlbv.channel = ch_list[idx];
 diff --git a/mt7996/init.c b/mt7996/init.c
-index c9c7c20a..af2f4143 100644
+index 23b7e5f8..188d4f1f 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -295,6 +295,7 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
@@ -183,10 +183,10 @@ index 97f1ef8c..9481fc5c 100644
  
  	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index cc417039..d8e5c220 100644
+index af4d2023..19b5a173 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -4491,6 +4491,7 @@ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id)
+@@ -4506,6 +4506,7 @@ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id)
  int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
  {
  #define TX_POWER_LIMIT_TABLE_RATE	0
@@ -194,7 +194,7 @@ index cc417039..d8e5c220 100644
  	struct mt7996_dev *dev = phy->dev;
  	struct mt76_phy *mphy = phy->mt76;
  	struct ieee80211_hw *hw = mphy->hw;
-@@ -4504,22 +4505,23 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
+@@ -4519,22 +4520,23 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
  		u8 band_idx;
  	} __packed req = {
  		.tag = cpu_to_le16(UNI_TXPOWER_POWER_LIMIT_TABLE_CTRL),
@@ -222,7 +222,7 @@ index cc417039..d8e5c220 100644
  	if (!skb)
  		return -ENOMEM;
  
-@@ -4542,6 +4544,37 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
+@@ -4557,6 +4559,37 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
  	/* eht */
  	skb_put_data(skb, &la.eht[0], sizeof(la.eht));
  

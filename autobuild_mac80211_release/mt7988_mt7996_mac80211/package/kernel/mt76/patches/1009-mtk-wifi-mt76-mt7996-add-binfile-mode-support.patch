@@ -1,7 +1,7 @@
-From f7bb6a600c1dfd47dfc99ca7a80dac4178ea2581 Mon Sep 17 00:00:00 2001
+From 5def24c68db8d0ff5e0a3ef799c4e1b670dfcb46 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 31 Mar 2023 11:36:34 +0800
-Subject: [PATCH 1009/1041] mtk: wifi: mt76: mt7996: add binfile mode support
+Subject: [PATCH 1009/1044] mtk: wifi: mt76: mt7996: add binfile mode support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 
@@ -82,10 +82,10 @@ index 19c445b5..1eb5a52b 100644
  struct mt76_queue *
  mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 6c1966b7..c553a0f5 100644
+index acc33cfe..c334f849 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
-@@ -79,10 +79,17 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
+@@ -82,10 +82,17 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
  	}
  }
  
@@ -106,7 +106,7 @@ index 6c1966b7..c553a0f5 100644
  
  	switch (mt76_chip(&dev->mt76)) {
  	case 0x7990:
-@@ -149,7 +156,10 @@ mt7996_eeprom_load_default(struct mt7996_dev *dev)
+@@ -152,7 +159,10 @@ mt7996_eeprom_load_default(struct mt7996_dev *dev)
  		return ret;
  
  	if (!fw || !fw->data) {
@@ -118,7 +118,7 @@ index 6c1966b7..c553a0f5 100644
  		ret = -EINVAL;
  		goto out;
  	}
-@@ -163,18 +173,45 @@ out:
+@@ -166,18 +176,45 @@ out:
  	return ret;
  }
  
@@ -165,7 +165,7 @@ index 6c1966b7..c553a0f5 100644
  		eeprom = dev->mt76.eeprom.data;
  		/* testmode enable priority: eeprom field > module parameter */
  		dev->testmode_enable = !mt7996_check_eeprom(dev) ? eeprom[MT_EE_TESTMODE_EN] :
-@@ -208,6 +245,7 @@ static int mt7996_eeprom_load(struct mt7996_dev *dev)
+@@ -211,6 +248,7 @@ static int mt7996_eeprom_load(struct mt7996_dev *dev)
  			if (ret < 0)
  				return ret;
  		}
@@ -173,7 +173,7 @@ index 6c1966b7..c553a0f5 100644
  	}
  
  	return mt7996_check_eeprom(dev);
-@@ -334,6 +372,59 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
+@@ -337,6 +375,59 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
  	return mt7996_eeprom_parse_band_config(phy);
  }
  
@@ -233,7 +233,7 @@ index 6c1966b7..c553a0f5 100644
  int mt7996_eeprom_init(struct mt7996_dev *dev)
  {
  	int ret;
-@@ -348,6 +439,8 @@ int mt7996_eeprom_init(struct mt7996_dev *dev)
+@@ -351,6 +442,8 @@ int mt7996_eeprom_init(struct mt7996_dev *dev)
  			return ret;
  
  		dev_warn(dev->mt76.dev, "eeprom load fail, use default bin\n");
@@ -290,10 +290,10 @@ index 7e3d381e..2f067988 100644
  int mt7996_eeprom_check_fw_mode(struct mt7996_dev *dev);
  int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy);
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 93428851..fe6492ab 100644
+index c9b835b2..669eba9e 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -2643,6 +2643,44 @@ static const struct file_operations mt7996_txpower_sku_fops = {
+@@ -2739,6 +2739,44 @@ static const struct file_operations mt7996_txpower_path_fops = {
  	.llseek = default_llseek,
  };
  
@@ -338,9 +338,9 @@ index 93428851..fe6492ab 100644
  int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  {
  	struct mt7996_dev *dev = phy->dev;
-@@ -2710,6 +2748,9 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
- 	debugfs_create_file("txpower_info", 0600, dir, phy, &mt7996_txpower_info_fops);
+@@ -2807,6 +2845,9 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  	debugfs_create_file("txpower_sku", 0600, dir, phy, &mt7996_txpower_sku_fops);
+ 	debugfs_create_file("txpower_path", 0600, dir, phy, &mt7996_txpower_path_fops);
  
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "eeprom_mode", dir,
 +				    mt7996_show_eeprom_mode);

@@ -1,7 +1,7 @@
-From 52b8f9d42643b5103fc608fb1848e03eac88834c Mon Sep 17 00:00:00 2001
+From 2a4f1ada373d5bd9999807d7906f44bee9c7dc21 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 31 Mar 2023 11:27:24 +0800
-Subject: [PATCH 1005/1041] mtk: wifi: mt76: testmode: add testmode
+Subject: [PATCH 1005/1044] mtk: wifi: mt76: testmode: add testmode
  pre-calibration support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -93,10 +93,10 @@ index 7951b90e..b0897ac2 100644
  
  #define MT_TM_FW_RX_COUNT	BIT(0)
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 0a55a4be..3447f523 100644
+index 4796c255..e4783433 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1031,8 +1031,10 @@ enum {
+@@ -1038,8 +1038,10 @@ enum {
  	MCU_UNI_EVENT_RDD_REPORT = 0x11,
  	MCU_UNI_EVENT_ROC = 0x27,
  	MCU_UNI_EVENT_TX_DONE = 0x2d,
@@ -108,7 +108,7 @@ index 0a55a4be..3447f523 100644
  	MCU_UNI_EVENT_PER_STA_INFO = 0x6d,
  	MCU_UNI_EVENT_ALL_STA_INFO = 0x6e,
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 8fb1015e..29a245ce 100644
+index 2299793d..3aeffdfb 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -12,6 +12,42 @@ static bool testmode_enable;
@@ -154,7 +154,7 @@ index 8fb1015e..29a245ce 100644
  static int mt7996_check_eeprom(struct mt7996_dev *dev)
  {
  #define FEM_INT				0
-@@ -71,6 +107,36 @@ static char *mt7996_eeprom_name(struct mt7996_dev *dev)
+@@ -74,6 +110,36 @@ static char *mt7996_eeprom_name(struct mt7996_dev *dev)
  	}
  }
  
@@ -257,7 +257,7 @@ index de3ff4e2..849b8bca 100644
  #define MT_EE_WIFI_CONF2_TX_PATH_BAND1		GENMASK(2, 0)
  #define MT_EE_WIFI_CONF2_TX_PATH_BAND2		GENMASK(5, 3)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 099ff74f..eb346a9c 100644
+index 6c89d711..151f3788 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -712,6 +712,11 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)

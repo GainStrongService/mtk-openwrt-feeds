@@ -1,7 +1,7 @@
-From 2e7ac514e17ad740c9a837190f9d43ebeb8a9397 Mon Sep 17 00:00:00 2001
+From 14d56cbefbd6f72d82d18534da6dd445e6ddd266 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Thu, 12 Oct 2023 10:04:54 +0800
-Subject: [PATCH 2012/2020] mtk: wifi: mt76: mt7996: wed: add SER0.5 support w/
+Subject: [PATCH 2012/2028] mtk: wifi: mt76: mt7996: wed: add SER0.5 support w/
  wed3.0
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
@@ -184,10 +184,10 @@ index 40ab65f8..8df119d0 100644
  	mt7996_dma_enable(dev, !force);
  }
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 50453801..a1b76e33 100644
+index d2cd2221..32f2db33 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -728,11 +728,91 @@ void mt7996_wfsys_reset(struct mt7996_dev *dev)
+@@ -724,11 +724,91 @@ void mt7996_wfsys_reset(struct mt7996_dev *dev)
  	msleep(20);
  }
  
@@ -280,7 +280,7 @@ index 50453801..a1b76e33 100644
  	struct mt7996_wed_rro_addr *addr;
  	void *ptr;
  	int i;
-@@ -792,50 +872,9 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
+@@ -788,50 +868,9 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
  		addr++;
  	}
  
@@ -370,10 +370,10 @@ index d51f4129..19e66256 100644
  	ret = mt7996_mcu_set_eeprom(dev);
  	if (ret)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 56538825..7a1cae71 100644
+index b1abe42b..84b34ea9 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -691,6 +691,7 @@ extern const struct mt76_testmode_ops mt7996_testmode_ops;
+@@ -713,6 +713,7 @@ extern const struct mt76_testmode_ops mt7996_testmode_ops;
  struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
  				     void __iomem *mem_base, u32 device_id);
  void mt7996_wfsys_reset(struct mt7996_dev *dev);
