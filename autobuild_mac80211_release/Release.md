@@ -13,11 +13,11 @@ cd openwrt; git checkout 4a1d8ef55cbf247f06dae8e958eb8eb42f1882a5; cd -;
 
 #Get Openwrt master source code from Git Server
 git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_package
-cd mac80211_package; git checkout 2fe8ecd880396b5ae25fe9583aaa1d71be0b8468; cd -;
+cd mac80211_package; git checkout 6b0db8592a3e4342c32111491948f32d5bc0087f; cd -;
 
 #Get mtk-openwrt-feeds source code
 git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
-cd mtk-openwrt-feeds; git checkout cd559121bfb96b0a21209c315b3314b110aa7fe3; cd -;
+cd mtk-openwrt-feeds; git checkout a3facda66a5051691244ab4be681f1a148372ebd; cd -;
 
 #Change to openwrt folder
 cp -rf mtk-openwrt-feeds/autobuild_mac80211_release openwrt
@@ -42,7 +42,7 @@ make V=s
 src-git packages https://git.openwrt.org/feed/packages.git^2219ac4
 src-git luci https://git.openwrt.org/project/luci.git^e4c4633
 src-git routing https://git.openwrt.org/feed/routing.git^a9e4310
-src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^cd55912
+src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^a3facda
 ```
 ### WiFi Package Version
 
