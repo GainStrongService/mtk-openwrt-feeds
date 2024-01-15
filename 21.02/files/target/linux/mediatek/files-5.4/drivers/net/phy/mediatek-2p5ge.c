@@ -88,7 +88,6 @@ static int mt7988_2p5ge_phy_config_init(struct phy_device *phydev)
 	int ret, i;
 	const struct firmware *fw;
 	struct device *dev = &phydev->mdio.dev;
-	struct device *pm_dev;
 	struct device_node *np;
 	void __iomem *pmb_addr;
 	void __iomem *md32_en_cfg_base;
@@ -97,30 +96,6 @@ static int mt7988_2p5ge_phy_config_init(struct phy_device *phydev)
 	struct pinctrl *pinctrl;
 
 	if (!phy_priv->fw_loaded) {
-		pm_dev = dev_pm_domain_attach_by_name(dev, "i2p5gbe-pd");
-		if (IS_ERR(pm_dev)) {
-			ret = PTR_ERR(pm_dev);
-			dev_err(dev, "failed to get i2p5g pm-domain: %d\n", ret);
-			return ret;
-		}
-		if (!pm_dev->pm_domain)
-			dev_info(dev, "pm_dev domain is not ready yet\n");
-
-		/* We need to add 1 to power domain counter first so that
-		 * we can correctly power off internal 2.5Gphy
-		 */
-		ret = pm_runtime_get_sync(pm_dev);
-		if (ret < 0) {
-			dev_err(&phydev->mdio.dev, "failed to power on!\n");
-			return ret;
-		}
-		pm_runtime_put_sync(pm_dev);
-		ret = pm_runtime_get_sync(pm_dev);
-		if (ret < 0) {
-			dev_err(&phydev->mdio.dev, "failed to power on!\n");
-			return ret;
-		}
-
 		np = of_find_compatible_node(NULL, NULL, "mediatek,2p5gphy-fw");
 		if (!np)
 			return -ENOENT;
@@ -139,16 +114,23 @@ static int mt7988_2p5ge_phy_config_init(struct phy_device *phydev)
 		}
 
 		reg = readw(md32_en_cfg_base);
-		writew(reg | DMEM_PRIORITY | PMEM_PRIORITY, md32_en_cfg_base);
+		if (reg & MD32_EN) {
+			phy_set_bits(phydev, 0, BIT(15));
+			usleep_range(10000, 11000);
+		}
+		phy_set_bits(phydev, 0, BIT(11));
+
+		/* Write magic number to safely stall MCU */
+		phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x800e, 0x1100);
+		phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x800f, 0x00df);
 
 		for (i = 0; i < fw->size - 1; i += 4)
 			writel(*((uint32_t *)(fw->data + i)), pmb_addr + i);
 		release_firmware(fw);
 
-		reg = readw(md32_en_cfg_base);
-		reg &= ~(DMEM_PRIORITY | PMEM_PRIORITY | MD32_EN);
-		writew(reg, md32_en_cfg_base);
+		writew(reg & ~MD32_EN, md32_en_cfg_base);
 		writew(reg | MD32_EN, md32_en_cfg_base);
+		phy_set_bits(phydev, 0, BIT(15));
 		dev_info(dev, "Firmware loading/trigger ok.\n");
 
 		phy_priv->fw_loaded = true;
