@@ -161,9 +161,9 @@ prepare_flowoffload() {
 	rm -rf ./target/linux/mediatek/patches-5.4/999-*xfrm*.patch
 	rm -rf ./target/linux/mediatek/patches-5.4/999-41*.patch
 	rm -rf ./target/linux/mediatek/patches-5.4/999-45*.patch
-	rm -rf ${BUILD_DIR}/package/kernel/tops
-	rm -rf ${BUILD_DIR}/package/kernel/crypto-eip
-	rm -rf ${BUILD_DIR}/package/kernel/pce
+	rm -rf ${BUILD_DIR}/package/feeds/mtk_openwrt_feed/tops
+	rm -rf ${BUILD_DIR}/package/feeds/mtk_openwrt_feed/crypto-eip
+	rm -rf ${BUILD_DIR}/package/feeds/mtk_openwrt_feed/pce
 	rm -rf ${BUILD_DIR}/package/feeds/mtk_openwrt_feed/tops-tool
 
 	#hack mt7988 config5.4
