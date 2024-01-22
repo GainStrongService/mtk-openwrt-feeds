@@ -89,6 +89,21 @@ class ECB(ALGO):
         result = os.popen(command).read().replace(" ", "")
         return result.replace("\n", "").replace(" ", "")
 
+    def sej_command(self, suite, test, algo):
+        data = ""
+        mode = ""
+
+        if self.mode == "ENCRYPT":
+            data = test['PLAINTEXT']
+            mode = "enc"
+        elif self.mode == 'DECRYPT':
+            data = test['CIPHERTEXT']
+            mode = "dec"
+        command = "crypto_test " + mode + " ecb -k " + test['KEY'] + \
+                  " " + data
+        result = os.popen(command).read().replace(" ", "")
+        return result.replace("\n", "").replace(" ", "")
+
     def select_algo(self, suites):
         algo = "none"
         if suites['keylen'] == '128':
@@ -128,6 +143,8 @@ class ECB(ALGO):
                     result = self.sw_command(suite, test, algo)
                 elif self.engine == "hw":
                     result = self.hw_command(suite, test, algo)
+                elif self.engine == "sej":
+                    result = self.sej_command(suite, test, algo)
 
                 if(self.mode == 'ENCRYPT'):
                     data = result.replace("\n", "")
@@ -142,3 +159,31 @@ class ECB(ALGO):
                 return False
                 break
         return True
+
+    def run_command(self):
+        result = ""
+        expect = ""
+        pass_count = 0
+        total = 0
+
+        for suites in self.test_suites:
+            count = 0
+            algo = self.select_algo(suites)
+            if(algo == "none"):
+                continue
+
+            for test in suites['Tests']:
+                if self.engine == "sw":
+                    result = self.sw_command(suites, test, algo)
+                elif self.engine == "hw":
+                    result = self.hw_command(suites, test, algo)
+                elif self.engine == "sej":
+                    result = self.sej_command(suites, test, algo)
+
+                expect = self.get_expect(test)
+
+                if(result == expect):
+                    pass_count = pass_count + 1
+                    count = count + 1
+            total = total + len(suites['Tests'])
+        print("\t\t\ttotal case: %d, pass case: %d, rate: %f" %(total, pass_count, pass_count/total))

@@ -84,6 +84,9 @@ class ALGO(metaclass=abc.ABCMeta):
                     result = self.sw_command(suites, test, algo)
                 elif self.engine == "hw":
                     result = self.hw_command(suites, test, algo)
+                else:
+                    print("No this engine")
+                    exit()
 
                 expect = self.get_expect(test)
 

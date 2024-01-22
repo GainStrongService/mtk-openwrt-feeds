@@ -25,9 +25,13 @@ dir_path = {"CBC":"./testcase/cbc", "CBC_Monte":"./testcase/cbc_monte", \
 def print_list():
     print("List all test command")
     print("\tpython3 main.py -a CBC -e hw        => Test CBC in hw mode")
+    print("\tpython3 main.py -a CBC -e sej       => Test CBC in sej mode")
     print("\tpython3 main.py -a CBC -e hw -m     => Test CBC Monte in hw mode")
+    print("\tpython3 main.py -a CBC -e sej -m    => Test CBC Monte in sej mode")
     print("\tpython3 main.py -a ECB -e hw        => Test EBC in hw mode")
+    print("\tpython3 main.py -a ECB -e sej       => Test EBC in sej mode")
     print("\tpython3 main.py -a ECB -e hw -m     => Test EBC Monte in hw mode")
+    print("\tpython3 main.py -a ECB -e sej -m    => Test EBC Monte in sej mode")
     print("\tpython3 main.py -a CCM -e hw        => Test CCM in hw mode")
     print("\tpython3 main.py -a GCM -e hw        => Test GCM in hw mode")
     print("\tpython3 main.py -a DRBG -e sw       => Test DRBG in sw mode")
@@ -45,7 +49,7 @@ def parse():
     parser = argparse.ArgumentParser(description="FIPS Test Script")
     parser.add_argument("-a", "--algo", choices=["CBC", "ECB", "CCM", "GCM", "DRBG", "HMAC", "SHA", "TDES"], help="Algorithm to test")
     parser.add_argument("-m", action="store_true", help="Enable Monte test, only use in CBC, EBC, SHA and TDES")
-    parser.add_argument("-e", "--engine", choices=["sw", "hw"],help="Select hw or sw")
+    parser.add_argument("-e", "--engine", choices=["sw", "hw", "sej"],help="Select hw or sw")
     parser.add_argument("-l", action="store_true", help="List all test algo and mode")
 
     return parser.parse_args()
