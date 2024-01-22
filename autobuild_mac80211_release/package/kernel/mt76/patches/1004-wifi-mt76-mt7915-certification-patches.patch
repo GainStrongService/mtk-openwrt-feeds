@@ -1,7 +1,7 @@
-From 5b5f463212f00b4489d1c23f8e1a88f59c7cc7df Mon Sep 17 00:00:00 2001
+From ac7aee5208c11104bb3d7e0fbda789c2ed7a8d23 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 6 Jun 2022 20:15:51 +0800
-Subject: [PATCH 16/76] wifi: mt76: mt7915: certification patches
+Subject: [PATCH] wifi: mt76: mt7915: certification patches
 
 ---
  mt76_connac_mcu.h    |   1 +
@@ -16,7 +16,7 @@ Subject: [PATCH 16/76] wifi: mt76: mt7915: certification patches
  9 files changed, 955 insertions(+), 5 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index b758679..c4f5a64 100644
+index b7586794..c4f5a643 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1231,6 +1231,7 @@ enum {
@@ -28,7 +28,7 @@ index b758679..c4f5a64 100644
  };
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index c0a390d..2168387 100644
+index b4da28aa..e8b02374 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -8,6 +8,7 @@
@@ -39,7 +39,7 @@ index c0a390d..2168387 100644
  
  #define to_rssi(field, rcpi)	((FIELD_GET(field, rcpi) - 220) / 2)
  
-@@ -2000,6 +2001,21 @@ static void mt7915_mac_sta_stats_work(struct mt7915_phy *phy)
+@@ -1997,6 +1998,21 @@ static void mt7915_mac_sta_stats_work(struct mt7915_phy *phy)
  	spin_unlock_bh(&phy->stats_lock);
  }
  
@@ -61,7 +61,7 @@ index c0a390d..2168387 100644
  void mt7915_mac_sta_rc_work(struct work_struct *work)
  {
  	struct mt7915_dev *dev = container_of(work, struct mt7915_dev, rc_work);
-@@ -2022,6 +2038,13 @@ void mt7915_mac_sta_rc_work(struct work_struct *work)
+@@ -2019,6 +2035,13 @@ void mt7915_mac_sta_rc_work(struct work_struct *work)
  		sta = container_of((void *)msta, struct ieee80211_sta, drv_priv);
  		vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
  
@@ -76,10 +76,10 @@ index c0a390d..2168387 100644
  			       IEEE80211_RC_NSS_CHANGED |
  			       IEEE80211_RC_BW_CHANGED))
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 3b33659..76d1cd7 100644
+index 1a13820b..2081f075 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -748,6 +748,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -769,6 +769,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	struct mt7915_sta *msta = (struct mt7915_sta *)sta->drv_priv;
  	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
  	bool ext_phy = mvif->phy != &dev->phy;
@@ -89,7 +89,7 @@ index 3b33659..76d1cd7 100644
  	int ret, idx;
  
  	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA);
-@@ -776,7 +779,15 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -797,7 +800,15 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  #ifdef CONFIG_MTK_VENDOR
  	mt7915_vendor_amnt_sta_remove(mvif->phy, sta);
  #endif
@@ -107,10 +107,10 @@ index 3b33659..76d1cd7 100644
  
  void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 8c84b24..63a1292 100644
+index 52d83263..3bb89b1d 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4139,6 +4139,472 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
+@@ -4231,6 +4231,472 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
  
  	return 0;
  }
@@ -584,7 +584,7 @@ index 8c84b24..63a1292 100644
  
  #ifdef MTK_DEBUG
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 84c52d9..7b7c2d1 100644
+index 3eaadcef..95fcfc52 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -471,10 +471,14 @@ enum {
@@ -613,7 +613,7 @@ index 84c52d9..7b7c2d1 100644
  enum {
  	TX_POWER_LIMIT_ENABLE,
  	TX_POWER_LIMIT_TABLE = 0x4,
-@@ -671,5 +678,203 @@ struct csi_data {
+@@ -668,5 +675,203 @@ enum CSI_CHAIN_TYPE {
  #define OFDMA_UL                       BIT(1)
  #define MUMIMO_DL                      BIT(2)
  #define MUMIMO_UL                      BIT(3)
@@ -818,10 +818,10 @@ index 84c52d9..7b7c2d1 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index e45e2fb..ab3c8f7 100644
+index aa3a4eeb..9e8e892a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -672,6 +672,19 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -710,6 +710,19 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  			 bool pci, int *irq);
  
  #ifdef CONFIG_MTK_VENDOR
@@ -840,12 +840,12 @@ index e45e2fb..ab3c8f7 100644
 +void mt7915_mcu_set_bypass_smthint(struct mt7915_phy *phy, u8 val);
  void mt7915_vendor_register(struct mt7915_phy *phy);
  int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
- 			u8 cfg, u8 v1, u32 v2, u8 *mac_addr);
+ 		       u8 cfg, u8 v1, u32 v2, u8 *mac_addr, u32 sta_interval);
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 803cabc..587497b 100644
+index 9e6ea86f..e3f45085 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -2562,7 +2562,8 @@ static int mt7915_muru_onoff_get(void *data, u64 *val)
+@@ -2560,7 +2560,8 @@ static int mt7915_muru_onoff_get(void *data, u64 *val)
  
  	*val = phy->muru_onoff;
  
@@ -855,7 +855,7 @@ index 803cabc..587497b 100644
  		    !!(phy->muru_onoff & MUMIMO_UL),
  		    !!(phy->muru_onoff & MUMIMO_DL),
  		    !!(phy->muru_onoff & OFDMA_UL),
-@@ -2575,8 +2576,8 @@ static int mt7915_muru_onoff_set(void *data, u64 val)
+@@ -2573,8 +2574,8 @@ static int mt7915_muru_onoff_set(void *data, u64 val)
  {
  	struct mt7915_phy *phy = data;
  
@@ -867,10 +867,10 @@ index 803cabc..587497b 100644
  	}
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 43f9690..19c9e71 100644
+index c964b143..7a718944 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
-@@ -22,6 +22,29 @@ csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
+@@ -23,6 +23,29 @@ csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
  	[MTK_VENDOR_ATTR_CSI_CTRL_DATA] = { .type = NLA_NESTED },
  };
  
@@ -900,7 +900,7 @@ index 43f9690..19c9e71 100644
  struct csi_null_tone {
  	u8 start;
  	u8 end;
-@@ -779,6 +802,149 @@ mt7915_vendor_amnt_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
+@@ -797,6 +820,149 @@ mt7915_vendor_amnt_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
  	return len + 1;
  }
  
@@ -1050,7 +1050,7 @@ index 43f9690..19c9e71 100644
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -803,6 +969,28 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -821,6 +987,28 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.dumpit = mt7915_vendor_amnt_ctrl_dump,
  		.policy = amnt_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_AMNT_CTRL_MAX,
@@ -1080,10 +1080,10 @@ index 43f9690..19c9e71 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 976817f..1b08321 100644
+index 1863eee5..1a18cae7 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
-@@ -6,6 +6,48 @@
+@@ -7,6 +7,48 @@
  enum mtk_nl80211_vendor_subcmds {
  	MTK_NL80211_VENDOR_SUBCMD_AMNT_CTRL = 0xae,
  	MTK_NL80211_VENDOR_SUBCMD_CSI_CTRL = 0xc2,
