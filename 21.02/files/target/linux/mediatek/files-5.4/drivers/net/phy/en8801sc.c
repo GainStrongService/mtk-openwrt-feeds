@@ -65,6 +65,7 @@ enum {
 struct en8801s_priv {
 	bool first_init;
 	u16 count;
+	u16 pro_version;
 #if (KERNEL_VERSION(4, 16, 0) > LINUX_VERSION_CODE)
 	struct gpio_desc *hw_reset;
 #endif
@@ -104,6 +105,7 @@ static const u16 led_dur = UNIT_LED_BLINK_DURATION << AIR_LED_BLK_DUR_64M;
 /************************************************************************
 *                  F U N C T I O N S
 ************************************************************************/
+static int en8801s_phase2_init(struct phy_device *phydev);
 static unsigned int airoha_cl22_read(struct mii_bus *ebus, int phy_addr,
 			unsigned int phy_register, unsigned int *read_data)
 {
@@ -472,7 +474,8 @@ static int en8801s_phy_process(struct phy_device *phydev)
 static int en8801s_phase1_init(struct phy_device *phydev)
 {
 	unsigned long pbus_data;
-	int pbusAddress = EN8801S_PBUS_DEFAULT_ID;
+	int pbus_addr = EN8801S_PBUS_DEFAULT_ADDR;
+	int phy_addr = EN8801S_PHY_DEFAULT_ADDR;
 	u16 reg_value;
 	int retry, ret = 0;
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
@@ -489,27 +492,30 @@ static int en8801s_phase1_init(struct phy_device *phydev)
 
 	retry = MAX_OUI_CHECK;
 	while (1) {
-		pbus_data = airoha_pbus_read(mbus, pbusAddress,
+		pbus_data = airoha_pbus_read(mbus, pbus_addr,
 				EN8801S_RG_ETHER_PHY_OUI);      /* PHY OUI */
 		if (pbus_data == EN8801S_PBUS_OUI) {
 			dev_info(dev, "PBUS addr 0x%x: Start initialized.\n",
-					pbusAddress);
+					pbus_addr);
 			break;
 		}
-		pbusAddress = phydev_pbus_addr(phydev);
+		pbus_addr = phydev_pbus_addr(phydev);
 		if (0 == --retry) {
 			dev_err(dev, "Probe fail !\n");
 			return 0;
 		}
 	}
 
-	ret = airoha_pbus_write(mbus, pbusAddress, EN8801S_RG_BUCK_CTL, 0x03);
+	ret = airoha_pbus_write(mbus, pbus_addr, EN8801S_RG_BUCK_CTL, 0x03);
 	if (ret < 0)
 		return ret;
+	pbus_data = airoha_pbus_read(mbus, pbus_addr, EN8801S_RG_PROD_VER);
+	priv->pro_version = pbus_data & 0xf;
+	dev_info(dev, "EN8801S Procduct Version :E%d\n", priv->pro_version);
 	mdelay(10);
-	pbus_data = (airoha_pbus_read(mbus, pbusAddress, EN8801S_RG_LTR_CTL)
+	pbus_data = (airoha_pbus_read(mbus, pbus_addr, EN8801S_RG_LTR_CTL)
 				 & 0xfffffffc) | BIT(2);
-	ret = airoha_pbus_write(mbus, pbusAddress,
+	ret = airoha_pbus_write(mbus, pbus_addr,
 				EN8801S_RG_LTR_CTL, pbus_data);
 	if (ret < 0)
 		return ret;
@@ -517,19 +523,35 @@ static int en8801s_phase1_init(struct phy_device *phydev)
 	pbus_data = (pbus_data & ~BIT(2)) |
 				EN8801S_RX_POLARITY_NORMAL |
 				EN8801S_TX_POLARITY_NORMAL;
-	ret = airoha_pbus_write(mbus, pbusAddress,
+	ret = airoha_pbus_write(mbus, pbus_addr,
 				EN8801S_RG_LTR_CTL, pbus_data);
 	if (ret < 0)
 		return ret;
 	mdelay(500);
-
-	pbus_data = airoha_pbus_read(mbus, pbusAddress,
+	if (priv->pro_version == 4) {
+		pbus_data = airoha_pbus_read(mbus, pbus_addr, 0x1900);
+		dev_dbg(dev, "Before 0x1900 0x%x\n", pbus_data);
+		ret = airoha_pbus_write(mbus, pbus_addr, 0x1900, 0x101009f);
+		if (ret < 0)
+			return ret;
+		pbus_data = airoha_pbus_read(mbus, pbus_addr, 0x1900);
+		dev_dbg(dev, "After 0x1900 0x%x\n", pbus_data);
+		pbus_data = airoha_pbus_read(mbus, pbus_addr, 0x19a8);
+		dev_dbg(dev, "Before 19a8 0x%x\n", pbus_data);
+		ret = airoha_pbus_write(mbus, pbus_addr,
+				0x19a8, pbus_data & ~BIT(16));
+		if (ret < 0)
+			return ret;
+		pbus_data = airoha_pbus_read(mbus, pbus_addr, 0x19a8);
+		dev_dbg(dev, "After 19a8 0x%x\n", pbus_data);
+	}
+	pbus_data = airoha_pbus_read(mbus, pbus_addr,
 				EN8801S_RG_SMI_ADDR); /* SMI ADDR */
 	pbus_data = (pbus_data & 0xffff0000) |
 				(unsigned long)(phydev_pbus_addr(phydev) << 8) |
 				(unsigned long)(phydev_phy_addr(phydev));
 	dev_info(phydev_dev(phydev), "SMI_ADDR=%lx (renew)\n", pbus_data);
-	ret = airoha_pbus_write(mbus, pbusAddress,
+	ret = airoha_pbus_write(mbus, pbus_addr,
 				EN8801S_RG_SMI_ADDR, pbus_data);
 	mdelay(10);
 
@@ -566,6 +588,15 @@ static int en8801s_phase1_init(struct phy_device *phydev)
 	phydev->dev_flags = PHY_STATE_INIT;
 
 	dev_info(dev, "Phase1 initialize OK ! (%s)\n", EN8801S_DRIVER_VERSION);
+	if (priv->pro_version == 4) {
+		ret = en8801s_phase2_init(phydev);
+		if (ret != 0) {
+			dev_info(dev, "en8801_phase2_init failed\n");
+			phydev->dev_flags = PHY_STATE_FAIL;
+			return 0;
+		}
+		phydev->dev_flags = PHY_STATE_PROCESS;
+	}
 
 	return 0;
 }
@@ -889,13 +920,15 @@ static int en8801s_read_status(struct phy_device *phydev)
 		dev_dbg(dev, "phydev->link %d, count %d\n",
 					phydev->link, priv->count);
 		if ((phydev->link) || (priv->count == 5)) {
-			ret = en8801s_phase2_init(phydev);
-			if (ret != 0) {
-				dev_info(dev, "en8801_phase2_init failed\n");
-				phydev->dev_flags = PHY_STATE_FAIL;
-				return 0;
+			if (priv->pro_version != 4) {
+				ret = en8801s_phase2_init(phydev);
+				if (ret != 0) {
+					dev_info(dev, "en8801_phase2_init failed\n");
+					phydev->dev_flags = PHY_STATE_FAIL;
+					return 0;
+				}
+				phydev->dev_flags = PHY_STATE_PROCESS;
 			}
-			phydev->dev_flags = PHY_STATE_PROCESS;
 		}
 		priv->count++;
 	}
@@ -924,6 +957,7 @@ static int en8801s_read_status(struct phy_device *phydev)
 		airoha_pbus_write(mbus, pbus_addr, 0x0600,
 				0x0c000c00);
 		if (preSpeed == SPEED_1000) {
+			dev_dbg(dev, "SPEED_1000\n");
 			ret = airoha_pbus_write(mbus, pbus_addr, 0x10,
 					0xD801);
 			if (ret < 0)
@@ -951,6 +985,7 @@ static int en8801s_read_status(struct phy_device *phydev)
 			if (ret < 0)
 				return ret;
 		} else if (preSpeed == SPEED_100) {
+			dev_dbg(dev, "SPEED_100\n");
 			ret = airoha_pbus_write(mbus, pbus_addr, 0x10,
 					0xD401);
 			if (ret < 0)
@@ -978,6 +1013,7 @@ static int en8801s_read_status(struct phy_device *phydev)
 			if (ret < 0)
 				return ret;
 		} else if (preSpeed == SPEED_10) {
+			dev_dbg(dev, "SPEED_10\n");
 			ret = airoha_pbus_write(mbus, pbus_addr, 0x10,
 					0xD001);
 			if (ret < 0)
@@ -1022,7 +1058,7 @@ static int en8801s_probe(struct phy_device *phydev)
 	struct mdio_device *mdiodev = &phydev->mdio;
 #endif
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1115,7 +1151,6 @@ static int airoha_mmd_write(struct phy_device *phydev,
 			}
 		}
 	}
-
 	ret = __airoha_cl45_write(mbus, phy_addr, devad, reg, val);
 	if (ret < 0)
 		return ret;

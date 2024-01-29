@@ -12,12 +12,14 @@
 
 /* NAMING DECLARATIONS
  */
-#define EN8801S_DRIVER_VERSION  "1.1.7_Generic"
-#define EN8801S_PBUS_DEFAULT_ID 0x1e
+#define EN8801S_DRIVER_VERSION  "1.1.8_Generic"
+#define EN8801S_PBUS_DEFAULT_ADDR 0x1e
+#define EN8801S_PHY_DEFAULT_ADDR 0x1d
 #define EN8801S_RG_ETHER_PHY_OUI 0x19a4
 #define EN8801S_RG_SMI_ADDR      0x19a8
 #define EN8801S_RG_BUCK_CTL      0x1a20
 #define EN8801S_RG_LTR_CTL       0x0cf8
+#define EN8801S_RG_PROD_VER      0x18e0
 
 #define EN8801S_PBUS_OUI        0x17a5
 #define EN8801S_PHY_ID1         0x03a2
@@ -164,17 +166,10 @@ LED4 100M/LINK/ACT   (GPIO8)  <-> BASE_T_LED2,
 /* Invalid data */
 #define INVALID_DATA            0xffffffff
 
-#define LED_SET_EVT(reg, cod, result, bit) do         \
-	{                                                 \
-		if (reg & cod) {                              \
-			result |= bit;                            \
-		}                                             \
-	} while (0)
-
 #define LED_SET_GPIO_SEL(gpio, led, val)             \
 			(val |= (led << (8 * (gpio % 4))))       \
 
-
+#define GET_BIT(val, bit) ((val & BIT(bit)) >> bit)
 /* DATA TYPE DECLARATIONS
  */
 struct AIR_BASE_T_LED_CFG_S {
