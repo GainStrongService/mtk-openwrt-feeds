@@ -397,11 +397,24 @@
 #define MTK_RX_TCP_SRC_PORT_OFFSET	(16)
 
 /* QDMA TX Queue Configuration Registers */
-#define MTK_QTX_CFG(x)		(QDMA_BASE + (x * 0x10))
-#define QDMA_RES_THRES		4
+#define MTK_QTX_CFG(x)			(QDMA_BASE + (x * 0x10))
+#define MTK_QTX_CFG_HW_RESV_CNT_OFFSET	GENMASK(15, 8)
+#define MTK_QTX_CFG_SW_RESV_CNT_OFFSET	GENMASK(7, 0)
+#define QDMA_RES_THRES			4
 
 /* QDMA TX Queue Scheduler Registers */
-#define MTK_QTX_SCH(x)		(QDMA_BASE + 4 + (x * 0x10))
+#define MTK_QTX_SCH(x)			(QDMA_BASE + 4 + (x * 0x10))
+#define MTK_QTX_SCH_TX_SEL		BIT(31)
+#define MTK_QTX_SCH_TX_SEL_V2		GENMASK(31, 30)
+#define MTK_QTX_SCH_LEAKY_BUCKET_EN	BIT(30)
+#define MTK_QTX_SCH_LEAKY_BUCKET_SIZE	GENMASK(29, 28)
+#define MTK_QTX_SCH_MIN_RATE_EN		BIT(27)
+#define MTK_QTX_SCH_MIN_RATE_MAN	GENMASK(26, 20)
+#define MTK_QTX_SCH_MIN_RATE_EXP	GENMASK(19, 16)
+#define MTK_QTX_SCH_MAX_RATE_WEIGHT	GENMASK(15, 12)
+#define MTK_QTX_SCH_MAX_RATE_EN		BIT(11)
+#define MTK_QTX_SCH_MAX_RATE_MAN	GENMASK(10, 4)
+#define MTK_QTX_SCH_MAX_RATE_EXP	GENMASK(3, 0)
 
 /* QDMA RX Base Pointer Register */
 #define MTK_QRX_BASE_PTR0	(QDMA_BASE + 0x100)
@@ -419,7 +432,9 @@
 #define MTK_QRX_DRX_IDX0	(QDMA_BASE + 0x10c)
 
 /* QDMA Page Configuration Register */
-#define MTK_QDMA_PAGE	(QDMA_BASE + 0x1f0)
+#define MTK_QDMA_PAGE		(QDMA_BASE + 0x1f0)
+#define MTK_QTX_CFG_PAGE	GENMASK(3, 0)
+#define MTK_QTX_PER_PAGE	(16)
 
 /* QDMA Global Configuration Register */
 #define MTK_QDMA_GLO_CFG	(QDMA_BASE + 0x204)
@@ -554,6 +569,7 @@
 #define QID_BITS_V2(x)		(((x) & 0x3f) << 16)
 
 #define MTK_QDMA_GMAC2_QID	8
+#define MTK_QDMA_GMAC3_QID	6
 
 /* QDMA V2 descriptor txd6 */
 #define TX_DMA_INS_VLAN_V2         BIT(16)
@@ -1833,6 +1849,7 @@ struct mtk_eth {
 	int				irq_pdma[MTK_PDMA_IRQ_NUM];
 	u8				hwver;
 	u32				msg_enable;
+	u32				pppq_toggle;
 	unsigned long			sysclk;
 	struct regmap			*ethsys;
 	struct regmap                   *infra;
@@ -1891,6 +1908,7 @@ struct mtk_mac {
 	unsigned int			syscfg0;
 	bool				tx_lpi_enabled;
 	u32				tx_lpi_timer;
+	struct notifier_block		device_notifier;
 };
 
 /* struct mtk_mux_data -	the structure that holds the private data about the

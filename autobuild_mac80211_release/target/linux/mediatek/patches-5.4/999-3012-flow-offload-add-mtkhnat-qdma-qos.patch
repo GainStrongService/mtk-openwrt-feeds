@@ -6,7 +6,7 @@ Subject: [PATCH 13/22] flow-offload-add-mtkhnat-qdma-qos
 ---
  drivers/net/ethernet/mediatek/Makefile        |   2 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  10 +
- drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  63 ++-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  48 ++-
  drivers/net/ethernet/mediatek/mtk_ppe.c       |  48 +-
  drivers/net/ethernet/mediatek/mtk_ppe.h       |   4 +
  .../net/ethernet/mediatek/mtk_ppe_offload.c   |  28 +-
@@ -110,39 +110,6 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/
 index 101c233..7ea380e 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -400,10 +400,21 @@
- 
- /* QDMA TX Queue Configuration Registers */
- #define MTK_QTX_CFG(x)		(QDMA_BASE + (x * 0x10))
-+#define MTK_QTX_CFG_HW_RESV_CNT_OFFSET	GENMASK(15, 8)
-+#define MTK_QTX_CFG_SW_RESV_CNT_OFFSET	GENMASK(7, 0)
- #define QDMA_RES_THRES		4
- 
- /* QDMA TX Queue Scheduler Registers */
- #define MTK_QTX_SCH(x)		(QDMA_BASE + 4 + (x * 0x10))
-+#define MTK_QTX_SCH_TX_SCH_SEL		BIT(31)
-+#define MTK_QTX_SCH_TX_SCH_SEL_V2	GENMASK(31, 30)
-+#define MTK_QTX_SCH_MIN_RATE_EN		BIT(27)
-+#define MTK_QTX_SCH_MIN_RATE_MAN	GENMASK(26, 20)
-+#define MTK_QTX_SCH_MIN_RATE_EXP	GENMASK(19, 16)
-+#define MTK_QTX_SCH_MAX_RATE_WGHT	GENMASK(15, 12)
-+#define MTK_QTX_SCH_MAX_RATE_EN		BIT(11)
-+#define MTK_QTX_SCH_MAX_RATE_MAN	GENMASK(10, 4)
-+#define MTK_QTX_SCH_MAX_RATE_EXP	GENMASK(3, 0)
- 
- /* QDMA RX Base Pointer Register */
- #define MTK_QRX_BASE_PTR0	(QDMA_BASE + 0x100)
-@@ -421,7 +432,9 @@
- #define MTK_QRX_DRX_IDX0	(QDMA_BASE + 0x10c)
- 
- /* QDMA Page Configuration Register */
--#define MTK_QDMA_PAGE	(QDMA_BASE + 0x1f0)
-+#define MTK_QDMA_PAGE		(QDMA_BASE + 0x1f0)
-+#define MTK_QTX_CFG_PAGE	GENMASK(3, 0)
-+#define MTK_QTX_PER_PAGE	(16)
- 
- /* QDMA Global Configuration Register */
- #define MTK_QDMA_GLO_CFG	(QDMA_BASE + 0x204)
 @@ -458,6 +471,9 @@
  #define FC_THRES_DROP_EN	(7 << 16)
  #define FC_THRES_MIN		0x4444
@@ -428,7 +395,7 @@ index 0000000..3a7c585
 +		       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP,  4) |
 +		       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, 25) |
 +		       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP,  5) |
-+		       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WGHT, 4);
++		       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 4);
 +
 +		writel(val, eth->base + MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
 +	} else {
@@ -568,9 +535,9 @@ index 0000000..3a7c585
 +
 +		val = readl(eth->base + MTK_QTX_SCH(i % MTK_QTX_PER_PAGE));
 +		if (eth->soc->txrx.qdma_tx_sch == 4)
-+			scheduler = FIELD_GET(MTK_QTX_SCH_TX_SCH_SEL_V2, val);
++			scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL_V2, val);
 +		else
-+			scheduler = FIELD_GET(MTK_QTX_SCH_TX_SCH_SEL, val);
++			scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL, val);
 +		if (id == scheduler)
 +			len += scnprintf(buf + len, buf_len - len, "%d  ", i);
 +	}
@@ -662,15 +629,15 @@ index 0000000..3a7c585
 +	qtx_cfg = readl(eth->base + MTK_QTX_CFG(id % MTK_QTX_PER_PAGE));
 +	qtx_sch = readl(eth->base + MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
 +	if (eth->soc->txrx.qdma_tx_sch == 4)
-+		scheduler = FIELD_GET(MTK_QTX_SCH_TX_SCH_SEL_V2, qtx_sch);
++		scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL_V2, qtx_sch);
 +	else
-+		scheduler = FIELD_GET(MTK_QTX_SCH_TX_SCH_SEL, qtx_sch);
++		scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL, qtx_sch);
 +
 +	min_rate_en  = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EN, qtx_sch);
 +	min_rate     = FIELD_GET(MTK_QTX_SCH_MIN_RATE_MAN, qtx_sch);
 +	min_rate_exp = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EXP, qtx_sch);
 +	max_rate_en  = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EN, qtx_sch);
-+	max_weight   = FIELD_GET(MTK_QTX_SCH_MAX_RATE_WGHT, qtx_sch);
++	max_weight   = FIELD_GET(MTK_QTX_SCH_MAX_RATE_WEIGHT, qtx_sch);
 +	max_rate     = FIELD_GET(MTK_QTX_SCH_MAX_RATE_MAN, qtx_sch);
 +	max_rate_exp = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EXP, qtx_sch);
 +	while (min_rate_exp--)
@@ -767,16 +734,16 @@ index 0000000..3a7c585
 +	writel(val, eth->base + MTK_QDMA_PAGE);
 +
 +	if (eth->soc->txrx.qdma_tx_sch == 4)
-+		val = FIELD_PREP(MTK_QTX_SCH_TX_SCH_SEL_V2, scheduler);
++		val = FIELD_PREP(MTK_QTX_SCH_TX_SEL_V2, scheduler);
 +	else
-+		val = FIELD_PREP(MTK_QTX_SCH_TX_SCH_SEL, scheduler);
++		val = FIELD_PREP(MTK_QTX_SCH_TX_SEL, scheduler);
 +	if (min_enable)
 +		val |= MTK_QTX_SCH_MIN_RATE_EN;
 +	val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, min_rate);
 +	val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, min_exp);
 +	if (max_enable)
 +		val |= MTK_QTX_SCH_MAX_RATE_EN;
-+	val |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WGHT, weight);
++	val |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, weight);
 +	val |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, max_rate);
 +	val |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, max_exp);
 +	writel(val, eth->base + MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
