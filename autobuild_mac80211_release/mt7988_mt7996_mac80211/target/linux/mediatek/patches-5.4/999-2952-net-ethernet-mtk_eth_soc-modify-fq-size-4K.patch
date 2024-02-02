@@ -117,8 +117,8 @@ index 1226dd6..fe9c1de 100644
  		ring->dma = dma_alloc_coherent(eth->dma_dev, MTK_DMA_SIZE * sz,
  					       &ring->phys, GFP_KERNEL);
  	else {
--		ring->dma =  eth->scratch_ring + MTK_DMA_SIZE * sz;
-+		ring->dma =  eth->scratch_ring + MTK_DMA_FQ_SIZE * sz;
+-		ring->dma =  eth->sram_base + MTK_DMA_SIZE * sz;
++		ring->dma =  eth->sram_base + MTK_DMA_FQ_SIZE * sz;
  		ring->phys = eth->phy_scratch_ring +
 -			     MTK_DMA_SIZE * (dma_addr_t)sz;
 +			     MTK_DMA_FQ_SIZE * (dma_addr_t)sz;
