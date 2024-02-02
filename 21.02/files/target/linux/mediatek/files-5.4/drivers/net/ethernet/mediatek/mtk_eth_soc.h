@@ -298,13 +298,17 @@
 /* PDMA Reset Index Register */
 #define MTK_PDMA_RST_IDX	(PDMA_BASE + 0x208)
 #define MTK_PST_DRX_IDX0	BIT(16)
+#define MTK_PST_DTX_IDX0	BIT(0)
 #define MTK_PST_DRX_IDX_CFG(x)	(MTK_PST_DRX_IDX0 << (x))
+#define MTK_PST_DTX_IDX_CFG(x)	(MTK_PST_DTX_IDX0 << (x))
 
 /*PDMA HW RX Index Register*/
 #define MTK_ADMA_DRX_PTR	(PDMA_BASE + 0x10C)
 
 /* PDMA Delay Interrupt Register */
 #define MTK_PDMA_DELAY_INT		(PDMA_BASE + 0x20c)
+#define MTK_PDMA_TX_DELAY_INT0		(PDMA_BASE + 0x2b0)
+#define MTK_PDMA_TX_DELAY_INT1		(PDMA_BASE + 0x2b4)
 #if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_PDMA_RSS_DELAY_INT		(PDMA_BASE + 0x2c0)
 #else
@@ -490,8 +494,15 @@
 #define MTK_TX_DONE_INT2	BIT(2)
 #define MTK_TX_DONE_INT1	BIT(1)
 #define MTK_TX_DONE_INT0	BIT(0)
-#define MTK_TX_DONE_DLY         BIT(28)
-#define MTK_TX_DONE_INT         MTK_TX_DONE_DLY
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MTK_TX_DONE_INT(ring_no)				\
+	(MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA) ? BIT(28) :	\
+	 BIT(4 + (ring_no)))
+#else
+#define MTK_TX_DONE_INT(ring_no)				\
+	(MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA) ? BIT(28) :	\
+	 BIT((ring_no)))
+#endif
 
 /* QDMA Interrupt grouping registers */
 #define MTK_QDMA_INT_GRP1	(QDMA_BASE + 0x220)
@@ -607,8 +618,14 @@
 /* QDMA descriptor txd3 */
 #define TX_DMA_OWNER_CPU	BIT(31)
 #define TX_DMA_LS0		BIT(30)
-#define TX_DMA_PLEN0(_x)	(((_x) & eth->soc->txrx.dma_max_len) << eth->soc->txrx.dma_len_offset)
+#define TX_DMA_PLEN0(_x)	(((_x) & eth->soc->txrx.dma_max_len) <<	\
+				 eth->soc->txrx.dma_len_offset)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define TX_DMA_PLEN1(_x)	(((_x) & eth->soc->txrx.dma_max_len) << \
+				 eth->soc->txrx.dma_len_offset)
+#else
 #define TX_DMA_PLEN1(_x)	((_x) & eth->soc->txrx.dma_max_len)
+#endif
 #define TX_DMA_SWC		BIT(14)
 #define TX_DMA_SDP1(_x)		((((u64)(_x)) >> 32) & 0xf)
 
@@ -648,6 +665,12 @@
 
 #define RX_DMA_GET_SPORT(_x) 	(((_x) >> RX_DMA_SPORT_SHIFT) & RX_DMA_SPORT_MASK)
 #define RX_DMA_GET_SPORT_V2(_x) (((_x) >> RX_DMA_SPORT_SHIFT_V2) & RX_DMA_SPORT_MASK_V2)
+
+/* PDMA V2 descriptor txd4 */
+#define TX_DMA_LS1_V2	BIT(30)
+
+/* PDMA V2 descriptor txd5 */
+#define TX_DMA_FPORT_SHIFT_PDMA	16
 
 /* PDMA V2 descriptor rxd3 */
 #define RX_DMA_VTAG_V2          BIT(0)
@@ -1617,6 +1640,10 @@ struct mtk_reg_map {
 	u32	tx_irq_mask;
 	u32	tx_irq_status;
 	struct {
+		u32	tx_ptr;		/* tx base pointer */
+		u32	tx_cnt_cfg;	/* tx max count configuration  */
+		u32	pctx_ptr;	/* tx cpu pointer */
+		u32	pdtx_ptr;	/* tx dma pointer */
 		u32	rx_ptr;		/* rx base pointer */
 		u32	rx_cnt_cfg;	/* rx max count configuration */
 		u32	pcrx_ptr;	/* rx cpu pointer */
@@ -1841,6 +1868,7 @@ struct mtk_eth {
 	spinlock_t			page_lock;
 	spinlock_t			tx_irq_lock;
 	spinlock_t			rx_irq_lock;
+	spinlock_t			txrx_irq_lock;
 	struct net_device		dummy_dev;
 	struct net_device		*netdev[MTK_MAX_DEVS];
 	struct mtk_mac			*mac[MTK_MAX_DEVS];
