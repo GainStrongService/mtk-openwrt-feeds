@@ -46,7 +46,7 @@
 #define MII_MMD_ADDR_DATA_REG       0x0e
 #define MMD_OP_MODE_DATA            BIT(14)
 
-#define EN8811H_DRIVER_VERSION      "v1.2.2"
+#define EN8811H_DRIVER_VERSION      "v1.2.4"
 
 #define LED_ON_CTRL(i)              (0x024 + ((i)*2))
 #define LED_ON_EN                   (1 << 15)
@@ -98,6 +98,7 @@ struct en8811h_priv {
 	unsigned int        dm_crc32;
 	unsigned int        dsp_crc32;
 	char                buf[512];
+	int                 pol;
 };
 
 struct air_base_t_led_cfg {
