@@ -1,7 +1,8 @@
-From 7144ac4907d9ca8d2364ad29e380f3d27fadc493 Mon Sep 17 00:00:00 2001
+From baef207d73aaa18b2b4de40417ca5da7a3ac601e Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <Yi-Chia.Hsieh@mediatek.com>
 Date: Tue, 12 Jul 2022 10:04:35 -0700
-Subject: [PATCH 29/76] wifi: mt76: mt7915: add phy capability vendor command
+Subject: [PATCH 1017/1048] wifi: mt76: mt7915: add phy capability vendor
+ command
 
 ---
  mt7915/mt7915.h |  1 +
@@ -10,7 +11,7 @@ Subject: [PATCH 29/76] wifi: mt76: mt7915: add phy capability vendor command
  3 files changed, 78 insertions(+)
 
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 2ef63a3..053c6a8 100644
+index 42710e7..87a63ec 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -11,6 +11,7 @@
@@ -22,10 +23,10 @@ index 2ef63a3..053c6a8 100644
  #define MT7916_WTBL_SIZE		544
  #define MT7915_WTBL_RESERVED		(mt7915_wtbl_size(dev) - 1)
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 6fc88f9..a801315 100644
+index a8b1fa8..757aecb 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
-@@ -50,6 +50,18 @@ rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
+@@ -51,6 +51,18 @@ rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
  	[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TXBF] = { .type = NLA_U8 },
  };
  
@@ -44,7 +45,7 @@ index 6fc88f9..a801315 100644
  struct csi_null_tone {
  	u8 start;
  	u8 end;
-@@ -977,6 +989,35 @@ static int mt7915_vendor_mu_ctrl(struct wiphy *wiphy,
+@@ -995,6 +1007,35 @@ static int mt7915_vendor_mu_ctrl(struct wiphy *wiphy,
  	return 0;
  }
  
@@ -80,7 +81,7 @@ index 6fc88f9..a801315 100644
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -1034,6 +1075,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1052,6 +1093,17 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.doit = mt7915_vendor_mu_ctrl,
  		.policy = mu_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_MU_CTRL_MAX,
@@ -99,10 +100,10 @@ index 6fc88f9..a801315 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 2be5fc8..ffdb466 100644
+index a4a9180..34dd7d0 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
-@@ -9,6 +9,7 @@ enum mtk_nl80211_vendor_subcmds {
+@@ -10,6 +10,7 @@ enum mtk_nl80211_vendor_subcmds {
  	MTK_NL80211_VENDOR_SUBCMD_RFEATURE_CTRL = 0xc3,
  	MTK_NL80211_VENDOR_SUBCMD_WIRELESS_CTRL = 0xc4,
  	MTK_NL80211_VENDOR_SUBCMD_MU_CTRL = 0xc5,
@@ -110,7 +111,7 @@ index 2be5fc8..ffdb466 100644
  };
  
  enum mtk_capi_control_changed {
-@@ -149,4 +150,28 @@ enum mtk_vendor_attr_mnt_dump {
+@@ -152,4 +153,28 @@ enum mtk_vendor_attr_mnt_dump {
  		NUM_MTK_VENDOR_ATTRS_AMNT_DUMP - 1
  };
  

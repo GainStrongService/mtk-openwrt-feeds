@@ -1,7 +1,7 @@
-From 2dd660a1655c17d701507ab739f8fe74f8561de3 Mon Sep 17 00:00:00 2001
+From 9ae13bf78d979afa68e8586bfbe8aab5e8f64183 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 27 Oct 2022 17:42:07 +0800
-Subject: [PATCH 24/76] wifi: mt76: testmode: add ZWDFS test mode support
+Subject: [PATCH 1012/1048] wifi: mt76: testmode: add ZWDFS test mode support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -18,10 +18,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  10 files changed, 508 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index f43cb53..98e8e71 100644
+index 9c69cfb..1234da6 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -790,6 +790,15 @@ struct mt76_testmode_data {
+@@ -791,6 +791,15 @@ struct mt76_testmode_data {
  		u64 fcs_error[__MT_RXQ_MAX];
  		u64 len_mismatch;
  	} rx_stats;
@@ -38,10 +38,10 @@ index f43cb53..98e8e71 100644
  
  struct mt76_vif {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 964ee53..efb87d3 100644
+index 1a32268..4d85d32 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1227,6 +1227,7 @@ enum {
+@@ -1233,6 +1233,7 @@ enum {
  	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,
  	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
  	MCU_EXT_CMD_MURU_CTRL = 0x9f,
@@ -49,7 +49,7 @@ index 964ee53..efb87d3 100644
  	MCU_EXT_CMD_RX_STAT = 0xa4,
  	MCU_EXT_CMD_SET_SPR = 0xa8,
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
-@@ -1237,6 +1238,7 @@ enum {
+@@ -1243,6 +1244,7 @@ enum {
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
@@ -58,10 +58,10 @@ index 964ee53..efb87d3 100644
  
  enum {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 19e88b0..ddf130b 100644
+index d983432..61cf60e 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2670,6 +2670,7 @@ mt7915_mcu_background_chain_ctrl(struct mt7915_phy *phy,
+@@ -2759,6 +2759,7 @@ mt7915_mcu_background_chain_ctrl(struct mt7915_phy *phy,
  		req.monitor_chan = chandef->chan->hw_value;
  		req.monitor_central_chan =
  			ieee80211_frequency_to_channel(chandef->center_freq1);
@@ -69,7 +69,7 @@ index 19e88b0..ddf130b 100644
  		req.band_idx = phy->mt76->band_idx;
  		req.scan_mode = 2;
  		break;
-@@ -4708,3 +4709,68 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
+@@ -4907,3 +4908,68 @@ int mt7915_mcu_set_amsdu_algo(struct mt7915_dev *dev, u16 wcid, u8 enable)
  	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(MEC_CTRL), &req, sizeof(req), true);
  }
  #endif
@@ -139,10 +139,10 @@ index 19e88b0..ddf130b 100644
 +	return 0;
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 9982735..f4c3bf4 100644
+index c791c7f..066246b 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -686,6 +686,52 @@ struct csi_data {
+@@ -698,6 +698,52 @@ enum CSI_CHAIN_TYPE {
  };
  #endif
  
@@ -196,10 +196,10 @@ index 9982735..f4c3bf4 100644
  #define OFDMA_DL                       BIT(0)
  #define OFDMA_UL                       BIT(1)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index ce128ab..78ddbaf 100644
+index d77a5f0..827ee29 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -256,6 +256,7 @@ struct mt7915_phy {
+@@ -293,6 +293,7 @@ struct mt7915_phy {
  
  	struct mt76_mib_stats mib;
  	struct mt76_channel_state state_ts;
@@ -207,7 +207,7 @@ index ce128ab..78ddbaf 100644
  
  	u8 stats_work_count;
  	struct list_head stats_list;
-@@ -711,6 +712,9 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
+@@ -753,6 +754,9 @@ int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
  

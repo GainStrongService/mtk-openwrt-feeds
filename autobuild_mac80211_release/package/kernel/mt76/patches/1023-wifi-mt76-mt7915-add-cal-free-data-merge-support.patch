@@ -1,7 +1,7 @@
-From 33500b2f6cfab35577934ce0e97fe2d18382eb71 Mon Sep 17 00:00:00 2001
+From 9b79716f5ef23fae2ef839e620ec25e92cae6a82 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 30 Mar 2023 15:12:37 +0800
-Subject: [PATCH] wifi: mt76: mt7915: add cal free data merge support
+Subject: [PATCH 1023/1048] wifi: mt76: mt7915: add cal free data merge support
 
 1. add basic cal free data support
 2. add E3 low yield rate workaround for panther E3 with 7976 adie
@@ -296,10 +296,10 @@ index a1ab05a..dd450aa 100644
  	MT7976_ONE_ADIE_DBDC = 0x7,
  	MT7975_ONE_ADIE	= 0x8,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index bff2c97..5312806 100644
+index f793a95..0694c9a 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2879,6 +2879,7 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset, u8 *read_buf)
+@@ -2968,6 +2968,7 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset, u8 *read_buf)
  	};
  	struct mt7915_mcu_eeprom_info *res;
  	struct sk_buff *skb;
@@ -307,7 +307,7 @@ index bff2c97..5312806 100644
  	int ret;
  	u8 *buf = read_buf;
  
-@@ -2889,10 +2890,14 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset, u8 *read_buf)
+@@ -2978,10 +2979,14 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset, u8 *read_buf)
  		return ret;
  
  	res = (struct mt7915_mcu_eeprom_info *)skb->data;
@@ -327,10 +327,10 @@ index bff2c97..5312806 100644
  	dev_kfree_skb(skb);
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index ca54b33..3895ea4 100644
+index e01afea..a74a4eb 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -545,6 +545,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
+@@ -548,6 +548,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
  
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);

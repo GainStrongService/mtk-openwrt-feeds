@@ -1,18 +1,26 @@
-From d862aa94954361f72187565f0835a6bd025d3b7a Mon Sep 17 00:00:00 2001
+From 8e71bf60aeb05d38f45e680d55ffdb894f8af4bc Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Mon, 11 Dec 2023 19:21:16 +0800
-Subject: [PATCH 75/76] wifi: mt76: mt7915: support backaward compatiable
+Subject: [PATCH] wifi: mt76: mt7915: support backaward compatiable
 
 ---
- dma.c  | 20 --------------------
- mmio.c |  2 +-
- 2 files changed, 1 insertion(+), 21 deletions(-)
+ wed.c | 22 +---------------------
+ 1 file changed, 1 insertion(+), 21 deletions(-)
 
-diff --git a/dma.c b/dma.c
-index dfedbcd..174ac89 100644
---- a/dma.c
-+++ b/dma.c
-@@ -781,26 +781,6 @@ int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
+diff --git a/wed.c b/wed.c
+index 5ed681e..2d6a944 100644
+--- a/wed.c
++++ b/wed.c
+@@ -55,7 +55,7 @@ EXPORT_SYMBOL_GPL(mt76_wed_release_rx_buf);
+ u32 mt76_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+ {
+ 	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
+-	struct mtk_wed_bm_desc *desc = wed->rx_buf_ring.desc;
++	struct mtk_rxbm_desc *desc = wed->rx_buf_ring.desc;
+ 	u32 length;
+ 	int i;
+ 
+@@ -166,26 +166,6 @@ int mt76_wed_dma_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
  		if (!ret)
  			q->wed_regs = q->wed->rx_ring[ring].reg_base;
  		break;
@@ -25,7 +33,7 @@ index dfedbcd..174ac89 100644
 -		break;
 -	case MT76_WED_RRO_Q_MSDU_PG:
 -		q->flags &= ~MT_QFLAG_WED;
--		__mt76_dma_queue_reset(dev, q, false);
+-		__mt76_dma_queue_reset(dev, q);
 -		mtk_wed_device_msdu_pg_rx_ring_setup(q->wed, ring, q->regs);
 -		q->head = q->ndesc - 1;
 -		q->queued = q->head;
@@ -39,19 +47,6 @@ index dfedbcd..174ac89 100644
  	default:
  		ret = -EINVAL;
  		break;
-diff --git a/mmio.c b/mmio.c
-index b6617f7..f4d0142 100644
---- a/mmio.c
-+++ b/mmio.c
-@@ -134,7 +134,7 @@ EXPORT_SYMBOL_GPL(mt76_mmio_wed_release_rx_buf);
- u32 mt76_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
- {
- 	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
--	struct mtk_wed_bm_desc *desc = wed->rx_buf_ring.desc;
-+	struct mtk_rxbm_desc *desc = wed->rx_buf_ring.desc;
- 	u32 length;
- 	int i;
- 
 -- 
 2.18.0
 

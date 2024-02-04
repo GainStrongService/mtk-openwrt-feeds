@@ -1,19 +1,18 @@
-From 840d6089ac85c927bfb6f352c826ec3bd3846104 Mon Sep 17 00:00:00 2001
+From 910b19ddc72c72ebd6920ebd616f9be4e01a8de2 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Thu, 11 Aug 2022 18:09:45 -0700
-Subject: [PATCH 32/76] wifi: mt76: mt7915: Add mu dump support
+Subject: [PATCH 1020/1048] wifi: mt76: mt7915: Add mu dump support
 
-Change-Id: I521214f3feb6f0d528a9f550255050ffd1ec96d2
 ---
  mt7915/vendor.c | 24 ++++++++++++++++++++++++
  mt7915/vendor.h |  1 +
  2 files changed, 25 insertions(+)
 
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 635c218..25509d6 100644
+index 3a58684..ac6f637 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
-@@ -37,6 +37,7 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
+@@ -38,6 +38,7 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
  static const struct nla_policy
  mu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_MU_CTRL] = {
  	[MTK_VENDOR_ATTR_MU_CTRL_ONOFF] = {.type = NLA_U8 },
@@ -21,7 +20,7 @@ index 635c218..25509d6 100644
  };
  
  static const struct nla_policy
-@@ -1007,6 +1008,28 @@ static int mt7915_vendor_mu_ctrl(struct wiphy *wiphy,
+@@ -1025,6 +1026,28 @@ static int mt7915_vendor_mu_ctrl(struct wiphy *wiphy,
  	return 0;
  }
  
@@ -50,7 +49,7 @@ index 635c218..25509d6 100644
  static int
  mt7915_vendor_phy_capa_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
  			     struct sk_buff *skb, const void *data, int data_len,
-@@ -1193,6 +1216,7 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1211,6 +1234,7 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV |
  			WIPHY_VENDOR_CMD_NEED_RUNNING,
  		.doit = mt7915_vendor_mu_ctrl,
@@ -59,10 +58,10 @@ index 635c218..25509d6 100644
  		.maxattr = MTK_VENDOR_ATTR_MU_CTRL_MAX,
  	},
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 0c96377..d8e23d3 100644
+index 284994a..8c2a996 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
-@@ -72,6 +72,7 @@ enum mtk_vendor_attr_mu_ctrl {
+@@ -73,6 +73,7 @@ enum mtk_vendor_attr_mu_ctrl {
  	MTK_VENDOR_ATTR_MU_CTRL_UNSPEC,
  
  	MTK_VENDOR_ATTR_MU_CTRL_ONOFF,

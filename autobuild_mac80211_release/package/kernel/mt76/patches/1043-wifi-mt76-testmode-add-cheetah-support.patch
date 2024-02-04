@@ -1,7 +1,7 @@
-From 5186827e8a40a71363aa2c7cc3aef1fafae3665f Mon Sep 17 00:00:00 2001
+From ceb70263bbea4b354207f9011670944b79868910 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 31 Oct 2023 16:29:13 +0800
-Subject: [PATCH 55/76] wifi: mt76: testmode: add cheetah support
+Subject: [PATCH 1043/1048] wifi: mt76: testmode: add cheetah support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -12,10 +12,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 37 insertions(+), 8 deletions(-)
 
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index b96776d..c8ea1d9 100644
+index e11ae5e..96b1ea3 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
-@@ -39,8 +39,7 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
+@@ -40,8 +40,7 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
  	if (!dev->flash_mode || !val)
  		return 0;
  
@@ -26,7 +26,7 @@ index b96776d..c8ea1d9 100644
  	dev->cal = devm_kzalloc(mdev->dev, size, GFP_KERNEL);
  	if (!dev->cal)
 diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
-index a1ab05a..99101f9 100644
+index dd450aa..70fca0b 100644
 --- a/mt7915/eeprom.h
 +++ b/mt7915/eeprom.h
 @@ -52,6 +52,7 @@ enum mt7915_eeprom_field {
@@ -37,7 +37,7 @@ index a1ab05a..99101f9 100644
  
  #define MT_EE_WIFI_CONF0_TX_PATH		GENMASK(2, 0)
  #define MT_EE_WIFI_CONF0_BAND_SEL		GENMASK(7, 6)
-@@ -192,6 +193,17 @@ mt7915_get_cal_group_size(struct mt7915_dev *dev)
+@@ -194,6 +195,17 @@ mt7915_get_cal_group_size(struct mt7915_dev *dev)
  	}
  }
  
@@ -56,10 +56,10 @@ index a1ab05a..99101f9 100644
  
  #endif
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ac015ab..2b41feb 100644
+index 1eb19ba..6cee6b6 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -3040,13 +3040,30 @@ static int mt7915_dpd_freq_idx(struct mt7915_dev *dev, u16 freq, u8 bw)
+@@ -3129,13 +3129,30 @@ static int mt7915_dpd_freq_idx(struct mt7915_dev *dev, u16 freq, u8 bw)
  		/* 5G BW160 */
  		5250, 5570, 5815
  	};

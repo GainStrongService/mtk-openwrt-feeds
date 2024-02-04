@@ -1,7 +1,8 @@
-From 6d74bab9bd42b443ac50deb662d67ffbf712f5f4 Mon Sep 17 00:00:00 2001
+From f1c639c9af8a46987ccdbb96c6327d801983101a Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 22 Jun 2022 10:39:47 +0800
-Subject: [PATCH] wifi: mt76: mt7915: add mtk internal debug tools for mt76
+Subject: [PATCH 1000/1048] wifi: mt76: mt7915: add mtk internal debug tools
+ for mt76
 
 ---
  mt76_connac_mcu.h     |    6 +
@@ -22,10 +23,10 @@ Subject: [PATCH] wifi: mt76: mt7915: add mtk internal debug tools for mt76
  create mode 100644 mt7915/mtk_mcu.c
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index b537e49..464e8e0 100644
+index ea71d53..ae5bbc0 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1184,6 +1184,7 @@ enum {
+@@ -1188,6 +1188,7 @@ enum {
  	MCU_EXT_CMD_SET_TX_POWER_CTRL = 0x11,
  	MCU_EXT_CMD_FW_LOG_2_HOST = 0x13,
  	MCU_EXT_CMD_TXBF_ACTION = 0x1e,
@@ -33,7 +34,7 @@ index b537e49..464e8e0 100644
  	MCU_EXT_CMD_EFUSE_BUFFER_MODE = 0x21,
  	MCU_EXT_CMD_THERMAL_PROT = 0x23,
  	MCU_EXT_CMD_STA_REC_UPDATE = 0x25,
-@@ -1207,6 +1208,11 @@ enum {
+@@ -1211,6 +1212,11 @@ enum {
  	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
  	MCU_EXT_CMD_RXDCOC_CAL = 0x59,
  	MCU_EXT_CMD_GET_MIB_INFO = 0x5a,
@@ -231,7 +232,7 @@ index 93e549c..f181377 100644
  
  	if (dev->relay_fwlog)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 762159b..401e201 100644
+index e819815..734d6ba 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -275,6 +275,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -270,7 +271,7 @@ index 762159b..401e201 100644
  }
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 0c4d827..21100d0 100644
+index 4e9a509..6e362fc 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -73,7 +73,11 @@ int mt7915_run(struct ieee80211_hw *hw)
@@ -294,7 +295,7 @@ index 0c4d827..21100d0 100644
  	mt7915_mac_wtbl_update(dev, idx,
  			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 9998fd5..5cbeb01 100644
+index 32b6096..6d704f7 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -205,6 +205,11 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -330,7 +331,7 @@ index 9998fd5..5cbeb01 100644
  	return mt76_mcu_send_msg(&dev->mt76,
  				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL), &req,
  				 sizeof(req), true);
-@@ -4103,6 +4113,23 @@ out:
+@@ -4121,6 +4131,23 @@ out:
  	return ret;
  }
  
@@ -354,7 +355,7 @@ index 9998fd5..5cbeb01 100644
  int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  {
  	struct {
-@@ -4131,3 +4158,22 @@ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
+@@ -4149,3 +4176,22 @@ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
  
  	return 0;
  }

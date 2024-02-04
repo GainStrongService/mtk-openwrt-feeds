@@ -1,7 +1,8 @@
-From 88ebb3ad1cef268dd72f9e1892ef58bdb6b94a93 Mon Sep 17 00:00:00 2001
+From 89869c9c04ad990c56074b22311d49a5a57862b1 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Jun 2022 19:46:26 +0800
-Subject: [PATCH 20/76] wifi: mt76: testmode: rework testmode init registers
+Subject: [PATCH 1008/1048] wifi: mt76: testmode: rework testmode init
+ registers
 
 ---
  mac80211.c        |   3 +-
@@ -17,7 +18,7 @@ Subject: [PATCH 20/76] wifi: mt76: testmode: rework testmode init registers
  10 files changed, 164 insertions(+), 35 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 259b448..432bc40 100644
+index b30a74e..3f5c2ed 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -804,7 +804,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
@@ -31,10 +32,10 @@ index 259b448..432bc40 100644
  		if (status->flag & RX_FLAG_FAILED_FCS_CRC)
  			phy->test.rx_stats.fcs_error[q]++;
 diff --git a/mt76.h b/mt76.h
-index c644647..2244ab5 100644
+index 1c37031..9fe1716 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -706,6 +706,8 @@ struct mt76_testmode_ops {
+@@ -707,6 +707,8 @@ struct mt76_testmode_ops {
  	int (*dump_stats)(struct mt76_phy *phy, struct sk_buff *msg);
  };
  
@@ -43,7 +44,7 @@ index c644647..2244ab5 100644
  struct mt76_testmode_data {
  	enum mt76_testmode_state state;
  
-@@ -737,6 +739,8 @@ struct mt76_testmode_data {
+@@ -738,6 +740,8 @@ struct mt76_testmode_data {
  
  	u8 addr[3][ETH_ALEN];
  
@@ -52,7 +53,7 @@ index c644647..2244ab5 100644
  	u32 tx_pending;
  	u32 tx_queued;
  	u16 tx_queued_limit;
-@@ -744,6 +748,7 @@ struct mt76_testmode_data {
+@@ -745,6 +749,7 @@ struct mt76_testmode_data {
  	struct {
  		u64 packets[__MT_RXQ_MAX];
  		u64 fcs_error[__MT_RXQ_MAX];
@@ -61,10 +62,10 @@ index c644647..2244ab5 100644
  };
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index c4f5a64..d4254be 100644
+index 36054bd..edc9e12 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1225,6 +1225,7 @@ enum {
+@@ -1231,6 +1231,7 @@ enum {
  	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,
  	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
  	MCU_EXT_CMD_MURU_CTRL = 0x9f,
@@ -73,7 +74,7 @@ index c4f5a64..d4254be 100644
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index b6e2136..c15b4b7 100644
+index 8650053..7653b5e 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -9,6 +9,7 @@
@@ -85,7 +86,7 @@ index b6e2136..c15b4b7 100644
  	MCU_ATE_CLEAN_TXQUEUE = 0x1c,
  };
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index bd9e01d..0fd1a34 100644
+index 6004d64..694fc1b 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -120,6 +120,7 @@ static const u32 mt7986_reg[] = {

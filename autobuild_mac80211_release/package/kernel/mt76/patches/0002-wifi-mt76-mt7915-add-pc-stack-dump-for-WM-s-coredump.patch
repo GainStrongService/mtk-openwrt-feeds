@@ -1,7 +1,8 @@
-From 585c6bb0ad5ef459c62f68f4c5addf6a29c07eda Mon Sep 17 00:00:00 2001
+From b73a60b2d769526243aa640f63bd8c0d5774532a Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 22 May 2023 13:49:37 +0800
-Subject: [PATCH] wifi: mt76: mt7915: add pc stack dump for WM's coredump.
+Subject: [PATCH 02/13] wifi: mt76: mt7915: add pc stack dump for WM's
+ coredump.
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
@@ -15,7 +16,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  7 files changed, 207 insertions(+), 71 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 8f1f0a7..580891f 100644
+index 6282cb6..03116ff 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -27,6 +27,8 @@
@@ -40,7 +41,7 @@ index 8f1f0a7..580891f 100644
  enum mt76_wed_type {
  	MT76_WED_Q_TX,
  	MT76_WED_Q_TXFREE,
-@@ -832,6 +840,9 @@ struct mt76_dev {
+@@ -833,6 +841,9 @@ struct mt76_dev {
  	struct device *dma_dev;
  
  	struct mt76_mcu mcu;
@@ -51,10 +52,10 @@ index 8f1f0a7..580891f 100644
  	struct net_device napi_dev;
  	struct net_device tx_napi_dev;
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 96494ba..984cd4f 100644
+index 7602f97..fe5250c 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -2930,6 +2930,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -2933,6 +2933,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		goto out;
  	}
  
@@ -64,7 +65,7 @@ index 96494ba..984cd4f 100644
  	snprintf(dev->hw->wiphy->fw_version,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
-@@ -2959,6 +2962,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -2962,6 +2965,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		goto out;
  	}
  
@@ -74,7 +75,7 @@ index 96494ba..984cd4f 100644
  	snprintf(dev->hw->wiphy->fw_version,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
-@@ -3029,6 +3035,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
+@@ -3032,6 +3038,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
  	dev_info(dev->dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
  		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
  
@@ -513,10 +514,10 @@ index 709f8e9..809ccbd 100644
  	return NULL;
  }
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index c083f87..5c7e0e6 100644
+index 9e1cfa6..3fe1cf1 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -1595,28 +1595,31 @@ void mt7915_mac_reset_work(struct work_struct *work)
+@@ -1592,28 +1592,31 @@ void mt7915_mac_reset_work(struct work_struct *work)
  }
  
  /* firmware coredump */
@@ -554,7 +555,7 @@ index c083f87..5c7e0e6 100644
  	if (!mem_region || !crash_data->memdump_buf_len) {
  		mutex_unlock(&dev->dump_mutex);
  		goto skip_memdump;
-@@ -1626,6 +1629,9 @@ void mt7915_mac_dump_work(struct work_struct *work)
+@@ -1623,6 +1626,9 @@ void mt7915_mac_dump_work(struct work_struct *work)
  	buf_len = crash_data->memdump_buf_len;
  
  	/* dumping memory content... */
@@ -564,7 +565,7 @@ index c083f87..5c7e0e6 100644
  	memset(buf, 0, buf_len);
  	for (i = 0; i < num; i++) {
  		if (mem_region->len > buf_len) {
-@@ -1643,6 +1649,7 @@ void mt7915_mac_dump_work(struct work_struct *work)
+@@ -1640,6 +1646,7 @@ void mt7915_mac_dump_work(struct work_struct *work)
  		mt7915_memcpy_fromio(dev, buf, mem_region->start,
  				     mem_region->len);
  
@@ -572,7 +573,7 @@ index c083f87..5c7e0e6 100644
  		hdr->start = mem_region->start;
  		hdr->len = mem_region->len;
  
-@@ -1659,8 +1666,18 @@ void mt7915_mac_dump_work(struct work_struct *work)
+@@ -1656,8 +1663,18 @@ void mt7915_mac_dump_work(struct work_struct *work)
  	mutex_unlock(&dev->dump_mutex);
  
  skip_memdump:
@@ -594,7 +595,7 @@ index c083f87..5c7e0e6 100644
  }
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 5d14017..4293385 100644
+index 44950ab..35458ec 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -286,7 +286,7 @@ struct mt7915_dev {

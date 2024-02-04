@@ -1,7 +1,8 @@
-From 3139498918652ecf180fa6ccfa465cbcdf5185fc Mon Sep 17 00:00:00 2001
+From 6e0308590a7f6301a9d80ae8b523417b614a0c6b Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 13 Dec 2023 09:55:27 +0800
-Subject: [PATCH] wifi: mt76: mt7915: add mt7986 and mt7916 pre-calibration
+Subject: [PATCH 1016/1048] wifi: mt76: mt7915: add mt7986 and mt7916
+ pre-calibration
 
 Add pre-calibration for mt7986 and mt7916. It has different data size
 with mt7915. Group cal needs 54k and 94k for 2G + 5G and 2G + 6G,
@@ -69,10 +70,10 @@ index 25f0b32..4a31375 100644
  	MT_EE_RATE_DELTA_5G =	0x29d,
  	MT_EE_TX0_POWER_2G =	0x2fc,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 3645540..174e1b0 100644
+index 1707aaf..b21d888 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2955,7 +2955,8 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
+@@ -3044,7 +3044,8 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,
  int mt7915_mcu_apply_group_cal(struct mt7915_dev *dev)
  {
  	u8 idx = 0, *cal = dev->cal, *eep = dev->mt76.eeprom.data;
@@ -82,7 +83,7 @@ index 3645540..174e1b0 100644
  
  	if (!(eep[offs] & MT_EE_WIFI_CAL_GROUP))
  		return 0;
-@@ -2993,9 +2994,9 @@ static int mt7915_find_freq_idx(const u16 *freqs, int n_freqs, u16 cur)
+@@ -3082,9 +3083,9 @@ static int mt7915_find_freq_idx(const u16 *freqs, int n_freqs, u16 cur)
  	return -1;
  }
  
@@ -94,7 +95,7 @@ index 3645540..174e1b0 100644
  		5180, 5200, 5220, 5240,
  		5260, 5280, 5300, 5320,
  		5500, 5520, 5540, 5560,
-@@ -3003,34 +3004,69 @@ static int mt7915_dpd_freq_idx(u16 freq, u8 bw)
+@@ -3092,34 +3093,69 @@ static int mt7915_dpd_freq_idx(u16 freq, u8 bw)
  		5660, 5680, 5700, 5745,
  		5765, 5785, 5805, 5825
  	};
@@ -174,7 +175,7 @@ index 3645540..174e1b0 100644
  }
  
  int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
-@@ -3062,24 +3098,24 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
+@@ -3151,24 +3187,24 @@ int mt7915_mcu_apply_tx_dpd(struct mt7915_phy *phy)
  	if (!(eep[offs] & dpd_mask))
  		return 0;
  

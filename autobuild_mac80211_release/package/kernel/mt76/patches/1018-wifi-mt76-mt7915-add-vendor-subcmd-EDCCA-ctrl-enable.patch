@@ -1,10 +1,9 @@
-From 8fa041e702bd756560a1f409f4ad783f90b412d9 Mon Sep 17 00:00:00 2001
+From a6f57135acd192daa23860751e6f52fe5bc3657e Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
-Subject: [PATCH 30/76] wifi: mt76: mt7915: add vendor subcmd EDCCA ctrl
+Subject: [PATCH 1018/1048] wifi: mt76: mt7915: add vendor subcmd EDCCA ctrl
  enable/threshold/compensation
 
-Change-Id: I06a3f94d5e444be894200e2b6588d76ed38d09d0
 ---
  mt76_connac_mcu.h |   1 +
  mt7915/main.c     |   3 ++
@@ -16,10 +15,10 @@ Change-Id: I06a3f94d5e444be894200e2b6588d76ed38d09d0
  7 files changed, 265 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index efb87d3..9e40749 100644
+index 4d85d32..8dba184 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1237,6 +1237,7 @@ enum {
+@@ -1243,6 +1243,7 @@ enum {
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
@@ -28,7 +27,7 @@ index efb87d3..9e40749 100644
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/main.c b/mt7915/main.c
-index d73cf9f..f7fee40 100644
+index 0a3e8e0..3f07183 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -479,6 +479,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
@@ -42,10 +41,10 @@ index d73cf9f..f7fee40 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 174e1b0..884b394 100644
+index b21d888..697e964 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4827,3 +4827,76 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
+@@ -5026,3 +5026,76 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
  
  	return 0;
  }
@@ -123,10 +122,10 @@ index 174e1b0..884b394 100644
 +	return 0;
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index c95d990..d271e2b 100644
+index de17c57..1682c11 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
-@@ -1116,6 +1116,27 @@ enum {
+@@ -1128,6 +1128,27 @@ enum {
     MURU_DL_INIT,
     MURU_UL_INIT,
  };
@@ -155,10 +154,10 @@ index c95d990..d271e2b 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 053c6a8..795af63 100644
+index 87a63ec..03df15e 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -714,7 +714,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
+@@ -756,7 +756,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
  int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
@@ -169,10 +168,10 @@ index 053c6a8..795af63 100644
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index a801315..635c218 100644
+index 757aecb..3a58684 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
-@@ -62,6 +62,24 @@ phy_capa_dump_policy[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP] = {
+@@ -63,6 +63,24 @@ phy_capa_dump_policy[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP] = {
  	[MTK_VENDOR_ATTR_PHY_CAPA_DUMP_MAX_SUPPORTED_STA] = { .type = NLA_U16 },
  };
  
@@ -197,7 +196,7 @@ index a801315..635c218 100644
  struct csi_null_tone {
  	u8 start;
  	u8 end;
-@@ -1018,6 +1036,108 @@ mt7915_vendor_phy_capa_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
+@@ -1036,6 +1054,108 @@ mt7915_vendor_phy_capa_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
  	return len;
  }
  
@@ -306,7 +305,7 @@ index a801315..635c218 100644
  static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  	{
  		.info = {
-@@ -1086,6 +1206,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
+@@ -1104,6 +1224,18 @@ static const struct wiphy_vendor_command mt7915_vendor_commands[] = {
  		.dumpit = mt7915_vendor_phy_capa_ctrl_dump,
  		.policy = phy_capa_ctrl_policy,
  		.maxattr = MTK_VENDOR_ATTR_PHY_CAPA_CTRL_MAX,
@@ -326,10 +325,10 @@ index a801315..635c218 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index ffdb466..0c96377 100644
+index 34dd7d0..284994a 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
-@@ -2,6 +2,7 @@
+@@ -3,6 +3,7 @@
  #define __MT7915_VENDOR_H
  
  #define MTK_NL80211_VENDOR_ID	0x0ce7
@@ -337,7 +336,7 @@ index ffdb466..0c96377 100644
  
  enum mtk_nl80211_vendor_subcmds {
  	MTK_NL80211_VENDOR_SUBCMD_AMNT_CTRL = 0xae,
-@@ -10,6 +11,38 @@ enum mtk_nl80211_vendor_subcmds {
+@@ -11,6 +12,38 @@ enum mtk_nl80211_vendor_subcmds {
  	MTK_NL80211_VENDOR_SUBCMD_WIRELESS_CTRL = 0xc4,
  	MTK_NL80211_VENDOR_SUBCMD_MU_CTRL = 0xc5,
  	MTK_NL80211_VENDOR_SUBCMD_PHY_CAPA_CTRL = 0xc6,

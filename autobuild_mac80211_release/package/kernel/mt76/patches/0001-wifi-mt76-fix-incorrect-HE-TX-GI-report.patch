@@ -1,7 +1,7 @@
-From 0833b8306d6614f28f9be5df2174667e486cdab7 Mon Sep 17 00:00:00 2001
+From 7904ac14dffdafe54e8007899140c01915e3acfe Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Thu, 18 May 2023 18:11:37 +0800
-Subject: [PATCH 01/76] wifi: mt76: fix incorrect HE TX GI report
+Subject: [PATCH 01/13] wifi: mt76: fix incorrect HE TX GI report
 
 Change GI reporting source from static capability to rate-tuning module.
 
@@ -17,10 +17,10 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  7 files changed, 282 insertions(+), 22 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index d2ead58..8f1f0a7 100644
+index 1f24958..6282cb6 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -276,12 +276,16 @@ struct mt76_queue_ops {
+@@ -277,12 +277,16 @@ struct mt76_queue_ops {
  	void (*reset_q)(struct mt76_dev *dev, struct mt76_queue *q);
  };
  
@@ -60,7 +60,7 @@ index 11c4621..ea96d8d 100644
  	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt7915_mac_work);
  	INIT_LIST_HEAD(&dev->sta_rc_list);
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index b01edbe..c083f87 100644
+index e453611..9e1cfa6 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -173,15 +173,7 @@ static void mt7915_mac_sta_poll(struct mt7915_dev *dev)
@@ -147,7 +147,7 @@ index b01edbe..c083f87 100644
  out:
  	rcu_read_unlock();
  }
-@@ -1950,6 +1944,27 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
+@@ -1947,6 +1941,27 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
  	phy->trb_ts = trb;
  }
  
@@ -175,7 +175,7 @@ index b01edbe..c083f87 100644
  void mt7915_mac_sta_rc_work(struct work_struct *work)
  {
  	struct mt7915_dev *dev = container_of(work, struct mt7915_dev, rc_work);
-@@ -2008,6 +2023,11 @@ void mt7915_mac_work(struct work_struct *work)
+@@ -2005,6 +2020,11 @@ void mt7915_mac_work(struct work_struct *work)
  			mt7915_mcu_muru_debug_get(phy);
  	}
  
@@ -188,7 +188,7 @@ index b01edbe..c083f87 100644
  
  	mt76_tx_status_check(mphy->dev, false);
 diff --git a/mt7915/main.c b/mt7915/main.c
-index df2d427..1949f9a 100644
+index 3709d18..3182fac 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -751,6 +751,7 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -466,7 +466,7 @@ index b41ac4a..8f36546 100644
 +};
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 4727d9c..5d14017 100644
+index 6e79bc6..44950ab 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -137,6 +137,7 @@ struct mt7915_sta {
@@ -488,7 +488,7 @@ index 4727d9c..5d14017 100644
  #ifdef CONFIG_NL80211_TESTMODE
  	struct {
  		u32 *reg_backup;
-@@ -494,6 +499,7 @@ int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch);
+@@ -495,6 +500,7 @@ int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch);
  int mt7915_mcu_get_temperature(struct mt7915_phy *phy);
  int mt7915_mcu_set_thermal_throttling(struct mt7915_phy *phy, u8 state);
  int mt7915_mcu_set_thermal_protect(struct mt7915_phy *phy);

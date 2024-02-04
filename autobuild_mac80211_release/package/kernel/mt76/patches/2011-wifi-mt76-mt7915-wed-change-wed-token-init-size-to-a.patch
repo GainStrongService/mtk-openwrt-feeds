@@ -1,44 +1,22 @@
-From 7c1d1577b0df8af83a6d3db7aa006cb00fef321c Mon Sep 17 00:00:00 2001
+From cea4cefe43864504c91e9c0e699237fb55b62208 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Mon, 11 Sep 2023 17:57:32 +0800
-Subject: [PATCH 69/76] wifi: mt76: mt7915: wed: change wed token init size to
- adapt wed version
+Subject: [PATCH 2011/2012] wifi: mt76: mt7915: wed: change wed token init size
+ to adapt wed version
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
 ---
- mmio.c          |  4 ++--
  mt76.h          |  2 ++
  mt7915/mac.c    | 10 ++++++++--
  mt7915/mcu.c    |  7 +++++--
  mt7915/mmio.c   |  9 ++++++---
  mt7915/mt7915.h |  4 +++-
  tx.c            | 26 ++++++++------------------
+ wed.c           |  4 ++--
  7 files changed, 34 insertions(+), 28 deletions(-)
 
-diff --git a/mmio.c b/mmio.c
-index cdd5595..b6617f7 100644
---- a/mmio.c
-+++ b/mmio.c
-@@ -197,7 +197,7 @@ int mt76_mmio_wed_offload_enable(struct mtk_wed_device *wed)
- 	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
- 
- 	spin_lock_bh(&dev->token_lock);
--	dev->token_size = wed->wlan.token_start;
-+	dev->token_size = MT76_WED_SW_TOKEN_SIZE;
- 	spin_unlock_bh(&dev->token_lock);
- 
- 	return !wait_event_timeout(dev->tx_wait, !dev->wed_token_count, HZ);
-@@ -209,7 +209,7 @@ void mt76_mmio_wed_offload_disable(struct mtk_wed_device *wed)
- 	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
- 
- 	spin_lock_bh(&dev->token_lock);
--	dev->token_size = wed->wlan.token_start;
-+	dev->token_size = MT76_WED_SW_TOKEN_SIZE;
- 	spin_unlock_bh(&dev->token_lock);
- }
- EXPORT_SYMBOL_GPL(mt76_mmio_wed_offload_disable);
 diff --git a/mt76.h b/mt76.h
-index f5776ab..5fea9a5 100644
+index 3844e3b..2adfa94 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -29,6 +29,8 @@
@@ -51,7 +29,7 @@ index f5776ab..5fea9a5 100644
  #define MT_QFLAG_WED_TYPE	GENMASK(4, 2)
  #define MT_QFLAG_WED		BIT(5)
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index a5a5ebd..fdafaf3 100644
+index 882d812..51e2f24 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -932,7 +932,7 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
@@ -86,10 +64,10 @@ index a5a5ebd..fdafaf3 100644
  					msdu);
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 19d5aa5..d0f4bf6 100644
+index 3e0acc0..c052774 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -2318,6 +2318,9 @@ mt7915_mcu_init_rx_airtime(struct mt7915_dev *dev)
+@@ -2408,6 +2408,9 @@ mt7915_mcu_init_rx_airtime(struct mt7915_dev *dev)
  static int mt7915_red_set_watermark(struct mt7915_dev *dev)
  {
  #define RED_GLOBAL_TOKEN_WATERMARK 2
@@ -99,7 +77,7 @@ index 19d5aa5..d0f4bf6 100644
  	struct {
  		__le32 args[3];
  		u8 cmd;
-@@ -2331,8 +2334,8 @@ static int mt7915_red_set_watermark(struct mt7915_dev *dev)
+@@ -2421,8 +2424,8 @@ static int mt7915_red_set_watermark(struct mt7915_dev *dev)
  		.args[0] = cpu_to_le32(MCU_WA_PARAM_RED_SETTING),
  		.cmd = RED_GLOBAL_TOKEN_WATERMARK,
  		.len = cpu_to_le16(sizeof(req) - sizeof(req.args)),
@@ -111,10 +89,10 @@ index 19d5aa5..d0f4bf6 100644
  
  	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_PARAM_CMD(SET), &req,
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index c8258f1..74cf4ad 100644
+index 3391a94..6309dd9 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
-@@ -699,11 +699,14 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -695,11 +695,14 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  		wed->wlan.wpdma_rx_glo = res->start + MT_WPDMA_GLO_CFG;
  		wed->wlan.wpdma_rx = res->start + MT_RXQ_WED_DATA_RING_BASE;
  	}
@@ -131,7 +109,7 @@ index c8258f1..74cf4ad 100644
  	wed->wlan.wcid_512 = !is_mt7915(&dev->mt76);
  
  	wed->wlan.rx_nbuf = 65536;
-@@ -736,7 +739,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -732,7 +735,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  
  	*irq = wed->irq;
  	dev->mt76.dma_dev = wed->dev;
@@ -141,7 +119,7 @@ index c8258f1..74cf4ad 100644
  	ret = dma_set_mask(wed->dev, DMA_BIT_MASK(32));
  	if (ret)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 79e0fae..057b0f1 100644
+index 0c1ada2..f95ed89 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -62,7 +62,9 @@
@@ -156,10 +134,10 @@ index 79e0fae..057b0f1 100644
  #define MT7915_RX_TOKEN_SIZE		4096
  
 diff --git a/tx.c b/tx.c
-index e290aef..96f9009 100644
+index ba7c13c..b1d8b32 100644
 --- a/tx.c
 +++ b/tx.c
-@@ -818,20 +818,18 @@ EXPORT_SYMBOL_GPL(__mt76_set_tx_blocked);
+@@ -826,20 +826,18 @@ EXPORT_SYMBOL_GPL(__mt76_set_tx_blocked);
  
  int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
  {
@@ -187,7 +165,7 @@ index e290aef..96f9009 100644
  	if (dev->token_count >= dev->token_size - MT76_TOKEN_FREE_THR)
  		__mt76_set_tx_blocked(dev, true);
  
-@@ -867,17 +865,9 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
+@@ -875,17 +873,9 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
  	spin_lock_bh(&dev->token_lock);
  
  	txwi = idr_remove(&dev->token, token);
@@ -206,6 +184,28 @@ index e290aef..96f9009 100644
  	if (dev->token_count < dev->token_size - MT76_TOKEN_FREE_THR &&
  	    dev->phy.q_tx[0]->blocked)
  		*wake = true;
+diff --git a/wed.c b/wed.c
+index 70e4057..5ed681e 100644
+--- a/wed.c
++++ b/wed.c
+@@ -118,7 +118,7 @@ int mt76_wed_offload_enable(struct mtk_wed_device *wed)
+ 	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
+ 
+ 	spin_lock_bh(&dev->token_lock);
+-	dev->token_size = wed->wlan.token_start;
++	dev->token_size = MT76_WED_SW_TOKEN_SIZE;
+ 	spin_unlock_bh(&dev->token_lock);
+ 
+ 	return !wait_event_timeout(dev->tx_wait, !dev->wed_token_count, HZ);
+@@ -202,7 +202,7 @@ void mt76_wed_offload_disable(struct mtk_wed_device *wed)
+ 	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
+ 
+ 	spin_lock_bh(&dev->token_lock);
+-	dev->token_size = wed->wlan.token_start;
++	dev->token_size = MT76_WED_SW_TOKEN_SIZE;
+ 	spin_unlock_bh(&dev->token_lock);
+ }
+ EXPORT_SYMBOL_GPL(mt76_wed_offload_disable);
 -- 
 2.18.0
 

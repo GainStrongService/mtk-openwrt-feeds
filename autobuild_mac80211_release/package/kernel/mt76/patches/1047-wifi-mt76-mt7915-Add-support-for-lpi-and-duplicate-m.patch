@@ -1,7 +1,7 @@
-From 563bc086375268e5e0136fa6fa1b3512e2e33c9e Mon Sep 17 00:00:00 2001
+From 14733d632430b788c7323b038bd679045a9dba95 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Fri, 15 Dec 2023 14:03:11 +0800
-Subject: [PATCH 1047/1047] wifi: mt76: mt7915: Add support for lpi and
+Subject: [PATCH 1047/1048] wifi: mt76: mt7915: Add support for lpi and
  duplicate mode
 
 Add support lpi and duplicate mode.
@@ -95,10 +95,10 @@ index 4213e44..2ee262a 100644
  		return target_power;
  
 diff --git a/mt76.h b/mt76.h
-index 18a3f5d..f5ed12b 100644
+index 1aa266f..4291acd 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -851,6 +851,9 @@ struct mt76_phy {
+@@ -852,6 +852,9 @@ struct mt76_phy {
  	u8 macaddr[ETH_ALEN];
  
  	int txpower_cur;
@@ -108,7 +108,7 @@ index 18a3f5d..f5ed12b 100644
  	u8 antenna_mask;
  	u16 chainmask;
  
-@@ -1731,7 +1734,7 @@ mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
+@@ -1740,7 +1743,7 @@ mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
  void mt76_set_irq_mask(struct mt76_dev *dev, u32 addr, u32 clear, u32 set);
  
  struct device_node *
@@ -134,7 +134,7 @@ index 5f13211..c49a330 100644
 +
  #endif /* __MT76_CONNAC2_MAC_H */
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index 362d937..541ba3a 100644
+index d036047..d41f004 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -564,7 +564,8 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
@@ -159,10 +159,10 @@ index 362d937..541ba3a 100644
  
  		txwi[7] &= ~cpu_to_le32(MT_TXD7_HW_AMSDU);
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 9d1841e..5bd773d 100644
+index 4e1006d..e581084 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1243,6 +1243,7 @@ enum {
+@@ -1249,6 +1249,7 @@ enum {
  	MCU_EXT_CMD_SWLNA_ACI_CTRL = 0xc0,
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
@@ -171,7 +171,7 @@ index 9d1841e..5bd773d 100644
  
  enum {
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 519e34c..fc03867 100644
+index ead0f98..017d43d 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -1296,7 +1296,6 @@ mt7915_txpower_info_show(struct seq_file *file, void *data)
@@ -192,7 +192,7 @@ index 519e34c..fc03867 100644
  
  out:
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 2fa1d2d..75e0912 100644
+index 1a41282..32bbd6c 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -287,7 +287,7 @@ static void __mt7915_init_txpower(struct mt7915_phy *phy,
@@ -217,10 +217,10 @@ index 2fa1d2d..75e0912 100644
  
  static void
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 84ec1db..377bb7d 100644
+index 7e0e277..ba47d0d 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -1432,7 +1432,8 @@ mt7915_mcu_set_spe_idx(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+@@ -1522,7 +1522,8 @@ mt7915_mcu_set_spe_idx(struct mt7915_dev *dev, struct ieee80211_vif *vif,
  {
  	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
  	struct mt76_phy *mphy = mvif->phy->mt76;
@@ -230,7 +230,7 @@ index 84ec1db..377bb7d 100644
  
  	return mt7915_mcu_set_fixed_rate_ctrl(dev, vif, sta, &spe_idx,
  					      RATE_PARAM_SPE_UPDATE);
-@@ -3399,6 +3400,22 @@ mt7915_update_txpower(struct mt7915_phy *phy, int tx_power)
+@@ -3488,6 +3489,22 @@ mt7915_update_txpower(struct mt7915_phy *phy, int tx_power)
  		mphy->txpower_cur = e2p_power_limit;
  }
  
@@ -253,7 +253,7 @@ index 84ec1db..377bb7d 100644
  int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
  {
  #define TX_POWER_LIMIT_TABLE_RATE	0
-@@ -3430,14 +3447,37 @@ int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
+@@ -3519,14 +3536,37 @@ int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
  		mt7915_update_txpower(phy, tx_power);
  		return 0;
  	}
@@ -293,7 +293,7 @@ index 84ec1db..377bb7d 100644
  	skb_put_data(skb, &la.mcs[0], len[SKU_HT_BW20]);
  	skb_put_data(skb, &la.mcs[1], len[SKU_HT_BW40]);
  
-@@ -3467,8 +3507,34 @@ int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
+@@ -3556,8 +3596,34 @@ int mt7915_mcu_set_txpower_sku(struct mt7915_phy *phy)
  	hdr.limit_type = TX_POWER_LIMIT_TABLE_PATH;
  	skb_put_data(skb, &hdr, sizeof(hdr));
  	skb_put_data(skb, &la.path.cck, sizeof(la.path.cck));
@@ -330,7 +330,7 @@ index 84ec1db..377bb7d 100644
  
  	/* HT20 and HT40 */
  	skb_put_data(skb, &la.path.ru[3], sizeof(la.path.ru[3]));
-@@ -3544,6 +3610,21 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len,
+@@ -3633,6 +3699,21 @@ int mt7915_mcu_get_txpower_sku(struct mt7915_phy *phy, s8 *txpower, int len,
  	return 0;
  }
  
@@ -353,10 +353,10 @@ index 84ec1db..377bb7d 100644
  			      u8 en)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 57b418a..684fe2f 100644
+index 38a9db4..23ee118 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -788,6 +788,7 @@ int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
+@@ -793,6 +793,7 @@ int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
  void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
  int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
