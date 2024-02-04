@@ -1,7 +1,7 @@
-From 66913f29a6f44a588926788f393eb887d2997bfd Mon Sep 17 00:00:00 2001
+From 3fd9079da8481df27e2ce65a99e3638bae6c7a33 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Wed, 19 Jul 2023 10:55:09 +0800
-Subject: [PATCH 2007/2028] mtk: wifi: mt76: mt7915: wed: find rx token by
+Subject: [PATCH 2007/2032] mtk: wifi: mt76: mt7915: wed: find rx token by
  physical address
 
 The token id in RxDMAD may be incorrect when it is not the last frame due to
@@ -14,10 +14,10 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  1 file changed, 25 insertions(+), 2 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index dfce79fa..69333769 100644
+index 89ae929f..6bfcee1a 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -448,9 +448,32 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+@@ -446,9 +446,32 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  	mt76_dma_should_drop_buf(drop, ctrl, buf1, desc_info);
  
  	if (mt76_queue_is_wed_rx(q)) {
@@ -51,7 +51,7 @@ index dfce79fa..69333769 100644
  		if (!r)
  			return NULL;
  
-@@ -978,7 +1001,7 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
+@@ -901,7 +924,7 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
  		if (!data)
  			break;
  

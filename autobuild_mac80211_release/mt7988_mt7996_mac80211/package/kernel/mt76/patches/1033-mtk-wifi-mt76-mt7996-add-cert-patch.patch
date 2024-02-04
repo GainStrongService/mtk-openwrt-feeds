@@ -1,4 +1,4 @@
-From 9c5efd0e6b30c6ceab6e0f5a0f9056cea9844785 Mon Sep 17 00:00:00 2001
+From 8d59fe0a6cddf4eacda469e0caffa698425fab77 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 14 Aug 2023 13:36:58 +0800
 Subject: [PATCH 1033/1044] mtk: wifi: mt76: mt7996: add cert patch
@@ -23,7 +23,7 @@ Signed-off-by: ye he <ye.he@mediatek.com>
  9 files changed, 778 insertions(+), 7 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 73c66e57..27e5fb71 100644
+index 34dea859..9af94d05 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -10,6 +10,7 @@
@@ -34,7 +34,7 @@ index 73c66e57..27e5fb71 100644
  
  #define to_rssi(field, rcpi)	((FIELD_GET(field, rcpi) - 220) / 2)
  
-@@ -2272,6 +2273,14 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy)
+@@ -2273,6 +2274,14 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy)
  	}
  }
  
@@ -50,7 +50,7 @@ index 73c66e57..27e5fb71 100644
  {
  	struct mt7996_dev *dev = container_of(work, struct mt7996_dev, rc_work);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 17b29aef..f4d50ec1 100644
+index 99bc975e..4a5697a3 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -588,6 +588,7 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -113,10 +113,10 @@ index 17b29aef..f4d50ec1 100644
  
  void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 9f8616ea..7bd1221b 100644
+index da0d572c..371fd2e7 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1359,6 +1359,10 @@ mt7996_mcu_sta_vht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
+@@ -1346,6 +1346,10 @@ mt7996_mcu_sta_vht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
  {
  	struct sta_rec_vht *vht;
  	struct tlv *tlv;
@@ -127,7 +127,7 @@ index 9f8616ea..7bd1221b 100644
  
  	/* For 6G band, this tlv is necessary to let hw work normally */
  	if (!sta->deflink.he_6ghz_capa.capa && !sta->deflink.vht_cap.vht_supported)
-@@ -1370,6 +1374,9 @@ mt7996_mcu_sta_vht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
+@@ -1357,6 +1361,9 @@ mt7996_mcu_sta_vht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
  	vht->vht_cap = cpu_to_le32(sta->deflink.vht_cap.cap);
  	vht->vht_rx_mcs_map = sta->deflink.vht_cap.vht_mcs.rx_mcs_map;
  	vht->vht_tx_mcs_map = sta->deflink.vht_cap.vht_mcs.tx_mcs_map;
@@ -137,7 +137,7 @@ index 9f8616ea..7bd1221b 100644
  }
  
  static void
-@@ -4460,6 +4467,27 @@ int mt7996_mcu_set_rts_thresh(struct mt7996_phy *phy, u32 val)
+@@ -4447,6 +4454,27 @@ int mt7996_mcu_set_rts_thresh(struct mt7996_phy *phy, u32 val)
  				 &req, sizeof(req), true);
  }
  
@@ -165,7 +165,7 @@ index 9f8616ea..7bd1221b 100644
  int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable)
  {
  	struct {
-@@ -4974,6 +5002,18 @@ void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
+@@ -4962,6 +4990,18 @@ void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  	val = FIELD_GET(RATE_CFG_VAL, *((u32 *)data));
  
  	switch (mode) {

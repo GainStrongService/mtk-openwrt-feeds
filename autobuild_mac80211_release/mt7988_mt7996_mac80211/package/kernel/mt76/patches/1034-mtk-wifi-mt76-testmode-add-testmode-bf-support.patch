@@ -1,4 +1,4 @@
-From cc8ecb9fe62c4689899d79d8c710c2756a2bf131 Mon Sep 17 00:00:00 2001
+From 044b8e77dbc476e9db82b4fe571ae71b37aef769 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 6 Apr 2023 16:40:28 +0800
 Subject: [PATCH 1034/1044] mtk: wifi: mt76: testmode: add testmode bf support
@@ -32,10 +32,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  14 files changed, 1354 insertions(+), 59 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 9e8848f7..2a7b0ed9 100644
+index 6ace1a05..7d9ee018 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -751,6 +751,11 @@ struct mt76_testmode_data {
+@@ -752,6 +752,11 @@ struct mt76_testmode_data {
  	u32 tx_time;
  	u32 tx_ipg;
  
@@ -48,7 +48,7 @@ index 9e8848f7..2a7b0ed9 100644
  	bool ebf;
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 06c8b960..2cdd5b9c 100644
+index a59e5a0b..266ee711 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -488,7 +488,8 @@ struct sta_rec_bf {
@@ -61,7 +61,7 @@ index 06c8b960..2cdd5b9c 100644
  } __packed;
  
  struct sta_rec_bfee {
-@@ -1274,6 +1275,7 @@ enum {
+@@ -1278,6 +1279,7 @@ enum {
  	MCU_UNI_CMD_VOW = 0x37,
  	MCU_UNI_CMD_PP = 0x38,
  	MCU_UNI_CMD_FIXED_RATE_TABLE = 0x40,
@@ -70,7 +70,7 @@ index 06c8b960..2cdd5b9c 100644
  	MCU_UNI_CMD_PRECAL_RESULT = 0x47,
  	MCU_UNI_CMD_RRO = 0x57,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 7bd1221b..5b5ddafb 100644
+index 371fd2e7..1729bb46 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1067,7 +1067,12 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
@@ -87,7 +87,7 @@ index 7bd1221b..5b5ddafb 100644
  		return 0;
  	}
  
-@@ -4118,7 +4123,6 @@ int mt7996_mcu_set_ser(struct mt7996_dev *dev, u8 action, u8 val, u8 band)
+@@ -4105,7 +4110,6 @@ int mt7996_mcu_set_ser(struct mt7996_dev *dev, u8 action, u8 val, u8 band)
  int mt7996_mcu_set_txbf(struct mt7996_dev *dev, u8 action)
  {
  #define MT7996_BF_MAX_SIZE	sizeof(union bf_tag_tlv)

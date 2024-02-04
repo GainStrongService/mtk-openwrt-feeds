@@ -1,7 +1,7 @@
-From 64db610443287b4e5b47ee9a7461562c16ae0e76 Mon Sep 17 00:00:00 2001
+From d71f046693ba8f6e80a0c349d9ef1b9e857a8c34 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Fri, 17 Nov 2023 18:08:06 +0800
-Subject: [PATCH 2020/2028] mtk: wifi: mt76: mt7996: get airtime and RSSI via
+Subject: [PATCH 2020/2032] mtk: wifi: mt76: mt7996: get airtime and RSSI via
  MCU commands
 
 Direct access to WTBL for airtime and RSSI may cause synchronization issue with FW.
@@ -23,10 +23,10 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  9 files changed, 361 insertions(+), 143 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index cf88eafa..942d9c11 100644
+index fbf66407..8db61815 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -324,11 +324,15 @@ struct mt76_sta_stats {
+@@ -325,11 +325,15 @@ struct mt76_sta_stats {
  	u32 tx_packets;		/* unit: MSDU */
  	u32 tx_retries;
  	u32 tx_failed;
@@ -42,7 +42,7 @@ index cf88eafa..942d9c11 100644
  };
  
  enum mt76_wcid_flags {
-@@ -1312,6 +1316,22 @@ static inline int mt76_decr(int val, int size)
+@@ -1328,6 +1332,22 @@ static inline int mt76_decr(int val, int size)
  
  u8 mt76_ac_to_hwq(u8 ac);
  
@@ -66,10 +66,10 @@ index cf88eafa..942d9c11 100644
  mtxq_to_txq(struct mt76_txq *mtxq)
  {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 2cdd5b9c..77c5b62f 100644
+index 266ee711..4f4b7b4f 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1364,11 +1364,23 @@ enum {
+@@ -1368,11 +1368,23 @@ enum {
  	UNI_OFFLOAD_OFFLOAD_BMC_RPY_DETECT,
  };
  
@@ -95,10 +95,10 @@ index 2cdd5b9c..77c5b62f 100644
  	UNI_ALL_STA_GI_MODE,
  	UNI_ALL_STA_TXRX_MSDU_COUNT,
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index ed55afa0..24191f75 100644
+index c4adee9a..5e9ab9ab 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
-@@ -947,12 +947,11 @@ mt7996_airtime_read(struct seq_file *s, void *data)
+@@ -987,12 +987,11 @@ mt7996_airtime_read(struct seq_file *s, void *data)
  {
  	struct mt7996_dev *dev = dev_get_drvdata(s->private);
  	struct mt76_dev *mdev = &dev->mt76;
@@ -112,7 +112,7 @@ index ed55afa0..24191f75 100644
  	u16 i;
  
  	seq_printf(s, "VoW Airtime Information:\n");
-@@ -964,16 +963,16 @@ mt7996_airtime_read(struct seq_file *s, void *data)
+@@ -1004,16 +1003,16 @@ mt7996_airtime_read(struct seq_file *s, void *data)
  
  		msta = container_of(wcid, struct mt7996_sta, wcid);
  		sta = container_of((void *)msta, struct ieee80211_sta, drv_priv);
@@ -137,7 +137,7 @@ index ed55afa0..24191f75 100644
  	rcu_read_unlock();
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 0ebad4ac..bdf808fc 100644
+index bc335fd3..2e48ab8b 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -12,8 +12,6 @@
@@ -269,7 +269,7 @@ index 0ebad4ac..bdf808fc 100644
  	if (wake)
  		mt76_set_tx_blocked(&dev->mt76, false);
  
-@@ -2369,31 +2261,42 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
+@@ -2370,31 +2262,42 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
  
  void mt7996_mac_work(struct work_struct *work)
  {
@@ -326,7 +326,7 @@ index 0ebad4ac..bdf808fc 100644
  	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
  				     MT7996_WATCHDOG_TIME);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 0fe713d6..62c073bd 100644
+index 3a816713..35a44fee 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -560,7 +560,8 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -373,7 +373,7 @@ index 0fe713d6..62c073bd 100644
  		default:
  			break;
  		}
-@@ -2252,8 +2271,6 @@ mt7996_mcu_sta_init_vow(struct mt7996_phy *phy, struct mt7996_sta *msta)
+@@ -2239,8 +2258,6 @@ mt7996_mcu_sta_init_vow(struct mt7996_phy *phy, struct mt7996_sta *msta)
  	vow->drr_quantum[IEEE80211_AC_VI] = VOW_DRR_QUANTUM_IDX1;
  	vow->drr_quantum[IEEE80211_AC_BE] = VOW_DRR_QUANTUM_IDX2;
  	vow->drr_quantum[IEEE80211_AC_BK] = VOW_DRR_QUANTUM_IDX2;
@@ -382,7 +382,7 @@ index 0fe713d6..62c073bd 100644
  
  	ret = mt7996_mcu_set_vow_drr_ctrl(phy, msta, VOW_DRR_CTRL_STA_BSS_GROUP);
  	if (ret)
-@@ -4859,9 +4876,155 @@ int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u16 val)
+@@ -4846,9 +4863,155 @@ int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u16 val)
  				 sizeof(req), true);
  }
  
@@ -540,7 +540,7 @@ index 0fe713d6..62c073bd 100644
  	struct {
  		u8 _rsv[4];
  
-@@ -4872,7 +5035,7 @@ int mt7996_mcu_get_all_sta_info(struct mt7996_phy *phy, u16 tag)
+@@ -4859,7 +5022,7 @@ int mt7996_mcu_get_all_sta_info(struct mt7996_phy *phy, u16 tag)
  		.len = cpu_to_le16(sizeof(req) - 4),
  	};
  

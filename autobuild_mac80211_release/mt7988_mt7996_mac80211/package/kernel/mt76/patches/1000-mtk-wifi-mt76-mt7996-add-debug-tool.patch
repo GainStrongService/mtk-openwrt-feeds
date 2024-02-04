@@ -1,4 +1,4 @@
-From 1f2ab08e04fe3c68b0791da1de2b4e891dff1cb2 Mon Sep 17 00:00:00 2001
+From 1c9c6a9220ce579ec5e12808c934cc28ae25325d Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 24 Mar 2023 14:02:32 +0800
 Subject: [PATCH 1000/1044] mtk: wifi: mt76: mt7996: add debug tool
@@ -52,10 +52,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  create mode 100644 mt7996/mtk_mcu.h
 
 diff --git a/mt76.h b/mt76.h
-index d2ead585..de0021e4 100644
+index 1f249581..5c50681a 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -393,6 +393,8 @@ struct mt76_txwi_cache {
+@@ -394,6 +394,8 @@ struct mt76_txwi_cache {
  		struct sk_buff *skb;
  		void *ptr;
  	};
@@ -280,7 +280,7 @@ index 9bd95358..c4b82cb2 100644
  	hdr.timestamp = cpu_to_le32(mt76_rr(dev, MT_LPON_FRCR(0)));
  	hdr.len = *(__le16 *)data;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index adbfd23f..ce6759e0 100644
+index f35b17b6..89a03122 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -936,6 +936,9 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -2950,7 +2950,7 @@ index 00000000..ab97a372
 +static int mt7996_dump_version(struct seq_file *s, void *data)
 +{
 +	struct mt7996_dev *dev = dev_get_drvdata(s->private);
-+	seq_printf(s, "Version: 3.3.15.0\n");
++	seq_printf(s, "Version: 3.3.16.0\n");
 +
 +	if (!test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
 +		return 0;

@@ -1,7 +1,7 @@
-From f5e2909fcfb815fcc91530addcb7b36f052f5c15 Mon Sep 17 00:00:00 2001
+From ee0e35680a1a7d1acc84709e2045417df24899a6 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Wed, 13 Sep 2023 17:35:43 +0800
-Subject: [PATCH 2015/2028] mtk: wifi: mt76: mt7992: wed: add 2pcie one wed
+Subject: [PATCH 2015/2032] mtk: wifi: mt76: mt7992: wed: add 2pcie one wed
  support
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
@@ -14,10 +14,10 @@ Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
  5 files changed, 39 insertions(+), 13 deletions(-)
 
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index 4c92f13b..80458b31 100644
+index bdb9f585..cf346845 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
-@@ -354,6 +354,13 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
+@@ -355,6 +355,13 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
  			 MT_WFDMA_HOST_CONFIG_PDMA_BAND |
  			 MT_WFDMA_HOST_CONFIG_BAND2_PCIE1);
  
@@ -31,7 +31,7 @@ index 4c92f13b..80458b31 100644
  		/* AXI read outstanding number */
  		mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL,
  			 MT_WFDMA_AXI_R2A_CTRL_OUTSTAND_MASK, 0x14);
-@@ -373,7 +380,8 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
+@@ -374,7 +381,8 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
  		    dev->has_rro) {
  			u32 intr = is_mt7996(&dev->mt76) ?
  				   MT_WFDMA0_RX_INT_SEL_RING6 :
@@ -41,7 +41,7 @@ index 4c92f13b..80458b31 100644
  			mt76_set(dev, MT_WFDMA0_RX_INT_PCIE_SEL + hif1_ofs,
  				 intr);
  		} else {
-@@ -629,10 +637,11 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+@@ -630,10 +638,11 @@ int mt7996_dma_init(struct mt7996_dev *dev)
  					       MT_RXQ_ID(MT_RXQ_RRO_BAND1),
  					       MT7996_RX_RING_SIZE,
  					       MT7996_RX_BUF_SIZE,
@@ -55,10 +55,10 @@ index 4c92f13b..80458b31 100644
  			dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].wed = wed;
  
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index b5b97dcb..8faceb3b 100644
+index b1600a97..613b5185 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
-@@ -380,10 +380,10 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -375,10 +375,10 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  						    MT_RXQ_RING_BASE(MT7996_RXQ_RRO_BAND2) +
  						    MT7996_RXQ_RRO_BAND2 * MT_RING_SIZE;
  		} else {
@@ -71,7 +71,7 @@ index b5b97dcb..8faceb3b 100644
  						MT_RXQ_RING_BASE(MT7996_RXQ_BAND1) +
  						MT7996_RXQ_BAND1 * MT_RING_SIZE;
  		}
-@@ -521,10 +521,9 @@ void mt7996_dual_hif_set_irq_mask(struct mt7996_dev *dev, bool write_reg,
+@@ -516,10 +516,9 @@ void mt7996_dual_hif_set_irq_mask(struct mt7996_dev *dev, bool write_reg,
  		if (mtk_wed_device_active(&mdev->mmio.wed)) {
  			mtk_wed_device_irq_set_mask(&mdev->mmio.wed,
  						    mdev->mmio.irqmask);

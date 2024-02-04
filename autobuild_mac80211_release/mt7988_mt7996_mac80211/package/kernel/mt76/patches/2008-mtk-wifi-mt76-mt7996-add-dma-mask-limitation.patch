@@ -1,19 +1,19 @@
-From 0a1fef8b518288d0fed1df86a95fdf04fc611db8 Mon Sep 17 00:00:00 2001
+From da80c597a654bba39a056543c9fdcf71f28a4a68 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Thu, 20 Jul 2023 10:25:50 +0800
-Subject: [PATCH 2008/2028] mtk: wifi: mt76: mt7996: add dma mask limitation
+Subject: [PATCH 2008/2032] mtk: wifi: mt76: mt7996: add dma mask limitation
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
 ---
- dma.c  | 4 ++--
- mmio.c | 4 ++--
+ dma.c | 4 ++--
+ wed.c | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 69333769..5bff27dd 100644
+index 6bfcee1a..6a30adcc 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -490,7 +490,7 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
+@@ -488,7 +488,7 @@ mt76_dma_get_buf(struct mt76_dev *dev, struct mt76_queue *q, int idx,
  		} else {
  			struct mt76_queue_buf qbuf;
  
@@ -22,7 +22,7 @@ index 69333769..5bff27dd 100644
  			if (!buf)
  				return NULL;
  
-@@ -712,7 +712,7 @@ mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -710,7 +710,7 @@ int mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q,
  		if (mt76_queue_is_wed_rro_ind(q))
  			goto done;
  
@@ -31,11 +31,11 @@ index 69333769..5bff27dd 100644
  		if (!buf)
  			break;
  
-diff --git a/mmio.c b/mmio.c
-index b792a7bd..269fd932 100644
---- a/mmio.c
-+++ b/mmio.c
-@@ -144,14 +144,14 @@ u32 mt76_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+diff --git a/wed.c b/wed.c
+index 0a0b5c05..1c6d53c8 100644
+--- a/wed.c
++++ b/wed.c
+@@ -65,14 +65,14 @@ u32 mt76_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
  	for (i = 0; i < size; i++) {
  		struct mt76_rxwi_cache *r = mt76_get_rxwi(dev);
  		dma_addr_t addr;
@@ -51,7 +51,7 @@ index b792a7bd..269fd932 100644
 +				      GFP_ATOMIC | GFP_DMA32);
  		if (!ptr) {
  			mt76_put_rxwi(dev, r);
-  			goto unmap;
+ 			goto unmap;
 -- 
 2.18.0
 

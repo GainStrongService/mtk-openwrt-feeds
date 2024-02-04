@@ -1,4 +1,4 @@
-From fd83f2c255bf85eb8ce41a876f83d3d97713fb53 Mon Sep 17 00:00:00 2001
+From a2cf1f53e11e0311a84949214de98fad1bad9546 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 26 Apr 2023 04:40:05 +0800
 Subject: [PATCH 1013/1044] mtk: wifi: mt76: mt7996: Add air monitor support
@@ -13,10 +13,10 @@ Subject: [PATCH 1013/1044] mtk: wifi: mt76: mt7996: Add air monitor support
  6 files changed, 445 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 6a1ee3e2..5f41fc16 100644
+index 3c82c05d..062268d6 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1247,6 +1247,7 @@ enum {
+@@ -1251,6 +1251,7 @@ enum {
  	MCU_UNI_CMD_REG_ACCESS = 0x0d,
  	MCU_UNI_CMD_CHIP_CONFIG = 0x0e,
  	MCU_UNI_CMD_POWER_CTRL = 0x0f,
@@ -25,7 +25,7 @@ index 6a1ee3e2..5f41fc16 100644
  	MCU_UNI_CMD_SER = 0x13,
  	MCU_UNI_CMD_TWT = 0x14,
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index e307ddc3..f7dc8db4 100644
+index 8013ffd1..c266dc14 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -679,6 +679,10 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -40,7 +40,7 @@ index e307ddc3..f7dc8db4 100644
  		status->flag |= RX_FLAG_8023;
  		mt7996_wed_check_ppe(dev, &dev->mt76.q_rx[q], msta, skb,
 diff --git a/mt7996/main.c b/mt7996/main.c
-index ae9484c3..2042edd6 100644
+index 07a14917..478ca7ce 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -737,6 +737,10 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,

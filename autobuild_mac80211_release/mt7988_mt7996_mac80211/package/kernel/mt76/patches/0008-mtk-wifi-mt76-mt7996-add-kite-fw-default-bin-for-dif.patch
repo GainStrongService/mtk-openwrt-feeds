@@ -1,7 +1,7 @@
-From 43d2e883f22101832564f6170fcdceb0efd7aa69 Mon Sep 17 00:00:00 2001
+From 5b98ee4acf66ca727a3e467133379636aed407ff Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 21 Jul 2023 10:41:28 +0800
-Subject: [PATCH 17/25] mtk: wifi: mt76: mt7996: add kite fw & default bin for
+Subject: [PATCH 08/15] mtk: wifi: mt76: mt7996: add kite fw & default bin for
  different sku variants
 
 Add fem type (2i5i, 2i5e, 2e5e, ...)
@@ -117,7 +117,7 @@ index 412d6e2f..72c38ad3 100644
  #define MT_EE_WIFI_CONF1_TX_PATH_BAND0		GENMASK(5, 3)
  #define MT_EE_WIFI_CONF2_TX_PATH_BAND1		GENMASK(2, 0)
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 1b8a1bf6..5db85939 100644
+index 274863dc..0e3cdc05 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -882,6 +882,65 @@ out:
@@ -187,7 +187,7 @@ index 1b8a1bf6..5db85939 100644
  {
  	int ret, idx;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 48a1e822..8a3b9f81 100644
+index 0c1dd93f..41f7b4b2 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -14,7 +14,12 @@
@@ -205,7 +205,7 @@ index 48a1e822..8a3b9f81 100644
  	case 0x7990:						\
  	default:						\
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index eab96139..c34cb76b 100644
+index b6df2167..7e5ec212 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -39,9 +39,24 @@
@@ -267,7 +267,7 @@ index eab96139..c34cb76b 100644
  
  	u16 chainmask;
  	u8 chainshift[__MT_MAX_BAND];
-@@ -407,23 +436,6 @@ mt7996_phy3(struct mt7996_dev *dev)
+@@ -406,23 +435,6 @@ mt7996_phy3(struct mt7996_dev *dev)
  	return __mt7996_phy(dev, MT_BAND2);
  }
  
@@ -291,7 +291,7 @@ index eab96139..c34cb76b 100644
  static inline bool
  mt7996_band_valid(struct mt7996_dev *dev, u8 band)
  {
-@@ -462,6 +474,7 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx,
+@@ -461,6 +473,7 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx,
  			  int n_desc, int ring_base, struct mtk_wed_device *wed);
  void mt7996_init_txpower(struct mt7996_phy *phy);
  int mt7996_txbf_init(struct mt7996_dev *dev);

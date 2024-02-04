@@ -29,10 +29,10 @@ index 17e0d945..c73238a2 100644
  	rm -rf \
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
-diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
+diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 index 6572999f..5e44e663 100644
---- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-+++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
+--- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
++++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 @@ -29,10 +29,12 @@ drv_mac80211_init_device_config() {
  	config_add_string path phy 'macaddr:macaddr'
  	config_add_string tx_burst
@@ -571,10 +571,10 @@ index 6572999f..5e44e663 100644
  	[ -x /usr/sbin/wpa_supplicant ] && wpa_supplicant_start "$phy"
  
  	json_set_namespace wdev_uc prev
-diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
+diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
 index e24a2a63..58a0c9ff 100644
---- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-+++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
+--- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
++++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
  		if (vht && band != "1:") mode="VHT80"
  		if (he) mode="HE80"
@@ -738,10 +738,10 @@ index e24a2a63..58a0c9ff 100644
  		uci -q commit wireless
  	done
  }
-diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
+diff --git a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 index 271c1f7b..80b95116 100644
---- a/package/network/services/hostapd/files/hostapd.sh
-+++ b/package/network/services/hostapd/files/hostapd.sh
+--- a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
++++ b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 @@ -60,7 +60,14 @@ hostapd_append_wpa_key_mgmt() {
  			append wpa_key_mgmt "WPA-EAP-SHA256"
  		;;

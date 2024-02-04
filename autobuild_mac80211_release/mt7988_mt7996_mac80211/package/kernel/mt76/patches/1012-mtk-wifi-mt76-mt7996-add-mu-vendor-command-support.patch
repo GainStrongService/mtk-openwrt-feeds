@@ -1,4 +1,4 @@
-From c00796c518d5b534f77ebe2a479103dffb3488e1 Mon Sep 17 00:00:00 2001
+From 093bc6129886e3675d396d5a7be3e57c8b29c559 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 13 Dec 2022 15:17:43 +0800
 Subject: [PATCH 1012/1044] mtk: wifi: mt76: mt7996: add mu vendor command
@@ -42,7 +42,7 @@ index 7bb17f44..6643c7a3 100644
  mt7996e-$(CONFIG_DEV_COREDUMP) += coredump.o
  mt7996e-$(CONFIG_NL80211_TESTMODE) += testmode.o
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 2d8d0f42..49884cd4 100644
+index c135da9c..fba61c01 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -368,6 +368,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
@@ -76,10 +76,10 @@ index 2d8d0f42..49884cd4 100644
  				   ARRAY_SIZE(mt76_rates));
  	if (ret)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index da01f111..4ed4c8a4 100644
+index 5712b8a7..e74f7b00 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1383,6 +1383,8 @@ static void
+@@ -1370,6 +1370,8 @@ static void
  mt7996_mcu_sta_muru_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  			struct ieee80211_vif *vif, struct ieee80211_sta *sta)
  {
@@ -88,7 +88,7 @@ index da01f111..4ed4c8a4 100644
  	struct ieee80211_he_cap_elem *elem = &sta->deflink.he_cap.he_cap_elem;
  	struct sta_rec_muru *muru;
  	struct tlv *tlv;
-@@ -1394,11 +1396,14 @@ mt7996_mcu_sta_muru_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -1381,11 +1383,14 @@ mt7996_mcu_sta_muru_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_MURU, sizeof(*muru));
  
  	muru = (struct sta_rec_muru *)tlv;
@@ -108,7 +108,7 @@ index da01f111..4ed4c8a4 100644
  
  	if (sta->deflink.vht_cap.vht_supported)
  		muru->mimo_dl.vht_mu_bfee =
-@@ -4928,3 +4933,25 @@ int mt7996_mcu_set_scs(struct mt7996_phy *phy, u8 enable)
+@@ -4916,3 +4921,25 @@ int mt7996_mcu_set_scs(struct mt7996_phy *phy, u8 enable)
  	return mt76_mcu_send_msg(&phy->dev->mt76, MCU_WM_UNI_CMD(SCS),
  				 &req, sizeof(req), false);
  }

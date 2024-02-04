@@ -1,7 +1,7 @@
-From edbe4cad5b63d80c10ac7ae14010e7018e6b351a Mon Sep 17 00:00:00 2001
+From 5bb85ef54208f23c7b6ba8b9edd09f81a411c2aa Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Thu, 4 Jan 2024 09:47:00 +0800
-Subject: [PATCH 2021/2028] mtk: wifi: mt76: mt7996: add support for WMM PBC
+Subject: [PATCH 2021/2032] mtk: wifi: mt76: mt7996: add support for WMM PBC
  configuration
 
 Query per-AC-queue packet statistics from WA, and determine if multi-AC transmission is ongoing.
@@ -18,10 +18,10 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  6 files changed, 105 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 77c5b62f..7b4548dd 100644
+index 4f4b7b4f..b2b8f2a2 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1022,6 +1022,7 @@ enum {
+@@ -1026,6 +1026,7 @@ enum {
  	MCU_EXT_EVENT_ASSERT_DUMP = 0x23,
  	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
  	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
@@ -29,7 +29,7 @@ index 77c5b62f..7b4548dd 100644
  	MCU_EXT_EVENT_WA_TX_STAT = 0x74,
  	MCU_EXT_EVENT_BCC_NOTIFY = 0x75,
  	MCU_EXT_EVENT_MURU_CTRL = 0x9f,
-@@ -1220,6 +1221,7 @@ enum {
+@@ -1224,6 +1225,7 @@ enum {
  	MCU_EXT_CMD_TXDPD_CAL = 0x60,
  	MCU_EXT_CMD_CAL_CACHE = 0x67,
  	MCU_EXT_CMD_RED_ENABLE = 0x68,
@@ -38,7 +38,7 @@ index 77c5b62f..7b4548dd 100644
  	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
  	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 12682c9b..193904bc 100644
+index 7a9b9749..90f3a417 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -1493,6 +1493,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
@@ -51,10 +51,10 @@ index 12682c9b..193904bc 100644
  	if (ret)
  		return ret;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index bdf808fc..94c0cfab 100644
+index 2e48ab8b..471fb9c5 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2288,6 +2288,10 @@ void mt7996_mac_work(struct work_struct *work)
+@@ -2289,6 +2289,10 @@ void mt7996_mac_work(struct work_struct *work)
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_ADM_STAT);
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_MSDU_COUNT);
  				}
@@ -66,7 +66,7 @@ index bdf808fc..94c0cfab 100644
  			           test_bit(MT76_STATE_RUNNING, &mdev->phys[i]->state))
  				break;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 62c073bd..85d04525 100644
+index 35a44fee..1426e4b1 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -666,6 +666,82 @@ mt7996_mcu_rx_thermal_notify(struct mt7996_dev *dev, struct sk_buff *skb)

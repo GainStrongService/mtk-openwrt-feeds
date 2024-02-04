@@ -1,4 +1,4 @@
-From 9ce66350f74d9addf51f8c5742ef5adde6deaf45 Mon Sep 17 00:00:00 2001
+From 40875afae4052332ce5178b59643b3b2191f050b Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 8 May 2023 09:03:50 +0800
 Subject: [PATCH 1006/1044] mtk: wifi: mt76: mt7996: enable SCS feature for
@@ -20,10 +20,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  8 files changed, 148 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index e4783433..23310c4f 100644
+index 54310413..4a3ea0b7 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1257,6 +1257,7 @@ enum {
+@@ -1261,6 +1261,7 @@ enum {
  	MCU_UNI_CMD_GET_STAT_INFO = 0x23,
  	MCU_UNI_CMD_SNIFFER = 0x24,
  	MCU_UNI_CMD_SR = 0x25,
@@ -32,7 +32,7 @@ index e4783433..23310c4f 100644
  	MCU_UNI_CMD_SET_DBDC_PARMS = 0x28,
  	MCU_UNI_CMD_TXPOWER = 0x2b,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 42e7071c..23b7e5f8 100644
+index d4d1a60b..23a9b88b 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -1374,6 +1374,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
@@ -44,10 +44,10 @@ index 42e7071c..23b7e5f8 100644
  	INIT_LIST_HEAD(&dev->twt_list);
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 924b05e4..e307ddc3 100644
+index 9a9d33e6..8013ffd1 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1798,6 +1798,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
+@@ -1799,6 +1799,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
  		cancel_delayed_work_sync(&phy2->mt76->mac_work);
  	if (phy3)
  		cancel_delayed_work_sync(&phy3->mt76->mac_work);
@@ -55,7 +55,7 @@ index 924b05e4..e307ddc3 100644
  
  	mutex_lock(&dev->mt76.mutex);
  	for (i = 0; i < 10; i++) {
-@@ -1833,6 +1834,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
+@@ -1834,6 +1835,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
  		ieee80211_queue_delayed_work(phy3->mt76->hw,
  					     &phy3->mt76->mac_work,
  					     MT7996_WATCHDOG_TIME);
@@ -64,7 +64,7 @@ index 924b05e4..e307ddc3 100644
  
  void mt7996_mac_reset_work(struct work_struct *work)
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 2a93e8c2..97f1ef8c 100644
+index 40b5cee3..ffb1f81b 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -73,11 +73,17 @@ int mt7996_run(struct ieee80211_hw *hw)
@@ -94,10 +94,10 @@ index 2a93e8c2..97f1ef8c 100644
  	mutex_lock(&dev->mt76.mutex);
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 151f3788..af4d2023 100644
+index 30500fbe..5ccf462f 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -4624,3 +4624,108 @@ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 da
+@@ -4612,3 +4612,108 @@ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 da
  	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(TXPOWER),
  				 &req, sizeof(req), false);
  }

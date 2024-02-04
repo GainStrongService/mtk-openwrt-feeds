@@ -1,4 +1,4 @@
-From f9396e523e0f10df265a7c22b7f4ebf37d6b3f0d Mon Sep 17 00:00:00 2001
+From f8bfd93b55c37abf0d210bbeab633a6a9877a7a6 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 10 Jul 2023 11:47:29 +0800
 Subject: [PATCH 1020/1044] mtk: wifi: mt76: mt7996: add support spatial reuse
@@ -27,10 +27,10 @@ https://wiki.mediatek.inc/display/APKB/mt76+Phy+feature+debug+Cheetsheet#mt76Phy
  7 files changed, 270 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 5f41fc16..63c2ef10 100644
+index 062268d6..9edb580c 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1036,6 +1036,7 @@ enum {
+@@ -1040,6 +1040,7 @@ enum {
  	MCU_UNI_EVENT_BSS_BEACON_LOSS = 0x0c,
  	MCU_UNI_EVENT_SCAN_DONE = 0x0e,
  	MCU_UNI_EVENT_RDD_REPORT = 0x11,
@@ -39,7 +39,7 @@ index 5f41fc16..63c2ef10 100644
  	MCU_UNI_EVENT_TX_DONE = 0x2d,
  	MCU_UNI_EVENT_BF = 0x33,
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 2042edd6..c1776aeb 100644
+index 478ca7ce..9ca37e1e 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -6,6 +6,9 @@
@@ -63,7 +63,7 @@ index 2042edd6..c1776aeb 100644
  					   !dev->dbg.sku_disable);
  #else
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 78571034..7781c149 100644
+index 60b1b62c..03bab7c3 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -712,6 +712,14 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)

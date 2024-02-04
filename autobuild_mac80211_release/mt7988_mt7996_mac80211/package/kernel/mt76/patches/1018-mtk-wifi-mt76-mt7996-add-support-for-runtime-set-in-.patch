@@ -1,4 +1,4 @@
-From 0d2c482270a6d32d669fd5441a40f6c5f34e99e7 Mon Sep 17 00:00:00 2001
+From 0e74220e04acc1fb9c10d469e3b287d61a9ae4d6 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 6 Jun 2023 16:57:10 +0800
 Subject: [PATCH 1018/1044] mtk: wifi: mt76: mt7996: add support for runtime
@@ -17,10 +17,10 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  1 file changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 4ed4c8a4..78571034 100644
+index e74f7b00..60b1b62c 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2615,8 +2615,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
+@@ -2602,8 +2602,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
  	if (IS_ERR(rskb))
  		return PTR_ERR(rskb);
  
@@ -30,7 +30,7 @@ index 4ed4c8a4..78571034 100644
  		interval = vif->bss_conf.fils_discovery.max_interval;
  		skb = ieee80211_get_fils_discovery_tmpl(hw, vif);
  	} else if (changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP &&
-@@ -2651,7 +2650,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
+@@ -2638,7 +2637,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
  	discov->tx_type = !!(changed & BSS_CHANGED_FILS_DISCOVERY);
  	discov->tx_interval = interval;
  	discov->prob_rsp_len = cpu_to_le16(MT_TXD_SIZE + skb->len);

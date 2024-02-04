@@ -1,4 +1,4 @@
-From ff7edd501bafec382f5e4a4b6abb791bef3cd0c9 Mon Sep 17 00:00:00 2001
+From 7de1a3bf90d697b5b7672c605fab6cd789128b5e Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 24 Nov 2023 09:49:08 +0800
 Subject: [PATCH 1041/1044] mtk: wifi: mt76: mt7996: add adie efuse merge
@@ -6,13 +6,74 @@ Subject: [PATCH 1041/1044] mtk: wifi: mt76: mt7996: add adie efuse merge
 
 Merge adie-dependent parameters in efuse into eeprom after FT.
 Note that Eagle BE14000 is not considered yet.
+Add efuse dump command.
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- mt7996/eeprom.c | 145 ++++++++++++++++++++++++++++++++++++++++++++++++
- mt7996/mcu.c    |   6 +-
- 2 files changed, 149 insertions(+), 2 deletions(-)
+ mt7996/debugfs.c |  41 ++++++++++++++
+ mt7996/eeprom.c  | 145 +++++++++++++++++++++++++++++++++++++++++++++++
+ mt7996/mcu.c     |   6 +-
+ 3 files changed, 190 insertions(+), 2 deletions(-)
 
+diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
+index 67c6bd09..bc6b5aa6 100644
+--- a/mt7996/debugfs.c
++++ b/mt7996/debugfs.c
+@@ -862,6 +862,46 @@ mt7996_rf_regval_set(void *data, u64 val)
+ DEFINE_DEBUGFS_ATTRIBUTE(fops_rf_regval, mt7996_rf_regval_get,
+ 			 mt7996_rf_regval_set, "0x%08llx\n");
+ 
++static ssize_t
++mt7996_efuse_get(struct file *file, char __user *user_buf,
++		 size_t count, loff_t *ppos)
++{
++	struct mt7996_dev *dev = file->private_data;
++	struct mt76_dev *mdev = &dev->mt76;
++	u8 *buff = mdev->otp.data;
++	int i;
++	ssize_t ret;
++	u32 block_num;
++
++	mdev->otp.size = MT7996_EEPROM_SIZE;
++	if (is_mt7996(&dev->mt76) && dev->chip_sku == MT7996_SKU_444)
++		mdev->otp.size += 3 * MT_EE_CAL_UNIT;
++
++	if (!mdev->otp.data) {
++		mdev->otp.data = devm_kzalloc(mdev->dev, mdev->otp.size, GFP_KERNEL);
++		if (!mdev->otp.data)
++			return -ENOMEM;
++
++		block_num = DIV_ROUND_UP(mdev->otp.size, MT7996_EEPROM_BLOCK_SIZE);
++		for (i = 0; i < block_num; i++) {
++			buff = mdev->otp.data + i * MT7996_EEPROM_BLOCK_SIZE;
++			ret = mt7996_mcu_get_eeprom(dev, i * MT7996_EEPROM_BLOCK_SIZE, buff);
++			if (ret)
++				continue;
++		}
++	}
++
++	ret = simple_read_from_buffer(user_buf, count, ppos, mdev->otp.data, mdev->otp.size);
++
++	return ret;
++}
++
++static const struct file_operations mt7996_efuse_ops = {
++	.read = mt7996_efuse_get,
++	.open = simple_open,
++	.llseek = default_llseek,
++};
++
+ int mt7996_init_debugfs(struct mt7996_phy *phy)
+ {
+ 	struct mt7996_dev *dev = phy->dev;
+@@ -888,6 +928,7 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
+ 	debugfs_create_devm_seqfile(dev->mt76.dev, "twt_stats", dir,
+ 				    mt7996_twt_stats);
+ 	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
++	debugfs_create_file("otp", 0400, dir, dev, &mt7996_efuse_ops);
+ 
+ 	if (phy->mt76->cap.has_5ghz) {
+ 		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
 index 39e65010..45cbd03d 100644
 --- a/mt7996/eeprom.c
@@ -177,10 +238,10 @@ index 39e65010..45cbd03d 100644
  	if (ret < 0)
  		return ret;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index ccb99c23..6b026c73 100644
+index 2bcee895..264c6651 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3630,7 +3630,7 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *read_buf)
+@@ -3617,7 +3617,7 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *read_buf)
  	};
  	struct sk_buff *skb;
  	bool valid;
@@ -189,7 +250,7 @@ index ccb99c23..6b026c73 100644
  	u8 *buf = read_buf;
  
  	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
-@@ -3648,11 +3648,13 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *read_buf)
+@@ -3635,11 +3635,13 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *read_buf)
  
  		skb_pull(skb, 48);
  		memcpy(buf, skb->data, MT7996_EEPROM_BLOCK_SIZE);

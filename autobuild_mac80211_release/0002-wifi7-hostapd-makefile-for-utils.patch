@@ -27,10 +27,8 @@ index 17f9dcb5..61410069 100644
  endef
  
  define Package/eapol-test/Default
-@@ -719,6 +717,9 @@ define Package/hostapd-common/install
+@@ -719,4 +717,7 @@ define Package/hostapd-common/install
  	$(INSTALL_DATA) ./files/wpad.json $(1)/etc/capabilities
- 	$(INSTALL_DATA) ./files/common.uc $(1)/usr/share/hostap/
- 	$(INSTALL_DATA) ./files/wdev.uc $(1)/usr/share/hostap/
 +	[ ! -d $(STAGING_DIR)/usr/include/wpa_ctrl.h ] && $(CP) -f $(PKG_BUILD_DIR)/src/common/wpa_ctrl.h $(STAGING_DIR)/usr/include
 +	[ ! -d $(STAGING_DIR)/usr/lib/wpa_ctrl.o ] && $(CP) -f $(PKG_BUILD_DIR)/build/hostapd/src/common/wpa_ctrl.o $(STAGING_DIR)/usr/lib
 +	[ ! -d $(STAGING_DIR)/usr/lib/os_unix.o ] && $(CP) -f $(PKG_BUILD_DIR)/build/hostapd/src/utils/os_unix.o $(STAGING_DIR)/usr/lib

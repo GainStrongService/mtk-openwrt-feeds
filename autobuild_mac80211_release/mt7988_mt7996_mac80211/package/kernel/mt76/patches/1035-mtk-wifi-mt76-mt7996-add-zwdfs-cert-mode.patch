@@ -1,4 +1,4 @@
-From 57a5dbbde09c23122671c936872b1f6fa41dcb9c Mon Sep 17 00:00:00 2001
+From f3c4b779c6d74afff2532ffc36d9a85d58ec560d Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 22 Sep 2023 12:33:06 +0800
 Subject: [PATCH 1035/1044] mtk: wifi: mt76: mt7996: add zwdfs cert mode
@@ -13,10 +13,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  5 files changed, 100 insertions(+), 12 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 5b5ddafb..69718654 100644
+index 1729bb46..f3faa42e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -4516,18 +4516,7 @@ int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable)
+@@ -4503,18 +4503,7 @@ int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable)
  int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
  		       u8 rx_sel, u8 val)
  {
@@ -36,7 +36,7 @@ index 5b5ddafb..69718654 100644
  		.tag = cpu_to_le16(UNI_RDD_CTRL_PARM),
  		.len = cpu_to_le16(sizeof(req) - 4),
  		.ctrl = cmd,
-@@ -4540,6 +4529,37 @@ int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
+@@ -4527,6 +4516,37 @@ int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
  				 &req, sizeof(req), true);
  }
  

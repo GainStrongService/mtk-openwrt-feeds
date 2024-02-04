@@ -1,4 +1,4 @@
-From 06208f297f532c17779277a8dec486f466631791 Mon Sep 17 00:00:00 2001
+From 6b770050b396997a04c5055fdb397dcb15164b3d Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 1 Mar 2023 11:59:16 +0800
 Subject: [PATCH 1004/1044] mtk: wifi: mt76: testmode: add basic testmode
@@ -63,7 +63,7 @@ index 7d5cf28f..85bd2a29 100644
  
  out_put_node:
 diff --git a/mac80211.c b/mac80211.c
-index 6c5b4f55..d31cf9ff 100644
+index 6e8ac6f4..fea19e19 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -846,7 +846,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
@@ -77,10 +77,10 @@ index 6c5b4f55..d31cf9ff 100644
  		if (status->flag & RX_FLAG_FAILED_FCS_CRC)
  			phy->test.rx_stats.fcs_error[q]++;
 diff --git a/mt76.h b/mt76.h
-index de0021e4..7951b90e 100644
+index 5c50681a..ea051c03 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -694,14 +694,21 @@ struct mt76_testmode_ops {
+@@ -695,14 +695,21 @@ struct mt76_testmode_ops {
  	int (*set_params)(struct mt76_phy *phy, struct nlattr **tb,
  			  enum mt76_testmode_state new_state);
  	int (*dump_stats)(struct mt76_phy *phy, struct sk_buff *msg);
@@ -102,7 +102,7 @@ index de0021e4..7951b90e 100644
  	u32 tx_count;
  	u16 tx_mpdu_len;
  
-@@ -711,6 +718,7 @@ struct mt76_testmode_data {
+@@ -712,6 +719,7 @@ struct mt76_testmode_data {
  	u8 tx_rate_sgi;
  	u8 tx_rate_ldpc;
  	u8 tx_rate_stbc;
@@ -110,7 +110,7 @@ index de0021e4..7951b90e 100644
  	u8 tx_ltf;
  
  	u8 tx_antenna_mask;
-@@ -720,6 +728,9 @@ struct mt76_testmode_data {
+@@ -721,6 +729,9 @@ struct mt76_testmode_data {
  	u32 tx_time;
  	u32 tx_ipg;
  
@@ -120,7 +120,7 @@ index de0021e4..7951b90e 100644
  	u32 freq_offset;
  
  	u8 tx_power[4];
-@@ -734,7 +745,16 @@ struct mt76_testmode_data {
+@@ -735,7 +746,16 @@ struct mt76_testmode_data {
  	struct {
  		u64 packets[__MT_RXQ_MAX];
  		u64 fcs_error[__MT_RXQ_MAX];
@@ -137,7 +137,7 @@ index de0021e4..7951b90e 100644
  };
  
  struct mt76_vif {
-@@ -1423,6 +1443,22 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
+@@ -1439,6 +1459,22 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
  int mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state);
  int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len);
  
@@ -161,10 +161,10 @@ index de0021e4..7951b90e 100644
  {
  #ifdef CONFIG_NL80211_TESTMODE
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index d3c05894..4796c255 100644
+index 482782f7..2e148011 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1262,12 +1262,14 @@ enum {
+@@ -1266,12 +1266,14 @@ enum {
  	MCU_UNI_CMD_EFUSE_CTRL = 0x2d,
  	MCU_UNI_CMD_RA = 0x2f,
  	MCU_UNI_CMD_MURU = 0x31,
@@ -280,7 +280,7 @@ index 72c38ad3..de3ff4e2 100644
  	MT_EE_RATE_DELTA_2G =	0x1400,
  	MT_EE_RATE_DELTA_5G =	0x147d,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 5db85939..42e7071c 100644
+index 0e3cdc05..d4d1a60b 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -966,6 +966,10 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
@@ -306,7 +306,7 @@ index 5db85939..42e7071c 100644
  				   ARRAY_SIZE(mt76_rates));
  	if (ret)
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index ce6759e0..924b05e4 100644
+index 89a03122..9a9d33e6 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -685,7 +685,8 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -320,7 +320,7 @@ index ce6759e0..924b05e4 100644
  
  	if (!status->wcid || !ieee80211_is_data_qos(fc) || hw_aggr)
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 9fbd87d5..2a93e8c2 100644
+index ad2c6a9d..40b5cee3 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -23,6 +23,18 @@ static bool mt7996_dev_running(struct mt7996_dev *dev)
@@ -385,10 +385,10 @@ index 9fbd87d5..2a93e8c2 100644
  	.sta_add_debugfs = mt7996_sta_add_debugfs,
  #endif
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 388b593d..6c89d711 100644
+index 35233c71..f1a3fb42 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2873,8 +2873,12 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
+@@ -2860,8 +2860,12 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
  {
  	int ret;
  
@@ -403,7 +403,7 @@ index 388b593d..6c89d711 100644
  	if (ret)
  		return ret;
  
-@@ -3565,17 +3569,9 @@ int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
+@@ -3552,17 +3556,9 @@ int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
  				 &req, sizeof(req), true);
  }
  
@@ -423,7 +423,7 @@ index 388b593d..6c89d711 100644
  		.tag = cpu_to_le16(UNI_EFUSE_ACCESS),
  		.len = cpu_to_le16(sizeof(req) - 4),
  		.addr = cpu_to_le32(round_down(offset,
-@@ -3584,6 +3580,7 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
+@@ -3571,6 +3567,7 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
  	struct sk_buff *skb;
  	bool valid;
  	int ret;
@@ -431,7 +431,7 @@ index 388b593d..6c89d711 100644
  
  	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
  					MCU_WM_UNI_CMD_QUERY(EFUSE_CTRL),
-@@ -3594,7 +3591,9 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
+@@ -3581,7 +3578,9 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
  	valid = le32_to_cpu(*(__le32 *)(skb->data + 16));
  	if (valid) {
  		u32 addr = le32_to_cpu(*(__le32 *)(skb->data + 12));
@@ -442,7 +442,7 @@ index 388b593d..6c89d711 100644
  
  		skb_pull(skb, 48);
  		memcpy(buf, skb->data, MT7996_EEPROM_BLOCK_SIZE);
-@@ -4586,3 +4585,37 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, bool auto_mode,
+@@ -4574,3 +4573,37 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, bool auto_mode,
  	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(PP),
  				 &req, sizeof(req), false);
  }

@@ -1,4 +1,4 @@
-From 2a4f1ada373d5bd9999807d7906f44bee9c7dc21 Mon Sep 17 00:00:00 2001
+From 191480cad9ab8d8ed9e4be9129d3d30f2e638e5c Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 31 Mar 2023 11:27:24 +0800
 Subject: [PATCH 1005/1044] mtk: wifi: mt76: testmode: add testmode
@@ -21,7 +21,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  12 files changed, 632 insertions(+), 23 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index d31cf9ff..87dcc8a3 100644
+index fea19e19..e7d02d15 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -7,27 +7,6 @@
@@ -53,7 +53,7 @@ index d31cf9ff..87dcc8a3 100644
  	CHAN2G(1, 2412),
  	CHAN2G(2, 2417),
 diff --git a/mt76.h b/mt76.h
-index 7951b90e..b0897ac2 100644
+index ea051c03..1e0488e5 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -18,6 +18,27 @@
@@ -84,7 +84,7 @@ index 7951b90e..b0897ac2 100644
  #define MT_MCU_RING_SIZE	32
  #define MT_RX_BUF_SIZE		2048
  #define MT_SKB_HEAD_LEN		256
-@@ -697,6 +718,7 @@ struct mt76_testmode_ops {
+@@ -698,6 +719,7 @@ struct mt76_testmode_ops {
  	void (*reset_rx_stats)(struct mt76_phy *phy);
  	void (*tx_stop)(struct mt76_phy *phy);
  	int (*set_eeprom)(struct mt76_phy *phy, u32 offset, u8 *val, u8 action);
@@ -93,10 +93,10 @@ index 7951b90e..b0897ac2 100644
  
  #define MT_TM_FW_RX_COUNT	BIT(0)
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 4796c255..e4783433 100644
+index 2e148011..54310413 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1038,8 +1038,10 @@ enum {
+@@ -1042,8 +1042,10 @@ enum {
  	MCU_UNI_EVENT_RDD_REPORT = 0x11,
  	MCU_UNI_EVENT_ROC = 0x27,
  	MCU_UNI_EVENT_TX_DONE = 0x2d,
@@ -257,7 +257,7 @@ index de3ff4e2..849b8bca 100644
  #define MT_EE_WIFI_CONF2_TX_PATH_BAND1		GENMASK(2, 0)
  #define MT_EE_WIFI_CONF2_TX_PATH_BAND2		GENMASK(5, 3)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 6c89d711..151f3788 100644
+index f1a3fb42..30500fbe 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -712,6 +712,11 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)

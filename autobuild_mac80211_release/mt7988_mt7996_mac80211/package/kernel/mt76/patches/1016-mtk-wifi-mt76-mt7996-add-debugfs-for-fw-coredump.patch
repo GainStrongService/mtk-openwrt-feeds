@@ -1,4 +1,4 @@
-From f1eae676ca9604151b987f09549228a166b8c632 Mon Sep 17 00:00:00 2001
+From 9b1cb9cdfb8ae18820908362a909d854c226e1ce Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Fri, 19 May 2023 14:56:07 +0800
 Subject: [PATCH 1016/1044] mtk: wifi: mt76: mt7996: add debugfs for fw
@@ -65,10 +65,10 @@ index f4ce3b55..67c6bd09 100644
  	desc += scnprintf(buff + desc, bufsz - desc,
  			  "\nlet's dump firmware SER statistics...\n");
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index f7dc8db4..b92d7fe9 100644
+index c266dc14..75657786 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2083,15 +2083,36 @@ void mt7996_mac_dump_work(struct work_struct *work)
+@@ -2084,15 +2084,36 @@ void mt7996_mac_dump_work(struct work_struct *work)
  	struct mt7996_dev *dev;
  
  	dev = container_of(work, struct mt7996_dev, dump_work);
@@ -108,7 +108,7 @@ index f7dc8db4..b92d7fe9 100644
  void mt7996_reset(struct mt7996_dev *dev)
  {
  	if (!dev->recovery.hw_init_done)
-@@ -2109,6 +2130,7 @@ void mt7996_reset(struct mt7996_dev *dev)
+@@ -2110,6 +2131,7 @@ void mt7996_reset(struct mt7996_dev *dev)
  
  		mt7996_irq_disable(dev, MT_INT_MCU_CMD);
  		queue_work(dev->mt76.wq, &dev->dump_work);

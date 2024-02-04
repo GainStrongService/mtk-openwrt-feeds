@@ -1,38 +1,39 @@
-From 14d56cbefbd6f72d82d18534da6dd445e6ddd266 Mon Sep 17 00:00:00 2001
+From 52dd48547a15ef9060f3f594660c846268b763e3 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Thu, 12 Oct 2023 10:04:54 +0800
-Subject: [PATCH 2012/2028] mtk: wifi: mt76: mt7996: wed: add SER0.5 support w/
+Subject: [PATCH 2012/2032] mtk: wifi: mt76: mt7996: wed: add SER0.5 support w/
  wed3.0
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
 ---
- dma.c           |  13 ++---
- dma.h           |   2 +-
+ dma.c           |   9 ++--
+ dma.h           |   4 +-
  mt76.h          |  14 ++++--
  mt792x_dma.c    |   6 +--
  mt7996/dma.c    |  20 ++++++--
  mt7996/init.c   | 127 +++++++++++++++++++++++++++++++-----------------
  mt7996/mac.c    |  25 ++++++++++
  mt7996/mt7996.h |   1 +
- 8 files changed, 145 insertions(+), 63 deletions(-)
+ wed.c           |   4 +-
+ 9 files changed, 146 insertions(+), 64 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 5bff27dd..5ddb6be9 100644
+index 6a30adcc..a5225db5 100644
 --- a/dma.c
 +++ b/dma.c
-@@ -220,9 +220,9 @@ __mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -218,9 +218,9 @@ void __mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q,
+ 	mt76_dma_sync_idx(dev, q);
  }
  
- static void
--mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q)
-+mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
+-void mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q)
++void mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
  {
 -	__mt76_dma_queue_reset(dev, q, true);
 +	__mt76_dma_queue_reset(dev, q, reset);
  }
  
  static int
-@@ -542,7 +542,8 @@ mt76_dma_dequeue(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
+@@ -540,7 +540,8 @@ mt76_dma_dequeue(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
  	if (!q->queued)
  		return NULL;
  
@@ -42,25 +43,7 @@ index 5bff27dd..5ddb6be9 100644
  		return NULL;
  
  	if (!mt76_queue_is_wed_rro_ind(q)) {
-@@ -772,7 +773,7 @@ int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
- 	case MT76_WED_Q_TXFREE:
- 		/* WED txfree queue needs ring to be initialized before setup */
- 		q->flags = 0;
--		mt76_dma_queue_reset(dev, q);
-+		mt76_dma_queue_reset(dev, q, true);
- 		mt76_dma_rx_fill(dev, q);
- 
- 		ret = mtk_wed_device_txfree_ring_setup(q->wed, q->regs);
-@@ -801,7 +802,7 @@ int mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
- 		break;
- 	case MT76_WED_RRO_Q_IND:
- 		q->flags &= ~MT_QFLAG_WED;
--		mt76_dma_queue_reset(dev, q);
-+		mt76_dma_queue_reset(dev, q, true);
- 		mt76_dma_rx_fill(dev, q);
- 		mtk_wed_device_ind_rx_ring_setup(q->wed, q->regs);
- 		break;
-@@ -868,7 +869,7 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -791,7 +792,7 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
  			return 0;
  	}
  
@@ -70,32 +53,38 @@ index 5bff27dd..5ddb6be9 100644
  	return 0;
  }
 diff --git a/dma.h b/dma.h
-index c479cc63..b7e63bd5 100644
+index 1de5a2b2..3a8c2e55 100644
 --- a/dma.h
 +++ b/dma.h
-@@ -85,7 +85,7 @@ void mt76_dma_wed_reset(struct mt76_dev *dev);
+@@ -83,12 +83,12 @@ int mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q,
+ 		     bool allow_direct);
+ void __mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q,
+ 			    bool reset_idx);
+-void mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q);
++void mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q, bool reset);
+ 
  static inline void
  mt76_dma_reset_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
  {
 -	dev->queue_ops->reset_q(dev, q);
 +	dev->queue_ops->reset_q(dev, q, true);
  	if (mtk_wed_device_active(&dev->mmio.wed))
- 		mt76_dma_wed_setup(dev, q, true);
+ 		mt76_wed_dma_setup(dev, q, true);
  }
 diff --git a/mt76.h b/mt76.h
-index 2ce1e84e..cf88eafa 100644
+index 1080384b..fbf66407 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -295,7 +295,7 @@ struct mt76_queue_ops {
+@@ -296,7 +296,7 @@ struct mt76_queue_ops {
  
  	void (*kick)(struct mt76_dev *dev, struct mt76_queue *q);
  
 -	void (*reset_q)(struct mt76_dev *dev, struct mt76_queue *q);
-+	void (*reset_q)(struct mt76_dev *dev, struct mt76_queue *q,  bool reset);
++	void (*reset_q)(struct mt76_dev *dev, struct mt76_queue *q, bool reset);
  };
  
  enum mt76_phy_type {
-@@ -1722,8 +1722,13 @@ static inline bool mt76_queue_is_wed_rro_ind(struct mt76_queue *q)
+@@ -1731,8 +1731,13 @@ static inline bool mt76_queue_is_wed_rro_ind(struct mt76_queue *q)
  static inline bool mt76_queue_is_wed_rro_data(struct mt76_queue *q)
  {
  	return mt76_queue_is_wed_rro(q) &&
@@ -111,7 +100,7 @@ index 2ce1e84e..cf88eafa 100644
  }
  
  static inline bool mt76_queue_is_wed_rx(struct mt76_queue *q)
-@@ -1732,7 +1737,8 @@ static inline bool mt76_queue_is_wed_rx(struct mt76_queue *q)
+@@ -1741,7 +1746,8 @@ static inline bool mt76_queue_is_wed_rx(struct mt76_queue *q)
  		return false;
  
  	return FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX ||
@@ -122,10 +111,10 @@ index 2ce1e84e..cf88eafa 100644
  }
  
 diff --git a/mt792x_dma.c b/mt792x_dma.c
-index 488326ce..8811351c 100644
+index 5cc2d59b..c224bcc8 100644
 --- a/mt792x_dma.c
 +++ b/mt792x_dma.c
-@@ -172,13 +172,13 @@ mt792x_dma_reset(struct mt792x_dev *dev, bool force)
+@@ -181,13 +181,13 @@ mt792x_dma_reset(struct mt792x_dev *dev, bool force)
  
  	/* reset hw queues */
  	for (i = 0; i < __MT_TXQ_MAX; i++)
@@ -143,10 +132,10 @@ index 488326ce..8811351c 100644
  	mt76_tx_status_check(&dev->mt76, true);
  
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index 40ab65f8..8df119d0 100644
+index 5d85e9ea..d9e1b17f 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
-@@ -710,21 +710,31 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
+@@ -711,21 +711,31 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
  	}
  
  	for (i = 0; i < __MT_MCUQ_MAX; i++)
@@ -184,7 +173,7 @@ index 40ab65f8..8df119d0 100644
  	mt7996_dma_enable(dev, !force);
  }
 diff --git a/mt7996/init.c b/mt7996/init.c
-index d2cd2221..32f2db33 100644
+index b902bcc5..a9720120 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -724,11 +724,91 @@ void mt7996_wfsys_reset(struct mt7996_dev *dev)
@@ -334,10 +323,10 @@ index d2cd2221..32f2db33 100644
  #else
  	return 0;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index d51f4129..19e66256 100644
+index 339c92bb..53049672 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1755,6 +1755,31 @@ mt7996_mac_restart(struct mt7996_dev *dev)
+@@ -1756,6 +1756,31 @@ mt7996_mac_restart(struct mt7996_dev *dev)
  	if (ret)
  		goto out;
  
@@ -381,6 +370,28 @@ index b1abe42b..84b34ea9 100644
  irqreturn_t mt7996_irq_handler(int irq, void *dev_instance);
  u64 __mt7996_get_tsf(struct ieee80211_hw *hw, struct mt7996_vif *mvif);
  int mt7996_register_device(struct mt7996_dev *dev);
+diff --git a/wed.c b/wed.c
+index 1c6d53c8..61a6badf 100644
+--- a/wed.c
++++ b/wed.c
+@@ -155,7 +155,7 @@ int mt76_wed_dma_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
+ 	case MT76_WED_Q_TXFREE:
+ 		/* WED txfree queue needs ring to be initialized before setup */
+ 		q->flags = 0;
+-		mt76_dma_queue_reset(dev, q);
++		mt76_dma_queue_reset(dev, q, true);
+ 		mt76_dma_rx_fill(dev, q, false);
+ 
+ 		ret = mtk_wed_device_txfree_ring_setup(q->wed, q->regs);
+@@ -184,7 +184,7 @@ int mt76_wed_dma_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
+ 		break;
+ 	case MT76_WED_RRO_Q_IND:
+ 		q->flags &= ~MT_QFLAG_WED;
+-		mt76_dma_queue_reset(dev, q);
++		mt76_dma_queue_reset(dev, q, true);
+ 		mt76_dma_rx_fill(dev, q, false);
+ 		mtk_wed_device_ind_rx_ring_setup(q->wed, q->regs);
+ 		break;
 -- 
 2.18.0
 

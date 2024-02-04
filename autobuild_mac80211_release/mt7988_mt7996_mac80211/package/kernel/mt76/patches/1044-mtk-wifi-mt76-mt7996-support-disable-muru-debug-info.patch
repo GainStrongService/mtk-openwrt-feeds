@@ -1,4 +1,4 @@
-From d330b76bc26aadb42a30eed71e3dd739fc795352 Mon Sep 17 00:00:00 2001
+From 258008a28975b79d35e2572028653aef82490255 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 22 Dec 2023 10:53:00 +0800
 Subject: [PATCH 1044/1044] mtk: wifi: mt76: mt7996: support disable muru debug
@@ -28,7 +28,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  2 files changed, 30 insertions(+)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index cceabf00..cdd284b7 100644
+index ecaa2345..a97706f5 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -463,6 +463,9 @@ mt7996_fw_debug_muru_set(void *data)
@@ -41,9 +41,9 @@ index cceabf00..cdd284b7 100644
  	for (debug = DEBUG_BSRP_STATUS; debug <= DEBUG_MEC_UPDATE_AMSDU; debug++) {
  		ret = mt7996_mcu_muru_dbg_info(dev, debug,
  					       dev->fw_debug_bin & BIT(0));
-@@ -867,6 +870,30 @@ mt7996_rf_regval_set(void *data, u64 val)
- DEFINE_DEBUGFS_ATTRIBUTE(fops_rf_regval, mt7996_rf_regval_get,
- 			 mt7996_rf_regval_set, "0x%08llx\n");
+@@ -907,6 +910,30 @@ static const struct file_operations mt7996_efuse_ops = {
+ 	.llseek = default_llseek,
+ };
  
 +static int
 +mt7996_fw_debug_muru_disable_set(void *data, u64 val)
@@ -72,7 +72,7 @@ index cceabf00..cdd284b7 100644
  int mt7996_init_debugfs(struct mt7996_phy *phy)
  {
  	struct mt7996_dev *dev = phy->dev;
-@@ -902,6 +929,8 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
+@@ -943,6 +970,8 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
  		debugfs_create_devm_seqfile(dev->mt76.dev, "rdd_monitor", dir,
  					    mt7996_rdd_monitor);
  	}

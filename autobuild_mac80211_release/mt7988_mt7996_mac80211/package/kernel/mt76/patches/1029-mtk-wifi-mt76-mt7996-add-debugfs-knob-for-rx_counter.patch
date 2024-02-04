@@ -1,4 +1,4 @@
-From 97f4660009bcee136694bc1fdf376d0ffd8dc103 Mon Sep 17 00:00:00 2001
+From 92db3705c71472d0b822f9aa650ca893b55a5aaf Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 28 Apr 2023 10:39:58 +0800
 Subject: [PATCH 1029/1044] mtk: wifi: mt76: mt7996: add debugfs knob for
@@ -72,7 +72,7 @@ index 10cbd9e5..adb5a7d7 100644
  	spin_lock_init(&tid->lock);
  
 diff --git a/mac80211.c b/mac80211.c
-index 87dcc8a3..45791f6e 100644
+index e7d02d15..ae040ec4 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -784,6 +784,7 @@ static void mt76_rx_release_amsdu(struct mt76_phy *phy, enum mt76_rxq_id q)
@@ -131,10 +131,10 @@ index 87dcc8a3..45791f6e 100644
  		napi_gro_receive(napi, skb);
  	}
 diff --git a/mt76.h b/mt76.h
-index 46fbc87e..9e8848f7 100644
+index b0211879..6ace1a05 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -422,6 +422,7 @@ struct mt76_rx_tid {
+@@ -423,6 +423,7 @@ struct mt76_rx_tid {
  	struct rcu_head rcu_head;
  
  	struct mt76_dev *dev;
@@ -142,7 +142,7 @@ index 46fbc87e..9e8848f7 100644
  
  	spinlock_t lock;
  	struct delayed_work reorder_work;
-@@ -853,6 +854,19 @@ struct mt76_phy {
+@@ -854,6 +855,19 @@ struct mt76_phy {
  		bool al;
  		u8 pin;
  	} leds;
@@ -162,7 +162,7 @@ index 46fbc87e..9e8848f7 100644
  };
  
  struct mt76_dev {
-@@ -958,6 +972,7 @@ struct mt76_dev {
+@@ -959,6 +973,7 @@ struct mt76_dev {
  	};
  
  	const char *bin_file_name;
@@ -171,7 +171,7 @@ index 46fbc87e..9e8848f7 100644
  
  /* per-phy stats.  */
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 22d7dc6d..73c66e57 100644
+index dc806892..34dea859 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -469,8 +469,10 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -204,7 +204,7 @@ index 22d7dc6d..73c66e57 100644
  
  	if (FIELD_GET(MT_RXD2_NORMAL_SEC_MODE, rxd2) != 0 &&
  	    !(rxd1 & (MT_RXD1_NORMAL_CLM | MT_RXD1_NORMAL_CM))) {
-@@ -1414,8 +1420,10 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
+@@ -1415,8 +1421,10 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
  			 struct sk_buff *skb, u32 *info)
  {
  	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
@@ -215,7 +215,7 @@ index 22d7dc6d..73c66e57 100644
  	enum rx_pkt_type type;
  
  	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
-@@ -1457,6 +1465,10 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
+@@ -1458,6 +1466,10 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
  		}
  		fallthrough;
  	default:

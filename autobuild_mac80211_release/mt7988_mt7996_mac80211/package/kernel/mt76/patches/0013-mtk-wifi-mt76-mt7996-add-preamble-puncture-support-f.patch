@@ -1,7 +1,7 @@
-From 5fd32e152d666b1385953a42193ca0063dc78a10 Mon Sep 17 00:00:00 2001
+From 63f17f147216ccb96e163af01e407925b50f8187 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 22 Sep 2023 10:32:37 +0800
-Subject: [PATCH 24/25] mtk: wifi: mt76: mt7996: add preamble puncture support
+Subject: [PATCH 13/15] mtk: wifi: mt76: mt7996: add preamble puncture support
  for mt7996
 
 Add support configure preamble puncture feature through mcu commands.
@@ -15,10 +15,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  4 files changed, 37 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 84e77fa0..823b3626 100644
+index 2a4aa796..8402097d 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1259,6 +1259,7 @@ enum {
+@@ -1263,6 +1263,7 @@ enum {
  	MCU_UNI_CMD_CHANNEL_SWITCH = 0x34,
  	MCU_UNI_CMD_THERMAL = 0x35,
  	MCU_UNI_CMD_VOW = 0x37,
@@ -27,10 +27,10 @@ index 84e77fa0..823b3626 100644
  	MCU_UNI_CMD_RRO = 0x57,
  	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 475a5e18..deabdb1f 100644
+index 9a03a2b2..52e4f0d1 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -4534,3 +4534,33 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
+@@ -4522,3 +4522,33 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
  	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
  				     MCU_WM_UNI_CMD(TXPOWER), true);
  }

@@ -1,7 +1,7 @@
-From 3e5f0df52e16d5dfab197af0e8768b906fa611a5 Mon Sep 17 00:00:00 2001
+From aff85911d271637879c9cd0a60f159bcc63594a3 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Mon, 11 Sep 2023 16:35:15 +0800
-Subject: [PATCH 2011/2028] mtk: wifi: mt76: mt7996: add support for HW-ATF
+Subject: [PATCH 2011/2032] mtk: wifi: mt76: mt7996: add support for HW-ATF
 
 ---
  mt7996/debugfs.c |  90 ++++++++++++++++
@@ -13,10 +13,10 @@ Subject: [PATCH 2011/2028] mtk: wifi: mt76: mt7996: add support for HW-ATF
  6 files changed, 475 insertions(+), 26 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 21bb2c5d..ed55afa0 100644
+index 37b36dce..c4adee9a 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
-@@ -895,6 +895,91 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug_muru_disable,
+@@ -935,6 +935,91 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug_muru_disable,
  			 mt7996_fw_debug_muru_disable_get,
  			 mt7996_fw_debug_muru_disable_set, "%lld\n");
  
@@ -108,10 +108,10 @@ index 21bb2c5d..ed55afa0 100644
  int mt7996_init_debugfs(struct mt7996_phy *phy)
  {
  	struct mt7996_dev *dev = phy->dev;
-@@ -921,6 +1006,11 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
- 	debugfs_create_devm_seqfile(dev->mt76.dev, "twt_stats", dir,
+@@ -962,6 +1047,11 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
  				    mt7996_twt_stats);
  	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
+ 	debugfs_create_file("otp", 0400, dir, dev, &mt7996_efuse_ops);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "vow_info", dir,
 +	                            mt7996_vow_info_read);
 +	debugfs_create_file("atf_enable", 0600, dir, phy, &fops_atf_enable);
@@ -121,7 +121,7 @@ index 21bb2c5d..ed55afa0 100644
  	if (phy->mt76->cap.has_5ghz) {
  		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 19a7cd10..d2cd2221 100644
+index 518f70e4..b902bcc5 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -562,6 +562,37 @@ int mt7996_txbf_init(struct mt7996_dev *dev)
@@ -189,7 +189,7 @@ index 19a7cd10..d2cd2221 100644
  	if (ret)
  		goto error;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index a9d8f7dd..d51f4129 100644
+index 26bed9e2..339c92bb 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -103,6 +103,7 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
@@ -220,10 +220,10 @@ index a9d8f7dd..d51f4129 100644
  
  		/* get signal strength of resp frames (CTS/BA/ACK) */
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 8bb29e3a..c7f9e308 100644
+index ea22aa41..6aa37d44 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2233,34 +2233,37 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -2220,34 +2220,37 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  }
  
  static int
@@ -285,7 +285,7 @@ index 8bb29e3a..c7f9e308 100644
  }
  
  int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
-@@ -2316,7 +2319,7 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -2303,7 +2306,7 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  		mt7996_mcu_sta_bfee_tlv(dev, skb, vif, sta);
  	}
  
@@ -294,7 +294,7 @@ index 8bb29e3a..c7f9e308 100644
  	if (ret) {
  		dev_kfree_skb(skb);
  		return ret;
-@@ -5152,6 +5155,218 @@ int mt7996_mcu_set_scs(struct mt7996_phy *phy, u8 enable)
+@@ -5140,6 +5143,218 @@ int mt7996_mcu_set_scs(struct mt7996_phy *phy, u8 enable)
  				 &req, sizeof(req), false);
  }
  

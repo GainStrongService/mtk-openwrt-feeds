@@ -1,7 +1,7 @@
-From b78ba04740ae976f2a6ce9703c97430667be170a Mon Sep 17 00:00:00 2001
+From 1570914f0f8b2b6c5d6de86b71fed6ef5edc355e Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Fri, 19 May 2023 14:16:50 +0800
-Subject: [PATCH 23/25] mtk: wifi: mt76: mt7996: add firmware WA's coredump.
+Subject: [PATCH 12/15] mtk: wifi: mt76: mt7996: add firmware WA's coredump.
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
@@ -428,10 +428,10 @@ index af2ba219..01ed3731 100644
  	return NULL;
  }
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 19b34066..adbfd23f 100644
+index 3af537b6..f35b17b6 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2001,28 +2001,25 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -2002,28 +2002,25 @@ void mt7996_mac_reset_work(struct work_struct *work)
  }
  
  /* firmware coredump */
@@ -464,7 +464,7 @@ index 19b34066..adbfd23f 100644
  	if (!mem_region || !crash_data->memdump_buf_len) {
  		mutex_unlock(&dev->dump_mutex);
  		goto skip_memdump;
-@@ -2032,6 +2029,9 @@ void mt7996_mac_dump_work(struct work_struct *work)
+@@ -2033,6 +2030,9 @@ void mt7996_mac_dump_work(struct work_struct *work)
  	buf_len = crash_data->memdump_buf_len;
  
  	/* dumping memory content... */
@@ -474,7 +474,7 @@ index 19b34066..adbfd23f 100644
  	memset(buf, 0, buf_len);
  	for (i = 0; i < num; i++) {
  		if (mem_region->len > buf_len) {
-@@ -2048,6 +2048,7 @@ void mt7996_mac_dump_work(struct work_struct *work)
+@@ -2049,6 +2049,7 @@ void mt7996_mac_dump_work(struct work_struct *work)
  		mt7996_memcpy_fromio(dev, buf, mem_region->start,
  				     mem_region->len);
  
@@ -482,7 +482,7 @@ index 19b34066..adbfd23f 100644
  		hdr->start = mem_region->start;
  		hdr->len = mem_region->len;
  
-@@ -2064,8 +2065,20 @@ void mt7996_mac_dump_work(struct work_struct *work)
+@@ -2065,8 +2066,20 @@ void mt7996_mac_dump_work(struct work_struct *work)
  	mutex_unlock(&dev->dump_mutex);
  
  skip_memdump:
@@ -506,10 +506,10 @@ index 19b34066..adbfd23f 100644
  }
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 8a3b9f81..475a5e18 100644
+index 41f7b4b2..9a03a2b2 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2697,6 +2697,8 @@ static int mt7996_load_patch(struct mt7996_dev *dev)
+@@ -2684,6 +2684,8 @@ static int mt7996_load_patch(struct mt7996_dev *dev)
  
  	dev_info(dev->mt76.dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
  		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
@@ -518,7 +518,7 @@ index 8a3b9f81..475a5e18 100644
  
  	for (i = 0; i < be32_to_cpu(hdr->desc.n_region); i++) {
  		struct mt7996_patch_sec *sec;
-@@ -2823,6 +2825,9 @@ static int __mt7996_load_ram(struct mt7996_dev *dev, const char *fw_type,
+@@ -2810,6 +2812,9 @@ static int __mt7996_load_ram(struct mt7996_dev *dev, const char *fw_type,
  	}
  
  	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));

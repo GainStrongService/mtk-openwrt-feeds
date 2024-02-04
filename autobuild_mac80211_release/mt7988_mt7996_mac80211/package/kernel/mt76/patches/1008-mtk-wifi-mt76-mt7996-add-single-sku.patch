@@ -1,4 +1,4 @@
-From de616f497d5c3b731ae7916afa60003c8c3a96f9 Mon Sep 17 00:00:00 2001
+From baf4f49f59a8991e0e5bfd634b792ece5d7dca77 Mon Sep 17 00:00:00 2001
 From: "Allen.Ye" <allen.ye@mediatek.com>
 Date: Mon, 10 Jul 2023 19:56:16 +0800
 Subject: [PATCH 1008/1044] mtk: wifi: mt76: mt7996: add single sku
@@ -103,10 +103,10 @@ index 85bd2a29..c5be2843 100644
  EXPORT_SYMBOL_GPL(mt76_get_rate_power_limits);
  
 diff --git a/mt76.h b/mt76.h
-index b0897ac2..19c445b5 100644
+index 1e0488e5..9aa56ac6 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1053,6 +1053,14 @@ struct mt76_power_limits {
+@@ -1054,6 +1054,14 @@ struct mt76_power_limits {
  	s8 eht[16][16];
  };
  
@@ -121,7 +121,7 @@ index b0897ac2..19c445b5 100644
  struct mt76_ethtool_worker_info {
  	u64 *data;
  	int idx;
-@@ -1655,6 +1663,7 @@ mt76_find_channel_node(struct device_node *np, struct ieee80211_channel *chan);
+@@ -1664,6 +1672,7 @@ mt76_find_channel_node(struct device_node *np, struct ieee80211_channel *chan);
  s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
  			      struct ieee80211_channel *chan,
  			      struct mt76_power_limits *dest,
@@ -130,7 +130,7 @@ index b0897ac2..19c445b5 100644
  
  static inline bool mt76_queue_is_wed_tx_free(struct mt76_queue *q)
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 52237583..6cb47699 100644
+index fccca36d..58a46ed2 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -2150,7 +2150,7 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
@@ -143,7 +143,7 @@ index 52237583..6cb47699 100644
  			tx_power_tlv.last_msg = ch_list[idx] == last_ch;
  			sku_tlbv.channel = ch_list[idx];
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 23b7e5f8..188d4f1f 100644
+index 23a9b88b..5f937b26 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -295,6 +295,7 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
@@ -163,7 +163,7 @@ index 23b7e5f8..188d4f1f 100644
  		target_power += nss_delta;
  		target_power = DIV_ROUND_UP(target_power, 2);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 97f1ef8c..9481fc5c 100644
+index ffb1f81b..ecfc3dcf 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -77,6 +77,15 @@ int mt7996_run(struct ieee80211_hw *hw)
@@ -183,10 +183,10 @@ index 97f1ef8c..9481fc5c 100644
  
  	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index af4d2023..19b5a173 100644
+index 5ccf462f..fed80421 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -4506,6 +4506,7 @@ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id)
+@@ -4493,6 +4493,7 @@ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id)
  int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
  {
  #define TX_POWER_LIMIT_TABLE_RATE	0
@@ -194,7 +194,7 @@ index af4d2023..19b5a173 100644
  	struct mt7996_dev *dev = phy->dev;
  	struct mt76_phy *mphy = phy->mt76;
  	struct ieee80211_hw *hw = mphy->hw;
-@@ -4519,22 +4520,23 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
+@@ -4506,22 +4507,23 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
  		u8 band_idx;
  	} __packed req = {
  		.tag = cpu_to_le16(UNI_TXPOWER_POWER_LIMIT_TABLE_CTRL),
@@ -222,7 +222,7 @@ index af4d2023..19b5a173 100644
  	if (!skb)
  		return -ENOMEM;
  
-@@ -4557,6 +4559,37 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
+@@ -4545,6 +4547,37 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
  	/* eht */
  	skb_put_data(skb, &la.eht[0], sizeof(la.eht));
  

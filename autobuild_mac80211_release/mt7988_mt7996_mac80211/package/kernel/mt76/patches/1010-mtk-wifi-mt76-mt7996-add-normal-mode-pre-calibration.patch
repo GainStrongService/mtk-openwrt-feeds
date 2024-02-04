@@ -1,4 +1,4 @@
-From 516fdeb45c9a8c2b8af89e6edab766a4d828e8db Mon Sep 17 00:00:00 2001
+From 9ce2a5ed55883339f0ea8e0edb5c18752963b367 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 1 Mar 2023 12:12:51 +0800
 Subject: [PATCH 1010/1044] mtk: wifi: mt76: mt7996: add normal mode
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 188 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 23310c4f..6a1ee3e2 100644
+index 4a3ea0b7..3c82c05d 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1273,6 +1273,7 @@ enum {
+@@ -1277,6 +1277,7 @@ enum {
  	MCU_UNI_CMD_PP = 0x38,
  	MCU_UNI_CMD_FIXED_RATE_TABLE = 0x40,
  	MCU_UNI_CMD_TESTMODE_CTRL = 0x46,
@@ -56,7 +56,7 @@ index 8b555aeb..8f0f87b6 100644
  
  #define MT_EE_WIFI_CONF0_TX_PATH		GENMASK(2, 0)
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 188d4f1f..2d8d0f42 100644
+index 5f937b26..c135da9c 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -984,6 +984,12 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
@@ -73,7 +73,7 @@ index 188d4f1f..2d8d0f42 100644
  	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7996_WTBL_STA);
  	if (idx)
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 9481fc5c..ae9484c3 100644
+index ecfc3dcf..07a14917 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -321,6 +321,12 @@ int mt7996_set_channel(struct mt7996_phy *phy)
@@ -90,10 +90,10 @@ index 9481fc5c..ae9484c3 100644
  		mt7996_tm_update_channel(phy);
  		goto out;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 19b5a173..da01f111 100644
+index fed80421..5712b8a7 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3639,6 +3639,172 @@ int mt7996_mcu_get_eeprom_free_block(struct mt7996_dev *dev, u8 *block_num)
+@@ -3626,6 +3626,172 @@ int mt7996_mcu_get_eeprom_free_block(struct mt7996_dev *dev, u8 *block_num)
  	return 0;
  }
  
