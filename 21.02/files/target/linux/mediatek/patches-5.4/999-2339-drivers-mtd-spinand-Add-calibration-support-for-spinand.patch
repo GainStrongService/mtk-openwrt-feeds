@@ -1,18 +1,8 @@
-From ddd2951e2f35477a81fb882a976a5a1fe981883d Mon Sep 17 00:00:00 2001
-From: Sam Shih <sam.shih@mediatek.com>
-Date: Fri, 2 Jun 2023 13:06:17 +0800
-Subject: [PATCH] 
- [spi-and-storage][999-2339-drivers-mtd-spinand-Add-calibration-support-for-spinand.patch]
-
----
- drivers/mtd/nand/spi/core.c | 58 +++++++++++++++++++++++++++++++++++++
- 1 file changed, 58 insertions(+)
-
-diff --git a/drivers/mtd/nand/spi/core.c b/drivers/mtd/nand/spi/core.c
-index 9f5f95ff7..b346c7a8a 100644
---- a/drivers/mtd/nand/spi/core.c
-+++ b/drivers/mtd/nand/spi/core.c
-@@ -789,6 +789,60 @@ static int spinand_manufacturer_match(struct spinand_device *spinand,
+Index: linux-5.4.260/drivers/mtd/nand/spi/core.c
+===================================================================
+--- linux-5.4.260.orig/drivers/mtd/nand/spi/core.c
++++ linux-5.4.260/drivers/mtd/nand/spi/core.c
+@@ -789,6 +789,60 @@ static int spinand_manufacturer_match(st
  	return -ENOTSUPP;
  }
  
@@ -73,7 +63,7 @@ index 9f5f95ff7..b346c7a8a 100644
  static int spinand_id_detect(struct spinand_device *spinand)
  {
  	u8 *id = spinand->id.data;
-@@ -1004,6 +1058,10 @@ static int spinand_init(struct spinand_device *spinand)
+@@ -1004,6 +1058,10 @@ static int spinand_init(struct spinand_d
  	if (!spinand->scratchbuf)
  		return -ENOMEM;
  
@@ -84,6 +74,3 @@ index 9f5f95ff7..b346c7a8a 100644
  	ret = spinand_detect(spinand);
  	if (ret)
  		goto err_free_bufs;
--- 
-2.34.1
-
