@@ -9,15 +9,15 @@
 #include "mt7988.dtsi"
 
 / {
-	model = "MediaTek MT7988D DSA 10G WAN SPIM-NAND RFB";
-	compatible = "mediatek,mt7988d-dsa-10g-wan-spim-snand",
+	model = "MediaTek MT7988D DSA 10G WAN eMMC RFB";
+	compatible = "mediatek,mt7988d-dsa-10g-wan-emmc",
 		     /* Reserve this for DVFS if creating new dts */
 		     "mediatek,mt7988";
-
 	chosen {
 		bootargs = "console=ttyS0,115200n1 loglevel=8  \
 			    earlycon=uart8250,mmio32,0x11000000 \
-			    pci=pcie_bus_perf";
+			    root=PARTLABEL=rootfs rootwait \
+			    rootfstype=squashfs,f2fs pci=pcie_bus_perf";
 	};
 
 	cpus {
@@ -28,48 +28,6 @@
 		reg = <0 0x40000000 0 0x10000000>;
 	};
 
-	nmbm_spim_nand {
-		compatible = "generic,nmbm";
-
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		lower-mtd-device = <&spi_nand>;
-		forced-create;
-
-		partitions {
-			compatible = "fixed-partitions";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			partition@0 {
-				label = "BL2";
-				reg = <0x00000 0x0100000>;
-				read-only;
-			};
-
-			partition@100000 {
-				label = "u-boot-env";
-				reg = <0x0100000 0x0080000>;
-			};
-
-			factory: partition@180000 {
-				label = "Factory";
-				reg = <0x180000 0x0400000>;
-			};
-
-			partition@580000 {
-				label = "FIP";
-				reg = <0x580000 0x0200000>;
-			};
-
-			partition@780000 {
-				label = "ubi";
-				reg = <0x780000 0x7080000>;
-			};
-		};
-	};
-
 	wsys_adie: wsys_adie@0 {
 	// fpga cases need to manual change adie_id / sku_type for dvt only
 		compatible = "mediatek,rebb-mt7988-adie";
@@ -77,46 +35,27 @@
 		sku_type = <3000>;
 	};
 
-	sound_wm8960 {
-		compatible = "mediatek,mt7986-wm8960-sound";
-		audio-routing = "Headphone", "HP_L",
-				"Headphone", "HP_R",
-				"LINPUT1", "AMIC",
-				"RINPUT1", "AMIC";
-
-		status = "disabled";
-
-		platform {
-			sound-dai = <&afe>;
-		};
-
-		codec {
-			sound-dai = <&wm8960>;
-		};
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 
-	sound_si3218x {
-		compatible = "mediatek,mt7986-si3218x-sound";
-		status = "disabled";
-
-		platform {
-			sound-dai = <&afe>;
-		};
-
-		codec {
-			sound-dai = <&proslic_spi>;
-		};
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 };
 
 &fan {
 	pwms = <&pwm 0 50000>;
-	status = "okay";
-};
-
-&afe {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcm_pins>;
 	status = "okay";
 };
 
@@ -128,108 +67,11 @@
 	status = "okay";
 };
 
-&i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins>;
-	status = "okay";
-
-	rt5190a_64: rt5190a@64 {
-		compatible = "richtek,rt5190a";
-		reg = <0x64>;
-		/*interrupts-extended = <&gpio26 0 IRQ_TYPE_LEVEL_LOW>;*/
-		vin2-supply = <&rt5190_buck1>;
-		vin3-supply = <&rt5190_buck1>;
-		vin4-supply = <&rt5190_buck1>;
-
-		regulators {
-			rt5190_buck1: buck1 {
-				regulator-name = "rt5190a-buck1";
-				regulator-min-microvolt = <5090000>;
-				regulator-max-microvolt = <5090000>;
-				regulator-allowed-modes =
-				<RT5190A_OPMODE_AUTO RT5190A_OPMODE_FPWM>;
-				regulator-boot-on;
-			};
-			buck2 {
-				regulator-name = "vcore";
-				regulator-min-microvolt = <600000>;
-				regulator-max-microvolt = <1400000>;
-				regulator-boot-on;
-			};
-			buck3 {
-				regulator-name = "proc";
-				regulator-min-microvolt = <600000>;
-				regulator-max-microvolt = <1400000>;
-				regulator-boot-on;
-			};
-			buck4 {
-				regulator-name = "rt5190a-buck4";
-				regulator-min-microvolt = <850000>;
-				regulator-max-microvolt = <850000>;
-				regulator-allowed-modes =
-				<RT5190A_OPMODE_AUTO RT5190A_OPMODE_FPWM>;
-				regulator-boot-on;
-			};
-			ldo {
-				regulator-name = "rt5190a-ldo";
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>;
-				regulator-boot-on;
-			};
-		};
-	};
-};
-
-&i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins>;
-	status = "okay";
-
-	wm8960: wm8960@1a {
-		compatible = "wlf,wm8960";
-		reg = <0x1a>;
-	};
-};
-
-&spi0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi0_flash_pins>;
-	status = "okay";
-
-	spi_nand: spi_nand@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "spi-nand";
-		spi-cal-enable;
-		spi-cal-mode = "read-data";
-		spi-cal-datalen = <7>;
-		spi-cal-data = /bits/ 8 <0x53 0x50 0x49 0x4E 0x41 0x4E 0x44>;
-		spi-cal-addrlen = <5>;
-		spi-cal-addr = /bits/ 32 <0x0 0x0 0x0 0x0 0x0>;
-		reg = <0>;
-		spi-max-frequency = <52000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
-	};
-};
-
 &spi1 {
 	pinctrl-names = "default";
 	/* pin shared with snfi */
 	pinctrl-0 = <&spic_pins>;
 	status = "disabled";
-
-	proslic_spi: proslic_spi@0 {
-		compatible = "silabs,proslic_spi";
-		reg = <0>;
-		spi-max-frequency = <10000000>;
-		spi-cpha = <1>;
-		spi-cpol = <1>;
-		channel_count = <1>;
-		debug_level = <4>;       /* 1 = TRC, 2 = DBG, 4 = ERR */
-		reset_gpio = <&pio 54 0>;
-		ig,enable-spi = <1>;     /* 1: Enable, 0: Disable */
-	};
 };
 
 &pcie0 {
@@ -306,13 +148,6 @@
 		};
 	};
 
-	i2c0_pins: i2c0-pins-g0 {
-		mux {
-			function = "i2c";
-			groups = "i2c0_1";
-		};
-	};
-
 	pcie0_pins: pcie0-pins {
 		mux {
 			function = "pcie";
@@ -344,13 +179,6 @@
 		};
 	};
 
-	spi0_flash_pins: spi0-pins {
-		mux {
-			function = "spi";
-			groups = "spi0", "spi0_wp_hold";
-		};
-	};
-
 	spic_pins: spi1-pins {
 		mux {
 			function = "spi";
@@ -358,24 +186,17 @@
 		};
 	};
 
-	i2c1_pins: i2c1-pins {
+	mmc0_pins_default: mmc0-pins-default {
 		mux {
-			function = "i2c";
-			groups = "i2c1_0";
+			function = "flash";
+			groups = "emmc_51";
 		};
 	};
 
-	i2s_pins: i2s-pins {
+	mmc0_pins_uhs: mmc0-pins-uhs {
 		mux {
-			function = "audio";
-			groups = "i2s";
-		};
-	};
-
-	pcm_pins: pcm-pins {
-		mux {
-			function = "audio";
-			groups = "pcm";
+			function = "flash";
+			groups = "emmc_51";
 		};
 	};
 };
@@ -543,10 +364,20 @@
 	status = "okay";
 };
 
-&slot0 {
-	mt7996@0,0 {
-		reg = <0x0000 0 0 0 0>;
-		device_type = "pci";
-		mediatek,mtd-eeprom = <&factory 0x0>;
-	};
+&mmc0 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&mmc0_pins_default>;
+	pinctrl-1 = <&mmc0_pins_uhs>;
+	bus-width = <8>;
+	max-frequency = <200000000>;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	hs400-ds-delay = <0x12814>;
+	vqmmc-supply = <&reg_1p8v>;
+	vmmc-supply = <&reg_3p3v>;
+	non-removable;
+	no-sd;
+	no-sdio;
+	status = "okay";
 };
