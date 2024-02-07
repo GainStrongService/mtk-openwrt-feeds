@@ -2628,6 +2628,10 @@ static void mtk_poll_tx_pdma(struct mtk_eth *eth, int budget,
 	while ((cpu != dma) && budget) {
 		int mac = 0;
 
+		desc = ring->dma_pdma + cpu * eth->soc->txrx.txd_size;
+		if ((desc->txd2 & TX_DMA_OWNER_CPU) == 0)
+			break;
+
 		tx_buf = &ring->buf[cpu];
 		if (tx_buf->flags & MTK_TX_FLAGS_FPORT1)
 			mac = MTK_GMAC2_ID;
