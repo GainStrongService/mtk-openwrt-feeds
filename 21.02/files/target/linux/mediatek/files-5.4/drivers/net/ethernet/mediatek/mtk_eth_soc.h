@@ -203,6 +203,12 @@
 #define WDMA_BASE(x)		(0x2800 + ((x) * 0x400))
 #define PPE_BASE(x)		(0xE00 + ((x) * 0x400))
 #endif
+/* PDMA TX CPU Pointer Register */
+#define MTK_PTX_CTX_IDX0	(PDMA_BASE + 0x08)
+
+/* PDMA TX DMA Pointer Register */
+#define MTK_PTX_DTX_IDX0	(PDMA_BASE + 0x0c)
+
 /* PDMA RX Base Pointer Register */
 #define MTK_PRX_BASE_PTR0	(PDMA_BASE + 0x100)
 #define MTK_PRX_BASE_PTR_CFG(x)	(MTK_PRX_BASE_PTR0 + (x * 0x10))

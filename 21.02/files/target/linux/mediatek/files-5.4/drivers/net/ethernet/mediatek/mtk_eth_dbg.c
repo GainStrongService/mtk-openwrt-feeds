@@ -1027,6 +1027,7 @@ static inline u32 mtk_dbg_r32(u32 reg)
 int dbg_regs_read(struct seq_file *seq, void *v)
 {
 	struct mtk_eth *eth = g_eth;
+	u32 i;
 
 	seq_puts(seq, "   <<DEBUG REG DUMP>>\n");
 
@@ -1085,16 +1086,43 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 		   mtk_r32(eth, MTK_PRX_CRX_IDX0));
 	seq_printf(seq, "| PDMA_DRX_IDX	: %08x |\n",
 		   mtk_r32(eth, MTK_PRX_DRX_IDX0));
-	seq_printf(seq, "| QDMA_CTX_IDX	: %08x |\n",
-		   mtk_r32(eth, MTK_QTX_CTX_PTR));
-	seq_printf(seq, "| QDMA_DTX_IDX	: %08x |\n",
-		   mtk_r32(eth, MTK_QTX_DTX_PTR));
-	seq_printf(seq, "| QDMA_FQ_CNT	: %08x |\n",
-		   mtk_r32(eth, MTK_QDMA_FQ_CNT));
-	seq_printf(seq, "| QDMA_FWD_CNT	: %08x |\n",
-		   mtk_r32(eth, MTK_QDMA_FWD_CNT));
-	seq_printf(seq, "| QDMA_FSM	: %08x |\n",
-		   mtk_r32(eth, MTK_QDMA_FSM));
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
+		for (i = 1; i < eth->soc->rss_num; i++) {
+			seq_printf(seq, "| PDMA_CRX_IDX%d	: %08x |\n",
+				   i, mtk_r32(eth, MTK_PRX_CRX_IDX_CFG(i)));
+			seq_printf(seq, "| PDMA_DRX_IDX%d	: %08x |\n",
+				   i, mtk_r32(eth, MTK_PRX_DRX_IDX_CFG(i)));
+		}
+	}
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO)) {
+		for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
+			seq_printf(seq, "| PDMA_CRX_IDX%d	: %08x |\n",
+				   MTK_HW_LRO_RING(i),
+				   mtk_r32(eth, MTK_PRX_CRX_IDX_CFG(MTK_HW_LRO_RING(i))));
+			seq_printf(seq, "| PDMA_DRX_IDX%d	: %08x |\n",
+				   MTK_HW_LRO_RING(i),
+				   mtk_r32(eth, MTK_PRX_DRX_IDX_CFG(MTK_HW_LRO_RING(i))));
+		}
+	}
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
+		seq_printf(seq, "| QDMA_CTX_IDX	: %08x |\n",
+			   mtk_r32(eth, MTK_QTX_CTX_PTR));
+		seq_printf(seq, "| QDMA_DTX_IDX	: %08x |\n",
+			   mtk_r32(eth, MTK_QTX_DTX_PTR));
+		seq_printf(seq, "| QDMA_FQ_CNT	: %08x |\n",
+			   mtk_r32(eth, MTK_QDMA_FQ_CNT));
+		seq_printf(seq, "| QDMA_FWD_CNT	: %08x |\n",
+			   mtk_r32(eth, MTK_QDMA_FWD_CNT));
+		seq_printf(seq, "| QDMA_FSM	: %08x |\n",
+			   mtk_r32(eth, MTK_QDMA_FSM));
+	} else {
+		seq_printf(seq, "| PDMA_CTX_IDX	: %08x |\n",
+			   mtk_r32(eth, MTK_PTX_CTX_IDX0));
+		seq_printf(seq, "| PDMA_DTX_IDX	: %08x |\n",
+			   mtk_r32(eth, MTK_PTX_DTX_IDX0));
+	}
+
 	seq_printf(seq, "| FE_PSE_FREE	: %08x |\n",
 		   mtk_r32(eth, MTK_FE_PSE_FREE));
 	seq_printf(seq, "| FE_DROP_FQ	: %08x |\n",
