@@ -32,6 +32,7 @@ static int netsys_trm_hw_dump(void *dst, u32 ofs, u32 len);
 
 struct netsys_hw {
 	void __iomem *base;
+	u32 ppe_num;
 };
 
 static struct netsys_hw netsys;
@@ -111,6 +112,11 @@ static inline u32 ppe_read(enum pse_port ppe, u32 reg)
 	return 0;
 }
 
+u32 mtk_tops_netsys_ppe_get_num(void)
+{
+	return netsys.ppe_num;
+}
+
 u32 mtk_tops_netsys_ppe_get_max_entry_num(u32 ppe_id)
 {
 	u32 tbl_entry_num;
@@ -132,7 +138,7 @@ u32 mtk_tops_netsys_ppe_get_max_entry_num(u32 ppe_id)
 	return PPE_DEFAULT_ENTRY_SIZE << tbl_entry_num;
 }
 
-int mtk_tops_netsys_init(struct platform_device *pdev)
+static int mtk_tops_netsys_base_init(struct platform_device *pdev)
 {
 	struct device_node *fe_mem = NULL;
 	struct resource res;
@@ -144,12 +150,57 @@ int mtk_tops_netsys_init(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (of_address_to_resource(fe_mem, 0, &res))
-		return -ENXIO;
+	if (of_address_to_resource(fe_mem, 0, &res)) {
+		ret = -ENXIO;
+		goto out;
+	}
 
 	netsys.base = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
-	if (!netsys.base)
-		return -ENOMEM;
+	if (!netsys.base) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+out:
+	of_node_put(fe_mem);
+
+	return ret;
+}
+
+static int mtk_tops_netsys_ppe_num_init(struct platform_device *pdev)
+{
+	struct device_node *hnat = NULL;
+	u32 val = 0;
+	int ret = 0;
+
+	hnat = of_parse_phandle(pdev->dev.of_node, "hnat", 0);
+	if (!hnat) {
+		TOPS_ERR("can not find hnat node\n");
+		return -ENODEV;
+	}
+
+	ret = of_property_read_u32(hnat, "mtketh-ppe-num", &val);
+	if (ret)
+		netsys.ppe_num = 1;
+	else
+		netsys.ppe_num = val;
+
+	of_node_put(hnat);
+
+	return 0;
+}
+
+int mtk_tops_netsys_init(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = mtk_tops_netsys_base_init(pdev);
+	if (ret)
+		return ret;
+
+	ret = mtk_tops_netsys_ppe_num_init(pdev);
+	if (ret)
+		return ret;
 
 	ret = mtk_trm_hw_config_register(TRM_NETSYS, &netsys_trm_hw_cfg);
 	if (ret)

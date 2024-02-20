@@ -18,6 +18,7 @@ tops-y += hpdma.o
 tops-y += hwspinlock.o
 tops-y += mbox.o
 tops-y += mcu.o
+tops-y += misc.o
 tops-y += netsys.o
 tops-y += net-event.o
 tops-y += tops_params.o

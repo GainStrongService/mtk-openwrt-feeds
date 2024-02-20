@@ -12,13 +12,26 @@
 #include <pce/pce.h>
 
 #include "tops/internal.h"
+#include "tops/netsys.h"
 #include "tops/protocol/tunnel/gre/gretap.h"
 #include "tops/tunnel.h"
 
 static int gretap_cls_entry_setup(struct tops_tnl_info *tnl_info,
 				  struct cls_desc *cdesc)
 {
-	CLS_DESC_DATA(cdesc, fport, PSE_PORT_PPE0);
+	/*
+	 * If the system only has 1 PPE,
+	 * packets from any GDM will default forward to PPE0 first
+	 * If the system has 3 PPE,
+	 * packets from GDM1 will forward to PPE0
+	 * packets from GDM2 will forward to PPE1
+	 * packets from GDM3 will forward to PPE2
+	 */
+	if (mtk_tops_netsys_ppe_get_num() == 1)
+		CLS_DESC_DATA(cdesc, fport, PSE_PORT_PPE0);
+	else
+		CLS_DESC_DATA(cdesc, fport, PSE_PORT_PPE1);
+
 	CLS_DESC_DATA(cdesc, tport_idx, 0x4);
 	CLS_DESC_MASK_DATA(cdesc, tag, CLS_DESC_TAG_MASK, CLS_DESC_TAG_MATCH_L4_HDR);
 	CLS_DESC_MASK_DATA(cdesc, dip_match, CLS_DESC_DIP_MATCH, CLS_DESC_DIP_MATCH);

@@ -28,6 +28,7 @@
 #include "tops/internal.h"
 #include "tops/mbox.h"
 #include "tops/mcu.h"
+#include "tops/misc.h"
 #include "tops/netsys.h"
 #include "tops/tdma.h"
 #include "tops/trm.h"
@@ -571,6 +572,8 @@ out:
 static int mtk_tops_mcu_state_init_leave(struct mcu_state *state)
 {
 	int ret;
+
+	mtk_tops_misc_set_ppe_num();
 
 	mtk_tops_tdma_enable();
 

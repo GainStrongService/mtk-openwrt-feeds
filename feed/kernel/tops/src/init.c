@@ -23,6 +23,7 @@
 #include "tops/internal.h"
 #include "tops/mbox.h"
 #include "tops/mcu.h"
+#include "tops/misc.h"
 #include "tops/netsys.h"
 #include "tops/net-event.h"
 #include "tops/ser.h"
@@ -158,12 +159,19 @@ static int mtk_tops_probe(struct platform_device *pdev)
 		goto err_tdma_deinit;
 	}
 
-	ret = mtk_tops_post_init(pdev);
+	ret = mtk_tops_misc_init(pdev);
 	if (ret)
 		goto err_tnl_offload_deinit;
 
+	ret = mtk_tops_post_init(pdev);
+	if (ret)
+		goto err_misc_deinit;
+
 	TOPS_ERR("init done\n");
 	return ret;
+
+err_misc_deinit:
+	mtk_tops_misc_deinit(pdev);
 
 err_tnl_offload_deinit:
 	mtk_tops_tnl_offload_deinit(pdev);
@@ -195,6 +203,8 @@ static int mtk_tops_remove(struct platform_device *pdev)
 	mtk_tops_tnl_offload_proto_teardown(pdev);
 
 	mtk_tops_mcu_tear_down(pdev);
+
+	mtk_tops_misc_deinit(pdev);
 
 	mtk_tops_tnl_offload_deinit(pdev);
 

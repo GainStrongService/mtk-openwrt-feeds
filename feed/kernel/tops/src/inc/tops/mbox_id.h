@@ -37,6 +37,7 @@ enum mbox_ap2cx_cmd_id {
 	MBOX_AP2CX_CMD_NET = 1,
 	MBOX_AP2CX_CMD_WDT = 2,
 	MBOX_AP2CX_CMD_TRM = 3,
+	MBOX_AP2CX_CMD_MISC = 4,
 	__MBOX_AP2CX_CMD_MAX = 32,
 };
 

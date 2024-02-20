@@ -47,6 +47,7 @@
 #define TDMA_PORT_SHIFT				(0)
 #define TDMA_PORT_MASK				GENMASK(15, 0)
 
+u32 mtk_tops_netsys_ppe_get_num(void);
 u32 mtk_tops_netsys_ppe_get_max_entry_num(u32 ppe_id);
 int mtk_tops_netsys_init(struct platform_device *pdev);
 void mtk_tops_netsys_deinit(struct platform_device *pdev);
