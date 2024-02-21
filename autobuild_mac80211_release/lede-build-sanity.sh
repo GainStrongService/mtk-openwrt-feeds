@@ -223,6 +223,10 @@ prepare_mac80211() {
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/config/netifd ${BUILD_DIR}/package/network/config
 		rm -rf  ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/config/netifd
 		cp -fpR ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/config/netifd_new ${MTK_FEED_DIR}/autobuild_mac80211_release/package/network/config/netifd
+		#wifi-scripts
+		rm -rf ${BUILD_DIR}/package/base-files/files/sbin/wifi
+		rm -rf ${BUILD_DIR}/package/network/config/wifi-scripts
+		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/config/wifi-scripts ${BUILD_DIR}/package/network/config
 		#ucode
 		rm -rf ${BUILD_DIR}/package/utils/ucode
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/utils/ucode ${BUILD_DIR}/package/utils
