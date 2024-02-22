@@ -1,4 +1,4 @@
-From 63bbe30ccac3b6839bddaec3226b06e9a3f73a1d Mon Sep 17 00:00:00 2001
+From 4e785260ea9523efea8deb29f3f7ec7a7dab5128 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Tue, 22 Aug 2023 05:02:53 +0800
 Subject: [PATCH 30/37] mtk: mac80211: add packet count input for
@@ -53,7 +53,7 @@ index 1d2ac66..04d76d7 100644
  }
  #endif /* < 5.10 */
 diff --git a/drivers/net/usb/qmi_wwan.c b/drivers/net/usb/qmi_wwan.c
-index adbcfdf..f93359a 100644
+index 6c2c1e5..3bc64d8 100644
 --- a/drivers/net/usb/qmi_wwan.c
 +++ b/drivers/net/usb/qmi_wwan.c
 @@ -210,7 +210,7 @@ static int qmimux_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
@@ -92,7 +92,7 @@ index d833625..0a7bb97 100644
  				netif_receive_skb(skb);
  			} else {
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index fb3d2e4..347867c 100644
+index 1541e9c..7a80945 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
 @@ -853,7 +853,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
@@ -104,7 +104,7 @@ index fb3d2e4..347867c 100644
  				netif_receive_skb(skb);
  			}
  		}
-@@ -2632,7 +2632,7 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
+@@ -2631,7 +2631,7 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
  	skb = rx->skb;
  	xmit_skb = NULL;
  
@@ -113,7 +113,7 @@ index fb3d2e4..347867c 100644
  
  	if (rx->sta) {
  		/* The seqno index has the same property as needed
-@@ -4050,7 +4050,7 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
+@@ -4054,7 +4054,7 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
  		}
  
  		prev_dev = sdata->dev;

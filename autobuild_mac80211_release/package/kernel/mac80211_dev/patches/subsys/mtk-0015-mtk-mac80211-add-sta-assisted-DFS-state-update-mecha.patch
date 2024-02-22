@@ -1,4 +1,4 @@
-From f4e731440b86297124dd8ef41eb8d78820cf2200 Mon Sep 17 00:00:00 2001
+From c30a607cc3e06ced08c3b93f13706fb158a4d137 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Feb 2023 14:25:24 +0800
 Subject: [PATCH 15/37] mtk: mac80211: add sta-assisted DFS state update
@@ -13,10 +13,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 92 insertions(+)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 0c9bb5c..085ad51 100644
+index 9567c1b..0b5a4e6 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -8479,6 +8479,20 @@ void cfg80211_cac_event(struct net_device *netdev,
+@@ -8526,6 +8526,20 @@ void cfg80211_cac_event(struct net_device *netdev,
  			const struct cfg80211_chan_def *chandef,
  			enum nl80211_radar_event event, gfp_t gfp);
  
@@ -62,7 +62,7 @@ index 72ef4d9..60c6f79 100644
  
  /**
 diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
-index 86f762d..df39a8b 100644
+index 24d34d4..6077e89 100644
 --- a/net/mac80211/mlme.c
 +++ b/net/mac80211/mlme.c
 @@ -1981,6 +1981,11 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
@@ -88,7 +88,7 @@ index 86f762d..df39a8b 100644
  }
  
  static void ieee80211_reset_ap_probe(struct ieee80211_sub_if_data *sdata)
-@@ -5445,6 +5454,9 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
+@@ -5469,6 +5478,9 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
  		event.u.mlme.status = MLME_SUCCESS;
  		drv_event_callback(sdata->local, sdata, &event);
  		sdata_info(sdata, "associated\n");
@@ -99,7 +99,7 @@ index 86f762d..df39a8b 100644
  		info.success = 1;
  	}
 diff --git a/net/wireless/chan.c b/net/wireless/chan.c
-index e250830..a19cb61 100644
+index 30a2f00..41644e2 100644
 --- a/net/wireless/chan.c
 +++ b/net/wireless/chan.c
 @@ -14,6 +14,7 @@
@@ -110,7 +110,7 @@ index e250830..a19cb61 100644
  
  static bool cfg80211_valid_60g_freq(u32 freq)
  {
-@@ -1436,6 +1437,65 @@ bool cfg80211_any_usable_channels(struct wiphy *wiphy,
+@@ -1438,6 +1439,65 @@ bool cfg80211_any_usable_channels(struct wiphy *wiphy,
  }
  EXPORT_SYMBOL(cfg80211_any_usable_channels);
  

@@ -1,4 +1,4 @@
-From de77510ea0bd145fe2d93321d14755b74c95bde3 Mon Sep 17 00:00:00 2001
+From f500b4d7d2eb30f46fe0b75afb7b9bd94f96cf55 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Wed, 16 Aug 2023 07:23:34 +0800
 Subject: [PATCH 31/37] mtk: mac80211: add per-bss flag to support vendors
@@ -23,10 +23,10 @@ index 6e96ad9..b1555bb 100644
  	/* add new features before the definition below */
  	NUM_NL80211_EXT_FEATURES,
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 347867c..07dddcd 100644
+index 7a80945..0cf8c59 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
-@@ -2632,7 +2632,9 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
+@@ -2631,7 +2631,9 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
  	skb = rx->skb;
  	xmit_skb = NULL;
  
@@ -49,10 +49,10 @@ index 347867c..07dddcd 100644
  	/* The seqno index has the same property as needed
  	 * for the rx_msdu field, i.e. it is IEEE80211_NUM_TIDS
 diff --git a/net/mac80211/tx.c b/net/mac80211/tx.c
-index 0ed18d5..c6eec00 100644
+index c8fade8..0f6c960 100644
 --- a/net/mac80211/tx.c
 +++ b/net/mac80211/tx.c
-@@ -3540,7 +3540,9 @@ ieee80211_xmit_fast_finish(struct ieee80211_sub_if_data *sdata,
+@@ -3541,7 +3541,9 @@ ieee80211_xmit_fast_finish(struct ieee80211_sub_if_data *sdata,
  	if (key)
  		info->control.hw_key = &key->conf;
  
@@ -63,7 +63,7 @@ index 0ed18d5..c6eec00 100644
  
  	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
  		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
-@@ -4311,7 +4313,9 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
+@@ -4313,7 +4315,9 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
  			goto out;
  		}
  
@@ -74,7 +74,7 @@ index 0ed18d5..c6eec00 100644
  
  		ieee80211_xmit(sdata, sta, skb);
  	}
-@@ -4643,7 +4647,10 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
+@@ -4645,7 +4649,10 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
  		info->ack_frame_id = ieee80211_store_ack_skb(local, skb,
  							     &info->flags, NULL);
  

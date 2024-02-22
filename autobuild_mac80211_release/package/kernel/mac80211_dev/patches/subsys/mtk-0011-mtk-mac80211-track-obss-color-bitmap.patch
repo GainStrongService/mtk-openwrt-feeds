@@ -1,4 +1,4 @@
-From 5b3511b6e6820f608082df886bf2bdb9cc0c429b Mon Sep 17 00:00:00 2001
+From c4919b0d1dd5c92c081852be3ef37511f0406475 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Mon, 13 Mar 2023 05:23:37 +0800
 Subject: [PATCH 11/37] mtk: mac80211: track obss color bitmap
@@ -15,7 +15,7 @@ echo 1 > /sys/kernel/debug/tracing/events/mac80211/bss_color_collision/enable
  3 files changed, 27 insertions(+), 1 deletion(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 2c282e6..b90e828 100644
+index 65ba482..1a13d47 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -744,6 +744,7 @@ struct ieee80211_bss_conf {
@@ -27,10 +27,10 @@ index 2c282e6..b90e828 100644
  	u32 unsol_bcast_probe_resp_interval;
  	struct cfg80211_bitrate_mask beacon_tx_rate;
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 15bb653..65ff365 100644
+index c23b74a..2df16de 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
-@@ -3356,9 +3356,13 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
+@@ -3355,9 +3355,13 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
  
  		color = le32_get_bits(he_oper->he_oper_params,
  				      IEEE80211_HE_OPERATION_BSS_COLOR_MASK);

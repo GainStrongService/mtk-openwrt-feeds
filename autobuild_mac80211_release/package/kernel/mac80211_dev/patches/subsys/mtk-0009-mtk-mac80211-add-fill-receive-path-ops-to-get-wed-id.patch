@@ -1,4 +1,4 @@
-From 02b742ba338449626cd3435bddb5cfe7219d0ce8 Mon Sep 17 00:00:00 2001
+From 02ac6da3f76e0da03d30d5b7b59f24190495accd Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Wed, 18 May 2022 15:10:22 +0800
 Subject: [PATCH 09/37] mtk: mac80211: add fill receive path ops to get wed idx
@@ -12,10 +12,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  4 files changed, 50 insertions(+)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index eb229aa..2c282e6 100644
+index dcff7af..65ba482 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -4255,6 +4255,8 @@ struct ieee80211_prep_tx_info {
+@@ -4258,6 +4258,8 @@ struct ieee80211_prep_tx_info {
   *	disable background CAC/radar detection.
   * @net_fill_forward_path: Called from .ndo_fill_forward_path in order to
   *	resolve a path for hardware flow offloading
@@ -24,7 +24,7 @@ index eb229aa..2c282e6 100644
   * @change_vif_links: Change the valid links on an interface, note that while
   *	removing the old link information is still valid (link_conf pointer),
   *	but may immediately disappear after the function returns. The old or
-@@ -4631,6 +4633,9 @@ struct ieee80211_ops {
+@@ -4634,6 +4636,9 @@ struct ieee80211_ops {
  				     struct ieee80211_sta *sta,
  				     struct net_device_path_ctx *ctx,
  				     struct net_device_path *path);
@@ -35,10 +35,10 @@ index eb229aa..2c282e6 100644
  				struct ieee80211_vif *vif,
  				u16 old_links, u16 new_links,
 diff --git a/net/mac80211/driver-ops.h b/net/mac80211/driver-ops.h
-index 650d8d1..d187206 100644
+index 7d8cec9..576f893 100644
 --- a/net/mac80211/driver-ops.h
 +++ b/net/mac80211/driver-ops.h
-@@ -1519,6 +1519,19 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
+@@ -1524,6 +1524,19 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
  	return ret;
  }
  
@@ -59,7 +59,7 @@ index 650d8d1..d187206 100644
  				   struct ieee80211_sub_if_data *sdata,
  				   struct net_device *dev,
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index be586bc..b8dfd32 100644
+index 6e3bfb4..4de8d3d 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
 @@ -930,6 +930,28 @@ out:
@@ -100,7 +100,7 @@ index be586bc..b8dfd32 100644
  };
  
 diff --git a/net/mac80211/util.c b/net/mac80211/util.c
-index 8a6917c..3650dcd 100644
+index 172173b..fd82488 100644
 --- a/net/mac80211/util.c
 +++ b/net/mac80211/util.c
 @@ -868,6 +868,15 @@ struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)

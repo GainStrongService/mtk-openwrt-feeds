@@ -1,7 +1,7 @@
-From 488e67b3592e6e36622e12a212739d4d74710a56 Mon Sep 17 00:00:00 2001
+From 2bb34cb05062f9f53252c5a15304a75141e02660 Mon Sep 17 00:00:00 2001
 From: "fancy.liu" <fancy.liu@mediatek.com>
 Date: Thu, 30 Nov 2023 16:42:59 +0800
-Subject: [PATCH 37/37] mtk: mac80211: Add CSA action frame tx when channel
+Subject: [PATCH 36/37] mtk: mac80211: Add CSA action frame tx when channel
  switch on AP
 
 Description:
@@ -20,10 +20,10 @@ Signed-off-by: fancy.liu <fancy.liu@mediatek.com>
  2 files changed, 21 insertions(+), 17 deletions(-)
 
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 2072a7a..1554849 100644
+index cf694bc..a2d1688 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -3790,15 +3790,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
+@@ -3798,15 +3798,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
  		 * immediately too.  If we would delay the switch
  		 * until the next TBTT, we would have to set the probe
  		 * response here.
@@ -39,7 +39,7 @@ index 2072a7a..1554849 100644
  
  		if ((params->n_counter_offsets_beacon >
  		     IEEE80211_MAX_CNTDWN_COUNTERS_NUM) ||
-@@ -3814,14 +3806,20 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
+@@ -3822,14 +3814,20 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
  		csa.n_counter_offsets_presp = params->n_counter_offsets_presp;
  		csa.count = params->count;
  
@@ -66,7 +66,7 @@ index 2072a7a..1554849 100644
  		break;
  	case NL80211_IFTYPE_ADHOC:
  		if (!sdata->vif.cfg.ibss_joined)
-@@ -3893,6 +3891,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
+@@ -3901,6 +3899,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
  		}
  #endif
  	default:
@@ -74,7 +74,7 @@ index 2072a7a..1554849 100644
  		return -EOPNOTSUPP;
  	}
  
-@@ -3982,6 +3981,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+@@ -3990,6 +3989,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
  
  	err = ieee80211_set_csa_beacon(sdata, params, &changed);
  	if (err) {
@@ -83,10 +83,10 @@ index 2072a7a..1554849 100644
  		goto out;
  	}
 diff --git a/net/mac80211/util.c b/net/mac80211/util.c
-index 5bd40c6..f36a5c0 100644
+index f0bb4e8..00a20a6 100644
 --- a/net/mac80211/util.c
 +++ b/net/mac80211/util.c
-@@ -4515,8 +4515,11 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
+@@ -4514,8 +4514,11 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
  	u8 *pos;
  
  	if (sdata->vif.type != NL80211_IFTYPE_ADHOC &&
@@ -99,7 +99,7 @@ index 5bd40c6..f36a5c0 100644
  
  	skb = dev_alloc_skb(local->tx_headroom + hdr_len +
  			    5 + /* channel switch announcement element */
-@@ -4533,9 +4536,10 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
+@@ -4532,9 +4535,10 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
  
  	eth_broadcast_addr(mgmt->da);
  	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);

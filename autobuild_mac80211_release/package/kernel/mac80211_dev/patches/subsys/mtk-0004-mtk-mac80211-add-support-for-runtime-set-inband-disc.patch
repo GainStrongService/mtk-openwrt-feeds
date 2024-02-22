@@ -1,4 +1,4 @@
-From b3f657e7a0ce98c986b3b803a963820d98d82c7f Mon Sep 17 00:00:00 2001
+From 1cc0213bb5d4152c41cd6dd00eef4a613a5a0a99 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Wed, 19 Oct 2022 13:45:42 +0800
 Subject: [PATCH 04/37] mtk: mac80211: add support for runtime set inband
@@ -14,10 +14,10 @@ Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
  5 files changed, 60 insertions(+), 6 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index d9a7828..204d1a4 100644
+index 25f15d0..5b2e242 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -1355,6 +1355,7 @@ struct cfg80211_fils_discovery {
+@@ -1379,6 +1379,7 @@ struct cfg80211_fils_discovery {
  	u32 max_interval;
  	size_t tmpl_len;
  	const u8 *tmpl;
@@ -26,7 +26,7 @@ index d9a7828..204d1a4 100644
  
  /**
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 2e5b5c6..96e4ec9 100644
+index 231abd1..4eac89a 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -526,6 +526,7 @@ struct ieee80211_ftm_responder_params {
@@ -50,10 +50,10 @@ index 88eb85c..72ef4d9 100644
  	/* keep last */
  	__NL80211_FILS_DISCOVERY_ATTR_LAST,
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index f4649d1..baff0e6 100644
+index 6b62644..3c07357 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -990,6 +990,7 @@ static int ieee80211_set_fils_discovery(struct ieee80211_sub_if_data *sdata,
+@@ -993,6 +993,7 @@ static int ieee80211_set_fils_discovery(struct ieee80211_sub_if_data *sdata,
  	fd = &link_conf->fils_discovery;
  	fd->min_interval = params->min_interval;
  	fd->max_interval = params->max_interval;
@@ -61,7 +61,7 @@ index f4649d1..baff0e6 100644
  
  	old = sdata_dereference(link->u.ap.fils_discovery, sdata);
  	new = kzalloc(sizeof(*new) + params->tmpl_len, GFP_KERNEL);
-@@ -1513,9 +1514,11 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
+@@ -1516,9 +1517,11 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
  	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
  	struct ieee80211_link_data *link;
  	struct beacon_data *old;
@@ -74,7 +74,7 @@ index f4649d1..baff0e6 100644
  
  	sdata_assert_lock(sdata);
  
-@@ -1546,6 +1549,31 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
+@@ -1549,6 +1552,31 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
  		changed |= BSS_CHANGED_HE_BSS_COLOR;
  	}
  
@@ -107,10 +107,10 @@ index f4649d1..baff0e6 100644
  	return 0;
  }
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 4a12891..680511a 100644
+index 508edc1..abb9585 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -423,6 +423,7 @@ nl80211_fils_discovery_policy[NL80211_FILS_DISCOVERY_ATTR_MAX + 1] = {
+@@ -424,6 +424,7 @@ nl80211_fils_discovery_policy[NL80211_FILS_DISCOVERY_ATTR_MAX + 1] = {
  	[NL80211_FILS_DISCOVERY_ATTR_INT_MAX] = NLA_POLICY_MAX(NLA_U32, 10000),
  	[NL80211_FILS_DISCOVERY_ATTR_TMPL] =
  			NLA_POLICY_BINARY_RANGE(NL80211_FILS_DISCOVERY_TMPL_MIN_LEN, IEEE80211_MAX_DATA_LEN),
@@ -127,7 +127,7 @@ index 4a12891..680511a 100644
  
  	return 0;
  }
-@@ -6224,7 +6227,8 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
+@@ -6243,7 +6246,8 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
  	unsigned int link_id = nl80211_link_id(info->attrs);
  	struct net_device *dev = info->user_ptr[1];
  	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -137,7 +137,7 @@ index 4a12891..680511a 100644
  	int err;
  
  	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
-@@ -6237,17 +6241,36 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
+@@ -6256,17 +6260,36 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
  	if (!wdev->links[link_id].ap.beacon_interval)
  		return -EINVAL;
  

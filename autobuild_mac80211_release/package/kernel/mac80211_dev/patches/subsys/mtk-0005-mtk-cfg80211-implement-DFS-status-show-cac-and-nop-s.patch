@@ -1,4 +1,4 @@
-From 1217977018874b810cc295ea631684876b108a4b Mon Sep 17 00:00:00 2001
+From 3ef5311c371391368404bbe466ff1904155dac8f Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 22 Sep 2022 14:27:41 +0800
 Subject: [PATCH 05/37] mtk: cfg80211: implement DFS status show, cac and nop
@@ -16,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 360 insertions(+), 7 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 204d1a4..0c9bb5c 100644
+index 5b2e242..9567c1b 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -4817,6 +4817,7 @@ struct cfg80211_ops {
+@@ -4841,6 +4841,7 @@ struct cfg80211_ops {
  				    struct link_station_del_parameters *params);
  	int	(*set_hw_timestamp)(struct wiphy *wiphy, struct net_device *dev,
  				    struct cfg80211_set_hw_timestamp *hwts);
@@ -28,10 +28,10 @@ index 204d1a4..0c9bb5c 100644
  
  /*
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index baff0e6..0e67d89 100644
+index 3c07357..af284d2 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -5048,6 +5048,25 @@ static int ieee80211_set_hw_timestamp(struct wiphy *wiphy,
+@@ -5057,6 +5057,25 @@ static int ieee80211_set_hw_timestamp(struct wiphy *wiphy,
  	return local->ops->set_hw_timestamp(&local->hw, &sdata->vif, hwts);
  }
  
@@ -57,14 +57,14 @@ index baff0e6..0e67d89 100644
  const struct cfg80211_ops mac80211_config_ops = {
  	.add_virtual_intf = ieee80211_add_iface,
  	.del_virtual_intf = ieee80211_del_iface,
-@@ -5160,4 +5179,5 @@ const struct cfg80211_ops mac80211_config_ops = {
+@@ -5169,4 +5188,5 @@ const struct cfg80211_ops mac80211_config_ops = {
  	.mod_link_station = ieee80211_mod_link_station,
  	.del_link_station = ieee80211_del_link_station,
  	.set_hw_timestamp = ieee80211_set_hw_timestamp,
 +	.skip_cac = ieee80211_skip_cac,
  };
 diff --git a/net/wireless/core.h b/net/wireless/core.h
-index 70fc2e6..ea1b6ff 100644
+index 46aa2a0..8e9a2c9 100644
 --- a/net/wireless/core.h
 +++ b/net/wireless/core.h
 @@ -86,6 +86,9 @@ struct cfg80211_registered_device {
@@ -410,10 +410,10 @@ index 0878b16..a228a14 100644
 +	DEBUGFS_ADD(dfs_available_reset, 0600);
  }
 diff --git a/net/wireless/mlme.c b/net/wireless/mlme.c
-index 8b87bc9..e3cbfc0 100644
+index 3cdfbd2..70b4013 100644
 --- a/net/wireless/mlme.c
 +++ b/net/wireless/mlme.c
-@@ -1054,13 +1054,16 @@ __cfg80211_background_cac_event(struct cfg80211_registered_device *rdev,
+@@ -1069,13 +1069,16 @@ __cfg80211_background_cac_event(struct cfg80211_registered_device *rdev,
  		queue_work(cfg80211_wq, &rdev->propagate_cac_done_wk);
  		cfg80211_sched_dfs_chan_update(rdev);
  		wdev = rdev->background_radar_wdev;
@@ -430,7 +430,7 @@ index 8b87bc9..e3cbfc0 100644
  		break;
  	default:
  		return;
-@@ -1080,6 +1083,7 @@ cfg80211_background_cac_event(struct cfg80211_registered_device *rdev,
+@@ -1095,6 +1098,7 @@ cfg80211_background_cac_event(struct cfg80211_registered_device *rdev,
  					chandef, event);
  	wiphy_unlock(&rdev->wiphy);
  }
@@ -438,7 +438,7 @@ index 8b87bc9..e3cbfc0 100644
  
  void cfg80211_background_cac_done_wk(struct work_struct *work)
  {
-@@ -1141,8 +1145,10 @@ cfg80211_start_background_radar_detection(struct cfg80211_registered_device *rde
+@@ -1156,8 +1160,10 @@ cfg80211_start_background_radar_detection(struct cfg80211_registered_device *rde
  	if (!cac_time_ms)
  		cac_time_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
  

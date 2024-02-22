@@ -1,4 +1,4 @@
-From 22f7b334932cbab63060ba390e917a57cc7779f8 Mon Sep 17 00:00:00 2001
+From 3481facddee5af51f45c35d9d9dcd2586acbab38 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 29 Mar 2022 16:06:30 +0800
 Subject: [PATCH 02/37] mtk: cfg80211: extend CAC time for weather radar
@@ -13,7 +13,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 11 insertions(+)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 7676475..d9a7828 100644
+index 0a825af..25f15d0 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
 @@ -149,6 +149,7 @@ enum ieee80211_channel_flags {
@@ -25,10 +25,10 @@ index 7676475..d9a7828 100644
  
  /**
 diff --git a/net/wireless/chan.c b/net/wireless/chan.c
-index 37ed7c6..e250830 100644
+index 510079f..30a2f00 100644
 --- a/net/wireless/chan.c
 +++ b/net/wireless/chan.c
-@@ -931,6 +931,13 @@ static unsigned int cfg80211_get_chans_dfs_cac_time(struct wiphy *wiphy,
+@@ -932,6 +932,13 @@ static unsigned int cfg80211_get_chans_dfs_cac_time(struct wiphy *wiphy,
  		if (!(c->flags & IEEE80211_CHAN_RADAR))
  			continue;
  
@@ -43,10 +43,10 @@ index 37ed7c6..e250830 100644
  			dfs_cac_ms = c->dfs_cac_ms;
  	}
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 8a6e2c0..12943c7 100644
+index 193e7d6..dd76503 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -9992,6 +9992,9 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
+@@ -10011,6 +10011,9 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
  	if (WARN_ON(!cac_time_ms))
  		cac_time_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
  

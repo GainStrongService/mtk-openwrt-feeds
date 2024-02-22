@@ -1,4 +1,4 @@
-From f647704869b94f0fba01631043b733edc48c6e74 Mon Sep 17 00:00:00 2001
+From d878da2558d32ce7ec97dad083a38392e653e54e Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Tue, 13 Dec 2022 09:04:49 +0800
 Subject: [PATCH 10/37] mtk: mac80211: fix build error on Linux Kernel 5.4
@@ -11,7 +11,7 @@ Subject: [PATCH 10/37] mtk: mac80211: fix build error on Linux Kernel 5.4
  4 files changed, 12 insertions(+), 14 deletions(-)
 
 diff --git a/include/linux/ieee80211.h b/include/linux/ieee80211.h
-index 4b99809..7aaae32 100644
+index 2fa1862..e53b73e 100644
 --- a/include/linux/ieee80211.h
 +++ b/include/linux/ieee80211.h
 @@ -310,11 +310,9 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
@@ -44,7 +44,7 @@ index 3562903..3768947 100644
  #include "rate.h"
  #include "sta_info.h"
 diff --git a/net/mac80211/wpa.c b/net/mac80211/wpa.c
-index 20f742b..93ec2f3 100644
+index 2d8e38b..0bb3907 100644
 --- a/net/mac80211/wpa.c
 +++ b/net/mac80211/wpa.c
 @@ -351,7 +351,7 @@ static u8 ccmp_gcmp_aad(struct sk_buff *skb, u8 *aad)
@@ -66,10 +66,10 @@ index 20f742b..93ec2f3 100644
  
  
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 680511a..15e3eeb 100644
+index abb9585..c652a01 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -461,11 +461,6 @@ nl80211_sta_wme_policy[NL80211_STA_WME_MAX + 1] = {
+@@ -462,11 +462,6 @@ nl80211_sta_wme_policy[NL80211_STA_WME_MAX + 1] = {
  	[NL80211_STA_WME_MAX_SP] = { .type = NLA_U8 },
  };
  
@@ -81,7 +81,7 @@ index 680511a..15e3eeb 100644
  static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
  	[0] = { .strict_start_type = NL80211_ATTR_HE_OBSS_PD },
  	[NL80211_ATTR_WIPHY] = { .type = NLA_U32 },
-@@ -805,8 +800,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
+@@ -806,8 +801,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
  	[NL80211_ATTR_MLD_ADDR] = NLA_POLICY_EXACT_LEN(ETH_ALEN),
  	[NL80211_ATTR_MLO_SUPPORT] = { .type = NLA_FLAG },
  	[NL80211_ATTR_MAX_NUM_AKM_SUITES] = { .type = NLA_REJECT },
@@ -91,7 +91,7 @@ index 680511a..15e3eeb 100644
  
  	[NL80211_ATTR_MAX_HW_TIMESTAMP_PEERS] = { .type = NLA_U16 },
  	[NL80211_ATTR_HW_TIMESTAMP_ENABLED] = { .type = NLA_FLAG },
-@@ -16687,9 +16681,11 @@ static const struct genl_ops nl80211_ops[] = {
+@@ -16729,9 +16723,11 @@ static const struct genl_ops nl80211_ops[] = {
  		/* can be retrieved by unprivileged users */
  		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WIPHY),
  	},
@@ -103,7 +103,7 @@ index 680511a..15e3eeb 100644
  	{
  		.cmd = NL80211_CMD_SET_WIPHY,
  		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-@@ -17534,8 +17530,10 @@ static struct genl_family nl80211_fam __genl_ro_after_init = {
+@@ -17576,8 +17572,10 @@ static struct genl_family nl80211_fam __genl_ro_after_init = {
  	.module = THIS_MODULE,
  	.ops = nl80211_ops,
  	.n_ops = ARRAY_SIZE(nl80211_ops),

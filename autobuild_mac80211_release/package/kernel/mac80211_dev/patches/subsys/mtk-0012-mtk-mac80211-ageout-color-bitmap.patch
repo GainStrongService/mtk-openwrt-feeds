@@ -1,4 +1,4 @@
-From 5137077a48ee6eff2910863341d137b4448a6382 Mon Sep 17 00:00:00 2001
+From 999bc7e5454349e1d43e7eaedccbbf291446a0fd Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Mon, 13 Mar 2023 05:36:59 +0800
 Subject: [PATCH 12/37] mtk: mac80211: ageout color bitmap
@@ -15,7 +15,7 @@ OBSS BSS Color will be ageout if not seen for 10 seconds.
  6 files changed, 44 insertions(+)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index b90e828..6ff6d3a 100644
+index 1a13d47..361fe92 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -745,6 +745,7 @@ struct ieee80211_bss_conf {
@@ -27,10 +27,10 @@ index b90e828..6ff6d3a 100644
  	u32 unsol_bcast_probe_resp_interval;
  	struct cfg80211_bitrate_mask beacon_tx_rate;
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 0e67d89..22bff46 100644
+index af284d2..de3d181 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -4880,6 +4880,36 @@ out:
+@@ -4889,6 +4889,36 @@ out:
  	return err;
  }
  
@@ -68,10 +68,10 @@ index 0e67d89..22bff46 100644
  ieee80211_set_radar_background(struct wiphy *wiphy,
  			       struct cfg80211_chan_def *chandef)
 diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
-index be3fa32..35452b0 100644
+index aecc401..6b0b149 100644
 --- a/net/mac80211/ieee80211_i.h
 +++ b/net/mac80211/ieee80211_i.h
-@@ -998,6 +998,7 @@ struct ieee80211_link_data {
+@@ -992,6 +992,7 @@ struct ieee80211_link_data {
  
  	struct work_struct color_change_finalize_work;
  	struct delayed_work color_collision_detect_work;
@@ -79,7 +79,7 @@ index be3fa32..35452b0 100644
  	u64 color_bitmap;
  
  	/* context reservation -- protected with chanctx_mtx */
-@@ -1995,9 +1996,13 @@ void ieee80211_csa_finalize_work(struct work_struct *work);
+@@ -1991,9 +1992,13 @@ void ieee80211_csa_finalize_work(struct work_struct *work);
  int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
  			     struct cfg80211_csa_settings *params);
  
@@ -94,7 +94,7 @@ index be3fa32..35452b0 100644
  /* interface handling */
  #define MAC80211_SUPPORTED_FEATURES_TX	(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | \
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index b8dfd32..e5b5e74 100644
+index 4de8d3d..b3de593 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
 @@ -541,6 +541,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
@@ -117,7 +117,7 @@ index b8dfd32..e5b5e74 100644
   err_del_interface:
  	drv_remove_interface(local, sdata);
 diff --git a/net/mac80211/link.c b/net/mac80211/link.c
-index 6148208..2f64b69 100644
+index 16cbaea..116100a 100644
 --- a/net/mac80211/link.c
 +++ b/net/mac80211/link.c
 @@ -47,6 +47,8 @@ void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
@@ -130,10 +130,10 @@ index 6148208..2f64b69 100644
  	if (!deflink) {
  		switch (sdata->vif.type) {
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 65ff365..a3b4cac 100644
+index 2df16de..fead07e 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
-@@ -3358,6 +3358,7 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
+@@ -3357,6 +3357,7 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
  				      IEEE80211_HE_OPERATION_BSS_COLOR_MASK);
  
  		bss_conf->used_color_bitmap |= BIT_ULL(color);
