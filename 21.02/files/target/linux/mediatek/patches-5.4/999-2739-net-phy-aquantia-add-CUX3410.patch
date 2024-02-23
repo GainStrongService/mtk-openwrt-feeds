@@ -1,0 +1,110 @@
+diff --git a/drivers/net/phy/aquantia.h b/drivers/net/phy/aquantia.h
+index f46d95f..6590580 100644
+--- a/drivers/net/phy/aquantia.h
++++ b/drivers/net/phy/aquantia.h
+@@ -81,6 +81,7 @@ struct aqr107_priv {
+ int aqr107_set_downshift(struct phy_device *phydev, u8 cnt);
+ void aqr107_chip_info(struct phy_device *phydev);
+ int aqr107_config_mdi(struct phy_device *phydev);
++int aqr107_config_usx_aneg_en(struct phy_device *phydev);
+ 
+ #if IS_REACHABLE(CONFIG_HWMON)
+ int aqr_hwmon_probe(struct phy_device *phydev);
+diff --git a/drivers/net/phy/aquantia_firmware.c b/drivers/net/phy/aquantia_firmware.c
+index b4ce32f..314be88 100644
+--- a/drivers/net/phy/aquantia_firmware.c
++++ b/drivers/net/phy/aquantia_firmware.c
+@@ -973,6 +973,10 @@ retry:
+ 
+ 			aqr107_chip_info(phydevs[i]);
+ 
++			ret = aqr107_config_usx_aneg_en(phydevs[i]);
++			if (ret)
++				dev_err(dev, "USX autonegotiation disabled, ret: %d\n", ret);
++
+ 			aqr107_config_mdi(phydevs[i]);
+ 
+ 			aqr107_set_downshift(phydevs[i],
+diff --git a/drivers/net/phy/aquantia_main.c b/drivers/net/phy/aquantia_main.c
+index e545b28..89ea5d8 100644
+--- a/drivers/net/phy/aquantia_main.c
++++ b/drivers/net/phy/aquantia_main.c
+@@ -25,6 +25,7 @@
+ #define PHY_ID_AQCS109	0x03a1b5c2
+ #define PHY_ID_AQR405	0x03a1b4b0
+ #define PHY_ID_AQR113C	0x31c31c12
++#define PHY_ID_CUX3410	0x31c31dd3
+ 
+ #define MDIO_PHYXS_VEND_IF_STATUS		0xe812
+ #define MDIO_PHYXS_VEND_IF_STATUS_TYPE_MASK	GENMASK(7, 3)
+@@ -34,6 +35,9 @@
+ #define MDIO_PHYXS_VEND_IF_STATUS_TYPE_SGMII	6
+ #define MDIO_PHYXS_VEND_IF_STATUS_TYPE_OCSGMII	10
+ 
++#define MDIO_PHYXS_TX_RSVD_VEND_PROV2           0xc441
++#define MDIO_PHYXS_TX_RSVD_VEND_PROV2_ANEG      BIT(3)
++
+ #define MDIO_AN_VEND_PROV			0xc400
+ #define MDIO_AN_VEND_PROV_1000BASET_FULL	BIT(15)
+ #define MDIO_AN_VEND_PROV_1000BASET_HALF	BIT(14)
+@@ -170,6 +174,16 @@ static void aqr107_get_stats(struct phy_device *phydev,
+ 	}
+ }
+ 
++int aqr107_config_usx_aneg_en(struct phy_device *phydev)
++{
++	u16 val;
++
++	val = phy_read_mmd(phydev, MDIO_MMD_PHYXS, MDIO_PHYXS_TX_RSVD_VEND_PROV2);
++	val |= MDIO_PHYXS_TX_RSVD_VEND_PROV2_ANEG;
++
++	return phy_write_mmd(phydev, MDIO_MMD_PHYXS, MDIO_PHYXS_TX_RSVD_VEND_PROV2, val);
++}
++
+ static int aqr_config_aneg(struct phy_device *phydev)
+ {
+ 	bool changed = false;
+@@ -483,6 +497,10 @@ static int aqr107_config_init(struct phy_device *phydev)
+ 		return aqr_firmware_download(phydev);
+ #endif
+ 
++	ret = aqr107_config_usx_aneg_en(phydev);
++	if (ret)
++		dev_err(&phydev->mdio.dev, "USX autonegotiation disabled, ret: %d\n", ret);
++
+ 	aqr107_config_mdi(phydev);
+ 
+ 	return aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
+@@ -711,6 +729,24 @@ static struct phy_driver aqr_driver[] = {
+ 	.get_stats      = aqr107_get_stats,
+ 	.link_change_notify = aqr107_link_change_notify,
+ },
++{
++	PHY_ID_MATCH_MODEL(PHY_ID_CUX3410),
++	.name           = "Aquantia CUX3410",
++	.probe          = aqr107_probe,
++	.config_init    = aqr107_config_init,
++	.config_aneg    = aqr_config_aneg,
++	.config_intr    = aqr_config_intr,
++	.ack_interrupt  = aqr_ack_interrupt,
++	.read_status    = aqr107_read_status,
++	.get_tunable    = aqr107_get_tunable,
++	.set_tunable    = aqr107_set_tunable,
++	.suspend        = aqr107_suspend,
++	.resume         = aqr107_resume,
++	.get_sset_count = aqr107_get_sset_count,
++	.get_strings    = aqr107_get_strings,
++	.get_stats      = aqr107_get_stats,
++	.link_change_notify = aqr107_link_change_notify,
++},
+ };
+ 
+ module_phy_driver(aqr_driver);
+@@ -724,6 +760,7 @@ static struct mdio_device_id __maybe_unused aqr_tbl[] = {
+ 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQCS109) },
+ 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR405) },
+ 	{ PHY_ID_MATCH_MODEL(PHY_ID_AQR113C) },
++	{ PHY_ID_MATCH_MODEL(PHY_ID_CUX3410) },
+ 	{ }
+ };
+ 
