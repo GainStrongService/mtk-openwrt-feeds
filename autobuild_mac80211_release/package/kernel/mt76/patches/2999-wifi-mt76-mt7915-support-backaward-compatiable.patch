@@ -1,52 +1,48 @@
-From 8e71bf60aeb05d38f45e680d55ffdb894f8af4bc Mon Sep 17 00:00:00 2001
+From c8e0568252515b5b9fe6982efd099b3d9320f6ff Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Mon, 11 Dec 2023 19:21:16 +0800
 Subject: [PATCH] wifi: mt76: mt7915: support backaward compatiable
 
 ---
- wed.c | 22 +---------------------
- 1 file changed, 1 insertion(+), 21 deletions(-)
+ mt7915/mmio.c | 4 ++--
+ wed.c         | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
+diff --git a/mt7915/mmio.c b/mt7915/mmio.c
+index 142f308..11db3ed 100644
+--- a/mt7915/mmio.c
++++ b/mt7915/mmio.c
+@@ -697,7 +697,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+ 					 MT_RXQ_WED_RING_BASE;
+ 		wed->wlan.wpdma_rx_glo = pci_resource_start(pci_dev, 0) +
+ 					 MT_WPDMA_GLO_CFG;
+-		wed->wlan.wpdma_rx = pci_resource_start(pci_dev, 0) +
++		wed->wlan.wpdma_rx[0] = pci_resource_start(pci_dev, 0) +
+ 				     MT_RXQ_WED_DATA_RING_BASE;
+ 	} else {
+ 		struct platform_device *plat_dev = pdev_ptr;
+@@ -717,7 +717,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+ 		wed->wlan.wpdma_tx = res->start + MT_TXQ_WED_RING_BASE;
+ 		wed->wlan.wpdma_txfree = res->start + MT_RXQ_WED_RING_BASE;
+ 		wed->wlan.wpdma_rx_glo = res->start + MT_WPDMA_GLO_CFG;
+-		wed->wlan.wpdma_rx = res->start + MT_RXQ_WED_DATA_RING_BASE;
++		wed->wlan.wpdma_rx[0] = res->start + MT_RXQ_WED_DATA_RING_BASE;
+ 	}
+ 
+ 	wed->wlan.nbuf = is_mt7915(&dev->mt76) ?
 diff --git a/wed.c b/wed.c
-index 5ed681e..2d6a944 100644
+index 5ed681e..652f59e 100644
 --- a/wed.c
 +++ b/wed.c
-@@ -55,7 +55,7 @@ EXPORT_SYMBOL_GPL(mt76_wed_release_rx_buf);
- u32 mt76_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
- {
- 	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
--	struct mtk_wed_bm_desc *desc = wed->rx_buf_ring.desc;
-+	struct mtk_rxbm_desc *desc = wed->rx_buf_ring.desc;
- 	u32 length;
- 	int i;
- 
-@@ -166,26 +166,6 @@ int mt76_wed_dma_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
- 		if (!ret)
- 			q->wed_regs = q->wed->rx_ring[ring].reg_base;
+@@ -175,7 +175,7 @@ int mt76_wed_dma_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)
  		break;
--	case MT76_WED_RRO_Q_DATA:
--		q->flags &= ~MT_QFLAG_WED;
--		__mt76_dma_queue_reset(dev, q, false);
--		mtk_wed_device_rro_rx_ring_setup(q->wed, ring, q->regs);
--		q->head = q->ndesc - 1;
--		q->queued = q->head;
--		break;
--	case MT76_WED_RRO_Q_MSDU_PG:
--		q->flags &= ~MT_QFLAG_WED;
+ 	case MT76_WED_RRO_Q_MSDU_PG:
+ 		q->flags &= ~MT_QFLAG_WED;
 -		__mt76_dma_queue_reset(dev, q);
--		mtk_wed_device_msdu_pg_rx_ring_setup(q->wed, ring, q->regs);
--		q->head = q->ndesc - 1;
--		q->queued = q->head;
--		break;
--	case MT76_WED_RRO_Q_IND:
--		q->flags &= ~MT_QFLAG_WED;
--		mt76_dma_queue_reset(dev, q);
--		mt76_dma_rx_fill(dev, q);
--		mtk_wed_device_ind_rx_ring_setup(q->wed, q->regs);
--		break;
- 	default:
- 		ret = -EINVAL;
- 		break;
++		__mt76_dma_queue_reset(dev, q, false);
+ 		mtk_wed_device_msdu_pg_rx_ring_setup(q->wed, ring, q->regs);
+ 		q->head = q->ndesc - 1;
+ 		q->queued = q->head;
 -- 
 2.18.0
 
