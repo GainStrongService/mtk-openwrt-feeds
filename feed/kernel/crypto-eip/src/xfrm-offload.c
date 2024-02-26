@@ -83,7 +83,10 @@ static int mtk_xfrm_offload_cls_entry_setup(struct mtk_xfrm_params *xfrm_params)
 
 	cdesc = &xfrm_params->cdrt->cls->cdesc;
 
-	CLS_DESC_DATA(cdesc, fport, PSE_PORT_PPE0);
+	if (mtk_crypto_ppe_get_num() == 1)
+		CLS_DESC_DATA(cdesc, fport, PSE_PORT_PPE0);
+	else
+		CLS_DESC_DATA(cdesc, fport, PSE_PORT_PPE1);
 	CLS_DESC_DATA(cdesc, tport_idx, 0x2);
 	CLS_DESC_DATA(cdesc, cdrt_idx, xfrm_params->cdrt->idx);
 

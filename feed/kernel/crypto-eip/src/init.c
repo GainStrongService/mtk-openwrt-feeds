@@ -64,6 +64,11 @@ static bool mtk_crypto_eip_offloadable(struct sk_buff *skb)
 	return true;
 }
 
+u32 mtk_crypto_ppe_get_num(void)
+{
+	return mcrypto.ppe_num;
+}
+
 static const struct xfrmdev_ops mtk_xfrmdev_ops = {
 	.xdo_dev_state_add = mtk_xfrm_offload_state_add,
 	.xdo_dev_state_delete = mtk_xfrm_offload_state_delete,
@@ -151,6 +156,29 @@ out:
 	return ret;
 }
 
+static int __init mtk_crypto_ppe_num_dts_init(struct platform_device *pdev)
+{
+	struct device_node *hnat = NULL;
+	u32 val = 0;
+	int ret = 0;
+
+	hnat = of_parse_phandle(pdev->dev.of_node, "hnat", 0);
+	if (!hnat) {
+		CRYPTO_ERR("can not find hnat node\n");
+		return -ENODEV;
+	}
+
+	ret = of_property_read_u32(hnat, "mtketh-ppe-num", &val);
+	if (ret)
+		mcrypto.ppe_num = 1;
+	else
+		mcrypto.ppe_num = val;
+
+	of_node_put(hnat);
+
+	return 0;
+}
+
 static int __init mtk_crypto_eip_dts_init(void)
 {
 	struct platform_device *crypto_pdev;
@@ -187,6 +215,10 @@ static int __init mtk_crypto_eip_dts_init(void)
 	}
 
 	ret = mtk_crypto_eth_dts_init(crypto_pdev);
+	if (ret)
+		goto out;
+
+	ret = mtk_crypto_ppe_num_dts_init(crypto_pdev);
 	if (ret)
 		goto out;
 

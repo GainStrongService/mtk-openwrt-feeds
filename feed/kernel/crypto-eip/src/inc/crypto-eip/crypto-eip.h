@@ -37,6 +37,7 @@ struct mtk_crypto {
 	struct mtk_eth *eth;
 	void __iomem *crypto_base;
 	void __iomem *eth_base;
+	u32 ppe_num;
 };
 
 struct mtk_xfrm_params {
@@ -49,6 +50,7 @@ struct mtk_xfrm_params {
 };
 
 void crypto_eth_write(u32 reg, u32 val);
+u32 mtk_crypto_ppe_get_num(void);
 
 /* xfrm callback functions */
 int mtk_xfrm_offload_state_add(struct xfrm_state *xs);
