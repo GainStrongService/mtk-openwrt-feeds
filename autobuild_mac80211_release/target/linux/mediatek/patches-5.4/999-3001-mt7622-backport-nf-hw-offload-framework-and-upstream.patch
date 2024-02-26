@@ -1,14 +1,14 @@
-From b80c745d2b90b30558e4f5b12060af956ae8e76d Mon Sep 17 00:00:00 2001
+From 35623475d9eb8522756b0b4833c95a31a0ceb10b Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 18 Sep 2023 10:52:27 +0800
-Subject: [PATCH 02/22] mt7622 backport nf hw offload framework and upstream
+Subject: [PATCH 01/24] mt7622 backport nf hw offload framework and upstream
  hnat plus xt-FLOWOFFLOAD update v2
 
 ---
  drivers/net/ethernet/mediatek/Makefile        |    3 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   |   25 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |   19 +-
- drivers/net/ethernet/mediatek/mtk_ppe.c       |  510 +++++++
+ drivers/net/ethernet/mediatek/mtk_ppe.c       |  514 +++++++
  drivers/net/ethernet/mediatek/mtk_ppe.h       |  288 ++++
  .../net/ethernet/mediatek/mtk_ppe_debugfs.c   |  214 +++
  .../net/ethernet/mediatek/mtk_ppe_offload.c   |  535 ++++++++
@@ -46,7 +46,7 @@ Subject: [PATCH 02/22] mt7622 backport nf hw offload framework and upstream
  net/netfilter/nf_flow_table_ip.c              |  447 +++---
  net/netfilter/nf_flow_table_offload.c         | 1199 +++++++++++++++++
  net/netfilter/xt_FLOWOFFLOAD.c                |  800 +++++++++++
- 41 files changed, 4995 insertions(+), 435 deletions(-)
+ 41 files changed, 4999 insertions(+), 435 deletions(-)
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/Makefile
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/mtk_eth_soc.c
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/mtk_eth_soc.h
@@ -76,10 +76,10 @@ index 634640d..5f342f4
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 old mode 100644
 new mode 100755
-index c4bea4d..9c85e16
+index 37fd338..20b2943
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -3573,6 +3573,7 @@ static int mtk_open(struct net_device *dev)
+@@ -4001,6 +4001,7 @@ static int mtk_open(struct net_device *dev)
  	u32 id = mtk_mac2xgmii_id(eth, mac->id);
  	int err, i;
  	struct device_node *phy_node;
@@ -87,7 +87,7 @@ index c4bea4d..9c85e16
  
  	err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
  	if (err) {
-@@ -3650,7 +3651,10 @@ static int mtk_open(struct net_device *dev)
+@@ -4085,7 +4086,10 @@ static int mtk_open(struct net_device *dev)
  		regmap_write(eth->sgmii->pcs[id].regmap,
  			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
@@ -99,7 +99,7 @@ index c4bea4d..9c85e16
  
  	return 0;
  }
-@@ -3730,6 +3734,9 @@ static int mtk_stop(struct net_device *dev)
+@@ -4172,6 +4176,9 @@ static int mtk_stop(struct net_device *dev)
  
  	mtk_dma_free(eth);
  
@@ -109,7 +109,7 @@ index c4bea4d..9c85e16
  	return 0;
  }
  
-@@ -4576,6 +4583,7 @@ static const struct net_device_ops mtk_netdev_ops = {
+@@ -5081,6 +5088,7 @@ static const struct net_device_ops mtk_netdev_ops = {
  #ifdef CONFIG_NET_POLL_CONTROLLER
  	.ndo_poll_controller	= mtk_poll_controller,
  #endif
@@ -117,7 +117,7 @@ index c4bea4d..9c85e16
  };
  
  static void mux_poll(struct work_struct *work)
-@@ -5161,6 +5169,17 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5711,6 +5719,17 @@ static int mtk_probe(struct platform_device *pdev)
  			goto err_free_dev;
  	}
  
@@ -135,7 +135,7 @@ index c4bea4d..9c85e16
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
  		if (!eth->netdev[i])
  			continue;
-@@ -5254,6 +5273,7 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -5811,6 +5830,7 @@ static const struct mtk_soc_data mt2701_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -143,7 +143,7 @@ index c4bea4d..9c85e16
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5271,6 +5291,7 @@ static const struct mtk_soc_data mt7621_data = {
+@@ -5828,6 +5848,7 @@ static const struct mtk_soc_data mt7621_data = {
  	.required_clks = MT7621_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -151,7 +151,7 @@ index c4bea4d..9c85e16
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5289,6 +5310,7 @@ static const struct mtk_soc_data mt7622_data = {
+@@ -5846,6 +5867,7 @@ static const struct mtk_soc_data mt7622_data = {
  	.required_clks = MT7622_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -159,7 +159,7 @@ index c4bea4d..9c85e16
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5306,6 +5328,7 @@ static const struct mtk_soc_data mt7623_data = {
+@@ -5863,6 +5885,7 @@ static const struct mtk_soc_data mt7623_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -170,7 +170,7 @@ index c4bea4d..9c85e16
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 old mode 100644
 new mode 100755
-index 8a9b615..a87e46d
+index 26a99d1..4d3a63c
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -15,6 +15,8 @@
@@ -182,7 +182,7 @@ index 8a9b615..a87e46d
  
  #define MTK_QDMA_PAGE_SIZE	2048
  #define	MTK_MAX_RX_LENGTH	1536
-@@ -44,7 +46,8 @@
+@@ -47,7 +49,8 @@
  				 NETIF_F_HW_VLAN_CTAG_TX | \
  				 NETIF_F_SG | NETIF_F_TSO | \
  				 NETIF_F_TSO6 | \
@@ -192,7 +192,7 @@ index 8a9b615..a87e46d
  #define MTK_SET_FEATURES	(NETIF_F_LRO | \
  				 NETIF_F_HW_VLAN_CTAG_RX)
  #define MTK_HW_FEATURES_MT7628	(NETIF_F_SG | NETIF_F_RXCSUM)
-@@ -127,6 +130,7 @@
+@@ -134,6 +137,7 @@
  #define MTK_GDMA_UCS_EN		BIT(20)
  #define MTK_GDMA_STRP_CRC	BIT(16)
  #define MTK_GDMA_TO_PDMA	0x0
@@ -200,7 +200,7 @@ index 8a9b615..a87e46d
  #define MTK_GDMA_DROP_ALL	0x7777
  
  /* GDM Egress Control Register */
-@@ -617,6 +621,12 @@
+@@ -661,6 +665,12 @@
  #define RX_DMA_TCI(_x)		((_x) & (VLAN_PRIO_MASK | VLAN_VID_MASK))
  #define RX_DMA_VPID(_x)		(((_x) >> 16) & 0xffff)
  
@@ -213,7 +213,7 @@ index 8a9b615..a87e46d
  /* QDMA descriptor rxd4 */
  #define RX_DMA_L4_VALID		BIT(24)
  #define RX_DMA_L4_VALID_PDMA	BIT(30)		/* when PDMA is used */
-@@ -1651,6 +1661,7 @@ struct mtk_soc_data {
+@@ -1712,6 +1722,7 @@ struct mtk_soc_data {
  	u64		caps;
  	u64		required_clks;
  	bool		required_pctl;
@@ -221,7 +221,7 @@ index 8a9b615..a87e46d
  	netdev_features_t hw_features;
  	bool		has_sram;
  	struct {
-@@ -1847,6 +1858,9 @@ struct mtk_eth {
+@@ -1912,6 +1923,9 @@ struct mtk_eth {
  	int				ip_align;
  	spinlock_t			syscfg0_lock;
  	struct timer_list		mtk_dma_monitor_timer;
@@ -231,7 +231,7 @@ index 8a9b615..a87e46d
  };
  
  /* struct mtk_mac -	the structure that holds the info about the MACs of the
-@@ -1927,6 +1941,9 @@ int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
+@@ -1993,6 +2007,9 @@ int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
  int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
  void mtk_usxgmii_link_poll(struct work_struct *work);
  
@@ -243,7 +243,7 @@ index 8a9b615..a87e46d
  #endif /* MTK_ETH_H */
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 new file mode 100644
-index 0000000..27b5be5
+index 0000000..6965d98
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -0,0 +1,514 @@
@@ -1967,10 +1967,10 @@ index 0000000..0c45ea0
 +
 +#endif
 diff --git a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
-index 078c0f4..f8a98d8 100644
+index 555ba50..25dcff2 100644
 --- a/drivers/net/ppp/ppp_generic.c
 +++ b/drivers/net/ppp/ppp_generic.c
-@@ -1378,12 +1378,34 @@ static void ppp_dev_priv_destructor(struct net_device *dev)
+@@ -1380,12 +1380,34 @@ static void ppp_dev_priv_destructor(struct net_device *dev)
  		ppp_destroy_interface(ppp);
  }
  
@@ -2043,10 +2043,10 @@ index 087b016..7a8c246 100644
  
  static int pppoe_recvmsg(struct socket *sock, struct msghdr *m,
 diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index 631d158..ef44d9a 100644
+index 1c1ab37..44842a2 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
-@@ -838,6 +838,59 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
+@@ -843,6 +843,59 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  				       struct sk_buff *skb,
  				       struct net_device *sb_dev);
  
@@ -2106,7 +2106,7 @@ index 631d158..ef44d9a 100644
  enum tc_setup_type {
  	TC_SETUP_QDISC_MQPRIO,
  	TC_SETUP_CLSU32,
-@@ -853,6 +906,7 @@ enum tc_setup_type {
+@@ -858,6 +911,7 @@ enum tc_setup_type {
  	TC_SETUP_ROOT_QDISC,
  	TC_SETUP_QDISC_GRED,
  	TC_SETUP_QDISC_TAPRIO,
@@ -2114,7 +2114,7 @@ index 631d158..ef44d9a 100644
  };
  
  /* These structures hold the attributes of bpf state that are being passed
-@@ -1248,6 +1302,8 @@ struct tlsdev_ops;
+@@ -1253,6 +1307,8 @@ struct tlsdev_ops;
   *	Get devlink port instance associated with a given netdev.
   *	Called with a reference on the netdevice and devlink locks only,
   *	rtnl_lock is not held.
@@ -2123,7 +2123,7 @@ index 631d158..ef44d9a 100644
   */
  struct net_device_ops {
  	int			(*ndo_init)(struct net_device *dev);
-@@ -1445,6 +1501,8 @@ struct net_device_ops {
+@@ -1450,6 +1506,8 @@ struct net_device_ops {
  	int			(*ndo_xsk_wakeup)(struct net_device *dev,
  						  u32 queue_id, u32 flags);
  	struct devlink_port *	(*ndo_get_devlink_port)(struct net_device *dev);
@@ -2132,7 +2132,7 @@ index 631d158..ef44d9a 100644
  };
  
  /**
-@@ -2670,6 +2728,8 @@ void dev_remove_offload(struct packet_offload *po);
+@@ -2689,6 +2747,8 @@ void dev_remove_offload(struct packet_offload *po);
  
  int dev_get_iflink(const struct net_device *dev);
  int dev_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb);
@@ -2210,7 +2210,7 @@ index 7b3c873..e954831 100644
 -
  #endif /* _NF_CONNTRACK_IPV6_H*/
 diff --git a/include/net/netfilter/nf_conntrack.h b/include/net/netfilter/nf_conntrack.h
-index 90690e3..ce0bc3e 100644
+index 90690e3..38a8d3f 100644
 --- a/include/net/netfilter/nf_conntrack.h
 +++ b/include/net/netfilter/nf_conntrack.h
 @@ -105,6 +105,8 @@ struct nf_conn {
@@ -2222,7 +2222,7 @@ index 90690e3..ce0bc3e 100644
  };
  
  static inline struct nf_conn *
-@@ -279,6 +279,18 @@ static inline bool nf_ct_should_gc(const struct nf_conn *ct)
+@@ -279,6 +281,18 @@ static inline bool nf_ct_should_gc(const struct nf_conn *ct)
  	       !nf_ct_is_dying(ct);
  }
  
@@ -2264,7 +2264,7 @@ index f7a060c..7f44a77 100644
  
  int nf_conntrack_acct_init(void);
 diff --git a/include/net/netfilter/nf_flow_table.h b/include/net/netfilter/nf_flow_table.h
-index 68d7fc9..feac793 100644
+index 68d7fc9..7374cb2 100644
 --- a/include/net/netfilter/nf_flow_table.h
 +++ b/include/net/netfilter/nf_flow_table.h
 @@ -8,31 +8,101 @@
@@ -2370,7 +2370,7 @@ index 68d7fc9..feac793 100644
  
  struct flow_offload_tuple {
  	union {
-@@ -52,13 +120,30 @@ struct flow_offload_tuple {
+@@ -52,13 +122,30 @@ struct flow_offload_tuple {
  
  	u8				l3proto;
  	u8				l4proto;
@@ -2406,7 +2406,7 @@ index 68d7fc9..feac793 100644
  	};
  };
  
-@@ -67,52 +152,140 @@ struct flow_offload_tuple_rhash {
+@@ -67,52 +154,140 @@ struct flow_offload_tuple_rhash {
  	struct flow_offload_tuple	tuple;
  };
  
@@ -2569,7 +2569,7 @@ index 68d7fc9..feac793 100644
  
  struct flow_ports {
  	__be16 source, dest;
-@@ -126,4 +299,41 @@ unsigned int nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
+@@ -126,4 +301,41 @@ unsigned int nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
  #define MODULE_ALIAS_NF_FLOWTABLE(family)	\
  	MODULE_ALIAS("nf-flowtable-" __stringify(family))
  
@@ -2685,10 +2685,10 @@ index 0000000..5841bbe
 +
 +#endif /* _XT_FLOWOFFLOAD_H */
 diff --git a/net/8021q/vlan_dev.c b/net/8021q/vlan_dev.c
-index 0a3a167..6112266 100644
+index dd7e09e..c373f1d 100644
 --- a/net/8021q/vlan_dev.c
 +++ b/net/8021q/vlan_dev.c
-@@ -747,6 +747,26 @@ static int vlan_dev_get_iflink(const struct net_device *dev)
+@@ -771,6 +771,26 @@ static int vlan_dev_get_iflink(const struct net_device *dev)
  	return real_dev->ifindex;
  }
  
@@ -2715,7 +2715,7 @@ index 0a3a167..6112266 100644
  static const struct ethtool_ops vlan_ethtool_ops = {
  	.get_link_ksettings	= vlan_ethtool_get_link_ksettings,
  	.get_drvinfo	        = vlan_ethtool_get_drvinfo,
-@@ -785,6 +805,7 @@ static const struct net_device_ops vlan_netdev_ops = {
+@@ -809,6 +829,7 @@ static const struct net_device_ops vlan_netdev_ops = {
  #endif
  	.ndo_fix_features	= vlan_dev_fix_features,
  	.ndo_get_iflink		= vlan_dev_get_iflink,
@@ -2724,10 +2724,10 @@ index 0a3a167..6112266 100644
  
  static void vlan_dev_free(struct net_device *dev)
 diff --git a/net/bridge/br_device.c b/net/bridge/br_device.c
-index 501f77f..0940b44 100644
+index ab201d5..deec45b 100644
 --- a/net/bridge/br_device.c
 +++ b/net/bridge/br_device.c
-@@ -377,6 +377,54 @@ static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
+@@ -385,6 +385,54 @@ static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
  	return br_del_if(br, slave_dev);
  }
  
@@ -2782,7 +2782,7 @@ index 501f77f..0940b44 100644
  static const struct ethtool_ops br_ethtool_ops = {
  	.get_drvinfo    = br_getinfo,
  	.get_link	= ethtool_op_get_link,
-@@ -410,6 +458,7 @@ static const struct net_device_ops br_netdev_ops = {
+@@ -418,6 +466,7 @@ static const struct net_device_ops br_netdev_ops = {
  	.ndo_bridge_setlink	 = br_setlink,
  	.ndo_bridge_dellink	 = br_dellink,
  	.ndo_features_check	 = passthru_features_check,
@@ -2895,10 +2895,10 @@ index 9257292..bcfd169 100644
  		     struct bridge_vlan_info *p_vinfo)
  {
 diff --git a/net/core/dev.c b/net/core/dev.c
-index 54cc544..a117bd0 100644
+index ef7362b..5bade26 100644
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
-@@ -639,6 +639,52 @@ int dev_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
+@@ -722,6 +722,52 @@ int dev_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
  }
  EXPORT_SYMBOL_GPL(dev_fill_metadata_dst);
  
@@ -2952,7 +2952,7 @@ index 54cc544..a117bd0 100644
   *	__dev_get_by_name	- find a device by its name
   *	@net: the applicable net namespace
 diff --git a/net/dsa/slave.c b/net/dsa/slave.c
-index e2b91b3..2dfaa1e 100644
+index cd5b354..2ea9ec1 100644
 --- a/net/dsa/slave.c
 +++ b/net/dsa/slave.c
 @@ -1031,14 +1031,32 @@ static int dsa_slave_setup_tc_block(struct net_device *dev,
@@ -3042,7 +3042,7 @@ index f17b402..803b92e 100644
  	tristate "Netfilter IPv4 packet duplication to alternate destination"
  	depends on !NF_CONNTRACK || NF_CONNTRACK
 diff --git a/net/ipv6/ip6_output.c b/net/ipv6/ip6_output.c
-index 8231a7a..7176d7f 100644
+index 816275b..671f767 100644
 --- a/net/ipv6/ip6_output.c
 +++ b/net/ipv6/ip6_output.c
 @@ -607,7 +607,7 @@ int ip6_forward(struct sk_buff *skb)
@@ -3181,7 +3181,7 @@ index 4fc075b..d93a121 100644
  obj-$(CONFIG_NETFILTER_XT_TARGET_HMARK) += xt_HMARK.o
  obj-$(CONFIG_NETFILTER_XT_TARGET_LED) += xt_LED.o
 diff --git a/net/netfilter/nf_conntrack_core.c b/net/netfilter/nf_conntrack_core.c
-index f6ab6f4..f689e19 100644
+index 706d180..65d16ef 100644
 --- a/net/netfilter/nf_conntrack_core.c
 +++ b/net/netfilter/nf_conntrack_core.c
 @@ -864,9 +864,8 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
@@ -6086,7 +6086,7 @@ index 0000000..50f2f2e
 +}
 diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
 new file mode 100644
-index 0000000..2cab008
+index 0000000..e4c7db9
 --- /dev/null
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
 @@ -0,0 +1,800 @@

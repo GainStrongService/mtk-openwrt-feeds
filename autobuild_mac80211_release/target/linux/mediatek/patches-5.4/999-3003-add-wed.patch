@@ -1,7 +1,7 @@
-From cdb36beeb6725bcef3faad499c017c26bc17fd4a Mon Sep 17 00:00:00 2001
+From b895d23fa63dd712191b6d223fe6c41682c7d375 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 10:56:21 +0800
-Subject: [PATCH 04/22] add wed
+Subject: [PATCH 03/24] add wed
 
 ---
  arch/arm64/boot/dts/mediatek/mt7622.dtsi      |  32 +-
@@ -13,7 +13,7 @@ Subject: [PATCH 04/22] add wed
  drivers/net/ethernet/mediatek/mtk_ppe.h       |  89 +-
  .../net/ethernet/mediatek/mtk_ppe_debugfs.c   |   4 +-
  .../net/ethernet/mediatek/mtk_ppe_offload.c   | 167 +++-
- drivers/net/ethernet/mediatek/mtk_wed.c       | 876 ++++++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_wed.c       | 881 ++++++++++++++++++
  drivers/net/ethernet/mediatek/mtk_wed.h       | 135 +++
  .../net/ethernet/mediatek/mtk_wed_debugfs.c   | 175 ++++
  drivers/net/ethernet/mediatek/mtk_wed_ops.c   |   8 +
@@ -21,7 +21,7 @@ Subject: [PATCH 04/22] add wed
  include/linux/netdevice.h                     |   7 +
  include/linux/soc/mediatek/mtk_wed.h          | 131 +++
  net/core/dev.c                                |   4 +
- 17 files changed, 2207 insertions(+), 103 deletions(-)
+ 17 files changed, 2212 insertions(+), 103 deletions(-)
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/Kconfig
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/Makefile
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/mtk_eth_soc.c
@@ -134,7 +134,7 @@ index 5f342f4..4090132
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 old mode 100755
 new mode 100644
-index 9c85e16..88b38e2
+index 20b2943..8d15399
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -21,11 +21,13 @@
@@ -151,7 +151,7 @@ index 9c85e16..88b38e2
  
  #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
  #include "mtk_hnat/nf_hnat_mtk.h"
-@@ -2191,6 +2193,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2356,6 +2358,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  		struct net_device *netdev = NULL;
  		dma_addr_t dma_addr = DMA_MAPPING_ERROR;
  		u64 addr64 = 0;
@@ -159,7 +159,7 @@ index 9c85e16..88b38e2
  		int mac = 0;
  
  		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
-@@ -2282,6 +2285,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2444,6 +2447,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
@@ -177,7 +177,7 @@ index 9c85e16..88b38e2
  		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
  			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
  				if (trxd.rxd3 & RX_DMA_VTAG_V2)
-@@ -3735,7 +3749,7 @@ static int mtk_stop(struct net_device *dev)
+@@ -4177,7 +4191,7 @@ static int mtk_stop(struct net_device *dev)
  	mtk_dma_free(eth);
  
  	if (eth->soc->offload_version)
@@ -186,7 +186,7 @@ index 9c85e16..88b38e2
  
  	return 0;
  }
-@@ -5044,6 +5058,22 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5560,6 +5574,22 @@ static int mtk_probe(struct platform_device *pdev)
  		}
  	}
  
@@ -208,8 +208,8 @@ index 9c85e16..88b38e2
 +
  	if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
  		for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
- 
-@@ -5170,10 +5200,11 @@ static int mtk_probe(struct platform_device *pdev)
+ 			eth->irq_pdma[i] = platform_get_irq(pdev, i);
+@@ -5720,10 +5750,11 @@ static int mtk_probe(struct platform_device *pdev)
  	}
  
  	if (eth->soc->offload_version) {
@@ -227,10 +227,10 @@ index 9c85e16..88b38e2
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 old mode 100755
 new mode 100644
-index a87e46d..15337d3
+index 4d3a63c..00cfe3b
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -578,6 +578,9 @@
+@@ -615,6 +615,9 @@
  #define RX_DMA_SPORT_MASK       0x7
  #define RX_DMA_SPORT_MASK_V2    0xf
  
@@ -240,7 +240,7 @@ index a87e46d..15337d3
  /* QDMA descriptor txd4 */
  #define TX_DMA_CHKSUM		(0x7 << 29)
  #define TX_DMA_TSO		BIT(28)
-@@ -1859,7 +1862,7 @@ struct mtk_eth {
+@@ -1924,7 +1927,7 @@ struct mtk_eth {
  	spinlock_t			syscfg0_lock;
  	struct timer_list		mtk_dma_monitor_timer;
  
@@ -252,7 +252,7 @@ index a87e46d..15337d3
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 old mode 100644
 new mode 100755
-index 27b5be5..86741bf
+index 6965d98..eeaec1b
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -6,9 +6,22 @@
@@ -1262,10 +1262,10 @@ index 1380ef0..8a28572 100644
  	return rhashtable_init(&eth->flow_table, &mtk_flow_ht_params);
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
 new file mode 100644
-index 0000000..ea1cbdf
+index 0000000..affa704
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
-@@ -0,0 +1,876 @@
+@@ -0,0 +1,881 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/* Copyright (C) 2021 Felix Fietkau <nbd@nbd.name> */
 +
@@ -1413,16 +1413,17 @@ index 0000000..ea1cbdf
 +
 +		for (s = 0; s < MTK_WED_BUF_PER_PAGE; s++) {
 +			u32 txd_size;
++			u32 ctrl;
 +
 +			txd_size = dev->wlan.init_buf(buf, buf_phys, token++);
 +
-+			desc->buf0 = buf_phys;
-+			desc->buf1 = buf_phys + txd_size;
-+			desc->ctrl = FIELD_PREP(MTK_WDMA_DESC_CTRL_LEN0,
-+						txd_size) |
-+				     FIELD_PREP(MTK_WDMA_DESC_CTRL_LEN1,
-+						MTK_WED_BUF_SIZE - txd_size) |
-+				     MTK_WDMA_DESC_CTRL_LAST_SEG1;
++			desc->buf0 = cpu_to_le32(buf_phys);
++			desc->buf1 = cpu_to_le32(buf_phys + txd_size);
++			ctrl = FIELD_PREP(MTK_WDMA_DESC_CTRL_LEN0, txd_size) |
++			       FIELD_PREP(MTK_WDMA_DESC_CTRL_LEN1,
++					  MTK_WED_BUF_SIZE - txd_size) |
++			       MTK_WDMA_DESC_CTRL_LAST_SEG1;
++			desc->ctrl = cpu_to_le32(ctrl);
 +			desc->info = 0;
 +			desc++;
 +
@@ -1453,12 +1454,14 @@ index 0000000..ea1cbdf
 +
 +	for (i = 0, page_idx = 0; i < dev->buf_ring.size; i += MTK_WED_BUF_PER_PAGE) {
 +		void *page = page_list[page_idx++];
++		dma_addr_t buf_addr;
 +
 +		if (!page)
 +			break;
 +
-+		dma_unmap_page(dev->hw->dev, desc[i].buf0,
-+			       PAGE_SIZE, DMA_BIDIRECTIONAL);
++		buf_addr = le32_to_cpu(desc[i].buf0);
++		dma_unmap_page(dev->hw->dev, buf_addr, PAGE_SIZE,
++			       DMA_BIDIRECTIONAL);
 +		__free_page(page);
 +	}
 +
@@ -1917,7 +1920,7 @@ index 0000000..ea1cbdf
 +	 * WDMA RX.
 +	 */
 +
-+	BUG_ON(idx > ARRAY_SIZE(dev->tx_ring));
++	BUG_ON(idx >= ARRAY_SIZE(dev->tx_ring));
 +
 +	if (mtk_wed_ring_alloc(dev, ring, MTK_WED_TX_RING_SIZE))
 +		return -ENOMEM;
@@ -2082,7 +2085,7 @@ index 0000000..ea1cbdf
 +		return;
 +
 +	regs = syscon_regmap_lookup_by_phandle(np, NULL);
-+	if (!regs)
++	if (IS_ERR(regs))
 +		return;
 +
 +	rcu_assign_pointer(mtk_soc_wed_ops, &wed_ops);
@@ -2093,6 +2096,8 @@ index 0000000..ea1cbdf
 +		goto unlock;
 +
 +	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
++	if (!hw)
++		goto unlock;
 +	hw->node = np;
 +	hw->regs = regs;
 +	hw->eth = eth;
@@ -2736,10 +2741,10 @@ index 0000000..0a0465e
 +
 +#endif
 diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index ef44d9a..59a3e96 100644
+index 44842a2..5305384 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
-@@ -844,6 +844,7 @@ enum net_device_path_type {
+@@ -849,6 +849,7 @@ enum net_device_path_type {
  	DEV_PATH_BRIDGE,
  	DEV_PATH_PPPOE,
  	DEV_PATH_DSA,
@@ -2747,7 +2752,7 @@ index ef44d9a..59a3e96 100644
  };
  
  struct net_device_path {
-@@ -869,6 +870,12 @@ struct net_device_path {
+@@ -874,6 +875,12 @@ struct net_device_path {
  			int port;
  			u16 proto;
  		} dsa;
@@ -2898,10 +2903,10 @@ index 0000000..7e00cca
 +
 +#endif
 diff --git a/net/core/dev.c b/net/core/dev.c
-index a117bd0..1b6d42b 100644
+index 5bade26..0775e8d 100644
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
-@@ -675,6 +675,10 @@ int dev_fill_forward_path(const struct net_device *dev, const u8 *daddr,
+@@ -758,6 +758,10 @@ int dev_fill_forward_path(const struct net_device *dev, const u8 *daddr,
  		if (WARN_ON_ONCE(last_dev == ctx.dev))
  			return -1;
  	}

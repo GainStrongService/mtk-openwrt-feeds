@@ -1,7 +1,7 @@
-From 5481f7ecbd3cfffd8234bc8e952a6e07f42de76c Mon Sep 17 00:00:00 2001
+From a326344938c515068241eb66580f57255258d9c6 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 Date: Tue, 21 Nov 2023 16:42:01 +0800
-Subject: [PATCH 16/22] ethernet-update-ppe-from-netsys2-to-netsys3
+Subject: [PATCH 15/24] ethernet-update-ppe-from-netsys2-to-netsys3
 
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   | 14 ++++---
@@ -13,10 +13,10 @@ Subject: [PATCH 16/22] ethernet-update-ppe-from-netsys2-to-netsys3
  6 files changed, 85 insertions(+), 22 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 850bc4f..8910d40 100644
+index 1660fd9..a3ed175 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2248,17 +2248,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2447,17 +2447,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
@@ -37,8 +37,8 @@ index 850bc4f..8910d40 100644
 +#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
  		reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON_V2, trxd.rxd5);
  		if (reason == MTK_PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED) {
- 			for (i = 0; i < eth->ppe_num; i++) {
-@@ -5290,7 +5290,8 @@ static int mtk_probe(struct platform_device *pdev)
+ 			mtk_ppe_check_skb(eth->ppe[0], skb,
+@@ -5799,7 +5799,8 @@ static int mtk_probe(struct platform_device *pdev)
  
  		for (i = 0; i < eth->ppe_num; i++) {
  			eth->ppe[i] = mtk_ppe_init(eth,
@@ -48,7 +48,7 @@ index 850bc4f..8910d40 100644
  						   2, eth->soc->hash_way, i,
  						   eth->soc->has_accounting);
  			if (!eth->ppe[i]) {
-@@ -5557,6 +5558,9 @@ static const struct mtk_soc_data mt7988_data = {
+@@ -6066,6 +6067,9 @@ static const struct mtk_soc_data mt7988_data = {
  	.required_clks = MT7988_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = true,
@@ -59,10 +59,10 @@ index 850bc4f..8910d40 100644
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 9c77f14..c7d36c5 100644
+index 02ca0b2..f9dda59 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -134,9 +134,10 @@
+@@ -137,9 +137,10 @@
  #define MTK_GDMA_UCS_EN		BIT(20)
  #define MTK_GDMA_STRP_CRC	BIT(16)
  #define MTK_GDMA_TO_PDMA	0x0
@@ -74,7 +74,7 @@ index 9c77f14..c7d36c5 100644
  #else
  #define MTK_GDMA_TO_PPE0	0x4444
  #endif
-@@ -1978,14 +1979,14 @@ extern u32 dbg_show_level;
+@@ -2014,14 +2015,14 @@ extern u32 dbg_show_level;
  
  static inline void mtk_set_ib1_sp(struct mtk_eth *eth, struct mtk_foe_entry *foe, u32 val)
  {

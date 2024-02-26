@@ -1,7 +1,7 @@
-From 3562f05aedc6c2d793b34b3ee3eb78e8352804c8 Mon Sep 17 00:00:00 2001
+From 3a07dcf1a402223c3d96eed88f9dcb8eac0a9362 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 10:58:32 +0800
-Subject: [PATCH 05/22] ethernet update ppe from mt7622 to mt7986
+Subject: [PATCH 04/24] ethernet update ppe from netsys1 to netsys2
 
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   | 14 ++++-
@@ -13,10 +13,10 @@ Subject: [PATCH 05/22] ethernet update ppe from mt7622 to mt7986
  6 files changed, 113 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 88b38e2..bfda873 100644
+index 8d15399..45dc85f 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2285,16 +2285,27 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2447,16 +2447,27 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
@@ -45,7 +45,7 @@ index 88b38e2..bfda873 100644
  
  		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
  			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
-@@ -5396,6 +5407,7 @@ static const struct mtk_soc_data mt7986_data = {
+@@ -5953,6 +5964,7 @@ static const struct mtk_soc_data mt7986_data = {
  	.required_clks = MT7986_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -54,10 +54,10 @@ index 88b38e2..bfda873 100644
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 15337d3..a385df5 100644
+index 00cfe3b..69eb112 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -130,7 +130,7 @@
+@@ -137,7 +137,7 @@
  #define MTK_GDMA_UCS_EN		BIT(20)
  #define MTK_GDMA_STRP_CRC	BIT(16)
  #define MTK_GDMA_TO_PDMA	0x0
@@ -66,7 +66,7 @@ index 15337d3..a385df5 100644
  #define MTK_GDMA_DROP_ALL	0x7777
  
  /* GDM Egress Control Register */
-@@ -630,6 +630,11 @@
+@@ -674,6 +674,11 @@
  #define MTK_RXD4_SRC_PORT	GENMASK(21, 19)
  #define MTK_RXD4_ALG		GENMASK(31, 22)
  
@@ -79,7 +79,7 @@ index 15337d3..a385df5 100644
  #define RX_DMA_L4_VALID		BIT(24)
  #define RX_DMA_L4_VALID_PDMA	BIT(30)		/* when PDMA is used */
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 86741bf..ef8acbc 100755
+index eeaec1b..e195fb3 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -122,7 +122,7 @@ static u32 mtk_ppe_hash_entry(struct mtk_foe_entry *e)

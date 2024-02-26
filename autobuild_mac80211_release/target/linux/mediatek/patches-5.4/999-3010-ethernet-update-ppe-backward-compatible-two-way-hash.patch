@@ -1,7 +1,7 @@
-From 84fd451dd7379943e6957e9ceb749be4d6c41540 Mon Sep 17 00:00:00 2001
+From 7feee53fdfd481fc2beb02739ccd0e87f1c96b7a Mon Sep 17 00:00:00 2001
 From: Bc-bocun Chen <bc-bocun.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 11:07:14 +0800
-Subject: [PATCH 11/22] ethernet-update-ppe-backward-compatible-two-way-hash
+Subject: [PATCH 10/24] ethernet-update-ppe-backward-compatible-two-way-hash
 
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c | 10 ++++++++-
@@ -11,10 +11,10 @@ Subject: [PATCH 11/22] ethernet-update-ppe-backward-compatible-two-way-hash
  4 files changed, 29 insertions(+), 11 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index c1399c5..bd622d3 100644
+index a24b223..e8837b6 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -5252,7 +5252,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5799,7 +5799,8 @@ static int mtk_probe(struct platform_device *pdev)
  
  		for (i = 0; i < eth->ppe_num; i++) {
  			eth->ppe[i] = mtk_ppe_init(eth,
@@ -24,7 +24,7 @@ index c1399c5..bd622d3 100644
  			if (!eth->ppe[i]) {
  				err = -ENOMEM;
  				goto err_free_dev;
-@@ -5359,6 +5360,7 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -5913,6 +5914,7 @@ static const struct mtk_soc_data mt2701_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -32,7 +32,7 @@ index c1399c5..bd622d3 100644
  	.offload_version = 2,
  	.rss_num = 0,
  	.txrx = {
-@@ -5377,6 +5379,7 @@ static const struct mtk_soc_data mt7621_data = {
+@@ -5931,6 +5933,7 @@ static const struct mtk_soc_data mt7621_data = {
  	.required_clks = MT7621_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -40,7 +40,7 @@ index c1399c5..bd622d3 100644
  	.offload_version = 2,
  	.rss_num = 0,
  	.txrx = {
-@@ -5396,6 +5399,7 @@ static const struct mtk_soc_data mt7622_data = {
+@@ -5950,6 +5953,7 @@ static const struct mtk_soc_data mt7622_data = {
  	.required_clks = MT7622_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -48,7 +48,7 @@ index c1399c5..bd622d3 100644
  	.offload_version = 2,
  	.rss_num = 0,
  	.txrx = {
-@@ -5414,6 +5418,7 @@ static const struct mtk_soc_data mt7623_data = {
+@@ -5968,6 +5972,7 @@ static const struct mtk_soc_data mt7623_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -56,7 +56,7 @@ index c1399c5..bd622d3 100644
  	.offload_version = 2,
  	.rss_num = 0,
  	.txrx = {
-@@ -5451,6 +5456,7 @@ static const struct mtk_soc_data mt7986_data = {
+@@ -6005,6 +6010,7 @@ static const struct mtk_soc_data mt7986_data = {
  	.required_clks = MT7986_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -64,7 +64,7 @@ index c1399c5..bd622d3 100644
  	.offload_version = 2,
  	.rss_num = 4,
  	.txrx = {
-@@ -5470,6 +5476,8 @@ static const struct mtk_soc_data mt7981_data = {
+@@ -6024,6 +6030,8 @@ static const struct mtk_soc_data mt7981_data = {
  	.required_clks = MT7981_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -74,10 +74,10 @@ index c1399c5..bd622d3 100644
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 960b979..68b8ab1 100644
+index 9099dea..b4f04e2 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1679,6 +1679,7 @@ struct mtk_soc_data {
+@@ -1732,6 +1732,7 @@ struct mtk_soc_data {
  	u64		caps;
  	u64		required_clks;
  	bool		required_pctl;
@@ -86,7 +86,7 @@ index 960b979..68b8ab1 100644
  	netdev_features_t hw_features;
  	bool		has_sram;
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 96c15b3..4da7e7a 100755
+index c9ee505..569bf34 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -88,7 +88,7 @@ static void mtk_ppe_cache_enable(struct mtk_ppe *ppe, bool enable)
