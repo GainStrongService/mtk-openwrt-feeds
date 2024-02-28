@@ -1,7 +1,7 @@
-From 8e485ad97007c39c041751c51dbcc3a6f342b654 Mon Sep 17 00:00:00 2001
+From 4a998a59a34081292b83c5a7e123ad7a897e5aa2 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Fri, 8 Sep 2023 11:57:39 +0800
-Subject: [PATCH 2014/2032] mtk: wifi: mt76: mt7996: wed: add wed support for
+Subject: [PATCH 2014/2027] mtk: wifi: mt76: mt7996: wed: add wed support for
  mt7992
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
@@ -20,7 +20,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  7 files changed, 142 insertions(+), 48 deletions(-)
 
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index eac5b9ed..bdb9f585 100644
+index d9e1b17f..d62dc8ba 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
 @@ -77,18 +77,23 @@ static void mt7996_dma_config(struct mt7996_dev *dev)
@@ -198,7 +198,7 @@ index a9720120..7a9b9749 100644
  				  MT7996_RRO_WINDOW_MAX_LEN * sizeof(*addr),
  				  &dev->wed_rro.session.phy_addr,
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 4b51f388..da7c387e 100644
+index 68bde800..b1fae82d 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -1999,6 +1999,10 @@ void mt7996_mac_reset_work(struct work_struct *work)
@@ -209,11 +209,11 @@ index 4b51f388..da7c387e 100644
 +			mt76_wr(dev, MT_RRO_3_0_EMU_CONF,
 +				MT_RRO_3_0_EMU_CONF_EN_MASK);
 +
- 		mtk_wed_device_start_hwrro(&dev->mt76.mmio.wed, wed_irq_mask,
+ 		mtk_wed_device_start_hw_rro(&dev->mt76.mmio.wed, wed_irq_mask,
  					    true);
- 		mt7996_irq_enable(dev, wed_irq_mask);
+ 
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index e32d3848..b1600a97 100644
+index eef70faf..e23c79fc 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
 @@ -313,7 +313,8 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
@@ -235,7 +235,7 @@ index e32d3848..b1600a97 100644
 +				     MT_RXQ_RING_BASE(MT7996_RXQ_BAND2) +
 +				     MT7996_RXQ_BAND2 * MT_RING_SIZE;
  
- 		wed->wlan.chip_id = 0x7991;
+ 		wed->wlan.id = 0x7991;
  		wed->wlan.tx_tbit[0] = ffs(MT_INT_TX_DONE_BAND2) - 1;
 @@ -369,9 +370,19 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  		wed->wlan.wpdma_rx_rro[0] = wed->wlan.phy_base +

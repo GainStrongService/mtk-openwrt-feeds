@@ -1,4 +1,4 @@
-From 6b770050b396997a04c5055fdb397dcb15164b3d Mon Sep 17 00:00:00 2001
+From 2d5fc96468c8e2d8d27a2a85cc94dfac55d5aaa8 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 1 Mar 2023 11:59:16 +0800
 Subject: [PATCH 1004/1044] mtk: wifi: mt76: testmode: add basic testmode
@@ -385,10 +385,10 @@ index ad2c6a9d..40b5cee3 100644
  	.sta_add_debugfs = mt7996_sta_add_debugfs,
  #endif
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 35233c71..f1a3fb42 100644
+index b488a78f..d8795d30 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2860,8 +2860,12 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
+@@ -2863,8 +2863,12 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
  {
  	int ret;
  
@@ -403,7 +403,7 @@ index 35233c71..f1a3fb42 100644
  	if (ret)
  		return ret;
  
-@@ -3552,17 +3556,9 @@ int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
+@@ -3555,17 +3559,9 @@ int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
  				 &req, sizeof(req), true);
  }
  
@@ -423,7 +423,7 @@ index 35233c71..f1a3fb42 100644
  		.tag = cpu_to_le16(UNI_EFUSE_ACCESS),
  		.len = cpu_to_le16(sizeof(req) - 4),
  		.addr = cpu_to_le32(round_down(offset,
-@@ -3571,6 +3567,7 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
+@@ -3574,6 +3570,7 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
  	struct sk_buff *skb;
  	bool valid;
  	int ret;
@@ -431,7 +431,7 @@ index 35233c71..f1a3fb42 100644
  
  	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
  					MCU_WM_UNI_CMD_QUERY(EFUSE_CTRL),
-@@ -3581,7 +3578,9 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
+@@ -3584,7 +3581,9 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset)
  	valid = le32_to_cpu(*(__le32 *)(skb->data + 16));
  	if (valid) {
  		u32 addr = le32_to_cpu(*(__le32 *)(skb->data + 12));
@@ -442,7 +442,7 @@ index 35233c71..f1a3fb42 100644
  
  		skb_pull(skb, 48);
  		memcpy(buf, skb->data, MT7996_EEPROM_BLOCK_SIZE);
-@@ -4574,3 +4573,37 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, bool auto_mode,
+@@ -4577,3 +4576,37 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, bool auto_mode,
  	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(PP),
  				 &req, sizeof(req), false);
  }

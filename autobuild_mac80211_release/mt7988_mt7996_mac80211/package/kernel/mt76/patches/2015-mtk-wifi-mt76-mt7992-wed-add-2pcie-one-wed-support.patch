@@ -1,7 +1,7 @@
-From ee0e35680a1a7d1acc84709e2045417df24899a6 Mon Sep 17 00:00:00 2001
+From 4f4123e61fb9618754e5455456733716ab7ac0ed Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Wed, 13 Sep 2023 17:35:43 +0800
-Subject: [PATCH 2015/2032] mtk: wifi: mt76: mt7992: wed: add 2pcie one wed
+Subject: [PATCH 2015/2027] mtk: wifi: mt76: mt7992: wed: add 2pcie one wed
  support
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
@@ -14,7 +14,7 @@ Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
  5 files changed, 39 insertions(+), 13 deletions(-)
 
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index bdb9f585..cf346845 100644
+index d62dc8ba..c23b0d65 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
 @@ -355,6 +355,13 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
@@ -55,7 +55,7 @@ index bdb9f585..cf346845 100644
  			dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].wed = wed;
  
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index b1600a97..613b5185 100644
+index e23c79fc..764c1244 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
 @@ -375,10 +375,10 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
@@ -100,7 +100,7 @@ index 27d8f1cb..da2a6072 100644
  //#define WF_WFDMA_MCU_DMA0_BASE                                 0x02000
  #define WF_WFDMA_MCU_DMA0_BASE                                 0x54000000
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 7fecdb74..42370205 100644
+index 03f88780..6eea2c3c 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -536,14 +536,22 @@ mt7996_show_dma_info(struct seq_file *s, struct mt7996_dev *dev)

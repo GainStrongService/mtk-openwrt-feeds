@@ -1,4 +1,4 @@
-From 40875afae4052332ce5178b59643b3b2191f050b Mon Sep 17 00:00:00 2001
+From 31635ddf23d7a951aa3896e8f4055bc1e52569a1 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 8 May 2023 09:03:50 +0800
 Subject: [PATCH 1006/1044] mtk: wifi: mt76: mt7996: enable SCS feature for
@@ -94,10 +94,10 @@ index 40b5cee3..ffb1f81b 100644
  	mutex_lock(&dev->mt76.mutex);
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 30500fbe..5ccf462f 100644
+index 0e2c1f1c..62452d6e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -4612,3 +4612,108 @@ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 da
+@@ -4615,3 +4615,108 @@ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 da
  	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(TXPOWER),
  				 &req, sizeof(req), false);
  }
@@ -271,7 +271,7 @@ index e7609c63..384157c8 100644
  static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
  {
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index ab97a372..360c4c7e 100644
+index 678b009e..7e4ac77c 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2407,6 +2407,16 @@ static int mt7996_token_read(struct seq_file *s, void *data)

@@ -1,7 +1,7 @@
-From d832255d8d7810670d39bc578dd0e04e798d304e Mon Sep 17 00:00:00 2001
+From a5ac6950d517ef9ae77e97653ecdd8bc40aa9408 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Wed, 3 Jan 2024 15:21:44 +0800
-Subject: [PATCH 14/15] mtk: wifi: mt76: mt7996: enable hw cso module
+Subject: [PATCH 05/17] mtk: wifi: mt76: mt7996: enable hw cso module
 
 The cso module needs to be enabled. The cso mudule can help identify if the traffic
 is TCP traffic. This can assist the firmware in adjusting algorithms to
@@ -14,7 +14,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  2 files changed, 22 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 8402097d..482782f7 100644
+index 2a4aa796..f1cd2e50 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -610,6 +610,12 @@ struct sta_rec_ra_fixed {
@@ -39,10 +39,10 @@ index 8402097d..482782f7 100644
  					 MT76_CONNAC_WTBL_UPDATE_MAX_SIZE)
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 52e4f0d1..42fcbd8f 100644
+index 0f1905f2..aa054167 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1753,6 +1753,19 @@ mt7996_mcu_sta_bfee_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -1748,6 +1748,19 @@ mt7996_mcu_sta_bfee_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  	bfee->fb_identity_matrix = (nrow == 1 && tx_ant == 2);
  }
  
@@ -62,7 +62,7 @@ index 52e4f0d1..42fcbd8f 100644
  static void
  mt7996_mcu_sta_hdrt_tlv(struct mt7996_dev *dev, struct sk_buff *skb)
  {
-@@ -2164,6 +2177,8 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -2159,6 +2172,8 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  
  	/* starec hdr trans */
  	mt7996_mcu_sta_hdr_trans_tlv(dev, skb, vif, sta);

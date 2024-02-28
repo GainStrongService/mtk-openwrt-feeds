@@ -1,4 +1,4 @@
-From de9931f5a5ad72925811312b069170ef0ab5e763 Mon Sep 17 00:00:00 2001
+From c19dd80a84077727951a1f9a680eb9b72a0175de Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 12 Oct 2023 16:17:33 +0800
 Subject: [PATCH 1038/1044] mtk: wifi: mt76: testmode: add kite testmode
@@ -211,10 +211,10 @@ index 3e9992a3..0d05e75e 100644
  #define RF_DPD_FLAT_CAL				BIT(28)
  #define RF_PRE_CAL				BIT(29)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index cb185ff9..dde2a505 100644
+index cf46fee4..a39b8bab 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3746,13 +3746,11 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
+@@ -3749,13 +3749,11 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
  	enum nl80211_chan_width bw = chandef->width;
  	const struct ieee80211_channel *chan_list;
  	u32 cal_id, chan_list_size, base_offset = 0, offs = MT_EE_DO_PRE_CAL;
@@ -230,7 +230,7 @@ index cb185ff9..dde2a505 100644
  
  	switch (band) {
  	case NL80211_BAND_2GHZ:
-@@ -3768,27 +3766,35 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
+@@ -3771,27 +3769,35 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
  			return 0;
  		cal_id = RF_DPD_FLAT_CAL;
  		chan_list = dpd_2g_ch_list_bw20;
@@ -272,7 +272,7 @@ index cb185ff9..dde2a505 100644
  			return 0;
  		break;
  	case NL80211_BAND_6GHZ:
-@@ -3796,20 +3802,27 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
+@@ -3799,20 +3805,27 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
  		cal_id = RF_DPD_FLAT_6G_CAL;
  		chan_list = mphy->sband_6g.sband.channels;
  		chan_list_size = mphy->sband_6g.sband.n_channels;
@@ -305,7 +305,7 @@ index cb185ff9..dde2a505 100644
  		} else if (bw > NL80211_CHAN_WIDTH_20) {
  			/* apply (center channel - 2)'s dpd cal data for bw 40/80 channels */
  			channel -= 2;
-@@ -3829,9 +3842,8 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
+@@ -3832,9 +3845,8 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
  	if (idx == chan_list_size)
  		return -EINVAL;
  

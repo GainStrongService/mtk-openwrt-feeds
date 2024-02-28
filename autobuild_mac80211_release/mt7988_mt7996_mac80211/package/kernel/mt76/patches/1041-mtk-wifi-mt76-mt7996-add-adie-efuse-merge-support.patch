@@ -1,4 +1,4 @@
-From 7de1a3bf90d697b5b7672c605fab6cd789128b5e Mon Sep 17 00:00:00 2001
+From 81f7ffda64a8720f49b3bff6ff93a3346e9ef124 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 24 Nov 2023 09:49:08 +0800
 Subject: [PATCH 1041/1044] mtk: wifi: mt76: mt7996: add adie efuse merge
@@ -16,7 +16,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 190 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 67c6bd09..bc6b5aa6 100644
+index 7a03de12..50ac6d4d 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -862,6 +862,46 @@ mt7996_rf_regval_set(void *data, u64 val)
@@ -238,10 +238,10 @@ index 39e65010..45cbd03d 100644
  	if (ret < 0)
  		return ret;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 2bcee895..264c6651 100644
+index c97a3204..26d0a1c1 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3617,7 +3617,7 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *read_buf)
+@@ -3620,7 +3620,7 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *read_buf)
  	};
  	struct sk_buff *skb;
  	bool valid;
@@ -250,7 +250,7 @@ index 2bcee895..264c6651 100644
  	u8 *buf = read_buf;
  
  	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
-@@ -3635,11 +3635,13 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *read_buf)
+@@ -3638,11 +3638,13 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *read_buf)
  
  		skb_pull(skb, 48);
  		memcpy(buf, skb->data, MT7996_EEPROM_BLOCK_SIZE);

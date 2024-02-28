@@ -1,7 +1,7 @@
-From 5bf8bbd55bc552022024ea5461bd4f30e0fddab4 Mon Sep 17 00:00:00 2001
+From 60d2f89c4b79ca515bf033dfa49b9c41b924b2fb Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 19 Apr 2023 18:32:41 +0800
-Subject: [PATCH 2003/2032] mtk: wifi: mt76: add random early drop support
+Subject: [PATCH 2003/2027] mtk: wifi: mt76: add random early drop support
 
 ---
  mt7996/debugfs.c     |  1 +
@@ -15,7 +15,7 @@ Subject: [PATCH 2003/2032] mtk: wifi: mt76: add random early drop support
  8 files changed, 167 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index a97706f5..37b36dce 100644
+index dff9e467..01f98b2e 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -629,6 +629,7 @@ mt7996_tx_stats_show(struct seq_file *file, void *data)
@@ -45,10 +45,10 @@ index 31ec6f89..26bed9e2 100644
  		}
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index ff811357..c969e4d9 100644
+index 2cdaf845..be21dd62 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3142,8 +3142,8 @@ int mt7996_mcu_init_firmware(struct mt7996_dev *dev)
+@@ -3145,8 +3145,8 @@ int mt7996_mcu_init_firmware(struct mt7996_dev *dev)
  	if (ret)
  		return ret;
  
@@ -59,7 +59,7 @@ index ff811357..c969e4d9 100644
  }
  
  int mt7996_mcu_init(struct mt7996_dev *dev)
-@@ -3175,6 +3175,83 @@ out:
+@@ -3178,6 +3178,83 @@ out:
  	skb_queue_purge(&dev->mt76.mcu.res_q);
  }
  
@@ -201,7 +201,7 @@ index 2227c08a..b0eb5d91 100644
 -
  #endif
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 9aeb6437..7fecdb74 100644
+index c4cdbcdc..03f88780 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -3015,6 +3015,27 @@ static int mt7996_muru_prot_thr_set(void *data, u64 val)

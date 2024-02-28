@@ -1,7 +1,7 @@
-From 4ea30536b63156f7ab2a12d1831ca13950fe51b5 Mon Sep 17 00:00:00 2001
+From f26928b5cba540238ecc8145254bbaabe7035da0 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Fri, 18 Aug 2023 10:17:08 +0800
-Subject: [PATCH 2009/2032] mtk: wifi: mt76: mt7996: add per bss statistic info
+Subject: [PATCH 2009/2027] mtk: wifi: mt76: mt7996: add per bss statistic info
 
 Whenever WED is enabled, unicast traffic might run through HW path.
 As a result, we need to count them using WM event.
@@ -34,7 +34,7 @@ index aedf4edc..518f70e4 100644
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION);
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_PROTECTION);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 4a5697a3..4880807e 100644
+index d314d9fb..e1c107fb 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -251,6 +251,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
@@ -46,7 +46,7 @@ index 4a5697a3..4880807e 100644
  
  	mt7996_mac_wtbl_update(dev, idx,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index c969e4d9..5d19d6fc 100644
+index be21dd62..479eee0e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -521,6 +521,27 @@ mt7996_mcu_update_tx_gi(struct rate_info *rate, struct all_sta_trx_rate *mcu_rat

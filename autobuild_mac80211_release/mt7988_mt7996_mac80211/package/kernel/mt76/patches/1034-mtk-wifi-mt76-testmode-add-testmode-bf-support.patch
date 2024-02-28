@@ -1,4 +1,4 @@
-From 044b8e77dbc476e9db82b4fe571ae71b37aef769 Mon Sep 17 00:00:00 2001
+From f5f9763666bc9514f7856023e24214ab6dd6cae7 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 6 Apr 2023 16:40:28 +0800
 Subject: [PATCH 1034/1044] mtk: wifi: mt76: testmode: add testmode bf support
@@ -70,10 +70,10 @@ index a59e5a0b..266ee711 100644
  	MCU_UNI_CMD_PRECAL_RESULT = 0x47,
  	MCU_UNI_CMD_RRO = 0x57,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 371fd2e7..1729bb46 100644
+index 3a34afd9..6e3047ba 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1067,7 +1067,12 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
+@@ -1070,7 +1070,12 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
  	bss->hw_bss_idx = idx;
  
  	if (vif->type == NL80211_IFTYPE_MONITOR) {
@@ -87,7 +87,7 @@ index 371fd2e7..1729bb46 100644
  		return 0;
  	}
  
-@@ -4105,7 +4110,6 @@ int mt7996_mcu_set_ser(struct mt7996_dev *dev, u8 action, u8 val, u8 band)
+@@ -4108,7 +4113,6 @@ int mt7996_mcu_set_ser(struct mt7996_dev *dev, u8 action, u8 val, u8 band)
  int mt7996_mcu_set_txbf(struct mt7996_dev *dev, u8 action)
  {
  #define MT7996_BF_MAX_SIZE	sizeof(union bf_tag_tlv)
@@ -207,7 +207,7 @@ index b9c37612..2f76a0af 100644
 +
  #endif
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 87c80828..9aeb6437 100644
+index 9e7acd4b..c4cdbcdc 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2899,7 +2899,7 @@ mt7996_starec_bf_read_set(void *data, u64 wlan_idx)
