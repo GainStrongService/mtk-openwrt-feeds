@@ -1,7 +1,7 @@
-From 14733d632430b788c7323b038bd679045a9dba95 Mon Sep 17 00:00:00 2001
+From cf3aa890a3ade3f8105e9d5e1ed8d449ce288024 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Fri, 15 Dec 2023 14:03:11 +0800
-Subject: [PATCH 1047/1048] wifi: mt76: mt7915: Add support for lpi and
+Subject: [PATCH 1047/1049] wifi: mt76: mt7915: Add support for lpi and
  duplicate mode
 
 Add support lpi and duplicate mode.
@@ -31,7 +31,7 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  12 files changed, 210 insertions(+), 17 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index 4213e44..2ee262a 100644
+index 4213e444..2ee262a0 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -224,8 +224,9 @@ static bool mt76_string_prop_find(struct property *prop, const char *str)
@@ -95,10 +95,10 @@ index 4213e44..2ee262a 100644
  		return target_power;
  
 diff --git a/mt76.h b/mt76.h
-index 1aa266f..4291acd 100644
+index 16c6a31a..65d36cd7 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -852,6 +852,9 @@ struct mt76_phy {
+@@ -853,6 +853,9 @@ struct mt76_phy {
  	u8 macaddr[ETH_ALEN];
  
  	int txpower_cur;
@@ -108,7 +108,7 @@ index 1aa266f..4291acd 100644
  	u8 antenna_mask;
  	u16 chainmask;
  
-@@ -1740,7 +1743,7 @@ mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
+@@ -1744,7 +1747,7 @@ mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
  void mt76_set_irq_mask(struct mt76_dev *dev, u32 addr, u32 clear, u32 set);
  
  struct device_node *
@@ -118,7 +118,7 @@ index 1aa266f..4291acd 100644
  mt76_find_channel_node(struct device_node *np, struct ieee80211_channel *chan);
  
 diff --git a/mt76_connac2_mac.h b/mt76_connac2_mac.h
-index 5f13211..c49a330 100644
+index 5f132115..c49a3300 100644
 --- a/mt76_connac2_mac.h
 +++ b/mt76_connac2_mac.h
 @@ -355,4 +355,11 @@ enum tx_port_idx {
@@ -134,7 +134,7 @@ index 5f13211..c49a330 100644
 +
  #endif /* __MT76_CONNAC2_MAC_H */
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index d036047..d41f004 100644
+index d036047a..d41f0040 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -564,7 +564,8 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
@@ -159,7 +159,7 @@ index d036047..d41f004 100644
  
  		txwi[7] &= ~cpu_to_le32(MT_TXD7_HW_AMSDU);
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 4e1006d..e581084 100644
+index 4e1006db..e581084e 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1249,6 +1249,7 @@ enum {
@@ -171,7 +171,7 @@ index 4e1006d..e581084 100644
  
  enum {
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index ead0f98..017d43d 100644
+index ead0f985..017d43d7 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -1296,7 +1296,6 @@ mt7915_txpower_info_show(struct seq_file *file, void *data)
@@ -192,7 +192,7 @@ index ead0f98..017d43d 100644
  
  out:
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 1a41282..32bbd6c 100644
+index 6eaf7b7a..849ee450 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -287,7 +287,7 @@ static void __mt7915_init_txpower(struct mt7915_phy *phy,
@@ -217,7 +217,7 @@ index 1a41282..32bbd6c 100644
  
  static void
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 7e0e277..ba47d0d 100644
+index 7e0e2774..ba47d0d0 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -1522,7 +1522,8 @@ mt7915_mcu_set_spe_idx(struct mt7915_dev *dev, struct ieee80211_vif *vif,
@@ -353,7 +353,7 @@ index 7e0e277..ba47d0d 100644
  			      u8 en)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 38a9db4..23ee118 100644
+index 38a9db44..23ee118f 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -793,6 +793,7 @@ int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
@@ -365,10 +365,10 @@ index 38a9db4..23ee118 100644
  int mt7915_mcu_set_edcca(struct mt7915_phy *phy, int mode, u8 *value, s8 compensation);
  int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value);
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 9da6328..50e7b6c 100644
+index 383ebdc9..1ed7bb2c 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -3922,6 +3922,7 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+@@ -3938,6 +3938,7 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
  			    &fops_txbf_sta_rec);
  
  	debugfs_create_u8("sku_disable", 0600, dir, &dev->dbg.sku_disable);
@@ -377,7 +377,7 @@ index 9da6328..50e7b6c 100644
  	debugfs_create_devm_seqfile(dev->mt76.dev, "eeprom_mode", dir,
  				    mt7915_show_eeprom_mode);
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 432d750..566fec0 100644
+index 432d7506..566fec01 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -106,6 +106,13 @@ bss_color_ctrl_policy[NUM_MTK_VENDOR_ATTRS_BSS_COLOR_CTRL] = {
@@ -477,7 +477,7 @@ index 432d750..566fec0 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 03d1660..5b8a1fb 100644
+index 03d1660c..5b8a1fb3 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -16,6 +16,7 @@ enum mtk_nl80211_vendor_subcmds {

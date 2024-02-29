@@ -1,7 +1,7 @@
-From 9b79716f5ef23fae2ef839e620ec25e92cae6a82 Mon Sep 17 00:00:00 2001
+From 51d7a6fb8aba2306e617845ee954652af5930913 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 30 Mar 2023 15:12:37 +0800
-Subject: [PATCH 1023/1048] wifi: mt76: mt7915: add cal free data merge support
+Subject: [PATCH 1023/1049] wifi: mt76: mt7915: add cal free data merge support
 
 1. add basic cal free data support
 2. add E3 low yield rate workaround for panther E3 with 7976 adie
@@ -19,7 +19,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  5 files changed, 240 insertions(+), 4 deletions(-)
 
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index f181377..40a126f 100644
+index f1813776..40a126fa 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -1240,6 +1240,46 @@ mt7915_rf_regval_set(void *data, u64 val)
@@ -78,7 +78,7 @@ index f181377..40a126f 100644
  	if (!ext_phy)
  		dev->debugfs_dir = dir;
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 3c99b4d..e11ae5e 100644
+index 3c99b4d3..e11ae5e9 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -276,6 +276,189 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
@@ -283,7 +283,7 @@ index 3c99b4d..e11ae5e 100644
  	memcpy(dev->mphy.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
  	       ETH_ALEN);
 diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
-index a1ab05a..dd450aa 100644
+index a1ab05a7..dd450aac 100644
 --- a/mt7915/eeprom.h
 +++ b/mt7915/eeprom.h
 @@ -67,6 +67,8 @@ enum mt7915_eeprom_field {
@@ -296,7 +296,7 @@ index a1ab05a..dd450aa 100644
  	MT7976_ONE_ADIE_DBDC = 0x7,
  	MT7975_ONE_ADIE	= 0x8,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index f793a95..0694c9a 100644
+index f793a957..0694c9a6 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2968,6 +2968,7 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset, u8 *read_buf)
@@ -327,7 +327,7 @@ index f793a95..0694c9a 100644
  	dev_kfree_skb(skb);
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index e01afea..a74a4eb 100644
+index e01afea8..a74a4ebd 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -548,6 +548,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);

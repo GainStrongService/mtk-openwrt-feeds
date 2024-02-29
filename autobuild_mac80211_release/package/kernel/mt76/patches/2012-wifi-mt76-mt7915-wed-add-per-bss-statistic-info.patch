@@ -1,4 +1,4 @@
-From 7eabaa784be431f18204f1e2a10ed6e7c851149d Mon Sep 17 00:00:00 2001
+From 3f560bf1141583179aa42e2c75bd16ee6cc13a34 Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Wed, 1 Nov 2023 07:50:08 +0800
 Subject: [PATCH 2012/2012] wifi: mt76: mt7915: wed: add per bss statistic info
@@ -14,7 +14,7 @@ Subject: [PATCH 2012/2012] wifi: mt76: mt7915: wed: add per bss statistic info
  7 files changed, 78 insertions(+), 7 deletions(-)
 
 diff --git a/mt7915/init.c b/mt7915/init.c
-index b62521f..9ab6752 100644
+index 7b5e2e4e..4cf2ff4d 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -400,6 +400,7 @@ mt7915_init_wiphy(struct mt7915_phy *phy)
@@ -26,10 +26,10 @@ index b62521f..9ab6752 100644
  	if (!is_mt7915(&dev->mt76))
  		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_STA_TX_PWR);
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 51e2f24..7b3963f 100644
+index 1c54f05a..c9f08420 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -1067,6 +1067,7 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
+@@ -1071,6 +1071,7 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
  	struct mt7915_phy *phy;
  	struct mt76_wcid *wcid;
  	__le32 *txs_data = data;
@@ -37,7 +37,7 @@ index 51e2f24..7b3963f 100644
  	u16 wcidx;
  	u8 pid;
  
-@@ -1085,6 +1086,7 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
+@@ -1089,6 +1090,7 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
  	if (!wcid)
  		goto out;
  
@@ -45,7 +45,7 @@ index 51e2f24..7b3963f 100644
  	msta = container_of(wcid, struct mt7915_sta, wcid);
  
  	if (le32_get_bits(txs_data[0], MT_TXS0_TXS_FORMAT) == MT_TXS_PPDU_FMT)
-@@ -1095,6 +1097,24 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
+@@ -1099,6 +1101,24 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
  	if (!wcid->sta)
  		goto out;
  
@@ -70,7 +70,7 @@ index 51e2f24..7b3963f 100644
  	spin_lock_bh(&dev->mt76.sta_poll_lock);
  	if (list_empty(&msta->wcid.poll_list))
  		list_add_tail(&msta->wcid.poll_list, &dev->mt76.sta_poll_list);
-@@ -2088,6 +2108,7 @@ static void mt7915_mac_sta_stats_work(struct mt7915_phy *phy)
+@@ -2092,6 +2112,7 @@ static void mt7915_mac_sta_stats_work(struct mt7915_phy *phy)
  		spin_unlock_bh(&phy->stats_lock);
  
  		mt7915_mcu_get_tx_rate(phy, sta->wcid.idx);
@@ -79,7 +79,7 @@ index 51e2f24..7b3963f 100644
  		spin_lock_bh(&phy->stats_lock);
  	}
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 374526b..c4e0dbc 100644
+index 374526bd..c4e0dbce 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -1220,7 +1220,7 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
@@ -92,10 +92,10 @@ index 374526b..c4e0dbc 100644
  			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_PACKETS);
  		}
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index c052774..50db7f2 100644
+index 4d81c220..94b59886 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -4645,7 +4645,8 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
+@@ -4739,7 +4739,8 @@ int mt7915_mcu_twt_agrt_update(struct mt7915_dev *dev,
  				 &req, sizeof(req), true);
  }
  
@@ -105,7 +105,7 @@ index c052774..50db7f2 100644
  {
  	struct {
  		__le32 cmd;
-@@ -4707,11 +4708,34 @@ int mt7915_mcu_wed_wa_tx_stats(struct mt7915_dev *dev, u16 wlan_idx)
+@@ -4801,11 +4802,34 @@ int mt7915_mcu_wed_wa_tx_stats(struct mt7915_dev *dev, u16 wlan_idx)
  	rcu_read_lock();
  
  	wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
@@ -143,7 +143,7 @@ index c052774..50db7f2 100644
  out:
  	dev_kfree_skb(skb);
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 6309dd9..142f308 100644
+index 6309dd91..142f3085 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -592,7 +592,7 @@ static void mt7915_mmio_wed_update_rx_stats(struct mtk_wed_device *wed,
@@ -189,10 +189,10 @@ index 6309dd9..142f308 100644
  }
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index f95ed89..aa02b26 100644
+index 49222e6e..6db52888 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -737,7 +737,8 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
+@@ -740,7 +740,8 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
  			   struct ieee80211_sta *sta, struct rate_info *rate);
  int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
  				     struct cfg80211_chan_def *chandef);
@@ -203,10 +203,10 @@ index f95ed89..aa02b26 100644
  int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set);
  int mt7915_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index f551149..7078da2 100644
+index 4b913272..9bb31e1f 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
-@@ -3973,7 +3973,7 @@ static int mt7915_reset_counter(void *data, u64 val)
+@@ -4027,7 +4027,7 @@ static int mt7915_reset_counter(void *data, u64 val)
  	struct mt76_wcid *wcid;
  
  	/* Clear the firmware counters */

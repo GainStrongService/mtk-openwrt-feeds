@@ -1,7 +1,7 @@
-From 6e0308590a7f6301a9d80ae8b523417b614a0c6b Mon Sep 17 00:00:00 2001
+From 5c93e5bf8cd5ae9eaa10fb1719614eb8d049e7bf Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 13 Dec 2023 09:55:27 +0800
-Subject: [PATCH 1016/1048] wifi: mt76: mt7915: add mt7986 and mt7916
+Subject: [PATCH 1016/1049] wifi: mt76: mt7915: add mt7986 and mt7916
  pre-calibration
 
 Add pre-calibration for mt7986 and mt7916. It has different data size
@@ -17,7 +17,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 63 insertions(+), 27 deletions(-)
 
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index 0441d91..5e74b5f 100644
+index 0441d91a..5e74b5ff 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -9,28 +9,27 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
@@ -58,7 +58,7 @@ index 0441d91..5e74b5f 100644
  
  static int mt7915_check_eeprom(struct mt7915_dev *dev)
 diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
-index 25f0b32..4a31375 100644
+index 25f0b32a..4a313759 100644
 --- a/mt7915/eeprom.h
 +++ b/mt7915/eeprom.h
 @@ -19,6 +19,7 @@ enum mt7915_eeprom_field {
@@ -70,7 +70,7 @@ index 25f0b32..4a31375 100644
  	MT_EE_RATE_DELTA_5G =	0x29d,
  	MT_EE_TX0_POWER_2G =	0x2fc,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 1707aaf..b21d888 100644
+index 1707aaf7..b21d888b 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -3044,7 +3044,8 @@ static int mt7915_mcu_set_pre_cal(struct mt7915_dev *dev, u8 idx,

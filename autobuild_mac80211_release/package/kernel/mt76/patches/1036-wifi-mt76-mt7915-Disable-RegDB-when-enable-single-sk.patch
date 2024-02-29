@@ -1,7 +1,7 @@
-From cd794505e5448ab747d6e915a6fc756c52c237b7 Mon Sep 17 00:00:00 2001
+From 66900882a026f06c914625760e3a8d3f95081a9a Mon Sep 17 00:00:00 2001
 From: "Allen.Ye" <allen.ye@mediatek.com>
 Date: Fri, 11 Aug 2023 16:46:53 +0800
-Subject: [PATCH 1036/1048] wifi: mt76: mt7915: Disable RegDB when enable
+Subject: [PATCH 1036/1049] wifi: mt76: mt7915: Disable RegDB when enable
  single sku
 
 ---
@@ -11,7 +11,7 @@ Subject: [PATCH 1036/1048] wifi: mt76: mt7915: Disable RegDB when enable
  3 files changed, 57 insertions(+), 11 deletions(-)
 
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 86cbef3..ead0f98 100644
+index 86cbef33..ead0f985 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -1019,10 +1019,16 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
@@ -103,7 +103,7 @@ index 86cbef3..ead0f98 100644
  	return ret;
  }
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 5a3a61c..cdcf63e 100644
+index d6902b06..84f2986a 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -283,9 +283,11 @@ static void __mt7915_init_txpower(struct mt7915_phy *phy,
@@ -135,7 +135,7 @@ index 5a3a61c..cdcf63e 100644
  	}
  }
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 1f1f8b9..3c2fd2d 100644
+index 1f1f8b9c..3c2fd2d6 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -1213,6 +1213,10 @@ enum offs_rev {

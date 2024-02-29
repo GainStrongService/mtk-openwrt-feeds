@@ -1,7 +1,7 @@
-From 70f2286427614e2da9e0caf6b90813d38bfadc63 Mon Sep 17 00:00:00 2001
+From 7c512e82c05fe1e5e00a409ca69f3e15094f1bb6 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Mon, 29 Jan 2024 11:28:41 +0800
-Subject: [PATCH 10/13] wifi: mt76: mt7915: add support for WMM PBC
+Subject: [PATCH 10/15] wifi: mt76: mt7915: add support for WMM PBC
  configuration
 
 ---
@@ -14,7 +14,7 @@ Subject: [PATCH 10/13] wifi: mt76: mt7915: add support for WMM PBC
  6 files changed, 127 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 2a4aa79..8d516e4 100644
+index 2a4aa796..8d516e40 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1018,6 +1018,7 @@ enum {
@@ -34,7 +34,7 @@ index 2a4aa79..8d516e4 100644
  	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
  	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
 diff --git a/mt7915/init.c b/mt7915/init.c
-index d5d9cbf..2fc1f3c 100644
+index d5d9cbf5..2fc1f3ce 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -1217,6 +1217,8 @@ int mt7915_register_device(struct mt7915_dev *dev)
@@ -47,7 +47,7 @@ index d5d9cbf..2fc1f3c 100644
  
  	phy2 = mt7915_alloc_ext_phy(dev);
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 3736853..762159b 100644
+index 37368536..762159b4 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -2027,6 +2027,8 @@ void mt7915_mac_work(struct work_struct *work)
@@ -79,7 +79,7 @@ index 3736853..762159b 100644
  
  	if (++phy->stats_work_count == 10) {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 7a2a537..d101cbf 100644
+index 7a2a537d..d101cbf4 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -354,6 +354,93 @@ mt7915_mcu_rx_bcc_notify(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -187,7 +187,7 @@ index 7a2a537..d101cbf 100644
  		break;
  	}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 8f36546..fa0847d 100644
+index 8f365461..fa0847d5 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -329,10 +329,25 @@ enum {
@@ -217,7 +217,7 @@ index 8f36546..fa0847d 100644
  };
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 1b79733..874d531 100644
+index 1b797331..874d5318 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -322,6 +322,9 @@ struct mt7915_dev {

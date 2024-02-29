@@ -1,7 +1,7 @@
-From ceb70263bbea4b354207f9011670944b79868910 Mon Sep 17 00:00:00 2001
+From 9440026cd3b626871cd4978a347b4fa194e7b301 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 31 Oct 2023 16:29:13 +0800
-Subject: [PATCH 1043/1048] wifi: mt76: testmode: add cheetah support
+Subject: [PATCH 1043/1049] wifi: mt76: testmode: add cheetah support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -12,7 +12,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 37 insertions(+), 8 deletions(-)
 
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
-index e11ae5e..96b1ea3 100644
+index e11ae5e9..96b1ea3d 100644
 --- a/mt7915/eeprom.c
 +++ b/mt7915/eeprom.c
 @@ -40,8 +40,7 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
@@ -26,7 +26,7 @@ index e11ae5e..96b1ea3 100644
  	dev->cal = devm_kzalloc(mdev->dev, size, GFP_KERNEL);
  	if (!dev->cal)
 diff --git a/mt7915/eeprom.h b/mt7915/eeprom.h
-index dd450aa..70fca0b 100644
+index dd450aac..70fca0b3 100644
 --- a/mt7915/eeprom.h
 +++ b/mt7915/eeprom.h
 @@ -52,6 +52,7 @@ enum mt7915_eeprom_field {
@@ -56,7 +56,7 @@ index dd450aa..70fca0b 100644
  
  #endif
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 1eb19ba..6cee6b6 100644
+index 1eb19bad..6cee6b62 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -3129,13 +3129,30 @@ static int mt7915_dpd_freq_idx(struct mt7915_dev *dev, u16 freq, u8 bw)
@@ -93,7 +93,7 @@ index 1eb19ba..6cee6b6 100644
  
  	if (freq < 4000) {
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index faf6014..ecd6271 100644
+index faf60146..ecd62712 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -2151,7 +2151,7 @@ mt7915_tm_group_prek(struct mt7915_phy *phy, enum mt76_testmode_state state)
