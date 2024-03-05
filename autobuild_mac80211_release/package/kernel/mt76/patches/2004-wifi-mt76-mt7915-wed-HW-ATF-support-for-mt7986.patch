@@ -418,10 +418,10 @@ index 017d43d7..d1e33ef4 100644
  	if (!dev->dbdc_support || phy->mt76->band_idx) {
  		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 849ee450..7b5e2e4e 100644
+index 8ce9b81..28260ce 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -610,10 +610,65 @@ mt7915_init_led_mux(struct mt7915_dev *dev)
+@@ -548,9 +548,64 @@ mt7915_init_led_mux(struct mt7915_dev *dev)
  	}
  }
  
@@ -482,12 +482,11 @@ index 849ee450..7b5e2e4e 100644
  void mt7915_mac_init(struct mt7915_dev *dev)
  {
  	int i;
- 	u32 rx_len = is_mt7915(&dev->mt76) ? 0x400 : 0x680;
 +	struct wiphy *wiphy = dev->phy.mt76->hw->wiphy;
  
- 	/* config pse qid6 wfdma port selection */
- 	if (!is_mt7915(&dev->mt76) && dev->hif2)
-@@ -637,6 +692,9 @@ void mt7915_mac_init(struct mt7915_dev *dev)
+ 	if (!is_mt7915(&dev->mt76))
+ 		mt76_clear(dev, MT_MDP_DCR2, MT_MDP_DCR2_RX_TRANS_SHORT);
+@@ -603,6 +658,9 @@ void mt7915_mac_init(struct mt7915_dev *dev)
  		mt7915_mac_init_band(dev, i);
  
  	mt7915_init_led_mux(dev);
