@@ -9,12 +9,14 @@
 #define MT753X_GENL_NAME "mt753x"
 #define MT753X_DSA_GENL_NAME "mt753x_dsa"
 #define MT753X_GENL_VERSION 0X1
+#define AN8855_GENL_NAME "an8855"
+#define AN8855_DSA_GENL_NAME "an8855_dsa"
 
 /*add your cmd to here*/
 enum {
-	MT753X_CMD_UNSPEC = 0, /*Reserved*/
-	MT753X_CMD_REQUEST,    /*user->kernelrequest/get-response*/
-	MT753X_CMD_REPLY,      /*kernel->user event*/
+	MT753X_CMD_UNSPEC = 0,	/*Reserved */
+	MT753X_CMD_REQUEST,	/*user->kernelrequest/get-response */
+	MT753X_CMD_REPLY,	/*kernel->user event */
 	MT753X_CMD_READ,
 	MT753X_CMD_WRITE,
 	__MT753X_CMD_MAX,
@@ -22,10 +24,9 @@ enum {
 #define MT753X_CMD_MAX (__MT753X_CMD_MAX - 1)
 
 /*define attar types */
-enum
-{
+enum {
 	MT753X_ATTR_TYPE_UNSPEC = 0,
-	MT753X_ATTR_TYPE_MESG, /*MT753X message*/
+	MT753X_ATTR_TYPE_MESG,	/*MT753X message */
 	MT753X_ATTR_TYPE_PHY,
 	MT753X_ATTR_TYPE_PHY_DEV,
 	MT753X_ATTR_TYPE_REG,
@@ -47,6 +48,8 @@ struct mt753x_attr {
 	int dev_name;
 	int dev_id;
 };
+
+extern int chip_name;
 
 int mt753x_netlink_init(const char *name);
 void mt753x_netlink_free(void);
