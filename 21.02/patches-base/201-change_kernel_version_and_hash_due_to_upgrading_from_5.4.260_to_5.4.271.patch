@@ -1,0 +1,47 @@
+--- a/include/kernel-5.4
++++ b/include/kernel-5.4
+@@ -1,2 +1,2 @@
+-LINUX_VERSION-5.4 = .238
+-LINUX_KERNEL_HASH-5.4.238 = 70a2b2da85598eba6a73cdc0749e441cbdf3011d9babcb7028a46aa8d98aa91f
++LINUX_VERSION-5.4 = .271
++LINUX_KERNEL_HASH-5.4.271 = cdbc61334cdadbd3945b08f03ed197c65bdf358c3383a4334b3e5b483bd95850
+
+--- a/target/linux/mediatek/patches-5.4/0005-dts-mt7622-add-gsw.patch
++++ b/target/linux/mediatek/patches-5.4/0005-dts-mt7622-add-gsw.patch
+@@ -81,7 +81,7 @@
+  	};
+  
+  	cpus {
+-@@ -40,23 +39,36 @@
++@@ -39,23 +39,36 @@
+  
+  	gpio-keys {
+  		compatible = "gpio-keys";
+@@ -99,9 +99,9 @@
+  			linux,code = <KEY_WPS_BUTTON>;
+ -			gpios = <&pio 102 0>;
+ +			gpios = <&pio 102 GPIO_ACTIVE_LOW>;
+-+		};
+-+	};
+-+
++ 		};
++ 	};
++ 
+ +	leds {
+ +		compatible = "gpio-leds";
+ +
+@@ -113,10 +113,10 @@
+ +		red {
+ +			label = "bpi-r64:pio:red";
+ +			gpios = <&pio 88 GPIO_ACTIVE_HIGH>;
+- 		};
+- 	};
+- 
+- 	memory {
+++ 		};
+++ 	};
+++	
++ 	memory@40000000 {
+ -		reg = <0 0x40000000 0 0x20000000>;
+ +		reg = <0 0x40000000 0 0x40000000>;
+  	};
