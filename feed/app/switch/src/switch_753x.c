@@ -464,21 +464,6 @@ static int get_chip_name()
 	FILE *fp = NULL;
 	char buff[255];
 
-	/*judge 7530 */
-	reg_read((0x7ffc), &temp);
-	temp = temp >> 16;
-	if (temp == 0x7530)
-		return temp;
-	/*judge 7531 */
-	reg_read(0x781c, &temp);
-	temp = temp >> 16;
-	if (temp == 0x7531)
-		return temp;
-	/*judge an8855 */
-	reg_read(0x10005000, &temp);
-	if (temp == 0x8855)
-		return temp;
-
 	/*judge jaguar embedded switch */
 	fp = fopen("/proc/device-tree/compatible", "r");
 	if (fp != NULL) {
@@ -487,9 +472,26 @@ static int get_chip_name()
 			temp = 0x7988;
 
 		rc = fclose(fp);
-		if (rc == 0)
+		if (rc == 0 && temp == 0x7988)
 			return temp;
 	}
+
+	/*judge 7530 */
+	reg_read((0x7ffc), &temp);
+	temp = temp >> 16;
+	if (temp == 0x7530)
+		return temp;
+
+	/*judge 7531 */
+	reg_read(0x781c, &temp);
+	temp = temp >> 16;
+	if (temp == 0x7531)
+		return temp;
+
+	/*judge an8855 */
+	reg_read(0x10005000, &temp);
+	if (temp == 0x8855)
+		return temp;
 
 	return -1;
 }
@@ -643,9 +645,11 @@ int main(int argc, char *argv[])
 			chip_name = get_chip_name();
 	}
 
-	err = mt753x_netlink_init(AN8855_DSA_GENL_NAME);
-	if (!err)
-		chip_name = get_chip_name();
+	if (err < 0) {
+		err = mt753x_netlink_init(AN8855_DSA_GENL_NAME);
+		if (!err)
+			chip_name = get_chip_name();
+	}
 
 	if (err < 0) {
 		err = mt753x_netlink_init(AN8855_GENL_NAME);
