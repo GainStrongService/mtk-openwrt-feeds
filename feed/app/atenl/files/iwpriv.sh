@@ -756,8 +756,20 @@ function convert_ibf {
             new_cmd="phase_cal"
             ;;
         "ATEIBfGdCal")
+            local group=${new_param:0:2}
+            local group_l_m_h=${new_param:3:2}
+            local band_idx=${new_param:6:2}
+            local cal_type=${new_param:9:2}
+            local version=${new_param:12}
+            local lna_level="00"
+
+            # only ibf 2.0 will set version, so add null check for backward compatibility
+            if [ -z $version ]; then
+                version="00"
+            fi
+
             new_cmd="phase_cal"
-            new_param="${new_param},00"
+            new_param="${group},${group_l_m_h},${band_idx},${cal_type},${lna_level},${version}"
             ;;
         "TxBfTxApply")
             new_cmd="apply_tx"
@@ -767,14 +779,14 @@ function convert_ibf {
             local aid="01"
             local wlan_idx=${new_param:3:2}
             local update="00"
-            local tx_len=${new_param:6}
+            local tx_count=${new_param:6}
 
             new_cmd="tx_prep"
             new_param="${bf_on},${aid},${wlan_idx},${update}"
-            if [ "${tx_len}" = "00" ]; then
+            if [ "${tx_count}" = "00" ]; then
                 new_param="${new_param} aid=1 tx_count=10000000 tx_length=1024"
             else
-                new_param="${new_param} aid=1 tx_count=${tx_len} tx_length=1024"
+                new_param="${new_param} aid=1 tx_count=${tx_count} tx_length=1024"
             fi
             do_cmd "mt76-test phy${phy_idx} set state=idle"
             ;;
