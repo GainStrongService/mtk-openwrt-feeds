@@ -7,7 +7,7 @@
 -PKG_VERSION:=1.0.7
 -PKG_RELEASE:=1
 +PKG_VERSION:=1.0.17
-+PKG_RELEASE:=2
++PKG_RELEASE:=3
  
  PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 -PKG_SOURCE_URL:=https://media.luffy.cx/files/lldpd
@@ -25,11 +25,13 @@
  PKG_INSTALL:=1
  
  include $(INCLUDE_DIR)/package.mk
-@@ -30,7 +32,7 @@ define Package/lldpd
+@@ -29,8 +31,8 @@ define Package/lldpd
+   CATEGORY:=Network
    SUBMENU:=Routing and Redirection
    TITLE:=Link Layer Discovery Protocol daemon
-   URL:=https://vincentbernat.github.io/lldpd/
+-  URL:=https://vincentbernat.github.io/lldpd/
 -  DEPENDS:=+libevent2 +USE_GLIBC:libbsd +LLDPD_WITH_JSON:libjson-c +LLDPD_WITH_SNMP:libnetsnmp
++  URL:=https://lldpd.github.io/
 +  DEPENDS:=+libcap +libevent2 +USE_GLIBC:libbsd +LLDPD_WITH_JSON:libjson-c +LLDPD_WITH_SNMP:libnetsnmp
    USERID:=lldp=121:lldp=129
    MENU:=1
@@ -75,9 +77,26 @@
 +TARGET_LDFLAGS += -Wl,--gc-sections,--as-needed
 +
  $(eval $(call BuildPackage,lldpd))
+--- a/package/network/services/lldpd/files/lldpd.config
++++ b/package/network/services/lldpd/files/lldpd.config
+@@ -7,7 +7,9 @@ config lldpd config
+ 	option agentxsocket /var/run/agentx.sock
+ 
+ 	option lldp_class 4
+-	option lldp_location "2:FR:6:Commercial Rd:3:Roseville:19:4"
++	# lldp_policy only needed for lldp_class 2-3
++	# option lldp_policy 'application streaming-video unknown'
++	option lldp_location "address country EU"
+ 
+ 	# if empty, the distribution description is sent
+ 	#option lldp_description "OpenWrt System"
 --- a/package/network/services/lldpd/files/lldpd.init
 +++ b/package/network/services/lldpd/files/lldpd.init
-@@ -4,12 +4,25 @@
+@@ -1,15 +1,29 @@
+ #!/bin/sh /etc/rc.common
+ # Copyright (C) 2008-2015 OpenWrt.org
++# shellcheck disable=1091,2034,3037,3043,3045
+ 
  START=90
  STOP=01
  
@@ -103,7 +122,7 @@
  find_release_info()
  {
  	[ -s /etc/os-release ] && . /etc/os-release
-@@ -19,10 +32,64 @@ find_release_info()
+@@ -19,10 +33,65 @@ find_release_info()
  	echo "${PRETTY_NAME:-Unknown OpenWrt release} @ $(cat /proc/sys/kernel/hostname)"
  }
  
@@ -114,43 +133,44 @@
 +	config_load 'lldpd'
 +
 +	config_get      v 'config' 'lldp_class'; append _string "$v" ","
-+	if [ "$CONFIG_LLDPD_WITH_SNMP" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_SNMP" = "y" ]; then
 +		config_get      v 'config' 'agentxsocket'; append _string "$v" ","
 +	fi
 +	config_get      v 'config' 'cid_interface'; append _string "$v" ","
 +	config_get      v 'config' 'filter'; append _string "$v" ","
 +	config_get_bool v 'config' 'readonly_mode'; append _string "$v" ","
 +	config_get_bool v 'config' 'lldp_no_version'; append _string "$v" ","
-+	if [ "$CONFIG_LLDPD_WITH_LLDPMED" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_LLDPMED" = "y" ]; then
 +		config_get_bool v 'config' 'lldpmed_no_inventory'; append _string "$v" ","
 +	fi
 +	config_get_bool v 'config' 'enable_lldp' 1; append _string "$v" ","
 +	config_get_bool v 'config' 'force_lldp'; append _string "$v" ","
-+	if [ "$CONFIG_LLDPD_WITH_CDP" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_CDP" = "y" ]; then
 +		config_get_bool v 'config' 'enable_cdp'; append _string "$v" ","
 +		config_get      v 'config' 'cdp_version'; append _string "$v" ","
 +		config_get_bool v 'config' 'force_cdp'; append _string "$v" ","
 +		config_get_bool v 'config' 'force_cdpv2'; append _string "$v" ","
 +	fi
-+	if [ "$CONFIG_LLDPD_WITH_EDP" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_EDP" = "y" ]; then
 +		config_get_bool v 'config' 'enable_edp'; append _string "$v" ","
 +		config_get_bool v 'config' 'force_edp'; append _string "$v" ","
 +	fi
-+	if [ "$CONFIG_LLDPD_WITH_FDP" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_FDP" = "y" ]; then
 +		config_get_bool v 'config' 'enable_fdp'; append _string "$v" ","
 +		config_get_bool v 'config' 'force_fdp'; append _string "$v" ","
 +	fi
-+	if [ "$CONFIG_LLDPD_WITH_SONMP" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_SONMP" = "y" ]; then
 +		config_get_bool v 'config' 'enable_sonmp'; append _string "$v" ","
 +		config_get_bool v 'config' 'force_sonmp'; append _string "$v" ","
 +	fi
 +
-+	_hash=`echo -n "${_string}" | md5sum | awk '{ print \$1 }'`
++	_hash=$(echo -n "${_string}" | md5sum | awk '{ print $1 }')
 +	export -n "$var=$_hash"
 +}
 +
 +get_config_cid_ifaces() {
-+	local _ifacesCONFIG_LLDPD_WITH_FDP
++	local _ifaces
++	config_get _ifaces 'config' "$2"
 +
 +	local _iface _ifnames=""
 +	for _iface in $_ifaces; do
@@ -170,19 +190,45 @@
  	local lldp_description
  
  	config_load 'lldpd'
-@@ -45,12 +112,51 @@ write_lldpd_conf()
+@@ -31,91 +100,276 @@ write_lldpd_conf()
+ 	local lldp_hostname
+ 	config_get lldp_hostname 'config' 'lldp_hostname' "$(cat /proc/sys/kernel/hostname)"
+ 
+-	local ifaces
+-	config_get ifaces 'config' 'interface'
+-
+-	local iface ifnames=""
+-	for iface in $ifaces; do
+-		local ifname=""
+-		if network_get_device ifname "$iface" || [ -e "/sys/class/net/$iface" ]; then
+-			append ifnames "${ifname:-$iface}" ","
+-		fi
+-	done
++	local ifnames
++	get_config_cid_ifaces ifnames "interface"
+ 
  	local lldp_mgmt_ip
  	config_get lldp_mgmt_ip 'config' 'lldp_mgmt_ip'
  
 +	local lldp_syscapabilities
 +	config_get lldp_syscapabilities 'config' 'lldp_syscapabilities'
 +
-+	if [ "$CONFIG_LLDPD_WITH_LLDPMED" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_LLDPMED" = "y" ]; then
 +		local lldpmed_fast_start
 +		config_get_bool lldpmed_fast_start 'config' 'lldpmed_fast_start' 0
 +
 +		local lldpmed_fast_start_tx_interval
 +		config_get lldpmed_fast_start_tx_interval 'config' 'lldpmed_fast_start_tx_interval' 0
++
++		local lldp_location
++		config_get lldp_location 'config' 'lldp_location'
++
++		local lldp_class
++		config_get lldp_class 'config' 'lldp_class'
++
++		local lldp_policy
++		config_get lldp_policy 'config' 'lldp_policy'
++
 +	fi
 +
 +	local lldp_agenttype
@@ -202,27 +248,42 @@
 +
  	# Clear out the config file first
  	echo -n > "$LLDPD_CONF"
- 	[ -n "$ifnames" ] && echo "configure system interface pattern" "$ifnames" >> "$LLDPD_CONF"
+-	[ -n "$ifnames" ] && echo "configure system interface pattern" "$ifnames" >> "$LLDPD_CONF"
++	[ -n "$ifnames" ] && echo "configure system interface pattern $ifnames" >> "$LLDPD_CONF"
  	[ -n "$lldp_description" ] && echo "configure system description" "\"$lldp_description\"" >> "$LLDPD_CONF"
  	[ -n "$lldp_hostname" ] && echo "configure system hostname" "\"$lldp_hostname\"" >> "$LLDPD_CONF"
  	[ -n "$lldp_mgmt_ip" ] && echo "configure system ip management pattern" "\"$lldp_mgmt_ip\"" >> "$LLDPD_CONF"
-+	[ -n "$lldp_syscapabilities" ] && echo "configure system capabilities enabled" "\"$lldp_syscapabilities\"" >> "$LLDPD_CONF"
-+	if [ "$CONFIG_LLDPD_WITH_LLDPMED" == "y" ] && [ $lldpmed_fast_start -gt 0 ]; then
-+		if [ $lldpmed_fast_start_tx_interval -gt 0 ]; then
-+			echo "configure med fast-start tx-interval" "\"$lldpmed_fast_start_tx_interval\"" >> "$LLDPD_CONF"
++	[ -n "$lldp_syscapabilities" ] && echo "configure system capabilities enabled $lldp_syscapabilities" >> "$LLDPD_CONF"
++	if [ "$CONFIG_LLDPD_WITH_LLDPMED" = "y" ] && [ "$lldpmed_fast_start" -gt 0 ]; then
++		if [ "$lldpmed_fast_start_tx_interval" -gt 0 ]; then
++			echo "configure med fast-start tx-interval $lldpmed_fast_start_tx_interval" >> "$LLDPD_CONF"
 +		else
-+			echo "configure med fast-start" "enable" >> "$LLDPD_CONF"
++			echo "configure med fast-start enable" >> "$LLDPD_CONF"
 +		fi
 +	fi
++	if [ "$CONFIG_LLDPD_WITH_LLDPMED" = "y" ]; then
++		# other 'configure med xxx' statements go here
++
++		[ -n "$lldp_location" ] && echo "configure med location" "$lldp_location" >> "$LLDPD_CONF"
++
++		# Manual states that if Class (-M) is 2 or 3, at least one network policy must be defined
++		case "$lldp_class" in
++			2 | 3 ) [ -n "$lldp_policy" ] && echo "configure med policy $lldp_policy" >> "$LLDPD_CONF"
++			;;
++		esac
++
++	fi
++
 +	[ -n "$lldp_agenttype" ] && echo "configure lldp agent-type" "\"$lldp_agenttype\"" >> "$LLDPD_CONF"
 +	[ -n "$lldp_portidsubtype" ] && echo "configure lldp portidsubtype" "\"$lldp_portidsubtype\"" >> "$LLDPD_CONF"
 +	[ -n "$lldp_platform" ] && echo "configure system platform" "\"$lldp_platform\"" >> "$LLDPD_CONF"
-+	[ $lldp_tx_interval -gt 0 ] && echo "configure lldp tx-interval" "$lldp_tx_interval" >> "$LLDPD_CONF"
-+	[ $lldp_tx_hold -gt 0 ] && echo "configure lldp tx-hold" "$lldp_tx_hold" >> "$LLDPD_CONF"
++	[ -n "$lldp_tx_interval" ] && echo "configure lldp tx-interval $lldp_tx_interval" >> "$LLDPD_CONF"
++	[ "$lldp_tx_hold" -gt 0 ] && echo "configure lldp tx-hold $lldp_tx_hold" >> "$LLDPD_CONF"
  
  	# Since lldpd's sysconfdir is /tmp, we'll symlink /etc/lldpd.d to /tmp/$LLDPD_CONFS_DIR
- 	[ -e $LLDPD_CONFS_DIR ] || ln -s /etc/lldpd.d $LLDPD_CONFS_DIR
-@@ -58,50 +164,175 @@ write_lldpd_conf()
+-	[ -e $LLDPD_CONFS_DIR ] || ln -s /etc/lldpd.d $LLDPD_CONFS_DIR
++	[ -e "$LLDPD_CONFS_DIR" ] || ln -s /etc/lldpd.d "$LLDPD_CONFS_DIR"
+ }
  
  start_service() {
  
@@ -239,7 +300,7 @@
  	local enable_edp
 +	local force_edp
  	local lldp_class
- 	local lldp_location
+-	local lldp_location
 +	local lldp_no_version
 +	local lldpmed_no_inventory
  	local readonly_mode
@@ -253,33 +314,33 @@
 -	config_get_bool enable_edp 'config' 'enable_edp' 0
 +	config_get_bool enable_lldp 'config' 'enable_lldp' 1
 +	config_get_bool force_lldp 'config' 'force_lldp' 0
-+	if [ "$CONFIG_LLDPD_WITH_CDP" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_CDP" = "y" ]; then
 +		config_get_bool enable_cdp 'config' 'enable_cdp' 0
 +		config_get cdp_version 'config' 'cdp_version' 'cdpv1v2'
 +		config_get_bool force_cdp 'config' 'force_cdp' 0
 +		config_get_bool force_cdpv2 'config' 'force_cdpv2' 0
 +	fi
-+	if [ "$CONFIG_LLDPD_WITH_FDP" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_FDP" = "y" ]; then
 +		config_get_bool enable_fdp 'config' 'enable_fdp' 0
 +		config_get_bool force_fdp 'config' 'force_fdp' 0
 +	fi
-+	if [ "$CONFIG_LLDPD_WITH_SONMP" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_SONMP" = "y" ]; then
 +		config_get_bool enable_sonmp 'config' 'enable_sonmp' 0
 +		config_get_bool force_sonmp 'config' 'force_sonmp' 0
 +	fi
-+	if [ "$CONFIG_LLDPD_WITH_EDP" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_EDP" = "y" ]; then
 +		config_get_bool enable_edp 'config' 'enable_edp' 0
 +		config_get_bool force_edp 'config' 'force_edp' 0
 +	fi
  	config_get lldp_class 'config' 'lldp_class'
- 	config_get lldp_location 'config' 'lldp_location'
+-	config_get lldp_location 'config' 'lldp_location'
 +	config_get_bool lldp_no_version 'config' 'lldp_no_version' 0
-+	if [ "$CONFIG_LLDPD_WITH_LLDPMED" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_LLDPMED" = "y" ]; then
 +		config_get_bool lldpmed_no_inventory 'config' 'lldpmed_no_inventory' 0
 +	fi
  	config_get_bool readonly_mode 'config' 'readonly_mode' 0
 -	config_get agentxsocket 'config' 'agentxsocket'
-+	if [ "$CONFIG_LLDPD_WITH_SNMP" == "y" ]; then
++	if [ "$CONFIG_LLDPD_WITH_SNMP" = "y" ]; then
 +		config_get agentxsocket 'config' 'agentxsocket'
 +	fi
 +	config_get filter 'config' 'filter' 15
@@ -295,11 +356,17 @@
  	procd_open_instance
 -	procd_set_param command /usr/sbin/lldpd
 -	procd_append_param command -d # don't daemonize, procd will handle that for us
+-
+-	[ $enable_cdp -gt 0 ] && procd_append_param command '-c'
+-	[ $enable_fdp -gt 0 ] && procd_append_param command '-f'
+-	[ $enable_sonmp -gt 0 ] && procd_append_param command '-s'
+-	[ $enable_edp -gt 0 ] && procd_append_param command '-e'
+-	[ $readonly_mode -gt 0 ] && procd_append_param command '-r'
 +	procd_set_param command ${LLDPDBIN}
 +	procd_append_param command -d
 +
-+	if [ $enable_lldp -gt 0 ]; then
-+		if [ $force_lldp -gt 0 ]; then
++	if [ "$enable_lldp" -gt 0 ]; then
++		if [ "$force_lldp" -gt 0 ]; then
 +			procd_append_param command '-l'
 +		fi
 +	else
@@ -307,20 +374,20 @@
 +		procd_append_param command '-ll'
 +	fi
 +
-+	if [ "$CONFIG_LLDPD_WITH_CDP" == "y" ] && [ $enable_cdp -gt 0 ]; then
-+		if [ $cdp_version == "cdpv2" ]; then
-+			if [ $force_cdp -gt 0 ]; then
++	if [ "$CONFIG_LLDPD_WITH_CDP" = "y" ] && [ "$enable_cdp" -gt 0 ]; then
++		if [ "$cdp_version" = "cdpv2" ]; then
++			if [ "$force_cdp" -gt 0 ]; then
 +				# CDPv1 disabled, CDPv2 forced
 +				procd_append_param command '-ccccc'
 +			else
 +				# CDPv1 disabled, CDPv2 enabled
 +				procd_append_param command '-cccc'
 +			fi
-+		elif [ $cdp_version == "cdpv1v2" ]; then
-+			if [ $force_cdp -gt 0 ] && [ $force_cdpv2 -gt 0 ]; then
++		elif [ "$cdp_version" = "cdpv1v2" ]; then
++			if [ "$force_cdp" -gt 0 ] && [ "$force_cdpv2" -gt 0 ]; then
 +				# CDPv1 enabled, CDPv2 forced
 +				procd_append_param command '-ccc'
-+			elif [ $force_cdp -gt 0 ]; then
++			elif [ "$force_cdp" -gt 0 ]; then
 +				# CDPv1 forced, CDPv2 enabled
 +				procd_append_param command '-cc'
 +			else
@@ -330,9 +397,9 @@
 +		fi
 +	fi
 +
-+	if [ "$CONFIG_LLDPD_WITH_FDP" == "y" ] && [ $enable_fdp -gt 0 ]; then
-+		if [ $force_fdp -gt 0 ]; then
-+			# FDP enbled and forced
++	if [ "$CONFIG_LLDPD_WITH_FDP" = "y" ] && [ "$enable_fdp" -gt 0 ]; then
++		if [ "$force_fdp" -gt 0 ]; then
++			# FDP enabled and forced
 +			procd_append_param command '-ff'
 +		else
 +			# FDP enabled
@@ -340,8 +407,8 @@
 +		fi
 +	fi
 +
-+	if [ "$CONFIG_LLDPD_WITH_SONMP" == "y" ] && [ $enable_sonmp -gt 0 ]; then
-+		if [ $force_sonmp -gt 0 ]; then
++	if [ "$CONFIG_LLDPD_WITH_SONMP" = "y" ] && [ "$enable_sonmp" -gt 0 ]; then
++		if [ "$force_sonmp" -gt 0 ]; then
 +			# SONMP enabled and forced
 +			procd_append_param command '-ss'
 +		else
@@ -350,31 +417,28 @@
 +		fi
 +	fi
 +
-+	if [ "$CONFIG_LLDPD_WITH_EDP" == "y" ] && [ $enable_edp -gt 0 ]; then
-+		if [ $force_edp -gt 0 ]; then
-+			# EDP enbled and forced
++	if [ "$CONFIG_LLDPD_WITH_EDP" = "y" ] && [ "$enable_edp" -gt 0 ]; then
++		if [ "$force_edp" -gt 0 ]; then
++			# EDP enabled and forced
 +			procd_append_param command '-ee'
 +		else
-+			# EDP enbled
++			# EDP enabled
 +			procd_append_param command '-e'
 +		fi
 +	fi
- 
--	[ $enable_cdp -gt 0 ] && procd_append_param command '-c'
--	[ $enable_fdp -gt 0 ] && procd_append_param command '-f'
--	[ $enable_sonmp -gt 0 ] && procd_append_param command '-s'
--	[ $enable_edp -gt 0 ] && procd_append_param command '-e'
- 	[ $readonly_mode -gt 0 ] && procd_append_param command '-r'
-+	[ $lldp_no_version -gt 0 ] && procd_append_param commanpackage/network/services/lldpd/Makefile package/network/services/lldpd/files/lldpd.initd '-k'
-+	[ "$CONFIG_LLDPD_WITH_LLDPMED" == "y" ] && [ $lldpmed_no_inventory -gt 0 ] && procd_append_param command '-i'
++
++	[ "$readonly_mode" -gt 0 ] && procd_append_param command '-r'
++	[ "$lldp_no_version" -gt 0 ] && procd_append_param command '-k'
++	[ "$CONFIG_LLDPD_WITH_LLDPMED" = "y" ] && [ "$lldpmed_no_inventory" -gt 0 ] && procd_append_param command '-i'
  	[ -n "$lldp_class" ] && procd_append_param command -M "$lldp_class"
 -	[ -n "$agentxsocket" ] && procd_append_param command -x -X "$agentxsocket"
-+	[ "$CONFIG_LLDPD_WITH_SNMP" == "y" ] && [ -n "$agentxsocket" ] && procd_append_param command -x -X "$agentxsocket"
++	[ "$CONFIG_LLDPD_WITH_SNMP" = "y" ] && [ -n "$agentxsocket" ] && procd_append_param command -x -X "$agentxsocket"
 +	[ -n "$filter" ] && procd_append_param command -H "$filter"
 +
 +    # ChassisID interfaces
 +	local ifnames
-+	get_config_cid_ifaces ifnames
++	get_config_cid_ifaces ifnames "cid_interface"
++
 +	[ -n "$ifnames" ] && procd_append_param command -C "$ifnames"
 +
 +    # Overwrite default configuration locations processed by lldpcli at start
@@ -382,7 +446,7 @@
 +
 +	local restart_hash
 +	get_config_restart_hash restart_hash
-+	echo -n "$restart_hash" > $LLDPD_RESTART_HASH
++	echo -n "$restart_hash" > "$LLDPD_RESTART_HASH"
  
  	# set auto respawn behavior
  	procd_set_param respawn
@@ -395,12 +459,13 @@
 +
  reload_service() {
  	running || return 1
+-	$LLDPCLI -u $LLDPSOCKET &> /dev/null <<-EOF
 +	
 +	local running_hash=""
 +	local config_hash=""
 +
 +	get_config_restart_hash config_hash
-+	if [ -f ${LLDPD_RESTART_HASH} ]; then running_hash=`cat $LLDPD_RESTART_HASH`; fi
++	[ -f ${LLDPD_RESTART_HASH} ] && running_hash=$(cat "$LLDPD_RESTART_HASH")
 +
 +	if [ "x$running_hash" != "x$config_hash" ]; then
 +		# Restart LLDPd
@@ -409,17 +474,17 @@
 +		return 0
 +	fi
 +
- 	$LLDPCLI -u $LLDPSOCKET &> /dev/null <<-EOF
++	$LLDPCLI -u "$LLDPSOCKET" 2>&1 /dev/null <<-EOF
  		pause
  		unconfigure lldp custom-tlv
-@@ -109,7 +340,14 @@ reload_service() {
+ 		unconfigure system interface pattern
  		unconfigure system description
  		unconfigure system hostname
  		unconfigure system ip management pattern
 +		unconfigure system platform
  	EOF
-+	if [ "$CONFIG_LLDPD_WITH_LLDPMED" == "y" ]; then
-+		$LLDPCLI -u $LLDPSOCKET &> /dev/null <<-EOF
++	if [ "$CONFIG_LLDPD_WITH_LLDPMED" = "y" ]; then
++		$LLDPCLI -u "$LLDPSOCKET" 2>&1 /dev/null <<-EOF
 +			unconfigure med fast-start
 +		EOF
 +
@@ -427,12 +492,20 @@
  	# Rewrite lldpd.conf
  	# If something changed it should be included by the lldpcli call
  	write_lldpd_conf
-@@ -123,5 +361,6 @@ reload_service() {
+-	$LLDPCLI -u $LLDPSOCKET -c $LLDPD_CONF -c $LLDPD_CONFS_DIR &> /dev/null
++	$LLDPCLI -u "$LLDPSOCKET" -c "$LLDPD_CONF" -c "$LLDPD_CONFS_DIR" 2>&1 /dev/null
+ 	# Broadcast update over the wire
+-	$LLDPCLI -u $LLDPSOCKET &> /dev/null <<-EOF
++	$LLDPCLI -u "$LLDPSOCKET" 2>&1 /dev/null <<-EOF
+ 		resume
+ 		update
+ 	EOF
+@@ -123,5 +377,6 @@ reload_service() {
  }
  
  stop_service() {
 -	rm -rf /var/run/lldp $LLDPSOCKET
-+	rm -rf ${LLDPD_RUN} $LLDPSOCKET 2>/dev/null
++	rm -rf ${LLDPD_RUN} "$LLDPSOCKET" 2> /dev/null
  }
 +
 --- a/package/network/services/lldpd/patches/001-disable_libcap.patch
