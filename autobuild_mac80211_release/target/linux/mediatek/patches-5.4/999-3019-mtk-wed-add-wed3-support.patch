@@ -1,4 +1,4 @@
-From da90def8adfa6139e8710c282a41024cfc4b23b3 Mon Sep 17 00:00:00 2001
+From b6e8f376899070b8109c3413b15e572f8f03dc06 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 13:21:15 +0800
 Subject: [PATCH] mtk:wed:add wed3 support
@@ -392,7 +392,7 @@ index 95174b7..2d432f2 100644
  		return err;
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index a7d2166..92df014 100644
+index a7d2166..ab561f7 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -23,9 +23,45 @@
@@ -614,7 +614,7 @@ index a7d2166..92df014 100644
 +	}
 +
 +	/* eagle E1 PCIE1 tx ring 22 flow control issue */
-+	if (dev->wlan.id == 0x7991)
++	if (dev->wlan.id == 0x7991 || dev->wlan.id == 0x7992)
 +		wed_clr(dev, MTK_WED_AMSDU_FIFO, MTK_WED_AMSDU_IS_PRIOR0_RING);
 +
 +	wed_set(dev, MTK_WED_CTRL, MTK_WED_CTRL_TX_AMSDU_EN);
