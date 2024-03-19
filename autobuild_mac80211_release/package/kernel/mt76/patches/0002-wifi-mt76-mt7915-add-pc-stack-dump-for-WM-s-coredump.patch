@@ -1,7 +1,7 @@
-From a74a188c1fbce728e9ec1fff821c87d9f28ec501 Mon Sep 17 00:00:00 2001
+From 5767bce45ee5ea588072389762af8b5aab9227a5 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 22 May 2023 13:49:37 +0800
-Subject: [PATCH 02/15] wifi: mt76: mt7915: add pc stack dump for WM's
+Subject: [PATCH 02/14] wifi: mt76: mt7915: add pc stack dump for WM's
  coredump.
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
@@ -16,7 +16,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  7 files changed, 207 insertions(+), 71 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 6282cb64..03116ffe 100644
+index 619d50df..52a20868 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -27,6 +27,8 @@
@@ -52,7 +52,7 @@ index 6282cb64..03116ffe 100644
  	struct net_device napi_dev;
  	struct net_device tx_napi_dev;
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 7602f979..fe5250c5 100644
+index 368c5f46..4be806e2 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -2933,6 +2933,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
@@ -514,10 +514,10 @@ index 709f8e9c..809ccbdf 100644
  	return NULL;
  }
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 9e1cfa6c..3fe1cf10 100644
+index b9152018..0f6b8067 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
-@@ -1592,28 +1592,31 @@ void mt7915_mac_reset_work(struct work_struct *work)
+@@ -1597,28 +1597,31 @@ void mt7915_mac_reset_work(struct work_struct *work)
  }
  
  /* firmware coredump */
@@ -555,7 +555,7 @@ index 9e1cfa6c..3fe1cf10 100644
  	if (!mem_region || !crash_data->memdump_buf_len) {
  		mutex_unlock(&dev->dump_mutex);
  		goto skip_memdump;
-@@ -1623,6 +1626,9 @@ void mt7915_mac_dump_work(struct work_struct *work)
+@@ -1628,6 +1631,9 @@ void mt7915_mac_dump_work(struct work_struct *work)
  	buf_len = crash_data->memdump_buf_len;
  
  	/* dumping memory content... */
@@ -565,7 +565,7 @@ index 9e1cfa6c..3fe1cf10 100644
  	memset(buf, 0, buf_len);
  	for (i = 0; i < num; i++) {
  		if (mem_region->len > buf_len) {
-@@ -1640,6 +1646,7 @@ void mt7915_mac_dump_work(struct work_struct *work)
+@@ -1645,6 +1651,7 @@ void mt7915_mac_dump_work(struct work_struct *work)
  		mt7915_memcpy_fromio(dev, buf, mem_region->start,
  				     mem_region->len);
  
@@ -573,7 +573,7 @@ index 9e1cfa6c..3fe1cf10 100644
  		hdr->start = mem_region->start;
  		hdr->len = mem_region->len;
  
-@@ -1656,8 +1663,18 @@ void mt7915_mac_dump_work(struct work_struct *work)
+@@ -1661,8 +1668,18 @@ void mt7915_mac_dump_work(struct work_struct *work)
  	mutex_unlock(&dev->dump_mutex);
  
  skip_memdump:
@@ -595,7 +595,7 @@ index 9e1cfa6c..3fe1cf10 100644
  }
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 44950ab1..35458ec9 100644
+index aee30c73..5cd2b334 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -286,7 +286,7 @@ struct mt7915_dev {

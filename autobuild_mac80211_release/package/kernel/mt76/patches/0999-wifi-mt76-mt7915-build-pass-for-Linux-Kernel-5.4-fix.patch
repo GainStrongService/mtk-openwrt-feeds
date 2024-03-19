@@ -1,7 +1,7 @@
-From 4b62bab516e29c15467578acbaabf3bc6a911f3e Mon Sep 17 00:00:00 2001
+From f78b88037989c5a1d41e26c1d966166554dd605e Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Sat, 1 Apr 2023 08:18:17 +0800
-Subject: [PATCH 0999/1049] wifi: mt76: mt7915: build pass for Linux Kernel 5.4
+Subject: [PATCH 0999/1051] wifi: mt76: mt7915: build pass for Linux Kernel 5.4
  fixes
 
 ---
@@ -38,7 +38,7 @@ index c4649ba0..1c8328d5 100644
  	return 0;
  }
 diff --git a/dma.c b/dma.c
-index 72a7bd5a..8240691f 100644
+index f4f88c44..ccdd5646 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -178,7 +178,7 @@ mt76_free_pending_rxwi(struct mt76_dev *dev)
@@ -76,7 +76,7 @@ index 72a7bd5a..8240691f 100644
  	}
  
  done:
-@@ -630,11 +630,11 @@ free_skb:
+@@ -631,11 +631,11 @@ free_skb:
  	return ret;
  }
  
@@ -91,7 +91,7 @@ index 72a7bd5a..8240691f 100644
  
  	if (!q->ndesc)
  		return 0;
-@@ -642,30 +642,30 @@ int mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -643,30 +643,30 @@ int mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q,
  	spin_lock_bh(&q->lock);
  
  	while (q->queued < q->ndesc - 1) {
@@ -134,7 +134,7 @@ index 72a7bd5a..8240691f 100644
  		}
  		frames++;
  	}
-@@ -718,10 +718,6 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -719,10 +719,6 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
  	if (!q->entry)
  		return -ENOMEM;
  
@@ -145,7 +145,7 @@ index 72a7bd5a..8240691f 100644
  	ret = mt76_wed_dma_setup(dev, q, false);
  	if (ret)
  		return ret;
-@@ -740,6 +736,7 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -741,6 +737,7 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
  static void
  mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
  {
@@ -153,7 +153,7 @@ index 72a7bd5a..8240691f 100644
  	void *buf;
  	bool more;
  
-@@ -755,7 +752,7 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -756,7 +753,7 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
  			break;
  
  		if (!mt76_queue_is_wed_rro(q))
@@ -162,7 +162,7 @@ index 72a7bd5a..8240691f 100644
  	} while (1);
  
  	spin_lock_bh(&q->lock);
-@@ -765,6 +762,13 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
+@@ -766,6 +763,13 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
  	}
  
  	spin_unlock_bh(&q->lock);
@@ -176,7 +176,7 @@ index 72a7bd5a..8240691f 100644
  }
  
  static void
-@@ -795,7 +799,7 @@ mt76_dma_rx_reset(struct mt76_dev *dev, enum mt76_rxq_id qid)
+@@ -796,7 +800,7 @@ mt76_dma_rx_reset(struct mt76_dev *dev, enum mt76_rxq_id qid)
  		return;
  
  	mt76_dma_sync_idx(dev, q);
@@ -185,7 +185,7 @@ index 72a7bd5a..8240691f 100644
  }
  
  static void
-@@ -812,7 +816,7 @@ mt76_add_fragment(struct mt76_dev *dev, struct mt76_queue *q, void *data,
+@@ -813,7 +817,7 @@ mt76_add_fragment(struct mt76_dev *dev, struct mt76_queue *q, void *data,
  
  		skb_add_rx_frag(skb, nr_frags, page, offset, len, q->buf_size);
  	} else {
@@ -194,7 +194,7 @@ index 72a7bd5a..8240691f 100644
  	}
  
  	if (more)
-@@ -882,12 +886,11 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
+@@ -883,12 +887,11 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
  		    !(dev->drv->rx_check(dev, data, len)))
  			goto free_frag;
  
@@ -208,7 +208,7 @@ index 72a7bd5a..8240691f 100644
  
  		*(u32 *)skb->cb = info;
  
-@@ -903,10 +906,10 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
+@@ -904,10 +907,10 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
  		continue;
  
  free_frag:
@@ -221,7 +221,7 @@ index 72a7bd5a..8240691f 100644
  	return done;
  }
  
-@@ -951,7 +954,7 @@ mt76_dma_init(struct mt76_dev *dev,
+@@ -952,7 +955,7 @@ mt76_dma_init(struct mt76_dev *dev,
  
  	mt76_for_each_q_rx(dev, i) {
  		netif_napi_add(&dev->napi_dev, &dev->napi[i], poll);
@@ -230,7 +230,7 @@ index 72a7bd5a..8240691f 100644
  		napi_enable(&dev->napi[i]);
  	}
  
-@@ -1006,8 +1009,6 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
+@@ -1007,8 +1010,6 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
  
  		netif_napi_del(&dev->napi[i]);
  		mt76_dma_rx_cleanup(dev, q);
@@ -369,7 +369,7 @@ index a8cafa39..fa4b0544 100644
  struct sk_buff *
  __mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
 diff --git a/mt76.h b/mt76.h
-index b1f49973..8b6e0a1c 100644
+index 9ad4f8e1..a07c7df9 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -233,7 +233,7 @@ struct mt76_queue {
@@ -448,7 +448,7 @@ index 1be41d66..e23a41cb 100644
  
  	if (chandef->width >= ARRAY_SIZE(width_to_bw))
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index fe5250c5..7692423b 100644
+index 4be806e2..3433adb2 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -4,6 +4,7 @@
@@ -537,10 +537,10 @@ index 8d516e40..ea71d533 100644
  int mt76_connac_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
  			    struct mt76_connac_sta_key_conf *sta_key_conf,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 1548c1fb..4e9a509e 100644
+index 9eeca394..407da078 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1434,22 +1434,20 @@ void mt7915_get_et_strings(struct ieee80211_hw *hw,
+@@ -1438,22 +1438,20 @@ void mt7915_get_et_strings(struct ieee80211_hw *hw,
  			   struct ieee80211_vif *vif,
  			   u32 sset, u8 *data)
  {
@@ -569,7 +569,7 @@ index 1548c1fb..4e9a509e 100644
  }
  
  static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
-@@ -1477,7 +1475,7 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
+@@ -1481,7 +1479,7 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
  		.idx = mvif->mt76.idx,
  	};
  	/* See mt7915_ampdu_stat_read_phy, etc */
@@ -578,7 +578,7 @@ index 1548c1fb..4e9a509e 100644
  
  	mutex_lock(&dev->mt76.mutex);
  
-@@ -1589,12 +1587,9 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
+@@ -1593,12 +1591,9 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
  		return;
  
  	ei += wi.worker_stat_count;
@@ -595,7 +595,7 @@ index 1548c1fb..4e9a509e 100644
  
  static void
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index d443d503..32b60963 100644
+index 446c512b..8f6bc6e6 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -6,6 +6,7 @@
@@ -607,7 +607,7 @@ index d443d503..32b60963 100644
  #define fw_name(_dev, name, ...)	({			\
  	char *_fw;						\
 diff --git a/usb.c b/usb.c
-index 1b25f2e5..46831a27 100644
+index dc690d1c..058f2d12 100644
 --- a/usb.c
 +++ b/usb.c
 @@ -319,27 +319,29 @@ mt76u_set_endpoints(struct usb_interface *intf,
