@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mt76/Makefile b/package/kernel/mt76/Makefile
-index 762f474c..6a856513 100644
+index 4f0fb5f6..54635763 100644
 --- a/package/kernel/mt76/Makefile
 +++ b/package/kernel/mt76/Makefile
 @@ -233,7 +233,7 @@ endef
@@ -38,7 +38,7 @@ index 762f474c..6a856513 100644
    FILES:= $(PKG_BUILD_DIR)/mt7996/mt7996e.ko
    AUTOLOAD:=$(call AutoProbe,mt7996e)
  endef
-@@ -370,6 +370,11 @@ ifdef CONFIG_PACKAGE_MAC80211_MESH
+@@ -376,6 +376,11 @@ ifdef CONFIG_PACKAGE_MAC80211_MESH
    NOSTDINC_FLAGS += -DCONFIG_MAC80211_MESH
  endif
  
@@ -50,7 +50,7 @@ index 762f474c..6a856513 100644
  ifdef CONFIG_PACKAGE_CFG80211_TESTMODE
    NOSTDINC_FLAGS += -DCONFIG_NL80211_TESTMODE
    PKG_MAKE_FLAGS += CONFIG_NL80211_TESTMODE=y
-@@ -432,7 +437,11 @@ ifdef CONFIG_PACKAGE_kmod-mt7663u
+@@ -438,7 +443,11 @@ ifdef CONFIG_PACKAGE_kmod-mt7663u
  endif
  ifdef CONFIG_PACKAGE_kmod-mt7915e
    PKG_MAKE_FLAGS += CONFIG_MT7915E=m
@@ -63,7 +63,7 @@ index 762f474c..6a856513 100644
      PKG_MAKE_FLAGS += CONFIG_MT798X_WMAC=y
      NOSTDINC_FLAGS += -DCONFIG_MT798X_WMAC
    endif
-@@ -469,7 +478,8 @@ ifdef CONFIG_PACKAGE_kmod-mt7925e
+@@ -475,7 +484,8 @@ ifdef CONFIG_PACKAGE_kmod-mt7925e
  endif
  
  define Build/Compile
@@ -73,7 +73,7 @@ index 762f474c..6a856513 100644
  		$(PKG_MAKE_FLAGS) \
  		M="$(PKG_BUILD_DIR)" \
  		NOSTDINC_FLAGS="$(NOSTDINC_FLAGS)" \
-@@ -562,6 +572,8 @@ define KernelPackage/mt7915-firmware/install
+@@ -568,6 +578,8 @@ define KernelPackage/mt7915-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7915_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7915_wm.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7915_rom_patch.bin \
@@ -82,7 +82,7 @@ index 762f474c..6a856513 100644
  		$(1)/lib/firmware/mediatek
  endef
  
-@@ -571,6 +583,7 @@ define KernelPackage/mt7916-firmware/install
+@@ -577,6 +589,7 @@ define KernelPackage/mt7916-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7916_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7916_wm.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7916_rom_patch.bin \
@@ -90,21 +90,21 @@ index 762f474c..6a856513 100644
  		$(1)/lib/firmware/mediatek
  endef
  
-@@ -580,7 +593,13 @@ define KernelPackage/mt7981-firmware/install
+@@ -586,7 +599,13 @@ define KernelPackage/mt7981-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7981_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7981_wm.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7981_rom_patch.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7981_eeprom_mt7976_dbdc.bin \
-+		$(1)/lib/firmware/mediatek
+ 		$(1)/lib/firmware/mediatek
 +ifdef CONFIG_NET_MEDIATEK_SOC_WED
 +	cp \
 +		$(PKG_BUILD_DIR)/firmware/mt7981_wo.bin \
- 		$(1)/lib/firmware/mediatek
++		$(1)/lib/firmware/mediatek
 +endif
  endef
  
  define KernelPackage/mt7986-firmware/install
-@@ -591,9 +610,62 @@ define KernelPackage/mt7986-firmware/install
+@@ -597,8 +616,60 @@ define KernelPackage/mt7986-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7986_wm.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7986_rom_patch_mt7975.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7986_rom_patch.bin \
@@ -120,8 +120,8 @@ index 762f474c..6a856513 100644
 +		$(PKG_BUILD_DIR)/firmware/mt7986_wo_1.bin \
 + 		$(1)/lib/firmware/mediatek
 +endif
- endef
- 
++endef
++
 +ifdef CONFIG_PACKAGE_kmod-mt7996e
 +define KernelPackage/mt7996e/install
 +	$(INSTALL_DIR) $(1)/lib/firmware/mediatek/mt7996
@@ -138,7 +138,6 @@ index 762f474c..6a856513 100644
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_eeprom.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_eeprom_233.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_eeprom_dual_404.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_eeprom_tm.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_wa.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_wm.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_wm_tm.bin \
@@ -161,9 +160,8 @@ index 762f474c..6a856513 100644
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_dsp_24.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_eeprom_24_2i5i.bin \
 +		$(1)/lib/firmware/mediatek/mt7996
-+endef
+ endef
 +endif
-+
+ 
  define KernelPackage/mt7921-firmware/install
  	$(INSTALL_DIR) $(1)/lib/firmware/mediatek
- 	cp \
