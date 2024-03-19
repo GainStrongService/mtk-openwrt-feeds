@@ -175,6 +175,7 @@
 
 /* GDM and CDM Threshold */
 #define MTK_GDM2_THRES		0x1530
+#define MTK_CDM2_THRES		0x1534
 #define MTK_CDMW0_THRES		0x164c
 #define MTK_CDMW1_THRES		0x1650
 #define MTK_CDME0_THRES		0x1654
