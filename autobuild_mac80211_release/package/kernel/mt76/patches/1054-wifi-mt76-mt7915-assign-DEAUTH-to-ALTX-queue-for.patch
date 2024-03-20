@@ -1,4 +1,4 @@
-From acb471cadec0bb69035099acab4f6d2b247b81a2 Mon Sep 17 00:00:00 2001
+From a8a291acfb296d02ea780e466e080d789f70af21 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Tue, 19 Mar 2024 08:35:26 +0800
 Subject: [PATCH] mtk: wifi: mt76: mt7915: assign DEAUTH to ALTX queue for CERT
@@ -9,7 +9,7 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 10 insertions(+)
 
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index abb95b3..5da130c 100644
+index abb95b3..edeb618 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -385,6 +385,8 @@ mt76_connac2_mac_write_txwi_80211(struct mt76_dev *dev, __le32 *txwi,
@@ -17,7 +17,7 @@ index abb95b3..5da130c 100644
  				  struct ieee80211_key_conf *key)
  {
 +	struct mt76_phy *mphy =
-+		mt76_dev_phy(&dev->mt76, le32_get_bits(txwi[1], MT_TXD1_TGID));
++		mt76_dev_phy(dev, le32_get_bits(txwi[1], MT_TXD1_TGID));
  	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
  	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
  	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
