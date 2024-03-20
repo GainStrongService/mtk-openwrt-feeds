@@ -1,4 +1,4 @@
-From 66214dc8395a0f40eae6216b76b0d38d8381554b Mon Sep 17 00:00:00 2001
+From a86c3c6d2be2e115540d0a6ce5166943fd6657ba Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Tue, 21 Nov 2023 09:55:46 +0800
 Subject: [PATCH 1027/1044] mtk: wifi: mt76: mt7996: add SER overlap handle
@@ -26,10 +26,10 @@ index 2926f715..a7afa2d7 100644
  
  		ret = dev->mcu_ops->mcu_skb_send_msg(dev, skb_tmp, cmd, &seq);
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 7efe7db5..dc806892 100644
+index c6d79989..2e0fb5d9 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1877,6 +1877,7 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -1889,6 +1889,7 @@ void mt7996_mac_reset_work(struct work_struct *work)
  	if (!(READ_ONCE(dev->recovery.state) & MT_MCU_CMD_STOP_DMA))
  		return;
  
@@ -37,7 +37,7 @@ index 7efe7db5..dc806892 100644
  	dev_info(dev->mt76.dev,"\n%s L1 SER recovery start.",
  		 wiphy_name(dev->mt76.hw->wiphy));
  
-@@ -1894,6 +1895,10 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -1906,6 +1907,10 @@ void mt7996_mac_reset_work(struct work_struct *work)
  
  	set_bit(MT76_RESET, &dev->mphy.state);
  	set_bit(MT76_MCU_RESET, &dev->mphy.state);
@@ -48,7 +48,7 @@ index 7efe7db5..dc806892 100644
  	wake_up(&dev->mt76.mcu.wait);
  
  	mt76_worker_disable(&dev->mt76.tx_worker);
-@@ -2108,6 +2113,9 @@ void mt7996_reset(struct mt7996_dev *dev)
+@@ -2120,6 +2125,9 @@ void mt7996_reset(struct mt7996_dev *dev)
  		return;
  	}
  

@@ -274,6 +274,7 @@ prepare_mac80211() {
 	rm -rf ${BUILD_DIR}/package/kernel/mt76/patches
 	rm -rf ${BUILD_DIR}/package/kernel/mt76/src
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
+	rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*build-on-linux-kernel-6.6.patch
 
 	# hack hostapd config
 	echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config

@@ -1,23 +1,28 @@
-From ddd742e7aa699899c0c8e50b86fb2d4181580f89 Mon Sep 17 00:00:00 2001
+From f513775361c7aae98ca2f816edb62b1744350325 Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Thu, 1 Feb 2024 10:32:42 +0800
-Subject: [PATCH 2022/2027] mtk: wifi: mt76: mt7996: eagle support extra
+Subject: [PATCH 2022/2032] mtk: wifi: mt76: mt7996: eagle support extra
  option_type
 
 1. eagle + mt7988d option_type 2 support
 2. eagle single pcie support
 
 Signed-off-by: Rex Lu <rex.lu@mediatek.com>
+
+1. adjust pcie outstanding value by pcie speed. not no longer by option_type.
+
+Signed-off-by: Rex Lu <rex.lu@mediatek.com>
 ---
- mt7996/dma.c    | 50 ++++++++++++++++++++++++++++++++----
+ mt7996/dma.c    | 51 +++++++++++++++++++++++++++++++++----
  mt7996/init.c   | 67 ++++++++++++++++++++++++++++++++++++++-----------
  mt7996/main.c   | 15 +++++++++--
- mt7996/mt7996.h |  2 ++
+ mt7996/mt7996.h |  5 ++++
+ mt7996/pci.c    |  2 +-
  mt7996/regs.h   |  5 ++++
- 5 files changed, 118 insertions(+), 21 deletions(-)
+ 6 files changed, 123 insertions(+), 22 deletions(-)
 
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index c23b0d65..57dd6f40 100644
+index c23b0d65..3dc0e8a1 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
 @@ -12,12 +12,20 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx, int n_desc,
@@ -88,11 +93,12 @@ index c23b0d65..57dd6f40 100644
  
  		if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
  		    is_mt7992(&dev->mt76)) {
-@@ -366,6 +398,14 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
+@@ -366,6 +398,15 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
  		mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL,
  			 MT_WFDMA_AXI_R2A_CTRL_OUTSTAND_MASK, 0x14);
  
-+		if (dev->option_type == 2) {
++		if (dev->hif2->speed < PCIE_SPEED_8_0GT ||
++		    (dev->hif2->speed == PCIE_SPEED_8_0GT && dev->hif2->width < 2)) {
 +			mt76_rmw(dev, WF_WFDMA0_GLO_CFG_EXT0 + hif1_ofs,
 +				 WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
 +				 FIELD_PREP(WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK, 0x3));
@@ -235,10 +241,27 @@ index e1c107fb..fd6fd78b 100644
  	if (!mtk_wed_device_active(wed))
  		return -ENODEV;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 6ea024ef..7a014918 100644
+index 6ea024ef..2ca6e55d 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -574,6 +574,8 @@ struct mt7996_dev {
+@@ -8,6 +8,7 @@
+ 
+ #include <linux/interrupt.h>
+ #include <linux/ktime.h>
++#include <linux/pci.h>
+ #include "../mt76_connac.h"
+ #include "regs.h"
+ 
+@@ -350,6 +351,8 @@ struct mt7996_hif {
+ 	struct device *dev;
+ 	void __iomem *regs;
+ 	int irq;
++	enum pci_bus_speed speed;
++	enum pcie_link_width width;
+ };
+ 
+ struct mt7996_scs_ctrl {
+@@ -574,6 +577,8 @@ struct mt7996_dev {
  	u8 eeprom_mode;
  	u32 bg_nxt_freq;
  
@@ -247,6 +270,26 @@ index 6ea024ef..7a014918 100644
  	bool ibf;
  	u8 fw_debug_wm;
  	u8 fw_debug_wa;
+diff --git a/mt7996/pci.c b/mt7996/pci.c
+index f0d3f199..24d69d4d 100644
+--- a/mt7996/pci.c
++++ b/mt7996/pci.c
+@@ -5,7 +5,6 @@
+ 
+ #include <linux/kernel.h>
+ #include <linux/module.h>
+-#include <linux/pci.h>
+ 
+ #include "mt7996.h"
+ #include "mac.h"
+@@ -93,6 +92,7 @@ static int mt7996_pci_hif2_probe(struct pci_dev *pdev)
+ 	hif->dev = &pdev->dev;
+ 	hif->regs = pcim_iomap_table(pdev)[0];
+ 	hif->irq = pdev->irq;
++	pcie_bandwidth_available(pdev, NULL, &hif->speed, &hif->width);
+ 	spin_lock_bh(&hif_lock);
+ 	list_add(&hif->list, &hif_list);
+ 	spin_unlock_bh(&hif_lock);
 diff --git a/mt7996/regs.h b/mt7996/regs.h
 index 476b23c3..050637c1 100644
 --- a/mt7996/regs.h

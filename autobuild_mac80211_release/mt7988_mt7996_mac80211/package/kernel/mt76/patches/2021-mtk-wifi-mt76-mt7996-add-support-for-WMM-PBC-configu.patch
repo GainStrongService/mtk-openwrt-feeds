@@ -1,7 +1,7 @@
-From c36bc3162a8dcc31757eea17701cb302cd00f621 Mon Sep 17 00:00:00 2001
+From 8871427856374447f4275cde02936e73e452c080 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Thu, 4 Jan 2024 09:47:00 +0800
-Subject: [PATCH 2021/2027] mtk: wifi: mt76: mt7996: add support for WMM PBC
+Subject: [PATCH 2021/2032] mtk: wifi: mt76: mt7996: add support for WMM PBC
  configuration
 
 Query per-AC-queue packet statistics from WA, and determine if multi-AC transmission is ongoing.
@@ -51,10 +51,10 @@ index 7a9b9749..90f3a417 100644
  	if (ret)
  		return ret;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 0e568750..7f72ec08 100644
+index 901c2036..88e1fd14 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2290,6 +2290,10 @@ void mt7996_mac_work(struct work_struct *work)
+@@ -2302,6 +2302,10 @@ void mt7996_mac_work(struct work_struct *work)
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_ADM_STAT);
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_MSDU_COUNT);
  				}

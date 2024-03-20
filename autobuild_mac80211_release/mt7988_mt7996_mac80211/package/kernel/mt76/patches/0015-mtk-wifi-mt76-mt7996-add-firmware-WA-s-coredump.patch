@@ -1,4 +1,4 @@
-From 4ee85beabab31995bb3bdc198a051621ccc6ac9f Mon Sep 17 00:00:00 2001
+From 5a195822d50b588206b18344df61b36bc7e26e6e Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Fri, 19 May 2023 14:16:50 +0800
 Subject: [PATCH 15/17] mtk: wifi: mt76: mt7996: add firmware WA's coredump.
@@ -428,10 +428,10 @@ index af2ba219..01ed3731 100644
  	return NULL;
  }
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 3af537b6..f35b17b6 100644
+index 3afdd7eb..d88bbfb2 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2002,28 +2002,25 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -1998,28 +1998,25 @@ void mt7996_mac_reset_work(struct work_struct *work)
  }
  
  /* firmware coredump */
@@ -464,7 +464,7 @@ index 3af537b6..f35b17b6 100644
  	if (!mem_region || !crash_data->memdump_buf_len) {
  		mutex_unlock(&dev->dump_mutex);
  		goto skip_memdump;
-@@ -2033,6 +2030,9 @@ void mt7996_mac_dump_work(struct work_struct *work)
+@@ -2029,6 +2026,9 @@ void mt7996_mac_dump_work(struct work_struct *work)
  	buf_len = crash_data->memdump_buf_len;
  
  	/* dumping memory content... */
@@ -474,7 +474,7 @@ index 3af537b6..f35b17b6 100644
  	memset(buf, 0, buf_len);
  	for (i = 0; i < num; i++) {
  		if (mem_region->len > buf_len) {
-@@ -2049,6 +2049,7 @@ void mt7996_mac_dump_work(struct work_struct *work)
+@@ -2045,6 +2045,7 @@ void mt7996_mac_dump_work(struct work_struct *work)
  		mt7996_memcpy_fromio(dev, buf, mem_region->start,
  				     mem_region->len);
  
@@ -482,7 +482,7 @@ index 3af537b6..f35b17b6 100644
  		hdr->start = mem_region->start;
  		hdr->len = mem_region->len;
  
-@@ -2065,8 +2066,20 @@ void mt7996_mac_dump_work(struct work_struct *work)
+@@ -2061,8 +2062,20 @@ void mt7996_mac_dump_work(struct work_struct *work)
  	mutex_unlock(&dev->dump_mutex);
  
  skip_memdump:

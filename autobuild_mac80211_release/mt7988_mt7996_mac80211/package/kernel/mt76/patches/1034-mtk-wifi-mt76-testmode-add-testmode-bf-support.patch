@@ -1,4 +1,4 @@
-From f5f9763666bc9514f7856023e24214ab6dd6cae7 Mon Sep 17 00:00:00 2001
+From e5de8b93a62c62b5c44b10022e53d410f93c70d6 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 6 Apr 2023 16:40:28 +0800
 Subject: [PATCH 1034/1044] mtk: wifi: mt76: testmode: add testmode bf support
@@ -32,7 +32,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  14 files changed, 1354 insertions(+), 59 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 6ace1a05..7d9ee018 100644
+index 58fd55b1..543d9de5 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -752,6 +752,11 @@ struct mt76_testmode_data {
@@ -1625,7 +1625,7 @@ index 78662b2e..f97ccb26 100644
  	__le32 func_data;
  	u8 band_idx;
 diff --git a/testmode.c b/testmode.c
-index 805ad83c..7b8f9e66 100644
+index 69147f86..a5c07f8d 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -462,6 +462,42 @@ out:

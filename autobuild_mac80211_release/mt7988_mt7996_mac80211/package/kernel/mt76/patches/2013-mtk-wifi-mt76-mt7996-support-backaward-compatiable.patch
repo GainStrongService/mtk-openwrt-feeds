@@ -1,7 +1,7 @@
-From 90900be70fb656a80e696355e4383d5f1b381627 Mon Sep 17 00:00:00 2001
+From b4130d60aec743429b0bf9156a79b99776bbdc06 Mon Sep 17 00:00:00 2001
 From: mtk27745 <rex.lu@mediatek.com>
 Date: Fri, 6 Oct 2023 20:59:42 +0800
-Subject: [PATCH 2013/2027] mtk: wifi: mt76: mt7996: support backaward
+Subject: [PATCH 2013/2032] mtk: wifi: mt76: mt7996: support backaward
  compatiable
 
 revert upstream wed trigger mode to polling mode
@@ -27,7 +27,7 @@ Signed-off-by: Rex Lu <rex.lu@mediatek.com>
  7 files changed, 24 insertions(+), 17 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index fbf66407..a502038a 100644
+index 6ac8a279..49b66ff2 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -48,6 +48,8 @@
@@ -40,10 +40,10 @@ index fbf66407..a502038a 100644
  #define MT_QFLAG_WED_TYPE	GENMASK(4, 2)
  #define MT_QFLAG_WED		BIT(5)
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 53049672..68bde800 100644
+index 48e4ce90..ed22d94e 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1769,7 +1769,7 @@ mt7996_mac_restart(struct mt7996_dev *dev)
+@@ -1781,7 +1781,7 @@ mt7996_mac_restart(struct mt7996_dev *dev)
  		}
  
  		mt76_wr(dev, MT_INT_MASK_CSR, wed_irq_mask);
@@ -52,7 +52,7 @@ index 53049672..68bde800 100644
  		mt7996_irq_enable(dev, wed_irq_mask);
  		mt7996_irq_disable(dev, 0);
  	}
-@@ -2001,6 +2001,7 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -2013,6 +2013,7 @@ void mt7996_mac_reset_work(struct work_struct *work)
  
  		mtk_wed_device_start_hw_rro(&dev->mt76.mmio.wed, wed_irq_mask,
  					    true);

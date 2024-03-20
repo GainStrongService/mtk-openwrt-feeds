@@ -1,7 +1,7 @@
-From 2c612c66281b803169cf89e108ec990ceefa2ab1 Mon Sep 17 00:00:00 2001
+From 12a52d5e5a8643d0fe1448469d228aeeb85df362 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Thu, 12 Oct 2023 10:04:54 +0800
-Subject: [PATCH 2012/2027] mtk: wifi: mt76: mt7996: wed: add SER0.5 support w/
+Subject: [PATCH 2012/2032] mtk: wifi: mt76: mt7996: wed: add SER0.5 support w/
  wed3.0
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
@@ -18,7 +18,7 @@ Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
  9 files changed, 146 insertions(+), 64 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 6a30adcc..a5225db5 100644
+index da21f641..e23b744b 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -218,9 +218,9 @@ void __mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q,
@@ -43,7 +43,7 @@ index 6a30adcc..a5225db5 100644
  		return NULL;
  
  	if (!mt76_queue_is_wed_rro_ind(q)) {
-@@ -791,7 +792,7 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -792,7 +793,7 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
  			return 0;
  	}
  
@@ -72,7 +72,7 @@ index 1de5a2b2..3a8c2e55 100644
  		mt76_wed_dma_setup(dev, q, true);
  }
 diff --git a/mt76.h b/mt76.h
-index 1080384b..fbf66407 100644
+index 17418e86..6ac8a279 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -296,7 +296,7 @@ struct mt76_queue_ops {
@@ -323,10 +323,10 @@ index b902bcc5..a9720120 100644
  #else
  	return 0;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 339c92bb..53049672 100644
+index 8de4ab9a..48e4ce90 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1756,6 +1756,31 @@ mt7996_mac_restart(struct mt7996_dev *dev)
+@@ -1768,6 +1768,31 @@ mt7996_mac_restart(struct mt7996_dev *dev)
  	if (ret)
  		goto out;
  

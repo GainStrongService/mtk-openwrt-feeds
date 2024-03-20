@@ -1,7 +1,7 @@
-From f26f678a2203b2e6564821cf6fa740a88a1658e5 Mon Sep 17 00:00:00 2001
+From c6914b48e41c17245715400f8733ed9a38a4d5da Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Feb 2023 13:37:23 +0800
-Subject: [PATCH 2001/2027] mtk: wifi: mt76: rework wed rx flow
+Subject: [PATCH 2001/2032] mtk: wifi: mt76: rework wed rx flow
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
@@ -15,7 +15,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  7 files changed, 144 insertions(+), 85 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index d076faa1..f4ecd117 100644
+index 33a84f5f..c54187bd 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -64,17 +64,17 @@ mt76_alloc_txwi(struct mt76_dev *dev)
@@ -249,7 +249,7 @@ index d076faa1..f4ecd117 100644
  }
  
  static int
-@@ -666,7 +701,7 @@ int mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q,
+@@ -667,7 +702,7 @@ int mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q,
  done:
  		qbuf.len = len - offset;
  		qbuf.skip_unmap = false;
@@ -279,7 +279,7 @@ index 380a74e4..91e771d3 100644
  	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
  		skb_queue_head_init(&dev->rx_skb[i]);
 diff --git a/mt76.h b/mt76.h
-index ce4e87b4..59cf6a16 100644
+index 540814f1..878553a2 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -200,6 +200,7 @@ struct mt76_queue_entry {
@@ -373,7 +373,7 @@ index 6004d64f..5938bd9f 100644
  		.tx_complete_skb = mt76_connac_tx_complete_skb,
  		.rx_skb = mt7915_queue_rx_skb,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 6e79bc65..e5a86759 100644
+index a30d08eb..f1e2c93a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -62,6 +62,7 @@
@@ -385,7 +385,7 @@ index 6e79bc65..e5a86759 100644
  #define MT7915_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
  #define MT7915_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 diff --git a/tx.c b/tx.c
-index 4596b367..e0c3e854 100644
+index ab42f69b..46dae6e0 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -851,16 +851,16 @@ int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)

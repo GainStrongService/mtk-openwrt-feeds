@@ -1,4 +1,4 @@
-From 31635ddf23d7a951aa3896e8f4055bc1e52569a1 Mon Sep 17 00:00:00 2001
+From 50d5f66613427d37f2f714ee4334e36eaa9039f7 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 8 May 2023 09:03:50 +0800
 Subject: [PATCH 1006/1044] mtk: wifi: mt76: mt7996: enable SCS feature for
@@ -44,10 +44,10 @@ index d4d1a60b..23a9b88b 100644
  	INIT_LIST_HEAD(&dev->twt_list);
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 9a9d33e6..8013ffd1 100644
+index 603f6c0d..c9f45abe 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1799,6 +1799,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
+@@ -1795,6 +1795,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
  		cancel_delayed_work_sync(&phy2->mt76->mac_work);
  	if (phy3)
  		cancel_delayed_work_sync(&phy3->mt76->mac_work);
@@ -55,7 +55,7 @@ index 9a9d33e6..8013ffd1 100644
  
  	mutex_lock(&dev->mt76.mutex);
  	for (i = 0; i < 10; i++) {
-@@ -1834,6 +1835,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
+@@ -1830,6 +1831,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
  		ieee80211_queue_delayed_work(phy3->mt76->hw,
  					     &phy3->mt76->mac_work,
  					     MT7996_WATCHDOG_TIME);

@@ -1,7 +1,7 @@
-From dbe7d3aeb8ea9b87d9bc7ebd35c5862891df66da Mon Sep 17 00:00:00 2001
+From da85f2d8c8f3147aab467ba9d65c6457cba0ad1e Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Fri, 17 Nov 2023 18:08:06 +0800
-Subject: [PATCH 2020/2027] mtk: wifi: mt76: mt7996: get airtime and RSSI via
+Subject: [PATCH 2020/2032] mtk: wifi: mt76: mt7996: get airtime and RSSI via
  MCU commands
 
 Direct access to WTBL for airtime and RSSI may cause synchronization issue with FW.
@@ -23,7 +23,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  9 files changed, 361 insertions(+), 143 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index a502038a..b9ce5e98 100644
+index 49b66ff2..c7816721 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -327,11 +327,15 @@ struct mt76_sta_stats {
@@ -137,7 +137,7 @@ index 8e4ceeeb..6ccf0827 100644
  	rcu_read_unlock();
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 8714d530..0e568750 100644
+index 142e9372..901c2036 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -12,8 +12,6 @@
@@ -269,7 +269,7 @@ index 8714d530..0e568750 100644
  	if (wake)
  		mt76_set_tx_blocked(&dev->mt76, false);
  
-@@ -2371,31 +2263,42 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
+@@ -2383,31 +2275,42 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
  
  void mt7996_mac_work(struct work_struct *work)
  {

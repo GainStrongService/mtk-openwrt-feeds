@@ -1,7 +1,7 @@
-From c9d697cd87473776dd110859bf21b120f9d91fd1 Mon Sep 17 00:00:00 2001
+From 7bbed79a6d043eb149cf3b6be7982ae845ad8450 Mon Sep 17 00:00:00 2001
 From: mtk20656 <chank.chen@mediatek.com>
 Date: Sat, 20 Jan 2024 12:03:24 +0800
-Subject: [PATCH 2026/2027] mtk: wifi: mt76: mt7996: Add connac3 csi feature.
+Subject: [PATCH 2026/2032] mtk: wifi: mt76: mt7996: Add connac3 csi feature.
 
 1. format align to wifi6.
 2. add bw320 support.
@@ -697,10 +697,10 @@ index 9dc7946b..7721a01b 100644
 +
  #endif
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 512d625e..0c3d2164 100644
+index f1308112..f172eea2 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -402,6 +402,47 @@ struct mt7996_air_monitor_ctrl {
+@@ -405,6 +405,47 @@ struct mt7996_air_monitor_ctrl {
  	struct mt7996_air_monitor_group group[MT7996_AIR_MONITOR_MAX_GROUP];
  	struct mt7996_air_monitor_entry entry[MT7996_AIR_MONITOR_MAX_ENTRY];
  };
@@ -748,7 +748,7 @@ index 512d625e..0c3d2164 100644
  #endif
  
  struct mt7996_rro_ba_session {
-@@ -479,6 +520,18 @@ struct mt7996_phy {
+@@ -482,6 +523,18 @@ struct mt7996_phy {
  	u8 rts_bw_sig;
  	spinlock_t amnt_lock;
  	struct mt7996_air_monitor_ctrl amnt_ctrl;
@@ -767,7 +767,7 @@ index 512d625e..0c3d2164 100644
  #endif
  #ifdef CONFIG_MTK_DEBUG
  	bool sr_enable:1;
-@@ -993,6 +1046,8 @@ void mt7996_mcu_set_mimo(struct mt7996_phy *phy);
+@@ -996,6 +1049,8 @@ void mt7996_mcu_set_mimo(struct mt7996_phy *phy);
  int mt7996_set_muru_cfg(struct mt7996_phy *phy, u8 action, u8 val);
  int mt7996_mcu_set_muru_cfg(struct mt7996_phy *phy, void *data);
  void mt7996_set_beacon_vif(void *data, u8 *mac, struct ieee80211_vif *vif);

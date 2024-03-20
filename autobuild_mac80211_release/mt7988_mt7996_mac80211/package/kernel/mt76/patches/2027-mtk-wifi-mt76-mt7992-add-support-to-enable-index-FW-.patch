@@ -1,7 +1,7 @@
-From f7b0d9f73cb5e6b66e8d0c275df0932e0e637aa5 Mon Sep 17 00:00:00 2001
+From f55be6f6596db120b2e48a7c87fcacf9d9df25ef Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Thu, 11 Jan 2024 08:55:13 +0800
-Subject: [PATCH 2027/2027] mtk: wifi: mt76: mt7992: add support to enable
+Subject: [PATCH 2027/2032] mtk: wifi: mt76: mt7992: add support to enable
  index FW log for ConsysPlanet
 
 Add support to enable and record index FW log, which is the input for ConsysPlanet, via mt76-test command.
@@ -168,10 +168,10 @@ index 6ccf0827..c236ec98 100644
  	return true;
  }
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 7f72ec08..aecc1809 100644
+index 88e1fd14..c2a8e752 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2271,11 +2271,9 @@ void mt7996_mac_work(struct work_struct *work)
+@@ -2283,11 +2283,9 @@ void mt7996_mac_work(struct work_struct *work)
  	mutex_lock(&mdev->mutex);
  
  	mt76_update_survey(mphy);
@@ -184,7 +184,7 @@ index 7f72ec08..aecc1809 100644
  		mt7996_mac_update_stats(phy);
  
  		/* Update DEV-wise information only in
-@@ -2294,6 +2292,12 @@ void mt7996_mac_work(struct work_struct *work)
+@@ -2306,6 +2304,12 @@ void mt7996_mac_work(struct work_struct *work)
  				if (mt7996_mcu_wa_cmd(phy->dev, MCU_WA_PARAM_CMD(QUERY), MCU_WA_PARAM_BSS_ACQ_PKT_CNT,
  				                      BSS_ACQ_PKT_CNT_BSS_BITMAP_ALL | BSS_ACQ_PKT_CNT_READ_CLR, 0))
  					dev_err(mdev->dev, "Failed to query per-AC-queue packet counts.\n");
@@ -279,10 +279,10 @@ index 7721a01b..826cf204 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 0c3d2164..60d2ed16 100644
+index f172eea2..10886cb1 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -639,9 +639,11 @@ struct mt7996_dev {
+@@ -642,9 +642,11 @@ struct mt7996_dev {
  	u8 fw_debug_bin;
  	u16 fw_debug_seq;
  	bool fw_debug_muru_disable;
@@ -294,7 +294,7 @@ index 0c3d2164..60d2ed16 100644
  
  	void *cal;
  	u32 cur_prek_offset;
-@@ -893,6 +895,7 @@ int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
+@@ -896,6 +898,7 @@ int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
  int mt7996_mcu_red_config(struct mt7996_dev *dev, bool enable);
  int mt7996_mcu_fw_log_2_host(struct mt7996_dev *dev, u8 type, u8 ctrl);
  int mt7996_mcu_fw_dbg_ctrl(struct mt7996_dev *dev, u32 module, u8 level);
