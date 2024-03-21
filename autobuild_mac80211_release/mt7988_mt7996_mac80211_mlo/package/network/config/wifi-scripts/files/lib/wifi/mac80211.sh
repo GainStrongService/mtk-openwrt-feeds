@@ -150,16 +150,19 @@ get_band_defaults() {
 			channel=37
 			mbssid=1
 			mbo=1
+			band_idx=2
 		elif [ "$band" = "5g" ]
 		then
 			noscan=1
 			encryption=none
 			rnr=1
 			background_radar=1
+			band_idx=1
 		else
 			noscan=1
 			encryption=none
 			rnr=1
+			band_idx=0
 		fi
 	done
 }
@@ -215,6 +218,7 @@ detect_mac80211() {
 		mbssid=""
 		rnr=""
 		background_radar=""
+		band_idx=""
 
 		get_band_defaults "$dev"
 
@@ -284,6 +288,9 @@ EOF
 		}
 		[ -n "$tx_burst" ] && {
 			uci -q set wireless.${name}.tx_burst=${tx_burst}
+		}
+		[ -n "$band_idx" ] && {
+			uci -q set wireless.${name}.band_idx=${band_idx}
 		}
 
 		uci -q batch <<-EOF

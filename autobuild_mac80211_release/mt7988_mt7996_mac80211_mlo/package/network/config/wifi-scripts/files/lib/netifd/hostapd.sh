@@ -412,8 +412,8 @@ hostapd_common_add_bss_config() {
 	config_add_string group_cipher
 	config_add_string group_mgmt_cipher
 
-	config_add_int mld_id
-	config_add_boolean mld_primary mld_single_link scan_all_bands
+	config_add_int mld_id mld_assoc_phy mld_allowed_phy_bitmap
+	config_add_boolean mld_primary mld_single_link
 	config_add_string mld_addr
 }
 
@@ -1291,7 +1291,6 @@ hostapd_set_bss_options() {
 			return 1
 		fi
 		append bss_conf "mld_ap=1" "$N"
-		append bss_conf "mld_id=$mld_id" "$N"
 		if [ -n "$mld_addr" ]; then
 			append bss_conf "mld_addr=$mld_addr" "$N"
 		fi
@@ -1356,7 +1355,8 @@ wpa_supplicant_prepare_interface() {
 
 	_wpa_supplicant_common "$1"
 
-	json_get_vars mode wds multi_ap mld_single_link mld_primary scan_all_bands
+	json_get_vars mode wds multi_ap mld_single_link mld_assoc_phy mld_allowed_phy_bitmap
+	set_default mld_allowed_phy_bitmap 0
 
 	[ -n "$network_bridge" ] && {
 		fail=
@@ -1393,16 +1393,47 @@ wpa_supplicant_prepare_interface() {
 		mld_force_single_link=$mld_single_link
 	}
 
-	local mld_connect_band_pref=
-	[ "$mld_primary" -gt 0 ] && {
+	if !([ "$mld_allowed_phy_bitmap" -ge 0 ] && [ "$mld_allowed_phy_bitmap" -le 7 ]); then
+		echo "Error: Invalid MLD allowed phy: ${mld_allowed_phy_bitmap}"
+		return 1
+	fi
+
+	local phy0_scan_list="2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 2462 2467 2472"
+	local phy1_scan_list="5180 5200 5220 5240 5260 5280 5300 5320 5500 5520 5540 5560 5580 5600 5620 5640 5660 5680 5700 5720 5745 5765 5785 5805 5825 5845 5865 5885"
+	local phy2_scan_list="5955 5975 5995 6015 6035 6055 6075 6095 6115 6135 6155 6175 6195 6215 6235 6255 6275 6295 6315 6335 6355 6375 6395 6415 6435 6455 6475 6495 6515 6535 6555 6575 6595 6615 6635 6655 6675 6695 6715 6735 6755 6775 6795 6815 6835 6855 6875 6895"
+	local scan_list=
+	if [ $mld_allowed_phy_bitmap -gt 0 ] && [ $mld_allowed_phy_bitmap -lt 7 ]; then
+		[ $(($mld_allowed_phy_bitmap & 1)) -ne 0 ] && {
+			scan_list="$scan_list $phy0_scan_list"
+		}
+
+		[ $(($mld_allowed_phy_bitmap & 2)) -ne 0 ] && {
+			scan_list="$scan_list $phy1_scan_list"
+		}
+
+		[ $(($mld_allowed_phy_bitmap & 4)) -ne 0 ] && {
+			scan_list="$scan_list $phy2_scan_list"
+		}
+	elif [ "$mld_allowed_phy_bitmap" -eq 0 ]; then
+		# For Legacy STA
 		if [ "$phy" = "phy0" ]; then
-			mld_connect_band_pref=1
+			scan_list="$phy0_scan_list"
 		elif [ "$phy" = "phy1" ]; then
-			mld_connect_band_pref=2
+			scan_list="$phy1_scan_list"
 		elif [ "$phy" = "phy2" ]; then
-			mld_connect_band_pref=3
+			scan_list="$phy2_scan_list"
 		fi
-	}
+	fi
+
+	local mld_connect_band_pref=
+	if [ -n "$mld_assoc_phy" ]; then
+		if [ $(($mld_allowed_phy_bitmap & $((1<<$mld_assoc_phy)))) -eq 0 ]; then
+			echo "Error: Conflict between preferred association phy and allowed phy"
+			return 1
+		fi
+
+		mld_connect_band_pref=$(($mld_assoc_phy+1))
+	fi
 
 	local tx_queue_data2_burst="tx_queue_data2_burst=0"
 	multiap_flag_file="${_config}.is_multiap"
@@ -1412,16 +1443,6 @@ wpa_supplicant_prepare_interface() {
 		[ -e "$multiap_flag_file" ] && rm "$multiap_flag_file"
 	fi
 
-	!([ "$scan_all_bands" -gt 0 ]) && [ -n $scan_list ] && {
-		if [ "$phy" = "phy0" ]; then
-			scan_list="2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 2462 2467 2472"
-		elif [ "$phy" = "phy1" ]; then
-			scan_list="5180 5200 5220 5240 5260 5280 5300 5320 5500 5520 5540 5560 5580 5600 5620 5640 5660 5680 5700 5720 5745 5765 5785 5805 5825 5845 5865 5885"
-		elif [ "$phy" = "phy2" ]; then
-			scan_list="5955 5975 5995 6015 6035 6055 6075 6095 6115 6135 6155 6175 6195 6215 6235 6255 6275 6295 6315 6335 6355 6375 6395 6415 6435 6455 6475 6495 6515 6535 6555 6575 6595 6615 6635 6655 6675 6695 6715 6735 6755 6775 6795 6815 6835 6855 6875 6895"
-		fi
-	}
-
 	wpa_supplicant_teardown_interface "$ifname"
 	cat > "$_config" <<EOF
 ${scan_list:+freq_list=$scan_list}
@@ -1430,6 +1451,7 @@ $country_str
 $tx_queue_data2_burst
 ${mld_connect_band_pref:+mld_connect_band_pref=$mld_connect_band_pref}
 ${mld_force_single_link:+mld_force_single_link=$mld_force_single_link}
+${mld_allowed_phy_bitmap:+mld_allowed_phy=$mld_allowed_phy_bitmap}
 EOF
 	return 0
 }
