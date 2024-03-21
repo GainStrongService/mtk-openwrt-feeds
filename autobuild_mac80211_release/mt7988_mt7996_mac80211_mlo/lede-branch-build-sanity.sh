@@ -91,7 +91,17 @@ rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/120-antenna_gain.patch
 sed -i "s/.*CONFIG_RADIUS_SERVER.*/# CONFIG_RADIUS_SERVER=y/g" ${BUILD_DIR}/package/network/services/hostapd/files/hostapd-full.config
 sed -i "s/.*CONFIG_NO_RADIUS=y.*/CONFIG_NO_RADIUS=y/g" ${BUILD_DIR}/package/network/services/hostapd/files/hostapd-full.config
 
+# remove hostapd src folder
+rm -rf ${BUILD_DIR}/package/network/services/hostapd/src
+
 prepare_final ${branch_name}
+
+# untar backports tarball
+WIFI7_MAC80211_DIR=${BUILD_DIR}/package/kernel/mac80211
+rm -rf ${WIFI7_MAC80211_DIR}/src
+tarball=$(find ${WIFI7_MAC80211_DIR}/backports*.tar.xz -printf "%f\n")
+tar -xJf ${WIFI7_MAC80211_DIR}/${tarball}
+mv $(echo ${tarball} | cut -d '.' -f 1) ${WIFI7_MAC80211_DIR}/src
 
 change_dot_config
 
