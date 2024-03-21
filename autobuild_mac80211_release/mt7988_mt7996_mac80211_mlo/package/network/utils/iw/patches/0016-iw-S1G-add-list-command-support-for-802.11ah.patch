@@ -1,0 +1,68 @@
+From f2d9f5b52677f5414dc194be94b5916d2b080eab Mon Sep 17 00:00:00 2001
+From: Gilad Itzkovitch <gilad.itzkovitch@morsemicro.com>
+Date: Tue, 28 Feb 2023 12:11:24 +1300
+Subject: [PATCH 16/28] iw: S1G: add list command support for 802.11ah
+
+In this changeset S1G frequencies are displayed for any S1G band
+with their relevant properties.
+
+Signed-off-by: Gilad Itzkovitch <gilad.itzkovitch@morsemicro.com>
+Link: https://lore.kernel.org/r/20230227231124.711053-1-gilad.itzkovitch@virscient.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+---
+ info.c | 13 ++++++++++++-
+ util.c |  2 ++
+ 2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/info.c b/info.c
+index 9955e5e..364f9b3 100644
+--- a/info.c
++++ b/info.c
+@@ -301,6 +301,7 @@ static int print_phy_handler(struct nl_msg *msg, void *arg)
+ 	struct nlattr *tb_freq[NL80211_FREQUENCY_ATTR_MAX + 1];
+ 	static struct nla_policy freq_policy[NL80211_FREQUENCY_ATTR_MAX + 1] = {
+ 		[NL80211_FREQUENCY_ATTR_FREQ] = { .type = NLA_U32 },
++		[NL80211_FREQUENCY_ATTR_OFFSET] = { .type = NLA_U32 },
+ 		[NL80211_FREQUENCY_ATTR_DISABLED] = { .type = NLA_FLAG },
+ 		[NL80211_FREQUENCY_ATTR_NO_IR] = { .type = NLA_FLAG },
+ 		[__NL80211_FREQUENCY_ATTR_NO_IBSS] = { .type = NLA_FLAG },
+@@ -396,12 +397,22 @@ static int print_phy_handler(struct nl_msg *msg, void *arg)
+ 				}
+ 				nla_for_each_nested(nl_freq, tb_band[NL80211_BAND_ATTR_FREQS], rem_freq) {
+ 					uint32_t freq;
++
+ 					nla_parse(tb_freq, NL80211_FREQUENCY_ATTR_MAX, nla_data(nl_freq),
+ 						  nla_len(nl_freq), freq_policy);
+ 					if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ])
+ 						continue;
+ 					freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
+-					printf("\t\t\t* %d MHz [%d]", freq, ieee80211_frequency_to_channel(freq));
++					if (tb_freq[NL80211_FREQUENCY_ATTR_OFFSET]) {
++						uint32_t offset = nla_get_u32(
++							tb_freq[NL80211_FREQUENCY_ATTR_OFFSET]);
++						printf("\t\t\t* %d.%d MHz", freq, offset);
++					} else {
++						printf("\t\t\t* %d MHz", freq);
++					}
++
++					if (ieee80211_frequency_to_channel(freq))
++						printf(" [%d]", ieee80211_frequency_to_channel(freq));
+ 
+ 					if (tb_freq[NL80211_FREQUENCY_ATTR_MAX_TX_POWER] &&
+ 					    !tb_freq[NL80211_FREQUENCY_ATTR_DISABLED])
+diff --git a/util.c b/util.c
+index 18a97e1..dc09193 100644
+--- a/util.c
++++ b/util.c
+@@ -199,6 +199,8 @@ int ieee80211_channel_to_frequency(int chan, enum nl80211_band band)
+ 
+ int ieee80211_frequency_to_channel(int freq)
+ {
++	if (freq < 1000)
++		return 0;
+ 	/* see 802.11-2007 17.3.8.3.2 and Annex J */
+ 	if (freq == 2484)
+ 		return 14;
+-- 
+2.39.2
+

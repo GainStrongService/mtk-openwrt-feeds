@@ -1,0 +1,79 @@
+From 997e5f13e7bc2267b28e541a2904d7f7d84227d0 Mon Sep 17 00:00:00 2001
+From: Mordechay Goodstein <mordechay.goodstein@intel.com>
+Date: Sun, 29 May 2022 19:29:55 +0300
+Subject: [PATCH 08/28] util: add support for 320MHz bandwidth without cf1
+
+Based on user input for control central freq and 320 BW find the data
+central freq (cf1).
+
+Signed-off-by: Mordechay Goodstein <mordechay.goodstein@intel.com>
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+---
+ phy.c  |  4 ++--
+ util.c | 16 +++++++++++++++-
+ 2 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/phy.c b/phy.c
+index 0a57ecb..15cea32 100644
+--- a/phy.c
++++ b/phy.c
+@@ -199,13 +199,13 @@ static int handle_freq(struct nl80211_state *state, struct nl_msg *msg,
+ }
+ 
+ COMMAND(set, freq,
+-	"<freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz]\n"
++	"<freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz|320MHz]\n"
+ 	"<control freq> [5|10|20|40|80|80+80|160] [<center1_freq> [<center2_freq>]]",
+ 	NL80211_CMD_SET_WIPHY, 0, CIB_PHY, handle_freq,
+ 	"Set frequency/channel the hardware is using, including HT\n"
+ 	"configuration.");
+ COMMAND(set, freq,
+-	"<freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz]\n"
++	"<freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz|320MHz]\n"
+ 	"<control freq> [5|10|20|40|80|80+80|160] [<center1_freq> [<center2_freq>]]",
+ 	NL80211_CMD_SET_WIPHY, 0, CIB_NETDEV, handle_freq, NULL);
+ 
+diff --git a/util.c b/util.c
+index 93269ab..80dc301 100644
+--- a/util.c
++++ b/util.c
+@@ -583,7 +583,7 @@ static int parse_freqs(struct chandef *chandef, int argc, char **argv,
+  *   <channel> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz]
+  *
+  * And if frequency is set:
+- *   <freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz]
++ *   <freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz|320MHz]
+  *   <control freq> [5|10|20|40|80|80+80|160] [<center1_freq> [<center2_freq>]]
+  *
+  * If the mode/channel width is not given the NOHT is assumed.
+@@ -1696,6 +1696,8 @@ int get_cf1(const struct chanmode *chanmode, unsigned long freq)
+ 				6195, 6995 };
+ 	unsigned int bw160[] = { 5180, 5500, 5955, 6115, 6275, 6435,
+ 				  6595, 6755, 6915 };
++	/* based on 11be D2 E.1 Country information and operating classes */
++	unsigned int bw320[] = {5955, 6115, 6275, 6435, 6595, 6755};
+ 
+ 	switch (chanmode->width) {
+ 	case NL80211_CHAN_WIDTH_80:
+@@ -1722,6 +1724,18 @@ int get_cf1(const struct chanmode *chanmode, unsigned long freq)
+ 
+ 		cf1 = bw160[j] + 70;
+ 		break;
++	case NL80211_CHAN_WIDTH_320:
++		/* setup center_freq1 */
++		for (j = 0; j < ARRAY_SIZE(bw320); j++) {
++			if (freq >= bw320[j] && freq < bw320[j] + 160)
++				break;
++		}
++
++		if (j == ARRAY_SIZE(bw320))
++			break;
++
++		cf1 = bw320[j] + 150;
++		break;
+ 	default:
+ 		cf1 = freq + chanmode->freq1_diff;
+ 		break;
+-- 
+2.39.2
+

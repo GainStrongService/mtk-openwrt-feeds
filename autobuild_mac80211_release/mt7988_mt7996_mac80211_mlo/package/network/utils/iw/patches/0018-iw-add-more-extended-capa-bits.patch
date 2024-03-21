@@ -1,0 +1,37 @@
+From cb491fa6b4b5bb1e7c11788a39bcf5a7a74afafa Mon Sep 17 00:00:00 2001
+From: Emmanuel Grumbach <emmanuel.grumbach@intel.com>
+Date: Wed, 23 Aug 2023 13:10:02 +0300
+Subject: [PATCH 18/28] iw: add more extended capa bits
+
+Those were missing
+
+While at it, fix a bug in the default case, we want to print the actual
+bit offset which is bit + base.
+
+Signed-off-by: Emmanuel Grumbach <emmanuel.grumbach@intel.com>
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+---
+ scan.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/scan.c b/scan.c
+index 7479220..faf406d 100644
+--- a/scan.c
++++ b/scan.c
+@@ -1445,8 +1445,12 @@ static void print_capabilities(const uint8_t type, uint8_t len,
+ 			CAPA(72, "Reserved");
+ 			CAPA(73, "Extended Spectrum Management Capable");
+ 			CAPA(74, "Reserved");
++			CAPA(77, "TWT Requester Support");
++			CAPA(78, "TWT Responder Support");
++			CAPA(79, "OBSS Narrow Bandwith RU in UL OFDMA Tolerance Support");
++
+ 			default:
+-				printf(" %d", bit);
++				printf(" %d", bit + base);
+ 				break;
+ 			}
+ #undef ADD_BIT_VAL
+-- 
+2.39.2
+

@@ -1,0 +1,114 @@
+From 7794573f915174b5dd2cd22e123ecd63610ccf44 Mon Sep 17 00:00:00 2001
+From: Johannes Berg <johannes.berg@intel.com>
+Date: Fri, 2 Sep 2022 21:59:31 +0200
+Subject: [PATCH 12/28] interface: print links
+
+Print link information in 'iw dev' and 'iw ... info'.
+
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+---
+ interface.c | 74 ++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 53 insertions(+), 21 deletions(-)
+
+diff --git a/interface.c b/interface.c
+index 84990c9..7e1dd58 100644
+--- a/interface.c
++++ b/interface.c
+@@ -369,6 +369,30 @@ char *channel_width_name(enum nl80211_chan_width width)
+ 	}
+ }
+ 
++static void print_channel(struct nlattr **tb)
++{
++	uint32_t freq = nla_get_u32(tb[NL80211_ATTR_WIPHY_FREQ]);
++
++	printf("channel %d (%d MHz)",
++	       ieee80211_frequency_to_channel(freq), freq);
++
++	if (tb[NL80211_ATTR_CHANNEL_WIDTH]) {
++		printf(", width: %s",
++			channel_width_name(nla_get_u32(tb[NL80211_ATTR_CHANNEL_WIDTH])));
++		if (tb[NL80211_ATTR_CENTER_FREQ1])
++			printf(", center1: %d MHz",
++				nla_get_u32(tb[NL80211_ATTR_CENTER_FREQ1]));
++		if (tb[NL80211_ATTR_CENTER_FREQ2])
++			printf(", center2: %d MHz",
++				nla_get_u32(tb[NL80211_ATTR_CENTER_FREQ2]));
++	} else if (tb[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
++		enum nl80211_channel_type channel_type;
++
++		channel_type = nla_get_u32(tb[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
++		printf(" %s", channel_type_name(channel_type));
++	}
++}
++
+ static int print_iface_handler(struct nl_msg *msg, void *arg)
+ {
+ 	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+@@ -412,27 +436,8 @@ static int print_iface_handler(struct nl_msg *msg, void *arg)
+ 	if (!wiphy && tb_msg[NL80211_ATTR_WIPHY])
+ 		printf("%s\twiphy %d\n", indent, nla_get_u32(tb_msg[NL80211_ATTR_WIPHY]));
+ 	if (tb_msg[NL80211_ATTR_WIPHY_FREQ]) {
+-		uint32_t freq = nla_get_u32(tb_msg[NL80211_ATTR_WIPHY_FREQ]);
+-
+-		printf("%s\tchannel %d (%d MHz)", indent,
+-		       ieee80211_frequency_to_channel(freq), freq);
+-
+-		if (tb_msg[NL80211_ATTR_CHANNEL_WIDTH]) {
+-			printf(", width: %s",
+-				channel_width_name(nla_get_u32(tb_msg[NL80211_ATTR_CHANNEL_WIDTH])));
+-			if (tb_msg[NL80211_ATTR_CENTER_FREQ1])
+-				printf(", center1: %d MHz",
+-					nla_get_u32(tb_msg[NL80211_ATTR_CENTER_FREQ1]));
+-			if (tb_msg[NL80211_ATTR_CENTER_FREQ2])
+-				printf(", center2: %d MHz",
+-					nla_get_u32(tb_msg[NL80211_ATTR_CENTER_FREQ2]));
+-		} else if (tb_msg[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
+-			enum nl80211_channel_type channel_type;
+-
+-			channel_type = nla_get_u32(tb_msg[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
+-			printf(" %s", channel_type_name(channel_type));
+-		}
+-
++		printf("%s\t", indent);
++		print_channel(tb_msg);
+ 		printf("\n");
+ 	}
+ 
+@@ -455,6 +460,33 @@ static int print_iface_handler(struct nl_msg *msg, void *arg)
+ 			printf("%s\t4addr: on\n", indent);
+ 	}
+ 
++	if (tb_msg[NL80211_ATTR_MLO_LINKS]) {
++		struct nlattr *link;
++		int n;
++
++		printf("%s\tMLD with links:\n", indent);
++
++		nla_for_each_nested(link, tb_msg[NL80211_ATTR_MLO_LINKS], n) {
++			struct nlattr *tb[NL80211_ATTR_MAX + 1];
++
++			nla_parse_nested(tb, NL80211_ATTR_MAX, link, NULL);
++			printf("%s\t - link", indent);
++			if (tb[NL80211_ATTR_MLO_LINK_ID])
++				printf(" ID %2d", nla_get_u32(tb[NL80211_ATTR_MLO_LINK_ID]));
++			if (tb[NL80211_ATTR_MAC]) {
++				char buf[20];
++
++				mac_addr_n2a(buf, nla_data(tb[NL80211_ATTR_MAC]));
++				printf(" link addr %s", buf);
++			}
++			if (tb[NL80211_ATTR_WIPHY_FREQ]) {
++				printf("\n%s\t   ", indent);
++				print_channel(tb);
++			}
++			printf("\n");
++		}
++	}
++
+ 	return NL_SKIP;
+ }
+ 
+-- 
+2.39.2
+

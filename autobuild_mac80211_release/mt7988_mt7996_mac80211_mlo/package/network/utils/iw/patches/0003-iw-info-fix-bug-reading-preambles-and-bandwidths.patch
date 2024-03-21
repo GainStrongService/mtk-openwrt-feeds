@@ -1,0 +1,40 @@
+From c4743bbc1b1953bdc035b871ea1899ca94c1c6ac Mon Sep 17 00:00:00 2001
+From: Jaewan Kim <jaewan@google.com>
+Date: Tue, 10 Jan 2023 00:14:55 +0900
+Subject: [PATCH 03/28] iw: info: fix bug reading preambles and bandwidths
+
+Preambles and bandwidths values are considered as bit shifts
+when they're are used for capabilities.
+
+Signed-off-by: Jaewan Kim <jaewan@google.com>
+Link: https://lore.kernel.org/r/20230109151455.325793-1-jaewan@google.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+---
+ info.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/info.c b/info.c
+index eb257f8..5229d44 100644
+--- a/info.c
++++ b/info.c
+@@ -197,7 +197,7 @@ static void __print_ftm_capability(struct nlattr *ftm_capa)
+ 	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_PREAMBLES]) {
+ #define PRINT_PREAMBLE(P, V) \
+ 	do { \
+-		if (P | NL80211_PREAMBLE_##V) \
++		if (P & BIT(NL80211_PREAMBLE_##V)) \
+ 			printf(" " #V); \
+ 	} while (0)
+ 
+@@ -215,7 +215,7 @@ static void __print_ftm_capability(struct nlattr *ftm_capa)
+ 	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_BANDWIDTHS]) {
+ #define PRINT_BANDWIDTH(B, V) \
+ 	do { \
+-		if (B | NL80211_CHAN_WIDTH_##V) \
++		if (B & BIT(NL80211_CHAN_WIDTH_##V)) \
+ 			printf(" " #V); \
+ 	} while (0)
+ 
+-- 
+2.39.2
+

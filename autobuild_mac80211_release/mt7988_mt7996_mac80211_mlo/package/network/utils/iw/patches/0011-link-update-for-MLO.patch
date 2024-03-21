@@ -1,0 +1,172 @@
+From 221875eb77f21d8cf1c50f046705f30708ec82bd Mon Sep 17 00:00:00 2001
+From: Johannes Berg <johannes.berg@intel.com>
+Date: Wed, 31 Aug 2022 22:35:02 +0200
+Subject: [PATCH 11/28] link: update for MLO
+
+In MLO we need to use the MLD address to get the station
+statistics (which still need work for per-link stats),
+adjust the code.
+
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+---
+ iw.h   |  2 ++
+ link.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++-----------
+ scan.c |  3 ++-
+ 3 files changed, 55 insertions(+), 12 deletions(-)
+
+diff --git a/iw.h b/iw.h
+index e712c59..45e4fbe 100644
+--- a/iw.h
++++ b/iw.h
+@@ -242,6 +242,8 @@ const char *get_status_str(uint16_t status);
+ enum print_ie_type {
+ 	PRINT_SCAN,
+ 	PRINT_LINK,
++	PRINT_LINK_MLO_MLD,
++	PRINT_LINK_MLO_LINK,
+ };
+ 
+ #define BIT(x) (1ULL<<(x))
+diff --git a/link.c b/link.c
+index 31de8b4..a090100 100644
+--- a/link.c
++++ b/link.c
+@@ -13,9 +13,10 @@
+ #include "iw.h"
+ 
+ struct link_result {
+-	uint8_t bssid[8];
++	uint8_t sta_addr[8];
+ 	bool link_found;
+ 	bool anything_found;
++	bool mld;
+ };
+ 
+ static struct link_result lr = { .link_found = false };
+@@ -37,7 +38,9 @@ static int link_bss_handler(struct nl_msg *msg, void *arg)
+ 		[NL80211_BSS_STATUS] = { .type = NLA_U32 },
+ 	};
+ 	struct link_result *result = arg;
+-	char mac_addr[20], dev[20];
++	char mac_addr[20], dev[20], link_addr[20];
++	int link_id = -1;
++	const char *indent = "\t";
+ 
+ 	nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+ 		  genlmsg_attrlen(gnlh, 0), NULL);
+@@ -62,9 +65,44 @@ static int link_bss_handler(struct nl_msg *msg, void *arg)
+ 	mac_addr_n2a(mac_addr, nla_data(bss[NL80211_BSS_BSSID]));
+ 	if_indextoname(nla_get_u32(tb[NL80211_ATTR_IFINDEX]), dev);
+ 
++	if (bss[NL80211_BSS_MLO_LINK_ID])
++		link_id = nla_get_u8(bss[NL80211_BSS_MLO_LINK_ID]);
++
++	if (bss[NL80211_BSS_MLD_ADDR]) {
++		mac_addr_n2a(link_addr, nla_data(bss[NL80211_BSS_BSSID]));
++		indent = "\t\t";
++
++		if (result->mld) {
++			if (memcmp(result->sta_addr,
++				   nla_data(bss[NL80211_BSS_MLD_ADDR]), 6)) {
++				mac_addr_n2a(mac_addr, nla_data(bss[NL80211_BSS_MLD_ADDR]));
++				printf("!! inconsistent MLD address information (%s)\n",
++				       mac_addr);
++			}
++		} else {
++			mac_addr_n2a(mac_addr, nla_data(bss[NL80211_BSS_MLD_ADDR]));
++			result->mld = true;
++			memcpy(result->sta_addr,
++			       nla_data(bss[NL80211_BSS_MLD_ADDR]), 6);
++			if (nla_get_u32(bss[NL80211_BSS_STATUS]) == NL80211_BSS_STATUS_ASSOCIATED) {
++				printf("Connected to %s (on %s)\n", mac_addr, dev);
++			}
++
++			if (bss[NL80211_BSS_INFORMATION_ELEMENTS])
++				print_ies(nla_data(bss[NL80211_BSS_INFORMATION_ELEMENTS]),
++					  nla_len(bss[NL80211_BSS_INFORMATION_ELEMENTS]),
++					  false, PRINT_LINK_MLO_MLD);
++		}
++	} else {
++		memcpy(result->sta_addr, nla_data(bss[NL80211_BSS_BSSID]), 6);
++	}
++
+ 	switch (nla_get_u32(bss[NL80211_BSS_STATUS])) {
+ 	case NL80211_BSS_STATUS_ASSOCIATED:
+-		printf("Connected to %s (on %s)\n", mac_addr, dev);
++		if (result->mld)
++			printf("\tLink %d BSSID %s\n", link_id, link_addr);
++		else
++			printf("Connected to %s (on %s)\n", mac_addr, dev);
+ 		break;
+ 	case NL80211_BSS_STATUS_AUTHENTICATED:
+ 		printf("Authenticated with %s (on %s)\n", mac_addr, dev);
+@@ -81,10 +119,10 @@ static int link_bss_handler(struct nl_msg *msg, void *arg)
+ 	if (bss[NL80211_BSS_INFORMATION_ELEMENTS])
+ 		print_ies(nla_data(bss[NL80211_BSS_INFORMATION_ELEMENTS]),
+ 			  nla_len(bss[NL80211_BSS_INFORMATION_ELEMENTS]),
+-			  false, PRINT_LINK);
++			  false, result->mld ? PRINT_LINK_MLO_LINK : PRINT_LINK);
+ 
+ 	if (bss[NL80211_BSS_FREQUENCY])
+-		printf("\tfreq: %d\n",
++		printf("%sfreq: %d\n", indent,
+ 			nla_get_u32(bss[NL80211_BSS_FREQUENCY]));
+ 
+ 	if (nla_get_u32(bss[NL80211_BSS_STATUS]) != NL80211_BSS_STATUS_ASSOCIATED)
+@@ -92,7 +130,6 @@ static int link_bss_handler(struct nl_msg *msg, void *arg)
+ 
+ 	/* only in the assoc case do we want more info from station get */
+ 	result->link_found = true;
+-	memcpy(result->bssid, nla_data(bss[NL80211_BSS_BSSID]), 6);
+ 	return NL_SKIP;
+ }
+ 
+@@ -250,7 +287,7 @@ static int handle_link(struct nl80211_state *state,
+ 		NULL,
+ 		NULL,
+ 	};
+-	char bssid_buf[3*6];
++	char addr_buf[3*6];
+ 	int err;
+ 
+ 	link_argv[0] = argv[0];
+@@ -264,15 +301,18 @@ static int handle_link(struct nl80211_state *state,
+ 		return 0;
+ 	}
+ 
+-	mac_addr_n2a(bssid_buf, lr.bssid);
+-	bssid_buf[17] = '\0';
++	mac_addr_n2a(addr_buf, lr.sta_addr);
++	addr_buf[17] = '\0';
++
++	if (lr.mld)
++		printf("MLD %s stats:\n", addr_buf);
+ 
+ 	station_argv[0] = argv[0];
+-	station_argv[3] = bssid_buf;
++	station_argv[3] = addr_buf;
+ 	return handle_cmd(state, id, 4, station_argv);
+ }
+ TOPLEVEL(link, NULL, 0, 0, CIB_NETDEV, handle_link,
+-	 "Print information about the current link, if any.");
++	 "Print information about the current connection, if any.");
+ HIDDEN(link, get_sta, "<mac-addr>", NL80211_CMD_GET_STATION, 0,
+ 	CIB_NETDEV, handle_link_sta);
+ HIDDEN(link, get_bss, NULL, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
+diff --git a/scan.c b/scan.c
+index 4c67c87..dc26787 100644
+--- a/scan.c
++++ b/scan.c
+@@ -1717,7 +1717,8 @@ static void print_ie(const struct ie_print *p, const uint8_t type, uint8_t len,
+ }
+ 
+ static const struct ie_print ieprinters[] = {
+-	[0] = { "SSID", print_ssid, 0, 32, BIT(PRINT_SCAN) | BIT(PRINT_LINK), },
++	[0] = { "SSID", print_ssid, 0, 32,
++		 BIT(PRINT_SCAN) | BIT(PRINT_LINK) | BIT(PRINT_LINK_MLO_MLD), },
+ 	[1] = { "Supported rates", print_supprates, 0, 255, BIT(PRINT_SCAN), },
+ 	[3] = { "DS Parameter set", print_ds, 1, 1, BIT(PRINT_SCAN), },
+ 	[5] = { "TIM", print_tim, 4, 255, BIT(PRINT_SCAN), },
+-- 
+2.39.2
+
