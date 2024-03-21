@@ -454,6 +454,7 @@
 #define MTK_RX_BT_32DWORDS	(3 << 11)
 #define MTK_NDP_CO_PRO		BIT(10)
 #define MTK_TX_WB_DDONE		BIT(6)
+#define MTK_DMA_SIZE_MASK	GENMASK(5, 4)
 #define MTK_DMA_SIZE_16DWORDS	(2 << 4)
 #define MTK_DMA_SIZE_32DWORDS	(3 << 4)
 #define MTK_RX_DMA_BUSY		BIT(3)
