@@ -1,0 +1,88 @@
+From a57cd62348f7843777dd315fad9796adb3a9e0d1 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Mon, 18 Mar 2024 16:33:12 +0800
+Subject: [PATCH 009/120] mtk: wifi: mt76: connac: enable critical packet mode
+ support for mt7992
+
+For mt7992 chipsets, critical packet mode should be properly configured
+to let the HW SDO module correctly fill the AC queue in TX descriptors of
+some higher priority packets such as ARP and ICMP.
+Without this patch, HW queues may hang when running MU traffic.
+
+CR-Id: WCNCR00240772
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt76_connac_mcu.h |  1 +
+ mt7996/main.c     |  8 ++++++++
+ mt7996/mcu.c      | 13 +++++++++++++
+ mt7996/mt7996.h   |  1 +
+ 4 files changed, 23 insertions(+)
+
+diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
+index f1cd2e505..67be14d2a 100644
+--- a/mt76_connac_mcu.h
++++ b/mt76_connac_mcu.h
+@@ -1220,6 +1220,7 @@ enum {
+ 	MCU_EXT_CMD_TXDPD_CAL = 0x60,
+ 	MCU_EXT_CMD_CAL_CACHE = 0x67,
+ 	MCU_EXT_CMD_RED_ENABLE = 0x68,
++	MCU_EXT_CMD_CP_SUPPORT = 0x75,
+ 	MCU_EXT_CMD_SET_RADAR_TH = 0x7c,
+ 	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
+ 	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
+diff --git a/mt7996/main.c b/mt7996/main.c
+index a41d5d06b..16115c279 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -35,6 +35,14 @@ int mt7996_run(struct ieee80211_hw *hw)
+ 		ret = mt7996_mcu_set_hdr_trans(dev, true);
+ 		if (ret)
+ 			goto out;
++
++		if (is_mt7992(&dev->mt76)) {
++			u8 queue = mt76_connac_lmac_mapping(IEEE80211_AC_VI);
++
++			ret = mt7996_mcu_cp_support(dev, queue);
++			if (ret)
++				goto out;
++		}
+ 	}
+ 
+ 	mt7996_mac_enable_nf(dev, phy->mt76->band_idx);
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index d5e35f6dd..ccae954a2 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -4530,3 +4530,16 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
+ 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+ 				     MCU_WM_UNI_CMD(TXPOWER), true);
+ }
++
++int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode)
++{
++	__le32 cp_mode;
++
++	if (mode < mt76_connac_lmac_mapping(IEEE80211_AC_BE) ||
++	    mode > mt76_connac_lmac_mapping(IEEE80211_AC_VO))
++		return -EINVAL;
++
++	cp_mode = cpu_to_le32(mode);
++	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_EXT_CMD(CP_SUPPORT),
++				 &cp_mode, sizeof(cp_mode), true);
++}
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index c30d133d9..b9b0bb4c4 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -612,6 +612,7 @@ int mt7996_mcu_bcn_prot_enable(struct mt7996_dev *dev, struct ieee80211_vif *vif
+ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
+ 				     struct ieee80211_vif *vif,
+ 				     struct ieee80211_sta *sta);
++int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode);
+ #ifdef CONFIG_MAC80211_DEBUGFS
+ void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 			    struct ieee80211_sta *sta, struct dentry *dir);
+-- 
+2.39.2
+

@@ -1,0 +1,530 @@
+From 59d96798d3492efdfe93cc1024d96e9972392893 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Mon, 8 Jan 2024 10:13:30 +0800
+Subject: [PATCH 070/120] mtk: wifi: mt76: testmode: add testmode ibf ver2
+ support
+
+Add ibf ver2 support for chips after Kite
+
+CR-Id: WCNCR00274293
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/mtk_mcu.c  | 120 ++++++++++++++++++++++-------
+ mt7996/mtk_mcu.h  | 188 ++++++++++++++++++++++++++++++++++------------
+ mt7996/testmode.c |  39 +++++++---
+ 3 files changed, 261 insertions(+), 86 deletions(-)
+
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 9ef791db8..a9a7db15a 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -438,24 +438,49 @@ mt7996_ibf_phase_assign(struct mt7996_dev *dev,
+ {
+ 	/* fw return ibf calibrated data with
+ 	 * the mt7996_txbf_phase_info_5g struct for both 2G and 5G.
++	 * (return struct mt7992_txbf_phase_info_5g for ibf 2.0)
+ 	 * Therefore, memcpy cannot be used here.
+ 	 */
+-	phase_assign(cal->group, m_t0_h, true);
+-	phase_assign(cal->group, m_t1_h, true);
+-	phase_assign(cal->group, m_t2_h, true);
+-	phase_assign(cal->group, m_t2_h_sx2, false);
+-	phase_assign_rx(cal->group, r0);
+-	phase_assign_rx(cal->group, r1);
+-	phase_assign_rx(cal->group, r2);
+-	phase_assign_rx(cal->group, r3);
+-	phase_assign_rx_g0(cal->group, r2_sx2);
+-	phase_assign_rx_g0(cal->group, r3_sx2);
+-	phase_assign(cal->group, r0_reserved, false);
+-	phase_assign(cal->group, r1_reserved, false);
+-	phase_assign(cal->group, r2_reserved, false);
+-	phase_assign(cal->group, r3_reserved, false);
+-	phase_assign(cal->group, r2_sx2_reserved, false);
+-	phase_assign(cal->group, r3_sx2_reserved, false);
++	if (get_ibf_version(dev) != IBF_VER_2) {
++		phase_assign(cal->group, v1, m_t0_h, true);
++		phase_assign(cal->group, v1, m_t1_h, true);
++		phase_assign(cal->group, v1, m_t2_h, true);
++		phase_assign(cal->group, v1, m_t2_h_sx2, false);
++		phase_assign_rx_v1(cal->group, v1, r0);
++		phase_assign_rx_v1(cal->group, v1, r1);
++		phase_assign_rx_v1(cal->group, v1, r2);
++		phase_assign_rx_v1(cal->group, v1, r3);
++		phase_assign_rx(cal->group, v1, r2_sx2, false);
++		phase_assign_rx(cal->group, v1, r3_sx2, false);
++		phase_assign(cal->group, v1, r0_reserved, false);
++		phase_assign(cal->group, v1, r1_reserved, false);
++		phase_assign(cal->group, v1, r2_reserved, false);
++		phase_assign(cal->group, v1, r3_reserved, false);
++		phase_assign(cal->group, v1, r2_sx2_reserved, false);
++		phase_assign(cal->group, v1, r3_sx2_reserved, false);
++	} else {
++		phase_assign(cal->group, v2, m_t0_h, true);
++		phase_assign(cal->group, v2, m_t1_h, true);
++		phase_assign(cal->group, v2, m_t2_h, true);
++		if (cal->group) {
++			phase->v2.phase_5g.m_t3_h = cal->v2.phase_5g.m_t3_h;
++			dev_info(dev->mt76.dev, "m_t3_h = %d\n", phase->v2.phase_5g.m_t3_h);
++		}
++		phase_assign_rx_ext(cal->group, v2, r0, true);
++		phase_assign_rx_ext(cal->group, v2, r1, true);
++		phase_assign_rx_ext(cal->group, v2, r2, true);
++		phase_assign_rx_ext(cal->group, v2, r3, true);
++		if (cal->group) {
++			memcpy(&phase->v2.phase_5g.r4, &cal->v2.phase_5g.r4,
++			       sizeof(struct txbf_rx_phase_ext));
++			dev_info(dev->mt76.dev, "r4.rx_uh = %d\n", phase->v2.phase_5g.r4.rx_uh);
++			dev_info(dev->mt76.dev, "r4.rx_h = %d\n", phase->v2.phase_5g.r4.rx_h);
++			dev_info(dev->mt76.dev, "r4.rx_mh = %d\n", phase->v2.phase_5g.r4.rx_mh);
++			dev_info(dev->mt76.dev, "r4.rx_m = %d\n", phase->v2.phase_5g.r4.rx_m);
++			dev_info(dev->mt76.dev, "r4.rx_l = %d\n", phase->v2.phase_5g.r4.rx_l);
++			dev_info(dev->mt76.dev, "r4.rx_ul = %d\n", phase->v2.phase_5g.r4.rx_ul);
++		}
++	}
+ }
+ 
+ void
+@@ -754,12 +779,18 @@ mt7996_mcu_rx_bf_event(struct mt7996_dev *dev, struct sk_buff *skb)
+ 	}
+ 	case UNI_EVENT_BF_CAL_PHASE: {
+ 		struct mt7996_ibf_cal_info *cal;
+-		struct mt7996_txbf_phase_out phase_out;
+ 		struct mt7996_txbf_phase *phase;
++		union {
++			struct mt7996_txbf_phase_out v1;
++			struct mt7992_txbf_phase_out v2;
++		} phase_out;
++		int phase_out_size = sizeof(struct mt7996_txbf_phase_out);
+ 
+ 		cal = (struct mt7996_ibf_cal_info *)skb->data;
+ 		phase = (struct mt7996_txbf_phase *)dev->test.txbf_phase_cal;
+-		memcpy(&phase_out, &cal->phase_out, sizeof(phase_out));
++		if (get_ibf_version(dev) == IBF_VER_2)
++			phase_out_size = sizeof(struct mt7992_txbf_phase_out);
++		memcpy(&phase_out, &cal->buf, phase_out_size);
+ 		switch (cal->cal_type) {
+ 		case IBF_PHASE_CAL_NORMAL:
+ 		case IBF_PHASE_CAL_NORMAL_INSTRUMENT:
+@@ -780,16 +811,49 @@ mt7996_mcu_rx_bf_event(struct mt7996_dev *dev, struct sk_buff *skb)
+ 			break;
+ 		}
+ 
+-		dev_info(dev->mt76.dev, "c0_uh = %d, c1_uh = %d, c2_uh = %d, c3_uh = %d\n",
+-			 phase_out.c0_uh, phase_out.c1_uh, phase_out.c2_uh, phase_out.c3_uh);
+-		dev_info(dev->mt76.dev, "c0_h = %d, c1_h = %d, c2_h = %d, c3_h = %d\n",
+-			 phase_out.c0_h, phase_out.c1_h, phase_out.c2_h, phase_out.c3_h);
+-		dev_info(dev->mt76.dev, "c0_mh = %d, c1_mh = %d, c2_mh = %d, c3_mh = %d\n",
+-			 phase_out.c0_mh, phase_out.c1_mh, phase_out.c2_mh, phase_out.c3_mh);
+-		dev_info(dev->mt76.dev, "c0_m = %d, c1_m = %d, c2_m = %d, c3_m = %d\n",
+-			 phase_out.c0_m, phase_out.c1_m, phase_out.c2_m, phase_out.c3_m);
+-		dev_info(dev->mt76.dev, "c0_l = %d, c1_l = %d, c2_l = %d, c3_l = %d\n",
+-			 phase_out.c0_l, phase_out.c1_l, phase_out.c2_l, phase_out.c3_l);
++		if (get_ibf_version(dev) == IBF_VER_2) {
++			dev_info(dev->mt76.dev,
++				 "c0_uh = %d, c1_uh = %d, c2_uh = %d, c3_uh = %d c4_uh = %d\n",
++				 phase_out.v2.c0_uh, phase_out.v2.c1_uh, phase_out.v2.c2_uh,
++				 phase_out.v2.c3_uh, phase_out.v2.c4_uh);
++			dev_info(dev->mt76.dev,
++				 "c0_h = %d, c1_h = %d, c2_h = %d, c3_h = %d c4_h = %d\n",
++				 phase_out.v2.c0_h, phase_out.v2.c1_h, phase_out.v2.c2_h,
++				 phase_out.v2.c3_h, phase_out.v2.c4_h);
++			dev_info(dev->mt76.dev,
++				 "c0_mh = %d, c1_mh = %d, c2_mh = %d, c3_mh = %d c4_mh = %d\n",
++				 phase_out.v2.c0_mh, phase_out.v2.c1_mh, phase_out.v2.c2_mh,
++				 phase_out.v2.c3_mh, phase_out.v2.c4_mh);
++			dev_info(dev->mt76.dev,
++				 "c0_m = %d, c1_m = %d, c2_m = %d, c3_m = %d c4_m = %d\n",
++				 phase_out.v2.c0_m, phase_out.v2.c1_m, phase_out.v2.c2_m,
++				 phase_out.v2.c3_m, phase_out.v2.c4_m);
++			dev_info(dev->mt76.dev,
++				 "c0_l = %d, c1_l = %d, c2_l = %d, c3_l = %d c4_l = %d\n",
++				 phase_out.v2.c0_l, phase_out.v2.c1_l, phase_out.v2.c2_l,
++				 phase_out.v2.c3_l, phase_out.v2.c4_l);
++		} else {
++			dev_info(dev->mt76.dev,
++				 "c0_uh = %d, c1_uh = %d, c2_uh = %d, c3_uh = %d\n",
++				 phase_out.v1.c0_uh, phase_out.v1.c1_uh,
++				 phase_out.v1.c2_uh, phase_out.v1.c3_uh);
++			dev_info(dev->mt76.dev,
++				 "c0_h = %d, c1_h = %d, c2_h = %d, c3_h = %d\n",
++				 phase_out.v1.c0_h, phase_out.v1.c1_h,
++				 phase_out.v1.c2_h, phase_out.v1.c3_h);
++			dev_info(dev->mt76.dev,
++				 "c0_mh = %d, c1_mh = %d, c2_mh = %d, c3_mh = %d\n",
++				 phase_out.v1.c0_mh, phase_out.v1.c1_mh,
++				 phase_out.v1.c2_mh, phase_out.v1.c3_mh);
++			dev_info(dev->mt76.dev,
++				 "c0_m = %d, c1_m = %d, c2_m = %d, c3_m = %d\n",
++				 phase_out.v1.c0_m, phase_out.v1.c1_m,
++				 phase_out.v1.c2_m, phase_out.v1.c3_m);
++			dev_info(dev->mt76.dev,
++				 "c0_l = %d, c1_l = %d, c2_l = %d, c3_l = %d\n",
++				 phase_out.v1.c0_l, phase_out.v1.c1_l,
++				 phase_out.v1.c2_l, phase_out.v1.c3_l);
++		}
+ 
+ 		break;
+ 	}
+diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
+index 8a0ed9bc2..7bfb5920d 100644
+--- a/mt7996/mtk_mcu.h
++++ b/mt7996/mtk_mcu.h
+@@ -189,7 +189,7 @@ struct bf_txsnd_info {
+ 	u8 __rsv[2];
+ } __packed;
+ 
+-#define MAX_PHASE_GROUP_NUM	9
++#define MAX_PHASE_GROUP_NUM	13
+ 
+ struct bf_phase_comp {
+ 	__le16 tag;
+@@ -227,7 +227,8 @@ struct bf_phase_cal {
+ 	u8 cal_type;
+ 	u8 lna_gain_level;
+ 	u8 band_idx;
+-	u8 rsv[2];
++	u8 version;
++	u8 rsv[1];
+ } __packed;
+ 
+ struct bf_txcmd {
+@@ -248,7 +249,7 @@ struct bf_pfmu_data_all {
+ 	u8 band_idx;
+ 	u8 rsv[2];
+ 
+-	u8 buf[512];
++	u8 buf[640];
+ } __packed;
+ 
+ #define TXBF_DUT_MAC_SUBADDR		0x22
+@@ -588,7 +589,35 @@ struct mt7996_txbf_phase_out {
+ 	u8 c3_uh;
+ };
+ 
+-struct mt7996_txbf_rx_phase_2g {
++struct mt7992_txbf_phase_out {
++	u8 c0_l;
++	u8 c1_l;
++	u8 c2_l;
++	u8 c3_l;
++	u8 c4_l;
++	u8 c0_m;
++	u8 c1_m;
++	u8 c2_m;
++	u8 c3_m;
++	u8 c4_m;
++	u8 c0_mh;
++	u8 c1_mh;
++	u8 c2_mh;
++	u8 c3_mh;
++	u8 c4_mh;
++	u8 c0_h;
++	u8 c1_h;
++	u8 c2_h;
++	u8 c3_h;
++	u8 c4_h;
++	u8 c0_uh;
++	u8 c1_uh;
++	u8 c2_uh;
++	u8 c3_uh;
++	u8 c4_uh;
++};
++
++struct txbf_rx_phase {
+ 	u8 rx_uh;
+ 	u8 rx_h;
+ 	u8 rx_m;
+@@ -596,7 +625,7 @@ struct mt7996_txbf_rx_phase_2g {
+ 	u8 rx_ul;
+ };
+ 
+-struct mt7996_txbf_rx_phase_5g {
++struct txbf_rx_phase_ext {
+ 	u8 rx_uh;
+ 	u8 rx_h;
+ 	u8 rx_mh;
+@@ -606,12 +635,12 @@ struct mt7996_txbf_rx_phase_5g {
+ };
+ 
+ struct mt7996_txbf_phase_info_2g {
+-	struct mt7996_txbf_rx_phase_2g r0;
+-	struct mt7996_txbf_rx_phase_2g r1;
+-	struct mt7996_txbf_rx_phase_2g r2;
+-	struct mt7996_txbf_rx_phase_2g r3;
+-	struct mt7996_txbf_rx_phase_2g r2_sx2;
+-	struct mt7996_txbf_rx_phase_2g r3_sx2;
++	struct txbf_rx_phase r0;
++	struct txbf_rx_phase r1;
++	struct txbf_rx_phase r2;
++	struct txbf_rx_phase r3;
++	struct txbf_rx_phase r2_sx2;
++	struct txbf_rx_phase r3_sx2;
+ 	u8 m_t0_h;
+ 	u8 m_t1_h;
+ 	u8 m_t2_h;
+@@ -625,12 +654,12 @@ struct mt7996_txbf_phase_info_2g {
+ };
+ 
+ struct mt7996_txbf_phase_info_5g {
+-	struct mt7996_txbf_rx_phase_5g r0;
+-	struct mt7996_txbf_rx_phase_5g r1;
+-	struct mt7996_txbf_rx_phase_5g r2;
+-	struct mt7996_txbf_rx_phase_5g r3;
+-	struct mt7996_txbf_rx_phase_2g r2_sx2;	/* no middle-high in r2_sx2 */
+-	struct mt7996_txbf_rx_phase_2g r3_sx2;	/* no middle-high in r3_sx2 */
++	struct txbf_rx_phase_ext r0;
++	struct txbf_rx_phase_ext r1;
++	struct txbf_rx_phase_ext r2;
++	struct txbf_rx_phase_ext r3;
++	struct txbf_rx_phase r2_sx2;	/* no middle-high in r2_sx2 */
++	struct txbf_rx_phase r3_sx2;	/* no middle-high in r3_sx2 */
+ 	u8 m_t0_h;
+ 	u8 m_t1_h;
+ 	u8 m_t2_h;
+@@ -643,49 +672,83 @@ struct mt7996_txbf_phase_info_5g {
+ 	u8 r3_sx2_reserved;
+ };
+ 
++struct mt7992_txbf_phase_info_2g {
++	struct txbf_rx_phase_ext r0;
++	struct txbf_rx_phase_ext r1;
++	struct txbf_rx_phase_ext r2;
++	struct txbf_rx_phase_ext r3;
++	u8 m_t0_h;
++	u8 m_t1_h;
++	u8 m_t2_h;
++};
++
++struct mt7992_txbf_phase_info_5g {
++	struct txbf_rx_phase_ext r0;
++	struct txbf_rx_phase_ext r1;
++	struct txbf_rx_phase_ext r2;
++	struct txbf_rx_phase_ext r3;
++	struct txbf_rx_phase_ext r4;
++	u8 m_t0_h;
++	u8 m_t1_h;
++	u8 m_t2_h;
++	u8 m_t3_h;
++};
++
+ struct mt7996_txbf_phase {
+ 	u8 status;
+ 	union {
+-		struct mt7996_txbf_phase_info_2g phase_2g;
+-		struct mt7996_txbf_phase_info_5g phase_5g;
++		union {
++			struct mt7996_txbf_phase_info_2g phase_2g;
++			struct mt7996_txbf_phase_info_5g phase_5g;
++		} v1;
++		union {
++			struct mt7992_txbf_phase_info_2g phase_2g;
++			struct mt7992_txbf_phase_info_5g phase_5g;
++		} v2;
++		u8 buf[44];
+ 	};
+ };
+ 
+-#define phase_assign(group, field, dump, ...)	({						\
++#define phase_assign(group, v, field, dump, ...)	({					\
+ 	if (group) {										\
+-		phase->phase_5g.field = cal->phase_5g.field;					\
++		phase->v.phase_5g.field = cal->v.phase_5g.field;				\
+ 		if (dump)									\
+-			dev_info(dev->mt76.dev, "%s = %d\n", #field, phase->phase_5g.field);	\
++			dev_info(dev->mt76.dev, "%s = %d\n", #field, phase->v.phase_5g.field);	\
+ 	} else {										\
+-		phase->phase_2g.field = cal->phase_5g.field;					\
++		phase->v.phase_2g.field = cal->v.phase_5g.field;				\
+ 		if (dump)									\
+-			dev_info(dev->mt76.dev, "%s = %d\n", #field, phase->phase_2g.field);	\
++			dev_info(dev->mt76.dev, "%s = %d\n", #field, phase->v.phase_2g.field);	\
+ 	}											\
+ })
+ 
+-#define phase_assign_rx_g0(group, rx, ...)	({						\
+-	phase_assign(group, rx.rx_uh, false);							\
+-	phase_assign(group, rx.rx_h, false);							\
+-	phase_assign(group, rx.rx_m, false);							\
+-	phase_assign(group, rx.rx_l, false);							\
+-	phase_assign(group, rx.rx_ul, false);							\
++#define phase_assign_rx(group, v, rx, dump, ...)	({					\
++	phase_assign(group, v, rx.rx_uh, dump);							\
++	phase_assign(group, v, rx.rx_h, dump);							\
++	phase_assign(group, v, rx.rx_m, dump);							\
++	phase_assign(group, v, rx.rx_l, dump);							\
++	phase_assign(group, v, rx.rx_ul, dump);							\
+ })
+ 
+-#define phase_assign_rx(group, rx, ...)	({							\
++#define phase_assign_rx_ext(group, v, rx, dump, ...)	({					\
++	phase_assign(group, v, rx.rx_uh, dump);							\
++	phase_assign(group, v, rx.rx_h, dump);							\
++	phase_assign(group, v, rx.rx_mh, dump);							\
++	phase_assign(group, v, rx.rx_m, dump);							\
++	phase_assign(group, v, rx.rx_l, dump);							\
++	phase_assign(group, v, rx.rx_ul, dump);							\
++})
++
++#define phase_assign_rx_v1(group, v, rx, ...)	({						\
+ 	if (group) {										\
+-		phase_assign(group, rx.rx_uh, true);						\
+-		phase_assign(group, rx.rx_h, true);						\
+-		phase->phase_5g.rx.rx_mh = cal->phase_5g.rx.rx_mh;				\
+-		dev_info(dev->mt76.dev, "%s.rx_mh = %d\n", #rx, phase->phase_5g.rx.rx_mh);	\
+-		phase_assign(group, rx.rx_m, true);						\
+-		phase_assign(group, rx.rx_l, true);						\
+-		phase_assign(group, rx.rx_ul, true);						\
++		phase_assign(group, v, rx.rx_uh, true);						\
++		phase_assign(group, v, rx.rx_h, true);						\
++		phase->v.phase_5g.rx.rx_mh = cal->v.phase_5g.rx.rx_mh;				\
++		dev_info(dev->mt76.dev, "%s.rx_mh = %d\n", #rx, phase->v.phase_5g.rx.rx_mh);	\
++		phase_assign(group, v, rx.rx_m, true);						\
++		phase_assign(group, v, rx.rx_l, true);						\
++		phase_assign(group, v, rx.rx_ul, true);						\
+ 	} else {										\
+-		phase_assign(group, rx.rx_uh, true);						\
+-		phase_assign(group, rx.rx_h, true);						\
+-		phase_assign(group, rx.rx_m, true);						\
+-		phase_assign(group, rx.rx_l, true);						\
+-		phase_assign(group, rx.rx_ul, true);						\
++		phase_assign_rx(group, v, rx, true, ...);					\
+ 	}											\
+ })
+ 
+@@ -709,11 +772,24 @@ struct mt7996_ibf_cal_info {
+ 	bool sx2;
+ 	u8 status;
+ 	u8 cal_type;
+-	u8 _rsv[2];
+-	struct mt7996_txbf_phase_out phase_out;
++	u8 nsts;
++	u8 version;
+ 	union {
+-		struct mt7996_txbf_phase_info_2g phase_2g;
+-		struct mt7996_txbf_phase_info_5g phase_5g;
++		struct {
++			struct mt7996_txbf_phase_out phase_out;
++			union {
++				struct mt7996_txbf_phase_info_2g phase_2g;
++				struct mt7996_txbf_phase_info_5g phase_5g;
++			};
++		} v1;
++		struct {
++			struct mt7992_txbf_phase_out phase_out;
++			union {
++				struct mt7992_txbf_phase_info_2g phase_2g;
++				struct mt7992_txbf_phase_info_5g phase_5g;
++			};
++		} v2;
++		u8 buf[64];
+ 	};
+ } __packed;
+ 
+@@ -725,7 +801,23 @@ enum {
+ 	IBF_PHASE_CAL_VERIFY_INSTRUMENT,
+ };
+ 
+-#define MT7996_TXBF_SUBCAR_NUM	64
++enum ibf_version {
++	IBF_VER_1,
++	IBF_VER_2 = 3,
++};
++
++static inline int get_ibf_version(struct mt7996_dev *dev)
++{
++	switch (mt76_chip(&dev->mt76)) {
++	case 0x7990:
++		return IBF_VER_1;
++	case 0x7992:
++	default:
++		return IBF_VER_2;
++	}
++}
++
++#define MT7996_TXBF_SUBCAR_NUM		64
+ 
+ enum {
+ 	UNI_EVENT_BF_PFMU_TAG = 0x5,
+diff --git a/mt7996/testmode.c b/mt7996/testmode.c
+index c82ac562a..4188cb35a 100644
+--- a/mt7996/testmode.c
++++ b/mt7996/testmode.c
+@@ -1257,6 +1257,23 @@ mt7996_tm_txbf_init(struct mt7996_phy *phy, u16 *val)
+ 	return 0;
+ }
+ 
++static inline void
++mt7996_tm_txbf_phase_copy(struct mt7996_dev *dev, void *des, void *src, int group)
++{
++	int phase_size;
++
++	if (group && get_ibf_version(dev) == IBF_VER_1)
++		phase_size = sizeof(struct mt7996_txbf_phase_info_5g);
++	else if (get_ibf_version(dev) == IBF_VER_1)
++		phase_size = sizeof(struct mt7996_txbf_phase_info_2g);
++	else if (group)
++		phase_size = sizeof(struct mt7992_txbf_phase_info_5g);
++	else
++		phase_size = sizeof(struct mt7992_txbf_phase_info_2g);
++
++	memcpy(des, src, phase_size);
++}
++
+ static int
+ mt7996_tm_txbf_phase_comp(struct mt7996_phy *phy, u16 *val)
+ {
+@@ -1274,12 +1291,10 @@ mt7996_tm_txbf_phase_comp(struct mt7996_phy *phy, u16 *val)
+ 		}
+ 	};
+ 	struct mt7996_txbf_phase *phase = (struct mt7996_txbf_phase *)dev->test.txbf_phase_cal;
++	int group = val[2];
+ 
+-	wait_event_timeout(dev->mt76.tx_wait, phase[val[2]].status != 0, HZ);
+-	if (val[2])
+-		memcpy(req.phase_comp.buf, &phase[val[2]].phase_5g, sizeof(req.phase_comp.buf));
+-	else
+-		memcpy(req.phase_comp.buf, &phase[val[2]].phase_2g, sizeof(req.phase_comp.buf));
++	wait_event_timeout(dev->mt76.tx_wait, phase[group].status != 0, HZ);
++	mt7996_tm_txbf_phase_copy(dev, req.phase_comp.buf, phase[group].buf, group);
+ 
+ 	pr_info("ibf cal process: phase comp info\n");
+ 	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1,
+@@ -1470,6 +1485,7 @@ mt7996_tm_txbf_phase_cal(struct mt7996_phy *phy, u16 *val)
+ 			.cal_type = val[3],
+ 			.lna_gain_level = val[4],
+ 			.band_idx = phy->mt76->band_idx,
++			.version = val[5],
+ 		},
+ 	};
+ 	struct mt7996_txbf_phase *phase = (struct mt7996_txbf_phase *)dev->test.txbf_phase_cal;
+@@ -1545,7 +1561,9 @@ static int
+ mt7996_tm_txbf_e2p_update(struct mt7996_phy *phy)
+ {
+ #define TXBF_PHASE_EEPROM_START_OFFSET		0xc00
+-#define TXBF_PHASE_GROUP_EEPROM_OFFSET		0x2e
++#define TXBF_PHASE_GROUP_EEPROM_OFFSET_VER_1	46
++#define TXBF_PHASE_G0_EEPROM_OFFSET_VER_2	sizeof(struct mt7992_txbf_phase_info_2g)
++#define TXBF_PHASE_GX_EEPROM_OFFSET_VER_2	sizeof(struct mt7992_txbf_phase_info_5g)
+ 	struct mt7996_txbf_phase *phase, *p;
+ 	struct mt7996_dev *dev = phy->dev;
+ 	u8 *eeprom = dev->mt76.eeprom.data;
+@@ -1561,11 +1579,12 @@ mt7996_tm_txbf_e2p_update(struct mt7996_phy *phy)
+ 			continue;
+ 
+ 		/* copy phase cal data to eeprom */
+-		if (i)
+-			memcpy(eeprom + offset, &p->phase_5g, sizeof(p->phase_5g));
++		mt7996_tm_txbf_phase_copy(dev, eeprom + offset, p->buf, i);
++		if (get_ibf_version(dev) == IBF_VER_1)
++			offset += TXBF_PHASE_GROUP_EEPROM_OFFSET_VER_1;
+ 		else
+-			memcpy(eeprom + offset, &p->phase_2g, sizeof(p->phase_2g));
+-		offset += TXBF_PHASE_GROUP_EEPROM_OFFSET;
++			offset += i ? TXBF_PHASE_GX_EEPROM_OFFSET_VER_2 :
++				      TXBF_PHASE_G0_EEPROM_OFFSET_VER_2;
+ 	}
+ 
+ 	return 0;
+-- 
+2.39.2
+

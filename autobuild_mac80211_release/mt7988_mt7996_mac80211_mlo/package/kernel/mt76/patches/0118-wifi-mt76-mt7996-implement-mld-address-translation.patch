@@ -1,0 +1,116 @@
+From afd1d82534042740dfa6128464e9756483281942 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Thu, 7 Dec 2023 16:31:56 +0800
+Subject: [PATCH 118/120] wifi: mt76: mt7996: implement mld address translation
+
+Do the MLD to link address translation for EAPOL and management frames
+in driver.
+This is a preliminary patch to add MLO support for mt7996 chipsets.
+
+Co-developed-by: Bo Jiao <Bo.Jiao@mediatek.com>
+Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
+Co-developed-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/mac.c  |  7 +++++++
+ mt7996/main.c | 46 +++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 50 insertions(+), 3 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 86c45adfd..82387da8b 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -833,6 +833,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
+ 	struct ieee80211_key_conf *key = info->control.hw_key;
+ 	struct ieee80211_vif *vif = info->control.vif;
++	struct ieee80211_bss_conf *conf;
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+ 	struct mt7996_sta *msta;
+ 	struct mt7996_bss_conf *mconf;
+@@ -893,6 +894,12 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 		mt7996_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, key,
+ 				      pid, qid, 0);
+ 
++	if (!is_8023 && sta && sta->mlo &&
++	    unlikely(tx_info->skb->protocol == cpu_to_be16(ETH_P_PAE))) {
++		conf = rcu_dereference(vif->link_conf[wcid->link_id]);
++		memcpy(hdr->addr3, conf->addr, ETH_ALEN);
++	}
++
+ 	txp = (struct mt76_connac_txp_common *)(txwi + MT_TXD_SIZE);
+ 	for (i = 0; i < nbuf; i++) {
+ 		u16 len;
+diff --git a/mt7996/main.c b/mt7996/main.c
+index b2c6354c4..bbe9b9524 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1307,14 +1307,53 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+ 
+ 	rcu_read_lock();
+ 	if (mvif && msta) {
++		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+ 		struct mt7996_bss_conf *mconf;
+ 		struct mt7996_link_sta *mlink;
+-
+ 		u8 link_id = u32_get_bits(info->control.flags,
+ 					  IEEE80211_TX_CTRL_MLO_LINK);
++		struct ieee80211_sta *sta = ieee80211_find_sta(vif, hdr->addr1);
++
++		if (link_id >= IEEE80211_LINK_UNSPECIFIED) {
++			if (sta) {
++				struct mt7996_sta *peer;
+ 
+-		if (link_id >= IEEE80211_LINK_UNSPECIFIED)
+-			link_id = mvif->master_link_id;
++				peer = (struct mt7996_sta *)sta->drv_priv;
++				link_id = peer->pri_link;
++			} else {
++				link_id = mvif->master_link_id;
++			}
++		}
++
++		/* translate mld addr to link addr */
++		if (ieee80211_vif_is_mld(vif)) {
++			struct ieee80211_bss_conf *conf;
++			if (sta) {
++				struct ieee80211_link_sta *link_sta =
++					rcu_dereference(sta->link[link_id]);
++
++				if (!link_sta) {
++					mlo_dbg(mt7996_hw_phy(mvif->hw), "request TX on invalid link_id=%u, use primary link (id=%u) instead.\n",
++						      link_id, msta->pri_link);
++					link_id = msta->pri_link;
++					link_sta = rcu_dereference(sta->link[link_id]);
++
++					if (!link_sta) {
++						mlo_dbg(mt7996_hw_phy(mvif->hw), "primary link became invalid, give up the TX\n");
++						goto unlock;
++					}
++				}
++
++				memcpy(hdr->addr1, link_sta->addr, ETH_ALEN);
++				if (ether_addr_equal(sta->addr, hdr->addr3))
++					memcpy(hdr->addr3, link_sta->addr, ETH_ALEN);
++			}
++
++			conf = rcu_dereference(vif->link_conf[link_id]);
++			memcpy(hdr->addr2, conf->addr, ETH_ALEN);
++			if (ether_addr_equal(vif->addr, hdr->addr3))
++				memcpy(hdr->addr3, conf->addr, ETH_ALEN);
++		}
+ 
+ 		mconf = rcu_dereference(mvif->link[link_id]);
+ 		mlink = rcu_dereference(msta->link[link_id]);
+@@ -1328,6 +1367,7 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+ 	}
+ 
+ 	mt76_tx(mphy, control->sta, wcid, skb);
++unlock:
+ 	rcu_read_unlock();
+ }
+ 
+-- 
+2.39.2
+
