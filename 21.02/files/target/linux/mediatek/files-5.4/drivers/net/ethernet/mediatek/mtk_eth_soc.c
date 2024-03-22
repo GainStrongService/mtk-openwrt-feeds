@@ -967,9 +967,27 @@ static void mtk_gdm_fsm_poll(struct mtk_mac *mac)
 		pr_info("%s fsm invalid", __func__);
 }
 
-static void mtk_pse_port_link_set(struct mtk_mac *mac, bool up)
+static void mtk_pse_port_link_set(struct mtk_mac *mac, bool up,
+				  phy_interface_t interface)
 {
 	u32 fe_glo_cfg, val = 0;
+
+	if (!up && interface == PHY_INTERFACE_MODE_XGMII) {
+		void __iomem *base;
+
+		base = ioremap(0x0F0CFB00, SZ_4K);
+		if (base) {
+			/* wait for internal 2.5G PHY to turn off */
+			usleep_range(100, 1000);
+			/* enable the XGMAC clock for 10 msecs to
+			 * flush the packets.
+			 */
+			writel(readl(base) | BIT(9), base);
+			usleep_range(10000, 11000);
+			writel(readl(base) & ~BIT(9), base);
+			iounmap(base);
+		}
+	}
 
 	fe_glo_cfg = mtk_r32(mac->hw, MTK_FE_GLO_CFG(mac->id));
 	switch (mac->id) {
@@ -1002,7 +1020,7 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 	unsigned int id;
 	u32 mcr, sts;
 
-	mtk_pse_port_link_set(mac, false);
+	mtk_pse_port_link_set(mac, false, interface);
 	if (mac->type == MTK_GDM_TYPE) {
 		mcr = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
 		mcr &= ~(MAC_MCR_TX_EN | MAC_MCR_RX_EN | MAC_MCR_FORCE_LINK);
@@ -1186,7 +1204,7 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 		mcr &= ~(XMAC_MCR_TRX_DISABLE);
 		mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
 	}
-	mtk_pse_port_link_set(mac, true);
+	mtk_pse_port_link_set(mac, true, interface);
 }
 
 static void mtk_validate(struct phylink_config *config,
