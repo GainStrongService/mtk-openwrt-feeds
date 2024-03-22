@@ -48,6 +48,7 @@ module_exit(Driver97_Exit);
 EXPORT_SYMBOL(DMABuf_NULLHandle);
 EXPORT_SYMBOL(DMABuf_Handle_IsSame);
 EXPORT_SYMBOL(DMABuf_Alloc);
+EXPORT_SYMBOL(DMABuf_Particle_Alloc);
 EXPORT_SYMBOL(DMABuf_Register);
 EXPORT_SYMBOL(DMABuf_Release);
 

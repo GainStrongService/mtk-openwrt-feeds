@@ -864,6 +864,53 @@ DMAResource_UnInit(void)
     HWPAL_DMAResource_UnInit();
 }
 
+int
+DMAResource_SG_Alloc(
+        const DMAResource_Properties_t RequestedProperties,
+        dma_addr_t DmaAddress,
+        DMAResource_AddrPair_t * const AddrPair_p,
+        DMAResource_Handle_t * const Handle_p)
+{
+    HWPAL_DMAResource_Properties_Ext_t PoolPropertiesExt;
+
+#ifdef HWPAL_DMARESOURCE_BANKS_ENABLE
+    HWPAL_DMAResource_Bank_t * Bank_p;
+#endif
+
+    ZEROINIT(PoolPropertiesExt);
+
+#ifdef HWPAL_DMARESOURCE_BANKS_ENABLE
+    // Find the bank
+    Bank_p = DMAResourceLib_DMAPool_Bank_Get(RequestedProperties.Bank);
+    if (Bank_p == NULL)
+    {
+        LOG_CRIT("DMAResource_Alloc: failed for unsupported bank %d\n",
+                 (int)RequestedProperties.Bank);
+        return -1; // Bank not supported
+    }
+
+    if (Bank_p->BankType == HWPAL_DMARESOURCE_BANK_DYNAMIC)
+        // Handle non-static banks
+        return HWPAL_SG_DMAResource_Alloc(RequestedProperties,
+                                       PoolPropertiesExt,
+                                       DmaAddress,
+                                       AddrPair_p,
+                                       Handle_p);
+    else {
+        LOG_WARN(
+            "DMAResource_SG_Alloc: "
+            "Non-static banks not support\n"
+        );
+        return -1;
+    }
+#else
+    return HWPAL_SG_DMAResource_Alloc(RequestedProperties,
+                                   PoolPropertiesExt,
+                                   DmaAddress,
+                                   AddrPair_p,
+                                   Handle_p);
+#endif // HWPAL_DMARESOURCE_BANKS_ENABLE
+}
 
 /*----------------------------------------------------------------------------
  * DMAResource_Alloc
@@ -1002,6 +1049,40 @@ DMAResource_Alloc(
 #endif // HWPAL_DMARESOURCE_BANKS_ENABLE
 }
 
+int
+DMAResource_SG_Release(
+        const DMAResource_Handle_t Handle)
+{
+#ifdef HWPAL_DMARESOURCE_BANKS_ENABLE
+    HWPAL_DMAResource_Bank_t * Bank_p;
+    DMAResource_Record_t * Rec_p;
+
+    Rec_p = DMAResource_Handle2RecordPtr(Handle);
+    if (Rec_p == NULL)
+    {
+        //LOG_CRIT("DMAResource_SG_Release: invalid handle %p\n", Handle);
+        return -1;
+    }
+
+    // Find the bank
+    Bank_p = DMAResourceLib_DMAPool_Bank_Get(Rec_p->Props.Bank);
+    if (Bank_p == NULL)
+    {
+        LOG_CRIT("DMAResource_SG_Release: failed for unsupported bank %d\n",
+                 (int)Rec_p->Props.Bank);
+        return -1; // Bank not supported
+    }
+
+    // Handle non-static banks
+    if (Bank_p->BankType == HWPAL_DMARESOURCE_BANK_DYNAMIC)
+        return HWPAL_DMAResource_SG_Release(Handle);
+    else
+    {
+        LOG_CRIT("DMAResource_SG_Release: static banks not supported\n");
+        return -1;
+    }
+#endif // HWPAL_DMARESOURCE_BANKS_ENABLE
+}
 
 /*----------------------------------------------------------------------------
  * DMAResource_Release
