@@ -25,6 +25,7 @@
 #include <crypto-eip/ddk/slad/api_pcl.h>
 #include <crypto-eip/ddk/slad/api_pcl_dtl.h>
 #include <crypto-eip/ddk/slad/api_pec.h>
+#include <crypto-eip/ddk/slad/api_pec_sg.h>
 #include <crypto-eip/ddk/log/log.h>
 
 #ifdef DDK_EIP197_FW33_FEATURES

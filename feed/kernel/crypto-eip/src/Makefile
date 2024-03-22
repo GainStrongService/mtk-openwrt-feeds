@@ -11,6 +11,9 @@ ccflags-y += -I$(src)/inc
 
 crypto-eip-inline-y += init.o
 crypto-eip-inline-y += ddk-wrapper.o
+crypto-eip-inline-y += lookaside.o
+crypto-eip-inline-y += lookaside-cipher.o
+crypto-eip-inline-y += lookaside-hash.o
 
 crypto-eip-inline-$(CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE) += xfrm-offload.o
 

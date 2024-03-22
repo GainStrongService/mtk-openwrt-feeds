@@ -11,7 +11,11 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/crypto.h>
 #include <linux/platform_device.h>
+#include <crypto/internal/skcipher.h>
+#include <crypto/internal/aead.h>
+#include <crypto/internal/hash.h>
 
 #include <mtk_eth_soc.h>
 #include <mtk_hnat/hnat.h>
@@ -20,6 +24,7 @@
 
 #include "crypto-eip/crypto-eip.h"
 #include "crypto-eip/ddk-wrapper.h"
+#include "crypto-eip/lookaside.h"
 #include "crypto-eip/internal.h"
 
 #define DRIVER_AUTHOR	"Ren-Ting Wang <ren-ting.wang@mediatek.com, " \
@@ -27,6 +32,57 @@
 
 struct mtk_crypto mcrypto;
 struct device *crypto_dev;
+struct mtk_crypto_priv *priv;
+spinlock_t add_lock;
+
+static struct mtk_crypto_alg_template *mtk_crypto_algs[] = {
+	&mtk_crypto_cbc_aes,
+	&mtk_crypto_ecb_aes,
+	&mtk_crypto_cfb_aes,
+	&mtk_crypto_ofb_aes,
+	&mtk_crypto_ctr_aes,
+	&mtk_crypto_cbc_des,
+	&mtk_crypto_ecb_des,
+	&mtk_crypto_cbc_des3_ede,
+	&mtk_crypto_ecb_des3_ede,
+	&mtk_crypto_sha1,
+	&mtk_crypto_hmac_sha1,
+	&mtk_crypto_sha224,
+	&mtk_crypto_hmac_sha224,
+	&mtk_crypto_sha256,
+	&mtk_crypto_hmac_sha256,
+	&mtk_crypto_sha384,
+	&mtk_crypto_hmac_sha384,
+	&mtk_crypto_sha512,
+	&mtk_crypto_hmac_sha512,
+	&mtk_crypto_md5,
+	&mtk_crypto_hmac_md5,
+	&mtk_crypto_xcbcmac,
+	&mtk_crypto_cmac,
+	&mtk_crypto_hmac_sha1_cbc_aes,
+	&mtk_crypto_hmac_sha224_cbc_aes,
+	&mtk_crypto_hmac_sha256_cbc_aes,
+	&mtk_crypto_hmac_sha384_cbc_aes,
+	&mtk_crypto_hmac_sha512_cbc_aes,
+	&mtk_crypto_hmac_md5_cbc_aes,
+	&mtk_crypto_hmac_sha1_cbc_des3_ede,
+	&mtk_crypto_hmac_sha224_cbc_des3_ede,
+	&mtk_crypto_hmac_sha256_cbc_des3_ede,
+	&mtk_crypto_hmac_sha384_cbc_des3_ede,
+	&mtk_crypto_hmac_sha512_cbc_des3_ede,
+	&mtk_crypto_hmac_md5_cbc_des3_ede,
+	&mtk_crypto_hmac_sha1_cbc_des,
+	&mtk_crypto_hmac_sha224_cbc_des,
+	&mtk_crypto_hmac_sha256_cbc_des,
+	&mtk_crypto_hmac_sha384_cbc_des,
+	&mtk_crypto_hmac_sha512_cbc_des,
+	//&mtk_crypto_hmac_sha1_ctr_aes, /* no testcase, todo */
+	//&mtk_crypto_hmac_sha256_ctr_aes, /* no testcase, todo */
+	&mtk_crypto_gcm,
+	&mtk_crypto_rfc4106_gcm,
+	&mtk_crypto_rfc4543_gcm,
+	&mtk_crypto_rfc4309_ccm,
+};
 
 inline void crypto_eth_write(u32 reg, u32 val)
 {
@@ -78,6 +134,55 @@ static const struct xfrmdev_ops mtk_xfrmdev_ops = {
 	/* Not support at v5.4*/
 	.xdo_dev_policy_add = mtk_xfrm_offload_policy_add,
 };
+
+static int mtk_crypto_register_algorithms(struct mtk_crypto_priv *priv)
+{
+	int i;
+	int j;
+	int ret;
+
+	for (i = 0; i < ARRAY_SIZE(mtk_crypto_algs); i++) {
+		mtk_crypto_algs[i]->priv = priv;
+
+		if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_SKCIPHER)
+			ret = crypto_register_skcipher(&mtk_crypto_algs[i]->alg.skcipher);
+		else if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_AEAD)
+			ret = crypto_register_aead(&mtk_crypto_algs[i]->alg.aead);
+		else
+			ret = crypto_register_ahash(&mtk_crypto_algs[i]->alg.ahash);
+
+		if (ret)
+			goto fail;
+	}
+
+	return 0;
+
+fail:
+	for (j = 0; j < i; j++) {
+		if (mtk_crypto_algs[j]->type == MTK_CRYPTO_ALG_TYPE_SKCIPHER)
+			crypto_unregister_skcipher(&mtk_crypto_algs[j]->alg.skcipher);
+		else if (mtk_crypto_algs[j]->type == MTK_CRYPTO_ALG_TYPE_AEAD)
+			crypto_unregister_aead(&mtk_crypto_algs[j]->alg.aead);
+		else
+			crypto_unregister_ahash(&mtk_crypto_algs[j]->alg.ahash);
+	}
+
+	return ret;
+}
+
+static void mtk_crypto_unregister_algorithms(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mtk_crypto_algs); i++) {
+		if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_SKCIPHER)
+			crypto_unregister_skcipher(&mtk_crypto_algs[i]->alg.skcipher);
+		else if (mtk_crypto_algs[i]->type == MTK_CRYPTO_ALG_TYPE_AEAD)
+			crypto_unregister_aead(&mtk_crypto_algs[i]->alg.aead);
+		else
+			crypto_unregister_ahash(&mtk_crypto_algs[i]->alg.ahash);
+	}
+}
 
 static void mtk_crypto_xfrm_offload_deinit(struct mtk_eth *eth)
 {
@@ -179,6 +284,32 @@ static int __init mtk_crypto_ppe_num_dts_init(struct platform_device *pdev)
 	return 0;
 }
 
+static int __init mtk_crypto_lookaside_data_init(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, priv);
+
+	priv->mtk_eip_queue.work_data.priv = priv;
+	INIT_WORK(&priv->mtk_eip_queue.work_data.work, mtk_crypto_dequeue_work);
+
+	priv->mtk_eip_queue.workqueue = create_singlethread_workqueue("mtk_crypto_work");
+	if (!priv->mtk_eip_queue.workqueue)
+		return -ENOMEM;
+
+	crypto_init_queue(&priv->mtk_eip_queue.queue, EIP197_DEFAULT_RING_SIZE);
+
+	spin_lock_init(&priv->mtk_eip_queue.lock);
+	spin_lock_init(&priv->mtk_eip_queue.queue_lock);
+	spin_lock_init(&add_lock);
+
+	return 0;
+};
+
 static int __init mtk_crypto_eip_dts_init(void)
 {
 	struct platform_device *crypto_pdev;
@@ -223,6 +354,10 @@ static int __init mtk_crypto_eip_dts_init(void)
 		goto out;
 
 	crypto_dev = &crypto_pdev->dev;
+
+	ret = mtk_crypto_lookaside_data_init(crypto_pdev);
+	if (ret)
+		goto out;
 
 out:
 	of_node_put(crypto_node);
@@ -269,6 +404,7 @@ static int __init mtk_crypto_eip_init(void)
 	}
 
 	mtk_crypto_xfrm_offload_init(mcrypto.eth);
+	mtk_crypto_register_algorithms(priv);
 
 	CRYPTO_INFO("crypto-eip init done\n");
 
@@ -278,10 +414,11 @@ static int __init mtk_crypto_eip_init(void)
 static void __exit mtk_crypto_eip_exit(void)
 {
 	/* TODO: deactivate all tunnel */
-
+	mtk_crypto_unregister_algorithms();
 	mtk_crypto_xfrm_offload_deinit(mcrypto.eth);
 
 	mtk_crypto_eip_hw_deinit();
+
 }
 
 module_init(mtk_crypto_eip_init);

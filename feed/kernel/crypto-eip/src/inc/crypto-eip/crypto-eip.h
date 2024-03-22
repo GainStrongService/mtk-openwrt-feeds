@@ -19,6 +19,7 @@
 struct mtk_crypto;
 
 extern struct mtk_crypto mcrypto;
+extern spinlock_t add_lock;
 
 #define TRANSFORM_RECORD_LEN		64
 
