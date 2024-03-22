@@ -187,6 +187,8 @@ void mtk_usxgmii_setup_phya_usxgmii(struct mtk_usxgmii_pcs *mpcs)
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x02002800);
 	ndelay(1020);
+	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
+			   0x20000000);
 	/* Setup DA default value */
 	regmap_update_bits(mpcs->regmap_pextp, 0x30B0, GENMASK(31, 0),
 			   0x00000020);
@@ -299,6 +301,8 @@ void mtk_usxgmii_setup_phya_5gbaser(struct mtk_usxgmii_pcs *mpcs)
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x02002800);
 	ndelay(1020);
+	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
+			   0x20000000);
 	/* Setup DA default value */
 	regmap_update_bits(mpcs->regmap_pextp, 0x30B0, GENMASK(31, 0),
 			   0x00000020);
@@ -411,6 +415,8 @@ void mtk_usxgmii_setup_phya_10gbaser(struct mtk_usxgmii_pcs *mpcs)
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x02002800);
 	ndelay(1020);
+	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
+			   0x20000000);
 	/* Setup DA default value */
 	regmap_update_bits(mpcs->regmap_pextp, 0x30B0, GENMASK(31, 0),
 			   0x00000020);
