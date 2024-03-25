@@ -769,6 +769,7 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 {
 	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
 	unsigned long t_start = jiffies;
+	unsigned int mpcs_mode;
 
 	/* Reconfiguring USXGMII to ensure the quality of the RX signal
 	 * after the line side link up.
@@ -782,7 +783,11 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 		if (mtk_usxgmii_link_status(mpcs))
 			return;
 
-		if (mpcs->mode == MLO_AN_PHY)
+		spin_lock(&mpcs->regmap_lock);
+		mpcs_mode = mpcs->mode;
+		spin_unlock(&mpcs->regmap_lock);
+
+		if (mpcs_mode == MLO_AN_PHY)
 			mtk_usxgmii_pcs_config(&mpcs->pcs, mode,
 						interface, NULL, false);
 	} while (time_before(jiffies, t_start + msecs_to_jiffies(3000)));

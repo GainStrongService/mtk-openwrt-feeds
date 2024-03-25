@@ -816,9 +816,12 @@ static int mtk_mac_finish(struct phylink_config *config, unsigned int mode,
 
 	/* Enable SGMII */
 	if (interface == PHY_INTERFACE_MODE_SGMII ||
-	    phy_interface_mode_is_8023z(interface))
+	    phy_interface_mode_is_8023z(interface)) {
+		spin_lock(&eth->syscfg0_lock);
 		regmap_update_bits(eth->ethsys, ETHSYS_SYSCFG0,
 				   SYSCFG0_SGMII_MASK, mac->syscfg0);
+		spin_unlock(&eth->syscfg0_lock);
+	}
 
 	return 0;
 }
@@ -3983,9 +3986,6 @@ set_speed:
 		return NOTIFY_DONE;
 
 	if (s.base.speed == 0 || s.base.speed == ((__u32)-1))
-		return NOTIFY_DONE;
-
-	if (queue >= MTK_QDMA_TX_NUM)
 		return NOTIFY_DONE;
 
 	if (mac->speed > 0 && mac->speed < s.base.speed)
