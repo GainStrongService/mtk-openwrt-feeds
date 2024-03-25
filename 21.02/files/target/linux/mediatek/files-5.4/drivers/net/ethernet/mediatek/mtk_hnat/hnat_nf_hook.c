@@ -1223,6 +1223,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	int udp = 0;
 	u32 qid = 0;
 	u32 port_id = 0;
+	u32 payload_len = 0;
 	int mape = 0;
 	struct mtk_mac *mac = netdev_priv(dev);
 
@@ -1758,6 +1759,29 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		qid = port_id & MTK_QDMA_TX_MASK;
 	else
 		qid = 0;
+
+	if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb)) {
+		if (ntohs(eth->h_proto) == ETH_P_IP) {
+			iph = ip_hdr(skb);
+			if (iph->protocol == IPPROTO_TCP) {
+				skb_set_transport_header(skb, sizeof(struct iphdr));
+				payload_len = be16_to_cpu(iph->tot_len) -
+					      skb_transport_offset(skb) - tcp_hdrlen(skb);
+				/* Dispatch ACK packets to high priority queue */
+				if (payload_len == 0)
+					qid += 6;
+			}
+		} else if (ntohs(eth->h_proto) == ETH_P_IPV6) {
+			ip6h = ipv6_hdr(skb);
+			if (ip6h->nexthdr == NEXTHDR_TCP) {
+				skb_set_transport_header(skb, sizeof(struct ipv6hdr));
+				payload_len = be16_to_cpu(ip6h->payload_len) - tcp_hdrlen(skb);
+				/* Dispatch ACK packets to high priority queue */
+				if (payload_len == 0)
+					qid += 6;
+			}
+		}
+	}
 
 	if (IS_IPV4_GRP(foe)) {
 		entry.ipv4_hnapt.iblk2.dp = gmac;
