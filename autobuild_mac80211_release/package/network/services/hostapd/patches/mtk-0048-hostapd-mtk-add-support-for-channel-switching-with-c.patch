@@ -1,4 +1,4 @@
-From a0538a9373ec7def76048e020fcb6ecfec53f3db Mon Sep 17 00:00:00 2001
+From 5d4d4397d0628a1aa83f83163e97ff34a0a5de43 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 16 Nov 2023 13:18:48 +0800
 Subject: [PATCH] hostapd: mtk: add support for channel switching with csa sent
@@ -6,14 +6,15 @@ Subject: [PATCH] hostapd: mtk: add support for channel switching with csa sent
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- hostapd/ctrl_iface.c   |  82 +++++++++++++++++-----
+ hostapd/ctrl_iface.c   |  84 +++++++++++++++++-----
  src/ap/ctrl_iface_ap.c |   5 +-
  src/ap/dfs.c           | 156 +++++++++++++++++++++++++++++++++++------
  src/ap/dfs.h           |   9 ++-
- 4 files changed, 212 insertions(+), 40 deletions(-)
+ src/ap/hostapd.c       |   8 ++-
+ 5 files changed, 221 insertions(+), 41 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 0afa6a2..44903e0 100644
+index 96b593a..445cb34 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -2742,11 +2742,12 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
@@ -105,10 +106,13 @@ index 0afa6a2..44903e0 100644
  	}
  
  	for (i = 0; i < iface->num_bss; i++) {
-@@ -2826,6 +2844,36 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2825,6 +2843,38 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+ 			return ret;
  		}
  	}
- 
++	/* Clear the CAC flag once all BSSes are switched to the new channel */
++	iface->cac_started = 0;
++
 +	if (background_radar) {
 +		u8 seg0, seg1;
 +
@@ -138,10 +142,9 @@ index 0afa6a2..44903e0 100644
 +		iface->radar_background.centr_freq_seg0_idx = seg0;
 +		iface->radar_background.centr_freq_seg1_idx = seg1;
 +	}
-+
+ 
  	return 0;
  #else /* NEED_AP_MLME */
- 	return -1;
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
 index 86e8729..005c9fa 100644
 --- a/src/ap/ctrl_iface_ap.c
@@ -166,7 +169,7 @@ index 86e8729..005c9fa 100644
  		return -1;
  	}
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index 012050c..5108e0a 100644
+index d490032..26ce229 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
 @@ -248,14 +248,15 @@ static int is_in_chanlist(struct hostapd_iface *iface,
@@ -215,7 +218,7 @@ index 012050c..5108e0a 100644
  			if (chan2 && abs(chan2->chan - chan->chan) > 12) {
  				/* two channels are not adjacent */
  				sec_chan_idx_80p80 = chan2->chan;
-@@ -1302,6 +1303,9 @@ int hostapd_dfs_pre_cac_expired(struct hostapd_iface *iface, int freq,
+@@ -1304,6 +1305,9 @@ int hostapd_dfs_pre_cac_expired(struct hostapd_iface *iface, int freq,
  	set_dfs_state(iface, freq, ht_enabled, chan_offset, chan_width,
  		      cf1, cf2, HOSTAPD_CHAN_DFS_USABLE);
  
@@ -225,7 +228,7 @@ index 012050c..5108e0a 100644
  	return 0;
  }
  
-@@ -1715,14 +1719,15 @@ int hostapd_handle_dfs_offload(struct hostapd_iface *iface)
+@@ -1717,14 +1721,15 @@ int hostapd_handle_dfs_offload(struct hostapd_iface *iface)
  }
  
  
@@ -245,7 +248,7 @@ index 012050c..5108e0a 100644
  
  	if (!iface->conf->ieee80211h || !mode ||
  	    mode->mode != HOSTAPD_MODE_IEEE80211A)
-@@ -1755,18 +1760,129 @@ int hostapd_is_dfs_overlap(struct hostapd_iface *iface, enum chan_width width,
+@@ -1757,18 +1762,129 @@ int hostapd_is_dfs_overlap(struct hostapd_iface *iface, enum chan_width width,
  		if (!(chan->flag & HOSTAPD_CHAN_RADAR))
  			continue;
  
@@ -404,6 +407,25 @@ index 1a0791f..0a7c25d 100644
 +
  
  #endif /* DFS_H */
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index 250c168..d983902 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -3708,7 +3708,13 @@ static int hostapd_fill_csa_settings(struct hostapd_data *hapd,
+ 	u8 chan, bandwidth;
+ 
+ 	os_memset(&old_freq, 0, sizeof(old_freq));
+-	if (!iface || !iface->freq || hapd->csa_in_progress)
++	if (!iface || !iface->freq)
++		return -1;
++
++	/* Allow another channel switch if the previous
++	 * channel switch is waiting for post-CSA radar detection
++	 */
++	if (hapd->csa_in_progress && !iface->cac_started)
+ 		return -1;
+ 
+ 	switch (settings->freq_params.bandwidth) {
 -- 
 2.18.0
 
