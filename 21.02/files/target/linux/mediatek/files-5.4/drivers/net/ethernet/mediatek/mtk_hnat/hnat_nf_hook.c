@@ -832,8 +832,7 @@ static unsigned int
 mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 			     const struct nf_hook_state *state)
 {
-	struct flow_offload_hw_path hw_path = { .dev = skb->dev,
-						.virt_dev = skb->dev };
+	struct flow_offload_hw_path hw_path;
 
 	if (!skb)
 		goto drop;
@@ -847,6 +846,9 @@ mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 	}
 
 	hnat_set_head_frags(state, skb, -1, hnat_set_iif);
+
+	hw_path.dev = skb->dev;
+	hw_path.virt_dev = skb->dev;
 
 	/*
 	 * Avoid mistakenly binding of outer IP, ports in SW L2TP decap flow.
