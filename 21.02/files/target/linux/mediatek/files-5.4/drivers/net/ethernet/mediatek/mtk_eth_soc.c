@@ -5467,6 +5467,8 @@ static int mtk_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	eth->soc = of_device_get_match_data(&pdev->dev);
+	if (!eth->soc)
+		return -EINVAL;
 
 	eth->dev = &pdev->dev;
 	eth->dma_dev = &pdev->dev;
