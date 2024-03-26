@@ -1,5 +1,5 @@
 diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index 17f9dcb5..61410069 100644
+index 2b072bd..5c5c1af 100644
 --- a/package/network/services/hostapd/Makefile
 +++ b/package/network/services/hostapd/Makefile
 @@ -80,7 +80,7 @@ ifneq ($(CONFIG_DRIVER_11AX_SUPPORT),)
@@ -11,6 +11,33 @@ index 17f9dcb5..61410069 100644
  
  DRIVER_MAKEOPTS= \
  	CONFIG_ACS=y CONFIG_DRIVER_NL80211=y \
+@@ -150,7 +150,7 @@ define Package/hostapd/Default
+   TITLE:=IEEE 802.1x Authenticator
+   URL:=http://hostap.epitest.fi/
+   DEPENDS:=$(DRV_DEPENDS) +hostapd-common $(CORE_DEPENDS)
+-  EXTRA_DEPENDS:=hostapd-common (=$(PKG_VERSION)-r$(PKG_RELEASE))
++  EXTRA_DEPENDS:=hostapd-common (=$(PKG_VERSION)-$(PKG_RELEASE))
+   USERID:=network=101:network=101
+   PROVIDES:=hostapd
+   CONFLICTS:=$(HOSTAPD_PROVIDERS)
+@@ -255,7 +255,7 @@ define Package/wpad/Default
+   SUBMENU:=WirelessAPD
+   TITLE:=IEEE 802.1x Auth/Supplicant
+   DEPENDS:=$(DRV_DEPENDS) +hostapd-common $(CORE_DEPENDS)
+-  EXTRA_DEPENDS:=hostapd-common (=$(PKG_VERSION)-r$(PKG_RELEASE))
++  EXTRA_DEPENDS:=hostapd-common (=$(PKG_VERSION)-$(PKG_RELEASE))
+   USERID:=network=101:network=101
+   URL:=http://hostap.epitest.fi/
+   PROVIDES:=hostapd wpa-supplicant
+@@ -400,7 +400,7 @@ define Package/wpa-supplicant/Default
+   TITLE:=WPA Supplicant
+   URL:=http://hostap.epitest.fi/wpa_supplicant/
+   DEPENDS:=$(DRV_DEPENDS) +hostapd-common $(CORE_DEPENDS)
+-  EXTRA_DEPENDS:=hostapd-common (=$(PKG_VERSION)-r$(PKG_RELEASE))
++  EXTRA_DEPENDS:=hostapd-common (=$(PKG_VERSION)-$(PKG_RELEASE))
+   USERID:=network=101:network=101
+   PROVIDES:=wpa-supplicant
+   CONFLICTS:=$(SUPPLICANT_PROVIDERS)
 @@ -498,7 +498,6 @@ define Package/hostapd-utils
    TITLE:=IEEE 802.1x Authenticator (utils)
    URL:=http://hostap.epitest.fi/
@@ -27,7 +54,9 @@ index 17f9dcb5..61410069 100644
  endef
  
  define Package/eapol-test/Default
-@@ -719,4 +717,7 @@ define Package/hostapd-common/install
+@@ -716,6 +714,9 @@ define Package/hostapd-common/install
+ 	$(INSTALL_BIN) ./files/wps-hotplug.sh $(1)/etc/rc.button/wps
+ 	$(INSTALL_DATA) ./files/wpad_acl.json $(1)/usr/share/acl.d
  	$(INSTALL_DATA) ./files/wpad.json $(1)/etc/capabilities
 +	[ ! -d $(STAGING_DIR)/usr/include/wpa_ctrl.h ] && $(CP) -f $(PKG_BUILD_DIR)/src/common/wpa_ctrl.h $(STAGING_DIR)/usr/include
 +	[ ! -d $(STAGING_DIR)/usr/lib/wpa_ctrl.o ] && $(CP) -f $(PKG_BUILD_DIR)/build/hostapd/src/common/wpa_ctrl.o $(STAGING_DIR)/usr/lib
@@ -35,3 +64,4 @@ index 17f9dcb5..61410069 100644
  endef
  
  define Package/hostapd/install
+
