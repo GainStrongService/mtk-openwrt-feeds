@@ -11,6 +11,7 @@
 #include <linux/if.h>
 #include <stdbool.h>
 #include <time.h>
+#include <errno.h>
 
 #include "switch_extend.h"
 #include "switch_netlink.h"
@@ -3236,10 +3237,37 @@ void _ingress_rate_set(int on_off, int port, int bw)
 void ingress_rate_set(int argc, char *argv[])
 {
 	int on_off = 0, port = 0, bw = 0;
+	char *endptr;
 
-	port = strtoul(argv[3], NULL, 0);
+	/* clear errno before conversion to detect overflow */
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 0);
+
+	if (errno == ERANGE) {
+		printf("Conversion error, value out of range\n");
+		return;
+	}
+	if (*endptr != '\0') {
+		printf("Conversion error, no digits were found\n");
+		return;
+	}
+
+	if (port < 0 || port > 6) {
+		printf("Wrong port range, should be within 0-6\n");
+		return;
+	}
+
 	if (argv[2][1] == 'n') {
-		bw = strtoul(argv[4], NULL, 0);
+		errno = 0;
+		bw = strtoul(argv[4], &endptr, 0);
+		if (errno == ERANGE) {
+			printf("Conversion error, value out of range\n");
+			return;
+		}
+		if (*endptr != '\0') {
+			printf("Conversion error, no digits were found\n");
+			return;
+		}
 		on_off = 1;
 	} else if (argv[2][1] == 'f') {
 		if (argc != 4)
@@ -3309,10 +3337,34 @@ void egress_rate_set(int argc, char *argv[])
 {
 	unsigned int value = 0, reg = 0;
 	int on_off = 0, port = 0, bw = 0;
+	char *endptr;
 
-	port = strtoul(argv[3], NULL, 0);
+	/* clear errno before conversion to detect overflow */
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 0);
+	if (errno == ERANGE) {
+		printf("Conversion error, value out of range\n");
+		return;
+	}
+	if (*endptr != '\0') {
+		printf("Conversion error, no digits were found\n");
+		return;
+	}
+	if (port < 0 || port > 6) {
+		printf("Wrong port range, should be within 0-6\n");
+		return;
+	}
 	if (argv[2][1] == 'n') {
-		bw = strtoul(argv[4], NULL, 0);
+		errno = 0;
+		bw = strtoul(argv[4], &endptr, 0);
+		if (errno == ERANGE) {
+			printf("Conversion error, value out of range\n");
+			return;
+		}
+		if (*endptr != '\0') {
+			printf("Conversion error, no digits were found\n");
+			return;
+		}
 		on_off = 1;
 	} else if (argv[2][1] == 'f') {
 		if (argc != 4)
