@@ -1,8 +1,7 @@
-From 22c29063354694a3f0626be8cc3a8b83f35aa1ea Mon Sep 17 00:00:00 2001
+From d44326c7003bcd14c50d2f23f15ce04be0fc69af Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 15 Feb 2024 11:16:16 +0800
-Subject: [PATCH 1046/1051] wifi: mt76: mt7915: support spatial reuse debug
- commands
+Subject: [PATCH] wifi: mt76: mt7915: support spatial reuse debug commands
 
 Support 3 spatial reuse debug commands:
 1. sr_enable: enable/disable spatial reuse
@@ -12,14 +11,14 @@ Support 3 spatial reuse debug commands:
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 ---
  mt76_connac_mcu.h    |  1 +
- mt7915/mcu.c         | 94 ++++++++++++++++++++++++++++++++++++++++++++
+ mt7915/mcu.c         | 95 ++++++++++++++++++++++++++++++++++++++++++++
  mt7915/mcu.h         | 48 ++++++++++++++++++++++
  mt7915/mt7915.h      |  3 ++
  mt7915/mtk_debugfs.c | 48 ++++++++++++++++++++--
- 5 files changed, 190 insertions(+), 4 deletions(-)
+ 5 files changed, 191 insertions(+), 4 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index e581084e..791dc1d4 100644
+index e581084..791dc1d 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1024,6 +1024,7 @@ enum {
@@ -31,10 +30,10 @@ index e581084e..791dc1d4 100644
  };
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ddb738cf..c099c1d3 100644
+index ddb738c..b3faf77 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -452,6 +452,90 @@ mt7915_mcu_rx_bss_acq_pkt_cnt(struct mt7915_dev *dev, struct sk_buff * skb)
+@@ -452,6 +452,91 @@ mt7915_mcu_rx_bss_acq_pkt_cnt(struct mt7915_dev *dev, struct sk_buff * skb)
  	}
  }
  
@@ -44,7 +43,8 @@ index ddb738cf..c099c1d3 100644
 +#define SR_SCENE_DETECTION_TIMER_PERIOD_MS 500
 +	struct mt7915_mcu_sr_swsd_event *event;
 +	static const char * const rules[] = {"NO CONNECTED", "NO CONGESTION",
-+					     "NO INTERFERENCE", "SR ON"};
++					     "NO INTERFERENCE", "MESH ILLEGAL APCLI",
++					     "SR ON"};
 +	u8 idx;
 +
 +	event = (struct mt7915_mcu_sr_swsd_event *)skb->data;
@@ -125,7 +125,7 @@ index ddb738cf..c099c1d3 100644
  static void
  mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
  {
-@@ -479,6 +563,11 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
+@@ -479,6 +564,11 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
  	case MCU_EXT_EVENT_BCC_NOTIFY:
  		mt7915_mcu_rx_bcc_notify(dev, skb);
  		break;
@@ -137,7 +137,7 @@ index ddb738cf..c099c1d3 100644
  #if defined CONFIG_NL80211_TESTMODE || defined MTK_DEBUG
  	case MCU_EXT_EVENT_BF_STATUS_READ:
  		mt7915_mcu_txbf_status_read(dev, skb);
-@@ -524,6 +613,7 @@ void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb)
+@@ -524,6 +614,7 @@ void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb)
  	     rxd->ext_eid == MCU_EXT_EVENT_PS_SYNC ||
  	     rxd->ext_eid == MCU_EXT_EVENT_BCC_NOTIFY ||
  	     rxd->ext_eid == MCU_EXT_EVENT_BF_STATUS_READ ||
@@ -145,7 +145,7 @@ index ddb738cf..c099c1d3 100644
  	     !rxd->seq) &&
  	     !(rxd->eid == MCU_CMD_EXT_CID &&
  	       rxd->ext_eid == MCU_EXT_EVENT_WA_TX_STAT))
-@@ -4002,6 +4092,10 @@ int mt7915_mcu_add_obss_spr(struct mt7915_phy *phy, struct ieee80211_vif *vif,
+@@ -4002,6 +4093,10 @@ int mt7915_mcu_add_obss_spr(struct mt7915_phy *phy, struct ieee80211_vif *vif,
  	if (ret)
  		return ret;
  
@@ -157,7 +157,7 @@ index ddb738cf..c099c1d3 100644
  		return 0;
  
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 742a7855..f4767671 100644
+index 742a785..f476767 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -42,6 +42,45 @@ struct mt7915_mcu_thermal_notify {
@@ -232,7 +232,7 @@ index 742a7855..f4767671 100644
  	THERMAL_PROTECT_PARAMETER_CTRL,
  	THERMAL_PROTECT_BASIC_INFO,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 34f1a358..47f7d163 100644
+index 34f1a35..47f7d16 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -354,6 +354,9 @@ struct mt7915_phy {
@@ -246,7 +246,7 @@ index 34f1a358..47f7d163 100644
  
  #ifdef MTK_DEBUG
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index e7588434..bf419265 100644
+index d3d3b17..78ac4e5 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -3809,16 +3809,34 @@ mt7915_sw_aci_set(void *data, u64 val)
