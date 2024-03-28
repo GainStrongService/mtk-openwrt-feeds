@@ -9,8 +9,11 @@
 #include <linux/bitops.h>
 
 #include <mtk_eth_soc.h>
+
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 #include <mtk_hnat/hnat.h>
 #include <mtk_hnat/nf_hnat_mtk.h>
+#endif // HNAT
 
 #include <pce/cdrt.h>
 #include <pce/cls.h>
@@ -25,6 +28,9 @@
 #include "crypto-eip/internal.h"
 
 static LIST_HEAD(xfrm_params_head);
+
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
+extern int (*ra_sw_nat_hook_tx)(struct sk_buff *skb, int gmac_no);
 
 static inline bool is_tops_udp_tunnel(struct sk_buff *skb)
 {
@@ -41,6 +47,7 @@ static inline bool is_hnat_rate_reach(struct sk_buff *skb)
 {
 	return is_magic_tag_valid(skb) && (skb_hnat_reason(skb) == HIT_UNBIND_RATE_REACH);
 }
+#endif // HNAT
 
 static void mtk_xfrm_offload_cdrt_tear_down(struct mtk_xfrm_params *xfrm_params)
 {
@@ -341,19 +348,26 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 	rcu_read_unlock_bh();
 
 	xfrm_params = (struct mtk_xfrm_params *)xs->xso.offload_handle;
-	skb_hnat_cdrt(skb) = xfrm_params->cdrt->idx;
 
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
+	skb_hnat_cdrt(skb) = xfrm_params->cdrt->idx;
 	/*
 	 * EIP197 does not support fragmentation. As a result, we can not bind UDP
 	 * flow since it may cause network fail due to fragmentation
 	 */
-	if ((is_tops_udp_tunnel(skb) || is_tcp(skb)) && is_hnat_rate_reach(skb))
+	if (ra_sw_nat_hook_tx &&
+		((is_tops_udp_tunnel(skb) || is_tcp(skb)) && is_hnat_rate_reach(skb)))
 		hnat_bind_crypto_entry(skb, dst->dev);
+
+	/* Set magic tag for tport setting, reset to 0 after tport is set */
+	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
+#else
+	skb_tnl_cdrt(skb) = xfrm_params->cdrt->idx;
+	skb_tnl_magic_tag(skb) = TNL_MAGIC_TAG;
+#endif // HNAT
 
 	/* Since we're going to tx directly, set skb->dev to dst->dev */
 	skb->dev = dst->dev;
-	/* Set magic tag for tport setting, reset to 0 after tport is set */
-	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
 
 	/*
 	 * Since skb headroom may not be copy when segment, we cannot rely on

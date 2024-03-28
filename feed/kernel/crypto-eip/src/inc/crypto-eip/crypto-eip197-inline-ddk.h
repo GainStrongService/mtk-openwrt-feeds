@@ -18,6 +18,7 @@
 #include <crypto-eip/ddk/kit/builder/sa/sa_builder_ipsec.h>
 #include <crypto-eip/ddk/kit/builder/sa/sa_builder_basic.h>
 #include <crypto-eip/ddk/kit/builder/sa/sa_builder_params_basic.h>
+#include <crypto-eip/ddk/kit/builder/sa/sa_builder_ssltls.h>
 #include <crypto-eip/ddk/kit/builder/token/token_builder.h>
 #include <crypto-eip/ddk/kit/iotoken/iotoken.h>
 #include <crypto-eip/ddk/kit/iotoken/iotoken_ext.h>

@@ -18,11 +18,17 @@ endif
 ifeq ($(CONFIG_CRYPTO_OFFLOAD_INLINE),y)
 EXTRA_KCONFIG+= \
 	CONFIG_MTK_CRYPTO_EIP_INLINE=m \
-	CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE=$(CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE)
+	CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE=$(CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE) \
+	CONFIG_MTK_TOPS_CAPWAP_DTLS=$(CONFIG_MTK_TOPS_CAPWAP_DTLS)
 
 EXTRA_CFLAGS+= \
 	-I$(LINUX_DIR)/drivers/net/ethernet/mediatek/ \
 	-I$(KERNEL_BUILD_DIR)/pce/inc/
+endif
+
+ifeq ($(CONFIG_MTK_TOPS_CAPWAP_DTLS),y)
+EXTRA_CFLAGS += \
+	-DCONFIG_TOPS_TNL_NUM=$(CONFIG_TOPS_TNL_NUM)
 endif
 
 # crypto-eip kernel package configuration
@@ -72,7 +78,8 @@ define KernelPackage/crypto-eip-inline
 	@CRYPTO_OFFLOAD_INLINE \
 	kmod-crypto-eip \
 	kmod-crypto-eip-ddk \
-	+kmod-pce
+	+kmod-pce \
+	+MTK_TOPS_CAPWAP_DTLS:kmod-tops
   FILES:=$(PKG_BUILD_DIR)/crypto-eip-inline.ko
   $(call AddDepends/crypto)
 endef

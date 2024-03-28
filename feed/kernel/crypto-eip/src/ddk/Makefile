@@ -41,6 +41,7 @@ crypto-eip-ddk-y += ./kit/builder/sa/sa_builder_extended_ipsec.o
 crypto-eip-ddk-y += ./kit/builder/sa/sa_builder_ipsec.o
 # crypto-eip-ddk-y += ./kit/builder/sa/sa_builder_srtp.o
 crypto-eip-ddk-y += ./kit/builder/sa/sa_builder_ssltls.o
+crypto-eip-ddk-y += ./kit/builder/sa/sa_builder_extended_dtls.o
 
 # token builder
 crypto-eip-ddk-y += ./kit/builder/token/token_builder_context.o
@@ -87,6 +88,3 @@ crypto-eip-ddk-y += ./kit/iotoken/iotoken.o
 
 # ring
 crypto-eip-ddk-y += ./kit/ring/ringhelper.o
-
-# log
-crypto-eip-ddk-y += ./kit/log/log.o

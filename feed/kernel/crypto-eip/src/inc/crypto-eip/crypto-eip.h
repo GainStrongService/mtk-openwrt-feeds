@@ -34,6 +34,9 @@ extern spinlock_t add_lock;
 #define EIP197_AUTO_LOOKUP_1		(0xfffffffc)
 #define EIP197_AUTO_LOOKUP_2		(0xffffffff)
 
+#define PEC_PCL_EIP197
+#define CAPWAP_MAX_TUNNEL_NUM CONFIG_TOPS_TNL_NUM
+
 struct mtk_crypto {
 	struct mtk_eth *eth;
 	void __iomem *crypto_base;
@@ -50,6 +53,76 @@ struct mtk_xfrm_params {
 	u32 dir;			/* SABuilder_Direction_t */
 };
 
+/* DTLS */
+enum dtls_sec_mode_type {
+	__DTLS_SEC_MODE_TYPE_NONE = 0,
+	AES128_CBC_HMAC_SHA1,
+	AES256_CBC_HMAC_SHA1,
+	AES128_CBC_HMAC_SHA2_256,
+	AES256_CBC_HMAC_SHA2_256,
+	AES128_GCM,
+	AES256_GCM,
+	__DTLS_SEC_MODE_TYPE_MAX = 7,
+};
+
+enum dtls_version {
+	MTK_DTLS_VERSION_1_0 = 0,
+	MTK_DTLS_VERSION_1_2 = 1,
+	__DTLS_VERSION_MAX = 2,
+};
+
+struct DTLS_param {
+	__be32 dip;
+	__be32 sip;
+	uint16_t dport;
+	uint16_t sport;
+	uint16_t dtls_epoch;
+	uint16_t dtls_version;
+	uint8_t sec_mode;
+	uint8_t *dtls_encrypt_nonce;
+	uint8_t *dtls_decrypt_nonce;
+	uint8_t *key_encrypt;
+	uint8_t *key_auth_encrypt_1;
+	uint8_t *key_auth_encrypt_2;
+	uint8_t *key_decrypt;
+	uint8_t *key_auth_decrypt_1;
+	uint8_t *key_auth_decrypt_2;
+	void *SA_encrypt;
+	void *SA_decrypt;
+} __packed __aligned(16);
+
+struct DTLSResourceMgmt {
+	struct DTLS_param *DTLSParam;
+	DMABuf_Handle_t DTLSHandleSAOutbound;
+	DMABuf_Handle_t DTLSHandleSAInbound;
+	uint8_t *HKeyOutbound;
+	uint8_t *HKeyInbound;
+	uint8_t *InnerDigestOutbound;
+	uint8_t *OuterDigestOutbound;
+	uint8_t *InnerDigestInbound;
+	uint8_t *OuterDigestInbound;
+};
+
+struct mtk_cdrt_idx_param {
+	uint32_t cdrt_idx_inbound;
+	uint32_t cdrt_idx_outbound;
+};
+
+struct mtk_CDRT_DTLS_entry {
+	struct cdrt_entry *cdrt_inbound;
+	struct cdrt_entry *cdrt_outbound;
+};
+
+#if defined(CONFIG_MTK_TOPS_CAPWAP_DTLS)
+extern void (*mtk_submit_SAparam_to_eip_driver)(struct DTLS_param *DTLSParam_p, int TnlIdx);
+extern void (*mtk_remove_SAparam_to_eip_driver)(struct DTLS_param *DTLSParam_p, int TnlIdx);
+extern void (*mtk_update_cdrt_idx_from_eip_driver)(struct mtk_cdrt_idx_param *cdrt_idx_params_p);
+#endif
+
+void mtk_update_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);
+void mtk_remove_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);
+
+/* Netsys */
 void crypto_eth_write(u32 reg, u32 val);
 u32 mtk_crypto_ppe_get_num(void);
 

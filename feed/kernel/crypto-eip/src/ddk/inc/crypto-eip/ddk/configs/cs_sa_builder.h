@@ -65,7 +65,7 @@
 
 /* Enable if the SA Builder must support extended use case for DTLS
    processing */
-//#define SAB_ENABLE_DTLS_EXTENDED
+#define SAB_ENABLE_DTLS_EXTENDED
 
 /* Enable if the SA Builder must support extended use case for Basic
    processing */

@@ -114,11 +114,13 @@ static inline u32 crypto_eip_read(u32 reg)
 	return readl(mcrypto.crypto_base + reg);
 }
 
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 static bool mtk_crypto_eip_offloadable(struct sk_buff *skb)
 {
 	/* TODO: check is esp */
 	return true;
 }
+#endif // HNAT
 
 u32 mtk_crypto_ppe_get_num(void)
 {
@@ -188,7 +190,9 @@ static void mtk_crypto_xfrm_offload_deinit(struct mtk_eth *eth)
 {
 	int i;
 
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 	mtk_crypto_offloadable = NULL;
+#endif // HNAT
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		eth->netdev[i]->xfrmdev_ops = NULL;
@@ -213,7 +217,9 @@ static void mtk_crypto_xfrm_offload_init(struct mtk_eth *eth)
 		rtnl_unlock();
 	}
 
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 	mtk_crypto_offloadable = mtk_crypto_eip_offloadable;
+#endif // HNAT
 }
 
 static int __init mtk_crypto_eth_dts_init(struct platform_device *pdev)
@@ -405,6 +411,9 @@ static int __init mtk_crypto_eip_init(void)
 
 	mtk_crypto_xfrm_offload_init(mcrypto.eth);
 	mtk_crypto_register_algorithms(priv);
+#if defined(CONFIG_MTK_TOPS_CAPWAP_DTLS)
+	mtk_dtls_capwap_init();
+#endif
 
 	CRYPTO_INFO("crypto-eip init done\n");
 
@@ -414,6 +423,9 @@ static int __init mtk_crypto_eip_init(void)
 static void __exit mtk_crypto_eip_exit(void)
 {
 	/* TODO: deactivate all tunnel */
+#if defined(CONFIG_MTK_TOPS_CAPWAP_DTLS)
+	mtk_dtls_capwap_deinit();
+#endif
 	mtk_crypto_unregister_algorithms();
 	mtk_crypto_xfrm_offload_deinit(mcrypto.eth);
 
