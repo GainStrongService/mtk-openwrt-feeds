@@ -1,8 +1,7 @@
-From 1c795d48bb53932a89eb0b26bca07c5e2116c5a8 Mon Sep 17 00:00:00 2001
+From 30e8737f608e05d32779992e1715343bf0f02b9b Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 11 Jan 2023 10:56:27 +0800
-Subject: [PATCH 2006/2012] wifi: mt76: add debugfs knob to show packet error
- rate
+Subject: [PATCH] wifi: mt76: add debugfs knob to show packet error rate
 
 Get tx count and tx failed from mcu command
 ---
@@ -212,7 +211,7 @@ index e41c7ad2..38d39c82 100644
  int mt7915_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3);
  int mt7915_mcu_fw_log_2_host(struct mt7915_dev *dev, u8 type, u8 ctrl);
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 1d2699de..e6130460 100644
+index ead89706..a80ddebe 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -4027,6 +4027,66 @@ mt7915_sr_scene_cond_show(struct seq_file *file, void *data)
@@ -286,7 +285,7 @@ index 1d2699de..e6130460 100644
  	debugfs_create_file("thermal_recal", 0200, dir, dev, &fops_thermal_recal);
  	debugfs_create_file("sr_stats", 0400, dir, phy, &mt7915_sr_stats_fops);
  	debugfs_create_file("sr_scene_cond", 0400, dir, phy, &mt7915_sr_scene_cond_fops);
-+	debugfs_create_file("reset_counter", 0200, dir, dev, &fops_reset_counter);
++	debugfs_create_file("reset_counter", 0200, dir, phy, &fops_reset_counter);
 +	debugfs_create_devm_seqfile(dev->mt76.dev, "per", dir, mt7915_per_read);
  
  	return 0;
