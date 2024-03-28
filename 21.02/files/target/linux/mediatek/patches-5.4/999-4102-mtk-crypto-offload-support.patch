@@ -1,37 +1,46 @@
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -1856,6 +1856,12 @@ static void mtk_tx_set_dma_desc_v3(struc
- 
+@@ -1992,6 +1992,17 @@ static void mtk_tx_set_dma_desc_v3(struc
  	trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
  		     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
+ #endif
 +
 +	/* forward to eip197 if this packet is going to encrypt */
-+	if (unlikely(skb->inner_protocol == IPPROTO_ESP && skb_hnat_cdrt(skb) && is_magic_tag_valid(skb))) {
++#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
++	if (unlikely(skb->inner_protocol == IPPROTO_ESP && skb_hnat_cdrt(skb) && is_magic_tag_valid(skb)))
++#else
++	if (unlikely(skb->inner_protocol == IPPROTO_ESP && skb_tnl_cdrt(skb) && is_tnl_tag_valid(skb)))
++#endif // hnat
++	{
 +		data &= ((~TX_DMA_TPORT_MASK) << TX_DMA_TPORT_SHIFT);
 +		data |= (EIP197_QDMA_TPORT & TX_DMA_TPORT_MASK) << TX_DMA_TPORT_SHIFT;
 +	}
- #endif
  	WRITE_ONCE(desc->txd4, data);
  
-@@ -1879,6 +1885,17 @@ static void mtk_tx_set_dma_desc_v3(struc
+ 	data = 0;
+@@ -2014,6 +2025,21 @@ static void mtk_tx_set_dma_desc_v3(struc
  
  	WRITE_ONCE(desc->txd7, 0);
  	WRITE_ONCE(desc->txd8, 0);
 +
 +#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
-+	if (unlikely(skb->inner_protocol == IPPROTO_ESP &&skb_hnat_cdrt(skb) && is_magic_tag_valid(skb))) {
++	if (unlikely(skb->inner_protocol == IPPROTO_ESP && skb_hnat_cdrt(skb) && is_magic_tag_valid(skb))) {
 +		/* carry cdrt index for encryption */
 +		data = (skb_hnat_cdrt(skb) & TX_DMA_CDRT_MASK) << TX_DMA_CDRT_SHIFT;
 +		WRITE_ONCE(desc->txd8, data);
 +		skb_hnat_magic_tag(skb) = 0;
-+	} else {
-+		WRITE_ONCE(desc->txd8, 0);
 +	}
-+#endif
++#else
++	if (unlikely(skb->inner_protocol == IPPROTO_ESP && skb_tnl_cdrt(skb) && is_tnl_tag_valid(skb))) {
++		data = (skb_tnl_cdrt(skb) & TX_DMA_CDRT_MASK) << TX_DMA_CDRT_SHIFT;
++		WRITE_ONCE(desc->txd8, data);
++		skb_tnl_magic_tag(skb) = 0;
++	}
++#endif // hnat
  }
  
- static void mtk_tx_set_dma_desc(struct sk_buff *skb, struct net_device *dev, void *txd,
-@@ -2308,6 +2325,7 @@ static int mtk_poll_rx(struct napi_struc
+ static void mtk_tx_set_pdma_desc(struct sk_buff *skb, struct net_device *dev, void *txd,
+@@ -2491,6 +2517,7 @@ static int mtk_poll_rx(struct napi_struc
  
  		skb_hnat_alg(skb) = 0;
  		skb_hnat_filled(skb) = 0;
@@ -141,7 +150,7 @@
  static unsigned int skb_to_hnat_info(struct sk_buff *skb,
  				     const struct net_device *dev,
  				     struct foe_entry *foe,
-@@ -2360,6 +2439,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
+@@ -2363,6 +2442,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
  
  	skb_hnat_alg(skb) = 0;
  	skb_hnat_set_tops(skb, 0);
@@ -149,7 +158,7 @@
  	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
  
  	if (skb_hnat_iface(skb) == FOE_MAGIC_WED0)
-@@ -2446,7 +2526,8 @@ static unsigned int mtk_hnat_accel_type(
+@@ -2449,7 +2529,8 @@ static unsigned int mtk_hnat_accel_type(
  	 * is from local_out which is also filtered in sanity check.
  	 */
  	dst = skb_dst(skb);
@@ -159,7 +168,7 @@
  		return 0;
  
  	ct = nf_ct_get(skb, &ctinfo);
-@@ -2850,6 +2931,14 @@ static unsigned int mtk_hnat_nf_post_rou
+@@ -2853,6 +2934,14 @@ static unsigned int mtk_hnat_nf_post_rou
  		}
  	}
  
@@ -174,7 +183,7 @@
  	if (!IS_LAN_GRP(out) && !IS_WAN(out) && !IS_EXT(out))
  		is_virt_dev = true;
  
-@@ -3159,7 +3248,10 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
+@@ -3162,7 +3251,10 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
  	if (iph->protocol == IPPROTO_IPV6) {
  		entry->udib1.pkt_type = IPV6_6RD;
  		hnat_set_head_frags(state, skb, 0, hnat_set_alg);
@@ -217,7 +226,7 @@
  #define skb_hnat_reason(skb) (((struct hnat_desc *)(skb->head))->crsn)
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
-@@ -49,6 +49,8 @@ int (*mtk_tnl_decap_offload)(struct sk_b
+@@ -54,6 +54,8 @@ int (*mtk_tnl_decap_offload)(struct sk_b
  EXPORT_SYMBOL(mtk_tnl_decap_offload);
  bool (*mtk_tnl_decap_offloadable)(struct sk_buff *skb) = NULL;
  EXPORT_SYMBOL(mtk_tnl_decap_offloadable);
@@ -228,7 +237,7 @@
  {
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat.h
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat.h
-@@ -1140,6 +1140,8 @@ enum FoeIpAct {
+@@ -1146,6 +1146,8 @@ enum FoeIpAct {
  #define NR_WDMA1_PORT 9
  #define NR_WDMA2_PORT 13
  #define NR_GMAC3_PORT 15
@@ -237,7 +246,7 @@
  #define NR_TDMA_TPORT 4
  #define NR_TDMA_QDMA_TPORT 5
  #define LAN_DEV_NAME hnat_priv->lan
-@@ -1292,6 +1294,8 @@ extern int qos_toggle;
+@@ -1298,6 +1300,8 @@ extern int qos_toggle;
  extern int (*mtk_tnl_encap_offload)(struct sk_buff *skb);
  extern int (*mtk_tnl_decap_offload)(struct sk_buff *skb);
  extern bool (*mtk_tnl_decap_offloadable)(struct sk_buff *skb);
@@ -248,9 +257,9 @@
  int ext_if_del(struct extdev_entry *ext_entry);
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -558,6 +558,10 @@
- 
+@@ -592,6 +592,10 @@
  #define MTK_QDMA_GMAC2_QID	8
+ #define MTK_QDMA_GMAC3_QID	6
  
 +/* QDMA V2 descriptor txd8 */
 +#define TX_DMA_CDRT_SHIFT 	0
@@ -259,7 +268,7 @@
  /* QDMA V2 descriptor txd6 */
  #define TX_DMA_INS_VLAN_V2         BIT(16)
  
-@@ -567,6 +571,9 @@
+@@ -601,6 +605,9 @@
  #define TX_DMA_SPTAG_V3            BIT(27)
  
  /* QDMA V2 descriptor txd4 */
@@ -269,3 +278,47 @@
  #define TX_DMA_FPORT_SHIFT_V2      8
  #define TX_DMA_FPORT_MASK_V2       0xf
  #define TX_DMA_SWC_V2              BIT(30)
+@@ -1063,6 +1070,43 @@
+ #define MT7628_SDM_MAC_ADRL	(MT7628_SDM_OFFSET + 0x0c)
+ #define MT7628_SDM_MAC_ADRH	(MT7628_SDM_OFFSET + 0x10)
+ 
++#if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
++#if defined(CONFIG_MEDIATEK_NETSYS_V3)
++struct tnl_desc {
++	u32 entry : 15;
++	u32 filled : 3;
++	u32 crsn : 5;
++	u32 resv1 : 3;
++	u32 sport : 4;
++	u32 resv2 : 1;
++	u32 alg : 1;
++	u32 iface : 8;
++	u32 wdmaid : 2;
++	u32 rxid : 2;
++	u32 wcid : 16;
++	u32 bssid : 8;
++	u32 usr_info : 16;
++	u32 tid : 4;
++	u32 is_fixedrate : 1;
++	u32 is_prior : 1;
++	u32 is_sp : 1;
++	u32 hf : 1;
++	u32 amsdu : 1;
++	u32 tops : 6;
++	u32 is_decap : 1;
++	u32 cdrt : 8;
++	u32 resv3 : 4;
++	u32 magic_tag_protect : 16;
++} __packed;
++
++#define TNL_MAGIC_TAG 0x6789
++#define skb_tnl_cdrt(skb) (((struct tnl_desc *)((skb)->head))->cdrt)
++#define skb_tnl_set_cdrt(skb, cdrt) ((skb_tnl_cdrt(skb)) = (cdrt))
++#define skb_tnl_magic_tag(skb) (((struct tnl_desc *)((skb)->head))->magic_tag_protect)
++#define is_tnl_tag_valid(skb) (skb_tnl_magic_tag(skb) == TNL_MAGIC_TAG)
++#endif // NetsysV3
++#endif // hnat
++
+ struct mtk_rx_dma {
+ 	unsigned int rxd1;
+ 	unsigned int rxd2;
