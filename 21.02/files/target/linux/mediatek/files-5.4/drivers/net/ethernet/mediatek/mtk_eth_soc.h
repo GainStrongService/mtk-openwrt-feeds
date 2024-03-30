@@ -19,7 +19,9 @@
 #define MTK_QDMA_PAGE_SIZE	2048
 #define	MTK_MAX_RX_LENGTH	1536
 #define MTK_MIN_TX_LENGTH	60
-#define MTK_DMA_SIZE		2048
+#define MTK_DMA_SIZE(x)		(SZ_##x)
+#define MTK_FQ_DMA_HEAD		32
+#define MTK_FQ_DMA_LENGTH	2048
 #define MTK_NAPI_WEIGHT		256
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -1721,6 +1723,9 @@ struct mtk_soc_data {
 	struct {
 		u32	txd_size;
 		u32	rxd_size;
+		u32	tx_dma_size;
+		u32	rx_dma_size;
+		u32	fq_dma_size;
 		u32	rx_dma_l4_valid;
 		u32	dma_max_len;
 		u32	dma_len_offset;
@@ -1903,7 +1908,7 @@ struct mtk_eth {
 	void				*scratch_ring;
 	struct mtk_reset_event		reset_event;
 	dma_addr_t			phy_scratch_ring;
-	void				*scratch_head;
+	void				*scratch_head[MTK_FQ_DMA_HEAD];
 	struct clk			*clks[MTK_CLK_MAX];
 
 	struct mii_bus			*mii_bus;
