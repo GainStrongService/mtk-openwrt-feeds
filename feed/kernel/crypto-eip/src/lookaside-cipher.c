@@ -98,18 +98,20 @@ static int mtk_crypto_aead_handle_result(struct mtk_crypto_result *res, int err)
 	uint8_t *temp;
 
 	if (ctx->mode == MTK_CRYPTO_MODE_CCM && mtk_req->direction == MTK_CRYPTO_DECRYPT) {
-		if (mtk_req->direction == MTK_CRYPTO_ENCRYPT)
-			pkt_size = req->cryptlen + req->assoclen + crypto_aead_authsize(aead);
-		else
-			pkt_size = req->cryptlen + req->assoclen - crypto_aead_authsize(aead);
+		pkt_size = req->cryptlen + req->assoclen - crypto_aead_authsize(aead);
 
 		temp = kmalloc(pkt_size, GFP_KERNEL);
+		if (!temp) {
+			CRYPTO_ERR("no enough memory for result\n");
+			goto free_dma;
+		}
 		memset(temp, 0, pkt_size);
 		sg_copy_to_buffer(req->dst, mtk_req->nr_dst, temp + 8, pkt_size - 8);
 		sg_copy_from_buffer(req->dst, mtk_req->nr_dst, temp, pkt_size);
 		kfree(temp);
 	}
 
+free_dma:
 	if (req->src == req->dst) {
 		dma_unmap_sg(crypto_dev, req->src, mtk_req->nr_src, DMA_BIDIRECTIONAL);
 	} else {
@@ -633,6 +635,9 @@ static int mtk_crypto_aead_setkey(struct crypto_aead *ctfm, const u8 *key, unsig
 	struct crypto_authenc_keys keys;
 	struct crypto_aes_ctx aes;
 	int err = -EINVAL, i;
+
+	memset(&istate, 0, sizeof(struct mtk_crypto_ahash_export_state));
+	memset(&ostate, 0, sizeof(struct mtk_crypto_ahash_export_state));
 
 	if (unlikely(crypto_authenc_extractkeys(&keys, key, len)))
 		goto badkey;

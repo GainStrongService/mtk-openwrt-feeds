@@ -49,7 +49,7 @@ static int mtk_crypto_ahash_send(struct crypto_async_request *async)
 	int areq_shift;
 	u64 queued;
 	u64 len;
-	bool ret;
+	bool ret = 0;
 	uint8_t *cur_req;
 	int i;
 
@@ -97,7 +97,7 @@ static int mtk_crypto_ahash_send(struct crypto_async_request *async)
 		sg_copy_to_buffer(areq->src, sg_nents(areq->src), cur_req + cache_len, queued);
 
 	if (unlikely(req->xcbcmac)) {
-		int pad_size;
+		int pad_size = 0;
 		int offset;
 		int new;
 
@@ -148,7 +148,6 @@ static int mtk_crypto_ahash_send(struct crypto_async_request *async)
 	if (ret) {
 		if (req->sa_pointer)
 			crypto_free_sa(req->sa_pointer);
-		kfree(req->token_context);
 		CRYPTO_ERR("Fail on ahash_req process\n");
 		goto exit;
 	}
@@ -612,7 +611,7 @@ int mtk_crypto_zero_hmac_setkey(const char *alg, const u8 *key, unsigned int key
 free_ipad:
 	kfree(ipad);
 free_request:
-	ahash_request_free(areq);
+	kfree(areq);
 free_ahash:
 	crypto_free_ahash(tfm);
 
@@ -662,7 +661,7 @@ int mtk_crypto_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
 free_ipad:
 	kfree(ipad);
 free_request:
-	ahash_request_free(areq);
+	kfree(areq);
 free_ahash:
 	crypto_free_ahash(tfm);
 
@@ -677,6 +676,9 @@ static int mtk_crypto_hmac_alg_setkey(struct crypto_ahash *tfm, const u8 *key,
 	struct mtk_crypto_ahash_export_state istate, ostate, zeroi;
 	int ret;
 
+	memset(&zeroi, 0, sizeof(struct mtk_crypto_ahash_export_state));
+	memset(&istate, 0, sizeof(struct mtk_crypto_ahash_export_state));
+	memset(&ostate, 0, sizeof(struct mtk_crypto_ahash_export_state));
 	ret = mtk_crypto_hmac_setkey(alg, key, keylen, &istate, &ostate);
 	if (ret)
 		return ret;

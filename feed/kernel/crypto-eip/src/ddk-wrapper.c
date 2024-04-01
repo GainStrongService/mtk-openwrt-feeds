@@ -265,9 +265,13 @@ void mtk_crypto_interrupt_handler(void)
 	int ret = 0;
 
 	while (true) {
-		if (list_empty(&result_list))
+		spin_lock_bh(&add_lock);
+		if (list_empty(&result_list)) {
+			spin_unlock_bh(&add_lock);
 			return;
+		}
 		rd = list_first_entry(&result_list, struct mtk_crypto_result, list);
+		spin_unlock_bh(&add_lock);
 
 		if (crypto_pe_get_one(&OutTokenDscr, OutputToken, &Res) < 1) {
 			PEC_NotifyFunction_t CBFunc;
@@ -859,12 +863,14 @@ int crypto_basic_cipher(struct crypto_async_request *async, struct mtk_crypto_ci
 		mtk_req->nr_dst = mtk_req->nr_src;
 		if (unlikely((totlen_src || totlen_dst) && (mtk_req->nr_src <= 0))) {
 			CRYPTO_ERR("In-place buffer not large enough\n");
+			kfree(TCRData);
 			return -EINVAL;
 		}
 		dma_map_sg(crypto_dev, src, mtk_req->nr_src, DMA_BIDIRECTIONAL);
 	} else {
 		if (unlikely(totlen_src && (mtk_req->nr_src <= 0))) {
 			CRYPTO_ERR("Source buffer not large enough\n");
+			kfree(TCRData);
 			return -EINVAL;
 		}
 		dma_map_sg(crypto_dev, src, mtk_req->nr_src, DMA_TO_DEVICE);
@@ -872,6 +878,7 @@ int crypto_basic_cipher(struct crypto_async_request *async, struct mtk_crypto_ci
 		if (unlikely(totlen_dst && (mtk_req->nr_dst <= 0))) {
 			CRYPTO_ERR("Dest buffer not large enough\n");
 			dma_unmap_sg(crypto_dev, src, mtk_req->nr_src, DMA_TO_DEVICE);
+			kfree(TCRData);
 			return -EINVAL;
 		}
 		dma_map_sg(crypto_dev, dst, mtk_req->nr_dst, DMA_FROM_DEVICE);
@@ -2697,8 +2704,6 @@ bool mtk_capwap_dtls_offload(
 		}
 		params.AuthKey1_p = InnerDigest;
 		params.AuthKey2_p = OuterDigest;
-		InnerDigest = NULL;
-		OuterDigest = NULL;
 #endif
 	}
 
