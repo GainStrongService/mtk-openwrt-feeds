@@ -2981,7 +2981,7 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 		ring->dma = tx_ring->dma + soc->txrx.tx_dma_size *
 			    eth->soc->txrx.txd_size * (ring_no + 1);
 		ring->phys = tx_ring->phys + soc->txrx.tx_dma_size *
-			     eth->soc->txrx.txd_size * (ring_no + 1);
+			     (dma_addr_t)eth->soc->txrx.txd_size * (ring_no + 1);
 	}
 
 	if (!ring->dma)
