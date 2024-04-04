@@ -1,7 +1,7 @@
-From e5b0035623fe1ae0e770dcff3c0c97fc6379249e Mon Sep 17 00:00:00 2001
+From 5f739478e44b2cb080b0ece69b06dd18280e8d3e Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 5 Dec 2022 18:21:51 +0800
-Subject: [PATCH 1022/1051] wifi: mt76: mt7915: add bf backoff limit table
+Subject: [PATCH 1022/1053] wifi: mt76: mt7915: add bf backoff limit table
  support
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
@@ -18,7 +18,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  9 files changed, 279 insertions(+), 55 deletions(-)
 
 diff --git a/debugfs.c b/debugfs.c
-index 1c8328d5..a626f7cf 100644
+index 1c8328d..a626f7c 100644
 --- a/debugfs.c
 +++ b/debugfs.c
 @@ -95,9 +95,9 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
@@ -34,7 +34,7 @@ index 1c8328d5..a626f7cf 100644
  }
  EXPORT_SYMBOL_GPL(mt76_seq_puts_array);
 diff --git a/eeprom.c b/eeprom.c
-index 9d029c04..4213e444 100644
+index 9d029c0..4213e44 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -336,9 +336,10 @@ mt76_apply_array_limit(s8 *pwr, size_t pwr_len, const __be32 *data,
@@ -121,7 +121,7 @@ index 9d029c04..4213e444 100644
  EXPORT_SYMBOL_GPL(mt76_get_rate_power_limits);
  
 diff --git a/mt76.h b/mt76.h
-index 48e98a3a..5c267154 100644
+index 48e98a3..5c26715 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -1089,6 +1089,14 @@ struct mt76_power_limits {
@@ -140,10 +140,10 @@ index 48e98a3a..5c267154 100644
  
  struct mt76_ethtool_worker_info {
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index 40a126fa..c7002ee0 100644
+index 5c08910..fa1d2ac 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
-@@ -1019,7 +1019,7 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
+@@ -1020,7 +1020,7 @@ mt7915_rate_txpower_get(struct file *file, char __user *user_buf,
  	if (!buf)
  		return -ENOMEM;
  
@@ -152,7 +152,7 @@ index 40a126fa..c7002ee0 100644
  	if (ret)
  		goto out;
  
-@@ -1133,7 +1133,7 @@ mt7915_rate_txpower_set(struct file *file, const char __user *user_buf,
+@@ -1134,7 +1134,7 @@ mt7915_rate_txpower_set(struct file *file, const char __user *user_buf,
  
  	mutex_lock(&dev->mt76.mutex);
  	ret = mt7915_mcu_get_txpower_sku(phy, req.txpower_sku,
@@ -161,7 +161,7 @@ index 40a126fa..c7002ee0 100644
  	if (ret)
  		goto out;
  
-@@ -1175,7 +1175,7 @@ out:
+@@ -1176,7 +1176,7 @@ out:
  	return ret ? ret : count;
  }
  
@@ -170,7 +170,7 @@ index 40a126fa..c7002ee0 100644
  	.write = mt7915_rate_txpower_set,
  	.read = mt7915_rate_txpower_get,
  	.open = simple_open,
-@@ -1183,6 +1183,69 @@ static const struct file_operations mt7915_rate_txpower_fops = {
+@@ -1184,6 +1184,69 @@ static const struct file_operations mt7915_rate_txpower_fops = {
  	.llseek = default_llseek,
  };
  
@@ -240,7 +240,7 @@ index 40a126fa..c7002ee0 100644
  static int
  mt7915_twt_stats(struct seq_file *s, void *data)
  {
-@@ -1309,7 +1372,9 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
+@@ -1310,7 +1373,9 @@ int mt7915_init_debugfs(struct mt7915_phy *phy)
  	debugfs_create_file("implicit_txbf", 0600, dir, dev,
  			    &fops_implicit_txbf);
  	debugfs_create_file("txpower_sku", 0400, dir, phy,
@@ -252,7 +252,7 @@ index 40a126fa..c7002ee0 100644
  				    mt7915_twt_stats);
  	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 83748da6..33e030f5 100644
+index 439403f..b32e213 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -284,6 +284,8 @@ static void __mt7915_init_txpower(struct mt7915_phy *phy,
@@ -277,7 +277,7 @@ index 83748da6..33e030f5 100644
  		target_power = DIV_ROUND_UP(target_power, 2);
  		chan->max_power = min_t(int, chan->max_reg_power,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 9fafa162..da7a87bf 100644
+index 9fafa16..da7a87b 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -73,11 +73,7 @@ int mt7915_run(struct ieee80211_hw *hw)
@@ -294,7 +294,7 @@ index 9fafa162..da7a87bf 100644
  		goto out;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 12622068..eb7638b5 100644
+index 1262206..eb7638b 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -3422,7 +3422,8 @@ int mt7915_mcu_set_txpower_frame(struct mt7915_phy *phy,
@@ -542,7 +542,7 @@ index 12622068..eb7638b5 100644
  	return mt76_mcu_send_msg(&dev->mt76,
  				 MCU_EXT_CMD(TX_POWER_FEATURE_CTRL), &req,
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 1b0bd06b..94eff268 100644
+index 1b0bd06..94eff26 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -517,12 +517,18 @@ enum {
@@ -565,7 +565,7 @@ index 1b0bd06b..94eff268 100644
  	SPR_ENABLE = 0x1,
  	SPR_ENABLE_SD = 0x3,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 1e5cd941..826682be 100644
+index 1e5cd94..826682b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -72,6 +72,7 @@

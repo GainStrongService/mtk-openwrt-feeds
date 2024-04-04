@@ -1,7 +1,7 @@
-From 112f472d3c2b14437899d42e26bb844fbc7ff020 Mon Sep 17 00:00:00 2001
+From ef07367ab6f484383d0616953254276b31719a21 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
-Subject: [PATCH 1015/1051] wifi: mt76: mt7915: add vendor subcmd EDCCA ctrl
+Subject: [PATCH 1015/1053] wifi: mt76: mt7915: add vendor subcmd EDCCA ctrl
  enable/threshold/compensation
 
 ---
@@ -15,10 +15,10 @@ Subject: [PATCH 1015/1051] wifi: mt76: mt7915: add vendor subcmd EDCCA ctrl
  7 files changed, 265 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 4d85d323..8dba184d 100644
+index 69ca57a..b2b7095 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1243,6 +1243,7 @@ enum {
+@@ -1251,6 +1251,7 @@ enum {
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
@@ -27,7 +27,7 @@ index 4d85d323..8dba184d 100644
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/main.c b/mt7915/main.c
-index c6eca6fe..9fafa162 100644
+index c6eca6f..9fafa16 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -479,6 +479,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
@@ -41,7 +41,7 @@ index c6eca6fe..9fafa162 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 9dd4b775..1e84236d 100644
+index 9dd4b77..1e84236 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -5037,3 +5037,76 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
@@ -122,7 +122,7 @@ index 9dd4b775..1e84236d 100644
 +	return 0;
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index de17c579..1682c117 100644
+index de17c57..1682c11 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -1128,6 +1128,27 @@ enum {
@@ -154,7 +154,7 @@ index de17c579..1682c117 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index d21b843e..000751bd 100644
+index d21b843..000751b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -770,7 +770,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
@@ -168,7 +168,7 @@ index d21b843e..000751bd 100644
  int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool wait_resp);
  
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 757aecb6..3a586846 100644
+index 757aecb..3a58684 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -63,6 +63,24 @@ phy_capa_dump_policy[NUM_MTK_VENDOR_ATTRS_PHY_CAPA_DUMP] = {
@@ -325,7 +325,7 @@ index 757aecb6..3a586846 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index 34dd7d02..284994a2 100644
+index 34dd7d0..284994a 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -3,6 +3,7 @@

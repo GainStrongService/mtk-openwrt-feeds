@@ -1,4 +1,4 @@
-From 5767bce45ee5ea588072389762af8b5aab9227a5 Mon Sep 17 00:00:00 2001
+From c7b5350668962272203b878cfc1ae2754c807d56 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 22 May 2023 13:49:37 +0800
 Subject: [PATCH 02/14] wifi: mt76: mt7915: add pc stack dump for WM's
@@ -16,10 +16,10 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  7 files changed, 207 insertions(+), 71 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 619d50df..52a20868 100644
+index 92acba9..ee14425 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -27,6 +27,8 @@
+@@ -32,6 +32,8 @@
  
  #define MT76_TOKEN_FREE_THR	64
  
@@ -28,7 +28,7 @@ index 619d50df..52a20868 100644
  #define MT_QFLAG_WED_RING	GENMASK(1, 0)
  #define MT_QFLAG_WED_TYPE	GENMASK(4, 2)
  #define MT_QFLAG_WED		BIT(5)
-@@ -61,6 +63,12 @@ enum mt76_bus_type {
+@@ -66,6 +68,12 @@ enum mt76_bus_type {
  	MT76_BUS_SDIO,
  };
  
@@ -41,7 +41,7 @@ index 619d50df..52a20868 100644
  enum mt76_wed_type {
  	MT76_WED_Q_TX,
  	MT76_WED_Q_TXFREE,
-@@ -833,6 +841,9 @@ struct mt76_dev {
+@@ -838,6 +846,9 @@ struct mt76_dev {
  	struct device *dma_dev;
  
  	struct mt76_mcu mcu;
@@ -52,10 +52,10 @@ index 619d50df..52a20868 100644
  	struct net_device napi_dev;
  	struct net_device tx_napi_dev;
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 368c5f46..4be806e2 100644
+index b35acf8..1ea9798 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -2933,6 +2933,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -2941,6 +2941,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		goto out;
  	}
  
@@ -65,7 +65,7 @@ index 368c5f46..4be806e2 100644
  	snprintf(dev->hw->wiphy->fw_version,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
-@@ -2962,6 +2965,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+@@ -2970,6 +2973,9 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
  		goto out;
  	}
  
@@ -75,7 +75,7 @@ index 368c5f46..4be806e2 100644
  	snprintf(dev->hw->wiphy->fw_version,
  		 sizeof(dev->hw->wiphy->fw_version),
  		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
-@@ -3032,6 +3038,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
+@@ -3040,6 +3046,9 @@ int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name)
  	dev_info(dev->dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
  		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
  
@@ -86,7 +86,7 @@ index 368c5f46..4be806e2 100644
  		struct mt76_connac2_patch_sec *sec;
  		u32 len, addr, mode;
 diff --git a/mt7915/coredump.c b/mt7915/coredump.c
-index 5daf2258..298c1cad 100644
+index 5daf225..298c1ca 100644
 --- a/mt7915/coredump.c
 +++ b/mt7915/coredump.c
 @@ -7,7 +7,7 @@
@@ -414,7 +414,7 @@ index 5daf2258..298c1cad 100644
  }
  
 diff --git a/mt7915/coredump.h b/mt7915/coredump.h
-index 709f8e9c..809ccbdf 100644
+index 709f8e9..809ccbd 100644
 --- a/mt7915/coredump.h
 +++ b/mt7915/coredump.h
 @@ -4,6 +4,7 @@
@@ -514,7 +514,7 @@ index 709f8e9c..809ccbdf 100644
  	return NULL;
  }
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index b9152018..0f6b8067 100644
+index b915201..0f6b806 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -1597,28 +1597,31 @@ void mt7915_mac_reset_work(struct work_struct *work)
@@ -595,7 +595,7 @@ index b9152018..0f6b8067 100644
  }
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index aee30c73..5cd2b334 100644
+index aee30c7..5cd2b33 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -286,7 +286,7 @@ struct mt7915_dev {
@@ -608,7 +608,7 @@ index aee30c73..5cd2b334 100644
  #endif
  
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 89ac8e67..7515b23f 100644
+index 89ac8e6..7515b23 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -1219,4 +1219,24 @@ enum offs_rev {

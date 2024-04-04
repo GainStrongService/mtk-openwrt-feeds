@@ -1,7 +1,7 @@
-From 08084eaccb5811f27a979c8c44cd3321c69f1829 Mon Sep 17 00:00:00 2001
+From d1b12ab78d487e08945ec6a92b744af342505fd2 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Wed, 6 Dec 2023 08:53:03 +0800
-Subject: [PATCH 1041/1051] wifi: mt76: mt7915: support scs feature
+Subject: [PATCH 1041/1053] wifi: mt76: mt7915: support scs feature
 
 Add support scs feature for connac2 codebase. This commit includes three
 parts.
@@ -29,7 +29,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  9 files changed, 188 insertions(+)
 
 diff --git a/mt76.h b/mt76.h
-index 6f78c07c..c011812e 100644
+index 6f78c07..c011812 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -311,6 +311,7 @@ struct mt76_sta_stats {
@@ -49,10 +49,10 @@ index 6f78c07c..c011812e 100644
  
  enum mt76_wcid_flags {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 12654017..5be93f6a 100644
+index c6a43dd..1bc32da 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1228,6 +1228,7 @@ enum {
+@@ -1236,6 +1236,7 @@ enum {
  	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
  	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
  	MCU_EXT_CMD_SET_SER_TRIGGER = 0x81,
@@ -61,7 +61,7 @@ index 12654017..5be93f6a 100644
  	MCU_EXT_CMD_FW_DBG_CTRL = 0x95,
  	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 88b914e4..84b183f7 100644
+index b2e613c..373f4f5 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -1247,6 +1247,7 @@ int mt7915_register_device(struct mt7915_dev *dev)
@@ -73,7 +73,7 @@ index 88b914e4..84b183f7 100644
  	INIT_LIST_HEAD(&dev->twt_list);
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 9a49375c..2e4a8f84 100644
+index 9a49375..2e4a8f8 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -1504,6 +1504,8 @@ mt7915_mac_full_reset(struct mt7915_dev *dev)
@@ -116,7 +116,7 @@ index 9a49375c..2e4a8f84 100644
  		 wiphy_name(dev->mt76.hw->wiphy));
  }
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 69c4a41d..69fcf4c0 100644
+index 69c4a41..69fcf4c 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -89,12 +89,24 @@ int mt7915_run(struct ieee80211_hw *hw)
@@ -153,7 +153,7 @@ index 69c4a41d..69fcf4c0 100644
  		mt7915_mcu_set_mac(dev, dev->phy.mt76->band_idx, false, false);
  	}
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 4b5fb53a..5e1fd3be 100644
+index 4b5fb53..5e1fd3b 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -5239,3 +5239,121 @@ int mt7915_mcu_sw_aci_set(struct mt7915_dev *dev, bool val)
@@ -279,7 +279,7 @@ index 4b5fb53a..5e1fd3be 100644
 +		ieee80211_queue_delayed_work(mt76_hw(dev), &dev->scs_work, HZ);
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 3089fb64..742a7855 100644
+index 3089fb6..742a785 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -1200,4 +1200,8 @@ struct mt7915_mcu_edcca_info {
@@ -292,7 +292,7 @@ index 3089fb64..742a7855 100644
 +};
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index c6150c8a..3c049364 100644
+index c6150c8..3c04936 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -270,6 +270,15 @@ struct mt7915_air_monitor_ctrl {
@@ -338,7 +338,7 @@ index c6150c8a..3c049364 100644
  #ifdef MTK_DEBUG
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index 59d89b60..4210ecb8 100644
+index 2b59e35..081cf46 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -3820,6 +3820,29 @@ mt7915_sr_enable_set(void *data, u64 val)

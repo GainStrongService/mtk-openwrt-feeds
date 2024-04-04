@@ -1,7 +1,7 @@
-From cdaf90d85058a2383225ad657be6fe7c331088b4 Mon Sep 17 00:00:00 2001
+From b0e4d25607d3a52f93139919c85482f87087f145 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Thu, 7 Mar 2024 11:13:45 +0800
-Subject: [PATCH 1047/1051] wifi: mt76: try more times when send message
+Subject: [PATCH 1047/1053] wifi: mt76: try more times when send message
  timeout.
 
 CR-Id: WCNCR00334773
@@ -13,7 +13,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  3 files changed, 64 insertions(+), 52 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index bc8afcff..133a50dc 100644
+index bc8afcf..133a50d 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -504,9 +504,12 @@ mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
@@ -40,7 +40,7 @@ index bc8afcff..133a50dc 100644
  
  static int
 diff --git a/mcu.c b/mcu.c
-index fa4b0544..de185cc9 100644
+index fa4b054..de185cc 100644
 --- a/mcu.c
 +++ b/mcu.c
 @@ -4,6 +4,7 @@
@@ -133,7 +133,7 @@ index fa4b0544..de185cc9 100644
  
  	return ret;
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 2e4a8f84..dbc1095c 100644
+index 2e4a8f8..dbc1095 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -1389,12 +1389,6 @@ mt7915_mac_restart(struct mt7915_dev *dev)

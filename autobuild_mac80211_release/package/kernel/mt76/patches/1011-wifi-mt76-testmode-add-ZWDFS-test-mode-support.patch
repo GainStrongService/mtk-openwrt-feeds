@@ -1,7 +1,7 @@
-From e7ff04400a7f5ef553332c4513fd0164bf31c5a6 Mon Sep 17 00:00:00 2001
+From b80b70aa0c7d3c1ecd2a1f7151c16660233464b2 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 27 Oct 2022 17:42:07 +0800
-Subject: [PATCH 1011/1051] wifi: mt76: testmode: add ZWDFS test mode support
+Subject: [PATCH 1011/1053] wifi: mt76: testmode: add ZWDFS test mode support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -18,7 +18,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  10 files changed, 508 insertions(+), 1 deletion(-)
 
 diff --git a/mt76.h b/mt76.h
-index 22d76bb1..9320c526 100644
+index 22d76bb..9320c52 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -793,6 +793,15 @@ struct mt76_testmode_data {
@@ -38,10 +38,10 @@ index 22d76bb1..9320c526 100644
  
  struct mt76_vif {
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 1a32268b..4d85d323 100644
+index b75d340..69ca57a 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1233,6 +1233,7 @@ enum {
+@@ -1241,6 +1241,7 @@ enum {
  	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,
  	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
  	MCU_EXT_CMD_MURU_CTRL = 0x9f,
@@ -49,7 +49,7 @@ index 1a32268b..4d85d323 100644
  	MCU_EXT_CMD_RX_STAT = 0xa4,
  	MCU_EXT_CMD_SET_SPR = 0xa8,
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
-@@ -1243,6 +1244,7 @@ enum {
+@@ -1251,6 +1252,7 @@ enum {
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
@@ -58,7 +58,7 @@ index 1a32268b..4d85d323 100644
  
  enum {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ad58e3b6..573f1e88 100644
+index ad58e3b..573f1e8 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2759,6 +2759,7 @@ mt7915_mcu_background_chain_ctrl(struct mt7915_phy *phy,
@@ -139,7 +139,7 @@ index ad58e3b6..573f1e88 100644
 +	return 0;
 +}
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index c791c7fa..066246bb 100644
+index c791c7f..066246b 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -698,6 +698,52 @@ enum CSI_CHAIN_TYPE {
@@ -196,7 +196,7 @@ index c791c7fa..066246bb 100644
  #define OFDMA_DL                       BIT(0)
  #define OFDMA_UL                       BIT(1)
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index dd2e80b8..1644a467 100644
+index dd2e80b..1644a46 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -293,6 +293,7 @@ struct mt7915_phy {
@@ -218,7 +218,7 @@ index dd2e80b8..1644a467 100644
  int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir);
  int mt7915_dbg_mcu_wa_cmd(struct mt7915_dev *dev, int cmd, u32 a1, u32 a2, u32 a3, bool wait_resp);
 diff --git a/mt7915/regs.h b/mt7915/regs.h
-index 1236da91..7e9b76b0 100644
+index 1236da9..7e9b76b 100644
 --- a/mt7915/regs.h
 +++ b/mt7915/regs.h
 @@ -1211,6 +1211,8 @@ enum offs_rev {
@@ -231,7 +231,7 @@ index 1236da91..7e9b76b0 100644
  #define MT_WF_PHY_BASE			0x83080000
  #define MT_WF_PHY(ofs)			(MT_WF_PHY_BASE + (ofs))
 diff --git a/mt7915/testmode.c b/mt7915/testmode.c
-index 453319e1..caa35906 100644
+index 453319e..caa3590 100644
 --- a/mt7915/testmode.c
 +++ b/mt7915/testmode.c
 @@ -14,6 +14,12 @@ enum {
@@ -558,7 +558,7 @@ index 453319e1..caa35906 100644
  
  static int
 diff --git a/testmode.c b/testmode.c
-index b1986ad6..b369826e 100644
+index b1986ad..b369826 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -26,6 +26,13 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
@@ -622,7 +622,7 @@ index b1986ad6..b369826e 100644
  	     nla_put_u8(msg, MT76_TM_ATTR_TX_LTF, td->tx_ltf)) ||
  	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_ANTENNA) &&
 diff --git a/testmode.h b/testmode.h
-index 1d7aef86..b39cf511 100644
+index 1d7aef8..b39cf51 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -64,6 +64,20 @@
@@ -690,7 +690,7 @@ index 1d7aef86..b39cf511 100644
 +
  #endif
 diff --git a/tools/fields.c b/tools/fields.c
-index b0ee84d2..e2cf4b92 100644
+index b0ee84d..e2cf4b9 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -46,6 +46,14 @@ static const char * const testmode_txbf_act[] = {

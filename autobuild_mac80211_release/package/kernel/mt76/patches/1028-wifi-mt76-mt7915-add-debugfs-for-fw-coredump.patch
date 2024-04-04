@@ -1,7 +1,7 @@
-From 85b74a49351465649530d874aacbd851c8a43a79 Mon Sep 17 00:00:00 2001
+From 1eedf84cfc86e9b6e9de78509e85789025b1b3ac Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 22 May 2023 15:30:21 +0800
-Subject: [PATCH 1028/1051] wifi: mt76: mt7915: add debugfs for fw coredump.
+Subject: [PATCH 1028/1053] wifi: mt76: mt7915: add debugfs for fw coredump.
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
@@ -12,7 +12,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  4 files changed, 58 insertions(+), 9 deletions(-)
 
 diff --git a/mt7915/debugfs.c b/mt7915/debugfs.c
-index c7002ee0..4c48b197 100644
+index fa1d2ac..3044557 100644
 --- a/mt7915/debugfs.c
 +++ b/mt7915/debugfs.c
 @@ -82,8 +82,10 @@ mt7915_sys_recovery_set(struct file *file, const char __user *user_buf,
@@ -67,7 +67,7 @@ index c7002ee0..4c48b197 100644
  	/* SER statistics */
  	desc += scnprintf(buff + desc, bufsz - desc,
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index 1e39ad25..14367fd7 100644
+index 1e39ad2..14367fd 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -1728,10 +1728,34 @@ void mt7915_mac_dump_work(struct work_struct *work)
@@ -117,7 +117,7 @@ index 1e39ad25..14367fd7 100644
  	}
  
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
-index 6ebcce0d..035ad97d 100644
+index 6ebcce0..035ad97 100644
 --- a/mt7915/mcu.h
 +++ b/mt7915/mcu.h
 @@ -760,8 +760,12 @@ enum {
@@ -135,7 +135,7 @@ index 6ebcce0d..035ad97d 100644
  	SER_ENABLE = 2,
  	SER_RECOVER
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index e5a201c9..ea91611d 100644
+index e5a201c..ea91611 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -91,6 +91,13 @@ struct mt7915_sta;

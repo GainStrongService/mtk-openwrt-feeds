@@ -1,7 +1,7 @@
-From 55b1554b868da2e8d5385bbad655dc746ce64384 Mon Sep 17 00:00:00 2001
+From c77d92fc916236853e030c21b0a89da7b226609f Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Tue, 11 Jan 2022 12:03:23 +0800
-Subject: [PATCH 1002/1051] wifi: mt76: mt7915: air monitor support
+Subject: [PATCH 1002/1053] wifi: mt76: mt7915: air monitor support
 
 ---
  mt76_connac_mcu.h |   2 +
@@ -13,10 +13,10 @@ Subject: [PATCH 1002/1051] wifi: mt76: mt7915: air monitor support
  6 files changed, 440 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 81af8709..4569113a 100644
+index 2ffe1c9..4172946 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1235,6 +1235,8 @@ enum {
+@@ -1243,6 +1243,8 @@ enum {
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
  	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
@@ -26,7 +26,7 @@ index 81af8709..4569113a 100644
  };
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index d99864f0..e38905aa 100644
+index d99864f..e38905a 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -531,6 +531,10 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
@@ -41,7 +41,7 @@ index d99864f0..e38905aa 100644
  		status->flag |= RX_FLAG_8023;
  		mt7915_wed_check_ppe(dev, &dev->mt76.q_rx[q], msta, skb,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 4aa1b6d4..19719b3f 100644
+index 4aa1b6d..19719b3 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -798,6 +798,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -55,7 +55,7 @@ index 4aa1b6d4..19719b3f 100644
  }
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 4617c59a..35ccfa37 100644
+index 4617c59..35ccfa3 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -232,6 +232,33 @@ struct csi_data {
@@ -112,7 +112,7 @@ index 4617c59a..35ccfa37 100644
  
  #ifdef MTK_DEBUG
 diff --git a/mt7915/vendor.c b/mt7915/vendor.c
-index 55da60a1..c964b143 100644
+index 55da60a..c964b14 100644
 --- a/mt7915/vendor.c
 +++ b/mt7915/vendor.c
 @@ -448,6 +448,355 @@ out:
@@ -491,7 +491,7 @@ index 55da60a1..c964b143 100644
  };
  
 diff --git a/mt7915/vendor.h b/mt7915/vendor.h
-index e1f5fd36..1863eee5 100644
+index e1f5fd3..1863eee 100644
 --- a/mt7915/vendor.h
 +++ b/mt7915/vendor.h
 @@ -5,6 +5,7 @@
