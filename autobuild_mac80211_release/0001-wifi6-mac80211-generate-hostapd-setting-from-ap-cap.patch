@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index 8ecbe30..44af0c7 100644
+index 8ecbe304..4d8546ee 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -19,6 +19,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -10,7 +10,7 @@ index 8ecbe30..44af0c7 100644
  PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
  
  PKG_DRIVERS = \
-@@ -71,6 +72,11 @@ config-y:= \
+@@ -71,6 +72,12 @@ config-y:= \
  	WLAN_VENDOR_ST \
  	WLAN_VENDOR_TI \
  	WLAN_VENDOR_ZYDAS \
@@ -19,10 +19,11 @@ index 8ecbe30..44af0c7 100644
 +	MAC80211_STA_DEBUG \
 +	MAC80211_HT_DEBUG \
 +	MAC80211_PS_DEBUG \
++	MAC80211_DEBUG_COUNTERS \
  
  config-$(call config_package,cfg80211) += CFG80211
  config-$(CONFIG_PACKAGE_CFG80211_TESTMODE) += NL80211_TESTMODE
-@@ -296,6 +302,8 @@ define Build/Prepare
+@@ -296,6 +303,8 @@ define Build/Prepare
  	mkdir -p $(PKG_BUILD_DIR)
  	$(PKG_UNPACK)
  	$(Build/Patch)
@@ -32,7 +33,7 @@ index 8ecbe30..44af0c7 100644
  		$(PKG_BUILD_DIR)/include/linux/ssb \
  		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
-index ed28052..797ea8d 100644
+index ed280521..797ea8d3 100644
 --- a/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/netifd/wireless/mac80211.sh
 @@ -27,6 +27,7 @@ drv_mac80211_init_device_config() {
@@ -415,7 +416,7 @@ index ed28052..797ea8d 100644
  	NEWUMLIST=
  
 diff --git a/package/kernel/mac80211/files/lib/wifi/mac80211.sh b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
-index 3ecd932..d4b42ce 100644
+index 3ecd9322..d4b42cee 100644
 --- a/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 +++ b/package/kernel/mac80211/files/lib/wifi/mac80211.sh
 @@ -46,8 +46,13 @@ check_mac80211_device() {
@@ -563,7 +564,7 @@ index 3ecd932..d4b42ce 100644
  	done
  }
 diff --git a/package/network/services/hostapd/files/hostapd.sh b/package/network/services/hostapd/files/hostapd.sh
-index 28bd210..723d387 100644
+index 28bd2106..723d3874 100644
 --- a/package/network/services/hostapd/files/hostapd.sh
 +++ b/package/network/services/hostapd/files/hostapd.sh
 @@ -60,7 +60,14 @@ hostapd_append_wpa_key_mgmt() {
