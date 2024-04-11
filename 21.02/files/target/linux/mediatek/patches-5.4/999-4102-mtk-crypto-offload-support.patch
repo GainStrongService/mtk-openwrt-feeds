@@ -1,46 +1,53 @@
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -1992,6 +1992,17 @@ static void mtk_tx_set_dma_desc_v3(struc
+@@ -1996,6 +1996,7 @@ static void mtk_tx_set_dma_desc_v3(struc
+ 	u32 data = 0;
+ 	u8 tops_entry  = 0;
+ 	u8 tport = 0;
++	u8 cdrt = 0;
+ 
+ 	addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
+ 		  TX_DMA_SDP1(info->addr) : 0;
+@@ -2019,11 +2020,25 @@ static void mtk_tx_set_dma_desc_v3(struc
  	trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
  		     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
  #endif
-+
+-	if (mtk_get_tnl_netsys_params && skb) {
++	if (mtk_get_tnl_netsys_params && skb && !(skb->inner_protocol == IPPROTO_ESP)) {
+ 		u32 params = mtk_get_tnl_netsys_params(skb);
+ 
+ 		tops_entry = params & 0x000000FF;
+ 		tport = (params & 0x0000FF00) >> 8;
++		cdrt = (params & 0x00FF0000) >> 16;
++	}
 +	/* forward to eip197 if this packet is going to encrypt */
 +#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
-+	if (unlikely(skb->inner_protocol == IPPROTO_ESP && skb_hnat_cdrt(skb) && is_magic_tag_valid(skb)))
-+#else
-+	if (unlikely(skb->inner_protocol == IPPROTO_ESP && skb_tnl_cdrt(skb) && is_tnl_tag_valid(skb)))
-+#endif // hnat
-+	{
-+		data &= ((~TX_DMA_TPORT_MASK) << TX_DMA_TPORT_SHIFT);
-+		data |= (EIP197_QDMA_TPORT & TX_DMA_TPORT_MASK) << TX_DMA_TPORT_SHIFT;
-+	}
- 	WRITE_ONCE(desc->txd4, data);
- 
- 	data = 0;
-@@ -2014,6 +2025,21 @@ static void mtk_tx_set_dma_desc_v3(struc
- 
- 	WRITE_ONCE(desc->txd7, 0);
- 	WRITE_ONCE(desc->txd8, 0);
-+
-+#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
-+	if (unlikely(skb->inner_protocol == IPPROTO_ESP && skb_hnat_cdrt(skb) && is_magic_tag_valid(skb))) {
++	else if (unlikely(skb->inner_protocol == IPPROTO_ESP && skb_hnat_cdrt(skb) && is_magic_tag_valid(skb))) {
 +		/* carry cdrt index for encryption */
-+		data = (skb_hnat_cdrt(skb) & TX_DMA_CDRT_MASK) << TX_DMA_CDRT_SHIFT;
-+		WRITE_ONCE(desc->txd8, data);
++		cdrt = skb_hnat_cdrt(skb);
 +		skb_hnat_magic_tag(skb) = 0;
-+	}
 +#else
-+	if (unlikely(skb->inner_protocol == IPPROTO_ESP && skb_tnl_cdrt(skb) && is_tnl_tag_valid(skb))) {
-+		data = (skb_tnl_cdrt(skb) & TX_DMA_CDRT_MASK) << TX_DMA_CDRT_SHIFT;
-+		WRITE_ONCE(desc->txd8, data);
++	else if (unlikely(skb->inner_protocol == IPPROTO_ESP && skb_tnl_cdrt(skb) && is_tnl_tag_valid(skb))) {
++		cdrt = skb_tnl_cdrt(skb);
 +		skb_tnl_magic_tag(skb) = 0;
++#endif
++		tport = EIP197_QDMA_TPORT;
+ 	}
+ 
+ 	if (tport) {
+@@ -2060,6 +2075,11 @@ static void mtk_tx_set_dma_desc_v3(struc
+ 		data |= (tops_entry & TX_DMA_TOPS_ENTRY_MASK) << TX_DMA_TOPS_ENTRY_SHIFT;
+ 	}
+ 
++	if (cdrt) {
++		data &= ~(TX_DMA_CDRT_MASK << TX_DMA_CDRT_SHIFT);
++		data |= (cdrt & TX_DMA_CDRT_MASK) << TX_DMA_CDRT_SHIFT;
 +	}
-+#endif // hnat
++
+ 	WRITE_ONCE(desc->txd8, data);
  }
  
- static void mtk_tx_set_pdma_desc(struct sk_buff *skb, struct net_device *dev, void *txd,
-@@ -2491,6 +2517,7 @@ static int mtk_poll_rx(struct napi_struc
+@@ -2538,6 +2558,7 @@ static int mtk_poll_rx(struct napi_struc
  
  		skb_hnat_alg(skb) = 0;
  		skb_hnat_filled(skb) = 0;
@@ -50,7 +57,7 @@
  		skb_hnat_set_is_decap(skb, 0);
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat_nf_hook.c
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat_nf_hook.c
-@@ -1078,6 +1078,9 @@ static unsigned int hnat_ipv4_get_nextho
+@@ -1079,6 +1079,9 @@ static unsigned int hnat_ipv4_get_nextho
  		return 0;
  	}
  
@@ -60,7 +67,7 @@
  	rcu_read_lock_bh();
  	nexthop = (__force u32)rt_nexthop(rt, ip_hdr(skb)->daddr);
  	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
-@@ -1302,6 +1305,9 @@ static inline void hnat_fill_offload_eng
+@@ -1303,6 +1306,9 @@ static inline void hnat_fill_offload_eng
  		 */
  		entry->ipv4_hnapt.tport_id = NR_TDMA_QDMA_TPORT;
  		entry->ipv4_hnapt.tops_entry = skb_hnat_tops(skb);
@@ -70,7 +77,7 @@
  	} else {
  		return;
  	}
-@@ -1311,6 +1317,79 @@ static inline void hnat_fill_offload_eng
+@@ -1312,6 +1318,79 @@ static inline void hnat_fill_offload_eng
  #endif /* defined(CONFIG_MEDIATEK_NETSYS_V3) */
  }
  
@@ -150,7 +157,7 @@
  static unsigned int skb_to_hnat_info(struct sk_buff *skb,
  				     const struct net_device *dev,
  				     struct foe_entry *foe,
-@@ -2363,6 +2442,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
+@@ -2365,6 +2444,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
  
  	skb_hnat_alg(skb) = 0;
  	skb_hnat_set_tops(skb, 0);
@@ -158,7 +165,7 @@
  	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
  
  	if (skb_hnat_iface(skb) == FOE_MAGIC_WED0)
-@@ -2449,7 +2529,8 @@ static unsigned int mtk_hnat_accel_type(
+@@ -2451,7 +2531,8 @@ static unsigned int mtk_hnat_accel_type(
  	 * is from local_out which is also filtered in sanity check.
  	 */
  	dst = skb_dst(skb);
@@ -168,7 +175,7 @@
  		return 0;
  
  	ct = nf_ct_get(skb, &ctinfo);
-@@ -2853,6 +2934,14 @@ static unsigned int mtk_hnat_nf_post_rou
+@@ -2855,6 +2936,14 @@ static unsigned int mtk_hnat_nf_post_rou
  		}
  	}
  
@@ -183,7 +190,7 @@
  	if (!IS_LAN_GRP(out) && !IS_WAN(out) && !IS_EXT(out))
  		is_virt_dev = true;
  
-@@ -3162,7 +3251,10 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
+@@ -3164,7 +3253,10 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
  	if (iph->protocol == IPPROTO_IPV6) {
  		entry->udib1.pkt_type = IPV6_6RD;
  		hnat_set_head_frags(state, skb, 0, hnat_set_alg);
@@ -257,28 +264,24 @@
  int ext_if_del(struct extdev_entry *ext_entry);
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -592,6 +592,10 @@
- #define MTK_QDMA_GMAC2_QID	8
+@@ -594,6 +594,8 @@
  #define MTK_QDMA_GMAC3_QID	6
  
-+/* QDMA V2 descriptor txd8 */
-+#define TX_DMA_CDRT_SHIFT 	0
-+#define TX_DMA_CDRT_MASK	0xff
-+
- /* QDMA V2 descriptor txd6 */
- #define TX_DMA_INS_VLAN_V2         BIT(16)
+ /* QDMA V2 descriptor txd8 */
++#define TX_DMA_CDRT_SHIFT          0
++#define TX_DMA_CDRT_MASK           0xff
+ #define TX_DMA_TOPS_ENTRY_SHIFT    8
+ #define TX_DMA_TOPS_ENTRY_MASK     0x3f
  
-@@ -601,6 +605,9 @@
+@@ -606,6 +608,7 @@
  #define TX_DMA_SPTAG_V3            BIT(27)
  
  /* QDMA V2 descriptor txd4 */
 +#define EIP197_QDMA_TPORT          3
-+#define TX_DMA_TPORT_SHIFT         0
-+#define TX_DMA_TPORT_MASK          0xf
+ #define TX_DMA_TPORT_SHIFT         0
+ #define TX_DMA_TPORT_MASK          0xf
  #define TX_DMA_FPORT_SHIFT_V2      8
- #define TX_DMA_FPORT_MASK_V2       0xf
- #define TX_DMA_SWC_V2              BIT(30)
-@@ -1063,6 +1070,43 @@
+@@ -1070,6 +1073,43 @@
  #define MT7628_SDM_MAC_ADRL	(MT7628_SDM_OFFSET + 0x0c)
  #define MT7628_SDM_MAC_ADRH	(MT7628_SDM_OFFSET + 0x10)
  
