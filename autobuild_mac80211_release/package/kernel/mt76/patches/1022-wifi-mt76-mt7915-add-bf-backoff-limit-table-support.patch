@@ -1,13 +1,12 @@
-From 5f739478e44b2cb080b0ece69b06dd18280e8d3e Mon Sep 17 00:00:00 2001
+From ff7ce1171852dedcaec49ea0de398dfea04aaced Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 5 Dec 2022 18:21:51 +0800
-Subject: [PATCH 1022/1053] wifi: mt76: mt7915: add bf backoff limit table
- support
+Subject: [PATCH] wifi: mt76: mt7915: add bf backoff limit table support
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
  debugfs.c        |   4 +-
- eeprom.c         |  43 ++++++++++--
+ eeprom.c         |  38 ++++++++--
  mt76.h           |   8 +++
  mt7915/debugfs.c |  73 +++++++++++++++++--
  mt7915/init.c    |   7 ++
@@ -15,7 +14,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  mt7915/mcu.c     | 178 +++++++++++++++++++++++++++++++++++++----------
  mt7915/mcu.h     |   6 ++
  mt7915/mt7915.h  |   9 ++-
- 9 files changed, 279 insertions(+), 55 deletions(-)
+ 9 files changed, 275 insertions(+), 54 deletions(-)
 
 diff --git a/debugfs.c b/debugfs.c
 index 1c8328d..a626f7c 100644
@@ -34,7 +33,7 @@ index 1c8328d..a626f7c 100644
  }
  EXPORT_SYMBOL_GPL(mt76_seq_puts_array);
 diff --git a/eeprom.c b/eeprom.c
-index 9d029c0..4213e44 100644
+index 9d029c0..aa33e7b 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -336,9 +336,10 @@ mt76_apply_array_limit(s8 *pwr, size_t pwr_len, const __be32 *data,
@@ -76,7 +75,7 @@ index 9d029c0..4213e44 100644
  
  	if (!IS_ENABLED(CONFIG_OF))
  		return target_power;
-@@ -428,14 +433,40 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
+@@ -428,12 +433,35 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
  	val = mt76_get_of_array(np, "rates-mcs", &len, mcs_rates + 1);
  	mt76_apply_multi_array_limit(dest->mcs[0], ARRAY_SIZE(dest->mcs[0]),
  				     ARRAY_SIZE(dest->mcs), val, len,
@@ -88,8 +87,7 @@ index 9d029c0..4213e44 100644
  				     ARRAY_SIZE(dest->ru), val, len,
 -				     target_power, txs_delta, &max_power);
 +				     target_power, txs_delta);
- 
--	return max_power;
++
 +	max_power_backoff = max_power;
 +	val = mt76_get_of_array(np, "paths-cck", &len, ARRAY_SIZE(dest->path.cck));
 +	mt76_apply_array_limit(dest->path.cck, ARRAY_SIZE(dest->path.cck), val,
@@ -112,14 +110,9 @@ index 9d029c0..4213e44 100644
 +	mt76_apply_multi_array_limit(dest->path.ru_bf[0], ARRAY_SIZE(dest->path.ru_bf[0]),
 +				     ARRAY_SIZE(dest->path.ru_bf), val, len,
 +				     target_power_combine, txs_delta);
-+
-+	if (max_power_backoff == target_power_combine)
-+		return max_power;
-+
-+	return max_power_backoff;
- }
- EXPORT_SYMBOL_GPL(mt76_get_rate_power_limits);
  
+ 	return max_power;
+ }
 diff --git a/mt76.h b/mt76.h
 index 48e98a3..5c26715 100644
 --- a/mt76.h
