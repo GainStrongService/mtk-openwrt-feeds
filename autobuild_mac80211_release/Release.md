@@ -38,7 +38,7 @@ make V=s
 ```
 ### Feeds Revision
 ```
-#vim autobuild/feeds.conf.default-21.01
+#vim autobuild/feeds.conf.default-21.02
 src-git packages https://git.openwrt.org/feed/packages.git^2219ac4
 src-git luci https://git.openwrt.org/project/luci.git^e4c4633
 src-git routing https://git.openwrt.org/feed/routing.git^a9e4310
