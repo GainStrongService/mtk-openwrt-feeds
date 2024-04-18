@@ -885,8 +885,10 @@ int tx_ring_read(struct seq_file *seq, void *v)
 	int i = 0;
 
 	seq_printf(seq, "free count = %d\n", (int)atomic_read(&ring->free_count));
-	seq_printf(seq, "cpu next free: %d\n", (int)(ring->next_free - ring->dma));
-	seq_printf(seq, "cpu last free: %d\n", (int)(ring->last_free - ring->dma));
+	seq_printf(seq, "cpu next free: %d\n",
+		   (int)(ring->next_free - ring->dma) / eth->soc->txrx.txd_size);
+	seq_printf(seq, "cpu last free: %d\n",
+		   (int)(ring->last_free - ring->dma) / eth->soc->txrx.txd_size);
 	for (i = 0; i < eth->soc->txrx.tx_dma_size; i++) {
 		dma_addr_t tmp = ring->phys +
 				 i * (dma_addr_t)eth->soc->txrx.txd_size;
