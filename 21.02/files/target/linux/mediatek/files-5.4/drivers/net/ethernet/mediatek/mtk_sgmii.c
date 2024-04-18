@@ -587,7 +587,7 @@ static void mtk_sgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 		if (mtk_sgmii_link_status(mpcs))
 			goto exit;
 
-		if (mode == MLO_AN_PHY)
+		if (mode != MLO_AN_INBAND)
 			mtk_sgmii_pcs_config(&mpcs->pcs, mode,
 					     interface, mpcs->advertising, false);
 	} while (time_before(jiffies, t_start + msecs_to_jiffies(3000)));

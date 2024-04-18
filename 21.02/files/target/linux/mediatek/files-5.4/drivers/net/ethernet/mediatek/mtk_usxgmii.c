@@ -787,7 +787,7 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 		mpcs_mode = mpcs->mode;
 		spin_unlock(&mpcs->regmap_lock);
 
-		if (mpcs_mode == MLO_AN_PHY)
+		if (mpcs_mode != MLO_AN_INBAND)
 			mtk_usxgmii_pcs_config(&mpcs->pcs, mode,
 						interface, NULL, false);
 	} while (time_before(jiffies, t_start + msecs_to_jiffies(3000)));
