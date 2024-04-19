@@ -1,0 +1,368 @@
+From 27dbd9d9796d656c8cf78d51d48162208080a987 Mon Sep 17 00:00:00 2001
+From: Sriram R <quic_srirrama@quicinc.com>
+Date: Thu, 28 Mar 2024 23:46:38 +0530
+Subject: [PATCH 008/104] hostapd: MLO: extend support for cohosted ML BSS
+
+Modify necessary helper apis to support multiple BSS support for MLO to
+make the changes scalable.
+
+Signed-off-by: Sriram R <quic_srirrama@quicinc.com>
+Signed-off-by: Aditya Kumar Singh <quic_adisi@quicinc.com>
+---
+ src/ap/ieee802_11.c     | 116 ++++++++++++++++------------------------
+ src/ap/ieee802_11_eht.c |  27 +++-------
+ src/ap/wpa_auth_glue.c  |  52 +++++++++++-------
+ 3 files changed, 89 insertions(+), 106 deletions(-)
+
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index 98398ccdd..26e3d8356 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -4567,7 +4567,7 @@ int hostapd_process_assoc_ml_info(struct hostapd_data *hapd,
+ 				  bool offload)
+ {
+ #ifdef CONFIG_IEEE80211BE
+-	unsigned int i, j;
++	unsigned int i;
+ 
+ 	if (!hostapd_is_mld_ap(hapd))
+ 		return 0;
+@@ -4582,25 +4582,25 @@ int hostapd_process_assoc_ml_info(struct hostapd_data *hapd,
+ 		hostapd_wpa_ie(hapd, WLAN_EID_RSNX);
+ 
+ 	for (i = 0; i < MAX_NUM_MLD_LINKS; i++) {
+-		struct hostapd_iface *iface = NULL;
++		struct hostapd_data *bss = NULL;
+ 		struct mld_link_info *link = &sta->mld_info.links[i];
++		bool link_bss_found = false;
+ 
+ 		if (!link->valid)
+ 			continue;
+ 
+-		for (j = 0; j < hapd->iface->interfaces->count; j++) {
+-			iface = hapd->iface->interfaces->iface[j];
++		for_each_mld_link(bss, hapd) {
++			if (bss == hapd)
++				continue;
+ 
+-			if (hapd->iface == iface)
++			if (bss->mld_link_id != i)
+ 				continue;
+ 
+-			if (hostapd_is_ml_partner(hapd, iface->bss[0]) &&
+-			    i == iface->bss[0]->mld_link_id)
+-				break;
++			link_bss_found = true;
++			break;
+ 		}
+ 
+-		if (!iface || j == hapd->iface->interfaces->count ||
+-		    TEST_FAIL()) {
++		if (!link_bss_found || TEST_FAIL()) {
+ 			wpa_printf(MSG_DEBUG,
+ 				   "MLD: No link match for link_id=%u", i);
+ 
+@@ -4613,7 +4613,7 @@ int hostapd_process_assoc_ml_info(struct hostapd_data *hapd,
+ 			if (!offload)
+ 				ieee80211_ml_build_assoc_resp(hapd, link);
+ 		} else {
+-			if (ieee80211_ml_process_link(iface->bss[0], sta, link,
++			if (ieee80211_ml_process_link(bss, sta, link,
+ 						      ies, ies_len, reassoc,
+ 						      offload))
+ 				return -1;
+@@ -5777,7 +5777,7 @@ static bool hostapd_ml_handle_disconnect(struct hostapd_data *hapd,
+ #ifdef CONFIG_IEEE80211BE
+ 	struct hostapd_data *assoc_hapd, *tmp_hapd;
+ 	struct sta_info *assoc_sta;
+-	unsigned int i, link_id;
++	struct sta_info *tmp_sta;
+ 
+ 	if (!hostapd_is_mld_ap(hapd))
+ 		return false;
+@@ -5790,45 +5790,27 @@ static bool hostapd_ml_handle_disconnect(struct hostapd_data *hapd,
+ 	if (!assoc_sta)
+ 		return false;
+ 
+-	for (link_id = 0; link_id < MAX_NUM_MLD_LINKS; link_id++) {
+-		for (i = 0; i < assoc_hapd->iface->interfaces->count; i++) {
+-			struct sta_info *tmp_sta;
+-
+-			if (!assoc_sta->mld_info.links[link_id].valid)
+-				continue;
++	for_each_mld_link(tmp_hapd, assoc_hapd) {
++		if (tmp_hapd == assoc_hapd)
++			continue;
+ 
+-			tmp_hapd =
+-				assoc_hapd->iface->interfaces->iface[i]->bss[0];
++		if (!assoc_sta->mld_info.links[tmp_hapd->mld_link_id].valid)
++			continue;
+ 
+-			if (!hostapd_is_ml_partner(assoc_hapd, tmp_hapd))
++		for (tmp_sta = tmp_hapd->sta_list; tmp_sta;
++		     tmp_sta = tmp_sta->next) {
++			if (tmp_sta->mld_assoc_link_id !=
++			    assoc_sta->mld_assoc_link_id ||
++			    tmp_sta->aid != assoc_sta->aid)
+ 				continue;
+ 
+-			for (tmp_sta = tmp_hapd->sta_list; tmp_sta;
+-			     tmp_sta = tmp_sta->next) {
+-				/*
+-				 * Remove the station on which the association
+-				 * was done only after all other link stations
+-				 * are removed. Since there is only a single
+-				 * station per struct hostapd_hapd with the
+-				 * same association link simply break out from
+-				 * the loop.
+-				 */
+-				if (tmp_sta == assoc_sta)
+-					break;
+-
+-				if (tmp_sta->mld_assoc_link_id !=
+-				    assoc_sta->mld_assoc_link_id ||
+-				    tmp_sta->aid != assoc_sta->aid)
+-					continue;
+-
+-				if (!disassoc)
+-					hostapd_deauth_sta(tmp_hapd, tmp_sta,
+-							   mgmt);
+-				else
+-					hostapd_disassoc_sta(tmp_hapd, tmp_sta,
+-							     mgmt);
+-				break;
+-			}
++			if (!disassoc)
++				hostapd_deauth_sta(tmp_hapd, tmp_sta,
++						   mgmt);
++			else
++				hostapd_disassoc_sta(tmp_hapd, tmp_sta,
++						     mgmt);
++			break;
+ 		}
+ 	}
+ 
+@@ -6451,38 +6433,34 @@ static void hostapd_ml_handle_assoc_cb(struct hostapd_data *hapd,
+ 				       struct sta_info *sta, bool ok)
+ {
+ #ifdef CONFIG_IEEE80211BE
+-	unsigned int i, link_id;
++	struct hostapd_data *tmp_hapd;
+ 
+ 	if (!hostapd_is_mld_ap(hapd))
+ 		return;
+ 
+-	for (link_id = 0; link_id < MAX_NUM_MLD_LINKS; link_id++) {
+-		struct mld_link_info *link = &sta->mld_info.links[link_id];
++	for_each_mld_link(tmp_hapd, hapd) {
++		struct mld_link_info *link =
++				&sta->mld_info.links[tmp_hapd->mld_link_id];
++		struct sta_info *tmp_sta;
+ 
+-		if (!link->valid)
++		if (tmp_hapd == hapd)
+ 			continue;
+ 
+-		for (i = 0; i < hapd->iface->interfaces->count; i++) {
+-			struct sta_info *tmp_sta;
+-			struct hostapd_data *tmp_hapd =
+-				hapd->iface->interfaces->iface[i]->bss[0];
++		if (!link->valid)
++			continue;
+ 
+-			if (!hostapd_is_ml_partner(tmp_hapd, hapd))
++		for (tmp_sta = tmp_hapd->sta_list; tmp_sta;
++		     tmp_sta = tmp_sta->next) {
++			if (tmp_sta == sta ||
++			    tmp_sta->mld_assoc_link_id !=
++			    sta->mld_assoc_link_id ||
++			    tmp_sta->aid != sta->aid)
+ 				continue;
+ 
+-			for (tmp_sta = tmp_hapd->sta_list; tmp_sta;
+-			     tmp_sta = tmp_sta->next) {
+-				if (tmp_sta == sta ||
+-				    tmp_sta->mld_assoc_link_id !=
+-				    sta->mld_assoc_link_id ||
+-				    tmp_sta->aid != sta->aid)
+-					continue;
+-
+-				ieee80211_ml_link_sta_assoc_cb(tmp_hapd,
+-							       tmp_sta, link,
+-							       ok);
+-				break;
+-			}
++			ieee80211_ml_link_sta_assoc_cb(tmp_hapd,
++						       tmp_sta, link,
++						       ok);
++			break;
+ 		}
+ 	}
+ #endif /* CONFIG_IEEE80211BE */
+diff --git a/src/ap/ieee802_11_eht.c b/src/ap/ieee802_11_eht.c
+index 7365057ad..353a4116e 100644
+--- a/src/ap/ieee802_11_eht.c
++++ b/src/ap/ieee802_11_eht.c
+@@ -1029,7 +1029,7 @@ const u8 * hostapd_process_ml_auth(struct hostapd_data *hapd,
+ static int hostapd_mld_validate_assoc_info(struct hostapd_data *hapd,
+ 					   struct sta_info *sta)
+ {
+-	u8 i, link_id;
++	u8 link_id;
+ 	struct mld_info *info = &sta->mld_info;
+ 
+ 	if (!ap_sta_is_mld(hapd, sta)) {
+@@ -1049,31 +1049,20 @@ static int hostapd_mld_validate_assoc_info(struct hostapd_data *hapd,
+ 	for (link_id = 0; link_id < MAX_NUM_MLD_LINKS; link_id++) {
+ 		struct hostapd_data *other_hapd;
+ 
+-		if (!info->links[link_id].valid)
++		if (!info->links[link_id].valid || link_id == hapd->mld_link_id)
+ 			continue;
+ 
+-		for (i = 0; i < hapd->iface->interfaces->count; i++) {
+-			other_hapd = hapd->iface->interfaces->iface[i]->bss[0];
+-
+-			if (hapd == other_hapd)
+-				continue;
+-
+-			if (hostapd_is_ml_partner(hapd, other_hapd) &&
+-			    link_id == other_hapd->mld_link_id)
+-				break;
+-		}
+-
+-		if (i == hapd->iface->interfaces->count &&
+-		    link_id != hapd->mld_link_id) {
++		other_hapd = hostapd_mld_get_link_bss(hapd, link_id);
++		if (!other_hapd) {
+ 			wpa_printf(MSG_DEBUG, "MLD: Invalid link ID=%u",
+ 				   link_id);
+ 			return -1;
+ 		}
+ 
+-		if (i < hapd->iface->interfaces->count)
+-			os_memcpy(info->links[link_id].local_addr,
+-				  other_hapd->own_addr,
+-				  ETH_ALEN);
++		os_memcpy(info->links[link_id].local_addr,
++			  other_hapd->own_addr,
++			  ETH_ALEN);
++
+ 	}
+ 
+ 	return 0;
+diff --git a/src/ap/wpa_auth_glue.c b/src/ap/wpa_auth_glue.c
+index 012f2b803..d3cd44695 100644
+--- a/src/ap/wpa_auth_glue.c
++++ b/src/ap/wpa_auth_glue.c
+@@ -1537,7 +1537,7 @@ static int hostapd_wpa_auth_get_ml_rsn_info(void *ctx,
+ 					    struct wpa_auth_ml_rsn_info *info)
+ {
+ 	struct hostapd_data *hapd = ctx;
+-	unsigned int i, j;
++	unsigned int i;
+ 
+ 	wpa_printf(MSG_DEBUG, "WPA_AUTH: MLD: Get RSN info CB: n_mld_links=%u",
+ 		   info->n_mld_links);
+@@ -1547,26 +1547,33 @@ static int hostapd_wpa_auth_get_ml_rsn_info(void *ctx,
+ 
+ 	for (i = 0; i < info->n_mld_links; i++) {
+ 		unsigned int link_id = info->links[i].link_id;
++		struct hostapd_data *bss = NULL;
++		bool link_bss_found = false;
+ 
+ 		wpa_printf(MSG_DEBUG,
+ 			   "WPA_AUTH: MLD: Get link RSN CB: link_id=%u",
+ 			   link_id);
+ 
+-		for (j = 0; j < hapd->iface->interfaces->count; j++) {
+-			struct hostapd_iface *iface =
+-				hapd->iface->interfaces->iface[j];
++		if (hapd->mld_link_id == link_id) {
++			wpa_auth_ml_get_rsn_info(hapd->wpa_auth,
++						 &info->links[i]);
++			continue;
++		}
+ 
+-			if (!hostapd_is_ml_partner(hapd, iface->bss[0]) ||
+-			    link_id != iface->bss[0]->mld_link_id ||
+-			    !iface->bss[0]->wpa_auth)
++		for_each_mld_link(bss, hapd) {
++			if (bss == hapd)
+ 				continue;
+ 
+-			wpa_auth_ml_get_rsn_info(iface->bss[0]->wpa_auth,
++			if (bss->mld_link_id != link_id)
++				continue;
++
++			wpa_auth_ml_get_rsn_info(bss->wpa_auth,
+ 						 &info->links[i]);
++			link_bss_found = true;
+ 			break;
+ 		}
+ 
+-		if (j == hapd->iface->interfaces->count)
++		if (!link_bss_found)
+ 			wpa_printf(MSG_DEBUG,
+ 				   "WPA_AUTH: MLD: link=%u not found", link_id);
+ 	}
+@@ -1579,7 +1586,7 @@ static int hostapd_wpa_auth_get_ml_key_info(void *ctx,
+ 					    struct wpa_auth_ml_key_info *info)
+ {
+ 	struct hostapd_data *hapd = ctx;
+-	unsigned int i, j;
++	unsigned int i;
+ 
+ 	wpa_printf(MSG_DEBUG, "WPA_AUTH: MLD: Get key info CB: n_mld_links=%u",
+ 		   info->n_mld_links);
+@@ -1588,29 +1595,38 @@ static int hostapd_wpa_auth_get_ml_key_info(void *ctx,
+ 		return -1;
+ 
+ 	for (i = 0; i < info->n_mld_links; i++) {
++		struct hostapd_data *bss = NULL;
+ 		u8 link_id = info->links[i].link_id;
++		bool link_bss_found = false;
+ 
+ 		wpa_printf(MSG_DEBUG,
+ 			   "WPA_AUTH: MLD: Get link info CB: link_id=%u",
+ 			   link_id);
+ 
+-		for (j = 0; j < hapd->iface->interfaces->count; j++) {
+-			struct hostapd_iface *iface =
+-				hapd->iface->interfaces->iface[j];
++		if (hapd->mld_link_id == link_id) {
++			wpa_auth_ml_get_key_info(hapd->wpa_auth,
++						 &info->links[i],
++						 info->mgmt_frame_prot,
++						 info->beacon_prot);
++			continue;
++		}
++
++		for_each_mld_link(bss, hapd) {
++			if (bss == hapd)
++				continue;
+ 
+-			if (!hostapd_is_ml_partner(hapd, iface->bss[0]) ||
+-			    link_id != iface->bss[0]->mld_link_id ||
+-			    !iface->bss[0]->wpa_auth)
++			if (bss->mld_link_id != link_id)
+ 				continue;
+ 
+-			wpa_auth_ml_get_key_info(iface->bss[0]->wpa_auth,
++			wpa_auth_ml_get_key_info(bss->wpa_auth,
+ 						 &info->links[i],
+ 						 info->mgmt_frame_prot,
+ 						 info->beacon_prot);
++			link_bss_found = true;
+ 			break;
+ 		}
+ 
+-		if (j == hapd->iface->interfaces->count)
++		if (!link_bss_found)
+ 			wpa_printf(MSG_DEBUG,
+ 				   "WPA_AUTH: MLD: link=%u not found", link_id);
+ 	}
+-- 
+2.39.2
+

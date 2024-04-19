@@ -1,0 +1,46 @@
+From a5c0e5c09398a247236d73078a4f86a960a97e34 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 8 Apr 2024 16:27:51 +0800
+Subject: [PATCH 099/104] fixup! mtk: wifi: hostapd: add wds mlo support
+
+The latest get_hapd_bssid return hapd only if link id is matched.
+However,the hostapd_rx_from_unknown_sta does not have link
+information so it cannot get hapd.
+
+Modify get_hapd_bssid to ignore link id when link id is -1.
+
+Without this patch, wds mode cannot work and the AP would not be
+aware that station is using 4 address.
+
+CR-Id: WCNCR00240772
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+Change-Id: I9661226ed0847abb1de0d8c808daf3ad8cd5dc99
+---
+ src/ap/drv_callbacks.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
+index 27c7555a1..82973c5e4 100644
+--- a/src/ap/drv_callbacks.c
++++ b/src/ap/drv_callbacks.c
+@@ -1779,7 +1779,7 @@ static struct hostapd_data * get_hapd_bssid(struct hostapd_iface *iface,
+ 		if (ether_addr_equal(bssid, hapd->own_addr) ||
+ 		    (hapd->conf->mld_ap &&
+ 		     ether_addr_equal(bssid, hapd->mld->mld_addr) &&
+-		     link_id == hapd->mld_link_id)) {
++		     (link_id == hapd->mld_link_id || link_id == -1))) {
+ 			return hapd;
+ 		} else if (hapd->conf->mld_ap) {
+ 			for_each_mld_link(p_hapd, hapd) {
+@@ -1788,7 +1788,7 @@ static struct hostapd_data * get_hapd_bssid(struct hostapd_iface *iface,
+ 
+ 				if (ether_addr_equal(bssid, p_hapd->own_addr) ||
+ 				    (ether_addr_equal(bssid, p_hapd->mld->mld_addr) &&
+-				     link_id == p_hapd->mld_link_id))
++				     (link_id == p_hapd->mld_link_id || link_id == -1)))
+ 					return p_hapd;
+ 			}
+ 		}
+-- 
+2.39.2
+

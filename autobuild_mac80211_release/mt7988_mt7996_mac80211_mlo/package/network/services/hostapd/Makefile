@@ -5,15 +5,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=hostapd
-PKG_RELEASE:=6
+PKG_RELEASE:=1
 
-PKG_SOURCE_URL:=http://w1.fi/hostap.git
+PKG_SOURCE_URL:=https://w1.fi/hostap.git
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_DATE:=2023-09-08
-PKG_SOURCE_VERSION:=5b4a78b1f90977fdd013baffa0a05c47ef59f817
-PKG_MIRROR_HASH:=79a12bdf6944b4abb7a2b91ba74e1ba86ce28e616cbb122ae5fabd0f3e20ce80
-# PKG_SOURCE_VERSION:=e5ccbfc69ecf297590341ae8b461edba9d8e964c
-# PKG_MIRROR_HASH:=fcc6550f46c7f8bbdbf71e63f8f699b9a0878565ad1b90a17855f5ec21283b8f
+PKG_SOURCE_DATE:=2024-03-27
+PKG_SOURCE_VERSION:=07c9f183ea744ac04585fb6dd10220c75a5e2e74
+# PKG_MIRROR_HASH:=57b8e64d24707e37e0df3359cee15dd5184b824b8622568833a5b8a0cae163ae
 
 PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
 PKG_LICENSE:=BSD-3-Clause
@@ -42,14 +40,16 @@ HOSTAPD_PROVIDERS:=
 LOCAL_TYPE=$(strip \
 		$(if $(findstring wpad,$(BUILD_VARIANT)),wpad, \
 		$(if $(findstring supplicant,$(BUILD_VARIANT)),supplicant, \
-		hostapd \
+		hostapd, \
+		afcd \
 		)))
 
 LOCAL_AND_LIB_VARIANT=$(patsubst hostapd-%,%,\
 		      $(patsubst wpad-%,%,\
 		      $(patsubst supplicant-%,%,\
+		      $(patsubst afcd-%,%, \
 		      $(BUILD_VARIANT)\
-		      )))
+		      ))))
 
 LOCAL_VARIANT=$(patsubst %-internal,%,\
 	      $(patsubst %-openssl,%,\
@@ -86,7 +86,7 @@ ifneq ($(CONFIG_DRIVER_11BE_SUPPORT),)
   HOSTAPD_IEEE80211BE:=y
 endif
 
-CORE_DEPENDS = +ucode +libubus +libucode +ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop +libblobmsg-json +libudebug
+CORE_DEPENDS = +ucode +libubus +libucode +ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop +libblobmsg-json +libudebug +libcurl +libjson-c
 OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl
 
 DRIVER_MAKEOPTS= \
@@ -95,7 +95,8 @@ DRIVER_MAKEOPTS= \
 	CONFIG_IEEE80211AX=$(HOSTAPD_IEEE80211AX) \
 	CONFIG_IEEE80211BE=$(HOSTAPD_IEEE80211BE) \
 	CONFIG_MBO=$(CONFIG_WPA_MBO_SUPPORT) \
-	CONFIG_UCODE=y
+	CONFIG_UCODE=y \
+	CONFIG_AFC=y
 
 ifeq ($(SSL_VARIANT),openssl)
   DRIVER_MAKEOPTS += CONFIG_TLS=openssl CONFIG_SAE=y
@@ -562,12 +563,33 @@ define Package/eapol-test-mbedtls
   PROVIDES:=eapol-test
 endef
 
+define Package/afcd/Default
+  SECTION:=net
+  CATEGORY:=Network
+  SUBMENU:=WirelessAPD
+  TITLE:=AFC daemon for hostapd
+  DEPENDS:=$(DRV_DEPENDS) +hostapd $(CORE_DEPENDS)
+  EXTRA_DEPENDS:=hostapd (=$(PKG_VERSION)-$(PKG_RELEASE))
+  USERID:=network=101:network=101
+  URL:=https://github.com/LorenzoBianconi/hostapd/tree/hostap-afc-test-allen
+  PROVIDES:=afcd
+endef
+
+define Package/afcd
+$(call Package/afcd/Default,$(1))
+  TITLE+= (built-in full)
+endef
+
+define Package/afcd/description
+ This package contains a package that supports hostapd to send afc request
+endef
 
 ifneq ($(wildcard $(PKG_BUILD_DIR)/.config_*),$(subst .configured_,.config_,$(STAMP_CONFIGURED)))
   define Build/Configure/rebuild
 	$(FIND) $(PKG_BUILD_DIR) -name \*.o -or -name \*.a | $(XARGS) rm -f
 	rm -f $(PKG_BUILD_DIR)/hostapd/hostapd
 	rm -f $(PKG_BUILD_DIR)/wpa_supplicant/wpa_supplicant
+	rm -f $(PKG_BUILD_DIR)/afc/afcd
 	rm -f $(PKG_BUILD_DIR)/.config_*
 	touch $(subst .configured_,.config_,$(STAMP_CONFIGURED))
   endef
@@ -591,7 +613,7 @@ TARGET_CPPFLAGS := \
 	-D_GNU_SOURCE \
 	$(if $(CONFIG_WPA_MSG_MIN_PRIORITY),-DCONFIG_MSG_MIN_PRIORITY=$(CONFIG_WPA_MSG_MIN_PRIORITY))
 
-TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lucode -lm -lnl-tiny -ludebug
+TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lucode -lm -lnl-tiny -ludebug -lcurl -ljson-c
 
 ifdef CONFIG_WPA_ENABLE_WEP
     DRIVER_MAKEOPTS += CONFIG_WEP=y
@@ -626,6 +648,9 @@ define Build/Compile/wpad
 		CFLAGS="$$$$(cat $(PKG_BUILD_DIR)/.cflags)" \
 		MULTICALL=1 \
 		wpa_cli wpa_supplicant_multi.a \
+	)
+	+$(call Build/RunMake,afc, \
+		afcd \
 	)
 	+export MAKEFLAGS="$(MAKE_JOBSERVER)"; $(TARGET_CC) -o $(PKG_BUILD_DIR)/wpad \
 		$(TARGET_CFLAGS) \
@@ -677,12 +702,13 @@ define Build/Compile
 endef
 
 define Install/hostapd/full
-	$(INSTALL_DIR) $(1)/etc/init.d $(1)/etc/config $(1)/etc/radius
+	$(INSTALL_DIR) $(1)/etc/init.d $(1)/etc/config $(1)/etc/radius $(1)/etc/ssl/
 	ln -sf hostapd $(1)/usr/sbin/hostapd-radius
 	$(INSTALL_BIN) ./files/radius.init $(1)/etc/init.d/radius
 	$(INSTALL_DATA) ./files/radius.config $(1)/etc/config/radius
 	$(INSTALL_DATA) ./files/radius.clients $(1)/etc/radius/clients
 	$(INSTALL_DATA) ./files/radius.users $(1)/etc/radius/users
+	$(INSTALL_DATA) ./files/afc_ca.pem $(1)/etc/ssl/afc_ca.pem
 endef
 
 define Package/hostapd-full/conffiles
@@ -780,6 +806,13 @@ Package/wpa-supplicant-mesh-openssl/install = $(Package/wpa-supplicant/install)
 Package/wpa-supplicant-mesh-wolfssl/install = $(Package/wpa-supplicant/install)
 Package/wpa-supplicant-mesh-mbedtls/install = $(Package/wpa-supplicant/install)
 
+ifneq ($(LOCAL_TYPE),afcd)
+  define Package/afcd/install
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(CP) $(PKG_BUILD_DIR)/afc/afcd $(1)/usr/sbin/
+  endef
+endif
+
 ifneq ($(LOCAL_TYPE),hostapd)
   define Package/wpa-cli/install
 	$(INSTALL_DIR) $(1)/usr/sbin
@@ -855,3 +888,5 @@ $(eval $(call BuildPackage,eapol-test))
 $(eval $(call BuildPackage,eapol-test-openssl))
 $(eval $(call BuildPackage,eapol-test-wolfssl))
 $(eval $(call BuildPackage,eapol-test-mbedtls))
+$(eval $(call BuildPackage,afcd))
+

@@ -1,0 +1,45 @@
+From 76d8a7f29b56075df3ad756f65374b2b238c2120 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Tue, 23 Jan 2024 10:52:57 +0800
+Subject: [PATCH 075/104] hostapd: mtk: ACS: remove chan/freq list check when
+ scan request and factor calculation
+
+CR-Id: WCNCR00289305
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/acs.c | 12 ------------
+ 1 file changed, 12 deletions(-)
+
+diff --git a/src/ap/acs.c b/src/ap/acs.c
+index 4c4c750ab..cb4db7147 100644
+--- a/src/ap/acs.c
++++ b/src/ap/acs.c
+@@ -595,12 +595,6 @@ static void acs_survey_mode_interference_factor(
+ 		    iface->conf->acs_exclude_dfs)
+ 			continue;
+ 
+-		if (!is_in_chanlist(iface, chan))
+-			continue;
+-
+-		if (!is_in_freqlist(iface, chan))
+-			continue;
+-
+ 		if (chan->max_tx_power < iface->conf->min_tx_power)
+ 			continue;
+ 
+@@ -1358,12 +1352,6 @@ static int * acs_request_scan_add_freqs(struct hostapd_iface *iface,
+ 		     iface->conf->acs_exclude_dfs))
+ 			continue;
+ 
+-		if (!is_in_chanlist(iface, chan))
+-			continue;
+-
+-		if (!is_in_freqlist(iface, chan))
+-			continue;
+-
+ 		if (chan->max_tx_power < iface->conf->min_tx_power)
+ 			continue;
+ 
+-- 
+2.39.2
+

@@ -1,0 +1,60 @@
+From d71c29484010bcb0bda82eb529689d0748bd653e Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Wed, 31 Jan 2024 10:39:08 +0800
+Subject: [PATCH 090/104] mtk: hostapd: add link id to hostapd cli chan switch
+
+temporary workaround for mlo channel switch
+
+CR-Id: WCNCR00274293
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ hostapd/ctrl_iface.c   | 3 +--
+ hostapd/hostapd_cli.c  | 2 +-
+ src/ap/ctrl_iface_ap.c | 2 ++
+ 3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
+index c5540f5fd..f0c990314 100644
+--- a/hostapd/ctrl_iface.c
++++ b/hostapd/ctrl_iface.c
+@@ -2801,10 +2801,9 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+ 	if (ret)
+ 		return ret;
+ 
+-	settings.link_id = -1;
+ #ifdef CONFIG_IEEE80211BE
+ 	if (iface->num_bss && iface->bss[0]->conf->mld_ap)
+-		settings.link_id = iface->bss[0]->mld_link_id;
++		iface = iface->interfaces->iface[settings.link_id];
+ #endif /* CONFIG_IEEE80211BE */
+ 
+ 	ret = hostapd_ctrl_check_freq_params(&settings.freq_params,
+diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
+index 100896c34..acfa3b1d1 100644
+--- a/hostapd/hostapd_cli.c
++++ b/hostapd/hostapd_cli.c
+@@ -1195,7 +1195,7 @@ static int hostapd_cli_cmd_chan_switch(struct wpa_ctrl *ctrl,
+ 		printf("Invalid chan_switch command: needs at least two "
+ 		       "arguments (count and freq)\n"
+ 		       "usage: <cs_count> <freq> [sec_channel_offset=] "
+-		       "[center_freq1=] [center_freq2=] [bandwidth=] "
++		       "[center_freq1=] [center_freq2=] [bandwidth=] [link_id=] "
+ 		       "[blocktx] [ht|vht|he|eht]\n");
+ 		return -1;
+ 	}
+diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
+index b92311e32..ca4e3e7a4 100644
+--- a/src/ap/ctrl_iface_ap.c
++++ b/src/ap/ctrl_iface_ap.c
+@@ -1108,6 +1108,8 @@ int hostapd_parse_csa_settings(const char *pos,
+ 		} \
+ 	} while (0)
+ 
++	SET_CSA_SETTING(link_id);
++	settings->link_id = settings->freq_params.link_id;
+ 	SET_CSA_SETTING(center_freq1);
+ 	SET_CSA_SETTING(center_freq2);
+ 	SET_CSA_SETTING(bandwidth);
+-- 
+2.39.2
+

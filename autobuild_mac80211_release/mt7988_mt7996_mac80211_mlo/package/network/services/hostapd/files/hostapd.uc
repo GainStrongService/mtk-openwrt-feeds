@@ -63,6 +63,7 @@ function iface_freq_info(iface, config, params)
 {
 	let freq = params.frequency;
 	let bw320_offset = params.bw320_offset;
+	let band_idx = params.band_idx;
 	if (!freq)
 		return null;
 
@@ -93,7 +94,7 @@ function iface_freq_info(iface, config, params)
 	if (freq < 4000)
 		width = 0;
 
-	return hostapd.freq_info(freq, sec_offset, width, bw320_offset);
+	return hostapd.freq_info(freq, sec_offset, width, bw320_offset, band_idx);
 }
 
 function iface_add(phy, config, phy_status)
@@ -156,14 +157,14 @@ function __iface_pending_next(pending, state, ret, data)
 		return "create_bss";
 	case "create_bss":
 		if (!bss.mld_ap || bss.mld_primary == 1) {
-			let err = wdev_create(phy, bss.ifname, { mode: "ap" });
+			let err = wdev_create(config.single_hw == 1 ? "phy0" : phy, bss.ifname, { mode: "ap" });
 			if (err) {
 				hostapd.printf(`Failed to create ${bss.ifname} on phy ${phy}: ${err}`);
 				return null;
 			}
 		}
 
-		pending.call("wpa_supplicant", "phy_status", { phy: phy });
+		pending.call("wpa_supplicant", "phy_status", { phy: bss.mld_ap ? "phy0" : phy });
 		return "check_phy";
 	case "check_phy":
 		let phy_status = data;
@@ -173,12 +174,16 @@ function __iface_pending_next(pending, state, ret, data)
 
 			hostapd.printf(`Failed to bring up phy ${phy} ifname=${bss.ifname} with supplicant provided frequency`);
 		}
-		pending.call("wpa_supplicant", "phy_set_state", { phy: phy, stop: true });
+		pending.call("wpa_supplicant", "phy_set_state", { phy: bss.mld_ap ? "phy0" : phy, stop: true });
 		return "wpas_stopped";
 	case "wpas_stopped":
 		if (!iface_add(phy, config))
 			hostapd.printf(`hostapd.add_iface failed for phy ${phy} ifname=${bss.ifname}`);
-		pending.call("wpa_supplicant", "phy_set_state", { phy: phy, stop: false });
+		let iface = hostapd.interfaces[phy];
+		if (!bss.mld_ap)
+			pending.call("wpa_supplicant", "phy_set_state", { phy: phy, stop: false });
+		else if (iface.is_mld_finished())
+			pending.call("wpa_supplicant", "phy_set_state", { phy: "phy0", stop: false });
 		return null;
 	case "done":
 	default:
@@ -685,6 +690,9 @@ function iface_load_config(filename)
 		    val[0] == "mbssid")
 			config[val[0]] = int(val[1]);
 
+		if (val[0] == "#single_hw")
+			config["single_hw"] = int(val[1]);
+
 		push(config.radio.data, line);
 	}
 
@@ -761,6 +769,7 @@ let main_obj = {
 			sec_chan_offset: 0,
 			ch_width: -1,
 			bw320_offset: 1,
+			band_idx: 0,
 			csa: true,
 			csa_count: 0,
 		},
@@ -775,6 +784,7 @@ let main_obj = {
 			hostapd.printf(`    * sec_chan_offset: ${req.args.sec_chan_offset}`);
 			hostapd.printf(`    * ch_width: ${req.args.ch_width}`);
 			hostapd.printf(`    * bw320_offset: ${req.args.bw320_offset}`);
+			hostapd.printf(`    * band_idx: ${req.args.band_idx}`);
 			hostapd.printf(`    * csa: ${req.args.csa}`);
 
 			let phy = req.args.phy;

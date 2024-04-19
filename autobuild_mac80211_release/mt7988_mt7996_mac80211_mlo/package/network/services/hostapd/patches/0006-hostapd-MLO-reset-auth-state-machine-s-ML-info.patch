@@ -1,0 +1,93 @@
+From 4be7c245a946016c41a69c7469e00d22aaa32a46 Mon Sep 17 00:00:00 2001
+From: Aditya Kumar Singh <quic_adisi@quicinc.com>
+Date: Thu, 28 Mar 2024 23:46:36 +0530
+Subject: [PATCH 006/104] hostapd: MLO: reset auth state machine's ML info
+
+Currently auth state machine ML info is set only when the it is created
+newly. However, if the association is tried again, the state machine will
+exist already and hence the ML info will not be refreshed. This leads to
+an issue where if in the subsequent association request, the MLD info is
+different than old info then validation of it will fail.
+
+Fix this issue by refreshing the auth state machine's ML info every time
+association request is handled.
+
+Signed-off-by: Aditya Kumar Singh <quic_adisi@quicinc.com>
+---
+ src/ap/ieee802_11.c | 32 ++++++++++++++++++--------------
+ src/ap/wpa_auth.c   |  1 +
+ 2 files changed, 19 insertions(+), 14 deletions(-)
+
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index b20300bab..98398ccdd 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -4032,15 +4032,15 @@ static int __check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
+ 
+ 	if (hapd->conf->wpa && wpa_ie) {
+ 		enum wpa_validate_result res;
++#ifdef CONFIG_IEEE80211BE
++		struct mld_info *info = &sta->mld_info;
++		bool init = false;
++#endif /* CONFIG_IEEE80211BE */
+ 
+ 		wpa_ie -= 2;
+ 		wpa_ie_len += 2;
+ 
+ 		if (!sta->wpa_sm) {
+-#ifdef CONFIG_IEEE80211BE
+-			struct mld_info *info = &sta->mld_info;
+-#endif /* CONFIG_IEEE80211BE */
+-
+ 			sta->wpa_sm = wpa_auth_sta_init(hapd->wpa_auth,
+ 							sta->addr,
+ 							p2p_dev_addr);
+@@ -4050,19 +4050,23 @@ static int __check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
+ 					   "Failed to initialize RSN state machine");
+ 				return WLAN_STATUS_UNSPECIFIED_FAILURE;
+ 			}
+-
+ #ifdef CONFIG_IEEE80211BE
+-			if (ap_sta_is_mld(hapd, sta)) {
+-				wpa_printf(MSG_DEBUG,
+-					   "MLD: Set ML info in RSN Authenticator");
+-				wpa_auth_set_ml_info(sta->wpa_sm,
+-						     hapd->mld->mld_addr,
+-						     sta->mld_assoc_link_id,
+-						     info);
+-			}
+-#endif /* CONFIG_IEEE80211BE */
++			init = true;
+ 		}
+ 
++		if (ap_sta_is_mld(hapd, sta)) {
++			wpa_printf(MSG_DEBUG,
++				   "MLD: %s ML info in RSN Authenticator",
++				   init ? "Set" : "Reset");
++			wpa_auth_set_ml_info(sta->wpa_sm,
++					     hapd->mld->mld_addr,
++					     sta->mld_assoc_link_id,
++					     info);
++		}
++#else
++		}
++#endif /* CONFIG_IEEE80211BE */
++
+ 		wpa_auth_set_auth_alg(sta->wpa_sm, sta->auth_alg);
+ 		res = wpa_validate_wpa_ie(hapd->wpa_auth, sta->wpa_sm,
+ 					  hapd->iface->freq,
+diff --git a/src/ap/wpa_auth.c b/src/ap/wpa_auth.c
+index 01a10b23c..0d15c4209 100644
+--- a/src/ap/wpa_auth.c
++++ b/src/ap/wpa_auth.c
+@@ -6820,6 +6820,7 @@ void wpa_auth_set_ml_info(struct wpa_state_machine *sm, const u8 *mld_addr,
+ 		return;
+ 
+ 	os_memset(sm->mld_links, 0, sizeof(sm->mld_links));
++	sm->n_mld_affiliated_links = 0;
+ 
+ 	wpa_auth_logger(sm->wpa_auth, wpa_auth_get_spa(sm), LOGGER_DEBUG,
+ 			"MLD: Initialization");
+-- 
+2.39.2
+

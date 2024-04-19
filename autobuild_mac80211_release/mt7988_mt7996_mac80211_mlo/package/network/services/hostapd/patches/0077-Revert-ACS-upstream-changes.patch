@@ -1,0 +1,398 @@
+From 5a471a9025d9bf2a871339f5306e5c9050357703 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Mon, 29 Jan 2024 10:26:53 +0800
+Subject: [PATCH 077/104] Revert ACS upstream changes
+
+- 348c047af ACS: More consistent checking of the best channel pointer
+- 98f3bd26d ACS: Extend the 320 MHz support
+- 733de8568 ACS: Fix not selecting the best channel in the segment
+- dc57ede01 tests: Full validation of ACS selecting HT40- channel
+- 4881accbb ACS: Add HT40- support in the 2.4 GHz band
+- 29f38ebcf ACS: Check whether iface->current_mode is NULL before use
+- 6f014c0d0 ACS: Add 320 MHz support for EHT
+
+Note that "e6f2494c3 hostapd: Add eht_bw320_offset configuration option"
+is not reverted due to conflict.
+---
+ src/ap/acs.c               | 160 +++++++++----------------------------
+ tests/hwsim/test_ap_acs.py |  19 ++---
+ 2 files changed, 41 insertions(+), 138 deletions(-)
+
+diff --git a/src/ap/acs.c b/src/ap/acs.c
+index cb4db7147..cfa4a7d27 100644
+--- a/src/ap/acs.c
++++ b/src/ap/acs.c
+@@ -245,8 +245,6 @@ enum bw_type {
+ 	ACS_BW40,
+ 	ACS_BW80,
+ 	ACS_BW160,
+-	ACS_BW320_1,
+-	ACS_BW320_2,
+ };
+ 
+ struct bw_item {
+@@ -288,20 +286,10 @@ static const struct bw_item bw_160[] = {
+ 	{ 6435, 6575, 111 }, { 6595, 6735, 143 },
+ 	{ 6755, 6895, 175 }, { 6915, 7055, 207 }, { -1, -1, -1 }
+ };
+-static const struct bw_item bw_320_1[] = {
+-	{ 5955, 6255, 31 }, { 6275, 6575, 95 }, { 6595, 6895, 159 },
+-	{ -1, -1, -1 }
+-};
+-static const struct bw_item bw_320_2[] = {
+-	{ 6115, 6415, 63 }, { 6435, 6735, 127 }, { 6755, 7055, 191 },
+-	{ -1, -1, -1 }
+-};
+ static const struct bw_item *bw_desc[] = {
+ 	[ACS_BW40] = bw_40,
+ 	[ACS_BW80] = bw_80,
+ 	[ACS_BW160] = bw_160,
+-	[ACS_BW320_1] = bw_320_1,
+-	[ACS_BW320_2] = bw_320_2,
+ };
+ 
+ 
+@@ -773,42 +761,6 @@ static void acs_update_puncturing_bitmap(struct hostapd_iface *iface,
+ #endif /* CONFIG_IEEE80211BE */
+ 
+ 
+-static bool
+-acs_usable_bw320_chan(struct hostapd_iface *iface,
+-		      struct hostapd_channel_data *chan, int *bw320_offset)
+-{
+-	const char *bw320_str[] = { "320 MHz", "320 MHz-1", "320 MHz-2" };
+-	int conf_bw320_offset = hostapd_get_bw320_offset(iface->conf);
+-
+-	*bw320_offset = 0;
+-	switch (conf_bw320_offset) {
+-	case 1:
+-		if (acs_usable_bw_chan(chan, ACS_BW320_1))
+-			*bw320_offset = 1;
+-		break;
+-	case 2:
+-		if (acs_usable_bw_chan(chan, ACS_BW320_2))
+-			*bw320_offset = 2;
+-		break;
+-	case 0:
+-	default:
+-		conf_bw320_offset = 0;
+-		if (acs_usable_bw_chan(chan, ACS_BW320_1))
+-			*bw320_offset = 1;
+-		else if (acs_usable_bw_chan(chan, ACS_BW320_2))
+-			*bw320_offset = 2;
+-		break;
+-	}
+-
+-	if (!*bw320_offset)
+-		wpa_printf(MSG_DEBUG,
+-			   "ACS: Channel %d: not allowed as primary channel for %s bandwidth",
+-			   chan->chan, bw320_str[conf_bw320_offset]);
+-
+-	return *bw320_offset != 0;
+-}
+-
+-
+ static void
+ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 			 struct hostapd_hw_modes *mode,
+@@ -820,18 +772,14 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 	struct hostapd_channel_data *chan, *adj_chan = NULL, *best;
+ 	long double factor;
+ 	int i, j;
+-	int bw320_offset = 0, ideal_bw320_offset = 0;
+ 	unsigned int k;
+-	int secondary_channel = 1, freq_offset;
+-
+-	if (is_24ghz_mode(mode->mode))
+-		secondary_channel = iface->conf->secondary_channel;
+ 
+ 	for (i = 0; i < mode->num_channels; i++) {
+-		double total_weight = 0;
++		double total_weight;
+ 		struct acs_bias *bias, tmp_bias;
++		bool update_best = true;
+ 
+-		chan = &mode->channels[i];
++		best = chan = &mode->channels[i];
+ 
+ 		/* Since in the current ACS implementation the first channel is
+ 		 * always a primary channel, skip channels not available as
+@@ -863,7 +811,7 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 		    iface->conf->country[2] == 0x4f)
+ 			continue;
+ 
+-		if (!chan_bw_allowed(chan, bw, secondary_channel != -1, 1)) {
++		if (!chan_bw_allowed(chan, bw, 1, 1)) {
+ 			wpa_printf(MSG_DEBUG,
+ 				   "ACS: Channel %d: BW %u is not supported",
+ 				   chan->chan, bw);
+@@ -884,8 +832,7 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 		}
+ 
+ 		if (mode->mode == HOSTAPD_MODE_IEEE80211A &&
+-		    (iface->conf->ieee80211ac || iface->conf->ieee80211ax ||
+-		     iface->conf->ieee80211be)) {
++		    (iface->conf->ieee80211ac || iface->conf->ieee80211ax)) {
+ 			if (hostapd_get_oper_chwidth(iface->conf) ==
+ 			    CONF_OPER_CHWIDTH_80MHZ &&
+ 			    !acs_usable_bw_chan(chan, ACS_BW80)) {
+@@ -905,25 +852,13 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 			}
+ 		}
+ 
+-		if (mode->mode == HOSTAPD_MODE_IEEE80211A &&
+-		    iface->conf->ieee80211be) {
+-			if (hostapd_get_oper_chwidth(iface->conf) ==
+-			    CONF_OPER_CHWIDTH_320MHZ &&
+-			    !acs_usable_bw320_chan(iface, chan, &bw320_offset))
+-				continue;
+-		}
+-
+ 		factor = 0;
+-		best = NULL;
+-		if (acs_usable_chan(chan)) {
++		if (acs_usable_chan(chan))
+ 			factor = chan->interference_factor;
+-			total_weight = 1;
+-			best = chan;
+-		}
++		total_weight = 1;
+ 
+ 		for (j = 1; j < n_chans; j++) {
+-			adj_chan = acs_find_chan(iface, chan->freq +
+-						 j * secondary_channel * 20);
++			adj_chan = acs_find_chan(iface, chan->freq + (j * 20));
+ 			if (!adj_chan)
+ 				break;
+ 
+@@ -934,14 +869,16 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 				break;
+ 			}
+ 
+-			if (!acs_usable_chan(adj_chan))
+-				continue;
+-
+-			factor += adj_chan->interference_factor;
+-			total_weight += 1;
++			if (acs_usable_chan(adj_chan)) {
++				factor += adj_chan->interference_factor;
++				total_weight += 1;
++			} else {
++				update_best = false;
++			}
+ 
+ 			/* find the best channel in this segment */
+-			if (!best || adj_chan->interference_factor <
++			if (update_best &&
++			    adj_chan->interference_factor <
+ 			    best->interference_factor)
+ 				best = adj_chan;
+ 		}
+@@ -954,9 +891,8 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 
+ 		/* If the AP is in the 5 GHz or 6 GHz band, lets prefer a less
+ 		 * crowded primary channel if one was found in the segment */
+-		if (iface->current_mode &&
+-		    iface->current_mode->mode == HOSTAPD_MODE_IEEE80211A &&
+-		    best && chan != best) {
++		if (iface->current_mode->mode == HOSTAPD_MODE_IEEE80211A &&
++		    chan != best) {
+ 			wpa_printf(MSG_DEBUG,
+ 				   "ACS: promoting channel %d over %d (less interference %Lg/%Lg)",
+ 				   best->chan, chan->chan,
+@@ -969,9 +905,8 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 		 * channel interference factor. */
+ 		if (is_24ghz_mode(mode->mode)) {
+ 			for (j = 0; j < n_chans; j++) {
+-				freq_offset = j * 20 * secondary_channel;
+ 				adj_chan = acs_find_chan(iface, chan->freq +
+-							 freq_offset - 5);
++							 (j * 20) - 5);
+ 				if (adj_chan && acs_usable_chan(adj_chan)) {
+ 					factor += ACS_ADJ_WEIGHT *
+ 						adj_chan->interference_factor;
+@@ -979,7 +914,7 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 				}
+ 
+ 				adj_chan = acs_find_chan(iface, chan->freq +
+-							 freq_offset - 10);
++							 (j * 20) - 10);
+ 				if (adj_chan && acs_usable_chan(adj_chan)) {
+ 					factor += ACS_NEXT_ADJ_WEIGHT *
+ 						adj_chan->interference_factor;
+@@ -987,7 +922,7 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 				}
+ 
+ 				adj_chan = acs_find_chan(iface, chan->freq +
+-							 freq_offset + 5);
++							 (j * 20) + 5);
+ 				if (adj_chan && acs_usable_chan(adj_chan)) {
+ 					factor += ACS_ADJ_WEIGHT *
+ 						adj_chan->interference_factor;
+@@ -995,7 +930,7 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 				}
+ 
+ 				adj_chan = acs_find_chan(iface, chan->freq +
+-							 freq_offset + 10);
++							 (j * 20) + 10);
+ 				if (adj_chan && acs_usable_chan(adj_chan)) {
+ 					factor += ACS_NEXT_ADJ_WEIGHT *
+ 						adj_chan->interference_factor;
+@@ -1004,9 +939,6 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 			}
+ 		}
+ 
+-		if (total_weight == 0)
+-			continue;
+-
+ 		factor /= total_weight;
+ 
+ 		bias = NULL;
+@@ -1044,7 +976,6 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 
+ 			*ideal_factor = factor;
+ 			*ideal_chan = chan;
+-			ideal_bw320_offset = bw320_offset;
+ 
+ #ifdef CONFIG_IEEE80211BE
+ 			if (iface->conf->ieee80211be)
+@@ -1055,13 +986,9 @@ acs_find_ideal_chan_mode(struct hostapd_iface *iface,
+ 		}
+ 
+ 		/* This channel would at least be usable */
+-		if (!(*rand_chan)) {
++		if (!(*rand_chan))
+ 			*rand_chan = chan;
+-			ideal_bw320_offset = bw320_offset;
+-		}
+ 	}
+-
+-	hostapd_set_and_check_bw320_offset(iface->conf, ideal_bw320_offset);
+ }
+ 
+ 
+@@ -1088,12 +1015,19 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
+ 		goto bw_selected;
+ 	}
+ 
++	/* TODO: HT40- support */
++
++	if (iface->conf->ieee80211n &&
++	    iface->conf->secondary_channel == -1) {
++		wpa_printf(MSG_ERROR, "ACS: HT40- is not supported yet. Please try HT40+");
++		return NULL;
++	}
++
+ 	if (iface->conf->ieee80211n &&
+ 	    iface->conf->secondary_channel)
+ 		n_chans = 2;
+ 
+-	if (iface->conf->ieee80211ac || iface->conf->ieee80211ax ||
+-	    iface->conf->ieee80211be) {
++	if (iface->conf->ieee80211ac || iface->conf->ieee80211ax) {
+ 		switch (hostapd_get_oper_chwidth(iface->conf)) {
+ 		case CONF_OPER_CHWIDTH_80MHZ:
+ 			n_chans = 4;
+@@ -1101,9 +1035,6 @@ acs_find_ideal_chan(struct hostapd_iface *iface)
+ 		case CONF_OPER_CHWIDTH_160MHZ:
+ 			n_chans = 8;
+ 			break;
+-		case CONF_OPER_CHWIDTH_320MHZ:
+-			n_chans = 16;
+-			break;
+ 		default:
+ 			break;
+ 		}
+@@ -1153,8 +1084,7 @@ static void acs_adjust_secondary(struct hostapd_iface *iface)
+ 	    acs_find_mode(iface, iface->freq) != HOSTAPD_MODE_IEEE80211A)
+ 		return;
+ 
+-	wpa_printf(MSG_DEBUG,
+-		   "ACS: Adjusting HT/VHT/HE/EHT secondary frequency");
++	wpa_printf(MSG_DEBUG, "ACS: Adjusting HT/VHT/HE secondary frequency");
+ 
+ 	for (i = 0; bw_desc[ACS_BW40][i].first != -1; i++) {
+ 		if (iface->freq == bw_desc[ACS_BW40][i].first)
+@@ -1169,7 +1099,7 @@ static void acs_adjust_center_freq(struct hostapd_iface *iface)
+ {
+ 	int center;
+ 
+-	wpa_printf(MSG_DEBUG, "ACS: Adjusting center frequency");
++	wpa_printf(MSG_DEBUG, "ACS: Adjusting VHT center frequency");
+ 
+ 	switch (hostapd_get_oper_chwidth(iface->conf)) {
+ 	case CONF_OPER_CHWIDTH_USE_HT:
+@@ -1187,29 +1117,12 @@ static void acs_adjust_center_freq(struct hostapd_iface *iface)
+ 		break;
+ 	case CONF_OPER_CHWIDTH_160MHZ:
+ 		center = acs_get_bw_center_chan(iface->freq, ACS_BW160);
+-		break;
+-	case CONF_OPER_CHWIDTH_320MHZ:
+-		switch (hostapd_get_bw320_offset(iface->conf)) {
+-		case 1:
+-			center = acs_get_bw_center_chan(iface->freq,
+-							ACS_BW320_1);
+-			break;
+-		case 2:
+-			center = acs_get_bw_center_chan(iface->freq,
+-							ACS_BW320_2);
+-			break;
+-		default:
+-			wpa_printf(MSG_INFO,
+-				   "ACS: BW320 offset is not selected");
+-			return;
+-		}
+-
+ 		break;
+ 	default:
+ 		/* TODO: How can this be calculated? Adjust
+ 		 * acs_find_ideal_chan() */
+ 		wpa_printf(MSG_INFO,
+-			   "ACS: Only VHT20/40/80/160/320 is supported now");
++			   "ACS: Only VHT20/40/80/160 is supported now");
+ 		return;
+ 	}
+ 
+@@ -1272,8 +1185,7 @@ static void acs_study(struct hostapd_iface *iface)
+ 	iface->conf->punct_bitmap = ideal_chan->punct_bitmap;
+ #endif /* CONFIG_IEEE80211BE */
+ 
+-	if (iface->conf->ieee80211ac || iface->conf->ieee80211ax ||
+-	    iface->conf->ieee80211be) {
++	if (iface->conf->ieee80211ac || iface->conf->ieee80211ax) {
+ 		acs_adjust_secondary(iface);
+ 		acs_adjust_center_freq(iface);
+ 	}
+diff --git a/tests/hwsim/test_ap_acs.py b/tests/hwsim/test_ap_acs.py
+index 001a5d4fd..e1359b6eb 100644
+--- a/tests/hwsim/test_ap_acs.py
++++ b/tests/hwsim/test_ap_acs.py
+@@ -205,20 +205,11 @@ def test_ap_acs_40mhz_minus(dev, apdev):
+     params['acs_num_scans'] = '1'
+     params['chanlist'] = '1 11'
+     hapd = hostapd.add_ap(apdev[0], params, wait_enabled=False)
+-    wait_acs(hapd)
+-
+-    freq = hapd.get_status_field("freq")
+-    if int(freq) < 2400:
+-        raise Exception("Unexpected frequency")
+-    sec = hapd.get_status_field("secondary_channel")
+-    if int(sec) != -1:
+-        raise Exception("Unexpected secondary_channel: " + sec)
+-
+-    dev[0].connect("test-acs", psk="12345678", scan_freq=freq)
+-    sig = dev[0].request("SIGNAL_POLL").splitlines()
+-    logger.info("SIGNAL_POLL: " + str(sig))
+-    if "WIDTH=40 MHz" not in sig:
+-        raise Exception("Station did not report 40 MHz bandwidth")
++    ev = hapd.wait_event(["AP-ENABLED", "AP-DISABLED"], timeout=10)
++    if not ev:
++        raise Exception("ACS start timed out")
++    # HT40- is not currently supported in hostapd ACS, so do not try to connect
++    # or verify that this operation succeeded.
+ 
+ def test_ap_acs_5ghz(dev, apdev):
+     """Automatic channel selection on 5 GHz"""
+-- 
+2.39.2
+

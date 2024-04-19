@@ -1,0 +1,29 @@
+From 49a31ee63f482c930e001e2b6a13bf9261fcf5de Mon Sep 17 00:00:00 2001
+From: Aditya Kumar Singh <quic_adisi@quicinc.com>
+Date: Thu, 28 Mar 2024 23:46:34 +0530
+Subject: [PATCH 004/104] hostapd: MLO: send link_id on sta_deauth()
+
+Function i802_sta_deauth() already has the link_id passed to it in its
+arguments. Use that to pass it down to send mlme handler.
+
+Signed-off-by: Aditya Kumar Singh <quic_adisi@quicinc.com>
+---
+ src/drivers/driver_nl80211.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index 98948bfb1..e5fa22b59 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -8254,7 +8254,7 @@ static int i802_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr,
+ 	return wpa_driver_nl80211_send_mlme(bss, (u8 *) &mgmt,
+ 					    IEEE80211_HDRLEN +
+ 					    sizeof(mgmt.u.deauth), 0, 0, 0, 0,
+-					    0, NULL, 0, 0, -1);
++					    0, NULL, 0, 0, link_id);
+ }
+ 
+ 
+-- 
+2.39.2
+

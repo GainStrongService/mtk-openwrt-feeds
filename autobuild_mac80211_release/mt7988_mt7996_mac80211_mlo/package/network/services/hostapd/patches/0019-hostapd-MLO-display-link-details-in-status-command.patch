@@ -1,0 +1,84 @@
+From 3d12a39b10565a10bec40b53cf6e69b60115a35f Mon Sep 17 00:00:00 2001
+From: Harshitha Prem <quic_hprem@quicinc.com>
+Date: Thu, 28 Mar 2024 23:46:49 +0530
+Subject: [PATCH 019/104] hostapd: MLO: display link details in status command
+
+Currently, link id and number of link details of a MLD AP interface is not
+displayed in status command of hostapd_cli.
+
+Add changes to display the link id and number of link details.
+
+The details would be seen as below for a MLD AP interface:
+
+$ hostapd_cli -i wlan0 status | grep link
+num_links=1
+link_id=0
+link_addr=AA:BB:CC:DD:EE:FF
+
+$ hostapd_cli -i wlan1 status | grep link
+num_links=2
+link_id=0
+link_addr=AA:BB:CC:DD:EE:FF
+partner_link_id=1
+partner_link_addr=AA:BB:CC:DD:EE:AA
+
+The above details would not be displayed for non-MLD AP interfaces.
+
+Signed-off-by: Harshitha Prem <quic_hprem@quicinc.com>
+Co-developed-by: Manish Dharanenthiran <quic_mdharane@quicinc.com>
+Signed-off-by: Manish Dharanenthiran <quic_mdharane@quicinc.com>
+Signed-off-by: Aditya Kumar Singh <quic_adisi@quicinc.com>
+---
+ src/ap/ctrl_iface_ap.c | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)
+
+diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
+index 272317774..2cfef4bd4 100644
+--- a/src/ap/ctrl_iface_ap.c
++++ b/src/ap/ctrl_iface_ap.c
+@@ -887,6 +887,42 @@ int hostapd_ctrl_iface_status(struct hostapd_data *hapd, char *buf,
+ 				return len;
+ 			len += ret;
+ 		}
++
++		if (hapd->conf->mld_ap) {
++			struct hostapd_data *link_bss;
++
++			ret = os_snprintf(buf + len, buflen - len,
++					  "num_links=%d\n",
++					  hapd->mld->num_links);
++			if (os_snprintf_error(buflen - len, ret))
++				return len;
++			len += ret;
++
++			/* self bss */
++			ret = os_snprintf(buf + len, buflen - len,
++					  "link_id=%d\n"
++					  "link_addr=" MACSTR "\n",
++					  hapd->mld_link_id,
++					  MAC2STR(hapd->own_addr));
++			if (os_snprintf_error(buflen - len, ret))
++				return len;
++			len += ret;
++
++			/* partner bss */
++			for_each_mld_link(link_bss, hapd) {
++				if (link_bss == hapd)
++					continue;
++
++				ret = os_snprintf(buf + len, buflen - len,
++						  "partner_link_id=%d\n"
++						  "partner_link_addr=" MACSTR "\n",
++						  link_bss->mld_link_id,
++						  MAC2STR(link_bss->own_addr));
++				if (os_snprintf_error(buflen - len, ret))
++					return len;
++				len += ret;
++			}
++		}
+ 	}
+ #endif /* CONFIG_IEEE80211BE */
+ 
+-- 
+2.39.2
+

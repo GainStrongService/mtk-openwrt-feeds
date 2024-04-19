@@ -37,7 +37,7 @@ function iface_start(phydev, iface, macaddr_list)
 
 	wpas.data.iface_phy[ifname] = phy;
 	wdev_remove(ifname);
-	let ret = wdev_create(phy, ifname, wdev_config);
+	let ret = wdev_create("phy0", ifname, wdev_config);
 	if (ret)
 		wpas.printf(`Failed to create device ${ifname}: ${ret}`);
 	wdev_set_up(ifname, true);
@@ -257,10 +257,9 @@ function iface_event(type, name, data) {
 	ubus.call("service", "event", { type: `wpa_supplicant.${name}.${type}`, data: {} });
 }
 
-function iface_hostapd_notify(phy, ifname, iface, state)
+function iface_hostapd_notify(phy, ifname, iface, state, link_id)
 {
 	let ubus = wpas.data.ubus;
-	let status = iface.status();
 	let msg = { phy: phy };
 
 	wpas.printf(`ucode: mtk: wpa_s in state ${state} notifies hostapd`);
@@ -275,11 +274,13 @@ function iface_hostapd_notify(phy, ifname, iface, state)
 		msg.up = true;
 		break;
 	case "COMPLETED":
+		let status = iface.status(link_id);
 		msg.up = true;
 		msg.frequency = status.frequency;
 		msg.sec_chan_offset = status.sec_chan_offset;
 		msg.ch_width = status.ch_width;
 		msg.bw320_offset = status.bw320_offset;
+		msg.band_idx = status.band_idx;
 		break;
 	default:
 		return;
@@ -317,12 +318,25 @@ return {
 	},
 	state: function(ifname, iface, state) {
 		let phy = wpas.data.iface_phy[ifname];
+		let ret = iface.get_valid_links();
+		let link_id = 0, valid_links = ret.valid_links;
+
 		if (!phy) {
 			wpas.printf(`no PHY for ifname ${ifname}`);
 			return;
 		}
 
-		iface_hostapd_notify(phy, ifname, iface, state);
+		if (valid_links) {
+			while (valid_links) {
+				if (valid_links & 1)
+					iface_hostapd_notify(phy, ifname, iface, state, link_id);
+
+				link_id++;
+				valid_links >>= 1;
+			}
+		} else {
+			iface_hostapd_notify(phy, ifname, iface, state, -1);
+		}
 
 		if (state != "COMPLETED")
 			return;

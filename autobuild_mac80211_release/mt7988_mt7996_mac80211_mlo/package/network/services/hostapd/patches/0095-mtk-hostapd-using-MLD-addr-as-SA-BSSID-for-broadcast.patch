@@ -1,0 +1,38 @@
+From 161c066295847f1c1828f641e789565fe4bacd11 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Thu, 14 Mar 2024 14:31:28 +0800
+Subject: [PATCH 095/104] mtk: hostapd: using MLD addr as SA/BSSID for
+ broadcast DEAUTH
+
+CR-Id: WCNCR00289305
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Change-Id: I4ba7763a0f5c5a16174cf80393b5f1588a9ce42c
+---
+ src/ap/ap_drv_ops.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
+index 2c535f24a..3c1609656 100644
+--- a/src/ap/ap_drv_ops.c
++++ b/src/ap/ap_drv_ops.c
+@@ -872,7 +872,7 @@ int hostapd_drv_sta_deauth(struct hostapd_data *hapd,
+ 		else
+ 			link_id = hapd->mld_link_id;
+ 
+-		if (ap_sta_is_mld(hapd, sta))
++		if (ap_sta_is_mld(hapd, sta) || is_multicast_ether_addr(addr))
+ 			own_addr = hapd->mld->mld_addr;
+ 	}
+ #endif /* CONFIG_IEEE80211BE */
+@@ -893,7 +893,7 @@ int hostapd_drv_sta_disassoc(struct hostapd_data *hapd,
+ 	if (hapd->conf->mld_ap) {
+ 		struct sta_info *sta = ap_get_sta(hapd, addr);
+ 
+-		if (ap_sta_is_mld(hapd, sta))
++		if (ap_sta_is_mld(hapd, sta) || is_multicast_ether_addr(addr))
+ 			own_addr = hapd->mld->mld_addr;
+ 	}
+ #endif /* CONFIG_IEEE80211BE */
+-- 
+2.39.2
+
