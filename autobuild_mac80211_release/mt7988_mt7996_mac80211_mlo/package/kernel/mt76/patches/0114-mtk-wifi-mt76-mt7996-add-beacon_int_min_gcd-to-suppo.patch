@@ -1,0 +1,36 @@
+From 8da22299c32a6f07912f8d4333b2c5a904d03a0a Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 19 Apr 2024 11:01:21 +0800
+Subject: [PATCH 114/116] mtk: wifi: mt76: mt7996: add beacon_int_min_gcd to
+ support different beacon interval
+
+When beacon_int_min_gcd is zero, all beacon intervals for different
+interfaces should be same. If beacon_int_min_gcd is larger than zero,
+all beacon intervals for different interfaces should be larger or
+equal than beacon_int_min_gcd.
+
+Without this patch, set beacon fail when different interfaces use
+different beacon interval.
+
+CR-Id: WCNCR00240772
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+Change-Id: Ic92582c86f6bf41b58ac1dd03175289a16be32c8
+---
+ mt7996/init.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 0dee6596f..3af9d02fe 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -41,6 +41,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
+ 				       BIT(NL80211_CHAN_WIDTH_40) |
+ 				       BIT(NL80211_CHAN_WIDTH_80) |
+ 				       BIT(NL80211_CHAN_WIDTH_160),
++		.beacon_int_min_gcd = 100,
+ 	}
+ };
+ 
+-- 
+2.39.2
+
