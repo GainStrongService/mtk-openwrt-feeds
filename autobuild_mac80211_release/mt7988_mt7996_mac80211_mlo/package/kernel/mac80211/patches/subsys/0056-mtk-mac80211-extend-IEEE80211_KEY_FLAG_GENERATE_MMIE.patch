@@ -1,0 +1,64 @@
+From 67aa5809167470add6b82fb0049ce6d33327592e Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Thu, 21 Mar 2024 10:58:59 +0800
+Subject: [PATCH 56/61] mtk: mac80211: extend IEEE80211_KEY_FLAG_GENERATE_MMIE
+ to other ciphers
+
+This commit extends the flag IEEE80211_KEY_FLAG_GENERATE_MMIE to
+CMAC-256 and GMAC for the same reason that this flag was added.
+(a0b449: mac80211: add IEEE80211_KEY_FLAG_GENERATE_MMIE to ieee80211_key_flags)
+
+CR-Id: WCNCR00289305
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Change-Id: I0ce5f8894de42a42e257ffce75c51399a440f003
+---
+ net/mac80211/wpa.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/net/mac80211/wpa.c b/net/mac80211/wpa.c
+index daf1bcc..e66f917 100644
+--- a/net/mac80211/wpa.c
++++ b/net/mac80211/wpa.c
+@@ -903,7 +903,8 @@ ieee80211_crypto_aes_cmac_256_encrypt(struct ieee80211_tx_data *tx)
+ 
+ 	info = IEEE80211_SKB_CB(skb);
+ 
+-	if (info->control.hw_key)
++	if (info->control.hw_key &&
++	    !(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIE))
+ 		return TX_CONTINUE;
+ 
+ 	if (WARN_ON(skb_tailroom(skb) < sizeof(*mmie)))
+@@ -919,6 +920,9 @@ ieee80211_crypto_aes_cmac_256_encrypt(struct ieee80211_tx_data *tx)
+ 
+ 	bip_ipn_set64(mmie->sequence_number, pn64);
+ 
++	if (info->control.hw_key)
++		return TX_CONTINUE;
++
+ 	bip_aad(skb, aad);
+ 
+ 	/* MIC = AES-256-CMAC(IGTK, AAD || Management Frame Body || MMIE, 128)
+@@ -1048,7 +1052,8 @@ ieee80211_crypto_aes_gmac_encrypt(struct ieee80211_tx_data *tx)
+ 
+ 	info = IEEE80211_SKB_CB(skb);
+ 
+-	if (info->control.hw_key)
++	if (info->control.hw_key &&
++	    !(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIE))
+ 		return TX_CONTINUE;
+ 
+ 	if (WARN_ON(skb_tailroom(skb) < sizeof(*mmie)))
+@@ -1064,6 +1069,9 @@ ieee80211_crypto_aes_gmac_encrypt(struct ieee80211_tx_data *tx)
+ 
+ 	bip_ipn_set64(mmie->sequence_number, pn64);
+ 
++	if (info->control.hw_key)
++		return TX_CONTINUE;
++
+ 	bip_aad(skb, aad);
+ 
+ 	hdr = (struct ieee80211_hdr *)skb->data;
+-- 
+2.39.2
+

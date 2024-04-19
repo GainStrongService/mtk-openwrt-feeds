@@ -1,0 +1,165 @@
+From e564e83652ae93e37f624eac45f98d3ee17cb811 Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Thu, 22 Feb 2024 15:21:49 +0800
+Subject: [PATCH 53/61] mtk: mac80211: workaround for configuring txpower in
+ mld ap
+
+As for mt76 design, we expect to set txpower per link. So, we add
+another parameter to ieee80211_recalc_txpower function to set
+txpower to per link. For the functions that mac80211 don't pass link
+id to which, we specify to use the FIRST link as the parameter.
+
+Apply the patch will make uci and iw set txpower commamd only effect
+the link which id is 0 when we enable mld AP.
+
+CR-Id: WCNCR00259302
+---
+ net/mac80211/cfg.c         | 15 ++++++++++++---
+ net/mac80211/chan.c        |  4 ++--
+ net/mac80211/ieee80211_i.h |  5 +++--
+ net/mac80211/iface.c       | 15 ++++++++-------
+ net/mac80211/mlme.c        |  2 +-
+ 5 files changed, 26 insertions(+), 15 deletions(-)
+
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index c3b9d10..cca3e08 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -3059,7 +3059,11 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
+ 			sdata->vif.bss_conf.txpower_type = txp_type;
+ 		}
+ 
+-		ieee80211_recalc_txpower(sdata, update_txp_type);
++		/* Due to mac80211 not pass link id to here, use first link for now */
++		if (ieee80211_vif_is_mld(&sdata->vif))
++			ieee80211_recalc_txpower(sdata, update_txp_type, sdata->link[0]);
++		else
++			ieee80211_recalc_txpower(sdata, update_txp_type, &sdata->deflink);
+ 
+ 		return 0;
+ 	}
+@@ -3090,7 +3094,12 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
+ 	list_for_each_entry(sdata, &local->interfaces, list) {
+ 		if (sdata->vif.type == NL80211_IFTYPE_MONITOR)
+ 			continue;
+-		ieee80211_recalc_txpower(sdata, update_txp_type);
++		/* Due to mac80211 not pass link id to here, use first link for now */
++		if (ieee80211_vif_is_mld(&sdata->vif))
++			ieee80211_recalc_txpower(sdata, update_txp_type, sdata->link[0]);
++		else
++			ieee80211_recalc_txpower(sdata, update_txp_type, &sdata->deflink);
++
+ 	}
+ 
+ 	if (has_monitor) {
+@@ -3102,7 +3111,7 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
+ 				update_txp_type = true;
+ 			sdata->vif.bss_conf.txpower_type = txp_type;
+ 
+-			ieee80211_recalc_txpower(sdata, update_txp_type);
++			ieee80211_recalc_txpower(sdata, update_txp_type, &sdata->deflink);
+ 		}
+ 	}
+ 
+diff --git a/net/mac80211/chan.c b/net/mac80211/chan.c
+index ac22524..f09cac4 100644
+--- a/net/mac80211/chan.c
++++ b/net/mac80211/chan.c
+@@ -842,7 +842,7 @@ out:
+ 	}
+ 
+ 	if (new_ctx && ieee80211_chanctx_num_assigned(local, new_ctx) > 0) {
+-		ieee80211_recalc_txpower(sdata, false);
++		ieee80211_recalc_txpower(sdata, false, link);
+ 		ieee80211_recalc_chanctx_min_def(local, new_ctx, NULL);
+ 	}
+ 
+@@ -1570,7 +1570,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
+ 								  link,
+ 								  changed);
+ 
+-			ieee80211_recalc_txpower(sdata, false);
++			ieee80211_recalc_txpower(sdata, false, link);
+ 		}
+ 
+ 		ieee80211_recalc_chanctx_chantype(local, ctx);
+diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
+index 608e442..6f1b783 100644
+--- a/net/mac80211/ieee80211_i.h
++++ b/net/mac80211/ieee80211_i.h
+@@ -2023,9 +2023,10 @@ void ieee80211_sdata_stop(struct ieee80211_sub_if_data *sdata);
+ int ieee80211_add_virtual_monitor(struct ieee80211_local *local);
+ void ieee80211_del_virtual_monitor(struct ieee80211_local *local);
+ 
+-bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
++bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
++				struct ieee80211_link_data *link);
+ void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
+-			      bool update_bss);
++			      bool update_bss, struct ieee80211_link_data *link);
+ void ieee80211_recalc_offload(struct ieee80211_local *local);
+ 
+ static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
+diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
+index 026436e..3400811 100644
+--- a/net/mac80211/iface.c
++++ b/net/mac80211/iface.c
+@@ -44,13 +44,14 @@
+ 
+ static void ieee80211_iface_work(struct wiphy *wiphy, struct wiphy_work *work);
+ 
+-bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
++bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
++				struct ieee80211_link_data *link)
+ {
+ 	struct ieee80211_chanctx_conf *chanctx_conf;
+ 	int power;
+ 
+ 	rcu_read_lock();
+-	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
++	chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
+ 	if (!chanctx_conf) {
+ 		rcu_read_unlock();
+ 		return false;
+@@ -65,8 +66,8 @@ bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
+ 	if (sdata->deflink.ap_power_level != IEEE80211_UNSET_POWER_LEVEL)
+ 		power = min(power, sdata->deflink.ap_power_level);
+ 
+-	if (power != sdata->vif.bss_conf.txpower) {
+-		sdata->vif.bss_conf.txpower = power;
++	if (power != link->conf->txpower) {
++		link->conf->txpower = power;
+ 		ieee80211_hw_config(sdata->local, 0);
+ 		return true;
+ 	}
+@@ -75,11 +76,11 @@ bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
+ }
+ 
+ void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
+-			      bool update_bss)
++			      bool update_bss, struct ieee80211_link_data *link)
+ {
+-	if (__ieee80211_recalc_txpower(sdata) ||
++	if (__ieee80211_recalc_txpower(sdata, link) ||
+ 	    (update_bss && ieee80211_sdata_running(sdata)))
+-		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
++		ieee80211_link_info_change_notify(sdata, link,
+ 						  BSS_CHANGED_TXPOWER);
+ }
+ 
+diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
+index b9d10e9..2efd98e 100644
+--- a/net/mac80211/mlme.c
++++ b/net/mac80211/mlme.c
+@@ -2362,7 +2362,7 @@ static u64 ieee80211_handle_pwr_constr(struct ieee80211_link_data *link,
+ 	}
+ 
+ 	link->ap_power_level = new_ap_level;
+-	if (__ieee80211_recalc_txpower(sdata))
++	if (__ieee80211_recalc_txpower(sdata, link))
+ 		return BSS_CHANGED_TXPOWER;
+ 	return 0;
+ }
+-- 
+2.39.2
+

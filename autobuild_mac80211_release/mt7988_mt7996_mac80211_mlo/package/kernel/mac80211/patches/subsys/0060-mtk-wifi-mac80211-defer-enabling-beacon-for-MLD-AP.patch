@@ -1,0 +1,46 @@
+From 5b90a58e50482689a246cfce127bc44ad05f79af Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 12 Apr 2024 11:45:41 +0800
+Subject: [PATCH 60/61] mtk: wifi: mac80211: defer enabling beacon for MLD AP
+
+Do not enable beacon on the first beacon update (NL80211_CMD_NEW_BEACON)
+for MLD AP, let it start from the next beacon update
+(NL80211_CMD_SET_BEACON).
+This is used to make sure that MLD AP start beacon after all links
+finish settings.
+
+CR-Id: WCNCR00238098
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+Change-Id: Id2a4137b9101bae3777037f8d26b0380bfe1da48
+---
+ net/mac80211/cfg.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index 856c956..e091ccd 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -1424,7 +1424,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
+ 	}
+ 
+ 	link_conf->dtim_period = params->dtim_period;
+-	link_conf->enable_beacon = true;
++	link_conf->enable_beacon = !ieee80211_vif_is_mld(&sdata->vif);
+ 	link_conf->allow_p2p_go_ps = sdata->vif.p2p;
+ 	link_conf->twt_responder = params->twt_responder;
+ 	link_conf->he_obss_pd = params->he_obss_pd;
+@@ -1491,6 +1491,11 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
+ 	ieee80211_recalc_dtim(local, sdata);
+ 	ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_SSID);
+ 	ieee80211_link_info_change_notify(sdata, link, changed);
++	/* for MLD AP, enable_beacon is false during the first beacon set,
++	 * enable it after that. This allows userspace to control the
++	 * beacon enable timing.
++	 */
++	link_conf->enable_beacon = true;
+ 
+ 	if (ieee80211_num_beaconing_links(sdata) <= 1)
+ 		netif_carrier_on(dev);
+-- 
+2.39.2
+

@@ -1,0 +1,26 @@
+From 9ccc4eaa0168f60bd9f78f4122433ec0528a70cd Mon Sep 17 00:00:00 2001
+From: Evelyn Tsai <evelyn.tsai@mediatek.com>
+Date: Thu, 3 Aug 2023 07:17:44 +0800
+Subject: [PATCH 23/61] mtk: mac80211: avoid kernel warning of
+ check_flush_dependency
+
+---
+ net/mac80211/main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/net/mac80211/main.c b/net/mac80211/main.c
+index 81a9645..e9d8581 100644
+--- a/net/mac80211/main.c
++++ b/net/mac80211/main.c
+@@ -1458,7 +1458,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
+ 		hw->queues = IEEE80211_MAX_QUEUES;
+ 
+ 	local->workqueue =
+-		alloc_ordered_workqueue("%s", 0, wiphy_name(local->hw.wiphy));
++		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, wiphy_name(local->hw.wiphy));
+ 	if (!local->workqueue) {
+ 		result = -ENOMEM;
+ 		goto fail_workqueue;
+-- 
+2.39.2
+

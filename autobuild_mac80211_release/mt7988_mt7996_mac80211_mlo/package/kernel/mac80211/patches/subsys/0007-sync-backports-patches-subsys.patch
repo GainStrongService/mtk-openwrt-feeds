@@ -1,0 +1,941 @@
+From 3a7f4236d9d089c749bbc4ff537f8ff2437acf2e Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 12 Mar 2024 11:29:55 +0800
+Subject: [PATCH 07/61] sync backports patches/subsys
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ include/net/cfg80211.h             | 28 +++++++++++
+ net/mac80211/cfg.c                 |  2 +
+ net/mac80211/debugfs.c             | 13 +++++-
+ net/mac80211/ieee80211_i.h         |  4 ++
+ net/mac80211/main.c                | 19 +-------
+ net/mac80211/mesh.c                |  8 +++-
+ net/mac80211/mesh.h                | 31 ++++++++++--
+ net/mac80211/mesh_pathtbl.c        | 19 +++++---
+ net/mac80211/rc80211_minstrel_ht.c | 75 +++++++-----------------------
+ net/mac80211/rc80211_minstrel_ht.h |  2 +-
+ net/mac80211/rx.c                  | 13 ++++--
+ net/mac80211/sta_info.c            | 29 +++++++-----
+ net/mac80211/tx.c                  | 46 +++++++++---------
+ net/wireless/ap.c                  |  6 +--
+ net/wireless/chan.c                | 45 ++++++++++++++++++
+ net/wireless/core.c                | 15 ------
+ net/wireless/core.h                |  2 +
+ net/wireless/mlme.c                |  7 +--
+ net/wireless/sysfs.c               | 27 +++++++++--
+ 19 files changed, 240 insertions(+), 151 deletions(-)
+
+diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
+index 0b5799f..4c5daf9 100644
+--- a/include/net/cfg80211.h
++++ b/include/net/cfg80211.h
+@@ -189,6 +189,8 @@ enum ieee80211_channel_flags {
+  * @dfs_state: current state of this channel. Only relevant if radar is required
+  *	on this channel.
+  * @dfs_state_entered: timestamp (jiffies) when the dfs state was entered.
++ * @dfs_state_last_available: timestamp (jiffies) of the last time when the
++ *	channel was available.
+  * @dfs_cac_ms: DFS CAC time in milliseconds, this is valid for DFS channels.
+  * @psd: power spectral density (in dBm)
+  */
+@@ -206,6 +208,7 @@ struct ieee80211_channel {
+ 	int orig_mag, orig_mpwr;
+ 	enum nl80211_dfs_state dfs_state;
+ 	unsigned long dfs_state_entered;
++	unsigned long dfs_state_last_available;
+ 	unsigned int dfs_cac_ms;
+ 	s8 psd;
+ };
+@@ -1075,6 +1078,30 @@ int cfg80211_chandef_primary(const struct cfg80211_chan_def *chandef,
+ 			     enum nl80211_chan_width primary_chan_width,
+ 			     u16 *punctured);
+ 
++/**
++ * cfg80211_chandef_dfs_usable - checks if chandef is DFS usable and we
++ *				 can/need start CAC on such channel
++ * @wiphy: the wiphy to validate against
++ * @chandef: the channel definition to check
++ *
++ * Return: true if all channels available and at least
++ *	   one channel requires CAC (NL80211_DFS_USABLE)
++ */
++bool cfg80211_chandef_dfs_usable(struct wiphy *wiphy,
++				 const struct cfg80211_chan_def *chandef);
++
++/**
++ * cfg80211_chandef_dfs_cac_time - get the DFS CAC time (in ms) for given
++ *				   channel definition
++ * @wiphy: the wiphy to validate against
++ * @chandef: the channel definition to check
++ *
++ * Returns: DFS CAC time (in ms) which applies for this channel definition
++ */
++unsigned int
++cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
++			      const struct cfg80211_chan_def *chandef);
++
+ /**
+  * nl80211_send_chandef - sends the channel definition.
+  * @msg: the msg to send channel definition
+@@ -3413,6 +3440,7 @@ enum wiphy_params_flags {
+ /* The per TXQ device queue limit in airtime */
+ #define IEEE80211_DEFAULT_AQL_TXQ_LIMIT_L	5000
+ #define IEEE80211_DEFAULT_AQL_TXQ_LIMIT_H	12000
++#define IEEE80211_DEFAULT_AQL_TXQ_LIMIT_BC	50000
+ 
+ /* The per interface airtime threshold to switch to lower queue limit */
+ #define IEEE80211_AQL_THRESHOLD			24000
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index db71792..72e64be 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -2851,6 +2851,8 @@ static int ieee80211_scan(struct wiphy *wiphy,
+ 		 */
+ 		fallthrough;
+ 	case NL80211_IFTYPE_AP:
++		/* skip check */
++		break;
+ 		/*
+ 		 * If the scan has been forced (and the driver supports
+ 		 * forcing), don't care about being beaconing already.
+diff --git a/net/mac80211/debugfs.c b/net/mac80211/debugfs.c
+index c660138..f9c5ed8 100644
+--- a/net/mac80211/debugfs.c
++++ b/net/mac80211/debugfs.c
+@@ -215,11 +215,13 @@ static ssize_t aql_pending_read(struct file *file,
+ 			"VI     %u us\n"
+ 			"BE     %u us\n"
+ 			"BK     %u us\n"
++			"BC/MC  %u us\n"
+ 			"total  %u us\n",
+ 			atomic_read(&local->aql_ac_pending_airtime[IEEE80211_AC_VO]),
+ 			atomic_read(&local->aql_ac_pending_airtime[IEEE80211_AC_VI]),
+ 			atomic_read(&local->aql_ac_pending_airtime[IEEE80211_AC_BE]),
+ 			atomic_read(&local->aql_ac_pending_airtime[IEEE80211_AC_BK]),
++			atomic_read(&local->aql_bc_pending_airtime),
+ 			atomic_read(&local->aql_total_pending_airtime));
+ 	return simple_read_from_buffer(user_buf, count, ppos,
+ 				       buf, len);
+@@ -245,7 +247,8 @@ static ssize_t aql_txq_limit_read(struct file *file,
+ 			"VO	%u		%u\n"
+ 			"VI	%u		%u\n"
+ 			"BE	%u		%u\n"
+-			"BK	%u		%u\n",
++			"BK	%u		%u\n"
++			"BC/MC	%u\n",
+ 			local->aql_txq_limit_low[IEEE80211_AC_VO],
+ 			local->aql_txq_limit_high[IEEE80211_AC_VO],
+ 			local->aql_txq_limit_low[IEEE80211_AC_VI],
+@@ -253,7 +256,8 @@ static ssize_t aql_txq_limit_read(struct file *file,
+ 			local->aql_txq_limit_low[IEEE80211_AC_BE],
+ 			local->aql_txq_limit_high[IEEE80211_AC_BE],
+ 			local->aql_txq_limit_low[IEEE80211_AC_BK],
+-			local->aql_txq_limit_high[IEEE80211_AC_BK]);
++			local->aql_txq_limit_high[IEEE80211_AC_BK],
++			local->aql_txq_limit_bc);
+ 	return simple_read_from_buffer(user_buf, count, ppos,
+ 				       buf, len);
+ }
+@@ -279,6 +283,11 @@ static ssize_t aql_txq_limit_write(struct file *file,
+ 	else
+ 		buf[count] = '\0';
+ 
++	if (sscanf(buf, "mcast %u", &q_limit_low) == 1) {
++		local->aql_txq_limit_bc = q_limit_low;
++		return count;
++	}
++
+ 	if (sscanf(buf, "%u %u %u", &ac, &q_limit_low, &q_limit_high) != 3)
+ 		return -EINVAL;
+ 
+diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
+index 4827825..c5781c3 100644
+--- a/net/mac80211/ieee80211_i.h
++++ b/net/mac80211/ieee80211_i.h
+@@ -102,6 +102,8 @@ ieee80211_sta_keep_active(struct sta_info *sta, u8 ac)
+ 	return time_before_eq(jiffies, sta->airtime[ac].last_active + HZ / 10);
+ }
+ 
++#define AIRTIME_QUANTUM_SHIFT	3
++
+ struct ieee80211_bss {
+ 	u32 device_ts_beacon, device_ts_presp;
+ 
+@@ -1343,10 +1345,12 @@ struct ieee80211_local {
+ 	spinlock_t handle_wake_tx_queue_lock;
+ 
+ 	u16 airtime_flags;
++	u32 aql_txq_limit_bc;
+ 	u32 aql_txq_limit_low[IEEE80211_NUM_ACS];
+ 	u32 aql_txq_limit_high[IEEE80211_NUM_ACS];
+ 	u32 aql_threshold;
+ 	atomic_t aql_total_pending_airtime;
++	atomic_t aql_bc_pending_airtime;
+ 	atomic_t aql_ac_pending_airtime[IEEE80211_NUM_ACS];
+ 
+ 	const struct ieee80211_ops *ops;
+diff --git a/net/mac80211/main.c b/net/mac80211/main.c
+index 6518ca5..81a9645 100644
+--- a/net/mac80211/main.c
++++ b/net/mac80211/main.c
+@@ -944,6 +944,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
+ 	spin_lock_init(&local->rx_path_lock);
+ 	spin_lock_init(&local->queue_stop_reason_lock);
+ 
++	local->aql_txq_limit_bc = IEEE80211_DEFAULT_AQL_TXQ_LIMIT_BC;
+ 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+ 		INIT_LIST_HEAD(&local->active_txqs[i]);
+ 		spin_lock_init(&local->active_txq_lock[i]);
+@@ -1562,24 +1563,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
+ 	debugfs_hw_add(local);
+ 	rate_control_add_debugfs(local);
+ 
+-	rtnl_lock();
+-	wiphy_lock(hw->wiphy);
+-
+-	/* add one default STA interface if supported */
+-	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_STATION) &&
+-	    !ieee80211_hw_check(hw, NO_AUTO_VIF)) {
+-		struct vif_params params = {0};
+-
+-		result = ieee80211_if_add(local, "wlan%d", NET_NAME_ENUM, NULL,
+-					  NL80211_IFTYPE_STATION, &params);
+-		if (result)
+-			wiphy_warn(local->hw.wiphy,
+-				   "Failed to add default virtual iface\n");
+-	}
+-
+-	wiphy_unlock(hw->wiphy);
+-	rtnl_unlock();
+-
+ #ifdef CONFIG_INET
+ 	local->ifa_notifier.notifier_call = ieee80211_ifa_changed;
+ 	result = register_inetaddr_notifier(&local->ifa_notifier);
+diff --git a/net/mac80211/mesh.c b/net/mac80211/mesh.c
+index 32475da..cbc9b5e 100644
+--- a/net/mac80211/mesh.c
++++ b/net/mac80211/mesh.c
+@@ -747,6 +747,9 @@ bool ieee80211_mesh_xmit_fast(struct ieee80211_sub_if_data *sdata,
+ 			      struct sk_buff *skb, u32 ctrl_flags)
+ {
+ 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
++	struct ieee80211_mesh_fast_tx_key key = {
++		.type = MESH_FAST_TX_TYPE_LOCAL
++	};
+ 	struct ieee80211_mesh_fast_tx *entry;
+ 	struct ieee80211s_hdr *meshhdr;
+ 	u8 sa[ETH_ALEN] __aligned(2);
+@@ -782,7 +785,10 @@ bool ieee80211_mesh_xmit_fast(struct ieee80211_sub_if_data *sdata,
+ 			return false;
+ 	}
+ 
+-	entry = mesh_fast_tx_get(sdata, skb->data);
++	ether_addr_copy(key.addr, skb->data);
++	if (!ether_addr_equal(skb->data + ETH_ALEN, sdata->vif.addr))
++		key.type = MESH_FAST_TX_TYPE_PROXIED;
++	entry = mesh_fast_tx_get(sdata, &key);
+ 	if (!entry)
+ 		return false;
+ 
+diff --git a/net/mac80211/mesh.h b/net/mac80211/mesh.h
+index c472b49..c0c357f 100644
+--- a/net/mac80211/mesh.h
++++ b/net/mac80211/mesh.h
+@@ -134,10 +134,34 @@ struct mesh_path {
+ #define MESH_FAST_TX_CACHE_THRESHOLD_SIZE	384
+ #define MESH_FAST_TX_CACHE_TIMEOUT		8000 /* msecs */
+ 
++/**
++ * enum ieee80211_mesh_fast_tx_type - cached mesh fast tx entry type
++ *
++ * @MESH_FAST_TX_TYPE_LOCAL: tx from the local vif address as SA
++ * @MESH_FAST_TX_TYPE_PROXIED: local tx with a different SA (e.g. bridged)
++ * @MESH_FAST_TX_TYPE_FORWARDED: forwarded from a different mesh point
++ */
++enum ieee80211_mesh_fast_tx_type {
++	MESH_FAST_TX_TYPE_LOCAL,
++	MESH_FAST_TX_TYPE_PROXIED,
++	MESH_FAST_TX_TYPE_FORWARDED,
++};
++
++/**
++ * struct ieee80211_mesh_fast_tx_key - cached mesh fast tx entry key
++ *
++ * @addr: The Ethernet DA for this entry
++ * @type: cache entry type
++ */
++struct ieee80211_mesh_fast_tx_key {
++	u8 addr[ETH_ALEN] __aligned(2);
++	enum ieee80211_mesh_fast_tx_type type;
++};
++
+ /**
+  * struct ieee80211_mesh_fast_tx - cached mesh fast tx entry
+  * @rhash: rhashtable pointer
+- * @addr_key: The Ethernet DA which is the key for this entry
++ * @key: the lookup key for this cache entry
+  * @fast_tx: base fast_tx data
+  * @hdr: cached mesh and rfc1042 headers
+  * @hdrlen: length of mesh + rfc1042
+@@ -148,7 +172,7 @@ struct mesh_path {
+  */
+ struct ieee80211_mesh_fast_tx {
+ 	struct rhash_head rhash;
+-	u8 addr_key[ETH_ALEN] __aligned(2);
++	struct ieee80211_mesh_fast_tx_key key;
+ 
+ 	struct ieee80211_fast_tx fast_tx;
+ 	u8 hdr[sizeof(struct ieee80211s_hdr) + sizeof(rfc1042_header)];
+@@ -334,7 +358,8 @@ void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata);
+ 
+ bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt);
+ struct ieee80211_mesh_fast_tx *
+-mesh_fast_tx_get(struct ieee80211_sub_if_data *sdata, const u8 *addr);
++mesh_fast_tx_get(struct ieee80211_sub_if_data *sdata,
++		 struct ieee80211_mesh_fast_tx_key *key);
+ bool ieee80211_mesh_xmit_fast(struct ieee80211_sub_if_data *sdata,
+ 			      struct sk_buff *skb, u32 ctrl_flags);
+ void mesh_fast_tx_cache(struct ieee80211_sub_if_data *sdata,
+diff --git a/net/mac80211/mesh_pathtbl.c b/net/mac80211/mesh_pathtbl.c
+index 91b55d6..93f6a03 100644
+--- a/net/mac80211/mesh_pathtbl.c
++++ b/net/mac80211/mesh_pathtbl.c
+@@ -37,8 +37,8 @@ static const struct rhashtable_params mesh_rht_params = {
+ static const struct rhashtable_params fast_tx_rht_params = {
+ 	.nelem_hint = 10,
+ 	.automatic_shrinking = true,
+-	.key_len = ETH_ALEN,
+-	.key_offset = offsetof(struct ieee80211_mesh_fast_tx, addr_key),
++	.key_len = sizeof(struct ieee80211_mesh_fast_tx_key),
++	.key_offset = offsetof(struct ieee80211_mesh_fast_tx, key),
+ 	.head_offset = offsetof(struct ieee80211_mesh_fast_tx, rhash),
+ 	.hashfn = mesh_table_hash,
+ };
+@@ -431,20 +431,21 @@ static void mesh_fast_tx_entry_free(struct mesh_tx_cache *cache,
+ }
+ 
+ struct ieee80211_mesh_fast_tx *
+-mesh_fast_tx_get(struct ieee80211_sub_if_data *sdata, const u8 *addr)
++mesh_fast_tx_get(struct ieee80211_sub_if_data *sdata,
++		 struct ieee80211_mesh_fast_tx_key *key)
+ {
+ 	struct ieee80211_mesh_fast_tx *entry;
+ 	struct mesh_tx_cache *cache;
+ 
+ 	cache = &sdata->u.mesh.tx_cache;
+-	entry = rhashtable_lookup(&cache->rht, addr, fast_tx_rht_params);
++	entry = rhashtable_lookup(&cache->rht, key, fast_tx_rht_params);
+ 	if (!entry)
+ 		return NULL;
+ 
+ 	if (!(entry->mpath->flags & MESH_PATH_ACTIVE) ||
+ 	    mpath_expired(entry->mpath)) {
+ 		spin_lock_bh(&cache->walk_lock);
+-		entry = rhashtable_lookup(&cache->rht, addr, fast_tx_rht_params);
++		entry = rhashtable_lookup(&cache->rht, key, fast_tx_rht_params);
+ 		if (entry)
+ 		    mesh_fast_tx_entry_free(cache, entry);
+ 		spin_unlock_bh(&cache->walk_lock);
+@@ -489,18 +490,24 @@ void mesh_fast_tx_cache(struct ieee80211_sub_if_data *sdata,
+ 	if (!sta)
+ 		return;
+ 
++	build.key.type = MESH_FAST_TX_TYPE_LOCAL;
+ 	if ((meshhdr->flags & MESH_FLAGS_AE) == MESH_FLAGS_AE_A5_A6) {
+ 		/* This is required to keep the mppath alive */
+ 		mppath = mpp_path_lookup(sdata, meshhdr->eaddr1);
+ 		if (!mppath)
+ 			return;
+ 		build.mppath = mppath;
++		if (!ether_addr_equal(meshhdr->eaddr2, sdata->vif.addr))
++			build.key.type = MESH_FAST_TX_TYPE_PROXIED;
+ 	} else if (ieee80211_has_a4(hdr->frame_control)) {
+ 		mppath = mpath;
+ 	} else {
+ 		return;
+ 	}
+ 
++	if (!ether_addr_equal(hdr->addr4, sdata->vif.addr))
++		build.key.type = MESH_FAST_TX_TYPE_FORWARDED;
++
+ 	/* rate limit, in case fast xmit can't be enabled */
+ 	if (mppath->fast_tx_check == jiffies)
+ 		return;
+@@ -547,7 +554,7 @@ void mesh_fast_tx_cache(struct ieee80211_sub_if_data *sdata,
+ 		}
+ 	}
+ 
+-	memcpy(build.addr_key, mppath->dst, ETH_ALEN);
++	memcpy(build.key.addr, mppath->dst, ETH_ALEN);
+ 	build.timestamp = jiffies;
+ 	build.fast_tx.band = info->band;
+ 	build.fast_tx.da_offs = offsetof(struct ieee80211_hdr, addr3);
+diff --git a/net/mac80211/rc80211_minstrel_ht.c b/net/mac80211/rc80211_minstrel_ht.c
+index 62f323a..74413d7 100644
+--- a/net/mac80211/rc80211_minstrel_ht.c
++++ b/net/mac80211/rc80211_minstrel_ht.c
+@@ -582,6 +582,14 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 *dest, u16 index)
+ 	int cur_tp_avg, cur_group, cur_idx;
+ 	int max_gpr_group, max_gpr_idx;
+ 	int max_gpr_tp_avg, max_gpr_prob;
++	int min_dur;
++
++	min_dur = max(minstrel_get_duration(mi->max_tp_rate[0]),
++		      minstrel_get_duration(mi->max_tp_rate[1]));
++
++	/* make the rate at least 18% slower than max tp rates */
++	if (minstrel_get_duration(index) <= min_dur * 19 / 16)
++		return;
+ 
+ 	cur_group = MI_RATE_GROUP(index);
+ 	cur_idx = MI_RATE_IDX(index);
+@@ -603,11 +611,6 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 *dest, u16 index)
+ 	    !minstrel_ht_is_legacy_group(max_tp_group))
+ 		return;
+ 
+-	/* skip rates faster than max tp rate with lower prob */
+-	if (minstrel_get_duration(mi->max_tp_rate[0]) > minstrel_get_duration(index) &&
+-	    mrs->prob_avg < max_tp_prob)
+-		return;
+-
+ 	max_gpr_group = MI_RATE_GROUP(mg->max_group_prob_rate);
+ 	max_gpr_idx = MI_RATE_IDX(mg->max_group_prob_rate);
+ 	max_gpr_prob = mi->groups[max_gpr_group].rates[max_gpr_idx].prob_avg;
+@@ -665,40 +668,6 @@ minstrel_ht_assign_best_tp_rates(struct minstrel_ht_sta *mi,
+ 
+ }
+ 
+-/*
+- * Try to increase robustness of max_prob rate by decrease number of
+- * streams if possible.
+- */
+-static inline void
+-minstrel_ht_prob_rate_reduce_streams(struct minstrel_ht_sta *mi)
+-{
+-	struct minstrel_mcs_group_data *mg;
+-	int tmp_max_streams, group, tmp_idx, tmp_prob;
+-	int tmp_tp = 0;
+-
+-	if (!mi->sta->deflink.ht_cap.ht_supported)
+-		return;
+-
+-	group = MI_RATE_GROUP(mi->max_tp_rate[0]);
+-	tmp_max_streams = minstrel_mcs_groups[group].streams;
+-	for (group = 0; group < ARRAY_SIZE(minstrel_mcs_groups); group++) {
+-		mg = &mi->groups[group];
+-		if (!mi->supported[group] || group == MINSTREL_CCK_GROUP)
+-			continue;
+-
+-		tmp_idx = MI_RATE_IDX(mg->max_group_prob_rate);
+-		tmp_prob = mi->groups[group].rates[tmp_idx].prob_avg;
+-
+-		if (tmp_tp < minstrel_ht_get_tp_avg(mi, group, tmp_idx, tmp_prob) &&
+-		   (minstrel_mcs_groups[group].streams < tmp_max_streams)) {
+-				mi->max_prob_rate = mg->max_group_prob_rate;
+-				tmp_tp = minstrel_ht_get_tp_avg(mi, group,
+-								tmp_idx,
+-								tmp_prob);
+-		}
+-	}
+-}
+-
+ static u16
+ __minstrel_ht_get_sample_rate(struct minstrel_ht_sta *mi,
+ 			      enum minstrel_sample_type type)
+@@ -771,7 +740,8 @@ minstrel_ht_calc_rate_stats(struct minstrel_priv *mp,
+ 	unsigned int cur_prob;
+ 
+ 	if (unlikely(mrs->attempts > 0)) {
+-		cur_prob = MINSTREL_FRAC(mrs->success, mrs->attempts);
++		cur_prob = MINSTREL_FRAC(mrs->success + mrs->last_success,
++					 mrs->attempts + mrs->last_attempts);
+ 		minstrel_filter_avg_add(&mrs->prob_avg,
+ 					&mrs->prob_avg_1, cur_prob);
+ 		mrs->att_hist += mrs->attempts;
+@@ -1177,8 +1147,6 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
+ 
+ 	mi->max_prob_rate = tmp_max_prob_rate;
+ 
+-	/* Try to increase robustness of max_prob_rate*/
+-	minstrel_ht_prob_rate_reduce_streams(mi);
+ 	minstrel_ht_refill_sample_rates(mi);
+ 
+ #ifdef CPTCFG_MAC80211_DEBUGFS
+@@ -1257,7 +1225,7 @@ minstrel_ht_ri_txstat_valid(struct minstrel_priv *mp,
+ }
+ 
+ static void
+-minstrel_downgrade_rate(struct minstrel_ht_sta *mi, u16 *idx, bool primary)
++minstrel_downgrade_prob_rate(struct minstrel_ht_sta *mi, u16 *idx)
+ {
+ 	int group, orig_group;
+ 
+@@ -1272,11 +1240,7 @@ minstrel_downgrade_rate(struct minstrel_ht_sta *mi, u16 *idx, bool primary)
+ 		    minstrel_mcs_groups[orig_group].streams)
+ 			continue;
+ 
+-		if (primary)
+-			*idx = mi->groups[group].max_group_tp_rate[0];
+-		else
+-			*idx = mi->groups[group].max_group_tp_rate[1];
+-		break;
++		*idx = mi->groups[group].max_group_prob_rate;
+ 	}
+ }
+ 
+@@ -1287,7 +1251,7 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
+ 	struct ieee80211_tx_info *info = st->info;
+ 	struct minstrel_ht_sta *mi = priv_sta;
+ 	struct ieee80211_tx_rate *ar = info->status.rates;
+-	struct minstrel_rate_stats *rate, *rate2;
++	struct minstrel_rate_stats *rate;
+ 	struct minstrel_priv *mp = priv;
+ 	u32 update_interval = mp->update_interval;
+ 	bool last, update = false;
+@@ -1355,18 +1319,13 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
+ 		/*
+ 		 * check for sudden death of spatial multiplexing,
+ 		 * downgrade to a lower number of streams if necessary.
++		 * only do this for the max_prob_rate to prevent spurious
++		 * rate fluctuations when the link changes suddenly
+ 		 */
+-		rate = minstrel_get_ratestats(mi, mi->max_tp_rate[0]);
++		rate = minstrel_get_ratestats(mi, mi->max_prob_rate);
+ 		if (rate->attempts > 30 &&
+ 		    rate->success < rate->attempts / 4) {
+-			minstrel_downgrade_rate(mi, &mi->max_tp_rate[0], true);
+-			update = true;
+-		}
+-
+-		rate2 = minstrel_get_ratestats(mi, mi->max_tp_rate[1]);
+-		if (rate2->attempts > 30 &&
+-		    rate2->success < rate2->attempts / 4) {
+-			minstrel_downgrade_rate(mi, &mi->max_tp_rate[1], false);
++			minstrel_downgrade_prob_rate(mi, &mi->max_prob_rate);
+ 			update = true;
+ 		}
+ 	}
+diff --git a/net/mac80211/rc80211_minstrel_ht.h b/net/mac80211/rc80211_minstrel_ht.h
+index f385cf6..1f78a94 100644
+--- a/net/mac80211/rc80211_minstrel_ht.h
++++ b/net/mac80211/rc80211_minstrel_ht.h
+@@ -14,7 +14,7 @@
+ 
+ /* scaled fraction values */
+ #define MINSTREL_SCALE  12
+-#define MINSTREL_FRAC(val, div) (((val) << MINSTREL_SCALE) / div)
++#define MINSTREL_FRAC(val, div) (((val) << MINSTREL_SCALE) / (div))
+ #define MINSTREL_TRUNC(val) ((val) >> MINSTREL_SCALE)
+ 
+ #define EWMA_LEVEL	96	/* ewma weighting factor [/EWMA_DIV] */
+diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
+index 42ffd1e..be724c2 100644
+--- a/net/mac80211/rx.c
++++ b/net/mac80211/rx.c
+@@ -2767,7 +2767,10 @@ ieee80211_rx_mesh_fast_forward(struct ieee80211_sub_if_data *sdata,
+ 			       struct sk_buff *skb, int hdrlen)
+ {
+ 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+-	struct ieee80211_mesh_fast_tx *entry = NULL;
++	struct ieee80211_mesh_fast_tx_key key = {
++		.type = MESH_FAST_TX_TYPE_FORWARDED
++	};
++	struct ieee80211_mesh_fast_tx *entry;
+ 	struct ieee80211s_hdr *mesh_hdr;
+ 	struct tid_ampdu_tx *tid_tx;
+ 	struct sta_info *sta;
+@@ -2776,9 +2779,13 @@ ieee80211_rx_mesh_fast_forward(struct ieee80211_sub_if_data *sdata,
+ 
+ 	mesh_hdr = (struct ieee80211s_hdr *)(skb->data + sizeof(eth));
+ 	if ((mesh_hdr->flags & MESH_FLAGS_AE) == MESH_FLAGS_AE_A5_A6)
+-		entry = mesh_fast_tx_get(sdata, mesh_hdr->eaddr1);
++		ether_addr_copy(key.addr, mesh_hdr->eaddr1);
+ 	else if (!(mesh_hdr->flags & MESH_FLAGS_AE))
+-		entry = mesh_fast_tx_get(sdata, skb->data);
++		ether_addr_copy(key.addr, skb->data);
++	else
++		return false;
++
++	entry = mesh_fast_tx_get(sdata, &key);
+ 	if (!entry)
+ 		return false;
+ 
+diff --git a/net/mac80211/sta_info.c b/net/mac80211/sta_info.c
+index 32d050c..411a610 100644
+--- a/net/mac80211/sta_info.c
++++ b/net/mac80211/sta_info.c
+@@ -912,6 +912,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
+ 
+ 	if (ieee80211_vif_is_mesh(&sdata->vif))
+ 		mesh_accept_plinks_update(sdata);
++	ieee80211_check_fast_xmit(sta);
+ 
+ 	ieee80211_check_fast_xmit(sta);
+ 
+@@ -2354,28 +2355,27 @@ void ieee80211_sta_update_pending_airtime(struct ieee80211_local *local,
+ 					  struct sta_info *sta, u8 ac,
+ 					  u16 tx_airtime, bool tx_completed)
+ {
++	atomic_t *counter;
+ 	int tx_pending;
+ 
+ 	if (!wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL))
+ 		return;
+ 
+-	if (!tx_completed) {
+-		if (sta)
+-			atomic_add(tx_airtime,
+-				   &sta->airtime[ac].aql_tx_pending);
++	if (sta)
++		counter = &sta->airtime[ac].aql_tx_pending;
++	else
++		counter = &local->aql_bc_pending_airtime;
+ 
++	if (!tx_completed) {
++		atomic_add(tx_airtime, counter);
+ 		atomic_add(tx_airtime, &local->aql_total_pending_airtime);
+ 		atomic_add(tx_airtime, &local->aql_ac_pending_airtime[ac]);
+ 		return;
+ 	}
+ 
+-	if (sta) {
+-		tx_pending = atomic_sub_return(tx_airtime,
+-					       &sta->airtime[ac].aql_tx_pending);
+-		if (tx_pending < 0)
+-			atomic_cmpxchg(&sta->airtime[ac].aql_tx_pending,
+-				       tx_pending, 0);
+-	}
++	tx_pending = atomic_sub_return(tx_airtime, counter);
++	if (tx_pending < 0)
++		atomic_cmpxchg(counter, tx_pending, 0);
+ 
+ 	atomic_sub(tx_airtime, &local->aql_total_pending_airtime);
+ 	tx_pending = atomic_sub_return(tx_airtime,
+@@ -2439,6 +2439,13 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
+ 
+ 		sband = local->hw.wiphy->bands[band];
+ 
++		if (!sband) {
++			wiphy_warn(local->hw.wiphy,
++				    "Invalid band %d\n",
++				    band);
++			break;
++		}
++
+ 		if (WARN_ON_ONCE(!sband->bitrates))
+ 			break;
+ 
+diff --git a/net/mac80211/tx.c b/net/mac80211/tx.c
+index 141b094..f479d87 100644
+--- a/net/mac80211/tx.c
++++ b/net/mac80211/tx.c
+@@ -3978,9 +3978,8 @@ begin:
+ encap_out:
+ 	info->control.vif = vif;
+ 
+-	if (tx.sta &&
+-	    wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL)) {
+-		bool ampdu = txq->ac != IEEE80211_AC_VO;
++	if (wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL)) {
++		bool ampdu = txq->sta && txq->ac != IEEE80211_AC_VO;
+ 		u32 airtime;
+ 
+ 		airtime = ieee80211_calc_expected_tx_airtime(hw, vif, txq->sta,
+@@ -4043,6 +4042,7 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
+ 	struct ieee80211_txq *ret = NULL;
+ 	struct txq_info *txqi = NULL, *head = NULL;
+ 	bool found_eligible_txq = false;
++	bool aql_check;
+ 
+ 	spin_lock_bh(&local->active_txq_lock[ac]);
+ 
+@@ -4066,26 +4066,26 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
+ 	if (!head)
+ 		head = txqi;
+ 
++	aql_check = ieee80211_txq_airtime_check(hw, &txqi->txq);
++	if (aql_check)
++		found_eligible_txq = true;
++
+ 	if (txqi->txq.sta) {
+ 		struct sta_info *sta = container_of(txqi->txq.sta,
+ 						    struct sta_info, sta);
+-		bool aql_check = ieee80211_txq_airtime_check(hw, &txqi->txq);
+-		s32 deficit = ieee80211_sta_deficit(sta, txqi->txq.ac);
+-
+-		if (aql_check)
+-			found_eligible_txq = true;
+-
+-		if (deficit < 0)
++		if (ieee80211_sta_deficit(sta, txqi->txq.ac) < 0) {
+ 			sta->airtime[txqi->txq.ac].deficit +=
+-				sta->airtime_weight;
+-
+-		if (deficit < 0 || !aql_check) {
+-			list_move_tail(&txqi->schedule_order,
+-				       &local->active_txqs[txqi->txq.ac]);
+-			goto begin;
++				sta->airtime_weight << AIRTIME_QUANTUM_SHIFT;
++			aql_check = false;
+ 		}
+ 	}
+ 
++	if (!aql_check) {
++		list_move_tail(&txqi->schedule_order,
++				   &local->active_txqs[txqi->txq.ac]);
++		goto begin;
++	}
++
+ 	if (txqi->schedule_round == local->schedule_round[ac])
+ 		goto out;
+ 
+@@ -4150,7 +4150,8 @@ bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
+ 		return true;
+ 
+ 	if (!txq->sta)
+-		return true;
++		return atomic_read(&local->aql_bc_pending_airtime) <
++		       local->aql_txq_limit_bc;
+ 
+ 	if (unlikely(txq->tid == IEEE80211_NUM_TIDS))
+ 		return true;
+@@ -4199,15 +4200,15 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
+ 
+ 	spin_lock_bh(&local->active_txq_lock[ac]);
+ 
+-	if (!txqi->txq.sta)
+-		goto out;
+-
+ 	if (list_empty(&txqi->schedule_order))
+ 		goto out;
+ 
+ 	if (!ieee80211_txq_schedule_airtime_check(local, ac))
+ 		goto out;
+ 
++	if (!txqi->txq.sta)
++		goto out;
++
+ 	list_for_each_entry_safe(iter, tmp, &local->active_txqs[ac],
+ 				 schedule_order) {
+ 		if (iter == txqi)
+@@ -4220,7 +4221,8 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
+ 		}
+ 		sta = container_of(iter->txq.sta, struct sta_info, sta);
+ 		if (ieee80211_sta_deficit(sta, ac) < 0)
+-			sta->airtime[ac].deficit += sta->airtime_weight;
++			sta->airtime[ac].deficit += sta->airtime_weight <<
++						    AIRTIME_QUANTUM_SHIFT;
+ 		list_move_tail(&iter->schedule_order, &local->active_txqs[ac]);
+ 	}
+ 
+@@ -4228,7 +4230,7 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
+ 	if (sta->airtime[ac].deficit >= 0)
+ 		goto out;
+ 
+-	sta->airtime[ac].deficit += sta->airtime_weight;
++	sta->airtime[ac].deficit += sta->airtime_weight << AIRTIME_QUANTUM_SHIFT;
+ 	list_move_tail(&txqi->schedule_order, &local->active_txqs[ac]);
+ 	spin_unlock_bh(&local->active_txq_lock[ac]);
+ 
+diff --git a/net/wireless/ap.c b/net/wireless/ap.c
+index 9a9a870..9cd0ab4 100644
+--- a/net/wireless/ap.c
++++ b/net/wireless/ap.c
+@@ -30,6 +30,9 @@ static int ___cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
+ 	if (!wdev->links[link_id].ap.beacon_interval)
+ 		return -ENOENT;
+ 
++	cfg80211_update_last_available(wdev->wiphy,
++				       &wdev->links[link_id].ap.chandef);
++
+ 	err = rdev_stop_ap(rdev, dev, link_id);
+ 	if (!err) {
+ 		wdev->conn_owner_nlportid = 0;
+@@ -41,9 +44,6 @@ static int ___cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
+ 		if (notify)
+ 			nl80211_send_ap_stopped(wdev, link_id);
+ 
+-		/* Should we apply the grace period during beaconing interface
+-		 * shutdown also?
+-		 */
+ 		cfg80211_sched_dfs_chan_update(rdev);
+ 	}
+ 
+diff --git a/net/wireless/chan.c b/net/wireless/chan.c
+index 14c27bc..4bac395 100644
+--- a/net/wireless/chan.c
++++ b/net/wireless/chan.c
+@@ -560,6 +560,8 @@ static void cfg80211_set_chans_dfs_state(struct wiphy *wiphy, u32 center_freq,
+ 
+ 		c->dfs_state = dfs_state;
+ 		c->dfs_state_entered = jiffies;
++		if (dfs_state == NL80211_DFS_AVAILABLE)
++			c->dfs_state_last_available = jiffies;
+ 	}
+ }
+ 
+@@ -1049,6 +1051,49 @@ static bool cfg80211_get_chans_dfs_available(struct wiphy *wiphy,
+ 	return true;
+ }
+ 
++static void
++__cfg80211_update_last_available(struct wiphy *wiphy,
++					 u32 center_freq,
++					 u32 bandwidth)
++{
++	struct ieee80211_channel *c;
++	u32 freq, start_freq, end_freq;
++
++	start_freq = cfg80211_get_start_freq(center_freq, bandwidth);
++	end_freq = cfg80211_get_end_freq(center_freq, bandwidth);
++
++	/*
++	 * Check entire range of channels for the bandwidth.
++	 * If any channel in between is disabled or has not
++	 * had gone through CAC return false
++	 */
++	for (freq = start_freq; freq <= end_freq; freq += MHZ_TO_KHZ(20)) {
++		c = ieee80211_get_channel_khz(wiphy, freq);
++		if (!c)
++			return;
++
++		c->dfs_state_last_available = jiffies;
++	}
++}
++
++void cfg80211_update_last_available(struct wiphy *wiphy,
++				    const struct cfg80211_chan_def *chandef)
++{
++	int width;
++
++	width = cfg80211_chandef_get_width(chandef);
++	if (width < 0)
++		return;
++
++	__cfg80211_update_last_available(wiphy, MHZ_TO_KHZ(chandef->center_freq1),
++						 width);
++	if (chandef->width != NL80211_CHAN_WIDTH_80P80)
++	    return;
++
++	__cfg80211_update_last_available(wiphy, MHZ_TO_KHZ(chandef->center_freq2),
++						 width);
++}
++
+ static bool cfg80211_chandef_dfs_available(struct wiphy *wiphy,
+ 				const struct cfg80211_chan_def *chandef)
+ {
+diff --git a/net/wireless/core.c b/net/wireless/core.c
+index 0cd5c78..ac9417e 100644
+--- a/net/wireless/core.c
++++ b/net/wireless/core.c
+@@ -662,21 +662,6 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
+ 				    c->limits[j].max > 1))
+ 				return -EINVAL;
+ 
+-			/*
+-			 * This isn't well-defined right now. If you have an
+-			 * IBSS interface, then its beacon interval may change
+-			 * by joining other networks, and nothing prevents it
+-			 * from doing that.
+-			 * So technically we probably shouldn't even allow AP
+-			 * and IBSS in the same interface, but it seems that
+-			 * some drivers support that, possibly only with fixed
+-			 * beacon intervals for IBSS.
+-			 */
+-			if (WARN_ON(types & BIT(NL80211_IFTYPE_ADHOC) &&
+-				    c->beacon_int_min_gcd)) {
+-				return -EINVAL;
+-			}
+-
+ 			cnt += c->limits[j].max;
+ 			/*
+ 			 * Don't advertise an unsupported type
+diff --git a/net/wireless/core.h b/net/wireless/core.h
+index 2e19279..7bef6b0 100644
+--- a/net/wireless/core.h
++++ b/net/wireless/core.h
+@@ -467,6 +467,8 @@ void cfg80211_set_dfs_state(struct wiphy *wiphy,
+ 			    enum nl80211_dfs_state dfs_state);
+ 
+ void cfg80211_dfs_channels_update_work(struct work_struct *work);
++void cfg80211_update_last_available(struct wiphy *wiphy,
++				    const struct cfg80211_chan_def *chandef);
+ 
+ void cfg80211_sched_dfs_chan_update(struct cfg80211_registered_device *rdev);
+ 
+diff --git a/net/wireless/mlme.c b/net/wireless/mlme.c
+index 3b0fe7c..c7e62eb 100644
+--- a/net/wireless/mlme.c
++++ b/net/wireless/mlme.c
+@@ -1037,6 +1037,8 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
+ 			if (c->dfs_state == NL80211_DFS_UNAVAILABLE) {
+ 				time_dfs_update = IEEE80211_DFS_MIN_NOP_TIME_MS;
+ 				radar_event = NL80211_RADAR_NOP_FINISHED;
++				timeout = c->dfs_state_entered +
++					  msecs_to_jiffies(time_dfs_update);
+ 			} else {
+ 				if (regulatory_pre_cac_allowed(wiphy) ||
+ 				    cfg80211_any_wiphy_oper_chan(wiphy, c))
+@@ -1044,11 +1046,10 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
+ 
+ 				time_dfs_update = REG_PRE_CAC_EXPIRY_GRACE_MS;
+ 				radar_event = NL80211_RADAR_PRE_CAC_EXPIRED;
++				timeout = c->dfs_state_last_available +
++					  msecs_to_jiffies(time_dfs_update);
+ 			}
+ 
+-			timeout = c->dfs_state_entered +
+-				  msecs_to_jiffies(time_dfs_update);
+-
+ 			if (time_after_eq(jiffies, timeout)) {
+ 				c->dfs_state = NL80211_DFS_USABLE;
+ 				c->dfs_state_entered = jiffies;
+diff --git a/net/wireless/sysfs.c b/net/wireless/sysfs.c
+index 1387106..49aac4c 100644
+--- a/net/wireless/sysfs.c
++++ b/net/wireless/sysfs.c
+@@ -24,18 +24,35 @@ static inline struct cfg80211_registered_device *dev_to_rdev(
+ 	return container_of(dev, struct cfg80211_registered_device, wiphy.dev);
+ }
+ 
+-#define SHOW_FMT(name, fmt, member)					\
++#define SHOW_FMT(name, fmt, member, mode)				\
+ static ssize_t name ## _show(struct device *dev,			\
+ 			      struct device_attribute *attr,		\
+ 			      char *buf)				\
+ {									\
+ 	return sprintf(buf, fmt "\n", dev_to_rdev(dev)->member);	\
+ }									\
+-static DEVICE_ATTR_RO(name)
++static DEVICE_ATTR_##mode(name)
+ 
+-SHOW_FMT(index, "%d", wiphy_idx);
+-SHOW_FMT(macaddress, "%pM", wiphy.perm_addr);
+-SHOW_FMT(address_mask, "%pM", wiphy.addr_mask);
++static ssize_t macaddress_store(struct device *dev,
++				struct device_attribute *attr,
++				const char *buf, size_t len)
++{
++	u8 mac[ETH_ALEN];
++
++	if (!mac_pton(buf, mac))
++		return -EINVAL;
++
++	if (buf[3 * ETH_ALEN - 1] && buf[3 * ETH_ALEN - 1] != '\n')
++		return -EINVAL;
++
++	memcpy(dev_to_rdev(dev)->wiphy.perm_addr, mac, ETH_ALEN);
++
++	return strnlen(buf, len);
++}
++
++SHOW_FMT(index, "%d", wiphy_idx, RO);
++SHOW_FMT(macaddress, "%pM", wiphy.perm_addr, RW);
++SHOW_FMT(address_mask, "%pM", wiphy.addr_mask, RO);
+ 
+ static ssize_t name_show(struct device *dev,
+ 			 struct device_attribute *attr,
+-- 
+2.39.2
+

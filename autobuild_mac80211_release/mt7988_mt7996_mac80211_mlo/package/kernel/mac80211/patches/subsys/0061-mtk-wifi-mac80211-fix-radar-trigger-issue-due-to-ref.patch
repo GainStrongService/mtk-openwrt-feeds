@@ -1,0 +1,31 @@
+From 250ed9ee9f5f7e422dd4d96c1ba328b517c55040 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Thu, 18 Apr 2024 18:08:48 +0800
+Subject: [PATCH 61/61] mtk: wifi: mac80211: fix radar trigger issue due to
+ refactoring to single wiphy
+
+Since we change to single wiphy, we cannot directly return during cac cancel if the link conf in local->interfaces list is not for 5G band.
+local->interfaces might contain 2/5/6G sdata
+
+CR-Id: WCNCR00274293
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ net/mac80211/util.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/net/mac80211/util.c b/net/mac80211/util.c
+index 732232a..d030ebc 100644
+--- a/net/mac80211/util.c
++++ b/net/mac80211/util.c
+@@ -3469,7 +3469,7 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local, unsigned int link_i
+ 
+ 		if (link->conf->chanreq.oper.chan &&
+ 		    link->conf->chanreq.oper.chan->band != NL80211_BAND_5GHZ)
+-			return;
++			continue;
+ 
+ 		wiphy_delayed_work_cancel(local->hw.wiphy,
+ 					  &link->dfs_cac_timer_work);
+-- 
+2.39.2
+
