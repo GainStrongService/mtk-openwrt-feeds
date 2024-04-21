@@ -376,7 +376,7 @@ mac80211_hostapd_setup_base() {
 			mu_beamformee:1 \
 			vht_txop_ps:1 \
 			htc_vht:1 \
-			beamformee_antennas:4 \
+			beamformee_antennas:5 \
 			beamformer_antennas:4 \
 			rx_antenna_pattern:1 \
 			tx_antenna_pattern:1 \
@@ -435,7 +435,7 @@ mac80211_hostapd_setup_base() {
 		}
 
 		[ "$(($vht_cap & 0x1000))" -gt 0 -a "$su_beamformee" -gt 0 ] && {
-			cap_ant="$(( ( ($vht_cap >> 13) & 3 ) + 1 ))"
+			cap_ant="$(( ( ($vht_cap >> 13) & 7 ) + 1 ))"
 			[ "$cap_ant" -gt "$beamformee_antennas" ] && cap_ant="$beamformee_antennas"
 			[ "$cap_ant" -gt 1 ] && vht_capab="$vht_capab[BF-ANTENNA-$cap_ant]"
 		}
@@ -622,6 +622,7 @@ ${rnr:+rnr=$rnr}
 ${multiple_bssid:+mbssid=$multiple_bssid}
 ${band_idx:+band_idx=$band_idx}
 #num_global_macaddr=$num_global_macaddr
+#single_hw=1
 $base_cfg
 
 EOF
@@ -788,18 +789,22 @@ fill_mld_params() {
 	local phy_idx=$(echo $2 | tr -d "phy")
 	local found_mld=0
 	local is_primary=1
+	local mld_allowed_links=0
 
 	iface_list="$(cat /etc/config/wireless | grep wifi-iface | cut -d ' ' -f3 | tr -s "'\n" ' ')"
 	for iface in $iface_list
 	do
 		local mld_id="$(uci show wireless.$iface | grep "mld_id" | cut -d '=' -f2 | tr -d "'")"
 		local radio_id="$(uci show wireless.$iface | grep "device" | cut -d '=' -f2 | tr -d "radio'")"
-		if [ $mld_id = $target_mld_id ] && [ $radio_id -lt $phy_idx ]; then
-			is_primary=0
-			break
+		local iface_disabled="$(uci show wireless.$iface | grep "disabled" | cut -d '=' -f2 | tr -d "'")"
+
+		if [ "$iface_disabled" != "1" ] && [ $mld_id = $target_mld_id ]; then
+			mld_allowed_links=$(($mld_allowed_links * 2 + 1))
+			[ $radio_id -lt $phy_idx ] && is_primary=0
 		fi
 	done
 	json_add_string "mld_primary" $is_primary
+	json_add_string "mld_allowed_links" $mld_allowed_links
 
         mld_list="$(cat /etc/config/wireless | grep wifi-mld | cut -d ' ' -f3 | tr -s "'\n" ' ')"
         for m in $mld_list
@@ -1423,6 +1428,8 @@ drv_mac80211_setup() {
 
 	for_each_interface "ap sta adhoc mesh monitor" mac80211_set_vif_txpower
 	wireless_set_up
+
+	echo /tmp/%e.core > /proc/sys/kernel/core_pattern
 }
 
 _list_phy_interfaces() {
@@ -1451,6 +1458,13 @@ drv_mac80211_teardown() {
 		echo "Bug: PHY is undefined for device '$1'"
 		return 1
 	}
+
+	# each phy sleeps different times to prevent for ubus race condition.
+	if [ "$phy" = "phy1" ]; then
+		sleep 3;
+	elif [ "$phy" = "phy0" ]; then
+		sleep 6;
+	fi
 
 	mac80211_reset_config "$phy"
 

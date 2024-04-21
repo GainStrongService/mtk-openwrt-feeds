@@ -63,9 +63,6 @@ prepare
 
 prepare_flowoffload
 
-#wed3.0 patches from mtk_openwrt_feeds
-cp -rf ${release_folder}/mt7988_mt7996_mac80211/target/* ${BUILD_DIR}/target/
-
 #prepare mac80211 mt76 wifi stuff
 prepare_mac80211 ${backport_new} ${hostapd_new}
 

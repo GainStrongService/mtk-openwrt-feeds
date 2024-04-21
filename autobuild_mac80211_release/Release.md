@@ -1,5 +1,22 @@
 # Mediatek Upstream SoftMAC WiFi Driver - MT76 Release Note
+## Compile Environment Requirement
+Use Ubuntu 18.04
+Install below tarball
+### OpenWRT
+RUN apt-get install -y uuid-dev
+### Toolchain
+RUN apt-get install -y gcc-aarch64-linux-gnu
+RUN apt-get install -y clang-6.0
 
+---
+[!NOTE] 
+Latest Release Version
+## Filogic 880/860 WiFi7 MLO Alpha Release (20240426)
+
+## Filogic 830/820/630 WiFi6 MP2.3 Release (20240426)
+---
+[!NOTE] 
+Old Release Version
 ## Filogic 880 WiFi7 Non-MLO SDK Release (20240112)
 Please note that the upcoming MLO SDK will not be able to use patches to support WiFi 7 MLO based on the 20240112 non-MLO SDK revision.
 It is essential to be aware that a complete upgrade of the SDK codebase is mandatory due to the Software MLO Architecture Change.

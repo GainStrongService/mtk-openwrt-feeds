@@ -157,11 +157,13 @@ get_band_defaults() {
 			encryption=none
 			rnr=1
 			background_radar=1
+			mbo=0
 			band_idx=1
 		else
 			noscan=1
 			encryption=none
 			rnr=1
+			mbo=0
 			band_idx=0
 		fi
 	done
@@ -258,7 +260,7 @@ detect_mac80211() {
 			for i in $(seq 2 3); do
 				macaddr=${macaddr}:$(echo $rand | cut -d ' ' -f $i)
 			done
-			macaddr="00:0$(($devidx - 1)):55:66${macaddr}"
+			macaddr="00:0$(($devidx + 1)):55:66${macaddr}"
 		fi
 
 		tx_burst=""

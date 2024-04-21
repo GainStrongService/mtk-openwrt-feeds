@@ -412,7 +412,8 @@ hostapd_common_add_bss_config() {
 	config_add_string group_cipher
 	config_add_string group_mgmt_cipher
 
-	config_add_int mld_id mld_assoc_phy mld_allowed_phy_bitmap
+	config_add_int assoc_phy
+	config_add_int mld_id mld_assoc_phy mld_allowed_phy_bitmap mld_allowed_links
 	config_add_boolean mld_primary mld_single_link
 	config_add_string mld_addr
 }
@@ -603,7 +604,7 @@ hostapd_set_bss_options() {
 		eap_server eap_user_file ca_cert server_cert private_key private_key_passwd server_id \
 		vendor_elements fils ocv unsol_bcast_probe_resp_interval fils_discovery_min_interval \
 		fils_discovery_max_interval rnr group_cipher group_mgmt_cipher \
-		mld_id mld_primary mld_addr
+		mld_id mld_primary mld_addr mld_allowed_links
 
 	set_default fils 0
 	set_default isolate 0
@@ -1300,6 +1301,10 @@ hostapd_set_bss_options() {
 		append bss_conf "mld_primary=${mld_primary}" "$N"
 	fi
 
+	if [ "$mld_allowed_links" -gt 0 ]; then
+		append bss_conf "mld_allowed_links=${mld_allowed_links}" "$N"
+	fi
+
 	append "$var" "$bss_conf" "$N"
 	return 0
 }
@@ -1355,7 +1360,7 @@ wpa_supplicant_prepare_interface() {
 
 	_wpa_supplicant_common "$1"
 
-	json_get_vars mode wds multi_ap mld_single_link mld_assoc_phy mld_allowed_phy_bitmap
+	json_get_vars mode wds multi_ap assoc_phy mld_single_link mld_assoc_phy mld_allowed_phy_bitmap
 	set_default mld_allowed_phy_bitmap 0
 
 	[ -n "$network_bridge" ] && {
@@ -1424,6 +1429,8 @@ wpa_supplicant_prepare_interface() {
 			scan_list="$phy2_scan_list"
 		fi
 	fi
+
+	[ -n "$assoc_phy" ] && mld_assoc_phy=$assoc_phy
 
 	local mld_connect_band_pref=
 	if [ -n "$mld_assoc_phy" ]; then
