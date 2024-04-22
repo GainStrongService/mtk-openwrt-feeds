@@ -92,6 +92,7 @@ drv_mac80211_init_iface_config() {
 	config_add_int max_listen_int
 	config_add_int dtim_period
 	config_add_int start_disabled
+	config_add_int vif_txpower
 
 	# mesh
 	config_add_string mesh_id
