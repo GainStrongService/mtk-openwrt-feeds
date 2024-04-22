@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index 566cfdd..6a14118 100644
+index 566cfdd7..0298600c 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -22,6 +22,7 @@ PKG_SOURCE:=backports-$(PKG_VERSION).tar.xz
@@ -21,16 +21,16 @@ index 566cfdd..6a14118 100644
  
  config-$(call config_package,cfg80211,$(ALL_VARIANTS)) += CFG80211
  config-$(CONFIG_PACKAGE_CFG80211_TESTMODE) += NL80211_TESTMODE
-@@ -305,6 +310,7 @@ define Build/Prepare
+@@ -304,6 +309,7 @@ define Build/Prepare
+ 	rm -rf $(PKG_BUILD_DIR)
  	mkdir -p $(PKG_BUILD_DIR)
  	$(PKG_UNPACK)
 +	$(CP) $(SOURCE_PATH)/* $(PKG_BUILD_DIR) 2>/dev/null || :
  	$(Build/Patch)
  	rm -rf \
  		$(PKG_BUILD_DIR)/include/linux/ssb \
- 		$(PKG_BUILD_DIR)/include/linux/bcma \
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
-index 763702e..3537e3a 100644
+index 763702e7..3537e3ae 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 @@ -60,7 +60,14 @@ hostapd_append_wpa_key_mgmt() {
@@ -416,7 +416,7 @@ index 763702e..3537e3a 100644
  		echo "wps_cred_processing=1" >> "$_config"
  	else
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
-index bc59c30..66bdf5c 100755
+index bc59c303..66bdf5cf 100755
 --- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 @@ -29,10 +29,12 @@ drv_mac80211_init_device_config() {
@@ -951,7 +951,7 @@ index bc59c30..66bdf5c 100755
  
  	json_set_namespace wdev_uc prev
 diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
-index e24a2a6..58a0c9f 100644
+index e24a2a63..3c78e1a1 100644
 --- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
 @@ -60,6 +60,9 @@ BEGIN {
@@ -1018,7 +1018,13 @@ index e24a2a6..58a0c9f 100644
  	done
  }
  
-@@ -153,6 +189,10 @@ detect_mac80211() {
+@@ -148,11 +184,20 @@ check_board_phy() {
+ 
+ detect_mac80211() {
+ 	devidx=0
++	disabled=0
+ 	config_load wireless
+ 	config_foreach check_devidx wifi-device
  
  	json_load_file /etc/board.json
  
@@ -1026,10 +1032,14 @@ index e24a2a6..58a0c9f 100644
 +	rand=$(hexdump -C /dev/urandom | head -n 1 &)
 +	killall hexdump
 +
++	if (dmesg | grep -q "WM_TM"); then
++		disabled=1
++	fi
++
  	for _dev in /sys/class/ieee80211/*; do
  		[ -e "$_dev" ] || continue
  
-@@ -162,6 +202,14 @@ detect_mac80211() {
+@@ -162,6 +207,14 @@ detect_mac80211() {
  		channel=""
  		htmode=""
  		ht_capab=""
@@ -1044,7 +1054,7 @@ index e24a2a6..58a0c9f 100644
  
  		get_band_defaults "$dev"
  
-@@ -196,6 +244,19 @@ detect_mac80211() {
+@@ -196,6 +249,19 @@ detect_mac80211() {
  				;;
  		esac
  
@@ -1064,14 +1074,14 @@ index e24a2a6..58a0c9f 100644
  		uci -q batch <<-EOF
  			set wireless.${name}=wifi-device
  			set wireless.${name}.type=mac80211
-@@ -203,15 +264,49 @@ detect_mac80211() {
+@@ -203,15 +269,49 @@ detect_mac80211() {
  			set wireless.${name}.channel=${channel}
  			set wireless.${name}.band=${mode_band}
  			set wireless.${name}.htmode=$htmode
 -			set wireless.${name}.disabled=1
 +			set wireless.${name}.country='US'
 +			set wireless.${name}.noscan=${noscan}
-+			set wireless.${name}.disabled=0
++			set wireless.${name}.disabled=${disabled}
 +EOF
 +		[ -n "$mbssid" ] && {
 +			uci -q set wireless.${name}.mbssid=${mbssid}
@@ -1117,4 +1127,3 @@ index e24a2a6..58a0c9f 100644
  		uci -q commit wireless
  	done
  }
-
