@@ -60,6 +60,14 @@
 #define MTK_FE_GDM_FSM(x)		(((x) == 2) ? MTK_FE_GDM3_FSM :	\
 					 ((x) == 1) ? MTK_FE_GDM2_FSM : MTK_FE_GDM1_FSM)
 
+#define MTK_FE_CDM_FSM(x)		(((x) == 0) ? MTK_FE_CDM3_FSM :	\
+					 ((x) == 1) ? MTK_FE_CDM4_FSM : MTK_FE_CDM5_FSM)
+
+#define MTK_FE_WDMA_OQ(x)		\
+	(((x) == 0) ? (mtk_r32(eth, MTK_PSE_OQ_STA(4)) & 0x00000FFF) :	\
+	(((x) == 1) ? (mtk_r32(eth, MTK_PSE_OQ_STA(4)) & 0x0FFF0000) :	\
+	(mtk_r32(eth, MTK_PSE_OQ_STA(6)) & 0x0FFF0000)))
+
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_PSE_IQ_STA(x)		(0x180 + (x) * 0x4)
 #define MTK_PSE_OQ_STA(x)		(0x1A0 + (x) * 0x4)

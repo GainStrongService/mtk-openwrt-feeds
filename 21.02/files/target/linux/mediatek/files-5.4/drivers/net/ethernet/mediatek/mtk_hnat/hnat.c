@@ -49,6 +49,9 @@ EXPORT_SYMBOL(ppe_dev_register_hook);
 void (*ppe_dev_unregister_hook)(struct net_device *dev) = NULL;
 EXPORT_SYMBOL(ppe_dev_unregister_hook);
 
+int (*hnat_set_wdma_pse_port_state)(int wdma_idx, int up) = NULL;
+EXPORT_SYMBOL(hnat_set_wdma_pse_port_state);
+
 static void hnat_sma_build_entry(struct timer_list *t)
 {
 	int i;
@@ -159,6 +162,20 @@ static int mtk_get_wdma_rx_port(int wdma_idx)
 		return NR_WDMA0_PORT;
 
 	return -EINVAL;
+}
+
+static int mtk_set_wdma_pse_port_state(int wdma_idx, int up)
+{
+	u32 port = 0, link_dwn = 0;
+
+	port = mtk_get_wdma_rx_port(wdma_idx);
+	if (port < 0)
+		return -EINVAL;
+
+	link_dwn = 0x1 << (port - NR_WDMA0_PORT);
+	cr_set_field(hnat_priv->fe_base + MTK_FE_GLO_CFG(port), link_dwn, !up);
+
+	return 0;
 }
 
 void set_gmac_ppe_fwd(int id, int enable)
@@ -644,6 +661,7 @@ int hnat_enable_hook(void)
 		ra_sw_nat_clear_bind_entries = foe_clear_all_bind_entries;
 		hnat_get_wdma_tx_port = mtk_get_wdma_tx_port;
 		hnat_get_wdma_rx_port = mtk_get_wdma_rx_port;
+		hnat_set_wdma_pse_port_state = mtk_set_wdma_pse_port_state;
 	}
 
 	if (hnat_register_nf_hooks())
@@ -665,6 +683,7 @@ int hnat_disable_hook(void)
 	ra_sw_nat_clear_bind_entries = NULL;
 	hnat_get_wdma_tx_port = NULL;
 	hnat_get_wdma_rx_port = NULL;
+	hnat_set_wdma_pse_port_state = NULL;
 	hnat_unregister_nf_hooks();
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {

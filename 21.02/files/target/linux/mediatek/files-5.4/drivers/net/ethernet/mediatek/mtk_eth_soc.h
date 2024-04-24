@@ -71,7 +71,7 @@
 #define MTK_RSS_MAX_INDIRECTION_TABLE	128
 
 /* Frame Engine Global Configuration */
-#define MTK_FE_GLO_CFG(x)		((x == MTK_GMAC3_ID) ? 0x24 : 0x00)
+#define MTK_FE_GLO_CFG(port)	((port < 8) ? 0x0 : 0x24)
 #define MTK_FE_LINK_DOWN_P1	BIT(9)
 #define MTK_FE_LINK_DOWN_P2	BIT(10)
 #define MTK_FE_LINK_DOWN_P3	BIT(11)
@@ -312,6 +312,7 @@
 #define MTK_PST_DTX_IDX_CFG(x)	(MTK_PST_DTX_IDX0 << (x))
 
 /*PDMA HW RX Index Register*/
+#define MTK_ADMA_CRX_PTR	(PDMA_BASE + 0x108)
 #define MTK_ADMA_DRX_PTR	(PDMA_BASE + 0x10C)
 
 /* PDMA Delay Interrupt Register */
@@ -563,7 +564,10 @@
 #define MTK_WDMA_RX_DBG_MON1(x)	(WDMA_BASE(x) + 0x3c4)
 #define MTK_WDMA_CRX_PTR(x)	(WDMA_BASE(x) + 0x108)
 #define MTK_WDMA_DRX_PTR(x)	(WDMA_BASE(x) + 0x10C)
-#define MTK_CDM_TXFIFO_RDY	BIT(7)
+#define MTK_CDM_FS_PARSER_FSM_MASK	GENMASK(27, 24)
+#define MTK_CDM_FS_FSM_MASK		GENMASK(19, 16)
+#define MTK_CDM_TS_PARSER_FSM_MASK	GENMASK(12, 8)
+#define MTK_CDM_TS_FSM_MASK		GENMASK(3, 0)
 
 /*TDMA Register*/
 #define MTK_TDMA_GLO_CFG	(0x6204)
@@ -1920,6 +1924,7 @@ struct mtk_eth {
 	u32				rx_dma_l4_valid;
 	int				ip_align;
 	spinlock_t			syscfg0_lock;
+	struct notifier_block		netdevice_notifier;
 	struct timer_list		mtk_dma_monitor_timer;
 };
 

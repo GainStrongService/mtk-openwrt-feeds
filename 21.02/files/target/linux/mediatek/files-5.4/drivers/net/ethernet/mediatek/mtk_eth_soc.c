@@ -945,7 +945,7 @@ static void mtk_gdm_fsm_poll(struct mtk_mac *mac)
 static void mtk_pse_port_link_set(struct mtk_mac *mac, bool up,
 				  phy_interface_t interface)
 {
-	u32 fe_glo_cfg, val = 0;
+	u32 fe_glo_cfg, val = 0, port = 0;
 
 	if (!up && interface == PHY_INTERFACE_MODE_XGMII) {
 		void __iomem *base;
@@ -964,25 +964,29 @@ static void mtk_pse_port_link_set(struct mtk_mac *mac, bool up,
 		}
 	}
 
-	fe_glo_cfg = mtk_r32(mac->hw, MTK_FE_GLO_CFG(mac->id));
 	switch (mac->id) {
 	case MTK_GMAC1_ID:
 		val = MTK_FE_LINK_DOWN_P1;
+		port = PSE_GDM1_PORT;
 		break;
 	case MTK_GMAC2_ID:
 		val = MTK_FE_LINK_DOWN_P2;
+		port = PSE_GDM2_PORT;
 		break;
 	case MTK_GMAC3_ID:
 		val = MTK_FE_LINK_DOWN_P15;
+		port = PSE_GDM3_PORT;
 		break;
 	}
+
+	fe_glo_cfg = mtk_r32(mac->hw, MTK_FE_GLO_CFG(port));
 
 	if (!up)
 		fe_glo_cfg |= val;
 	else
 		fe_glo_cfg &= ~val;
 
-	mtk_w32(mac->hw, fe_glo_cfg, MTK_FE_GLO_CFG(mac->id));
+	mtk_w32(mac->hw, fe_glo_cfg, MTK_FE_GLO_CFG(port));
 	mtk_gdm_fsm_poll(mac);
 }
 
@@ -5788,7 +5792,8 @@ static int mtk_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, eth);
 
-	register_netdevice_notifier(&mtk_eth_netdevice_nb);
+	eth->netdevice_notifier.notifier_call = mtk_eth_netdevice_event;
+	register_netdevice_notifier(&eth->netdevice_notifier);
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 	timer_setup(&eth->mtk_dma_monitor_timer, mtk_dma_monitor, 0);
 	eth->mtk_dma_monitor_timer.expires = jiffies;
@@ -5834,7 +5839,7 @@ static int mtk_remove(struct platform_device *pdev)
 
 	mtk_cleanup(eth);
 	mtk_mdio_cleanup(eth);
-	unregister_netdevice_notifier(&mtk_eth_netdevice_nb);
+	unregister_netdevice_notifier(&eth->netdevice_notifier);
 	del_timer_sync(&eth->mtk_dma_monitor_timer);
 
 	return 0;
