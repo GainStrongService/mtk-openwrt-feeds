@@ -1,4 +1,4 @@
-From c9185a2c4f8787a9ebb5acda6ceacaa79b3adad2 Mon Sep 17 00:00:00 2001
+From ac266f21b594867461f3354940b84d218992a42f Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 22 Apr 2024 16:49:48 +0800
 Subject: [PATCH] mtk: wifi: mt76: mt7996: remain multiple wiphy model for
@@ -7,9 +7,9 @@ Subject: [PATCH] mtk: wifi: mt76: mt7996: remain multiple wiphy model for
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  mt7996/init.c   | 13 ++++++++-----
- mt7996/main.c   |  8 ++++----
+ mt7996/main.c   | 14 ++++++++++----
  mt7996/mt7996.h |  9 ++++-----
- 3 files changed, 16 insertions(+), 14 deletions(-)
+ 3 files changed, 22 insertions(+), 14 deletions(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
 index 047d2b78..3baf40d1 100644
@@ -43,7 +43,7 @@ index 047d2b78..3baf40d1 100644
  #ifdef CONFIG_MTK_VENDOR
  	mt7996_unregister_csi(phy);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 74b87475..9cdcc4a5 100644
+index 74b87475..ea230921 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -140,8 +140,8 @@ static int mt7996_start(struct ieee80211_hw *hw)
@@ -68,6 +68,19 @@ index 74b87475..9cdcc4a5 100644
  		return;
  
  	cancel_delayed_work_sync(&dev->scs_work);
+@@ -453,6 +453,12 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 	    is_zero_ether_addr(vif->addr))
+ 		phy->monitor_vif = vif;
+ 
++	if (dev->testmode_enable && vif->type != NL80211_IFTYPE_MONITOR) {
++		mutex_unlock(&dev->mt76.mutex);
++		dev_err(dev->mt76.dev, "Only monitor interface is allowed in testmode\n");
++		return -EINVAL;
++	}
++
+ 	INIT_DELAYED_WORK(&mvif->beacon_mon_work, mt7996_beacon_mon_work);
+ 	mvif->dev = dev;
+ 	mvif->hw = hw;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
 index 9a9eb75b..5555c11c 100644
 --- a/mt7996/mt7996.h

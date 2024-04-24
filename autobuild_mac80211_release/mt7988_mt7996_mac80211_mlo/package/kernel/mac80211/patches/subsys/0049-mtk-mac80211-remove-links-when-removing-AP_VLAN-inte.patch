@@ -1,4 +1,4 @@
-From cf275081660642ebfc9aaef0722ac499922fb17b Mon Sep 17 00:00:00 2001
+From c1553f36bfb1b80be2306a50d98c0a2d256725b7 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 6 Feb 2024 15:03:49 +0800
 Subject: [PATCH 49/61] mtk: mac80211: remove links when removing AP_VLAN
@@ -42,13 +42,13 @@ index 871623d..c3b9d10 100644
  
  	ieee80211_vif_set_links(sdata, wdev->valid_links, 0);
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index cdeb787..83b579a 100644
+index be52a83..e41bf5c 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
-@@ -393,8 +393,8 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
- 				sdata->vif.active_links = nsdata->vif.active_links;
- 				sdata->vif.dormant_links = nsdata->vif.dormant_links;
- 				for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
+@@ -397,8 +397,8 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
+ 					    sdata->link[i] == &sdata->deflink)
+ 						continue;
+ 
 -					sdata->link[i] = nsdata->link[i];
 -					sdata->vif.link_conf[i] = nsdata->vif.link_conf[i];
 +					rcu_assign_pointer(sdata->link[i], nsdata->link[i]);
@@ -88,5 +88,5 @@ index 2bde8a3..d03f612 100644
  	 * links are controlled by upper layers (userspace/cfg)
  	 * only for AP mode, so only remove them here for AP
 -- 
-2.39.2
+2.18.0
 

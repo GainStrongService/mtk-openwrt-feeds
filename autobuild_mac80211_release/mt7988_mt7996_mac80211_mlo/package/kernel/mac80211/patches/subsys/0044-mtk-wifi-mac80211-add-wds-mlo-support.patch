@@ -1,4 +1,4 @@
-From 14fd30e05515edba0fcca8a7238d402cb2d9dd27 Mon Sep 17 00:00:00 2001
+From 5f294c8632c08814df00df8ed297e852d21b0e02 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 19 Jan 2024 15:22:00 +0800
 Subject: [PATCH 44/61] mtk: wifi: mac80211: add wds mlo support
@@ -11,9 +11,9 @@ Support WDS mode when using MLO.
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  net/mac80211/cfg.c   |  7 -------
- net/mac80211/iface.c | 19 +++++++++++--------
+ net/mac80211/iface.c | 23 +++++++++++++++--------
  net/mac80211/mlme.c  | 15 +++++++++------
- 3 files changed, 20 insertions(+), 21 deletions(-)
+ 3 files changed, 24 insertions(+), 21 deletions(-)
 
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
 index 3233e2a..0cb68fb 100644
@@ -41,10 +41,10 @@ index 3233e2a..0cb68fb 100644
  }
  
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index 0ae31a9..083da12 100644
+index 0ae31a9..fce9834 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
-@@ -381,19 +381,22 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
+@@ -381,19 +381,26 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
  							nsdata->vif.type))
  				return -ENOTUNIQ;
  
@@ -68,6 +68,10 @@ index 0ae31a9..083da12 100644
 +				sdata->vif.active_links = nsdata->vif.active_links;
 +				sdata->vif.dormant_links = nsdata->vif.dormant_links;
 +				for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
++					if (!ieee80211_vif_is_mld(&nsdata->vif) &&
++					    sdata->link[i] == &sdata->deflink)
++						continue;
++
 +					sdata->link[i] = nsdata->link[i];
 +					sdata->vif.link_conf[i] = nsdata->vif.link_conf[i];
 +				}
@@ -119,5 +123,5 @@ index 84ea805..674f3f5 100644
  	if (!assoc_data)
  		return -ENOMEM;
 -- 
-2.39.2
+2.18.0
 

@@ -194,6 +194,7 @@ check_board_phy() {
 
 detect_mac80211() {
 	devidx=0
+	disabled=0
 	config_load wireless
 	config_foreach check_devidx wifi-device
 
@@ -202,6 +203,10 @@ detect_mac80211() {
 	# generate random bytes for macaddr
 	rand=$(hexdump -C /dev/urandom | head -n 1 &)
 	killall hexdump
+
+	if (dmesg | grep -q "WM_TM"); then
+		disabled=1
+	fi
 
 	for _dev in /sys/class/ieee80211/*; do
 		[ -e "$_dev" ] || continue
@@ -277,7 +282,7 @@ detect_mac80211() {
 			set wireless.${name}.htmode=$htmode
 			set wireless.${name}.country='US'
 			set wireless.${name}.noscan=${noscan}
-			set wireless.${name}.disabled=0
+			set wireless.${name}.disabled=${disabled}
 EOF
 		[ -n "$mbssid" ] && {
 			uci -q set wireless.${name}.mbssid=${mbssid}
