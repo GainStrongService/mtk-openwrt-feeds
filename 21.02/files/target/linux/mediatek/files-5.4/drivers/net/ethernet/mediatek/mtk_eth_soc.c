@@ -2978,10 +2978,12 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 					       &ring->phys, GFP_KERNEL);
 	else {
 		struct mtk_tx_ring *tx_ring = &eth->tx_ring;
-		ring->dma = tx_ring->dma + soc->txrx.tx_dma_size *
-			    eth->soc->txrx.txd_size * (ring_no + 1);
-		ring->phys = tx_ring->phys + soc->txrx.tx_dma_size *
-			     (dma_addr_t)eth->soc->txrx.txd_size * (ring_no + 1);
+		ring->dma = tx_ring->dma +
+			    soc->txrx.tx_dma_size * (dma_addr_t)eth->soc->txrx.txd_size +
+			    soc->txrx.rx_dma_size * (dma_addr_t)eth->soc->txrx.rxd_size * ring_no;
+		ring->phys = tx_ring->phys +
+			     soc->txrx.tx_dma_size * (dma_addr_t)eth->soc->txrx.txd_size +
+			     soc->txrx.rx_dma_size * (dma_addr_t)eth->soc->txrx.rxd_size * ring_no;
 	}
 
 	if (!ring->dma)
