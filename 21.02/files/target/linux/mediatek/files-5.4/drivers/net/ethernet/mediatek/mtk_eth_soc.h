@@ -1999,7 +1999,6 @@ int mtk_mac2xgmii_id(struct mtk_eth *eth, int mac_id);
 struct phylink_pcs *mtk_usxgmii_select_pcs(struct mtk_usxgmii *ss, int id);
 int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r);
 int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
-int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
 void mtk_usxgmii_link_poll(struct work_struct *work);
 
 void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
