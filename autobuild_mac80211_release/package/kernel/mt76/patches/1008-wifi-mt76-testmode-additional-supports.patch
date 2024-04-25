@@ -1,14 +1,14 @@
-From 4f2e94943abd5d7e9d70cd54a265d6031a0a7f98 Mon Sep 17 00:00:00 2001
+From 943624b56ab6dd6221977fafa19a76486db8ef74 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 21 Apr 2022 15:43:19 +0800
-Subject: [PATCH 1008/1053] wifi: mt76: testmode: additional supports
+Subject: [PATCH] wifi: mt76: testmode: additional supports
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  dma.c             |    3 +-
  mac80211.c        |   12 +
- mt76.h            |  110 +++-
+ mt76.h            |  119 ++++-
  mt76_connac_mcu.c |    4 +
  mt76_connac_mcu.h |    2 +
  mt7915/eeprom.c   |    2 +-
@@ -26,7 +26,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  testmode.h        |   79 +++
  tools/fields.c    |   90 +++-
  tx.c              |    3 +-
- 20 files changed, 2064 insertions(+), 169 deletions(-)
+ 20 files changed, 2073 insertions(+), 169 deletions(-)
 
 diff --git a/dma.c b/dma.c
 index ccdd564..bc8afcf 100644
@@ -73,7 +73,7 @@ index 3f5c2ed..305cae7 100644
  
  static const struct ieee80211_channel mt76_channels_6ghz[] = {
 diff --git a/mt76.h b/mt76.h
-index fe5b136..3fe18cd 100644
+index fe5b136..a7d424f 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -707,6 +707,21 @@ struct mt76_testmode_ops {
@@ -156,7 +156,7 @@ index fe5b136..3fe18cd 100644
  	u32 tx_pending;
  	u32 tx_queued;
  	u16 tx_queued_limit;
-@@ -1348,6 +1387,59 @@ static inline bool mt76_testmode_enabled(struct mt76_phy *phy)
+@@ -1348,6 +1387,68 @@ static inline bool mt76_testmode_enabled(struct mt76_phy *phy)
  #endif
  }
  
@@ -172,6 +172,15 @@ index fe5b136..3fe18cd 100644
 +				list);
 +}
 +
++static inline struct mt76_wcid *
++mt76_testmode_next_entry(struct mt76_phy *phy, struct mt76_wcid *wcid)
++{
++	if (wcid == &phy->dev->global_wcid)
++		return NULL;
++
++	return list_next_entry(wcid, list);
++}
++
 +static inline struct mt76_testmode_entry_data *
 +mt76_testmode_entry_data(struct mt76_phy *phy, struct mt76_wcid *wcid)
 +{
@@ -184,13 +193,13 @@ index fe5b136..3fe18cd 100644
 +						   phy->hw->sta_data_size);
 +}
 +
-+#define mt76_tm_for_each_entry(phy, wcid, ed)				\
-+	for (wcid = mt76_testmode_first_entry(phy),			\
-+	     ed = mt76_testmode_entry_data(phy, wcid);			\
-+	     ((phy->test.aid &&						\
++#define mt76_tm_for_each_entry(phy, wcid, ed)					\
++	for (wcid = mt76_testmode_first_entry(phy),				\
++	     ed = mt76_testmode_entry_data(phy, wcid);				\
++	     ((phy->test.aid &&							\
 +	       !list_entry_is_head(wcid, &phy->test.tm_entry_list, list)) ||	\
 +	      (!phy->test.aid && wcid == &phy->dev->global_wcid)) && ed;	\
-+	     wcid = list_next_entry(wcid, list),			\
++	     wcid = mt76_testmode_next_entry(phy, wcid),			\
 +	     ed = mt76_testmode_entry_data(phy, wcid))
 +#endif
 +
@@ -216,7 +225,7 @@ index fe5b136..3fe18cd 100644
  static inline bool mt76_is_testmode_skb(struct mt76_dev *dev,
  					struct sk_buff *skb,
  					struct ieee80211_hw **hw)
-@@ -1358,7 +1450,8 @@ static inline bool mt76_is_testmode_skb(struct mt76_dev *dev,
+@@ -1358,7 +1459,8 @@ static inline bool mt76_is_testmode_skb(struct mt76_dev *dev,
  	for (i = 0; i < ARRAY_SIZE(dev->phys); i++) {
  		struct mt76_phy *phy = dev->phys[i];
  
@@ -226,7 +235,7 @@ index fe5b136..3fe18cd 100644
  			*hw = dev->phys[i]->hw;
  			return true;
  		}
-@@ -1460,7 +1553,8 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1460,7 +1562,8 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
  		       struct netlink_callback *cb, void *data, int len);
  int mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state);
@@ -292,10 +301,10 @@ index bfdbc15..f4876fe 100644
  				return ret;
  		}
 diff --git a/mt7915/init.c b/mt7915/init.c
-index fc42974..439403f 100644
+index 0350250..5c4aa1e 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -726,7 +726,7 @@ static void mt7915_init_work(struct work_struct *work)
+@@ -727,7 +727,7 @@ static void mt7915_init_work(struct work_struct *work)
  	struct mt7915_dev *dev = container_of(work, struct mt7915_dev,
  				 init_work);
  
@@ -395,7 +404,7 @@ index 6b99437..7d3397e 100644
  		goto out;
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index f698b24..6415e84 100644
+index 9a6c1f6..da159fe 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -238,7 +238,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
