@@ -1,4 +1,4 @@
-From 943624b56ab6dd6221977fafa19a76486db8ef74 Mon Sep 17 00:00:00 2001
+From e6c4c7343a54ef607d8ceafa4615a32165c121fd Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 21 Apr 2022 15:43:19 +0800
 Subject: [PATCH] wifi: mt76: testmode: additional supports
@@ -268,7 +268,7 @@ index a8f097d..44cd646 100644
  		return;
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 75cb4e9..0972010 100644
+index 22d477f..0f408d9 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1023,6 +1023,7 @@ enum {
@@ -284,9 +284,9 @@ index 75cb4e9..0972010 100644
  	/* for vendor csi and air monitor */
  	MCU_EXT_CMD_SMESH_CTRL = 0xae,
 +	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
+ 	MCU_EXT_CMD_SET_QOS_MAP = 0xb4,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
- };
 diff --git a/mt7915/eeprom.c b/mt7915/eeprom.c
 index bfdbc15..f4876fe 100644
 --- a/mt7915/eeprom.c
@@ -404,7 +404,7 @@ index 6b99437..7d3397e 100644
  		goto out;
  
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 9a6c1f6..da159fe 100644
+index 8835cda..e53754c 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -238,7 +238,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
@@ -417,7 +417,7 @@ index 9a6c1f6..da159fe 100644
  		mvif->mt76.wmm_idx += 2;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 63fb826..233411c 100644
+index 0d1bab1..05919e9 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -478,6 +478,11 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -576,7 +576,7 @@ index 694fc1b..222e2cf 100644
  	[AGG_PCR0]		= 0x040,
  	[AGG_ACR0]		= 0x054,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 0eca040..1846e2f 100644
+index 136e89f..37abf56 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -304,11 +304,15 @@ struct mt7915_phy {
@@ -627,8 +627,8 @@ index 0eca040..1846e2f 100644
  void mt7915_mcu_exit(struct mt7915_dev *dev);
 +int mt7915_tm_txbf_status_read(struct mt7915_dev *dev, struct sk_buff *skb);
  void mt7915_mcu_wmm_pbc_work(struct work_struct *work);
+ int mt7915_mcu_set_qos_map(struct mt7915_dev *dev, struct ieee80211_vif *vif);
  
- static inline u16 mt7915_wtbl_size(struct mt7915_dev *dev)
 diff --git a/mt7915/regs.h b/mt7915/regs.h
 index 8bb6a9f..1236da9 100644
 --- a/mt7915/regs.h

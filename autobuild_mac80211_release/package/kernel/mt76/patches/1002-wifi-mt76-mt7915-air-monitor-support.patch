@@ -1,7 +1,7 @@
-From c77d92fc916236853e030c21b0a89da7b226609f Mon Sep 17 00:00:00 2001
+From 1a63c07be0a813d1342346c937cd2f949439b837 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Tue, 11 Jan 2022 12:03:23 +0800
-Subject: [PATCH 1002/1053] wifi: mt76: mt7915: air monitor support
+Subject: [PATCH] wifi: mt76: mt7915: air monitor support
 
 ---
  mt76_connac_mcu.h |   2 +
@@ -13,7 +13,7 @@ Subject: [PATCH 1002/1053] wifi: mt76: mt7915: air monitor support
  6 files changed, 440 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 2ffe1c9..4172946 100644
+index cda7559..3aa4e59 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1243,6 +1243,8 @@ enum {
@@ -22,9 +22,9 @@ index 2ffe1c9..4172946 100644
  	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
 +	/* for vendor csi and air monitor */
 +	MCU_EXT_CMD_SMESH_CTRL = 0xae,
+ 	MCU_EXT_CMD_SET_QOS_MAP = 0xb4,
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  };
- 
 diff --git a/mt7915/mac.c b/mt7915/mac.c
 index d99864f..e38905a 100644
 --- a/mt7915/mac.c
@@ -41,10 +41,10 @@ index d99864f..e38905a 100644
  		status->flag |= RX_FLAG_8023;
  		mt7915_wed_check_ppe(dev, &dev->mt76.q_rx[q], msta, skb,
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 4aa1b6d..19719b3 100644
+index 4edb11a..847c74b 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -798,6 +798,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -800,6 +800,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	addr = mt7915_mac_wtbl_lmac_addr(dev, msta->wcid.idx, 30);
  	mt76_rmw_field(dev, addr, GENMASK(7, 0), 0xa0);
  
@@ -55,7 +55,7 @@ index 4aa1b6d..19719b3 100644
  }
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 4617c59..35ccfa3 100644
+index 5a26335..576e70a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -232,6 +232,33 @@ struct csi_data {
@@ -101,7 +101,7 @@ index 4617c59..35ccfa3 100644
  #endif
  };
  
-@@ -704,6 +733,9 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -705,6 +734,9 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  void mt7915_vendor_register(struct mt7915_phy *phy);
  int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
  		       u8 cfg, u8 v1, u32 v2, u8 *mac_addr, u32 sta_interval);

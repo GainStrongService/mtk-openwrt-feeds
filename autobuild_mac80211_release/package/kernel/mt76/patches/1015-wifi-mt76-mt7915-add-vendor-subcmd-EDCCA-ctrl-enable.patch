@@ -1,33 +1,33 @@
-From ef07367ab6f484383d0616953254276b31719a21 Mon Sep 17 00:00:00 2001
+From 7f9793b9c724014e9993091b47566cd9bf3cec06 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 24 Jun 2022 11:15:45 +0800
-Subject: [PATCH 1015/1053] wifi: mt76: mt7915: add vendor subcmd EDCCA ctrl
+Subject: [PATCH] wifi: mt76: mt7915: add vendor subcmd EDCCA ctrl
  enable/threshold/compensation
 
 ---
  mt76_connac_mcu.h |   1 +
  mt7915/main.c     |   3 ++
- mt7915/mcu.c      |  73 +++++++++++++++++++++++++
+ mt7915/mcu.c      |  72 +++++++++++++++++++++++++
  mt7915/mcu.h      |  21 ++++++++
  mt7915/mt7915.h   |   3 +-
  mt7915/vendor.c   | 132 ++++++++++++++++++++++++++++++++++++++++++++++
  mt7915/vendor.h   |  33 ++++++++++++
- 7 files changed, 265 insertions(+), 1 deletion(-)
+ 7 files changed, 264 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 69ca57a..b2b7095 100644
+index 9ac1c46..012f9be 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1251,6 +1251,7 @@ enum {
- 	MCU_EXT_CMD_SMESH_CTRL = 0xae,
+@@ -1252,6 +1252,7 @@ enum {
  	MCU_EXT_CMD_RX_STAT_USER_CTRL = 0xb3,
+ 	MCU_EXT_CMD_SET_QOS_MAP = 0xb4,
  	MCU_EXT_CMD_CERT_CFG = 0xb7,
 +	MCU_EXT_CMD_EDCCA = 0xba,
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
  };
 diff --git a/mt7915/main.c b/mt7915/main.c
-index c6eca6f..9fafa16 100644
+index 69477f1..d0ba4b7 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -479,6 +479,9 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
@@ -41,14 +41,13 @@ index c6eca6f..9fafa16 100644
  		ret = mt7915_set_channel(phy);
  		if (ret)
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 9dd4b77..1e84236 100644
+index f5042ae..20395e9 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
-@@ -5037,3 +5037,76 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
- 
+@@ -5038,6 +5038,78 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
  	return 0;
  }
-+
+ 
 +int mt7915_mcu_set_edcca(struct mt7915_phy *phy, int mode, u8 *value, s8 compensation)
 +{
 +	static const u8 ch_band[] = {
@@ -88,7 +87,6 @@ index 9dd4b77..1e84236 100644
 +	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(EDCCA), &req, sizeof(req), true);
 +}
 +
-+
 +int mt7915_mcu_get_edcca(struct mt7915_phy *phy, u8 mode, s8 *value)
 +{
 +	struct mt7915_dev *dev = phy->dev;
@@ -121,6 +119,10 @@ index 9dd4b77..1e84236 100644
 +
 +	return 0;
 +}
++
+ int mt7915_mcu_set_qos_map(struct mt7915_dev *dev, struct ieee80211_vif *vif)
+ {
+ #define IP_DSCP_NUM	64
 diff --git a/mt7915/mcu.h b/mt7915/mcu.h
 index de17c57..1682c11 100644
 --- a/mt7915/mcu.h
@@ -154,10 +156,10 @@ index de17c57..1682c11 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index d21b843..000751b 100644
+index d4a3467..8da1d1b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -770,7 +770,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
+@@ -771,7 +771,8 @@ void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
  int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);
  #endif
