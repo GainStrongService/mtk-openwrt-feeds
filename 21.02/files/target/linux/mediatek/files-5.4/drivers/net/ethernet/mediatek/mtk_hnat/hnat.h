@@ -1146,6 +1146,7 @@ enum FoeIpAct {
 #define NR_WDMA1_PORT 9
 #define NR_WDMA2_PORT 13
 #define NR_GMAC3_PORT 15
+#define NR_QDMA_TPORT 1
 #define LAN_DEV_NAME hnat_priv->lan
 #define LAN2_DEV_NAME hnat_priv->lan2
 #define IS_WAN(dev)                                                            \
