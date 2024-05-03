@@ -1,0 +1,176 @@
+diff --git a/package/network/services/hostapd/files/hostapd.uc b/package/network/services/hostapd/files/hostapd.uc
+index 72209ea..7e9fde4 100644
+--- a/package/network/services/hostapd/files/hostapd.uc
++++ b/package/network/services/hostapd/files/hostapd.uc
+@@ -28,7 +28,8 @@ function iface_remove(cfg)
+ 		return;
+ 
+ 	for (let bss in cfg.bss)
+-		wdev_remove(bss.ifname);
++		if (!bss.mld_ap || bss.mld_primary == 1)
++			wdev_remove(bss.ifname);
+ }
+ 
+ function iface_gen_config(phy, config, start_disabled)
+@@ -62,6 +63,7 @@ function iface_freq_info(iface, config, params)
+ {
+ 	let freq = params.frequency;
+ 	let bw320_offset = params.bw320_offset;
++	let band_idx = params.band_idx;
+ 	if (!freq)
+ 		return null;
+ 
+@@ -92,7 +94,7 @@ function iface_freq_info(iface, config, params)
+ 	if (freq < 4000)
+ 		width = 0;
+ 
+-	return hostapd.freq_info(freq, sec_offset, width, bw320_offset);
++	return hostapd.freq_info(freq, sec_offset, width, bw320_offset, band_idx);
+ }
+ 
+ function iface_add(phy, config, phy_status)
+@@ -154,13 +156,15 @@ function __iface_pending_next(pending, state, ret, data)
+ 		pending.call("wpa_supplicant", "phy_set_macaddr_list", { phy: phy, macaddr: macaddr_list });
+ 		return "create_bss";
+ 	case "create_bss":
+-		let err = wdev_create(phy, bss.ifname, { mode: "ap" });
+-		if (err) {
+-			hostapd.printf(`Failed to create ${bss.ifname} on phy ${phy}: ${err}`);
+-			return null;
++		if (!bss.mld_ap || bss.mld_primary == 1) {
++			let err = wdev_create(config.single_hw == 1 ? "phy0" : phy, bss.ifname, { mode: "ap" });
++			if (err) {
++				hostapd.printf(`Failed to create ${bss.ifname} on phy ${phy}: ${err}`);
++				return null;
++			}
+ 		}
+ 
+-		pending.call("wpa_supplicant", "phy_status", { phy: phy });
++		pending.call("wpa_supplicant", "phy_status", { phy: bss.mld_ap ? "phy0" : phy });
+ 		return "check_phy";
+ 	case "check_phy":
+ 		let phy_status = data;
+@@ -170,12 +174,16 @@ function __iface_pending_next(pending, state, ret, data)
+ 
+ 			hostapd.printf(`Failed to bring up phy ${phy} ifname=${bss.ifname} with supplicant provided frequency`);
+ 		}
+-		pending.call("wpa_supplicant", "phy_set_state", { phy: phy, stop: true });
++		pending.call("wpa_supplicant", "phy_set_state", { phy: bss.mld_ap ? "phy0" : phy, stop: true });
+ 		return "wpas_stopped";
+ 	case "wpas_stopped":
+ 		if (!iface_add(phy, config))
+ 			hostapd.printf(`hostapd.add_iface failed for phy ${phy} ifname=${bss.ifname}`);
+-		pending.call("wpa_supplicant", "phy_set_state", { phy: phy, stop: false });
++		let iface = hostapd.interfaces[phy];
++		if (!bss.mld_ap)
++			pending.call("wpa_supplicant", "phy_set_state", { phy: phy, stop: false });
++		else if (iface.is_mld_finished())
++			pending.call("wpa_supplicant", "phy_set_state", { phy: "phy0", stop: false });
+ 		return null;
+ 	case "done":
+ 	default:
+@@ -682,6 +690,9 @@ function iface_load_config(filename)
+ 		    val[0] == "mbssid")
+ 			config[val[0]] = int(val[1]);
+ 
++		if (val[0] == "#single_hw")
++			config["single_hw"] = int(val[1]);
++
+ 		push(config.radio.data, line);
+ 	}
+ 
+@@ -698,6 +709,12 @@ function iface_load_config(filename)
+ 			continue;
+ 		}
+ 
++		if (val[0] == "mld_ap" && int(val[1]) == 1)
++			bss.mld_ap = 1;
++
++		if (val[0] == "mld_primary" && int(val[1]) == 1)
++			bss.mld_primary = 1;
++
+ 		if (val[0] == "nas_identifier")
+ 			bss.nasid = val[1];
+ 
+@@ -752,6 +769,7 @@ let main_obj = {
+ 			sec_chan_offset: 0,
+ 			ch_width: -1,
+ 			bw320_offset: 1,
++			band_idx: 0,
+ 			csa: true,
+ 			csa_count: 0,
+ 		},
+@@ -766,6 +784,7 @@ let main_obj = {
+ 			hostapd.printf(`    * sec_chan_offset: ${req.args.sec_chan_offset}`);
+ 			hostapd.printf(`    * ch_width: ${req.args.ch_width}`);
+ 			hostapd.printf(`    * bw320_offset: ${req.args.bw320_offset}`);
++			hostapd.printf(`    * band_idx: ${req.args.band_idx}`);
+ 			hostapd.printf(`    * csa: ${req.args.csa}`);
+ 
+ 			let phy = req.args.phy;
+diff --git a/package/network/services/hostapd/files/wpa_supplicant.uc b/package/network/services/hostapd/files/wpa_supplicant.uc
+index e320330..21eefca 100644
+--- a/package/network/services/hostapd/files/wpa_supplicant.uc
++++ b/package/network/services/hostapd/files/wpa_supplicant.uc
+@@ -37,7 +37,7 @@ function iface_start(phydev, iface, macaddr_list)
+ 
+ 	wpas.data.iface_phy[ifname] = phy;
+ 	wdev_remove(ifname);
+-	let ret = wdev_create(phy, ifname, wdev_config);
++	let ret = wdev_create("phy0", ifname, wdev_config);
+ 	if (ret)
+ 		wpas.printf(`Failed to create device ${ifname}: ${ret}`);
+ 	wdev_set_up(ifname, true);
+@@ -257,10 +257,9 @@ function iface_event(type, name, data) {
+ 	ubus.call("service", "event", { type: `wpa_supplicant.${name}.${type}`, data: {} });
+ }
+ 
+-function iface_hostapd_notify(phy, ifname, iface, state)
++function iface_hostapd_notify(phy, ifname, iface, state, link_id)
+ {
+ 	let ubus = wpas.data.ubus;
+-	let status = iface.status();
+ 	let msg = { phy: phy };
+ 
+ 	wpas.printf(`ucode: mtk: wpa_s in state ${state} notifies hostapd`);
+@@ -275,11 +274,13 @@ function iface_hostapd_notify(phy, ifname, iface, state)
+ 		msg.up = true;
+ 		break;
+ 	case "COMPLETED":
++		let status = iface.status(link_id);
+ 		msg.up = true;
+ 		msg.frequency = status.frequency;
+ 		msg.sec_chan_offset = status.sec_chan_offset;
+ 		msg.ch_width = status.ch_width;
+ 		msg.bw320_offset = status.bw320_offset;
++		msg.band_idx = status.band_idx;
+ 		break;
+ 	default:
+ 		return;
+@@ -317,12 +318,24 @@ return {
+ 	},
+ 	state: function(ifname, iface, state) {
+ 		let phy = wpas.data.iface_phy[ifname];
++		let ret = iface.get_valid_links();
++		let link_id = 0, valid_links = ret.valid_links;
+ 		if (!phy) {
+ 			wpas.printf(`no PHY for ifname ${ifname}`);
+ 			return;
+ 		}
+ 
+-		iface_hostapd_notify(phy, ifname, iface, state);
++		if (valid_links) {
++			while (valid_links) {
++				if (valid_links & 1)
++					iface_hostapd_notify(phy, ifname, iface, state, link_id);
++
++				link_id++;
++				valid_links >>= 1;
++			}
++		} else {
++			iface_hostapd_notify(phy, ifname, iface, state, -1);
++		}
+ 
+ 		if (state != "COMPLETED")
+ 			return;
+

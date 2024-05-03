@@ -75,19 +75,14 @@ rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/*
 # remove crypto-eip package since it not support at mt76 yet
 rm -rf ${BUILD_DIR}/package/mtk_soc/drivers/crypto-eip/
 
-# ========== specific modification on mt7996 autobuild for EHT support ==========
-# patch hostapd to use latest version and add 11BE config
-patch -p1 < ${BUILD_DIR}/autobuild/${branch_name}/0002-add-EHT-config-for-hostapd.patch || exit 1
-
 # remove some iw patches to let EHT work normally
 rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/001-nl80211_h_sync.patch
 rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/120-antenna_gain.patch
 # ===========================================================
 
-# Add afc build config
-patch -p1 < ${BUILD_DIR}/autobuild/0007-add-afcd-build-configuration.patch || exit 1
-# Add mlo commit
-patch -p1 < ${BUILD_DIR}/autobuild/${branch_name}/0003-sync-mlo-commit-for-hostapd.patch || exit 1
+# ========== specific modification on mt7996 autobuild for MLO support ==========
+do_patch ${MTK_FEED_DIR}/autobuild_mac80211_release/openwrt_patches${OPENWRT_VER}/wifi7_mlo || exit 1
+
 # disable RADIUS in hostapd config
 sed -i "s/.*CONFIG_RADIUS_SERVER.*/# CONFIG_RADIUS_SERVER=y/g" ${BUILD_DIR}/package/network/services/hostapd/files/hostapd-full.config
 sed -i "s/.*CONFIG_NO_RADIUS=y.*/CONFIG_NO_RADIUS=y/g" ${BUILD_DIR}/package/network/services/hostapd/files/hostapd-full.config

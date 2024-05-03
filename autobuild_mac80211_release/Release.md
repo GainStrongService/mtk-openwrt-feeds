@@ -85,7 +85,7 @@ src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-fe
 
 
 
-#### Filogic 830/820/630 WiFi6 MP2.3 Release (20240426)
+#### Filogic 830/820/630 WiFi6 MP2.3 Release (Coming Soon)
 
 ```
 #Get Openwrt 21.02 source code from Git server
