@@ -10,6 +10,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/of_address.h>
+#include <linux/mtd/mtd.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/clk.h>
@@ -4492,8 +4493,10 @@ static int __init mtk_init(struct net_device *dev)
 	const char *mac_addr;
 
 	mac_addr = of_get_mac_address(mac->of_node);
-	if (!IS_ERR(mac_addr))
+	if (!IS_ERR(mac_addr)) {
 		ether_addr_copy(dev->dev_addr, mac_addr);
+		ether_addr_copy(dev->perm_addr, mac_addr);
+	}
 
 	/* If the mac address is invalid, use random mac address  */
 	if (!is_valid_ether_addr(dev->dev_addr)) {
@@ -5250,6 +5253,40 @@ static int mtk_add_mux(struct mtk_eth *eth, struct device_node *np)
 	return 0;
 }
 
+static int mtk_of_mtd_mac_address_is_available(struct device_node *np)
+{
+#ifdef CONFIG_MTD
+	struct device_node *mtd_np = NULL;
+	int size;
+	struct mtd_info *mtd;
+	const char *part;
+	const __be32 *list;
+	phandle phandle;
+
+	list = of_get_property(np, "mtd-mac-address", &size);
+	if (!list || (size != (2 * sizeof(*list))))
+		return 0;
+
+	phandle = be32_to_cpup(list++);
+	if (phandle)
+		mtd_np = of_find_node_by_phandle(phandle);
+
+	if (!mtd_np)
+		return 0;
+
+	part = of_get_property(mtd_np, "label", NULL);
+	if (!part)
+		part = mtd_np->name;
+
+	mtd = get_mtd_device_nm(part);
+	if (IS_ERR(mtd))
+		return -ENODEV;
+
+	return 1;
+#endif
+	return 0;
+}
+
 static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 {
 	const __be32 *_id = of_get_property(np, "reg", NULL);
@@ -5277,6 +5314,9 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 		dev_err(eth->dev, "duplicate mac id found: %d\n", id);
 		return -EINVAL;
 	}
+
+	if (mtk_of_mtd_mac_address_is_available(np) < 0)
+		return -EPROBE_DEFER;
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
 		txqs = MTK_QDMA_TX_NUM;
