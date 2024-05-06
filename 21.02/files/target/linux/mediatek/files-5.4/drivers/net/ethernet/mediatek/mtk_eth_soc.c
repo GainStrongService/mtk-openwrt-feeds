@@ -4409,7 +4409,7 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 
 		/* GDM and CDM Threshold */
 		mtk_w32(eth, 0x00000004, MTK_CDM2_THRES);
-		mtk_w32(eth, 0x00000707, MTK_CDMW0_THRES);
+		mtk_w32(eth, 0x08000707, MTK_CDMW0_THRES);
 		mtk_w32(eth, 0x00000077, MTK_CDMW1_THRES);
 
 		/* Disable GDM1 RX CRC stripping */
