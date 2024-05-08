@@ -85,17 +85,20 @@ src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-fe
 
 
 
-#### Filogic 830/820/630 WiFi6 MP2.3 Release (Coming Soon)
+#### Filogic 830/820/630/615 WiFi6 MP2.3 Release (20240510)
 
 ```
 #Get Openwrt 21.02 source code from Git server
 git clone --branch openwrt-21.02 https://git.openwrt.org/openwrt/openwrt.git
+cd openwrt; git checkout 4a1d8ef55cbf247f06dae8e958eb8eb42f1882a5; cd -;
 
 #Get Openwrt master source code from Git Server
 git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_package
+cd mac80211_package; git checkout 21ddd1164dc53b098ed36f8330c397e7de8076e6; cd -;
 
 #Get mtk-openwrt-feeds source code
 git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+cd mtk-openwrt-feeds; git checkout 1c24909aa41eb62c8170798194794e75a508ad08; cd -;
 
 #Change to openwrt folder
 cp -rf mtk-openwrt-feeds/autobuild_mac80211_release openwrt
@@ -108,20 +111,26 @@ echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-open
 vim autobuild/feeds.conf.default-21.02
 
 #Choose one platform to build
-#Filogic830/630 (APSoC: MT7986A/B , PCIE: MT7915A/D, MT7916)
+#Filogic830/630/615 (APSoC: MT7986A/B , PCIE: MT7915A/D, MT7916)
 ./autobuild/mt7986_mac80211/lede-branch-build-sanity.sh
+
 #Filogic820  (APSoC: MT7981)
 ./autobuild/mt7981_mac80211/lede-branch-build-sanity.sh
 
 #Further Build (After 1st full build)
 ./scripts/feeds update –a
 make V=s
+
 ```
 
 ##### Feeds Revision
 
 ```
 #vim autobuild/feeds.conf.default-21.02
+src-git packages https://git.openwrt.org/feed/packages.git^1be343f
+src-git luci https://git.openwrt.org/project/luci.git^e4c4633
+src-git routing https://git.openwrt.org/feed/routing.git^a9e4310
+src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^1c24909
 ```
 
 ##### WiFi Package Version
