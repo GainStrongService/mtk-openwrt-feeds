@@ -138,7 +138,7 @@ index 3537e3ae..3664297a 100644
  	return 0
  }
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
-index 66bdf5cf..aeaafa05 100755
+index 66bdf5cf..5ded25db 100755
 --- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 @@ -29,7 +29,7 @@ drv_mac80211_init_device_config() {
@@ -250,7 +250,7 @@ index 66bdf5cf..aeaafa05 100755
  ${dtim_period:+dtim_period=$dtim_period}
  ${max_listen_int:+max_listen_interval=$max_listen_int}
  EOF
-@@ -783,8 +800,62 @@ mac80211_set_ifname() {
+@@ -783,10 +800,64 @@ mac80211_set_ifname() {
  	eval "ifname=\"$phy-$prefix\${idx_$prefix:-0}\"; idx_$prefix=\$((\${idx_$prefix:-0 } + 1))"
  }
  
@@ -311,8 +311,11 @@ index 66bdf5cf..aeaafa05 100755
 +		fi
 +	fi
  
- 	json_get_vars ifname mode ssid wds powersave macaddr enable wpa_psk_file vlan_file
+-	json_get_vars ifname mode ssid wds powersave macaddr enable wpa_psk_file vlan_file
++	json_get_vars ifname mode ssid wds powersave macaddr enable wpa_psk_file vlan_file mld_primary
  
+ 	[ -n "$ifname" ] || {
+ 		local prefix;
 @@ -805,7 +876,6 @@ mac80211_prepare_vif() {
  	set_default powersave 0
  	json_add_string _ifname "$ifname"
@@ -321,7 +324,7 @@ index 66bdf5cf..aeaafa05 100755
  	if [ "$mbssid" -gt 0 ] && [ "$mode" == "ap" ]; then
  		[ "$mbssidx" -eq 0 ] && {
  			if [ -z $macaddr ]; then
-@@ -821,12 +891,10 @@ mac80211_prepare_vif() {
+@@ -821,16 +891,14 @@ mac80211_prepare_vif() {
  	elif [ -z "$macaddr" ]; then
  		macaddr="$(mac80211_generate_mac $phy)"
  		macidx="$(($macidx + 1))"
@@ -334,6 +337,11 @@ index 66bdf5cf..aeaafa05 100755
  	json_select ..
  
  
+-	[ "$mode" == "ap" ] && {
++	[ "$mode" == "ap" ] && [ "$mld_primary" != "0" ] && {
+ 		[ -z "$wpa_psk_file" ] && hostapd_set_psk "$ifname"
+ 		[ -z "$vlan_file" ] && hostapd_set_vlan "$ifname"
+ 	}
 @@ -950,7 +1018,7 @@ mac80211_setup_adhoc() {
  
  	json_add_object "$ifname"
