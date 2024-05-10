@@ -1,7 +1,8 @@
-From 771d717a6bce6c6a7f7bb06599b42fa3994b560e Mon Sep 17 00:00:00 2001
+From 15b2679217535569b2c27dad231ad2c38857a3d2 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Fri, 15 Dec 2023 14:03:11 +0800
-Subject: [PATCH] wifi: mt76: mt7915: Add support for lpi and duplicate mode
+Subject: [PATCH 1042/1051] wifi: mt76: mt7915: Add support for lpi and
+ duplicate mode
 
 Add support lpi and duplicate mode.
 1. lpi_enable: lpi fw cmd and set psd flag to fw by the country setting.
@@ -30,7 +31,7 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  12 files changed, 210 insertions(+), 17 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index 4213e44..2ee262a 100644
+index aa33e7b..261d65a 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -224,8 +224,9 @@ static bool mt76_string_prop_find(struct property *prop, const char *str)
@@ -94,7 +95,7 @@ index 4213e44..2ee262a 100644
  		return target_power;
  
 diff --git a/mt76.h b/mt76.h
-index c011812..b023f38 100644
+index 7ffba7d..a7a8ece 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -853,6 +853,9 @@ struct mt76_phy {
@@ -107,7 +108,7 @@ index c011812..b023f38 100644
  	u8 antenna_mask;
  	u16 chainmask;
  
-@@ -1744,7 +1747,7 @@ mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
+@@ -1753,7 +1756,7 @@ mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
  void mt76_set_irq_mask(struct mt76_dev *dev, u32 addr, u32 clear, u32 set);
  
  struct device_node *
@@ -135,7 +136,7 @@ index eb47653..49ba39f 100644
  	MT_TX_FRAG_NONE,
  	MT_TX_FRAG_FIRST,
 diff --git a/mt76_connac_mac.c b/mt76_connac_mac.c
-index 5ba0255..5f705bb 100644
+index c23d266..d170815 100644
 --- a/mt76_connac_mac.c
 +++ b/mt76_connac_mac.c
 @@ -572,7 +572,8 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
@@ -160,10 +161,10 @@ index 5ba0255..5f705bb 100644
  
  		txwi[7] &= ~cpu_to_le32(MT_TXD7_HW_AMSDU);
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index cbe8da5..c96621f 100644
+index e445046..4f87e25 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1257,6 +1257,7 @@ enum {
+@@ -1258,6 +1258,7 @@ enum {
  	MCU_EXT_CMD_SWLNA_ACI_CTRL = 0xc0,
  	MCU_EXT_CMD_CSI_CTRL = 0xc2,
  	MCU_EXT_CMD_IPI_HIST_SCAN = 0xc5,
@@ -193,7 +194,7 @@ index 502b493..b2a4ff4 100644
  
  out:
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 373f4f5..b53075b 100644
+index 2196d5f..9932266 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
 @@ -287,7 +287,7 @@ static void __mt7915_init_txpower(struct mt7915_phy *phy,
@@ -218,7 +219,7 @@ index 373f4f5..b53075b 100644
  
  static void
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index c5f60c0..e17c61d 100644
+index 87409a4..196cc33 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -1522,7 +1522,8 @@ mt7915_mcu_set_spe_idx(struct mt7915_dev *dev, struct ieee80211_vif *vif,
@@ -354,10 +355,10 @@ index c5f60c0..e17c61d 100644
  			      u8 en)
  {
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 1b2f584..ff08d25 100644
+index 2981e5a..d524fbf 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -807,6 +807,7 @@ int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
+@@ -810,6 +810,7 @@ int mt7915_mcu_set_csi(struct mt7915_phy *phy, u8 mode,
  void mt7915_vendor_amnt_fill_rx(struct mt7915_phy *phy, struct sk_buff *skb);
  int mt7915_vendor_amnt_sta_remove(struct mt7915_phy *phy,
  				  struct ieee80211_sta *sta);

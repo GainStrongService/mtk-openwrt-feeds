@@ -1,7 +1,7 @@
-From b50df1502bddba9963eadba8d69e6b95a9b87337 Mon Sep 17 00:00:00 2001
+From 852fc4ec3ad815f3cd38e1ce8c3c10929d3961fe Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Jun 2022 20:13:02 +0800
-Subject: [PATCH] wifi: mt76: mt7915: csi: implement csi support
+Subject: [PATCH 1001/1051] wifi: mt76: mt7915: csi: implement csi support
 
 ---
  mt76_connac_mcu.h |   2 +
@@ -55,10 +55,10 @@ index fd71141..65129b4 100644
  mt7915e-$(CONFIG_NL80211_TESTMODE) += testmode.o
  mt7915e-$(CONFIG_MT798X_WMAC) += soc.o
 diff --git a/mt7915/init.c b/mt7915/init.c
-index 19a68c5..c504ebf 100644
+index 2ae7977..3f06360 100644
 --- a/mt7915/init.c
 +++ b/mt7915/init.c
-@@ -697,6 +697,12 @@ mt7915_register_ext_phy(struct mt7915_dev *dev, struct mt7915_phy *phy)
+@@ -662,6 +662,12 @@ mt7915_register_ext_phy(struct mt7915_dev *dev, struct mt7915_phy *phy)
  	/* init wiphy according to mphy and phy */
  	mt7915_init_wiphy(phy);
  
@@ -71,7 +71,7 @@ index 19a68c5..c504ebf 100644
  	ret = mt76_register_phy(mphy, true, mt76_rates,
  				ARRAY_SIZE(mt76_rates));
  	if (ret)
-@@ -1178,6 +1184,24 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
+@@ -1143,6 +1149,24 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
  	}
  }
  
@@ -96,7 +96,7 @@ index 19a68c5..c504ebf 100644
  static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
  {
  	struct mt7915_phy *phy = mt7915_ext_phy(dev);
-@@ -1186,6 +1210,10 @@ static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
+@@ -1151,6 +1175,10 @@ static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
  	if (!phy)
  		return;
  
@@ -107,7 +107,7 @@ index 19a68c5..c504ebf 100644
  	mt7915_unregister_thermal(phy);
  	mt76_unregister_phy(mphy);
  	ieee80211_free_hw(mphy->hw);
-@@ -1198,6 +1226,10 @@ static void mt7915_stop_hardware(struct mt7915_dev *dev)
+@@ -1163,6 +1191,10 @@ static void mt7915_stop_hardware(struct mt7915_dev *dev)
  	mt7915_dma_cleanup(dev);
  	tasklet_disable(&dev->mt76.irq_tasklet);
  
@@ -118,7 +118,7 @@ index 19a68c5..c504ebf 100644
  	if (is_mt798x(&dev->mt76))
  		mt7986_wmac_disable(dev);
  }
-@@ -1242,6 +1274,12 @@ int mt7915_register_device(struct mt7915_dev *dev)
+@@ -1207,6 +1239,12 @@ int mt7915_register_device(struct mt7915_dev *dev)
  	dev->mt76.test_ops = &mt7915_testmode_ops;
  #endif
  
@@ -132,7 +132,7 @@ index 19a68c5..c504ebf 100644
  				   ARRAY_SIZE(mt76_rates));
  	if (ret)
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 3ac3df3..4edb11a 100644
+index 5523031..6b6e0fa 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -811,6 +811,10 @@ void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -147,7 +147,7 @@ index 3ac3df3..4edb11a 100644
  
  	mt7915_mac_wtbl_update(dev, msta->wcid.idx,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 1a3647a..65609b4 100644
+index 37b1505..3f35ba3 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -40,6 +40,10 @@ static bool sr_scene_detect = true;
@@ -458,10 +458,10 @@ index 9ae0f07..f32d525 100644
 +
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 398f851..5a26335 100644
+index d2224dc..559a34b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -195,6 +195,45 @@ struct mt7915_hif {
+@@ -197,6 +197,45 @@ struct mt7915_hif {
  	int irq;
  };
  
@@ -507,7 +507,7 @@ index 398f851..5a26335 100644
  struct mt7915_phy {
  	struct mt76_phy *mt76;
  	struct mt7915_dev *dev;
-@@ -243,6 +282,21 @@ struct mt7915_phy {
+@@ -245,6 +284,21 @@ struct mt7915_phy {
  		u8 spe_idx;
  	} test;
  #endif
@@ -529,7 +529,7 @@ index 398f851..5a26335 100644
  };
  
  #ifdef MTK_DEBUG
-@@ -647,6 +701,12 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -649,6 +703,12 @@ void mt7915_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  			 bool pci, int *irq);
  

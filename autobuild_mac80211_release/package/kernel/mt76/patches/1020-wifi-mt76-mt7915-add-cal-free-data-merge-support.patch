@@ -1,7 +1,7 @@
-From 0d530532bcd6795ff333eb7dafee44872c35c64b Mon Sep 17 00:00:00 2001
+From d9da478994e78ed307ad2a1fac7b300c8251fbc2 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 30 Mar 2023 15:12:37 +0800
-Subject: [PATCH 1020/1053] wifi: mt76: mt7915: add cal free data merge support
+Subject: [PATCH 1020/1051] wifi: mt76: mt7915: add cal free data merge support
 
 1. add basic cal free data support
 2. add E3 low yield rate workaround for panther E3 with 7976 adie
@@ -322,7 +322,7 @@ index 99101f9..70fca0b 100644
  	MT7976_ONE_ADIE_DBDC = 0x7,
  	MT7975_ONE_ADIE	= 0x8,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 072185f..1262206 100644
+index 89b35e8..372168d 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2968,6 +2968,7 @@ int mt7915_mcu_get_eeprom(struct mt7915_dev *dev, u32 offset, u8 *read_buf)
@@ -353,10 +353,10 @@ index 072185f..1262206 100644
  	dev_kfree_skb(skb);
  
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 00d2b35..1e5cd94 100644
+index d9a885d..d32b12f 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -562,6 +562,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
+@@ -564,6 +564,7 @@ u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
  
  int mt7915_register_device(struct mt7915_dev *dev);
  void mt7915_unregister_device(struct mt7915_dev *dev);

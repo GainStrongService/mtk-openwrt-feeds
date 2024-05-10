@@ -1,7 +1,7 @@
-From 3a8ffe4b10bd9949dcd689406d5378a1b93c201d Mon Sep 17 00:00:00 2001
+From e64321af1c112f7a5f4c72a23fe96573b7f14a1f Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 15 Feb 2024 11:16:16 +0800
-Subject: [PATCH 1046/1053] wifi: mt76: mt7915: support spatial reuse debug
+Subject: [PATCH 1045/1051] wifi: mt76: mt7915: support spatial reuse debug
  commands
 
 Support 3 spatial reuse debug commands:
@@ -19,7 +19,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  5 files changed, 191 insertions(+), 4 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index c96621f..dc60e35 100644
+index 4f87e25..292ef0f 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1031,6 +1031,7 @@ enum {
@@ -31,7 +31,7 @@ index c96621f..dc60e35 100644
  };
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index ddb738c..b3faf77 100644
+index fda1efe..cb78961 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -452,6 +452,91 @@ mt7915_mcu_rx_bss_acq_pkt_cnt(struct mt7915_dev *dev, struct sk_buff * skb)
@@ -233,10 +233,10 @@ index 742a785..f476767 100644
  	THERMAL_PROTECT_PARAMETER_CTRL,
  	THERMAL_PROTECT_BASIC_INFO,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 34f1a35..47f7d16 100644
+index 223e034..a6901dd 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -354,6 +354,9 @@ struct mt7915_phy {
+@@ -356,6 +356,9 @@ struct mt7915_phy {
  	struct mt7915_air_monitor_ctrl amnt_ctrl;
  #endif
  	struct mt7915_scs_ctrl scs_ctrl;
@@ -247,7 +247,7 @@ index 34f1a35..47f7d16 100644
  
  #ifdef MTK_DEBUG
 diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
-index d3d3b17..78ac4e5 100644
+index 352b8e9..0f72f30 100644
 --- a/mt7915/mtk_debugfs.c
 +++ b/mt7915/mtk_debugfs.c
 @@ -3809,16 +3809,34 @@ mt7915_sw_aci_set(void *data, u64 val)

@@ -1,7 +1,7 @@
-From ab7172fb880f05bc6005a78982278c5b365055b4 Mon Sep 17 00:00:00 2001
+From 0454c032c589da59ef4e44654d2f650e273e215a Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Tue, 13 Dec 2022 17:51:26 +0800
-Subject: [PATCH 2001/2014] wifi: mt76: mt7915: wed: add wds support when wed
+Subject: [PATCH 2001/2015] wifi: mt76: mt7915: wed: add wds support when wed
  is enabled
 
 Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
@@ -15,7 +15,7 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  6 files changed, 82 insertions(+), 10 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index fb50d88..d3c6ac0 100644
+index e6482e5..6168758 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -78,6 +78,12 @@ enum mt76_wed_type {
@@ -32,10 +32,10 @@ index fb50d88..d3c6ac0 100644
  	u32 (*rr)(struct mt76_dev *dev, u32 offset);
  	void (*wr)(struct mt76_dev *dev, u32 offset, u32 val);
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 332b087..ab60159 100644
+index ed7ade1..6276230 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -829,8 +829,15 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -831,8 +831,15 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  #endif
  	int ret, idx;
  	u32 addr;
@@ -52,7 +52,7 @@ index 332b087..ab60159 100644
  	if (idx < 0)
  		return -ENOSPC;
  
-@@ -1321,6 +1328,13 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
+@@ -1323,6 +1330,13 @@ static void mt7915_sta_set_4addr(struct ieee80211_hw *hw,
  	else
  		clear_bit(MT_WCID_FLAG_4ADDR, &msta->wcid.flags);
  
@@ -66,7 +66,7 @@ index 332b087..ab60159 100644
  	mt76_connac_mcu_wtbl_update_hdr_trans(&dev->mt76, vif, sta);
  }
  
-@@ -1760,8 +1774,12 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1768,8 +1782,12 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
  	path->dev = ctx->dev;
  	path->mtk_wdma.wdma_idx = wed->wdma_idx;
  	path->mtk_wdma.bss = mvif->mt76.idx;
@@ -81,7 +81,7 @@ index 332b087..ab60159 100644
  	ctx->dev = NULL;
  
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index d857658..b42afe8 100644
+index 853a50e..4390f42 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -2588,10 +2588,18 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)

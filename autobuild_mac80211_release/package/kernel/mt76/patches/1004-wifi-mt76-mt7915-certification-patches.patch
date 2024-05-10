@@ -1,7 +1,7 @@
-From e98f4b4ccc941705436b9cdfbd22b2e72b2ef055 Mon Sep 17 00:00:00 2001
+From 9196ca94b27491c6841a3a1a46afb8557f82e62d Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 6 Jun 2022 20:15:51 +0800
-Subject: [PATCH] wifi: mt76: mt7915: certification patches
+Subject: [PATCH 1004/1051] wifi: mt76: mt7915: certification patches
 
 ---
  mt76_connac_mcu.h    |   1 +
@@ -28,7 +28,7 @@ index 3aa4e59..d62b7df 100644
  };
  
 diff --git a/mt7915/mac.c b/mt7915/mac.c
-index e38905a..43cff27 100644
+index 778f04f..2fd1d1f 100644
 --- a/mt7915/mac.c
 +++ b/mt7915/mac.c
 @@ -8,6 +8,7 @@
@@ -39,7 +39,7 @@ index e38905a..43cff27 100644
  
  #define to_rssi(field, rcpi)	((FIELD_GET(field, rcpi) - 220) / 2)
  
-@@ -2002,6 +2003,21 @@ static void mt7915_mac_sta_stats_work(struct mt7915_phy *phy)
+@@ -1961,6 +1962,21 @@ static void mt7915_mac_sta_stats_work(struct mt7915_phy *phy)
  	spin_unlock_bh(&phy->stats_lock);
  }
  
@@ -61,7 +61,7 @@ index e38905a..43cff27 100644
  void mt7915_mac_sta_rc_work(struct work_struct *work)
  {
  	struct mt7915_dev *dev = container_of(work, struct mt7915_dev, rc_work);
-@@ -2024,6 +2040,13 @@ void mt7915_mac_sta_rc_work(struct work_struct *work)
+@@ -1983,6 +1999,13 @@ void mt7915_mac_sta_rc_work(struct work_struct *work)
  		sta = container_of((void *)msta, struct ieee80211_sta, drv_priv);
  		vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
  
@@ -76,7 +76,7 @@ index e38905a..43cff27 100644
  			       IEEE80211_RC_NSS_CHANGED |
  			       IEEE80211_RC_BW_CHANGED))
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 847c74b..8835cda 100644
+index 9fd65f0..5c483b3 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -771,6 +771,9 @@ int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -107,7 +107,7 @@ index 847c74b..8835cda 100644
  
  void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index b38c3d1..b50a2c2 100644
+index 5aaa3f0..aaac73a 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -4402,6 +4402,472 @@ mt7915_mcu_report_csi(struct mt7915_dev *dev, struct sk_buff *skb)
@@ -818,10 +818,10 @@ index f44146e..eef2fc0 100644
  
  #endif
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 30fb064..136e89f 100644
+index 95722cb..ea309bf 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -733,6 +733,19 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+@@ -735,6 +735,19 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
  			 bool pci, int *irq);
  
  #ifdef CONFIG_MTK_VENDOR

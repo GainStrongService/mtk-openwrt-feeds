@@ -1,7 +1,8 @@
-From e9f5c9f345503c5653d1a5fd5bedd69cd1bc48f1 Mon Sep 17 00:00:00 2001
+From d7dce21af9906258a21e0ff73349900f41c46bbd Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 21 Dec 2023 20:35:36 +0800
-Subject: [PATCH] wifi: mt76: mt7915: support thermal recal debug commnad
+Subject: [PATCH 1041/1051] wifi: mt76: mt7915: support thermal recal debug
+ commnad
 
 Add thermal recal debug command:
 $ echo val > debugfs/thermal_recal
@@ -32,7 +33,7 @@ index 247b520..e445046 100644
  	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
  	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index aa3f9ad..2417251 100644
+index 762c035..87409a4 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -5357,6 +5357,21 @@ void mt7915_mcu_scs_sta_poll(struct work_struct *work)
@@ -58,10 +59,10 @@ index aa3f9ad..2417251 100644
  {
  #define IP_DSCP_NUM	64
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index 3daec29..9b52ec4 100644
+index 696db7b..2981e5a 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
-@@ -817,6 +817,7 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
+@@ -819,6 +819,7 @@ int mt7915_mcu_ipi_hist_scan(struct mt7915_phy *phy, void *data, u8 mode, bool w
  int mt7915_mcu_enable_obss_spr(struct mt7915_phy *phy, u8 action, u8 val);
  int mt7915_mcu_set_scs_en(struct mt7915_phy *phy, u8 enable);
  void mt7915_mcu_scs_sta_poll(struct work_struct *work);
