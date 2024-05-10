@@ -10,6 +10,8 @@
  *   Copyright (C) 2014-2016 Sean Wang <sean.wang@mediatek.com>
  *   Copyright (C) 2016-2017 John Crispin <blogic@openwrt.org>
  */
+#ifndef _MTK_HNAT_HNAT_H_
+#define _MTK_HNAT_HNAT_H_
 
 #include <linux/debugfs.h>
 #include <linux/string.h>
@@ -1330,3 +1332,4 @@ static inline u16 foe_timestamp(struct mtk_hnat *h)
 {
 	return (readl(hnat_priv->fe_base + 0x0010)) & 0xffff;
 }
+#endif /* _MTK_HNAT_HNAT_H_ */
