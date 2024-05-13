@@ -1,8 +1,8 @@
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
-index 3537e3ae..3664297a 100644
+index 3537e3ae..0f4261c0 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
-@@ -412,6 +412,10 @@ hostapd_common_add_bss_config() {
+@@ -412,6 +412,12 @@ hostapd_common_add_bss_config() {
  	config_add_string group_cipher
  	config_add_string group_mgmt_cipher
  
@@ -10,20 +10,22 @@ index 3537e3ae..3664297a 100644
 +	config_add_int mld_id mld_assoc_phy mld_allowed_phy_bitmap mld_allowed_links
 +	config_add_boolean mld_primary mld_single_link
 +	config_add_string mld_addr
++	config_add_int eml_disable
++	config_add_int eml_resp
  }
  
  hostapd_set_vlan_file() {
-@@ -599,7 +603,8 @@ hostapd_set_bss_options() {
+@@ -599,7 +605,8 @@ hostapd_set_bss_options() {
  		multicast_to_unicast_all proxy_arp per_sta_vif \
  		eap_server eap_user_file ca_cert server_cert private_key private_key_passwd server_id \
  		vendor_elements fils ocv unsol_bcast_probe_resp_interval fils_discovery_min_interval \
 -		fils_discovery_max_interval rnr group_cipher group_mgmt_cipher
 +		fils_discovery_max_interval rnr group_cipher group_mgmt_cipher \
-+		mld_id mld_primary mld_addr mld_allowed_links
++		mld_id mld_primary mld_addr mld_allowed_links eml_disable eml_resp
  
  	set_default fils 0
  	set_default isolate 0
-@@ -626,7 +631,10 @@ hostapd_set_bss_options() {
+@@ -626,7 +633,10 @@ hostapd_set_bss_options() {
  
  	/usr/sbin/hostapd -vfils || fils=0
  
@@ -35,7 +37,7 @@ index 3537e3ae..3664297a 100644
  	if [ "$isolate" -gt 0 ]; then
  		append bss_conf "ap_isolate=$isolate" "$N"
  	fi
-@@ -1282,6 +1290,25 @@ hostapd_set_bss_options() {
+@@ -1282,6 +1292,33 @@ hostapd_set_bss_options() {
  		append bss_conf "rnr=$rnr" "$N"
  	fi
  
@@ -58,10 +60,18 @@ index 3537e3ae..3664297a 100644
 +		append bss_conf "mld_allowed_links=${mld_allowed_links}" "$N"
 +	fi
 +
++	if [ -n "$eml_disable" ]; then
++		append bss_conf "eml_disable=$eml_disable" "$N"
++	fi
++
++	if [ -n "$eml_resp" ]; then
++		append bss_conf "eml_resp=$eml_resp" "$N"
++	fi
++
  	append "$var" "$bss_conf" "$N"
  	return 0
  }
-@@ -1337,7 +1364,8 @@ wpa_supplicant_prepare_interface() {
+@@ -1337,7 +1374,8 @@ wpa_supplicant_prepare_interface() {
  
  	_wpa_supplicant_common "$1"
  
@@ -71,7 +81,7 @@ index 3537e3ae..3664297a 100644
  
  	[ -n "$network_bridge" ] && {
  		fail=
-@@ -1369,6 +1397,55 @@ wpa_supplicant_prepare_interface() {
+@@ -1369,6 +1407,55 @@ wpa_supplicant_prepare_interface() {
  		country_str="country=$country"
  	}
  
@@ -127,7 +137,7 @@ index 3537e3ae..3664297a 100644
  	local tx_queue_data2_burst="tx_queue_data2_burst=0"
  	multiap_flag_file="${_config}.is_multiap"
  	if [ "$multi_ap" = "1" ]; then
-@@ -1382,6 +1459,9 @@ ${scan_list:+freq_list=$scan_list}
+@@ -1382,6 +1469,9 @@ ${scan_list:+freq_list=$scan_list}
  $ap_scan
  $country_str
  $tx_queue_data2_burst
@@ -138,7 +148,7 @@ index 3537e3ae..3664297a 100644
  	return 0
  }
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
-index 66bdf5cf..5ded25db 100755
+index 66bdf5cf..897ce25c 100755
 --- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 @@ -29,7 +29,7 @@ drv_mac80211_init_device_config() {
@@ -150,18 +160,20 @@ index 66bdf5cf..5ded25db 100755
  	config_add_int beacon_int chanbw frag rts
  	config_add_int rxantenna txantenna txpower min_tx_power
  	config_add_int num_global_macaddr multiple_bssid
-@@ -71,7 +71,9 @@ drv_mac80211_init_device_config() {
+@@ -71,7 +71,11 @@ drv_mac80211_init_device_config() {
  		rx_stbc \
  		tx_stbc \
  		he_bss_color \
 -		he_spr_non_srg_obss_pd_max_offset
 +		he_spr_non_srg_obss_pd_max_offset \
 +		pp_bitmap \
-+		pp_mode
++		pp_mode \
++		eml_disable \
++		eml_resp
  	config_add_boolean \
  		ldpc \
  		greenfield \
-@@ -92,6 +94,7 @@ drv_mac80211_init_iface_config() {
+@@ -92,6 +96,7 @@ drv_mac80211_init_iface_config() {
  	config_add_int max_listen_int
  	config_add_int dtim_period
  	config_add_int start_disabled
@@ -169,16 +181,18 @@ index 66bdf5cf..5ded25db 100755
  
  	# mesh
  	config_add_string mesh_id
-@@ -147,7 +150,7 @@ mac80211_hostapd_setup_base() {
+@@ -147,8 +152,8 @@ mac80211_hostapd_setup_base() {
  	[ -n "$acs_exclude_dfs" ] && [ "$acs_exclude_dfs" -gt 0 ] &&
  		append base_cfg "acs_exclude_dfs=1" "$N"
  
 -	json_get_vars noscan ht_coex min_tx_power:0 tx_burst mbssid mu_onoff rnr obss_interval
+-	json_get_vars etxbfen:1 itxbfen:0
 +	json_get_vars noscan ht_coex min_tx_power:0 tx_burst mbssid mu_onoff rnr obss_interval band_idx
- 	json_get_vars etxbfen:1 itxbfen:0
++	json_get_vars etxbfen:1 itxbfen:0 eml_disable eml_resp
  	json_get_values ht_capab_list ht_capab
  	json_get_values channel_list channels
-@@ -376,7 +379,7 @@ mac80211_hostapd_setup_base() {
+ 
+@@ -376,7 +381,7 @@ mac80211_hostapd_setup_base() {
  			mu_beamformee:1 \
  			vht_txop_ps:1 \
  			htc_vht:1 \
@@ -187,7 +201,7 @@ index 66bdf5cf..5ded25db 100755
  			beamformer_antennas:4 \
  			rx_antenna_pattern:1 \
  			tx_antenna_pattern:1 \
-@@ -435,7 +438,7 @@ mac80211_hostapd_setup_base() {
+@@ -435,7 +440,7 @@ mac80211_hostapd_setup_base() {
  		}
  
  		[ "$(($vht_cap & 0x1000))" -gt 0 -a "$su_beamformee" -gt 0 ] && {
@@ -196,7 +210,7 @@ index 66bdf5cf..5ded25db 100755
  			[ "$cap_ant" -gt "$beamformee_antennas" ] && cap_ant="$beamformee_antennas"
  			[ "$cap_ant" -gt 1 ] && vht_capab="$vht_capab[BF-ANTENNA-$cap_ant]"
  		}
-@@ -535,7 +538,7 @@ mac80211_hostapd_setup_base() {
+@@ -535,7 +540,7 @@ mac80211_hostapd_setup_base() {
  		fi
  		if [ "$he_bss_color_enabled" -gt 0 ]; then
  			if !([ "$he_bss_color" -gt 0 ] && [ "$he_bss_color" -le 64 ]); then
@@ -205,7 +219,7 @@ index 66bdf5cf..5ded25db 100755
  				he_bss_color=$((rand % 63 + 1))
  			fi
  			append base_cfg "he_bss_color=$he_bss_color" "$N"
-@@ -587,6 +590,11 @@ mac80211_hostapd_setup_base() {
+@@ -587,6 +592,11 @@ mac80211_hostapd_setup_base() {
  	esac
  
  	if [ "$enable_be" != "0" ]; then
@@ -217,7 +231,7 @@ index 66bdf5cf..5ded25db 100755
  		append base_cfg "ieee80211be=1" "$N"
  		if [ "$etxbfen" -eq 0 ]; then
  			append base_cfg "eht_su_beamformee=1" "$N"
-@@ -608,6 +616,14 @@ mac80211_hostapd_setup_base() {
+@@ -608,6 +618,14 @@ mac80211_hostapd_setup_base() {
  				;;
  			esac
  		}
@@ -232,17 +246,19 @@ index 66bdf5cf..5ded25db 100755
  	fi
  
  	hostapd_prepare_device_config "$hostapd_conf_file" nl80211
-@@ -621,7 +637,9 @@ ${mu_onoff:+mu_onoff=$mu_onoff}
+@@ -621,7 +639,11 @@ ${mu_onoff:+mu_onoff=$mu_onoff}
  ${itxbfen:+ibf_enable=$itxbfen}
  ${rnr:+rnr=$rnr}
  ${multiple_bssid:+mbssid=$multiple_bssid}
 +${band_idx:+band_idx=$band_idx}
++${eml_disable:+eml_disable=$eml_disable}
++${eml_resp:+eml_resp=$eml_resp}
  #num_global_macaddr=$num_global_macaddr
 +#single_hw=1
  $base_cfg
  
  EOF
-@@ -652,7 +670,6 @@ mac80211_hostapd_setup_bss() {
+@@ -652,7 +674,6 @@ mac80211_hostapd_setup_bss() {
  	cat >> /var/run/hostapd-$phy.conf <<EOF
  $hostapd_cfg
  bssid=$macaddr
@@ -250,7 +266,7 @@ index 66bdf5cf..5ded25db 100755
  ${dtim_period:+dtim_period=$dtim_period}
  ${max_listen_int:+max_listen_interval=$max_listen_int}
  EOF
-@@ -783,10 +800,64 @@ mac80211_set_ifname() {
+@@ -783,10 +804,64 @@ mac80211_set_ifname() {
  	eval "ifname=\"$phy-$prefix\${idx_$prefix:-0}\"; idx_$prefix=\$((\${idx_$prefix:-0 } + 1))"
  }
  
@@ -316,7 +332,7 @@ index 66bdf5cf..5ded25db 100755
  
  	[ -n "$ifname" ] || {
  		local prefix;
-@@ -805,7 +876,6 @@ mac80211_prepare_vif() {
+@@ -805,7 +880,6 @@ mac80211_prepare_vif() {
  	set_default powersave 0
  	json_add_string _ifname "$ifname"
  
@@ -324,7 +340,7 @@ index 66bdf5cf..5ded25db 100755
  	if [ "$mbssid" -gt 0 ] && [ "$mode" == "ap" ]; then
  		[ "$mbssidx" -eq 0 ] && {
  			if [ -z $macaddr ]; then
-@@ -821,16 +891,14 @@ mac80211_prepare_vif() {
+@@ -821,16 +895,14 @@ mac80211_prepare_vif() {
  	elif [ -z "$macaddr" ]; then
  		macaddr="$(mac80211_generate_mac $phy)"
  		macidx="$(($macidx + 1))"
@@ -342,7 +358,7 @@ index 66bdf5cf..5ded25db 100755
  		[ -z "$wpa_psk_file" ] && hostapd_set_psk "$ifname"
  		[ -z "$vlan_file" ] && hostapd_set_vlan "$ifname"
  	}
-@@ -950,7 +1018,7 @@ mac80211_setup_adhoc() {
+@@ -950,7 +1022,7 @@ mac80211_setup_adhoc() {
  
  	json_add_object "$ifname"
  	json_add_string mode adhoc
@@ -351,7 +367,7 @@ index 66bdf5cf..5ded25db 100755
  	json_add_string ssid "$ssid"
  	json_add_string freq "$freq"
  	json_add_string htmode "$iw_htmode"
-@@ -976,7 +1044,7 @@ mac80211_setup_mesh() {
+@@ -976,7 +1048,7 @@ mac80211_setup_mesh() {
  
  	json_add_object "$ifname"
  	json_add_string mode mesh
@@ -360,7 +376,7 @@ index 66bdf5cf..5ded25db 100755
  	json_add_string ssid "$ssid"
  	json_add_string freq "$freq"
  	json_add_string htmode "$iw_htmode"
-@@ -1036,7 +1104,7 @@ wpa_supplicant_add_interface() {
+@@ -1036,7 +1108,7 @@ wpa_supplicant_add_interface() {
  	json_add_string iface "$ifname"
  	json_add_string mode "$mode"
  	json_add_string config "$_config"
@@ -369,7 +385,7 @@ index 66bdf5cf..5ded25db 100755
  	[ -n "$network_bridge" ] && json_add_string bridge "$network_bridge"
  	[ -n "$wds" ] && json_add_boolean 4addr "$wds"
  	json_add_boolean powersave "$powersave"
-@@ -1140,7 +1208,6 @@ mac80211_setup_vif() {
+@@ -1140,7 +1212,6 @@ mac80211_setup_vif() {
  	json_select config
  	json_get_var ifname _ifname
  	json_get_var macaddr _macaddr
@@ -377,7 +393,7 @@ index 66bdf5cf..5ded25db 100755
  	json_get_vars mode wds powersave
  
  	set_default powersave 0
-@@ -1294,6 +1361,12 @@ drv_mac80211_setup() {
+@@ -1294,6 +1365,12 @@ drv_mac80211_setup() {
  	staidx=0
  	mbssidx=0
  
@@ -390,7 +406,7 @@ index 66bdf5cf..5ded25db 100755
  	[ -n "$chanbw" ] && {
  		for file in /sys/kernel/debug/ieee80211/$phy/ath9k*/chanbw /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode; do
  			[ -f "$file" ] && echo "$chanbw" > "$file"
-@@ -1372,6 +1445,8 @@ drv_mac80211_setup() {
+@@ -1372,6 +1449,8 @@ drv_mac80211_setup() {
  
  	for_each_interface "ap sta adhoc mesh monitor" mac80211_set_vif_txpower
  	wireless_set_up
