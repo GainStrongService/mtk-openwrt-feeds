@@ -1,4 +1,4 @@
-From 35623475d9eb8522756b0b4833c95a31a0ceb10b Mon Sep 17 00:00:00 2001
+From 30545296ec698deb75b009b72bb0871c167d1f89 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 18 Sep 2023 10:52:27 +0800
 Subject: [PATCH 01/24] mt7622 backport nf hw offload framework and upstream
@@ -76,10 +76,10 @@ index 634640d..5f342f4
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 old mode 100644
 new mode 100755
-index 37fd338..20b2943
+index 960690a..98f9716
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4001,6 +4001,7 @@ static int mtk_open(struct net_device *dev)
+@@ -3996,6 +3996,7 @@ static int mtk_open(struct net_device *dev)
  	u32 id = mtk_mac2xgmii_id(eth, mac->id);
  	int err, i;
  	struct device_node *phy_node;
@@ -87,7 +87,7 @@ index 37fd338..20b2943
  
  	err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
  	if (err) {
-@@ -4085,7 +4086,10 @@ static int mtk_open(struct net_device *dev)
+@@ -4080,7 +4081,10 @@ static int mtk_open(struct net_device *dev)
  		regmap_write(eth->sgmii->pcs[id].regmap,
  			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
@@ -99,7 +99,7 @@ index 37fd338..20b2943
  
  	return 0;
  }
-@@ -4172,6 +4176,9 @@ static int mtk_stop(struct net_device *dev)
+@@ -4167,6 +4171,9 @@ static int mtk_stop(struct net_device *dev)
  
  	mtk_dma_free(eth);
  
@@ -109,7 +109,7 @@ index 37fd338..20b2943
  	return 0;
  }
  
-@@ -5081,6 +5088,7 @@ static const struct net_device_ops mtk_netdev_ops = {
+@@ -5079,6 +5086,7 @@ static const struct net_device_ops mtk_netdev_ops = {
  #ifdef CONFIG_NET_POLL_CONTROLLER
  	.ndo_poll_controller	= mtk_poll_controller,
  #endif
@@ -117,7 +117,7 @@ index 37fd338..20b2943
  };
  
  static void mux_poll(struct work_struct *work)
-@@ -5711,6 +5719,17 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5748,6 +5756,17 @@ static int mtk_probe(struct platform_device *pdev)
  			goto err_free_dev;
  	}
  
@@ -135,7 +135,7 @@ index 37fd338..20b2943
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
  		if (!eth->netdev[i])
  			continue;
-@@ -5811,6 +5830,7 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -5848,6 +5867,7 @@ static const struct mtk_soc_data mt2701_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -143,7 +143,7 @@ index 37fd338..20b2943
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5828,6 +5848,7 @@ static const struct mtk_soc_data mt7621_data = {
+@@ -5868,6 +5888,7 @@ static const struct mtk_soc_data mt7621_data = {
  	.required_clks = MT7621_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -151,7 +151,7 @@ index 37fd338..20b2943
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5846,6 +5867,7 @@ static const struct mtk_soc_data mt7622_data = {
+@@ -5889,6 +5910,7 @@ static const struct mtk_soc_data mt7622_data = {
  	.required_clks = MT7622_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -159,7 +159,7 @@ index 37fd338..20b2943
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5863,6 +5885,7 @@ static const struct mtk_soc_data mt7623_data = {
+@@ -5909,6 +5931,7 @@ static const struct mtk_soc_data mt7623_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -170,7 +170,7 @@ index 37fd338..20b2943
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 old mode 100644
 new mode 100755
-index 26a99d1..4d3a63c
+index d2452be..9a1edf8
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -15,6 +15,8 @@
@@ -182,7 +182,7 @@ index 26a99d1..4d3a63c
  
  #define MTK_QDMA_PAGE_SIZE	2048
  #define	MTK_MAX_RX_LENGTH	1536
-@@ -47,7 +49,8 @@
+@@ -46,7 +48,8 @@
  				 NETIF_F_HW_VLAN_CTAG_TX | \
  				 NETIF_F_SG | NETIF_F_TSO | \
  				 NETIF_F_TSO6 | \
@@ -192,7 +192,7 @@ index 26a99d1..4d3a63c
  #define MTK_SET_FEATURES	(NETIF_F_LRO | \
  				 NETIF_F_HW_VLAN_CTAG_RX)
  #define MTK_HW_FEATURES_MT7628	(NETIF_F_SG | NETIF_F_RXCSUM)
-@@ -134,6 +137,7 @@
+@@ -133,6 +136,7 @@
  #define MTK_GDMA_UCS_EN		BIT(20)
  #define MTK_GDMA_STRP_CRC	BIT(16)
  #define MTK_GDMA_TO_PDMA	0x0
@@ -200,7 +200,7 @@ index 26a99d1..4d3a63c
  #define MTK_GDMA_DROP_ALL	0x7777
  
  /* GDM Egress Control Register */
-@@ -661,6 +665,12 @@
+@@ -668,6 +672,12 @@
  #define RX_DMA_TCI(_x)		((_x) & (VLAN_PRIO_MASK | VLAN_VID_MASK))
  #define RX_DMA_VPID(_x)		(((_x) >> 16) & 0xffff)
  
@@ -213,7 +213,7 @@ index 26a99d1..4d3a63c
  /* QDMA descriptor rxd4 */
  #define RX_DMA_L4_VALID		BIT(24)
  #define RX_DMA_L4_VALID_PDMA	BIT(30)		/* when PDMA is used */
-@@ -1712,6 +1722,7 @@ struct mtk_soc_data {
+@@ -1718,6 +1728,7 @@ struct mtk_soc_data {
  	u64		caps;
  	u64		required_clks;
  	bool		required_pctl;
@@ -221,7 +221,7 @@ index 26a99d1..4d3a63c
  	netdev_features_t hw_features;
  	bool		has_sram;
  	struct {
-@@ -1912,6 +1923,9 @@ struct mtk_eth {
+@@ -1921,6 +1932,9 @@ struct mtk_eth {
  	int				ip_align;
  	spinlock_t			syscfg0_lock;
  	struct timer_list		mtk_dma_monitor_timer;
@@ -231,8 +231,8 @@ index 26a99d1..4d3a63c
  };
  
  /* struct mtk_mac -	the structure that holds the info about the MACs of the
-@@ -1993,6 +2007,9 @@ int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
- int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
+@@ -2001,6 +2015,9 @@ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r);
+ int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
  void mtk_usxgmii_link_poll(struct work_struct *work);
  
 +int mtk_eth_offload_init(struct mtk_eth *eth);
@@ -2043,7 +2043,7 @@ index 087b016..7a8c246 100644
  
  static int pppoe_recvmsg(struct socket *sock, struct msghdr *m,
 diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index 1c1ab37..44842a2 100644
+index ac36fe9..2d1aa35 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
 @@ -843,6 +843,59 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
@@ -2724,10 +2724,10 @@ index dd7e09e..c373f1d 100644
  
  static void vlan_dev_free(struct net_device *dev)
 diff --git a/net/bridge/br_device.c b/net/bridge/br_device.c
-index ab201d5..deec45b 100644
+index 44bdb01..03934dd 100644
 --- a/net/bridge/br_device.c
 +++ b/net/bridge/br_device.c
-@@ -385,6 +385,54 @@ static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
+@@ -387,6 +387,54 @@ static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
  	return br_del_if(br, slave_dev);
  }
  
@@ -2782,7 +2782,7 @@ index ab201d5..deec45b 100644
  static const struct ethtool_ops br_ethtool_ops = {
  	.get_drvinfo    = br_getinfo,
  	.get_link	= ethtool_op_get_link,
-@@ -418,6 +466,7 @@ static const struct net_device_ops br_netdev_ops = {
+@@ -420,6 +468,7 @@ static const struct net_device_ops br_netdev_ops = {
  	.ndo_bridge_setlink	 = br_setlink,
  	.ndo_bridge_dellink	 = br_dellink,
  	.ndo_features_check	 = passthru_features_check,
@@ -2895,7 +2895,7 @@ index 9257292..bcfd169 100644
  		     struct bridge_vlan_info *p_vinfo)
  {
 diff --git a/net/core/dev.c b/net/core/dev.c
-index ef7362b..5bade26 100644
+index 9da89f2..e9dd11e 100644
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
 @@ -722,6 +722,52 @@ int dev_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
@@ -3042,10 +3042,10 @@ index f17b402..803b92e 100644
  	tristate "Netfilter IPv4 packet duplication to alternate destination"
  	depends on !NF_CONNTRACK || NF_CONNTRACK
 diff --git a/net/ipv6/ip6_output.c b/net/ipv6/ip6_output.c
-index 816275b..671f767 100644
+index c67d634..ef836d6 100644
 --- a/net/ipv6/ip6_output.c
 +++ b/net/ipv6/ip6_output.c
-@@ -607,7 +607,7 @@ int ip6_forward(struct sk_buff *skb)
+@@ -613,7 +613,7 @@ int ip6_forward(struct sk_buff *skb)
  		}
  	}
  
@@ -3076,7 +3076,7 @@ index 69443e9..0b481d2 100644
  	tristate "Netfilter IPv6 packet duplication to alternate destination"
  	depends on !NF_CONNTRACK || NF_CONNTRACK
 diff --git a/net/ipv6/route.c b/net/ipv6/route.c
-index 43d185c..82a752c 100644
+index d99d12a..29d6fd2 100644
 --- a/net/ipv6/route.c
 +++ b/net/ipv6/route.c
 @@ -83,7 +83,7 @@ enum rt6_nud_state {

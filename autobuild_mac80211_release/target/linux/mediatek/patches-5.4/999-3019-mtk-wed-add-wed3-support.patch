@@ -1,7 +1,7 @@
-From b6e8f376899070b8109c3413b15e572f8f03dc06 Mon Sep 17 00:00:00 2001
+From 3334403e4b8341c928c9897806a3641131f5c467 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 13:21:15 +0800
-Subject: [PATCH] mtk:wed:add wed3 support
+Subject: [PATCH 19/24] mtk:wed:add wed3 support
 
 ---
  arch/arm64/boot/dts/mediatek/mt7988.dtsi      |  152 +-
@@ -22,7 +22,7 @@ Subject: [PATCH] mtk:wed:add wed3 support
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/mtk_ppe.c
 
 diff --git a/arch/arm64/boot/dts/mediatek/mt7988.dtsi b/arch/arm64/boot/dts/mediatek/mt7988.dtsi
-index 7e96640..3368240 100644
+index 9abe45f..7faf6af 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7988.dtsi
 @@ -193,44 +193,49 @@
@@ -212,8 +212,8 @@ index 7e96640..3368240 100644
  	};
  
  	reserved-memory {
-@@ -901,6 +938,7 @@
- 					 <&topckgen CK_TOP_CB_NET2_D2>;
+@@ -899,6 +936,7 @@
+ 					 <&topckgen CK_TOP_CB_SGM_325M>;
  		mediatek,ethsys = <&ethsys>;
  		mediatek,sgmiisys = <&sgmiisys0>, <&sgmiisys1>;
 +		mediatek,wed = <&wed0>, <&wed1>, <&wed2>;
@@ -221,10 +221,10 @@ index 7e96640..3368240 100644
  		mediatek,xfi_pextp = <&xfi_pextp0>, <&xfi_pextp1>;
  		mediatek,xfi_pll = <&xfi_pll>;
 diff --git a/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts b/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts
-index a22af29..9169188 100644
+index 24c7799..c283c5e 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts
 +++ b/arch/arm64/boot/dts/mediatek/mt7988a-dsa-10g-spim-nor.dts
-@@ -372,9 +372,23 @@
+@@ -434,9 +434,23 @@
  	status = "okay";
  };
  
@@ -251,10 +251,10 @@ index a22af29..9169188 100644
 +};
 \ No newline at end of file
 diff --git a/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts b/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts
-index effcfd8..30e4846 100644
+index f72c5d3..6503700 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts
 +++ b/arch/arm64/boot/dts/mediatek/mt7988d-dsa-10g-spim-nor.dts
-@@ -382,9 +382,23 @@
+@@ -444,9 +444,23 @@
  	status = "okay";
  };
  
@@ -3662,7 +3662,7 @@ index 645b8b1..0af264d 100644
 +#define MTK_WED_PCIE_BASE2			0x11290000
  #endif
 diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index b2abebe..a9e455d 100644
+index 0a7eb9a..33e5f5f 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
 @@ -880,6 +880,13 @@ struct net_device_path {

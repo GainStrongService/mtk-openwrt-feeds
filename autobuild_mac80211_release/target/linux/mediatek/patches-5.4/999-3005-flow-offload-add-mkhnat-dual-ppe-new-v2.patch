@@ -1,4 +1,4 @@
-From 01556d88ad11f0d096d2816b2a69999994e1740f Mon Sep 17 00:00:00 2001
+From e817af3788894fd6f7cf5592cb49ff7c8a779df7 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 Date: Mon, 18 Mar 2024 16:26:28 +0800
 Subject: [PATCH 05/24] flow-offload-add-mkhnat-dual-ppe-new-v2
@@ -28,10 +28,10 @@ index 3a4f279..d70151b 100644
                  #address-cells = <1>;
                  #size-cells = <0>;
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 2fb67e0..7eeddb3 100644
+index 8f60726..cb44c7f 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2464,7 +2464,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2454,7 +2454,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  #endif
  
  		if (reason == MTK_PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED)
@@ -40,7 +40,7 @@ index 2fb67e0..7eeddb3 100644
  
  		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
  			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
-@@ -4112,8 +4112,12 @@ static int mtk_open(struct net_device *dev)
+@@ -4099,8 +4099,12 @@ static int mtk_open(struct net_device *dev)
  		regmap_write(eth->sgmii->pcs[id].regmap,
  			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
@@ -55,7 +55,7 @@ index 2fb67e0..7eeddb3 100644
  
  	mtk_gdm_config(eth, mac->id, gdm_config);
  
-@@ -4202,8 +4206,10 @@ static int mtk_stop(struct net_device *dev)
+@@ -4189,8 +4193,10 @@ static int mtk_stop(struct net_device *dev)
  
  	mtk_dma_free(eth);
  
@@ -68,7 +68,7 @@ index 2fb67e0..7eeddb3 100644
  
  	return 0;
  }
-@@ -5762,15 +5768,35 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5793,15 +5799,35 @@ static int mtk_probe(struct platform_device *pdev)
  	}
  
  	if (eth->soc->offload_version) {
@@ -112,10 +112,10 @@ index 2fb67e0..7eeddb3 100644
  
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 910baaf..3995608 100644
+index 2066bdf..c0061e0 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -137,7 +137,12 @@
+@@ -136,7 +136,12 @@
  #define MTK_GDMA_UCS_EN		BIT(20)
  #define MTK_GDMA_STRP_CRC	BIT(16)
  #define MTK_GDMA_TO_PDMA	0x0
@@ -129,7 +129,7 @@ index 910baaf..3995608 100644
  #define MTK_GDMA_DROP_ALL	0x7777
  
  /* GDM Egress Control Register */
-@@ -1936,7 +1941,8 @@ struct mtk_eth {
+@@ -1941,7 +1946,8 @@ struct mtk_eth {
  	spinlock_t			syscfg0_lock;
  	struct timer_list		mtk_dma_monitor_timer;
  
@@ -139,8 +139,8 @@ index 910baaf..3995608 100644
  	struct rhashtable		flow_table;
  };
  
-@@ -2019,9 +2025,11 @@ int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
- int mtk_dump_usxgmii(struct regmap *pmap, char *name, u32 offset, u32 range);
+@@ -2023,9 +2029,11 @@ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r);
+ int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
  void mtk_usxgmii_link_poll(struct work_struct *work);
  
 -int mtk_eth_offload_init(struct mtk_eth *eth);
@@ -437,7 +437,7 @@ index 77594f3..f256607
  
  	return rhashtable_init(&eth->flow_table, &mtk_flow_ht_params);
 diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index 5305384..b2abebe 100644
+index 85d582c..0a7eb9a 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
 @@ -1316,6 +1316,8 @@ struct tlsdev_ops;

@@ -1,4 +1,4 @@
-From e917fdd9042787edd43e4070c3480baf0dfb8d33 Mon Sep 17 00:00:00 2001
+From d40796af640489047848feeb83886962a25ce024 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 Date: Mon, 18 Mar 2024 16:57:13 +0800
 Subject: [PATCH 22/24] 
@@ -12,10 +12,10 @@ Subject: [PATCH 22/24]
  4 files changed, 33 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm64/boot/dts/mediatek/mt7988.dtsi b/arch/arm64/boot/dts/mediatek/mt7988.dtsi
-index 4a1a446..57b27f8 100644
+index 7faf6af..a8cb3d8 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7988.dtsi
-@@ -942,6 +942,7 @@
+@@ -943,6 +943,7 @@
  		mediatek,infracfg = <&topmisc>;
  		mediatek,toprgu = <&watchdog>;
  		mediatek,hwver = <&hwver>;
@@ -24,10 +24,10 @@ index 4a1a446..57b27f8 100644
  		#address-cells = <1>;
  		#size-cells = <0>;
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 291afdc..c0f4ade 100644
+index 04968da..6db2e52 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2349,6 +2349,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2343,6 +2343,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  	u8 *data, *new_data;
  	struct mtk_rx_dma_v2 *rxd, trxd;
  	int done = 0;
@@ -35,8 +35,8 @@ index 291afdc..c0f4ade 100644
  
  	if (unlikely(!ring))
  		goto rx_done;
-@@ -2463,8 +2464,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
- 		}
+@@ -2453,8 +2454,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+ 			skb_set_hash(skb, jhash_1word(hash, 0), PKT_HASH_TYPE_L4);
  #endif
  
 -		if (reason == MTK_PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED)
@@ -48,7 +48,7 @@ index 291afdc..c0f4ade 100644
  
  		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
  			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
-@@ -4113,7 +4116,19 @@ static int mtk_open(struct net_device *dev)
+@@ -4100,7 +4103,19 @@ static int mtk_open(struct net_device *dev)
  			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
  	if (eth->soc->offload_version) {
@@ -69,7 +69,7 @@ index 291afdc..c0f4ade 100644
  
  			for (i = 0; i < eth->ppe_num; i++)
  				mtk_ppe_start(eth->ppe[i]);
-@@ -5129,6 +5144,7 @@ static const struct net_device_ops mtk_netdev_ops = {
+@@ -5119,6 +5134,7 @@ static const struct net_device_ops mtk_netdev_ops = {
  	.ndo_poll_controller	= mtk_poll_controller,
  #endif
  	.ndo_setup_tc		= mtk_eth_setup_tc,
@@ -78,10 +78,10 @@ index 291afdc..c0f4ade 100644
  
  static void mux_poll(struct work_struct *work)
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 8454361..d958aec 100644
+index 1514b83..fc5bb30 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1978,6 +1978,7 @@ struct mtk_mac {
+@@ -1982,6 +1982,7 @@ struct mtk_mac {
  	phy_interface_t			interface;
  	unsigned int			mode;
  	unsigned int			type;
@@ -89,7 +89,7 @@ index 8454361..d958aec 100644
  	int				speed;
  	struct device_node		*of_node;
  	struct phylink			*phylink;
-@@ -2079,6 +2080,8 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
+@@ -2082,6 +2083,8 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
  		     void *type_data);
  int mtk_eth_setup_tc_block(struct net_device *dev, struct flow_block_offload *f,
  			   struct mtk_eth *eth);
@@ -99,10 +99,10 @@ index 8454361..d958aec 100644
  u32 mtk_rss_indr_table(struct mtk_rss_params *rss_params, int index);
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 402f1e3..3bfbec8 100644
+index 2d432f2..7f432be 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -828,6 +828,16 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
+@@ -694,6 +694,16 @@ int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
  	}
  }
  

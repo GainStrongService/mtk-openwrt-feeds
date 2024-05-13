@@ -1,4 +1,4 @@
-From aaac91720ca1fd7679896286eac2b014e7150fca Mon Sep 17 00:00:00 2001
+From 2914bec639e2749bbd6d021639b8c3d8c0a2490e Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 Date: Mon, 18 Mar 2024 16:35:07 +0800
 Subject: [PATCH 15/24] ethernet-update-ppe-from-netsys2-to-netsys3
@@ -13,10 +13,10 @@ Subject: [PATCH 15/24] ethernet-update-ppe-from-netsys2-to-netsys3
  6 files changed, 82 insertions(+), 19 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 952bf51..f477ff3 100644
+index 1be1d43..04968da 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2447,7 +2447,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2441,7 +2441,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
@@ -24,8 +24,8 @@ index 952bf51..f477ff3 100644
 +#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
  		hash = trxd.rxd5 & MTK_RXD5_FOE_ENTRY_V2;
  		reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON_V2, trxd.rxd5);
- 		if (hash != MTK_RXD5_FOE_ENTRY_V2) {
-@@ -5798,7 +5798,8 @@ static int mtk_probe(struct platform_device *pdev)
+ 		if (hash != MTK_RXD5_FOE_ENTRY_V2)
+@@ -5829,7 +5829,8 @@ static int mtk_probe(struct platform_device *pdev)
  
  		for (i = 0; i < eth->ppe_num; i++) {
  			eth->ppe[i] = mtk_ppe_init(eth,
@@ -35,7 +35,7 @@ index 952bf51..f477ff3 100644
  						   2, eth->soc->hash_way, i,
  						   eth->soc->has_accounting);
  			if (!eth->ppe[i]) {
-@@ -6065,6 +6066,9 @@ static const struct mtk_soc_data mt7988_data = {
+@@ -6120,6 +6121,9 @@ static const struct mtk_soc_data mt7988_data = {
  	.required_clks = MT7988_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = true,
@@ -46,10 +46,10 @@ index 952bf51..f477ff3 100644
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 58547af..9c46ac1 100644
+index 6ad3468..e882436 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -137,9 +137,10 @@
+@@ -136,9 +136,10 @@
  #define MTK_GDMA_UCS_EN		BIT(20)
  #define MTK_GDMA_STRP_CRC	BIT(16)
  #define MTK_GDMA_TO_PDMA	0x0
@@ -61,7 +61,7 @@ index 58547af..9c46ac1 100644
  #else
  #define MTK_GDMA_TO_PPE0	0x4444
  #endif
-@@ -2018,14 +2019,14 @@ extern u32 dbg_show_level;
+@@ -2023,14 +2024,14 @@ extern u32 dbg_show_level;
  
  static inline void mtk_set_ib1_sp(struct mtk_eth *eth, struct mtk_foe_entry *foe, u32 val)
  {
