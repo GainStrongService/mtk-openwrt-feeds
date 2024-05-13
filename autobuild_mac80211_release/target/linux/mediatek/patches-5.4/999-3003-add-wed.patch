@@ -1,13 +1,13 @@
-From b895d23fa63dd712191b6d223fe6c41682c7d375 Mon Sep 17 00:00:00 2001
+From f4f50a5b59a77ec59cc627a06032c6bb4c3126f6 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 10:56:21 +0800
-Subject: [PATCH 03/24] add wed
+Subject: [PATCH] add wed
 
 ---
  arch/arm64/boot/dts/mediatek/mt7622.dtsi      |  32 +-
  drivers/net/ethernet/mediatek/Kconfig         |   4 +
  drivers/net/ethernet/mediatek/Makefile        |   5 +
- drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  39 +-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  56 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |   5 +-
  drivers/net/ethernet/mediatek/mtk_ppe.c       | 378 +++++++-
  drivers/net/ethernet/mediatek/mtk_ppe.h       |  89 +-
@@ -15,13 +15,13 @@ Subject: [PATCH 03/24] add wed
  .../net/ethernet/mediatek/mtk_ppe_offload.c   | 167 +++-
  drivers/net/ethernet/mediatek/mtk_wed.c       | 881 ++++++++++++++++++
  drivers/net/ethernet/mediatek/mtk_wed.h       | 135 +++
- .../net/ethernet/mediatek/mtk_wed_debugfs.c   | 175 ++++
+ .../net/ethernet/mediatek/mtk_wed_debugfs.c   | 173 ++++
  drivers/net/ethernet/mediatek/mtk_wed_ops.c   |   8 +
  drivers/net/ethernet/mediatek/mtk_wed_regs.h  | 251 +++++
  include/linux/netdevice.h                     |   7 +
  include/linux/soc/mediatek/mtk_wed.h          | 131 +++
  net/core/dev.c                                |   4 +
- 17 files changed, 2212 insertions(+), 103 deletions(-)
+ 17 files changed, 2222 insertions(+), 108 deletions(-)
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/Kconfig
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/Makefile
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/mtk_eth_soc.c
@@ -134,10 +134,10 @@ index 5f342f4..4090132
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 old mode 100755
 new mode 100644
-index 20b2943..8d15399
+index 98f9716..e1641ca
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -21,11 +21,13 @@
+@@ -22,11 +22,13 @@
  #include <linux/pinctrl/devinfo.h>
  #include <linux/phylink.h>
  #include <linux/gpio/consumer.h>
@@ -151,7 +151,7 @@ index 20b2943..8d15399
  
  #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
  #include "mtk_hnat/nf_hnat_mtk.h"
-@@ -2356,6 +2358,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2350,6 +2352,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  		struct net_device *netdev = NULL;
  		dma_addr_t dma_addr = DMA_MAPPING_ERROR;
  		u64 addr64 = 0;
@@ -159,7 +159,7 @@ index 20b2943..8d15399
  		int mac = 0;
  
  		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
-@@ -2444,6 +2447,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2438,6 +2441,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
@@ -177,7 +177,7 @@ index 20b2943..8d15399
  		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
  			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
  				if (trxd.rxd3 & RX_DMA_VTAG_V2)
-@@ -4177,7 +4191,7 @@ static int mtk_stop(struct net_device *dev)
+@@ -4172,7 +4186,7 @@ static int mtk_stop(struct net_device *dev)
  	mtk_dma_free(eth);
  
  	if (eth->soc->offload_version)
@@ -186,7 +186,7 @@ index 20b2943..8d15399
  
  	return 0;
  }
-@@ -5560,6 +5574,22 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5597,6 +5611,22 @@ static int mtk_probe(struct platform_device *pdev)
  		}
  	}
  
@@ -209,7 +209,45 @@ index 20b2943..8d15399
  	if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
  		for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
  			eth->irq_pdma[i] = platform_get_irq(pdev, i);
-@@ -5720,10 +5750,11 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5613,7 +5643,8 @@ static int mtk_probe(struct platform_device *pdev)
+ 
+ 		if (eth->irq_fe[i] < 0) {
+ 			dev_err(&pdev->dev, "no IRQ%d resource found\n", i);
+-			return -ENXIO;
++			err = -ENXIO;
++			goto err_wed_exit;
+ 		}
+ 	}
+ 
+@@ -5621,12 +5652,15 @@ static int mtk_probe(struct platform_device *pdev)
+ 		eth->clks[i] = devm_clk_get(eth->dev,
+ 					    mtk_clks_source_name[i]);
+ 		if (IS_ERR(eth->clks[i])) {
+-			if (PTR_ERR(eth->clks[i]) == -EPROBE_DEFER)
+-				return -EPROBE_DEFER;
++			if (PTR_ERR(eth->clks[i]) == -EPROBE_DEFER) {
++				err = -EPROBE_DEFER;
++				goto err_wed_exit;
++			}
+ 			if (eth->soc->required_clks & BIT(i)) {
+ 				dev_err(&pdev->dev, "clock %s not found\n",
+ 					mtk_clks_source_name[i]);
+-				return -EINVAL;
++				err = -EINVAL;
++				goto err_wed_exit;
+ 			}
+ 			eth->clks[i] = NULL;
+ 		}
+@@ -5637,7 +5671,7 @@ static int mtk_probe(struct platform_device *pdev)
+ 
+ 	err = mtk_hw_init(eth, MTK_TYPE_COLD_RESET);
+ 	if (err)
+-		return err;
++		goto err_wed_exit;
+ 
+ 	eth->hwlro = MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO);
+ 
+@@ -5757,10 +5791,11 @@ static int mtk_probe(struct platform_device *pdev)
  	}
  
  	if (eth->soc->offload_version) {
@@ -224,13 +262,30 @@ index 20b2943..8d15399
  
  		err = mtk_eth_offload_init(eth);
  		if (err)
+@@ -5823,6 +5858,8 @@ static int mtk_probe(struct platform_device *pdev)
+ 	mtk_free_dev(eth);
+ err_deinit_hw:
+ 	mtk_hw_deinit(eth);
++err_wed_exit:
++	mtk_wed_exit();
+ 
+ 	return err;
+ }
+@@ -5842,6 +5879,7 @@ static int mtk_remove(struct platform_device *pdev)
+ 		phylink_disconnect_phy(mac->phylink);
+ 	}
+ 
++	mtk_wed_exit();
+ 	mtk_hw_deinit(eth);
+ 
+ 	netif_napi_del(&eth->tx_napi);
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 old mode 100755
 new mode 100644
-index 4d3a63c..00cfe3b
+index 9a1edf8..a95d5ab
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -615,6 +615,9 @@
+@@ -622,6 +622,9 @@
  #define RX_DMA_SPORT_MASK       0x7
  #define RX_DMA_SPORT_MASK_V2    0xf
  
@@ -240,7 +295,7 @@ index 4d3a63c..00cfe3b
  /* QDMA descriptor txd4 */
  #define TX_DMA_CHKSUM		(0x7 << 29)
  #define TX_DMA_TSO		BIT(28)
-@@ -1924,7 +1927,7 @@ struct mtk_eth {
+@@ -1933,7 +1936,7 @@ struct mtk_eth {
  	spinlock_t			syscfg0_lock;
  	struct timer_list		mtk_dma_monitor_timer;
  
@@ -1262,7 +1317,7 @@ index 1380ef0..8a28572 100644
  	return rhashtable_init(&eth->flow_table, &mtk_flow_ht_params);
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
 new file mode 100644
-index 0000000..affa704
+index 0000000..9982c88
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -0,0 +1,881 @@
@@ -2142,7 +2197,7 @@ index 0000000..affa704
 +			continue;
 +
 +		hw_list[i] = NULL;
-+		debugfs_remove(hw->debugfs_dir);
++		debugfs_remove_recursive(hw->debugfs_dir);
 +		put_device(hw->dev);
 +		kfree(hw);
 +	}
@@ -2290,10 +2345,10 @@ index 0000000..981ec61
 +#endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c b/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
 new file mode 100644
-index 0000000..a81d3fd
+index 0000000..8ad7252
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
-@@ -0,0 +1,175 @@
+@@ -0,0 +1,173 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/* Copyright (C) 2021 Felix Fietkau <nbd@nbd.name> */
 +
@@ -2461,8 +2516,6 @@ index 0000000..a81d3fd
 +
 +	snprintf(hw->dirname, sizeof(hw->dirname), "wed%d", hw->index);
 +	dir = debugfs_create_dir(hw->dirname, NULL);
-+	if (!dir)
-+		return;
 +
 +	hw->debugfs_dir = dir;
 +	debugfs_create_u32("regidx", 0600, dir, &hw->debugfs_reg);
@@ -2741,7 +2794,7 @@ index 0000000..0a0465e
 +
 +#endif
 diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index 44842a2..5305384 100644
+index 2d1aa35..85d582c 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
 @@ -849,6 +849,7 @@ enum net_device_path_type {
@@ -2903,7 +2956,7 @@ index 0000000..7e00cca
 +
 +#endif
 diff --git a/net/core/dev.c b/net/core/dev.c
-index 5bade26..0775e8d 100644
+index e9dd11e..64d3e41 100644
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
 @@ -758,6 +758,10 @@ int dev_fill_forward_path(const struct net_device *dev, const u8 *daddr,
