@@ -1207,6 +1207,7 @@ fi
 
 cmd=$(echo ${full_cmd} | sed s/=/' '/g | cut -d " " -f 1)
 param=$(echo ${full_cmd} | sed s/=/' '/g | cut -d " " -f 2)
+mld=$(iw dev | grep 'link ID')
 
 if [ "${cmd_type}" = "set" ]; then
     skip=0
@@ -1215,11 +1216,16 @@ if [ "${cmd_type}" = "set" ]; then
         ## Therefore this wrapper would translate it to either mt76-test or mt76-vendor based on the attribute of the command
         ## Translate to mt76-vendor command
         "csi"|"amnt"|"ap_rfeatures"|"ap_wireless"|"mu"|"set_muru_manual_config")
+            cert_cmd="$*"
+            if [ ! -z "$mld" ]; then
+                mld_interface=$(iw dev | grep Interface | awk '{print $2}')
+                cert_cmd="$(echo $* | sed 's/band[0-9]/${mld_interface}/')"
+            fi
             if [ ${is_connac3} == "1" ]; then
-                hostapd_cmd="$(echo $* | sed 's/set/raw/')"
+                hostapd_cmd="$(echo $cert_cmd | sed 's/set/raw/')"
                 do_cmd "hostapd_cli -i $hostapd_cmd"
             else
-                do_cmd "mt76-vendor $*"
+                do_cmd "mt76-vendor $cert_cmd"
             fi
             skip=1
             ;;
