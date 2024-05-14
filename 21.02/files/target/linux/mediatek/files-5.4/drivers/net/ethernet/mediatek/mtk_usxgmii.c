@@ -671,13 +671,46 @@ static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	return mode_changed;
 }
 
+static void mtk_usxgmii_pcs_link_poll(struct timer_list *t)
+{
+	struct mtk_usxgmii_pcs *mpcs = from_timer(mpcs, t, link_poll_outband);
+
+	if (mpcs->interface == PHY_INTERFACE_MODE_NA)
+		goto exit;
+
+	if (!mtk_usxgmii_link_status(mpcs))
+		mtk_usxgmii_pcs_config(&mpcs->pcs, mpcs->mode,
+				       mpcs->interface, NULL, false);
+
+exit:
+	if (mpcs->mode != MLO_AN_INBAND)
+		mod_timer(&mpcs->link_poll_outband, jiffies + HZ);
+}
+
+static int mtk_usxgmii_pcs_enable(struct phylink_pcs *pcs)
+{
+	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
+
+	mod_timer(&mpcs->link_poll_outband, jiffies + HZ);
+
+	return 0;
+}
+
+static void mtk_usxgmii_pcs_disable(struct phylink_pcs *pcs)
+{
+	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
+
+	del_timer_sync(&mpcs->link_poll_outband);
+
+	mpcs->interface = PHY_INTERFACE_MODE_NA;
+}
+
 static void mtk_usxgmii_pcs_get_state(struct phylink_pcs *pcs,
 				    struct phylink_link_state *state)
 {
 	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
 	struct mtk_eth *eth = mpcs->eth;
 	struct mtk_mac *mac = eth->mac[mtk_xgmii2mac_id(eth, mpcs->id)];
-	static unsigned long t_start;
 	u32 val = 0;
 
 	regmap_read(mpcs->regmap, RG_PCS_AN_CTRL0, &val);
@@ -743,8 +776,8 @@ static void mtk_usxgmii_pcs_get_state(struct phylink_pcs *pcs,
 	/* Reconfiguring USXGMII every second to ensure that PCS can
 	 * link up with the Link Partner when a module is inserted.
 	 */
-	if (state->link == 0 && time_after(jiffies, t_start + HZ)) {
-		t_start = jiffies;
+	if (state->link == 0 && time_after(jiffies, mpcs->link_poll_inband + HZ)) {
+		mpcs->link_poll_inband = jiffies;
 		mtk_usxgmii_pcs_config(pcs, MLO_AN_INBAND,
 				       state->interface, NULL, false);
 	}
@@ -769,7 +802,6 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 {
 	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
 	unsigned long t_start = jiffies;
-	unsigned int mpcs_mode;
 
 	/* Reconfiguring USXGMII to ensure the quality of the RX signal
 	 * after the line side link up.
@@ -778,18 +810,11 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 			       interface, NULL, false);
 
 	do {
-		msleep(1000);
+		msleep(100);
 
 		if (mtk_usxgmii_link_status(mpcs))
 			return;
 
-		spin_lock(&mpcs->regmap_lock);
-		mpcs_mode = mpcs->mode;
-		spin_unlock(&mpcs->regmap_lock);
-
-		if (mpcs_mode != MLO_AN_INBAND)
-			mtk_usxgmii_pcs_config(&mpcs->pcs, mode,
-						interface, NULL, false);
 	} while (time_before(jiffies, t_start + msecs_to_jiffies(3000)));
 
 	pr_warn("%s wait link up timeout!\n", __func__);
@@ -797,6 +822,8 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 
 static const struct phylink_pcs_ops mtk_usxgmii_pcs_ops = {
 	.pcs_config = mtk_usxgmii_pcs_config,
+	.pcs_enable = mtk_usxgmii_pcs_enable,
+	.pcs_disable = mtk_usxgmii_pcs_disable,
 	.pcs_get_state = mtk_usxgmii_pcs_get_state,
 	.pcs_an_restart = mtk_usxgmii_pcs_restart_an,
 	.pcs_link_up = mtk_usxgmii_pcs_link_up,
@@ -823,6 +850,8 @@ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r)
 		ss->pcs[i].pcs.ops = &mtk_usxgmii_pcs_ops;
 		ss->pcs[i].pcs.poll = true;
 		ss->pcs[i].interface = PHY_INTERFACE_MODE_NA;
+
+		timer_setup(&ss->pcs[i].link_poll_outband, mtk_usxgmii_pcs_link_poll, 0);
 
 		spin_lock_init(&ss->pcs[i].regmap_lock);
 

@@ -1776,10 +1776,13 @@ struct mtk_sgmii_pcs {
 	spinlock_t		regmap_lock;
 	phy_interface_t		interface;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
+	unsigned long		link_poll_inband;
+	unsigned int		mode;
 	u32			flags;
 	u32			ana_rgc3;
 	u32			polarity;
 	u8			id;
+	struct timer_list	link_poll_outband;
 	struct phylink_pcs	pcs;
 };
 
@@ -1809,8 +1812,10 @@ struct mtk_usxgmii_pcs {
 	struct regmap		*regmap_pextp;
 	spinlock_t		regmap_lock;
 	phy_interface_t		interface;
+	unsigned long		link_poll_inband;
 	unsigned int		mode;
 	u8			id;
+	struct timer_list	link_poll_outband;
 	struct phylink_pcs	pcs;
 };
 
@@ -2012,7 +2017,6 @@ int mtk_mac2xgmii_id(struct mtk_eth *eth, int mac_id);
 struct phylink_pcs *mtk_usxgmii_select_pcs(struct mtk_usxgmii *ss, int id);
 int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r);
 int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
-void mtk_usxgmii_link_poll(struct work_struct *work);
 
 void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
 u32 mtk_rss_indr_table(struct mtk_rss_params *rss_params, int index);
