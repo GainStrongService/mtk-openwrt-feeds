@@ -1,0 +1,110 @@
+diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
+index c21aa9d..6a8f37e 100755
+--- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
++++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
+@@ -715,6 +715,10 @@ mac80211_generate_mac() {
+ 	local phy="$1"
+ 	local id="${macidx:-0}"
+ 
++	if [ "$phy" = "mld" ]; then
++		id=60;
++		phy=phy0;
++	fi
+ 	wdev_tool "$phy" get_macaddr id=$id num_global=$num_global_macaddr mbssid=${multiple_bssid:-0}
+ }
+ 
+@@ -846,6 +850,12 @@ fill_mld_params() {
+ 		echo "mld_id $target_mld_id is not found"
+ 		return 1
+ 	fi
++
++	if [ $target_mld_id -lt 1 ] || [ $target_mld_id -gt 16 ]; then
++		echo "mld_id is out of range (1, 16)"
++		return 1
++	fi
++
+ 	return 0
+ }
+ 
+@@ -857,7 +867,28 @@ mac80211_prepare_vif() {
+ 
+ 		json_get_vars mld_addr
+ 		if [ -z "$mld_addr" ]; then
+-			json_add_string mld_addr "$(mac80211_generate_mac phy0)"
++			generated_mac=$(mac80211_generate_mac mld)
++			# Split the MAC address to get the last byte
++			b6="${generated_mac##*:}"
++
++			# Convert the last byte to a decimal for arithmetic operations
++			b6_dec=$((0x$b6))
++
++			# Get the lower four bits (last digit in hexadecimal representation)
++			lower_nibble=$(($b6_dec & 0x0F))
++
++			# Rotate the lower four bits based on mld_id
++			# Modulus by 16 ensures that the rotation stays within the bounds of a nibble (4 bits)
++			rotated=$(( (lower_nibble + $mld_id - 1) & 0x0F ))
++
++			# Combine the upper four bits with the rotated lower four bits
++			b6_rotated=$(($b6_dec & 0xF0 | rotated))
++
++			# Reassemble the MAC address
++			result_mac="${generated_mac%:*}:$(printf '%02X' $b6_rotated)"
++
++			# Add the MAC address to the JSON object
++			json_add_string mld_addr "$result_mac"
+ 		fi
+ 	fi
+ 
+diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
+index d8a1756..4379e04 100644
+--- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
++++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
+@@ -148,7 +148,6 @@ get_band_defaults() {
+ 			sae_pwe=2
+ 			ieee80211w=2
+ 			channel=37
+-			mbssid=1
+ 			mbo=1
+ 			band_idx=2
+ 		elif [ "$band" = "5g" ]
+@@ -300,6 +299,13 @@ EOF
+ 			uci -q set wireless.${name}.band_idx=${band_idx}
+ 		}
+ 
++		uci -q batch <<-EOF
++			set wireless.default_${name}_mld=wifi-iface
++			set wireless.default_${name}_mld.device=${name}
++			set wireless.default_${name}_mld.network=lan
++			set wireless.default_${name}_mld.mode=ap
++			set wireless.default_${name}_mld.mld_id=1
++EOF
+ 		uci -q batch <<-EOF
+ 			set wireless.default_${name}=wifi-iface
+ 			set wireless.default_${name}.device=${name}
+@@ -326,6 +332,23 @@ EOF
+ 		[ -n "$mbo" ] && {
+ 			uci -q set wireless.default_${name}.mbo=${mbo}
+ 		}
+-		uci -q commit wireless
+ 	done
++
++	devidx=$(($devidx + 1))
++	# Add ap_mld section
++	uci set wireless.ap_mld_1=wifi-mld
++	uci set wireless.ap_mld_1.ssid=MT76_AP_MLD
++	uci set wireless.ap_mld_1.encryption=sae
++	uci set wireless.ap_mld_1.ieee80211w=2
++	uci set wireless.ap_mld_1.key=12345678
++	uci set wireless.ap_mld_1.mld_id=1
++	uci set wireless.ap_mld_1.ifname=ap-mld-1
++	if (dmesg | grep -q "eeprom load fail"); then
++		for i in $(seq 2 3); do
++			macaddr=${macaddr}:$(echo $rand | cut -d ' ' -f $i)
++		done
++		macaddr="00:0$(($devidx + 1)):55:66${macaddr}"
++		uci set wireless.ap_mld_1.mld_addr=$macaddr
++	fi
++	uci -q commit wireless
+ }
+
