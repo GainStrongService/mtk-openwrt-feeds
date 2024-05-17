@@ -4568,6 +4568,10 @@ static void mtk_pending_work(struct work_struct *work)
 
 	mtk_phy_config(eth, 0);
 
+	/* Store QDMA configurations to prepare for reset */
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		mtk_save_qdma_cfg(eth);
+
 	/* Adjust PPE configurations to prepare for reset */
 	mtk_prepare_reset_ppe(eth, 0);
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
@@ -4656,6 +4660,10 @@ static void mtk_pending_work(struct work_struct *work)
 			eth->netdev[i]);
 		break;
 	}
+
+	/* Restore QDMA configurations */
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		mtk_restore_qdma_cfg(eth);
 
 	atomic_dec(&reset_lock);
 

@@ -22,6 +22,13 @@ char* mtk_reset_event_name[32] = {
 	[MTK_EVENT_RFIFO_UF]	= "RFIFO UF",
 };
 
+struct mtk_qdma_cfg {
+	u32 qtx_cfg[MTK_QDMA_TX_NUM];
+	u32 qtx_sch[MTK_QDMA_TX_NUM];
+	u32 tx_sch[2];
+};
+
+static struct mtk_qdma_cfg mtk_qdma_cfg_backup;
 static int mtk_wifi_num = 0;
 static int mtk_rest_cnt = 0;
 u32 mtk_reset_flag = MTK_FE_START_RESET;
@@ -717,6 +724,58 @@ void mtk_dma_monitor(struct timer_list *t)
 	}
 
 	mod_timer(&eth->mtk_dma_monitor_timer, jiffies + 1 * HZ);
+}
+
+void mtk_save_qdma_cfg(struct mtk_eth *eth)
+{
+	int i;
+
+	for (i = 0; i < MTK_QDMA_TX_NUM; i++) {
+		mtk_m32(eth, MTK_QTX_CFG_PAGE, (i / MTK_QTX_PER_PAGE),
+			MTK_QDMA_PAGE);
+
+		mtk_qdma_cfg_backup.qtx_cfg[i] =
+			mtk_r32(eth, MTK_QTX_CFG(i % MTK_QTX_PER_PAGE));
+		mtk_qdma_cfg_backup.qtx_sch[i] =
+			mtk_r32(eth, MTK_QTX_SCH(i % MTK_QTX_PER_PAGE));
+	}
+	mtk_m32(eth, MTK_QTX_CFG_PAGE, 0, MTK_QDMA_PAGE);
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
+	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		mtk_qdma_cfg_backup.tx_sch[0] =
+			mtk_r32(eth, MTK_QDMA_TX_4SCH_BASE(0));
+		mtk_qdma_cfg_backup.tx_sch[1] =
+			mtk_r32(eth, MTK_QDMA_TX_4SCH_BASE(2));
+	} else
+		mtk_qdma_cfg_backup.tx_sch[0] =
+			mtk_r32(eth, MTK_QDMA_TX_2SCH_BASE);
+}
+
+void mtk_restore_qdma_cfg(struct mtk_eth *eth)
+{
+	int i;
+
+	for (i = 0; i < MTK_QDMA_TX_NUM; i++) {
+		mtk_m32(eth, MTK_QTX_CFG_PAGE, (i / MTK_QTX_PER_PAGE),
+			MTK_QDMA_PAGE);
+
+		mtk_w32(eth, mtk_qdma_cfg_backup.qtx_cfg[i],
+			MTK_QTX_CFG(i % MTK_QTX_PER_PAGE));
+		mtk_w32(eth, mtk_qdma_cfg_backup.qtx_sch[i],
+			MTK_QTX_SCH(i % MTK_QTX_PER_PAGE));
+	}
+	mtk_m32(eth, MTK_QTX_CFG_PAGE, 0, MTK_QDMA_PAGE);
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
+	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		mtk_w32(eth, mtk_qdma_cfg_backup.tx_sch[0],
+			MTK_QDMA_TX_4SCH_BASE(0));
+		mtk_w32(eth, mtk_qdma_cfg_backup.tx_sch[1],
+			MTK_QDMA_TX_4SCH_BASE(2));
+	} else
+		mtk_w32(eth, mtk_qdma_cfg_backup.tx_sch[0],
+			MTK_QDMA_TX_2SCH_BASE);
 }
 
 void mtk_prepare_reset_fe(struct mtk_eth *eth)

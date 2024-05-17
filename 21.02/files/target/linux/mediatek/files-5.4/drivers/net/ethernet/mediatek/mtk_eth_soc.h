@@ -486,6 +486,9 @@
 #define FC_THRES_DROP_EN	(7 << 16)
 #define FC_THRES_MIN		0x4444
 
+/* QDMA TX Scheduler Rate Control Register */
+#define MTK_QDMA_TX_2SCH_BASE	(QDMA_BASE + 0x214)
+
 /* QDMA Interrupt Status Register */
 #define MTK_QDMA_INT_STATUS	(QDMA_BASE + 0x218)
 #if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -555,6 +558,9 @@
 
 /* QDMA FQ Free Page Buffer Length Register */
 #define MTK_QDMA_FQ_BLEN	(QDMA_BASE +0x32c)
+
+/* QDMA TX Scheduler Rate Control Register */
+#define MTK_QDMA_TX_4SCH_BASE(x)	(QDMA_BASE + 0x398 + (((x) >> 1) * 0x4))
 
 /* WDMA Registers */
 #define MTK_WDMA_CTX_PTR(x)	(WDMA_BASE(x) + 0x8)
