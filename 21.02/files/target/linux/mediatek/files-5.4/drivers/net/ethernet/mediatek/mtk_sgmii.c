@@ -454,10 +454,8 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 				   SGMII_SW_RESET, SGMII_SW_RESET);
 
 		/* Configure the interface polarity */
-		if (MTK_HAS_FLAGS(mpcs->flags, MTK_SGMII_PN_SWAP))
-			regmap_update_bits(mpcs->regmap, SGMSYS_QPHY_WRAP_CTRL,
-					   SGMII_PN_SWAP_MASK,
-					   SGMII_PN_SWAP_TX_RX);
+		regmap_update_bits(mpcs->regmap, SGMSYS_QPHY_WRAP_CTRL,
+				   SGMII_PN_SWAP_MASK, mpcs->polarity);
 
 		if (interface == PHY_INTERFACE_MODE_2500BASEX)
 			rgc3 = RG_PHY_SPEED_3_125G;
@@ -644,9 +642,13 @@ int mtk_sgmii_init(struct mtk_eth *eth, struct device_node *r, u32 ana_rgc3)
 		if (IS_ERR(ss->pcs[i].regmap))
 			return PTR_ERR(ss->pcs[i].regmap);
 
-		ss->pcs[i].flags &= ~(MTK_SGMII_PN_SWAP);
+		ss->pcs[i].polarity = 0;
 		if (of_property_read_bool(np, "pn_swap"))
-			ss->pcs[i].flags |= MTK_SGMII_PN_SWAP;
+			ss->pcs[i].polarity |= SGMII_PN_SWAP_TX | SGMII_PN_SWAP_RX;
+		else if (of_property_read_bool(np, "pn_swap_tx"))
+			ss->pcs[i].polarity |= SGMII_PN_SWAP_TX;
+		else if (of_property_read_bool(np, "pn_swap_rx"))
+			ss->pcs[i].polarity |= SGMII_PN_SWAP_RX;
 
 		ss->pcs[i].pcs.ops = &mtk_sgmii_pcs_ops;
 		ss->pcs[i].pcs.poll = true;

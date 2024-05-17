@@ -963,7 +963,8 @@
 /* Register to QPHY wrapper control */
 #define SGMSYS_QPHY_WRAP_CTRL	0xec
 #define SGMII_PN_SWAP_MASK	GENMASK(1, 0)
-#define SGMII_PN_SWAP_TX_RX	(BIT(0) | BIT(1))
+#define SGMII_PN_SWAP_RX	BIT(1)
+#define SGMII_PN_SWAP_TX	BIT(0)
 
 /* USXGMII subsystem config registers */
 /* Register to control speed */
@@ -1749,7 +1750,7 @@ struct mtk_soc_data {
 #define MTK_SGMII_PHYSPEED_2500        BIT(1)
 #define MTK_SGMII_PHYSPEED_5000	       BIT(2)
 #define MTK_SGMII_PHYSPEED_10000       BIT(3)
-#define MTK_SGMII_PN_SWAP	       BIT(16)
+
 #define MTK_HAS_FLAGS(flags, _x)       (((flags) & (_x)) == (_x))
 
 /* struct mtk_sgmii_pcs - This structure holds each sgmii regmap and associated
@@ -1771,6 +1772,7 @@ struct mtk_sgmii_pcs {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
 	u32			flags;
 	u32			ana_rgc3;
+	u32			polarity;
 	u8			id;
 	struct phylink_pcs	pcs;
 };
