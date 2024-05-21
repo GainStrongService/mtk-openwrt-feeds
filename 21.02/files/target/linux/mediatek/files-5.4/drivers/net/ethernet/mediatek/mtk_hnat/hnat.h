@@ -888,6 +888,7 @@ struct mib_entry {
 struct hnat_accounting {
 	u64 bytes;
 	u64 packets;
+	u64 nfct; /* For retrieving nf_conn info */
 };
 
 enum mtk_hnat_version {

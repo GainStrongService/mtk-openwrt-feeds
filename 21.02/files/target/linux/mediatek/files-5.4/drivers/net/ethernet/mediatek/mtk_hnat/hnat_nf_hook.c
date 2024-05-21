@@ -1893,9 +1893,11 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	/*reset statistic for this entry*/
 	if (hnat_priv->data->per_flow_accounting &&
 	    skb_hnat_entry(skb) < hnat_priv->foe_etry_num &&
-	    skb_hnat_ppe(skb) < CFG_PPE_NUM)
+	    skb_hnat_ppe(skb) < CFG_PPE_NUM) {
 		memset(&hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
-		       0, sizeof(struct mib_entry));
+		       0, sizeof(struct hnat_accounting));
+		hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].nfct = skb_get_nfct(skb);
+	}
 
 	return 0;
 }
@@ -2365,28 +2367,6 @@ static void mtk_hnat_dscp_update(struct sk_buff *skb, struct foe_entry *entry)
 	}
 }
 
-static void mtk_hnat_nf_update(struct sk_buff *skb)
-{
-	struct nf_conn *ct;
-	struct nf_conn_acct *acct;
-	struct nf_conn_counter *counter;
-	enum ip_conntrack_info ctinfo;
-	struct hnat_accounting diff;
-
-	ct = nf_ct_get(skb, &ctinfo);
-	if (ct) {
-		if (!hnat_get_count(hnat_priv, skb_hnat_ppe(skb), skb_hnat_entry(skb), &diff))
-			return;
-
-		acct = nf_conn_acct_find(ct);
-		if (acct) {
-			counter = acct->counter;
-			atomic64_add(diff.packets, &counter[CTINFO2DIR(ctinfo)].packets);
-			atomic64_add(diff.bytes, &counter[CTINFO2DIR(ctinfo)].bytes);
-		}
-	}
-}
-
 int mtk_464xlat_fill_mac(struct foe_entry *entry, struct sk_buff *skb,
 			 const struct net_device *out, bool l2w)
 {
@@ -2731,7 +2711,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 	case HIT_BIND_KEEPALIVE_DUP_OLD_HDR:
 		/* update hnat count to nf_conntrack by keepalive */
 		if (hnat_priv->data->per_flow_accounting && hnat_priv->nf_stat_en)
-			mtk_hnat_nf_update(skb);
+			hnat_get_count(hnat_priv, skb_hnat_ppe(skb), skb_hnat_entry(skb), NULL);
 
 		if (fn && !mtk_hnat_accel_type(skb))
 			break;

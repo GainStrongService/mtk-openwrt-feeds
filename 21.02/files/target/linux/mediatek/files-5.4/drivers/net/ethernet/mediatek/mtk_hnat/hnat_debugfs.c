@@ -18,6 +18,8 @@
 #include <linux/iopoll.h>
 #include <linux/inet.h>
 #include <net/ipv6.h>
+#include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_acct.h>
 
 #include "hnat.h"
 #include "nf_hnat_mtk.h"
@@ -976,6 +978,30 @@ int read_mib(struct mtk_hnat *h, u32 ppe_id,
 
 }
 
+static int hnat_nfct_counter_update(struct mtk_hnat *h, u32 ppe_id,
+				    u32 index, u64 bytes, u64 packets)
+{
+	struct nf_conn *ct;
+	struct nf_conn_acct *acct;
+	struct nf_conn_counter *counter;
+	enum ip_conntrack_info ctinfo;
+	u64 nfct;
+
+	nfct = h->acct[ppe_id][index].nfct;
+	ctinfo = nfct & NFCT_INFOMASK;
+	ct = (struct nf_conn *)(nfct & NFCT_PTRMASK);
+	if (ct) {
+		acct = nf_conn_acct_find(ct);
+		if (acct) {
+			counter = acct->counter;
+			atomic64_add(bytes, &counter[CTINFO2DIR(ctinfo)].bytes);
+			atomic64_add(packets, &counter[CTINFO2DIR(ctinfo)].packets);
+		}
+	}
+
+	return 0;
+}
+
 struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 ppe_id,
 				       u32 index, struct hnat_accounting *diff)
 
@@ -1001,6 +1027,8 @@ struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 ppe_id,
 		diff->bytes = bytes;
 		diff->packets = packets;
 	}
+
+	hnat_nfct_counter_update(h, ppe_id, index, bytes, packets);
 
 	return &h->acct[ppe_id][index];
 }
