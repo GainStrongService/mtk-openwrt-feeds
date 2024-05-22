@@ -57,7 +57,7 @@ index c21aa9d..6a8f37e 100755
  	fi
  
 diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
-index d8a1756..4379e04 100644
+index d8a1756..be8c049 100644
 --- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
 @@ -148,7 +148,6 @@ get_band_defaults() {
@@ -68,7 +68,59 @@ index d8a1756..4379e04 100644
  			mbo=1
  			band_idx=2
  		elif [ "$band" = "5g" ]
-@@ -300,6 +299,13 @@ EOF
+@@ -169,6 +168,17 @@ get_band_defaults() {
+ 	done
+ }
+ 
++get_mld_defaults() {
++	mld_section=ap_mld_1
++	mld_id=1
++	mld_encryption=sae
++	mld_key=12345678
++	mld_sae_pwe=2
++	mld_ieee80211w=2
++	mld_ssid=MT76_AP_MLD
++	mld_ifname=ap-mld-1
++}
++
+ check_devidx() {
+ 	case "$1" in
+ 	radio[0-9]*)
+@@ -195,6 +205,7 @@ check_board_phy() {
+ detect_mac80211() {
+ 	devidx=0
+ 	disabled=0
++	init_mld=0
+ 	config_load wireless
+ 	config_foreach check_devidx wifi-device
+ 
+@@ -229,6 +240,17 @@ detect_mac80211() {
+ 
+ 		get_band_defaults "$dev"
+ 
++
++		mld_section=""
++		mld_id=""
++		mld_encryption=""
++		mld_key=""
++		mld_sae_pwe=""
++		mld_ieee80211w=""
++		mld_ssid=""
++		mld_ifname=""
++		get_mld_defaults
++
+ 		path="$(iwinfo nl80211 path "$dev")"
+ 		macaddr="$(cat /sys/class/ieee80211/${dev}/macaddress)"
+ 
+@@ -244,6 +266,7 @@ detect_mac80211() {
+ 		found=
+ 		config_foreach check_mac80211_device wifi-device "$path" "$macaddr"
+ 		[ -n "$found" ] && continue
++		init_mld=1
+ 
+ 		name="radio${devidx}"
+ 		devidx=$(($devidx + 1))
+@@ -300,6 +323,13 @@ EOF
  			uci -q set wireless.${name}.band_idx=${band_idx}
  		}
  
@@ -77,34 +129,49 @@ index d8a1756..4379e04 100644
 +			set wireless.default_${name}_mld.device=${name}
 +			set wireless.default_${name}_mld.network=lan
 +			set wireless.default_${name}_mld.mode=ap
-+			set wireless.default_${name}_mld.mld_id=1
++			set wireless.default_${name}_mld.mld_id=${mld_id}
 +EOF
  		uci -q batch <<-EOF
  			set wireless.default_${name}=wifi-iface
  			set wireless.default_${name}.device=${name}
-@@ -326,6 +332,23 @@ EOF
+@@ -326,6 +356,38 @@ EOF
  		[ -n "$mbo" ] && {
  			uci -q set wireless.default_${name}.mbo=${mbo}
  		}
 -		uci -q commit wireless
  	done
 +
-+	devidx=$(($devidx + 1))
-+	# Add ap_mld section
-+	uci set wireless.ap_mld_1=wifi-mld
-+	uci set wireless.ap_mld_1.ssid=MT76_AP_MLD
-+	uci set wireless.ap_mld_1.encryption=sae
-+	uci set wireless.ap_mld_1.ieee80211w=2
-+	uci set wireless.ap_mld_1.key=12345678
-+	uci set wireless.ap_mld_1.mld_id=1
-+	uci set wireless.ap_mld_1.ifname=ap-mld-1
-+	if (dmesg | grep -q "eeprom load fail"); then
-+		for i in $(seq 2 3); do
-+			macaddr=${macaddr}:$(echo $rand | cut -d ' ' -f $i)
-+		done
-+		macaddr="00:0$(($devidx + 1)):55:66${macaddr}"
-+		uci set wireless.ap_mld_1.mld_addr=$macaddr
++	if [ -n "$init_mld" ]; then
++		devidx=$(($devidx + 1))
++
++		uci -q set wireless.${mld_section}=wifi-mld
++		uci -q set wireless.${mld_section}.ifname=${mld_ifname}
++		uci -q set wireless.${mld_section}.mld_id=${mld_id}
++		uci -q set wireless.${mld_section}.ssid=${mld_ssid}
++		uci -q set wireless.${mld_section}.encryption=${mld_encryption}
++
++		[ -n "$mld_key" ] && {
++			uci -q set wireless.${mld_section}.key=${mld_key}
++		}
++		[ -n "$mld_sae_pwe" ] && {
++			uci -q set wireless.${mld_section}.sae_pwe=${mld_sae_pwe}
++		}
++		[ -n "$mld_ieee80211w" ] && {
++			uci -q set wireless.${mld_section}.ieee80211w=${mld_ieee80211w}
++		}
++
++		macaddr=""
++		if (dmesg | grep -q "eeprom load fail"); then
++			for i in $(seq 2 3); do
++				macaddr=${macaddr}:$(echo $rand | cut -d ' ' -f $i)
++			done
++			macaddr="00:0$(($devidx + 1)):55:66${macaddr}"
++		fi
++		[ -n "$macaddr" ] && {
++			uci -q set wireless.${mld_section}.mld_addr=$macaddr
++		}
 +	fi
++
 +	uci -q commit wireless
  }
 
