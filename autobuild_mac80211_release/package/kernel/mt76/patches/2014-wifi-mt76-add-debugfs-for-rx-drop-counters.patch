@@ -1,7 +1,7 @@
-From 1ae8ef5e4f45e028f33c8b5186247e8b8b10e580 Mon Sep 17 00:00:00 2001
+From dd3b663524af8f38dc1e2a04e1722f5b7d96d514 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
-Date: Wed, 20 Mar 2024 15:14:20 +0800
-Subject: [PATCH 2014/2015] wifi: mt76: add debugfs for rx drop counters
+Date: Thu, 23 May 2024 02:33:47 +0800
+Subject: [PATCH 2/4] wifi: mt76: add debugfs for rx drop counters
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
@@ -198,10 +198,10 @@ index 619dc0f..6b2ee7e 100644
  
  #endif
 diff --git a/mac80211.c b/mac80211.c
-index 225b290..0360172 100644
+index c31d130..6980fe7 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -774,6 +774,7 @@ static void mt76_rx_release_amsdu(struct mt76_phy *phy, enum mt76_rxq_id q)
+@@ -775,6 +775,7 @@ static void mt76_rx_release_amsdu(struct mt76_phy *phy, enum mt76_rxq_id q)
  		}
  
  		if (ether_addr_equal(skb->data + offset, rfc1042_header)) {
@@ -209,7 +209,7 @@ index 225b290..0360172 100644
  			dev_kfree_skb(skb);
  			return;
  		}
-@@ -811,6 +812,7 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
+@@ -812,6 +813,7 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
  
  	if (!test_bit(MT76_STATE_RUNNING, &phy->state)) {
  		dev_kfree_skb(skb);
@@ -217,7 +217,7 @@ index 225b290..0360172 100644
  		return;
  	}
  
-@@ -1048,6 +1050,7 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
+@@ -1049,6 +1051,7 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
  {
  	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
  	struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
@@ -225,7 +225,7 @@ index 225b290..0360172 100644
  	struct mt76_rx_status mstat;
  
  	mstat = *((struct mt76_rx_status *)skb->cb);
-@@ -1090,6 +1093,9 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
+@@ -1091,6 +1094,9 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
  
  	*sta = wcid_to_sta(mstat.wcid);
  	*hw = mt76_phy_hw(dev, mstat.phy_idx);
@@ -236,7 +236,7 @@ index 225b290..0360172 100644
  
  static void
 diff --git a/mt76.h b/mt76.h
-index fce4e94..284644d 100644
+index 2d59091..11898b8 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -175,6 +175,33 @@ enum mt76_dfs_state {
@@ -272,7 +272,7 @@ index fce4e94..284644d 100644
 +
  struct mt76_queue_buf {
  	dma_addr_t addr;
- 	u16 len;
+ 	u16 len:15,
 @@ -243,6 +270,8 @@ struct mt76_queue {
  	dma_addr_t desc_dma;
  	struct sk_buff *rx_head;
