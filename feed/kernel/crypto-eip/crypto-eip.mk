@@ -8,7 +8,8 @@
 # Configure for crypto-eip top makefile
 EIP_KERNEL_PKGS+= \
 	crypto-eip \
-	crypto-eip-inline
+	crypto-eip-inline \
+	crypto-eip-autoload
 
 ifeq ($(CONFIG_PACKAGE_kmod-crypto-eip),y)
 EXTRA_KCONFIG+= \
@@ -86,4 +87,17 @@ endef
 
 define KernelPackage/crypto-eip-inline/description
   EIP197 inline mode. HW offload for IPsec ESP Tunnel mode.
+endef
+
+define KernelPackage/crypto-eip-autoload
+  CATEGORY:=MTK Properties
+  SUBMENU:=Drivers
+  TITLE:= EIP-197 Crypto Engine Driver Autoload
+  AUTOLOAD:=$(call AutoLoad,90,crypto-eip-inline)
+  KCONFIG:=
+  DEPENDS:= kmod-crypto-eip-inline
+endef
+
+define KernelPackage/crypto-eip-autoload/description
+  EIP197 Driver Autoload.
 endef
