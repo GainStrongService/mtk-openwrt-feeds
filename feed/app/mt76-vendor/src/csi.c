@@ -17,6 +17,7 @@ static struct nla_policy csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
 	[MTK_VENDOR_ATTR_CSI_CTRL_STA_INTERVAL] = { .type = NLA_U32 },
 	[MTK_VENDOR_ATTR_CSI_CTRL_DUMP_NUM] = { .type = NLA_U16 },
 	[MTK_VENDOR_ATTR_CSI_CTRL_DATA] = { .type = NLA_NESTED },
+	[MTK_VENDOR_ATTR_CSI_CTRL_DUMP_MAC_FILTER] = { .type = NLA_NESTED },
 };
 
 static struct nla_policy csi_data_policy[NUM_MTK_VENDOR_ATTRS_CSI_DATA] = {
@@ -35,6 +36,10 @@ static struct nla_policy csi_data_policy[NUM_MTK_VENDOR_ATTRS_CSI_DATA] = {
 	[MTK_VENDOR_ATTR_CSI_DATA_RX_ANT] = { .type = NLA_U8 },
 	[MTK_VENDOR_ATTR_CSI_DATA_MODE] = { .type = NLA_U8 },
 	[MTK_VENDOR_ATTR_CSI_DATA_CHAIN_INFO] = { .type = NLA_U32 },
+};
+
+static struct nla_policy csi_filter_policy[NUM_MTK_VENDOR_ATTRS_CSI_MAC_FILTER] = {
+	[MTK_VENDOR_ATTR_CSI_MAC_FILTER_INTERVAL] = { .type = NLA_U32 },
 };
 
 static int mt76_csi_dump_cb(struct nl_msg *msg, void *arg)
@@ -335,6 +340,48 @@ static int mt76_csi_set_attr(struct nl_msg *msg, int argc, char **argv)
 	return 0;
 }
 
+static int mt76_csi_set_cb(struct nl_msg *msg, void *arg)
+{
+	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_CSI_CTRL];
+	struct nlattr *cur, *tb_entry[NUM_MTK_VENDOR_ATTRS_CSI_MAC_FILTER];
+	int rem;
+	struct nlattr *attr;
+
+	attr = unl_find_attr(&unl, msg, NL80211_ATTR_VENDOR_DATA);
+	if (!attr) {
+		fprintf(stderr, "Testdata attribute not found\n");
+		return NL_SKIP;
+	}
+
+	nla_parse_nested(tb, MTK_VENDOR_ATTR_CSI_CTRL_MAX, attr, csi_ctrl_policy);
+
+	if (!tb[MTK_VENDOR_ATTR_CSI_CTRL_DUMP_MAC_FILTER])
+		return NL_SKIP;
+
+	nla_for_each_nested(cur, tb[MTK_VENDOR_ATTR_CSI_CTRL_DUMP_MAC_FILTER], rem) {
+		struct nlattr *tb[MTK_VENDOR_ATTR_CSI_MAC_FILTER_MAX + 1];
+		u8 entry_mac[ETH_ALEN] = {0};
+		u32 entry_interval = 0;
+
+		nla_parse_nested(tb_entry, MTK_VENDOR_ATTR_CSI_MAC_FILTER_MAX,
+				 cur, csi_filter_policy);
+
+		if (!tb_entry[MTK_VENDOR_ATTR_CSI_MAC_FILTER_MAC] ||
+		    !tb_entry[MTK_VENDOR_ATTR_CSI_MAC_FILTER_INTERVAL])
+			continue;
+
+		memcpy(entry_mac, nla_data(tb_entry[MTK_VENDOR_ATTR_CSI_MAC_FILTER_MAC]), ETH_ALEN);
+		entry_interval = nla_get_u32(tb_entry[MTK_VENDOR_ATTR_CSI_MAC_FILTER_INTERVAL]);
+
+		printf("mac: %02x:%02x:%02x:%02x:%02x:%02x, interval: %d\n",
+			entry_mac[0], entry_mac[1], entry_mac[2],
+			entry_mac[3], entry_mac[4], entry_mac[5],
+			entry_interval);
+	}
+
+	return NL_SKIP;
+}
+
 int mt76_csi_set(int idx, int argc, char **argv)
 {
 	struct nl_msg *msg;
@@ -364,7 +411,7 @@ int mt76_csi_set(int idx, int argc, char **argv)
 
 	nla_nest_end(msg, data);
 
-	ret = unl_genl_request(&unl, msg, NULL, NULL);
+	ret = unl_genl_request(&unl, msg, mt76_csi_set_cb, NULL);
 	if (ret)
 		fprintf(stderr, "nl80211 call failed: %s\n", strerror(-ret));
 
