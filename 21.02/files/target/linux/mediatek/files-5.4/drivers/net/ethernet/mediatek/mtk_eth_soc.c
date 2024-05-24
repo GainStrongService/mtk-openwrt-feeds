@@ -2136,7 +2136,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 			}
 
 			memset(&txd_info, 0, sizeof(struct mtk_tx_dma_desc_info));
-			txd_info.size = min(frag_size, MTK_TX_DMA_BUF_LEN);
+			txd_info.size = min(frag_size, eth->soc->txrx.dma_max_len);
 			txd_info.qid = queue;
 			txd_info.last = i == skb_shinfo(skb)->nr_frags - 1 &&
 					!(frag_size - txd_info.size);
@@ -3868,9 +3868,19 @@ static int mtk_start_dma(struct mtk_eth *eth)
 			MTK_RX_BT_32DWORDS | MTK_MULTI_EN,
 			reg_map->pdma.glo_cfg);
 	} else {
-		mtk_w32(eth, MTK_TX_WB_DDONE | MTK_TX_DMA_EN | MTK_RX_DMA_EN |
-			MTK_MULTI_EN | MTK_PDMA_SIZE_8DWORDS,
-			reg_map->pdma.glo_cfg);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+			mtk_w32(eth, MTK_TX_DMA_EN | MTK_RX_DMA_EN |
+				MTK_PDMA_SIZE_8DWORDS | MTK_TX_WB_DDONE |
+				MTK_CHK_DDONE | MTK_MULTI_EN_V2 |
+				MTK_PDMA_MUTLI_CNT | MTK_PDMA_RESV_BUF |
+				MTK_DEC_WCOMP | MTK_CSR_CLKGATE_BYP,
+				reg_map->pdma.glo_cfg);
+		} else {
+			mtk_w32(eth, MTK_TX_WB_DDONE | MTK_TX_DMA_EN |
+				MTK_RX_DMA_EN | MTK_MULTI_EN |
+				MTK_PDMA_SIZE_8DWORDS,
+				reg_map->pdma.glo_cfg);
+		}
 	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) && eth->hwlro) {

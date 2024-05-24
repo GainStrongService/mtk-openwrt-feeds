@@ -295,11 +295,19 @@
 
 /* PDMA Global Configuration Register */
 #define MTK_PDMA_GLO_CFG	(PDMA_BASE + 0x204)
-#define MTK_RX_DMA_LRO_EN	BIT(8)
+#define MTK_CSR_CLKGATE_BYP	BIT(30)
 #define MTK_MULTI_EN		BIT(10)
+#define MTK_RX_DMA_LRO_EN	BIT(8)
 #define MTK_PDMA_SIZE_8DWORDS	(1 << 4)
 
-/* PDMA Global Configuration Register */
+/* PDMA V2 Global Configuration Register */
+#define MTK_DEC_WCOMP		BIT(28)
+#define MTK_PDMA_RESV_BUF	(0x40 << 16)
+#define MTK_PDMA_MUTLI_CNT	(0xf << 12)
+#define MTK_MULTI_EN_V2		BIT(11)
+#define MTK_CHK_DDONE		BIT(10)
+
+/* PDMA RX DMA Configuration Register */
 #define MTK_PDMA_RX_CFG		(PDMA_BASE + 0x210)
 #define MTK_PDMA_LRO_SDL	(0x3000)
 #define MTK_RX_CFG_SDL_OFFSET	(16)
