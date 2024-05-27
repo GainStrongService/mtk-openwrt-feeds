@@ -1219,7 +1219,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	const struct tcpudphdr *pptr;
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
-	u32 gmac = NR_DISCARD;
+	int gmac = NR_DISCARD;
 	int udp = 0;
 	u32 qid = 0;
 	u32 port_id = 0;
@@ -1692,33 +1692,32 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	entry = ppe_fill_info_blk(eth, entry, hw_path);
 
 	if (IS_LAN(dev)) {
-		if (IS_DSA_LAN(dev))
+		if (IS_BOND_MODE) {
+			gmac = ((skb_hnat_entry(skb) >> 1) % hnat_priv->gmac_num) ?
+				 NR_GMAC2_PORT : NR_GMAC1_PORT;
+		} else if (IS_DSA_LAN(dev)) {
 			port_id = hnat_dsa_fill_stag(dev, &entry, hw_path,
 						     ntohs(eth->h_proto),
 						     mape);
-
-		if (IS_BOND_MODE)
-			gmac = ((skb_hnat_entry(skb) >> 1) % hnat_priv->gmac_num) ?
-				 NR_GMAC2_PORT : NR_GMAC1_PORT;
-		else
 			gmac = NR_GMAC1_PORT;
+		} else {
+			gmac = HNAT_GMAC_FP(mac->id);
+		}
 	} else if (IS_LAN2(dev)) {
-		gmac = (mac->id == MTK_GMAC2_ID) ? NR_GMAC2_PORT : NR_GMAC3_PORT;
+		gmac = HNAT_GMAC_FP(mac->id);
 	} else if (IS_WAN(dev)) {
-		if (IS_DSA_WAN(dev))
-			port_id = hnat_dsa_fill_stag(dev,&entry, hw_path,
-						     ntohs(eth->h_proto),
-						     mape);
 		if (mape_toggle && mape == 1) {
 			gmac = NR_PDMA_PORT;
 			/* Set act_dp = wan_dev */
 			entry.ipv4_hnapt.act_dp &= ~UDF_PINGPONG_IFIDX;
 			entry.ipv4_hnapt.act_dp |= dev->ifindex & UDF_PINGPONG_IFIDX;
+		} else if (IS_DSA_WAN(dev)) {
+			port_id = hnat_dsa_fill_stag(dev, &entry, hw_path,
+						     ntohs(eth->h_proto),
+						     mape);
+			gmac = NR_GMAC1_PORT;
 		} else {
-			if (IS_GMAC1_MODE)
-				gmac = NR_GMAC1_PORT;
-			else
-				gmac = (mac->id == MTK_GMAC2_ID) ? NR_GMAC2_PORT : NR_GMAC3_PORT;
+			gmac = HNAT_GMAC_FP(mac->id);
 		}
 	} else if (IS_EXT(dev) && (FROM_GE_PPD(skb) || FROM_GE_LAN_GRP(skb) ||
 		   FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb) || FROM_WED(skb))) {
@@ -1746,10 +1745,13 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			entry.ipv6_5t_route.act_dp |= dev->ifindex & UDF_PINGPONG_IFIDX;
 		}
 	} else {
-		printk_ratelimited(KERN_WARNING
-					"Unknown case of dp, iif=%x --> %s\n",
-					skb_hnat_iface(skb), dev->name);
+		gmac = -EINVAL;
+	}
 
+	if (gmac < 0) {
+		printk_ratelimited(KERN_WARNING
+				   "Unknown case of dp, iif=%x --> %s\n",
+				   skb_hnat_iface(skb), dev->name);
 		return 0;
 	}
 
