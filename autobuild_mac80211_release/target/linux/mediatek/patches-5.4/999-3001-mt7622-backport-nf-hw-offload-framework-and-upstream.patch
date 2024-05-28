@@ -1,6 +1,6 @@
-From 777c7fdc6e5084939b1825a89d5000650f82f5d0 Mon Sep 17 00:00:00 2001
+From fdcf6ba6449ebc18a908a7c66164ee6a7f463ae0 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Tue, 28 May 2024 10:36:36 +0800
+Date: Tue, 28 May 2024 16:51:32 +0800
 Subject: [PATCH 01/24] mt7622 backport nf hw offload framework and upstream
  hnat plus xt-FLOWOFFLOAD update v2
 
@@ -46,8 +46,8 @@ Subject: [PATCH 01/24] mt7622 backport nf hw offload framework and upstream
  net/netfilter/nf_flow_table_core.c            |  470 ++++---
  net/netfilter/nf_flow_table_ip.c              |  447 +++---
  net/netfilter/nf_flow_table_offload.c         | 1199 +++++++++++++++++
- net/netfilter/xt_FLOWOFFLOAD.c                |  799 +++++++++++
- 42 files changed, 5002 insertions(+), 452 deletions(-)
+ net/netfilter/xt_FLOWOFFLOAD.c                |  780 +++++++++++
+ 42 files changed, 4983 insertions(+), 452 deletions(-)
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/Makefile
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/mtk_eth_soc.c
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/mtk_eth_soc.h
@@ -77,10 +77,10 @@ index 634640d..5f342f4
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 old mode 100644
 new mode 100755
-index dc48bdf..790486f
+index cf5a7d6..d7959db
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4000,6 +4000,7 @@ static int mtk_open(struct net_device *dev)
+@@ -4011,6 +4011,7 @@ static int mtk_open(struct net_device *dev)
  	u32 id = mtk_mac2xgmii_id(eth, mac->id);
  	int err, i;
  	struct device_node *phy_node;
@@ -88,7 +88,7 @@ index dc48bdf..790486f
  
  	err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
  	if (err) {
-@@ -4084,7 +4085,10 @@ static int mtk_open(struct net_device *dev)
+@@ -4095,7 +4096,10 @@ static int mtk_open(struct net_device *dev)
  		regmap_write(eth->sgmii->pcs[id].regmap,
  			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
@@ -100,7 +100,7 @@ index dc48bdf..790486f
  
  	return 0;
  }
-@@ -4171,6 +4175,9 @@ static int mtk_stop(struct net_device *dev)
+@@ -4182,6 +4186,9 @@ static int mtk_stop(struct net_device *dev)
  
  	mtk_dma_free(eth);
  
@@ -110,7 +110,7 @@ index dc48bdf..790486f
  	return 0;
  }
  
-@@ -5091,6 +5098,7 @@ static const struct net_device_ops mtk_netdev_ops = {
+@@ -5102,6 +5109,7 @@ static const struct net_device_ops mtk_netdev_ops = {
  #ifdef CONFIG_NET_POLL_CONTROLLER
  	.ndo_poll_controller	= mtk_poll_controller,
  #endif
@@ -118,7 +118,7 @@ index dc48bdf..790486f
  };
  
  static void mux_poll(struct work_struct *work)
-@@ -5760,6 +5768,17 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5771,6 +5779,17 @@ static int mtk_probe(struct platform_device *pdev)
  			goto err_free_dev;
  	}
  
@@ -136,7 +136,7 @@ index dc48bdf..790486f
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
  		if (!eth->netdev[i])
  			continue;
-@@ -5861,6 +5880,7 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -5872,6 +5891,7 @@ static const struct mtk_soc_data mt2701_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -144,7 +144,7 @@ index dc48bdf..790486f
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5881,6 +5901,7 @@ static const struct mtk_soc_data mt7621_data = {
+@@ -5892,6 +5912,7 @@ static const struct mtk_soc_data mt7621_data = {
  	.required_clks = MT7621_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -152,7 +152,7 @@ index dc48bdf..790486f
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5902,6 +5923,7 @@ static const struct mtk_soc_data mt7622_data = {
+@@ -5913,6 +5934,7 @@ static const struct mtk_soc_data mt7622_data = {
  	.required_clks = MT7622_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -160,7 +160,7 @@ index dc48bdf..790486f
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5922,6 +5944,7 @@ static const struct mtk_soc_data mt7623_data = {
+@@ -5933,6 +5955,7 @@ static const struct mtk_soc_data mt7623_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -171,7 +171,7 @@ index dc48bdf..790486f
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 old mode 100644
 new mode 100755
-index 5fe34dc..0845dca
+index 9fae48f..54b2c7c
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -15,6 +15,8 @@
@@ -201,7 +201,7 @@ index 5fe34dc..0845dca
  #define MTK_GDMA_DROP_ALL	0x7777
  
  /* GDM Egress Control Register */
-@@ -678,6 +682,12 @@
+@@ -686,6 +690,12 @@
  #define RX_DMA_TCI(_x)		((_x) & (VLAN_PRIO_MASK | VLAN_VID_MASK))
  #define RX_DMA_VPID(_x)		(((_x) >> 16) & 0xffff)
  
@@ -214,7 +214,7 @@ index 5fe34dc..0845dca
  /* QDMA descriptor rxd4 */
  #define RX_DMA_L4_VALID		BIT(24)
  #define RX_DMA_L4_VALID_PDMA	BIT(30)		/* when PDMA is used */
-@@ -1729,6 +1739,7 @@ struct mtk_soc_data {
+@@ -1737,6 +1747,7 @@ struct mtk_soc_data {
  	u64		caps;
  	u64		required_clks;
  	bool		required_pctl;
@@ -222,7 +222,7 @@ index 5fe34dc..0845dca
  	netdev_features_t hw_features;
  	bool		has_sram;
  	struct {
-@@ -1934,6 +1945,9 @@ struct mtk_eth {
+@@ -1947,6 +1958,9 @@ struct mtk_eth {
  	spinlock_t			syscfg0_lock;
  	struct notifier_block		netdevice_notifier;
  	struct timer_list		mtk_dma_monitor_timer;
@@ -232,9 +232,9 @@ index 5fe34dc..0845dca
  };
  
  /* struct mtk_mac -	the structure that holds the info about the MACs of the
-@@ -2014,6 +2028,9 @@ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r);
+@@ -2026,6 +2040,9 @@ struct phylink_pcs *mtk_usxgmii_select_pcs(struct mtk_usxgmii *ss, int id);
+ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r);
  int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
- void mtk_usxgmii_link_poll(struct work_struct *work);
  
 +int mtk_eth_offload_init(struct mtk_eth *eth);
 +int mtk_eth_setup_tc(struct net_device *dev, enum tc_setup_type type,
@@ -2211,7 +2211,7 @@ index 7b3c873..e954831 100644
 -
  #endif /* _NF_CONNTRACK_IPV6_H*/
 diff --git a/include/net/netfilter/nf_conntrack.h b/include/net/netfilter/nf_conntrack.h
-index 90690e3..38a8d3f 100644
+index 90690e3..ce0bc3e 100644
 --- a/include/net/netfilter/nf_conntrack.h
 +++ b/include/net/netfilter/nf_conntrack.h
 @@ -105,6 +105,8 @@ struct nf_conn {
@@ -2223,7 +2223,7 @@ index 90690e3..38a8d3f 100644
  };
  
  static inline struct nf_conn *
-@@ -279,6 +281,18 @@ static inline bool nf_ct_should_gc(const struct nf_conn *ct)
+@@ -279,6 +279,18 @@ static inline bool nf_ct_should_gc(const struct nf_conn *ct)
  	       !nf_ct_is_dying(ct);
  }
  
@@ -6122,10 +6122,10 @@ index 0000000..50f2f2e
 +}
 diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
 new file mode 100644
-index 0000000..0351154
+index 0000000..9120c60
 --- /dev/null
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
-@@ -0,0 +1,799 @@
+@@ -0,0 +1,780 @@
 +/*
 + * Copyright (C) 2018-2021 Felix Fietkau <nbd@nbd.name>
 + *
@@ -6494,52 +6494,33 @@ index 0000000..0351154
 +	if (!nf_is_valid_ether_device(dev))
 +		goto out;
 +
-+	if (ct->status & IPS_NAT_MASK || ct->inet6_mode == CT_INET_MODE_IPV6) {
-+		n = dst_neigh_lookup(dst_cache, daddr);
-+		if (!n)
-+			return -1;
++	n = dst_neigh_lookup(dst_cache, daddr);
++	if (!n)
++		return -1;
 +
-+		read_lock_bh(&n->lock);
-+		nud_state = n->nud_state;
-+		ether_addr_copy(ha, n->ha);
-+		read_unlock_bh(&n->lock);
-+		neigh_release(n);
++	read_lock_bh(&n->lock);
++	nud_state = n->nud_state;
++	ether_addr_copy(ha, n->ha);
++	read_unlock_bh(&n->lock);
++	neigh_release(n);
 +
-+		if (!(nud_state & NUD_VALID))
-+			return -1;
-+	}
++	if (!(nud_state & NUD_VALID))
++		return -1;
 +
 +out:
 +	return dev_fill_forward_path(dev, ha, stack);
 +}
 +
-+static int nf_dev_forward_path(struct sk_buff *skb,
-+				struct nf_flow_route *route,
++static int nf_dev_forward_path(struct nf_flow_route *route,
 +				const struct nf_conn *ct,
 +				enum ip_conntrack_dir dir,
 +				struct net_device **devs)
 +{
 +	const struct dst_entry *dst = route->tuple[dir].dst;
-+	struct ethhdr *eth;
-+	enum ip_conntrack_dir skb_dir;
 +	struct net_device_path_stack stack;
 +	struct nf_forward_info info = {};
 +	unsigned char ha[ETH_ALEN];
 +	int i;
-+
-+	if (!(ct->status & IPS_NAT_MASK) && skb_mac_header_was_set(skb) &&
-+	    ct->inet6_mode != CT_INET_MODE_IPV6) {
-+		eth = eth_hdr(skb);
-+		skb_dir = CTINFO2DIR(skb_get_nfct(skb) & NFCT_INFOMASK);
-+
-+		if (skb_dir != dir) {
-+			memcpy(ha, eth->h_source, ETH_ALEN);
-+			memcpy(info.h_source, eth->h_dest, ETH_ALEN);
-+		} else {
-+			memcpy(ha, eth->h_dest, ETH_ALEN);
-+			memcpy(info.h_source, eth->h_source, ETH_ALEN);
-+		}
-+	}
 +
 +	if (nf_dev_fill_forward_path(route, dst, ct, dir, ha, &stack) >= 0)
 +		nf_dev_path_info(&stack, &info, ha);
@@ -6630,9 +6611,9 @@ index 0000000..0351154
 +
 +	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH &&
 +	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
-+		if (nf_dev_forward_path(skb, route, ct, dir, devs))
++		if (nf_dev_forward_path(route, ct, dir, devs))
 +			return -1;
-+		if (nf_dev_forward_path(skb, route, ct, !dir, devs))
++		if (nf_dev_forward_path(route, ct, !dir, devs))
 +			return -1;
 +	}
 +
@@ -6661,8 +6642,8 @@ index 0000000..0351154
 +
 +	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH &&
 +	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
-+		if (nf_dev_forward_path(skb, route, ct, dir, devs) ||
-+		    nf_dev_forward_path(skb, route, ct, !dir, devs)) {
++		if (nf_dev_forward_path(route, ct, dir, devs) ||
++		    nf_dev_forward_path(route, ct, !dir, devs)) {
 +			ret = -1;
 +			goto err_route_dir2;
 +		}
