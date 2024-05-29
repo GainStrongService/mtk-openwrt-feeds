@@ -1,5 +1,5 @@
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
-index 3537e3ae..0f4261c0 100644
+index 3537e3ae..23215fd7 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 @@ -412,6 +412,12 @@ hostapd_common_add_bss_config() {
@@ -81,7 +81,7 @@ index 3537e3ae..0f4261c0 100644
  
  	[ -n "$network_bridge" ] && {
  		fail=
-@@ -1369,6 +1407,55 @@ wpa_supplicant_prepare_interface() {
+@@ -1369,6 +1407,51 @@ wpa_supplicant_prepare_interface() {
  		country_str="country=$country"
  	}
  
@@ -93,33 +93,6 @@ index 3537e3ae..0f4261c0 100644
 +	if !([ "$mld_allowed_phy_bitmap" -ge 0 ] && [ "$mld_allowed_phy_bitmap" -le 7 ]); then
 +		echo "Error: Invalid MLD allowed phy: ${mld_allowed_phy_bitmap}"
 +		return 1
-+	fi
-+
-+	local phy0_scan_list="2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 2462 2467 2472"
-+	local phy1_scan_list="5180 5200 5220 5240 5260 5280 5300 5320 5500 5520 5540 5560 5580 5600 5620 5640 5660 5680 5700 5720 5745 5765 5785 5805 5825 5845 5865 5885"
-+	local phy2_scan_list="5955 5975 5995 6015 6035 6055 6075 6095 6115 6135 6155 6175 6195 6215 6235 6255 6275 6295 6315 6335 6355 6375 6395 6415 6435 6455 6475 6495 6515 6535 6555 6575 6595 6615 6635 6655 6675 6695 6715 6735 6755 6775 6795 6815 6835 6855 6875 6895"
-+	local scan_list=
-+	if [ $mld_allowed_phy_bitmap -gt 0 ] && [ $mld_allowed_phy_bitmap -lt 7 ]; then
-+		[ $(($mld_allowed_phy_bitmap & 1)) -ne 0 ] && {
-+			scan_list="$scan_list $phy0_scan_list"
-+		}
-+
-+		[ $(($mld_allowed_phy_bitmap & 2)) -ne 0 ] && {
-+			scan_list="$scan_list $phy1_scan_list"
-+		}
-+
-+		[ $(($mld_allowed_phy_bitmap & 4)) -ne 0 ] && {
-+			scan_list="$scan_list $phy2_scan_list"
-+		}
-+	elif [ "$mld_allowed_phy_bitmap" -eq 0 ]; then
-+		# For Legacy STA
-+		if [ "$phy" = "phy0" ]; then
-+			scan_list="$phy0_scan_list"
-+		elif [ "$phy" = "phy1" ]; then
-+			scan_list="$phy1_scan_list"
-+		elif [ "$phy" = "phy2" ]; then
-+			scan_list="$phy2_scan_list"
-+		fi
 +	fi
 +
 +	[ -n "$assoc_phy" ] && mld_assoc_phy=$assoc_phy
@@ -134,10 +107,33 @@ index 3537e3ae..0f4261c0 100644
 +		mld_connect_band_pref=$(($mld_assoc_phy+1))
 +	fi
 +
++	local phy0_scan_list="2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 2462 2467 2472"
++	local phy1_scan_list="5180 5200 5220 5240 5260 5280 5300 5320 5500 5520 5540 5560 5580 5600 5620 5640 5660 5680 5700 5720 5745 5765 5785 5805 5825 5845 5865 5885"
++	local phy2_scan_list="5955 5975 5995 6015 6035 6055 6075 6095 6115 6135 6155 6175 6195 6215 6235 6255 6275 6295 6315 6335 6355 6375 6395 6415 6435 6455 6475 6495 6515 6535 6555 6575 6595 6615 6635 6655 6675 6695 6715 6735 6755 6775 6795 6815 6835 6855 6875 6895"
++	local scan_list=
++	if [ $mld_allowed_phy_bitmap -gt 0 ]; then
++		if [ "$mld_assoc_phy" = "0" ]; then
++			scan_list="$phy0_scan_list"
++		elif [ "$mld_assoc_phy" = "1" ]; then
++			scan_list="$phy1_scan_list"
++		elif [ "$mld_assoc_phy" = "2" ]; then
++			scan_list="$phy2_scan_list"
++		fi
++	else
++		# For Legacy STA
++		if [ "$phy" = "phy0" ]; then
++			scan_list="$phy0_scan_list"
++		elif [ "$phy" = "phy1" ]; then
++			scan_list="$phy1_scan_list"
++		elif [ "$phy" = "phy2" ]; then
++			scan_list="$phy2_scan_list"
++		fi
++	fi
++
  	local tx_queue_data2_burst="tx_queue_data2_burst=0"
  	multiap_flag_file="${_config}.is_multiap"
  	if [ "$multi_ap" = "1" ]; then
-@@ -1382,6 +1469,9 @@ ${scan_list:+freq_list=$scan_list}
+@@ -1382,6 +1465,9 @@ ${scan_list:+freq_list=$scan_list}
  $ap_scan
  $country_str
  $tx_queue_data2_burst
@@ -148,7 +144,7 @@ index 3537e3ae..0f4261c0 100644
  	return 0
  }
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
-index 66bdf5cf..897ce25c 100755
+index 2508d9cf..c21aa9d3 100755
 --- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 @@ -29,7 +29,7 @@ drv_mac80211_init_device_config() {
@@ -385,7 +381,7 @@ index 66bdf5cf..897ce25c 100755
  	[ -n "$network_bridge" ] && json_add_string bridge "$network_bridge"
  	[ -n "$wds" ] && json_add_boolean 4addr "$wds"
  	json_add_boolean powersave "$powersave"
-@@ -1140,7 +1212,6 @@ mac80211_setup_vif() {
+@@ -1132,7 +1204,6 @@ mac80211_setup_vif() {
  	json_select config
  	json_get_var ifname _ifname
  	json_get_var macaddr _macaddr
@@ -393,7 +389,7 @@ index 66bdf5cf..897ce25c 100755
  	json_get_vars mode wds powersave
  
  	set_default powersave 0
-@@ -1294,6 +1365,12 @@ drv_mac80211_setup() {
+@@ -1293,6 +1364,12 @@ drv_mac80211_setup() {
  	staidx=0
  	mbssidx=0
  
@@ -406,7 +402,7 @@ index 66bdf5cf..897ce25c 100755
  	[ -n "$chanbw" ] && {
  		for file in /sys/kernel/debug/ieee80211/$phy/ath9k*/chanbw /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode; do
  			[ -f "$file" ] && echo "$chanbw" > "$file"
-@@ -1372,6 +1449,8 @@ drv_mac80211_setup() {
+@@ -1371,6 +1448,8 @@ drv_mac80211_setup() {
  
  	for_each_interface "ap sta adhoc mesh monitor" mac80211_set_vif_txpower
  	wireless_set_up
