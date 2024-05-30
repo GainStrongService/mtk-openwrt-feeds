@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0
-/* FILE NAME:  an8801.c
- * PURPOSE:
- *      Airoha phy driver for Linux
- * NOTES:
+/*SPDX-License-Identifier: GPL-2.0*/
+/*FILE NAME:  an8801.c
+ *PURPOSE:
+ *Airoha phy driver for Linux
+ *NOTES:
  *
  */
 
-/* INCLUDE FILE DECLARATIONS
+/*INCLUDE FILE DECLARATIONS
  */
 
 #include <linux/of_device.h>
@@ -24,14 +24,22 @@ MODULE_DESCRIPTION("Airoha AN8801 PHY drivers");
 MODULE_AUTHOR("Airoha");
 MODULE_LICENSE("GPL");
 
-#define phydev_mdiobus(phy)        ((phy)->mdio.bus)
-#define phydev_mdiobus_lock(phy)   (phydev_mdiobus(phy)->mdio_lock)
+#if (KERNEL_VERSION(4, 5, 0) > LINUX_VERSION_CODE)
+#define phydev_mdiobus(_dev) (_dev->bus)
+#define phydev_phy_addr(_dev) (_dev->addr)
+#define phydev_dev(_dev) (&_dev->dev)
+#else
+#define phydev_mdiobus(_dev) (_dev->mdio.bus)
+#define phydev_phy_addr(_dev) (_dev->mdio.addr)
+#define phydev_dev(_dev) (&_dev->mdio.dev)
+#endif
 #define phydev_cfg(phy)            ((struct an8801_priv *)(phy)->priv)
-
+#define phydev_mdiobus_lock(phy)   (phydev_mdiobus(phy)->mdio_lock)
 #define mdiobus_lock(phy)          (mutex_lock(&phydev_mdiobus_lock(phy)))
 #define mdiobus_unlock(phy)        (mutex_unlock(&phydev_mdiobus_lock(phy)))
 
 #define MAX_SGMII_AN_RETRY              (100)
+#define MCS_LINK_STATUS_MASK            (BIT(2))
 
 #ifdef AN8801SB_DEBUGFS
 #define AN8801_DEBUGFS_POLARITY_HELP_STRING \
@@ -69,12 +77,6 @@ MODULE_LICENSE("GPL");
 	"\n"
 #endif
 
-#if (KERNEL_VERSION(4, 5, 0) > LINUX_VERSION_CODE)
-#define phydev_dev(_dev) (&_dev->dev)
-#else
-#define phydev_dev(_dev) (&_dev->mdio.dev)
-#endif
-
 /* For reference only
  *	GPIO1    <-> LED0,
  *	GPIO2    <-> LED1,
@@ -84,11 +86,11 @@ MODULE_LICENSE("GPL");
 static const struct AIR_LED_CFG_T led_cfg_dlt[MAX_LED_SIZE] = {
 //   LED Enable,          GPIO,    LED Polarity,      LED ON,    LED Blink
 	/* LED0 */
-	{LED_ENABLE, AIR_LED_GPIO1, AIR_ACTIVE_LOW,  AIR_LED0_ON, AIR_LED0_BLK},
+	{LED_ENABLE, AIR_LED_GPIO5, AIR_ACTIVE_LOW,  AIR_LED0_ON, AIR_LED0_BLK},
 	/* LED1 */
-	{LED_ENABLE, AIR_LED_GPIO2, AIR_ACTIVE_HIGH, AIR_LED1_ON, AIR_LED1_BLK},
+	{LED_ENABLE, AIR_LED_GPIO8, AIR_ACTIVE_LOW,  AIR_LED1_ON, AIR_LED1_BLK},
 	/* LED2 */
-	{LED_ENABLE, AIR_LED_GPIO3, AIR_ACTIVE_HIGH, AIR_LED2_ON, AIR_LED2_BLK},
+	{LED_ENABLE, AIR_LED_GPIO9, AIR_ACTIVE_LOW,  AIR_LED2_ON, AIR_LED2_BLK},
 };
 
 static const u16 led_blink_cfg_dlt = AIR_LED_BLK_DUR_64M;
@@ -107,17 +109,19 @@ static int __air_buckpbus_reg_write(struct phy_device *phydev, u32 addr,
 				    u32 data)
 {
 	int err = 0;
+	int phy_addr = phydev_phy_addr(phydev);
+	struct mii_bus *mbus = phydev_mdiobus(phydev);
 
-	err = __phy_write(phydev, 0x1F, 4);
+	err = mbus->write(mbus, phy_addr, 0x1F, 4);
 	if (err)
 		return err;
 
-	err |= __phy_write(phydev, 0x10, 0);
-	err |= __phy_write(phydev, 0x11, (u16)(addr >> 16));
-	err |= __phy_write(phydev, 0x12, (u16)(addr & 0xffff));
-	err |= __phy_write(phydev, 0x13, (u16)(data >> 16));
-	err |= __phy_write(phydev, 0x14, (u16)(data & 0xffff));
-	err |= __phy_write(phydev, 0x1F, 0);
+	err |= mbus->write(mbus, phy_addr, 0x10, 0);
+	err |= mbus->write(mbus, phy_addr, 0x11, (u16)(addr >> 16));
+	err |= mbus->write(mbus, phy_addr, 0x12, (u16)(addr & 0xffff));
+	err |= mbus->write(mbus, phy_addr, 0x13, (u16)(data >> 16));
+	err |= mbus->write(mbus, phy_addr, 0x14, (u16)(data & 0xffff));
+	err |= mbus->write(mbus, phy_addr, 0x1F, 0);
 
 	return err;
 }
@@ -126,17 +130,19 @@ static u32 __air_buckpbus_reg_read(struct phy_device *phydev, u32 addr)
 {
 	int err = 0;
 	u32 data_h, data_l, data;
+	int phy_addr = phydev_phy_addr(phydev);
+	struct mii_bus *mbus = phydev_mdiobus(phydev);
 
-	err = __phy_write(phydev, 0x1F, 4);
+	err = mbus->write(mbus, phy_addr, 0x1F, 4);
 	if (err)
 		return err;
 
-	err |= __phy_write(phydev, 0x10, 0);
-	err |= __phy_write(phydev, 0x15, (u16)(addr >> 16));
-	err |= __phy_write(phydev, 0x16, (u16)(addr & 0xffff));
-	data_h = __phy_read(phydev, 0x17);
-	data_l = __phy_read(phydev, 0x18);
-	err |= __phy_write(phydev, 0x1F, 0);
+	err |= mbus->write(mbus, phy_addr, 0x10, 0);
+	err |= mbus->write(mbus, phy_addr, 0x15, (u16)(addr >> 16));
+	err |= mbus->write(mbus, phy_addr, 0x16, (u16)(addr & 0xffff));
+	data_h = mbus->read(mbus, phy_addr, 0x17);
+	data_l = mbus->read(mbus, phy_addr, 0x18);
+	err |= mbus->write(mbus, phy_addr, 0x1F, 0);
 	if (err)
 		return INVALID_DATA;
 
@@ -217,7 +223,6 @@ static int air_sw_reset(struct phy_device *phydev)
 	u32 reg_value;
 	u8 retry = MAX_RETRY;
 
-	/* Software Reset PHY */
 	reg_value = phy_read(phydev, MII_BMCR);
 	reg_value |= BMCR_RESET;
 	phy_write(phydev, MII_BMCR, reg_value);
@@ -226,7 +231,7 @@ static int air_sw_reset(struct phy_device *phydev)
 		reg_value = phy_read(phydev, MII_BMCR);
 		retry--;
 		if (retry == 0) {
-			phydev_err(phydev, "Reset fail !\n");
+			dev_err(phydev_dev(phydev), "Reset fail !\n");
 			return -1;
 		}
 	} while (reg_value & BMCR_RESET);
@@ -312,14 +317,15 @@ static int an8801_led_init(struct phy_device *phydev)
 
 	ret = an8801_led_set_mode(phydev, AIR_LED_MODE_USER_DEFINE);
 	if (ret != 0) {
-		phydev_err(phydev, "LED fail to set mode, ret %d !\n", ret);
+		dev_err(phydev_dev(phydev),
+				"LED fail to set mode, ret %d !\n", ret);
 		return ret;
 	}
 
 	for (led_id = AIR_LED0; led_id < MAX_LED_SIZE; led_id++) {
 		ret = an8801_led_set_state(phydev, led_id, led_cfg[led_id].en);
 		if (ret != 0) {
-			phydev_err(phydev,
+			dev_err(phydev_dev(phydev),
 				   "LED fail to set LED(%d) state, ret %d !\n",
 				   led_id, ret);
 			return ret;
@@ -342,34 +348,33 @@ static int an8801_led_init(struct phy_device *phydev)
 				led_cfg[led_id].on_cfg,
 				led_cfg[led_id].blk_cfg);
 			if (ret != 0) {
-				phydev_err(phydev,
+				dev_err(phydev_dev(phydev),
 					   "Fail to set LED(%d) usr def, ret %d !\n",
 					   led_id, ret);
 				return ret;
 			}
 		}
 	}
-	phydev_info(phydev, "LED initialize OK !\n");
+	dev_info(phydev_dev(phydev), "LED initialize OK !\n");
 	return 0;
 }
 
 #ifdef CONFIG_OF
 static int an8801r_of_init(struct phy_device *phydev)
 {
-	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_node *of_node = phydev_dev(phydev)->of_node;
 	struct an8801_priv *priv = phydev_cfg(phydev);
 	u32 val = 0;
 
 	if (of_find_property(of_node, "airoha,rxclk-delay", NULL)) {
 		if (of_property_read_u32(of_node, "airoha,rxclk-delay",
 					 &val) != 0) {
-			phydev_err(phydev, "airoha,rxclk-delay value is invalid.");
+			dev_err(phydev_dev(phydev), "airoha,rxclk-delay value is invalid.");
 			return -1;
 		}
 		if (val < AIR_RGMII_DELAY_NOSTEP ||
 		    val > AIR_RGMII_DELAY_STEP_7) {
-			phydev_err(phydev,
+			dev_err(phydev_dev(phydev),
 				   "airoha,rxclk-delay value %u out of range.",
 				   val);
 			return -1;
@@ -383,19 +388,44 @@ static int an8801r_of_init(struct phy_device *phydev)
 	if (of_find_property(of_node, "airoha,txclk-delay", NULL)) {
 		if (of_property_read_u32(of_node, "airoha,txclk-delay",
 					 &val) != 0) {
-			phydev_err(phydev,
+			dev_err(phydev_dev(phydev),
 				   "airoha,txclk-delay value is invalid.");
 			return -1;
 		}
 		if (val < AIR_RGMII_DELAY_NOSTEP ||
 		    val > AIR_RGMII_DELAY_STEP_7) {
-			phydev_err(phydev,
+			dev_err(phydev_dev(phydev),
 				   "airoha,txclk-delay value %u out of range.",
 				   val);
 			return -1;
 		}
 		priv->txdelay_force = TRUE;
 		priv->txdelay_step = val;
+	}
+	return 0;
+}
+
+static int an8801sb_of_init(struct phy_device *phydev)
+{
+	struct device_node *of_node = phydev_dev(phydev)->of_node;
+	struct an8801_priv *priv = phydev_cfg(phydev);
+	u32 val = 0;
+
+	priv->pol = AIR_POL_TX_NOR_RX_NOR;
+	if (of_find_property(of_node, "airoha,polarity", NULL)) {
+		if (of_property_read_u32(of_node, "airoha,polarity",
+					 &val) != 0) {
+			dev_err(phydev_dev(phydev), "airoha,polarity value is invalid.");
+			return -1;
+		}
+		if (val < AIR_POL_TX_NOR_RX_REV ||
+		    val > AIR_POL_TX_REV_RX_NOR) {
+			dev_err(phydev_dev(phydev),
+				   "airoha,polarity value %u out of range.",
+				   val);
+			return -1;
+		}
+		priv->pol = val;
 	}
 
 	return 0;
@@ -405,21 +435,26 @@ static int an8801r_of_init(struct phy_device *phydev)
 {
 	return 0;
 }
-#endif /* CONFIG_OF */
+static int an8801sb_of_init(struct phy_device *phydev)
+{
+	return 0;
+}
+#endif
+
 
 static int an8801r_rgmii_rxdelay(struct phy_device *phydev, u16 delay, u8 align)
 {
 	u32 reg_val = delay & RGMII_DELAY_STEP_MASK;
 
-	/* align */
 	if (align) {
 		reg_val |= RGMII_RXDELAY_ALIGN;
-		phydev_info(phydev, "Rxdelay align\n");
+		dev_info(phydev_dev(phydev), "Rxdelay align\n");
 	}
 	reg_val |= RGMII_RXDELAY_FORCE_MODE;
 	air_buckpbus_reg_write(phydev, 0x1021C02C, reg_val);
 	reg_val = air_buckpbus_reg_read(phydev, 0x1021C02C);
-	phydev_info(phydev, "Force rxdelay = %d(0x%x)\n", delay, reg_val);
+	dev_info(phydev_dev(phydev),
+		"Force rxdelay = %d(0x%x)\n", delay, reg_val);
 	return 0;
 }
 
@@ -430,7 +465,8 @@ static int an8801r_rgmii_txdelay(struct phy_device *phydev, u16 delay)
 	reg_val |= RGMII_TXDELAY_FORCE_MODE;
 	air_buckpbus_reg_write(phydev, 0x1021C024, reg_val);
 	reg_val = air_buckpbus_reg_read(phydev, 0x1021C024);
-	phydev_info(phydev, "Force txdelay = %d(0x%x)\n", delay, reg_val);
+	dev_info(phydev_dev(phydev),
+		"Force txdelay = %d(0x%x)\n", delay, reg_val);
 	return 0;
 }
 
@@ -449,27 +485,64 @@ static int an8801r_rgmii_delay_config(struct phy_device *phydev)
 static int an8801sb_config_init(struct phy_device *phydev)
 {
 	int ret;
+	struct an8801_priv *priv = phydev_cfg(phydev);
+	u32 pbus_value = 0;
+	u32 reg_value = 0;
 
-	/* disable LPM */
+	reg_value = phy_read(phydev, MII_BMSR);
+	if ((reg_value & MCS_LINK_STATUS_MASK) != 0) {
+		ret = air_buckpbus_reg_write(phydev, 0x10220010, 0x1801);
+		if (ret < 0)
+			return ret;
+		reg_value = air_buckpbus_reg_read(phydev, 0x10220010);
+		dev_dbg(phydev_dev(phydev),
+			"air_buckpbus_reg_read(0x10220010,0x%x).\n", reg_value);
+
+		ret = air_buckpbus_reg_write(phydev, 0x10220000, 0x9140);
+		if (ret < 0)
+			return ret;
+		reg_value = air_buckpbus_reg_read(phydev, 0x10220000);
+		dev_dbg(phydev_dev(phydev),
+			"air_buckpbus_reg_read(0x10220000,0x%x).\n", reg_value);
+		mdelay(80);
+	}
+
+	ret = an8801sb_of_init(phydev);
+	if (ret < 0)
+		return ret;
+#ifdef CONFIG_OF
+	pbus_value = air_buckpbus_reg_read(phydev, 0x1022a0f8);
+	pbus_value &= ~0x3;
+	pbus_value |= priv->pol;
+	ret = air_buckpbus_reg_write(phydev, 0x1022a0f8, pbus_value);
+	if (ret < 0)
+		return ret;
+#endif
+	pbus_value = air_buckpbus_reg_read(phydev, 0x1022a0f8);
+	dev_info(phydev_dev(phydev),
+		"Tx, Rx Polarity : %08x\n", pbus_value);
+
 	ret = an8801_cl45_write(phydev, MMD_DEV_VSPEC2, 0x600, 0x1e);
 	ret |= an8801_cl45_write(phydev, MMD_DEV_VSPEC2, 0x601, 0x02);
-	/*default disable EEE*/
-	ret |= an8801_cl45_write(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, 0x0);
+
+	ret |= an8801_cl45_write(phydev, 7, 60, 0x0);
 	if (ret != 0) {
-		phydev_err(phydev, "AN8801SB initialize fail, ret %d !\n", ret);
+		dev_err(phydev_dev(phydev),
+			"AN8801SB initialize fail, ret %d !\n", ret);
 		return ret;
 	}
 
 	ret = an8801_led_init(phydev);
 	if (ret != 0) {
-		phydev_err(phydev, "LED initialize fail, ret %d !\n", ret);
+		dev_err(phydev_dev(phydev),
+			"LED initialize fail, ret %d !\n", ret);
 		return ret;
 	}
 	air_buckpbus_reg_write(phydev, 0x10270100, 0x0f);
-	air_buckpbus_reg_write(phydev, 0x10270104, 0x3f);
 	air_buckpbus_reg_write(phydev, 0x10270108, 0x10100303);
-	phydev_info(phydev, "AN8801SB Initialize OK ! (%s)\n",
-		AN8801_DRIVER_VERSION);
+
+	dev_info(phydev_dev(phydev),
+		"AN8801SB Initialize OK ! (%s)\n", AN8801_DRIVER_VERSION);
 	return 0;
 }
 
@@ -496,10 +569,11 @@ static int an8801r_config_init(struct phy_device *phydev)
 
 	ret = an8801_led_init(phydev);
 	if (ret != 0) {
-		phydev_err(phydev, "LED initialize fail, ret %d !\n", ret);
+		dev_err(phydev_dev(phydev),
+			"LED initialize fail, ret %d !\n", ret);
 		return ret;
 	}
-	phydev_info(phydev, "AN8801R Initialize OK ! (%s)\n",
+	dev_info(phydev_dev(phydev), "AN8801R Initialize OK ! (%s)\n",
 		AN8801_DRIVER_VERSION);
 	return 0;
 }
@@ -511,7 +585,7 @@ static int an8801_config_init(struct phy_device *phydev)
 	} else if (phydev->interface == PHY_INTERFACE_MODE_RGMII) {
 		an8801r_config_init(phydev);
 	} else {
-		phydev_info(phydev, "AN8801 Phy-mode not support!!!\n");
+		dev_info(phydev_dev(phydev), "AN8801 Phy-mode not support!!!\n");
 		return -1;
 	}
 	return 0;
@@ -613,39 +687,100 @@ static int an8801_counter_show(struct seq_file *seq, void *v)
 	struct phy_device *phydev = seq->private;
 	int ret = 0;
 	u32 pkt_cnt = 0;
+	struct mii_bus *mbus = phydev_mdiobus(phydev);
 
 	seq_puts(seq, "==========AIR PHY COUNTER==========\n");
-	seq_puts(seq, "|\t<<FCM COUNTER>>\n");
-	seq_puts(seq, "| Rx from Line side_S    :");
+	seq_puts(seq, "|\t<<SERDES COUNTER>>\n");
+	air_buckpbus_reg_write(phydev, 0x10226124, 0xaa);
+	air_buckpbus_reg_write(phydev, 0x10226124, 0x0);
+	seq_puts(seq, "| PHY Rx DV CNT           :");
+	pkt_cnt = air_buckpbus_reg_read(phydev, 0x1022614c);
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+	seq_puts(seq, "| PHY Tx EN CNT           :");
+	pkt_cnt = air_buckpbus_reg_read(phydev, 0x10226148);
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+	seq_puts(seq, "|  Tx ER CNT              :");
+	pkt_cnt = air_buckpbus_reg_read(phydev, 0x10226150);
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+	seq_puts(seq, "| MAC Rx DV CNT           :");
+	pkt_cnt = air_buckpbus_reg_read(phydev, 0x10226138);
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+	seq_puts(seq, "| MAC Tx EN CNT           :");
+	pkt_cnt = air_buckpbus_reg_read(phydev, 0x1022612C);
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+	seq_puts(seq, "| Tx ER CNT               :");
+	pkt_cnt = air_buckpbus_reg_read(phydev, 0x10226130);
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+	ret = air_buckpbus_reg_write(phydev, 0x10226124, 0x55);
+	ret |= air_buckpbus_reg_write(phydev, 0x10226124, 0x0);
+	if (ret < 0)
+		seq_puts(seq, "| Clear Serdes Counter fail\n");
+	else
+		seq_puts(seq, "| Clear Serdes Counter!!\n");
+
+	seq_puts(seq, "|\t<<EFIFO COUNTER>>\n");
+	seq_puts(seq, "| Rx from Line side_S     :");
 	pkt_cnt = air_buckpbus_reg_read(phydev, 0x10270130);
 	seq_printf(seq, "%010u |\n", pkt_cnt);
-	seq_puts(seq, "| Rx from Line side_E    :");
+	seq_puts(seq, "| Rx from Line side_E     :");
 	pkt_cnt = air_buckpbus_reg_read(phydev, 0x10270134);
 	seq_printf(seq, "%010u |\n", pkt_cnt);
-	seq_puts(seq, "| Tx to System side_S    :");
+	seq_puts(seq, "| Tx to System side_S     :");
 	pkt_cnt = air_buckpbus_reg_read(phydev, 0x10270138);
 	seq_printf(seq, "%010u |\n", pkt_cnt);
-	seq_puts(seq, "| Tx to System side_E    :");
+	seq_puts(seq, "| Tx to System side_E     :");
 	pkt_cnt = air_buckpbus_reg_read(phydev, 0x1027013C);
 	seq_printf(seq, "%010u |\n", pkt_cnt);
-	seq_puts(seq, "| Rx from System side_S  :");
+	seq_puts(seq, "| Rx from System side_S   :");
 	pkt_cnt = air_buckpbus_reg_read(phydev, 0x10270120);
 	seq_printf(seq, "%010u |\n", pkt_cnt);
-	seq_puts(seq, "| Rx from System side_E  :");
+	seq_puts(seq, "| Rx from System side_E   :");
 	pkt_cnt = air_buckpbus_reg_read(phydev, 0x10270124);
 	seq_printf(seq, "%010u |\n", pkt_cnt);
-	seq_puts(seq, "| Tx to Line side_S      :");
+	seq_puts(seq, "| Tx to Line side_S       :");
 	pkt_cnt = air_buckpbus_reg_read(phydev, 0x10270128);
 	seq_printf(seq, "%010u |\n", pkt_cnt);
-	seq_puts(seq, "| Tx to Line side_E      :");
+	seq_puts(seq, "| Tx to Line side_E       :");
 	pkt_cnt = air_buckpbus_reg_read(phydev, 0x1027012C);
 	seq_printf(seq, "%010u |\n", pkt_cnt);
 
 	ret = air_buckpbus_reg_write(phydev, 0x1027011C, 0x3);
 	if (ret < 0)
-		seq_printf(seq, "\nClear Counter fail\n", __func__);
+		seq_puts(seq, "| Clear EFIFO Counter fail\n");
 	else
-		seq_puts(seq, "\nClear Counter!!\n");
+		seq_puts(seq, "| Clear EFIFO Counter!!\n");
+
+	seq_puts(seq, "|\t<<LS Counter>>\n");
+	ret = phy_write(phydev, 0x1f, 1);
+	if (ret < 0)
+		return ret;
+	seq_puts(seq, "| Rx from Line side       :");
+	pkt_cnt = phy_read(phydev, 0x12) & 0x7fff;
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+	seq_puts(seq, "| Rx Error from Line side :");
+	pkt_cnt = phy_read(phydev, 0x17) & 0xff;
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+
+	ret = phy_write(phydev, 0x1f, 0);
+	if (ret < 0)
+		return ret;
+	ret = phy_write(phydev, 0x1f, 0x52B5);
+	if (ret < 0)
+		return ret;
+	ret = phy_write(phydev, 0x10, 0xBF92);
+	if (ret < 0)
+		return ret;
+
+	seq_puts(seq, "| Tx to Line side         :");
+	pkt_cnt = (phy_read(phydev, 0x11) & 0x7ffe) >> 1;
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+	seq_puts(seq, "| Tx Error to Line side   :");
+	pkt_cnt = phy_read(phydev, 0x12);
+	pkt_cnt &= 0x7f;
+	seq_printf(seq, "%010u |\n\n", pkt_cnt);
+	ret = phy_write(phydev, 0x1f, 0);
+	if (ret < 0)
+		return ret;
 
 	return ret;
 }
@@ -771,11 +906,11 @@ int an8801_debugfs_init(struct phy_device *phydev)
 	int ret = 0;
 	struct an8801_priv *priv = phydev->priv;
 
-	phydev_info(phydev, "Debugfs init start\n");
+	dev_info(phydev_dev(phydev), "Debugfs init start\n");
 	priv->debugfs_root =
 		debugfs_create_dir(dev_name(phydev_dev(phydev)), NULL);
 	if (!priv->debugfs_root) {
-		phydev_err(phydev, "Debugfs init err\n");
+		dev_err(phydev_dev(phydev), "Debugfs init err\n");
 		ret = -ENOMEM;
 	}
 	debugfs_create_file(DEBUGFS_DRIVER_INFO, 0444,
@@ -807,21 +942,23 @@ static void air_debugfs_remove(struct phy_device *phydev)
 static int an8801_phy_probe(struct phy_device *phydev)
 {
 	u32 reg_value, phy_id, led_id;
-	struct device *dev = &phydev->mdio.dev;
 	struct an8801_priv *priv = NULL;
 
 	reg_value = phy_read(phydev, 2);
 	phy_id = reg_value << 16;
 	reg_value = phy_read(phydev, 3);
 	phy_id |= reg_value;
-	phydev_info(phydev, "PHY-ID = %x\n", phy_id);
+	dev_info(phydev_dev(phydev), "PHY-ID = %x\n", phy_id);
 
 	if (phy_id != AN8801_PHY_ID) {
-		phydev_err(phydev, "AN8801 can't be detected.\n");
+		dev_err(phydev_dev(phydev),
+			"AN8801 can't be detected.\n");
 		return -1;
 	}
 
-	priv = devm_kzalloc(dev, sizeof(struct an8801_priv), GFP_KERNEL);
+	priv = devm_kzalloc(phydev_dev(phydev)
+						, sizeof(struct an8801_priv)
+						, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -849,7 +986,7 @@ static int an8801_phy_probe(struct phy_device *phydev)
 			return ret;
 		}
 	} else {
-		phydev_info(phydev, "AN8801R not supprt debugfs\n");
+		dev_info(phydev_dev(phydev), "AN8801R not supprt debugfs\n");
 	}
 #endif
 	return 0;
@@ -864,7 +1001,7 @@ static void an8801_phy_remove(struct phy_device *phydev)
 		air_debugfs_remove(phydev);
 #endif
 		kfree(priv);
-		phydev_info(phydev, "AN8801 remove OK!\n");
+		dev_info(phydev_dev(phydev), "AN8801 remove OK!\n");
 	}
 }
 
@@ -886,7 +1023,7 @@ static int an8801sb_read_status(struct phy_device *phydev)
 		prespeed = phydev->speed;
 		ret |= an8801_cl45_write(
 			phydev, MMD_DEV_VSPEC2, PHY_PRE_SPEED_REG, prespeed);
-		phydev_info(phydev, "AN8801SB SPEED %d\n", prespeed);
+		dev_info(phydev_dev(phydev), "AN8801SB SPEED %d\n", prespeed);
 		air_buckpbus_reg_write(phydev, 0x10270108, 0x0a0a0404);
 		while (an_retry > 0) {
 			mdelay(1);       /* delay 1 ms */
@@ -900,7 +1037,7 @@ static int an8801sb_read_status(struct phy_device *phydev)
 
 
 		if (phydev->autoneg == AUTONEG_DISABLE) {
-			phydev_info(phydev,
+			dev_info(phydev_dev(phydev),
 				"AN8801SB force speed = %d\n", prespeed);
 			if (prespeed == SPEED_1000) {
 				air_buckpbus_reg_write(
@@ -938,7 +1075,7 @@ static int an8801r_read_status(struct phy_device *phydev)
 	}
 	if (prespeed != phydev->speed && phydev->link == LINK_UP) {
 		prespeed = phydev->speed;
-		phydev_dbg(phydev, "AN8801R SPEED %d\n", prespeed);
+		dev_dbg(phydev_dev(phydev), "AN8801R SPEED %d\n", prespeed);
 		if (prespeed == SPEED_1000) {
 			data = air_buckpbus_reg_read(phydev, 0x10005054);
 			data |= BIT(0);
@@ -959,7 +1096,7 @@ static int an8801_read_status(struct phy_device *phydev)
 	} else if (phydev->interface == PHY_INTERFACE_MODE_RGMII) {
 		an8801r_read_status(phydev);
 	} else {
-		phydev_info(phydev, "AN8801 Phy-mode not support!\n");
+		dev_info(phydev_dev(phydev), "AN8801 Phy-mode not support!\n");
 		return -1;
 	}
 	return 0;

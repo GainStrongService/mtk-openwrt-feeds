@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
-/* FILE NAME:  an8801.h
- * PURPOSE:
- *      Define Airoha phy driver function
+/*SPDX-License-Identifier: GPL-2.0*/
+/*FILE NAME:  an8801.h
+ *PURPOSE:
+ *Define Airoha phy driver function
  *
- * NOTES:
+ *NOTES:
  *
  */
 
@@ -12,7 +12,7 @@
 
 /* NAMING DECLARATIONS
  */
-#define AN8801_DRIVER_VERSION  "1.1.0"
+#define AN8801_DRIVER_VERSION  "1.1.3"
 
 #define DEBUGFS_COUNTER         "counter"
 #define DEBUGFS_DRIVER_INFO     "driver_info"
@@ -202,6 +202,7 @@ struct an8801_priv {
 #ifdef AN8801SB_DEBUGFS
 	struct dentry        *debugfs_root;
 #endif
+	int                   pol;
 };
 
 enum an8801_polarity {
