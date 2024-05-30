@@ -927,7 +927,7 @@ static void mtk_gdm_fsm_poll(struct mtk_mac *mac)
 			mac_idle = 1;
 		} else {
 			gdm_idle = ((gdm_fsm & 0xffffffff) == 0);
-			mac_idle = (mac_fsm == 0x02010100 || mac_fsm == 0x01010100);
+			mac_idle = (mac_fsm == 0x01010000 || mac_fsm == 0x01010100);
 		}
 
 		if (gdm_idle && mac_idle)
