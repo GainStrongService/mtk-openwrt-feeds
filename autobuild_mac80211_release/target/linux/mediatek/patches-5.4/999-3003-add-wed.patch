@@ -1,7 +1,7 @@
-From f4f50a5b59a77ec59cc627a06032c6bb4c3126f6 Mon Sep 17 00:00:00 2001
+From d61de8847d9d566958b15f1f64e2fde6fa7502eb Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 10:56:21 +0800
-Subject: [PATCH] add wed
+Subject: [PATCH 04/26] add wed
 
 ---
  arch/arm64/boot/dts/mediatek/mt7622.dtsi      |  32 +-
@@ -134,7 +134,7 @@ index 5f342f4..4090132
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 old mode 100755
 new mode 100644
-index 98f9716..e1641ca
+index 19af710..6cbf84f
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -22,11 +22,13 @@
@@ -151,7 +151,7 @@ index 98f9716..e1641ca
  
  #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
  #include "mtk_hnat/nf_hnat_mtk.h"
-@@ -2350,6 +2352,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2355,6 +2357,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  		struct net_device *netdev = NULL;
  		dma_addr_t dma_addr = DMA_MAPPING_ERROR;
  		u64 addr64 = 0;
@@ -159,7 +159,7 @@ index 98f9716..e1641ca
  		int mac = 0;
  
  		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
-@@ -2438,6 +2441,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2443,6 +2446,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
@@ -177,7 +177,7 @@ index 98f9716..e1641ca
  		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
  			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
  				if (trxd.rxd3 & RX_DMA_VTAG_V2)
-@@ -4172,7 +4186,7 @@ static int mtk_stop(struct net_device *dev)
+@@ -4187,7 +4201,7 @@ static int mtk_stop(struct net_device *dev)
  	mtk_dma_free(eth);
  
  	if (eth->soc->offload_version)
@@ -186,7 +186,7 @@ index 98f9716..e1641ca
  
  	return 0;
  }
-@@ -5597,6 +5611,22 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5620,6 +5634,22 @@ static int mtk_probe(struct platform_device *pdev)
  		}
  	}
  
@@ -209,7 +209,7 @@ index 98f9716..e1641ca
  	if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
  		for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
  			eth->irq_pdma[i] = platform_get_irq(pdev, i);
-@@ -5613,7 +5643,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5636,7 +5666,8 @@ static int mtk_probe(struct platform_device *pdev)
  
  		if (eth->irq_fe[i] < 0) {
  			dev_err(&pdev->dev, "no IRQ%d resource found\n", i);
@@ -219,7 +219,7 @@ index 98f9716..e1641ca
  		}
  	}
  
-@@ -5621,12 +5652,15 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5644,12 +5675,15 @@ static int mtk_probe(struct platform_device *pdev)
  		eth->clks[i] = devm_clk_get(eth->dev,
  					    mtk_clks_source_name[i]);
  		if (IS_ERR(eth->clks[i])) {
@@ -238,7 +238,7 @@ index 98f9716..e1641ca
  			}
  			eth->clks[i] = NULL;
  		}
-@@ -5637,7 +5671,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5660,7 +5694,7 @@ static int mtk_probe(struct platform_device *pdev)
  
  	err = mtk_hw_init(eth, MTK_TYPE_COLD_RESET);
  	if (err)
@@ -247,7 +247,7 @@ index 98f9716..e1641ca
  
  	eth->hwlro = MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO);
  
-@@ -5757,10 +5791,11 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5780,10 +5814,11 @@ static int mtk_probe(struct platform_device *pdev)
  	}
  
  	if (eth->soc->offload_version) {
@@ -262,7 +262,7 @@ index 98f9716..e1641ca
  
  		err = mtk_eth_offload_init(eth);
  		if (err)
-@@ -5823,6 +5858,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5847,6 +5882,8 @@ static int mtk_probe(struct platform_device *pdev)
  	mtk_free_dev(eth);
  err_deinit_hw:
  	mtk_hw_deinit(eth);
@@ -271,7 +271,7 @@ index 98f9716..e1641ca
  
  	return err;
  }
-@@ -5842,6 +5879,7 @@ static int mtk_remove(struct platform_device *pdev)
+@@ -5866,6 +5903,7 @@ static int mtk_remove(struct platform_device *pdev)
  		phylink_disconnect_phy(mac->phylink);
  	}
  
@@ -282,10 +282,10 @@ index 98f9716..e1641ca
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 old mode 100755
 new mode 100644
-index 9a1edf8..a95d5ab
+index 54b2c7c..5ede64c
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -622,6 +622,9 @@
+@@ -640,6 +640,9 @@
  #define RX_DMA_SPORT_MASK       0x7
  #define RX_DMA_SPORT_MASK_V2    0xf
  
@@ -295,8 +295,8 @@ index 9a1edf8..a95d5ab
  /* QDMA descriptor txd4 */
  #define TX_DMA_CHKSUM		(0x7 << 29)
  #define TX_DMA_TSO		BIT(28)
-@@ -1933,7 +1936,7 @@ struct mtk_eth {
- 	spinlock_t			syscfg0_lock;
+@@ -1959,7 +1962,7 @@ struct mtk_eth {
+ 	struct notifier_block		netdevice_notifier;
  	struct timer_list		mtk_dma_monitor_timer;
  
 -	struct mtk_ppe			ppe;

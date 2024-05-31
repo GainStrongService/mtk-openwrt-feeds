@@ -1,7 +1,7 @@
-From 56e9bf306919ffb33d45951541d908cd7d21c081 Mon Sep 17 00:00:00 2001
+From ff7b25716f5a51c15c8f66d9358588a0f29632b8 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 18 Sep 2023 11:01:55 +0800
-Subject: [PATCH 06/24] add-wed-tx-support-for-netsys2
+Subject: [PATCH 07/26] add-wed-tx-support-for-netsys2
 
 ---
  arch/arm64/boot/dts/mediatek/mt7981.dtsi      |   1 +
@@ -105,10 +105,10 @@ index ce884f0..02feaa9 100644
  	};
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 07209f0..268c9e7 100644
+index e284538..a1dcb0a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -5476,6 +5476,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5525,6 +5525,7 @@ static int mtk_probe(struct platform_device *pdev)
  {
  	struct device_node *mac_np, *mux_np;
  	struct mtk_eth *eth;
@@ -116,7 +116,7 @@ index 07209f0..268c9e7 100644
  	int err, i;
  
  	eth = devm_kzalloc(&pdev->dev, sizeof(*eth), GFP_KERNEL);
-@@ -5498,13 +5499,12 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5549,13 +5550,12 @@ static int mtk_probe(struct platform_device *pdev)
  		eth->sram_base = (void __force *)eth->base + MTK_ETH_SRAM_OFFSET;
  	}
  
@@ -135,7 +135,7 @@ index 07209f0..268c9e7 100644
  
  	mtk_get_hwver(eth);
  
-@@ -5593,20 +5593,25 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5644,20 +5644,25 @@ static int mtk_probe(struct platform_device *pdev)
  		}
  	}
  
@@ -174,10 +174,10 @@ index 07209f0..268c9e7 100644
  
  	if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index a00583f..9099dea 100644
+index 4cf8fca..14a2390 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -620,9 +620,6 @@
+@@ -645,9 +645,6 @@
  #define RX_DMA_SPORT_MASK       0x7
  #define RX_DMA_SPORT_MASK_V2    0xf
  
@@ -188,7 +188,7 @@ index a00583f..9099dea 100644
  #define TX_DMA_CHKSUM		(0x7 << 29)
  #define TX_DMA_TSO		BIT(28)
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index affa704..02e06a8 100644
+index 9982c88..c40c82a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -18,15 +18,6 @@
@@ -1001,7 +1001,7 @@ index affa704..02e06a8 100644
  void mtk_wed_exit(void)
 @@ -876,6 +1138,7 @@ void mtk_wed_exit(void)
  		hw_list[i] = NULL;
- 		debugfs_remove(hw->debugfs_dir);
+ 		debugfs_remove_recursive(hw->debugfs_dir);
  		put_device(hw->dev);
 +		of_node_put(hw->node);
  		kfree(hw);
@@ -1065,7 +1065,7 @@ index 981ec61..c9a20e4 100644
  }
  static inline void
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c b/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
-index a81d3fd..f420f18 100644
+index 8ad7252..20cca20 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
 @@ -116,6 +116,9 @@ wed_txinfo_show(struct seq_file *s, void *data)
