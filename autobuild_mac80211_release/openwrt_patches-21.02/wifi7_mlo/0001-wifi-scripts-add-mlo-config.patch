@@ -1,5 +1,5 @@
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
-index 3537e3ae..23215fd7 100644
+index 3537e3a..9e20e4e 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 @@ -412,6 +412,12 @@ hostapd_common_add_bss_config() {
@@ -25,19 +25,7 @@ index 3537e3ae..23215fd7 100644
  
  	set_default fils 0
  	set_default isolate 0
-@@ -626,7 +633,10 @@ hostapd_set_bss_options() {
- 
- 	/usr/sbin/hostapd -vfils || fils=0
- 
--	append bss_conf "ctrl_interface=/var/run/hostapd"
-+	if [ -z $mld_id ] || [ "$mld_primary" = "1" ]; then
-+		append bss_conf "ctrl_interface=/var/run/hostapd"
-+	fi
-+
- 	if [ "$isolate" -gt 0 ]; then
- 		append bss_conf "ap_isolate=$isolate" "$N"
- 	fi
-@@ -1282,6 +1292,33 @@ hostapd_set_bss_options() {
+@@ -1282,6 +1289,33 @@ hostapd_set_bss_options() {
  		append bss_conf "rnr=$rnr" "$N"
  	fi
  
@@ -71,7 +59,7 @@ index 3537e3ae..23215fd7 100644
  	append "$var" "$bss_conf" "$N"
  	return 0
  }
-@@ -1337,7 +1374,8 @@ wpa_supplicant_prepare_interface() {
+@@ -1337,7 +1371,8 @@ wpa_supplicant_prepare_interface() {
  
  	_wpa_supplicant_common "$1"
  
@@ -81,7 +69,7 @@ index 3537e3ae..23215fd7 100644
  
  	[ -n "$network_bridge" ] && {
  		fail=
-@@ -1369,6 +1407,51 @@ wpa_supplicant_prepare_interface() {
+@@ -1369,6 +1404,51 @@ wpa_supplicant_prepare_interface() {
  		country_str="country=$country"
  	}
  
@@ -133,7 +121,7 @@ index 3537e3ae..23215fd7 100644
  	local tx_queue_data2_burst="tx_queue_data2_burst=0"
  	multiap_flag_file="${_config}.is_multiap"
  	if [ "$multi_ap" = "1" ]; then
-@@ -1382,6 +1465,9 @@ ${scan_list:+freq_list=$scan_list}
+@@ -1382,6 +1462,9 @@ ${scan_list:+freq_list=$scan_list}
  $ap_scan
  $country_str
  $tx_queue_data2_burst
@@ -144,7 +132,7 @@ index 3537e3ae..23215fd7 100644
  	return 0
  }
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
-index 2508d9cf..c21aa9d3 100755
+index 2508d9c..c21aa9d 100755
 --- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 @@ -29,7 +29,7 @@ drv_mac80211_init_device_config() {
@@ -412,7 +400,7 @@ index 2508d9cf..c21aa9d3 100755
  
  _list_phy_interfaces() {
 diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
-index 3c78e1a1..d8a17563 100644
+index 3c78e1a..d8a1756 100644
 --- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
 @@ -133,6 +133,11 @@ get_band_defaults() {
