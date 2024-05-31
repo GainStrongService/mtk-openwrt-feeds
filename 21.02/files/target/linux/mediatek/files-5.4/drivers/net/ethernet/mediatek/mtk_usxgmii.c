@@ -571,10 +571,11 @@ static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 {
 	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
 	struct mtk_eth *eth = mpcs->eth;
+	unsigned long flags;
 	unsigned int an_ctrl = 0, link_timer = 0, xfi_mode = 0, adapt_mode = 0;
 	bool mode_changed = false;
 
-	spin_lock(&mpcs->regmap_lock);
+	spin_lock_irqsave(&mpcs->regmap_lock, flags);
 
 	if (interface == PHY_INTERFACE_MODE_USXGMII) {
 		an_ctrl = FIELD_PREP(USXGMII_AN_SYNC_CNT, 0x1FF) |
@@ -601,7 +602,7 @@ static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 			   FIELD_PREP(USXGMII_XFI_TX_MODE, USXGMII_XFI_TX_MODE_5G);
 		adapt_mode = USXGMII_RATE_UPDATE_MODE;
 	} else {
-		spin_unlock(&mpcs->regmap_lock);
+		spin_unlock_irqrestore(&mpcs->regmap_lock, flags);
 		return -EINVAL;
 	}
 
@@ -666,7 +667,7 @@ static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	else if (interface == PHY_INTERFACE_MODE_5GBASER)
 		mtk_usxgmii_setup_phya_5gbaser(mpcs);
 
-	spin_unlock(&mpcs->regmap_lock);
+	spin_unlock_irqrestore(&mpcs->regmap_lock, flags);
 
 	return mode_changed;
 }
