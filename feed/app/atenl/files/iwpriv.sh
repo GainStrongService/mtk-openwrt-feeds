@@ -12,6 +12,7 @@ work_mode="RUN" # RUN/PRINT/DEBUG
 iwpriv_file="/tmp/iwpriv_wrapper"
 interface_file="/tmp/interface"
 phy_idx=$(echo ${interface} | tr -dc '0-9')
+main_phy_idx=0
 
 function do_cmd() {
     case ${work_mode} in
@@ -42,7 +43,7 @@ function record_config() {
     local config=$1
     local tmp_file=$3
 
-    # check it is SOC(mt7986)/Eagle or PCIE card (mt7915/7916), and write its config
+    # check it is SOC(mt7986)/Eagle/Kite or PCIE card (mt7915/7916), and write its config
     if [ ${tmp_file} != ${interface_file} ]; then
         if [ $phy_idx -lt $SOC_start_idx ]; then
             config="${config}_PCIE"
@@ -71,7 +72,7 @@ function get_config() {
         return
     fi
 
-    # check it is SOC(mt7986)/Eagle or PCIE card (mt7915/7916), and write its config
+    # check it is SOC(mt7986)/Eagle/Kite or PCIE card (mt7915/7916), and write its config
     if [ ${tmp_file} != ${interface_file} ]; then
         if [ $phy_idx -lt $SOC_start_idx ]; then
             config="${config}_PCIE"
@@ -178,7 +179,7 @@ function convert_interface {
             fi
         fi
     else
-        # Eagle has different mapping method
+        # Connac 3 chips has different mapping method
         # phy0: ra0
         # phy1: rai0
         # phy2: rax0
@@ -1167,14 +1168,13 @@ function dump_usage {
 
 function register_handler {
 
-	local phy_idx=$1
-	local offset=$2
-	local val=$3
-	local cmd=$4
+	local offset=$1
+	local val=$2
+	local cmd=$3
 	local w_cmd="write"
 
-	regidx=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/regidx
-	regval=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/regval
+	regidx=/sys/kernel/debug/ieee80211/phy${main_phy_idx}/mt76/regidx
+	regval=/sys/kernel/debug/ieee80211/phy${main_phy_idx}/mt76/regval
 
 	echo ${offset} > ${regidx}
 	if [[ "${cmd}" == "${w_cmd}" ]]; then
@@ -1197,6 +1197,11 @@ elif [[ ${interface} == "phy" ]]; then
     interface=$2
     cmd_type=$3
     full_cmd=$4
+fi
+
+# get main phy idx
+if [ "${phy_idx}" -ge "${SOC_start_idx}" ]; then
+    main_phy_idx=${SOC_start_idx}
 fi
 
 tmp_work_mode=$(get_config "WORKMODE" ${iwpriv_file})
@@ -1344,8 +1349,8 @@ if [ "${cmd_type}" = "set" ]; then
 
 elif [ "${cmd_type}" = "show" ]; then
     if [ "${cmd}" = "wtbl" ]; then
-        wlan_idx=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/wlan_idx
-        wtbl_info=/sys/kernel/debug/ieee80211/phy${phy_idx}/mt76/wtbl_info
+        wlan_idx=/sys/kernel/debug/ieee80211/phy${main_phy_idx}/mt76/wlan_idx
+        wtbl_info=/sys/kernel/debug/ieee80211/phy${main_phy_idx}/mt76/wtbl_info
 
         do_cmd "echo ${param} > ${wlan_idx}"
         do_cmd "cat ${wtbl_info}"
@@ -1410,20 +1415,20 @@ elif [ "${cmd_type}" = "mac" ]; then
 
     # reg write
     if [[ ${full_cmd} == *"="* ]]; then
-        register_handler ${phy_idx} ${offset} ${val} "write"
+        register_handler ${offset} ${val} "write"
     else
 	start_addr=$(echo ${full_cmd} | sed s/-/' '/g | cut -d " " -f 1)
 	end_addr=$(echo ${full_cmd} | sed s/-/' '/g | cut -d " " -f 2)
 	loop=$((0x${end_addr}-0x${start_addr}))
 
 	if [[ ${loop} == "0" ]]; then
-		register_handler ${phy_idx} ${offset} ${val}
+		register_handler ${offset} ${val}
         else
 		i=0
 		while [ $i -le $loop ]; do
 			addr=$((0x${start_addr}+$i))
 			offset=$(printf "0x%x" ${addr})
-			register_handler ${phy_idx} ${offset} ${val}
+			register_handler ${offset} ${val}
 			i=$(($i + 4))
 		done
        fi

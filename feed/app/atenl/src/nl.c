@@ -1199,12 +1199,13 @@ static int atenl_nl_check_mtd_cb(struct nl_msg *msg, void *arg)
 		return NL_SKIP;
 
 	nla_parse_nested(tb, MT76_TM_ATTR_MAX, attr, testdata_policy);
+	an->band_idx = nla_get_u32(tb[MT76_TM_ATTR_BAND_IDX]);
+
 	if (!tb[MT76_TM_ATTR_MTD_PART] || !tb[MT76_TM_ATTR_MTD_OFFSET])
 		return NL_SKIP;
 
 	an->mtd_part = strdup(nla_get_string(tb[MT76_TM_ATTR_MTD_PART]));
 	an->mtd_offset = nla_get_u32(tb[MT76_TM_ATTR_MTD_OFFSET]);
-	an->band_idx = nla_get_u32(tb[MT76_TM_ATTR_BAND_IDX]);
 
 	return NL_SKIP;
 }

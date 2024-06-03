@@ -85,6 +85,7 @@ struct atenl {
 	u16 adie_id;
 	u8 sub_chip_id;
 	u8 cur_band;
+	u8 main_phy_idx;
 
 	u8 mac_addr[ETH_ALEN];
 	char *bridge_name;

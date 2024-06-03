@@ -27,7 +27,7 @@ atenl_create_file(struct atenl *an, bool flash_mode)
 
 	snprintf(fname, sizeof(fname),
 		 "/sys/kernel/debug/ieee80211/phy%d/mt76/eeprom",
-		 get_band_val(an, 0, phy_idx));
+		 an->main_phy_idx);
 	fd_ori = open(fname, O_RDONLY);
 	if (fd_ori < 0)
 		return -1;
@@ -344,17 +344,14 @@ int atenl_eeprom_init(struct atenl *an, u8 phy_idx)
 	bool flash_mode;
 	int eeprom_fd;
 	char buf[30];
-	u8 main_phy_idx = phy_idx;
 
 	set_band_val(an, 0, phy_idx, phy_idx);
 	atenl_nl_check_mtd(an);
 	flash_mode = an->mtd_part != NULL;
 
 	// Get the first main phy index for this chip
-	if (flash_mode)
-		main_phy_idx -= an->band_idx;
-
-	snprintf(buf, sizeof(buf), "/tmp/atenl-eeprom-phy%u", main_phy_idx);
+	an->main_phy_idx = phy_idx - an->band_idx;
+	snprintf(buf, sizeof(buf), "/tmp/atenl-eeprom-phy%u", an->main_phy_idx);
 	eeprom_file = strdup(buf);
 
 	eeprom_fd = atenl_eeprom_init_file(an, flash_mode);
@@ -461,7 +458,7 @@ int atenl_eeprom_read_from_driver(struct atenl *an, u32 offset, int len)
 
 	snprintf(fname, sizeof(fname),
 		"/sys/kernel/debug/ieee80211/phy%d/mt76/eeprom",
-		get_band_val(an, 0, phy_idx));
+		an->main_phy_idx);
 	fd_ori = open(fname, O_RDONLY);
 	if (fd_ori < 0)
 		return -1;
