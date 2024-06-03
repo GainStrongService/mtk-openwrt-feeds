@@ -122,6 +122,29 @@ u32 mt7530_mdio_r32(struct mtk_eth *eth, u32 reg)
 	return (high << 16) | (low & 0xffff);
 }
 
+void mt753x_set_port_link_state(bool up)
+{
+	struct mtk_eth *eth = g_eth;
+	u32 val, i;
+
+	if (!mt7530_exist(eth))
+		return 0;
+
+	mt798x_iomap();
+	for (i = 0; i < 4; i++) {
+		val = mt7530_mdio_r32(eth, MTK_MT753X_PMCR_P(i));
+		if (up)
+			val |= 0x1;
+		else
+			val &= 0xfffffffe;
+
+		mt7530_mdio_w32(eth, MTK_MT753X_PMCR_P(i), val);
+	}
+	mt798x_iounmap();
+
+	return 0;
+}
+
 void mtk_switch_w32(struct mtk_eth *eth, u32 val, unsigned reg)
 {
 	mtk_w32(eth, val, reg + 0x10000);

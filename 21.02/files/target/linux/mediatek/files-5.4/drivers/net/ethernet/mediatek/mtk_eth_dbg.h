@@ -68,6 +68,11 @@
 	(((x) == 1) ? (mtk_r32(eth, MTK_PSE_OQ_STA(4)) & 0x0FFF0000) :	\
 	(mtk_r32(eth, MTK_PSE_OQ_STA(6)) & 0x0FFF0000)))
 
+#define MTK_FE_GDM_OQ(x)		\
+	(((x) == 2) ? mtk_r32(eth, MTK_PSE_OQ_STA(7)) & 0x0fff0000 :	\
+	((x) == 1) ? mtk_r32(eth, MTK_PSE_OQ_STA(1)) & 0x00000fff :	\
+	mtk_r32(eth, MTK_PSE_OQ_STA(0)) & 0x0fff0000)
+
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_PSE_IQ_STA(x)		(0x180 + (x) * 0x4)
 #define MTK_PSE_OQ_STA(x)		(0x1A0 + (x) * 0x4)
@@ -125,6 +130,8 @@
 #define MTK_XFI_RX_BC_DROP_CNT		0x204
 #define MTK_XFI_RX_MC_DROP_CNT		0x208
 #define MTK_XFI_RX_ALL_DROP_CNT		0x20C
+
+#define MTK_MT753X_PMCR_P(x)	(0x3000 + (x) * 100)
 
 #define PRINT_FORMATTED_XFI_MIB(seq, reg, mask)			\
 {								\
@@ -405,5 +412,6 @@ void mtketh_debugfs_exit(struct mtk_eth *eth);
 int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 void hw_lro_stats_update(u32 ring_no, struct mtk_rx_dma_v2 *rxd);
 void hw_lro_flush_stats_update(u32 ring_no, struct mtk_rx_dma_v2 *rxd);
+void mt753x_set_port_link_state(bool up);
 
 #endif /* MTK_ETH_DBG_H */

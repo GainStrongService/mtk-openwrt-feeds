@@ -34,7 +34,7 @@
 
 static int mtk_msg_level = -1;
 atomic_t reset_lock = ATOMIC_INIT(0);
-atomic_t force = ATOMIC_INIT(0);
+atomic_t force = ATOMIC_INIT(1);
 
 module_param_named(msg_level, mtk_msg_level, int, 0);
 MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
@@ -966,16 +966,16 @@ static void mtk_pse_port_link_set(struct mtk_mac *mac, bool up,
 
 	switch (mac->id) {
 	case MTK_GMAC1_ID:
-		val = MTK_FE_LINK_DOWN_P1;
 		port = PSE_GDM1_PORT;
+		val = MTK_FE_LINK_DOWN_PORT(port);
 		break;
 	case MTK_GMAC2_ID:
-		val = MTK_FE_LINK_DOWN_P2;
 		port = PSE_GDM2_PORT;
+		val = MTK_FE_LINK_DOWN_PORT(port);
 		break;
 	case MTK_GMAC3_ID:
-		val = MTK_FE_LINK_DOWN_P15;
 		port = PSE_GDM3_PORT;
+		val = MTK_FE_LINK_DOWN_PORT(port);
 		break;
 	}
 
@@ -4585,6 +4585,7 @@ static void mtk_pending_work(struct work_struct *work)
 		cpu_relax();
 
 	mtk_phy_config(eth, 0);
+	mt753x_set_port_link_state(0);
 
 	/* Store QDMA configurations to prepare for reset */
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
@@ -4612,18 +4613,18 @@ static void mtk_pending_work(struct work_struct *work)
 				eth->netdev[i]);
 		}
 		rtnl_unlock();
-		if (!wait_for_completion_timeout(&wait_ser_done, 3000)) {
+		if (wait_for_completion_timeout(&wait_ser_done, 3000)) {
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
-				(mtk_stop_fail)) {
+			    (mtk_stop_fail)) {
 				pr_info("send MTK_FE_START_RESET stop\n");
 				rtnl_lock();
 				call_netdevice_notifiers(MTK_FE_START_RESET,
-					eth->netdev[i]);
+							 eth->netdev[i]);
 				rtnl_unlock();
 				if (!wait_for_completion_timeout(&wait_ser_done,
-					3000))
+								 3000))
 					pr_warn("wait for MTK_FE_START_RESET\n");
-				}
+			}
 			pr_warn("wait for MTK_FE_START_RESET\n");
 		}
 		rtnl_lock();
@@ -4689,6 +4690,7 @@ static void mtk_pending_work(struct work_struct *work)
 	eth->mtk_dma_monitor_timer.expires = jiffies;
 	add_timer(&eth->mtk_dma_monitor_timer);
 
+	mt753x_set_port_link_state(1);
 	mtk_phy_config(eth, 1);
 	mtk_reset_flag = 0;
 	clear_bit_unlock(MTK_RESETTING, &eth->state);

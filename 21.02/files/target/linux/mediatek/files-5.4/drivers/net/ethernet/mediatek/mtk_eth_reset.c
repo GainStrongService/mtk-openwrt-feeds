@@ -657,6 +657,11 @@ u32 mtk_monitor_gdm_rx(struct mtk_eth *eth)
 u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 {
 	static u32 err_cnt[MTK_MAX_DEVS];
+	static u32 pre_gdm[MTK_MAX_DEVS];
+	static u32 pre_opq[MTK_WDMA_CNT];
+	static u32 pre_txcnt[MTK_WDMA_CNT];
+	static u32 gdm_err_cnt[MTK_MAX_DEVS];
+	u32 gdm_fsm = 0;
 	u32 mib_base = MTK_GDM1_TX_GBCNT;
 	u32 gmac_txcnt[MTK_MAX_DEVS];
 	u32 is_gmac_tx[MTK_MAX_DEVS];
@@ -684,7 +689,26 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 			err_flag = 1;
 		} else
 			err_cnt[i] = 0;
+	}
 
+	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		gdm_fsm = mtk_r32(eth, MTK_FE_GDM_FSM(i)) & 0x1FFF0000;
+		pse_opq = MTK_FE_GDM_OQ(i);
+		pre_txcnt[i] =
+			mtk_r32(eth, mib_base + MTK_GDM_TX_BASE + i * MTK_GDM_CNT_OFFSET);
+		if ((pre_gdm[i] == gdm_fsm) && (gdm_fsm == 0x10330000) &&
+		    (pre_opq[i] == pse_opq) && (pse_opq > 0))
+			gdm_err_cnt[i]++;
+		if (gdm_err_cnt[i] > 4) {
+			pr_info("GDM%d Tx Info\n", i+1);
+			pr_info("err_cnt = %d", err_cnt[i]);
+			pr_info("GDM_FSM = 0x%x\n",
+				mtk_r32(eth, MTK_FE_GDM_FSM(i)));
+			err_flag = 1;
+		} else
+			gdm_err_cnt[i] = 0;
+		pre_gdm[i] = gdm_fsm;
+		pre_opq[i] = pse_opq;
 	}
 
 	if (err_flag)
@@ -778,6 +802,39 @@ void mtk_restore_qdma_cfg(struct mtk_eth *eth)
 			MTK_QDMA_TX_2SCH_BASE);
 }
 
+void mtk_mac_linkdown(struct mtk_eth *eth)
+{
+	struct mtk_mac *mac = NULL;
+	u32 mcr, sts, i;
+
+	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		mac = eth->mac[i];
+		if (mac->type == MTK_GDM_TYPE) {
+			mcr = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
+			mcr &= ~(MAC_MCR_TX_EN | MAC_MCR_RX_EN | MAC_MCR_FORCE_LINK);
+			mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
+		} else if (mac->type == MTK_XGDM_TYPE && mac->id != MTK_GMAC1_ID) {
+			mcr = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
+			mcr &= 0xfffffff0;
+			mcr |= XMAC_MCR_TRX_DISABLE;
+			mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
+
+			sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
+			sts &= ~MTK_XGMAC_FORCE_LINK(mac->id);
+			mtk_w32(mac->hw, sts, MTK_XGMAC_STS(mac->id));
+		}
+	}
+}
+
+void mtk_pse_port_linkdown(struct mtk_eth *eth, int port)
+{
+	u32 fe_glo_cfg;
+
+	fe_glo_cfg = mtk_r32(eth, MTK_FE_GLO_CFG(port));
+	fe_glo_cfg |= MTK_FE_LINK_DOWN_PORT(port);
+	mtk_w32(eth, fe_glo_cfg, MTK_FE_GLO_CFG(port));
+}
+
 void mtk_prepare_reset_fe(struct mtk_eth *eth)
 {
 	u32 i = 0, val = 0, mcr = 0;
@@ -798,25 +855,17 @@ void mtk_prepare_reset_fe(struct mtk_eth *eth)
 	val = mtk_r32(eth, MTK_QDMA_GLO_CFG);
 	mtk_w32(eth, val & ~(MTK_TX_DMA_EN), MTK_QDMA_GLO_CFG);
 
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		pr_info("[%s] i:%d type:%d id:%d\n",
-			__func__, i, eth->mac[i]->type, eth->mac[i]->id);
-		if (eth->mac[i]->type == MTK_XGDM_TYPE &&
-		    eth->mac[i]->id != MTK_GMAC1_ID) {
-			mcr = mtk_r32(eth, MTK_XMAC_MCR(eth->mac[i]->id));
-			mcr &= 0xfffffff0;
-			mcr |= XMAC_MCR_TRX_DISABLE;
-			pr_info("disable XMAC TX/RX\n");
-			mtk_w32(eth, mcr, MTK_XMAC_MCR(eth->mac[i]->id));
-		}
+	/* Force mac link down */
+	mtk_mac_linkdown(eth);
 
-		if (eth->mac[i]->type == MTK_GDM_TYPE) {
-			mcr = mtk_r32(eth, MTK_MAC_MCR(eth->mac[i]->id));
-			mcr &= ~(MAC_MCR_TX_EN | MAC_MCR_RX_EN);
-			mtk_w32(eth, mcr, MTK_MAC_MCR(eth->mac[i]->id));
-			pr_info("disable GMAC TX/RX\n");
-		}
-	}
+	/* Force pse port link down */
+	mtk_pse_port_linkdown(eth, 0);
+	mtk_pse_port_linkdown(eth, 1);
+	mtk_pse_port_linkdown(eth, 2);
+	mtk_pse_port_linkdown(eth, 8);
+	mtk_pse_port_linkdown(eth, 9);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+		mtk_pse_port_linkdown(eth, 15);
 
 	/* Enable GDM drop */
 	for (i = 0; i < MTK_MAC_COUNT; i++)
