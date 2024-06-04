@@ -1,6 +1,6 @@
-From fdcf6ba6449ebc18a908a7c66164ee6a7f463ae0 Mon Sep 17 00:00:00 2001
+From 2ee245f821d960dd389a5c3dd97dc1057aa05554 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Tue, 28 May 2024 16:51:32 +0800
+Date: Tue, 4 Jun 2024 09:14:34 +0800
 Subject: [PATCH 01/24] mt7622 backport nf hw offload framework and upstream
  hnat plus xt-FLOWOFFLOAD update v2
 
@@ -77,30 +77,30 @@ index 634640d..5f342f4
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 old mode 100644
 new mode 100755
-index cf5a7d6..d7959db
+index 697a197..edc4ecf
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4011,6 +4011,7 @@ static int mtk_open(struct net_device *dev)
+@@ -4010,6 +4010,7 @@ static int mtk_open(struct net_device *dev)
+ 	struct mtk_phylink_priv *phylink_priv = &mac->phylink_priv;
+ 	struct device_node *phy_node;
+ 	const char *mac_addr;
++	u32 gdm_config = MTK_GDMA_TO_PDMA;
  	u32 id = mtk_mac2xgmii_id(eth, mac->id);
  	int err, i;
- 	struct device_node *phy_node;
-+	u32 gdm_config = MTK_GDMA_TO_PDMA;
  
- 	err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
- 	if (err) {
-@@ -4095,7 +4096,10 @@ static int mtk_open(struct net_device *dev)
+@@ -4102,7 +4103,10 @@ static int mtk_open(struct net_device *dev)
  		regmap_write(eth->sgmii->pcs[id].regmap,
  			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
 -	mtk_gdm_config(eth, mac->id, MTK_GDMA_TO_PDMA);
 +	if (eth->soc->offload_version && mtk_ppe_start(&eth->ppe) == 0)
-+			gdm_config = MTK_GDMA_TO_PPE;
++		gdm_config = MTK_GDMA_TO_PPE;
 +
 +	mtk_gdm_config(eth, mac->id, gdm_config);
  
  	return 0;
  }
-@@ -4182,6 +4186,9 @@ static int mtk_stop(struct net_device *dev)
+@@ -4189,6 +4193,9 @@ static int mtk_stop(struct net_device *dev)
  
  	mtk_dma_free(eth);
  
@@ -110,7 +110,7 @@ index cf5a7d6..d7959db
  	return 0;
  }
  
-@@ -5102,6 +5109,7 @@ static const struct net_device_ops mtk_netdev_ops = {
+@@ -5109,6 +5116,7 @@ static const struct net_device_ops mtk_netdev_ops = {
  #ifdef CONFIG_NET_POLL_CONTROLLER
  	.ndo_poll_controller	= mtk_poll_controller,
  #endif
@@ -118,7 +118,7 @@ index cf5a7d6..d7959db
  };
  
  static void mux_poll(struct work_struct *work)
-@@ -5771,6 +5779,17 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5741,6 +5749,17 @@ static int mtk_probe(struct platform_device *pdev)
  			goto err_free_dev;
  	}
  
@@ -136,7 +136,7 @@ index cf5a7d6..d7959db
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
  		if (!eth->netdev[i])
  			continue;
-@@ -5872,6 +5891,7 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -5842,6 +5861,7 @@ static const struct mtk_soc_data mt2701_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -144,7 +144,7 @@ index cf5a7d6..d7959db
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5892,6 +5912,7 @@ static const struct mtk_soc_data mt7621_data = {
+@@ -5862,6 +5882,7 @@ static const struct mtk_soc_data mt7621_data = {
  	.required_clks = MT7621_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -152,7 +152,7 @@ index cf5a7d6..d7959db
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5913,6 +5934,7 @@ static const struct mtk_soc_data mt7622_data = {
+@@ -5883,6 +5904,7 @@ static const struct mtk_soc_data mt7622_data = {
  	.required_clks = MT7622_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -160,7 +160,7 @@ index cf5a7d6..d7959db
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5933,6 +5955,7 @@ static const struct mtk_soc_data mt7623_data = {
+@@ -5903,6 +5925,7 @@ static const struct mtk_soc_data mt7623_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -2211,7 +2211,7 @@ index 7b3c873..e954831 100644
 -
  #endif /* _NF_CONNTRACK_IPV6_H*/
 diff --git a/include/net/netfilter/nf_conntrack.h b/include/net/netfilter/nf_conntrack.h
-index 90690e3..ce0bc3e 100644
+index 90690e3..38a8d3f 100644
 --- a/include/net/netfilter/nf_conntrack.h
 +++ b/include/net/netfilter/nf_conntrack.h
 @@ -105,6 +105,8 @@ struct nf_conn {
@@ -2223,7 +2223,7 @@ index 90690e3..ce0bc3e 100644
  };
  
  static inline struct nf_conn *
-@@ -279,6 +279,18 @@ static inline bool nf_ct_should_gc(const struct nf_conn *ct)
+@@ -279,6 +281,18 @@ static inline bool nf_ct_should_gc(const struct nf_conn *ct)
  	       !nf_ct_is_dying(ct);
  }
  

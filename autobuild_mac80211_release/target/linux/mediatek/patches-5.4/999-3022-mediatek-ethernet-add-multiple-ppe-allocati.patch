@@ -52,23 +52,23 @@ index 04968da..6db2e52 100644
  			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
  	if (eth->soc->offload_version) {
--			gdm_config = MTK_GDMA_TO_PPE0;
+-		gdm_config = MTK_GDMA_TO_PPE0;
 +#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
-+			if (eth->ppe_num >= 3 && mac->id == 2) {
-+				mac->ppe_idx = 2;
-+				gdm_config = MTK_GDMA_TO_PPE2;
-+			} else if (eth->ppe_num >= 2 && mac->id == 1) {
-+				mac->ppe_idx = 1;
-+				gdm_config = MTK_GDMA_TO_PPE1;
-+			} else
++		if (eth->ppe_num >= 3 && mac->id == 2) {
++			mac->ppe_idx = 2;
++			gdm_config = MTK_GDMA_TO_PPE2;
++		} else if (eth->ppe_num >= 2 && mac->id == 1) {
++			mac->ppe_idx = 1;
++			gdm_config = MTK_GDMA_TO_PPE1;
++		} else
 +#endif
-+			{
-+				mac->ppe_idx = 0;
-+				gdm_config = MTK_GDMA_TO_PPE0;
-+			}
++		{
++			mac->ppe_idx = 0;
++			gdm_config = MTK_GDMA_TO_PPE0;
++		}
  
- 			for (i = 0; i < eth->ppe_num; i++)
- 				mtk_ppe_start(eth->ppe[i]);
+ 		for (i = 0; i < eth->ppe_num; i++)
+ 			mtk_ppe_start(eth->ppe[i]);
 @@ -5119,6 +5134,7 @@ static const struct net_device_ops mtk_netdev_ops = {
  	.ndo_poll_controller	= mtk_poll_controller,
  #endif
