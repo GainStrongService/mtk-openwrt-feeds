@@ -29,12 +29,15 @@ static int mtk_crypto_ahash_enqueue(struct ahash_request *areq)
 	struct mtk_crypto_priv *priv = ctx->priv;
 	int ret;
 
-	spin_lock_bh(&priv->mtk_eip_queue.queue_lock);
-	ret = crypto_enqueue_request(&priv->mtk_eip_queue.queue, &areq->base);
-	spin_unlock_bh(&priv->mtk_eip_queue.queue_lock);
+	if (ctx->base.ring < 0)
+		ctx->base.ring = mtk_crypto_select_ring(priv);
 
-	queue_work(priv->mtk_eip_queue.workqueue,
-			&priv->mtk_eip_queue.work_data.work);
+	spin_lock_bh(&priv->mtk_eip_ring[ctx->base.ring].queue_lock);
+	ret = crypto_enqueue_request(&priv->mtk_eip_ring[ctx->base.ring].queue, &areq->base);
+	spin_unlock_bh(&priv->mtk_eip_ring[ctx->base.ring].queue_lock);
+
+	queue_work(priv->mtk_eip_ring[ctx->base.ring].workqueue,
+			&priv->mtk_eip_ring[ctx->base.ring].work_data.work);
 
 	return ret;
 }
@@ -127,7 +130,7 @@ static int mtk_crypto_ahash_send(struct crypto_async_request *async)
 		kfree(cur_req);
 		if (ret) {
 			if (req->sa_pointer)
-				crypto_free_sa(req->sa_pointer);
+				crypto_free_sa(req->sa_pointer, ctx->base.ring);
 			kfree(req->token_context);
 			CRYPTO_ERR("Fail on ahash_aes_cbc process\n");
 			goto exit;
@@ -147,7 +150,7 @@ static int mtk_crypto_ahash_send(struct crypto_async_request *async)
 
 	if (ret) {
 		if (req->sa_pointer)
-			crypto_free_sa(req->sa_pointer);
+			crypto_free_sa(req->sa_pointer, ctx->base.ring);
 		CRYPTO_ERR("Fail on ahash_req process\n");
 		goto exit;
 	}
@@ -158,7 +161,7 @@ static int mtk_crypto_ahash_send(struct crypto_async_request *async)
 
 zero_length_hmac:
 	if (req->sa_pointer)
-		crypto_free_sa(req->sa_pointer);
+		crypto_free_sa(req->sa_pointer, ctx->base.ring);
 	kfree(req->token_context);
 
 	/* complete the final hash with opad for hmac*/
@@ -171,7 +174,9 @@ zero_length_hmac:
 
 	return 0;
 exit:
+	local_bh_disable();
 	async->complete(async, ret);
+	local_bh_enable();
 
 	return 0;
 }
@@ -180,18 +185,19 @@ static int mtk_crypto_ahash_handle_result(struct mtk_crypto_result *res, int err
 {
 	struct crypto_async_request *async = res->async;
 	struct ahash_request *areq = ahash_request_cast(async);
+	struct mtk_crypto_ahash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(areq));
 	struct mtk_crypto_ahash_req *req = ahash_request_ctx(areq);
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(areq);
 	int cache_len;
 
 	if (req->xcbcmac) {
 		memcpy(req->state, res->dst + res->size - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-		crypto_free_sa(res->eip.sa);
+		crypto_free_sa(res->eip.sa_handle, ctx->base.ring);
 		kfree(res->eip.token_context);
 	} else
 		memcpy(req->state, res->dst, req->digest_sz);
 
-	crypto_free_token(res->eip.token);
+	crypto_free_token(res->eip.token_handle);
 	crypto_free_pkt(res->eip.pkt_handle);
 
 	if (req->finish) {
@@ -201,7 +207,7 @@ static int mtk_crypto_ahash_handle_result(struct mtk_crypto_result *res, int err
 			return 0;
 		}
 		if (req->sa_pointer)
-			crypto_free_sa(req->sa_pointer);
+			crypto_free_sa(req->sa_pointer, ctx->base.ring);
 
 		kfree(req->token_context);
 
@@ -211,7 +217,10 @@ static int mtk_crypto_ahash_handle_result(struct mtk_crypto_result *res, int err
 	cache_len = mtk_crypto_queued_len(req);
 	if (cache_len)
 		memcpy(req->cache, req->cache_next, cache_len);
+
+	local_bh_disable();
 	async->complete(async, 0);
+	local_bh_enable();
 
 	return 0;
 }
@@ -322,6 +331,7 @@ static int mtk_crypto_ahash_finup(struct ahash_request *areq)
 static int mtk_crypto_ahash_export(struct ahash_request *areq, void *out)
 {
 	struct mtk_crypto_ahash_req *req = ahash_request_ctx(areq);
+	struct mtk_crypto_ahash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(areq));
 	struct mtk_crypto_ahash_export_state *export = out;
 
 	export->len = req->len;
@@ -330,6 +340,7 @@ static int mtk_crypto_ahash_export(struct ahash_request *areq, void *out)
 	export->digest = req->digest;
 	export->sa_pointer = req->sa_pointer;
 	export->token_context = req->token_context;
+	export->ring = ctx->base.ring;
 
 	memcpy(export->state, req->state, req->state_sz);
 	memcpy(export->cache, req->cache, HASH_CACHE_SIZE);
@@ -372,6 +383,7 @@ static int mtk_crypto_ahash_cra_init(struct crypto_tfm *tfm)
 	ctx->priv = tmpl->priv;
 	ctx->base.send = mtk_crypto_ahash_send;
 	ctx->base.handle_result = mtk_crypto_ahash_handle_result;
+	ctx->base.ring = -1;
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct mtk_crypto_ahash_req));
 

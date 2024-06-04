@@ -50,6 +50,7 @@
 #define MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT	16
 
 /* PEC Configuration */
+#define PEC_MAX_INTERFACE_NUM           4
 #ifdef DDK_PEC_IF_ID
 #define PEC_INTERFACE_ID				DDK_PEC_IF_ID
 #else

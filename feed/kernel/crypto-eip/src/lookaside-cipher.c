@@ -29,13 +29,23 @@ static int mtk_crypto_skcipher_send(struct crypto_async_request *async)
 	struct skcipher_request *req = skcipher_request_cast(async);
 	struct mtk_crypto_cipher_req *mtk_req = skcipher_request_ctx(req);
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
+	unsigned int blksize = crypto_skcipher_blocksize(skcipher);
 	int ret = 0;
 
-	ret = crypto_basic_cipher(async, mtk_req, req->src, req->dst, req->cryptlen,
+	if (!IS_ALIGNED(req->cryptlen, blksize)) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	ret = mtk_crypto_basic_cipher(async, mtk_req, req->src, req->dst, req->cryptlen,
 				0, 0, req->iv, skcipher->ivsize);
 
-	if (ret != 0)
+end:
+	if (ret != 0) {
+		local_bh_disable();
 		async->complete(async, ret);
+		local_bh_enable();
+	}
 
 	return ret;
 }
@@ -59,13 +69,12 @@ static int mtk_crypto_skcipher_handle_result(struct mtk_crypto_result *res, int 
 		dma_unmap_sg(crypto_dev, req->dst, mtk_req->nr_dst, DMA_FROM_DEVICE);
 	}
 
+	local_bh_disable();
 	async->complete(async, err);
+	local_bh_enable();
 
 	crypto_free_sglist(res->eip.pkt_handle);
 	crypto_free_sglist(res->dst);
-	crypto_free_sa(res->eip.sa);
-	crypto_free_token(res->eip.token);
-	kfree(res->eip.token_context);
 
 	return 0;
 }
@@ -77,12 +86,15 @@ static int mtk_crypto_aead_send(struct crypto_async_request *async)
 	struct mtk_crypto_cipher_req *mtk_req = aead_request_ctx(req);
 	int ret;
 
-	ret = crypto_aead_cipher(async, mtk_req, req->src, req->dst, req->cryptlen,
+	ret = mtk_crypto_basic_cipher(async, mtk_req, req->src, req->dst, req->cryptlen,
 				req->assoclen, crypto_aead_authsize(tfm), req->iv,
 				crypto_aead_ivsize(tfm));
 
-	if (ret != 0)
+	if (ret != 0) {
+		local_bh_disable();
 		async->complete(async, ret);
+		local_bh_enable();
+	}
 
 	return ret;
 }
@@ -121,11 +133,10 @@ free_dma:
 
 	crypto_free_sglist(res->eip.pkt_handle);
 	crypto_free_sglist(res->dst);
-	crypto_free_sa(res->eip.sa);
-	crypto_free_token(res->eip.token);
-	kfree(res->eip.token_context);
 
+	local_bh_disable();
 	async->complete(async, err);
+	local_bh_enable();
 	return 0;
 }
 
@@ -142,6 +153,9 @@ static int mtk_crypto_skcipher_cra_init(struct crypto_tfm *tfm)
 
 	ctx->base.send = mtk_crypto_skcipher_send;
 	ctx->base.handle_result = mtk_crypto_skcipher_handle_result;
+	ctx->base.ring = -1;
+	ctx->enc.valid = 0;
+	ctx->dec.valid = 0;
 	return 0;
 }
 
@@ -172,17 +186,35 @@ static int mtk_crypto_queue_req(struct crypto_async_request *base,
 				enum mtk_crypto_cipher_direction dir)
 {
 	struct mtk_crypto_cipher_ctx *ctx = crypto_tfm_ctx(base->tfm);
+	struct crypto_aead *tfm = crypto_aead_reqtfm(aead_request_cast(base));
 	struct mtk_crypto_priv *priv = ctx->priv;
+	struct mtk_crypto_engine_data *data;
+	int ring;
 	int ret;
 
 	mtk_req->direction = dir;
 
-	spin_lock_bh(&priv->mtk_eip_queue.queue_lock);
-	ret = crypto_enqueue_request(&priv->mtk_eip_queue.queue, base);
-	spin_unlock_bh(&priv->mtk_eip_queue.queue_lock);
+	if (ctx->base.ring < 0) {
+		ring = mtk_crypto_select_ring(priv);
+		ctx->base.ring = ring;
+	} else
+		ring = ctx->base.ring;
 
-	queue_work(priv->mtk_eip_queue.workqueue,
-			&priv->mtk_eip_queue.work_data.work);
+
+	if (dir == MTK_CRYPTO_ENCRYPT)
+		data = &ctx->enc;
+	else
+		data = &ctx->dec;
+
+	if (!data->valid)
+		mtk_crypto_ddk_alloc_buff(ctx, dir, crypto_aead_authsize(tfm), data);
+
+	spin_lock_bh(&priv->mtk_eip_ring[ring].queue_lock);
+	ret = crypto_enqueue_request(&priv->mtk_eip_ring[ring].queue, base);
+	spin_unlock_bh(&priv->mtk_eip_ring[ring].queue_lock);
+
+	queue_work(priv->mtk_eip_ring[ring].workqueue,
+			&priv->mtk_eip_ring[ring].work_data.work);
 
 	return ret;
 }
@@ -216,12 +248,26 @@ static int mtk_crypto_skcipher_aes_setkey(struct crypto_skcipher *ctfm,
 	ctx->key_len = len;
 
 	memzero_explicit(&aes, sizeof(aes));
+	ctx->enc.valid = 0;
+	ctx->dec.valid = 0;
 	return 0;
 }
 
 static void mtk_crypto_skcipher_cra_exit(struct crypto_tfm *tfm)
 {
 	struct mtk_crypto_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	if (ctx->enc.sa_handle) {
+		crypto_free_sa(ctx->enc.sa_handle, ctx->base.ring);
+		crypto_free_token(ctx->enc.token_handle);
+		kfree(ctx->enc.token_context);
+	}
+
+	if (ctx->dec.sa_handle) {
+		crypto_free_sa(ctx->dec.sa_handle, ctx->base.ring);
+		crypto_free_token(ctx->dec.token_handle);
+		kfree(ctx->dec.token_context);
+	}
 
 	memzero_explicit(ctx->key, sizeof(ctx->key));
 }
@@ -368,6 +414,8 @@ static int mtk_crypto_skcipher_aesctr_setkey(struct crypto_skcipher *ctfm,
 	ctx->key_len = keylen;
 
 	memzero_explicit(&aes, sizeof(aes));
+	ctx->enc.valid = 0;
+	ctx->dec.valid = 0;
 	return 0;
 }
 
@@ -418,6 +466,8 @@ static int mtk_crypto_des_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 		return ret;
 	memcpy(ctx->key, key, len);
 	ctx->key_len = len;
+	ctx->enc.valid = 0;
+	ctx->dec.valid = 0;
 
 	return 0;
 }
@@ -505,6 +555,8 @@ static int mtk_crypto_des3_ede_setkey(struct crypto_skcipher *ctfm,
 
 	memcpy(ctx->key, key, len);
 	ctx->key_len = len;
+	ctx->enc.valid = 0;
+	ctx->dec.valid = 0;
 	return 0;
 }
 
@@ -614,6 +666,9 @@ static int mtk_crypto_aead_cra_init(struct crypto_tfm *tfm)
 	ctx->aead = true;
 	ctx->base.send = mtk_crypto_aead_send;
 	ctx->base.handle_result = mtk_crypto_aead_handle_result;
+	ctx->base.ring = -1;
+	ctx->enc.valid = 0;
+	ctx->dec.valid = 0;
 	return 0;
 }
 
@@ -716,13 +771,17 @@ static int mtk_crypto_aead_setkey(struct crypto_aead *ctfm, const u8 *key, unsig
 	memcpy(ctx->opad, &ostate.state, ctx->state_sz);
 
 	if (istate.sa_pointer)
-		crypto_free_sa(istate.sa_pointer);
+		crypto_free_sa(istate.sa_pointer, istate.ring);
 	kfree(istate.token_context);
 	if (ostate.sa_pointer)
-		crypto_free_sa(ostate.sa_pointer);
+		crypto_free_sa(ostate.sa_pointer, ostate.ring);
 	kfree(ostate.token_context);
 
 	memzero_explicit(&keys, sizeof(keys));
+
+	ctx->enc.valid = 0;
+	ctx->dec.valid = 0;
+
 	return 0;
 
 badkey:
@@ -1466,6 +1525,10 @@ static int mtk_crypto_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 
 	memzero_explicit(hashkey, AES_BLOCK_SIZE);
 	memzero_explicit(&aes, sizeof(aes));
+
+	ctx->enc.valid = 0;
+	ctx->dec.valid = 0;
+
 	return 0;
 }
 
@@ -1656,6 +1719,10 @@ static int mtk_crypto_aead_ccm_setkey(struct crypto_aead *ctfm, const u8 *key,
 	ctx->hash_alg = MTK_CRYPTO_ALG_CCM;
 
 	memzero_explicit(&aes, sizeof(aes));
+
+	ctx->enc.valid = 0;
+	ctx->dec.valid = 0;
+
 	return 0;
 }
 

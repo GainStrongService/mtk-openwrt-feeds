@@ -11,24 +11,25 @@
 #include <crypto/hmac.h>
 #include <crypto/md5.h>
 #include <linux/delay.h>
+#include <crypto/internal/hash.h>
 
 #include <crypto-eip/ddk/slad/api_pcl.h>
 #include <crypto-eip/ddk/slad/api_pcl_dtl.h>
 #include <crypto-eip/ddk/slad/api_pec.h>
-#include <crypto-eip/ddk/slad/api_driver197_init.h>
 
 #include "crypto-eip/crypto-eip.h"
 #include "crypto-eip/ddk-wrapper.h"
 #include "crypto-eip/internal.h"
 
-LIST_HEAD(result_list);
-
-void crypto_free_sa(void *sa_pointer)
+void crypto_free_sa(void *sa_pointer, int ring)
 {
 	DMABuf_Handle_t SAHandle = {0};
 
+	if (ring < 0)
+		return;
+
 	SAHandle.p = sa_pointer;
-	PEC_SA_UnRegister(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
+	PEC_SA_UnRegister(ring, SAHandle, DMABuf_NULLHandle,
 				DMABuf_NULLHandle);
 	DMABuf_Release(SAHandle);
 }
@@ -98,7 +99,7 @@ static bool crypto_iotoken_create(IOToken_Input_Dscr_t * const dscr_p,
 
 unsigned int crypto_pe_busy_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
 			       u32 *OutTokenData_p,
-			       PEC_ResultDescriptor_t *RD_p)
+			       PEC_ResultDescriptor_t *RD_p, int ring)
 {
 	int LoopCounter = MTK_EIP197_INLINE_NOF_TRIES;
 	int IOToken_Rc;
@@ -114,7 +115,7 @@ unsigned int crypto_pe_busy_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
 		/* Try to get the processed packet from the driver */
 		unsigned int Counter = 0;
 
-		pecres = PEC_Packet_Get(PEC_INTERFACE_ID, RD_p, 1, &Counter);
+		pecres = PEC_Packet_Get(ring, RD_p, 1, &Counter);
 		if (pecres != PEC_STATUS_OK) {
 			/* IO error */
 			CRYPTO_ERR("PEC_Packet_Get error %d\n", pecres);
@@ -151,7 +152,7 @@ unsigned int crypto_pe_busy_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
 
 unsigned int crypto_pe_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
 			       u32 *OutTokenData_p,
-			       PEC_ResultDescriptor_t *RD_p)
+			       PEC_ResultDescriptor_t *RD_p, int ring)
 {
 	int IOToken_Rc;
 	unsigned int Counter = 0;
@@ -163,10 +164,10 @@ unsigned int crypto_pe_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
 	RD_p->OutputToken_p = OutTokenData_p;
 
 	/* Try to get the processed packet from the driver */
-	pecres = PEC_Packet_Get(PEC_INTERFACE_ID, RD_p, 1, &Counter);
+	pecres = PEC_Packet_Get(ring, RD_p, 1, &Counter);
 	if (pecres != PEC_STATUS_OK) {
 		/* IO error */
-		CRYPTO_ERR("PEC_Packet_Get error %d\n", pecres);
+		CRYPTO_ERR("PEC_Packet_Get error %d, ring id %d\n", pecres, ring);
 		return 0;
 	}
 
@@ -255,7 +256,7 @@ SABuilder_Auth_t aead_hash_match(enum mtk_crypto_alg alg)
 	}
 }
 
-void mtk_crypto_interrupt_handler(void)
+void mtk_crypto_ring3_handler(void)
 {
 	struct mtk_crypto_result *rd;
 	struct mtk_crypto_context *ctx;
@@ -265,46 +266,353 @@ void mtk_crypto_interrupt_handler(void)
 	int ret = 0;
 
 	while (true) {
-		spin_lock_bh(&add_lock);
-		if (list_empty(&result_list)) {
-			spin_unlock_bh(&add_lock);
+		spin_lock_bh(&priv->mtk_eip_ring[3].ring_lock);
+		if (list_empty(&priv->mtk_eip_ring[3].list)) {
+			spin_unlock_bh(&priv->mtk_eip_ring[3].ring_lock);
 			return;
 		}
-		rd = list_first_entry(&result_list, struct mtk_crypto_result, list);
-		spin_unlock_bh(&add_lock);
+		rd = list_first_entry(&priv->mtk_eip_ring[3].list, struct mtk_crypto_result, list);
+		spin_unlock_bh(&priv->mtk_eip_ring[3].ring_lock);
 
-		if (crypto_pe_get_one(&OutTokenDscr, OutputToken, &Res) < 1) {
+		ctx = crypto_tfm_ctx(rd->async->tfm);
+		if (crypto_pe_get_one(&OutTokenDscr, OutputToken, &Res, ctx->ring) < 1) {
 			PEC_NotifyFunction_t CBFunc;
 
-			CBFunc = mtk_crypto_interrupt_handler;
-			if (OutTokenDscr.ErrorCode == 0) {
-				PEC_ResultNotify_Request(PEC_INTERFACE_ID, CBFunc, 1);
-				return;
-			} else if (OutTokenDscr.ErrorCode & BIT(9)) {
+			CBFunc = mtk_crypto_ring3_handler;
+			if (OutTokenDscr.ErrorCode == 0)
+				continue;
+			else if (OutTokenDscr.ErrorCode & BIT(9))
 				ret = -EBADMSG;
-			} else if (OutTokenDscr.ErrorCode == 0x4003) {
+			else if (OutTokenDscr.ErrorCode == 0x4003)
 				ret = 0;
-			} else
+			else
 				ret = 1;
 
 			CRYPTO_ERR("error from crypto_pe_get_one: %d\n", ret);
 		}
 
-		ctx = crypto_tfm_ctx(rd->async->tfm);
 		ret = ctx->handle_result(rd, ret);
 
-		spin_lock_bh(&add_lock);
+		spin_lock_bh(&priv->mtk_eip_ring[3].ring_lock);
 		list_del(&rd->list);
-		spin_unlock_bh(&add_lock);
+		spin_unlock_bh(&priv->mtk_eip_ring[3].ring_lock);
 		kfree(rd);
 	}
 }
 
-int crypto_aead_cipher(struct crypto_async_request *async, struct mtk_crypto_cipher_req *mtk_req,
-		       struct scatterlist *src, struct scatterlist *dst, unsigned int cryptlen,
-		       unsigned int assoclen, unsigned int digestsize, u8 *iv, unsigned int ivsize)
+void mtk_crypto_ring2_handler(void)
+{
+	struct mtk_crypto_result *rd;
+	struct mtk_crypto_context *ctx;
+	IOToken_Output_Dscr_t OutTokenDscr;
+	PEC_ResultDescriptor_t Res;
+	uint32_t OutputToken[IOTOKEN_OUT_WORD_COUNT];
+	int ret = 0;
+
+	while (true) {
+		spin_lock_bh(&priv->mtk_eip_ring[2].ring_lock);
+		if (list_empty(&priv->mtk_eip_ring[2].list)) {
+			spin_unlock_bh(&priv->mtk_eip_ring[2].ring_lock);
+			return;
+		}
+		rd = list_first_entry(&priv->mtk_eip_ring[2].list, struct mtk_crypto_result, list);
+		spin_unlock_bh(&priv->mtk_eip_ring[2].ring_lock);
+
+		ctx = crypto_tfm_ctx(rd->async->tfm);
+		if (crypto_pe_get_one(&OutTokenDscr, OutputToken, &Res, ctx->ring) < 1) {
+			PEC_NotifyFunction_t CBFunc;
+
+			CBFunc = mtk_crypto_ring2_handler;
+			if (OutTokenDscr.ErrorCode == 0)
+				continue;
+			else if (OutTokenDscr.ErrorCode & BIT(9))
+				ret = -EBADMSG;
+			else if (OutTokenDscr.ErrorCode == 0x4003)
+				ret = 0;
+			else
+				ret = 1;
+
+			CRYPTO_ERR("error from crypto_pe_get_one: %d\n", ret);
+		}
+
+		ret = ctx->handle_result(rd, ret);
+
+		spin_lock_bh(&priv->mtk_eip_ring[2].ring_lock);
+		list_del(&rd->list);
+		spin_unlock_bh(&priv->mtk_eip_ring[2].ring_lock);
+		kfree(rd);
+	}
+}
+
+void mtk_crypto_ring1_handler(void)
+{
+	struct mtk_crypto_result *rd;
+	struct mtk_crypto_context *ctx;
+	IOToken_Output_Dscr_t OutTokenDscr;
+	PEC_ResultDescriptor_t Res;
+	uint32_t OutputToken[IOTOKEN_OUT_WORD_COUNT];
+	int ret = 0;
+
+	while (true) {
+		spin_lock_bh(&priv->mtk_eip_ring[1].ring_lock);
+		if (list_empty(&priv->mtk_eip_ring[1].list)) {
+			spin_unlock_bh(&priv->mtk_eip_ring[1].ring_lock);
+			return;
+		}
+		rd = list_first_entry(&priv->mtk_eip_ring[1].list, struct mtk_crypto_result, list);
+		spin_unlock_bh(&priv->mtk_eip_ring[1].ring_lock);
+
+		ctx = crypto_tfm_ctx(rd->async->tfm);
+		if (crypto_pe_get_one(&OutTokenDscr, OutputToken, &Res, ctx->ring) < 1) {
+			PEC_NotifyFunction_t CBFunc;
+
+			CBFunc = mtk_crypto_ring1_handler;
+			if (OutTokenDscr.ErrorCode == 0)
+				continue;
+			else if (OutTokenDscr.ErrorCode & BIT(9))
+				ret = -EBADMSG;
+			else if (OutTokenDscr.ErrorCode == 0x4003)
+				ret = 0;
+			else
+				ret = 1;
+
+			CRYPTO_ERR("error from crypto_pe_get_one: %d\n", ret);
+		}
+
+		ret = ctx->handle_result(rd, ret);
+
+		spin_lock_bh(&priv->mtk_eip_ring[1].ring_lock);
+		list_del(&rd->list);
+		spin_unlock_bh(&priv->mtk_eip_ring[1].ring_lock);
+		kfree(rd);
+	}
+}
+
+void mtk_crypto_ring0_handler(void)
+{
+	struct mtk_crypto_result *rd;
+	struct mtk_crypto_context *ctx;
+	IOToken_Output_Dscr_t OutTokenDscr;
+	PEC_ResultDescriptor_t Res;
+	uint32_t OutputToken[IOTOKEN_OUT_WORD_COUNT];
+	int ret = 0;
+
+	while (true) {
+		spin_lock_bh(&priv->mtk_eip_ring[0].ring_lock);
+		if (list_empty(&priv->mtk_eip_ring[0].list)) {
+			spin_unlock_bh(&priv->mtk_eip_ring[0].ring_lock);
+			return;
+		}
+		rd = list_first_entry(&priv->mtk_eip_ring[0].list, struct mtk_crypto_result, list);
+		spin_unlock_bh(&priv->mtk_eip_ring[0].ring_lock);
+
+		ctx = crypto_tfm_ctx(rd->async->tfm);
+		if (crypto_pe_get_one(&OutTokenDscr, OutputToken, &Res, ctx->ring) < 1) {
+			PEC_NotifyFunction_t CBFunc;
+
+			CBFunc = mtk_crypto_ring0_handler;
+			if (OutTokenDscr.ErrorCode == 0)
+				continue;
+			else if (OutTokenDscr.ErrorCode & BIT(9))
+				ret = -EBADMSG;
+			else if (OutTokenDscr.ErrorCode == 0x4003)
+				ret = 0;
+			else
+				ret = 1;
+
+			CRYPTO_ERR("error from crypto_pe_get_one: %d\n", ret);
+		}
+
+		ret = ctx->handle_result(rd, ret);
+
+		spin_lock_bh(&priv->mtk_eip_ring[0].ring_lock);
+		list_del(&rd->list);
+		spin_unlock_bh(&priv->mtk_eip_ring[0].ring_lock);
+		kfree(rd);
+	}
+}
+
+void (*mtk_crypto_interrupt_handler[])(void) = {
+	mtk_crypto_ring0_handler,
+	mtk_crypto_ring1_handler,
+	mtk_crypto_ring2_handler,
+	mtk_crypto_ring3_handler
+};
+
+int mtk_crypto_ddk_alloc_buff(struct mtk_crypto_cipher_ctx *ctx, int dir, unsigned int digestsize,
+								struct mtk_crypto_engine_data *data)
+{
+	SABuilder_Params_t params;
+	SABuilder_Params_Basic_t ProtocolParams;
+
+	DMABuf_Status_t DMAStatus;
+	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
+	DMABuf_HostAddress_t SAHostAddress;
+	DMABuf_HostAddress_t TokenHostAddress;
+
+	DMABuf_Handle_t SAHandle = {0};
+	DMABuf_Handle_t TokenHandle = {0};
+	unsigned int SAWords = 0;
+
+	unsigned int TCRWords = 0;
+	unsigned int TokenMaxWords = 0;
+
+	IOToken_Input_Dscr_t InTokenDscr;
+	IOToken_Output_Dscr_t OutTokenDscr;
+	void *InTokenDscrExt_p = NULL;
+	int rc;
+
+#ifdef CRYPTO_IOTOKEN_EXT
+	IOToken_Input_Dscr_Ext_t InTokenDscrExt;
+
+	ZEROINIT(InTokenDscrExt);
+	InTokenDscrExt_p = &InTokenDscrExt;
+#endif
+	ZEROINIT(InTokenDscr);
+	ZEROINIT(OutTokenDscr);
+
+	if (dir == MTK_CRYPTO_ENCRYPT)
+		rc = SABuilder_Init_Basic(&params, &ProtocolParams, SAB_DIRECTION_OUTBOUND);
+	else
+		rc = SABuilder_Init_Basic(&params, &ProtocolParams, SAB_DIRECTION_INBOUND);
+
+	if (data->sa_handle) {
+		crypto_free_sa(data->sa_handle, ctx->base.ring);
+		crypto_free_token(data->token_handle);
+		kfree(data->token_context);
+	}
+
+	if (rc) {
+		CRYPTO_ERR("SABuilder_Init_Basic failed: %d\n", rc);
+		return rc;
+	}
+
+	/* Build SA */
+	params.CryptoAlgo = lookaside_match_alg_name(ctx->alg);
+	params.CryptoMode = lookaside_match_alg_mode(ctx->mode);
+	params.KeyByteCount = ctx->key_len;
+	params.Key_p = (uint8_t *) ctx->key;
+	if (params.CryptoMode == SAB_CRYPTO_MODE_GCM && ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP) {
+		params.Nonce_p = (uint8_t *) &ctx->nonce;
+		params.IVSrc = SAB_IV_SRC_TOKEN;
+		params.flags |= SAB_FLAG_COPY_IV;
+	} else if (params.CryptoMode == SAB_CRYPTO_MODE_GMAC) {
+		params.Nonce_p = (uint8_t *) &ctx->nonce;
+		params.IVSrc = SAB_IV_SRC_TOKEN;
+	} else if (params.CryptoMode == SAB_CRYPTO_MODE_GCM) {
+		params.IVSrc = SAB_IV_SRC_TOKEN;
+	} else if (params.CryptoMode == SAB_CRYPTO_MODE_CCM) { /* Todo, use token for ccm */
+		params.IVSrc = SAB_IV_SRC_TOKEN;
+		params.Nonce_p = (uint8_t *) &ctx->nonce + 1;
+	} else {
+		params.IVSrc = SAB_IV_SRC_TOKEN;
+	}
+
+	if (params.CryptoMode == SAB_CRYPTO_MODE_CTR)
+		params.Nonce_p = (uint8_t *) &ctx->nonce;
+
+	params.AuthAlgo = aead_hash_match(ctx->hash_alg);
+	params.AuthKey1_p = (uint8_t *) ctx->ipad;
+	params.AuthKey2_p = (uint8_t *) ctx->opad;
+
+	ProtocolParams.ICVByteCount = digestsize;
+
+	rc = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
+	if (rc) {
+		CRYPTO_ERR("SA not created because of size errors: %d\n", rc);
+		return rc;
+	}
+
+	data->sa_size = SAWords;
+
+	DMAProperties.fCached = true;
+	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
+	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_TRANSFORM;
+	DMAProperties.Size = MAX(4 * SAWords, 256);
+
+	DMAStatus = DMABuf_Alloc(DMAProperties, &SAHostAddress, &SAHandle);
+	if (DMAStatus != DMABUF_STATUS_OK) {
+		rc = 1;
+		CRYPTO_ERR("Allocation of SA failed: %d\n", DMAStatus);
+		return rc;
+	}
+
+	rc = SABuilder_BuildSA(&params, (u32 *) SAHostAddress.p, NULL, NULL);
+	if (rc) {
+		CRYPTO_ERR("SA not created because of errors: %d\n", rc);
+		goto release_sa;
+	}
+
+	rc = PEC_SA_Register(ctx->base.ring, SAHandle, DMABuf_NULLHandle,
+				DMABuf_NULLHandle);
+	if (rc != PEC_STATUS_OK) {
+		CRYPTO_ERR("PEC_SA_Register failed: %d\n", rc);
+		goto release_sa;
+	}
+
+	data->sa_addr = SAHostAddress.p;
+	data->sa_handle = SAHandle.p;
+
+	/* Build Token */
+	rc = TokenBuilder_GetContextSize(&params, &TCRWords);
+	if (rc) {
+		CRYPTO_ERR("TokenBuilder_GetContextSize returned errors: f%d\n", rc);
+		goto release_sa;
+	}
+
+	data->token_context = kmalloc(4 * TCRWords, GFP_KERNEL);
+	if (!data->token_context) {
+		rc = 1;
+		CRYPTO_ERR("Allocation of TCR failed\n");
+		goto release_sa;
+	}
+
+	rc = TokenBuilder_BuildContext(&params, data->token_context);
+	if (rc) {
+		CRYPTO_ERR("TokenBuilder_BuildContext failed: %d\n", rc);
+		goto release_context;
+	}
+
+	rc = TokenBuilder_GetSize(data->token_context, &TokenMaxWords);
+	if (rc) {
+		CRYPTO_ERR("TokenBuilder_GetSize failed: %d\n", rc);
+		goto release_context;
+	}
+	data->token_size = TokenMaxWords;
+
+	DMAProperties.fCached = true;
+	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
+	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_TOKEN;
+	DMAProperties.Size = 4 * TokenMaxWords;
+
+	DMAStatus = DMABuf_Alloc(DMAProperties, &TokenHostAddress, &TokenHandle);
+	if (DMAStatus != DMABUF_STATUS_OK) {
+		rc = 1;
+		CRYPTO_ERR("Allocation of token builder failed: %d\n", DMAStatus);
+		goto release_context;
+	}
+	data->token_addr = TokenHostAddress.p;
+	data->token_handle = TokenHandle.p;
+	data->valid = 1;
+
+	return rc;
+
+release_context:
+	kfree(data->token_context);
+release_sa:
+	DMABuf_Release(SAHandle);
+
+	return rc;
+}
+
+int mtk_crypto_basic_cipher(struct crypto_async_request *async,
+		struct mtk_crypto_cipher_req *mtk_req, struct scatterlist *src,
+		struct scatterlist *dst, unsigned int cryptlen,
+		unsigned int assoclen, unsigned int digestsize, u8 *iv,
+		unsigned int ivsize)
 {
 	struct mtk_crypto_cipher_ctx *ctx = crypto_tfm_ctx(async->tfm);
+	struct mtk_crypto_engine_data *data;
 	struct mtk_crypto_result *result;
 	struct scatterlist *sg;
 	unsigned int totlen_src;
@@ -314,26 +622,17 @@ int crypto_aead_cipher(struct crypto_async_request *async, struct mtk_crypto_cip
 	int pass_id;
 	int rc;
 	int i;
-	SABuilder_Params_t params;
-	SABuilder_Params_Basic_t ProtocolParams;
-	unsigned int SAWords = 0;
+	int ring = ctx->base.ring;
 
-	DMABuf_Status_t DMAStatus;
 	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
-	DMABuf_HostAddress_t SAHostAddress;
-	DMABuf_HostAddress_t TokenHostAddress;
-	DMABuf_HostAddress_t PktHostAddress;
 
 	DMABuf_Handle_t SAHandle = {0};
 	DMABuf_Handle_t TokenHandle = {0};
 	DMABuf_Handle_t SrcSGListHandle = {0};
 	DMABuf_Handle_t DstSGListHandle = {0};
 
-	unsigned int TCRWords = 0;
-	void *TCRData = 0;
 	unsigned int TokenWords = 0;
 	unsigned int TokenHeaderWord;
-	unsigned int TokenMaxWords = 0;
 
 	TokenBuilder_Params_t TokenParams;
 	PEC_CommandDescriptor_t Cmd;
@@ -344,7 +643,7 @@ int crypto_aead_cipher(struct crypto_async_request *async, struct mtk_crypto_cip
 	IOToken_Output_Dscr_t OutTokenDscr;
 	uint32_t InputToken[IOTOKEN_IN_WORD_COUNT];
 	void *InTokenDscrExt_p = NULL;
-	uint8_t gcm_iv[16] = {0};
+	uint8_t token_iv[16] = {0};
 	uint8_t *aad = NULL;
 
 #ifdef CRYPTO_IOTOKEN_EXT
@@ -360,79 +659,32 @@ int crypto_aead_cipher(struct crypto_async_request *async, struct mtk_crypto_cip
 	if (mtk_req->direction == MTK_CRYPTO_ENCRYPT) {
 		totlen_src = cryptlen + assoclen;
 		totlen_dst = totlen_src + digestsize;
-		rc = SABuilder_Init_Basic(&params, &ProtocolParams, SAB_DIRECTION_OUTBOUND);
+		data = &ctx->enc;
 	} else {
 		totlen_src = cryptlen + assoclen;
 		totlen_dst = totlen_src - digestsize;
-		rc = SABuilder_Init_Basic(&params, &ProtocolParams, SAB_DIRECTION_INBOUND);
-	}
-	if (rc) {
-		CRYPTO_ERR("SABuilder_Init_Basic failed: %d\n", rc);
-		goto error_exit;
+		data = &ctx->dec;
 	}
 
-	/* Build SA */
-	params.CryptoAlgo = lookaside_match_alg_name(ctx->alg);
-	params.CryptoMode = lookaside_match_alg_mode(ctx->mode);
-	params.KeyByteCount = ctx->key_len;
-	params.Key_p = (uint8_t *) ctx->key;
-	if (params.CryptoMode == SAB_CRYPTO_MODE_GCM && ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP) {
-		params.Nonce_p = (uint8_t *) &ctx->nonce;
-		params.IVSrc = SAB_IV_SRC_TOKEN;
-		params.flags |= SAB_FLAG_COPY_IV;
-		memcpy(gcm_iv, &ctx->nonce, 4);
-		memcpy(gcm_iv + 4, iv, ivsize);
-		gcm_iv[15] = 1;
-	} else if (params.CryptoMode == SAB_CRYPTO_MODE_GMAC) {
-		params.Nonce_p = (uint8_t *) &ctx->nonce;
-		params.IVSrc = SAB_IV_SRC_TOKEN;
-		memcpy(gcm_iv, &ctx->nonce, 4);
-		memcpy(gcm_iv + 4, iv, ivsize);
-		gcm_iv[15] = 1;
-	} else if (params.CryptoMode == SAB_CRYPTO_MODE_GCM) {
-		params.IVSrc = SAB_IV_SRC_TOKEN;
-		memcpy(gcm_iv, iv, ivsize);
-		gcm_iv[15] = 1;
-	} else if (params.CryptoMode == SAB_CRYPTO_MODE_CCM) {
-		params.IVSrc = SAB_IV_SRC_SA;
-		params.Nonce_p = (uint8_t *) &ctx->nonce + 1;
-		params.IV_p = iv;
-	} else {
-		params.IVSrc = SAB_IV_SRC_SA;
-		params.IV_p = iv;
-	}
+	SAHandle.p = data->sa_handle;
+	TokenHandle.p = data->token_handle;
 
-	if (params.CryptoMode == SAB_CRYPTO_MODE_CTR)
-		params.Nonce_p = (uint8_t *) &ctx->nonce;
-
-	params.AuthAlgo = aead_hash_match(ctx->hash_alg);
-	params.AuthKey1_p = (uint8_t *) ctx->ipad;
-	params.AuthKey2_p = (uint8_t *) ctx->opad;
-
-	ProtocolParams.ICVByteCount = digestsize;
-
-	rc = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
-	if (rc) {
-		CRYPTO_ERR("SA not created because of size errors: %d\n", rc);
-		goto error_remove_sg;
-	}
-
-	DMAProperties.fCached = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_TRANSFORM;
-	DMAProperties.Size = MAX(4*SAWords, 256);
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &SAHostAddress, &SAHandle);
-	if (DMAStatus != DMABUF_STATUS_OK) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of SA failed: %d\n", DMAStatus);
-		goto error_remove_sg;
-	}
-
-	rc = SABuilder_BuildSA(&params, (u32 *)SAHostAddress.p, NULL, NULL);
-	if (rc) {
-		CRYPTO_ERR("SA not created because of errors: %d\n", rc);
-		goto error_remove_sg;
+	if ((ctx->mode == MTK_CRYPTO_MODE_GCM && ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP)
+			|| ctx->mode == MTK_CRYPTO_MODE_GMAC) {
+		memcpy(token_iv, &ctx->nonce, 4);
+		memcpy(token_iv + 4, iv, ivsize);
+		token_iv[15] = 1;
+	} else if (ctx->mode == MTK_CRYPTO_MODE_GCM) {
+		memcpy(token_iv, iv, ivsize);
+		token_iv[15] = 1;
+	} else if (ctx->mode == MTK_CRYPTO_MODE_CCM) {
+		memcpy(token_iv, (uint8_t *) &ctx->nonce, 4);
+		memcpy(token_iv + 4, iv, ivsize);
+		token_iv[15] = 0;
+	} else if (ctx->mode == MTK_CRYPTO_MODE_CTR) {
+		memcpy(token_iv, &ctx->nonce, 4);
+		memcpy(token_iv + 4, iv, ivsize);
+		token_iv[15] = 1;
 	}
 
 	/* Check dst buffer has enough size */
@@ -444,27 +696,26 @@ int crypto_aead_cipher(struct crypto_async_request *async, struct mtk_crypto_cip
 		mtk_req->nr_dst = mtk_req->nr_src;
 		if (unlikely((totlen_src || totlen_dst) && (mtk_req->nr_src <= 0))) {
 			CRYPTO_ERR("In-place buffer not large enough\n");
-			return -EINVAL;
+			goto error_remove_sg;
 		}
 		dma_map_sg(crypto_dev, src, mtk_req->nr_src, DMA_BIDIRECTIONAL);
 	} else {
 		if (unlikely(totlen_src && (mtk_req->nr_src <= 0))) {
 			CRYPTO_ERR("Source buffer not large enough\n");
-			return -EINVAL;
+			goto error_remove_sg;
 		}
 		dma_map_sg(crypto_dev, src, mtk_req->nr_src, DMA_TO_DEVICE);
 
 		if (unlikely(totlen_dst && (mtk_req->nr_dst <= 0))) {
 			CRYPTO_ERR("Dest buffer not large enough\n");
 			dma_unmap_sg(crypto_dev, src, mtk_req->nr_src, DMA_TO_DEVICE);
-			return -EINVAL;
+			goto error_remove_sg;
 		}
 		dma_map_sg(crypto_dev, dst, mtk_req->nr_dst, DMA_FROM_DEVICE);
 	}
 
-	if (params.CryptoMode == SAB_CRYPTO_MODE_CCM ||
-		(params.CryptoMode == SAB_CRYPTO_MODE_GCM &&
-		 ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP)) {
+	if (ctx->mode == MTK_CRYPTO_MODE_CCM ||
+		(ctx->mode == MTK_CRYPTO_MODE_GCM && ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP)) {
 
 		aad = kmalloc(assoclen, GFP_KERNEL);
 		if (!aad)
@@ -561,408 +812,38 @@ int crypto_aead_cipher(struct crypto_async_request *async, struct mtk_crypto_cip
 	}
 
 	/* Build Token */
-	rc = TokenBuilder_GetContextSize(&params, &TCRWords);
-	if (rc) {
-		CRYPTO_ERR("TokenBuilder_GetContextSize returned errors: %d\n", rc);
-		goto error_remove_sg;
-	}
-
-	TCRData = kmalloc(4 * TCRWords, GFP_KERNEL);
-	if (!TCRData) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of TCR failed\n");
-		goto error_remove_sg;
-	}
-
-	rc = TokenBuilder_BuildContext(&params, TCRData);
-	if (rc) {
-		CRYPTO_ERR("TokenBuilder_BuildContext failed: %d\n", rc);
-		goto error_remove_sg;
-	}
-
-	rc = TokenBuilder_GetSize(TCRData, &TokenMaxWords);
-	if (rc) {
-		CRYPTO_ERR("TokenBuilder_GetSize failed: %d\n", rc);
-		goto error_remove_sg;
-	}
-
-	DMAProperties.fCached = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_TOKEN;
-	DMAProperties.Size = 4*TokenMaxWords;
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &TokenHostAddress, &TokenHandle);
-	if (DMAStatus != DMABUF_STATUS_OK) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of token builder failed: %d\n", DMAStatus);
-		goto error_remove_sg;
-	}
-
-	rc = PEC_SA_Register(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
-				DMABuf_NULLHandle);
-	if (rc != PEC_STATUS_OK) {
-		CRYPTO_ERR("PEC_SA_Register failed: %d\n", rc);
-		goto error_remove_sg;
-	}
-
 	ZEROINIT(TokenParams);
 
-	if (params.CryptoMode == SAB_CRYPTO_MODE_GCM || params.CryptoMode == SAB_CRYPTO_MODE_GMAC)
-		TokenParams.IV_p = gcm_iv;
+	if (ctx->mode == MTK_CRYPTO_MODE_GCM || ctx->mode == MTK_CRYPTO_MODE_GMAC ||
+		ctx->mode == MTK_CRYPTO_MODE_CCM || ctx->mode == MTK_CRYPTO_MODE_CTR)
+		TokenParams.IV_p = token_iv;
+	else
+		TokenParams.IV_p = iv;
 
-	if ((params.CryptoMode == SAB_CRYPTO_MODE_GCM && ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP) ||
-	     params.CryptoMode == SAB_CRYPTO_MODE_CCM) {
+	if ((ctx->mode == MTK_CRYPTO_MODE_GCM && ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP) ||
+	     ctx->mode == MTK_CRYPTO_MODE_CCM) {
 		TokenParams.AdditionalValue = assoclen - ivsize;
 		TokenParams.AAD_p = aad;
-	} else if (params.CryptoMode != SAB_CRYPTO_MODE_GMAC)
+	} else if (ctx->mode != MTK_CRYPTO_MODE_GMAC)
 		TokenParams.AdditionalValue = assoclen;
 
-
-	PktHostAddress.p = kmalloc(sizeof(uint8_t), GFP_KERNEL);
-	rc = TokenBuilder_BuildToken(TCRData, (uint8_t *)PktHostAddress.p, src_pkt,
-					&TokenParams, (uint32_t *)TokenHostAddress.p,
+	rc = TokenBuilder_BuildToken(data->token_context, aad, src_pkt,
+					&TokenParams, (uint32_t *) data->token_addr,
 					&TokenWords, &TokenHeaderWord);
-	kfree(PktHostAddress.p);
 	if (rc != TKB_STATUS_OK) {
 		CRYPTO_ERR("Token builder failed: %d\n", rc);
-		goto error_exit_unregister;
+		goto error_remove_sg;
 	}
+
+	if (ctx->mode == MTK_CRYPTO_MODE_CBC &&
+			mtk_req->direction == MTK_CRYPTO_DECRYPT)
+		sg_pcopy_to_buffer(src, mtk_req->nr_src, iv, ivsize, cryptlen - ivsize);
 
 	ZEROINIT(Cmd);
 	Cmd.Token_Handle = TokenHandle;
 	Cmd.Token_WordCount = TokenWords;
 	Cmd.SrcPkt_Handle = SrcSGListHandle;
 	Cmd.SrcPkt_ByteCount = src_pkt;
-	Cmd.DstPkt_Handle = DstSGListHandle;
-	Cmd.SA_Handle1 = SAHandle;
-	Cmd.SA_Handle2 = DMABuf_NULLHandle;
-
-	#if defined(CRYPTO_IOTOKEN_EXT)
-	InTokenDscrExt.HW_Services = IOTOKEN_CMD_PKT_LAC;
-#endif
-	InTokenDscr.TknHdrWordInit = TokenHeaderWord;
-
-	if (!crypto_iotoken_create(&InTokenDscr,
-				   InTokenDscrExt_p,
-				   InputToken,
-				   &Cmd)) {
-		rc = 1;
-		goto error_exit_unregister;
-	}
-
-	rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
-	if (rc != PEC_STATUS_OK && count != 1)
-		goto error_exit_unregister;
-
-	result = kmalloc(sizeof(struct mtk_crypto_result), GFP_KERNEL);
-	if (!result) {
-		rc = 1;
-		CRYPTO_ERR("No memory for result\n");
-		goto error_exit_unregister;
-	}
-	INIT_LIST_HEAD(&result->list);
-	result->eip.sa = SAHandle.p;
-	result->eip.token = TokenHandle.p;
-	result->eip.token_context = TCRData;
-	result->eip.pkt_handle = SrcSGListHandle.p;
-	result->async = async;
-	result->dst = DstSGListHandle.p;
-
-	spin_lock_bh(&add_lock);
-	list_add_tail(&result->list, &result_list);
-	spin_unlock_bh(&add_lock);
-	CBFunc = mtk_crypto_interrupt_handler;
-	rc = PEC_ResultNotify_Request(PEC_INTERFACE_ID, CBFunc, 1);
-	if (rc != PEC_STATUS_OK) {
-		CRYPTO_ERR("PEC_ResultNotify_Request failed with rc = %d\n", rc);
-		goto error_exit_unregister;
-	}
-
-	return rc;
-
-error_exit_unregister:
-	PEC_SA_UnRegister(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
-				DMABuf_NULLHandle);
-error_remove_sg:
-	if (src == dst) {
-		dma_unmap_sg(crypto_dev, src, mtk_req->nr_src, DMA_BIDIRECTIONAL);
-	} else {
-		dma_unmap_sg(crypto_dev, src, mtk_req->nr_src, DMA_TO_DEVICE);
-		dma_unmap_sg(crypto_dev, dst, mtk_req->nr_dst, DMA_FROM_DEVICE);
-	}
-
-	if (aad != NULL)
-		kfree(aad);
-
-	crypto_free_sglist(SrcSGListHandle.p);
-	crypto_free_sglist(DstSGListHandle.p);
-
-error_exit:
-	DMABuf_Release(SAHandle);
-	DMABuf_Release(TokenHandle);
-
-	if (TCRData != NULL)
-		kfree(TCRData);
-
-	return rc;
-}
-
-int crypto_basic_cipher(struct crypto_async_request *async, struct mtk_crypto_cipher_req *mtk_req,
-			struct scatterlist *src, struct scatterlist *dst, unsigned int cryptlen,
-			unsigned int assoclen, unsigned int digestsize, u8 *iv, unsigned int ivsize)
-{
-	struct mtk_crypto_cipher_ctx *ctx = crypto_tfm_ctx(async->tfm);
-	struct skcipher_request *areq = skcipher_request_cast(async);
-	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(areq);
-	struct mtk_crypto_result *result;
-	struct scatterlist *sg;
-	unsigned int totlen_src = cryptlen + assoclen;
-	unsigned int totlen_dst = totlen_src;
-	unsigned int blksize = crypto_skcipher_blocksize(skcipher);
-	int rc;
-	int i;
-	SABuilder_Params_t params;
-	SABuilder_Params_Basic_t ProtocolParams;
-	unsigned int SAWords = 0;
-
-	DMABuf_Status_t DMAStatus;
-	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
-	DMABuf_HostAddress_t SAHostAddress;
-	DMABuf_HostAddress_t TokenHostAddress;
-	DMABuf_HostAddress_t PktHostAddress;
-
-	DMABuf_Handle_t SAHandle = {0};
-	DMABuf_Handle_t TokenHandle = {0};
-	DMABuf_Handle_t SrcSGListHandle = {0};
-	DMABuf_Handle_t DstSGListHandle = {0};
-
-	unsigned int TCRWords = 0;
-	void *TCRData = 0;
-	unsigned int TokenWords = 0;
-	unsigned int TokenHeaderWord;
-	unsigned int TokenMaxWords = 0;
-
-	TokenBuilder_Params_t TokenParams;
-	PEC_CommandDescriptor_t Cmd;
-	unsigned int count;
-
-	IOToken_Input_Dscr_t InTokenDscr;
-	IOToken_Output_Dscr_t OutTokenDscr;
-	uint32_t InputToken[IOTOKEN_IN_WORD_COUNT];
-	void *InTokenDscrExt_p = NULL;
-	PEC_NotifyFunction_t CBFunc;
-
-#ifdef CRYPTO_IOTOKEN_EXT
-	IOToken_Input_Dscr_Ext_t InTokenDscrExt;
-
-	ZEROINIT(InTokenDscrExt);
-	InTokenDscrExt_p = &InTokenDscrExt;
-#endif
-	ZEROINIT(InTokenDscr);
-	ZEROINIT(OutTokenDscr);
-
-	/* If the data is not aligned with block size, return invalid */
-	if (!IS_ALIGNED(cryptlen, blksize))
-		return -EINVAL;
-
-	/* Init SA */
-	if (mtk_req->direction == MTK_CRYPTO_ENCRYPT)
-		rc = SABuilder_Init_Basic(&params, &ProtocolParams, SAB_DIRECTION_OUTBOUND);
-	else
-		rc = SABuilder_Init_Basic(&params, &ProtocolParams, SAB_DIRECTION_INBOUND);
-	if (rc) {
-		CRYPTO_ERR("SABuilder_Init_Basic failed: %d\n", rc);
-		goto error_exit;
-	}
-
-	/* Build SA */
-	params.CryptoAlgo = lookaside_match_alg_name(ctx->alg);
-	params.CryptoMode = lookaside_match_alg_mode(ctx->mode);
-	params.KeyByteCount = ctx->key_len;
-	params.Key_p = (uint8_t *) ctx->key;
-	params.IVSrc = SAB_IV_SRC_SA;
-	if (params.CryptoMode == SAB_CRYPTO_MODE_CTR)
-		params.Nonce_p = (uint8_t *) &ctx->nonce;
-	params.IV_p = iv;
-
-	rc = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
-	if (rc) {
-		CRYPTO_ERR("SA not created because of size errors: %d\n", rc);
-		goto error_exit;
-	}
-
-	DMAProperties.fCached = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_TRANSFORM;
-	DMAProperties.Size = MAX(4*SAWords, 256);
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &SAHostAddress, &SAHandle);
-	if (DMAStatus != DMABUF_STATUS_OK) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of SA failed: %d\n", DMAStatus);
-		goto error_exit;
-	}
-
-	rc = SABuilder_BuildSA(&params, (u32 *)SAHostAddress.p, NULL, NULL);
-	if (rc) {
-		CRYPTO_ERR("SA not created because of errors: %d\n", rc);
-		goto error_exit;
-	}
-
-	/* Build Token */
-	rc = TokenBuilder_GetContextSize(&params, &TCRWords);
-	if (rc) {
-		CRYPTO_ERR("TokenBuilder_GetContextSize returned errors: %d\n", rc);
-		goto error_exit;
-	}
-
-	TCRData = kmalloc(4 * TCRWords, GFP_KERNEL);
-	if (!TCRData) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of TCR failed\n");
-		goto error_exit;
-	}
-
-	rc = TokenBuilder_BuildContext(&params, TCRData);
-	if (rc) {
-		CRYPTO_ERR("TokenBuilder_BuildContext failed: %d\n", rc);
-		goto error_exit;
-	}
-
-	rc = TokenBuilder_GetSize(TCRData, &TokenMaxWords);
-	if (rc) {
-		CRYPTO_ERR("TokenBuilder_GetSize failed: %d\n", rc);
-		goto error_exit;
-	}
-
-	DMAProperties.fCached = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_TOKEN;
-	DMAProperties.Size = 4*TokenMaxWords;
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &TokenHostAddress, &TokenHandle);
-	if (DMAStatus != DMABUF_STATUS_OK) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of token builder failed: %d\n", DMAStatus);
-		goto error_exit;
-	}
-
-	rc = PEC_SA_Register(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
-				DMABuf_NULLHandle);
-	if (rc != PEC_STATUS_OK) {
-		CRYPTO_ERR("PEC_SA_Register failed: %d\n", rc);
-		goto error_exit;
-	}
-
-	/* Check buffer has enough size for output */
-	mtk_req->nr_src = sg_nents_for_len(src, totlen_src);
-	mtk_req->nr_dst = sg_nents_for_len(dst, totlen_dst);
-
-	if (src == dst) {
-		mtk_req->nr_src = max(mtk_req->nr_src, mtk_req->nr_dst);
-		mtk_req->nr_dst = mtk_req->nr_src;
-		if (unlikely((totlen_src || totlen_dst) && (mtk_req->nr_src <= 0))) {
-			CRYPTO_ERR("In-place buffer not large enough\n");
-			kfree(TCRData);
-			return -EINVAL;
-		}
-		dma_map_sg(crypto_dev, src, mtk_req->nr_src, DMA_BIDIRECTIONAL);
-	} else {
-		if (unlikely(totlen_src && (mtk_req->nr_src <= 0))) {
-			CRYPTO_ERR("Source buffer not large enough\n");
-			kfree(TCRData);
-			return -EINVAL;
-		}
-		dma_map_sg(crypto_dev, src, mtk_req->nr_src, DMA_TO_DEVICE);
-
-		if (unlikely(totlen_dst && (mtk_req->nr_dst <= 0))) {
-			CRYPTO_ERR("Dest buffer not large enough\n");
-			dma_unmap_sg(crypto_dev, src, mtk_req->nr_src, DMA_TO_DEVICE);
-			kfree(TCRData);
-			return -EINVAL;
-		}
-		dma_map_sg(crypto_dev, dst, mtk_req->nr_dst, DMA_FROM_DEVICE);
-	}
-
-	rc = PEC_SGList_Create(MAX(mtk_req->nr_src, 1), &SrcSGListHandle);
-	if (rc != PEC_STATUS_OK) {
-		CRYPTO_ERR("PEC_SGList_Create src failed with rc = %d\n", rc);
-		goto error_remove_sg;
-	}
-
-	DMAProperties.fCached = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_PACKET;
-	for_each_sg(src, sg, mtk_req->nr_src, i) {
-		int len = sg_dma_len(sg);
-		DMABuf_Handle_t sg_handle;
-		DMABuf_HostAddress_t host;
-
-		if (totlen_src < len)
-			len = totlen_src;
-
-		DMAProperties.Size = MAX(len, 1);
-		rc = DMABuf_Particle_Alloc(DMAProperties, sg_dma_address(sg), &host, &sg_handle);
-		if (rc != DMABUF_STATUS_OK) {
-			CRYPTO_ERR("DMABuf_Particle_Alloc failed rc = %d\n", rc);
-			goto error_remove_sg;
-		}
-		rc = PEC_SGList_Write(SrcSGListHandle, i, sg_handle, len);
-		if (rc != PEC_STATUS_OK)
-			pr_notice("PEC_SGList_Write failed rc = %d\n", rc);
-
-		totlen_src -= len;
-		if (!totlen_src)
-			break;
-	}
-
-	rc = PEC_SGList_Create(MAX(mtk_req->nr_dst, 1), &DstSGListHandle);
-	if (rc != PEC_STATUS_OK) {
-		CRYPTO_ERR("PEC_SGList_Create dst failed with rc = %d\n", rc);
-		goto error_remove_sg;
-	}
-
-	for_each_sg(dst, sg, mtk_req->nr_dst, i) {
-		int len = sg_dma_len(sg);
-		DMABuf_Handle_t sg_handle;
-		DMABuf_HostAddress_t host;
-
-		if (len > totlen_dst)
-			len = totlen_dst;
-
-		DMAProperties.Size = MAX(len, 1);
-		rc = DMABuf_Particle_Alloc(DMAProperties, sg_dma_address(sg), &host, &sg_handle);
-		if (rc != DMABUF_STATUS_OK) {
-			CRYPTO_ERR("DMABuf_Particle_Alloc failed rc = %d\n", rc);
-			goto error_remove_sg;
-		}
-		rc = PEC_SGList_Write(DstSGListHandle, i, sg_handle, len);
-
-		if (unlikely(!len))
-			break;
-		totlen_dst -= len;
-	}
-
-	if (params.CryptoMode == SAB_CRYPTO_MODE_CBC &&
-			mtk_req->direction == MTK_CRYPTO_DECRYPT)
-		sg_pcopy_to_buffer(src, mtk_req->nr_src, iv, ivsize, cryptlen - ivsize);
-
-	PktHostAddress.p = kmalloc(sizeof(uint8_t), GFP_KERNEL);
-	ZEROINIT(TokenParams);
-	rc = TokenBuilder_BuildToken(TCRData, (uint8_t *)PktHostAddress.p, cryptlen,
-					&TokenParams, (uint32_t *)TokenHostAddress.p,
-					&TokenWords, &TokenHeaderWord);
-	kfree(PktHostAddress.p);
-	if (rc != TKB_STATUS_OK) {
-		CRYPTO_ERR("Token builder failed: %d\n", rc);
-		goto error_remove_sg;
-	}
-
-	ZEROINIT(Cmd);
-	Cmd.Token_Handle = TokenHandle;
-	Cmd.Token_WordCount = TokenWords;
-	Cmd.SrcPkt_Handle = SrcSGListHandle;
-	Cmd.SrcPkt_ByteCount = cryptlen;
 	Cmd.DstPkt_Handle = DstSGListHandle;
 	Cmd.SA_Handle1 = SAHandle;
 	Cmd.SA_Handle2 = DMABuf_NULLHandle;
@@ -980,10 +861,8 @@ int crypto_basic_cipher(struct crypto_async_request *async, struct mtk_crypto_ci
 		goto error_remove_sg;
 	}
 
-	rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
+	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
 	if (rc != PEC_STATUS_OK && count != 1) {
-		rc = 1;
-		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
 		goto error_remove_sg;
 	}
 
@@ -994,23 +873,21 @@ int crypto_basic_cipher(struct crypto_async_request *async, struct mtk_crypto_ci
 		goto error_remove_sg;
 	}
 	INIT_LIST_HEAD(&result->list);
-	result->eip.sa = SAHandle.p;
-	result->eip.token = TokenHandle.p;
-	result->eip.token_context = TCRData;
 	result->eip.pkt_handle = SrcSGListHandle.p;
 	result->async = async;
 	result->dst = DstSGListHandle.p;
 
-	spin_lock_bh(&add_lock);
-	list_add_tail(&result->list, &result_list);
-	spin_unlock_bh(&add_lock);
-	CBFunc = mtk_crypto_interrupt_handler;
-	rc = PEC_ResultNotify_Request(PEC_INTERFACE_ID, CBFunc, 1);
+	spin_lock_bh(&priv->mtk_eip_ring[ring].ring_lock);
+	list_add_tail(&result->list, &priv->mtk_eip_ring[ring].list);
+	spin_unlock_bh(&priv->mtk_eip_ring[ring].ring_lock);
+	CBFunc = mtk_crypto_interrupt_handler[ring];
+	rc = PEC_ResultNotify_Request(ring, CBFunc, 1);
 	if (rc != PEC_STATUS_OK) {
 		CRYPTO_ERR("PEC_ResultNotify_Request failed with rc = %d\n", rc);
 		goto error_remove_sg;
 	}
-	return 0;
+
+	return rc;
 
 error_remove_sg:
 	if (src == dst) {
@@ -1020,18 +897,11 @@ error_remove_sg:
 		dma_unmap_sg(crypto_dev, dst, mtk_req->nr_dst, DMA_FROM_DEVICE);
 	}
 
+	if (aad != NULL)
+		kfree(aad);
+
 	crypto_free_sglist(SrcSGListHandle.p);
 	crypto_free_sglist(DstSGListHandle.p);
-
-	PEC_SA_UnRegister(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
-				DMABuf_NULLHandle);
-
-error_exit:
-	DMABuf_Release(SAHandle);
-	DMABuf_Release(TokenHandle);
-
-	if (TCRData != NULL)
-		kfree(TCRData);
 
 	return rc;
 }
@@ -1068,6 +938,8 @@ int crypto_ahash_token_req(struct crypto_async_request *async, struct mtk_crypto
 				uint8_t *Input_p, unsigned int InputByteCount, bool finish)
 {
 	struct mtk_crypto_result *result;
+	struct ahash_request *areq = ahash_request_cast(async);
+	struct mtk_crypto_ahash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(areq));
 
 	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
 	DMABuf_HostAddress_t TokenHostAddress;
@@ -1082,6 +954,7 @@ int crypto_ahash_token_req(struct crypto_async_request *async, struct mtk_crypto
 	unsigned int TokenHeaderWord;
 	unsigned int TokenWords = 0;
 	void *TCRData = 0;
+	int ring = ctx->base.ring;
 
 	TokenBuilder_Params_t TokenParams;
 	PEC_CommandDescriptor_t Cmd;
@@ -1174,7 +1047,7 @@ int crypto_ahash_token_req(struct crypto_async_request *async, struct mtk_crypto
 		goto error_exit_unregister;
 	}
 
-	rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
+	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
 	if (rc != PEC_STATUS_OK && count != 1) {
 		rc = 1;
 		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
@@ -1188,21 +1061,21 @@ int crypto_ahash_token_req(struct crypto_async_request *async, struct mtk_crypto
 		goto error_exit_unregister;
 	}
 	INIT_LIST_HEAD(&result->list);
-	result->eip.token = TokenHandle.p;
+	result->eip.token_handle = TokenHandle.p;
 	result->eip.pkt_handle = PktHandle.p;
 	result->async = async;
 	result->dst = PktHostAddress.p;
 
-	spin_lock_bh(&add_lock);
-	list_add_tail(&result->list, &result_list);
-	spin_unlock_bh(&add_lock);
-	CBFunc = mtk_crypto_interrupt_handler;
-	rc = PEC_ResultNotify_Request(PEC_INTERFACE_ID, CBFunc, 1);
+	spin_lock_bh(&priv->mtk_eip_ring[ring].ring_lock);
+	list_add_tail(&result->list, &priv->mtk_eip_ring[ring].list);
+	spin_unlock_bh(&priv->mtk_eip_ring[ring].ring_lock);
+	CBFunc = mtk_crypto_interrupt_handler[ring];
+	rc = PEC_ResultNotify_Request(ring, CBFunc, 1);
 
 	return rc;
 
 error_exit_unregister:
-	PEC_SA_UnRegister(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
+	PEC_SA_UnRegister(ring, SAHandle, DMABuf_NULLHandle,
 				DMABuf_NULLHandle);
 
 error_exit:
@@ -1225,6 +1098,7 @@ int crypto_ahash_aes_cbc(struct crypto_async_request *async, struct mtk_crypto_a
 	SABuilder_Params_t params;
 	unsigned int SAWords = 0;
 	int rc;
+	int ring = ctx->base.ring;
 
 	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
 	DMABuf_HostAddress_t TokenHostAddress;
@@ -1360,7 +1234,7 @@ int crypto_ahash_aes_cbc(struct crypto_async_request *async, struct mtk_crypto_a
 		goto error_exit;
 	}
 
-	rc = PEC_SA_Register(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
+	rc = PEC_SA_Register(ring, SAHandle, DMABuf_NULLHandle,
 				DMABuf_NULLHandle);
 	if (rc != PEC_STATUS_OK) {
 		CRYPTO_ERR("PEC_SA_Register failed: %d\n", rc);
@@ -1400,7 +1274,7 @@ int crypto_ahash_aes_cbc(struct crypto_async_request *async, struct mtk_crypto_a
 		goto error_exit_unregister;
 	}
 
-	rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
+	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
 	if (rc != PEC_STATUS_OK && count != 1) {
 		rc = 1;
 		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
@@ -1414,20 +1288,20 @@ int crypto_ahash_aes_cbc(struct crypto_async_request *async, struct mtk_crypto_a
 		goto error_exit_unregister;
 	}
 	INIT_LIST_HEAD(&result->list);
-	result->eip.sa = SAHandle.p;
-	result->eip.token = TokenHandle.p;
+	result->eip.sa_handle = SAHandle.p;
+	result->eip.token_handle = TokenHandle.p;
 	result->eip.token_context = TCRData;
 	result->eip.pkt_handle = PktHandle.p;
 	result->async = async;
 	result->dst = PktHostAddress.p;
 	result->size = InputByteCount;
 
-	spin_lock_bh(&add_lock);
-	list_add_tail(&result->list, &result_list);
-	spin_unlock_bh(&add_lock);
+	spin_lock_bh(&priv->mtk_eip_ring[ring].ring_lock);
+	list_add_tail(&result->list, &priv->mtk_eip_ring[ring].list);
+	spin_unlock_bh(&priv->mtk_eip_ring[ring].ring_lock);
 
-	CBFunc = mtk_crypto_interrupt_handler;
-	rc = PEC_ResultNotify_Request(PEC_INTERFACE_ID, CBFunc, 1);
+	CBFunc = mtk_crypto_interrupt_handler[ring];
+	rc = PEC_ResultNotify_Request(ring, CBFunc, 1);
 	if (rc != PEC_STATUS_OK) {
 		CRYPTO_ERR("PEC_ResultNotify_Request failed with rc = %d\n", rc);
 		goto error_exit_unregister;
@@ -1435,7 +1309,7 @@ int crypto_ahash_aes_cbc(struct crypto_async_request *async, struct mtk_crypto_a
 	return 0;
 
 error_exit_unregister:
-	PEC_SA_UnRegister(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
+	PEC_SA_UnRegister(ring, SAHandle, DMABuf_NULLHandle,
 				DMABuf_NULLHandle);
 
 error_exit:
@@ -1460,6 +1334,7 @@ int crypto_first_ahash_req(struct crypto_async_request *async,
 	unsigned int SAWords = 0;
 	static uint8_t DummyAuthKey[64];
 	int rc;
+	int ring = ctx->base.ring;
 
 	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
 	DMABuf_HostAddress_t TokenHostAddress;
@@ -1605,7 +1480,7 @@ int crypto_first_ahash_req(struct crypto_async_request *async,
 		goto error_exit;
 	}
 
-	rc = PEC_SA_Register(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
+	rc = PEC_SA_Register(ring, SAHandle, DMABuf_NULLHandle,
 				DMABuf_NULLHandle);
 	if (rc != PEC_STATUS_OK) {
 		CRYPTO_ERR("PEC_SA_Register failed: %d\n", rc);
@@ -1652,7 +1527,7 @@ int crypto_first_ahash_req(struct crypto_async_request *async,
 		goto error_exit_unregister;
 	}
 
-	rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
+	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
 	if (rc != PEC_STATUS_OK && count != 1) {
 		rc = 1;
 		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
@@ -1666,21 +1541,21 @@ int crypto_first_ahash_req(struct crypto_async_request *async,
 		goto error_exit_unregister;
 	}
 	INIT_LIST_HEAD(&result->list);
-	result->eip.token = TokenHandle.p;
+	result->eip.token_handle = TokenHandle.p;
 	result->eip.pkt_handle = PktHandle.p;
 	result->async = async;
 	result->dst = PktHostAddress.p;
 
-	spin_lock_bh(&add_lock);
-	list_add_tail(&result->list, &result_list);
-	spin_unlock_bh(&add_lock);
-	CBFunc = mtk_crypto_interrupt_handler;
-	rc = PEC_ResultNotify_Request(PEC_INTERFACE_ID, CBFunc, 1);
+	spin_lock_bh(&priv->mtk_eip_ring[ring].ring_lock);
+	list_add_tail(&result->list, &priv->mtk_eip_ring[ring].list);
+	spin_unlock_bh(&priv->mtk_eip_ring[ring].ring_lock);
+	CBFunc = mtk_crypto_interrupt_handler[ring];
+	rc = PEC_ResultNotify_Request(ring, CBFunc, 1);
 
 	return rc;
 
 error_exit_unregister:
-	PEC_SA_UnRegister(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
+	PEC_SA_UnRegister(ring, SAHandle, DMABuf_NULLHandle,
 				DMABuf_NULLHandle);
 
 error_exit:
@@ -1881,7 +1756,7 @@ bool crypto_basic_hash(SABuilder_Auth_t HashAlgo, uint8_t *Input_p,
 		goto error_exit_unregister;
 	}
 
-	if (crypto_pe_busy_get_one(&OutTokenDscr, OutputToken, &Res) < 1) {
+	if (crypto_pe_busy_get_one(&OutTokenDscr, OutputToken, &Res, PEC_INTERFACE_ID) < 1) {
 		rc = 1;
 		CRYPTO_ERR("error from crypto_pe_busy_get_one\n");
 		goto error_exit_unregister;
@@ -2147,6 +2022,7 @@ int mtk_ddk_pec_init(void)
 	PEC_Capabilities_t pec_cap;
 	PEC_Status_t pec_sta;
 	u32 i = MTK_EIP197_INLINE_NOF_TRIES;
+	u32 j;
 #ifdef PEC_PCL_EIP197
 	PCL_Status_t pcl_sta;
 #endif
@@ -2164,17 +2040,19 @@ int mtk_ddk_pec_init(void)
 		return -1;
 	}
 #endif
-	while (i) {
-		pec_sta = PEC_Init(PEC_INTERFACE_ID, &pec_init_blk);
-		if (pec_sta == PEC_STATUS_OK) {
-			CRYPTO_INFO("PEC_INIT ok!\n");
-			break;
-		} else if (pec_sta != PEC_STATUS_OK && pec_sta != PEC_STATUS_BUSY) {
-			return pec_sta;
-		}
+	for (j = 0; j < PEC_MAX_INTERFACE_NUM; j++) {
+		while (i) {
+			pec_sta = PEC_Init(j, &pec_init_blk);
+			if (pec_sta == PEC_STATUS_OK) {
+				CRYPTO_INFO("PEC_INIT interface %d ok!\n", j);
+				break;
+			} else if (pec_sta != PEC_STATUS_OK && pec_sta != PEC_STATUS_BUSY) {
+				return pec_sta;
+			}
 
-		mdelay(MTK_EIP197_INLINE_RETRY_DELAY_MS);
-		i--;
+			mdelay(MTK_EIP197_INLINE_RETRY_DELAY_MS);
+			i--;
+		}
 	}
 
 	if (!i) {
@@ -2200,23 +2078,26 @@ void mtk_ddk_pec_deinit(void)
 {
 	unsigned int LoopCounter = MTK_EIP197_INLINE_NOF_TRIES;
 	PEC_Status_t PEC_Status;
+	int j;
 
-	while (LoopCounter > 0) {
-		PEC_Status = PEC_UnInit(PEC_INTERFACE_ID);
-		if (PEC_Status == PEC_STATUS_OK)
-			break;
-		else if (PEC_Status != PEC_STATUS_OK && PEC_Status != PEC_STATUS_BUSY) {
-			CRYPTO_ERR("PEC could not be un-initialized, error=%d\n", PEC_Status);
+	for (j = 0; j < PEC_MAX_INTERFACE_NUM; j++) {
+		while (LoopCounter > 0) {
+			PEC_Status = PEC_UnInit(j);
+			if (PEC_Status == PEC_STATUS_OK)
+				break;
+			else if (PEC_Status != PEC_STATUS_OK && PEC_Status != PEC_STATUS_BUSY) {
+				CRYPTO_ERR("PEC could not deinit, error=%d\n", PEC_Status);
+				return;
+			}
+			// Wait for MTK_EIP197_INLINE_RETRY_DELAY_MS milliseconds
+			udelay(MTK_EIP197_INLINE_RETRY_DELAY_MS * 1000);
+			LoopCounter--;
+		}
+		// Check for timeout
+		if (LoopCounter == 0) {
+			CRYPTO_ERR("PEC could not be un-initialized, timeout\n");
 			return;
 		}
-		// Wait for MTK_EIP197_INLINE_RETRY_DELAY_MS milliseconds
-		udelay(MTK_EIP197_INLINE_RETRY_DELAY_MS * 1000);
-		LoopCounter--;
-	}
-	// Check for timeout
-	if (LoopCounter == 0) {
-		CRYPTO_ERR("PEC could not be un-initialized, timeout\n");
-		return;
 	}
 
 #ifdef PEC_PCL_EIP197
@@ -2424,7 +2305,7 @@ mtk_ddk_aes_block_encrypt(uint8_t *Key_p,
 		goto error_exit_unregister;
 	}
 
-	if (crypto_pe_busy_get_one(&OutTokenDscr, OutputToken, &Res) < 1) {
+	if (crypto_pe_busy_get_one(&OutTokenDscr, OutputToken, &Res, PEC_INTERFACE_ID) < 1) {
 		rc = 1;
 		CRYPTO_ERR("error from crypto_pe_busy_get_one\n");
 		goto error_exit_unregister;
@@ -2506,7 +2387,7 @@ mtk_ddk_invalidate_rec(
 	}
 
 	// Receive the result packet ... do we care about contents ?
-	if (crypto_pe_busy_get_one(&OutTokenDscr, OutputToken, &Res) < 1) {
+	if (crypto_pe_busy_get_one(&OutTokenDscr, OutputToken, &Res, PEC_INTERFACE_ID) < 1) {
 		CRYPTO_ERR("%s: crypto_pe_busy_get_one() failed\n", __func__);
 		return false;
 	}

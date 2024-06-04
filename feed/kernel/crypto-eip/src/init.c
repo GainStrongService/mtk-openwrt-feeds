@@ -34,7 +34,6 @@
 struct mtk_crypto mcrypto;
 struct device *crypto_dev;
 struct mtk_crypto_priv *priv;
-spinlock_t add_lock;
 
 static struct mtk_crypto_alg_template *mtk_crypto_algs[] = {
 	&mtk_crypto_cbc_aes,
@@ -294,6 +293,7 @@ static int __init mtk_crypto_ppe_num_dts_init(struct platform_device *pdev)
 static int __init mtk_crypto_lookaside_data_init(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	int i;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -301,18 +301,41 @@ static int __init mtk_crypto_lookaside_data_init(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	priv->mtk_eip_queue.work_data.priv = priv;
-	INIT_WORK(&priv->mtk_eip_queue.work_data.work, mtk_crypto_dequeue_work);
-
-	priv->mtk_eip_queue.workqueue = create_singlethread_workqueue("mtk_crypto_work");
-	if (!priv->mtk_eip_queue.workqueue)
+	priv->mtk_eip_ring = devm_kcalloc(dev, PEC_MAX_INTERFACE_NUM,
+							sizeof(*priv->mtk_eip_ring), GFP_KERNEL);
+	if (!priv->mtk_eip_ring)
 		return -ENOMEM;
 
-	crypto_init_queue(&priv->mtk_eip_queue.queue, EIP197_DEFAULT_RING_SIZE);
+	for (i = 0; i < PEC_MAX_INTERFACE_NUM; i++) {
+		char wq_name[17] = {0};
+		char irq_name[6] = {0};
+		int irq, cpu;
 
-	spin_lock_init(&priv->mtk_eip_queue.lock);
-	spin_lock_init(&priv->mtk_eip_queue.queue_lock);
-	spin_lock_init(&add_lock);
+		// init workqueue for all rings
+		priv->mtk_eip_ring[i].work_data.priv = priv;
+		priv->mtk_eip_ring[i].work_data.ring = i;
+		INIT_WORK(&priv->mtk_eip_ring[i].work_data.work, mtk_crypto_dequeue_work);
+
+		snprintf(wq_name, 17, "mtk_crypto_work%d", i);
+		priv->mtk_eip_ring[i].workqueue = create_singlethread_workqueue(wq_name);
+		if (!priv->mtk_eip_ring[i].workqueue)
+			return -ENOMEM;
+
+		crypto_init_queue(&priv->mtk_eip_ring[i].queue, EIP197_DEFAULT_RING_SIZE);
+
+		spin_lock_init(&priv->mtk_eip_ring[i].ring_lock);
+		spin_lock_init(&priv->mtk_eip_ring[i].queue_lock);
+		INIT_LIST_HEAD(&priv->mtk_eip_ring[i].list);
+
+		// setup irq affinity
+		snprintf(irq_name, 6, "ring%d", i);
+		irq = platform_get_irq_byname(pdev,  irq_name);
+		if (irq < 0)
+			return irq;
+
+		cpu = cpumask_local_spread(i, NUMA_NO_NODE);
+		irq_set_affinity_hint(irq, get_cpu_mask(cpu));
+	}
 
 	return 0;
 };

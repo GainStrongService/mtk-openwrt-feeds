@@ -15,7 +15,12 @@
 #include "crypto-eip/lookaside.h"
 #include "crypto-eip/internal.h"
 
-void mtk_crypto_dequeue(struct mtk_crypto_priv *priv)
+inline int mtk_crypto_select_ring(struct mtk_crypto_priv *priv)
+{
+	return (atomic_inc_return(&priv->ring_used) % PEC_MAX_INTERFACE_NUM);
+}
+
+void mtk_crypto_dequeue(struct mtk_crypto_priv *priv, int ring)
 {
 	struct crypto_async_request *req;
 	struct crypto_async_request *backlog;
@@ -23,10 +28,10 @@ void mtk_crypto_dequeue(struct mtk_crypto_priv *priv)
 	int ret;
 
 	while (true) {
-		spin_lock_bh(&priv->mtk_eip_queue.queue_lock);
-		backlog = crypto_get_backlog(&priv->mtk_eip_queue.queue);
-		req = crypto_dequeue_request(&priv->mtk_eip_queue.queue);
-		spin_unlock_bh(&priv->mtk_eip_queue.queue_lock);
+		spin_lock_bh(&priv->mtk_eip_ring[ring].queue_lock);
+		backlog = crypto_get_backlog(&priv->mtk_eip_ring[ring].queue);
+		req = crypto_dequeue_request(&priv->mtk_eip_ring[ring].queue);
+		spin_unlock_bh(&priv->mtk_eip_ring[ring].queue_lock);
 
 		if (!req)
 			goto finalize;
@@ -48,5 +53,5 @@ void mtk_crypto_dequeue_work(struct work_struct *work)
 {
 	struct mtk_crypto_work_data *data =
 			container_of(work, struct mtk_crypto_work_data, work);
-	mtk_crypto_dequeue(data->priv);
+	mtk_crypto_dequeue(data->priv, data->ring);
 }

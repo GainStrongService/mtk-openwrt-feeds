@@ -28,6 +28,8 @@
 #define EIP197_AEAD_IPSEC_IV_SIZE 8
 #define EIP197_AEAD_IPSEC_CCM_NONCE_SIZE 3
 
+extern struct mtk_crypto_priv *priv;
+
 extern struct mtk_crypto_alg_template mtk_crypto_cbc_aes;
 extern struct mtk_crypto_alg_template mtk_crypto_ofb_aes;
 extern struct mtk_crypto_alg_template mtk_crypto_ecb_aes;
@@ -80,10 +82,12 @@ extern struct mtk_crypto_alg_template mtk_crypto_rfc4309_ccm;
 struct mtk_crypto_work_data {
 	struct work_struct work;
 	struct mtk_crypto_priv *priv;
+	int ring;
 };
 
-struct mtk_crypto_queue {
-	spinlock_t lock;
+struct mtk_crypto_ring {
+	struct list_head list;
+	spinlock_t ring_lock;
 
 	struct workqueue_struct *workqueue;
 	struct mtk_crypto_work_data work_data;
@@ -93,13 +97,19 @@ struct mtk_crypto_queue {
 };
 
 struct mtk_crypto_priv {
-	struct mtk_crypto_queue mtk_eip_queue;
+	struct mtk_crypto_ring *mtk_eip_ring;
+	atomic_t ring_used;
 };
 
 struct mtk_crypto_engine_data {
-	void *sa;
-	void *token;
+	int valid;
+	void *sa_handle;
+	void *sa_addr;
+	uint32_t sa_size;
+	void *token_handle;
+	void *token_addr;
 	void *token_context;
+	uint32_t token_size;
 	void *pkt_handle;
 };
 
@@ -131,6 +141,7 @@ struct mtk_crypto_alg_template {
 struct mtk_crypto_context {
 	int (*send)(struct crypto_async_request *req);
 	int (*handle_result)(struct mtk_crypto_result *req, int err);
+	int ring;
 };
 
 enum mtk_crypto_cipher_direction {
@@ -194,6 +205,9 @@ struct mtk_crypto_cipher_ctx {
 
 	struct crypto_cipher *hkaes;
 	struct crypto_aead *fback;
+
+	struct mtk_crypto_engine_data enc;
+	struct mtk_crypto_engine_data dec;
 };
 
 enum mtk_crypto_ahash_digest {
@@ -264,12 +278,14 @@ struct mtk_crypto_ahash_export_state {
 
 	u32 state[SHA512_DIGEST_SIZE / sizeof(u32)];
 	u8 cache[HASH_CACHE_SIZE];
+	int ring;
 	void *sa_pointer;
 	void *token_context;
 };
 
 void mtk_crypto_dequeue_work(struct work_struct *work);
-void mtk_crypto_dequeue(struct mtk_crypto_priv *priv);
+void mtk_crypto_dequeue(struct mtk_crypto_priv *priv, int ring);
+int mtk_crypto_select_ring(struct mtk_crypto_priv *priv);
 int mtk_crypto_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
 			   void *istate, void *ostate);
 
