@@ -1,16 +1,16 @@
-From d61de8847d9d566958b15f1f64e2fde6fa7502eb Mon Sep 17 00:00:00 2001
+From 357b5ba96ea95a1128858fce7c553a9cbcef7cfa Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
-Date: Mon, 18 Sep 2023 10:56:21 +0800
+Date: Thu, 6 Jun 2024 16:10:49 +0800
 Subject: [PATCH 04/26] add wed
 
 ---
  arch/arm64/boot/dts/mediatek/mt7622.dtsi      |  32 +-
  drivers/net/ethernet/mediatek/Kconfig         |   4 +
  drivers/net/ethernet/mediatek/Makefile        |   5 +
- drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  56 +-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  65 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |   5 +-
- drivers/net/ethernet/mediatek/mtk_ppe.c       | 378 +++++++-
- drivers/net/ethernet/mediatek/mtk_ppe.h       |  89 +-
+ drivers/net/ethernet/mediatek/mtk_ppe.c       | 389 +++++++-
+ drivers/net/ethernet/mediatek/mtk_ppe.h       |  90 +-
  .../net/ethernet/mediatek/mtk_ppe_debugfs.c   |   4 +-
  .../net/ethernet/mediatek/mtk_ppe_offload.c   | 167 +++-
  drivers/net/ethernet/mediatek/mtk_wed.c       | 881 ++++++++++++++++++
@@ -21,7 +21,7 @@ Subject: [PATCH 04/26] add wed
  include/linux/netdevice.h                     |   7 +
  include/linux/soc/mediatek/mtk_wed.h          | 131 +++
  net/core/dev.c                                |   4 +
- 17 files changed, 2222 insertions(+), 108 deletions(-)
+ 17 files changed, 2239 insertions(+), 112 deletions(-)
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/Kconfig
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/Makefile
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/mtk_eth_soc.c
@@ -134,7 +134,7 @@ index 5f342f4..4090132
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 old mode 100755
 new mode 100644
-index 19af710..6cbf84f
+index 68453f5..3055e7e
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -22,11 +22,13 @@
@@ -177,7 +177,7 @@ index 19af710..6cbf84f
  		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
  			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
  				if (trxd.rxd3 & RX_DMA_VTAG_V2)
-@@ -4187,7 +4201,7 @@ static int mtk_stop(struct net_device *dev)
+@@ -4194,7 +4208,7 @@ static int mtk_stop(struct net_device *dev)
  	mtk_dma_free(eth);
  
  	if (eth->soc->offload_version)
@@ -186,7 +186,7 @@ index 19af710..6cbf84f
  
  	return 0;
  }
-@@ -5620,6 +5634,22 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5592,6 +5606,22 @@ static int mtk_probe(struct platform_device *pdev)
  		}
  	}
  
@@ -209,7 +209,7 @@ index 19af710..6cbf84f
  	if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
  		for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
  			eth->irq_pdma[i] = platform_get_irq(pdev, i);
-@@ -5636,7 +5666,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5608,7 +5638,8 @@ static int mtk_probe(struct platform_device *pdev)
  
  		if (eth->irq_fe[i] < 0) {
  			dev_err(&pdev->dev, "no IRQ%d resource found\n", i);
@@ -219,7 +219,7 @@ index 19af710..6cbf84f
  		}
  	}
  
-@@ -5644,12 +5675,15 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5616,12 +5647,15 @@ static int mtk_probe(struct platform_device *pdev)
  		eth->clks[i] = devm_clk_get(eth->dev,
  					    mtk_clks_source_name[i]);
  		if (IS_ERR(eth->clks[i])) {
@@ -238,7 +238,7 @@ index 19af710..6cbf84f
  			}
  			eth->clks[i] = NULL;
  		}
-@@ -5660,7 +5694,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5632,7 +5666,7 @@ static int mtk_probe(struct platform_device *pdev)
  
  	err = mtk_hw_init(eth, MTK_TYPE_COLD_RESET);
  	if (err)
@@ -247,22 +247,45 @@ index 19af710..6cbf84f
  
  	eth->hwlro = MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO);
  
-@@ -5780,10 +5814,11 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5752,14 +5786,15 @@ static int mtk_probe(struct platform_device *pdev)
  	}
  
  	if (eth->soc->offload_version) {
 -		err = mtk_ppe_init(&eth->ppe, eth->dev,
 -				   eth->base + MTK_ETH_PPE_BASE, 2);
 -		if (err)
+-			goto err_free_dev;
 +		eth->ppe = mtk_ppe_init(eth, eth->base + MTK_ETH_PPE_BASE, 2);
 +		if (!eth->ppe) {
 +			err = -ENOMEM;
- 			goto err_free_dev;
++			goto err_deinit_ppe;
 +		}
  
  		err = mtk_eth_offload_init(eth);
  		if (err)
-@@ -5847,6 +5882,8 @@ static int mtk_probe(struct platform_device *pdev)
+-			goto err_free_dev;
++			goto err_deinit_ppe;
+ 	}
+ 
+ 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+@@ -5769,7 +5804,7 @@ static int mtk_probe(struct platform_device *pdev)
+ 		err = register_netdev(eth->netdev[i]);
+ 		if (err) {
+ 			dev_err(eth->dev, "error bringing up device\n");
+-			goto err_deinit_mdio;
++			goto err_deinit_ppe;
+ 		} else
+ 			netif_info(eth, probe, eth->netdev[i],
+ 				   "mediatek frame engine at 0x%08lx, irq %d\n",
+@@ -5813,12 +5848,15 @@ static int mtk_probe(struct platform_device *pdev)
+ 
+ 	return 0;
+ 
+-err_deinit_mdio:
++err_deinit_ppe:
++	mtk_ppe_deinit(eth);
+ 	mtk_mdio_cleanup(eth);
+ err_free_dev:
  	mtk_free_dev(eth);
  err_deinit_hw:
  	mtk_hw_deinit(eth);
@@ -271,7 +294,7 @@ index 19af710..6cbf84f
  
  	return err;
  }
-@@ -5866,6 +5903,7 @@ static int mtk_remove(struct platform_device *pdev)
+@@ -5838,6 +5876,7 @@ static int mtk_remove(struct platform_device *pdev)
  		phylink_disconnect_phy(mac->phylink);
  	}
  
@@ -282,10 +305,10 @@ index 19af710..6cbf84f
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 old mode 100755
 new mode 100644
-index 54b2c7c..5ede64c
+index d5f1a56..0f14aa6
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -640,6 +640,9 @@
+@@ -635,6 +635,9 @@
  #define RX_DMA_SPORT_MASK       0x7
  #define RX_DMA_SPORT_MASK_V2    0xf
  
@@ -295,7 +318,7 @@ index 54b2c7c..5ede64c
  /* QDMA descriptor txd4 */
  #define TX_DMA_CHKSUM		(0x7 << 29)
  #define TX_DMA_TSO		BIT(28)
-@@ -1959,7 +1962,7 @@ struct mtk_eth {
+@@ -1954,7 +1957,7 @@ struct mtk_eth {
  	struct notifier_block		netdevice_notifier;
  	struct timer_list		mtk_dma_monitor_timer;
  
@@ -307,7 +330,7 @@ index 54b2c7c..5ede64c
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 old mode 100644
 new mode 100755
-index 6965d98..eeaec1b
+index 6965d98..3b9dc8c
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -6,9 +6,22 @@
@@ -425,7 +448,7 @@ index 6965d98..eeaec1b
 -			 u16 timestamp)
 +static bool
 +mtk_flow_entry_match(struct mtk_flow_entry *entry, struct mtk_foe_entry *data)
-+{
+ {
 +	int type, len;
 +
 +	if ((data->ib1 ^ entry->data.ib1) & MTK_FOE_IB1_UDP)
@@ -489,7 +512,7 @@ index 6965d98..eeaec1b
 +
 +static void
 +mtk_flow_entry_update_l2(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
- {
++{
 +	struct mtk_flow_entry *cur;
  	struct mtk_foe_entry *hwe;
 -	u32 hash;
@@ -532,7 +555,7 @@ index 6965d98..eeaec1b
 +		mtk_flow_entry_update_l2(ppe, entry);
 +		goto out;
 +	}
-+
+ 
 +	if (entry->hash == 0xffff)
 +		goto out;
 +
@@ -555,7 +578,7 @@ index 6965d98..eeaec1b
 +{
 +	struct mtk_foe_entry *hwe;
 +	u16 timestamp;
- 
++
 +	timestamp = mtk_eth_timestamp(ppe->eth);
  	timestamp &= MTK_FOE_IB1_BIND_TIMESTAMP;
  	entry->ib1 &= ~MTK_FOE_IB1_BIND_TIMESTAMP;
@@ -574,7 +597,7 @@ index 6965d98..eeaec1b
  	memcpy(&hwe->data, &entry->data, sizeof(hwe->data));
  	wmb();
  	hwe->ib1 = entry->ib1;
-@@ -362,32 +520,201 @@ int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
+@@ -362,32 +520,212 @@ int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_foe_entry *entry,
  	dma_wmb();
  
  	mtk_ppe_cache_clear(ppe);
@@ -652,9 +675,8 @@ index 6965d98..eeaec1b
 +	*mtk_foe_entry_ib2(&foe) = entry->data.bridge.ib2;
 +
 +	__mtk_foe_entry_commit(ppe, &foe, hash);
- }
- 
--int mtk_ppe_init(struct mtk_ppe *ppe, struct device *dev, void __iomem *base,
++}
++
 +void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 +{
 +	struct hlist_head *head = &ppe->foe_flow[hash / 4];
@@ -742,8 +764,9 @@ index 6965d98..eeaec1b
 +	mtk_flow_entry_update(ppe, entry);
 +
 +	return __mtk_foe_entry_idle_time(ppe, entry->data.ib1);
-+}
-+
+ }
+ 
+-int mtk_ppe_init(struct mtk_ppe *ppe, struct device *dev, void __iomem *base,
 +struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
  		 int version)
  {
@@ -769,7 +792,7 @@ index 6965d98..eeaec1b
  				  &ppe->foe_phys, GFP_KERNEL);
  	if (!foe)
 -		return -ENOMEM;
-+		return NULL;
++		goto err_free_l2_flows;
  
  	ppe->foe_table = foe;
  
@@ -777,10 +800,21 @@ index 6965d98..eeaec1b
  
 -	return 0;
 +	return ppe;
++
++err_free_l2_flows:
++	rhashtable_destroy(&ppe->l2_flows);
++	return NULL;
++}
++
++void mtk_ppe_deinit(struct mtk_eth *eth)
++{
++	if (!eth->ppe)
++		return;
++	rhashtable_destroy(&eth->ppe->l2_flows);
  }
  
  static void mtk_ppe_init_foe_table(struct mtk_ppe *ppe)
-@@ -395,7 +722,7 @@ static void mtk_ppe_init_foe_table(struct mtk_ppe *ppe)
+@@ -395,7 +733,7 @@ static void mtk_ppe_init_foe_table(struct mtk_ppe *ppe)
  	static const u8 skip[] = { 12, 25, 38, 51, 76, 89, 102 };
  	int i, k;
  
@@ -789,7 +823,7 @@ index 6965d98..eeaec1b
  
  	if (!IS_ENABLED(CONFIG_SOC_MT7621))
  		return;
-@@ -443,7 +770,6 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
+@@ -443,7 +781,6 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
  	      MTK_PPE_FLOW_CFG_IP4_NAT |
  	      MTK_PPE_FLOW_CFG_IP4_NAPT |
  	      MTK_PPE_FLOW_CFG_IP4_DSLITE |
@@ -798,7 +832,7 @@ index 6965d98..eeaec1b
  	ppe_w32(ppe, MTK_PPE_FLOW_CFG, val);
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 242fb8f..1f5cf1c 100644
+index 242fb8f..7f3ddf2 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
 @@ -6,6 +6,7 @@
@@ -898,7 +932,7 @@ index 242fb8f..1f5cf1c 100644
  	struct device *dev;
  	void __iomem *base;
  	int version;
-@@ -243,19 +271,35 @@ struct mtk_ppe {
+@@ -243,19 +271,36 @@ struct mtk_ppe {
  	struct mtk_foe_entry *foe_table;
  	dma_addr_t foe_phys;
  
@@ -913,6 +947,7 @@ index 242fb8f..1f5cf1c 100644
 -int mtk_ppe_init(struct mtk_ppe *ppe, struct device *dev, void __iomem *base,
 -		 int version);
 +struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int version);
++void mtk_ppe_deinit(struct mtk_eth *eth);
  int mtk_ppe_start(struct mtk_ppe *ppe);
  int mtk_ppe_stop(struct mtk_ppe *ppe);
  
@@ -939,7 +974,7 @@ index 242fb8f..1f5cf1c 100644
  }
  
  static inline int
-@@ -281,8 +325,11 @@ int mtk_foe_entry_set_ipv6_tuple(struct mtk_foe_entry *entry,
+@@ -281,8 +326,11 @@ int mtk_foe_entry_set_ipv6_tuple(struct mtk_foe_entry *entry,
  int mtk_foe_entry_set_dsa(struct mtk_foe_entry *entry, int port);
  int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid);
  int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid);

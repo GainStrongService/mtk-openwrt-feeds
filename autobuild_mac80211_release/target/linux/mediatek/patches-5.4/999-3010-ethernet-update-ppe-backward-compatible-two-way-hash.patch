@@ -168,7 +168,7 @@ index c9ee505..569bf34 100755
 +	flow = devm_kzalloc(dev, (MTK_PPE_ENTRIES / way) * sizeof(*flow),
 +			    GFP_KERNEL);
 +	if (!flow)
-+		return NULL;
++		goto err_free_l2_flows;
 +
 +	ppe->foe_flow = flow;
 +
@@ -199,9 +199,9 @@ index 86bbac8..feb1a4a 100644
  
 -struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int version, int id);
 +struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int version, int way, int id);
+ void mtk_ppe_deinit(struct mtk_eth *eth);
  int mtk_ppe_start(struct mtk_ppe *ppe);
  int mtk_ppe_stop(struct mtk_ppe *ppe);
- 
 -- 
 2.18.0
 
