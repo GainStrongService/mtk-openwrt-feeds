@@ -203,9 +203,11 @@
 #endif
 /* PDMA TX CPU Pointer Register */
 #define MTK_PTX_CTX_IDX0	(PDMA_BASE + 0x08)
+#define MTK_PTX_CTX_IDX_CFG(x)	(MTK_PTX_CTX_IDX0 + ((x) * 0x10))
 
 /* PDMA TX DMA Pointer Register */
 #define MTK_PTX_DTX_IDX0	(PDMA_BASE + 0x0c)
+#define MTK_PTX_DTX_IDX_CFG(x)	(MTK_PTX_DTX_IDX0 + ((x) * 0x10))
 
 /* PDMA RX Base Pointer Register */
 #define MTK_PRX_BASE_PTR0	(PDMA_BASE + 0x100)
@@ -417,6 +419,7 @@
 #define MTK_QTX_CFG(x)			(QDMA_BASE + (x * 0x10))
 #define MTK_QTX_CFG_HW_RESV_CNT_OFFSET	GENMASK(15, 8)
 #define MTK_QTX_CFG_SW_RESV_CNT_OFFSET	GENMASK(7, 0)
+#define MTK_QTX_OFFSET			0x10
 #define QDMA_RES_THRES			4
 
 /* QDMA TX Queue Scheduler Registers */
@@ -688,6 +691,11 @@
 
 #define RX_DMA_GET_SPORT(_x) 	(((_x) >> RX_DMA_SPORT_SHIFT) & RX_DMA_SPORT_MASK)
 #define RX_DMA_GET_SPORT_V2(_x) (((_x) >> RX_DMA_SPORT_SHIFT_V2) & RX_DMA_SPORT_MASK_V2)
+
+/* PDMA TX Num */
+#define MTK_MAX_TX_RING_NUM	(4)
+#define MTK_TX_NAPI_NUM		(4)
+#define MTK_PDMA_TX_NUM		(4)
 
 /* PDMA V2 descriptor txd4 */
 #define TX_DMA_LS1_V2	BIT(30)
@@ -1391,6 +1399,7 @@ struct mtk_tx_ring {
 	void *next_free;
 	void *last_free;
 	u32 last_free_ptr;
+	u32 ring_no;
 	u16 thresh;
 	atomic_t free_count;
 	int dma_size;
@@ -1450,6 +1459,7 @@ struct mtk_rss_params {
 struct mtk_napi {
 	struct napi_struct	napi;
 	struct mtk_eth		*eth;
+	struct mtk_tx_ring	*tx_ring;
 	struct mtk_rx_ring	*rx_ring;
 	u32			irq_grp_no;
 };
@@ -1919,10 +1929,10 @@ struct mtk_eth {
 	struct regmap			*pctl;
 	bool				hwlro;
 	refcount_t			dma_refcnt;
-	struct mtk_tx_ring		tx_ring;
+	struct mtk_tx_ring		tx_ring[MTK_MAX_TX_RING_NUM];
 	struct mtk_rx_ring		rx_ring[MTK_MAX_RX_RING_NUM];
 	struct mtk_rx_ring		rx_ring_qdma;
-	struct napi_struct		tx_napi;
+	struct mtk_napi			tx_napi[MTK_TX_NAPI_NUM];
 	struct mtk_napi			rx_napi[MTK_RX_NAPI_NUM];
 	struct mtk_rss_params		rss_params;
 	void				*scratch_ring;
