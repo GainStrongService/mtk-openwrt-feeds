@@ -32,16 +32,16 @@ index 1be1d43..04968da 100644
 -						   eth->base + MTK_ETH_PPE_BASE + i * 0x400,
 +						   eth->base + MTK_ETH_PPE_BASE +
 +						   (i == 2 ? 0xC00 : i * 0x400),
- 						   2, eth->soc->hash_way, i,
- 						   eth->soc->has_accounting);
+ 						   i);
  			if (!eth->ppe[i]) {
+ 				err = -ENOMEM;
 @@ -6120,6 +6121,9 @@ static const struct mtk_soc_data mt7988_data = {
  	.required_clks = MT7988_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = true,
-+	.has_accounting = true,
-+	.hash_way = 4,
 +	.offload_version = 2,
++	.hash_offset = 4,
++	.has_accounting = true,
  	.rss_num = 4,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),

@@ -124,7 +124,7 @@ index 697a197..edc4ecf
  
 +	if (eth->soc->offload_version) {
 +		err = mtk_ppe_init(&eth->ppe, eth->dev,
-+				   eth->base + MTK_ETH_PPE_BASE, 2);
++				   eth->base + MTK_ETH_PPE_BASE);
 +		if (err)
 +			goto err_free_dev;
 +
@@ -140,7 +140,7 @@ index 697a197..edc4ecf
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
-+	.offload_version = 2,
++	.offload_version = 1,
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
@@ -148,7 +148,7 @@ index 697a197..edc4ecf
  	.required_clks = MT7621_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
-+	.offload_version = 2,
++	.offload_version = 1,
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
@@ -164,7 +164,7 @@ index 697a197..edc4ecf
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
-+	.offload_version = 2,
++	.offload_version = 1,
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
@@ -247,7 +247,7 @@ new file mode 100644
 index 0000000..6965d98
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -0,0 +1,514 @@
+@@ -0,0 +1,513 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/* Copyright (C) 2020 Felix Fietkau <nbd@nbd.name> */
 +
@@ -616,8 +616,7 @@ index 0000000..6965d98
 +	return hash;
 +}
 +
-+int mtk_ppe_init(struct mtk_ppe *ppe, struct device *dev, void __iomem *base,
-+		 int version)
++int mtk_ppe_init(struct mtk_ppe *ppe, struct device *dev, void __iomem *base)
 +{
 +	struct mtk_foe_entry *foe;
 +
@@ -626,7 +625,7 @@ index 0000000..6965d98
 +	 */
 +	ppe->base = base;
 +	ppe->dev = dev;
-+	ppe->version = version;
++	ppe->version = eth->soc->offload_version;
 +
 +	foe = dmam_alloc_coherent(ppe->dev, MTK_PPE_ENTRIES * sizeof(*foe),
 +				  &ppe->foe_phys, GFP_KERNEL);
@@ -767,7 +766,7 @@ new file mode 100644
 index 0000000..242fb8f
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -0,0 +1,288 @@
+@@ -0,0 +1,287 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/* Copyright (C) 2020 Felix Fietkau <nbd@nbd.name> */
 +
@@ -1016,8 +1015,7 @@ index 0000000..242fb8f
 +	void *acct_table;
 +};
 +
-+int mtk_ppe_init(struct mtk_ppe *ppe, struct device *dev, void __iomem *base,
-+		 int version);
++int mtk_ppe_init(struct mtk_ppe *ppe, struct device *dev, void __iomem *base);
 +int mtk_ppe_start(struct mtk_ppe *ppe);
 +int mtk_ppe_stop(struct mtk_ppe *ppe);
 +

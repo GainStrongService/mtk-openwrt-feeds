@@ -202,12 +202,12 @@ index 94e03b2..8388f65 100755
  		enable * MTK_PPE_CACHE_CTL_EN);
  }
  
--static u32 mtk_ppe_hash_entry(struct mtk_ppe *ppe, struct mtk_foe_entry *e)
-+u32 mtk_ppe_hash_entry(struct mtk_ppe *ppe, struct mtk_foe_entry *e)
+-static u32 mtk_ppe_hash_entry(struct mtk_eth *eth, struct mtk_foe_entry *e)
++u32 mtk_ppe_hash_entry(struct mtk_eth *eth, struct mtk_foe_entry *e)
  {
  	u32 hv1, hv2, hv3;
  	u32 hash;
-@@ -420,12 +420,58 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
+@@ -420,12 +420,59 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
  	return 0;
  }
  
@@ -245,12 +245,13 @@ index 94e03b2..8388f65 100755
 +
 +int mtk_foe_entry_set_sp(struct mtk_ppe *ppe, struct mtk_foe_entry *entry)
 +{
++	struct mtk_eth *eth = ppe->eth;
 +	struct mtk_foe_entry *hwe;
 +	u32 hash, sp = 0;
 +	int i;
 +
-+	hash = mtk_ppe_hash_entry(ppe, entry);
-+	for (i = 0; i < ppe->way; i++) {
++	hash = mtk_ppe_hash_entry(eth, entry);
++	for (i = 0; i < eth->soc->hash_offset; i++) {
 +		hwe = &ppe->foe_table[hash + i];
 +		if (mtk_foe_entry_match(hwe, entry)) {
 +			sp = mtk_get_ib1_sp(ppe->eth, hwe);
@@ -281,7 +282,7 @@ index 86288b0..5ab864f 100644
  void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
  int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
  struct mtk_foe_accounting *mtk_foe_entry_get_mib(struct mtk_ppe *ppe, u32 index, struct mtk_foe_accounting *diff);
-+u32 mtk_ppe_hash_entry(struct mtk_ppe *ppe, struct mtk_foe_entry *e);
++u32 mtk_ppe_hash_entry(struct mtk_eth *eth, struct mtk_foe_entry *e);
  
  #endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c

@@ -72,7 +72,7 @@ index e3599cd..c6b1aaf 100644
  	}
  
  	if (eth->soc->offload_version) {
--		eth->ppe = mtk_ppe_init(eth, eth->base + MTK_ETH_PPE_BASE, 2);
+-		eth->ppe = mtk_ppe_init(eth, eth->base + MTK_ETH_PPE_BASE);
 -		if (!eth->ppe) {
 -			err = -ENOMEM;
 -			goto err_deinit_ppe;
@@ -93,7 +93,7 @@ index e3599cd..c6b1aaf 100644
 +
 +		for (i = 0; i < eth->ppe_num; i++) {
 +			eth->ppe[i] = mtk_ppe_init(eth,
-+					   eth->base + MTK_ETH_PPE_BASE + i * 0x400, 2, i);
++					   eth->base + MTK_ETH_PPE_BASE + i * 0x400, i);
 +			if (!eth->ppe[i]) {
 +				err = -ENOMEM;
 +				goto err_deinit_ppe;
@@ -156,20 +156,19 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/medi
 index 9dfff1f..854e130 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -696,7 +696,7 @@ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
+@@ -696,6 +696,6 @@ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
  }
  
- struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
--		 int version)
-+		 int version, int id)
+-struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base)
++struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int index)
  {
  	struct device *dev = eth->dev;
  	struct mtk_foe_entry *foe;
 @@ -715,6 +715,7 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base,
  	ppe->eth = eth;
  	ppe->dev = dev;
- 	ppe->version = version;
-+	ppe->id = id;
+ 	ppe->version = eth->soc->offload_version;
++	ppe->id = index;
  
  	foe = dmam_alloc_coherent(ppe->dev, MTK_PPE_ENTRIES * sizeof(*foe),
  				  &ppe->foe_phys, GFP_KERNEL);
@@ -234,8 +233,8 @@ index c5c3c83..27a780f 100644
  	void *acct_table;
  };
  
--struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int version);
-+struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int version, int id);
+-struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base);
++struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int index);
  void mtk_ppe_deinit(struct mtk_eth *eth);
  int mtk_ppe_start(struct mtk_ppe *ppe);
  int mtk_ppe_stop(struct mtk_ppe *ppe);
