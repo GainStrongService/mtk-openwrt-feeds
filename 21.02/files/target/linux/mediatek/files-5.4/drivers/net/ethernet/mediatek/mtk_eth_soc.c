@@ -1118,7 +1118,7 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 		mcr = mcr_cur;
 		mcr &= ~(MAC_MCR_SPEED_100 | MAC_MCR_SPEED_1000 |
 			 MAC_MCR_FORCE_DPX | MAC_MCR_FORCE_TX_FC |
-			 MAC_MCR_FORCE_RX_FC);
+			 MAC_MCR_FORCE_RX_FC | MAC_MCR_PRMBL_LMT_EN);
 		mcr |= MAC_MCR_MAX_RX_1536 | MAC_MCR_IPG_CFG | MAC_MCR_FORCE_MODE |
 		       MAC_MCR_BACKOFF_EN | MAC_MCR_BACKPR_EN | MAC_MCR_FORCE_LINK;
 
@@ -1135,8 +1135,7 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 
 		/* Configure duplex */
 		mcr |= MAC_MCR_FORCE_DPX;
-		if (duplex == DUPLEX_HALF &&
-		    interface == PHY_INTERFACE_MODE_GMII)
+		if (duplex == DUPLEX_HALF)
 			mcr |= MAC_MCR_PRMBL_LMT_EN;
 
 		/* Configure pause modes -
