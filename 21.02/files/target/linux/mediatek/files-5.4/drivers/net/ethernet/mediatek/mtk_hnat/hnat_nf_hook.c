@@ -712,6 +712,17 @@ void mtk_464xlat_pre_process(struct sk_buff *skb)
 		       sizeof(struct hnat_desc));
 }
 
+static int hnat_ipv6_addr_equal(u32 *foe_ipv6_ptr, const struct in6_addr *target)
+{
+	struct in6_addr foe_in6_addr;
+	int i;
+
+	for (i = 0; i < 4; i++)
+		foe_in6_addr.s6_addr32[i] = htonl(foe_ipv6_ptr[i]);
+
+	return ipv6_addr_equal(&foe_in6_addr, target);
+}
+
 static unsigned int is_ppe_support_type(struct sk_buff *skb)
 {
 	struct ethhdr *eth = NULL;
@@ -1217,8 +1228,6 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	struct ipv6hdr *ip6h;
 	struct tcpudphdr _ports;
 	const struct tcpudphdr *pptr;
-	struct nf_conn *ct;
-	enum ip_conntrack_info ctinfo;
 	int gmac = NR_DISCARD;
 	int udp = 0;
 	u32 qid = 0;
@@ -1226,8 +1235,6 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	u32 payload_len = 0;
 	int mape = 0;
 	struct mtk_mac *mac = netdev_priv(dev);
-
-	ct = nf_ct_get(skb, &ctinfo);
 
 	if (ipv6_hdr(skb)->nexthdr == NEXTHDR_IPIP)
 		/* point to ethernet header for DS-Lite and MapE */
@@ -1463,7 +1470,9 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 #endif
 			}
 
-			if (ct && (ct->status & IPS_SRC_NAT)) {
+			if (IS_IPV6_5T_ROUTE(&entry) &&
+			    (!hnat_ipv6_addr_equal(&entry.ipv6_5t_route.ipv6_sip0, &ip6h->saddr) ||
+			     !hnat_ipv6_addr_equal(&entry.ipv6_5t_route.ipv6_dip0, &ip6h->daddr))) {
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 				entry.bfib1.pkt_type = IPV6_HNAPT;
 
