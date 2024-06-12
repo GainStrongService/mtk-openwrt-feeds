@@ -96,7 +96,7 @@ goto_end_help:
 
 int cmds_ssb_symlink_set (void)
 {  
-   system ("ln -sf ./ethswbox ssb_smdio_download");
+   system ("ln -sf ./ethswbox /usr/sbin/ssb_smdio_download");
    return OS_SUCCESS;
 }
 
