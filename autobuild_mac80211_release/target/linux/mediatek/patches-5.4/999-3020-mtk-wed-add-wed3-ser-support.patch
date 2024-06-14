@@ -1,7 +1,7 @@
-From 67a20e07982e9c43d299679f75fd81638271fc63 Mon Sep 17 00:00:00 2001
+From 5e30837de4270c4ab642da6627dc3163bfa3a79d Mon Sep 17 00:00:00 2001
 From: mtk27745 <rex.lu@mediatek.com>
 Date: Mon, 18 Sep 2023 13:22:44 +0800
-Subject: [PATCH 2/6] mtk wed add wed3 ser support
+Subject: [PATCH] mtk wed add wed3 ser support
 
 ---
  drivers/net/ethernet/mediatek/mtk_wed.c      | 339 ++++++++++++++++---
@@ -10,7 +10,7 @@ Subject: [PATCH 2/6] mtk wed add wed3 ser support
  3 files changed, 367 insertions(+), 48 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 4b32a82..02c156a 100644
+index a72484c..a9baa16 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -110,24 +110,88 @@ mtk_wdma_read_reset(struct mtk_wed_device *dev)
@@ -340,8 +340,8 @@ index 4b32a82..02c156a 100644
 -	mtk_wed_poll_busy(dev, MTK_WED_CTRL,
 -			  MTK_WED_CTRL_WDMA_INT_AGENT_BUSY);
 +	if (mtk_wed_is_v3_or_greater(dev->hw))
-+		mtk_wed_poll_busy(dev, MTK_WED_WPDMA_STATUS,
-+				  MTK_WED_WPDMA_STATUS_TX_DRV);
++		mtk_wed_poll_busy(dev, MTK_WED_WDMA_STATUS,
++				  MTK_WED_WDMA_STATUS_TX_DRV);
 +	else
 +		mtk_wed_poll_busy(dev, MTK_WED_CTRL,
 +				  MTK_WED_CTRL_WDMA_INT_AGENT_BUSY);
@@ -484,7 +484,7 @@ index 4b32a82..02c156a 100644
  	wed_w32(dev, MTK_WED_RRO_MSDU_PG_RING2_CFG,
  		MTK_WED_RRO_MSDU_PG_DRV_CLR);
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_regs.h b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
-index 0af264d..1ee0fe1 100644
+index 0af264d..2bc6854 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_regs.h
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_regs.h
 @@ -36,6 +36,8 @@ struct mtk_wdma_desc {
@@ -509,8 +509,8 @@ index 0af264d..1ee0fe1 100644
  #define MTK_WED_STATUS					0x060
  #define MTK_WED_STATUS_TX				GENMASK(15, 8)
  
-+#define MTK_WED_WPDMA_STATUS				0x068
-+#define MTK_WED_WPDMA_STATUS_TX_DRV			GENMASK(15, 8)
++#define MTK_WED_WDMA_STATUS				0x068
++#define MTK_WED_WDMA_STATUS_TX_DRV			GENMASK(15, 8)
 +
 +
  #define MTK_WED_TX_BM_CTRL				0x080
