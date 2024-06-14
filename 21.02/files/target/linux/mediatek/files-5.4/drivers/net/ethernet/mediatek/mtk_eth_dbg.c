@@ -128,7 +128,7 @@ void mt753x_set_port_link_state(bool up)
 	u32 val, i;
 
 	if (!mt7530_exist(eth))
-		return 0;
+		return;
 
 	mt798x_iomap();
 	for (i = 0; i < 4; i++) {
@@ -141,8 +141,6 @@ void mt753x_set_port_link_state(bool up)
 		mt7530_mdio_w32(eth, MTK_MT753X_PMCR_P(i), val);
 	}
 	mt798x_iounmap();
-
-	return 0;
 }
 
 void mtk_switch_w32(struct mtk_eth *eth, u32 val, unsigned reg)
