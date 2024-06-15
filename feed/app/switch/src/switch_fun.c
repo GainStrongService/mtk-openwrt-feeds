@@ -134,17 +134,30 @@ static int str_to_ip(unsigned int *ip, char *str)
 }
 
 /*convert IP address from number to string */
-static void ip_to_str(char *str, unsigned int ip)
+static void ip_to_str(char *str, size_t size, unsigned int ip)
 {
 	unsigned char *ptr = (unsigned char *)&ip;
 	unsigned char c[4];
+	int ret;
+
+	if (str == NULL || size == 0) {
+		printf("convert IP address failed\n");
+		return;
+	}
 
 	c[0] = *(ptr);
 	c[1] = *(ptr + 1);
 	c[2] = *(ptr + 2);
 	c[3] = *(ptr + 3);
-	/*sprintf(str, "%d.%d.%d.%d", c[0], c[1], c[2], c[3]); */
-	sprintf(str, "%d.%d.%d.%d", c[3], c[2], c[1], c[0]);
+
+	ret = snprintf(str, size, "%d.%d.%d.%d", c[3], c[2], c[1], c[0]);
+	if (ret < 0) {
+		printf("Encoding error in snprintf\n");
+		return;
+	} else if ((size_t)ret >= size) {
+		printf("Required size %d, provided size %zu\n", ret, size);
+		return;
+	}
 }
 
 int reg_read(unsigned int offset, unsigned int *value)
@@ -464,10 +477,29 @@ void acl_table_add(int argc, char *argv[])
 {
 	unsigned int vawd1 = 0, vawd2 = 0;
 	unsigned char tbl_idx = 0;
+	char *endptr;
 
-	tbl_idx = atoi(argv[3]);
-	vawd1 = strtoul(argv[4], (char **)NULL, 16);
-	vawd2 = strtoul(argv[5], (char **)NULL, 16);
+	errno = 0;
+	tbl_idx = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL rule table index\n");
+		return;
+	}
+
+	errno = 0;
+	vawd1 = strtoul(argv[4], &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL rule table write data 1\n");
+		return;
+	}
+
+	errno = 0;
+	vawd2 = strtoul(argv[5], &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL rule table write data 2\n");
+		return;
+	}
+
 	write_acl_table(tbl_idx, vawd1, vawd2);
 }
 
@@ -513,10 +545,29 @@ void acl_mask_table_add(int argc, char *argv[])
 {
 	unsigned int vawd1 = 0, vawd2 = 0;
 	unsigned char tbl_idx = 0;
+	char *endptr;
 
-	tbl_idx = atoi(argv[3]);
-	vawd1 = strtoul(argv[4], (char **)NULL, 16);
-	vawd2 = strtoul(argv[5], (char **)NULL, 16);
+	errno = 0;
+	tbl_idx = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL mask table index\n");
+		return;
+	}
+
+	errno = 0;
+	vawd1 = strtoul(argv[4], &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL mask table write data 1\n");
+		return;
+	}
+
+	errno = 0;
+	vawd2 = strtoul(argv[5], &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL mask table write data 2\n");
+		return;
+	}
+
 	write_acl_mask_table(tbl_idx, vawd1, vawd2);
 }
 
@@ -566,10 +617,29 @@ void acl_rule_table_add(int argc, char *argv[])
 {
 	unsigned int vawd1 = 0, vawd2 = 0;
 	unsigned char tbl_idx = 0;
+	char *endptr;
 
-	tbl_idx = atoi(argv[3]);
-	vawd1 = strtoul(argv[4], (char **)NULL, 16);
-	vawd2 = strtoul(argv[5], (char **)NULL, 16);
+	errno = 0;
+	tbl_idx = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL rule control table index\n");
+		return;
+	}
+
+	errno = 0;
+	vawd1 = strtoul(argv[4], &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL rule control table write data 1\n");
+		return;
+	}
+
+	errno = 0;
+	vawd2 = strtoul(argv[5], &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL rule control table write data 2\n");
+		return;
+	}
+
 	write_acl_rule_table(tbl_idx, vawd1, vawd2);
 }
 
@@ -613,10 +683,28 @@ void acl_rate_table_add(int argc, char *argv[])
 {
 	unsigned int vawd1 = 0, vawd2 = 0;
 	unsigned char tbl_idx = 0;
+	char *endptr;
 
-	tbl_idx = atoi(argv[3]);
-	vawd1 = strtoul(argv[4], (char **)NULL, 16);
-	vawd2 = strtoul(argv[5], (char **)NULL, 16);
+	errno = 0;
+	tbl_idx = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL rate control table index\n");
+		return;
+	}
+
+	errno = 0;
+	vawd1 = strtoul(argv[4], &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL rate control table write data 1\n");
+		return;
+	}
+
+	errno = 0;
+	vawd2 = strtoul(argv[5], &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong ACL rate control table write data 2\n");
+		return;
+	}
 
 	write_rate_table(tbl_idx, vawd1, vawd2);
 }
@@ -714,6 +802,7 @@ void acl_mac_add(int argc, char *argv[])
 	int ports = 0;
 	char tmpstr[5];
 	int ret;
+	char *endptr;
 
 	ret = acl_parameters_pre_del(6, 12, argc, argv, &ports);
 	if (ret < 0)
@@ -721,17 +810,27 @@ void acl_mac_add(int argc, char *argv[])
 	/* Set pattern */
 	strncpy(tmpstr, argv[4], 4);
 	tmpstr[4] = '\0';
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0')
+		goto error;
+
 	acl_compare_pattern(ports, value, 0x0, 0, 0);
 
 	strncpy(tmpstr, argv[4] + 4, 4);
 	tmpstr[4] = '\0';
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0')
+		goto error;
 	acl_compare_pattern(ports, value, 0x0, 1, 1);
 
 	strncpy(tmpstr, argv[4] + 8, 4);
 	tmpstr[4] = '\0';
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0')
+		goto error;
 	acl_compare_pattern(ports, value, 0x0, 2, 2);
 
 	//set mask
@@ -743,6 +842,11 @@ void acl_mac_add(int argc, char *argv[])
 	value |= 1 << 27;	//acl hit count
 	value |= 2 << 24;	//acl hit count group index (0~3)
 	write_acl_rule_table(0, value, 0);
+	return;
+
+error:
+	printf("Error: string converting\n");
+	return;
 }
 
 void acl_dip_meter(int argc, char *argv[])
@@ -1024,17 +1128,23 @@ void acl_port_enable(int argc, char *argv[])
 {
 	unsigned int value = 0, reg = 0;
 	unsigned char acl_port = 0, acl_en = 0;
+	char *endptr;
 
-	acl_port = atoi(argv[3]);
-	acl_en = atoi(argv[4]);
+	errno = 0;
+	acl_port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || acl_port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
+		return;
+	}
 
-	printf("acl_port:%d, acl_en:%d\n", acl_port, acl_en);
-
-	/*Check the input parameters is right or not. */
-	if ((acl_port > SWITCH_MAX_PORT) || (acl_en > 1)) {
+	errno = 0;
+	acl_en = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || acl_en > 1) {
 		printf(HELP_ACL_SETPORTEN);
 		return;
 	}
+
+	printf("acl_port:%d, acl_en:%d\n", acl_port, acl_en);
 
 	reg = REG_PCR_P0_ADDR + (0x100 * acl_port);	// 0x2004[10]
 	reg_read(reg, &value);
@@ -1094,7 +1204,7 @@ static void dip_dump_internal(int type)
 				printf("  %3d", ((mac2 >> 24) & 0xff));	//RESP_TIMER
 				//printf(" %4d", (value2 >> 24) & 0xff); //r_age_field
 				reg_read(REG_TSRA1_ADDR, &mac);
-				ip_to_str(tmpstr, mac);
+				ip_to_str(tmpstr, sizeof(tmpstr), mac);
 				printf("     %s", tmpstr);
 				printf("  0x%8x\n", value2);	//ATRD
 				//printf("%04x", ((mac2 >> 16) & 0xffff));
@@ -1266,12 +1376,12 @@ static void sip_dump_internal(int type)
 
 				reg_read(REG_TSRA2_ADDR, &mac2);
 
-				ip_to_str(tmpstr, mac2);
+				ip_to_str(tmpstr, sizeof(tmpstr), mac2);
 				printf("   %s", tmpstr);
 
 				//printf(" %4d", (value2 >> 24) & 0xff); //r_age_field
 				reg_read(REG_TSRA1_ADDR, &mac);
-				ip_to_str(tmpstr, mac);
+				ip_to_str(tmpstr, sizeof(tmpstr), mac);
 				printf("    %s", tmpstr);
 				printf("      0x%x\n", value2);
 				//printf("%04x", ((mac2 >> 16) & 0xffff));
@@ -1898,17 +2008,20 @@ void set_mirror_to(int argc, char *argv[])
 void set_mirror_from(int argc, char *argv[])
 {
 	unsigned int offset = 0, value = 0;
-	int idx = 0, mirror = 0;
+	unsigned int idx = 0, mirror = 0;
+	char *endptr;
 
-	idx = strtoul(argv[3], NULL, 0);
-	mirror = strtoul(argv[4], NULL, 0);
-
-	if (idx < 0 || MAX_PORT < idx) {
-		printf("wrong port member, should be within 0~%d\n", MAX_PORT);
+	errno = 0;
+	idx = strtoul(argv[3], &endptr, 0);
+	if (errno != 0 || *endptr != '\0' || idx > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
 		return;
 	}
 
-	if (mirror < 0 || 3 < mirror) {
+	errno = 0;
+	mirror = strtoul(argv[4], &endptr, 0);
+
+	if (errno != 0 || *endptr != '\0' || mirror > 3) {
 		printf("wrong mirror setting, should be within 0~3\n");
 		return;
 	}
@@ -2415,15 +2528,24 @@ void phy_set_an(int argc, char *argv[])
 void set_mac_pfc(int argc, char *argv[])
 {
 	unsigned int value = 0;
-	int port, enable = 0;
+	unsigned int port, enable = 0;
+	char *endptr;
 
-	port = atoi(argv[3]);
-	enable = atoi(argv[4]);
-	printf("enable: %d\n", enable);
-	if (port < 0 || port > 6 || enable < 0 || enable > 1) {
-		printf("Illegal parameter (port:0~6, enable|diable:0|1) \n");
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
 		return;
 	}
+
+	errno = 0;
+	enable = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || enable > 1) {
+		printf("Error: Illegal paramete, enable|diable:0|1\n");
+		return;
+	}
+	printf("enable: %d\n", enable);
+
 	if (chip_name == 0x7531 || chip_name == 0x7988) {
 		reg_read(REG_PFC_CTRL_ADDR, &value);
 		value &= ~(1 << port);
@@ -2464,20 +2586,28 @@ void qos_sch_select(int argc, char *argv[])
 	unsigned char port = 0, queue = 0;
 	unsigned char type = 0;
 	unsigned int value = 0, reg = 0;
+	char *endptr;
 
 	if (argc < 7)
 		return;
 
-	port = atoi(argv[3]);
-	queue = atoi(argv[4]);
-	type = atoi(argv[6]);
-
-	if (port > 6 || queue > 7) {
-		printf("\n Illegal input parameters\n");
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
 		return;
 	}
 
-	if ((type != 0 && type != 1 && type != 2)) {
+	errno = 0;
+	queue = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || queue > 7) {
+		printf("Error: wrong port queue member\n");
+		return;
+	}
+
+	errno = 0;
+	type = strtoul(argv[6], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || type > 2) {
 		printf(HELP_QOS_TYPE);
 		return;
 	}
@@ -2567,20 +2697,22 @@ void qos_set_base(int argc, char *argv[])
 	unsigned char base = 0;
 	unsigned char port = 0;
 	unsigned int value = 0;
+	char *endptr;
 
 	if (argc < 5)
 		return;
 
-	port = atoi(argv[3]);
-	base = atoi(argv[4]);
-
-	if (base > 6) {
-		printf(HELP_QOS_BASE);
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
 		return;
 	}
 
-	if (port > 6) {
-		printf("Illegal port index:%d\n", port);
+	errno = 0;
+	base = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || base > 5) {
+		printf(HELP_QOS_BASE);
 		return;
 	}
 
@@ -2647,12 +2779,19 @@ void qos_set_portpri(int argc, char *argv[])
 {
 	unsigned char port = 0, prio = 0;
 	unsigned int value = 0;
+	char *endptr;
 
-	port = atoi(argv[3]);
-	prio = atoi(argv[4]);
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
+		return;
+	}
 
-	if (port >= 7 || prio > 7) {
-		printf(HELP_QOS_PORT_PRIO);
+	errno = 0;
+	prio = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || prio > 7) {
+		printf("Error: wrong priority, should be within 0~7\n");
 		return;
 	}
 
@@ -2667,11 +2806,18 @@ void qos_set_dscppri(int argc, char *argv[])
 {
 	unsigned char prio = 0, dscp = 0, pim_n = 0, pim_offset = 0;
 	unsigned int value = 0, reg = 0;
+	char *endptr;
 
-	dscp = atoi(argv[3]);
-	prio = atoi(argv[4]);
+	errno = 0;
+	dscp = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || dscp > 63) {
+		printf(HELP_QOS_DSCP_PRIO);
+		return;
+	}
 
-	if (dscp > 63 || prio > 7) {
+	errno = 0;
+	prio = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || prio > 7) {
 		printf(HELP_QOS_DSCP_PRIO);
 		return;
 	}
@@ -2690,15 +2836,28 @@ void qos_pri_mapping_queue(int argc, char *argv[])
 {
 	unsigned char prio = 0, queue = 0, pem_n = 0, port = 0;
 	unsigned int value = 0, reg = 0;
+	char *endptr;
 
 	if (argc < 6)
 		return;
 
-	port = atoi(argv[3]);
-	prio = atoi(argv[4]);
-	queue = atoi(argv[5]);
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
+		return;
+	}
 
-	if (prio > 7 || queue > 7) {
+	errno = 0;
+	prio = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || prio > 7) {
+		printf(HELP_QOS_PRIO_QMAP);
+		return;
+	}
+
+	errno = 0;
+	queue = strtoul(argv[5], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || queue > 7) {
 		printf(HELP_QOS_PRIO_QMAP);
 		return;
 	}
