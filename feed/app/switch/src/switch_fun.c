@@ -2476,16 +2476,22 @@ void phy_set_fc(int argc, char *argv[])
 {
 	unsigned int port = 0, pause_capable = 0;
 	unsigned int phy_value = 0;
+	char *endptr;
 
-	port = atoi(argv[3]);
-	pause_capable = atoi(argv[4]);
-
-	/*Check the input parameters is right or not. */
-	if (port > MAX_PORT - 2 || pause_capable > 1) {
-		printf
-		    ("Illegal parameter (port:0~4, full_duplex_pause_capable:0|1)\n");
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT - 2) {
+		printf("Error: wrong PHY port number, should be within 0~4\n");
 		return;
 	}
+
+	errno = 0;
+	pause_capable = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || pause_capable > 1) {
+		printf("Illegal parameter, full_duplex_pause_capable:0|1\n");
+		return;
+	}
+
 	printf("port=%d, full_duplex_pause_capable:%d\n", port, pause_capable);
 
 	mii_mgr_read(port, 4, &phy_value);
@@ -2505,16 +2511,22 @@ void phy_set_an(int argc, char *argv[])
 {
 	unsigned int port = 0, auto_negotiation_en = 0;
 	unsigned int phy_value = 0;
+	char *endptr;
 
-	port = atoi(argv[3]);
-	auto_negotiation_en = atoi(argv[4]);
-
-	/*Check the input parameters is right or not. */
-	if (port > MAX_PORT - 2 || auto_negotiation_en > 1) {
-		printf
-		    ("Illegal parameter (port:0~4, auto_negotiation_en:0|1)\n");
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT - 2) {
+		printf("Error: wrong PHY port number, should be within 0~4\n");
 		return;
 	}
+
+	errno = 0;
+	auto_negotiation_en = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || auto_negotiation_en > 1) {
+		printf("Illegal parameter, auto_negotiation_en:0|1\n");
+		return;
+	}
+
 	printf("port=%d, auto_negotiation_en:%d\n", port, auto_negotiation_en);
 
 	mii_mgr_read(port, 0, &phy_value);
@@ -2980,11 +2992,18 @@ void doVlanSetPvid(int argc, char *argv[])
 {
 	unsigned char port = 0;
 	unsigned short pvid = 0;
+	char *endptr;
 
-	port = atoi(argv[3]);
-	pvid = atoi(argv[4]);
-	/*Check the input parameters is right or not. */
-	if ((port >= SWITCH_MAX_PORT) || (pvid > MAX_VID_VALUE)) {
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
+		return;
+	}
+
+	errno = 0;
+	pvid = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || pvid > MAX_VID_VALUE) {
 		printf(HELP_VLAN_PVID);
 		return;
 	}
@@ -2997,37 +3016,70 @@ void doVlanSetPvid(int argc, char *argv[])
 
 void doVlanSetVid(int argc, char *argv[])
 {
-	unsigned char index = 0;
-	unsigned char active = 0;
-	unsigned char portMap = 0;
-	unsigned char tagPortMap = 0;
-	unsigned short vid = 0;
+	unsigned char index = 0, active = 0;
+	unsigned char portMap = 0, tagPortMap = 0;
+	unsigned short vid = 0, stag = 0;
+	unsigned char ivl_en = 0, fid = 0;
+	char *endptr;
 
-	unsigned char ivl_en = 0;
-	unsigned char fid = 0;
-	unsigned short stag = 0;
-
-	index = atoi(argv[3]);
-	active = atoi(argv[4]);
-	vid = atoi(argv[5]);
-
-	/*Check the input parameters is right or not. */
-	if ((index >= MAX_VLAN_RULE) || (vid >= 4096) || (active > ACTIVED)) {
+	errno = 0;
+	index = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || index >= MAX_VLAN_RULE) {
 		printf(HELP_VLAN_VID);
 		return;
 	}
 
-	/*CPU Port is always the membership */
-	portMap = atoi(argv[6]);
-	tagPortMap = atoi(argv[7]);
+	errno = 0;
+	active = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || active > ACTIVED) {
+		printf(HELP_VLAN_VID);
+		return;
+	}
+
+	errno = 0;
+	vid = strtoul(argv[5], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || vid >= 4096) {
+		printf(HELP_VLAN_VID);
+		return;
+	}
+
+	errno = 0;
+	portMap = strtoul(argv[6], &endptr, 10);
+	if (errno != 0 || *endptr != '\0') {
+		printf(HELP_VLAN_VID);
+		return;
+	}
+
+	errno = 0;
+	tagPortMap = strtoul(argv[7], &endptr, 10);
+	if (errno != 0 || *endptr != '\0') {
+		printf(HELP_VLAN_VID);
+		return;
+	}
 
 	printf("subcmd parameter argc = %d\r\n", argc);
 	if (argc >= 9) {
-		ivl_en = atoi(argv[8]);
+		errno = 0;
+		ivl_en = strtoul(argv[8], &endptr, 10);
+		if (errno != 0 || *endptr != '\0') {
+			printf(HELP_VLAN_VID);
+			return;
+		}
 		if (argc >= 10) {
-			fid = atoi(argv[9]);
-			if (argc >= 11)
-				stag = atoi(argv[10]);
+			errno = 0;
+			fid = strtoul(argv[9], &endptr, 16);
+			if (errno != 0 || *endptr != '\0') {
+				printf(HELP_VLAN_VID);
+				return;
+			}
+			if (argc >= 11) {
+				errno = 0;
+				stag = strtoul(argv[10], &endptr, 10);
+				if (errno != 0 || *endptr != '\0') {
+					printf(HELP_VLAN_VID);
+					return;
+				}
+			}
 		}
 	}
 	macMT753xVlanSetVid(index, active, vid, portMap, tagPortMap,
@@ -3041,17 +3093,23 @@ void doVlanSetAccFrm(int argc, char *argv[])
 	unsigned char type = 0;
 	unsigned int value = 0;
 	unsigned int reg = 0;
+	char *endptr;
 
-	port = atoi(argv[3]);
-	type = atoi(argv[4]);
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
+		return;
+	}
 
-	printf("port: %d, type: %d\n", port, type);
-
-	/*Check the input parameters is right or not. */
-	if ((port > SWITCH_MAX_PORT) || (type > REG_PVC_ACC_FRM_RELMASK)) {
+	errno = 0;
+	type = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || type > REG_PVC_ACC_FRM_RELMASK) {
 		printf(HELP_VLAN_ACC_FRM);
 		return;
 	}
+
+	printf("port: %d, type: %d\n", port, type);
 
 	reg = REG_PVC_P0_ADDR + port * 0x100;
 	reg_read(reg, &value);
@@ -3068,17 +3126,23 @@ void doVlanSetPortAttr(int argc, char *argv[])
 	unsigned char attr = 0;
 	unsigned int value = 0;
 	unsigned int reg = 0;
+	char *endptr;
 
-	port = atoi(argv[3]);
-	attr = atoi(argv[4]);
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
+		return;
+	}
 
-	printf("port: %x, attr: %x\n", port, attr);
-
-	/*Check the input parameters is right or not. */
-	if (port > SWITCH_MAX_PORT || attr > 3) {
+	errno = 0;
+	attr = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || attr > 3) {
 		printf(HELP_VLAN_PORT_ATTR);
 		return;
 	}
+
+	printf("port: %x, attr: %x\n", port, attr);
 
 	reg = 0x2010 + port * 0x100;
 	reg_read(reg, &value);
@@ -3095,16 +3159,23 @@ void doVlanSetPortMode(int argc, char *argv[])
 	unsigned char mode = 0;
 	unsigned int value = 0;
 	unsigned int reg = 0;
+	char *endptr;
 
-	port = atoi(argv[3]);
-	mode = atoi(argv[4]);
-	printf("port: %x, mode: %x\n", port, mode);
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
+		return;
+	}
 
-	/*Check the input parameters is right or not. */
-	if (port > SWITCH_MAX_PORT || mode > 3) {
+	errno = 0;
+	mode = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || mode > 3) {
 		printf(HELP_VLAN_PORT_MODE);
 		return;
 	}
+
+	printf("port: %x, mode: %x\n", port, mode);
 
 	reg = 0x2004 + port * 0x100;
 	reg_read(reg, &value);
@@ -3120,17 +3191,23 @@ void doVlanSetEgressTagPCR(int argc, char *argv[])
 	unsigned char eg_tag = 0;
 	unsigned int value = 0;
 	unsigned int reg = 0;
+	char *endptr;
 
-	port = atoi(argv[3]);
-	eg_tag = atoi(argv[4]);
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
+		return;
+	}
 
-	printf("port: %d, eg_tag: %d\n", port, eg_tag);
-
-	/*Check the input parameters is right or not. */
-	if ((port > SWITCH_MAX_PORT) || (eg_tag > REG_PCR_EG_TAG_RELMASK)) {
+	errno = 0;
+	eg_tag = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || (eg_tag > REG_PCR_EG_TAG_RELMASK)) {
 		printf(HELP_VLAN_EGRESS_TAG_PCR);
 		return;
 	}
+
+	printf("port: %d, eg_tag: %d\n", port, eg_tag);
 
 	reg = REG_PCR_P0_ADDR + port * 0x100;
 	reg_read(reg, &value);
@@ -3148,17 +3225,23 @@ void doVlanSetEgressTagPVC(int argc, char *argv[])
 	unsigned char eg_tag = 0;
 	unsigned int value = 0;
 	unsigned int reg = 0;
+	char *endptr;
 
-	port = atoi(argv[3]);
-	eg_tag = atoi(argv[4]);
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
+		return;
+	}
 
-	printf("port: %d, eg_tag: %d\n", port, eg_tag);
-
-	/*Check the input parameters is right or not. */
-	if ((port > SWITCH_MAX_PORT) || (eg_tag > REG_PVC_EG_TAG_RELMASK)) {
+	errno = 0;
+	eg_tag = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || (eg_tag > REG_PVC_EG_TAG_RELMASK)) {
 		printf(HELP_VLAN_EGRESS_TAG_PVC);
 		return;
 	}
+
+	printf("port: %d, eg_tag: %d\n", port, eg_tag);
 
 	reg = REG_PVC_P0_ADDR + port * 0x100;
 	reg_read(reg, &value);
@@ -3539,20 +3622,33 @@ void rate_control(int argc, char *argv[])
 	unsigned char dir = 0;
 	unsigned char port = 0;
 	unsigned int rate = 0;
+	char *endptr;
 
-	dir = atoi(argv[2]);
-	port = atoi(argv[3]);
-	rate = atoi(argv[4]);
-
-	if (port > 6)
+	errno = 0;
+	dir = strtoul(argv[2], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || dir > 1) {
+		printf("Error: wrong port member, should be 0:egress, 1:ingress\n");
 		return;
+	}
+
+	errno = 0;
+	port = strtoul(argv[3], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || port > MAX_PORT) {
+		printf("Error: wrong port member, should be within 0~%d\n", MAX_PORT);
+		return;
+	}
+
+	errno = 0;
+	rate = strtoul(argv[4], &endptr, 10);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: wrong traffic rate, unit is kbps\n");
+		return;
+	}
 
 	if (dir == 1)		//ingress
 		_ingress_rate_set(1, port, rate);
 	else if (dir == 0)	//egress
 		_egress_rate_set(1, port, rate);
-	else
-		return;
 }
 
 void collision_pool_enable(int argc, char *argv[])
