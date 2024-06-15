@@ -1648,6 +1648,7 @@ void table_add(int argc, char *argv[])
 {
 	unsigned int i = 0, j = 0, value = 0, is_filter = 0, is_mymac = 0;
 	char tmpstr[9];
+	char *endptr;
 
 	is_filter = (argv[1][0] == 'f') ? 1 : 0;
 	is_mymac = (argv[1][0] == 'm') ? 1 : 0;
@@ -1657,20 +1658,30 @@ void table_add(int argc, char *argv[])
 	}
 	strncpy(tmpstr, argv[2], 8);
 	tmpstr[8] = '\0';
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: string converting\n");
+		return;
+	}
 	reg_write(REG_ATA1_ADDR, value);
 	printf("REG_ATA1_ADDR is 0x%x\n\r", value);
 
 	strncpy(tmpstr, argv[2] + 8, 4);
 	tmpstr[4] = '\0';
-
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: string converting\n");
+		return;
+	}
 	value = (value << 16);
 	value |= (1 << 15);	//IVL=1
 
 	if (argc > 4) {
-		j = strtoul(argv[4], NULL, 0);
-		if (4095 < j) {
+		errno = 0;
+		j = strtoul(argv[4], &endptr, 10);
+		if (errno != 0 || *endptr != '\0' || j > 4095) {
 			printf("wrong vid range, should be within 0~4095\n");
 			return;
 		}
@@ -1700,8 +1711,9 @@ void table_add(int argc, char *argv[])
 	value = j << 4;		//w_port_map
 
 	if (argc > 5) {
-		j = strtoul(argv[5], NULL, 0);
-		if (j < 1 || 255 < j) {
+		errno = 0;
+		j = strtoul(argv[5], &endptr, 10);
+		if (errno != 0 || *endptr != '\0' || j < 1 || 255 < j) {
 			printf("wrong age range, should be within 1~255\n");
 			return;
 		}
@@ -1713,8 +1725,9 @@ void table_add(int argc, char *argv[])
 	}
 
 	if (argc > 6) {
-		j = strtoul(argv[6], NULL, 0);
-		if (7 < j) {
+		errno = 0;
+		j = strtoul(argv[6], &endptr, 10);
+		if (errno != 0 || *endptr != '\0' || j > 7) {
 			printf("wrong eg-tag range, should be within 0~7\n");
 			return;
 		}
@@ -1754,6 +1767,7 @@ void table_search_mac_vid(int argc, char *argv[])
 {
 	unsigned int i = 0, j = 0, value = 0, mac = 0, mac2 = 0, value2 = 0;
 	char tmpstr[9];
+	char *endptr;
 
 	if (!argv[3] || strlen(argv[3]) != 12) {
 		printf("MAC address format error, should be of length 12\n");
@@ -1761,22 +1775,34 @@ void table_search_mac_vid(int argc, char *argv[])
 	}
 	strncpy(tmpstr, argv[3], 8);
 	tmpstr[8] = '\0';
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: string converting\n");
+		return;
+	}
 	reg_write(REG_ATA1_ADDR, value);
 	//printf("REG_ATA1_ADDR is 0x%x\n\r",value);
 
 	strncpy(tmpstr, argv[3] + 8, 4);
 	tmpstr[4] = '\0';
 
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: string converting\n");
+		return;
+	}
 	value = (value << 16);
 	value |= (1 << 15);	//IVL=1
 
-	j = strtoul(argv[5], NULL, 0);
-	if (4095 < j) {
+	errno = 0;
+	j = strtoul(argv[5], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || j > 4095) {
 		printf("wrong vid range, should be within 0~4095\n");
 		return;
 	}
+
 	value |= j;		//vid
 
 	reg_write(REG_ATA2_ADDR, value);
@@ -1836,6 +1862,7 @@ void table_search_mac_fid(int argc, char *argv[])
 {
 	unsigned int i = 0, j = 0, value = 0, mac = 0, mac2 = 0, value2 = 0;
 	char tmpstr[9];
+	char *endptr;
 
 	if (!argv[3] || strlen(argv[3]) != 12) {
 		printf("MAC address format error, should be of length 12\n");
@@ -1843,22 +1870,33 @@ void table_search_mac_fid(int argc, char *argv[])
 	}
 	strncpy(tmpstr, argv[3], 8);
 	tmpstr[8] = '\0';
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: string converting\n");
+		return;
+	}
 	reg_write(REG_ATA1_ADDR, value);
 	//printf("REG_ATA1_ADDR is 0x%x\n\r",value);
 
 	strncpy(tmpstr, argv[3] + 8, 4);
 	tmpstr[4] = '\0';
-
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: string converting\n");
+		return;
+	}
 	value = (value << 16);
 	value &= ~(1 << 15);	//IVL=0
 
-	j = strtoul(argv[5], NULL, 0);
-	if (7 < j) {
+	errno = 0;
+	j = strtoul(argv[5], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || j > 7) {
 		printf("wrong fid range, should be within 0~7\n");
 		return;
 	}
+
 	value |= (j << 12);	//vid
 
 	reg_write(REG_ATA2_ADDR, value);
@@ -1918,6 +1956,7 @@ void table_del_fid(int argc, char *argv[])
 {
 	unsigned int i = 0, j = 0, value = 0;
 	char tmpstr[9];
+	char *endptr;
 
 	if (!argv[3] || strlen(argv[3]) != 12) {
 		printf("MAC address format error, should be of length 12\n");
@@ -1925,16 +1964,28 @@ void table_del_fid(int argc, char *argv[])
 	}
 	strncpy(tmpstr, argv[3], 8);
 	tmpstr[8] = '\0';
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: string converting\n");
+		return;
+	}
 	reg_write(REG_ATA1_ADDR, value);
+
 	strncpy(tmpstr, argv[3] + 8, 4);
 	tmpstr[4] = '\0';
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: string converting\n");
+		return;
+	}
 	value = (value << 16);
 
 	if (argc > 5) {
-		j = strtoul(argv[5], NULL, 0);
-		if (j > 7) {
+		errno = 0;
+		j = strtoul(argv[5], &endptr, 10);
+		if (errno != 0 || *endptr != '\0' || j > 7) {
 			printf("wrong fid range, should be within 0~7\n");
 			return;
 		}
@@ -1966,6 +2017,7 @@ void table_del_vid(int argc, char *argv[])
 {
 	unsigned int i = 0, j = 0, value = 0;
 	char tmpstr[9];
+	char *endptr;
 
 	if (!argv[3] || strlen(argv[3]) != 12) {
 		printf("MAC address format error, should be of length 12\n");
@@ -1973,19 +2025,31 @@ void table_del_vid(int argc, char *argv[])
 	}
 	strncpy(tmpstr, argv[3], 8);
 	tmpstr[8] = '\0';
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: string converting\n");
+		return;
+	}
 	reg_write(REG_ATA1_ADDR, value);
 
 	strncpy(tmpstr, argv[3] + 8, 4);
 	tmpstr[4] = '\0';
-	value = strtoul(tmpstr, NULL, 16);
+	errno = 0;
+	value = strtoul(tmpstr, &endptr, 16);
+	if (errno != 0 || *endptr != '\0') {
+		printf("Error: string converting\n");
+		return;
+	}
 	value = (value << 16);
 
-	j = strtoul(argv[5], NULL, 0);
-	if (j > 4095) {
+	errno = 0;
+	j = strtoul(argv[5], &endptr, 10);
+	if (errno != 0 || *endptr != '\0' || j > 4095) {
 		printf("wrong fid range, should be within 0~4095\n");
 		return;
 	}
+
 	value |= j;		//vid
 	value |= 1 << 15;
 	reg_write(REG_ATA2_ADDR, value);
