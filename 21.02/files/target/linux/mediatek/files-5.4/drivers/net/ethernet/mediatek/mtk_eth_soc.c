@@ -2227,7 +2227,7 @@ err_dma:
 	return -ENOMEM;
 }
 
-static inline int mtk_cal_txd_req(struct sk_buff *skb)
+static inline int mtk_cal_txd_req(struct mtk_eth *eth, struct sk_buff *skb)
 {
 	int i, nfrags;
 	skb_frag_t *frag;
@@ -2237,7 +2237,7 @@ static inline int mtk_cal_txd_req(struct sk_buff *skb)
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			frag = &skb_shinfo(skb)->frags[i];
 			nfrags += DIV_ROUND_UP(skb_frag_size(frag),
-						MTK_TX_DMA_BUF_LEN);
+					       eth->soc->txrx.dma_max_len);
 		}
 	} else {
 		nfrags += skb_shinfo(skb)->nr_frags;
@@ -2314,7 +2314,7 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		txq = netdev_get_tx_queue(dev, qid);
 	}
 
-	tx_num = mtk_cal_txd_req(skb);
+	tx_num = mtk_cal_txd_req(eth, skb);
 	if (unlikely(atomic_read(&ring->free_count) <= tx_num)) {
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
 			netif_tx_stop_all_queues(dev);
