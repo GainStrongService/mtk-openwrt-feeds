@@ -653,7 +653,14 @@
 #define TX_DMA_PLEN1(_x)	((_x) & eth->soc->txrx.dma_max_len)
 #endif
 #define TX_DMA_SWC		BIT(14)
-#define TX_DMA_SDP1(_x)		((((u64)(_x)) >> 32) & 0xf)
+#define TX_DMA_ADDR64_MASK	GENMASK(3, 0)
+#if IS_ENABLED(CONFIG_64BIT)
+# define TX_DMA_GET_ADDR64(x)	(((u64)FIELD_GET(TX_DMA_ADDR64_MASK, (x))) << 32)
+# define TX_DMA_PREP_ADDR64(x)	FIELD_PREP(TX_DMA_ADDR64_MASK, ((x) >> 32))
+#else
+# define TX_DMA_GET_ADDR64(x)	(0)
+# define TX_DMA_PREP_ADDR64(x)	(0)
+#endif
 
 /* PDMA on MT7628 */
 #define TX_DMA_DONE		BIT(31)
@@ -676,8 +683,14 @@
 #define RX_DMA_GET_AGG_CNT(_x)	(((_x) >> 2) & 0xff)
 #define RX_DMA_GET_REV(_x)	(((_x) >> 10) & 0x1f)
 #define RX_DMA_VTAG		BIT(15)
-#define RX_DMA_SDP1(_x)		((((u64)(_x)) >> 32) & 0xf)
-#define RX_DMA_GET_SDP1(_x)	((_x) & 0xf)
+#define RX_DMA_ADDR64_MASK	GENMASK(3, 0)
+#if IS_ENABLED(CONFIG_64BIT)
+# define RX_DMA_GET_ADDR64(x)	(((u64)FIELD_GET(RX_DMA_ADDR64_MASK, (x))) << 32)
+# define RX_DMA_PREP_ADDR64(x)	FIELD_PREP(RX_DMA_ADDR64_MASK, ((x) >> 32))
+#else
+# define RX_DMA_GET_ADDR64(x)	(0)
+# define RX_DMA_PREP_ADDR64(x)	(0)
+#endif
 
 /* QDMA descriptor rxd3 */
 #define RX_DMA_VID(_x)		((_x) & VLAN_VID_MASK)
@@ -1489,7 +1502,7 @@ enum mkt_eth_capabilities {
 	MTK_RSTCTRL_PPE1_BIT,
 	MTK_RSTCTRL_PPE2_BIT,
 	MTK_U3_COPHY_V2_BIT,
-	MTK_8GB_ADDRESSING_BIT,
+	MTK_36BIT_DMA_BIT,
 
 	/* MUX BITS*/
 	MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT,
@@ -1541,7 +1554,7 @@ enum mkt_eth_capabilities {
 #define MTK_RSTCTRL_PPE1	BIT_ULL(MTK_RSTCTRL_PPE1_BIT)
 #define MTK_RSTCTRL_PPE2	BIT_ULL(MTK_RSTCTRL_PPE2_BIT)
 #define MTK_U3_COPHY_V2		BIT_ULL(MTK_U3_COPHY_V2_BIT)
-#define MTK_8GB_ADDRESSING	BIT_ULL(MTK_8GB_ADDRESSING_BIT)
+#define MTK_36BIT_DMA		BIT_ULL(MTK_36BIT_DMA_BIT)
 
 #define MTK_ETH_MUX_GDM1_TO_GMAC1_ESW		\
 	BIT_ULL(MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT)
@@ -1655,7 +1668,7 @@ enum mkt_eth_capabilities {
 		       MTK_GMAC1_USXGMII | MTK_GMAC2_USXGMII | \
 		       MTK_GMAC3_USXGMII | MTK_MUX_GMAC123_TO_USXGMII | \
 		       MTK_GMAC2_XGMII | MTK_MUX_GMAC2_TO_XGMII | MTK_RSS | \
-		       MTK_NETSYS_RX_V2 | MTK_8GB_ADDRESSING)
+		       MTK_NETSYS_RX_V2 | MTK_36BIT_DMA)
 
 struct mtk_tx_dma_desc_info {
 	dma_addr_t	addr;

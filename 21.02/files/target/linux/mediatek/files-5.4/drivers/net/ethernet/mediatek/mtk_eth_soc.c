@@ -1699,7 +1699,6 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	dma_addr_t phy_ring_tail;
 	int cnt = soc->txrx.fq_dma_size;
 	dma_addr_t dma_addr;
-	u64 addr64 = 0;
 	int i, j, len;
 
 	if (!eth->soc->has_sram) {
@@ -1739,10 +1738,10 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 				txd->txd2 = eth->phy_scratch_ring +
 					(j * MTK_FQ_DMA_LENGTH + i + 1) * soc->txrx.txd_size;
 
-			addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
-				  TX_DMA_SDP1(dma_addr + i * MTK_QDMA_PAGE_SIZE) : 0;
+			txd->txd3 = TX_DMA_PLEN0(MTK_QDMA_PAGE_SIZE);
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA))
+				txd->txd3 |= TX_DMA_PREP_ADDR64(dma_addr + i * MTK_QDMA_PAGE_SIZE);
 
-			txd->txd3 = TX_DMA_PLEN0(MTK_QDMA_PAGE_SIZE) | addr64;
 			txd->txd4 = 0;
 
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
@@ -1839,8 +1838,8 @@ static void setup_tx_buf(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf,
 		dma_unmap_addr_set(tx_buf, dma_addr0, mapped_addr);
 		dma_unmap_len_set(tx_buf, dma_len0, size);
 	} else {
-		addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
-			  TX_DMA_SDP1(mapped_addr) : 0;
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA))
+			addr64 = TX_DMA_PREP_ADDR64(mapped_addr);
 
 		if (idx & 1) {
 			txd->txd3 = mapped_addr;
@@ -1957,18 +1956,18 @@ static void mtk_tx_set_dma_desc_v3(struct sk_buff *skb, struct net_device *dev, 
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_tx_dma_v2 *desc = txd;
-	u64 addr64 = 0;
 	u32 data = 0;
-
-	addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
-		  TX_DMA_SDP1(info->addr) : 0;
 
 	WRITE_ONCE(desc->txd1, info->addr);
 
 	data = TX_DMA_PLEN0(info->size);
 	if (info->last)
 		data |= TX_DMA_LS0;
-	WRITE_ONCE(desc->txd3, data | addr64);
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA))
+		data |= TX_DMA_PREP_ADDR64(info->addr);
+
+	WRITE_ONCE(desc->txd3, data);
 
 	data = ((mac->id == MTK_GMAC3_ID) ?
 		PSE_GDM3_PORT : (mac->id + 1)) << TX_DMA_FPORT_SHIFT_V2; /* forward port */
@@ -2444,8 +2443,8 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			goto release_desc;
 		}
 
-		addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
-			  ((u64)(trxd.rxd2 & 0xf)) << 32 : 0;
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA))
+			addr64 = RX_DMA_GET_ADDR64(trxd.rxd2);
 
 		dma_unmap_single(eth->dma_dev,
 				 ((u64)(trxd.rxd1) | addr64),
@@ -2532,11 +2531,11 @@ skip_rx:
 		rxd->rxd1 = (unsigned int)dma_addr;
 
 release_desc:
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) {
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA)) {
 			if (unlikely(dma_addr == DMA_MAPPING_ERROR))
-				addr64 = RX_DMA_GET_SDP1(rxd->rxd2);
+				addr64 = RX_DMA_GET_ADDR64(rxd->rxd2);
 			else
-				addr64 = RX_DMA_SDP1(dma_addr);
+				addr64 = RX_DMA_PREP_ADDR64(dma_addr);
 		}
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
@@ -2952,7 +2951,6 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 	struct mtk_rx_ring *ring;
 	int rx_data_len, rx_dma_size;
 	int i;
-	u64 addr64 = 0;
 
 	if (rx_flag == MTK_RX_FLAGS_QDMA) {
 		if (ring_no)
@@ -3024,13 +3022,13 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 		rxd = ring->dma + i * eth->soc->txrx.rxd_size;
 		rxd->rxd1 = (unsigned int)dma_addr;
 
-		addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
-			  RX_DMA_SDP1(dma_addr) : 0;
-
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
 			rxd->rxd2 = RX_DMA_LSO;
 		else
-			rxd->rxd2 = RX_DMA_PLEN0(ring->buf_size) | addr64;
+			rxd->rxd2 = RX_DMA_PLEN0(ring->buf_size);
+
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA))
+			rxd->rxd2 |= RX_DMA_PREP_ADDR64(dma_addr);
 
 		rxd->rxd3 = 0;
 		rxd->rxd4 = 0;
@@ -3093,9 +3091,8 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring, int in_s
 			if (!rxd->rxd1)
 				continue;
 
-			addr64 = (MTK_HAS_CAPS(eth->soc->caps,
-					       MTK_8GB_ADDRESSING)) ?
-				  ((u64)(rxd->rxd2 & 0xf)) << 32 : 0;
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA))
+				addr64 = RX_DMA_GET_ADDR64(rxd->rxd2);
 
 			dma_unmap_single(eth->dma_dev,
 					 ((u64)(rxd->rxd1) | addr64),
@@ -5619,7 +5616,7 @@ static int mtk_probe(struct platform_device *pdev)
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
 		eth->ip_align = NET_IP_ALIGN;
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) {
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA)) {
 		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
 		if (!err) {
 			err = dma_set_coherent_mask(&pdev->dev,

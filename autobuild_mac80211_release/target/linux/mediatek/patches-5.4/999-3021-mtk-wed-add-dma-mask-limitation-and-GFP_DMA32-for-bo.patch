@@ -45,7 +45,7 @@ index 5eeb3ed..094bc94 100644
  				desc->info = 0;
  			} else {
 -				desc->ctrl = cpu_to_le32(token << 16);
-+				ctrl = token << 16 | TX_DMA_SDP1(buf_phys);
++				ctrl = token << 16 | TX_DMA_PREP_ADDR64(buf_phys);
  			}
 +			desc->ctrl = cpu_to_le32(ctrl);
  
@@ -64,7 +64,7 @@ index 5eeb3ed..094bc94 100644
  		buf_phys = page_phys;
  		for (s = 0; s < MTK_WED_RX_PAGE_BUF_PER_PAGE; s++) {
  			desc->buf0 = cpu_to_le32(buf_phys);
-+			desc->token = cpu_to_le32(RX_DMA_SDP1(buf_phys));
++			desc->token = cpu_to_le32(RX_DMA_PREP_ADDR64(buf_phys));
  			desc++;
  			buf += MTK_WED_PAGE_BUF_SIZE;
  			buf_phys += MTK_WED_PAGE_BUF_SIZE;

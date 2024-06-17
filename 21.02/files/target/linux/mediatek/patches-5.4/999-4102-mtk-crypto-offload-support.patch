@@ -6,8 +6,8 @@
  	u8 tport = 0;
 +	u8 cdrt = 0;
  
- 	addr64 = (MTK_HAS_CAPS(eth->soc->caps, MTK_8GB_ADDRESSING)) ?
- 		  TX_DMA_SDP1(info->addr) : 0;
+ 	WRITE_ONCE(desc->txd1, info->addr);
+ 
 @@ -2019,11 +2020,25 @@ static void mtk_tx_set_dma_desc_v3(struc
  	trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
  		     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
