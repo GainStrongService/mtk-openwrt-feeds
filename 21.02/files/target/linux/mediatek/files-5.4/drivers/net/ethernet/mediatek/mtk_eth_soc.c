@@ -6152,7 +6152,6 @@ static const struct mtk_soc_data rt5350_data = {
 		.rxd_size = sizeof(struct mtk_rx_dma),
 		.tx_dma_size = MTK_DMA_SIZE(2K),
 		.rx_dma_size = MTK_DMA_SIZE(2K),
-		.fq_dma_size = MTK_DMA_SIZE(2K),
 		.rx_dma_l4_valid = RX_DMA_L4_VALID_PDMA,
 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
