@@ -1,5 +1,5 @@
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
-index 3537e3a..9e20e4e 100644
+index 3537e3ae..9e20e4e1 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 @@ -412,6 +412,12 @@ hostapd_common_add_bss_config() {
@@ -132,7 +132,7 @@ index 3537e3a..9e20e4e 100644
  	return 0
  }
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
-index 2508d9c..c21aa9d 100755
+index 2508d9cf..0a58083a 100755
 --- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 @@ -29,7 +29,7 @@ drv_mac80211_init_device_config() {
@@ -250,7 +250,7 @@ index 2508d9c..c21aa9d 100755
  ${dtim_period:+dtim_period=$dtim_period}
  ${max_listen_int:+max_listen_interval=$max_listen_int}
  EOF
-@@ -783,10 +804,64 @@ mac80211_set_ifname() {
+@@ -783,10 +804,72 @@ mac80211_set_ifname() {
  	eval "ifname=\"$phy-$prefix\${idx_$prefix:-0}\"; idx_$prefix=\$((\${idx_$prefix:-0 } + 1))"
  }
  
@@ -267,8 +267,9 @@ index 2508d9c..c21aa9d 100755
 +		local mld_id="$(uci show wireless.$iface | grep "mld_id" | cut -d '=' -f2 | tr -d "'")"
 +		local radio_id="$(uci show wireless.$iface | grep "device" | cut -d '=' -f2 | tr -d "radio'")"
 +		local iface_disabled="$(uci show wireless.$iface | grep "disabled" | cut -d '=' -f2 | tr -d "'")"
++		local ht_mode="$(uci show wireless.radio$radio_id.htmode | cut -d '=' -f2 | tr -d "'")"
 +
-+		if [ "$iface_disabled" != "1" ] && [ $mld_id = $target_mld_id ]; then
++		if [ "$iface_disabled" != "1" ] && [ $mld_id = $target_mld_id ] && [[ "$ht_mode" == "EHT"* ]]; then
 +			mld_allowed_links=$(($mld_allowed_links * 2 + 1))
 +			[ $radio_id -lt $phy_idx ] && is_primary=0
 +		fi
@@ -302,6 +303,13 @@ index 2508d9c..c21aa9d 100755
  mac80211_prepare_vif() {
  	json_select config
 +	json_get_vars mld_id
++
++	if [ -n "$mld_id" ] && [[ "$htmode" != "EHT"* ]]; then
++		json_select config
++		json_select ..
++		return
++	fi
++
 +	if [ -n "$mld_id" ]; then
 +		fill_mld_params $mld_id $phy || return
 +
@@ -316,7 +324,7 @@ index 2508d9c..c21aa9d 100755
  
  	[ -n "$ifname" ] || {
  		local prefix;
-@@ -805,7 +880,6 @@ mac80211_prepare_vif() {
+@@ -805,7 +888,6 @@ mac80211_prepare_vif() {
  	set_default powersave 0
  	json_add_string _ifname "$ifname"
  
@@ -324,7 +332,7 @@ index 2508d9c..c21aa9d 100755
  	if [ "$mbssid" -gt 0 ] && [ "$mode" == "ap" ]; then
  		[ "$mbssidx" -eq 0 ] && {
  			if [ -z $macaddr ]; then
-@@ -821,16 +895,14 @@ mac80211_prepare_vif() {
+@@ -821,16 +903,14 @@ mac80211_prepare_vif() {
  	elif [ -z "$macaddr" ]; then
  		macaddr="$(mac80211_generate_mac $phy)"
  		macidx="$(($macidx + 1))"
@@ -342,7 +350,7 @@ index 2508d9c..c21aa9d 100755
  		[ -z "$wpa_psk_file" ] && hostapd_set_psk "$ifname"
  		[ -z "$vlan_file" ] && hostapd_set_vlan "$ifname"
  	}
-@@ -950,7 +1022,7 @@ mac80211_setup_adhoc() {
+@@ -950,7 +1030,7 @@ mac80211_setup_adhoc() {
  
  	json_add_object "$ifname"
  	json_add_string mode adhoc
@@ -351,7 +359,7 @@ index 2508d9c..c21aa9d 100755
  	json_add_string ssid "$ssid"
  	json_add_string freq "$freq"
  	json_add_string htmode "$iw_htmode"
-@@ -976,7 +1048,7 @@ mac80211_setup_mesh() {
+@@ -976,7 +1056,7 @@ mac80211_setup_mesh() {
  
  	json_add_object "$ifname"
  	json_add_string mode mesh
@@ -360,7 +368,7 @@ index 2508d9c..c21aa9d 100755
  	json_add_string ssid "$ssid"
  	json_add_string freq "$freq"
  	json_add_string htmode "$iw_htmode"
-@@ -1036,7 +1108,7 @@ wpa_supplicant_add_interface() {
+@@ -1036,7 +1116,7 @@ wpa_supplicant_add_interface() {
  	json_add_string iface "$ifname"
  	json_add_string mode "$mode"
  	json_add_string config "$_config"
@@ -369,7 +377,7 @@ index 2508d9c..c21aa9d 100755
  	[ -n "$network_bridge" ] && json_add_string bridge "$network_bridge"
  	[ -n "$wds" ] && json_add_boolean 4addr "$wds"
  	json_add_boolean powersave "$powersave"
-@@ -1132,7 +1204,6 @@ mac80211_setup_vif() {
+@@ -1132,7 +1212,6 @@ mac80211_setup_vif() {
  	json_select config
  	json_get_var ifname _ifname
  	json_get_var macaddr _macaddr
@@ -377,7 +385,7 @@ index 2508d9c..c21aa9d 100755
  	json_get_vars mode wds powersave
  
  	set_default powersave 0
-@@ -1293,6 +1364,12 @@ drv_mac80211_setup() {
+@@ -1293,6 +1372,12 @@ drv_mac80211_setup() {
  	staidx=0
  	mbssidx=0
  
@@ -390,7 +398,7 @@ index 2508d9c..c21aa9d 100755
  	[ -n "$chanbw" ] && {
  		for file in /sys/kernel/debug/ieee80211/$phy/ath9k*/chanbw /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode; do
  			[ -f "$file" ] && echo "$chanbw" > "$file"
-@@ -1371,6 +1448,8 @@ drv_mac80211_setup() {
+@@ -1371,6 +1456,8 @@ drv_mac80211_setup() {
  
  	for_each_interface "ap sta adhoc mesh monitor" mac80211_set_vif_txpower
  	wireless_set_up
@@ -400,7 +408,7 @@ index 2508d9c..c21aa9d 100755
  
  _list_phy_interfaces() {
 diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
-index 3c78e1a..d8a1756 100644
+index 3c78e1a1..d8a17563 100644
 --- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.sh
 @@ -133,6 +133,11 @@ get_band_defaults() {
