@@ -1232,7 +1232,7 @@ enum FoeIpAct {
 #endif
 
 #define UDF_PINGPONG_IFIDX GENMASK(6, 0)
-#define UDF_HNAT_PRE_FILLED BIT(7)
+#define UDF_HNAT_ENTRY_LOCKED BIT(7)
 
 #define HQOS_FLAG(dev, skb, qid)			\
 	((IS_HQOS_UL_MODE && IS_WAN(dev)) ||		\
@@ -1249,7 +1249,7 @@ enum FoeIpAct {
 extern const struct of_device_id of_hnat_match[];
 extern struct mtk_hnat *hnat_priv;
 
-static inline int is_hnat_pre_filled(struct foe_entry *entry)
+static inline int is_hnat_entry_locked(struct foe_entry *entry)
 {
 	u32 udf = 0;
 
@@ -1258,7 +1258,30 @@ static inline int is_hnat_pre_filled(struct foe_entry *entry)
 	else
 		udf = entry->ipv6_5t_route.act_dp;
 
-	return !!(udf & UDF_HNAT_PRE_FILLED);
+	return !!(udf & UDF_HNAT_ENTRY_LOCKED);
+}
+
+static inline void hnat_set_entry_lock(struct foe_entry *entry, bool locked)
+{
+	if (IS_IPV4_GRP(entry)) {
+		if (locked)
+			entry->ipv4_hnapt.act_dp |= UDF_HNAT_ENTRY_LOCKED;
+		else
+			entry->ipv4_hnapt.act_dp &= ~UDF_HNAT_ENTRY_LOCKED;
+	} else {
+		if (locked)
+			entry->ipv6_5t_route.act_dp |= UDF_HNAT_ENTRY_LOCKED;
+		else
+			entry->ipv6_5t_route.act_dp &= ~UDF_HNAT_ENTRY_LOCKED;
+	}
+	/* Ensure the lock has been written to the entry before return */
+	wmb();
+}
+
+static inline void hnat_check_release_entry_lock(struct foe_entry *entry)
+{
+	if (is_hnat_entry_locked(entry))
+		hnat_set_entry_lock(entry, false);
 }
 
 #if defined(CONFIG_NET_DSA_MT7530)
