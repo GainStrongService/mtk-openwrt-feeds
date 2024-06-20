@@ -26,40 +26,6 @@ define Device/mt7981-spim-nand-2500wan-gmac2
 endef
 TARGET_DEVICES += mt7981-spim-nand-2500wan-gmac2
 
-define Device/mt7981-spim-nand-2500wan-an8855
-  DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7981-spim-nand-2500wan-an8855
-  DEVICE_DTS := mt7981-spim-nand-2500wan-an8855
-  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7981-spim-snand-2500wan-an8855-rfb
-  UBINIZE_OPTS := -E 5
-  BLOCKSIZE := 128k
-  PAGESIZE := 2048
-  IMAGE_SIZE := 65536k
-  KERNEL_IN_UBI := 1
-  IMAGES += factory.bin
-  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
-  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
-endef
-TARGET_DEVICES += mt7981-spim-nand-2500wan-an8855
-
-define Device/mt7981-spim-nand-2500wan-an8855-gsw
-  DEVICE_VENDOR := MediaTek
-  DEVICE_MODEL := mt7981-spim-nand-2500wan-an8855-gsw
-  DEVICE_DTS := mt7981-spim-nand-2500wan-an8855-gsw
-  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
-  SUPPORTED_DEVICES := mediatek,mt7981-spim-snand-2500wan-an8855-gsw-rfb
-  UBINIZE_OPTS := -E 5
-  BLOCKSIZE := 128k
-  PAGESIZE := 2048
-  IMAGE_SIZE := 65536k
-  KERNEL_IN_UBI := 1
-  IMAGES += factory.bin
-  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
-  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
-endef
-TARGET_DEVICES += mt7981-spim-nand-2500wan-an8855-gsw
-
 define Device/mt7981-spim-nand-rfb
   DEVICE_VENDOR := MediaTek
   DEVICE_MODEL := mt7981-spim-nand-rfb
