@@ -5827,11 +5827,9 @@ static int mtk_probe(struct platform_device *pdev)
 			}
 
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO)) {
-				i = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ||
-				     MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) ? 0 : 1;
-				for (; i < MTK_HW_LRO_RING_NUM; i++) {
+				for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
 					err = devm_request_irq(eth->dev,
-							       eth->irq_pdma[i],
+							       eth->irq_pdma[MTK_HW_LRO_IRQ(i)],
 							       mtk_handle_irq_txrx, IRQF_SHARED,
 							       dev_name(eth->dev),
 							       &eth->rx_napi[MTK_HW_LRO_RING(i)]);
