@@ -1474,7 +1474,7 @@ static int mtk_rss_set_indr_tbl(struct mtk_eth *eth, int num)
 
 	for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE / 16; i++)
 		mtk_w32(eth, mtk_rss_indr_table(rss_params, i),
-			MTK_RSS_INDR_TABLE_DW(i));
+			eth->soc->reg_map->pdma.rss_indr_table_dw0 + (i * 0x4));
 
 	return 0;
 }
@@ -1836,49 +1836,67 @@ static const struct file_operations hw_lro_stats_fops = {
 
 int hwlro_agg_cnt_ctrl(int cnt)
 {
+	struct mtk_eth *eth = g_eth;
 	int i;
 
-	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++)
-		SET_PDMA_RXRING_MAX_AGG_CNT(g_eth, i, cnt);
+	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
+		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+
+		SET_PDMA_RXRING_MAX_AGG_CNT(eth, idx, cnt);
+	}
 
 	return 0;
 }
 
 int hwlro_agg_time_ctrl(int time)
 {
+	struct mtk_eth *eth = g_eth;
 	int i;
 
-	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++)
-		SET_PDMA_RXRING_AGG_TIME(g_eth, i, time);
+	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
+		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+
+		SET_PDMA_RXRING_AGG_TIME(eth, idx, time);
+	}
 
 	return 0;
 }
 
 int hwlro_age_time_ctrl(int time)
 {
+	struct mtk_eth *eth = g_eth;
 	int i;
 
-	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++)
-		SET_PDMA_RXRING_AGE_TIME(g_eth, i, time);
+	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
+		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+
+		SET_PDMA_RXRING_AGE_TIME(eth, idx, time);
+	}
 
 	return 0;
 }
 
 int hwlro_threshold_ctrl(int bandwidth)
 {
-	SET_PDMA_LRO_BW_THRESHOLD(g_eth, bandwidth);
+	struct mtk_eth *eth = g_eth;
+
+	SET_PDMA_LRO_BW_THRESHOLD(eth, bandwidth);
 
 	return 0;
 }
 
 int hwlro_ring_enable_ctrl(int enable)
 {
+	struct mtk_eth *eth = g_eth;
 	int i;
 
 	pr_info("[%s] %s HW LRO rings\n", __func__, (enable) ? "Enable" : "Disable");
 
-	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++)
-		SET_PDMA_RXRING_VALID(g_eth, i, enable);
+	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
+		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+
+		SET_PDMA_RXRING_VALID(eth, idx, enable);
+	}
 
 	return 0;
 }
@@ -1940,29 +1958,30 @@ ssize_t hw_lro_auto_tlb_write(struct file *file, const char __user *buffer,
 
 void hw_lro_auto_tlb_dump_v1(struct seq_file *seq, u32 index)
 {
-	int i;
+	struct mtk_eth *eth = g_eth;
 	struct mtk_lro_alt_v1 alt;
 	__be32 addr;
 	u32 tlb_info[9];
 	u32 dw_len, cnt, priority;
 	u32 entry;
+	int i;
 
 	if (index > 4)
 		index = index - 1;
 	entry = (index * 9) + 1;
 
 	/* read valid entries of the auto-learn table */
-	mtk_w32(g_eth, entry, MTK_FE_ALT_CF8);
+	mtk_w32(eth, entry, MTK_FE_ALT_CF8);
 
 	for (i = 0; i < 9; i++)
-		tlb_info[i] = mtk_r32(g_eth, MTK_FE_ALT_SEQ_CFC);
+		tlb_info[i] = mtk_r32(eth, MTK_FE_ALT_SEQ_CFC);
 
 	memcpy(&alt, tlb_info, sizeof(struct mtk_lro_alt_v1));
 
 	dw_len = alt.alt_info7.dw_len;
 	cnt = alt.alt_info6.cnt;
 
-	if (mtk_r32(g_eth, MTK_PDMA_LRO_CTRL_DW0) & MTK_LRO_ALT_PKT_CNT_MODE)
+	if (mtk_r32(eth, eth->soc->reg_map->pdma.lro_ctrl_dw0) & MTK_LRO_ALT_PKT_CNT_MODE)
 		priority = cnt;		/* packet count */
 	else
 		priority = dw_len;	/* byte count */
@@ -1998,21 +2017,22 @@ void hw_lro_auto_tlb_dump_v1(struct seq_file *seq, u32 index)
 
 void hw_lro_auto_tlb_dump_v2(struct seq_file *seq, u32 index)
 {
-	int i;
+	struct mtk_eth *eth = g_eth;
 	struct mtk_lro_alt_v2 alt;
 	u32 score = 0, ipv4 = 0;
 	u32 ipv6[4] = { 0 };
 	u32 tlb_info[12];
+	int i;
 
 	/* read valid entries of the auto-learn table */
-	mtk_w32(g_eth, index << MTK_LRO_ALT_INDEX_OFFSET, MTK_LRO_ALT_DBG);
+	mtk_w32(eth, index << MTK_LRO_ALT_INDEX_OFFSET, eth->soc->reg_map->pdma.lro_alt_dbg);
 
 	for (i = 0; i < 11; i++)
-		tlb_info[i] = mtk_r32(g_eth, MTK_LRO_ALT_DBG_DATA);
+		tlb_info[i] = mtk_r32(eth, eth->soc->reg_map->pdma.lro_alt_dbg_data);
 
 	memcpy(&alt, tlb_info, sizeof(struct mtk_lro_alt_v2));
 
-	if (mtk_r32(g_eth, MTK_PDMA_LRO_CTRL_DW0) & MTK_LRO_ALT_PKT_CNT_MODE)
+	if (mtk_r32(eth, eth->soc->reg_map->pdma.lro_ctrl_dw0) & MTK_LRO_ALT_PKT_CNT_MODE)
 		score = 1;	/* packet count */
 	else
 		score = 0;	/* byte count */
@@ -2068,6 +2088,8 @@ void hw_lro_auto_tlb_dump_v2(struct seq_file *seq, u32 index)
 
 int hw_lro_auto_tlb_read(struct seq_file *seq, void *v)
 {
+	struct mtk_eth *eth = g_eth;
+	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
 	int i;
 	u32 reg_val;
 	u32 reg_op1, reg_op2, reg_op3, reg_op4;
@@ -2083,13 +2105,13 @@ int hw_lro_auto_tlb_read(struct seq_file *seq, void *v)
 	seq_puts(seq, "[4] = hwlro_ring_enable_ctrl\n");
 	seq_puts(seq, "[5] = hwlro_stats_enable_ctrl\n\n");
 
-	if (MTK_HAS_CAPS(g_eth->soc->caps, MTK_NETSYS_RX_V2)) {
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
 		for (i = 1; i <= 8; i++)
 			hw_lro_auto_tlb_dump_v2(seq, i);
 	} else {
 		/* Read valid entries of the auto-learn table */
-		mtk_w32(g_eth, 0, MTK_FE_ALT_CF8);
-		reg_val = mtk_r32(g_eth, MTK_FE_ALT_SEQ_CFC);
+		mtk_w32(eth, 0, MTK_FE_ALT_CF8);
+		reg_val = mtk_r32(eth, MTK_FE_ALT_SEQ_CFC);
 
 		seq_printf(seq,
 			   "HW LRO Auto-learn Table: (MTK_FE_ALT_SEQ_CFC=0x%x)\n",
@@ -2104,11 +2126,13 @@ int hw_lro_auto_tlb_read(struct seq_file *seq, void *v)
 	/* Read the agg_time/age_time/agg_cnt of LRO rings */
 	seq_puts(seq, "\nHW LRO Ring Settings\n");
 
-	for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++) {
-		reg_op1 = mtk_r32(g_eth, MTK_LRO_CTRL_DW1_CFG(i));
-		reg_op2 = mtk_r32(g_eth, MTK_LRO_CTRL_DW2_CFG(i));
-		reg_op3 = mtk_r32(g_eth, MTK_LRO_CTRL_DW3_CFG(i));
-		reg_op4 = mtk_r32(g_eth, MTK_PDMA_LRO_CTRL_DW2);
+	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
+		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+
+		reg_op1 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0x4 + (idx * 0x40));
+		reg_op2 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+		reg_op3 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0xc + (idx * 0x40));
+		reg_op4 = mtk_r32(eth, reg_map->pdma.lro_ctrl_dw0 + 0x8);
 
 		agg_cnt =
 		    ((reg_op3 & 0x3) << 6) |
@@ -2119,9 +2143,7 @@ int hw_lro_auto_tlb_read(struct seq_file *seq, void *v)
 		    ((reg_op1 >> MTK_LRO_RING_AGE_TIME_L_OFFSET) & 0x3ff);
 		seq_printf(seq,
 			   "Ring[%d]: MAX_AGG_CNT=%d, AGG_TIME=%d, AGE_TIME=%d, Threshold=%d\n",
-			   !(MTK_HAS_CAPS(g_eth->soc->caps, MTK_NETSYS_RX_V2)) ?
-			   i : i+3,
-			   agg_cnt, agg_time, age_time, reg_op4);
+			   MTK_HW_LRO_RING(i), agg_cnt, agg_time, age_time, reg_op4);
 	}
 
 	seq_puts(seq, "\n");

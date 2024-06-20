@@ -161,51 +161,68 @@
 
 #define SET_PDMA_RXRING_MAX_AGG_CNT(eth, x, y)				\
 {									\
-	u32 reg_val1 = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
-	u32 reg_val2 = mtk_r32(eth, MTK_LRO_CTRL_DW3_CFG(x));		\
+	const struct mtk_reg_map *reg_map = eth->soc->reg_map;		\
+	u32 reg_val1 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 +	\
+				    0x8 + (x * 0x40));			\
+	u32 reg_val2 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 +	\
+				    0xc + (x * 0x40));			\
 	reg_val1 &= ~MTK_LRO_RING_AGG_CNT_L_MASK;			\
 	reg_val2 &= ~MTK_LRO_RING_AGG_CNT_H_MASK;			\
 	reg_val1 |= ((y) & 0x3f) << MTK_LRO_RING_AGG_CNT_L_OFFSET;	\
 	reg_val2 |= (((y) >> 6) & 0x03) <<				\
 		     MTK_LRO_RING_AGG_CNT_H_OFFSET;			\
-	mtk_w32(eth, reg_val1, MTK_LRO_CTRL_DW2_CFG(x));		\
-	mtk_w32(eth, reg_val2, MTK_LRO_CTRL_DW3_CFG(x));		\
+	mtk_w32(eth, reg_val1, reg_map->pdma.lro_rx_ctrl_dw0 +		\
+			       0x8 + (x * 0x40));			\
+	mtk_w32(eth, reg_val2, reg_map->pdma.lro_rx_ctrl_dw0 +		\
+			       0xc + (x * 0x40));			\
 }
 
 #define SET_PDMA_RXRING_AGG_TIME(eth, x, y)				\
 {									\
-	u32 reg_val = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
+	const struct mtk_reg_map *reg_map = eth->soc->reg_map;		\
+	u32 reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 +	\
+				   0x8 + (x * 0x40));			\
 	reg_val &= ~MTK_LRO_RING_AGG_TIME_MASK;				\
 	reg_val |= ((y) & 0xffff) << MTK_LRO_RING_AGG_TIME_OFFSET;	\
-	mtk_w32(eth, reg_val, MTK_LRO_CTRL_DW2_CFG(x));			\
+	mtk_w32(eth, reg_val, reg_map->pdma.lro_rx_ctrl_dw0 +		\
+			      0x8 + (x * 0x40));		\
 }
 
 #define SET_PDMA_RXRING_AGE_TIME(eth, x, y)				\
 {									\
-	u32 reg_val1 = mtk_r32(eth, MTK_LRO_CTRL_DW1_CFG(x));		\
-	u32 reg_val2 = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
+	const struct mtk_reg_map *reg_map = eth->soc->reg_map;		\
+	u32 reg_val1 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 +	\
+				    0x4 + (x * 0x40));			\
+	u32 reg_val2 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 +	\
+				    0x8 + (x * 0x40));			\
 	reg_val1 &= ~MTK_LRO_RING_AGE_TIME_L_MASK;			\
 	reg_val2 &= ~MTK_LRO_RING_AGE_TIME_H_MASK;			\
 	reg_val1 |= ((y) & 0x3ff) << MTK_LRO_RING_AGE_TIME_L_OFFSET;	\
 	reg_val2 |= (((y) >> 10) & 0x03f) <<				\
 		     MTK_LRO_RING_AGE_TIME_H_OFFSET;			\
-	mtk_w32(eth, reg_val1, MTK_LRO_CTRL_DW1_CFG(x));		\
-	mtk_w32(eth, reg_val2, MTK_LRO_CTRL_DW2_CFG(x));		\
+	mtk_w32(eth, reg_val1, reg_map->pdma.lro_rx_ctrl_dw0 +		\
+			       0x4 + (x * 0x40));			\
+	mtk_w32(eth, reg_val2, reg_map->pdma.lro_rx_ctrl_dw0 +		\
+			       0x8 + (x * 0x40));			\
 }
 
 #define SET_PDMA_LRO_BW_THRESHOLD(eth, x)				\
 {									\
-	u32 reg_val = mtk_r32(eth, MTK_PDMA_LRO_CTRL_DW2);		\
+	const struct mtk_reg_map *reg_map = eth->soc->reg_map;		\
+	u32 reg_val = mtk_r32(eth, reg_map->pdma.lro_ctrl_dw0 + 0x8);	\
 	reg_val = (x);							\
-	mtk_w32(eth, reg_val, MTK_PDMA_LRO_CTRL_DW2);			\
+	mtk_w32(eth, reg_val, reg_map->pdma.lro_ctrl_dw0 + 0x8);	\
 }
 
 #define SET_PDMA_RXRING_VALID(eth, x, y)				\
 {									\
-	u32 reg_val = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
+	const struct mtk_reg_map *reg_map = eth->soc->reg_map;		\
+	u32 reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 +	\
+				   0x8 + (x * 0x40));			\
 	reg_val &= ~(0x1 << MTK_RX_PORT_VALID_OFFSET);			\
 	reg_val |= ((y) & 0x1) << MTK_RX_PORT_VALID_OFFSET;		\
-	mtk_w32(eth, reg_val, MTK_LRO_CTRL_DW2_CFG(x));			\
+	mtk_w32(eth, reg_val, reg_map->pdma.lro_rx_ctrl_dw0 +		\
+			      0x8 + (x * 0x40));			\
 }
 
 struct mtk_pse_fs_lgc_info_v2 {

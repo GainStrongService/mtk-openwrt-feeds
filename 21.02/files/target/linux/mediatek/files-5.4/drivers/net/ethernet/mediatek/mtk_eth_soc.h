@@ -227,17 +227,13 @@
 
 /* PDMA HW LRO Control Registers */
 #define BITS(m, n)			(~(BIT(m) - 1) & ((BIT(n) - 1) | BIT(n)))
+#define MTK_HW_LRO_DIP_NUM		(4)
 #if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_MAX_RX_RING_NUM		(8)
 #define MTK_HW_LRO_RING_NUM		(4)
 #define MTK_HW_LRO_RING(x)		((x) + 4)
 #define MTK_HW_LRO_IRQ(x)		(x)
 #define IS_HW_LRO_RING(ring_no)		(((ring_no) > 3) && ((ring_no) < 8))
-#define MTK_PDMA_LRO_CTRL_DW0		(PDMA_BASE + 0x408)
-#define MTK_LRO_ALT_SCORE_DELTA		(PDMA_BASE + 0x41c)
-#define MTK_LRO_RX_RING0_CTRL_DW1	(PDMA_BASE + 0x438)
-#define MTK_LRO_RX_RING0_CTRL_DW2	(PDMA_BASE + 0x43c)
-#define MTK_LRO_RX_RING0_CTRL_DW3	(PDMA_BASE + 0x440)
 #define MTK_L3_CKS_UPD_EN		BIT(19)
 #define MTK_LRO_CRSN_BNW		BIT(22)
 #define MTK_LRO_RING_RELINGUISH_REQ	(0xf << 24)
@@ -248,11 +244,6 @@
 #define MTK_HW_LRO_RING(x)		((x) + 1)
 #define MTK_HW_LRO_IRQ(x)		((x) + 1)
 #define IS_HW_LRO_RING(ring_no)		(((ring_no) > 0) && ((ring_no) < 4))
-#define MTK_PDMA_LRO_CTRL_DW0		(PDMA_BASE + 0x180)
-#define MTK_LRO_ALT_SCORE_DELTA		(PDMA_BASE + 0x24c)
-#define MTK_LRO_RX_RING0_CTRL_DW1	(PDMA_BASE + 0x328)
-#define MTK_LRO_RX_RING0_CTRL_DW2	(PDMA_BASE + 0x32c)
-#define MTK_LRO_RX_RING0_CTRL_DW3	(PDMA_BASE + 0x330)
 #define MTK_LRO_CRSN_BNW		BIT(6)
 #define MTK_L3_CKS_UPD_EN		BIT(7)
 #define MTK_LRO_RING_RELINGUISH_REQ	(0x7 << 26)
@@ -268,18 +259,10 @@
 #define MTK_CTRL_DW0_SDL_OFFSET		(3)
 #define MTK_CTRL_DW0_SDL_MASK		BITS(3, 18)
 
-#define MTK_PDMA_LRO_CTRL_DW1	(MTK_PDMA_LRO_CTRL_DW0 + 0x04)
-#define MTK_PDMA_LRO_CTRL_DW2	(MTK_PDMA_LRO_CTRL_DW0 + 0x08)
-#define MTK_PDMA_LRO_CTRL_DW3	(MTK_PDMA_LRO_CTRL_DW0 + 0x0c)
-#define MTK_ADMA_MODE		BIT(15)
-#define MTK_LRO_MIN_RXD_SDL	(MTK_HW_LRO_SDL_REMAIN_ROOM << 16)
+#define MTK_ADMA_MODE			BIT(15)
+#define MTK_LRO_MIN_RXD_SDL		(MTK_HW_LRO_SDL_REMAIN_ROOM << 16)
 
 /* PDMA RSS Control Registers */
-#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
-#define MTK_PDMA_RSS_GLO_CFG		(PDMA_BASE + 0x800)
-#else
-#define MTK_PDMA_RSS_GLO_CFG		0x2800
-#endif
 #define MTK_RX_NAPI_NUM			(8)
 #define MTK_RX_RSS_NUM			(3)
 #define MTK_RSS_RING(x)			((x) + 1)
@@ -287,10 +270,6 @@
 #define MTK_RSS_CFG_REQ			BIT(2)
 #define MTK_RSS_IPV6_STATIC_HASH	(0x7 << 8)
 #define MTK_RSS_IPV4_STATIC_HASH	(0x7 << 12)
-#define MTK_RSS_HASH_KEY_DW(x)		(MTK_PDMA_RSS_GLO_CFG + 0x20 +	\
-					 ((x) * 0x4))
-#define MTK_RSS_INDR_TABLE_DW(x)	(MTK_PDMA_RSS_GLO_CFG + 0x50 +	\
-					 ((x) * 0x4))
 
 /* PDMA Global Configuration Register */
 #define MTK_PDMA_GLO_CFG	(PDMA_BASE + 0x204)
@@ -307,7 +286,6 @@
 #define MTK_CHK_DDONE		BIT(10)
 
 /* PDMA RX DMA Configuration Register */
-#define MTK_PDMA_RX_CFG		(PDMA_BASE + 0x210)
 #define MTK_PDMA_LRO_SDL	(0x3000)
 #define MTK_RX_CFG_SDL_OFFSET	(16)
 
@@ -353,32 +331,16 @@
 #else
 #define MTK_PDMA_INT_GRP3	(PDMA_BASE + 0x22c)
 #endif
-#define MTK_LRO_RX1_DLY_INT	(PDMA_BASE + 0x270)
-#define MTK_LRO_RX2_DLY_INT	(PDMA_BASE + 0x274)
-#define MTK_LRO_RX3_DLY_INT	(PDMA_BASE + 0x278)
 #define MTK_MAX_DELAY_INT	0x8f0f
 #define MTK_MAX_DELAY_INT_V2	0x8f0f8f0f
 
 /* PDMA HW LRO IP Setting Registers */
-#if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
-#define MTK_LRO_RX_RING0_DIP_DW0	(PDMA_BASE + 0x414)
-#else
-#define MTK_LRO_RX_RING0_DIP_DW0	(PDMA_BASE + 0x304)
-#endif
-#define MTK_LRO_DIP_DW0_CFG(x)		(MTK_LRO_RX_RING0_DIP_DW0 + (x * 0x40))
 #define MTK_RING_MYIP_VLD		BIT(9)
 
 /* PDMA HW LRO ALT Debug Registers */
-#define MTK_LRO_ALT_DBG			(PDMA_BASE + 0x440)
 #define MTK_LRO_ALT_INDEX_OFFSET	(8)
 
-/* PDMA HW LRO ALT Data Registers */
-#define MTK_LRO_ALT_DBG_DATA		(PDMA_BASE + 0x444)
-
 /* PDMA HW LRO Ring Control Registers */
-#define MTK_LRO_CTRL_DW1_CFG(x)		(MTK_LRO_RX_RING0_CTRL_DW1 + (x * 0x40))
-#define MTK_LRO_CTRL_DW2_CFG(x)		(MTK_LRO_RX_RING0_CTRL_DW2 + (x * 0x40))
-#define MTK_LRO_CTRL_DW3_CFG(x)		(MTK_LRO_RX_RING0_CTRL_DW3 + (x * 0x40))
 #define MTK_RING_AGE_TIME_L		((MTK_HW_LRO_AGE_TIME & 0x3ff) << 22)
 #define MTK_RING_AGE_TIME_H		((MTK_HW_LRO_AGE_TIME >> 10) & 0x3f)
 #define MTK_RING_PSE_MODE        	(1 << 6)
@@ -1698,10 +1660,21 @@ struct mtk_reg_map {
 		u32	glo_cfg;	/* global configuration */
 		u32	rst_idx;	/* reset index */
 		u32	delay_irq;	/* delay interrupt */
+		u32	rx_cfg;		/* rx dma configuration */
 		u32	irq_status;	/* interrupt status */
 		u32	irq_mask;	/* interrupt mask */
 		u32	int_grp;	/* interrupt group1 */
 		u32	int_grp2;	/* interrupt group2 */
+		u32	lro_ctrl_dw0;	/* lro control dword0 */
+		u32	lro_alt_score_delta;	/* lro auto-learn score delta */
+		u32	lro_rx_dly_int;	/* lro rx ring delay interrupt */
+		u32	lro_rx_dip_dw0;	/* lro rx ring dip dword0 */
+		u32	lro_rx_ctrl_dw0;	/* lro rx ring ctrl dword0 */
+		u32	lro_alt_dbg;	/* lro auto-learn debug */
+		u32	lro_alt_dbg_data;	/* lro auto-learn debug data */
+		u32	rss_glo_cfg;	/* rss global configuration */
+		u32	rss_hash_key_dw0;	/* rss hash key dword0 */
+		u32	rss_indr_table_dw0;	/* rss indirection table dword0 */
 	} pdma;
 	struct {
 		u32	qtx_cfg;	/* tx queue configuration */
