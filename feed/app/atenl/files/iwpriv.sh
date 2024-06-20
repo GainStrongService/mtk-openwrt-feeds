@@ -1256,6 +1256,22 @@ if [ "${cmd_type}" = "set" ]; then
             fi
             skip=1
             ;;
+    	"txbftxsndinfo"|"TxBfTxSndInfo")
+            cert_cmd="$*"
+            cmd_setting=$(echo $cert_cmd | awk -F'=' '{print $2}')
+            snd_cmd_base="/sys/kernel/debug/ieee80211/phy0/mt76/band0/bf_txsnd_info"
+            mt76_snd_cmd="echo $cmd_setting > $snd_cmd_base"
+            do_cmd "$mt76_snd_cmd"
+            skip=1
+            ;;
+    	"muruDbgInfo")
+            cert_cmd="$*"
+            cmd_setting=$(echo $cert_cmd | awk -F'=' '{print $2}')
+            muru_cmd_base="/sys/kernel/debug/ieee80211/phy0/mt76/muru_dbg"
+            mt76_muru_cmd="echo $cmd_setting > $muru_cmd_base"
+            do_cmd "$mt76_muru_cmd"
+            skip=1
+            ;;
         "ATE")
             do_ate_work ${param}
 
