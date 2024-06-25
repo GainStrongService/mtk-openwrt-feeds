@@ -1,0 +1,20 @@
+From: Weijie Gao <weijie.gao@mediatek.com>
+Subject: [PATCH] kernel: mtdsplit_fit: fix rootfs_data part offset
+
+Remove an extra erase block size to make sure keep settings work suring
+sysupgrade. Otherwise backup settings during next booting will be missing
+or corrupted.
+
+Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
+
+--- a/target/linux/generic/files/drivers/mtd/mtdsplit/mtdsplit_fit.c
++++ b/target/linux/generic/files/drivers/mtd/mtdsplit/mtdsplit_fit.c
+@@ -327,7 +327,7 @@ mtdsplit_fit_parse(struct mtd_info *mtd,
+ 			return -ENOMEM;
+ 
+ 		parts[0].name = ROOTFS_SPLIT_NAME;
+-		parts[0].offset = fit_offset + mtd_rounddown_to_eb(max_size, mtd) + mtd->erasesize;
++		parts[0].offset = fit_offset + mtd_rounddown_to_eb(max_size, mtd);
+ 		parts[0].size = mtd->size - parts[0].offset;
+ 
+ 		*pparts = parts;
