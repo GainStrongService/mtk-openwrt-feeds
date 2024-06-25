@@ -119,6 +119,11 @@ MT7988()
 		iptables -I FORWARD -p udp -j FLOWOFFLOAD --hw
 		ip6tables -D FORWARD -p udp -j FLOWOFFLOAD --hw
 		ip6tables -I FORWARD -p udp -j FLOWOFFLOAD --hw
+		#Multicast skip Binding
+		iptables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
+		iptables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
+		ip6tables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
+		ip6tables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
 
 	else
 		dbg2 "WED_ENABLE OFF irq/iptable seting"
@@ -190,6 +195,11 @@ MT7986()
 		iptables -I FORWARD -p udp -j FLOWOFFLOAD --hw
 		ip6tables -D FORWARD -p udp -j FLOWOFFLOAD --hw
 		ip6tables -I FORWARD -p udp -j FLOWOFFLOAD --hw
+		#Multicast skip Binding
+		iptables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
+		iptables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
+		ip6tables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
+		ip6tables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
 
 		#AX6000 AX7800 - SOC
 		if [[ "$WIFI_RADIO1" -eq "1" ]]; then
@@ -286,6 +296,11 @@ MT7981()
 		iptables -I FORWARD -p udp -j FLOWOFFLOAD --hw
 		ip6tables -D FORWARD -p udp -j FLOWOFFLOAD --hw
 		ip6tables -I FORWARD -p udp -j FLOWOFFLOAD --hw
+		#Multicast skip Binding
+		iptables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
+		iptables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
+		ip6tables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
+		ip6tables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
 
 		if [[ "$WIFI_RADIO1" -eq "1" ]]; then
 			wifi1_irq=237
