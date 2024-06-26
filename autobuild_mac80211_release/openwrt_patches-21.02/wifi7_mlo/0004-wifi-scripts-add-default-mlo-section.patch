@@ -1,0 +1,359 @@
+diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
+index cd09750..9b05eff 100755
+--- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
++++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
+@@ -718,6 +718,10 @@ mac80211_generate_mac() {
+ 	local phy="$1"
+ 	local id="${macidx:-0}"
+ 
++	if [ "$phy" = "mld" ]; then
++		id=60;
++		phy=phy0;
++	fi
+ 	wdev_tool "$phy" get_macaddr id=$id num_global=$num_global_macaddr mbssid=${multiple_bssid:-0}
+ }
+ 
+@@ -850,6 +854,12 @@ fill_mld_params() {
+ 		echo "mld_id $target_mld_id is not found"
+ 		return 1
+ 	fi
++
++	if [ $target_mld_id -lt 1 ] || [ $target_mld_id -gt 16 ]; then
++		echo "mld_id is out of range (1, 16)"
++		return 1
++	fi
++
+ 	return 0
+ }
+ 
+@@ -868,7 +878,28 @@ mac80211_prepare_vif() {
+ 
+ 		json_get_vars mld_addr
+ 		if [ -z "$mld_addr" ]; then
+-			json_add_string mld_addr "$(mac80211_generate_mac phy0)"
++			generated_mac=$(mac80211_generate_mac mld)
++			# Split the MAC address to get the last byte
++			b6="${generated_mac##*:}"
++
++			# Convert the last byte to a decimal for arithmetic operations
++			b6_dec=$((0x$b6))
++
++			# Get the lower four bits (last digit in hexadecimal representation)
++			lower_nibble=$(($b6_dec & 0x0F))
++
++			# Rotate the lower four bits based on mld_id
++			# Modulus by 16 ensures that the rotation stays within the bounds of a nibble (4 bits)
++			rotated=$(( (lower_nibble + $mld_id - 1) & 0x0F ))
++
++			# Combine the upper four bits with the rotated lower four bits
++			b6_rotated=$(($b6_dec & 0xF0 | rotated))
++
++			# Reassemble the MAC address
++			result_mac="${generated_mac%:*}:$(printf '%02X' $b6_rotated)"
++
++			# Add the MAC address to the JSON object
++			json_add_string mld_addr "$result_mac"
+ 		fi
+ 	fi
+ 
+diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
+index 8f25a79..cc95845 100644
+--- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
++++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
+@@ -3,7 +3,7 @@ import { readfile } from "fs";
+ import * as uci from 'uci';
+ 
+ const bands_order = [ "6G", "5G", "2G" ];
+-const htmode_order = [ "HE", "VHT", "HT" ];
++const htmode_order = [ "EHT", "HE", "VHT", "HT" ];
+ 
+ let board = json(readfile("/etc/board.json"));
+ if (!board.wlan)
+@@ -12,6 +12,10 @@ if (!board.wlan)
+ let idx = 0;
+ let commit;
+ 
++let has_mlo = 1;
++let mld_id = 1;
++let random_mac_bytes = getenv("MT76_ENV_RANDOM_MAC_BYTES");
++
+ let config = uci.cursor().get_all("wireless") ?? {};
+ 
+ function radio_exists(path, macaddr, phy) {
+@@ -34,59 +38,140 @@ for (let phy_name, phy in board.wlan) {
+ 	if (!info || !length(info.bands))
+ 		continue;
+ 
+-	while (config[`radio${idx}`])
+-		idx++;
+-	let name = "radio" + idx++;
++	if (phy_name != "phy0")
++		continue;
+ 
+-	let s = "wireless." + name;
+-	let si = "wireless.default_" + name;
++	for (let band_name, band in info.bands) {
++		while (config[`radio${idx}`])
++			idx++;
++		let name = "radio" + idx++;
+ 
+-	let band_name = filter(bands_order, (b) => info.bands[b])[0];
+-	if (!band_name)
+-		continue;
++		let s = "wireless." + name;
++		let si = "wireless.default_" + name;
+ 
+-	let band = info.bands[band_name];
+-	let channel = band.default_channel ?? "auto";
++		let channel = band.default_channel ?? "auto";
++		if (band_name == "6G")
++			channel = 37;
+ 
+-	let width = band.max_width;
+-	if (band_name == "2G")
+-		width = 20;
+-	else if (width > 80)
+-		width = 80;
++		let width = band.max_width;
+ 
+-	let htmode = filter(htmode_order, (m) => band[lc(m)])[0];
+-	if (htmode)
+-		htmode += width;
+-	else
+-		htmode = "NOHT";
++		let htmode = filter(htmode_order, (m) => band[lc(m)])[0];
++		if (htmode)
++			htmode += width;
++		else
++			htmode = "NOHT";
+ 
+-	if (!phy.path)
+-		continue;
++		/* FIXME: hardcode */
++		if (band_name == "5G")
++			phy.path = board.wlan["phy1"]["path"];
++		else if (band_name == "6G")
++			phy.path = board.wlan["phy2"]["path"];
+ 
+-	let macaddr = trim(readfile(`/sys/class/ieee80211/${phy_name}/macaddress`));
+-	if (radio_exists(phy.path, macaddr, phy_name))
+-		continue;
++		if (!phy.path)
++			continue;
+ 
+-	let id = `phy='${phy_name}'`;
+-	if (match(phy_name, /^phy[0-9]/))
+-		id = `path='${phy.path}'`;
++		let macaddr = trim(readfile(`/sys/class/ieee80211/${phy_name}/macaddress`));
++		if (radio_exists(phy.path, macaddr, phy_name))
++			continue;
+ 
+-	print(`set ${s}=wifi-device
++		let id = `phy='${phy_name}'`;
++		if (match(phy_name, /^phy[0-9]/))
++			id = `path='${phy.path}'`;
++
++		let disabled = getenv("MT76_ENV_WM_TM") ? 1 : 0;
++		let noscan = 0;
++		let mbssid = 0;
++		let rnr = 0;
++		let background_radar = 0;
++		let encryption = "none";
++		let mbo = 0;
++		let band_idx = 0;
++		let ssid = "";
++
++		if (band_name == "6G") {
++			encryption = "sae";
++			mbo = 1;
++			band_idx = 2;
++			ssid = "OpenWrt-6g";
++		} else if (band_name == "5G") {
++			noscan = 1;
++			rnr = 1;
++			background_radar = 1;
++			band_idx = 1;
++			ssid = "OpenWrt-5g";
++		} else {
++			noscan = 1;
++			rnr = 1;
++			ssid = "OpenWrt-2g";
++		}
++
++		print(`set ${s}=wifi-device
+ set ${s}.type='mac80211'
+ set ${s}.${id}
+ set ${s}.band='${lc(band_name)}'
+ set ${s}.channel='${channel}'
+ set ${s}.htmode='${htmode}'
+-set ${s}.disabled='1'
++set ${s}.country='US'
++set ${s}.noscan=${noscan}
++set ${s}.disabled=${disabled}
++set ${s}.band_idx=${band_idx}
++`);
+ 
+-set ${si}=wifi-iface
++		if (has_mlo) {
++			let si_mld = si + "_mld";
++			print(`set ${si_mld}=wifi-iface
++set ${si_mld}.device='${name}'
++set ${si_mld}.network='lan'
++set ${si_mld}.mode='ap'
++set ${si_mld}.mld_id=${mld_id}
++`);
++		}
++
++		print(`set ${si}=wifi-iface
+ set ${si}.device='${name}'
+ set ${si}.network='lan'
+ set ${si}.mode='ap'
+-set ${si}.ssid='OpenWrt'
+-set ${si}.encryption='none'
++set ${si}.ssid=${ssid}
++set ${si}.encryption=${encryption}
++set ${si}.mbo=${mbo}
++`);
+ 
++		if (mbssid)
++			print(`set ${s}.mbssid=${mbssid}
+ `);
++		if (rnr)
++			print(`set ${s}.rnr=${rnr}
++`);
++		if (background_radar)
++			print(`set ${s}.background_radar=${background_radar}
++`);
++		if (getenv("MT76_ENV_TX_BURST_ZERO"))
++			print(`set ${s}.tx_burst=0.0
++`);
++		if (encryption == "sae")
++			print(`set ${si}.key=12345678
++set ${si}.sae_pwe=2
++set ${si}.ieee80211w=2
++`);
++		if (random_mac_bytes)
++			print(`set ${si}.macaddr=00:0${idx - 1}:55:66${random_mac_bytes}
++`);
++	}
++
++	if (has_mlo) {
++		let mld_sec = "wireless.ap_mld_1";
++
++		print(`set ${mld_sec}=wifi-mld
++set ${mld_sec}.ifname=ap-mld-1
++set ${mld_sec}.mld_id=${mld_id}
++set ${mld_sec}.ssid='MT76_AP_MLD'
++set ${mld_sec}.encryption=sae
++set ${mld_sec}.key=12345678
++set ${mld_sec}.sae_pwe=2
++set ${mld_sec}.ieee80211w=2
++`);
++	}
++
+ 	commit = true;
+ }
+ 
+diff --git a/package/network/config/wifi-scripts/files/sbin/wifi b/package/network/config/wifi-scripts/files/sbin/wifi
+index f937dba..ba2d392 100755
+--- a/package/network/config/wifi-scripts/files/sbin/wifi
++++ b/package/network/config/wifi-scripts/files/sbin/wifi
+@@ -175,8 +175,33 @@ wifi_detect_notice() {
+ }
+ 
+ wifi_config() {
++	# Add sleep to prevent parsing before wifi modules get ready
++	sleep 1
++
+ 	[ -e /tmp/.config_pending ] && return
+ 	ucode /usr/share/hostap/wifi-detect.uc
++
++	if (dmesg | grep -q "WM_TM"); then
++		export MT76_ENV_WM_TM=1
++	fi
++
++	if (lspci | grep -q "7992"); then
++		export MT76_ENV_TX_BURST_ZERO=1
++	fi
++
++	if (dmesg | grep -q "eeprom load fail"); then
++		# generate random bytes for macaddr
++		rand=$(hexdump -C /dev/urandom | head -n 1 &)
++		killall hexdump
++
++		macaddr=""
++		for i in $(seq 2 3); do
++			macaddr=${macaddr}:$(echo $rand | cut -d ' ' -f $i)
++		done
++
++		export MT76_ENV_RANDOM_MAC_BYTES=${macaddr}
++	fi
++
+ 	[ ! -f /etc/config/wireless ] && touch /etc/config/wireless
+ 	ucode /lib/wifi/mac80211.uc | uci -q batch
+ 
+diff --git a/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc b/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
+index 109b6a3..bbaae18 100644
+--- a/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
++++ b/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
+@@ -118,9 +118,13 @@ function wiphy_detect() {
+ 				band_info.he = true;
+ 				he_phy_cap |= ift.he_cap_phy[0];
+ 				/* TODO: EHT */
++				/* FIXME: hardcode */
++				band_info.eht = true;
+ 			}
+ 
+-			if (band_name != "2G" &&
++			if (band_name == "6G" && band_info.eht)
++				band_info.max_width = 320;
++			else if (band_name != "2G" &&
+ 			    (he_phy_cap & 0x18) || ((band.vht_capa >> 2) & 0x3))
+ 				band_info.max_width = 160;
+ 			else if (band_name != "2G" &&
+@@ -138,14 +142,20 @@ function wiphy_detect() {
+ 				push(modes, "VHT20");
+ 			if (band_info.he)
+ 				push(modes, "HE20");
++			if (band_info.eht)
++				push(modes, "EHT20");
+ 			if (band.ht_capa & 0x2) {
+ 				push(modes, "HT40");
+ 				if (band_info.vht)
+ 					push(modes, "VHT40")
+ 			}
+-			if (he_phy_cap & 0x2)
++			if (he_phy_cap & 0x2) {
+ 				push(modes, "HE40");
+ 
++				if (band_info.eht)
++					push(modes, "EHT40");
++			}
++
+ 			for (let freq in band.freqs) {
+ 				if (freq.disabled)
+ 					continue;
+@@ -160,12 +170,20 @@ function wiphy_detect() {
+ 				continue;
+ 			if (band_info.vht)
+ 				push(modes, "VHT80");
+-			if (he_phy_cap & 4)
++			if (he_phy_cap & 4) {
+ 				push(modes, "HE80");
++				if (band_info.eht)
++					push(modes, "EHT80");
++			}
+ 			if ((band.vht_capa >> 2) & 0x3)
+ 				push(modes, "VHT160");
+-			if (he_phy_cap & 0x18)
++			if (he_phy_cap & 0x18) {
+ 				push(modes, "HE160");
++				if (band_info.eht)
++					push(modes, "EHT160");
++			}
++			if (band_name == "6G" && band_info.eht)
++				push(modes, "EHT320");
+ 		}
+ 
+ 		let entry = wiphy_get_entry(name, path);
+
