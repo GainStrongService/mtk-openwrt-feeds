@@ -1,22 +1,22 @@
-From 2914bec639e2749bbd6d021639b8c3d8c0a2490e Mon Sep 17 00:00:00 2001
+From 4b98f0b6cc16e75436c59a161edca25d3bf464cc Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Mon, 18 Mar 2024 16:35:07 +0800
+Date: Wed, 26 Jun 2024 14:33:27 +0800
 Subject: [PATCH 15/24] ethernet-update-ppe-from-netsys2-to-netsys3
 
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  8 +++-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  9 ++++-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  7 ++--
- drivers/net/ethernet/mediatek/mtk_ppe.c       | 35 ++++++++++++++---
- drivers/net/ethernet/mediatek/mtk_ppe.h       | 38 ++++++++++++++++---
+ drivers/net/ethernet/mediatek/mtk_ppe.c       | 35 +++++++++++++++---
+ drivers/net/ethernet/mediatek/mtk_ppe.h       | 37 ++++++++++++++++---
  .../net/ethernet/mediatek/mtk_ppe_offload.c   |  6 ++-
  drivers/net/ethernet/mediatek/mtk_ppe_regs.h  |  7 ++++
  6 files changed, 82 insertions(+), 19 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 1be1d43..04968da 100644
+index 42d8cbf..2cc3e4b 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2441,7 +2441,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2479,7 +2479,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
@@ -25,7 +25,7 @@ index 1be1d43..04968da 100644
  		hash = trxd.rxd5 & MTK_RXD5_FOE_ENTRY_V2;
  		reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON_V2, trxd.rxd5);
  		if (hash != MTK_RXD5_FOE_ENTRY_V2)
-@@ -5829,7 +5829,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5953,7 +5953,8 @@ static int mtk_probe(struct platform_device *pdev)
  
  		for (i = 0; i < eth->ppe_num; i++) {
  			eth->ppe[i] = mtk_ppe_init(eth,
@@ -35,21 +35,22 @@ index 1be1d43..04968da 100644
  						   i);
  			if (!eth->ppe[i]) {
  				err = -ENOMEM;
-@@ -6120,6 +6121,9 @@ static const struct mtk_soc_data mt7988_data = {
+@@ -6262,6 +6263,10 @@ static const struct mtk_soc_data mt7988_data = {
  	.required_clks = MT7988_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = true,
 +	.offload_version = 2,
 +	.hash_offset = 4,
 +	.has_accounting = true,
++	.foe_entry_size = MTK_FOE_ENTRY_V3_SIZE,
  	.rss_num = 4,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 6ad3468..e882436 100644
+index 4d74144..09becb8 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -136,9 +136,10 @@
+@@ -131,9 +131,10 @@
  #define MTK_GDMA_UCS_EN		BIT(20)
  #define MTK_GDMA_STRP_CRC	BIT(16)
  #define MTK_GDMA_TO_PDMA	0x0
@@ -61,7 +62,7 @@ index 6ad3468..e882436 100644
  #else
  #define MTK_GDMA_TO_PPE0	0x4444
  #endif
-@@ -2023,14 +2024,14 @@ extern u32 dbg_show_level;
+@@ -2059,14 +2060,14 @@ mtk_foe_get_entry(struct mtk_ppe *ppe, u16 hash)
  
  static inline void mtk_set_ib1_sp(struct mtk_eth *eth, struct mtk_foe_entry *foe, u32 val)
  {
@@ -79,7 +80,7 @@ index 6ad3468..e882436 100644
  #else
  	return 0;
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 8388f65..184e29d 100755
+index ba68bfb..ebcdc11 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -91,7 +91,7 @@ static int mtk_ppe_mib_wait_busy(struct mtk_ppe *ppe)
@@ -150,7 +151,7 @@ index 8388f65..184e29d 100755
  
  	return 0;
  }
-@@ -922,13 +938,16 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
+@@ -949,13 +965,16 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
  	mtk_ppe_init_foe_table(ppe);
  	ppe_w32(ppe, MTK_PPE_TB_BASE, ppe->foe_phys);
  
@@ -169,7 +170,7 @@ index 8388f65..184e29d 100755
  	      MTK_PPE_TB_CFG_INFO_SEL |
  #endif
  	      FIELD_PREP(MTK_PPE_TB_CFG_SEARCH_MISS,
-@@ -988,12 +1007,16 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
+@@ -1015,12 +1034,16 @@ int mtk_ppe_start(struct mtk_ppe *ppe)
  	      MTK_PPE_GLO_CFG_IP4_L4_CS_DROP |
  	      MTK_PPE_GLO_CFG_IP4_CS_DROP |
  	      MTK_PPE_GLO_CFG_MCAST_TB_EN |
@@ -188,7 +189,7 @@ index 8388f65..184e29d 100755
  	ppe_w32(ppe, MTK_PPE_SBW_CTRL, 0x7f);
  #endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 5ab864f..5529d64 100644
+index 4beac4f..5538c1b 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
 @@ -8,7 +8,10 @@
@@ -260,17 +261,23 @@ index 5ab864f..5529d64 100644
  	u16 minfo;
  	u16 winfo;
  #endif
-@@ -249,7 +273,9 @@ struct mtk_foe_entry {
+@@ -242,6 +266,7 @@ struct mtk_foe_ipv6_6rd {
+ 
+ #define MTK_FOE_ENTRY_V1_SIZE	80
+ #define MTK_FOE_ENTRY_V2_SIZE	96
++#define MTK_FOE_ENTRY_V3_SIZE	128
+ 
+ struct mtk_foe_entry {
+ 	u32 ib1;
+@@ -252,7 +277,7 @@ struct mtk_foe_entry {
  		struct mtk_foe_ipv4_dslite dslite;
  		struct mtk_foe_ipv6 ipv6;
  		struct mtk_foe_ipv6_6rd ipv6_6rd;
--#if defined(CONFIG_MEDIATEK_NETSYS_V2)
-+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+-		u32 data[23];
 +		u32 data[31];
-+#elif defined(CONFIG_MEDIATEK_NETSYS_V2)
- 		u32 data[23];
- #else
- 		u32 data[19];
+ 	};
+ };
+ 
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 index 3bc50a4..f0c63da 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c

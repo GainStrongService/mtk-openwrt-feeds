@@ -29,50 +29,49 @@ index f5b2d22..d086fab 100644
  	.has_sram = false,
  	.offload_version = 1,
 +	.hash_offset = 2,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V1_SIZE,
  	.rss_num = 0,
  	.txrx = {
- 		.txd_size = sizeof(struct mtk_tx_dma),
 @@ -5967,6 +5969,7 @@ static const struct mtk_soc_data mt7621_data = {
  	.required_pctl = false,
  	.has_sram = false,
  	.offload_version = 1,
 +	.hash_offset = 2,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V1_SIZE,
  	.rss_num = 0,
  	.txrx = {
- 		.txd_size = sizeof(struct mtk_tx_dma),
 @@ -5989,6 +5992,7 @@ static const struct mtk_soc_data mt7622_data = {
  	.required_pctl = false,
  	.has_sram = false,
  	.offload_version = 2,
 +	.hash_offset = 2,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V1_SIZE,
  	.rss_num = 0,
  	.txrx = {
- 		.txd_size = sizeof(struct mtk_tx_dma),
 @@ -6010,6 +6014,7 @@ static const struct mtk_soc_data mt7623_data = {
  	.required_pctl = true,
  	.has_sram = false,
  	.offload_version = 1,
 +	.hash_offset = 2,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V1_SIZE,
  	.rss_num = 0,
  	.txrx = {
- 		.txd_size = sizeof(struct mtk_tx_dma),
 @@ -6053,6 +6058,7 @@ static const struct mtk_soc_data mt7986_data = {
  	.required_pctl = false,
  	.has_sram = false,
  	.offload_version = 2,
 +	.hash_offset = 4,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V2_SIZE,
  	.rss_num = 4,
  	.txrx = {
- 		.txd_size = sizeof(struct mtk_tx_dma_v2),
-@@ -6074,6 +6080,8 @@ static const struct mtk_soc_data mt7981_data = {
- 	.required_clks = MT7981_CLKS_BITMAP,
+@@ -6075,6 +6081,7 @@ static const struct mtk_soc_data mt7981_data = {
  	.required_pctl = false,
  	.has_sram = false,
-+	.offload_version = 2,
+ 	.offload_version = 2,
 +	.hash_offset = 4,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V2_SIZE,
  	.rss_num = 4,
  	.txrx = {
- 		.txd_size = sizeof(struct mtk_tx_dma_v2),
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 index 5019216..8984d38 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
@@ -82,17 +81,17 @@ index 5019216..8984d38 100644
   * @required_pctl		A bool value to show whether the SoC requires
   *				the extra setup for those pins used by GMAC.
 + * @hash_offset			Flow table hash offset.
+  * @foe_entry_size		Foe table entry size.
   * @txd_size			Tx DMA descriptor size.
   * @rxd_size			Rx DMA descriptor size.
-  * @rx_dma_l4_valid		Rx DMA valid register mask.
 @@ -1753,6 +1754,7 @@ struct mtk_soc_data {
  	u64		required_clks;
  	bool		required_pctl;
  	u8		offload_version;
 +	u8		hash_offset;
+ 	u16		foe_entry_size;
  	netdev_features_t hw_features;
  	bool		has_sram;
- 	struct {
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 index b69de11..550ed7c 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
@@ -159,7 +158,7 @@ index b69de11..550ed7c 100755
 -	struct hlist_head *head = &ppe->foe_flow[hash / 4];
 +	const struct mtk_soc_data *soc = ppe->eth->soc;
 +	struct hlist_head *head = &ppe->foe_flow[hash / soc->hash_offset];
- 	struct mtk_foe_entry *hwe = &ppe->foe_table[hash];
+ 	struct mtk_foe_entry *hwe = mtk_foe_get_entry(ppe, hash);
  	struct mtk_flow_entry *entry;
  	struct mtk_foe_bridge key = {};
 @@ -695,9 +698,11 @@ int mtk_foe_entry_idle_time(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)

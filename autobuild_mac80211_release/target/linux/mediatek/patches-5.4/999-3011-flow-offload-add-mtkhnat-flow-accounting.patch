@@ -23,33 +23,33 @@ index d086fab..88af4b4 100644
  	.offload_version = 1,
  	.hash_offset = 2,
 +	.has_accounting = false,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V1_SIZE,
  	.rss_num = 0,
  	.txrx = {
- 		.txd_size = sizeof(struct mtk_tx_dma),
 @@ -5970,6 +5971,7 @@ static const struct mtk_soc_data mt7621_data = {
  	.has_sram = false,
  	.offload_version = 1,
  	.hash_offset = 2,
 +	.has_accounting = false,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V1_SIZE,
  	.rss_num = 0,
  	.txrx = {
- 		.txd_size = sizeof(struct mtk_tx_dma),
 @@ -5993,6 +5995,7 @@ static const struct mtk_soc_data mt7622_data = {
  	.has_sram = false,
  	.offload_version = 2,
  	.hash_offset = 2,
 +	.has_accounting = true,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V1_SIZE,
  	.rss_num = 0,
  	.txrx = {
- 		.txd_size = sizeof(struct mtk_tx_dma),
 @@ -6015,6 +6018,7 @@ static const struct mtk_soc_data mt7623_data = {
  	.has_sram = false,
  	.offload_version = 1,
  	.hash_offset = 2,
 +	.has_accounting = false,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V1_SIZE,
  	.rss_num = 0,
  	.txrx = {
- 		.txd_size = sizeof(struct mtk_tx_dma),
 @@ -6036,6 +6040,7 @@ static const struct mtk_soc_data mt7629_data = {
  	.required_clks = MT7629_CLKS_BITMAP,
  	.required_pctl = false,
@@ -58,12 +58,12 @@ index d086fab..88af4b4 100644
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -6058,6 +6063,7 @@ static const struct mtk_soc_data mt7986_data = {
- 	.required_pctl = false,
+@@ -6059,6 +6064,7 @@ static const struct mtk_soc_data mt7986_data = {
  	.has_sram = false,
  	.offload_version = 2,
-+	.has_accounting = true,
  	.hash_offset = 4,
++	.has_accounting = true,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V2_SIZE,
  	.rss_num = 4,
  	.txrx = {
 @@ -6082,6 +6088,7 @@ static const struct mtk_soc_data mt7981_data = {
@@ -71,9 +71,9 @@ index d086fab..88af4b4 100644
  	.offload_version = 2,
  	.hash_offset = 4,
 +	.has_accounting = true,
+ 	.foe_entry_size = MTK_FOE_ENTRY_V2_SIZE,
  	.rss_num = 4,
  	.txrx = {
- 		.txd_size = sizeof(struct mtk_tx_dma_v2),
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 index 8984d38..1c3b64e 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
@@ -311,7 +311,7 @@ index 017e6c5..dea1b5a 100644
  	int id;
 +	int accounting;
  
- 	struct mtk_foe_entry *foe_table;
+ 	void *foe_table;
  	dma_addr_t foe_phys;
  
 +	struct mtk_mib_entry *mib_table;
