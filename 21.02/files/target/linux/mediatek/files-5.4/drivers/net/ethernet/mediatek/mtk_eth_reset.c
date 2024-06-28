@@ -594,16 +594,15 @@ u32 mtk_monitor_gdm_rx(struct mtk_eth *eth)
 	static u32 gdm_cnt[MTK_MAX_DEVS];
 	static u32 pre_fsm[MTK_MAX_DEVS];
 	static u32 pre_ipq[MTK_MAX_DEVS];
-	u32 mib_base = MTK_GDM1_TX_GBCNT;
-	u32 gmac_rxcnt[MTK_MAX_DEVS];
+	static u32 gmac_rxcnt[MTK_MAX_DEVS];
 	u32 is_gmac_rx[MTK_MAX_DEVS];
 	u32 cur_fsm, pse_ipq, err_flag = 0, i;
 
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		struct mtk_hw_stats *hw_stats = eth->mac[i]->hw_stats;
+
 		is_gmac_rx[i] = (mtk_r32(eth, MTK_MAC_FSM(i)) & 0xFF0000) != 0x10000;
-		gmac_rxcnt[i] =
-			mtk_r32(eth, mib_base + MTK_GDM_RX_BASE + i * MTK_GDM_CNT_OFFSET);
-		if (is_gmac_rx[i] && (gmac_rxcnt[i] == 0))
+		if (is_gmac_rx[i] && gmac_rxcnt[i] == hw_stats->rx_packets)
 			gmac_cnt[i]++;
 		if (gmac_cnt[i] > 4) {
 			pr_info("GMAC%d Rx Info\n", i+1);
@@ -613,6 +612,8 @@ u32 mtk_monitor_gdm_rx(struct mtk_eth *eth)
 			err_flag = 1;
 		} else
 			gmac_cnt[i] = 0;
+
+		gmac_rxcnt[i] = hw_stats->rx_packets;
 	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
@@ -658,20 +659,16 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 {
 	static u32 err_cnt[MTK_MAX_DEVS];
 	static u32 pre_gdm[MTK_MAX_DEVS];
-	static u32 pre_opq[MTK_WDMA_CNT];
-	static u32 pre_txcnt[MTK_WDMA_CNT];
+	static u32 pre_opq[MTK_MAX_DEVS];
 	static u32 gdm_err_cnt[MTK_MAX_DEVS];
-	u32 gdm_fsm = 0;
-	u32 mib_base = MTK_GDM1_TX_GBCNT;
-	u32 gmac_txcnt[MTK_MAX_DEVS];
+	static u32 gmac_txcnt[MTK_MAX_DEVS];
 	u32 is_gmac_tx[MTK_MAX_DEVS];
+	u32 gdm_fsm = 0;
 	u32 err_flag = 0, i, pse_opq;
 
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
-		is_gmac_tx[i] =
-			(mtk_r32(eth, MTK_MAC_FSM(i)) & 0xFF000000) != 0x1000000;
-		gmac_txcnt[i] =
-			mtk_r32(eth, mib_base + MTK_GDM_TX_BASE + i * MTK_GDM_CNT_OFFSET);
+		struct mtk_hw_stats *hw_stats = eth->mac[i]->hw_stats;
+
 		if (i == 0)
 			pse_opq = (mtk_r32(eth, MTK_PSE_OQ_STA(0)) >> 16) & 0xFFF;
 		else if (i == 1)
@@ -679,7 +676,8 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 		else
 			pse_opq = (mtk_r32(eth, MTK_PSE_OQ_STA(7)) >> 16) & 0xFFF;
 
-		if (is_gmac_tx[i] && (gmac_txcnt[i] == 0) && (pse_opq > 0))
+		is_gmac_tx[i] = (mtk_r32(eth, MTK_MAC_FSM(i)) & 0xFF000000) != 0x1000000;
+		if (is_gmac_tx[i] && gmac_txcnt[i] == hw_stats->tx_packets && pse_opq > 0)
 			err_cnt[i]++;
 		if (err_cnt[i] > 4) {
 			pr_info("GMAC%d Tx Info\n", i+1);
@@ -689,13 +687,13 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 			err_flag = 1;
 		} else
 			err_cnt[i] = 0;
+
+		gmac_txcnt[i] = hw_stats->tx_packets;
 	}
 
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
 		gdm_fsm = mtk_r32(eth, MTK_FE_GDM_FSM(i)) & 0x1FFF0000;
 		pse_opq = MTK_FE_GDM_OQ(i);
-		pre_txcnt[i] =
-			mtk_r32(eth, mib_base + MTK_GDM_TX_BASE + i * MTK_GDM_CNT_OFFSET);
 		if ((pre_gdm[i] == gdm_fsm) && (gdm_fsm == 0x10330000) &&
 		    (pre_opq[i] == pse_opq) && (pse_opq > 0))
 			gdm_err_cnt[i]++;
