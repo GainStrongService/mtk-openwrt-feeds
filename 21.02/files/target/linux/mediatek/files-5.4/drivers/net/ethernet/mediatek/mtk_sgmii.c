@@ -77,17 +77,69 @@ int mtk_sgmii_link_status(struct mtk_sgmii_pcs *mpcs)
 {
 	unsigned int val;
 
+	mutex_lock(&mpcs->reset_lock);
+
 	regmap_read(mpcs->regmap, SGMSYS_PCS_CONTROL_1, &val);
+
+	mutex_unlock(&mpcs->reset_lock);
 
 	return FIELD_GET(SGMII_LINK_STATYS, val);
 }
 
-void mtk_sgmii_reset(struct mtk_eth *eth, int id)
+static void mtk_sgmii_get_state(struct mtk_sgmii_pcs *mpcs)
 {
+	struct phylink_link_state *state = &mpcs->state;
+	unsigned int bm, adv, rgc3, sgm_mode;
+
+	mutex_lock(&mpcs->reset_lock);
+
+	state->interface = mpcs->interface;
+
+	regmap_read(mpcs->regmap, SGMSYS_PCS_CONTROL_1, &bm);
+	if (bm & SGMII_AN_ENABLE) {
+		regmap_read(mpcs->regmap, SGMSYS_PCS_ADVERTISE, &adv);
+
+		phylink_mii_c22_pcs_decode_state(state,
+						 FIELD_GET(SGMII_BMSR, bm),
+						 FIELD_GET(SGMII_LPA, adv));
+	} else {
+		state->link = !!(bm & SGMII_LINK_STATYS);
+
+		regmap_read(mpcs->regmap, SGMSYS_SGMII_MODE, &sgm_mode);
+
+		switch (sgm_mode & SGMII_SPEED_MASK) {
+		case SGMII_SPEED_10:
+			state->speed = SPEED_10;
+			break;
+		case SGMII_SPEED_100:
+			state->speed = SPEED_100;
+			break;
+		case SGMII_SPEED_1000:
+			regmap_read(mpcs->regmap, mpcs->ana_rgc3, &rgc3);
+			rgc3 = FIELD_GET(RG_PHY_SPEED_3_125G, rgc3);
+			state->speed = rgc3 ? SPEED_2500 : SPEED_1000;
+			break;
+		}
+
+		if (sgm_mode & SGMII_DUPLEX_HALF)
+			state->duplex = DUPLEX_HALF;
+		else
+			state->duplex = DUPLEX_FULL;
+	}
+
+	mutex_unlock(&mpcs->reset_lock);
+}
+
+void mtk_sgmii_reset(struct mtk_sgmii_pcs *mpcs)
+{
+	struct mtk_eth *eth = mpcs->eth;
+	int id = mpcs->id;
 	u32 val = 0;
 
-	if (!eth->toprgu)
+	if (id >= MTK_MAX_DEVS || !eth->toprgu)
 		return;
+
+	mutex_lock(&mpcs->reset_lock);
 
 	switch (id) {
 	case 0:
@@ -104,7 +156,7 @@ void mtk_sgmii_reset(struct mtk_eth *eth, int id)
 		       SWSYSRST_SGMII0_GRST;
 		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
 
-		udelay(100);
+		usleep_range(100, 500);
 
 		/* De-assert SGMII reset */
 		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
@@ -133,7 +185,7 @@ void mtk_sgmii_reset(struct mtk_eth *eth, int id)
 		       SWSYSRST_SGMII1_GRST;
 		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
 
-		udelay(100);
+		usleep_range(100, 500);
 
 		/* De-assert SGMII reset */
 		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
@@ -150,7 +202,9 @@ void mtk_sgmii_reset(struct mtk_eth *eth, int id)
 		break;
 	}
 
-	mdelay(1);
+	mutex_unlock(&mpcs->reset_lock);
+
+	usleep_range(10000, 11000);
 }
 
 void mtk_sgmii_setup_phya_gen1(struct mtk_sgmii_pcs *mpcs)
@@ -210,7 +264,7 @@ void mtk_sgmii_setup_phya_gen1(struct mtk_sgmii_pcs *mpcs)
 	/* Force AEQ on */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x02002800);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
 			   0x20000000);
 	/* Setup DA default value */
@@ -241,28 +295,28 @@ void mtk_sgmii_setup_phya_gen1(struct mtk_sgmii_pcs *mpcs)
 	/* Release reset */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200E800);
-	udelay(150);
+	usleep_range(150, 500);
 	/* Switch to P0 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C111);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C101);
-	udelay(15);
+	usleep_range(15, 50);
 	/* Switch to Gen2 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0201C111);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0201C101);
-	udelay(100);
+	usleep_range(100, 500);
 	regmap_update_bits(mpcs->regmap_pextp, 0x30B0, GENMASK(31, 0),
 			   0x00000030);
 	regmap_update_bits(mpcs->regmap_pextp, 0x00F4, GENMASK(31, 0),
 			   0x80201F01);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
 			   0x30000000);
-	udelay(400);
+	usleep_range(400, 1000);
 }
 
 void mtk_sgmii_setup_phya_gen2(struct mtk_sgmii_pcs *mpcs)
@@ -322,7 +376,7 @@ void mtk_sgmii_setup_phya_gen2(struct mtk_sgmii_pcs *mpcs)
 	/* Force AEQ on */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x02002800);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
 			   0x20000000);
 	/* Setup DA default value */
@@ -351,28 +405,28 @@ void mtk_sgmii_setup_phya_gen2(struct mtk_sgmii_pcs *mpcs)
 	/* Release reset */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200E800);
-	udelay(150);
+	usleep_range(150, 500);
 	/* Switch to P0 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C111);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C101);
-	udelay(15);
+	usleep_range(15, 50);
 	/* Switch to Gen2 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0201C111);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0201C101);
-	udelay(100);
+	usleep_range(100, 500);
 	regmap_update_bits(mpcs->regmap_pextp, 0x30B0, GENMASK(31, 0),
 			   0x00000030);
 	regmap_update_bits(mpcs->regmap_pextp, 0x00F4, GENMASK(31, 0),
 			   0x80201F01);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
 			   0x30000000);
-	udelay(400);
+	usleep_range(400, 1000);
 }
 
 static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
@@ -390,8 +444,6 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 							     advertising);
 	if (advertise < 0)
 		return advertise;
-
-	spin_lock(&mpcs->regmap_lock);
 
 	/* Clearing IF_MODE_BIT0 switches the PCS to BASE-X mode, and
 	 * we assume that fixes it's speed at bitrate = line rate (in
@@ -416,22 +468,22 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 			speed = SGMII_SPEED_1000;
 	}
 
-	if (mpcs->interface != interface) {
+	link_timer = phylink_get_link_timer_ns(interface);
+	if (link_timer < 0)
+		return link_timer;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		mtk_sgmii_xfi_pll_enable(eth->sgmii);
+		mtk_sgmii_reset(mpcs);
+	}
+
+	mutex_lock(&mpcs->regmap_lock);
+
+	if (mode >= 0 && mpcs->interface != interface) {
 		mpcs->interface = interface;
 		mpcs->mode = mode;
 		linkmode_copy(mpcs->advertising, advertising);
 		mode_changed = true;
-	}
-
-	link_timer = phylink_get_link_timer_ns(interface);
-	if (link_timer < 0) {
-		spin_unlock(&mpcs->regmap_lock);
-		return link_timer;
-	}
-
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-		mtk_sgmii_xfi_pll_enable(eth->sgmii);
-		mtk_sgmii_reset(eth, mpcs->id);
 	}
 
 	/* PHYA power down */
@@ -474,7 +526,7 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 			   SGMII_AN_ENABLE, bmcr);
 
 	/* Release PHYA power down state */
-	udelay(100);
+	usleep_range(50, 100);
 	regmap_write(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL, 0);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
@@ -484,32 +536,38 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 			mtk_sgmii_setup_phya_gen1(mpcs);
 	}
 
-	spin_unlock(&mpcs->regmap_lock);
+	mutex_unlock(&mpcs->regmap_lock);
 
 	return changed || mode_changed;
 }
 
-static void mtk_sgmii_pcs_link_poll(struct timer_list *t)
+static void mtk_sgmii_pcs_link_poll(struct work_struct *work)
 {
-	struct mtk_sgmii_pcs *mpcs = from_timer(mpcs, t, link_poll_outband);
+	struct mtk_sgmii_pcs *mpcs = container_of(work, struct mtk_sgmii_pcs,
+						  link_poll.work);
 
-	if (mpcs->interface == PHY_INTERFACE_MODE_NA)
+	if (mpcs->interface != PHY_INTERFACE_MODE_SGMII &&
+	    mpcs->interface != PHY_INTERFACE_MODE_1000BASEX &&
+	    mpcs->interface != PHY_INTERFACE_MODE_2500BASEX)
 		goto exit;
 
 	if (!mtk_sgmii_link_status(mpcs))
-		mtk_sgmii_pcs_config(&mpcs->pcs, mpcs->mode, mpcs->interface,
+		mtk_sgmii_pcs_config(&mpcs->pcs, -1, mpcs->interface,
 				     mpcs->advertising, false);
 
 exit:
-	if (mpcs->mode != MLO_AN_INBAND)
-		mod_timer(&mpcs->link_poll_outband, jiffies + HZ);
+	if (mpcs->mode == MLO_AN_INBAND)
+		mtk_sgmii_get_state(mpcs);
+	else if (!delayed_work_pending(&mpcs->link_poll))
+		schedule_delayed_work(&mpcs->link_poll, msecs_to_jiffies(1000));
 }
 
 static int mtk_sgmii_pcs_enable(struct phylink_pcs *pcs)
 {
 	struct mtk_sgmii_pcs *mpcs = pcs_to_mtk_sgmii_pcs(pcs);
 
-	mod_timer(&mpcs->link_poll_outband, jiffies + HZ);
+	if (!delayed_work_pending(&mpcs->link_poll))
+		schedule_delayed_work(&mpcs->link_poll, msecs_to_jiffies(1000));
 
 	return 0;
 }
@@ -518,58 +576,34 @@ static void mtk_sgmii_pcs_disable(struct phylink_pcs *pcs)
 {
 	struct mtk_sgmii_pcs *mpcs = pcs_to_mtk_sgmii_pcs(pcs);
 
-	del_timer_sync(&mpcs->link_poll_outband);
+	cancel_delayed_work_sync(&mpcs->link_poll);
 
-	mpcs->interface = PHY_INTERFACE_MODE_NA;
+	if (mpcs->mode == MLO_AN_INBAND)
+		mtk_sgmii_get_state(mpcs);
 }
 
 static void mtk_sgmii_pcs_get_state(struct phylink_pcs *pcs,
 				    struct phylink_link_state *state)
 {
 	struct mtk_sgmii_pcs *mpcs = pcs_to_mtk_sgmii_pcs(pcs);
-	unsigned int bm, adv, rgc3, sgm_mode;
 
-	state->interface = mpcs->interface;
-
-	regmap_read(mpcs->regmap, SGMSYS_PCS_CONTROL_1, &bm);
-	if (bm & SGMII_AN_ENABLE) {
-		regmap_read(mpcs->regmap, SGMSYS_PCS_ADVERTISE, &adv);
-
-		phylink_mii_c22_pcs_decode_state(state,
-						 FIELD_GET(SGMII_BMSR, bm),
-						 FIELD_GET(SGMII_LPA, adv));
-	} else {
-		state->link = !!(bm & SGMII_LINK_STATYS);
-
-		regmap_read(mpcs->regmap, SGMSYS_SGMII_MODE, &sgm_mode);
-
-		switch (sgm_mode & SGMII_SPEED_MASK) {
-		case SGMII_SPEED_10:
-			state->speed = SPEED_10;
-			break;
-		case SGMII_SPEED_100:
-			state->speed = SPEED_100;
-			break;
-		case SGMII_SPEED_1000:
-			regmap_read(mpcs->regmap, mpcs->ana_rgc3, &rgc3);
-			rgc3 = FIELD_GET(RG_PHY_SPEED_3_125G, rgc3);
-			state->speed = rgc3 ? SPEED_2500 : SPEED_1000;
-			break;
-		}
-
-		if (sgm_mode & SGMII_DUPLEX_HALF)
-			state->duplex = DUPLEX_HALF;
-		else
-			state->duplex = DUPLEX_FULL;
-	}
+	/* When the interface of the mpcs is not initialized,
+	 * we should avoid overriding the state interface.
+	 */
+	if (mpcs->state.interface != PHY_INTERFACE_MODE_NA)
+		state->interface = mpcs->state.interface;
+	state->speed = mpcs->state.speed;
+	state->duplex = mpcs->state.duplex;
+	state->link = mpcs->state.link;
 
 	/* Reconfiguring SGMII every second to ensure that PCS can
 	 * link up with the Link Partner when a module is inserted.
 	 */
-	if (state->link == 0 && time_after(jiffies, mpcs->link_poll_inband + HZ)) {
-		mpcs->link_poll_inband = jiffies;
-		mtk_sgmii_pcs_config(pcs, MLO_AN_INBAND,
-				     state->interface, mpcs->advertising, false);
+	if (time_after(jiffies, mpcs->link_poll_expire) &&
+	    !delayed_work_pending(&mpcs->link_poll)) {
+		mpcs->link_poll_expire = jiffies + HZ;
+		mpcs->state.an_enabled = state->an_enabled;
+		schedule_delayed_work(&mpcs->link_poll, 0);
 	}
 }
 
@@ -591,6 +625,7 @@ static void mtk_sgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 				  int speed, int duplex)
 {
 	struct mtk_sgmii_pcs *mpcs = pcs_to_mtk_sgmii_pcs(pcs);
+	struct device *dev = mpcs->eth->dev;
 	unsigned int sgm_mode, val;
 	unsigned long t_start = jiffies;
 
@@ -602,7 +637,7 @@ static void mtk_sgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 
 	} while (time_before(jiffies, t_start + msecs_to_jiffies(3000)));
 
-	pr_warn("%s wait link up timeout!\n", __func__);
+	dev_warn(dev, "sgmii%d: wait link up timeout!\n", mpcs->id);
 	return;
 
 exit:
@@ -669,9 +704,14 @@ int mtk_sgmii_init(struct mtk_eth *eth, struct device_node *r, u32 ana_rgc3)
 		ss->pcs[i].pcs.poll = true;
 		ss->pcs[i].interface = PHY_INTERFACE_MODE_NA;
 
-		timer_setup(&ss->pcs[i].link_poll_outband, mtk_sgmii_pcs_link_poll, 0);
+		ss->pcs[i].state.link = 0;
+		ss->pcs[i].state.duplex = DUPLEX_FULL;
+		ss->pcs[i].state.speed = SPEED_1000;
 
-		spin_lock_init(&ss->pcs[i].regmap_lock);
+		INIT_DELAYED_WORK(&ss->pcs[i].link_poll, mtk_sgmii_pcs_link_poll);
+
+		mutex_init(&ss->pcs[i].regmap_lock);
+		mutex_init(&ss->pcs[i].reset_lock);
 
 		of_node_put(np);
 	}

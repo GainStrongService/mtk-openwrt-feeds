@@ -186,7 +186,7 @@ void mtk_usxgmii_setup_phya_usxgmii(struct mtk_usxgmii_pcs *mpcs)
 	/* Force AEQ on */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x02002800);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
 			   0x20000000);
 	/* Setup DA default value */
@@ -219,28 +219,28 @@ void mtk_usxgmii_setup_phya_usxgmii(struct mtk_usxgmii_pcs *mpcs)
 	/* Release reset */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200E800);
-	udelay(150);
+	usleep_range(150, 500);
 	/* Switch to P0 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C111);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C101);
-	udelay(15);
+	usleep_range(15, 50);
 	/* Switch to Gen3 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0202C111);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0202C101);
-	udelay(100);
+	usleep_range(100, 500);
 	regmap_update_bits(mpcs->regmap_pextp, 0x30B0, GENMASK(31, 0),
 			   0x00000030);
 	regmap_update_bits(mpcs->regmap_pextp, 0x00F4, GENMASK(31, 0),
 			   0x80201F00);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
 			   0x30000000);
-	udelay(400);
+	usleep_range(400, 1000);
 }
 
 void mtk_usxgmii_setup_phya_5gbaser(struct mtk_usxgmii_pcs *mpcs)
@@ -300,7 +300,7 @@ void mtk_usxgmii_setup_phya_5gbaser(struct mtk_usxgmii_pcs *mpcs)
 	/* Force AEQ on */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x02002800);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
 			   0x20000000);
 	/* Setup DA default value */
@@ -333,28 +333,28 @@ void mtk_usxgmii_setup_phya_5gbaser(struct mtk_usxgmii_pcs *mpcs)
 	/* Release reset */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200E800);
-	udelay(150);
+	usleep_range(150, 500);
 	/* Switch to P0 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C111);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C101);
-	udelay(15);
+	usleep_range(15, 50);
 	/* Switch to Gen3 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0202C111);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0202C101);
-	udelay(100);
+	usleep_range(100, 500);
 	regmap_update_bits(mpcs->regmap_pextp, 0x30B0, GENMASK(31, 0),
 			   0x00000030);
 	regmap_update_bits(mpcs->regmap_pextp, 0x00F4, GENMASK(31, 0),
 			   0x80201F00);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
 			   0x30000000);
-	udelay(400);
+	usleep_range(400, 1000);
 }
 
 void mtk_usxgmii_setup_phya_10gbaser(struct mtk_usxgmii_pcs *mpcs)
@@ -414,7 +414,7 @@ void mtk_usxgmii_setup_phya_10gbaser(struct mtk_usxgmii_pcs *mpcs)
 	/* Force AEQ on */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x02002800);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
 			   0x20000000);
 	/* Setup DA default value */
@@ -450,33 +450,35 @@ void mtk_usxgmii_setup_phya_10gbaser(struct mtk_usxgmii_pcs *mpcs)
 	/* Release reset */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200E800);
-	udelay(150);
+	usleep_range(150, 500);
 	/* Switch to P0 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C111);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0200C101);
-	udelay(15);
+	usleep_range(15, 50);
 	/* Switch to Gen3 */
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0202C111);
-	ndelay(1020);
+	usleep_range(1, 5);
 	regmap_update_bits(mpcs->regmap_pextp, 0x0070, GENMASK(31, 0),
 			   0x0202C101);
-	udelay(100);
+	usleep_range(100, 500);
 	regmap_update_bits(mpcs->regmap_pextp, 0x30B0, GENMASK(31, 0),
 			   0x00000030);
 	regmap_update_bits(mpcs->regmap_pextp, 0x00F4, GENMASK(31, 0),
 			   0x80201F00);
 	regmap_update_bits(mpcs->regmap_pextp, 0x3040, GENMASK(31, 0),
 			   0x30000000);
-	udelay(400);
+	usleep_range(400, 1000);
 }
 
 int mtk_usxgmii_link_status(struct mtk_usxgmii_pcs *mpcs)
 {
 	unsigned int val;
+
+	mutex_lock(&mpcs->reset_lock);
 
 	/* Refresh USXGMII link status by toggling RG_PCS_RX_STATUS_UPDATE */
 	regmap_read(mpcs->regmap, RG_PCS_RX_STATUS0, &val);
@@ -490,229 +492,38 @@ int mtk_usxgmii_link_status(struct mtk_usxgmii_pcs *mpcs)
 	/* Read USXGMII link status */
 	regmap_read(mpcs->regmap, RG_PCS_RX_STATUS0, &val);
 
+	mutex_unlock(&mpcs->reset_lock);
+
 	return FIELD_GET(RG_PCS_RX_LINK_STATUS, val);
 }
 
-void mtk_usxgmii_reset(struct mtk_eth *eth, int id)
+bool mtk_usxgmii_is_valid_ctle(struct mtk_usxgmii_pcs *mpcs)
 {
-	u32 val = 0;
+	unsigned int val, ctle;
 
-	if (id >= MTK_MAX_DEVS || !eth->toprgu)
-		return;
+	mutex_lock(&mpcs->reset_lock);
 
-	switch (id) {
-	case 0:
-		/* Enable software reset */
-		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
-		val |= SWSYSRST_XFI_PEXPT0_GRST |
-		       SWSYSRST_XFI0_GRST;
-		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
+	regmap_write(mpcs->regmap_pextp, 0x00, 0x00000404);
+	regmap_write(mpcs->regmap_pextp, 0x10, 0x00d600d5);
+	regmap_read(mpcs->regmap_pextp, 0xd0, &val);
 
-		/* Assert USXGMII reset */
-		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
-		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88) |
-		       SWSYSRST_XFI_PEXPT0_GRST |
-		       SWSYSRST_XFI0_GRST;
-		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+	mutex_unlock(&mpcs->reset_lock);
 
-		udelay(100);
+	ctle = FIELD_GET(GENMASK(12, 8), val);
+	if (ctle > 10)
+		return false;
 
-		/* De-assert USXGMII reset */
-		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
-		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88);
-		val &= ~(SWSYSRST_XFI_PEXPT0_GRST |
-			 SWSYSRST_XFI0_GRST);
-		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
-
-		/* Disable software reset */
-		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
-		val &= ~(SWSYSRST_XFI_PEXPT0_GRST |
-			 SWSYSRST_XFI0_GRST);
-		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
-		break;
-	case 1:
-		/* Enable software reset */
-		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
-		val |= SWSYSRST_XFI_PEXPT1_GRST |
-		       SWSYSRST_XFI1_GRST;
-		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
-
-		/* Assert USXGMII reset */
-		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
-		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88) |
-		       SWSYSRST_XFI_PEXPT1_GRST |
-		       SWSYSRST_XFI1_GRST;
-		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
-
-		udelay(100);
-
-		/* De-assert USXGMII reset */
-		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
-		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88);
-		val &= ~(SWSYSRST_XFI_PEXPT1_GRST |
-			 SWSYSRST_XFI1_GRST);
-		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
-
-		/* Disable software reset */
-		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
-		val &= ~(SWSYSRST_XFI_PEXPT1_GRST |
-			 SWSYSRST_XFI1_GRST);
-		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
-		break;
-	}
-
-	mdelay(10);
+	return true;
 }
 
-static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
-				  phy_interface_t interface,
-				  const unsigned long *advertising,
-				  bool permit_pause_to_mac)
+static void mtk_usxgmii_get_state(struct mtk_usxgmii_pcs *mpcs)
 {
-	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
-	struct mtk_eth *eth = mpcs->eth;
-	unsigned long flags;
-	unsigned int an_ctrl = 0, link_timer = 0, xfi_mode = 0, adapt_mode = 0;
-	bool mode_changed = false;
-
-	spin_lock_irqsave(&mpcs->regmap_lock, flags);
-
-	if (interface == PHY_INTERFACE_MODE_USXGMII) {
-		an_ctrl = FIELD_PREP(USXGMII_AN_SYNC_CNT, 0x1FF) |
-			  USXGMII_AN_ENABLE;
-		link_timer = FIELD_PREP(USXGMII_LINK_TIMER_IDLE_DETECT, 0x7B) |
-			     FIELD_PREP(USXGMII_LINK_TIMER_COMP_ACK_DETECT, 0x7B) |
-			     FIELD_PREP(USXGMII_LINK_TIMER_AN_RESTART, 0x7B);
-		xfi_mode = FIELD_PREP(USXGMII_XFI_RX_MODE, USXGMII_XFI_RX_MODE_10G) |
-			   FIELD_PREP(USXGMII_XFI_TX_MODE, USXGMII_XFI_TX_MODE_10G);
-	} else if (interface == PHY_INTERFACE_MODE_10GKR) {
-		an_ctrl = FIELD_PREP(USXGMII_AN_SYNC_CNT, 0x1FF);
-		link_timer = FIELD_PREP(USXGMII_LINK_TIMER_IDLE_DETECT, 0x7B) |
-			     FIELD_PREP(USXGMII_LINK_TIMER_COMP_ACK_DETECT, 0x7B) |
-			     FIELD_PREP(USXGMII_LINK_TIMER_AN_RESTART, 0x7B);
-		xfi_mode = FIELD_PREP(USXGMII_XFI_RX_MODE, USXGMII_XFI_RX_MODE_10G) |
-			   FIELD_PREP(USXGMII_XFI_TX_MODE, USXGMII_XFI_TX_MODE_10G);
-		adapt_mode = USXGMII_RATE_UPDATE_MODE;
-	} else if (interface == PHY_INTERFACE_MODE_5GBASER) {
-		an_ctrl = FIELD_PREP(USXGMII_AN_SYNC_CNT, 0xFF);
-		link_timer = FIELD_PREP(USXGMII_LINK_TIMER_IDLE_DETECT, 0x3D) |
-			     FIELD_PREP(USXGMII_LINK_TIMER_COMP_ACK_DETECT, 0x3D) |
-			     FIELD_PREP(USXGMII_LINK_TIMER_AN_RESTART, 0x3D);
-		xfi_mode = FIELD_PREP(USXGMII_XFI_RX_MODE, USXGMII_XFI_RX_MODE_5G) |
-			   FIELD_PREP(USXGMII_XFI_TX_MODE, USXGMII_XFI_TX_MODE_5G);
-		adapt_mode = USXGMII_RATE_UPDATE_MODE;
-	} else {
-		spin_unlock_irqrestore(&mpcs->regmap_lock, flags);
-		return -EINVAL;
-	}
-
-	adapt_mode |= FIELD_PREP(USXGMII_RATE_ADAPT_MODE, USXGMII_RATE_ADAPT_MODE_X1);
-
-	if (mpcs->interface != interface) {
-		mpcs->interface = interface;
-		mpcs->mode = mode;
-		mode_changed = true;
-	}
-
-	mtk_usxgmii_xfi_pll_enable(eth->usxgmii);
-	mtk_usxgmii_reset(eth, mpcs->id);
-
-	/* Setup USXGMII AN ctrl */
-	regmap_update_bits(mpcs->regmap, RG_PCS_AN_CTRL0,
-			   USXGMII_AN_SYNC_CNT | USXGMII_AN_ENABLE,
-			   an_ctrl);
-
-	regmap_update_bits(mpcs->regmap, RG_PCS_AN_CTRL2,
-			   USXGMII_LINK_TIMER_IDLE_DETECT |
-			   USXGMII_LINK_TIMER_COMP_ACK_DETECT |
-			   USXGMII_LINK_TIMER_AN_RESTART,
-			   link_timer);
-
-	/* Gated MAC CK */
-	regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
-			   USXGMII_MAC_CK_GATED, USXGMII_MAC_CK_GATED);
-
-	/* Enable interface force mode */
-	regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
-			   USXGMII_IF_FORCE_EN, USXGMII_IF_FORCE_EN);
-
-	/* Setup USXGMII adapt mode */
-	regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
-			   USXGMII_RATE_UPDATE_MODE | USXGMII_RATE_ADAPT_MODE,
-			   adapt_mode);
-
-	/* Setup USXGMII speed */
-	regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
-			   USXGMII_XFI_RX_MODE | USXGMII_XFI_TX_MODE,
-			   xfi_mode);
-
-	udelay(1);
-
-	/* Un-gated MAC CK */
-	regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
-			   USXGMII_MAC_CK_GATED, 0);
-
-	udelay(1);
-
-	/* Disable interface force mode for the AN mode */
-	if (an_ctrl & USXGMII_AN_ENABLE)
-		regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
-				   USXGMII_IF_FORCE_EN, 0);
-
-	/* Setup USXGMIISYS with the determined property */
-	if (interface == PHY_INTERFACE_MODE_USXGMII)
-		mtk_usxgmii_setup_phya_usxgmii(mpcs);
-	else if (interface == PHY_INTERFACE_MODE_10GKR)
-		mtk_usxgmii_setup_phya_10gbaser(mpcs);
-	else if (interface == PHY_INTERFACE_MODE_5GBASER)
-		mtk_usxgmii_setup_phya_5gbaser(mpcs);
-
-	spin_unlock_irqrestore(&mpcs->regmap_lock, flags);
-
-	return mode_changed;
-}
-
-static void mtk_usxgmii_pcs_link_poll(struct timer_list *t)
-{
-	struct mtk_usxgmii_pcs *mpcs = from_timer(mpcs, t, link_poll_outband);
-
-	if (mpcs->interface == PHY_INTERFACE_MODE_NA)
-		goto exit;
-
-	if (!mtk_usxgmii_link_status(mpcs))
-		mtk_usxgmii_pcs_config(&mpcs->pcs, mpcs->mode,
-				       mpcs->interface, NULL, false);
-
-exit:
-	if (mpcs->mode != MLO_AN_INBAND)
-		mod_timer(&mpcs->link_poll_outband, jiffies + HZ);
-}
-
-static int mtk_usxgmii_pcs_enable(struct phylink_pcs *pcs)
-{
-	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
-
-	mod_timer(&mpcs->link_poll_outband, jiffies + HZ);
-
-	return 0;
-}
-
-static void mtk_usxgmii_pcs_disable(struct phylink_pcs *pcs)
-{
-	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
-
-	del_timer_sync(&mpcs->link_poll_outband);
-
-	mpcs->interface = PHY_INTERFACE_MODE_NA;
-}
-
-static void mtk_usxgmii_pcs_get_state(struct phylink_pcs *pcs,
-				    struct phylink_link_state *state)
-{
-	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
+	struct phylink_link_state *state = &mpcs->state;
 	struct mtk_eth *eth = mpcs->eth;
 	struct mtk_mac *mac = eth->mac[mtk_xgmii2mac_id(eth, mpcs->id)];
 	u32 val = 0;
+
+	mutex_lock(&mpcs->reset_lock);
 
 	regmap_read(mpcs->regmap, RG_PCS_AN_CTRL0, &val);
 	if (FIELD_GET(USXGMII_AN_ENABLE, val)) {
@@ -774,13 +585,252 @@ static void mtk_usxgmii_pcs_get_state(struct phylink_pcs *pcs,
 		state->duplex = DUPLEX_FULL;
 	}
 
+	mutex_unlock(&mpcs->reset_lock);
+}
+
+void mtk_usxgmii_reset(struct mtk_usxgmii_pcs *mpcs)
+{
+	struct mtk_eth *eth = mpcs->eth;
+	int id = mpcs->id;
+	u32 val = 0;
+
+	if (id >= MTK_MAX_DEVS || !eth->toprgu)
+		return;
+
+	mutex_lock(&mpcs->reset_lock);
+
+	switch (id) {
+	case 0:
+		/* Enable software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val |= SWSYSRST_XFI_PEXPT0_GRST |
+		       SWSYSRST_XFI0_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
+
+		/* Assert USXGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88) |
+		       SWSYSRST_XFI_PEXPT0_GRST |
+		       SWSYSRST_XFI0_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		usleep_range(100, 500);
+
+		/* De-assert USXGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88);
+		val &= ~(SWSYSRST_XFI_PEXPT0_GRST |
+			 SWSYSRST_XFI0_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		/* Disable software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val &= ~(SWSYSRST_XFI_PEXPT0_GRST |
+			 SWSYSRST_XFI0_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
+		break;
+	case 1:
+		/* Enable software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val |= SWSYSRST_XFI_PEXPT1_GRST |
+		       SWSYSRST_XFI1_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
+
+		/* Assert USXGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88) |
+		       SWSYSRST_XFI_PEXPT1_GRST |
+		       SWSYSRST_XFI1_GRST;
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		usleep_range(100, 500);
+
+		/* De-assert USXGMII reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
+		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88);
+		val &= ~(SWSYSRST_XFI_PEXPT1_GRST |
+			 SWSYSRST_XFI1_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
+
+		/* Disable software reset */
+		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
+		val &= ~(SWSYSRST_XFI_PEXPT1_GRST |
+			 SWSYSRST_XFI1_GRST);
+		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
+		break;
+	}
+
+	mutex_unlock(&mpcs->reset_lock);
+
+	usleep_range(10000, 11000);
+}
+
+static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+				  phy_interface_t interface,
+				  const unsigned long *advertising,
+				  bool permit_pause_to_mac)
+{
+	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
+	struct mtk_eth *eth = mpcs->eth;
+	unsigned int an_ctrl = 0, link_timer = 0, xfi_mode = 0, adapt_mode = 0;
+	bool mode_changed = false;
+
+	if (interface == PHY_INTERFACE_MODE_USXGMII) {
+		an_ctrl = FIELD_PREP(USXGMII_AN_SYNC_CNT, 0x1FF) |
+			  USXGMII_AN_ENABLE;
+		link_timer = FIELD_PREP(USXGMII_LINK_TIMER_IDLE_DETECT, 0x7B) |
+			     FIELD_PREP(USXGMII_LINK_TIMER_COMP_ACK_DETECT, 0x7B) |
+			     FIELD_PREP(USXGMII_LINK_TIMER_AN_RESTART, 0x7B);
+		xfi_mode = FIELD_PREP(USXGMII_XFI_RX_MODE, USXGMII_XFI_RX_MODE_10G) |
+			   FIELD_PREP(USXGMII_XFI_TX_MODE, USXGMII_XFI_TX_MODE_10G);
+	} else if (interface == PHY_INTERFACE_MODE_10GKR) {
+		an_ctrl = FIELD_PREP(USXGMII_AN_SYNC_CNT, 0x1FF);
+		link_timer = FIELD_PREP(USXGMII_LINK_TIMER_IDLE_DETECT, 0x7B) |
+			     FIELD_PREP(USXGMII_LINK_TIMER_COMP_ACK_DETECT, 0x7B) |
+			     FIELD_PREP(USXGMII_LINK_TIMER_AN_RESTART, 0x7B);
+		xfi_mode = FIELD_PREP(USXGMII_XFI_RX_MODE, USXGMII_XFI_RX_MODE_10G) |
+			   FIELD_PREP(USXGMII_XFI_TX_MODE, USXGMII_XFI_TX_MODE_10G);
+		adapt_mode = USXGMII_RATE_UPDATE_MODE;
+	} else if (interface == PHY_INTERFACE_MODE_5GBASER) {
+		an_ctrl = FIELD_PREP(USXGMII_AN_SYNC_CNT, 0xFF);
+		link_timer = FIELD_PREP(USXGMII_LINK_TIMER_IDLE_DETECT, 0x3D) |
+			     FIELD_PREP(USXGMII_LINK_TIMER_COMP_ACK_DETECT, 0x3D) |
+			     FIELD_PREP(USXGMII_LINK_TIMER_AN_RESTART, 0x3D);
+		xfi_mode = FIELD_PREP(USXGMII_XFI_RX_MODE, USXGMII_XFI_RX_MODE_5G) |
+			   FIELD_PREP(USXGMII_XFI_TX_MODE, USXGMII_XFI_TX_MODE_5G);
+		adapt_mode = USXGMII_RATE_UPDATE_MODE;
+	} else {
+		return -EINVAL;
+	}
+
+	adapt_mode |= FIELD_PREP(USXGMII_RATE_ADAPT_MODE, USXGMII_RATE_ADAPT_MODE_X1);
+
+	mtk_usxgmii_xfi_pll_enable(eth->usxgmii);
+	mtk_usxgmii_reset(mpcs);
+
+	mutex_lock(&mpcs->regmap_lock);
+
+	if (mode >= 0 && mpcs->interface != interface) {
+		mpcs->interface = interface;
+		mpcs->mode = mode;
+		mode_changed = true;
+	}
+
+	/* Setup USXGMII AN ctrl */
+	regmap_update_bits(mpcs->regmap, RG_PCS_AN_CTRL0,
+			   USXGMII_AN_SYNC_CNT | USXGMII_AN_ENABLE,
+			   an_ctrl);
+
+	regmap_update_bits(mpcs->regmap, RG_PCS_AN_CTRL2,
+			   USXGMII_LINK_TIMER_IDLE_DETECT |
+			   USXGMII_LINK_TIMER_COMP_ACK_DETECT |
+			   USXGMII_LINK_TIMER_AN_RESTART,
+			   link_timer);
+
+	/* Gated MAC CK */
+	regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
+			   USXGMII_MAC_CK_GATED, USXGMII_MAC_CK_GATED);
+
+	/* Enable interface force mode */
+	regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
+			   USXGMII_IF_FORCE_EN, USXGMII_IF_FORCE_EN);
+
+	/* Setup USXGMII adapt mode */
+	regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
+			   USXGMII_RATE_UPDATE_MODE | USXGMII_RATE_ADAPT_MODE,
+			   adapt_mode);
+
+	/* Setup USXGMII speed */
+	regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
+			   USXGMII_XFI_RX_MODE | USXGMII_XFI_TX_MODE,
+			   xfi_mode);
+
+	usleep_range(1, 5);
+
+	/* Un-gated MAC CK */
+	regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
+			   USXGMII_MAC_CK_GATED, 0);
+
+	usleep_range(1, 5);
+
+	/* Disable interface force mode for the AN mode */
+	if (an_ctrl & USXGMII_AN_ENABLE)
+		regmap_update_bits(mpcs->regmap, RG_PHY_TOP_SPEED_CTRL1,
+				   USXGMII_IF_FORCE_EN, 0);
+
+	/* Setup USXGMIISYS with the determined property */
+	if (interface == PHY_INTERFACE_MODE_USXGMII)
+		mtk_usxgmii_setup_phya_usxgmii(mpcs);
+	else if (interface == PHY_INTERFACE_MODE_10GKR)
+		mtk_usxgmii_setup_phya_10gbaser(mpcs);
+	else if (interface == PHY_INTERFACE_MODE_5GBASER)
+		mtk_usxgmii_setup_phya_5gbaser(mpcs);
+
+	mutex_unlock(&mpcs->regmap_lock);
+
+	return mode_changed;
+}
+
+static void mtk_usxgmii_pcs_link_poll(struct work_struct *work)
+{
+	struct mtk_usxgmii_pcs *mpcs = container_of(work, struct mtk_usxgmii_pcs,
+						    link_poll.work);
+
+	if (mpcs->interface != PHY_INTERFACE_MODE_5GBASER &&
+	    mpcs->interface != PHY_INTERFACE_MODE_10GKR &&
+	    mpcs->interface != PHY_INTERFACE_MODE_USXGMII)
+		goto exit;
+
+	if (!mtk_usxgmii_link_status(mpcs) || !mtk_usxgmii_is_valid_ctle(mpcs))
+		mtk_usxgmii_pcs_config(&mpcs->pcs, -1,
+				       mpcs->interface, NULL, false);
+
+exit:
+	if (mpcs->mode == MLO_AN_INBAND)
+		mtk_usxgmii_get_state(mpcs);
+	else if (!delayed_work_pending(&mpcs->link_poll))
+		schedule_delayed_work(&mpcs->link_poll, msecs_to_jiffies(1000));
+}
+
+static int mtk_usxgmii_pcs_enable(struct phylink_pcs *pcs)
+{
+	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
+
+	if (!delayed_work_pending(&mpcs->link_poll))
+		schedule_delayed_work(&mpcs->link_poll, msecs_to_jiffies(1000));
+
+	return 0;
+}
+
+static void mtk_usxgmii_pcs_disable(struct phylink_pcs *pcs)
+{
+	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
+
+	cancel_delayed_work_sync(&mpcs->link_poll);
+
+	if (mpcs->mode == MLO_AN_INBAND)
+		mtk_usxgmii_get_state(mpcs);
+}
+
+static void mtk_usxgmii_pcs_get_state(struct phylink_pcs *pcs,
+				    struct phylink_link_state *state)
+{
+	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
+
+	if (mpcs->state.interface != PHY_INTERFACE_MODE_NA)
+		state->interface = mpcs->state.interface;
+	state->speed = mpcs->state.speed;
+	state->duplex = mpcs->state.duplex;
+	state->link = mpcs->state.link;
+
 	/* Reconfiguring USXGMII every second to ensure that PCS can
 	 * link up with the Link Partner when a module is inserted.
 	 */
-	if (state->link == 0 && time_after(jiffies, mpcs->link_poll_inband + HZ)) {
-		mpcs->link_poll_inband = jiffies;
-		mtk_usxgmii_pcs_config(pcs, MLO_AN_INBAND,
-				       state->interface, NULL, false);
+	if (time_after(jiffies, mpcs->link_poll_expire) &&
+	    !delayed_work_pending(&mpcs->link_poll)) {
+		mpcs->link_poll_expire = jiffies + HZ;
+		mpcs->state.an_enabled = state->an_enabled;
+		schedule_delayed_work(&mpcs->link_poll, 0);
 	}
 }
 
@@ -802,13 +852,8 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 				    int speed, int duplex)
 {
 	struct mtk_usxgmii_pcs *mpcs = pcs_to_mtk_usxgmii_pcs(pcs);
+	struct device *dev = mpcs->eth->dev;
 	unsigned long t_start = jiffies;
-
-	/* Reconfiguring USXGMII to ensure the quality of the RX signal
-	 * after the line side link up.
-	 */
-	mtk_usxgmii_pcs_config(pcs, mode,
-			       interface, NULL, false);
 
 	do {
 		msleep(100);
@@ -818,7 +863,7 @@ static void mtk_usxgmii_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 
 	} while (time_before(jiffies, t_start + msecs_to_jiffies(3000)));
 
-	pr_warn("%s wait link up timeout!\n", __func__);
+	dev_warn(dev, "usxgmii%d: wait link up timeout!\n", mpcs->id);
 }
 
 static const struct phylink_pcs_ops mtk_usxgmii_pcs_ops = {
@@ -852,9 +897,14 @@ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r)
 		ss->pcs[i].pcs.poll = true;
 		ss->pcs[i].interface = PHY_INTERFACE_MODE_NA;
 
-		timer_setup(&ss->pcs[i].link_poll_outband, mtk_usxgmii_pcs_link_poll, 0);
+		ss->pcs[i].state.link = 0;
+		ss->pcs[i].state.duplex = DUPLEX_FULL;
+		ss->pcs[i].state.speed = SPEED_10000;
 
-		spin_lock_init(&ss->pcs[i].regmap_lock);
+		INIT_DELAYED_WORK(&ss->pcs[i].link_poll, mtk_usxgmii_pcs_link_poll);
+
+		mutex_init(&ss->pcs[i].regmap_lock);
+		mutex_init(&ss->pcs[i].reset_lock);
 
 		of_node_put(np);
 	}

@@ -1781,16 +1781,18 @@ struct mtk_sgmii_pcs {
 	struct mtk_eth		*eth;
 	struct regmap		*regmap;
 	struct regmap		*regmap_pextp;
-	spinlock_t		regmap_lock;
+	struct mutex		regmap_lock;
+	struct mutex		reset_lock;
 	phy_interface_t		interface;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
-	unsigned long		link_poll_inband;
+	unsigned long		link_poll_expire;
 	unsigned int		mode;
 	u32			flags;
 	u32			ana_rgc3;
 	u32			polarity;
 	u8			id;
-	struct timer_list	link_poll_outband;
+	struct phylink_link_state	state;
+	struct delayed_work	link_poll;
 	struct phylink_pcs	pcs;
 };
 
@@ -1818,12 +1820,14 @@ struct mtk_usxgmii_pcs {
 	struct mtk_eth		*eth;
 	struct regmap		*regmap;
 	struct regmap		*regmap_pextp;
-	spinlock_t		regmap_lock;
+	struct mutex		regmap_lock;
+	struct mutex		reset_lock;
 	phy_interface_t		interface;
-	unsigned long		link_poll_inband;
+	unsigned long		link_poll_expire;
 	unsigned int		mode;
 	u8			id;
-	struct timer_list	link_poll_outband;
+	struct phylink_link_state	state;
+	struct delayed_work	link_poll;
 	struct phylink_pcs	pcs;
 };
 
