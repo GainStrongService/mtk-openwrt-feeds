@@ -1,45 +1,38 @@
-From 65df61bf369b84c9fbd2145242d09e8a854773e0 Mon Sep 17 00:00:00 2001
+From b512ce1f521f039a73237f70625d11eaa1a725cd Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Tue, 28 May 2024 14:44:58 +0800
+Date: Tue, 4 Jun 2024 23:02:50 +0800
 Subject: [PATCH] flow offload binding when there is no ARP
 
 ---
- net/netfilter/xt_FLOWOFFLOAD.c       | 49 ++++++++++++++++++++--------
- 1 files changed, 34 insertions(+), 15 deletions(-)
+ net/netfilter/xt_FLOWOFFLOAD.c | 35 ++++++++++++++++++++++++----------
+ 1 file changed, 25 insertions(+), 10 deletions(-)
 
 diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
-index 99fc6a1..fa10d02 100644
+index 53fca27..50cdda1 100644
 --- a/net/netfilter/xt_FLOWOFFLOAD.c
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
-@@ -395,34 +395,53 @@ static int nf_dev_fill_forward_path(const struct nf_flow_route *route,
- 	if (!nf_is_valid_ether_device(dev))
- 		goto out;
+@@ -369,7 +369,7 @@ static void nf_dev_path_info(const struct net_device_path_stack *stack,
+ 			}
+ 			break;
+ 		case DEV_PATH_MTK_WDMA:
+-			if (is_zero_ether_addr(info->h_source))
++			if (stack->num_paths == 1)
+ 				memcpy(info->h_source, path->dev->dev_addr, ETH_ALEN);
+ 			break;
+ 		default:
+@@ -405,28 +405,43 @@ static int nf_dev_fill_forward_path(const struct nf_flow_route *route,
  
--	n = dst_neigh_lookup(dst_cache, daddr);
--	if (!n)
--		return -1;
-+	if (ct->status & IPS_NAT_MASK || ct->inet6_mode == CT_INET_MODE_IPV6) {
-+		n = dst_neigh_lookup(dst_cache, daddr);
-+		if (!n)
-+			return -1;
- 
--	read_lock_bh(&n->lock);
--	nud_state = n->nud_state;
+ 	read_lock_bh(&n->lock);
+ 	nud_state = n->nud_state;
 -	ether_addr_copy(ha, n->ha);
--	read_unlock_bh(&n->lock);
--	neigh_release(n);
-+		read_lock_bh(&n->lock);
-+		nud_state = n->nud_state;
++	if (nud_state & NUD_VALID)
 +		ether_addr_copy(ha, n->ha);
-+		read_unlock_bh(&n->lock);
-+		neigh_release(n);
+ 	read_unlock_bh(&n->lock);
+ 	neigh_release(n);
  
 -	if (!(nud_state & NUD_VALID))
 -		return -1;
-+		if (!(nud_state & NUD_VALID))
-+			return -1;
-+	}
- 
+-
  out:
  	return dev_fill_forward_path(dev, ha, stack);
  }
@@ -76,7 +69,7 @@ index 99fc6a1..fa10d02 100644
  	if (nf_dev_fill_forward_path(route, dst, ct, dir, ha, &stack) >= 0)
  		nf_dev_path_info(&stack, &info, ha);
  
-@@ -512,9 +531,9 @@ xt_flowoffload_route_nat(struct sk_buff *skb, const struct nf_conn *ct,
+@@ -516,9 +531,9 @@ xt_flowoffload_route_nat(struct sk_buff *skb, const struct nf_conn *ct,
  
  	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH &&
  	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
@@ -88,7 +81,7 @@ index 99fc6a1..fa10d02 100644
  			return -1;
  	}
  
-@@ -543,8 +562,8 @@ xt_flowoffload_route_bridge(struct sk_buff *skb, const struct nf_conn *ct,
+@@ -547,8 +562,8 @@ xt_flowoffload_route_bridge(struct sk_buff *skb, const struct nf_conn *ct,
  
  	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH &&
  	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {

@@ -1,0 +1,27 @@
+From 6d638d1aa90fbff78f26bb1e69d506a8a2023642 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Wed, 29 May 2024 17:13:09 +0800
+Subject: [PATCH] flow offload add relayd support
+
+---
+ net/netfilter/xt_FLOWOFFLOAD.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
+index ecdb2b6..53fca27 100644
+--- a/net/netfilter/xt_FLOWOFFLOAD.c
++++ b/net/netfilter/xt_FLOWOFFLOAD.c
+@@ -368,6 +368,10 @@ static void nf_dev_path_info(const struct net_device_path_stack *stack,
+ 				break;
+ 			}
+ 			break;
++		case DEV_PATH_MTK_WDMA:
++			if (is_zero_ether_addr(info->h_source))
++				memcpy(info->h_source, path->dev->dev_addr, ETH_ALEN);
++			break;
+ 		default:
+ 			break;
+ 		}
+-- 
+2.18.0
+
