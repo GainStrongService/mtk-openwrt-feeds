@@ -306,12 +306,9 @@ int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp)
 static inline struct neighbour *mtk_crypto_find_dst_mac(struct sk_buff *skb,  struct xfrm_state *xs)
 {
 	struct neighbour *neigh;
-	u32 nexthop;
 	struct dst_entry *dst = skb_dst(skb);
-	struct rtable *rt = (struct rtable *) dst;
 
-	nexthop = (__force u32) rt_nexthop(rt, xs->id.daddr.a4);
-	neigh = __ipv4_neigh_lookup_noref(dst->dev, nexthop);
+	neigh = __ipv4_neigh_lookup_noref(dst->dev, xs->id.daddr.a4);
 	if (unlikely(!neigh)) {
 		CRYPTO_INFO("%s: %s No neigh (daddr=%pI4)\n", __func__, dst->dev->name,
 				&xs->id.daddr.a4);
@@ -329,6 +326,7 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 	struct mtk_xfrm_params *xfrm_params;
 	struct neighbour *neigh;
 	struct dst_entry *dst = skb_dst(skb);
+	int fill_inner_info = 0;
 
 	rcu_read_lock_bh();
 
@@ -337,6 +335,14 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 		rcu_read_unlock_bh();
 		return true;
 	}
+
+	/*
+	 * For packet has pass through VTI (route-based VTI)
+	 * The 'dev_queue_xmit' function called at network layer will cause both
+	 * skb->mac_header and skb->network_header to point to the IP header
+	 */
+	if (skb->mac_header == skb->network_header)
+		fill_inner_info = 1;
 
 	skb_push(skb, sizeof(struct ethhdr));
 	skb_reset_mac_header(skb);
@@ -357,7 +363,7 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 	 */
 	if (ra_sw_nat_hook_tx &&
 		((is_tops_udp_tunnel(skb) || is_tcp(skb)) && is_hnat_rate_reach(skb)))
-		hnat_bind_crypto_entry(skb, dst->dev);
+		hnat_bind_crypto_entry(skb, dst->dev, fill_inner_info);
 
 	/* Set magic tag for tport setting, reset to 0 after tport is set */
 	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
