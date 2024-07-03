@@ -237,7 +237,11 @@ void mtk_dump_netsys_info(void *_eth)
 	}
 	mtk_dump_reg(eth, "QDMA", MTK_QRX_BASE_PTR0, 0x300);
 	mtk_dump_reg(eth, "WDMA", WDMA_BASE(0), 0x600);
-	mtk_dump_reg(eth, "PPE", 0x2200, 0x200);
+	mtk_dump_reg(eth, "PPE0", PPE_BASE(0), 0x200);
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V1))
+		mtk_dump_reg(eth, "PPE1", PPE_BASE(1), 0x200);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+		mtk_dump_reg(eth, "PPE2", PPE_BASE(2), 0x200);
 	mtk_dump_reg(eth, "GMAC", 0x10000, 0x300);
 	mtk_dump_regmap(eth->sgmii->pcs[0].regmap,
 			"SGMII0", 0, 0x1a0);
