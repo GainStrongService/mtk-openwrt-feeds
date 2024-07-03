@@ -870,9 +870,9 @@ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r)
 	return 0;
 }
 
-struct phylink_pcs *mtk_usxgmii_select_pcs(struct mtk_usxgmii *ss, int id)
+struct phylink_pcs *mtk_usxgmii_select_pcs(struct mtk_usxgmii *ss, unsigned int id)
 {
-	if (!ss->pcs[id].regmap)
+	if (id >= MTK_MAX_DEVS || !ss->pcs[id].regmap)
 		return NULL;
 
 	return &ss->pcs[id].pcs;

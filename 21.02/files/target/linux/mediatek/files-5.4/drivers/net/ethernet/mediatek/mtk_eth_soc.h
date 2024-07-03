@@ -2002,7 +2002,7 @@ void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
 u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
 u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned reg);
 
-struct phylink_pcs *mtk_sgmii_select_pcs(struct mtk_sgmii *ss, int id);
+struct phylink_pcs *mtk_sgmii_select_pcs(struct mtk_sgmii *ss, unsigned int id);
 int mtk_sgmii_init(struct mtk_eth *eth, struct device_node *np,
 		   u32 ana_rgc3);
 
@@ -2015,7 +2015,7 @@ void mtk_gdm_config(struct mtk_eth *eth, u32 id, u32 config);
 void ethsys_reset(struct mtk_eth *eth, u32 reset_bits);
 
 int mtk_mac2xgmii_id(struct mtk_eth *eth, int mac_id);
-struct phylink_pcs *mtk_usxgmii_select_pcs(struct mtk_usxgmii *ss, int id);
+struct phylink_pcs *mtk_usxgmii_select_pcs(struct mtk_usxgmii *ss, unsigned int id);
 int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r);
 int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
 
