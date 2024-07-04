@@ -7,6 +7,8 @@ branch_name=${temp##*/}
 swpath=0
 backport_new=1
 hostapd_new=1
+mt7992_fw=0
+mt7996_fw=0
 args=
 
 for arg in $*; do
@@ -16,6 +18,12 @@ for arg in $*; do
 		;;
 	"kasan")
 		kasan=1
+		;;
+	"mt7992")
+		mt7992_fw=1
+		;;
+	"mt7996")
+		mt7996_fw=1
 		;;
 	*)
 		args="$args $arg"
@@ -53,6 +61,16 @@ change_dot_config() {
 		echo "# CONFIG_TEST_KASAN is not set" >> ${BUILD_DIR}/target/linux/mediatek/mt7988/config-5.4
 		echo "CONFIG_SLUB_DEBUG=y" >> ${BUILD_DIR}/target/linux/mediatek/mt7988/config-5.4
 		echo "CONFIG_FRAME_WARN=4096" >> ${BUILD_DIR}/target/linux/mediatek/mt7988/config-5.4
+		#Hostapd Crash Core Dump
+		sed -i 's/CONFIG_USE_SSTRIP=y/# CONFIG_USE_SSTRIP is not set/g' ${BUILD_DIR}/.config
+		sed -i '/CONFIG_SSTRIP_ARGS="-z"/d' ${BUILD_DIR}/.config
+		sed -i 's/# CONFIG_NO_STRIP is not set/CONFIG_NO_STRIP=y/g' ${BUILD_DIR}/.config
+	}
+	[ "$mt7992_fw" = "1" -a "$mt7996_fw" = "0" ] && {
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7996-firmware=y/# CONFIG_PACKAGE_kmod-mt7996-firmware is not set/g' ${BUILD_DIR}/.config
+	}
+	[ "$mt7992_fw" = "0" -a "$mt7996_fw" = "1" ] && {
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7992-firmware=y/# CONFIG_PACKAGE_kmod-mt7992-firmware is not set/g' ${BUILD_DIR}/.config
 	}
 }
 
