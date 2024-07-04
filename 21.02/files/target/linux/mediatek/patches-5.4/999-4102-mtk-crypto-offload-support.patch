@@ -8,7 +8,7 @@
  
  	WRITE_ONCE(desc->txd1, info->addr);
  
-@@ -2019,11 +2020,25 @@ static void mtk_tx_set_dma_desc_v3(struc
+@@ -2020,11 +2021,25 @@ static void mtk_tx_set_dma_desc_v3(struc
  	trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
  		     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
  #endif
@@ -35,7 +35,7 @@
  	}
  
  	if (tport) {
-@@ -2060,6 +2075,11 @@ static void mtk_tx_set_dma_desc_v3(struc
+@@ -2061,6 +2076,11 @@ static void mtk_tx_set_dma_desc_v3(struc
  		data |= (tops_entry & TX_DMA_TOPS_ENTRY_MASK) << TX_DMA_TOPS_ENTRY_SHIFT;
  	}
  
@@ -47,7 +47,7 @@
  	WRITE_ONCE(desc->txd8, data);
  }
  
-@@ -2538,6 +2558,7 @@ static int mtk_poll_rx(struct napi_struc
+@@ -2574,6 +2594,7 @@ static int mtk_poll_rx(struct napi_struc
  
  		skb_hnat_alg(skb) = 0;
  		skb_hnat_filled(skb) = 0;
@@ -57,7 +57,7 @@
  		skb_hnat_set_is_decap(skb, 0);
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat_nf_hook.c
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat_nf_hook.c
-@@ -1079,6 +1079,9 @@ static unsigned int hnat_ipv4_get_nextho
+@@ -1091,6 +1091,9 @@ static unsigned int hnat_ipv4_get_nextho
  		return 0;
  	}
  
@@ -67,7 +67,7 @@
  	rcu_read_lock_bh();
  	nexthop = (__force u32)rt_nexthop(rt, ip_hdr(skb)->daddr);
  	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
-@@ -1303,6 +1306,9 @@ static inline void hnat_fill_offload_eng
+@@ -1315,6 +1318,9 @@ static inline void hnat_fill_offload_eng
  		 */
  		entry->ipv4_hnapt.tport_id = NR_TDMA_QDMA_TPORT;
  		entry->ipv4_hnapt.tops_entry = skb_hnat_tops(skb);
@@ -77,31 +77,108 @@
  	} else {
  		return;
  	}
-@@ -1312,6 +1318,79 @@ static inline void hnat_fill_offload_eng
+@@ -1324,6 +1330,156 @@ static inline void hnat_fill_offload_eng
  #endif /* defined(CONFIG_MEDIATEK_NETSYS_V3) */
  }
  
-+int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev) {
++int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, int fill_inner_info) {
 +	struct foe_entry *foe;
 +	struct foe_entry entry = { 0 };
 +	struct ethhdr *eth = eth_hdr(skb);
++	struct iphdr *iph;
++	struct tcpudphdr _ports;
++	const struct tcpudphdr *pptr;
 +	u32 gmac = NR_DISCARD;
++	int udp = 0;
 +	struct mtk_mac *mac = netdev_priv(dev);
++	struct flow_offload_hw_path hw_path = { .dev = (struct net_device *) dev,
++						.virt_dev = (struct net_device *) dev };
++
++	if (!skb_hnat_is_hashed(skb) || skb_hnat_ppe(skb) >= CFG_PPE_NUM)
++		return 0;
++
++	foe = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
++
++	if (entry_hnat_is_bound(foe))
++		return 0;
++
++	if (eth->h_proto != htons(ETH_P_IP))
++		return 0;
 +
 +	if (skb_hnat_tops(skb) && mtk_tnl_encap_offload)
 +		mtk_tnl_encap_offload(skb);
 +
-+	foe = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
-+
 +	hnat_get_filled_unbind_entry(skb, &entry);
-+	entry.bfib1.cah = 1;
-+	entry.bfib1.time_stamp = (hnat_priv->data->version == MTK_HNAT_V2 ||
-+				 hnat_priv->data->version == MTK_HNAT_V3) ?
-+		readl(hnat_priv->fe_base + 0x0010) & (0xFF) :
-+		readl(hnat_priv->fe_base + 0x0010) & (0x7FFF);
-+	entry.ipv4_hnapt.iblk2.port_ag =
-+		(hnat_priv->data->version == MTK_HNAT_V2 ||
-+		 hnat_priv->data->version == MTK_HNAT_V3) ? 0xf : 0x3f;
++
++	if (dev->netdev_ops->ndo_flow_offload_check)
++		dev->netdev_ops->ndo_flow_offload_check(&hw_path);
++
++	/* For packets pass through VTI (route-based IPSec),
++	 * We need to fill the inner packet info into hnat entry.
++	 * Since the skb->mac_header is not pointed to correct position
++	 * in skb_to_hnat_info().
++	 */
++	if (fill_inner_info) {
++		iph = ip_hdr(skb);
++		switch (iph->protocol) {
++		case IPPROTO_UDP:
++			udp = 1;
++			/* fallthrough */
++		case IPPROTO_TCP:
++			entry.ipv4_hnapt.etype = htons(ETH_P_IP);
++			if (IS_IPV4_GRP(&entry)) {
++				entry.ipv4_hnapt.iblk2.dscp = iph->tos;
++				if (hnat_priv->data->per_flow_accounting)
++					entry.ipv4_hnapt.iblk2.mibf = 1;
++
++				entry.ipv4_hnapt.vlan1 = hw_path.vlan_id;
++
++				if (skb_vlan_tagged(skb)) {
++					entry.bfib1.vlan_layer += 1;
++
++					if (entry.ipv4_hnapt.vlan1)
++						entry.ipv4_hnapt.vlan2 =
++							skb->vlan_tci;
++					else
++						entry.ipv4_hnapt.vlan1 =
++							skb->vlan_tci;
++				}
++
++				entry.ipv4_hnapt.sip = foe->ipv4_hnapt.sip;
++				entry.ipv4_hnapt.dip = foe->ipv4_hnapt.dip;
++				entry.ipv4_hnapt.sport = foe->ipv4_hnapt.sport;
++				entry.ipv4_hnapt.dport = foe->ipv4_hnapt.dport;
++
++				entry.ipv4_hnapt.new_sip = ntohl(iph->saddr);
++				entry.ipv4_hnapt.new_dip = ntohl(iph->daddr);
++
++				if (IS_IPV4_HNAPT(&entry)) {
++					pptr = skb_header_pointer(skb, iph->ihl * 4 + ETH_HLEN,
++								sizeof(_ports),
++								&_ports);
++					if (unlikely(!pptr))
++						return -1;
++
++					entry.ipv4_hnapt.new_sport = ntohs(pptr->src);
++					entry.ipv4_hnapt.new_dport = ntohs(pptr->dst);
++				}
++			} else
++				return 0;
++
++			entry.ipv4_hnapt.bfib1.udp = udp;
++
++#if defined(CONFIG_MEDIATEK_NETSYS_V3)
++				entry.ipv4_hnapt.eg_keep_ecn = 1;
++				entry.ipv4_hnapt.eg_keep_dscp = 1;
++#endif
++			break;
++
++		default:
++			return -1;
++		}
++	}
++
++	entry = ppe_fill_info_blk(eth, entry, &hw_path);
 +
 +	if (IS_LAN(dev)) {
 +		if (IS_BOND_MODE)
@@ -157,15 +234,15 @@
  static unsigned int skb_to_hnat_info(struct sk_buff *skb,
  				     const struct net_device *dev,
  				     struct foe_entry *foe,
-@@ -2365,6 +2444,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
- 
+@@ -2448,6 +2604,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
  	skb_hnat_alg(skb) = 0;
+ 	skb_hnat_filled(skb) = 0;
  	skb_hnat_set_tops(skb, 0);
 +	skb_hnat_set_cdrt(skb, 0);
  	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
  
  	if (skb_hnat_iface(skb) == FOE_MAGIC_WED0)
-@@ -2451,7 +2531,8 @@ static unsigned int mtk_hnat_accel_type(
+@@ -2534,7 +2691,8 @@ static unsigned int mtk_hnat_accel_type(
  	 * is from local_out which is also filtered in sanity check.
  	 */
  	dst = skb_dst(skb);
@@ -175,7 +252,7 @@
  		return 0;
  
  	ct = nf_ct_get(skb, &ctinfo);
-@@ -2855,6 +2936,14 @@ static unsigned int mtk_hnat_nf_post_rou
+@@ -2916,6 +3074,14 @@ static unsigned int mtk_hnat_nf_post_rou
  		}
  	}
  
@@ -190,7 +267,7 @@
  	if (!IS_LAN_GRP(out) && !IS_WAN(out) && !IS_EXT(out))
  		is_virt_dev = true;
  
-@@ -3164,7 +3253,10 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
+@@ -3223,7 +3389,10 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
  	if (iph->protocol == IPPROTO_IPV6) {
  		entry->udib1.pkt_type = IPV6_6RD;
  		hnat_set_head_frags(state, skb, 0, hnat_set_alg);
@@ -214,7 +291,7 @@
  	u32 magic_tag_protect : 16;
  } __packed;
  #elif defined(CONFIG_MEDIATEK_NETSYS_RX_V2)
-@@ -99,12 +100,16 @@ struct hnat_desc {
+@@ -100,12 +101,16 @@ struct hnat_desc {
  #define skb_hnat_is_encap(skb) (!skb_hnat_is_decap(skb))
  #define skb_hnat_set_tops(skb, tops) ((skb_hnat_tops(skb)) = (tops))
  #define skb_hnat_set_is_decap(skb, is_decap) ((skb_hnat_is_decap(skb)) = (is_decap))
@@ -240,11 +317,11 @@
 +bool (*mtk_crypto_offloadable)(struct sk_buff *skb) = NULL;
 +EXPORT_SYMBOL(mtk_crypto_offloadable);
  
- static void hnat_sma_build_entry(struct timer_list *t)
- {
+ int (*hnat_set_wdma_pse_port_state)(int wdma_idx, int up) = NULL;
+ EXPORT_SYMBOL(hnat_set_wdma_pse_port_state);
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat.h
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat.h
-@@ -1147,6 +1147,8 @@ enum FoeIpAct {
+@@ -1151,6 +1151,8 @@ enum FoeIpAct {
  #define NR_WDMA2_PORT 13
  #define NR_GMAC3_PORT 15
  #define NR_QDMA_TPORT 1
@@ -253,18 +330,19 @@
  #define NR_TDMA_TPORT 4
  #define NR_TDMA_QDMA_TPORT 5
  #define LAN_DEV_NAME hnat_priv->lan
-@@ -1298,6 +1300,8 @@ extern int qos_toggle;
+@@ -1332,6 +1334,9 @@ extern int qos_toggle;
  extern int (*mtk_tnl_encap_offload)(struct sk_buff *skb);
  extern int (*mtk_tnl_decap_offload)(struct sk_buff *skb);
  extern bool (*mtk_tnl_decap_offloadable)(struct sk_buff *skb);
 +extern bool (*mtk_crypto_offloadable)(struct sk_buff *skb);
-+extern int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev);
++extern int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev,
++					int fill_inner_info);
  
  int ext_if_add(struct extdev_entry *ext_entry);
  int ext_if_del(struct extdev_entry *ext_entry);
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -594,6 +594,8 @@
+@@ -573,6 +573,8 @@
  #define MTK_QDMA_GMAC3_QID	6
  
  /* QDMA V2 descriptor txd8 */
@@ -273,7 +351,7 @@
  #define TX_DMA_TOPS_ENTRY_SHIFT    8
  #define TX_DMA_TOPS_ENTRY_MASK     0x3f
  
-@@ -606,6 +608,7 @@
+@@ -585,6 +587,7 @@
  #define TX_DMA_SPTAG_V3            BIT(27)
  
  /* QDMA V2 descriptor txd4 */
@@ -281,7 +359,7 @@
  #define TX_DMA_TPORT_SHIFT         0
  #define TX_DMA_TPORT_MASK          0xf
  #define TX_DMA_FPORT_SHIFT_V2      8
-@@ -1070,6 +1073,43 @@
+@@ -1068,6 +1071,43 @@
  #define MT7628_SDM_MAC_ADRL	(MT7628_SDM_OFFSET + 0x0c)
  #define MT7628_SDM_MAC_ADRH	(MT7628_SDM_OFFSET + 0x10)
  
