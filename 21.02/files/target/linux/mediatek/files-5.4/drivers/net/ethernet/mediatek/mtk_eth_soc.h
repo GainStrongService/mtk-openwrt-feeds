@@ -531,6 +531,7 @@
 
 /* QDMA TX Scheduler Rate Control Register */
 #define MTK_QDMA_TX_4SCH_BASE(x)	(QDMA_BASE + 0x398 + (((x) >> 1) * 0x4))
+#define MTK_QDMA_TX_SCH_MASK		GENMASK(15, 0)
 
 /* WDMA Registers */
 #define MTK_WDMA_CTX_PTR(x)	(WDMA_BASE(x) + 0x8)

@@ -2129,7 +2129,7 @@ static ssize_t hnat_sched_show(struct file *file, char __user *user_buf,
 
 	if (id & 0x1)
 		qdma_tx_sch >>= 16;
-	qdma_tx_sch &= 0xffff;
+	qdma_tx_sch &= MTK_QDMA_TX_SCH_MASK;
 	enable = !!(qdma_tx_sch & BIT(11));
 	scheduling = !!(qdma_tx_sch & BIT(15));
 	max_rate = ((qdma_tx_sch >> 4) & 0x7f);
@@ -2212,7 +2212,7 @@ static ssize_t hnat_sched_write(struct file *file, const char __user *buf,
 	else
 		qdma_tx_sch = readl(h->fe_base + QDMA_TX_2SCH_BASE);
 
-	qdma_tx_sch &= ~(0xffff << shift);
+	qdma_tx_sch &= ~(MTK_QDMA_TX_SCH_MASK << shift);
 	qdma_tx_sch |= val << shift;
 	if (hnat_priv->data->num_of_sch == 4)
 		writel(qdma_tx_sch, h->fe_base + QDMA_TX_4SCH_BASE(id));

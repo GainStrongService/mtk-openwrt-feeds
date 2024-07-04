@@ -1171,10 +1171,11 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 		} else {
 			entry.ipv4_hnapt.iblk2.mcast = 0;
 		}
-
-		entry.ipv4_hnapt.iblk2.port_ag =
-			(hnat_priv->data->version == MTK_HNAT_V2 ||
-			 hnat_priv->data->version == MTK_HNAT_V3) ? 0xf : 0x3f;
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+		entry.ipv4_hnapt.iblk2.port_ag = 0xf;
+#else
+		entry.ipv4_hnapt.iblk2.port_ag = 0x3f;
+#endif
 		break;
 	case IPV4_DSLITE:
 	case IPV4_MAP_E:
@@ -1194,9 +1195,11 @@ struct foe_entry ppe_fill_info_blk(struct ethhdr *eth, struct foe_entry entry,
 			entry.ipv6_5t_route.iblk2.mcast = 0;
 		}
 
-		entry.ipv6_5t_route.iblk2.port_ag =
-			(hnat_priv->data->version == MTK_HNAT_V2 ||
-			 hnat_priv->data->version == MTK_HNAT_V3) ? 0xf : 0x3f;
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+		entry.ipv6_5t_route.iblk2.port_ag = 0xf;
+#else
+		entry.ipv6_5t_route.iblk2.port_ag = 0x3f;
+#endif
 		break;
 	}
 	return entry;
@@ -1794,10 +1797,13 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	}
 
 	if (IS_IPV4_GRP(&entry)) {
-		entry.ipv4_hnapt.iblk2.dp = gmac;
+		entry.ipv4_hnapt.iblk2.dp = gmac & 0xf;
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+		entry.ipv4_hnapt.iblk2.port_mg = 0;
+#else
 		entry.ipv4_hnapt.iblk2.port_mg =
 			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
-
+#endif
 		if (qos_toggle) {
 			if (hnat_priv->data->version == MTK_HNAT_V2 ||
 			    hnat_priv->data->version == MTK_HNAT_V3) {
@@ -1832,9 +1838,13 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			entry.ipv4_hnapt.iblk2.fqos = 0;
 		}
 	} else {
-		entry.ipv6_5t_route.iblk2.dp = gmac;
+		entry.ipv6_5t_route.iblk2.dp = gmac & 0xf;
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+		entry.ipv6_5t_route.iblk2.port_mg = 0;
+#else
 		entry.ipv6_5t_route.iblk2.port_mg =
 			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
+#endif
 
 		if (qos_toggle) {
 			if (hnat_priv->data->version == MTK_HNAT_V2 ||
@@ -1932,12 +1942,12 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	/* Before entry enter BIND state, write other fields first,
 	 * prevent racing with hardware accesses.
 	 */
-	memcpy(&foe->ipv4_hnapt.sip, &entry.ipv4_hnapt.sip,
-	       sizeof(entry) - sizeof(entry.bfib1));
+	memcpy(&(foe->ipv6_hnapt.ipv6_sip0), &(entry.ipv6_hnapt.ipv6_sip0),
+	       sizeof(struct foe_entry) - sizeof(entry.bfib1));
 	/* We must ensure all info has been updated before set to hw */
 	wmb();
 	/* After other fields have been written, write info1 to BIND the entry */
-	memcpy(foe, &entry, sizeof(entry.bfib1));
+	foe->bfib1 = entry.bfib1;
 
 	/* reset statistic for this entry */
 	if (hnat_priv->data->per_flow_accounting &&
@@ -2108,10 +2118,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 				entry.ipv4_hnapt.iblk2.fqos = 1;
 			}
 		}
-		entry.ipv4_hnapt.iblk2.dp = gmac_no;
+		entry.ipv4_hnapt.iblk2.dp = gmac_no & 0xf;
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 	} else if (IS_IPV6_HNAPT(&entry) || IS_IPV6_HNAT(&entry)) {
-		entry.ipv6_hnapt.iblk2.dp = gmac_no;
+		entry.ipv6_hnapt.iblk2.dp = gmac_no & 0xf;
 		entry.ipv6_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
 		entry.ipv6_hnapt.iblk2.winfoi = 1;
 
@@ -2213,7 +2223,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 				entry.ipv6_5t_route.iblk2.fqos = 1;
 			}
 		}
-		entry.ipv6_5t_route.iblk2.dp = gmac_no;
+		entry.ipv6_5t_route.iblk2.dp = gmac_no & 0xf;
 	}
 
 	entry.bfib1.ttl = 1;
@@ -2230,12 +2240,12 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	/* Before entry enter BIND state, write other fields first,
 	 * prevent racing with hardware accesses.
 	 */
-	memcpy(&hw_entry->ipv4_hnapt.sip, &entry.ipv4_hnapt.sip,
-	       sizeof(entry) - sizeof(entry.bfib1));
+	memcpy(&(hw_entry->ipv6_hnapt.ipv6_sip0), &(entry.ipv6_hnapt.ipv6_sip0),
+	       sizeof(struct foe_entry) - sizeof(entry.bfib1));
 	/* We must ensure all info has been updated before set to hw */
 	wmb();
 	/* After other fields have been written, write info1 to BIND the entry */
-	memcpy(hw_entry, &entry, sizeof(entry.bfib1));
+	hw_entry->bfib1 = entry.bfib1;
 
 	hnat_set_entry_lock(hw_entry, false);
 
