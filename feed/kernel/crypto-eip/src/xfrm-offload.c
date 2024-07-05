@@ -32,10 +32,11 @@ static LIST_HEAD(xfrm_params_head);
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 extern int (*ra_sw_nat_hook_tx)(struct sk_buff *skb, int gmac_no);
 
-static inline bool is_tops_udp_tunnel(struct sk_buff *skb)
+static inline bool is_tops_tunnel(struct sk_buff *skb)
 {
 	return skb_hnat_tops(skb) && (ntohs(skb->protocol) == ETH_P_IP) &&
-			(ip_hdr(skb)->protocol == IPPROTO_UDP);
+		(ip_hdr(skb)->protocol == IPPROTO_UDP ||
+		 ip_hdr(skb)->protocol == IPPROTO_GRE);
 }
 
 static inline bool is_tcp(struct sk_buff *skb)
@@ -64,7 +65,7 @@ static int mtk_xfrm_offload_cdrt_setup(struct mtk_xfrm_params *xfrm_params)
 	cdesc->desc1.token_len = 48;
 	cdesc->desc1.p_tr[0] = __pa(xfrm_params->p_tr) | 2;
 
-	cdesc->desc2.hw_srv = 2;
+	cdesc->desc2.hw_srv = 3;
 	cdesc->desc2.allow_pad = 1;
 	cdesc->desc2.strip_pad = 1;
 
@@ -362,7 +363,7 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 	 * flow since it may cause network fail due to fragmentation
 	 */
 	if (ra_sw_nat_hook_tx &&
-		((is_tops_udp_tunnel(skb) || is_tcp(skb)) && is_hnat_rate_reach(skb)))
+	    ((is_tops_tunnel(skb) || is_tcp(skb)) && is_hnat_rate_reach(skb)))
 		hnat_bind_crypto_entry(skb, dst->dev, fill_inner_info);
 
 	/* Set magic tag for tport setting, reset to 0 after tport is set */
