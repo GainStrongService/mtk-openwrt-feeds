@@ -1,22 +1,22 @@
-From 1631a36b9ac022ce6ffb58b039a7e85ad3414ed5 Mon Sep 17 00:00:00 2001
-From: Sam Shih <sam.shih@mediatek.com>
-Date: Fri, 2 Jun 2023 13:06:01 +0800
+From 3d251a9986dd10bbc7ae03a9535d4c46d62f0274 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Fri, 5 Jul 2024 11:37:08 +0800
 Subject: [PATCH] 
  [backport-networking-drivers][999-1709-net-phy-sfp-add-rollball-support.patch]
 
 ---
  drivers/net/phy/marvell.c     |   2 +-
- drivers/net/phy/marvell10g.c  | 168 +++++++++++++--
- drivers/net/phy/mdio-i2c.c    | 309 +++++++++++++++++++++++++++-
- drivers/net/phy/phylink.c     |  74 +++++--
- drivers/net/phy/sfp-bus.c     | 102 +---------
- drivers/net/phy/sfp.c         | 373 +++++++++++++++++++++++++++++-----
+ drivers/net/phy/marvell10g.c  | 168 ++++++++++++-
+ drivers/net/phy/mdio-i2c.c    | 309 +++++++++++++++++++++++-
+ drivers/net/phy/phylink.c     |  74 ++++--
+ drivers/net/phy/sfp-bus.c     | 102 +-------
+ drivers/net/phy/sfp.c         | 428 ++++++++++++++++++++++++++++++----
  drivers/net/phy/sfp.h         |  11 +-
  include/linux/mdio/mdio-i2c.h |  10 +-
- 8 files changed, 874 insertions(+), 175 deletions(-)
+ 8 files changed, 926 insertions(+), 178 deletions(-)
 
 diff --git a/drivers/net/phy/marvell.c b/drivers/net/phy/marvell.c
-index 49801c2eb..f25881745 100644
+index 49801c2..f258817 100644
 --- a/drivers/net/phy/marvell.c
 +++ b/drivers/net/phy/marvell.c
 @@ -2175,7 +2175,7 @@ static struct phy_driver marvell_drivers[] = {
@@ -29,7 +29,7 @@ index 49801c2eb..f25881745 100644
  		.config_init = &m88e1111_config_init,
  		.config_aneg = &marvell_config_aneg,
 diff --git a/drivers/net/phy/marvell10g.c b/drivers/net/phy/marvell10g.c
-index 1e4631761..7d080d52e 100644
+index 1e46317..7d080d5 100644
 --- a/drivers/net/phy/marvell10g.c
 +++ b/drivers/net/phy/marvell10g.c
 @@ -32,6 +32,15 @@
@@ -302,7 +302,7 @@ index 1e4631761..7d080d52e 100644
  };
  
 diff --git a/drivers/net/phy/mdio-i2c.c b/drivers/net/phy/mdio-i2c.c
-index 09200a70b..85db63c33 100644
+index 09200a7..85db63c 100644
 --- a/drivers/net/phy/mdio-i2c.c
 +++ b/drivers/net/phy/mdio-i2c.c
 @@ -12,6 +12,7 @@
@@ -654,7 +654,7 @@ index 09200a70b..85db63c33 100644
  }
  EXPORT_SYMBOL_GPL(mdio_i2c_alloc);
 diff --git a/drivers/net/phy/phylink.c b/drivers/net/phy/phylink.c
-index f360d9225..67f34ed4c 100644
+index f360d92..67f34ed 100644
 --- a/drivers/net/phy/phylink.c
 +++ b/drivers/net/phy/phylink.c
 @@ -483,62 +483,105 @@ static void phylink_resolve(struct work_struct *w)
@@ -788,7 +788,7 @@ index f360d9225..67f34ed4c 100644
  	if (pl->phydev)
  		phy_start(pl->phydev);
 diff --git a/drivers/net/phy/sfp-bus.c b/drivers/net/phy/sfp-bus.c
-index a2f451c31..4be24406b 100644
+index a2f451c..4be2440 100644
 --- a/drivers/net/phy/sfp-bus.c
 +++ b/drivers/net/phy/sfp-bus.c
 @@ -10,12 +10,6 @@
@@ -936,18 +936,19 @@ index a2f451c31..4be24406b 100644
  	if (ops && ops->module_insert)
  		ret = ops->module_insert(bus->upstream, id);
 diff --git a/drivers/net/phy/sfp.c b/drivers/net/phy/sfp.c
-index f8d1742e0..0fdf5d6d4 100644
+index a8eeb57..92c6f1a 100644
 --- a/drivers/net/phy/sfp.c
 +++ b/drivers/net/phy/sfp.c
-@@ -165,6 +165,7 @@ static const enum gpiod_flags gpio_flags[] = {
-  * on board (for a copper SFP) time to initialise.
+@@ -186,7 +186,7 @@ static const enum gpiod_flags gpio_flags[] = {
+  * R_PHY_RETRY is the number of attempts.
   */
- #define T_WAIT			msecs_to_jiffies(50)
-+#define T_WAIT_ROLLBALL		msecs_to_jiffies(25000)
- #define T_START_UP		msecs_to_jiffies(300)
- #define T_START_UP_BAD_GPON	msecs_to_jiffies(60000)
+ #define T_PHY_RETRY		msecs_to_jiffies(50)
+-#define R_PHY_RETRY		12
++#define R_PHY_RETRY		25
  
-@@ -204,8 +205,11 @@ static const enum gpiod_flags gpio_flags[] = {
+ /* SFP module presence detection is poor: the three MOD DEF signals are
+  * the same length on the PCB, which means it's possible for MOD DEF 0 to
+@@ -204,8 +204,11 @@ static const enum gpiod_flags gpio_flags[] = {
  
  /* SFP modules appear to always have their PHY configured for bus address
   * 0x56 (which with mdio-i2c, translates to a PHY address of 22).
@@ -960,7 +961,7 @@ index f8d1742e0..0fdf5d6d4 100644
  
  struct sff_data {
  	unsigned int gpios;
-@@ -217,6 +221,7 @@ struct sfp {
+@@ -217,6 +220,7 @@ struct sfp {
  	struct i2c_adapter *i2c;
  	struct mii_bus *i2c_mii;
  	struct sfp_bus *sfp_bus;
@@ -968,7 +969,7 @@ index f8d1742e0..0fdf5d6d4 100644
  	struct phy_device *mod_phy;
  	const struct sff_data *type;
  	size_t i2c_block_size;
-@@ -233,6 +238,7 @@ struct sfp {
+@@ -233,6 +237,7 @@ struct sfp {
  	bool need_poll;
  
  	struct mutex st_mutex;			/* Protects state */
@@ -976,11 +977,12 @@ index f8d1742e0..0fdf5d6d4 100644
  	unsigned int state_soft_mask;
  	unsigned int state;
  	struct delayed_work poll;
-@@ -249,6 +255,10 @@ struct sfp {
+@@ -249,6 +254,11 @@ struct sfp {
  	struct sfp_eeprom_id id;
  	unsigned int module_power_mW;
  	unsigned int module_t_start_up;
 +	unsigned int module_t_wait;
++	unsigned int phy_t_retry;
 +	bool tx_fault_ignore;
 +
 +	const struct sfp_quirk *quirk;
@@ -1006,7 +1008,7 @@ index f8d1742e0..0fdf5d6d4 100644
  	return false;
  }
  
-@@ -303,6 +325,180 @@ static const struct of_device_id sfp_of_match[] = {
+@@ -303,6 +325,224 @@ static const struct of_device_id sfp_of_match[] = {
  };
  MODULE_DEVICE_TABLE(of, sfp_of_match);
  
@@ -1025,6 +1027,42 @@ index f8d1742e0..0fdf5d6d4 100644
 +	sfp->mdio_protocol = MDIO_I2C_NONE;
 +}
 +
++// For 10GBASE-T short-reach modules
++static void sfp_fixup_10gbaset_30m(struct sfp *sfp)
++{
++	sfp->id.base.connector = SFF8024_CONNECTOR_RJ45;
++	sfp->id.base.extended_cc = SFF8024_ECC_10GBASE_T_SR;
++}
++
++static void sfp_fixup_rollball(struct sfp *sfp)
++{
++	sfp->mdio_protocol = MDIO_I2C_ROLLBALL;
++
++	/* RollBall modules may disallow access to PHY registers for up to 25
++	 * seconds, and the reads return 0xffff before that. Increase the time
++	 * between PHY probe retries from 50ms to 1s so that we will wait for
++	 * the PHY for a sufficient amount of time.
++	 */
++	sfp->phy_t_retry = msecs_to_jiffies(1000);
++}
++
++static void sfp_fixup_fs_2_5gt(struct sfp *sfp)
++{
++	sfp_fixup_rollball(sfp);
++
++	/* The RollBall fixup is not enough for FS modules, the PHY chip inside
++	 * them does not return 0xffff for PHY ID registers in all MMDs for the
++	 * while initializing. They need a 4 second wait before accessing PHY.
++	 */
++	sfp->module_t_wait = msecs_to_jiffies(4000);
++}
++
++static void sfp_fixup_fs_10gt(struct sfp *sfp)
++{
++	sfp_fixup_10gbaset_30m(sfp);
++	sfp_fixup_fs_2_5gt(sfp);
++}
++
 +static void sfp_fixup_halny_gsfp(struct sfp *sfp)
 +{
 +	/* Ignore the TX_FAULT and LOS signals on this module.
@@ -1032,12 +1070,6 @@ index f8d1742e0..0fdf5d6d4 100644
 +	 * module, e.g. a serial port.
 +	 */
 +	sfp->state_hw_mask &= ~(SFP_F_TX_FAULT | SFP_F_LOS);
-+}
-+
-+static void sfp_fixup_rollball(struct sfp *sfp)
-+{
-+	sfp->mdio_protocol = MDIO_I2C_ROLLBALL;
-+	sfp->module_t_wait = T_WAIT_ROLLBALL;
 +}
 +
 +static void sfp_fixup_rollball_cc(struct sfp *sfp)
@@ -1106,6 +1138,20 @@ index f8d1742e0..0fdf5d6d4 100644
 +	// NRZ in their EEPROM
 +	SFP_QUIRK("ALCATELLUCENT", "3FE46541AA", '\0', sfp_quirk_2500basex,
 +		  sfp_fixup_long_startup),
++
++	// Fiberstore SFP-10G-T doesn't identify as copper, uses the Rollball
++	// protocol to talk to the PHY and needs 4 sec wait before probing the
++	// PHY.
++	SFP_QUIRK_F("FS", "SFP-10G-T", '\0', sfp_fixup_fs_10gt),
++
++	// Fiberstore SFP-2.5G-T uses Rollball protocol to talk to the PHY and
++	// needs 4 sec wait before probing the PHY.
++	SFP_QUIRK_F("FS", "SFP-2.5G-T", '\0', sfp_fixup_fs_2_5gt),
++
++	// Fiberstore GPON-ONU-34-20BI can operate at 2500base-X, but report 1.2GBd
++	// NRZ in their EEPROM
++	SFP_QUIRK("FS", "GPON-ONU-34-20BI", '\0', sfp_quirk_2500basex,
++		  sfp_fixup_ignore_tx_fault),
 +
 +	SFP_QUIRK_F("HALNy", "HL-GSFP", '\0', sfp_fixup_halny_gsfp),
 +
@@ -1187,7 +1233,7 @@ index f8d1742e0..0fdf5d6d4 100644
  static unsigned long poll_jiffies;
  
  static unsigned int sfp_gpio_get_state(struct sfp *sfp)
-@@ -414,9 +610,6 @@ static int sfp_i2c_write(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
+@@ -414,9 +654,6 @@ static int sfp_i2c_write(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
  
  static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
  {
@@ -1197,7 +1243,7 @@ index f8d1742e0..0fdf5d6d4 100644
  	if (!i2c_check_functionality(i2c, I2C_FUNC_I2C))
  		return -EINVAL;
  
-@@ -424,7 +617,15 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
+@@ -424,7 +661,15 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
  	sfp->read = sfp_i2c_read;
  	sfp->write = sfp_i2c_write;
  
@@ -1214,7 +1260,7 @@ index f8d1742e0..0fdf5d6d4 100644
  	if (IS_ERR(i2c_mii))
  		return PTR_ERR(i2c_mii);
  
-@@ -442,6 +643,12 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
+@@ -442,6 +687,12 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
  	return 0;
  }
  
@@ -1227,7 +1273,7 @@ index f8d1742e0..0fdf5d6d4 100644
  /* Interface */
  static int sfp_read(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
  {
-@@ -487,17 +694,18 @@ static void sfp_soft_set_state(struct sfp *sfp, unsigned int state)
+@@ -487,17 +738,18 @@ static void sfp_soft_set_state(struct sfp *sfp, unsigned int state)
  static void sfp_soft_start_poll(struct sfp *sfp)
  {
  	const struct sfp_eeprom_id *id = &sfp->id;
@@ -1255,7 +1301,7 @@ index f8d1742e0..0fdf5d6d4 100644
  
  	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
  	    !sfp->need_poll)
-@@ -511,10 +719,11 @@ static void sfp_soft_stop_poll(struct sfp *sfp)
+@@ -511,10 +763,11 @@ static void sfp_soft_stop_poll(struct sfp *sfp)
  
  static unsigned int sfp_get_state(struct sfp *sfp)
  {
@@ -1270,7 +1316,7 @@ index f8d1742e0..0fdf5d6d4 100644
  		state |= sfp_soft_get_state(sfp);
  
  	return state;
-@@ -1448,12 +1657,12 @@ static void sfp_sm_phy_detach(struct sfp *sfp)
+@@ -1448,12 +1701,12 @@ static void sfp_sm_phy_detach(struct sfp *sfp)
  	sfp->mod_phy = NULL;
  }
  
@@ -1285,7 +1331,7 @@ index f8d1742e0..0fdf5d6d4 100644
  	if (phy == ERR_PTR(-ENODEV))
  		return PTR_ERR(phy);
  	if (IS_ERR(phy)) {
-@@ -1548,6 +1757,14 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
+@@ -1548,6 +1801,14 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
  	}
  }
  
@@ -1300,7 +1346,7 @@ index f8d1742e0..0fdf5d6d4 100644
  /* Probe a SFP for a PHY device if the module supports copper - the PHY
   * normally sits at I2C bus address 0x56, and may either be a clause 22
   * or clause 45 PHY.
-@@ -1563,36 +1780,52 @@ static int sfp_sm_probe_for_phy(struct sfp *sfp)
+@@ -1563,36 +1824,52 @@ static int sfp_sm_probe_for_phy(struct sfp *sfp)
  {
  	int err = 0;
  
@@ -1367,7 +1413,7 @@ index f8d1742e0..0fdf5d6d4 100644
  			/* The module appears not to implement bus address
  			 * 0xa2, so assume that the module powers up in the
  			 * indicated mode.
-@@ -1609,13 +1842,21 @@ static int sfp_module_parse_power(struct sfp *sfp)
+@@ -1609,13 +1886,21 @@ static int sfp_module_parse_power(struct sfp *sfp)
  		}
  	}
  
@@ -1391,7 +1437,7 @@ index f8d1742e0..0fdf5d6d4 100644
  			 power_mW / 1000, (power_mW / 100) % 10);
  		return 0;
  	}
-@@ -1692,7 +1933,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
+@@ -1692,7 +1977,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
  {
  	/* SFP module inserted - read I2C data */
  	struct sfp_eeprom_id id;
@@ -1400,7 +1446,7 @@ index f8d1742e0..0fdf5d6d4 100644
  	u8 check;
  	int ret;
  
-@@ -1747,10 +1988,16 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
+@@ -1747,10 +2032,16 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
  	 */
  	cotsworks = !memcmp(id.base.vendor_name, "COTSWORKS       ", 16);
  
@@ -1418,7 +1464,7 @@ index f8d1742e0..0fdf5d6d4 100644
  			dev_warn(sfp->dev,
  				 "EEPROM base structure checksum failure (0x%02x != 0x%02x)\n",
  				 check, id.base.cc_base);
-@@ -1819,11 +2066,33 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
+@@ -1819,11 +2110,34 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
  	if (ret < 0)
  		return ret;
  
@@ -1436,6 +1482,7 @@ index f8d1742e0..0fdf5d6d4 100644
 +
 +	sfp->module_t_start_up = T_START_UP;
 +	sfp->module_t_wait = T_WAIT;
++	sfp->phy_t_retry = T_PHY_RETRY;
 +
 +	sfp->tx_fault_ignore = false;
 +
@@ -1456,7 +1503,7 @@ index f8d1742e0..0fdf5d6d4 100644
  
  	return 0;
  }
-@@ -1936,7 +2205,8 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
+@@ -1936,7 +2250,8 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
  			break;
  
  		/* Report the module insertion to the upstream device */
@@ -1466,7 +1513,7 @@ index f8d1742e0..0fdf5d6d4 100644
  		if (err < 0) {
  			sfp_sm_mod_next(sfp, SFP_MOD_ERROR, 0);
  			break;
-@@ -1995,6 +2265,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+@@ -1995,6 +2310,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
  			sfp_module_stop(sfp->sfp_bus);
  		if (sfp->mod_phy)
  			sfp_sm_phy_detach(sfp);
@@ -1475,7 +1522,7 @@ index f8d1742e0..0fdf5d6d4 100644
  		sfp_module_tx_disable(sfp);
  		sfp_soft_stop_poll(sfp);
  		sfp_sm_next(sfp, SFP_S_DOWN, 0);
-@@ -2018,9 +2290,10 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+@@ -2018,9 +2335,10 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
  
  		/* We need to check the TX_FAULT state, which is not defined
  		 * while TX_DISABLE is asserted. The earliest we want to do
@@ -1488,7 +1535,7 @@ index f8d1742e0..0fdf5d6d4 100644
  		break;
  
  	case SFP_S_WAIT:
-@@ -2034,8 +2307,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+@@ -2034,8 +2352,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
  			 * deasserting.
  			 */
  			timeout = sfp->module_t_start_up;
@@ -1499,7 +1546,7 @@ index f8d1742e0..0fdf5d6d4 100644
  			else
  				timeout = 1;
  
-@@ -2057,6 +2330,12 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+@@ -2057,6 +2375,12 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
  				     sfp->sm_fault_retries == N_FAULT_INIT);
  		} else if (event == SFP_E_TIMEOUT || event == SFP_E_TX_CLEAR) {
  	init_done:
@@ -1512,7 +1559,23 @@ index f8d1742e0..0fdf5d6d4 100644
  			sfp->sm_phy_retries = R_PHY_RETRY;
  			goto phy_probe;
  		}
-@@ -2409,6 +2688,8 @@ static int sfp_probe(struct platform_device *pdev)
+@@ -2070,9 +2394,13 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+ 		 * clear.  Probe for the PHY and check the LOS state.
+ 		 */
+ 		ret = sfp_sm_probe_for_phy(sfp);
+-		if (ret == -ENODEV) {
++		if (ret == -ENODEV || ret == -EINVAL) {
+ 			if (--sfp->sm_phy_retries) {
+-				sfp_sm_next(sfp, SFP_S_INIT_PHY, T_PHY_RETRY);
++				sfp_sm_next(sfp, SFP_S_INIT_PHY,
++					    sfp->phy_t_retry);
++				dev_info(sfp->dev,
++					"no PHY detected, %u tries left\n",
++					sfp->sm_phy_retries);
+ 				break;
+ 			} else {
+ 				dev_info(sfp->dev, "no PHY detected\n");
+@@ -2409,6 +2737,8 @@ static int sfp_probe(struct platform_device *pdev)
  				return PTR_ERR(sfp->gpio[i]);
  		}
  
@@ -1522,7 +1585,7 @@ index f8d1742e0..0fdf5d6d4 100644
  	sfp->set_state = sfp_gpio_set_state;
  
 diff --git a/drivers/net/phy/sfp.h b/drivers/net/phy/sfp.h
-index b83f70526..f533e2dd6 100644
+index b83f705..f533e2d 100644
 --- a/drivers/net/phy/sfp.h
 +++ b/drivers/net/phy/sfp.h
 @@ -6,6 +6,14 @@
@@ -1551,7 +1614,7 @@ index b83f70526..f533e2dd6 100644
  int sfp_module_start(struct sfp_bus *bus);
  void sfp_module_stop(struct sfp_bus *bus);
 diff --git a/include/linux/mdio/mdio-i2c.h b/include/linux/mdio/mdio-i2c.h
-index 751dab281..1c2114068 100644
+index 751dab2..1c21140 100644
 --- a/include/linux/mdio/mdio-i2c.h
 +++ b/include/linux/mdio/mdio-i2c.h
 @@ -11,6 +11,14 @@ struct device;
@@ -1571,5 +1634,5 @@ index 751dab281..1c2114068 100644
  
  #endif
 -- 
-2.34.1
+2.18.0
 
