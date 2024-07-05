@@ -26,6 +26,7 @@
 #include "crypto-eip/ddk-wrapper.h"
 #include "crypto-eip/lookaside.h"
 #include "crypto-eip/internal.h"
+#include "crypto-eip/debugfs.h"
 
 #define DRIVER_AUTHOR	"Ren-Ting Wang <ren-ting.wang@mediatek.com, " \
 			"Chris.Chou <chris.chou@mediatek.com"
@@ -410,6 +411,7 @@ static int __init mtk_crypto_eip_init(void)
 	}
 
 	mtk_crypto_xfrm_offload_init(mcrypto.eth);
+	mtk_crypto_debugfs_init();
 	mtk_crypto_register_algorithms(priv);
 #if defined(CONFIG_MTK_TOPS_CAPWAP_DTLS)
 	mtk_dtls_capwap_init();

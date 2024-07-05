@@ -7,6 +7,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/spinlock.h>
 
 #include <mtk_eth_soc.h>
 
@@ -27,7 +28,10 @@
 #include "crypto-eip/ddk-wrapper.h"
 #include "crypto-eip/internal.h"
 
-static LIST_HEAD(xfrm_params_head);
+static struct xfrm_params_list xfrm_params_list = {
+	.list = LIST_HEAD_INIT(xfrm_params_list.list),
+	.lock = __SPIN_LOCK_UNLOCKED(xfrm_params_list.lock),
+};
 
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 extern int (*ra_sw_nat_hook_tx)(struct sk_buff *skb, int gmac_no);
@@ -49,6 +53,11 @@ static inline bool is_hnat_rate_reach(struct sk_buff *skb)
 	return is_magic_tag_valid(skb) && (skb_hnat_reason(skb) == HIT_UNBIND_RATE_REACH);
 }
 #endif // HNAT
+
+struct xfrm_params_list *mtk_xfrm_params_list_get(void)
+{
+	return &xfrm_params_list;
+}
 
 static void mtk_xfrm_offload_cdrt_tear_down(struct mtk_xfrm_params *xfrm_params)
 {
@@ -220,6 +229,7 @@ free_cdrt:
 int mtk_xfrm_offload_state_add(struct xfrm_state *xs)
 {
 	struct mtk_xfrm_params *xfrm_params;
+	unsigned long flags;
 	int ret = 0;
 
 	/* TODO: maybe support IPv6 in the future? */
@@ -261,7 +271,12 @@ int mtk_xfrm_offload_state_add(struct xfrm_state *xs)
 	}
 
 	xs->xso.offload_handle = (unsigned long)xfrm_params;
-	list_add_tail(&xfrm_params->node, &xfrm_params_head);
+
+	spin_lock_irqsave(&xfrm_params_list.lock, flags);
+
+	list_add_tail(&xfrm_params->node, &xfrm_params_list.list);
+
+	spin_unlock_irqrestore(&xfrm_params_list.lock, flags);
 out:
 	return ret;
 }
@@ -294,9 +309,14 @@ void mtk_xfrm_offload_state_free(struct xfrm_state *xs)
 void mtk_xfrm_offload_state_tear_down(void)
 {
 	struct mtk_xfrm_params *xfrm_params, *tmp;
+	unsigned long flags;
 
-	list_for_each_entry_safe(xfrm_params, tmp, &xfrm_params_head, node)
+	spin_lock_irqsave(&xfrm_params_list.lock, flags);
+
+	list_for_each_entry_safe(xfrm_params, tmp, &xfrm_params_list.list, node)
 		mtk_xfrm_offload_state_free(xfrm_params->xs);
+
+	spin_unlock_irqrestore(&xfrm_params_list.lock, flags);
 }
 
 int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp)

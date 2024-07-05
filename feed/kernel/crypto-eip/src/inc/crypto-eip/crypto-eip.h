@@ -113,11 +113,25 @@ struct mtk_CDRT_DTLS_entry {
 	struct cdrt_entry *cdrt_outbound;
 };
 
+struct xfrm_params_list {
+	struct list_head list;
+	spinlock_t lock;
+};
+
 #if defined(CONFIG_MTK_TOPS_CAPWAP_DTLS)
 extern void (*mtk_submit_SAparam_to_eip_driver)(struct DTLS_param *DTLSParam_p, int TnlIdx);
 extern void (*mtk_remove_SAparam_to_eip_driver)(struct DTLS_param *DTLSParam_p, int TnlIdx);
 extern void (*mtk_update_cdrt_idx_from_eip_driver)(struct mtk_cdrt_idx_param *cdrt_idx_params_p);
 #endif
+
+#if defined(CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE)
+struct xfrm_params_list *mtk_xfrm_params_list_get(void);
+#else /* !defined(CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE) */
+static inline struct xfrm_params_list *mtk_xfrm_params_list_get(void)
+{
+	return NULL;
+}
+#endif /* defined(CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE) */
 
 void mtk_update_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);
 void mtk_remove_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);

@@ -14,6 +14,7 @@ crypto-eip-inline-y += ddk-wrapper.o
 crypto-eip-inline-y += lookaside.o
 crypto-eip-inline-y += lookaside-cipher.o
 crypto-eip-inline-y += lookaside-hash.o
+crypto-eip-inline-y += debugfs.o
 
 crypto-eip-inline-$(CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE) += xfrm-offload.o
 crypto-eip-inline-$(CONFIG_MTK_TOPS_CAPWAP_DTLS) += capwap-dtls-offload.o
