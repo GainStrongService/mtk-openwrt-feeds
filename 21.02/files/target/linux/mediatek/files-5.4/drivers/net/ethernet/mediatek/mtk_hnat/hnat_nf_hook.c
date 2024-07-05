@@ -1231,6 +1231,8 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	struct ipv6hdr *ip6h;
 	struct tcpudphdr _ports;
 	const struct tcpudphdr *pptr;
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
 	int gmac = NR_DISCARD;
 	int udp = 0;
 	u32 qid = 0;
@@ -1955,7 +1957,12 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	    skb_hnat_ppe(skb) < CFG_PPE_NUM) {
 		memset(&hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
 		       0, sizeof(struct hnat_accounting));
-		hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].nfct = skb_get_nfct(skb);
+		ct = nf_ct_get(skb, &ctinfo);
+		if (ct) {
+			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].zone = ct->zone;
+			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].dir =
+										CTINFO2DIR(ctinfo);
+		}
 	}
 
 	return 0;
@@ -1967,6 +1974,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	struct ethhdr *eth;
 	struct iphdr *iph;
 	struct ipv6hdr *ip6h;
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
 
 	if (!skb_hnat_is_hashed(skb) || skb_hnat_ppe(skb) >= CFG_PPE_NUM)
 		return NF_ACCEPT;
@@ -2253,8 +2262,12 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	if (hnat_priv->data->per_flow_accounting) {
 		memset(&hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
 			0, sizeof(struct hnat_accounting));
-		hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].nfct =
-			skb_get_nfct(skb);
+		ct = nf_ct_get(skb, &ctinfo);
+		if (ct) {
+			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].zone = ct->zone;
+			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].dir =
+										CTINFO2DIR(ctinfo);
+		}
 	}
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)

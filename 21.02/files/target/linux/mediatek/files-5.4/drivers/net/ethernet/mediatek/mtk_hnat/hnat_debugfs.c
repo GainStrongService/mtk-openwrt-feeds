@@ -20,6 +20,8 @@
 #include <net/ipv6.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_acct.h>
+#include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_tuple.h>
 
 #include "hnat.h"
 #include "nf_hnat_mtk.h"
@@ -978,24 +980,70 @@ int read_mib(struct mtk_hnat *h, u32 ppe_id,
 
 }
 
-static int hnat_nfct_counter_update(struct mtk_hnat *h, u32 ppe_id,
-				    u32 index, u64 bytes, u64 packets)
+static int hnat_nf_acct_update(struct mtk_hnat *h, u32 ppe_id,
+			       u32 index, u64 bytes, u64 packets)
 {
-	struct nf_conn *ct;
-	struct nf_conn_acct *acct;
+	struct nf_conntrack_tuple tuple = {0};
+	struct nf_conntrack_tuple_hash *hash;
+	struct nf_conntrack_zone *zone;
 	struct nf_conn_counter *counter;
-	enum ip_conntrack_info ctinfo;
-	u64 nfct;
+	struct nf_conn_acct *acct;
+	struct foe_entry *entry;
+	struct nf_conn *ct;
+	u8 dir;
 
-	nfct = h->acct[ppe_id][index].nfct;
-	ctinfo = nfct & NFCT_INFOMASK;
-	ct = (struct nf_conn *)(nfct & NFCT_PTRMASK);
-	if (ct) {
-		acct = nf_conn_acct_find(ct);
-		if (acct) {
-			counter = acct->counter;
-			atomic64_add(bytes, &counter[CTINFO2DIR(ctinfo)].bytes);
-			atomic64_add(packets, &counter[CTINFO2DIR(ctinfo)].packets);
+	entry = &h->foe_table_cpu[ppe_id][index];
+	zone = &h->acct[ppe_id][index].zone;
+	dir = h->acct[ppe_id][index].dir;
+
+	tuple.dst.protonum = (entry->bfib1.udp) ? IPPROTO_UDP : IPPROTO_TCP;
+
+	switch (entry->bfib1.pkt_type) {
+	case IPV4_HNAT:
+	case IPV4_HNAPT:
+	case IPV4_DSLITE:
+	case IPV4_MAP_T:
+	case IPV4_MAP_E:
+		tuple.src.l3num = AF_INET;
+		tuple.src.u3.ip = htonl(entry->ipv4_hnapt.sip);
+		tuple.dst.u3.ip = htonl(entry->ipv4_hnapt.dip);
+		tuple.src.u.tcp.port = htons(entry->ipv4_hnapt.sport);
+		tuple.dst.u.tcp.port = htons(entry->ipv4_hnapt.dport);
+		break;
+	case IPV6_6RD:
+	case IPV6_HNAT:
+	case IPV6_HNAPT:
+	case IPV6_3T_ROUTE:
+	case IPV6_5T_ROUTE:
+		tuple.src.l3num = AF_INET6;
+
+		tuple.src.u3.in6.s6_addr32[0] = htonl(entry->ipv6_5t_route.ipv6_sip0);
+		tuple.src.u3.in6.s6_addr32[1] = htonl(entry->ipv6_5t_route.ipv6_sip1);
+		tuple.src.u3.in6.s6_addr32[2] = htonl(entry->ipv6_5t_route.ipv6_sip2);
+		tuple.src.u3.in6.s6_addr32[3] = htonl(entry->ipv6_5t_route.ipv6_sip3);
+
+		tuple.dst.u3.in6.s6_addr32[0] = htonl(entry->ipv6_5t_route.ipv6_dip0);
+		tuple.dst.u3.in6.s6_addr32[1] = htonl(entry->ipv6_5t_route.ipv6_dip1);
+		tuple.dst.u3.in6.s6_addr32[2] = htonl(entry->ipv6_5t_route.ipv6_dip2);
+		tuple.dst.u3.in6.s6_addr32[3] = htonl(entry->ipv6_5t_route.ipv6_dip3);
+
+		tuple.src.u.tcp.port = htons(entry->ipv6_5t_route.sport);
+		tuple.dst.u.tcp.port = htons(entry->ipv6_5t_route.dport);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	hash = nf_conntrack_find_get(&init_net, zone, &tuple);
+	if (hash) {
+		ct = nf_ct_tuplehash_to_ctrack(hash);
+		if (ct) {
+			acct = nf_conn_acct_find(ct);
+			if (acct) {
+				counter = acct->counter;
+				atomic64_add(bytes, &counter[dir].bytes);
+				atomic64_add(packets, &counter[dir].packets);
+			}
 		}
 	}
 
@@ -1028,7 +1076,7 @@ struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 ppe_id,
 		diff->packets = packets;
 	}
 
-	hnat_nfct_counter_update(h, ppe_id, index, bytes, packets);
+	hnat_nf_acct_update(h, ppe_id, index, bytes, packets);
 
 	return &h->acct[ppe_id][index];
 }

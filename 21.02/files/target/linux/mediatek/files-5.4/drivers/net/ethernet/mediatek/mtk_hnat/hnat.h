@@ -18,6 +18,7 @@
 #include <linux/if.h>
 #include <linux/if_ether.h>
 #include <net/netevent.h>
+#include <net/netfilter/nf_conntrack_zones.h>
 #include <linux/mod_devicetable.h>
 #include "hnat_mcast.h"
 #include "nf_hnat_mtk.h"
@@ -888,7 +889,8 @@ struct mib_entry {
 struct hnat_accounting {
 	u64 bytes;
 	u64 packets;
-	u64 nfct; /* For retrieving nf_conn info */
+	struct nf_conntrack_zone zone;
+	u8 dir;
 };
 
 enum mtk_hnat_version {
