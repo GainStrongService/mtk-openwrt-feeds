@@ -190,13 +190,13 @@ void set_gmac_ppe_fwd(int id, int enable)
 	if (enable) {
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 		if (CFG_PPE_NUM >= 3 && id == NR_GMAC3_PORT)
-			cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE2);
+			cr_set_field(reg, GDM_ALL_FRC_MASK, BITS_GDM_ALL_FRC_P_PPE2);
 		else if (CFG_PPE_NUM >= 2 && id == NR_GMAC2_PORT)
-			cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE1);
+			cr_set_field(reg, GDM_ALL_FRC_MASK, BITS_GDM_ALL_FRC_P_PPE1);
 		else
-			cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE);
+			cr_set_field(reg, GDM_ALL_FRC_MASK, BITS_GDM_ALL_FRC_P_PPE);
 #else
-		cr_set_bits(reg, BITS_GDM_ALL_FRC_P_PPE);
+		cr_set_field(reg, GDM_ALL_FRC_MASK, BITS_GDM_ALL_FRC_P_PPE);
 #endif
 		return;
 	}
