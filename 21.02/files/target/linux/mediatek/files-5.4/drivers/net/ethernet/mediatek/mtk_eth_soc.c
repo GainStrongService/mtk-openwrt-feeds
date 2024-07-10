@@ -2561,7 +2561,7 @@ skip_rx:
 release_desc:
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA)) {
 			if (unlikely(dma_addr == DMA_MAPPING_ERROR))
-				addr64 = RX_DMA_GET_ADDR64(rxd->rxd2);
+				addr64 = FIELD_GET(RX_DMA_ADDR64_MASK, rxd->rxd2);
 			else
 				addr64 = RX_DMA_PREP_ADDR64(dma_addr);
 		}
