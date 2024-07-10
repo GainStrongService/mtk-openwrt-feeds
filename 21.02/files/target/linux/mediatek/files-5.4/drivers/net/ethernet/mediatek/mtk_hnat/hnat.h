@@ -17,6 +17,7 @@
 #include <linux/string.h>
 #include <linux/if.h>
 #include <linux/if_ether.h>
+#include <net/dsa.h>
 #include <net/netevent.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <linux/mod_devicetable.h>
@@ -1287,30 +1288,19 @@ static inline void hnat_check_release_entry_lock(struct foe_entry *entry)
 		hnat_set_entry_lock(entry, false);
 }
 
-#if defined(CONFIG_NET_DSA_MT7530)
-u32 hnat_dsa_fill_stag(const struct net_device *netdev,
+int hnat_dsa_fill_stag(const struct net_device *netdev,
 		       struct foe_entry *entry,
 		       struct flow_offload_hw_path *hw_path,
 		       u16 eth_proto, int mape);
-
+int hnat_dsa_get_port(struct net_device **dev);
 static inline bool hnat_dsa_is_enable(struct mtk_hnat *priv)
 {
+#if defined(CONFIG_NET_DSA)
 	return (priv->wan_dsa_port != NONE_DSA_PORT);
-}
 #else
-static inline u32 hnat_dsa_fill_stag(const struct net_device *netdev,
-				     struct foe_entry *entry,
-				     struct flow_offload_hw_path *hw_path,
-				     u16 eth_proto, int mape)
-{
-	return 0;
-}
-
-static inline bool hnat_dsa_is_enable(struct mtk_hnat *priv)
-{
 	return false;
-}
 #endif
+}
 
 void hnat_deinit_debugfs(struct mtk_hnat *h);
 int hnat_init_debugfs(struct mtk_hnat *h);
