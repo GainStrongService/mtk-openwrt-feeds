@@ -227,7 +227,8 @@ void mtk_dump_netsys_info(void *_eth)
 	struct mtk_eth *eth = _eth;
 	u32 id = 0;
 
-	mtk_dump_reg(eth, "FE", 0x0, 0x500);
+	mtk_dump_reg(eth, "FE", 0x0, 0x600);
+	mtk_dump_reg(eth, "FE", 0x1400, 0x300);
 	mtk_dump_reg(eth, "ADMA", PDMA_BASE, 0x300);
 	for (id = 0; id < MTK_QDMA_PAGE_NUM; id++){
 		mtk_w32(eth, id, MTK_QDMA_PAGE);
