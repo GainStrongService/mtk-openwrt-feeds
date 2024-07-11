@@ -350,6 +350,9 @@ prepare_mac80211() {
 
 	# Bridge Default Setting
 	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0006-network-enable-bridge-igmp_snooping-by-default.patch || exit 1
+
+	# Relayd change trigger reload to trigger restart
+	patch -f -p1 -i ${MTK_FEED_DIR}/autobuild_mac80211_release/0007-relayd-change-trigger-reload-to-trigger-restart.patch || exit 1
 }
 
 copy_main_Config() {
