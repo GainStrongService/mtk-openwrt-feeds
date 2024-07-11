@@ -1933,36 +1933,43 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		return 0;
 	}
 
-	/* Final check if the entry is not in UNBIND state,
-	 * we should not modify it right now.
-	 */
-	if (foe->udib1.state != UNBIND)
-		return 0;
-
-	/* We must ensure all info has been updated before set to hw */
-	wmb();
-	/* Before entry enter BIND state, write other fields first,
-	 * prevent racing with hardware accesses.
-	 */
-	memcpy(&(foe->ipv6_hnapt.ipv6_sip0), &(entry.ipv6_hnapt.ipv6_sip0),
-	       sizeof(struct foe_entry) - sizeof(entry.bfib1));
-	/* We must ensure all info has been updated before set to hw */
-	wmb();
-	/* After other fields have been written, write info1 to BIND the entry */
-	foe->bfib1 = entry.bfib1;
-
-	/* reset statistic for this entry */
-	if (hnat_priv->data->per_flow_accounting &&
-	    skb_hnat_entry(skb) < hnat_priv->foe_etry_num &&
-	    skb_hnat_ppe(skb) < CFG_PPE_NUM) {
-		memset(&hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
-		       0, sizeof(struct hnat_accounting));
-		ct = nf_ct_get(skb, &ctinfo);
-		if (ct) {
-			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].zone = ct->zone;
-			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].dir =
-										CTINFO2DIR(ctinfo);
+	if (spin_trylock(&hnat_priv->entry_lock)) {
+		/* Final check if the entry is not in UNBIND state,
+		 * we should not modify it right now.
+		 */
+		if (foe->udib1.state != UNBIND) {
+			spin_unlock(&hnat_priv->entry_lock);
+			return 0;
 		}
+
+		/* We must ensure all info has been updated before set to hw */
+		wmb();
+		/* Before entry enter BIND state, write other fields first,
+		 * prevent racing with hardware accesses.
+		 */
+		memcpy(&(foe->ipv6_hnapt.ipv6_sip0), &(entry.ipv6_hnapt.ipv6_sip0),
+		       sizeof(struct foe_entry) - sizeof(entry.bfib1));
+		/* We must ensure all info has been updated before set to hw */
+		wmb();
+		/* After other fields have been written, write info1 to BIND the entry */
+		foe->bfib1 = entry.bfib1;
+
+		/* reset statistic for this entry */
+		if (hnat_priv->data->per_flow_accounting &&
+		    skb_hnat_entry(skb) < hnat_priv->foe_etry_num &&
+		    skb_hnat_ppe(skb) < CFG_PPE_NUM) {
+			memset(&hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
+			       0, sizeof(struct hnat_accounting));
+			ct = nf_ct_get(skb, &ctinfo);
+			if (ct) {
+				hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].zone =
+					ct->zone;
+				hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].dir =
+					CTINFO2DIR(ctinfo);
+			}
+		}
+
+		spin_unlock(&hnat_priv->entry_lock);
 	}
 
 	return 0;
