@@ -1301,10 +1301,6 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 							ntohs(pptr->src);
 					entry.ipv4_mape.new_dport =
 							ntohs(pptr->dst);
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-					entry.ipv4_mape.eg_keep_ecn = 1;
-					entry.ipv4_mape.eg_keep_dscp = 1;
-#endif
 				}
 #endif
 
@@ -1373,17 +1369,16 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					entry.ipv4_hnapt.new_sport = ntohs(pptr->src);
 					entry.ipv4_hnapt.new_dport = ntohs(pptr->dst);
 				}
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+				entry.ipv4_hnapt.eg_keep_ecn = 1;
+				entry.ipv4_hnapt.eg_keep_dscp = 1;
+#endif
 			} else {
 				return 0;
 			}
 
 			entry.ipv4_hnapt.bfib1.udp = udp;
-
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-			entry.ipv4_hnapt.eg_keep_ecn = 1;
-			entry.ipv4_hnapt.eg_keep_dscp = 1;
-#endif
-
 			break;
 
 		default:
@@ -1427,11 +1422,6 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					foe->ipv6_6rd.tunnel_sipv4;
 				entry.ipv6_6rd.tunnel_dipv4 =
 					foe->ipv6_6rd.tunnel_dipv4;
-
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-				entry.ipv6_6rd.eg_keep_ecn = 1;
-				entry.ipv6_6rd.eg_keep_cls = 1;
-#endif
 			}
 
 			entry.ipv6_3t_route.ipv6_sip0 =
@@ -1452,24 +1442,21 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			entry.ipv6_3t_route.ipv6_dip3 =
 				foe->ipv6_3t_route.ipv6_dip3;
 
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+			entry.ipv6_3t_route.eg_keep_ecn = 1;
+			entry.ipv6_3t_route.eg_keep_cls = 1;
+#endif
+
 			if (IS_IPV6_3T_ROUTE(&entry)) {
 				entry.ipv6_3t_route.prot =
 					foe->ipv6_3t_route.prot;
 				entry.ipv6_3t_route.hph =
 					foe->ipv6_3t_route.hph;
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-				entry.ipv6_3t_route.eg_keep_ecn = 1;
-				entry.ipv6_3t_route.eg_keep_cls = 1;
-#endif
 			} else if (IS_IPV6_5T_ROUTE(&entry) || IS_IPV6_6RD(&entry)) {
 				entry.ipv6_5t_route.sport =
 					foe->ipv6_5t_route.sport;
 				entry.ipv6_5t_route.dport =
 					foe->ipv6_5t_route.dport;
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-				entry.ipv6_5t_route.eg_keep_ecn = 1;
-				entry.ipv6_5t_route.eg_keep_cls = 1;
-#endif
 			} else {
 				return 0;
 			}
@@ -1512,10 +1499,6 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 				entry.ipv6_hnapt.new_sport = ntohs(pptr->src);
 				entry.ipv6_hnapt.new_dport = ntohs(pptr->dst);
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-				entry.ipv6_hnapt.eg_keep_ecn = 1;
-				entry.ipv6_hnapt.eg_keep_cls = 1;
-#endif
 #else
 				return -1;
 #endif
@@ -1583,10 +1566,6 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					entry.ipv4_mape.new_dip = foe->ipv4_mape.new_dip;
 					entry.ipv4_mape.new_sport = foe->ipv4_mape.new_sport;
 					entry.ipv4_mape.new_dport = foe->ipv4_mape.new_dport;
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-					entry.ipv4_mape.eg_keep_ecn = 1;
-					entry.ipv4_mape.eg_keep_dscp = 1;
-#endif
 				}
 #endif
 			} else if (mape_toggle &&

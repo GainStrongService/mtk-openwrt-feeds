@@ -389,9 +389,9 @@ struct hnat_ipv4_hnapt {
 	u32 resv3_1 : 9;
 	u32 eg_keep_ecn : 1;
 	u32 eg_keep_dscp : 1;
-	u32 resv3_2:13;
+	u32 resv3_2 : 13;
 #else
-	u32 resv3:24;
+	u32 resv3 : 24;
 #endif
 	u32 act_dp : 8; /* UDF */
 	u16 vlan1;
@@ -448,12 +448,12 @@ struct hnat_ipv4_dslite {
 	u8 priority;    /* in order to consist with Linux kernel (should be 8bits) */
 	u32 hop_limit : 8;
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-		u32 resv2_1 : 1;
-		u32 eg_keep_ecn : 1;
-		u32 eg_keep_cls : 1;
-		u32 resv2_2 : 13;
+	u32 resv2_1 : 1;
+	u32 eg_keep_ecn : 1;
+	u32 eg_keep_cls : 1;
+	u32 resv2_2 : 13;
 #else
-		u32 resv2 : 16;
+	u32 resv2 : 16;
 #endif
 	u32 act_dp : 8; /* UDF */
 
