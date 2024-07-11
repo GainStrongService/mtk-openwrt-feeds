@@ -266,7 +266,7 @@ void mtk_check_pse_oq_sta(struct mtk_eth *eth, u32 port, u32 *pre_opq, u32 *err_
 
 	cur_opq = (mtk_r32(eth, MTK_PSE_OQ_STA(id)) & mask);
 	if ((cur_opq != 0) && (cur_opq == *pre_opq))
-		*err_opq++;
+		(*err_opq)++;
 	else
 		*err_opq = 0;
 
@@ -279,7 +279,7 @@ u32 mtk_monitor_wdma_tx(struct mtk_eth *eth)
 	static u32 err_cnt[MTK_WDMA_CNT];
 	static u32 err_opq1, err_opq2, err_opq8;
 	static u32 err_opq9, err_opq13, err_opq15;
-	u32 opq1, opq2, opq8, opq9, opq13, opq15;
+	u32 opq1 = 0, opq2 = 0, opq8 = 0, opq9 = 0, opq13 = 0, opq15 = 0;
 	u32 cur_dtx, tx_busy, fsm_ts;
 	u32 i, err_opq = 0, err_flag = 0;
 

@@ -166,14 +166,14 @@ static int mtk_get_wdma_rx_port(int wdma_idx)
 
 static int mtk_set_wdma_pse_port_state(int wdma_idx, int up)
 {
-	u32 port = 0, link_dwn = 0;
+	int port;
 
 	port = mtk_get_wdma_rx_port(wdma_idx);
 	if (port < 0)
 		return -EINVAL;
 
-	link_dwn = 0x1 << (port - NR_WDMA0_PORT);
-	cr_set_field(hnat_priv->fe_base + MTK_FE_GLO_CFG(port), link_dwn, !up);
+	cr_set_field(hnat_priv->fe_base + MTK_FE_GLO_CFG(port),
+		BIT((u32)port - NR_WDMA0_PORT), !up);
 
 	return 0;
 }
