@@ -911,9 +911,9 @@ void mtk_prepare_reset_ppe(struct mtk_eth *eth, u32 ppe_id)
 	}
 
 	if (i >= poll_time) {
-		pr_info("[%s] PPE keeps busy !\n", __func__);
+		pr_warn("[%s] PPE%d keeps busy !\n", __func__, ppe_id);
 		mtk_dump_reg(eth, "FE", 0x0, 0x500);
-		mtk_dump_reg(eth, "PPE", 0x2200, 0x200);
+		mtk_dump_reg(eth, "PPE", PPE_BASE(ppe_id), 0x200);
 	}
 }
 

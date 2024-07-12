@@ -4739,6 +4739,8 @@ static void mtk_pending_work(struct work_struct *work)
 	mtk_prepare_reset_ppe(eth, 0);
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
 		mtk_prepare_reset_ppe(eth, 1);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
+		mtk_prepare_reset_ppe(eth, 2);
 
 	/* Adjust FE configurations to prepare for reset */
 	mtk_prepare_reset_fe(eth);
