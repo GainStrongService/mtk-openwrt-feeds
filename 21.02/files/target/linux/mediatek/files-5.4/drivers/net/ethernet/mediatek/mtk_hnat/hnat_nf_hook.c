@@ -1931,7 +1931,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		/* We must ensure all info has been updated before set to hw */
 		wmb();
 		/* After other fields have been written, write info1 to BIND the entry */
-		foe->bfib1 = entry.bfib1;
+		memcpy(&foe->bfib1, &entry.bfib1, sizeof(entry.bfib1));
 
 		/* reset statistic for this entry */
 		if (hnat_priv->data->per_flow_accounting &&
@@ -2240,7 +2240,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	/* We must ensure all info has been updated before set to hw */
 	wmb();
 	/* After other fields have been written, write info1 to BIND the entry */
-	hw_entry->bfib1 = entry.bfib1;
+	memcpy(&hw_entry->bfib1, &entry.bfib1, sizeof(entry.bfib1));
 
 	hnat_set_entry_lock(hw_entry, false);
 
