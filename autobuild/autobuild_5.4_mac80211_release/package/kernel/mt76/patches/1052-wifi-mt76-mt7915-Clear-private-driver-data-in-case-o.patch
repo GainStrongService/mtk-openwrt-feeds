@@ -1,0 +1,28 @@
+From 903edd4667682289fca8cb7fac0f407c34598e5c Mon Sep 17 00:00:00 2001
+From: Rex Lu <rex.lu@mediatek.com>
+Date: Fri, 5 Jul 2024 17:50:29 +0800
+Subject: [PATCH 1052/1052] wifi: mt76: mt7915: Clear private driver data in
+ case of reuse
+
+Signed-off-by: Rex Lu <rex.lu@mediatek.com>
+---
+ mt7915/main.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mt7915/main.c b/mt7915/main.c
+index eab45737..8c498683 100644
+--- a/mt7915/main.c
++++ b/mt7915/main.c
+@@ -230,6 +230,9 @@ int mt7915_init_vif(struct mt7915_phy *phy, struct ieee80211_vif *vif, bool bf_e
+ 	bool ext_phy = phy != &dev->phy;
+ 	int idx, ret = 0;
+ 
++	/* Clear private driver data in case of reuse */
++	memset(mvif, 0, sizeof(struct mt7915_vif));
++
+ 	/* To differentiate the mac address of TXD and TXCMD interface */
+ 	vif->addr[0] |= bf_en;
+ 
+-- 
+2.18.0
+
