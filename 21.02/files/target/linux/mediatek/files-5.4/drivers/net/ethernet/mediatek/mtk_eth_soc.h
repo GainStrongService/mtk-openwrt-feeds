@@ -71,8 +71,10 @@
 #define MTK_RSS_MAX_INDIRECTION_TABLE	128
 
 /* Frame Engine Global Configuration */
-#define MTK_FE_GLO_CFG(port)	((port < 8) ? 0x0 : 0x24)
-#define MTK_FE_LINK_DOWN_PORT(x)	((x < 8) ? (1 << (8 + x)) : (1 << (x - 8)))
+#define MTK_FE_GLO_CFG(x)	((x < 8) ? 0x0 : 0x24)
+#define MTK_FE_LINK_DOWN_P(x)	((x < 8) ? FIELD_PREP(GENMASK(15, 8), BIT(x)) :	\
+					   FIELD_PREP(GENMASK(7, 0), BIT(x - 8)))
+
 /* Frame Engine Global Reset Register */
 #define MTK_RST_GL		0x04
 #define RST_GL_PSE		BIT(0)

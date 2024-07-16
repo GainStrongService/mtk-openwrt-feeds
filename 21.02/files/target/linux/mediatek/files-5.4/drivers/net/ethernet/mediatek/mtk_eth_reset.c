@@ -829,13 +829,16 @@ void mtk_mac_linkdown(struct mtk_eth *eth)
 	}
 }
 
-void mtk_pse_port_linkdown(struct mtk_eth *eth, int port)
+void mtk_pse_set_port_link(struct mtk_eth *eth, u32 port, bool enable)
 {
-	u32 fe_glo_cfg;
+	u32 val;
 
-	fe_glo_cfg = mtk_r32(eth, MTK_FE_GLO_CFG(port));
-	fe_glo_cfg |= MTK_FE_LINK_DOWN_PORT(port);
-	mtk_w32(eth, fe_glo_cfg, MTK_FE_GLO_CFG(port));
+	val = mtk_r32(eth, MTK_FE_GLO_CFG(port));
+	if (enable)
+		val &= ~MTK_FE_LINK_DOWN_P(port);
+	else
+		val |= MTK_FE_LINK_DOWN_P(port);
+	mtk_w32(eth, val, MTK_FE_GLO_CFG(port));
 }
 
 void mtk_prepare_reset_fe(struct mtk_eth *eth)
@@ -861,14 +864,14 @@ void mtk_prepare_reset_fe(struct mtk_eth *eth)
 	/* Force mac link down */
 	mtk_mac_linkdown(eth);
 
-	/* Force pse port link down */
-	mtk_pse_port_linkdown(eth, 0);
-	mtk_pse_port_linkdown(eth, 1);
-	mtk_pse_port_linkdown(eth, 2);
-	mtk_pse_port_linkdown(eth, 8);
-	mtk_pse_port_linkdown(eth, 9);
+	/* Force PSE port link down */
+	mtk_pse_set_port_link(eth, 0, false);
+	mtk_pse_set_port_link(eth, 1, false);
+	mtk_pse_set_port_link(eth, 2, false);
+	mtk_pse_set_port_link(eth, 8, false);
+	mtk_pse_set_port_link(eth, 9, false);
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
-		mtk_pse_port_linkdown(eth, 15);
+		mtk_pse_set_port_link(eth, 15, false);
 
 	/* Enable GDM drop */
 	for (i = 0; i < MTK_MAC_COUNT; i++)

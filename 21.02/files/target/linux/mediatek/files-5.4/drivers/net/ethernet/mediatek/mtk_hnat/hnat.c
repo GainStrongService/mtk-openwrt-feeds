@@ -36,9 +36,9 @@ EXPORT_SYMBOL(ra_sw_nat_hook_tx);
 void (*ra_sw_nat_clear_bind_entries)(void) = NULL;
 EXPORT_SYMBOL(ra_sw_nat_clear_bind_entries);
 
-int (*hnat_get_wdma_tx_port)(int wdma_idx) = NULL;
+int (*hnat_get_wdma_tx_port)(u32 wdma_idx) = NULL;
 EXPORT_SYMBOL(hnat_get_wdma_tx_port);
-int (*hnat_get_wdma_rx_port)(int wdma_idx) = NULL;
+int (*hnat_get_wdma_rx_port)(u32 wdma_idx) = NULL;
 EXPORT_SYMBOL(hnat_get_wdma_rx_port);
 
 int (*ppe_del_entry_by_mac)(unsigned char *mac) = NULL;
@@ -49,7 +49,7 @@ EXPORT_SYMBOL(ppe_dev_register_hook);
 void (*ppe_dev_unregister_hook)(struct net_device *dev) = NULL;
 EXPORT_SYMBOL(ppe_dev_unregister_hook);
 
-int (*hnat_set_wdma_pse_port_state)(int wdma_idx, int up) = NULL;
+int (*hnat_set_wdma_pse_port_state)(u32 wdma_idx, bool up) = NULL;
 EXPORT_SYMBOL(hnat_set_wdma_pse_port_state);
 
 static void hnat_sma_build_entry(struct timer_list *t)
@@ -144,7 +144,7 @@ void exclude_boundary_entry(struct foe_entry *foe_table_cpu)
 	}
 }
 
-static int mtk_get_wdma_tx_port(int wdma_idx)
+static int mtk_get_wdma_tx_port(u32 wdma_idx)
 {
 	if (wdma_idx == 0 || wdma_idx == 1 || wdma_idx == 2)
 		return NR_PPE0_PORT;
@@ -152,7 +152,7 @@ static int mtk_get_wdma_tx_port(int wdma_idx)
 	return -EINVAL;
 }
 
-static int mtk_get_wdma_rx_port(int wdma_idx)
+static int mtk_get_wdma_rx_port(u32 wdma_idx)
 {
 	if (wdma_idx == 2)
 		return NR_WDMA2_PORT;
@@ -164,7 +164,7 @@ static int mtk_get_wdma_rx_port(int wdma_idx)
 	return -EINVAL;
 }
 
-static int mtk_set_wdma_pse_port_state(int wdma_idx, int up)
+static int mtk_set_wdma_pse_port_state(u32 wdma_idx, bool up)
 {
 	int port;
 
@@ -173,7 +173,7 @@ static int mtk_set_wdma_pse_port_state(int wdma_idx, int up)
 		return -EINVAL;
 
 	cr_set_field(hnat_priv->fe_base + MTK_FE_GLO_CFG(port),
-		BIT((u32)port - NR_WDMA0_PORT), !up);
+		     MTK_FE_LINK_DOWN_P((u32)port), !up);
 
 	return 0;
 }

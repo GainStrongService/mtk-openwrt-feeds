@@ -92,4 +92,5 @@ void mtk_restore_qdma_cfg(struct mtk_eth *eth);
 void mtk_prepare_reset_fe(struct mtk_eth *eth);
 void mtk_prepare_reset_ppe(struct mtk_eth *eth, u32 ppe_id);
 
+void mtk_pse_set_port_link(struct mtk_eth *eth, u32 port, bool enable);
 #endif		/* MTK_ETH_RESET_H */

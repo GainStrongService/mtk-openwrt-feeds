@@ -970,10 +970,10 @@ static void mtk_gdm_fsm_poll(struct mtk_mac *mac)
 			__func__, gdm_fsm, mac_fsm);
 }
 
-static void mtk_pse_port_link_set(struct mtk_mac *mac, bool up,
-				  phy_interface_t interface)
+static void mtk_pse_set_mac_port_link(struct mtk_mac *mac, bool up,
+				      phy_interface_t interface)
 {
-	u32 fe_glo_cfg, val = 0, port = 0;
+	u32 port = 0;
 
 	if (!up && interface == PHY_INTERFACE_MODE_XGMII) {
 		void __iomem *base;
@@ -995,26 +995,18 @@ static void mtk_pse_port_link_set(struct mtk_mac *mac, bool up,
 	switch (mac->id) {
 	case MTK_GMAC1_ID:
 		port = PSE_GDM1_PORT;
-		val = MTK_FE_LINK_DOWN_PORT(port);
 		break;
 	case MTK_GMAC2_ID:
 		port = PSE_GDM2_PORT;
-		val = MTK_FE_LINK_DOWN_PORT(port);
 		break;
 	case MTK_GMAC3_ID:
 		port = PSE_GDM3_PORT;
-		val = MTK_FE_LINK_DOWN_PORT(port);
 		break;
+	default:
+		return;
 	}
 
-	fe_glo_cfg = mtk_r32(mac->hw, MTK_FE_GLO_CFG(port));
-
-	if (!up)
-		fe_glo_cfg |= val;
-	else
-		fe_glo_cfg &= ~val;
-
-	mtk_w32(mac->hw, fe_glo_cfg, MTK_FE_GLO_CFG(port));
+	mtk_pse_set_port_link(mac->hw, port, up);
 	mtk_gdm_fsm_poll(mac);
 }
 
@@ -1027,7 +1019,7 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 	unsigned int id;
 	u32 mcr, sts;
 
-	mtk_pse_port_link_set(mac, false, interface);
+	mtk_pse_set_mac_port_link(mac, false, interface);
 	if (mac->type == MTK_GDM_TYPE) {
 		mcr = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
 		mcr &= ~(MAC_MCR_TX_EN | MAC_MCR_RX_EN | MAC_MCR_FORCE_LINK);
@@ -1209,7 +1201,7 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 		mcr &= ~(XMAC_MCR_TRX_DISABLE);
 		mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
 	}
-	mtk_pse_port_link_set(mac, true, interface);
+	mtk_pse_set_mac_port_link(mac, true, interface);
 }
 
 static void mtk_validate(struct phylink_config *config,
