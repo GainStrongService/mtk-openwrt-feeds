@@ -33,6 +33,9 @@
  * @MT76_TM_ATTR_TX_POWER_CONTROL: enable tx power control (u8)
  * @MT76_TM_ATTR_TX_POWER: per-antenna tx power array (nested, u8 attrs)
  *
+ * @MT76_TM_ATTR_TX_PKT_BW: per-packet data bandwidth (u8)
+ * @MT76_TM_ATTR_TX_PRI_SEL: primary channel selection index (u8)
+ *
  * @MT76_TM_ATTR_FREQ_OFFSET: RF frequency offset (u32)
  *
  * @MT76_TM_ATTR_STATS: statistics (nested, see &enum mt76_testmode_stats_attr)
@@ -103,6 +106,9 @@ enum mt76_testmode_attr {
 	MT76_TM_ATTR_TX_ANTENNA,
 	MT76_TM_ATTR_TX_POWER_CONTROL,
 	MT76_TM_ATTR_TX_POWER,
+
+	MT76_TM_ATTR_TX_PKT_BW,
+	MT76_TM_ATTR_TX_PRI_SEL,
 
 	MT76_TM_ATTR_FREQ_OFFSET,
 

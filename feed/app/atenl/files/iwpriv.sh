@@ -369,15 +369,72 @@ function convert_gi {
     do_cmd "mt76-test ${interface} set tx_rate_sgi=${sgi} tx_ltf=${he_ltf}"
 }
 
+function convert_tm_cbw_to_nl {
+    local cbw=$1
+    local bw="NOHT"
+
+    case ${cbw} in
+        # TM_CBW_20MHZ
+        "0")
+            bw="20"
+            ;;
+        # TM_CBW_40MHZ
+        "1")
+            bw="40"
+            ;;
+        # TM_CBW_80MHZ
+        "2")
+            bw="80"
+            ;;
+        # TM_CBW_10MHZ
+        "3")
+            bw="10"
+            ;;
+        # TM_CBW_5MHZ
+        "4")
+            bw="5"
+            ;;
+        # TM_CBW_160MHZ
+        "5")
+            bw="160"
+            ;;
+        # TM_CBW_8080MHZ
+        "6")
+            bw="80p80"
+            ;;
+        # TM_CBW_320MHZ
+        "12")
+            bw="320"
+            ;;
+    esac
+
+    echo ${bw}
+}
+
+function convert_bw {
+    local system_bw=$(echo $1 | sed s/:/' '/g | cut -d " " -f 1)
+    local data_bw=$(echo $1 | sed s/:/' '/g | cut -d " " -f 2)
+    # Convert TM_CBW to NL80211_CHAN_WIDTH
+    local tx_pkt_bw=$(convert_tm_cbw_to_nl ${data_bw})
+
+    record_config "ATETXBW" ${system_bw} ${iwpriv_file}
+
+    # apply per-packet bw
+    if [[ $1 == *":"* ]]; then
+        do_cmd "mt76-test phy${phy_idx} set tx_pkt_bw=${tx_pkt_bw}"
+    fi
+}
+
 function convert_channel {
-    local ctrl_band_idx=$(get_config "ATECTRLBANDIDX" ${iwpriv_file})
     local ch=$(echo $1 | sed s/:/' '/g | cut -d " " -f 1)
+    local band=$(echo $1 | sed s/:/' '/g | cut -d " " -f 2)
+    local pri_sel=$(echo $1 | sed s/:/' '/g | cut -d " " -f 3)
+    local ctrl_band_idx=$(get_config "ATECTRLBANDIDX" ${iwpriv_file})
     local bw=$(get_config "ATETXBW" ${iwpriv_file} | cut -d ":" -f 1)
     local bw_str="HT20"
     local base_chan=1
     local control_freq=0
     local base_freq=0
-    local band=$(echo $1 | sed s/:/' '/g | cut -d " " -f 2)
     local temp=$((phy_idx+1))
 
     # Handle ATECTRLBANDIDX
@@ -401,6 +458,10 @@ function convert_channel {
                 local band=$((ctrl_band_idx * band))
             fi
         fi
+    fi
+
+    if [[ $1 == *":"* ]] && [ -n "${pri_sel}" ]; then
+        do_cmd "mt76-test phy${phy_idx} set tx_pri_sel=${pri_sel}"
     fi
 
     if [[ $1 != *":"* ]] || [ "${band}" = "0" ]; then
@@ -1327,7 +1388,7 @@ if [ "${cmd_type}" = "set" ]; then
             param_new=${param}
             ;;
         "ATETXBW")
-            record_config ${cmd} ${param} ${iwpriv_file}
+            convert_bw ${param}
             skip=1
             ;;
         "ATECHANNEL")
