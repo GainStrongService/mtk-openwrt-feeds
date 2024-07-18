@@ -178,6 +178,25 @@ static int mtk_set_wdma_pse_port_state(u32 wdma_idx, bool up)
 	return 0;
 }
 
+static int mtk_set_ppe_pse_port_state(u32 ppe_id, bool up)
+{
+	u32 port;
+
+	if (ppe_id == 0)
+		port = NR_PPE0_PORT;
+	else if (ppe_id == 1)
+		port = NR_PPE1_PORT;
+	else if (ppe_id == 2)
+		port = NR_PPE2_PORT;
+	else
+		return -EINVAL;
+
+	cr_set_field(hnat_priv->fe_base + MTK_FE_GLO_CFG(port),
+		     MTK_FE_LINK_DOWN_P(port), !up);
+
+	return 0;
+}
+
 void set_gmac_ppe_fwd(int id, int enable)
 {
 	void __iomem *reg;
@@ -713,6 +732,7 @@ int hnat_disable_hook(void)
 int hnat_warm_init(void)
 {
 	u32 foe_table_sz, foe_mib_tb_sz, ppe_id = 0;
+	int i;
 
 	unregister_netevent_notifier(&nf_hnat_netevent_nb);
 
@@ -736,6 +756,14 @@ int hnat_warm_init(void)
 		}
 
 		hnat_hw_init(ppe_id);
+	}
+
+	/* The SER will enable all the PPE ports again,
+	 * so we have to manually disable the unused ports one more.
+	 */
+	for (i = 0; i < MAX_PPE_NUM; i++) {
+		if (i >= CFG_PPE_NUM)
+			mtk_set_ppe_pse_port_state(i, false);
 	}
 
 	set_gmac_ppe_fwd(NR_GMAC1_PORT, 1);
@@ -765,14 +793,18 @@ static int hnat_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 
 	hnat_priv = devm_kzalloc(&pdev->dev, sizeof(struct mtk_hnat), GFP_KERNEL);
-	if (!hnat_priv)
-		return -ENOMEM;
+	if (!hnat_priv) {
+		err = -ENOMEM;
+		goto err_out2;
+	}
 
 	hnat_priv->foe_etry_num = DEF_ETRY_NUM;
 
 	match = of_match_device(of_hnat_match, &pdev->dev);
-	if (unlikely(!match))
-		return -EINVAL;
+	if (unlikely(!match)) {
+		err = -EINVAL;
+		goto err_out2;
+	}
 
 	hnat_priv->data = (struct mtk_hnat_data *)match->data;
 
@@ -780,8 +812,10 @@ static int hnat_probe(struct platform_device *pdev)
 	np = hnat_priv->dev->of_node;
 
 	err = of_property_read_string(np, "mtketh-wan", &name);
-	if (err < 0)
-		return -EINVAL;
+	if (err < 0) {
+		err = -EINVAL;
+		goto err_out2;
+	}
 
 	strncpy(hnat_priv->wan, (char *)name, IFNAMSIZ - 1);
 	dev_info(&pdev->dev, "wan = %s\n", hnat_priv->wan);
@@ -810,8 +844,10 @@ static int hnat_probe(struct platform_device *pdev)
 	/*get total gmac num in hnat*/
 	err = of_property_read_u32_index(np, "mtketh-max-gmac", 0, &val);
 
-	if (err < 0)
-		return -EINVAL;
+	if (err < 0) {
+		err = -EINVAL;
+		goto err_out2;
+	}
 
 	hnat_priv->gmac_num = val;
 
@@ -836,13 +872,17 @@ static int hnat_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "ppe num = %d\n", hnat_priv->ppe_num);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
+	if (!res) {
+		err = -ENOENT;
+		goto err_out2;
+	}
 
 	hnat_priv->fe_base = devm_ioremap_nocache(&pdev->dev, res->start,
 					     res->end - res->start + 1);
-	if (!hnat_priv->fe_base)
-		return -EADDRNOTAVAIL;
+	if (!hnat_priv->fe_base) {
+		err = -EADDRNOTAVAIL;
+		goto err_out2;
+	}
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 	hnat_priv->ppe_base[0] = hnat_priv->fe_base + 0x2200;
@@ -858,7 +898,7 @@ static int hnat_probe(struct platform_device *pdev)
 
 	err = hnat_init_debugfs(hnat_priv);
 	if (err)
-		return err;
+		goto err_out2;
 
 	prop = of_find_property(np, "ext-devices", NULL);
 	for (name = of_prop_next_string(prop, NULL); name;
@@ -884,6 +924,16 @@ static int hnat_probe(struct platform_device *pdev)
 		err = hnat_start(i);
 		if (err)
 			goto err_out;
+	}
+
+	/* The PSE default enables all the PPE ports,
+	 * so we need to manually disable the unused ports.
+	 */
+	for (i = 0; i < MAX_PPE_NUM; i++) {
+		if (i >= CFG_PPE_NUM)
+			mtk_set_ppe_pse_port_state(i, false);
+		else
+			mtk_set_ppe_pse_port_state(i, true);
 	}
 
 	if (hnat_priv->data->whnat) {
@@ -932,6 +982,9 @@ err_out1:
 		ext_if_del(ext_entry);
 		kfree(ext_entry);
 	}
+err_out2:
+	for (i = 0; i < MAX_PPE_NUM; i++)
+		mtk_set_ppe_pse_port_state(i, false);
 	return err;
 }
 
@@ -949,6 +1002,9 @@ static int hnat_remove(struct platform_device *pdev)
 
 	for (i = 0; i < CFG_PPE_NUM; i++)
 		hnat_stop(i);
+
+	for (i = 0; i < MAX_PPE_NUM; i++)
+		mtk_set_ppe_pse_port_state(i, false);
 
 	hnat_deinit_debugfs(hnat_priv);
 	hnat_release_netdev();
