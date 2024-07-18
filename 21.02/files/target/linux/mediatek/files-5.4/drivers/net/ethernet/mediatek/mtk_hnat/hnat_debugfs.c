@@ -324,6 +324,7 @@ int entry_set_usage(int level)
 	pr_info("              6   <entry_idx>  Show PPE2 specific foe entry info. of assigned <entry_idx>\n");
 	pr_info("              7   <entry_idx>  Delete PPE2 specific foe entry of assigned <entry_idx>\n");
 	pr_info("                               When entry_idx is -1, clear all entries\n");
+	pr_info("              8   <mac>        Delete all PPEs foe entry of assinged smac and dmac\n");
 
 	return 0;
 }
@@ -742,6 +743,41 @@ int entry_delete(u32 ppe_id, int index)
 	return 0;
 }
 EXPORT_SYMBOL(entry_delete);
+
+static u32 hnat_char2hex(const char c)
+{
+	switch (c) {
+	case '0'...'9':
+		return 0x0 + (c - '0');
+	case 'a'...'f':
+		return 0xa + (c - 'a');
+	case 'A'...'F':
+		return 0xa + (c - 'A');
+	default:
+		pr_info("MAC format error\n");
+		return 0;
+	}
+}
+
+static void hnat_parse_mac(char *str, char *mac)
+{
+	int i;
+
+	for (i = 0; i < ETH_ALEN; i++) {
+		mac[i] = (hnat_char2hex(str[i * 3]) << 4) +
+			 (hnat_char2hex(str[i * 3 + 1]));
+	}
+}
+
+int delete_entry_by_mac(char *mac_str)
+{
+	char mac[6];
+
+	hnat_parse_mac(mac_str, mac);
+	entry_delete_by_mac(mac);
+
+	return 0;
+}
 
 int cr_set_usage(int level)
 {
@@ -1925,15 +1961,22 @@ ssize_t hnat_entry_write(struct file *file, const char __user *buffer,
 			arg1 = 0;
 		else
 			ret = kstrtol(p_token, 10, &arg1);
+
+		(*entry_set_func[arg0])(arg1);
+		break;
+	case 8:
+		p_token = strsep(&p_buf, p_delimiter);
+
+		if (!p_token)
+			break;
+
+		delete_entry_by_mac(p_token);
 		break;
 	default:
 		pr_info("no handler defined for command id(0x%08lx)\n\r", arg0);
-		arg0 = 0;
-		arg1 = 0;
+		entry_set_usage(debug_level);
 		break;
 	}
-
-	(*entry_set_func[arg0])(arg1);
 
 	return len;
 }
@@ -3047,31 +3090,6 @@ u32 hnat_get_ppe_hash(struct foe_entry *entry)
 	hash &= hnat_priv->foe_etry_num - 1;
 
 	return hash;
-}
-
-static u32 hnat_char2hex(const char c)
-{
-	switch (c) {
-	case '0'...'9':
-		return 0x0 + (c - '0');
-	case 'a'...'f':
-		return 0xa + (c - 'a');
-	case 'A'...'F':
-		return 0xa + (c - 'A');
-	default:
-		pr_info("MAC format error\n");
-		return 0;
-	}
-}
-
-static void hnat_parse_mac(char *str, char *mac)
-{
-	int i;
-
-	for (i = 0; i < ETH_ALEN; i++) {
-		mac[i] = (hnat_char2hex(str[i * 3]) << 4) +
-			 (hnat_char2hex(str[i * 3 + 1]));
-	}
 }
 
 static void hnat_static_entry_help(void)
