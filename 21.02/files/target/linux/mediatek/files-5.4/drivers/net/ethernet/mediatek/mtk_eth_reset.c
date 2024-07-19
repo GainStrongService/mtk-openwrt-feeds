@@ -390,6 +390,9 @@ u32 mtk_monitor_rx_fc(struct mtk_eth *eth)
 	u32 i = 0, mib_base = 0, gdm_fc = 0;
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->mac[i] || !netif_running(eth->netdev[i]))
+			continue;
+
 		mib_base = MTK_GDM1_TX_GBCNT + MTK_STAT_OFFSET*i + MTK_GDM_RX_FC;
 		gdm_fc =  mtk_r32(eth, mib_base);
 		if (gdm_fc < 1)
@@ -604,6 +607,9 @@ u32 mtk_monitor_gdm_rx(struct mtk_eth *eth)
 	u32 cur_fsm, pse_ipq, err_flag = 0, i;
 
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		if (!eth->mac[i] || !netif_running(eth->netdev[i]))
+			continue;
+
 		struct mtk_hw_stats *hw_stats = eth->mac[i]->hw_stats;
 
 		is_gmac_rx[i] = (mtk_r32(eth, MTK_MAC_FSM(i)) & 0xFF0000) != 0x10000;
@@ -623,6 +629,9 @@ u32 mtk_monitor_gdm_rx(struct mtk_eth *eth)
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
 		for (i = 0; i < MTK_MAX_DEVS; i++) {
+			if (!eth->mac[i] || !netif_running(eth->netdev[i]))
+				continue;
+
 			if (i == 0) {
 				pse_ipq = (mtk_r32(eth, MTK_PSE_IQ_STA(0)) >> 16) & 0xFFF;
 				cur_fsm = mtk_r32(eth, MTK_FE_GDM1_FSM) & 0xFF;
@@ -672,6 +681,9 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 	u32 err_flag = 0, i, pse_opq;
 
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		if (!eth->mac[i] || !netif_running(eth->netdev[i]))
+			continue;
+
 		struct mtk_hw_stats *hw_stats = eth->mac[i]->hw_stats;
 
 		if (i == 0)
@@ -697,6 +709,9 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 	}
 
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		if (!eth->mac[i] || !netif_running(eth->netdev[i]))
+			continue;
+
 		gdm_fsm = mtk_r32(eth, MTK_FE_GDM_FSM(i)) & 0x1FFF0000;
 		pse_opq = MTK_FE_GDM_OQ(i);
 		if ((pre_gdm[i] == gdm_fsm) && (gdm_fsm == 0x10330000) &&
@@ -811,6 +826,9 @@ void mtk_mac_linkdown(struct mtk_eth *eth)
 	u32 mcr, sts, i;
 
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		if (!eth->mac[i])
+			continue;
+
 		mac = eth->mac[i];
 		if (mac->type == MTK_GDM_TYPE) {
 			mcr = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
