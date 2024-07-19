@@ -623,9 +623,11 @@ static int mtk_mac_prepare(struct phylink_config *config, unsigned int mode,
 {
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
+	struct mtk_eth *eth = mac->hw;
 	u32 val;
 
-	if (mac->type == MTK_XGDM_TYPE && mac->id != MTK_GMAC1_ID) {
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
+	    mac->id != MTK_GMAC1_ID) {
 		val = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
 		val &= 0xfffffff0;
 		val |= XMAC_MCR_TRX_DISABLE;
