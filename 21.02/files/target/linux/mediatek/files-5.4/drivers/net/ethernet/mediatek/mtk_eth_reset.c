@@ -872,6 +872,9 @@ void mtk_prepare_reset_fe(struct mtk_eth *eth)
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i])
 			continue;
+
+		/* call carrier off first to avoid false dev_watchdog timeouts */
+		netif_carrier_off(eth->netdev[i]);
 		netif_tx_disable(eth->netdev[i]);
 	}
 
