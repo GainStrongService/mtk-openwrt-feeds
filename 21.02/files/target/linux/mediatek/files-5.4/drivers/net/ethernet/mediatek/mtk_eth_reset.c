@@ -861,7 +861,7 @@ void mtk_pse_set_port_link(struct mtk_eth *eth, u32 port, bool enable)
 
 void mtk_prepare_reset_fe(struct mtk_eth *eth)
 {
-	u32 i = 0, val = 0, mcr = 0;
+	u32 i = 0, val = 0;
 
 	/* Disable NETSYS Interrupt */
 	mtk_w32(eth, 0, MTK_FE_INT_ENABLE);

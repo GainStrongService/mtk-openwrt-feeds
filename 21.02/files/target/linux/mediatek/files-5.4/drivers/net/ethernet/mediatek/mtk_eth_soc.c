@@ -2156,7 +2156,8 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 			}
 
 			memset(&txd_info, 0, sizeof(struct mtk_tx_dma_desc_info));
-			txd_info.size = min(frag_size, eth->soc->txrx.dma_max_len);
+			txd_info.size = min_t(unsigned int, frag_size,
+					      eth->soc->txrx.dma_max_len);
 			txd_info.qid = queue;
 			txd_info.last = i == skb_shinfo(skb)->nr_frags - 1 &&
 					!(frag_size - txd_info.size);
@@ -2316,7 +2317,6 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct netdev_queue *txq;
 	bool gso = false;
 	int tx_num;
-	int i = 0;
 	int qid = skb_get_queue_mapping(skb);
 
 	/* normally we can rely on the stack not calling this more than once,
@@ -3863,8 +3863,8 @@ static irqreturn_t mtk_handle_irq_txrx(int irq, void *priv)
 	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
 
 	if (tx_ring) {
-		if (unlikely(!(mtk_r32(eth, eth->soc->reg_map->pdma.irq_status) &
-			       mtk_r32(eth, eth->soc->reg_map->pdma.irq_mask) &
+		if (unlikely(!(mtk_r32(eth, reg_map->pdma.irq_status) &
+			       mtk_r32(eth, reg_map->pdma.irq_mask) &
 			       MTK_TX_DONE_INT(tx_ring->ring_no))))
 			return IRQ_NONE;
 
@@ -3873,8 +3873,8 @@ static irqreturn_t mtk_handle_irq_txrx(int irq, void *priv)
 			__napi_schedule(&txrx_napi->napi);
 		}
 	} else {
-		if (unlikely(!(mtk_r32(eth, eth->soc->reg_map->pdma.irq_status) &
-			       mtk_r32(eth, eth->soc->reg_map->pdma.irq_mask) &
+		if (unlikely(!(mtk_r32(eth, reg_map->pdma.irq_status) &
+			       mtk_r32(eth, reg_map->pdma.irq_mask) &
 			       MTK_RX_DONE_INT(rx_ring->ring_no))))
 			return IRQ_NONE;
 
