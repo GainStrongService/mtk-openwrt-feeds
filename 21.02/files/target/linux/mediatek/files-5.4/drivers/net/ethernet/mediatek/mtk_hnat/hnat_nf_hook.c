@@ -998,7 +998,7 @@ drop:
 	return NF_DROP;
 }
 
-static unsigned int hnat_ipv6_get_nexthop(struct sk_buff *skb,
+static int hnat_ipv6_get_nexthop(struct sk_buff *skb,
 					  const struct net_device *out,
 					  struct flow_offload_hw_path *hw_path)
 {
@@ -1056,7 +1056,7 @@ static unsigned int hnat_ipv6_get_nexthop(struct sk_buff *skb,
 	return 0;
 }
 
-static unsigned int hnat_ipv4_get_nexthop(struct sk_buff *skb,
+static int hnat_ipv4_get_nexthop(struct sk_buff *skb,
 					  const struct net_device *out,
 					  struct flow_offload_hw_path *hw_path)
 {
@@ -1065,10 +1065,13 @@ static unsigned int hnat_ipv4_get_nexthop(struct sk_buff *skb,
 	struct dst_entry *dst = skb_dst(skb);
 	struct rtable *rt = (struct rtable *)dst;
 	struct net_device *dev = (__force struct net_device *)out;
+	struct ethhdr *eth;
 
 	if (hw_path->flags & FLOW_OFFLOAD_PATH_PPPOE) {
+		rcu_read_lock_bh();
 		memcpy(eth_hdr(skb)->h_source, hw_path->eth_src, ETH_ALEN);
 		memcpy(eth_hdr(skb)->h_dest, hw_path->eth_dest, ETH_ALEN);
+		rcu_read_unlock_bh();
 		return 0;
 	}
 
@@ -1088,8 +1091,15 @@ static unsigned int hnat_ipv4_get_nexthop(struct sk_buff *skb,
 		return -1;
 	}
 
-	memcpy(eth_hdr(skb)->h_dest, neigh->ha, ETH_ALEN);
-	memcpy(eth_hdr(skb)->h_source, out->dev_addr, ETH_ALEN);
+	if (ip_hdr(skb)->protocol == IPPROTO_IPV6)
+		/* 6RD LAN->WAN(6to4) */
+		eth = (struct ethhdr *)(skb->data - ETH_HLEN);
+	else
+		eth = eth_hdr(skb);
+
+	memcpy(eth->h_dest, neigh->ha, ETH_ALEN);
+	memcpy(eth->h_source, out->dev_addr, ETH_ALEN);
+	eth->h_proto = htons(ETH_P_IP);
 
 	rcu_read_unlock_bh();
 
@@ -1244,6 +1254,9 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	if (ipv6_hdr(skb)->nexthdr == NEXTHDR_IPIP)
 		/* point to ethernet header for DS-Lite and MapE */
 		eth = get_ipv6_ipip_ethhdr(skb, hw_path);
+	else if (ip_hdr(skb)->protocol == IPPROTO_IPV6)
+		/* 6RD LAN->WAN(6to4) */
+		eth = (struct ethhdr *)(skb->data - ETH_HLEN);
 	else
 		eth = eth_hdr(skb);
 
@@ -1381,6 +1394,44 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			entry.ipv4_hnapt.bfib1.udp = udp;
 			break;
 
+		case IPPROTO_IPV6:
+			/* 6RD LAN->WAN(6to4) */
+			if (entry.bfib1.pkt_type == IPV6_6RD) {
+				entry.ipv6_6rd.ipv6_sip0 = foe->ipv6_6rd.ipv6_sip0;
+				entry.ipv6_6rd.ipv6_sip1 = foe->ipv6_6rd.ipv6_sip1;
+				entry.ipv6_6rd.ipv6_sip2 = foe->ipv6_6rd.ipv6_sip2;
+				entry.ipv6_6rd.ipv6_sip3 = foe->ipv6_6rd.ipv6_sip3;
+
+				entry.ipv6_6rd.ipv6_dip0 = foe->ipv6_6rd.ipv6_dip0;
+				entry.ipv6_6rd.ipv6_dip1 = foe->ipv6_6rd.ipv6_dip1;
+				entry.ipv6_6rd.ipv6_dip2 = foe->ipv6_6rd.ipv6_dip2;
+				entry.ipv6_6rd.ipv6_dip3 = foe->ipv6_6rd.ipv6_dip3;
+
+				entry.ipv6_6rd.sport = foe->ipv6_6rd.sport;
+				entry.ipv6_6rd.dport = foe->ipv6_6rd.dport;
+				entry.ipv6_6rd.tunnel_sipv4 = ntohl(iph->saddr);
+				entry.ipv6_6rd.tunnel_dipv4 = ntohl(iph->daddr);
+				entry.ipv6_6rd.hdr_chksum = ppe_get_chkbase(iph);
+				entry.ipv6_6rd.flag = (ntohs(iph->frag_off) >> 13);
+				entry.ipv6_6rd.ttl = iph->ttl;
+				entry.ipv6_6rd.dscp = iph->tos;
+				entry.ipv6_6rd.per_flow_6rd_id = 1;
+				entry.ipv6_6rd.vlan1 = hw_path->vlan_id;
+				if (hnat_priv->data->per_flow_accounting)
+					entry.ipv6_6rd.iblk2.mibf = 1;
+
+				ip6h = (struct ipv6hdr *)skb_inner_network_header(skb);
+				if (ip6h->nexthdr == NEXTHDR_UDP)
+					entry.ipv6_6rd.bfib1.udp = 1;
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+				entry.ipv6_6rd.eg_keep_ecn = 1;
+				entry.ipv6_6rd.eg_keep_cls = 1;
+#endif
+				break;
+			}
+
+			return -1;
 		default:
 			return -1;
 		}
@@ -1640,41 +1691,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		break;
 
 	default:
-		iph = ip_hdr(skb);
-		switch (entry.bfib1.pkt_type) {
-		case IPV6_6RD: /* 6RD LAN->WAN */
-			entry.ipv6_6rd.ipv6_sip0 = foe->ipv6_6rd.ipv6_sip0;
-			entry.ipv6_6rd.ipv6_sip1 = foe->ipv6_6rd.ipv6_sip1;
-			entry.ipv6_6rd.ipv6_sip2 = foe->ipv6_6rd.ipv6_sip2;
-			entry.ipv6_6rd.ipv6_sip3 = foe->ipv6_6rd.ipv6_sip3;
-
-			entry.ipv6_6rd.ipv6_dip0 = foe->ipv6_6rd.ipv6_dip0;
-			entry.ipv6_6rd.ipv6_dip1 = foe->ipv6_6rd.ipv6_dip1;
-			entry.ipv6_6rd.ipv6_dip2 = foe->ipv6_6rd.ipv6_dip2;
-			entry.ipv6_6rd.ipv6_dip3 = foe->ipv6_6rd.ipv6_dip3;
-
-			entry.ipv6_6rd.sport = foe->ipv6_6rd.sport;
-			entry.ipv6_6rd.dport = foe->ipv6_6rd.dport;
-			entry.ipv6_6rd.tunnel_sipv4 = ntohl(iph->saddr);
-			entry.ipv6_6rd.tunnel_dipv4 = ntohl(iph->daddr);
-			entry.ipv6_6rd.hdr_chksum = ppe_get_chkbase(iph);
-			entry.ipv6_6rd.flag = (ntohs(iph->frag_off) >> 13);
-			entry.ipv6_6rd.ttl = iph->ttl;
-			entry.ipv6_6rd.dscp = iph->tos;
-			entry.ipv6_6rd.per_flow_6rd_id = 1;
-			entry.ipv6_6rd.vlan1 = hw_path->vlan_id;
-			if (hnat_priv->data->per_flow_accounting)
-				entry.ipv6_6rd.iblk2.mibf = 1;
-
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-			entry.ipv6_6rd.eg_keep_ecn = 1;
-			entry.ipv6_6rd.eg_keep_cls = 1;
-#endif
-			break;
-
-		default:
-			return -1;
-		}
+		return -1;
 	}
 
 	/* Fill Layer2 Info.*/
@@ -2748,7 +2765,7 @@ int mtk_464xlat_post_process(struct sk_buff *skb, const struct net_device *out)
 
 static unsigned int mtk_hnat_nf_post_routing(
 	struct sk_buff *skb, const struct net_device *out,
-	unsigned int (*fn)(struct sk_buff *, const struct net_device *,
+	int (*fn)(struct sk_buff *, const struct net_device *,
 			   struct flow_offload_hw_path *),
 	const char *func)
 {
