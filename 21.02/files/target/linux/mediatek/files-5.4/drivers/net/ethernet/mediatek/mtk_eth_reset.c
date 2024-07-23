@@ -42,6 +42,41 @@ void mtk_reset_event_update(struct mtk_eth *eth, u32 id)
 	reset_event->count[id]++;
 }
 
+static void mtk_dump_reg(void *_eth, char *name, u32 offset, u32 range)
+{
+	struct mtk_eth *eth = _eth;
+	u32 cur = offset;
+
+	pr_info("\n============ %s ============\n", name);
+	while (cur < offset + range) {
+		pr_info("0x%x: %08x %08x %08x %08x\n",
+			cur, mtk_r32(eth, cur), mtk_r32(eth, cur + 0x4),
+			mtk_r32(eth, cur + 0x8), mtk_r32(eth, cur + 0xc));
+		cur += 0x10;
+	}
+}
+
+static void mtk_dump_regmap(struct regmap *pmap, char *name,
+			    u32 offset, u32 range)
+{
+	unsigned int cur = offset;
+	unsigned int val1 = 0, val2 = 0, val3 = 0, val4 = 0;
+
+	if (!pmap)
+		return;
+
+	pr_info("\n============ %s ============\n", name);
+	while (cur < offset + range) {
+		regmap_read(pmap, cur, &val1);
+		regmap_read(pmap, cur + 0x4, &val2);
+		regmap_read(pmap, cur + 0x8, &val3);
+		regmap_read(pmap, cur + 0xc, &val4);
+		pr_info("0x%x: %08x %08x %08x %08x\n",
+			cur, val1, val2, val3, val4);
+		cur += 0x10;
+	}
+}
+
 int mtk_eth_cold_reset(struct mtk_eth *eth)
 {
 	u32 reset_bits = 0;
@@ -89,6 +124,7 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 	}
 
 	if (i < 1000) {
+		done = 1;
 		reset_bits = RSTCTRL_ETH | RSTCTRL_PPE0;
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
 			reset_bits |= RSTCTRL_PPE1;
@@ -105,27 +141,51 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 
 		udelay(1);
 		regmap_read(eth->ethsys, ETHSYS_RSTCTRL, &val2);
-		if (!(val2 & reset_bits))
+		if (!(val2 & reset_bits)) {
 			pr_info("[%s] error val2=0x%x reset_bits=0x%x !\n",
 				__func__, val2, reset_bits);
+			done = 0;
+		}
 		reset_bits |= RSTCTRL_FE;
 		regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
 				   reset_bits, ~reset_bits);
-
 		udelay(1);
 		regmap_read(eth->ethsys, ETHSYS_RSTCTRL, &val3);
-		if (val3 & reset_bits)
+		if (val3 & reset_bits) {
 			pr_info("[%s] error val3=0x%x reset_bits=0x%x !\n",
 				__func__, val3, reset_bits);
-		done = 1;
+			done = 0;
+		}
 		mtk_reset_event_update(eth, MTK_EVENT_WARM_CNT);
 	}
 
 	pr_info("[%s] reset record val1=0x%x, val2=0x%x, val3=0x%x i:%d done:%d\n",
 		__func__, val1, val2, val3, i, done);
 
-	if (!done)
+	if (!done) {
+		mtk_dump_reg(eth, "FE", 0x0, 0x300);
+		mtk_dump_reg(eth, "ADMA", PDMA_BASE + 0x200, 0x10);
+		mtk_dump_reg(eth, "QDMA", QDMA_BASE + 0x200, 0x10);
+		mtk_dump_reg(eth, "WDMA0", WDMA_BASE(0) + 0x200, 0x10);
+		mtk_dump_reg(eth, "WDMA1", WDMA_BASE(1) + 0x200, 0x10);
+		mtk_dump_reg(eth, "PPE0", PPE_BASE(0), 0x10);
+		mtk_dump_reg(eth, "PPE0", PPE_BASE(0) + 0x180, 0x20);
+		if (!MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V1)) {
+			mtk_dump_reg(eth, "PPE1", PPE_BASE(1), 0x10);
+			mtk_dump_reg(eth, "PPE1", PPE_BASE(1) + 0x180, 0x20);
+		}
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+			mtk_dump_reg(eth, "PPE2", PPE_BASE(2), 0x10);
+			mtk_dump_reg(eth, "PPE2", PPE_BASE(2) + 0x180, 0x20);
+			regmap_write(eth->ethsys, ETHSYS_LP_NONE_IDLE_LAT0, 0xffffffff);
+			regmap_write(eth->ethsys, ETHSYS_LP_NONE_IDLE_LAT1, 0xffffffff);
+			regmap_read(eth->ethsys, ETHSYS_LP_NONE_IDLE_LAT0, &val1);
+			regmap_read(eth->ethsys, ETHSYS_LP_NONE_IDLE_LAT1, &val2);
+			pr_info("ETHSYS_LP_NONE_IDLE_LAT0:%x\n", val1);
+			pr_info("ETHSYS_LP_NONE_IDLE_LAT1:%x\n", val2);
+		}
 		mtk_eth_cold_reset(eth);
+	}
 
 	return 0;
 }
@@ -185,41 +245,6 @@ irqreturn_t mtk_handle_fe_irq(int irq, void *_eth)
 	mtk_w32(eth, 0xFFFFFFFF, MTK_FE_INT_STATUS);
 
 	return IRQ_HANDLED;
-}
-
-static void mtk_dump_reg(void *_eth, char *name, u32 offset, u32 range)
-{
-	struct mtk_eth *eth = _eth;
-	u32 cur = offset;
-
-	pr_info("\n============ %s ============\n", name);
-	while(cur < offset + range) {
-		pr_info("0x%x: %08x %08x %08x %08x\n",
-			cur, mtk_r32(eth, cur), mtk_r32(eth, cur + 0x4),
-			mtk_r32(eth, cur + 0x8), mtk_r32(eth, cur + 0xc));
-		cur += 0x10;
-	}
-}
-
-static void mtk_dump_regmap(struct regmap *pmap, char *name,
-			    u32 offset, u32 range)
-{
-	unsigned int cur = offset;
-	unsigned int val1 = 0, val2 = 0, val3 = 0, val4 = 0;
-
-	if (!pmap)
-		return;
-
-	pr_info("\n============ %s ============\n", name);
-	while (cur < offset + range) {
-		regmap_read(pmap, cur, &val1);
-		regmap_read(pmap, cur + 0x4, &val2);
-		regmap_read(pmap, cur + 0x8, &val3);
-		regmap_read(pmap, cur + 0xc, &val4);
-		pr_info("0x%x: %08x %08x %08x %08x\n",
-			cur, val1, val2, val3, val4);
-		cur += 0x10;
-	}
 }
 
 void mtk_dump_netsys_info(void *_eth)

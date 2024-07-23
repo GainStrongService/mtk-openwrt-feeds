@@ -4774,6 +4774,7 @@ static void mtk_pending_work(struct work_struct *work)
 				if (!wait_for_completion_timeout(&wait_ser_done,
 								 msecs_to_jiffies(3000)))
 					pr_warn("wait for MTK_FE_START_RESET\n");
+				mtk_stop_fail = 0;
 			}
 			pr_warn("wait for MTK_FE_START_RESET\n");
 		}

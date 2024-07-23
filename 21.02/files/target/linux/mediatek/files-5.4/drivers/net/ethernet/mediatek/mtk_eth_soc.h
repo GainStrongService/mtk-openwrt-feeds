@@ -894,6 +894,10 @@
 /* ethernet reset check idle register */
 #define ETHSYS_FE_RST_CHK_IDLE_EN 	0x28
 
+/* ethernet non-idle check register */
+#define ETHSYS_LP_NONE_IDLE_LAT0 (0x144)
+#define ETHSYS_LP_NONE_IDLE_LAT1 (0x148)
+
 /* ethernet dma channel agent map */
 #define ETHSYS_DMA_AG_MAP	0x408
 #define ETHSYS_DMA_AG_MAP_PDMA	BIT(0)
