@@ -14,7 +14,7 @@ Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
  
  asus_initial_setup()
  {
-@@ -64,6 +64,31 @@ platform_do_upgrade() {
+@@ -64,6 +64,29 @@ platform_do_upgrade() {
  	local board=$(board_name)
  
  	case "$board" in
@@ -22,17 +22,15 @@ Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
 +	mediatek,mt7988a-rfb)
 +		[ -e /dev/fit0 ] && fitblk /dev/fit0
 +		[ -e /dev/fitrw ] && fitblk /dev/fitrw
-+		bootdev="$(fitblk_get_bootdev)"
-+		case "$bootdev" in
-+		mmcblk*)
-+			EMMC_KERN_DEV="/dev/$bootdev"
++		export_fitblk_bootdev
++		case "$CI_METHOD" in
++		emmc)
 +			mmc_do_upgrade "$1"
 +			;;
-+		mtdblock*)
-+			PART_NAME="/dev/mtd${bootdev:8}"
++		default)
 +			default_do_upgrade "$1"
 +			;;
-+		ubiblock*)
++		ubi)
 +			CI_KERNPART="firmware"
 +			ubi_do_upgrade "$1"
 +			;;
@@ -43,38 +41,24 @@ Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
 +			;;
 +		esac
 +		;;
- 	acer,predator-w6|\
- 	smartrg,sdg-8612|\
- 	smartrg,sdg-8614|\
-@@ -134,7 +159,6 @@ platform_do_upgrade() {
- 		;;
- 	h3c,magic-nx30-pro|\
- 	jcg,q30-pro|\
--	mediatek,mt7981-rfb|\
- 	netcore,n60|\
- 	qihoo,360t7|\
- 	xiaomi,mi-router-ax3000t-ubootmod|\
-@@ -205,6 +229,8 @@ platform_check_image() {
+ 	abt,asr3000|\
+ 	bananapi,bpi-r3|\
+ 	bananapi,bpi-r3-mini|\
+@@ -175,6 +198,8 @@ platform_check_image() {
  	[ "$#" -gt 1 ] && return 1
  
  	case "$board" in
 +	mediatek,mt7981-rfb|\
 +	mediatek,mt7988a-rfb|\
  	bananapi,bpi-r3|\
+ 	bananapi,bpi-r3-mini|\
  	bananapi,bpi-r4|\
- 	bananapi,bpi-r4-poe|\
-@@ -226,6 +252,14 @@ platform_check_image() {
+@@ -197,6 +222,8 @@ platform_check_image() {
  
  platform_copy_config() {
  	case "$(board_name)" in
 +	mediatek,mt7981-rfb|\
-+	mediatek,mt7988a-rfb)
-+		case "$(fitblk_get_bootdev)" in
-+		mmcblk*)
-+			mmc_copy_config
-+			;;
-+		esac
-+		;;
- 	cmcc,rax3000m)
- 		case "$(cmdline_get_var root)" in
- 		/dev/mmc*)
++	mediatek,mt7988a-rfb|\
+ 	bananapi,bpi-r3|\
+ 	bananapi,bpi-r3-mini|\
+ 	bananapi,bpi-r4|\

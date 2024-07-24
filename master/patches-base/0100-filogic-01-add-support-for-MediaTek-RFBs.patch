@@ -42,11 +42,11 @@ Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
 +mediatek,mt7986a-rfb|\
 +mediatek,mt7986b-rfb|\
 +mediatek,mt7988a-rfb)
-+	. /lib/upgrade/common.sh
++	. /lib/upgrade/fit.sh
 +
-+	bootdev="$(fitblk_get_bootdev)"
-+	case "$bootdev" in
-+	ubi*)
++	export_fitblk_bootdev
++	case "$CI_METHOD" in
++	ubi)
 +		local env_ubi_vol=$(cat /sys/firmware/devicetree/base/mediatek,env-ubi-volume 2>/dev/null)
 +		local env_ubi_vol2=$(cat /sys/firmware/devicetree/base/mediatek,env-ubi-volume-redund 2>/dev/null)
 +		local env_size=$(cat /sys/firmware/devicetree/base/mediatek,env-size 2>/dev/null)
@@ -69,7 +69,7 @@ Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
 +			ubootenv_add_uci_config "$envdev2" "0x0" "${env_size}" "${env_size}" "1"
 +		fi
 +		;;
-+	mmc*)
++	emmc)
 +		local env_part=$(cat /sys/firmware/devicetree/base/mediatek,env-part 2>/dev/null)
 +		local env_size=$(cat /sys/firmware/devicetree/base/mediatek,env-size 2>/dev/null)
 +		local env_off=$(cat /sys/firmware/devicetree/base/mediatek,env-offset 2>/dev/null)
@@ -84,7 +84,7 @@ Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
 +				ubootenv_add_uci_config "${env_dev}" "${env_redund_off}" "${env_size}" "${env_size}" "1"
 +		fi
 +		;;
-+	mtd*)
++	default)
 +		local env_part=$(cat /sys/firmware/devicetree/base/mediatek,env-part 2>/dev/null)
 +		local env_size=$(cat /sys/firmware/devicetree/base/mediatek,env-size 2>/dev/null)
 +		local env_redund_off=$(cat /sys/firmware/devicetree/base/mediatek,env-redund-offset 2>/dev/null)
@@ -100,6 +100,6 @@ Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
 +		;;
 +	esac
 +	;;
- asus,rt-ax59u)
- 	ubootenv_add_uci_config "/dev/mtd0" "0x100000" "0x20000" "0x20000"
- 	;;
+ abt,asr3000|\
+ h3c,magic-nx30-pro|\
+ jcg,q30-pro|\
