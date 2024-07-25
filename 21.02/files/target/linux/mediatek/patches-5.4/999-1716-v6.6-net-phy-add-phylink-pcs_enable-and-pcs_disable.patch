@@ -38,7 +38,7 @@ index 9b9bb17..1d79f59 100644
 -	if (pcs_changed)
 +	if (pcs_changed) {
 +		if (pl->pcs && pl->pcs->ops->pcs_disable)
-+			pcs->ops->pcs_disable(pl->pcs);
++			pl->pcs->ops->pcs_disable(pl->pcs);
 +
  		pl->pcs = pcs;
 +	}
@@ -47,7 +47,7 @@ index 9b9bb17..1d79f59 100644
  
 +	if (pl->pcs_state == PCS_STATE_STARTING || pcs_changed) {
 +		if (pl->pcs && pl->pcs->ops->pcs_enable)
-+			err = pcs->ops->pcs_enable(pl->pcs);
++			err = pl->pcs->ops->pcs_enable(pl->pcs);
 +	}
 +
  	if (pl->pcs) {
