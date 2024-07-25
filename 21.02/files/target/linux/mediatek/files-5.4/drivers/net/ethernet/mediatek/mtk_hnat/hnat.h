@@ -1350,6 +1350,7 @@ void exclude_boundary_entry(struct foe_entry *foe_table_cpu);
 void set_gmac_ppe_fwd(int gmac_no, int enable);
 int entry_detail(u32 ppe_id, int index);
 int entry_delete_by_mac(u8 *mac);
+int entry_delete_by_ip(bool is_ipv4, void *addr);
 int entry_delete(u32 ppe_id, int index);
 int hnat_warm_init(void);
 u32 hnat_get_ppe_hash(struct foe_entry *entry);

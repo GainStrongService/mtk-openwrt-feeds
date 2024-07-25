@@ -325,6 +325,8 @@ int entry_set_usage(int level)
 	pr_info("              7   <entry_idx>  Delete PPE2 specific foe entry of assigned <entry_idx>\n");
 	pr_info("                               When entry_idx is -1, clear all entries\n");
 	pr_info("              8   <mac>        Delete all PPEs foe entry of assinged smac and dmac\n");
+	pr_info("              9   <ip>         Delete all PPEs foe entry of assinged IP(DL and UL)\n");
+	pr_info("              10  <ipV6>       Delete all PPEs foe entry of assinged IPv6(DL and UL)\n");
 
 	return 0;
 }
@@ -775,6 +777,31 @@ int delete_entry_by_mac(char *mac_str)
 
 	hnat_parse_mac(mac_str, mac);
 	entry_delete_by_mac(mac);
+
+	return 0;
+}
+
+int delete_entry_by_ip(bool is_ipv4, char *str)
+{
+	struct in6_addr ipv6;
+	void *addr = NULL;
+	u32 ipv4;
+
+	if (is_ipv4) {
+		if (!in4_pton(str, -1, (u8 *)&ipv4, -1, NULL)) {
+			pr_info("Invalid IPv4 address.\n");
+			return -EINVAL;
+		}
+		addr = (void *)(&ipv4);
+	} else {
+		if (!in6_pton(str, -1, (u8 *)&ipv6, -1, NULL)) {
+			pr_info("Invalid IPv6 address.\n");
+			return -EINVAL;
+		}
+		addr = (void *)(&ipv6);
+	}
+
+	entry_delete_by_ip(is_ipv4, addr);
 
 	return 0;
 }
@@ -1929,6 +1956,7 @@ ssize_t hnat_entry_write(struct file *file, const char __user *buffer,
 	char *p_token = NULL;
 	char *p_delimiter = " \t";
 	int ret;
+	bool is_ipv4 = true;
 
 	if (len >= sizeof(buf)) {
 		pr_info("input handling fail!\n");
@@ -1966,11 +1994,20 @@ ssize_t hnat_entry_write(struct file *file, const char __user *buffer,
 		break;
 	case 8:
 		p_token = strsep(&p_buf, p_delimiter);
-
 		if (!p_token)
 			break;
 
 		delete_entry_by_mac(p_token);
+		break;
+	case 9:
+	case 10:
+		p_token = strsep(&p_buf, p_delimiter);
+		if (!p_token)
+			break;
+
+		if (arg0 == 10)
+			is_ipv4 = false;
+		delete_entry_by_ip(is_ipv4, p_token);
 		break;
 	default:
 		pr_info("no handler defined for command id(0x%08lx)\n\r", arg0);

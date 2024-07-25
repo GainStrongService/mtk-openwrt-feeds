@@ -44,6 +44,9 @@ EXPORT_SYMBOL(hnat_get_wdma_rx_port);
 int (*ppe_del_entry_by_mac)(unsigned char *mac) = NULL;
 EXPORT_SYMBOL(ppe_del_entry_by_mac);
 
+int (*ppe_del_entry_by_ip)(bool is_ipv4, void *addr) = NULL;
+EXPORT_SYMBOL(ppe_del_entry_by_ip);
+
 void (*ppe_dev_register_hook)(struct net_device *dev) = NULL;
 EXPORT_SYMBOL(ppe_dev_register_hook);
 void (*ppe_dev_unregister_hook)(struct net_device *dev) = NULL;
@@ -260,6 +263,79 @@ static int entry_mac_cmp(struct foe_entry *entry, u8 *mac)
 	return ret;
 }
 
+static int entry_ip_cmp(struct foe_entry *entry, bool is_ipv4, void *addr)
+{
+	u32 *tmp_ipv4, *sipv6_0, *dipv6_0, ipv4;
+	struct in6_addr *tmp_ipv6, ipv6;
+	struct in6_addr foe_sipv6, foe_dipv6;
+	int ret = 0;
+
+	if (is_ipv4) {
+		tmp_ipv4 = (u32 *)addr;
+		ipv4 = ntohl(*tmp_ipv4);
+
+		switch ((int)entry->bfib1.pkt_type) {
+		case IPV4_HNAPT:
+		case IPV4_HNAT:
+			if (entry->ipv4_hnapt.sip == ipv4 ||
+			    entry->ipv4_hnapt.new_dip == ipv4)
+				ret = 1;
+			break;
+		case IPV4_DSLITE:
+		case IPV4_MAP_E:
+			if (entry->ipv4_dslite.sip == ipv4 ||
+			    entry->ipv4_dslite.dip == ipv4)
+				ret = 1;
+			break;
+		default:
+			break;
+		}
+	} else {
+		memset(&foe_sipv6, 0, sizeof(struct in6_addr));
+		memset(&foe_dipv6, 0, sizeof(struct in6_addr));
+		memset(&ipv6, 0, sizeof(struct in6_addr));
+
+		tmp_ipv6 = (struct in6_addr *)addr;
+		ipv6.s6_addr32[0] = ntohl(tmp_ipv6->s6_addr32[0]);
+		ipv6.s6_addr32[1] = ntohl(tmp_ipv6->s6_addr32[1]);
+		ipv6.s6_addr32[2] = ntohl(tmp_ipv6->s6_addr32[2]);
+		ipv6.s6_addr32[3] = ntohl(tmp_ipv6->s6_addr32[3]);
+
+		switch ((int)entry->bfib1.pkt_type) {
+		case IPV6_3T_ROUTE:
+		case IPV6_5T_ROUTE:
+		case IPV6_6RD:
+			sipv6_0 = &(entry->ipv6_3t_route.ipv6_sip0);
+			dipv6_0 = &(entry->ipv6_3t_route.ipv6_dip0);
+			break;
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+		case IPV6_HNAT:
+		case IPV6_HNAPT:
+			sipv6_0 = &(entry->ipv6_hnapt.ipv6_sip0);
+			dipv6_0 = &(entry->ipv6_hnapt.new_ipv6_ip0);
+			break;
+#endif
+		default:
+			break;
+		}
+
+		memcpy(&foe_sipv6, sipv6_0, sizeof(struct in6_addr));
+		memcpy(&foe_dipv6, dipv6_0, sizeof(struct in6_addr));
+		if (!memcmp(&foe_sipv6, &ipv6, sizeof(struct in6_addr)) ||
+		    !memcmp(&foe_dipv6, &ipv6, sizeof(struct in6_addr)))
+			ret = 1;
+	}
+
+	if (ret && debug_level >= 2) {
+		if (is_ipv4)
+			pr_info("ipv4=%pI4\n", tmp_ipv4);
+		else
+			pr_info("ipv6=%pI6\n", tmp_ipv6);
+	}
+
+	return ret;
+}
+
 int entry_delete_by_mac(u8 *mac)
 {
 	struct foe_entry *entry = NULL;
@@ -279,6 +355,30 @@ int entry_delete_by_mac(u8 *mac)
 	}
 
 	if(!ret && debug_level >= 2)
+		pr_info("entry not found\n");
+
+	return ret;
+}
+
+int entry_delete_by_ip(bool is_ipv4, void *addr)
+{
+	struct foe_entry *entry = NULL;
+	int index, i, ret = 0;
+
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		entry = hnat_priv->foe_table_cpu[i];
+		for (index = 0; index < DEF_ETRY_NUM; entry++, index++) {
+			if (entry->bfib1.state == BIND && entry_ip_cmp(entry, is_ipv4, addr)) {
+				memset(entry, 0, sizeof(*entry));
+				hnat_cache_ebl(1);
+				if (debug_level >= 2)
+					pr_info("delete entry idx = %d\n", index);
+				ret++;
+			}
+		}
+	}
+
+	if (!ret && debug_level >= 2)
 		pr_info("entry not found\n");
 
 	return ret;
@@ -687,6 +787,7 @@ int hnat_enable_hook(void)
 		return -1;
 
 	ppe_del_entry_by_mac = entry_delete_by_mac;
+	ppe_del_entry_by_ip = entry_delete_by_ip;
 	hook_toggle = 1;
 
 	return 0;
@@ -724,6 +825,7 @@ int hnat_disable_hook(void)
 
 	mod_timer(&hnat_priv->hnat_sma_build_entry_timer, jiffies + 3 * HZ);
 	ppe_del_entry_by_mac = NULL;
+	ppe_del_entry_by_ip = NULL;
 	hook_toggle = 0;
 
 	return 0;
