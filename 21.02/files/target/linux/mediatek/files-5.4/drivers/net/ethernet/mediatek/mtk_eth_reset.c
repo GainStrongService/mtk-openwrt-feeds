@@ -412,18 +412,21 @@ u32 mtk_monitor_wdma_rx(struct mtk_eth *eth)
 
 u32 mtk_monitor_rx_fc(struct mtk_eth *eth)
 {
-	u32 i = 0, mib_base = 0, gdm_fc = 0;
+	struct mtk_hw_stats *hw_stats;
+	static u32 gdm_rx_fc[MTK_MAX_DEVS];
+	u32 i = 0, is_rx_fc = 0;
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->mac[i] || !netif_running(eth->netdev[i]))
 			continue;
 
-		mib_base = MTK_GDM1_TX_GBCNT + MTK_STAT_OFFSET*i + MTK_GDM_RX_FC;
-		gdm_fc =  mtk_r32(eth, mib_base);
-		if (gdm_fc < 1)
-			return 1;
+		hw_stats = eth->mac[i]->hw_stats;
+		if (hw_stats->rx_flow_control_packets - gdm_rx_fc[i])
+			is_rx_fc = 1;
+
+		gdm_rx_fc[i] = hw_stats->rx_flow_control_packets;
 	}
-	return 0;
+	return is_rx_fc;
 }
 
 u32 mtk_monitor_qdma_tx(struct mtk_eth *eth)
@@ -436,7 +439,7 @@ u32 mtk_monitor_qdma_tx(struct mtk_eth *eth)
 	u32 is_qfwd_hang = mtk_r32(eth, MTK_QDMA_FWD_CNT) == 0;
 
 	is_rx_fc = mtk_monitor_rx_fc(eth);
-	if (is_qfsm_hang && is_qfwd_hang && is_rx_fc) {
+	if (is_qfsm_hang && is_qfwd_hang && !is_rx_fc) {
 		err_cnt_qtx++;
 		if (err_cnt_qtx >= 3) {
 			pr_info("QDMA Tx Info\n");
