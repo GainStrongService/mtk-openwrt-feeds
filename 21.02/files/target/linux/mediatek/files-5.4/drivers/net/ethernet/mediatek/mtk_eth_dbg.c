@@ -609,7 +609,6 @@ int pse_info_get(struct mtk_eth *eth, int port, int options)
 	case PSE_EIP197_PORT:
 		pse_info_get_cdm(eth, port, 6, options);
 		break;
-		break;
 	default:
 		pr_info("Not supported\n");
 		break;
