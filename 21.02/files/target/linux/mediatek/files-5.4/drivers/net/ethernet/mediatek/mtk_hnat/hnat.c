@@ -265,9 +265,13 @@ static int entry_mac_cmp(struct foe_entry *entry, u8 *mac)
 
 static int entry_ip_cmp(struct foe_entry *entry, bool is_ipv4, void *addr)
 {
-	u32 *tmp_ipv4, *sipv6_0, *dipv6_0, ipv4;
-	struct in6_addr *tmp_ipv6, ipv6;
-	struct in6_addr foe_sipv6, foe_dipv6;
+	struct in6_addr *tmp_ipv6;
+	struct in6_addr ipv6 = {0};
+	struct in6_addr foe_sipv6 = {0};
+	struct in6_addr foe_dipv6 = {0};
+	u32 *tmp_ipv4, ipv4;
+	u32 *sipv6_0 = NULL;
+	u32 *dipv6_0 = NULL;
 	int ret = 0;
 
 	if (is_ipv4) {
@@ -319,11 +323,13 @@ static int entry_ip_cmp(struct foe_entry *entry, bool is_ipv4, void *addr)
 			break;
 		}
 
-		memcpy(&foe_sipv6, sipv6_0, sizeof(struct in6_addr));
-		memcpy(&foe_dipv6, dipv6_0, sizeof(struct in6_addr));
-		if (!memcmp(&foe_sipv6, &ipv6, sizeof(struct in6_addr)) ||
-		    !memcmp(&foe_dipv6, &ipv6, sizeof(struct in6_addr)))
-			ret = 1;
+		if (sipv6_0 && dipv6_0) {
+			memcpy(&foe_sipv6, sipv6_0, sizeof(struct in6_addr));
+			memcpy(&foe_dipv6, dipv6_0, sizeof(struct in6_addr));
+			if (!memcmp(&foe_sipv6, &ipv6, sizeof(struct in6_addr)) ||
+			    !memcmp(&foe_dipv6, &ipv6, sizeof(struct in6_addr)))
+				ret = 1;
+		}
 	}
 
 	if (ret && debug_level >= 2) {
