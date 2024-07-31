@@ -1,6 +1,6 @@
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -1996,6 +1996,7 @@ static void mtk_tx_set_dma_desc_v3(struc
+@@ -1990,6 +1990,7 @@ static void mtk_tx_set_dma_desc_v3(struc
  	u32 data = 0;
  	u8 tops_entry  = 0;
  	u8 tport = 0;
@@ -8,7 +8,7 @@
  
  	WRITE_ONCE(desc->txd1, info->addr);
  
-@@ -2020,11 +2021,25 @@ static void mtk_tx_set_dma_desc_v3(struc
+@@ -2014,11 +2015,25 @@ static void mtk_tx_set_dma_desc_v3(struc
  	trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
  		     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
  #endif
@@ -35,7 +35,7 @@
  	}
  
  	if (tport) {
-@@ -2061,6 +2076,11 @@ static void mtk_tx_set_dma_desc_v3(struc
+@@ -2055,6 +2070,11 @@ static void mtk_tx_set_dma_desc_v3(struc
  		data |= (tops_entry & TX_DMA_TOPS_ENTRY_MASK) << TX_DMA_TOPS_ENTRY_SHIFT;
  	}
  
@@ -47,7 +47,7 @@
  	WRITE_ONCE(desc->txd8, data);
  }
  
-@@ -2574,6 +2594,7 @@ static int mtk_poll_rx(struct napi_struc
+@@ -2568,6 +2588,7 @@ static int mtk_poll_rx(struct napi_struc
  
  		skb_hnat_alg(skb) = 0;
  		skb_hnat_filled(skb) = 0;
@@ -67,7 +67,7 @@
  	rcu_read_lock_bh();
  	nexthop = (__force u32)rt_nexthop(rt, ip_hdr(skb)->daddr);
  	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
-@@ -1315,6 +1318,9 @@ static inline void hnat_fill_offload_eng
+@@ -1298,6 +1301,9 @@ static inline void hnat_fill_offload_eng
  		 */
  		entry->ipv4_hnapt.tport_id = NR_TDMA_QDMA_TPORT;
  		entry->ipv4_hnapt.tops_entry = skb_hnat_tops(skb);
@@ -77,7 +77,7 @@
  	} else {
  		return;
  	}
-@@ -1324,6 +1330,156 @@ static inline void hnat_fill_offload_eng
+@@ -1307,6 +1313,158 @@ static inline void hnat_fill_offload_eng
  #endif /* defined(CONFIG_MEDIATEK_NETSYS_V3) */
  }
  
@@ -219,7 +219,9 @@
 +	if (entry_hnat_is_bound(foe))
 +		return 0;
 +
++	spin_lock(&hnat_priv->entry_lock);
 +	memcpy(foe, &entry, sizeof(entry));
++	spin_unlock(&hnat_priv->entry_lock);
 +
 +	if (hnat_priv->data->per_flow_accounting &&
 +	    skb_hnat_entry(skb) < hnat_priv->foe_etry_num &&
@@ -234,7 +236,7 @@
  static unsigned int skb_to_hnat_info(struct sk_buff *skb,
  				     const struct net_device *dev,
  				     struct foe_entry *foe,
-@@ -2448,6 +2604,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
+@@ -2438,6 +2596,7 @@ int mtk_sw_nat_hook_rx(struct sk_buff *s
  	skb_hnat_alg(skb) = 0;
  	skb_hnat_filled(skb) = 0;
  	skb_hnat_set_tops(skb, 0);
@@ -242,7 +244,7 @@
  	skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
  
  	if (skb_hnat_iface(skb) == FOE_MAGIC_WED0)
-@@ -2534,7 +2691,8 @@ static unsigned int mtk_hnat_accel_type(
+@@ -2524,7 +2683,8 @@ static unsigned int mtk_hnat_accel_type(
  	 * is from local_out which is also filtered in sanity check.
  	 */
  	dst = skb_dst(skb);
@@ -252,7 +254,7 @@
  		return 0;
  
  	ct = nf_ct_get(skb, &ctinfo);
-@@ -2916,6 +3074,14 @@ static unsigned int mtk_hnat_nf_post_rou
+@@ -2906,6 +3066,14 @@ static unsigned int mtk_hnat_nf_post_rou
  		}
  	}
  
@@ -267,7 +269,7 @@
  	if (!IS_LAN_GRP(out) && !IS_WAN(out) && !IS_EXT(out))
  		is_virt_dev = true;
  
-@@ -3223,7 +3389,10 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
+@@ -3213,7 +3381,10 @@ mtk_hnat_ipv4_nf_local_out(void *priv, s
  	if (iph->protocol == IPPROTO_IPV6) {
  		entry->udib1.pkt_type = IPV6_6RD;
  		hnat_set_head_frags(state, skb, 0, hnat_set_alg);
@@ -310,7 +312,7 @@
  #define skb_hnat_reason(skb) (((struct hnat_desc *)(skb->head))->crsn)
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat.c
-@@ -54,6 +54,8 @@ int (*mtk_tnl_decap_offload)(struct sk_b
+@@ -57,6 +57,8 @@ int (*mtk_tnl_decap_offload)(struct sk_b
  EXPORT_SYMBOL(mtk_tnl_decap_offload);
  bool (*mtk_tnl_decap_offloadable)(struct sk_buff *skb) = NULL;
  EXPORT_SYMBOL(mtk_tnl_decap_offloadable);
@@ -321,7 +323,7 @@
  EXPORT_SYMBOL(hnat_set_wdma_pse_port_state);
 --- a/drivers/net/ethernet/mediatek/mtk_hnat/hnat.h
 +++ b/drivers/net/ethernet/mediatek/mtk_hnat/hnat.h
-@@ -1151,6 +1151,8 @@ enum FoeIpAct {
+@@ -1153,6 +1153,8 @@ enum FoeIpAct {
  #define NR_WDMA2_PORT 13
  #define NR_GMAC3_PORT 15
  #define NR_QDMA_TPORT 1
@@ -330,7 +332,7 @@
  #define NR_TDMA_TPORT 4
  #define NR_TDMA_QDMA_TPORT 5
  #define LAN_DEV_NAME hnat_priv->lan
-@@ -1332,6 +1334,9 @@ extern int qos_toggle;
+@@ -1334,6 +1336,9 @@ extern int qos_toggle;
  extern int (*mtk_tnl_encap_offload)(struct sk_buff *skb);
  extern int (*mtk_tnl_decap_offload)(struct sk_buff *skb);
  extern bool (*mtk_tnl_decap_offloadable)(struct sk_buff *skb);
@@ -342,7 +344,7 @@
  int ext_if_del(struct extdev_entry *ext_entry);
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -573,6 +573,8 @@
+@@ -576,6 +576,8 @@
  #define MTK_QDMA_GMAC3_QID	6
  
  /* QDMA V2 descriptor txd8 */
@@ -351,7 +353,7 @@
  #define TX_DMA_TOPS_ENTRY_SHIFT    8
  #define TX_DMA_TOPS_ENTRY_MASK     0x3f
  
-@@ -585,6 +587,7 @@
+@@ -588,6 +590,7 @@
  #define TX_DMA_SPTAG_V3            BIT(27)
  
  /* QDMA V2 descriptor txd4 */
@@ -359,7 +361,7 @@
  #define TX_DMA_TPORT_SHIFT         0
  #define TX_DMA_TPORT_MASK          0xf
  #define TX_DMA_FPORT_SHIFT_V2      8
-@@ -1068,6 +1071,43 @@
+@@ -1075,6 +1078,43 @@
  #define MT7628_SDM_MAC_ADRL	(MT7628_SDM_OFFSET + 0x0c)
  #define MT7628_SDM_MAC_ADRH	(MT7628_SDM_OFFSET + 0x10)
  
