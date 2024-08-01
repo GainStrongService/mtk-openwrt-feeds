@@ -1,4 +1,4 @@
-From 5d4d4397d0628a1aa83f83163e97ff34a0a5de43 Mon Sep 17 00:00:00 2001
+From cc405da7c2fd5176cd0423246e83a358d477e360 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 16 Nov 2023 13:18:48 +0800
 Subject: [PATCH] hostapd: mtk: add support for channel switching with csa sent
@@ -8,10 +8,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  hostapd/ctrl_iface.c   |  84 +++++++++++++++++-----
  src/ap/ctrl_iface_ap.c |   5 +-
- src/ap/dfs.c           | 156 +++++++++++++++++++++++++++++++++++------
+ src/ap/dfs.c           | 159 +++++++++++++++++++++++++++++++++++------
  src/ap/dfs.h           |   9 ++-
  src/ap/hostapd.c       |   8 ++-
- 5 files changed, 221 insertions(+), 41 deletions(-)
+ 5 files changed, 222 insertions(+), 43 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
 index 96b593a..445cb34 100644
@@ -169,10 +169,10 @@ index 86e8729..005c9fa 100644
  		return -1;
  	}
 diff --git a/src/ap/dfs.c b/src/ap/dfs.c
-index d490032..26ce229 100644
+index d490032..e5f3974 100644
 --- a/src/ap/dfs.c
 +++ b/src/ap/dfs.c
-@@ -248,14 +248,15 @@ static int is_in_chanlist(struct hostapd_iface *iface,
+@@ -248,22 +248,22 @@ static int is_in_chanlist(struct hostapd_iface *iface,
   */
  static int dfs_find_channel(struct hostapd_iface *iface,
  			    struct hostapd_channel_data **ret_chan,
@@ -191,7 +191,16 @@ index d490032..26ce229 100644
  
  	wpa_printf(MSG_DEBUG, "DFS new chan checking %d channels", n_chans);
  	for (i = 0; i < mode->num_channels; i++) {
-@@ -548,7 +549,7 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
+ 		chan = &mode->channels[i];
+ 
+ 		/* Skip HT40/VHT incompatible channels */
+-		if (iface->conf->ieee80211n &&
+-		    iface->conf->secondary_channel &&
++		if (iface->conf->ieee80211n && n_chans > 1 &&
+ 		    (!dfs_is_chan_allowed(chan, n_chans) ||
+ 		     !(chan->allowed_bw & HOSTAPD_CHAN_WIDTH_40P))) {
+ 			wpa_printf(MSG_DEBUG,
+@@ -548,7 +548,7 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
  		return NULL;
  
  	/* Get the count first */
@@ -200,7 +209,7 @@ index d490032..26ce229 100644
  	wpa_printf(MSG_DEBUG, "DFS: num_available_chandefs=%d",
  		   num_available_chandefs);
  	if (num_available_chandefs == 0)
-@@ -569,7 +570,7 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
+@@ -569,7 +569,7 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
  		return NULL;
  
  	chan_idx = _rand % num_available_chandefs;
@@ -209,7 +218,7 @@ index d490032..26ce229 100644
  	if (!chan) {
  		wpa_printf(MSG_DEBUG, "DFS: no random channel found");
  		return NULL;
-@@ -599,7 +600,7 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
+@@ -599,7 +599,7 @@ dfs_get_valid_channel(struct hostapd_iface *iface,
  		for (i = 0; i < num_available_chandefs - 1; i++) {
  			/* start from chan_idx + 1, end when chan_idx - 1 */
  			chan_idx2 = (chan_idx + 1 + i) % num_available_chandefs;
@@ -218,7 +227,7 @@ index d490032..26ce229 100644
  			if (chan2 && abs(chan2->chan - chan->chan) > 12) {
  				/* two channels are not adjacent */
  				sec_chan_idx_80p80 = chan2->chan;
-@@ -1304,6 +1305,9 @@ int hostapd_dfs_pre_cac_expired(struct hostapd_iface *iface, int freq,
+@@ -1304,6 +1304,9 @@ int hostapd_dfs_pre_cac_expired(struct hostapd_iface *iface, int freq,
  	set_dfs_state(iface, freq, ht_enabled, chan_offset, chan_width,
  		      cf1, cf2, HOSTAPD_CHAN_DFS_USABLE);
  
@@ -228,7 +237,7 @@ index d490032..26ce229 100644
  	return 0;
  }
  
-@@ -1717,14 +1721,15 @@ int hostapd_handle_dfs_offload(struct hostapd_iface *iface)
+@@ -1717,14 +1720,15 @@ int hostapd_handle_dfs_offload(struct hostapd_iface *iface)
  }
  
  
@@ -248,7 +257,7 @@ index d490032..26ce229 100644
  
  	if (!iface->conf->ieee80211h || !mode ||
  	    mode->mode != HOSTAPD_MODE_IEEE80211A)
-@@ -1757,18 +1762,129 @@ int hostapd_is_dfs_overlap(struct hostapd_iface *iface, enum chan_width width,
+@@ -1757,18 +1761,129 @@ int hostapd_is_dfs_overlap(struct hostapd_iface *iface, enum chan_width width,
  		if (!(chan->flag & HOSTAPD_CHAN_RADAR))
  			continue;
  
