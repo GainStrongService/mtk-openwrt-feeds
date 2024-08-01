@@ -61,6 +61,9 @@ struct xfrm_params_list *mtk_xfrm_params_list_get(void)
 
 static void mtk_xfrm_offload_cdrt_tear_down(struct mtk_xfrm_params *xfrm_params)
 {
+	if (!xfrm_params->cdrt)
+		return;
+
 	memset(&xfrm_params->cdrt->desc, 0, sizeof(struct cdrt_desc));
 
 	mtk_pce_cdrt_entry_write(xfrm_params->cdrt);
@@ -83,6 +86,9 @@ static int mtk_xfrm_offload_cdrt_setup(struct mtk_xfrm_params *xfrm_params)
 
 static void mtk_xfrm_offload_cls_entry_tear_down(struct mtk_xfrm_params *xfrm_params)
 {
+	if (!xfrm_params->cdrt || !xfrm_params->cdrt->cls)
+		return;
+
 	memset(&xfrm_params->cdrt->cls->cdesc, 0, sizeof(struct cls_desc));
 
 	mtk_pce_cls_entry_write(xfrm_params->cdrt->cls);
@@ -301,7 +307,8 @@ void mtk_xfrm_offload_state_free(struct xfrm_state *xs)
 
 	mtk_xfrm_offload_context_tear_down(xfrm_params);
 
-	mtk_pce_cdrt_entry_free(xfrm_params->cdrt);
+	if (xfrm_params->cdrt)
+		mtk_pce_cdrt_entry_free(xfrm_params->cdrt);
 
 	devm_kfree(crypto_dev, xfrm_params);
 }
