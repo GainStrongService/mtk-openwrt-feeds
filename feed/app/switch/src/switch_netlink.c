@@ -44,7 +44,7 @@ static int list_swdevs(struct nl_msg *msg, void *arg)
 			    nla_get_string(attrs[MT753X_ATTR_TYPE_MESG]);
 			printf("register switch dev:\n%s", val->dev_info);
 		} else {
-			fprintf(stderr, "ERROR:No switch dev now\n");
+			printf("ERROR:No switch dev now\n");
 			goto done;
 		}
 	} else
@@ -132,7 +132,7 @@ static int mt753x_request_callback(int cmd,
 	/* Allocate an netllink message buffer */
 	msg = nlmsg_alloc();
 	if (!msg) {
-		fprintf(stderr, "Failed to allocate netlink message\n");
+		printf("Failed to allocate netlink message\n");
 		exit(1);
 	}
 	if (!construct) {
@@ -148,7 +148,7 @@ static int mt753x_request_callback(int cmd,
 	if (construct) {
 		err = construct(msg, arg);
 		if (err < 0) {
-			fprintf(stderr, "attributes error\n");
+			printf("attributes error\n");
 			goto nal_put_failure;
 		}
 	}
@@ -156,14 +156,14 @@ static int mt753x_request_callback(int cmd,
 	/* Allocate an new callback handler */
 	callback = nl_cb_alloc(NL_CB_CUSTOM);
 	if (!callback) {
-		fprintf(stderr, "Failed to allocate callback handler\n");
+		printf("Failed to allocate callback handler\n");
 		exit(1);
 	}
 
 	/* Send netlink message */
 	err = nl_send_auto_complete(user_sock, msg);
 	if (err < 0) {
-		fprintf(stderr, "nl_send_auto_complete failied:%d\n", err);
+		printf("nl_send_auto_complete failied:%d\n", err);
 		goto out;
 	}
 	finished = 0;
@@ -218,18 +218,18 @@ int mt753x_netlink_init(const char *name)
 	/* Allocate an new netlink socket */
 	user_sock = nl_socket_alloc();
 	if (!user_sock) {
-		fprintf(stderr, "Failed to create user socket\n");
+		printf("Failed to create user socket\n");
 		goto err;
 	}
 	/* Connetct the genl controller */
 	if (genl_connect(user_sock)) {
-		fprintf(stderr, "Failed to connetct to generic netlink\n");
+		printf("Failed to connetct to generic netlink\n");
 		goto err;
 	}
 	/* Allocate an new nl_cache */
 	ret = genl_ctrl_alloc_cache(user_sock, &cache);
 	if (ret < 0) {
-		fprintf(stderr, "Failed to allocate netlink cache\n");
+		printf("Failed to allocate netlink cache\n");
 		goto err;
 	}
 
@@ -254,7 +254,7 @@ void mt753x_list_swdev(struct mt753x_attr *arg, int cmd)
 
 	err = mt753x_request_callback(cmd, list_swdevs, NULL, arg);
 	if (err < 0)
-		fprintf(stderr, "mt753x list dev error\n");
+		printf("mt753x list dev error\n");
 }
 
 static int mt753x_request(struct mt753x_attr *arg, int cmd)
@@ -263,7 +263,7 @@ static int mt753x_request(struct mt753x_attr *arg, int cmd)
 
 	err = mt753x_request_callback(cmd, spilt_attrs, construct_attrs, arg);
 	if (err < 0) {
-		fprintf(stderr, "mt753x deal request error\n");
+		printf("mt753x deal request error\n");
 		return err;
 	}
 	return 0;
@@ -279,7 +279,7 @@ static int phy_operate_netlink(char op, struct mt753x_attr *arg,
 	attr->port_num = port_num;
 	attr->phy_dev = phy_dev;
 	attr->reg = offset;
-	attr->value = -1;
+	attr->value = 0;
 	attr->type = MT753X_ATTR_TYPE_REG;
 
 	switch (op) {

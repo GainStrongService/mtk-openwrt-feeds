@@ -8,6 +8,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <linux/if.h>
+#include <errno.h>
 
 #include "switch_netlink.h"
 #include "switch_ioctl.h"
@@ -427,27 +428,39 @@ static void parse_reg_cmd(int argc, char *argv[], int len)
 {
 	unsigned int val;
 	unsigned int off;
+	char *endptr;
 	int i, j;
 
 	if (!strncmp(argv[len - 3], "reg", 4)) {
 		if (argv[len - 2][0] == 'r') {
-			off = strtoul(argv[len - 1], NULL, 16);
+			errno = 0;
+			off = strtoul(argv[len - 1], &endptr, 16);
+			if (errno != 0 || *endptr != '\0')
+				goto error;
 			reg_read(off, &val);
 			printf(" Read reg=%x, value=%x\n", off, val);
 		} else if (argv[len - 2][0] == 'w') {
-			off = strtoul(argv[len - 1], NULL, 16);
+			errno = 0;
+			off = strtoul(argv[len - 1], &endptr, 16);
+			if (errno != 0 || *endptr != '\0')
+				goto error;
 			if (argc != len + 1)
 				usage(argv[0]);
-			val = strtoul(argv[len], NULL, 16);
+			errno = 0;
+			val = strtoul(argv[len], &endptr, 16);
+			if (errno != 0 || *endptr != '\0')
+				goto error;
 			reg_write(off, val);
 			printf(" Write reg=%x, value=%x\n", off, val);
 		} else if (argv[len - 2][0] == 'd') {
-			off = strtoul(argv[len - 1], NULL, 16);
+			errno = 0;
+			off = strtoul(argv[len - 1], &endptr, 16);
+			if (errno != 0 || *endptr != '\0')
+				goto error;
 			for (i = 0; i < 16; i++) {
 				printf("0x%08x: ", off + 0x10 * i);
 				for (j = 0; j < 4; j++) {
-					reg_read(off + i * 0x10 + j * 0x4,
-						 &val);
+					reg_read(off + i * 0x10 + j * 0x4, &val);
 					printf(" 0x%08x", val);
 				}
 				printf("\n");
@@ -456,6 +469,9 @@ static void parse_reg_cmd(int argc, char *argv[], int len)
 			usage(argv[0]);
 	} else
 		usage(argv[0]);
+	return;
+error:
+	printf("Error: string converting\n");
 }
 
 static int get_chip_name()
@@ -622,7 +638,7 @@ static int phy_operate(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-	int err;
+	int err = -EINVAL;
 
 	attres = (struct mt753x_attr *)malloc(sizeof(struct mt753x_attr));
 	if (attres == NULL) {
