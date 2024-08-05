@@ -843,7 +843,7 @@ static unsigned int
 mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 			     const struct nf_hook_state *state)
 {
-	struct flow_offload_hw_path hw_path;
+	struct flow_offload_hw_path hw_path = { 0 };
 
 	if (!skb)
 		goto drop;
@@ -2766,7 +2766,7 @@ int mtk_464xlat_post_process(struct sk_buff *skb, const struct net_device *out)
 static unsigned int mtk_hnat_nf_post_routing(
 	struct sk_buff *skb, const struct net_device *out,
 	int (*fn)(struct sk_buff *, const struct net_device *,
-			   struct flow_offload_hw_path *),
+		  struct flow_offload_hw_path *),
 	const char *func)
 {
 	struct foe_entry *entry;
