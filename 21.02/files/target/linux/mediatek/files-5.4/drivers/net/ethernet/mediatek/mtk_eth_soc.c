@@ -3248,8 +3248,11 @@ static void mtk_hwlro_rx_uninit(struct mtk_eth *eth)
 	}
 
 	/* invalidate lro rings */
-	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++)
-		mtk_w32(eth, 0, reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (i * 0x40));
+	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
+		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+
+		mtk_w32(eth, 0, reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+	}
 
 	/* disable HW LRO */
 	mtk_w32(eth, 0, reg_map->pdma.lro_ctrl_dw0);
