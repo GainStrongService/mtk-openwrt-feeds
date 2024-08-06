@@ -1,0 +1,120 @@
+--- a/include/kernel-5.4
++++ b/include/kernel-5.4
+@@ -1,2 +1,2 @@
+-LINUX_VERSION-5.4 = .238
+-LINUX_KERNEL_HASH-5.4.238 = 70a2b2da85598eba6a73cdc0749e441cbdf3011d9babcb7028a46aa8d98aa91f
++LINUX_VERSION-5.4 = .281
++LINUX_KERNEL_HASH-5.4.281 = 44a0c3e76031f7513ce43e22e2a9dcbf7d6a6dee065dca9b8001843a075272b2
+
+--- a/target/linux/mediatek/patches-5.4/0005-dts-mt7622-add-gsw.patch
++++ b/target/linux/mediatek/patches-5.4/0005-dts-mt7622-add-gsw.patch
+@@ -81,7 +81,7 @@
+  	};
+  
+  	cpus {
+-@@ -40,23 +39,36 @@
++@@ -39,23 +39,36 @@
+  
+  	gpio-keys {
+  		compatible = "gpio-keys";
+@@ -99,9 +99,9 @@
+  			linux,code = <KEY_WPS_BUTTON>;
+ -			gpios = <&pio 102 0>;
+ +			gpios = <&pio 102 GPIO_ACTIVE_LOW>;
+-+		};
+-+	};
+-+
++ 		};
++ 	};
++ 
+ +	leds {
+ +		compatible = "gpio-leds";
+ +
+@@ -113,12 +113,13 @@
+ +		red {
+ +			label = "bpi-r64:pio:red";
+ +			gpios = <&pio 88 GPIO_ACTIVE_HIGH>;
+- 		};
+- 	};
+- 
+- 	memory {
+++ 		};
+++ 	};
+++	
++ 	memory@40000000 {
+ -		reg = <0 0x40000000 0 0x20000000>;
+ +		reg = <0 0x40000000 0 0x40000000>;
++		device_type = "memory";
+  	};
+  
+  	reg_1p8v: regulator-1p8v {
+
+--- a/target/linux/mediatek/patches-5.4/0993-arm64-dts-mediatek-Split-PCIe-node-for-MT2712-MT7622.patch
++++ b/target/linux/mediatek/patches-5.4/0993-arm64-dts-mediatek-Split-PCIe-node-for-MT2712-MT7622.patch
+@@ -389,25 +389,20 @@ Signed-off-by: chuanjia.liu <Chuanjia.Liu@mediatek.com>
+  					<0 0 0 2 &pcie_intc1 1>,
+ --- a/arch/arm64/boot/dts/mediatek/mt7622-rfb1.dts
+ +++ b/arch/arm64/boot/dts/mediatek/mt7622-rfb1.dts
+-@@ -254,18 +254,16 @@
++@@ -184,14 +184,16 @@
+  	};
+  };
+  
+ -&pcie {
+ +&pcie0 {
+  	pinctrl-names = "default";
+--	pinctrl-0 = <&pcie0_pins>, <&pcie1_pins>;
+-+	pinctrl-0 = <&pcie0_pins>;
++ 	pinctrl-0 = <&pcie0_pins>;
+  	status = "okay";
+ +};
+  
+ -	pcie@0,0 {
+ -		status = "okay";
+ -	};
+--
+--	pcie@1,0 {
+--		status = "okay";
+--	};
+ +&pcie1 {
+ +	pinctrl-names = "default";
+ +	pinctrl-0 = <&pcie1_pins>;
+
+--- a/target/linux/generic/pending-5.4/680-NET-skip-GRO-for-foreign-MAC-addresses.patch
++++ b/target/linux/generic/pending-5.4/680-NET-skip-GRO-for-foreign-MAC-addresses.patch
+@@ -115,35 +115,3 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
+  	call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+  	add_device_randomness(dev->dev_addr, dev->addr_len);
+  	return 0;
+---- a/net/ethernet/eth.c
+-+++ b/net/ethernet/eth.c
+-@@ -143,6 +143,18 @@ u32 eth_get_headlen(const struct net_dev
+- }
+- EXPORT_SYMBOL(eth_get_headlen);
+- 
+-+static inline bool
+-+eth_check_local_mask(const void *addr1, const void *addr2, const void *mask)
+-+{
+-+	const u16 *a1 = addr1;
+-+	const u16 *a2 = addr2;
+-+	const u16 *m = mask;
+-+
+-+	return (((a1[0] ^ a2[0]) & ~m[0]) |
+-+		((a1[1] ^ a2[1]) & ~m[1]) |
+-+		((a1[2] ^ a2[2]) & ~m[2]));
+-+}
+-+
+- /**
+-  * eth_type_trans - determine the packet's protocol ID.
+-  * @skb: received socket data
+-@@ -174,6 +186,10 @@ __be16 eth_type_trans(struct sk_buff *sk
+- 		} else {
+- 			skb->pkt_type = PACKET_OTHERHOST;
+- 		}
+-+
+-+		if (eth_check_local_mask(eth->h_dest, dev->dev_addr,
+-+					 dev->local_addr_mask))
+-+			skb->gro_skip = 1;
+- 	}
+- 
+- 	/*
