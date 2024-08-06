@@ -90,16 +90,15 @@ int mtk_eth_cold_reset(struct mtk_eth *eth)
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
 		reset_bits |= RSTCTRL_PPE2;
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+	if (mtk_reset_flag == MTK_FE_START_RESET)
 		reset_bits |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
 #endif
 	ethsys_reset(eth, reset_bits);
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
-		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0x3ffffff);
-
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
-		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0x6F8FF);
+		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0x6f8ff);
+	else if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2))
+		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0x3ffffff);
 
 	return 0;
 }
@@ -132,8 +131,7 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
 			reset_bits |= RSTCTRL_PPE2;
 		if (mtk_reset_flag == MTK_FE_START_RESET)
-			reset_bits |= RSTCTRL_WDMA0 |
-			RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
+			reset_bits |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
 #endif
 
 		regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
