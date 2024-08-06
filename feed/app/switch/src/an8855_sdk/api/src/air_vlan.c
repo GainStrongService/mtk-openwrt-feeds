@@ -153,6 +153,7 @@ air_vlan_create(
     AIR_VLAN_ENTRY_ATTR_T *p_attr)
 {
     AIR_VLAN_ENTRY_T vlan_entry = {0};
+    AIR_VLAN_ENTRY_ATTR_T vlan_attr_entry = {0};
 
     AIR_PARAM_CHK((vid > AIR_VLAN_ID_MAX), AIR_E_BAD_PARAMETER);
 
@@ -167,9 +168,9 @@ air_vlan_create(
     }
     else
     {
-        memset(&vlan_entry, 0, sizeof(vlan_entry));
-        vlan_entry.valid = 1;
-        _air_untagged_vlan_writeEntry(unit, vid, &vlan_entry);
+        memset(&vlan_attr_entry, 0, sizeof(vlan_attr_entry));
+        vlan_attr_entry.valid = 1;
+        _air_untagged_vlan_writeEntry(unit, vid, &vlan_attr_entry);
     }
 
     return AIR_E_OK;

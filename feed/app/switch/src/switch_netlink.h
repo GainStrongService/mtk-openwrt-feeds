@@ -1,6 +1,6 @@
 /*
  * switch_netlink.h: switch(netlink) set API
- * 
+ *
  * Author: Sirui Zhao <Sirui.Zhao@mediatek.com>
  */
 #ifndef MT753X_NETLINK_H
@@ -54,20 +54,16 @@ extern int chip_name;
 int mt753x_netlink_init(const char *name);
 void mt753x_netlink_free(void);
 void mt753x_list_swdev(struct mt753x_attr *arg, int cmd);
-int reg_read_netlink(struct mt753x_attr *arg, unsigned int offset,
-		     unsigned int *value);
-int reg_write_netlink(struct mt753x_attr *arg, unsigned int offset,
-		      unsigned int value);
+int reg_read_netlink(struct mt753x_attr *arg, unsigned int offset, unsigned int *value);
+int reg_write_netlink(struct mt753x_attr *arg, unsigned int offset, unsigned int value);
 int phy_cl22_read_netlink(struct mt753x_attr *arg, unsigned int port_num,
-			  unsigned int phy_addr, unsigned int *value);
+			unsigned int phy_addr, unsigned int *value);
 int phy_cl22_write_netlink(struct mt753x_attr *arg, unsigned int port_num,
-			   unsigned int phy_addr, unsigned int value);
+			unsigned int phy_addr, unsigned int value);
 int phy_cl45_read_netlink(struct mt753x_attr *arg, unsigned int port_num,
-			  unsigned int phy_dev, unsigned int phy_addr,
-			  unsigned int *value);
+			unsigned int phy_dev, unsigned int phy_addr, unsigned int *value);
 int phy_cl45_write_netlink(struct mt753x_attr *arg, unsigned int port_num,
-			   unsigned int phy_dev, unsigned int phy_addr,
-			   unsigned int value);
+			unsigned int phy_dev, unsigned int phy_addr, unsigned int value);
 int phy_dump_netlink(struct mt753x_attr *arg, int phy_addr);
 
 #endif

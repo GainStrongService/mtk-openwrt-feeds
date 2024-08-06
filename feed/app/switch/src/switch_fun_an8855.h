@@ -1,6 +1,6 @@
 /*
-* switch_fun.h: switch function sets
-*/
+ * switch_fun.h: switch function sets
+ */
 #ifndef SWITCH_FUN_AN8855_H
 #define SWITCH_FUN_AN8855_H
 
@@ -16,7 +16,7 @@ an8855_reg_write(const UI32_T unit,
 AIR_ERROR_NO_T
 an8855_phy_cl22_read(const UI32_T unit,
 		     const UI32_T port_id,
-		     const UI32_T addr_offset, UI32_T * ptr_data);
+		     const UI32_T addr_offset, UI32_T *ptr_data);
 
 AIR_ERROR_NO_T
 an8855_phy_cl22_write(const UI32_T unit,
@@ -27,7 +27,7 @@ AIR_ERROR_NO_T
 an8855_phy_cl45_read(const UI32_T unit,
 		     const UI32_T port_id,
 		     const UI32_T dev_type,
-		     const UI32_T addr_offset, UI32_T * ptr_data);
+		     const UI32_T addr_offset, UI32_T *ptr_data);
 
 AIR_ERROR_NO_T
 an8855_phy_cl45_write(const UI32_T unit,
@@ -39,38 +39,6 @@ an8855_phy_cl45_write(const UI32_T unit,
 void an8855_doArlAging(int argc, char *argv[]);
 
 void an8855_not_supported(int argc, char *argv[]);
-
-#if 0
-/*acl setting*/
-void an8855_acl_mac_add(int argc, char *argv[]);
-void an8855_acl_dip_meter(int argc, char *argv[]);
-void an8855_acl_dip_trtcm(int argc, char *argv[]);
-void an8855_acl_ethertype(int argc, char *argv[]);
-void an8855_acl_ethertype(int argc, char *argv[]);
-void an8855_acl_dip_modify(int argc, char *argv[]);
-void an8855_acl_dip_pppoe(int argc, char *argv[]);
-void an8855_acl_dip_add(int argc, char *argv[]);
-void an8855_acl_l4_add(int argc, char *argv[]);
-void an8855_acl_sp_add(int argc, char *argv[]);
-
-void an8855_acl_port_enable(int argc, char *argv[]);
-void an8855_acl_table_add(int argc, char *argv[]);
-void an8855_acl_mask_table_add(int argc, char *argv[]);
-void an8855_acl_rule_table_add(int argc, char *argv[]);
-void an8855_acl_rate_table_add(int argc, char *argv[]);
-
-/*dip table*/
-void an8855_dip_dump(void);
-void an8855_dip_add(int argc, char *argv[]);
-void an8855_dip_del(int argc, char *argv[]);
-void an8855_dip_clear(void);
-
-/*sip table*/
-void an8855_sip_dump(void);
-void an8855_sip_add(int argc, char *argv[]);
-void an8855_sip_del(int argc, char *argv[]);
-void an8855_sip_clear(void);
-#endif
 
 /*stp*/
 void an8855_doStp(int argc, char *argv[]);

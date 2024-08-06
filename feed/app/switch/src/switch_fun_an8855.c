@@ -1,6 +1,6 @@
 /*
-* switch_fun.c: switch function sets
-*/
+ * switch_fun.c: switch function sets
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -18,9 +18,8 @@
 #include "switch_fun_an8855.h"
 
 #define MAC_STR         "%02X%02X%02X%02X%02X%02X"
-#define MAC2STR(m)      (m)[0],(m)[1],(m)[2],(m)[3],(m)[4],(m)[5]
 
-const static C8_T *mac_address_forward_control_string[] = {
+const static C8_T * mac_address_forward_control_string[] = {
 	"Default",
 	"CPU include",
 	"CPU exclude",
@@ -105,14 +104,13 @@ struct switch_func_s an8855_switch_func = {
 };
 
 AIR_ERROR_NO_T
-an8855_reg_read(const UI32_T unit, const UI32_T addr_offset, UI32_T * ptr_data)
+an8855_reg_read(const UI32_T unit, const UI32_T addr_offset, UI32_T *ptr_data)
 {
 	int ret;
 
 	ret = reg_read(addr_offset, ptr_data);
-	if (ret < 0) {
+	if (ret < 0)
 		return AIR_E_OTHERS;
-	}
 
 	return AIR_E_OK;
 }
@@ -123,9 +121,8 @@ an8855_reg_write(const UI32_T unit, const UI32_T addr_offset, const UI32_T data)
 	int ret;
 
 	ret = reg_write(addr_offset, data);
-	if (ret < 0) {
+	if (ret < 0)
 		return AIR_E_OTHERS;
-	}
 
 	return AIR_E_OK;
 }
@@ -133,14 +130,13 @@ an8855_reg_write(const UI32_T unit, const UI32_T addr_offset, const UI32_T data)
 AIR_ERROR_NO_T
 an8855_phy_cl22_read(const UI32_T unit,
 		     const UI32_T port_id,
-		     const UI32_T addr_offset, UI32_T * ptr_data)
+		     const UI32_T addr_offset, UI32_T *ptr_data)
 {
 	int ret;
 
 	ret = mii_mgr_read(port_id, addr_offset, ptr_data);
-	if (ret < 0) {
+	if (ret < 0)
 		return AIR_E_OTHERS;
-	}
 
 	return AIR_E_OK;
 }
@@ -153,9 +149,9 @@ an8855_phy_cl22_write(const UI32_T unit,
 	int ret;
 
 	ret = mii_mgr_write(port_id, addr_offset, data);
-	if (ret < 0) {
+	if (ret < 0)
 		return AIR_E_OTHERS;
-	}
+
 
 	return AIR_E_OK;
 }
@@ -164,14 +160,14 @@ AIR_ERROR_NO_T
 an8855_phy_cl45_read(const UI32_T unit,
 		     const UI32_T port_id,
 		     const UI32_T dev_type,
-		     const UI32_T addr_offset, UI32_T * ptr_data)
+		     const UI32_T addr_offset, UI32_T *ptr_data)
 {
 	int ret;
 
 	ret = mii_mgr_c45_read(port_id, dev_type, addr_offset, ptr_data);
-	if (ret < 0) {
+	if (ret < 0)
 		return AIR_E_OTHERS;
-	}
+
 
 	return AIR_E_OK;
 }
@@ -185,9 +181,9 @@ an8855_phy_cl45_write(const UI32_T unit,
 	int ret;
 
 	ret = mii_mgr_c45_write(port_id, dev_type, addr_offset, data);
-	if (ret < 0) {
+	if (ret < 0)
 		return AIR_E_OTHERS;
-	}
+
 
 	return AIR_E_OK;
 }
@@ -198,12 +194,13 @@ void an8855_not_supported(int argc, char *argv[])
 }
 
 static AIR_ERROR_NO_T
-_printMacEntry(AIR_MAC_ENTRY_T * mt, UI32_T age_unit, UI8_T count, UI8_T title)
+_printMacEntry(AIR_MAC_ENTRY_T *mt, UI32_T age_unit, UI8_T count, UI8_T title)
 {
 	AIR_ERROR_NO_T ret = AIR_E_OK;
 	I32_T i = 0, j = 0;
 	UI8_T first = 0;
 	UI8_T find = 0;
+
 	if (title) {
 		printf("%-6s%-15s%-5s%-5s%-5s%-10s%-10s%-6s\n",
 		       "unit",
@@ -213,7 +210,8 @@ _printMacEntry(AIR_MAC_ENTRY_T * mt, UI32_T age_unit, UI8_T count, UI8_T title)
 	}
 	for (i = 0; i < count; i++) {
 		printf("%-6d", age_unit);
-		printf(MAC_STR, MAC2STR(mt[i].mac));
+		printf(MAC_STR, mt[i].mac[0], mt[i].mac[1], mt[i].mac[2],
+			 mt[i].mac[3], mt[i].mac[4], mt[i].mac[5]);
 		printf("...");
 		if (mt[i].flags & AIR_L2_MAC_ENTRY_FLAGS_IVL) {
 			printf("%-3s..", "ivl");
@@ -224,11 +222,11 @@ _printMacEntry(AIR_MAC_ENTRY_T * mt, UI32_T age_unit, UI8_T count, UI8_T title)
 			printf("%-5s", ".....");
 			printf("%-5d", mt[i].fid);
 		}
-		if (mt[i].flags & AIR_L2_MAC_ENTRY_FLAGS_STATIC) {
+		if (mt[i].flags & AIR_L2_MAC_ENTRY_FLAGS_STATIC)
 			printf("%-7s.", "static");
-		} else {
+		else
 			printf("%d sec..", mt[i].timer);
-		}
+
 		printf("%-10s",
 		       mac_address_forward_control_string[mt[i].sa_fwd]);
 		first = 0;
@@ -256,7 +254,7 @@ _printMacEntry(AIR_MAC_ENTRY_T * mt, UI32_T age_unit, UI8_T count, UI8_T title)
 	return ret;
 }
 
-static AIR_ERROR_NO_T _str2mac(C8_T * str, C8_T * mac)
+static AIR_ERROR_NO_T _str2mac(C8_T *str, C8_T *mac)
 {
 	UI32_T i;
 	C8_T tmpstr[3];
@@ -307,9 +305,9 @@ static void an8855_table_dump_internal(int type)
 	while (1) {
 		memset(ptr_mt, 0, sizeof(AIR_MAC_ENTRY_T) * bucket_size);
 		ret = air_l2_getNextMacAddr(0, &count, ptr_mt);
-		if (AIR_E_OK != ret) {
+		if (ret != AIR_E_OK)
 			break;
-		}
+
 		total_count += count;
 		_printMacEntry(ptr_mt, 0, count, FALSE);
 	}
@@ -328,7 +326,6 @@ static void an8855_table_dump_internal(int type)
 
 DUMP_ERROR:
 	free(ptr_mt);
-	return;
 }
 
 void an8855_table_dump(int argc, char *argv[])
@@ -342,6 +339,7 @@ void an8855_table_add(int argc, char *argv[])
 	AIR_MAC_ENTRY_T mt;
 	unsigned int i = 0;
 	unsigned int age_time = 0;
+
 	memset(&mt, 0, sizeof(AIR_MAC_ENTRY_T));
 	if (!argv[2] || strlen(argv[2]) != 12) {
 		printf("MAC address format error, should be of length 12\n");
@@ -354,7 +352,7 @@ void an8855_table_add(int argc, char *argv[])
 	}
 	if (argc > 4) {
 		mt.cvid = strtoul(argv[4], NULL, 0);
-		if (4095 < mt.cvid) {
+		if (mt.cvid > 4095) {
 			printf("wrong vid range, should be within 0~4095\n");
 			return;
 		}
@@ -379,9 +377,9 @@ void an8855_table_add(int argc, char *argv[])
 			printf("wrong age range, should be within 1~1000000\n");
 			return;
 		}
-	} else {
+	} else
 		mt.flags |= AIR_L2_MAC_ENTRY_FLAGS_STATIC;
-	}
+
 	mt.sa_fwd = AIR_L2_FWD_CTRL_DEFAULT;
 	ret = air_l2_addMacAddr(0, &mt);
 	if (ret == AIR_E_OK) {
@@ -389,16 +387,14 @@ void an8855_table_add(int argc, char *argv[])
 		usleep(5000);
 		if (!(mt.flags & AIR_L2_MAC_ENTRY_FLAGS_STATIC)) {
 			ret = air_l2_setMacAddrAgeOut(0, age_time);
-			if (ret == AIR_E_OK) {
+			if (ret == AIR_E_OK)
 				printf("set age out time done.\n");
-			} else {
+			else
 				printf("set age out time fail.\n");
-			}
+
 		}
-	} else {
+	} else
 		printf("add mac address fail.\n");
-	}
-	return;
 }
 
 void an8855_table_search_mac_vid(int argc, char *argv[])
@@ -414,7 +410,7 @@ void an8855_table_search_mac_vid(int argc, char *argv[])
 	}
 
 	ptr_mt = malloc(sizeof(AIR_MAC_ENTRY_T));
-	if (NULL == ptr_mt) {
+	if (ptr_mt == NULL) {
 		printf("Error, malloc fail\n");
 		return;
 	}
@@ -443,7 +439,6 @@ void an8855_table_search_mac_vid(int argc, char *argv[])
 		printf("\n Not found!\n");
 	}
 	free(ptr_mt);
-	return;
 }
 
 void an8855_table_search_mac_fid(int argc, char *argv[])
@@ -459,7 +454,7 @@ void an8855_table_search_mac_fid(int argc, char *argv[])
 	}
 
 	ptr_mt = malloc(sizeof(AIR_MAC_ENTRY_T));
-	if (NULL == ptr_mt) {
+	if (ptr_mt == NULL) {
 		printf("Error, malloc fail\n");
 		return;
 	}
@@ -483,11 +478,10 @@ void an8855_table_search_mac_fid(int argc, char *argv[])
 	if (ret == AIR_E_OK) {
 		_printMacEntry(ptr_mt, 0, 1, TRUE);
 		_printMacEntry(ptr_mt, 0, 1, FALSE);
-	} else {
+	} else
 		printf("\n Not found!\n");
-	}
+
 	free(ptr_mt);
-	return;
 }
 
 void an8855_table_del_fid(int argc, char *argv[])
@@ -516,12 +510,10 @@ void an8855_table_del_fid(int argc, char *argv[])
 	}
 
 	ret = air_l2_delMacAddr(0, &mt);
-	if (ret == AIR_E_OK) {
+	if (ret == AIR_E_OK)
 		printf("Done.\n");
-	} else {
+	else
 		printf("Fail.\n");
-	}
-	return;
 }
 
 void an8855_table_del_vid(int argc, char *argv[])
@@ -551,12 +543,11 @@ void an8855_table_del_vid(int argc, char *argv[])
 	}
 
 	ret = air_l2_delMacAddr(0, &mt);
-	if (ret == AIR_E_OK) {
+	if (ret == AIR_E_OK)
 		printf("Done.\n");
-	} else {
+	else
 		printf("Fail.\n");
-	}
-	return;
+
 }
 
 void an8855_table_clear(int argc, char *argv[])
@@ -568,7 +559,7 @@ void an8855_table_clear(int argc, char *argv[])
 		printf("Clear MAC Address Table Done.\n");
 	else
 		printf("Clear MAC Address Table Fail.\n");
-	return;
+
 }
 
 void an8855_set_mirror_to(int argc, char *argv[])
@@ -577,7 +568,7 @@ void an8855_set_mirror_to(int argc, char *argv[])
 	AIR_MIR_SESSION_T session = { 0 };
 
 	idx = strtoul(argv[3], NULL, 0);
-	if (idx < 0 || MAX_PORT < idx) {
+	if (idx < 0 || idx > MAX_PORT) {
 		printf("wrong port member, should be within 0~%d\n", MAX_PORT);
 		return;
 	}
@@ -598,12 +589,12 @@ void an8855_set_mirror_from(int argc, char *argv[])
 	idx = _strtoul(argv[3], NULL, 0);
 	mirror = _strtoul(argv[4], NULL, 0);
 
-	if (idx < 0 || MAX_PORT < idx) {
+	if (idx < 0 || idx > MAX_PORT) {
 		printf("wrong port member, should be within 0~%d\n", MAX_PORT);
 		return;
 	}
 
-	if (mirror < 0 || 3 < mirror) {
+	if (mirror < 0 || mirror > 3) {
 		printf("wrong mirror setting, should be within 0~3\n");
 		return;
 	}
@@ -642,9 +633,9 @@ void an8855_vlan_dump(int argc, char *argv[])
 
 	if (eg_tag)
 		printf
-		    ("  vid  fid  portmap    s-tag\teg_tag(0:untagged 2:tagged)\n");
+		    ("  vid  fid  portmap   s-tag\teg_tag(0:untagged 2:tagged)\n");
 	else
-		printf("  vid  fid  portmap    s-tag\n");
+		printf("  vid  fid  portmap   s-tag\n");
 
 	for (i = 1; i < 4096; i++) {
 		_air_vlan_readEntry(0, i, &vlan_entry);
@@ -652,73 +643,43 @@ void an8855_vlan_dump(int argc, char *argv[])
 		if (vlan_entry.valid) {
 			printf(" %4d  ", i);
 			printf(" %2d ", vlan_entry.vlan_entry_format.fid);
-			printf(" %c",
-			       (vlan_entry.
-				vlan_entry_format.port_mem & 0b0000001) ? '1' :
-			       '-');
-			printf("%c",
-			       (vlan_entry.
-				vlan_entry_format.port_mem & 0b0000010) ? '1' :
-			       '-');
-			printf("%c",
-			       (vlan_entry.
-				vlan_entry_format.port_mem & 0b0000100) ? '1' :
-			       '-');
-			printf("%c",
-			       (vlan_entry.
-				vlan_entry_format.port_mem & 0b0001000) ? '1' :
-			       '-');
-			printf("%c",
-			       (vlan_entry.
-				vlan_entry_format.port_mem & 0b0010000) ? '1' :
-			       '-');
-			printf("%c",
-			       (vlan_entry.
-				vlan_entry_format.port_mem & 0b0100000) ? '1' :
-			       '-');
-			printf("%c",
-			       (vlan_entry.
-				vlan_entry_format.port_mem & 0b1000000) ? '1' :
-			       '-');
+			printf(" %c", (vlan_entry.vlan_entry_format.port_mem & 0b0000001)
+				? '1' : '-');
+			printf("%c", (vlan_entry.vlan_entry_format.port_mem & 0b0000010)
+				? '1' : '-');
+			printf("%c", (vlan_entry.vlan_entry_format.port_mem & 0b0000100)
+				? '1' : '-');
+			printf("%c", (vlan_entry.vlan_entry_format.port_mem & 0b0001000)
+				? '1' : '-');
+			printf("%c", (vlan_entry.vlan_entry_format.port_mem & 0b0010000)
+				? '1' : '-');
+			printf("%c", (vlan_entry.vlan_entry_format.port_mem & 0b0100000)
+				? '1' : '-');
+			printf("%c", (vlan_entry.vlan_entry_format.port_mem & 0b1000000)
+				? '1' : '-');
 			printf("    %4d", vlan_entry.vlan_entry_format.eg_ctrl);
 			if (eg_tag) {
 				printf("\t");
 				if (vlan_entry.vlan_entry_format.eg_con
-				    && vlan_entry.
-				    vlan_entry_format.eg_ctrl_en) {
+				    && vlan_entry.vlan_entry_format.eg_ctrl_en) {
 					/* VTAG_EN=1 and EG_CON=1 */
 					printf("CONSISTENT");
-				} else if (vlan_entry.
-					   vlan_entry_format.eg_ctrl_en) {
+				} else if (vlan_entry.vlan_entry_format.eg_ctrl_en) {
 					/* VTAG_EN=1 */
 					printf("%d",
-					       (vlan_entry.
-						vlan_entry_format.eg_ctrl >> 0)
-					       & 0x3);
+						(vlan_entry.vlan_entry_format.eg_ctrl >> 0) & 0x3);
 					printf("%d",
-					       (vlan_entry.
-						vlan_entry_format.eg_ctrl >> 2)
-					       & 0x3);
+						(vlan_entry.vlan_entry_format.eg_ctrl >> 2) & 0x3);
 					printf("%d",
-					       (vlan_entry.
-						vlan_entry_format.eg_ctrl >> 4)
-					       & 0x3);
+						(vlan_entry.vlan_entry_format.eg_ctrl >> 4) & 0x3);
 					printf("%d",
-					       (vlan_entry.
-						vlan_entry_format.eg_ctrl >> 6)
-					       & 0x3);
+						(vlan_entry.vlan_entry_format.eg_ctrl >> 6) & 0x3);
 					printf("%d",
-					       (vlan_entry.
-						vlan_entry_format.eg_ctrl >> 8)
-					       & 0x3);
+						(vlan_entry.vlan_entry_format.eg_ctrl >> 8) & 0x3);
 					printf("%d",
-					       (vlan_entry.
-						vlan_entry_format.eg_ctrl >> 10)
-					       & 0x3);
+						(vlan_entry.vlan_entry_format.eg_ctrl >> 10) & 0x3);
 					printf("%d",
-					       (vlan_entry.
-						vlan_entry_format.eg_ctrl >> 12)
-					       & 0x3);
+						(vlan_entry.vlan_entry_format.eg_ctrl >> 12) & 0x3);
 				} else {
 					/* VTAG_EN=0 */
 					printf("DISABLED");
@@ -802,7 +763,7 @@ void an8855_vlan_set(int argc, char *argv[])
 
 	if (argc > 7) {
 		eg_con = strtoul(argv[7], NULL, 2);
-		eg_con = ! !eg_con;
+		eg_con = !!eg_con;
 		vlan_entry.vlan_entry_format.eg_con = eg_con;
 		vlan_entry.vlan_entry_format.eg_ctrl_en = 1;
 	}
@@ -817,8 +778,8 @@ void an8855_vlan_set(int argc, char *argv[])
 
 		for (i = 0; i < SWITCH_MAX_PORT; i++) {
 			if (argv[8][i] < '0' || argv[8][i] > '3') {
-				printf
-				    ("egtag portmap format error, should be of combination of 0 or 3\n");
+				printf("egtag portmap format error,");
+				printf("should be of combination of 0 or 3\n");
 				return;
 			}
 			eg_tag |= (argv[8][i] - '0') << (i * 2);
@@ -947,8 +908,8 @@ void an8855_qos_set_base(int argc, char *argv[])
 		return;
 	}
 
-	printf("\r\nswitch qos base : %d. (port-based:0, tag-based:1,\
-		dscp-based:2, acl-based:3, arl-based:4, stag-based:5)\n", base);
+	printf("\r\nswitch qos base : %d. (port-based:0, tag-based:1,", base);
+	printf("dscp-based:2, acl-based:3, arl-based:4, stag-based:5)\n");
 	reg_read(0x10208030 + 0x200 * port, &value);
 	an8855_get_upw(&value, base);
 	reg_write(0x10208030 + 0x200 * port, value);
@@ -962,9 +923,8 @@ void an8855_qos_wfq_set_weight(int argc, char *argv[])
 
 	port = _strtoul(argv[3], NULL, 10);
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 8; i++)
 		weight[i] = _strtoul(argv[i + 4], NULL, 10);
-	}
 
 	/* MT7530 total 7 port */
 	if (port < 0 || port > 6) {
@@ -978,13 +938,15 @@ void an8855_qos_wfq_set_weight(int argc, char *argv[])
 			return;
 		}
 	}
-	printf("port: %x, q0: %x, q1: %x, q2: %x, q3: %x, \
-		q4: %x, q5: %x, q6: %x, q7: %x\n", port, weight[0], weight[1], weight[2], weight[3], weight[4], weight[5], weight[6], weight[7]);
+	printf("port: %x, q0: %x, q1: %x, q2: %x, q3: %x,",
+		port, weight[0], weight[1], weight[2], weight[3]);
+	printf("q4: %x, q5: %x, q6: %x, q7: %x\n",
+		weight[4], weight[5], weight[6], weight[7]);
 
-	for (queue = 0; queue < 8; queue++) {
+	for (queue = 0; queue < 8; queue++)
 		air_qos_setScheduleAlgo(0, port, queue, AIR_QOS_SCH_MODE_WFQ,
 					weight[queue]);
-	}
+
 }
 
 void an8855_qos_set_portpri(int argc, char *argv[])
@@ -1096,17 +1058,19 @@ void an8855_doVlanSetVid(int argc, char *argv[])
 		}
 	}
 
-	printf("index: %x, active: %x, vid: %x, portMap: %x, \
-		tagPortMap: %x, ivl_en: %x, fid: %x, stag: %x\n", index, active, vid, portMap, tagPortMap, ivl_en, fid, stag);
+	printf("index: %x, active: %x, vid: %x, portMap: %x,",
+		index, active, vid, portMap);
+	printf("tagPortMap: %x, ivl_en: %x, fid: %x, stag: %x\n",
+		tagPortMap, ivl_en, fid, stag);
 
-	vlan_entry.valid = ! !active;
+	vlan_entry.valid = !!active;
 	vlan_entry.vlan_entry_format.port_mem = portMap;
 	/* Total 6 ports */
 	for (i = 0; i < SWITCH_MAX_PORT; i++) {
 		if (tagPortMap & (1 << i))
 			vlan_entry.vlan_entry_format.eg_ctrl |= 0x2 << (i * 2);
 	}
-	vlan_entry.vlan_entry_format.ivl = ! !ivl_en;
+	vlan_entry.vlan_entry_format.ivl = !!ivl_en;
 	vlan_entry.vlan_entry_format.fid = fid;
 	vlan_entry.vlan_entry_format.stag = stag;
 
@@ -1234,9 +1198,8 @@ void an8855_doArlAging(int argc, char *argv[])
 		return;
 	}
 
-	for (port = 0; port < 6; port++) {
+	for (port = 0; port < 6; port++)
 		air_l2_setAgeEnable(0, port, aging_en);
-	}
 
 	air_l2_setMacAddrAgeOut(0, time);
 }
@@ -1264,9 +1227,8 @@ void an8855_doMirrorEn(int argc, char *argv[])
 		session.dst_port = mirror_port;
 		session.flags |= AIR_MIR_SESSION_FLAGS_ENABLE;
 		air_mir_addSession(0, 0, &session);
-	} else {
+	} else
 		air_mir_delSession(0, 0);
-	}
 
 	air_mir_setSessionAdminMode(0, 0, (int)mirror_en);
 }				/*end doMirrorEn */
@@ -1285,13 +1247,14 @@ void an8855_doMirrorPortBased(int argc, char *argv[])
 	vlan_mis = _strtoul(argv[7], NULL, 10);
 	igmp_mir = _strtoul(argv[8], NULL, 10);
 
-	printf
-	    ("port:%d, port_tx_mir:%d, port_rx_mir:%d, acl_mir:%d, vlan_mis:%d, igmp_mir:%d\n",
-	     port, port_tx_mir, port_rx_mir, acl_mir, vlan_mis, igmp_mir);
+	printf("port:%d, port_tx_mir:%d, port_rx_mir:%d, ",
+		port, port_tx_mir, port_rx_mir);
+	printf("acl_mir:%d, vlan_mis:%d, igmp_mir:%d\n",
+		acl_mir, vlan_mis, igmp_mir);
 
 	/*Check the input parameters is right or not. */
-	//if((port >= vlanCap->max_port_no) || (port_tx_mir > 1) || (port_rx_mir > 1) || (acl_mir > 1) || (vlan_mis > 1)){
-	if ((port >= SWITCH_MAX_PORT) || (port_tx_mir > 1) || (port_rx_mir > 1) || (acl_mir > 1) || (vlan_mis > 1)) {	// also allow CPU port (port6)
+	if ((port >= SWITCH_MAX_PORT) || (port_tx_mir > 1) || (port_rx_mir > 1)
+		|| (acl_mir > 1) || (vlan_mis > 1)) {	// also allow CPU port (port6)
 		printf(HELP_MIRROR_PORTBASED);
 		return;
 	}
@@ -1312,11 +1275,7 @@ void an8855_doMirrorPortBased(int argc, char *argv[])
 
 	air_mir_setMirrorPort(0, 0, &session);
 
-	/*
-
-	   not support acl/vlan/igmp mismatch
-
-	 */
+	/* not support acl/vlan/igmp mismatch */
 }				/*end doMirrorPortBased */
 
 void an8855_doStp(int argc, char *argv[])
@@ -1346,35 +1305,40 @@ void _an8855_ingress_rate_set(int on_off, unsigned char port, unsigned int bw)
 {
 	AIR_ERROR_NO_T ret = AIR_E_OK;
 	AIR_QOS_RATE_LIMIT_CFG_T rl = { 0 };
+
 	if (on_off) {
 		ret =
 		    air_qos_setRateLimitEnable(0, port,
 					       AIR_QOS_RATE_DIR_INGRESS, TRUE);
-		if (AIR_E_OK != ret) {
+		if (ret != AIR_E_OK) {
 			printf("an8855 set ingress ratelimit eanble fail\n");
+			return;
+		}
+		ret = air_qos_getRateLimit(0, port, &rl);
+		if (ret != AIR_E_OK) {
+			printf("an8855 get port %d ratelimit fail\n",
+				port);
 			return;
 		}
 		rl.ingress_cir = bw;
 		rl.flags |= AIR_QOS_RATE_LIMIT_CFG_FLAGS_ENABLE_INGRESS;
 		ret = air_qos_setRateLimit(0, port, &rl);
-		if (AIR_E_OK != ret) {
+		if (ret != AIR_E_OK) {
 			printf("an8855 set ingress ratelimit value %d fail\n",
 			       bw);
 			return;
-		} else {
-			printf("an8855 set ingress ratelimit value %d ok\n",
-			       bw);
 		}
+		printf("an8855 set ingress ratelimit value %d ok\n", bw);
 	} else {
 		ret =
 		    air_qos_setRateLimitEnable(0, port,
 					       AIR_QOS_RATE_DIR_INGRESS, FALSE);
-		if (AIR_E_OK != ret) {
+		if (ret != AIR_E_OK) {
 			printf("an8855 set ingress ratelimit disable fail\n");
 			return;
-		} else {
-			printf("an8855 set ingress ratelimit disable ok\n");
 		}
+		printf("an8855 set ingress ratelimit disable ok\n");
+
 	}
 }
 
@@ -1382,34 +1346,41 @@ void _an8855_egress_rate_set(int on_off, unsigned char port, unsigned int bw)
 {
 	AIR_ERROR_NO_T ret = AIR_E_OK;
 	AIR_QOS_RATE_LIMIT_CFG_T rl = { 0 };
+
 	if (on_off) {
 		ret =
 		    air_qos_setRateLimitEnable(0, port, AIR_QOS_RATE_DIR_EGRESS,
 					       TRUE);
-		if (AIR_E_OK != ret) {
+		if (ret != AIR_E_OK) {
 			printf("an8855 set egress ratelimit eanble fail\n");
+			return;
+		}
+		ret = air_qos_getRateLimit(0, port, &rl);
+		if (ret != AIR_E_OK) {
+			printf("an8855 get port %d ratelimit fail\n",
+				port);
 			return;
 		}
 		rl.egress_cir = bw;
 		rl.flags |= AIR_QOS_RATE_LIMIT_CFG_FLAGS_ENABLE_EGRESS;
 		ret = air_qos_setRateLimit(0, port, &rl);
-		if (AIR_E_OK != ret) {
+		if (ret != AIR_E_OK) {
 			printf("an8855 set egress ratelimit value %d fail\n",
 			       bw);
 			return;
-		} else {
-			printf("an8855 set egress ratelimit value %d ok\n", bw);
 		}
+		printf("an8855 set egress ratelimit value %d ok\n", bw);
+
 	} else {
 		ret =
 		    air_qos_setRateLimitEnable(0, port, AIR_QOS_RATE_DIR_EGRESS,
 					       FALSE);
-		if (AIR_E_OK != ret) {
+		if (ret != AIR_E_OK) {
 			printf("an8855 set egress ratelimit disable fail\n");
 			return;
-		} else {
-			printf("an8855 set egress ratelimit disable ok\n");
 		}
+		printf("an8855 set egress ratelimit disable ok\n");
+
 	}
 }
 
@@ -1422,9 +1393,9 @@ void an8855_ingress_rate_set(int argc, char *argv[])
 		bw = _strtoul(argv[4], NULL, 0);
 		on_off = 1;
 	} else if (argv[2][1] == 'f') {
-		if (argc != 4) {
+		if (argc != 4)
 			return;
-		}
+
 		on_off = 0;
 	}
 
@@ -1441,9 +1412,9 @@ void an8855_egress_rate_set(int argc, char *argv[])
 		bw = _strtoul(argv[4], NULL, 0);
 		on_off = 1;
 	} else if (argv[2][1] == 'f') {
-		if (argc != 4) {
+		if (argc != 4)
 			return;
-		}
+
 		on_off = 0;
 	}
 
@@ -1554,35 +1525,35 @@ void an8855_read_free_page_counters(int argc, char *argv[])
 	queue[6] = (value & 0x3F0000) >> 16;
 	queue[7] = (value & 0x3F000000) >> 24;
 
-	printf("<===Free Page=======Current============Minimal=========> \n ");
-	printf("	                                                 \n ");
-	printf(" page counter      %u                %u               \n ",
+	printf("<===Free Page=======Current============Minimal=========>\n");
+	printf("\n");
+	printf(" page counter      %u                %u\n",
 	       free_page, free_page_min);
-	printf("                                                        \n ");
-	printf("========================================================= \n ");
-	printf("<===Type=======High threshold======Low threshold=========\n ");
-	printf("                                                        \n ");
-	printf("  system:         %u                 %u               \n",
+	printf("\n");
+	printf("=========================================================\n");
+	printf("<===Type=======High threshold======Low threshold=========\n");
+	printf("\n");
+	printf("  system:         %u                 %u\n",
 	       fc_free_blk_hithd * 2, fc_free_blk_lothd * 2);
-	printf("    port:         %u                 %u               \n",
+	printf("    port:         %u                 %u\n",
 	       fc_port_blk_hi_thd * 2, fc_port_blk_thd * 2);
-	printf(" queue 0:         %u                 NA                \n",
+	printf(" queue 0:         %u                 NA\n",
 	       queue[0]);
-	printf(" queue 1:         %u                 NA                \n",
+	printf(" queue 1:         %u                 NA\n",
 	       queue[1]);
-	printf(" queue 2:         %u                 NA                 \n",
+	printf(" queue 2:         %u                 NA\n",
 	       queue[2]);
-	printf(" queue 3:         %u                 NA                \n",
+	printf(" queue 3:         %u                 NA\n",
 	       queue[3]);
-	printf(" queue 4:         %u                 NA                \n",
+	printf(" queue 4:         %u                 NA\n",
 	       queue[4]);
-	printf(" queue 5:         %u                 NA                \n",
+	printf(" queue 5:         %u                 NA\n",
 	       queue[5]);
-	printf(" queue 6:         %u                 NA                \n",
+	printf(" queue 6:         %u                 NA\n",
 	       queue[6]);
-	printf(" queue 7:         %u                 NA                \n",
+	printf(" queue 7:         %u                 NA\n",
 	       queue[7]);
-	printf("=========================================================\n ");
+	printf("=========================================================\n");
 }
 
 void an8855_eee_enable(int argc, char *argv[])
@@ -1618,8 +1589,8 @@ void an8855_eee_enable(int argc, char *argv[])
 			port_map = 0;
 			for (p = 0; p < MAX_PHY_PORT; p++) {
 				if (argv[3][p] != '0' && argv[3][p] != '1') {
-					printf
-					    ("portmap format error, should be combination of 0 or 1\n");
+					printf("portmap format error, ");
+					printf("should be combination of 0 or 1\n");
 					goto error;
 				}
 				port_map |= ((argv[3][p] - '0') << p);
@@ -1636,11 +1607,11 @@ void an8855_eee_enable(int argc, char *argv[])
 	for (port_num = 0; port_num < MAX_PHY_PORT; port_num++) {
 		if (port_map & (1 << port_num)) {
 			air_port_getPsMode(0, port_num, &mode);
-			if (enable) {
+			if (enable)
 				mode |= AIR_PORT_PS_EEE;
-			} else {
+			else
 				mode &= ~AIR_PORT_PS_EEE;
-			}
+
 			air_port_setPsMode(0, port_num, mode);
 		}
 	}
@@ -1648,7 +1619,6 @@ void an8855_eee_enable(int argc, char *argv[])
 
 error:
 	printf(HELP_EEE_EN);
-	return;
 }
 
 void an8855_eee_dump(int argc, char *argv[])
@@ -1694,107 +1664,106 @@ void an8855_read_mib_counters(int argc, char *argv[])
 	AIR_MIB_CNT_RX_T rx_mib[7];
 	AIR_MIB_CNT_TX_T tx_mib[7];
 
-	printf("===================== %8s %8s %8s %8s %8s %8s %8s\n",
+	printf("======================== %8s %8s %8s %8s %8s %8s %8s\n",
 	       "Port0", "Port1", "Port2", "Port3", "Port4", "Port5", "Port6");
 
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		air_mib_get(0, port, &rx_mib[port], &tx_mib[port]);
-	}
 
 	printf("Tx Drop Packet      :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", tx_mib[port].TDPC);
-	}
+
 	printf("\n");
 	printf("Tx CRC Error        :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", tx_mib[port].TCRC);
-	}
+
 	printf("\n");
 	printf("Tx Unicast Packet   :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", tx_mib[port].TUPC);
-	}
+
 	printf("\n");
 	printf("Tx Multicast Packet :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", tx_mib[port].TMPC);
-	}
+
 	printf("\n");
 	printf("Tx Broadcast Packet :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", tx_mib[port].TBPC);
-	}
+
 	printf("\n");
 	printf("Tx Collision Event  :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", tx_mib[port].TCEC);
-	}
+
 	printf("\n");
 	printf("Tx Pause Packet     :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", tx_mib[port].TPPC);
-	}
+
 	printf("\n");
 	printf("Rx Drop Packet      :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].RDPC);
-	}
+
 	printf("\n");
 	printf("Rx Filtering Packet :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].RFPC);
-	}
+
 	printf("\n");
 	printf("Rx Unicast Packet   :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].RUPC);
-	}
+
 	printf("\n");
 	printf("Rx Multicast Packet :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].RMPC);
-	}
+
 	printf("\n");
 	printf("Rx Broadcast Packet :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].RBPC);
-	}
+
 	printf("\n");
 	printf("Rx Alignment Error  :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].RAEPC);
-	}
+
 	printf("\n");
 	printf("Rx CRC Error	    :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].RCEPC);
-	}
+
 	printf("\n");
 	printf("Rx Undersize Error  :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].RUSPC);
-	}
+
 	printf("\n");
 	printf("Rx Fragment Error   :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].RFEPC);
-	}
+
 	printf("\n");
 	printf("Rx Oversize Error   :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].ROSPC);
-	}
+
 	printf("\n");
 	printf("Rx Jabber Error     :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].RJEPC);
-	}
+
 	printf("\n");
 	printf("Rx Pause Packet     :");
-	for (port = 0; port < 7; port++) {
+	for (port = 0; port < 7; port++)
 		printf("%8u ", rx_mib[port].RPPC);
-	}
+
 	printf("\n");
 }
 

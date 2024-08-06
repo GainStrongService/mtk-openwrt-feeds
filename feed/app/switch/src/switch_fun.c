@@ -1,6 +1,6 @@
 /*
-* switch_fun.c: switch function sets
-*/
+ * switch_fun.c: switch function sets
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -202,7 +202,7 @@ int mii_mgr_read(unsigned int port_num, unsigned int reg, unsigned int *value)
 	int ret;
 
 	if (port_num > 31) {
-		printf("Invalid Port or PHY addr \n");
+		printf("Invalid Port or PHY addr\n");
 		return -1;
 	}
 
@@ -225,7 +225,7 @@ int mii_mgr_write(unsigned int port_num, unsigned int reg, unsigned int value)
 	int ret;
 
 	if (port_num > 31) {
-		printf("Invalid Port or PHY addr \n");
+		printf("Invalid Port or PHY addr\n");
 		return -1;
 	}
 
@@ -249,7 +249,7 @@ int mii_mgr_c45_read(unsigned int port_num, unsigned int dev, unsigned int reg,
 	int ret;
 
 	if (port_num > 31) {
-		printf("Invalid Port or PHY addr \n");
+		printf("Invalid Port or PHY addr\n");
 		return -1;
 	}
 
@@ -273,7 +273,7 @@ int mii_mgr_c45_write(unsigned int port_num, unsigned int dev, unsigned int reg,
 	int ret;
 
 	if (port_num > 31) {
-		printf("Invalid Port or PHY addr \n");
+		printf("Invalid Port or PHY addr\n");
 		return -1;
 	}
 
@@ -335,8 +335,8 @@ void phy_crossover(int argc, char *argv[])
 	}
 
 	printf("mii_mgr_cl45:");
-	printf("Read:  port#=%d, device=0x%x, reg=0x%x, value=0x%x\n", port_num,
-	       0x1E, MT7530_T10_TEST_CONTROL, value);
+	printf("Read:  port#=%d, device=0x%x, reg=0x%x, value=0x%x\n",
+			port_num, 0x1E, MT7530_T10_TEST_CONTROL, value);
 
 	if (!strncmp(argv[3], "auto", 5)) {
 		value &= (~(0x3 << 3));
@@ -349,8 +349,8 @@ void phy_crossover(int argc, char *argv[])
 		printf("invaild parameter\n");
 		return;
 	}
-	printf("Write: port#=%d, device=0x%x, reg=0x%x. value=0x%x\n", port_num,
-	       0x1E, MT7530_T10_TEST_CONTROL, value);
+	printf("Write: port#=%d, device=0x%x, reg=0x%x. value=0x%x\n",
+		port_num, 0x1E, MT7530_T10_TEST_CONTROL, value);
 
 	if (nl_init_flag == true)
 		ret =
@@ -408,16 +408,15 @@ int rw_phy_token_ring(int argc, char *argv[])
 			goto error;
 
 		printf("port = %x, ch_addr = %x, node_addr=%x, data_addr=%x\n",
-		       port_num, ch_addr, node_addr, data_addr);
+				port_num, ch_addr, node_addr, data_addr);
 		tr_reg_control =
 		    (1 << 15) | (1 << 13) | (ch_addr << 11) | (node_addr << 7) |
 		    (data_addr << 1);
 		mii_mgr_write(port_num, 16, tr_reg_control);	// r16 = tr_reg_control
 		mii_mgr_read(port_num, 17, &val_l);
 		mii_mgr_read(port_num, 18, &val_h);
-		printf
-		    ("switch trreg read tr_reg_control=%x, value_H=%x, value_L=%x\n",
-		     tr_reg_control, val_h, val_l);
+		printf("switch trreg read tr_reg_control=%x, value_H=%x, value_L=%x\n",
+				tr_reg_control, val_h, val_l);
 	} else if (argv[2][0] == 'w') {
 		if (argc != 9)
 			return -1;
@@ -456,16 +455,15 @@ int rw_phy_token_ring(int argc, char *argv[])
 			goto error;
 
 		printf("port = %x, ch_addr = %x, node_addr=%x, data_addr=%x\n",
-		       port_num, ch_addr, node_addr, data_addr);
+				port_num, ch_addr, node_addr, data_addr);
 		tr_reg_control =
 		    (1 << 15) | (0 << 13) | (ch_addr << 11) | (node_addr << 7) |
 		    (data_addr << 1);
 		mii_mgr_write(port_num, 17, val_l);
 		mii_mgr_write(port_num, 18, val_h);
 		mii_mgr_write(port_num, 16, tr_reg_control);	// r16 = tr_reg_control
-		printf
-		    ("switch trreg Write tr_reg_control=%x, value_H=%x, value_L=%x\n",
-		     tr_reg_control, val_h, val_l);
+		printf("switch trreg Write tr_reg_control=%x, value_H=%x, value_L=%x\n",
+				tr_reg_control, val_h, val_l);
 	} else
 		return -1;
 
@@ -497,9 +495,8 @@ void write_acl_table(unsigned char tbl_idx, unsigned int vawd1,
 	reg = REG_VTCR_ADDR;
 	while (1) {		// wait until not busy
 		reg_read(reg, &value);
-		if ((value & REG_VTCR_BUSY_MASK) == 0) {
+		if ((value & REG_VTCR_BUSY_MASK) == 0)
 			break;
-		}
 	}
 	reg_write(REG_VAWD1_ADDR, vawd1);
 	printf("write reg: %x, value: %x\n", REG_VAWD1_ADDR, vawd1);
@@ -521,11 +518,17 @@ void acl_table_add(int argc, char *argv[])
 {
 	unsigned int vawd1 = 0, vawd2 = 0;
 	unsigned char tbl_idx = 0;
+	unsigned int max_index = 0;
 	char *endptr;
+
+	if (chip_name == 0x7531 || chip_name == 0x7988)
+		max_index = 256;
+	else
+		max_index = 64;
 
 	errno = 0;
 	tbl_idx = strtoul(argv[3], &endptr, 10);
-	if (errno != 0 || *endptr != '\0') {
+	if (errno != 0 || *endptr != '\0' || tbl_idx >= max_index) {
 		printf("Error: wrong ACL rule table index\n");
 		return;
 	}
@@ -589,11 +592,17 @@ void acl_mask_table_add(int argc, char *argv[])
 {
 	unsigned int vawd1 = 0, vawd2 = 0;
 	unsigned char tbl_idx = 0;
+	unsigned int max_index = 0;
 	char *endptr;
+
+	if (chip_name == 0x7531 || chip_name == 0x7988)
+		max_index = 128;
+	else
+		max_index = 32;
 
 	errno = 0;
 	tbl_idx = strtoul(argv[3], &endptr, 10);
-	if (errno != 0 || *endptr != '\0') {
+	if (errno != 0 || *endptr != '\0' || tbl_idx >= max_index) {
 		printf("Error: wrong ACL mask table index\n");
 		return;
 	}
@@ -628,7 +637,8 @@ void write_acl_rule_table(unsigned char tbl_idx, unsigned int vawd1,
 
 	printf("Rule_control_tbl_idx:%d\n", tbl_idx);
 
-	if (tbl_idx >= max_index) {	/* Check the input parameters is right or not. */
+	if (tbl_idx >= max_index) {
+		/* Check the input parameters is right or not. */
 		printf(HELP_ACL_RULE_TBL_ADD);
 		return;
 	}
@@ -636,9 +646,8 @@ void write_acl_rule_table(unsigned char tbl_idx, unsigned int vawd1,
 
 	while (1) {		// wait until not busy
 		reg_read(reg, &value);
-		if ((value & REG_VTCR_BUSY_MASK) == 0) {
+		if ((value & REG_VTCR_BUSY_MASK) == 0)
 			break;
-		}
 	}
 	reg_write(REG_VAWD1_ADDR, vawd1);
 	printf("write reg: %x, value: %x\n", REG_VAWD1_ADDR, vawd1);
@@ -651,9 +660,8 @@ void write_acl_rule_table(unsigned char tbl_idx, unsigned int vawd1,
 
 	while (1) {		// wait until not busy
 		reg_read(reg, &value);
-		if ((value & REG_VTCR_BUSY_MASK) == 0) {
+		if ((value & REG_VTCR_BUSY_MASK) == 0)
 			break;
-		}
 	}
 }
 
@@ -661,11 +669,17 @@ void acl_rule_table_add(int argc, char *argv[])
 {
 	unsigned int vawd1 = 0, vawd2 = 0;
 	unsigned char tbl_idx = 0;
+	unsigned int max_index = 0;
 	char *endptr;
+
+	if (chip_name == 0x7531 || chip_name == 0x7988)
+		max_index = 128;
+	else
+		max_index = 32;
 
 	errno = 0;
 	tbl_idx = strtoul(argv[3], &endptr, 10);
-	if (errno != 0 || *endptr != '\0') {
+	if (errno != 0 || *endptr != '\0' || tbl_idx >= max_index) {
 		printf("Error: wrong ACL rule control table index\n");
 		return;
 	}
@@ -727,11 +741,12 @@ void acl_rate_table_add(int argc, char *argv[])
 {
 	unsigned int vawd1 = 0, vawd2 = 0;
 	unsigned char tbl_idx = 0;
+	unsigned int max_index = 32;
 	char *endptr;
 
 	errno = 0;
 	tbl_idx = strtoul(argv[3], &endptr, 10);
-	if (errno != 0 || *endptr != '\0') {
+	if (errno != 0 || *endptr != '\0' || tbl_idx >= max_index) {
 		printf("Error: wrong ACL rate control table index\n");
 		return;
 	}
@@ -802,9 +817,8 @@ int acl_parameters_pre_del(int len1, int len2, int argc, char *argv[],
 
 	if (len2 == 12) {
 		if (!argv[4] || strlen(argv[4]) != len2) {
-			printf
-			    ("The [%s] format error, should be of length %d\n",
-			     argv[4], len2);
+			printf("The [%s] format error, should be of length %d\n",
+					argv[4], len2);
 			return -1;
 		}
 	}
@@ -816,8 +830,7 @@ int acl_parameters_pre_del(int len1, int len2, int argc, char *argv[],
 
 	for (i = 0; i < 7; i++) {
 		if (argv[5][i] != '0' && argv[5][i] != '1') {
-			printf
-			    ("portmap format error, should be of combination of 0 or 1\n");
+			printf("portmap format error, should be of combination of 0 or 1\n");
 			return -1;
 		}
 		*port += (argv[5][i] - '0') * (1 << i);
@@ -890,7 +903,6 @@ void acl_mac_add(int argc, char *argv[])
 
 error:
 	printf("Error: string converting\n");
-	return;
 }
 
 void acl_dip_meter(int argc, char *argv[])
@@ -1214,8 +1226,7 @@ static void dip_dump_internal(int type)
 		table_size = 0x40;
 		reg_write(REG_ATC_ADDR, 0x811c);	//dip search command
 	}
-	printf
-	    ("hash   port(0:6)   rsp_cnt  flag  timer    dip-address       ATRD\n");
+	printf("hash   port(0:6)   rsp_cnt  flag  timer    dip-address       ATRD\n");
 	for (i = 0; i < table_size; i++) {
 		while (1) {
 			reg_read(REG_ATC_ADDR, &value);
@@ -1292,10 +1303,6 @@ void dip_add(int argc, char *argv[])
 	reg_write(REG_ATA1_ADDR, value);
 	printf("REG_ATA1_ADDR is 0x%x\n\r", value);
 
-#if 0
-	reg_write(REG_ATA2_ADDR, value);
-	printf("REG_ATA2_ADDR is 0x%x\n\r", value);
-#endif
 	if (!argv[4] || strlen(argv[4]) != 8) {
 		printf("portmap format error, should be of length 7\n");
 		return;
@@ -1303,8 +1310,7 @@ void dip_add(int argc, char *argv[])
 	j = 0;
 	for (i = 0; i < 7; i++) {
 		if (argv[4][i] != '0' && argv[4][i] != '1') {
-			printf
-			    ("portmap format error, should be of combination of 0 or 1\n");
+			printf("portmap format error, should be of combination of 0 or 1\n");
 			return;
 		}
 		j += (argv[4][i] - '0') * (1 << i);
@@ -1368,7 +1374,6 @@ void dip_del(int argc, char *argv[])
 
 void dip_clear(int argc, char *argv[])
 {
-
 	unsigned int value = 0;
 
 	reg_write(REG_ATC_ADDR, 0x8102);	//clear all dip
@@ -1481,8 +1486,7 @@ void sip_add(int argc, char *argv[])
 	j = 0;
 	for (i = 0; i < 7; i++) {
 		if (argv[5][i] != '0' && argv[5][i] != '1') {
-			printf
-			    ("portmap format error, should be of combination of 0 or 1\n");
+			printf("portmap format error, should be of combination of 0 or 1\n");
 			return;
 		}
 		j += (argv[5][i] - '0') * (1 << i);
@@ -1571,8 +1575,7 @@ static void table_dump_internal(int type)
 		table_end = 0x3F;
 		reg_write(REG_ATC_ADDR, 0x800C);
 	}
-	printf
-	    ("hash  port(0:6)   fid   vid  age(s)   mac-address     filter my_mac\n");
+	printf("hash  port(0:6)   fid   vid  age(s)   mac-address     filter my_mac\n");
 	for (i = 0; i < table_size; i++) {
 		while (1) {
 			reg_read(REG_ATC_ADDR, &value);
@@ -1623,8 +1626,7 @@ static void table_dump_internal(int type)
 				}
 				break;
 			} else if ((value & 0x4000) && (((value >> 15) & 0x1) == 0) && (((value >> 16) & 0xfff) == table_end)) {	//at_table_end
-				printf("found the last entry %d (not ready)\n",
-				       i);
+				printf("found the last entry %d (not ready)\n", i);
 				return;
 			} else
 				usleep(5);
@@ -1702,8 +1704,7 @@ void table_add(int argc, char *argv[])
 	j = 0;
 	for (i = 0; i < 7; i++) {
 		if (argv[3][i] != '0' && argv[3][i] != '1') {
-			printf
-			    ("portmap format error, should be of combination of 0 or 1\n");
+			printf("portmap format error, should be of combination of 0 or 1\n");
 			return;
 		}
 		j += (argv[3][i] - '0') * (1 << i);
@@ -2154,8 +2155,7 @@ void vlan_dump(int argc, char *argv[])
 	}
 
 	if (eg_tag)
-		printf
-		    ("  vid  fid  portmap    s-tag\teg_tag(0:untagged 2:tagged)\n");
+		printf("  vid  fid  portmap    s-tag\teg_tag(0:untagged 2:tagged)\n");
 	else
 		printf("  vid  fid  portmap    s-tag\n");
 
@@ -2305,8 +2305,7 @@ void vlan_set(int argc, char *argv[])
 	vlan_mem = 0;
 	for (i = 0; i < 8; i++) {
 		if (argv[5][i] != '0' && argv[5][i] != '1') {
-			printf
-			    ("portmap format error, should be of combination of 0 or 1\n");
+			printf("portmap format error, should be of combination of 0 or 1\n");
 			return;
 		}
 		vlan_mem += (argv[5][i] - '0') * (1 << i);
@@ -2316,8 +2315,7 @@ void vlan_set(int argc, char *argv[])
 	if (argc > 6) {
 		stag = strtoul(argv[6], NULL, 16);
 		if (stag < 0 || 0xfff < stag) {
-			printf
-			    ("wrong stag id range, should be within 0~4095\n");
+			printf("wrong stag id range, should be within 0~4095\n");
 			return;
 		}
 		//printf("STAG is 0x%x\n", stag);
@@ -2338,15 +2336,13 @@ void vlan_set(int argc, char *argv[])
 
 	if (argc > 8 && !eg_con) {
 		if (strlen(argv[8]) != 8) {
-			printf
-			    ("egtag portmap format error, should be of length 7\n");
+			printf("egtag portmap format error, should be of length 7\n");
 			return;
 		}
 
 		for (i = 0; i < 8; i++) {
 			if (argv[8][i] < '0' || argv[8][i] > '3') {
-				printf
-				    ("egtag portmap format error, should be of combination of 0 or 3\n");
+				printf("egtag portmap format error, should be of combination of 0 or 3\n");
 				return;
 			}
 			//eg_tag += (argv[8][i] - '0') * (1 << i * 2);
@@ -2592,13 +2588,13 @@ void switch_reset(int argc, char *argv[])
 	/*Software Register Reset  and Software System Reset */
 	reg_write(0x7000, 0x3);
 	reg_read(0x7000, &value);
-	printf("SYS_CTRL(0x7000) register value =0x%x  \n", value);
+	printf("SYS_CTRL(0x7000) register value =0x%x\n", value);
 	if (chip_name == 0x7531) {
 		reg_write(0x7c0c, 0x11111111);
 		reg_read(0x7c0c, &value);
-		printf("GPIO Mode (0x7c0c) select value =0x%x  \n", value);
+		printf("GPIO Mode (0x7c0c) select value =0x%x\n", value);
 	}
-	printf("Switch Software Reset !!! \n");
+	printf("Switch Software Reset !!!\n");
 }
 
 void phy_set_fc(int argc, char *argv[])
@@ -2633,8 +2629,7 @@ void phy_set_fc(int argc, char *argv[])
 	}
 	mii_mgr_write(port, 4, phy_value);
 	printf("write phy_value:0x%x\r\n", phy_value);
-	return;
-}				/*end phy_set_fc */
+}
 
 void phy_set_an(int argc, char *argv[])
 {
@@ -2664,7 +2659,7 @@ void phy_set_an(int argc, char *argv[])
 	phy_value |= (auto_negotiation_en << 12);
 	mii_mgr_write(port, 0, phy_value);
 	printf("write phy_value:0x%x\r\n", phy_value);
-}				/*end phy_set_an */
+}
 
 void set_mac_pfc(int argc, char *argv[])
 {
@@ -2887,9 +2882,8 @@ void qos_wfq_set_weight(int argc, char *argv[])
 
 	port = atoi(argv[3]);
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 8; i++)
 		weight[i] = atoi(argv[i + 4]);
-	}
 
 	/* MT7530 total 7 port */
 	if (port < 0 || port > 6) {
@@ -3087,7 +3081,7 @@ static int macMT753xVlanSetVid(unsigned char index, unsigned char active,
 	reg_read(reg, &value);
 
 	printf("SetVid: index:%d active:%d vid:%d portMap:%x tagPortMap:%x\r\n",
-	       index, active, vid, portMap, tagPortMap);
+			index, active, vid, portMap, tagPortMap);
 	return 0;
 
 }				/*end macMT753xVlanSetVid */
@@ -3140,8 +3134,8 @@ void doVlanSetPvid(int argc, char *argv[])
 	macMT753xVlanSetPvid(port, pvid);
 
 	printf("port:%d pvid:%d,vlancap: max_port:%d maxvid:%d\r\n",
-	       port, pvid, SWITCH_MAX_PORT, MAX_VID_VALUE);
-}				/*end doVlanSetPvid */
+			port, pvid, SWITCH_MAX_PORT, MAX_VID_VALUE);
+}
 
 void doVlanSetVid(int argc, char *argv[])
 {
@@ -3212,9 +3206,9 @@ void doVlanSetVid(int argc, char *argv[])
 		}
 	}
 	macMT753xVlanSetVid(index, active, vid, portMap, tagPortMap,
-			    ivl_en, fid, stag);
+						ivl_en, fid, stag);
 	printf("index:%d active:%d vid:%d\r\n", index, active, vid);
-}				/*end doVlanSetVid */
+}
 
 void doVlanSetAccFrm(int argc, char *argv[])
 {
@@ -3247,7 +3241,7 @@ void doVlanSetAccFrm(int argc, char *argv[])
 
 	printf("write reg: %x, value: %x\n", reg, value);
 	reg_write(reg, value);
-}				/*end doVlanSetAccFrm */
+}
 
 void doVlanSetPortAttr(int argc, char *argv[])
 {
@@ -3407,9 +3401,8 @@ void doArlAging(int argc, char *argv[])
 	reg = 0xa0;
 	reg_read(reg, &value);
 	value &= (~(1 << 20));
-	if (!aging_en) {
+	if (!aging_en)
 		value |= (1 << 20);
-	}
 
 	aging_unit = (time / 0x100) + 1;
 	aging_cnt = (time / aging_unit);
@@ -3497,9 +3490,8 @@ void doMirrorPortBased(int argc, char *argv[])
 	if (errno != 0 || *endptr != '\0' || igmp_mir > 1)
 		goto error;
 
-	printf
-	    ("port:%d, port_tx_mir:%d, port_rx_mir:%d, acl_mir:%d, vlan_mis:%d, igmp_mir:%d\n",
-	     port, port_tx_mir, port_rx_mir, acl_mir, vlan_mis, igmp_mir);
+	printf("port:%d, port_tx_mir:%d, port_rx_mir:%d, acl_mir:%d, vlan_mis:%d, igmp_mir:%d\n",
+			port, port_tx_mir, port_rx_mir, acl_mir, vlan_mis, igmp_mir);
 
 	reg = REG_PCR_P0_ADDR + port * 0x100;
 	reg_read(reg, &value);
@@ -3581,37 +3573,26 @@ void _ingress_rate_set(int on_off, int port, int bw)
 	if (on_off == 1) {
 		if (chip_name == 0x7530) {
 			if (bw > 1000000) {
-				printf
-				    ("\n**Charge rate(%d) is larger than line rate(1000000kbps)**\n",
-				     bw);
+				printf("\n**Charge rate(%d) is larger than line rate(1000000kbps)**\n", bw);
 				return;
 			}
-			value =
-			    ((bw / 32) << 16) + (1 << 15) + (7 << 8) +
-			    (1 << 7) + 0x0f;
+			value = ((bw / 32) << 16) + (1 << 15) + (7 << 8) + (1 << 7) + 0x0f;
 		} else if (chip_name == 0x7531 || chip_name == 0x7988) {
 			if ((chip_name == 0x7531) && (bw > 2500000)) {
-				printf
-				    ("\n**Charge rate(%d) is larger than line rate(2500000kbps)**\n",
-				     bw);
+				printf("\n**Charge rate(%d) is larger than line rate(2500000kbps)**\n", bw);
 				return;
 			}
 
 			if ((chip_name == 0x7988) && (bw > 4000000)) {
-				printf
-				    ("\n**Charge rate(%d) is larger than line rate(4000000kbps)**\n",
-				     bw);
+				printf("\n**Charge rate(%d) is larger than line rate(4000000kbps)**\n", bw);
 				return;
 			}
 
 			if (bw / 32 >= 65536)	//supoort 2.5G case
-				value =
-				    ((bw / 32) << 16) + (1 << 15) + (1 << 14) +
-				    (1 << 12) + (7 << 8) + 0xf;
+				value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (1 << 12) +
+					(7 << 8) + 0xf;
 			else
-				value =
-				    ((bw / 32) << 16) + (1 << 15) + (1 << 14) +
-				    (7 << 8) + 0xf;
+				value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (7 << 8) + 0xf;
 		} else
 			printf("unknow chip\n");
 	}
@@ -3705,36 +3686,25 @@ void _egress_rate_set(int on_off, int port, int bw)
 	if (on_off == 1) {
 		if (chip_name == 0x7530) {
 			if (bw < 0 || bw > 1000000) {
-				printf
-				    ("\n**Charge rate(%d) is larger than line rate(1000000kbps)**\n",
-				     bw);
+				printf("\n**Charge rate(%d) is larger than line rate(1000000kbps)**\n", bw);
 				return;
 			}
-			value =
-			    ((bw / 32) << 16) + (1 << 15) + (7 << 8) +
-			    (1 << 7) + 0xf;
+			value = ((bw / 32) << 16) + (1 << 15) + (7 << 8) + (1 << 7) + 0xf;
 		} else if (chip_name == 0x7531 || chip_name == 0x7988) {
 			if ((chip_name == 0x7531) && (bw < 0 || bw > 2500000)) {
-				printf
-				    ("\n**Charge rate(%d) is larger than line rate(2500000kbps)**\n",
-				     bw);
+				printf("\n**Charge rate(%d) is larger than line rate(2500000kbps)**\n", bw);
 				return;
 			}
 			if ((chip_name == 0x7988) && (bw < 0 || bw > 4000000)) {
-				printf
-				    ("\n**Charge rate(%d) is larger than line rate(4000000kbps)**\n",
-				     bw);
+				printf("\n**Charge rate(%d) is larger than line rate(4000000kbps)**\n", bw);
 				return;
 			}
 
 			if (bw / 32 >= 65536)	//support 2.5G cases
-				value =
-				    ((bw / 32) << 16) + (1 << 15) + (1 << 14) +
-				    (1 << 12) + (7 << 8) + 0xf;
+				value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (1 << 12) +
+					(7 << 8) + 0xf;
 			else
-				value =
-				    ((bw / 32) << 16) + (1 << 15) + (1 << 14) +
-				    (7 << 8) + 0xf;
+				value = ((bw / 32) << 16) + (1 << 15) + (1 << 14) + (7 << 8) + 0xf;
 		} else
 			printf("unknow chip\n");
 	}
@@ -3834,14 +3804,13 @@ void collision_pool_enable(int argc, char *argv[])
 
 	enable = atoi(argv[3]);
 
-	printf("collision pool enable: %d \n", enable);
-
 	/*Check the input parameters is right or not. */
 	if (enable > 1) {
 		printf(HELP_COLLISION_POOL_EN);
 		return;
 	}
 
+	printf("collision pool enable: %d\n", enable);
 	if (chip_name == 0x7531 || chip_name == 0x7988) {
 		reg = REG_CPGC_ADDR;
 		if (enable == 1) {
@@ -3912,8 +3881,7 @@ void collision_pool_mac_dump(int argc, char *argv[])
 		if (value & REG_CPCG_COL_EN_MASK)
 			table_dump_internal(COLLISION_TABLE);
 		else
-			printf
-			    ("\ncollision pool is disabled, please enable it before use this command.\n");
+			printf("\ncollision pool is disabled, please enable it before use this command.\n");
 	} else {
 		printf("\nCommand not support by this chip.\n");
 	}
@@ -3929,8 +3897,7 @@ void collision_pool_dip_dump(int argc, char *argv[])
 		if (value & REG_CPCG_COL_EN_MASK)
 			dip_dump_internal(COLLISION_TABLE);
 		else
-			printf
-			    ("\ncollision pool is disabled, please enable it before use this command.\n");
+			printf("\ncollision pool is disabled, please enable it before use this command.\n");
 	} else {
 		printf("\nCommand not support by this chip.\n");
 	}
@@ -3946,8 +3913,7 @@ void collision_pool_sip_dump(int argc, char *argv[])
 		if (value & REG_CPCG_COL_EN_MASK)
 			sip_dump_internal(COLLISION_TABLE);
 		else
-			printf
-			    ("\ncollision pool is disabled, please enable it before use this command.\n");
+			printf("\ncollision pool is disabled, please enable it before use this command.\n");
 	} else {
 		printf("\nCommand not support by this chip.\n");
 	}
@@ -4229,15 +4195,13 @@ void eee_enable(int argc, char *argv[])
 			port_map = 0;
 			for (p = 0; p < MAX_PHY_PORT; p++) {
 				if (argv[3][p] != '0' && argv[3][p] != '1') {
-					printf
-					    ("portmap format error, should be combination of 0 or 1\n");
+					printf("portmap format error, should be combination of 0 or 1\n");
 					goto error;
 				}
 				port_map |= ((argv[3][p] - '0') << p);
 			}
 		} else {
-			printf
-			    ("port_no or portmap format error, should be length of 1 or 5\n");
+			printf("port_no or portmap format error, should be length of 1 or 5\n");
 			goto error;
 		}
 	} else {
@@ -4284,7 +4248,6 @@ void eee_enable(int argc, char *argv[])
 	return;
 error:
 	printf(HELP_EEE_EN);
-	return;
 }
 
 void eee_dump(int argc, char *argv[])
@@ -4395,7 +4358,7 @@ void clear_mib_counters(int argc, char *argv[])
 	reg_write(0x4fe0, 0x800000f0);
 }
 
-void exit_free()
+void exit_free(void)
 {
 	free(attres);
 	attres = NULL;

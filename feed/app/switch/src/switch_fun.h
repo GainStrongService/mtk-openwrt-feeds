@@ -102,9 +102,9 @@ int reg_write(unsigned int offset, unsigned int value);
 int mii_mgr_read(unsigned int port_num, unsigned int reg, unsigned int *value);
 int mii_mgr_write(unsigned int port_num, unsigned int reg, unsigned int value);
 int mii_mgr_c45_read(unsigned int port_num, unsigned int dev, unsigned int reg,
-		     unsigned int *value);
+		unsigned int *value);
 int mii_mgr_c45_write(unsigned int port_num, unsigned int dev, unsigned int reg,
-		      unsigned int value);
+		unsigned int value);
 
 /*phy setting*/
 int phy_dump(int phy_addr);
@@ -222,5 +222,5 @@ void read_output_queue_counters(int argc, char *argv[]);
 void read_free_page_counters(int argc, char *argv[]);
 
 void phy_crossover(int argc, char *argv[]);
-void exit_free();
+void exit_free(void);
 #endif

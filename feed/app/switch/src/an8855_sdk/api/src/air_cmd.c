@@ -1151,7 +1151,7 @@ _str2ipv6(
     }
 
     /* last data */
-    if (':' != ptr_str[idx - 1])
+    if ((idx != 0) && (':' != ptr_str[idx - 1]))
     {
         if (FALSE == ipv4_compatible)
         {
@@ -1169,7 +1169,7 @@ _str2ipv6(
     }
     else
     {
-        if (':' != ptr_str[idx - 2])
+        if ((idx >= 2) && (':' != ptr_str[idx - 2]))
         {
             return AIR_E_BAD_PARAMETER; /* Error: last cannot be colon except double-colon */
         }
@@ -3358,6 +3358,7 @@ doSptagEncode(
 {
     AIR_ERROR_NO_T ret = AIR_E_OK;
     AIR_STAG_TX_PARA_T sptag_tx = {0};
+    C8_T *token = NULL;
     UI8_T buf[AIR_STAG_BUF_LEN] = {0};
     UI32_T len = AIR_STAG_BUF_LEN;
     char str[128] = {'\0'};
@@ -3382,10 +3383,15 @@ doSptagEncode(
         else
             printf("opc is wrong!!");
 
-        if(sscanf(argv[2],"dp=%x",&data) != -1)
-        {
-            sptag_tx.pbm = data;
-            AIR_PRINT("sptag_tx.pbm %x\n",sptag_tx.pbm);
+        token = _strtok(argv[2], "=", &argv[2]);
+        if(_strcmp(token,"dp") != 0) {
+            AIR_PRINT("Bad parameter\r\n");
+        } else {
+            if ((token = _strtok(argv[2], "=", &argv[2]))) {
+                data = _strtoul(token, NULL, 16);
+                sptag_tx.pbm = data;
+                AIR_PRINT("sptag_tx.pbm %x\n",sptag_tx.pbm);
+            }
         }
 
         if(_strcmp(argv[3],"vpm=untagged") == 0)
@@ -3397,22 +3403,37 @@ doSptagEncode(
         else
             printf("vpm is wrong!!");
 
-        if(sscanf(argv[4],"pri=%d",&data) != -1)
-        {
-            sptag_tx.pri = data;
-            AIR_PRINT("sptag_tx.pri %d\n",sptag_tx.pri);
+        token = _strtok(argv[4], "=", &argv[4]);
+        if(_strcmp(token, "pri") != 0) {
+            AIR_PRINT("Bad parameter\r\n");
+        } else {
+            if ((token = _strtok(argv[4], "=", &argv[4]))) {
+                data = _strtoul(token, NULL, 0);
+                sptag_tx.pri = data;
+                AIR_PRINT("sptag_tx.pri %d\n",sptag_tx.pri);
+            }
         }
 
-        if(sscanf(argv[5],"cfi=%d",&data) != -1)
-        {
-            sptag_tx.cfi  = data;
-            AIR_PRINT("sptag_tx.cfi %d\n",sptag_tx.cfi);
+        token = _strtok(argv[5], "=", &argv[5]);
+        if(_strcmp(token, "cfi") != 0) {
+            AIR_PRINT("Bad parameter\r\n");
+        } else {
+            if ((token = _strtok(argv[5], "=", &argv[5]))) {
+                data = _strtoul(token, NULL, 0);
+                sptag_tx.cfi  = data;
+                AIR_PRINT("sptag_tx.cfi %d\n",sptag_tx.cfi);
+            }
         }
 
-        if(sscanf(argv[6],"vid=%d",&data) != -1)
-        {
-            sptag_tx.vid = data;
-            AIR_PRINT("sptag_tx.vid %d\n",sptag_tx.vid);
+        token = _strtok(argv[6], "=", &argv[6]);
+        if(_strcmp(token, "vid") != 0) {
+            AIR_PRINT("Bad parameter\r\n");
+        } else {
+            if ((token = _strtok(argv[6], "=", &argv[6]))) {
+                data = _strtoul(token, NULL, 0);
+                sptag_tx.vid = data;
+                AIR_PRINT("sptag_tx.vid %d\n",sptag_tx.vid);
+            }
         }
 
         ret = air_sptag_encodeTx(0,mode, &sptag_tx, (UI8_T *)&buf, &len);
@@ -4355,16 +4376,21 @@ _mir_printSrcPortList(
     const UI32_T         unit,
     const UI32_T         sessionid)
 {
-
     I8_T i = 0;
     AIR_MIR_SESSION_T   session;
     AIR_PORT_BITMAP_T txPbm = {0}, rxPbm = {0};
+	AIR_ERROR_NO_T      rc = AIR_E_OK;
 
     for(i = 0; i < AIR_MAX_NUM_OF_PORTS; i++)
     {
          memset(&session, 0, sizeof(session));
          session.src_port = i;
-         air_mir_getMirrorPort(unit, sessionid, &session);
+         rc = air_mir_getMirrorPort(unit, sessionid, &session);
+		 if (AIR_E_OK != rc)
+		 {
+			AIR_PRINT("***Error***,get port=%u error\n", i);
+			return rc;
+		 }
 
          if(session.flags & AIR_MIR_SESSION_FLAGS_DIR_TX)
          {
@@ -4990,9 +5016,9 @@ doQosRateLimitExMngFrm(
     UI32_T dir = 0;
     BOOL_T enable = FALSE;
 
-    dir = _strtoul(argv[0], NULL, 0);
     if(2 == argc)
     {
+		dir = _strtoul(argv[0], NULL, 0);
         if(dir == 0)
             dir = AIR_QOS_RATE_DIR_EGRESS;
         else if(dir == 1)
@@ -5922,7 +5948,7 @@ doLedUsrDef(
         AIR_PRINT("\t(%u)Link Down :%s\n", i--, (on_evt.link_dn)?"On":"Off");
         AIR_PRINT("\t(%u)Link 10M :%s\n", i--, (on_evt.link_10m)?"On":"Off");
         AIR_PRINT("\t(%u)Link 100M :%s\n", i--, (on_evt.link_100m)?"On":"Off");
-        AIR_PRINT("\t(%u)Link 1000M :%s\n", i--, (on_evt.link_1000m)?"On":"Off");
+        AIR_PRINT("\t(%u)Link 1000M :%s\n", i, (on_evt.link_1000m)?"On":"Off");
 
         AIR_PRINT("Blinking Event:\n");
         i = 9;
@@ -5935,7 +5961,7 @@ doLedUsrDef(
         AIR_PRINT("\t(%u)100Mbps RX Activity :%s\n", i--, (blk_evt.rx_act_100m)?"On":"Off");
         AIR_PRINT("\t(%u)100Mbps TX Activity :%s\n", i--, (blk_evt.tx_act_100m)?"On":"Off");
         AIR_PRINT("\t(%u)1000Mbps RX Activity :%s\n", i--, (blk_evt.rx_act_1000m)?"On":"Off");
-        AIR_PRINT("\t(%u)1000Mbps TX Activity :%s\n", i--, (blk_evt.tx_act_1000m)?"On":"Off");
+        AIR_PRINT("\t(%u)1000Mbps TX Activity :%s\n", i, (blk_evt.tx_act_1000m)?"On":"Off");
     }
     else
     {
@@ -6609,15 +6635,14 @@ doAclRule(
             rule.mask.isipv6 = FALSE;
         }
 
-        if(0 == _strcmp(argv[argi], "dmac"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "dmac")))
         {
             argi++;
             _str2mac(argv[argi++], rule.key.dmac);
             _str2mac(argv[argi++], rule.mask.dmac);
             rule.key.fieldmap |= 1 << AIR_ACL_DMAC;
         }
-
-        if(0 == _strcmp(argv[argi], "smac"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "smac")))
         {
             argi++;
             _str2mac(argv[argi++], rule.key.smac);
@@ -6625,7 +6650,7 @@ doAclRule(
             rule.key.fieldmap |= 1 << AIR_ACL_SMAC;
         }
 
-        if(0 == _strcmp(argv[argi], "stag"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "stag")))
         {
             argi++;
             rule.key.stag = _strtoul(argv[argi++], NULL, 16);
@@ -6633,7 +6658,7 @@ doAclRule(
             rule.key.fieldmap |= 1 << AIR_ACL_STAG;
         }
 
-        if(0 == _strcmp(argv[argi], "ctag"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "ctag")))
         {
             argi++;
             rule.key.ctag = _strtoul(argv[argi++], NULL, 16);
@@ -6641,7 +6666,7 @@ doAclRule(
             rule.key.fieldmap |= 1 << AIR_ACL_CTAG;
         }
 
-        if(0 == _strcmp(argv[argi], "etype"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "etype")))
         {
             argi++;
             rule.key.etype= _strtoul(argv[argi++], NULL, 16);
@@ -6649,7 +6674,7 @@ doAclRule(
             rule.key.fieldmap |= 1 << AIR_ACL_ETYPE;
         }
 
-        if(0 == _strcmp(argv[argi], "dip"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "dip")))
         {
             argi++;
             if(0 == ipv6)
@@ -6673,7 +6698,7 @@ doAclRule(
             rule.key.fieldmap |= 1 << AIR_ACL_DIP;
         }
 
-        if(0 == _strcmp(argv[argi], "sip"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "sip")))
         {
             argi++;
             if(0 == ipv6)
@@ -6697,7 +6722,7 @@ doAclRule(
             rule.key.fieldmap |= 1 << AIR_ACL_SIP;
         }
 
-        if(0 == _strcmp(argv[argi], "dscp"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "dscp")))
         {
             argi++;
             rule.key.dscp = _strtoul(argv[argi++], NULL, 16);
@@ -6705,7 +6730,7 @@ doAclRule(
             rule.key.fieldmap |= 1 << AIR_ACL_DSCP;
         }
 
-        if(0 == _strcmp(argv[argi], "protocol"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "protocol")))
         {
             argi++;
             rule.key.protocol = _strtoul(argv[argi++], NULL, 16);
@@ -6713,7 +6738,7 @@ doAclRule(
             rule.key.fieldmap |= 1 << AIR_ACL_PROTOCOL;
         }
 
-        if(0 == _strcmp(argv[argi], "dport"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "dport")))
         {
             argi++;
             rule.key.dport = _strtoul(argv[argi++], NULL, 16);
@@ -6721,7 +6746,7 @@ doAclRule(
             rule.key.fieldmap |= 1 << AIR_ACL_DPORT;
         }
 
-        if(0 == _strcmp(argv[argi], "sport"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "sport")))
         {
             argi++;
             rule.key.sport = _strtoul(argv[argi++], NULL, 16);
@@ -6729,7 +6754,7 @@ doAclRule(
             rule.key.fieldmap |= 1 << AIR_ACL_SPORT;
         }
 
-        if(0 == _strcmp(argv[argi], "flow_label"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "flow_label")))
         {
             argi++;
             rule.key.flow_label= _strtoul(argv[argi++], NULL, 16);
@@ -6737,14 +6762,13 @@ doAclRule(
             rule.key.fieldmap |= 1 << AIR_ACL_FLOW_LABEL;
         }
 
-        if(0 == _strcmp(argv[argi], "udf"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "udf")))
         {
             argi++;
             rule.key.udf = _strtoul(argv[argi++], NULL, 16);
             rule.mask.udf = _strtoul(argv[argi++], NULL, 16);
             rule.key.fieldmap |= 1 << AIR_ACL_UDF;
         }
-
         rule.mask.fieldmap = rule.key.fieldmap;
         ret = air_acl_setRule(0, rule_idx, &rule);
         if(ret < AIR_E_LAST)
@@ -7151,7 +7175,7 @@ doAclAction(
         [ color <color(0:Defined,1:Trtcm)> [ <defined_color(0:Dis,1:Green,2:Yellow,3:Red)> | <trtcm_idx(0..31)> ] ]*/
 
         act_idx = _strtoul(argv[argi++], NULL, 0);
-        if(0 == _strcmp(argv[argi], "forward"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "forward")))
         {
             argi++;
             fwd = _strtoul(argv[argi++], NULL, 0);
@@ -7159,27 +7183,27 @@ doAclAction(
             act.fwd = fwd;
         }
 
-        if(0 == _strcmp(argv[argi], "egtag"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "egtag")))
         {
             argi++;
             act.egtag_en = TRUE;
             act.egtag = _strtoul(argv[argi++], NULL, 0);
         }
 
-        if(0 == _strcmp(argv[argi], "mirrormap"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "mirrormap")))
         {
             argi++;
             act.mirrormap = _strtoul(argv[argi++], NULL, 2);
         }
 
-        if(0 == _strcmp(argv[argi], "priority"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "priority")))
         {
             argi++;
             act.pri_user_en = TRUE;
             act.pri_user= _strtoul(argv[argi++], NULL, 0);
         }
 
-        if(0 == _strcmp(argv[argi], "redirect"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "redirect")))
         {
             argi++;
             redirect = _strtoul(argv[argi++], NULL, 0);
@@ -7197,7 +7221,7 @@ doAclAction(
             }
         }
 
-        if(0 == _strcmp(argv[argi], "leaky_vlan"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "leaky_vlan")))
         {
             argi++;
             act.lyvlan_en = TRUE;
@@ -7205,28 +7229,28 @@ doAclAction(
         }
 
         /* ACL event counter */
-        if(0 == _strcmp(argv[argi], "cnt_idx"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "cnt_idx")))
         {
             argi++;
             act.cnt_en = TRUE;
             act.cnt_idx = _strtol(argv[argi++], NULL, 0);
         }
 
-        if(0 == _strcmp(argv[argi], "rate_idx"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "rate_idx")))
         {
             argi++;
             act.rate_en = TRUE;
             act.rate_idx = _strtol(argv[argi++], NULL, 0);
         }
 
-        if(0 == _strcmp(argv[argi], "attack_idx"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "attack_idx")))
         {
             argi++;
             act.attack_en = TRUE;
             act.attack_idx = _strtol(argv[argi++], NULL, 0);
         }
 
-        if(0 == _strcmp(argv[argi], "vid"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "vid")))
         {
             argi++;
             act.vlan_en = TRUE;
@@ -7234,20 +7258,20 @@ doAclAction(
         }
 
         /* Management frame */
-        if(0 == _strcmp(argv[argi], "manage"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "manage")))
         {
             argi++;
             act.mang = _strtoul(argv[argi++], NULL, 2);
         }
 
-        if(0 == _strcmp(argv[argi], "bpdu"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "bpdu")))
         {
             argi++;
             act.bpdu = _strtoul(argv[argi++], NULL, 2);
         }
 
         /* DSCP class remap */
-        if(0 == _strcmp(argv[argi], "class"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "class")))
         {
             argi++;
             act.trtcm_en = TRUE;
@@ -7257,7 +7281,7 @@ doAclAction(
                 act.trtcm.cls_slr = _strtoul(argv[argi++], NULL, 0);
             }
         }
-        if(0 == _strcmp(argv[argi], "drop_pcd"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "drop_pcd")))
         {
             argi++;
             act.trtcm_en = TRUE;
@@ -7283,7 +7307,7 @@ doAclAction(
         }
 
         /* trTCM */
-        if(0 == _strcmp(argv[argi], "color"))
+        if((argi < argc) && (0 == _strcmp(argv[argi], "color")))
         {
             argi++;
             act.trtcm_en = TRUE;

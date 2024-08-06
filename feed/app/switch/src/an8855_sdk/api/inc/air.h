@@ -113,18 +113,18 @@
 
 /* DATA TYPE DECLARATIONS
  */
-typedef AIR_ERROR_NO_T
+typedef int
 (*AIR_PRINTF)(
-    C8_T* fmt,
+    const C8_T* fmt,
     ...);
 
-typedef void
+typedef int
 (*AIR_UDELAY)(
     UI32_T us);
 
 typedef void*
 (*AIR_MALLOC)(
-    UI32_T size);
+    long unsigned int size);
 
 typedef void
 (*AIR_FREE)(

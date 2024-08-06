@@ -390,8 +390,8 @@ air_port_getSpeed(
     AIR_CHECK_PTR(ptr_speed);
 
     /* Read data from register */
-    aml_readPhyReg(unit, port, 0x0, &u32dat);
-    (*ptr_speed) = (BITS_OFF_R(u32dat, 6, 1) << 1) | BITS_OFF_R(u32dat, 13, 1);
+	aml_readReg(unit, PMSR(port), &u32dat);
+	(*ptr_speed) = BITS_OFF_R(u32dat, 28, 3);
 
     return ret;
 }
@@ -491,8 +491,8 @@ air_port_getDuplex(
     AIR_CHECK_PTR(ptr_duplex);
 
     /* Read data from register */
-    aml_readPhyReg(unit, port, 0x0, &u32dat);
-    (*ptr_duplex) = BITS_OFF_R(u32dat, 8, 1);
+	aml_readReg(unit, PMSR(port), &u32dat);
+	(*ptr_duplex) = BITS_OFF_R(u32dat, 25, 1);
 
     return AIR_E_OK;
 }
