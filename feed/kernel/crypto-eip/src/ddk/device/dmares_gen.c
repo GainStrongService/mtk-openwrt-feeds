@@ -4,20 +4,16 @@
  */
 
 /*****************************************************************************
-* Copyright (c) 2012-2020 by Rambus, Inc. and/or its subsidiaries.
+* Copyright (c) 2012-2024 by Rambus, Inc. and/or its subsidiaries
+* All rights reserved. Unauthorized use (including, without limitation,
+* distribution and copying) is strictly prohibited. All use requires,
+* and is subject to, explicit written authorization and nondisclosure
+* Rambus, Inc. and/or its subsidiaries
 *
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 2 of the License, or
-* any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>.
+* For more information or support, please go to our online support system at
+* https://sipsupport.rambus.com.
+* In case you do not have an account for this system, please send an e-mail
+* to sipsupport@rambus.com.
 *****************************************************************************/
 
 /*----------------------------------------------------------------------------
@@ -784,6 +780,7 @@ DMAResourceLib_DMAPool_Get(
     List_Status_t List_rc1, List_rc2;
     List_Element_t * LE_p;
     unsigned long Flags = 0;
+    void *Address;
 
     // Pool list access protected by lock
     HWPAL_DMAResource_Lock_Acquire(Bank_p->Lock_p, &Flags);
@@ -805,6 +802,7 @@ DMAResourceLib_DMAPool_Get(
         return -1;
     }
 
+    Address = LE_p->DataObject_p;
     List_rc2 = List_AddToHead(Bank_p->DanglingListID, NULL, LE_p);
 
     HWPAL_DMAResource_Lock_Release(Bank_p->Lock_p, &Flags);
@@ -816,7 +814,7 @@ DMAResourceLib_DMAPool_Get(
         return -1;
     }
 
-    *Addr_pp = LE_p->DataObject_p;
+    *Addr_pp = Address;
 
     return 0;
 }
@@ -1081,6 +1079,8 @@ DMAResource_SG_Release(
         LOG_CRIT("DMAResource_SG_Release: static banks not supported\n");
         return -1;
     }
+#else
+    return HWPAL_DMAResource_Release(Handle);
 #endif // HWPAL_DMARESOURCE_BANKS_ENABLE
 }
 
@@ -1157,6 +1157,7 @@ DMAResource_Release(
                     LOG_CRIT("DMAResource_Release: "
                              "put to DMA pool failed for handle %p\n",
                              Handle);
+                    HWPAL_DMAResource_Release(Handle);
                     return -1;
                 }
             }
@@ -1281,7 +1282,6 @@ DMAResource_Read32(
 #endif
 
     Pair_p = DMAResourceLib_LookupDomain(Rec_p, DMARES_DOMAIN_HOST);
-#ifndef HWPAL_DMARESOURCE_OPT1
     if (Pair_p == NULL)
     {
         LOG_WARN(
@@ -1291,8 +1291,7 @@ DMAResource_Read32(
 
         return 0;
     }
-#endif
-
+    else
     {
         uint32_t * Address_p = Pair_p->Address_p;
         uint32_t Value = read32_volatile(Address_p + WordOffset);
@@ -1359,7 +1358,6 @@ DMAResource_Write32(
 #endif
 
     Pair_p = DMAResourceLib_LookupDomain(Rec_p, DMARES_DOMAIN_HOST);
-#ifndef HWPAL_DMARESOURCE_OPT1
     if (Pair_p == NULL)
     {
         LOG_WARN(
@@ -1369,23 +1367,21 @@ DMAResource_Write32(
 
         return;
     }
-#endif
-
-#ifdef HWPAL_TRACE_DMARESOURCE_WRITE
-    Log_FormattedMessage(
-        "DMAResource_Write32: "
-        "(handle %p) "
-        "[%u] = 0x%08x "
-        "(swap=%d)\n",
-        Handle,
-        WordOffset,
-        Value,
-        Rec_p->fSwapEndianness);
-#endif
-
+    else
     {
         uint32_t * Address_p = Pair_p->Address_p;
         uint32_t WriteValue = Value;
+#ifdef HWPAL_TRACE_DMARESOURCE_WRITE
+        Log_FormattedMessage(
+            "DMAResource_Write32: "
+            "(handle %p) "
+            "[%u] = 0x%08x "
+            "(swap=%d)\n",
+            Handle,
+            WordOffset,
+            Value,
+            Rec_p->fSwapEndianness);
+#endif
 
 #ifndef HWPAL_DMARESOURCE_OPT2
         // swap endianness, if required
@@ -1446,7 +1442,7 @@ DMAResource_Read32Array(
 
         return;
     }
-
+    else
     {
         uint32_t * Address_p = Pair_p->Address_p;
         unsigned int i;
@@ -1461,11 +1457,7 @@ DMAResource_Read32Array(
 
             Values_p[i] = Value;
         } // for
-    }
-
 #ifdef HWPAL_TRACE_DMARESOURCE_READ
-    {
-        uint32_t * Address_p = Pair_p->Address_p;
         if (Values_p == Address_p + StartWordOffset)
         {
             Log_FormattedMessage(
@@ -1490,8 +1482,8 @@ DMAResource_Read32Array(
                 StartWordOffset + WordCount - 1,
                 Rec_p->fSwapEndianness);
         }
-    }
 #endif
+    }
 }
 
 
@@ -1543,7 +1535,7 @@ DMAResource_Write32Array(
 
         return;
     }
-
+    else
     {
         uint32_t * Address_p = Pair_p->Address_p;
         unsigned int i;
@@ -1558,11 +1550,7 @@ DMAResource_Write32Array(
 
             write32_volatile(Value, Address_p + StartWordOffset + i);
         } // for
-    }
-
 #ifdef HWPAL_TRACE_DMARESOURCE_WRITE
-    {
-        uint32_t * Address_p = Pair_p->Address_p;
         if (Values_p == Address_p + StartWordOffset)
         {
             Log_FormattedMessage(
@@ -1587,8 +1575,8 @@ DMAResource_Write32Array(
                 StartWordOffset + WordCount - 1,
                 Rec_p->fSwapEndianness);
         }
-    }
 #endif /* HWPAL_TRACE_DMARESOURCE_WRITE */
+    }
 }
 
 

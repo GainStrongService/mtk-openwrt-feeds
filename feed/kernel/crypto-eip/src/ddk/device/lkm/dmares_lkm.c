@@ -185,7 +185,6 @@ static HWPAL_FreeList_t FreeRecords;
 
 static void * HWPAL_Lock_p;
 
-
 /*----------------------------------------------------------------------------
  * DMAResourceLib_IdxPair2RecordPtr
  *
@@ -639,45 +638,14 @@ HWPAL_SG_DMAResource_Alloc(
 
     // Allocate DMA resource
     {
-        struct device * DMADevice_p;
         size_t n = 0;
-        void  * UnalignedAddr_p = NULL;
-        //void * AlignedAddr_p = NULL;
-        //dma_addr_t DMAAddr = 0;
-        //phys_addr_t PhysAddr = 0;
-        Device_Data_t DevData;
 
-        ZEROINIT(DevData);
+        // Align if required
+        n = DMAResourceLib_AlignForAddress(
+             DMAResourceLib_AlignForSize(RequestedProperties.Size,
+             AlignTo),
+             AlignTo);
 
-        // Get device reference for this resource
-        DMADevice_p = Device_GetReference(NULL, &DevData);
-        {
-            gfp_t flags = HWPAL_DMA_FLAGS;
-
-            // Non-fixed dynamic address buffer allocation
-
-            // Align if required
-            n = DMAResourceLib_AlignForAddress(
-                 DMAResourceLib_AlignForSize(RequestedProperties.Size,
-                 AlignTo),
-                 AlignTo);
-
-            if (in_atomic())
-                flags |= GFP_ATOMIC;    // non-sleepable
-            else
-                flags |= GFP_KERNEL;    // sleepable
-
-            UnalignedAddr_p = kmalloc(n, flags);
-            if (UnalignedAddr_p == NULL)
-            {
-                LOG_CRIT("DMAResource_Alloc: failed for handle 0x%p,"
-                        " size %d\n",
-                         Handle,(unsigned int)n);
-                DMAResource_DestroyRecord(Handle);
-                return -1;
-            }
-        }
-        
         DMAResourceLib_Setup_Record(&ActualProperties, 'A', Rec_p, n);
 
         Pair_p = Rec_p->AddrPairs;
@@ -685,7 +653,7 @@ HWPAL_SG_DMAResource_Alloc(
         Pair_p->Domain = DMARES_DOMAIN_BUS;
 
         ++Pair_p;
-        Pair_p->Address_p = UnalignedAddr_p;
+        Pair_p->Address_p = (void *)(uintptr_t) DmaAddress; //UnalignedAddr_p;
         Pair_p->Domain = DMARES_DOMAIN_HOST;
 
         // Return this address
@@ -693,7 +661,7 @@ HWPAL_SG_DMAResource_Alloc(
 
         // This host address will be used for freeing the allocated buffer
         ++Pair_p;
-        Pair_p->Address_p = UnalignedAddr_p;
+        Pair_p->Address_p = (void *)(uintptr_t) DmaAddress; //UnalignedAddr_p;
         Pair_p->Domain = DMARES_DOMAIN_HOST_UNALIGNED;
     }
 
@@ -1082,19 +1050,6 @@ HWPAL_DMAResource_SG_Release(
                 Handle);
             return -1;
         }
-
-        Pair_p = DMAResourceLib_LookupDomain(Rec_p,
-                                             DMARES_DOMAIN_HOST_UNALIGNED);
-        if (Pair_p == NULL)
-        {
-            LOG_WARN(
-                "HW_DMAResource_SG_Release: "
-                "No host address found for Handle %p?\n",
-                Handle);
-            return -1;
-        }
-        
-        kfree(Pair_p->Address_p);
     }
     // free administration resources
     Rec_p->Magic = 0;
