@@ -2718,7 +2718,13 @@ bool mtk_capwap_dtls_offload(
 	SSLTLSParams.epoch = DTLSParam_p->dtls_epoch;
 
 	SSLTLSParams.SSLTLSFlags |= SAB_DTLS_PROCESS_IP_HEADERS |
-					SAB_DTLS_EXT_PROCESSING | SAB_DTLS_IPV4;
+					SAB_DTLS_EXT_PROCESSING;
+
+	if (DTLSParam_p->net_type == MTK_DTLS_NET_IPV6)
+		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_IPV6;
+	else
+		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_IPV4;
+
 	if (fCAPWAP)
 		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_CAPWAP;
 
@@ -2906,10 +2912,15 @@ bool mtk_capwap_dtls_offload(
 	}
 
 	SSLTLSParams.SSLTLSFlags |= SAB_DTLS_PROCESS_IP_HEADERS |
-						SAB_DTLS_EXT_PROCESSING | SAB_DTLS_IPV4;
+						SAB_DTLS_EXT_PROCESSING;
 
 	// Create a reference to the header processor context.
 	SSLTLSParams.epoch = DTLSParam_p->dtls_epoch;
+
+	if (DTLSParam_p->net_type == MTK_DTLS_NET_IPV6)
+		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_IPV6;
+	else
+		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_IPV4;
 
 	if (fCAPWAP)
 		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_CAPWAP;
@@ -2985,9 +2996,16 @@ bool mtk_capwap_dtls_offload(
 		ZEROINIT(SelectorParams);
 		ZEROINIT(DTLTransformParams);
 
-		SelectorParams.flags = PCL_SELECT_IPV4;
-		SelectorParams.SrcIp = ((unsigned char *)(&(DTLSParam_p->sip)));
-		SelectorParams.DstIp = ((unsigned char *)(&(DTLSParam_p->dip)));
+		if (DTLSParam_p->net_type == MTK_DTLS_NET_IPV6) {
+			SelectorParams.flags = PCL_SELECT_IPV6;
+			SelectorParams.SrcIp = ((unsigned char *)(&(DTLSParam_p->sip.ip6.addr)));
+			SelectorParams.DstIp = ((unsigned char *)(&(DTLSParam_p->dip.ip6.addr)));
+		} else {
+			SelectorParams.flags = PCL_SELECT_IPV4;
+			SelectorParams.SrcIp = ((unsigned char *)(&(DTLSParam_p->sip.ip4.addr32)));
+			SelectorParams.DstIp = ((unsigned char *)(&(DTLSParam_p->dip.ip4.addr32)));
+		}
+
 		SelectorParams.IpProto = 17; //UDP
 		SelectorParams.SrcPort = DTLSParam_p->sport;
 		SelectorParams.DstPort = DTLSParam_p->dport;
@@ -3018,9 +3036,15 @@ bool mtk_capwap_dtls_offload(
 		ZEROINIT(SelectorParams);
 		ZEROINIT(DTLTransformParams);
 
-		SelectorParams.flags = PCL_SELECT_IPV4;
-		SelectorParams.DstIp = ((unsigned char *)(&(DTLSParam_p->sip)));
-		SelectorParams.SrcIp = ((unsigned char *)(&(DTLSParam_p->dip)));
+		if (DTLSParam_p->net_type == MTK_DTLS_NET_IPV6) {
+			SelectorParams.flags = PCL_SELECT_IPV6;
+			SelectorParams.SrcIp = ((unsigned char *)(&(DTLSParam_p->dip.ip6.addr)));
+			SelectorParams.DstIp = ((unsigned char *)(&(DTLSParam_p->sip.ip6.addr)));
+		} else {
+			SelectorParams.flags = PCL_SELECT_IPV4;
+			SelectorParams.SrcIp = ((unsigned char *)(&(DTLSParam_p->dip.ip4.addr32)));
+			SelectorParams.DstIp = ((unsigned char *)(&(DTLSParam_p->sip.ip4.addr32)));
+		}
 		SelectorParams.SrcPort = DTLSParam_p->dport;
 		SelectorParams.DstPort = DTLSParam_p->sport;
 		SelectorParams.IpProto = 17; //UDP

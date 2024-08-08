@@ -71,9 +71,31 @@ enum dtls_version {
 	__DTLS_VERSION_MAX = 2,
 };
 
+enum dtls_network_type {
+	MTK_DTLS_NET_NONE = 0,
+	MTK_DTLS_NET_IPV4,
+	MTK_DTLS_NET_IPV6,
+	__MTK_DTLS_NET_MAX,
+};
+
+union ip4_addr {
+	__be32 addr32;
+	u8 addr8[4];
+};
+
+struct ip6_addr {
+	u32 addr[4];
+};
+
+union ip_addr {
+	union ip4_addr ip4;
+	struct ip6_addr ip6;
+};
+
 struct DTLS_param {
-	__be32 dip;
-	__be32 sip;
+	enum dtls_network_type net_type;
+	union ip_addr dip;
+	union ip_addr sip;
 	uint16_t dport;
 	uint16_t sport;
 	uint16_t dtls_epoch;
