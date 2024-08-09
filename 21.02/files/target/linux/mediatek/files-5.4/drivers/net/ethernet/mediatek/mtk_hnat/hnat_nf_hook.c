@@ -403,17 +403,19 @@ unsigned int do_hnat_ext_to_ge(struct sk_buff *skb, const struct net_device *in,
 		skb->vlan_proto = htons(ETH_P_8021Q);
 		skb->vlan_tci =
 			(VLAN_CFI_MASK | (in->ifindex & VLAN_VID_MASK));
-		trace_printk(
-			"%s: vlan_prot=0x%x, vlan_tci=%x, in->name=%s, skb->dev->name=%s\n",
-			__func__, ntohs(skb->vlan_proto), skb->vlan_tci,
-			in->name, hnat_priv->g_ppdev->name);
 		skb->dev = hnat_priv->g_ppdev;
 		dev_queue_xmit(skb);
-		trace_printk("%s: called from %s successfully\n", __func__, func);
+		if (debug_level >= 7) {
+			trace_printk("%s: vlan_prot=0x%x, vlan_tci=%x, in->name=%s, skb->dev->name=%s\n",
+				     __func__, ntohs(skb->vlan_proto), skb->vlan_tci,
+				     in->name, hnat_priv->g_ppdev->name);
+			trace_printk("%s: called from %s successfully\n", __func__, func);
+		}
 		return 0;
 	}
 
-	trace_printk("%s: called from %s fail\n", __func__, func);
+	if (debug_level >= 7)
+		trace_printk("%s: called from %s fail\n", __func__, func);
 	return -1;
 }
 
@@ -423,8 +425,9 @@ unsigned int do_hnat_ext_to_ge2(struct sk_buff *skb, const char *func)
 	struct net_device *dev;
 	struct foe_entry *entry;
 
-	trace_printk("%s: vlan_prot=0x%x, vlan_tci=%x\n", __func__,
-		     ntohs(skb->vlan_proto), skb->vlan_tci);
+	if (debug_level >= 7)
+		trace_printk("%s: vlan_prot=0x%x, vlan_tci=%x\n", __func__,
+			     ntohs(skb->vlan_proto), skb->vlan_tci);
 
 	if (skb_hnat_entry(skb) >= hnat_priv->foe_etry_num ||
 	    skb_hnat_ppe(skb) >= CFG_PPE_NUM)
@@ -456,8 +459,9 @@ unsigned int do_hnat_ext_to_ge2(struct sk_buff *skb, const char *func)
 		set_from_extge(skb);
 		fix_skb_packet_type(skb, skb->dev, eth);
 		netif_rx(skb);
-		trace_printk("%s: called from %s successfully\n", __func__,
-			     func);
+		if (debug_level >= 7)
+			trace_printk("%s: called from %s successfully\n", __func__,
+				     func);
 		return 0;
 	} else {
 		/* MapE WAN --> LAN/WLAN PingPong. */
@@ -476,7 +480,8 @@ unsigned int do_hnat_ext_to_ge2(struct sk_buff *skb, const char *func)
 				return 0;
 			}
 		}
-		trace_printk("%s: called from %s fail\n", __func__, func);
+		if (debug_level >= 7)
+			trace_printk("%s: called from %s fail\n", __func__, func);
 		return -1;
 	}
 }
@@ -501,8 +506,9 @@ unsigned int do_hnat_ge_to_ext(struct sk_buff *skb, const char *func)
 
 	dev = get_dev_from_index(index);
 	if (!dev) {
-		trace_printk("%s: called from %s. Get wifi interface fail\n",
-			     __func__, func);
+		if (debug_level >= 7)
+			trace_printk("%s: called from %s. Get wifi interface fail\n",
+				     __func__, func);
 		return 0;
 	}
 
@@ -526,8 +532,9 @@ unsigned int do_hnat_ge_to_ext(struct sk_buff *skb, const char *func)
 		skb_set_network_header(skb, 0);
 		skb_push(skb, ETH_HLEN);
 		dev_queue_xmit(skb);
-		trace_printk("%s: called from %s successfully\n", __func__,
-			     func);
+		if (debug_level >= 7)
+			trace_printk("%s: called from %s successfully\n", __func__,
+				     func);
 		return 0;
 	} else {
 		if (mape_toggle) {
@@ -542,8 +549,9 @@ unsigned int do_hnat_ge_to_ext(struct sk_buff *skb, const char *func)
 					dev_queue_xmit(skb);
 					return 0;
 				}
-				trace_printk("%s: called from %s fail[MapE]\n", __func__,
-					     func);
+				if (debug_level >= 7)
+					trace_printk("%s: called from %s fail[MapE]\n", __func__,
+						     func);
 				return -1;
 			}
 		}
@@ -559,31 +567,34 @@ unsigned int do_hnat_ge_to_ext(struct sk_buff *skb, const char *func)
 		/* clear HWNAT cache */
 		hnat_cache_ebl(1);
 	}
-	trace_printk("%s: called from %s fail, index=%x\n", __func__,
-		     func, index);
+	if (debug_level >= 7)
+		trace_printk("%s: called from %s fail, index=%x\n", __func__,
+			     func, index);
 	return -1;
 }
 
 static void pre_routing_print(struct sk_buff *skb, const struct net_device *in,
 			      const struct net_device *out, const char *func)
 {
-	trace_printk(
-		"[%s]: %s(iif=0x%x CB2=0x%x)-->%s (ppe_hash=0x%x) sport=0x%x reason=0x%x alg=0x%x from %s\n",
-		__func__, in->name, skb_hnat_iface(skb),
-		HNAT_SKB_CB2(skb)->magic, out->name, skb_hnat_entry(skb),
-		skb_hnat_sport(skb), skb_hnat_reason(skb), skb_hnat_alg(skb),
-		func);
+	if (debug_level >= 7)
+		trace_printk(
+			"[%s]: %s(iif=0x%x CB2=0x%x)-->%s (ppe_hash=0x%x) sport=0x%x reason=0x%x alg=0x%x from %s\n",
+			__func__, in->name, skb_hnat_iface(skb),
+			HNAT_SKB_CB2(skb)->magic, out->name, skb_hnat_entry(skb),
+			skb_hnat_sport(skb), skb_hnat_reason(skb), skb_hnat_alg(skb),
+			func);
 }
 
 static void post_routing_print(struct sk_buff *skb, const struct net_device *in,
 			       const struct net_device *out, const char *func)
 {
-	trace_printk(
-		"[%s]: %s(iif=0x%x, CB2=0x%x)-->%s (ppe_hash=0x%x) sport=0x%x reason=0x%x alg=0x%x from %s\n",
-		__func__, in->name, skb_hnat_iface(skb),
-		HNAT_SKB_CB2(skb)->magic, out->name, skb_hnat_entry(skb),
-		skb_hnat_sport(skb), skb_hnat_reason(skb), skb_hnat_alg(skb),
-		func);
+	if (debug_level >= 7)
+		trace_printk(
+			"[%s]: %s(iif=0x%x, CB2=0x%x)-->%s (ppe_hash=0x%x) sport=0x%x reason=0x%x alg=0x%x from %s\n",
+			__func__, in->name, skb_hnat_iface(skb),
+			HNAT_SKB_CB2(skb)->magic, out->name, skb_hnat_entry(skb),
+			skb_hnat_sport(skb), skb_hnat_reason(skb), skb_hnat_alg(skb),
+			func);
 }
 
 static inline void hnat_set_iif(const struct nf_hook_state *state,
@@ -827,14 +838,14 @@ mtk_hnat_ipv6_nf_pre_routing(void *priv, struct sk_buff *skb,
 
 	return NF_ACCEPT;
 drop:
-	if (skb)
+	if (skb && (debug_level >= 7))
 		printk_ratelimited(KERN_WARNING
-			"%s:drop (in_dev=%s, iif=0x%x, CB2=0x%x, ppe_hash=0x%x,\n"
-			"sport=0x%x, reason=0x%x, alg=0x%x)\n",
-			__func__, state->in->name, skb_hnat_iface(skb),
-			HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
-			skb_hnat_sport(skb), skb_hnat_reason(skb),
-			skb_hnat_alg(skb));
+				   "%s:drop (in_dev=%s, iif=0x%x, CB2=0x%x, ppe_hash=0x%x,\n"
+				   "sport=0x%x, reason=0x%x, alg=0x%x)\n",
+				   __func__, state->in->name, skb_hnat_iface(skb),
+				   HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
+				   skb_hnat_sport(skb), skb_hnat_reason(skb),
+				   skb_hnat_alg(skb));
 
 	return NF_DROP;
 }
@@ -896,14 +907,14 @@ mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 
 	return NF_ACCEPT;
 drop:
-	if (skb)
+	if (skb && (debug_level >= 7))
 		printk_ratelimited(KERN_WARNING
-			"%s:drop (in_dev=%s, iif=0x%x, CB2=0x%x, ppe_hash=0x%x,\n"
-			"sport=0x%x, reason=0x%x, alg=0x%x)\n",
-			__func__, state->in->name, skb_hnat_iface(skb),
-			HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
-			skb_hnat_sport(skb), skb_hnat_reason(skb),
-			skb_hnat_alg(skb));
+				   "%s:drop (in_dev=%s, iif=0x%x, CB2=0x%x, ppe_hash=0x%x,\n"
+				   "sport=0x%x, reason=0x%x, alg=0x%x)\n",
+				   __func__, state->in->name, skb_hnat_iface(skb),
+				   HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
+				   skb_hnat_sport(skb), skb_hnat_reason(skb),
+				   skb_hnat_alg(skb));
 
 	return NF_DROP;
 }
@@ -986,14 +997,14 @@ mtk_hnat_br_nf_local_in(void *priv, struct sk_buff *skb,
 #endif
 	return NF_ACCEPT;
 drop:
-	if (skb)
+	if (skb && (debug_level >= 7))
 		printk_ratelimited(KERN_WARNING
-			"%s:drop (in_dev=%s, iif=0x%x, CB2=0x%x, ppe_hash=0x%x,\n"
-			"sport=0x%x, reason=0x%x, alg=0x%x)\n",
-			__func__, state->in->name, skb_hnat_iface(skb),
-			HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
-			skb_hnat_sport(skb), skb_hnat_reason(skb),
-			skb_hnat_alg(skb));
+				   "%s:drop (in_dev=%s, iif=0x%x, CB2=0x%x, ppe_hash=0x%x,\n"
+				   "sport=0x%x, reason=0x%x, alg=0x%x)\n",
+				   __func__, state->in->name, skb_hnat_iface(skb),
+				   HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
+				   skb_hnat_sport(skb), skb_hnat_reason(skb),
+				   skb_hnat_alg(skb));
 
 	return NF_DROP;
 }
@@ -1436,10 +1447,11 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		default:
 			return -1;
 		}
-		trace_printk(
-			"[%s]skb->head=%p, skb->data=%p,ip_hdr=%p, skb->len=%d, skb->data_len=%d\n",
-			__func__, skb->head, skb->data, iph, skb->len,
-			skb->data_len);
+		if (debug_level >= 7)
+			trace_printk(
+				"[%s]skb->head=%p, skb->data=%p,ip_hdr=%p, skb->len=%d, skb->data_len=%d\n",
+				__func__, skb->head, skb->data, iph, skb->len,
+				skb->data_len);
 		break;
 
 	case ETH_P_IPV6:
@@ -1684,11 +1696,11 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		default:
 			return -1;
 		}
-
-		trace_printk(
-			"[%s]skb->head=%p, skb->data=%p,ipv6_hdr=%p, skb->len=%d, skb->data_len=%d\n",
-			__func__, skb->head, skb->data, ip6h, skb->len,
-			skb->data_len);
+		if (debug_level >= 7)
+			trace_printk(
+				"[%s]skb->head=%p, skb->data=%p,ipv6_hdr=%p, skb->len=%d, skb->data_len=%d\n",
+				__func__, skb->head, skb->data, ip6h, skb->len,
+				skb->data_len);
 		break;
 
 	default:
@@ -1733,8 +1745,9 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv4_hnapt.vlan1 = 2;
 		}
 
-		trace_printk("learn of lan or wan(iif=%x) --> %s(ext)\n",
-			     skb_hnat_iface(skb), dev->name);
+		if (debug_level >= 7)
+			trace_printk("learn of lan or wan(iif=%x) --> %s(ext)\n",
+				     skb_hnat_iface(skb), dev->name);
 		/* To CPU then stolen by pre-routing hant hook of LAN/WAN
 		 * Current setting is PDMA RX.
 		 */
@@ -1750,7 +1763,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		gmac = -EINVAL;
 	}
 
-	if (gmac < 0) {
+	if ((gmac < 0) && (debug_level >= 7)) {
 		printk_ratelimited(KERN_WARNING
 				   "Unknown case of dp, iif=%x --> %s\n",
 				   skb_hnat_iface(skb), dev->name);
@@ -1989,11 +2002,12 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	    !is_magic_tag_valid(skb) || !IS_SPACE_AVAILABLE_HEAD(skb))
 		goto check_release_entry_lock;
 
-	trace_printk(
-		"[%s]entry=%x reason=%x gmac_no=%x wdmaid=%x rxid=%x wcid=%x bssid=%x\n",
-		__func__, skb_hnat_entry(skb), skb_hnat_reason(skb), gmac_no,
-		skb_hnat_wdma_id(skb), skb_hnat_bss_id(skb),
-		skb_hnat_wc_id(skb), skb_hnat_rx_id(skb));
+	if (debug_level >= 7)
+		trace_printk(
+			"[%s]entry=%x reason=%x gmac_no=%x wdmaid=%x rxid=%x wcid=%x bssid=%x\n",
+			__func__, skb_hnat_entry(skb), skb_hnat_reason(skb), gmac_no,
+			skb_hnat_wdma_id(skb), skb_hnat_bss_id(skb),
+			skb_hnat_wc_id(skb), skb_hnat_rx_id(skb));
 
 	if ((gmac_no != NR_WDMA0_PORT) && (gmac_no != NR_WDMA1_PORT) &&
 	    (gmac_no != NR_WDMA2_PORT) && (gmac_no != NR_WHNAT_WDMA_PORT))
@@ -2791,8 +2805,9 @@ static unsigned int mtk_hnat_nf_post_routing(
 	if (!IS_LAN_GRP(out) && !IS_WAN(out) && !IS_EXT(out))
 		return 0;
 
-	trace_printk("[%s] case hit, %x-->%s, reason=%x\n", __func__,
-		     skb_hnat_iface(skb), out->name, skb_hnat_reason(skb));
+	if (debug_level >= 7)
+		trace_printk("[%s] case hit, %x-->%s, reason=%x\n", __func__,
+			     skb_hnat_iface(skb), out->name, skb_hnat_reason(skb));
 
 	if (skb_hnat_entry(skb) >= hnat_priv->foe_etry_num ||
 	    skb_hnat_ppe(skb) >= CFG_PPE_NUM)
@@ -2936,14 +2951,14 @@ mtk_hnat_ipv6_nf_post_routing(void *priv, struct sk_buff *skb,
 		return NF_ACCEPT;
 
 drop:
-	if (skb)
-		trace_printk(
-			"%s:drop (iif=0x%x, out_dev=%s, CB2=0x%x, ppe_hash=0x%x,\n"
-			"sport=0x%x, reason=0x%x, alg=0x%x)\n",
-			__func__, skb_hnat_iface(skb), state->out->name,
-			HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
-			skb_hnat_sport(skb), skb_hnat_reason(skb),
-			skb_hnat_alg(skb));
+	if (skb && (debug_level >= 7))
+		printk_ratelimited(KERN_WARNING
+				   "%s:drop (iif=0x%x, out_dev=%s, CB2=0x%x, ppe_hash=0x%x,\n"
+				   "sport=0x%x, reason=0x%x, alg=0x%x)\n",
+				   __func__, skb_hnat_iface(skb), state->out->name,
+				   HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
+				   skb_hnat_sport(skb), skb_hnat_reason(skb),
+				   skb_hnat_alg(skb));
 
 	return NF_DROP;
 }
@@ -2962,14 +2977,14 @@ mtk_hnat_ipv4_nf_post_routing(void *priv, struct sk_buff *skb,
 		return NF_ACCEPT;
 
 drop:
-	if (skb)
-		trace_printk(
-			"%s:drop (iif=0x%x, out_dev=%s, CB2=0x%x, ppe_hash=0x%x,\n"
-			"sport=0x%x, reason=0x%x, alg=0x%x)\n",
-			__func__, skb_hnat_iface(skb), state->out->name,
-			HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
-			skb_hnat_sport(skb), skb_hnat_reason(skb),
-			skb_hnat_alg(skb));
+	if (skb && (debug_level >= 7))
+		printk_ratelimited(KERN_WARNING
+				   "%s:drop (iif=0x%x, out_dev=%s, CB2=0x%x, ppe_hash=0x%x,\n"
+				   "sport=0x%x, reason=0x%x, alg=0x%x)\n",
+				   __func__, skb_hnat_iface(skb), state->out->name,
+				   HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
+				   skb_hnat_sport(skb), skb_hnat_reason(skb),
+				   skb_hnat_alg(skb));
 
 	return NF_DROP;
 }
@@ -3014,14 +3029,14 @@ mtk_pong_hqos_handler(void *priv, struct sk_buff *skb,
 	return NF_ACCEPT;
 
 drop:
-	if (skb)
+	if (skb && (debug_level >= 7))
 		printk_ratelimited(KERN_WARNING
-			"%s:drop (in_dev=%s, iif=0x%x, CB2=0x%x, ppe_hash=0x%x,\n"
-			"sport=0x%x, reason=0x%x, alg=0x%x)\n",
-			__func__, state->in->name, skb_hnat_iface(skb),
-			HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
-			skb_hnat_sport(skb), skb_hnat_reason(skb),
-			skb_hnat_alg(skb));
+				   "%s:drop (in_dev=%s, iif=0x%x, CB2=0x%x, ppe_hash=0x%x,\n"
+				   "sport=0x%x, reason=0x%x, alg=0x%x)\n",
+				   __func__, state->in->name, skb_hnat_iface(skb),
+				   HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
+				   skb_hnat_sport(skb), skb_hnat_reason(skb),
+				   skb_hnat_alg(skb));
 
 	return NF_DROP;
 }
@@ -3042,14 +3057,14 @@ mtk_hnat_br_nf_local_out(void *priv, struct sk_buff *skb,
 		return NF_ACCEPT;
 
 drop:
-	if (skb)
-		trace_printk(
-			"%s:drop (iif=0x%x, out_dev=%s, CB2=0x%x, ppe_hash=0x%x,\n"
-			"sport=0x%x, reason=0x%x, alg=0x%x)\n",
-			__func__, skb_hnat_iface(skb), state->out->name,
-			HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
-			skb_hnat_sport(skb), skb_hnat_reason(skb),
-			skb_hnat_alg(skb));
+	if (skb && (debug_level >= 7))
+		printk_ratelimited(KERN_WARNING
+				   "%s:drop (iif=0x%x, out_dev=%s, CB2=0x%x, ppe_hash=0x%x,\n"
+				   "sport=0x%x, reason=0x%x, alg=0x%x)\n",
+				   __func__, skb_hnat_iface(skb), state->out->name,
+				   HNAT_SKB_CB2(skb)->magic, skb_hnat_entry(skb),
+				   skb_hnat_sport(skb), skb_hnat_reason(skb),
+				   skb_hnat_alg(skb));
 
 	return NF_DROP;
 }

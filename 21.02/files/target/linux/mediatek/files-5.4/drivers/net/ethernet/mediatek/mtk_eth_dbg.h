@@ -420,6 +420,7 @@ extern u32 _mtk_mdio_write(struct mtk_eth *eth, int phy_addr,
 		    int phy_reg, u16 write_data);
 
 extern atomic_t force;
+extern int eth_debug_level;
 
 int debug_proc_init(struct mtk_eth *eth);
 void debug_proc_exit(void);

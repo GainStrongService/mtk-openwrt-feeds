@@ -1918,8 +1918,9 @@ static void mtk_tx_set_dma_desc_v1(struct sk_buff *skb, struct net_device *dev, 
 		data |= 0x4 << TX_DMA_FPORT_SHIFT;
 	}
 
-	trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
-		     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
+	if (eth_debug_level >= 7)
+		trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
+			     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
 #endif
 	WRITE_ONCE(desc->txd4, data);
 }
@@ -1948,8 +1949,9 @@ static void mtk_tx_set_dma_desc_v2(struct sk_buff *skb, struct net_device *dev, 
 		data |= 0x4 << TX_DMA_FPORT_SHIFT_V2;
 	}
 
-	trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
-		     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
+	if (eth_debug_level >= 7)
+		trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
+			     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
 #endif
 	WRITE_ONCE(desc->txd4, data);
 
@@ -2000,8 +2002,10 @@ static void mtk_tx_set_dma_desc_v3(struct sk_buff *skb, struct net_device *dev, 
 		data |= 0x4 << TX_DMA_FPORT_SHIFT_V2;
 	}
 
-	trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
-		     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
+	if (eth_debug_level >= 7)
+		trace_printk("[%s] skb_shinfo(skb)->nr_frags=%x HNAT_SKB_CB2(skb)->magic=%x txd4=%x<-----\n",
+			     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
+
 #endif
 	WRITE_ONCE(desc->txd4, data);
 
@@ -2530,14 +2534,16 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
 
 		if (skb_hnat_reason(skb) == HIT_BIND_FORCE_TO_CPU) {
-			trace_printk("[%s] reason=0x%x(force to CPU) from WAN to Ext\n",
-				     __func__, skb_hnat_reason(skb));
+			if (eth_debug_level >= 7)
+				trace_printk("[%s] reason=0x%x(force to CPU) from WAN to Ext\n",
+					     __func__, skb_hnat_reason(skb));
 			skb->pkt_type = PACKET_HOST;
 		}
 
-		trace_printk("[%s] rxd:(entry=%x,sport=%x,reason=%x,alg=%x\n",
-			     __func__, skb_hnat_entry(skb), skb_hnat_sport(skb),
-			     skb_hnat_reason(skb), skb_hnat_alg(skb));
+		if (eth_debug_level >= 7)
+			trace_printk("[%s] rxd:(entry=%x,sport=%x,reason=%x,alg=%x\n",
+				     __func__, skb_hnat_entry(skb), skb_hnat_sport(skb),
+				     skb_hnat_reason(skb), skb_hnat_alg(skb));
 #endif
 		if (mtk_hwlro_stats_ebl &&
 		    IS_HW_LRO_RING(ring->ring_no) && eth->hwlro) {

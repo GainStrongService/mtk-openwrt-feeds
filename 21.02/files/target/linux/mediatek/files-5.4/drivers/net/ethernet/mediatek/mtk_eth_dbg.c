@@ -42,6 +42,7 @@ u32 hw_lro_norule_flush_cnt[MTK_HW_LRO_RING_NUM];
 u32 mtk_hwlro_stats_ebl;
 u32 dbg_show_level;
 u32 cur_rss_num;
+int eth_debug_level;
 
 static struct proc_dir_entry *proc_hw_lro_stats, *proc_hw_lro_auto_tlb,
 			     *proc_rss_ctrl;
@@ -477,6 +478,49 @@ static ssize_t pppq_toggle_write(struct file *file, const char __user *ptr,
 	return len;
 }
 
+static int eth_debug_level_read(struct seq_file *m, void *private)
+{
+	pr_info("eth debug level=%d!\n", eth_debug_level);
+
+	return 0;
+}
+
+static int eth_debug_level_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, eth_debug_level_read, inode->i_private);
+}
+
+static ssize_t eth_debug_level_write(struct file *file, const char __user *ptr,
+				 size_t len, loff_t *off)
+{
+	char *p_delimiter = " \t";
+	char *p_token = NULL;
+	char buf[8] = {0};
+	long arg0 = 0;
+	char *p_buf;
+	int ret;
+
+	if ((len > 8) || copy_from_user(buf, ptr, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	p_buf = buf;
+	p_token = strsep(&p_buf, p_delimiter);
+	if (!p_token)
+		arg0 = 0;
+	else
+		ret = kstrtol(p_token, 10, &arg0);
+
+	if (ret)
+		arg0 = 0;
+
+	eth_debug_level = arg0;
+	pr_info("Set eth debug level=%d!\n", eth_debug_level);
+
+	return len;
+}
+
 int pse_info_usage(struct seq_file *m, void *private)
 {
 	pr_info("====================Advanced Settings====================\n");
@@ -699,6 +743,15 @@ static const struct file_operations fops_mt7530sw_reg_w = {
 	.llseek = noop_llseek,
 };
 
+static const struct file_operations fops_eth_debug = {
+	.owner = THIS_MODULE,
+	.open = eth_debug_level_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = eth_debug_level_write,
+	.release = single_release,
+};
+
 void mtketh_debugfs_exit(struct mtk_eth *eth)
 {
 	debugfs_remove_recursive(eth_debug.root);
@@ -724,6 +777,8 @@ int mtketh_debugfs_init(struct mtk_eth *eth)
 			    eth_debug.root, eth,  &fops_reg_w);
 	debugfs_create_file("reset", S_IFREG | S_IWUSR,
 			    eth_debug.root, eth,  &fops_eth_reset);
+	debugfs_create_file("eth_debug_level", 0444,
+			    eth_debug.root, eth, &fops_eth_debug);
 	if (mt7530_exist(eth)) {
 		debugfs_create_file("mt7530sw_regs", S_IRUGO,
 				    eth_debug.root, eth,
