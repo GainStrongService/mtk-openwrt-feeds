@@ -1,0 +1,69 @@
+From 64c183e68e56d4c992521c29acaeef8d6a4f68da Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Wed, 3 Jul 2024 15:39:53 +0800
+Subject: [PATCH 129/137] mtk: hostapd: add attlm_settings data structure
+
+Add a data structure for AP MLD's Advertised Tid-to-Link Mapping (A-TTLM).
+Since it is MLD-level, this commit also adds it into struct hostapd_mld.
+
+There should be 'curr_attlm' and 'new_attlm', which means 2 TTLMs can be
+advertised at the same time ('curr_attlm' is used currently while
+'new_attlm' is about to be used)
+However, since the FW only support 1 attlm now, there is currently only
+'new_attlm'.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/hostapd.h     |  1 +
+ src/drivers/driver.h | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
+index c6c286304..9cf58b05c 100644
+--- a/src/ap/hostapd.h
++++ b/src/ap/hostapd.h
+@@ -553,6 +553,7 @@ struct hostapd_mld {
+ 	u16 active_links;
+ 	u16 removed_links;
+ 
++	struct attlm_settings new_attlm;
+ 	struct hostapd_data *fbss;
+ 	struct dl_list links; /* List head of all affiliated links */
+ 
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index eb2a48381..eba2b8441 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -2805,6 +2805,29 @@ struct cca_settings {
+ 	int link_id;
+ };
+ 
++#ifdef CONFIG_IEEE80211BE
++/**
++ * struct attlm_settings - Setting for Advertised Tid-to-Link Mapping
++ * @valid: whether this A-TTLM is still valid
++ * @direction: direction of this A-TTLM
++ * @disabled_links: disabled link ID bitmap
++ * @switch_time: duration in ms to establish the A-TTLM
++ * @switch_time_tsf_tu: time in TUs that the A-TTLM is established. It should be
++ * the bits 10 to 25 of the TSF
++ * @duration_tu: duration in ms that the A-TTLM lasts
++ * @start_time: the relative time that this A-TTLM is entablished
++ */
++struct attlm_settings {
++	bool valid;
++	u8 direction;
++	u16 disabled_links;
++	u16 switch_time;
++	u16 switch_time_tsf_tu;
++	u32 duration;
++	struct os_reltime start_time;
++};
++#endif /* CONFIG_IEEE80211BE */
++
+ /* TDLS peer capabilities for send_tdls_mgmt() */
+ enum tdls_peer_capability {
+ 	TDLS_PEER_HT = BIT(0),
+-- 
+2.18.0
+

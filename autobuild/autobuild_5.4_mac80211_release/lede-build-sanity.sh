@@ -203,7 +203,6 @@ prepare_mac80211() {
 		echo "========================Hostapd NEW==================="
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/hostapd ${BUILD_DIR}/package/network/services
 		rm -rf  ${MAC80211_AUTOBUILD_RELEASE}/package/network/services/hostapd
-		cp -fpR ${MAC80211_AUTOBUILD_RELEASE}/package/network/services/hostapd_new ${MAC80211_AUTOBUILD_RELEASE}/package/network/services/hostapd
 		do_patch ${MAC80211_AUTOBUILD_RELEASE}/openwrt_patches${OPENWRT_VER}/hostapd || exit 1
 	else
 		echo "========================Hostapd OLD==================="
@@ -262,7 +261,6 @@ prepare_mac80211() {
 		echo "=========================MAC80211 v6.1==================="
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/package/kernel
 		rm -rf  ${MAC80211_AUTOBUILD_RELEASE}/package/kernel/mac80211
-		cp -fpR ${MAC80211_AUTOBUILD_RELEASE}/package/kernel/mac80211_dev ${MAC80211_AUTOBUILD_RELEASE}/package/kernel/mac80211
 	else
 		echo "=========================MAC80211 v5.15=================="
 		tar xvf ${MAC80211_AUTOBUILD_RELEASE}/package/kernel/mac80211/mac80211_v5.15.81_077622a1.tar.gz -C ${BUILD_DIR}/package/kernel/
@@ -355,11 +353,6 @@ prepare_mac80211() {
 
 	# Relayd change trigger reload to trigger restart
 	patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0007-relayd-change-trigger-reload-to-trigger-restart.patch || exit 1
-}
-
-prepare_opensync() {
-	for pch in autobuild/$1/patch_for_local/*; do patch -p1 < $pch; done
-	cp -rfa ${BUILD_DIR}/../app/opensync/* ${BUILD_DIR}/../
 }
 
 copy_main_Config() {
@@ -540,9 +533,6 @@ build_log() {
 	echo "build $1"
 
 	cd ${BUILD_DIR}
-
-	echo ln -s ../dl dl
-	ln -s ../dl dl
 
 	#make
 

@@ -1,0 +1,48 @@
+From 401220b6db7e298f4d733bd0bc29f9dc1f7e529a Mon Sep 17 00:00:00 2001
+From: Aditya Kumar Singh <quic_adisi@quicinc.com>
+Date: Thu, 11 Jul 2024 09:21:42 +0530
+Subject: [PATCH 11/97] bp: wifi: trace: unlink rdev_end_cac trace event from
+ wiphy_netdev_evt class
+
+rdev_end_cac trace event is linked with wiphy_netdev_evt event class.
+There is no option to pass link ID currently to wiphy_netdev_evt class.
+A subsequent change would pass link ID to rdev_end_cac event and hence
+it can no longer derive the event class from wiphy_netdev_evt.
+
+Therefore, unlink rdev_end_cac event from wiphy_netdev_evt and define it's
+own independent trace event. Link ID would be passed in subsequent change.
+
+Signed-off-by: Aditya Kumar Singh <quic_adisi@quicinc.com>
+---
+ net/wireless/trace.h | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/net/wireless/trace.h b/net/wireless/trace.h
+index 6f2e9a5..881c01d 100644
+--- a/net/wireless/trace.h
++++ b/net/wireless/trace.h
+@@ -805,9 +805,18 @@ DEFINE_EVENT(wiphy_netdev_evt, rdev_flush_pmksa,
+ 	TP_ARGS(wiphy, netdev)
+ );
+ 
+-DEFINE_EVENT(wiphy_netdev_evt, rdev_end_cac,
+-	     TP_PROTO(struct wiphy *wiphy, struct net_device *netdev),
+-	     TP_ARGS(wiphy, netdev)
++TRACE_EVENT(rdev_end_cac,
++	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev),
++	TP_ARGS(wiphy, netdev),
++	TP_STRUCT__entry(
++		WIPHY_ENTRY
++		NETDEV_ENTRY
++	),
++	TP_fast_assign(
++		WIPHY_ASSIGN;
++		NETDEV_ASSIGN;
++	),
++	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT, WIPHY_PR_ARG, NETDEV_PR_ARG)
+ );
+ 
+ DECLARE_EVENT_CLASS(station_add_change,
+-- 
+2.18.0
+

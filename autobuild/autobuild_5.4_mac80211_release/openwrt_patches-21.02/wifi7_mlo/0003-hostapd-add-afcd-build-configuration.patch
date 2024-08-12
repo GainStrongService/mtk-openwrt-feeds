@@ -1,5 +1,5 @@
 diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index 3c5d03a3..8511fa2a 100644
+index bcd10f6..9d70abd 100644
 --- a/package/network/services/hostapd/Makefile
 +++ b/package/network/services/hostapd/Makefile
 @@ -40,14 +40,16 @@ HOSTAPD_PROVIDERS:=
@@ -34,9 +34,9 @@ index 3c5d03a3..8511fa2a 100644
  	CONFIG_IEEE80211AX=$(HOSTAPD_IEEE80211AX) \
  	CONFIG_IEEE80211BE=$(HOSTAPD_IEEE80211BE) \
  	CONFIG_MBO=$(CONFIG_WPA_MBO_SUPPORT) \
--	CONFIG_UCODE=y
-+	CONFIG_UCODE=y \
-+	CONFIG_AFC=y
+-	CONFIG_UCODE=y CONFIG_APUP=y
++	CONFIG_UCODE=y CONFIG_APUP=y CONFIG_AFC=y
++
  
  ifeq ($(SSL_VARIANT),openssl)
    DRIVER_MAKEOPTS += CONFIG_TLS=openssl CONFIG_SAE=y
@@ -127,3 +127,4 @@ index 3c5d03a3..8511fa2a 100644
  $(eval $(call BuildPackage,eapol-test-wolfssl))
  $(eval $(call BuildPackage,eapol-test-mbedtls))
 +$(eval $(call BuildPackage,afcd))
+

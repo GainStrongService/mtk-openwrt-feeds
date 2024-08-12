@@ -1,0 +1,42 @@
+From 9ecd131418ff72b92a338f3264dfed3450be2bf3 Mon Sep 17 00:00:00 2001
+From: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
+Date: Thu, 30 May 2024 21:46:50 +0800
+Subject: [PATCH 74/97] mtk: mac80211: Fix the padding delay and transition
+ delay issue
+
+Specify the time for eml_capa in advance to avoid the driver setting
+padding delay and transition delay without having obtained the correct
+values.
+
+Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
+---
+ net/mac80211/cfg.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index 47fea33..2508b87 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -2044,6 +2044,9 @@ static int sta_apply_parameters(struct ieee80211_local *local,
+ 	if (ret)
+ 		return ret;
+ 
++	if (params->eml_capa)
++		sta->sta.eml_capa = params->eml_capa;
++
+ 	if (params->support_p2p_ps >= 0)
+ 		sta->sta.support_p2p_ps = params->support_p2p_ps;
+ 
+@@ -2065,9 +2068,6 @@ static int sta_apply_parameters(struct ieee80211_local *local,
+ 	if (params->link_sta_params.mld_mac)
+ 		sta->sta.mlo = true;
+ 
+-	if (params->eml_capa)
+-		sta->sta.eml_capa = params->eml_capa;
+-
+ 	return 0;
+ }
+ 
+-- 
+2.18.0
+

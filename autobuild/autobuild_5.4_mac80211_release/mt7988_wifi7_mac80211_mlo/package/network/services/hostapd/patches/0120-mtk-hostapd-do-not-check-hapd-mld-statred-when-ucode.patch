@@ -1,0 +1,48 @@
+From 2e561b41f9dcd5fd0d09c1dcc51096905732cff0 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Thu, 27 Jun 2024 11:14:23 +0800
+Subject: [PATCH 120/137] mtk: hostapd: do not check hapd->mld->statred when
+ ucode setup
+
+Only after hostapd sets beacon for all links that hapd->mld->started is
+set to true. However, if the interface is about to do CAC,
+hapd->mld->started will be false until the CAC is done.
+
+For ucode, it only have to ckeck whether all link is added. Instead of
+checking hapd->mld->started, this commits check the link one by one, and
+return false if there are links unadded.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/ucode.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/ap/ucode.c b/src/ap/ucode.c
+index 2cb5932dc..a69caa6cf 100644
+--- a/src/ap/ucode.c
++++ b/src/ap/ucode.c
+@@ -777,9 +777,18 @@ uc_hostapd_iface_is_mld_finished(uc_vm_t *vm, size_t nargs)
+ 	int i;
+ 
+ 	for (i = 0; i < iface->num_bss; i++) {
+-		if (iface->bss[i]->conf->mld_ap && !iface->bss[i]->mld->started) {
+-			finished = false;
+-			break;
++		if (iface->bss[i]->conf->mld_ap) {
++			struct hostapd_data *p_hapd;
++			u16 valid_links = 0;
++
++			for_each_mld_link(p_hapd, iface->bss[i])
++				valid_links |= BIT(p_hapd->mld_link_id);
++
++			if (iface->bss[i]->conf->mld_allowed_links > 0 &&
++			    valid_links != iface->bss[i]->conf->mld_allowed_links) {
++				finished = false;
++				break;
++			}
+ 		}
+ 	}
+ 
+-- 
+2.18.0
+

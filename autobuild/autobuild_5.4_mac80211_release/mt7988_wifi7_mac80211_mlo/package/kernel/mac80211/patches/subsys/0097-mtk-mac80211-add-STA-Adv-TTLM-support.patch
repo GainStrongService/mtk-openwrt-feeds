@@ -1,0 +1,86 @@
+From d41a6316e01bc2ecf89b663ce286f63254f0e423 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Fri, 2 Aug 2024 18:24:24 +0800
+Subject: [PATCH 97/97] mtk: mac80211: add STA Adv-TTLM support
+
+This change includes:
+1. do not call ieee80211_set_active_link(), which will remove
+   disabled/dormant links. Removing the disabled/dormant links is not
+   the purpose of TTLM.
+2. use the flag BSS_CHANGED_MLD_ADV_TTLM properly.
+3. set adv_ttlm_info to active _before_ calling ieee80211_ttlm_set_links
+   so that driver knows the adv-TTLM is active or not when handle the
+   vif_cfg_vhanged callback.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ net/mac80211/mlme.c | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
+index 08ce4b9..b235a43 100644
+--- a/net/mac80211/mlme.c
++++ b/net/mac80211/mlme.c
+@@ -6391,6 +6391,9 @@ static int ieee80211_ttlm_set_links(struct ieee80211_sub_if_data *sdata,
+ 		 * so notify the driver about the status change
+ 		 */
+ 		changed |= BSS_CHANGED_MLD_VALID_LINKS;
++		/* FIXME calling ieee80211_set_active_links leads to inactive
++		 * links being deleted, which should not be the purpose of
++		 * "disabling links"
+ 		active_links &= sdata->vif.active_links;
+ 		if (!active_links)
+ 			active_links =
+@@ -6401,6 +6404,7 @@ static int ieee80211_ttlm_set_links(struct ieee80211_sub_if_data *sdata,
+ 			sdata_info(sdata, "Failed to set TTLM active links\n");
+ 			goto out;
+ 		}
++		*/
+ 	}
+ 
+ 	ret = ieee80211_vif_set_links(sdata, sdata->vif.valid_links,
+@@ -6414,6 +6418,9 @@ static int ieee80211_ttlm_set_links(struct ieee80211_sub_if_data *sdata,
+ 	if (sdata->vif.suspended_links)
+ 		changed |= BSS_CHANGED_MLD_NEG_TTLM;
+ 
++	if (sdata->vif.adv_ttlm.active)
++		changed |= BSS_CHANGED_MLD_ADV_TTLM;
++
+ 	ieee80211_vif_cfg_change_notify(sdata, changed);
+ 
+ out:
+@@ -6435,14 +6442,15 @@ static void ieee80211_tid_to_link_map_work(struct wiphy *wiphy,
+ 			   sdata->vif.valid_links;
+ 	new_dormant_links = ~sdata->vif.adv_ttlm.map &
+ 			    sdata->vif.valid_links;
++	sdata->vif.adv_ttlm.active = true;
++	sdata->vif.adv_ttlm.switch_time = 0;
+ 
+ 	ieee80211_vif_set_links(sdata, sdata->vif.valid_links, 0);
+ 	if (ieee80211_ttlm_set_links(sdata, new_active_links, new_dormant_links,
+-				     0))
++				     0)) {
++		sdata->vif.adv_ttlm.active = false;
+ 		return;
+-
+-	sdata->vif.adv_ttlm.active = true;
+-	sdata->vif.adv_ttlm.switch_time = 0;
++	}
+ }
+ 
+ static u16 ieee80211_get_ttlm(u8 bm_size, u8 *data)
+@@ -6562,8 +6570,10 @@ static void ieee80211_process_adv_ttlm(struct ieee80211_sub_if_data *sdata,
+ 				sdata_info(sdata, "Failed setting valid/dormant links\n");
+ 				return;
+ 			}
++			sdata->vif.adv_ttlm.active = false;
+ 			ieee80211_vif_cfg_change_notify(sdata,
+-							BSS_CHANGED_MLD_VALID_LINKS);
++							BSS_CHANGED_MLD_VALID_LINKS |
++							BSS_CHANGED_MLD_ADV_TTLM);
+ 		}
+ 		memset(&sdata->vif.adv_ttlm, 0,
+ 		       sizeof(sdata->vif.adv_ttlm));
+-- 
+2.18.0
+

@@ -1,0 +1,215 @@
+From 20905e3142010224c81e5e7bea90b3d866647b9b Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Wed, 3 Jul 2024 17:05:01 +0800
+Subject: [PATCH 90/97] mtk: mac80211: forward A-TTLM event notification
+
+There are 3 A-TTLM events from the driver, and mac80211 just forward
+them
+1. A-TTLM started: the switch time in TSF is also sent.
+2. A-TTLM switch time expired
+3. A-TTLM ended
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ include/net/cfg80211.h       |  9 ++++++++
+ include/net/mac80211.h       | 10 ++++++++
+ include/uapi/linux/nl80211.h | 14 ++++++++++++
+ net/mac80211/cfg.c           |  8 +++++++
+ net/wireless/nl80211.c       | 44 ++++++++++++++++++++++++++++++++++++
+ net/wireless/trace.h         | 21 +++++++++++++++++
+ 6 files changed, 106 insertions(+)
+
+diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
+index 835735f..3d54c76 100644
+--- a/include/net/cfg80211.h
++++ b/include/net/cfg80211.h
+@@ -9743,6 +9743,15 @@ int cfg80211_bss_color_notify(struct net_device *dev,
+ 			      enum nl80211_commands cmd, u8 count,
+ 			      u64 color_bitmap, u8 link_id);
+ 
++/**
++ * cfg80211_attlm_notify - notify about Advertised Tid-to-Link Mapping
++ * @wdev: the wireless device to check.
++ * @switch_time_tsf_tu: switch time TSF in unit of TUs that is reported by driver.
++ * @event: A-TTLM event
++ * @gfp: allocation flags
++ */
++void cfg80211_attlm_notify(struct wireless_dev *wdev, u16 switch_time_tsf_tu,
++			   enum nl80211_attlm_event event, gfp_t gfp);
+ /**
+  * cfg80211_obss_color_collision_notify - notify about bss color collision
+  * @dev: network device
+diff --git a/include/net/mac80211.h b/include/net/mac80211.h
+index be6631e..3a3660d 100644
+--- a/include/net/mac80211.h
++++ b/include/net/mac80211.h
+@@ -7730,6 +7730,16 @@ int ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
+ 					 int n_vifs,
+ 					 enum ieee80211_chanctx_switch_mode mode);
+ 
++/**
++ * ieee80211_attlm_notify - notify Advertised Tid-to-Link-Mapping
++ * @vif: interface to be notified
++ * @switch_time_tsf_tu: switch time TSF in unit of TUs that is reported by driver.
++ * @event: A-TTLM event
++ * @gfp: allocation flags
++ */
++void ieee80211_attlm_notify(struct ieee80211_vif *vif, u16 switch_time_tsf_tu,
++			    enum nl80211_attlm_event event, gfp_t gfp);
++
+ /**
+  * ieee80211_links_removed - notify removed links
+  * @vif: interface to be notified
+diff --git a/include/uapi/linux/nl80211.h b/include/uapi/linux/nl80211.h
+index 6a2291d..f1da073 100644
+--- a/include/uapi/linux/nl80211.h
++++ b/include/uapi/linux/nl80211.h
+@@ -1588,6 +1588,9 @@ enum nl80211_commands {
+ 
+ 	/* add new commands above here */
+ 
++	/* MTK internal */
++	NL80211_CMD_ATTLM_EVENT,
++
+ 	/* used to define NL80211_CMD_MAX below */
+ 	__NL80211_CMD_AFTER_LAST,
+ 	NL80211_CMD_MAX = __NL80211_CMD_AFTER_LAST - 1
+@@ -3425,6 +3428,11 @@ enum nl80211_attrs {
+ 	/* MTK internal */
+ 	NL80211_ATTR_CNTDWN_OFFS_STA_PROF,
+ 
++	NL80211_ATTR_MLO_ATTLM_EVENT,
++	NL80211_ATTR_MLO_ATTLM_SWITCH_TIME,
++	NL80211_ATTR_MLO_ATTLM_DURATION,
++	NL80211_ATTR_MLO_ATTLM_SWITCH_TIME_TSF_TU,
++
+ 	__NL80211_ATTR_AFTER_LAST,
+ 	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
+ 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
+@@ -8091,4 +8099,10 @@ enum nl80211_wiphy_radio_freq_range {
+ 	NL80211_WIPHY_RADIO_FREQ_ATTR_MAX = __NL80211_WIPHY_RADIO_FREQ_ATTR_LAST - 1,
+ };
+ 
++enum nl80211_attlm_event {
++	NL80211_ATTLM_STARTED,
++	NL80211_ATTLM_SWITCH_TIME_EXPIRED,
++	NL80211_ATTLM_END,
++};
++
+ #endif /* __LINUX_NL80211_H */
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index e8053b1..6acf014 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -5261,6 +5261,14 @@ ieee80211_skip_cac(struct wireless_dev *wdev, unsigned int link_id)
+ 	}
+ }
+ 
++void ieee80211_attlm_notify(struct ieee80211_vif *vif, u16 switch_time_tsf_tu,
++			   enum nl80211_attlm_event event, gfp_t gfp)
++{
++	cfg80211_attlm_notify(ieee80211_vif_to_wdev(vif), switch_time_tsf_tu,
++			      event, gfp);
++}
++EXPORT_SYMBOL_GPL(ieee80211_attlm_notify);
++
+ void ieee80211_links_removed(struct ieee80211_vif *vif, u16 removed_links)
+ {
+ 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
+index e451977..940580c 100644
+--- a/net/wireless/nl80211.c
++++ b/net/wireless/nl80211.c
+@@ -856,6 +856,9 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
+ 	[NL80211_ATTR_HW_TIMESTAMP_ENABLED] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_EMA_RNR_ELEMS] = { .type = NLA_NESTED },
+ 	[NL80211_ATTR_MLO_LINK_DISABLED] = { .type = NLA_FLAG },
++	[NL80211_ATTR_MLO_ATTLM_SWITCH_TIME] = { .type = NLA_U16 },
++	[NL80211_ATTR_MLO_ATTLM_DURATION] = { .type = NLA_U32 },
++	[NL80211_ATTR_MLO_ATTLM_SWITCH_TIME_TSF_TU] = { .type = NLA_U16 },
+ 	[NL80211_ATTR_BSS_DUMP_INCLUDE_USE_DATA] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_MLO_TTLM_DLINK] = NLA_POLICY_EXACT_LEN(sizeof(u16) * 8),
+ 	[NL80211_ATTR_MLO_TTLM_ULINK] = NLA_POLICY_EXACT_LEN(sizeof(u16) * 8),
+@@ -19951,6 +19954,47 @@ nla_put_failure:
+ }
+ EXPORT_SYMBOL(cfg80211_bss_color_notify);
+ 
++void cfg80211_attlm_notify(struct wireless_dev *wdev, u16 switch_time_tsf_tu,
++			   enum nl80211_attlm_event event, gfp_t gfp)
++{
++	struct wiphy *wiphy = wdev->wiphy;
++	struct net_device *netdev = wdev->netdev;
++	struct sk_buff *msg;
++	void *hdr;
++
++	trace_cfg80211_attlm_notify(wiphy, netdev, event, switch_time_tsf_tu);
++
++	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
++	if (!msg)
++		return;
++
++	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_ATTLM_EVENT);
++	if (!hdr) {
++		nlmsg_free(msg);
++		return;
++	}
++
++	if (nla_put_u32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex))
++		goto nla_put_failure;
++
++	if (nla_put_u32(msg, NL80211_ATTR_MLO_ATTLM_EVENT, event))
++		goto nla_put_failure;
++
++	if (nla_put_u16(msg, NL80211_ATTR_MLO_ATTLM_SWITCH_TIME_TSF_TU,
++			switch_time_tsf_tu))
++		goto nla_put_failure;
++
++	genlmsg_end(msg, hdr);
++
++	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(wiphy), msg, 0,
++				NL80211_MCGRP_MLME, gfp);
++	return;
++
++nla_put_failure:
++	nlmsg_free(msg);
++}
++EXPORT_SYMBOL(cfg80211_attlm_notify);
++
+ void
+ nl80211_radar_notify(struct cfg80211_registered_device *rdev,
+ 		     const struct cfg80211_chan_def *chandef,
+diff --git a/net/wireless/trace.h b/net/wireless/trace.h
+index 90ba38a..29af83e 100644
+--- a/net/wireless/trace.h
++++ b/net/wireless/trace.h
+@@ -4018,6 +4018,27 @@ TRACE_EVENT(cfg80211_bss_color_notify,
+ 		  __entry->color_bitmap)
+ );
+ 
++TRACE_EVENT(cfg80211_attlm_notify,
++	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
++		 enum nl80211_attlm_event event, u16 switch_time_tsf_tu),
++	TP_ARGS(wiphy, netdev, event, switch_time_tsf_tu),
++	TP_STRUCT__entry(
++		WIPHY_ENTRY
++		NETDEV_ENTRY
++		__field(u32, event)
++		__field(u16, switch_time_tsf_tu)
++	),
++	TP_fast_assign(
++		WIPHY_ASSIGN;
++		NETDEV_ASSIGN;
++		__entry->event = event;
++		__entry->switch_time_tsf_tu = switch_time_tsf_tu;
++	),
++	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", event: %x, switch_time_tsf_tu: %u",
++		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->event,
++		  __entry->switch_time_tsf_tu)
++);
++
+ TRACE_EVENT(cfg80211_assoc_comeback,
+ 	TP_PROTO(struct wireless_dev *wdev, const u8 *ap_addr, u32 timeout),
+ 	TP_ARGS(wdev, ap_addr, timeout),
+-- 
+2.18.0
+

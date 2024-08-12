@@ -1,0 +1,43 @@
+From be03f3b172eaad6ea93481d5d881c5a740fcb998 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Mon, 5 Aug 2024 14:53:43 +0800
+Subject: [PATCH 199/206] mtk: mt76: mt7996: prevent NULL pointer access in
+ mt76
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/main.c | 3 +++
+ mt7996/mcu.c  | 3 +++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index c4a334bc..84160797 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -949,6 +949,9 @@ static void mt7996_vif_cfg_changed(struct ieee80211_hw *hw,
+ 			struct mt7996_link_sta *mlink =
+ 				mlink_dereference_protected(&mvif->sta, link_id);
+ 
++			if (!conf || !mconf || !mlink)
++				continue;
++
+ 			mt7996_mcu_add_bss_info(mconf->phy, conf, mconf, mlink, true);
+ 			mt7996_mcu_add_sta(dev, conf, mconf, NULL, mlink, true, false);
+ 		}
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index ee67cc39..af740844 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -3094,6 +3094,9 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 		mlink = mlink_dereference_protected(msta, link_id);
+ 		mconf = mconf_dereference_protected(msta->vif, link_id);
+ 
++		if (!mlink || !mconf)
++			continue;
++
+ 		mld_setup_link->wcid = cpu_to_le16(mlink->wcid.idx);
+ 		mld_setup_link->bss_idx = mconf->mt76.idx;
+ 		mt76_trace(vif, "link_id(%d) wcid(%d) bss_idx(%d)\n",
+-- 
+2.18.0
+

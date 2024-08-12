@@ -1,0 +1,79 @@
+From 9c0d638fde425f4e49c3c9018f8bbcb30eeb15ce Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Wed, 19 Jun 2024 17:22:41 +0800
+Subject: [PATCH 115/137] mtk: hostapd: support vendor command trig_type with
+ link_id
+
+For mld ap, we need to add link_id in nl80211 msg so that mt76 driver
+could use link_id to find the corresponding phy.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ src/ap/ap_drv_ops.c          | 9 ++++++++-
+ src/drivers/driver.h         | 3 ++-
+ src/drivers/driver_nl80211.c | 5 ++++-
+ 3 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
+index 19671ed68..05d51686c 100644
+--- a/src/ap/ap_drv_ops.c
++++ b/src/ap/ap_drv_ops.c
+@@ -1398,9 +1398,16 @@ int hostapd_drv_ap_rfeatures(struct hostapd_data *hapd, u8 sub_vendor_id, int va
+ 
+ int hostapd_drv_ap_trig_type(struct hostapd_data *hapd, u8 enable, u8 type)
+ {
++	s8 link_id = -1;
++
+ 	if (!hapd->driver || !hapd->driver->ap_trigtype)
+ 		return 0;
+-	return hapd->driver->ap_trigtype(hapd->drv_priv, enable, type);
++
++	if (hapd->conf->mld_ap)
++		link_id = hapd->mld_link_id;
++
++	return hapd->driver->ap_trigtype(hapd->drv_priv, enable, type,
++					 link_id);
+ }
+ 
+ int hostapd_drv_amnt_set(struct hostapd_data *hapd, u8 amnt_idx, u8 *amnt_sta_mac)
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index 2403cc5ed..ebc9b786d 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -5350,8 +5350,9 @@ struct wpa_driver_ops {
+ 	* @priv: Private driver interface data
+ 	* @enable: enable or disable
+ 	* @type: trigger type
++	* @link_id: MLD link id. -1 if this is an non-MLD AP.
+ 	*/
+-	int (*ap_trigtype)(void *priv, u8 enable, u8 type);
++	int (*ap_trigtype)(void *priv, u8 enable, u8 type, s8 link_id);
+ 
+ 	/**
+ 	* amnt_set - add/delete station from monitoring
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index 8da3a1d25..67a33edaf 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -14996,7 +14996,7 @@ fail:
+ 	return -ENOBUFS;
+ }
+ 
+-static int nl80211_ap_trigtype(void *priv, u8 enable, u8 type)
++static int nl80211_ap_trigtype(void *priv, u8 enable, u8 type, s8 link_id)
+ {
+ 	struct i802_bss *bss = priv;
+ 	struct wpa_driver_nl80211_data *drv = bss->drv;
+@@ -15022,6 +15022,9 @@ static int nl80211_ap_trigtype(void *priv, u8 enable, u8 type)
+ 	if (!data)
+ 		goto fail;
+ 
++	if (link_id > -1)
++		nla_put_u8(msg, MTK_VENDOR_ATTR_RFEATURE_CTRL_LINK_ID, link_id);
++
+ 	data2 = nla_nest_start(msg, MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TYPE_CFG);
+ 	if (!data2)
+ 		goto fail;
+-- 
+2.18.0
+

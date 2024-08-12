@@ -1,0 +1,120 @@
+From 7fae9ab12349fabe2d5cf50734babc95a352234c Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Mon, 13 May 2024 20:09:47 +0800
+Subject: [PATCH 114/137] mtk: hostapd: support capi ap_rfeatures coding_type
+ for wifi7 cert
+
+Support new hostapd_cli command as below:
+$ hostapd_cli -i <intf> -l <link_id> raw ap_rfeatures coding_type=<type>
+
+This will prepare nl80211 msg
+MTK_VENDOR_ATTR_RFEATURE_CTRL_CODING_TYPE and then send it to driver
+via nl80211.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ hostapd/ctrl_iface.c         | 2 ++
+ src/ap/ap_drv_ops.c          | 9 ++++++++-
+ src/common/mtk_vendor.h      | 2 ++
+ src/drivers/driver.h         | 3 ++-
+ src/drivers/driver_nl80211.c | 7 ++++++-
+ 5 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
+index 3708b67a0..3943cb3aa 100644
+--- a/hostapd/ctrl_iface.c
++++ b/hostapd/ctrl_iface.c
+@@ -4932,6 +4932,8 @@ hostapd_ctrl_iface_ap_rfeatures(struct hostapd_data *hapd, char *cmd,
+ 		sub_cmd = MTK_VENDOR_ATTR_RFEATURE_CTRL_ACK_PLCY;
+ 	else if (os_strcmp(config, "trig_variant") == 0)
+ 		sub_cmd = MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_VARIANT_TYPE;
++	else if (os_strcmp(config, "coding_type") == 0)
++		sub_cmd = MTK_VENDOR_ATTR_RFEATURE_CTRL_CODING_TYPE;
+ 	else {
+ 		wpa_printf(MSG_ERROR,
+ 			"Unsupported parameter %s for ap_rfeatures", config);
+diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
+index 323a24f68..19671ed68 100644
+--- a/src/ap/ap_drv_ops.c
++++ b/src/ap/ap_drv_ops.c
+@@ -1384,9 +1384,16 @@ int hostapd_drv_ap_wireless(struct hostapd_data *hapd, u8 sub_vendor_id, int val
+ 
+ int hostapd_drv_ap_rfeatures(struct hostapd_data *hapd, u8 sub_vendor_id, int value)
+ {
++	s8 link_id = -1;
++
+ 	if (!hapd->driver || !hapd->driver->ap_rfeatures)
+ 		return 0;
+-	return hapd->driver->ap_rfeatures(hapd->drv_priv, sub_vendor_id, value);
++
++	if (hapd->conf->mld_ap)
++		link_id = hapd->mld_link_id;
++
++	return hapd->driver->ap_rfeatures(hapd->drv_priv, sub_vendor_id, value,
++					  link_id);
+ }
+ 
+ int hostapd_drv_ap_trig_type(struct hostapd_data *hapd, u8 enable, u8 type)
+diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
+index 71c1e5b83..932a01400 100644
+--- a/src/common/mtk_vendor.h
++++ b/src/common/mtk_vendor.h
+@@ -192,6 +192,8 @@ enum mtk_vendor_attr_rfeature_ctrl {
+ 	MTK_VENDOR_ATTR_RFEATURE_CTRL_ACK_PLCY,
+ 	MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TXBF,
+ 	MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_VARIANT_TYPE,
++	MTK_VENDOR_ATTR_RFEATURE_CTRL_CODING_TYPE,
++	MTK_VENDOR_ATTR_RFEATURE_CTRL_LINK_ID,
+ 
+ 	/* keep last */
+ 	NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL,
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index 71d17ee0e..2403cc5ed 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -5341,8 +5341,9 @@ struct wpa_driver_ops {
+ 	* ap_rfeatures - set ap rf features command
+ 	* @priv: Private driver interface data
+ 	* @value: value
++	* @link_id: MLD link id. -1 if this is an non-MLD AP.
+ 	*/
+-	int (*ap_rfeatures)(void *priv, u8 mode, int value);
++	int (*ap_rfeatures)(void *priv, u8 mode, int value, s8 link_id);
+ 
+ 	/**
+ 	* ap_trigtype - set trigger type
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index 6f251f6d5..8da3a1d25 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -127,6 +127,8 @@ rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
+ 	[MTK_VENDOR_ATTR_RFEATURE_CTRL_ACK_PLCY] = { .type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TXBF] = { .type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_VARIANT_TYPE] = { .type = NLA_U8 },
++	[MTK_VENDOR_ATTR_RFEATURE_CTRL_CODING_TYPE] = { .type = NLA_U8 },
++	[MTK_VENDOR_ATTR_RFEATURE_CTRL_LINK_ID] = { .type = NLA_U8 },
+ };
+ 
+ static const struct nla_policy
+@@ -14950,7 +14952,7 @@ fail:
+ 	return -ENOBUFS;
+ }
+ 
+-static int nl80211_ap_rfeatures(void *priv, u8 sub_vendor_id, int value)
++static int nl80211_ap_rfeatures(void *priv, u8 sub_vendor_id, int value, s8 link_id)
+ {
+ 	struct i802_bss *bss = priv;
+ 	struct wpa_driver_nl80211_data *drv = bss->drv;
+@@ -14978,6 +14980,9 @@ static int nl80211_ap_rfeatures(void *priv, u8 sub_vendor_id, int value)
+ 
+ 	nla_put_u8(msg, sub_vendor_id, (u8) value);
+ 
++	if (link_id > -1)
++		nla_put_u8(msg, MTK_VENDOR_ATTR_RFEATURE_CTRL_LINK_ID, link_id);
++
+ 	nla_nest_end(msg, data);
+ 
+ 	ret = send_and_recv_cmd(drv, msg);
+-- 
+2.18.0
+

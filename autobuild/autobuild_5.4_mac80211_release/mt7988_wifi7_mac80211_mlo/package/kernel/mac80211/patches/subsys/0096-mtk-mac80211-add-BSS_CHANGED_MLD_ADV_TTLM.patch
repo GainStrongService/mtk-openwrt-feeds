@@ -1,0 +1,107 @@
+From b1489ad235ba7c198144d603413bea256d9c6c4b Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Fri, 2 Aug 2024 17:09:47 +0800
+Subject: [PATCH 96/97] mtk: mac80211: add BSS_CHANGED_MLD_ADV_TTLM
+
+Add BSS_CHANGED_MLD_ADV_TTLM and re-name the changed flag for
+negotiation TTLM.
+
+It is necessary to distinguish adv_ttlm from neg_ttlm because of the
+different data structure used.
+(ieee80211_adv_ttlm_info vs. ieee80211_neg_ttlm)
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ drivers/net/wireless/intel/iwlwifi/mvm/mld-mac80211.c | 2 +-
+ include/net/mac80211.h                                | 8 +++++---
+ net/mac80211/main.c                                   | 3 ++-
+ net/mac80211/mlme.c                                   | 6 +++---
+ 4 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/net/wireless/intel/iwlwifi/mvm/mld-mac80211.c b/drivers/net/wireless/intel/iwlwifi/mvm/mld-mac80211.c
+index 1dbc346..865c273 100644
+--- a/drivers/net/wireless/intel/iwlwifi/mvm/mld-mac80211.c
++++ b/drivers/net/wireless/intel/iwlwifi/mvm/mld-mac80211.c
+@@ -952,7 +952,7 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
+ 			IWL_ERR(mvm, "failed to update power mode\n");
+ 	}
+ 
+-	if (changes & (BSS_CHANGED_MLD_VALID_LINKS | BSS_CHANGED_MLD_TTLM) &&
++	if (changes & (BSS_CHANGED_MLD_VALID_LINKS | BSS_CHANGED_MLD_NEG_TTLM) &&
+ 	    ieee80211_vif_is_mld(vif) && mvmvif->authorized)
+ 		wiphy_delayed_work_queue(mvm->hw->wiphy,
+ 					 &mvmvif->mlo_int_scan_wk, 0);
+diff --git a/include/net/mac80211.h b/include/net/mac80211.h
+index f22e50b..16e1861 100644
+--- a/include/net/mac80211.h
++++ b/include/net/mac80211.h
+@@ -365,7 +365,8 @@ struct ieee80211_vif_chanctx_switch {
+  * @BSS_CHANGED_UNSOL_BCAST_PROBE_RESP: Unsolicited broadcast probe response
+  *	status changed.
+  * @BSS_CHANGED_MLD_VALID_LINKS: MLD valid links status changed.
+- * @BSS_CHANGED_MLD_TTLM: negotiated TID to link mapping was changed
++ * @BSS_CHANGED_MLD_NEG_TTLM: negotiated TID to link mapping was changed
++ * @BSS_CHANGED_MLD_ADV_TTLM: advertised TID to link mapping was changed
+  * @BSS_CHANGED_TPE: transmit power envelope changed
+  */
+ enum ieee80211_bss_change {
+@@ -402,8 +403,9 @@ enum ieee80211_bss_change {
+ 	BSS_CHANGED_FILS_DISCOVERY      = 1<<30,
+ 	BSS_CHANGED_UNSOL_BCAST_PROBE_RESP = 1<<31,
+ 	BSS_CHANGED_MLD_VALID_LINKS	= BIT_ULL(33),
+-	BSS_CHANGED_MLD_TTLM		= BIT_ULL(34),
+-	BSS_CHANGED_TPE			= BIT_ULL(35),
++	BSS_CHANGED_MLD_NEG_TTLM	= BIT_ULL(34),
++	BSS_CHANGED_MLD_ADV_TTLM	= BIT_ULL(35),
++	BSS_CHANGED_TPE			= BIT_ULL(36),
+ 
+ 	/* when adding here, make sure to change ieee80211_reconfig */
+ };
+diff --git a/net/mac80211/main.c b/net/mac80211/main.c
+index 1de7f1d..6ab7a0c 100644
+--- a/net/mac80211/main.c
++++ b/net/mac80211/main.c
+@@ -328,7 +328,8 @@ EXPORT_SYMBOL(ieee80211_emulate_switch_vif_chanctx);
+ 				   BSS_CHANGED_ARP_FILTER |\
+ 				   BSS_CHANGED_SSID |\
+ 				   BSS_CHANGED_MLD_VALID_LINKS |\
+-				   BSS_CHANGED_MLD_TTLM)
++				   BSS_CHANGED_MLD_ADV_TTLM |\
++				   BSS_CHANGED_MLD_NEG_TTLM)
+ 
+ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
+ 				      u64 changed)
+diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
+index 899cc23..08ce4b9 100644
+--- a/net/mac80211/mlme.c
++++ b/net/mac80211/mlme.c
+@@ -6383,7 +6383,7 @@ static int ieee80211_ttlm_set_links(struct ieee80211_sub_if_data *sdata,
+ 	if (sdata->vif.neg_ttlm.valid) {
+ 		memset(&sdata->vif.neg_ttlm, 0, sizeof(sdata->vif.neg_ttlm));
+ 		sdata->vif.suspended_links = 0;
+-		changed = BSS_CHANGED_MLD_TTLM;
++		changed = BSS_CHANGED_MLD_NEG_TTLM;
+ 	}
+ 
+ 	if (sdata->vif.active_links != active_links) {
+@@ -6412,7 +6412,7 @@ static int ieee80211_ttlm_set_links(struct ieee80211_sub_if_data *sdata,
+ 
+ 	sdata->vif.suspended_links = suspended_links;
+ 	if (sdata->vif.suspended_links)
+-		changed |= BSS_CHANGED_MLD_TTLM;
++		changed |= BSS_CHANGED_MLD_NEG_TTLM;
+ 
+ 	ieee80211_vif_cfg_change_notify(sdata, changed);
+ 
+@@ -7476,7 +7476,7 @@ static void ieee80211_teardown_ttlm_work(struct wiphy *wiphy,
+ 	sdata->vif.suspended_links = 0;
+ 	ieee80211_vif_set_links(sdata, sdata->vif.valid_links,
+ 				new_dormant_links);
+-	ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_MLD_TTLM |
++	ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_MLD_NEG_TTLM |
+ 					       BSS_CHANGED_MLD_VALID_LINKS);
+ }
+ 
+-- 
+2.18.0
+

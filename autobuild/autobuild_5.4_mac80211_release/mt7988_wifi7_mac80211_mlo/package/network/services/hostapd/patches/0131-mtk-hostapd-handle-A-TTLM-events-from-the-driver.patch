@@ -1,0 +1,276 @@
+From 8df7f73c3f6565f3c67e3033b4a76f331d6ea87c Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Wed, 3 Jul 2024 15:37:57 +0800
+Subject: [PATCH 131/137] mtk: hostapd: handle A-TTLM events from the driver
+
+There are 3 A-TTLM events from the driver, and hostap should handle them
+accordingly
+1. A-TTLM started: link(s) sould start to advertise TTLM in the beacon.
+2. A-TTLM switch time expired: enabled link(s) keep advertising TTLM in
+   the beacon with switch time excluded, whiel disabled link(s) should
+   stop TX/RX, including beacon
+3. A-TTLM ended: all links stop advertising TTLM in the beacon, and
+   disabled link recover to TX/RX.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/drv_callbacks.c             | 53 ++++++++++++++++++++++++++++++
+ src/ap/hostapd.h                   |  2 ++
+ src/drivers/driver.h               | 25 ++++++++++++++
+ src/drivers/driver_nl80211_event.c | 53 ++++++++++++++++++++++++++++++
+ src/drivers/nl80211_copy.h         | 22 +++++++++++++
+ 5 files changed, 155 insertions(+)
+
+diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
+index 9deb87c3d..17dc09807 100644
+--- a/src/ap/drv_callbacks.c
++++ b/src/ap/drv_callbacks.c
+@@ -1368,6 +1368,54 @@ void hostapd_event_ch_switch(struct hostapd_data *hapd, int freq, int ht,
+ }
+ 
+ 
++#ifdef CONFIG_IEEE80211BE
++void hostapd_event_attlm(struct hostapd_data *hapd, struct attlm_event *attlm_event)
++{
++	struct hostapd_mld *mld = hapd->mld;
++	struct hostapd_data *p_hapd;
++	bool mld_indicate_disabled = false;
++
++	if (!hapd->conf->mld_ap || !mld)
++		return;
++
++	wpa_printf(MSG_DEBUG, "A-TTLM event");
++	/*
++	 * T0: driver notifies A-TTLM has started and reports Switch Time TSF in TUs
++	 * T1: driver notifies Switch Time Expiry of a started A-TTLM
++	 * T2: driver notifies Duration Expiry of a started A-TTLM.
++	 */
++	switch (attlm_event->event) {
++		case EVENT_ATTLM_STARTED:
++			ieee802_11_set_bss_critical_update(hapd,
++						BSS_CRIT_UPDATE_EVENT_ATTLM);
++			mld->new_attlm.switch_time_tsf_tu =
++						attlm_event->switch_time_tsf_tu;
++			break;
++		case EVENT_ATTLM_SWITCH_TIME_EXPIRED:
++			mld_indicate_disabled = true;
++			mld->new_attlm.switch_time_tsf_tu = 0;
++			os_get_reltime(&mld->new_attlm.start_time);
++			break;
++		case EVENT_ATTLM_END:
++			mld->new_attlm.valid = false;
++			break;
++		default:
++			wpa_printf(MSG_DEBUG, "Unsupported A-TTLM event");
++			return;
++	}
++
++	for_each_mld_link(p_hapd, hapd) {
++		if (mld->new_attlm.disabled_links & BIT(p_hapd->mld_link_id))
++			p_hapd->conf->mld_indicate_disabled =
++							mld_indicate_disabled;
++	}
++
++	ieee802_11_set_beacon(hapd);
++	hapd->eht_mld_bss_critical_update = 0;
++}
++#endif /* CONFIG_IEEE80211BE */
++
++
+ void hostapd_event_connect_failed_reason(struct hostapd_data *hapd,
+ 					 const u8 *addr, int reason_code)
+ {
+@@ -2755,6 +2803,11 @@ void hostapd_wpa_event(void *ctx, enum wpa_event_type event,
+ 					data->ch_switch.punct_bitmap,
+ 					event == EVENT_CH_SWITCH);
+ 		break;
++	case EVENT_ATTLM:
++#ifdef CONFIG_IEEE80211BE
++		hostapd_event_attlm(hapd, &data->attlm_event);
++#endif /* CONFIG_IEEE80211BE */
++		break;
+ 	case EVENT_CONNECT_FAILED_REASON:
+ 		if (!data)
+ 			break;
+diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
+index 9cf58b05c..2bf24bc69 100644
+--- a/src/ap/hostapd.h
++++ b/src/ap/hostapd.h
+@@ -938,6 +938,8 @@ int hostapd_fill_cca_settings(struct hostapd_data *hapd,
+ 
+ #ifdef CONFIG_IEEE80211BE
+ 
++void hostapd_event_attlm(struct hostapd_data *hapd, struct attlm_event *attlm_event);
++
+ bool hostapd_mld_is_first_bss(struct hostapd_data *hapd);
+ 
+ #define for_each_mld_link(partner, self) \
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index eba2b8441..5ce4ca467 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -6048,6 +6048,16 @@ enum wpa_event_type {
+ 	 */
+ 	EVENT_LINK_CH_SWITCH_STARTED,
+ 
++	/**
++	 * EVENT_ATTLM - MLD AP Advertised Tid-to-Link Mapping event
++	 *
++	 * This event is used by the driver to indicate the state transition of
++	 * A-TTLM.
++	 *
++	 * Described in wpa_event_data.attlm_event
++	 */
++	EVENT_ATTLM,
++
+ 	/**
+ 	 * EVENT_TID_LINK_MAP - MLD event to set TID-to-link mapping
+ 	 *
+@@ -6857,6 +6867,21 @@ union wpa_event_data {
+ 		u16 punct_bitmap;
+ 	} ch_switch;
+ 
++	/**
++	 * struct attlm_event
++	 * @switch_time_tsf_tu: the TSF of switch time in unit of TUs
++	 * @started: the ATTLM is started or has been done.
++	 * @switch_time_expired: the switch time has expired
++	 */
++	struct attlm_event {
++		enum {
++			EVENT_ATTLM_STARTED,
++			EVENT_ATTLM_SWITCH_TIME_EXPIRED,
++			EVENT_ATTLM_END
++		} event;
++		u16 switch_time_tsf_tu;
++	} attlm_event;
++
+ 	/**
+ 	 * struct connect_failed - Data for EVENT_CONNECT_FAILED_REASON
+ 	 * @addr: Remote client address
+diff --git a/src/drivers/driver_nl80211_event.c b/src/drivers/driver_nl80211_event.c
+index 24a4bf3cf..85bda6785 100644
+--- a/src/drivers/driver_nl80211_event.c
++++ b/src/drivers/driver_nl80211_event.c
+@@ -188,6 +188,7 @@ static const char * nl80211_command_to_string(enum nl80211_commands cmd)
+ 	C2S(NL80211_CMD_SET_HW_TIMESTAMP)
+ 	C2S(NL80211_CMD_LINKS_REMOVED)
+ 	C2S(NL80211_CMD_SET_TID_TO_LINK_MAPPING)
++	C2S(NL80211_CMD_ATTLM_EVENT)
+ 	C2S(__NL80211_CMD_AFTER_LAST)
+ 	}
+ #undef C2S
+@@ -1313,6 +1314,53 @@ static void mlme_event_ch_switch(struct wpa_driver_nl80211_data *drv,
+ }
+ 
+ 
++static void mlme_event_attlm(struct wpa_driver_nl80211_data *drv,
++			     struct nlattr *ifindex,
++			     struct nlattr *event,
++			     struct nlattr *switch_time_tsf_tu)
++{
++	enum nl80211_attlm_event event_type;
++	union wpa_event_data data;
++	struct i802_bss *bss;
++	int ifidx;
++
++	ifidx = nla_get_u32(ifindex);
++	bss = get_bss_ifindex(drv, ifidx);
++	if (bss == NULL) {
++		wpa_printf(MSG_WARNING,
++			   "nl80211: Unknown ifindex (%d) for A-TTLM, ignoring",
++			   ifidx);
++		return;
++	}
++
++	if (!event)
++		return;
++
++	wpa_printf(MSG_DEBUG, "nl80211: %s: A-TTLM event", bss->ifname);
++
++	data.attlm_event.switch_time_tsf_tu = switch_time_tsf_tu ?
++					nla_get_u16(switch_time_tsf_tu) : 0;
++	event_type = nla_get_u32(event);
++	switch (event_type) {
++		case NL80211_ATTLM_STARTED:
++			data.attlm_event.event = EVENT_ATTLM_STARTED;
++			break;
++		case NL80211_ATTLM_SWITCH_TIME_EXPIRED:
++			data.attlm_event.event = EVENT_ATTLM_SWITCH_TIME_EXPIRED;
++			break;
++		case NL80211_ATTLM_END:
++			data.attlm_event.event = EVENT_ATTLM_END;
++			break;
++		default:
++			wpa_printf(MSG_DEBUG,
++				   "nl80211: Unsupported A-TTLM event");
++			return;
++	}
++
++	wpa_supplicant_event(bss->ctx, EVENT_ATTLM, &data);
++}
++
++
+ static void mlme_timeout_event(struct wpa_driver_nl80211_data *drv,
+ 			       enum nl80211_commands cmd, struct nlattr *addr)
+ {
+@@ -4125,6 +4173,11 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
+ 				     NULL,
+ 				     1);
+ 		break;
++	case NL80211_CMD_ATTLM_EVENT:
++		mlme_event_attlm(drv, tb[NL80211_ATTR_IFINDEX],
++				 tb[NL80211_ATTR_MLO_ATTLM_EVENT],
++				 tb[NL80211_ATTR_MLO_ATTLM_SWITCH_TIME_TSF_TU]);
++		break;
+ 	case NL80211_CMD_DISCONNECT:
+ 		mlme_event_disconnect(drv, tb[NL80211_ATTR_REASON_CODE],
+ 				      tb[NL80211_ATTR_MAC],
+diff --git a/src/drivers/nl80211_copy.h b/src/drivers/nl80211_copy.h
+index 13837297c..988f6a788 100644
+--- a/src/drivers/nl80211_copy.h
++++ b/src/drivers/nl80211_copy.h
+@@ -1588,6 +1588,9 @@ enum nl80211_commands {
+ 
+ 	/* add new commands above here */
+ 
++	/* MTK internal */
++	NL80211_CMD_ATTLM_EVENT,
++
+ 	/* used to define NL80211_CMD_MAX below */
+ 	__NL80211_CMD_AFTER_LAST,
+ 	NL80211_CMD_MAX = __NL80211_CMD_AFTER_LAST - 1
+@@ -3425,6 +3428,11 @@ enum nl80211_attrs {
+ 	/* MTK internal */
+ 	NL80211_ATTR_CNTDWN_OFFS_STA_PROF,
+ 
++	NL80211_ATTR_MLO_ATTLM_EVENT,
++	NL80211_ATTR_MLO_ATTLM_SWITCH_TIME,
++	NL80211_ATTR_MLO_ATTLM_DURATION,
++	NL80211_ATTR_MLO_ATTLM_SWITCH_TIME_TSF_TU,
++
+ 	__NL80211_ATTR_AFTER_LAST,
+ 	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
+ 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
+@@ -8090,4 +8098,18 @@ enum nl80211_wiphy_radio_freq_range {
+ 	NL80211_WIPHY_RADIO_FREQ_ATTR_MAX = __NL80211_WIPHY_RADIO_FREQ_ATTR_LAST - 1,
+ };
+ 
++/**
++ * enum nl80211_attlm_event - type of events for Advertised Tid-to-Link
++ * Mapping operations
++ *
++ * @NL80211_ATTLM_STARTED: A A-TTLM request has been set and start to count down.
++ * @NL80211_ATTLM_SWITCH_TIME_EXPIRED: The switch time of A-TTLM has expired.
++ * @NL80211ATTLM_END: The A-TTLM has been done.
++ */
++enum nl80211_attlm_event {
++	NL80211_ATTLM_STARTED,
++	NL80211_ATTLM_SWITCH_TIME_EXPIRED,
++	NL80211_ATTLM_END,
++};
++
+ #endif /* __LINUX_NL80211_H */
+-- 
+2.18.0
+

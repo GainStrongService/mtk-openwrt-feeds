@@ -1,0 +1,47 @@
+From eb1e1ae15ecc218d1caead199d2642a4b32b4f57 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Tue, 11 Jun 2024 15:37:28 +0800
+Subject: [PATCH 151/206] mtk: mt76: mt7996: assign EAPOL's SA/DA to MLD
+ address.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/mac.c | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 1113c535..047ccf2b 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -946,6 +946,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 	if (unlikely(tx_info->skb->protocol == cpu_to_be16(ETH_P_PAE)) && sta->mlo) {
+ 		struct ieee80211_bss_conf *conf;
+ 		struct ieee80211_link_sta *link_sta;
++		__le16 fc = hdr->frame_control;
+ 
+ 		conf = rcu_dereference(vif->link_conf[wcid->link_id]);
+ 		link_sta = rcu_dereference(sta->link[wcid->link_id]);
+@@ -957,10 +958,16 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 
+ 		memcpy(hdr->addr1, link_sta->addr, ETH_ALEN);
+ 		memcpy(hdr->addr2, conf->addr, ETH_ALEN);
+-		if (ether_addr_equal(vif->addr, hdr->addr3))
+-			memcpy(hdr->addr3, conf->addr, ETH_ALEN);
+-		else if (ether_addr_equal(sta->addr, hdr->addr3))
+-			memcpy(hdr->addr3, link_sta->addr, ETH_ALEN);
++
++		/* EAPOL's SA/DA need to be MLD address in MLO */
++		if (ieee80211_has_a4(fc)) {
++			memcpy(hdr->addr3, sta->addr, ETH_ALEN);
++			memcpy(hdr->addr4, vif->addr, ETH_ALEN);
++		} else if (ieee80211_has_tods(fc)) {
++			memcpy(hdr->addr3, sta->addr, ETH_ALEN);
++		} else if (ieee80211_has_fromds(fc)) {
++			memcpy(hdr->addr3, vif->addr, ETH_ALEN);
++		}
+ 
+ 		dma_sync_single_for_device(mdev->dma_dev, tx_info->buf[1].addr,
+ 					   tx_info->buf[1].len, DMA_TO_DEVICE);
+-- 
+2.18.0
+

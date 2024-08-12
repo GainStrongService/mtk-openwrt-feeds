@@ -1,0 +1,124 @@
+From 968210a1e6e907bc2e3cc05e5126680ee8d96891 Mon Sep 17 00:00:00 2001
+From: mtk20656 <chank.chen@mediatek.com>
+Date: Thu, 20 Jun 2024 18:05:54 +0800
+Subject: [PATCH 162/206] mtk: mt76: [WCNCR00378865][[mt76][mlo] fix csi bug
+ with single wiphy design]
+
+[Description]
+as title.
+
+[Release-log]
+
+Signed-off-by: mtk20656 <chank.chen@mediatek.com>
+---
+ mt7996/vendor.c | 43 +++++++++++++++++++++++++++++++++++++++++--
+ mt7996/vendor.h |  2 ++
+ 2 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/vendor.c b/mt7996/vendor.c
+index 5c953c5b..ed7c1322 100644
+--- a/mt7996/vendor.c
++++ b/mt7996/vendor.c
+@@ -131,6 +131,7 @@ eml_ctrl_policy[NUM_MTK_VENDOR_ATTRS_EML_CTRL] = {
+ 
+ static const struct nla_policy
+ csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
++	[MTK_VENDOR_ATTR_CSI_CTRL_BAND_IDX] = { .type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_CSI_CTRL_CFG] = {.type = NLA_NESTED },
+ 	[MTK_VENDOR_ATTR_CSI_CTRL_CFG_MODE] = { .type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_CSI_CTRL_CFG_TYPE] = { .type = NLA_U8 },
+@@ -1104,8 +1105,11 @@ static int mt7996_vendor_csi_ctrl(struct wiphy *wiphy,
+ 				  int data_len)
+ {
+ 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct mt7996_dev *dev = mt7996_hw_dev(hw);
++	struct mt7996_phy *phy;
++	struct mt76_phy *mphy;
+ 	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_CSI_CTRL];
++	u8 band_idx = 0;
+ 	int err;
+ 
+ 	err = nla_parse(tb, MTK_VENDOR_ATTR_CSI_CTRL_MAX, data, data_len,
+@@ -1113,6 +1117,20 @@ static int mt7996_vendor_csi_ctrl(struct wiphy *wiphy,
+ 	if (err)
+ 		return err;
+ 
++	if (tb[MTK_VENDOR_ATTR_CSI_CTRL_BAND_IDX])
++		band_idx = nla_get_u8(tb[MTK_VENDOR_ATTR_CSI_CTRL_BAND_IDX]);
++
++	if (!mt7996_band_valid(dev, band_idx))
++		goto error;
++
++	mphy = dev->mt76.phys[band_idx];
++	if (!mphy)
++		goto error;
++
++	phy = (struct mt7996_phy *)mphy->priv;
++	if (!phy)
++		goto error;
++
+ 	if (tb[MTK_VENDOR_ATTR_CSI_CTRL_CFG]) {
+ 		u8 mode = 0, type = 0, v1 = 0;
+ 		u32 v2 = 0;
+@@ -1176,6 +1194,10 @@ static int mt7996_vendor_csi_ctrl(struct wiphy *wiphy,
+ 	}
+ 
+ 	return 0;
++
++error:
++	dev_err(dev->mt76.dev, "Invalid band idx: %d\n", band_idx);
++	return -EINVAL;
+ }
+ 
+ static int
+@@ -1185,8 +1207,11 @@ mt7996_vendor_csi_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
+ {
+ #define RESERVED_SET	BIT(31)
+ 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct mt7996_dev *dev = mt7996_hw_dev(hw);
++	struct mt7996_phy *phy;
++	struct mt76_phy *mphy;
+ 	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {0};
++	u8 band_idx = 0;
+ 	int err = 0;
+ 
+ 	if (*storage & RESERVED_SET) {
+@@ -1202,6 +1227,20 @@ mt7996_vendor_csi_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
+ 			return err;
+ 	}
+ 
++	if (tb[MTK_VENDOR_ATTR_CSI_CTRL_BAND_IDX])
++		band_idx = nla_get_u8(tb[MTK_VENDOR_ATTR_CSI_CTRL_BAND_IDX]);
++
++	if (!mt7996_band_valid(dev, band_idx))
++		return -EINVAL;
++
++	mphy = dev->mt76.phys[band_idx];
++	if (!mphy)
++		return -EINVAL;
++
++	phy = (struct mt7996_phy *)mphy->priv;
++	if (!phy)
++		return -EINVAL;
++
+ 	if (!(*storage & RESERVED_SET) && tb[MTK_VENDOR_ATTR_CSI_CTRL_DUMP_NUM]) {
+ 		*storage = nla_get_u16(tb[MTK_VENDOR_ATTR_CSI_CTRL_DUMP_NUM]);
+ 		*storage |= RESERVED_SET;
+diff --git a/mt7996/vendor.h b/mt7996/vendor.h
+index 5afe29ad..5608a3b4 100644
+--- a/mt7996/vendor.h
++++ b/mt7996/vendor.h
+@@ -273,6 +273,8 @@ enum mtk_vendor_attr_csi_ctrl {
+ 
+ 	MTK_VENDOR_ATTR_CSI_CTRL_DATA,
+ 
++	MTK_VENDOR_ATTR_CSI_CTRL_BAND_IDX,
++
+ 	/* keep last */
+ 	NUM_MTK_VENDOR_ATTRS_CSI_CTRL,
+ 	MTK_VENDOR_ATTR_CSI_CTRL_MAX =
+-- 
+2.18.0
+

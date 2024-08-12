@@ -70,6 +70,15 @@ change_dot_config() {
 		sed -i 's/CONFIG_USE_SSTRIP=y/# CONFIG_USE_SSTRIP is not set/g' ${BUILD_DIR}/.config
 		sed -i '/CONFIG_SSTRIP_ARGS="-z"/d' ${BUILD_DIR}/.config
 		sed -i 's/# CONFIG_NO_STRIP is not set/CONFIG_NO_STRIP=y/g' ${BUILD_DIR}/.config
+		sed -i 's/# CONFIG_DEBUG is not set/CONFIG_DEBUG=y/g' ${BUILD_DIR}/.config
+		sed -i 's/# CONFIG_DEVEL is not set/CONFIG_DEVEL=y/g' ${BUILD_DIR}/.config
+		echo "CONFIG_KERNEL_SLUB_DEBUG=y" >> ${BUILD_DIR}/.config
+		echo "CONFIG_BPF_TOOLCHAIN_NONE=y" >> ${BUILD_DIR}/.config
+		echo "CONFIG_NEED_TOOLCHAIN=y" >> ${BUILD_DIR}/.config
+		echo "CONFIG_TOOLCHAINOPTS=y" >> ${BUILD_DIR}/.config
+		echo "CONFIG_BINUTILS_USE_VERSION_2_34=y" >> ${BUILD_DIR}/.config
+		echo "CONFIG_GCC_USE_VERSION_8=y" >> ${BUILD_DIR}/.config
+		echo "CONFIG_LIBC_USE_MUSL=y" >> ${BUILD_DIR}/.config
 	}
 	[ "$release" = "1" ] && {
 		cp -rfa ${release_folder}/package/kernel/mt76/src/firmware ${BUILD_DIR}/package/kernel/mt76/src

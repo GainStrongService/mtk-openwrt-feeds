@@ -1,0 +1,47 @@
+From 86bb923cdee4b6d33f3ef9141a8750cf5187b0da Mon Sep 17 00:00:00 2001
+From: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
+Date: Fri, 26 Jul 2024 09:27:06 +0800
+Subject: [PATCH 193/206] mtk: mt76: mt7996: Fix the BSRP band_bitmap for TGbe
+
+In Wi-Fi 7 UCC, there are a command without a specified interface,
+causing the AP to send trigger frames on only one link. When testing
+EMLSR+OFDMA test cases (EHT-4.45.1), this results in the AP sending
+trigger frames on only one link, leading to test failure.
+Therefore, the band_bitmap is corrected to ensure that trigger frames are sent on all links.
+
+After discussing with Money, since Wi-Fi 6 does not have the concept of
+links, modifying this value should not have any impact.
+
+The UCC command specifies an interface:
+ap_set_rfeature,NAME,Wi-Fi7APUT,Interface,5G,type,EHT,TriggerType,0,
+Trigger_Variant,HE,PPDUTxType,legacy
+
+The UCC command does not specify an interface:
+ap_set_rfeature,NAME,Wi-Fi7APUT,type,EHT,TriggerType,0,Trigger_Variant,
+EHT,PPDUTxType,legacy
+
+Logan set the band_bitmap to 7 in Wi-Fi 7 regardless of whether the UCC
+command specifies an interface.
+
+Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
+---
+ mt7996/mtk_mcu.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 867eed61..8bacf29d 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -1135,7 +1135,8 @@ int mt7996_mcu_set_bsrp_ctrl(struct mt7996_dev *dev, u8 band_idx, u16 interval,
+ 		.trigger_type = cpu_to_le32(trig_type),
+ 		.trigger_flow = trig_flow,
+ 		.ext_cmd_bsrp = ext_cmd,
+-		.band_bitmap = BIT(band_idx),
++		.band_bitmap = mt7996_band_valid(dev, MT_BAND2) ?
++			       GENMASK(2, 0) : GENMASK(1, 0),
+ 	};
+ 
+ 	if (!mt7996_band_valid(dev, band_idx))
+-- 
+2.18.0
+

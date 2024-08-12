@@ -1,9 +1,10 @@
-From 7814c627035691fb98cc01bf196fe6c519c3bb16 Mon Sep 17 00:00:00 2001
+From 02e08f74e76516cf1e7035494b09241047d7a279 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Feb 2023 19:49:22 +0800
-Subject: [PATCH 055/115] mtk: wifi: mt76: revert page_poll for kernel 5.4
+Subject: [PATCH 055/206] mtk: wifi: mt76: revert page_poll for kernel 5.4
 
 This reverts commit e8c10835cf062c577ddf426913788c39d30b4bd7.
+
 ---
  dma.c         | 75 ++++++++++++++++++++++++++-------------------------
  mac80211.c    | 56 --------------------------------------
@@ -14,7 +15,7 @@ This reverts commit e8c10835cf062c577ddf426913788c39d30b4bd7.
  6 files changed, 104 insertions(+), 168 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 66c000e..33a84f5 100644
+index 66c000ef..33a84f5f 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -178,7 +178,7 @@ mt76_free_pending_rxwi(struct mt76_dev *dev)
@@ -203,7 +204,7 @@ index 66c000e..33a84f5 100644
  
  	if (mtk_wed_device_active(&dev->mmio.wed))
 diff --git a/mac80211.c b/mac80211.c
-index f33c772..3375b7d 100644
+index 6a5201f6..5f85bf1d 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -566,47 +566,6 @@ void mt76_unregister_phy(struct mt76_phy *phy)
@@ -254,7 +255,7 @@ index f33c772..3375b7d 100644
  struct mt76_dev *
  mt76_alloc_device(struct device *pdev, unsigned int size,
  		  const struct ieee80211_ops *ops,
-@@ -1819,21 +1778,6 @@ void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
+@@ -1812,21 +1771,6 @@ void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
  }
  EXPORT_SYMBOL_GPL(mt76_ethtool_worker);
  
@@ -277,7 +278,7 @@ index f33c772..3375b7d 100644
  {
  	struct ieee80211_hw *hw = phy->hw;
 diff --git a/mt76.h b/mt76.h
-index e710abf..b059e26 100644
+index a15df7ff..67ae96ae 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -251,7 +251,7 @@ struct mt76_queue {
@@ -289,7 +290,7 @@ index e710abf..b059e26 100644
  };
  
  struct mt76_mcu_ops {
-@@ -1606,7 +1606,6 @@ mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
+@@ -1599,7 +1599,6 @@ mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
  	return usb_bulk_msg(udev, pipe, data, len, actual_len, timeout);
  }
  
@@ -297,7 +298,7 @@ index e710abf..b059e26 100644
  void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
  			 struct mt76_sta_stats *stats, bool eht);
  int mt76_skb_adjust_pad(struct sk_buff *skb, int pad);
-@@ -1764,25 +1763,6 @@ void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
+@@ -1757,25 +1756,6 @@ void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
  struct mt76_txwi_cache *mt76_rx_token_release(struct mt76_dev *dev, int token);
  int mt76_rx_token_consume(struct mt76_dev *dev, void *ptr,
  			  struct mt76_txwi_cache *r, dma_addr_t phys);
@@ -324,7 +325,7 @@ index e710abf..b059e26 100644
  static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
  {
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 2624edb..1b9ef1d 100644
+index 2624edbb..1b9ef1de 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
 @@ -1402,22 +1402,19 @@ void mt7915_get_et_strings(struct ieee80211_hw *hw,
@@ -382,7 +383,7 @@ index 2624edb..1b9ef1d 100644
  
  static void
 diff --git a/usb.c b/usb.c
-index 58ff068..0ca3b06 100644
+index 58ff0682..0ca3b069 100644
 --- a/usb.c
 +++ b/usb.c
 @@ -318,27 +318,29 @@ mt76u_set_endpoints(struct usb_interface *intf,
@@ -516,7 +517,7 @@ index 58ff068..0ca3b06 100644
  
  static void mt76u_free_rx(struct mt76_dev *dev)
 diff --git a/wed.c b/wed.c
-index f89e453..8eca4d8 100644
+index f89e4537..8eca4d81 100644
 --- a/wed.c
 +++ b/wed.c
 @@ -9,8 +9,12 @@

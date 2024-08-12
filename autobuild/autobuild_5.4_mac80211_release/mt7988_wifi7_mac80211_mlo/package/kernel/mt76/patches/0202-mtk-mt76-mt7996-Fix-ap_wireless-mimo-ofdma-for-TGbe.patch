@@ -1,0 +1,37 @@
+From a2a2b295155781692d821a39f931dd5f333f5544 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Thu, 1 Aug 2024 20:58:00 +0800
+Subject: [PATCH 202/206] mtk: mt76: mt7996: Fix ap_wireless mimo/ofdma for
+ TGbe
+
+---
+ mt7996/mcu.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index af740844..047f8193 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -7389,15 +7389,15 @@ void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
+ 	switch (mode) {
+ 	case RATE_PARAM_FIXED_OFDMA:
+ 		if (val == 3)
+-			phy->muru_onoff = OFDMA_DL;
++			phy->muru_onoff |= OFDMA_DL;
+ 		else
+-			phy->muru_onoff = val;
++			phy->muru_onoff |= val;
+ 		break;
+ 	case RATE_PARAM_FIXED_MIMO:
+ 		if (val == 0)
+-			phy->muru_onoff = MUMIMO_DL_CERT | MUMIMO_DL;
++			phy->muru_onoff |= MUMIMO_DL_CERT | MUMIMO_DL;
+ 		else
+-			phy->muru_onoff = MUMIMO_UL;
++			phy->muru_onoff |= MUMIMO_UL;
+ 		break;
+ 	case RATE_PARAM_AUTO_MU:
+ 		phy->muru_onoff = val & GENMASK(3, 0);
+-- 
+2.18.0
+

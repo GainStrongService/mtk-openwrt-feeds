@@ -1,0 +1,194 @@
+From 702fc9f42fc30acd7f956994f887d02eef3c3ade Mon Sep 17 00:00:00 2001
+From: Aditya Kumar Singh <quic_adisi@quicinc.com>
+Date: Tue, 23 Apr 2024 11:01:25 +0530
+Subject: [PATCH 003/137] hostapd_cli: MLO: pass 'LINKID' in the command
+
+MLD level socket can take 'LINKID <link id>'. Add changes to pass this via
+hostapd_cli. User needs to give "link_id=<link_id>" in post fix fashion in
+the command in order to pass this link_id from cli.
+
+For example -
+$ hostapd_cli -i wlan0 status link_id=0 | grep freq=
+freq=2437
+
+$ hostapd_cli -i wlan0
+...
+Interactive mode
+
+> ping
+PONG
+>
+> status link_id=0
+Command for 'LINKID 0'
+state=ENABLED
+phy=phy0
+freq=2437
+
+Signed-off-by: Aditya Kumar Singh <quic_adisi@quicinc.com>
+---
+ hostapd/hostapd_cli.c | 39 +++++++++++++++++++++++++++++++
+ src/common/wpa_ctrl.c | 54 +++++++++++++++++++++++++++++++++++++++++++
+ src/common/wpa_ctrl.h |  3 +++
+ 3 files changed, 96 insertions(+)
+
+diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
+index f05a734fe..d69525502 100644
+--- a/hostapd/hostapd_cli.c
++++ b/hostapd/hostapd_cli.c
+@@ -1962,6 +1962,45 @@ static void wpa_request(struct wpa_ctrl *ctrl, int argc, char *argv[])
+ 	} else if (count == 0) {
+ 		printf("Unknown command '%s'\n", argv[0]);
+ 	} else {
++#ifdef CONFIG_IEEE80211BE
++		char *pos, *end;
++		int i, j, link_id;
++		bool link_found = false;
++
++		wpa_ctrl_reset_mld_link(ctrl);
++		i = 0;
++
++		while (i < argc) {
++			pos = os_strstr(argv[i], "link_id=");
++			if (!pos) {
++				i++;
++				continue;
++			}
++
++			pos = pos + 8;
++			link_id = strtol(pos, &end, 10);
++
++			if (link_id < 0 || link_id >= 15) {
++				printf("Invalid link ID '%d'\n", link_id);
++				return;
++			}
++
++			link_found = true;
++
++			/* remove this link_id= from the arguements */
++			for (j = i + 1; j < argc; j++)
++				argv[j - 1] = argv[j];
++
++			argc--;
++			i = 0;
++		}
++
++		if (link_found) {
++			wpa_ctrl_set_mld_link(ctrl, link_id);
++			printf("Command for '%s'\n",
++			       wpa_ctrl_get_mld_link(ctrl));
++		}
++#endif /* CONFIG_IEEE80211BE */
+ 		match->handler(ctrl, argc - 1, &argv[1]);
+ 	}
+ }
+diff --git a/src/common/wpa_ctrl.c b/src/common/wpa_ctrl.c
+index 7e197f094..d0c174c05 100644
+--- a/src/common/wpa_ctrl.c
++++ b/src/common/wpa_ctrl.c
+@@ -72,6 +72,13 @@ struct wpa_ctrl {
+ #ifdef CONFIG_CTRL_IFACE_NAMED_PIPE
+ 	HANDLE pipe;
+ #endif /* CONFIG_CTRL_IFACE_NAMED_PIPE */
++#ifdef CONFIG_IEEE80211BE
++	/* 'LINKID ' - 7 chars including space
++	 * 'XX' - Two chars max for link id
++	 * Total required 10 chars at least
++	 */
++	char link_id_str[10];
++#endif /* CONFIG_IEEE80211BE */
+ };
+ 
+ 
+@@ -488,6 +495,7 @@ int wpa_ctrl_request(struct wpa_ctrl *ctrl, const char *cmd, size_t cmd_len,
+ 	fd_set rfds;
+ 	const char *_cmd;
+ 	char *cmd_buf = NULL;
++	char *link_cmd_buf = NULL;
+ 	size_t _cmd_len;
+ 
+ #ifdef CONFIG_CTRL_IFACE_UDP
+@@ -510,6 +518,28 @@ int wpa_ctrl_request(struct wpa_ctrl *ctrl, const char *cmd, size_t cmd_len,
+ 		_cmd_len = cmd_len;
+ 	}
+ 
++#ifdef CONFIG_IEEE80211BE
++	if (os_strlen(ctrl->link_id_str)) {
++		char *pos;
++
++		_cmd_len = _cmd_len + 1 + os_strlen(ctrl->link_id_str);
++		link_cmd_buf = os_malloc(_cmd_len);
++		if (link_cmd_buf == NULL) {
++			if (cmd_buf)
++				os_free(cmd_buf);
++			return -1;
++		}
++
++		pos = link_cmd_buf;
++		os_strlcpy(pos, _cmd, _cmd_len);
++		pos += os_strlen(_cmd);
++		*pos++ = ' ';
++		os_memcpy(pos, ctrl->link_id_str, os_strlen(ctrl->link_id_str));
++		_cmd = link_cmd_buf;
++		wpa_ctrl_reset_mld_link(ctrl);
++	}
++#endif /* CONFIG_IEEE80211BE */
++
+ 	errno = 0;
+ 	started_at.sec = 0;
+ 	started_at.usec = 0;
+@@ -535,9 +565,11 @@ retry_send:
+ 		}
+ 	send_err:
+ 		os_free(cmd_buf);
++		os_free(link_cmd_buf);
+ 		return -1;
+ 	}
+ 	os_free(cmd_buf);
++	os_free(link_cmd_buf);
+ 
+ 	os_get_reltime(&ending_at);
+ 	ending_at.sec += 10;
+@@ -773,4 +805,26 @@ int wpa_ctrl_get_fd(struct wpa_ctrl *ctrl)
+ 
+ #endif /* CONFIG_CTRL_IFACE_NAMED_PIPE */
+ 
++
++#ifdef CONFIG_IEEE80211BE
++void wpa_ctrl_reset_mld_link(struct wpa_ctrl *ctrl)
++{
++	os_memset(ctrl->link_id_str, '\0', sizeof(ctrl->link_id_str));
++}
++
++
++void wpa_ctrl_set_mld_link(struct wpa_ctrl *ctrl, int link_id)
++{
++	os_snprintf(ctrl->link_id_str, sizeof(ctrl->link_id_str),
++		    "LINKID %d", link_id);
++}
++
++
++char *wpa_ctrl_get_mld_link(struct wpa_ctrl *ctrl)
++{
++	return ctrl->link_id_str;
++}
++#endif /* CONFIG_IEEE80211BE */
++
++
+ #endif /* CONFIG_CTRL_IFACE */
+diff --git a/src/common/wpa_ctrl.h b/src/common/wpa_ctrl.h
+index 865ac6d91..d1ce1dd29 100644
+--- a/src/common/wpa_ctrl.h
++++ b/src/common/wpa_ctrl.h
+@@ -676,6 +676,9 @@ char * wpa_ctrl_get_remote_ifname(struct wpa_ctrl *ctrl);
+ 
+ #ifdef CONFIG_IEEE80211BE
+ #define WPA_CTRL_IFACE_LINK_NAME	"link"
++void wpa_ctrl_reset_mld_link(struct wpa_ctrl *ctrl);
++void wpa_ctrl_set_mld_link(struct wpa_ctrl *ctrl, int link_id);
++char *wpa_ctrl_get_mld_link(struct wpa_ctrl *ctrl);
+ #endif /* CONFIG_IEEE80211BE */
+ 
+ #endif /* WPA_CTRL_H */
+-- 
+2.18.0
+

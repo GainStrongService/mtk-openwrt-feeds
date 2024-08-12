@@ -1,19 +1,8 @@
-From 34205ed1077ac7e759cf112ec424966e48ad314f Mon Sep 17 00:00:00 2001
-From: Michael-CY Lee <michael-cy.lee@mediatek.com>
-Date: Mon, 11 Sep 2023 13:39:14 +0800
-Subject: [PATCH] ucode: mtk: synchronize bandwidth in AP/STA support
-
-Change-Id: I1ec83a1d218784de53509b771e2e5487a01e0da6
----
- .../network/services/hostapd/files/hostapd.uc | 40 +++++++++++++------
- .../services/hostapd/files/wpa_supplicant.uc  |  5 +++
- 2 files changed, 33 insertions(+), 12 deletions(-)
-
 diff --git a/package/network/services/hostapd/files/hostapd.uc b/package/network/services/hostapd/files/hostapd.uc
-index 43637ac7..7202a8df 100644
+index 4390ce7..72209ea 100644
 --- a/package/network/services/hostapd/files/hostapd.uc
 +++ b/package/network/services/hostapd/files/hostapd.uc
-@@ -58,6 +58,7 @@ start_disabled=1
+@@ -61,6 +61,7 @@ start_disabled=1
  function iface_freq_info(iface, config, params)
  {
  	let freq = params.frequency;
@@ -21,7 +10,7 @@ index 43637ac7..7202a8df 100644
  	if (!freq)
  		return null;
  
-@@ -66,25 +67,29 @@ function iface_freq_info(iface, config, params)
+@@ -69,25 +70,29 @@ function iface_freq_info(iface, config, params)
  		sec_offset = 0;
  
  	let width = 0;
@@ -63,7 +52,7 @@ index 43637ac7..7202a8df 100644
  }
  
  function iface_add(phy, config, phy_status)
-@@ -386,6 +391,8 @@ let main_obj = {
+@@ -745,6 +750,8 @@ let main_obj = {
  			up: true,
  			frequency: 0,
  			sec_chan_offset: 0,
@@ -72,7 +61,7 @@ index 43637ac7..7202a8df 100644
  			csa: true,
  			csa_count: 0,
  		},
-@@ -393,6 +400,15 @@ let main_obj = {
+@@ -752,6 +759,15 @@ let main_obj = {
  			if (req.args.up == null || !req.args.phy)
  				return libubus.STATUS_INVALID_ARGUMENT;
  
@@ -89,10 +78,10 @@ index 43637ac7..7202a8df 100644
  			let config = hostapd.data.config[phy];
  			if (!config || !config.bss || !config.bss[0] || !config.bss[0].ifname)
 diff --git a/package/network/services/hostapd/files/wpa_supplicant.uc b/package/network/services/hostapd/files/wpa_supplicant.uc
-index f8a3fcb5..c24ea03c 100644
+index 1709bb0..e320330 100644
 --- a/package/network/services/hostapd/files/wpa_supplicant.uc
 +++ b/package/network/services/hostapd/files/wpa_supplicant.uc
-@@ -226,6 +226,7 @@ function iface_hostapd_notify(phy, ifname, iface, state)
+@@ -263,6 +263,7 @@ function iface_hostapd_notify(phy, ifname, iface, state)
  	let status = iface.status();
  	let msg = { phy: phy };
  
@@ -100,7 +89,7 @@ index f8a3fcb5..c24ea03c 100644
  	switch (state) {
  	case "DISCONNECTED":
  	case "AUTHENTICATING":
-@@ -240,6 +241,8 @@ function iface_hostapd_notify(phy, ifname, iface, state)
+@@ -277,6 +278,8 @@ function iface_hostapd_notify(phy, ifname, iface, state)
  		msg.up = true;
  		msg.frequency = status.frequency;
  		msg.sec_chan_offset = status.sec_chan_offset;
@@ -109,7 +98,7 @@ index f8a3fcb5..c24ea03c 100644
  		break;
  	default:
  		return;
-@@ -256,6 +259,8 @@ function iface_channel_switch(phy, ifname, iface, info)
+@@ -293,6 +296,8 @@ function iface_channel_switch(phy, ifname, iface, info)
  		csa: true,
  		csa_count: info.csa_count ? info.csa_count - 1 : 0,
  		frequency: info.frequency,
@@ -118,6 +107,4 @@ index f8a3fcb5..c24ea03c 100644
  		sec_chan_offset: info.sec_chan_offset,
  	};
  	ubus.call("hostapd", "apsta_state", msg);
--- 
-2.25.1
 

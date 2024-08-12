@@ -1,0 +1,44 @@
+From cd54ea7d7b49f3ba4ac56dbb2fb28c19d39fd415 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 20 Sep 2022 19:33:45 +0800
+Subject: [PATCH 013/137] mtk: hostapd: print sae groups by hostapd ctrl
+
+---
+ hostapd/ctrl_iface.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
+index f2733687c..2d90d77c6 100644
+--- a/hostapd/ctrl_iface.c
++++ b/hostapd/ctrl_iface.c
+@@ -70,6 +70,7 @@
+ #include "fst/fst_ctrl_iface.h"
+ #include "config_file.h"
+ #include "ctrl_iface.h"
++#include "crypto/dh_groups.h"
+ 
+ 
+ #define HOSTAPD_CLI_DUP_VALUE_MAX_LEN 256
+@@ -1376,6 +1377,19 @@ static int hostapd_ctrl_iface_get(struct hostapd_data *hapd, char *cmd,
+ 		if (os_snprintf_error(buflen, res))
+ 			return -1;
+ 		return res;
++	} else if (os_strcmp(cmd, "sae_group_capability") == 0) {
++#ifdef CONFIG_SAE
++		/* see sae_set_group() */
++		res = os_snprintf(buf, buflen, "%s%s%s%s19 20 21",
++				  dh_groups_get(15) ? "15 ": "",
++				  dh_groups_get(16) ? "16 ": "",
++				  dh_groups_get(17) ? "17 ": "",
++				  dh_groups_get(18) ? "18 ": "");
++
++		if (os_snprintf_error(buflen, res))
++			return -1;
++		return res;
++#endif /* CONFIG_SAE */
+ 	}
+ 
+ 	return -1;
+-- 
+2.18.0
+

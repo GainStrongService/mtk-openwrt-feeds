@@ -1,0 +1,31 @@
+From 774031734e2cd5eea6c28af02b6dc7c255f34020 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Wed, 17 Jul 2024 14:41:38 +0800
+Subject: [PATCH 182/206] mtk: mt76: use linux include from backports
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ tools/CMakeLists.txt | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/tools/CMakeLists.txt b/tools/CMakeLists.txt
+index 3a83e34d..6599c444 100644
+--- a/tools/CMakeLists.txt
++++ b/tools/CMakeLists.txt
+@@ -3,6 +3,13 @@ cmake_minimum_required(VERSION 2.8)
+ PROJECT(mt76-test C)
+ ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -g3)
+ 
++UNSET(backports_dir CACHE)
++FIND_PATH(
++	backports_dir
++	NAMES "mac80211/uapi/linux"
++)
++INCLUDE_DIRECTORIES("${backports_dir}/mac80211/uapi")
++
+ ADD_EXECUTABLE(mt76-test main.c fields.c eeprom.c fwlog.c)
+ TARGET_LINK_LIBRARIES(mt76-test nl-tiny)
+ 
+-- 
+2.18.0
+
