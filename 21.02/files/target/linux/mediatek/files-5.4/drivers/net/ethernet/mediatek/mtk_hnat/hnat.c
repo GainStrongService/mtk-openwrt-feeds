@@ -45,7 +45,7 @@ int (*ppe_del_entry_by_mac)(unsigned char *mac) = NULL;
 EXPORT_SYMBOL(ppe_del_entry_by_mac);
 int (*ppe_del_entry_by_ip)(bool is_ipv4, void *addr) = NULL;
 EXPORT_SYMBOL(ppe_del_entry_by_ip);
-int (*ppe_del_entry_by_bssid_wcid)(u16 bssid, u16 wcid) = NULL;
+int (*ppe_del_entry_by_bssid_wcid)(u32 wdma_idx, u16 bssid, u16 wcid) = NULL;
 EXPORT_SYMBOL(ppe_del_entry_by_bssid_wcid);
 
 void (*ppe_dev_register_hook)(struct net_device *dev) = NULL;
@@ -391,11 +391,17 @@ int entry_delete_by_ip(bool is_ipv4, void *addr)
 	return ret;
 }
 
-static int entry_delete_by_bssid_wcid(u16 bssid, u16 wcid)
+static int entry_delete_by_bssid_wcid(u32 wdma_idx, u16 bssid, u16 wcid)
 {
 	struct foe_entry *entry = NULL;
 	int index, i;
 	int ret = 0;
+	int port;
+
+	port = mtk_get_wdma_rx_port(wdma_idx);
+
+	if (port < 0)
+		return -EINVAL;
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		entry = hnat_priv->foe_table_cpu[i];
@@ -405,39 +411,13 @@ static int entry_delete_by_bssid_wcid(u16 bssid, u16 wcid)
 
 			if (IS_IPV4_GRP(entry)) {
 				if (entry->ipv4_hnapt.winfo.bssid != bssid ||
-#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
-				    entry->ipv4_hnapt.iblk2.winfoi != 1 ||
-#else
-				    entry->ipv4_hnapt.iblk2w.winfoi != 1 ||
-#endif
-				    entry->ipv4_hnapt.winfo.wcid != wcid)
-					continue;
-			} else if (IS_IPV4_MAPE(entry) || IS_IPV4_MAPT(entry)) {
-				if (entry->ipv4_mape.winfo.bssid != bssid ||
-#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
-				    entry->ipv4_mape.iblk2.winfoi != 1 ||
-#else
-				    entry->ipv4_mape.iblk2w.winfoi != 1 ||
-#endif
-				    entry->ipv4_mape.winfo.wcid != wcid)
-					continue;
-			} else if (IS_IPV6_HNAPT(entry) || IS_IPV6_HNAT(entry)) {
-				if (entry->ipv6_hnapt.winfo.bssid != bssid ||
-#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
-				    entry->ipv6_hnapt.iblk2.winfoi != 1 ||
-#else
-				    entry->ipv6_hnapt.iblk2w.winfoi != 1 ||
-#endif
-				    entry->ipv6_hnapt.winfo.wcid != wcid)
+				    entry->ipv4_hnapt.winfo.wcid != wcid ||
+				    entry->ipv4_hnapt.iblk2.dp != port)
 					continue;
 			} else {
 				if (entry->ipv6_5t_route.winfo.bssid != bssid ||
-#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
-				    entry->ipv6_5t_route.iblk2.winfoi != 1 ||
-#else
-				    entry->ipv6_5t_route.iblk2w.winfoi != 1 ||
-#endif
-				    entry->ipv6_5t_route.winfo.wcid != wcid)
+				    entry->ipv6_5t_route.winfo.wcid != wcid ||
+				    entry->ipv6_5t_route.iblk2.dp != port)
 					continue;
 			}
 
@@ -896,6 +876,7 @@ int hnat_disable_hook(void)
 	mod_timer(&hnat_priv->hnat_sma_build_entry_timer, jiffies + 3 * HZ);
 	ppe_del_entry_by_mac = NULL;
 	ppe_del_entry_by_ip = NULL;
+	ppe_del_entry_by_bssid_wcid = NULL;
 	hook_toggle = 0;
 
 	return 0;
