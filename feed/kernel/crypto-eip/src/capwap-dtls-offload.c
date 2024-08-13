@@ -23,7 +23,7 @@
 
 
 struct mtk_CDRT_DTLS_entry CDRT_DTLS_params;
-struct DTLSResourceMgmt *DTLSResourceTable[CAPWAP_MAX_TUNNEL_NUM];
+struct DTLSResourceMgmt *dtls_table[CAPWAP_MAX_TUNNEL_NUM];
 
 static int
 mtk_setup_cdrt_dtls(struct cdrt_entry *cdrt_entry_p, enum cdrt_type type)
@@ -134,7 +134,7 @@ mtk_dtls_capwap_init(void)
 
 	// init table as NULL
 	for (i = 0; i < CAPWAP_MAX_TUNNEL_NUM; i++)
-		DTLSResourceTable[i] = NULL;
+		dtls_table[i] = NULL;
 }
 
 
@@ -144,8 +144,11 @@ mtk_dtls_capwap_deinit(void)
 	int i = 0;
 	// Loop and check if all SA in table are freed
 	for (i = 0; i < CAPWAP_MAX_TUNNEL_NUM; i++) {
-		if (DTLSResourceTable[i] != NULL)
-			mtk_ddk_remove_dtls_param(&DTLSResourceTable[i]);
+		if (dtls_table[i] != NULL) {
+			mtk_ddk_remove_dtls_param(dtls_table[i]);
+			kfree(dtls_table[i]);
+			dtls_table[i] = NULL;
+		}
 	}
 
 	if (CDRT_DTLS_params.cdrt_inbound != NULL)
@@ -162,23 +165,71 @@ mtk_dtls_capwap_deinit(void)
 void
 mtk_update_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx)
 {
-	char *TestName_p;
+	int ret;
 
-	if (DTLSResourceTable[TnlIdx] != NULL) {
+	if (dtls_table[TnlIdx]) {
 		CRYPTO_NOTICE("tnl_idx-%d- existed, will be removed first.\n", TnlIdx);
-		mtk_ddk_remove_dtls_param(&DTLSResourceTable[TnlIdx]);
+		mtk_ddk_remove_dtls_param(dtls_table[TnlIdx]);
+		kfree(dtls_table[TnlIdx]);
+		dtls_table[TnlIdx] = NULL;
+	} else {
+		dtls_table[TnlIdx] = kmalloc(sizeof(struct DTLSResourceMgmt), GFP_KERNEL);
+		if (!dtls_table[TnlIdx]) {
+			CRYPTO_ERR("%s: kmalloc for dtls resource table failed\n", __func__);
+			return;
+		}
+		memset(dtls_table[TnlIdx], 0, sizeof(struct DTLSResourceMgmt));
 	}
 
-	TestName_p = "Inline DTLS-CAPWAP SA setting";
+	/* Setup Transform Record for DTLS */
+	dtls_table[TnlIdx]->sa_out.p =
+			mtk_ddk_tr_capwap_dtls_build(true, DTLSParam_p, SAB_DIRECTION_OUTBOUND);
+	if (!dtls_table[TnlIdx]->sa_out.p) {
+		CRYPTO_ERR("%s: sa_out build failed\n", __func__);
+		kfree(dtls_table[TnlIdx]);
+		dtls_table[TnlIdx] = NULL;
+		return;
+	}
 
-	if (mtk_capwap_dtls_offload(false, true, true, true, false, DTLSParam_p,
-								&DTLSResourceTable[TnlIdx]))
-		CRYPTO_INFO("%s DONE\n", TestName_p);
-	else
-		CRYPTO_ERR("%s: %s FAILED\n", __func__, TestName_p);
+	dtls_table[TnlIdx]->sa_in.p =
+			mtk_ddk_tr_capwap_dtls_build(true, DTLSParam_p, SAB_DIRECTION_INBOUND);
+	if (!dtls_table[TnlIdx]->sa_in.p) {
+		CRYPTO_ERR("%s: sa_in build failed\n", __func__);
+		goto failed;
+	}
+
+	/* Setup DTL Lookup */
+	ret = mtk_ddk_pcl_capwap_dtls_build(DTLSParam_p,
+						dtls_table[TnlIdx], SAB_DIRECTION_OUTBOUND);
+	if (ret < 0) {
+		CRYPTO_ERR("%s: PCL DTL Outbound Setup failed\n", __func__);
+		goto failed;
+	}
+
+	ret = mtk_ddk_pcl_capwap_dtls_build(DTLSParam_p,
+						dtls_table[TnlIdx], SAB_DIRECTION_INBOUND);
+	if (ret < 0) {
+		CRYPTO_ERR("%s: PCL DTL Inbound Setup failed\n", __func__);
+		mtk_ddk_remove_dtls_pcl(dtls_table[TnlIdx], SAB_DIRECTION_OUTBOUND);
+		goto failed;
+	}
+
+	DTLSParam_p->SA_encrypt = dtls_table[TnlIdx]->sa_out.p;
+	DTLSParam_p->SA_decrypt = dtls_table[TnlIdx]->sa_in.p;
+
+	return;
+
+failed:
+	mtk_ddk_remove_dtls_sa(dtls_table[TnlIdx]);
+	kfree(dtls_table[TnlIdx]);
+	dtls_table[TnlIdx] = NULL;
+	return;
 }
 
 void mtk_remove_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx)
 {
-	mtk_ddk_remove_dtls_param(&DTLSResourceTable[TnlIdx]);
+	CRYPTO_INFO("%s: Remove TnlIdx=%d\n", __func__, TnlIdx);
+	mtk_ddk_remove_dtls_param(dtls_table[TnlIdx]);
+	kfree(dtls_table[TnlIdx]);
+	dtls_table[TnlIdx] = NULL;
 }

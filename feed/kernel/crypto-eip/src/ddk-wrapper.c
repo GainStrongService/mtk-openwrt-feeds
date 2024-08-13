@@ -2514,850 +2514,323 @@ mtk_ddk_invalidate_rec(
 	return true;
 }
 
-bool mtk_capwap_dtls_offload(
-		const bool fVerbose,
-		const bool fCAPWAP,
-		const bool fPktCfy,
-		const bool fInline,
-		const bool fContinuousScatter,
-		struct DTLS_param *DTLSParam_p,
-		struct DTLSResourceMgmt **DTLSResource)
+void set_capwap_algo(SABuilder_Params_t *params, uint8_t mode)
 {
-	bool success = false;
-	SABuilder_Status_t SAStatus;
-	SABuilder_Params_t params;
-	SABuilder_Params_SSLTLS_t SSLTLSParams;
-	uint8_t Offset;
-	uint16_t DTLSVersion;
-	uint32_t SAWords = 0;
-	bool fInlinePlain, fInlineCipher;
+	params->CryptoAlgo = SAB_CRYPTO_AES;
+	params->CryptoMode = SAB_CRYPTO_MODE_CBC;
+	params->KeyByteCount = 16;
 
-	DMABuf_Status_t DMAStatus;
-	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
-	DMABuf_HostAddress_t SAHostAddress;
-
-	static uint8_t Zero[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-	uint8_t *InboundHKey = NULL;
-	uint8_t *OutboundHKey = NULL;
-	uint8_t *InnerDigest = NULL;
-	uint8_t *OuterDigest = NULL;
-
-	PCL_Status_t PCL_Status;
-	PCL_SelectorParams_t SelectorParams;
-	PCL_DTL_TransformParams_t DTLTransformParams;
-	PCL_TransformParams_t TransformParams;
-	PCL_DTL_Hash_Handle_t SAHashHandle;
-
-
-	struct DTLSResourceMgmt *DTLSResourceEntity_p = NULL;
-
-	DTLSResourceEntity_p = kmalloc(sizeof(struct DTLSResourceMgmt), GFP_KERNEL);
-	if (DTLSResourceEntity_p == NULL) {
-		CRYPTO_ERR("%s: kmalloc for DTLSResourceEntity failed\n", __func__);
-		goto error_exit;
-	}
-	memset(DTLSResourceEntity_p, 0, sizeof(struct DTLSResourceMgmt));
-
-	if (fCAPWAP)
-		CRYPTO_INFO("Preparing Transforms and DTL for DTLS-CAPWAP\n");
-	else
-		CRYPTO_INFO("Preparing Transforms and DTL for DTLS\n");
-
-	if (fVerbose)
-		CRYPTO_INFO("*** fVerbose Preparing Transforms and DTL ***\n\n");
-
-	Offset = 14;
-
-	if (fInline) {
-		if (fContinuousScatter) {
-			/* inline + continuous scatter:
-			   Redirect outbound packets ring->inline
-			   Redirect inbound packets inline->ring
-			 */
-			fInlinePlain = false;
-			fInlineCipher = true;
-		} else {
-			fInlinePlain = true;
-			fInlineCipher = true;
-		}
-	} else {
-		fInlinePlain = false;
-		fInlineCipher = false;
+	switch (mode) {
+	case AES256_CBC_HMAC_SHA1:
+		params->KeyByteCount = 32;
+		/* fallthrough */
+	case AES128_CBC_HMAC_SHA1:
+		params->AuthAlgo = SAB_AUTH_HMAC_SHA1;
+		params->AuthKeyByteCount = 20;
+		break;
+	case AES256_CBC_HMAC_SHA2_256:
+		params->KeyByteCount = 32;
+		/* fallthrough */
+	case AES128_CBC_HMAC_SHA2_256:
+		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_256;
+		params->AuthKeyByteCount = 32;
+		break;
+	case AES256_GCM:
+		params->KeyByteCount = 32;
+		/* fallthrough */
+	case AES128_GCM:
+		params->CryptoMode = SAB_CRYPTO_MODE_GCM;
+		params->AuthAlgo = SAB_AUTH_AES_GCM;
+		break;
+	default:
+		CRYPTO_ERR("No algorithms match for capwap-dtls\n");
+		params->CryptoAlgo = SAB_CRYPTO_NULL;
+		break;
 	}
 
-	// Prepare the Outbound SA
-	if (DTLSParam_p->dtls_version == MTK_DTLS_VERSION_1_0)
-		DTLSVersion = SAB_DTLS_VERSION_1_0;
-	else if (DTLSParam_p->dtls_version == MTK_DTLS_VERSION_1_2)
-		DTLSVersion = SAB_DTLS_VERSION_1_2;
-	else {
-		CRYPTO_ERR("%s: Unknown DTLSParam_p->dtls_version: %u\n", __func__,
-					DTLSParam_p->dtls_version);
-		goto error_exit;
-	}
-
-	// Initialize the SA parameters for ESP.The call to SABuilder_Init_ESP
-	// will initialize many parameters, next fill in more parameters, such
-	// as cryptographic keys.
-	SAStatus = SABuilder_Init_SSLTLS(&params,
-								   &SSLTLSParams,
-								   DTLSVersion,
-								   SAB_DIRECTION_OUTBOUND);
-	if (SAStatus != SAB_STATUS_OK) {
-		CRYPTO_ERR("%s: SABuilder_Init_ESP failed\n", __func__);
-		goto error_exit;
-	}
-
-	/* Set DTLS-CAPWAP param from cmd handler */
-	if (DTLSParam_p->sec_mode == AES128_CBC_HMAC_SHA1) {
-		params.CryptoAlgo = SAB_CRYPTO_AES;
-		params.CryptoMode = SAB_CRYPTO_MODE_CBC;
-		params.KeyByteCount = 16;
-		params.AuthAlgo = SAB_AUTH_HMAC_SHA1;
-		params.AuthKeyByteCount = 20;
-	} else if (DTLSParam_p->sec_mode == AES128_CBC_HMAC_SHA2_256) {
-		params.CryptoAlgo = SAB_CRYPTO_AES;
-		params.CryptoMode = SAB_CRYPTO_MODE_CBC;
-		params.KeyByteCount = 16;
-		params.AuthAlgo = SAB_AUTH_HMAC_SHA2_256;
-		params.AuthKeyByteCount = 32;
-	} else if (DTLSParam_p->sec_mode == AES256_CBC_HMAC_SHA1) {
-		params.CryptoAlgo = SAB_CRYPTO_AES;
-		params.CryptoMode = SAB_CRYPTO_MODE_CBC;
-		params.KeyByteCount = 32;
-		params.AuthAlgo = SAB_AUTH_HMAC_SHA1;
-		params.AuthKeyByteCount = 20;
-	} else if (DTLSParam_p->sec_mode == AES256_CBC_HMAC_SHA2_256) {
-		params.CryptoAlgo = SAB_CRYPTO_AES;
-		params.CryptoMode = SAB_CRYPTO_MODE_CBC;
-		params.KeyByteCount = 32;
-		params.AuthAlgo = SAB_AUTH_HMAC_SHA2_256;
-		params.AuthKeyByteCount = 32;
-	} else if (DTLSParam_p->sec_mode == AES128_GCM || DTLSParam_p->sec_mode == AES256_GCM) {
-		params.CryptoAlgo = SAB_CRYPTO_AES;
-		params.CryptoMode = SAB_CRYPTO_MODE_GCM;
-		params.AuthAlgo = SAB_AUTH_AES_GCM;
-		if (DTLSParam_p->sec_mode == AES128_GCM)
-			params.KeyByteCount = 16;
-		else if (DTLSParam_p->sec_mode == AES256_GCM)
-			params.KeyByteCount = 32;
-
-		params.Nonce_p = DTLSParam_p->dtls_encrypt_nonce;
-
-		OutboundHKey = kcalloc(16, sizeof(uint8_t), GFP_KERNEL);
-		if (OutboundHKey == NULL) {
-			CRYPTO_ERR("%s: kmalloc for OutboundHKey failed\n", __func__);
-			goto error_exit;
-		}
-
-		mtk_ddk_aes_block_encrypt(DTLSParam_p->key_encrypt, 16, Zero, OutboundHKey);
-		if (fVerbose)
-			Log_HexDump("OutboundHKey", 0, OutboundHKey, 16);
-		// Byte-swap the HKEY
-		{
-			uint8_t t;
-			unsigned int i;
-
-			for (i = 0; i < 4; i++) {
-				t = OutboundHKey[4*i+3];
-				OutboundHKey[4*i+3] = OutboundHKey[4*i];
-				OutboundHKey[4*i] = t;
-				t = OutboundHKey[4*i+2];
-				OutboundHKey[4*i+2] = OutboundHKey[4*i+1];
-				OutboundHKey[4*i+1] = t;
-			}
-		}
-		if (fVerbose)
-			Log_HexDump("OutboundHKey (swapped)", 0, OutboundHKey, 16);
-		params.AuthKey1_p = OutboundHKey;
-		DTLSResourceEntity_p->HKeyOutbound = OutboundHKey;
-	} else {
-		CRYPTO_ERR("%s: Unknown DTLSParam_p->sec_mode: %u\n", __func__,
-					DTLSParam_p->sec_mode);
-		goto error_exit;
-	}
-	// Add crypto key and parameters.
-	params.Key_p = DTLSParam_p->key_encrypt;
-	// Add authentication key and paramters.
-	if (params.AuthAlgo == SAB_AUTH_HMAC_SHA1 || params.AuthAlgo == SAB_AUTH_HMAC_SHA2_256) {
-#ifdef EIP197_INLINE_HMAC_DIGEST_PRECOMPUTE
-		params.AuthKey1_p = DTLSParam_p->key_auth_encrypt_1; // inner digest directly
-		params.AuthKey2_p = DTLSParam_p->key_auth_encrypt_2; // outer digest directly
-#else
-		// No hardware precompute support, so preform HMAC precompute in
-		// the traditional way.
-		InnerDigest = kcalloc((size_t)params.AuthKeyByteCount, sizeof(uint8_t), GFP_KERNEL);
-		if (InnerDigest == NULL) {
-			CRYPTO_ERR("%s: kmalloc for InnerDigest failed\n", __func__);
-			goto error_exit;
-		}
-		memset(InnerDigest, 0, params.AuthKeyByteCount);
-		DTLSResourceEntity_p->InnerDigestOutbound = InnerDigest;
-		OuterDigest = kcalloc((size_t)params.AuthKeyByteCount, sizeof(uint8_t), GFP_KERNEL);
-		if (OuterDigest == NULL) {
-			CRYPTO_ERR("%s: kmalloc for OuterDigest failed\n", __func__);
-			goto error_exit;
-		}
-		memset(OuterDigest, 0, params.AuthKeyByteCount);
-		DTLSResourceEntity_p->OuterDigestOutbound = OuterDigest;
-		crypto_hmac_precompute(params.AuthAlgo,
-							   DTLSParam_p->key_auth_encrypt_1,
-							   params.AuthKeyByteCount,
-							   InnerDigest,
-							   OuterDigest);
-		if (fVerbose) {
-			Log_HexDump("Inner Digest", 0, InnerDigest, params.AuthKeyByteCount);
-			Log_HexDump("Outer Digest", 0, OuterDigest, params.AuthKeyByteCount);
-		}
-		params.AuthKey1_p = InnerDigest;
-		params.AuthKey2_p = OuterDigest;
-#endif
-	}
-
-	// Create a reference to the header processor context.
-	SSLTLSParams.epoch = DTLSParam_p->dtls_epoch;
-
-	SSLTLSParams.SSLTLSFlags |= SAB_DTLS_PROCESS_IP_HEADERS |
-					SAB_DTLS_EXT_PROCESSING;
-
-	if (DTLSParam_p->net_type == MTK_DTLS_NET_IPV6)
-		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_IPV6;
-	else
-		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_IPV4;
-
-	if (fCAPWAP)
-		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_CAPWAP;
-
-	// Now the SA parameters are completely filled in.
-
-	// We are ready to probe the size required for the transform
-	// record (SA).
-	SAStatus = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
-
-	if (fVerbose)
-		CRYPTO_INFO(
-			"%s: SABuilder_GetSizes returned %d SA size=%u words for outbound\n",
-			__func__,
-			SAStatus,
-			SAWords);
-	if (SAStatus != SAB_STATUS_OK) {
-		CRYPTO_ERR("%s: SA not created because of errors\n", __func__);
-		goto error_exit;
-	}
-
-	// Allocate a DMA-safe buffer for the SA.
-	DMAProperties.fCached   = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank	  = MTK_EIP197_INLINE_BANK_TRANSFORM;
-	DMAProperties.Size	  = SAWords * sizeof(uint32_t);
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &SAHostAddress,
-						&DTLSResourceEntity_p->DTLSHandleSAOutbound);
-	if (DMAStatus != DMABUF_STATUS_OK || DTLSResourceEntity_p->DTLSHandleSAOutbound.p == NULL) {
-		CRYPTO_ERR("%s Allocation of outbound SA failed\n", __func__);
-		goto error_exit;
-	}
-
-	// Now we can actually build the SA in the DMA-safe buffer.
-	SAStatus = SABuilder_BuildSA(&params, (uint32_t *)SAHostAddress.p, NULL, NULL);
-
-	if (SAStatus != SAB_STATUS_OK) {
-		CRYPTO_ERR("%s: SA not created because of errors\n", __func__);
-		goto error_exit;
-	}
-	if (fVerbose) {
-		CRYPTO_INFO("Outbound transform record created\n");
-
-		Log_HexDump("Outbound transform record",
-					0,
-					SAHostAddress.p,
-					SAWords * sizeof(uint32_t));
-	}
-
-	// Prepare the Inbound SA
-	if (DTLSParam_p->dtls_version == MTK_DTLS_VERSION_1_0)
-		DTLSVersion = SAB_DTLS_VERSION_1_0;
-	else if (DTLSParam_p->dtls_version == MTK_DTLS_VERSION_1_2)
-		DTLSVersion = SAB_DTLS_VERSION_1_2;
-	else {
-		CRYPTO_ERR("%s: Unknown DTLSParam_p->dtls_version: %u\n", __func__,
-					DTLSParam_p->dtls_version);
-		goto error_exit;
-	}
-
-	// Initialize the SA parameters for ESP.The call to SABuilder_Init_ESP
-	// will initialize many parameters, next fill in more parameters, such
-	// as cryptographic keys.
-	SAStatus = SABuilder_Init_SSLTLS(&params,
-								   &SSLTLSParams,
-								   DTLSVersion,
-								   SAB_DIRECTION_INBOUND);
-	if (SAStatus != SAB_STATUS_OK) {
-		CRYPTO_ERR("%s: SABuilder_Init_ESP failed\n", __func__);
-		goto error_exit;
-	}
-
-	/* Set DTLS-CAPWAP param from cmd handler */
-	if (DTLSParam_p->sec_mode == AES128_CBC_HMAC_SHA1) {
-		params.CryptoAlgo = SAB_CRYPTO_AES;
-		params.CryptoMode = SAB_CRYPTO_MODE_CBC;
-		params.KeyByteCount = 16;
-		params.AuthAlgo = SAB_AUTH_HMAC_SHA1;
-		params.AuthKeyByteCount = 20;
-	} else if (DTLSParam_p->sec_mode == AES128_CBC_HMAC_SHA2_256) {
-		params.CryptoAlgo = SAB_CRYPTO_AES;
-		params.CryptoMode = SAB_CRYPTO_MODE_CBC;
-		params.KeyByteCount = 16;
-		params.AuthAlgo = SAB_AUTH_HMAC_SHA2_256;
-		params.AuthKeyByteCount = 32;
-	} else if (DTLSParam_p->sec_mode == AES256_CBC_HMAC_SHA1) {
-		params.CryptoAlgo = SAB_CRYPTO_AES;
-		params.CryptoMode = SAB_CRYPTO_MODE_CBC;
-		params.KeyByteCount = 32;
-		params.AuthAlgo = SAB_AUTH_HMAC_SHA1;
-		params.AuthKeyByteCount = 20;
-	} else if (DTLSParam_p->sec_mode == AES256_CBC_HMAC_SHA2_256) {
-		params.CryptoAlgo = SAB_CRYPTO_AES;
-		params.CryptoMode = SAB_CRYPTO_MODE_CBC;
-		params.KeyByteCount = 32;
-		params.AuthAlgo = SAB_AUTH_HMAC_SHA2_256;
-		params.AuthKeyByteCount = 32;
-	} else if (DTLSParam_p->sec_mode == AES128_GCM || DTLSParam_p->sec_mode == AES256_GCM) {
-		params.CryptoAlgo = SAB_CRYPTO_AES;
-		params.CryptoMode = SAB_CRYPTO_MODE_GCM;
-		params.AuthAlgo = SAB_AUTH_AES_GCM;
-		if (DTLSParam_p->sec_mode == AES128_GCM)
-			params.KeyByteCount = 16;
-		else if (DTLSParam_p->sec_mode == AES256_GCM)
-			params.KeyByteCount = 32;
-
-		params.Nonce_p = DTLSParam_p->dtls_decrypt_nonce;
-
-		InboundHKey = kcalloc(16, sizeof(uint8_t), GFP_KERNEL);
-		if (InboundHKey == NULL) {
-			CRYPTO_ERR("%s: kmalloc for InboundHKey failed\n", __func__);
-			goto error_exit;
-		}
-
-		mtk_ddk_aes_block_encrypt(DTLSParam_p->key_decrypt, 16, Zero, InboundHKey);
-		if (fVerbose)
-			Log_HexDump("InboundHKey", 0, InboundHKey, 16);
-		// Byte-swap the HKEY
-		{
-			uint8_t t;
-			unsigned int i;
-
-			for (i = 0; i < 4; i++) {
-				t = InboundHKey[4*i+3];
-				InboundHKey[4*i+3] = InboundHKey[4*i];
-				InboundHKey[4*i] = t;
-				t = InboundHKey[4*i+2];
-				InboundHKey[4*i+2] = InboundHKey[4*i+1];
-				InboundHKey[4*i+1] = t;
-			}
-		}
-		if (fVerbose)
-			Log_HexDump("InboundHKey (swapped)", 0, InboundHKey, 16);
-		params.AuthKey1_p = InboundHKey;
-		DTLSResourceEntity_p->HKeyInbound = InboundHKey;
-	} else {
-		CRYPTO_ERR("%s: Unknown DTLSParam_p->sec_mode: %u\n", __func__,
-					DTLSParam_p->sec_mode);
-		goto error_exit;
-	}
-
-	// Add crypto key and parameters.
-	params.Key_p = DTLSParam_p->key_decrypt;
-	// Add authentication key and paramters.
-	if (params.AuthAlgo == SAB_AUTH_HMAC_SHA1 || params.AuthAlgo == SAB_AUTH_HMAC_SHA2_256) {
-#ifdef EIP197_INLINE_HMAC_DIGEST_PRECOMPUTE
-		params.AuthKey1_p = DTLSParam_p->key_auth_decrypt_1;
-		params.AuthKey2_p = DTLSParam_p->key_auth_decrypt_2;
-#else
-		// No hardware precompute support, so preform HMAC precompute in
-		// the traditional way.
-		InnerDigest = kcalloc(params.AuthKeyByteCount, sizeof(uint8_t), GFP_KERNEL);
-		if (InnerDigest == NULL) {
-			CRYPTO_ERR("%s: kmalloc for InnerDigest failed\n", __func__);
-			goto error_exit;
-		}
-		memset(InnerDigest, 0, params.AuthKeyByteCount);
-		DTLSResourceEntity_p->InnerDigestInbound = InnerDigest;
-		OuterDigest = kcalloc(params.AuthKeyByteCount, sizeof(uint8_t), GFP_KERNEL);
-		if (OuterDigest == NULL) {
-			CRYPTO_ERR("%s: kmalloc for OuterDigest failed\n", __func__);
-			goto error_exit;
-		}
-		memset(OuterDigest, 0, params.AuthKeyByteCount);
-		DTLSResourceEntity_p->OuterDigestInbound = OuterDigest;
-		crypto_hmac_precompute(params.AuthAlgo,
-							   DTLSParam_p->key_auth_decrypt_1,
-							   params.AuthKeyByteCount,
-							   InnerDigest,
-							   OuterDigest);
-		if (fVerbose) {
-			Log_HexDump("Inner Digest", 0, InnerDigest, params.AuthKeyByteCount);
-			Log_HexDump("Outer Digest", 0, OuterDigest, params.AuthKeyByteCount);
-		}
-		params.AuthKey1_p = InnerDigest;
-		params.AuthKey2_p = OuterDigest;
-		InnerDigest = NULL;
-		OuterDigest = NULL;
-	}
-#endif
-
-	if (fInlinePlain != fInlineCipher) {
-		params.flags |= SAB_FLAG_REDIRECT;
-		params.RedirectInterface = PEC_INTERFACE_ID; /*redirect to ring */
-	}
-
-	SSLTLSParams.SSLTLSFlags |= SAB_DTLS_PROCESS_IP_HEADERS |
-						SAB_DTLS_EXT_PROCESSING;
-
-	// Create a reference to the header processor context.
-	SSLTLSParams.epoch = DTLSParam_p->dtls_epoch;
-
-	if (DTLSParam_p->net_type == MTK_DTLS_NET_IPV6)
-		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_IPV6;
-	else
-		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_IPV4;
-
-	if (fCAPWAP)
-		SSLTLSParams.SSLTLSFlags |= SAB_DTLS_CAPWAP;
-
-	// Now the SA parameters are completely filled in.
-
-	// We are ready to probe the size required for the transform
-	// record (SA).
-	SAStatus = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
-
-	if (fVerbose)
-		CRYPTO_INFO("%s: SABuilder_GetSizes returned %d SA size=%u words for inbound\n",
-				 __func__,
-				 SAStatus,
-				 SAWords);
-
-	if (SAStatus != SAB_STATUS_OK) {
-		CRYPTO_ERR("%s: SA not created because of errors\n", __func__);
-		goto error_exit;
-	}
-
-	// Allocate a DMA-safe buffer for the SA.
-	DMAProperties.fCached   = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank	  = MTK_EIP197_INLINE_BANK_TRANSFORM;
-	DMAProperties.Size	  = SAWords * sizeof(uint32_t);
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &SAHostAddress,
-							&DTLSResourceEntity_p->DTLSHandleSAInbound);
-	if (DMAStatus != DMABUF_STATUS_OK || DTLSResourceEntity_p->DTLSHandleSAInbound.p == NULL) {
-		CRYPTO_ERR("%s: Allocation of inbound SA failed\n", __func__);
-		goto error_exit;
-	}
-
-	// Now we can actually build the SA in the DMA-safe buffer.
-	SAStatus = SABuilder_BuildSA(&params, (uint32_t *)SAHostAddress.p, NULL, NULL);
-	if (SAStatus != SAB_STATUS_OK) {
-		CRYPTO_ERR("%s: SA not created because of errors\n", __func__);
-		goto error_exit;
-	}
-	if (fVerbose) {
-		CRYPTO_INFO("Inbound transform record created\n");
-
-		Log_HexDump("Inbound transform record",
-					0,
-					SAHostAddress.p,
-					SAWords * sizeof(uint32_t));
-	}
-
-	// Register the SAs with the PCL API. DMA buffers for hardware transforms
-	// (SAs) are allocated and filled in external to the PCL API.
-	PCL_Status = PCL_Transform_Register(DTLSResourceEntity_p->DTLSHandleSAOutbound);
-	if (PCL_Status != PCL_STATUS_OK) {
-		CRYPTO_ERR("%s: PCL_Transform_Register failed\n", __func__);
-		goto error_exit;
-	}
-	if (fVerbose)
-		CRYPTO_INFO("%s: Outbound transform registered\n", __func__);
-
-	PCL_Status = PCL_Transform_Register(DTLSResourceEntity_p->DTLSHandleSAInbound);
-	if (PCL_Status != PCL_STATUS_OK) {
-		CRYPTO_ERR("%s: PCL_Transform_Register failed\n", __func__);
-		PCL_Transform_UnRegister(DTLSResourceEntity_p->DTLSHandleSAOutbound);
-		goto error_exit;
-	}
-	if (fVerbose)
-		CRYPTO_INFO("%s: Inbound transform registered\n", __func__);
-
-
-
-	/* Create the DTL entries.  */
-	if (fPktCfy) {
-		ZEROINIT(SelectorParams);
-		ZEROINIT(DTLTransformParams);
-
-		if (DTLSParam_p->net_type == MTK_DTLS_NET_IPV6) {
-			SelectorParams.flags = PCL_SELECT_IPV6;
-			SelectorParams.SrcIp = ((unsigned char *)(&(DTLSParam_p->sip.ip6.addr)));
-			SelectorParams.DstIp = ((unsigned char *)(&(DTLSParam_p->dip.ip6.addr)));
-		} else {
-			SelectorParams.flags = PCL_SELECT_IPV4;
-			SelectorParams.SrcIp = ((unsigned char *)(&(DTLSParam_p->sip.ip4.addr32)));
-			SelectorParams.DstIp = ((unsigned char *)(&(DTLSParam_p->dip.ip4.addr32)));
-		}
-
-		SelectorParams.IpProto = 17; //UDP
-		SelectorParams.SrcPort = DTLSParam_p->sport;
-		SelectorParams.DstPort = DTLSParam_p->dport;
-		SelectorParams.spi = 0;
-		SelectorParams.epoch = 0; // No epoch, not present in outbound packet
-
-		/* Compute the hash for the inbound DTL */
-		PCL_Status = PCL_Flow_Hash(&SelectorParams, DTLTransformParams.HashID);
-		if (PCL_Status != PCL_STATUS_OK) {
-			CRYPTO_ERR("%s: PEC_Flow_Hash failed\n", __func__);
-			goto error_exit_unregister;
-		}
-		if (fVerbose)
-			CRYPTO_INFO("%s: Inbound flow hashed\n", __func__);
-
-		/* Add the inbound DTL entry. */
-		PCL_Status = PCL_DTL_Transform_Add(PCL_INTERFACE_ID, 0,
-							&DTLTransformParams,
-							DTLSResourceEntity_p->DTLSHandleSAOutbound,
-							&SAHashHandle);
-		if (PCL_Status != PCL_STATUS_OK) {
-			CRYPTO_ERR("%s: PEC_DTL_Transform_Add failed\n", __func__);
-			goto error_exit_unregister;
-		}
-		if (fVerbose)
-			CRYPTO_INFO("%s: Outbound DTL added\n", __func__);
-
-		ZEROINIT(SelectorParams);
-		ZEROINIT(DTLTransformParams);
-
-		if (DTLSParam_p->net_type == MTK_DTLS_NET_IPV6) {
-			SelectorParams.flags = PCL_SELECT_IPV6;
-			SelectorParams.SrcIp = ((unsigned char *)(&(DTLSParam_p->dip.ip6.addr)));
-			SelectorParams.DstIp = ((unsigned char *)(&(DTLSParam_p->sip.ip6.addr)));
-		} else {
-			SelectorParams.flags = PCL_SELECT_IPV4;
-			SelectorParams.SrcIp = ((unsigned char *)(&(DTLSParam_p->dip.ip4.addr32)));
-			SelectorParams.DstIp = ((unsigned char *)(&(DTLSParam_p->sip.ip4.addr32)));
-		}
-		SelectorParams.SrcPort = DTLSParam_p->dport;
-		SelectorParams.DstPort = DTLSParam_p->sport;
-		SelectorParams.IpProto = 17; //UDP
-		SelectorParams.epoch = DTLSParam_p->dtls_epoch;
-
-		/* Compute the hash for the inbound DTL */
-		PCL_Status = PCL_Flow_Hash(&SelectorParams, DTLTransformParams.HashID);
-		if (PCL_Status != PCL_STATUS_OK) {
-			CRYPTO_ERR("%s: PEC_Flow_Hash failed\n", __func__);
-			PCL_DTL_Transform_Remove(PCL_INTERFACE_ID, 0,
-							DTLSResourceEntity_p->DTLSHandleSAOutbound);
-			goto error_exit_unregister;
-		}
-		if (fVerbose)
-			CRYPTO_INFO("%s: Inbound lookup hashed\n", __func__);
-
-		/* Add the inbound DTL entry. */
-		PCL_Status = PCL_DTL_Transform_Add(PCL_INTERFACE_ID, 0,
-						&DTLTransformParams,
-						DTLSResourceEntity_p->DTLSHandleSAInbound,
-						&SAHashHandle);
-		if (PCL_Status != PCL_STATUS_OK) {
-			CRYPTO_ERR("%s: PEC_DTL_Transform_Add failed\n", __func__);
-			PCL_DTL_Transform_Remove(PCL_INTERFACE_ID, 0,
-							DTLSResourceEntity_p->DTLSHandleSAOutbound);
-			goto error_exit_unregister;
-		}
-		if (fVerbose)
-			CRYPTO_INFO("%s: Inbound DTL added\n", __func__);
-	}
-
-	/* At this point, both outbound and inbound transforms have been
-	 * registered and both outbound and inbound DTL entries are added to the
-	 * lookup table. The Packet Engine is ready to accept packets and
-	 * perform classification and processing autonomously.*/
-
-	if (fVerbose)
-		CRYPTO_INFO("*** Finished update DTLS-CAPWAP SA ***\n\n");
-
-	// If we made it to here, consider this run a success. Any jump
-	// to one of the error labels below will skip "success = true"
-	success = true;
-	DTLSParam_p->SA_encrypt = DTLSResourceEntity_p->DTLSHandleSAOutbound.p;
-	DTLSParam_p->SA_decrypt = DTLSResourceEntity_p->DTLSHandleSAInbound.p;
-	DTLSResourceEntity_p->DTLSParam = DTLSParam_p;
-	*DTLSResource = DTLSResourceEntity_p;
-
-	return success;
-
-
-error_exit_unregister:
-	/* At this point, all flows have been removed, so we can start
-	 * removing the transform records.	Note: all flows that use the
-	 * transform must be removed before removing the transform.
-	 *
-	 * When any flow creation error occurs, return to this point. The
-	 * flow records have not been created, but the transform records
-	 * are registered at this point.
-	 */
-
-	/* Obtain statistics of the outbound transform. We do this at the
-	 * end of the lifetime of the transform, but it can be done at any
-	 * time when the transform is registered.*/
-	PCL_Status = PCL_Transform_Get_ReadOnly(DTLSResourceEntity_p->DTLSHandleSAOutbound,
-									&TransformParams);
-	if (PCL_Status != PCL_STATUS_OK)
-		CRYPTO_ERR("%s: Could not obtain statistics for outbound transform\n", __func__);
-	else
-		CRYPTO_INFO("Statistics of outbound transform: %u packets %u octets\n",
-				 TransformParams.PacketsCounterLo,
-				 TransformParams.OctetsCounterLo);
-
-	/* Obtain statistics of the inbound transform. */
-	PCL_Status = PCL_Transform_Get_ReadOnly(DTLSResourceEntity_p->DTLSHandleSAInbound,
-									&TransformParams);
-	if (PCL_Status != PCL_STATUS_OK)
-		CRYPTO_ERR("%s: Could not obtain statistics for inbound transform\n", __func__);
-	else
-		CRYPTO_INFO("Statistics of inbound transform: %u packets %u octets\n",
-				 TransformParams.PacketsCounterLo,
-				 TransformParams.OctetsCounterLo);
-
-
-	/* Unregister both transforms. Report, but do not handle the
-	 * results of these calls. If they fail, there is nothing sensible
-	 * that we can do to recover.
-	 */
-	if (!mtk_ddk_invalidate_rec(DTLSResourceEntity_p->DTLSHandleSAOutbound, true))
-		CRYPTO_ERR("%s: transform invalidate failed\n", __func__);
-	else if (fVerbose)
-		CRYPTO_INFO("transform invalidate succeeded\n");
-
-
-	PCL_Status = PCL_Transform_UnRegister(DTLSResourceEntity_p->DTLSHandleSAOutbound);
-	if (PCL_Status != PCL_STATUS_OK)
-		CRYPTO_ERR("%s: PCL_Transform_UnRegister failed\n", __func__);
-	else if (fVerbose)
-		CRYPTO_INFO("PCL_Transform_UnRegister succeeded\n");
-
-
-	if (!mtk_ddk_invalidate_rec(DTLSResourceEntity_p->DTLSHandleSAInbound, true))
-		CRYPTO_ERR("%s: transform invalidate failed\n", __func__);
-	else if (fVerbose)
-		CRYPTO_INFO("transform invalidate succeeded\n");
-
-
-	PCL_Status = PCL_Transform_UnRegister(DTLSResourceEntity_p->DTLSHandleSAInbound);
-	if (PCL_Status != PCL_STATUS_OK)
-		CRYPTO_ERR("%s: PCL_Transform_UnRegister failed\n", __func__);
-	else if (fVerbose)
-		CRYPTO_INFO("PCL_Transform_UnRegister succeeded\n");
-
-
-error_exit:
-	/* Remove the buffers occupied by the transforms, the packets and the
-	 * header processor contexts.
-	 *
-	 * Return here if any error occurs before the transforms are registered.
-	 * When we return here with an error, not all buffers may have been
-	 * allocated.
-	 * Note: DMABuf_Release can be called when no buffer was allocated.
-	 */
-	if (DTLSResourceEntity_p != NULL) {
-		if (DTLSResourceEntity_p->DTLSHandleSAOutbound.p != NULL) {
-			DMABuf_Release(DTLSResourceEntity_p->DTLSHandleSAOutbound);
-			DTLSResourceEntity_p->DTLSHandleSAOutbound.p = NULL;
-			DTLSResourceEntity_p->DTLSParam->SA_encrypt = (void *) NULL;
-		}
-		if (DTLSResourceEntity_p->DTLSHandleSAInbound.p != NULL) {
-			DMABuf_Release(DTLSResourceEntity_p->DTLSHandleSAInbound);
-			DTLSResourceEntity_p->DTLSHandleSAInbound.p = NULL;
-			DTLSResourceEntity_p->DTLSParam->SA_decrypt = (void *) NULL;
-		}
-		if (DTLSResourceEntity_p->HKeyOutbound != NULL) {
-			kfree(DTLSResourceEntity_p->HKeyOutbound);
-			DTLSResourceEntity_p->HKeyOutbound = NULL;
-		}
-		if (DTLSResourceEntity_p->HKeyInbound != NULL) {
-			kfree(DTLSResourceEntity_p->HKeyInbound);
-			DTLSResourceEntity_p->HKeyInbound = NULL;
-		}
-		if (DTLSResourceEntity_p->InnerDigestInbound != NULL) {
-			kfree(DTLSResourceEntity_p->InnerDigestInbound);
-			DTLSResourceEntity_p->InnerDigestInbound = NULL;
-		}
-		if (DTLSResourceEntity_p->OuterDigestInbound != NULL) {
-			kfree(DTLSResourceEntity_p->OuterDigestInbound);
-			DTLSResourceEntity_p->OuterDigestInbound = NULL;
-		}
-		if (DTLSResourceEntity_p->InnerDigestOutbound != NULL) {
-			kfree(DTLSResourceEntity_p->InnerDigestOutbound);
-			DTLSResourceEntity_p->InnerDigestOutbound = NULL;
-		}
-		if (DTLSResourceEntity_p->OuterDigestOutbound != NULL) {
-			kfree(DTLSResourceEntity_p->OuterDigestOutbound);
-			DTLSResourceEntity_p->OuterDigestOutbound = NULL;
-		}
-		if (DTLSResourceEntity_p != NULL) {
-			kfree(DTLSResourceEntity_p);
-			DTLSResourceEntity_p = NULL;
-		}
-		*DTLSResource = NULL;
-	}
-	return success;
+	return;
 }
 
-void mtk_ddk_remove_dtls_param(struct DTLSResourceMgmt **DTLSResource)
+void *mtk_ddk_tr_capwap_dtls_build(
+		const bool capwap,
+		struct DTLS_param *DTLSParam_p, u32 dir)
 {
-	bool fVerbose = false;
-	bool fPktCfy = true;
-	PCL_Status_t PCL_Status;
-	PCL_TransformParams_t TransformParams;
+	SABuilder_Status_t sa_status;
+	SABuilder_Params_t params;
+	SABuilder_Params_SSLTLS_t ssl_tls_params;
+	uint16_t dtls_version;
+	uint32_t sa_words;
 
-	if (*DTLSResource == NULL) {
-		if (fVerbose)
-			CRYPTO_ERR("%s: DTLSResource is NULL\n", __func__);
+	static uint8_t zeros[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	uint8_t *hash_key = NULL;
+	uint8_t *inner = NULL;
+	uint8_t *outer = NULL;
+
+	DMABuf_Handle_t sa_handle = {0};
+	DMABuf_HostAddress_t sa_host_addr;
+	DMABuf_Status_t DMAStatus;
+	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
+
+	if (capwap)
+		CRYPTO_INFO("Preparing Transforms for DTLS-CAPWAP\n");
+	else
+		CRYPTO_INFO("Preparing Transforms for DTLS\n");
+
+	if (DTLSParam_p->dtls_version == MTK_DTLS_VERSION_1_0)
+		dtls_version = SAB_DTLS_VERSION_1_0;
+	else if (DTLSParam_p->dtls_version == MTK_DTLS_VERSION_1_2)
+		dtls_version = SAB_DTLS_VERSION_1_2;
+	else {
+		CRYPTO_ERR("%s: Unknow dtls version: %u\n", __func__, DTLSParam_p->dtls_version);
+		sa_handle.p = NULL;
+		return sa_handle.p;
+	}
+
+	sa_status = SABuilder_Init_SSLTLS(&params,
+									&ssl_tls_params,
+									dtls_version,
+									dir);
+
+	if (dir == SAB_DIRECTION_OUTBOUND) {
+		params.Nonce_p = DTLSParam_p->dtls_encrypt_nonce;
+		params.Key_p = DTLSParam_p->key_encrypt;
+	} else {
+		params.Nonce_p = DTLSParam_p->dtls_decrypt_nonce;
+		params.Key_p = DTLSParam_p->key_decrypt;
+	}
+
+	set_capwap_algo(&params, DTLSParam_p->sec_mode);
+	if (params.CryptoAlgo == SAB_CRYPTO_NULL) {
+		sa_handle.p = NULL;
+		return sa_handle.p;
+	}
+
+	if (params.AuthAlgo == SAB_AUTH_AES_GCM) {
+		hash_key = kcalloc(16, sizeof(uint8_t), GFP_KERNEL);
+		if (hash_key == NULL) {
+			CRYPTO_ERR("%s: kcalloc for hash key failed\n", __func__);
+			sa_handle.p = NULL;
+			return sa_handle.p;
+		}
+
+		mtk_ddk_aes_block_encrypt(params.Key_p, 16, zeros, hash_key);
+
+		/* Byte-swap the hash key */
+		{
+			uint8_t t;
+			unsigned int i;
+
+			for (i = 0; i < 4; i++) {
+				t = hash_key[4*i+3];
+				hash_key[4*i+3] = hash_key[4*i];
+				hash_key[4*i] = t;
+				t = hash_key[4*i+2];
+				hash_key[4*i+2] = hash_key[4*i+1];
+				hash_key[4*i+1] = t;
+			}
+		}
+		params.AuthKey1_p = hash_key;
+	} else {
+		/* Set authkey for HMAC */
+		inner = kcalloc((size_t) params.AuthKeyByteCount, sizeof(uint8_t), GFP_KERNEL);
+		if (!inner) {
+			CRYPTO_ERR("%s: kmalloc for hmac inner digest failed\n", __func__);
+			sa_handle.p = NULL;
+			return sa_handle.p;
+		}
+
+		outer = kcalloc((size_t) params.AuthKeyByteCount, sizeof(uint8_t), GFP_KERNEL);
+		if (!outer) {
+			CRYPTO_ERR("%s: kmalloc for hmac outer digest failed\n", __func__);
+			kfree(inner);
+			sa_handle.p = NULL;
+			return sa_handle.p;
+		}
+
+		memset(inner, 0, params.AuthKeyByteCount);
+		memset(outer, 0, params.AuthKeyByteCount);
+		crypto_hmac_precompute(params.AuthAlgo, params.Key_p,
+							params.AuthKeyByteCount, inner, outer);
+		params.AuthKey1_p = inner;
+		params.AuthKey2_p = outer;
+	}
+
+	ssl_tls_params.epoch = DTLSParam_p->dtls_epoch;
+	ssl_tls_params.SSLTLSFlags |= SAB_DTLS_PROCESS_IP_HEADERS |
+						SAB_DTLS_EXT_PROCESSING;
+	if (DTLSParam_p->net_type == MTK_DTLS_NET_IPV6)
+		ssl_tls_params.SSLTLSFlags |= SAB_DTLS_IPV6;
+	else
+		ssl_tls_params.SSLTLSFlags |= SAB_DTLS_IPV4;
+
+	if (capwap)
+		ssl_tls_params.SSLTLSFlags |= SAB_DTLS_CAPWAP;
+
+	sa_status = SABuilder_GetSizes(&params, &sa_words, NULL, NULL);
+	if (sa_status != SAB_STATUS_OK) {
+		sa_handle.p = NULL;
+		goto free_exit;
+	}
+
+	/* Allocate a DMA-safe buffer for the SA. */
+	DMAProperties.fCached   = true;
+	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
+	DMAProperties.Bank	  = MTK_EIP197_INLINE_BANK_TRANSFORM;
+	DMAProperties.Size	  = sa_words * sizeof(uint32_t);
+
+	DMAStatus = DMABuf_Alloc(DMAProperties, &sa_host_addr, &sa_handle);
+	if (DMAStatus != DMABUF_STATUS_OK) {
+		CRYPTO_ERR("%s: allocate dma buffer for sa failed\n", __func__);
+		sa_handle.p = NULL;
+		goto free_exit;
+	}
+
+	sa_status = SABuilder_BuildSA(&params, (uint32_t *) sa_host_addr.p, NULL, NULL);
+	if (sa_status != SAB_STATUS_OK) {
+		CRYPTO_ERR("%s: SA not created because of errors\n", __func__);
+		DMABuf_Release(sa_handle);
+		sa_handle.p = NULL;
+		goto free_exit;
+	}
+
+free_exit:
+	kfree(inner);
+	kfree(outer);
+	kfree(hash_key);
+
+	return sa_handle.p;
+}
+
+int mtk_ddk_pcl_capwap_dtls_build(
+		struct DTLS_param *DTLSParam_p,
+		struct DTLSResourceMgmt *dtls_resource, u32 dir)
+{
+	PCL_Status_t pcl_status;
+	PCL_SelectorParams_t selector;
+	PCL_DTL_TransformParams_t dtls_trans;
+	PCL_DTL_Hash_Handle_t sa_hash_handle;
+	DMABuf_Handle_t sa;
+
+	if (dir == SAB_DIRECTION_OUTBOUND)
+		sa = dtls_resource->sa_out;
+	else
+		sa = dtls_resource->sa_in;
+
+	pcl_status = PCL_Transform_Register(sa);
+	if (pcl_status != PCL_STATUS_OK) {
+		CRYPTO_ERR("%s: PCL_Transform_Register outbound failed\n", __func__);
+		return -1;
+	}
+
+	ZEROINIT(selector);
+	ZEROINIT(dtls_trans);
+
+	if (dir == SAB_DIRECTION_OUTBOUND) {
+		if (DTLSParam_p->net_type == MTK_DTLS_NET_IPV6) {
+			selector.flags = PCL_SELECT_IPV6;
+			selector.SrcIp = ((unsigned char *)(&(DTLSParam_p->sip.ip6.addr)));
+			selector.DstIp = ((unsigned char *)(&(DTLSParam_p->dip.ip6.addr)));
+		} else {
+			selector.flags = PCL_SELECT_IPV4;
+			selector.SrcIp = ((unsigned char *)(&(DTLSParam_p->sip.ip4.addr32)));
+			selector.DstIp = ((unsigned char *)(&(DTLSParam_p->dip.ip4.addr32)));
+		}
+		selector.epoch = 0;
+		selector.SrcPort = DTLSParam_p->sport;
+		selector.DstPort = DTLSParam_p->dport;
+	} else {
+		if (DTLSParam_p->net_type == MTK_DTLS_NET_IPV6) {
+			selector.flags = PCL_SELECT_IPV6;
+			/* For inbound, PCL SrcIP should be dip,
+			 * and DstIP should be sip in DTLSParam_p.
+			 */
+			selector.SrcIp = ((unsigned char *)(&(DTLSParam_p->dip.ip6.addr)));
+			selector.DstIp = ((unsigned char *)(&(DTLSParam_p->sip.ip6.addr)));
+		} else {
+			selector.flags = PCL_SELECT_IPV4;
+			/* For inbound, PCL SrcIP should be dip,
+			 * and DstIP should be sip in DTLSParam_p.
+			 */
+			selector.SrcIp = ((unsigned char *)(&(DTLSParam_p->dip.ip4.addr32)));
+			selector.DstIp = ((unsigned char *)(&(DTLSParam_p->sip.ip4.addr32)));
+		}
+		selector.epoch = DTLSParam_p->dtls_epoch;
+		/* src port and dst port should reverse for inbound, too */
+		selector.SrcPort = DTLSParam_p->dport;
+		selector.DstPort = DTLSParam_p->sport;
+	}
+	selector.IpProto = 17;
+	selector.spi = 0;
+
+	pcl_status = PCL_Flow_Hash(&selector, dtls_trans.HashID);
+	if (pcl_status != PCL_STATUS_OK) {
+		CRYPTO_ERR("%s: PEC_Flow_Hash failed\n", __func__);
+		goto unregister_exit;
+	}
+
+	pcl_status = PCL_DTL_Transform_Add(PCL_INTERFACE_ID, 0,
+						&dtls_trans, sa, &sa_hash_handle);
+	if (pcl_status != PCL_STATUS_OK) {
+		CRYPTO_ERR("%s: PEC_DTL_Transform_Add failed\n", __func__);
+		goto unregister_exit;
+	}
+	return 0;
+unregister_exit:
+	mtk_ddk_invalidate_rec(sa, true);
+	PCL_Transform_UnRegister(sa);
+	return -1;
+}
+
+void mtk_ddk_remove_dtls_sa(struct DTLSResourceMgmt *dtls_res)
+{
+	if (!dtls_res) {
+		CRYPTO_ERR("Free NULL DTLS resource!\n");
 		return;
 	}
 
-	// unregister_flows
-	if (fPktCfy) {
-		PCL_Status = PCL_DTL_Transform_Remove(PCL_INTERFACE_ID, 0,
-							(*DTLSResource)->DTLSHandleSAInbound);
-		if (PCL_Status != PCL_STATUS_OK)
-			CRYPTO_ERR("%s: PCL_DLT_Tansform_Remove Inbound failed\n", __func__);
-		else
-			if (fVerbose)
-				CRYPTO_INFO("PCL_DTL_Transform_Remove Inbound succeeded\n");
-
-		PCL_Status = PCL_DTL_Transform_Remove(PCL_INTERFACE_ID, 0,
-							(*DTLSResource)->DTLSHandleSAOutbound);
-		if (PCL_Status != PCL_STATUS_OK)
-			CRYPTO_ERR("%s: PCL_DLT_Tansform_Remove Outbound failed\n", __func__);
-		else
-			if (fVerbose)
-				CRYPTO_INFO("PCL_DTL_Transform_Remove Outbound succeeded\n");
+	if (dtls_res->sa_out.p) {
+		DMABuf_Release(dtls_res->sa_out);
+		dtls_res->sa_out.p = NULL;
 	}
 
-	/* At this point, all flows have been removed, so we can start
-	 * removing the transform records.  Note: all flows that use the
-	 * transform must be removed before removing the transform.
-	 *
-	 * When any flow creation error occurs, return to this point. The
-	 * flow records have not been created, but the transform records
-	 * are registered at this point.
-	 */
+	if (dtls_res->sa_in.p) {
+		DMABuf_Release(dtls_res->sa_in);
+		dtls_res->sa_in.p = NULL;
+	}
 
-	/* Obtain statistics of the outbound transform. We do this at the
-	 * end of the lifetime of the transform, but it can be done at any
-	 * time when the transform is registered.*/
-	PCL_Status = PCL_Transform_Get_ReadOnly((*DTLSResource)->DTLSHandleSAOutbound,
-								&TransformParams);
-	if (PCL_Status != PCL_STATUS_OK)
-		CRYPTO_ERR("%s: Could not obtain statistics for outbound transform\n", __func__);
+	return;
+}
+
+void mtk_ddk_remove_dtls_pcl(struct DTLSResourceMgmt *dtls_res, u32 dir)
+{
+	PCL_Status_t pcl_status;
+	DMABuf_Handle_t sa = {0};
+	int ret;
+
+	if (!dtls_res)
+		return;
+
+	if (dir == SAB_DIRECTION_OUTBOUND)
+		sa = dtls_res->sa_out;
 	else
-		CRYPTO_INFO("Statistics of outbound transform: %u packets %u octets\n",
-				 TransformParams.PacketsCounterLo,
-				 TransformParams.OctetsCounterLo);
+		sa = dtls_res->sa_in;
+	if (!sa.p)
+		return;
 
-	/* Obtain statistics of the inbound transform. */
-	PCL_Status = PCL_Transform_Get_ReadOnly((*DTLSResource)->DTLSHandleSAInbound,
-								&TransformParams);
-	if (PCL_Status != PCL_STATUS_OK)
-		CRYPTO_ERR("%s: Could not obtain statistics for inbound transform\n", __func__);
-	else
-		CRYPTO_INFO("Statistics of inbound transform: %u packets %u octets\n",
-				 TransformParams.PacketsCounterLo,
-				 TransformParams.OctetsCounterLo);
+	pcl_status = PCL_DTL_Transform_Remove(PCL_INTERFACE_ID, 0, sa);
+	ret = mtk_ddk_invalidate_rec(sa, true);
+	pcl_status = PCL_Transform_UnRegister(sa);
 
+	return;
+}
 
-	/* Unregister both transforms. Report, but do not handle the
-	 * results of these calls. If they fail, there is nothing sensible
-	 * that we can do to recover.
-	 */
-	if (!mtk_ddk_invalidate_rec((*DTLSResource)->DTLSHandleSAOutbound, true))
-		CRYPTO_ERR("%s: transform invalidate failed\n", __func__);
-	else
-		if (fVerbose)
-			CRYPTO_INFO("transform invalidate succeeded\n");
-#ifdef PEC_PCL_EIP197
-		PCL_Status = PCL_Transform_UnRegister((*DTLSResource)->DTLSHandleSAOutbound);
-		if (PCL_Status != PCL_STATUS_OK)
-			CRYPTO_ERR("%s: PCL_Transform_UnRegister failed\n", __func__);
-		else
-			if (fVerbose)
-				CRYPTO_INFO("PCL_Transform_UnRegister succeeded\n");
-#else
-		PEC_SA_UnRegister(PCL_INTERFACE_ID, (*DTLSResource)->DTLSHandleSAOutbound,
-						DMABuf_NULLHandle, DMABuf_NULLHandle);
-#endif
+void mtk_ddk_remove_dtls_param(struct DTLSResourceMgmt *dtls_res)
+{
+	if (!dtls_res)
+		return;
+	mtk_ddk_remove_dtls_pcl(dtls_res, SAB_DIRECTION_OUTBOUND);
+	mtk_ddk_remove_dtls_pcl(dtls_res, SAB_DIRECTION_INBOUND);
+	mtk_ddk_remove_dtls_sa(dtls_res);
 
-	if (!mtk_ddk_invalidate_rec((*DTLSResource)->DTLSHandleSAInbound, true))
-		CRYPTO_ERR("%s: transform invalidate failed\n", __func__);
-	else
-		if (fVerbose)
-			CRYPTO_INFO("transform invalidate succeeded\n");
-#ifdef PEC_PCL_EIP197
-		PCL_Status = PCL_Transform_UnRegister((*DTLSResource)->DTLSHandleSAInbound);
-		if (PCL_Status != PCL_STATUS_OK)
-			CRYPTO_ERR("%s: PCL_Transform_UnRegister failed\n", __func__);
-		else
-			if (fVerbose)
-				CRYPTO_INFO("PCL_Transform_UnRegister succeeded\n");
-#else
-		PEC_SA_UnRegister(PCL_INTERFACE_ID, (*DTLSResource)->DTLSHandleSAInbound,
-						DMABuf_NULLHandle, DMABuf_NULLHandle);
-#endif
-
-	/* Remove the buffers occupied by the transforms, the packets and the
-	 * header processor contexts.
-	 *
-	 * Return here if any error occurs before the transforms are registered.
-	 * When we return here with an error, not all buffers may have been
-	 * allocated.
-	 * Note: DMABuf_Release can be called when no buffer was allocated.
-	 */
-	if ((*DTLSResource)->DTLSHandleSAOutbound.p != NULL) {
-		DMABuf_Release((*DTLSResource)->DTLSHandleSAOutbound);
-		(*DTLSResource)->DTLSHandleSAOutbound.p = NULL;
-		(*DTLSResource)->DTLSParam->SA_encrypt = (void *) NULL;
-	}
-	if ((*DTLSResource)->DTLSHandleSAInbound.p != NULL) {
-		DMABuf_Release((*DTLSResource)->DTLSHandleSAInbound);
-		(*DTLSResource)->DTLSHandleSAInbound.p = NULL;
-		(*DTLSResource)->DTLSParam->SA_decrypt = (void *) NULL;
-	}
-	if ((*DTLSResource)->HKeyOutbound != NULL) {
-		kfree((*DTLSResource)->HKeyOutbound);
-		(*DTLSResource)->HKeyOutbound = NULL;
-	}
-	if ((*DTLSResource)->HKeyInbound != NULL) {
-		kfree((*DTLSResource)->HKeyInbound);
-		(*DTLSResource)->HKeyInbound = NULL;
-	}
-	if ((*DTLSResource)->InnerDigestInbound != NULL) {
-		kfree((*DTLSResource)->InnerDigestInbound);
-		(*DTLSResource)->InnerDigestInbound = NULL;
-	}
-	if ((*DTLSResource)->OuterDigestInbound != NULL) {
-		kfree((*DTLSResource)->OuterDigestInbound);
-		(*DTLSResource)->OuterDigestInbound = NULL;
-	}
-	if ((*DTLSResource)->InnerDigestOutbound != NULL) {
-		kfree((*DTLSResource)->InnerDigestOutbound);
-		(*DTLSResource)->InnerDigestOutbound = NULL;
-	}
-	if ((*DTLSResource)->OuterDigestOutbound != NULL) {
-		kfree((*DTLSResource)->OuterDigestOutbound);
-		(*DTLSResource)->OuterDigestOutbound = NULL;
-	}
-	if (*DTLSResource != NULL) {
-		kfree(*DTLSResource);
-		*DTLSResource = NULL;
-	}
-	*DTLSResource = NULL;
+	return;
 }

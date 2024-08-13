@@ -115,14 +115,8 @@ struct DTLS_param {
 
 struct DTLSResourceMgmt {
 	struct DTLS_param *DTLSParam;
-	DMABuf_Handle_t DTLSHandleSAOutbound;
-	DMABuf_Handle_t DTLSHandleSAInbound;
-	uint8_t *HKeyOutbound;
-	uint8_t *HKeyInbound;
-	uint8_t *InnerDigestOutbound;
-	uint8_t *OuterDigestOutbound;
-	uint8_t *InnerDigestInbound;
-	uint8_t *OuterDigestInbound;
+	DMABuf_Handle_t sa_out;
+	DMABuf_Handle_t sa_in;
 };
 
 struct mtk_cdrt_idx_param {

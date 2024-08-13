@@ -42,15 +42,13 @@ void crypto_free_token(void *token);
 void crypto_free_pkt(void *pkt);
 void crypto_free_sglist(void *sglist);
 
-bool mtk_capwap_dtls_offload(
-		const bool fVerbose,
-		const bool fCAPWAP,
-		const bool fPktCfy,
-		const bool fInline,
-		const bool fContinuousScatter,
-		struct DTLS_param *DTLSParam_p,
-		struct DTLSResourceMgmt **DTLSResource);
-void mtk_ddk_remove_dtls_param(struct DTLSResourceMgmt **DTLSResource);
+void *mtk_ddk_tr_capwap_dtls_build(const bool capwap,
+				struct DTLS_param *DTLSParam_p, u32 dir);
+int mtk_ddk_pcl_capwap_dtls_build(struct DTLS_param *DTLSParam_p,
+				struct DTLSResourceMgmt *dtls_resource, u32 dir);
+void mtk_ddk_remove_dtls_sa(struct DTLSResourceMgmt *dtls_res);
+void mtk_ddk_remove_dtls_pcl(struct DTLSResourceMgmt *dtls_res, u32 dir);
+void mtk_ddk_remove_dtls_param(struct DTLSResourceMgmt *dtls_res);
 
 int mtk_ddk_pec_init(void);
 void mtk_ddk_pec_deinit(void);
