@@ -1,7 +1,7 @@
-From c6cecb97bdbc00de6099f1235f26bb9a326ed185 Mon Sep 17 00:00:00 2001
+From 17fa174e1a5da3fc24454f6b5e4e014b93b0165d Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 7 Jun 2024 15:24:00 +0800
-Subject: [PATCH 166/206] mtk: mt76: mt7996: add support for remain-on-channel
+Subject: [PATCH 166/199] mtk: mt76: mt7996: add support for remain-on-channel
  operation
 
 Remain-on-channel operation allows interface to temporarily leave the
@@ -25,7 +25,7 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  3 files changed, 181 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 66b8612e..41e188ab 100644
+index 55eb32cb..5f38374f 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -498,6 +498,8 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
@@ -45,7 +45,7 @@ index 66b8612e..41e188ab 100644
  
  	ret = mt7996_eeprom_parse_hw_cap(dev, phy);
  	if (ret)
-@@ -1677,6 +1680,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1676,6 +1679,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	INIT_WORK(&dev->rc_work, mt7996_mac_sta_rc_work);
  	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt7996_mac_work);
  	INIT_DELAYED_WORK(&dev->phy.scan_work, mt7996_scan_work);
@@ -54,7 +54,7 @@ index 66b8612e..41e188ab 100644
  	INIT_LIST_HEAD(&dev->sta_rc_list);
  	INIT_LIST_HEAD(&dev->twt_list);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 4e91b1eb..dd533cce 100644
+index 553345e8..35a77609 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -505,6 +505,7 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
@@ -74,7 +74,7 @@ index 4e91b1eb..dd533cce 100644
  	int timeout = HZ / 5;
  	unsigned long was_scanning = ieee80211_get_scanning(mphy->hw);
  
-@@ -2511,7 +2512,8 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2520,7 +2521,8 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  
  	mt76_vif_dbg(vif, "trigger scan on mt76 band %u\n", phy->mt76->band_idx);
  	mutex_lock(&phy->dev->mt76.mutex);
@@ -84,7 +84,7 @@ index 4e91b1eb..dd533cce 100644
  		mutex_unlock(&phy->dev->mt76.mutex);
  		return -EBUSY;
  	}
-@@ -2632,6 +2634,170 @@ mt7996_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+@@ -2641,6 +2643,170 @@ mt7996_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
  	}
  }
  
@@ -255,7 +255,7 @@ index 4e91b1eb..dd533cce 100644
  static int
  mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
  {
-@@ -2680,6 +2846,7 @@ mt7996_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
+@@ -2689,6 +2855,7 @@ mt7996_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
  
  	mt76_dbg(hw, "remove %u\n", conf->def.chan->hw_value);
  	cancel_delayed_work_sync(&phy->scan_work);
@@ -263,7 +263,7 @@ index 4e91b1eb..dd533cce 100644
  	cancel_delayed_work_sync(&phy->mt76->mac_work);
  
  	mutex_lock(&phy->dev->mt76.mutex);
-@@ -2765,6 +2932,7 @@ mt7996_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2774,6 +2941,7 @@ mt7996_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	mt76_vif_dbg(vif, "remove link %u from %d MHz\n",
  		     link_conf->link_id, conf->def.chan->center_freq);
  	cancel_delayed_work_sync(&phy->scan_work);
@@ -271,7 +271,7 @@ index 4e91b1eb..dd533cce 100644
  
  	mutex_lock(&phy->dev->mt76.mutex);
  
-@@ -3027,6 +3195,8 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -3036,6 +3204,8 @@ const struct ieee80211_ops mt7996_ops = {
  	.wake_tx_queue = mt76_wake_tx_queue,
  	.hw_scan = mt7996_hw_scan,
  	.cancel_hw_scan = mt7996_cancel_hw_scan,
@@ -281,10 +281,10 @@ index 4e91b1eb..dd533cce 100644
  	.get_txpower = mt7996_get_txpower,
  	.channel_switch_beacon = mt7996_channel_switch_beacon,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 2dc46ec0..33078110 100644
+index 42c1e287..3ee8156c 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -596,6 +596,10 @@ struct mt7996_phy {
+@@ -597,6 +597,10 @@ struct mt7996_phy {
  	struct mt7996_scs_ctrl scs_ctrl;
  	u32 red_drop;
  
@@ -295,7 +295,7 @@ index 2dc46ec0..33078110 100644
  	bool sku_limit_en;
  	bool sku_path_en;
  
-@@ -1248,6 +1252,7 @@ bool mt7996_rx_check(struct mt76_dev *mdev, void *data, int len);
+@@ -1249,6 +1253,7 @@ bool mt7996_rx_check(struct mt76_dev *mdev, void *data, int len);
  void mt7996_stats_work(struct work_struct *work);
  void mt7996_scan_work(struct work_struct *work);
  void mt7996_scan_complete(struct mt7996_phy *phy, bool aborted);

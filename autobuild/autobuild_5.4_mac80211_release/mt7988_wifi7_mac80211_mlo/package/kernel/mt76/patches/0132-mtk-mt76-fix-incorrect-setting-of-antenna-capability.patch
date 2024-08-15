@@ -1,0 +1,33 @@
+From c7dfcaacdd6ae91fa75d2dc9c9efb7db4254c4a6 Mon Sep 17 00:00:00 2001
+From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+Date: Tue, 14 May 2024 14:12:28 +0800
+Subject: [PATCH 132/199] mtk: mt76: fix incorrect setting of antenna
+ capability
+
+Due to current implementation of single-wiphy architecture, only one antenna capability can be set for all PHYs via mt7996_set_antenna().
+Therefore, if antenna capabilities of PHYs are different, some may be set wrong.
+Thus, temporarily make mt7996_set_antenna() dummy.
+
+Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+---
+ mt7996/main.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 990a38a7..0a87cfad 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1670,6 +1670,10 @@ mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	int band, max_nss = hweight8(hw->wiphy->available_antennas_tx);
+ 
++	/* TODO: set antenna based on capability of each band. */
++	dev_warn(dev->mt76.dev, "%s: temporarily not supported.\n", __func__);
++	return 0;
++
+ 	/* only allow settings from hw0 */
+ 	if (hw != dev->phy.mt76->hw)
+ 		return 0;
+-- 
+2.18.0
+

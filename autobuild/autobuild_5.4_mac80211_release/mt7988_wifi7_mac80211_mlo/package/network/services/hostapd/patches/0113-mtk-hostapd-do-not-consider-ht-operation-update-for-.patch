@@ -1,0 +1,28 @@
+From 5cc02e29a2725dcffbee12fece9d946dd809108b Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Wed, 10 Jul 2024 16:13:24 +0800
+Subject: [PATCH 113/126] mtk: hostapd: do not consider ht operation update for
+ 6G BSS
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/ieee802_11.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index 75ffb2a18..10b7587a0 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -4628,7 +4628,8 @@ static int ieee80211_ml_process_link(struct hostapd_data *hapd,
+ 		}
+ 		hapd->sta_aid[(sta->aid - 1) / 32] |= BIT((sta->aid - 1) % 32);
+ 		sta->listen_interval = origin_sta->listen_interval;
+-		if (update_ht_state(hapd, sta) > 0)
++		if (!is_6ghz_op_class(hapd->iconf->op_class) &&
++		    update_ht_state(hapd, sta) > 0)
+ 			ieee802_11_update_beacons(hapd->iface);
+ 	}
+ 
+-- 
+2.18.0
+

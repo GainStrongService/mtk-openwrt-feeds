@@ -1,0 +1,189 @@
+From 4bae58d6ded6d2b08975054e1c4097dcedb6b333 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Fri, 28 Jun 2024 14:06:20 +0800
+Subject: [PATCH 117/126] mtk: hostapd: handle 5G link setup after DFS bootup
+ CAC as link reconfig
+
+Consider the setup of 5G link after bootup CAC as a link adding
+process via link reconfiguration.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ src/ap/dfs.c            | 38 +++++++++++++++++++++++++++++++++++---
+ src/ap/hostapd.c        |  2 ++
+ src/ap/hostapd.h        |  1 +
+ src/ap/ieee802_11.c     |  7 +++++--
+ src/ap/ieee802_11_eht.c | 13 +++++++++++--
+ 5 files changed, 54 insertions(+), 7 deletions(-)
+
+diff --git a/src/ap/dfs.c b/src/ap/dfs.c
+index 5a3112d40..31e37a2ab 100644
+--- a/src/ap/dfs.c
++++ b/src/ap/dfs.c
+@@ -1034,6 +1034,22 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
+ 			return -1;
+ 	}
+ 
++	/* Remove the CAC link from the active links of AP MLD temporarily to avoid
++	 * it being reported in the RNR of the affiliated APs of the same AP MLD
++	 */
++	if (iface->cac_started) {
++		int i;
++
++		for (i = 0; i < iface->num_bss; i++) {
++			struct hostapd_data *hapd = iface->bss[i];
++
++			if (!hapd->conf->mld_ap || !hapd->mld)
++				continue;
++
++			hapd->mld->active_links &= ~BIT(hapd->mld_link_id);
++		}
++	}
++
+ 	return 0;
+ }
+ 
+@@ -1310,6 +1326,8 @@ int hostapd_dfs_complete_cac(struct hostapd_iface *iface, int success, int freq,
+ 			     int ht_enabled, int chan_offset, int chan_width,
+ 			     int cf1, int cf2)
+ {
++	int i;
++
+ 	wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO, DFS_EVENT_CAC_COMPLETED
+ 		"success=%d freq=%d ht_enabled=%d chan_offset=%d chan_width=%d cf1=%d cf2=%d radar_detected=%d",
+ 		success, freq, ht_enabled, chan_offset, chan_width, cf1, cf2,
+@@ -1364,10 +1382,26 @@ int hostapd_dfs_complete_cac(struct hostapd_iface *iface, int success, int freq,
+ 			 * sure the configured channel is available because this
+ 			 * CAC completion event could have been propagated from
+ 			 * another radio.
++			 * For a AP MLD, the setup of a DFS link after bootup CAC is
++			 * considered as link adding process via link reconfiguration.
+ 			 */
+ 			if (iface->state != HAPD_IFACE_ENABLED &&
+-			    hostapd_is_dfs_chan_available(iface))
++			    hostapd_is_dfs_chan_available(iface)) {
++				for (i = 0; i < iface->num_bss; i++) {
++					struct hostapd_data *h, *hapd = iface->bss[i];
++
++					if (!hapd->conf->mld_ap || !hapd->mld)
++						continue;
++
++					hapd->mld->active_links |= BIT(hapd->mld_link_id);
++					for_each_mld_link(h, hapd)
++						h->mld->link_reconf_in_progress |=
++								BIT(h->mld_link_id);
++					hapd->mld->link_reconf_in_progress &=
++								~BIT(hapd->mld_link_id);
++				}
+ 				hostapd_setup_interface_complete(iface, 0);
++			}
+ 
+ 			iface->cac_started = 0;
+ 
+@@ -1386,8 +1420,6 @@ int hostapd_dfs_complete_cac(struct hostapd_iface *iface, int success, int freq,
+ 		iface->radar_background.expand_ch = 0;
+ 		hostapd_dfs_update_background_chain(iface);
+ 	} else if (iface->state == HAPD_IFACE_ENABLED) {
+-		int i;
+-
+ 		iface->cac_started = 0;
+ 		/* Clear all CSA flags once channel switch to DFS channel fails */
+ 		for (i = 0; i < iface->num_bss; i++)
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index a89628fe7..7518a8b53 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -5109,6 +5109,7 @@ int hostapd_mld_add_link(struct hostapd_data *hapd)
+ 
+ 	dl_list_add_tail(&mld->links, &hapd->link);
+ 	mld->num_links++;
++	mld->active_links |= BIT(hapd->mld_link_id);
+ 
+ 	wpa_printf(MSG_DEBUG, "AP MLD %s: Link ID %d added. num_links: %d",
+ 		   mld->name, hapd->mld_link_id, mld->num_links);
+@@ -5137,6 +5138,7 @@ int hostapd_mld_remove_link(struct hostapd_data *hapd)
+ 
+ 	dl_list_del(&hapd->link);
+ 	mld->num_links--;
++	mld->active_links &= ~BIT(hapd->mld_link_id);
+ 
+ 	wpa_printf(MSG_DEBUG, "AP MLD %s: Link ID %d removed. num_links: %d",
+ 		   mld->name, hapd->mld_link_id, mld->num_links);
+diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
+index 52875cca1..668f1c44d 100644
+--- a/src/ap/hostapd.h
++++ b/src/ap/hostapd.h
+@@ -550,6 +550,7 @@ struct hostapd_mld {
+ 	u8 refcount;
+ 	bool started;
+ 	u16 link_reconf_in_progress;
++	u16 active_links;
+ 
+ 	struct hostapd_data *fbss;
+ 	struct dl_list links; /* List head of all affiliated links */
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index 93bd8255c..2861c09d7 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -989,6 +989,8 @@ void sae_accept_sta(struct hostapd_data *hapd, struct sta_info *sta)
+ 	sta->sae->peer_commit_scalar = NULL;
+ 	if (hostapd_is_mld_ap(hapd)) {
+ 		for_each_mld_link(link, hapd) {
++			if (!(hapd->mld->active_links & BIT(link->mld_link_id)))
++				continue;
+ 			wpa_auth_pmksa_add_sae(link->wpa_auth, sta->addr,
+ 					sta->sae->pmk, sta->sae->pmk_len,
+ 					sta->sae->pmkid, sta->sae->akmp);
+@@ -8108,7 +8110,7 @@ u8 * hostapd_eid_rnr_mlo(struct hostapd_data *hapd, u32 type,
+ 	struct hostapd_iface *iface;
+ 	size_t i;
+ 
+-	if (!hapd->iface || !hapd->iface->interfaces || !hapd->conf->mld_ap)
++	if (!hapd->iface || !hapd->iface->interfaces || !hapd->conf->mld_ap || !hapd->mld)
+ 		return eid;
+ 
+ 	/* TODO: Allow for FILS/Action as well */
+@@ -8119,7 +8121,8 @@ u8 * hostapd_eid_rnr_mlo(struct hostapd_data *hapd, u32 type,
+ 		iface = hapd->iface->interfaces->iface[i];
+ 
+ 		if (!iface || iface == hapd->iface ||
+-		    hapd->iface->freq == iface->freq)
++		    hapd->iface->freq == iface->freq ||
++		    !(hapd->mld->active_links & BIT(hapd->mld_link_id)))
+ 			continue;
+ 
+ 		eid = hostapd_eid_rnr_iface(iface->bss[0], hapd, eid,
+diff --git a/src/ap/ieee802_11_eht.c b/src/ap/ieee802_11_eht.c
+index 63713bc39..cad0d8437 100644
+--- a/src/ap/ieee802_11_eht.c
++++ b/src/ap/ieee802_11_eht.c
+@@ -514,7 +514,13 @@ static u8 * hostapd_eid_eht_basic_ml_common(struct hostapd_data *hapd,
+ 	u8 link_id;
+ 	u8 common_info_len;
+ 	u16 mld_cap;
+-	u8 max_simul_links, active_links;
++	u8 max_simul_links, active_links = 0;
++
++	if (hapd->mld && !(hapd->mld->active_links & BIT(hapd->mld_link_id))) {
++		wpa_printf(MSG_ERROR, "MLD: Current link %d is not active for %s",
++			   hapd->mld_link_id, hapd->mld->name);
++		return pos;
++	}
+ 
+ 	/*
+ 	 * As the Multi-Link element can exceed the size of 255 bytes need to
+@@ -573,7 +579,10 @@ static u8 * hostapd_eid_eht_basic_ml_common(struct hostapd_data *hapd,
+ 
+ 	mld_cap = hapd->iface->mld_mld_capa;
+ 	max_simul_links = mld_cap & EHT_ML_MLD_CAPA_MAX_NUM_SIM_LINKS_MASK;
+-	active_links = hapd->mld->num_links - 1;
++	for (link_id = 0; link_id < MAX_NUM_MLD_LINKS; link_id++)
++		if (hapd->mld_link_id != link_id &&
++		    (hapd->mld->active_links & BIT(link_id)))
++			active_links++;
+ 
+ 	if (active_links > max_simul_links) {
+ 		wpa_printf(MSG_ERROR,
+-- 
+2.18.0
+

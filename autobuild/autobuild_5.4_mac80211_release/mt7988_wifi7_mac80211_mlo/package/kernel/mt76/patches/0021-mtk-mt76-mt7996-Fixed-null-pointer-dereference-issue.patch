@@ -1,0 +1,34 @@
+From 7384dd7ed2828f0681ce1d765007d3f1976e8760 Mon Sep 17 00:00:00 2001
+From: MeiChia Chiu <meichia.chiu@mediatek.com>
+Date: Thu, 26 Oct 2023 10:08:10 +0800
+Subject: [PATCH 021/199] mtk: mt76: mt7996: Fixed null pointer dereference
+ issue
+
+---
+ mt7996/main.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index cbe8b009..72232994 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1083,9 +1083,16 @@ static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
+ 				 struct ieee80211_sta *sta,
+ 				 u32 changed)
+ {
++	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+ 	struct mt7996_dev *dev = phy->dev;
+ 
++	if (!msta->vif) {
++		dev_warn(dev->mt76.dev, "Un-initialized STA %pM wcid %d in rc_work\n",
++			 sta->addr, msta->wcid.idx);
++		return;
++	}
++
+ 	mt7996_sta_rc_work(&changed, sta);
+ 	ieee80211_queue_work(hw, &dev->rc_work);
+ }
+-- 
+2.18.0
+

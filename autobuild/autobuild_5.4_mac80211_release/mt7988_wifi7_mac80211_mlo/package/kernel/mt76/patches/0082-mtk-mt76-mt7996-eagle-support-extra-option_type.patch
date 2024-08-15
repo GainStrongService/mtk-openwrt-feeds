@@ -1,0 +1,324 @@
+From b464b7e32093adb25adb0949df6debcb5c60780e Mon Sep 17 00:00:00 2001
+From: Rex Lu <rex.lu@mediatek.com>
+Date: Thu, 1 Feb 2024 10:32:42 +0800
+Subject: [PATCH 082/199] mtk: mt76: mt7996: eagle support extra option_type
+
+1. eagle + mt7988d option_type 2 support
+2. eagle single pcie support
+
+1. adjust pcie outstanding value by pcie speed. not no longer by option_type.
+
+(cherry picked from commit 31d64e0f571eb06ed67f4916bc12fbcfe1263c47)
+
+Signed-off-by: Rex Lu <rex.lu@mediatek.com>
+---
+ mt7996/dma.c    | 51 +++++++++++++++++++++++++++++++++----
+ mt7996/init.c   | 67 ++++++++++++++++++++++++++++++++++++++-----------
+ mt7996/main.c   | 15 +++++++++--
+ mt7996/mt7996.h |  5 ++++
+ mt7996/pci.c    |  2 +-
+ mt7996/regs.h   |  5 ++++
+ 6 files changed, 123 insertions(+), 22 deletions(-)
+
+diff --git a/mt7996/dma.c b/mt7996/dma.c
+index c23b0d65..3dc0e8a1 100644
+--- a/mt7996/dma.c
++++ b/mt7996/dma.c
+@@ -12,12 +12,20 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx, int n_desc,
+ {
+ 	struct mt7996_dev *dev = phy->dev;
+ 	u32 flags = 0;
++	int i;
++
++	if (phy->mt76->band_idx == MT_BAND1 && !dev->hif2 && is_mt7996(&dev->mt76)) {
++		phy->mt76->q_tx[0] = phy->mt76->dev->phys[MT_BAND0]->q_tx[0];
++		for (i = 1; i <= MT_TXQ_PSD; i++)
++			phy->mt76->q_tx[i] = phy->mt76->q_tx[0];
++		return 0;
++	}
+ 
+ 	if (mtk_wed_device_active(wed)) {
+ 		ring_base += MT_TXQ_ID(0) * MT_RING_SIZE;
+ 		idx -= MT_TXQ_ID(0);
+ 
+-		if (phy->mt76->band_idx == MT_BAND2)
++		if (wed == &dev->mt76.mmio.wed_hif2)
+ 			flags = MT_WED_Q_TX(0);
+ 		else
+ 			flags = MT_WED_Q_TX(idx);
+@@ -102,8 +110,20 @@ static void mt7996_dma_config(struct mt7996_dev *dev)
+ 	/* data tx queue */
+ 	TXQ_CONFIG(0, WFDMA0, MT_INT_TX_DONE_BAND0, MT7996_TXQ_BAND0);
+ 	if (is_mt7996(&dev->mt76)) {
+-		TXQ_CONFIG(1, WFDMA0, MT_INT_TX_DONE_BAND1, MT7996_TXQ_BAND1);
+-		TXQ_CONFIG(2, WFDMA0, MT_INT_TX_DONE_BAND2, MT7996_TXQ_BAND2);
++		if (dev->hif2) {
++			if (dev->option_type == 2) {
++				/*  bn1:ring21 bn2:ring19 */
++				TXQ_CONFIG(1, WFDMA0, MT_INT_TX_DONE_BAND2, MT7996_TXQ_BAND2);
++				TXQ_CONFIG(2, WFDMA0, MT_INT_TX_DONE_BAND1, MT7996_TXQ_BAND1);
++			} else {
++				/* default bn1:ring19 bn2:ring21 */
++				TXQ_CONFIG(1, WFDMA0, MT_INT_TX_DONE_BAND1, MT7996_TXQ_BAND1);
++				TXQ_CONFIG(2, WFDMA0, MT_INT_TX_DONE_BAND2, MT7996_TXQ_BAND2);
++			}
++		} else {
++			/* single pcie bn0/1:ring18 bn2:ring19 */
++			TXQ_CONFIG(2, WFDMA0, MT_INT_TX_DONE_BAND1, MT7996_TXQ_BAND1);
++		}
+ 	} else {
+ 		TXQ_CONFIG(1, WFDMA0, MT_INT_TX_DONE_BAND1, MT7996_TXQ_BAND1);
+ 	}
+@@ -352,8 +372,20 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
+ 			 WF_WFDMA0_GLO_CFG_EXT1_TX_FCTRL_MODE);
+ 
+ 		mt76_set(dev, MT_WFDMA_HOST_CONFIG,
+-			 MT_WFDMA_HOST_CONFIG_PDMA_BAND |
+-			 MT_WFDMA_HOST_CONFIG_BAND2_PCIE1);
++			 MT_WFDMA_HOST_CONFIG_PDMA_BAND);
++
++		mt76_clear(dev, MT_WFDMA_HOST_CONFIG,
++			   MT_WFDMA_HOST_CONFIG_BAND0_PCIE1 |
++			   MT_WFDMA_HOST_CONFIG_BAND1_PCIE1 |
++			   MT_WFDMA_HOST_CONFIG_BAND2_PCIE1);
++
++		if (dev->option_type == 2)
++			mt76_set(dev, MT_WFDMA_HOST_CONFIG,
++				 MT_WFDMA_HOST_CONFIG_BAND0_PCIE1 |
++				 MT_WFDMA_HOST_CONFIG_BAND1_PCIE1);
++		else
++			mt76_set(dev, MT_WFDMA_HOST_CONFIG,
++				 MT_WFDMA_HOST_CONFIG_BAND2_PCIE1);
+ 
+ 		if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
+ 		    is_mt7992(&dev->mt76)) {
+@@ -366,6 +398,15 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
+ 		mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL,
+ 			 MT_WFDMA_AXI_R2A_CTRL_OUTSTAND_MASK, 0x14);
+ 
++		if (dev->hif2->speed < PCIE_SPEED_8_0GT ||
++		    (dev->hif2->speed == PCIE_SPEED_8_0GT && dev->hif2->width < 2)) {
++			mt76_rmw(dev, WF_WFDMA0_GLO_CFG_EXT0 + hif1_ofs,
++				 WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
++				 FIELD_PREP(WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK, 0x3));
++			mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL2,
++				 MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
++				 FIELD_PREP(MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK, 0x3));
++		}
+ 		/* WFDMA rx threshold */
+ 		mt76_wr(dev, MT_WFDMA0_PAUSE_RX_Q_45_TH + hif1_ofs, 0xc000c);
+ 		mt76_wr(dev, MT_WFDMA0_PAUSE_RX_Q_67_TH + hif1_ofs, 0x10008);
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 7c273f9c..910ffccf 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -513,7 +513,7 @@ static void mt7996_mac_init_basic_rates(struct mt7996_dev *dev)
+ void mt7996_mac_init(struct mt7996_dev *dev)
+ {
+ #define HIF_TXD_V2_1	0x21
+-	int i;
++	int i, rx_path_type, rro_bypass, txfree_path;
+ 
+ 	mt76_clear(dev, MT_MDP_DCR2, MT_MDP_DCR2_RX_TRANS_SHORT);
+ 
+@@ -527,22 +527,45 @@ void mt7996_mac_init(struct mt7996_dev *dev)
+ 	}
+ 
+ 	/* rro module init */
+-	if (is_mt7996(&dev->mt76))
+-		mt7996_mcu_set_rro(dev, UNI_RRO_SET_PLATFORM_TYPE, 2);
+-	else
+-		mt7996_mcu_set_rro(dev, UNI_RRO_SET_PLATFORM_TYPE,
+-				   dev->hif2 ? 7 : 0);
++	switch (dev->option_type) {
++	case 2:
++		/* eagle + 7988d */
++		rx_path_type = 3;
++		rro_bypass = dev->has_rro ? 1 : 3;
++		txfree_path = dev->has_rro ? 0 : 1;
++		break;
++	case 3:
++		/* eagle + Airoha */
++		rx_path_type = 6;
++		rro_bypass = dev->has_rro ? 1 : 3;
++		txfree_path = dev->has_rro ? 0 : 1;
++		break;
++	case 4:
++		/* Bollinger */
++		rx_path_type = 2;
++		rro_bypass = dev->has_rro ? 1 : 3;
++		txfree_path = dev->has_rro ? 0 : 1;
++		break;
++	default:
++		if (is_mt7996(&dev->mt76))
++			rx_path_type = 2;
++		else
++			rx_path_type = 7;
++
++		rro_bypass = dev->has_rro ? 1 : 3;
++		txfree_path = dev->has_rro ? 0 : 1;
++		break;
++	}
++
++	mt7996_mcu_set_rro(dev, UNI_RRO_SET_PLATFORM_TYPE, dev->hif2 ? rx_path_type : 0);
++	mt7996_mcu_set_rro(dev, UNI_RRO_SET_BYPASS_MODE, rro_bypass);
++	mt7996_mcu_set_rro(dev, UNI_RRO_SET_TXFREE_PATH, txfree_path);
+ 
+ 	if (dev->has_rro) {
+ 		u16 timeout;
+ 
+ 		timeout = mt76_rr(dev, MT_HW_REV) == MT_HW_REV1 ? 512 : 128;
+ 		mt7996_mcu_set_rro(dev, UNI_RRO_SET_FLUSH_TIMEOUT, timeout);
+-		mt7996_mcu_set_rro(dev, UNI_RRO_SET_BYPASS_MODE, 1);
+-		mt7996_mcu_set_rro(dev, UNI_RRO_SET_TXFREE_PATH, 0);
+-	} else {
+-		mt7996_mcu_set_rro(dev, UNI_RRO_SET_BYPASS_MODE, 3);
+-		mt7996_mcu_set_rro(dev, UNI_RRO_SET_TXFREE_PATH, 1);
+ 	}
+ 
+ 	mt7996_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
+@@ -620,9 +643,22 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+ 	if (phy)
+ 		return 0;
+ 
+-	if (is_mt7996(&dev->mt76) && band == MT_BAND2 && dev->hif2) {
+-		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
+-		wed = &dev->mt76.mmio.wed_hif2;
++	if (is_mt7996(&dev->mt76) && dev->hif2) {
++		switch (dev->option_type) {
++		case 2:
++			/* eagle + 7988d */
++			if (band == MT_BAND1) {
++				hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
++				wed = &dev->mt76.mmio.wed_hif2;
++			}
++			break;
++		default:
++			if (band == MT_BAND2) {
++				hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
++				wed = &dev->mt76.mmio.wed_hif2;
++			}
++			break;
++		}
+ 	}
+ 
+ 	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7996_ops, band);
+@@ -1060,6 +1096,9 @@ int mt7996_get_chip_sku(struct mt7996_dev *dev)
+ static int mt7996_init_hardware(struct mt7996_dev *dev)
+ {
+ 	int ret, idx;
++	struct device_node *np = dev->mt76.dev->of_node;
++
++	of_property_read_u32(np, "option_type", &dev->option_type);
+ 
+ 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
+ 	if (is_mt7992(&dev->mt76)) {
+diff --git a/mt7996/main.c b/mt7996/main.c
+index d26c55ed..534a476a 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1610,8 +1610,19 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+ 	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
+ 
+-	if (phy != &dev->phy && phy->mt76->band_idx == MT_BAND2)
+-		wed = &dev->mt76.mmio.wed_hif2;
++	if (phy != &dev->phy && dev->hif2) {
++		switch (dev->option_type) {
++		case 2:
++			/* eagle + 7988d */
++			if (phy->mt76->band_idx == MT_BAND1)
++				wed = &dev->mt76.mmio.wed_hif2;
++			break;
++		default:
++			if (phy->mt76->band_idx == MT_BAND2)
++				wed = &dev->mt76.mmio.wed_hif2;
++			break;
++		}
++	}
+ 
+ 	if (!mtk_wed_device_active(wed))
+ 		return -ENODEV;
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index fb1d1d84..d17b169a 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -8,6 +8,7 @@
+ 
+ #include <linux/interrupt.h>
+ #include <linux/ktime.h>
++#include <linux/pci.h>
+ #include "../mt76_connac.h"
+ #include "regs.h"
+ 
+@@ -350,6 +351,8 @@ struct mt7996_hif {
+ 	struct device *dev;
+ 	void __iomem *regs;
+ 	int irq;
++	enum pci_bus_speed speed;
++	enum pcie_link_width width;
+ };
+ 
+ struct mt7996_scs_ctrl {
+@@ -580,6 +583,8 @@ struct mt7996_dev {
+ 	u8 eeprom_mode;
+ 	u32 bg_nxt_freq;
+ 
++	u32 option_type;
++
+ 	bool ibf;
+ 	u8 fw_debug_wm;
+ 	u8 fw_debug_wa;
+diff --git a/mt7996/pci.c b/mt7996/pci.c
+index f0d3f199..24d69d4d 100644
+--- a/mt7996/pci.c
++++ b/mt7996/pci.c
+@@ -5,7 +5,6 @@
+ 
+ #include <linux/kernel.h>
+ #include <linux/module.h>
+-#include <linux/pci.h>
+ 
+ #include "mt7996.h"
+ #include "mac.h"
+@@ -93,6 +92,7 @@ static int mt7996_pci_hif2_probe(struct pci_dev *pdev)
+ 	hif->dev = &pdev->dev;
+ 	hif->regs = pcim_iomap_table(pdev)[0];
+ 	hif->irq = pdev->irq;
++	pcie_bandwidth_available(pdev, NULL, &hif->speed, &hif->width);
+ 	spin_lock_bh(&hif_lock);
+ 	list_add(&hif->list, &hif_list);
+ 	spin_unlock_bh(&hif_lock);
+diff --git a/mt7996/regs.h b/mt7996/regs.h
+index a001d9fd..a0e4b3e1 100644
+--- a/mt7996/regs.h
++++ b/mt7996/regs.h
+@@ -435,6 +435,7 @@ enum offs_rev {
+ #define WF_WFDMA0_GLO_CFG_EXT0			MT_WFDMA0(0x2b0)
+ #define WF_WFDMA0_GLO_CFG_EXT0_RX_WB_RXD	BIT(18)
+ #define WF_WFDMA0_GLO_CFG_EXT0_WED_MERGE_MODE	BIT(14)
++#define WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK	GENMASK(27, 24)
+ 
+ #define WF_WFDMA0_GLO_CFG_EXT1			MT_WFDMA0(0x2b4)
+ #define WF_WFDMA0_GLO_CFG_EXT1_CALC_MODE	BIT(31)
+@@ -454,6 +455,7 @@ enum offs_rev {
+ 
+ #define MT_WFDMA_HOST_CONFIG			MT_WFDMA_EXT_CSR(0x30)
+ #define MT_WFDMA_HOST_CONFIG_PDMA_BAND		BIT(0)
++#define MT_WFDMA_HOST_CONFIG_BAND0_PCIE1	BIT(20)
+ #define MT_WFDMA_HOST_CONFIG_BAND1_PCIE1	BIT(21)
+ #define MT_WFDMA_HOST_CONFIG_BAND2_PCIE1	BIT(22)
+ 
+@@ -463,6 +465,9 @@ enum offs_rev {
+ #define MT_WFDMA_AXI_R2A_CTRL			MT_WFDMA_EXT_CSR(0x500)
+ #define MT_WFDMA_AXI_R2A_CTRL_OUTSTAND_MASK	GENMASK(4, 0)
+ 
++#define MT_WFDMA_AXI_R2A_CTRL2			MT_WFDMA_EXT_CSR(0x508)
++#define MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK	GENMASK(31, 28)
++
+ #define MT_PCIE_RECOG_ID			0xd7090
+ #define MT_PCIE_RECOG_ID_MASK			GENMASK(30, 0)
+ #define MT_PCIE_RECOG_ID_SEM			BIT(31)
+-- 
+2.18.0
+

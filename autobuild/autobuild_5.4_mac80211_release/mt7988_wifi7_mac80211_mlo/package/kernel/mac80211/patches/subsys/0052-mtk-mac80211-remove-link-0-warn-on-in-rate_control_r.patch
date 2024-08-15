@@ -1,0 +1,42 @@
+From 07204d9541bd6b6eff3b77d7698bf406e546d267 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Wed, 31 Jan 2024 11:40:28 +0800
+Subject: [PATCH 52/89] mtk: mac80211: remove link != 0 warn on in
+ rate_control_rate_update for mlo channel switch
+
+Remove link warning for mlo channel switch
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ net/mac80211/rate.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/net/mac80211/rate.c b/net/mac80211/rate.c
+index 7c31a3c..c287576 100644
+--- a/net/mac80211/rate.c
++++ b/net/mac80211/rate.c
+@@ -100,13 +100,19 @@ void rate_control_rate_update(struct ieee80211_local *local,
+ 	struct ieee80211_sta *ista = &sta->sta;
+ 	void *priv_sta = sta->rate_ctrl_priv;
+ 	struct ieee80211_chanctx_conf *chanctx_conf;
++	struct ieee80211_link_data *link;
+ 
+-	WARN_ON(link_id != 0);
++	// WARN_ON(link_id != 0);
+ 
+ 	if (ref && ref->ops->rate_update) {
+ 		rcu_read_lock();
+ 
+-		chanctx_conf = rcu_dereference(sta->sdata->vif.bss_conf.chanctx_conf);
++		link = rcu_dereference(sta->sdata->link[link_id]);
++		if (!link) {
++			rcu_read_unlock();
++			return;
++		}
++		chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
+ 		if (WARN_ON(!chanctx_conf)) {
+ 			rcu_read_unlock();
+ 			return;
+-- 
+2.18.0
+

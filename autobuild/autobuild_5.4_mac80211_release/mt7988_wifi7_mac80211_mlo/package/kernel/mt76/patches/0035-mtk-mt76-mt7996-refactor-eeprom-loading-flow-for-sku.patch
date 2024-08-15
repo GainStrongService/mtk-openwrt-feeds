@@ -1,0 +1,468 @@
+From 13b9c0e271c358a45444d35e97ad4080c3933e78 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Mon, 11 Mar 2024 10:43:03 +0800
+Subject: [PATCH 035/199] mtk: mt76: mt7996: refactor eeprom loading flow for
+ sku checking
+
+Add eeprom sku checking mechanism to avoid using the
+wrong eeprom in flash/binfile mode
+The fields listed below will be checked by comparing the loaded eeprom to the default bin
+1. FEM type
+2. MAC address (warning for using default MAC address)
+3. RF path & streams
+   (to distinguish cases such as BE7200 4i5i, BE6500 3i5i, and BE5040 2i3i)
+
+1. Reset eeprom content before loading efuse
+   eeprom array might contain incomplete data read from flash or
+   binfile, which is not overwritten since this block is invalid
+   in efuse.
+2. Remove testmode default bin since it is unnecessary
+   Not used in logan. Directly load normal mode default bin is fine.
+   Also, this way is better since we don't need to put testmode default
+   eeprom for each sku (especially kite's sku) in our SDK.
+3. Set testmode_en field for default bin mode for consistency sake
+
+1.
+Fix efuse mode txpower = 0 issue
+This fix might be changed if fw supports efuse merge for buffer mode = EE_MODE_EFUSE
+2.
+Add Eagle BE19000 ifem default bin, add Eagle default bin bootstrip
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/eeprom.c      | 207 ++++++++++++++++++++++++-------------------
+ mt7996/eeprom.h      |  32 +++++++
+ mt7996/mcu.c         |  18 +---
+ mt7996/mt7996.h      |   1 +
+ mt7996/mtk_debugfs.c |   2 +-
+ 5 files changed, 150 insertions(+), 110 deletions(-)
+
+diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
+index 5dc55646..f4641321 100644
+--- a/mt7996/eeprom.c
++++ b/mt7996/eeprom.c
+@@ -50,54 +50,84 @@ const u32 dpd_6g_bw320_ch_num = ARRAY_SIZE(dpd_6g_ch_list_bw320);
+ 
+ static int mt7996_check_eeprom(struct mt7996_dev *dev)
+ {
+-#define FEM_INT				0
+-#define FEM_EXT				3
+ 	u8 *eeprom = dev->mt76.eeprom.data;
+-	u8 i, fem[__MT_MAX_BAND], fem_type;
+ 	u16 val = get_unaligned_le16(eeprom);
+ 
+-	for (i = 0; i < __MT_MAX_BAND; i++)
+-		fem[i] = eeprom[MT_EE_WIFI_CONF + 6 + i] & MT_EE_WIFI_PA_LNA_CONFIG;
+-
+ 	switch (val) {
+ 	case 0x7990:
+ 		return is_mt7996(&dev->mt76) ? 0 : -EINVAL;
+ 	case 0x7992:
+-		if (dev->fem_type == MT7996_FEM_UNSET)
+-			return is_mt7992(&dev->mt76) ? 0 : -EINVAL;
+-
+-		if (fem[0] == FEM_EXT && fem[1] == FEM_EXT)
+-			fem_type = MT7996_FEM_EXT;
+-		else if (fem[0] == FEM_INT && fem[1] == FEM_INT)
+-			fem_type = MT7996_FEM_INT;
+-		else if (fem[0] == FEM_INT && fem[1] == FEM_EXT)
+-			fem_type = MT7996_FEM_MIX;
+-		else
+-			return -EINVAL;
+-
+-		return (is_mt7992(&dev->mt76) ? 0 : -EINVAL) |
+-		       (dev->fem_type == fem_type ? 0 : -EINVAL);
++		return is_mt7992(&dev->mt76) ? 0 : -EINVAL;
+ 	default:
+ 		return -EINVAL;
+ 	}
+ }
+ 
+-const char *mt7996_eeprom_name(struct mt7996_dev *dev)
++static int mt7996_check_eeprom_sku(struct mt7996_dev *dev, const u8 *dflt)
+ {
+-	if (dev->bin_file_mode)
+-		return dev->mt76.bin_file_name;
++#define FEM_INT				0
++#define FEM_EXT				3
++	u8 *eeprom = dev->mt76.eeprom.data;
++	u8 i, fem[__MT_MAX_BAND], fem_type;
++	u16 mac_addr[__MT_MAX_BAND] = {MT_EE_MAC_ADDR, MT_EE_MAC_ADDR2, MT_EE_MAC_ADDR3};
++	int max_band = is_mt7996(&dev->mt76) ? __MT_MAX_BAND : 2;
++
++	if (dev->fem_type == MT7996_FEM_UNSET)
++		return -EINVAL;
++
++	/* FEM type */
++	for (i = 0; i < max_band; i++)
++		fem[i] = eeprom[MT_EE_WIFI_CONF + 6 + i] & MT_EE_WIFI_PA_LNA_CONFIG;
++
++	if (fem[0] == FEM_EXT && fem[1] == FEM_EXT)
++		fem_type = MT7996_FEM_EXT;
++	else if (fem[0] == FEM_INT && fem[1] == FEM_INT)
++		fem_type = MT7996_FEM_INT;
++	else if (fem[0] == FEM_INT && fem[1] == FEM_EXT)
++		fem_type = MT7996_FEM_MIX;
++	else
++		return -EINVAL;
+ 
+-	if (dev->testmode_enable) {
+-		if (is_mt7992(&dev->mt76))
+-			return MT7992_EEPROM_DEFAULT_TM;
+-		else
+-			return MT7996_EEPROM_DEFAULT_TM;
++	if (dev->fem_type != fem_type)
++		return -EINVAL;
++
++	/* RF path & stream */
++	for (i = 0; i < max_band; i++) {
++		u8 path, rx_path, nss;
++		u8 dflt_path, dflt_rx_path, dflt_nss;
++
++		/* MAC address */
++		if (ether_addr_equal(eeprom + mac_addr[i], dflt + mac_addr[i]))
++			dev_warn(dev->mt76.dev,
++				 "Currently using default MAC address for band %d\n", i);
++
++		mt7996_parse_eeprom_stream(eeprom, i, &path, &rx_path, &nss);
++		mt7996_parse_eeprom_stream(dflt, i, &dflt_path, &dflt_rx_path, &dflt_nss);
++		if (path > dflt_path || rx_path > dflt_rx_path || nss > dflt_nss) {
++			dev_err(dev->mt76.dev,
++				"Invalid path/stream configuration for band %d\n", i);
++			return -EINVAL;
++		} else if (path < dflt_path || rx_path < dflt_rx_path || nss < dflt_nss) {
++			dev_warn(dev->mt76.dev,
++				 "Restricted path/stream configuration for band %d\n", i);
++			dev_warn(dev->mt76.dev,
++				 "path: %u/%u, rx_path: %u/%u, nss: %u/%u\n",
++				 path, dflt_path, rx_path, dflt_rx_path, nss, dflt_nss);
++		}
+ 	}
+ 
++	return 0;
++}
++
++const char *mt7996_eeprom_name(struct mt7996_dev *dev)
++{
+ 	switch (mt76_chip(&dev->mt76)) {
+ 	case 0x7990:
+ 		if (dev->chip_sku == MT7996_SKU_404)
+ 			return MT7996_EEPROM_DEFAULT_404;
++
++		if (dev->fem_type == MT7996_FEM_INT)
++			return MT7996_EEPROM_DEFAULT_INT;
+ 		return MT7996_EEPROM_DEFAULT;
+ 	case 0x7992:
+ 		if (dev->chip_sku == MT7992_SKU_23) {
+@@ -148,21 +178,18 @@ mt7996_get_dpd_per_band_size(struct mt7996_dev *dev, enum nl80211_band band)
+ }
+ 
+ static int
+-mt7996_eeprom_load_default(struct mt7996_dev *dev)
++mt7996_eeprom_load_bin(struct mt7996_dev *dev)
+ {
+ 	u8 *eeprom = dev->mt76.eeprom.data;
+ 	const struct firmware *fw = NULL;
+ 	int ret;
+ 
+-	ret = request_firmware(&fw, mt7996_eeprom_name(dev), dev->mt76.dev);
++	ret = request_firmware(&fw, dev->mt76.bin_file_name, dev->mt76.dev);
+ 	if (ret)
+ 		return ret;
+ 
+ 	if (!fw || !fw->data) {
+-		if (dev->bin_file_mode)
+-			dev_err(dev->mt76.dev, "Invalid bin (bin file mode)\n");
+-		else
+-			dev_err(dev->mt76.dev, "Invalid default bin\n");
++		dev_err(dev->mt76.dev, "Invalid bin %s\n", dev->mt76.bin_file_name);
+ 		ret = -EINVAL;
+ 		goto out;
+ 	}
+@@ -180,7 +207,7 @@ static int mt7996_eeprom_load_flash(struct mt7996_dev *dev)
+ {
+ 	int ret = 1;
+ 
+-	/* return > 0 for load success, return 0 for load failed, return < 0 for non memory */
++	/* return > 0 for load success, return 0 for load failed, return < 0 for no memory */
+ 	dev->bin_file_mode = mt76_check_bin_file_mode(&dev->mt76);
+ 	if (dev->bin_file_mode) {
+ 		dev->mt76.eeprom.size = MT7996_EEPROM_SIZE;
+@@ -189,15 +216,15 @@ static int mt7996_eeprom_load_flash(struct mt7996_dev *dev)
+ 		if (!dev->mt76.eeprom.data)
+ 			return -ENOMEM;
+ 
+-		if (mt7996_eeprom_load_default(dev))
+-			return 0;
+-
+-		if (mt7996_check_eeprom(dev))
++		if (mt7996_eeprom_load_bin(dev))
+ 			return 0;
+ 	} else {
+ 		ret = mt76_eeprom_init(&dev->mt76, MT7996_EEPROM_SIZE);
+ 	}
+ 
++	if (mt7996_check_eeprom(dev))
++		return 0;
++
+ 	return ret;
+ }
+ 
+@@ -206,30 +233,30 @@ int mt7996_eeprom_check_fw_mode(struct mt7996_dev *dev)
+ 	u8 *eeprom;
+ 	int ret;
+ 
++	dev->testmode_enable = testmode_enable;
++
+ 	/* load eeprom in flash or bin file mode to determine fw mode */
+ 	ret = mt7996_eeprom_load_flash(dev);
++	if (ret <= 0)
++		goto out;
+ 
+-	if (ret < 0)
+-		return ret;
+-
+-	if (ret) {
+-		dev->flash_mode = true;
+-		dev->eeprom_mode = dev->bin_file_mode ? BIN_FILE_MODE : FLASH_MODE;
+-		eeprom = dev->mt76.eeprom.data;
+-		/* testmode enable priority: eeprom field > module parameter */
+-		dev->testmode_enable = !mt7996_check_eeprom(dev) ? eeprom[MT_EE_TESTMODE_EN] :
+-								   testmode_enable;
+-	}
++	dev->flash_mode = true;
++	dev->eeprom_mode = dev->bin_file_mode ? BIN_FILE_MODE : FLASH_MODE;
++	eeprom = dev->mt76.eeprom.data;
++	/* testmode enable priority: eeprom field > module parameter */
++	dev->testmode_enable = eeprom[MT_EE_TESTMODE_EN];
+ 
++out:
+ 	return ret;
+ }
+ 
+ static int mt7996_eeprom_load(struct mt7996_dev *dev)
+ {
++	const struct firmware *fw = NULL;
+ 	int ret;
+-	u8 free_block_num;
+ 	u32 block_num, i;
+ 	u32 eeprom_blk_size = MT7996_EEPROM_BLOCK_SIZE;
++	u8 free_block_num, *eeprom = dev->mt76.eeprom.data;
+ 
+ 	/* flash or bin file mode eeprom is loaded before mcu init */
+ 	if (!dev->flash_mode) {
+@@ -239,19 +266,49 @@ static int mt7996_eeprom_load(struct mt7996_dev *dev)
+ 
+ 		/* efuse info isn't enough */
+ 		if (free_block_num >= 59)
+-			return -EINVAL;
++			goto dflt;
++
++		memset(eeprom, 0, MT7996_EEPROM_SIZE);
++		/* check if efuse contains valid eeprom data */
++		if (mt7996_mcu_get_eeprom(dev, 0, NULL) ||
++		    mt7996_check_eeprom(dev))
++			goto dflt;
+ 
+ 		/* read eeprom data from efuse */
+ 		block_num = DIV_ROUND_UP(MT7996_EEPROM_SIZE, eeprom_blk_size);
+-		for (i = 0; i < block_num; i++) {
++		for (i = 1; i < block_num; i++) {
+ 			ret = mt7996_mcu_get_eeprom(dev, i * eeprom_blk_size, NULL);
+ 			if (ret && ret != -EINVAL)
+-				return ret;
++				goto dflt;
+ 		}
+ 		dev->eeprom_mode = EFUSE_MODE;
+ 	}
+ 
+-	return mt7996_check_eeprom(dev);
++dflt:
++	ret = request_firmware(&fw, mt7996_eeprom_name(dev), dev->mt76.dev);
++	if (ret)
++		return ret;
++
++	if (!fw || !fw->data) {
++		dev_err(dev->mt76.dev, "Invalid default bin\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (dev->eeprom_mode && !mt7996_check_eeprom_sku(dev, fw->data)) {
++		ret = 0;
++		goto out;
++	}
++
++	memcpy(eeprom, fw->data, MT7996_EEPROM_SIZE);
++	dev->bin_file_mode = false;
++	dev->flash_mode = true;
++	dev->eeprom_mode = DEFAULT_BIN_MODE;
++	eeprom[MT_EE_TESTMODE_EN] = dev->testmode_enable;
++	dev_warn(dev->mt76.dev, "eeprom load fail, use default bin\n");
++out:
++	release_firmware(fw);
++	return ret;
+ }
+ 
+ static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_dev *dev)
+@@ -323,32 +380,7 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
+ 	int max_path = 5, max_nss = 4;
+ 	int ret;
+ 
+-	switch (band_idx) {
+-	case MT_BAND1:
+-		path = FIELD_GET(MT_EE_WIFI_CONF2_TX_PATH_BAND1,
+-				 eeprom[MT_EE_WIFI_CONF + 2]);
+-		rx_path = FIELD_GET(MT_EE_WIFI_CONF3_RX_PATH_BAND1,
+-				    eeprom[MT_EE_WIFI_CONF + 3]);
+-		nss = FIELD_GET(MT_EE_WIFI_CONF5_STREAM_NUM_BAND1,
+-				eeprom[MT_EE_WIFI_CONF + 5]);
+-		break;
+-	case MT_BAND2:
+-		path = FIELD_GET(MT_EE_WIFI_CONF2_TX_PATH_BAND2,
+-				 eeprom[MT_EE_WIFI_CONF + 2]);
+-		rx_path = FIELD_GET(MT_EE_WIFI_CONF4_RX_PATH_BAND2,
+-				    eeprom[MT_EE_WIFI_CONF + 4]);
+-		nss = FIELD_GET(MT_EE_WIFI_CONF5_STREAM_NUM_BAND2,
+-				eeprom[MT_EE_WIFI_CONF + 5]);
+-		break;
+-	default:
+-		path = FIELD_GET(MT_EE_WIFI_CONF1_TX_PATH_BAND0,
+-				 eeprom[MT_EE_WIFI_CONF + 1]);
+-		rx_path = FIELD_GET(MT_EE_WIFI_CONF3_RX_PATH_BAND0,
+-				    eeprom[MT_EE_WIFI_CONF + 3]);
+-		nss = FIELD_GET(MT_EE_WIFI_CONF4_STREAM_NUM_BAND0,
+-				eeprom[MT_EE_WIFI_CONF + 4]);
+-		break;
+-	}
++	mt7996_parse_eeprom_stream(eeprom, band_idx, &path, &rx_path, &nss);
+ 
+ 	if (!path || path > max_path)
+ 		path = max_path;
+@@ -437,17 +469,8 @@ int mt7996_eeprom_init(struct mt7996_dev *dev)
+ 		return ret;
+ 
+ 	ret = mt7996_eeprom_load(dev);
+-	if (ret < 0) {
+-		if (ret != -EINVAL)
+-			return ret;
+-
+-		dev_warn(dev->mt76.dev, "eeprom load fail, use default bin\n");
+-		dev->bin_file_mode = false;
+-		dev->eeprom_mode = DEFAULT_BIN_MODE;
+-		ret = mt7996_eeprom_load_default(dev);
+-		if (ret)
+-			return ret;
+-	}
++	if (ret)
++		return ret;
+ 
+ 	ret = mt7996_eeprom_load_precal(dev);
+ 	if (ret)
+diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
+index 8f0f87b6..03a4fd07 100644
+--- a/mt7996/eeprom.h
++++ b/mt7996/eeprom.h
+@@ -132,6 +132,38 @@ mt7996_get_channel_group_6g(int channel)
+ 	return DIV_ROUND_UP(channel - 29, 32);
+ }
+ 
++static inline void
++mt7996_parse_eeprom_stream(const u8 *eep, int band_idx,
++			   u8 *path, u8 *rx_path, u8 *nss)
++{
++	switch (band_idx) {
++	case MT_BAND1:
++		*path = FIELD_GET(MT_EE_WIFI_CONF2_TX_PATH_BAND1,
++				  eep[MT_EE_WIFI_CONF + 2]);
++		*rx_path = FIELD_GET(MT_EE_WIFI_CONF3_RX_PATH_BAND1,
++				     eep[MT_EE_WIFI_CONF + 3]);
++		*nss = FIELD_GET(MT_EE_WIFI_CONF5_STREAM_NUM_BAND1,
++				 eep[MT_EE_WIFI_CONF + 5]);
++		break;
++	case MT_BAND2:
++		*path = FIELD_GET(MT_EE_WIFI_CONF2_TX_PATH_BAND2,
++				  eep[MT_EE_WIFI_CONF + 2]);
++		*rx_path = FIELD_GET(MT_EE_WIFI_CONF4_RX_PATH_BAND2,
++				     eep[MT_EE_WIFI_CONF + 4]);
++		*nss = FIELD_GET(MT_EE_WIFI_CONF5_STREAM_NUM_BAND2,
++				 eep[MT_EE_WIFI_CONF + 5]);
++		break;
++	default:
++		*path = FIELD_GET(MT_EE_WIFI_CONF1_TX_PATH_BAND0,
++				  eep[MT_EE_WIFI_CONF + 1]);
++		*rx_path = FIELD_GET(MT_EE_WIFI_CONF3_RX_PATH_BAND0,
++				     eep[MT_EE_WIFI_CONF + 3]);
++		*nss = FIELD_GET(MT_EE_WIFI_CONF4_STREAM_NUM_BAND0,
++				 eep[MT_EE_WIFI_CONF + 4]);
++		break;
++	}
++}
++
+ enum mt7996_sku_rate_group {
+ 	SKU_CCK,
+ 	SKU_OFDM,
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 8ac7adf6..7542953f 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -3510,7 +3510,7 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag)
+ 				 &req, sizeof(req), true);
+ }
+ 
+-static int mt7996_mcu_set_eeprom_flash(struct mt7996_dev *dev)
++int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
+ {
+ #define MAX_PAGE_IDX_MASK	GENMASK(7, 5)
+ #define PAGE_IDX_MASK		GENMASK(4, 2)
+@@ -3555,22 +3555,6 @@ static int mt7996_mcu_set_eeprom_flash(struct mt7996_dev *dev)
+ 	return 0;
+ }
+ 
+-int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
+-{
+-	struct mt7996_mcu_eeprom req = {
+-		.tag = cpu_to_le16(UNI_EFUSE_BUFFER_MODE),
+-		.len = cpu_to_le16(sizeof(req) - 4),
+-		.buffer_mode = EE_MODE_EFUSE,
+-		.format = EE_FORMAT_WHOLE
+-	};
+-
+-	if (dev->flash_mode)
+-		return mt7996_mcu_set_eeprom_flash(dev);
+-
+-	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(EFUSE_CTRL),
+-				 &req, sizeof(req), true);
+-}
+-
+ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *read_buf)
+ {
+ 	struct mt7996_mcu_eeprom_info req = {
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 439c57f4..2994c1a5 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -54,6 +54,7 @@
+ #define MT7992_ROM_PATCH_23		"mediatek/mt7996/mt7992_rom_patch_23.bin"
+ 
+ #define MT7996_EEPROM_DEFAULT		"mediatek/mt7996/mt7996_eeprom.bin"
++#define MT7996_EEPROM_DEFAULT_INT	"mediatek/mt7996/mt7996_eeprom_2i5i6i.bin"
+ #define MT7996_EEPROM_DEFAULT_404	"mediatek/mt7996/mt7996_eeprom_dual_404.bin"
+ #define MT7992_EEPROM_DEFAULT		"mediatek/mt7996/mt7992_eeprom_2e5e.bin"
+ #define MT7992_EEPROM_DEFAULT_INT	"mediatek/mt7996/mt7992_eeprom_2i5i.bin"
+diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
+index c096fb6c..053005dd 100644
+--- a/mt7996/mtk_debugfs.c
++++ b/mt7996/mtk_debugfs.c
+@@ -2826,7 +2826,7 @@ static int mt7996_show_eeprom_mode(struct seq_file *s, void *data)
+ 			seq_printf(s, "   flash mode\n");
+ 		break;
+ 	case BIN_FILE_MODE:
+-		seq_printf(s, "   bin file mode\n   filename = %s\n", mt7996_eeprom_name(dev));
++		seq_printf(s, "   bin file mode\n   filename = %s\n", dev->mt76.bin_file_name);
+ 		break;
+ 	default:
+ 		break;
+-- 
+2.18.0
+

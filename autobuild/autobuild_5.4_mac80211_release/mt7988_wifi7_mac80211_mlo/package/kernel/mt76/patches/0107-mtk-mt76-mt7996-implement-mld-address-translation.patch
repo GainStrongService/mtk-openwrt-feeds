@@ -1,0 +1,125 @@
+From b864635477ddfa6095f9268c94e4ab9410c51f43 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Thu, 7 Dec 2023 16:31:56 +0800
+Subject: [PATCH 107/199] mtk: mt76: mt7996: implement mld address translation
+
+Do the MLD to link address translation for EAPOL and management frames
+in driver.
+This is a preliminary patch to add MLO support for mt7996 chipsets.
+
+Co-developed-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Co-developed-by: Bo Jiao <Bo.Jiao@mediatek.com>
+Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/mac.c  | 20 ++++++++++++++++++++
+ mt7996/main.c | 49 ++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 66 insertions(+), 3 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 36d2e0b3..a306ad71 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -898,6 +898,26 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 		mt7996_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, key,
+ 				      pid, qid, 0);
+ 
++	/* translate addr3 of EAPOL by driver */
++	if (unlikely(tx_info->skb->protocol == cpu_to_be16(ETH_P_PAE)) && sta->mlo) {
++		if (ether_addr_equal(vif->addr, hdr->addr3)) {
++			struct ieee80211_bss_conf *conf;
++
++			conf = rcu_dereference(vif->link_conf[wcid->link_id]);
++			if (unlikely(!conf))
++				return -ENOLINK;
++
++			memcpy(hdr->addr3, conf->addr, ETH_ALEN);
++		} else if (ether_addr_equal(sta->addr, hdr->addr3)) {
++			struct ieee80211_link_sta *link_sta;
++
++			link_sta = rcu_dereference(sta->link[wcid->link_id]);
++			memcpy(hdr->addr3, link_sta->addr, ETH_ALEN);
++		}
++
++		pr_info("EAPOL: a1=%pM, a2=%pM, a3=%pM\n", hdr->addr1, hdr->addr2, hdr->addr3);
++	}
++
+ 	txp = (struct mt76_connac_txp_common *)(txwi + MT_TXD_SIZE);
+ 	for (i = 0; i < nbuf; i++) {
+ 		u16 len;
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 9c5e31b7..d897a361 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1312,14 +1312,56 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+ 
+ 	rcu_read_lock();
+ 	if (mvif && msta) {
++		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+ 		struct mt7996_bss_conf *mconf;
+ 		struct mt7996_link_sta *mlink;
+-
+ 		u8 link_id = u32_get_bits(info->control.flags,
+ 					  IEEE80211_TX_CTRL_MLO_LINK);
++		struct ieee80211_sta *sta = ieee80211_find_sta(vif, hdr->addr1);
++
++		if (link_id >= IEEE80211_LINK_UNSPECIFIED) {
++			if (sta) {
++				struct mt7996_sta *peer;
++
++				peer = (struct mt7996_sta *)sta->drv_priv;
++				link_id = peer->pri_link;
++			} else {
++				link_id = mvif->master_link_id;
++			}
++		}
+ 
+-		if (link_id >= IEEE80211_LINK_UNSPECIFIED)
+-			link_id = mvif->master_link_id;
++		/* translate mld addr to link addr */
++		if (ieee80211_vif_is_mld(vif)) {
++			struct ieee80211_bss_conf *conf;
++			if (sta) {
++				struct ieee80211_link_sta *link_sta =
++					rcu_dereference(sta->link[link_id]);
++
++				if (!link_sta) {
++					mlo_dbg(mt7996_hw_phy(mvif->hw), "request TX on invalid link_id=%u, use primary link (id=%u) instead.\n",
++						      link_id, msta->pri_link);
++					link_id = msta->pri_link;
++					link_sta = rcu_dereference(sta->link[link_id]);
++
++					if (!link_sta) {
++						mlo_dbg(mt7996_hw_phy(mvif->hw), "primary link became invalid, give up the TX\n");
++						goto unlock;
++					}
++				}
++
++				memcpy(hdr->addr1, link_sta->addr, ETH_ALEN);
++				if (ether_addr_equal(sta->addr, hdr->addr3))
++					memcpy(hdr->addr3, link_sta->addr, ETH_ALEN);
++			}
++
++			conf = rcu_dereference(vif->link_conf[link_id]);
++			if (unlikely(!conf))
++				goto unlock;
++
++			memcpy(hdr->addr2, conf->addr, ETH_ALEN);
++			if (ether_addr_equal(vif->addr, hdr->addr3))
++				memcpy(hdr->addr3, conf->addr, ETH_ALEN);
++		}
+ 
+ 		mconf = rcu_dereference(mvif->link[link_id]);
+ 		mlink = rcu_dereference(msta->link[link_id]);
+@@ -1337,6 +1379,7 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+ 	}
+ 
+ 	mt76_tx(mphy, control->sta, wcid, skb);
++unlock:
+ 	rcu_read_unlock();
+ }
+ 
+-- 
+2.18.0
+

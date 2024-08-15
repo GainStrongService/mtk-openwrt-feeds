@@ -1,0 +1,151 @@
+From 78281526ce83b2623939c6060c7baf65cb5644ee Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Fri, 19 Jan 2024 14:35:17 +0800
+Subject: [PATCH 49/89] mtk: cfg80211: implement DFS radar detect for MLO
+
+Implement DFS radar detect for MLO
+1. Add link id info for radar detection in MLD
+2. Note that the radar detection flow requires channel switch, which is not yet
+complete in MLO, so postpone it.
+   (a) cac_started, cac_start_time should be moved into wdev->link, but
+channel switch will use it, so wait until channel switch is completed.
+   (b) ieee80211_dfs_cac_cancel, ieee80211_dfs_radar_detected_work, ...
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+
+rework radar detected flow for mlo
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ include/net/cfg80211.h | 1 +
+ net/mac80211/main.c    | 3 +++
+ net/mac80211/pm.c      | 1 +
+ net/mac80211/util.c    | 7 ++++++-
+ net/wireless/core.c    | 4 ++--
+ net/wireless/reg.c     | 4 +++-
+ net/wireless/trace.h   | 1 +
+ 7 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
+index 993b9a1..862932a 100644
+--- a/include/net/cfg80211.h
++++ b/include/net/cfg80211.h
+@@ -4846,6 +4846,7 @@ struct cfg80211_ops {
+ 
+ 	int	(*start_radar_detection)(struct wiphy *wiphy,
+ 					 struct net_device *dev,
++					 unsigned int link_id,
+ 					 struct cfg80211_chan_def *chandef,
+ 					 u32 cac_time_ms, int link_id);
+ 	void	(*end_cac)(struct wiphy *wiphy,
+diff --git a/net/mac80211/main.c b/net/mac80211/main.c
+index ca371ef..1de7f1d 100644
+--- a/net/mac80211/main.c
++++ b/net/mac80211/main.c
+@@ -1095,6 +1095,8 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
+ static bool
+ ieee80211_ifcomb_check(const struct ieee80211_iface_combination *c, int n_comb)
+ {
++	/* FIXME: currently skip all checks */
++#if 0
+ 	int i, j;
+ 
+ 	for (i = 0; i < n_comb; i++, c++) {
+@@ -1109,6 +1111,7 @@ ieee80211_ifcomb_check(const struct ieee80211_iface_combination *c, int n_comb)
+ 			    c->limits[j].max > 1)
+ 				return false;
+ 	}
++#endif
+ 
+ 	return true;
+ }
+diff --git a/net/mac80211/pm.c b/net/mac80211/pm.c
+index d823d58..e47c2c4 100644
+--- a/net/mac80211/pm.c
++++ b/net/mac80211/pm.c
+@@ -22,6 +22,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
+ {
+ 	struct ieee80211_local *local = hw_to_local(hw);
+ 	struct ieee80211_sub_if_data *sdata;
++	struct ieee80211_chanctx *ctx;
+ 	struct sta_info *sta;
+ 
+ 	if (!local->open_count)
+diff --git a/net/mac80211/util.c b/net/mac80211/util.c
+index 7f93739..2d2b871 100644
+--- a/net/mac80211/util.c
++++ b/net/mac80211/util.c
+@@ -3478,6 +3478,10 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
+ 			if (!link_data)
+ 				continue;
+ 
++			if (link_data->conf->chanreq.oper.chan &&
++			    link_data->conf->chanreq.oper.chan->band != NL80211_BAND_5GHZ)
++				continue;
++
+ 			wiphy_delayed_work_cancel(local->hw.wiphy,
+ 						  &link_data->dfs_cac_timer_work);
+ 
+@@ -3515,7 +3519,8 @@ void ieee80211_dfs_radar_detected_work(struct wiphy *wiphy,
+ 	INIT_LIST_HEAD(&radar_info_list);
+ 
+ 	list_for_each_entry(ctx, &local->chanctx_list, list) {
+-		if (ctx->replace_state == IEEE80211_CHANCTX_REPLACES_OTHER)
++		if (ctx->replace_state == IEEE80211_CHANCTX_REPLACES_OTHER ||
++		    !ctx->conf.def.chan || ctx->conf.def.chan->band != NL80211_BAND_5GHZ)
+ 			continue;
+ 
+ 		if (ctx->conf.radar_detected) {
+diff --git a/net/wireless/core.c b/net/wireless/core.c
+index 45e2d94..51fb382 100644
+--- a/net/wireless/core.c
++++ b/net/wireless/core.c
+@@ -632,10 +632,10 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
+ 		if (WARN_ON(!c->num_different_channels))
+ 			return -EINVAL;
+ 
+-		/* DFS only works on one channel. */
++		/* DFS only works on one channel.
+ 		if (WARN_ON(c->radar_detect_widths &&
+ 			    (c->num_different_channels > 1)))
+-			return -EINVAL;
++			return -EINVAL; */
+ 
+ 		if (WARN_ON(!c->n_limits))
+ 			return -EINVAL;
+diff --git a/net/wireless/reg.c b/net/wireless/reg.c
+index 1a393f3..39a456b 100644
+--- a/net/wireless/reg.c
++++ b/net/wireless/reg.c
+@@ -4246,13 +4246,15 @@ static void cfg80211_check_and_end_cac(struct cfg80211_registered_device *rdev)
+ 	 */
+ 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
+ 		struct cfg80211_chan_def *chandef;
++		unsigned int link_id;
+ 
+ 		for_each_valid_link(wdev, link_id) {
+ 			if (!wdev->links[link_id].cac_started)
+ 				continue;
+ 
+ 			chandef = wdev_chandef(wdev, link_id);
+-			if (!chandef)
++			if (!chandef || !chandef->chan ||
++			    chandef->chan->band != NL80211_BAND_5GHZ)
+ 				continue;
+ 
+ 			if (!cfg80211_chandef_dfs_usable(&rdev->wiphy, chandef))
+diff --git a/net/wireless/trace.h b/net/wireless/trace.h
+index 21956c8..6ff6091 100644
+--- a/net/wireless/trace.h
++++ b/net/wireless/trace.h
+@@ -2677,6 +2677,7 @@ TRACE_EVENT(rdev_start_radar_detection,
+ 	TP_fast_assign(
+ 		WIPHY_ASSIGN;
+ 		NETDEV_ASSIGN;
++		__entry->link_id = link_id;
+ 		CHAN_DEF_ASSIGN(chandef);
+ 		__entry->cac_time_ms = cac_time_ms;
+ 		__entry->link_id = link_id;
+-- 
+2.18.0
+

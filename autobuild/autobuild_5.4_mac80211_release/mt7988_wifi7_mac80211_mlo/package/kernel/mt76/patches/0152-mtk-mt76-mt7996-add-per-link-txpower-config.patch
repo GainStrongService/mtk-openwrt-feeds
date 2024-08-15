@@ -1,0 +1,35 @@
+From e2fe59ea3398bb2c2b00d2333aaa707aed44b37a Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 11 Jun 2024 17:04:00 +0800
+Subject: [PATCH 152/199] mtk: mt76: mt7996: add per-link txpower config
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/main.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index a70fc4d3..19a1c7b3 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1016,7 +1016,7 @@ out:
+ }
+ 
+ int mt7996_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+-		       int *dbm)
++		       unsigned int link_id, int *dbm)
+ {
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+ 	struct mt7996_bss_conf *mconf;
+@@ -1025,7 +1025,7 @@ int mt7996_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	int delta;
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+-	mconf = mconf_dereference_protected(mvif, mvif->master_link_id);
++	mconf = mconf_dereference_protected(mvif, link_id);
+ 	if (!mconf || !mconf->phy) {
+ 		*dbm = 0;
+ 		goto out;
+-- 
+2.18.0
+

@@ -1,0 +1,40 @@
+From 43de0e905d116dc16cf7cacadeddcc352695913d Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Thu, 22 Feb 2024 11:09:10 +0800
+Subject: [PATCH 112/199] mtk: mt76: mt7996: ACS channel time too long on duty
+ channel
+
+This problem happens in SW scan and was already fixed.
+(https://gerrit.mediatek.inc/c/gateway/WiFi7/mac80211/mt76/+/8312969)
+
+This commit applys same solution for HW scan.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/main.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 7012aa96..c4eba315 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -499,6 +499,7 @@ static void ___mt7996_set_channel(struct mt7996_phy *phy,
+ 	struct mt76_phy *mphy = phy->mt76;
+ 	bool offchannel = phy->scan_chan != NULL;
+ 	int timeout = HZ / 5;
++	unsigned long was_scanning = ieee80211_get_scanning(mphy->hw);
+ 
+ 	wait_event_timeout(mdev->tx_wait, !mt76_has_tx_pending(mphy), timeout);
+ 	mt76_update_survey(mphy);
+@@ -513,7 +514,7 @@ static void ___mt7996_set_channel(struct mt7996_phy *phy,
+ 	if (!offchannel)
+ 		mphy->main_chan = chandef->chan;
+ 
+-	if (chandef->chan != mphy->main_chan)
++	if (chandef->chan != mphy->main_chan || was_scanning)
+ 		memset(mphy->chan_state, 0, sizeof(*mphy->chan_state));
+ }
+ 
+-- 
+2.18.0
+

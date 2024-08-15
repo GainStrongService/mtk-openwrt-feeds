@@ -1,0 +1,832 @@
+From 330346c577b4623e52767ad0939cd735a83d9837 Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Mon, 22 Jul 2024 20:51:18 +0800
+Subject: [PATCH 124/126] mtk: hostapd: Add AFC and lpi driver power support
+
+Add AFC and lpi driver power support
+This patch parse the AFC response into mtk sku power table format and send
+it to driver by vendor cmd. The table format is like below:
+col\row	 bw20  bw40  ...  ru26  ...  ru3472
+chan 1
+chan 5
+...
+chan 233
+
+ - Once the afc procedure start failed, the device would set as lpi mode by
+telling driver lpi_sku_index to use specify sku-index in dst.
+ - Add afc_max_timeout conf is use to limit the maximum interval between the
+two afc requests.
+ - Set default use lpi & sp mode
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ hostapd/config_file.c        |   4 +
+ src/ap/afc.c                 | 365 +++++++++++++++++++++++++++++++++--
+ src/ap/ap_config.c           |   3 +-
+ src/ap/ap_config.h           |   2 +
+ src/ap/ap_drv_ops.c          |  34 +++-
+ src/ap/hostapd.h             |  60 ++++++
+ src/common/mtk_vendor.h      |   2 +
+ src/drivers/driver.h         |   4 +-
+ src/drivers/driver_nl80211.c |  36 +++-
+ 9 files changed, 477 insertions(+), 33 deletions(-)
+
+diff --git a/hostapd/config_file.c b/hostapd/config_file.c
+index 944669270..11c5f8947 100644
+--- a/hostapd/config_file.c
++++ b/hostapd/config_file.c
+@@ -4248,6 +4248,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+ 	} else if (os_strcmp(buf, "afc_op_class") == 0) {
+ 		if (hostapd_afc_parse_op_class(conf, pos))
+ 			return 1;
++	} else if (os_strcmp(buf, "afc_max_timeout") == 0) {
++		conf->afc.max_timeout = atoi(pos);
+ #endif /* CONFIG_AFC */
+ 	} else if (os_strcmp(buf, "mbssid") == 0) {
+ 		int mbssid = atoi(pos);
+@@ -5575,6 +5577,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+ 		conf->lpi_psd = !!en;
+ 	} else if (os_strcmp(buf, "sku_idx") == 0) {
+ 		conf->sku_idx = strtol(pos, NULL, 10);
++	} else if (os_strcmp(buf, "lpi_sku_idx") == 0) {
++		conf->lpi_sku_idx = strtol(pos, NULL, 10);
+ 	} else if (os_strcmp(buf, "lpi_bcn_enhance") == 0) {
+ 		u8 en = strtol(pos, NULL, 10);
+ 		conf->lpi_bcn_enhance = !!en;
+diff --git a/src/ap/afc.c b/src/ap/afc.c
+index 361ecb575..d36ce00d7 100644
+--- a/src/ap/afc.c
++++ b/src/ap/afc.c
+@@ -16,6 +16,7 @@
+ #include "hostapd.h"
+ #include "acs.h"
+ #include "hw_features.h"
++#include "ap_drv_ops.h"
+ 
+ #define HOSTAPD_AFC_RETRY_TIMEOUT	180
+ #define HOSTAPD_AFC_TIMEOUT		86400 /* 24h */
+@@ -749,6 +750,9 @@ static int hostapd_afc_parse_reply(struct hostapd_iface *iface, char *reply)
+ 	iface->afc.timeout = request_timeout;
+ 	if (iface->afc.timeout < 0)
+ 		iface->afc.timeout = HOSTAPD_AFC_RETRY_TIMEOUT;
++	else if (iface->afc.timeout > iconf->afc.max_timeout &&
++		 iconf->afc.max_timeout >= HOSTAPD_AFC_RETRY_TIMEOUT)
++		iface->afc.timeout = iconf->afc.max_timeout;
+ 
+ 	return ret;
+ }
+@@ -772,6 +776,7 @@ static int hostapd_afc_send_receive(struct hostapd_iface *iface)
+ 	int sockfd, ret;
+ 	fd_set read_set;
+ 
++	iface->afc.timeout = HOSTAPD_AFC_RETRY_TIMEOUT;
+ 	if (iface->afc.data_valid) {
+ 		/* AFC data already downloaded from the server */
+ 		return 0;
+@@ -782,7 +787,6 @@ static int hostapd_afc_send_receive(struct hostapd_iface *iface)
+ 		return -EINVAL;
+ 	}
+ 
+-	iface->afc.timeout = HOSTAPD_AFC_RETRY_TIMEOUT;
+ 	if (os_strlen(iconf->afc.socket) >= sizeof(addr.sun_path)) {
+ 		wpa_printf(MSG_ERROR, "Malformed AFC socket string %s",
+ 			   iconf->afc.socket);
+@@ -880,7 +884,19 @@ static bool hostapd_afc_has_usable_chans(struct hostapd_iface *iface)
+ int hostapd_afc_handle_request(struct hostapd_iface *iface)
+ {
+ 	struct hostapd_config *iconf = iface->conf;
++	bool lpi_mode;
+ 	int ret;
++	int afc_status = AFC_CONTINUE;
++
++	lpi_mode = he_reg_is_indoor(iconf->he_6ghz_reg_pwr_type);
++	if (lpi_mode && !he_reg_is_sp(iconf->he_6ghz_reg_pwr_type)) {
++		iface->afc.lpi_mode = true;
++		return 1;
++	}
++
++	if (strncmp(iconf->country, "US", 2) != 0 &&
++	    strncmp(iconf->country, "CA", 2) != 0)
++		return 1;
+ 
+ 	/* AFC is required just for standard power AP */
+ 	if (!he_reg_is_sp(iconf->he_6ghz_reg_pwr_type))
+@@ -894,34 +910,50 @@ int hostapd_afc_handle_request(struct hostapd_iface *iface)
+ 
+ 	ret = hostapd_afc_send_receive(iface);
+ 	if (ret < 0) {
+-		/*
+-		 * If the connection to the AFCD failed, resched for a
+-		 * future attempt.
+-		 */
+-		wpa_printf(MSG_ERROR, "AFC connection failed: %d", ret);
+-		if (ret == -EIO)
+-			ret = 0;
++		afc_status = lpi_mode ? AFC_LPI : AFC_DISABLE;
+ 		goto resched;
+ 	}
+ 
+ 	hostap_afc_disable_channels(iface);
+-	if (!hostapd_afc_has_usable_chans(iface))
++	if (!hostapd_afc_has_usable_chans(iface)) {
++		afc_status = lpi_mode ? AFC_LPI : AFC_DISABLE;
+ 		goto resched;
++	}
+ 
+ 	if (!hostapd_is_usable_chans(iface)) {
+ 		/* Trigger an ACS freq scan */
++		afc_status = AFC_RESTART_IFACE;
+ 		iconf->channel = 0;
+ 		iface->freq = 0;
+ 
+ 		if (acs_init(iface) != HOSTAPD_CHAN_ACS) {
+ 			wpa_printf(MSG_ERROR, "Could not start ACS");
++			afc_status = AFC_DISABLE;
+ 			ret = -EINVAL;
+ 		}
+ 	} else {
++		afc_status = AFC_CONTINUE;
+ 		ret = 1;
+ 	}
+ 
+ resched:
++	switch(afc_status) {
++	case AFC_LPI:
++		iface->afc.lpi_mode = true;
++		hostapd_afc_enable_lpi_channels(iface);
++		ret = 1;
++		break;
++	/* Disable and restart iface would be finished in hostapd setup flow. */
++	case AFC_RESTART_IFACE:
++		ret = 0;
++		fallthrough;
++	case AFC_DISABLE:
++	case AFC_CONTINUE:
++		break;
++	default:
++		break;
++	}
++
+ 	eloop_cancel_timeout(hostapd_afc_timeout_handler, iface, NULL);
+ 	eloop_register_timeout(iface->afc.timeout, 0,
+ 			       hostapd_afc_timeout_handler, iface, NULL);
+@@ -948,34 +980,58 @@ static void hostapd_afc_delete_data_from_server(struct hostapd_iface *iface)
+ static void hostapd_afc_timeout_handler(void *eloop_ctx, void *timeout_ctx)
+ {
+ 	struct hostapd_iface *iface = eloop_ctx;
+-	bool restart_iface = true;
++	bool lpi_mode;
++	int afc_status = AFC_CONTINUE, ret;
++
++	lpi_mode = he_reg_is_indoor(iface->conf->he_6ghz_reg_pwr_type);
++	iface->afc.lpi_mode = false;
+ 
+ 	hostapd_afc_delete_data_from_server(iface);
+ 	if (iface->state != HAPD_IFACE_ENABLED) {
++		afc_status = AFC_RESTART_IFACE;
+ 		/* Hostapd is not fully enabled yet, toggle the interface */
+ 		goto restart_interface;
+ 	}
+ 
+ 	if (hostapd_afc_send_receive(iface) < 0 ||
+ 	    hostapd_get_hw_features(iface)) {
+-		restart_iface = false;
++		afc_status = lpi_mode ? AFC_LPI : AFC_DISABLE;
+ 		goto restart_interface;
+ 	}
+ 
+-	if (hostapd_is_usable_chans(iface))
+-		goto resched;
++	ret = hostapd_is_usable_chans(iface);
++	if (ret != 1) {
++		afc_status = lpi_mode && ret == 0 ? AFC_LPI : AFC_DISABLE;
++		goto restart_interface;
++	}
+ 
+-	restart_iface = hostapd_afc_has_usable_chans(iface);
+-	if (restart_iface) {
++	ret = hostapd_afc_has_usable_chans(iface);
++	if (ret) {
+ 		/* Trigger an ACS freq scan */
++		afc_status = AFC_RESTART_IFACE;
+ 		iface->conf->channel = 0;
+ 		iface->freq = 0;
+ 	}
+ 
+ restart_interface:
+-	hostapd_disable_iface(iface);
+-	if (restart_iface)
++	switch(afc_status) {
++	case AFC_DISABLE:
++		hostapd_disable_iface(iface);
++		break;
++	case AFC_RESTART_IFACE:
++		hostapd_disable_iface(iface);
+ 		hostapd_enable_iface(iface);
++		break;
++	case AFC_LPI:
++		iface->afc.lpi_mode = true;
++		hostapd_afc_enable_lpi_channels(iface);
++		hostapd_drv_txpower_ctrl(iface->bss[0]);
++		break;
++	case AFC_CONTINUE:
++		break;
++	default:
++		break;
++	}
+ resched:
+ 	eloop_register_timeout(iface->afc.timeout, 0,
+ 			       hostapd_afc_timeout_handler, iface, NULL);
+@@ -1040,6 +1096,37 @@ void hostap_afc_disable_channels(struct hostapd_iface *iface)
+ 	}
+ }
+ 
++void hostapd_afc_enable_lpi_channels(struct hostapd_iface *iface)
++{
++	struct hostapd_hw_modes *mode = NULL;
++	int i;
++
++	for (i = 0; i < iface->num_hw_features; i++) {
++		mode = &iface->hw_features[i];
++		if (mode->mode == HOSTAPD_MODE_IEEE80211A &&
++		    mode->is_6ghz)
++			break;
++	}
++
++	if (i == iface->num_hw_features)
++		return;
++
++	if (!he_reg_is_indoor(iface->conf->he_6ghz_reg_pwr_type))
++		return;
++
++	for (i = 0; i < mode->num_channels; i++) {
++		struct hostapd_channel_data *chan = &mode->channels[i];
++
++		if (!is_6ghz_freq(chan->freq))
++			continue;
++
++		chan->flag &= ~HOSTAPD_CHAN_DISABLED;
++		wpa_printf(MSG_MSGDUMP,
++			   "Enabling freq=%d MHz for lpi mode",
++			   chan->freq);
++	}
++}
++
+ 
+ int hostap_afc_get_chan_max_eirp_power(struct hostapd_iface *iface, bool psd,
+ 				       int *power)
+@@ -1076,3 +1163,247 @@ int hostap_afc_get_chan_max_eirp_power(struct hostapd_iface *iface, bool psd,
+ 	}
+ 	return -EINVAL;
+ }
++
++void hostapd_afc_init_power_table(s8 ***power_table)
++{
++	int table_idx, bw;
++	s8 *chan_power_list;
++
++	/* init power table */
++	for (table_idx = 0; table_idx < MAX_CHANNEL_NUM_6G; table_idx++) {
++		chan_power_list = (*power_table)[table_idx];
++		for (bw = 0; bw < afc_power_table_num; bw++)
++			chan_power_list[bw] = AFC_INVALID_POWER;
++	}
++}
++
++int hostapd_afc_parse_psd_to_dbm(struct hostapd_iface *iface, s8 ***power_table)
++{
++	int i, freq, channel, bw, table_idx, target_power;
++	s8 *chan_power_list;
++
++	for (i = 0; i < iface->afc.num_freq_range; i++) {
++		struct afc_freq_range_elem *freq_range = &iface->afc.freq_range[i];
++
++		if (!freq_range)
++			continue;
++
++		freq = freq_range->low_freq + 10;
++		channel = hostapd_hw_get_channel(iface->bss[0], freq);
++		if (channel == 0)
++			return -EINVAL;
++
++		table_idx = channel / 4;
++
++		if (table_idx >= MAX_CHANNEL_NUM_6G)
++			return -EINVAL;
++
++		chan_power_list = (*power_table)[table_idx];
++		for (bw = 0; bw < afc_power_bw320_2; bw++) {
++			target_power = freq_range->max_psd * 2 + PSD_TO_DBM_OFFSET +
++				bw * DOUBLE_BW_POWER;
++			target_power = MIN(AFC_MAXIMUM_POWER, target_power);
++			chan_power_list[bw] = MIN(chan_power_list[bw],
++						  target_power);
++		}
++		chan_power_list[afc_power_bw320_2] = chan_power_list[afc_power_bw320_1];
++	}
++	return 0;
++}
++
++int hostapd_afc_parse_eirp_to_dbm(struct hostapd_iface *iface, s8 ***power_table)
++{
++	int i, bw, table_idx, target_power;
++	s8 *chan_power_list;
++
++	for (i = 0; i < iface->afc.num_chan_info; i++) {
++		struct afc_chan_info_elem *chan_info = &iface->afc.chan_info_list[i];
++
++		if (!chan_info)
++			continue;
++
++		table_idx = chan_info->chan / 4;
++
++		if (table_idx >= MAX_CHANNEL_NUM_6G)
++			return -EINVAL;
++
++		chan_power_list = (*power_table)[table_idx];
++		target_power = MIN(AFC_MAXIMUM_POWER, chan_info->power * 2);
++		/* FIXME: wider bandwidth power is not stored. */
++		chan_power_list[afc_power_bw20] = MIN(chan_power_list[afc_power_bw20],
++						      target_power);
++	}
++	return 0;
++}
++
++int afc_get_ru_be_offset(int bw, int *target_bw, int *offset)
++{
++	switch (bw) {
++	case afc_power_ru26:
++		*target_bw = afc_power_bw20;
++		*offset = RU26_OFFSET_20MHZ;
++		break;
++	case afc_power_ru52:
++		*target_bw = afc_power_bw20;
++		*offset = RU52_OFFSET_20MHZ;
++		break;
++	case afc_power_ru78:
++		*target_bw = afc_power_bw20;
++		*offset = RU78_OFFSET_20MHZ;
++		break;
++	case afc_power_ru106:
++		*target_bw = afc_power_bw20;
++		*offset = RU106_OFFSET_20MHZ;
++		break;
++	case afc_power_ru132:
++		*target_bw = afc_power_bw20;
++		*offset = RU132_OFFSET_20MHZ;
++		break;
++	case afc_power_ru726:
++		*target_bw = afc_power_bw80;
++		*offset = RU726_OFFSET_80MHZ;
++		break;
++	case afc_power_ru1480:
++		*target_bw = afc_power_bw160;
++		*offset = RU1480_OFFSET_160MHZ;
++		break;
++	case afc_power_ru1772:
++		*target_bw = afc_power_bw160;
++		*offset = RU1772_OFFSET_160MHZ;
++		break;
++	case afc_power_ru2476:
++		*target_bw = afc_power_bw320_1;
++		*offset = RU2476_OFFSET_320MHZ;
++		break;
++	case afc_power_ru2988:
++		*target_bw = afc_power_bw320_1;
++		*offset = RU2988_OFFSET_320MHZ;
++		break;
++	case afc_power_ru3472:
++		*target_bw = afc_power_bw320_1;
++		*offset = RU3472_OFFSET_320MHZ;
++		break;
++	default:
++		return -EINVAL;
++	}
++	return 0;
++}
++
++int hostapd_afc_fill_wide_bandwidth_power(s8 ***power_table)
++{
++	int table_idx, bw;
++	s8 *chan_power_list;
++
++	for (table_idx = 0; table_idx < MAX_CHANNEL_NUM_6G; table_idx++) {
++		int target_power, ru26_power;
++
++		if ((*power_table)[table_idx][afc_power_bw20] == AFC_INVALID_POWER)
++			continue;
++
++		chan_power_list = (*power_table)[table_idx];
++
++		/* Check wide bandwidth power minimum or valid. */
++		for (bw = afc_power_bw40; bw <= afc_power_bw320_2; bw++) {
++			int bw_ch_num, first_ch, last_ch;
++
++			target_power = AFC_INVALID_POWER;
++			switch (bw) {
++			case afc_power_bw40:
++				bw_ch_num = 2;
++				break;
++			case afc_power_bw80:
++				bw_ch_num = 4;
++				break;
++			case afc_power_bw160:
++				bw_ch_num = 8;
++				break;
++			case afc_power_bw320_1:
++			case afc_power_bw320_2:
++				bw_ch_num = 16;
++				break;
++			}
++			if ((bw == afc_power_bw320_1 && table_idx > 47) ||
++			    (bw == afc_power_bw320_2 && table_idx < 8))
++				continue;
++
++			if (bw == afc_power_bw320_2)
++				first_ch = table_idx - (table_idx + 8) % bw_ch_num;
++			else
++				first_ch = table_idx - table_idx % bw_ch_num;
++			last_ch = first_ch + bw_ch_num;
++			for (int ch = first_ch; ch < last_ch; ch++) {
++				if ((*power_table)[ch][bw] == AFC_INVALID_POWER) {
++					target_power = AFC_INVALID_POWER;
++					break;
++				}
++				target_power = MIN((*power_table)[ch][bw], target_power);
++			}
++			chan_power_list[bw] = target_power;
++		}
++
++		/* Update remain ru */
++		for (bw = afc_power_ru26; bw < afc_power_table_num; bw++) {
++			int target_bw, offset;
++
++			if (afc_get_ru_be_offset(bw, &target_bw, &offset))
++				return -EINVAL;
++
++			if (target_bw == afc_power_bw320_1 &&
++			    chan_power_list[target_bw] == AFC_INVALID_POWER)
++			    target_bw++;
++
++			if (chan_power_list[target_bw] == AFC_INVALID_POWER) {
++				chan_power_list[bw] = AFC_INVALID_POWER;
++				continue;
++			}
++
++			target_power = chan_power_list[target_bw] - offset;
++			chan_power_list[bw] = target_power;
++		}
++	}
++	return 0;
++}
++
++
++int hostapd_afc_translate_table(struct hostapd_iface *iface,
++				s8 ***power_table)
++{
++	int i, ret, bw320_offset;
++
++	if (!iface->afc.data_valid)
++		return -EINVAL;
++
++	*power_table = (s8**)os_zalloc(MAX_CHANNEL_NUM_6G * sizeof(s8*));
++
++	if (!(*power_table))
++		return -ENOMEM;
++
++	for (i = 0; i < MAX_CHANNEL_NUM_6G; i++) {
++		(*power_table)[i] = (s8*)os_zalloc(afc_power_table_num * sizeof(s8));
++		if (!(*power_table)[i])
++			goto out;
++	}
++
++	hostapd_afc_init_power_table(power_table);
++
++	ret = hostapd_afc_parse_psd_to_dbm(iface, power_table);
++	if (ret)
++		goto out;
++
++	ret = hostapd_afc_parse_eirp_to_dbm(iface, power_table);
++	if (ret)
++		goto out;
++
++	ret = hostapd_afc_fill_wide_bandwidth_power(power_table);
++	if (ret)
++		goto out;
++
++	return 0;
++out:
++	for (i = 0; i < MAX_CHANNEL_NUM_6G; i++)
++		os_free((*power_table)[i]);
++
++	os_free(*power_table);
++	power_table = NULL;
++	return -ENOMEM;
++}
+diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
+index bb5ec78a1..185dae089 100644
+--- a/src/ap/ap_config.c
++++ b/src/ap/ap_config.c
+@@ -288,7 +288,7 @@ struct hostapd_config * hostapd_config_defaults(void)
+ 	conf->he_6ghz_max_ampdu_len_exp = 7;
+ 	conf->he_6ghz_rx_ant_pat = 1;
+ 	conf->he_6ghz_tx_ant_pat = 1;
+-	conf->he_6ghz_reg_pwr_type = HE_REG_INFO_6GHZ_AP_TYPE_VLP;
++	conf->he_6ghz_reg_pwr_type = HE_REG_INFO_6GHZ_AP_TYPE_INDOOR;
+ 	conf->reg_def_cli_eirp_psd = -1;
+ 	conf->reg_sub_cli_eirp_psd = -1;
+ 	conf->reg_def_cli_eirp = -1;
+@@ -317,6 +317,7 @@ struct hostapd_config * hostapd_config_defaults(void)
+ 
+ 	conf->lpi_psd = 0;
+ 	conf->sku_idx = 0;
++	conf->lpi_sku_idx = 0;
+ 	conf->lpi_bcn_enhance = 0;
+ 
+ 	hostapd_set_and_check_bw320_offset(conf, 0);
+diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
+index ea8507cea..966a02d6a 100644
+--- a/src/ap/ap_config.h
++++ b/src/ap/ap_config.h
+@@ -1343,6 +1343,7 @@ struct hostapd_config {
+ 		unsigned int n_op_class;
+ 		unsigned int *op_class;
+ 		int min_power;
++		int max_timeout;
+ 	} afc;
+ #endif /* CONFIG_AFC */
+ 
+@@ -1358,6 +1359,7 @@ struct hostapd_config {
+ 	u8 band_idx;
+ 	u8 lpi_psd;
+ 	u8 sku_idx;
++	u8 lpi_sku_idx;
+ 	u8 lpi_bcn_enhance;
+ };
+ 
+diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
+index 64fd0c04c..bd710832a 100644
+--- a/src/ap/ap_drv_ops.c
++++ b/src/ap/ap_drv_ops.c
+@@ -1397,7 +1397,8 @@ int hostapd_drv_get_aval_bss_color_bmp(struct hostapd_data *hapd, u64 *aval_colo
+ 
+ int hostapd_drv_txpower_ctrl(struct hostapd_data *hapd)
+ {
+-	s8 link_id = -1;
++	s8 link_id = -1, sku_idx = hapd->iconf->sku_idx, ret = 0, i;
++	s8 **afc_power_table = NULL;
+ 
+ 	if (!hapd->driver || !hapd->driver->txpower_ctrl)
+ 		return 0;
+@@ -1405,10 +1406,33 @@ int hostapd_drv_txpower_ctrl(struct hostapd_data *hapd)
+ 	if (hapd->conf->mld_ap)
+ 		link_id = hapd->mld_link_id;
+ 
+-	return hapd->driver->txpower_ctrl(hapd->drv_priv, hapd->iconf->lpi_psd,
+-					  hapd->iconf->sku_idx,
+-					  hapd->iconf->lpi_bcn_enhance,
+-					  link_id);
++#ifdef CONFIG_AFC
++	if (hapd->iface->current_mode->is_6ghz &&
++	    he_reg_is_sp(hapd->iface->conf->he_6ghz_reg_pwr_type) &&
++	    !hapd->iface->afc.lpi_mode) {
++		ret = hostapd_afc_translate_table(hapd->iface, &afc_power_table);
++		if (ret)
++			goto out;
++	}
++
++	if (hapd->iface->afc.lpi_mode == true)
++		sku_idx = hapd->iconf->lpi_sku_idx;
++#endif /* CONFIG_AFC */
++
++	ret = hapd->driver->txpower_ctrl(hapd->drv_priv, hapd->iconf->lpi_psd,
++					 sku_idx,
++					 hapd->iconf->lpi_bcn_enhance,
++					 link_id,
++					 afc_power_table,
++					 hapd->iface->afc.lpi_mode);
++#ifdef CONFIG_AFC
++out:
++	if (afc_power_table)
++		for (i = 0; i < MAX_CHANNEL_NUM_6G; i++)
++			os_free(afc_power_table[i]);
++	os_free(afc_power_table);
++#endif /* CONFIG_AFC */
++	return ret;
+ }
+ 
+ int hostapd_drv_ap_wireless(struct hostapd_data *hapd, u8 sub_vendor_id, int value)
+diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
+index f69fa0062..0625bb762 100644
+--- a/src/ap/hostapd.h
++++ b/src/ap/hostapd.h
+@@ -783,17 +783,71 @@ struct hostapd_iface {
+ 			int power;
+ 		} *chan_info_list;
+ 		bool data_valid;
++		bool lpi_mode;
+ 	} afc;
+ #endif /* CONFIG_AFC */
+ };
+ 
+ /* hostapd.c */
+ #ifdef CONFIG_AFC
++
++enum afc_state {
++	AFC_DISABLE,
++	AFC_RESTART_IFACE,
++	AFC_LPI,
++	AFC_CONTINUE,
++};
++
++#define MAX_CHANNEL_NUM_6G 59
++
++/* The power unit is 0.5 dBm */
++#define AFC_MAXIMUM_POWER 72
++#define AFC_INVALID_POWER 127
++#define PSD_TO_DBM_OFFSET 26
++#define BW20_TO_RU26_OFFSET 20
++#define DOUBLE_BW_POWER 6
++
++#define RU26_OFFSET_20MHZ 20
++#define RU52_OFFSET_20MHZ 14
++#define RU78_OFFSET_20MHZ 10
++#define RU106_OFFSET_20MHZ 8
++#define RU132_OFFSET_20MHZ 6
++
++#define RU726_OFFSET_80MHZ 2
++#define RU1480_OFFSET_160MHZ 2
++#define RU1772_OFFSET_160MHZ 1
++#define RU2476_OFFSET_320MHZ 4
++#define RU2988_OFFSET_320MHZ 2
++#define RU3472_OFFSET_320MHZ 1
++
++enum afc_table_info {
++	afc_power_bw20,
++	afc_power_bw40,
++	afc_power_bw80,
++	afc_power_bw160,
++	afc_power_bw320_1,
++	afc_power_bw320_2,
++	afc_power_ru26,
++	afc_power_ru52,
++	afc_power_ru78,
++	afc_power_ru106,
++	afc_power_ru132,
++	afc_power_ru726,
++	afc_power_ru1480,
++	afc_power_ru1772,
++	afc_power_ru2476,
++	afc_power_ru2988,
++	afc_power_ru3472,
++	afc_power_table_num,
++};
++
+ int hostap_afc_get_chan_max_eirp_power(struct hostapd_iface *iface, bool psd,
+ 				       int *power);
+ int hostapd_afc_handle_request(struct hostapd_iface *iface);
+ void hostapd_afc_stop(struct hostapd_iface *iface);
+ void hostap_afc_disable_channels(struct hostapd_iface *iface);
++int hostapd_afc_translate_table(struct hostapd_iface *iface,
++				s8 ***power_table);
+ #else
+ static inline int
+ hostap_afc_get_chan_max_eirp_power(struct hostapd_iface *iface, bool psd,
+@@ -814,6 +868,12 @@ static inline void hostapd_afc_stop(struct hostapd_iface *iface)
+ static inline void hostap_afc_disable_channels(struct hostapd_iface *iface)
+ {
+ }
++
++int hostapd_afc_translate_table(struct hostapd_iface *iface,
++				 s8 ***power_table)
++{
++	return -EINVAL;
++}
+ #endif /* CONFIG_AFC */
+ 
+ int hostapd_for_each_interface(struct hapd_interfaces *interfaces,
+diff --git a/src/common/mtk_vendor.h b/src/common/mtk_vendor.h
+index 1fe459126..4b900162b 100644
+--- a/src/common/mtk_vendor.h
++++ b/src/common/mtk_vendor.h
+@@ -319,6 +319,8 @@ enum mtk_vendor_attr_txpower_ctrl {
+ 	MTK_VENDOR_ATTR_TXPOWER_CTRL_SKU_IDX,
+ 	MTK_VENDOR_ATTR_TXPOWER_CTRL_LPI_BCN_ENHANCE,
+ 	MTK_VENDOR_ATTR_TXPOWER_CTRL_LINK_ID,
++	MTK_VENDOR_ATTR_TXPOWER_CTRL_AFC_TABLE,
++	MTK_VENDOR_ATTR_TXPOWER_CTRL_AFC_LPI,
+ 
+ 	/* keep last */
+ 	NUM_MTK_VENDOR_ATTRS_TXPOWER_CTRL,
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index 829274bfe..6aac87ce1 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -5481,9 +5481,11 @@ struct wpa_driver_ops {
+ 	* @lpi_bcn_enhance: 1 to enable beacon duplicate enhancement in 6G lpi mode, 0 to disable enhancement
+ 	* @sku_idx: index used to indicate which sku table should be used
+ 	* @link_id: MLD link id. -1 if this is an non-MLD AP
++	* @power_table: power table generated from AFC response
++	* @lpi_mode: specify the current mode is whether lpi
+ 	*/
+ 	int (*txpower_ctrl)(void *priv, u8 lpi_psd, u8 sku_idx, u8 lpi_bcn_enhance,
+-			    u8 link_id);
++			    u8 link_id, s8 **power_table, u8 lpi_mode);
+ };
+ 
+ /**
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index d2064fbd6..efee210b9 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -41,6 +41,7 @@
+ #include "driver_nl80211.h"
+ #include "common/mtk_vendor.h"
+ #include "ap/ap_config.h"
++#include "ap/hostapd.h"
+ 
+ #ifdef CONFIG_IEEE80211BE
+ #include "ap/scs.h"
+@@ -205,6 +206,8 @@ txpower_ctrl_policy[NUM_MTK_VENDOR_ATTRS_TXPOWER_CTRL] = {
+ 	[MTK_VENDOR_ATTR_TXPOWER_CTRL_SKU_IDX] = { .type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_TXPOWER_CTRL_LPI_BCN_ENHANCE] = { .type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_TXPOWER_CTRL_LINK_ID] = { .type = NLA_U8 },
++	[MTK_VENDOR_ATTR_TXPOWER_CTRL_AFC_TABLE] = { .type = NLA_BINARY },
++	[MTK_VENDOR_ATTR_TXPOWER_CTRL_AFC_LPI] = { .type = NLA_U8 },
+ };
+ 
+ static struct nl_sock * nl_create_handle(struct nl_cb *cb, const char *dbg)
+@@ -15662,38 +15665,53 @@ fail:
+ }
+ 
+ static int nl80211_txpower_ctrl(void *priv, u8 lpi_psd, u8 sku_idx, u8 lpi_bcn_enhance,
+-				u8 link_id)
++				u8 link_id, s8 **power_table, u8 lpi_mode)
+ {
+ 	struct i802_bss *bss = priv;
+ 	struct wpa_driver_nl80211_data *drv = bss->drv;
+ 	struct nl_msg *msg;
+ 	struct nlattr *data;
+-	int ret;
++	struct nlattr *table_attr, *channel_list;
++	int ret = 0;
+ 
+ 	if (!drv->mtk_txpower_vendor_cmd_avail) {
+ 		wpa_printf(MSG_INFO,
+ 			   "nl80211: Driver does not support setting txpower control");
+-		return 0;
++		goto fail;
+ 	}
+ 
+ 	msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR);
+-	if (!msg)
++	if (!msg) {
++		ret = -ENOBUFS;
+ 		goto fail;
++	}
+ 
+ 	if (nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_MTK) ||
+ 		nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD,
+-			    MTK_NL80211_VENDOR_SUBCMD_TXPOWER_CTRL))
++			    MTK_NL80211_VENDOR_SUBCMD_TXPOWER_CTRL)) {
++		ret = -ENOBUFS;
+ 		goto fail;
++	}
+ 
+-	data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA);
+-	if (!data)
++	data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA | NLA_F_NESTED);
++	if (!data) {
++		ret = -ENOBUFS;
+ 		goto fail;
++	}
+ 
+ 	nla_put_u8(msg, MTK_VENDOR_ATTR_TXPOWER_CTRL_LPI_PSD, lpi_psd);
+ 	nla_put_u8(msg, MTK_VENDOR_ATTR_TXPOWER_CTRL_SKU_IDX, sku_idx);
+ 	nla_put_u8(msg, MTK_VENDOR_ATTR_TXPOWER_CTRL_LPI_BCN_ENHANCE, lpi_bcn_enhance);
+-	nla_put_u8(msg, MTK_VENDOR_ATTR_TXPOWER_CTRL_LINK_ID, link_id);
+ 
++	if (link_id > -1)
++		nla_put_u8(msg, MTK_VENDOR_ATTR_TXPOWER_CTRL_LINK_ID, link_id);
++
++	if (power_table && *power_table) {
++		nla_put(msg, MTK_VENDOR_ATTR_TXPOWER_CTRL_AFC_TABLE,
++		        MAX_CHANNEL_NUM_6G * afc_power_table_num, power_table);
++	}
++
++	nla_put_u8(msg, MTK_VENDOR_ATTR_TXPOWER_CTRL_AFC_LPI, lpi_mode);
+ 	nla_nest_end(msg, data);
+ 	ret = send_and_recv_cmd(drv, msg);
+ 	if (ret)
+@@ -15704,7 +15722,7 @@ static int nl80211_txpower_ctrl(void *priv, u8 lpi_psd, u8 sku_idx, u8 lpi_bcn_e
+ 
+ fail:
+ 	nlmsg_free(msg);
+-	return -ENOBUFS;
++	return ret;
+ }
+ 
+ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+-- 
+2.18.0
+

@@ -1,0 +1,203 @@
+From e35c211ac14b2189475f945ca9025e444d825c97 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Wed, 29 May 2024 18:45:50 +0800
+Subject: [PATCH 146/199] mtk: mt76: mt7996: add debugfs knob to show mlo
+ related table
+
+Add the following debugfs knob
+- /sys/kernel/debug/ieee80211/phy0/mt76/mat_table
+- /sys/kernel/debug/ieee80211/phy0/mt76/band0/agg_table
+- /sys/kernel/debug/ieee80211/phy0/mt76/band0/rmac_table
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/debugfs.c       |  3 +-
+ mt7996/mt7996.h        |  3 +-
+ mt7996/mtk_debug_i.h   | 24 +++++++++++
+ mt7996/mtk_debugfs_i.c | 92 +++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 119 insertions(+), 3 deletions(-)
+
+diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
+index 6eb395c4..968174e6 100644
+--- a/mt7996/debugfs.c
++++ b/mt7996/debugfs.c
+@@ -1107,6 +1107,7 @@ int mt7996_init_band_debugfs(struct mt7996_phy *phy)
+ 
+ #ifdef CONFIG_MTK_DEBUG
+ 	mt7996_mtk_init_band_debugfs(phy, dir);
++	mt7996_mtk_init_band_debugfs_internal(phy, dir);
+ #endif
+ 	return 0;
+ }
+@@ -1143,7 +1144,7 @@ int mt7996_init_dev_debugfs(struct mt7996_phy *phy)
+ 	if (phy == &dev->phy) {
+ 		dev->debugfs_dir = dir;
+ #ifdef CONFIG_MTK_DEBUG
+-		mt7996_mtk_init_debugfs_internal(phy, dir);
++		mt7996_mtk_init_dev_debugfs_internal(phy, dir);
+ #endif
+ 	}
+ 
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index b5869bb8..96d8aae9 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1322,7 +1322,8 @@ void mt7996_packet_log_to_host(struct mt7996_dev *dev, const void *data, int len
+ void mt7996_dump_bmac_rxd_info(struct mt7996_dev *dev, __le32 *rxd);
+ void mt7996_dump_bmac_txd_info(struct seq_file *s, struct mt7996_dev *dev,
+ 			       __le32 *txd, bool is_hif_txd, bool dump_txp);
+-int mt7996_mtk_init_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir);
++int mt7996_mtk_init_dev_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir);
++int mt7996_mtk_init_band_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir);
+ #endif
+ 
+ #ifdef CONFIG_NET_MEDIATEK_SOC_WED
+diff --git a/mt7996/mtk_debug_i.h b/mt7996/mtk_debug_i.h
+index d3756fa2..cec8d57e 100644
+--- a/mt7996/mtk_debug_i.h
++++ b/mt7996/mtk_debug_i.h
+@@ -982,6 +982,30 @@
+ #define HIF_TXP_ML_SHIFT 16
+ #define HIF_TXP_ML_MASK 0xffff0000
+ 
++/* UWTBL */
++#define MT_WF_UWTBL_BASE		0x820c4000
++#define MT_WF_UWTBL(ofs)		(MT_WF_UWTBL_BASE + (ofs))
++
++#define MT_WF_UWTBL_ITCR		MT_WF_UWTBL(0x130)
++#define MT_WF_UWTBL_ITCR0		MT_WF_UWTBL(0x138)
++#define MT_WF_UWTBL_ITCR1		MT_WF_UWTBL(0x13c)
++
++#define MT_WF_UWTBL_ITCR_SET		BIT(31)
++#define MT_WF_UWTBL_ITCR_INDEX		GENMASK(5, 0)
++
++/* RMAC */
++#define MT_WF_RMAC_SRAM_DATA0(_band)	MT_WF_RMAC(_band, 0x210)
++#define MT_WF_RMAC_SRAM_DATA1(_band)	MT_WF_RMAC(_band, 0x214)
++#define MT_WF_RMAC_SRAM_BITMAP0(_band)	MT_WF_RMAC(_band, 0x220)
++#define MT_WF_RMAC_SRAM_BITMAP1(_band)	MT_WF_RMAC(_band, 0x224)
++#define MT_WF_RMAC_MEM_CTRL(_band)	MT_WF_RMAC(_band, 0x228)
++
++#define MT_WF_RMAC_MEM_CRTL_TRIG	BIT(31)
++#define MT_WF_RMAC_MEM_CRTL_TDX		GENMASK(7, 0)
++
++/* AGG */
++#define MT_AGG_REMAP_CTRL(_band)	MT_WF_AGG(_band, 0x094)
++#define MT_AGG_REMAP_CTRL_OM_REMAP	GENMASK(5, 0)
+ #endif
+ 
+ #endif
+diff --git a/mt7996/mtk_debugfs_i.c b/mt7996/mtk_debugfs_i.c
+index ea412cd5..839c3e31 100644
+--- a/mt7996/mtk_debugfs_i.c
++++ b/mt7996/mtk_debugfs_i.c
+@@ -695,7 +695,86 @@ static int mt7996_rx_msdu_pg_read(struct seq_file *s, void *data)
+ 	return 0;
+ }
+ 
+-int mt7996_mtk_init_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir)
++static int
++mt7996_mat_table_show(struct seq_file *s, void *data)
++{
++#define MT_MAX_MAT_TABLE_SIZE	63
++	struct mt7996_dev *dev = s->private;
++	int i;
++
++	for (i = 0; i < MT_MAX_MAT_TABLE_SIZE; i++) {
++		u32 req = MT_WF_UWTBL_ITCR_SET |
++			  u32_encode_bits(i, MT_WF_UWTBL_ITCR_INDEX);
++		u32 dw[2];
++		u8 *addr = (u8 *)dw;
++
++		mt76_wr(dev, MT_WF_UWTBL_ITCR, req);
++		dw[0] = mt76_rr(dev, MT_WF_UWTBL_ITCR0);
++		dw[1] = mt76_rr(dev, MT_WF_UWTBL_ITCR1);
++
++		if (dw[0] || dw[1])
++			seq_printf(s, "own_mld_id%d\tAddr: %pM\n", i, addr);
++	}
++	return 0;
++}
++DEFINE_SHOW_ATTRIBUTE(mt7996_mat_table);
++
++static int
++mt7996_rmac_table_show(struct seq_file *s, void *data)
++{
++	struct mt7996_phy *phy = s->private;
++	struct mt7996_dev *dev = phy->dev;
++	unsigned long usage_bitmap[2] = {0};
++	int i, j;
++	u8 band = phy->mt76->band_idx;
++
++	usage_bitmap[0] = (unsigned long)mt76_rr(dev, MT_WF_RMAC_SRAM_BITMAP0(band));
++	usage_bitmap[1] = (unsigned long)mt76_rr(dev, MT_WF_RMAC_SRAM_BITMAP1(band));
++
++	for (i = 0; i < 2; i++) {
++		for_each_set_bit(j, &usage_bitmap[i], 32) {
++			u32 req = MT_WF_RMAC_MEM_CRTL_TRIG |
++				  u32_encode_bits(i * 32 + j, MT_WF_RMAC_MEM_CRTL_TDX);
++			u32 dw[2];
++			u8 *addr = (u8 *)dw;
++
++			mt76_wr(dev, MT_WF_RMAC_MEM_CTRL(band), req);
++			dw[0] = mt76_rr(dev, MT_WF_RMAC_SRAM_DATA0(band));
++			dw[1] = mt76_rr(dev, MT_WF_RMAC_SRAM_DATA1(band));
++
++			seq_printf(s, "omac_idx%d\tAddr: %pM\n", i * 32 + j, addr);
++		}
++	}
++
++	return 0;
++}
++DEFINE_SHOW_ATTRIBUTE(mt7996_rmac_table);
++
++static int
++mt7996_agg_table_show(struct seq_file *s, void *data)
++{
++	struct mt7996_phy *phy = s->private;
++	struct mt7996_dev *dev = phy->dev;
++	int i, j;
++	u8 band = phy->mt76->band_idx;
++
++	for (i = 0; i < 4; i++) {
++		u32 value = mt76_rr(dev, MT_AGG_REMAP_CTRL(band) + 4 * i);
++
++		for (j = 0; j < 4; j++) {
++			u8 shift = 8 * j;
++			u32 mask = MT_AGG_REMAP_CTRL_OM_REMAP << shift;
++
++			seq_printf(s, "idx%d: %d\n", i * 4 + j,
++				      (value & mask) >> shift);
++		}
++	}
++
++	return 0;
++}
++DEFINE_SHOW_ATTRIBUTE(mt7996_agg_table);
++
++int mt7996_mtk_init_dev_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir)
+ {
+ 	struct mt7996_dev *dev = phy->dev;
+ 
+@@ -714,7 +793,18 @@ int mt7996_mtk_init_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir)
+ 				    mt7996_pse_fid_read);
+ 
+ 	debugfs_create_u8("dump_ple_txd", 0600, dir, &dev->dbg.dump_ple_txd);
++
++	/* MLO related Table */
++	debugfs_create_file("mat_table", 0400, dir, dev, &mt7996_mat_table_fops);
+ 	return 0;
+ }
+ 
++int mt7996_mtk_init_band_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir)
++{
++	/* MLO related Table */
++	debugfs_create_file("rmac_table", 0400, dir, phy, &mt7996_rmac_table_fops);
++	debugfs_create_file("agg_table", 0400, dir, phy, &mt7996_agg_table_fops);
++
++	return 0;
++}
+ #endif
+-- 
+2.18.0
+

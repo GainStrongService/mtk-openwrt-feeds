@@ -1,0 +1,40 @@
+From a1517eb6d1c93a2dc4155916497fbe27c3a21b9d Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Mon, 5 Aug 2024 14:55:10 +0800
+Subject: [PATCH 194/199] mtk: mt76: mt7996: pass vif->cfg.assoc to
+ mt7996_mac_sta_add_links
+
+Link management functions might leverage mt7996_change_sta_links to
+update sta's links, so the 'assoc' argument of mt7996_mac_sta_add_links()
+should be dynamic decieded by vif->cfg.assoc.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/main.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 76dbb2f3..6826f319 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -3157,6 +3157,7 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	unsigned long add = new_links & ~old_links;
+ 	unsigned long rem = old_links & ~new_links;
+ 	int ret = 0;
++	bool assoc;
+ 
+ 	mt76_vif_dbg(vif, "STA %pM old=0x%x, new=0x%x\n", sta->addr, old_links, new_links);
+ 	mutex_lock(&dev->mt76.mutex);
+@@ -3170,7 +3171,8 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 		/* 	goto remove; */
+ 	}
+ 
+-	ret = mt7996_mac_sta_add_links(dev, vif, sta, add, false);
++	assoc = vif->type == NL80211_IFTYPE_STATION ? vif->cfg.assoc : false;
++	ret = mt7996_mac_sta_add_links(dev, vif, sta, add, assoc);
+ 	if (ret)
+ 		goto remove;
+ 
+-- 
+2.18.0
+

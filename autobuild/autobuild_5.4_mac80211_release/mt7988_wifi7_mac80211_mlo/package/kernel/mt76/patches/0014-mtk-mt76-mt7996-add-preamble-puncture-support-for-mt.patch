@@ -1,0 +1,154 @@
+From 2ee799d7d81869c1eb1d3a332bd223670c2523e5 Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Thu, 18 Apr 2024 11:16:24 +0800
+Subject: [PATCH 014/199] mtk: mt76: mt7996: add preamble puncture support for
+ mt7996
+
+Add support configure preamble puncture feature through mcu commands.
+
+Co-developed-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ mt76_connac_mcu.h |  1 +
+ mt7996/init.c     |  1 +
+ mt7996/main.c     |  5 +++++
+ mt7996/mcu.c      | 40 ++++++++++++++++++++++++++++++++++++++++
+ mt7996/mcu.h      | 10 ++++++++++
+ mt7996/mt7996.h   |  4 ++++
+ 6 files changed, 61 insertions(+)
+
+diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
+index 4242d436..a7cb33d2 100644
+--- a/mt76_connac_mcu.h
++++ b/mt76_connac_mcu.h
+@@ -1283,6 +1283,7 @@ enum {
+ 	MCU_UNI_CMD_CHANNEL_SWITCH = 0x34,
+ 	MCU_UNI_CMD_THERMAL = 0x35,
+ 	MCU_UNI_CMD_VOW = 0x37,
++	MCU_UNI_CMD_PP = 0x38,
+ 	MCU_UNI_CMD_FIXED_RATE_TABLE = 0x40,
+ 	MCU_UNI_CMD_RRO = 0x57,
+ 	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 5e969732..a47b578c 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -389,6 +389,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_ACK_SIGNAL_SUPPORT);
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER);
++	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_PUNCT);
+ 
+ 	if (!mdev->dev->of_node ||
+ 	    !of_property_read_bool(mdev->dev->of_node,
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 2b094b33..8d2b0ee7 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -415,6 +415,11 @@ static int mt7996_config(struct ieee80211_hw *hw, u32 changed)
+ 	int ret;
+ 
+ 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
++		ret = mt7996_mcu_set_pp_en(phy, PP_USR_MODE,
++					   phy->mt76->chandef.punctured);
++		if (ret)
++			return ret;
++
+ 		ieee80211_stop_queues(hw);
+ 		ret = mt7996_set_channel(phy);
+ 		if (ret)
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 3816b5a5..e01457de 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -4553,3 +4553,43 @@ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode)
+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_EXT_CMD(CP_SUPPORT),
+ 				 &cp_mode, sizeof(cp_mode), true);
+ }
++
++int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap)
++{
++	struct mt7996_dev *dev = phy->dev;
++	bool pp_auto = (mode == PP_FW_MODE);
++	struct {
++		u8 _rsv1[4];
++
++		__le16 tag;
++		__le16 len;
++		u8 mgmt_mode;
++		u8 band_idx;
++		u8 force_bitmap_ctrl;
++		u8 auto_mode;
++		__le16 bitmap;
++		u8 _rsv2[2];
++	} __packed req = {
++		.tag = cpu_to_le16(UNI_CMD_PP_EN_CTRL),
++		.len = cpu_to_le16(sizeof(req) - 4),
++
++		.mgmt_mode = !pp_auto,
++		.band_idx = phy->mt76->band_idx,
++		.force_bitmap_ctrl = (mode == PP_USR_MODE) ? 2 : 0,
++		.auto_mode = pp_auto,
++		.bitmap = cpu_to_le16(bitmap),
++	};
++
++	if (phy->mt76->chandef.chan->band == NL80211_BAND_2GHZ ||
++	    mode > PP_USR_MODE)
++		return 0;
++
++	if (bitmap && phy->punct_bitmap == bitmap)
++		return 0;
++
++	phy->punct_bitmap = bitmap;
++	phy->pp_mode = mode;
++
++	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(PP),
++				 &req, sizeof(req), false);
++}
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 43468bca..df42c0f8 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -923,6 +923,16 @@ enum {
+ 	MT7996_SEC_MODE_MAX,
+ };
+ 
++enum {
++	UNI_CMD_PP_EN_CTRL,
++};
++
++enum pp_mode {
++	PP_DISABLE = 0,
++	PP_FW_MODE,
++	PP_USR_MODE,
++};
++
+ #define MT7996_PATCH_SEC		GENMASK(31, 24)
+ #define MT7996_PATCH_SCRAMBLE_KEY	GENMASK(15, 8)
+ #define MT7996_PATCH_AES_KEY		GENMASK(7, 0)
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 177cfff3..58fa6b45 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -237,6 +237,9 @@ struct mt7996_phy {
+ 	struct mt76_channel_state state_ts;
+ 
+ 	bool has_aux_rx;
++
++	u8 pp_mode;
++	u16 punct_bitmap;
+ };
+ 
+ struct mt7996_dev {
+@@ -614,6 +617,7 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
+ 				     struct ieee80211_vif *vif,
+ 				     struct ieee80211_sta *sta);
+ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode);
++int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap);
+ #ifdef CONFIG_MAC80211_DEBUGFS
+ void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 			    struct ieee80211_sta *sta, struct dentry *dir);
+-- 
+2.18.0
+

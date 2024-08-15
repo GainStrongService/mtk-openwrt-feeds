@@ -1,0 +1,40 @@
+From 554f2dd335deaf511b9261603a3e6c62f1183639 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Mon, 8 Jul 2024 11:05:31 +0800
+Subject: [PATCH 177/199] mtk: mt76: mt7996: disable MAT and set force-link for
+ 4-addr NULL func data frame
+
+This is a temporary solution to solve a WDS connection problem.
+
+We found that WDS connection occasionally failed because of dropping
+of the 4-addr NULL func data frame, which is used by STA to enstablish
+WDS conection. It seems like the dropping is originated from the STA
+side HW's incorrect address translation.
+
+Disabling MAT can prevent the connection problem.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/mac.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 97cd5e23..a8985a3b 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -759,6 +759,12 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+ 	    (multicast || unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE)) ||
+ 	     info->flags & IEEE80211_TX_CTL_INJECTED))
+ 		txwi[5] |= cpu_to_le32(MT_TXD5_FL);
++
++	if (unlikely(ieee80211_is_nullfunc(fc)) && ieee80211_has_a4(fc) &&
++	    ieee80211_vif_is_mld(info->control.vif)) {
++		txwi[5] |= cpu_to_le32(MT_TXD5_FL);
++		txwi[6] |= cpu_to_le32(MT_TXD6_DIS_MAT);
++	}
+ }
+ 
+ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+-- 
+2.18.0
+

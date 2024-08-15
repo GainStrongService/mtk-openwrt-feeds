@@ -1,0 +1,40 @@
+From 0710501eee6f7a2c06fc8f0c5d3e4db8fddc349d Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Thu, 30 May 2024 11:24:54 +0800
+Subject: [PATCH 097/126] mtk: hostapd: add channel switch band sanity check
+
+Add band sanity check in case user selecting the wrong freq or link id
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ hostapd/ctrl_iface.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
+index 2038a3712..14a0483bf 100644
+--- a/hostapd/ctrl_iface.c
++++ b/hostapd/ctrl_iface.c
+@@ -2816,6 +2816,7 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+ 					  char *pos)
+ {
+ #ifdef NEED_AP_MLME
++	struct hostapd_hw_modes *mode = iface->current_mode;
+ 	struct csa_settings settings;
+ 	int ret;
+ 	int dfs_range = 0;
+@@ -2835,6 +2836,12 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+ 		settings.link_id = iface->bss[0]->mld_link_id;
+ #endif /* CONFIG_IEEE80211BE */
+ 
++	if (!mode ||
++	    !is_same_band(mode->channels->freq, settings.freq_params.freq)) {
++		wpa_printf(MSG_ERROR, "Invalid band for current mode");
++		return -1;
++	}
++
+ 	ret = hostapd_ctrl_check_freq_params(&settings.freq_params,
+ 					     settings.punct_bitmap);
+ 	if (ret) {
+-- 
+2.18.0
+

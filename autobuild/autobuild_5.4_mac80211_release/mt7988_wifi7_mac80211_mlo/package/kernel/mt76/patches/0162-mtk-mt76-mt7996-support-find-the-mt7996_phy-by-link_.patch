@@ -1,0 +1,183 @@
+From a2a53b70dec62aa8f7afb02d135c2af76423e1e8 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Thu, 20 Jun 2024 10:55:07 +0800
+Subject: [PATCH 162/199] mtk: mt76: mt7996: support find the mt7996_phy by
+ link_id for vendor command
+
+Add support to find the corresponding phy by link_id. This commit is for
+the wifi7 r1 cert UL OFDMA case. If we want to force sending trigger
+frame on the specific band, we need to fill band idx in the mcu cmd.
+That is why we need link id to find the corresponding phy.
+
+Fix the way to find the band_idx if WiFi7 AP is non-MLD mode.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/mt7996.h      |  5 +++--
+ mt7996/mtk_debugfs.c |  2 +-
+ mt7996/mtk_mcu.c     | 22 ++++++++++++----------
+ mt7996/vendor.c      | 19 ++++++++++++++-----
+ 4 files changed, 30 insertions(+), 18 deletions(-)
+
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 8d27ae5d..42c1e287 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1326,11 +1326,12 @@ int mt7996_mcu_set_txbf_internal(struct mt7996_phy *phy, u8 action, int idx, boo
+ void mt7996_mcu_rx_bf_event(struct mt7996_dev *dev, struct sk_buff *skb);
+ int mt7996_mcu_set_muru_fixed_rate_enable(struct mt7996_dev *dev, u8 action, int val);
+ int mt7996_mcu_set_muru_fixed_rate_parameter(struct mt7996_dev *dev, u8 action, void *para);
+-int mt7996_mcu_set_txbf_snd_info(struct mt7996_phy *phy, void *para);
++int mt7996_mcu_set_txbf_snd_info(struct mt7996_dev *dev, void *para);
+ int mt7996_mcu_set_muru_cmd(struct mt7996_dev *dev, u16 action, int val);
+ int mt7996_mcu_muru_set_prot_frame_thr(struct mt7996_dev *dev, u32 val);
+ int mt7996_mcu_set_bypass_smthint(struct mt7996_phy *phy, u8 val);
+-int mt7996_mcu_set_rfeature_trig_type(struct mt7996_phy *phy, u8 enable, u8 trig_type);
++int mt7996_mcu_set_rfeature_trig_type(struct mt7996_dev *dev, u8 band_idx,
++				      u8 enable, u8 trig_type);
+ void mt7996_mcu_set_ppdu_tx_type(struct mt7996_phy *phy, u8 ppdu_type);
+ void mt7996_mcu_set_nusers_ofdma(struct mt7996_phy *phy, u8 type, u8 ofdma_user_cnt);
+ void mt7996_mcu_set_cert(struct mt7996_phy *phy, u8 type);
+diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
+index a7cbde3e..9bd35c91 100644
+--- a/mt7996/mtk_debugfs.c
++++ b/mt7996/mtk_debugfs.c
+@@ -2929,7 +2929,7 @@ mt7996_bf_txsnd_info_set(struct file *file,
+ 	else
+ 		buf[count] = '\0';
+ 
+-	ret = mt7996_mcu_set_txbf_snd_info(phy, buf);
++	ret = mt7996_mcu_set_txbf_snd_info(phy->dev, buf);
+ 
+ 	if (ret) return -EFAULT;
+ 
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 7cf4b2be..c87daf8e 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -352,7 +352,7 @@ int mt7996_mcu_set_txbf_internal(struct mt7996_phy *phy, u8 action, int idx, boo
+ 	return mt76_mcu_skb_send_msg(&phy->dev->mt76, skb, MCU_WM_UNI_CMD(BF), false);
+ }
+ 
+-int mt7996_mcu_set_txbf_snd_info(struct mt7996_phy *phy, void *para)
++int mt7996_mcu_set_txbf_snd_info(struct mt7996_dev *dev, void *para)
+ {
+ 	char *buf = (char *)para;
+ 	__le16 input[5] = {0};
+@@ -365,7 +365,7 @@ int mt7996_mcu_set_txbf_snd_info(struct mt7996_phy *phy, void *para)
+ 
+ 	memset(&hdr, 0, sizeof(hdr));
+ 
+-	skb = mt76_mcu_msg_alloc(&phy->dev->mt76, NULL, len);
++	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, len);
+ 	if (!skb)
+ 		return -ENOMEM;
+ 
+@@ -428,7 +428,7 @@ int mt7996_mcu_set_txbf_snd_info(struct mt7996_phy *phy, void *para)
+ 		return -EINVAL;
+ 	}
+ 
+-	return mt76_mcu_skb_send_msg(&phy->dev->mt76, skb, MCU_WM_UNI_CMD(BF), false);
++	return mt76_mcu_skb_send_msg(&dev->mt76, skb, MCU_WM_UNI_CMD(BF), false);
+ }
+ 
+ static inline void
+@@ -1112,10 +1112,9 @@ int mt7996_mcu_set_bypass_smthint(struct mt7996_phy *phy, u8 val)
+ 				 true);
+ }
+ 
+-int mt7996_mcu_set_bsrp_ctrl(struct mt7996_phy *phy, u16 interval,
++int mt7996_mcu_set_bsrp_ctrl(struct mt7996_dev *dev, u8 band_idx, u16 interval,
+ 			     u16 ru_alloc, u32 trig_type, u8 trig_flow, u8 ext_cmd)
+ {
+-	struct mt7996_dev *dev = phy->dev;
+ 	struct {
+ 		u8 _rsv[4];
+ 
+@@ -1141,13 +1140,16 @@ int mt7996_mcu_set_bsrp_ctrl(struct mt7996_phy *phy, u16 interval,
+ 			       GENMASK(2, 0) : GENMASK(1, 0),
+ 	};
+ 
++	if (!mt7996_band_valid(dev, band_idx))
++		return -EINVAL;
++
+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(MURU), &req,
+ 				 sizeof(req), false);
+ }
+ 
+-int mt7996_mcu_set_rfeature_trig_type(struct mt7996_phy *phy, u8 enable, u8 trig_type)
++int mt7996_mcu_set_rfeature_trig_type(struct mt7996_dev *dev, u8 band_idx,
++				      u8 enable, u8 trig_type)
+ {
+-	struct mt7996_dev *dev = phy->dev;
+ 	int ret = 0;
+ 	char buf[] = "01:00:00:1B";
+ 
+@@ -1159,14 +1161,14 @@ int mt7996_mcu_set_rfeature_trig_type(struct mt7996_phy *phy, u8 enable, u8 trig
+ 
+ 	switch (trig_type) {
+ 	case CAPI_BASIC:
+-		return mt7996_mcu_set_bsrp_ctrl(phy, 5, 67, 0, 0, enable);
++		return mt7996_mcu_set_bsrp_ctrl(dev, band_idx, 5, 67, 0, 0, enable);
+ 	case CAPI_BRP:
+-		return mt7996_mcu_set_txbf_snd_info(phy, buf);
++		return mt7996_mcu_set_txbf_snd_info(dev, buf);
+ 	case CAPI_MU_BAR:
+ 		return mt7996_mcu_set_muru_cmd(dev, UNI_CMD_MURU_SET_MUDL_ACK_POLICY,
+ 					       MU_DL_ACK_POLICY_MU_BAR);
+ 	case CAPI_BSRP:
+-		return mt7996_mcu_set_bsrp_ctrl(phy, 5, 67, 4, 0, enable);
++		return mt7996_mcu_set_bsrp_ctrl(dev, band_idx, 5, 67, 4, 0, enable);
+ 	default:
+ 		return 0;
+ 	}
+diff --git a/mt7996/vendor.c b/mt7996/vendor.c
+index e929f812..ed7c1322 100644
+--- a/mt7996/vendor.c
++++ b/mt7996/vendor.c
+@@ -866,12 +866,13 @@ static int mt7996_vendor_rfeature_ctrl(struct wiphy *wiphy,
+ {
+ 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+-	struct ieee80211_vif *vif = wdev_to_ieee80211_vif(wdev);
+ 	struct mt7996_dev *dev = phy->dev;
++	struct ieee80211_vif *vif = wdev_to_ieee80211_vif(wdev);
++	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
++	struct mt7996_bss_conf *mconf;
+ 	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL];
+ 	int err;
+-	u32 val;
+-	u8 link_id = 0;
++	u8 band_idx, link_id = 0;
+ 
+ 	err = nla_parse(tb, MTK_VENDOR_ATTR_RFEATURE_CTRL_MAX, data, data_len,
+ 			rfeature_ctrl_policy, NULL);
+@@ -884,7 +885,15 @@ static int mt7996_vendor_rfeature_ctrl(struct wiphy *wiphy,
+ 			return -EINVAL;
+ 	}
+ 
+-	val = CAPI_RFEATURE_CHANGED;
++	rcu_read_lock();
++	mconf = rcu_dereference(mvif->link[link_id]);
++	if (!mconf || !mconf->phy) {
++		rcu_read_unlock();
++		return -EINVAL;
++	}
++
++	band_idx = mconf->phy->mt76->band_idx;
++	rcu_read_unlock();
+ 
+ 	if (tb[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TYPE_CFG]) {
+ 		u8 enable, trig_type;
+@@ -904,7 +913,7 @@ static int mt7996_vendor_rfeature_ctrl(struct wiphy *wiphy,
+ 			};
+ 		}
+ 
+-		err = mt7996_mcu_set_rfeature_trig_type(phy, enable, trig_type);
++		err = mt7996_mcu_set_rfeature_trig_type(dev, band_idx, enable, trig_type);
+ 		if (err)
+ 			return err;
+ 	} else if (tb[MTK_VENDOR_ATTR_RFEATURE_CTRL_ACK_PLCY]) {
+-- 
+2.18.0
+

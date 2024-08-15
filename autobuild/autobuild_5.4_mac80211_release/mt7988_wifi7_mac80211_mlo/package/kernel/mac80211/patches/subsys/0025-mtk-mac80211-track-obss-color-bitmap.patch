@@ -1,7 +1,7 @@
-From 1f2605d5629dac10847dac024d2502c279d783c0 Mon Sep 17 00:00:00 2001
+From 6361a2d7187f547a498fee824207c27345ec3d99 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Mon, 13 Mar 2023 05:23:37 +0800
-Subject: [PATCH 25/97] mtk: mac80211: track obss color bitmap
+Subject: [PATCH 25/89] mtk: mac80211: track obss color bitmap
 
 Track OBSS BSS color when receive their beacon.
 
@@ -12,8 +12,8 @@ echo 1 > /sys/kernel/debug/tracing/events/mac80211/bss_color_collision/enable
 ---
  include/net/mac80211.h |  1 +
  net/mac80211/rx.c      |  6 +++++-
- net/mac80211/trace.h   | 22 ++++++++++++++++++++++
- 3 files changed, 28 insertions(+), 1 deletion(-)
+ net/mac80211/trace.h   | 21 +++++++++++++++++++++
+ 3 files changed, 27 insertions(+), 1 deletion(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
 index 5856fc6..6449af9 100644
@@ -47,10 +47,10 @@ index 4ca7ae1..5c7fc70 100644
  	}
  }
 diff --git a/net/mac80211/trace.h b/net/mac80211/trace.h
-index 78ffd3b..570617d 100644
+index 78ffd3b..68f86c3 100644
 --- a/net/mac80211/trace.h
 +++ b/net/mac80211/trace.h
-@@ -3154,6 +3154,28 @@ TRACE_EVENT(drv_neg_ttlm_res,
+@@ -3154,6 +3154,27 @@ TRACE_EVENT(drv_neg_ttlm_res,
  		  LOCAL_PR_ARG, VIF_PR_ARG, __entry->res
  	)
  );
@@ -75,7 +75,6 @@ index 78ffd3b..570617d 100644
 +		"color=%u color_bitmap=0x%llx", __entry->color, __entry->color_bitmap
 +	)
 +);
-+
  #endif /* !__MAC80211_DRIVER_TRACE || TRACE_HEADER_MULTI_READ */
  
  #undef TRACE_INCLUDE_PATH

@@ -1,0 +1,67 @@
+From 7b2e80bf62f10469992b8e08c801e9b64f7c775d Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Wed, 21 Feb 2024 13:41:23 +0800
+Subject: [PATCH 143/199] mtk: mt76: mt7996: add post channel switch for DFS
+ channel switching
+
+Add post channel switch callback for DFS channel switch support
+After CAC, we need to set channel again for DFS RDD (notify to change
+state from cac to active)
+Add IEEE80211_HW_HANDLE_QUIET_CSA flag to avoid stopping the entire vif TX
+queue when csa_blocked_tx is raised especially for DFS channel switch.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/init.c |  1 +
+ mt7996/main.c | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index cc696a69..0ee2acfb 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -451,6 +451,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
+ 	ieee80211_hw_set(hw, CHANCTX_STA_CSA);
+ 	ieee80211_hw_set(hw, CONNECTION_MONITOR);
++	ieee80211_hw_set(hw, HANDLES_QUIET_CSA);
+ 
+ 	hw->max_tx_fragments = 4;
+ 
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 4f3b0070..c8259b86 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1078,6 +1078,21 @@ fail:
+ 	mutex_unlock(&dev->mt76.mutex);
+ }
+ 
++static int
++mt7996_post_channel_switch(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
++			   struct ieee80211_bss_conf *link_conf)
++{
++	struct cfg80211_chan_def *chandef = &link_conf->chanreq.oper;
++	struct mt7996_phy *phy = mt7996_band_phy(hw, chandef->chan->band);
++	int ret;
++
++	ret = cfg80211_chandef_dfs_required(hw->wiphy, chandef, NL80211_IFTYPE_AP);
++	if (ret <= 0)
++		return ret;
++
++	return mt7996_set_channel(phy, chandef);
++}
++
+ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
+ 				   struct ieee80211_bss_conf *conf,
+ 				   struct mt7996_bss_conf *mconf,
+@@ -2791,6 +2806,7 @@ const struct ieee80211_ops mt7996_ops = {
+ 	.release_buffered_frames = mt76_release_buffered_frames,
+ 	.get_txpower = mt7996_get_txpower,
+ 	.channel_switch_beacon = mt7996_channel_switch_beacon,
++	.post_channel_switch = mt7996_post_channel_switch,
+ 	.get_stats = mt7996_get_stats,
+ 	.get_et_sset_count = mt7996_get_et_sset_count,
+ 	.get_et_stats = mt7996_get_et_stats,
+-- 
+2.18.0
+

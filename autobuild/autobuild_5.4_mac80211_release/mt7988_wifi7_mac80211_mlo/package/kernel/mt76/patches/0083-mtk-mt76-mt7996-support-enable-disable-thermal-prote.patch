@@ -1,0 +1,115 @@
+From 49d072013ef5a88ca6040d18085885773967d5d4 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Thu, 27 Jul 2023 19:35:32 +0800
+Subject: [PATCH 083/199] mtk: mt76: mt7996: support enable/disable thermal
+ protection mechanism
+
+This commit adds a new debugfs thermal_enable to enable/disable thermal
+protection mechanism. The purpose of this commit is for autotest to
+verify thermal protection mechanism.
+
+[Usage]
+Enable thermal protection: echo 1 > thermal_enable
+Disable thermal protection: echo 0 > thermal_enable
+
+Please note that if you re-enable thermal protection mechanism, all the
+configuration values will be retained from the exising configuration,
+rather than using the default values.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/main.c        |  1 +
+ mt7996/mt7996.h      |  1 +
+ mt7996/mtk_debugfs.c | 45 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 47 insertions(+)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 534a476a..8c93297a 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -91,6 +91,7 @@ int mt7996_run(struct ieee80211_hw *hw)
+ #ifdef CONFIG_MTK_DEBUG
+ 	phy->sr_enable = true;
+ 	phy->enhanced_sr_enable = true;
++	phy->thermal_protection_enable = true;
+ 
+ 	ret = mt7996_mcu_set_tx_power_ctrl(phy, UNI_TXPOWER_SKU_POWER_LIMIT_CTRL,
+ 						dev->dbg.sku_disable ? 0 : phy->sku_limit_en);
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index d17b169a..6e96194b 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -489,6 +489,7 @@ struct mt7996_phy {
+ #ifdef CONFIG_MTK_DEBUG
+ 	bool sr_enable:1;
+ 	bool enhanced_sr_enable:1;
++	bool thermal_protection_enable:1;
+ #endif
+ };
+ 
+diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
+index 275beb48..66ab74d2 100644
+--- a/mt7996/mtk_debugfs.c
++++ b/mt7996/mtk_debugfs.c
+@@ -3128,6 +3128,49 @@ mt7996_show_rro_mib(struct seq_file *s, void *data)
+ 	return 0;
+ }
+ 
++static int
++mt7996_thermal_enable_get(void *data, u64 *enable)
++{
++	struct mt7996_phy *phy = data;
++
++	*enable = phy->thermal_protection_enable;
++
++	return 0;
++}
++
++static int
++mt7996_thermal_enable_set(void *data, u64 action)
++{
++	struct mt7996_phy *phy = data;
++	int ret;
++	u8 throttling;
++
++	if (action > 1)
++		return -EINVAL;
++
++	if (!!action == phy->thermal_protection_enable)
++		return 0;
++
++	ret = mt7996_mcu_set_thermal_protect(phy, !!action);
++	if (ret)
++		return ret;
++
++	if (!!!action)
++		goto out;
++
++	throttling = MT7996_THERMAL_THROTTLE_MAX - phy->cdev_state;
++	ret = mt7996_mcu_set_thermal_throttling(phy, throttling);
++	if (ret)
++		return ret;
++
++out:
++	phy->thermal_protection_enable = !!action;
++
++	return 0;
++}
++DEFINE_DEBUGFS_ATTRIBUTE(fops_thermal_enable, mt7996_thermal_enable_get,
++			 mt7996_thermal_enable_set, "%lld\n");
++
+ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+ {
+ 	struct mt7996_dev *dev = phy->dev;
+@@ -3234,6 +3277,8 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+ 					    mt7996_show_rro_mib);
+ 	}
+ 
++	debugfs_create_file("thermal_enable", 0600, dir, phy, &fops_thermal_enable);
++
+ 	return 0;
+ }
+ 
+-- 
+2.18.0
+

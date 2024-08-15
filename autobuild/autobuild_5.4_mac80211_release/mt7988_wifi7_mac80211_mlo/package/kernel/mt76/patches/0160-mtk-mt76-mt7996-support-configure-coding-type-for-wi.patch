@@ -1,0 +1,236 @@
+From 750c99749949677a385774085cce922986eda7a2 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Fri, 7 Jun 2024 13:24:04 +0800
+Subject: [PATCH 160/199] mtk: mt76: mt7996: support configure coding type for
+ wifi7 r1 cert
+
+This commit includes two changes for WiFi7 cert fix rate test cases.
+First, support receiving an nl80211 subcmd
+MTK_VENDOR_ATTR_RFEATURE_CTRL_CODING_TYPE, which is used to
+configure the encoding type by sending mcu commands. The input
+value can be 0, 1 or 8.
+
+Second, if we fix partial rate by two different user space commands,
+the first command will be useless due to the design of mcu commands.
+Some mcu commands could not be sent when we run several user space
+commands to fix partial rate. To address this issue, we utilize variable
+cert_mode to determine whether we are currently using multiple user
+space commands to fix the partial rate.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/mac.c     | 10 ++++++++++
+ mt7996/mcu.c     |  7 +++++++
+ mt7996/mcu.h     |  1 +
+ mt7996/mt7996.h  |  5 ++++-
+ mt7996/mtk_mcu.c | 41 +++++++++++++++++++++++++++++++++++++++++
+ mt7996/vendor.c  | 18 +++++++++++++++++-
+ mt7996/vendor.h  |  2 ++
+ 7 files changed, 82 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 960b02dd..c59cc7cc 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -2373,6 +2373,16 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
+ 		if (changed & IEEE80211_RC_SMPS_CHANGED)
+ 			mt7996_mcu_set_fixed_field(dev, mconf, link_sta, mlink, NULL,
+ 						   RATE_PARAM_MMPS_UPDATE);
++#ifdef CONFIG_MTK_VENDOR
++		if (changed & IEEE80211_RC_CODING_TYPE_CHANGED) {
++			struct sta_phy_uni phy = {
++				.ldpc = dev->coding_type,
++			};
++
++			mt7996_mcu_set_fixed_field(dev, mconf, link_sta, mlink, &phy,
++						   RATE_PARAM_FIXED_ENCODING);
++		}
++#endif
+ 
+ 		spin_lock_bh(&dev->mt76.sta_poll_lock);
+ 	}
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index f848e3b7..eeff5e9e 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -2659,6 +2659,7 @@ int mt7996_mcu_set_fixed_field(struct mt7996_dev *dev,
+ 	case RATE_PARAM_FIXED_MCS:
+ 	case RATE_PARAM_FIXED_GI:
+ 	case RATE_PARAM_FIXED_HE_LTF:
++	case RATE_PARAM_FIXED_ENCODING:
+ 		if (phy)
+ 			ra->phy = *phy;
+ 		break;
+@@ -2884,6 +2885,12 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
+ 	if (IS_ERR(skb))
+ 		return PTR_ERR(skb);
+ 
++#ifdef CONFIG_MTK_VENDOR
++	if (changed && dev->cert_mode == 2)
++		return mt7996_mcu_add_rate_ctrl_fixed(dev, conf, mconf,
++						      link_sta, mlink);
++#endif
++
+ 	/* firmware rc algorithm refers to sta_rec_he for HE control.
+ 	 * once dev->rc_work changes the settings driver should also
+ 	 * update sta_rec_he here.
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 737f426d..9b29dc29 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -909,6 +909,7 @@ enum {
+ 	RATE_PARAM_FIXED_HE_LTF = 7,
+ 	RATE_PARAM_FIXED_MCS,
+ 	RATE_PARAM_FIXED_GI = 11,
++	RATE_PARAM_FIXED_ENCODING,
+ 	RATE_PARAM_AUTO = 20,
+ #ifdef CONFIG_MTK_VENDOR
+ 	RATE_PARAM_FIXED_MIMO = 30,
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 612e849c..ae792719 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -516,6 +516,8 @@ struct csi_data {
+ 
+ 	struct list_head node;
+ };
++
++int mt7996_set_coding_type(struct ieee80211_hw *hw, u8 coding_type, u8 link_id);
+ #endif
+ 
+ struct mt7996_rro_ba_session {
+@@ -786,7 +788,8 @@ struct mt7996_dev {
+ 	const struct mt7996_dbg_reg_desc *dbg_reg;
+ #endif
+ #ifdef CONFIG_MTK_VENDOR
+-	bool cert_mode;
++	u8 cert_mode;
++	u8 coding_type;
+ #endif
+ 
+ #if defined CONFIG_NL80211_TESTMODE || defined CONFIG_MTK_DEBUG
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 74f185c2..7cf4b2be 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -1372,3 +1372,44 @@ int mt7996_mcu_mlo_agc(struct mt7996_dev *dev, const void *data, int len)
+ 	                        len, true);
+ }
+ #endif
++
++#ifdef CONFIG_MTK_VENDOR
++
++static void mt7996_sta_coding_type_work(void *data, struct ieee80211_sta *sta)
++{
++	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
++	struct mt7996_link_sta *mlink;
++	struct mt7996_dev *dev = msta->vif->dev;
++	u8 *link_id = data;
++
++	rcu_read_lock();
++	mlink = rcu_dereference(msta->link[*link_id]);
++
++	if (!mlink)
++		goto unlock;
++
++	spin_lock_bh(&dev->mt76.sta_poll_lock);
++	mlink->changed |= IEEE80211_RC_CODING_TYPE_CHANGED;
++	if (list_empty(&mlink->rc_list))
++		list_add_tail(&mlink->rc_list, &dev->sta_rc_list);
++
++	spin_unlock_bh(&dev->mt76.sta_poll_lock);
++
++unlock:
++	rcu_read_unlock();
++}
++
++int mt7996_set_coding_type(struct ieee80211_hw *hw, u8 coding_type, u8 link_id)
++{
++	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct mt7996_dev *dev = phy->dev;
++
++	dev->coding_type = coding_type;
++
++	/* Not support set all stations under different MLD interface */
++	ieee80211_iterate_stations_atomic(hw, mt7996_sta_coding_type_work, &link_id);
++	ieee80211_queue_work(hw, &dev->rc_work);
++
++	return 0;
++}
++#endif
+diff --git a/mt7996/vendor.c b/mt7996/vendor.c
+index 54eb2686..e929f812 100644
+--- a/mt7996/vendor.c
++++ b/mt7996/vendor.c
+@@ -108,6 +108,8 @@ rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
+ 	[MTK_VENDOR_ATTR_RFEATURE_CTRL_ACK_PLCY] = { .type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TXBF] = { .type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_VARIANT_TYPE] = { .type = NLA_U8 },
++	[MTK_VENDOR_ATTR_RFEATURE_CTRL_CODING_TYPE] = { .type = NLA_U8 },
++	[MTK_VENDOR_ATTR_RFEATURE_CTRL_LINK_ID] = { .type = NLA_U8 },
+ };
+ 
+ static const struct nla_policy
+@@ -864,16 +866,24 @@ static int mt7996_vendor_rfeature_ctrl(struct wiphy *wiphy,
+ {
+ 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct ieee80211_vif *vif = wdev_to_ieee80211_vif(wdev);
+ 	struct mt7996_dev *dev = phy->dev;
+ 	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL];
+ 	int err;
+ 	u32 val;
++	u8 link_id = 0;
+ 
+ 	err = nla_parse(tb, MTK_VENDOR_ATTR_RFEATURE_CTRL_MAX, data, data_len,
+ 			rfeature_ctrl_policy, NULL);
+ 	if (err)
+ 		return err;
+ 
++	if (ieee80211_vif_is_mld(vif) && tb[MTK_VENDOR_ATTR_RFEATURE_CTRL_LINK_ID]) {
++		link_id = nla_get_u8(tb[MTK_VENDOR_ATTR_RFEATURE_CTRL_LINK_ID]);
++		if (link_id >= IEEE80211_LINK_UNSPECIFIED)
++			return -EINVAL;
++	}
++
+ 	val = CAPI_RFEATURE_CHANGED;
+ 
+ 	if (tb[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TYPE_CFG]) {
+@@ -915,6 +925,12 @@ static int mt7996_vendor_rfeature_ctrl(struct wiphy *wiphy,
+ 
+ 		return mt7996_mcu_set_muru_cmd(dev, UNI_CMD_MURU_SET_TRIG_VARIANT,
+ 					       trig_var);
++	} else if (tb[MTK_VENDOR_ATTR_RFEATURE_CTRL_CODING_TYPE]) {
++		u8 coding_type;
++
++		coding_type = nla_get_u8(tb[MTK_VENDOR_ATTR_RFEATURE_CTRL_CODING_TYPE]);
++
++		return mt7996_set_coding_type(hw, coding_type, link_id);
+ 	}
+ 
+ 	return 0;
+@@ -971,7 +987,7 @@ static int mt7996_vendor_wireless_ctrl(struct wiphy *wiphy,
+ 	} else if (tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_CERT]) {
+ 		val8 = nla_get_u8(tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_CERT]);
+ 		dev->cert_mode = val8;
+-		mt7996_mcu_set_cert(phy, val8);
++		mt7996_mcu_set_cert(phy, !!val8);
+ 		mt7996_mcu_set_bypass_smthint(phy, val8);
+ 	} else if (tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_AMSDU]) {
+ 		val8 = nla_get_u8(tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_AMSDU]);
+diff --git a/mt7996/vendor.h b/mt7996/vendor.h
+index bd9579d5..5608a3b4 100644
+--- a/mt7996/vendor.h
++++ b/mt7996/vendor.h
+@@ -94,6 +94,8 @@ enum mtk_vendor_attr_rfeature_ctrl {
+ 	MTK_VENDOR_ATTR_RFEATURE_CTRL_ACK_PLCY,
+ 	MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TXBF,
+ 	MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_VARIANT_TYPE,
++	MTK_VENDOR_ATTR_RFEATURE_CTRL_CODING_TYPE,
++	MTK_VENDOR_ATTR_RFEATURE_CTRL_LINK_ID,
+ 
+ 	/* keep last */
+ 	NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL,
+-- 
+2.18.0
+

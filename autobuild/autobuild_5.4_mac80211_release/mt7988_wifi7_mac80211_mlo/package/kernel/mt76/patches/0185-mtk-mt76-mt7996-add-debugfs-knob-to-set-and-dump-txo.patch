@@ -1,0 +1,156 @@
+From 32991b1ffa0cefe38be1adc97c2effb4a27bcc28 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Wed, 17 Jul 2024 16:57:24 +0800
+Subject: [PATCH 185/199] mtk: mt76: mt7996: add debugfs knob to set and dump
+ txop
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/mtk_debug_i.h   |   8 ++++
+ mt7996/mtk_debugfs_i.c | 104 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 112 insertions(+)
+
+diff --git a/mt7996/mtk_debug_i.h b/mt7996/mtk_debug_i.h
+index cec8d57e..01023e16 100644
+--- a/mt7996/mtk_debug_i.h
++++ b/mt7996/mtk_debug_i.h
+@@ -1006,6 +1006,14 @@
+ /* AGG */
+ #define MT_AGG_REMAP_CTRL(_band)	MT_WF_AGG(_band, 0x094)
+ #define MT_AGG_REMAP_CTRL_OM_REMAP	GENMASK(5, 0)
++
++/* TMAC */
++#define MT_WF_TMAC_WMM0_OFFSET		0x0c4
++#define MT_WF_TMAC_WMM1_OFFSET		0x364
++#define MT_WF_TMAC_WMM2_OFFSET		0x36c
++#define MT_WF_TMAC_WMM3_OFFSET		0x374
++#define MT_WF_TMAC_WMM_TXOP_MASK	GENMASK(31, 16)
++#define MT_WF_TMAC_WMM_TXOP_SHIFT	16
+ #endif
+ 
+ #endif
+diff --git a/mt7996/mtk_debugfs_i.c b/mt7996/mtk_debugfs_i.c
+index 852d1b12..c9224eee 100644
+--- a/mt7996/mtk_debugfs_i.c
++++ b/mt7996/mtk_debugfs_i.c
+@@ -824,6 +824,109 @@ static const struct file_operations fops_mlo_agc_tx = {
+ 	.llseek = default_llseek,
+ };
+ 
++static ssize_t mt7996_be_txop_set(struct file *file,
++			       const char __user *user_buf,
++			       size_t count, loff_t *ppos)
++{
++	struct mt7996_dev *dev = file->private_data;
++	char buf[100], role[4];
++	u32 ofs;
++	u16 txop, decimal;
++	int i = 0;
++
++	if (count >= sizeof(buf))
++		return -EINVAL;
++
++	if (copy_from_user(buf, user_buf, count))
++		return -EFAULT;
++
++	if (count && buf[count - 1] == '\n')
++		buf[count - 1] = '\0';
++	else
++		buf[count] = '\0';
++
++	if (sscanf(buf, "%3s %hu.%hu", role, &txop, &decimal) != 3)
++		goto err;
++
++	if (!strncmp(role, "ap", 2))
++		ofs = MT_WF_TMAC_WMM0_OFFSET;
++	else if (!strncmp(role, "sta", 3))
++		ofs = MT_WF_TMAC_WMM3_OFFSET;
++	else
++		goto err;
++
++	/* Change unit to 32 us */
++	txop = (txop * 1000 + decimal * 100 + 16) >> 5;
++
++	for (i = 0; i < __MT_MAX_BAND; i++) {
++		if (!dev->mt76.phys[i])
++			continue;
++
++		mt76_rmw(dev, MT_WF_TMAC(i, ofs), MT_WF_TMAC_WMM_TXOP_MASK,
++			 txop << MT_WF_TMAC_WMM_TXOP_SHIFT);
++	}
++
++	return count;
++err:
++	dev_warn(dev->mt76.dev,
++		 "format: [ap|sta] [tx_queue_data2_burst]\n");
++	return -EINVAL;
++}
++
++static ssize_t mt7996_be_txop_dump(struct file *file, char __user *user_buf,
++				size_t count, loff_t *ppos)
++{
++	struct mt7996_dev *dev = file->private_data;
++	static const size_t size = 2048;
++	int len = 0, i, ret;
++	char *buf;
++	enum {
++		AP,
++		STA,
++		MAX_IF_TYPE,
++	};
++
++	buf = kzalloc(size, GFP_KERNEL);
++	if (!buf)
++		return -ENOMEM;
++
++	len += scnprintf(buf + len, size - len, "Band\tAP (WMM0)\t\tSTA (WMM3)\n");
++
++	for (i = 0; i < __MT_MAX_BAND; i++) {
++		u32 txop[MAX_IF_TYPE], tx_burst[MAX_IF_TYPE];
++
++		if (!dev->mt76.phys[i])
++			continue;
++
++#define MT7996_READ_TXOP(role, base)						\
++do {										\
++	txop[role] = mt76_rr(dev, MT_WF_TMAC(i, base));				\
++	tx_burst[role] = u32_get_bits(txop[role], MT_WF_TMAC_WMM_TXOP_MASK);	\
++	tx_burst[role] = tx_burst[role] ? ((tx_burst[role] << 5) - 16) / 100 : 0;\
++} while (0)
++		MT7996_READ_TXOP(AP, MT_WF_TMAC_WMM0_OFFSET);
++		MT7996_READ_TXOP(STA, MT_WF_TMAC_WMM3_OFFSET);
++#undef MT7996_READ_TXOP
++
++		len += scnprintf(buf + len, size - len,
++			"%d\t0x%08x (%1u.%1u) \t0x%08x (%1u.%1u)\n", i,
++			txop[AP], tx_burst[AP] / 10, tx_burst[AP] % 10,
++			txop[STA], tx_burst[STA] / 10, tx_burst[STA] % 10);
++	}
++	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
++
++	kfree(buf);
++	return ret;
++}
++
++static const struct file_operations fops_mt7996_txop = {
++	.write = mt7996_be_txop_set,
++	.read = mt7996_be_txop_dump,
++	.open = simple_open,
++	.owner = THIS_MODULE,
++	.llseek = default_llseek,
++};
++
+ static ssize_t mt7996_mlo_agc_trig_set(struct file *file,
+ 				       const char __user *user_buf,
+ 				       size_t count, loff_t *ppos)
+@@ -893,6 +996,7 @@ int mt7996_mtk_init_dev_debugfs_internal(struct mt7996_phy *phy, struct dentry *
+ 				    mt7996_pse_fid_read);
+ 
+ 	debugfs_create_u8("dump_ple_txd", 0600, dir, &dev->dbg.dump_ple_txd);
++	debugfs_create_file("txop", 0600, dir, dev, &fops_mt7996_txop);
+ 
+ 	/* MLO related Table */
+ 	debugfs_create_file("mat_table", 0400, dir, dev, &mt7996_mat_table_fops);
+-- 
+2.18.0
+

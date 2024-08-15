@@ -1,0 +1,111 @@
+From f4f602099ba8cfdf81172f1d3789d810439cc174 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Mon, 22 Apr 2024 16:49:48 +0800
+Subject: [PATCH 123/199] mtk: mt76: mt7996: remain multiple wiphy model for
+ testmode
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/init.c   | 13 ++++++++-----
+ mt7996/main.c   | 14 ++++++++++----
+ mt7996/mt7996.h |  9 ++++-----
+ 3 files changed, 22 insertions(+), 14 deletions(-)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 057d20db..9da12f07 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -795,9 +795,11 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+ 		mtk_wed_device_start(&dev->mt76.mmio.wed_hif2, MT_INT_TX_RX_DONE_EXT);
+ 	}
+ 
+-	/* TODO: FIXME: force to use single wiphy, need to rework init flow */
+-	phy->mt76->ori_hw = mphy->hw;
+-	mphy->hw = dev->phy.mt76->hw;
++	/* TODO: FIXME: force to use single wiphy for normal mode, need to rework init flow */
++	if (!dev->testmode_enable) {
++		phy->mt76->ori_hw = mphy->hw;
++		mphy->hw = dev->phy.mt76->hw;
++	}
+ 
+ 	return 0;
+ 
+@@ -833,8 +835,9 @@ mt7996_unregister_phy(struct mt7996_phy *phy, enum mt76_band_id band)
+ 	if (!phy)
+ 		return;
+ 
+-	/* TODO: FIXME: temp for single wiphy support */
+-	phy->mt76->hw = phy->mt76->ori_hw;
++	/* TODO: FIXME: temp for normal mode single wiphy support */
++	if (!phy->dev->testmode_enable)
++		phy->mt76->hw = phy->mt76->ori_hw;
+ 
+ #ifdef CONFIG_MTK_VENDOR
+ 	mt7996_unregister_csi(phy);
+diff --git a/mt7996/main.c b/mt7996/main.c
+index fa9486e4..f52bb2f9 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -140,8 +140,8 @@ static int mt7996_start(struct ieee80211_hw *hw)
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	int ret;
+ 
+-	/* only allow settings from hw0 */
+-	if (hw != dev->phy.mt76->hw)
++	/* only allow settings from hw0 for normal mode */
++	if (!dev->testmode_enable && hw != dev->phy.mt76->hw)
+ 		return -1;
+ 
+ 	flush_work(&dev->init_work);
+@@ -158,8 +158,8 @@ static void mt7996_stop(struct ieee80211_hw *hw)
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	int band;
+ 
+-	/* only allow settings from hw0 */
+-	if (hw != dev->phy.mt76->hw)
++	/* only allow settings from hw0 for normal mode */
++	if (!dev->testmode_enable && hw != dev->phy.mt76->hw)
+ 		return;
+ 
+ 	cancel_delayed_work_sync(&dev->scs_work);
+@@ -455,6 +455,12 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 	    is_zero_ether_addr(vif->addr))
+ 		phy->monitor_vif = vif;
+ 
++	if (dev->testmode_enable && vif->type != NL80211_IFTYPE_MONITOR) {
++		mutex_unlock(&dev->mt76.mutex);
++		dev_err(dev->mt76.dev, "Only monitor interface is allowed in testmode\n");
++		return -EINVAL;
++	}
++
+ 	INIT_DELAYED_WORK(&mvif->beacon_mon_work, mt7996_beacon_mon_work);
+ 	mvif->dev = dev;
+ 	mvif->hw = hw;
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index ef544957..827c24bf 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -876,16 +876,15 @@ mt7996_get_background_radar_cap(struct mt7996_dev *dev)
+ static inline struct mt7996_phy *
+ mt7996_band_phy(struct ieee80211_hw *hw, enum nl80211_band band)
+ {
+-	struct mt76_dev *dev = hw->priv;
+-	struct mt76_phy *phy;
++	struct mt76_phy *phy = hw->priv;
+ 
+ 	/* TODO: mlo: temporarily hardcode */
+ 	if (band == NL80211_BAND_6GHZ)
+-		phy = dev->phys[MT_BAND2];
++		phy = phy->dev->phys[MT_BAND2];
+ 	else if (band == NL80211_BAND_5GHZ)
+-		phy = dev->phys[MT_BAND1];
++		phy = phy->dev->phys[MT_BAND1];
+ 	else
+-		phy = dev->phys[MT_BAND0];
++		phy = phy->dev->phys[MT_BAND0];
+ 
+ 	if (!phy)
+ 		return NULL;
+-- 
+2.18.0
+

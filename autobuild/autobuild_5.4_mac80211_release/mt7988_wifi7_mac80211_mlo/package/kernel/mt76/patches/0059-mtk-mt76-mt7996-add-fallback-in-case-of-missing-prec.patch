@@ -1,0 +1,98 @@
+From 7235c5d6995ae047f9223fe077ae753fb439dfed Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 19 Mar 2024 17:33:49 +0800
+Subject: [PATCH 059/199] mtk: mt76: mt7996: add fallback in case of missing
+ precal data
+
+Align Wi-Fi 6 upstream changes
+https://github.com/openwrt/mt76/commit/2135e201e7a9339e018d4e2d4a33c73266e674d7
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/eeprom.c | 30 +++++++++++++++++++++---------
+ mt7996/init.c   |  2 +-
+ mt7996/main.c   |  2 +-
+ 3 files changed, 23 insertions(+), 11 deletions(-)
+
+diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
+index fb4d031f..dffcd09d 100644
+--- a/mt7996/eeprom.c
++++ b/mt7996/eeprom.c
+@@ -490,17 +490,31 @@ static int mt7996_eeprom_load_precal(struct mt7996_dev *dev)
+ 	size = MT_EE_CAL_GROUP_SIZE + MT_EE_CAL_DPD_SIZE;
+ 
+ 	dev->cal = devm_kzalloc(mdev->dev, size, GFP_KERNEL);
+-	if (!dev->cal)
+-		return -ENOMEM;
++	if (!dev->cal) {
++		ret = -ENOMEM;
++		goto fail;
++	}
+ 
+-	if (dev->bin_file_mode)
+-		return mt7996_eeprom_load_precal_binfile(dev, MT_EE_PRECAL, size);
++	if (dev->bin_file_mode) {
++		ret = mt7996_eeprom_load_precal_binfile(dev, MT_EE_PRECAL, size);
++		if (ret)
++			goto fail;
++	}
+ 
+ 	ret = mt76_get_of_data_from_mtd(mdev, dev->cal, offs, size);
+ 	if (!ret)
+-		return ret;
++		return 0;
++
++	ret = mt76_get_of_data_from_nvmem(mdev, dev->cal, "precal", size);
++	if (!ret)
++		return 0;
++
++fail:
++	dev_warn(dev->mt76.dev, "Failed to load precal data: %d\n", ret);
++	devm_kfree(dev->mt76.dev, dev->cal);
++	dev->cal = NULL;
+ 
+-	return mt76_get_of_data_from_nvmem(mdev, dev->cal, "precal", size);
++	return ret;
+ }
+ 
+ static int mt7996_apply_cal_free_data(struct mt7996_dev *dev)
+@@ -655,9 +669,7 @@ int mt7996_eeprom_init(struct mt7996_dev *dev)
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = mt7996_eeprom_load_precal(dev);
+-	if (ret)
+-		return ret;
++	mt7996_eeprom_load_precal(dev);
+ 
+ 	ret = mt7996_apply_cal_free_data(dev);
+ 	if (ret)
+diff --git a/mt7996/init.c b/mt7996/init.c
+index ade07db7..8b642ecc 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -1011,7 +1011,7 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	if (dev->flash_mode) {
++	if (dev->cal) {
+ 		ret = mt7996_mcu_apply_group_cal(dev);
+ 		if (ret)
+ 			return ret;
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 39318595..3bc9dc15 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -345,7 +345,7 @@ int mt7996_set_channel(struct mt7996_phy *phy)
+ 
+ 	mt76_set_channel(phy->mt76);
+ 
+-	if (dev->flash_mode) {
++	if (dev->cal) {
+ 		ret = mt7996_mcu_apply_tx_dpd(phy);
+ 		if (ret)
+ 			goto out;
+-- 
+2.18.0
+

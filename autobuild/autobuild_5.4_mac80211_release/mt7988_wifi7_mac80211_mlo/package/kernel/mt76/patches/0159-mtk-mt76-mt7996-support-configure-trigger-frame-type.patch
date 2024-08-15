@@ -1,0 +1,88 @@
+From f3d7abe8218a285c098f88267034f5625fe3df3a Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Tue, 7 May 2024 10:00:09 +0800
+Subject: [PATCH 159/199] mtk: mt76: mt7996: support configure trigger frame
+ type
+
+Support receiving an nl80211 subcmd
+MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_VARIANT_TYPE, which is used to
+configure the trigger frame type by sending mcu commands. The input
+value can be 0 or 1. The former is for HE variant trigger frame and the
+latter is for EHT variant trigger frame.
+
+The purpose of this commit is for WiFi 7 R1 cert UL-RU and UL-MU test
+cases.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/mtk_mcu.c | 1 +
+ mt7996/mtk_mcu.h | 1 +
+ mt7996/vendor.c  | 8 ++++++++
+ mt7996/vendor.h  | 1 +
+ 4 files changed, 11 insertions(+)
+
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 82e3f721..74f185c2 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -1041,6 +1041,7 @@ error:
+  * SET_TRIG_TYPE (0xC9)
+  * SET_20M_DYN_ALGO (0xCA)
+  * SET_CERT_MU_EDCA_OVERRIDE (0xCD)
++ * SET_TRIG_VARIANT (0xD5)
+  */
+ int mt7996_mcu_set_muru_cmd(struct mt7996_dev *dev, u16 action, int val)
+ {
+diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
+index 2cffc893..8ba261a7 100644
+--- a/mt7996/mtk_mcu.h
++++ b/mt7996/mtk_mcu.h
+@@ -133,6 +133,7 @@ enum {
+ 	UNI_CMD_MURU_SET_20M_DYN_ALGO = 0xCA,
+ 	UNI_CMD_MURU_PROT_FRAME_THR = 0xCC,
+ 	UNI_CMD_MURU_SET_CERT_MU_EDCA_OVERRIDE,
++	UNI_CMD_MURU_SET_TRIG_VARIANT = 0xD5,
+ };
+ 
+ struct bf_pfmu_tag {
+diff --git a/mt7996/vendor.c b/mt7996/vendor.c
+index 585c4e28..54eb2686 100644
+--- a/mt7996/vendor.c
++++ b/mt7996/vendor.c
+@@ -107,6 +107,7 @@ rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
+ 	[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TYPE] = { .type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_RFEATURE_CTRL_ACK_PLCY] = { .type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TXBF] = { .type = NLA_U8 },
++	[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_VARIANT_TYPE] = { .type = NLA_U8 },
+ };
+ 
+ static const struct nla_policy
+@@ -907,6 +908,13 @@ static int mt7996_vendor_rfeature_ctrl(struct wiphy *wiphy,
+ 		default:
+ 			return 0;
+ 		}
++	} else if (tb[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_VARIANT_TYPE]) {
++		u8 trig_var;
++
++		trig_var = nla_get_u8(tb[MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_VARIANT_TYPE]);
++
++		return mt7996_mcu_set_muru_cmd(dev, UNI_CMD_MURU_SET_TRIG_VARIANT,
++					       trig_var);
+ 	}
+ 
+ 	return 0;
+diff --git a/mt7996/vendor.h b/mt7996/vendor.h
+index f6fcb623..bd9579d5 100644
+--- a/mt7996/vendor.h
++++ b/mt7996/vendor.h
+@@ -93,6 +93,7 @@ enum mtk_vendor_attr_rfeature_ctrl {
+ 	MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TYPE,
+ 	MTK_VENDOR_ATTR_RFEATURE_CTRL_ACK_PLCY,
+ 	MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_TXBF,
++	MTK_VENDOR_ATTR_RFEATURE_CTRL_TRIG_VARIANT_TYPE,
+ 
+ 	/* keep last */
+ 	NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL,
+-- 
+2.18.0
+

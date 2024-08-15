@@ -1,0 +1,104 @@
+From 208cd15d45360f69c2811bed72b2715c83632b3b Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Thu, 30 Nov 2023 16:31:17 +0800
+Subject: [PATCH 093/199] mtk: mt76: mt7996: enable MLO capability
+
+This is a preliminary patch to add MLO support for mt7996 chipsets.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/eeprom.c |  6 ++++++
+ mt7996/init.c   | 38 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 42 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
+index c4714982..cd93a3c2 100644
+--- a/mt7996/eeprom.c
++++ b/mt7996/eeprom.c
+@@ -390,6 +390,12 @@ static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
+ 		break;
+ 	}
+ 
++	/* TODO: for MLO, we enable all band capabilities */
++	phy->mt76->cap.has_2ghz = true;
++	phy->mt76->cap.has_5ghz = true;
++	if (is_mt7996(&phy->dev->mt76))
++		phy->mt76->cap.has_6ghz = true;
++
+ 	return ret;
+ }
+ 
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 86bb0661..2fe869c9 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -35,7 +35,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
+ 		.limits = if_limits,
+ 		.n_limits = ARRAY_SIZE(if_limits),
+ 		.max_interfaces = MT7996_MAX_INTERFACES,
+-		.num_different_channels = 1,
++		.num_different_channels = 3,
+ 		.beacon_int_infra_match = true,
+ 		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+ 				       BIT(NL80211_CHAN_WIDTH_20) |
+@@ -46,6 +46,33 @@ static const struct ieee80211_iface_combination if_comb[] = {
+ 	}
+ };
+ 
++static const u8 mt7996_if_types_ext_capa[] = {
++	[0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
++	[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
++};
++
++static const struct wiphy_iftype_ext_capab mt7996_iftypes_ext_capa[] = {
++	{
++		.iftype = NL80211_IFTYPE_STATION,
++		.extended_capabilities = mt7996_if_types_ext_capa,
++		.extended_capabilities_mask = mt7996_if_types_ext_capa,
++		.extended_capabilities_len = sizeof(mt7996_if_types_ext_capa),
++		.mld_capa_and_ops = 2,
++	},
++	{
++		.iftype = NL80211_IFTYPE_AP,
++		.extended_capabilities = mt7996_if_types_ext_capa,
++		.extended_capabilities_mask = mt7996_if_types_ext_capa,
++		.extended_capabilities_len = sizeof(mt7996_if_types_ext_capa),
++		.mld_capa_and_ops = 2,
++		/* the max number of simultaneous links is defined as the
++		 * maximum number of affiliated APs minus 1.
++		 * mt7996 could have 3 links in an MLD AP, so currently
++		 * hardcode it to 2.
++		 */
++	},
++};
++
+ static ssize_t mt7996_thermal_temp_show(struct device *dev,
+ 					struct device_attribute *attr,
+ 					char *buf)
+@@ -419,8 +446,9 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 	ieee80211_hw_set(hw, SUPPORTS_TX_ENCAP_OFFLOAD);
+ 	ieee80211_hw_set(hw, SUPPORTS_RX_DECAP_OFFLOAD);
+ 	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
+-	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
++	// ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
+ 	ieee80211_hw_set(hw, CHANCTX_STA_CSA);
++	ieee80211_hw_set(hw, CONNECTION_MONITOR);
+ 
+ 	hw->max_tx_fragments = 4;
+ 
+@@ -464,6 +492,12 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 
+ 	wiphy->max_scan_ssids = 4;
+ 	wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
++
++	/* enable MLO support */
++	wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
++	wiphy->iftype_ext_capab = mt7996_iftypes_ext_capa;
++	wiphy->num_iftype_ext_capab = ARRAY_SIZE(mt7996_iftypes_ext_capa);
++	wiphy->features |= NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE;
+ }
+ 
+ static void
+-- 
+2.18.0
+

@@ -1,0 +1,55 @@
+From 525b850e3140488b346601070adbeb5fd163af67 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Wed, 22 May 2024 18:22:51 +0800
+Subject: [PATCH 139/199] mtk: mt76: mt7996: do not remove bss_info and starec
+ when assign_vif_chanctx
+
+When STA interface re-connect from rootAP, it would unsign/assign vif
+chanctx for both AP and station interface. If remove/re-allocate
+bss_info and starec for AP interface, the WTBL and GTK of AP would
+be cleared. But the hostapd does not remove interface so it would not
+set key again.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/main.c | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 40418f7e..2a2112f1 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -338,6 +338,9 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
+ 	u8 link_id = conf->link_id;
+ 	int idx, ret;
+ 
++	if (rcu_access_pointer(mvif->link[link_id]))
++		return 0;
++
+ 	if (conf != &vif->bss_conf) {
+ 		mconf = kzalloc(sizeof(*mconf), GFP_KERNEL);
+ 		if (!mconf)
+@@ -2516,10 +2519,16 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 
+ 	mutex_lock(&phy->dev->mt76.mutex);
+ 
+-	/* remove first */
+-	if (rcu_access_pointer(mvif->link[link_id]))
+-		mt7996_remove_bss_conf(vif, link_conf,
+-				       mconf_dereference_protected(mvif, link_id));
++	mconf = mconf_dereference_protected(mvif, link_id);
++
++	/* Remove bss conf when change non-MLO interface to MLO interface */
++	if (ieee80211_vif_is_mld(vif) && mconf == &mvif->deflink)
++		mt7996_remove_bss_conf(vif, link_conf, mconf);
++	else if (mconf && phy != mconf->phy)
++		dev_err(phy->dev->mt76.dev,
++			"%s: error: change link[%d] from phy%d to phy%d",
++			__func__, link_id, mconf->phy->mt76->band_idx,
++			phy->mt76->band_idx);
+ 
+ 	ret = mt7996_add_bss_conf(phy, vif, link_conf);
+ 	if (ret) {
+-- 
+2.18.0
+

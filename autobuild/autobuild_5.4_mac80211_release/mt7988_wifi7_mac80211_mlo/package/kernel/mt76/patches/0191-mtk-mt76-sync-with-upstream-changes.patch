@@ -1,0 +1,40 @@
+From ae1bd00dbac3464137f2f595b935babc3bea0137 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Wed, 31 Jul 2024 11:19:53 +0800
+Subject: [PATCH 191/199] mtk: mt76: sync with upstream changes
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/main.c | 2 +-
+ mt7996/mcu.c  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 4b48a870..59353603 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -153,7 +153,7 @@ static int mt7996_start(struct ieee80211_hw *hw)
+ 	return ret;
+ }
+ 
+-static void mt7996_stop(struct ieee80211_hw *hw)
++static void mt7996_stop(struct ieee80211_hw *hw, bool suspend)
+ {
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	int band;
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 0439157c..03c671f6 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -421,7 +421,7 @@ mt7996_mcu_rx_radar_detected(struct mt7996_dev *dev, struct sk_buff *skb)
+ 						&dev->rdd2_chandef,
+ 						GFP_ATOMIC);
+ 	} else {
+-		ieee80211_radar_detected(mphy->hw);
++		ieee80211_radar_detected(mphy->hw, NULL);
+ 	}
+ 	dev->hw_pattern++;
+ }
+-- 
+2.18.0
+

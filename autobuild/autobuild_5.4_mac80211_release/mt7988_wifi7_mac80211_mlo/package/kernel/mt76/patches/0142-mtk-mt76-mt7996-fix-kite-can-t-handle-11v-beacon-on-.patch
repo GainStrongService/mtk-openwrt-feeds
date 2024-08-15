@@ -1,0 +1,37 @@
+From ab5d7deb92a8180b4d236da52863bfe9b7327dca Mon Sep 17 00:00:00 2001
+From: Rex Lu <rex.lu@mediatek.com>
+Date: Thu, 30 May 2024 17:39:38 +0800
+Subject: [PATCH 142/199] mtk: mt76: mt7996: fix kite can't handle 11v beacon
+ on sta side
+
+this hw flag SUPPORTS_MULTI_BSSID need to set. otherwise cfg80211_parse_mbssid_data will not handle 11v mbss beacon
+
+Signed-off-by: Rex Lu <rex.lu@mediatek.com>
+---
+ mt7996/init.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 7cf3a37e..cc696a69 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -48,6 +48,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
+ 
+ static const u8 mt7996_if_types_ext_capa[] = {
+ 	[0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
++	[2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT,
+ 	[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
+ };
+ 
+@@ -447,7 +448,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 	ieee80211_hw_set(hw, SUPPORTS_TX_ENCAP_OFFLOAD);
+ 	ieee80211_hw_set(hw, SUPPORTS_RX_DECAP_OFFLOAD);
+ 	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
+-	// ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
++	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
+ 	ieee80211_hw_set(hw, CHANCTX_STA_CSA);
+ 	ieee80211_hw_set(hw, CONNECTION_MONITOR);
+ 
+-- 
+2.18.0
+

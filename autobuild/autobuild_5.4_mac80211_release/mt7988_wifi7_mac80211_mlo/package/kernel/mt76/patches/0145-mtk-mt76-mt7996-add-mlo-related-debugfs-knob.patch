@@ -1,0 +1,190 @@
+From 37fd1cdf8fb3c77948c858e7bb258cd02b3cac31 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 27 May 2024 19:06:04 +0800
+Subject: [PATCH 145/199] mtk: mt76: mt7996: add mlo related debugfs knob
+
+Add the following debugfs knob
+Per-bss link info
+	- /sys/kernel/debug/ieee80211/phy0/<interface>/mt76_link_info
+Per-station link info
+	- /sys/kernel/debug/ieee80211/phy0/<interface>/stations/<mac address>/mt76_link_info
+
+Add TX MSDU failed, retried counts, and PER to mt76_links_info DebugFS knob.
+Remove MSDU statistics from link_sta_info DebugFS knob, since MSDUs are MLD-wise, instead of link-wise, handled.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+---
+ mt7996/debugfs.c | 118 ++++++++++++++++++++++++++++++++++++++++++++++-
+ mt7996/main.c    |   1 +
+ mt7996/mt7996.h  |   1 +
+ 3 files changed, 119 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
+index 71dc0449..6eb395c4 100644
+--- a/mt7996/debugfs.c
++++ b/mt7996/debugfs.c
+@@ -1330,11 +1330,128 @@ mt7996_queues_show(struct seq_file *s, void *data)
+ 
+ DEFINE_SHOW_ATTRIBUTE(mt7996_queues);
+ 
++static int
++mt7996_sta_links_info_show(struct seq_file *s, void *data)
++{
++	struct ieee80211_sta *sta = s->private;
++	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
++	u64 tx_cnt = 0, tx_fails = 0, tx_retries = 0, rx_cnt = 0;
++	struct mt7996_dev *dev = msta->vif->dev;
++	unsigned long valid_links;
++	u8 link_id;
++
++	seq_printf(s, "primary link, link ID = %d\n", msta->pri_link);
++	seq_printf(s, "secondary link, link ID = %d\n", msta->sec_link);
++	seq_printf(s, "valid links = 0x%x\n", sta->valid_links);
++
++	mutex_lock(&dev->mt76.mutex);
++	valid_links = sta->valid_links ?: BIT(0);
++	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
++		struct mt7996_link_sta *mlink =
++			mlink_dereference_protected(msta, link_id);
++		struct mt76_wcid *wcid;
++
++		if (!mlink)
++			continue;
++
++		wcid = &mlink->wcid;
++
++		tx_cnt += wcid->stats.tx_packets;
++		tx_fails += wcid->stats.tx_packets_failed;
++		tx_retries += wcid->stats.tx_packets_retried;
++		rx_cnt += wcid->stats.rx_packets;
++
++		seq_printf(s, "link%d: wcid=%d, phy=%d, link_valid=%d\n",
++			    wcid->link_id, wcid->idx, wcid->phy_idx, wcid->link_valid);
++	}
++	mutex_unlock(&dev->mt76.mutex);
++
++	/* PER may be imprecise, because MSDU total and failed counts
++	 * are updated at different times.
++	 */
++	seq_printf(s, "TX MSDU Count: %llu\n", tx_cnt);
++	seq_printf(s, "TX MSDU Fails: %llu (PER: %llu.%llu%%)\n", tx_fails,
++		   tx_cnt ? tx_fails * 1000 / tx_cnt / 10 : 0,
++		   tx_cnt ? tx_fails * 1000 / tx_cnt % 10 : 0);
++	seq_printf(s, "TX MSDU Retries: %llu\n", tx_retries);
++	seq_printf(s, "RX MSDU Count: %llu\n", rx_cnt);
++
++	return 0;
++}
++DEFINE_SHOW_ATTRIBUTE(mt7996_sta_links_info);
++
+ void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 			    struct ieee80211_sta *sta, struct dentry *dir)
+ {
+ 	debugfs_create_file("fixed_rate", 0600, dir, sta, &fops_fixed_rate);
+ 	debugfs_create_file("hw-queues", 0400, dir, sta, &mt7996_queues_fops);
++	debugfs_create_file("mt76_links_info", 0400, dir, sta,
++			    &mt7996_sta_links_info_fops);
++}
++
++static int
++mt7996_vif_links_info_show(struct seq_file *s, void *data)
++{
++	struct ieee80211_vif *vif = s->private;
++	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
++	struct mt7996_dev *dev = mvif->dev;
++	struct mt7996_bss_conf *mconf;
++	struct mt7996_link_sta *mlink;
++	unsigned long valid_links;
++	u8 link_id, i;
++
++	static const char* width_to_bw[] = {
++		[NL80211_CHAN_WIDTH_40] = "40",
++		[NL80211_CHAN_WIDTH_80] = "80",
++		[NL80211_CHAN_WIDTH_80P80] = "80+80",
++		[NL80211_CHAN_WIDTH_160] = "160",
++		[NL80211_CHAN_WIDTH_5] = "5",
++		[NL80211_CHAN_WIDTH_10] = "10",
++		[NL80211_CHAN_WIDTH_20] = "20",
++		[NL80211_CHAN_WIDTH_20_NOHT] = "20_NOHT",
++		[NL80211_CHAN_WIDTH_320] = "320",
++	};
++
++	seq_printf(s, "master link id = %d\n", mvif->master_link_id);
++	seq_printf(s, "group mld id = %d\n", mvif->group_mld_id);
++	seq_printf(s, "mld remap id = %d\n", mvif->mld_remap_id);
++
++	seq_printf(s, "valid links = 0x%x\n", vif->valid_links);
++	for (i = 0; i < __MT_MAX_BAND; i++)
++		seq_printf(s, "band%d_link_id = %d\n", i, mvif->band_to_link[i]);
++
++	mutex_lock(&dev->mt76.mutex);
++	valid_links = vif->valid_links ?: BIT(0);
++	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
++		mconf = mconf_dereference_protected(mvif, link_id);
++		mlink = mlink_dereference_protected(&mvif->sta, link_id);
++
++		if (!mconf || !mlink)
++			continue;
++
++		seq_printf(s, "- link[%02d]: bss_idx = %d, wcid = %d\n",
++			   mconf->link_id, mconf->mt76.idx, mlink->wcid.idx);
++		seq_printf(s, "            omac_idx = %d, own_mld_id=%d\n",
++			   mconf->mt76.omac_idx, mconf->own_mld_id);
++
++		if (!mconf->phy->chanctx)
++			continue;
++
++		seq_printf(s, "            band_idx=%d, channel=%d, bw%s\n",
++			   mconf->mt76.band_idx,
++			   mconf->phy->chanctx->chandef.chan->hw_value,
++			   width_to_bw[mconf->phy->chanctx->chandef.width]);
++	}
++	mutex_unlock(&dev->mt76.mutex);
++
++	return 0;
++}
++DEFINE_SHOW_ATTRIBUTE(mt7996_vif_links_info);
++
++void mt7996_vif_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
++{
++	debugfs_create_file("mt76_links_info", 0400, vif->debugfs_dir, vif,
++			    &mt7996_vif_links_info_fops);
+ }
+ 
+ static void
+@@ -1473,7 +1590,6 @@ mt7996_link_sta_info_show(struct seq_file *file, void *data)
+ 	seq_printf(file, "Statistics:\n");
+ 	seq_printf(file, "\tTX:\n");
+ 	seq_printf(file, "\t\tBytes: %llu\n", stats->tx_bytes);
+-	seq_printf(file, "\t\tMSDU Count: %u\n", stats->tx_packets);
+ 	seq_printf(file, "\t\tMPDU Count: %u\n", stats->tx_mpdus);
+ 	seq_printf(file, "\t\tMPDU Fails: %u (PER: %u.%u%%)\n", stats->tx_failed,
+ 		   stats->tx_mpdus ? stats->tx_failed * 1000 / stats->tx_mpdus / 10 : 0,
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 21457a61..a85fa935 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -2841,6 +2841,7 @@ const struct ieee80211_ops mt7996_ops = {
+ 	.sta_add_debugfs = mt7996_sta_add_debugfs,
+ 	.link_sta_add_debugfs = mt7996_link_sta_add_debugfs,
+ 	// .link_add_debugfs = mt7996_link_add_debugfs,
++	.vif_add_debugfs = mt7996_vif_add_debugfs,
+ #endif
+ 	.set_radar_background = mt7996_set_radar_background,
+ #ifdef CONFIG_NET_MEDIATEK_SOC_WED
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 8f084651..b5869bb8 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1247,6 +1247,7 @@ int mt7996_mcu_set_eml_omn(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u
+ #ifdef CONFIG_MAC80211_DEBUGFS
+ void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 			    struct ieee80211_sta *sta, struct dentry *dir);
++void mt7996_vif_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+ void mt7996_link_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 				 struct ieee80211_link_sta *link_sta,
+ 				 struct dentry *dir);
+-- 
+2.18.0
+

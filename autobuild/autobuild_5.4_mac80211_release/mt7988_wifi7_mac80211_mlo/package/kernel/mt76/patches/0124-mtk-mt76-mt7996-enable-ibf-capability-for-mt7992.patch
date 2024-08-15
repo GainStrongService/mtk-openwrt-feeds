@@ -1,0 +1,42 @@
+From a0cf73079cf52808d6b4196d433d62aebd751c16 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Tue, 23 Apr 2024 09:19:25 +0800
+Subject: [PATCH 124/199] mtk: mt76: mt7996: enable ibf capability for mt7992
+
+For the specific sku of mt7992, it supports both ibf and ebf
+functionality. The firmware algorithm may decide which type is better
+according to the station's beamform capability.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/mcu.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index a88beb36..28123fb7 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -2265,6 +2265,8 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 			struct ieee80211_bss_conf *conf, struct mt7996_bss_conf *mconf,
+ 			struct ieee80211_link_sta *link_sta)
+ {
++#define EBF_MODE	BIT(0)
++#define IBF_MODE	BIT(1)
+ 	struct mt7996_phy *phy = mconf->phy;
+ 	int tx_ant = hweight16(phy->mt76->chainmask) - 1;
+ 	struct sta_rec_bf *bf;
+@@ -2302,7 +2304,10 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 	else
+ 		return;
+ 
+-	bf->bf_cap = ebf ? ebf : dev->ibf << 1;
++	bf->bf_cap = ebf ? EBF_MODE : (dev->ibf ? IBF_MODE : 0);
++	if (is_mt7992(&dev->mt76) &&
++	    tx_ant == hweight8(phy->mt76->hw->wiphy->available_antennas_tx))
++		bf->bf_cap |= IBF_MODE;
+ 	bf->bw = link_sta->bandwidth;
+ 	bf->ibf_dbw = link_sta->bandwidth;
+ 	bf->ibf_nrow = tx_ant;
+-- 
+2.18.0
+

@@ -1,0 +1,39 @@
+From 377b708eb38c5a7056eaca0cd54994a226f940b1 Mon Sep 17 00:00:00 2001
+From: Bo Jiao <Bo.Jiao@mediatek.com>
+Date: Wed, 10 Jul 2024 14:49:43 +0800
+Subject: [PATCH 115/126] mtk: hostapd: fix Multiple MLDs to use the conf's
+ own_addr/mld_addr.
+
+Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
+---
+ src/ap/hostapd.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index 73378053b..a89628fe7 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -1506,6 +1506,9 @@ int hostapd_setup_bss(struct hostapd_data *hapd, int first, bool start_beacon)
+ 					   hapd->mld_link_id, hapd->conf->iface);
+ 				goto setup_mld;
+ 			}
++
++			if (addr && !is_zero_ether_addr(hapd->conf->mld_addr))
++				os_memcpy(addr, hapd->conf->mld_addr, ETH_ALEN);
+ 		}
+ #endif /* CONFIG_IEEE80211BE */
+ 
+@@ -1531,6 +1534,10 @@ int hostapd_setup_bss(struct hostapd_data *hapd, int first, bool start_beacon)
+ 				   hapd->mld_link_id, hapd->conf->iface);
+ 			os_memcpy(hapd->mld->mld_addr, hapd->own_addr,
+ 				  ETH_ALEN);
++
++			if (!is_zero_ether_addr(conf->bssid))
++				os_memcpy(hapd->own_addr, conf->bssid, ETH_ALEN);
++
+ 			hostapd_mld_add_link(hapd);
+ 		}
+ #endif /* CONFIG_IEEE80211BE */
+-- 
+2.18.0
+

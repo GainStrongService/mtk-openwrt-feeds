@@ -1,0 +1,50 @@
+From 6d35d91b55b55134d3fca5a9f913121b2b8058eb Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Wed, 17 Jul 2024 11:36:11 +0800
+Subject: [PATCH 181/199] mtk: mt76: mt7996: Fix legacy action frame wrong
+ address translation
+
+For non-associated STA send unicast ANQP request, AP should use unicast
+to response, so mt76 sould tell fw not translate frames of this type.
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ mt7996/mac.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 657a19c1..e571bbfa 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -671,7 +671,8 @@ mt7996_mac_write_txwi_8023(struct mt7996_dev *dev, __le32 *txwi,
+ 
+ static void
+ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+-			    struct sk_buff *skb, struct ieee80211_key_conf *key)
++			    struct sk_buff *skb, struct ieee80211_key_conf *key,
++			    struct mt76_wcid *wcid)
+ {
+ 	struct mt76_phy *mphy =
+ 		mt76_dev_phy(&dev->mt76, le32_get_bits(txwi[1], MT_TXD1_TGID));
+@@ -770,6 +771,9 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+ 		txwi[5] |= cpu_to_le32(MT_TXD5_FL);
+ 		txwi[6] |= cpu_to_le32(MT_TXD6_DIS_MAT);
+ 	}
++
++	if (!wcid->sta && ieee80211_is_action(fc))
++		txwi[6] |= cpu_to_le32(MT_TXD6_DIS_MAT);
+ }
+ 
+ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+@@ -863,7 +867,7 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+ 	if (is_8023)
+ 		mt7996_mac_write_txwi_8023(dev, txwi, skb, wcid);
+ 	else
+-		mt7996_mac_write_txwi_80211(dev, txwi, skb, key);
++		mt7996_mac_write_txwi_80211(dev, txwi, skb, key, wcid);
+ 
+ 	if (txwi[1] & cpu_to_le32(MT_TXD1_FIXED_RATE)) {
+ 		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+-- 
+2.18.0
+

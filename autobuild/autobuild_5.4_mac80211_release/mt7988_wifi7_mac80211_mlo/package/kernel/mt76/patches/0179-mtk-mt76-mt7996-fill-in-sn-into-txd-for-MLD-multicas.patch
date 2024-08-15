@@ -1,0 +1,42 @@
+From 112a2fd7458a1ee1a23b236c024bbc858b9d935e Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 15 Jul 2024 11:42:47 +0800
+Subject: [PATCH 179/199] mtk: mt76: mt7996: fill in sn into txd for MLD
+ multicast packet
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/mac.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index fae24cad..c91c550d 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -681,6 +681,7 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+ 	bool multicast = is_multicast_ether_addr(hdr->addr1);
+ 	u8 tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+ 	__le16 fc = hdr->frame_control, sc = hdr->seq_ctrl;
++	u16 seqno = le16_to_cpu(sc);
+ 	u8 fc_type, fc_stype;
+ 	u32 val;
+ 
+@@ -739,9 +740,13 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+ 		txwi[3] |= cpu_to_le32(MT_TXD3_REM_TX_COUNT);
+ 	}
+ 
+-	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
+-		u16 seqno = le16_to_cpu(sc);
++	if (ieee80211_vif_is_mld(info->control.vif) && multicast) {
++		val = MT_TXD3_SN_VALID |
++		      FIELD_PREP(MT_TXD3_SEQ, IEEE80211_SEQ_TO_SN(seqno));
++		txwi[3] |= cpu_to_le32(val);
++	}
+ 
++	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
+ 		if (ieee80211_is_back_req(hdr->frame_control)) {
+ 			struct ieee80211_bar *bar;
+ 
+-- 
+2.18.0
+

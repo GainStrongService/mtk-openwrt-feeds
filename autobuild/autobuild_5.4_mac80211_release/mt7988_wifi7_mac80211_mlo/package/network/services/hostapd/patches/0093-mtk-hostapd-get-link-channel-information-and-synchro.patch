@@ -1,0 +1,83 @@
+From 0946b9ece456bc11e4ef620063e7b0078d3d73aa Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Fri, 17 May 2024 17:21:06 +0800
+Subject: [PATCH 093/126] mtk: hostapd: get link channel information and
+ synchronize to AP
+
+'wpa_s->valid_links' is used to determine the connection is MLO or not,
+and different ways are used to retrieve operating channel information.
+
+Refactor center frequency calculation part in the function
+uc_wpa_freq_info.
+1. It does not have to set seg0 for 2GHz.
+2. The original center frequency calculation is wrong for 2G. Also, center
+   frequency 1 of BW 20/40 MHz can be derived from control frequency &
+   secondary channel offset.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/ucode.c         |  2 +-
+ src/utils/ucode.c      |  8 +++++---
+ wpa_supplicant/ucode.c | 14 ++++++++++----
+ 3 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/src/ap/ucode.c b/src/ap/ucode.c
+index a69caa6cf..8c05404f5 100644
+--- a/src/ap/ucode.c
++++ b/src/ap/ucode.c
+@@ -657,7 +657,7 @@ out:
+ 	wpa_printf(MSG_INFO, "    * seg0: %d\n",
+ 			hostapd_get_oper_centr_freq_seg0_idx(conf));
+ 	wpa_printf(MSG_INFO, "    * seg1: %d\n",
+-			hostapd_get_oper_centr_freq_seg0_idx(conf));
++			hostapd_get_oper_centr_freq_seg1_idx(conf));
+ 	wpa_printf(MSG_INFO, "    * oper_chwidth: %d\n",
+ 			hostapd_get_oper_chwidth(conf));
+ 
+diff --git a/src/utils/ucode.c b/src/utils/ucode.c
+index 81d472f6b..8bbbbbeff 100644
+--- a/src/utils/ucode.c
++++ b/src/utils/ucode.c
+@@ -186,9 +186,11 @@ uc_value_t *uc_wpa_freq_info(uc_vm_t *vm, size_t nargs)
+ 	ucv_object_add(ret, "oper_chwidth", ucv_int64_new(chanwidth));
+ 	ucv_object_add(ret, "band_idx", ucv_int64_new(band_idx));
+ 
+-	if (chanwidth == CONF_OPER_CHWIDTH_USE_HT && !sec_channel) {
+-		ucv_object_add(ret, "center_seg0_idx", ucv_int64_new(channel));
+-		ucv_object_add(ret, "center_freq1", ucv_int64_new(freq_val));
++	if (chanwidth == CONF_OPER_CHWIDTH_USE_HT) {
++		center_idx = freq_val < 3000 ? 0 : channel;
++		ucv_object_add(ret, "center_seg0_idx", ucv_int64_new(center_idx));
++		ucv_object_add(ret, "center_freq1",
++			       ucv_int64_new(freq_val + sec_channel * 10));
+ 		return ret;
+ 	}
+ 
+diff --git a/wpa_supplicant/ucode.c b/wpa_supplicant/ucode.c
+index d4b2160b6..450780737 100644
+--- a/wpa_supplicant/ucode.c
++++ b/wpa_supplicant/ucode.c
+@@ -309,10 +309,16 @@ uc_wpas_iface_status(uc_vm_t *vm, size_t nargs)
+ 		else if (is_6ghz_freq(bss->freq))
+ 			band_idx = 2;
+ 
+-		wpa_drv_channel_info(wpa_s, &ci);
+-		freq = ci.frequency;
+-		center_freq1 = ci.center_frq1;
+-		chwidth=ci.chanwidth;
++		if (wpa_s->valid_links) {
++			freq = wpa_s->links[link_id].freq;
++			center_freq1 = wpa_s->links[link_id].center_freq1;
++			chwidth = wpa_s->links[link_id].width;
++		} else {
++			wpa_drv_channel_info(wpa_s, &ci);
++			freq = ci.frequency;
++			center_freq1 = ci.center_frq1;
++			chwidth=ci.chanwidth;
++		}
+ 
+ 		if (bss->freq != center_freq1) {
+ 			if (is_24ghz)
+-- 
+2.18.0
+

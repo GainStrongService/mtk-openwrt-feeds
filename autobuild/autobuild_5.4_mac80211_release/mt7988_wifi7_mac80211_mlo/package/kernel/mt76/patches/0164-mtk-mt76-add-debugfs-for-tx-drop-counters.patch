@@ -1,7 +1,7 @@
-From 2bf60060c64dd5e09f1d0798a424f11fe111b84c Mon Sep 17 00:00:00 2001
+From a56b55265b3e813f7b803b242094a9a9a77cd3a4 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 13 Jun 2024 17:47:13 +0800
-Subject: [PATCH 164/206] mtk: mt76: add debugfs for tx drop counters
+Subject: [PATCH 164/199] mtk: mt76: add debugfs for tx drop counters
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
@@ -158,7 +158,7 @@ index 728740ef..ee118ee5 100644
  
  #define MT76_MAX_AMSDU_NUM 8
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 57e86aba..8f88998a 100644
+index 017e3465..0f282f16 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -897,11 +897,15 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -214,10 +214,10 @@ index 57e86aba..8f88998a 100644
  		dma_sync_single_for_cpu(mdev->dma_dev, tx_info->buf[1].addr,
  					tx_info->buf[1].len, DMA_TO_DEVICE);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 7180ea2d..4e91b1eb 100644
+index 443b3962..553345e8 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1414,11 +1414,13 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+@@ -1423,11 +1423,13 @@ static void mt7996_tx(struct ieee80211_hw *hw,
  		      struct sk_buff *skb)
  {
  	struct mt76_phy *mphy;
@@ -231,7 +231,7 @@ index 7180ea2d..4e91b1eb 100644
  
  	if (control->sta) {
  		msta = (struct mt7996_sta *)control->sta->drv_priv;
-@@ -1490,14 +1492,18 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+@@ -1499,14 +1501,18 @@ static void mt7996_tx(struct ieee80211_hw *hw,
  		mphy = mconf->phy->mt76;
  		wcid = &mlink->wcid;
  	} else {
@@ -253,7 +253,7 @@ index 7180ea2d..4e91b1eb 100644
  }
  
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index bb676689..7027d058 100644
+index 9bd35c91..759b9d8f 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -4163,6 +4163,83 @@ out:

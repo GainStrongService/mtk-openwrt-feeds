@@ -1,0 +1,92 @@
+From 32201406775dc530ae7f62a0f0bdc0af09b69dd8 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Wed, 27 Mar 2024 17:50:16 +0800
+Subject: [PATCH 060/199] mtk: mt76: mt7996: add kite part number support
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/eeprom.c | 35 +++++++++++++++++++++++------------
+ 1 file changed, 23 insertions(+), 12 deletions(-)
+
+diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
+index dffcd09d..c4714982 100644
+--- a/mt7996/eeprom.c
++++ b/mt7996/eeprom.c
+@@ -319,26 +319,39 @@ out:
+ 	return ret;
+ }
+ 
+-static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_dev *dev)
++static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_phy *phy,
++					    u8 *path, u8 *rx_path, u8 *nss)
+ {
+ #define MODE_HE_ONLY		BIT(0)
++#define STREAM_MASK		GENMASK(2, 0)
++#define STREAM_OFFSET		1
++#define TX_PATH_OFFSET		10
++#define RX_PATH_OFFSET		19
+ #define WTBL_SIZE_GROUP		GENMASK(31, 28)
++#define GET_STREAM_CAP(offs)	({				\
++	typeof(offs) _offs = (offs);				\
++	((cap & (STREAM_MASK << _offs)) >> _offs);		\
++})
++	struct mt7996_dev *dev = phy->dev;
+ 	u32 cap = 0;
+ 	int ret;
++	u8 band_offs = phy->mt76->band_idx * hweight8(STREAM_MASK);
+ 
+ 	ret = mt7996_mcu_get_chip_config(dev, &cap);
+ 	if (ret)
+ 		return ret;
+ 
+-	cap = 0x4b249248;	/* internal hardcode */
++	dev->has_eht = true;
+ 	if (cap) {
+ 		dev->has_eht = !(cap & MODE_HE_ONLY);
+ 		dev->wtbl_size_group = u32_get_bits(cap, WTBL_SIZE_GROUP);
++		*nss = min_t(u8, *nss, GET_STREAM_CAP(STREAM_OFFSET + band_offs));
++		*path = min_t(u8, *path, GET_STREAM_CAP(TX_PATH_OFFSET + band_offs));
++		*rx_path = min_t(u8, *rx_path, GET_STREAM_CAP(RX_PATH_OFFSET + band_offs));
+ 	}
+ 
+-	if (dev->wtbl_size_group < 2 || dev->wtbl_size_group > 4 ||
+-	    is_mt7992(&dev->mt76))
+-		dev->wtbl_size_group = 2; /* set default */
++	if (dev->wtbl_size_group < 2 || dev->wtbl_size_group > 4)
++		dev->wtbl_size_group = is_mt7996(&dev->mt76) ? 4 : 2;	/* set default */
+ 
+ 	return 0;
+ }
+@@ -382,13 +395,15 @@ static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
+ 
+ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
+ {
++	struct mt76_phy *mphy = phy->mt76;
+ 	u8 path, rx_path, nss, band_idx = phy->mt76->band_idx;
+ 	u8 *eeprom = dev->mt76.eeprom.data;
+-	struct mt76_phy *mphy = phy->mt76;
+-	int max_path = 5, max_nss = 4;
+-	int ret;
++	int ret, max_path = 5, max_nss = 4;
+ 
+ 	mt7996_parse_eeprom_stream(eeprom, band_idx, &path, &rx_path, &nss);
++	ret = mt7996_eeprom_parse_efuse_hw_cap(phy, &path, &rx_path, &nss);
++	if (ret)
++		return ret;
+ 
+ 	if (!path || path > max_path)
+ 		path = max_path;
+@@ -408,10 +423,6 @@ int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
+ 		dev->chainshift[band_idx + 1] = dev->chainshift[band_idx] +
+ 						hweight16(mphy->chainmask);
+ 
+-	ret = mt7996_eeprom_parse_efuse_hw_cap(dev);
+-	if (ret)
+-		return ret;
+-
+ 	return mt7996_eeprom_parse_band_config(phy);
+ }
+ 
+-- 
+2.18.0
+

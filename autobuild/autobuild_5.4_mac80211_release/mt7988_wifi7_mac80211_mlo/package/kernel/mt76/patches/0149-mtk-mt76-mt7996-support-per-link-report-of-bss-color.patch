@@ -1,0 +1,53 @@
+From bd2464e8ba51bbb00a1b6aabf12041431d57289b Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Wed, 5 Jun 2024 19:11:13 +0800
+Subject: [PATCH 149/199] mtk: mt76: mt7996: support per-link report of bss
+ color change
+
+ieee80211_color_change_finish() has been extended for per-link support.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/mcu.c | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 40ba5b43..db388e66 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -472,10 +472,21 @@ out:
+ static void
+ mt7996_mcu_cca_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
+ {
+-	if (!vif->bss_conf.color_change_active || vif->type == NL80211_IFTYPE_STATION)
++	struct mt76_phy *mphy = (struct mt76_phy *)priv;
++	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
++	struct ieee80211_bss_conf *link_conf;
++	u8 link_id;
++
++	link_id = mvif->band_to_link[mphy->band_idx];
++	if (link_id == IEEE80211_LINK_UNSPECIFIED)
++		return;
++
++	link_conf = rcu_dereference(vif->link_conf[link_id]);
++	if (!link_conf || !link_conf->color_change_active ||
++	    vif->type == NL80211_IFTYPE_STATION)
+ 		return;
+ 
+-	ieee80211_color_change_finish(vif);
++	ieee80211_color_change_finish(vif, link_id);
+ }
+ 
+ static void
+@@ -511,7 +522,7 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)
+ 		case UNI_EVENT_IE_COUNTDOWN_BCC:
+ 			ieee80211_iterate_active_interfaces_atomic(mphy->hw,
+ 					IEEE80211_IFACE_ITER_RESUME_ALL,
+-					mt7996_mcu_cca_finish, mphy->hw);
++					mt7996_mcu_cca_finish, mphy);
+ 			break;
+ 		}
+ 
+-- 
+2.18.0
+

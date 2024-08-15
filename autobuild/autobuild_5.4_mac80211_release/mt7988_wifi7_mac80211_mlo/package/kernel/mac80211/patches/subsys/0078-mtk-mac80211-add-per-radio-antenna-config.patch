@@ -1,0 +1,463 @@
+From a218fd8e2e8a2d390d995e62ba9e351c6cee30fb Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 11 Jun 2024 16:10:12 +0800
+Subject: [PATCH 78/89] mtk: mac80211: add per-radio antenna config
+
+Add per-radio antenna config
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ include/net/cfg80211.h    |  9 ++--
+ include/net/mac80211.h    |  4 +-
+ net/mac80211/cfg.c        | 19 +++++---
+ net/mac80211/driver-ops.h | 12 ++---
+ net/mac80211/trace.h      | 22 +++++----
+ net/wireless/nl80211.c    | 97 +++++++++++++++++++++++++--------------
+ net/wireless/rdev-ops.h   | 12 ++---
+ net/wireless/trace.h      | 24 ++++++----
+ 8 files changed, 122 insertions(+), 77 deletions(-)
+
+diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
+index 110e555..835735f 100644
+--- a/include/net/cfg80211.h
++++ b/include/net/cfg80211.h
+@@ -4881,8 +4881,8 @@ struct cfg80211_ops {
+ 						   struct wireless_dev *wdev,
+ 						   struct mgmt_frame_regs *upd);
+ 
+-	int	(*set_antenna)(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant);
+-	int	(*get_antenna)(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant);
++	int	(*set_antenna)(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant, int band);
++	int	(*get_antenna)(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant, int band);
+ 
+ 	int	(*sched_scan_start)(struct wiphy *wiphy,
+ 				struct net_device *dev,
+@@ -5831,8 +5831,9 @@ struct wiphy {
+ 
+ 	u8 max_num_pmkids;
+ 
+-	u32 available_antennas_tx;
+-	u32 available_antennas_rx;
++	/* FIXME: This should move to per-radio data struct */
++	u32 available_antennas_tx[NUM_NL80211_BANDS];
++	u32 available_antennas_rx[NUM_NL80211_BANDS];
+ 
+ 	u32 probe_resp_offload;
+ 
+diff --git a/include/net/mac80211.h b/include/net/mac80211.h
+index 08c15a7..9471892 100644
+--- a/include/net/mac80211.h
++++ b/include/net/mac80211.h
+@@ -4650,8 +4650,8 @@ struct ieee80211_ops {
+ 	void (*channel_switch)(struct ieee80211_hw *hw,
+ 			       struct ieee80211_vif *vif,
+ 			       struct ieee80211_channel_switch *ch_switch);
+-	int (*set_antenna)(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
+-	int (*get_antenna)(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant);
++	int (*set_antenna)(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant, int band);
++	int (*get_antenna)(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant, int band);
+ 
+ 	int (*remain_on_channel)(struct ieee80211_hw *hw,
+ 				 struct ieee80211_vif *vif,
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index 51a9b21..69c3e81 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -4255,15 +4255,22 @@ ieee80211_update_mgmt_frame_registrations(struct wiphy *wiphy,
+ 		ieee80211_configure_filter(local);
+ }
+ 
+-static int ieee80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
++static int ieee80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant, int band)
+ {
+ 	struct ieee80211_local *local = wiphy_priv(wiphy);
+ 	int ret;
+ 
+-	if (local->started)
+-		return -EOPNOTSUPP;
++	/* FIXME:
++	 * This flag should be moved to per-radio data struct; otherwise,
++	 * radio 1 or 2 will be blocked when radio 0 is started.
++	 * Temporarily disable this check until we have a better solution.
++	 * if (local->started)
++	 *	return -EOPNOTSUPP;
++	 */
++	wiphy_info(wiphy,
++		   "Temporarily disable local->started check during setting antenna\n");
+ 
+-	ret = drv_set_antenna(local, tx_ant, rx_ant);
++	ret = drv_set_antenna(local, tx_ant, rx_ant, band);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -4271,11 +4278,11 @@ static int ieee80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
+ 	return 0;
+ }
+ 
+-static int ieee80211_get_antenna(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant)
++static int ieee80211_get_antenna(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant, int band)
+ {
+ 	struct ieee80211_local *local = wiphy_priv(wiphy);
+ 
+-	return drv_get_antenna(local, tx_ant, rx_ant);
++	return drv_get_antenna(local, tx_ant, rx_ant, band);
+ }
+ 
+ static int ieee80211_set_rekey_data(struct wiphy *wiphy,
+diff --git a/net/mac80211/driver-ops.h b/net/mac80211/driver-ops.h
+index 4c0ac85..3bf8768 100644
+--- a/net/mac80211/driver-ops.h
++++ b/net/mac80211/driver-ops.h
+@@ -762,26 +762,26 @@ static inline void drv_channel_switch(struct ieee80211_local *local,
+ 
+ 
+ static inline int drv_set_antenna(struct ieee80211_local *local,
+-				  u32 tx_ant, u32 rx_ant)
++				  u32 tx_ant, u32 rx_ant, int band)
+ {
+ 	int ret = -EOPNOTSUPP;
+ 	might_sleep();
+ 	lockdep_assert_wiphy(local->hw.wiphy);
+ 	if (local->ops->set_antenna)
+-		ret = local->ops->set_antenna(&local->hw, tx_ant, rx_ant);
+-	trace_drv_set_antenna(local, tx_ant, rx_ant, ret);
++		ret = local->ops->set_antenna(&local->hw, tx_ant, rx_ant, band);
++	trace_drv_set_antenna(local, tx_ant, rx_ant, band, ret);
+ 	return ret;
+ }
+ 
+ static inline int drv_get_antenna(struct ieee80211_local *local,
+-				  u32 *tx_ant, u32 *rx_ant)
++				  u32 *tx_ant, u32 *rx_ant, int band)
+ {
+ 	int ret = -EOPNOTSUPP;
+ 	might_sleep();
+ 	lockdep_assert_wiphy(local->hw.wiphy);
+ 	if (local->ops->get_antenna)
+-		ret = local->ops->get_antenna(&local->hw, tx_ant, rx_ant);
+-	trace_drv_get_antenna(local, *tx_ant, *rx_ant, ret);
++		ret = local->ops->get_antenna(&local->hw, tx_ant, rx_ant, band);
++	trace_drv_get_antenna(local, *tx_ant, *rx_ant, band, ret);
+ 	return ret;
+ }
+ 
+diff --git a/net/mac80211/trace.h b/net/mac80211/trace.h
+index 48fcc8f..84b5c35 100644
+--- a/net/mac80211/trace.h
++++ b/net/mac80211/trace.h
+@@ -1263,14 +1263,16 @@ DEFINE_EVENT(chanswitch_evt, drv_channel_switch,
+ );
+ 
+ TRACE_EVENT(drv_set_antenna,
+-	TP_PROTO(struct ieee80211_local *local, u32 tx_ant, u32 rx_ant, int ret),
++	TP_PROTO(struct ieee80211_local *local, u32 tx_ant, u32 rx_ant,
++		 int band, int ret),
+ 
+-	TP_ARGS(local, tx_ant, rx_ant, ret),
++	TP_ARGS(local, tx_ant, rx_ant, band, ret),
+ 
+ 	TP_STRUCT__entry(
+ 		LOCAL_ENTRY
+ 		__field(u32, tx_ant)
+ 		__field(u32, rx_ant)
++		__field(int, band)
+ 		__field(int, ret)
+ 	),
+ 
+@@ -1278,24 +1280,27 @@ TRACE_EVENT(drv_set_antenna,
+ 		LOCAL_ASSIGN;
+ 		__entry->tx_ant = tx_ant;
+ 		__entry->rx_ant = rx_ant;
++		__entry->band = band;
+ 		__entry->ret = ret;
+ 	),
+ 
+ 	TP_printk(
+-		LOCAL_PR_FMT " tx_ant:%d rx_ant:%d ret:%d",
+-		LOCAL_PR_ARG, __entry->tx_ant, __entry->rx_ant, __entry->ret
++		LOCAL_PR_FMT " tx_ant:%d rx_ant:%d band:%d ret:%d",
++		LOCAL_PR_ARG, __entry->tx_ant, __entry->rx_ant,
++		__entry->band, __entry->ret
+ 	)
+ );
+ 
+ TRACE_EVENT(drv_get_antenna,
+-	TP_PROTO(struct ieee80211_local *local, u32 tx_ant, u32 rx_ant, int ret),
++	TP_PROTO(struct ieee80211_local *local, u32 tx_ant, u32 rx_ant, int band, int ret),
+ 
+-	TP_ARGS(local, tx_ant, rx_ant, ret),
++	TP_ARGS(local, tx_ant, rx_ant, band, ret),
+ 
+ 	TP_STRUCT__entry(
+ 		LOCAL_ENTRY
+ 		__field(u32, tx_ant)
+ 		__field(u32, rx_ant)
++		__field(int, band)
+ 		__field(int, ret)
+ 	),
+ 
+@@ -1303,12 +1308,13 @@ TRACE_EVENT(drv_get_antenna,
+ 		LOCAL_ASSIGN;
+ 		__entry->tx_ant = tx_ant;
+ 		__entry->rx_ant = rx_ant;
++		__entry->rx_ant = band;
+ 		__entry->ret = ret;
+ 	),
+ 
+ 	TP_printk(
+-		LOCAL_PR_FMT " tx_ant:%d rx_ant:%d ret:%d",
+-		LOCAL_PR_ARG, __entry->tx_ant, __entry->rx_ant, __entry->ret
++		LOCAL_PR_FMT " tx_ant:%d rx_ant:%d band:%d ret:%d",
++		LOCAL_PR_ARG, __entry->tx_ant, __entry->rx_ant, __entry->band, __entry->ret
+ 	)
+ );
+ 
+diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
+index e62116e..c38a5d0 100644
+--- a/net/wireless/nl80211.c
++++ b/net/wireless/nl80211.c
+@@ -618,8 +618,6 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
+ 	[NL80211_ATTR_WIPHY_TX_POWER_SETTING] = { .type = NLA_U32 },
+ 	[NL80211_ATTR_WIPHY_TX_POWER_LEVEL] = { .type = NLA_U32 },
+ 	[NL80211_ATTR_FRAME_TYPE] = { .type = NLA_U16 },
+-	[NL80211_ATTR_WIPHY_ANTENNA_TX] = { .type = NLA_U32 },
+-	[NL80211_ATTR_WIPHY_ANTENNA_RX] = { .type = NLA_U32 },
+ 	[NL80211_ATTR_MCAST_RATE] = { .type = NLA_U32 },
+ 	[NL80211_ATTR_OFFCHANNEL_TX_OK] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_KEY_DEFAULT_TYPES] = { .type = NLA_NESTED },
+@@ -2626,10 +2624,12 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
+ 		    nla_put_flag(msg, NL80211_ATTR_CONTROL_PORT_ETHERTYPE))
+ 			goto nla_put_failure;
+ 
+-		if (nla_put_u32(msg, NL80211_ATTR_WIPHY_ANTENNA_AVAIL_TX,
+-				rdev->wiphy.available_antennas_tx) ||
+-		    nla_put_u32(msg, NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX,
+-				rdev->wiphy.available_antennas_rx))
++		if (nla_put(msg, NL80211_ATTR_WIPHY_ANTENNA_AVAIL_TX,
++			    sizeof(rdev->wiphy.available_antennas_tx),
++			    rdev->wiphy.available_antennas_tx) ||
++		    nla_put(msg, NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX,
++			    sizeof(rdev->wiphy.available_antennas_rx),
++			    rdev->wiphy.available_antennas_rx))
+ 			goto nla_put_failure;
+ 
+ 		if ((rdev->wiphy.flags & WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD) &&
+@@ -2637,22 +2637,29 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
+ 				rdev->wiphy.probe_resp_offload))
+ 			goto nla_put_failure;
+ 
+-		if ((rdev->wiphy.available_antennas_tx ||
+-		     rdev->wiphy.available_antennas_rx) &&
+-		    rdev->ops->get_antenna) {
+-			u32 tx_ant = 0, rx_ant = 0;
++		if (rdev->ops->get_antenna) {
++			u32 tx_ants[NUM_NL80211_BANDS], rx_ants[NUM_NL80211_BANDS];
++			u32 tx_ant, rx_ant;
+ 			int res;
+ 
+-			res = rdev_get_antenna(rdev, &tx_ant, &rx_ant);
+-			if (!res) {
+-				if (nla_put_u32(msg,
+-						NL80211_ATTR_WIPHY_ANTENNA_TX,
+-						tx_ant) ||
+-				    nla_put_u32(msg,
+-						NL80211_ATTR_WIPHY_ANTENNA_RX,
+-						rx_ant))
+-					goto nla_put_failure;
++			memset(tx_ants, 0, sizeof(tx_ants));
++			memset(rx_ants, 0, sizeof(rx_ants));
++			for (i = 0; i < NUM_NL80211_BANDS; i++) {
++				if (!rdev->wiphy.available_antennas_tx[i] ||
++				    !rdev->wiphy.available_antennas_rx[i])
++					continue;
++
++				res = rdev_get_antenna(rdev, &tx_ant, &rx_ant, i);
++				if (!res) {
++					tx_ants[i] = tx_ant;
++					rx_ants[i] = rx_ant;
++				}
+ 			}
++			if (nla_put(msg, NL80211_ATTR_WIPHY_ANTENNA_TX,
++				    sizeof(tx_ants), tx_ants) ||
++			    nla_put(msg, NL80211_ATTR_WIPHY_ANTENNA_RX,
++				    sizeof(rx_ants), rx_ants))
++				goto nla_put_failure;
+ 		}
+ 
+ 		state->split_start++;
+@@ -3784,32 +3791,52 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
+ 
+ 	if (info->attrs[NL80211_ATTR_WIPHY_ANTENNA_TX] &&
+ 	    info->attrs[NL80211_ATTR_WIPHY_ANTENNA_RX]) {
+-		u32 tx_ant, rx_ant;
++		u32 *tx_ants, *rx_ants;
++		int bandid, tx_num, rx_num;
+ 
+-		if ((!rdev->wiphy.available_antennas_tx &&
+-		     !rdev->wiphy.available_antennas_rx) ||
+-		    !rdev->ops->set_antenna) {
++		if (!rdev->ops->set_antenna) {
+ 			result = -EOPNOTSUPP;
+ 			goto out;
+ 		}
+ 
+-		tx_ant = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_ANTENNA_TX]);
+-		rx_ant = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_ANTENNA_RX]);
+-
+-		/* reject antenna configurations which don't match the
+-		 * available antenna masks, except for the "all" mask */
+-		if ((~tx_ant && (tx_ant & ~rdev->wiphy.available_antennas_tx)) ||
+-		    (~rx_ant && (rx_ant & ~rdev->wiphy.available_antennas_rx))) {
++		tx_num = nla_len(info->attrs[NL80211_ATTR_WIPHY_ANTENNA_TX]) / sizeof(u32);
++		rx_num = nla_len(info->attrs[NL80211_ATTR_WIPHY_ANTENNA_RX]) / sizeof(u32);
++		if (tx_num != rx_num || tx_num != NUM_NL80211_BANDS) {
+ 			result = -EINVAL;
+ 			goto out;
+ 		}
++		tx_ants = nla_data(info->attrs[NL80211_ATTR_WIPHY_ANTENNA_TX]);
++		rx_ants = nla_data(info->attrs[NL80211_ATTR_WIPHY_ANTENNA_RX]);
+ 
+-		tx_ant = tx_ant & rdev->wiphy.available_antennas_tx;
+-		rx_ant = rx_ant & rdev->wiphy.available_antennas_rx;
++		/* reject antenna configurations which don't match the
++		 * available antenna masks in wiphy, except for the "all" mask
++		 */
++		for (bandid = 0; bandid < NUM_NL80211_BANDS; bandid++) {
++			struct ieee80211_supported_band *sband = rdev->wiphy.bands[bandid];
++			u32 tx_ant = tx_ants[bandid], rx_ant = rx_ants[bandid];
++			u32 avail_ants_tx = rdev->wiphy.available_antennas_tx[bandid];
++			u32 avail_ants_rx = rdev->wiphy.available_antennas_rx[bandid];
+ 
+-		result = rdev_set_antenna(rdev, tx_ant, rx_ant);
+-		if (result)
+-			goto out;
++			if (!sband || !tx_ant || !rx_ant)
++				continue;
++
++			if (!avail_ants_tx && !avail_ants_rx) {
++				result = -EOPNOTSUPP;
++				goto out;
++			}
++
++			if ((~tx_ant && (tx_ant & ~avail_ants_tx)) ||
++			    (~rx_ant && (rx_ant & ~avail_ants_rx))) {
++				result = -EINVAL;
++				goto out;
++			}
++
++			tx_ant = tx_ant & avail_ants_tx;
++			rx_ant = rx_ant & avail_ants_rx;
++			result = rdev_set_antenna(rdev, tx_ant, rx_ant, bandid);
++			if (result)
++				goto out;
++		}
+ 	}
+ 
+ 	changed = 0;
+diff --git a/net/wireless/rdev-ops.h b/net/wireless/rdev-ops.h
+index 9b411db..bcd51fc 100644
+--- a/net/wireless/rdev-ops.h
++++ b/net/wireless/rdev-ops.h
+@@ -857,26 +857,26 @@ rdev_update_mgmt_frame_registrations(struct cfg80211_registered_device *rdev,
+ }
+ 
+ static inline int rdev_set_antenna(struct cfg80211_registered_device *rdev,
+-				   u32 tx_ant, u32 rx_ant)
++				   u32 tx_ant, u32 rx_ant, int band)
+ {
+ 	int ret;
+-	trace_rdev_set_antenna(&rdev->wiphy, tx_ant, rx_ant);
+-	ret = rdev->ops->set_antenna(&rdev->wiphy, tx_ant, rx_ant);
++	trace_rdev_set_antenna(&rdev->wiphy, tx_ant, rx_ant, band);
++	ret = rdev->ops->set_antenna(&rdev->wiphy, tx_ant, rx_ant, band);
+ 	trace_rdev_return_int(&rdev->wiphy, ret);
+ 	return ret;
+ }
+ 
+ static inline int rdev_get_antenna(struct cfg80211_registered_device *rdev,
+-				   u32 *tx_ant, u32 *rx_ant)
++				   u32 *tx_ant, u32 *rx_ant, int band)
+ {
+ 	int ret;
+ 	trace_rdev_get_antenna(&rdev->wiphy);
+-	ret = rdev->ops->get_antenna(&rdev->wiphy, tx_ant, rx_ant);
++	ret = rdev->ops->get_antenna(&rdev->wiphy, tx_ant, rx_ant, band);
+ 	if (ret)
+ 		trace_rdev_return_int(&rdev->wiphy, ret);
+ 	else
+ 		trace_rdev_return_int_tx_rx(&rdev->wiphy, ret, *tx_ant,
+-					    *rx_ant);
++					    *rx_ant, band);
+ 	return ret;
+ }
+ 
+diff --git a/net/wireless/trace.h b/net/wireless/trace.h
+index 6af432e..90ba38a 100644
+--- a/net/wireless/trace.h
++++ b/net/wireless/trace.h
+@@ -1818,22 +1818,24 @@ TRACE_EVENT(rdev_update_mgmt_frame_registrations,
+ );
+ 
+ TRACE_EVENT(rdev_return_int_tx_rx,
+-	TP_PROTO(struct wiphy *wiphy, int ret, u32 tx, u32 rx),
+-	TP_ARGS(wiphy, ret, tx, rx),
++	TP_PROTO(struct wiphy *wiphy, int ret, u32 tx, u32 rx, int band),
++	TP_ARGS(wiphy, ret, tx, rx, band),
+ 	TP_STRUCT__entry(
+ 		WIPHY_ENTRY
+ 		__field(int, ret)
+ 		__field(u32, tx)
+ 		__field(u32, rx)
++		__field(int, band)
+ 	),
+ 	TP_fast_assign(
+ 		WIPHY_ASSIGN;
+ 		__entry->ret = ret;
+ 		__entry->tx = tx;
+ 		__entry->rx = rx;
++		__entry->band = band;
+ 	),
+-	TP_printk(WIPHY_PR_FMT ", returned %d, tx: %u, rx: %u",
+-		  WIPHY_PR_ARG, __entry->ret, __entry->tx, __entry->rx)
++	TP_printk(WIPHY_PR_FMT ", returned %d, tx: %u, rx: %u band %d",
++		  WIPHY_PR_ARG, __entry->ret, __entry->tx, __entry->rx, __entry->band)
+ );
+ 
+ TRACE_EVENT(rdev_return_void_tx_rx,
+@@ -1860,25 +1862,27 @@ TRACE_EVENT(rdev_return_void_tx_rx,
+ );
+ 
+ DECLARE_EVENT_CLASS(tx_rx_evt,
+-	TP_PROTO(struct wiphy *wiphy, u32 tx, u32 rx),
+-	TP_ARGS(wiphy, tx, rx),
++	TP_PROTO(struct wiphy *wiphy, u32 tx, u32 rx, int band),
++	TP_ARGS(wiphy, rx, tx, band),
+ 	TP_STRUCT__entry(
+ 		WIPHY_ENTRY
+ 		__field(u32, tx)
+ 		__field(u32, rx)
++		__field(int, band)
+ 	),
+ 	TP_fast_assign(
+ 		WIPHY_ASSIGN;
+ 		__entry->tx = tx;
+ 		__entry->rx = rx;
++		__entry->band = band;
+ 	),
+-	TP_printk(WIPHY_PR_FMT ", tx: %u, rx: %u ",
+-		  WIPHY_PR_ARG, __entry->tx, __entry->rx)
++	TP_printk(WIPHY_PR_FMT ", tx: %u, rx: %u band: %d ",
++		  WIPHY_PR_ARG, __entry->tx, __entry->rx, __entry->band)
+ );
+ 
+ DEFINE_EVENT(tx_rx_evt, rdev_set_antenna,
+-	TP_PROTO(struct wiphy *wiphy, u32 tx, u32 rx),
+-	TP_ARGS(wiphy, tx, rx)
++	TP_PROTO(struct wiphy *wiphy, u32 tx, u32 rx, int band),
++	TP_ARGS(wiphy, rx, tx, band)
+ );
+ 
+ DECLARE_EVENT_CLASS(wiphy_netdev_id_evt,
+-- 
+2.18.0
+

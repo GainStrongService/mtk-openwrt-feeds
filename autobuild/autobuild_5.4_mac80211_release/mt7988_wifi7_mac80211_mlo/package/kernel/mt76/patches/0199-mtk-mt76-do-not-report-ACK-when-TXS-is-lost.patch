@@ -1,0 +1,27 @@
+From 3526fd4180ee45d66f634aa3bef3d86e7ab5bc82 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 13 Aug 2024 18:55:00 +0800
+Subject: [PATCH 199/199] mtk: mt76: do not report ACK when TXS is lost
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ tx.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tx.c b/tx.c
+index c965f0e3..7712a32e 100644
+--- a/tx.c
++++ b/tx.c
+@@ -100,7 +100,8 @@ __mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb, u8 flags,
+ 		return;
+ 
+ 	/* Tx status can be unreliable. if it fails, mark the frame as ACKed */
+-	if (flags & MT_TX_CB_TXS_FAILED) {
++	if ((flags & MT_TX_CB_TXS_FAILED) &&
++	    (dev->drv->drv_flags & MT_DRV_SW_RX_AIRTIME)) {
+ 		info->status.rates[0].count = 0;
+ 		info->status.rates[0].idx = -1;
+ 		info->flags |= IEEE80211_TX_STAT_ACK;
+-- 
+2.18.0
+

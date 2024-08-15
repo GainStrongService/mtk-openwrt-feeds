@@ -1,0 +1,254 @@
+From 467122289f7c31285d68ae819f22a8bf7b2272ae Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 11 Jun 2024 17:04:22 +0800
+Subject: [PATCH 157/199] mtk: mt76: mt7996: add per-radio antenna config
+
+Add per-radio antenna config
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mac80211.c      | 19 ++++++++++++++++---
+ mt76.h          |  3 ++-
+ mt7996/eeprom.c |  3 +++
+ mt7996/init.c   | 26 ++++++++++++++------------
+ mt7996/main.c   | 15 ++++++---------
+ mt7996/mcu.c    |  3 ++-
+ mt7996/mt7996.h |  7 ++++---
+ 7 files changed, 47 insertions(+), 29 deletions(-)
+
+diff --git a/mac80211.c b/mac80211.c
+index 589c37af..10267019 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -431,8 +431,8 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_AIRTIME_FAIRNESS);
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_AQL);
+ 
+-	wiphy->available_antennas_tx = phy->antenna_mask;
+-	wiphy->available_antennas_rx = phy->antenna_mask;
++	wiphy->available_antennas_tx[phy->cur_band] = phy->antenna_mask;
++	wiphy->available_antennas_rx[phy->cur_band] = phy->antenna_mask;
+ 
+ 	wiphy->sar_capa = &mt76_sar_capa;
+ 	phy->frp = devm_kcalloc(dev->dev, wiphy->sar_capa->num_freq_ranges,
+@@ -1710,12 +1710,25 @@ void mt76_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+ }
+ EXPORT_SYMBOL_GPL(mt76_sw_scan_complete);
+ 
+-int mt76_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
++int mt76_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant, int band)
+ {
+ 	struct mt76_phy *phy = hw->priv;
+ 	struct mt76_dev *dev = phy->dev;
++	int band_idx;
+ 
+ 	mutex_lock(&dev->mutex);
++	phy = NULL;
++	for (band_idx = 0; band_idx < __MT_MAX_BAND; band_idx++)
++		if (dev->phys[band_idx] && dev->phys[band_idx]->cur_band == band) {
++			phy = dev->phys[band_idx];
++			break;
++		}
++
++	if (!phy) {
++		mutex_unlock(&dev->mutex);
++		return -EINVAL;
++	}
++
+ 	*tx_ant = phy->antenna_mask;
+ 	*rx_ant = phy->antenna_mask;
+ 	mutex_unlock(&dev->mutex);
+diff --git a/mt76.h b/mt76.h
+index f67f0658..728740ef 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -862,6 +862,7 @@ struct mt76_phy {
+ 	struct mt76_sband sband_2g;
+ 	struct mt76_sband sband_5g;
+ 	struct mt76_sband sband_6g;
++	enum nl80211_band cur_band;
+ 
+ 	u8 macaddr[ETH_ALEN];
+ 
+@@ -1540,7 +1541,7 @@ int mt76_get_sar_power(struct mt76_phy *phy,
+ void mt76_csa_check(struct mt76_dev *dev);
+ void mt76_csa_finish(struct mt76_dev *dev);
+ 
+-int mt76_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant);
++int mt76_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant, int band);
+ int mt76_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set);
+ void mt76_insert_ccmp_hdr(struct sk_buff *skb, u8 key_id);
+ int mt76_get_rate(struct mt76_dev *dev,
+diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
+index c4714982..e8e1d85a 100644
+--- a/mt7996/eeprom.c
++++ b/mt7996/eeprom.c
+@@ -378,12 +378,15 @@ static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
+ 	switch (val) {
+ 	case MT_EE_BAND_SEL_2GHZ:
+ 		phy->mt76->cap.has_2ghz = true;
++		phy->mt76->cur_band = NL80211_BAND_2GHZ;
+ 		break;
+ 	case MT_EE_BAND_SEL_5GHZ:
+ 		phy->mt76->cap.has_5ghz = true;
++		phy->mt76->cur_band = NL80211_BAND_5GHZ;
+ 		break;
+ 	case MT_EE_BAND_SEL_6GHZ:
+ 		phy->mt76->cap.has_6ghz = true;
++		phy->mt76->cur_band = NL80211_BAND_6GHZ;
+ 		break;
+ 	default:
+ 		ret = -EINVAL;
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 0ee2acfb..55eb32cb 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -392,8 +392,10 @@ static void
+ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ {
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct mt76_phy *mphy = phy->mt76;
+ 	struct mt76_dev *mdev = &phy->dev->mt76;
+ 	struct wiphy *wiphy = hw->wiphy;
++	struct wiphy *single_wiphy = mdev->phy.hw->wiphy;
+ 	u16 max_subframes = phy->dev->has_eht ? IEEE80211_MAX_AMPDU_BUF_EHT :
+ 						IEEE80211_MAX_AMPDU_BUF_HE;
+ 
+@@ -455,25 +457,25 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 
+ 	hw->max_tx_fragments = 4;
+ 
+-	if (phy->mt76->cap.has_2ghz) {
+-		phy->mt76->sband_2g.sband.ht_cap.cap |=
++	if (mphy->cap.has_2ghz) {
++		mphy->sband_2g.sband.ht_cap.cap |=
+ 			IEEE80211_HT_CAP_LDPC_CODING |
+ 			IEEE80211_HT_CAP_MAX_AMSDU;
+-		phy->mt76->sband_2g.sband.ht_cap.ampdu_density =
++		mphy->sband_2g.sband.ht_cap.ampdu_density =
+ 			IEEE80211_HT_MPDU_DENSITY_2;
+ 	}
+ 
+-	if (phy->mt76->cap.has_5ghz) {
+-		phy->mt76->sband_5g.sband.ht_cap.cap |=
++	if (mphy->cap.has_5ghz) {
++		mphy->sband_5g.sband.ht_cap.cap |=
+ 			IEEE80211_HT_CAP_LDPC_CODING |
+ 			IEEE80211_HT_CAP_MAX_AMSDU;
+ 
+-		phy->mt76->sband_5g.sband.vht_cap.cap |=
++		mphy->sband_5g.sband.vht_cap.cap |=
+ 			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
+ 			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK |
+ 			IEEE80211_VHT_CAP_SHORT_GI_160 |
+ 			IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
+-		phy->mt76->sband_5g.sband.ht_cap.ampdu_density =
++		mphy->sband_5g.sband.ht_cap.ampdu_density =
+ 			IEEE80211_HT_MPDU_DENSITY_1;
+ 
+ 		ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
+@@ -481,17 +483,17 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 
+ 	/* init led callbacks */
+ 	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
+-		phy->mt76->leds.cdev.brightness_set = mt7996_led_set_brightness;
+-		phy->mt76->leds.cdev.blink_set = mt7996_led_set_blink;
++		mphy->leds.cdev.brightness_set = mt7996_led_set_brightness;
++		mphy->leds.cdev.blink_set = mt7996_led_set_blink;
+ 	}
+ 
+-	mt76_set_stream_caps(phy->mt76, true);
++	mt76_set_stream_caps(mphy, true);
+ 	mt7996_set_stream_vht_txbf_caps(phy);
+ 	mt7996_set_stream_he_eht_caps(phy);
+ 	mt7996_init_txpower(phy);
+ 
+-	wiphy->available_antennas_rx = phy->mt76->antenna_mask;
+-	wiphy->available_antennas_tx = phy->mt76->antenna_mask;
++	single_wiphy->available_antennas_rx[mphy->cur_band] = mphy->antenna_mask;
++	single_wiphy->available_antennas_tx[mphy->cur_band] = mphy->antenna_mask;
+ 
+ 	wiphy->max_scan_ssids = 4;
+ 	wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 71a42199..b59f72d0 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1701,14 +1701,11 @@ mt7996_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
+ }
+ 
+ static int
+-mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
++mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant, int band)
+ {
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+-	int band, max_nss = hweight8(hw->wiphy->available_antennas_tx);
+-
+-	/* TODO: set antenna based on capability of each band. */
+-	dev_warn(dev->mt76.dev, "%s: temporarily not supported.\n", __func__);
+-	return 0;
++	int max_nss = hweight8(hw->wiphy->available_antennas_tx[band]);
++	enum nl80211_band bandid;
+ 
+ 	/* only allow settings from hw0 */
+ 	if (hw != dev->phy.mt76->hw)
+@@ -1722,14 +1719,14 @@ mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
+-	for (band = 0; band < NUM_NL80211_BANDS; band++) {
++	for (bandid = 0; bandid < NUM_NL80211_BANDS; bandid++) {
+ 		struct mt7996_phy *phy;
+ 		u8 band_idx, shift;
+ 
+-		if (!hw->wiphy->bands[band])
++		if (band != bandid || !hw->wiphy->bands[bandid])
+ 			continue;
+ 
+-		phy = mt7996_band_phy(hw, band);
++		phy = mt7996_band_phy(hw, bandid);
+ 		if (!phy)
+ 			continue;
+ 
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index be6b985f..6af45467 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -2430,6 +2430,7 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ #define EBF_MODE	BIT(0)
+ #define IBF_MODE	BIT(1)
+ 	struct mt7996_phy *phy = mconf->phy;
++	struct wiphy *wiphy = phy->mt76->hw->wiphy;
+ 	int tx_ant = hweight16(phy->mt76->chainmask) - 1;
+ 	struct sta_rec_bf *bf;
+ 	struct tlv *tlv;
+@@ -2468,7 +2469,7 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 
+ 	bf->bf_cap = ebf ? EBF_MODE : (dev->ibf ? IBF_MODE : 0);
+ 	if (is_mt7992(&dev->mt76) &&
+-	    tx_ant == hweight8(phy->mt76->hw->wiphy->available_antennas_tx))
++	    tx_ant == hweight8(wiphy->available_antennas_tx[phy->mt76->cur_band]))
+ 		bf->bf_cap |= IBF_MODE;
+ 	bf->bw = link_sta->bandwidth;
+ 	bf->ibf_dbw = link_sta->bandwidth;
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 49789441..05bdc437 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1173,9 +1173,10 @@ void mt7996_memcpy_fromio(struct mt7996_dev *dev, void *buf, u32 offset,
+ 
+ static inline u16 mt7996_rx_chainmask(struct mt7996_phy *phy)
+ {
+-	int max_nss = hweight8(phy->mt76->hw->wiphy->available_antennas_tx);
+-	int cur_nss = hweight8(phy->mt76->antenna_mask);
+-	u16 tx_chainmask = phy->mt76->chainmask;
++	struct mt76_phy *mphy = phy->mt76;
++	int cur_nss = hweight8(mphy->antenna_mask);
++	int max_nss = hweight8(mphy->hw->wiphy->available_antennas_rx[mphy->cur_band]);
++	u16 tx_chainmask = mphy->chainmask;
+ 
+ 	if (cur_nss != max_nss)
+ 		return tx_chainmask;
+-- 
+2.18.0
+

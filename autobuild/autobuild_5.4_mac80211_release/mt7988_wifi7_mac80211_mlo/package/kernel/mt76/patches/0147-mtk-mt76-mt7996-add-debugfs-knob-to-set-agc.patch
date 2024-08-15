@@ -1,0 +1,212 @@
+From 8facea1f5154f7a3d246456e0e9e1d16872779a8 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 31 May 2024 10:55:03 +0800
+Subject: [PATCH 147/199] mtk: mt76: mt7996: add debugfs knob to set agc
+
+Add the following debugfs knob
+- /sys/kernel/debug/ieee80211/phy0/mt76/mlo_agc_tx
+- /sys/kernel/debug/ieee80211/phy0/mt76/mlo_agc_trig
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt76_connac_mcu.h      |   1 +
+ mt7996/mcu.h           |  20 ++++++++
+ mt7996/mt7996.h        |   1 +
+ mt7996/mtk_debugfs_i.c | 103 +++++++++++++++++++++++++++++++++++++++++
+ mt7996/mtk_mcu.c       |   6 +++
+ 5 files changed, 131 insertions(+)
+
+diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
+index d72337d4..f7b1f0d0 100644
+--- a/mt76_connac_mcu.h
++++ b/mt76_connac_mcu.h
+@@ -1312,6 +1312,7 @@ enum {
+ 	MCU_UNI_CMD_THERMAL_CAL = 0x4c,
+ 	MCU_UNI_CMD_RRO = 0x57,
+ 	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
++	MCU_UNI_CMD_MLO = 0x59,
+ 	MCU_UNI_CMD_PER_STA_INFO = 0x6d,
+ 	MCU_UNI_CMD_ALL_STA_INFO = 0x6e,
+ 	MCU_UNI_CMD_ASSERT_DUMP = 0x6f,
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index c39dcc3c..389aab63 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -1157,6 +1157,26 @@ enum {
+ 	UNI_CMD_SCS_ENABLE,
+ };
+ 
++enum {
++	UNI_CMD_MLO_AGC_TX = 4,
++	UNI_CMD_MLO_AGC_TRIG = 5,
++};
++
++struct mt7996_mlo_agc_set {
++	u8 rsv[4];
++
++	__le16 tag;
++	__le16 len;
++
++	u8 mld_id;
++	u8 link_id;
++	u8 ac;
++	u8 disp_pol;
++	u8 ratio;
++	u8 order;
++	__le16 mgf;
++} __packed;
++
+ #define MT7996_PATCH_SEC		GENMASK(31, 24)
+ #define MT7996_PATCH_SCRAMBLE_KEY	GENMASK(15, 8)
+ #define MT7996_PATCH_AES_KEY		GENMASK(7, 0)
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 96d8aae9..cb6a5753 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1324,6 +1324,7 @@ void mt7996_dump_bmac_txd_info(struct seq_file *s, struct mt7996_dev *dev,
+ 			       __le32 *txd, bool is_hif_txd, bool dump_txp);
+ int mt7996_mtk_init_dev_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir);
+ int mt7996_mtk_init_band_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir);
++int mt7996_mcu_mlo_agc(struct mt7996_dev *dev, const void *data, int len);
+ #endif
+ 
+ #ifdef CONFIG_NET_MEDIATEK_SOC_WED
+diff --git a/mt7996/mtk_debugfs_i.c b/mt7996/mtk_debugfs_i.c
+index 839c3e31..852d1b12 100644
+--- a/mt7996/mtk_debugfs_i.c
++++ b/mt7996/mtk_debugfs_i.c
+@@ -774,6 +774,106 @@ mt7996_agg_table_show(struct seq_file *s, void *data)
+ }
+ DEFINE_SHOW_ATTRIBUTE(mt7996_agg_table);
+ 
++static ssize_t mt7996_mlo_agc_tx_set(struct file *file,
++				     const char __user *user_buf,
++				     size_t count, loff_t *ppos)
++{
++	struct mt7996_dev *dev = file->private_data;
++	struct mt7996_mlo_agc_set req;
++	char buf[100];
++	int ret;
++	u16 mgf;
++
++	memset(&req, 0, sizeof(req));
++
++	if (count >= sizeof(buf))
++		return -EINVAL;
++
++	if (copy_from_user(buf, user_buf, count))
++		return -EFAULT;
++
++	if (count && buf[count - 1] == '\n')
++		buf[count - 1] = '\0';
++	else
++		buf[count] = '\0';
++
++	if (sscanf(buf, "%hhu %hhu %hhu %hhu %hu %hhu %hhu",
++		   &req.mld_id, &req.link_id, &req.ac, &req.disp_pol,
++		   &mgf, &req.ratio, &req.order) != 7) {
++		dev_warn(dev->mt76.dev,
++			 "format: [MldRecIdx] [Link] [Ac] [DispPol] [MGF] [Ratio] [Order]\n");
++		goto out;
++	}
++
++	req.tag = cpu_to_le16(UNI_CMD_MLO_AGC_TX);
++	req.len = cpu_to_le16(sizeof(req) - 4);
++	req.mgf = cpu_to_le16(mgf);
++
++	ret = mt7996_mcu_mlo_agc(dev, &req, sizeof(req));
++	if (ret)
++		return -EFAULT;
++
++out:
++	return count;
++}
++
++static const struct file_operations fops_mlo_agc_tx = {
++	.write = mt7996_mlo_agc_tx_set,
++	.open = simple_open,
++	.owner = THIS_MODULE,
++	.llseek = default_llseek,
++};
++
++static ssize_t mt7996_mlo_agc_trig_set(struct file *file,
++				       const char __user *user_buf,
++				       size_t count, loff_t *ppos)
++{
++	struct mt7996_dev *dev = file->private_data;
++	struct mt7996_mlo_agc_set req;
++	char buf[100];
++	int ret;
++	u16 mgf;
++
++	memset(&req, 0, sizeof(req));
++
++	if (count >= sizeof(buf))
++		return -EINVAL;
++
++	if (copy_from_user(buf, user_buf, count))
++		return -EFAULT;
++
++	if (count && buf[count - 1] == '\n')
++		buf[count - 1] = '\0';
++	else
++		buf[count] = '\0';
++
++	if (sscanf(buf, "%hhu %hhu %hhu %hhu %hu %hhu",
++		   &req.mld_id, &req.link_id, &req.ac, &req.disp_pol,
++		   &mgf, &req.ratio) != 6) {
++		dev_warn(dev->mt76.dev,
++			 "format: [MldRecIdx] [Link] [Ac] [DispPol] [MGF] [Ratio]\n");
++		goto out;
++	}
++
++	req.tag = cpu_to_le16(UNI_CMD_MLO_AGC_TRIG);
++	req.len = cpu_to_le16(sizeof(req) - 4);
++	req.mgf = cpu_to_le16(mgf);
++
++	ret = mt7996_mcu_mlo_agc(dev, &req, sizeof(req));
++	if (ret)
++		return -EFAULT;
++
++out:
++	return count;
++}
++
++static const struct file_operations fops_mlo_agc_trig = {
++	.write = mt7996_mlo_agc_trig_set,
++	.open = simple_open,
++	.owner = THIS_MODULE,
++	.llseek = default_llseek,
++};
++
+ int mt7996_mtk_init_dev_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir)
+ {
+ 	struct mt7996_dev *dev = phy->dev;
+@@ -796,6 +896,9 @@ int mt7996_mtk_init_dev_debugfs_internal(struct mt7996_phy *phy, struct dentry *
+ 
+ 	/* MLO related Table */
+ 	debugfs_create_file("mat_table", 0400, dir, dev, &mt7996_mat_table_fops);
++	debugfs_create_file("mlo_agc_tx", 0200, dir, dev, &fops_mlo_agc_tx);
++	debugfs_create_file("mlo_agc_trig", 0200, dir, dev, &fops_mlo_agc_trig);
++
+ 	return 0;
+ }
+ 
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 809181e0..82e3f721 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -1364,4 +1364,10 @@ int mt7996_mcu_thermal_debug(struct mt7996_dev *dev, u8 mode, u8 action)
+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(THERMAL_CAL), &req,
+ 	                         sizeof(req), true);
+ }
++
++int mt7996_mcu_mlo_agc(struct mt7996_dev *dev, const void *data, int len)
++{
++	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(MLO), data,
++	                        len, true);
++}
+ #endif
+-- 
+2.18.0
+

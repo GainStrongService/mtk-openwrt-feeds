@@ -1,0 +1,68 @@
+From 4e90d97cde027ac38e6f88649d4e028c96999e2e Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Wed, 3 Jul 2024 10:34:39 +0800
+Subject: [PATCH 173/199] mtk: mt76: mt7996: add kite if_comb
+
+Add Kite (dual band) if_comb
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/init.c | 33 ++++++++++++++++++++++++++++++---
+ 1 file changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 5f38374f..f923ce66 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -46,6 +46,22 @@ static const struct ieee80211_iface_combination if_comb[] = {
+ 	}
+ };
+ 
++static const struct ieee80211_iface_combination if_comb_7992[] = {
++	{
++		.limits = if_limits,
++		.n_limits = ARRAY_SIZE(if_limits),
++		.max_interfaces = MT7996_MAX_INTERFACES * 2,
++		.num_different_channels = 2,
++		.beacon_int_infra_match = true,
++		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
++				       BIT(NL80211_CHAN_WIDTH_20) |
++				       BIT(NL80211_CHAN_WIDTH_40) |
++				       BIT(NL80211_CHAN_WIDTH_80) |
++				       BIT(NL80211_CHAN_WIDTH_160),
++		.beacon_int_min_gcd = 100,
++	}
++};
++
+ static const u8 mt7996_if_types_ext_capa[] = {
+ 	[0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
+ 	[2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT,
+@@ -417,11 +433,22 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 	hw->vif_data_size = sizeof(struct mt7996_vif);
+ 	hw->chanctx_data_size = sizeof(struct mt7996_chanctx);
+ 
+-	wiphy->iface_combinations = if_comb;
+-	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
++	switch (mt76_chip(mdev)) {
++	case 0x7990:
++		wiphy->iface_combinations = if_comb;
++		wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
++		wiphy->mbssid_max_interfaces = 16 * 3;
++		break;
++	case 0x7992:
++	default:
++		wiphy->iface_combinations = if_comb_7992;
++		wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_7992);
++		wiphy->mbssid_max_interfaces = 16 * 2;
++		break;
++	}
++
+ 	wiphy->reg_notifier = mt7996_regd_notifier;
+ 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+-	wiphy->mbssid_max_interfaces = 16 * 3;
+ 
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BSS_COLOR);
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
+-- 
+2.18.0
+

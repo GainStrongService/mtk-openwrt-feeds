@@ -1,0 +1,29 @@
+From ce5a75d5fb6414c0ccc0c461f0ff2bb09501275e Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 19 Jul 2024 11:50:21 +0800
+Subject: [PATCH 008/199] mtk: mt76: mt7996: set station's wmm index to 3
+
+According to HW design, the AP's WMM index is 0 and the station's wmm
+index is 3.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 15d880ef..2b094b33 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -206,7 +206,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 	mvif->mt76.omac_idx = idx;
+ 	mvif->phy = phy;
+ 	mvif->mt76.band_idx = band_idx;
+-	mvif->mt76.wmm_idx = vif->type != NL80211_IFTYPE_AP;
++	mvif->mt76.wmm_idx = vif->type == NL80211_IFTYPE_AP ? 0 : 3;
+ 
+ 	ret = mt7996_mcu_add_dev_info(phy, vif, true);
+ 	if (ret)
+-- 
+2.18.0
+

@@ -1,9 +1,10 @@
 From 9e1ab5bbae5b4f2282ede448efb780d92f7187bb Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 17 Jul 2024 20:48:15 +0800
-Subject: [PATCH 07/97] backports: sync openwrt patches/subsys
+Subject: [PATCH 07/89] backports: sync openwrt patches/subsys
 
 ---
+ backport-include/linux/of_net.h    | 26 -----------
  include/net/cfg80211.h             | 13 ++++++
  include/net/mac80211.h             |  2 +-
  net/mac80211/cfg.c                 |  8 +---
@@ -25,6 +26,38 @@ Subject: [PATCH 07/97] backports: sync openwrt patches/subsys
  19 files changed, 192 insertions(+), 172 deletions(-)
  delete mode 100644 backport-include/linux/of_net.h
 
+diff --git a/backport-include/linux/of_net.h b/backport-include/linux/of_net.h
+deleted file mode 100644
+index 9b9276f..0000000
+--- a/backport-include/linux/of_net.h
++++ /dev/null
+@@ -1,26 +0,0 @@
+-#ifndef _BP_OF_NET_H
+-#define _BP_OF_NET_H
+-#include_next <linux/of_net.h>
+-#include <linux/version.h>
+-#include <linux/etherdevice.h>
+-
+-/* The behavior of of_get_mac_address() changed in kernel 5.2, it now
+- * returns an error code and not NULL in case of an error.
+- */
+-#if LINUX_VERSION_IS_LESS(5,13,0)
+-static inline int backport_of_get_mac_address(struct device_node *np, u8 *mac_out)
+-{
+-	const void *mac = of_get_mac_address(np);
+-
+-	if (!mac)
+-		return -ENODEV;
+-	if (IS_ERR(mac))
+-		return PTR_ERR(mac);
+-	ether_addr_copy(mac_out, mac);
+-	
+-	return 0;
+-}
+-#define of_get_mac_address LINUX_BACKPORT(of_get_mac_address)
+-#endif /* < 5.2 */
+-
+-#endif /* _BP_OF_NET_H */
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
 index ca7135d..850861b 100644
 --- a/include/net/cfg80211.h

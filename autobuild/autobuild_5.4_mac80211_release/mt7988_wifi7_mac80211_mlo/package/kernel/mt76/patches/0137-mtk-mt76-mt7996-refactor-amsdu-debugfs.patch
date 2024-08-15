@@ -1,0 +1,114 @@
+From 48926fde96602e41c02879d7a020f4b24d332f75 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 17 May 2024 17:34:03 +0800
+Subject: [PATCH 137/199] mtk: mt76: mt7996: refactor amsdu debugfs
+
+1. Remove hw_amsdu_info which is duplicated with amsdu_info.
+
+2. The amsdu_info cannot read CR directly because the CR is read-clear.
+   If amsdu_info read CR directly, the CR would be cleared and the
+   mt7996_mac_work cannot get correct value.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/mtk_debugfs.c | 63 ++++++++++++++++----------------------------
+ 1 file changed, 22 insertions(+), 41 deletions(-)
+
+diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
+index 59c6db73..a7cbde3e 100644
+--- a/mt7996/mtk_debugfs.c
++++ b/mt7996/mtk_debugfs.c
+@@ -210,28 +210,35 @@ DEFINE_SHOW_ATTRIBUTE(mt7996_agginfo);
+ /* AMSDU INFO */
+ static int mt7996_amsdu_result_read(struct seq_file *s, void *data)
+ {
+-#define HW_MSDU_CNT_ADDR 0xf400
+-#define HW_MSDU_NUM_MAX 33
+ 	struct mt7996_dev *dev = dev_get_drvdata(s->private);
+-	u32 ple_stat[HW_MSDU_NUM_MAX] = {0}, total_amsdu = 0;
+-	u8 i;
++	struct mt7996_phy *phy = &dev->phy;
++	struct mt76_mib_stats *mib = &phy->mib;
++	static u32 tx_amsdu_last[MT76_MAX_AMSDU_NUM] = {0};
++	static u32 tx_amsdu_cnt_last = 0;
++	u32 tx_amsdu, tx_amsdu_cnt, ratio;
++	int i;
+ 
+-	for (i = 0; i < HW_MSDU_NUM_MAX; i++)
+-		ple_stat[i] = mt76_rr(dev, HW_MSDU_CNT_ADDR + i * 0x04);
++	mutex_lock(&dev->mt76.mutex);
+ 
+-	seq_printf(s, "TXD counter status of MSDU:\n");
++	mt7996_mac_update_stats(phy);
+ 
+-	for (i = 0; i < HW_MSDU_NUM_MAX; i++)
+-		total_amsdu += ple_stat[i];
++	tx_amsdu_cnt = mib->tx_amsdu_cnt - tx_amsdu_cnt_last;
+ 
+-	for (i = 0; i < HW_MSDU_NUM_MAX; i++) {
+-		seq_printf(s, "AMSDU pack count of %d MSDU in TXD: 0x%x ", i, ple_stat[i]);
+-		if (total_amsdu != 0)
+-			seq_printf(s, "(%d%%)\n", ple_stat[i] * 100 / total_amsdu);
+-		else
+-			seq_printf(s, "\n");
++	seq_puts(s, "Tx MSDU statistics:\n");
++	for (i = 0; i < ARRAY_SIZE(mib->tx_amsdu); i++) {
++		tx_amsdu = mib->tx_amsdu[i] - tx_amsdu_last[i];
++		ratio = tx_amsdu_cnt ? tx_amsdu * 100 / tx_amsdu_cnt : 0;
++
++		seq_printf(s, "AMSDU pack count of %d MSDU in TXD: %8d (%3d%%)\n",
++			   i + 1, tx_amsdu, ratio);
++
++		tx_amsdu_last[i] = mib->tx_amsdu[i];
+ 	}
+ 
++	tx_amsdu_cnt_last = mib->tx_amsdu_cnt;
++
++	mutex_unlock(&dev->mt76.mutex);
++
+ 	return 0;
+ }
+ 
+@@ -3342,30 +3349,6 @@ static const struct file_operations fops_amsdu_para = {
+ 	.llseek = default_llseek,
+ };
+ 
+-static int mt7996_hw_amsdu_info_read(struct seq_file *s, void *data)
+-{
+-	struct mt7996_dev *dev = dev_get_drvdata(s->private);
+-	u32 amsdu_cnt[WF_PLE_TOP_AMSDU_PACK_NUM] = {0}, total_cnt;
+-	u8 i;
+-
+-	seq_printf(s, "HW A-MSDU Information:\n");
+-
+-	for (total_cnt = 0, i = 0; i < WF_PLE_TOP_AMSDU_PACK_NUM; ++i) {
+-		amsdu_cnt[i] = mt76_rr(dev, WF_PLE_TOP_AMSDU_PACK_1_MSDU_CNT_ADDR + i * 4);
+-		total_cnt += amsdu_cnt[i];
+-	}
+-
+-	for (i = 0; i < WF_PLE_TOP_AMSDU_PACK_NUM; ++i) {
+-		seq_printf(s, "# of HW A-MSDU containing %hhu MSDU: 0x%x",
+-		           i + 1, amsdu_cnt[i]);
+-		seq_printf(s, "\t(%u.%u%%)\n",
+-		           total_cnt ? amsdu_cnt[i] * 1000 / total_cnt / 10 : 0,
+-		           total_cnt ? amsdu_cnt[i] * 1000 / total_cnt % 10 : 0);
+-	}
+-
+-	return 0;
+-}
+-
+ /* PSE INFO */
+ static struct bmac_queue_info_t pse_queue_empty_info[] = {
+ 	{"CPU Q0",  ENUM_UMAC_CPU_PORT_1,     ENUM_UMAC_CTX_Q_0},
+@@ -4305,8 +4288,6 @@ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
+ 	/* amsdu */
+ 	debugfs_create_file("amsdu_algo", 0600, dir, dev, &fops_amsdu_algo);
+ 	debugfs_create_file("amsdu_para", 0600, dir, dev, &fops_amsdu_para);
+-	debugfs_create_devm_seqfile(dev->mt76.dev, "hw_amsdu_info", dir,
+-	                            mt7996_hw_amsdu_info_read);
+ }
+ 
+ #endif
+-- 
+2.18.0
+

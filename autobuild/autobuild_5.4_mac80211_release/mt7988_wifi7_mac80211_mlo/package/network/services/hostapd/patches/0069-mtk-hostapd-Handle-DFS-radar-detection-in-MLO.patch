@@ -1,0 +1,145 @@
+From 8df808e1c82be7ce9b00937bb14a2536824f16d2 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Fri, 19 Jan 2024 14:11:05 +0800
+Subject: [PATCH 069/126] mtk: hostapd: Handle DFS radar detection in MLO
+
+To handle DFS CAC in MLO, we add the following changes:
+1. Add link id info to radar detect cmd for the kernel to use the correct link.
+2. Block RNR IE for disabled iface. (the EID len would be wrong without it)
+3. Only flush the old stations for the first BSS; otherwise, after DFS CAC
+stations would be flushed again.
+
+Add background radar handling
+
+The logic has changed here, so rebase it.
+Avoid flushing old stations for non-first BSS so that the stations
+can remain connected when non-first BSS is added via link add or it
+completes CAC.
+Also, handle the case when the first BSS requires CAC.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ src/ap/ap_drv_ops.c                |  9 +++++++++
+ src/ap/hostapd.c                   | 11 ++++++++++-
+ src/ap/ieee802_11.c                |  3 +++
+ src/drivers/driver_nl80211.c       | 18 ++++++++++++++++++
+ src/drivers/driver_nl80211.h       |  1 +
+ src/drivers/driver_nl80211_event.c |  3 ++-
+ 6 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
+index 48c2801da..f51d5be8e 100644
+--- a/src/ap/ap_drv_ops.c
++++ b/src/ap/ap_drv_ops.c
+@@ -1041,6 +1041,15 @@ int hostapd_start_dfs_cac(struct hostapd_iface *iface,
+ 		return -1;
+ 	}
+ 	data.radar_background = radar_background;
++	data.link_id = -1;
++
++#ifdef CONFIG_IEEE80211BE
++	if (hapd->conf->mld_ap) {
++		data.link_id = hapd->mld_link_id;
++		wpa_printf(MSG_DEBUG,
++			   "hostapd_start_dfs_cac: link_id=%d", data.link_id);
++	}
++#endif /* CONFIG_IEEE80211BE */
+ 
+ 	res = hapd->driver->start_dfs_cac(hapd->drv_priv, &data);
+ 	if (!res) {
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index eefd4c5d3..93c164177 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -1420,9 +1420,18 @@ int hostapd_setup_bss(struct hostapd_data *hapd, int first, bool start_beacon)
+ 	u8 if_addr[ETH_ALEN];
+ 	int flush_old_stations = 1;
+ 
+-	if (!hostapd_mld_is_first_bss(hapd))
++	if (!hostapd_mld_is_first_bss(hapd)) {
++		/* Only flush old stations when setting up the first BSS for the MLD. */
++		flush_old_stations = 0;
+ 		wpa_printf(MSG_DEBUG,
+ 			   "MLD: %s: Setting non-first BSS", __func__);
++	} else if (hapd->conf->mld_ap &&
++		   hapd->iface->state == HAPD_IFACE_DFS) {
++		/* Also, avoid flushing old STA when the first BSS of the MLD requires CAC. */
++		flush_old_stations = 0;
++		wpa_printf(MSG_DEBUG,
++			   "MLD: %s: Setting first BSS after CAC complete", __func__);
++	}
+ 
+ 	wpa_printf(MSG_DEBUG, "%s(hapd=%p (%s), first=%d)",
+ 		   __func__, hapd, conf->iface, first);
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index b87fae929..c6676b754 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -7910,6 +7910,9 @@ u8 * hostapd_eid_rnr_colocation(struct hostapd_data *hapd, u8 *eid,
+ 		    !is_6ghz_op_class(iface->conf->op_class))
+ 			continue;
+ 
++		if (!iface->bss[0]->started)
++			continue;
++
+ 		eid = hostapd_eid_rnr_iface(iface->bss[0], hapd, eid,
+ 					    current_len, NULL, false);
+ 	}
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index f6080f160..dec358fba 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -10587,6 +10587,24 @@ static int nl80211_start_radar_detection(void *priv,
+ 		return -1;
+ 	}
+ 
++	if (freq->link_id != NL80211_DRV_LINK_ID_NA) {
++		wpa_printf(MSG_DEBUG, "nl80211: Set link_id=%u for radar detect",
++			   freq->link_id);
++
++		if (nla_put_u8(msg, NL80211_ATTR_MLO_LINK_ID, freq->link_id)) {
++			nlmsg_free(msg);
++			return -ENOBUFS;
++		}
++
++		if (freq->radar_background) {
++			struct i802_link *link = nl80211_get_link(bss, freq->link_id);
++
++			link->background_freq = freq->freq;
++		} else {
++			nl80211_link_set_freq(bss, freq->link_id, freq->freq);
++		}
++	}
++
+ 	ret = send_and_recv_cmd(drv, msg);
+ 	if (ret == 0)
+ 		return 0;
+diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
+index 9866c221c..a0a62e536 100644
+--- a/src/drivers/driver_nl80211.h
++++ b/src/drivers/driver_nl80211.h
+@@ -56,6 +56,7 @@ struct i802_link {
+ 	unsigned int beacon_set:1;
+ 
+ 	int freq;
++	int background_freq;
+ 	int bandwidth;
+ 	u8 addr[ETH_ALEN];
+ 	void *ctx;
+diff --git a/src/drivers/driver_nl80211_event.c b/src/drivers/driver_nl80211_event.c
+index 73582aeb0..7f5a3d892 100644
+--- a/src/drivers/driver_nl80211_event.c
++++ b/src/drivers/driver_nl80211_event.c
+@@ -1638,7 +1638,8 @@ nl80211_get_link_id_by_freq(struct i802_bss *bss, unsigned int freq)
+ 	unsigned int i;
+ 
+ 	for_each_link(bss->valid_links, i) {
+-		if ((unsigned int) bss->links[i].freq == freq)
++		if ((unsigned int) bss->links[i].freq == freq ||
++		    (unsigned int) bss->links[i].background_freq == freq)
+ 			return i;
+ 	}
+ 
+-- 
+2.18.0
+

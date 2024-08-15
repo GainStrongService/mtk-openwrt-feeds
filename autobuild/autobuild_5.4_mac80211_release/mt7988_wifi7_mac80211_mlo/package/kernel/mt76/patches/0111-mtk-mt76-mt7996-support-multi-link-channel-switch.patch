@@ -1,0 +1,143 @@
+From 56f1336c11dd0627e8e79951c16713cc35463733 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Fri, 19 Jan 2024 14:04:03 +0800
+Subject: [PATCH 111/199] mtk: mt76: mt7996: support multi-link channel switch
+
+mtk: wifi: mt76: mt7996: remove the limitation of radar detect width for mlo
+
+mtk: wifi: mt76: mt7996: start and finalize channel switch on link basis
+
+mtk: wifi: mt76: mt7996: fix DFS RDD init issue
+
+1. Add radar enabled flag in mt76_phy since hw->conf.radar_enabled
+is only used for non-chanctx driver.
+2. Add IEEE80211_CHANCTX_CHANGE_RADAR flag in change_chanctx for RDD
+DFS state update.
+
+mtk: wifi: mt76: mt7996: fix background radar using wrong phy for mld ap
+
+mt7996_hw_phy will be phy0 for 3 link mld ap
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mac80211.c    |  2 +-
+ mt76.h        |  1 +
+ mt7996/main.c | 12 +++++++++---
+ mt7996/mcu.c  | 14 +++++++++++---
+ 4 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/mac80211.c b/mac80211.c
+index bc463437..5e4935f2 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -1787,7 +1787,7 @@ enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
+ 	    test_bit(MT76_SCANNING, &phy->state))
+ 		return MT_DFS_STATE_DISABLED;
+ 
+-	if (!hw->conf.radar_enabled) {
++	if (!phy->radar_enabled) {
+ 		if ((hw->conf.flags & IEEE80211_CONF_MONITOR) &&
+ 		    (phy->chandef.chan->flags & IEEE80211_CHAN_RADAR))
+ 			return MT_DFS_STATE_ACTIVE;
+diff --git a/mt76.h b/mt76.h
+index b1f22e6a..c6dda4a8 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -847,6 +847,7 @@ struct mt76_phy {
+ 
+ 	struct mt76_channel_state *chan_state;
+ 	enum mt76_dfs_state dfs_state;
++	bool radar_enabled;
+ 	ktime_t survey_time;
+ 
+ 	u32 aggr_stats[32];
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 17f4901f..7012aa96 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -2139,7 +2139,7 @@ static int
+ mt7996_set_radar_background(struct ieee80211_hw *hw,
+ 			    struct cfg80211_chan_def *chandef)
+ {
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct mt7996_phy *phy = mt7996_band_phy(hw, NL80211_BAND_5GHZ);
+ 	struct mt7996_dev *dev = phy->dev;
+ 	int ret = -EINVAL;
+ 	bool running;
+@@ -2354,6 +2354,7 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
+ 	}
+ 
+ 	phy->chanctx = ctx;
++	phy->mt76->radar_enabled = conf->radar_enabled;
+ 	mutex_unlock(&phy->dev->mt76.mutex);
+ 
+ 	if (!mt76_testmode_enabled(phy->mt76) && !phy->mt76->test.bf_en) {
+@@ -2381,8 +2382,10 @@ mt7996_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
+ 
+ 	mutex_lock(&phy->dev->mt76.mutex);
+ 	ctx->assigned = false;
+-	if (ctx == phy->chanctx)
++	if (ctx == phy->chanctx) {
+ 		phy->chanctx = NULL;
++		phy->mt76->radar_enabled = false;
++	}
+ 	mutex_unlock(&phy->dev->mt76.mutex);
+ }
+ 
+@@ -2394,8 +2397,10 @@ mt7996_change_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
+ 	struct mt7996_phy *phy = ctx->phy;
+ 
+ 	wiphy_info(hw->wiphy, "%s: change %u, 0x%x\n", __func__, conf->def.chan->hw_value, changed);
+-	if (changed & IEEE80211_CHANCTX_CHANGE_WIDTH) {
++	if (changed & IEEE80211_CHANCTX_CHANGE_WIDTH ||
++	    changed & IEEE80211_CHANCTX_CHANGE_RADAR) {
+ 		ctx->chandef = conf->def;
++		phy->mt76->radar_enabled = conf->radar_enabled;
+ 
+ 		mt7996_set_channel(phy, &ctx->chandef);
+ 	}
+@@ -2493,6 +2498,7 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
+ 	mutex_lock(&phy->dev->mt76.mutex);
+ 
+ 	phy->chanctx = new_ctx;
++	phy->mt76->radar_enabled = vifs->new_ctx->radar_enabled;
+ 	new_ctx->assigned = true;
+ 	new_ctx->chandef = vifs->new_ctx->def;
+ 	new_ctx->phy = phy;
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 2884af9d..7b0d631e 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -357,10 +357,18 @@ int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)
+ static void
+ mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
+ {
+-	if (!vif->bss_conf.csa_active || vif->type == NL80211_IFTYPE_STATION)
++	struct mt76_phy *mphy = (struct mt76_phy *)priv;
++	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
++	struct ieee80211_bss_conf *link_conf;
++	int link_id, band_idx = mphy->band_idx;
++
++	link_id = mvif->band_to_link[band_idx];
++	link_conf = rcu_dereference(vif->link_conf[link_id]);
++
++	if (!link_conf || !link_conf->csa_active || vif->type == NL80211_IFTYPE_STATION)
+ 		return;
+ 
+-	ieee80211_csa_finish(vif, 0);
++	ieee80211_csa_finish(vif, link_id);
+ }
+ 
+ static void
+@@ -475,7 +483,7 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)
+ 		case UNI_EVENT_IE_COUNTDOWN_CSA:
+ 			ieee80211_iterate_active_interfaces_atomic(mphy->hw,
+ 					IEEE80211_IFACE_ITER_RESUME_ALL,
+-					mt7996_mcu_csa_finish, mphy->hw);
++					mt7996_mcu_csa_finish, mphy);
+ 			break;
+ 		case UNI_EVENT_IE_COUNTDOWN_BCC:
+ 			ieee80211_iterate_active_interfaces_atomic(mphy->hw,
+-- 
+2.18.0
+

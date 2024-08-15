@@ -1,0 +1,485 @@
+From fd208c32b7e95c3aafce8f89917d4a961713fa75 Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Tue, 2 Jul 2024 10:38:49 +0800
+Subject: [PATCH 114/126] mtk: hostapd: Add bandwidth indication IE
+
+Move punct_bitmap from csa_settings to hostapd_freq_params for
+filling bandwidth indication IE while channel switch occurs.
+Handle bitmap change in hostapd_set_freq_params.
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ hostapd/ctrl_iface.c            |  18 +++---
+ src/ap/ctrl_iface_ap.c          |  12 +---
+ src/ap/dfs.c                    |   1 -
+ src/ap/drv_callbacks.c          |   1 -
+ src/ap/hostapd.c                |  14 +---
+ src/ap/ieee802_11.c             | 110 +++++++++++++++++++++++++++++---
+ src/ap/ieee802_11.h             |   2 +
+ src/common/hw_features_common.c |   1 +
+ src/common/ieee802_11_defs.h    |  30 +++++++++
+ src/drivers/driver.h            |  10 ++-
+ src/drivers/driver_nl80211.c    |   6 +-
+ 11 files changed, 156 insertions(+), 49 deletions(-)
+
+diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
+index 337261f8f..c8456513e 100644
+--- a/hostapd/ctrl_iface.c
++++ b/hostapd/ctrl_iface.c
+@@ -2621,8 +2621,7 @@ static int hostapd_ctrl_register_frame(struct hostapd_data *hapd,
+ 
+ 
+ #ifdef NEED_AP_MLME
+-static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
+-					  u16 punct_bitmap)
++static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params)
+ {
+ 	u32 start_freq;
+ 
+@@ -2673,14 +2672,14 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
+ 		if (params->center_freq2 || params->sec_channel_offset)
+ 			return -1;
+ 
+-		if (punct_bitmap)
++		if (params->punct_bitmap)
+ 			return -1;
+ 		break;
+ 	case 40:
+ 		if (params->center_freq2 || !params->sec_channel_offset)
+ 			return -1;
+ 
+-		if (punct_bitmap)
++		if (params->punct_bitmap)
+ 			return -1;
+ 
+ 		if (!params->center_freq1)
+@@ -2717,7 +2716,7 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
+ 			return -1;
+ 		}
+ 
+-		if (params->center_freq2 && punct_bitmap)
++		if (params->center_freq2 && params->punct_bitmap)
+ 			return -1;
+ 
+ 		/* Adjacent and overlapped are not allowed for 80+80 */
+@@ -2784,7 +2783,7 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
+ 		return -1;
+ 	}
+ 
+-	if (!punct_bitmap)
++	if (!params->punct_bitmap)
+ 		return 0;
+ 
+ 	if (!params->eht_enabled) {
+@@ -2802,7 +2801,7 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
+ 	start_freq = params->center_freq1 - (params->bandwidth / 2);
+ 	if (!is_punct_bitmap_valid(params->bandwidth,
+ 				   (params->freq - start_freq) / 20,
+-				   punct_bitmap)) {
++				   params->punct_bitmap)) {
+ 		wpa_printf(MSG_ERROR, "Invalid preamble puncturing bitmap");
+ 		return -1;
+ 	}
+@@ -2843,8 +2842,7 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+ 		return -1;
+ 	}
+ 
+-	ret = hostapd_ctrl_check_freq_params(&settings.freq_params,
+-					     settings.punct_bitmap);
++	ret = hostapd_ctrl_check_freq_params(&settings.freq_params);
+ 	if (ret) {
+ 		wpa_printf(MSG_INFO,
+ 			   "chanswitch: invalid frequency settings provided");
+@@ -2917,7 +2915,7 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+ 
+ #ifdef CONFIG_IEEE80211BE
+ 	hapd = iface->bss[0];
+-	if (hapd->iconf->punct_bitmap != settings.punct_bitmap &&
++	if (hapd->iconf->punct_bitmap != settings.freq_params.punct_bitmap &&
+ 	    hapd->iconf->pp_mode != PP_USR_MODE) {
+ 		hapd->iconf->pp_mode = PP_USR_MODE;
+ 		ret = hostapd_drv_pp_mode_set(hapd);
+diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
+index b0ee00b90..e1722620d 100644
+--- a/src/ap/ctrl_iface_ap.c
++++ b/src/ap/ctrl_iface_ap.c
+@@ -1125,20 +1125,11 @@ int hostapd_parse_csa_settings(const char *pos,
+ 		} \
+ 	} while (0)
+ 
+-#define SET_CSA_SETTING_EXT(str) \
+-	do { \
+-		const char *pos2 = os_strstr(pos, " " #str "="); \
+-		if (pos2) { \
+-			pos2 += sizeof(" " #str "=") - 1; \
+-			settings->str = atoi(pos2); \
+-		} \
+-	} while (0)
+-
+ 	SET_CSA_SETTING(center_freq1);
+ 	SET_CSA_SETTING(center_freq2);
+ 	SET_CSA_SETTING(bandwidth);
+ 	SET_CSA_SETTING(sec_channel_offset);
+-	SET_CSA_SETTING_EXT(punct_bitmap);
++	SET_CSA_SETTING(punct_bitmap);
+ 	settings->freq_params.ht_enabled = !!os_strstr(pos, " ht");
+ 	settings->freq_params.vht_enabled = !!os_strstr(pos, " vht");
+ 	settings->freq_params.he_enabled = !!os_strstr(pos, " he");
+@@ -1146,7 +1137,6 @@ int hostapd_parse_csa_settings(const char *pos,
+ 	settings->freq_params.radar_background = !!os_strstr(pos, " skip_cac");
+ 	settings->block_tx = !!os_strstr(pos, " blocktx");
+ #undef SET_CSA_SETTING
+-#undef SET_CSA_SETTING_EXT
+ 
+ 	return 0;
+ }
+diff --git a/src/ap/dfs.c b/src/ap/dfs.c
+index 5e9a2a4ce..5a3112d40 100644
+--- a/src/ap/dfs.c
++++ b/src/ap/dfs.c
+@@ -1081,7 +1081,6 @@ static int hostapd_dfs_request_channel_switch(struct hostapd_iface *iface,
+ 	os_memset(&csa_settings, 0, sizeof(csa_settings));
+ 	csa_settings.cs_count = 5;
+ 	csa_settings.block_tx = 1;
+-	csa_settings.punct_bitmap = hostapd_get_punct_bitmap(iface->bss[0]);
+ 	csa_settings.link_id = -1;
+ #ifdef CONFIG_IEEE80211BE
+ 	if (iface->bss[0]->conf->mld_ap)
+diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
+index 420d156c8..96b8e856e 100644
+--- a/src/ap/drv_callbacks.c
++++ b/src/ap/drv_callbacks.c
+@@ -2481,7 +2481,6 @@ static void hostapd_event_pp_bitmap_update(struct hostapd_data *hapd,
+ 	os_memset(&csa_settings, 0, sizeof(csa_settings));
+ 	csa_settings.cs_count = 5;
+ 	csa_settings.block_tx = 0;
+-	csa_settings.punct_bitmap = ch_switch->punct_bitmap;
+ 	csa_settings.link_id = ch_switch->link_id;
+ 
+ 	err = hostapd_set_freq_params(&csa_settings.freq_params,
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index 257849536..73378053b 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -4487,6 +4487,8 @@ static int hostapd_change_config_freq(struct hostapd_data *hapd,
+ 	hostapd_set_oper_centr_freq_seg0_idx(conf, seg0);
+ 	hostapd_set_oper_centr_freq_seg1_idx(conf, seg1);
+ 
++	conf->punct_bitmap = params->punct_bitmap;
++
+ 	/* TODO: maybe call here hostapd_config_check here? */
+ 
+ 	return 0;
+@@ -4499,9 +4501,6 @@ static int hostapd_fill_csa_settings(struct hostapd_data *hapd,
+ 	struct hostapd_iface *iface = hapd->iface;
+ 	struct hostapd_freq_params old_freq;
+ 	int ret;
+-#ifdef CONFIG_IEEE80211BE
+-	u16 old_punct_bitmap;
+-#endif /* CONFIG_IEEE80211BE */
+ 	u8 chan, bandwidth;
+ 
+ 	os_memset(&old_freq, 0, sizeof(old_freq));
+@@ -4550,19 +4549,11 @@ static int hostapd_fill_csa_settings(struct hostapd_data *hapd,
+ 	if (ret)
+ 		return ret;
+ 
+-#ifdef CONFIG_IEEE80211BE
+-	old_punct_bitmap = iface->conf->punct_bitmap;
+-	iface->conf->punct_bitmap = settings->punct_bitmap;
+-#endif /* CONFIG_IEEE80211BE */
+-
+ 	/* Another CU in the new channel due to OP element modification */
+ 	ieee802_11_set_bss_critical_update(hapd, BSS_CRIT_UPDATE_EVENT_EHT_OPERATION);
+ 	ret = hostapd_build_beacon_data(hapd, &settings->beacon_after);
+ 
+ 	/* change back the configuration */
+-#ifdef CONFIG_IEEE80211BE
+-	iface->conf->punct_bitmap = old_punct_bitmap;
+-#endif /* CONFIG_IEEE80211BE */
+ 	hostapd_change_config_freq(iface->bss[0], iface->conf,
+ 				   &old_freq, NULL);
+ 
+@@ -4739,7 +4730,6 @@ int hostapd_update_aff_link_beacon(struct hostapd_data *hapd, u8 cs_count)
+ 		settings.link_id = cs_link_id;
+ 		settings.freq_params.link_id = link_id;
+ 		settings.cs_count = cs_count;
+-		settings.punct_bitmap = conf->punct_bitmap;
+ 		ret = hostapd_drv_switch_channel(h, &settings);
+ 		free_beacon_data(&settings.beacon_csa);
+ 		free_beacon_data(&settings.beacon_after);
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index 10b7587a0..93bd8255c 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -7368,10 +7368,95 @@ u8 * hostapd_eid_txpower_envelope(struct hostapd_data *hapd, u8 *eid)
+ 				    tx_pwr);
+ }
+ 
++#define DISABLED_SUBCHANNEL_BITMAP_BYTES_SIZE 2
++u8 *hostapd_eid_bw_indication(struct hostapd_data *hapd, u8 *eid, u8 ccfs0, u8 ccfs1)
++{
++	u8 *pos = eid, *length_pos;
++	struct ieee80211_bw_ind_element *bw_ind_elem;
++	int bw_ind_status = false;
++	size_t fixed_eid_len;
++
++	if (hapd->cs_freq_params.bandwidth > 160 ||
++	    hapd->cs_freq_params.punct_bitmap)
++		bw_ind_status = true;
++
++	if (!bw_ind_status)
++		return eid;
++
++	if (!hapd->cs_freq_params.channel || !hapd->cs_freq_params.eht_enabled)
++		return eid;
++
++	*pos++ = WLAN_EID_EXTENSION;
++	length_pos = pos++;
++	*pos++ = WLAN_EID_EXT_BW_IND;
++
++	fixed_eid_len = (sizeof(struct ieee80211_bw_ind_element) -
++			DISABLED_SUBCHANNEL_BITMAP_BYTES_SIZE);
++
++	bw_ind_elem = (struct ieee80211_bw_ind_element *) pos;
++	os_memset(bw_ind_elem, 0, sizeof(struct ieee80211_bw_ind_element));
++
++	if (hapd->cs_freq_params.punct_bitmap) {
++		bw_ind_elem->bw_ind_params |=
++			BW_IND_PARAMETER_DISABLED_SUBCHAN_BITMAP_PRESENT;
++		bw_ind_elem->bw_ind_info.disabled_chan_bitmap =
++			host_to_le16(hapd->cs_freq_params.punct_bitmap);
++		pos += DISABLED_SUBCHANNEL_BITMAP_BYTES_SIZE;
++	} else {
++		bw_ind_elem->bw_ind_params &=
++			~BW_IND_PARAMETER_DISABLED_SUBCHAN_BITMAP_PRESENT;
++	}
++
++	switch (hapd->cs_freq_params.bandwidth) {
++	case 320:
++		bw_ind_elem->bw_ind_info.control |=
++			BW_IND_CHANNEL_WIDTH_320MHZ;
++		ccfs1 = ccfs0;
++		if (hapd->cs_freq_params.channel < ccfs0)
++			ccfs0 -= 16;
++		else
++			ccfs0 += 16;
++		break;
++	case 160:
++		bw_ind_elem->bw_ind_info.control |=
++			BW_IND_CHANNEL_WIDTH_160MHZ;
++		ccfs1 = ccfs0;
++		if (hapd->cs_freq_params.channel < ccfs0)
++			ccfs0 -= 8;
++		else
++			ccfs0 += 8;
++		break;
++	case 80:
++		bw_ind_elem->bw_ind_info.control |=
++			BW_IND_CHANNEL_WIDTH_80MHZ;
++		break;
++	case 40:
++		if (hapd->cs_freq_params.sec_channel_offset == 1)
++			bw_ind_elem->bw_ind_info.control |=
++				BW_IND_CHANNEL_WIDTH_40MHZ;
++		else
++			bw_ind_elem->bw_ind_info.control |=
++				BW_IND_CHANNEL_WIDTH_20MHZ;
++		break;
++	default:
++		bw_ind_elem->bw_ind_info.control |=
++			BW_IND_CHANNEL_WIDTH_20MHZ;
++		break;
++	}
++
++	bw_ind_elem->bw_ind_info.ccfs0 = ccfs0;
++	bw_ind_elem->bw_ind_info.ccfs1 = ccfs1;
++
++	pos += fixed_eid_len;
++	*length_pos = pos - (eid + 2);
++
++	return pos;
++}
++
+ 
+ u8 * hostapd_eid_wb_chsw_wrapper(struct hostapd_data *hapd, u8 *eid)
+ {
+-	u8 bw, chan1 = 0, chan2 = 0;
++	u8 bw, chan1 = 0, chan2 = 0, ccfs0, ccfs1, *pos = eid, *length_pos;
+ 	int freq1;
+ 
+ 	if (!hapd->cs_freq_params.channel ||
+@@ -7412,11 +7497,14 @@ u8 * hostapd_eid_wb_chsw_wrapper(struct hostapd_data *hapd, u8 *eid)
+ 				   &chan2) != HOSTAPD_MODE_IEEE80211A)
+ 		return eid;
+ 
+-	*eid++ = WLAN_EID_CHANNEL_SWITCH_WRAPPER;
+-	*eid++ = 5; /* Length of Channel Switch Wrapper */
+-	*eid++ = WLAN_EID_WIDE_BW_CHSWITCH;
+-	*eid++ = 3; /* Length of Wide Bandwidth Channel Switch element */
+-	*eid++ = bw; /* New Channel Width */
++	*pos++ = WLAN_EID_CHANNEL_SWITCH_WRAPPER;
++	length_pos = pos++; /* Length of Channel Switch Wrapper */
++	*pos++ = WLAN_EID_WIDE_BW_CHSWITCH;
++	*pos++ = 3; /* Length of Wide Bandwidth Channel Switch element */
++	*pos++ = bw; /* New Channel Width */
++
++	ccfs0 = chan1;
++	ccfs1 = chan2;
+ 	if (hapd->cs_freq_params.bandwidth == 160) {
+ 		/* Update the CCFS0 and CCFS1 values in the element based on
+ 		 * IEEE P802.11-REVme/D4.0, Table 9-314 */
+@@ -7432,10 +7520,14 @@ u8 * hostapd_eid_wb_chsw_wrapper(struct hostapd_data *hapd, u8 *eid)
+ 		else
+ 			chan1 += 8;
+ 	}
+-	*eid++ = chan1; /* New Channel Center Frequency Segment 0 */
+-	*eid++ = chan2; /* New Channel Center Frequency Segment 1 */
++	*pos++ = chan1; /* New Channel Center Frequency Segment 0 */
++	*pos++ = chan2; /* New Channel Center Frequency Segment 1 */
+ 
+-	return eid;
++#ifdef CONFIG_IEEE80211BE
++	pos = hostapd_eid_bw_indication(hapd, pos, ccfs0, ccfs1);
++#endif /* CONFIG_IEEE80211BE */
++	*length_pos = pos - (eid + 2);
++	return pos;
+ }
+ 
+ 
+diff --git a/src/ap/ieee802_11.h b/src/ap/ieee802_11.h
+index 2d9adb910..40301bce9 100644
+--- a/src/ap/ieee802_11.h
++++ b/src/ap/ieee802_11.h
+@@ -64,6 +64,8 @@ u8 * hostapd_eid_vht_capabilities(struct hostapd_data *hapd, u8 *eid, u32 nsts);
+ u8 * hostapd_eid_vht_operation(struct hostapd_data *hapd, u8 *eid);
+ u8 * hostapd_eid_vendor_vht(struct hostapd_data *hapd, u8 *eid);
+ u8 * hostapd_eid_wb_chsw_wrapper(struct hostapd_data *hapd, u8 *eid);
++u8 * hostapd_eid_bw_indication(struct hostapd_data *hapd, u8 *eid,
++			       u8 ccfs0, u8 ccfs1);
+ u8 * hostapd_eid_txpower_envelope(struct hostapd_data *hapd, u8 *eid);
+ u8 * hostapd_eid_he_capab(struct hostapd_data *hapd, u8 *eid,
+ 			  enum ieee80211_op_mode opmode);
+diff --git a/src/common/hw_features_common.c b/src/common/hw_features_common.c
+index 8bd6e994d..99106c277 100644
+--- a/src/common/hw_features_common.c
++++ b/src/common/hw_features_common.c
+@@ -481,6 +481,7 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
+ 	data->sec_channel_offset = sec_channel_offset;
+ 	data->center_freq1 = freq + sec_channel_offset * 10;
+ 	data->center_freq2 = 0;
++	data->punct_bitmap = punct_bitmap;
+ 	if (oper_chwidth == CONF_OPER_CHWIDTH_80MHZ)
+ 		data->bandwidth = 80;
+ 	else if (oper_chwidth == CONF_OPER_CHWIDTH_160MHZ ||
+diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
+index fb481b8b2..d93fa6660 100644
+--- a/src/common/ieee802_11_defs.h
++++ b/src/common/ieee802_11_defs.h
+@@ -525,6 +525,7 @@
+ #define WLAN_EID_EXT_MULTI_LINK_TRAFFIC_INDICATION 110
+ #define WLAN_EID_EXT_QOS_CHARACTERISTICS 113
+ #define WLAN_EID_EXT_AKM_SUITE_SELECTOR 114
++#define WLAN_EID_EXT_BW_IND 135
+ 
+ /* Extended Capabilities field */
+ #define WLAN_EXT_CAPAB_20_40_COEX 0
+@@ -3088,6 +3089,35 @@ enum dscp_policy_request_type {
+ #define WFA_CAPA_QM_UNSOLIC_DSCP BIT(1)
+ #define WFA_CAPA_QM_NON_EHT_SCS_TRAFFIC_DESC BIT(2)
+ 
++/* IEEE P802.11be/D3.0, 9.4.2.319 - Bandwidth Indication element */
++
++/* Figure 9-1002ba: Bandwidth Indication Parameters field subfields */
++#define BW_IND_PARAMETER_RESERVED                              BIT(0)
++#define BW_IND_PARAMETER_DISABLED_SUBCHAN_BITMAP_PRESENT       BIT(1)
++
++/* Table 9-467: Control subfield: Channel Width subfield; */
++#define BW_IND_CHANNEL_WIDTH_20MHZ                   0
++#define BW_IND_CHANNEL_WIDTH_40MHZ                   1
++#define BW_IND_CHANNEL_WIDTH_80MHZ                   2
++#define BW_IND_CHANNEL_WIDTH_160MHZ                  3
++#define BW_IND_CHANNEL_WIDTH_320MHZ                  4
++
++/* Figure 9-1002c: Bandwidth Indication information
++ * field format similar to EHT Operation Information field format
++ */
++struct ieee80211_bw_ind_info {
++	u8 control; /* B0..B2: Channel Width */
++	u8 ccfs0;
++	u8 ccfs1;
++	le16 disabled_chan_bitmap; /* 0 or 2 octets */
++} STRUCT_PACKED;
++
++/* Figure 9-1002ba—Bandwidth Indication element format */
++struct ieee80211_bw_ind_element {
++	u8 bw_ind_params; /* Bandwidth Indication Parameters */
++	struct ieee80211_bw_ind_info bw_ind_info; /* 3 or 5 octets */
++} STRUCT_PACKED;
++
+ struct ieee80211_neighbor_ap_info {
+ 	u8 tbtt_info_hdr;
+ 	u8 tbtt_info_len;
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index 5e65d9e0b..498eff91f 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -876,6 +876,14 @@ struct hostapd_freq_params {
+ 	 */
+ 	bool eht_enabled;
+ 
++	/**
++	 * punct_bitmap - puncturing bitmap
++	 * Each bit corresponds to a 20 MHz subchannel, lowest bit for the
++	 * channel with the lowest frequency. Bit set to 1 indicates that the
++	 * subchannel is punctured, otherwise active.
++	 */
++	u16 punct_bitmap;
++
+ 	/**
+ 	 * link_id: If >=0 indicates the link of the AP MLD to configure
+ 	 */
+@@ -2750,7 +2758,6 @@ struct beacon_data {
+  * @beacon_after: Next beacon/probe resp/asooc resp info
+  * @counter_offset_beacon: Offset to the count field in beacon's tail
+  * @counter_offset_presp: Offset to the count field in probe resp.
+- * @punct_bitmap - Preamble puncturing bitmap
+  * @link_id: Link ID to determine the link for MLD; -1 for non-MLD
+  * @ubpr: Unsolicited broadcast Probe Response frame data
+  */
+@@ -2766,7 +2773,6 @@ struct csa_settings {
+ 	u16 counter_offset_presp[2];
+ 	u16 counter_offset_sta_prof[MAX_NUM_MLD_LINKS][2];
+ 
+-	u16 punct_bitmap;
+ 	int link_id;
+ 
+ 	struct unsol_bcast_probe_resp ubpr;
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index 5d97317f7..639c5e7e1 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -11467,7 +11467,7 @@ static int nl80211_switch_channel(void *priv, struct csa_settings *settings)
+ 		   settings->freq_params.bandwidth,
+ 		   settings->freq_params.center_freq1,
+ 		   settings->freq_params.center_freq2,
+-		   settings->punct_bitmap,
++		   settings->freq_params.punct_bitmap,
+ 		   settings->freq_params.link_id,
+ 		   settings->freq_params.ht_enabled ? " ht" : "",
+ 		   settings->freq_params.vht_enabled ? " vht" : "",
+@@ -11545,9 +11545,9 @@ static int nl80211_switch_channel(void *priv, struct csa_settings *settings)
+ 	    (ret = nl80211_put_freq_params(msg, &settings->freq_params)) ||
+ 	    (settings->block_tx &&
+ 	     nla_put_flag(msg, NL80211_ATTR_CH_SWITCH_BLOCK_TX)) ||
+-	    (settings->punct_bitmap &&
++	    (settings->freq_params.punct_bitmap &&
+ 	     nla_put_u32(msg, NL80211_ATTR_PUNCT_BITMAP,
+-			 settings->punct_bitmap)) ||
++			 settings->freq_params.punct_bitmap)) ||
+ 	    (settings->freq_params.link_id != NL80211_DRV_LINK_ID_NA &&
+ 	     nla_put_u8(msg, NL80211_ATTR_MLO_LINK_ID, settings->freq_params.link_id)))
+ 		goto error;
+-- 
+2.18.0
+

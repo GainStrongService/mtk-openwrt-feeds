@@ -1,0 +1,96 @@
+From c7dcf0304c6cd1d73b1caf2ce0b35f7913d2b69e Mon Sep 17 00:00:00 2001
+From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+Date: Tue, 23 Jul 2024 16:37:57 +0800
+Subject: [PATCH 155/199] mtk: mt76: mt7996: add per-link RX MPDU statistics
+
+Add per-link RX MPDU total/failed counts.
+
+Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+---
+ mt76.h            |  2 ++
+ mt76_connac_mcu.h |  2 ++
+ mt7996/mac.c      |  1 +
+ mt7996/mcu.c      | 10 ++++++++++
+ mt7996/mcu.h      |  7 +++++++
+ 5 files changed, 22 insertions(+)
+
+diff --git a/mt76.h b/mt76.h
+index a0fc8b1a..f67f0658 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -336,6 +336,8 @@ struct mt76_sta_stats {
+ 	/* WED RX */
+ 	u64 rx_bytes;
+ 	u32 rx_packets;
++	u32 rx_mpdus;
++	u32 rx_fcs_err;
+ 	u32 rx_errors;
+ 	u32 rx_drops;
+ 	u64 rx_airtime;
+diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
+index 0244b5aa..8de91f62 100644
+--- a/mt76_connac_mcu.h
++++ b/mt76_connac_mcu.h
+@@ -1421,6 +1421,8 @@ enum UNI_ALL_STA_INFO_TAG {
+ 	UNI_ALL_STA_DATA_TX_RETRY_COUNT,
+ 	UNI_ALL_STA_GI_MODE,
+ 	UNI_ALL_STA_TXRX_MSDU_COUNT,
++	UNI_ALL_STA_TXOP_ACCESS_DELAY,
++	UNI_ALL_STA_RX_MPDU_COUNT,
+ 	UNI_ALL_STA_MAX_NUM
+ };
+ 
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 484b679b..a0406700 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -2408,6 +2408,7 @@ void mt7996_mac_work(struct work_struct *work)
+ 					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_ADM_STAT);
+ 					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_MSDU_COUNT);
+ 				// }
++				mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_RX_MPDU_COUNT);
+ 
+ 				if (mt7996_mcu_wa_cmd(phy->dev, MCU_WA_PARAM_CMD(QUERY), MCU_WA_PARAM_BSS_ACQ_PKT_CNT,
+ 				                      BSS_ACQ_PKT_CNT_BSS_BITMAP_ALL | BSS_ACQ_PKT_CNT_READ_CLR, 0))
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 8fd9d450..be6b985f 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -803,6 +803,16 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+ 				                               tx_airtime, rx_airtime);
+ 			}
+ 			break;
++		case UNI_ALL_STA_RX_MPDU_COUNT:
++			wlan_idx = le16_to_cpu(res->rx_mpdu_cnt[i].wlan_idx);
++			wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
++			if (!wcid)
++				break;
++
++			wcid->stats.rx_mpdus += le32_to_cpu(res->rx_mpdu_cnt[i].total);
++			wcid->stats.rx_fcs_err += le32_to_cpu(res->rx_mpdu_cnt[i].total) -
++						  le32_to_cpu(res->rx_mpdu_cnt[i].success);
++			break;
+ 		default:
+ 			break;
+ 		}
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 389aab63..737f426d 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -268,6 +268,13 @@ struct mt7996_mcu_all_sta_info_event {
+ 			__le32 tx[IEEE80211_NUM_ACS];
+ 			__le32 rx[IEEE80211_NUM_ACS];
+ 		} __packed, airtime);
++
++		DECLARE_FLEX_ARRAY(struct {
++			__le16 wlan_idx;
++			u8 rsv[2];
++			__le32 total;
++			__le32 success;
++		} __packed, rx_mpdu_cnt);
+ 	} __packed;
+ } __packed;
+ 
+-- 
+2.18.0
+

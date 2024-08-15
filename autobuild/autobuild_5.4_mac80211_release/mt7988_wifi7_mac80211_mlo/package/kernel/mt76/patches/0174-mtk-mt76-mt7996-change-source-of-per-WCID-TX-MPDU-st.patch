@@ -1,0 +1,162 @@
+From ddada5f035de7b87e15de8a87ba1c2491d87edfd Mon Sep 17 00:00:00 2001
+From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+Date: Mon, 17 Jun 2024 17:16:19 +0800
+Subject: [PATCH 174/199] mtk: mt76: mt7996: change source of per-WCID TX MPDU
+ statistics
+
+Change source of per-WCID TX MPDU statistics from TX-free-done event to PPDU TXS, because WCID from TX-free-done event may not represent the actually used link.
+
+Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+---
+ mt76.h             |  1 +
+ mt76_connac3_mac.h |  5 +++++
+ mt7996/mac.c       | 50 +++++++++++++++++++++++++---------------------
+ 3 files changed, 33 insertions(+), 23 deletions(-)
+
+diff --git a/mt76.h b/mt76.h
+index f2d12b89..feb7bf16 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -360,6 +360,7 @@ struct mt76_sta_stats {
+ 	u64 tx_bytes;
+ 	/* WED TX */
+ 	u32 tx_packets;		/* unit: MSDU */
++	u32 tx_mpdus;
+ 	u32 tx_retries;
+ 	u32 tx_failed;
+ 	u64 tx_airtime;
+diff --git a/mt76_connac3_mac.h b/mt76_connac3_mac.h
+index db0c29e6..ad8392cd 100644
+--- a/mt76_connac3_mac.h
++++ b/mt76_connac3_mac.h
+@@ -204,6 +204,11 @@ enum tx_frag_idx {
+ 	MT_TX_FRAG_LAST
+ };
+ 
++enum {
++	MT_TXS_MPDU_FMT = 0,
++	MT_TXS_PPDU_FMT = 2,
++};
++
+ #define MT_CT_INFO_APPLY_TXD		BIT(0)
+ #define MT_CT_INFO_COPY_HOST_TXD_ALL	BIT(1)
+ #define MT_CT_INFO_MGMT_FRAME		BIT(2)
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 12cc60cb..97cd5e23 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1206,19 +1206,9 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+ 			spin_unlock_bh(&mdev->sta_poll_lock);
+ 			continue;
+ 		} else if (info & MT_TXFREE_INFO_HEADER) {
+-			u32 tx_retries = 0, tx_failed = 0;
+-
+ 			if (!wcid)
+ 				continue;
+ 
+-			tx_retries =
+-				FIELD_GET(MT_TXFREE_INFO_COUNT, info) - 1;
+-			tx_failed = tx_retries +
+-				!!FIELD_GET(MT_TXFREE_INFO_STAT, info);
+-
+-			wcid->stats.tx_retries += tx_retries;
+-			wcid->stats.tx_failed += tx_failed;
+-
+ 			if (FIELD_GET(MT_TXFREE_INFO_STAT, info) == 2) {
+ 				struct mt7996_phy *mphy =
+ 					__mt7996_phy(dev, wcid->phy_idx);
+@@ -1256,9 +1246,10 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+ 
+ static bool
+ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+-		       int pid, __le32 *txs_data)
++		       struct mt76_wcid *link_wcid, int pid, __le32 *txs_data)
+ {
+-	struct mt76_sta_stats *stats = &wcid->stats;
++	u8 fmt = le32_get_bits(txs_data[0], MT_TXS0_TXS_FORMAT);
++	struct mt76_sta_stats *stats = &link_wcid->stats;
+ 	struct mt76_dev *mdev = &dev->mt76;
+ 	struct ieee80211_tx_info *info;
+ 	struct sk_buff_head list;
+@@ -1270,8 +1261,9 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+ 
+ 	mt76_tx_status_lock(mdev, &list);
+ 
+-	/* only report MPDU TXS */
+-	if (le32_get_bits(txs_data[0], MT_TXS0_TXS_FORMAT) == 0) {
++	switch (fmt) {
++	case MT_TXS_MPDU_FMT:
++		/* Only report MPDU TXS to mac80211. */
+ 		skb = mt76_tx_status_skb_get(mdev, wcid, pid, &list);
+ 		if (skb) {
+ 			struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+@@ -1300,6 +1292,15 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+ 				mvif->probe_send_count[wcid->phy_idx] = 0;
+ 			}
+ 		}
++		break;
++	case MT_TXS_PPDU_FMT:
++		stats->tx_mpdus += le32_get_bits(txs_data[5], MT_TXS5_MPDU_TX_CNT);
++		stats->tx_failed += le32_get_bits(txs_data[6], MT_TXS6_MPDU_FAIL_CNT);
++		stats->tx_retries += le32_get_bits(txs_data[7], MT_TXS7_MPDU_RETRY_CNT);
++		break;
++	default:
++		dev_err(mdev->dev, "Unknown TXS format: %hhu\n", fmt);
++		goto unlock;
+ 	}
+ 
+ 	if (mtk_wed_device_active(&dev->mt76.mmio.wed) && wcid->sta) {
+@@ -1331,6 +1332,7 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+ 
+ 	if (skb)
+ 		mt76_tx_status_skb_done(mdev, skb, &list);
++unlock:
+ 	mt76_tx_status_unlock(mdev, &list);
+ 
+ 	return !!skb;
+@@ -1338,13 +1340,13 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+ 
+ static void mt7996_mac_add_txs(struct mt7996_dev *dev, void *data)
+ {
+-	struct mt7996_link_sta *mlink;
+-	struct mt76_wcid *wcid;
++	struct mt76_wcid *wcid, *link_wcid;
+ 	__le32 *txs_data = data;
+ 	u16 wcidx;
+-	u8 pid;
++	u8 band, pid;
+ 
+ 	wcidx = le32_get_bits(txs_data[2], MT_TXS2_WCID);
++	band = le32_get_bits(txs_data[2], MT_TXS2_BAND);
+ 	pid = le32_get_bits(txs_data[3], MT_TXS3_PID);
+ 
+ 	if (pid < MT_PACKET_ID_NO_SKB)
+@@ -1359,17 +1361,19 @@ static void mt7996_mac_add_txs(struct mt7996_dev *dev, void *data)
+ 	if (!wcid)
+ 		goto out;
+ 
+-	mt7996_mac_add_txs_skb(dev, wcid, pid, txs_data);
++	link_wcid = mt7996_get_link_wcid(dev, wcidx, band);
++	if (!link_wcid)
++		goto out;
++
++	mt7996_mac_add_txs_skb(dev, wcid, link_wcid, pid, txs_data);
+ 
+-	if (!wcid->sta)
++	if (!link_wcid->sta)
+ 		goto out;
+ 
+-	mlink = wcid_to_mlink(wcid);
+ 	spin_lock_bh(&dev->mt76.sta_poll_lock);
+-	if (list_empty(&mlink->wcid.poll_list))
+-		list_add_tail(&mlink->wcid.poll_list, &dev->mt76.sta_poll_list);
++	if (list_empty(&link_wcid->poll_list))
++		list_add_tail(&link_wcid->poll_list, &dev->mt76.sta_poll_list);
+ 	spin_unlock_bh(&dev->mt76.sta_poll_lock);
+-
+ out:
+ 	rcu_read_unlock();
+ }
+-- 
+2.18.0
+

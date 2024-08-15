@@ -1,0 +1,222 @@
+From 1172c92c354a6816dc112dae33ec473682f627a6 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 8 Dec 2023 18:08:13 +0800
+Subject: [PATCH 105/199] mtk: mt76: mt7996: handle mapping for hw and vif
+
+We have several temporal workarounds for ieee80211_hw and mt76_phy
+mappings. For legacy MBSS cases, we also need a method to do the
+hw and vif mappings.
+This is a preliminary patch to add MLO support for mt7996 chipsets.
+
+Co-developed-by: Bo Jiao <Bo.Jiao@mediatek.com>
+Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ dma.c           |  2 +-
+ mac80211.c      |  2 +-
+ mt76.h          | 14 ++++++++++++--
+ mt7996/mac.c    | 24 +++++++++++++++++++++++-
+ mt7996/main.c   |  1 +
+ mt7996/mcu.c    |  4 ++--
+ mt7996/mmio.c   |  1 +
+ mt7996/mt7996.h |  3 +++
+ tx.c            |  4 ++--
+ 9 files changed, 46 insertions(+), 9 deletions(-)
+
+diff --git a/dma.c b/dma.c
+index 38701c71..3f1fb6c2 100644
+--- a/dma.c
++++ b/dma.c
+@@ -685,7 +685,7 @@ free:
+ 
+ free_skb:
+ 	status.skb = tx_info.skb;
+-	hw = mt76_tx_status_get_hw(dev, tx_info.skb);
++	hw = mt76_tx_status_get_hw(dev, tx_info.skb, wcid);
+ 	spin_lock_bh(&dev->rx_lock);
+ 	ieee80211_tx_status_ext(hw, &status);
+ 	spin_unlock_bh(&dev->rx_lock);
+diff --git a/mac80211.c b/mac80211.c
+index bf7ead01..5f0c310f 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -1509,7 +1509,7 @@ void mt76_wcid_cleanup(struct mt76_dev *dev, struct mt76_wcid *wcid)
+ 	spin_unlock_bh(&phy->tx_lock);
+ 
+ 	while ((skb = __skb_dequeue(&list)) != NULL) {
+-		hw = mt76_tx_status_get_hw(dev, skb);
++		hw = mt76_tx_status_get_hw(dev, skb, wcid);
+ 		ieee80211_free_txskb(hw, skb);
+ 	}
+ }
+diff --git a/mt76.h b/mt76.h
+index f037284a..c51df8e5 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -554,6 +554,9 @@ struct mt76_driver_ops {
+ 
+ 	void (*sta_remove)(struct mt76_dev *dev, struct ieee80211_vif *vif,
+ 			   struct ieee80211_sta *sta);
++
++	void (*get_hw)(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 phy_idx,
++		       struct ieee80211_hw **hw);
+ };
+ 
+ struct mt76_channel_state {
+@@ -1588,14 +1591,21 @@ static inline void mt76_testmode_reset(struct mt76_phy *phy, bool disable)
+ 
+ /* internal */
+ static inline struct ieee80211_hw *
+-mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
++mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb,
++		      struct mt76_wcid *wcid)
+ {
+ 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+ 	u8 phy_idx = (info->hw_queue & MT_TX_HW_QUEUE_PHY) >> 2;
+-	struct ieee80211_hw *hw = mt76_phy_hw(dev, phy_idx);
++	struct ieee80211_hw *hw;
+ 
+ 	info->hw_queue &= ~MT_TX_HW_QUEUE_PHY;
+ 
++	if (dev->drv->get_hw) {
++		dev->drv->get_hw(dev, wcid, phy_idx, &hw);
++	} else {
++		hw = mt76_phy_hw(dev, phy_idx);
++	}
++
+ 	return hw;
+ }
+ 
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index c0c0df2f..5417e741 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -2845,13 +2845,23 @@ static void mt7996_scan_check_sta(void *data, struct ieee80211_sta *sta)
+ void mt7996_scan_work(struct work_struct *work)
+ {
+ 	struct mt7996_phy *phy = container_of(work, struct mt7996_phy, scan_work.work);
+-	struct ieee80211_hw *hw = phy->mt76->hw;
++	struct ieee80211_vif *vif = phy->scan_vif;
++	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
++	struct ieee80211_hw *hw = mvif->hw;
+ 	struct cfg80211_scan_request *req = phy->scan_req;
+ 	struct cfg80211_chan_def chandef = {};
+ 	int duration;
+ 	bool has_sta = false, active_scan = false;
+ 
+ 	mutex_lock(&phy->dev->mt76.mutex);
++	/* don't let non-MLD AP scan other bands */
++	if (vif->type != NL80211_IFTYPE_STATION && !ieee80211_vif_is_mld(vif) &&
++	    phy != mt7996_hw_phy(hw)) {
++		mt7996_scan_complete(phy, false);
++		mutex_unlock(&phy->dev->mt76.mutex);
++		return;
++	}
++
+ 	if (phy->scan_chan_idx >= req->n_channels) {
+ 		mt7996_scan_complete(phy, false);
+ 		mutex_unlock(&phy->dev->mt76.mutex);
+@@ -2911,3 +2921,15 @@ void mt7996_scan_work(struct work_struct *work)
+ 
+ 	ieee80211_queue_delayed_work(hw, &phy->scan_work, duration);
+ }
++
++void mt7996_get_hw(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 phy_idx,
++		   struct ieee80211_hw **hw)
++{
++	struct mt7996_link_sta *mlink = wcid_to_mlink(wcid);
++
++	if (mlink) {
++		*hw = mlink->sta->vif->hw;
++	} else {
++		*hw = mt76_phy_hw(dev, phy_idx);
++	}
++}
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 331dd4d4..1251213e 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -444,6 +444,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 		phy->monitor_vif = vif;
+ 
+ 	mvif->dev = dev;
++	mvif->hw = hw;
+ 	mvif->sta.vif = mvif;
+ 
+ 	ret = mt7996_add_bss_conf(phy, vif, &vif->bss_conf);
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index bf7231cd..8a04035e 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -2948,11 +2948,11 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
+ 
+ 	if (changed & BSS_CHANGED_FILS_DISCOVERY) {
+ 		interval = conf->fils_discovery.max_interval;
+-		skb = ieee80211_get_fils_discovery_tmpl(hw, vif);
++		skb = ieee80211_get_fils_discovery_tmpl(mvif->hw, vif);
+ 	} else if (changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP &&
+ 		   conf->unsol_bcast_probe_resp_interval) {
+ 		interval = conf->unsol_bcast_probe_resp_interval;
+-		skb = ieee80211_get_unsol_bcast_probe_resp_tmpl(hw, vif);
++		skb = ieee80211_get_unsol_bcast_probe_resp_tmpl(mvif->hw, vif);
+ 	}
+ 
+ 	if (!skb) {
+diff --git a/mt7996/mmio.c b/mt7996/mmio.c
+index b94155c4..58db5204 100644
+--- a/mt7996/mmio.c
++++ b/mt7996/mmio.c
+@@ -658,6 +658,7 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
+ 		.sta_assoc = mt7996_mac_sta_assoc,
+ 		.sta_remove = mt7996_mac_sta_remove,
+ 		.update_survey = mt7996_update_channel,
++		.get_hw = mt7996_get_hw,
+ 	};
+ 	struct mt7996_dev *dev;
+ 	struct mt76_dev *mdev;
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index b7e623cb..3b24643a 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -354,6 +354,7 @@ struct mt7996_vif {
+ 
+ 	struct mt7996_sta sta;
+ 	struct mt7996_dev *dev;
++	struct ieee80211_hw *hw;
+ 
+ 	u8 master_link_id;
+ 	u8 group_mld_id;
+@@ -901,6 +902,8 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx,
+ void mt7996_init_txpower(struct mt7996_phy *phy);
+ int mt7996_txbf_init(struct mt7996_dev *dev);
+ int mt7996_get_chip_sku(struct mt7996_dev *dev);
++void mt7996_get_hw(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 phy_idx,
++		   struct ieee80211_hw **hw);
+ void mt7996_reset(struct mt7996_dev *dev);
+ void mt7996_coredump(struct mt7996_dev *dev, u8 state);
+ int mt7996_run(struct ieee80211_hw *hw);
+diff --git a/tx.c b/tx.c
+index e2795067..6580833e 100644
+--- a/tx.c
++++ b/tx.c
+@@ -76,7 +76,7 @@ mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)
+ 			}
+ 		}
+ 
+-		hw = mt76_tx_status_get_hw(dev, skb);
++		hw = mt76_tx_status_get_hw(dev, skb, wcid);
+ 		spin_lock_bh(&dev->rx_lock);
+ 		ieee80211_tx_status_ext(hw, &status);
+ 		spin_unlock_bh(&dev->rx_lock);
+@@ -272,7 +272,7 @@ void __mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *
+ 	if (cb->pktid < MT_PACKET_ID_FIRST) {
+ 		struct ieee80211_rate_status rs = {};
+ 
+-		hw = mt76_tx_status_get_hw(dev, skb);
++		hw = mt76_tx_status_get_hw(dev, skb, wcid);
+ 		status.sta = wcid_to_sta(wcid);
+ 		if (status.sta && (wcid->rate.flags || wcid->rate.legacy)) {
+ 			rs.rate_idx = wcid->rate;
+-- 
+2.18.0
+

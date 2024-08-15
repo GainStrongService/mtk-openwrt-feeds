@@ -1,7 +1,7 @@
-From 728c457f454e0f55e3317c7403bfd5368c02bc7f Mon Sep 17 00:00:00 2001
+From e7b25f87fa76aef0603209472187e9cadfbaada6 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 14 Jun 2024 14:54:44 +0800
-Subject: [PATCH 170/206] mtk: mt76: mt7996: support handle link_id in
+Subject: [PATCH 170/199] mtk: mt76: mt7996: support handle link_id in
  ap_wireless vendor cmd
 
 Add support handle link_id in ap_wireless vendor command. The link_id is
@@ -20,10 +20,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  4 files changed, 73 insertions(+), 44 deletions(-)
 
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 5ed616fb..ed1b717e 100644
+index 1e507b1c..00cd0b61 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1299,8 +1299,8 @@ int mt7996_vendor_amnt_sta_remove(struct mt7996_phy *phy,
+@@ -1300,8 +1300,8 @@ int mt7996_vendor_amnt_sta_remove(struct mt7996_phy *phy,
  				  struct ieee80211_sta *sta);
  void mt7996_set_wireless_amsdu(struct ieee80211_hw *hw, u8 en);
  void mt7996_mcu_set_mimo(struct mt7996_phy *phy);
@@ -34,7 +34,7 @@ index 5ed616fb..ed1b717e 100644
  void mt7996_set_beacon_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
  int mt7996_mcu_set_csi(struct mt7996_phy *phy, u8 mode,
  		       u8 cfg, u8 v1, u32 v2, u8 *mac_addr);
-@@ -1331,12 +1331,12 @@ int mt7996_mcu_set_muru_fixed_rate_parameter(struct mt7996_dev *dev, u8 action,
+@@ -1332,12 +1332,12 @@ int mt7996_mcu_set_muru_fixed_rate_parameter(struct mt7996_dev *dev, u8 action,
  int mt7996_mcu_set_txbf_snd_info(struct mt7996_dev *dev, void *para);
  int mt7996_mcu_set_muru_cmd(struct mt7996_dev *dev, u16 action, int val);
  int mt7996_mcu_muru_set_prot_frame_thr(struct mt7996_dev *dev, u32 val);
@@ -52,7 +52,7 @@ index 5ed616fb..ed1b717e 100644
  
  int mt7996_mcu_set_vow_drr_dbg(struct mt7996_dev *dev, u32 val);
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index 417c7e99..867eed61 100644
+index c87daf8e..8bacf29d 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -1082,11 +1082,10 @@ int mt7996_mcu_muru_set_prot_frame_thr(struct mt7996_dev *dev, u32 val)
@@ -82,7 +82,7 @@ index 417c7e99..867eed61 100644
  		return -EINVAL;
  
  	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(BF), &data, sizeof(data),
-@@ -1173,9 +1172,8 @@ int mt7996_mcu_set_rfeature_trig_type(struct mt7996_dev *dev, u8 band_idx,
+@@ -1174,9 +1173,8 @@ int mt7996_mcu_set_rfeature_trig_type(struct mt7996_dev *dev, u8 band_idx,
  	}
  }
  
@@ -93,7 +93,7 @@ index 417c7e99..867eed61 100644
  	struct mt7996_muru *muru;
  	struct {
  		u8 _rsv[4];
-@@ -1201,7 +1199,7 @@ int mt7996_mcu_set_muru_cfg(struct mt7996_phy *phy, void *data)
+@@ -1202,7 +1200,7 @@ int mt7996_mcu_set_muru_cfg(struct mt7996_phy *phy, void *data)
  				 sizeof(req), false);
  }
  
@@ -102,7 +102,7 @@ index 417c7e99..867eed61 100644
  {
  	struct mt7996_muru *muru;
  	struct mt7996_muru_dl *dl;
-@@ -1221,7 +1219,7 @@ int mt7996_set_muru_cfg(struct mt7996_phy *phy, u8 action, u8 val)
+@@ -1222,7 +1220,7 @@ int mt7996_set_muru_cfg(struct mt7996_phy *phy, u8 action, u8 val)
  		comm->sch_type = MURU_OFDMA_SCH_TYPE_DL;
  		muru->cfg_comm = cpu_to_le32(MURU_COMM_SET);
  		muru->cfg_dl = cpu_to_le32(MURU_FIXED_DL_TOTAL_USER_CNT);
@@ -111,7 +111,7 @@ index 417c7e99..867eed61 100644
  		break;
  	case MU_CTRL_UL_USER_CNT:
  		ul->user_num = val;
-@@ -1229,7 +1227,7 @@ int mt7996_set_muru_cfg(struct mt7996_phy *phy, u8 action, u8 val)
+@@ -1230,7 +1228,7 @@ int mt7996_set_muru_cfg(struct mt7996_phy *phy, u8 action, u8 val)
  		comm->sch_type = MURU_OFDMA_SCH_TYPE_UL;
  		muru->cfg_comm = cpu_to_le32(MURU_COMM_SET);
  		muru->cfg_ul = cpu_to_le32(MURU_FIXED_UL_TOTAL_USER_CNT);
@@ -120,7 +120,7 @@ index 417c7e99..867eed61 100644
  		break;
  	default:
  		break;
-@@ -1239,16 +1237,15 @@ int mt7996_set_muru_cfg(struct mt7996_phy *phy, u8 action, u8 val)
+@@ -1240,16 +1238,15 @@ int mt7996_set_muru_cfg(struct mt7996_phy *phy, u8 action, u8 val)
  	return ret;
  }
  
@@ -139,7 +139,7 @@ index 417c7e99..867eed61 100644
  		break;
  	case CAPI_MU:
  		enable_su = 0;
-@@ -1259,16 +1256,35 @@ void mt7996_mcu_set_ppdu_tx_type(struct mt7996_phy *phy, u8 ppdu_type)
+@@ -1260,16 +1257,35 @@ void mt7996_mcu_set_ppdu_tx_type(struct mt7996_phy *phy, u8 ppdu_type)
  	}
  }
  
@@ -179,7 +179,7 @@ index 417c7e99..867eed61 100644
  }
  
  void mt7996_mcu_set_mimo(struct mt7996_phy *phy)
-@@ -1299,9 +1315,8 @@ void mt7996_mcu_set_mimo(struct mt7996_phy *phy)
+@@ -1300,9 +1316,8 @@ void mt7996_mcu_set_mimo(struct mt7996_phy *phy)
  	mt7996_mcu_set_muru_cmd(dev, UNI_CMD_MURU_SET_FORCE_MU, force_mu);
  }
  
@@ -190,7 +190,7 @@ index 417c7e99..867eed61 100644
  	struct {
  		u8 _rsv[4];
  
-@@ -1312,7 +1327,7 @@ void mt7996_mcu_set_cert(struct mt7996_phy *phy, u8 type)
+@@ -1313,7 +1328,7 @@ void mt7996_mcu_set_cert(struct mt7996_phy *phy, u8 type)
  	} __packed req = {
  		.tag = cpu_to_le16(UNI_CMD_CERT_CFG),
  		.len = cpu_to_le16(sizeof(req) - 4),

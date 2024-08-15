@@ -1,0 +1,50 @@
+From f9ceb3601873e92e296383b3f8f124cf7d84e6fe Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Wed, 29 Nov 2023 11:04:50 +0800
+Subject: [PATCH 092/199] mtk: mt76: extend wcid and sta flow for MLO support
+
+Add link related info to wcid, and split sta connection flow of common
+parts for MLO supported chipsets.
+This is a preliminary patch to add MLO support for mt7996 chipsets.
+
+Co-developed-by: Bo Jiao <Bo.Jiao@mediatek.com>
+Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mac80211.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/mac80211.c b/mac80211.c
+index 032a13a5..49834afe 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -1368,6 +1368,9 @@ mt76_sta_add(struct mt76_phy *phy, struct ieee80211_vif *vif,
+ 	if (ret)
+ 		goto out;
+ 
++	if (phy->hw->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO)
++		goto out;
++
+ 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++) {
+ 		struct mt76_txq *mtxq;
+ 
+@@ -1397,12 +1400,15 @@ void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
+ 	struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
+ 	int i, idx = wcid->idx;
+ 
+-	for (i = 0; i < ARRAY_SIZE(wcid->aggr); i++)
++	for (i = 0; !sta->valid_links && i < ARRAY_SIZE(wcid->aggr); i++)
+ 		mt76_rx_aggr_stop(dev, wcid, i);
+ 
+ 	if (dev->drv->sta_remove)
+ 		dev->drv->sta_remove(dev, vif, sta);
+ 
++	if (sta->valid_links)
++		return;
++
+ 	mt76_wcid_cleanup(dev, wcid);
+ 
+ 	mt76_wcid_mask_clear(dev->wcid_mask, idx);
+-- 
+2.18.0
+

@@ -1,0 +1,51 @@
+From 3cc44ab9e52f4c5543dcf0e0dc7cd6364aa36b3d Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Mon, 22 Jul 2024 19:33:07 +0800
+Subject: [PATCH 187/199] mtk: mt76: mt7996: Temporary fix init txpwoer for
+ single wiphy
+
+This patch can be removed after the real single wiphy finished.
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ mt7996/init.c | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 25f772af..e0cbcaaa 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -373,15 +373,24 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
+ 
+ void mt7996_init_txpower(struct mt7996_phy *phy)
+ {
++	struct ieee80211_hw *hw;
++	struct mt7996_phy *phy_2g, *phy_5g, *phy_6g;
++
+ 	if (!phy)
+ 		return;
+ 
+-	if (phy->mt76->cap.has_2ghz)
+-		__mt7996_init_txpower(phy, &phy->mt76->sband_2g.sband);
+-	if (phy->mt76->cap.has_5ghz)
+-		__mt7996_init_txpower(phy, &phy->mt76->sband_5g.sband);
+-	if (phy->mt76->cap.has_6ghz)
+-		__mt7996_init_txpower(phy, &phy->mt76->sband_6g.sband);
++	hw = phy->mt76->hw;
++	/* FIXME refactor after single wiphy multiple radios merged */
++	phy_2g = mt7996_band_phy(hw, NL80211_BAND_2GHZ);
++	phy_5g = mt7996_band_phy(hw, NL80211_BAND_5GHZ);
++	phy_6g = mt7996_band_phy(hw, NL80211_BAND_6GHZ);
++
++	if (phy_2g && phy_2g->mt76->cap.has_2ghz)
++		__mt7996_init_txpower(phy_2g, &phy_2g->mt76->sband_2g.sband);
++	if (phy_5g && phy_5g->mt76->cap.has_5ghz)
++		__mt7996_init_txpower(phy_5g, &phy_5g->mt76->sband_5g.sband);
++	if (phy_6g && phy_6g->mt76->cap.has_6ghz)
++		__mt7996_init_txpower(phy_6g, &phy_6g->mt76->sband_6g.sband);
+ }
+ 
+ static void
+-- 
+2.18.0
+

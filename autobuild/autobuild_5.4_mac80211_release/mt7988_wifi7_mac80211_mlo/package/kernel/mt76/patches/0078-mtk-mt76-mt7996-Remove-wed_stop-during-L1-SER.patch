@@ -1,0 +1,32 @@
+From a606926ce504162a64ebab655645fb39e2035f0e Mon Sep 17 00:00:00 2001
+From: Rex Lu <rex.lu@mediatek.com>
+Date: Wed, 29 Nov 2023 13:56:52 +0800
+Subject: [PATCH 078/199] mtk: mt76: mt7996: Remove wed_stop during L1 SER
+
+Align logan L1 SER flow. During L1 SER, didn't need to close wed interrupt.
+
+Signed-off-by: Rex Lu <rex.lu@mediatek.com>
+---
+ mt7996/mac.c | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 1f3445bb..25f036bd 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1947,12 +1947,6 @@ void mt7996_mac_reset_work(struct work_struct *work)
+ 	dev_info(dev->mt76.dev,"\n%s L1 SER recovery start.",
+ 		 wiphy_name(dev->mt76.hw->wiphy));
+ 
+-	if (mtk_wed_device_active(&dev->mt76.mmio.wed_hif2))
+-		mtk_wed_device_stop(&dev->mt76.mmio.wed_hif2);
+-
+-	if (mtk_wed_device_active(&dev->mt76.mmio.wed))
+-		mtk_wed_device_stop(&dev->mt76.mmio.wed);
+-
+ 	ieee80211_stop_queues(mt76_hw(dev));
+ 	if (phy2)
+ 		ieee80211_stop_queues(phy2->mt76->hw);
+-- 
+2.18.0
+

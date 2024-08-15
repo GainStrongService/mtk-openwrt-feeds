@@ -1,0 +1,144 @@
+From 8a5ed33fbb5d297d74acfc6cc75ee358501aed18 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Thu, 30 May 2024 15:26:34 +0800
+Subject: [PATCH 151/199] mtk: mt76: mt7996: add support for MLD interface to
+ scan
+
+Before queueing a HW scan work, mt7996_hw_scan() should make sure that
+there is mt7996_bss_conf on the scanning phy.
+
+For MLD interface scan, we first iterate all links to find the
+mt7996_bss_conf with target phy. A mt7996_bss_conf not being found
+implies the link is invalid, for which an AP interface should NOT scan
+while a STA interface should. Here we use the default link for STA scan,
+and delete it after the scan is completed.
+
+Note that AP's mt7996_bss_conf is added when the link is assigned to
+a chanctx, meaning that the operating channel is already determined.
+However, if the AP uses ACS to decide link's operating channel,
+hostapd adds the link in mac80211 and triggers a scan, while
+mt7996_bss_conf is not yet allocated. In such a case we also use the
+default link to scan, and delete it once the scan is finished.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/main.c | 79 +++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 77 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 3c12bd52..a70fc4d3 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -2375,10 +2375,24 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+ 
+ void mt7996_scan_complete(struct mt7996_phy *phy, bool aborted)
+ {
+-	struct mt7996_vif *mvif = (struct mt7996_vif *)phy->scan_vif->drv_priv;
++	struct ieee80211_vif *vif = phy->scan_vif;
++	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+ 	struct cfg80211_scan_info info = {
+ 		.aborted = aborted,
+ 	};
++	int i;
++
++	if (ieee80211_vif_is_mld(vif)) {
++		struct mt7996_bss_conf *mconf;
++
++		for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
++			mconf = mconf_dereference_protected(mvif, i);
++
++			if (mconf && mconf->phy == phy && mconf == &mvif->deflink)
++				mt7996_remove_bss_conf(vif, &vif->bss_conf,
++						       &mvif->deflink);
++		}
++	}
+ 
+ 	ieee80211_scan_completed(mvif->hw, &info);
+ 	phy->scan_chan = NULL;
+@@ -2394,6 +2408,7 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	struct cfg80211_scan_request *req = &hw_req->req;
+ 	struct mt7996_phy *phy = mt7996_band_phy(hw, req->channels[0]->band);
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
++	struct mt7996_bss_conf *mconf;
+ 	int ret;
+ 
+ 	mutex_lock(&phy->dev->mt76.mutex);
+@@ -2407,7 +2422,7 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	phy->scan_chan_idx = 0;
+ 
+ 	if (!ieee80211_vif_is_mld(vif)) {
+-		struct mt7996_bss_conf *mconf = mconf_dereference_protected(mvif, 0);
++		mconf = mconf_dereference_protected(mvif, 0);
+ 
+ 		if (mconf && mconf->phy != phy) {
+ 			mt7996_remove_bss_conf(vif, &vif->bss_conf, &mvif->deflink);
+@@ -2421,6 +2436,66 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 				return ret;
+ 			}
+ 		}
++	} else {
++		struct ieee80211_bss_conf *link_conf;
++		unsigned long valid_links = vif->valid_links;
++		unsigned int link_id;
++		bool found = false;
++
++		for_each_set_bit(link_id, &valid_links,
++				 IEEE80211_MLD_MAX_NUM_LINKS) {
++			mconf = mconf_dereference_protected(mvif, link_id);
++			if (mconf && mconf->phy == phy) {
++				found = true;
++				break;
++			}
++
++			link_conf = link_conf_dereference_protected(vif, link_id);
++			if (link_conf && !mconf) {
++				/* The link is added in mac80211, but not yet
++				 * initialized and assigned to a chanctx.
++				 * Here we use the default link to perform scan.
++				 */
++				memcpy(&vif->bss_conf, link_conf, sizeof(struct ieee80211_bss_conf));
++				ret = mt7996_add_bss_conf(phy, vif, &vif->bss_conf);
++				found = true;
++				break;
++			}
++		}
++
++		if (!found) {
++			if (vif->type != NL80211_IFTYPE_STATION) {
++				/* Only allowed STA MLD to scan full-band when
++				 * there is no valid link on the band.
++				 * (For example, when connecting by 2 links
++				 * (2+5 GHz), an AP MLD is not allowed to scan
++				 * full-band (2+5+6 GHz), while a STA MLD is.)
++				 */
++				mutex_unlock(&phy->dev->mt76.mutex);
++				mt7996_scan_complete(phy, 0);
++				return 0;
++			}
++
++			/* Try to find an empty link, which is later used to scan. */
++			for (link_id = 0;
++			     link_id < IEEE80211_MLD_MAX_NUM_LINKS;
++			     link_id++) {
++				if (!rcu_access_pointer(mvif->link[link_id]))
++					break;
++			}
++
++			if (link_id == IEEE80211_MLD_MAX_NUM_LINKS) {
++				mutex_unlock(&phy->dev->mt76.mutex);
++				return -ENOLINK;
++			}
++
++			vif->bss_conf.link_id = link_id;
++			ret = mt7996_add_bss_conf(phy, vif, &vif->bss_conf);
++			if (ret) {
++				mutex_unlock(&phy->dev->mt76.mutex);
++				return ret;
++			}
++		}
+ 	}
+ 
+ 	set_bit(MT76_SCANNING, &phy->mt76->state);
+-- 
+2.18.0
+

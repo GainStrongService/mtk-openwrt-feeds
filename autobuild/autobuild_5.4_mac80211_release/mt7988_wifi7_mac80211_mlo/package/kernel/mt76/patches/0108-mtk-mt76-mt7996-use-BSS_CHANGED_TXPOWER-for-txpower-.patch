@@ -1,0 +1,106 @@
+From f0996fb23e5b67edf0e25d31c90f938b7c9759c6 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 27 Feb 2024 18:07:11 +0800
+Subject: [PATCH 108/199] mtk: mt76: mt7996: use BSS_CHANGED_TXPOWER for
+ txpower setting
+
+This is a preliminary patch to add MLO support for mt7996 chipsets.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/main.c     | 12 +++---------
+ mt7996/mcu.c      |  5 +++--
+ mt7996/mt7996.h   |  3 ++-
+ mt7996/testmode.c |  2 +-
+ 4 files changed, 9 insertions(+), 13 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index d897a361..fd0df974 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -665,14 +665,6 @@ static int mt7996_config(struct ieee80211_hw *hw, u32 changed)
+ {
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+-	int ret;
+-
+-	if (changed & (IEEE80211_CONF_CHANGE_POWER |
+-		       IEEE80211_CONF_CHANGE_CHANNEL)) {
+-		ret = mt7996_mcu_set_txpower_sku(phy);
+-		if (ret)
+-			return ret;
+-	}
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
+@@ -972,6 +964,9 @@ static void mt7996_link_info_changed(struct ieee80211_hw *hw,
+ 	if (changed & BSS_CHANGED_MU_GROUPS)
+ 		mt7996_update_mu_group(hw, info, mconf);
+ 
++	if (changed & BSS_CHANGED_TXPOWER)
++		mt7996_mcu_set_txpower_sku(phy, info);
++
+ out:
+ 	mutex_unlock(&dev->mt76.mutex);
+ }
+@@ -1611,7 +1606,6 @@ mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+ 	mt76_set_stream_caps(phy->mt76, true);
+ 	mt7996_set_stream_vht_txbf_caps(phy);
+ 	mt7996_set_stream_he_eht_caps(phy);
+-	mt7996_mcu_set_txpower_sku(phy);
+ 
+ 	mutex_unlock(&dev->mt76.mutex);
+ 
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 8a04035e..bf128637 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -5310,7 +5310,8 @@ mt7996_update_max_txpower_cur(struct mt7996_phy *phy, int tx_power)
+ 		mphy->txpower_cur = e2p_power_limit;
+ }
+ 
+-int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
++int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy,
++			       struct ieee80211_bss_conf *conf)
+ {
+ #define TX_POWER_LIMIT_TABLE_RATE	0
+ #define TX_POWER_LIMIT_TABLE_PATH	1
+@@ -5339,7 +5340,7 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
+ 
+ 	if (hw->conf.power_level == INT_MIN)
+ 		hw->conf.power_level = 127;
+-	txpower_limit = mt7996_get_power_bound(phy, hw->conf.power_level);
++	txpower_limit = mt7996_get_power_bound(phy, conf->txpower);
+ 
+ 	if (phy->sku_limit_en) {
+ 		txpower_limit = mt76_get_rate_power_limits(mphy, mphy->chandef.chan,
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 3b24643a..fbb85177 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -980,7 +980,8 @@ int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch);
+ int mt7996_mcu_get_temperature(struct mt7996_phy *phy);
+ int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state);
+ int mt7996_mcu_set_thermal_protect(struct mt7996_phy *phy, bool enable);
+-int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy);
++int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy,
++			       struct ieee80211_bss_conf *conf);
+ int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
+ 		       u8 rx_sel, u8 val);
+ int mt7996_mcu_rdd_background_disable_timer(struct mt7996_dev *dev,
+diff --git a/mt7996/testmode.c b/mt7996/testmode.c
+index ba17f947..0565ebc9 100644
+--- a/mt7996/testmode.c
++++ b/mt7996/testmode.c
+@@ -1830,7 +1830,7 @@ mt7996_tm_update_params(struct mt7996_phy *phy, u32 changed)
+ 		mt7996_tm_update_channel(phy);
+ 		mt7996_mcu_set_tx_power_ctrl(phy, POWER_CTRL(SKU_POWER_LIMIT), td->sku_en);
+ 		mt7996_mcu_set_tx_power_ctrl(phy, POWER_CTRL(BACKOFF_POWER_LIMIT), td->sku_en);
+-		mt7996_mcu_set_txpower_sku(phy);
++		mt7996_mcu_set_txpower_sku(phy, &phy->monitor_vif->bss_conf);
+ 	}
+ 	if (changed & BIT(TM_CHANGED_TX_LENGTH)) {
+ 		mt7996_tm_set(dev, SET_ID(TX_LEN), td->tx_mpdu_len);
+-- 
+2.18.0
+

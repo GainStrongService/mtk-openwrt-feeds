@@ -1,0 +1,33 @@
+From a76084f12577a97b1b06db539a2e928845e5a9ff Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 26 Jul 2024 15:55:01 +0800
+Subject: [PATCH 007/199] mtk: mt76: mt7996: set rx path when channel switch
+
+When scanning, driver need to send this tag to fw to notify scanning is
+start or stop. FW would stop mac tx when scanning is started and resume
+mac tx when scanning is done. Without this tag, hw needs more time to
+resume traffic when scanning is done.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/main.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 7c97140d..15d880ef 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -307,6 +307,10 @@ int mt7996_set_channel(struct mt7996_phy *phy)
+ 	if (ret)
+ 		goto out;
+ 
++	ret = mt7996_mcu_set_chan_info(phy, UNI_CHANNEL_RX_PATH);
++	if (ret)
++		goto out;
++
+ 	ret = mt7996_dfs_init_radar_detector(phy);
+ 	mt7996_mac_cca_stats_reset(phy);
+ 
+-- 
+2.18.0
+

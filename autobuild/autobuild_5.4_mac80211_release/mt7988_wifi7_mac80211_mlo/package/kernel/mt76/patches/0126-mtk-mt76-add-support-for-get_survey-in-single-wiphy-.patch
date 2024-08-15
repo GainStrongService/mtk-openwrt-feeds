@@ -1,0 +1,72 @@
+From 749af4a20ff5d2fb111346a1251fc2aab471986c Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Thu, 2 May 2024 15:22:22 +0800
+Subject: [PATCH 126/199] mtk: mt76: add support for get_survey in single wiphy
+ architecture
+
+---
+ mac80211.c | 45 +++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 35 insertions(+), 10 deletions(-)
+
+diff --git a/mac80211.c b/mac80211.c
+index dc91e827..589c37af 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -912,19 +912,44 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
+ 	if (idx == 0 && dev->drv->update_survey)
+ 		mt76_update_survey(phy);
+ 
+-	if (idx >= phy->sband_2g.sband.n_channels +
+-		   phy->sband_5g.sband.n_channels) {
+-		idx -= (phy->sband_2g.sband.n_channels +
+-			phy->sband_5g.sband.n_channels);
+-		sband = &phy->sband_6g;
+-	} else if (idx >= phy->sband_2g.sband.n_channels) {
+-		idx -= phy->sband_2g.sband.n_channels;
+-		sband = &phy->sband_5g;
++	if (phy->hw->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO) {
++		struct mt76_phy *phy0, *phy1, *phy2;
++
++		phy0 = dev->phys[MT_BAND0];
++		phy1 = dev->phys[MT_BAND1];
++		phy2 = dev->phys[MT_BAND2];
++
++		/* TODO: mlo: temporarily hardcode */
++		/* FIXME only works on Eagle & Kite */
++		if (idx >= phy0->sband_2g.sband.n_channels +
++		    phy1->sband_5g.sband.n_channels) {
++			idx -= (phy0->sband_2g.sband.n_channels +
++				phy1->sband_5g.sband.n_channels);
++			sband = phy2 ? &phy2->sband_6g : NULL;
++			phy = phy2;
++		} else if (idx >= phy0->sband_2g.sband.n_channels) {
++			idx -= phy0->sband_2g.sband.n_channels;
++			sband = &phy1->sband_5g;
++			phy = phy1;
++		} else {
++			sband = &phy0->sband_2g;
++			phy = phy0;
++		}
+ 	} else {
+-		sband = &phy->sband_2g;
++		if (idx >= phy->sband_2g.sband.n_channels +
++		    phy->sband_5g.sband.n_channels) {
++			idx -= (phy->sband_2g.sband.n_channels +
++				phy->sband_5g.sband.n_channels);
++			sband = &phy->sband_6g;
++		} else if (idx >= phy->sband_2g.sband.n_channels) {
++			idx -= phy->sband_2g.sband.n_channels;
++			sband = &phy->sband_5g;
++		} else {
++			sband = &phy->sband_2g;
++		}
+ 	}
+ 
+-	if (idx >= sband->sband.n_channels) {
++	if (!sband || idx >= sband->sband.n_channels) {
+ 		ret = -ENOENT;
+ 		goto out;
+ 	}
+-- 
+2.18.0
+

@@ -1,0 +1,31 @@
+From c163bc7222a263f342dbef0568f2bd09044135be Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Mon, 5 Aug 2024 14:54:43 +0800
+Subject: [PATCH 193/199] mtk: mt76: mt7996: remove default bss_conf when link
+ becomes MLD
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/main.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 29b2583d..76dbb2f3 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -3124,6 +3124,12 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	}
+ 
+ 	if (!old_links) {
++		struct mt7996_bss_conf *mconf =
++			mconf_dereference_protected(mvif, 0);
++
++		if (ieee80211_vif_is_mld(vif) && mconf == &mvif->deflink)
++			mt7996_remove_bss_conf(vif, &vif->bss_conf, mconf);
++
+ 		mvif->group_mld_id = get_own_mld_idx(dev->mld_id_mask, true);
+ 		dev->mld_id_mask |= BIT_ULL(mvif->group_mld_id);
+ 
+-- 
+2.18.0
+

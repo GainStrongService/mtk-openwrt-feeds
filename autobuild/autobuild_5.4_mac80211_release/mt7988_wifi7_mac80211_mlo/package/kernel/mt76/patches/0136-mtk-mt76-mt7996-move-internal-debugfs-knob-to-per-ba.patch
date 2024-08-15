@@ -1,0 +1,270 @@
+From 729686d815e03189a23d2f0a987289eb34ac7676 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Thu, 16 May 2024 18:04:28 +0800
+Subject: [PATCH 136/199] mtk: mt76: mt7996: move internal debugfs knob to
+ per-band folder
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/debugfs.c     |   5 +-
+ mt7996/mt7996.h      |   3 +-
+ mt7996/mtk_debugfs.c | 117 ++++++++++++++-----------------------------
+ 3 files changed, 44 insertions(+), 81 deletions(-)
+
+diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
+index 9d74f659..71dc0449 100644
+--- a/mt7996/debugfs.c
++++ b/mt7996/debugfs.c
+@@ -1105,6 +1105,9 @@ int mt7996_init_band_debugfs(struct mt7996_phy *phy)
+ 					    mt7996_rdd_monitor);
+ 	}
+ 
++#ifdef CONFIG_MTK_DEBUG
++	mt7996_mtk_init_band_debugfs(phy, dir);
++#endif
+ 	return 0;
+ }
+ 
+@@ -1146,7 +1149,7 @@ int mt7996_init_dev_debugfs(struct mt7996_phy *phy)
+ 
+ #ifdef CONFIG_MTK_DEBUG
+ 	debugfs_create_u16("wlan_idx", 0600, dir, &dev->wlan_idx);
+-	mt7996_mtk_init_debugfs(phy, dir);
++	mt7996_mtk_init_dev_debugfs(dev, dir);
+ #endif
+ 
+ 	return 0;
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 08a43e61..cb35a927 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1286,7 +1286,8 @@ enum edcca_bw_id {
+ };
+ 
+ #ifdef CONFIG_MTK_DEBUG
+-int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir);
++void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir);
++void mt7996_mtk_init_band_debugfs(struct mt7996_phy *phy, struct dentry *dir);
+ int mt7996_mcu_muru_dbg_info(struct mt7996_dev *dev, u16 item, u8 val);
+ int mt7996_mcu_set_sr_enable(struct mt7996_phy *phy, u8 action, u64 val, bool set);
+ void mt7996_mcu_rx_sr_event(struct mt7996_dev *dev, struct sk_buff *skb);
+diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
+index 0820e0d0..59c6db73 100644
+--- a/mt7996/mtk_debugfs.c
++++ b/mt7996/mtk_debugfs.c
+@@ -14,13 +14,14 @@
+ #ifdef CONFIG_MTK_DEBUG
+ 
+ /* AGG INFO */
+-static int
+-mt7996_agginfo_read_per_band(struct seq_file *s, int band_idx)
++static int mt7996_agginfo_show(struct seq_file *s, void *data)
+ {
+-	struct mt7996_dev *dev = dev_get_drvdata(s->private);
++	struct mt7996_phy *phy = s->private;
++	struct mt7996_dev *dev = phy->dev;
+ 	u64 total_burst, total_ampdu, ampdu_cnt[16];
+ 	u32 value, idx, row_idx, col_idx, start_range, agg_rang_sel[16], burst_cnt[16], band_offset = 0;
+ 	u8 partial_str[16] = {}, full_str[64] = {};
++	u8 band_idx = phy->mt76->band_idx;
+ 
+ 	switch (band_idx) {
+ 	case 0:
+@@ -204,24 +205,7 @@ mt7996_agginfo_read_per_band(struct seq_file *s, int band_idx)
+ 
+ 	return 0;
+ }
+-
+-static int mt7996_agginfo_read_band0(struct seq_file *s, void *data)
+-{
+-	mt7996_agginfo_read_per_band(s, MT_BAND0);
+-	return 0;
+-}
+-
+-static int mt7996_agginfo_read_band1(struct seq_file *s, void *data)
+-{
+-	mt7996_agginfo_read_per_band(s, MT_BAND1);
+-	return 0;
+-}
+-
+-static int mt7996_agginfo_read_band2(struct seq_file *s, void *data)
+-{
+-	mt7996_agginfo_read_per_band(s, MT_BAND2);
+-	return 0;
+-}
++DEFINE_SHOW_ATTRIBUTE(mt7996_agginfo);
+ 
+ /* AMSDU INFO */
+ static int mt7996_amsdu_result_read(struct seq_file *s, void *data)
+@@ -704,10 +688,12 @@ static int mt7996_trinfo_read(struct seq_file *s, void *data)
+ }
+ 
+ /* MIB INFO */
+-static int mt7996_mibinfo_read_per_band(struct seq_file *s, int band_idx)
++static int mt7996_mibinfo_show(struct seq_file *s, void *data)
+ {
+ #define BSS_NUM	4
+-	struct mt7996_dev *dev = dev_get_drvdata(s->private);
++	struct mt7996_phy *phy = s->private;
++	struct mt7996_dev *dev = phy->dev;
++	u8 band_idx = phy->mt76->band_idx;
+ 	u8 bss_nums = BSS_NUM;
+ 	u32 idx;
+ 	u32 mac_val, band_offset = 0, band_offset_umib = 0;
+@@ -920,24 +906,7 @@ static int mt7996_mibinfo_read_per_band(struct seq_file *s, int band_idx)
+ 
+ 	return 0;
+ }
+-
+-static int mt7996_mibinfo_band0(struct seq_file *s, void *data)
+-{
+-	mt7996_mibinfo_read_per_band(s, MT_BAND0);
+-	return 0;
+-}
+-
+-static int mt7996_mibinfo_band1(struct seq_file *s, void *data)
+-{
+-	mt7996_mibinfo_read_per_band(s, MT_BAND1);
+-	return 0;
+-}
+-
+-static int mt7996_mibinfo_band2(struct seq_file *s, void *data)
+-{
+-	mt7996_mibinfo_read_per_band(s, MT_BAND2);
+-	return 0;
+-}
++DEFINE_SHOW_ATTRIBUTE(mt7996_mibinfo);
+ 
+ /* WTBL INFO */
+ static int
+@@ -3036,9 +3005,9 @@ static const struct file_operations fops_muru_fixed_group_rate = {
+ 
+ static int mt7996_muru_prot_thr_set(void *data, u64 val)
+ {
+-	struct mt7996_phy *phy = data;
++	struct mt7996_dev *dev = data;
+ 
+-	return mt7996_mcu_muru_set_prot_frame_thr(phy->dev, (u32)val);
++	return mt7996_mcu_muru_set_prot_frame_thr(dev, (u32)val);
+ }
+ 
+ DEFINE_DEBUGFS_ATTRIBUTE(fops_muru_prot_thr, NULL,
+@@ -4219,9 +4188,32 @@ mt7996_drr_info(struct seq_file *s, void *data)
+ 	return 0;
+ }
+ 
+-int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
++void mt7996_mtk_init_band_debugfs(struct mt7996_phy *phy, struct dentry *dir)
++{
++	/* agg */
++	debugfs_create_file("agginfo", 0400, dir, phy, &mt7996_agginfo_fops);
++	debugfs_create_file("mibinfo", 0400, dir, phy, &mt7996_mibinfo_fops);
++	debugfs_create_file("txpower_level", 0600, dir, phy, &fops_txpower_level);
++	debugfs_create_file("txpower_info", 0600, dir, phy, &mt7996_txpower_info_fops);
++	debugfs_create_file("txpower_sku", 0600, dir, phy, &mt7996_txpower_sku_fops);
++	debugfs_create_file("txpower_path", 0600, dir, phy, &mt7996_txpower_path_fops);
++
++	debugfs_create_file("sr_enable", 0600, dir, phy, &fops_sr_enable);
++	debugfs_create_file("sr_enhanced_enable", 0600, dir, phy, &fops_sr_enhanced_enable);
++	debugfs_create_file("sr_stats", 0400, dir, phy, &mt7996_sr_stats_fops);
++	debugfs_create_file("sr_scene_cond", 0400, dir, phy, &mt7996_sr_scene_cond_fops);
++
++	debugfs_create_file("bf_txsnd_info", 0600, dir, phy, &fops_bf_txsnd_info);
++	debugfs_create_file("bf_starec_read", 0600, dir, phy, &fops_starec_bf_read);
++	debugfs_create_file("bf_fbk_rpt", 0600, dir, phy, &fops_bf_fbk_rpt);
++	debugfs_create_file("pfmu_tag_read", 0600, dir, phy, &fops_bf_pfmu_tag_read);
++
++	debugfs_create_file("thermal_enable", 0600, dir, phy, &fops_thermal_enable);
++	debugfs_create_file("scs_enable", 0200, dir, phy, &fops_scs_enable);
++}
++
++void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
+ {
+-	struct mt7996_dev *dev = phy->dev;
+ 	u32 device_id = (dev->mt76.rev) >> 16;
+ 	int i = 0;
+ 	static const struct mt7996_dbg_reg_desc dbg_reg_s[] = {
+@@ -4246,13 +4238,6 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+ 		WTBL_LMAC_DW9 = WTBL_LMAC_DW9_7992;
+ 	}
+ 
+-	/* agg */
+-	debugfs_create_devm_seqfile(dev->mt76.dev, "agg_info0", dir,
+-				    mt7996_agginfo_read_band0);
+-	debugfs_create_devm_seqfile(dev->mt76.dev, "agg_info1", dir,
+-				    mt7996_agginfo_read_band1);
+-	debugfs_create_devm_seqfile(dev->mt76.dev, "agg_info2", dir,
+-				    mt7996_agginfo_read_band2);
+ 	/* amsdu */
+ 	debugfs_create_devm_seqfile(dev->mt76.dev, "amsdu_info", dir,
+ 				    mt7996_amsdu_result_read);
+@@ -4270,24 +4255,12 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+ 	debugfs_create_devm_seqfile(dev->mt76.dev, "fw_wm_info", dir,
+ 				    mt7996_fw_wm_info_read);
+ 
+-	debugfs_create_devm_seqfile(dev->mt76.dev, "mib_info0", dir,
+-				    mt7996_mibinfo_band0);
+-	debugfs_create_devm_seqfile(dev->mt76.dev, "mib_info1", dir,
+-				    mt7996_mibinfo_band1);
+-	debugfs_create_devm_seqfile(dev->mt76.dev, "mib_info2", dir,
+-				    mt7996_mibinfo_band2);
+-
+ 	debugfs_create_devm_seqfile(dev->mt76.dev, "sta_info", dir,
+ 				    mt7996_sta_info);
+ 
+ 	debugfs_create_devm_seqfile(dev->mt76.dev, "tr_info", dir,
+ 				    mt7996_trinfo_read);
+ 
+-	debugfs_create_file("txpower_level", 0600, dir, phy, &fops_txpower_level);
+-	debugfs_create_file("txpower_info", 0600, dir, phy, &mt7996_txpower_info_fops);
+-	debugfs_create_file("txpower_sku", 0600, dir, phy, &mt7996_txpower_sku_fops);
+-	debugfs_create_file("txpower_path", 0600, dir, phy, &mt7996_txpower_path_fops);
+-
+ 	debugfs_create_devm_seqfile(dev->mt76.dev, "eeprom_mode", dir,
+ 				    mt7996_show_eeprom_mode);
+ 
+@@ -4300,23 +4273,12 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+ 
+ 	dev->dbg.sku_disable = true; /* For SQC */
+ 	debugfs_create_u8("sku_disable", 0600, dir, &dev->dbg.sku_disable);
+-	debugfs_create_file("scs_enable", 0200, dir, phy, &fops_scs_enable);
+-
+-	debugfs_create_file("sr_enable", 0600, dir, phy, &fops_sr_enable);
+-	debugfs_create_file("sr_enhanced_enable", 0600, dir, phy, &fops_sr_enhanced_enable);
+-	debugfs_create_file("sr_stats", 0400, dir, phy, &mt7996_sr_stats_fops);
+-	debugfs_create_file("sr_scene_cond", 0400, dir, phy, &mt7996_sr_scene_cond_fops);
+ 
++	debugfs_create_file("muru_prot_thr", 0200, dir, dev, &fops_muru_prot_thr);
+ 	debugfs_create_file("muru_fixed_rate_enable", 0600, dir, dev,
+ 			    &fops_muru_fixed_rate_enable);
+ 	debugfs_create_file("muru_fixed_group_rate", 0600, dir, dev,
+ 			    &fops_muru_fixed_group_rate);
+-	debugfs_create_file("bf_txsnd_info", 0600, dir, phy, &fops_bf_txsnd_info);
+-	debugfs_create_file("bf_starec_read", 0600, dir, phy, &fops_starec_bf_read);
+-	debugfs_create_file("bf_fbk_rpt", 0600, dir, phy, &fops_bf_fbk_rpt);
+-	debugfs_create_file("pfmu_tag_read", 0600, dir, phy, &fops_bf_pfmu_tag_read);
+-
+-	debugfs_create_file("muru_prot_thr", 0200, dir, phy, &fops_muru_prot_thr);
+ 
+ 	if (dev->has_rro) {
+ 		debugfs_create_u32("rro_sid", 0600, dir, &dev->dbg.sid);
+@@ -4326,7 +4288,6 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+ 					    mt7996_show_rro_mib);
+ 	}
+ 
+-	debugfs_create_file("thermal_enable", 0600, dir, phy, &fops_thermal_enable);
+ 	debugfs_create_file("thermal_recal", 0200, dir, dev, &fops_thermal_recal);
+ 	debugfs_create_file("reset_counter", 0200, dir, dev, &fops_reset_counter);
+ 
+@@ -4346,8 +4307,6 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+ 	debugfs_create_file("amsdu_para", 0600, dir, dev, &fops_amsdu_para);
+ 	debugfs_create_devm_seqfile(dev->mt76.dev, "hw_amsdu_info", dir,
+ 	                            mt7996_hw_amsdu_info_read);
+-
+-	return 0;
+ }
+ 
+ #endif
+-- 
+2.18.0
+

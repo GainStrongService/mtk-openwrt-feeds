@@ -1,0 +1,91 @@
+From 0468bbdacaddcec089088bbb16e0d4b402d52aaa Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 9 Jul 2024 14:54:39 +0800
+Subject: [PATCH 180/199] mtk: mt76: mt7996: fix potential null pointer
+
+Fix more parts that might have null pointer access.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/mac.c  |  3 +++
+ mt7996/main.c | 10 ++++++++++
+ mt7996/mcu.c  |  3 +++
+ 3 files changed, 16 insertions(+)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index c91c550d..657a19c1 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1115,6 +1115,9 @@ mt7996_tx_check_aggr(struct ieee80211_sta *sta, struct sk_buff *skb,
+ 
+ 	msta = (struct mt7996_sta *)sta->drv_priv;
+ 	mlink = rcu_dereference(msta->link[msta->pri_link]);
++	if (!mlink)
++		return;
++
+ 	if (!test_and_set_bit(tid, &mlink->wcid.ampdu_state))
+ 		ieee80211_start_tx_ba_session(sta, tid, 0);
+ }
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 032ef5f3..ff0b9c0e 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -518,9 +518,12 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
+ 
+ 	conf = link_conf_dereference_protected(vif, 0);
+ 	mconf = mconf_dereference_protected(mvif, 0);
++	if (!mconf || !conf)
++		goto out;
+ 
+ 	mt7996_remove_bss_conf(vif, conf, mconf);
+ 
++out:
+ 	mutex_unlock(&dev->mt76.mutex);
+ }
+ 
+@@ -928,6 +931,9 @@ static void mt7996_vif_cfg_changed(struct ieee80211_hw *hw,
+ 			struct mt7996_link_sta *mlink =
+ 				mlink_dereference_protected(&mvif->sta, link_id);
+ 
++			if (!conf || !mconf || !mlink)
++				continue;
++
+ 			mt7996_mcu_add_bss_info(mconf->phy, conf, mconf, mlink, true);
+ 			mt7996_mcu_add_sta(dev, conf, mconf, NULL, mlink, true, false);
+ 		}
+@@ -1279,6 +1285,8 @@ mt7996_mac_sta_remove_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ 			link_sta_dereference_protected(sta, link_id);
+ 		bool last_link = rem == sta->valid_links && link_id == __fls(rem);
+ 
++		if (!mconf || !mlink || !conf || !link_sta)
++			continue;
+ 		mt7996_remove_link_sta(dev, conf, mconf, link_sta, mlink, last_link);
+ 	}
+ }
+@@ -1415,6 +1423,8 @@ mt7996_sta_pre_rcu_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 		struct mt7996_link_sta *mlink =
+ 			mlink_dereference_protected(msta, link_id);
+ 
++		if (!mlink)
++			continue;
+ 		rcu_assign_pointer(dev->mt76.wcid[mlink->wcid.idx], NULL);
+ 	}
+ 	spin_unlock_bh(&dev->mt76.status_lock);
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 857d2826..4310d35b 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -3027,6 +3027,9 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 		mlink = mlink_dereference_protected(msta, link_id);
+ 		mconf = mconf_dereference_protected(msta->vif, link_id);
+ 
++		if (!mlink || !mconf)
++			continue;
++
+ 		mld_setup_link->wcid = cpu_to_le16(mlink->wcid.idx);
+ 		mld_setup_link->bss_idx = mconf->mt76.idx;
+ 		mt76_trace(vif, "link_id(%d) wcid(%d) bss_idx(%d)\n",
+-- 
+2.18.0
+

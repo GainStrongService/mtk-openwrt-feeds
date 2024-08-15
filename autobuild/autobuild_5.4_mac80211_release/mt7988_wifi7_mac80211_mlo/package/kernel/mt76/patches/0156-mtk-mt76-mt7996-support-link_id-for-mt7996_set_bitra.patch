@@ -1,0 +1,120 @@
+From c310822a0a28c43c4bf4234e76d82e4d1fb47a96 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Fri, 7 Jun 2024 13:23:55 +0800
+Subject: [PATCH 156/199] mtk: mt76: mt7996: support link_id for
+ mt7996_set_bitrate_mask
+
+Add support new argument link_id for set_bitrate_mask within
+ieee80211_ops.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/main.c   | 34 ++++++++++++++++++++++++++--------
+ mt7996/mt7996.h |  5 +++++
+ 2 files changed, 31 insertions(+), 8 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 8c162987..71a42199 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1895,17 +1895,21 @@ static void mt7996_sta_rc_work(void *data, struct ieee80211_sta *sta)
+ 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+ 	struct mt7996_link_sta *mlink;
+ 	struct mt7996_dev *dev = msta->vif->dev;
+-	u32 *changed = data;
++	struct mt7996_sta_rc_work_data *wd = data;
+ 
+ 	rcu_read_lock();
+-	mlink = rcu_dereference(msta->link[msta->pri_link]);
++	mlink = rcu_dereference(msta->link[wd->link_id]);
++
++	if (!mlink)
++		goto unlock;
+ 
+ 	spin_lock_bh(&dev->mt76.sta_poll_lock);
+-	mlink->changed |= *changed;
++	mlink->changed |= wd->changed;
+ 	if (list_empty(&mlink->rc_list))
+ 		list_add_tail(&mlink->rc_list, &dev->sta_rc_list);
+ 	spin_unlock_bh(&dev->mt76.sta_poll_lock);
+ 
++unlock:
+ 	rcu_read_unlock();
+ }
+ 
+@@ -1917,6 +1921,10 @@ static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
+ 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+ 	struct mt7996_dev *dev = phy->dev;
++	struct mt7996_sta_rc_work_data data = {
++		.link_id = msta->pri_link,
++		.changed = changed,
++	};
+ 
+ 	if (!msta->vif) {
+ 		dev_warn(dev->mt76.dev, "Un-initialized STA %pM wcid %d in rc_work\n",
+@@ -1924,22 +1932,32 @@ static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
+ 		return;
+ 	}
+ 
+-	mt7996_sta_rc_work(&changed, sta);
++	mt7996_sta_rc_work(&data, sta);
+ 	ieee80211_queue_work(hw, &dev->rc_work);
+ }
+ 
+ static int
+ mt7996_set_bitrate_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+-			const struct cfg80211_bitrate_mask *mask)
++			const struct cfg80211_bitrate_mask *mask,
++			unsigned int link_id)
+ {
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+ 	struct mt7996_dev *dev = phy->dev;
+ 	struct mt7996_bss_conf *mconf;
+-	u32 changed = IEEE80211_RC_SUPP_RATES_CHANGED;
++	struct mt7996_sta_rc_work_data data = {
++		.link_id = link_id,
++		.changed = IEEE80211_RC_SUPP_RATES_CHANGED,
++	};
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+-	mconf = mconf_dereference_protected(mvif, mvif->master_link_id);
++	mconf = mconf_dereference_protected(mvif, link_id);
++
++	if (!mconf) {
++		mutex_unlock(&dev->mt76.mutex);
++		return -EINVAL;
++	}
++
+ 	mconf->bitrate_mask = *mask;
+ 	mutex_unlock(&dev->mt76.mutex);
+ 
+@@ -1951,7 +1969,7 @@ mt7996_set_bitrate_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	 * - multiple rates: if it's not in range format i.e 0-{7,8,9} for VHT
+ 	 * then multiple MCS setting (MCS 4,5,6) is not supported.
+ 	 */
+-	ieee80211_iterate_stations_atomic(hw, mt7996_sta_rc_work, &changed);
++	ieee80211_iterate_stations_atomic(hw, mt7996_sta_rc_work, &data);
+ 	ieee80211_queue_work(hw, &dev->rc_work);
+ 
+ 	return 0;
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 302ac7bf..49789441 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -444,6 +444,11 @@ struct mt7996_wed_rro_session_id {
+ 	u16 id;
+ };
+ 
++struct mt7996_sta_rc_work_data {
++	unsigned int link_id;
++	u32 changed;
++};
++
+ #ifdef CONFIG_MTK_VENDOR
+ #define MT7996_AIR_MONITOR_MAX_ENTRY	16
+ #define MT7996_AIR_MONITOR_MAX_GROUP	(MT7996_AIR_MONITOR_MAX_ENTRY >> 1)
+-- 
+2.18.0
+

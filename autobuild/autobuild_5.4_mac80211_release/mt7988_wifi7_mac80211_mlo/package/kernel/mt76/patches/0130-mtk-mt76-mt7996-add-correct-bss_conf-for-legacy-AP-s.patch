@@ -1,0 +1,63 @@
+From ee730e834f37a0fa3a70bdce358ef3a163b46399 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Fri, 10 May 2024 13:35:56 +0800
+Subject: [PATCH 130/199] mtk: mt76: mt7996: add correct bss_conf for legacy AP
+ scan
+
+If the legacy AP interface is added but not yet started, its bss_conf
+wlould be phy0. Problem happens when scan is triggered with scan request
+contining channels not belong to phy0. In other word, it is invalid to
+set channel that does not belong to current bss_conf.
+
+This commit adds correct bss_conf for legacy AP so that setting channel
+can be successful.
+
+Now AP's bss_conf is not added until chanctx being assigned, so legacy AP
+might receive scan request without bss_conf being assigned. (such as ACS)
+
+This commit changes the way bss_conf being checked before scan. If the
+bss_conf exists but belongs to a different phy than the scanning one, it's
+removed. And if the bss_conf is not exist, or it just be removed, it's
+added and assigned to the scanning phy.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/main.c | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 0d25d763..990a38a7 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -2363,15 +2363,20 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	phy->scan_vif = vif;
+ 	phy->scan_chan_idx = 0;
+ 
+-	if (vif->type == NL80211_IFTYPE_STATION && !ieee80211_vif_is_mld(vif) &&
+-	    (phy->mt76 != mvif->deflink.phy->mt76)) {
+-		// phy->mt76->main_phy = hw->priv;
+-		mt7996_remove_bss_conf(vif, &vif->bss_conf, &mvif->deflink);
++	if (!ieee80211_vif_is_mld(vif)) {
++		struct mt7996_bss_conf *mconf = mconf_dereference_protected(mvif, 0);
+ 
+-		ret = mt7996_add_bss_conf(phy, vif, &vif->bss_conf);
+-		if (ret) {
+-			mutex_unlock(&phy->dev->mt76.mutex);
+-			return ret;
++		if (mconf && mconf->phy != phy) {
++			mt7996_remove_bss_conf(vif, &vif->bss_conf, &mvif->deflink);
++			mconf = NULL;
++		}
++
++		if (!mconf) {
++			ret = mt7996_add_bss_conf(phy, vif, &vif->bss_conf);
++			if (ret) {
++				mutex_unlock(&phy->dev->mt76.mutex);
++				return ret;
++			}
+ 		}
+ 	}
+ 
+-- 
+2.18.0
+

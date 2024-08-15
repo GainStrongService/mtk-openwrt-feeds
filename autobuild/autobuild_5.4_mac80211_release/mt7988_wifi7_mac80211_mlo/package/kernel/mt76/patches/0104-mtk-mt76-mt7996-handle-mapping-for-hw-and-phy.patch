@@ -1,0 +1,218 @@
+From 55f4ab5ef60b32bb44395dc818b0dbc55fb7d81a Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 5 Dec 2023 13:56:51 +0800
+Subject: [PATCH 104/199] mtk: mt76: mt7996: handle mapping for hw and phy
+
+We've used mt7996_band_phy() to do mapping from ieee80211_hw to mt7996_phy,
+and this patch is a temporal workaround for opposite direction.
+This is a preliminary patch to add MLO support for mt7996 chipsets.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mac80211.c    | 11 ++++++++++-
+ mt76.h        | 10 ++++++++++
+ mt7996/mac.c  |  7 +++++--
+ mt7996/main.c | 41 ++++++++++++++++++++++++++++++-----------
+ 4 files changed, 55 insertions(+), 14 deletions(-)
+
+diff --git a/mac80211.c b/mac80211.c
+index 49834afe..bf7ead01 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -823,9 +823,13 @@ EXPORT_SYMBOL_GPL(mt76_has_tx_pending);
+ struct mt76_channel_state *
+ mt76_channel_state(struct mt76_phy *phy, struct ieee80211_channel *c)
+ {
++	struct mt76_phy *ori_phy = phy;
+ 	struct mt76_sband *msband;
+ 	int idx;
+ 
++	if (phy->main_phy)
++		phy = phy->main_phy;
++begin:
+ 	if (c->band == NL80211_BAND_2GHZ)
+ 		msband = &phy->sband_2g;
+ 	else if (c->band == NL80211_BAND_6GHZ)
+@@ -834,6 +838,11 @@ mt76_channel_state(struct mt76_phy *phy, struct ieee80211_channel *c)
+ 		msband = &phy->sband_5g;
+ 
+ 	idx = c - &msband->sband.channels[0];
++	/* TODO: mlo: this is a temp solution, need to come up with a more clever one */
++	if (idx < 0 || idx >= msband->sband.n_channels) {
++		phy = ori_phy;
++		goto begin;
++	}
+ 	return &msband->chan[idx];
+ }
+ EXPORT_SYMBOL_GPL(mt76_channel_state);
+@@ -1073,7 +1082,7 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
+ 	}
+ 
+ 	*sta = wcid_to_sta(mstat.wcid);
+-	*hw = mt76_phy_hw(dev, mstat.phy_idx);
++	*hw = mt76_main_hw(dev->phys[mstat.phy_idx]);
+ }
+ 
+ static void
+diff --git a/mt76.h b/mt76.h
+index 6a7752ef..f037284a 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -829,6 +829,7 @@ struct mt76_vif {
+ struct mt76_phy {
+ 	struct ieee80211_hw *hw;
+ 	struct mt76_dev *dev;
++	struct mt76_phy *main_phy;
+ 	void *priv;
+ 
+ 	unsigned long state;
+@@ -1308,6 +1309,15 @@ mt76_phy_hw(struct mt76_dev *dev, u8 phy_idx)
+ 	return mt76_dev_phy(dev, phy_idx)->hw;
+ }
+ 
++static inline struct ieee80211_hw *
++mt76_main_hw(struct mt76_phy *phy)
++{
++	if (phy->main_phy)
++		return mt76_dev_phy(phy->dev, phy->main_phy->band_idx)->hw;
++
++	return mt76_dev_phy(phy->dev, phy->band_idx)->hw;
++}
++
+ static inline u8 *
+ mt76_get_txwi_ptr(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+ {
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 6d0506fc..c0c0df2f 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -2382,7 +2382,10 @@ void mt7996_mac_work(struct work_struct *work)
+ 
+ 	mt76_tx_status_check(mdev, false);
+ 
+-	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
++	if (mphy->main_phy && !test_bit(MT76_STATE_RUNNING, &mphy->main_phy->state))
++		return;
++
++	ieee80211_queue_delayed_work(mt76_main_hw(mphy), &mphy->mac_work,
+ 				     MT7996_WATCHDOG_TIME);
+ }
+ 
+@@ -2801,7 +2804,7 @@ mt7996_scan_send_probe(struct mt7996_phy *phy, struct cfg80211_ssid *ssid,
+ 	skb_set_queue_mapping(skb, IEEE80211_AC_VO);
+ 
+ 	rcu_read_lock();
+-	if (!ieee80211_tx_prepare_skb(hw, vif, skb,
++	if (!ieee80211_tx_prepare_skb(mt76_main_hw(phy->mt76), vif, skb,
+ 				      phy->scan_chan->band,
+ 				      NULL)) {
+ 		rcu_read_unlock();
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 1ea81d62..331dd4d4 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -173,6 +173,7 @@ static void mt7996_stop(struct ieee80211_hw *hw)
+ 		mutex_lock(&dev->mt76.mutex);
+ 		mt7996_mcu_set_radio_en(phy, false);
+ 		clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
++		phy->mt76->main_phy = NULL;
+ 		mutex_unlock(&dev->mt76.mutex);
+ 	}
+ }
+@@ -545,9 +546,10 @@ out:
+ 	clear_bit(MT76_RESET, &phy->mt76->state);
+ 	mutex_unlock(&dev->mt76.mutex);
+ 
+-	mt76_txq_schedule_all(phy->mt76);
++	if (phy->mt76 == phy->mt76->main_phy)
++		mt76_txq_schedule_all(phy->mt76);
+ 
+-	ieee80211_queue_delayed_work(phy->mt76->hw,
++	ieee80211_queue_delayed_work(mt76_main_hw(phy->mt76),
+ 				     &phy->mt76->mac_work,
+ 				     MT7996_WATCHDOG_TIME);
+ 
+@@ -558,11 +560,11 @@ int mt7996_set_channel(struct mt7996_phy *phy, struct cfg80211_chan_def *chandef
+ {
+ 	int ret;
+ 
+-	ieee80211_stop_queues(phy->mt76->hw);
++	ieee80211_stop_queues(mt76_main_hw(phy->mt76));
+ 	ret = __mt7996_set_channel(phy, chandef);
+ 	if (ret)
+ 		return ret;
+-	ieee80211_wake_queues(phy->mt76->hw);
++	ieee80211_wake_queues(mt76_main_hw(phy->mt76));
+ 
+ 	return 0;
+ }
+@@ -735,6 +737,7 @@ static void mt7996_configure_filter(struct ieee80211_hw *hw,
+ 			MT_WF_RFCR1_DROP_CFEND |
+ 			MT_WF_RFCR1_DROP_CFACK;
+ 	u32 flags = 0;
++	u8 band;
+ 
+ #define MT76_FILTER(_flag, _hw) do {					\
+ 		flags |= *total_flags & FIF_##_flag;			\
+@@ -768,12 +771,26 @@ static void mt7996_configure_filter(struct ieee80211_hw *hw,
+ 			     MT_WF_RFCR_DROP_NDPA);
+ 
+ 	*total_flags = flags;
+-	mt76_wr(dev, MT_WF_RFCR(phy->mt76->band_idx), phy->rxfilter);
+ 
+-	if (*total_flags & FIF_CONTROL)
+-		mt76_clear(dev, MT_WF_RFCR1(phy->mt76->band_idx), ctl_flags);
+-	else
+-		mt76_set(dev, MT_WF_RFCR1(phy->mt76->band_idx), ctl_flags);
++	/* configure rx filter to all affliated phy */
++	for (band = 0; band < __MT_MAX_BAND; band++) {
++		struct mt7996_phy *tmp;
++
++		if (!hw->wiphy->bands[band])
++			continue;
++
++		tmp = dev->mt76.phys[band]->priv;
++		if (tmp->mt76->main_phy != phy->mt76)
++			continue;
++
++		tmp->rxfilter = phy->rxfilter;
++		mt76_wr(dev, MT_WF_RFCR(tmp->mt76->band_idx), phy->rxfilter);
++
++		if (*total_flags & FIF_CONTROL)
++			mt76_clear(dev, MT_WF_RFCR1(tmp->mt76->band_idx), ctl_flags);
++		else
++			mt76_set(dev, MT_WF_RFCR1(tmp->mt76->band_idx), ctl_flags);
++	}
+ 
+ 	mutex_unlock(&dev->mt76.mutex);
+ }
+@@ -2190,7 +2207,7 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	phy->scan_chan_idx = 0;
+ 	mutex_unlock(&phy->dev->mt76.mutex);
+ 
+-	ieee80211_queue_delayed_work(hw, &phy->scan_work, 0);
++	ieee80211_queue_delayed_work(mt76_main_hw(phy->mt76), &phy->scan_work, 0);
+ 
+ 	return 0;
+ }
+@@ -2207,7 +2224,8 @@ mt7996_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+ 			continue;
+ 
+ 		phy = mt7996_band_phy(hw, band);
+-		if (!(test_bit(MT76_SCANNING, &phy->mt76->state)))
++		if (!(test_bit(MT76_SCANNING, &phy->mt76->state) &&
++		      phy->mt76->main_phy == hw->priv))
+ 			continue;
+ 
+ 		cancel_delayed_work_sync(&phy->scan_work);
+@@ -2228,6 +2246,7 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
+ 	wiphy_info(hw->wiphy, "%s: add %u\n", __func__, conf->def.chan->hw_value);
+ 	mutex_lock(&phy->dev->mt76.mutex);
+ 
++	phy->mt76->main_phy = hw->priv;
+ 	if (ctx->assigned) {
+ 		mutex_unlock(&phy->dev->mt76.mutex);
+ 		return -ENOSPC;
+-- 
+2.18.0
+

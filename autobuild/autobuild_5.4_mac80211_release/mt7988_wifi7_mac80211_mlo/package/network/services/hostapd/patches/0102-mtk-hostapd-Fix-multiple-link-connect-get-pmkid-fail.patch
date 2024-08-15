@@ -1,0 +1,50 @@
+From b43473e506400cc142f3d464c621714014ca196c Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Thu, 6 Jun 2024 17:41:56 +0800
+Subject: [PATCH 102/126] mtk: hostapd: Fix multiple link connect get pmkid
+ failed
+
+Store pmkid in each link when receive STA auth.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ src/ap/ieee802_11.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index fd954b6f5..ff0f24aaa 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -945,6 +945,7 @@ static void sae_sme_send_external_auth_status(struct hostapd_data *hapd,
+ 
+ void sae_accept_sta(struct hostapd_data *hapd, struct sta_info *sta)
+ {
++	struct hostapd_data *link;
+ #ifndef CONFIG_NO_VLAN
+ 	struct vlan_description vlan_desc;
+ 
+@@ -986,9 +987,17 @@ void sae_accept_sta(struct hostapd_data *hapd, struct sta_info *sta)
+ 	crypto_bignum_deinit(sta->sae->peer_commit_scalar_accepted, 0);
+ 	sta->sae->peer_commit_scalar_accepted = sta->sae->peer_commit_scalar;
+ 	sta->sae->peer_commit_scalar = NULL;
+-	wpa_auth_pmksa_add_sae(hapd->wpa_auth, sta->addr,
+-			       sta->sae->pmk, sta->sae->pmk_len,
+-			       sta->sae->pmkid, sta->sae->akmp);
++	if (hostapd_is_mld_ap(hapd)) {
++		for_each_mld_link(link, hapd) {
++			wpa_auth_pmksa_add_sae(link->wpa_auth, sta->addr,
++					sta->sae->pmk, sta->sae->pmk_len,
++					sta->sae->pmkid, sta->sae->akmp);
++		}
++	} else {
++		wpa_auth_pmksa_add_sae(hapd->wpa_auth, sta->addr,
++				sta->sae->pmk, sta->sae->pmk_len,
++				sta->sae->pmkid, sta->sae->akmp);
++	}
+ 	sae_sme_send_external_auth_status(hapd, sta, WLAN_STATUS_SUCCESS);
+ }
+ 
+-- 
+2.18.0
+

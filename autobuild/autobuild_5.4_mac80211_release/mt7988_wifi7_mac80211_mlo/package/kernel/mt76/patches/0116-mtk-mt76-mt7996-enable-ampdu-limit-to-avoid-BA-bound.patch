@@ -1,0 +1,186 @@
+From af0b14e475466b4f353c20af228c381c695ec3f9 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 1 Apr 2024 17:00:21 +0800
+Subject: [PATCH 116/199] mtk: mt76: mt7996: enable ampdu limit to avoid BA
+ bound issue
+
+[Description]
+When the station is MTK device and the peak is higher than 15G, the PPS
+would exceed HW-RRO's bandwidth and lead to Rx fifo full and PER. When
+a link occurs PER, it may occupy SSN and the other two bands are not
+able to transmit.
+
+Limit AMPDU to 512 when satisify all of the following conditions
+1. BA winsize is 1024.
+2. At least one link use BW320 and its spatial stream is larger
+than 3.
+3. At least one link use BW160 and its spatial stream is larger
+than 3.
+
+By limiting AMPDU to 512, it can solve this issue.
+1. Reduce PPS so we can avoid Rx fifo full due to HW-RRO.
+2. If a bind occupy SSN, the other two bands can use the SSN
+between 512 to 1024.
+
+[Release-log]
+N/A
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt76_connac_mcu.h |  1 +
+ mt7996/mcu.c      | 86 +++++++++++++++++++++++++++++++++++++++++++++++
+ mt7996/mcu.h      |  8 +++++
+ 3 files changed, 95 insertions(+)
+
+diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
+index f6a0d328..6e3324f5 100644
+--- a/mt76_connac_mcu.h
++++ b/mt76_connac_mcu.h
+@@ -829,6 +829,7 @@ enum {
+ 	STA_REC_KEY_V3 = 0x27,
+ 	STA_REC_HDRT = 0x28,
+ 	STA_REC_HDR_TRANS = 0x2B,
++	STA_REC_TX_CAP = 0x2f,
+ 	STA_REC_MAX_NUM
+ };
+ 
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 340b6637..f97acfb2 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -1344,6 +1344,85 @@ mt7996_mcu_sta_ba(struct mt7996_dev *dev, struct mt76_vif *mvif,
+ 				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
+ }
+ 
++static int
++mt7996_mcu_sta_tx_cap(struct mt7996_dev *dev, struct mt76_vif *mvif,
++		      struct mt76_wcid *wcid)
++{
++	struct sta_rec_tx_cap *tx_cap;
++	struct sk_buff *skb;
++	struct tlv *tlv;
++
++	skb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, mvif, wcid,
++					      MT7996_STA_UPDATE_MAX_SIZE);
++	if (IS_ERR(skb))
++		return PTR_ERR(skb);
++
++	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_TX_CAP, sizeof(*tx_cap));
++
++	tx_cap = (struct sta_rec_tx_cap *)tlv;
++	tx_cap->ampdu_limit_en = true;
++
++	dev_info(dev->mt76.dev, "%s: limit wcid %d ampdu to 512\n", __func__, wcid->idx);
++
++	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
++				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
++}
++
++static bool mt7996_check_limit_ampdu_en(struct ieee80211_ampdu_params *params) {
++	struct ieee80211_sta *sta = params->sta;
++	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
++	unsigned long valid_links = sta->valid_links ?: BIT(0);
++	unsigned int link_id;
++	bool BW320 = false, BW160 = false;
++
++	if (params->buf_size < 1024)
++		return false;
++
++	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
++		struct ieee80211_link_sta __rcu *link =
++			link_sta_dereference_protected(sta, link_id);
++		struct mt7996_bss_conf *mconf =
++			mconf_dereference_protected(msta->vif, link_id);
++		struct mt76_phy *phy = mconf->phy->mt76;
++		struct ieee80211_eht_mcs_nss_supp_bw *ss = NULL;
++		u8 sta_bw, ap_nss, sta_nss;
++
++		switch (phy->chandef.width) {
++		case NL80211_CHAN_WIDTH_160:
++			if (link->bandwidth >= IEEE80211_STA_RX_BW_160) {
++				ss = &link->eht_cap.eht_mcs_nss_supp.bw._160;
++				sta_bw = NL80211_CHAN_WIDTH_160;
++			}
++			break;
++		case NL80211_CHAN_WIDTH_320:
++			if (link->bandwidth == IEEE80211_STA_RX_BW_320) {
++				ss = &link->eht_cap.eht_mcs_nss_supp.bw._320;
++				sta_bw = NL80211_CHAN_WIDTH_320;
++			}
++			break;
++		default:
++			break;
++		}
++
++		if (!ss)
++			continue;
++
++		ap_nss = hweight8(phy->antenna_mask);
++		sta_nss = max(u8_get_bits(ss->rx_tx_mcs11_max_nss, IEEE80211_EHT_MCS_NSS_RX),
++			      u8_get_bits(ss->rx_tx_mcs13_max_nss, IEEE80211_EHT_MCS_NSS_RX));
++
++		if (min(ap_nss, sta_nss) <= 2)
++			continue;
++
++		if (sta_bw == NL80211_CHAN_WIDTH_160)
++			BW160 = true;
++		else if (sta_bw == NL80211_CHAN_WIDTH_320)
++			BW320 = true;
++	}
++
++	return BW320 && BW160;
++}
++
+ /** starec & wtbl **/
+ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
+ 			 struct ieee80211_ampdu_params *params,
+@@ -1353,6 +1432,7 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
+ 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+ 	unsigned long valid_links = sta->valid_links ?: BIT(0);
+ 	unsigned int link_id;
++	bool limit_ampdu_en = mt7996_check_limit_ampdu_en(params);
+ 
+ 	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+ 		struct mt7996_link_sta *mlink =
+@@ -1368,6 +1448,12 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
+ 					&mlink->wcid, enable, true);
+ 		if (ret)
+ 			return ret;
++
++		if (limit_ampdu_en) {
++			ret = mt7996_mcu_sta_tx_cap(dev, &mconf->mt76, &mlink->wcid);
++			if (ret)
++				return ret;
++		}
+ 	}
+ 
+ 	return 0;
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 9903d88e..f9f04680 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -573,6 +573,13 @@ struct sta_rec_ba_uni {
+ 	u8 __rsv[3];
+ } __packed;
+ 
++struct sta_rec_tx_cap {
++	__le16 tag;
++	__le16 len;
++	u8 ampdu_limit_en;
++	u8 rsv[3];
++} __packed;
++
+ struct sta_rec_eht {
+ 	__le16 tag;
+ 	__le16 len;
+@@ -939,6 +946,7 @@ enum {
+ 					 sizeof(struct sta_rec_eht) +		\
+ 					 sizeof(struct sta_rec_hdrt) +		\
+ 					 sizeof(struct sta_rec_hdr_trans) +	\
++					 sizeof(struct sta_rec_tx_cap) +	\
+ 					 sizeof(struct tlv))
+ 
+ #define MT7996_MAX_BEACON_SIZE		1338
+-- 
+2.18.0
+

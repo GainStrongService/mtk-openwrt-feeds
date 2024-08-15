@@ -1,0 +1,36 @@
+From bdbcaf57e4e62a9ff8425677384e3da49497c170 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Mon, 5 Aug 2024 14:56:19 +0800
+Subject: [PATCH 196/199] mtk: mt76: mt7996: ignore vif.dormant_links in
+ mt7996_change_vif_links
+
+The dormant links are disabled for reasons like TTLM, and might become
+active in the near future, so we do not remove their bss_conf here.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/main.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 6826f319..3892fd27 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -3102,11 +3102,12 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+-	unsigned long rem = old_links & ~new_links;
++	unsigned long rem = old_links & ~new_links & ~vif->dormant_links;
+ 	unsigned int link_id;
+ 	int ret = 0;
+ 
+-	mt76_vif_dbg(vif, "old=0x%x, new=0x%x\n", old_links, new_links);
++	mt76_vif_dbg(vif, "old=0x%x, new=0x%x, dormant=0x%x\n",
++		     old_links, new_links, vif->dormant_links);
+ 	if (old_links == new_links)
+ 		return 0;
+ 
+-- 
+2.18.0
+

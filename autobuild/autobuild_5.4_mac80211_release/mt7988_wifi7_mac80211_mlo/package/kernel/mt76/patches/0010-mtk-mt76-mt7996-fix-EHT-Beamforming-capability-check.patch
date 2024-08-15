@@ -1,0 +1,30 @@
+From 18583c512c569a45767cbdb3b93dcb688158bfe6 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Fri, 28 Jun 2024 11:05:26 +0800
+Subject: [PATCH 010/199] mtk: mt76: mt7996: fix EHT Beamforming capability
+ check
+
+---
+ mt7996/mcu.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 6d5bbe5b..39963a36 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -1429,10 +1429,10 @@ mt7996_is_ebf_supported(struct mt7996_phy *phy, struct ieee80211_vif *vif,
+ 
+ 		if (bfee)
+ 			return vif->bss_conf.eht_su_beamformee &&
+-			       EHT_PHY(CAP0_SU_BEAMFORMEE, pe->phy_cap_info[0]);
++			       EHT_PHY(CAP0_SU_BEAMFORMER, pe->phy_cap_info[0]);
+ 		else
+ 			return vif->bss_conf.eht_su_beamformer &&
+-			       EHT_PHY(CAP0_SU_BEAMFORMER, pe->phy_cap_info[0]);
++			       EHT_PHY(CAP0_SU_BEAMFORMEE, pe->phy_cap_info[0]);
+ 	}
+ 
+ 	if (sta->deflink.he_cap.has_he) {
+-- 
+2.18.0
+

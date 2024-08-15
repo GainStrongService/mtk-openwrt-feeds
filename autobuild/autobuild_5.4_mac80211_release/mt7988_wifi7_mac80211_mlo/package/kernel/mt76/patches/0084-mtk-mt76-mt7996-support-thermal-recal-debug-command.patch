@@ -1,0 +1,116 @@
+From 857348ab99cd5ba83f73c4da02c70f2004b6f10b Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Thu, 4 Jan 2024 19:53:37 +0800
+Subject: [PATCH 084/199] mtk: mt76: mt7996: support thermal recal debug
+ command
+
+Add support thermal recal debug command.
+
+Usage:
+$ echo val > debugfs/thermal_recal
+
+The val can be the following values:
+0 = disable
+1 = enable
+2 = manual trigger
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt76_connac_mcu.h    |  1 +
+ mt7996/mt7996.h      |  1 +
+ mt7996/mtk_debugfs.c | 17 +++++++++++++++++
+ mt7996/mtk_mcu.c     | 21 +++++++++++++++++++++
+ 4 files changed, 40 insertions(+)
+
+diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
+index c8eedf36..1589a716 100644
+--- a/mt76_connac_mcu.h
++++ b/mt76_connac_mcu.h
+@@ -1297,6 +1297,7 @@ enum {
+ 	MCU_UNI_CMD_TESTMODE_TRX_PARAM = 0x42,
+ 	MCU_UNI_CMD_TESTMODE_CTRL = 0x46,
+ 	MCU_UNI_CMD_PRECAL_RESULT = 0x47,
++	MCU_UNI_CMD_THERMAL_CAL = 0x4c,
+ 	MCU_UNI_CMD_RRO = 0x57,
+ 	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
+ 	MCU_UNI_CMD_PER_STA_INFO = 0x6d,
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 6e96194b..0e6b7595 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1033,6 +1033,7 @@ void mt7996_mcu_set_cert(struct mt7996_phy *phy, u8 type);
+ void mt7996_tm_update_channel(struct mt7996_phy *phy);
+ 
+ int mt7996_mcu_set_vow_drr_dbg(struct mt7996_dev *dev, u32 val);
++int mt7996_mcu_thermal_debug(struct mt7996_dev *dev, u8 mode, u8 action);
+ #endif
+ 
+ #ifdef CONFIG_NET_MEDIATEK_SOC_WED
+diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
+index 66ab74d2..cc1224ed 100644
+--- a/mt7996/mtk_debugfs.c
++++ b/mt7996/mtk_debugfs.c
+@@ -3171,6 +3171,22 @@ out:
+ DEFINE_DEBUGFS_ATTRIBUTE(fops_thermal_enable, mt7996_thermal_enable_get,
+ 			 mt7996_thermal_enable_set, "%lld\n");
+ 
++static int
++mt7996_thermal_recal_set(void *data, u64 val)
++{
++#define THERMAL_DEBUG_OPERATION_MANUAL_TRIGGER 2
++#define THERMAL_DEBUG_MODE_RECAL 1
++	struct mt7996_dev *dev = data;
++
++	if (val > THERMAL_DEBUG_OPERATION_MANUAL_TRIGGER)
++		return -EINVAL;
++
++	return mt7996_mcu_thermal_debug(dev, THERMAL_DEBUG_MODE_RECAL, val);
++}
++
++DEFINE_DEBUGFS_ATTRIBUTE(fops_thermal_recal, NULL,
++			 mt7996_thermal_recal_set, "%llu\n");
++
+ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+ {
+ 	struct mt7996_dev *dev = phy->dev;
+@@ -3278,6 +3294,7 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+ 	}
+ 
+ 	debugfs_create_file("thermal_enable", 0600, dir, phy, &fops_thermal_enable);
++	debugfs_create_file("thermal_recal", 0200, dir, dev, &fops_thermal_recal);
+ 
+ 	return 0;
+ }
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 967ee874..809181e0 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -1343,4 +1343,25 @@ int mt7996_mcu_set_vow_drr_dbg(struct mt7996_dev *dev, u32 val)
+ 				 sizeof(req), true);
+ }
+ 
++int mt7996_mcu_thermal_debug(struct mt7996_dev *dev, u8 mode, u8 action)
++{
++	struct {
++		u8 __rsv1[4];
++
++		__le16 tag;
++		__le16 len;
++
++		u8 mode;
++		u8 action;
++		u8 __rsv2[2];
++	} __packed req = {
++		.tag = cpu_to_le16(mode),
++		.len = cpu_to_le16(sizeof(req) - 4),
++		.mode = mode,
++		.action = action,
++	};
++
++	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(THERMAL_CAL), &req,
++	                         sizeof(req), true);
++}
+ #endif
+-- 
+2.18.0
+

@@ -1,0 +1,38 @@
+From 6ae8ff7998348080caa661a1e31c36febd3443ee Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Thu, 2 May 2024 15:40:21 +0800
+Subject: [PATCH 125/199] mtk: mt76: remove the limitation for legacy AP sacn
+
+The limitation was used to prevent resource conflict in multiple wiphys
+architecture. It becomes single wiphy and the limitation seems to be
+useless.
+
+Furthermore, legacy APs need to scan due to features like ACS, so remove
+the limitations
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/mac.c | 7 -------
+ 1 file changed, 7 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index fc83cea1..bba16975 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -2968,13 +2968,6 @@ void mt7996_scan_work(struct work_struct *work)
+ 	bool has_sta = false, active_scan = false;
+ 
+ 	mutex_lock(&phy->dev->mt76.mutex);
+-	/* don't let non-MLD AP scan other bands */
+-	if (vif->type != NL80211_IFTYPE_STATION && !ieee80211_vif_is_mld(vif) &&
+-	    phy != mt7996_hw_phy(hw)) {
+-		mt7996_scan_complete(phy, false);
+-		mutex_unlock(&phy->dev->mt76.mutex);
+-		return;
+-	}
+ 
+ 	if (phy->scan_chan_idx >= req->n_channels) {
+ 		mt7996_scan_complete(phy, false);
+-- 
+2.18.0
+

@@ -1,0 +1,235 @@
+From b823f8980320ec23f5a95a1eadd6d93425f1c070 Mon Sep 17 00:00:00 2001
+From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+Date: Thu, 13 Jun 2024 17:27:03 +0800
+Subject: [PATCH 161/199] mtk: mt76: mt7996: record RSSI and SNR
+
+RSSI and SNR information were incomplete.
+- RSSI: per-antenna ACK-frame RSSI was not reported.
+- SNR: unavailable.
+Therefore, get and record these signal statuses in order to show them for debugging purposes.
+
+Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+---
+ mt7996/mac.c    |  9 +++++-
+ mt7996/mcu.c    | 76 ++++++++++++++++++++++++++++++-------------------
+ mt7996/mcu.h    |  9 +++++-
+ mt7996/mt7996.h |  8 +++++-
+ 4 files changed, 70 insertions(+), 32 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index c59cc7cc..017e3465 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -493,6 +493,13 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
+ 		status->chain_signal[2] = to_rssi(MT_PRXV_RCPI2, v3);
+ 		status->chain_signal[3] = to_rssi(MT_PRXV_RCPI3, v3);
+ 
++		if (mlink) {
++			memcpy(mlink->chain_signal, status->chain_signal,
++			       IEEE80211_MAX_CHAINS);
++			mlink->signal = mt76_rx_signal(mphy->antenna_mask,
++						       mlink->chain_signal);
++		}
++
+ 		/* RXD Group 5 - C-RXV */
+ 		if (rxd1 & MT_RXD1_NORMAL_GROUP_5) {
+ 			rxd += 24;
+@@ -2413,7 +2420,7 @@ void mt7996_mac_work(struct work_struct *work)
+ 			if (i == mphy->band_idx) {
+ 				mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_RATE);
+ 				mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_AIRTIME);
+-				mt7996_mcu_get_rssi(mdev);
++				mt7996_mcu_get_signal_status(mdev);
+ 				// if (mtk_wed_device_active(&mdev->mmio.wed)) {
+ 					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_ADM_STAT);
+ 					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_MSDU_COUNT);
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index eeff5e9e..54295414 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -5791,14 +5791,15 @@ int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u16 val)
+ }
+ 
+ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+-	                        u16 sta_num, u16 *sta_list)
++				u16 sta_num, u16 *sta_list)
+ {
+ #define PER_STA_INFO_MAX_NUM	90
+ 	struct mt7996_mcu_per_sta_info_event *res;
++	struct mt7996_link_sta *mlink;
+ 	struct mt76_wcid *wcid;
+ 	struct sk_buff *skb;
++	int i, j, ret;
+ 	u16 wlan_idx;
+-	int i, ret;
+ 	struct {
+ 		u8 __rsv1;
+ 		u8 unsolicit;
+@@ -5837,23 +5838,18 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+ 	switch (tag) {
+ 	case UNI_PER_STA_RSSI:
+ 		for (i = 0; i < sta_num; ++i) {
+-			struct mt7996_link_sta *mlink;
+-			struct mt76_phy *phy;
+-			s8 rssi[4];
+-			u8 *rcpi;
+-
+ 			wlan_idx = le16_to_cpu(res->rssi[i].wlan_idx);
+ 			wcid = rcu_dereference(dev->wcid[wlan_idx]);
+-			if (wcid) {
+-				rcpi = res->rssi[i].rcpi;
+-				rssi[0] = to_rssi(MT_PRXV_RCPI0, rcpi[0]);
+-				rssi[1] = to_rssi(MT_PRXV_RCPI0, rcpi[1]);
+-				rssi[2] = to_rssi(MT_PRXV_RCPI0, rcpi[2]);
+-				rssi[3] = to_rssi(MT_PRXV_RCPI0, rcpi[3]);
+-
+-				mlink = container_of(wcid, struct mt7996_link_sta, wcid);
+-				phy = dev->phys[wcid->phy_idx];
+-				mlink->ack_signal = mt76_rx_signal(phy->antenna_mask, rssi);
++			mlink = wcid_to_mlink(wcid);
++			if (mlink) {
++				struct mt76_phy *phy = dev->phys[wcid->phy_idx];
++				u8 *rcpi = res->rssi[i].rcpi;
++
++				for (j = 0; j < IEEE80211_MAX_CHAINS; ++j)
++					mlink->chain_ack_signal[j] = to_rssi(MT_PRXV_RCPI0, rcpi[j]);
++
++				mlink->ack_signal = mt76_rx_signal(phy->antenna_mask,
++								   mlink->chain_ack_signal);
+ 				ewma_avg_signal_add(&mlink->avg_ack_signal, -mlink->ack_signal);
+ 			} else {
+ 				ret = -EINVAL;
+@@ -5862,6 +5858,21 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+ 			}
+ 		}
+ 		break;
++	case UNI_PER_STA_SNR:
++		for (i = 0; i < sta_num; ++i) {
++			wlan_idx = le16_to_cpu(res->snr[i].wlan_idx);
++			wcid = rcu_dereference(dev->wcid[wlan_idx]);
++			mlink = wcid_to_mlink(wcid);
++			if (mlink)
++				memcpy(mlink->chain_ack_snr, res->snr[i].val,
++				       IEEE80211_MAX_CHAINS);
++			else {
++				ret = -EINVAL;
++				dev_err(dev->dev, "Failed to update SNR for "
++				                  "invalid WCID: %hu\n", wlan_idx);
++			}
++		}
++		break;
+ 	default:
+ 		ret = -EINVAL;
+ 		dev_err(dev->dev, "Unknown UNI_PER_STA_INFO_TAG: %d\n", tag);
+@@ -5872,7 +5883,7 @@ out:
+ 	return ret;
+ }
+ 
+-int mt7996_mcu_get_rssi(struct mt76_dev *dev)
++int mt7996_mcu_get_signal_status(struct mt76_dev *dev)
+ {
+ 	u16 sta_list[PER_STA_INFO_MAX_NUM];
+ 	LIST_HEAD(sta_poll_list);
+@@ -5897,8 +5908,8 @@ int mt7996_mcu_get_rssi(struct mt76_dev *dev)
+ 				break;
+ 			}
+ 			mlink = list_first_entry(&sta_poll_list,
+-			                        struct mt7996_link_sta,
+-			                        wcid.poll_list);
++						 struct mt7996_link_sta,
++						 wcid.poll_list);
+ 			list_del_init(&mlink->wcid.poll_list);
+ 			spin_unlock_bh(&dev->sta_poll_lock);
+ 
+@@ -5906,16 +5917,23 @@ int mt7996_mcu_get_rssi(struct mt76_dev *dev)
+ 		}
+ 
+ 		ret = mt7996_mcu_get_per_sta_info(dev, UNI_PER_STA_RSSI,
+-		                                  i, sta_list);
+-		if (ret) {
+-			/* Add STAs, whose RSSI has not been updated,
+-			 * back to polling list.
+-			 */
+-			spin_lock_bh(&dev->sta_poll_lock);
+-			list_splice(&sta_poll_list, &dev->sta_poll_list);
+-			spin_unlock_bh(&dev->sta_poll_lock);
++						  i, sta_list);
++		if (ret)
+ 			break;
+-		}
++
++		ret = mt7996_mcu_get_per_sta_info(dev, UNI_PER_STA_SNR,
++						  i, sta_list);
++		if (ret)
++			break;
++	}
++
++	if (ret) {
++		/* Add STAs, whose signal statuses have not been updated,
++		 * back to polling list.
++		 */
++		spin_lock_bh(&dev->sta_poll_lock);
++		list_splice(&sta_poll_list, &dev->sta_poll_list);
++		spin_unlock_bh(&dev->sta_poll_lock);
+ 	}
+ 
+ 	return ret;
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 9b29dc29..20eaf20d 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -202,7 +202,13 @@ struct mt7996_mcu_mib {
+ struct per_sta_rssi {
+ 	__le16 wlan_idx;
+ 	u8 __rsv[2];
+-	u8 rcpi[4];
++	u8 rcpi[IEEE80211_MAX_CHAINS];
++} __packed;
++
++struct per_sta_snr {
++	__le16 wlan_idx;
++	u8 __rsv[2];
++	s8 val[IEEE80211_MAX_CHAINS];
+ } __packed;
+ 
+ struct mt7996_mcu_per_sta_info_event {
+@@ -213,6 +219,7 @@ struct mt7996_mcu_per_sta_info_event {
+ 
+ 	union {
+ 		struct per_sta_rssi rssi[0];
++		struct per_sta_snr snr[0];
+ 	};
+ } __packed;
+ 
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index ae792719..8d27ae5d 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -317,9 +317,15 @@ struct mt7996_link_sta {
+ 
+ 	struct list_head rc_list;
+ 
++	s8 chain_signal[IEEE80211_MAX_CHAINS];
++	int signal;
++
++	s8 chain_ack_signal[IEEE80211_MAX_CHAINS];
+ 	int ack_signal;
+ 	struct ewma_avg_signal avg_ack_signal;
+ 
++	s8 chain_ack_snr[IEEE80211_MAX_CHAINS];
++
+ 	unsigned long changed;
+ 
+ 	struct mt76_connac_sta_key_conf bip;
+@@ -1126,7 +1132,7 @@ void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
+ void mt7996_mcu_exit(struct mt7996_dev *dev);
+ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+ 	                        u16 sta_num, u16 *sta_list);
+-int mt7996_mcu_get_rssi(struct mt76_dev *dev);
++int mt7996_mcu_get_signal_status(struct mt76_dev *dev);
+ int mt7996_mcu_get_all_sta_info(struct mt76_dev *dev, u16 tag);
+ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id);
+ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 data);
+-- 
+2.18.0
+

@@ -1,0 +1,42 @@
+From f2be5c5dc8ca3f2fb9b195a16d5717abc5dba797 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Thu, 9 May 2024 11:10:43 +0800
+Subject: [PATCH 67/89] mtk: mac80211: set max_amsdu_len for link_sta
+
+Get station's max mpdu length from eht cap and compare with AP's
+capability. Update agg.max_amsdu_len in link_sta for driver can
+get correct max mpdu length.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ net/mac80211/eht.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/net/mac80211/eht.c b/net/mac80211/eht.c
+index ddc7acc..020a035 100644
+--- a/net/mac80211/eht.c
++++ b/net/mac80211/eht.c
+@@ -75,4 +75,20 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
+ 
+ 	link_sta->cur_max_bandwidth = ieee80211_sta_cap_rx_bw(link_sta);
+ 	link_sta->pub->bandwidth = ieee80211_sta_cur_vht_bw(link_sta);
++
++	switch (u8_get_bits(eht_cap->eht_cap_elem.mac_cap_info[0],
++			    IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK)) {
++	case IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_11454:
++		link_sta->pub->agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_11454;
++		break;
++	case IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_7991:
++		link_sta->pub->agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_7991;
++		break;
++	case IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_3895:
++	default:
++		link_sta->pub->agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_3895;
++		break;
++	}
++
++	ieee80211_sta_recalc_aggregates(&link_sta->sta->sta);
+ }
+-- 
+2.18.0
+

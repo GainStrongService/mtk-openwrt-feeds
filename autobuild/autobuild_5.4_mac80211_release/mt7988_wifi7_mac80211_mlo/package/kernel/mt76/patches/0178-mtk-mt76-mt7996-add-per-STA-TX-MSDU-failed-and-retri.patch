@@ -1,0 +1,249 @@
+From c9cc947b2922dde53c71ce871ac869039d740999 Mon Sep 17 00:00:00 2001
+From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+Date: Thu, 4 Jul 2024 14:00:16 +0800
+Subject: [PATCH 178/199] mtk: mt76: mt7996: add per-STA TX MSDU failed and
+ retried counts
+
+Record per-STA TX MSDU failed and retried counts for debugging.
+
+Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+---
+ mt76.h            |  2 ++
+ mt76_connac_mcu.h |  3 ++
+ mt7996/mac.c      | 39 ++++++++++++++++++++++++-
+ mt7996/mcu.c      | 74 +++++++++++------------------------------------
+ mt7996/mcu.h      |  8 +++++
+ mt7996/mt7996.h   |  1 -
+ 6 files changed, 68 insertions(+), 59 deletions(-)
+
+diff --git a/mt76.h b/mt76.h
+index feb7bf16..fa4a3e70 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -360,6 +360,8 @@ struct mt76_sta_stats {
+ 	u64 tx_bytes;
+ 	/* WED TX */
+ 	u32 tx_packets;		/* unit: MSDU */
++	u32 tx_packets_retried;
++	u32 tx_packets_failed;
+ 	u32 tx_mpdus;
+ 	u32 tx_retries;
+ 	u32 tx_failed;
+diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
+index c1becf7e..545de4ae 100644
+--- a/mt76_connac_mcu.h
++++ b/mt76_connac_mcu.h
+@@ -1402,6 +1402,8 @@ enum {
+ 	UNI_OFFLOAD_OFFLOAD_BMC_RPY_DETECT,
+ };
+ 
++#define PER_STA_INFO_MAX_NUM	90
++
+ enum UNI_PER_STA_INFO_TAG {
+ 	UNI_PER_STA_RSSI,
+ 	UNI_PER_STA_CONTENTION_RX_RATE,
+@@ -1411,6 +1413,7 @@ enum UNI_PER_STA_INFO_TAG {
+ 	UNI_PER_STA_TX_CNT,
+ 	UNI_PER_STA_TID_SN_GET,
+ 	UNI_PER_STA_TID_SN_SET,
++	UNI_PER_STA_PKT_CNT,
+ 	UNI_PER_STA_MAX_NUM
+ };
+ 
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index a8985a3b..fae24cad 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -2431,6 +2431,43 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
+ 	rcu_read_unlock();
+ }
+ 
++static int mt7996_mac_sta_poll(struct mt76_dev *dev)
++{
++	u16 sta_list[PER_STA_INFO_MAX_NUM];
++	struct mt7996_link_sta *mlink;
++	int i, ret;
++
++	spin_lock_bh(&dev->sta_poll_lock);
++	for (i = 0; i < PER_STA_INFO_MAX_NUM; ++i) {
++		if (list_empty(&dev->sta_poll_list))
++			break;
++
++		mlink = list_first_entry(&dev->sta_poll_list,
++					 struct mt7996_link_sta,
++					 wcid.poll_list);
++		list_del_init(&mlink->wcid.poll_list);
++		sta_list[i] = mlink->wcid.idx;
++	}
++	spin_unlock_bh(&dev->sta_poll_lock);
++
++	if (i == 0)
++		return 0;
++
++	ret = mt7996_mcu_get_per_sta_info(dev, UNI_PER_STA_RSSI, i, sta_list);
++	if (ret)
++		dev_err(dev->dev, "Failed to update RSSI of polled STAs.\n");
++
++	ret = mt7996_mcu_get_per_sta_info(dev, UNI_PER_STA_SNR, i, sta_list);
++	if (ret)
++		dev_err(dev->dev, "Failed to update SNR of polled STAs.\n");
++
++	ret = mt7996_mcu_get_per_sta_info(dev, UNI_PER_STA_PKT_CNT, i, sta_list);
++	if (ret)
++		dev_err(dev->dev, "Failed to update MSDU counts of polled STAs.\n");
++
++	return ret;
++}
++
+ void mt7996_mac_work(struct work_struct *work)
+ {
+ 	struct mt76_phy *mphy = (struct mt76_phy *)container_of(work, struct mt76_phy,
+@@ -2453,7 +2490,7 @@ void mt7996_mac_work(struct work_struct *work)
+ 			if (i == mphy->band_idx) {
+ 				mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_RATE);
+ 				mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_AIRTIME);
+-				mt7996_mcu_get_signal_status(mdev);
++				mt7996_mac_sta_poll(mdev);
+ 				// if (mtk_wed_device_active(&mdev->mmio.wed)) {
+ 					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_ADM_STAT);
+ 					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_MSDU_COUNT);
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 00bc675e..857d2826 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -6017,7 +6017,6 @@ int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u16 val)
+ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+ 				u16 sta_num, u16 *sta_list)
+ {
+-#define PER_STA_INFO_MAX_NUM	90
+ 	struct mt7996_mcu_per_sta_info_event *res;
+ 	struct mt7996_link_sta *mlink;
+ 	struct mt76_wcid *wcid;
+@@ -6097,6 +6096,23 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+ 			}
+ 		}
+ 		break;
++	case UNI_PER_STA_PKT_CNT:
++		for (i = 0; i < sta_num; ++i) {
++			wlan_idx = le16_to_cpu(res->msdu_cnt[i].wlan_idx);
++			wcid = rcu_dereference(dev->wcid[wlan_idx]);
++			if (wcid) {
++				u32 retries = le32_to_cpu(res->msdu_cnt[i].tx_retries),
++				    drops = le32_to_cpu(res->msdu_cnt[i].tx_drops);
++
++				wcid->stats.tx_packets_retried += retries;
++				wcid->stats.tx_packets_failed += retries + drops;
++			} else {
++				ret = -EINVAL;
++				dev_err(dev->dev, "Failed to update MSDU counts for "
++						  "invalid WCID: %hu\n", wlan_idx);
++			}
++		}
++		break;
+ 	default:
+ 		ret = -EINVAL;
+ 		dev_err(dev->dev, "Unknown UNI_PER_STA_INFO_TAG: %d\n", tag);
+@@ -6107,62 +6123,6 @@ out:
+ 	return ret;
+ }
+ 
+-int mt7996_mcu_get_signal_status(struct mt76_dev *dev)
+-{
+-	u16 sta_list[PER_STA_INFO_MAX_NUM];
+-	LIST_HEAD(sta_poll_list);
+-	struct mt7996_link_sta *mlink;
+-	int i, ret;
+-	bool empty = false;
+-
+-	spin_lock_bh(&dev->sta_poll_lock);
+-	list_splice_init(&dev->sta_poll_list, &sta_poll_list);
+-	spin_unlock_bh(&dev->sta_poll_lock);
+-
+-	while (!empty) {
+-		for (i = 0; i < PER_STA_INFO_MAX_NUM; ++i) {
+-			spin_lock_bh(&dev->sta_poll_lock);
+-			if (list_empty(&sta_poll_list)) {
+-				spin_unlock_bh(&dev->sta_poll_lock);
+-
+-				if (i == 0)
+-					return 0;
+-
+-				empty = true;
+-				break;
+-			}
+-			mlink = list_first_entry(&sta_poll_list,
+-						 struct mt7996_link_sta,
+-						 wcid.poll_list);
+-			list_del_init(&mlink->wcid.poll_list);
+-			spin_unlock_bh(&dev->sta_poll_lock);
+-
+-			sta_list[i] = mlink->wcid.idx;
+-		}
+-
+-		ret = mt7996_mcu_get_per_sta_info(dev, UNI_PER_STA_RSSI,
+-						  i, sta_list);
+-		if (ret)
+-			break;
+-
+-		ret = mt7996_mcu_get_per_sta_info(dev, UNI_PER_STA_SNR,
+-						  i, sta_list);
+-		if (ret)
+-			break;
+-	}
+-
+-	if (ret) {
+-		/* Add STAs, whose signal statuses have not been updated,
+-		 * back to polling list.
+-		 */
+-		spin_lock_bh(&dev->sta_poll_lock);
+-		list_splice(&sta_poll_list, &dev->sta_poll_list);
+-		spin_unlock_bh(&dev->sta_poll_lock);
+-	}
+-
+-	return ret;
+-}
+-
+ int mt7996_mcu_get_all_sta_info(struct mt76_dev *dev, u16 tag)
+ {
+ 	struct {
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 01eb0ea1..739e357c 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -211,6 +211,13 @@ struct per_sta_snr {
+ 	s8 val[IEEE80211_MAX_CHAINS];
+ } __packed;
+ 
++struct per_sta_msdu_cnt {
++	__le16 wlan_idx;
++	u8 __rsv[2];
++	__le32 tx_drops;
++	__le32 tx_retries;
++} __packed;
++
+ struct mt7996_mcu_per_sta_info_event {
+ 	u8 __rsv[4];
+ 
+@@ -220,6 +227,7 @@ struct mt7996_mcu_per_sta_info_event {
+ 	union {
+ 		struct per_sta_rssi rssi[0];
+ 		struct per_sta_snr snr[0];
++		struct per_sta_msdu_cnt msdu_cnt[0];
+ 	};
+ } __packed;
+ 
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 74c32827..8b00b05b 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1134,7 +1134,6 @@ void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
+ void mt7996_mcu_exit(struct mt7996_dev *dev);
+ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+ 	                        u16 sta_num, u16 *sta_list);
+-int mt7996_mcu_get_signal_status(struct mt76_dev *dev);
+ int mt7996_mcu_get_all_sta_info(struct mt76_dev *dev, u16 tag);
+ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id);
+ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 data);
+-- 
+2.18.0
+

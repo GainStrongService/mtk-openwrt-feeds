@@ -1,0 +1,78 @@
+From 432b8c55111c12f1ec1fdc1c6e50c17084343cad Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 6 Aug 2024 10:15:01 +0800
+Subject: [PATCH 88/89] mtk: mac80211: add puncture bitmap sync for extender
+
+Add puncture bitmap sync for extender.
+The latest puncture bitmap is not synchronized with the bitmap in the
+chandef passed to ieee80211_determine_ap_chan.
+Therefore, extender STA should use the latest puncture bitmap to check
+the ap mode of the extender AP when it is updated by root AP.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ include/net/cfg80211.h |  2 ++
+ net/mac80211/mlme.c    | 13 ++++++++++---
+ 2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
+index bc3e585..17fb1c7 100644
+--- a/include/net/cfg80211.h
++++ b/include/net/cfg80211.h
+@@ -838,6 +838,8 @@ struct cfg80211_chan_def {
+ 	u16 punctured;
+ };
+ 
++#define IEEE80211_PUNCT_UNSPECIFIED	0xffff
++
+ /*
+  * cfg80211_bitrate_mask - masks for bitrate control
+  */
+diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
+index 4964d08..6cbcfe4 100644
+--- a/net/mac80211/mlme.c
++++ b/net/mac80211/mlme.c
+@@ -154,7 +154,8 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
+ 			    const struct ieee802_11_elems *elems,
+ 			    bool ignore_ht_channel_mismatch,
+ 			    const struct ieee80211_conn_settings *conn,
+-			    struct cfg80211_chan_def *chandef)
++			    struct cfg80211_chan_def *chandef,
++			    u16 punctured)
+ {
+ 	const struct ieee80211_ht_operation *ht_oper = elems->ht_operation;
+ 	const struct ieee80211_vht_operation *vht_oper = elems->vht_operation;
+@@ -321,6 +322,10 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
+ 
+ 		eht_chandef.punctured =
+ 			ieee80211_eht_oper_dis_subchan_bitmap(eht_oper);
++		if (punctured == IEEE80211_PUNCT_UNSPECIFIED)
++			chandef->punctured = eht_chandef.punctured;
++		else
++			chandef->punctured = punctured;
+ 
+ 		if (!cfg80211_chandef_valid(&eht_chandef)) {
+ 			sdata_info(sdata,
+@@ -840,7 +845,8 @@ again:
+ 		return ERR_PTR(-ENOMEM);
+ 
+ 	ap_mode = ieee80211_determine_ap_chan(sdata, channel, bss->vht_cap_info,
+-					      elems, false, conn, ap_chandef);
++					      elems, false, conn, ap_chandef,
++					      IEEE80211_PUNCT_UNSPECIFIED);
+ 
+ 	/* this should be impossible since parsing depends on our mode */
+ 	if (WARN_ON(ap_mode > conn->mode)) {
+@@ -1007,7 +1013,8 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
+ 
+ 	ap_mode = ieee80211_determine_ap_chan(sdata, channel, vht_cap_info,
+ 					      elems, true, &link->u.mgd.conn,
+-					      &ap_chandef);
++					      &ap_chandef,
++					      link->conf->chanreq.oper.punctured);
+ 
+ 	if (ap_mode != link->u.mgd.conn.mode) {
+ 		link_info(link,
+-- 
+2.18.0
+

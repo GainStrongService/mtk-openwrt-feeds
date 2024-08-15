@@ -1,0 +1,42 @@
+From ad30c992771e60b4150511435ea4f8935b978f02 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Thu, 18 Apr 2024 17:21:22 +0800
+Subject: [PATCH 017/199] mtk: mt76: mt7996: set key flag
+ 'IEEE80211_KEY_FLAG_GENERATE_MMIE' for other ciphers
+
+When beacon protection is enabled, FW checks MMIE tag & length in the
+beacon in every cipher mode. Therefore mt76 needs to set the flag
+'IEEE80211_KEY_GENERATE_MMIE' on so that MAC80211 generates and initializes
+MMIE for us.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/main.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 8d2b0ee7..40281c5b 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -364,14 +364,14 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+ 	case WLAN_CIPHER_SUITE_SMS4:
+ 		break;
+ 	case WLAN_CIPHER_SUITE_AES_CMAC:
+-		wcid_keyidx = &wcid->hw_key_idx2;
+-		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
+-		fallthrough;
+ 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+ 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+ 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+-		if (key->keyidx == 6 || key->keyidx == 7)
++		if (key->keyidx == 6 || key->keyidx == 7) {
++			wcid_keyidx = &wcid->hw_key_idx2;
++			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
+ 			break;
++		}
+ 		fallthrough;
+ 	case WLAN_CIPHER_SUITE_WEP40:
+ 	case WLAN_CIPHER_SUITE_WEP104:
+-- 
+2.18.0
+
