@@ -1,5 +1,5 @@
 diff --git a/package/network/services/hostapd/files/hostapd.uc b/package/network/services/hostapd/files/hostapd.uc
-index 48f12c5..19b1490 100644
+index 48f12c5e..19b1490f 100644
 --- a/package/network/services/hostapd/files/hostapd.uc
 +++ b/package/network/services/hostapd/files/hostapd.uc
 @@ -64,6 +64,7 @@ function iface_freq_info(iface, config, params)
@@ -36,10 +36,18 @@ index 48f12c5..19b1490 100644
  			let phy = req.args.phy;
  			let config = hostapd.data.config[phy];
 diff --git a/package/network/services/hostapd/files/wpa_supplicant.uc b/package/network/services/hostapd/files/wpa_supplicant.uc
-index 2a77551..2ccb21c 100644
+index 2a775510..4eac1d6d 100644
 --- a/package/network/services/hostapd/files/wpa_supplicant.uc
 +++ b/package/network/services/hostapd/files/wpa_supplicant.uc
-@@ -301,6 +301,7 @@ function iface_channel_switch(phy, ifname, iface, info)
+@@ -281,6 +281,7 @@ function iface_hostapd_notify(phy, ifname, iface, state, link_id)
+ 		msg.ch_width = status.ch_width;
+ 		msg.bw320_offset = status.bw320_offset;
+ 		msg.band_idx = status.band_idx;
++		msg.punct_bitmap = status.punct_bitmap;
+ 		break;
+ 	default:
+ 		return;
+@@ -301,6 +302,7 @@ function iface_channel_switch(phy, ifname, iface, info)
  		bw320_offset: info.bw320_offset,
  		band_idx: info.band_idx,
  		sec_chan_offset: info.sec_chan_offset,
@@ -47,4 +55,3 @@ index 2a77551..2ccb21c 100644
  	};
  	ubus.call("hostapd", "apsta_state", msg);
  }
-
