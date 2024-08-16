@@ -365,26 +365,42 @@ u32 mtk_monitor_wdma_tx(struct mtk_eth *eth)
 u32 mtk_monitor_wdma_rx(struct mtk_eth *eth)
 {
 	static u32 pre_drx[MTK_WDMA_CNT];
+	static u32 pre_crx[MTK_WDMA_CNT];
 	static u32 pre_opq[MTK_WDMA_CNT];
 	static u32 err_cnt[MTK_WDMA_CNT];
-	u32 cur_crx = 0, cur_drx = 0, cur_opq = 0, fsm_fs;
+	bool connsys_busy, netsys_busy;
+	u32 cur_crx = 0, cur_drx = 0, cur_opq = 0, fsm_fs, max_cnt;
 	u32 i, err_flag = 0;
+	int rx_cnt;
 
 	for (i = 0; i < MTK_WDMA_CNT; i++) {
+		connsys_busy = netsys_busy = false;
+		max_cnt = mtk_r32(eth, MTK_WDMA_RX_MAX_CNT(i));
 		cur_crx = mtk_r32(eth, MTK_WDMA_CRX_PTR(i));
 		cur_drx = mtk_r32(eth, MTK_WDMA_DRX_PTR(i));
+		rx_cnt = (cur_drx > cur_crx) ? (cur_drx - 1 - cur_crx) :
+					       (cur_drx - 1 - cur_crx + max_cnt);
 		cur_opq = MTK_FE_WDMA_OQ(i);
 		fsm_fs = mtk_r32(eth, MTK_FE_CDM_FSM(i)) &
 			(MTK_CDM_FS_FSM_MASK | MTK_CDM_FS_PARSER_FSM_MASK);
-		/*drx unchange && ring not full && output && fsm_fs*/
-		if (cur_drx == pre_drx[i] && (cur_crx != cur_drx) &&
-		    (cur_opq != 0 && cur_opq == pre_opq[i]) && fsm_fs) {
+		/* drx and crx remain unchanged && rx_cnt is not zero */
+		if ((cur_drx == pre_drx[i]) && (cur_crx == pre_crx[i]) && (rx_cnt > 0))
+			connsys_busy = true;
+		/* drx and crx remain unchanged && pse_opq is not empty */
+		else if ((cur_drx == pre_drx[i]) && (cur_crx == pre_crx[i]) &&
+			 (cur_opq != 0 && cur_opq == pre_opq[i]) && fsm_fs)
+			netsys_busy = true;
+		if (connsys_busy || netsys_busy) {
 			err_cnt[i]++;
 			if (err_cnt[i] >= 3) {
-				pr_info("WDMA %d Rx Info\n", i);
+				pr_info("WDMA %d Rx Info (%s)\n", i,
+					connsys_busy ? "CONNSYS busy" : "NETSYS busy");
 				pr_info("err_cnt = %d", err_cnt[i]);
 				pr_info("prev_drx = 0x%x	| cur_drx = 0x%x\n",
 					pre_drx[i], cur_drx);
+				pr_info("prev_crx = 0x%x	| cur_crx = 0x%x\n",
+					pre_crx[i], cur_crx);
+				pr_info("rx cnt = %d\n", rx_cnt);
 				pr_info("WDMA_CRX_PTR = 0x%x\n",
 					mtk_r32(eth, MTK_WDMA_CRX_PTR(i)));
 				pr_info("WDMA_DRX_PTR = 0x%x\n",
@@ -398,6 +414,7 @@ u32 mtk_monitor_wdma_rx(struct mtk_eth *eth)
 			}
 		} else
 			err_cnt[i] = 0;
+		pre_crx[i] = cur_crx;
 		pre_drx[i] = cur_drx;
 		pre_opq[i] = cur_opq;
 	}

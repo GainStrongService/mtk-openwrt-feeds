@@ -541,6 +541,7 @@
 #define MTK_WDMA_GLO_CFG(x)	(WDMA_BASE(x) + 0x204)
 #define MTK_WDMA_TX_DBG_MON0(x)	(WDMA_BASE(x) + 0x230)
 #define MTK_WDMA_RX_DBG_MON1(x)	(WDMA_BASE(x) + 0x3c4)
+#define MTK_WDMA_RX_MAX_CNT(x)	(WDMA_BASE(x) + 0x104)
 #define MTK_WDMA_CRX_PTR(x)	(WDMA_BASE(x) + 0x108)
 #define MTK_WDMA_DRX_PTR(x)	(WDMA_BASE(x) + 0x10C)
 #define MTK_CDM_FS_PARSER_FSM_MASK	GENMASK(27, 24)
