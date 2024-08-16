@@ -1012,6 +1012,12 @@
 #define USXGMII_LPA_LINK	BIT(15)
 #define USXGMII_LPA_LATCH	BIT(31)
 
+/* Register to QPHY wrapper control */
+#define RG_PHY_TOP_CTRL0	0x82C
+#define USXGMII_PN_SWAP_MASK	GENMASK(1, 0)
+#define USXGMII_PN_SWAP_RX	BIT(1)
+#define USXGMII_PN_SWAP_TX	BIT(0)
+
 /* Register to read PCS Link status */
 #define RG_PCS_RX_STATUS0	0x904
 #define RG_PCS_RX_STATUS_UPDATE	BIT(16)
@@ -1825,6 +1831,7 @@ struct mtk_usxgmii_pcs {
 	phy_interface_t		interface;
 	unsigned long		link_poll_expire;
 	unsigned int		mode;
+	u32			polarity;
 	u8			id;
 	struct phylink_link_state	state;
 	struct delayed_work	link_poll;

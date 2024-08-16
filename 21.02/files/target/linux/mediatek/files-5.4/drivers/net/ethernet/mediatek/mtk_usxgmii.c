@@ -716,6 +716,10 @@ static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 		mode_changed = true;
 	}
 
+	/* Configure the interface polarity */
+	regmap_update_bits(mpcs->regmap, RG_PHY_TOP_CTRL0,
+			   USXGMII_PN_SWAP_MASK, mpcs->polarity);
+
 	/* Setup USXGMII AN ctrl */
 	regmap_update_bits(mpcs->regmap, RG_PCS_AN_CTRL0,
 			   USXGMII_AN_SYNC_CNT | USXGMII_AN_ENABLE,
@@ -892,6 +896,14 @@ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r)
 		ss->pcs[i].regmap = syscon_node_to_regmap(np);
 		if (IS_ERR(ss->pcs[i].regmap))
 			return PTR_ERR(ss->pcs[i].regmap);
+
+		ss->pcs[i].polarity = 0;
+		if (of_property_read_bool(np, "pn_swap"))
+			ss->pcs[i].polarity |= USXGMII_PN_SWAP_TX | USXGMII_PN_SWAP_RX;
+		else if (of_property_read_bool(np, "pn_swap_tx"))
+			ss->pcs[i].polarity |= USXGMII_PN_SWAP_TX;
+		else if (of_property_read_bool(np, "pn_swap_rx"))
+			ss->pcs[i].polarity |= USXGMII_PN_SWAP_RX;
 
 		ss->pcs[i].pcs.ops = &mtk_usxgmii_pcs_ops;
 		ss->pcs[i].pcs.poll = true;
