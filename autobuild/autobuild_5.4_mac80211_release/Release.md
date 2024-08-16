@@ -1,4 +1,4 @@
-# Mediatek Upstream SoftMAC WiFi Driver - MT76 Release Note (OpenWRT 21.02)
+# Mediatek Upstream SoftMAC WiFi Driver - MT76 Release Note (OpenWRT 21.02/Kernel 5.4)
 
 ## Compile Environment Requirement
 
@@ -15,7 +15,187 @@
 
 ---
 
-## Latest Release Version
+### Supported Chipsets
+- Filogic880/MT7996 802.11a/b/g/n/ac/ax/be BE19000/BE14000 2.4/5G/6GHz PCIe Chip
+- Filogic860/MT7992 802.11a/b/g/n/ac/ax/be BE7200/BE5000 2.4/5G PCIe Chip 
+- Filogic830/MT7986 802.11a/b/g/n/ac/ax AX6000 2.4/5GHz SoC Device
+- Filogic820/MT7981 802.11a/b/g/n/ac/ax AX3000 2.4/5GHz SoC Device
+- Filogic630/MT7916 802.11a/b/g/n/ac/ax AX3000 2.4/5GHz PCIe Chip
+- Filogic615/MT7915 802.11a/b/g/n/ac/ax AX3600/AX1800 2.4/5GHz PCIe Chip
+---
+
+## Wi-Fi 7 Latest Release Version
+
+- **Date**: 2024-08-14
+- **Modified By**: Evelyn Tsai
+- **Summary of Changes**:
+  - Multiple MLD Groups based on Legacy MBSS
+  - MLO Reconfiguration (Add Link only, Remove Link with known issue)
+  - MLO Statistics (Per-MLD, Per-Link)
+  - MLO + Channels (ACS/DFS/Channel Switch)
+  - MLO + Phy Features
+  - MLO + Security
+  - MLO + WDS
+  - MLO + Hardware Peak
+  - MLO Link Management (Adv-T2LM only, Neg-T2LM under development)
+  - MLD Discovery & Setup
+  - WiFi6E/AFC
+  - Preamble puncturing
+  - WiFi6E Mgmt Power Enhancement
+- **Version**:
+  - Driver Version: 4.3.24.7
+  - Firmware Version: 20240809
+- **Document Reference**:
+  - MAC80211 MT76 Programming Guide v4.7
+
+#### Filogic 880/860 WiFi7 MLO Beta Release
+
+##### External Release
+
+```
+#Get Openwrt 21.02 source code from Git server
+git clone --branch openwrt-21.02 https://git.openwrt.org/openwrt/openwrt.git
+cd openwrt; git checkout 4a1d8ef55cbf247f06dae8e958eb8eb42f1882a5; cd -;
+
+#Get Openwrt master source code from Git Server
+git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_package
+cd mac80211_package; git checkout b51abacb5fd465e5ce4329ec27ac516b5a2b83b9; cd -;
+
+#Get mtk-openwrt-feeds source code
+git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+cd mtk-openwrt-feeds; git checkout c6638881f2041aa28eb76ae92f32ae7040ae8b65; cd -;
+
+#Change to openwrt folder
+cp -rf mtk-openwrt-feeds/autobuild/autobuild_5.4_mac80211_release openwrt
+cd openwrt; mv autobuild_5.4_mac80211_release autobuild
+
+#Add MTK feed
+echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+
+#!!! CAUTION!!! Modify feed's revision
+vim autobuild/feeds.conf.default-21.02
+
+#Choose one SKU to build
+#Filogic880/MT7996
+bash autobuild/mt7988_wifi7_mac80211_mlo/lede-branch-build-sanity.sh mt7996
+
+#Filogic860/MT7992
+bash autobuild/mt7988_wifi7_mac80211_mlo/lede-branch-build-sanity.sh mt7992
+
+#Further Build (After 1st full build)
+./scripts/feeds update -a
+make V=s PKG_HASH=skip PKG_MIRROR_HASH=skip
+```
+
+##### Feeds Revision
+
+```
+#vim autobuild/feeds.conf.default-21.02
+src-git packages https://git.openwrt.org/feed/packages.git^1be343f
+src-git luci https://git.openwrt.org/project/luci.git^e4c4633
+src-git routing https://git.openwrt.org/feed/routing.git^a9e4310
+src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^c663888
+```
+
+##### WiFi Package Version
+
+| Platform                 | OpenWrt/21.02                 | GIT01.mediatek.com                                                                |
+|--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
+| Kernel                   | 5.4.281                       | autobuild_mac80211_release/target/linux/mediatek/patches-5.4                      |
+| **WiFi Package**         | **OpenWrt/master**            | **MTK Internal Patches**                                                          |
+| Hostapd                  | PKG_SOURCE_DATE:=2024-07-31   | autobuild_mac80211_release/**mt7988_mt7996_mac80211_mlo**/package/network/services/hostapd/patches         |
+| libnl-tiny               | PKG_SOURCE_DATE:=2023-12-05   | N/A                                                                               |
+| iw                       | PKG_VERSION:=6.9              | autobuild_mac80211_release/**mt7988_mt7996_mac80211_mlo**/package/network/utils/iw/patches                 |
+| iwinfo                   | PKG_SOURCE_DATE:=2024-07-06   | N/A                                                                               |
+| wireless-regdb           | PKG_VERSION:=2024-07-04       | autobuild_mac80211_release/package/firmware/wireless-regdb/patches                |
+| ucode                    | PKG_VERSION:=2024-07-11       | autobuild_mac80211_release/package/utils/ucode/patches                            |
+| wifi-scripts             | PKG_VERSION:=1.0              | autobuild_mac80211_release/**mt7988_mt7996_mac80211_mlo**/package/network/config/wifi-scripts/files        |
+| netifd                   | PKG_VERSION:=2024-08-01       | autobuild_mac80211_release/package/network/config/**netifd_new**/patches          |
+| MAC80211                 | PKG_VERSION:=6.9.9 (wireless-next-2024-07-11) | autobuild_mac80211_release/**mt7988_mt7996_mac80211_mlo**/package/kernel/mac80211/patches |
+| MT76                     | PKG_SOURCE_DATE:=2024-07-16   | **Patches**: autobuild_mac80211_release/**mt7988_mt7996_mac80211_mlo**/package/kernel/mt76/patches **Firmware** autobuild_mac80211_release/package/kernel/mt76/src/firmware/mt7996 |
+| **Utility**              | **Formal**                    |                                                                                   |
+| Manufacture Tool (CMD)   | mt76/tools                    |                                                                                   |
+
+## Wi-Fi 6 Latest Release Version
+- **Date**: 2024-05-10
+- **Modified By**: Evelyn Tsai
+- **Summary of Changes**:
+  - Filogic820/MT7981 MT76 Support
+  - Feature Enhancement (DFS/MBSS in Hostapd)
+  - WiFi6E Mgmt Power Enhancement
+  - WiFi6 Spatial Reuse
+  - Smart Carrier Sense
+  - CSI (Connac2)
+
+#### Filogic 830/820/630/615 WiFi6 MP2.3 Release 
+
+```
+#Get Openwrt 21.02 source code from Git server
+git clone --branch openwrt-21.02 https://git.openwrt.org/openwrt/openwrt.git
+cd openwrt; git checkout 4a1d8ef55cbf247f06dae8e958eb8eb42f1882a5; cd -;
+
+#Get Openwrt master source code from Git Server
+git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_package
+cd mac80211_package; git checkout 21ddd1164dc53b098ed36f8330c397e7de8076e6; cd -;
+
+#Get mtk-openwrt-feeds source code
+git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+cd mtk-openwrt-feeds; git checkout 1c24909aa41eb62c8170798194794e75a508ad08; cd -;
+
+#Change to openwrt folder
+cp -rf mtk-openwrt-feeds/autobuild_mac80211_release openwrt
+cd openwrt; mv autobuild_mac80211_release autobuild
+
+#Add MTK feed
+echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+
+#!!! CAUTION!!! Modify feed's revision
+vim autobuild/feeds.conf.default-21.02
+
+#Choose one platform to build
+#Filogic830/630/615 (APSoC: MT7986A/B , PCIE: MT7915A/D, MT7916)
+./autobuild/mt7986_mac80211/lede-branch-build-sanity.sh
+
+#Filogic820  (APSoC: MT7981)
+./autobuild/mt7981_mac80211/lede-branch-build-sanity.sh
+
+#Further Build (After 1st full build)
+./scripts/feeds update –a
+make V=s
+
+```
+
+##### Feeds Revision
+
+```
+#vim autobuild/feeds.conf.default-21.02
+src-git packages https://git.openwrt.org/feed/packages.git^1be343f
+src-git luci https://git.openwrt.org/project/luci.git^e4c4633
+src-git routing https://git.openwrt.org/feed/routing.git^a9e4310
+src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^1c24909
+```
+
+##### WiFi Package Version
+
+| Platform                 | OpenWrt/21.02                 | GIT01.mediatek.com                                                                |
+|--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
+| Kernel                   | 5.4.271                       | autobuild_mac80211_release /target/linux/mediatek/patches-5.4                     |
+| **WiFi Package**         | **OpenWrt/master**            | **MTK Internal Patches**                                                          |
+| Hostapd                  | PKG_SOURCE_DATE:=2022-07-29   | autobuild_mac80211_release/package/network/services/hostapd/patches               |
+| libnl-tiny               | PKG_SOURCE_DATE:=2023-12-05   | N/A                                                                               |
+| iw                       | PKG_VERSION:=5.19             | N/A                                                                               |
+| iwinfo                   | PKG_SOURCE_DATE:=2024-03-23   | N/A                                                                               |
+| wireless-regdb           | PKG_VERSION:=2024.01.23       | autobuild_mac80211_release/package/firmware/wireless-regdb/patches                |
+| netifd                   | PKG_VERSION:=2023-07-17       | autobuild_mac80211_release/package/network/config/netifd/patches                  |
+| MAC80211                 | PKG_VERSION:=5.15.81-1        | autobuild_mac80211_release/package/kernel/mac80211/patches/subsys                 |
+| MT76                     | PKG_SOURCE_DATE:=2024-04-03   | **Patches**: autobuild_mac80211_release/package/kernel/mt76/patches **Firmware** autobuild_mac80211_release/package/kernel/mt76/src/firmware|
+| **Utility**              | **Formal**                    |                                                                                   |
+| Manufacture Tool (CMD)   | mt76/tools                    |                                                                                   |
+| Vendor Tool              | feed/mt76-vendor              |                                                                                   |
+---
+
+## Older Release Versions
+
 
 #### Filogic 880/860 WiFi7 MLO Alpha Release (20240426)
 
@@ -83,77 +263,6 @@ src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-fe
 | **Utility**              | **Formal**                    |                                                                                   |
 | Manufacture Tool (CMD)   | mt76/tools                    |                                                                                   |
 
-
-
-#### Filogic 830/820/630/615 WiFi6 MP2.3 Release (20240510)
-
-```
-#Get Openwrt 21.02 source code from Git server
-git clone --branch openwrt-21.02 https://git.openwrt.org/openwrt/openwrt.git
-cd openwrt; git checkout 4a1d8ef55cbf247f06dae8e958eb8eb42f1882a5; cd -;
-
-#Get Openwrt master source code from Git Server
-git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_package
-cd mac80211_package; git checkout 21ddd1164dc53b098ed36f8330c397e7de8076e6; cd -;
-
-#Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
-cd mtk-openwrt-feeds; git checkout 1c24909aa41eb62c8170798194794e75a508ad08; cd -;
-
-#Change to openwrt folder
-cp -rf mtk-openwrt-feeds/autobuild_mac80211_release openwrt
-cd openwrt; mv autobuild_mac80211_release autobuild
-
-#Add MTK feed
-echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
-
-#!!! CAUTION!!! Modify feed's revision
-vim autobuild/feeds.conf.default-21.02
-
-#Choose one platform to build
-#Filogic830/630/615 (APSoC: MT7986A/B , PCIE: MT7915A/D, MT7916)
-./autobuild/mt7986_mac80211/lede-branch-build-sanity.sh
-
-#Filogic820  (APSoC: MT7981)
-./autobuild/mt7981_mac80211/lede-branch-build-sanity.sh
-
-#Further Build (After 1st full build)
-./scripts/feeds update –a
-make V=s
-
-```
-
-##### Feeds Revision
-
-```
-#vim autobuild/feeds.conf.default-21.02
-src-git packages https://git.openwrt.org/feed/packages.git^1be343f
-src-git luci https://git.openwrt.org/project/luci.git^e4c4633
-src-git routing https://git.openwrt.org/feed/routing.git^a9e4310
-src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds^1c24909
-```
-
-##### WiFi Package Version
-
-| Platform                 | OpenWrt/21.02                 | GIT01.mediatek.com                                                                |
-|--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
-| Kernel                   | 5.4.271                       | autobuild_mac80211_release /target/linux/mediatek/patches-5.4                     |
-| **WiFi Package**         | **OpenWrt/master**            | **MTK Internal Patches**                                                          |
-| Hostapd                  | PKG_SOURCE_DATE:=2022-07-29   | autobuild_mac80211_release/package/network/services/hostapd/patches               |
-| libnl-tiny               | PKG_SOURCE_DATE:=2023-12-05   | N/A                                                                               |
-| iw                       | PKG_VERSION:=5.19             | N/A                                                                               |
-| iwinfo                   | PKG_SOURCE_DATE:=2024-03-23   | N/A                                                                               |
-| wireless-regdb           | PKG_VERSION:=2024.01.23       | autobuild_mac80211_release/package/firmware/wireless-regdb/patches                |
-| netifd                   | PKG_VERSION:=2023-07-17       | autobuild_mac80211_release/package/network/config/netifd/patches                  |
-| MAC80211                 | PKG_VERSION:=5.15.81-1        | autobuild_mac80211_release/package/kernel/mac80211/patches/subsys                 |
-| MT76                     | PKG_SOURCE_DATE:=2024-04-03   | **Patches**: autobuild_mac80211_release/package/kernel/mt76/patches **Firmware** autobuild_mac80211_release/package/kernel/mt76/src/firmware|
-| **Utility**              | **Formal**                    |                                                                                   |
-| Manufacture Tool (CMD)   | mt76/tools                    |                                                                                   |
-| Vendor Tool              | feed/mt76-vendor              |                                                                                   |
-
----
-
-## Old Release Version
 
 ### Filogic 880 WiFi7 Non-MLO SDK Release (20240112)
 
