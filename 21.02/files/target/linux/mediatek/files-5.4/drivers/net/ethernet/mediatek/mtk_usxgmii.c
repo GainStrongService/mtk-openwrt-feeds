@@ -710,7 +710,7 @@ static int mtk_usxgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 
 	mutex_lock(&mpcs->regmap_lock);
 
-	if (mode >= 0 && mpcs->interface != interface) {
+	if (mode <= MLO_AN_INBAND && mpcs->interface != interface) {
 		mpcs->interface = interface;
 		mpcs->mode = mode;
 		mode_changed = true;
@@ -786,7 +786,7 @@ static void mtk_usxgmii_pcs_link_poll(struct work_struct *work)
 		goto exit;
 
 	if (!mtk_usxgmii_link_status(mpcs) || !mtk_usxgmii_is_valid_ctle(mpcs))
-		mtk_usxgmii_pcs_config(&mpcs->pcs, -1,
+		mtk_usxgmii_pcs_config(&mpcs->pcs, UINT_MAX,
 				       mpcs->interface, NULL, false);
 
 exit:
