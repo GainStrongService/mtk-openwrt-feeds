@@ -243,7 +243,7 @@ function simple_convert() {
         echo "tx_length"
     elif [ "$1" = "ATETXMCS" ]; then
         echo "tx_rate_idx"
-    elif [ "$1" = "ATEVHTNSS" ]; then
+    elif [ "$1" = "ATEVHTNSS" ] || [ "$1" = "ATETXNSS" ]; then
         echo "tx_rate_nss"
     elif [ "$1" = "ATETXLDPC" ]; then
         echo "tx_rate_ldpc"
@@ -1105,7 +1105,7 @@ if [ "${cmd_type}" = "set" ]; then
 
             skip=1
             ;;
-        "ATETXCNT"|"ATETXLEN"|"ATETXMCS"|"ATEVHTNSS"|"ATETXLDPC"|"ATETXSTBC"| \
+        "ATETXCNT"|"ATETXLEN"|"ATETXMCS"|"ATEVHTNSS"|"ATETXNSS"|"ATETXLDPC"|"ATETXSTBC"| \
         "ATEPKTTXTIME"|"ATEIPG"|"ATEDUTYCYCLE"|"ATETXFREQOFFSET")
             cmd_new=$(simple_convert ${cmd})
             if [ "${param_new}" = "undefined" ]; then
