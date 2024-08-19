@@ -12,6 +12,7 @@
 #include <crypto/sha.h>
 #include <linux/io.h>
 #include <linux/list.h>
+#include <linux/timer.h>
 #include <net/xfrm.h>
 
 #include "crypto-eip/crypto-eip197-inline-ddk.h"

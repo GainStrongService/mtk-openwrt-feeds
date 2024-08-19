@@ -142,6 +142,7 @@ struct mtk_crypto_context {
 	int (*send)(struct crypto_async_request *req);
 	int (*handle_result)(struct mtk_crypto_result *req, int err);
 	int ring;
+	atomic_t req_count;
 };
 
 enum mtk_crypto_cipher_direction {
@@ -205,6 +206,8 @@ struct mtk_crypto_cipher_ctx {
 
 	struct crypto_cipher *hkaes;
 	struct crypto_aead *fback;
+
+	struct timer_list poll_timer;
 
 	struct mtk_crypto_engine_data enc;
 	struct mtk_crypto_engine_data dec;

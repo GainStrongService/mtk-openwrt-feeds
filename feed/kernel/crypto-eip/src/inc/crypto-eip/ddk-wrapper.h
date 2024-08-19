@@ -13,6 +13,8 @@
 #include "lookaside.h"
 #include "crypto-eip197-inline-ddk.h"
 
+#define REQ_PKT_NUM 10
+
 u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mod);
 int mtk_crypto_ddk_alloc_buff(struct mtk_crypto_cipher_ctx *ctx, int dir, unsigned int digestsize,
 				struct mtk_crypto_engine_data *data);
@@ -40,6 +42,7 @@ void crypto_free_sa(void *sa_pointer, int ring);
 void crypto_free_token(void *token);
 void crypto_free_pkt(void *pkt);
 void crypto_free_sglist(void *sglist);
+void mtk_crypto_req_expired_timer(struct timer_list *t);
 
 void *mtk_ddk_tr_capwap_dtls_build(const bool capwap,
 				struct DTLS_param *DTLSParam_p, u32 dir);

@@ -156,6 +156,9 @@ static int mtk_crypto_skcipher_cra_init(struct crypto_tfm *tfm)
 	ctx->base.ring = -1;
 	ctx->enc.valid = 0;
 	ctx->dec.valid = 0;
+
+	timer_setup(&ctx->poll_timer, mtk_crypto_req_expired_timer, 0);
+
 	return 0;
 }
 
@@ -669,6 +672,9 @@ static int mtk_crypto_aead_cra_init(struct crypto_tfm *tfm)
 	ctx->base.ring = -1;
 	ctx->enc.valid = 0;
 	ctx->dec.valid = 0;
+
+	timer_setup(&ctx->poll_timer, mtk_crypto_req_expired_timer, 0);
+
 	return 0;
 }
 

@@ -11,6 +11,7 @@
 #include <crypto/hmac.h>
 #include <crypto/md5.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <crypto/internal/hash.h>
 
 #include <crypto-eip/ddk/slad/api_pcl.h>
@@ -438,6 +439,22 @@ void (*mtk_crypto_interrupt_handler[])(void) = {
 	mtk_crypto_ring2_handler,
 	mtk_crypto_ring3_handler
 };
+
+void mtk_crypto_req_expired_timer(struct timer_list *t)
+{
+	struct mtk_crypto_cipher_ctx *ctx = from_timer(ctx, t, poll_timer);
+	PEC_NotifyFunction_t CBFunc;
+	int ring = ctx->base.ring;
+	int rc;
+
+	del_timer(&ctx->poll_timer);
+	ctx->poll_timer.expires = 0;
+
+	CBFunc = mtk_crypto_interrupt_handler[ring];
+	rc = PEC_ResultNotify_Request(ring, CBFunc, 1);
+	if (rc != PEC_STATUS_OK)
+		CRYPTO_ERR("PEC_ResultNotify_Request failed with rc = %d\n", rc);
+}
 
 int mtk_crypto_ddk_alloc_buff(struct mtk_crypto_cipher_ctx *ctx, int dir, unsigned int digestsize,
 								struct mtk_crypto_engine_data *data)
@@ -876,15 +893,25 @@ int mtk_crypto_basic_cipher(struct crypto_async_request *async,
 	result->eip.pkt_handle = SrcSGListHandle.p;
 	result->async = async;
 	result->dst = DstSGListHandle.p;
+	CBFunc = mtk_crypto_interrupt_handler[ring];
 
 	spin_lock_bh(&priv->mtk_eip_ring[ring].ring_lock);
 	list_add_tail(&result->list, &priv->mtk_eip_ring[ring].list);
 	spin_unlock_bh(&priv->mtk_eip_ring[ring].ring_lock);
-	CBFunc = mtk_crypto_interrupt_handler[ring];
-	rc = PEC_ResultNotify_Request(ring, CBFunc, 1);
-	if (rc != PEC_STATUS_OK) {
-		CRYPTO_ERR("PEC_ResultNotify_Request failed with rc = %d\n", rc);
-		goto error_remove_sg;
+
+	if (ctx->poll_timer.expires == 0) {
+		ctx->poll_timer.expires = jiffies + (2 * HZ / 1000);
+		add_timer(&ctx->poll_timer);
+	}
+
+	if ((atomic_inc_return(&ctx->base.req_count) % REQ_PKT_NUM) == 0) {
+		del_timer(&ctx->poll_timer);
+		ctx->poll_timer.expires = 0;
+		rc = PEC_ResultNotify_Request(ring, CBFunc, 1);
+		if (rc != PEC_STATUS_OK) {
+			CRYPTO_ERR("PEC_ResultNotify_Request failed with rc = %d\n", rc);
+			goto error_remove_sg;
+		}
 	}
 
 	return rc;
