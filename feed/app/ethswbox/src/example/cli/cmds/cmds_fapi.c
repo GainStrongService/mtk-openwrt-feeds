@@ -1700,10 +1700,9 @@ OS_boolean_t cmds_fapi (CmdArgs_t* pArgs, int *err)
 
       if (pArgs->prmc < 2)
       { 
-         printf ("Usage: fapi-GSW-Debug-RMON-Port-Get nPortId=<> ePortType=<> b64BitMode=<>\n");
+         printf ("Usage: fapi-GSW-Debug-RMON-Port-Get nPortId=<> ePortType=<>\n");
          printf("nPortId=<>\n");
 	      printf("ePortType=<>\n");
-	      printf("b64BitMode=<>\n");
   
          goto goto_end_help;
       }

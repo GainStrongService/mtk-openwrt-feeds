@@ -5029,8 +5029,6 @@ GSW_return_t fapi_GSW_Debug_RMON_Port_Get(int prmc, char *prmv[])
         return OS_ERROR;
     }
 
-    scanParamArg(prmc, prmv, "b64BitMode", sizeof(sVar.b64BitMode), &sVar.b64BitMode);
-
     gsw_dev = gsw_get_struc(lif_id,0);
     ret = GSW_Debug_RMON_Port_Get(gsw_dev, &sVar);
     if (ret < 0)

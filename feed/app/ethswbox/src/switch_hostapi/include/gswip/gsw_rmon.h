@@ -384,8 +384,6 @@ typedef struct {
 	 \ref GSW_RMON_portType_t**/
 	GSW_RMON_portType_t ePortType;
 	/*Applicable only for GSWIP 3.1*/
-	gsw_bool_t  b64BitMode;
-	/*Applicable only for GSWIP 3.1*/
 	u32	nRxExtendedVlanDiscardPkts;
 	/*Applicable only for GSWIP 3.1*/
 	u32	nMtuExceedDiscardPkts;
