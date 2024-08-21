@@ -447,7 +447,7 @@ unsigned int do_hnat_ext_to_ge2(struct sk_buff *skb, const char *func)
 				return -1;
 		}
 
-		if (IS_BOND_MODE &&
+		if (IS_BOND(dev) &&
 		    (((hnat_priv->data->version == MTK_HNAT_V2 ||
 		       hnat_priv->data->version == MTK_HNAT_V3) &&
 				(skb_hnat_entry(skb) != 0x7fff)) ||
@@ -1246,8 +1246,9 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				     struct flow_offload_hw_path *hw_path)
 {
 	struct net_device *master_dev = (struct net_device *)dev;
+	struct net_device *slave_dev[10];
+	struct list_head *iter;
 	struct foe_entry entry = { 0 };
-	int whnat = IS_WHNAT(dev);
 	struct mtk_mac *mac;
 	struct ethhdr *eth;
 	struct iphdr *iph;
@@ -1256,12 +1257,14 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	const struct tcpudphdr *pptr;
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
+	int whnat = IS_WHNAT(dev);
 	int gmac = NR_DISCARD;
 	int udp = 0;
 	int port_id = 0;
 	u32 qid = 0;
 	u32 payload_len = 0;
 	int mape = 0;
+	int i = 0;
 
 	if (ipv6_hdr(skb)->nexthdr == NEXTHDR_IPIP)
 		/* point to ethernet header for DS-Lite and MapE */
@@ -1714,6 +1717,23 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	entry = ppe_fill_info_blk(eth, entry, hw_path);
 
 	if (IS_LAN_GRP(dev) || IS_WAN(dev)) { /* Forward to GMAC Ports */
+		if (IS_BOND(dev)) {
+			/* Retrieve subordinate devices that are connected to the Bond device */
+			netdev_for_each_lower_dev(master_dev, slave_dev[i], iter) {
+				/* Check the link status of the slave device */
+				if (!(slave_dev[i]->flags & IFF_UP) ||
+				    !netif_carrier_ok(slave_dev[i]))
+					continue;
+				i++;
+				if (i >= ARRAY_SIZE(slave_dev))
+					break;
+			}
+			if (i > 0) {
+				/* Choose a subordinate device according to the hash index */
+				dev = slave_dev[(skb_hnat_entry(skb) >> 1) % i];
+				master_dev = slave_dev[(skb_hnat_entry(skb) >> 1) % i];
+			}
+		}
 		port_id = hnat_dsa_get_port(&master_dev);
 		if (port_id >= 0) {
 			if (hnat_dsa_fill_stag(dev, &entry, hw_path,
@@ -1724,10 +1744,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		mac = netdev_priv(master_dev);
 		gmac = HNAT_GMAC_FP(mac->id);
 
-		if (IS_LAN(dev) && IS_BOND_MODE) {
-			gmac = ((skb_hnat_entry(skb) >> 1) % hnat_priv->gmac_num) ?
-				 NR_GMAC2_PORT : NR_GMAC1_PORT;
-		} else if (IS_WAN(dev) && mape_toggle && mape == 1) {
+		if (IS_WAN(dev) && mape_toggle && mape == 1) {
 			gmac = NR_PDMA_PORT;
 			/* Set act_dp = wan_dev */
 			entry.ipv4_hnapt.act_dp &= ~UDF_PINGPONG_IFIDX;

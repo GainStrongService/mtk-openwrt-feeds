@@ -1155,15 +1155,19 @@ enum FoeIpAct {
 #define NR_WDMA2_PORT 13
 #define NR_GMAC3_PORT 15
 #define NR_QDMA_TPORT 1
+#define WAN_DEV_NAME hnat_priv->wan
 #define LAN_DEV_NAME hnat_priv->lan
 #define LAN2_DEV_NAME hnat_priv->lan2
-#define IS_WAN(dev)                                                            \
-	(!strncmp((dev)->name, hnat_priv->wan, strlen(hnat_priv->wan)))
+#define IS_WAN(dev) (!strncmp((dev)->name, WAN_DEV_NAME, strlen(WAN_DEV_NAME)))
 #define IS_LAN_GRP(dev) (IS_LAN(dev) | IS_LAN2(dev))
-#define IS_LAN(dev) (!strncmp(dev->name, LAN_DEV_NAME, strlen(LAN_DEV_NAME)))
-#define IS_LAN2(dev) (!strncmp(dev->name, LAN2_DEV_NAME,			\
-		      strlen(LAN2_DEV_NAME)))
+#define IS_LAN(dev)								\
+	(!strncmp(dev->name, LAN_DEV_NAME, strlen(LAN_DEV_NAME)) ||		\
+	 IS_BOND(dev))
+#define IS_LAN2(dev)								\
+	(!strncmp(dev->name, LAN2_DEV_NAME, strlen(LAN2_DEV_NAME)) ||		\
+	 IS_BOND(dev))
 #define IS_BR(dev) (!strncmp(dev->name, "br", 2))
+#define IS_BOND(dev) (!strncmp(dev->name, "bond", 4))
 #define IS_WHNAT(dev)								\
 	((hnat_priv->data->whnat &&						\
 	 (get_wifi_hook_if_index_from_dev(dev) != 0)) ? 1 : 0)
@@ -1184,7 +1188,6 @@ enum FoeIpAct {
 	(IS_IPV6_3T_ROUTE(x) | IS_IPV6_5T_ROUTE(x) | IS_IPV6_6RD(x) |          \
 	 IS_IPV4_DSLITE(x) | IS_IPV4_MAPE(x) | IS_IPV4_MAPT(x) |	       \
 	 IS_IPV6_HNAPT(x) | IS_IPV6_HNAT(x))
-#define IS_BOND_MODE (!strncmp(LAN_DEV_NAME, "bond", 4))
 #define IS_GMAC1_MODE ((hnat_priv->gmac_num == 1) ? 1 : 0)
 #define IS_HQOS_MODE (qos_toggle == 1)
 #define IS_PPPQ_MODE (qos_toggle == 2)		/* Per Port Per Queue */
