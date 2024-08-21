@@ -696,20 +696,21 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 					goto init_err;
 			}
 			break;
-		case PHY_INTERFACE_MODE_XGMII:
-			mac->type = MTK_XGDM_TYPE;
-			if (MTK_HAS_CAPS(eth->soc->caps, MTK_XGMII)) {
-				err = mtk_gmac_xgmii_path_setup(eth, mac->id);
-				if (err)
-					goto init_err;
-			}
-			break;
 		case PHY_INTERFACE_MODE_USXGMII:
 		case PHY_INTERFACE_MODE_10GKR:
 		case PHY_INTERFACE_MODE_5GBASER:
 			mac->type = MTK_XGDM_TYPE;
 			if (MTK_HAS_CAPS(eth->soc->caps, MTK_USXGMII)) {
 				err = mtk_gmac_usxgmii_path_setup(eth, mac->id);
+				if (err)
+					goto init_err;
+			}
+			break;
+		case PHY_INTERFACE_MODE_INTERNAL:
+			if (mac->id == MTK_GMAC2_ID &&
+			    MTK_HAS_CAPS(eth->soc->caps, MTK_2P5GPHY)) {
+				mac->type = MTK_XGDM_TYPE;
+				err = mtk_gmac_2p5gphy_path_setup(eth, mac->id);
 				if (err)
 					goto init_err;
 			}
@@ -975,9 +976,12 @@ static void mtk_gdm_fsm_poll(struct mtk_mac *mac)
 static void mtk_pse_set_mac_port_link(struct mtk_mac *mac, bool up,
 				      phy_interface_t interface)
 {
+	struct mtk_eth *eth = mac->hw;
 	u32 port = 0;
 
-	if (!up && interface == PHY_INTERFACE_MODE_XGMII) {
+	if (!up && mac->id == MTK_GMAC2_ID &&
+	    interface == PHY_INTERFACE_MODE_INTERNAL &&
+	    MTK_HAS_CAPS(eth->soc->caps, MTK_2P5GPHY)) {
 		void __iomem *base;
 
 		base = ioremap(0x0F0CFB00, SZ_4K);
@@ -1224,8 +1228,8 @@ static void mtk_validate(struct phylink_config *config,
 	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_SGMII) &&
 	      (state->interface == PHY_INTERFACE_MODE_SGMII ||
 	       phy_interface_mode_is_8023z(state->interface))) &&
-	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_XGMII) &&
-	      (state->interface == PHY_INTERFACE_MODE_XGMII)) &&
+	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_2P5GPHY) &&
+	      (state->interface == PHY_INTERFACE_MODE_INTERNAL)) &&
 	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_USXGMII) &&
 	      (state->interface == PHY_INTERFACE_MODE_USXGMII)) &&
 	    !(MTK_HAS_CAPS(mac->hw->soc->caps, MTK_USXGMII) &&
@@ -1258,7 +1262,7 @@ static void mtk_validate(struct phylink_config *config,
 	case PHY_INTERFACE_MODE_TRGMII:
 		phylink_set(mask, 1000baseT_Full);
 		break;
-	case PHY_INTERFACE_MODE_XGMII:
+	case PHY_INTERFACE_MODE_INTERNAL:
 		/* fall through */
 	case PHY_INTERFACE_MODE_1000BASEX:
 		phylink_set(mask, 1000baseX_Full);
