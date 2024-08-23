@@ -1,0 +1,72 @@
+--- a/scripts/feeds
++++ b/scripts/feeds
+@@ -120,16 +120,22 @@ sub update_location($$)
+ 	return 0;
+ }
+ 
+-sub update_index($)
++sub update_index($$)
+ {
+ 	my $name = shift;
++	my $subdir = shift;
++	my $real_subdir = "";
+ 
+ 	-d "./feeds/$name.tmp" or mkdir "./feeds/$name.tmp" or return 1;
+ 	-d "./feeds/$name.tmp/info" or mkdir "./feeds/$name.tmp/info" or return 1;
+ 
++	if (length( $subdir || '' )) {
++		$real_subdir = "/$subdir";
++	}
++
+ 	system("$mk -s prepare-mk OPENWRT_BUILD= TMP_DIR=\"$ENV{TOPDIR}/feeds/$name.tmp\"");
+-	system("$mk -s -f include/scan.mk IS_TTY=1 SCAN_TARGET=\"packageinfo\" SCAN_DIR=\"feeds/$name\" SCAN_NAME=\"package\" SCAN_DEPTH=5 SCAN_EXTRA=\"\" TMP_DIR=\"$ENV{TOPDIR}/feeds/$name.tmp\"");
+-	system("$mk -s -f include/scan.mk IS_TTY=1 SCAN_TARGET=\"targetinfo\" SCAN_DIR=\"feeds/$name\" SCAN_NAME=\"target\" SCAN_DEPTH=5 SCAN_EXTRA=\"\" SCAN_MAKEOPTS=\"TARGET_BUILD=1\" TMP_DIR=\"$ENV{TOPDIR}/feeds/$name.tmp\"");
++	system("$mk -s -f include/scan.mk IS_TTY=1 SCAN_TARGET=\"packageinfo\" SCAN_DIR=\"feeds/$name$real_subdir\" SCAN_NAME=\"package\" SCAN_DEPTH=5 SCAN_EXTRA=\"\" TMP_DIR=\"$ENV{TOPDIR}/feeds/$name.tmp\"");
++	system("$mk -s -f include/scan.mk IS_TTY=1 SCAN_TARGET=\"targetinfo\" SCAN_DIR=\"feeds/$name$real_subdir\" SCAN_NAME=\"target\" SCAN_DEPTH=5 SCAN_EXTRA=\"\" SCAN_MAKEOPTS=\"TARGET_BUILD=1\" TMP_DIR=\"$ENV{TOPDIR}/feeds/$name.tmp\"");
+ 	system("ln -sf $name.tmp/.packageinfo ./feeds/$name.index");
+ 	system("ln -sf $name.tmp/.targetinfo ./feeds/$name.targetindex");
+ 
+@@ -756,11 +762,12 @@ sub uninstall {
+ 	return 0;
+ }
+ 
+-sub update_feed($$$$$)
++sub update_feed($$$$$$)
+ {
+ 	my $type=shift;
+ 	my $name=shift;
+ 	my $src=shift;
++	my $subdir=shift;
+ 	my $perform_update=shift;
+ 	my $force_update=shift;
+ 	my $force_relocate=update_location( $name, "@$src" );
+@@ -794,7 +801,7 @@ sub update_feed($$$$$)
+ 		};
+ 	};
+ 	warn "Create index file './feeds/$name.index' \n";
+-	update_index($name) == 0 or do {
++	update_index($name, $subdir) == 0 or do {
+ 		warn "failed.\n";
+ 		return 1;
+ 	};
+@@ -830,16 +837,18 @@ sub update {
+ 	if ( ($#ARGV == -1) or $opts{a}) {
+ 		foreach my $feed (@feeds) {
+ 			my ($type, $name, $src) = @$feed;
+-			update_feed($type, $name, $src, $perform_update, $opts{f}) == 0 or $failed=1;
++			my $subdir = $feed->[3]{subdir};
++			update_feed($type, $name, $src, $subdir, $perform_update, $opts{f}) == 0 or $failed=1;
+ 		}
+ 	} else {
+ 		while ($feed_name = shift @ARGV) {
+ 			foreach my $feed (@feeds) {
+ 				my ($type, $name, $src) = @$feed;
++				my $subdir = $feed->[3]{subdir};
+ 				if($feed_name ne $name) {
+ 					next;
+ 				}
+-				update_feed($type, $name, $src, $perform_update, $opts{f}) == 0 or $failed=1;
++				update_feed($type, $name, $src, $subdir, $perform_update, $opts{f}) == 0 or $failed=1;
+ 			}
+ 		}
+ 	}
