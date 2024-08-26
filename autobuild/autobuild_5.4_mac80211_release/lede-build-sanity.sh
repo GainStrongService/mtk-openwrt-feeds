@@ -329,22 +329,19 @@ prepare_mac80211() {
 	# hack mt7622 config5.4
 	echo "CONFIG_RELAY=y" >> ./target/linux/mediatek/mt7622/config-5.4
 
-	# MAC80211/Hostapd Script
 	if [ "$1" = "1" ]; then
+			# MAC80211/Hostapd Script
 			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0001-wifi7-mac80211-generate-hostapd-setting-from-ap-cap.patch || exit 1
+			# Hostapd Makefile
+			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0002-wifi7-hostapd-makefile-for-utils.patch || exit 1
+			# MT76 Makefile
+			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0003-wifi7-mt76-makefile-for-new-chip.patch || exit 1
 	else
 			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0001-wifi6-mac80211-generate-hostapd-setting-from-ap-cap.patch || exit 1
-	fi
-
-	# Hostapd Makefile
-	if [ "$2" = "1" ]; then
-			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0002-wifi7-hostapd-makefile-for-utils.patch || exit 1
-	else
 			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0002-wifi6-hostapd-makefile-for-utils.patch || exit 1
+			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0003-wifi6-mt76-makefile-for-new-chip.patch || exit 1
 	fi
 
-	# MT76 Makefile
-	patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0003-master-mt76-makefile-for-new-chip.patch || exit 1
 	cp -rfa ${MAC80211_AUTOBUILD_RELEASE}/package/ ${BUILD_DIR}
 	cp -rfa ${MAC80211_AUTOBUILD_RELEASE}/target/ ${BUILD_DIR}
 
