@@ -184,6 +184,72 @@ int ext_if_del(struct extdev_entry *ext_entry)
 	return i;
 }
 
+static void foe_clear_ethdev_bind_entries(struct net_device *dev)
+{
+	struct net_device *master_dev = dev;
+	const struct dsa_port *dp;
+	struct foe_entry *entry;
+	struct mtk_mac *mac;
+	bool match_dev = false;
+	int port_id, gmac;
+	u32 i, hash_index;
+	u32 dsa_tag;
+	u32 total = 0;
+
+	/* Get the master device if the device is slave device */
+	port_id = hnat_dsa_get_port(&master_dev);
+	mac = netdev_priv(master_dev);
+	gmac = HNAT_GMAC_FP(mac->id);
+
+	if (gmac < 0)
+		return;
+
+	if (port_id >= 0) {
+		dp = dsa_port_from_netdev(dev);
+		if (IS_ERR(dp))
+			return;
+
+		if (IS_DSA_TAG_PROTO_MXL862_8021Q(dp))
+			dsa_tag = port_id + BIT(11);
+		else
+			dsa_tag = BIT(port_id);
+	}
+
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
+			entry = hnat_priv->foe_table_cpu[i] + hash_index;
+			if (!entry_hnat_is_bound(entry))
+				continue;
+
+			match_dev = (IS_IPV4_GRP(entry)) ? entry->ipv4_hnapt.iblk2.dp == gmac :
+							   entry->ipv6_5t_route.iblk2.dp == gmac;
+
+			if (match_dev && port_id >= 0) {
+				if (IS_DSA_TAG_PROTO_MXL862_8021Q(dp)) {
+					match_dev = (IS_IPV4_GRP(entry)) ?
+						entry->ipv4_hnapt.vlan1 == dsa_tag :
+						entry->ipv6_5t_route.vlan1 == dsa_tag;
+				} else {
+					match_dev = (IS_IPV4_GRP(entry)) ?
+						!!(entry->ipv4_hnapt.etype & dsa_tag) :
+						!!(entry->ipv6_5t_route.etype & dsa_tag);
+				}
+			}
+
+			if (match_dev) {
+				entry->bfib1.state = INVALID;
+				entry->bfib1.time_stamp =
+					readl((hnat_priv->fe_base + 0x0010)) & 0xFF;
+				total++;
+			}
+		}
+	}
+
+	/* clear HWNAT cache */
+	if (total > 0)
+		hnat_cache_ebl(1);
+}
+
 void foe_clear_all_bind_entries(void)
 {
 	int i, hash_index;
@@ -234,6 +300,17 @@ int nf_hnat_netdevice_event(struct notifier_block *unused, unsigned long event,
 
 		extif_set_dev(dev);
 
+		break;
+	case NETDEV_CHANGE:
+		/* Clear PPE entries if the slave of bond device physical link down */
+		if (!netif_is_bond_slave(dev) ||
+		    (!IS_LAN_GRP(dev) && !IS_WAN(dev)))
+			break;
+
+		if (netif_carrier_ok(dev))
+			break;
+
+		foe_clear_ethdev_bind_entries(dev);
 		break;
 	case NETDEV_GOING_DOWN:
 		if (!get_wifi_hook_if_index_from_dev(dev))
