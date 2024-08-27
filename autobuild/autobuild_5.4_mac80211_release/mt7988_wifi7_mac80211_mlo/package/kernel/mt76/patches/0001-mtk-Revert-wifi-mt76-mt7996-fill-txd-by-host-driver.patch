@@ -1,7 +1,7 @@
-From bb24b3476e4f4eef8a283159d62af7d9736dbcf5 Mon Sep 17 00:00:00 2001
+From a0ded7d35f8c449efc7180e7e589f850d371061c Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 19 Sep 2023 11:21:23 +0800
-Subject: [PATCH 001/199] mtk: Revert "wifi: mt76: mt7996: fill txd by host
+Subject: [PATCH 001/195] mtk: Revert "wifi: mt76: mt7996: fill txd by host
  driver"
 
 This reverts commit 325a0c4931990d553487024c4f76c776492bdcc2.
@@ -10,10 +10,10 @@ This reverts commit 325a0c4931990d553487024c4f76c776492bdcc2.
  1 file changed, 9 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index bc7111a7..3afdd7eb 100644
+index 0d21414e..109a74a9 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -938,8 +938,11 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -947,8 +947,11 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  		return id;
  
  	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
@@ -27,7 +27,7 @@ index bc7111a7..3afdd7eb 100644
  
  	txp = (struct mt76_connac_txp_common *)(txwi + MT_TXD_SIZE);
  	for (i = 0; i < nbuf; i++) {
-@@ -956,8 +959,10 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -965,8 +968,10 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	}
  	txp->fw.nbuf = nbuf;
  
@@ -41,5 +41,5 @@ index bc7111a7..3afdd7eb 100644
  	if (!key)
  		txp->fw.flags |= cpu_to_le16(MT_CT_INFO_NONE_CIPHER_FRAME);
 -- 
-2.18.0
+2.45.2
 
