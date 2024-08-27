@@ -216,7 +216,7 @@ remove_files_from_list() {
 list_all_autobuild_branches_real() {
 	[ ${3} -gt 4 ] && return
 
-	find ${ab_root}/${1} -maxdepth 2 -mindepth 2 -name 'rules' -print | \
+	find -L ${ab_root}/${1} -maxdepth 2 -mindepth 2 -name 'rules' -print | \
 		awk '{n=split($0,a,"/"); print a[n-1]}' | sort | while read line; do
 
 		local depth=$(($3 + 1))
