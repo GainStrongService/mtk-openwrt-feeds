@@ -495,8 +495,6 @@ typedef struct {
 	    If it is 0, the block size of nEgressVlanFilter2BlockId will be used.
 	    Otherwise, this field will be used. */
 	u16 nEgressVlanFilter2BlockSize;
-	/** Enable Ingress VLAN Based Mac Learning */
-	gsw_bool_t bIngressVlanBasedMacLearningEnable;
 	/** 0 - Intermediate outer VLAN
 	    tag is used for MAC address/multicast
 	    learning, lookup and filtering.
@@ -544,8 +542,6 @@ typedef struct {
 	    filtering. */
 	gsw_bool_t bVlanDstMacVidEnable;
 
-	/** Enable, VLAN Based Multicast Lookup */
-	gsw_bool_t bVlanBasedMultiCastLookup;
 	/** 0 - Disable, VLAN Priority field is not used
 	    and value 0 is used for IP multicast lookup.
 	    1 - Enable, VLAN Priority field is used for IP

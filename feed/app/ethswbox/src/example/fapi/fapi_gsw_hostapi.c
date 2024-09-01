@@ -2024,11 +2024,6 @@ GSW_return_t fapi_GSW_BridgePortConfigSet(int prmc, char *prmv[])
 
 	scanParamArg(prmc, prmv, "nEgressVlanFilter2BlockId", sizeof(sVar.nEgressVlanFilter2BlockId), &sVar.nEgressVlanFilter2BlockId);
 
-	scanParamArg(prmc, prmv, "bIngressVlanBasedMacLearningEnable", sizeof(sVar.bIngressVlanBasedMacLearningEnable), &sVar.bIngressVlanBasedMacLearningEnable);
-	if (findStringParam(prmc, prmv, "bIngressVlanBasedMacLearningEnable")) {
-		sVar.eMask |=  GSW_BRIDGE_PORT_CONFIG_MASK_VLAN_BASED_MAC_LEARNING;
-	}
-
 	scanParamArg(prmc, prmv, "bVlanTagSelection", sizeof(sVar.bVlanTagSelection), &sVar.bVlanTagSelection);
 	scanParamArg(prmc, prmv, "bVlanSrcMacPriorityEnable", sizeof(sVar.bVlanSrcMacPriorityEnable), &sVar.bVlanSrcMacPriorityEnable);
 	scanParamArg(prmc, prmv, "bVlanSrcMacDEIEnable", sizeof(sVar.bVlanSrcMacDEIEnable), &sVar.bVlanSrcMacDEIEnable);
@@ -2036,10 +2031,6 @@ GSW_return_t fapi_GSW_BridgePortConfigSet(int prmc, char *prmv[])
 	scanParamArg(prmc, prmv, "bVlanDstMacPriorityEnable", sizeof(sVar.bVlanDstMacPriorityEnable), &sVar.bVlanDstMacPriorityEnable);
 	scanParamArg(prmc, prmv, "bVlanDstMacDEIEnable", sizeof(sVar.bVlanDstMacDEIEnable), &sVar.bVlanDstMacDEIEnable);
 	scanParamArg(prmc, prmv, "bVlanDstMacVidEnable", sizeof(sVar.bVlanDstMacVidEnable), &sVar.bVlanDstMacVidEnable);
-	scanParamArg(prmc, prmv, "bVlanBasedMultiCastLookup", sizeof(sVar.bVlanBasedMultiCastLookup), &sVar.bVlanBasedMultiCastLookup);
-	if (findStringParam(prmc, prmv, "bVlanBasedMultiCastLookup")) {
-		sVar.eMask |=  GSW_BRIDGE_PORT_CONFIG_MASK_VLAN_BASED_MULTICAST_LOOKUP;
-	}
 
 	scanParamArg(prmc, prmv, "bVlanMulticastPriorityEnable", sizeof(sVar.bVlanMulticastPriorityEnable), &sVar.bVlanMulticastPriorityEnable);
 	scanParamArg(prmc, prmv, "bVlanMulticastDEIEnable", sizeof(sVar.bVlanMulticastDEIEnable), &sVar.bVlanMulticastDEIEnable);
