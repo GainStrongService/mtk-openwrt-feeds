@@ -1,0 +1,52 @@
+diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
+index 695b190..5c69fa4 100644
+--- a/src/ap/hostapd.h
++++ b/src/ap/hostapd.h
+@@ -827,6 +827,15 @@ int hostapd_link_remove(struct hostapd_data *hapd, u32 count);
+ 			    _link && _link->conf->mld_ap &&		\
+ 				_link->conf->mld_id == _mld_id;		\
+ 			    _link = NULL)
++static inline bool ap_sta_is_mld(struct hostapd_data *hapd,
++				 struct sta_info *sta)
++{
++#ifdef CONFIG_IEEE80211BE
++	return hapd->conf->mld_ap && sta && sta->mld_info.mld_sta;
++#else /* CONFIG_IEEE80211BE */
++	return false;
++#endif /* CONFIG_IEEE80211BE */
++}
+ #else /* CONFIG_IEEE80211BE */
+ #define for_each_mld_link(_link, _bss_idx, _iface_idx, _ifaces, _mld_id) \
+ 	if (false)
+diff --git a/src/ap/sta_info.h b/src/ap/sta_info.h
+index 2bab789..dfb5e98 100644
+--- a/src/ap/sta_info.h
++++ b/src/ap/sta_info.h
+@@ -17,7 +17,6 @@
+ #include "common/sae.h"
+ #include "crypto/sha384.h"
+ #include "pasn/pasn_common.h"
+-#include "hostapd.h"
+ 
+ /* STA flags */
+ #define WLAN_STA_AUTH BIT(0)
+@@ -417,16 +416,6 @@ int ap_sta_re_add(struct hostapd_data *hapd, struct sta_info *sta);
+ 
+ void ap_free_sta_pasn(struct hostapd_data *hapd, struct sta_info *sta);
+ 
+-static inline bool ap_sta_is_mld(struct hostapd_data *hapd,
+-				 struct sta_info *sta)
+-{
+-#ifdef CONFIG_IEEE80211BE
+-	return hapd->conf->mld_ap && sta && sta->mld_info.mld_sta;
+-#else /* CONFIG_IEEE80211BE */
+-	return false;
+-#endif /* CONFIG_IEEE80211BE */
+-}
+-
+ static inline void ap_sta_set_mld(struct sta_info *sta, bool mld)
+ {
+ #ifdef CONFIG_IEEE80211BE
+-- 
+2.18.0
+

@@ -1,0 +1,151 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2022 MediaTek Inc.
+ * Author: Sam.Shih <sam.shih@mediatek.com>
+ */
+
+/dts-v1/;
+#include "mt7988a-rfb.dts"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "PrplOS Mozart board";
+
+	chosen {
+		rootdisk-emmc = <&emmc_rootfs>;
+	};
+};
+
+&pio {
+	mdio0_pins: mdio0-pins {
+		mux {
+			function = "eth";
+			groups = "mdc_mdio0";
+		};
+
+		conf {
+			groups = "mdc_mdio0";
+			drive-strength = <MTK_DRIVE_10mA>;
+		};
+	};
+
+	spic_pins: spi1-pins {
+		mux {
+			function = "spi";
+			groups = "spi1";
+		};
+	};
+};
+
+&usxgmiisys0 {
+	mediatek,pn_swap_rx;
+};
+
+&usxgmiisys1 {
+	mediatek,pn_swap_rx;
+};
+
+&mdio_bus {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	reset-gpios = <&pio 72 1>;
+	reset-delay-us = <40000>;
+
+	/* external Realtek RTL8261N */
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+		compatible = "ethernet-phy-ieee802.3-c45";
+	};
+
+	phy8: ethernet-phy@8 {
+		reg = <8>;
+		compatible = "ethernet-phy-ieee802.3-c45";
+	};
+};
+
+&gmac1 {
+	phy-mode = "usxgmii";
+	phy-connection-type = "usxgmii";
+	phy = <&phy0>;
+	status = "okay";
+};
+
+&gmac2 {
+	phy-mode = "usxgmii";
+	phy-connection-type = "usxgmii";
+	phy = <&phy8>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+	clock-frequency = <100000>;
+	status = "okay";
+
+	icp201xx@63{
+		compatible = "invensense,icp201xx";
+		reg = <0x63>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&fan {
+	pwms = <&pwm 1 50000 0>;
+	status = "okay";
+};
+
+&pwm {
+	status = "okay";
+};
+
+&spi1 {
+	pinctrl-names = "default";
+	/* pin shared with snfi */
+	pinctrl-0 = <&spic_pins>;
+	status = "disabled";
+};
+
+&mmc0 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&mmc0_pins_emmc_51>;
+	pinctrl-1 = <&mmc0_pins_emmc_51>;
+	bus-width = <8>;
+	max-frequency = <200000000>;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	hs400-ds-delay = <0x12814>;
+	vqmmc-supply = <&reg_1p8v>;
+	vmmc-supply = <&reg_3p3v>;
+	non-removable;
+	no-sd;
+	no-sdio;
+	status = "okay";
+
+	card@0 {
+		compatible = "mmc-card";
+		reg = <0>;
+
+		block {
+			compatible = "block-device";
+			partitions {
+				block-partition-env {
+					partname = "u-boot-env";
+					nvmem-layout {
+						compatible = "u-boot,env-layout";
+					};
+				};
+
+				emmc_rootfs: block-partition-production {
+					partname = "firmware";
+				};
+			};
+		};
+	};
+};
