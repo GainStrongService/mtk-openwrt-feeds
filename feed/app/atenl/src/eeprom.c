@@ -484,7 +484,7 @@ out:
 	return ret;
 }
 
-/* Update all eeprom values to driver before writing efuse */
+/* Update all eeprom values to driver before writing efuse or ext eeprom */
 static void
 atenl_eeprom_sync_to_driver(struct atenl *an)
 {
@@ -548,6 +548,9 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 			} else if (!strncmp(s, "to efuse", 8)) {
 				atenl_eeprom_sync_to_driver(an);
 				atenl_nl_write_efuse_all(an);
+			} else if (!strncmp(s, "to ext", 6)) {
+				atenl_eeprom_sync_to_driver(an);
+				atenl_nl_write_ext_eeprom_all(an);
 			}
 		} else if (!strncmp(s, "read", 4)) {
 			u32 offset;

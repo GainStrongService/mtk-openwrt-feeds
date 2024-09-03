@@ -1305,6 +1305,36 @@ int atenl_nl_write_efuse_all(struct atenl *an)
 	return 0;
 }
 
+int atenl_nl_write_ext_eeprom_all(struct atenl *an)
+{
+	struct atenl_nl_priv nl_priv = {};
+	struct nl_msg *msg;
+	void *ptr;
+
+	if (unl_genl_init(&nl_priv.unl, "nl80211") < 0) {
+		atenl_err("Failed to connect to nl80211\n");
+		return 2;
+	}
+
+	msg = unl_genl_msg(&nl_priv.unl, NL80211_CMD_TESTMODE, false);
+	nla_put_u32(msg, NL80211_ATTR_WIPHY, get_band_val(an, 0, phy_idx));
+
+	ptr = nla_nest_start(msg, NL80211_ATTR_TESTDATA);
+	if (!ptr)
+		return -ENOMEM;
+
+	nla_put_u8(msg, MT76_TM_ATTR_EEPROM_ACTION,
+		   MT76_TM_EEPROM_ACTION_WRITE_TO_EXT_EEPROM);
+
+	nla_nest_end(msg, ptr);
+
+	unl_genl_request(&nl_priv.unl, msg, NULL, NULL);
+
+	unl_free(&nl_priv.unl);
+
+	return 0;
+}
+
 int atenl_nl_update_buffer_mode(struct atenl *an)
 {
 	struct atenl_nl_priv nl_priv = {};

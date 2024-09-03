@@ -267,11 +267,13 @@ enum mt76_testmode_tx_mode {
  * 	eeprom data block
  * @MT76_TM_EEPROM_ACTION_UPDATE_BUFFER_MODE: send updated eeprom data to fw
  * @MT76_TM_EEPROM_ACTION_WRITE_TO_EFUSE: write eeprom data back to efuse
+ * @MT76_TM_EEPROM_ACTION_WRITE_TO_EXT_EEPROM: write eeprom data back to external eeprom
  */
 enum mt76_testmode_eeprom_action {
 	MT76_TM_EEPROM_ACTION_UPDATE_DATA,
 	MT76_TM_EEPROM_ACTION_UPDATE_BUFFER_MODE,
 	MT76_TM_EEPROM_ACTION_WRITE_TO_EFUSE,
+	MT76_TM_EEPROM_ACTION_WRITE_TO_EXT_EEPROM,
 
 	/* keep last */
 	NUM_MT76_TM_EEPROM_ACTION,
