@@ -1729,9 +1729,12 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					break;
 			}
 			if (i > 0) {
-				/* Choose a subordinate device according to the hash index */
-				dev = slave_dev[(skb_hnat_entry(skb) >> 1) % i];
-				master_dev = slave_dev[(skb_hnat_entry(skb) >> 1) % i];
+				i = (skb_hnat_entry(skb) >> 1) % i;
+				if (i >= 0 && i < ARRAY_SIZE(slave_dev)) {
+					/* Choose a subordinate device by hash index */
+					dev = slave_dev[i];
+					master_dev = slave_dev[i];
+				}
 			}
 		}
 		port_id = hnat_dsa_get_port(&master_dev);
