@@ -5,9 +5,9 @@
 # Top rules
 
 # Declare substages of every stage
-sub_stage_prepare="mk_ab_tmp pre_prepare apply_feed_script_patch modify_feeds_conf update_feeds \
+sub_stage_prepare="update_ab_info mk_ab_tmp pre_prepare apply_feed_script_patch modify_feeds_conf update_feeds \
 		   mtk_feed_prepare install_feeds autobuild_prepare post_prepare"
-sub_stage_build="pre_build do_build post_build"
+sub_stage_build="update_ab_info pre_build do_build post_build"
 sub_stage_release="pre_release do_release post_release"
 sub_stage_sdk_release="pre_sdk_release do_sdk_release post_sdk_release"
 sub_stage_menuconfig="do_menuconfig_update"
@@ -99,6 +99,16 @@ kernel_config_enabled() {
 	kconfig_enabled "${kernel_config_file}" "${1}"
 }
 
+# Whether this is for internal build
+update_ab_info() {
+	if test -z "${internal_build}"; then
+		if test -d "${openwrt_root}/../mtk-openwrt-feeds"; then
+			log_dbg "Internal repo build mode"
+			internal_build=1
+		fi
+	fi
+}
+
 # Create the ${ab_tmp} directory
 mk_ab_tmp() {
 	exec_log "mkdir -p \"${ab_tmp}\""
@@ -142,11 +152,8 @@ modify_feeds_conf() {
 
 	[ -n "${feed_rev}" ] && feed_rev="^${feed_rev}"
 
-	if test -d "${openwrt_root}/../mtk-openwrt-feeds"; then
+	if test -n "${internal_build}"; then
 		feed_url="${openwrt_root}/../mtk-openwrt-feeds"
-		internal_build=1
-
-		log_dbg "Internal repo build mode"
 	fi
 
 	if test -n "${internal_build}" -a -z "${feed_rev}"; then
@@ -424,8 +431,10 @@ prepare_stamp() {
 
 download_openwrt_packages() {
 	if test x"${internal_build}" = x"1"; then
-		if ! [ -d "${openwrt_root}/dl" -o -L "${openwrt_root}/dl" ]; then
-			exec_log "ln -sf ../dl \"${openwrt_root}/dl\""
+		if test -d "${openwrt_root}/../dl"; then
+			if ! test -d "${openwrt_root}/dl" -o -L "${openwrt_root}/dl"; then
+				exec_log "ln -sf ../dl \"${openwrt_root}/dl\""
+			fi
 		fi
 	fi
 
