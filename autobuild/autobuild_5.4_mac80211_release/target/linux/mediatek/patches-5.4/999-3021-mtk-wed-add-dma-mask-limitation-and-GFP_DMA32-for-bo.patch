@@ -1,4 +1,4 @@
-From f83c601c7b525c0adedcf1f5e8041acd350c7e2d Mon Sep 17 00:00:00 2001
+From 1946b547d6e2297b841f77b03af6e17a7c26ea10 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 13:23:56 +0800
 Subject: [PATCH] mtk: wed: add dma mask limitation and GFP_DMA32 for board >=
@@ -12,7 +12,7 @@ Subject: [PATCH] mtk: wed: add dma mask limitation and GFP_DMA32 for board >=
  4 files changed, 16 insertions(+), 9 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 5eeb3ed..094bc94 100644
+index 662891c..4f40f83 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -625,7 +625,7 @@ mtk_wed_tx_buffer_alloc(struct mtk_wed_device *dev)
@@ -68,7 +68,7 @@ index 5eeb3ed..094bc94 100644
  			desc++;
  			buf += MTK_WED_PAGE_BUF_SIZE;
  			buf_phys += MTK_WED_PAGE_BUF_SIZE;
-@@ -2457,6 +2459,10 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -2456,6 +2458,10 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  	dev->version = hw->version;
  	dev->hw->pci_base = mtk_wed_get_pci_base(dev);
  
@@ -80,7 +80,7 @@ index 5eeb3ed..094bc94 100644
  	    of_dma_is_coherent(hw->eth->dev->of_node))
  		mtk_eth_set_dma_device(hw->eth, hw->dev);
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_mcu.c b/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
-index 18d1fb1..a88061c 100644
+index 20d0ad9..cd14d47 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
 @@ -145,7 +145,7 @@ int mtk_wed_exception_init(struct mtk_wed_wo *wo)
@@ -98,11 +98,11 @@ index 18d1fb1..a88061c 100644
  free:
 -	kfree(exp->log);
 +	skb_free_frag(exp->log);
+ 	exp->log = NULL;
  	return -ENOMEM;
  }
- 
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_wo.c b/drivers/net/ethernet/mediatek/mtk_wed_wo.c
-index 54b7787..e991d20 100644
+index ea102f4..b9e80ae 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_wo.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_wo.c
 @@ -88,7 +88,7 @@ woif_q_rx_fill(struct mtk_wed_wo *wo, struct wed_wo_queue *q, bool rx)
@@ -114,7 +114,7 @@ index 54b7787..e991d20 100644
  		if (!buf)
  			break;
  
-@@ -555,7 +555,7 @@ void mtk_wed_wo_exit(struct mtk_wed_hw *hw)
+@@ -553,7 +553,7 @@ void mtk_wed_wo_exit(struct mtk_wed_hw *hw)
  
  	if (wo->exp.log) {
  		dma_unmap_single(wo->hw->dev, wo->exp.phys, wo->exp.log_size, DMA_FROM_DEVICE);
@@ -136,5 +136,5 @@ index b24fef3..5afa6de 100644
  	struct net_device napi_dev;
  	spinlock_t rx_lock;
 -- 
-2.18.0
+2.45.2
 

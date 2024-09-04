@@ -1,4 +1,4 @@
-From f4cfa86dd8d8f2a129572c1df66a68ba999d8eb5 Mon Sep 17 00:00:00 2001
+From 0f661756eee5a5940985def830aa90307ee53559 Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 11:04:53 +0800
 Subject: [PATCH] add-wed-rx-support-for-netsys2
@@ -10,16 +10,16 @@ Subject: [PATCH] add-wed-rx-support-for-netsys2
  drivers/net/ethernet/mediatek/Makefile        |   2 +-
  drivers/net/ethernet/mediatek/mtk_wed.c       | 645 ++++++++++++++++--
  drivers/net/ethernet/mediatek/mtk_wed.h       |  51 ++
- drivers/net/ethernet/mediatek/mtk_wed_ccif.c  | 133 ++++
+ drivers/net/ethernet/mediatek/mtk_wed_ccif.c  | 136 ++++
  drivers/net/ethernet/mediatek/mtk_wed_ccif.h  |  45 ++
  .../net/ethernet/mediatek/mtk_wed_debugfs.c   |  90 +++
- drivers/net/ethernet/mediatek/mtk_wed_mcu.c   | 604 ++++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_wed_mcu.c   | 605 ++++++++++++++++
  drivers/net/ethernet/mediatek/mtk_wed_mcu.h   |  97 +++
  drivers/net/ethernet/mediatek/mtk_wed_regs.h  | 143 +++-
- drivers/net/ethernet/mediatek/mtk_wed_wo.c    | 564 +++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_wed_wo.c    | 568 +++++++++++++++
  drivers/net/ethernet/mediatek/mtk_wed_wo.h    | 325 +++++++++
  include/linux/soc/mediatek/mtk_wed.h          | 114 +++-
- 15 files changed, 2822 insertions(+), 98 deletions(-)
+ 15 files changed, 2830 insertions(+), 98 deletions(-)
  create mode 100644 drivers/net/ethernet/mediatek/mtk_wed_ccif.c
  create mode 100644 drivers/net/ethernet/mediatek/mtk_wed_ccif.h
  create mode 100644 drivers/net/ethernet/mediatek/mtk_wed_mcu.c
@@ -225,7 +225,7 @@ index 4090132..fdbb90f 100644
 +obj-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_ops.o mtk_wed_wo.o mtk_wed_mcu.o mtk_wed_ccif.o
  obj-$(CONFIG_NET_MEDIATEK_HNAT)			+= mtk_hnat/
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 33b4b37..251549d 100644
+index 33b4b37..288bed8 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -13,10 +13,13 @@
@@ -329,16 +329,16 @@ index 33b4b37..251549d 100644
 +	mtk_wdma_tx_reset(dev);
 +
 +	mtk_wed_reset(dev, MTK_WED_RESET_WED);
++	if (wo) {
++		mtk_wed_mcu_send_msg(wo, MTK_WED_MODULE_ID_WO,
++				     MTK_WED_WO_CMD_CHANGE_STATE, &state,
++				     sizeof(state), false);
 +
-+	mtk_wed_mcu_send_msg(wo, MTK_WED_MODULE_ID_WO,
-+			     MTK_WED_WO_CMD_CHANGE_STATE, &state,
-+			     sizeof(state), false);
-+
-+	if (readx_poll_timeout(mtk_wed_wo_read_status, dev, val,
-+			       val == WOIF_DISABLE_DONE,
-+			       100, WOCPU_TIMEOUT))
-+		dev_err(dev->hw->dev, "failed to disable wed-wo\n");
-+
++		if (readx_poll_timeout(mtk_wed_wo_read_status, dev, val,
++				       val == WOIF_DISABLE_DONE,
++				       100, WOCPU_TIMEOUT))
++			dev_err(dev->hw->dev, "failed to disable wed-wo\n");
++	}
 +	reg = ioremap(WOCPU_MCUSYS_RESET_ADDR, 4);
 +	val = readl((void *)reg);
 +	switch(dev->hw->index) {
@@ -1338,10 +1338,10 @@ index c9a20e4..1bfd96f 100644
  #endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_ccif.c b/drivers/net/ethernet/mediatek/mtk_wed_ccif.c
 new file mode 100644
-index 0000000..951278b
+index 0000000..7839c0a
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_ccif.c
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,136 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#include <linux/soc/mediatek/mtk_wed.h>
@@ -1415,7 +1415,7 @@ index 0000000..951278b
 +	ret = request_irq(wo->ccif.irq, isr, IRQF_TRIGGER_HIGH,
 +			  "wo_ccif_isr", wo);
 +	if (ret)
-+		goto free_irq;
++		return ret;
 +
 +	queues.desc_base = MTK_WED_WO_CCIF_DUMMY1;
 +	queues.ring_size = MTK_WED_WO_CCIF_DUMMY2;
@@ -1438,13 +1438,13 @@ index 0000000..951278b
 +				 MTK_WED_WO_CMD_LEN, MTK_WED_WO_RXCH_NUM,
 +				 &queues);
 +	if (ret)
-+		goto free_irq;
++		goto free_txq;
 +
 +	wo->ccif.q_int_mask = MTK_WED_WO_RXCH_INT_MASK;
 +
 +	ret = mtk_wed_wo_q_init(wo, mtk_wed_wo_rx_poll);
 +	if (ret)
-+		goto free_irq;
++		goto free_rxq;
 +
 +	wo->ccif.q_exep_mask = MTK_WED_WO_EXCEPTION_INT_MASK;
 +	wo->ccif.irqmask = MTK_WED_WO_ALL_INT_MASK;
@@ -1454,6 +1454,10 @@ index 0000000..951278b
 +
 +	return 0;
 +
++free_rxq:
++	mtk_wed_wo_q_free(wo, &wo->q_rx);
++free_txq:
++	mtk_wed_wo_q_free(wo, &wo->q_tx);
 +free_irq:
 +	free_irq(wo->ccif.irq, wo);
 +
@@ -1463,13 +1467,12 @@ index 0000000..951278b
 +void wed_wo_hardware_exit(struct mtk_wed_wo *wo)
 +{
 +	wo->drv_ops->set_isr(wo, 0);
++	if (wo->q_rx.desc) {
++		disable_irq(wo->ccif.irq);
++		free_irq(wo->ccif.irq, wo);
 +
-+	disable_irq(wo->ccif.irq);
-+	free_irq(wo->ccif.irq, wo);
-+
-+	tasklet_disable(&wo->irq_tasklet);
-+	netif_napi_del(&wo->napi);
-+
++		netif_napi_del(&wo->napi);
++	}
 +	mtk_wed_wo_q_tx_clean(wo, &wo->q_tx);
 +	mtk_wed_wo_q_rx_clean(wo, &wo->q_rx);
 +	mtk_wed_wo_q_free(wo, &wo->q_tx);
@@ -1669,10 +1672,10 @@ index 20cca20..67d4a08 100644
  }
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_mcu.c b/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
 new file mode 100644
-index 0000000..be63406
+index 0000000..f071eeb
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_mcu.c
-@@ -0,0 +1,604 @@
+@@ -0,0 +1,605 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#include <linux/skbuff.h>
@@ -1841,6 +1844,7 @@ index 0000000..be63406
 +
 +free:
 +	kfree(exp->log);
++	exp->log = NULL;
 +	return -ENOMEM;
 +}
 +
@@ -2636,10 +2640,10 @@ index e797e9d..a79305f 100644
  #endif
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_wo.c b/drivers/net/ethernet/mediatek/mtk_wed_wo.c
 new file mode 100644
-index 0000000..54b7787
+index 0000000..7e5bd17
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_wed_wo.c
-@@ -0,0 +1,564 @@
+@@ -0,0 +1,568 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +
 +#include <linux/kernel.h>
@@ -2831,6 +2835,7 @@ index 0000000..54b7787
 +
 +	size = q->ndesc * sizeof(struct wed_wo_desc);
 +	dma_free_coherent(dev->hw->dev, size, q->desc, q->desc_dma);
++	q->desc = NULL;
 +}
 +
 +static void
@@ -3182,10 +3187,8 @@ index 0000000..54b7787
 +		goto error;
 +
 +	return ret;
-+
 +error:
-+	kfree(wo);
-+
++	mtk_wed_wo_exit(hw);
 +	return ret;
 +}
 +
@@ -3193,7 +3196,11 @@ index 0000000..54b7787
 +{
 +	struct mtk_wed_wo *wo = hw->wed_wo;
 +
++	if(!wo)
++		return;
++
 +	wed_wo_hardware_exit(wo);
++	tasklet_disable(&wo->irq_tasklet);
 +
 +	if (wo->exp.log) {
 +		dma_unmap_single(wo->hw->dev, wo->exp.phys, wo->exp.log_size, DMA_FROM_DEVICE);
@@ -3203,6 +3210,7 @@ index 0000000..54b7787
 +	wo->hw = NULL;
 +	memset(wo, 0, sizeof(*wo));
 +	kfree(wo);
++	hw->wed_wo = NULL;
 +}
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_wo.h b/drivers/net/ethernet/mediatek/mtk_wed_wo.h
 new file mode 100644
@@ -3750,5 +3758,5 @@ index 00036f9..658f392 100644
  
  #endif
 -- 
-2.18.0
+2.45.2
 

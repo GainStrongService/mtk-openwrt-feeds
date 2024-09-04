@@ -1,21 +1,21 @@
-From 7f1319357888271ea4aeeda81723b19a8f5ef2c0 Mon Sep 17 00:00:00 2001
+From 13171455fd9ff6fe043a8e1c9f67c89cfab8493d Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Mon, 18 Sep 2023 11:05:45 +0800
 Subject: [PATCH] add-wed-ser-support
 
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c  |   8 +
- drivers/net/ethernet/mediatek/mtk_wed.c      | 391 ++++++++++++++-----
+ drivers/net/ethernet/mediatek/mtk_wed.c      | 385 ++++++++++++++-----
  drivers/net/ethernet/mediatek/mtk_wed.h      |  10 +
  drivers/net/ethernet/mediatek/mtk_wed_regs.h |   9 +
  include/linux/soc/mediatek/mtk_wed.h         |  25 +-
- 5 files changed, 342 insertions(+), 101 deletions(-)
+ 5 files changed, 338 insertions(+), 99 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 268c9e7..a24b223 100644
+index fc43617..a7c73f5 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4619,6 +4619,9 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -4794,6 +4794,9 @@ static void mtk_pending_work(struct work_struct *work)
  	for (i = 0; i < MTK_MAC_COUNT; i++) {
  		if (!eth->netdev[i])
  			continue;
@@ -25,7 +25,7 @@ index 268c9e7..a24b223 100644
  		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
  			pr_info("send MTK_FE_STOP_TRAFFIC event\n");
  			call_netdevice_notifiers(MTK_FE_STOP_TRAFFIC,
-@@ -4644,6 +4647,7 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -4820,6 +4823,7 @@ static void mtk_pending_work(struct work_struct *work)
  			pr_warn("wait for MTK_FE_START_RESET\n");
  		}
  		rtnl_lock();
@@ -33,7 +33,7 @@ index 268c9e7..a24b223 100644
  		break;
  	}
  
-@@ -4682,6 +4686,9 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -4858,6 +4862,9 @@ static void mtk_pending_work(struct work_struct *work)
  	for (i = 0; i < MTK_MAC_COUNT; i++) {
  		if (!eth->netdev[i])
  			continue;
@@ -43,7 +43,7 @@ index 268c9e7..a24b223 100644
  		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
  			pr_info("send MTK_FE_START_TRAFFIC event\n");
  			call_netdevice_notifiers(MTK_FE_START_TRAFFIC,
-@@ -4691,6 +4698,7 @@ static void mtk_pending_work(struct work_struct *work)
+@@ -4867,6 +4874,7 @@ static void mtk_pending_work(struct work_struct *work)
  			call_netdevice_notifiers(MTK_FE_RESET_DONE,
  				eth->netdev[i]);
  		}
@@ -52,7 +52,7 @@ index 268c9e7..a24b223 100644
  			eth->netdev[i]);
  		break;
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index ad9f3d5..b993f0e 100644
+index 288bed8..40943ee 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -13,8 +13,10 @@
@@ -199,7 +199,7 @@ index ad9f3d5..b993f0e 100644
  	wed_w32(dev, MTK_WED_WPDMA_INT_TRIGGER, 0);
  	wed_w32(dev, MTK_WED_WDMA_INT_TRIGGER, 0);
  	wdma_w32(dev, MTK_WDMA_INT_MASK, 0);
-@@ -543,39 +594,49 @@ mtk_wed_stop(struct mtk_wed_device *dev)
+@@ -543,31 +594,39 @@ mtk_wed_stop(struct mtk_wed_device *dev)
  
  	wed_w32(dev, MTK_WED_EXT_INT_MASK1, 0);
  	wed_w32(dev, MTK_WED_EXT_INT_MASK2, 0);
@@ -254,20 +254,16 @@ index ad9f3d5..b993f0e 100644
  	mtk_wed_free_tx_buffer(dev);
  	mtk_wed_free_tx_rings(dev);
  
- 	if (mtk_wed_get_rx_capa(dev)) {
--		mtk_wed_wo_reset(dev);
-+		if(hw->wed_wo)
-+			mtk_wed_wo_reset(dev);
+@@ -575,7 +634,7 @@ mtk_wed_detach(struct mtk_wed_device *dev)
+ 		mtk_wed_wo_reset(dev);
  		mtk_wed_free_rx_rings(dev);
--		mtk_wed_wo_exit(hw);
+ 		mtk_wed_wo_exit(hw);
 -		mtk_wdma_rx_reset(dev);
-+		if(hw->wed_wo)
-+			mtk_wed_wo_exit(hw);
 +		mtk_wdma_tx_reset(dev);
  	}
  
  	if (dev->wlan.bus_type == MTK_WED_BUS_PCIE) {
-@@ -593,6 +654,13 @@ mtk_wed_detach(struct mtk_wed_device *dev)
+@@ -593,6 +652,13 @@ mtk_wed_detach(struct mtk_wed_device *dev)
  	module_put(THIS_MODULE);
  
  	hw->wed_dev = NULL;
@@ -281,7 +277,7 @@ index ad9f3d5..b993f0e 100644
  	mutex_unlock(&hw_lock);
  }
  
-@@ -665,7 +733,7 @@ mtk_wed_hw_init_early(struct mtk_wed_device *dev)
+@@ -665,7 +731,7 @@ mtk_wed_hw_init_early(struct mtk_wed_device *dev)
  {
  	u32 mask, set;
  
@@ -290,7 +286,7 @@ index ad9f3d5..b993f0e 100644
  	mtk_wed_reset(dev, MTK_WED_RESET_WED);
  	mtk_wed_set_wpdma(dev);
  
-@@ -715,7 +783,6 @@ mtk_wed_rro_ring_alloc(struct mtk_wed_device *dev, struct mtk_wed_ring *ring,
+@@ -715,7 +781,6 @@ mtk_wed_rro_ring_alloc(struct mtk_wed_device *dev, struct mtk_wed_ring *ring,
  
  	ring->desc_size = sizeof(*ring->desc);
  	ring->size = size;
@@ -298,7 +294,7 @@ index ad9f3d5..b993f0e 100644
  
  	return 0;
  }
-@@ -938,44 +1005,140 @@ mtk_wed_ring_reset(struct mtk_wed_ring *ring, int size, bool tx)
+@@ -938,44 +1003,140 @@ mtk_wed_ring_reset(struct mtk_wed_ring *ring, int size, bool tx)
  }
  
  static u32
@@ -463,7 +459,7 @@ index ad9f3d5..b993f0e 100644
  static void
  mtk_wed_reset_dma(struct mtk_wed_device *dev)
  {
-@@ -991,22 +1154,25 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -991,22 +1152,25 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
  				   true);
  	}
  
@@ -497,7 +493,7 @@ index ad9f3d5..b993f0e 100644
  
  	if (busy) {
  		mtk_wed_reset(dev, MTK_WED_RESET_WDMA_INT_AGENT);
-@@ -1023,6 +1189,9 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -1023,6 +1187,9 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
  			MTK_WED_WDMA_GLO_CFG_RST_INIT_COMPLETE);
  	}
  
@@ -507,7 +503,7 @@ index ad9f3d5..b993f0e 100644
  	for (i = 0; i < 100; i++) {
  		val = wed_r32(dev, MTK_WED_TX_BM_INTF);
  		if (FIELD_GET(MTK_WED_TX_BM_INTF_TKFIFO_FDEP, val) == 0x40)
-@@ -1030,8 +1199,21 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -1030,8 +1197,21 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
  	}
  
  	mtk_wed_reset(dev, MTK_WED_RESET_TX_FREE_AGENT);
@@ -529,7 +525,7 @@ index ad9f3d5..b993f0e 100644
  	if (busy) {
  		mtk_wed_reset(dev, MTK_WED_RESET_WPDMA_INT_AGENT);
  		mtk_wed_reset(dev, MTK_WED_RESET_WPDMA_TX_DRV);
-@@ -1043,6 +1225,16 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -1043,6 +1223,16 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
  		wed_w32(dev, MTK_WED_WPDMA_RESET_IDX, 0);
  	}
  
@@ -546,7 +542,7 @@ index ad9f3d5..b993f0e 100644
  }
  
  static int
-@@ -1062,7 +1254,8 @@ mtk_wed_ring_alloc(struct mtk_wed_device *dev, struct mtk_wed_ring *ring,
+@@ -1062,7 +1252,8 @@ mtk_wed_ring_alloc(struct mtk_wed_device *dev, struct mtk_wed_ring *ring,
  }
  
  static int
@@ -556,7 +552,7 @@ index ad9f3d5..b993f0e 100644
  {
  	u32 desc_size = sizeof(struct mtk_wdma_desc) * dev->hw->version;
  	struct mtk_wed_ring *wdma;
-@@ -1071,8 +1264,8 @@ mtk_wed_wdma_rx_ring_setup(struct mtk_wed_device *dev, int idx, int size)
+@@ -1071,8 +1262,8 @@ mtk_wed_wdma_rx_ring_setup(struct mtk_wed_device *dev, int idx, int size)
  		return -EINVAL;
  
  	wdma = &dev->rx_wdma[idx];
@@ -567,7 +563,7 @@ index ad9f3d5..b993f0e 100644
  		return -ENOMEM;
  
  	wdma_w32(dev, MTK_WDMA_RING_RX(idx) + MTK_WED_RING_OFS_BASE,
-@@ -1090,7 +1283,8 @@ mtk_wed_wdma_rx_ring_setup(struct mtk_wed_device *dev, int idx, int size)
+@@ -1090,7 +1281,8 @@ mtk_wed_wdma_rx_ring_setup(struct mtk_wed_device *dev, int idx, int size)
  }
  
  static int
@@ -577,7 +573,7 @@ index ad9f3d5..b993f0e 100644
  {
  	u32 desc_size = sizeof(struct mtk_wdma_desc) * dev->hw->version;
  	struct mtk_wed_ring *wdma;
-@@ -1099,8 +1293,8 @@ mtk_wed_wdma_tx_ring_setup(struct mtk_wed_device *dev, int idx, int size)
+@@ -1099,8 +1291,8 @@ mtk_wed_wdma_tx_ring_setup(struct mtk_wed_device *dev, int idx, int size)
  		return -EINVAL;
  
  	wdma = &dev->tx_wdma[idx];
@@ -588,7 +584,7 @@ index ad9f3d5..b993f0e 100644
  		return -ENOMEM;
  
  	wdma_w32(dev, MTK_WDMA_RING_TX(idx) + MTK_WED_RING_OFS_BASE,
-@@ -1112,6 +1306,9 @@ mtk_wed_wdma_tx_ring_setup(struct mtk_wed_device *dev, int idx, int size)
+@@ -1112,6 +1304,9 @@ mtk_wed_wdma_tx_ring_setup(struct mtk_wed_device *dev, int idx, int size)
  	wdma_w32(dev,
  		 MTK_WDMA_RING_TX(idx) + MTK_WED_RING_OFS_DMA_IDX, 0);
  
@@ -598,7 +594,7 @@ index ad9f3d5..b993f0e 100644
  	if (!idx)  {
  		wed_w32(dev, MTK_WED_WDMA_RING_TX + MTK_WED_RING_OFS_BASE,
  			wdma->desc_phys);
-@@ -1267,9 +1464,12 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
+@@ -1267,9 +1462,12 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
  {
  	int i;
  
@@ -612,7 +608,7 @@ index ad9f3d5..b993f0e 100644
  
  
  	mtk_wed_hw_init(dev);
-@@ -1278,10 +1478,9 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
+@@ -1278,10 +1476,9 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
  	mtk_wed_set_ext_int(dev, true);
  
  	if (dev->hw->version == 1) {
@@ -626,7 +622,7 @@ index ad9f3d5..b993f0e 100644
  
  		val |= BIT(0) | (BIT(1) * !!dev->hw->index);
  		regmap_write(dev->hw->mirror, dev->hw->index * 4, val);
-@@ -1353,10 +1552,6 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -1353,10 +1550,6 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  		goto out;
  
  	if (mtk_wed_get_rx_capa(dev)) {
@@ -637,7 +633,7 @@ index ad9f3d5..b993f0e 100644
  		ret = mtk_wed_rro_alloc(dev);
  		if (ret)
  			goto out;
-@@ -1364,6 +1559,10 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -1364,6 +1557,10 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  
  	mtk_wed_hw_init_early(dev);
  
@@ -648,20 +644,20 @@ index ad9f3d5..b993f0e 100644
  	if (hw->version == 1) {
  		regmap_update_bits(hw->hifsys, HIFSYS_DMA_AG_MAP,
  				   BIT(hw->index), 0);
-@@ -1373,8 +1572,10 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -1373,8 +1570,10 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  	}
  
  out:
 -	if (ret)
 -		mtk_wed_detach(dev);
 +	if (ret) {
-+		dev_err(dev->hw->dev, "failed to attach wed device\n");
++		dev_err(dev->hw->dev, "failed to attach wed device ret %d\n", ret);
 +		__mtk_wed_detach(dev);
 +	}
  unlock:
  	mutex_unlock(&hw_lock);
  
-@@ -1382,7 +1583,8 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -1382,7 +1581,8 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  }
  
  static int
@@ -671,7 +667,7 @@ index ad9f3d5..b993f0e 100644
  {
  	struct mtk_wed_ring *ring = &dev->tx_ring[idx];
  
-@@ -1401,11 +1603,12 @@ mtk_wed_tx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs)
+@@ -1401,11 +1601,12 @@ mtk_wed_tx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs)
  	if (WARN_ON(idx >= ARRAY_SIZE(dev->tx_ring)))
  		return -EINVAL;
  
@@ -687,7 +683,7 @@ index ad9f3d5..b993f0e 100644
  		return -ENOMEM;
  
  	ring->reg_base = MTK_WED_RING_TX(idx);
-@@ -1450,18 +1653,20 @@ mtk_wed_txfree_ring_setup(struct mtk_wed_device *dev, void __iomem *regs)
+@@ -1450,18 +1651,20 @@ mtk_wed_txfree_ring_setup(struct mtk_wed_device *dev, void __iomem *regs)
  }
  
  static int
@@ -856,5 +852,5 @@ index 658f392..6772ea8 100644
  
  #endif
 -- 
-2.18.0
+2.45.2
 
