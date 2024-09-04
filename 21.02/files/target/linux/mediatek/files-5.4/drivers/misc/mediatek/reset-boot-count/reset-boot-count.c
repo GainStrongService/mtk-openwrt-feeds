@@ -17,8 +17,8 @@
 
 #define RBC "reset_boot_count"
 
-#define MTK_SIP_READ_NONRST_REG			0xC2000550
-#define MTK_SIP_WRITE_NONRST_REG		0xC2000551
+#define MTK_SIP_READ_NONRST_REG			0xC2000570
+#define MTK_SIP_WRITE_NONRST_REG		0xC2000571
 
 static struct proc_dir_entry *rbc_entry;
 
