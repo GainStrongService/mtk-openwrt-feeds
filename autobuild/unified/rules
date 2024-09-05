@@ -530,7 +530,11 @@ collect_userspace_debug_symbols() {
 		staging_dir_root_prefix=$(dirname "${staging_dir_root}")
 		staging_dir_root_name=$(basename "${staging_dir_root}")
 
-		exec_log "tar -jcf \"${ab_bin_release}/rootfs-debug.tar.bz2\" -C \"${staging_dir_root_prefix}\" \"${staging_dir_root_name}\""
+		if test -x "${openwrt_root}/staging_dir/host/bin/zstd"; then
+			exec_log "tar -c -C \"${staging_dir_root_prefix}\" \"${staging_dir_root_name}\" | \"${openwrt_root}/staging_dir/host/bin/zstd\" -T0 -f -o \"${ab_bin_release}/rootfs-debug.tar.zst\""
+		else
+			exec_log "tar -jcf \"${ab_bin_release}/rootfs-debug.tar.bz2\" -C \"${staging_dir_root_prefix}\" \"${staging_dir_root_name}\""
+		fi
 	fi
 }
 
