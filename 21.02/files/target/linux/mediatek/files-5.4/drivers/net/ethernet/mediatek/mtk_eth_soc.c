@@ -39,6 +39,7 @@ atomic_t force = ATOMIC_INIT(1);
 module_param_named(msg_level, mtk_msg_level, int, 0);
 MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
 DECLARE_COMPLETION(wait_ser_done);
+DECLARE_COMPLETION(wait_tops_done);
 
 #define MTK_ETHTOOL_STAT(x) { #x, \
 			      offsetof(struct mtk_hw_stats, x) / sizeof(u64) }
@@ -289,6 +290,13 @@ static const char * const mtk_clks_source_name[] = {
 	"top_netsys_sync_250m_sel", "top_netsys_ppefb_250m_sel",
 	"top_netsys_warp_sel", "top_macsec_sel",
 };
+
+u32 (*mtk_get_tnl_netsys_params)(struct sk_buff *skb) = NULL;
+EXPORT_SYMBOL(mtk_get_tnl_netsys_params);
+struct net_device *(*mtk_get_tnl_dev)(u8 tops_crsn) = NULL;
+EXPORT_SYMBOL(mtk_get_tnl_dev);
+void (*mtk_set_tops_crsn)(struct sk_buff *skb, u8 tops_crsn) = NULL;
+EXPORT_SYMBOL(mtk_set_tops_crsn);
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
 {
@@ -2025,6 +2033,10 @@ static void mtk_tx_set_dma_desc_v3(struct sk_buff *skb, struct net_device *dev, 
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_tx_dma_v2 *desc = txd;
 	u32 data = 0;
+	u32 params;
+	u8 tops_entry  = 0;
+	u8 tport = 0;
+	u8 cdrt = 0;
 
 	WRITE_ONCE(desc->txd1, info->addr);
 
@@ -2051,6 +2063,36 @@ static void mtk_tx_set_dma_desc_v3(struct sk_buff *skb, struct net_device *dev, 
 			     __func__, skb_shinfo(skb)->nr_frags, HNAT_SKB_CB2(skb)->magic, data);
 
 #endif
+
+#if IS_ENABLED(CONFIG_MEDIATEK_NETSYS_V3)
+	if (mtk_get_tnl_netsys_params && skb && !(skb->inner_protocol == IPPROTO_ESP)) {
+		params = mtk_get_tnl_netsys_params(skb);
+		tops_entry = params & 0x000000FF;
+		tport = (params & 0x0000FF00) >> 8;
+		cdrt = (params & 0x00FF0000) >> 16;
+	}
+
+	/* forward to eip197 if this packet is going to encrypt */
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT) || IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+	else if (unlikely(skb->inner_protocol == IPPROTO_ESP &&
+		 skb_hnat_cdrt(skb) && is_magic_tag_valid(skb))) {
+		/* carry cdrt index for encryption */
+		cdrt = skb_hnat_cdrt(skb);
+		skb_hnat_magic_tag(skb) = 0;
+#else
+	else if (unlikely(skb->inner_protocol == IPPROTO_ESP &&
+		 skb_tnl_cdrt(skb) && is_tnl_tag_valid(skb))) {
+		cdrt = skb_tnl_cdrt(skb);
+		skb_tnl_magic_tag(skb) = 0;
+#endif
+		tport = EIP197_QDMA_TPORT;
+	}
+
+	if (tport) {
+		data &= ~(TX_DMA_TPORT_MASK << TX_DMA_TPORT_SHIFT);
+		data |= (tport & TX_DMA_TPORT_MASK) << TX_DMA_TPORT_SHIFT;
+	}
+#endif
 	WRITE_ONCE(desc->txd4, data);
 
 	data = 0;
@@ -2072,7 +2114,20 @@ static void mtk_tx_set_dma_desc_v3(struct sk_buff *skb, struct net_device *dev, 
 	WRITE_ONCE(desc->txd6, data);
 
 	WRITE_ONCE(desc->txd7, 0);
-	WRITE_ONCE(desc->txd8, 0);
+
+	data = 0;
+
+	if (tops_entry) {
+		data &= ~(TX_DMA_TOPS_ENTRY_MASK << TX_DMA_TOPS_ENTRY_SHIFT);
+		data |= (tops_entry & TX_DMA_TOPS_ENTRY_MASK) << TX_DMA_TOPS_ENTRY_SHIFT;
+	}
+
+	if (cdrt) {
+		data &= ~(TX_DMA_CDRT_MASK << TX_DMA_CDRT_SHIFT);
+		data |= (cdrt & TX_DMA_CDRT_MASK) << TX_DMA_CDRT_SHIFT;
+	}
+
+	WRITE_ONCE(desc->txd8, data);
 }
 
 static void mtk_tx_set_pdma_desc(struct sk_buff *skb, struct net_device *dev, void *txd,
@@ -2444,6 +2499,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 	struct mtk_rx_ring *ring = rx_napi->rx_ring;
 	int idx;
 	struct sk_buff *skb;
+	u8 tops_crsn = 0;
 	u8 *data, *new_data;
 	struct mtk_rx_dma_v2 *rxd, trxd;
 	int done = 0;
@@ -2484,11 +2540,20 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 				      0 : RX_DMA_GET_SPORT(trxd.rxd4) - 1;
 		}
 
-		if (unlikely(mac < 0 || mac >= MTK_MAC_COUNT ||
-			     !eth->netdev[mac]))
-			goto release_desc;
+		tops_crsn = RX_DMA_GET_TOPS_CRSN(trxd.rxd6);
+		if (mtk_get_tnl_dev && tops_crsn) {
+			netdev = mtk_get_tnl_dev(tops_crsn);
+			if (IS_ERR(netdev))
+				netdev = NULL;
+		}
 
-		netdev = eth->netdev[mac];
+		if (!netdev) {
+			if (unlikely(mac < 0 || mac >= MTK_MAC_COUNT ||
+				     !eth->netdev[mac]))
+				goto release_desc;
+
+			netdev = eth->netdev[mac];
+		}
 
 		if (unlikely(test_bit(MTK_RESETTING, &eth->state)))
 			goto release_desc;
@@ -2575,7 +2640,11 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 
 		skb_hnat_alg(skb) = 0;
 		skb_hnat_filled(skb) = 0;
+		skb_hnat_set_cdrt(skb, RX_DMA_GET_CDRT(trxd.rxd7));
 		skb_hnat_magic_tag(skb) = HNAT_MAGIC_TAG;
+		skb_hnat_set_tops(skb, 0);
+		skb_hnat_set_is_decap(skb, 0);
+		skb_hnat_set_is_decrypt(skb, (skb_hnat_cdrt(skb) ? 1 : 0));
 
 		if (skb_hnat_reason(skb) == HIT_BIND_FORCE_TO_CPU) {
 			if (eth_debug_level >= 7)
@@ -2589,6 +2658,9 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 				     __func__, skb_hnat_entry(skb), skb_hnat_sport(skb),
 				     skb_hnat_reason(skb), skb_hnat_alg(skb));
 #endif
+		if (mtk_set_tops_crsn && skb && tops_crsn)
+			mtk_set_tops_crsn(skb, tops_crsn);
+
 		if (mtk_hwlro_stats_ebl &&
 		    IS_HW_LRO_RING(ring->ring_no) && eth->hwlro) {
 			hw_lro_stats_update(ring->ring_no, &trxd);
@@ -4859,6 +4931,8 @@ static void mtk_pending_work(struct work_struct *work)
 			}
 			pr_warn("wait for MTK_FE_START_RESET\n");
 		}
+		if (!try_wait_for_completion(&wait_tops_done))
+			pr_warn("wait for MTK_TOPS_DUMP_DONE\n");
 		rtnl_lock();
 		break;
 	}

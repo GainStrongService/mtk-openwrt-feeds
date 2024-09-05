@@ -989,6 +989,9 @@ int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void 
 	struct mtk_eth *eth = container_of(n, struct mtk_eth, netdevice_notifier);
 
 	switch (event) {
+	case MTK_TOPS_DUMP_DONE:
+		complete(&wait_tops_done);
+		break;
 	case MTK_WIFI_RESET_DONE:
 	case MTK_FE_STOP_TRAFFIC_DONE:
 		pr_info("%s rcv done event:%lx\n", __func__, event);

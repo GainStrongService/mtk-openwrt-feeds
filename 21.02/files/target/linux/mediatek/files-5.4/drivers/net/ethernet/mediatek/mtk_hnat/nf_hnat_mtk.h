@@ -44,7 +44,11 @@ struct hnat_desc {
 	u32 is_sp : 1;
 	u32 hf : 1;
 	u32 amsdu : 1;
-	u32 resv3 : 19;
+	u32 tops : 6;
+	u32 is_decap : 1;
+	u32 cdrt : 8;
+	u32 is_decrypt : 1;
+	u32 resv3 : 3;
 	u32 magic_tag_protect : 16;
 } __packed;
 #elif defined(CONFIG_MEDIATEK_NETSYS_RX_V2)
@@ -92,6 +96,29 @@ struct hnat_desc {
 	((((skb_headroom(skb) >= FOE_INFO_LEN) ? 1 : 0)))
 
 #define skb_hnat_info(skb) ((struct hnat_desc *)(skb->head))
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define skb_hnat_tops(skb) (((struct hnat_desc *)((skb)->head))->tops)
+#define skb_hnat_is_decap(skb) (((struct hnat_desc *)((skb)->head))->is_decap)
+#define skb_hnat_is_encap(skb) (!skb_hnat_is_decap(skb))
+#define skb_hnat_set_tops(skb, tops) ((skb_hnat_tops(skb)) = (tops))
+#define skb_hnat_set_is_decap(skb, is_decap) ((skb_hnat_is_decap(skb)) = (is_decap))
+#define skb_hnat_cdrt(skb) (((struct hnat_desc *)((skb)->head))->cdrt)
+#define skb_hnat_is_decrypt(skb) (((struct hnat_desc *)((skb)->head))->is_decrypt)
+#define skb_hnat_is_encrypt(skb) (!skb_hnat_is_decrypt(skb))
+#define skb_hnat_set_cdrt(skb, cdrt) ((skb_hnat_cdrt(skb)) = (cdrt))
+#define skb_hnat_set_is_decrypt(skb, is_dec) ((skb_hnat_is_decrypt(skb)) = is_dec)
+#else /* !defined(CONFIG_MEDIATEK_NETSYS_V3) */
+#define skb_hnat_tops(skb) (0)
+#define skb_hnat_is_decap(skb) (0)
+#define skb_hnat_is_encap(skb) (0)
+#define skb_hnat_set_tops(skb, tops)
+#define skb_hnat_set_is_decap(skb, is_decap)
+#define skb_hnat_cdrt(skb) (0)
+#define skb_hnat_is_decrypt(skb) (0)
+#define skb_hnat_is_encrypt(skb) (0)
+#define skb_hnat_set_cdrt(skb, cdrt)
+#define skb_hnat_set_is_decrypt(skb, is_dec)
+#endif /* defined(CONFIG_MEDIATEK_NETSYS_V3) */
 #define skb_hnat_magic(skb) (((struct hnat_desc *)(skb->head))->magic)
 #define skb_hnat_reason(skb) (((struct hnat_desc *)(skb->head))->crsn)
 #define skb_hnat_entry(skb) (((struct hnat_desc *)(skb->head))->entry)

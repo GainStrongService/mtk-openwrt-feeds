@@ -1155,6 +1155,12 @@ enum FoeIpAct {
 #define NR_WDMA2_PORT 13
 #define NR_GMAC3_PORT 15
 #define NR_QDMA_TPORT 1
+#define NR_EIP197_TPORT 2
+#define NR_EIP197_QDMA_TPORT 3
+#define NR_TDMA_TPORT 4
+#define NR_TDMA_QDMA_TPORT 5
+#define NR_TDMA_EIP197_TPORT 8
+#define NR_TDMA_EIP197_QDMA_TPORT 9
 #define WAN_DEV_NAME hnat_priv->wan
 #define LAN_DEV_NAME hnat_priv->lan
 #define LAN2_DEV_NAME hnat_priv->lan2
@@ -1307,6 +1313,8 @@ static inline bool hnat_dsa_is_enable(struct mtk_hnat *priv)
 #endif
 }
 
+struct foe_entry *hnat_get_foe_entry(u32 ppe_id, u32 index);
+
 void hnat_deinit_debugfs(struct mtk_hnat *h);
 int hnat_init_debugfs(struct mtk_hnat *h);
 int hnat_register_nf_hooks(void);
@@ -1323,7 +1331,14 @@ extern int qos_ul_toggle;
 extern int hook_toggle;
 extern int mape_toggle;
 extern int qos_toggle;
-
+extern int tnl_toggle;
+extern int (*mtk_tnl_encap_offload)(struct sk_buff *skb);
+extern int (*mtk_tnl_decap_offload)(struct sk_buff *skb);
+extern bool (*mtk_tnl_decap_offloadable)(struct sk_buff *skb);
+extern bool (*mtk_crypto_offloadable)(struct sk_buff *skb);
+extern int hnat_bind_crypto_entry(struct sk_buff *skb,
+				  const struct net_device *dev,
+				  int fill_inner_info);
 int ext_if_add(struct extdev_entry *ext_entry);
 int ext_if_del(struct extdev_entry *ext_entry);
 void cr_set_field(void __iomem *reg, u32 field, u32 val);

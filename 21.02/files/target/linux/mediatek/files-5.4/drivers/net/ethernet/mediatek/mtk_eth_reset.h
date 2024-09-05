@@ -13,6 +13,7 @@
 #define MTK_WIFI_RESET_DONE	0x2002
 #define MTK_WIFI_CHIP_ONLINE 	0x2003
 #define MTK_WIFI_CHIP_OFFLINE 	0x2004
+#define MTK_TOPS_DUMP_DONE	0x3001
 #define MTK_FE_RESET_NAT_DONE	0x4001
 
 #define MTK_FE_STOP_TRAFFIC	(0x2005)
@@ -72,6 +73,7 @@ enum mtk_reset_event_id {
 
 int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void *ptr);
 extern struct completion wait_ser_done;
+extern struct completion wait_tops_done;
 extern char* mtk_reset_event_name[32];
 extern atomic_t reset_lock;
 extern struct completion wait_nat_done;

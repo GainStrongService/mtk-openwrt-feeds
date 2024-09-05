@@ -580,6 +580,12 @@
 #define MTK_QDMA_GMAC2_QID	8
 #define MTK_QDMA_GMAC3_QID	6
 
+/* QDMA V2 descriptor txd8 */
+#define TX_DMA_CDRT_SHIFT          0
+#define TX_DMA_CDRT_MASK           0xff
+#define TX_DMA_TOPS_ENTRY_SHIFT    8
+#define TX_DMA_TOPS_ENTRY_MASK     0x3f
+
 /* QDMA V2 descriptor txd6 */
 #define TX_DMA_INS_VLAN_V2         BIT(16)
 
@@ -589,6 +595,9 @@
 #define TX_DMA_SPTAG_V3            BIT(27)
 
 /* QDMA V2 descriptor txd4 */
+#define EIP197_QDMA_TPORT          3
+#define TX_DMA_TPORT_SHIFT         0
+#define TX_DMA_TPORT_MASK          0xf
 #define TX_DMA_FPORT_SHIFT_V2      8
 #define TX_DMA_FPORT_MASK_V2       0xf
 #define TX_DMA_SWC_V2              BIT(30)
@@ -701,6 +710,9 @@
 #define RX_DMA_GET_FLUSH_RSN_V2(_x)	((_x) & 0x7)
 #define RX_DMA_GET_AGG_CNT_V2(_x)	(((_x) >> 16) & 0xff)
 #define RX_DMA_GET_TOPS_CRSN(_x)	(((_x) >> 24) & 0xff)
+
+/* PDMA V2 descriptor rxd7 */
+#define RX_DMA_GET_CDRT(_x)		(((_x) >> 8) & 0xff)
 
 /* PHY Polling and SMI Master Control registers */
 #define MTK_PPSC		0x10000
@@ -1088,6 +1100,48 @@
 
 #define MT7628_SDM_MAC_ADRL	(MT7628_SDM_OFFSET + 0x0c)
 #define MT7628_SDM_MAC_ADRH	(MT7628_SDM_OFFSET + 0x10)
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+struct tnl_desc {
+	u32 entry : 15;
+	u32 filled : 3;
+	u32 crsn : 5;
+	u32 resv1 : 3;
+	u32 sport : 4;
+	u32 resv2 : 1;
+	u32 alg : 1;
+	u32 iface : 8;
+	u32 wdmaid : 2;
+	u32 rxid : 2;
+	u32 wcid : 16;
+	u32 bssid : 8;
+	u32 usr_info : 16;
+	u32 tid : 4;
+	u32 is_fixedrate : 1;
+	u32 is_prior : 1;
+	u32 is_sp : 1;
+	u32 hf : 1;
+	u32 amsdu : 1;
+	u32 tops : 6;
+	u32 is_decap : 1;
+	u32 cdrt : 8;
+	u32 resv3 : 4;
+	u32 magic_tag_protect : 16;
+} __packed;
+
+#define TNL_MAGIC_TAG 0x6789
+#define skb_tnl_cdrt(skb) (((struct tnl_desc *)((skb)->head))->cdrt)
+#define skb_tnl_set_cdrt(skb, cdrt) ((skb_tnl_cdrt(skb)) = (cdrt))
+#define skb_tnl_magic_tag(skb) (((struct tnl_desc *)((skb)->head))->magic_tag_protect)
+#define is_tnl_tag_valid(skb) (skb_tnl_magic_tag(skb) == TNL_MAGIC_TAG)
+#else /* defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE) */
+#define skb_tnl_cdrt(skb) (0)
+#define skb_tnl_set_cdrt(skb, cdrt) (0)
+#define skb_tnl_magic_tag(skb) (0)
+#define is_tnl_tag_valid(skb) (0)
+#endif /* !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE) */
+#endif /* defined(CONFIG_MEDIATEK_NETSYS_V3) */
 
 struct mtk_rx_dma {
 	unsigned int rxd1;
@@ -2101,6 +2155,11 @@ extern struct mtk_eth *g_eth;
 extern const struct of_device_id of_mtk_match[];
 extern u32 mtk_hwlro_stats_ebl;
 extern u32 dbg_show_level;
+
+/* tunnel offload related */
+extern u32 (*mtk_get_tnl_netsys_params)(struct sk_buff *skb);
+extern struct net_device *(*mtk_get_tnl_dev)(u8 tops_crsn);
+extern void (*mtk_set_tops_crsn)(struct sk_buff *skb, u8 tops_crsn);
 
 /* read the hardware status register */
 void mtk_stats_update_mac(struct mtk_mac *mac);

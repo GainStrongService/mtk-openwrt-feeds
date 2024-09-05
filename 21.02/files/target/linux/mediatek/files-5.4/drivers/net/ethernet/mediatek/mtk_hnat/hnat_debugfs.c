@@ -36,6 +36,7 @@ int mape_toggle;
 int qos_toggle;
 int qos_dl_toggle = 1;
 int qos_ul_toggle = 1;
+int tnl_toggle;
 int xlat_toggle;
 struct hnat_desc headroom[DEF_ETRY_NUM];
 unsigned int dbg_cpu_reason_cnt[MAX_CRSN_NUM];
@@ -2687,6 +2688,47 @@ static const struct file_operations hnat_hook_toggle_fops = {
 	.release = single_release,
 };
 
+static int hnat_tnl_toggle_read(struct seq_file *m, void *private)
+{
+	pr_info("value=%d, tnl is %s now!\n",
+		tnl_toggle, (tnl_toggle) ? "enabled" : "disabled");
+
+	return 0;
+}
+
+static int hnat_tnl_toggle_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hnat_tnl_toggle_read, file->private_data);
+}
+
+static ssize_t hnat_tnl_toggle_write(struct file *file,
+				     const char __user *buffer,
+				     size_t count, loff_t *data)
+{
+	char buf[8] = {0};
+	int len = count;
+
+	if ((len > 8) || copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	if (buf[0] == '1' && !tnl_toggle) {
+		pr_info("tnl is going to be enabled !\n");
+		tnl_toggle = 1;
+	} else if (buf[0] == '0' && tnl_toggle) {
+		pr_info("tnl is going to be disabled !\n");
+		tnl_toggle = 0;
+	}
+
+	return len;
+}
+
+static const struct file_operations hnat_tnl_toggle_fops = {
+	.open = hnat_tnl_toggle_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = hnat_tnl_toggle_write,
+	.release = single_release,
+};
 static int hnat_xlat_toggle_read(struct seq_file *m, void *private)
 {
 	pr_info("value=%d, xlat is %s now!\n",
@@ -3523,6 +3565,8 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 			    &hnat_ppd_if_fops);
 	debugfs_create_file("static_entry", 0444, root, h,
 			    &hnat_static_fops);
+	debugfs_create_file("tnl_toggle", 0444, root, h,
+			    &hnat_tnl_toggle_fops);
 	debugfs_create_file("xlat_toggle", 0444, root, h,
 			    &hnat_xlat_toggle_fops);
 	debugfs_create_file("xlat_cfg", 0444, root, h,
