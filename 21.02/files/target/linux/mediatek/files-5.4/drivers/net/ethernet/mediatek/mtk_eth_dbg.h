@@ -68,6 +68,11 @@
 	(((x) == 1) ? (mtk_r32(eth, MTK_PSE_OQ_STA(4)) & 0x0FFF0000) :	\
 	(mtk_r32(eth, MTK_PSE_OQ_STA(6)) & 0x0FFF0000)))
 
+#define MTK_FE_GDM_IQ(x)		\
+	(((x) == 2) ? mtk_r32(eth, MTK_PSE_IQ_STA(7)) & 0x0fff0000 :	\
+	((x) == 1) ? mtk_r32(eth, MTK_PSE_IQ_STA(1)) & 0x00000fff :	\
+	mtk_r32(eth, MTK_PSE_IQ_STA(0)) & 0x0fff0000)
+
 #define MTK_FE_GDM_OQ(x)		\
 	(((x) == 2) ? mtk_r32(eth, MTK_PSE_OQ_STA(7)) & 0x0fff0000 :	\
 	((x) == 1) ? mtk_r32(eth, MTK_PSE_OQ_STA(1)) & 0x00000fff :	\

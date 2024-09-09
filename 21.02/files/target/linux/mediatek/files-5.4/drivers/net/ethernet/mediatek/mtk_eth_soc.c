@@ -4468,6 +4468,23 @@ static int mtk_napi_init(struct mtk_eth *eth)
 	return 0;
 }
 
+static void mtk_hw_reset_monitor_work(struct work_struct *work)
+{
+	struct delayed_work *del_work = to_delayed_work(work);
+	struct mtk_eth *eth = container_of(del_work, struct mtk_eth,
+					   reset.monitor_work);
+
+	if (test_bit(MTK_RESETTING, &eth->state))
+		goto out;
+
+	/* DMA stuck checks */
+	mtk_hw_reset_monitor(eth);
+
+out:
+	schedule_delayed_work(&eth->reset.monitor_work,
+			      MTK_DMA_MONITOR_TIMEOUT);
+}
+
 static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 {
 	u32 dma_mask = ETHSYS_DMA_AG_MAP_PDMA | ETHSYS_DMA_AG_MAP_QDMA |
@@ -4846,7 +4863,6 @@ static void mtk_pending_work(struct work_struct *work)
 		break;
 	}
 
-	del_timer_sync(&eth->mtk_dma_monitor_timer);
 	pr_info("[%s] mtk_stop starts !\n", __func__);
 	/* stop all devices to make sure that dma is properly shut down */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
@@ -4901,10 +4917,6 @@ static void mtk_pending_work(struct work_struct *work)
 
 	atomic_dec(&reset_lock);
 
-	timer_setup(&eth->mtk_dma_monitor_timer, mtk_dma_monitor, 0);
-	eth->mtk_dma_monitor_timer.expires = jiffies;
-	add_timer(&eth->mtk_dma_monitor_timer);
-
 	mt753x_set_port_link_state(1);
 	mtk_phy_config(eth, 1);
 	mtk_reset_flag = 0;
@@ -4948,6 +4960,7 @@ static int mtk_cleanup(struct mtk_eth *eth)
 	mtk_unreg_dev(eth);
 	mtk_free_dev(eth);
 	cancel_work_sync(&eth->pending_work);
+	cancel_delayed_work_sync(&eth->reset.monitor_work);
 
 	return 0;
 }
@@ -5741,6 +5754,8 @@ static int mtk_probe(struct platform_device *pdev)
 	spin_lock_init(&eth->txrx_irq_lock);
 	spin_lock_init(&eth->syscfg0_lock);
 
+	INIT_DELAYED_WORK(&eth->reset.monitor_work, mtk_hw_reset_monitor_work);
+
 	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628)) {
 		eth->ethsys = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 							      "mediatek,ethsys");
@@ -6021,9 +6036,8 @@ static int mtk_probe(struct platform_device *pdev)
 	eth->netdevice_notifier.notifier_call = mtk_eth_netdevice_event;
 	register_netdevice_notifier(&eth->netdevice_notifier);
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
-	timer_setup(&eth->mtk_dma_monitor_timer, mtk_dma_monitor, 0);
-	eth->mtk_dma_monitor_timer.expires = jiffies;
-	add_timer(&eth->mtk_dma_monitor_timer);
+	schedule_delayed_work(&eth->reset.monitor_work,
+			      MTK_DMA_MONITOR_TIMEOUT);
 #endif
 
 	return 0;
@@ -6071,7 +6085,6 @@ static int mtk_remove(struct platform_device *pdev)
 	mtk_cleanup(eth);
 	mtk_mdio_cleanup(eth);
 	unregister_netdevice_notifier(&eth->netdevice_notifier);
-	del_timer_sync(&eth->mtk_dma_monitor_timer);
 
 	return 0;
 }

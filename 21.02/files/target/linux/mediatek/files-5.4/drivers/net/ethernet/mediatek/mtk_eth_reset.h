@@ -43,12 +43,10 @@
 #define MTK_PPE_BUSY		BIT(31)
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-#define MTK_WDMA_CNT	(0x3)
 #define MTK_GDM_RX_BASE	(0x8)
 #define MTK_GDM_CNT_OFFSET	(0x80)
 #define MTK_GDM_TX_BASE	(0x48)
 #else
-#define MTK_WDMA_CNT	(0x2)
 #define MTK_GDM_RX_BASE	(0x8)
 #define MTK_GDM_CNT_OFFSET	(0x40)
 #define MTK_GDM_TX_BASE	(0x38)
@@ -86,7 +84,7 @@ int mtk_eth_cold_reset(struct mtk_eth *eth);
 int mtk_eth_warm_reset(struct mtk_eth *eth);
 void mtk_reset_event_update(struct mtk_eth *eth, u32 id);
 void mtk_dump_netsys_info(void *_eth);
-void mtk_dma_monitor(struct timer_list *t);
+void mtk_hw_reset_monitor(struct mtk_eth *eth);
 void mtk_save_qdma_cfg(struct mtk_eth *eth);
 void mtk_restore_qdma_cfg(struct mtk_eth *eth);
 void mtk_prepare_reset_fe(struct mtk_eth *eth);

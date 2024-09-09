@@ -28,8 +28,10 @@
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_MAC_COUNT		3
+#define MTK_WDMA_CNT		3
 #else
 #define MTK_MAC_COUNT		2
+#define MTK_WDMA_CNT		2
 #endif
 
 #define MTK_RX_ETH_HLEN		(VLAN_ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN)
@@ -1769,6 +1771,8 @@ struct mtk_soc_data {
 	} txrx;
 };
 
+#define MTK_DMA_MONITOR_TIMEOUT		msecs_to_jiffies(1000)
+
 /* currently no SoC has more than 3 macs */
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_MAX_DEVS		3
@@ -1884,6 +1888,71 @@ struct mtk_phylink_priv {
 	int			link;
 };
 
+struct adma_monitor {
+	struct adma_rx_monitor {
+		u32		pre_drx[4];
+		u16		pre_opq;
+		u8		hang_count;
+	} rx;
+};
+
+struct qdma_monitor {
+	struct qdma_tx_monitor {
+		u8		hang_count;
+	} tx;
+	struct qdma_rx_monitor {
+		u32		pre_fq_head;
+		u32		pre_fq_tail;
+		u8		hang_count;
+	} rx;
+};
+
+struct tdma_monitor {
+	struct tdma_tx_monitor {
+		u32		pre_ipq10;
+		u32		pre_fsm;
+		u8		hang_count;
+	} tx;
+	struct tdma_rx_monitor {
+		u32		pre_fsm;
+		u8		hang_count;
+	} rx;
+};
+
+struct wdma_monitor {
+	struct wdma_tx_monitor {
+		u32		pre_dtx[MTK_WDMA_CNT];
+		u16		pre_opq_gdm[MTK_MAX_DEVS];
+		u16		pre_opq_wdma[MTK_WDMA_CNT];
+		u8		err_opq_gdm[MTK_MAX_DEVS];
+		u8		err_opq_wdma[MTK_WDMA_CNT];
+		u8		hang_count[MTK_WDMA_CNT];
+	} tx;
+	struct wdma_rx_monitor {
+		u32		pre_crx[MTK_WDMA_CNT];
+		u32		pre_drx[MTK_WDMA_CNT];
+		u32		pre_opq[MTK_WDMA_CNT];
+		u8		hang_count[MTK_WDMA_CNT];
+	} rx;
+};
+
+struct gdm_monitor {
+	struct gdm_tx_monitor {
+		u64		pre_tx_cnt[MTK_MAX_DEVS];
+		u32		pre_fsm_gdm[MTK_MAX_DEVS];
+		u32		pre_opq_gdm[MTK_MAX_DEVS];
+		u8		hang_count_gdm[MTK_MAX_DEVS];
+		u8		hang_count_gmac[MTK_MAX_DEVS];
+	} tx;
+	struct gdm_rx_monitor {
+		u64		pre_rx_cnt[MTK_MAX_DEVS];
+		u32		pre_fsm_gdm[MTK_MAX_DEVS];
+		u16		pre_ipq_gdm[MTK_MAX_DEVS];
+		u8		hang_count_gdm[MTK_MAX_DEVS];
+		u8		hang_count_gmac[MTK_MAX_DEVS];
+	} rx;
+};
+
 /* struct mtk_eth -	This is the main datasructure for holding the state
  *			of the driver
  * @dev:		The device pointer
@@ -1965,11 +2034,19 @@ struct mtk_eth {
 
 	const struct mtk_soc_data	*soc;
 
+	struct {
+		struct delayed_work	monitor_work;
+		struct adma_monitor	adma_monitor;
+		struct qdma_monitor	qdma_monitor;
+		struct tdma_monitor	tdma_monitor;
+		struct wdma_monitor	wdma_monitor;
+		struct gdm_monitor	gdm_monitor;
+	} reset;
+
 	u32				rx_dma_l4_valid;
 	int				ip_align;
 	spinlock_t			syscfg0_lock;
 	struct notifier_block		netdevice_notifier;
-	struct timer_list		mtk_dma_monitor_timer;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
