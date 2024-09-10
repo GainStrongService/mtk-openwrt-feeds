@@ -1,21 +1,21 @@
-From cbd7e4c840a459f14434bcc82a3e4af5673f9b3d Mon Sep 17 00:00:00 2001
-From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Wed, 5 Jun 2024 13:22:08 +0800
+From 1173eb589ef1676ccae92d669e98e7a4716aa323 Mon Sep 17 00:00:00 2001
+From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
+Date: Tue, 10 Sep 2024 14:56:41 +0800
 Subject: [PATCH] flow offload add mtkhnat roaming
 
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   |   8 +
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |   4 +
- drivers/net/ethernet/mediatek/mtk_ppe.c       | 171 ++++++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_ppe.c       | 191 ++++++++++++++++++
  drivers/net/ethernet/mediatek/mtk_ppe.h       |   2 +
- .../net/ethernet/mediatek/mtk_ppe_debugfs.c   |  55 ++++++
- 5 files changed, 240 insertions(+)
+ .../net/ethernet/mediatek/mtk_ppe_debugfs.c   |  55 +++++
+ 5 files changed, 260 insertions(+)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 2ae6370..7ac034d 100644
+index 72fb677..60994c5 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4055,6 +4055,12 @@ static int mtk_open(struct net_device *dev)
+@@ -4233,6 +4233,12 @@ static int mtk_open(struct net_device *dev)
  		if (err)
  			return err;
  
@@ -28,7 +28,7 @@ index 2ae6370..7ac034d 100644
  
  		/* Indicates CDM to parse the MTK special tag from CPU */
  		if (netdev_uses_dsa(dev)) {
-@@ -4233,6 +4239,8 @@ static int mtk_stop(struct net_device *dev)
+@@ -4420,6 +4426,8 @@ static int mtk_stop(struct net_device *dev)
  	if (eth->soc->offload_version) {
  		for (i = 0; i < eth->ppe_num; i++)
  			mtk_ppe_stop(eth->ppe[i]);
@@ -38,10 +38,10 @@ index 2ae6370..7ac034d 100644
  
  	return 0;
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 5d66707..fcba486 100644
+index dc0530c..81111b0 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1983,10 +1983,14 @@ struct mtk_eth {
+@@ -2008,10 +2008,14 @@ struct mtk_eth {
  	struct notifier_block		netdevice_notifier;
  	struct timer_list		mtk_dma_monitor_timer;
  
@@ -57,7 +57,7 @@ index 5d66707..fcba486 100644
  
  /* struct mtk_mac -	the structure that holds the info about the MACs of the
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 547b5a0..fa1992f 100644
+index 7aa9a8c..eb701ad 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -10,6 +10,7 @@
@@ -68,7 +68,7 @@ index 547b5a0..fa1992f 100644
  #include "mtk_eth_soc.h"
  #include "mtk_ppe.h"
  #include "mtk_ppe_regs.h"
-@@ -519,6 +520,28 @@ bool mtk_foe_entry_match(struct mtk_foe_entry *entry, struct mtk_foe_entry *data
+@@ -510,6 +511,28 @@ bool mtk_foe_entry_match(struct mtk_foe_entry *entry, struct mtk_foe_entry *data
  	return !memcmp(&entry->data, &data->data, len - 4);
  }
  
@@ -96,13 +96,32 @@ index 547b5a0..fa1992f 100644
 +
  int mtk_foe_entry_set_sp(struct mtk_ppe *ppe, struct mtk_foe_entry *entry)
  {
- 	struct mtk_foe_entry *hwe;
-@@ -1114,3 +1137,151 @@ int mtk_ppe_stop(struct mtk_ppe *ppe)
+ 	struct mtk_eth *eth = ppe->eth;
+@@ -1136,3 +1159,171 @@ int mtk_ppe_stop(struct mtk_ppe *ppe)
  
  	return 0;
  }
 +
-+int mtk_flow_offload_teardown_by_mac(struct mtk_ppe *ppe, u8 *mac)
++static int
++mtk_ppe_check_wdma_path(struct mtk_eth *eth, struct mtk_foe_entry *foe)
++{
++	u32 sp, winfo;
++	u32 *ib2;
++
++	ib2 = mtk_foe_entry_ib2(foe);
++	sp = mtk_get_ib1_sp(eth, foe);
++	winfo = FIELD_GET(MTK_FOE_IB2_WDMA_WINFO, *ib2);
++
++	if (winfo || (sp == PSE_WDMA0_PORT ||
++		      sp == PSE_WDMA1_PORT ||
++		      sp == PSE_WDMA2_PORT))
++		return 1;
++
++	return 0;
++}
++
++static int
++mtk_flow_offload_teardown_by_roaming(struct mtk_ppe *ppe, u8 *mac)
 +{
 +	struct mtk_eth *eth = ppe->eth;
 +	int i, j, count = 0;
@@ -113,7 +132,8 @@ index 547b5a0..fa1992f 100644
 +		int type, state;
 +
 +		state = FIELD_GET(MTK_FOE_IB1_STATE, entry->ib1);
-+		if (state != MTK_FOE_STATE_BIND || !mtk_foe_mac_match(entry, mac))
++		if (state != MTK_FOE_STATE_BIND || !mtk_foe_mac_match(entry, mac) ||
++		    !mtk_ppe_check_wdma_path(eth, entry))
 +			continue;
 +
 +		memset(&tuple, 0, sizeof(tuple));
@@ -191,7 +211,7 @@ index 547b5a0..fa1992f 100644
 +		if (nla_type(nla) == NDA_LLADDR) {
 +			memcpy(mac, nla_data(nla), ETH_ALEN);
 +			for (i = 0; i < eth->ppe_num; i++)
-+				mtk_flow_offload_teardown_by_mac(eth->ppe[i], mac);
++				mtk_flow_offload_teardown_by_roaming(eth->ppe[i], mac);
 +			if (eth->debug_level >= 6)
 +				pr_info("mtk_ppe: the neighbor (%pM) has been updated\n", mac);
 +		}
@@ -250,11 +270,11 @@ index 547b5a0..fa1992f 100644
 +	return 0;
 +}
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 66c7f10..31ca702 100644
+index 38a3776..c74deae 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -384,6 +384,8 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int versio
- 			     int accounting);
+@@ -381,6 +381,8 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int index)
+ void mtk_ppe_deinit(struct mtk_eth *eth);
  int mtk_ppe_start(struct mtk_ppe *ppe);
  int mtk_ppe_stop(struct mtk_ppe *ppe);
 +int mtk_ppe_roaming_start(struct mtk_eth *eth);
@@ -263,7 +283,7 @@ index 66c7f10..31ca702 100644
  void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash);
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c b/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
-index d713e2e..a97c1d7 100644
+index 40da60f..3d3a7f2 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
 @@ -206,6 +206,52 @@ mtk_ppe_debugfs_foe_open_bind(struct inode *inode, struct file *file)
@@ -343,5 +363,5 @@ index d713e2e..a97c1d7 100644
  	return 0;
  }
 -- 
-2.18.0
+2.45.2
 
