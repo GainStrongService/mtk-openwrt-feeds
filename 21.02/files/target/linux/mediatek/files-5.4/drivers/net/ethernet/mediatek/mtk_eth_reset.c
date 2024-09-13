@@ -275,9 +275,9 @@ void mtk_dump_netsys_info(void *_eth)
 		mtk_dump_reg(eth, "XGMAC0", 0x12000, 0x300);
 		mtk_dump_reg(eth, "XGMAC1", 0x13000, 0x300);
 		mtk_dump_regmap(eth->usxgmii->pcs[0].regmap,
-				"USXGMII0", 0, 0x1000);
+				"USXGMII0", 0x800, 0x500);
 		mtk_dump_regmap(eth->usxgmii->pcs[1].regmap,
-				"USXGMII1", 0, 0x1000);
+				"USXGMII1", 0x800, 0x500);
 	}
 }
 
