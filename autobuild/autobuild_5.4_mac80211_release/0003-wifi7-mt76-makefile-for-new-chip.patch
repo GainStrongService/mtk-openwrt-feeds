@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mt76/Makefile b/package/kernel/mt76/Makefile
-index a96164b6d0..1a62dfe6ee 100644
+index a07175d..f84ca51 100644
 --- a/package/kernel/mt76/Makefile
 +++ b/package/kernel/mt76/Makefile
 @@ -233,7 +233,7 @@ endef
@@ -38,8 +38,8 @@ index a96164b6d0..1a62dfe6ee 100644
    FILES:= $(PKG_BUILD_DIR)/mt7996/mt7996e.ko
    AUTOLOAD:=$(call AutoProbe,mt7996e)
  endef
-@@ -329,6 +329,12 @@ define KernelPackage/mt7996-firmware
-   DEPENDS+=+kmod-mt7996e
+@@ -335,6 +335,18 @@ define KernelPackage/mt7925-firmware
+   DEPENDS+=+kmod-mt7925e
  endef
  
 +define KernelPackage/mt7992-firmware
@@ -48,10 +48,16 @@ index a96164b6d0..1a62dfe6ee 100644
 +  DEPENDS+=+kmod-mt7996e
 +endef
 +
++define KernelPackage/mt7990-firmware
++  $(KernelPackage/mt76-default)
++  TITLE:=MediaTek MT7990 firmware
++  DEPENDS+=+kmod-mt7996e
++endef
++
  define KernelPackage/mt7925-common
    $(KernelPackage/mt76-default)
    TITLE:=MediaTek MT7925 wireless driver common code
-@@ -376,6 +382,11 @@ ifdef CONFIG_PACKAGE_MAC80211_MESH
+@@ -382,6 +394,11 @@ ifdef CONFIG_PACKAGE_MAC80211_MESH
    NOSTDINC_FLAGS += -DCONFIG_MAC80211_MESH
  endif
  
@@ -63,7 +69,7 @@ index a96164b6d0..1a62dfe6ee 100644
  ifdef CONFIG_PACKAGE_CFG80211_TESTMODE
    NOSTDINC_FLAGS += -DCONFIG_NL80211_TESTMODE
    PKG_MAKE_FLAGS += CONFIG_NL80211_TESTMODE=y
-@@ -438,7 +449,11 @@ ifdef CONFIG_PACKAGE_kmod-mt7663u
+@@ -444,7 +461,11 @@ ifdef CONFIG_PACKAGE_kmod-mt7663u
  endif
  ifdef CONFIG_PACKAGE_kmod-mt7915e
    PKG_MAKE_FLAGS += CONFIG_MT7915E=m
@@ -76,7 +82,7 @@ index a96164b6d0..1a62dfe6ee 100644
      PKG_MAKE_FLAGS += CONFIG_MT798X_WMAC=y
      NOSTDINC_FLAGS += -DCONFIG_MT798X_WMAC
    endif
-@@ -475,7 +490,8 @@ ifdef CONFIG_PACKAGE_kmod-mt7925e
+@@ -481,7 +502,8 @@ ifdef CONFIG_PACKAGE_kmod-mt7925e
  endif
  
  define Build/Compile
@@ -86,7 +92,7 @@ index a96164b6d0..1a62dfe6ee 100644
  		$(PKG_MAKE_FLAGS) \
  		M="$(PKG_BUILD_DIR)" \
  		NOSTDINC_FLAGS="$(NOSTDINC_FLAGS)" \
-@@ -568,6 +584,8 @@ define KernelPackage/mt7915-firmware/install
+@@ -574,6 +596,8 @@ define KernelPackage/mt7915-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7915_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7915_wm.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7915_rom_patch.bin \
@@ -95,7 +101,7 @@ index a96164b6d0..1a62dfe6ee 100644
  		$(1)/lib/firmware/mediatek
  endef
  
-@@ -577,6 +595,7 @@ define KernelPackage/mt7916-firmware/install
+@@ -583,6 +607,7 @@ define KernelPackage/mt7916-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7916_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7916_wm.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7916_rom_patch.bin \
@@ -103,21 +109,21 @@ index a96164b6d0..1a62dfe6ee 100644
  		$(1)/lib/firmware/mediatek
  endef
  
-@@ -586,7 +605,13 @@ define KernelPackage/mt7981-firmware/install
+@@ -592,7 +617,13 @@ define KernelPackage/mt7981-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7981_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7981_wm.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7981_rom_patch.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7981_eeprom_mt7976_dbdc.bin \
-+		$(1)/lib/firmware/mediatek
+ 		$(1)/lib/firmware/mediatek
 +ifdef CONFIG_NET_MEDIATEK_SOC_WED
 +	cp \
 +		$(PKG_BUILD_DIR)/firmware/mt7981_wo.bin \
- 		$(1)/lib/firmware/mediatek
++		$(1)/lib/firmware/mediatek
 +endif
  endef
  
  define KernelPackage/mt7986-firmware/install
-@@ -597,7 +622,18 @@ define KernelPackage/mt7986-firmware/install
+@@ -603,7 +634,18 @@ define KernelPackage/mt7986-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7986_wm.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7986_rom_patch_mt7975.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7986_rom_patch.bin \
@@ -136,7 +142,7 @@ index a96164b6d0..1a62dfe6ee 100644
  endef
  
  define KernelPackage/mt7921-firmware/install
-@@ -619,11 +655,41 @@ endef
+@@ -633,11 +675,52 @@ endef
  define KernelPackage/mt7996-firmware/install
  	$(INSTALL_DIR) $(1)/lib/firmware/mediatek/mt7996
  	cp \
@@ -178,13 +184,26 @@ index a96164b6d0..1a62dfe6ee 100644
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_dsp_23.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_eeprom_23_2i5i.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_eeprom_23_2e5e.bin \
++		$(1)/lib/firmware/mediatek/mt7996
++endef
++
++define KernelPackage/mt7990-firmware/install
++	$(INSTALL_DIR) $(1)/lib/firmware/mediatek/mt7996
++	cp \
++		$(PKG_BUILD_DIR)/firmware/mt7996/mt7990_rom_patch.bin \
++		$(PKG_BUILD_DIR)/firmware/mt7996/mt7990_wm.bin \
++		$(PKG_BUILD_DIR)/firmware/mt7996/mt7990_wm_tm.bin \
++    $(PKG_BUILD_DIR)/firmware/mt7996/mt7990_eeprom_2e5e.bin \
++    $(PKG_BUILD_DIR)/firmware/mt7996/mt7990_eeprom_2i5i.bin \
  		$(1)/lib/firmware/mediatek/mt7996
  endef
  
-@@ -677,5 +743,6 @@ $(eval $(call KernelPackage,mt7925u))
+@@ -692,5 +775,7 @@ $(eval $(call KernelPackage,mt7925u))
  $(eval $(call KernelPackage,mt7925e))
  $(eval $(call KernelPackage,mt7996e))
  $(eval $(call KernelPackage,mt7996-firmware))
 +$(eval $(call KernelPackage,mt7992-firmware))
++$(eval $(call KernelPackage,mt7990-firmware))
  $(eval $(call KernelPackage,mt76))
  $(eval $(call BuildPackage,mt76-test))
+
