@@ -16,17 +16,17 @@ index fc43617..a7c73f5 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -4794,6 +4794,9 @@ static void mtk_pending_work(struct work_struct *work)
- 	for (i = 0; i < MTK_MAC_COUNT; i++) {
  		if (!eth->netdev[i])
  			continue;
+
 +#ifdef CONFIG_NET_MEDIATEK_SOC_WED
 +		mtk_wed_fe_reset();
 +#else
  		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
- 			pr_info("send MTK_FE_STOP_TRAFFIC event\n");
+ 			pr_info("send MTK_FE_STOP_TRAFFIC event !\n");
  			call_netdevice_notifiers(MTK_FE_STOP_TRAFFIC,
 @@ -4820,6 +4823,7 @@ static void mtk_pending_work(struct work_struct *work)
- 			pr_warn("wait for MTK_FE_START_RESET\n");
+ 			pr_warn("wait for WiFi response timeout !\n");
  		}
  		rtnl_lock();
 +#endif
@@ -34,22 +34,22 @@ index fc43617..a7c73f5 100644
  	}
  
 @@ -4858,6 +4862,9 @@ static void mtk_pending_work(struct work_struct *work)
- 	for (i = 0; i < MTK_MAC_COUNT; i++) {
  		if (!eth->netdev[i])
  			continue;
+
 +#ifdef CONFIG_NET_MEDIATEK_SOC_WED
 +		mtk_wed_fe_reset_complete();
 +#else
  		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
- 			pr_info("send MTK_FE_START_TRAFFIC event\n");
+ 			pr_info("send MTK_FE_START_TRAFFIC event !\n");
  			call_netdevice_notifiers(MTK_FE_START_TRAFFIC,
 @@ -4867,6 +4874,7 @@ static void mtk_pending_work(struct work_struct *work)
  			call_netdevice_notifiers(MTK_FE_RESET_DONE,
- 				eth->netdev[i]);
+ 						 eth->netdev[i]);
  		}
 +#endif
  		call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE,
- 			eth->netdev[i]);
+ 					 eth->netdev[i]);
  		break;
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
 index 288bed8..40943ee 100644
