@@ -4870,9 +4870,9 @@ int mtk_phy_config(struct mtk_eth *eth, int enable)
 static void mtk_pending_work(struct work_struct *work)
 {
 	struct mtk_eth *eth = container_of(work, struct mtk_eth, pending_work);
-	int err, i = 0;
 	unsigned long restart = 0;
-	u32 val = 0;
+	u32 val;
+	int i;
 
 	atomic_inc(&reset_lock);
 	val = mtk_r32(eth, MTK_FE_INT_STATUS);
@@ -4908,33 +4908,43 @@ static void mtk_pending_work(struct work_struct *work)
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i])
 			continue;
+
 		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
-			pr_info("send MTK_FE_STOP_TRAFFIC event\n");
+			pr_info("send MTK_FE_STOP_TRAFFIC event !\n");
 			call_netdevice_notifiers(MTK_FE_STOP_TRAFFIC,
-				eth->netdev[i]);
+						 eth->netdev[i]);
 		} else {
-			pr_info("send MTK_FE_START_RESET event\n");
+			pr_info("send MTK_FE_START_RESET event !\n");
 			call_netdevice_notifiers(MTK_FE_START_RESET,
-				eth->netdev[i]);
+						 eth->netdev[i]);
 		}
 		rtnl_unlock();
-		if (wait_for_completion_timeout(&wait_ser_done, msecs_to_jiffies(3000))) {
-			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
-			    (mtk_stop_fail)) {
-				pr_info("send MTK_FE_START_RESET stop\n");
-				rtnl_lock();
-				call_netdevice_notifiers(MTK_FE_START_RESET,
-							 eth->netdev[i]);
-				rtnl_unlock();
-				if (!wait_for_completion_timeout(&wait_ser_done,
-								 msecs_to_jiffies(3000)))
-					pr_warn("wait for MTK_FE_START_RESET\n");
-				mtk_stop_fail = 0;
+		if (mtk_wifi_num > 0) {
+			if (wait_for_completion_timeout(&wait_ser_done,
+							msecs_to_jiffies(10000))) {
+				pr_info("received %s event from WiFi !\n",
+					!mtk_stop_fail ? "MTK_FE_STOP_TRAFFIC_DONE" :
+							 "MTK_FE_STOP_TRAFFIC_DONE_FAIL");
+				if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
+				    mtk_stop_fail) {
+					pr_info("send MTK_FE_START_RESET event "
+						"(WiFi stop traffic fail) !\n");
+					rtnl_lock();
+					call_netdevice_notifiers(MTK_FE_START_RESET,
+								 eth->netdev[i]);
+					rtnl_unlock();
+					if (!wait_for_completion_timeout(&wait_ser_done,
+									 msecs_to_jiffies(10000)))
+						pr_warn("wait for WiFi response timeout "
+							"(WiFi stop traffic fail) !\n");
+					mtk_stop_fail = 0;
+				}
+			} else {
+				pr_warn("wait for WiFi response timeout !\n");
 			}
-			pr_warn("wait for MTK_FE_START_RESET\n");
 		}
 		if (!try_wait_for_completion(&wait_tops_done))
-			pr_warn("wait for MTK_TOPS_DUMP_DONE\n");
+			pr_warn("wait for TOPS response timeout !\n");
 		rtnl_lock();
 		break;
 	}
@@ -4944,9 +4954,11 @@ static void mtk_pending_work(struct work_struct *work)
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i] || !netif_running(eth->netdev[i]))
 			continue;
+
 		mtk_stop(eth->netdev[i]);
 		__set_bit(i, &restart);
 	}
+
 	pr_info("[%s] mtk_stop ends !\n", __func__);
 	mdelay(15);
 
@@ -4962,10 +4974,10 @@ static void mtk_pending_work(struct work_struct *work)
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!test_bit(i, &restart) || !eth->netdev[i])
 			continue;
-		err = mtk_open(eth->netdev[i]);
-		if (err) {
+
+		if (mtk_open(eth->netdev[i])) {
 			netif_alert(eth, ifup, eth->netdev[i],
-			      "Driver up/down cycle failed, closing device.\n");
+				    "Driver up/down cycle failed, closing device.\n");
 			dev_close(eth->netdev[i]);
 		}
 	}
@@ -4973,17 +4985,18 @@ static void mtk_pending_work(struct work_struct *work)
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i])
 			continue;
+
 		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
-			pr_info("send MTK_FE_START_TRAFFIC event\n");
+			pr_info("send MTK_FE_START_TRAFFIC event !\n");
 			call_netdevice_notifiers(MTK_FE_START_TRAFFIC,
-				eth->netdev[i]);
+						 eth->netdev[i]);
 		} else {
-			pr_info("send MTK_FE_RESET_DONE event\n");
+			pr_info("send MTK_FE_RESET_DONE event !\n");
 			call_netdevice_notifiers(MTK_FE_RESET_DONE,
-				eth->netdev[i]);
+						 eth->netdev[i]);
 		}
 		call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE,
-			eth->netdev[i]);
+					 eth->netdev[i]);
 		break;
 	}
 

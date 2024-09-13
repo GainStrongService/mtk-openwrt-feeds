@@ -29,8 +29,8 @@ struct mtk_qdma_cfg {
 };
 
 static struct mtk_qdma_cfg mtk_qdma_cfg_backup;
-static int mtk_wifi_num = 0;
 static int mtk_rest_cnt = 0;
+int mtk_wifi_num;
 u32 mtk_reset_flag = MTK_FE_START_RESET;
 bool mtk_stop_fail;
 
@@ -996,7 +996,7 @@ int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void 
 	case MTK_FE_STOP_TRAFFIC_DONE:
 		pr_info("%s rcv done event:%lx\n", __func__, event);
 		mtk_rest_cnt--;
-		if(!mtk_rest_cnt) {
+		if (!mtk_rest_cnt) {
 			complete(&wait_ser_done);
 			mtk_rest_cnt = mtk_wifi_num;
 		}
