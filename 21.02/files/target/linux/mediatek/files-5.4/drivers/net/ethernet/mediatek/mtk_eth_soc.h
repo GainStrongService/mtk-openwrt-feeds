@@ -2117,6 +2117,7 @@ struct mtk_mac {
 	unsigned int			mode;
 	unsigned int			type;
 	int				speed;
+	int				phy_speed;
 	struct device_node		*of_node;
 	struct phylink			*phylink;
 	struct phylink_config		phylink_config;

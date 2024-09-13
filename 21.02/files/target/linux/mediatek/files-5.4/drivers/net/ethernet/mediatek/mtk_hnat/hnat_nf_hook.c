@@ -946,13 +946,13 @@ static inline void qos_rate_limit_set(u32 id, const struct net_device *dev)
 
 	mac = netdev_priv(dev);
 
-	switch (mac->speed) {
+	switch (mac->phy_speed) {
 	case SPEED_100:
 	case SPEED_1000:
 	case SPEED_2500:
 	case SPEED_5000:
 	case SPEED_10000:
-		max_man = mac->speed / SPEED_100;
+		max_man = mac->phy_speed / SPEED_100;
 		break;
 	default:
 		return;

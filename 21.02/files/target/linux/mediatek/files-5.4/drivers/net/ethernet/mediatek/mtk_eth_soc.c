@@ -1185,6 +1185,8 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 	u32 mcr, mcr_cur, sts;
 
 	mac->speed = speed;
+	if (phy)
+		mac->phy_speed = phy->speed;
 
 	if (mac->type == MTK_GDM_TYPE) {
 		mcr_cur = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
