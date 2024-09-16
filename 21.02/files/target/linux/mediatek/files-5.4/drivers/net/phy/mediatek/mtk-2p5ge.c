@@ -197,6 +197,9 @@ static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
 		goto release_fw;
 	}
 
+	/* Force 2.5Gphy back to AN state */
+	phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
+	usleep_range(5000, 6000);
 	phy_set_bits(phydev, MII_BMCR, BMCR_PDOWN);
 
 	reg = readw(apb_base + SW_RESET);
