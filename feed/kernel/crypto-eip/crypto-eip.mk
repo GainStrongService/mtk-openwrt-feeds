@@ -50,7 +50,8 @@ define KernelPackage/crypto-eip
 	CONFIG_CRYPTO_SHA512=y \
 	CONFIG_CRYPTO_SHA3=y \
 	CONFIG_CRYPTO_HMAC=y \
-	CONFIG_INET_ESP=y
+	CONFIG_INET_ESP=y \
+	CONFIG_INET_ESP_OFFLOAD=y
   DEPENDS:= \
 	@TARGET_mediatek \
 	+strongswan \
@@ -73,8 +74,7 @@ define KernelPackage/crypto-eip-inline
   CATEGORY:=MTK Properties
   SUBMENU:=Drivers
   TITLE:= EIP-197 Crypto Engine Inline Driver
-  KCONFIG:= \
-	CONFIG_INET_ESP_OFFLOAD=y
+  KCONFIG:=
   DEPENDS:= \
 	@CRYPTO_OFFLOAD_INLINE \
 	kmod-crypto-eip \
