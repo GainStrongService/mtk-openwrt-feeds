@@ -1,7 +1,7 @@
-From e891179880fe0791cc674877bc4e100c2c722c91 Mon Sep 17 00:00:00 2001
+From 0d0c1419ec432aa804ab478d889887b057d48821 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 17 Jun 2024 16:03:16 +0800
-Subject: [PATCH 1/2] wifi: mt76: mt7996: support mt7996 2+3+3 variant
+Subject: [PATCH] wifi: mt76: mt7996: support mt7996 2+3+3 variant
 
 Add support for mt7996 tri-band 2+3+3 variant.
 
@@ -13,9 +13,9 @@ Change-Id: Idd7ed0033e1255018bd03b434d3bd3eacfde7153
  mt7996/eeprom.c |  2 ++
  mt7996/init.c   | 25 +++++++++++++++++++++++++
  mt7996/mcu.c    |  9 ++++++++-
- mt7996/mt7996.h | 17 +++++++++++++++--
+ mt7996/mt7996.h | 21 ++++++++++++++++-----
  mt7996/regs.h   |  1 +
- 5 files changed, 51 insertions(+), 3 deletions(-)
+ 5 files changed, 52 insertions(+), 6 deletions(-)
 
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
 index 4a823711..7e2d585a 100644
@@ -108,7 +108,7 @@ index 0a1e23e8..a638ef50 100644
  	if (ret)
  		return ret;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index ab8c9070..e9fc6134 100644
+index ab8c9070..a489dc54 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -34,12 +34,17 @@
@@ -152,16 +152,20 @@ index ab8c9070..e9fc6134 100644
  };
  
  enum {
-@@ -406,8 +420,7 @@ mt7996_band_valid(struct mt7996_dev *dev, u8 band)
+@@ -406,11 +420,8 @@ mt7996_band_valid(struct mt7996_dev *dev, u8 band)
  		return band <= MT_BAND1;
  
  	/* tri-band support */
 -	if (band <= MT_BAND2 &&
 -	    mt76_get_field(dev, MT_PAD_GPIO, MT_PAD_GPIO_ADIE_COMB) <= 1)
-+	if (band <= MT_BAND2 && dev->var_type)
- 		return true;
+-		return true;
+-
+-	return band == MT_BAND0 || band == MT_BAND2;
++	/* TODO: consider eagle dual band chip variant (2/5g) */
++	return band <= MT_BAND2;
+ }
  
- 	return band == MT_BAND0 || band == MT_BAND2;
+ extern const struct ieee80211_ops mt7996_ops;
 diff --git a/mt7996/regs.h b/mt7996/regs.h
 index 47b429d8..734abec4 100644
 --- a/mt7996/regs.h
