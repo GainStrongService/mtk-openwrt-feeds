@@ -2095,6 +2095,7 @@ struct mtk_eth {
 		struct tdma_monitor	tdma_monitor;
 		struct wdma_monitor	wdma_monitor;
 		struct gdm_monitor	gdm_monitor;
+		u32			event;
 	} reset;
 
 	u32				rx_dma_l4_valid;

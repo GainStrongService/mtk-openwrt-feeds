@@ -78,7 +78,6 @@ extern char* mtk_reset_event_name[32];
 extern atomic_t reset_lock;
 extern struct completion wait_nat_done;
 extern int mtk_wifi_num;
-extern u32 mtk_reset_flag;
 extern bool mtk_stop_fail;
 
 irqreturn_t mtk_handle_fe_irq(int irq, void *_eth);

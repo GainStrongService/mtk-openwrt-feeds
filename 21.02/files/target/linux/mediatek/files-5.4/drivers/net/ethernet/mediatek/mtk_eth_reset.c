@@ -31,7 +31,6 @@ struct mtk_qdma_cfg {
 static struct mtk_qdma_cfg mtk_qdma_cfg_backup;
 static int mtk_rest_cnt = 0;
 int mtk_wifi_num;
-u32 mtk_reset_flag = MTK_FE_START_RESET;
 bool mtk_stop_fail;
 
 typedef u32 (*mtk_monitor_xdma_func) (struct mtk_eth *eth);
@@ -90,7 +89,7 @@ int mtk_eth_cold_reset(struct mtk_eth *eth)
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
 		reset_bits |= RSTCTRL_PPE2;
-	if (mtk_reset_flag == MTK_FE_START_RESET)
+	if (eth->reset.event == MTK_FE_START_RESET)
 		reset_bits |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
 #endif
 	ethsys_reset(eth, reset_bits);
@@ -130,7 +129,7 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
 			reset_bits |= RSTCTRL_PPE2;
-		if (mtk_reset_flag == MTK_FE_START_RESET)
+		if (eth->reset.event == MTK_FE_START_RESET)
 			reset_bits |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
 #endif
 
@@ -803,7 +802,7 @@ void mtk_hw_reset_monitor(struct mtk_eth *eth)
 		    (ret == MTK_FE_STOP_TRAFFIC)) {
 			if ((atomic_read(&reset_lock) == 0) &&
 			    (atomic_read(&force) == 1)) {
-				mtk_reset_flag = ret;
+				eth->reset.event = ret;
 				schedule_work(&eth->pending_work);
 			}
 			break;
@@ -1011,7 +1010,7 @@ int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void 
 		break;
 	case MTK_FE_STOP_TRAFFIC_DONE_FAIL:
 		mtk_stop_fail = true;
-		mtk_reset_flag = MTK_FE_START_RESET;
+		eth->reset.event = MTK_FE_START_RESET;
 		pr_info("%s rcv done event:%lx\n", __func__, event);
 		complete(&wait_ser_done);
 		mtk_rest_cnt = mtk_wifi_num;
@@ -1020,7 +1019,7 @@ int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void 
 		pr_info("%s rcv fe start reset init event:%lx\n", __func__, event);
 		if ((atomic_read(&reset_lock) == 0) &&
 		    (atomic_read(&force) == 1)) {
-			mtk_reset_flag = MTK_FE_START_RESET;
+			eth->reset.event = MTK_FE_START_RESET;
 			schedule_work(&eth->pending_work);
 		}
 	default:

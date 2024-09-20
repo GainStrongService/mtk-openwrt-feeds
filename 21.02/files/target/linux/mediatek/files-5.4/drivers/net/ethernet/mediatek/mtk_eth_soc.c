@@ -4902,7 +4902,7 @@ static void mtk_pending_work(struct work_struct *work)
 		if (!eth->netdev[i])
 			continue;
 
-		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
+		if (eth->reset.event == MTK_FE_STOP_TRAFFIC) {
 			pr_info("send MTK_FE_STOP_TRAFFIC event !\n");
 			call_netdevice_notifiers(MTK_FE_STOP_TRAFFIC,
 						 eth->netdev[i]);
@@ -4979,7 +4979,7 @@ static void mtk_pending_work(struct work_struct *work)
 		if (!eth->netdev[i])
 			continue;
 
-		if (mtk_reset_flag == MTK_FE_STOP_TRAFFIC) {
+		if (eth->reset.event == MTK_FE_STOP_TRAFFIC) {
 			pr_info("send MTK_FE_START_TRAFFIC event !\n");
 			call_netdevice_notifiers(MTK_FE_START_TRAFFIC,
 						 eth->netdev[i]);
@@ -5001,7 +5001,7 @@ static void mtk_pending_work(struct work_struct *work)
 
 	mt753x_set_port_link_state(1);
 	mtk_phy_config(eth, 1);
-	mtk_reset_flag = 0;
+	eth->reset.event = 0;
 	clear_bit_unlock(MTK_RESETTING, &eth->state);
 
 	rtnl_unlock();

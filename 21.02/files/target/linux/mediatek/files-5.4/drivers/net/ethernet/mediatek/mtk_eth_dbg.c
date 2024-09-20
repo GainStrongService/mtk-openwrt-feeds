@@ -407,9 +407,10 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 			atomic_set(&force, 0);
 			break;
 		case 1:
-			if (atomic_read(&force) == 1)
+			if (atomic_read(&force) == 1) {
+				eth->reset.event = MTK_FE_START_RESET;
 				schedule_work(&eth->pending_work);
-			else
+			} else
 				pr_info(" stat:disable\n");
 			break;
 		case 2:
@@ -417,7 +418,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 			break;
 		case 3:
 			if (atomic_read(&force) == 1) {
-				mtk_reset_flag = MTK_FE_STOP_TRAFFIC;
+				eth->reset.event = MTK_FE_STOP_TRAFFIC;
 				schedule_work(&eth->pending_work);
 			} else
 				pr_info(" device resetting !!!\n");
