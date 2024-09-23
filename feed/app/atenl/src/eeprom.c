@@ -151,6 +151,8 @@ atenl_eeprom_init_chip_id(struct atenl *an)
 		/* TODO: parse info if required */
 	} else if (is_mt7992(an)) {
 		/* TODO: parse info if required */
+	} else if (is_mt7990(an)) {
+		/* TODO: parse info if required */
 	}
 }
 
@@ -158,19 +160,20 @@ static void
 atenl_eeprom_init_max_size(struct atenl *an)
 {
 	switch (an->chip_id) {
-	case 0x7915:
+	case MT7915_DEVICE_ID:
 		an->eeprom_size = 3584;
 		an->eeprom_prek_offs = 0x62;
 		break;
-	case 0x7906:
-	case 0x7916:
-	case 0x7981:
-	case 0x7986:
+	case MT7916_EEPROM_CHIP_ID:
+	case MT7916_DEVICE_ID:
+	case MT7981_DEVICE_ID:
+	case MT7986_DEVICE_ID:
 		an->eeprom_size = 4096;
 		an->eeprom_prek_offs = 0x19a;
 		break;
-	case 0x7990:
-	case 0x7992:
+	case MT7996_DEVICE_ID:
+	case MT7992_DEVICE_ID:
+	case MT7990_DEVICE_ID:
 		an->eeprom_size = 7680;
 		an->eeprom_prek_offs = 0x1a5;
 	default:
@@ -255,20 +258,21 @@ atenl_eeprom_init_band_cap(struct atenl *an)
 			case MT_EE_EAGLE_BAND_SEL_2GHZ:
 				anb->cap = BAND_TYPE_2G;
 				break;
+			case MT_EE_EAGLE_BAND_SEL_5GHZ_LOW:
+			case MT_EE_EAGLE_BAND_SEL_5GHZ_HIGH:
 			case MT_EE_EAGLE_BAND_SEL_5GHZ:
 				anb->cap = BAND_TYPE_5G;
 				break;
+			case MT_EE_EAGLE_BAND_SEL_6GHZ_LOW:
+			case MT_EE_EAGLE_BAND_SEL_6GHZ_HIGH:
 			case MT_EE_EAGLE_BAND_SEL_6GHZ:
 				anb->cap = BAND_TYPE_6G;
-				break;
-			case MT_EE_EAGLE_BAND_SEL_5GHZ_6GHZ:
-				anb->cap = BAND_TYPE_5G_6G;
 				break;
 			default:
 				break;
 			}
 		}
-	} else if (is_mt7992(an)) {
+	} else if (is_mt7992(an) || is_mt7990(an)) {
 		struct atenl_band *anb;
 		u8 val, band_sel;
 		u8 band_sel_mask[2] = {EAGLE_BAND_SEL(0), EAGLE_BAND_SEL(1)};
@@ -284,14 +288,15 @@ atenl_eeprom_init_band_cap(struct atenl *an)
 			case MT_EE_EAGLE_BAND_SEL_2GHZ:
 				anb->cap = BAND_TYPE_2G;
 				break;
+			case MT_EE_EAGLE_BAND_SEL_5GHZ_LOW:
+			case MT_EE_EAGLE_BAND_SEL_5GHZ_HIGH:
 			case MT_EE_EAGLE_BAND_SEL_5GHZ:
 				anb->cap = BAND_TYPE_5G;
 				break;
+			case MT_EE_EAGLE_BAND_SEL_6GHZ_LOW:
+			case MT_EE_EAGLE_BAND_SEL_6GHZ_HIGH:
 			case MT_EE_EAGLE_BAND_SEL_6GHZ:
 				anb->cap = BAND_TYPE_6G;
-				break;
-			case MT_EE_EAGLE_BAND_SEL_5GHZ_6GHZ:
-				anb->cap = BAND_TYPE_5G_6G;
 				break;
 			default:
 				break;
@@ -304,7 +309,7 @@ static void
 atenl_eeprom_init_antenna_cap(struct atenl *an)
 {
 	switch (an->chip_id) {
-	case 0x7915:
+	case MT7915_DEVICE_ID:
 		if (an->anb[0].cap == BAND_TYPE_2G_5G)
 			an->anb[0].chainmask = 0xf;
 		else {
@@ -312,27 +317,33 @@ atenl_eeprom_init_antenna_cap(struct atenl *an)
 			an->anb[1].chainmask = 0xc;
 		}
 		break;
-	case 0x7906:
-	case 0x7916:
+	case MT7916_EEPROM_CHIP_ID:
+	case MT7916_DEVICE_ID:
 		an->anb[0].chainmask = 0x3;
 		an->anb[1].chainmask = 0x3;
 		break;
-	case 0x7981:
+	case MT7981_DEVICE_ID:
 		an->anb[0].chainmask = 0x3;
 		an->anb[1].chainmask = 0x7;
 		break;
-	case 0x7986:
+	case MT7986_DEVICE_ID:
 		an->anb[0].chainmask = 0xf;
 		an->anb[1].chainmask = 0xf;
 		break;
-	case 0x7990:
+	case MT7996_DEVICE_ID:
+		/* TODO: handle 4T5R */
 		an->anb[0].chainmask = 0xf;
 		an->anb[1].chainmask = 0xf;
 		an->anb[2].chainmask = 0xf;
 		break;
-	case 0x7992:
+	case MT7992_DEVICE_ID:
+		/* TODO: handle BE7200 2i5i 5T5R */
 		an->anb[0].chainmask = 0xf;
 		an->anb[1].chainmask = 0xf;
+		break;
+	case MT7990_DEVICE_ID:
+		an->anb[0].chainmask = 0x3;
+		an->anb[1].chainmask = 0x7;
 		break;
 	default:
 		break;

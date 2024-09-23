@@ -285,7 +285,10 @@ enum {
 	MT_EE_EAGLE_BAND_SEL_2GHZ,
 	MT_EE_EAGLE_BAND_SEL_5GHZ,
 	MT_EE_EAGLE_BAND_SEL_6GHZ,
-	MT_EE_EAGLE_BAND_SEL_5GHZ_6GHZ,
+	MT_EE_EAGLE_BAND_SEL_5GHZ_LOW,
+	MT_EE_EAGLE_BAND_SEL_5GHZ_HIGH,
+	MT_EE_EAGLE_BAND_SEL_6GHZ_LOW,
+	MT_EE_EAGLE_BAND_SEL_6GHZ_HIGH,
 };
 
 #define MT_EE_WIFI_CONF				0x190
@@ -391,39 +394,67 @@ enum prek_ops {
 	PREK_CLEAN_DPD,
 };
 
+#define MT7916_EEPROM_CHIP_ID		0x7916
+
+/* Wi-Fi6 device id */
+#define MT7915_DEVICE_ID		0x7915
+#define MT7915_DEVICE_ID_2		0x7916
+#define MT7916_DEVICE_ID		0x7906
+#define MT7916_DEVICE_ID_2		0x790a
+#define MT7981_DEVICE_ID		0x7981
+#define MT7986_DEVICE_ID		0x7986
+
+/* Wi-Fi7 device id */
+#define MT7996_DEVICE_ID		0x7990
+#define MT7996_DEVICE_ID_2		0x7991
+#define MT7992_DEVICE_ID		0x7992
+#define MT7992_DEVICE_ID_2		0x799a
+#define MT7990_DEVICE_ID		0x7993
+#define MT7990_DEVICE_ID_2		0x799b
+
 static inline bool is_mt7915(struct atenl *an)
 {
-	return an->chip_id == 0x7915;
+	return an->chip_id == MT7915_DEVICE_ID;
 }
 
 static inline bool is_mt7916(struct atenl *an)
 {
-	return (an->chip_id == 0x7916) || (an->chip_id == 0x7906);
+	/* Merlin is special case:
+	 * pcie id is 0x7906/0x790a but eeprom chip id use 0x7916,
+	 * since 0x7916 is already used by the second pcie of Harrier.
+	 */
+	return (an->chip_id == MT7916_EEPROM_CHIP_ID) ||
+	       (an->chip_id == MT7916_DEVICE_ID);
 }
 
 static inline bool is_mt7981(struct atenl *an)
 {
-	return an->chip_id == 0x7981;
+	return an->chip_id == MT7981_DEVICE_ID;
 }
 
 static inline bool is_mt7986(struct atenl *an)
 {
-	return an->chip_id == 0x7986;
+	return an->chip_id == MT7986_DEVICE_ID;
 }
 
 static inline bool is_mt7996(struct atenl *an)
 {
-	return an->chip_id == 0x7990;
+	return an->chip_id == MT7996_DEVICE_ID;
 }
 
 static inline bool is_mt7992(struct atenl *an)
 {
-	return an->chip_id == 0x7992;
+	return an->chip_id == MT7992_DEVICE_ID;
+}
+
+static inline bool is_mt7990(struct atenl *an)
+{
+	return an->chip_id == MT7990_DEVICE_ID;
 }
 
 static inline bool is_connac3(struct atenl *an)
 {
-	return is_mt7996(an) || is_mt7992(an);
+	return is_mt7996(an) || is_mt7992(an) || is_mt7990(an);
 }
 
 int atenl_eth_init(struct atenl *an);

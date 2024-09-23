@@ -108,6 +108,10 @@ function parse_sku {
             SOC_start_idx="0"
             SOC_end_idx="1"
             is_connac3="1"
+        elif [ ! -z "$(head -c 2 ${eeprom_file} | hexdump | grep "7993")" ]; then
+            SOC_start_idx="0"
+            SOC_end_idx="1"
+            is_connac3="1"
         else
             echo "Interface Conversion Failed!"
             echo "Please use iwpriv <phy0/phy1/..> set <...> or configure the sku of your board manually by the following commands"
@@ -131,6 +135,10 @@ function parse_sku {
             echo "      echo STARTIDX=0 >> ${ated_file}"
             echo "      echo ENDIDX=1 >> ${ated_file}"
             echo "      echo IS_CONNAC3=1 >> ${ated_file}"
+            echo "For Griffin:"
+            echo "      echo STARTIDX=0 >> ${interface_file}"
+            echo "      echo ENDIDX=1 >> ${interface_file}"
+            echo "      echo IS_CONNAC3=1 >> ${interface_file}"
             exit 0
         fi
         record_config "STARTIDX" ${SOC_start_idx} ${ated_file}
