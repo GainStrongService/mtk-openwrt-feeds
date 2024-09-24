@@ -14,7 +14,7 @@ index 1fff4f8..742cd78 100644
  	bool "Enable support for unsecure and obsolete WEP"
  	depends on PACKAGE_hostapd-common
 diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index b62592b..6318f85 100644
+index 1c0b654..3105b98 100644
 --- a/package/network/services/hostapd/Makefile
 +++ b/package/network/services/hostapd/Makefile
 @@ -27,6 +27,7 @@ PKG_CONFIG_DEPENDS:= \
@@ -56,7 +56,7 @@ index b62592b..6318f85 100644
  
  define Package/hostapd/install
 diff --git a/package/network/services/hostapd/files/hostapd.uc b/package/network/services/hostapd/files/hostapd.uc
-index dfddf81..72209ea 100644
+index 6774fbf..f9d9df8 100644
 --- a/package/network/services/hostapd/files/hostapd.uc
 +++ b/package/network/services/hostapd/files/hostapd.uc
 @@ -61,6 +61,7 @@ start_disabled=1
@@ -109,7 +109,7 @@ index dfddf81..72209ea 100644
  }
  
  function iface_add(phy, config, phy_status)
-@@ -745,6 +750,8 @@ let main_obj = {
+@@ -751,6 +756,8 @@ let main_obj = {
  			up: true,
  			frequency: 0,
  			sec_chan_offset: 0,
@@ -118,7 +118,7 @@ index dfddf81..72209ea 100644
  			csa: true,
  			csa_count: 0,
  		},
-@@ -752,6 +759,15 @@ let main_obj = {
+@@ -758,6 +765,15 @@ let main_obj = {
  			if (req.args.up == null || !req.args.phy)
  				return libubus.STATUS_INVALID_ARGUMENT;
  
@@ -135,10 +135,10 @@ index dfddf81..72209ea 100644
  			let config = hostapd.data.config[phy];
  			if (!config || !config.bss || !config.bss[0] || !config.bss[0].ifname)
 diff --git a/package/network/services/hostapd/files/wpa_supplicant.uc b/package/network/services/hostapd/files/wpa_supplicant.uc
-index 1709bb0..e320330 100644
+index 31d4534..36d0b9a 100644
 --- a/package/network/services/hostapd/files/wpa_supplicant.uc
 +++ b/package/network/services/hostapd/files/wpa_supplicant.uc
-@@ -263,6 +263,7 @@ function iface_hostapd_notify(phy, ifname, iface, state)
+@@ -266,6 +266,7 @@ function iface_hostapd_notify(phy, ifname, iface, state)
  	let status = iface.status();
  	let msg = { phy: phy };
  
@@ -146,7 +146,7 @@ index 1709bb0..e320330 100644
  	switch (state) {
  	case "DISCONNECTED":
  	case "AUTHENTICATING":
-@@ -277,6 +278,8 @@ function iface_hostapd_notify(phy, ifname, iface, state)
+@@ -280,6 +281,8 @@ function iface_hostapd_notify(phy, ifname, iface, state)
  		msg.up = true;
  		msg.frequency = status.frequency;
  		msg.sec_chan_offset = status.sec_chan_offset;
@@ -155,7 +155,7 @@ index 1709bb0..e320330 100644
  		break;
  	default:
  		return;
-@@ -293,6 +296,8 @@ function iface_channel_switch(phy, ifname, iface, info)
+@@ -296,6 +299,8 @@ function iface_channel_switch(phy, ifname, iface, info)
  		csa: true,
  		csa_count: info.csa_count ? info.csa_count - 1 : 0,
  		frequency: info.frequency,
