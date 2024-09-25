@@ -383,9 +383,6 @@ static int mt7988_2p5ge_phy_load_fw(struct phy_device *phydev)
 		goto free_pmb;
 	}
 
-	reg = readw(mcu_csr_base + MD32_EN_CFG);
-	writew(reg | MD32_EN, mcu_csr_base + MD32_EN_CFG);
-
 	ret = request_firmware(&fw, MT7988_2P5GE_PMB_FW, dev);
 	if (ret) {
 		dev_err(dev, "failed to load firmware: %s, ret: %d\n",
