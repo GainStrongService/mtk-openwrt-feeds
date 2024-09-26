@@ -128,8 +128,10 @@ if test x"${do_clean}" = x"1"; then
 
 	exec_log "git -C \"${openwrt_root}\" checkout ."
 	exec_log "git -C \"${openwrt_root}\" clean -f -d -e autobuild"
-	exec_log "rm -rf \"${openwrt_root}/feeds\""
-	exec_log "rm -rf \"${openwrt_root}/package/feeds\""
+	if test x"${reserve_feeds_set}" != x"yes"; then
+		exec_log "rm -rf \"${openwrt_root}/feeds\""
+		exec_log "rm -rf \"${openwrt_root}/package/feeds\""
+	fi
 	exec_log "rm -rf \"${openwrt_root}/.ab\""
 
 	exit 0
