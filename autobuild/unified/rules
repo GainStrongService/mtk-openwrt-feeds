@@ -5,7 +5,7 @@
 # Top rules
 
 # Declare substages of every stage
-sub_stage_prepare="update_ab_info mk_ab_tmp pre_prepare apply_feed_script_patch modify_feeds_conf update_feeds \
+sub_stage_prepare="update_ab_info mk_ab_tmp pre_prepare apply_autobuild_script_patch modify_feeds_conf update_feeds \
 		   mtk_feed_prepare install_feeds autobuild_prepare post_prepare"
 sub_stage_build="update_ab_info pre_build do_build post_build"
 sub_stage_release="pre_release do_release post_release"
@@ -114,9 +114,12 @@ mk_ab_tmp() {
 	exec_log "mkdir -p \"${ab_tmp}\""
 }
 
-# Modify scripts/feed to allow specify subdirectory for scanning
-apply_feed_script_patch() {
-	apply_patch "${ab_root}/scripts/${openwrt_branch}/scripts-feeds-support-subdir.patch"
+# Modify scripts for specific features:
+# 1. allow specify feed subdirectory for scanning
+# 2. allow config merging and diff
+apply_autobuild_script_patch() {
+	copy_files "${ab_root}/scripts/${openwrt_branch}/files"
+	apply_patches "${ab_root}/scripts/${openwrt_branch}/patches"
 }
 
 modify_feeds_conf() {
@@ -293,50 +296,32 @@ apply_variant_patches() {
 # prepare_wifi_driver() { } Implemented by wifi inclusion
 
 prepare_openwrt_config() {
-	local kconfig_expr=
-	local kconfig_files="\"${ab_platform_dir}/${openwrt_branch}/defconfig\""
+	local kconfig_files=
+
+	exec_log "make -C \"${openwrt_root}\" prereq scripts/config/aconf"
 
 	openwrt_config_file="${openwrt_root}/.config"
 
-	if test ${ab_branch_level} -ge 2; then
-		kconfig_expr="${kconfig_expr} +"
-		kconfig_files="${kconfig_files} \"${ab_wifi_dir}/${openwrt_branch}/defconfig\""
+	kconfig_files="\"${ab_platform_dir}/${openwrt_branch}/defconfig\""
 
-		if test -f "${ab_wifi_dir}/${openwrt_branch}/defconfig_forced"; then
-			kconfig_expr="${kconfig_expr} +"
-			kconfig_files="${kconfig_files} \"${ab_wifi_dir}/${openwrt_branch}/defconfig_forced\""
-		fi
+	if test ${ab_branch_level} -ge 2; then
+		kconfig_files="${kconfig_files} \"${ab_wifi_dir}/${openwrt_branch}/defconfig\""
 	fi
 
 	if test ${ab_branch_level} -ge 3; then
-		kconfig_expr="${kconfig_expr} +"
 		kconfig_files="${kconfig_files} \"${ab_sku_dir}/${openwrt_branch}/defconfig\""
-
-		if test -f "${ab_sku_dir}/${openwrt_branch}/defconfig_forced"; then
-			kconfig_expr="${kconfig_expr} +"
-			kconfig_files="${kconfig_files} \"${ab_sku_dir}/${openwrt_branch}/defconfig_forced\""
-		fi
 	fi
 
 	if test ${ab_branch_level} -ge 4; then
-		kconfig_expr="${kconfig_expr} +"
 		kconfig_files="${kconfig_files} \"${ab_variant_dir}/${openwrt_branch}/defconfig\""
-
-		if test -f "${ab_variant_dir}/${openwrt_branch}/defconfig_forced"; then
-			kconfig_expr="${kconfig_expr} +"
-			kconfig_files="${kconfig_files} \"${ab_variant_dir}/${openwrt_branch}/defconfig_forced\""
-		fi
 	fi
 
-	if test -n "${kconfig_expr}" -a -n "${kconfig_files}"; then
-		exec_log "\"${openwrt_root}/scripts/kconfig.pl\" ${kconfig_expr} ${kconfig_files} > \"${ab_tmp}/.config\"" 1
-	else
-		exec_log "cp ${kconfig_files} \"${ab_tmp}/.config\""
-	fi
+	exec_log "rm -f \"${openwrt_config_file}.old\""
+	exec_log "STAGING_DIR_HOST=\"${openwrt_root}/staging_dir/host\" \"${openwrt_root}/scripts/config/aconf\" -m -o \"${openwrt_config_file}\" -k \"${openwrt_root}/Config.in\" ${kconfig_files}"
 
-	exec_log "rm -f \"${openwrt_root}/.config.old\""
-	exec_log "make -C \"${openwrt_root}\" -f \"${ab_root}/scripts/openwrt_kconfig.mk\" loaddefconfig CONFIG_FILE=\"${ab_tmp}/.config\""
-	exec_log "cp -f \"${openwrt_root}/.config\" \"${ab_tmp}/.config.prev\""
+	# for debug purpose
+	exec_log "cp -f \"${openwrt_config_file}\" \"${ab_tmp}/${ab_branch}.config\""
+	exec_log "STAGING_DIR_HOST=\"${openwrt_root}/staging_dir/host\" \"${openwrt_root}/scripts/config/aconf\" -m -M -o \"${ab_tmp}/${ab_branch}_defconfig\" -k \"${openwrt_root}/Config.in\" ${kconfig_files}"
 }
 
 # {platform,wifi,sku,variant}_change_openwrt_config() { } Implemented by platform sub levels
@@ -545,57 +530,32 @@ collect_feeds_buildinfo() {
 }
 
 do_menuconfig_update() {
-	local kconfig_expr=
 	local kconfig_files=
 	local final_file=
 
-	exec_log "make -C \"${openwrt_root}\" menuconfig"
+	openwrt_config_file="${openwrt_root}/.config"
+
+	exec_log "make -C \"${openwrt_root}\" menuconfig scripts/config/aconf"
 
 	if test ${ab_branch_level} -eq 1; then
-		exec_log "make -C ${openwrt_root} -f \"${ab_root}/scripts/openwrt_kconfig.mk\" savedefconfig CONFIG_FILE=\"${ab_tmp}/defconfig\""
-		exec_log "\"${openwrt_root}/scripts/kconfig.pl\" + \"${ab_tmp}/defconfig\" /dev/null > \"${ab_platform_dir}/${openwrt_branch}/defconfig\"" 1
+		exec_log "STAGING_DIR_HOST=\"${openwrt_root}/staging_dir/host\" \"${openwrt_root}/scripts/config/aconf\" -m -M -o \"${ab_platform_dir}/${openwrt_branch}/defconfig\" -k \"${openwrt_root}/Config.in\" \"${openwrt_config_file}\""
 		return
 	fi
-
-	exec_log "make -C ${openwrt_root} -f \"${ab_root}/scripts/openwrt_kconfig.mk\" savedefconfig CONFIG_FILE=\"${ab_tmp}/defconfig\""
 
 	if test ${ab_branch_level} -ge 2; then
 		kconfig_files="\"${ab_platform_dir}/${openwrt_branch}/defconfig\""
 		final_file="${ab_wifi_dir}/${openwrt_branch}/defconfig"
-
-		if test -f "${ab_wifi_dir}/${openwrt_branch}/defconfig_forced"; then
-			kconfig_expr="${kconfig_expr} +"
-			kconfig_files="${kconfig_files} \"${ab_wifi_dir}/${openwrt_branch}/defconfig_forced\""
-		fi
 	fi
 
 	if test ${ab_branch_level} -ge 3; then
-		kconfig_expr="${kconfig_expr} +"
 		kconfig_files="${kconfig_files} \"${final_file}\""
 		final_file="${ab_sku_dir}/${openwrt_branch}/defconfig"
-
-		if test -f "${ab_sku_dir}/${openwrt_branch}/defconfig_forced"; then
-			kconfig_expr="${kconfig_expr} +"
-			kconfig_files="${kconfig_files} \"${ab_sku_dir}/${openwrt_branch}/defconfig_forced\""
-		fi
 	fi
 
 	if test ${ab_branch_level} -ge 4; then
-		kconfig_expr="${kconfig_expr} +"
 		kconfig_files="${kconfig_files} \"${final_file}\""
 		final_file="${ab_variant_dir}/${openwrt_branch}/defconfig"
-
-		if test -f "${ab_variant_dir}/${openwrt_branch}/defconfig_forced"; then
-			kconfig_expr="${kconfig_expr} +"
-			kconfig_files="${kconfig_files} \"${ab_variant_dir}/${openwrt_branch}/defconfig_forced\""
-		fi
 	fi
 
-	if test -n "${kconfig_expr}" -a -n "${kconfig_files}"; then
-		exec_log "\"${openwrt_root}/scripts/kconfig.pl\" ${kconfig_expr} ${kconfig_files} > \"${ab_tmp}/.config.base\"" 1
-	else
-		exec_log "cp ${kconfig_files} \"${ab_tmp}/.config.base\""
-	fi
-
-	exec_log "\"${openwrt_root}/scripts/kconfig.pl\" - \"${ab_tmp}/defconfig\" \"${ab_tmp}/.config.base\" > \"${final_file}\"" 1
+	exec_log "STAGING_DIR_HOST=\"${openwrt_root}/staging_dir/host\" \"${openwrt_root}/scripts/config/aconf\" -d -o \"${final_file}\" -k \"${openwrt_root}/Config.in\" -n \"${openwrt_config_file}\" ${kconfig_files}"
 }
