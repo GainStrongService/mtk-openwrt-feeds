@@ -1,39 +1,25 @@
-From 6161ebcdec587c571946f745c7d41c57ce7e9f6a Mon Sep 17 00:00:00 2001
+From 5feba07f7e9ccf9c9a3d862e321c84ac4fd089a9 Mon Sep 17 00:00:00 2001
 From: "neal.yen" <neal.yen@mediatek.com>
-Date: Wed, 4 Sep 2024 18:16:19 +0800
+Date: Thu, 26 Sep 2024 20:19:57 +0800
 Subject: [PATCH] 999-2743-drivers-net-dsa-mxl862xx-kernel-compatible
 
 ---
- .../net/dsa/mxl862xx/host_api/mxl862xx_rmon.h |  2 --
- drivers/net/dsa/mxl862xx/mxl862xx.c           | 33 -------------------
- 2 files changed, 35 deletions(-)
+ drivers/net/dsa/mxl862xx/mxl862xx.c | 32 -----------------------------
+ 1 file changed, 32 deletions(-)
 
-diff --git a/drivers/net/dsa/mxl862xx/host_api/mxl862xx_rmon.h b/drivers/net/dsa/mxl862xx/host_api/mxl862xx_rmon.h
-index c366511..c4d3a63 100644
---- a/drivers/net/dsa/mxl862xx/host_api/mxl862xx_rmon.h
-+++ b/drivers/net/dsa/mxl862xx/host_api/mxl862xx_rmon.h
-@@ -393,8 +393,6 @@ typedef struct {
- 	 \ref MXL862XX_RMON_port_type_t**/
- 	mxl862xx_rmon_port_type_t port_type;
- 	/*Applicable only for GSWIP 3.1*/
--	bool b64bit_mode;
--	/*Applicable only for GSWIP 3.1*/
- 	u32 rx_extended_vlan_discard_pkts;
- 	/*Applicable only for GSWIP 3.1*/
- 	u32 mtu_exceed_discard_pkts;
 diff --git a/drivers/net/dsa/mxl862xx/mxl862xx.c b/drivers/net/dsa/mxl862xx/mxl862xx.c
-index d76f3b3..56536c3 100755
+index 5cab346..cbf2fe4 100755
 --- a/drivers/net/dsa/mxl862xx/mxl862xx.c
 +++ b/drivers/net/dsa/mxl862xx/mxl862xx.c
-@@ -1472,7 +1472,6 @@ static void mxl862xx_phylink_mac_link_down(struct dsa_switch *ds, int port,
+@@ -1494,7 +1494,6 @@ static void mxl862xx_phylink_mac_link_down(struct dsa_switch *ds, int port,
  	}
  }
  
--#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
+-#if (KERNEL_VERSION(5, 6, 0) <= LINUX_VERSION_CODE)
  static void mxl862xx_phylink_mac_link_up(struct dsa_switch *ds, int port,
  					 unsigned int mode,
  					 phy_interface_t interface,
-@@ -1567,33 +1566,6 @@ static void mxl862xx_phylink_mac_link_up(struct dsa_switch *ds, int port,
+@@ -1589,32 +1588,6 @@ static void mxl862xx_phylink_mac_link_up(struct dsa_switch *ds, int port,
  	return;
  }
  
@@ -63,15 +49,14 @@ index d76f3b3..56536c3 100755
 -	}
 -}
 -#endif
--
+ #endif
+ 
  static void mxl862xx_get_ethtool_stats(struct dsa_switch *ds, int port,
- 				       uint64_t *data)
- {
-@@ -4522,13 +4494,8 @@ static int mxl862xx_change_tag_protocol(struct dsa_switch *ds,
+@@ -4398,13 +4371,8 @@ static int mxl862xx_change_tag_protocol(struct dsa_switch *ds,
  }
  #endif
  
--#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0))
+-#if (KERNEL_VERSION(5, 6, 0) > LINUX_VERSION_CODE)
 -static enum dsa_tag_protocol mxl862xx_get_tag_protocol(struct dsa_switch *ds,
 -						       int port)
 -#else
@@ -80,7 +65,7 @@ index d76f3b3..56536c3 100755
 -#endif
  {
  	enum dsa_tag_protocol tag_proto;
- 	tag_proto = __dt_parse_tag_proto(ds, port);
+ 
 -- 
 2.45.2
 

@@ -175,6 +175,13 @@ static struct sk_buff *mxl862_tag_rcv(struct sk_buff *skb,
 	return skb;
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0))
+const struct dsa_device_ops mxl862_netdev_ops = {
+	.xmit = mxl862_tag_xmit,
+	.rcv = mxl862_tag_rcv,
+};
+#else
+
 static const struct dsa_device_ops mxl862_netdev_ops = {
 	.name = "mxl862",
 	.proto = DSA_TAG_PROTO_MXL862,
@@ -195,3 +202,6 @@ MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_MXL862, MXL862_NAME);
 #endif
 
 module_dsa_tag_driver(mxl862_netdev_ops);
+#endif
+
+MODULE_LICENSE("GPL");

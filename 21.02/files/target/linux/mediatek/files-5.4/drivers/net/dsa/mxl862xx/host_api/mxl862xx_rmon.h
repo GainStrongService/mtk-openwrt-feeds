@@ -393,8 +393,6 @@ typedef struct {
 	 \ref MXL862XX_RMON_port_type_t**/
 	mxl862xx_rmon_port_type_t port_type;
 	/*Applicable only for GSWIP 3.1*/
-	bool b64bit_mode;
-	/*Applicable only for GSWIP 3.1*/
 	u32 rx_extended_vlan_discard_pkts;
 	/*Applicable only for GSWIP 3.1*/
 	u32 mtu_exceed_discard_pkts;

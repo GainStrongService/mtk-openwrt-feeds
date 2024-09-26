@@ -48,8 +48,6 @@ static struct {
 #define MXL862XX_ACTYPE_ADDRESS		(0 << 14)
 #define MXL862XX_ACTYPE_DATA			(1 << 14)
 
-#ifdef C22_MDIO
-
 #ifndef LINUX_VERSION_CODE
 #include <linux/version.h>
 #else
@@ -60,6 +58,7 @@ static struct {
 #include <linux/delay.h>
 #endif
 
+#ifdef C22_MDIO
 /**
  *  write access to MMD register of PHYs via Clause 22 extended access
  */
@@ -130,7 +129,12 @@ int mxl862xx_read(const mxl862xx_device_t *dev, uint32_t regaddr)
 #ifdef C22_MDIO
 	int ret = __mxl862xx_c22_ext_mmd_read(dev, dev->bus, dev->sw_addr, mmd, regaddr);
 #else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
+	u32 addr = MII_ADDR_C45 | (mmd << 16) | (regaddr & 0xffff);
+	int ret = __mdiobus_read(dev->bus, dev->sw_addr, addr);
+#else
 	int ret = __mdiobus_c45_read(dev->bus, dev->sw_addr, mmd, regaddr);
+#endif
 #endif
 	return ret;
 }
@@ -141,7 +145,12 @@ int mxl862xx_write(const mxl862xx_device_t *dev, uint32_t regaddr, uint16_t data
 #ifdef C22_MDIO
 	int ret = __mxl862xx_c22_ext_mmd_write(dev, dev->bus, dev->sw_addr, mmd, regaddr, data);
 #else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
+	u32 addr = MII_ADDR_C45 | (mmd << 16) | (regaddr & 0xffff);
+	int ret = __mdiobus_write(dev->bus, dev->sw_addr, addr, data);
+#else
 	int ret = __mdiobus_c45_write(dev->bus, dev->sw_addr, mmd, regaddr, data);
+#endif
 #endif
 	return ret;
 }

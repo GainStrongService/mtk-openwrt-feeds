@@ -134,9 +134,10 @@ struct mxl862xx_priv {
 	struct mxl862xx_port_info port_info[MAX_PORTS];
 	/* Number of simultaneously supported vlans (calculated in the runtime) */
 	uint16_t max_vlans;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0))
-	/* pce_table_lock required for kernel 5.16 or later, since rtnl_lock has been dropped from DSA.port_fdb_{add,del}
-	 might cause dead-locks / hang in previous versions */
+#if (KERNEL_VERSION(5, 16, 0) <= LINUX_VERSION_CODE)
+	/* pce_table_lock required for kernel 5.16 or later,
+	 * since rtnl_lock has been dropped from DSA.port_fdb_{add,del}
+	 * might cause dead-locks / hang in previous versions */
 	struct mutex pce_table_lock;
 #endif
 };
@@ -145,10 +146,10 @@ struct mxl862xx_priv {
  * kernels >= 5.16 due to differences in DSA 8021q tagging handlers.
  * DSA tx/rx vid functions are not avaliable, so dummy
  * functions are here to make the code compilable. */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION (5, 16, 0))
+#if (KERNEL_VERSION(5, 16, 0) <= LINUX_VERSION_CODE)
 static u16 dsa_8021q_rx_vid(struct dsa_switch *ds, int port)
 {
-   return 0;
+	return 0;
 }
 
 static u16 dsa_8021q_tx_vid(struct dsa_switch *ds, int port)
@@ -157,7 +158,7 @@ static u16 dsa_8021q_tx_vid(struct dsa_switch *ds, int port)
 }
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) > LINUX_VERSION_CODE)
 static int mxl862xx_port_bridge_join(struct dsa_switch *ds, int port,
 				       struct net_device *bridge);
 static void mxl862xx_port_bridge_leave(struct dsa_switch *ds, int port,
@@ -180,12 +181,12 @@ static int __prepare_vlan_ingress_filters_sp_tag_cpu(struct dsa_switch *ds,
 						uint8_t port, uint8_t cpu_port);
 static int __prepare_vlan_egress_filters_off_sp_tag_cpu(struct dsa_switch *ds,
 						uint8_t cpu_port);
-static int __prepare_vlan_ingress_filters_off_sp_tag_no_vid(struct dsa_switch* ds,
+static int __prepare_vlan_ingress_filters_off_sp_tag_no_vid(struct dsa_switch *ds,
 						uint8_t port);
 static int __prepare_vlan_egress_filters_off_sp_tag_no_vid(struct dsa_switch *ds,
 						uint8_t port);
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) > LINUX_VERSION_CODE)
 static void mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 				  const struct switchdev_obj_port_vlan *vlan);
 #else
@@ -336,7 +337,8 @@ static int mxl862xx_mmd_write(const mxl862xx_device_t *dev, int reg, u16 data)
 	return ret;
 }
 
-static int __config_mxl862_tag_proto(struct dsa_switch *ds, uint8_t port, bool enable) {
+static int __config_mxl862_tag_proto(struct dsa_switch *ds, uint8_t port, bool enable)
+{
 
 	int ret = MXL862XX_STATUS_ERR;
 	uint8_t pid = port + 1;
@@ -348,8 +350,7 @@ static int __config_mxl862_tag_proto(struct dsa_switch *ds, uint8_t port, bool e
 	if (enable) {
 		param.rx = 2;
 		param.tx = 2;
-	}
-	else {
+	} else {
 		param.rx = 1;
 		param.tx = 3;
 	}
@@ -383,7 +384,11 @@ EXIT:
 	return ret;
 }
 
+#if (KERNEL_VERSION(5, 3, 0) > LINUX_VERSION_CODE)
+static void mxl862xx_port_disable(struct dsa_switch *ds, int port, struct phy_device *phy)
+#else
 static void mxl862xx_port_disable(struct dsa_switch *ds, int port)
+#endif
 {
 	struct mxl862xx_priv *priv = ds->priv;
 	mxl862xx_register_mod_t register_mod = { 0 };
@@ -398,7 +403,7 @@ static void mxl862xx_port_disable(struct dsa_switch *ds, int port)
 	register_mod.mask = MXL862XX_SDMA_PCTRL_EN;
 	ret = mxl862xx_register_mod(&mxl_dev, &register_mod);
 	if (ret != MXL862XX_STATUS_OK) {
-		dev_err(ds->dev, "%s: Disable Datapath SDMA failed:%d \n",
+		dev_err(ds->dev, "%s: Disable Datapath SDMA failed:%d\n",
 			__func__, port);
 		return;
 	}
@@ -407,7 +412,7 @@ static void mxl862xx_port_disable(struct dsa_switch *ds, int port)
 	register_mod.mask = MXL862XX_FDMA_PCTRL_EN;
 	ret = mxl862xx_register_mod(&mxl_dev, &register_mod);
 	if (ret != MXL862XX_STATUS_OK) {
-		dev_err(ds->dev, "%s: Disable Datapath FDMA failed:%d \n",
+		dev_err(ds->dev, "%s: Disable Datapath FDMA failed:%d\n",
 			__func__, port);
 		return;
 	}
@@ -433,7 +438,7 @@ static int mxl862xx_port_enable(struct dsa_switch *ds, int port,
 		ret = mxl862xx_register_mod(&mxl_dev, &register_mod);
 		if (ret != MXL862XX_STATUS_OK) {
 			dev_err(ds->dev,
-				"%s: Enable Datapath SDMA failed:%d \n",
+				"%s: Enable Datapath SDMA failed:%d\n",
 				__func__, port);
 			return ret;
 		}
@@ -443,7 +448,7 @@ static int mxl862xx_port_enable(struct dsa_switch *ds, int port,
 		ret = mxl862xx_register_mod(&mxl_dev, &register_mod);
 		if (ret != MXL862XX_STATUS_OK) {
 			dev_err(ds->dev,
-				"%s: Enable Datapath FDMA failed:%d \n",
+				"%s: Enable Datapath FDMA failed:%d\n",
 				__func__, port);
 			return ret;
 		}
@@ -491,9 +496,10 @@ static int __isolate_port(struct dsa_switch *ds, uint8_t port)
 		struct switchdev_obj_port_vlan vlan;
 		uint16_t vid = 1;
 		bool filtering_prev = priv->port_info[port].vlan.filtering;
+
 		priv->port_info[port].vlan.filtering = true;
 		vlan.flags = BRIDGE_VLAN_INFO_UNTAGGED|BRIDGE_VLAN_INFO_PVID;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) > LINUX_VERSION_CODE)
 		vlan.vid_begin = vid;
 		mxl862xx_port_vlan_add(ds, port, &vlan);
 #else
@@ -552,7 +558,7 @@ static void __deisolate_port(struct dsa_switch *ds, uint8_t port)
 		uint16_t i;
 
 		vlan.flags = BRIDGE_VLAN_INFO_UNTAGGED|BRIDGE_VLAN_INFO_PVID;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) > LINUX_VERSION_CODE)
 		vlan.vid_begin = vid;
 #else
 		vlan.vid = vid;
@@ -570,13 +576,13 @@ static void __deisolate_port(struct dsa_switch *ds, uint8_t port)
 			uint16_t j, start_idx, stop_idx, block_id;
 			struct mxl862xx_extended_vlan_block_info *block_info = (i == 0)
 				? &priv->port_info[port].vlan.ingress_vlan_block_info
-				: &priv->port_info[port].vlan.egress_vlan_block_info ;
+				: &priv->port_info[port].vlan.egress_vlan_block_info;
 
 			block_id = block_info->block_id;
 			stop_idx = block_info->filters_max;
 			start_idx = block_info->final_filters_idx;
 
-			for (j = start_idx ; j < stop_idx ; j++ ) {
+			for (j = start_idx ; j < stop_idx ; j++) {
 				ret = __deactivate_vlan_filter_entry(block_id, j);
 				if (ret != MXL862XX_STATUS_OK)
 					return;
@@ -613,7 +619,7 @@ static int __update_bridge_conf_port(struct dsa_switch *ds, uint8_t port,
 			continue;
 
 		/* Skip if bridge does not match, except the self port assignment  */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) > LINUX_VERSION_CODE)
 		if ((dsa_to_port(ds, i)->bridge_dev != bridge) && (i != port))
 #else
 		if ((dsa_port_bridge_dev_get(dsa_to_port(ds, i)) != bridge) && (i != port))
@@ -713,6 +719,7 @@ static int __update_bridge_conf_port(struct dsa_switch *ds, uint8_t port,
 		uint16_t bridge_port_cpu = port + 1 + 16;
 		mxl862xx_bridge_port_alloc_t bpa_param = { 0 };
 		mxl862xx_bridge_port_config_t br_port_cfg = { 0 };
+
 		bpa_param.bridge_port_id = bridge_port_cpu;
 
 		if (action) {
@@ -733,7 +740,7 @@ static int __update_bridge_conf_port(struct dsa_switch *ds, uint8_t port,
 			br_port_cfg.bridge_port_id = bridge_port_cpu;
 			br_port_cfg.bridge_port_map[0] =	BIT(port + 1);
 			br_port_cfg.dest_logical_port_id = cpu_port + 1;
-			br_port_cfg.src_mac_learning_disable = true; 
+			br_port_cfg.src_mac_learning_disable = true;
 
 			ret = mxl862xx_bridge_port_config_set(&mxl_dev, &br_port_cfg);
 
@@ -809,8 +816,7 @@ static void __set_vlan_filters_limits(struct dsa_switch *ds)
 	 *  + phy_ports * (INGRESS_FINAL_RULES + INGRESS_VID_RULES * priv-> max_vlans)
 	 *  + cpu_ingress_entries + cpu_egress_entries  */
 
-	if (priv->port_info[cpu_port].tag_protocol == DSA_TAG_PROTO_MXL862_8021Q)
-	{
+	if (priv->port_info[cpu_port].tag_protocol == DSA_TAG_PROTO_MXL862_8021Q) {
 
 		priv->max_vlans = (MAX_VLAN_ENTRIES - priv->hw_info->phy_ports *
 				(EGRESS_FINAL_RULES + INGRESS_FINAL_RULES + 2) - 3) /
@@ -818,7 +824,7 @@ static void __set_vlan_filters_limits(struct dsa_switch *ds)
 		/* 2 entries per port and 1 entry for fixed rule */
 		cpu_ingress_entries = priv->hw_info->phy_ports * 2 + 1;
 		/* 2 entries per each vlan and 2 entries for fixed rules */
-		cpu_egress_entries = priv->max_vlans * 2 + 2 ;
+		cpu_egress_entries = priv->max_vlans * 2 + 2;
 
 		//priv->port_info[cpu_port].vlan.ingress_vlan_block_info.entries_per_vlan = 2;
 		priv->port_info[cpu_port].vlan.ingress_vlan_block_info.entries_per_vlan = 0;
@@ -828,16 +834,14 @@ static void __set_vlan_filters_limits(struct dsa_switch *ds)
 
 		user_ingress_entries = INGRESS_FINAL_RULES + INGRESS_VID_RULES * priv->max_vlans;
 		user_egress_entries = EGRESS_FINAL_RULES + EGRESS_VID_RULES * priv->max_vlans;
-	}
-	else
-	{
+	} else {
 		priv->max_vlans = (MAX_VLAN_ENTRIES - priv->hw_info->phy_ports *
 				(EGRESS_FINAL_RULES + INGRESS_FINAL_RULES) - 1) /
 			(priv->hw_info->phy_ports * (EGRESS_VID_RULES + INGRESS_VID_RULES) + 2);
 		/* 1 entry for fixed rule */
 		cpu_ingress_entries =  1;
 		/* 2 entries per each vlan  */
-		cpu_egress_entries = priv->max_vlans * 2 ;
+		cpu_egress_entries = priv->max_vlans * 2;
 		priv->port_info[cpu_port].vlan.ingress_vlan_block_info.entries_per_vlan = 0;
 		priv->port_info[cpu_port].vlan.ingress_vlan_block_info.filters_max = cpu_ingress_entries;
 		priv->port_info[cpu_port].vlan.egress_vlan_block_info.entries_per_vlan = 2;
@@ -849,9 +853,9 @@ static void __set_vlan_filters_limits(struct dsa_switch *ds)
 
 	/* This index is counted backwards */
 	priv->port_info[cpu_port].vlan.ingress_vlan_block_info.final_filters_idx =
-		priv->port_info[cpu_port].vlan.ingress_vlan_block_info.filters_max -1;
+		priv->port_info[cpu_port].vlan.ingress_vlan_block_info.filters_max - 1;
 	priv->port_info[cpu_port].vlan.egress_vlan_block_info.final_filters_idx =
-		priv->port_info[cpu_port].vlan.egress_vlan_block_info.filters_max -1;
+		priv->port_info[cpu_port].vlan.egress_vlan_block_info.filters_max - 1;
 
 	/* Set limits and indexes required for processing VLAN rules for user ports */
 	for (i = 0; i < priv->hw_info->phy_ports; i++) {
@@ -861,12 +865,11 @@ static void __set_vlan_filters_limits(struct dsa_switch *ds)
 		priv->port_info[i].vlan.egress_vlan_block_info.filters_max = user_egress_entries;
 		/* This index is counted backwards */
 		priv->port_info[i].vlan.ingress_vlan_block_info.final_filters_idx =
-			priv->port_info[i].vlan.ingress_vlan_block_info.filters_max -1;
+			priv->port_info[i].vlan.ingress_vlan_block_info.filters_max - 1;
 		priv->port_info[i].vlan.egress_vlan_block_info.final_filters_idx =
-			priv->port_info[i].vlan.egress_vlan_block_info.filters_max -1;
+			priv->port_info[i].vlan.egress_vlan_block_info.filters_max - 1;
 	}
-	dev_info(ds->dev, "%s: phy_ports:%d, priv->max_vlans: %d, cpu_egress_entries: %d,"
-		  " user_ingress_entries: %d, INGRESS_VID_RULES: %d\n",
+	dev_info(ds->dev, "%s: phy_ports:%d, priv->max_vlans: %d, cpu_egress_entries: %d, user_ingress_entries: %d, INGRESS_VID_RULES: %d\n",
 			__func__, priv->hw_info->phy_ports, priv->max_vlans,
 			cpu_egress_entries, user_ingress_entries, INGRESS_VID_RULES);
 }
@@ -876,7 +879,7 @@ static enum dsa_tag_protocol __dt_parse_tag_proto(struct dsa_switch *ds, uint8_t
 	/* Default value if no dt entry found */
 	enum dsa_tag_protocol tag_proto = DSA_TAG_PROTO_MXL862;
 	struct dsa_port *dp = (struct dsa_port *)dsa_to_port(ds, port);
-	const char* user_protocol = NULL;
+	const char *user_protocol = NULL;
 
 	if (dp != NULL)
 		user_protocol = of_get_property(dp->dn, "dsa-tag-protocol", NULL);
@@ -914,7 +917,7 @@ EXIT:
 	return ret;
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) > LINUX_VERSION_CODE)
 static int mxl862xx_port_bridge_join(struct dsa_switch *ds, int port,
 					struct net_device *bridge)
 #else
@@ -924,7 +927,7 @@ static int mxl862xx_port_bridge_join(struct dsa_switch *ds, int port,
 #endif
 
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) <= LINUX_VERSION_CODE)
 	struct net_device *bridge = br.dev;
 #endif
 	struct mxl862xx_priv *priv = ds->priv;
@@ -933,6 +936,11 @@ static int mxl862xx_port_bridge_join(struct dsa_switch *ds, int port,
 	uint8_t cpu_port = priv->hw_info->cpu_port;
 	bool vlan_sp_tag = (priv->port_info[cpu_port].tag_protocol == DSA_TAG_PROTO_MXL862_8021Q);
 
+	if (port < 0 || port >= MAX_PORTS) {
+		dev_err(priv->dev, "invalid port: %d\n", port);
+		return ret;
+	}
+
 	__deisolate_port(ds, port);
 
 	bridgeID = __find_bridgeID(ds, bridge);
@@ -940,9 +948,10 @@ static int mxl862xx_port_bridge_join(struct dsa_switch *ds, int port,
 	/* no bridge found -> create new bridge */
 	if (bridgeID == 0) {
 		mxl862xx_bridge_alloc_t br_alloc = { 0 };
+
 		ret = mxl862xx_bridge_alloc(&mxl_dev, &br_alloc);
 		if (ret != MXL862XX_STATUS_OK) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) <= LINUX_VERSION_CODE)
 			NL_SET_ERR_MSG_MOD(extack,
 				   "MxL862xx: bridge alloc failed");
 #endif
@@ -970,23 +979,22 @@ static int mxl862xx_port_bridge_join(struct dsa_switch *ds, int port,
 	 * for others not. To support VLAN unaware bridge in mxl862_8021q tagging mode,
 	 * the required vlan filtering rules (adding sp tag, forwarding to cpu port)
 	 * are added here.*/
-	if (vlan_sp_tag)
-	{
+	if (vlan_sp_tag) {
 		mxl862xx_ctp_port_config_t ctp_param = { 0 };
 		mxl862xx_bridge_port_config_t br_port_cfg = { 0 };
 
 		ret = __prepare_vlan_ingress_filters_sp_tag_cpu(ds, port, cpu_port);
 		if (ret != MXL862XX_STATUS_OK)
-				goto EXIT;
+			goto EXIT;
 		ret = __prepare_vlan_egress_filters_off_sp_tag_cpu(ds, cpu_port);
 		if (ret != MXL862XX_STATUS_OK)
-				goto EXIT;
+			goto EXIT;
 		ret = __prepare_vlan_ingress_filters_off_sp_tag_no_vid(ds, port);
 		if (ret != MXL862XX_STATUS_OK)
-				goto EXIT;
+			goto EXIT;
 		ret = __prepare_vlan_egress_filters_off_sp_tag_no_vid(ds, port);
 		if (ret != MXL862XX_STATUS_OK)
-				goto EXIT;
+			goto EXIT;
 
 		/* update cpu port */
 		ctp_param.logical_port_id = cpu_port + 1;
@@ -1004,7 +1012,7 @@ static int mxl862xx_port_bridge_join(struct dsa_switch *ds, int port,
 			dev_err(ds->dev,
 				"%s: CTP port %d config failed on port config set with %d\n",
 				__func__, cpu_port, ret);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) <= LINUX_VERSION_CODE)
 			NL_SET_ERR_MSG_MOD(extack, "Failed to configure VLAN for cpu port");
 #endif
 			goto EXIT;
@@ -1013,7 +1021,7 @@ static int mxl862xx_port_bridge_join(struct dsa_switch *ds, int port,
 		/* Update bridge port */
 		br_port_cfg.bridge_port_id = port + 1;
 		br_port_cfg.mask |= MXL862XX_BRIDGE_PORT_CONFIG_MASK_EGRESS_VLAN |
-			     MXL862XX_BRIDGE_PORT_CONFIG_MASK_INGRESS_VLAN ;
+			     MXL862XX_BRIDGE_PORT_CONFIG_MASK_INGRESS_VLAN;
 		br_port_cfg.egress_extended_vlan_enable = true;
 		br_port_cfg.egress_extended_vlan_block_id =
 			priv->port_info[port].vlan.egress_vlan_block_info.block_id;
@@ -1026,7 +1034,7 @@ static int mxl862xx_port_bridge_join(struct dsa_switch *ds, int port,
 			dev_err(ds->dev,
 				"%s: Bridge port configuration for port %d failed with %d\n",
 				__func__, port, ret);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) <= LINUX_VERSION_CODE)
 			NL_SET_ERR_MSG_MOD(extack, "Bridge port configuration for VLAN failed");
 #endif
 		}
@@ -1036,7 +1044,7 @@ EXIT:
 	return ret;
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) > LINUX_VERSION_CODE)
 static void mxl862xx_port_bridge_leave(struct dsa_switch *ds, int port,
 				       struct net_device *bridge)
 #else
@@ -1044,7 +1052,7 @@ static void mxl862xx_port_bridge_leave(struct dsa_switch *ds, int port,
 				       struct dsa_bridge br)
 #endif
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) <= LINUX_VERSION_CODE)
 	struct net_device *bridge = br.dev;
 #endif
 	struct mxl862xx_priv *priv = ds->priv;
@@ -1087,25 +1095,29 @@ EXIT:
 }
 
 
-static int mxl862xx_phy_read_mii_bus(struct mii_bus *bus, int addr, int regnum) {
+static int mxl862xx_phy_read_mii_bus(struct mii_bus *bus, int addr, int regnum)
+{
 	int ret = mxl862xx_phy_read_mmd(NULL, 0, addr, regnum);
 	return ret;
 }
 
 
-static int mxl862xx_phy_write_mii_bus(struct mii_bus *bus, int addr, int regnum, u16 val) {
+static int mxl862xx_phy_write_mii_bus(struct mii_bus *bus, int addr, int regnum, u16 val)
+{
 	int ret = mxl862xx_phy_write_mmd(NULL, 0, addr, regnum, val);
 	return ret;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0))
-static int mxl862xx_phy_read_c45_mii_bus(struct mii_bus *bus, int devnum, int addr, int regnum) {
+#if (KERNEL_VERSION(6, 3, 0) <= LINUX_VERSION_CODE)
+static int mxl862xx_phy_read_c45_mii_bus(struct mii_bus *bus, int devnum, int addr, int regnum)
+{
 	int ret = mxl862xx_phy_read_mmd(NULL, devnum, addr, regnum);
 	return ret;
 }
 
 
-static int mxl862xx_phy_write_c45_mii_bus(struct mii_bus *bus, int devnum, int addr, int regnum, u16 val) {
+static int mxl862xx_phy_write_c45_mii_bus(struct mii_bus *bus, int devnum, int addr, int regnum, u16 val)
+{
 	int ret = mxl862xx_phy_write_mmd(NULL, devnum, addr, regnum, val);
 	return ret;
 }
@@ -1123,14 +1135,14 @@ mxl862xx_setup_mdio(struct dsa_switch *ds)
 	if (!bus)
 		return -ENOMEM;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0))
+#if (KERNEL_VERSION(6, 7, 0) > LINUX_VERSION_CODE)
 	ds->slave_mii_bus = bus;
 #else
 	ds->user_mii_bus = bus;
 #endif
 	bus->name = KBUILD_MODNAME "-mii";
 	snprintf(bus->id, MII_BUS_ID_SIZE, KBUILD_MODNAME "-%d", idx++);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0))
+#if (KERNEL_VERSION(6, 3, 0) <= LINUX_VERSION_CODE)
 	bus->read_c45 = mxl862xx_phy_read_c45_mii_bus;
 	bus->write_c45 = mxl862xx_phy_write_c45_mii_bus;
 #endif
@@ -1139,14 +1151,13 @@ mxl862xx_setup_mdio(struct dsa_switch *ds)
 	bus->parent = dev;
 	bus->phy_mask = ~ds->phys_mii_mask;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
+#if (KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE)
 	ret = devm_mdiobus_register(dev, bus);
 #else
 	ret = mdiobus_register(bus);
 #endif
-	if (ret) {
+	if (ret)
 		dev_err(dev, "failed to register MDIO bus: %d\n", ret);
-	}
 
 	return ret;
 }
@@ -1201,14 +1212,15 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 	{
 		bool lrn_dis;
 		mxl862xx_bridge_port_config_t br_port_cfg = { 0 };
+
 		br_port_cfg.bridge_port_id = cpu_port + 1;
 		br_port_cfg.mask = MXL862XX_BRIDGE_PORT_CONFIG_MASK_MC_SRC_MAC_LEARNING;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) > LINUX_VERSION_CODE)
 		lrn_dis = false;
 #else
 		lrn_dis = true;
 #endif
-		br_port_cfg.src_mac_learning_disable = lrn_dis ;
+		br_port_cfg.src_mac_learning_disable = lrn_dis;
 
 		ret = mxl862xx_bridge_port_config_set(&mxl_dev, &br_port_cfg);
 		if (ret != MXL862XX_STATUS_OK) {
@@ -1223,22 +1235,20 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 
 	/* Store bridge portmap in the driver cache.
 	 * Add CPU port for each bridge. */
-	for (i = 0; i < MAX_BRIDGES; i++) {
+	for (i = 0; i < MAX_BRIDGES; i++)
 		mxl862xx_bridge_portmap[i] = BIT(cpu_port + 1);
-	}
 
 	__set_vlan_filters_limits(ds);
 	/* by default set all vlans on cpu port in untagged mode */
-	for (i = 0; i < MAX_VLANS; i++) {
+	for (i = 0; i < MAX_VLANS; i++)
 		priv->port_info[cpu_port].vlan.egress_vlan_block_info.vlans[i].untagged = true;
-	}
 
 	for (i = 0; i < priv->hw_info->phy_ports; i++) {
 		mxl862xx_register_mod_t register_mod = { 0 };
 
 		/* unblock vlan_filtering change */
-		priv->port_info[i].vlan.filtering_mode_locked = false ;
-		priv->port_info[i].isolated = false ;
+		priv->port_info[i].vlan.filtering_mode_locked = false;
+		priv->port_info[i].isolated = false;
 
 		if (dsa_is_cpu_port(ds, i)) {
 			dev_info(ds->dev, "%s: cpu port with index :%d\n",
@@ -1252,7 +1262,7 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 		register_mod.mask = MXL862XX_SDMA_PCTRL_EN;
 		ret = mxl862xx_register_mod(&mxl_dev, &register_mod);
 		if (ret != MXL862XX_STATUS_OK) {
-			dev_err(ds->dev, "%s: Disable Datapath failed:%d \n",
+			dev_err(ds->dev, "%s: Disable Datapath failed:%d\n",
 				__func__, i);
 		}
 
@@ -1268,7 +1278,7 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 	/* Clear MAC address table */
 	ret = mxl862xx_mac_table_clear(&mxl_dev);
 	if (ret != MXL862XX_STATUS_OK) {
-		dev_err(ds->dev, "%s: MAC table clear failed \n", __func__);
+		dev_err(ds->dev, "%s: MAC table clear failed\n", __func__);
 		goto EXIT;
 	}
 
@@ -1319,12 +1329,12 @@ static void mxl862xx_port_stp_state_set(struct dsa_switch *ds, int port,
 	/* Since MxL862xx firmware enables MAC learning in some STP states,
 	 * we have to disable it for isolated user ports. For CPU port,
 	 * this setting depends on the kernel version. */
-	if ((priv->port_info[port].bridge == NULL) || (dsa_is_cpu_port(ds,port))) {
+	if ((priv->port_info[port].bridge == NULL) || (dsa_is_cpu_port(ds, port))) {
 		mxl862xx_bridge_port_config_t br_port_cfg = { 0 };
-      bool lrn_dis;
+		bool lrn_dis;
 
 		if ((dsa_is_cpu_port(ds, port)))
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) > LINUX_VERSION_CODE)
 			lrn_dis = false;
 #else
 			lrn_dis = true;
@@ -1346,7 +1356,8 @@ static void mxl862xx_port_stp_state_set(struct dsa_switch *ds, int port,
 	}
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(4, 18, 0) <= LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(5, 17, 0) > LINUX_VERSION_CODE)
 static void mxl862xx_phylink_set_capab(unsigned long *supported,
 				       struct phylink_link_state *state)
 {
@@ -1374,7 +1385,7 @@ static void mxl862xx_phylink_set_capab(unsigned long *supported,
 }
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) > LINUX_VERSION_CODE)
 static void mxl862xx_phylink_validate(struct dsa_switch *ds, int port,
 				      unsigned long *supported,
 				      struct phylink_link_state *state)
@@ -1385,8 +1396,13 @@ static void mxl862xx_phylink_validate(struct dsa_switch *ds, int port,
 		if (state->interface != PHY_INTERFACE_MODE_INTERNAL)
 			goto unsupported;
 	} else if (port == 8 || port == 9) {
+#if (KERNEL_VERSION(5, 3, 0) > LINUX_VERSION_CODE)
+		if (state->interface != PHY_INTERFACE_MODE_10GKR)
+			goto unsupported;
+#else
 		if (state->interface != PHY_INTERFACE_MODE_USXGMII)
 			goto unsupported;
+#endif
 	} else {
 		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
 		dev_err(ds->dev, "Unsupported port: %i\n", port);
@@ -1420,7 +1436,7 @@ static void mxl862xx_phylink_get_caps(struct dsa_switch *ds, int port,
 
 	config->mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE | MAC_10 |
 				   MAC_100 | MAC_1000 |
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) > LINUX_VERSION_CODE)
 					MAC2500FD;
 #else
 					MAC_2500FD;
@@ -1439,9 +1455,15 @@ static void mxl862xx_phylink_mac_config(struct dsa_switch *ds, int port,
 		return;
 	case PHY_INTERFACE_MODE_SGMII:
 		return;
+#if (KERNEL_VERSION(5, 3, 0) > LINUX_VERSION_CODE)
+	case PHY_INTERFACE_MODE_10GKR:
+		/* Configure the USXGMII */
+		break;
+#else
 	case PHY_INTERFACE_MODE_USXGMII:
 		/* Configure the USXGMII */
 		break;
+#endif
 	default:
 		dev_err(ds->dev, "Unsupported interface: %d\n",
 			state->interface);
@@ -1472,7 +1494,7 @@ static void mxl862xx_phylink_mac_link_down(struct dsa_switch *ds, int port,
 	}
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
+#if (KERNEL_VERSION(5, 6, 0) <= LINUX_VERSION_CODE)
 static void mxl862xx_phylink_mac_link_up(struct dsa_switch *ds, int port,
 					 unsigned int mode,
 					 phy_interface_t interface,
@@ -1593,6 +1615,7 @@ static void mxl862xx_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	}
 }
 #endif
+#endif
 
 static void mxl862xx_get_ethtool_stats(struct dsa_switch *ds, int port,
 				       uint64_t *data)
@@ -1703,6 +1726,7 @@ static void mxl862xx_port_fast_age(struct dsa_switch *ds, int port)
 {
 	int ret = -EINVAL;
 	mxl862xx_mac_table_clear_cond_t param = { 0 };
+
 	param.type = MXL862XX_MAC_CLEAR_PHY_PORT;
 	param.port_id = port + 1;
 
@@ -1714,7 +1738,7 @@ static void mxl862xx_port_fast_age(struct dsa_switch *ds, int port)
 	}
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) > LINUX_VERSION_CODE)
 static int mxl862xx_port_mirror_add(struct dsa_switch *ds, int port,
 				    struct dsa_mall_mirror_tc_entry *mirror,
 				    bool ingress)
@@ -1814,6 +1838,7 @@ static void mxl862xx_port_mirror_del(struct dsa_switch *ds, int port,
 		/* checked all and no port is being mirrored - release the monitor port */
 		if (i == phy_ports - 1) {
 			mxl862xx_monitor_port_cfg_t mon_param = { 0 };
+
 			ret = mxl862xx_monitor_port_cfg_set(&mxl_dev,
 							    &mon_param);
 			if (ret != MXL862XX_STATUS_OK) {
@@ -1831,7 +1856,7 @@ EXIT:
 
 static int
 __get_vlan_vid_filters_idx(struct mxl862xx_priv *priv, uint8_t port, bool ingress,
-		uint16_t vid, int *f_0, int *f_1, uint16_t *vlan_idx )
+		uint16_t vid, int *f_0, int *f_1, uint16_t *vlan_idx)
 {
 	int ret = -EINVAL;
 	int x, i = 0;
@@ -1841,13 +1866,9 @@ __get_vlan_vid_filters_idx(struct mxl862xx_priv *priv, uint8_t port, bool ingres
 	struct mxl862xx_extended_vlan_block_info *block_info;
 
 	if (ingress)
-	{
 		block_info = &(priv->port_info[port].vlan.ingress_vlan_block_info);
-	}
 	else
-	{
 		block_info = &(priv->port_info[port].vlan.egress_vlan_block_info);
-	}
 
 	/* Check if there's active entry for the requested VLAN. If found, overwrite it. */
 	if (filter_0 < 0 && filter_1 < 0) {
@@ -1896,7 +1917,7 @@ __get_vlan_vid_filters_idx(struct mxl862xx_priv *priv, uint8_t port, bool ingres
 	if (f_1 != NULL)
 		*f_1 = filter_1;
 	if (vlan_idx != NULL)
-	*vlan_idx = i;
+		*vlan_idx = i;
 
 EXIT:
 	return ret;
@@ -1918,9 +1939,8 @@ __prepare_vlan_egress_filters_off_sp_tag_no_vid(struct dsa_switch *ds, uint8_t p
 			priv->port_info[port]
 				.vlan.egress_vlan_block_info.filters_max;
 		ret = mxl862xx_extended_vlan_alloc(&mxl_dev, &vlan_alloc);
-		if (ret != MXL862XX_STATUS_OK) {
+		if (ret != MXL862XX_STATUS_OK)
 			goto EXIT;
-		}
 
 		priv->port_info[port].vlan.egress_vlan_block_info.allocated =
 			true;
@@ -1948,7 +1968,7 @@ __prepare_vlan_egress_filters_off_sp_tag_no_vid(struct dsa_switch *ds, uint8_t p
 		goto EXIT;
 	}
 
-	priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index ;
+	priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
 
 	// Last entry :  Only outer tag. Remove it as it must be sp_tag
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -1969,7 +1989,7 @@ __prepare_vlan_egress_filters_off_sp_tag_no_vid(struct dsa_switch *ds, uint8_t p
 		goto EXIT;
 	}
 
-	priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index ;
+	priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
 
 EXIT:
 	return ret;
@@ -1995,9 +2015,8 @@ __prepare_vlan_egress_filters_off_sp_tag(struct dsa_switch *ds, uint8_t port, ui
 			priv->port_info[port]
 				.vlan.egress_vlan_block_info.filters_max;
 		ret = mxl862xx_extended_vlan_alloc(&mxl_dev, &vlan_alloc);
-		if (ret != MXL862XX_STATUS_OK) {
+		if (ret != MXL862XX_STATUS_OK)
 			goto EXIT;
-		}
 
 		priv->port_info[port].vlan.egress_vlan_block_info.allocated =
 			true;
@@ -2008,10 +2027,10 @@ __prepare_vlan_egress_filters_off_sp_tag(struct dsa_switch *ds, uint8_t port, ui
 	/* VID specific entries must be processed before the final entries,
 	 * so putting them at the beginnig of the block */
 
-	ret = __get_vlan_vid_filters_idx(priv, port, false, vid, &filter_0, &filter_1, &idx );
-	if (ret != MXL862XX_STATUS_OK) {
+	ret = __get_vlan_vid_filters_idx(priv, port, false, vid, &filter_0, &filter_1, &idx);
+	dev_dbg(priv->dev, "%s: Port:%d  vid:%d f_0:%d f_1:%d idx:%d\n", __func__, port, vid, filter_0, filter_1, idx);
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	// Entry 0 :  Outer and Inner tags are present. Inner tag matching vid.
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -2031,8 +2050,7 @@ __prepare_vlan_egress_filters_off_sp_tag(struct dsa_switch *ds, uint8_t port, ui
 	if (untagged) {
 		/* remove both sp_tag(outer) and vid (inner) */
 		vlan_cfg.treatment.remove_tag = MXL862XX_EXTENDEDVLAN_TREATMENT_REMOVE_2_TAG;
-	}
-	else {
+	} else {
 		/* remove only sp tag */
 		vlan_cfg.treatment.remove_tag = MXL862XX_EXTENDEDVLAN_TREATMENT_REMOVE_1_TAG;
 	}
@@ -2074,7 +2092,28 @@ __prepare_vlan_egress_filters_off_sp_tag(struct dsa_switch *ds, uint8_t port, ui
 		goto EXIT;
 	}
 
-	priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index ;
+	priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
+
+	// Last entry :  Only outer tag. Remove it as it must be sp_tag
+	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
+	vlan_cfg.extended_vlan_block_id =
+		priv->port_info[port].vlan.egress_vlan_block_info.block_id;
+	vlan_cfg.entry_index = priv->port_info[port].vlan.egress_vlan_block_info.filters_max - 2;
+	vlan_cfg.filter.outer_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_FILTER;
+	vlan_cfg.filter.inner_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG;
+	/* remove  sp tag */
+	vlan_cfg.treatment.remove_tag = MXL862XX_EXTENDEDVLAN_TREATMENT_REMOVE_1_TAG;
+
+	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
+	if (ret != MXL862XX_STATUS_OK) {
+		dev_err(priv->dev,
+			"%s: Port:%d failed to add entry:%d for egress extended VLAN block ID:%d\n",
+			__func__, port, vlan_cfg.entry_index,
+			vlan_cfg.extended_vlan_block_id);
+		goto EXIT;
+	}
+
+	priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
 
 	// Last entry :  Only outer tag. Remove it as it must be sp_tag
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -2096,6 +2135,7 @@ __prepare_vlan_egress_filters_off_sp_tag(struct dsa_switch *ds, uint8_t port, ui
 	}
 
 	priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index ;
+
 
 	priv->port_info[port].vlan.egress_vlan_block_info.vlans[idx].vid = vid;
 	priv->port_info[port].vlan.egress_vlan_block_info.vlans[idx].used = true;
@@ -2123,9 +2163,8 @@ __prepare_vlan_egress_filters_off(struct mxl862xx_priv *priv, uint8_t port, uint
 			priv->port_info[port]
 				.vlan.egress_vlan_block_info.filters_max;
 		ret = mxl862xx_extended_vlan_alloc(&mxl_dev, &vlan_alloc);
-		if (ret != MXL862XX_STATUS_OK) {
+		if (ret != MXL862XX_STATUS_OK)
 			goto EXIT;
-		}
 
 		priv->port_info[port].vlan.egress_vlan_block_info.allocated =
 			true;
@@ -2136,10 +2175,9 @@ __prepare_vlan_egress_filters_off(struct mxl862xx_priv *priv, uint8_t port, uint
 	/* VID specific entries must be processed before the final entries,
 	 * so putting them at the beginnig of the block */
 
-	ret = __get_vlan_vid_filters_idx(priv, port, false, vid, &filter_0, &filter_1, &idx );
-	if (ret != MXL862XX_STATUS_OK) {
+	ret = __get_vlan_vid_filters_idx(priv, port, false, vid, &filter_0, &filter_1, &idx);
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	// Entry 0 : ACCEPT VLAN tags that are matching  VID. Outer and Inner tags are present
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -2163,9 +2201,8 @@ __prepare_vlan_egress_filters_off(struct mxl862xx_priv *priv, uint8_t port, uint
 			MXL862XX_EXTENDEDVLAN_TREATMENT_NOT_REMOVE_TAG;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	/* store VLAN filtering rules ID's (for VLAN delete, if needed) */
 	priv->port_info[port]
@@ -2194,9 +2231,8 @@ __prepare_vlan_egress_filters_off(struct mxl862xx_priv *priv, uint8_t port, uint
 			MXL862XX_EXTENDEDVLAN_TREATMENT_NOT_REMOVE_TAG;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	/* store VLAN filtering rules ID's (for VLAN delete, if needed) */
 	priv->port_info[port]
@@ -2214,7 +2250,7 @@ EXIT:
 
 
 static int
-__prepare_vlan_ingress_filters_off_sp_tag_no_vid(struct dsa_switch* ds, uint8_t port)
+__prepare_vlan_ingress_filters_off_sp_tag_no_vid(struct dsa_switch *ds, uint8_t port)
 {
 	struct mxl862xx_priv *priv = ds->priv;
 	int ret = -EINVAL;
@@ -2228,9 +2264,8 @@ __prepare_vlan_ingress_filters_off_sp_tag_no_vid(struct dsa_switch* ds, uint8_t 
 		/* Reserve fixed number of entries per port and direction */
 		vlan_alloc.number_of_entries = block_info->filters_max;
 		ret = mxl862xx_extended_vlan_alloc(&mxl_dev, &vlan_alloc);
-		if (ret != MXL862XX_STATUS_OK) {
+		if (ret != MXL862XX_STATUS_OK)
 			goto EXIT;
-		}
 
 		block_info->allocated =	true;
 		block_info->block_id = vlan_alloc.extended_vlan_block_id;
@@ -2263,7 +2298,7 @@ __prepare_vlan_ingress_filters_off_sp_tag_no_vid(struct dsa_switch* ds, uint8_t 
 		goto EXIT;
 	}
 
-	block_info->final_filters_idx = vlan_cfg.entry_index ;
+	block_info->final_filters_idx = vlan_cfg.entry_index;
 
 	// Static rules
 	// Single tag. Use transparent mode. Add sp tag
@@ -2292,7 +2327,7 @@ __prepare_vlan_ingress_filters_off_sp_tag_no_vid(struct dsa_switch* ds, uint8_t 
 		goto EXIT;
 	}
 
-	block_info->final_filters_idx = vlan_cfg.entry_index ;
+	block_info->final_filters_idx = vlan_cfg.entry_index;
 
 	// Two tags. Use transparent mode. Do not apply vid as this is tagged pkt
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -2320,14 +2355,14 @@ __prepare_vlan_ingress_filters_off_sp_tag_no_vid(struct dsa_switch* ds, uint8_t 
 		goto EXIT;
 	}
 
-	block_info->final_filters_idx = vlan_cfg.entry_index ;
+	block_info->final_filters_idx = vlan_cfg.entry_index;
 
 EXIT:
 	return ret;
 }
 
 static int
-__prepare_vlan_ingress_filters_off_sp_tag(struct dsa_switch* ds, uint8_t port, uint16_t vid)
+__prepare_vlan_ingress_filters_off_sp_tag(struct dsa_switch *ds, uint8_t port, uint16_t vid)
 {
 	struct mxl862xx_priv *priv = ds->priv;
 	int ret = -EINVAL;
@@ -2343,9 +2378,8 @@ __prepare_vlan_ingress_filters_off_sp_tag(struct dsa_switch* ds, uint8_t port, u
 		/* Reserve fixed number of entries per port and direction */
 		vlan_alloc.number_of_entries = block_info->filters_max;
 		ret = mxl862xx_extended_vlan_alloc(&mxl_dev, &vlan_alloc);
-		if (ret != MXL862XX_STATUS_OK) {
+		if (ret != MXL862XX_STATUS_OK)
 			goto EXIT;
-		}
 
 		block_info->allocated =	true;
 		block_info->block_id = vlan_alloc.extended_vlan_block_id;
@@ -2437,7 +2471,7 @@ __prepare_vlan_ingress_filters_off_sp_tag(struct dsa_switch* ds, uint8_t port, u
 			goto EXIT;
 		}
 
-		block_info->final_filters_idx = vlan_cfg.entry_index ;
+		block_info->final_filters_idx = vlan_cfg.entry_index;
 	}
 
 	// Static rules
@@ -2467,7 +2501,7 @@ __prepare_vlan_ingress_filters_off_sp_tag(struct dsa_switch* ds, uint8_t port, u
 		goto EXIT;
 	}
 
-	block_info->final_filters_idx = vlan_cfg.entry_index ;
+	block_info->final_filters_idx = vlan_cfg.entry_index;
 
 	// Two tags. Use transparent mode. Do not apply vid as this is tagged pkt
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -2495,7 +2529,7 @@ __prepare_vlan_ingress_filters_off_sp_tag(struct dsa_switch* ds, uint8_t port, u
 		goto EXIT;
 	}
 
-	block_info->final_filters_idx = vlan_cfg.entry_index ;
+	block_info->final_filters_idx = vlan_cfg.entry_index;
 
 EXIT:
 	return ret;
@@ -2516,9 +2550,8 @@ __prepare_vlan_ingress_filters_off(struct mxl862xx_priv *priv, uint8_t port, uin
 			priv->port_info[port]
 				.vlan.ingress_vlan_block_info.filters_max;
 		ret = mxl862xx_extended_vlan_alloc(&mxl_dev, &vlan_alloc);
-		if (ret != MXL862XX_STATUS_OK) {
+		if (ret != MXL862XX_STATUS_OK)
 			goto EXIT;
-		}
 
 		priv->port_info[port].vlan.ingress_vlan_block_info.allocated =
 			true;
@@ -2557,11 +2590,10 @@ __prepare_vlan_ingress_filters_off(struct mxl862xx_priv *priv, uint8_t port, uin
 	}
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
-	ret = __get_vlan_vid_filters_idx(priv, port, true, vid, NULL, NULL, &idx );
+	ret = __get_vlan_vid_filters_idx(priv, port, true, vid, NULL, NULL, &idx);
 	if (ret != MXL862XX_STATUS_OK) {
 		dev_err(priv->dev,
 			"%s: Port:%d couldn't get idx for VID:%d and  block ID:%d\n",
@@ -2576,7 +2608,7 @@ EXIT:
 	return ret;
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) > LINUX_VERSION_CODE)
 static int mxl862xx_port_vlan_prepare(struct dsa_switch *ds, int port,
 				    const struct switchdev_obj_port_vlan *vlan)
 {
@@ -2585,7 +2617,7 @@ static int mxl862xx_port_vlan_prepare(struct dsa_switch *ds, int port,
 }
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if (KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE)
 static int mxl862xx_port_vlan_filtering(struct dsa_switch *ds, int port,
 					bool vlan_filtering)
 #else
@@ -2597,29 +2629,27 @@ static int mxl862xx_port_vlan_filtering(struct dsa_switch *ds, int port,
 	int ret = 0;
 	struct mxl862xx_priv *priv = ds->priv;
 	struct dsa_port *dsa_port = dsa_to_port(ds, port);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,17,0))
+#if (KERNEL_VERSION(5, 17, 0) <= LINUX_VERSION_CODE)
 	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_port);
 #else
 	struct net_device *bridge;
+
 	if (dsa_port)
 		bridge = dsa_port->bridge_dev;
-	else {
+	else
 		return -EINVAL;
-	}
 #endif
 
 	/* Prevent dynamic setting of the vlan_filtering. */
 	if (bridge && priv->port_info[port].vlan.filtering_mode_locked) {
 		ret = -ENOTSUPP;
-		dev_err(ds->dev, "%s: Change of vlan_filtering mode is not allowed while port:%d"
-				" is joined to a bridge\n",	__func__, port);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
-				NL_SET_ERR_MSG_MOD(extack, "Change of vlan_filtering mode is not allowed"
-						"while port is joind to a bridge.");
+		dev_err(ds->dev, "%s: Change of vlan_filtering mode is not allowed while port:%d is joined to a bridge\n",
+				__func__, port);
+#if (KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE)
+				NL_SET_ERR_MSG_MOD(extack, "Change of vlan_filtering mode is not allowedwhile port is joind to a bridge.");
 #endif
 
-	}
-	else {
+	} else {
 		priv->port_info[port].vlan.filtering = vlan_filtering;
 		/* Do not lock if port is isolated. */
 		if (!priv->port_info[port].isolated)
@@ -2649,11 +2679,10 @@ __prepare_vlan_egress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid,
 		/* Reserve fixed number of entries per port and direction */
 		vlan_alloc.number_of_entries = block_info->filters_max;
 		ret = mxl862xx_extended_vlan_alloc(&mxl_dev, &vlan_alloc);
-		if (ret != MXL862XX_STATUS_OK) {
+		if (ret != MXL862XX_STATUS_OK)
 			goto EXIT;
-		}
 
-		block_info->allocated =	true;
+		block_info->allocated = true;
 		block_info->block_id = vlan_alloc.extended_vlan_block_id;
 	}
 
@@ -2672,9 +2701,8 @@ __prepare_vlan_egress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid,
 		MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	//Entry 3: Only Outer tag present. Discard if VID is not matching the previous rules
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -2686,9 +2714,8 @@ __prepare_vlan_egress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid,
 		MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	//Entry 2: Outer and Inner tags are present. Discard if VID is not matching the previous rules
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -2700,16 +2727,14 @@ __prepare_vlan_egress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid,
 		MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	/* VID specific entries must be processed before the final entries,
 	 * so putting them at the beginnig of the block */
-	ret = __get_vlan_vid_filters_idx(priv, port, false, vid, &filter_0, &filter_1, &idx );
-	if (ret != MXL862XX_STATUS_OK) {
+	ret = __get_vlan_vid_filters_idx(priv, port, false, vid, &filter_0, &filter_1, &idx);
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	// Entry 0 : ACCEPT VLAN tags that are matching  VID. Outer and Inner tags are present
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -2730,9 +2755,8 @@ __prepare_vlan_egress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid,
 			MXL862XX_EXTENDEDVLAN_TREATMENT_NOT_REMOVE_TAG;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	/* store VLAN filtering rules ID's (for VLAN delete, if needed) */
 	block_info->vlans[idx].filters_idx[0] = vlan_cfg.entry_index;
@@ -2755,9 +2779,8 @@ __prepare_vlan_egress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid,
 			MXL862XX_EXTENDEDVLAN_TREATMENT_NOT_REMOVE_TAG;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	/* store VLAN filtering rules ID's (for VLAN delete, if needed) */
 	block_info->vlans[idx].filters_idx[1] = vlan_cfg.entry_index;
@@ -2828,7 +2851,7 @@ __prepare_vlan_egress_filters_sp_tag(struct dsa_switch *ds, uint8_t port, uint16
 		}
 
 		priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx =
-			vlan_cfg.entry_index ;
+			vlan_cfg.entry_index;
 	}
 
 	//Entry 3: there is any other inner tag -> discard upstream traffic
@@ -2850,7 +2873,7 @@ __prepare_vlan_egress_filters_sp_tag(struct dsa_switch *ds, uint8_t port, uint16
 	}
 
 	priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx =
-		vlan_cfg.entry_index ;
+		vlan_cfg.entry_index;
 
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
 	vlan_cfg.extended_vlan_block_id =
@@ -2870,11 +2893,11 @@ __prepare_vlan_egress_filters_sp_tag(struct dsa_switch *ds, uint8_t port, uint16
 		goto EXIT;
 	}
 
-	priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index ;
+	priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
 
 	/* VID specific entries must be processed before the final entries,
 	 * so putting them at the beginnig of the block */
-	ret = __get_vlan_vid_filters_idx(priv, port, false, vid, &filter_0, &filter_1, &idx );
+	ret = __get_vlan_vid_filters_idx(priv, port, false, vid, &filter_0, &filter_1, &idx);
 	if (ret != MXL862XX_STATUS_OK) {
 		dev_err(priv->dev,
 			"%s: Port:%d couldn't get idx for VID specific filters for VID:%d and  block ID:%d\n",
@@ -2903,8 +2926,7 @@ __prepare_vlan_egress_filters_sp_tag(struct dsa_switch *ds, uint8_t port, uint16
 	if (untagged) {
 		vlan_cfg.treatment.remove_tag =
 			MXL862XX_EXTENDEDVLAN_TREATMENT_REMOVE_2_TAG;
-	}
-	else {
+	} else {
 		vlan_cfg.treatment.remove_tag =
 			MXL862XX_EXTENDEDVLAN_TREATMENT_REMOVE_1_TAG;
 	}
@@ -2983,7 +3005,7 @@ __prepare_vlan_egress_filters_off_sp_tag_cpu(struct dsa_switch *ds, uint8_t cpu_
 		goto EXIT;
 	}
 
-	block_info->final_filters_idx = vlan_cfg.entry_index ;
+	block_info->final_filters_idx = vlan_cfg.entry_index;
 
 	// Entry last : Outer tag is present.
 	// Transparent mode, no tag modifications
@@ -3004,7 +3026,7 @@ __prepare_vlan_egress_filters_off_sp_tag_cpu(struct dsa_switch *ds, uint8_t cpu_
 		goto EXIT;
 	}
 
-	block_info->final_filters_idx = vlan_cfg.entry_index ;
+	block_info->final_filters_idx = vlan_cfg.entry_index;
 
 EXIT:
 	return ret;
@@ -3048,10 +3070,10 @@ __prepare_vlan_egress_filters_sp_tag_cpu(struct dsa_switch *ds, uint8_t cpu_port
 
 	/* VID specific entries must be processed before the final entries,
 	 * so putting them at the beginnig of the block */
-	ret = __get_vlan_vid_filters_idx(priv, cpu_port, false, vid, &filter_0, &filter_1, &idx );
-	if (ret != MXL862XX_STATUS_OK) {
+	ret = __get_vlan_vid_filters_idx(priv, cpu_port, false, vid, &filter_0, &filter_1, &idx);
+
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	// Entry 0 : Outer and Inner tags are present. If user port is untagged
 	// remove inner tag if the outer tag is matching the user port
@@ -3132,9 +3154,8 @@ __prepare_vlan_ingress_filters_sp_tag(struct dsa_switch *ds, uint8_t port, uint1
 				.vlan.ingress_vlan_block_info.filters_max;
 		ret = mxl862xx_extended_vlan_alloc(&mxl_dev, &vlan_alloc);
 
-		if (ret != MXL862XX_STATUS_OK) {
+		if (ret != MXL862XX_STATUS_OK)
 			goto EXIT;
-		}
 
 		priv->port_info[port].vlan.ingress_vlan_block_info.allocated =
 			true;
@@ -3158,11 +3179,10 @@ __prepare_vlan_ingress_filters_sp_tag(struct dsa_switch *ds, uint8_t port, uint1
 		MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
-	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index ;
+	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
 
 	//Entry 5 no other rule applies Outer tag default Inner tag  present DISCARD
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -3176,11 +3196,10 @@ __prepare_vlan_ingress_filters_sp_tag(struct dsa_switch *ds, uint8_t port, uint1
 		MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
-	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index ;
+	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
 
 	// Entry 4  untagged pkts. If there's PVID accept and add PVID tag, otherwise reject
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -3228,7 +3247,7 @@ __prepare_vlan_ingress_filters_sp_tag(struct dsa_switch *ds, uint8_t port, uint1
 	}
 
 	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx =
-		vlan_cfg.entry_index ;
+		vlan_cfg.entry_index;
 
 	// Entry 3 : Only Outer tag present : not matching  DISCARD
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -3250,7 +3269,7 @@ __prepare_vlan_ingress_filters_sp_tag(struct dsa_switch *ds, uint8_t port, uint1
 	}
 
 	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx =
-		vlan_cfg.entry_index ;
+		vlan_cfg.entry_index;
 
 	// Entry 2 : Outer and Inner VLAN tag present : not matching  DISCARD
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -3272,12 +3291,12 @@ __prepare_vlan_ingress_filters_sp_tag(struct dsa_switch *ds, uint8_t port, uint1
 		goto EXIT;
 	}
 
-	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index ;
+	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
 
 	/* VID specific filtering rules which should be executed first before final ones.
 	 * Storing starts at the beginning of the block. */
 
-	ret = __get_vlan_vid_filters_idx(priv, port, true, vid, &filter_0, &filter_1, &idx );
+	ret = __get_vlan_vid_filters_idx(priv, port, true, vid, &filter_0, &filter_1, &idx);
 	if (ret != MXL862XX_STATUS_OK) {
 		dev_err(priv->dev,
 			"%s: Port:%d couldn't get idx for VID specific filters for VID:%d and  block ID:%d\n",
@@ -3402,7 +3421,7 @@ __prepare_vlan_ingress_filters_sp_tag_cpu(struct dsa_switch *ds, uint8_t port, u
 
 	/* VID specific filtering rules which should be executed first before final ones.
 	 * Storing starts at the beginning of the block. */
-	ret = __get_vlan_vid_filters_idx(priv, cpu_port, true, vid, &filter_0, &filter_1, &idx );
+	ret = __get_vlan_vid_filters_idx(priv, cpu_port, true, vid, &filter_0, &filter_1, &idx);
 	if (ret != MXL862XX_STATUS_OK) {
 		dev_err(priv->dev,
 			"%s: Port:%d couldn't get idx for VID specific filters for VID:%d and  block ID:%d\n",
@@ -3472,7 +3491,7 @@ __prepare_vlan_ingress_filters_sp_tag_cpu(struct dsa_switch *ds, uint8_t port, u
 		.vlan.ingress_vlan_block_info.vlans[idx]
 		.filters_idx[1] = vlan_cfg.entry_index;
 
-	priv->port_info[cpu_port].vlan.ingress_vlan_block_info.vlans[idx].vid =vid;
+	priv->port_info[cpu_port].vlan.ingress_vlan_block_info.vlans[idx].vid = vid;
 	priv->port_info[cpu_port].vlan.ingress_vlan_block_info.vlans[idx].used = true;
 
 EXIT:
@@ -3588,9 +3607,8 @@ __prepare_vlan_ingress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid
 	}
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	// Entry 3 : Only Outer tag present : not matching  DISCARD
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -3605,9 +3623,8 @@ __prepare_vlan_ingress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid
 		MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	// Entry 2 : Outer and Inner VLAN tag present : not matching  DISCARD
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -3623,17 +3640,15 @@ __prepare_vlan_ingress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid
 		MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	/* VID specific filtering rules which should be executed first before final ones.
 	 * Storing starts at the beginning of the block. */
 
-	ret = __get_vlan_vid_filters_idx(priv, port, true, vid, &filter_0, &filter_1, &idx );
-	if (ret != MXL862XX_STATUS_OK) {
+	ret = __get_vlan_vid_filters_idx(priv, port, true, vid, &filter_0, &filter_1, &idx);
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	// Entry 0 : Outer and Inner VLAN tag present :  matching  ACCEPT
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
@@ -3653,9 +3668,8 @@ __prepare_vlan_ingress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid
 		MXL862XX_EXTENDEDVLAN_TREATMENT_NOT_REMOVE_TAG;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	/* store VLAN filtering rules ID's (for VLAN delete, if needed) */
 	priv->port_info[port]
@@ -3680,9 +3694,8 @@ __prepare_vlan_ingress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid
 		MXL862XX_EXTENDEDVLAN_TREATMENT_NOT_REMOVE_TAG;
 
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
-	if (ret != MXL862XX_STATUS_OK) {
+	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
-	}
 
 	/* store VLAN filtering rules ID's (for VLAN delete, if needed) */
 	priv->port_info[port]
@@ -3696,7 +3709,7 @@ EXIT:
 	return ret;
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) > LINUX_VERSION_CODE)
 static void mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 				  const struct switchdev_obj_port_vlan *vlan)
 #else
@@ -3713,7 +3726,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 	uint8_t cpu_port = priv->hw_info->cpu_port;
 	bool vlan_sp_tag = (priv->port_info[cpu_port].tag_protocol == DSA_TAG_PROTO_MXL862_8021Q);
 	bool standalone_port = false;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) > LINUX_VERSION_CODE)
 	uint16_t vid = vlan->vid_begin;
 #else
 	uint16_t vid = vlan->vid;
@@ -3721,7 +3734,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 
 	if (port < 0 || port >= MAX_PORTS) {
 		dev_err(priv->dev, "invalid port: %d\n", port);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 		NL_SET_ERR_MSG_MOD(extack, "Port out of range");
 #endif
 		goto EXIT;
@@ -3729,7 +3742,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 
 	if (!((struct dsa_port *)dsa_to_port(ds, port))) {
 		dev_err(ds->dev, "%s:  port:%d is out of DSA domain\n", __func__, port);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 		NL_SET_ERR_MSG_MOD(extack, "Port out of DSA domain");
 #endif
 		goto EXIT;
@@ -3739,9 +3752,8 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 	if ((priv->port_info[port].bridge == NULL) && (!dsa_is_cpu_port(ds, port)))
 		standalone_port = true;
 
-	if (vid == 0) {
+	if (vid == 0)
 		goto EXIT;
-	}
 
 	/* If this is request to set pvid, just overwrite it as there may be
 	 * only one pid per port */
@@ -3757,17 +3769,16 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 	/* Check if there's enough room for ingress and egress rules */
 	if ((priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx -
 			priv->port_info[port].vlan.ingress_vlan_block_info.vid_filters_idx) <
-			(priv->port_info[port].vlan.ingress_vlan_block_info.entries_per_vlan )) {
+			(priv->port_info[port].vlan.ingress_vlan_block_info.entries_per_vlan)) {
 
 		dev_err(ds->dev,
-			"%s: Port:%d vlan:%d. Number of avaliable ingress entries too low."
-			" Required:%d  ff_idx:%d vf_idx:%d .\n",
+			"%s: Port:%d vlan:%d. Number of avaliable ingress entries too low. Required:%d  ff_idx:%d vf_idx:%d .\n",
 			__func__, port, vid,
 			priv->port_info[port].vlan.ingress_vlan_block_info.entries_per_vlan,
 			priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx,
 			priv->port_info[port].vlan.ingress_vlan_block_info.vid_filters_idx);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 		ret = -ENOSPC;
 		NL_SET_ERR_MSG_MOD(extack, "Reached max number of VLAN ingress filter entries per port");
 #endif
@@ -3776,17 +3787,16 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 
 	if ((priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx -
 			priv->port_info[port].vlan.egress_vlan_block_info.vid_filters_idx) <
-			(priv->port_info[port].vlan.egress_vlan_block_info.entries_per_vlan )) {
+			(priv->port_info[port].vlan.egress_vlan_block_info.entries_per_vlan)) {
 
 		dev_err(ds->dev,
-			"%s: Port:%d vlan:%d. Number of avaliable egress entries too low."
-			" Required:%d  ff_idx:%d vf_idx:%d .\n",
+			"%s: Port:%d vlan:%d. Number of avaliable egress entries too low. Required:%d  ff_idx:%d vf_idx:%d .\n",
 			__func__, port, vid,
 			priv->port_info[port].vlan.egress_vlan_block_info.entries_per_vlan,
 			priv->port_info[port].vlan.egress_vlan_block_info.final_filters_idx,
 			priv->port_info[port].vlan.egress_vlan_block_info.vid_filters_idx);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 		ret = -ENOSPC;
 		NL_SET_ERR_MSG_MOD(extack, "Reached max number of VLAN egress filter entries per port");
 #endif
@@ -3803,7 +3813,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 				dev_err(ds->dev,
 					"%s: Port:%d failed to prepare ingress filters for VLAN:%d with vlan_filtering disabled\n",
 					__func__, port, vid);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 				NL_SET_ERR_MSG_MOD(extack, "Failed to prepare ingress filters with vlan_filtering disabled");
 #endif
 				goto EXIT;
@@ -3813,7 +3823,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 				dev_err(ds->dev,
 					"%s: Port:%d failed to prepare egress filters for VLAN:%d with vlan_filtering disabled\n",
 					__func__, cpu_port, vid);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 				NL_SET_ERR_MSG_MOD(extack, "Failed to prepare egress filters with vlan_filtering disabled");
 #endif
 				goto EXIT;
@@ -3829,7 +3839,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 					dev_err(ds->dev,
 						"%s: Port:%d failed to prepare ingress filters for VLAN:%d with vlan_filtering disabled\n",
 						__func__, port, vid);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 					NL_SET_ERR_MSG_MOD(extack, "Failed to prepare ingress filters with vlan_filtering disabled");
 #endif
 					goto EXIT;
@@ -3840,7 +3850,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 					dev_err(ds->dev,
 						"%s: Port:%d failed to prepare egress filters for VLAN:%d with vlan_filtering disabled\n",
 						__func__, port, vid);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 					NL_SET_ERR_MSG_MOD(extack, "Failed to prepare egress filters with vlan_filtering disabled");
 #endif
 					goto EXIT;
@@ -3855,7 +3865,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 					dev_err(ds->dev,
 						"%s: Port:%d failed to prepare ingress filters for VLAN:%d\n",
 						__func__, port, vid);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 					NL_SET_ERR_MSG_MOD(extack, "Failed to prepare ingress filters for VLAN");
 #endif
 					goto EXIT;
@@ -3866,14 +3876,13 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 					dev_err(ds->dev,
 						"%s: Port:%d failed to prepare egress filters for VLAN:%d\n",
 						__func__, port, vid);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 					NL_SET_ERR_MSG_MOD(extack, "Failed to prepare egress filters for VLAN");
 #endif
 					goto EXIT;
 				}
 			}
-		}
-		else {
+		} else {
 			/* CPU port. This else block handles explicit request for adding
 			 * VLAN to CPU port. Only egress rule requires reconfiguration.*/
 			ret = __prepare_vlan_egress_filters_sp_tag_cpu(ds, cpu_port, vid, untagged);
@@ -3881,7 +3890,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 				dev_err(ds->dev,
 					"%s: Port:%d failed to prepare egress filters for VLAN:%d with vlan_filtering disabled\n",
 					__func__, cpu_port, vid);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 				NL_SET_ERR_MSG_MOD(extack, "Failed to prepare egress filters with vlan_filtering disabled");
 #endif
 				goto EXIT;
@@ -3894,6 +3903,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 			so they need to be reloaded */
 		{
 			mxl862xx_ctp_port_config_t ctp_param = { 0 };
+
 			ctp_param.logical_port_id = cpu_port + 1;
 			ctp_param.mask = MXL862XX_CTP_PORT_CONFIG_MASK_EGRESS_VLAN |
 					     MXL862XX_CTP_PORT_CONFIG_MASK_INGRESS_VLAN;
@@ -3909,7 +3919,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 				dev_err(ds->dev,
 					"%s: CTP port %d config failed on port config set with %d\n",
 					__func__, cpu_port, ret);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 				NL_SET_ERR_MSG_MOD(extack, "Failed to configure VLAN for cpu port");
 #endif
 				goto EXIT;
@@ -3927,7 +3937,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 				dev_err(ds->dev,
 					"%s: Port:%d failed to prepare ingress filters for VLAN:%d with vlan_filtering disabled\n",
 					__func__, port, vid);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 				NL_SET_ERR_MSG_MOD(extack, "Failed to prepare ingress filters with vlan_filtering disabled");
 #endif
 				goto EXIT;
@@ -3938,7 +3948,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 				dev_err(ds->dev,
 					"%s: Port:%d failed to prepare egress filters for VLAN:%d with vlan_filtering disabled\n",
 					__func__, port, vid);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 				NL_SET_ERR_MSG_MOD(extack, "Failed to prepare egress filters with vlan_filtering disabled");
 #endif
 				goto EXIT;
@@ -3951,7 +3961,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 				dev_err(ds->dev,
 					"%s: Port:%d failed to prepare ingress filters for VLAN:%d\n",
 					__func__, port, vid);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 				NL_SET_ERR_MSG_MOD(extack, "Failed to prepare ingress filters for VLAN");
 #endif
 				goto EXIT;
@@ -3961,7 +3971,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 				dev_err(ds->dev,
 					"%s: Port:%d failed to prepare egress filters for VLAN:%d\n",
 					__func__, port, vid);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 				NL_SET_ERR_MSG_MOD(extack, "Failed to prepare egress filters for VLAN");
 #endif
 				goto EXIT;
@@ -3969,9 +3979,9 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 		}
 
 		/* CPU port is explicitely added by the DSA framework to new vlans */
-		if (dsa_is_cpu_port(ds, port))
-		{
+		if (dsa_is_cpu_port(ds, port)) {
 			mxl862xx_ctp_port_config_t ctp_param = { 0 };
+
 			ctp_param.logical_port_id = port + 1;
 			ctp_param.mask = MXL862XX_CTP_PORT_CONFIG_MASK_EGRESS_VLAN |
 					     MXL862XX_CTP_PORT_CONFIG_MASK_INGRESS_VLAN;
@@ -3987,7 +3997,7 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 				dev_err(ds->dev,
 					"%s: CTP port %d config failed on port config set with %d\n",
 					__func__, port, ret);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 				NL_SET_ERR_MSG_MOD(extack, "Failed to configure VLAN for cpu port");
 #endif
 				goto EXIT;
@@ -4018,14 +4028,14 @@ static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
 		dev_err(ds->dev,
 			"%s: Bridge port configuration for port %d failed with %d\n",
 			__func__, port, ret);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 		NL_SET_ERR_MSG_MOD(extack, "Bridge port configuration for VLAN failed");
 #endif
 		goto EXIT;
 	}
 
 EXIT:
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) <= LINUX_VERSION_CODE)
 	return ret;
 #else
 	return;
@@ -4074,7 +4084,7 @@ static int mxl862xx_port_vlan_del(struct dsa_switch *ds, int port,
 	int ret = -EINVAL;
 	int dir;
 	struct mxl862xx_priv *priv = ds->priv;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) > LINUX_VERSION_CODE)
 	uint16_t vid = vlan->vid_begin;
 #else
 	uint16_t vid = vlan->vid;
@@ -4083,7 +4093,7 @@ static int mxl862xx_port_vlan_del(struct dsa_switch *ds, int port,
 	for (dir = 0 ; dir < 2 ; dir++) {
 		struct mxl862xx_extended_vlan_block_info *block_info = (dir == 0)
 			? &priv->port_info[port].vlan.ingress_vlan_block_info
-			: &priv->port_info[port].vlan.egress_vlan_block_info ;
+			: &priv->port_info[port].vlan.egress_vlan_block_info;
 		char *dir_txt = (dir == 0)	? "ingress" : "egress";
 		int16_t entry_idx;
 		int vlan_idx, x;
@@ -4096,7 +4106,7 @@ static int mxl862xx_port_vlan_del(struct dsa_switch *ds, int port,
 		/* check if vlan is present */
 		for (vlan_idx = 0; vlan_idx < MAX_VLANS; vlan_idx++) {
 			if ((block_info->vlans[vlan_idx].vid == vid)
-					&& block_info->vlans[vlan_idx].used) 
+					&& block_info->vlans[vlan_idx].used)
 				vlan_found = true;
 
 			if (vlan_idx == MAX_VLANS - 1)
@@ -4116,9 +4126,8 @@ static int mxl862xx_port_vlan_del(struct dsa_switch *ds, int port,
 			entry_idx = block_info->vlans[vlan_idx].filters_idx[x];
 			if (entry_idx != IDX_INVAL) {
 				ret = __deactivate_vlan_filter_entry(block_id, entry_idx);
-				if (ret != MXL862XX_STATUS_OK) {
+				if (ret != MXL862XX_STATUS_OK)
 					goto EXIT;
-				}
 			}
 		}
 
@@ -4167,7 +4176,7 @@ EXIT:
 	return ret;
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
+#if (KERNEL_VERSION(5, 18, 0) > LINUX_VERSION_CODE)
 static int mxl862xx_port_fdb_add(struct dsa_switch *ds, int port,
 				 const unsigned char *addr, u16 vid)
 #else
@@ -4191,6 +4200,10 @@ static int mxl862xx_port_fdb_add(struct dsa_switch *ds, int port,
 
 		if (!(dsa_is_cpu_port(ds, port)))
 			i = port;
+		/* Bypass entry add for the isolated port as it may turn back
+		 * the traffic originated on the host to the cpu port */
+		if (priv->port_info[i].isolated)
+			continue;
 
 		mac_table_add.fid = priv->port_info[i].bridgeID;
 		ret = mxl862xx_mac_table_entry_add(&mxl_dev, &mac_table_add);
@@ -4200,15 +4213,15 @@ static int mxl862xx_port_fdb_add(struct dsa_switch *ds, int port,
 			goto EXIT;
 		}
 
-	   if (!(dsa_is_cpu_port(ds, port)))
-			break;
+	if (!(dsa_is_cpu_port(ds, port)))
+		break;
 	}
 
 EXIT:
 	return ret;
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
+#if (KERNEL_VERSION(5, 18, 0) > LINUX_VERSION_CODE)
 static int mxl862xx_port_fdb_del(struct dsa_switch *ds, int port,
 				 const unsigned char *addr, u16 vid)
 #else
@@ -4227,7 +4240,7 @@ static int mxl862xx_port_fdb_del(struct dsa_switch *ds, int port,
 	/* For CPU port remove entries corresponding to all FIDs */
 	for (i = 0; i < priv->hw_info->phy_ports; i++) {
 		if (!(dsa_is_cpu_port(ds, port)))
-			i = port ;
+			i = port;
 		mac_table_remove.fid = priv->port_info[i].bridgeID;
 		ret = mxl862xx_mac_table_entry_remove(&mxl_dev, &mac_table_remove);
 		if (ret != MXL862XX_STATUS_OK) {
@@ -4275,14 +4288,13 @@ EXIT:
 	return ret;
 }
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(5, 11, 0))
-static int mxl862xx_port_pre_bridge_flags (struct dsa_switch *ds, int port,
+#if (KERNEL_VERSION(5, 11, 0) < LINUX_VERSION_CODE)
+static int mxl862xx_port_pre_bridge_flags(struct dsa_switch *ds, int port,
 	struct switchdev_brport_flags flags, struct netlink_ext_ack *extack)
 {
 	int ret = 0;
 
-	if (flags.mask & ~(BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD |BR_LEARNING))
-	{
+	if (flags.mask & ~(BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD | BR_LEARNING)) {
 		dev_err(ds->dev, "%s: Port:%d unsupported bridge flags:0x%lx\n",
 				__func__, port, flags.mask);
 		if (flags.mask & ~(BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD | BR_LEARNING)) {
@@ -4295,15 +4307,15 @@ static int mxl862xx_port_pre_bridge_flags (struct dsa_switch *ds, int port,
 }
 
 
-static int mxl862xx_port_bridge_flags (struct dsa_switch *ds, int port,
-   struct switchdev_brport_flags flags, struct netlink_ext_ack *extack)
+static int mxl862xx_port_bridge_flags(struct dsa_switch *ds, int port,
+	struct switchdev_brport_flags flags, struct netlink_ext_ack *extack)
 {
 	int ret = 0;
 	uint16_t bridge_id;
 	struct mxl862xx_priv *priv = ds->priv;
 	bool bridge_ctx = true;
 
-   if (!dsa_is_user_port(ds, port))
+	if (!dsa_is_user_port(ds, port))
 		return 0;
 
 	/* .port_pre_bridge_flags is called after this function,
@@ -4318,13 +4330,13 @@ static int mxl862xx_port_bridge_flags (struct dsa_switch *ds, int port,
 	}
 
 	bridge_id = priv->port_info[port].bridgeID;
-	if ((bridge_id == 0) || (priv->port_info[port].bridge == NULL)) {
+	if ((bridge_id == 0) || (priv->port_info[port].bridge == NULL))
 		bridge_ctx = false;
-	}
 
 	/* Handle flooding flags (bridge context) */
 	if (bridge_ctx && (flags.mask & (BR_FLOOD|BR_MCAST_FLOOD|BR_BCAST_FLOOD))) {
-		mxl862xx_bridge_config_t bridge_config = { 0 } ;
+		mxl862xx_bridge_config_t bridge_config = { 0 };
+
 		bridge_config.mask = MXL862XX_BRIDGE_CONFIG_MASK_FORWARDING_MODE;
 		bridge_config.bridge_id = bridge_id;
 
@@ -4342,7 +4354,7 @@ static int mxl862xx_port_bridge_flags (struct dsa_switch *ds, int port,
 
 		ret = mxl862xx_bridge_config_set(&mxl_dev, &bridge_config);
 		if (ret != MXL862XX_STATUS_OK) {
-			dev_err(ds->dev,"%s: Port:%d bridge:%d configuration  failed\n",
+			dev_err(ds->dev, "%s: Port:%d bridge:%d configuration  failed\n",
 				__func__, port, bridge_config.bridge_id);
 			NL_SET_ERR_MSG_MOD(extack, "Configuration of bridge flooding flags failed");
 			goto EXIT;
@@ -4351,6 +4363,7 @@ static int mxl862xx_port_bridge_flags (struct dsa_switch *ds, int port,
 	/* Handle learning flag (bridge port context) */
 	if (flags.mask & BR_LEARNING) {
 		mxl862xx_bridge_port_config_t br_port_cfg = { 0 };
+
 		br_port_cfg.mask =	MXL862XX_BRIDGE_PORT_CONFIG_MASK_MC_SRC_MAC_LEARNING;
 		br_port_cfg.bridge_port_id = port + 1;
 		br_port_cfg.src_mac_learning_disable = (flags.val & BR_LEARNING) ? false : true;
@@ -4369,146 +4382,8 @@ EXIT:
 }
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0) && \
-	 LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
-static int mxl862xx_port_mdb_add (struct dsa_switch *ds, int port,
-	const struct switchdev_obj_port_mdb *mdb)
-#elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0))
-void mxl862xx_port_mdb_add (struct dsa_switch *ds, int port,
-	const struct switchdev_obj_port_mdb *mdb)
-#else
-static int mxl862xx_port_mdb_add (struct dsa_switch *ds, int port,
-	const struct switchdev_obj_port_mdb *mdb, struct dsa_db db)
-#endif
-{
-	int ret = -EINVAL;
-	uint8_t i;
-	struct mxl862xx_priv *priv = ds->priv;
-	mxl862xx_mac_table_add_t mac_table_add = { 0 };
-
-	memcpy(mac_table_add.mac, mdb->addr, ETH_ALEN);
-	mac_table_add.port_id |= BIT(31);
-	mac_table_add.port_map[0] |= BIT(port + 1) ;
-	mac_table_add.tci = (mdb->vid & 0xFFF);
-	mac_table_add.static_entry = true;
-
-	mac_table_add.fid = priv->port_info[port].bridgeID;
-
-	for(i = 0; i <= 1; i++) {
-		for (;;) {
-			mxl862xx_mac_table_read_t mac_table_read = { 0 };
-			/* 1st pass: read single port MAC entries
-			 * 2nd pass: read MAP type MAC entries */
-			mac_table_read.port_id = i ? BIT(31) : 0;
-
-			ret = mxl862xx_mac_table_entry_read(&mxl_dev, &mac_table_read);
-			if (ret != MXL862XX_STATUS_OK) {
-				dev_err(ds->dev,
-					"%s: Port:%d failed to read MAC table entry\n",
-					__func__, port);
-				goto EXIT;
-			}
-
-			if (mac_table_read.last == 1)
-				break;
-
-			if ((memcmp(mac_table_read.mac, mac_table_add.mac, ETH_ALEN) == 0) &&
-				 (mac_table_read.tci == mac_table_add.tci) &&
-				 (mac_table_read.fid == mac_table_add.fid) &&
-				 (mac_table_read.static_entry == mac_table_add.static_entry))
-			{
-				mac_table_add.port_map[0] |= mac_table_read.port_map[0];
-				break;
-			}
-		}
-	}
-
-	ret = mxl862xx_mac_table_entry_add(&mxl_dev, &mac_table_add);
-	if (ret != MXL862XX_STATUS_OK) {
-		dev_err(ds->dev, "%s: Port:%d failed to add MAC table entry for FID:%d\n",
-			__func__, port, mac_table_add.fid);
-		goto EXIT;
-	}
-
-EXIT:
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0))
-	return ret;
-#else
-	return;
-#endif
-}
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
-static int mxl862xx_port_mdb_del (struct dsa_switch *ds, int port,
-	const struct switchdev_obj_port_mdb *mdb)
-#else
-static int mxl862xx_port_mdb_del (struct dsa_switch *ds, int port,
-	const struct switchdev_obj_port_mdb *mdb, struct dsa_db db)
-#endif
-{
-	int ret = -EINVAL;
-	struct mxl862xx_priv *priv = ds->priv;
-	mxl862xx_mac_table_add_t mac_table_add = { 0 };
-	mxl862xx_mac_table_remove_t mac_table_remove = { 0 };
-
-	/* Check both types of entries: MAP and single port */
-	/* If MAP entry found, unset the corresponding bit */
-	for (;;) {
-		mxl862xx_mac_table_read_t mac_table_read = { 0 };
-		mac_table_read.port_id = BIT(31);
-
-		ret = mxl862xx_mac_table_entry_read(&mxl_dev, &mac_table_read);
-		if (ret != MXL862XX_STATUS_OK) {
-			dev_err(ds->dev,
-				"%s: Port:%d failed to read MAC table entry\n",
-				__func__, port);
-			goto EXIT;
-		}
-
-		if (mac_table_read.last == 1)
-			break;
-
-		if ((memcmp(mac_table_read.mac, mdb->addr, ETH_ALEN) == 0) &&
-			 (mac_table_read.tci == (mdb->vid & 0xFFF)) &&
-			 (mac_table_read.fid == (priv->port_info[port].bridgeID)))
-		{
-			memcpy(mac_table_add.mac, mdb->addr, ETH_ALEN);
-			mac_table_add.port_id = BIT(31);
-			memcpy(mac_table_add.mac, mac_table_read.mac, ETH_ALEN);
-			mac_table_add.port_map[0] = mac_table_read.port_map[0];
-			/* unset the port bit */
-			mac_table_add.port_map[0]  &= ~(BIT(port+1));
-			mac_table_add.tci = mac_table_read.tci;
-			mac_table_add.static_entry = mac_table_read.static_entry;
-			mac_table_add.fid = mac_table_read.fid;
-
-			ret = mxl862xx_mac_table_entry_add(&mxl_dev, &mac_table_add);
-			if (ret != MXL862XX_STATUS_OK) {
-				dev_err(ds->dev, "%s: Port:%d failed to add MAC table entry for FID:%d\n",
-				__func__, port, mac_table_add.fid);
-			}
-			goto EXIT;
-		}
-	}
-
-	/* If the entry is of the port type, remove it. */
-	memcpy(mac_table_remove.mac, mdb->addr, ETH_ALEN);
-	mac_table_remove.tci = (mdb->vid & 0xFFF);
-	mac_table_remove.fid = priv->port_info[port].bridgeID;
-
-	ret = mxl862xx_mac_table_entry_remove(&mxl_dev, &mac_table_remove);
-	if (ret != MXL862XX_STATUS_OK) {
-		dev_err(ds->dev, "%s: Port:%d failed to remove MAC table entry for FID:%d\n",
-			__func__, port, mac_table_remove.fid);
-		goto EXIT;
-	}
-
-EXIT:
-	return ret;
-}
-
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(5, 11, 0))
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 19, 0))
+#if (KERNEL_VERSION(5, 11, 0) < LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(5, 19, 0) > LINUX_VERSION_CODE)
 static int mxl862xx_change_tag_protocol(struct dsa_switch *ds, int port,
 				     enum dsa_tag_protocol proto)
 #else
@@ -4517,12 +4392,13 @@ static int mxl862xx_change_tag_protocol(struct dsa_switch *ds,
 #endif
 {
 	int ret = MXL862XX_STATUS_OK;
+
 	dev_info(ds->dev, "%s: DSA tag protocol change not supported\n",  __func__);
 	return ret;
 }
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0))
+#if (KERNEL_VERSION(5, 6, 0) > LINUX_VERSION_CODE)
 static enum dsa_tag_protocol mxl862xx_get_tag_protocol(struct dsa_switch *ds,
 						       int port)
 #else
@@ -4531,6 +4407,7 @@ static enum dsa_tag_protocol mxl862xx_get_tag_protocol(struct dsa_switch *ds,
 #endif
 {
 	enum dsa_tag_protocol tag_proto;
+
 	tag_proto = __dt_parse_tag_proto(ds, port);
 
 	return tag_proto;
@@ -4540,19 +4417,21 @@ static const struct dsa_switch_ops mxl862xx_switch_ops = {
 	.get_ethtool_stats = mxl862xx_get_ethtool_stats,
 	.get_strings = mxl862xx_get_strings,
 	.get_sset_count = mxl862xx_get_sset_count,
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(5, 11, 0))
+#if (KERNEL_VERSION(5, 11, 0) < LINUX_VERSION_CODE)
 	.change_tag_protocol	= mxl862xx_change_tag_protocol,
 #endif
 	.get_tag_protocol = mxl862xx_get_tag_protocol,
 	.phy_read = mxl862xx_phy_read,
 	.phy_write = mxl862xx_phy_write,
+#if (KERNEL_VERSION(4, 18, 0) <= LINUX_VERSION_CODE)
 	.phylink_mac_config = mxl862xx_phylink_mac_config,
 	.phylink_mac_link_down = mxl862xx_phylink_mac_link_down,
 	.phylink_mac_link_up = mxl862xx_phylink_mac_link_up,
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#if (KERNEL_VERSION(5, 17, 0) > LINUX_VERSION_CODE)
 	.phylink_validate = mxl862xx_phylink_validate,
 #else
 	.phylink_get_caps = mxl862xx_phylink_get_caps,
+#endif
 #endif
 	.set_ageing_time = mxl862xx_set_ageing_time,
 	.port_bridge_join = mxl862xx_port_bridge_join,
@@ -4563,7 +4442,7 @@ static const struct dsa_switch_ops mxl862xx_switch_ops = {
 	.port_stp_state_set = mxl862xx_port_stp_state_set,
 	.port_mirror_add = mxl862xx_port_mirror_add,
 	.port_mirror_del = mxl862xx_port_mirror_del,
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0))
+#if (KERNEL_VERSION(5, 12, 0) > LINUX_VERSION_CODE)
 	.port_vlan_prepare	= mxl862xx_port_vlan_prepare,
 #endif
 	.port_vlan_filtering = mxl862xx_port_vlan_filtering,
@@ -4572,9 +4451,7 @@ static const struct dsa_switch_ops mxl862xx_switch_ops = {
 	.port_fdb_add = mxl862xx_port_fdb_add,
 	.port_fdb_del = mxl862xx_port_fdb_del,
 	.port_fdb_dump = mxl862xx_port_fdb_dump,
-	.port_mdb_add = mxl862xx_port_mdb_add,
-	.port_mdb_del = mxl862xx_port_mdb_del,
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(5, 11, 0))
+#if (KERNEL_VERSION(5, 11, 0) < LINUX_VERSION_CODE)
 	.port_pre_bridge_flags = mxl862xx_port_pre_bridge_flags,
 	.port_bridge_flags = mxl862xx_port_bridge_flags,
 #endif
@@ -4606,7 +4483,7 @@ static int mxl862xx_probe(struct mdio_device *mdiodev)
 	mxl_dev.bus = mdiodev->bus;
 	mxl_dev.sw_addr = mdiodev->addr;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0))
+#if (KERNEL_VERSION(5, 16, 0) <= LINUX_VERSION_CODE)
 	mutex_init(&priv->pce_table_lock);
 #endif
 
@@ -4625,7 +4502,7 @@ static int mxl862xx_probe(struct mdio_device *mdiodev)
 			 sys_img_ver.iv_build_num);
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0))
+#if (KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE)
 	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
 	if (!ds) {
 		dev_err(dev, "%s: Error allocating DSA switch\n", __func__);
@@ -4639,7 +4516,7 @@ static int mxl862xx_probe(struct mdio_device *mdiodev)
 #endif
 	ds->priv = priv;
 	ds->ops = priv->hw_info->ops;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#if (KERNEL_VERSION(5, 4, 0) <= LINUX_VERSION_CODE)
 	ds->assisted_learning_on_cpu_port = true;
 #endif
 
