@@ -535,11 +535,8 @@ do_menuconfig_update() {
 
 	openwrt_config_file="${openwrt_root}/.config"
 
-	exec_log "make -C \"${openwrt_root}\" menuconfig scripts/config/aconf"
-
 	if test ${ab_branch_level} -eq 1; then
-		exec_log "STAGING_DIR_HOST=\"${openwrt_root}/staging_dir/host\" \"${openwrt_root}/scripts/config/aconf\" -m -M -o \"${ab_platform_dir}/${openwrt_branch}/defconfig\" -k \"${openwrt_root}/Config.in\" \"${openwrt_config_file}\""
-		return
+		final_file="${ab_platform_dir}/${openwrt_branch}/defconfig"
 	fi
 
 	if test ${ab_branch_level} -ge 2; then
@@ -555,6 +552,18 @@ do_menuconfig_update() {
 	if test ${ab_branch_level} -ge 4; then
 		kconfig_files="${kconfig_files} \"${final_file}\""
 		final_file="${ab_variant_dir}/${openwrt_branch}/defconfig"
+	fi
+
+	if test x"${sync_config_set}" == x"yes"; then
+		exec_log "rm -f \"${openwrt_config_file}.old\""
+		exec_log "STAGING_DIR_HOST=\"${openwrt_root}/staging_dir/host\" \"${openwrt_root}/scripts/config/aconf\" -m -o \"${openwrt_config_file}\" -k \"${openwrt_root}/Config.in\" ${kconfig_files} \"${final_file}\""
+	fi
+
+	exec_log "make -C \"${openwrt_root}\" menuconfig scripts/config/aconf"
+
+	if test ${ab_branch_level} -eq 1; then
+		exec_log "STAGING_DIR_HOST=\"${openwrt_root}/staging_dir/host\" \"${openwrt_root}/scripts/config/aconf\" -m -M -o \"${ab_platform_dir}/${openwrt_branch}/defconfig\" -k \"${openwrt_root}/Config.in\" \"${openwrt_config_file}\""
+		return
 	fi
 
 	exec_log "STAGING_DIR_HOST=\"${openwrt_root}/staging_dir/host\" \"${openwrt_root}/scripts/config/aconf\" -d -o \"${final_file}\" -k \"${openwrt_root}/Config.in\" -n \"${openwrt_config_file}\" ${kconfig_files}"

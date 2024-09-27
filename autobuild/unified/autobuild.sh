@@ -294,6 +294,8 @@ help_add_line "  log_file_merge - Log stdout and stderr to one file."
 help_add_line "  debug - Enable debug log output."
 help_add_line "  release_dir=<dir> - Override default release directory."
 help_add_line "    Default directory is 'autobuild_release' under OpenWrt's source directory."
+help_add_line "  sync_config - When used with menuconfig, .config will be updated with"
+help_add_line "    current branch defconfigs before starting menuconfig"
 
 # Include branch rules (the rule is child level overriding parent level)
 . "${ab_root}/rules"
