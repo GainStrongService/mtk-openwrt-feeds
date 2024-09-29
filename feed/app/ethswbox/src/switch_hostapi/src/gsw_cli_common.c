@@ -98,7 +98,7 @@ static int convert_pmapper_adr_str(char *pmap_adr_str, unsigned char *pmap_adr_p
 	return 1;
 }
 
-static char *findArgParam(int argc, char *argv[], char *name)
+char *findArgParam(int argc, char *argv[], char *name)
 {
 	int i;
 	size_t len;
@@ -116,6 +116,20 @@ static char *findArgParam(int argc, char *argv[], char *name)
 	}
 
 	return NULL;
+}
+
+int scanStrParamArg(int argc, char *argv[], char *name, size_t size, char *param)
+{
+	char *ptr = findArgParam(argc, argv, name);
+
+	if (ptr == NULL)
+		return 0;
+
+	// Copy the string value to the provided buffer
+	strncpy(param, ptr, size - 1);
+	param[size - 1] = '\0'; // Ensure null-terminated
+
+	return 1;
 }
 
 int scanParamArg(int argc, char *argv[], char *name, size_t size, void *param)

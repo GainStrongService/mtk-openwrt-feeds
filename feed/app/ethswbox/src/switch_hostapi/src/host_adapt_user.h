@@ -100,6 +100,15 @@
 #define sys_cpu_to_be64(val) (val)
 #endif
 
+/* Clause 22 MDIO read and write functions to customize */
+#ifndef CL22_MDIO_READ
+#define CL22_MDIO_READ(...) 0
+#endif
+
+#ifndef CL22_MDIO_WRITE
+#define CL22_MDIO_WRITE(...) 0
+#endif
+
 /* Clause 45 MDIO read and write functions to customize */
 #ifndef CL45_MDIO_READ
 #define CL45_MDIO_READ(...) 0

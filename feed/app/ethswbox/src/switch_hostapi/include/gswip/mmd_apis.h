@@ -11,10 +11,13 @@
 #define _MXL_MMD_APIS_H_
 
 #include "gsw_api.h"
+#include "gsw_ss.h"
 #include "mdio_relay.h"
+#include "sys_led.h"
 #include "sys_misc.h"
+#include "loop_detect_cfg.h"
 
-#define GSW_MMD_SMDIO_DEV		0
+#define GSW_MMD_SMDIO_DEV			0
 #define GSW_MMD_DEV				30
 #define GSW_MMD_REG_CTRL			0
 #define GSW_MMD_REG_LEN_RET			1
@@ -27,6 +30,7 @@ typedef union mmd_api_data {
 	uint16_t data[GSW_MMD_REG_DATA_MAX_SIZE * 3]; //Maximum data size is GSW_PCE_rule_t (508)
 	GSW_register_t GSW_register_t_data;
 	GSW_register_mod_t GSW_register_mod_t_data;
+	GSW_CPU_Port_t GSW_CPU_Port_t_data;
 	GSW_CPU_PortCfg_t GSW_CPU_PortCfg_t_data;
 	GSW_portLinkCfg_t GSW_portLinkCfg_t_data;
 	GSW_portCfg_t GSW_portCfg_t_data;
@@ -34,10 +38,15 @@ typedef union mmd_api_data {
 	GSW_monitorPortCfg_t GSW_monitorPortCfg_t_data;
 	GSW_PCE_rule_t GSW_PCE_rule_t_data;
 	GSW_PCE_ruleEntry_t GSW_PCE_ruleEntry_t_data;
+	GSW_PCE_rule_alloc_t GSW_PCE_rule_alloc_t_data;
+	GSW_PCE_rule_move_t GSW_PCE_rule_move_t_data;
 	GSW_BRIDGE_config_t GSW_BRIDGE_config_t_data;
 	GSW_BRIDGE_alloc_t GSW_BRIDGE_alloc_t_data;
 	GSW_BRIDGE_portAlloc_t GSW_BRIDGE_portAlloc_t_data;
 	GSW_BRIDGE_portConfig_t GSW_BRIDGE_portConfig_t_data;
+	GSW_BRIDGE_portLoopRead_t GSW_BRIDGE_portLoopRead_t_data;
+	GSW_HitStatusRead_t GSW_HitStatusRead_t_data;
+	GSW_MiscPortCfg_t GSW_MiscPortCfg_t_data;
 	GSW_CTP_portAssignment_t GSW_CTP_portAssignment_t_data;
 	GSW_CTP_portConfig_t GSW_CTP_portConfig_t_data;
 	GSW_QoS_DSCP_ClassCfg_t GSW_QoS_DSCP_ClassCfg_t_data;
@@ -83,7 +92,7 @@ typedef union mmd_api_data {
 	GSW_MAC_tableQuery_t GSW_MAC_tableQuery_t_data;
 	GSW_MAC_tableRemove_t GSW_MAC_tableRemove_t_data;
 	GSW_MACFILTER_default_t GSW_MACFILTER_default_t_data;
-// #ifdef CONFIG_GSWIP_EVLAN
+	GSW_MAC_tableLoopDetect_t GSW_MAC_tableLoopDetect_t_data;
 	GSW_EXTENDEDVLAN_config_t GSW_EXTENDEDVLAN_config_t_data;
 	GSW_EXTENDEDVLAN_alloc_t GSW_EXTENDEDVLAN_alloc_t_data;
 	GSW_VLANFILTER_config_t GSW_VLANFILTER_config_t_data;
@@ -91,7 +100,6 @@ typedef union mmd_api_data {
 	GSW_VLAN_RMON_control_t GSW_VLAN_RMON_control_t_data;
 	GSW_VLAN_RMON_cnt_t GSW_VLAN_RMON_cnt_t_data;
 	GSW_VlanCounterMapping_config_t GSW_VlanCounterMapping_config_t_data;
-// #endif
 	GSW_multicastRouterRead_t GSW_multicastRouterRead_t_data;
 	GSW_multicastRouter_t GSW_multicastRouter_t_data;
 	GSW_multicastSnoopCfg_t GSW_multicastSnoopCfg_t_data;
@@ -102,31 +110,45 @@ typedef union mmd_api_data {
 	GSW_STP_BPDU_Rule_t GSW_STP_BPDU_Rule_t_data;
 	GSW_PBB_Tunnel_Template_Config_t GSW_PBB_Tunnel_Template_Config_t_data;
 
+	struct gsw_ss_sptag gsw_ss_sptag_data;
+
 	struct mdio_relay_data mdio_relay_data;
 	struct mdio_relay_mod_data mdio_relay_mod_data;
 	struct sys_fw_image_version img_ver_data;
-// #ifdef CONFIG_SENSOR_MXL
 	struct sys_sensor_value pvt_sensor_data;
-// #endif
+	struct sys_delay delay_data;
+	struct sys_gpio_config gpio_config_data;
+	struct sys_reg_rw reg_rw_data;
+	struct sys_reg_mod reg_mod_data;
+	struct sys_cml_clk cml_clk_data;
+	struct sys_sfp_cfg sfp_cfg_data;
+	struct loop_detect_passive_cfg loop_detect_passive_cfg_data;
+	struct loop_detect_active_cfg loop_detect_active_cfg_data;
+	struct loop_prevention_cfg loop_prevention_cfg_data;
+	struct mxl_led_sys_cfg mxl_led_sys_cfg_data;
 } mmd_api_data_t;
 
-#define GSW_COMMON_MAGIC			0x100
-#define GSW_TFLOW_MAGIC				0x200
-#define GSW_BRDG_MAGIC				0x300
-#define GSW_BRDGPORT_MAGIC			0x400
-#define GSW_CTP_MAGIC				0x500
-#define GSW_QOS_MAGIC				0x600
-#define GSW_RMON_MAGIC				0x700
-#define GSW_DEBUG_MAGIC				0x800
-#define GSW_PMAC_MAGIC				0x900
-#define GSW_SWMAC_MAGIC				0xA00
-#define GSW_EXTVLAN_MAGIC			0xB00
-#define GSW_VLANFILTER_MAGIC			0xC00
-#define GSW_MULTICAST_MAGIC			0xD00
-#define GSW_TRUNKING_MAGIC			0xE00
-#define GSW_STP_MAGIC				0xF00
+#define GSW_COMMON_MAGIC			0x0100
+#define GSW_TFLOW_MAGIC				0x0200
+#define GSW_BRDG_MAGIC				0x0300
+#define GSW_BRDGPORT_MAGIC			0x0400
+#define GSW_CTP_MAGIC				0x0500
+#define GSW_QOS_MAGIC				0x0600
+#define GSW_RMON_MAGIC				0x0700
+#define GSW_DEBUG_MAGIC				0x0800
+#define GSW_PMAC_MAGIC				0x0900
+#define GSW_SWMAC_MAGIC				0x0A00
+#define GSW_EXTVLAN_MAGIC			0x0B00
+#define GSW_VLANFILTER_MAGIC			0x0C00
+#define GSW_MULTICAST_MAGIC			0x0D00
+#define GSW_TRUNKING_MAGIC			0x0E00
+#define GSW_STP_MAGIC				0x0F00
 #define GSW_PBB_MAGIC				0x1000
 #define GSW_VLAN_RMON_MAGIC			0x1100
+
+#define GSW_SS_MAGIC				0x1600
+
+#define GSW_MAC_MAGIC				0x1700
 
 #define GPY_GPY2XX_MAGIC			0x1800
 
@@ -158,6 +180,11 @@ typedef union mmd_api_data {
 #define	GSW_COMMON_FREEZE			(GSW_COMMON_MAGIC + 0xF)
 #define	GSW_COMMON_UNFREEZE			(GSW_COMMON_MAGIC + 0x10)
 #define	GSW_COMMON_REGISTERMOD			(GSW_COMMON_MAGIC + 0x11)
+#define GSW_COMMON_GETHITSTS			(GSW_COMMON_MAGIC + 0x12)
+#define GSW_COMMON_MISCPORTCFGGET		(GSW_COMMON_MAGIC + 0x13)
+#define GSW_COMMON_MISCPORTCFGSET		(GSW_COMMON_MAGIC + 0x14)
+#define	GSW_COMMON_CPU_PORTGET			(GSW_COMMON_MAGIC + 0x15)
+#define	GSW_COMMON_CPU_PORTSET			(GSW_COMMON_MAGIC + 0x16)
 
 #define	GSW_TFLOW_PCERULEREAD			(GSW_TFLOW_MAGIC + 0x1)
 #define	GSW_TFLOW_PCERULEWRITE			(GSW_TFLOW_MAGIC + 0x2)
@@ -166,6 +193,8 @@ typedef union mmd_api_data {
 #define GSW_TFLOW_PCERULEFREE			(GSW_TFLOW_MAGIC + 0x5)
 #define GSW_TFLOW_PCERULEENABLE			(GSW_TFLOW_MAGIC + 0x6)
 #define GSW_TFLOW_PCERULEDISABLE		(GSW_TFLOW_MAGIC + 0x7)
+#define GSW_TFLOW_PCERULEBLOCKSIZE		(GSW_TFLOW_MAGIC + 0x8)
+#define GSW_TFLOW_PCERULEMOVE			(GSW_TFLOW_MAGIC + 0x9)
 
 #define	GSW_BRIDGE_ALLOC			(GSW_BRDG_MAGIC + 0x1)
 #define	GSW_BRIDGE_CONFIGSET			(GSW_BRDG_MAGIC + 0x2)
@@ -176,6 +205,7 @@ typedef union mmd_api_data {
 #define	GSW_BRIDGEPORT_CONFIGSET		(GSW_BRDGPORT_MAGIC + 0x2)
 #define	GSW_BRIDGEPORT_CONFIGGET		(GSW_BRDGPORT_MAGIC + 0x3)
 #define	GSW_BRIDGEPORT_FREE			(GSW_BRDGPORT_MAGIC + 0x4)
+#define	GSW_BRIDGEPORT_LOOPREAD			(GSW_BRDGPORT_MAGIC + 0x5)
 
 #define	GSW_CTP_PORTASSIGNMENTALLOC		(GSW_CTP_MAGIC + 0x1)
 #define	GSW_CTP_PORTASSIGNMENTFREE		(GSW_CTP_MAGIC + 0x2)
@@ -232,6 +262,8 @@ typedef union mmd_api_data {
 #define	GSW_QOS_PMAPPERTABLEGET			(GSW_QOS_MAGIC + 0x2F)
 #define	GSW_QOS_SVLAN_PCP_CLASSGET		(GSW_QOS_MAGIC + 0x30)
 #define	GSW_QOS_SVLAN_PCP_CLASSSET		(GSW_QOS_MAGIC + 0x31)
+#define	GSW_QOS_QUEUECFGGET			(GSW_QOS_MAGIC + 0x32)
+#define	GSW_QOS_QUEUECFGSET			(GSW_QOS_MAGIC + 0x33)
 
 #define	GSW_RMON_PORT_GET			(GSW_RMON_MAGIC + 0x1)
 #define	GSW_RMON_MODE_SET			(GSW_RMON_MAGIC + 0x2)
@@ -262,6 +294,7 @@ typedef union mmd_api_data {
 #define	GSW_MAC_DEFAULTFILTERSET		(GSW_SWMAC_MAGIC + 0x6)
 #define	GSW_MAC_DEFAULTFILTERGET		(GSW_SWMAC_MAGIC + 0x7)
 #define	GSW_MAC_TABLECLEARCOND			(GSW_SWMAC_MAGIC + 0x8)
+#define GSW_MAC_TABLE_LOOP_DETECT		(GSW_SWMAC_MAGIC + 0x9)
 
 #define	GSW_EXTENDEDVLAN_ALLOC			(GSW_EXTVLAN_MAGIC + 0x1)
 #define	GSW_EXTENDEDVLAN_SET			(GSW_EXTVLAN_MAGIC + 0x2)
@@ -304,6 +337,9 @@ typedef union mmd_api_data {
 #define	GSW_PBB_TEMPLATESET			(GSW_PBB_MAGIC + 0x3)
 #define	GSW_PBB_TEMPLATEGET			(GSW_PBB_MAGIC + 0x4)
 
+#define GSW_SS_SPTAG_GET			(GSW_SS_MAGIC + 0x01)
+#define GSW_SS_SPTAG_SET			(GSW_SS_MAGIC + 0x02)
+
 #define INT_GPHY_READ				(GPY_GPY2XX_MAGIC + 0x01)
 #define INT_GPHY_WRITE				(GPY_GPY2XX_MAGIC + 0x02)
 #define INT_GPHY_MOD				(GPY_GPY2XX_MAGIC + 0x03)
@@ -314,11 +350,24 @@ typedef union mmd_api_data {
 #define SYS_MISC_FW_UPDATE			(SYS_MISC_MAGIC + 0x01)
 #define SYS_MISC_FW_VERSION			(SYS_MISC_MAGIC + 0x02)
 #define SYS_MISC_PVT_TEMP			(SYS_MISC_MAGIC + 0x03)
-#define SYS_MISC_PVT_VOLTAGE		(SYS_MISC_MAGIC + 0x04)
+#define SYS_MISC_PVT_VOLTAGE			(SYS_MISC_MAGIC + 0x04)
 #define SYS_MISC_DELAY				(SYS_MISC_MAGIC + 0x05)
-#define SYS_MISC_GPIO_CONFIGURE		(SYS_MISC_MAGIC + 0x06)
+#define SYS_MISC_GPIO_CONFIGURE			(SYS_MISC_MAGIC + 0x06)
 #define SYS_MISC_REBOOT				(SYS_MISC_MAGIC + 0x07)
 #define SYS_MISC_REG_RD				(SYS_MISC_MAGIC + 0x08)
+#define SYS_MISC_REG_WR				(SYS_MISC_MAGIC + 0x09)
+#define SYS_MISC_REG_MOD			(SYS_MISC_MAGIC + 0x0A)
+#define SYS_MISC_CML_CLK_GET			(SYS_MISC_MAGIC + 0x0B)
+#define SYS_MISC_CML_CLK_SET			(SYS_MISC_MAGIC + 0x0C)
+#define SYS_MISC_SFP_GET			(SYS_MISC_MAGIC + 0x0D)
+#define SYS_MISC_SFP_SET			(SYS_MISC_MAGIC + 0x0E)
+#define SYS_MISC_LOOP_PASSIVE_START		(SYS_MISC_MAGIC + 0x13)
+#define SYS_MISC_LOOP_PASSIVE_STOP		(SYS_MISC_MAGIC + 0x14)
+#define SYS_MISC_LOOP_ACTIVE_START		(SYS_MISC_MAGIC + 0x15)
+#define SYS_MISC_LOOP_ACTIVE_STOP		(SYS_MISC_MAGIC + 0x16)
+#define SYS_MISC_LOOP_PREVENTION_START		(SYS_MISC_MAGIC + 0x17)
+#define SYS_MISC_LOOP_PREVENTION_STOP		(SYS_MISC_MAGIC + 0x18)
+#define SYS_MISC_SYS_LED_CFG			(SYS_MISC_MAGIC + 0x19)
 
 #define	MMD_API_MAXIMUM_ID			0x7FFF
 

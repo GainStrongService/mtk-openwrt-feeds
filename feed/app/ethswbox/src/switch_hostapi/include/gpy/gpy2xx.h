@@ -11,6 +11,7 @@
 #define _GPY2XX_H_
 
 #include <errno.h>
+#include <gsw_types.h>
 
 #ifndef IS_ENABLED
 #define IS_ENABLED(x)	0
@@ -19,23 +20,33 @@
 #pragma pack(push, 1)
 #pragma scalar_storage_order little-endian
 
+typedef i64 time64_t;
+
+struct timespec64 {
+	time64_t	tv_sec;			/* seconds */
+	long		tv_nsec;		/* nanoseconds */
+};
+
+
 /** \mainpage GPY APIs
     \section intro_sec Introduction
 
-    The Intel Ethernet Network Connection GPY API device is a
+    The Maxlinear Ethernet Network Connection GPY API device is a
     multi-mode Gigabit Ethernet (GbE) transceiver integrated circuit,
     supporting speeds of 10, 100, 1000 and 2500 Mbps. It supports 10BASE-Te,
     100BASE-TX, 1000BASE-T and 2.5GBASE-T standards and is characterized by
-    low power consumption. Power savings at the system level are introduced using
-    the Wake-on-LAN feature.
+    low power consumption. Power savings at the system level are introduced
+    using the Wake-on-LAN feature.
 
-    Ethernet PHYs are controlled over the MDIO interface and the base functionality is
-    usually provided by the network stack and the MDIO driver of the operating system.
+    Ethernet PHYs are controlled over the MDIO interface and the base
+    functionality is usually provided by the network stack and the MDIO driver
+    of the operating system.
 
-    The GPY API allows to make use of additional functionality, which is not provided
-    by the operating system, to speed up integration of the GPY device and to to ensure
-    correct configuration of features. The GPY API is intended to be used in user space,
-    but can be used also in kernel space with minor adaptations and based on customer requirements.
+    The GPY API allows to make use of additional functionality, which is not
+    provided by the operating system, to speed up integration of the GPY device
+    and to to ensure correct configuration of features. The GPY API is intended
+    to be used in user space, but can be used also in kernel space with minor
+    adaptations and based on customer requirements.
 */
 
 /** \defgroup GPY2XX_API GPY2xx APIs
@@ -70,16 +81,16 @@
 */
 
 /** \defgroup GPY2XX_LINK_SPEED Link Speed
-	\brief Group of macros for link speed configuration via \ref gpy2xx_link in APIs \ref gpy2xx_setup_forced,
-	\ref gpy2xx_config_aneg and \ref gpy2xx_sgmii_config_aneg.
+	\brief Group of macros for link speed configuration via \ref gpy2xx_link in APIs \ref gpy2xx_setup_forced
+	and \ref gpy2xx_config_aneg.
 	@cond SUBGROUPING
 	@ingroup GPY2XX_LINK_API
 	@endcond
 */
 
 /** \defgroup GPY2XX_LINK_DUPLEX Duplex
-	\brief Group of macros for duplex mode configuration via \ref gpy2xx_link in APIs \ref gpy2xx_setup_forced,
-	\ref gpy2xx_config_aneg and \ref gpy2xx_sgmii_config_aneg.
+	\brief Group of macros for duplex mode configuration via \ref gpy2xx_link in APIs \ref gpy2xx_setup_forced
+	and \ref gpy2xx_config_aneg.
 	@cond SUBGROUPING
 	@ingroup GPY2XX_LINK_API
 	@endcond
@@ -97,14 +108,11 @@
 	\brief Group of functional APIs for diagnosis and test.
 */
 
+/** @cond DOC_ENABLE_SYNCE */
 /** \defgroup GPY2XX_SYNCE Synchronous Ethernet (SyncE) Config APIs.
 	\brief Group of functional APIs for Synchronous Ethernet (SyncE) configuration.
-	Note: Not supported on GPHY flavours (i.e part numbers): GPY212, GPY2XX.
 */
-
-/** \defgroup GPY2XX_SGMII SGMII Interface Config APIs
-	\brief Group of functional APIs for SGMII interface configuration.
-*/
+/** @endcond DOC_ENABLE_SYNCE */
 
 /** \defgroup GPY2XX_WOL_FLAG Wake-on-LAN Flags
 	\brief Group of Wake-on-LAN flags.
@@ -114,22 +122,17 @@
 	\brief Group of functional APIs for miscellaneous features.
 */
 
-/** \defgroup GPY2XX_FW Firmware Download APIs
-	\brief Group of functional APIs to download firmware into flash memory.
-*/
-
-/** \defgroup GPY2XX_GPY2XX_USXGMII USXGMII_REACH APIs
-	\brief Group of functional APIs for USXGMII Reach configuration.
-	Note: USXGMII is not supported for models without USXGMII capability.
+/** \defgroup GPY2XX_GPY2XX_USXGMII XPCS/SERDES APIs
+	\brief Group of functional APIs for XPCS/SERDES (USXGMII) configuration.
 */
 
 /**@}*/ /* GPY2XX_API */
 
-/** \addtogroup GPY211_MDIO */
+/** \addtogroup GPY2XX_MDIO */
 /**@{*/
 /** \brief Flag to enable 21-bit IEEE 802.3ae Clause 45 addressing mode */
 #define MII_ADDR_C45            (1<<30)
-/**@}*/ /* GPY211_MDIO */
+/**@}*/ /* GPY2XX_MDIO */
 
 /** @cond INTERNAL */
 /** \brief Slave MDIO's Target Base Address Register's Address */
@@ -460,7 +463,9 @@ enum gpy2xx_extin_phy_event {
 	EXTIN_PHY_WOL     = (1 << 15),
 };
 /** \cond INTERNAL */
+/** \brief Minimum external interrupt mask. */
 #define EXTIN_PHY_EVENT_MIN ((EXTIN_PHY_LSTC << 1) - 1)
+/** \brief Maximum external interrupt mask. */
 #define EXTIN_PHY_EVENT_MAX ((EXTIN_PHY_WOL << 1) - 1)
 /** \endcond */
 
@@ -475,7 +480,9 @@ enum gpy2xx_extin_im2_mask {
 	EXTIN_IM2_IE_MACSEC = (1 << 4),
 };
 /** \cond INTERNAL */
+/** \brief Minimum external interrupt mask (interrupt module 2). */
 #define EXTIN_IM2_EVENT_MIN EXTIN_IM2_IE_LPI
+/** \brief Maximum external interrupt mask (interrupt module 2). */
 #define EXTIN_IM2_EVENT_MAX ((EXTIN_IM2_IE_MACSEC << 1) - 1)
 /** \endcond */
 /**@}*/ /* GPY2XX_INT */
@@ -658,6 +665,7 @@ enum gpy2xx_errcnt_event {
 };
 /**@}*/ /* GPY2XX_DIAG */
 
+/** @cond DOC_ENABLE_SYNCE */
 /** \addtogroup GPY2XX_SYNCE */
 /**@{*/
 /** \brief Macros used by \b synce_refclk in \ref gpy2xx_synce */
@@ -702,7 +710,7 @@ enum gpy2xx_data_rate {
 	SYNCE_2G5 = 1,
 };
 
-/** \brief Macros used by \b gpc_sel in \ref gpy2xx_synce and \ref gpy2xx_pps_ctrl */
+/** \brief Macros used by \b gpc_sel in \ref gpy2xx_synce */
 /** \brief Time Stamp Capture Input Signal Selection.
 	This is to specify the input signal selected for time stamp capture. */
 enum gpy2xx_gpc_sel {
@@ -716,41 +724,7 @@ enum gpy2xx_gpc_sel {
 	SYNCE_GPC2 = 3,
 };
 /**@}*/ /* GPY2XX_SYNCE */
-
-/** \addtogroup GPY2XX_SGMII */
-/**@{*/
-/** \brief Macros used by \b linkcfg_dir in \ref gpy2xx_sgmii */
-/** \brief SGMII link configuration direction */
-enum gpy2xx_sgmii_linkcfg_dir {
-	/** \brief SGMII configuration is taken from twisted pair link status */
-	SGMII_LINKCFG_TPI = 0,
-	/** \brief SGMII configuration is taken from SGMII registers */
-	SGMII_LINKCFG_SGMII = 1,
-};
-
-/** \brief Macros used by \b aneg_mode in \ref gpy2xx_sgmii */
-/** \brief SGMII auto-negotiation mode */
-enum gpy2xx_sgmii_aneg_mode {
-	/** \brief 1000-Bx ANEG mode */
-	SGMII_ANEG_1000BX = 1,
-	/** \brief SGMII ANEG mode with GPY2xx acting as a PHY */
-	SGMII_ANEG_CISCO_PHY = 2,
-	/** \brief SGMII ANEG mode with GPY2xx acting as a MAC */
-	SGMII_ANEG_CISCO_MAC = 3,
-};
-
-/** \brief SGMII operation mode */
-enum gpy2xx_sgmii_operation {
-	/** \brief Normal operation */
-	SGMII_OP_NORMAL = 0,
-	/** \brief Power down */
-	SGMII_OP_DOWN = 1,
-	/** \brief Loopback data coming in from analog interface back to itself */
-	SGMII_OP_LOOPBACK = 2,
-	/** \brief Reset SGMII block */
-	SGMII_OP_RESET = 3
-};
-/**@}*/ /* GPY2XX_SGMII */
+/** @endcond DOC_ENABLE_SYNCE */
 
 /** \addtogroup GPY2XX_WOL_FLAG */
 /**@{*/
@@ -776,12 +750,6 @@ enum gpy2xx_sgmii_operation {
 /** \endcond */
 /**@}*/ /* GPY2XX_WOL_FLAG */
 
-/** \addtogroup GPY2XX_FW */
-/**@{*/
-/** \brief Default timeout (in milliseconds) for field firmware upgrade APIs */
-#define FW_FWR_DEF_TIMEOUT	5000
-/**@}*/ /* GPY2XX_FW */
-
 /** \addtogroup GPY2XX_GPY2XX_USXGMII */
 /**@{*/
 /** \brief Max number of slices */
@@ -794,7 +762,7 @@ enum gpy2xx_sgmii_operation {
 
 /** \addtogroup GPY2XX_LINK_API */
 /**@{*/
-/** \brief Member used by \b link in \ref gpy2xx_device and \ref gpy2xx_sgmii */
+/** \brief Member used by \b link in \ref gpy2xx_device */
 /** \brief Data structure representing GPHY link configuration and status */
 struct gpy2xx_link {
 	/** \brief Link speed (forced) or partner link speed (auto-negotiation)
@@ -832,6 +800,18 @@ struct gpy2xx_link {
 
 /** \addtogroup GPY2XX_LED */
 /**@{*/
+/** \brief Data structure for LED brightness level configuration */
+struct gpy2xx_led_brlvl_cfg {
+	/** \brief Brightness Mode: fixed as CONSTANT regardless of input. */
+	uint8_t mode;
+	/** \brief Maximum brightness level.
+		Applicable only when mode is CONSTANT.
+		Level 0 will turn the LED off. */
+	uint8_t lvl_max;
+	/** \brief Minimum brightness level. Fixed to 0 regardless of input */
+	uint8_t lvl_min;
+};
+
 /** \brief (Macros used by \b id in \ref gpy2xx_led_cfg) */
 /** \brief LED ID 0 */
 #define LED_ID_0   			0
@@ -996,6 +976,524 @@ struct gpy2xx_cdiag_report {
 	struct gpy2xx_cdiag_pair pair[4];
 };
 
+/** \brief Member used by \b CDIAG_CTRL in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test control */
+//------------------------------------------------------------
+// RegisterX.0:   CDIAG_CTRL
+//------------------------------------------------------------
+typedef struct {
+	/** \brief Reserved */
+	uint16_t RES                   : 7 ;
+	/** \brief csmart link partner detect: 1= smart LP, 0 = non smart LP */
+	uint16_t LPDET                 : 1 ;
+	/** \brief Category 5e Channel detect: 1 = cat 5e, 0 = non cat 5e */
+	uint16_t C5DET                 : 1 ;
+	/** \brief Category 6a Channel detect: 1 = cat 6a, 0 = non cat 6a */
+	uint16_t C6DET                 : 1 ;
+	/** \brief Cable Length unit: 1 =  meters, 0 = centimeters */
+	uint16_t CLU                   : 1 ;
+	/** \brief Cable diagnostics status: 1 = in progress, 0 = complete */
+	uint16_t CDIAG_STATUS          : 1 ;
+	/** \brief Break link: 1 = break link (self clearing), 0 = do not break link (link will go down during mgig cable diags) */
+	uint16_t BREAK_LINK            : 1 ;
+	/** \brief Disable inter-pair short check: 1 = disable inter-pair short check, 0 = enable inter-pair short check */
+	uint16_t DIS_IPAIR_CHECK       : 1 ;
+	/** \brief Run at each auto-negotiation cycle: 1 = run at auto-negotiation, 0 = do not run at each auto-negotiation cycle. */
+	uint16_t RA                    : 1 ;
+	/** \brief Run immediate: 1 = run now (self clearing), 0 = no action */
+	uint16_t RI                    : 1 ;
+} sCDIAG_CTRL_t;
+/** \brief This is an union for CDIAG_CTRL */
+typedef union {
+	/** \brief struct sCDIAG_CTRL_t */
+	sCDIAG_CTRL_t S;
+	/** \brief value of register CDIAG_CTRL */
+	uint16_t V;
+} uCDIAG_CTRL_t;
+
+//------------------------------------------------------------
+// RegisterX.1:   CDIAG_RESULT
+//------------------------------------------------------------
+/** \brief Cable Diagnostic test pair result 0 means INVALID */
+#define PAIRCDIAGCODE_INVALID				0
+/** \brief Cable Diagnostic test pair result 1 means PAIROK */
+#define PAIRCDIAGCODE_PAIROK				1
+/** \brief Cable Diagnostic test pair result 2 means PAIROPEN */
+#define PAIRCDIAGCODE_PAIROPEN				2
+/** \brief Cable Diagnostic test pair result 3 means INTRAPAIRSHORT */
+#define PAIRCDIAGCODE_INTRAPAIRSHORT		3
+/** \brief Cable Diagnostic test pair result 4 means INTERPAIRSHORT */
+#define PAIRCDIAGCODE_INTERPAIRSHORT		4
+/** \brief Cable Diagnostic test pair result 9 means PAIRBUSY */
+#define PAIRCDIAGCODE_PAIRBUSY				9
+
+/** \brief Member used by \b CDIAG_RESULT in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test result */
+typedef struct {
+	/** \brief Pair D cable diagnostic code */
+	uint16_t PAIRD_CDIAG_CODE      : 4 ;
+	/** \brief Pair C cable diagnostic code */
+	uint16_t PAIRC_CDIAG_CODE      : 4 ;
+	/** \brief Pair B cable diagnostic code */
+	uint16_t PAIRB_CDIAG_CODE      : 4 ;
+	/** \brief Pair A cable diagnostic code */
+	uint16_t PAIRA_CDIAG_CODE      : 4 ;
+} sCDIAG_RESULT_t;
+/** \brief This is an union for CDIAG_RESULT */
+typedef union {
+	/** \brief struct sCDIAG_RESULT_t */
+	sCDIAG_RESULT_t S;
+	/** \brief value of register CDIAG_RESULT */
+	uint16_t V;
+} uCDIAG_RESULT_t;
+
+/** \brief Member used by \b CDIAG_PAIR12LEN in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair12 length */
+//------------------------------------------------------------
+// RegisterX.2:   CDIAG_PAIR12LEN
+//------------------------------------------------------------
+typedef struct {
+	/** \brief Length indication is cable length on a properly terminated pair (85 ≤ Rt ≤ 115), or length to first fault on a fault detected pair.  Also, a value of 0x FFFF indicates length not estimated due to pair busy or cable diagnostic routine did not complete successfully */
+	uint16_t LENGTH                : 16 ;
+} sCDIAG_PAIR12LEN_t;
+/** \brief This is an union for CDIAG_PAIR12LEN */
+typedef union {
+	/** \brief struct sCDIAG_PAIR12LEN_t */
+	sCDIAG_PAIR12LEN_t S;
+	/** \brief value of register CDIAG_PAIR12LEN */
+	uint16_t V;
+} uCDIAG_PAIR12LEN_t;
+
+/** \brief Member used by \b CDIAG_PAIR36LEN in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair36 length */
+//------------------------------------------------------------
+// RegisterX.3:   CDIAG_PAIR36LEN
+//------------------------------------------------------------
+typedef struct {
+	/** \brief Length indication is cable length on a properly terminated pair (85 ≤ Rt ≤ 115), or length to first fault on a fault detected pair.  Also, a value of 0x FFFF indicates length not estimated due to pair busy or cable diagnostic routine did not complete successfully */
+	uint16_t LENGTH                : 16 ;
+} sCDIAG_PAIR36LEN_t;
+/** \brief This is an union for CDIAG_PAIR36LEN */
+typedef union {
+	/** \brief struct sCDIAG_PAIR36LEN_t */
+	sCDIAG_PAIR36LEN_t S;
+	/** \brief value of register CDIAG_PAIR36LEN */
+	uint16_t V;
+} uCDIAG_PAIR36LEN_t;
+
+/** \brief Member used by \b CDIAG_PAIR45LEN in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair45 length */
+//------------------------------------------------------------
+// RegisterX.4:   CDIAG_PAIR45LEN
+//------------------------------------------------------------
+typedef struct {
+/** \brief Length indication is cable length on a properly terminated pair (85 ≤ Rt ≤ 115), or length to first fault on a fault detected pair.  Also, a value of 0x FFFF indicates length not estimated due to pair busy or cable diagnostic routine did not complete successfully */
+	uint16_t LENGTH                : 16 ;
+} sCDIAG_PAIR45LEN_t;
+/** \brief This is an union for CDIAG_PAIR45LEN */
+typedef union {
+	/** \brief struct sCDIAG_PAIR45LEN_t */
+	sCDIAG_PAIR45LEN_t S;
+	/** \brief value of register CDIAG_PAIR45LEN */
+	uint16_t V;
+} uCDIAG_PAIR45LEN_t;
+
+/** \brief Member used by \b CDIAG_PAIR78LEN in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair78 length */
+//------------------------------------------------------------
+// RegisterX.5:   CDIAG_PAIR78LEN
+//------------------------------------------------------------
+typedef struct {
+/** \brief Length indication is cable length on a properly terminated pair (85 ≤ Rt ≤ 115), or length to first fault on a fault detected pair.  Also, a value of 0x FFFF indicates length not estimated due to pair busy or cable diagnostic routine did not complete successfully */
+	uint16_t LENGTH                : 16 ;
+} sCDIAG_PAIR78LEN_t;
+/** \brief This is an union for CDIAG_PAIR78LEN */
+typedef union {
+	/** \brief struct sCDIAG_PAIR78LEN_t */
+	sCDIAG_PAIR78LEN_t S;
+	/** \brief value of register CDIAG_PAIR78LEN */
+	uint16_t V;
+} uCDIAG_PAIR78LEN_t;
+
+/** \brief Member used by \b CDIAG_INSERTLOSSPAIR12 in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair12 insert loss */
+//------------------------------------------------------------
+// RegisterX.6:   CDIAG_INSERTLOSSPAIR12 Phy Cable Diagnostics Pair 1,2 Insertion Loss 2.5G,5G,10G
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_INSERTLOSSPAIR12_t;
+/** \brief This is an union for CDIAG_INSERTLOSSPAIR12 */
+typedef union {
+	/** \brief struct sCDIAG_INSERTLOSSPAIR12_t */
+	sCDIAG_INSERTLOSSPAIR12_t S;
+	/** \brief value of register CDIAG_INSERTLOSSPAIR12 */
+	uint16_t V;
+} uCDIAG_INSERTLOSSPAIR12_t;
+
+/** \brief Member used by \b CDIAG_INSERTLOSSPAIR36 in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair36 insert loss */
+//------------------------------------------------------------
+// RegisterX.7:   CDIAG_INSERTLOSSPAIR36 Phy Cable Diagnostics Pair 3,6 Insertion Loss 2.5G,5G,10G
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_INSERTLOSSPAIR36_t;
+/** \brief This is an union for CDIAG_INSERTLOSSPAIR36 */
+typedef union {
+	/** \brief struct sCDIAG_INSERTLOSSPAIR36_t */
+	sCDIAG_INSERTLOSSPAIR36_t S;
+	/** \brief value of register CDIAG_INSERTLOSSPAIR36 */
+	uint16_t V;
+} uCDIAG_INSERTLOSSPAIR36_t;
+
+/** \brief Member used by \b CDIAG_INSERTLOSSPAIR45 in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair45 insert loss */
+//------------------------------------------------------------
+// RegisterX.8:   CDIAG_INSERTLOSSPAIR45 Phy Cable Diagnostics Pair 4,5 Insertion Loss 2.5G,5G,10G
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_INSERTLOSSPAIR45_t;
+/** \brief This is an union for CDIAG_INSERTLOSSPAIR45 */
+typedef union {
+	/** \brief struct sCDIAG_INSERTLOSSPAIR45_t */
+	sCDIAG_INSERTLOSSPAIR45_t S;
+	/** \brief value of register CDIAG_INSERTLOSSPAIR45 */
+	uint16_t V;
+} uCDIAG_INSERTLOSSPAIR45_t;
+
+/** \brief Member used by \b CDIAG_INSERTLOSSPAIR78 in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair78 insert loss */
+//------------------------------------------------------------
+// RegisterX.9:   CDIAG_INSERTLOSSPAIR78 Phy Cable Diagnostics Pair 7,8 Insertion Loss 2.5G,5G,10G
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_INSERTLOSSPAIR78_t;
+/** \brief This is an union for CDIAG_INSERTLOSSPAIR78 */
+typedef union {
+	/** \brief struct sCDIAG_INSERTLOSSPAIR78_t */
+	sCDIAG_INSERTLOSSPAIR78_t S;
+	/** \brief value of register CDIAG_INSERTLOSSPAIR78 */
+	uint16_t V;
+} uCDIAG_INSERTLOSSPAIR78_t;
+
+/** \brief Member used by \b CDIAG_RETURNLOSSPAIR12 in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair12 return loss */
+//------------------------------------------------------------
+// RegisterX.10:   CDIAG_RETURNLOSSPAIR12 Phy Cable Diagnostics Pair 1,2 Return Loss
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_RETURNLOSSPAIR12_t;
+/** \brief This is an union for CDIAG_RETURNLOSSPAIR12 */
+typedef union {
+	/** \brief struct sCDIAG_RETURNLOSSPAIR12_t */
+	sCDIAG_RETURNLOSSPAIR12_t S;
+	/** \brief value of register CDIAG_RETURNLOSSPAIR12 */
+	uint16_t V;
+} uCDIAG_RETURNLOSSPAIR12_t;
+
+/** \brief Member used by \b CDIAG_RETURNLOSSPAIR36 in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair36 return loss */
+//------------------------------------------------------------
+// RegisterX.11:   CDIAG_RETURNLOSSPAIR36 Phy Cable Diagnostics Pair 3,6 Return Loss
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_RETURNLOSSPAIR36_t;
+/** \brief This is an union for CDIAG_RETURNLOSSPAIR36 */
+typedef union {
+	/** \brief struct sCDIAG_RETURNLOSSPAIR36_t */
+	sCDIAG_RETURNLOSSPAIR36_t S;
+	/** \brief value of register CDIAG_RETURNLOSSPAIR36 */
+	uint16_t V;
+} uCDIAG_RETURNLOSSPAIR36_t;
+
+/** \brief Member used by \b CDIAG_RETURNLOSSPAIR45 in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair45 return loss */
+//------------------------------------------------------------
+// RegisterX.12:   CDIAG_RETURNLOSSPAIR45 Phy Cable Diagnostics Pair 4,5 Return Loss
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_RETURNLOSSPAIR45_t;
+/** \brief This is an union for CDIAG_RETURNLOSSPAIR45 */
+typedef union {
+	/** \brief struct sCDIAG_RETURNLOSSPAIR45_t */
+	sCDIAG_RETURNLOSSPAIR45_t S;
+	/** \brief value of register CDIAG_RETURNLOSSPAIR45 */
+	uint16_t V;
+} uCDIAG_RETURNLOSSPAIR45_t;
+
+/** \brief Member used by \b CDIAG_RETURNLOSSPAIR78 in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test pair78 return loss */
+//------------------------------------------------------------
+// RegisterX.13:   CDIAG_RETURNLOSSPAIR78 Phy Cable Diagnostics Pair 7,8 Return Loss
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_RETURNLOSSPAIR78_t;
+/** \brief This is an union for CDIAG_RETURNLOSSPAIR78 */
+typedef union {
+	/** \brief struct sCDIAG_RETURNLOSSPAIR78_t */
+	sCDIAG_RETURNLOSSPAIR78_t S;
+	/** \brief value of register CDIAG_RETURNLOSSPAIR78 */
+	uint16_t V;
+} uCDIAG_RETURNLOSSPAIR78_t;
+
+/** \brief Member used by \b CDIAG_NEXTAB in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test Near End Crosstalk Pair A-B */
+//------------------------------------------------------------
+// RegisterX.14:   CDIAG_NEXTAB Phy Cable Diagnostics A-B NEXT
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_NEXTAB_t;
+/** \brief This is an union for CDIAG_NEXTAB */
+typedef union {
+	/** \brief struct sCDIAG_NEXTAB_t */
+	sCDIAG_NEXTAB_t S;
+	/** \brief value of register CDIAG_NEXTAB */
+	uint16_t V;
+} uCDIAG_NEXTAB_t;
+
+/** \brief Member used by \b CDIAG_NEXTAC in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test Near End Crosstalk Pair A-C */
+//------------------------------------------------------------
+// RegisterX.15:   CDIAG_NEXTAC Phy Cable Diagnostics A-C NEXT
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_NEXTAC_t;
+/** \brief This is an union for CDIAG_NEXTAC */
+typedef union {
+	/** \brief struct sCDIAG_NEXTAC_t */
+	sCDIAG_NEXTAC_t S;
+	/** \brief value of register CDIAG_NEXTAC */
+	uint16_t V;
+} uCDIAG_NEXTAC_t;
+
+/** \brief Member used by \b CDIAG_NEXTAD in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test Near End Crosstalk Pair A-D */
+//------------------------------------------------------------
+// RegisterX.16:   CDIAG_NEXTAD Phy Cable Diagnostics A-D NEXT
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_NEXTAD_t;
+/** \brief This is an union for CDIAG_NEXTAD */
+typedef union {
+	/** \brief struct sCDIAG_NEXTAD_t */
+	sCDIAG_NEXTAD_t S;
+	/** \brief value of register CDIAG_NEXTAD */
+	uint16_t V;
+} uCDIAG_NEXTAD_t;
+
+/** \brief Member used by \b CDIAG_NEXTBC in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test Near End Crosstalk Pair B-C */
+//------------------------------------------------------------
+// RegisterX.17:   CDIAG_NEXTBC Phy Cable Diagnostics B-C NEXT
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_NEXTBC_t;
+/** \brief This is an union for CDIAG_NEXTBC */
+typedef union {
+	/** \brief struct sCDIAG_NEXTBC_t */
+	sCDIAG_NEXTBC_t S;
+	/** \brief value of register CDIAG_NEXTBC */
+	uint16_t V;
+} uCDIAG_NEXTBC_t;
+
+/** \brief Member used by \b CDIAG_NEXTBD in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test Near End Crosstalk Pair B-D */
+//------------------------------------------------------------
+// RegisterX.18:   CDIAG_NEXTBD Phy Cable Diagnostics B-D NEXT
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_NEXTBD_t;
+/** \brief This is an union for CDIAG_NEXTBD */
+typedef union {
+	/** \brief struct sCDIAG_NEXTBD_t */
+	sCDIAG_NEXTBD_t S;
+	/** \brief value of register CDIAG_NEXTBD */
+	uint16_t V;
+} uCDIAG_NEXTBD_t;
+
+/** \brief Member used by \b CDIAG_NEXTCD in \ref gpy2xx_sck_cdiag_report */
+/** \brief Cable Diagnostic test Near End Crosstalk Pair C-D */
+//------------------------------------------------------------
+// RegisterX.19:   CDIAG_NEXTCD Phy Cable Diagnostics C-D NEXT
+//------------------------------------------------------------
+typedef struct {
+	/** \brief 0xdB indication at frequency 400MHz */
+	uint16_t LOSS400MHZ		       : 4 ;
+	/** \brief 0xdB indication at frequency 200MHz */
+	uint16_t LOSS200MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 100MHz */
+	uint16_t LOSS100MHZ      	   : 4 ;
+	/** \brief 0xdB indication at frequency 50Mhz */
+	uint16_t LOSS50MHZ      	   : 4 ;
+} sCDIAG_NEXTCD_t;
+/** \brief This is an union for CDIAG_NEXTCD */
+typedef union {
+	/** \brief struct sCDIAG_NEXTCD_t */
+	sCDIAG_NEXTCD_t S;
+	/** \brief value of register CDIAG_NEXTCD */
+	uint16_t V;
+} uCDIAG_NEXTCD_t;
+
+/** \brief Cable diagnostic report */
+struct gpy2xx_sck_cdiag_report {
+	/** \brief Number of valid results in results */
+	uint16_t register_number;
+	/** \brief Up to 20 registers */
+	/** \brief  RegisterX.0:   CDIAG_CTRL */
+	volatile uCDIAG_CTRL_t CDIAG_CTRL;
+	/** \brief  RegisterX.1:   CDIAG_RESULT */
+	volatile uCDIAG_RESULT_t CDIAG_RESULT;
+	/** \brief  RegisterX.2:   CDIAG_PAIR12LEN */
+	volatile uCDIAG_PAIR12LEN_t CDIAG_PAIR12LEN;
+	/** \brief  RegisterX.3:   CDIAG_PAIR36LEN */
+	volatile uCDIAG_PAIR36LEN_t CDIAG_PAIR36LEN;
+	/** \brief  RegisterX.4:   CDIAG_PAIR45LEN */
+	volatile uCDIAG_PAIR45LEN_t CDIAG_PAIR45LEN;
+	/** \brief  RegisterX.5:   CDIAG_PAIR78LEN */
+	volatile uCDIAG_PAIR78LEN_t CDIAG_PAIR78LEN;
+	/** \brief  RegisterX.6:   CDIAG_INSERTLOSSPAIR12 Phy Cable Diagnostics Pair 1,2 Insertion Loss 2.5G,5G,10G */
+	volatile uCDIAG_INSERTLOSSPAIR12_t CDIAG_INSERTLOSSPAIR12;
+	/** \brief  RegisterX.7:   CDIAG_INSERTLOSSPAIR36 Phy Cable Diagnostics Pair 3,6 Insertion Loss 2.5G,5G,10G */
+	volatile uCDIAG_INSERTLOSSPAIR36_t CDIAG_INSERTLOSSPAIR36;
+	/** \brief  RegisterX.8:   CDIAG_INSERTLOSSPAIR45 Phy Cable Diagnostics Pair 4,5 Insertion Loss 2.5G,5G,10G */
+	volatile uCDIAG_INSERTLOSSPAIR45_t CDIAG_INSERTLOSSPAIR45;
+	/** \brief  RegisterX.9:   CDIAG_INSERTLOSSPAIR78 Phy Cable Diagnostics Pair 7,8 Insertion Loss 2.5G,5G,10G */
+	volatile uCDIAG_INSERTLOSSPAIR78_t CDIAG_INSERTLOSSPAIR78;
+	/** \brief  RegisterX.10:   CDIAG_RETURNLOSSPAIR12 Phy Cable Diagnostics Pair 1,2 Return Loss */
+	volatile uCDIAG_RETURNLOSSPAIR12_t CDIAG_RETURNLOSSPAIR12;
+	/** \brief  RegisterX.11:   CDIAG_RETURNLOSSPAIR36 Phy Cable Diagnostics Pair 3,6 Return Loss */
+	volatile uCDIAG_RETURNLOSSPAIR36_t CDIAG_RETURNLOSSPAIR36;
+	/** \brief  RegisterX.12:   CDIAG_RETURNLOSSPAIR45 Phy Cable Diagnostics Pair 4,5 Return Loss */
+	volatile uCDIAG_RETURNLOSSPAIR45_t CDIAG_RETURNLOSSPAIR45;
+	/** \brief  RegisterX.13:   CDIAG_RETURNLOSSPAIR78 Phy Cable Diagnostics Pair 7,8 Return Loss */
+	volatile uCDIAG_RETURNLOSSPAIR78_t CDIAG_RETURNLOSSPAIR78;
+	/** \brief  RegisterX.14:   CDIAG_NEXTAB Phy Cable Diagnostics A-B NEXT */
+	volatile uCDIAG_NEXTAB_t CDIAG_NEXTAB;
+	/** \brief  RegisterX.15:   CDIAG_NEXTAC Phy Cable Diagnostics A-C NEXT */
+	volatile uCDIAG_NEXTAC_t CDIAG_NEXTAC;
+	/** \brief  RegisterX.16:   CDIAG_NEXTAD Phy Cable Diagnostics A-D NEXT */
+	volatile uCDIAG_NEXTAD_t CDIAG_NEXTAD;
+	/** \brief  RegisterX.17:   CDIAG_NEXTBC Phy Cable Diagnostics B-C NEXT */
+	volatile uCDIAG_NEXTBC_t CDIAG_NEXTBC;
+	/** \brief  RegisterX.18:   CDIAG_NEXTBD Phy Cable Diagnostics B-D NEXT */
+	volatile uCDIAG_NEXTBD_t CDIAG_NEXTBD;
+	/** \brief  RegisterX.19:   CDIAG_NEXTCD Phy Cable Diagnostics C-D NEXT */
+	volatile uCDIAG_NEXTCD_t CDIAG_NEXTCD;
+};
+
+/** \brief Analog built-in self-test parameter */
+struct gpy2xx_abist_param {
+	/** \brief Set 1 to restart test */
+	uint8_t restart;
+	/** \brief Set 1 to enable detail report on debug UART output */
+	uint8_t uart_report;
+	/** \brief Test item defined in \ref gpy2xx_abist_test enum */
+	enum gpy2xx_abist_test test;
+};
+
 /** \brief Member used by \b pair in \ref gpy2xx_abist_report */
 /** \brief Analog built-in self-test report of one pair */
 struct gpy2xx_abist_pair {
@@ -1076,6 +1574,7 @@ struct gpy2xx_pcs_status {
 };
 /**@}*/ /* GPY2XX_DIAG */
 
+/** @cond DOC_ENABLE_SYNCE */
 /** \addtogroup GPY2XX_SYNCE */
 /**@{*/
 /** \brief SyncE configuration */
@@ -1096,6 +1595,7 @@ struct gpy2xx_synce {
 	enum gpy2xx_gpc_sel gpc_sel;
 };
 /**@}*/ /* GPY2XX_SYNCE */
+/** @endcond DOC_ENABLE_SYNCE */
 
 /** \addtogroup GPY2XX_MISC */
 /**@{*/
@@ -1242,22 +1742,31 @@ struct gpy2xx_pvt {
 
 /** \addtogroup GPY2XX_GPY2XX_USXGMII */
 /**@{*/
+/** \brief eye scope select option */
 enum gpy2xx_eye_scope_sel {
+	/** \brief 0 means SCOPE_SEL_ATT */
 	SCOPE_SEL_ATT = 0,
+	/** \brief 1 means SCOPE_SEL_DFE */
 	SCOPE_SEL_DFE = 1,
+	/** \brief SCOPE_SEL_MAX is how many eye scope select option */
 	SCOPE_SEL_MAX
 };
 
+/** \brief eye debug option */
 enum gpy2xx_eye_dbg_opt {
+	/** \brief 0 means SCOPE_EYE_DBG_DISABLED */
 	SCOPE_EYE_DBG_DISABLED		= 0,
+	/** \brief 1 means SCOPE_EYE_DBG_ALL_MSG_OUT */
 	SCOPE_EYE_DBG_ALL_MSG_OUT	= 1,
+	/** \brief 2 means SCOPE_EYE_DBG_CORR_DATA_ONLY */
 	SCOPE_EYE_DBG_CORR_DATA_ONLY	= 2,
+	/** \brief SCOPE_EYE_DBG_MAX is how many eye scope debug option */
 	SCOPE_EYE_DBG_MAX
 };
 
 /** \brief USXGMII 4-point eye test parameter.
  * 	   Used by \ref gpy2xx_usxgmii_4peye_start and
- * 	           \ref gpy2xx_usxgmii_4peye_cfg_get.and
+ * 	           \ref gpy2xx_usxgmii_4peye_cfg_get and
  *	           \ref gpy2xx_usxgmii_fsweep_start and
  *	           \ref gpy2xx_usxgmii_fsweep_cfg_get
  */
@@ -1267,7 +1776,7 @@ struct gpy2xx_4peye_cfg {
 	 * 	   4~12 is supported in current implementation.
 	 */
 	uint16_t ber;
-	/** \brief number of error bits index, 
+	/** \brief number of error bits index,
 	 * 	   the indexed max error counter value will be different for the different BER target
 	 * 	   only 1, 2, 3 are supported
 	 */
@@ -1304,7 +1813,9 @@ struct gpy2xx_scope_cfg {
 	 * 	   1: DFE scope eye
 	 */
 	uint8_t scope_sel;
+	/** \brief reserved. */
 	uint8_t rsv1;
+	/** \brief reserved. */
 	uint8_t rsv2;
 };
 
@@ -1342,7 +1853,7 @@ struct gpy2xx_4peye_result {
 
 /** \brief USXGMII full sweep or scope sweep test state and data buffer info structure.
  * 	   Used by \ref gpy2xx_usxgmii_fsweep_result.
- * 	      and  \ref gpy2xx_usxgmii_scope_result.
+ * 	      and  \ref gpy2xx_usxgmii_scope_eye_result.
  *	   for full sweep and scope eye sweep, the result only for the running state and buffer info, the sweep data is NOT included
  */
 struct gpy2xx_sweep_sts_buff_info {
@@ -1370,17 +1881,540 @@ struct gpy2xx_sweep_sts_buff_info {
 
 /** \brief USXGMII eye test result common structure.
  * 	   Used by \ref gpy2xx_usxgmii_4peye_result
- * 	      and  \ref gpy2xx_usxgmii_fsweep_result.
- * 	      and  \ref gpy2xx_usxgmii_scope_result.
+ * 	      and  \ref gpy2xx_usxgmii_fsweep_result
+ * 	      and  \ref gpy2xx_usxgmii_scope_eye_result
  */
 
 union gpy2xx_eye_result {
+	/** \brief gpy2xx_4peye_result */
 	struct gpy2xx_4peye_result fpeye_result;
+	/** \brief gpy2xx_sweep_sts_buff_info */
 	struct gpy2xx_sweep_sts_buff_info fsweep_result;
+	/** \brief gpy2xx_sweep_sts_buff_info */
 	struct gpy2xx_sweep_sts_buff_info scope_result;
 };
 
 /**@}*/ /* GPY2XX_GPY2XX_USXGMII */
+
+
+/** \addtogroup gpy2xx_PTP */
+/**@{*/
+/** \brief Macros used by \b tx_ptp_tpt in \ref gpy2xx_ptp_ctrl */
+/** \brief Transmit PTP transport protocol type.
+Indicates the type of transport protocol over which PTP messages are sent */
+enum gpy2xx_ptp_tx_ptoto {
+	/** \brief PTP over Ethernet */
+	PTP_TRANSPORT_OVER_ETH = 1,
+	/** \brief PTP over UDP/IPv4 */
+	PTP_TRANSPORT_OVER_IPv4 = 2,
+	/** \brief PTP over UDP/IPv6 */
+	PTP_TRANSPORT_OVER_IPv6 = 3,
+};
+
+/** \cond INTERNAL */
+/** \brief TS Control - low */
+struct gpy2xx_tsc_low {
+	union {
+		struct {
+			/** \brief Enable timestamp */
+			u16 ts_en: 1;
+			/** \brief Fine or coarse timestamp update */
+			u16 foc_updt: 1;
+			/** \brief Initialize timestamp */
+			u16 ts_init: 1;
+			/** \brief Update timestamp */
+			u16 ts_updt: 1;
+			/** \brief Reserved */
+			u16 reserved: 1;
+			/** \brief Update addend register */
+			u16 addend_updt: 1;
+			/** \brief Reserved */
+			u16 reserved2: 2;
+			/** \brief Enable timestamp for all packets */
+			u16 en_all_pkts: 1;
+			/** \brief Timestamp digital or binary rollover control */
+			u16 dob_ro_ctrl: 1;
+			/** \brief Enable PTP packet processing for version 2 format */
+			u16 ts_ver2_en: 1;
+			/** \brief Enable processing of PTP over Ethernet Packets */
+			u16 ts_eth_en: 1;
+			/** \brief Enable processing of PTP packets sent over IPv6-UDP */
+			u16 ts_ipv6_en: 1;
+			/** \brief Enable processing of PTP packets sent over IPv4-UDP */
+			u16 ts_ipv4_en: 1;
+			/** \brief Enable timestamp snapshot for event messages */
+			u16 ts_evtmsg_en: 1;
+			/** \brief Enable snapshot for messages relevant to master */
+			u16 ts_master_en: 1;
+		};
+		/** Timestamp control low word - raw */
+		u16 raw_ts_ctrl_low;
+	};
+};
+
+/** \brief TS control - high */
+struct gpy2xx_tsc_high {
+	union {
+		struct {
+			/** \brief Select PTP packets for taking snapshots */
+			u16 snap_type: 2;
+			/** \brief Enable MAC Address for PTP packet filtering */
+			u16 ts_mac_en: 1;
+			/** \brief Enable checksum correction during One Step Timestamp (OST) for PTP over UDP/IPv4 packets */
+			u16 ts_csc_en: 1;
+			/** \brief Reserved */
+			u16 reserved: 4;
+			/** \brief Transmit timestamp status mode: If set, the PHY overwrites the earlier transmit timestamp
+			status even if it is not read by the software */
+			u16 ts_stat_mode: 1;
+			/** \brief Reserved */
+			u16 reserved2: 3;
+			/** \brief AV 802.1AS mode enable */
+			u16 av8021_as_en: 1;
+			/** \brief Reserved */
+			u16 reserved3: 3;
+		};
+		/** Timestamp control high word - raw */
+		u16 raw_ts_ctrl_high;
+	};
+};
+/** \endcond */
+
+/** \brief Timestamp control */
+struct gpy2xx_ts_ctrl {
+	/** \brief Enable timestamp snapshot for event messages */
+	u16 ts_evtmsg_en: 1;
+	/** \brief Enable snapshot for messages relevant to master */
+	u16 ts_master_en: 1;
+	/** \brief Select PTP packets for taking snapshots */
+	u16 snap_type: 2;
+};
+
+/** \cond INTERNAL */
+/** \brief PPS control - low */
+struct gpy2xx_pps_low {
+	union {
+		struct {
+			/** \brief  'Output Frequency' or 'Flexible PPS Output' control */
+			u16 ofc_or_cmd: 4;
+			/** \brief Flexible PPS output mode enable */
+			u16 pps_mode: 1;
+			/** \brief Target time register mode for PPS0 output.
+			This indicates how the target time registers are programmed, for example, only for generating the interrupt event,
+			generating the interrupt event and starting or stopping, only for starting or stopping PPS signal. */
+			u16 ttr_mode: 2;
+			/** \brief Reserved */
+			u16 reserved: 9;
+		};
+		/** PPS Control low word - raw */
+		u16 raw_pps_ctrl_low;
+	};
+};
+/** \endcond */
+
+/** \brief PPS Control */
+struct gpy2xx_pps_ctrl {
+	/** PPS control low word - bit field */
+	struct gpy2xx_pps_low ppsctrl_low;
+	/** Init target time - nanoseconds */
+	u32 nsec_tgttime;
+	/** Init target time - seconds */
+	u32 sec_tgttime;
+	/** PPS0 interval in nanoseconds */
+	u32 pps0_interal;
+	/** PPS0 width in nanoseconds */
+	u32 pps0_width;
+	/** \brief GPC pin to be used as in \ref gpy2xx_gpc_sel */
+	enum gpy2xx_gpc_sel gpc_sel;
+};
+
+/** \cond INTERNAL */
+/** \brief PTO control - low */
+struct gpy2xx_pto_low {
+	union {
+		struct {
+			/** \brief PTP offload enable */
+			u16 pto_en: 1;
+			/** \brief Automatic PTP SYNC message enable */
+			u16 auto_sync_en: 1;
+			/** \brief Automatic PTP Pdelay_Req message enable */
+			u16 auto_pdreq_en: 1;
+			/** \brief Reserved */
+			u16 reserved: 1;
+			/** \brief Automatic PTP SYNC message trigger */
+			u16 auto_sync_trig: 1;
+			/** \brief Automatic PTP Pdelay_Req message trigger */
+			u16 auto_pdreq_trig: 1;
+			/** \brief Disable PTO delay request/response generation */
+			u16 delay_rrresp_dis: 1;
+			/** \brief Disable peer delay response generation */
+			u16 peer_delayrr_dis: 1;
+			/** \brief Domain number */
+			u16 dom_num: 8;
+		};
+		/** PTO control low word - raw */
+		u16 raw_pto_ctrl_low;
+	};
+};
+/** \endcond */
+
+/** \brief Log message interval */
+struct gpy2xx_logm_level {
+	union {
+		struct {
+			/** \brief Log sync interval. Allowed values are -15 to 15.
+			This field indicates the periodicity of the automatically generated SYNC message when
+			the PTP node is master.*/
+			i16 log_sync_interval: 8;
+			/** \brief Delay_Req to SYNC ratio.
+			In slave mode, it is used to control the frequency of Delay_Req messages transmitted.*/
+			u16 dr_to_sync_ratio: 3;
+			/** \brief Reserved */
+			u16 reserved: 5;
+		};
+		/** Log message interval - low - raw */
+		u16 raw_logm_lvl_low;
+	};
+	union {
+		struct {
+			/** \brief Reserved */
+			u16 reserved2: 8;
+			/** \brief Log Min Pdelay_Req interval. Allowed values are -15 to 15.
+			This field indicates logMinPdelayReqInterval of PTP node. This is used to schedule the periodic
+			Pdelay request packet transmission.*/
+			i16 log_min_pdr_interval: 8;
+		};
+		/** Log message interval - high - raw */
+		u16 raw_logm_lvl_hi;
+	};
+};
+
+/** \brief PTP offload control */
+struct gpy2xx_pto_ctrl {
+	/** PTO  Control low word - bit field */
+	struct gpy2xx_pto_low ptoctrl_low;
+	/** Source port identity */
+	u8 sport_id[10]; //PTP_SPORT_ID_LEN_BYTE
+	/** \brief Log message interval */
+	struct gpy2xx_logm_level logmsg_lvl;
+};
+
+/** \brief IEEE 1588 PTP control */
+struct gpy2xx_ptp_ctrl {
+	/** \brief Enable/disable TX timestamp capture at PHY level */
+	u16 tx_ts_phy: 1;
+	/** \brief Enable/disable RX timestamp capture at PHY level */
+	u16 rx_ts_phy: 1;
+	/** \brief Transmit PTP offset */
+	u16 tx_ptp_off: 14;
+	/** \brief Transmit PTP transport protocol type.
+	Valid values are defined in \ref gpy2xx_ptp_tx_ptoto enum */
+	u16  tx_ptp_tpt: 2;
+	/** \brief Enable 1-step vs 2-step timestamp method */
+	u16 ts_ostc_en: 1;
+	/**  Timestamp required for one-step time correction */
+	time64_t tx_ost_corr;
+	/**  brief auxiliary snapshot trigger port */
+	u16 aux_trig_port;
+};
+
+/** \cond INTERNAL */
+/** \brief IEEE 1588 timestamp logic - bit fields */
+struct gpy2xx_pmts_cfg {
+	union {
+		struct {
+			/** \brief GMAC-Full PTP reference clock reset */
+			u16 ts_refclk_rst: 1;
+			/** \brief Transmit one-step time correction enable */
+			u16 ts_ostc_en: 1;
+			/** \brief GMAC-Lite PTP reference clock reset */
+			u16 tsl_refclk_rst: 1;
+			/** \brief Reserved */
+			u16 reserved: 1;
+			/** \brief TX timestamp FIFO enable */
+			u16 tx_fifo_en: 1;
+			/** \brief RX timestamp FIFO enable */
+			u16 rx_fifo_en: 1;
+			/** \brief TX timestamp FIFO reset */
+			u16 tx_fifo_rst: 1;
+			/** \brief RX timestamp FIFO reset */
+			u16 rx_fifo_rst: 1;
+			/** \brief PHY TX timestamp enable */
+			u16 tx_ts_phy: 1;
+			/** \brief PHY RX timestamp enable*/
+			u16 rx_ts_phy: 1;
+			/** \brief Reserved */
+			u16 reserved2: 6;
+		};
+		/** IEEE 1588 timestamp logic - raw */
+		u16 raw_ts_cfg;
+	};
+	union {
+		struct {
+			/** \brief Transmit PTP offset */
+			u16 tx_ptp_off: 14;
+			/** \brief Transmit PTP transport protocol type.
+			Valid values are defined in \ref gpy2xx_ptp_tx_ptoto enum */
+			u16  tx_ptp_tpt: 2;
+		};
+		/** PM configuration of PTP - raw */
+		u16 raw_ptp_cfg;
+	};
+};
+/** \endcond */
+
+/** \brief Configured PTP information */
+struct gpy2xx_ptp_cfg {
+	/** \brief IEEE 1588 PTP control */
+	struct gpy2xx_ptp_ctrl ptp_ctrl;
+	/** \brief Timestamp control */
+	struct gpy2xx_ts_ctrl ts_ctrl;
+	/** \brief PPS control */
+	struct gpy2xx_pps_ctrl pps_ctrl;
+	/** \brief PTP offload control */
+	struct gpy2xx_pto_ctrl pto_ctrl;
+};
+
+/** \brief Status of timestamp FIFO */
+struct gpy2xx_ts_fifo_stat {
+	union {
+		struct {
+			/** \brief TX FIFO fill level */
+			u16 tx_fill_lvl: 5;
+			/** \brief Reserved */
+			u16 reserved: 1;
+			/** \brief TX FIFO overflow */
+			u16 tx_ovfl: 1;
+			/** \brief TX FIFO underflow */
+			u16 tx_udfl: 1;
+			/** \brief RX FIFO fill level */
+			u16 rx_fill_lvl: 5;
+			/** \brief Reserved */
+			u16 reserved2: 1;
+			/** \brief RX FIFO overflow */
+			u16 rx_ovfl: 1;
+			/** \brief RX FIFO underflow */
+			u16 rx_udfl: 1;
+		};
+		/** IEEE 1588 timestamp logic */
+		u16 raw_fifo_stat;
+	};
+};
+
+/** \brief Member used by \b tss_low in \ref gpy2xx_ts_stat */
+/** \brief Status of Timestamp Status low word */
+struct gpy2xx_ts_stat_low {
+	union {
+		struct {
+			/** \brief Seconds overflow */
+			u16 sec_ovfl: 1;
+			/** \brief Target time reached for PPS0 */
+			u16 tt_rchd_pps0: 1;
+			/** \brief Auxiliary trigger snapshot */
+			u16 trig_snapshot: 1;
+			/** \brief Target time error for PPS0 */
+			u16 tt_err_pps0: 1;
+			/** \brief Reserved */
+			u16 reserved0: 11;
+			/** \brief Tx timestamp status interrupt status */
+			u16 txts_int_stat: 1;
+		};
+		/** Status of timestamp status low word - raw */
+		u16 raw_ts_stat_low;
+	};
+};
+
+/** \brief Member used by \b tss_high in \ref gpy2xx_ts_stat */
+/** \brief Status of timestamp status high word */
+struct gpy2xx_ts_stat_high {
+	union {
+		struct {
+			/** \brief Auxiliary timestamp snapshot trigger identifier */
+			u16 auxts_st_id: 4;
+			/** \brief Reserved */
+			u16 reserved: 4;
+			/** \brief Auxiliary timestamp snapshot trigger missed */
+			u16 auxts_st_mis: 1;
+			/** \brief Number of auxiliary timestamp snapshots */
+			u16 auxts_nums: 5;
+			/** \brief Reserved */
+			u16 reserved2: 2;
+		};
+		/** Status of timestamp status low word - raw */
+		u16 raw_ts_stat_hi;
+	};
+};
+
+/** \brief Member used by \b txts_stat in \ref gpy2xx_ts_stat */
+/** \brief Status of Tx timestamp TS status */
+struct gpy2xx_tx_ts_stat {
+	/** \brief Transmit timestamp status missed */
+	u8 txtss_mis;
+	/** \brief Transmit timestamp status - nanoseconds */
+	u32 txtss_nsec;
+	/** \brief Transmit timestamp status - seconds */
+	u32 txtss_sec;
+};
+
+/** \brief Status of timestamp status */
+struct gpy2xx_ts_stat {
+	/** \brief Status of timestamp status low word */
+	struct gpy2xx_ts_stat_low tss_low;
+	/** \brief Status of timestamp status high word */
+	struct gpy2xx_ts_stat_high tss_high;
+	/** \brief Status of Tx timestamp status */
+	struct gpy2xx_tx_ts_stat txts_stat;
+};
+
+/** \brief Provides the timestamp of the frame transmitted by the MAC */
+struct gpy2xx_tx_ts {
+	/** Transmit frame timestamping - in nanoseconds */
+	time64_t tx_ts_stat;
+	/** Transmit frame CRC used as ID to match */
+	u32 tx_crc_stat;
+};
+
+/** \brief Provides the timestamp of the frame received by the MAC */
+struct gpy2xx_rx_ts {
+	/** Receive frame timestamping - in nanoseconds */
+	time64_t rx_ts_stat;
+	/** Receive frame CRC used as ID to match */
+	u32 rx_crc_stat;
+};
+
+/** \brief auxiliary FIFO status */
+struct gpy2xx_aux_fifo_stat {
+	/** \brief FIFO overflow */
+	u16 ovfl;
+	/** \brief FIFO fill level */
+	u16 fill_lvl;
+};
+
+/** \brief auxiliary configuration */
+struct gpy2xx_aux_cfg {
+	/** \brief enable - 1; disable -0 */
+	u16 aux_enable;
+	/** \brief OUT_TIMER - 0, GPC0 - 1, GPC1 - 2, GPC2 - 3 */
+	u16 aux_trigger_port;
+};
+/**@}*/ /* gpy2xx_PTP */
+
+/** \addtogroup GPY211_BM */
+/**@{*/
+/** \cond INTERNAL */
+/** \brief PM shared buffer configuration */
+struct bm_cfg {
+	/** \brief SB 0 Start location */
+	u16 sb0_start;
+	/** \brief SB 0 End location */
+	u16 sb0_end;
+	/** \brief SB 0 Packet threshold to start the dequeue */
+	u16 sb0_pkt_thresh;
+	/** \brief SB 1 Start location */
+	u16 sb1_start;
+	/** \brief SB 1 End location */
+	u16 sb1_end;
+	/** \brief SB 1 Packet threshold to start the dequeue */
+	u16 sb1_pkt_thresh;
+};
+
+/** \brief Shared buffer status */
+struct pm_bm_status {
+	/** \brief SB 0 overflow indicator */
+	u8 sb0_ov;
+	/** \brief SB 0 Tx register overflow indicator */
+	u8 sb0_tx_reg_ov;
+	/** \brief SB 0 Rx register overflow indicator */
+	u8 sb0_rx_reg_ov;
+	/** \brief SB 1 overflow indicator */
+	u8 sb1_ov;
+	/** \brief SB 1 Tx register overflow indicator */
+	u8 sb1_tx_reg_ov;
+	/** \brief SB 1 Rx register overflow indicator */
+	u8 sb1_rx_reg_ov;
+	/** \brief SB 0 retry indicator */
+	u8 sb0_retry;
+	/** \brief SB 0 Sent indicator */
+	u8 sb0_sent;
+	/** \brief SB 1 retry indicator */
+	u8 sb1_retry;
+	/** \brief SB 1 sent indicator */
+	u8 sb1_sent;
+	/** \brief SB 0 complete indicator */
+	u8 sb0_complete;
+	/** \brief SB 1 complete indicator */
+	u8 sb1_complete;
+};
+/** \endcond */
+
+/** \brief Macros used by \b pause_low_thresh in \ref pause_cfg */
+/** \brief Pause low threshold in time slots */
+enum pause_low_thresh {
+	/** \brief PT-4 slot times */
+	PLT_PT_4ST = 0,
+	/** \brief PT-28 slot times */
+	PLT_PT_28ST = 1,
+	/** \brief PT-36 slot times */
+	PLT_PT_36ST = 2,
+	/** \brief PT-144 slot times */
+	PLT_PT_144ST = 3,
+	/** \brief PT-256 slot times */
+	PLT_PT_256ST = 4,
+	/** \brief PT-512 slot times */
+	PLT_PT_512ST = 5,
+};
+
+/** \brief GMAC-Lite Tx flow control configuration */
+struct pause_cfg {
+	/** \brief Flow control busy or backpressure activate */
+	u8 flow_ctrl_busy;
+	/** \brief PM GMAC flow control enable */
+	u8 pm_gmacl_fc;
+	/** \brief Tx flow control enable */
+	u8 tx_flow_ctrl;
+	/** \brief Disable zero-quanta pause */
+	u8 dis_zquanta_pause;
+	/** \brief Pause time */
+	u16 pause_time;
+	/** \brief Pause frame Src MAC to send with */
+	u8 tx_fc_mac[6];
+	/** \brief Pause low threshold.
+	Valid values are defined in \ref pause_low_thresh enum */
+	enum pause_low_thresh pause_low_thresh;
+	/** \brief Pause is triggered when available buf size is
+			   (wptr - rptr) < PAUSE_THRES */
+	u16 pause_assert_thresh;
+	/** \brief To create a hysteresis to avoid too frequent PAUSE/UN-PAUSE */
+	u16 pause_deassert_thresh;
+};
+
+/** \brief Macros used by \b ppm in \ref tune_freq */
+/** \brief PHY's dummy MAC freuency to tune */
+enum mac_freq_tune {
+	/** \brief Standard USXMII Compliance Test condition.
+	MACs operate at frequency corresponding to line rate. This is the
+	recommended setting when it is accepted to have marginal packet drop at
+	maximum data rate testing above 99.9% of maximum rate. */
+	FREQ_PPM_000 = 0,
+	/** \brief Default working condition.
+	MACs operate at frequency+100ppm corresponding to line rate. This is the
+	default settings for 100% of maximum rate traffic condition with high
+	quality XTALs that generate clocks within +/-50ppm deviation. */
+	FREQ_PPM_100 = 1,
+	/** \brief Long Duration 100% Traffic Stress Test condition.
+	MACs operate at frequency+300ppm corresponding to line rate. This test
+	mode is to compensate all the worst case frequency deviations. */
+	FREQ_PPM_300 = 2,
+};
+
+/** \brief Tune the frequency of MACs within GPY in USXGMII Mode */
+struct tune_freq {
+	/** \brief Pause low threshold.
+	Valid values are defined in \ref pause_low_thresh enum */
+	enum mac_freq_tune ppm;
+};
+/**@}*/ /* GPY211_BM */
+
 
 /** \addtogroup GPY2XX_INIT */
 /**@{*/
@@ -1509,6 +2543,21 @@ struct gpy2xx_device {
 	/** \brief Flags for supported Wake-on-LAN modes.
 		Values (\ref GPY2XX_WOL_FLAG) can be combined with "or" */
 	uint32_t wol_supported;
+	/** \brief  Max MACSec SAs supported */
+	u8 nr_of_sas;
+	/** \brief GMAC module information used in GMAC APIs */
+	void *gmac_data;
+	/** \brief MACsec module information used in MACsec APIs */
+	void *macsec_data;
+	/** \brief PTP clock (in Hz) */
+	u32 ptp_clock;
+	/** \brief GMAC-Full base address */
+	u32 gmacf_base_addr;
+	/** \brief GMAC-Lite base address */
+	u32 gmacl_base_addr;
+	/** \brief Packet Manager base address */
+	u32 pm_base_addr;
+
 	/** \brief  SyncE capable (value 1) or not capable (value 0) */
 	unsigned int synce_supported : 1;
 	/** \brief  MACsec capable (value 1) or not capable (value 0) */
@@ -1530,9 +2579,9 @@ struct gpy2xx_device {
 /**********************
 	APIs
  **********************/
+/** @cond INTERNAL */
 /** \addtogroup GPY2XX_MDIO */
 /**@{*/
-/** @cond INTERNAL */
 /**
 	\brief API for Slave MDIO read operation.
 	\details The user application uses this API	to read the internal registers
@@ -1749,64 +2798,8 @@ int gpy2xx_mbox_read32(struct gpy2xx_device *phy, uint32_t regaddr,
 */
 int gpy2xx_mbox_write32(struct gpy2xx_device *phy, uint32_t regaddr,
 			uint32_t data);
-/** @endcond */
-
-/**
-	\brief Debug API to read XPCS register.
-
-	\param phy Pointer to GPHY data (\ref gpy2xx_device).
-	\param regaddr XPCS register address (byte address).
-	\param data Pointer to store read data.
-
-	\return
-	- =0: successful
-	- <0: error code
-*/
-int gpy2xx_xpcs_read(struct gpy2xx_device *phy, uint32_t regaddr,
-		     uint16_t *data);
-
-/**
-	\brief Debug API to write XPCS register.
-
-	\param phy Pointer to GPHY data (\ref gpy2xx_device).
-	\param regaddr XPCS register address (byte address).
-	\param data Data to be written to given 'regaddr' address.
-
-	\return
-	- =0: successful
-	- <0: error code
-*/
-int gpy2xx_xpcs_write(struct gpy2xx_device *phy, uint32_t regaddr,
-		      uint16_t data);
-
-/**
-	\brief Debug API to read SERDES register via XPCS CR access.
-
-	\param phy Pointer to GPHY data (\ref gpy2xx_device).
-	\param regaddr SERDES register address (byte address).
-	\param data Pointer to store read data.
-
-	\return
-	- =0: successful
-	- <0: error code
-*/
-int gpy2xx_serdes_read(struct gpy2xx_device *phy, uint32_t addr,
-		       uint16_t *data);
-
-/**
-	\brief Debug API to write SERDES register via XPCS CR access.
-
-	\param phy Pointer to GPHY data (\ref gpy2xx_device).
-	\param regaddr SERDES register address (byte address).
-	\param data Data to be written to given 'regaddr' address.
-
-	\return
-	- =0: successful
-	- <0: error code
-*/
-int gpy2xx_serdes_write(struct gpy2xx_device *phy, uint32_t addr,
-			uint16_t data);
 /**@}*/ /* GPY2XX_MDIO */
+/** @endcond */
 
 /** \addtogroup GPY2XX_INIT */
 /**@{*/
@@ -1997,6 +2990,39 @@ int gpy2xx_read_fw_info(struct gpy2xx_device *phy);
 /**@}*/ /* GPY2XX_LINK */
 
 /** \addtogroup GPY2XX_LED */
+/**@{*/
+
+/**
+	\brief Controls LED brightness level config.
+	\details Use this API to configure LED's max brightness level.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param brightness Pointer to LED brightness config (\ref gpy2xx_led_brlvl_cfg).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_led_br_cfg(struct gpy2xx_device *phy,
+		      struct gpy2xx_led_brlvl_cfg *cfg);
+
+/**
+	\brief Gets LED brightness level config.
+	\details Use this API to get LED's brightness config that was using \ref
+	gpy2xx_led_br_cfg, like max brightness level.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param brightness Pointer to LED brightness config (\ref gpy2xx_led_brlvl_cfg).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_led_br_get(struct gpy2xx_device *phy,
+		      struct gpy2xx_led_brlvl_cfg *cfg);
+
 /**
 	\brief Configures the given LED specific function.
 	\details Use this API to assign an LED configuration to specific PHY
@@ -2087,6 +3113,73 @@ int gpy2xx_test_mode_cfg(struct gpy2xx_device *phy,
 	- =0: successful
 	- <0: error code
 */
+int gpy2xx_sck_cdiag_start(struct gpy2xx_device *phy);
+
+/**
+	\brief read cable diagnostics test result.
+	\details Use this API to test cable diagnostics, such as cable open/short detection
+	and cable length estimation.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param regno read register number.
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_sck_cdiag_result_read(struct gpy2xx_device *phy, int regno);
+
+/**
+	\brief poll cable diagnostics test status.
+	\details Use this API to test cable diagnostics, such as cable open/short detection
+	and cable length estimation.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_sck_cdiag_api_poll(struct gpy2xx_device *phy);
+
+/**
+	\brief Exit cable diagnostics test.
+	\details Use this API to test cable diagnostics, such as cable open/short detection
+	and cable length estimation.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_sck_cdiag_api_exit(struct gpy2xx_device *phy);
+
+/**
+	\brief Request cable diagnostics test available registers.
+	\details Use this API to test cable diagnostics, such as cable open/short detection
+	and cable length estimation.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_sck_cdiag_api_result_no(struct gpy2xx_device *phy);
+
+/**
+	\brief Starts cable diagnostics test.
+	\details Use this API to test cable diagnostics, such as cable open/short detection
+	and cable length estimation.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
 int gpy2xx_cdiag_start(struct gpy2xx_device *phy);
 
 /**
@@ -2125,7 +3218,7 @@ int gpy2xx_cdiag_abist_stop(struct gpy2xx_device *phy);
 
 	\param phy Pointer to GPHY data (\ref gpy2xx_device).
 
-	\param param Pointer to ABIST paramters (\ref gpy2xx_abist_param).
+	\param test Pointer to ABIST paramters (\ref gpy2xx_abist_test).
 
 	\return
 	- =0: successful
@@ -2217,6 +3310,343 @@ int gpy2xx_pcs_status_read(struct gpy2xx_device *phy,
 			   struct gpy2xx_pcs_status *status);
 /**@}*/ /* GPY2XX_DIAG */
 
+/** \addtogroup GPY211_PTP */
+/**@{*/
+/**
+	\brief Adjusts the frequency of the hardware clock.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param ppb Relative frequency offset from nominal frequency in parts per
+	billion.
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_adjfreq(struct gpy2xx_device *phy, s32 ppb);
+
+/**
+	\brief Sets the shift time of the hardware clock.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param delta Desired change time in nanoseconds.
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_adjtime(struct gpy2xx_device *phy, i64 delta);
+
+/**
+	\brief Sets the system time of the PHY.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param ts Desired init time (\b timespec64).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_settime(struct gpy2xx_device *phy,       struct timespec64 *ts);
+
+/**
+	\brief Reads the current system time of the PHY.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param ts Holds the current time (\b timespec64).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_gettime(struct gpy2xx_device *phy,       struct timespec64 *ts);
+
+/**
+	\brief Enables and configures the PTP (1588) function.
+	\details Enables the PTP (1588) TS configuration and initializes it to default settings.
+	It configures the user application given inputs, such as enable/disable Tx/Rx Timestamp capture
+	at PHY level, Tx PTP offset of starting byte location of the PTP message, the type of transport
+	protocol over which PTP messages are sent. It chooses One Step Timestamp (OST) vs Two Step Timestamp (TST),
+	enables/disables OST correction and configures its OST correction time.
+
+	For example, for PTP message sent over UDP/IPv4 via untagged Ethernet packet, the Tx PTP offset
+	should be 42 decimal.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param ptp_cfg PTP configurations (\ref gpy2xx_ptp_ctrl).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_enable(struct gpy2xx_device *phy,
+		      struct gpy2xx_ptp_ctrl *ptp_cfg);
+
+/**
+	\brief Disable PTP (1588) function.
+	\details Disables the PTP (1588) TS configuration to default settings and removes
+	all other configurations that were set using APIs \ref gpy2xx_ptp_enable,
+	\ref gpy2xx_ptp_set_tsctrl, \ref gpy2xx_ptp_set_ppsctrl, or \ref gpy2xx_ptp_set_ptoctrl.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_disable(struct gpy2xx_device *phy);
+
+/**
+	\brief Gets the PTP (1588) TS configuration.
+	\details Gets the PTP (1588) TS configuration that was set using APIs \ref gpy2xx_ptp_enable,
+	\ref gpy2xx_ptp_set_tsctrl, \ref gpy2xx_ptp_set_ppsctrl, and \ref gpy2xx_ptp_set_ptoctrl.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param ptp_cfg PTP configurations (\ref gpy2xx_ptp_cfg).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_getcfg(struct gpy2xx_device *phy,
+		      struct gpy2xx_ptp_cfg *ptp_cfg);
+
+/**
+	\brief Gets timestamp FIFO status.
+	\details The FIFO status gives the Rx/Tx FIFO's fill level, overflow and undeflow indication.
+	To facilitate the SoC device's retrieval of the captured timestamps, a FIFO of depth 16 entries is
+	provided to store the captured timestamp per Rx/Tx direction. Each entry is of width 96 bits:
+		- 64 bits of packet timestamp
+		- 32 bits of CRC as packet identifier
+
+	The user application must read this API to check the Rx FIFO fill level is not empty before doing a
+	read access, otherwise an underflow error flag will be set.
+
+	The hardware pushes values into the FIFO and a software read access to a fixed location pops the oldest content.
+	If the FIFO is full and a push is triggered, the data will be dropped and the FIFO content not overwritten,
+	an overflow error flag will be set.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param status Holds timestamp FIFO status (\ref gpy2xx_ts_fifo_stat).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_fifostat(struct gpy2xx_device *phy,
+			struct gpy2xx_ts_fifo_stat *status);
+
+/**
+	\brief Resets the FIFO status.
+	\details The user application can use this API to clear the FIFO status \ref gpy2xx_ts_fifo_stat,
+	which shows the Rx/Tx FIFO's fill level, overflow and undeflow indication.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_resetfifo(struct gpy2xx_device *phy);
+
+/**
+	\brief Gets transmit timestamp details and status.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param ts_status Holds timestamp FIFO status (\ref gpy2xx_ts_stat).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_txtsstat(struct gpy2xx_device *phy,
+			struct gpy2xx_ts_stat *ts_status);
+
+/**
+	\brief Configures IEEE 1588 Timestamp (TS) control settings.
+	\details Use this API to configure TS control to TS functions, such as enable/disable
+	TS snapshot for all packets, event messages, messages relevant to master, selected PTP packets,
+	program sub-second/sub-nanosecond increment resolution values to the system TS and TS correction
+	and default Addend (drift in frequency) value.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param ts_cfg PTP configurations (\ref gpy2xx_ts_ctrl).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_set_tsctrl(struct gpy2xx_device *phy,
+			  struct gpy2xx_ts_ctrl *ts_cfg);
+
+/**
+	\brief Configures IEEE 1588 Pulse Per Second (PPS) function settings.
+	\details The flexible PPS output option provides features such as programming the start or stop
+	time in terms of system time, width between the rising edge and corresponding falling edge,
+	the interval between the rising edges of the PPS signal. The width and interval are configured in
+	terms of number of units of sub-second increment value.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param pps_ctrl Pointer to PPS config (\ref gpy2xx_pps_ctrl).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_set_ppsctrl(struct gpy2xx_device *phy,
+			   struct gpy2xx_pps_ctrl *pps_ctrl);
+/**
+	\brief Gets IEEE 1588 Pulse Per Second (PPS) function settings.
+	\details The flexible PPS output option provides features such as programming the start or stop
+	time in terms of system time, width between the rising edge and corresponding falling edge,
+	the interval between the rising edges of the PPS signal. The width and interval are configured in
+	terms of number of units of sub-second increment value.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param pps_ctrl Pointer to PPS config (\ref gpy2xx_pps_ctrl).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_get_ppsctrl(struct gpy2xx_device *phy,
+			   struct gpy2xx_pps_ctrl *pps_ctrl);
+
+/**
+	\brief Configures IEEE 1588 PTP Timestamp Offload function settings.
+	\details PTP Timestamp Offload Function is an optional feature that can parse the
+	incoming PTP packets on the receiver, and enables the automatic generation of required
+	PTP packets periodically or when triggered by the host software.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param pto_ctrl PTO configurations (\ref gpy2xx_pto_ctrl)..
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_set_ptoctrl(struct gpy2xx_device *phy,
+			   struct gpy2xx_pto_ctrl *pto_ctrl);
+
+/**
+	\brief Gets Rx packet timestamp snapshot from FIFO.
+	\details Gets one entry of the captured IEEE1588 timestamp (TS) of the received packet from FIFO.
+	The CRC is used as an identifier for the packet so that the host can correlate the packet with the timestamp.
+	The FIFO is capable of storing 16 entries per Tx, Rx direction. The user application must read
+	\ref gpy2xx_ptp_fifostat to check that the Rx FIFO fill level is not empty before doing a read access,
+	otherwise an underflow error flag will be set.
+
+	Hardware pushes values into the FIFO and a software read access to a fixed location pops the oldest content.
+	If the FIFO is full and a push is triggered, the data will be dropped and the FIFO content not overwritten,
+	an overflow error flag will be set.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param rx_ts Holds timestamp and CRC (\ref gpy2xx_rx_ts)..
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_getrxts(struct gpy2xx_device *phy,
+		       struct gpy2xx_rx_ts *rx_ts);
+
+/**
+	\brief Gets Tx packet timestamp snapshot from FIFO.
+	\details Gets one entry of the captured IEEE1588 timestamp (TS) of the transmitted packet from FIFO.
+	The CRC is used as an identifier for the packet so that the host can correlate the packet with the timestamp.
+	The FIFO is capable of storing 16 entries per Tx, Rx direction. The user application must read
+	\ref gpy2xx_ptp_fifostat to check that the Tx FIFO fill level is not empty before doing a read access,
+	otherwise an underflow error flag will be set.
+
+	Hardware pushes values into the FIFO and a software read access to a fixed location pops the oldest content.
+	If the FIFO is full and a push is triggered, the data will be dropped and the FIFO content not overwritten,
+	an overflow error flag will be set.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param tx_ts Holds timestamp status and CRC (\ref gpy2xx_tx_ts).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_gettxts(struct gpy2xx_device *phy,
+		       struct gpy2xx_tx_ts *tx_ts);
+
+/**
+	\brief Configure auxiliary timestamp function.
+	\details Configures Auxiiliary timestamp feature Enable/Discable, and the snapshot trigger source/event.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param aux_cfg passes the configuration (\ref gpy2xx_aux_cfg).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_aux_cfg(struct gpy2xx_device *phy, struct gpy2xx_aux_cfg *aux_cfg);
+
+/**
+	\brief Gets auxiliary timestamp snapshot from FIFO.
+	\details Gets one entry of the captured IEEE1588 timestamp (TS) based on an external event from FIFO.
+	The timestamp status register will indicate auxiliary event.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param ts Holds timestamp.
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_getauxts(struct gpy2xx_device *phy, struct timespec64 *ts);
+
+/**
+	\brief Gets filling level and overflow states.
+	\details Gets filling level and overflow status of auxiliary timestamp FIFO.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param fifo_status Holds states (\ref gpy2xx_aux_fifo_stat).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_auxfifostat(struct gpy2xx_device *phy, struct gpy2xx_aux_fifo_stat *fifo_status);
+
+/**
+	\brief Reset timestamp FIFO.
+	\details clear timestamp FIFO.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_ptp_resetauxfifo(struct gpy2xx_device *phy);
+
+/**@}*/ /* GPY211_PTP */
+
+
+
+
+/** @cond DOC_ENABLE_SYNCE */
 /** \addtogroup GPY2XX_SYNCE */
 /**@{*/
 /**
@@ -2246,6 +3676,7 @@ int gpy2xx_pcs_status_read(struct gpy2xx_device *phy,
 */
 int gpy2xx_synce_cfg(struct gpy2xx_device *phy, struct gpy2xx_synce *cfg);
 /**@}*/ /* GPY2XX_SYNCE */
+/** @endcond DOC_ENABLE_SYNCE */
 
 /** \addtogroup GPY2XX_MISC */
 /**@{*/
@@ -2320,6 +3751,62 @@ int gpy2xx_pvt_get(struct gpy2xx_device *phy, struct gpy2xx_pvt *pvt);
 
 /** \addtogroup GPY2XX_GPY2XX_USXGMII */
 /**@{*/
+/**
+	\brief Debug API to read XPCS register.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+	\param regaddr XPCS register address (byte address).
+	\param data Pointer to store read data.
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_xpcs_read(struct gpy2xx_device *phy, uint32_t regaddr,
+		     uint16_t *data);
+
+/**
+	\brief Debug API to write XPCS register.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+	\param regaddr XPCS register address (byte address).
+	\param data Data to be written to given 'regaddr' address.
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_xpcs_write(struct gpy2xx_device *phy, uint32_t regaddr,
+		      uint16_t data);
+
+/**
+	\brief Debug API to read SERDES register via XPCS CR access.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+	\param regaddr SERDES register address (byte address).
+	\param data Pointer to store read data.
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_serdes_read(struct gpy2xx_device *phy, uint32_t regaddr,
+		       uint16_t *data);
+
+/**
+	\brief Debug API to write SERDES register via XPCS CR access.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+	\param regaddr SERDES register address (byte address).
+	\param data Data to be written to given 'regaddr' address.
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_serdes_write(struct gpy2xx_device *phy, uint32_t regaddr,
+			uint16_t data);
+
 /**
 	\brief Enter or exit USXGMII debug mode.
 	\details This is only applied to models supporting USXGMII EQ tuning
@@ -2439,7 +3926,7 @@ int gpy2xx_usxgmii_4peye_cfg_get(struct gpy2xx_device *phy, struct gpy2xx_4peye_
 
 	\param phy Pointer to GPHY data (\ref gpy2xx_device).
 
-	\param pcfg Refer to \ref gpy2xx_fsweep_cfg for parameter details.
+	\param pcfg Refer to \ref gpy2xx_4peye_cfg for parameter details.
 
 	\return
 	- =0: successful
@@ -2489,7 +3976,7 @@ int gpy2xx_usxgmii_fsweep_cancel(struct gpy2xx_device *phy);
 
 	\param phy Pointer to GPHY data (\ref gpy2xx_device).
 
-	\param presult Refer to \ref gpy2xx_weep_result for test result.
+	\param presult Refer to \ref gpy2xx_eye_result for test result.
 
 	_______________________________________<---- Buffer Addr, Buffer Size include this 16 bytes
 	|          16 bytes buff info         |
@@ -2536,7 +4023,7 @@ int gpy2xx_usxgmii_fetch_fsweep_data(struct gpy2xx_device *phy);
 
 	\param phy Pointer to GPHY data (\ref gpy2xx_device).
 
-	\param pcfg Refer to \ref gpy2xx_fsweep_cfg for parameter details.
+	\param pcfg Refer to \ref gpy2xx_4peye_cfg for parameter details.
 
 	\return
 	- =0: successful
@@ -2553,7 +4040,7 @@ int gpy2xx_usxgmii_fsweep_cfg_get(struct gpy2xx_device *phy, struct gpy2xx_4peye
 
 	\param phy Pointer to GPHY data (\ref gpy2xx_device).
 
-	\param presult Refer to \ref gpy2xx_weep_result for test result.
+	\param presult Refer to \ref gpy2xx_eye_result for test result.
 
 	_______________________________________<---- Buffer Addr, Buffer Size include this 16 bytes
 	|          16 bytes buff info         |
@@ -2573,7 +4060,7 @@ int gpy2xx_usxgmii_scope_eye_result(struct gpy2xx_device *phy, union gpy2xx_eye_
 
 /**
 	\brief fetch scope eye test data on USXGMII interface.
-	\details Before call this function, need to call gpy2xx_usxgmii_scope_result function
+	\details Before call this function, need to call gpy2xx_usxgmii_scope_eye_result function
 	to get the buffer infomation.
 
 	This API is used to retrieve scope eye test data in the buffer.
@@ -2581,7 +4068,7 @@ int gpy2xx_usxgmii_scope_eye_result(struct gpy2xx_device *phy, union gpy2xx_eye_
 
 	To fetch all the data in the buffer, need to continusly call this function to fetch all the data.
 	How many time need to fetch the data depends on buffer size
-	which is get by the gpy2xx_usxgmii_scope_result function.
+	which is get by the gpy2xx_usxgmii_scope_eye_result function.
 	The buffer size value in the result is byte unit, this fetch funciton will return one DWORD (four bytes),
 	the fetch time need to be calculated according this formula: fetch time = (buff_size - 16)/4
 	The scope eye buffer size is fixed 0xA800+16, so the fetch time is 10752
@@ -2594,6 +4081,23 @@ int gpy2xx_usxgmii_scope_eye_result(struct gpy2xx_device *phy, union gpy2xx_eye_
 	- <0: error code
 */
 int gpy2xx_usxgmii_fetch_scope_eye_data(struct gpy2xx_device *phy);
+
+/**
+	\brief Start scope eye test on USXGMII interface.
+	\details This is only applied to models supporting USXGMII EQ tuning
+	function. Start to run full sweep test on USXGMII with given
+	parameters.
+	Use \ref gpy2xx_usxgmii_scope_eye_result to retrieve the test result.
+
+	\param phy Pointer to GPHY data (\ref gpy2xx_device).
+
+	\param pcfg Refer to \ref gpy2xx_scope_cfg for parameter details.
+
+	\return
+	- =0: successful
+	- <0: error code
+*/
+int gpy2xx_usxgmii_scope_start(struct gpy2xx_device *phy, const struct gpy2xx_scope_cfg *pcfg);
 
 /**@}*/ /* GPY2XX_GPY2XX_USXGMII */
 

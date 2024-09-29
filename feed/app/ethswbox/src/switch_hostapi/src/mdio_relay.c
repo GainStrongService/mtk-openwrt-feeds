@@ -70,3 +70,4 @@ int ext_mdio_mod(const GSW_Device_t *dev, struct mdio_relay_mod_data *parm)
 			    0,
 			    0);
 }
+

@@ -15,22 +15,9 @@
 #pragma pack(push, 1)
 #pragma scalar_storage_order little-endian
 
-/** \brief Logical port mode.
-    Used by \ref GSW_CTP_portAssignment_t. */
-typedef enum {
-	/** WLAN with 8-bit station ID */
-	GSW_LOGICAL_PORT_8BIT_WLAN = 0,
-	/** WLAN with 9-bit station ID */
-	GSW_LOGICAL_PORT_9BIT_WLAN = 1,
-	/** GPON OMCI context */
-	GSW_LOGICAL_PORT_GPON = 2,
-	/** EPON context */
-	GSW_LOGICAL_PORT_EPON = 3,
-	/** G.INT context */
-	GSW_LOGICAL_PORT_GINT = 4,
-	/** Others (sub interface ID is 0 by default) */
-	GSW_LOGICAL_PORT_OTHER = 0xFF,
-} GSW_LogicalPortMode_t;
+/** \addtogroup GSW_ETHERNET_BRIDGING
+ *  @{
+ */
 
 /** \brief CTP Port configuration mask.
     Used by \ref GSW_CTP_portConfig_t. */
@@ -96,38 +83,8 @@ typedef enum {
 	GSW_CTP_PORT_CONFIG_MASK_FORCE = 0x80000000
 } GSW_CtpPortConfigMask_t;
 
-/** \brief CTP Port Assignment/association with logical port.
-    Used by \ref GSW_CTP_PORT_ASSIGNMENT_ALLOC, \ref GSW_CTP_PORT_ASSIGNMENT_SET
-    and \ref GSW_CTP_PORT_ASSIGNMENT_GET. */
-typedef struct {
-	/** Logical Port Id. The valid range is hardware dependent. */
-	u8 nLogicalPortId;
-
-	/** First CTP Port ID mapped to above logical port ID.
-
-	    \remarks
-	    For \ref GSW_CTP_PORT_ASSIGNMENT_ALLOC, this is output when CTP
-	    allocation is successful. For other APIs, this is input. */
-	u16 nFirstCtpPortId;
-	/** Total number of CTP Ports mapped above logical port ID. */
-	u16 nNumberOfCtpPort;
-
-	/** Logical port mode to define sub interface ID format. */
-	GSW_LogicalPortMode_t eMode;
-
-	/** Bridge ID (FID)
-
-	    \remarks
-	    For \ref GSW_CTP_PORT_ASSIGNMENT_ALLOC, this is input. Each CTP allocated
-	    is mapped to Bridge Port given by this field. The Bridge Port will be
-	    configured to use first CTP
-	    (\ref GSW_CTP_portAssignment_t::nFirstCtpPortId) as egress CTP.
-	    For other APIs, this is ignored. */
-	u16 nBridgePortId;
-} GSW_CTP_portAssignment_t;
-
 /** \brief CTP Port Configuration.
-    Used by \ref GSW_CTP_PORT_CONFIG_SET and \ref GSW_CTP_PORT_CONFIG_GET. */
+    Used by \ref GSW_CtpPortConfigSet and \ref GSW_CtpPortConfigGet. */
 typedef struct {
 	/** Logical Port Id. The valid range is hardware dependent.
 	    If \ref GSW_CTP_portConfig_t::eMask has
@@ -235,7 +192,7 @@ typedef struct {
 	/** Meter for ingress CTP process.
 
 	    \remarks
-	    Meter should be allocated with \ref GSW_QOS_METER_ALLOC before CTP
+	    Meter should be allocated with \ref GSW_QOS_MeterAlloc before CTP
 	    port configuration. If this CTP port is re-set, the last used meter
 	    should be released. */
 	u16 nIngressTrafficMeterId;
@@ -244,7 +201,7 @@ typedef struct {
 	/** Meter for egress CTP process.
 
 	    \remarks
-	    Meter should be allocated with \ref GSW_QOS_METER_ALLOC before CTP
+	    Meter should be allocated with \ref GSW_QOS_MeterAlloc before CTP
 	    port configuration. If this CTP port is re-set, the last used meter
 	    should be released. */
 	u16 nEgressTrafficMeterId;
@@ -319,6 +276,55 @@ typedef struct {
 	    This should be used exclusive with bEgressLoopbackEnable. */
 	gsw_bool_t bEgressMirrorEnable;
 } GSW_CTP_portConfig_t;
+
+/** \brief Logical port mode.
+    Used by \ref GSW_CTP_portAssignment_t. */
+typedef enum {
+	/** WLAN with 8-bit station ID */
+	GSW_LOGICAL_PORT_8BIT_WLAN = 0,
+	/** WLAN with 9-bit station ID */
+	GSW_LOGICAL_PORT_9BIT_WLAN = 1,
+	/** GPON OMCI context */
+	GSW_LOGICAL_PORT_GPON = 2,
+	/** EPON context */
+	GSW_LOGICAL_PORT_EPON = 3,
+	/** G.INT context */
+	GSW_LOGICAL_PORT_GINT = 4,
+	/** Others (sub interface ID is 0 by default) */
+	GSW_LOGICAL_PORT_OTHER = 0xFF,
+} GSW_LogicalPortMode_t;
+
+/** \brief CTP Port Assignment/association with logical port.
+    Used by \ref GSW_CTP_PortAssignmentAlloc, \ref GSW_CTP_PortAssignmentSet
+    and \ref GSW_CTP_PortAssignmentGet. */
+typedef struct {
+	/** Logical Port Id. The valid range is hardware dependent. */
+	u8 nLogicalPortId;
+
+	/** First CTP Port ID mapped to above logical port ID.
+
+	    \remarks
+	    For \ref GSW_CTP_PortAssignmentAlloc, this is output when CTP
+	    allocation is successful. For other APIs, this is input. */
+	u16 nFirstCtpPortId;
+	/** Total number of CTP Ports mapped above logical port ID. */
+	u16 nNumberOfCtpPort;
+
+	/** Logical port mode to define sub interface ID format. */
+	GSW_LogicalPortMode_t eMode;
+
+	/** Bridge ID (FID)
+
+	    \remarks
+	    For \ref GSW_CTP_PortAssignmentAlloc, this is input. Each CTP allocated
+	    is mapped to Bridge Port given by this field. The Bridge Port will be
+	    configured to use first CTP
+	    (\ref GSW_CTP_portAssignment_t::nFirstCtpPortId) as egress CTP.
+	    For other APIs, this is ignored. */
+	u16 nBridgePortId;
+} GSW_CTP_portAssignment_t;
+
+/** @}*/ /* GSW_ETHERNET_BRIDGING */
 
 #pragma scalar_storage_order default
 #pragma pack(pop)

@@ -48,17 +48,17 @@ static GSW_Device_t gsw_dev = {0};
 
 static int gsw_smdio_read(const GSW_Device_t *pdev, uint16_t phy_reg)
 {
-	return smdio_read(lif_id, ((GSW_Device_t *)(pdev))->phy_addr, phy_reg);
+	return smdio_read(lif_id, ((GSW_Device_t *)(pdev))->smdio_phy_addr, phy_reg);
 }
 
 static int gsw_smdio_write(const GSW_Device_t *pdev, uint16_t phy_reg, uint16_t phy_reg_data)
 {
-	return smdio_write(lif_id, ((GSW_Device_t *)(pdev))->phy_addr, phy_reg, phy_reg_data);
+	return smdio_write(lif_id, ((GSW_Device_t *)(pdev))->smdio_phy_addr, phy_reg, phy_reg_data);
 }
 
 static int gsw_smdio_cont_write(const GSW_Device_t *pdev, uint16_t phy_reg, uint16_t phy_reg_data[8], uint8_t num)
 {
-	return smdio_cont_write(lif_id, ((GSW_Device_t *)(pdev))->phy_addr, phy_reg, phy_reg_data, num);
+	return smdio_cont_write(lif_id, ((GSW_Device_t *)(pdev))->smdio_phy_addr, phy_reg, phy_reg_data, num);
 }
 
 
@@ -82,8 +82,6 @@ void host_smdio_ssb_ops_init(const void *pdev)
  */
 void host_smdio_ssb_ops_uninit()
 {
-	smdio_deinit();
-
 	host_smdio_ops.pdev = NULL;
 	host_smdio_ops.smdio_read = NULL;
 	host_smdio_ops.smdio_write = NULL;
@@ -163,11 +161,11 @@ int host_smdio_ssb_rescue_download(uint8_t *pdata, uint32_t timeout_ms)
 	smdio_ssb_pdi_reset();
 
 	//Wait for target to be ready for download
-	if (smdio_ssb_wait_pdi_stat_is_expected(FW_DL_MDIO_RDY_MAGIC, timeout_ms)) {
+	if (smdio_ssb_wait_pdi_stat_is_expected(FW_DL_MDIO_RDY_MAGIC, 3000)) {
 		printf("Target is ready for downloading.\n");
 	} else {
 		//if timeout, here we can not return timeout code, for compatibility, we still continue
-		((GSW_Device_t *)(host_smdio_ops.pdev))->phy_addr = 0x1F;
+		((GSW_Device_t *)(host_smdio_ops.pdev))->smdio_phy_addr = 0x1F;
 	}
 
 	//Send START signal to target which is rescue mode
@@ -227,7 +225,7 @@ int host_smdio_ssb_rescue_download(uint8_t *pdata, uint32_t timeout_ms)
 					idx += 2;
 					data_size += 2;
 				} else if (idx < full_image_size) { // last byte of data, padding high 8bits with 0s
-					fdata |= pdata[idx];
+					fdata |= (uint16_t)pdata[idx];
 					idx++;
 					data_size++;
 				} else {  // no more data
@@ -306,6 +304,12 @@ int ssb_load(char *fw_path)
 	rewind(fwin);
 
 	pDataBuf = (uint8_t*)malloc(filesize);
+	if (pDataBuf == NULL) {
+		printf("malloc: Unable to allocate memory.\n");
+		ret = fclose(fwin);
+		return -errno;
+	}
+
 	ret = fread(pDataBuf, 1, filesize, fwin);
 	if (ret != filesize)
 	{

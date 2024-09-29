@@ -34,6 +34,7 @@
 #define SMDIO_PHY_NR  8
 #define M_SLEEP(x)    usleep((x)*1000)
 
+
 struct host_smdio_ssb_ops {
 	const GSW_Device_t *pdev;
 
@@ -45,15 +46,15 @@ struct host_smdio_ssb_ops {
 static struct host_smdio_ssb_ops host_smdio_ops;
 static GSW_Device_t gsw_dev = {0};
 
+
 static int gsw_smdio_read(const GSW_Device_t *pdev, uint16_t phy_reg)
 {
 	uint16_t val=0;
 	int ret;
 
-	ret = sys_cl22_mdio_write(((GSW_Device_t *)pdev)->phy_addr, SMIDO_SB_PHY_ADDR_REG, phy_reg);
-
+	ret = sys_cl22_mdio_write(((GSW_Device_t *)pdev)->smdio_phy_addr, SMIDO_SB_PHY_ADDR_REG, phy_reg);
 	if (ret == 0) {
-		ret = sys_cl22_mdio_read(((GSW_Device_t *)pdev)->phy_addr, SMIDO_SB_PHY_DATA_REG, &val);
+		ret = sys_cl22_mdio_read(((GSW_Device_t *)pdev)->smdio_phy_addr, SMIDO_SB_PHY_DATA_REG, &val);
 	}
 
 	return ret < 0 ? ret : (int)val;
@@ -63,9 +64,9 @@ static int gsw_smdio_write(const GSW_Device_t *pdev, uint16_t phy_reg, uint16_t 
 {
 	int ret = 0;
 
-	ret = sys_cl22_mdio_write(((GSW_Device_t *)pdev)->phy_addr, SMIDO_SB_PHY_ADDR_REG, phy_reg);
+	ret = sys_cl22_mdio_write(((GSW_Device_t *)pdev)->smdio_phy_addr, SMIDO_SB_PHY_ADDR_REG, phy_reg);
 	if (ret == 0) {
-		ret = sys_cl22_mdio_write(((GSW_Device_t *)pdev)->phy_addr, SMIDO_SB_PHY_DATA_REG, phy_reg_data);
+		ret = sys_cl22_mdio_write(((GSW_Device_t *)pdev)->smdio_phy_addr, SMIDO_SB_PHY_DATA_REG, phy_reg_data);
 	}
 
 	return ret;
@@ -75,15 +76,16 @@ static int gsw_smdio_cont_write(const GSW_Device_t *pdev, uint16_t phy_reg, uint
 {
 	int ret = 0;
 
-	ret = sys_cl22_mdio_write(((GSW_Device_t *)pdev)->phy_addr, SMIDO_SB_PHY_ADDR_REG, phy_reg);
+	ret = sys_cl22_mdio_write(((GSW_Device_t *)pdev)->smdio_phy_addr, SMIDO_SB_PHY_ADDR_REG, phy_reg);
 	if (ret == 0) {
 		for (uint8_t i = 0; i < (num & 0xF); i++) {
-			ret |= sys_cl22_mdio_write(((GSW_Device_t *)pdev)->phy_addr, SMIDO_SB_PHY_DATA_REG, phy_reg_data[i]);
+			ret = sys_cl22_mdio_write(((GSW_Device_t *)pdev)->smdio_phy_addr, SMIDO_SB_PHY_DATA_REG, phy_reg_data[i]);
 		}
 	}
 
 	return ret;
 }
+
 
 /**
  * Initialize smdio_ssb_ops operation
@@ -185,11 +187,11 @@ int host_smdio_ssb_rescue_download(uint8_t *pdata, uint32_t timeout_ms)
 	smdio_ssb_pdi_reset();
 
 	//Wait for target to be ready for download
-	if (smdio_ssb_wait_pdi_stat_is_expected(FW_DL_MDIO_RDY_MAGIC, timeout_ms)) {
+	if (smdio_ssb_wait_pdi_stat_is_expected(FW_DL_MDIO_RDY_MAGIC, 3000)) {
 		printf("Target is ready for downloading.\n");
 	} else {
 		//if timeout, here we can not return timeout code, for compatibility, we still continue
-		((GSW_Device_t *)(host_smdio_ops.pdev))->phy_addr = 0x1F;
+		((GSW_Device_t *)(host_smdio_ops.pdev))->smdio_phy_addr = 0x1F;
 	}
 
 	//Send START signal to target which is rescue mode

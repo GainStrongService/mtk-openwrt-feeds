@@ -100,16 +100,6 @@
 #define sys_cpu_to_be64(val) (val)
 #endif
 
-/* Clause 45 MDIO read and write functions to customize */
-#ifndef CL45_MDIO_READ
-#define CL45_MDIO_READ(...) 0
-#endif
-
-#ifndef CL45_MDIO_WRITE
-#define CL45_MDIO_WRITE(...) 0
-#endif
-
-
 /*prototype global functions */
 int gsw_read(const GSW_Device_t *dev, uint32_t regaddr);
 int gsw_write(const GSW_Device_t *dev, uint32_t regaddr, uint16_t data);

@@ -35,23 +35,32 @@ static int mdiobus_read(void *mdiobus_data, uint8_t phyaddr, uint8_t mmd,
 {
 	uint16_t val=0;
 	int ret;
-	
-	if (phyaddr > 31 ||
-	    mmd != GSW_MMD_DEV || reg > GSW_MMD_REG_DATA_LAST)
+
+	if (phyaddr > 31 || reg > GSW_MMD_REG_DATA_LAST)
 		return -EINVAL;
 
-	ret = sys_cl45_mdio_read(phyaddr, mmd, reg, &val);
+	if (mmd == GSW_MMD_DEV)
+		ret = sys_cl45_mdio_read(phyaddr, mmd, reg, &val);
+	else if (mmd == GSW_MMD_SMDIO_DEV)
+		ret = sys_cl22_mdio_read(phyaddr, reg, &val);
+	else
+		return -EINVAL;
+
 	return ret < 0 ? ret : (int)val;
 }
 
 static int mdiobus_write(void *mdiobus_data, uint8_t phyaddr, uint8_t mmd,
 			 uint16_t reg, uint16_t val)
 {
-	if ( phyaddr > 31 ||
-	    mmd != GSW_MMD_DEV || reg > GSW_MMD_REG_DATA_LAST)
+	if (phyaddr > 31 || reg > GSW_MMD_REG_DATA_LAST)
 		return -EINVAL;
 
-	return sys_cl45_mdio_write(phyaddr, mmd, reg, val);
+	if (mmd == GSW_MMD_DEV)
+		return sys_cl45_mdio_write(phyaddr, mmd, reg, val);
+	else if (mmd == GSW_MMD_SMDIO_DEV)
+		return sys_cl22_mdio_write(phyaddr, reg, val);
+	else
+		return -EINVAL;
 }
 
 static GSW_Device_t gsw_dev = {0};
@@ -68,11 +77,12 @@ int gsw_adapt_init(void)
 
 	gsw_dev.mdiobus_read = mdiobus_read;
 	gsw_dev.mdiobus_write = mdiobus_write;
-
 	gsw_dev.mdiobus_data = NULL;
-	gsw_dev.phy_addr = SMDIO_ADDR;
 
-	return  0;
+	gsw_dev.phy_addr = SMDIO_ADDR;
+	gsw_dev.smdio_phy_addr = SMDIO_ADDR;
+
+	return 0;
 }
 
 int32_t api_gsw_get_links(char* lib)

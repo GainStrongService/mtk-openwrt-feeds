@@ -9,6 +9,7 @@
 
 #ifndef _GSW_TYPES_H_
 #define _GSW_TYPES_H_
+/** \file gsw_types.h GSW Base Types */
 
 #include <stdint.h>
 
@@ -48,7 +49,7 @@ enum {
 /** \brief This is the boolean datatype. */
 typedef uint8_t gsw_bool_t;
 
-/** \brief This is a union to describe the IPv4 and IPv6 Address in numeric representation. Used by multiple Structures and APIs. The member selection would be based upon \ref GSW_IP_Select_t */
+/** \brief This is a union to describe the IPv4 and IPv6 Address in numeric representation. Used by multiple Structures and APIs. */
 typedef union {
 	/** Describe the IPv4 address.
 	    Only used if the IPv4 address should be read or configured.

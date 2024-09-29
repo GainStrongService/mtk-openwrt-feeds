@@ -71,25 +71,33 @@ static struct phy_if phyif;
 static int mdiobus_read(void *mdiobus_data, uint8_t phyaddr, uint8_t mmd,
 			uint16_t reg)
 {
-	const struct device *dev = mdiobus_data;
 	int ret;
 
-	if (phyaddr > 31 ||
-	    mmd != GSW_MMD_DEV || reg > GSW_MMD_REG_DATA_LAST)
+	if (phyaddr > 31 || reg > GSW_MMD_REG_DATA_LAST)
 		return -EINVAL;
-	ret = lif_mdio_c45_read(phyif.lif_id, phyaddr, mmd, reg);
+
+	if (mmd == GSW_MMD_DEV)
+		ret = lif_mdio_c45_read(phyif.lif_id, phyaddr, mmd, reg);
+	else if (mmd == GSW_MMD_SMDIO_DEV)
+		ret = lif_mdio_c22_read(phyif.lif_id, phyaddr, reg);
+	else
+		return -EINVAL;
+
 	return ret;
 }
 
 static int mdiobus_write(void *mdiobus_data, uint8_t phyaddr, uint8_t mmd,
 			 uint16_t reg, uint16_t val)
 {
-	const struct device *dev = mdiobus_data;
-
-	if ( phyaddr > 31 ||
-	    mmd != GSW_MMD_DEV || reg > GSW_MMD_REG_DATA_LAST)
+	if (phyaddr > 31 || reg > GSW_MMD_REG_DATA_LAST)
 		return -EINVAL;
-	return lif_mdio_c45_write(phyif.lif_id, phyaddr, mmd, reg, val);
+
+	if (mmd == GSW_MMD_DEV)
+		return lif_mdio_c45_write(phyif.lif_id, phyaddr, mmd, reg, val);
+	else if (mmd == GSW_MMD_SMDIO_DEV)
+		return lif_mdio_c22_write(phyif.lif_id, phyaddr, reg, val);
+	else
+		return -EINVAL;
 }
 
 
@@ -108,8 +116,11 @@ GSW_Device_t* gsw_adapt_init(uint8_t lif_id, uint8_t phy_id)
 	gsw_dev.mdiobus_read = mdiobus_read;
 	gsw_dev.mdiobus_write = mdiobus_write;
 	gsw_dev.mdiobus_data = NULL;
+
 	gsw_dev.phy_addr = (uint8_t)gsw_get_phy_addr(lif_id, phy_id);
-	return  &gsw_dev;
+	gsw_dev.smdio_phy_addr = gsw_dev.phy_addr;
+
+	return &gsw_dev;
 }
 
 

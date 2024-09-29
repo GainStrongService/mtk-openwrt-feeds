@@ -15,6 +15,23 @@
 #pragma pack(push, 1)
 #pragma scalar_storage_order little-endian
 
+/** \addtogroup GSW_PMAC
+ *  @{
+ */
+
+/** \brief Configure the Backpressure mapping for egress Queues Congestion or ingress (receiving)  ports to DMA channel.
+    Used by \ref GSW_PMAC_BM_CfgSet and \ref GSW_PMAC_BM_CfgGet. */
+typedef struct {
+	/** PMAC Interface ID */
+	u8 nPmacId;
+	/**  Tx DMA Channel Identifier which receives sideband backpressure signal (0..15) */
+	u8 nTxDmaChanId;
+	/** Transmit Queues Selection Mask which will generate backpressure - (Configurable upto 32 Egress Queues) */
+	u32 txQMask;
+	/** Receive (Ingress) ports selection congestion Mask which will generate backpressure - (Configurable upto 16 ports) */
+	u32 rxPortMask;
+} GSW_PMAC_BM_Cfg_t;
+
 /** \brief Short Length Received Frame Check Type for PMAC.
     Used by PMAC structure \ref GSW_PMAC_Glbl_Cfg_t. */
 typedef enum {
@@ -27,7 +44,6 @@ typedef enum {
 	/** Reserved - Currently unused */
 	GSW_PMAC_SHORT_LEN_RESERVED = 3
 } GSW_PMAC_Short_Frame_Chk_t;
-
 
 /** \brief Egress PMAC Config Table Selector */
 typedef enum {
@@ -42,61 +58,9 @@ typedef enum {
 	GSW_PMAC_PROC_FLAGS_MIX = 3
 } GSW_PMAC_Proc_Flags_Eg_Cfg_t;
 
-
-/** \brief PMAC Ingress Configuration Source
-    Source of the corresponding field. */
-typedef enum {
-	/** Field is from DMA descriptor */
-	GSW_PMAC_IG_CFG_SRC_DMA_DESC = 0,
-	/** Field is from default PMAC header */
-	GSW_PMAC_IG_CFG_SRC_DEF_PMAC = 1,
-	/** Field is from PMAC header of packet */
-	GSW_PMAC_IG_CFG_SRC_PMAC = 2,
-} GSW_PMAC_Ig_Cfg_Src_t;
-
-
-/** \brief PMAC Counters available for specified DMA Channel.
-    Used by \ref GSW_PMAC_COUNT_GET. */
-typedef struct {
-	/** PMAC Interface ID Applicable only for GSWIP 3.1 */
-	u8 nPmacId;
-	/*Applicable only for GSWIP 3.1*/
-	gsw_bool_t  b64BitMode;
-	/**  Transmit DMA Channel Identifier (0..15) for GSWIP3.0  (0..16) for GSWIP3.1 Source PortId for Egress Counters (0..15) for GSWIP3.1 - Index */
-	u8 nTxDmaChanId;
-	/** Ingress Total discarded packets counter (32-bits) */
-	u32 nDiscPktsCount;
-	/** Ingress Total discarded bytes counter (32-bits) */
-	u32 nDiscBytesCount;
-	/** Egress Total TCP/UDP/IP checksum error-ed packets counter (32-bits) */
-	u32 nChkSumErrPktsCount;
-	/** Egress Total TCP/UDP/IP checksum error-ed bytes counter (32-bits) */
-	u32 nChkSumErrBytesCount;
-	/** Total Ingress Packet Count in Applicable only for GSWIP 3.1 (32-bits) */
-	u32 nIngressPktsCount;
-	/** Total Ingress Bytes Count in Applicable only for GSWIP 3.1 (32-bits) */
-	u32 nIngressBytesCount;
-	/** Total Engress Packet Count in Applicable only for GSWIP 3.1 (32-bits) */
-	u32 nEgressPktsCount;
-	/** Total Engress Bytes Count in Applicable only for GSWIP 3.1 (32-bits) */
-	u32 nEgressBytesCount;
-	/** Ingress header Packet Count Applicable only for GSWIP 3.2 (32-bits) */
-	u32 nIngressHdrPktsCount;
-	/** Ingress header Byte Count Applicable only for GSWIP 3.2 (32-bits) */
-	u32 nIngressHdrBytesCount;
-	/** Egress header Packet Count Applicable only for GSWIP 3.2 (32-bits) */
-	u32 nEgressHdrPktsCount;
-	/** Egress header Byte Count Applicable only for GSWIP 3.2 (32-bits) */
-	u32 nEgressHdrBytesCount;
-	/** Egress header Discard Packet Count Applicable only for GSWIP 3.2 (32-bits) */
-	u32 nEgressHdrDiscPktsCount;
-	/** Egress header Discard Byte Count Applicable only for GSWIP 3.2 (32-bits) */
-	u32 nEgressHdrDiscBytesCount;
-} GSW_PMAC_Cnt_t;
-
 /** \brief Configure the global settings of PMAC for GSWIP-3.x. This includes settings such as Jumbo frame, Checksum handling,
     Padding and Engress PMAC Selector Config.
-    Used by \ref GSW_PMAC_GLBL_CFG_SET and \ref GSW_PMAC_GLBL_CFG_GET. */
+    Used by \ref GSW_PMAC_GLBL_CfgSet and \ref GSW_PMAC_GLBL_CfgGet. */
 typedef struct {
 	/** PMAC Interface Id */
 	u8 nPmacId;
@@ -138,24 +102,20 @@ typedef struct {
 	u32 nBslThreshold[3];
 } GSW_PMAC_Glbl_Cfg_t;
 
-/** \brief Configure the Backpressure mapping for egress Queues Congestion or ingress (receiving)  ports to DMA channel.
-    Used by \ref GSW_PMAC_BM_CFG_SET and \ref GSW_PMAC_BM_CFG_GET. */
-typedef struct {
-	/** PMAC Interface ID */
-	u8 nPmacId;
-	/**  Tx DMA Channel Identifier which receives sideband backpressure signal (0..15) */
-	u8 nTxDmaChanId;
-	/** Transmit Queues Selection Mask which will generate backpressure - (Configurable upto 32 Egress Queues) */
-	u32 txQMask;
-	/** Receive (Ingress) ports selection congestion Mask which will generate backpressure - (Configurable upto 16 ports) */
-	u32 rxPortMask;
-} GSW_PMAC_BM_Cfg_t;
-
-
+/** \brief PMAC Ingress Configuration Source
+    Source of the corresponding field. */
+typedef enum {
+	/** Field is from DMA descriptor */
+	GSW_PMAC_IG_CFG_SRC_DMA_DESC = 0,
+	/** Field is from default PMAC header */
+	GSW_PMAC_IG_CFG_SRC_DEF_PMAC = 1,
+	/** Field is from PMAC header of packet */
+	GSW_PMAC_IG_CFG_SRC_PMAC = 2,
+} GSW_PMAC_Ig_Cfg_Src_t;
 
 /** \brief Configure the PMAC Ingress Configuration on a given Tx DMA channel to PMAC. (Upto 16 entries).
     This Ingress PMAC table is addressed through Trasnmit DMA Channel Identifier.
-    Used by \ref GSW_PMAC_IG_CFG_SET and \ref GSW_PMAC_IG_CFG_GET. */
+    Used by \ref GSW_PMAC_IG_CfgSet and \ref GSW_PMAC_IG_CfgGet. */
 typedef struct {
 	/** PMAC Interface Id */
 	u8 nPmacId;
@@ -188,7 +148,7 @@ typedef struct {
      nDestPortId (Bits 0-3) + Combination of [bMpe1Flag (Bit 4) + bMpe2Flag (Bit 5) + bEncFlag (Bit 6) + bDecFlag (Bit 7) ] or TrafficClass Value (Bits 4-7) + nFlowIdMSB (Bits 8-9).
     The bits 4-7 of index option is either based upon TC (default) or combination of Processing flags is decided through bProcFlagsEgPMACEna.
     It is expected to pass the correct value in bProcFlagsSelect same as global bProcFlagsEgPMACEna;
-    Used by \ref GSW_PMAC_EG_CFG_SET and \ref GSW_PMAC_EG_CFG_GET. */
+    Used by \ref GSW_PMAC_EG_CfgSet and \ref GSW_PMAC_EG_CfgGet. */
 typedef struct {
 	/** PMAC Interface ID */
 	u8 nPmacId;
@@ -251,6 +211,45 @@ typedef struct {
 	bDecFlag, bEncFlag, bMpe1Flag and  bMpe2Flag are not used instead nTrafficClass parameter is used. For using these flags turn off this boolean */
 	gsw_bool_t bTCEnable;
 } GSW_PMAC_Eg_Cfg_t;
+
+/** \brief PMAC Counters available for specified DMA Channel.
+    Used by \ref GSW_PMAC_CountGet. */
+typedef struct {
+	/** PMAC Interface ID Applicable only for GSWIP 3.1 */
+	u8 nPmacId;
+	/**  Transmit DMA Channel Identifier (0..15) for GSWIP3.0  (0..16) for GSWIP3.1 Source PortId for Egress Counters (0..15) for GSWIP3.1 - Index */
+	u8 nTxDmaChanId;
+	/** Ingress Total discarded packets counter (32-bits) */
+	u32 nDiscPktsCount;
+	/** Ingress Total discarded bytes counter (32-bits) */
+	u32 nDiscBytesCount;
+	/** Egress Total TCP/UDP/IP checksum error-ed packets counter (32-bits) */
+	u32 nChkSumErrPktsCount;
+	/** Egress Total TCP/UDP/IP checksum error-ed bytes counter (32-bits) */
+	u32 nChkSumErrBytesCount;
+	/** Total Ingress Packet Count in Applicable only for GSWIP 3.1 (32-bits) */
+	u32 nIngressPktsCount;
+	/** Total Ingress Bytes Count in Applicable only for GSWIP 3.1 (32-bits) */
+	u32 nIngressBytesCount;
+	/** Total Engress Packet Count in Applicable only for GSWIP 3.1 (32-bits) */
+	u32 nEgressPktsCount;
+	/** Total Engress Bytes Count in Applicable only for GSWIP 3.1 (32-bits) */
+	u32 nEgressBytesCount;
+	/** Ingress header Packet Count Applicable only for GSWIP 3.2 (32-bits) */
+	u32 nIngressHdrPktsCount;
+	/** Ingress header Byte Count Applicable only for GSWIP 3.2 (32-bits) */
+	u32 nIngressHdrBytesCount;
+	/** Egress header Packet Count Applicable only for GSWIP 3.2 (32-bits) */
+	u32 nEgressHdrPktsCount;
+	/** Egress header Byte Count Applicable only for GSWIP 3.2 (32-bits) */
+	u32 nEgressHdrBytesCount;
+	/** Egress header Discard Packet Count Applicable only for GSWIP 3.2 (32-bits) */
+	u32 nEgressHdrDiscPktsCount;
+	/** Egress header Discard Byte Count Applicable only for GSWIP 3.2 (32-bits) */
+	u32 nEgressHdrDiscBytesCount;
+} GSW_PMAC_Cnt_t;
+
+/** @}*/ /* GSW_PMAC */
 
 #pragma scalar_storage_order default
 #pragma pack(pop)

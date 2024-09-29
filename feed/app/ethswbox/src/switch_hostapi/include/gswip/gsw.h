@@ -16,6 +16,492 @@
 #pragma pack(push, 1)
 #pragma scalar_storage_order little-endian
 
+/** \mainpage GSW APIs
+    \section intro_sec Introduction
+
+    This document describes the entire interface for accessing and configuring the different services of the Ethernet
+	Switch module. The prefix GSW (Gigabit Switch) is used for all data structures and APIs pertaining to GSWIP
+	Subsystem.
+
+	Main focus of GSW APIs are as follows:
+
+	*	- Ethernet Bridging Functions
+	*	- VLAN Functions
+	*	- Multicast Functions
+	*	- Operation, Administration, and Management Functions
+	*	- Quality of Service Functions
+			- Traffic Class Classification Functions
+			- Metering Functions
+			- Shaping Functions
+			- Weighted Fair Queuing
+			- Color Marking/Remarking
+	*	- Pseudo-MAC Functions
+	*	- Debug Statistics Functions
+	*	- Classification Engine (PCE) Functions
+*/
+
+/** @{*/
+/** \defgroup GSW_API GSWIP Functional APIs
+    \brief This chapter describes the entire interface for accessing and configuring the different services of the Ethernet Switch module.
+*/
+/**@}*/
+
+/** \addtogroup GSW_API
+ *  @{
+ */
+
+/** \defgroup GSW_ETHERNET_BRIDGING Ethernet bridging Functions
+	\brief Group of functional APIs for Ethernet bridging (or switching) is the basic task of the device. It provides individual configurations per port and standard global switch features.
+*/
+
+/** \defgroup GSW_VLAN VLAN Functions
+	\brief Group of functional APIs for VLAN bridging functionality. This includes support for Customer VLAN Tags (C-VLAN) and also Service VLAN Tags (S-VLAN).
+*/
+
+/** \defgroup GSW_MULTICAST Multicast Functions
+	\brief Group of functional APIs for IGMP/MLD snooping configuration and support for IGMPv1/v2/v3 and MLDv1/v2.
+*/
+
+/** \defgroup GSW_OAM Operation, Administration, and Management Functions
+	\brief Group of functions that are provided to perform OAM functions on Switch.
+*/
+
+/** \defgroup GSW_QoS_SVC Quality of Service Functions
+	\brief Group of macros for Quality of Service (QoS) components.
+*/
+
+/** \defgroup GSW_RMON RMON Counters Functions
+	\brief Group of macros for Remote-Monitoring (RMON) counters.
+*/
+
+/** \defgroup GSW_PMAC PMAC Operational Functions
+	\brief Group of functions for PMAC Operations.
+*/
+
+/** \defgroup GSW_PCE PCE Rule Operational Functions
+	\brief Group of functions for GSW PCE (Packet Classification Engine) Rule Operations.
+*/
+
+/** \defgroup GSW_8021X_GROUP 802.1x PORT Operational Functions
+	\brief Group of functions for GSW STP 802.1x Port Operation.
+*/
+
+/** \defgroup GSW_DEBUG Debug Functions
+	\brief Group of functions for GSW Debug Interfaces/Operations.
+*/
+
+/** @cond DOC_ENABLE_PBB */
+/** \defgroup GSW_PBB Mac-in-Mac (PBB) Configuration Functions
+	\brief Group of functions for GSW Mac-in-Mac (PBB) Operation.
+*/
+/** @endcond DOC_ENABLE_PBB */
+
+/**@}*/ /* GSW_API */
+
+
+/** \ingroup GSW_ETHERNET_BRIDGING
+ *  \brief GSWIP specific error code base
+ */
+#define GSW_ERROR_BASE	1024
+
+/** \ingroup GSW_ETHERNET_BRIDGING
+ *  \brief Enumeration for function status return. The upper four bits are reserved for error classification
+ */
+typedef enum {
+	/** Correct or Expected Status */
+	GSW_statusOk	= 0,
+	/** Generic or unknown error occurred */
+	GSW_statusErr	= -1,
+	/** Invalid function parameter */
+	GSW_statusParam	= -(GSW_ERROR_BASE + 2),
+	/** No space left in VLAN table */
+	GSW_statusVLAN_Space	= -(GSW_ERROR_BASE + 3),
+	/** Requested VLAN ID not found in table */
+	GSW_statusVLAN_ID	= -(GSW_ERROR_BASE + 4),
+	/** Invalid ioctl */
+	GSW_statusInvalIoctl	= -(GSW_ERROR_BASE + 5),
+	/** Operation not supported by hardware */
+	GSW_statusNoSupport	= -(GSW_ERROR_BASE + 6),
+	/** Timeout */
+	GSW_statusTimeout	= -(GSW_ERROR_BASE + 7),
+	/** At least one value is out of range */
+	GSW_statusValueRange	= -(GSW_ERROR_BASE + 8),
+	/** The PortId/QueueId/MeterId/etc. is not available in this hardware or the
+	    selected feature is not available on this port */
+	GSW_statusPortInvalid	= -(GSW_ERROR_BASE + 9),
+	/** The interrupt is not available in this hardware */
+	GSW_statusIRQ_Invalid	= -(GSW_ERROR_BASE + 10),
+	/** The MAC table is full, an entry could not be added */
+	GSW_statusMAC_TableFull	= -(GSW_ERROR_BASE + 11),
+	/** Locking failed - SWAPI is busy */
+	GSW_statusLock_Failed	=  -(GSW_ERROR_BASE + 12),
+	/** Multicast Forwarding table entry not found */
+	GSW_statusEntryNotFound = -(GSW_ERROR_BASE + 13),
+} GSW_return_t;
+
+
+/** \addtogroup GSW_8021X_GROUP
+ *  @{
+ */
+
+/** \brief Describes the 802.1x port state. */
+typedef enum {
+	/** Receive and transmit direction are authorized. The port is allowed to
+	    transmit and receive all packets and the address learning process is
+	    also allowed. */
+	GSW_8021X_PORT_STATE_AUTHORIZED = 0,
+	/** Receive and transmit direction are unauthorized. All the packets
+	    except EAPOL are not allowed to transmit and receive. The address learning
+	    process is disabled. */
+	GSW_8021X_PORT_STATE_UNAUTHORIZED = 1,
+	/** Receive direction is authorized, transmit direction is unauthorized.
+	    The port is allowed to receive all packets. Packet transmission to this
+	    port is not allowed. The address learning process is also allowed. */
+	GSW_8021X_PORT_STATE_RX_AUTHORIZED = 2,
+	/** Transmit direction is authorized, receive direction is unauthorized.
+	    The port is allowed to transmit all packets. Packet reception on this
+	    port is not allowed. The address learning process is disabled. */
+	GSW_8021X_PORT_STATE_TX_AUTHORIZED = 3
+} GSW_8021X_portState_t;
+
+/** @}*/ /* GSW_8021X_GROUP */
+
+
+/** \addtogroup GSW_ETHERNET_BRIDGING
+ *  @{
+ */
+
+/** \brief Invalid Value.
+    Used mainly during resource allocation to indicate that resource is not
+    allocated. */
+#define INVALID_HANDLE	(~0)
+
+/** \brief MAC Table Entry to be read.
+    Used by \ref GSW_MAC_TableEntryRead. */
+typedef struct {
+	/** Restart the get operation from the beginning of the table. Otherwise
+	    return the next table entry (next to the entry that was returned
+	    during the previous get operation). This boolean parameter is set by the
+	    calling application. */
+	gsw_bool_t bInitial;
+	/** Indicates that the read operation got all last valid entries of the
+	    table. This boolean parameter is set by the switch API
+	    when the Switch API is called after the last valid one was returned already. */
+	gsw_bool_t bLast;
+	/** Get the MAC table entry belonging to the given Filtering Identifier
+	    (not supported by all switches). */
+	u16 nFId;
+	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
+	    GSWIP-3.1, this field is Bridge Port ID. The valid range is hardware
+	    dependent.
+
+	    \remarks
+	    In GSWIP-2.1/2.2/3.0, this field is used as portmap field, when the MSB
+	    bit is set. In portmap mode, every value bit represents an Ethernet port.
+	    LSB represents Port 0 with incrementing counting.
+	    The (MSB - 1) bit represent the last port.
+	    The macro \ref GSW_PORTMAP_FLAG_SET allows to set the MSB bit,
+	    marking it as portmap variable.
+	    Checking the portmap flag can be done by
+	    using the \ref GSW_PORTMAP_FLAG_GET macro.
+	    From GSWIP3.1, if MSB is set, other bits in this field are ignored.
+	    array \ref GSW_MAC_tableRead_t::nPortMap is used for bit map. */
+	u32 nPortId;
+	/** Bridge Port Map - to support GSWIP-3.1, following field is added
+	    for port map in static entry. It's valid only when MSB of
+	    \ref GSW_MAC_tableRead_t::nPortId is set. Each bit stands for 1 bridge
+	    port. */
+	u16 nPortMap[8];	/* max can be 16 */
+	/** Aging Time, given in multiples of 1 second in a range from 1 s to 1,000,000 s.
+	    The value read back in a GET command might differ slightly from the value
+	    given in the SET command due to limited hardware timing resolution.
+	    Filled out by the switch API implementation. */
+	int nAgeTimer;
+	/** STAG VLAN Id. Only applicable in case SVLAN support is enabled on the device. */
+	u16 nSVLAN_Id;
+	/** Static Entry (value will be aged out after 'nAgeTimer' if the entry
+	    is not set to static). */
+	gsw_bool_t bStaticEntry;
+	/** Sub-Interface Identifier Destination (supported in GSWIP-3.0/3.1 only). */
+	u16 nSubIfId;
+	/** MAC Address. Filled out by the switch API implementation. */
+	u8 nMAC[GSW_MAC_ADDR_LEN];
+	/** Source/Destination MAC address filtering flag (GSWIP-3.1 only)
+	    Value 0 - not filter, 1 - source address filter,
+	    2 - destination address filter, 3 - both source and destination filter.
+
+	    \remarks
+	    Please refer to "GSWIP Hardware Architecture Spec" chapter 3.4.4.6
+	    "Source MAC Address Filtering and Destination MAC Address Filtering"
+	    for more detail. */
+	u8 nFilterFlag;
+	/** Packet is marked as IGMP controlled if destination MAC address matches
+	    MAC in this entry. (GSWIP-3.1 only) */
+	gsw_bool_t bIgmpControlled;
+
+	/** Changed
+	0: the entry is not changed
+	1: the entry is changed and not accessed yet */
+
+	gsw_bool_t bEntryChanged;
+
+	/** Associated Mac address -(GSWIP-3.2)*/
+	u8 nAssociatedMAC[GSW_MAC_ADDR_LEN];
+	/** MAC Table Hit Status Update */
+	gsw_bool_t hitstatus;
+	/** TCI for (GSWIP-3.2) B-Step
+	    Bit [0:11] - VLAN ID
+	    Bit [12] - VLAN CFI/DEI
+	    Bit [13:15] - VLAN PRI */
+	u16 nTci;
+	/** From which port, this MAC address is first time learned.
+	 *  This is used for loop detection. */
+	u16 nFirstBridgePortId;
+} GSW_MAC_tableRead_t;
+
+/** \brief Search for a MAC address entry in the address table.
+    Used by \ref GSW_MAC_TableEntryQuery. */
+typedef struct  {
+	/** MAC Address. This parameter needs to be provided for the search operation.
+	    This is an input parameter. */
+	u8 nMAC[GSW_MAC_ADDR_LEN];
+	/** Get the MAC table entry belonging to the given Filtering Identifier
+	    (not supported by all switches).
+	    This is an input parameter. */
+	u16 nFId;
+	/** MAC Address Found. Switch API sets this boolean variable in case
+	    the requested MAC address 'nMAC' is found inside the address table,
+	    otherwise it is set to FALSE.
+	    This is an output parameter. */
+	gsw_bool_t bFound;
+	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
+	    GSWIP-3.1, this field is Bridge port ID. The valid range is hardware
+	    dependent.
+
+	    \remarks
+	    In GSWIP-2.1/2.2/3.0, this field is used as portmap field, when the MSB
+	    bit is set. In portmap mode, every value bit represents an Ethernet port.
+	    LSB represents Port 0 with incrementing counting.
+	    The (MSB - 1) bit represent the last port.
+	    The macro \ref GSW_PORTMAP_FLAG_SET allows to set the MSB bit,
+	    marking it as portmap variable.
+	    Checking the portmap flag can be done by
+	    using the \ref GSW_PORTMAP_FLAG_GET macro.
+	    From GSWIP3.1, if MSB is set, other bits in this field are ignored.
+	    array \ref GSW_MAC_tableRead_t::nPortMap is used for bit map. */
+	u32 nPortId;
+	/** Bridge Port Map - to support GSWIP-3.1, following field is added
+	    for port map in static entry. It's valid only when MSB of
+	    \ref GSW_MAC_tableRead_t::nPortId is set. Each bit stands for 1 bridge
+	    port. */
+	u16 nPortMap[8];	/* max can be 16 */
+	/** Sub-Interface Identifier Destination (supported in GSWIP-3.0/3.1 only). */
+	u16 nSubIfId;
+	/** Aging Time, given in multiples of 1 second in a range from 1 s to 1,000,000 s.
+	    The value read back in a GET command might differ slightly from the value
+	    given in the SET command due to limited hardware timing resolution.
+	    Filled out by the switch API implementation.
+	    This is an output parameter. */
+	int nAgeTimer;
+	/** STAG VLAN Id. Only applicable in case SVLAN support is enabled on the device. */
+	u16 nSVLAN_Id;
+	/** Static Entry (value will be aged out after 'nAgeTimer' if the entry
+	    is not set to static).
+	    This is an output parameter. */
+	gsw_bool_t bStaticEntry;
+	/** Source/Destination MAC address filtering flag (GSWIP-3.1 only)
+	    Value 0 - not filter, 1 - source address filter,
+	    2 - destination address filter, 3 - both source and destination filter.
+
+	    \remarks
+	    Please refer to "GSWIP Hardware Architecture Spec" chapter 3.4.4.6
+	    "Source MAC Address Filtering and Destination MAC Address Filtering"
+	    for more detail. */
+	u8 nFilterFlag;
+	/** Packet is marked as IGMP controlled if destination MAC address matches
+	    MAC in this entry. (GSWIP-3.1 only) */
+	gsw_bool_t bIgmpControlled;
+	/** Changed
+	0: the entry is not changed
+	1: the entry is changed and not accessed yet */
+	gsw_bool_t bEntryChanged;
+	/** Associated Mac address -(GSWIP-3.2)*/
+	u8 nAssociatedMAC[GSW_MAC_ADDR_LEN];
+
+	/** MAC Table Hit Status Update */
+	gsw_bool_t hitstatus;
+	/** TCI for (GSWIP-3.2) B-Step
+	    Bit [0:11] - VLAN ID
+	    Bit [12] - VLAN CFI/DEI
+	    Bit [13:15] - VLAN PRI */
+	u16 nTci;
+	/** first bridge port ID (supported in GSWIP-3.3only) */
+	u16 nFirstBridgePortId;
+} GSW_MAC_tableQuery_t;
+
+/** \brief MAC Table Entry to be added.
+    Used by \ref GSW_MAC_TableEntryAdd. */
+typedef struct {
+	/** Filtering Identifier (FID) (not supported by all switches) */
+	u16 nFId;
+	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
+	    GSWIP-3.1, this field is Bridge Port ID. The valid range is hardware
+	    dependent.
+
+	    \remarks
+	    In GSWIP-2.1/2.2/3.0, this field is used as portmap field, when the MSB
+	    bit is set. In portmap mode, every value bit represents an Ethernet port.
+	    LSB represents Port 0 with incrementing counting.
+	    The (MSB - 1) bit represent the last port.
+	    The macro \ref GSW_PORTMAP_FLAG_SET allows to set the MSB bit,
+	    marking it as portmap variable.
+	    Checking the portmap flag can be done by
+	    using the \ref GSW_PORTMAP_FLAG_GET macro.
+	    From GSWIP3.1, if MSB is set, other bits in this field are ignored.
+	    array \ref GSW_MAC_tableRead_t::nPortMap is used for bit map. */
+	u32 nPortId;
+	/** Bridge Port Map - to support GSWIP-3.1, following field is added
+	    for port map in static entry. It's valid only when MSB of
+	    \ref GSW_MAC_tableRead_t::nPortId is set. Each bit stands for 1 bridge
+	    port. */
+	u16 nPortMap[8];	/* max can be 16 */
+	/** Sub-Interface Identifier Destination (supported in GSWIP-3.0/3.1 only).
+
+	    \remarks
+	    In GSWIP-3.1, this field is sub interface ID for WLAN logical port. For
+	    Other types, either outer VLAN ID if Nto1Vlan enabled or 0. */
+	u16 nSubIfId;
+	/** Aging Time, given in multiples of 1 second in a range
+	    from 1 s to 1,000,000 s.
+	    The configured value might be rounded that it fits to the given hardware platform. */
+	int nAgeTimer;
+	/** STAG VLAN Id. Only applicable in case SVLAN support is enabled on the device. */
+	u16 nSVLAN_Id;
+	/** Static Entry (value will be aged out if the entry is not set to static). The
+	    switch API implementation uses the maximum age timer in case the entry
+	    is not static. */
+	gsw_bool_t bStaticEntry;
+	/** Egress queue traffic class.
+	    The queue index starts counting from zero.   */
+	u8 nTrafficClass;
+	/** MAC Address to add to the table. */
+	u8 nMAC[GSW_MAC_ADDR_LEN];
+	/** Source/Destination MAC address filtering flag (GSWIP-3.1 only)
+	    Value 0 - not filter, 1 - source address filter,
+	    2 - destination address filter, 3 - both source and destination filter.
+
+	    \remarks
+	    Please refer to "GSWIP Hardware Architecture Spec" chapter 3.4.4.6
+	    "Source MAC Address Filtering and Destination MAC Address Filtering"
+	    for more detail. */
+	u8 nFilterFlag;
+	/** Packet is marked as IGMP controlled if destination MAC address matches
+	    MAC in this entry. (GSWIP-3.1 only) */
+	gsw_bool_t bIgmpControlled;
+
+	/** Associated Mac address -(GSWIP-3.2)*/
+	u8 nAssociatedMAC[GSW_MAC_ADDR_LEN];
+
+	/** TCI for (GSWIP-3.2) B-Step
+	    Bit [0:11] - VLAN ID
+	    Bit [12] - VLAN CFI/DEI
+	    Bit [13:15] - VLAN PRI */
+	u16 nTci;
+} GSW_MAC_tableAdd_t;
+
+/** \brief MAC Table Entry to be removed.
+    Used by \ref GSW_MAC_TableEntryRemove. */
+typedef struct {
+	/** Filtering Identifier (FID) (not supported by all switches) */
+	u16 nFId;
+	/** MAC Address to be removed from the table. */
+	u8 nMAC[GSW_MAC_ADDR_LEN];
+	/** Source/Destination MAC address filtering flag (GSWIP-3.1 only)
+	    Value 0 - not filter, 1 - source address filter,
+	    2 - destination address filter, 3 - both source and destination filter.
+
+	    \remarks
+	    Please refer to "GSWIP Hardware Architecture Spec" chapter 3.4.4.6
+	    "Source MAC Address Filtering and Destination MAC Address Filtering"
+	    for more detail. */
+	u8 nFilterFlag;
+	/** TCI for (GSWIP-3.2) B-Step
+	    Bit [0:11] - VLAN ID
+	    Bit [12] - VLAN CFI/DEI
+	    Bit [13:15] - VLAN PRI */
+	u16 nTci;
+} GSW_MAC_tableRemove_t;
+
+/** \brief MAC Table Clear Type
+    Used by \ref GSW_MAC_tableClearCond_t */
+typedef enum {
+	/** Clear dynamic entries based on Physical Port */
+	GSW_MAC_CLEAR_PHY_PORT = 0,
+	/** Clear all dynamic entries */
+	GSW_MAC_CLEAR_DYNAMIC = 1,
+} GSW_MacClearType_t;
+
+/** \brief MAC Table Clear based on given condition.
+    Used by \ref GSW_MAC_TableClearCond. */
+typedef struct {
+	/** MAC table clear type \ref GSW_MacClearType_t */
+	u8 eType;
+	union {
+		/** Physical port id (0~16) if \ref eType is
+		    ref GSW_MAC_CLEAR_PHY_PORT. */
+		u8 nPortId;
+	};
+} GSW_MAC_tableClearCond_t;
+
+/** \brief MAC Address Filter Type.
+    Used by \ref GSW_MACFILTER_default_t */
+typedef enum {
+	/** Source MAC Address Filter */
+	GSW_MACFILTERTYPE_SRC = 0,
+	/** Destination MAC Address Filter */
+	GSW_MACFILTERTYPE_DEST = 1
+} GSW_MacFilterType_t;
+
+/** \brief Default MAC Address Filter.
+    Used by \ref GSW_DefaultMacFilterSet and \ref GSW_DefaultMacFilterGet */
+typedef struct {
+	/** MAC Filter Type */
+	GSW_MacFilterType_t eType;
+
+	/** Destination bridge port map. For GSWIP-3.1 only.
+
+	    \remarks
+	    Each bit stands for 1 bridge port. For PRX300 (GSWIP-3.1 integrated),
+	    only index 0-7 is valid. */
+	u16 nPortmap[8];	/* max can be 16 */
+} GSW_MACFILTER_default_t;
+
+/** \brief Detect MAC violation for input map of bridge ports.
+ *  Used by \ref GSW_MAC_TableLoopDetect
+ */
+typedef struct {
+	/** Input bridge port map to check MAC violation */
+	u32 bp_map_in[128 / 32];
+	/** Output bridge port map where the MAC violation is found */
+	u32 bp_map_out[128 / 32];
+} GSW_MAC_tableLoopDetect_t;
+
+/** \brief Packet forwarding.
+    Used by \ref GSW_STP_BPDU_Rule_t and \ref GSW_multicastSnoopCfg_t. */
+typedef enum {
+	/** Default; portmap is determined by the forwarding classification. */
+	GSW_PORT_FORWARD_DEFAULT = 0,
+	/** Discard; discard packets. */
+	GSW_PORT_FORWARD_DISCARD = 1,
+	/** Forward to the CPU port. This requires that the CPU port is previously
+	    set by calling \ref GSW_CPU_PortCfgSet. */
+	GSW_PORT_FORWARD_CPU = 2,
+	/** Forward to a port, selected by the parameter 'nForwardPortId'.
+	    Please note that this feature is not supported by all
+	    hardware platforms. */
+	GSW_PORT_FORWARD_PORT = 3
+} GSW_portForward_t;
+
 /** \brief Spanning Tree Protocol port states.
     Used by \ref GSW_STP_portCfg_t. */
 typedef enum {
@@ -36,28 +522,40 @@ typedef enum {
 	GSW_STP_PORT_STATE_BLOCKING = 3
 } GSW_STP_PortState_t;
 
-/** \brief Describes the 802.1x port state.
-    Used by \ref GSW_8021X_portCfg_t. */
-typedef enum {
-	/** Receive and transmit direction are authorized. The port is allowed to
-	    transmit and receive all packets and the address learning process is
-	    also allowed. */
-	GSW_8021X_PORT_STATE_AUTHORIZED = 0,
-	/** Receive and transmit direction are unauthorized. All the packets
-	    except EAPOL are not allowed to transmit and receive. The address learning
-	    process is disabled. */
-	GSW_8021X_PORT_STATE_UNAUTHORIZED = 1,
-	/** Receive direction is authorized, transmit direction is unauthorized.
-	    The port is allowed to receive all packets. Packet transmission to this
-	    port is not allowed. The address learning process is also allowed. */
-	GSW_8021X_PORT_STATE_RX_AUTHORIZED = 2,
-	/** Transmit direction is authorized, receive direction is unauthorized.
-	    The port is allowed to transmit all packets. Packet reception on this
-	    port is not allowed. The address learning process is disabled. */
-	GSW_8021X_PORT_STATE_TX_AUTHORIZED = 3
-} GSW_8021X_portState_t;
+/** \brief Configures the Spanning Tree Protocol state of an Ethernet port.
+    Used by \ref GSW_STP_PortCfgSet
+    and \ref GSW_STP_PortCfgGet. */
+typedef struct {
+	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
+	    GSWIP-3.1, this field is Bridge Port ID. The valid range is hardware
+	    dependent. An error code is delivered if the selected port is not
+	    available. */
+	u16 nPortId;
+	/** Filtering Identifier (FID) (not supported by all switches).
+	    The FID allows to keep multiple STP states per physical Ethernet port.
+	    Multiple CTAG VLAN groups could be a assigned to one FID and therefore
+	    share the same STP port state. Switch API ignores the FID value
+	    in case the switch device does not support it or switch CTAG VLAN
+	    awareness is disabled. */
+	u16 nFId;
+	/** Spanning Tree Protocol state of the port. */
+	GSW_STP_PortState_t ePortState;
+} GSW_STP_portCfg_t;
 
-/*  SSB Arbitration memory mode */
+/** \brief Spanning tree packet detection and forwarding.
+    Used by \ref GSW_STP_BPDU_RuleSet
+    and \ref GSW_STP_BPDU_RuleGet. */
+typedef struct {
+	/** Filter spanning tree packets and forward them, discard them or
+	    disable the filter. */
+	GSW_portForward_t eForwardPort;
+	/** Target (bridge) port for forwarded packets; only used if selected by
+	    'eForwardPort'. Forwarding is done
+	    if 'eForwardPort = GSW_PORT_FORWARD_PORT'. */
+	u8 nForwardPortId;
+} GSW_STP_BPDU_Rule_t;
+
+/** \brief  SSB Arbitration memory mode */
 typedef enum {
 	/* GSWIP will be 10 ports mode */
 	GSW_10_PORT_MODE = 0,
@@ -66,53 +564,16 @@ typedef enum {
 } GSW_SSB_Arb_Mode_t;
 
 /** \brief Bridge Port Allocation.
-    Used by \ref GSW_BRIDGE_PORT_ALLOC and \ref GSW_BRIDGE_PORT_FREE. */
+    Used by \ref GSW_BridgePortAlloc and \ref GSW_BridgePortFree. */
 typedef struct {
-	/** If \ref GSW_BRIDGE_PORT_ALLOC is successful, a valid ID will be returned
+	/** If \ref GSW_BridgePortAlloc is successful, a valid ID will be returned
 	    in this field. Otherwise, \ref INVALID_HANDLE is returned in this field.
-	    For \ref GSW_BRIDGE_PORT_FREE, this field should be valid ID returned by
-	    \ref GSW_BRIDGE_PORT_ALLOC. ID 0 is special for CPU port in PRX300
+	    For \ref GSW_BridgePortFree, this field should be valid ID returned by
+	    \ref GSW_BridgePortAlloc. ID 0 is special for CPU port in PRX300
 	    by mapping to CTP 0 (Logical Port 0 with Sub-interface ID 0), and
 	    pre-alloced during initialization. */
 	u16 nBridgePortId;
 } GSW_BRIDGE_portAlloc_t;
-
-typedef struct {
-	u16 IngressExVlanBlkId;
-	u16 EgressExVlanBlkId;
-	u16 IngressTrafficMeterId;
-	u16 EgressTrafficMeterId;
-	u16 BroadcastMeteringId;
-	u16 MulticastMeteringId;
-	u16 UnknownUniCastMeteringId;
-	u16 UnknownMultiIpMeteringId;
-	u16 UnknownMultiNonIpMeteringId;
-	u16 PmappperIdx;
-	u16 IngressVlanFilterBlkId;
-	u16 EgressVlanFilter1BlkId;
-	u16 EgressVlanFilter2BlkId;
-	u16 LearningLimit;
-	u16 IndexInUsageCnt;
-	u16 IndexInUse : 1;
-	u16 BrdgIdAssigned : 1;
-	u16 IngressExVlanBlkAssigned : 1;
-	u16 EgressExVlanBlkAssigned : 1;
-	u16 IngressMeteringAssigned : 1;
-	u16 EgressMeteringAssigned : 1;
-	u16 BroadcastMeteringAssigned : 1;
-	u16 MulticastMeteringAssigned : 1;
-	u16 UnknownUniCastMeteringAssigned : 1;
-	u16 UnknownMultiIpMeteringAssigned : 1;
-	u16 UnknownMultiNonIpMeteringAssigned : 1;
-	u16 PmapperAssigned : 1;
-	u16 IngressVlanFilterAssigned : 1;
-	u16 EgressVlanFilter1Assigned : 1;
-	u16 EgressVlanFilter2Assigned : 1;
-	u8 BrdgId;
-	GSW_STP_PortState_t	StpState;
-	GSW_8021X_portState_t P8021xState;
-} gsw_brdgportconfig_t;
-
 
 /** \brief Color Remarking Mode
     Used by \ref GSW_CTP_portConfig_t. */
@@ -226,13 +687,13 @@ typedef enum {
 	/** Mask for \ref GSW_BRIDGE_portConfig_t::nBridgePortMap */
 	GSW_BRIDGE_PORT_CONFIG_MASK_BRIDGE_PORT_MAP = 0x00000100,
 
-	/** Mask for \ref GSW_BRIDGE_portConfig_t::bMcDestIpLookupEnable. */
+	/** Mask for \ref GSW_BRIDGE_portConfig_t::bMcDestIpLookupDisable. */
 	GSW_BRIDGE_PORT_CONFIG_MASK_MC_DEST_IP_LOOKUP = 0x00000200,
 	/** Mask for \ref GSW_BRIDGE_portConfig_t::bMcSrcIpLookupEnable. */
 	GSW_BRIDGE_PORT_CONFIG_MASK_MC_SRC_IP_LOOKUP = 0x00000400,
-	/** Mask for \ref GSW_BRIDGE_portConfig_t::bDestMacLookupEnable. */
+	/** Mask for \ref GSW_BRIDGE_portConfig_t::bDestMacLookupDisable. */
 	GSW_BRIDGE_PORT_CONFIG_MASK_MC_DEST_MAC_LOOKUP = 0x00000800,
-	/** Mask for \ref GSW_BRIDGE_portConfig_t::bSrcMacLearningEnable. */
+	/** Mask for \ref GSW_BRIDGE_portConfig_t::bSrcMacLearningDisable. */
 	GSW_BRIDGE_PORT_CONFIG_MASK_MC_SRC_MAC_LEARNING = 0x00001000,
 	/** Mask for \ref GSW_BRIDGE_portConfig_t::bMacSpoofingDetectEnable. */
 	GSW_BRIDGE_PORT_CONFIG_MASK_MAC_SPOOFING = 0x00002000,
@@ -296,7 +757,6 @@ typedef enum {
 	GSW_MARKING_DSCP_AF = 7
 } GSW_ColorMarkingMode_t;
 
-
 /** \brief Bridge configuration mask.
     Used by \ref GSW_BRIDGE_config_t. */
 typedef enum {
@@ -335,9 +795,9 @@ typedef enum {
 
 
 /** \brief Bridge Port Configuration.
-    Used by \ref GSW_BRIDGE_PORT_CONFIG_SET and \ref GSW_BRIDGE_PORT_CONFIG_GET. */
+    Used by \ref GSW_BridgePortConfigSet and \ref GSW_BridgePortConfigGet. */
 typedef struct {
-	/** Bridge Port ID allocated by \ref GSW_BRIDGE_PORT_ALLOC.
+	/** Bridge Port ID allocated by \ref GSW_BridgePortAlloc.
 
 	    \remarks
 	    If \ref GSW_BRIDGE_portConfig_t::eMask has
@@ -353,24 +813,24 @@ typedef struct {
 	    bridge (ID 0) should be always available. */
 	u16 nBridgeId;
 
-	/** Enable extended VLAN processing for ingress non-IGMP traffic. */
+	/** Enable extended VLAN processing for ingress traffic. */
 	gsw_bool_t bIngressExtendedVlanEnable;
-	/** Extended VLAN block allocated for ingress non-IGMP traffic. It defines
-	    extended VLAN process for ingress non-IGMP traffic. Valid when
+	/** Extended VLAN block allocated for ingress traffic. It defines
+	    extended VLAN process for ingress traffic. Valid when
 	    bIngressExtendedVlanEnable is TRUE. */
 	u16 nIngressExtendedVlanBlockId;
-	/** Extended VLAN block size for ingress non-IGMP traffic. This is optional.
+	/** Extended VLAN block size for ingress traffic. This is optional.
 	    If it is 0, the block size of nIngressExtendedVlanBlockId will be used.
 	    Otherwise, this field will be used. */
 	u16 nIngressExtendedVlanBlockSize;
 
-	/** Enable extended VLAN processing enabled for egress non-IGMP traffic. */
+	/** Enable extended VLAN processing enabled for egress traffic. */
 	gsw_bool_t bEgressExtendedVlanEnable;
-	/** Extended VLAN block allocated for egress non-IGMP traffic. It defines
-	    extended VLAN process for egress non-IGMP traffic. Valid when
+	/** Extended VLAN block allocated for egress traffic. It defines
+	    extended VLAN process for egress traffic. Valid when
 	    bEgressExtendedVlanEnable is TRUE. */
 	u16 nEgressExtendedVlanBlockId;
-	/** Extended VLAN block size for egress non-IGMP traffic. This is optional.
+	/** Extended VLAN block size for egress traffic. This is optional.
 	    If it is 0, the block size of nEgressExtendedVlanBlockId will be used.
 	    Otherwise, this field will be used. */
 	u16 nEgressExtendedVlanBlockSize;
@@ -386,7 +846,7 @@ typedef struct {
 	/** Meter for ingress Bridge Port process.
 
 	    \remarks
-	    Meter should be allocated with \ref GSW_QOS_METER_ALLOC before Bridge
+	    Meter should be allocated with \ref GSW_QOS_MeterAlloc before Bridge
 	    port configuration. If this Bridge port is re-set, the last used meter
 	    should be released. */
 	u16 nIngressTrafficMeterId;
@@ -495,6 +955,7 @@ typedef struct {
 	    If it is 0, the block size of nEgressVlanFilter2BlockId will be used.
 	    Otherwise, this field will be used. */
 	u16 nEgressVlanFilter2BlockSize;
+
 	/** 0 - Intermediate outer VLAN
 	    tag is used for MAC address/multicast
 	    learning, lookup and filtering.
@@ -559,6 +1020,54 @@ typedef struct {
 	gsw_bool_t bVlanMulticastVidEnable;
 } GSW_BRIDGE_portConfig_t;
 
+/** \brief Bridge Port Loop Violation Counter Read and Clear.
+    Used by \ref GSW_BridgePortLoopRead. */
+typedef struct {
+	/** Bridge Port ID allocated by \ref GSW_BridgePortAlloc. */
+	u16 nBridgePortId;
+
+	/** Loop violation counter saturated at 255 */
+	u16 nLoopViolationCount;
+} GSW_BRIDGE_portLoopRead_t;
+
+/** \brief Read Hit Status.
+    Used to read Multicast/Mac hit stats. */
+typedef struct {
+	/** Mac/multicast Table Id */
+	u8 table_id;
+	/** Table Index to read */
+	u16 nIndex;
+	/** Hit status */
+	u8 hitStatus;
+	/** Entry Validity, if 1 entry is valid */
+	u8 nValid;
+} GSW_HitStatusRead_t;
+
+/** \brief Miscellaneous configuration of logical port
+ *  Used by \ref GSW_MiscPortCfgGet to get or \ref GSW_MiscPortCfgSet to
+ *  configure miscellaneous configurations such as 4-TPID support
+ *  on logical port (0~15).
+ */
+typedef struct {
+	/** reserved for future extension */
+	u32 mask;
+	/** logical port id
+	 *  value 0~15 is logical port
+	 *  value 255 is special value to apply configuration on all
+	 *  logical ports and only used by \ref GSW_MiscPortCfgSet
+	 */
+	u8 port;
+	/** flag to indicate enable of 4-TPID mode
+	 *  1 - 4-TPID mode (metering function in Extended VLAN is disabled)
+	 *  0 - 2-TPID mode
+	 *  in \ref GSW_MiscPortCfgGet, this field is output
+	 *  in \ref GSW_MiscPortCfgSet,
+	 *    if port == 255, this is input only
+	 *    otherwise, this is input as well as output
+	 *    the original value before modification is returned
+	 */
+	unsigned char TPID4: 1;
+} GSW_MiscPortCfg_t;
 
 /** \brief VLAN Filter TCI Mask.
     Used by \ref GSW_VLANFILTER_config_t */
@@ -568,27 +1077,22 @@ typedef enum {
 	GSW_VLAN_FILTER_TCI_MASK_TCI = 2
 } GSW_VlanFilterTciMask_t;
 
-typedef struct {
-	u16 IndexInUsageCnt : 15;
-	u8 IndexInUse : 1;
-} gsw_pmapper_t;
-
 
 /** \brief Bridge Allocation.
-    Used by \ref GSW_BRIDGE_ALLOC and \ref GSW_BRIDGE_FREE. */
+    Used by \ref GSW_BridgeAlloc and \ref GSW_BridgeFree. */
 typedef struct {
-	/** If \ref GSW_BRIDGE_ALLOC is successful, a valid ID will be returned
+	/** If \ref GSW_BridgeAlloc is successful, a valid ID will be returned
 	    in this field. Otherwise, \ref INVALID_HANDLE is returned in this field.
-	    For \ref GSW_BRIDGE_FREE, this field should be valid ID returned by
-	    \ref GSW_BRIDGE_ALLOC. ID 0 is special Bridge created during
+	    For \ref GSW_BridgeFree, this field should be valid ID returned by
+	    \ref GSW_BridgeAlloc. ID 0 is special Bridge created during
 	    initialization. */
 	u16 nBridgeId;
 } GSW_BRIDGE_alloc_t;
 
 /** \brief Bridge Configuration.
-    Used by \ref GSW_BRIDGE_CONFIG_SET and \ref GSW_BRIDGE_CONFIG_GET. */
+    Used by \ref GSW_BridgeConfigSet and \ref GSW_BridgeConfigGet. */
 typedef struct {
-	/** Bridge ID (FID) allocated by \ref GSW_BRIDGE_ALLOC.
+	/** Bridge ID (FID) allocated by \ref GSW_BridgeAlloc.
 
 	    \remarks
 	    If \ref GSW_BRIDGE_config_t::eMask has
@@ -715,7 +1219,7 @@ typedef enum {
 
 
 /** \brief Ethernet port link, speed status and flow control status.
-    Used by \ref GSW_PORT_LINK_CFG_GET and \ref GSW_PORT_LINK_CFG_SET. */
+    Used by \ref GSW_PortLinkCfgGet and \ref GSW_PortLinkCfgSet. */
 typedef struct {
 	/** Ethernet Port number (zero-based counting). The valid range is hardware
 	    dependent. An error code is delivered if the selected port is not
@@ -725,7 +1229,7 @@ typedef struct {
 
 	    - 0: Negotiate Duplex Mode. Auto-negotiation mode. Negotiated
 	      duplex mode given in 'eDuplex'
-	      during GSW_PORT_LINK_CFG_GET calls.
+	      during GSW_PortLinkCfgGet calls.
 	    - 1: Force Duplex Mode. Force duplex mode in 'eDuplex'.
 	*/
 	gsw_bool_t	bDuplexForce;
@@ -734,7 +1238,7 @@ typedef struct {
 	/** Force Link Speed.
 
 	    - 0: Negotiate Link Speed. Negotiated speed given in
-	      'eSpeed' during GSW_PORT_LINK_CFG_GET calls.
+	      'eSpeed' during GSW_PortLinkCfgGet calls.
 	    - 1: Force Link Speed. Forced speed mode in 'eSpeed'.
 	*/
 	gsw_bool_t	bSpeedForce;
@@ -743,7 +1247,7 @@ typedef struct {
 	/** Force Link.
 
 	     - 0: Auto-negotiate Link. Current link status is given in
-	       'eLink' during GSW_PORT_LINK_CFG_GET calls.
+	       'eLink' during GSW_PortLinkCfgGet calls.
 	     - 1: Force Duplex Mode. Force duplex mode in 'eLink'.
 	 */
 	gsw_bool_t	bLinkForce;
@@ -827,7 +1331,7 @@ typedef enum {
 } GSW_If_RMON_Mode_t;
 
 /** \brief Port Configuration Parameters.
-    Used by \ref GSW_PORT_CFG_GET and \ref GSW_PORT_CFG_SET. */
+    Used by \ref GSW_PortCfgGet and \ref GSW_PortCfgSet. */
 typedef struct {
 	/** Port Type. This gives information which type of port is configured.
 	    nPortId should be based on this field. */
@@ -898,61 +1402,20 @@ typedef struct {
 	GSW_If_RMON_Mode_t	eIfRMONmode;
 } GSW_portCfg_t;
 
-#define GSW_ERROR_BASE	1024
-/** \brief Enumeration for function status return. The upper four bits are reserved for error classification */
-typedef enum {
-	/** Correct or Expected Status */
-	GSW_statusOk	= 0,
-	/** Generic or unknown error occurred */
-	GSW_statusErr	= -1,
-	/** Invalid function parameter */
-	GSW_statusParam	= -(GSW_ERROR_BASE + 2),
-	/** No space left in VLAN table */
-	GSW_statusVLAN_Space	= -(GSW_ERROR_BASE + 3),
-	/** Requested VLAN ID not found in table */
-	GSW_statusVLAN_ID	= -(GSW_ERROR_BASE + 4),
-	/** Invalid ioctl */
-	GSW_statusInvalIoctl	= -(GSW_ERROR_BASE + 5),
-	/** Operation not supported by hardware */
-	GSW_statusNoSupport	= -(GSW_ERROR_BASE + 6),
-	/** Timeout */
-	GSW_statusTimeout	= -(GSW_ERROR_BASE + 7),
-	/** At least one value is out of range */
-	GSW_statusValueRange	= -(GSW_ERROR_BASE + 8),
-	/** The PortId/QueueId/MeterId/etc. is not available in this hardware or the
-	    selected feature is not available on this port */
-	GSW_statusPortInvalid	= -(GSW_ERROR_BASE + 9),
-	/** The interrupt is not available in this hardware */
-	GSW_statusIRQ_Invalid	= -(GSW_ERROR_BASE + 10),
-	/** The MAC table is full, an entry could not be added */
-	GSW_statusMAC_TableFull	= -(GSW_ERROR_BASE + 11),
-	/** Locking failed - SWAPI is busy */
-	GSW_statusLock_Failed	=  -(GSW_ERROR_BASE + 12),
-	/** Multicast Forwarding table entry not found */
-	GSW_statusEntryNotFound = -(GSW_ERROR_BASE + 13),
-} GSW_return_t;
+/** @}*/ /* GSW_ETHERNET_BRIDGING */
+
+/** \addtogroup GSW_QoS_SVC
+ *  @{
+ */
 
 /** \brief Meter Type - srTCM or trTCM. Defines the Metering algorithm Type.
     Used by \ref GSW_QoS_meterCfg_t. */
 typedef enum {
-	/** srTCM Meter Type */
+	/** srTCM Meter Type - single rate 3 color mode */
 	GSW_QOS_Meter_srTCM	= 0,
-	/** trTCM Meter Type - GSWIP-3.0 only */
+	/** trTCM Meter Type - 2 rate 3 color mode */
 	GSW_QOS_Meter_trTCM	= 1,
 } GSW_QoS_Meter_Type;
-
-/** \brief Specifies the direction for ingress and egress.
-    Used by \ref GSW_QoS_meterPort_t and \ref GSW_QoS_meterPortGet_t. */
-typedef enum {
-	/** No direction. */
-	GSW_DIRECTION_NONE	= 0,
-	/** Ingress direction. */
-	GSW_DIRECTION_INGRESS	= 1,
-	/** Egress direction. */
-	GSW_DIRECTION_EGRESS	= 2,
-	/** Ingress and egress direction. */
-	GSW_DIRECTION_BOTH	= 3
-} GSW_direction_t;
 
 /** \brief DSCP Drop Precedence to color code assignment.
     Used by \ref GSW_QoS_DSCP_DropPrecedenceCfg_t. */
@@ -1012,32 +1475,42 @@ typedef enum {
 
 
 /** \brief Configures the parameters of a rate meter instance.
-    Used by \ref GSW_QOS_METER_ALLOC, \ref GSW_QOS_METER_FREE,
-    \ref GSW_QOS_METER_CFG_SET and \ref GSW_QOS_METER_CFG_GET. */
+    Used by \ref GSW_QOS_MeterAlloc, \ref GSW_QOS_MeterFree,
+    \ref GSW_QoS_MeterCfgSet and \ref GSW_QoS_MeterCfgGet. */
 typedef struct {
 	/** Enable/Disable the meter shaper. */
 	gsw_bool_t	bEnable;
 	/** Meter index (zero-based counting).
 
 	    \remarks
-	    For \ref GSW_QOS_METER_FREE, this is the only input and other fields are
-	    ignored. For \ref GSW_QOS_METER_ALLOC, this is output when allocation
-	    is successful. For \ref GSW_QOS_METER_CFG_SET and
-	    \ref GSW_QOS_METER_CFG_GET, this is input to indicate meter to
+	    For \ref GSW_QOS_MeterFree, this is the only input and other fields are
+	    ignored. For \ref GSW_QOS_MeterAlloc, this is output when allocation
+	    is successful. For \ref GSW_QoS_MeterCfgSet and
+	    \ref GSW_QoS_MeterCfgGet, this is input to indicate meter to
 	    configure/get-configuration. */
 	u16	nMeterId;
 	/** Meter Name string for easy reference (Id to Name Mapping) - TBD*/
 	char	cMeterName[32];
 	/** Meter Algorithm Type */
 	GSW_QoS_Meter_Type eMtrType;
-	/** Committed Burst Size (CBS [Bytes]). */
+	/** Committed Burst Size (CBS [Bytes])
+
+	    \remarks
+	    Range 64B~4GB. Only most 10 significant bits are effective.
+	    Value is rounded up to HW boundary.
+	    If value is less than 64, default value 32KB is used. */
 	u32	nCbs;
-	/** Committed Burst Size Exponent (CBS [Bytes]). */
-	u32	nCbs_ls;
-	/** Excess Burst Size (EBS [Bytes]). */
+	/** reserve for backward compatibility */
+	u32	res1;
+	/** Excess Burst Size (EBS [Bytes]).
+
+	    \remarks
+	    Range 64B~4GB. Only most 10 significant bits are effective.
+	    Value is rounded up to HW boundary.
+	    If value is less than 64, default value 32KB is used. */
 	u32	nEbs;
-	/** Excess Burst Size Exponent (EBS [Bytes]). */
-	u32	nEbs_ls;
+	/** reserve for backward compatibility */
+	u32	res2;
 	/** Committed Information Rate (CIR)
 
 	    \remarks
@@ -1051,7 +1524,7 @@ typedef struct {
 	    or in [packet/s] if \ref GSW_QoS_meterCfg_t::bPktMode is TRUE. */
 	u32	nPiRate;
 	/** Peak Burst Size (PBS [Bytes]) - applicable for trTCM only */
-//   u32	nPbs;
+	/* u32	nPbs; */
 	/** Meter colour mode **/
 	u8 nColourBlindMode;
 	/** Enable/Disable Packet Mode. 0- Byte, 1 - Pkt */
@@ -1063,10 +1536,9 @@ typedef struct {
 	u16 nLocaloverhd;
 } GSW_QoS_meterCfg_t;
 
-
 /** \brief DSCP mapping table.
-    Used by \ref GSW_QOS_DSCP_CLASS_SET
-    and \ref GSW_QOS_DSCP_CLASS_GET. */
+    Used by \ref GSW_QoS_DSCP_ClassSet
+    and \ref GSW_QoS_DSCP_ClassGet. */
 typedef struct {
 	/** Traffic class associated with a particular DSCP value.
 	    DSCP is the index to an array of resulting traffic class values.
@@ -1074,10 +1546,9 @@ typedef struct {
 	u8	nTrafficClass[64];
 } GSW_QoS_DSCP_ClassCfg_t;
 
-
 /** \brief DSCP to Drop Precedence assignment table configuration.
-    Used by \ref GSW_QOS_DSCP_DROP_PRECEDENCE_CFG_SET
-    and \ref GSW_QOS_DSCP_DROP_PRECEDENCE_CFG_GET. */
+    Used by \ref GSW_QoS_DSCP_DropPrecedenceCfgSet
+    and \ref GSW_QoS_DSCP_DropPrecedenceCfgGet. */
 typedef struct {
 	/** DSCP to drop precedence assignment. Every array entry represents the
 	    drop precedence for one of the 64 existing DSCP values.
@@ -1120,8 +1591,8 @@ typedef enum {
     drop precedence.
     Packet field specific remarking only applies on a packet if
     enabled on ingress and egress port.
-    Used by \ref GSW_QOS_PORT_REMARKING_CFG_SET
-    and \ref GSW_QOS_PORT_REMARKING_CFG_GET. */
+    Used by \ref GSW_QoS_PortRemarkingCfgSet
+    and \ref GSW_QoS_PortRemarkingCfgGet. */
 typedef struct {
 	/** Ethernet Port number (zero-based counting). The valid range is hardware
 	    dependent. An error code is delivered if the selected port is not
@@ -1162,9 +1633,9 @@ typedef struct {
 /** \brief Describes which priority information of ingress packets is used
     (taken into account) to identify the packet priority and the related egress
     priority queue. For DSCP, the priority to queue assignment is done
-    using \ref GSW_QOS_DSCP_CLASS_SET. For VLAN, the priority to queue
-    assignment is done using \ref GSW_QOS_PCP_CLASS_SET.
-    Used by \ref GSW_QOS_PORT_CFG_SET and \ref GSW_QOS_PORT_CFG_GET. */
+    using \ref GSW_QoS_DSCP_ClassSet. For VLAN, the priority to queue
+    assignment is done using \ref GSW_QoS_PCP_ClassSet.
+    Used by \ref GSW_QoS_PortCfgSet and \ref GSW_QoS_PortCfgGet. */
 typedef struct {
 	/** Ethernet Port number (zero-based counting). The valid range is hardware
 	    dependent. An error code is delivered if the selected port is not
@@ -1179,8 +1650,8 @@ typedef struct {
 
 /** \brief Traffic class associated with a particular 802.1P (PCP) priority mapping value.
     This table is global for the entire switch device. Priority map entry structure.
-    Used by \ref GSW_QOS_CLASS_PCP_SET
-    and \ref GSW_QOS_CLASS_PCP_GET. */
+    Used by \ref GSW_QoS_PCP_ClassSet
+    and \ref GSW_QoS_PCP_ClassGet. */
 typedef struct {
 	/** Configures the traffic class to PCP (3-bit) mapping.
 	    The queue index starts counting from zero. */
@@ -1190,34 +1661,44 @@ typedef struct {
 
 /** \brief Traffic class associated with a particular 802.1P (PCP) priority mapping value.
     This table is global for the entire switch device. Priority map entry structure.
-    Used by \ref GSW_QOS_PCP_CLASS_SET
-    and \ref GSW_QOS_PCP_CLASS_GET. */
+    Used by \ref GSW_QoS_PCP_ClassSet
+    and \ref GSW_QoS_PCP_ClassGet. */
 typedef struct {
 	/** Configures the PCP to traffic class mapping.
 	    The queue index starts counting from zero. */
 	u8	nTrafficClass[16];
 } GSW_QoS_PCP_ClassCfg_t;
 
+/** \brief Configure queue specific parameter.
+    Used by \ref GSW_QoS_QueueCfgSet and \ref GSW_QoS_QueueCfgGet. */
+typedef struct {
+	/** QoS queue index (zero-based counting). */
+	u8 nQueueId;
+	/** Enable/disable this queue. */
+	gsw_bool_t bEnable;
+	/** Redirect traffic forward port. */
+	u8 nPortId;
+} GSW_QoS_queueCfg_t;
+
 /** \brief Describes the QoS Queue Mapping Mode. GSWIP-3.1 only.
     Used by \ref GSW_QoS_queuePort_t. */
 typedef enum {
 	/** This is default mode where the QID is fixed at
-	    \ref GSW_QOS_QUEUE_PORT_SET. */
+	    \ref GSW_QoS_QueuePortSet. */
 	GSW_QOS_QMAP_SINGLE_MODE = 0,
 	/** This is new mode in GSWIP-3.1. The QID given in
-	    \ref GSW_QOS_QUEUE_PORT_SET is base, and bit 0~3 of sub-interface ID
+	    \ref GSW_QoS_QueuePortSet is base, and bit 0~3 of sub-interface ID
 	    is offset. The final QID is base + SubIfId[0:3]. */
 	GSW_QOS_QMAP_SUBIFID_MODE = 1
 } GSW_QoS_qMapMode_t;
 
-
 /** \brief Sets the Queue ID for one traffic class of one port.
-    Used by \ref GSW_QOS_QUEUE_PORT_SET and \ref GSW_QOS_QUEUE_PORT_GET. */
+    Used by \ref GSW_QoS_QueuePortSet and \ref GSW_QoS_QueuePortGet. */
 typedef struct {
 	/** Ethernet Port number (zero-based counting). The valid range is hardware
 	    dependent. An error code is delivered if the selected port is not
 	    available.
-	    This is an input parameter for \ref GSW_QOS_QUEUE_PORT_GET. */
+	    This is an input parameter for \ref GSW_QoS_QueuePortGet. */
 	u16 nPortId;
 	/** Forward CPU (extraction) before external QoS queueing (DownMEP).
 	    GSWIP-3.1 only. */
@@ -1226,10 +1707,10 @@ typedef struct {
 	    defines Queue Mapping Mode. GSWIP-3.1 only. */
 	GSW_QoS_qMapMode_t eQMapMode;
 	/** Traffic Class index (zero-based counting).
-	    This is an input parameter for \ref GSW_QOS_QUEUE_PORT_GET. */
+	    This is an input parameter for \ref GSW_QoS_QueuePortGet. */
 	u8 nTrafficClassId;
 	/** QoS queue index (zero-based counting).
-	    This is an output parameter for \ref GSW_QOS_QUEUE_PORT_GET. */
+	    This is an output parameter for \ref GSW_QoS_QueuePortGet. */
 	u8 nQueueId;
 	/** Queue Redirection bypass Option.
 	    If enabled, all packets destined to 'nQueueId' are redirected from the
@@ -1239,8 +1720,7 @@ typedef struct {
 	gsw_bool_t bRedirectionBypass;
 	/** Redirected traffic forward port.
 	    All egress packets to 'nPortId' are redirected to "nRedirectPortId".
-	    If there is no redirection required, it should be same as "nPortId".
-	    GSWIP-3.0/3.1 only. */
+	    If there is no redirection required, it should be same as "nPortId". */
 	u8 nRedirectPortId;
 
 	/** To enable Ingress PCE Bypass. Applicable for GSWIP 3.2 and above.
@@ -1255,19 +1735,23 @@ typedef struct {
 	gsw_bool_t bReservedPortMode;
 } GSW_QoS_queuePort_t;
 
-
 /** \brief Select the type of the Egress Queue Scheduler.
     Used by \ref GSW_QoS_schedulerCfg_t. */
 typedef enum {
-	/** Strict Priority Scheduler. */
+	/** Strict Priority Scheduler (strict high). */
 	GSW_QOS_SCHEDULER_STRICT = 0,
+	/** Strict Priority Scheduler (strict high).
+	    Same as \ref GSW_QOS_SCHEDULER_STRICT. */
+	GSW_QOS_SCHEDULER_STRICT_HIGH = GSW_QOS_SCHEDULER_STRICT,
 	/** Weighted Fair Queuing Shceduler. */
-	GSW_QOS_SCHEDULER_WFQ = 1
+	GSW_QOS_SCHEDULER_WFQ = 1,
+	/** Strict Priority Scheduler (strict low). */
+	GSW_QOS_SCHEDULER_STRICT_LOW = 2,
 } GSW_QoS_Scheduler_t;
 
 /** \brief Configures the egress queues attached to a single port, and that
     are scheduled to transmit the queued Ethernet packets.
-    Used by \ref GSW_QOS_SCHEDULER_CFG_SET and \ref GSW_QOS_SCHEDULER_CFG_GET. */
+    Used by \ref GSW_QoS_SchedulerCfgSet and \ref GSW_QoS_SchedulerCfgGet. */
 typedef struct {
 	/** QoS queue index (zero-based counting). */
 	u8 nQueueId;
@@ -1282,7 +1766,7 @@ typedef struct {
 } GSW_QoS_schedulerCfg_t;
 
 /** \brief Configures a rate shaper instance with the rate and the burst size.
-    Used by \ref GSW_QOS_SHAPER_CFG_SET and \ref GSW_QOS_SHAPER_CFG_GET. */
+    Used by \ref GSW_QoS_ShaperCfgSet and \ref GSW_QoS_ShaperCfgGet. */
 typedef struct {
 	/** Rate shaper index (zero-based counting). */
 	u8	nRateShaperId;
@@ -1293,14 +1777,19 @@ typedef struct {
 	    network (according to 802.1Qav). By default, an token
 	    based shaper algorithm is used. */
 	gsw_bool_t	bAVB;
-	/** Committed Burst Size (CBS [bytes]) */
+	/** Committed Burst Size (CBS [bytes])
+
+	    \remarks
+	    Range 64B~4GB. Only most 10 significant bits are effective.
+	    Value is rounded up to HW boundary.
+	    If value is less than 64, default value 32KB is used. */
 	u32	nCbs;
 	/** Rate [kbit/s] */
 	u32	nRate;
 } GSW_QoS_ShaperCfg_t;
 
 /** \brief Assign one rate shaper instance to a QoS queue.
-    Used by \ref GSW_QOS_SHAPER_QUEUE_ASSIGN and \ref GSW_QOS_SHAPER_QUEUE_DEASSIGN. */
+    Used by \ref GSW_QoS_ShaperQueueAssign and \ref GSW_QoS_ShaperQueueDeassign. */
 typedef struct {
 	/** Rate shaper index (zero-based counting). */
 	u8	nRateShaperId;
@@ -1309,20 +1798,23 @@ typedef struct {
 } GSW_QoS_ShaperQueue_t;
 
 /** \brief Retrieve if a rate shaper instance is assigned to a QoS egress queue.
-    Used by \ref GSW_QOS_SHAPER_QUEUE_GET. */
+    Used by \ref GSW_QoS_ShaperQueueGet. */
 typedef struct {
 	/** QoS queue index (zero-based counting).
 	    This parameter is the input parameter for the GET function. */
 	u8	nQueueId;
-	/** Rate shaper instance assigned.
-	    If 1, a rate shaper instance is assigned to the queue. Otherwise no shaper instance is assigned. */
-	gsw_bool_t	bAssigned;
-	/** Rate shaper index (zero-based counting). Only a valid instance is returned in case 'bAssigned == 1'. */
-	u8	nRateShaperId;
+	/** Shaper instances (max 2) associated with queue. */
+	struct {
+		/** Rate shaper instance assigned.
+		    If 1, a rate shaper instance is assigned to the queue. Otherwise no shaper instance is assigned. */
+		gsw_bool_t	bAssigned;
+		/** Rate shaper index (zero-based counting). Only a valid instance is returned in case 'bAssigned == 1'. */
+		u8	nRateShaperId;
+	} sShaper[2];
 } GSW_QoS_ShaperQueueGet_t;
 
 /** \brief Assigns one meter instances for storm control.
-    Used by \ref GSW_QOS_STORM_CFG_SET and \ref GSW_QOS_STORM_CFG_GET.
+    Used by \ref GSW_QoS_StormCfgSet and \ref GSW_QoS_StormCfgGet.
     Not applicable to GSWIP-3.1. */
 typedef struct {
 	/** Meter index 0 (zero-based counting). */
@@ -1392,8 +1884,11 @@ typedef enum {
 
 /** \brief Configures the global probability profile of the device.
     The min. and max. threshold values are given in number of packet
-    buffer segments and required only in case of Manual Mode. The GSWIP-3.0/3.1 supports Auto mode and the threshold values are dynamically computed internally by GSWIP. The size of a segment can be retrieved using \ref GSW_CAP_GET.
-    Used by \ref GSW_QOS_WRED_CFG_SET and \ref GSW_QOS_WRED_CFG_GET. */
+    buffer segments and required only in case of Manual Mode.
+    The GSWIP-3.0/3.1 supports Auto mode and the threshold values are
+    dynamically computed internally by GSWIP.
+    The size of a segment can be retrieved using \ref GSW_CapGet.
+    Used by \ref GSW_QoS_WredCfgSet and \ref GSW_QoS_WredCfgGet. */
 typedef struct {
 	/** Egress Queue Congestion Notification Watermark
 	   only applicable for GSWIP 3.1*/
@@ -1420,9 +1915,8 @@ typedef struct {
 
 /** \brief Configures the WRED threshold level values.
     The min. and max. values are given in number of packet
-    buffer segments. The size of a segment can be
-    retrieved using \ref GSW_CAP_GET.
-    Used by \ref GSW_QOS_WRED_QUEUE_CFG_SET and \ref GSW_QOS_WRED_QUEUE_CFG_GET. */
+    buffer segments. The size of a segment can be retrieved using \ref GSW_CapGet.
+    Used by \ref GSW_QoS_WredQueueCfgSet and \ref GSW_QoS_WredQueueCfgGet. */
 typedef struct {
 	/** QoS queue index (zero-based counting). */
 	u16	nQueueId;
@@ -1446,9 +1940,8 @@ typedef struct {
     The configured thresholds apply to fill level sum
     of all egress queues which are assigned to the egress port.
     The min. and max. values are given in number of packet
-    buffer segments. The size of a segment can be
-    retrieved using \ref GSW_CAP_GET.
-    Used by \ref GSW_QOS_WRED_PORT_CFG_SET and \ref GSW_QOS_WRED_PORT_CFG_GET. */
+    buffer segments. The size of a segment can be retrieved using \ref GSW_CapGet.
+    Used by \ref GSW_QoS_WredPortCfgSet and \ref GSW_QoS_WredPortCfgGet. */
 typedef struct {
 	/** Ethernet Port number (zero-based counting).
 	    The valid range is hardware dependent. */
@@ -1470,9 +1963,8 @@ typedef struct {
 /** \brief Configures the global buffer flow control threshold for
     conforming and non-conforming packets.
     The min. and max. values are given in number of packet
-    buffer segments. The size of a segment can be
-    retrieved using \ref GSW_CAP_GET.
-    Used by \ref GSW_QOS_FLOWCTRL_CFG_SET and \ref GSW_QOS_FLOWCTRL_CFG_GET. */
+    buffer segments. The size of a segment can be retrieved using \ref GSW_CapGet.
+    Used by \ref GSW_QoS_FlowctrlCfgSet and \ref GSW_QoS_FlowctrlCfgGet. */
 typedef struct {
 	/** Global Buffer Non Conforming Flow Control Threshold Minimum [number of segments]. */
 	u16	nFlowCtrlNonConform_Min;
@@ -1487,9 +1979,8 @@ typedef struct {
 /** \brief Configures the ingress port flow control threshold for
     used packet segments.
     The min. and max. values are given in number of packet
-    buffer segments. The size of a segment can be
-    retrieved using \ref GSW_CAP_GET.
-    Used by \ref GSW_QOS_FLOWCTRL_PORT_CFG_SET and \ref GSW_QOS_FLOWCTRL_PORT_CFG_GET. */
+    buffer segments. The size of a segment can be retrieved using \ref GSW_CapGet.
+    Used by \ref GSW_QoS_FlowctrlPortCfgSet and \ref GSW_QoS_FlowctrlPortCfgGet. */
 typedef struct {
 	/** Ethernet Port number (zero-based counting).
 	    The valid range is hardware dependent. */
@@ -1501,20 +1992,20 @@ typedef struct {
 } GSW_QoS_FlowCtrlPortCfg_t;
 
 /** \brief Reserved egress queue buffer segments.
-    Used by \ref GSW_QOS_QUEUE_BUFFER_RESERVE_CFG_SET and \ref GSW_QOS_QUEUE_BUFFER_RESERVE_CFG_GET. */
+    Used by \ref GSW_QoS_QueueBufferReserveCfgSet and \ref GSW_QoS_QueueBufferReserveCfgGet. */
 typedef struct {
 	/** QoS queue index (zero-based counting).
-	    This is an input parameter for \ref GSW_QOS_QUEUE_BUFFER_RESERVE_CFG_GET. */
+	    This is an input parameter for \ref GSW_QoS_QueueBufferReserveCfgGet. */
 	u16	nQueueId;
 	/** Reserved Buffer Segment Threshold [number of segments].
-	    This is an output parameter for \ref GSW_QOS_QUEUE_BUFFER_RESERVE_CFG_GET. */
+	    This is an output parameter for \ref GSW_QoS_QueueBufferReserveCfgGet. */
 	u16	nBufferReserved;
 } GSW_QoS_QueueBufferReserveCfg_t;
 
 /** \brief Color Marking Table.
     There are standards to define the marking table. User should use
-    \ref GSW_QOS_COLOR_MARKING_TABLE_SET to initialize the table before color
-    marking happens. \ref GSW_QOS_COLOR_MARKING_TABLE_GET is used to get
+    \ref GSW_QOS_ColorMarkingTableSet to initialize the table before color
+    marking happens. \ref GSW_QOS_ColorMarkingTableGet is used to get
     the marking table, mainly for debug purpose. */
 typedef struct {
 	/** Mode of color marking. */
@@ -1537,8 +2028,8 @@ typedef struct {
 
 /** \brief Color Remarking Table.
     There are standards to define the remarking table. User should use
-    \ref GSW_QOS_COLOR_REMARKING_TABLE_SET to initialize the table before color
-    remarking happens. \ref GSW_QOS_COLOR_REMARKING_TABLE_GET is used to get
+    \ref GSW_QOS_ColorReMarkingTableSet to initialize the table before color
+    remarking happens. \ref GSW_QOS_ColorReMarkingTableGet is used to get
     the remarking table, mainly for debug purpose. */
 typedef struct {
 	/** Mode of color remarking. */
@@ -1553,9 +2044,8 @@ typedef struct {
 	u8 nVal[16];
 } GSW_QoS_colorRemarkingEntry_t;
 
-
 /** \brief DSCP to PCP Mapping.
-    Used by \ref GSW_DSCP2PCP_MAP_GET. */
+    Used by \ref GSW_QOS_Dscp2PcpTableGet. */
 typedef struct {
 	/** Index of entry in mapping table. */
 	u16 nIndex;
@@ -1568,7 +2058,7 @@ typedef struct {
 /** \brief Traffic class associated with a particular STAG VLAN 802.1P (PCP) priority and Drop Eligible Indicator (DEI) mapping value.
     This table is global for the entire switch device. Priority map entry structure.
     The table index value is calculated by 'index=PCP + 8*DEI'
-    Used by \ref GSW_QOS_SVLAN_PCP_CLASS_SET and \ref GSW_QOS_SVLAN_PCP_CLASS_GET. */
+    Used by \ref GSW_QoS_SVLAN_PCP_ClassSet and \ref GSW_QoS_SVLAN_PCP_ClassGet. */
 typedef struct {
 	/** Configures the PCP and DEI to traffic class mapping.
 	    The queue index starts counting from zero. */
@@ -1585,303 +2075,91 @@ typedef struct {
 
 } GSW_QoS_SVLAN_PCP_ClassCfg_t;
 
-/** \brief MAC Table Clear Type
-    Used by \ref GSW_MAC_tableClearCond_t */
+/** @}*/ /* GSW_QoS_SVC */
+
+
+/** \addtogroup GSW_ETHERNET_BRIDGING
+ *  @{
+ */
+
+/** \brief Enumeration used for Switch capability types. GSWIP-3.0 only capabilities are explicitly indicated.
+    Used by \ref GSW_cap_t. */
 typedef enum {
-	/** Clear dynamic entries based on Physical Port */
-	GSW_MAC_CLEAR_PHY_PORT = 0,
-	/** Clear all dynamic entries */
-	GSW_MAC_CLEAR_DYNAMIC = 1,
-} GSW_MacClearType_t;
+	/** Number of physical Ethernet ports. */
+	GSW_CAP_TYPE_PORT = 0,
+	/** Number of virtual Ethernet ports. */
+	GSW_CAP_TYPE_VIRTUAL_PORT = 1,
+	/** Size of internal packet memory [in Bytes]. */
+	GSW_CAP_TYPE_BUFFER_SIZE = 2,
+	/** Buffer segment size.
+	    Byte size of a segment, used to store received packet data. */
+	GSW_CAP_TYPE_SEGMENT_SIZE = 3,
+	/** Number of priority queues per device. */
+	GSW_CAP_TYPE_PRIORITY_QUEUE = 4,
+	/** Number of meter instances. */
+	GSW_CAP_TYPE_METER	= 5,
+	/** Number of rate shaper instances. */
+	GSW_CAP_TYPE_RATE_SHAPER	= 6,
+	/** Number of CTAG VLAN groups that can be configured on the switch hardware. */
+	GSW_CAP_TYPE_VLAN_GROUP	= 7,
+	/** Number of Filtering Identifiers (FIDs) */
+	GSW_CAP_TYPE_FID	= 8,
+	/** Number of MAC Bridging table entries */
+	GSW_CAP_TYPE_MAC_TABLE_SIZE	= 9,
+	/** Number of multicast level 3 hardware table entries */
+	GSW_CAP_TYPE_MULTICAST_TABLE_SIZE      = 10,
+	/** Number of supported PPPoE sessions. */
+	GSW_CAP_TYPE_PPPOE_SESSION	= 11,
+	/** Number of STAG VLAN groups that can be configured on the switch hardware. */
+	GSW_CAP_TYPE_SVLAN_GROUP	= 12,
+	/** Number of PMAC Supported in Switch Macro - for GSWIP-3.0 only. */
+	GSW_CAP_TYPE_PMAC	= 13,
+	/** Number of entries in Payload Table size - for GSWIP-3.0 only. */
+	GSW_CAP_TYPE_PAYLOAD	= 14,
+	/** Number of RMON Counters Supported - for GSWIP-3.0 only. */
+	GSW_CAP_TYPE_IF_RMON	= 15,
+	/** Number of Egress VLAN Treatment Entries - for GSWIP-3.0 only. */
+	GSW_CAP_TYPE_EGRESS_VLAN = 16,
+	/** Number of Routing Source-MAC Entries - for GSWIP-R-3.0 only. */
+	GSW_CAP_TYPE_RT_SMAC = 17,
+	/** Number of Routing Destination-MAC Entries - for GSWIP-R-3.0 only. */
+	GSW_CAP_TYPE_RT_DMAC = 18,
+	/** Number of Routing-PPPoE Entries - for GSWIP-R-3.0 only. */
+	GSW_CAP_TYPE_RT_PPPoE = 19,
+	/** Number of Routing-NAT Entries - for GSWIP-R-3.0 only. */
+	GSW_CAP_TYPE_RT_NAT = 20,
+	/** Number of MTU Entries - for GSWIP-R-3.0 only. */
+	GSW_CAP_TYPE_RT_MTU = 21,
+	/** Number of Tunnel Entries - for GSWIP-R-3.0 only. */
+	GSW_CAP_TYPE_RT_TUNNEL = 22,
+	/** Number of RTP Entries - for GSWIP-R-3.0 only. */
+	GSW_CAP_TYPE_RT_RTP = 23,
+	/** Number of CTP ports - for GSWIP-3.1 only. */
+	GSW_CAP_TYPE_CTP = 24,
+	/** Number of bridge ports - for GSWIP-3.1 only. */
+	GSW_CAP_TYPE_BRIDGE_PORT = 25,
+	/** Number of COMMON PCE Rules. */
+	GSW_CAP_TYPE_COMMON_PCE_RULES = 26,
+	/** 3.2 Revision (A0 or B0)          */
+	GSW_CAP_TYPE_32_VERSION = 27,
+	/** Last Capability Index */
+	GSW_CAP_TYPE_LAST	= 28
+} GSW_capType_t;
 
-/** \brief MAC Table Clear based on given condition.
-    Used by \ref GSW_MAC_TABLE_CLEAR_COND. */
+/** \brief Maximum String Length for the Capability String. */
+#define GSW_CAP_STRING_LEN	128
+
+/** \brief Capability structure.
+    Used by \ref GSW_CapGet. */
 typedef struct {
-	/** MAC table clear type \ref GSW_MacClearType_t */
-	u8 eType;
-	union {
-		/** Physical port id (0~16) if \ref eType is
-		    ref GSW_MAC_CLEAR_PHY_PORT. */
-		u8 nPortId;
-	};
-} GSW_MAC_tableClearCond_t;
-
-/** \brief MAC Table Entry to be added.
-    Used by \ref GSW_MAC_TABLE_ENTRY_ADD. */
-typedef struct {
-	/** Filtering Identifier (FID) (not supported by all switches) */
-	u16 nFId;
-	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
-	    GSWIP-3.1, this field is Bridge Port ID. The valid range is hardware
-	    dependent.
-
-	    \remarks
-	    In GSWIP-2.1/2.2/3.0, this field is used as portmap field, when the MSB
-	    bit is set. In portmap mode, every value bit represents an Ethernet port.
-	    LSB represents Port 0 with incrementing counting.
-	    The (MSB - 1) bit represent the last port.
-	    The macro \ref GSW_PORTMAP_FLAG_SET allows to set the MSB bit,
-	    marking it as portmap variable.
-	    Checking the portmap flag can be done by
-	    using the \ref GSW_PORTMAP_FLAG_GET macro.
-	    From GSWIP3.1, if MSB is set, other bits in this field are ignored.
-	    array \ref GSW_MAC_tableRead_t::nPortMap is used for bit map. */
-	u32 nPortId;
-	/** Bridge Port Map - to support GSWIP-3.1, following field is added
-	    for port map in static entry. It's valid only when MSB of
-	    \ref GSW_MAC_tableRead_t::nPortId is set. Each bit stands for 1 bridge
-	    port. */
-	u16 nPortMap[8];	/* max can be 16 */
-	/** Sub-Interface Identifier Destination (supported in GSWIP-3.0/3.1 only).
-
-	    \remarks
-	    In GSWIP-3.1, this field is sub interface ID for WLAN logical port. For
-	    Other types, either outer VLAN ID if Nto1Vlan enabled or 0. */
-	u16 nSubIfId;
-	/** Aging Time, given in multiples of 1 second in a range
-	    from 1 s to 1,000,000 s.
-	    The configured value might be rounded that it fits to the given hardware platform. */
-	int nAgeTimer;
-	/** STAG VLAN Id. Only applicable in case SVLAN support is enabled on the device. */
-	u16 nSVLAN_Id;
-	/** Static Entry (value will be aged out if the entry is not set to static). The
-	    switch API implementation uses the maximum age timer in case the entry
-	    is not static. */
-	gsw_bool_t bStaticEntry;
-	/** Egress queue traffic class.
-	    The queue index starts counting from zero.   */
-	u8 nTrafficClass;
-	/** MAC Address to add to the table. */
-	u8 nMAC[GSW_MAC_ADDR_LEN];
-	/** Source/Destination MAC address filtering flag (GSWIP-3.1 only)
-	    Value 0 - not filter, 1 - source address filter,
-	    2 - destination address filter, 3 - both source and destination filter.
-
-	    \remarks
-	    Please refer to "GSWIP Hardware Architecture Spec" chapter 3.4.4.6
-	    "Source MAC Address Filtering and Destination MAC Address Filtering"
-	    for more detail. */
-	u8 nFilterFlag;
-	/** Packet is marked as IGMP controlled if destination MAC address matches
-	    MAC in this entry. (GSWIP-3.1 only) */
-	gsw_bool_t bIgmpControlled;
-
-	/** Associated Mac address -(GSWIP-3.2)*/
-	u8 nAssociatedMAC[GSW_MAC_ADDR_LEN];
-
-	/** TCI for (GSWIP-3.2) B-Step
-	    Bit [0:11] - VLAN ID
-	    Bit [12] - VLAN CFI/DEI
-	    Bit [13:15] - VLAN PRI */
-	u16 nTci;
-} GSW_MAC_tableAdd_t;
-
-/** \brief MAC Table Entry to be read.
-    Used by \ref GSW_MAC_TABLE_ENTRY_READ. */
-typedef struct {
-	/** Restart the get operation from the beginning of the table. Otherwise
-	    return the next table entry (next to the entry that was returned
-	    during the previous get operation). This boolean parameter is set by the
-	    calling application. */
-	gsw_bool_t bInitial;
-	/** Indicates that the read operation got all last valid entries of the
-	    table. This boolean parameter is set by the switch API
-	    when the Switch API is called after the last valid one was returned already. */
-	gsw_bool_t bLast;
-	/** Get the MAC table entry belonging to the given Filtering Identifier
-	    (not supported by all switches). */
-	u16 nFId;
-	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
-	    GSWIP-3.1, this field is Bridge Port ID. The valid range is hardware
-	    dependent.
-
-	    \remarks
-	    In GSWIP-2.1/2.2/3.0, this field is used as portmap field, when the MSB
-	    bit is set. In portmap mode, every value bit represents an Ethernet port.
-	    LSB represents Port 0 with incrementing counting.
-	    The (MSB - 1) bit represent the last port.
-	    The macro \ref GSW_PORTMAP_FLAG_SET allows to set the MSB bit,
-	    marking it as portmap variable.
-	    Checking the portmap flag can be done by
-	    using the \ref GSW_PORTMAP_FLAG_GET macro.
-	    From GSWIP3.1, if MSB is set, other bits in this field are ignored.
-	    array \ref GSW_MAC_tableRead_t::nPortMap is used for bit map. */
-	u32 nPortId;
-	/** Bridge Port Map - to support GSWIP-3.1, following field is added
-	    for port map in static entry. It's valid only when MSB of
-	    \ref GSW_MAC_tableRead_t::nPortId is set. Each bit stands for 1 bridge
-	    port. */
-	u16 nPortMap[8];	/* max can be 16 */
-	/** Aging Time, given in multiples of 1 second in a range from 1 s to 1,000,000 s.
-	    The value read back in a GET command might differ slightly from the value
-	    given in the SET command due to limited hardware timing resolution.
-	    Filled out by the switch API implementation. */
-	int nAgeTimer;
-	/** STAG VLAN Id. Only applicable in case SVLAN support is enabled on the device. */
-	u16 nSVLAN_Id;
-	/** Static Entry (value will be aged out after 'nAgeTimer' if the entry
-	    is not set to static). */
-	gsw_bool_t bStaticEntry;
-	/** Sub-Interface Identifier Destination (supported in GSWIP-3.0/3.1 only). */
-	u16 nSubIfId;
-	/** MAC Address. Filled out by the switch API implementation. */
-	u8 nMAC[GSW_MAC_ADDR_LEN];
-	/** Source/Destination MAC address filtering flag (GSWIP-3.1 only)
-	    Value 0 - not filter, 1 - source address filter,
-	    2 - destination address filter, 3 - both source and destination filter.
-
-	    \remarks
-	    Please refer to "GSWIP Hardware Architecture Spec" chapter 3.4.4.6
-	    "Source MAC Address Filtering and Destination MAC Address Filtering"
-	    for more detail. */
-	u8 nFilterFlag;
-	/** Packet is marked as IGMP controlled if destination MAC address matches
-	    MAC in this entry. (GSWIP-3.1 only) */
-	gsw_bool_t bIgmpControlled;
-
-	/** Changed
-	0: the entry is not changed
-	1: the entry is changed and not accessed yet */
-
-	gsw_bool_t bEntryChanged;
-
-	/** Associated Mac address -(GSWIP-3.2)*/
-	u8 nAssociatedMAC[GSW_MAC_ADDR_LEN];
-	/* MAC Table Hit Status Update (Supported in GSWip-3.1/3.2) */
-	gsw_bool_t hitstatus;
-	/** TCI for (GSWIP-3.2) B-Step
-	    Bit [0:11] - VLAN ID
-	    Bit [12] - VLAN CFI/DEI
-	    Bit [13:15] - VLAN PRI */
-	u16 nTci;
-	u16 nFirstBridgePortId;
-} GSW_MAC_tableRead_t;
-
-/** \brief Search for a MAC address entry in the address table.
-    Used by \ref GSW_MAC_TABLE_ENTRY_QUERY. */
-typedef struct  {
-	/** MAC Address. This parameter needs to be provided for the search operation.
-	    This is an input parameter. */
-	u8 nMAC[GSW_MAC_ADDR_LEN];
-	/** Get the MAC table entry belonging to the given Filtering Identifier
-	    (not supported by all switches).
-	    This is an input parameter. */
-	u16 nFId;
-	/** MAC Address Found. Switch API sets this boolean variable in case
-	    the requested MAC address 'nMAC' is found inside the address table,
-	    otherwise it is set to FALSE.
-	    This is an output parameter. */
-	gsw_bool_t bFound;
-	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
-	    GSWIP-3.1, this field is Bridge port ID. The valid range is hardware
-	    dependent.
-
-	    \remarks
-	    In GSWIP-2.1/2.2/3.0, this field is used as portmap field, when the MSB
-	    bit is set. In portmap mode, every value bit represents an Ethernet port.
-	    LSB represents Port 0 with incrementing counting.
-	    The (MSB - 1) bit represent the last port.
-	    The macro \ref GSW_PORTMAP_FLAG_SET allows to set the MSB bit,
-	    marking it as portmap variable.
-	    Checking the portmap flag can be done by
-	    using the \ref GSW_PORTMAP_FLAG_GET macro.
-	    From GSWIP3.1, if MSB is set, other bits in this field are ignored.
-	    array \ref GSW_MAC_tableRead_t::nPortMap is used for bit map. */
-	u32 nPortId;
-	/** Bridge Port Map - to support GSWIP-3.1, following field is added
-	    for port map in static entry. It's valid only when MSB of
-	    \ref GSW_MAC_tableRead_t::nPortId is set. Each bit stands for 1 bridge
-	    port. */
-	u16 nPortMap[8];	/* max can be 16 */
-	/** Sub-Interface Identifier Destination (supported in GSWIP-3.0/3.1 only). */
-	u16 nSubIfId;
-	/** Aging Time, given in multiples of 1 second in a range from 1 s to 1,000,000 s.
-	    The value read back in a GET command might differ slightly from the value
-	    given in the SET command due to limited hardware timing resolution.
-	    Filled out by the switch API implementation.
-	    This is an output parameter. */
-	int nAgeTimer;
-	/** STAG VLAN Id. Only applicable in case SVLAN support is enabled on the device. */
-	u16 nSVLAN_Id;
-	/** Static Entry (value will be aged out after 'nAgeTimer' if the entry
-	    is not set to static).
-	    This is an output parameter. */
-	gsw_bool_t bStaticEntry;
-	/** Source/Destination MAC address filtering flag (GSWIP-3.1 only)
-	    Value 0 - not filter, 1 - source address filter,
-	    2 - destination address filter, 3 - both source and destination filter.
-
-	    \remarks
-	    Please refer to "GSWIP Hardware Architecture Spec" chapter 3.4.4.6
-	    "Source MAC Address Filtering and Destination MAC Address Filtering"
-	    for more detail. */
-	u8 nFilterFlag;
-	/** Packet is marked as IGMP controlled if destination MAC address matches
-	    MAC in this entry. (GSWIP-3.1 only) */
-	gsw_bool_t bIgmpControlled;
-	/** Changed
-	0: the entry is not changed
-	1: the entry is changed and not accessed yet */
-	gsw_bool_t bEntryChanged;
-	/** Associated Mac address -(GSWIP-3.2)*/
-	u8 nAssociatedMAC[GSW_MAC_ADDR_LEN];
-
-	/* MAC Table Hit Status Update (Supported in GSWip-3.1/3.2) */
-	gsw_bool_t hitstatus;
-	/** TCI for (GSWIP-3.2) B-Step
-	    Bit [0:11] - VLAN ID
-	    Bit [12] - VLAN CFI/DEI
-	    Bit [13:15] - VLAN PRI */
-	u16 nTci;
-	/** first bridge port ID (supported in GSWIP-3.3only) */
-	u16 nFirstBridgePortId;
-} GSW_MAC_tableQuery_t;
-
-/** \brief MAC Table Entry to be removed.
-    Used by \ref GSW_MAC_TABLE_ENTRY_REMOVE. */
-typedef struct {
-	/** Filtering Identifier (FID) (not supported by all switches) */
-	u16 nFId;
-	/** MAC Address to be removed from the table. */
-	u8 nMAC[GSW_MAC_ADDR_LEN];
-	/** Source/Destination MAC address filtering flag (GSWIP-3.1 only)
-	    Value 0 - not filter, 1 - source address filter,
-	    2 - destination address filter, 3 - both source and destination filter.
-
-	    \remarks
-	    Please refer to "GSWIP Hardware Architecture Spec" chapter 3.4.4.6
-	    "Source MAC Address Filtering and Destination MAC Address Filtering"
-	    for more detail. */
-	u8 nFilterFlag;
-	/** TCI for (GSWIP-3.2) B-Step
-	    Bit [0:11] - VLAN ID
-	    Bit [12] - VLAN CFI/DEI
-	    Bit [13:15] - VLAN PRI */
-	u16 nTci;
-} GSW_MAC_tableRemove_t;
-
-/** \brief MAC Address Filter Type.
-    Used by \ref GSW_MACFILTER_default_t */
-typedef enum {
-	/** Source MAC Address Filter */
-	GSW_MACFILTERTYPE_SRC = 0,
-	/** Destination MAC Address Filter */
-	GSW_MACFILTERTYPE_DEST = 1
-} GSW_MacFilterType_t;
-
-/** \brief Default MAC Address Filter.
-    Used by \ref GSW_DEFAUL_MAC_FILTER_SET and \ref GSW_DEFAUL_MAC_FILTER_GET */
-typedef struct {
-	/** MAC Filter Type */
-	GSW_MacFilterType_t eType;
-
-	/** Destination bridge port map. For GSWIP-3.1 only.
-
-	    \remarks
-	    Each bit stands for 1 bridge port. For PRX300 (GSWIP-3.1 integrated),
-	    only index 0-7 is valid. */
-	u16 nPortmap[8];	/* max can be 16 */
-} GSW_MACFILTER_default_t;
+	/** Defines the capability type, see \ref GSW_capType_t.*/
+	GSW_capType_t	nCapType;
+	/** Description of the capability. */
+	char cDesc[GSW_CAP_STRING_LEN];
+	/** Defines if, what or how many are available. The definition of cap
+	depends on the type, see captype. */
+	u32 nCap;
+} GSW_cap_t;
 
 /** \brief Aging Timer Value.
     Used by \ref GSW_cfg_t. */
@@ -1900,11 +2178,23 @@ typedef enum {
 	GSW_AGETIMER_CUSTOM  = 6
 } GSW_ageTimer_t;
 
-// #ifdef CONFIG_GSWIP_EVLAN
+/** @}*/ /* GSW_ETHERNET_BRIDGING */
+
+
+/** \addtogroup GSW_VLAN
+ *  @{
+ */
+
+/** \brief Extended 4 TPID selection.
+    Used by \ref GSW_EXTENDEDVLAN_filter_t. */
 typedef enum {
+	/** TPID is FDMA_VTETYPE (0x88A8 by default) */
 	GSW_EXTENDEDVLAN_TPID_VTETYPE_1 = 0,
+	/** TPID is 0x8100 */
 	GSW_EXTENDEDVLAN_TPID_VTETYPE_2 = 1,
+	/** TPID is FDMA_VTETYPE2 (0x9100 by default) */
 	GSW_EXTENDEDVLAN_TPID_VTETYPE_3 = 2,
+	/** TPID is FDMA_VTETYPE3 (0x9200 by default) */
 	GSW_EXTENDEDVLAN_TPID_VTETYPE_4 = 3
 } GSW_ExtendedVlan_4_Tpid_Mode_t;
 
@@ -2025,8 +2315,10 @@ typedef enum {
 	GSW_EXTENDEDVLAN_TREATMENT_REMOVE_1_TAG = 1,
 	/** Remove 2 VLAN tag following DA/SA. */
 	GSW_EXTENDEDVLAN_TREATMENT_REMOVE_2_TAG = 2,
+	/** Discard traffic. */
+	GSW_EXTENDEDVLAN_TREATMENT_DISCARD = 3,
 	/** Discard upstream traffic. */
-	GSW_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM = 3,
+	GSW_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM = GSW_EXTENDEDVLAN_TREATMENT_DISCARD,
 } GSW_ExtendedVlanTreatmentRemoveTag_t;
 
 /** \brief Extended VLAN Filter VLAN Tag.
@@ -2075,6 +2367,7 @@ typedef struct {
 typedef struct {
 	/** Filter on Original Packet. */
 	gsw_bool_t bOriginalPacketFilterMode;
+	/** 4 TPID support. */
 	GSW_ExtendedVlan_4_Tpid_Mode_t eFilter_4_Tpid_Mode;
 	/** Filter for outer VLAN tag. */
 	GSW_EXTENDEDVLAN_filterVLAN_t sOuterVlan;
@@ -2086,17 +2379,17 @@ typedef struct {
 
 
 /** \brief Extended VLAN Allocation.
-    Used by \ref GSW_EXTENDEDVLAN_ALLOC and \ref GSW_EXTENDEDVLAN_FREE. */
+    Used by \ref GSW_ExtendedVlanAlloc and \ref GSW_ExtendedVlanFree. */
 typedef struct {
 	/** Total number of extended VLAN entries are requested. Proper value should
-	    be given for \ref GSW_EXTENDEDVLAN_ALLOC. This field is ignored for
-	    \ref GSW_EXTENDEDVLAN_FREE. */
+	    be given for \ref GSW_ExtendedVlanAlloc. This field is ignored for
+	    \ref GSW_ExtendedVlanFree. */
 	u16 nNumberOfEntries;
 
-	/** If \ref GSW_EXTENDEDVLAN_ALLOC is successful, a valid ID will be returned
+	/** If \ref GSW_ExtendedVlanAlloc is successful, a valid ID will be returned
 	    in this field. Otherwise, \ref INVALID_HANDLE is returned in this field.
-	    For \ref GSW_EXTENDEDVLAN_FREE, this field should be valid ID returned by
-	    \ref GSW_EXTENDEDVLAN_ALLOC. */
+	    For \ref GSW_ExtendedVlanFree, this field should be valid ID returned by
+	    \ref GSW_ExtendedVlanAlloc. */
 	u16 nExtendedVlanBlockId;
 } GSW_EXTENDEDVLAN_alloc_t;
 
@@ -2106,6 +2399,7 @@ typedef struct {
 	/** Number of VLAN tag(s) to remove. */
 	GSW_ExtendedVlanTreatmentRemoveTag_t eRemoveTag;
 
+	/** 4 TPID support */
 	GSW_ExtendedVlan_4_Tpid_Mode_t eTreatment_4_Tpid_Mode;
 
 	/** Enable outer VLAN tag add/modification. */
@@ -2138,15 +2432,15 @@ typedef struct {
 	/** New meter ID.
 
 	    \remarks
-	    Meter should be allocated with \ref GSW_QOS_METER_ALLOC before extended
+	    Meter should be allocated with \ref GSW_QOS_MeterAlloc before extended
 	    VLAN treatment is added. If this extended VLAN treatment is deleted,
-	    this meter should be released with \ref GSW_QOS_METER_FREE. */
+	    this meter should be released with \ref GSW_QOS_MeterFree. */
 	u16 sNewTrafficMeterId;
 
 	/** DSCP to PCP mapping, if
 	    \ref GSW_EXTENDEDVLAN_treatmentVlan_t::ePriorityMode in
-	    \ref GSW_EXTENDEDVLAN_treatment_t::sOuterVlan.ePriorityMode or
-	    \ref GSW_EXTENDEDVLAN_treatment_t::sInnerVlan.ePriorityMode is
+	    \ref GSW_EXTENDEDVLAN_treatment_t::sOuterVlan or
+	    \ref GSW_EXTENDEDVLAN_treatment_t::sInnerVlan is
 	    \ref GSW_EXTENDEDVLAN_TREATMENT_DSCP.
 
 	    \remarks
@@ -2155,7 +2449,7 @@ typedef struct {
 	    a resource management mechanism should be implemented. Allocation happens
 	    when extended VLAN treatment added, and release happens when the
 	    treatment is deleted. For debug, the DSCP2PCP table can be dumped with
-	    \ref GSW_DSCP2PCP_MAP_GET. */
+	    \ref GSW_QOS_Dscp2PcpTableGet. */
 	u8 nDscp2PcpMap[64];
 
 	/** Enable loopback. */
@@ -2167,9 +2461,9 @@ typedef struct {
 } GSW_EXTENDEDVLAN_treatment_t;
 
 /** \brief Extended VLAN Configuration.
-    Used by \ref GSW_EXTENDEDVLAN_SET and \ref GSW_EXTENDEDVLAN_GET. */
+    Used by \ref GSW_ExtendedVlanSet and \ref GSW_ExtendedVlanGet. */
 typedef struct {
-	/** This should be valid ID returned by \ref GSW_EXTENDEDVLAN_ALLOC.
+	/** This should be valid ID returned by \ref GSW_ExtendedVlanAlloc.
 	    If it is \ref INVALID_HANDLE, \ref GSW_EXTENDEDVLAN_config_t::nEntryIndex
 	    is absolute index of Extended VLAN entry in hardware for debug purpose,
 	    bypassing any check. */
@@ -2177,7 +2471,7 @@ typedef struct {
 
 	/** Index of entry, ranges between 0 and
 	    \ref GSW_EXTENDEDVLAN_alloc_t::nNumberOfEntries - 1, to
-	    set (\ref GSW_EXTENDEDVLAN_SET) or get (\ref GSW_EXTENDEDVLAN_GET)
+	    set (\ref GSW_ExtendedVlanSet) or get (\ref GSW_ExtendedVlanGet)
 	    Extended VLAN Configuration entry. For debug purpose, this field could be
 	    absolute index of Entended VLAN entry in hardware, when
 	    \ref GSW_EXTENDEDVLAN_config_t::nExtendedVlanBlockId is
@@ -2191,17 +2485,17 @@ typedef struct {
 } GSW_EXTENDEDVLAN_config_t;
 
 /** \brief VLAN Filter Allocation.
-    Used by \ref GSW_VLANFILTER_ALLOC and \ref GSW_VLANFILTER_FREE. */
+    Used by \ref GSW_VlanFilterAlloc and \ref GSW_VlanFilterFree. */
 typedef struct {
 	/** Total number of VLAN Filter entries are requested. Proper value should
-	    be given for \ref GSW_VLANFILTER_ALLOC. This field is ignored for
-	    \ref GSW_VLANFILTER_FREE. */
+	    be given for \ref GSW_VlanFilterAlloc. This field is ignored for
+	    \ref GSW_VlanFilterFree. */
 	u16 nNumberOfEntries;
 
-	/** If \ref GSW_VLANFILTER_ALLOC is successful, a valid ID will be returned
+	/** If \ref GSW_VlanFilterAlloc is successful, a valid ID will be returned
 	    in this field. Otherwise, \ref INVALID_HANDLE is returned in this field.
-	    For \ref GSW_EXTENDEDVLAN_FREE, this field should be valid ID returned by
-	    \ref GSW_VLANFILTER_ALLOC. */
+	    For \ref GSW_ExtendedVlanFree, this field should be valid ID returned by
+	    \ref GSW_VlanFilterAlloc. */
 	u16 nVlanFilterBlockId;
 
 	/** Discard packet without VLAN tag. */
@@ -2216,9 +2510,9 @@ typedef struct {
 } GSW_VLANFILTER_alloc_t;
 
 /** \brief VLAN Filter.
-    Used by \ref GSW_VLANFILTER_SET and \ref GSW_VLANFILTER_GET */
+    Used by \ref GSW_VlanFilterSet and \ref GSW_VlanFilterGet */
 typedef struct {
-	/** This should be valid ID return by \ref GSW_VLANFILTER_ALLOC.
+	/** This should be valid ID return by \ref GSW_VlanFilterAlloc.
 	    If it is \ref INVALID_HANDLE, \ref GSW_VLANFILTER_config_t::nEntryIndex
 	    is absolute index of VLAN Filter entry in hardware for debug purpose,
 	    bypassing any check. */
@@ -2226,7 +2520,7 @@ typedef struct {
 
 	/** Index of entry. ranges between 0 and
 	    \ref GSW_VLANFILTER_alloc_t::nNumberOfEntries - 1, to
-	    set (\ref GSW_VLANFILTER_SET) or get (\ref GSW_VLANFILTER_GET)
+	    set (\ref GSW_VlanFilterSet) or get (\ref GSW_VlanFilterGet)
 	    VLAN FIlter entry. For debug purpose, this field could be absolute index
 	    of VLAN Filter entry in hardware, when
 	    \ref GSW_VLANFILTER_config_t::nVlanFilterBlockId is
@@ -2250,40 +2544,54 @@ typedef struct {
 	gsw_bool_t bDiscardMatched;
 } GSW_VLANFILTER_config_t;
 
-/* VLAN Rmon Counters */
+/** VLAN Rmon Counters */
 typedef enum {
+	/** VLAN Rx Counters */
 	GSW_VLAN_RMON_RX = 0,
+	/** VLAN Tx Counters */
 	GSW_VLAN_RMON_TX = 1,
-	GSW_VLAN_RMON__PCE_BYPASS = 2,
+	/** VLAN Tx Counters on PCE Bypass Path */
+	GSW_VLAN_RMON_PCE_BYPASS = 2,
 } GSW_VlanRMON_Type_t;
 
 /**
  \brief RMON Counters structure for VLAN. */
 typedef struct {
-	u16	nVlanCounterIndex;
+	/** VLAN counter index */
+	u16 nVlanCounterIndex;
+	/** VLAN counter type (Rx, Tx, Tx PCE Bypass) */
 	GSW_VlanRMON_Type_t eVlanRmonType;
-	u32	nByteCountHigh;
-	u32	nByteCountLow;
-	u32	nTotalPktCount;
-	u32	nMulticastPktCount;
-	u32	nDropPktCount;
+	/** VLAN byte counter */
+	u64 nByteCount;
+	/** VLAN total packet counter */
+	u32 nTotalPktCount;
+	/** VLAN mutlicast packet counter */
+	u32 nMulticastPktCount;
+	/** VLAN drop packet counter */
+	u32 nDropPktCount;
+	/** Clear all VLAN counters.
+	 *  Used by \ref GSW_Vlan_RMON_Clear.
+	 */
 	u32 clear_all;
 } GSW_VLAN_RMON_cnt_t;
 
 /**
  \brief RMON Counters control structure for VLAN. */
 typedef struct {
-	gsw_bool_t	bVlanRmonEnable;
-	gsw_bool_t	bIncludeBroadCastPktCounting;
-	u32	nVlanLastEntry;
+	/** enable VLAN counters */
+	gsw_bool_t bVlanRmonEnable;
+	/** count broadcast packet in VLAN multicast packet counter */
+	gsw_bool_t bIncludeBroadCastPktCounting;
+	/** index of the last valid entry in VLAN mapping table */
+	u32 nVlanLastEntry;
 } GSW_VLAN_RMON_control_t;
 
 /** \brief VLAN Counter Mapping. */
 typedef enum {
 	/** VLAN Mapping for Ingress */
-	GSW_VLAN_MAPPING_INGRESS 			= 0,
+	GSW_VLAN_MAPPING_INGRESS = 0,
 	/** VLAN Mapping for Egress */
-	GSW_VLAN_MAPPING_EGRESS 			= 1,
+	GSW_VLAN_MAPPING_EGRESS = 1,
 	/** VLAN Mapping for Ingress and Egress */
 	GSW_VLAN_MAPPING_INGRESS_AND_EGRESS = 2
 } GSW_VlanCounterMappingType_t;
@@ -2323,10 +2631,16 @@ typedef struct {
 	/** VLAN Counter Mapping Filter Type */
 	GSW_VlanCounterMapFilterType_t eVlanCounterMappingFilterType;
 } GSW_VlanCounterMapping_config_t;
-// #endif
+
+/** @}*/ /* GSW_VLAN */
+
+
+/** \addtogroup GSW_MULTICAST
+ *  @{
+ */
 
 /** \brief Add an Ethernet port as router port to the switch hardware multicast table.
-    Used by \ref GSW_MULTICAST_ROUTER_PORT_ADD and \ref GSW_MULTICAST_ROUTER_PORT_REMOVE. */
+    Used by \ref GSW_MulticastRouterPortAdd and \ref GSW_MulticastRouterPortRemove. */
 typedef struct {
 	/** Bridge Port ID. The valid range is hardware dependent.
 	    An error code is delivered if the selected port is not available.
@@ -2344,7 +2658,7 @@ typedef struct {
 } GSW_multicastRouter_t;
 
 /** \brief Check if a port has been selected as a router port.
-    Used by \ref GSW_MULTICAST_ROUTER_PORT_READ. Not applicable to GSWIP-3.1. */
+    Used by \ref GSW_MulticastRouterPortRead. Not applicable to GSWIP-3.1. */
 typedef struct {
 	/** Restart the get operation from the start of the table. Otherwise
 	    return the next table entry (next to the entry that was returned
@@ -2379,56 +2693,6 @@ typedef enum {
 	GSW_MULTICAST_SNOOP_MODE_FORWARD = 2
 } GSW_multicastSnoopMode_t;
 
-/** \brief Packet forwarding.
-    Used by \ref GSW_STP_BPDU_Rule_t and \ref GSW_multicastSnoopCfg_t
-    and \ref GSW_8021X_EAPOL_Rule_t. */
-typedef enum {
-	/** Default; portmap is determined by the forwarding classification. */
-	GSW_PORT_FORWARD_DEFAULT = 0,
-	/** Discard; discard packets. */
-	GSW_PORT_FORWARD_DISCARD = 1,
-	/** Forward to the CPU port. This requires that the CPU port is previously
-	    set by calling \ref GSW_CPU_PORT_CFG_SET. */
-	GSW_PORT_FORWARD_CPU = 2,
-	/** Forward to a port, selected by the parameter 'nForwardPortId'.
-	    Please note that this feature is not supported by all
-	    hardware platforms. */
-	GSW_PORT_FORWARD_PORT = 3
-} GSW_portForward_t;
-
-/** \brief Configures the Spanning Tree Protocol state of an Ethernet port.
-    Used by \ref GSW_STP_PORT_CFG_SET
-    and \ref GSW_STP_PORT_CFG_GET. */
-typedef struct {
-	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
-	    GSWIP-3.1, this field is Bridge Port ID. The valid range is hardware
-	    dependent. An error code is delivered if the selected port is not
-	    available. */
-	u16 nPortId;
-	/** Filtering Identifier (FID) (not supported by all switches).
-	    The FID allows to keep multiple STP states per physical Ethernet port.
-	    Multiple CTAG VLAN groups could be a assigned to one FID and therefore
-	    share the same STP port state. Switch API ignores the FID value
-	    in case the switch device does not support it or switch CTAG VLAN
-	    awareness is disabled. */
-	u16 nFId;
-	/** Spanning Tree Protocol state of the port. */
-	GSW_STP_PortState_t ePortState;
-} GSW_STP_portCfg_t;
-
-/** \brief Spanning tree packet detection and forwarding.
-    Used by \ref GSW_STP_BPDU_RULE_SET
-    and \ref GSW_STP_BPDU_RULE_GET. */
-typedef struct {
-	/** Filter spanning tree packets and forward them, discard them or
-	    disable the filter. */
-	GSW_portForward_t eForwardPort;
-	/** Target (bridge) port for forwarded packets; only used if selected by
-	    'eForwardPort'. Forwarding is done
-	    if 'eForwardPort = GSW_PORT_FORWARD_PORT'. */
-	u8 nForwardPortId;
-} GSW_STP_BPDU_Rule_t;
-
 /** \brief Configure the IGMP report suppression mode.
     Used by \ref GSW_multicastSnoopCfg_t. */
 typedef enum {
@@ -2441,7 +2705,7 @@ typedef enum {
 } GSW_multicastReportSuppression_t;
 
 /** \brief Configure the switch multicast configuration.
-    Used by \ref GSW_MULTICAST_SNOOP_CFG_SET and \ref GSW_MULTICAST_SNOOP_CFG_GET. */
+    Used by \ref GSW_MulticastSnoopCfgSet and \ref GSW_MulticastSnoopCfgGet. */
 typedef struct {
 	/** Enables and configures the IGMP/MLD snooping feature.
 	Select autolearning or management packet forwarding mode.
@@ -2470,7 +2734,133 @@ typedef struct {
 	u8 nClassOfService;
 } GSW_multicastSnoopCfg_t;
 
+/** \brief Defines the multicast group member mode.
+    Used by \ref GSW_multicastTable_t and \ref GSW_multicastTableRead_t. */
+typedef enum {
+	/** Include source IP address membership mode.
+	    Only supported for IGMPv3. */
+	GSW_IGMP_MEMBER_INCLUDE	= 0,
+	/** Exclude source IP address membership mode.
+	    Only supported for IGMPv2. */
+	GSW_IGMP_MEMBER_EXCLUDE	= 1,
+	/** Group source IP address is 'don't care'. This means all source IP
+	    addresses (*) are included for the multicast group membership.
+	    This is the default mode for IGMPv1 and IGMPv2. */
+	GSW_IGMP_MEMBER_DONT_CARE	= 2,
 
+	GSW_IGMP_MEMBER_INVALID,
+} GSW_IGMP_MemberMode_t;
+
+/** \brief Add a host as a member to a multicast group.
+    Used by \ref GSW_MulticastTableEntryAdd and \ref GSW_MulticastTableEntryRemove. */
+typedef struct {
+	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
+	    GSWIP-3.1, this field is Bridge Port ID. The valid range is hardware
+	    dependent. An error code is delivered if the selected port is not
+	    available. */
+	u32	nPortId;
+	/** Sub-Interface Id - valid for GSWIP 3.0/3.1 only */
+	u16	nSubIfId;
+	/** Select the IP version of the 'uIP_Gda' and 'uIP_Gsa' fields.
+	    Both fields support either IPv4 or IPv6. */
+	GSW_IP_Select_t	eIPVersion;
+	/** Group Destination IP address (GDA). */
+	GSW_IP_t	uIP_Gda;
+	/** Group Source IP address. Only used in case IGMPv3 support is enabled
+	    and 'eModeMember != GSW_IGMP_MEMBER_DONT_CARE'. */
+	GSW_IP_t	uIP_Gsa;
+	/** FID - valid for GSWIP 3.0 only subject to Global FID for MC is enabled.
+	          always valid in GSWIP-3.1. */
+	u8 nFID;
+	/** Exclude Mode - valid for GSWIP 3.0 only - Includes or Excludes Source IP - uIP_Gsa */
+	gsw_bool_t bExclSrcIP;
+	/** Group member filter mode.
+	    This is valid for GSWIP-3.0/3.1 to replaces bExclSrcIP.
+	    This parameter is ignored when deleting a multicast membership table entry.
+	    The configurations 'GSW_IGMP_MEMBER_EXCLUDE'
+	    and 'GSW_IGMP_MEMBER_INCLUDE' are only supported
+	    if IGMPv3 is used. */
+	GSW_IGMP_MemberMode_t	eModeMember;
+	/** TCI for (GSWIP-3.2) B-Step
+	    Bit [0:11] - VLAN ID
+	    Bit [12] - VLAN CFI/DEI
+	    Bit [13:15] - VLAN PRI */
+	u16 nTci;
+	/** Dynamic or Static entry, bStatic=1, Static Entry else default Dynamic */
+	gsw_bool_t bStatic;
+	/** In the case of Multicast Table Search need the Index of HW table returned */
+	u16 nIndex;
+} GSW_multicastTable_t;
+
+
+/** \brief Read out the multicast membership table.
+    Used by \ref GSW_MulticastTableEntryRead. */
+typedef struct {
+	/** Restart the get operation from the beginning of the table. Otherwise
+	    return the next table entry (next to the entry that was returned
+	    during the previous get operation). This parameter is always reset
+	    during the read operation. This boolean parameter is set by the
+	    calling application. */
+	gsw_bool_t	bInitial;
+	/** Indicates that the read operation got all last valid entries of the
+	    table. This boolean parameter is set by the switch API
+	    when the Switch API is called after the last valid one was returned already. */
+	gsw_bool_t	bLast;
+	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
+	    GSWIP-3.1, this field is Bridge Port ID. The valid range is hardware
+	    dependent. An error code is delivered if the selected port is not
+	    available.
+
+	    \remarks
+	    This field is used as portmap field, when the MSB bit is set.
+	    In portmap mode, every value bit represents an Ethernet port.
+	    LSB represents Port 0 with incrementing counting.
+	    The (MSB - 1) bit represent the last port.
+	    The macro \ref GSW_PORTMAP_FLAG_SET allows to set the MSB bit,
+	    marking it as portmap variable.
+	    Checking the portmap flag can be done by
+	    using the \ref GSW_PORTMAP_FLAG_GET macro. */
+	u32	nPortId;
+	/** Read Index for the Multicast Table Entry, In case need to read based on Index */
+	uint16_t nIndex;
+	/** Ethernet Port Map - to support GSWIP-3.1, following field is added
+	    for port map in static entry. It's valid only when MSB of nPortId is set.
+	    Each bit stands for 1 bridge port. */
+	u16 nPortMap[8];	/* max can be 16 */
+	/** Sub-Interface Id - valid for GSWIP 3.0 only */
+	u16	nSubIfId;
+	/** Select the IP version of the 'uIP_Gda' and 'uIP_Gsa' fields.
+	    Both fields support either IPv4 or IPv6. */
+	GSW_IP_Select_t	eIPVersion;
+	/** Group Destination IP address (GDA). */
+	GSW_IP_t	uIP_Gda;
+	/** Group Source IP address. Only used in case IGMPv3 support is enabled. */
+	GSW_IP_t	uIP_Gsa;
+	/** FID - valid for GSWIP 3.0 only subject to Global FID for MC is enabled */
+	u8 nFID;
+	/** Exclude Mode - valid for GSWIP 3.0 only - Includes or Excludes Source IP - uIP_Gsa */
+	gsw_bool_t bExclSrcIP;
+	/** Group member filter mode.
+	    This parameter is ignored when deleting a multicast membership table entry.
+	    The configurations 'GSW_IGMP_MEMBER_EXCLUDE'
+	    and 'GSW_IGMP_MEMBER_INCLUDE' are only supported
+	    if IGMPv3 is used. */
+	GSW_IGMP_MemberMode_t	eModeMember;
+	/** MULTICAST Table Hit Status Update */
+	gsw_bool_t hitstatus;
+	/** TCI for (GSWIP-3.2) B-Step
+	    Bit [0:11] - VLAN ID
+	    Bit [12] - VLAN CFI/DEI
+	    Bit [13:15] - VLAN PRI */
+	u16 nTci;
+	/** Dynamic or Static entry, bStatic=1, Static Entry else default Dynamic */
+	gsw_bool_t bStatic;
+} GSW_multicastTableRead_t;
+
+/** @}*/ /* GSW_MULTICAST */
+
+
+/** @cond INTERNAL */
 /** \brief For debugging Purpose only.
     Used for GSWIP 3.3. */
 typedef struct {
@@ -2491,9 +2881,15 @@ typedef struct {
 	/** Pmac debugging purpose*/
 	u8 nDestPort;
 } GSW_debug_t;
+/** @endcond */
+
+
+/** \addtogroup GSW_ETHERNET_BRIDGING
+ *  @{
+ */
 
 /** \brief Global Switch configuration Attributes.
-    Used by \ref GSW_CFG_SET and \ref GSW_CFG_GET. */
+    Used by \ref GSW_CfgSet and \ref GSW_CfgGet. */
 typedef struct {
 	/** MAC table aging timer. After this timer expires the MAC table
 	    entry is aged out. */
@@ -2569,7 +2965,7 @@ typedef enum {
 } GSW_CPU_ParserHeaderCfg_t;
 
 /** \brief FCS and Pad Insertion operations for GSWIP 3.1
-    Used by \ref GSW_CPU_PortCfgSet/Get. */
+    Used by \ref GSW_CPU_PortCfgSet and \ref GSW_CPU_PortCfgGet. */
 typedef enum {
 	/** CRC Pad Insertion Enable */
 	GSW_CRC_PAD_INS_EN	= 0,
@@ -2579,8 +2975,23 @@ typedef enum {
 	GSW_CRC_PAD_INS_DIS	= 2
 } GSW_FCS_TxOps_t;
 
+/** \brief Defines one port that is directly connected to CPU.
+ *  Used by \ref GSW_CPU_PortSet and \ref GSW_CPU_PortGet.
+ *  This API does not configure port settings but update global PCE rules
+ *  using CPU port.
+ */
+typedef struct {
+	/** CTP set to CPU Port.
+	 *  In current design, first 17 CTP are 1-to-1 mapped to physical ports.
+	 *  CTP 0 is native CPU (WSP ARC).
+	 *  CTP 1~15 is allowed to be external CPU port.
+	 *  CTP 16 is not allowed to be CPU port.
+	 */
+	u8 nPortId;
+} GSW_CPU_Port_t;
+
 /** \brief Defines one port that is directly connected to the CPU and its applicable settings.
-    Used by \ref GSW_CPU_PORT_CFG_SET and \ref GSW_CPU_PORT_CFG_GET. */
+    Used by \ref GSW_CPU_PortCfgSet and \ref GSW_CPU_PortCfgGet. */
 typedef struct {
 	/** Ethernet Port number (zero-based counting) set to CPU Port. The valid number is hardware
 	    dependent. (E.g. Port number 0 for GSWIP-3.0 or 6 for GSWIP-2.x). An error code is delivered if the selected port is not
@@ -2630,125 +3041,9 @@ typedef struct {
 	gsw_bool_t	bTsNonptp;
 } GSW_CPU_PortCfg_t;
 
-/** \brief Defines the multicast group member mode.
-    Used by \ref GSW_multicastTable_t and \ref GSW_multicastTableRead_t. */
-typedef enum {
-	/** Include source IP address membership mode.
-	    Only supported for IGMPv3. */
-	GSW_IGMP_MEMBER_INCLUDE	= 0,
-	/** Exclude source IP address membership mode.
-	    Only supported for IGMPv2. */
-	GSW_IGMP_MEMBER_EXCLUDE	= 1,
-	/** Group source IP address is 'don't care'. This means all source IP
-	    addresses (*) are included for the multicast group membership.
-	    This is the default mode for IGMPv1 and IGMPv2. */
-	GSW_IGMP_MEMBER_DONT_CARE	= 2,
-
-	GSW_IGMP_MEMBER_INVALID,
-} GSW_IGMP_MemberMode_t;
-
-/** \brief Add a host as a member to a multicast group.
-    Used by \ref GSW_MULTICAST_TABLE_ENTRY_ADD and \ref GSW_MULTICAST_TABLE_ENTRY_REMOVE. */
-typedef struct {
-	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
-	    GSWIP-3.1, this field is Bridge Port ID. The valid range is hardware
-	    dependent. An error code is delivered if the selected port is not
-	    available. */
-	u32	nPortId;
-	/** Sub-Interface Id - valid for GSWIP 3.0/3.1 only */
-	u16	nSubIfId;
-	/** Select the IP version of the 'uIP_Gda' and 'uIP_Gsa' fields.
-	    Both fields support either IPv4 or IPv6. */
-	GSW_IP_Select_t	eIPVersion;
-	/** Group Destination IP address (GDA). */
-	GSW_IP_t	uIP_Gda;
-	/** Group Source IP address. Only used in case IGMPv3 support is enabled
-	    and 'eModeMember != GSW_IGMP_MEMBER_DONT_CARE'. */
-	GSW_IP_t	uIP_Gsa;
-	/** FID - valid for GSWIP 3.0 only subject to Global FID for MC is enabled.
-	          always valid in GSWIP-3.1. */
-	u8 nFID;
-	/** Exclude Mode - valid for GSWIP 3.0 only - Includes or Excludes Source IP - uIP_Gsa */
-	gsw_bool_t bExclSrcIP;
-	/** Group member filter mode.
-	    This is valid for GSWIP-3.0/3.1 to replaces bExclSrcIP.
-	    This parameter is ignored when deleting a multicast membership table entry.
-	    The configurations 'GSW_IGMP_MEMBER_EXCLUDE'
-	    and 'GSW_IGMP_MEMBER_INCLUDE' are only supported
-	    if IGMPv3 is used. */
-	GSW_IGMP_MemberMode_t	eModeMember;
-	/** TCI for (GSWIP-3.2) B-Step
-	    Bit [0:11] - VLAN ID
-	    Bit [12] - VLAN CFI/DEI
-	    Bit [13:15] - VLAN PRI */
-	u16 nTci;
-} GSW_multicastTable_t;
-
-
-/** \brief Read out the multicast membership table.
-    Used by \ref GSW_MULTICAST_TABLE_ENTRY_READ. */
-typedef struct {
-	/** Restart the get operation from the beginning of the table. Otherwise
-	    return the next table entry (next to the entry that was returned
-	    during the previous get operation). This parameter is always reset
-	    during the read operation. This boolean parameter is set by the
-	    calling application. */
-	gsw_bool_t	bInitial;
-	/** Indicates that the read operation got all last valid entries of the
-	    table. This boolean parameter is set by the switch API
-	    when the Switch API is called after the last valid one was returned already. */
-	gsw_bool_t	bLast;
-	/** Ethernet Port number (zero-based counting) in GSWIP-2.1/2.2/3.0. From
-	    GSWIP-3.1, this field is Bridge Port ID. The valid range is hardware
-	    dependent. An error code is delivered if the selected port is not
-	    available.
-
-	    \remarks
-	    This field is used as portmap field, when the MSB bit is set.
-	    In portmap mode, every value bit represents an Ethernet port.
-	    LSB represents Port 0 with incrementing counting.
-	    The (MSB - 1) bit represent the last port.
-	    The macro \ref GSW_PORTMAP_FLAG_SET allows to set the MSB bit,
-	    marking it as portmap variable.
-	    Checking the portmap flag can be done by
-	    using the \ref GSW_PORTMAP_FLAG_GET macro. */
-	u32	nPortId;
-	/** Ethernet Port Map - to support GSWIP-3.1, following field is added
-	    for port map in static entry. It's valid only when MSB of nPortId is set.
-	    Each bit stands for 1 bridge port. */
-	u16 nPortMap[8];	/* max can be 16 */
-	/** Sub-Interface Id - valid for GSWIP 3.0 only */
-	u16	nSubIfId;
-	/** Select the IP version of the 'uIP_Gda' and 'uIP_Gsa' fields.
-	    Both fields support either IPv4 or IPv6. */
-	GSW_IP_Select_t	eIPVersion;
-	/** Group Destination IP address (GDA). */
-	GSW_IP_t	uIP_Gda;
-	/** Group Source IP address. Only used in case IGMPv3 support is enabled. */
-	GSW_IP_t	uIP_Gsa;
-	/** FID - valid for GSWIP 3.0 only subject to Global FID for MC is enabled */
-	u8 nFID;
-	/** Exclude Mode - valid for GSWIP 3.0 only - Includes or Excludes Source IP - uIP_Gsa */
-	gsw_bool_t bExclSrcIP;
-	/** Group member filter mode.
-	    This parameter is ignored when deleting a multicast membership table entry.
-	    The configurations 'GSW_IGMP_MEMBER_EXCLUDE'
-	    and 'GSW_IGMP_MEMBER_INCLUDE' are only supported
-	    if IGMPv3 is used. */
-	GSW_IGMP_MemberMode_t	eModeMember;
-	/* MULTICAST Table Hit Status Update (Supported in GSWip-3.1/3.2) */
-	gsw_bool_t hitstatus;
-	/** TCI for (GSWIP-3.2) B-Step
-	    Bit [0:11] - VLAN ID
-	    Bit [12] - VLAN CFI/DEI
-	    Bit [13:15] - VLAN PRI */
-	u16 nTci;
-} GSW_multicastTableRead_t;
-
-
 /** \brief Global Ethernet trunking configuration.
-    Used by \ref GSW_TRUNKING_CFG_GET
-    and \ref GSW_TRUNKING_CFG_SET. */
+    Used by \ref GSW_TrunkingCfgGet
+    and \ref GSW_TrunkingCfgSet. */
 typedef struct {
 	/** IP source address is used by the
 	    hash algorithm to calculate the egress trunking port index. */
@@ -2770,51 +3065,69 @@ typedef struct {
 	gsw_bool_t bDst_Port;
 } GSW_trunkingCfg_t;
 
+/** @}*/ /* GSW_ETHERNET_BRIDGING */
+
+
+/** @cond DOC_ENABLE_PBB */
+/** \addtogroup GSW_PBB
+ *  @{
+ */
+
 /** \brief I-TAG header defintion .GSWIP-3.2 only
 	Used by \ref GSW_PBB_Tunnel_Template_Config_t*/
 typedef struct {
-	/**I-TAG TPID -2 bytes field*/
+	/**I-TAG TPID -2 bytes field enable*/
 	gsw_bool_t bTpidEnable;
+	/**I-TAG TPID -2 bytes field*/
 	u16 nTpid;
 
-	/**I-TAG PCP -3 Bit field*/
+	/**I-TAG PCP -3 Bit field enable*/
 	gsw_bool_t bPcpEnable;
+	/**I-TAG PCP -3 Bit field*/
 	u8 nPcp;
 
-	/**I-TAG DEI -1 Bit field*/
+	/**I-TAG DEI -1 Bit field enable*/
 	gsw_bool_t bDeiEnable;
+	/**I-TAG DEI -1 Bit field*/
 	u8 nDei;
 
-	/**I-TAG UAC -1 Bit field*/
+	/**I-TAG UAC -1 Bit field enable*/
 	gsw_bool_t bUacEnable;
+	/**I-TAG UAC -1 Bit field*/
 	u8 nUac;
 
-	/**I-TAG RES -3 Bit field*/
+	/**I-TAG RES -3 Bit field enable*/
 	gsw_bool_t bResEnable;
+	/**I-TAG RES -3 Bit field*/
 	u8 nRes;
 
-	/**I-TAG SID -24 Bit field*/
+	/**I-TAG SID -24 Bit field enable*/
 	gsw_bool_t bSidEnable;
+	/**I-TAG SID -24 Bit field*/
 	u32 nSid;
 } GSW_I_TAG_Config_t;
 
 /** \brief B-TAG header defintion .GSWIP-3.2 only
 	Used by \ref GSW_PBB_Tunnel_Template_Config_t*/
 typedef struct {
-	/**B-TAG TPID -2 bytes field*/
+	/** B-TAG TPID -2 bytes field enable*/
 	gsw_bool_t bTpidEnable;
+	/** B-TAG TPID -2 bytes field*/
 	u16 nTpid;
 
-	/**B-TAG PCP -3 Bit field*/
+	/**B-TAG PCP -3 Bit field enable*/
 	gsw_bool_t bPcpEnable;
+	/**B-TAG PCP -3 Bit field*/
 	u8 nPcp;
 
-	/**B-TAG DEI -1 Bit field*/
+	/**B-TAG DEI -1 Bit field enable*/
 	gsw_bool_t bDeiEnable;
+	/**B-TAG DEI -1 Bit field*/
 	u8 nDei;
 
-	/**B-TAG VID -12 Bit field*/
+	/**B-TAG VID -12 Bit field enable*/
 	gsw_bool_t bVidEnable;
+	/**B-TAG VID -12 Bit field*/
 	u16 nVid;
 } GSW_B_TAG_Config_t;
 
@@ -2823,37 +3136,57 @@ typedef struct {
     For \ref GSW_PBB_TunnelTempate_Free, this field should be valid ID returned by
 	    \ref GSW_PBB_TunnelTempate_Alloc.*/
 typedef struct {
+	/** Mac-in-Mac (PBB) template index. */
 	u16 nTunnelTemplateId;
 
-	/** I-Header Destination Address*/
+	/** I-Header Destination Address enable*/
 	gsw_bool_t bIheaderDstMACEnable;
+	/** I-Header Destination Address*/
 	u8 nIheaderDstMAC[GSW_MAC_ADDR_LEN];
 
-	/** I-Header source Address*/
+	/** I-Header source Address enable*/
 	gsw_bool_t bIheaderSrcMACEnable;
+	/** I-Header source Address*/
 	u8 nIheaderSrcMAC[GSW_MAC_ADDR_LEN];
 
-	/** I-Tag*/
+	/** I-Tag enable*/
 	gsw_bool_t bItagEnable;
+	/** I-Tag*/
 	GSW_I_TAG_Config_t sItag;
 
-	/** B-Tag*/
+	/** B-Tag enable*/
 	gsw_bool_t bBtagEnable;
+	/** B-Tag*/
 	GSW_B_TAG_Config_t sBtag;
 } GSW_PBB_Tunnel_Template_Config_t;
 
+/** @}*/ /* GSW_PBB */
+/** @endcond DOC_ENABLE_PBB */
+
+
+/** \addtogroup GSW_OAM
+ *  @{
+ */
+
 /** \brief Port monitor configuration.
-    Used by \ref GSW_MONITOR_PORT_CFG_GET and \ref GSW_MONITOR_PORT_CFG_SET. */
+    Used by \ref GSW_MonitorPortCfgGet and \ref GSW_MonitorPortCfgSet. */
 typedef struct {
 	/** Ethernet Port number (zero-based counting). The valid range is hardware
 	    dependent. An error code is delivered if the selected port is not
 	    available. */
 	u8	nPortId;
-	/* Monitoring Sub-IF id */
+	/** Monitoring Sub-IF id */
 	u16	nSubIfId;
-	/* Out of use. */
+	/** Reserved. */
 	gsw_bool_t	bMonitorPort;
 } GSW_monitorPortCfg_t;
+
+/** @}*/ /* GSW_OAM */
+
+
+/** \addtogroup GSW_ETHERNET_BRIDGING
+ *  @{
+ */
 
 /** \brief Sets the portmap flag of a PortID variable.
     Some Switch API commands allow to use a port index as portmap variable.
@@ -2872,6 +3205,9 @@ typedef struct {
     LSB represents Port 0 with incrementing counting.
     The (MSB - 1) bit represent the last port. */
 #define GSW_PORTMAP_FLAG_GET(varType) (1 << ( sizeof(((varType *)0)->nPortId) * 8 - 1))
+
+/** @}*/ /* GSW_ETHERNET_BRIDGING */
+
 
 #pragma scalar_storage_order default
 #pragma pack(pop)

@@ -101,7 +101,7 @@ static int __gsw_get_data(const GSW_Device_t *dev, uint16_t words)
 
 	cmd = words / GSW_MMD_REG_DATA_MAX_SIZE;
 	assert(cmd > 0 && cmd < 3);
-	cmd += MMD_API_SET_DATA_0;
+	cmd += MMD_API_GET_DATA_0;
 	ret = gsw_write(dev, GSW_MMD_REG_CTRL,
 			cmd | CTRL_BUSY_MASK);
 	if (ret < 0)
@@ -132,7 +132,7 @@ static int __gsw_send_cmd(const GSW_Device_t *dev, uint16_t cmd, uint16_t size,
 	if (ret < 0)
 		return ret;
 
-	*presult = (int16_t)ret;
+	*presult = ret;
 	return 0;
 }
 
@@ -370,7 +370,7 @@ int gsw_api_wrap(const GSW_Device_t *dev, uint16_t cmd, void *pdata,
 EXIT:
 #if defined(ENABLE_GETSET_OPT) && ENABLE_GETSET_OPT
 	shadow.ctrl = cmd;
-	shadow.ret = (int16_t)ret;
+	shadow.ret = ret;
 #endif
 	dev->unlock(dev->lock_data);
 	return ret;

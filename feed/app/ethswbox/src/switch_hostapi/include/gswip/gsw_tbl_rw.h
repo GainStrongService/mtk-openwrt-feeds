@@ -15,7 +15,7 @@
 #pragma pack(push, 1)
 #pragma scalar_storage_order little-endian
 
-/* GSWIP PCE Table Programming structure */
+/** \brief GSWIP PCE Table Programming structure */
 typedef struct {
 	u16 key[34];
 	u16 mask[4];
@@ -30,7 +30,7 @@ typedef struct {
 	u16 group: 4;
 } pctbl_prog_t;
 
-/* GSWIP Table structure to access all tables */
+/** \brief GSWIP Table structure to access all tables */
 typedef struct {
 	u32 tbl_entry;
 	/** Start offset mem dump purpose */
@@ -42,7 +42,7 @@ typedef struct {
 	//pmtbl_prog_t pmactable;
 } GSW_table_t;
 
-/* GSWIP BM Table ID to access different tables */
+/** \brief GSWIP BM Table ID to access different tables */
 typedef enum {
 	CTP_PORT_RX_RMON 				= 0x00,
 	CTP_PORT_TX_RMON 				= 0x01,
@@ -63,7 +63,7 @@ typedef enum {
 	PMAC_RMON_COUNTER				= 0x1C,
 } BM_Table_ID;
 
-/* GSWIP BM Table Address */
+/** \brief GSWIP BM Table Address */
 typedef union {
 	u16 raw;
 	struct {
@@ -102,7 +102,7 @@ typedef union {
 	} pmacRmon;
 } BM_Table_Address;
 
-/* GSWIP BM Table programming structure */
+/** \brief GSWIP BM Table programming structure */
 typedef struct {
 	BM_Table_ID tableID;
 	BM_Table_Address adr;
@@ -111,7 +111,7 @@ typedef struct {
 	u8 numValues;
 } bmtbl_prog_t;
 
-/* GSWIP PMAC Table programming structure */
+/** \brief GSWIP PMAC Table programming structure */
 typedef struct {
 	u16 val[8];
 	u16 ptaddr;
