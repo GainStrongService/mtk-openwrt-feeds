@@ -21,10 +21,14 @@ echo 0 > /proc/sys/net/bridge/bridge-nf-filter-pppoe-tagged
 echo 0 > /proc/sys/net/bridge/bridge-nf-filter-vlan-tagged
 echo 0 > /proc/sys/net/bridge/bridge-nf-pass-vlan-input-dev
 
-#if hnat is not exist, switch module to mtk_ppe
-module=hnat
+#if mtk_ppe is not exist, switch module to hnat
+module=mtk_ppe
 [ -d /sys/kernel/debug/${module} ] || {
-	module=mtk_ppe
+	module=hnat
+}
+
+#if module=mtk_ppe, enable the bridge netfilter
+[ "${module}" = "mtk_ppe" ] && {
 	echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
 	echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
 }
