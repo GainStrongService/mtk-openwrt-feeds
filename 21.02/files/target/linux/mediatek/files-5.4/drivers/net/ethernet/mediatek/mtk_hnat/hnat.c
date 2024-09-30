@@ -433,6 +433,16 @@ static int entry_delete_by_bssid_wcid(u32 wdma_idx, u16 bssid, u16 wcid)
 				    entry->ipv4_hnapt.winfo.wcid != wcid ||
 				    entry->ipv4_hnapt.iblk2.dp != port)
 					continue;
+			} else if (IS_IPV4_MAPE(entry) || IS_IPV4_MAPT(entry)) {
+				if (entry->ipv4_mape.winfo.bssid != bssid ||
+				    entry->ipv4_mape.winfo.wcid != wcid ||
+				    entry->ipv4_mape.iblk2.dp != port)
+					continue;
+			} else if (IS_IPV6_HNAPT(entry) || IS_IPV6_HNAT(entry)) {
+				if (entry->ipv6_hnapt.winfo.bssid != bssid ||
+				    entry->ipv6_hnapt.winfo.wcid != wcid ||
+				    entry->ipv6_hnapt.iblk2.dp != port)
+					continue;
 			} else {
 				if (entry->ipv6_5t_route.winfo.bssid != bssid ||
 				    entry->ipv6_5t_route.winfo.wcid != wcid ||
