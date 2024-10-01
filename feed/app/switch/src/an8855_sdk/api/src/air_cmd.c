@@ -4389,7 +4389,7 @@ _mir_printSrcPortList(
 		 if (AIR_E_OK != rc)
 		 {
 			AIR_PRINT("***Error***,get port=%u error\n", i);
-			return rc;
+			return;
 		 }
 
          if(session.flags & AIR_MIR_SESSION_FLAGS_DIR_TX)

@@ -6,8 +6,6 @@
 
 #include <stdbool.h>
 
-void (*pf_chip_func)(int argc, char *argv[]);
-
 struct switch_func_s {
 	void (*pf_table_dump)(int argc, char *argv[]);
 	void (*pf_table_clear)(int argc, char *argv[]);
