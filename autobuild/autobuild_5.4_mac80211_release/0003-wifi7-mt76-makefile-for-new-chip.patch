@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mt76/Makefile b/package/kernel/mt76/Makefile
-index 14b546c3..624bc5a2 100644
+index 9a7c1f85..b361c166 100644
 --- a/package/kernel/mt76/Makefile
 +++ b/package/kernel/mt76/Makefile
 @@ -233,7 +233,7 @@ endef
@@ -126,17 +126,17 @@ index 14b546c3..624bc5a2 100644
 +		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7975.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7976.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_eeprom_mt7976_dbdc.bin \
-+		$(1)/lib/firmware/mediatek
+ 		$(1)/lib/firmware/mediatek
 +ifdef CONFIG_NET_MEDIATEK_SOC_WED
 +	cp \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_wo_0.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7986_wo_1.bin \
- 		$(1)/lib/firmware/mediatek
++		$(1)/lib/firmware/mediatek
 +endif
  endef
  
  define KernelPackage/mt7921-firmware/install
-@@ -662,6 +698,9 @@ define KernelPackage/mt7992-firmware/install
+@@ -663,6 +699,9 @@ define KernelPackage/mt7992-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_rom_patch.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_wm.bin \
@@ -146,11 +146,7 @@ index 14b546c3..624bc5a2 100644
  		$(1)/lib/firmware/mediatek/mt7996
  endef
  
-@@ -671,9 +710,11 @@ define KernelPackage/mt7992-23-firmware/install
- 		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_dsp_23.bin \
- 		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_eeprom_23.bin \
- 		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_eeprom_23.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_eeprom_23_2i5i.bin \
+@@ -675,6 +714,7 @@ define KernelPackage/mt7992-23-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_rom_patch_23.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_wa_23.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_wm_23.bin \
@@ -158,7 +154,7 @@ index 14b546c3..624bc5a2 100644
  		$(1)/lib/firmware/mediatek/mt7996
  endef
  
-@@ -689,9 +730,11 @@ define KernelPackage/mt7996-firmware/install
+@@ -690,9 +730,11 @@ define KernelPackage/mt7996-firmware/install
  	cp \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_eeprom.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_eeprom_2i5i6i.bin \
@@ -170,7 +166,7 @@ index 14b546c3..624bc5a2 100644
  		$(1)/lib/firmware/mediatek/mt7996
  endef
  
-@@ -703,9 +746,21 @@ define KernelPackage/mt7996-233-firmware/install
+@@ -704,9 +746,21 @@ define KernelPackage/mt7996-233-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_rom_patch_233.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_wa_233.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_wm_233.bin \
@@ -192,7 +188,7 @@ index 14b546c3..624bc5a2 100644
  define Package/mt76-test/install
  	mkdir -p $(1)/usr/sbin
  	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tools/mt76-test $(1)/usr/sbin
-@@ -761,5 +816,6 @@ $(eval $(call KernelPackage,mt7992-23-firmware))
+@@ -762,5 +816,6 @@ $(eval $(call KernelPackage,mt7992-23-firmware))
  $(eval $(call KernelPackage,mt7996-firmware-common))
  $(eval $(call KernelPackage,mt7996-firmware))
  $(eval $(call KernelPackage,mt7996-233-firmware))
