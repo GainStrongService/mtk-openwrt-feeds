@@ -1,7 +1,7 @@
-From 3737181b9d2b8c8ef2d1073722f1e8920796bf38 Mon Sep 17 00:00:00 2001
+From b6233b7c81cac3c7bc5147cf78ec403feb20e4a3 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Wed, 13 Sep 2023 17:35:43 +0800
-Subject: [PATCH 064/195] mtk: mt76: add 2pcie one wed support
+Subject: [PATCH 064/223] mtk: mt76: add 2pcie one wed support
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
 ---
@@ -99,10 +99,10 @@ index 27d8f1cb..da2a6072 100644
  //#define WF_WFDMA_MCU_DMA0_BASE                                 0x02000
  #define WF_WFDMA_MCU_DMA0_BASE                                 0x54000000
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 1f754796..06c0db3f 100644
+index c1671e68..5a140f51 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -558,14 +558,22 @@ mt7996_show_dma_info(struct seq_file *s, struct mt7996_dev *dev)
+@@ -557,14 +557,22 @@ mt7996_show_dma_info(struct seq_file *s, struct mt7996_dev *dev)
  		WF_WFDMA_HOST_DMA0_WPDMA_RX_RING4_CTRL0_ADDR);
  	dump_dma_rx_ring_info(s, dev, "R5:Data1(MAC2H)", "Both",
  		WF_WFDMA_HOST_DMA0_WPDMA_RX_RING5_CTRL0_ADDR);
@@ -129,7 +129,7 @@ index 1f754796..06c0db3f 100644
  	dump_dma_rx_ring_info(s, dev, "R10:MSDU_PG0(MAC2H)", "Both",
  		WF_WFDMA_HOST_DMA0_WPDMA_RX_RING10_CTRL0_ADDR);
  	dump_dma_rx_ring_info(s, dev, "R11:MSDU_PG1(MAC2H)", "Both",
-@@ -583,15 +591,18 @@ mt7996_show_dma_info(struct seq_file *s, struct mt7996_dev *dev)
+@@ -582,15 +590,18 @@ mt7996_show_dma_info(struct seq_file *s, struct mt7996_dev *dev)
  			WF_WFDMA_HOST_DMA0_PCIE1_WPDMA_TX_RING21_CTRL0_ADDR);
  		dump_dma_tx_ring_info(s, dev, "T22:TXD?(H2WA)", "AP",
  			WF_WFDMA_HOST_DMA0_PCIE1_WPDMA_TX_RING22_CTRL0_ADDR);
@@ -152,7 +152,7 @@ index 1f754796..06c0db3f 100644
  
  	/* MCU DMA information */
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index e6427a35..cbd71706 100644
+index 2ad8c069..87bf0012 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -411,6 +411,7 @@ enum offs_rev {

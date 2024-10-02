@@ -1,22 +1,23 @@
-From f31212f07e23f72c904afd1dca22666668ff18b5 Mon Sep 17 00:00:00 2001
+From b930141330014c5e7402fe75bd05e2f2a9705a81 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 14 Jun 2024 10:14:31 +0800
-Subject: [PATCH 157/195] mtk: mt76: mt7996: update adie efuse merge support
+Subject: [PATCH 157/223] mtk: mt76: mt7996: update adie efuse merge support
 
 Refactor efuse merge due to FW supporting the efuse merge mcu command
 
+Change-Id: I99f3c3577826f505e402c884cc1f4815f519d2bc
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- mt7996/eeprom.c | 144 -----------------------------------------
- mt7996/mcu.c    | 167 +++++++++++++++++++++++++++++++++++++++++++++++-
+ mt7996/eeprom.c | 144 --------------------------------------------
+ mt7996/mcu.c    | 155 +++++++++++++++++++++++++++++++++++++++++++++++-
  mt7996/mcu.h    |   1 +
- 3 files changed, 167 insertions(+), 145 deletions(-)
+ 3 files changed, 153 insertions(+), 147 deletions(-)
 
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index e8e1d85a..fb0f2953 100644
+index 72a21fcf..327a36b2 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
-@@ -531,146 +531,6 @@ fail:
+@@ -564,146 +564,6 @@ fail:
  	return ret;
  }
  
@@ -77,7 +78,7 @@ index e8e1d85a..fb0f2953 100644
 -	case 0x7990:
 -		adie_base = adie_base_7996;
 -		/* adie 0 */
--		if (dev->fem_type == MT7996_FEM_INT && dev->chip_sku != MT7996_SKU_233)
+-		if (dev->fem_type == MT7996_FEM_INT && dev->chip_sku != MT7996_VAR_TYPE_233)
 -			adie_id = ADIE_7975;
 -		else
 -			adie_id = ADIE_7976;
@@ -85,7 +86,7 @@ index e8e1d85a..fb0f2953 100644
 -		eep_offs[0] = eep_offs_list[adie_id];
 -
 -		/* adie 1 */
--		if (dev->chip_sku == MT7996_SKU_444) {
+-		if (dev->chip_sku == MT7996_VAR_TYPE_444) {
 -			adie_offs[1] = adie_offs_list[ADIE_7977];
 -			eep_offs[1] = eep_offs_list[ADIE_7977];
 -		}
@@ -97,10 +98,10 @@ index e8e1d85a..fb0f2953 100644
 -	case 0x7992:
 -		adie_base = adie_base_7992;
 -		/* adie 0 */
--		if (dev->chip_sku == MT7992_SKU_44 &&
+-		if (dev->chip_sku == MT7992_VAR_TYPE_44 &&
 -		    dev->fem_type != MT7996_FEM_EXT)
 -			adie_id = ADIE_7975;
--		else if (dev->chip_sku == MT7992_SKU_24)
+-		else if (dev->chip_sku == MT7992_VAR_TYPE_24)
 -			adie_id = ADIE_7978;
 -		else
 -			adie_id = ADIE_7976;
@@ -108,10 +109,10 @@ index e8e1d85a..fb0f2953 100644
 -		eep_offs[0] = eep_offs_list[adie_id];
 -
 -		/* adie 1 */
--		if (dev->chip_sku == MT7992_SKU_44 &&
+-		if (dev->chip_sku == MT7992_VAR_TYPE_44 &&
 -		    dev->fem_type != MT7996_FEM_INT)
 -			adie_id = ADIE_7977;
--		else if (dev->chip_sku != MT7992_SKU_23)
+-		else if (dev->chip_sku != MT7992_VAR_TYPE_23)
 -			adie_id = ADIE_7979;
 -		else
 -			break;
@@ -137,7 +138,7 @@ index e8e1d85a..fb0f2953 100644
 -			if (adie_offs[band][i] == MT_EE_END_OFFSET)
 -				break;
 -
--			if (is_mt7996(&dev->mt76) && dev->chip_sku == MT7996_SKU_444 &&
+-			if (is_mt7996(&dev->mt76) && dev->chip_sku == MT7996_VAR_TYPE_444 &&
 -			    band == MT_BAND1)
 -				eep_offset -= MT_EE_7977BN_OFFSET;
 -
@@ -163,7 +164,7 @@ index e8e1d85a..fb0f2953 100644
  int mt7996_eeprom_init(struct mt7996_dev *dev)
  {
  	int ret;
-@@ -685,10 +545,6 @@ int mt7996_eeprom_init(struct mt7996_dev *dev)
+@@ -714,10 +574,6 @@ int mt7996_eeprom_init(struct mt7996_dev *dev)
  
  	mt7996_eeprom_load_precal(dev);
  
@@ -175,14 +176,13 @@ index e8e1d85a..fb0f2953 100644
  	if (ret < 0)
  		return ret;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 29f9a5f8..fe04ffbb 100644
+index bad8e030..9194886b 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -4598,7 +4598,151 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag, bool sta)
+@@ -4603,6 +4603,150 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag, bool sta)
  				 &req, sizeof(req), true);
  }
  
--int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
 +static int mt7996_mcu_set_cal_free_data(struct mt7996_dev *dev)
 +{
 +#define MT_EE_CAL_FREE_MAX_SIZE		30
@@ -238,7 +238,7 @@ index 29f9a5f8..fe04ffbb 100644
 +	case 0x7990:
 +		adie_base = adie_base_7996;
 +		/* adie 0 */
-+		if (dev->fem_type == MT7996_FEM_INT && dev->chip_sku != MT7996_SKU_233)
++		if (dev->fem_type == MT7996_FEM_INT && dev->chip_sku != MT7996_VAR_TYPE_233)
 +			adie_id = ADIE_7975;
 +		else
 +			adie_id = ADIE_7976;
@@ -246,7 +246,7 @@ index 29f9a5f8..fe04ffbb 100644
 +		eep_offs[0] = eep_offs_list[adie_id];
 +
 +		/* adie 1 */
-+		if (dev->chip_sku == MT7996_SKU_444) {
++		if (dev->chip_sku == MT7996_VAR_TYPE_444) {
 +			adie_offs[1] = adie_offs_list[ADIE_7977];
 +			eep_offs[1] = eep_offs_list[ADIE_7977];
 +		}
@@ -258,10 +258,10 @@ index 29f9a5f8..fe04ffbb 100644
 +	case 0x7992:
 +		adie_base = adie_base_7992;
 +		/* adie 0 */
-+		if (dev->chip_sku == MT7992_SKU_44 &&
++		if (dev->chip_sku == MT7992_VAR_TYPE_44 &&
 +		    dev->fem_type != MT7996_FEM_EXT)
 +			adie_id = ADIE_7975;
-+		else if (dev->chip_sku == MT7992_SKU_24)
++		else if (dev->chip_sku == MT7992_VAR_TYPE_24)
 +			adie_id = ADIE_7978;
 +		else
 +			adie_id = ADIE_7976;
@@ -269,10 +269,10 @@ index 29f9a5f8..fe04ffbb 100644
 +		eep_offs[0] = eep_offs_list[adie_id];
 +
 +		/* adie 1 */
-+		if (dev->chip_sku == MT7992_SKU_44 &&
++		if (dev->chip_sku == MT7992_VAR_TYPE_44 &&
 +		    dev->fem_type != MT7996_FEM_INT)
 +			adie_id = ADIE_7977;
-+		else if (dev->chip_sku != MT7992_SKU_23)
++		else if (dev->chip_sku != MT7992_VAR_TYPE_23)
 +			adie_id = ADIE_7979;
 +		else
 +			break;
@@ -311,7 +311,7 @@ index 29f9a5f8..fe04ffbb 100644
 +			if (adie_offs[band][i] == MT_EE_END_OFFSET)
 +				break;
 +
-+			if (is_mt7996(&dev->mt76) && dev->chip_sku == MT7996_SKU_444 &&
++			if (is_mt7996(&dev->mt76) && dev->chip_sku == MT7996_VAR_TYPE_444 &&
 +			    band == MT_BAND1)
 +				eep_offset -= MT_EE_7977BN_OFFSET;
 +
@@ -327,38 +327,30 @@ index 29f9a5f8..fe04ffbb 100644
 +	return 0;
 +}
 +
-+int mt7996_mcu_set_eeprom_flash(struct mt7996_dev *dev)
+ int mt7996_mcu_set_eeprom_flash(struct mt7996_dev *dev)
  {
  #define MAX_PAGE_IDX_MASK	GENMASK(7, 5)
- #define PAGE_IDX_MASK		GENMASK(4, 2)
-@@ -4643,6 +4787,27 @@ int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
- 	return 0;
- }
- 
-+int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
-+{
-+	struct mt7996_mcu_eeprom req = {
-+		.tag = cpu_to_le16(UNI_EFUSE_BUFFER_MODE),
-+		.len = cpu_to_le16(sizeof(req) - 4),
-+		.buffer_mode = EE_MODE_EFUSE,
-+		.format = EE_FORMAT_WHOLE
-+	};
+@@ -4656,12 +4800,17 @@ int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
+ 		.buffer_mode = EE_MODE_EFUSE,
+ 		.format = EE_FORMAT_WHOLE
+ 	};
 +	int ret;
-+
-+	if (dev->flash_mode)
+ 
+ 	if (dev->flash_mode)
+-		return mt7996_mcu_set_eeprom_flash(dev);
 +		ret = mt7996_mcu_set_eeprom_flash(dev);
 +	else
 +		ret = mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(EFUSE_CTRL),
 +					&req, sizeof(req), true);
 +	if (ret)
 +		return ret;
-+
+ 
+-	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(EFUSE_CTRL),
+-				 &req, sizeof(req), true);
 +	return mt7996_mcu_set_cal_free_data(dev);
-+}
-+
- int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *read_buf)
- {
- 	struct mt7996_mcu_eeprom_info req = {
+ }
+ 
+ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *buf, u32 buf_len)
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
 index 05b29c90..d99e9a60 100644
 --- a/mt7996/mcu.h

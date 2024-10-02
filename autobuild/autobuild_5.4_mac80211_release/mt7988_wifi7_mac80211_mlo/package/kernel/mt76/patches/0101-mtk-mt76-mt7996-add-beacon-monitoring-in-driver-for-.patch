@@ -1,7 +1,7 @@
-From f3162f3d669ee8eadc3d5e2f3af3f27aeb1e32f6 Mon Sep 17 00:00:00 2001
+From cad5f671fef13c087e4e38058944cac48fecf479 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 20 Feb 2024 10:08:01 +0800
-Subject: [PATCH 101/195] mtk: mt76: mt7996: add beacon monitoring in driver
+Subject: [PATCH 101/223] mtk: mt76: mt7996: add beacon monitoring in driver
  for mlo
 
 Add beacon monitoring in driver since mac80211 does not
@@ -27,6 +27,9 @@ so it is unnecessary to finish the work.
 5. Add address sanity check before sending nullfunc.
 6. Add cancel_delayed_work in more place.
 
+Change-Id: I52211987abd6309bbb23dc648af3f377adf8982a
+Change-Id: I3e79716609e8a8a53199e8558c07711df2f4bd47
+Change-Id: Ifff48bc6d64050dce29da19461933a13bc99b255
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  mt7996/mac.c    | 217 +++++++++++++++++++++++++++++++++++++++++++++++-
@@ -35,7 +38,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 290 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 3b3aa01b..803f7ce3 100644
+index b8cf557b..1cf84fe5 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -559,6 +559,32 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -69,9 +72,9 @@ index 3b3aa01b..803f7ce3 100644
 +				}
 +			}
  		}
- #ifdef CONFIG_MTK_VENDOR
- 		if (phy->amnt_ctrl.enable && !ieee80211_is_beacon(fc))
-@@ -709,7 +735,8 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+ 		skb_set_mac_header(skb, (unsigned char *)hdr - skb->data);
+ 
+@@ -721,7 +747,8 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
  	}
  
  	if (ieee80211_vif_is_mld(info->control.vif) &&
@@ -81,7 +84,7 @@ index 3b3aa01b..803f7ce3 100644
  		txwi[5] |= cpu_to_le32(MT_TXD5_FL);
  }
  
-@@ -1194,6 +1221,10 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+@@ -1206,6 +1233,10 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
  	if (le32_get_bits(txs_data[0], MT_TXS0_TXS_FORMAT) == 0) {
  		skb = mt76_tx_status_skb_get(mdev, wcid, pid, &list);
  		if (skb) {
@@ -92,7 +95,7 @@ index 3b3aa01b..803f7ce3 100644
  			info = IEEE80211_SKB_CB(skb);
  			if (!(txs & MT_TXS0_ACK_ERROR_MASK))
  				info->flags |= IEEE80211_TX_STAT_ACK;
-@@ -1203,6 +1234,18 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+@@ -1215,6 +1246,18 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
  				!!(info->flags & IEEE80211_TX_STAT_ACK);
  
  			info->status.rates[0].idx = -1;
@@ -111,7 +114,7 @@ index 3b3aa01b..803f7ce3 100644
  		}
  	}
  
-@@ -2941,6 +2984,178 @@ void mt7996_scan_work(struct work_struct *work)
+@@ -2953,6 +2996,178 @@ void mt7996_scan_work(struct work_struct *work)
  	ieee80211_queue_delayed_work(hw, &phy->scan_work, duration);
  }
  
@@ -291,7 +294,7 @@ index 3b3aa01b..803f7ce3 100644
  		   struct ieee80211_hw **hw)
  {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 8e7d5d25..466b051b 100644
+index 6fad94b8..67948343 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -452,6 +452,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
@@ -391,10 +394,10 @@ index 8e7d5d25..466b051b 100644
  	.remove_chanctx = mt7996_remove_chanctx,
  	.change_chanctx = mt7996_change_chanctx,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index c52193e4..fc36da8d 100644
+index c94853f2..2a638a4a 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -129,6 +129,10 @@
+@@ -131,6 +131,10 @@
  
  #define to_rssi(field, rcpi)	((FIELD_GET(field, rcpi) - 220) / 2)
  
@@ -405,7 +408,7 @@ index c52193e4..fc36da8d 100644
  struct mt7996_vif;
  struct mt7996_sta;
  struct mt7996_dfs_pulse;
-@@ -361,6 +365,14 @@ struct mt7996_vif {
+@@ -362,6 +366,14 @@ struct mt7996_vif {
  	u8 mld_remap_id;
  
  	u8 band_to_link[__MT_MAX_BAND];
@@ -420,7 +423,7 @@ index c52193e4..fc36da8d 100644
  };
  
  /* crash-dump */
-@@ -1117,6 +1129,7 @@ bool mt7996_rx_check(struct mt76_dev *mdev, void *data, int len);
+@@ -1121,6 +1133,7 @@ bool mt7996_rx_check(struct mt76_dev *mdev, void *data, int len);
  void mt7996_stats_work(struct work_struct *work);
  void mt7996_scan_work(struct work_struct *work);
  void mt7996_scan_complete(struct mt7996_phy *phy, bool aborted);

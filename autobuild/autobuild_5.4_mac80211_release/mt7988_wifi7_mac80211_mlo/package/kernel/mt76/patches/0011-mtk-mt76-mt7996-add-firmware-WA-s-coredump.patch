@@ -1,8 +1,9 @@
-From 9911d119b0373d2aae0a33d4dc599a55892386f9 Mon Sep 17 00:00:00 2001
+From 744e6ef280817a9010606e2d36573cc9206e8457 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Fri, 19 May 2023 14:16:50 +0800
-Subject: [PATCH 011/195] mtk: mt76: mt7996: add firmware WA's coredump.
+Subject: [PATCH 011/223] mtk: mt76: mt7996: add firmware WA's coredump.
 
+Change-Id: I51f115b4ae15bc0f871f93652570d72511dbf880
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
  mt7996/coredump.c | 180 ++++++++++++++++++++++++++++++----------------
@@ -428,10 +429,10 @@ index af2ba219..01ed3731 100644
  	return NULL;
  }
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 503e92c0..00396c82 100644
+index cfcfc3ea..dafc86f8 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2007,28 +2007,25 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -2018,28 +2018,25 @@ void mt7996_mac_reset_work(struct work_struct *work)
  }
  
  /* firmware coredump */
@@ -464,7 +465,7 @@ index 503e92c0..00396c82 100644
  	if (!mem_region || !crash_data->memdump_buf_len) {
  		mutex_unlock(&dev->dump_mutex);
  		goto skip_memdump;
-@@ -2038,6 +2035,9 @@ void mt7996_mac_dump_work(struct work_struct *work)
+@@ -2049,6 +2046,9 @@ void mt7996_mac_dump_work(struct work_struct *work)
  	buf_len = crash_data->memdump_buf_len;
  
  	/* dumping memory content... */
@@ -474,7 +475,7 @@ index 503e92c0..00396c82 100644
  	memset(buf, 0, buf_len);
  	for (i = 0; i < num; i++) {
  		if (mem_region->len > buf_len) {
-@@ -2054,6 +2054,7 @@ void mt7996_mac_dump_work(struct work_struct *work)
+@@ -2065,6 +2065,7 @@ void mt7996_mac_dump_work(struct work_struct *work)
  		mt7996_memcpy_fromio(dev, buf, mem_region->start,
  				     mem_region->len);
  
@@ -482,7 +483,7 @@ index 503e92c0..00396c82 100644
  		hdr->start = mem_region->start;
  		hdr->len = mem_region->len;
  
-@@ -2070,8 +2071,20 @@ void mt7996_mac_dump_work(struct work_struct *work)
+@@ -2081,8 +2082,20 @@ void mt7996_mac_dump_work(struct work_struct *work)
  	mutex_unlock(&dev->dump_mutex);
  
  skip_memdump:
@@ -506,10 +507,10 @@ index 503e92c0..00396c82 100644
  }
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 40d319bc..dff8b971 100644
+index dd428570..46fb3a03 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2709,6 +2709,8 @@ static int mt7996_load_patch(struct mt7996_dev *dev)
+@@ -2719,6 +2719,8 @@ static int mt7996_load_patch(struct mt7996_dev *dev)
  
  	dev_info(dev->mt76.dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
  		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
@@ -518,7 +519,7 @@ index 40d319bc..dff8b971 100644
  
  	for (i = 0; i < be32_to_cpu(hdr->desc.n_region); i++) {
  		struct mt7996_patch_sec *sec;
-@@ -2835,6 +2837,9 @@ static int __mt7996_load_ram(struct mt7996_dev *dev, const char *fw_type,
+@@ -2845,6 +2847,9 @@ static int __mt7996_load_ram(struct mt7996_dev *dev, const char *fw_type,
  	}
  
  	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
@@ -529,10 +530,10 @@ index 40d319bc..dff8b971 100644
  		 fw_type, hdr->fw_ver, hdr->build_date);
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 3ee83e51..7592e7ed 100644
+index 1dd618c2..602f367d 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -84,6 +84,8 @@
+@@ -94,6 +94,8 @@
  #define MT7996_CRIT_TEMP		110
  #define MT7996_MAX_TEMP			120
  
@@ -541,15 +542,15 @@ index 3ee83e51..7592e7ed 100644
  #define MT7996_RRO_MAX_SESSION		1024
  #define MT7996_RRO_WINDOW_MAX_LEN	1024
  #define MT7996_RRO_ADDR_ELEM_LEN	128
-@@ -127,6 +129,7 @@ enum mt7996_ram_type {
+@@ -119,6 +121,7 @@ enum mt7996_ram_type {
  	MT7996_RAM_TYPE_WM,
  	MT7996_RAM_TYPE_WA,
  	MT7996_RAM_TYPE_DSP,
 +	__MT7996_RAM_TYPE_MAX,
  };
  
- enum mt7996_txq_id {
-@@ -320,9 +323,11 @@ struct mt7996_dev {
+ enum mt7996_var_type {
+@@ -328,9 +331,11 @@ struct mt7996_dev {
  	struct mutex dump_mutex;
  #ifdef CONFIG_DEV_COREDUMP
  	struct {
@@ -563,7 +564,7 @@ index 3ee83e51..7592e7ed 100644
  	struct list_head sta_rc_list;
  	struct list_head twt_list;
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index cf12c5e0..4c20a67d 100644
+index 06e307b5..3450a2fc 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -597,7 +597,8 @@ enum offs_rev {
@@ -576,7 +577,7 @@ index cf12c5e0..4c20a67d 100644
  
  #define MT_SWDEF_BASE				0x00401400
  
-@@ -714,11 +715,15 @@ enum offs_rev {
+@@ -716,11 +717,15 @@ enum offs_rev {
  #define MT_WF_PHYRX_CSD_BAND_RXTD12_IRPI_SW_CLR		BIT(29)
  
  /* CONN MCU EXCP CON */

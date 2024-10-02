@@ -1,21 +1,22 @@
-From cd6befef837a39ba0c7c8ba91d901a0d10cb2da9 Mon Sep 17 00:00:00 2001
+From c481c255433c20d071b76c82d8c4f4372a13fd17 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 5 Jun 2024 19:11:13 +0800
-Subject: [PATCH 137/195] mtk: mt76: mt7996: support per-link report of bss
+Subject: [PATCH 137/223] mtk: mt76: mt7996: support per-link report of bss
  color change
 
 ieee80211_color_change_finish() has been extended for per-link support.
 
+Change-Id: I8bfd562b617773a370fcc3e732d6335ed082a909
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
  mt7996/mcu.c | 17 ++++++++++++++---
  1 file changed, 14 insertions(+), 3 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 7e441cb5..854b9ddf 100644
+index a62b5f9e..043f8d5c 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -472,10 +472,21 @@ out:
+@@ -477,10 +477,21 @@ out:
  static void
  mt7996_mcu_cca_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
  {
@@ -34,12 +35,12 @@ index 7e441cb5..854b9ddf 100644
 +	    vif->type == NL80211_IFTYPE_STATION)
  		return;
  
--	ieee80211_color_change_finish(vif);
+-	ieee80211_color_change_finish(vif, 0);
 +	ieee80211_color_change_finish(vif, link_id);
  }
  
  static void
-@@ -511,7 +522,7 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -516,7 +527,7 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)
  		case UNI_EVENT_IE_COUNTDOWN_BCC:
  			ieee80211_iterate_active_interfaces_atomic(mphy->hw,
  					IEEE80211_IFACE_ITER_RESUME_ALL,

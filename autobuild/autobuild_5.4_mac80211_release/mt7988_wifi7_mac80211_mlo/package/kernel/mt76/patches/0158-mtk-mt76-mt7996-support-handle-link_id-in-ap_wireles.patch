@@ -1,7 +1,7 @@
-From a6266e4b14f911b0b9b0869f5b81948fe39f6b46 Mon Sep 17 00:00:00 2001
+From e2ca291d9edba04731cbec32d52ad00c13e5d1c9 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 14 Jun 2024 14:54:44 +0800
-Subject: [PATCH 158/195] mtk: mt76: mt7996: support handle link_id in
+Subject: [PATCH 158/223] mtk: mt76: mt7996: support handle link_id in
  ap_wireless vendor cmd
 
 Add support handle link_id in ap_wireless vendor command. The link_id is
@@ -11,6 +11,7 @@ critical information required by some mcu commands.
 This commit also refactor some functions, changing the parameter from
 phy to dev since phy is not required.
 
+Change-Id: I8d86ca45d2417d155114f27b13e7172565264e3f
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 ---
  mt7996/mt7996.h  | 12 +++++------
@@ -20,10 +21,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  4 files changed, 73 insertions(+), 44 deletions(-)
 
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 50011283..fe97bea1 100644
+index edd9c7c9..c122989d 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1300,8 +1300,8 @@ int mt7996_vendor_amnt_sta_remove(struct mt7996_phy *phy,
+@@ -1304,8 +1304,8 @@ int mt7996_vendor_amnt_sta_remove(struct mt7996_phy *phy,
  				  struct ieee80211_sta *sta);
  void mt7996_set_wireless_amsdu(struct ieee80211_hw *hw, u8 en);
  void mt7996_mcu_set_mimo(struct mt7996_phy *phy);
@@ -34,7 +35,7 @@ index 50011283..fe97bea1 100644
  void mt7996_set_beacon_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
  int mt7996_mcu_set_csi(struct mt7996_phy *phy, u8 mode,
  		       u8 cfg, u8 v1, u32 v2, u8 *mac_addr);
-@@ -1332,12 +1332,12 @@ int mt7996_mcu_set_muru_fixed_rate_parameter(struct mt7996_dev *dev, u8 action,
+@@ -1336,12 +1336,12 @@ int mt7996_mcu_set_muru_fixed_rate_parameter(struct mt7996_dev *dev, u8 action,
  int mt7996_mcu_set_txbf_snd_info(struct mt7996_dev *dev, void *para);
  int mt7996_mcu_set_muru_cmd(struct mt7996_dev *dev, u16 action, int val);
  int mt7996_mcu_muru_set_prot_frame_thr(struct mt7996_dev *dev, u32 val);

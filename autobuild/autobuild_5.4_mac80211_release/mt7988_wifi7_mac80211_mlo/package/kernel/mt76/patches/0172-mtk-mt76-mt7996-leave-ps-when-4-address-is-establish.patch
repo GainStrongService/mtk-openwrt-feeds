@@ -1,7 +1,7 @@
-From 755aa4cbe54c046ae2d2d0f5e31da81b277a3692 Mon Sep 17 00:00:00 2001
+From 4b29092cc31d34967152a3062966d987fc5352eb Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 18 Jul 2024 10:29:22 +0800
-Subject: [PATCH 172/195] mtk: mt76: mt7996: leave ps when 4 address is
+Subject: [PATCH 172/223] mtk: mt76: mt7996: leave ps when 4 address is
  established
 
 Because the 4 address non-amsdu packet does not have bssid field, the
@@ -9,6 +9,7 @@ hardware cannot get the bssid. Without bssid, the station's are not able
 leave PS mode due to HW design. Wake up non-setup link when receiving
 4 address null data to prevent this issue.
 
+Change-Id: I94308432b73e647363fd0e2db281c54becdf1ec8
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  mt76_connac_mcu.h |  1 +
@@ -19,10 +20,10 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  5 files changed, 30 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index caab3b54..4980ca12 100644
+index 18758ff2..69c8389f 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -838,6 +838,7 @@ enum {
+@@ -843,6 +843,7 @@ enum {
  	STA_REC_EML_OP = 0x29,
  	STA_REC_HDR_TRANS = 0x2B,
  	STA_REC_TX_CAP = 0x2f,
@@ -31,7 +32,7 @@ index caab3b54..4980ca12 100644
  };
  
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 725be540..4b3f1790 100644
+index c6cb5104..21d65f78 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -2081,6 +2081,9 @@ static void mt7996_sta_set_4addr(struct ieee80211_hw *hw,
@@ -45,10 +46,10 @@ index 725be540..4b3f1790 100644
  	mutex_unlock(&dev->mt76.mutex);
  }
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 9bc3c434..d9b97f36 100644
+index 0e8e2c06..b47aa7d6 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -6250,6 +6250,24 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
+@@ -6257,6 +6257,24 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
  				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
  }
  
@@ -91,10 +92,10 @@ index 0f2695eb..ffa574b8 100644
  	__le16 tag;
  	__le16 len;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 4f80eed6..97b91fbc 100644
+index 15c4e557..21019bc2 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1277,6 +1277,8 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
+@@ -1281,6 +1281,8 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
  				     struct ieee80211_vif *vif,
  				     struct mt7996_bss_conf *mconf,
  				     struct mt7996_link_sta *mlink);

@@ -1,7 +1,7 @@
-From 0d9252454a9ab6c9c70f07bf58ff3a1fe1487342 Mon Sep 17 00:00:00 2001
+From 78e6f75e8e5114ed78257bf708655084fe36dcd1 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 7 Jun 2024 15:24:00 +0800
-Subject: [PATCH 154/195] mtk: mt76: mt7996: add support for remain-on-channel
+Subject: [PATCH 154/223] mtk: mt76: mt7996: add support for remain-on-channel
  operation
 
 Remain-on-channel operation allows interface to temporarily leave the
@@ -17,6 +17,7 @@ The constrains for interfaces about remain-on-channel operation:
 3. The MLd STA can remain on full-band channels even if it does not have
    connection on that band. In such case, the default link is used.
 
+Change-Id: Idefe2623133ada2646612e2f13452257ca83b992
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
  mt7996/init.c   |   4 ++
@@ -25,7 +26,7 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  3 files changed, 181 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 55eb32cb..5f38374f 100644
+index 18a86afe..fe2958f5 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -498,6 +498,8 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
@@ -45,7 +46,7 @@ index 55eb32cb..5f38374f 100644
  
  	ret = mt7996_eeprom_parse_hw_cap(dev, phy);
  	if (ret)
-@@ -1676,6 +1679,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1696,6 +1699,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	INIT_WORK(&dev->rc_work, mt7996_mac_sta_rc_work);
  	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt7996_mac_work);
  	INIT_DELAYED_WORK(&dev->phy.scan_work, mt7996_scan_work);
@@ -54,7 +55,7 @@ index 55eb32cb..5f38374f 100644
  	INIT_LIST_HEAD(&dev->sta_rc_list);
  	INIT_LIST_HEAD(&dev->twt_list);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index b04ce154..c7c2ad98 100644
+index 8fb68880..ff4ef55d 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -505,6 +505,7 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
@@ -281,10 +282,10 @@ index b04ce154..c7c2ad98 100644
  	.get_txpower = mt7996_get_txpower,
  	.channel_switch_beacon = mt7996_channel_switch_beacon,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 22f4d53a..062c0087 100644
+index b0d9b0bd..251a3c70 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -597,6 +597,10 @@ struct mt7996_phy {
+@@ -598,6 +598,10 @@ struct mt7996_phy {
  	struct mt7996_scs_ctrl scs_ctrl;
  	u32 red_drop;
  
@@ -295,7 +296,7 @@ index 22f4d53a..062c0087 100644
  	bool sku_limit_en;
  	bool sku_path_en;
  
-@@ -1249,6 +1253,7 @@ bool mt7996_rx_check(struct mt76_dev *mdev, void *data, int len);
+@@ -1253,6 +1257,7 @@ bool mt7996_rx_check(struct mt76_dev *mdev, void *data, int len);
  void mt7996_stats_work(struct work_struct *work);
  void mt7996_scan_work(struct work_struct *work);
  void mt7996_scan_complete(struct mt7996_phy *phy, bool aborted);

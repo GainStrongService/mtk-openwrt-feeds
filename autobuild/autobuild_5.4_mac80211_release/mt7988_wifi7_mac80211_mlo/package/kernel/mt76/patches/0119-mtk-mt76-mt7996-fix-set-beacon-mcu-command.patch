@@ -1,7 +1,7 @@
-From e7bab0b5a81c2f11cbe630460a189c43f932f01c Mon Sep 17 00:00:00 2001
+From 50cf21c286aa55676fa5a341781c5e72aa4758f5 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Tue, 14 May 2024 10:52:43 +0800
-Subject: [PATCH 119/195] mtk: mt76: mt7996: fix set beacon mcu command
+Subject: [PATCH 119/223] mtk: mt76: mt7996: fix set beacon mcu command
 
 When stopping AP, mac80211 frees beacon template before it calls
 driver's stop_ap operation. In other words, on the path of stopping
@@ -12,16 +12,17 @@ mt7996_mcu_add_beacon(). In such case mt7996 immediately returns
 This commit refactors mt7996_mcu_add_beacon() so that FW can be
 correctly informed when disabling AP interface.
 
+Change-Id: I7a381f959e50579266aa1fa4c2a3f9a907f4318e
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
  mt7996/mcu.c | 26 +++++++++++++++-----------
  1 file changed, 15 insertions(+), 11 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b1f5499e..2d1d7555 100644
+index 76f0bb7e..1dcc367e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3379,7 +3379,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
+@@ -3384,7 +3384,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
  	struct sk_buff *skb, *rskb;
  	struct tlv *tlv;
  	struct bss_bcn_content_tlv *bcn;
@@ -30,7 +31,7 @@ index b1f5499e..2d1d7555 100644
  
  	if (conf->nontransmitted)
  		return 0;
-@@ -3390,28 +3390,32 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
+@@ -3395,28 +3395,32 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
  		return PTR_ERR(rskb);
  
  	skb = ieee80211_beacon_get_template(hw, conf->vif, &offs, conf->link_id);

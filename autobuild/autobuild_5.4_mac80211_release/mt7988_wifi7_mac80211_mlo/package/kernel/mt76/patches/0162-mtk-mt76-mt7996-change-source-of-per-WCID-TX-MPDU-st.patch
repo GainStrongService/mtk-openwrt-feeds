@@ -1,11 +1,12 @@
-From fcb507ba443b3d2d19248ad38b20c6bd9dc71292 Mon Sep 17 00:00:00 2001
+From ce85a854c7b07de8cb560417a038a2c9870c61e5 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Mon, 17 Jun 2024 17:16:19 +0800
-Subject: [PATCH 162/195] mtk: mt76: mt7996: change source of per-WCID TX MPDU
+Subject: [PATCH 162/223] mtk: mt76: mt7996: change source of per-WCID TX MPDU
  statistics
 
 Change source of per-WCID TX MPDU statistics from TX-free-done event to PPDU TXS, because WCID from TX-free-done event may not represent the actually used link.
 
+Change-Id: If4276b3cc779f79f29c7354c9ac2140a2fd8d852
 Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 ---
  mt76.h             |  1 +
@@ -14,10 +15,10 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  3 files changed, 33 insertions(+), 23 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 88464896..250e9f8f 100644
+index 62ae2662..c3b71cc3 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -363,6 +363,7 @@ struct mt76_sta_stats {
+@@ -364,6 +364,7 @@ struct mt76_sta_stats {
  	u64 tx_bytes;
  	/* WED TX */
  	u32 tx_packets;		/* unit: MSDU */
@@ -42,10 +43,10 @@ index db0c29e6..ad8392cd 100644
  #define MT_CT_INFO_COPY_HOST_TXD_ALL	BIT(1)
  #define MT_CT_INFO_MGMT_FRAME		BIT(2)
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 12cc60cb..97cd5e23 100644
+index 3cd034cd..87e671a3 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1206,19 +1206,9 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+@@ -1218,19 +1218,9 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
  			spin_unlock_bh(&mdev->sta_poll_lock);
  			continue;
  		} else if (info & MT_TXFREE_INFO_HEADER) {
@@ -65,7 +66,7 @@ index 12cc60cb..97cd5e23 100644
  			if (FIELD_GET(MT_TXFREE_INFO_STAT, info) == 2) {
  				struct mt7996_phy *mphy =
  					__mt7996_phy(dev, wcid->phy_idx);
-@@ -1256,9 +1246,10 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+@@ -1268,9 +1258,10 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
  
  static bool
  mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
@@ -78,7 +79,7 @@ index 12cc60cb..97cd5e23 100644
  	struct mt76_dev *mdev = &dev->mt76;
  	struct ieee80211_tx_info *info;
  	struct sk_buff_head list;
-@@ -1270,8 +1261,9 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+@@ -1282,8 +1273,9 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
  
  	mt76_tx_status_lock(mdev, &list);
  
@@ -90,7 +91,7 @@ index 12cc60cb..97cd5e23 100644
  		skb = mt76_tx_status_skb_get(mdev, wcid, pid, &list);
  		if (skb) {
  			struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-@@ -1300,6 +1292,15 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+@@ -1312,6 +1304,15 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
  				mvif->probe_send_count[wcid->phy_idx] = 0;
  			}
  		}
@@ -106,7 +107,7 @@ index 12cc60cb..97cd5e23 100644
  	}
  
  	if (mtk_wed_device_active(&dev->mt76.mmio.wed) && wcid->sta) {
-@@ -1331,6 +1332,7 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+@@ -1343,6 +1344,7 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
  
  	if (skb)
  		mt76_tx_status_skb_done(mdev, skb, &list);
@@ -114,7 +115,7 @@ index 12cc60cb..97cd5e23 100644
  	mt76_tx_status_unlock(mdev, &list);
  
  	return !!skb;
-@@ -1338,13 +1340,13 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+@@ -1350,13 +1352,13 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
  
  static void mt7996_mac_add_txs(struct mt7996_dev *dev, void *data)
  {
@@ -131,7 +132,7 @@ index 12cc60cb..97cd5e23 100644
  	pid = le32_get_bits(txs_data[3], MT_TXS3_PID);
  
  	if (pid < MT_PACKET_ID_NO_SKB)
-@@ -1359,17 +1361,19 @@ static void mt7996_mac_add_txs(struct mt7996_dev *dev, void *data)
+@@ -1371,17 +1373,19 @@ static void mt7996_mac_add_txs(struct mt7996_dev *dev, void *data)
  	if (!wcid)
  		goto out;
  

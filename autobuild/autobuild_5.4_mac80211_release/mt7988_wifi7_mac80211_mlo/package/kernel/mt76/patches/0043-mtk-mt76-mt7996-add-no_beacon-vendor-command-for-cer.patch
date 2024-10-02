@@ -1,7 +1,7 @@
-From 10e70842e50c8506f2a76d75299cebf26c96532f Mon Sep 17 00:00:00 2001
+From d75372c3491e32a67af73ce130cd36f03af82d51 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Wed, 22 Nov 2023 22:42:09 +0800
-Subject: [PATCH 043/195] mtk: mt76: mt7996: add no_beacon vendor command for
+Subject: [PATCH 043/223] mtk: mt76: mt7996: add no_beacon vendor command for
  cert
 
 Add the vendor command to disable/enable beacon
@@ -12,6 +12,7 @@ hostapd_cli -i <interface> no_beacon <value>
 0: enable beacon
 1: disable beacon
 
+Change-Id: Ia16707317135aeb02d6a5f6d50983e5174cc9e77
 Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
 ---
  mt7996/mcu.c    | 11 +++++++++++
@@ -21,10 +22,10 @@ Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
  4 files changed, 65 insertions(+)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b895c2a7..69303379 100644
+index 87322283..9431f878 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -5106,4 +5106,15 @@ void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
+@@ -5136,4 +5136,15 @@ void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  		break;
  	}
  }
@@ -41,10 +42,10 @@ index b895c2a7..69303379 100644
 +}
  #endif
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index a83e9f35..73f5d7b1 100644
+index 981f496e..f6e7fbdd 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -835,6 +835,7 @@ void mt7996_set_wireless_amsdu(struct ieee80211_hw *hw, u8 en);
+@@ -866,6 +866,7 @@ void mt7996_set_wireless_amsdu(struct ieee80211_hw *hw, u8 en);
  void mt7996_mcu_set_mimo(struct mt7996_phy *phy);
  int mt7996_set_muru_cfg(struct mt7996_phy *phy, u8 action, u8 val);
  int mt7996_mcu_set_muru_cfg(struct mt7996_phy *phy, void *data);

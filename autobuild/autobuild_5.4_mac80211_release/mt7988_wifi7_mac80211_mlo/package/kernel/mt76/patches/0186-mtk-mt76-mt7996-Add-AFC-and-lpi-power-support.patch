@@ -1,7 +1,7 @@
-From 39d6aef0b197cbb8a03d07b351bc9bcf71a769d0 Mon Sep 17 00:00:00 2001
+From 4f43eb23f373930534372c1b82787f2da37c940d Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Thu, 1 Aug 2024 11:25:03 +0800
-Subject: [PATCH 186/195] mtk: mt76: mt7996: Add AFC and lpi power support
+Subject: [PATCH 186/223] mtk: mt76: mt7996: Add AFC and lpi power support
 
 This patch receiving and storing the power table from hostapd vendor cmd.
 The power table would be use to compare the sku table in standard power
@@ -25,6 +25,8 @@ Add dump afc table and information.
 Add the bf on value offset logic. The offset is antenna/beamform gain
 offset = 10 * (log(num of ant) - log(num of NSS)).
 
+Change-Id: Ibc6e9adb149bec02d3443d6e0309c9ac122a925b
+Change-Id: Ic24ee5f95eb5c11d1031428ee1d4f3fc9ff39e11
 Signed-off-by: Allen Ye <allen.ye@mediatek.com>
 ---
  mt76.h               |   2 +
@@ -39,10 +41,10 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  9 files changed, 429 insertions(+), 25 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 6b612286..8a9da4c4 100644
+index 50d52776..a465785f 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -1076,6 +1076,8 @@ struct mt76_dev {
+@@ -1078,6 +1078,8 @@ struct mt76_dev {
  	bool lpi_psd;
  	bool lpi_bcn_enhance;
  	bool mgmt_pwr_enhance;
@@ -52,10 +54,10 @@ index 6b612286..8a9da4c4 100644
  #ifdef CONFIG_NL80211_TESTMODE
  	const struct mt76_testmode_ops *test_ops;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index c0f282d1..60223bea 100644
+index b0b664e7..5d40b8f1 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -896,7 +896,7 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+@@ -908,7 +908,7 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
  		if (mcast)
  			val |= MT_TXD6_DIS_MAT;
  		if (dev->mt76.phys[band_idx]->cap.has_6ghz &&
@@ -65,7 +67,7 @@ index c0f282d1..60223bea 100644
  			val |= FIELD_PREP(MT_TXD6_BW, FW_CDBW_80MHZ);
  		txwi[6] |= cpu_to_le32(val);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index a4e052c6..f03b4ca9 100644
+index 290dff6e..812d8269 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -891,7 +891,7 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_bss_conf *conf,
@@ -78,10 +80,10 @@ index a4e052c6..f03b4ca9 100644
  
  		/* odd index for driver, even index for firmware */
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 084480ed..debd570f 100644
+index 265f39a6..725f2f31 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -6377,7 +6377,8 @@ int mt7996_mcu_set_fixed_rate_table(struct mt7996_phy *phy, u8 table_idx,
+@@ -6384,7 +6384,8 @@ int mt7996_mcu_set_fixed_rate_table(struct mt7996_phy *phy, u8 table_idx,
  
  	if (beacon) {
  		req.spe_idx_sel = SPE_IXD_SELECT_TXD;
@@ -91,7 +93,7 @@ index 084480ed..debd570f 100644
  		phy->beacon_rate = rate_idx;
  	} else {
  		req.spe_idx_sel = SPE_IXD_SELECT_BMC_WTBL;
-@@ -6660,6 +6661,126 @@ mt7996_update_max_txpower_cur(struct mt7996_phy *phy, int tx_power)
+@@ -6667,6 +6668,126 @@ mt7996_update_max_txpower_cur(struct mt7996_phy *phy, int tx_power)
  		mphy->txpower_cur = e2p_power_limit;
  }
  
@@ -218,7 +220,7 @@ index 084480ed..debd570f 100644
  bool mt7996_is_psd_country(char *country)
  {
  	char psd_country_list[][3] = {"US", "KR", "BR", "CL", "MY", ""};
-@@ -6707,15 +6828,22 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy,
+@@ -6714,15 +6835,22 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy,
  		txpower_setting = 127;
  	txpower_limit = mt7996_get_power_bound(phy, txpower_setting);
  
@@ -246,7 +248,7 @@ index 084480ed..debd570f 100644
  	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL,
  				 sizeof(req) + MT7996_SKU_PATH_NUM);
  	if (!skb)
-@@ -6728,7 +6856,7 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy,
+@@ -6735,7 +6863,7 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy,
  	/* FW would compensate for PSD countries
  	 * driver doesn't need to do it
  	 */
@@ -255,7 +257,7 @@ index 084480ed..debd570f 100644
  	    !mt7996_is_psd_country(dev->mt76.alpha2)) {
  		switch (mphy->chandef.width) {
  		case NL80211_CHAN_WIDTH_20:
-@@ -6794,7 +6922,7 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy,
+@@ -6801,7 +6929,7 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy,
  	/* FW would NOT compensate in the case of BF backoff table
  	 * driver needs to compensate for LPI PSD
  	 */
@@ -264,7 +266,7 @@ index 084480ed..debd570f 100644
  		switch (mphy->chandef.width) {
  		case NL80211_CHAN_WIDTH_20:
  			skb_put_data(skb, &la_path.ru[5], sizeof(la_path.ofdm));
-@@ -6856,13 +6984,53 @@ int mt7996_mcu_set_lpi_psd(struct mt7996_phy *phy, u8 enable)
+@@ -6863,13 +6991,53 @@ int mt7996_mcu_set_lpi_psd(struct mt7996_phy *phy, u8 enable)
  		.tag = cpu_to_le16(UNI_BAND_CONFIG_LPI_CTRL),
  		.len = cpu_to_le16(sizeof(req) - 4),
  		.lpi_enable = enable,
@@ -470,10 +472,10 @@ index dab4700e..33ba3774 100644
  	UNI_CMD_ACCESS_REG_BASIC = 0x0,
  	UNI_CMD_ACCESS_RF_REG_BASIC,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index f8d18217..18e3f4f0 100644
+index 1e52377a..b841cc2a 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1170,6 +1170,8 @@ int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state);
+@@ -1174,6 +1174,8 @@ int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state);
  int mt7996_mcu_set_thermal_protect(struct mt7996_phy *phy, bool enable);
  int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy,
  			       int txpower_setting);
@@ -483,10 +485,10 @@ index f8d18217..18e3f4f0 100644
  		       u8 rx_sel, u8 val);
  int mt7996_mcu_rdd_background_disable_timer(struct mt7996_dev *dev,
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index a4703b07..63e63a33 100644
+index 96a4a514..5338d0bd 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -2523,6 +2523,11 @@ mt7996_get_txpower_info(struct file *file, char __user *user_buf,
+@@ -2522,6 +2522,11 @@ mt7996_get_txpower_info(struct file *file, char __user *user_buf,
  	len += scnprintf(buf + len, size - len,
  			 "    RegDB:  %s\n",
  			 !np ? "enable" : "disable");
@@ -498,7 +500,7 @@ index a4703b07..63e63a33 100644
  	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
  
  out:
-@@ -4390,6 +4395,37 @@ static int mt7996_pp_alg_show(struct seq_file *s, void *data)
+@@ -4389,6 +4394,37 @@ static int mt7996_pp_alg_show(struct seq_file *s, void *data)
  }
  DEFINE_SHOW_ATTRIBUTE(mt7996_pp_alg);
  
@@ -536,7 +538,7 @@ index a4703b07..63e63a33 100644
  void mt7996_mtk_init_band_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  {
  	/* agg */
-@@ -4516,6 +4552,7 @@ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
+@@ -4515,6 +4551,7 @@ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
  
  	debugfs_create_file("muru_dbg", 0200, dir, dev, &fops_muru_dbg_info);
  	debugfs_create_bool("mgmt_pwr_enhance", 0600, dir, &dev->mt76.mgmt_pwr_enhance);

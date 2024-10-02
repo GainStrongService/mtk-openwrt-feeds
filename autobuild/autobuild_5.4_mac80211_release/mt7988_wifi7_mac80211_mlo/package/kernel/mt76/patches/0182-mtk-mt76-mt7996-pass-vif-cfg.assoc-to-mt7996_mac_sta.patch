@@ -1,20 +1,21 @@
-From a9867d555060ac13b51f2bbeb9361e1445a9e18a Mon Sep 17 00:00:00 2001
+From 582927a3040724713a313cd346dd8f63c907c044 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 5 Aug 2024 14:55:10 +0800
-Subject: [PATCH 182/195] mtk: mt76: mt7996: pass vif->cfg.assoc to
+Subject: [PATCH 182/223] mtk: mt76: mt7996: pass vif->cfg.assoc to
  mt7996_mac_sta_add_links
 
 Link management functions might leverage mt7996_change_sta_links to
 update sta's links, so the 'assoc' argument of mt7996_mac_sta_add_links()
 should be dynamic decieded by vif->cfg.assoc.
 
+Change-Id: I89028f7f705384c26bc0ba35820d6478abf0c359
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
  mt7996/main.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 09d0d452..89768856 100644
+index 7678059b..7d4352c7 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -3161,6 +3161,7 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

@@ -1,7 +1,7 @@
-From 70af463858d745155fd78654b1bb8020271a0dc5 Mon Sep 17 00:00:00 2001
+From 0b6f875816c6849eaadae1cbf974ee1327af04f2 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Tue, 21 Nov 2023 09:55:46 +0800
-Subject: [PATCH 033/195] mtk: mt76: mt7996: add SER overlap handle
+Subject: [PATCH 033/223] mtk: mt76: mt7996: add SER overlap handle
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
@@ -11,10 +11,10 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  3 files changed, 21 insertions(+)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 503a562a..63408421 100644
+index 3c9ee0c8..2ce9e839 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1894,6 +1894,7 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -1906,6 +1906,7 @@ void mt7996_mac_reset_work(struct work_struct *work)
  	if (!(READ_ONCE(dev->recovery.state) & MT_MCU_CMD_STOP_DMA))
  		return;
  
@@ -22,7 +22,7 @@ index 503a562a..63408421 100644
  	dev_info(dev->mt76.dev,"\n%s L1 SER recovery start.",
  		 wiphy_name(dev->mt76.hw->wiphy));
  
-@@ -1911,6 +1912,10 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -1923,6 +1924,10 @@ void mt7996_mac_reset_work(struct work_struct *work)
  
  	set_bit(MT76_RESET, &dev->mphy.state);
  	set_bit(MT76_MCU_RESET, &dev->mphy.state);
@@ -33,7 +33,7 @@ index 503a562a..63408421 100644
  	wake_up(&dev->mt76.mcu.wait);
  
  	mt76_worker_disable(&dev->mt76.tx_worker);
-@@ -2106,6 +2111,9 @@ void mt7996_coredump(struct mt7996_dev *dev, u8 state)
+@@ -2118,6 +2123,9 @@ void mt7996_coredump(struct mt7996_dev *dev, u8 state)
  
  void mt7996_reset(struct mt7996_dev *dev)
  {
@@ -43,7 +43,7 @@ index 503a562a..63408421 100644
  	if (!dev->recovery.hw_init_done)
  		return;
  
-@@ -2125,6 +2133,9 @@ void mt7996_reset(struct mt7996_dev *dev)
+@@ -2137,6 +2145,9 @@ void mt7996_reset(struct mt7996_dev *dev)
  		return;
  	}
  
@@ -54,10 +54,10 @@ index 503a562a..63408421 100644
  	wake_up(&dev->reset_wait);
  }
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index e3519f13..823e982c 100644
+index 08234b3a..2a647b7b 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -246,6 +246,14 @@ mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+@@ -256,6 +256,14 @@ mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
  	u32 val;
  	u8 seq;
  
@@ -73,10 +73,10 @@ index e3519f13..823e982c 100644
  
  	seq = ++dev->mt76.mcu.msg_seq & 0xf;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 47e07ea3..c08dd21b 100644
+index 7bc5504e..22d44542 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -397,6 +397,8 @@ struct mt7996_dev {
+@@ -406,6 +406,8 @@ struct mt7996_dev {
  	wait_queue_head_t reset_wait;
  	struct {
  		u32 state;

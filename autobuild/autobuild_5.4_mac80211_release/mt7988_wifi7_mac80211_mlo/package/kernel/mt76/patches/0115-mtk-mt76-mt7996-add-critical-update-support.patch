@@ -1,7 +1,7 @@
-From cb1179a4d2e81331cc202df0226a02c6081f0b9c Mon Sep 17 00:00:00 2001
+From d4e9a9535f8f51d6a4adabee9efc1a61b0798490 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 23 Apr 2024 15:22:24 +0800
-Subject: [PATCH 115/195] mtk: mt76: mt7996: add critical update support
+Subject: [PATCH 115/223] mtk: mt76: mt7996: add critical update support
 
 Add critical update support
 modification: wmm configuration
@@ -17,6 +17,8 @@ Otherwise, the FW will not be able to perform the CSA countdown.
 Also, modify the bpcc check since channel switch will add the bpcc twice
 (before CSA and after CSA).
 
+Change-Id: Ibf92803d444ad672dd235f3584eec25a385082f4
+Change-Id: Id6ecd3de03bee0c2f412dd4dd1a57783c5d65fcf
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
@@ -28,10 +30,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  5 files changed, 208 insertions(+), 30 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 36d126ae..70c2c6d7 100644
+index 86a2fdf8..0a4bf9b7 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1380,6 +1380,8 @@ enum {
+@@ -1385,6 +1385,8 @@ enum {
  	UNI_BSS_INFO_OFFLOAD = 25,
  	UNI_BSS_INFO_MLD = 26,
  	UNI_BSS_INFO_PM_DISABLE = 27,
@@ -41,7 +43,7 @@ index 36d126ae..70c2c6d7 100644
  
  enum {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 71705ca4..2159e1bf 100644
+index 0b62858b..9a265710 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -370,6 +370,7 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
@@ -193,10 +195,10 @@ index 71705ca4..2159e1bf 100644
  
  static int
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 2de29a9f..10c54608 100644
+index f9ed473a..ea399a0b 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -370,6 +370,7 @@ mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
+@@ -375,6 +375,7 @@ mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
  	struct mt76_phy *mphy = (struct mt76_phy *)priv;
  	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	struct ieee80211_bss_conf *link_conf;
@@ -204,7 +206,7 @@ index 2de29a9f..10c54608 100644
  	int link_id, band_idx = mphy->band_idx;
  
  	link_id = mvif->band_to_link[band_idx];
-@@ -378,7 +379,16 @@ mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
+@@ -383,7 +384,16 @@ mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
  	if (!link_conf || !link_conf->csa_active || vif->type == NL80211_IFTYPE_STATION)
  		return;
  
@@ -221,7 +223,7 @@ index 2de29a9f..10c54608 100644
  }
  
  static void
-@@ -3237,6 +3247,93 @@ mt7996_mcu_beacon_mbss(struct sk_buff *rskb, struct sk_buff *skb,
+@@ -3242,6 +3252,93 @@ mt7996_mcu_beacon_mbss(struct sk_buff *rskb, struct sk_buff *skb,
  	}
  }
  
@@ -315,7 +317,7 @@ index 2de29a9f..10c54608 100644
  static void
  mt7996_mcu_beacon_cont(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
  		       struct sk_buff *rskb, struct sk_buff *skb,
-@@ -3317,6 +3414,8 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
+@@ -3322,6 +3419,8 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
  	mt7996_mcu_beacon_cont(dev, conf, rskb, skb, bcn, &offs);
  	mt7996_mcu_beacon_mbss(rskb, skb, conf, bcn, &offs);
  	mt7996_mcu_beacon_cntdwn(conf, rskb, skb, &offs);
@@ -369,10 +371,10 @@ index 5e217719..c39dcc3c 100644
  					 MT7996_BEACON_UPDATE_SIZE)
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 316e87a5..65d6a526 100644
+index b8699b65..4815cf7b 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -351,6 +351,7 @@ struct mt7996_bss_conf {
+@@ -352,6 +352,7 @@ struct mt7996_bss_conf {
  
  	u8 link_id;
  	u8 own_mld_id;
@@ -380,7 +382,7 @@ index 316e87a5..65d6a526 100644
  };
  
  struct mt7996_vif {
-@@ -365,6 +366,9 @@ struct mt7996_vif {
+@@ -366,6 +367,9 @@ struct mt7996_vif {
  	u8 group_mld_id;
  	u8 mld_remap_id;
  

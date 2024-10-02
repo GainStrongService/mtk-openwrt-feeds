@@ -1,19 +1,20 @@
-From ac3fdf60ece97f416f03a921b1691adb3da7eaaa Mon Sep 17 00:00:00 2001
+From 986d45c9ebf4793cababd01b338ff9a6b90ba449 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 5 Aug 2024 14:56:19 +0800
-Subject: [PATCH 184/195] mtk: mt76: mt7996: ignore vif.dormant_links in
+Subject: [PATCH 184/223] mtk: mt76: mt7996: ignore vif.dormant_links in
  mt7996_change_vif_links
 
 The dormant links are disabled for reasons like TTLM, and might become
 active in the near future, so we do not remove their bss_conf here.
 
+Change-Id: Ida947815bce7bfc3fb9772175ac105eb82ff16c1
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
  mt7996/main.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 89768856..8c67e495 100644
+index 7d4352c7..a7c2043f 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -3106,11 +3106,12 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

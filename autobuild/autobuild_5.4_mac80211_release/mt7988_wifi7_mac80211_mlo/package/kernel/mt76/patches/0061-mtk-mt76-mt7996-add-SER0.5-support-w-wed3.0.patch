@@ -1,8 +1,9 @@
-From 885a1122a42e723fa996ae4fa4d304daa17dff8b Mon Sep 17 00:00:00 2001
+From 23ce8e7268d891e3d762e1058986a5850258c89b Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Thu, 12 Oct 2023 10:04:54 +0800
-Subject: [PATCH 061/195] mtk: mt76: mt7996: add SER0.5 support w/ wed3.0
+Subject: [PATCH 061/223] mtk: mt76: mt7996: add SER0.5 support w/ wed3.0
 
+Change-Id: I9b26cdbea6e8ee158a153fd153c2dea77b494f2f
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
 ---
  dma.c           |   9 ++--
@@ -71,10 +72,10 @@ index 1de5a2b2..3a8c2e55 100644
  		mt76_wed_dma_setup(dev, q, true);
  }
 diff --git a/mt76.h b/mt76.h
-index 162f7883..72cfea14 100644
+index 2798f9e5..8bf37558 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -304,7 +304,7 @@ struct mt76_queue_ops {
+@@ -305,7 +305,7 @@ struct mt76_queue_ops {
  
  	void (*kick)(struct mt76_dev *dev, struct mt76_queue *q);
  
@@ -83,7 +84,7 @@ index 162f7883..72cfea14 100644
  };
  
  enum mt76_phy_type {
-@@ -1757,8 +1757,13 @@ static inline bool mt76_queue_is_wed_rro_ind(struct mt76_queue *q)
+@@ -1758,8 +1758,13 @@ static inline bool mt76_queue_is_wed_rro_ind(struct mt76_queue *q)
  static inline bool mt76_queue_is_wed_rro_data(struct mt76_queue *q)
  {
  	return mt76_queue_is_wed_rro(q) &&
@@ -99,7 +100,7 @@ index 162f7883..72cfea14 100644
  }
  
  static inline bool mt76_queue_is_wed_rx(struct mt76_queue *q)
-@@ -1767,7 +1772,8 @@ static inline bool mt76_queue_is_wed_rx(struct mt76_queue *q)
+@@ -1768,7 +1773,8 @@ static inline bool mt76_queue_is_wed_rx(struct mt76_queue *q)
  		return false;
  
  	return FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX ||
@@ -172,7 +173,7 @@ index 5d85e9ea..d9e1b17f 100644
  	mt7996_dma_enable(dev, !force);
  }
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 440c4b7c..3b1f4273 100644
+index ac0ef6c1..b0c307fb 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -737,11 +737,91 @@ void mt7996_wfsys_reset(struct mt7996_dev *dev)
@@ -322,10 +323,10 @@ index 440c4b7c..3b1f4273 100644
  #else
  	return 0;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index dfc68a19..be3fea21 100644
+index 094d6420..d58177ec 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1761,6 +1761,31 @@ mt7996_mac_restart(struct mt7996_dev *dev)
+@@ -1773,6 +1773,31 @@ mt7996_mac_restart(struct mt7996_dev *dev)
  	if (ret)
  		goto out;
  
@@ -358,10 +359,10 @@ index dfc68a19..be3fea21 100644
  	ret = mt7996_mcu_set_eeprom(dev);
  	if (ret)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 27f7e27b..e54e987a 100644
+index ed38a8ab..674f9de1 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -719,6 +719,7 @@ extern const struct mt76_testmode_ops mt7996_testmode_ops;
+@@ -723,6 +723,7 @@ extern const struct mt76_testmode_ops mt7996_testmode_ops;
  struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
  				     void __iomem *mem_base, u32 device_id);
  void mt7996_wfsys_reset(struct mt7996_dev *dev);

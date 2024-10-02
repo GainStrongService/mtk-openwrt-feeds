@@ -1,7 +1,7 @@
-From 0329e5904dd0a154155041583a5e615d8a4453c1 Mon Sep 17 00:00:00 2001
+From 67c0e729c31b13fc348746b398857c353e43dab1 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Mon, 8 Apr 2024 16:56:09 +0800
-Subject: [PATCH 105/195] mtk: mt76: mt7996: Fix get_txpower wrong result in
+Subject: [PATCH 105/223] mtk: mt76: mt7996: Fix get_txpower wrong result in
  single wiphy and legacy mode
 
 Fix get_txpower wrong result in single wiphy and legacy mode.
@@ -9,12 +9,13 @@ ieee80211_hw is get from wiphy0, so we need to get correct phy from vif.
 
 Temporarily use link 0 bss due to mac80211 didn't pass link id here.
 
+Change-Id: I306897ded276b0e5aee191339f18f0f25ca322f2
 ---
  mt7996/main.c | 28 +++++++++++++++++++++++++++-
  1 file changed, 27 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 466b051b..5f9997ba 100644
+index 67948343..b7096901 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -982,6 +982,32 @@ out:

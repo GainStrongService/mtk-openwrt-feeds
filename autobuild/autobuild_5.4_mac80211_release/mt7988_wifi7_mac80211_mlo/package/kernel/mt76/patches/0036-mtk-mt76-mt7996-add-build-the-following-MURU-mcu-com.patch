@@ -1,13 +1,14 @@
-From ac6f7b11db498122fcbf3db3bbd153cad6451a91 Mon Sep 17 00:00:00 2001
+From e4a6bac2e1b29a00396adc9bdd1b276eb3e0ee4a Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Tue, 13 Jun 2023 14:49:02 +0800
-Subject: [PATCH 036/195] mtk: mt76: mt7996: add build the following MURU mcu
+Subject: [PATCH 036/223] mtk: mt76: mt7996: add build the following MURU mcu
  command tlvs
 
 It includes the following tlvs:
 1. MURU tlv id 0x10, 0x33, 0xC8, 0xC9, 0xCA, 0xCC, 0xCD
 2. BF tlv id 0x1c
 
+Change-Id: I0ae5cbed5b4370d39a6cfca50721873845659006
 ---
  mt7996/mcu.h         |   1 +
  mt7996/mt7996.h      |   3 ++
@@ -29,10 +30,10 @@ index 8a718513..a98b174e 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 390c7eba..f849cde7 100644
+index 8d986dee..ed998c0e 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -821,6 +821,9 @@ void mt7996_mcu_rx_bf_event(struct mt7996_dev *dev, struct sk_buff *skb);
+@@ -852,6 +852,9 @@ void mt7996_mcu_rx_bf_event(struct mt7996_dev *dev, struct sk_buff *skb);
  int mt7996_mcu_set_muru_fixed_rate_enable(struct mt7996_dev *dev, u8 action, int val);
  int mt7996_mcu_set_muru_fixed_rate_parameter(struct mt7996_dev *dev, u8 action, void *para);
  int mt7996_mcu_set_txbf_snd_info(struct mt7996_phy *phy, void *para);
@@ -43,10 +44,10 @@ index 390c7eba..f849cde7 100644
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index b3cc8119..0e029d5d 100644
+index 51449df4..1c4e2c90 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -2912,6 +2912,127 @@ mt7996_sr_scene_cond_show(struct seq_file *file, void *data)
+@@ -2911,6 +2911,127 @@ mt7996_sr_scene_cond_show(struct seq_file *file, void *data)
  }
  DEFINE_SHOW_ATTRIBUTE(mt7996_sr_scene_cond);
  
@@ -174,7 +175,7 @@ index b3cc8119..0e029d5d 100644
  int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  {
  	struct mt7996_dev *dev = phy->dev;
-@@ -3006,6 +3127,8 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -3005,6 +3126,8 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  	debugfs_create_file("bf_fbk_rpt", 0600, dir, phy, &fops_bf_fbk_rpt);
  	debugfs_create_file("pfmu_tag_read", 0600, dir, phy, &fops_bf_pfmu_tag_read);
  

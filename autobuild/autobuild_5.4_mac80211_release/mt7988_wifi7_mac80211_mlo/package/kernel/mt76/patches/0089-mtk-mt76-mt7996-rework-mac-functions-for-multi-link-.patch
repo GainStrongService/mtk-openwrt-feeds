@@ -1,7 +1,7 @@
-From 50e619b7a372a1a8561c70d302e76c94b381fdbc Mon Sep 17 00:00:00 2001
+From 83a66d966beb9a326c0a75641d21e562306cc8ab Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 4 Dec 2023 18:31:02 +0800
-Subject: [PATCH 089/195] mtk: mt76: mt7996: rework mac functions for
+Subject: [PATCH 089/223] mtk: mt76: mt7996: rework mac functions for
  multi-link support
 
 This is a preliminary patch to add MLO support for mt7996 chipsets.
@@ -14,7 +14,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  1 file changed, 65 insertions(+), 26 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 8d6a153c..6d0506fc 100644
+index 98cd7e3b..c4cd5bc2 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -85,10 +85,11 @@ static int mt7996_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
@@ -57,7 +57,7 @@ index 8d6a153c..6d0506fc 100644
  		break;
  	case IEEE80211_FCTL_FROMDS:
  		ether_addr_copy(hdr.addr3, eth_hdr->h_source);
-@@ -958,15 +962,21 @@ u32 mt7996_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
+@@ -970,15 +974,21 @@ u32 mt7996_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
  }
  
  static void
@@ -81,7 +81,7 @@ index 8d6a153c..6d0506fc 100644
  		return;
  
  	tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
-@@ -990,17 +1000,17 @@ mt7996_tx_check_aggr(struct ieee80211_sta *sta, struct sk_buff *skb)
+@@ -1002,17 +1012,17 @@ mt7996_tx_check_aggr(struct ieee80211_sta *sta, struct sk_buff *skb)
  		return;
  
  	msta = (struct mt7996_sta *)sta->drv_priv;
@@ -102,7 +102,7 @@ index 8d6a153c..6d0506fc 100644
  	__le32 *txwi;
  	u16 wcid_idx;
  
-@@ -1010,11 +1020,10 @@ mt7996_txwi_free(struct mt7996_dev *dev, struct mt76_txwi_cache *t,
+@@ -1022,11 +1032,10 @@ mt7996_txwi_free(struct mt7996_dev *dev, struct mt76_txwi_cache *t,
  
  	txwi = (__le32 *)mt76_get_txwi_ptr(mdev, t);
  	if (sta) {
@@ -115,7 +115,7 @@ index 8d6a153c..6d0506fc 100644
  	} else {
  		wcid_idx = le32_get_bits(txwi[9], MT_TXD9_WLAN_IDX);
  	}
-@@ -1069,7 +1078,9 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+@@ -1081,7 +1090,9 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
  		 */
  		info = le32_to_cpu(*cur_info);
  		if (info & MT_TXFREE_INFO_PAIR) {
@@ -126,7 +126,7 @@ index 8d6a153c..6d0506fc 100644
  			u16 idx;
  
  			idx = FIELD_GET(MT_TXFREE_INFO_WLAN_ID, info);
-@@ -1078,11 +1089,17 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+@@ -1090,11 +1101,17 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
  			if (!sta)
  				continue;
  
@@ -148,7 +148,7 @@ index 8d6a153c..6d0506fc 100644
  			spin_unlock_bh(&mdev->sta_poll_lock);
  			continue;
  		} else if (info & MT_TXFREE_INFO_HEADER) {
-@@ -1118,7 +1135,8 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+@@ -1130,7 +1147,8 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
  			if (!txwi)
  				continue;
  
@@ -158,7 +158,7 @@ index 8d6a153c..6d0506fc 100644
  		}
  	}
  
-@@ -1533,19 +1551,29 @@ static void
+@@ -1545,19 +1563,29 @@ static void
  mt7996_update_vif_beacon(void *priv, u8 *mac, struct ieee80211_vif *vif)
  {
  	struct ieee80211_hw *hw = priv;
@@ -191,7 +191,7 @@ index 8d6a153c..6d0506fc 100644
  }
  
  static void
-@@ -1581,7 +1609,7 @@ void mt7996_tx_token_put(struct mt7996_dev *dev)
+@@ -1593,7 +1621,7 @@ void mt7996_tx_token_put(struct mt7996_dev *dev)
  
  	spin_lock_bh(&dev->mt76.token_lock);
  	idr_for_each_entry(&dev->mt76.token, txwi, id) {
@@ -200,7 +200,7 @@ index 8d6a153c..6d0506fc 100644
  		dev->mt76.token_count--;
  	}
  	spin_unlock_bh(&dev->mt76.token_lock);
-@@ -2265,21 +2293,31 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
+@@ -2277,21 +2305,31 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
  	u32 changed;
  	LIST_HEAD(list);
  
@@ -236,7 +236,7 @@ index 8d6a153c..6d0506fc 100644
  
  		if (changed & (IEEE80211_RC_SUPP_RATES_CHANGED |
  			       IEEE80211_RC_NSS_CHANGED |
-@@ -2294,6 +2332,7 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
+@@ -2306,6 +2344,7 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
  	}
  
  	spin_unlock_bh(&dev->mt76.sta_poll_lock);

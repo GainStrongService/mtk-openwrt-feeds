@@ -1,11 +1,12 @@
-From 55a2e1852f48c51839a335c92c7291ae4c08b80f Mon Sep 17 00:00:00 2001
+From 0764c048b72deb7ee2f988a4c6f708c661182f81 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 28 Mar 2024 18:50:04 +0800
-Subject: [PATCH 097/195] mtk: mt76: mt7996: temp support for single wiphy
+Subject: [PATCH 097/223] mtk: mt76: mt7996: temp support for single wiphy
 
 Add temporal single wiphy for simultaneously supporting MLD and legacy
 interfaces.
 
+Change-Id: I21cda8d1e35aff924aa028d2554ae966be263717
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
  mac80211.c      |  9 -----
@@ -18,7 +19,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  7 files changed, 86 insertions(+), 80 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index d4efd1dd..cc4c4b31 100644
+index b1af346a..a98fe4fb 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -823,13 +823,9 @@ EXPORT_SYMBOL_GPL(mt76_has_tx_pending);
@@ -48,10 +49,10 @@ index d4efd1dd..cc4c4b31 100644
  }
  EXPORT_SYMBOL_GPL(mt76_channel_state);
 diff --git a/mt76.h b/mt76.h
-index 3e593321..c43efdfb 100644
+index 2dea07a3..b65a6b0a 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -843,8 +843,8 @@ struct mt76_vif {
+@@ -845,8 +845,8 @@ struct mt76_vif {
  
  struct mt76_phy {
  	struct ieee80211_hw *hw;
@@ -78,10 +79,10 @@ index 3e593321..c43efdfb 100644
  mt76_get_txwi_ptr(struct mt76_dev *dev, struct mt76_txwi_cache *t)
  {
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index cd93a3c2..c4714982 100644
+index 8272ead2..f9bd4d91 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
-@@ -390,12 +390,6 @@ static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
+@@ -422,12 +422,6 @@ static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
  		break;
  	}
  
@@ -95,7 +96,7 @@ index cd93a3c2..c4714982 100644
  }
  
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 2fe869c9..f75aa568 100644
+index cedadefc..f26687df 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -19,13 +19,13 @@ static const struct ieee80211_iface_limit if_limits[] = {
@@ -153,7 +154,7 @@ index 2fe869c9..f75aa568 100644
  	mt7996_unregister_thermal(phy);
  
  	mphy = phy->dev->mt76.phys[band];
-@@ -1677,6 +1684,12 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1697,6 +1704,12 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	if (ret)
  		return ret;
  
@@ -166,7 +167,7 @@ index 2fe869c9..f75aa568 100644
  	ieee80211_queue_work(mt76_hw(dev), &dev->init_work);
  
  	dev->recovery.hw_init_done = true;
-@@ -1706,11 +1719,11 @@ error:
+@@ -1726,11 +1739,11 @@ error:
  void mt7996_unregister_device(struct mt7996_dev *dev)
  {
  	cancel_work_sync(&dev->wed_rro.work);
@@ -181,10 +182,10 @@ index 2fe869c9..f75aa568 100644
  	mt7996_mcu_exit(dev);
  	mt7996_tx_token_put(dev);
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index a306ad71..24df5bb5 100644
+index 9c256655..f5725b3c 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2402,10 +2402,7 @@ void mt7996_mac_work(struct work_struct *work)
+@@ -2414,10 +2414,7 @@ void mt7996_mac_work(struct work_struct *work)
  
  	mt76_tx_status_check(mdev, false);
  
@@ -197,7 +198,7 @@ index a306ad71..24df5bb5 100644
  }
  
 diff --git a/mt7996/main.c b/mt7996/main.c
-index b2197a58..66d2b993 100644
+index 5c2bc2b0..d9cd7df1 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -140,6 +140,10 @@ static int mt7996_start(struct ieee80211_hw *hw)
@@ -211,7 +212,7 @@ index b2197a58..66d2b993 100644
  	flush_work(&dev->init_work);
  
  	mutex_lock(&dev->mt76.mutex);
-@@ -154,6 +158,10 @@ static void mt7996_stop(struct ieee80211_hw *hw)
+@@ -154,6 +158,10 @@ static void mt7996_stop(struct ieee80211_hw *hw, bool suspend)
  	struct mt7996_dev *dev = mt7996_hw_dev(hw);
  	int band;
  
@@ -222,7 +223,7 @@ index b2197a58..66d2b993 100644
  	cancel_delayed_work_sync(&dev->scs_work);
  
  	for (band = 0; band < NUM_NL80211_BANDS; band++) {
-@@ -173,7 +181,6 @@ static void mt7996_stop(struct ieee80211_hw *hw)
+@@ -173,7 +181,6 @@ static void mt7996_stop(struct ieee80211_hw *hw, bool suspend)
  		mutex_lock(&dev->mt76.mutex);
  		mt7996_mcu_set_radio_en(phy, false);
  		clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
@@ -422,10 +423,10 @@ index b2197a58..66d2b993 100644
  		mutex_unlock(&phy->dev->mt76.mutex);
  		return -ENOSPC;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 725d5d5f..9be34307 100644
+index ba954623..66908ad2 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -795,21 +795,19 @@ mt7996_get_background_radar_cap(struct mt7996_dev *dev)
+@@ -799,21 +799,19 @@ mt7996_has_background_radar(struct mt7996_dev *dev)
  static inline struct mt7996_phy *
  mt7996_band_phy(struct ieee80211_hw *hw, enum nl80211_band band)
  {

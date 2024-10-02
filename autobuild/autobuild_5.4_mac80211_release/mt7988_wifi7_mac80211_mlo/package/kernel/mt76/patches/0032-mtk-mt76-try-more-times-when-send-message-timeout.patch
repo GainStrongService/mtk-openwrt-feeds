@@ -1,15 +1,16 @@
-From 5bb3fda146ed7d46a2d719c5847c9965af5346d2 Mon Sep 17 00:00:00 2001
+From 6a7e30cf77280b1eb10fd17347ba33759f0d9148 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Nov 2023 11:10:10 +0800
-Subject: [PATCH 032/195] mtk: mt76: try more times when send message timeout.
+Subject: [PATCH 032/223] mtk: mt76: try more times when send message timeout.
 
+Change-Id: Ib7c01e6c9f74f68d8404a3d8bada9e5a10c4e232
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
- dma.c        |  7 +++++--
- mcu.c        |  3 ++-
- mt7996/mac.c | 37 ++++++++++++-------------------------
+ dma.c        |  7 ++++--
+ mcu.c        | 70 +++++++++++++++++++++++++++-------------------------
+ mt7996/mac.c | 37 +++++++++------------------
  mt7996/mcu.c |  1 +
- 4 files changed, 20 insertions(+), 28 deletions(-)
+ 4 files changed, 54 insertions(+), 61 deletions(-)
 
 diff --git a/dma.c b/dma.c
 index 56044639..66c000ef 100644
@@ -39,7 +40,7 @@ index 56044639..66c000ef 100644
  
  static int
 diff --git a/mcu.c b/mcu.c
-index 6f4aee29..93184cea 100644
+index 2bcce21f..fed363d0 100644
 --- a/mcu.c
 +++ b/mcu.c
 @@ -4,6 +4,7 @@
@@ -50,20 +51,103 @@ index 6f4aee29..93184cea 100644
  #include <linux/moduleparam.h>
  
  struct sk_buff *
-@@ -93,7 +94,7 @@ int mt76_mcu_skb_send_and_get_msg(struct mt76_dev *dev, struct sk_buff *skb,
- retry:
- 	orig_skb = skb_get(skb);
- 	ret = dev->mcu_ops->mcu_skb_send_msg(dev, skb, cmd, &seq);
--	if (ret < 0)
-+	if (ret < 0 && ret != -EAGAIN)
- 		goto out;
+@@ -75,7 +76,7 @@ int mt76_mcu_skb_send_and_get_msg(struct mt76_dev *dev, struct sk_buff *skb,
+ 				  struct sk_buff **ret_skb)
+ {
+ 	unsigned int retry = 0;
+-	struct sk_buff *orig_skb = NULL;
++	struct sk_buff *skb_tmp;
+ 	unsigned long expires;
+ 	int ret, seq;
  
- 	if (!wait_resp) {
+@@ -84,48 +85,49 @@ int mt76_mcu_skb_send_and_get_msg(struct mt76_dev *dev, struct sk_buff *skb,
+ 
+ 	mutex_lock(&dev->mcu.mutex);
+ 
+-	if (dev->mcu_ops->mcu_skb_prepare_msg) {
+-		orig_skb = skb;
+-		ret = dev->mcu_ops->mcu_skb_prepare_msg(dev, skb, cmd, &seq);
+-		if (ret < 0)
++	while (retry < dev->mcu_ops->max_retry) {
++		skb_tmp = mt76_mcu_msg_alloc(dev, skb->data, skb->len);
++		if (!skb_tmp)
+ 			goto out;
+-	}
+-
+-retry:
+-	/* orig skb might be needed for retry, mcu_skb_send_msg consumes it */
+-	if (orig_skb)
+-		skb_get(orig_skb);
+-	ret = dev->mcu_ops->mcu_skb_send_msg(dev, skb, cmd, &seq);
+-	if (ret < 0)
+-		goto out;
+-
+-	if (!wait_resp) {
+-		ret = 0;
+-		goto out;
+-	}
+-
+-	expires = jiffies + dev->mcu.timeout;
+ 
+-	do {
+-		skb = mt76_mcu_get_response(dev, expires);
+-		if (!skb && !test_bit(MT76_MCU_RESET, &dev->phy.state) &&
+-		    orig_skb && retry++ < dev->mcu_ops->max_retry) {
++		if (wait_resp && retry) {
++			if (test_bit(MT76_MCU_RESET, &dev->phy.state))
++				usleep_range(200000, 500000);
+ 			dev_err(dev->dev, "Retry message %08x (seq %d)\n",
+ 				cmd, seq);
+-			skb = orig_skb;
+-			goto retry;
+ 		}
+ 
+-		ret = dev->mcu_ops->mcu_parse_response(dev, cmd, skb, seq);
+-		if (!ret && ret_skb)
+-			*ret_skb = skb;
+-		else
+-			dev_kfree_skb(skb);
+-	} while (ret == -EAGAIN);
++		ret = dev->mcu_ops->mcu_skb_send_msg(dev, skb_tmp, cmd, &seq);
++		if (ret < 0 && ret != -EAGAIN)
++			goto out;
+ 
++		if (!wait_resp) {
++			ret = 0;
++			goto out;
++		}
++
++		expires = jiffies + dev->mcu.timeout;
++
++		do {
++			skb_tmp = mt76_mcu_get_response(dev, expires);
++			ret = dev->mcu_ops->mcu_parse_response(dev, cmd, skb_tmp, seq);
++			if (ret == -ETIMEDOUT)
++				break;
++
++			if (!ret && ret_skb)
++				*ret_skb = skb_tmp;
++			else
++				dev_kfree_skb(skb_tmp);
++
++			if (ret != -EAGAIN)
++				goto out;
++		} while (ret == -EAGAIN);
++
++		retry++;
++	}
+ 
+ out:
+-	dev_kfree_skb(orig_skb);
++	dev_kfree_skb(skb);
+ 	mutex_unlock(&dev->mcu.mutex);
+ 
+ 	return ret;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 8226e443..503a562a 100644
+index 428ccb1a..3c9ee0c8 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1793,13 +1793,24 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
+@@ -1805,13 +1805,24 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
  	phy3 = mt7996_phy3(dev);
  	dev->recovery.hw_full_reset = true;
  
@@ -89,7 +173,7 @@ index 8226e443..503a562a 100644
  	cancel_work_sync(&dev->wed_rro.work);
  	cancel_delayed_work_sync(&dev->mphy.mac_work);
  	if (phy2)
-@@ -1902,16 +1913,6 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -1914,16 +1925,6 @@ void mt7996_mac_reset_work(struct work_struct *work)
  	set_bit(MT76_MCU_RESET, &dev->mphy.state);
  	wake_up(&dev->mt76.mcu.wait);
  
@@ -106,7 +190,7 @@ index 8226e443..503a562a 100644
  	mt76_worker_disable(&dev->mt76.tx_worker);
  	mt76_for_each_q_rx(&dev->mt76, i) {
  		if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
-@@ -1922,8 +1923,6 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -1934,8 +1935,6 @@ void mt7996_mac_reset_work(struct work_struct *work)
  	}
  	napi_disable(&dev->mt76.tx_napi);
  
@@ -115,7 +199,7 @@ index 8226e443..503a562a 100644
  	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_DMA_STOPPED);
  
  	if (mt7996_wait_reset_state(dev, MT_MCU_CMD_RESET_DONE)) {
-@@ -1996,20 +1995,8 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -2008,20 +2007,8 @@ void mt7996_mac_reset_work(struct work_struct *work)
  	if (phy3)
  		ieee80211_wake_queues(phy3->mt76->hw);
  
@@ -137,10 +221,10 @@ index 8226e443..503a562a 100644
  		 wiphy_name(dev->mt76.hw->wiphy));
  }
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index a03ac376..e3519f13 100644
+index 9e6f4d13..08234b3a 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3129,6 +3129,7 @@ int mt7996_mcu_init_firmware(struct mt7996_dev *dev)
+@@ -3139,6 +3139,7 @@ int mt7996_mcu_init_firmware(struct mt7996_dev *dev)
  int mt7996_mcu_init(struct mt7996_dev *dev)
  {
  	static const struct mt76_mcu_ops mt7996_mcu_ops = {

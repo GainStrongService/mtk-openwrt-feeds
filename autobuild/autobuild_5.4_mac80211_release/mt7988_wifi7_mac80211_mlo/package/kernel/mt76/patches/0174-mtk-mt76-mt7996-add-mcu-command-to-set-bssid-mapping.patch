@@ -1,13 +1,14 @@
-From 2010b74cd20bfe8ab263b47baa7d546c3506f2fa Mon Sep 17 00:00:00 2001
+From 848a43638c737f72cf30a53b855f0f09ee7be729 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 22 Jul 2024 10:47:45 +0800
-Subject: [PATCH 174/195] mtk: mt76: mt7996: add mcu command to set bssid
+Subject: [PATCH 174/223] mtk: mt76: mt7996: add mcu command to set bssid
  mapping address
 
 When receiving 4 address non-amsdu packet, there is no bssid in the address
 field. Set mcu command to use A1 as bssid when receiving 4 address non-amsdu
 packet.
 
+Change-Id: I599c9ea5a1a7cecc206b099ea13c583d71fd274b
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  mt7996/init.c   |  7 +++++++
@@ -17,7 +18,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  4 files changed, 35 insertions(+)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index f923ce66..25f772af 100644
+index 18847ff5..d7a1d7cd 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -539,6 +539,9 @@ mt7996_mac_init_band(struct mt7996_dev *dev, u8 band)
@@ -42,10 +43,10 @@ index f923ce66..25f772af 100644
  
  static void mt7996_mac_init_basic_rates(struct mt7996_dev *dev)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index d9b97f36..1dfb6dcc 100644
+index b47aa7d6..dc1af0be 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -6120,6 +6120,32 @@ int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
+@@ -6127,6 +6127,32 @@ int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
  				 &req, sizeof(req), true);
  }
  
@@ -91,10 +92,10 @@ index ffa574b8..5d4625c8 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 97b91fbc..0535a875 100644
+index 21019bc2..b9b52d17 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1108,6 +1108,7 @@ int mt7996_mcu_set_radar_th(struct mt7996_dev *dev, int index,
+@@ -1112,6 +1112,7 @@ int mt7996_mcu_set_radar_th(struct mt7996_dev *dev, int index,
  			    const struct mt7996_dfs_pattern *pattern);
  int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable);
  int mt7996_mcu_set_rts_thresh(struct mt7996_phy *phy, u32 val);

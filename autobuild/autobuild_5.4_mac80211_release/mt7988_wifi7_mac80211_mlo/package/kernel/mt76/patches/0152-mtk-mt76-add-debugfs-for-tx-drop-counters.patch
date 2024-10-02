@@ -1,8 +1,9 @@
-From d2c9006a5bfe9e236d999caa097627bb18e51f0d Mon Sep 17 00:00:00 2001
+From e126a0d9cd5d6a25caf5db58a5cc5edb6b22cc16 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 13 Jun 2024 17:47:13 +0800
-Subject: [PATCH 152/195] mtk: mt76: add debugfs for tx drop counters
+Subject: [PATCH 152/223] mtk: mt76: add debugfs for tx drop counters
 
+Change-Id: I1d375169cca29fb58544edfbd235ef3e058a130a
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  dma.c                | 22 +++++++++---
@@ -86,7 +87,7 @@ index 3f1fb6c2..0dae40e2 100644
  				tx_info.info, tx_info.skb, t);
  
 diff --git a/mac80211.c b/mac80211.c
-index 04a24544..6412a002 100644
+index a555bec2..93ff77be 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -417,6 +417,7 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
@@ -106,10 +107,10 @@ index 04a24544..6412a002 100644
  	init_waitqueue_head(&dev->tx_wait);
  
 diff --git a/mt76.h b/mt76.h
-index 3099199c..576e9d58 100644
+index 8e71c2ce..8e78ba86 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -847,6 +847,31 @@ struct mt76_vif {
+@@ -849,6 +849,31 @@ struct mt76_vif {
  	struct ieee80211_chanctx_conf *ctx;
  };
  
@@ -141,7 +142,7 @@ index 3099199c..576e9d58 100644
  struct mt76_phy {
  	struct ieee80211_hw *hw;
  	struct ieee80211_hw *ori_hw;
-@@ -904,6 +929,7 @@ struct mt76_phy {
+@@ -906,6 +931,7 @@ struct mt76_phy {
  		bool al;
  		u8 pin;
  	} leds;
@@ -149,7 +150,7 @@ index 3099199c..576e9d58 100644
  };
  
  struct mt76_dev {
-@@ -1008,6 +1034,7 @@ struct mt76_dev {
+@@ -1010,6 +1036,7 @@ struct mt76_dev {
  	};
  
  	const char *bin_file_name;
@@ -158,10 +159,10 @@ index 3099199c..576e9d58 100644
  
  #define MT76_MAX_AMSDU_NUM 8
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 017e3465..0f282f16 100644
+index c341a553..a78ebefc 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -897,11 +897,15 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -909,11 +909,15 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	u8 *txwi = (u8 *)txwi_ptr;
  	u8 link_id;
  
@@ -179,7 +180,7 @@ index 017e3465..0f282f16 100644
  
  	msta = sta ? (struct mt7996_sta *)sta->drv_priv : &mvif->sta;
  	if (ieee80211_is_data_qos(hdr->frame_control) && sta->mlo) {
-@@ -927,15 +931,19 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -939,15 +943,19 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	}
  
  	mconf = rcu_dereference(mvif->link[wcid->link_id]);
@@ -201,7 +202,7 @@ index 017e3465..0f282f16 100644
  #ifdef CONFIG_MTK_DEBUG
  	t->jiffies = jiffies;
  #endif
-@@ -957,8 +965,10 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -969,8 +977,10 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  
  		conf = rcu_dereference(vif->link_conf[wcid->link_id]);
  		link_sta = rcu_dereference(sta->link[wcid->link_id]);
@@ -214,7 +215,7 @@ index 017e3465..0f282f16 100644
  		dma_sync_single_for_cpu(mdev->dma_dev, tx_info->buf[1].addr,
  					tx_info->buf[1].len, DMA_TO_DEVICE);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 0d8adfba..b04ce154 100644
+index 455beb74..8fb68880 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1427,11 +1427,13 @@ static void mt7996_tx(struct ieee80211_hw *hw,
@@ -253,10 +254,10 @@ index 0d8adfba..b04ce154 100644
  }
  
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 9bd35c91..759b9d8f 100644
+index f13f09e1..d15d403b 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -4163,6 +4163,83 @@ out:
+@@ -4162,6 +4162,83 @@ out:
  	return ret;
  }
  
@@ -340,7 +341,7 @@ index 9bd35c91..759b9d8f 100644
  /* DRR */
  static int
  mt7996_drr_info(struct seq_file *s, void *data)
-@@ -4288,6 +4365,9 @@ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
+@@ -4287,6 +4364,9 @@ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
  	/* amsdu */
  	debugfs_create_file("amsdu_algo", 0600, dir, dev, &fops_amsdu_algo);
  	debugfs_create_file("amsdu_para", 0600, dir, dev, &fops_amsdu_para);

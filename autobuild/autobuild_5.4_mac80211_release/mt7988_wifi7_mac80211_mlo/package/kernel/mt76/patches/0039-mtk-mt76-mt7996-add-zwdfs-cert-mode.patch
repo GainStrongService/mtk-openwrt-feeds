@@ -1,7 +1,7 @@
-From 88436d5806850055746dab3cd1400b76eca97979 Mon Sep 17 00:00:00 2001
+From fe038594fb92fae539bf05f86022953810e4e1e6 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 22 Sep 2023 12:33:06 +0800
-Subject: [PATCH 039/195] mtk: mt76: mt7996: add zwdfs cert mode
+Subject: [PATCH 039/223] mtk: mt76: mt7996: add zwdfs cert mode
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -13,10 +13,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  5 files changed, 100 insertions(+), 12 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 09e386c0..c4ac4b7f 100644
+index c0bd2d13..9e548100 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -4502,18 +4502,7 @@ int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable)
+@@ -4532,18 +4532,7 @@ int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable)
  int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
  		       u8 rx_sel, u8 val)
  {
@@ -36,7 +36,7 @@ index 09e386c0..c4ac4b7f 100644
  		.tag = cpu_to_le16(UNI_RDD_CTRL_PARM),
  		.len = cpu_to_le16(sizeof(req) - 4),
  		.ctrl = cmd,
-@@ -4526,6 +4515,37 @@ int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
+@@ -4556,6 +4545,37 @@ int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
  				 &req, sizeof(req), true);
  }
  
@@ -100,10 +100,10 @@ index c6bb93b3..3025f849 100644
  	u8 _rsv[4];
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 27e93ad7..ab60eb77 100644
+index 32a0ffd8..e406dc87 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -523,8 +523,11 @@ enum mt7996_rdd_cmd {
+@@ -536,8 +536,11 @@ enum mt7996_rdd_cmd {
  	RDD_READ_PULSE,
  	RDD_RESUME_BF,
  	RDD_IRQ_OFF,
@@ -115,7 +115,7 @@ index 27e93ad7..ab60eb77 100644
  static inline struct mt7996_phy *
  mt7996_hw_phy(struct ieee80211_hw *hw)
  {
-@@ -666,6 +669,8 @@ int mt7996_mcu_set_thermal_protect(struct mt7996_phy *phy, bool enable);
+@@ -697,6 +700,8 @@ int mt7996_mcu_set_thermal_protect(struct mt7996_phy *phy, bool enable);
  int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy);
  int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
  		       u8 rx_sel, u8 val);

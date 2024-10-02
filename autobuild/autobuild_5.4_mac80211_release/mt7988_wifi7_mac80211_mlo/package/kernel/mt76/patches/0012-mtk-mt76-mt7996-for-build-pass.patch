@@ -1,8 +1,9 @@
-From e7ded1bf4fe9ad1dd36d948806ee551156442041 Mon Sep 17 00:00:00 2001
+From 5ef8895f1b5e8684b4f81ce52bffa28e629d966b Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 3 Nov 2022 00:27:17 +0800
-Subject: [PATCH 012/195] mtk: mt76: mt7996: for build pass
+Subject: [PATCH 012/223] mtk: mt76: mt7996: for build pass
 
+Change-Id: Ieb44c33ee6e6a2e6058c1ef528404c1a1cbcfdaf
 ---
  debugfs.c         | 3 +++
  dma.c             | 2 +-
@@ -45,7 +46,7 @@ index f4f88c44..56044639 100644
  			goto free_frag;
  
 diff --git a/mcu.c b/mcu.c
-index 98da82b7..6f4aee29 100644
+index 3353012e..2bcce21f 100644
 --- a/mcu.c
 +++ b/mcu.c
 @@ -4,6 +4,7 @@
@@ -57,7 +58,7 @@ index 98da82b7..6f4aee29 100644
  struct sk_buff *
  __mt76_mcu_msg_alloc(struct mt76_dev *dev, const void *data,
 diff --git a/mt7615/mcu.c b/mt7615/mcu.c
-index 15921887..bc9e87f8 100644
+index 4e350f27..c2090378 100644
 --- a/mt7615/mcu.c
 +++ b/mt7615/mcu.c
 @@ -10,6 +10,7 @@
@@ -69,7 +70,7 @@ index 15921887..bc9e87f8 100644
  static bool prefer_offload_fw = true;
  module_param(prefer_offload_fw, bool, 0644);
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 864246f9..26a8acec 100644
+index 77f3e92d..07f52dd6 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -4,6 +4,7 @@
@@ -81,7 +82,7 @@ index 864246f9..26a8acec 100644
  int mt76_connac_mcu_start_firmware(struct mt76_dev *dev, u32 addr, u32 option)
  {
 diff --git a/mt7915/mcu.c b/mt7915/mcu.c
-index 7fc0e967..9c617de4 100644
+index 72c8e574..b04a960b 100644
 --- a/mt7915/mcu.c
 +++ b/mt7915/mcu.c
 @@ -6,6 +6,7 @@
@@ -108,19 +109,19 @@ index 73e633d0..759a58e8 100644
  
  	mt7996_dma_enable(dev, false);
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index f38629e3..bd02eb00 100644
+index 77dd6b20..21379ce0 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
-@@ -138,6 +138,7 @@ static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_dev *dev)
+@@ -249,6 +249,7 @@ static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_phy *phy,
  	if (ret)
  		return ret;
  
 +	cap = 0x4b249248;	/* internal hardcode */
  	if (cap) {
- 		dev->has_eht = !(cap & MODE_HE_ONLY);
- 		dev->wtbl_size_group = u32_get_bits(cap, WTBL_SIZE_GROUP);
+ 		u8 band_offs = phy->mt76->band_idx * 3;
+ 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index dff8b971..94b32ac2 100644
+index 46fb3a03..623d19f1 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -5,6 +5,7 @@

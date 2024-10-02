@@ -1,7 +1,7 @@
-From 6005e96634290a47590309fa2985e0992f9597e5 Mon Sep 17 00:00:00 2001
+From 8908556d4135d7aee178baa3bfb9d3025d1611d9 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Tue, 28 May 2024 15:31:39 +0800
-Subject: [PATCH 163/195] mtk: mt76: mt7996: update preamble puncture support
+Subject: [PATCH 163/223] mtk: mt76: mt7996: update preamble puncture support
  for mt7996
 
 Add pp station mode support. Current fw only support one bitmap on a band.
@@ -10,6 +10,9 @@ fw mode and detect the same bitmap. So that extender AP/STA can use the
 same bitmap setting.
 Current PP_DSCB_CTRL cmd only use bitmap value in fw implementation.
 
+Change-Id: I93fe7d37d6d0945b92c11e0ff9ee8a35340ddaf2
+Change-Id: I93f61b8bcaa79808745850921b0c18d187bc7113
+Change-Id: I04f1746ad52fef57720e8531d861078934c139c2
 Signed-off-by: Allen Ye <allen.ye@mediatek.com>
 ---
  mt76_connac_mcu.h |   1 +
@@ -20,10 +23,10 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  5 files changed, 165 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 8e57fa2c..781b0178 100644
+index 931b29eb..cc644edf 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1071,6 +1071,7 @@ enum {
+@@ -1076,6 +1076,7 @@ enum {
  	MCU_UNI_EVENT_TESTMODE_CTRL = 0x46,
  	MCU_UNI_EVENT_CSI_REPORT = 0x4A,
  	MCU_UNI_EVENT_WED_RRO = 0x57,
@@ -32,7 +35,7 @@ index 8e57fa2c..781b0178 100644
  	MCU_UNI_EVENT_ALL_STA_INFO = 0x6e,
  };
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 2643a72e..926879c9 100644
+index 103902b7..562137a5 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1241,6 +1241,12 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
@@ -86,10 +89,10 @@ index 2643a72e..926879c9 100644
  		if (ret)
  			goto out;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index c65154f8..2f8d155c 100644
+index 723a7ad9..fce92046 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1280,6 +1280,39 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -1285,6 +1285,39 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	}
  }
  
@@ -129,7 +132,7 @@ index c65154f8..2f8d155c 100644
  static void
  mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
  {
-@@ -1305,6 +1338,9 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -1310,6 +1343,9 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	case MCU_UNI_EVENT_WED_RRO:
  		mt7996_mcu_wed_rro_event(dev, skb);
  		break;
@@ -139,7 +142,7 @@ index c65154f8..2f8d155c 100644
  #ifdef CONFIG_MTK_DEBUG
  	case MCU_UNI_EVENT_SR:
  		mt7996_mcu_rx_sr_event(dev, skb);
-@@ -6277,7 +6313,8 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap)
+@@ -6284,7 +6320,8 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap)
  		u8 force_bitmap_ctrl;
  		u8 auto_mode;
  		__le16 bitmap;
@@ -149,7 +152,7 @@ index c65154f8..2f8d155c 100644
  	} __packed req = {
  		.tag = cpu_to_le16(UNI_CMD_PP_EN_CTRL),
  		.len = cpu_to_le16(sizeof(req) - 4),
-@@ -6287,6 +6324,7 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap)
+@@ -6294,6 +6331,7 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap)
  		.force_bitmap_ctrl = (mode == PP_USR_MODE) ? 2 : 0,
  		.auto_mode = pp_auto,
  		.bitmap = cpu_to_le16(bitmap),
@@ -157,7 +160,7 @@ index c65154f8..2f8d155c 100644
  	};
  
  	if (phy->chanctx->chandef.chan->band == NL80211_BAND_2GHZ ||
-@@ -6303,6 +6341,73 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap)
+@@ -6310,6 +6348,73 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap)
  				 &req, sizeof(req), false);
  }
  
@@ -284,10 +287,10 @@ index d99e9a60..011b6c7a 100644
  	UNI_CMD_SCS_SEND_DATA,
  	UNI_CMD_SCS_SET_PD_THR_RANGE = 2,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index fe97bea1..9ff7fdae 100644
+index c122989d..58151ed0 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1276,6 +1276,8 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
+@@ -1280,6 +1280,8 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
  				     struct mt7996_link_sta *mlink);
  int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode);
  int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap);

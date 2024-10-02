@@ -1,12 +1,13 @@
-From f9a3de2b156e9266cfd8b16955b60fce90d566df Mon Sep 17 00:00:00 2001
+From cd89b66b8dac6cbb4569d61c7f23b06692410adf Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 7 Jun 2024 13:23:55 +0800
-Subject: [PATCH 144/195] mtk: mt76: mt7996: support link_id for
+Subject: [PATCH 144/223] mtk: mt76: mt7996: support link_id for
  mt7996_set_bitrate_mask
 
 Add support new argument link_id for set_bitrate_mask within
 ieee80211_ops.
 
+Change-Id: Ic164e7e332e273992965bb5f7b89ca2fce1f1e53
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 ---
  mt7996/main.c   | 34 ++++++++++++++++++++++++++--------
@@ -14,7 +15,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  2 files changed, 31 insertions(+), 8 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 93d920aa..87247597 100644
+index 380a6ca0..118c7d67 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1899,17 +1899,21 @@ static void mt7996_sta_rc_work(void *data, struct ieee80211_sta *sta)
@@ -100,10 +101,10 @@ index 93d920aa..87247597 100644
  
  	return 0;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 5c326286..8125dacc 100644
+index d97df22f..ccea70af 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -444,6 +444,11 @@ struct mt7996_wed_rro_session_id {
+@@ -445,6 +445,11 @@ struct mt7996_wed_rro_session_id {
  	u16 id;
  };
  

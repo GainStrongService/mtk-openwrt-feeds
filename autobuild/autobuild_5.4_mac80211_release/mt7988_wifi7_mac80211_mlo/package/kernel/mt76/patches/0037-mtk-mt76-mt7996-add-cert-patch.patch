@@ -1,7 +1,7 @@
-From 38a581a83e4c879be7b1c4ca197be71093d774e2 Mon Sep 17 00:00:00 2001
+From d55504a4ab7bd47bcc4c26859eda52302c4855a7 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 14 Aug 2023 13:36:58 +0800
-Subject: [PATCH 037/195] mtk: mt76: mt7996: add cert patch
+Subject: [PATCH 037/223] mtk: mt76: mt7996: add cert patch
 
 This patch includes TGac and TGax
 
@@ -26,6 +26,7 @@ EHT,PPDUTxType,legacy
 Logan set the band_bitmap to 7 in Wi-Fi 7 regardless of whether the UCC
 command specifies an interface.
 
+Change-Id: I9c2a04efa733a6de5c37a21ea71d9715edc27ddb
 Signed-off-by: ye he <ye.he@mediatek.com>
 Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 ---
@@ -41,7 +42,7 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  9 files changed, 779 insertions(+), 7 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 63408421..90e8e7b1 100644
+index 2ce9e839..484f91aa 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -10,6 +10,7 @@
@@ -52,7 +53,7 @@ index 63408421..90e8e7b1 100644
  
  #define to_rssi(field, rcpi)	((FIELD_GET(field, rcpi) - 220) / 2)
  
-@@ -2284,6 +2285,14 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy)
+@@ -2296,6 +2297,14 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy)
  	}
  }
  
@@ -68,7 +69,7 @@ index 63408421..90e8e7b1 100644
  {
  	struct mt7996_dev *dev = container_of(work, struct mt7996_dev, rc_work);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 72297aaa..b3313137 100644
+index 6203e800..dc00cc2f 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -602,6 +602,7 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -131,10 +132,10 @@ index 72297aaa..b3313137 100644
  
  void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 11899d78..12f64ed9 100644
+index baf71b0a..bfedfa3a 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1352,6 +1352,10 @@ mt7996_mcu_sta_vht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
+@@ -1362,6 +1362,10 @@ mt7996_mcu_sta_vht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
  {
  	struct sta_rec_vht *vht;
  	struct tlv *tlv;
@@ -145,7 +146,7 @@ index 11899d78..12f64ed9 100644
  
  	/* For 6G band, this tlv is necessary to let hw work normally */
  	if (!sta->deflink.he_6ghz_capa.capa && !sta->deflink.vht_cap.vht_supported)
-@@ -1363,6 +1367,9 @@ mt7996_mcu_sta_vht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
+@@ -1373,6 +1377,9 @@ mt7996_mcu_sta_vht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
  	vht->vht_cap = cpu_to_le32(sta->deflink.vht_cap.cap);
  	vht->vht_rx_mcs_map = sta->deflink.vht_cap.vht_mcs.rx_mcs_map;
  	vht->vht_tx_mcs_map = sta->deflink.vht_cap.vht_mcs.tx_mcs_map;
@@ -155,7 +156,7 @@ index 11899d78..12f64ed9 100644
  }
  
  static void
-@@ -4446,6 +4453,27 @@ int mt7996_mcu_set_rts_thresh(struct mt7996_phy *phy, u32 val)
+@@ -4476,6 +4483,27 @@ int mt7996_mcu_set_rts_thresh(struct mt7996_phy *phy, u32 val)
  				 &req, sizeof(req), true);
  }
  
@@ -183,7 +184,7 @@ index 11899d78..12f64ed9 100644
  int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable)
  {
  	struct {
-@@ -5013,6 +5041,18 @@ void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
+@@ -5043,6 +5071,18 @@ void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  	val = FIELD_GET(RATE_CFG_VAL, *((u32 *)data));
  
  	switch (mode) {
@@ -239,10 +240,10 @@ index a98b174e..2546354e 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index f849cde7..10b85569 100644
+index ed998c0e..a81e275d 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -354,6 +354,7 @@ struct mt7996_phy {
+@@ -363,6 +363,7 @@ struct mt7996_phy {
  	} test;
  #endif
  #ifdef CONFIG_MTK_VENDOR
@@ -250,7 +251,7 @@ index f849cde7..10b85569 100644
  	spinlock_t amnt_lock;
  	struct mt7996_air_monitor_ctrl amnt_ctrl;
  #endif
-@@ -482,6 +483,9 @@ struct mt7996_dev {
+@@ -495,6 +496,9 @@ struct mt7996_dev {
  	} dbg;
  	const struct mt7996_dbg_reg_desc *dbg_reg;
  #endif
@@ -260,7 +261,7 @@ index f849cde7..10b85569 100644
  };
  
  enum {
-@@ -679,6 +683,7 @@ void mt7996_tm_rf_test_event(struct mt7996_dev *dev, struct sk_buff *skb);
+@@ -710,6 +714,7 @@ void mt7996_tm_rf_test_event(struct mt7996_dev *dev, struct sk_buff *skb);
  int mt7996_mcu_get_tx_power_info(struct mt7996_phy *phy, u8 category, void *event);
  int mt7996_mcu_set_scs(struct mt7996_phy *phy, u8 enable);
  void mt7996_mcu_scs_sta_poll(struct work_struct *work);
@@ -268,7 +269,7 @@ index f849cde7..10b85569 100644
  
  static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
  {
-@@ -797,6 +802,10 @@ void mt7996_vendor_register(struct mt7996_phy *phy);
+@@ -828,6 +833,10 @@ void mt7996_vendor_register(struct mt7996_phy *phy);
  void mt7996_vendor_amnt_fill_rx(struct mt7996_phy *phy, struct sk_buff *skb);
  int mt7996_vendor_amnt_sta_remove(struct mt7996_phy *phy,
  				  struct ieee80211_sta *sta);
@@ -279,7 +280,7 @@ index f849cde7..10b85569 100644
  #endif
  
  int mt7996_mcu_edcca_enable(struct mt7996_phy *phy, bool enable);
-@@ -824,6 +833,10 @@ int mt7996_mcu_set_txbf_snd_info(struct mt7996_phy *phy, void *para);
+@@ -855,6 +864,10 @@ int mt7996_mcu_set_txbf_snd_info(struct mt7996_phy *phy, void *para);
  int mt7996_mcu_set_muru_cmd(struct mt7996_dev *dev, u16 action, int val);
  int mt7996_mcu_muru_set_prot_frame_thr(struct mt7996_dev *dev, u32 val);
  int mt7996_mcu_set_bypass_smthint(struct mt7996_phy *phy, u8 val);

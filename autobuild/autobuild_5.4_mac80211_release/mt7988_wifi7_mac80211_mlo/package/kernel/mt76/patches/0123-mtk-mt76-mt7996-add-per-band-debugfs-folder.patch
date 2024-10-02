@@ -1,10 +1,11 @@
-From a169a549cb048d2915df5ee683506b3c7bac840e Mon Sep 17 00:00:00 2001
+From bfbeab14fc5c4a9caab56873328caee7fb407721 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 16 May 2024 18:03:19 +0800
-Subject: [PATCH 123/195] mtk: mt76: mt7996: add per-band debugfs folder
+Subject: [PATCH 123/223] mtk: mt76: mt7996: add per-band debugfs folder
 
 Add per-band debugfs folder and  move upstream debugfs knob to it.
 
+Change-Id: I4bafff017c6d1264cffab18a5ac6748cc0661c8f
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  mt7996/debugfs.c | 43 +++++++++++++++++++++++++++++++------------
@@ -13,7 +14,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 42 insertions(+), 18 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 2c553cf3..9d74f659 100644
+index 7e545f61..d2b38efb 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -1073,21 +1073,49 @@ mt7996_airtime_read(struct seq_file *s, void *data)
@@ -89,7 +90,7 @@ index 2c553cf3..9d74f659 100644
  			    &fops_fw_debug_muru_disable);
  
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 6e20a174..01795404 100644
+index e674361a..9a2e51f8 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -787,7 +787,7 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
@@ -101,7 +102,7 @@ index 6e20a174..01795404 100644
  	if (ret)
  		goto error;
  
-@@ -1708,6 +1708,14 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1728,6 +1728,14 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	if (ret)
  		return ret;
  
@@ -116,7 +117,7 @@ index 6e20a174..01795404 100644
  	ret = mt7996_register_phy(dev, mt7996_phy2(dev), MT_BAND1);
  	if (ret)
  		return ret;
-@@ -1732,10 +1740,6 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1752,10 +1760,6 @@ int mt7996_register_device(struct mt7996_dev *dev)
  			goto error;
  	}
  
@@ -128,10 +129,10 @@ index 6e20a174..01795404 100644
  	if (ret)
  		goto error;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 6150816d..4c898486 100644
+index 94121471..ef41beee 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1226,7 +1226,8 @@ int mt7996_dfs_init_radar_detector(struct mt7996_phy *phy);
+@@ -1230,7 +1230,8 @@ int mt7996_dfs_init_radar_detector(struct mt7996_phy *phy);
  void mt7996_set_stream_he_eht_caps(struct mt7996_phy *phy);
  void mt7996_set_stream_vht_txbf_caps(struct mt7996_phy *phy);
  void mt7996_update_channel(struct mt76_phy *mphy);

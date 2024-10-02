@@ -1,7 +1,7 @@
-From b9ef397a33c707e9746ad8e927e3310d225ca81b Mon Sep 17 00:00:00 2001
+From 3330075935bef71cea064ce4bf0d4453fdc2301a Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Tue, 3 Jan 2023 09:42:07 +0800
-Subject: [PATCH 035/195] mtk: mt76: mt7996: support BF/MIMO debug commands
+Subject: [PATCH 035/223] mtk: mt76: mt7996: support BF/MIMO debug commands
 
 This commit includes the following commands:
 1. starec_bf_read
@@ -17,6 +17,8 @@ firmware definition.
 Fw gerrit change:
 https://gerrit.mediatek.inc/c/neptune/firmware/bora/wifi/core/+/8218143
 
+Change-Id: Id6cbaf16e4e6f63238a495ac9f45744e1dd38e9b
+Change-Id: I7ece7399370f2bd22d2564029025baeda27057a5
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -29,10 +31,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 989 insertions(+)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 823e982c..11899d78 100644
+index 2a647b7b..baf71b0a 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -744,6 +744,11 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -754,6 +754,11 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	case MCU_UNI_EVENT_TESTMODE_CTRL:
  		mt7996_tm_rf_test_event(dev, skb);
  		break;
@@ -62,10 +64,10 @@ index 3e9364de..8a718513 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index c08dd21b..390c7eba 100644
+index 22d44542..8d986dee 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -816,6 +816,11 @@ int mt7996_mcu_muru_dbg_info(struct mt7996_dev *dev, u16 item, u8 val);
+@@ -847,6 +847,11 @@ int mt7996_mcu_muru_dbg_info(struct mt7996_dev *dev, u16 item, u8 val);
  int mt7996_mcu_set_sr_enable(struct mt7996_phy *phy, u8 action, u64 val, bool set);
  void mt7996_mcu_rx_sr_event(struct mt7996_dev *dev, struct sk_buff *skb);
  int mt7996_mcu_set_dup_wtbl(struct mt7996_dev *dev);
@@ -78,10 +80,10 @@ index c08dd21b..390c7eba 100644
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 06dc794e..b3cc8119 100644
+index 13ea6274..51449df4 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -2997,6 +2997,15 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -2996,6 +2996,15 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  	debugfs_create_file("sr_stats", 0400, dir, phy, &mt7996_sr_stats_fops);
  	debugfs_create_file("sr_scene_cond", 0400, dir, phy, &mt7996_sr_scene_cond_fops);
  

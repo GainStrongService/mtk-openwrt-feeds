@@ -1,32 +1,19 @@
-From df167af4849b81662e8a5768a086bb9740883b9d Mon Sep 17 00:00:00 2001
+From dd6e1e68ae6daf98e724d37d7fb099f2b825b094 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 31 Jul 2024 11:19:53 +0800
-Subject: [PATCH 179/195] mtk: mt76: sync with upstream changes
+Subject: [PATCH 179/223] mtk: mt76: sync with upstream changes
 
+Change-Id: I0d1b5ad073e0e2b6f74fca5e800f0b3365151814
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
- mt7996/main.c | 2 +-
- mt7996/mcu.c  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ mt7996/mcu.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mt7996/main.c b/mt7996/main.c
-index db8aeaef..3e29bf39 100644
---- a/mt7996/main.c
-+++ b/mt7996/main.c
-@@ -153,7 +153,7 @@ static int mt7996_start(struct ieee80211_hw *hw)
- 	return ret;
- }
- 
--static void mt7996_stop(struct ieee80211_hw *hw)
-+static void mt7996_stop(struct ieee80211_hw *hw, bool suspend)
- {
- 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
- 	int band;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b19614d3..190f87e0 100644
+index c6b6f405..47f8b5cc 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -421,7 +421,7 @@ mt7996_mcu_rx_radar_detected(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -426,7 +426,7 @@ mt7996_mcu_rx_radar_detected(struct mt7996_dev *dev, struct sk_buff *skb)
  						&dev->rdd2_chandef,
  						GFP_ATOMIC);
  	} else {

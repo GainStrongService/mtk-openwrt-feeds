@@ -1,12 +1,13 @@
-From 848ec204ea1564992b480c8fcf31b0eb482c01d4 Mon Sep 17 00:00:00 2001
+From 7b4305017b499ad805701f6022ed92b1e5746aa2 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 4 Mar 2024 16:21:16 +0800
-Subject: [PATCH 102/195] mtk: mt76: mt7996: support band_idx option for
+Subject: [PATCH 102/223] mtk: mt76: mt7996: support band_idx option for
  set_mu/get_mu vendor command
 
 The vendor command set_mu and get_mu should be executed with band_idx.
 With band_idx, driver can access the corrsponding phy by band_idx.
 
+Change-Id: Id33d5efd3752e767fc11e852836d9939e4d6a088
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 ---
  mt7996/mcu.c    | 26 +++++++++++++++++++-------
@@ -16,10 +17,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  4 files changed, 56 insertions(+), 12 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 23664b60..c18cb5eb 100644
+index d897098e..48837d41 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -5841,12 +5841,23 @@ int mt7996_mcu_set_vow_feature_ctrl(struct mt7996_phy *phy)
+@@ -5864,12 +5864,23 @@ int mt7996_mcu_set_vow_feature_ctrl(struct mt7996_phy *phy)
  #ifdef CONFIG_MTK_VENDOR
  void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  {
@@ -45,7 +46,7 @@ index 23664b60..c18cb5eb 100644
  
  	switch (mode) {
  	case RATE_PARAM_FIXED_OFDMA:
-@@ -5862,13 +5873,14 @@ void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
+@@ -5885,13 +5896,14 @@ void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  			phy->muru_onoff |= MUMIMO_UL;
  		break;
  	case RATE_PARAM_AUTO_MU:

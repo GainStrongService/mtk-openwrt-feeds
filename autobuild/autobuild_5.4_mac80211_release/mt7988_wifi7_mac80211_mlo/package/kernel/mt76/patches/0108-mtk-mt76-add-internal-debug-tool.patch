@@ -1,7 +1,7 @@
-From 431cb708f42f51a88c60f0fbd0737ea79fea4e58 Mon Sep 17 00:00:00 2001
+From 9ba1059c52cbf12123e8b3531291623e692fe1d9 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 22 Apr 2024 12:22:05 +0800
-Subject: [PATCH 108/195] mtk: mt76: add internal debug tool
+Subject: [PATCH 108/223] mtk: mt76: add internal debug tool
 
 Add the following DebugFS knobs:
 - reset_counter: reset TX/RX statistical counters in FW, WTBL, and MT76.
@@ -49,6 +49,10 @@ mtk: wifi: mt76: mt7992: revise DebugFS command ple_info to accommodate Kite
 Because Kite only supports 512 STAs, the number of AC_QUEUE_EMPTY CRs is less than that of Eagle.
 Consequently, some related macros have to be revised to prevent reading wrong CRs.
 
+Change-Id: I22331b413b0583c4209f733ad197369fa8939d97
+Change-Id: Ic01c288fda25886a9c384441704cb7a9f86f6209
+Change-Id: I3515144170aad82c23d38a6eedad8843f818058d
+Change-Id: Iea052180b469e8ae8ba759ddb4bcf028fce3dace
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
@@ -83,7 +87,7 @@ index 6643c7a3..49ec9154 100644
 -mt7996e-y += mtk_debugfs.o mtk_mcu.o
 +mt7996e-y += mtk_debugfs.o mtk_mcu.o mtk_debugfs_i.o
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 63b8887d..2c553cf3 100644
+index db41e378..7e545f61 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -1118,8 +1118,12 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
@@ -101,7 +105,7 @@ index 63b8887d..2c553cf3 100644
  #ifdef CONFIG_MTK_DEBUG
  	debugfs_create_u16("wlan_idx", 0600, dir, &dev->wlan_idx);
 diff --git a/mt7996/init.c b/mt7996/init.c
-index a1941869..057d20db 100644
+index 211ad40c..1d31e96a 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -886,6 +886,10 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
@@ -116,7 +120,7 @@ index a1941869..057d20db 100644
  		mt76_clear(dev, WF_RRO_AXI_MST_CFG, WF_RRO_AXI_MST_CFG_DIDX_OK);
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 6462c64c..c6816ab5 100644
+index cd139111..2e27e3b3 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -334,6 +334,7 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -127,7 +131,7 @@ index 6462c64c..c6816ab5 100644
  #endif
  	hw_aggr = status->aggr;
  	memset(status, 0, sizeof(*status));
-@@ -995,6 +996,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -1007,6 +1008,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  		mt7996_packet_log_to_host(dev, txwi, MT_TXD_SIZE, PKT_BIN_DEBUG_TXD, 0);
  	if (dev->dbg.dump_tx_pkt)
  		mt7996_packet_log_to_host(dev, t->skb->data, t->skb->len, PKT_BIN_DEBUG_TX, 0);
@@ -136,10 +140,10 @@ index 6462c64c..c6816ab5 100644
  
  	return 0;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index adfa38dc..d0dac279 100644
+index 00023a5e..e23ed8e7 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -101,6 +101,7 @@
+@@ -103,6 +103,7 @@
  
  #define MT7996_BUILD_TIME_LEN		24
  
@@ -147,7 +151,7 @@ index adfa38dc..d0dac279 100644
  #define MT7996_RRO_MAX_SESSION		1024
  #define MT7996_RRO_WINDOW_MAX_LEN	1024
  #define MT7996_RRO_ADDR_ELEM_LEN	128
-@@ -688,6 +689,9 @@ struct mt7996_dev {
+@@ -689,6 +690,9 @@ struct mt7996_dev {
  		struct work_struct work;
  		struct list_head poll_list;
  		spinlock_t lock;
@@ -157,7 +161,7 @@ index adfa38dc..d0dac279 100644
  	} wed_rro;
  
  	bool testmode_enable;
-@@ -744,7 +748,11 @@ struct mt7996_dev {
+@@ -749,7 +753,11 @@ struct mt7996_dev {
  		bool dump_tx_pkt:1;
  		bool dump_rx_pkt:1;
  		bool dump_rx_raw:1;
@@ -169,7 +173,7 @@ index adfa38dc..d0dac279 100644
  	} dbg;
  	const struct mt7996_dbg_reg_desc *dbg_reg;
  #endif
-@@ -1288,6 +1296,10 @@ enum {
+@@ -1292,6 +1300,10 @@ enum {
  };
  
  void mt7996_packet_log_to_host(struct mt7996_dev *dev, const void *data, int len, int type, int des_len);

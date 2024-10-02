@@ -1,10 +1,11 @@
-From 5cc989d21562958fb51ebdc9f118bcc07a7e9a7e Mon Sep 17 00:00:00 2001
+From 4389fa86ef5bed621b9ced29ca66351819397575 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Feb 2023 19:49:22 +0800
-Subject: [PATCH 049/195] mtk: wifi: mt76: revert page_poll for kernel 5.4
+Subject: [PATCH 049/223] mtk: wifi: mt76: revert page_poll for kernel 5.4
 
 This reverts commit e8c10835cf062c577ddf426913788c39d30b4bd7.
 
+Change-Id: I4e5764fc545087f691fb4c2f43e7a9cefd1e1657
 ---
  dma.c         | 75 ++++++++++++++++++++++++++-------------------------
  mac80211.c    | 56 --------------------------------------
@@ -204,7 +205,7 @@ index 66c000ef..33a84f5f 100644
  
  	if (mtk_wed_device_active(&dev->mmio.wed))
 diff --git a/mac80211.c b/mac80211.c
-index 32ae1e52..ed25de4b 100644
+index ee5aa608..78e9a1ae 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -566,47 +566,6 @@ void mt76_unregister_phy(struct mt76_phy *phy)
@@ -255,7 +256,7 @@ index 32ae1e52..ed25de4b 100644
  struct mt76_dev *
  mt76_alloc_device(struct device *pdev, unsigned int size,
  		  const struct ieee80211_ops *ops,
-@@ -1850,21 +1809,6 @@ void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
+@@ -1826,21 +1785,6 @@ void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
  }
  EXPORT_SYMBOL_GPL(mt76_ethtool_worker);
  
@@ -278,10 +279,10 @@ index 32ae1e52..ed25de4b 100644
  {
  	struct ieee80211_hw *hw = phy->hw;
 diff --git a/mt76.h b/mt76.h
-index 063117fc..c782d7d9 100644
+index 7beefc59..e06d5aaa 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -251,7 +251,7 @@ struct mt76_queue {
+@@ -252,7 +252,7 @@ struct mt76_queue {
  
  	dma_addr_t desc_dma;
  	struct sk_buff *rx_head;
@@ -290,7 +291,7 @@ index 063117fc..c782d7d9 100644
  };
  
  struct mt76_mcu_ops {
-@@ -1615,7 +1615,6 @@ mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
+@@ -1616,7 +1616,6 @@ mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
  	return usb_bulk_msg(udev, pipe, data, len, actual_len, timeout);
  }
  
@@ -298,7 +299,7 @@ index 063117fc..c782d7d9 100644
  void mt76_ethtool_worker(struct mt76_ethtool_worker_info *wi,
  			 struct mt76_sta_stats *stats, bool eht);
  int mt76_skb_adjust_pad(struct sk_buff *skb, int pad);
-@@ -1773,25 +1772,6 @@ void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
+@@ -1774,25 +1773,6 @@ void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);
  struct mt76_txwi_cache *mt76_rx_token_release(struct mt76_dev *dev, int token);
  int mt76_rx_token_consume(struct mt76_dev *dev, void *ptr,
  			  struct mt76_txwi_cache *r, dma_addr_t phys);
@@ -325,10 +326,10 @@ index 063117fc..c782d7d9 100644
  static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
  {
 diff --git a/mt7915/main.c b/mt7915/main.c
-index 9b4672b6..76634ee7 100644
+index d18ea5d4..8cb09d1b 100644
 --- a/mt7915/main.c
 +++ b/mt7915/main.c
-@@ -1416,22 +1416,19 @@ void mt7915_get_et_strings(struct ieee80211_hw *hw,
+@@ -1421,22 +1421,19 @@ void mt7915_get_et_strings(struct ieee80211_hw *hw,
  			   struct ieee80211_vif *vif,
  			   u32 sset, u8 *data)
  {
@@ -357,7 +358,7 @@ index 9b4672b6..76634ee7 100644
  }
  
  static void mt7915_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
-@@ -1459,7 +1456,7 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
+@@ -1464,7 +1461,7 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
  		.idx = mvif->mt76.idx,
  	};
  	/* See mt7915_ampdu_stat_read_phy, etc */
@@ -366,7 +367,7 @@ index 9b4672b6..76634ee7 100644
  
  	mutex_lock(&dev->mt76.mutex);
  
-@@ -1571,12 +1568,9 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
+@@ -1576,12 +1573,9 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
  		return;
  
  	ei += wi.worker_stat_count;
@@ -383,7 +384,7 @@ index 9b4672b6..76634ee7 100644
  
  static void
 diff --git a/usb.c b/usb.c
-index 58ff0682..0ca3b069 100644
+index f9e67b8c..47e43fdb 100644
 --- a/usb.c
 +++ b/usb.c
 @@ -318,27 +318,29 @@ mt76u_set_endpoints(struct usb_interface *intf,

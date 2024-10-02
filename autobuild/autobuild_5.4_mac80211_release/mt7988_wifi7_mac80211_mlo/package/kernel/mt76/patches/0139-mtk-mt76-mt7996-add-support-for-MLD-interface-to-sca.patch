@@ -1,7 +1,7 @@
-From 5ad2b55a5ed4a89d65ad990eb369a869a2b7b028 Mon Sep 17 00:00:00 2001
+From 648d4259da57439452141aeaeed96722d96c1c56 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 30 May 2024 15:26:34 +0800
-Subject: [PATCH 139/195] mtk: mt76: mt7996: add support for MLD interface to
+Subject: [PATCH 139/223] mtk: mt76: mt7996: add support for MLD interface to
  scan
 
 Before queueing a HW scan work, mt7996_hw_scan() should make sure that
@@ -20,13 +20,14 @@ hostapd adds the link in mac80211 and triggers a scan, while
 mt7996_bss_conf is not yet allocated. In such a case we also use the
 default link to scan, and delete it once the scan is finished.
 
+Change-Id: I32a4b9e5f9f1d05993587631f5d1a347af8869cb
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
  mt7996/main.c | 79 +++++++++++++++++++++++++++++++++++++++++++++++++--
  1 file changed, 77 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 9562f27a..1e505dbe 100644
+index c1c62d32..5ddf3a1b 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -2379,10 +2379,24 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,

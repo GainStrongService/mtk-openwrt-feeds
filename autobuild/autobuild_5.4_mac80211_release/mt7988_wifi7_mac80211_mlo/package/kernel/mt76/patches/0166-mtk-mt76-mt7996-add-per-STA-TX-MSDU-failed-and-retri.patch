@@ -1,11 +1,12 @@
-From 339a5e3289b3225955aa2632c4955f347ddec553 Mon Sep 17 00:00:00 2001
+From e785b2395e3f293ce49ddab807fee0f3bda779d6 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Thu, 4 Jul 2024 14:00:16 +0800
-Subject: [PATCH 166/195] mtk: mt76: mt7996: add per-STA TX MSDU failed and
+Subject: [PATCH 166/223] mtk: mt76: mt7996: add per-STA TX MSDU failed and
  retried counts
 
 Record per-STA TX MSDU failed and retried counts for debugging.
 
+Change-Id: I888a86a8d858ff80d16fbb590229cb35ae07ce19
 Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 ---
  mt76.h            |  2 ++
@@ -17,10 +18,10 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  6 files changed, 68 insertions(+), 59 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 250e9f8f..181e07ed 100644
+index c3b71cc3..27c990df 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -363,6 +363,8 @@ struct mt76_sta_stats {
+@@ -364,6 +364,8 @@ struct mt76_sta_stats {
  	u64 tx_bytes;
  	/* WED TX */
  	u32 tx_packets;		/* unit: MSDU */
@@ -30,10 +31,10 @@ index 250e9f8f..181e07ed 100644
  	u32 tx_retries;
  	u32 tx_failed;
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 781b0178..73173ee1 100644
+index cc644edf..302567e3 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1402,6 +1402,8 @@ enum {
+@@ -1407,6 +1407,8 @@ enum {
  	UNI_OFFLOAD_OFFLOAD_BMC_RPY_DETECT,
  };
  
@@ -42,7 +43,7 @@ index 781b0178..73173ee1 100644
  enum UNI_PER_STA_INFO_TAG {
  	UNI_PER_STA_RSSI,
  	UNI_PER_STA_CONTENTION_RX_RATE,
-@@ -1411,6 +1413,7 @@ enum UNI_PER_STA_INFO_TAG {
+@@ -1416,6 +1418,7 @@ enum UNI_PER_STA_INFO_TAG {
  	UNI_PER_STA_TX_CNT,
  	UNI_PER_STA_TID_SN_GET,
  	UNI_PER_STA_TID_SN_SET,
@@ -51,10 +52,10 @@ index 781b0178..73173ee1 100644
  };
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index a8985a3b..fae24cad 100644
+index 1f225756..8c68e08e 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2431,6 +2431,43 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
+@@ -2443,6 +2443,43 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
  	rcu_read_unlock();
  }
  
@@ -98,7 +99,7 @@ index a8985a3b..fae24cad 100644
  void mt7996_mac_work(struct work_struct *work)
  {
  	struct mt76_phy *mphy = (struct mt76_phy *)container_of(work, struct mt76_phy,
-@@ -2453,7 +2490,7 @@ void mt7996_mac_work(struct work_struct *work)
+@@ -2465,7 +2502,7 @@ void mt7996_mac_work(struct work_struct *work)
  			if (i == mphy->band_idx) {
  				mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_RATE);
  				mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_AIRTIME);
@@ -108,10 +109,10 @@ index a8985a3b..fae24cad 100644
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_ADM_STAT);
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_MSDU_COUNT);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index e26e8cd3..b78416fe 100644
+index 77d3b2c8..3fcc7fac 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -6020,7 +6020,6 @@ int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u16 val)
+@@ -6027,7 +6027,6 @@ int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u16 val)
  int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
  				u16 sta_num, u16 *sta_list)
  {
@@ -119,7 +120,7 @@ index e26e8cd3..b78416fe 100644
  	struct mt7996_mcu_per_sta_info_event *res;
  	struct mt7996_link_sta *mlink;
  	struct mt76_wcid *wcid;
-@@ -6100,6 +6099,23 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+@@ -6107,6 +6106,23 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
  			}
  		}
  		break;
@@ -143,7 +144,7 @@ index e26e8cd3..b78416fe 100644
  	default:
  		ret = -EINVAL;
  		dev_err(dev->dev, "Unknown UNI_PER_STA_INFO_TAG: %d\n", tag);
-@@ -6110,62 +6126,6 @@ out:
+@@ -6117,62 +6133,6 @@ out:
  	return ret;
  }
  
@@ -233,10 +234,10 @@ index 01eb0ea1..739e357c 100644
  } __packed;
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 31b20dcb..a04067d4 100644
+index 755b4cf0..a02e976a 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1134,7 +1134,6 @@ void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
+@@ -1138,7 +1138,6 @@ void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
  void mt7996_mcu_exit(struct mt7996_dev *dev);
  int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
  	                        u16 sta_num, u16 *sta_list);

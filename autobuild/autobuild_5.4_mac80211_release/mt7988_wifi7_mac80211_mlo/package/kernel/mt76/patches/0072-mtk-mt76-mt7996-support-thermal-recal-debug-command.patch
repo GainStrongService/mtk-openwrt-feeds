@@ -1,7 +1,7 @@
-From 53c49d00cffb1a1d25f05a6b8a1e4539130462e8 Mon Sep 17 00:00:00 2001
+From 3ee40687fd7064508306f1008c14433ccf7253d4 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 4 Jan 2024 19:53:37 +0800
-Subject: [PATCH 072/195] mtk: mt76: mt7996: support thermal recal debug
+Subject: [PATCH 072/223] mtk: mt76: mt7996: support thermal recal debug
  command
 
 Add support thermal recal debug command.
@@ -14,6 +14,7 @@ The val can be the following values:
 1 = enable
 2 = manual trigger
 
+Change-Id: Ief064633dd7ab0faeb298ac3902ca1b399e70365
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 ---
  mt76_connac_mcu.h    |  1 +
@@ -23,10 +24,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  4 files changed, 40 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index edf55b72..57f6f857 100644
+index c9cea5bb..11a1224a 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1297,6 +1297,7 @@ enum {
+@@ -1302,6 +1302,7 @@ enum {
  	MCU_UNI_CMD_TESTMODE_TRX_PARAM = 0x42,
  	MCU_UNI_CMD_TESTMODE_CTRL = 0x46,
  	MCU_UNI_CMD_PRECAL_RESULT = 0x47,
@@ -35,10 +36,10 @@ index edf55b72..57f6f857 100644
  	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
  	MCU_UNI_CMD_PER_STA_INFO = 0x6d,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 55f47bd3..da2b082d 100644
+index 94735872..82ff4e99 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1033,6 +1033,7 @@ void mt7996_mcu_set_cert(struct mt7996_phy *phy, u8 type);
+@@ -1037,6 +1037,7 @@ void mt7996_mcu_set_cert(struct mt7996_phy *phy, u8 type);
  void mt7996_tm_update_channel(struct mt7996_phy *phy);
  
  int mt7996_mcu_set_vow_drr_dbg(struct mt7996_dev *dev, u32 val);
@@ -47,10 +48,10 @@ index 55f47bd3..da2b082d 100644
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 66ab74d2..cc1224ed 100644
+index 196038d4..bc9a0f04 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -3171,6 +3171,22 @@ out:
+@@ -3170,6 +3170,22 @@ out:
  DEFINE_DEBUGFS_ATTRIBUTE(fops_thermal_enable, mt7996_thermal_enable_get,
  			 mt7996_thermal_enable_set, "%lld\n");
  
@@ -73,7 +74,7 @@ index 66ab74d2..cc1224ed 100644
  int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  {
  	struct mt7996_dev *dev = phy->dev;
-@@ -3278,6 +3294,7 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -3277,6 +3293,7 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  	}
  
  	debugfs_create_file("thermal_enable", 0600, dir, phy, &fops_thermal_enable);

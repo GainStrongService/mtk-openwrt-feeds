@@ -1,7 +1,7 @@
-From effa71792ae89a62c0f673149a474180b6a49551 Mon Sep 17 00:00:00 2001
+From 4fa8ea3f212978e36a7b9489505545f655d7e3e1 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 26 Oct 2023 17:27:43 +0800
-Subject: [PATCH 059/195] mtk: mt76: mt7996: do not report netdev stats on
+Subject: [PATCH 059/223] mtk: mt76: mt7996: do not report netdev stats on
  monitor vif
 
 This fixes the following NULL pointer crash when enabling monitor mode:
@@ -13,16 +13,17 @@ This fixes the following NULL pointer crash when enabling monitor mode:
 [  205.613935]  napi_threaded_poll+0x80/0xe8
 [  205.617934]  kthread+0x124/0x128
 
+Change-Id: I66f2449401888255bf8d3edddc1d9f20bd8ba3e7
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
  mt7996/mcu.c | 3 +++
  1 file changed, 3 insertions(+)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 72d6cf58..c92fb5b1 100644
+index 8b84c9dc..6b7a5372 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -540,6 +540,9 @@ static inline void __mt7996_stat_to_netdev(struct mt76_phy *mphy,
+@@ -545,6 +545,9 @@ static inline void __mt7996_stat_to_netdev(struct mt76_phy *mphy,
  				   drv_priv);
  		wdev = ieee80211_vif_to_wdev(vif);
  

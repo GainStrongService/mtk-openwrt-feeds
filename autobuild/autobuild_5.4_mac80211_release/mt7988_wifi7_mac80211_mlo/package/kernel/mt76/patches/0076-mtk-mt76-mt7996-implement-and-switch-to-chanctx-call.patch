@@ -1,13 +1,14 @@
-From fe29ca1d56a277b57b511b07c19b3be3217c75ba Mon Sep 17 00:00:00 2001
+From f6889bcb95884df285d628c93b78fe28a5008262 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Nov 2023 16:17:11 +0800
-Subject: [PATCH 076/195] mtk: mt76: mt7996: implement and switch to chanctx
+Subject: [PATCH 076/223] mtk: mt76: mt7996: implement and switch to chanctx
  callbacks
 
 To support MLO, chanctx callbacks are mandatory, since one VIF (MLD) could
 operate on multiple channels (links).
 This is a preliminary patch to add MLO support for mt7996 chipsets.
 
+Change-Id: Ie4530a3bc2ac9e51045184d5aecca14118177042
 Co-developed-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
@@ -20,7 +21,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  5 files changed, 211 insertions(+), 18 deletions(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 2b396d94..d18db618 100644
+index a188fa1d..7afbd46a 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -384,6 +384,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
@@ -71,7 +72,7 @@ index 2b396d94..d18db618 100644
  	ret = mt7996_thermal_init(phy);
  	if (ret)
  		goto error;
-@@ -1609,6 +1629,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1629,6 +1649,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	if (ret)
  		return ret;
  
@@ -81,10 +82,10 @@ index 2b396d94..d18db618 100644
  	if (ret)
  		return ret;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 7578cbb0..fc6e383b 100644
+index 5c29fe7f..7cfc25ba 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2785,7 +2785,10 @@ void mt7996_scan_work(struct work_struct *work)
+@@ -2797,7 +2797,10 @@ void mt7996_scan_work(struct work_struct *work)
  		mt7996_scan_complete(phy, false);
  		mutex_unlock(&phy->dev->mt76.mutex);
  
@@ -96,7 +97,7 @@ index 7578cbb0..fc6e383b 100644
  
  		return;
  	}
-@@ -2797,7 +2800,10 @@ void mt7996_scan_work(struct work_struct *work)
+@@ -2809,7 +2812,10 @@ void mt7996_scan_work(struct work_struct *work)
  		phy->scan_chan = NULL;
  		mutex_unlock(&phy->dev->mt76.mutex);
  
@@ -109,7 +110,7 @@ index 7578cbb0..fc6e383b 100644
  		ieee80211_queue_delayed_work(hw, &phy->scan_work, HZ / 10);
  
 diff --git a/mt7996/main.c b/mt7996/main.c
-index ea07d8a3..8884c6c4 100644
+index 475763e4..cbd64681 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -76,6 +76,11 @@ int mt7996_run(struct ieee80211_hw *hw)
@@ -317,10 +318,10 @@ index ea07d8a3..8884c6c4 100644
 +	.switch_vif_chanctx = mt7996_switch_vif_chanctx,
  };
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index ed0e721e..95284a59 100644
+index 746fc223..ba53c3fc 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -5299,7 +5299,7 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap)
+@@ -5322,7 +5322,7 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap)
  		.bitmap = cpu_to_le16(bitmap),
  	};
  
@@ -330,10 +331,10 @@ index ed0e721e..95284a59 100644
  		return 0;
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index f94cb496..3597bbbf 100644
+index 87b166aa..07790257 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -333,6 +333,8 @@ struct mt7996_vif {
+@@ -334,6 +334,8 @@ struct mt7996_vif {
  
  	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
  	struct cfg80211_bitrate_mask bitrate_mask;
@@ -342,7 +343,7 @@ index f94cb496..3597bbbf 100644
  };
  
  /* crash-dump */
-@@ -422,6 +424,14 @@ struct mt7996_rro_ba_session {
+@@ -423,6 +425,14 @@ struct mt7996_rro_ba_session {
  	u32 last_in_rxtime :12;
  };
  
@@ -357,7 +358,7 @@ index f94cb496..3597bbbf 100644
  struct mt7996_phy {
  	struct mt76_phy *mt76;
  	struct mt7996_dev *dev;
-@@ -465,6 +475,7 @@ struct mt7996_phy {
+@@ -466,6 +476,7 @@ struct mt7996_phy {
  	struct cfg80211_scan_request *scan_req;
  	struct ieee80211_vif *scan_vif;
  	int scan_chan_idx;
@@ -365,8 +366,8 @@ index f94cb496..3597bbbf 100644
  
  	struct mt7996_scs_ctrl scs_ctrl;
  	u32 red_drop;
-@@ -753,6 +764,12 @@ mt7996_get_background_radar_cap(struct mt7996_dev *dev)
- 	return 1;
+@@ -757,6 +768,12 @@ mt7996_has_background_radar(struct mt7996_dev *dev)
+ 	return true;
  }
  
 +static inline struct mt7996_chanctx *

@@ -1,7 +1,7 @@
-From 3961a01420a3e81edff2699033b4a753966d7c3e Mon Sep 17 00:00:00 2001
+From 4f2f27ccf6133c9f51f798a872387aa15337b923 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 27 May 2024 19:06:04 +0800
-Subject: [PATCH 133/195] mtk: mt76: mt7996: add mlo related debugfs knob
+Subject: [PATCH 133/223] mtk: mt76: mt7996: add mlo related debugfs knob
 
 Add the following debugfs knob
 Per-bss link info
@@ -21,7 +21,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  3 files changed, 119 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 71dc0449..6eb395c4 100644
+index 9a62dfda..bafbcda1 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -1330,11 +1330,128 @@ mt7996_queues_show(struct seq_file *s, void *data)
@@ -162,7 +162,7 @@ index 71dc0449..6eb395c4 100644
  	seq_printf(file, "\t\tMPDU Fails: %u (PER: %u.%u%%)\n", stats->tx_failed,
  		   stats->tx_mpdus ? stats->tx_failed * 1000 / stats->tx_mpdus / 10 : 0,
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 657dea86..f4788cc5 100644
+index f67e1b5d..915a9f4f 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -2845,6 +2845,7 @@ const struct ieee80211_ops mt7996_ops = {
@@ -174,10 +174,10 @@ index 657dea86..f4788cc5 100644
  	.set_radar_background = mt7996_set_radar_background,
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index eba48c10..0f9dba69 100644
+index 9f58a793..984ae79e 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1247,6 +1247,7 @@ int mt7996_mcu_set_eml_omn(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u
+@@ -1251,6 +1251,7 @@ int mt7996_mcu_set_eml_omn(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u
  #ifdef CONFIG_MAC80211_DEBUGFS
  void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			    struct ieee80211_sta *sta, struct dentry *dir);

@@ -1,7 +1,7 @@
-From 7183414aabb25db08454cc77776398afcfa09219 Mon Sep 17 00:00:00 2001
+From a6b712a367b0e76ac5982f846f096ab936138c16 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 15 May 2024 17:47:33 +0800
-Subject: [PATCH 122/195] mtk: mt76: mt7996: do software link addr translation
+Subject: [PATCH 122/223] mtk: mt76: mt7996: do software link addr translation
  for EAPOL
 
 Previously, we do HW link address translation for EAPOL addr1 and addr2,
@@ -17,6 +17,8 @@ necessary to sync the changes of address to DMA.
 
 Assign EAPOL's SA/DA to MLD address.
 
+Change-Id: Ibb63beb37f80075da8c0e1535fde74f9710f92f5
+Change-Id: I307146d0f88ecca0f0ea592b9157b6a7e8009fbb
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
@@ -25,10 +27,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  1 file changed, 31 insertions(+), 15 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index bba16975..020203ec 100644
+index 901c70e5..02045b84 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -831,7 +831,8 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+@@ -843,7 +843,8 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
  	txwi[5] = cpu_to_le32(val);
  
  	val = MT_TXD6_DAS;
@@ -38,7 +40,7 @@ index bba16975..020203ec 100644
  		val |= MT_TXD6_DIS_MAT;
  
  	if (is_mt7996(&dev->mt76))
-@@ -939,23 +940,38 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -951,23 +952,38 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  		mt7996_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, key,
  				      pid, qid, 0);
  

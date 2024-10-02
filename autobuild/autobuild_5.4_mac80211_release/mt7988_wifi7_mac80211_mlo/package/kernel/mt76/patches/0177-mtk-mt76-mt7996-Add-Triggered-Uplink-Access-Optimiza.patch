@@ -1,11 +1,12 @@
-From 0ff1be7c026a503f5285fe0bf5de72d9e3fd9c04 Mon Sep 17 00:00:00 2001
+From 80c870cb7dc5faa9b045a1a44322fc07f5f8aed3 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Tue, 2 Jul 2024 10:06:26 +0800
-Subject: [PATCH 177/195] mtk: mt76: mt7996: Add Triggered Uplink Access
+Subject: [PATCH 177/223] mtk: mt76: mt7996: Add Triggered Uplink Access
  Optimization support
 
 Add TUAO feature, which is a subset of SCS procedure support.
 
+Change-Id: I7932b147d399e39e4b91f5dd97edea6f307122d3
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 ---
  mt7996/init.c    | 25 ++++++++++-----
@@ -17,7 +18,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  6 files changed, 173 insertions(+), 7 deletions(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index f1b9b0e0..2f43c0ff 100644
+index b63316b4..ae86c0eb 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -62,7 +62,14 @@ static const struct ieee80211_iface_combination if_comb_7992[] = {
@@ -59,7 +60,7 @@ index f1b9b0e0..2f43c0ff 100644
  		.eml_capabilities = IEEE80211_EML_CAP_EMLSR_SUPP,
  		.mld_capa_and_ops = 2,
  		/* the max number of simultaneous links is defined as the
-@@ -1573,6 +1580,10 @@ mt7996_init_eht_caps(struct mt7996_phy *phy, enum nl80211_band band,
+@@ -1593,6 +1600,10 @@ mt7996_init_eht_caps(struct mt7996_phy *phy, enum nl80211_band band,
  		u8_encode_bits(IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_11454,
  			       IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK);
  
@@ -71,10 +72,10 @@ index f1b9b0e0..2f43c0ff 100644
  		IEEE80211_EHT_PHY_CAP0_NDP_4_EHT_LFT_32_GI |
  		IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMER |
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 57f7ae67..b752b187 100644
+index 8b7486a1..8f8cd7ae 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -524,6 +524,9 @@ struct csi_data {
+@@ -525,6 +525,9 @@ struct csi_data {
  };
  
  int mt7996_set_coding_type(struct ieee80211_hw *hw, u8 coding_type, u8 link_id);

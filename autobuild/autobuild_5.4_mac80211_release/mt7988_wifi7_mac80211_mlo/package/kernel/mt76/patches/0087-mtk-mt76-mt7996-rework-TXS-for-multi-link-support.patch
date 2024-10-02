@@ -1,7 +1,7 @@
-From d9e2b7930aac891a9fa9b21f4c62a81ddc79872b Mon Sep 17 00:00:00 2001
+From 40622f831dbacee3a7b35c3786fd81d0abf733bd Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 4 Dec 2023 11:57:38 +0800
-Subject: [PATCH 087/195] mtk: mt76: mt7996: rework TXS for multi-link support
+Subject: [PATCH 087/223] mtk: mt76: mt7996: rework TXS for multi-link support
 
 This is a preliminary patch to add MLO support for mt7996 chipsets.
 
@@ -25,10 +25,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  3 files changed, 34 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index b0ad48dd..c910f353 100644
+index 26878e29..92628e17 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1195,7 +1195,7 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+@@ -1207,7 +1207,7 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
  		struct ieee80211_sta *sta;
  		u8 tid;
  
@@ -37,7 +37,7 @@ index b0ad48dd..c910f353 100644
  		tid = FIELD_GET(MT_TXS0_TID, txs);
  		ieee80211_refresh_tx_agg_session_timer(sta, tid);
  	}
-@@ -1335,7 +1335,7 @@ static void mt7996_mac_add_txs(struct mt7996_dev *dev, void *data)
+@@ -1347,7 +1347,7 @@ static void mt7996_mac_add_txs(struct mt7996_dev *dev, void *data)
  	if (!wcid->sta)
  		goto out;
  
@@ -47,7 +47,7 @@ index b0ad48dd..c910f353 100644
  	if (list_empty(&mlink->wcid.poll_list))
  		list_add_tail(&mlink->wcid.poll_list, &dev->mt76.sta_poll_list);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 44b21821..33b4be55 100644
+index 580cb2a5..cadfee9f 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -2319,6 +2319,7 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -59,10 +59,10 @@ index 44b21821..33b4be55 100644
  	if (mt7996_hw_phy(hw) == phy)
  		mvif->master_link_id = link_id;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index ec853d3b..c26aa3a7 100644
+index bde3bec1..f83308de 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -358,6 +358,8 @@ struct mt7996_vif {
+@@ -359,6 +359,8 @@ struct mt7996_vif {
  	u8 master_link_id;
  	u8 group_mld_id;
  	u8 mld_remap_id;
@@ -71,7 +71,7 @@ index ec853d3b..c26aa3a7 100644
  };
  
  /* crash-dump */
-@@ -840,6 +842,35 @@ wcid_to_mlink(struct mt76_wcid *wcid)
+@@ -844,6 +846,35 @@ wcid_to_mlink(struct mt76_wcid *wcid)
  	return container_of(wcid, struct mt7996_link_sta, wcid);
  }
  

@@ -1,21 +1,22 @@
-From 69dd5c911bff46e3be698300bd74fc644149e6af Mon Sep 17 00:00:00 2001
+From efbc1e62252f25b9af9e812cd8a8ba61a9e043d0 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Fri, 8 Sep 2023 11:57:39 +0800
-Subject: [PATCH 063/195] mtk: mt76: mt7996: add wed support for mt7992
+Subject: [PATCH 063/223] mtk: mt76: mt7996: add wed support for mt7992
 
 Fix incomplete WED initialization for Kite band-1 RX ring.
 
+Change-Id: I2da06c9f1412f8392d1b55feea3ad8ff48ff90ad
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
 Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 ---
  mt7996/dma.c    | 91 +++++++++++++++++++++++++++++++++----------------
- mt7996/init.c   | 12 +++++++
+ mt7996/init.c   | 22 ++++++++++++
  mt7996/mac.c    |  4 +++
  mt7996/mmio.c   | 49 ++++++++++++++++++--------
  mt7996/mt7996.h | 10 +++++-
  mt7996/pci.c    | 10 ++++--
  mt7996/regs.h   | 14 +++++++-
- 7 files changed, 142 insertions(+), 48 deletions(-)
+ 7 files changed, 152 insertions(+), 48 deletions(-)
 
 diff --git a/mt7996/dma.c b/mt7996/dma.c
 index d9e1b17f..d62dc8ba 100644
@@ -166,7 +167,7 @@ index d9e1b17f..d62dc8ba 100644
  		if (mt7996_band_valid(dev, MT_BAND2)) {
  			/* rx rro data queue for band2 */
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 3b1f4273..f682423a 100644
+index b0c307fb..04c15432 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -815,6 +815,7 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
@@ -195,11 +196,28 @@ index 3b1f4273..f682423a 100644
  	ptr = dmam_alloc_coherent(dev->mt76.dma_dev,
  				  MT7996_RRO_WINDOW_MAX_LEN * sizeof(*addr),
  				  &dev->wed_rro.session.phy_addr,
+@@ -922,6 +934,16 @@ static void mt7996_wed_rro_free(struct mt7996_dev *dev)
+ 				   dev->wed_rro.addr_elem[i].phy_addr);
+ 	}
+ 
++	for (i = 0; i < ARRAY_SIZE(dev->wed_rro.msdu_pg); i++) {
++		if (!dev->wed_rro.msdu_pg[i].ptr)
++			continue;
++
++		dmam_free_coherent(dev->mt76.dma_dev,
++				   MT7996_RRO_MSDU_PG_SIZE_PER_CR,
++				   dev->wed_rro.msdu_pg[i].ptr,
++				   dev->wed_rro.msdu_pg[i].phy_addr);
++	}
++
+ 	if (!dev->wed_rro.session.ptr)
+ 		return;
+ 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 1792726c..1f3445bb 100644
+index 0c5fa02d..9f94f530 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2004,6 +2004,10 @@ void mt7996_mac_reset_work(struct work_struct *work)
+@@ -2016,6 +2016,10 @@ void mt7996_mac_reset_work(struct work_struct *work)
  
  		mt76_wr(dev, MT_INT_MASK_CSR, wed_irq_mask);
  
@@ -303,10 +321,10 @@ index ee9ba3ff..82968bc2 100644
  		dev->mt76.rx_token_size = MT7996_TOKEN_SIZE + wed->wlan.rx_npkt;
  	}
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 1680e77f..2f2122dc 100644
+index 1e17c291..7d0f7dda 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -122,6 +122,10 @@
+@@ -124,6 +124,10 @@
  #define MT7996_DRR_STA_AC2_QNTM_MASK	GENMASK(18, 16)
  #define MT7996_DRR_STA_AC3_QNTM_MASK	GENMASK(22, 20)
  
@@ -317,7 +335,7 @@ index 1680e77f..2f2122dc 100644
  struct mt7996_vif;
  struct mt7996_sta;
  struct mt7996_dfs_pulse;
-@@ -181,7 +185,7 @@ enum mt7996_rxq_id {
+@@ -182,7 +186,7 @@ enum mt7996_rxq_id {
  	MT7996_RXQ_BAND1 = 5, /* for mt7992 */
  	MT7996_RXQ_BAND2 = 5,
  	MT7996_RXQ_RRO_BAND0 = 8,
@@ -326,7 +344,7 @@ index 1680e77f..2f2122dc 100644
  	MT7996_RXQ_RRO_BAND2 = 6,
  	MT7996_RXQ_MSDU_PG_BAND0 = 10,
  	MT7996_RXQ_MSDU_PG_BAND1 = 11,
-@@ -547,6 +551,10 @@ struct mt7996_dev {
+@@ -548,6 +552,10 @@ struct mt7996_dev {
  			void *ptr;
  			dma_addr_t phy_addr;
  		} session;
@@ -374,7 +392,7 @@ index 4e957771..f0d3f199 100644
  			goto free_wed_or_irq_vector;
  
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index 91159c63..e6427a35 100644
+index f55d4a94..2ad8c069 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -77,6 +77,8 @@ enum offs_rev {

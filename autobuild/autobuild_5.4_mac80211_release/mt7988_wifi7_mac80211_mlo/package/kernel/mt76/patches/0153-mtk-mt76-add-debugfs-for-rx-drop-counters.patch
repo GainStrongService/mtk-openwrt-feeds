@@ -1,8 +1,9 @@
-From f48e21ac138f2b05fe0d04416a357f0c67c242f4 Mon Sep 17 00:00:00 2001
+From b230d11d8c61d395043c5463a780f7bcabfc7196 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 23 May 2024 02:33:47 +0800
-Subject: [PATCH 153/195] mtk: mt76: add debugfs for rx drop counters
+Subject: [PATCH 153/223] mtk: mt76: add debugfs for rx drop counters
 
+Change-Id: I23c494a80095c680cfe7765b5898fb044a4b73da
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  agg-rx.c             |  9 +++++
@@ -233,7 +234,7 @@ index 3a8c2e55..718122d5 100644
  
  #endif
 diff --git a/mac80211.c b/mac80211.c
-index 6412a002..58babaf0 100644
+index 93ff77be..6190822c 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -418,6 +418,7 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
@@ -287,10 +288,10 @@ index 6412a002..58babaf0 100644
  
  static void
 diff --git a/mt76.h b/mt76.h
-index 576e9d58..88464896 100644
+index 8e78ba86..62ae2662 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -187,6 +187,34 @@ enum mt76_dfs_state {
+@@ -188,6 +188,34 @@ enum mt76_dfs_state {
  	MT_DFS_STATE_ACTIVE,
  };
  
@@ -325,7 +326,7 @@ index 576e9d58..88464896 100644
  struct mt76_queue_buf {
  	dma_addr_t addr;
  	u16 len:15,
-@@ -255,6 +283,8 @@ struct mt76_queue {
+@@ -256,6 +284,8 @@ struct mt76_queue {
  	dma_addr_t desc_dma;
  	struct sk_buff *rx_head;
  	struct page_frag_cache rx_page;
@@ -334,7 +335,7 @@ index 576e9d58..88464896 100644
  };
  
  struct mt76_mcu_ops {
-@@ -872,6 +902,14 @@ struct mt76_tx_debug {
+@@ -874,6 +904,14 @@ struct mt76_tx_debug {
  	spinlock_t lock;
  };
  
@@ -349,7 +350,7 @@ index 576e9d58..88464896 100644
  struct mt76_phy {
  	struct ieee80211_hw *hw;
  	struct ieee80211_hw *ori_hw;
-@@ -930,6 +968,7 @@ struct mt76_phy {
+@@ -932,6 +970,7 @@ struct mt76_phy {
  		u8 pin;
  	} leds;
  	struct mt76_tx_debug tx_dbg_stats;
@@ -358,10 +359,10 @@ index 576e9d58..88464896 100644
  
  struct mt76_dev {
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 0f282f16..2f37d31c 100644
+index a78ebefc..ee505a55 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1410,9 +1410,11 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
+@@ -1422,9 +1422,11 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
  			 struct sk_buff *skb, u32 *info)
  {
  	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
@@ -373,7 +374,7 @@ index 0f282f16..2f37d31c 100644
  
  	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
  	if (type != PKT_TYPE_NORMAL) {
-@@ -1447,12 +1449,23 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
+@@ -1459,12 +1461,23 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
  		dev_kfree_skb(skb);
  		break;
  	case PKT_TYPE_NORMAL:
@@ -398,10 +399,10 @@ index 0f282f16..2f37d31c 100644
  		break;
  	}
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 759b9d8f..b16ea5fe 100644
+index d15d403b..422518f5 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -4240,6 +4240,84 @@ out:
+@@ -4239,6 +4239,84 @@ out:
  }
  DEFINE_SHOW_ATTRIBUTE(mt7996_tx_drop);
  
@@ -486,7 +487,7 @@ index 759b9d8f..b16ea5fe 100644
  /* DRR */
  static int
  mt7996_drr_info(struct seq_file *s, void *data)
-@@ -4368,6 +4446,7 @@ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
+@@ -4367,6 +4445,7 @@ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
  
  	/* Drop counters */
  	debugfs_create_file("tx_drop_stats", 0400, dir, dev, &mt7996_tx_drop_fops);

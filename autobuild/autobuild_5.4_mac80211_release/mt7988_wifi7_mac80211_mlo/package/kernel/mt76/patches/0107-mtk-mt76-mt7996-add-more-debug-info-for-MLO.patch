@@ -1,8 +1,9 @@
-From ecf3e3e20187a0398969e6b97b346b4a44c3b02e Mon Sep 17 00:00:00 2001
+From 7aa62c926e4323d8a19bac3c286903ec3d266503 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 22 Apr 2024 11:06:48 +0800
-Subject: [PATCH 107/195] mtk: mt76: mt7996: add more debug info for MLO
+Subject: [PATCH 107/223] mtk: mt76: mt7996: add more debug info for MLO
 
+Change-Id: Id61889262c153f28fca8f209319137d86e8b9c36
 ---
  mt76_connac_mcu.c    |    1 +
  mt76_connac_mcu.h    |    1 +
@@ -19,7 +20,7 @@ Subject: [PATCH 107/195] mtk: mt76: mt7996: add more debug info for MLO
  12 files changed, 1856 insertions(+), 18 deletions(-)
 
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 426baf0e..76117b6c 100644
+index e4e6c0d3..b62a1ac8 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -428,6 +428,7 @@ void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
@@ -31,10 +32,10 @@ index 426baf0e..76117b6c 100644
  }
  EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_basic_tlv);
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 6c1a4126..36d126ae 100644
+index 11c147cd..86a2fdf8 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1295,6 +1295,7 @@ enum {
+@@ -1300,6 +1300,7 @@ enum {
  	MCU_UNI_CMD_THERMAL = 0x35,
  	MCU_UNI_CMD_VOW = 0x37,
  	MCU_UNI_CMD_PP = 0x38,
@@ -43,7 +44,7 @@ index 6c1a4126..36d126ae 100644
  	MCU_UNI_CMD_TESTMODE_TRX_PARAM = 0x42,
  	MCU_UNI_CMD_TESTMODE_CTRL = 0x46,
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index fe8fea5d..63b8887d 100644
+index ab8732dd..db41e378 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -314,15 +314,17 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
@@ -126,7 +127,7 @@ index fe8fea5d..63b8887d 100644
  	if (is_fwlog) {
  		if (dev->relay_fwlog)
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 803f7ce3..6462c64c 100644
+index 1cf84fe5..cd139111 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -331,6 +331,10 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -151,7 +152,7 @@ index 803f7ce3..6462c64c 100644
  	if (hdr_trans && ieee80211_has_morefrags(fc)) {
  		if (mt7996_reverse_frag0_hdr_trans(skb, hdr_gap))
  			return -EINVAL;
-@@ -982,6 +990,13 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -994,6 +1002,13 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	tx_info->buf[1].skip_unmap = true;
  	tx_info->nbuf = MT_CT_DMA_BUF_NUM;
  
@@ -166,7 +167,7 @@ index 803f7ce3..6462c64c 100644
  }
  
 diff --git a/mt7996/main.c b/mt7996/main.c
-index b0e93d74..af975af0 100644
+index 32a37936..0c5ddda1 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -433,6 +433,9 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
@@ -233,10 +234,10 @@ index b0e93d74..af975af0 100644
  
  	if (rem)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 79011ea1..fccf43a9 100644
+index 56bb32a0..956bd396 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -333,6 +333,10 @@ mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+@@ -338,6 +338,10 @@ mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
  		mcu_txd->s2d_index = MCU_S2D_H2N;
  
  exit:
@@ -247,7 +248,7 @@ index 79011ea1..fccf43a9 100644
  	if (wait_seq)
  		*wait_seq = seq;
  
-@@ -1120,6 +1124,10 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -1125,6 +1129,10 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
  {
  	struct mt7996_mcu_rxd *rxd = (struct mt7996_mcu_rxd *)skb->data;
  
@@ -258,7 +259,7 @@ index 79011ea1..fccf43a9 100644
  	switch (rxd->eid) {
  	case MCU_UNI_EVENT_FW_LOG_2_HOST:
  		mt7996_mcu_rx_log_message(dev, skb);
-@@ -1336,6 +1344,8 @@ mt7996_mcu_bss_mld_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
+@@ -1341,6 +1349,8 @@ mt7996_mcu_bss_mld_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
  	}
  
  	mld->own_mld_id = mconf->own_mld_id;
@@ -267,7 +268,7 @@ index 79011ea1..fccf43a9 100644
  }
  
  static void
-@@ -1487,6 +1497,10 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *conf,
+@@ -1492,6 +1502,10 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *conf,
  	}
  
  	memcpy(bss->bssid, conf->bssid, ETH_ALEN);
@@ -278,7 +279,7 @@ index 79011ea1..fccf43a9 100644
  	bss->bcn_interval = cpu_to_le16(conf->beacon_int);
  	bss->dtim_period = conf->dtim_period;
  	bss->phymode = mt76_connac_get_phy_mode(phy, vif,
-@@ -2773,6 +2787,8 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
+@@ -2778,6 +2792,8 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
  	conn_state = enable ? CONN_STATE_PORT_SECURE : CONN_STATE_DISCONNECT;
  	mt76_connac_mcu_sta_basic_tlv(&dev->mt76, skb, conf, link_sta,
  				      conn_state, newly);
@@ -287,7 +288,7 @@ index 79011ea1..fccf43a9 100644
  
  	if (!enable)
  		goto out;
-@@ -2855,12 +2871,16 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -2860,12 +2876,16 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  	mld_setup->link_num = hweight16(sta->valid_links);
  
  	mld_setup_link = (struct mld_setup_link *)mld_setup->link_info;
@@ -304,7 +305,7 @@ index 79011ea1..fccf43a9 100644
  		mld_setup_link++;
  	}
  }
-@@ -3124,6 +3144,8 @@ int mt7996_mcu_add_dev_info(struct mt7996_phy *phy,
+@@ -3129,6 +3149,8 @@ int mt7996_mcu_add_dev_info(struct mt7996_phy *phy,
  		return mt7996_mcu_muar_config(phy, conf, mconf, false, enable);
  
  	memcpy(data.tlv.omac_addr, conf->addr, ETH_ALEN);
@@ -313,7 +314,7 @@ index 79011ea1..fccf43a9 100644
  	return mt76_mcu_send_msg(&dev->mt76, MCU_WMWA_UNI_CMD(DEV_INFO_UPDATE),
  				 &data, sizeof(data), true);
  }
-@@ -3228,6 +3250,11 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
+@@ -3233,6 +3255,11 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
  			      BSS_CHANGED_BEACON);
  
  	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
@@ -345,10 +346,10 @@ index 42e9f525..5e217719 100644
  	UNI_CMD_SR_ENABLE = 0x1,
  	UNI_CMD_SR_ENABLE_SD,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 7d1cfab4..adfa38dc 100644
+index eb38427b..00023a5e 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -737,6 +737,14 @@ struct mt7996_dev {
+@@ -742,6 +742,14 @@ struct mt7996_dev {
  		u8 fw_dbg_lv;
  		u32 bcn_total_cnt[__MT_MAX_BAND];
  		u32 sid;
@@ -363,7 +364,7 @@ index 7d1cfab4..adfa38dc 100644
  	} dbg;
  	const struct mt7996_dbg_reg_desc *dbg_reg;
  #endif
-@@ -935,6 +943,8 @@ mt7996_get_link_wcid(struct mt7996_dev *dev, u16 idx, u8 band_idx)
+@@ -939,6 +947,8 @@ mt7996_get_link_wcid(struct mt7996_dev *dev, u16 idx, u8 band_idx)
  	return &mlink->wcid;
  }
  
@@ -372,7 +373,7 @@ index 7d1cfab4..adfa38dc 100644
  extern const struct ieee80211_ops mt7996_ops;
  extern struct pci_driver mt7996_pci_driver;
  extern struct pci_driver mt7996_hif_driver;
-@@ -1266,6 +1276,18 @@ void mt7996_tm_update_channel(struct mt7996_phy *phy);
+@@ -1270,6 +1280,18 @@ void mt7996_tm_update_channel(struct mt7996_phy *phy);
  
  int mt7996_mcu_set_vow_drr_dbg(struct mt7996_dev *dev, u32 val);
  int mt7996_mcu_thermal_debug(struct mt7996_dev *dev, u8 mode, u8 action);
@@ -1061,10 +1062,10 @@ index da2a6072..82990239 100644
 +
  #endif
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index cc1224ed..c7f5b56e 100644
+index bc9a0f04..f9c5b238 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -3187,6 +3187,1038 @@ mt7996_thermal_recal_set(void *data, u64 val)
+@@ -3186,6 +3186,1038 @@ mt7996_thermal_recal_set(void *data, u64 val)
  DEFINE_DEBUGFS_ATTRIBUTE(fops_thermal_recal, NULL,
  			 mt7996_thermal_recal_set, "%llu\n");
  
@@ -2103,7 +2104,7 @@ index cc1224ed..c7f5b56e 100644
  int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  {
  	struct mt7996_dev *dev = phy->dev;
-@@ -3295,6 +4327,24 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -3294,6 +4326,24 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  
  	debugfs_create_file("thermal_enable", 0600, dir, phy, &fops_thermal_enable);
  	debugfs_create_file("thermal_recal", 0200, dir, dev, &fops_thermal_recal);

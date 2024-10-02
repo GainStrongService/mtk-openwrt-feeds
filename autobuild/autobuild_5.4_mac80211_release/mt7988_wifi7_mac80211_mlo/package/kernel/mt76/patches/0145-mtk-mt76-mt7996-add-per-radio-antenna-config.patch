@@ -1,10 +1,11 @@
-From 14657b9acfe1dc5db4c7f5a53e970213103fbb2b Mon Sep 17 00:00:00 2001
+From 31c98d0e5f309c927880c4781a4c9323b6d41981 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 11 Jun 2024 17:04:22 +0800
-Subject: [PATCH 145/195] mtk: mt76: mt7996: add per-radio antenna config
+Subject: [PATCH 145/223] mtk: mt76: mt7996: add per-radio antenna config
 
 Add per-radio antenna config
 
+Change-Id: Id82ffe0ebc453e77a16a0a9c04edad8c45ad3079
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  mac80211.c      | 19 ++++++++++++++++---
@@ -17,7 +18,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 47 insertions(+), 29 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 8dcf4f06..04a24544 100644
+index f986d5fd..a555bec2 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -431,8 +431,8 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
@@ -59,10 +60,10 @@ index 8dcf4f06..04a24544 100644
  	*rx_ant = phy->antenna_mask;
  	mutex_unlock(&dev->mutex);
 diff --git a/mt76.h b/mt76.h
-index e9366d2c..3099199c 100644
+index ce34cccc..8e71c2ce 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -875,6 +875,7 @@ struct mt76_phy {
+@@ -877,6 +877,7 @@ struct mt76_phy {
  	struct mt76_sband sband_2g;
  	struct mt76_sband sband_5g;
  	struct mt76_sband sband_6g;
@@ -80,10 +81,10 @@ index e9366d2c..3099199c 100644
  void mt76_insert_ccmp_hdr(struct sk_buff *skb, u8 key_id);
  int mt76_get_rate(struct mt76_dev *dev,
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index c4714982..e8e1d85a 100644
+index f9bd4d91..72a21fcf 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
-@@ -378,12 +378,15 @@ static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
+@@ -410,12 +410,15 @@ static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
  	switch (val) {
  	case MT_EE_BAND_SEL_2GHZ:
  		phy->mt76->cap.has_2ghz = true;
@@ -100,7 +101,7 @@ index c4714982..e8e1d85a 100644
  	default:
  		ret = -EINVAL;
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 0ee2acfb..55eb32cb 100644
+index 420c23c9..18a86afe 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -392,8 +392,10 @@ static void
@@ -171,7 +172,7 @@ index 0ee2acfb..55eb32cb 100644
  	wiphy->max_scan_ssids = 4;
  	wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 87247597..6317ec7f 100644
+index 118c7d67..d73fd9d6 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1705,14 +1705,11 @@ mt7996_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
@@ -211,10 +212,10 @@ index 87247597..6317ec7f 100644
  			continue;
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 27987b25..99bad18e 100644
+index 4a99671f..28bccc15 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2430,6 +2430,7 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -2435,6 +2435,7 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  #define EBF_MODE	BIT(0)
  #define IBF_MODE	BIT(1)
  	struct mt7996_phy *phy = mconf->phy;
@@ -222,7 +223,7 @@ index 27987b25..99bad18e 100644
  	int tx_ant = hweight16(phy->mt76->chainmask) - 1;
  	struct sta_rec_bf *bf;
  	struct tlv *tlv;
-@@ -2468,7 +2469,7 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -2473,7 +2474,7 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  
  	bf->bf_cap = ebf ? EBF_MODE : (dev->ibf ? IBF_MODE : 0);
  	if (is_mt7992(&dev->mt76) &&
@@ -232,10 +233,10 @@ index 27987b25..99bad18e 100644
  	bf->bw = link_sta->bandwidth;
  	bf->ibf_dbw = link_sta->bandwidth;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 8125dacc..30f19d1c 100644
+index ccea70af..c20206c6 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1173,9 +1173,10 @@ void mt7996_memcpy_fromio(struct mt7996_dev *dev, void *buf, u32 offset,
+@@ -1177,9 +1177,10 @@ void mt7996_memcpy_fromio(struct mt7996_dev *dev, void *buf, u32 offset,
  
  static inline u16 mt7996_rx_chainmask(struct mt7996_phy *phy)
  {

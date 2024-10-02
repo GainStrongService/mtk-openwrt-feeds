@@ -1,7 +1,7 @@
-From 4e7c099a8f378c02d24a567b32555198cf5ccd5f Mon Sep 17 00:00:00 2001
+From da809c32e3531e217dbf22a9c5c372999c4642cb Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 2 May 2024 15:40:21 +0800
-Subject: [PATCH 113/195] mtk: mt76: remove the limitation for legacy AP sacn
+Subject: [PATCH 113/223] mtk: mt76: remove the limitation for legacy AP sacn
 
 The limitation was used to prevent resource conflict in multiple wiphys
 architecture. It becomes single wiphy and the limitation seems to be
@@ -10,16 +10,17 @@ useless.
 Furthermore, legacy APs need to scan due to features like ACS, so remove
 the limitations
 
+Change-Id: I319823e5cf06c9bcce3bb55c6e7b51a5f18b85da
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
  mt7996/mac.c | 7 -------
  1 file changed, 7 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index fc83cea1..bba16975 100644
+index ac61869d..901c70e5 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2968,13 +2968,6 @@ void mt7996_scan_work(struct work_struct *work)
+@@ -2980,13 +2980,6 @@ void mt7996_scan_work(struct work_struct *work)
  	bool has_sta = false, active_scan = false;
  
  	mutex_lock(&phy->dev->mt76.mutex);

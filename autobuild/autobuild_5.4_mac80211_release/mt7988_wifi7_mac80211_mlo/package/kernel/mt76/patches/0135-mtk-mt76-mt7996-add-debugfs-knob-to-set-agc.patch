@@ -1,12 +1,13 @@
-From fdd360d332af913968d8c6bbc607f5c8c0da6abf Mon Sep 17 00:00:00 2001
+From 4483bcc086666bb2eaf40774c30d35d60911524b Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 31 May 2024 10:55:03 +0800
-Subject: [PATCH 135/195] mtk: mt76: mt7996: add debugfs knob to set agc
+Subject: [PATCH 135/223] mtk: mt76: mt7996: add debugfs knob to set agc
 
 Add the following debugfs knob
 - /sys/kernel/debug/ieee80211/phy0/mt76/mlo_agc_tx
 - /sys/kernel/debug/ieee80211/phy0/mt76/mlo_agc_trig
 
+Change-Id: I7e847be11b3083b6d776e7b00c6089dec3ad1a41
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  mt76_connac_mcu.h      |   1 +
@@ -17,10 +18,10 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  5 files changed, 131 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 07811d63..063bfe75 100644
+index 2daa09cc..73cf311a 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1312,6 +1312,7 @@ enum {
+@@ -1317,6 +1317,7 @@ enum {
  	MCU_UNI_CMD_THERMAL_CAL = 0x4c,
  	MCU_UNI_CMD_RRO = 0x57,
  	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
@@ -60,10 +61,10 @@ index c39dcc3c..389aab63 100644
  #define MT7996_PATCH_SCRAMBLE_KEY	GENMASK(15, 8)
  #define MT7996_PATCH_AES_KEY		GENMASK(7, 0)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 1aa845f3..47c6c3cf 100644
+index 8af3c400..7bb17126 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1324,6 +1324,7 @@ void mt7996_dump_bmac_txd_info(struct seq_file *s, struct mt7996_dev *dev,
+@@ -1328,6 +1328,7 @@ void mt7996_dump_bmac_txd_info(struct seq_file *s, struct mt7996_dev *dev,
  			       __le32 *txd, bool is_hif_txd, bool dump_txp);
  int mt7996_mtk_init_dev_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir);
  int mt7996_mtk_init_band_debugfs_internal(struct mt7996_phy *phy, struct dentry *dir);

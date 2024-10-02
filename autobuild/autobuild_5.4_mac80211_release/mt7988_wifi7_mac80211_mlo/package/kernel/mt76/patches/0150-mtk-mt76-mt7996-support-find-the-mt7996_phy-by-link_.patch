@@ -1,7 +1,7 @@
-From fcf94a4c0d4add289ab76cef46fc782ca3425d8e Mon Sep 17 00:00:00 2001
+From 5538043f91de86efa859432e4473f020bdcd23c3 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 20 Jun 2024 10:55:07 +0800
-Subject: [PATCH 150/195] mtk: mt76: mt7996: support find the mt7996_phy by
+Subject: [PATCH 150/223] mtk: mt76: mt7996: support find the mt7996_phy by
  link_id for vendor command
 
 Add support to find the corresponding phy by link_id. This commit is for
@@ -11,6 +11,8 @@ That is why we need link id to find the corresponding phy.
 
 Fix the way to find the band_idx if WiFi7 AP is non-MLD mode.
 
+Change-Id: Iee16822ac76f5feecd0d7c6996f5b6d800d6cf44
+Change-Id: Iac6380de23107135acc7b2b03cc448e3b50cd45c
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 ---
  mt7996/mt7996.h      |  5 +++--
@@ -20,10 +22,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  4 files changed, 30 insertions(+), 18 deletions(-)
 
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 1a0b9d3a..22f4d53a 100644
+index ee43c9e0..b0d9b0bd 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1326,11 +1326,12 @@ int mt7996_mcu_set_txbf_internal(struct mt7996_phy *phy, u8 action, int idx, boo
+@@ -1330,11 +1330,12 @@ int mt7996_mcu_set_txbf_internal(struct mt7996_phy *phy, u8 action, int idx, boo
  void mt7996_mcu_rx_bf_event(struct mt7996_dev *dev, struct sk_buff *skb);
  int mt7996_mcu_set_muru_fixed_rate_enable(struct mt7996_dev *dev, u8 action, int val);
  int mt7996_mcu_set_muru_fixed_rate_parameter(struct mt7996_dev *dev, u8 action, void *para);
@@ -39,10 +41,10 @@ index 1a0b9d3a..22f4d53a 100644
  void mt7996_mcu_set_nusers_ofdma(struct mt7996_phy *phy, u8 type, u8 ofdma_user_cnt);
  void mt7996_mcu_set_cert(struct mt7996_phy *phy, u8 type);
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index a7cbde3e..9bd35c91 100644
+index 9d8c1942..f13f09e1 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -2929,7 +2929,7 @@ mt7996_bf_txsnd_info_set(struct file *file,
+@@ -2928,7 +2928,7 @@ mt7996_bf_txsnd_info_set(struct file *file,
  	else
  		buf[count] = '\0';
  

@@ -1,11 +1,12 @@
-From 4fb64585d5ee1edd161cd4dec1f6b2395507b0aa Mon Sep 17 00:00:00 2001
+From d3bc0fc0ebebd8cff5549930cb7b5c336fb2b5f4 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 7 Dec 2023 15:39:03 +0800
-Subject: [PATCH 090/195] mtk: mt76: rework mcu functions for multi-link
+Subject: [PATCH 090/223] mtk: mt76: rework mcu functions for multi-link
  support
 
 This is a preliminary patch to add MLO support for mt7996 chipsets.
 
+Change-Id: I05afbe5a71c12f8d0a5d2132e0ff002361371e4a
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
  mt76_connac_mcu.c | 10 +++----
@@ -14,7 +15,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  3 files changed, 56 insertions(+), 26 deletions(-)
 
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 45510fa5..30770bd2 100644
+index c7145074..0c89222b 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -370,10 +370,11 @@ void mt76_connac_mcu_bss_omac_tlv(struct sk_buff *skb,
@@ -53,10 +54,10 @@ index 45510fa5..30770bd2 100644
  					      info->newly);
  	if (info->sta && info->enable)
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 57f6f857..f019184f 100644
+index 11a1224a..ff8a314c 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1923,7 +1923,7 @@ mt76_connac_mcu_add_tlv(struct sk_buff *skb, int tag, int len)
+@@ -1928,7 +1928,7 @@ mt76_connac_mcu_add_tlv(struct sk_buff *skb, int tag, int len)
  int mt76_connac_mcu_set_channel_domain(struct mt76_phy *phy);
  int mt76_connac_mcu_set_vif_ps(struct mt76_dev *dev, struct ieee80211_vif *vif);
  void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
@@ -66,10 +67,10 @@ index 57f6f857..f019184f 100644
  				   int state, bool newly);
  void mt76_connac_mcu_wtbl_generic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index e10ba1c0..477003b1 100644
+index 96d4d5b0..7b77cab2 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1169,10 +1169,12 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *conf,
+@@ -1174,10 +1174,12 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *conf,
  				sta = ieee80211_find_sta(vif, conf->bssid);
  			/* TODO: enable BSS_INFO_UAPSD & BSS_INFO_PM */
  			if (sta) {
@@ -85,7 +86,7 @@ index e10ba1c0..477003b1 100644
  			}
  			rcu_read_unlock();
  		}
-@@ -1306,9 +1308,8 @@ int mt7996_mcu_set_timing(struct mt7996_phy *phy, struct mt7996_bss_conf *mconf)
+@@ -1311,9 +1313,8 @@ int mt7996_mcu_set_timing(struct mt7996_phy *phy, struct mt7996_bss_conf *mconf)
  static int
  mt7996_mcu_sta_ba(struct mt7996_dev *dev, struct mt76_vif *mvif,
  		  struct ieee80211_ampdu_params *params,
@@ -96,7 +97,7 @@ index e10ba1c0..477003b1 100644
  	struct sta_rec_ba_uni *ba;
  	struct sk_buff *skb;
  	struct tlv *tlv;
-@@ -1338,24 +1339,53 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
+@@ -1343,24 +1344,53 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
  			 struct ieee80211_ampdu_params *params,
  			 bool enable)
  {
@@ -159,7 +160,7 @@ index e10ba1c0..477003b1 100644
  }
  
  static void
-@@ -2381,7 +2411,7 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
+@@ -2386,7 +2416,7 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
  
  	/* starec basic */
  	conn_state = enable ? CONN_STATE_PORT_SECURE : CONN_STATE_DISCONNECT;
@@ -168,7 +169,7 @@ index e10ba1c0..477003b1 100644
  				      conn_state, newly);
  
  	if (!enable)
-@@ -2843,7 +2873,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
+@@ -2848,7 +2878,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
  			  struct mt7996_bss_conf *mconf, int en)
  {
  	struct mt7996_dev *dev = mt7996_hw_dev(hw);
@@ -177,7 +178,7 @@ index e10ba1c0..477003b1 100644
  	struct ieee80211_mutable_offsets offs;
  	struct ieee80211_tx_info *info;
  	struct sk_buff *skb, *rskb;
-@@ -2859,7 +2889,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
+@@ -2864,7 +2894,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
  	if (IS_ERR(rskb))
  		return PTR_ERR(rskb);
  
@@ -186,7 +187,7 @@ index e10ba1c0..477003b1 100644
  	if (!skb) {
  		dev_kfree_skb(rskb);
  		return -EINVAL;
-@@ -2897,9 +2927,9 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
+@@ -2902,9 +2932,9 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
  {
  #define OFFLOAD_TX_MODE_SU	BIT(0)
  #define OFFLOAD_TX_MODE_MU	BIT(1)
@@ -198,7 +199,7 @@ index e10ba1c0..477003b1 100644
  	struct cfg80211_chan_def *chandef = &mconf->phy->mt76->chandef;
  	enum nl80211_band band = chandef->chan->band;
  	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
-@@ -5158,7 +5188,7 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+@@ -5181,7 +5211,7 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
  				rssi[3] = to_rssi(MT_PRXV_RCPI0, rcpi[3]);
  
  				mlink = container_of(wcid, struct mt7996_link_sta, wcid);

@@ -1,21 +1,22 @@
-From c98e115c139b2d3ad055e96ac9f8c2ae349bc274 Mon Sep 17 00:00:00 2001
+From 2986830e53280e7c49ef3893108a631d19d88023 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Fri, 28 Jun 2024 18:03:41 +0800
-Subject: [PATCH 159/195] mtk: mt76: mt7996: fix incorrect indexing of MIB FW
+Subject: [PATCH 159/223] mtk: mt76: mt7996: fix incorrect indexing of MIB FW
  event
 
 When porting channel state reporting from Wi-Fi 6 to Wi-Fi 7 codebase, indexing of FW event of MIB data was not properly handled.
 
+Change-Id: I4fbc68505d072c0f393d20c625aa58c66934f557
 Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 ---
  mt7996/mcu.c | 45 +++++++++++++++++++++++++++++----------------
  1 file changed, 29 insertions(+), 16 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index fe04ffbb..c65154f8 100644
+index 9194886b..723a7ad9 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -5109,6 +5109,13 @@ int mt7996_mcu_get_chip_config(struct mt7996_dev *dev, u32 *cap)
+@@ -5116,6 +5116,13 @@ int mt7996_mcu_get_chip_config(struct mt7996_dev *dev, u32 *cap)
  
  int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch)
  {
@@ -29,7 +30,7 @@ index fe04ffbb..c65154f8 100644
  	struct {
  		struct {
  			u8 band;
-@@ -5118,16 +5125,15 @@ int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch)
+@@ -5125,16 +5132,15 @@ int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch)
  			__le16 tag;
  			__le16 len;
  			__le32 offs;
@@ -51,7 +52,7 @@ index fe04ffbb..c65154f8 100644
  	};
  	struct mt76_channel_state *state = phy->mt76->chan_state;
  	struct mt76_channel_state *state_ts = &phy->state_ts;
-@@ -5136,7 +5142,7 @@ int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch)
+@@ -5143,7 +5149,7 @@ int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch)
  	struct sk_buff *skb;
  	int i, ret;
  
@@ -60,7 +61,7 @@ index fe04ffbb..c65154f8 100644
  		req.data[i].tag = cpu_to_le16(UNI_CMD_MIB_DATA);
  		req.data[i].len = cpu_to_le16(sizeof(req.data[i]));
  		req.data[i].offs = cpu_to_le32(offs[i]);
-@@ -5155,17 +5161,24 @@ int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch)
+@@ -5162,17 +5168,24 @@ int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch)
  		goto out;
  
  #define __res_u64(s) le64_to_cpu(res[s].data)

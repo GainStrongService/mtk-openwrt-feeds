@@ -1,10 +1,12 @@
-From 91d42e911cea5261c13e24ba727de84912b1690f Mon Sep 17 00:00:00 2001
+From 4de8ef89ddae7299fbf92927aaa6bf226e10bef0 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 9 Jul 2024 14:54:39 +0800
-Subject: [PATCH 168/195] mtk: mt76: mt7996: fix potential null pointer
+Subject: [PATCH 168/223] mtk: mt76: mt7996: fix potential null pointer
 
 Fix more parts that might have null pointer access.
 
+Change-Id: Iba945d07cb0b5816cf6cd48f1148edefd9a02d1e
+Change-Id: I7fc4c0b8bc5eda41fa142560995ffc327c188b7f
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
@@ -14,10 +16,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  3 files changed, 16 insertions(+)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index c91c550d..657a19c1 100644
+index 1952cb0c..1a3c661f 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1115,6 +1115,9 @@ mt7996_tx_check_aggr(struct ieee80211_sta *sta, struct sk_buff *skb,
+@@ -1127,6 +1127,9 @@ mt7996_tx_check_aggr(struct ieee80211_sta *sta, struct sk_buff *skb,
  
  	msta = (struct mt7996_sta *)sta->drv_priv;
  	mlink = rcu_dereference(msta->link[msta->pri_link]);
@@ -28,7 +30,7 @@ index c91c550d..657a19c1 100644
  		ieee80211_start_tx_ba_session(sta, tid, 0);
  }
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 926879c9..68817847 100644
+index 562137a5..c95e7e35 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -518,9 +518,12 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
@@ -73,10 +75,10 @@ index 926879c9..68817847 100644
  	}
  	spin_unlock_bh(&dev->mt76.status_lock);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b78416fe..81e0e710 100644
+index 3fcc7fac..856168f6 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3027,6 +3027,9 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -3032,6 +3032,9 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  		mlink = mlink_dereference_protected(msta, link_id);
  		mconf = mconf_dereference_protected(msta->vif, link_id);
  

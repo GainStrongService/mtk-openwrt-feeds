@@ -1,13 +1,14 @@
-From a82d1a19307277e1d99816431a393e0ea3468f0f Mon Sep 17 00:00:00 2001
+From 04a4a2672095e1b0162153655874ba194370ffc2 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 3 Jun 2024 16:40:38 +0800
-Subject: [PATCH 132/195] mtk: mt76: mt7996: update testmode bf support
+Subject: [PATCH 132/223] mtk: mt76: mt7996: update testmode bf support
 
 Fix bssid & omac idx to band idx when testmode is enabled
 
 Add support for per-packet bw & primary channel selection index configuration
 This is used for ibf calibaration of group 9 ~ 13 in Kite
 
+Change-Id: Ib993f75d331b1fa22b7c07197321f91c8dae46ec
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  mt76.h            |  3 +++
@@ -19,10 +20,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 98 insertions(+), 34 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 4d495a7b..9832a39b 100644
+index bc263bd4..526b6298 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -794,6 +794,9 @@ struct mt76_testmode_data {
+@@ -796,6 +796,9 @@ struct mt76_testmode_data {
  	bool ibf;
  	bool ebf;
  
@@ -33,7 +34,7 @@ index 4d495a7b..9832a39b 100644
  
  	u8 tx_power[4];
 diff --git a/mt7996/main.c b/mt7996/main.c
-index de465de6..657dea86 100644
+index 485c87f9..f67e1b5d 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -349,16 +349,27 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
@@ -74,10 +75,10 @@ index de465de6..657dea86 100644
  
  	mconf->own_mld_id = get_own_mld_idx(dev->mld_id_mask, false);
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 8b35d125..b956915e 100644
+index c68619cb..240227a9 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
-@@ -235,8 +235,10 @@ mt7996_tm_init(struct mt7996_phy *phy, bool en)
+@@ -241,8 +241,10 @@ mt7996_tm_init(struct mt7996_phy *phy, bool en)
  
  	mt7996_tm_rf_switch_mode(dev, rf_test_mode);
  
@@ -90,7 +91,7 @@ index 8b35d125..b956915e 100644
  
  	mt7996_tm_set(dev, SET_ID(BAND_IDX), phy->mt76->band_idx);
  
-@@ -252,9 +254,11 @@ mt7996_tm_update_channel(struct mt7996_phy *phy)
+@@ -258,9 +260,11 @@ mt7996_tm_update_channel(struct mt7996_phy *phy)
  {
  #define CHAN_FREQ_BW_80P80_TAG		(SET_ID(CHAN_FREQ) | BIT(16))
  	struct mt7996_dev *dev = phy->dev;
@@ -103,7 +104,7 @@ index 8b35d125..b956915e 100644
  	static const u8 ch_band[] = {
  		[NL80211_BAND_2GHZ] = 0,
  		[NL80211_BAND_5GHZ] = 1,
-@@ -274,18 +278,37 @@ mt7996_tm_update_channel(struct mt7996_phy *phy)
+@@ -280,18 +284,37 @@ mt7996_tm_update_channel(struct mt7996_phy *phy)
  		mt7996_tm_set(dev, CHAN_FREQ_BW_80P80_TAG, chandef->center_freq2 * 1000);
  	}
  
@@ -147,7 +148,7 @@ index 8b35d125..b956915e 100644
  }
  
  static void
-@@ -1179,14 +1202,9 @@ mt7996_tm_txbf_init(struct mt7996_phy *phy, u16 *val)
+@@ -1185,14 +1208,9 @@ mt7996_tm_txbf_init(struct mt7996_phy *phy, u16 *val)
  	mt7996_tm_set_mac_addr(dev, td->addr[1], SET_ID(SA));
  	mt7996_tm_set_mac_addr(dev, td->addr[2], SET_ID(BSSID));
  
@@ -164,7 +165,7 @@ index 8b35d125..b956915e 100644
  
  	if (td->ibf) {
  		if (td->is_txbf_dut) {
-@@ -1360,7 +1378,8 @@ mt7996_tm_add_txbf_sta(struct mt7996_phy *phy, u8 pfmu_idx, u8 nr, u8 nc, bool e
+@@ -1367,7 +1385,8 @@ mt7996_tm_add_txbf_sta(struct mt7996_phy *phy, u8 pfmu_idx, u8 nr, u8 nc, bool e
  			.tx_mode = mt7996_tm_rate_mapping(td->tx_rate_mode, RATE_MODE_TO_PHY),
  		},
  	};
@@ -174,7 +175,7 @@ index 8b35d125..b956915e 100644
  
  	if ((td->tx_rate_mode == MT76_TM_TX_MODE_HE_SU ||
  	     td->tx_rate_mode == MT76_TM_TX_MODE_EHT_SU) && !td->ibf) {
-@@ -1390,11 +1409,12 @@ mt7996_tm_add_txbf_sta(struct mt7996_phy *phy, u8 pfmu_idx, u8 nr, u8 nc, bool e
+@@ -1397,11 +1416,12 @@ mt7996_tm_add_txbf_sta(struct mt7996_phy *phy, u8 pfmu_idx, u8 nr, u8 nc, bool e
  		}
  	}
  
@@ -189,7 +190,7 @@ index 8b35d125..b956915e 100644
  	req.bf.tx_mode = (td->tx_rate_mode == MT76_TM_TX_MODE_EHT_SU) ? 0xf : req.bf.tx_mode;
  
  	if (ebf) {
-@@ -1421,6 +1441,7 @@ mt7996_tm_txbf_profile_update(struct mt7996_phy *phy, u16 *val, bool ebf)
+@@ -1428,6 +1448,7 @@ mt7996_tm_txbf_profile_update(struct mt7996_phy *phy, u16 *val, bool ebf)
  	struct mt7996_dev *dev = phy->dev;
  	struct mt7996_pfmu_tag *tag = dev->test.txbf_pfmu_tag;
  	u8 rate, pfmu_idx = val[0], nc = val[2], nr;
@@ -197,7 +198,7 @@ index 8b35d125..b956915e 100644
  	int ret;
  	bool is_atenl = val[5];
  
-@@ -1439,7 +1460,9 @@ mt7996_tm_txbf_profile_update(struct mt7996_phy *phy, u16 *val, bool ebf)
+@@ -1446,7 +1467,9 @@ mt7996_tm_txbf_profile_update(struct mt7996_phy *phy, u16 *val, bool ebf)
  	tag->t1.nr = nr;
  	tag->t1.nc = nc;
  	tag->t1.invalid_prof = true;
@@ -209,7 +210,7 @@ index 8b35d125..b956915e 100644
  
  	if (ebf) {
 diff --git a/testmode.c b/testmode.c
-index f1d162ce..f7237cc0 100644
+index a1744755..2834400f 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -25,6 +25,8 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
@@ -260,7 +261,7 @@ index f1d162ce..f7237cc0 100644
  	     nla_put_u32(msg, MT76_TM_ATTR_FREQ_OFFSET, td->freq_offset)))
  		goto out;
 diff --git a/testmode.h b/testmode.h
-index bda7624a..ed2068e5 100644
+index 794a74f9..44f9984c 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -37,6 +37,9 @@

@@ -1,7 +1,7 @@
-From beafd20e20fc970989623df11fd710d6b138eee2 Mon Sep 17 00:00:00 2001
+From 663d6e60f6a431146594178ffbbbf7fd54180c38 Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Fri, 18 Aug 2023 10:17:08 +0800
-Subject: [PATCH 058/195] mtk: mt76: mt7996: add per bss statistic info
+Subject: [PATCH 058/223] mtk: mt76: mt7996: add per bss statistic info
 
 Whenever WED is enabled, unicast traffic might run through HW path.
 As a result, we need to count them using WM event.
@@ -22,7 +22,7 @@ as they always go through SW path and thus mac80211 can always see and count the
  3 files changed, 37 insertions(+), 5 deletions(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 6563974d..9d918268 100644
+index f493a373..f6cddac1 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -403,6 +403,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
@@ -34,7 +34,7 @@ index 6563974d..9d918268 100644
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION);
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_PROTECTION);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 2e7bcf93..cdb49e21 100644
+index f02f447e..dcf1fc38 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -265,6 +265,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
@@ -46,10 +46,10 @@ index 2e7bcf93..cdb49e21 100644
  
  	mt7996_mac_wtbl_update(dev, idx,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index bc456a30..72d6cf58 100644
+index 70e1984a..8b84c9dc 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -524,6 +524,27 @@ mt7996_mcu_update_tx_gi(struct rate_info *rate, struct all_sta_trx_rate *mcu_rat
+@@ -529,6 +529,27 @@ mt7996_mcu_update_tx_gi(struct rate_info *rate, struct all_sta_trx_rate *mcu_rat
  	return 0;
  }
  
@@ -77,7 +77,7 @@ index bc456a30..72d6cf58 100644
  static void
  mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
  {
-@@ -539,7 +560,7 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -544,7 +565,7 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
  		u16 wlan_idx;
  		struct mt76_wcid *wcid;
  		struct mt76_phy *mphy;
@@ -86,7 +86,7 @@ index bc456a30..72d6cf58 100644
  
  		switch (le16_to_cpu(res->tag)) {
  		case UNI_ALL_STA_TXRX_RATE:
-@@ -567,6 +588,9 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -572,6 +593,9 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
  				wcid->stats.tx_bytes += tx_bytes;
  				wcid->stats.rx_bytes += rx_bytes;
  
@@ -96,7 +96,7 @@ index bc456a30..72d6cf58 100644
  				ieee80211_tpt_led_trig_tx(mphy->hw, tx_bytes);
  				ieee80211_tpt_led_trig_rx(mphy->hw, rx_bytes);
  			}
-@@ -578,10 +602,16 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -583,10 +607,16 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
  			if (!wcid)
  				break;
  

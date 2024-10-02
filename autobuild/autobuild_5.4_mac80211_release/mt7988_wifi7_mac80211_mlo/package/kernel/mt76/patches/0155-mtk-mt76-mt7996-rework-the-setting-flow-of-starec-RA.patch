@@ -1,7 +1,7 @@
-From bcb9d42e610ec78f53fafccf4e399a56be22611d Mon Sep 17 00:00:00 2001
+From 6d567ce5c36ea5a0c26cb2b55063bbc383adbca7 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 26 Jun 2024 19:09:46 +0800
-Subject: [PATCH 155/195] mtk: mt76: mt7996: rework the setting flow of starec
+Subject: [PATCH 155/223] mtk: mt76: mt7996: rework the setting flow of starec
  RA and MLD tags
 
 1. STA_REC_RA and STA_REC_MLD tags need to be set when newly is true,
@@ -10,6 +10,7 @@ Subject: [PATCH 155/195] mtk: mt76: mt7996: rework the setting flow of starec
 
 2. This patch also tries to fix random EAPOL timeout issue.
 
+Change-Id: Icffce3a25d0290b42c84c5ff94bbb5e6762f1f9d
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
  mt7996/main.c   |   4 --
@@ -19,7 +20,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  4 files changed, 83 insertions(+), 113 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index c7c2ad98..2643a72e 100644
+index ff4ef55d..103902b7 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1318,10 +1318,6 @@ mt7996_mac_sta_add_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
@@ -34,10 +35,10 @@ index c7c2ad98..2643a72e 100644
  error:
  	mt7996_mac_sta_remove_links(dev, vif, sta, add);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 3219ae8a..29f9a5f8 100644
+index db975daa..bad8e030 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2911,6 +2911,77 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
+@@ -2916,6 +2916,77 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
  	return mt7996_mcu_add_rate_ctrl_fixed(dev, conf, mconf, link_sta, mlink);
  }
  
@@ -115,7 +116,7 @@ index 3219ae8a..29f9a5f8 100644
  #if 0
  static int
  mt7996_mcu_sta_init_vow(struct mt7996_bss_conf *mconf,
-@@ -2980,6 +3051,8 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
+@@ -2985,6 +3056,8 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
  
  	/* tag order is in accordance with firmware dependency. */
  	if (link_sta) {
@@ -124,7 +125,7 @@ index 3219ae8a..29f9a5f8 100644
  		/* starec hdrt mode */
  		mt7996_mcu_sta_hdrt_tlv(dev, skb);
  		/* starec bfer */
-@@ -2989,7 +3062,7 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
+@@ -2994,7 +3067,7 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
  		/* starec vht */
  		mt7996_mcu_sta_vht_tlv(skb, link_sta);
  		/* starec uapsd */
@@ -133,7 +134,7 @@ index 3219ae8a..29f9a5f8 100644
  		/* starec amsdu */
  		mt7996_mcu_sta_amsdu_tlv(dev, skb, vif, link_sta, mlink);
  		/* starec he */
-@@ -3002,6 +3075,12 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
+@@ -3007,6 +3080,12 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
  		mt7996_mcu_sta_muru_tlv(dev, skb, conf, mconf, link_sta);
  		/* starec bfee */
  		mt7996_mcu_sta_bfee_tlv(dev, skb, conf, mconf, link_sta);
@@ -146,7 +147,7 @@ index 3219ae8a..29f9a5f8 100644
  	}
  
  #if 0
-@@ -3016,112 +3095,6 @@ out:
+@@ -3021,112 +3100,6 @@ out:
  				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
  }
  
@@ -274,10 +275,10 @@ index 20eaf20d..05b29c90 100644
  
  #define MT7996_MAX_BEACON_SIZE		1338
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 062c0087..50011283 100644
+index 251a3c70..edd9c7c9 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1083,8 +1083,6 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
+@@ -1087,8 +1087,6 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
  			     struct mt7996_bss_conf *mconf,
  			     struct ieee80211_link_sta *link_sta,
  			     struct mt7996_link_sta *mlink, bool changed);

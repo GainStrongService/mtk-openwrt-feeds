@@ -1,7 +1,7 @@
-From c25c4145f1d45b2491de2da90a09ed64b982ab75 Mon Sep 17 00:00:00 2001
+From bd12a6bbc6783a69d6ab5630b7b7ffda53da88d5 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 1 Apr 2024 17:00:21 +0800
-Subject: [PATCH 104/195] mtk: mt76: mt7996: enable ampdu limit to avoid BA
+Subject: [PATCH 104/223] mtk: mt76: mt7996: enable ampdu limit to avoid BA
  bound issue
 
 [Description]
@@ -25,6 +25,7 @@ between 512 to 1024.
 [Release-log]
 N/A
 
+Change-Id: I64ea1d5df012c1eb9462391e5e9c20658ed7f4fe
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  mt76_connac_mcu.h |  1 +
@@ -33,10 +34,10 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 95 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 19c65db4..654f16ff 100644
+index 1dcd1696..f6b472ef 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -829,6 +829,7 @@ enum {
+@@ -834,6 +834,7 @@ enum {
  	STA_REC_KEY_V3 = 0x27,
  	STA_REC_HDRT = 0x28,
  	STA_REC_HDR_TRANS = 0x2B,
@@ -45,10 +46,10 @@ index 19c65db4..654f16ff 100644
  };
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index a46d524a..de20cc7c 100644
+index 54b0272c..8034c8ab 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1344,6 +1344,85 @@ mt7996_mcu_sta_ba(struct mt7996_dev *dev, struct mt76_vif *mvif,
+@@ -1349,6 +1349,85 @@ mt7996_mcu_sta_ba(struct mt7996_dev *dev, struct mt76_vif *mvif,
  				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
  }
  
@@ -134,7 +135,7 @@ index a46d524a..de20cc7c 100644
  /** starec & wtbl **/
  int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
  			 struct ieee80211_ampdu_params *params,
-@@ -1353,6 +1432,7 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
+@@ -1358,6 +1437,7 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
  	unsigned long valid_links = sta->valid_links ?: BIT(0);
  	unsigned int link_id;
@@ -142,7 +143,7 @@ index a46d524a..de20cc7c 100644
  
  	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
  		struct mt7996_link_sta *mlink =
-@@ -1368,6 +1448,12 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
+@@ -1373,6 +1453,12 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
  					&mlink->wcid, enable, true);
  		if (ret)
  			return ret;

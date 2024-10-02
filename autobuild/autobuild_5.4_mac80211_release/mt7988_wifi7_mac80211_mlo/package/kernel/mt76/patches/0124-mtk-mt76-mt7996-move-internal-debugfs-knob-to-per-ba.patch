@@ -1,9 +1,10 @@
-From 165ee7b202aa4062ef0602ad97b7ad348a58e036 Mon Sep 17 00:00:00 2001
+From 4a9412a2376d1a0c1c642cc2dea242b059a7463d Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 16 May 2024 18:04:28 +0800
-Subject: [PATCH 124/195] mtk: mt76: mt7996: move internal debugfs knob to
+Subject: [PATCH 124/223] mtk: mt76: mt7996: move internal debugfs knob to
  per-band folder
 
+Change-Id: I03efc222cd57035aa089babbc94c70e807494763
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  mt7996/debugfs.c     |   5 +-
@@ -12,7 +13,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 44 insertions(+), 81 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 9d74f659..71dc0449 100644
+index d2b38efb..9a62dfda 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -1105,6 +1105,9 @@ int mt7996_init_band_debugfs(struct mt7996_phy *phy)
@@ -35,10 +36,10 @@ index 9d74f659..71dc0449 100644
  
  	return 0;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 4c898486..e8f970f6 100644
+index ef41beee..21be14d0 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1286,7 +1286,8 @@ enum edcca_bw_id {
+@@ -1290,7 +1290,8 @@ enum edcca_bw_id {
  };
  
  #ifdef CONFIG_MTK_DEBUG
@@ -49,7 +50,7 @@ index 4c898486..e8f970f6 100644
  int mt7996_mcu_set_sr_enable(struct mt7996_phy *phy, u8 action, u64 val, bool set);
  void mt7996_mcu_rx_sr_event(struct mt7996_dev *dev, struct sk_buff *skb);
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 0820e0d0..59c6db73 100644
+index 0cf48193..06fa83bb 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -14,13 +14,14 @@
@@ -96,7 +97,7 @@ index 0820e0d0..59c6db73 100644
  
  /* AMSDU INFO */
  static int mt7996_amsdu_result_read(struct seq_file *s, void *data)
-@@ -704,10 +688,12 @@ static int mt7996_trinfo_read(struct seq_file *s, void *data)
+@@ -703,10 +687,12 @@ static int mt7996_trinfo_read(struct seq_file *s, void *data)
  }
  
  /* MIB INFO */
@@ -111,7 +112,7 @@ index 0820e0d0..59c6db73 100644
  	u8 bss_nums = BSS_NUM;
  	u32 idx;
  	u32 mac_val, band_offset = 0, band_offset_umib = 0;
-@@ -920,24 +906,7 @@ static int mt7996_mibinfo_read_per_band(struct seq_file *s, int band_idx)
+@@ -919,24 +905,7 @@ static int mt7996_mibinfo_read_per_band(struct seq_file *s, int band_idx)
  
  	return 0;
  }
@@ -137,7 +138,7 @@ index 0820e0d0..59c6db73 100644
  
  /* WTBL INFO */
  static int
-@@ -3036,9 +3005,9 @@ static const struct file_operations fops_muru_fixed_group_rate = {
+@@ -3035,9 +3004,9 @@ static const struct file_operations fops_muru_fixed_group_rate = {
  
  static int mt7996_muru_prot_thr_set(void *data, u64 val)
  {
@@ -149,7 +150,7 @@ index 0820e0d0..59c6db73 100644
  }
  
  DEFINE_DEBUGFS_ATTRIBUTE(fops_muru_prot_thr, NULL,
-@@ -4219,9 +4188,32 @@ mt7996_drr_info(struct seq_file *s, void *data)
+@@ -4218,9 +4187,32 @@ mt7996_drr_info(struct seq_file *s, void *data)
  	return 0;
  }
  
@@ -184,7 +185,7 @@ index 0820e0d0..59c6db73 100644
  	u32 device_id = (dev->mt76.rev) >> 16;
  	int i = 0;
  	static const struct mt7996_dbg_reg_desc dbg_reg_s[] = {
-@@ -4246,13 +4238,6 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -4245,13 +4237,6 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  		WTBL_LMAC_DW9 = WTBL_LMAC_DW9_7992;
  	}
  
@@ -198,7 +199,7 @@ index 0820e0d0..59c6db73 100644
  	/* amsdu */
  	debugfs_create_devm_seqfile(dev->mt76.dev, "amsdu_info", dir,
  				    mt7996_amsdu_result_read);
-@@ -4270,24 +4255,12 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -4269,24 +4254,12 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  	debugfs_create_devm_seqfile(dev->mt76.dev, "fw_wm_info", dir,
  				    mt7996_fw_wm_info_read);
  
@@ -223,7 +224,7 @@ index 0820e0d0..59c6db73 100644
  	debugfs_create_devm_seqfile(dev->mt76.dev, "eeprom_mode", dir,
  				    mt7996_show_eeprom_mode);
  
-@@ -4300,23 +4273,12 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -4299,23 +4272,12 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  
  	dev->dbg.sku_disable = true; /* For SQC */
  	debugfs_create_u8("sku_disable", 0600, dir, &dev->dbg.sku_disable);
@@ -248,7 +249,7 @@ index 0820e0d0..59c6db73 100644
  
  	if (dev->has_rro) {
  		debugfs_create_u32("rro_sid", 0600, dir, &dev->dbg.sid);
-@@ -4326,7 +4288,6 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -4325,7 +4287,6 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  					    mt7996_show_rro_mib);
  	}
  
@@ -256,7 +257,7 @@ index 0820e0d0..59c6db73 100644
  	debugfs_create_file("thermal_recal", 0200, dir, dev, &fops_thermal_recal);
  	debugfs_create_file("reset_counter", 0200, dir, dev, &fops_reset_counter);
  
-@@ -4346,8 +4307,6 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -4345,8 +4306,6 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  	debugfs_create_file("amsdu_para", 0600, dir, dev, &fops_amsdu_para);
  	debugfs_create_devm_seqfile(dev->mt76.dev, "hw_amsdu_info", dir,
  	                            mt7996_hw_amsdu_info_read);

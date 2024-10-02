@@ -1,7 +1,7 @@
-From c52377928da48fff8b3b2fa128f8eb1ead6ba206 Mon Sep 17 00:00:00 2001
+From 0ae2d7c2cf18d4ca07b05c7ea14fc0c2ea9e5ad7 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 22 Mar 2023 11:19:52 +0800
-Subject: [PATCH 021/195] mtk: mt76: mt7996: add testmode ZWDFS verification
+Subject: [PATCH 021/223] mtk: mt76: mt7996: add testmode ZWDFS verification
  support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -15,10 +15,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 326 insertions(+), 12 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 19e837ee..e25fe82c 100644
+index 924f273b..2805d758 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -799,6 +799,14 @@ struct mt76_testmode_data {
+@@ -801,6 +801,14 @@ struct mt76_testmode_data {
  	} cfg;
  
  	u8 aid;
@@ -34,10 +34,10 @@ index 19e837ee..e25fe82c 100644
  
  struct mt76_vif {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 8342a340..a679fd18 100644
+index efb4e74c..1fe681cf 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -287,6 +287,7 @@ struct mt7996_phy {
+@@ -297,6 +297,7 @@ struct mt7996_phy {
  
  	struct mt76_mib_stats mib;
  	struct mt76_channel_state state_ts;
@@ -46,7 +46,7 @@ index 8342a340..a679fd18 100644
  	bool has_aux_rx;
  
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index a756ee10..836211f9 100644
+index 6969cba6..c4874eb3 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -17,6 +17,12 @@ enum {

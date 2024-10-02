@@ -1,7 +1,7 @@
-From 075181f1c151b387ab88837c87678fc6ca15e051 Mon Sep 17 00:00:00 2001
+From a3f223f025ce2abc2dc0e42ab835a8cc5ef6d65a Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 10 Jul 2023 11:47:29 +0800
-Subject: [PATCH 028/195] mtk: mt76: mt7996: add support spatial reuse debug
+Subject: [PATCH 028/223] mtk: mt76: mt7996: add support spatial reuse debug
  commands
 
 This commit adds the following debug commands in debugfs:
@@ -16,6 +16,7 @@ environment can SR Tx or not.
 To learn more details of these commands, please check:
 https://wiki.mediatek.inc/display/APKB/mt76+Phy+feature+debug+Cheetsheet#mt76PhyfeaturedebugCheetsheet-SpatialReuse
 
+Change-Id: I5bf83013ea2788dfc93caaaef08486a4f97a3649
 ---
  mt76_connac_mcu.h    |   1 +
  mt7996/main.c        |   6 +++
@@ -27,10 +28,10 @@ https://wiki.mediatek.inc/display/APKB/mt76+Phy+feature+debug+Cheetsheet#mt76Phy
  7 files changed, 270 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index bdb1c5a5..d99b338b 100644
+index e9afc27b..dd63d4a0 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1051,6 +1051,7 @@ enum {
+@@ -1056,6 +1056,7 @@ enum {
  	MCU_UNI_EVENT_BSS_BEACON_LOSS = 0x0c,
  	MCU_UNI_EVENT_SCAN_DONE = 0x0e,
  	MCU_UNI_EVENT_RDD_REPORT = 0x11,
@@ -39,7 +40,7 @@ index bdb1c5a5..d99b338b 100644
  	MCU_UNI_EVENT_TX_DONE = 0x2d,
  	MCU_UNI_EVENT_BF = 0x33,
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 550b1f4e..72297aaa 100644
+index 67eab3df..6203e800 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -6,6 +6,9 @@
@@ -63,10 +64,10 @@ index 550b1f4e..72297aaa 100644
  						dev->dbg.sku_disable ? 0 : phy->sku_limit_en);
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index e743bcb2..23c2092d 100644
+index eb065ffc..78462729 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -717,6 +717,14 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -727,6 +727,14 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	case MCU_UNI_EVENT_WED_RRO:
  		mt7996_mcu_wed_rro_event(dev, skb);
  		break;
@@ -82,10 +83,10 @@ index e743bcb2..23c2092d 100644
  	case MCU_UNI_EVENT_TESTMODE_CTRL:
  		mt7996_tm_rf_test_event(dev, skb);
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 0d04013d..3cfe8913 100644
+index c011e8ec..356935b2 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -357,6 +357,10 @@ struct mt7996_phy {
+@@ -366,6 +366,10 @@ struct mt7996_phy {
  	spinlock_t amnt_lock;
  	struct mt7996_air_monitor_ctrl amnt_ctrl;
  #endif
@@ -96,7 +97,7 @@ index 0d04013d..3cfe8913 100644
  };
  
  struct mt7996_dev {
-@@ -807,6 +811,8 @@ enum edcca_bw_id {
+@@ -838,6 +842,8 @@ enum edcca_bw_id {
  #ifdef CONFIG_MTK_DEBUG
  int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir);
  int mt7996_mcu_muru_dbg_info(struct mt7996_dev *dev, u16 item, u8 val);
@@ -106,10 +107,10 @@ index 0d04013d..3cfe8913 100644
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 053005dd..06dc794e 100644
+index 60ec6bd4..13ea6274 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -2835,6 +2835,83 @@ static int mt7996_show_eeprom_mode(struct seq_file *s, void *data)
+@@ -2834,6 +2834,83 @@ static int mt7996_show_eeprom_mode(struct seq_file *s, void *data)
  	return 0;
  }
  
@@ -193,7 +194,7 @@ index 053005dd..06dc794e 100644
  int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  {
  	struct mt7996_dev *dev = phy->dev;
-@@ -2915,6 +2992,11 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -2914,6 +2991,11 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  	debugfs_create_u8("sku_disable", 0600, dir, &dev->dbg.sku_disable);
  	debugfs_create_file("scs_enable", 0200, dir, phy, &fops_scs_enable);
  

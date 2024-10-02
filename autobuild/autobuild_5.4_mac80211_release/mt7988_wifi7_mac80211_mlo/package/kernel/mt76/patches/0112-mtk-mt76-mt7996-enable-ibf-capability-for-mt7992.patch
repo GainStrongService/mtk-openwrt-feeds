@@ -1,22 +1,23 @@
-From 2dbb5ff45f8caa0d792a84587be73052348b7798 Mon Sep 17 00:00:00 2001
+From 349f51f541c02b1a3f72cce4e2f70110a0f39252 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Tue, 23 Apr 2024 09:19:25 +0800
-Subject: [PATCH 112/195] mtk: mt76: mt7996: enable ibf capability for mt7992
+Subject: [PATCH 112/223] mtk: mt76: mt7996: enable ibf capability for mt7992
 
 For the specific sku of mt7992, it supports both ibf and ebf
 functionality. The firmware algorithm may decide which type is better
 according to the station's beamform capability.
 
+Change-Id: I4b38ddf5059b5eafd5fc4cacb1add2a6d0ea3836
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 ---
  mt7996/mcu.c | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 1921d3d4..2de29a9f 100644
+index d56630e9..f9ed473a 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2265,6 +2265,8 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -2270,6 +2270,8 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  			struct ieee80211_bss_conf *conf, struct mt7996_bss_conf *mconf,
  			struct ieee80211_link_sta *link_sta)
  {
@@ -25,7 +26,7 @@ index 1921d3d4..2de29a9f 100644
  	struct mt7996_phy *phy = mconf->phy;
  	int tx_ant = hweight16(phy->mt76->chainmask) - 1;
  	struct sta_rec_bf *bf;
-@@ -2302,7 +2304,10 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -2307,7 +2309,10 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  	else
  		return;
  

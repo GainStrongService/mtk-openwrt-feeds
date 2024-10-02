@@ -1,12 +1,13 @@
-From 3912ce59f38df518d8c4f07f9e4ab0e836b48505 Mon Sep 17 00:00:00 2001
+From 279a649bea9faaab320a88c2dfeedd83668d059c Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 28 May 2024 09:33:11 +0800
-Subject: [PATCH 128/195] mtk: mt76: mt7996: remove chanctx in mt7996_bss_conf
+Subject: [PATCH 128/223] mtk: mt76: mt7996: remove chanctx in mt7996_bss_conf
 
 Different vif under the same phy cannot use different chanctx.
 So it is better to maintain the chanctx in mt7996_phy.
 Instead of mconf->chanctx, get the chanctx by mconf->phy->chanctx.
 
+Change-Id: Ic66dbd007a7c7b5832161197e695d5c0e1dba522
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  mt7996/main.c   | 8 +-------
@@ -14,7 +15,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  2 files changed, 1 insertion(+), 9 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 8fcb550c..b45f63f6 100644
+index be0864a0..2b272cc4 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -2540,8 +2540,6 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -54,10 +55,10 @@ index 8fcb550c..b45f63f6 100644
  					mt7996_mcu_set_chan_info(phy, UNI_CHANNEL_SWITCH,
  								 true);
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 3d1eb84a..eba48c10 100644
+index 07c72d2b..9f58a793 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -347,8 +347,6 @@ struct mt7996_bss_conf {
+@@ -348,8 +348,6 @@ struct mt7996_bss_conf {
  	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
  	struct cfg80211_bitrate_mask bitrate_mask;
  

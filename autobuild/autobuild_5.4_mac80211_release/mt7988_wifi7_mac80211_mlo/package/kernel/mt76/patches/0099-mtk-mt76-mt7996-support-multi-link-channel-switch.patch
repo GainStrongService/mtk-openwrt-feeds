@@ -1,7 +1,7 @@
-From 566cd00d1fed9f6c8f6cd4265ca99910e9716082 Mon Sep 17 00:00:00 2001
+From 70a14f12eef8b505890f654876a7f89432070bbf Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 19 Jan 2024 14:04:03 +0800
-Subject: [PATCH 099/195] mtk: mt76: mt7996: support multi-link channel switch
+Subject: [PATCH 099/223] mtk: mt76: mt7996: support multi-link channel switch
 
 mtk: wifi: mt76: mt7996: remove the limitation of radar detect width for mlo
 
@@ -27,10 +27,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 22 insertions(+), 7 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index cc4c4b31..0651760f 100644
+index a98fe4fb..a2b111c0 100644
 --- a/mac80211.c
 +++ b/mac80211.c
-@@ -1825,7 +1825,7 @@ enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
+@@ -1801,7 +1801,7 @@ enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
  	    test_bit(MT76_SCANNING, &phy->state))
  		return MT_DFS_STATE_DISABLED;
  
@@ -40,10 +40,10 @@ index cc4c4b31..0651760f 100644
  		    (phy->chandef.chan->flags & IEEE80211_CHAN_RADAR))
  			return MT_DFS_STATE_ACTIVE;
 diff --git a/mt76.h b/mt76.h
-index c43efdfb..4d495a7b 100644
+index b65a6b0a..bc263bd4 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -860,6 +860,7 @@ struct mt76_phy {
+@@ -862,6 +862,7 @@ struct mt76_phy {
  
  	struct mt76_channel_state *chan_state;
  	enum mt76_dfs_state dfs_state;
@@ -52,7 +52,7 @@ index c43efdfb..4d495a7b 100644
  
  	u32 aggr_stats[32];
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 70607a48..74f48ce6 100644
+index fe5bfd72..e3f30b23 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -2143,7 +2143,7 @@ static int
@@ -105,10 +105,10 @@ index 70607a48..74f48ce6 100644
  	new_ctx->chandef = vifs->new_ctx->def;
  	new_ctx->phy = phy;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 65eade0d..23664b60 100644
+index 9359a251..d897098e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -357,10 +357,18 @@ int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)
+@@ -362,10 +362,18 @@ int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)
  static void
  mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
  {
@@ -129,7 +129,7 @@ index 65eade0d..23664b60 100644
  }
  
  static void
-@@ -475,7 +483,7 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -480,7 +488,7 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)
  		case UNI_EVENT_IE_COUNTDOWN_CSA:
  			ieee80211_iterate_active_interfaces_atomic(mphy->hw,
  					IEEE80211_IFACE_ITER_RESUME_ALL,

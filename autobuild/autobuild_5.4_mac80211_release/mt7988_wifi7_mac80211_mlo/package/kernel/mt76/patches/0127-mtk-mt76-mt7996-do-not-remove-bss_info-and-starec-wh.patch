@@ -1,7 +1,7 @@
-From f4e81ab46a04b48b55db92ab8c21f1eec32fa581 Mon Sep 17 00:00:00 2001
+From ebc64cf0ebe700231a5b94b299abb49b8db88308 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 22 May 2024 18:22:51 +0800
-Subject: [PATCH 127/195] mtk: mt76: mt7996: do not remove bss_info and starec
+Subject: [PATCH 127/223] mtk: mt76: mt7996: do not remove bss_info and starec
  when assign_vif_chanctx
 
 When STA interface re-connect from rootAP, it would unsign/assign vif
@@ -10,13 +10,14 @@ bss_info and starec for AP interface, the WTBL and GTK of AP would
 be cleared. But the hostapd does not remove interface so it would not
 set key again.
 
+Change-Id: Icdd599f163268e7f313589f0ca35a2f220e2b783
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  mt7996/main.c | 17 +++++++++++++----
  1 file changed, 13 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 3fb43606..8fcb550c 100644
+index f45f6c02..be0864a0 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -338,6 +338,9 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,

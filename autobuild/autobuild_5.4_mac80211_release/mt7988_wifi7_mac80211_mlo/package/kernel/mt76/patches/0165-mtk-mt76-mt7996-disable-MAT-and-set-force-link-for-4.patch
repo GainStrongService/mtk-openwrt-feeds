@@ -1,7 +1,7 @@
-From 6b24303ab899924acf4f9ac52c59c06a856a3551 Mon Sep 17 00:00:00 2001
+From 05542b2127e52eae086612d666891b8f84f357e9 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 8 Jul 2024 11:05:31 +0800
-Subject: [PATCH 165/195] mtk: mt76: mt7996: disable MAT and set force-link for
+Subject: [PATCH 165/223] mtk: mt76: mt7996: disable MAT and set force-link for
  4-addr NULL func data frame
 
 This is a temporary solution to solve a WDS connection problem.
@@ -13,16 +13,17 @@ side HW's incorrect address translation.
 
 Disabling MAT can prevent the connection problem.
 
+Change-Id: Ie62f8cc5e0ace41a24e61a4dc8127387a1703650
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
  mt7996/mac.c | 6 ++++++
  1 file changed, 6 insertions(+)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 97cd5e23..a8985a3b 100644
+index 87e671a3..1f225756 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -759,6 +759,12 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+@@ -771,6 +771,12 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
  	    (multicast || unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE)) ||
  	     info->flags & IEEE80211_TX_CTL_INJECTED))
  		txwi[5] |= cpu_to_le32(MT_TXD5_FL);

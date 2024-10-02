@@ -1,7 +1,7 @@
-From 7208863a19adbc607ad707417d365ab1e0a01624 Mon Sep 17 00:00:00 2001
+From e5e8751f543d8558637b4b8438f1f2f518effc2b Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 7 Dec 2023 16:31:56 +0800
-Subject: [PATCH 095/195] mtk: mt76: mt7996: implement mld address translation
+Subject: [PATCH 095/223] mtk: mt76: mt7996: implement mld address translation
 
 Do the MLD to link address translation for EAPOL and management frames
 in driver.
@@ -18,10 +18,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  2 files changed, 66 insertions(+), 3 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 36d2e0b3..a306ad71 100644
+index a30b7dfa..9c256655 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -898,6 +898,26 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -910,6 +910,26 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  		mt7996_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, key,
  				      pid, qid, 0);
  
@@ -49,7 +49,7 @@ index 36d2e0b3..a306ad71 100644
  	for (i = 0; i < nbuf; i++) {
  		u16 len;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index e40d7fa4..102e3d1d 100644
+index 9ce7c6fb..75e571b0 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1316,14 +1316,56 @@ static void mt7996_tx(struct ieee80211_hw *hw,

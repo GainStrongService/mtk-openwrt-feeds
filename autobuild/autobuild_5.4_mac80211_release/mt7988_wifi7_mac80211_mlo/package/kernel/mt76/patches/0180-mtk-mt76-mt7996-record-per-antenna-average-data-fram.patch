@@ -1,7 +1,7 @@
-From ccbfd127da10d9d15699f57355055768c83e623e Mon Sep 17 00:00:00 2001
+From a8a7baa9433713f20bd0e8f6f78972097d0f0820 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Thu, 1 Aug 2024 09:11:02 +0800
-Subject: [PATCH 180/195] mtk: mt76: mt7996: record per-antenna average
+Subject: [PATCH 180/223] mtk: mt76: mt7996: record per-antenna average
  data-frame RSSI
 
 Record per-antenna average data-frame RSSI.
@@ -14,7 +14,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  3 files changed, 13 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index f9344f28..27b4e99f 100644
+index ac51e27d..58b462e8 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -494,10 +494,17 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -36,7 +36,7 @@ index f9344f28..27b4e99f 100644
  
  		/* RXD Group 5 - C-RXV */
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 3e29bf39..9720fd0a 100644
+index 2b92b686..ed0f9154 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1230,7 +1230,7 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
@@ -59,10 +59,10 @@ index 3e29bf39..9720fd0a 100644
  
  	return 0;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index ca0193c9..f144fa08 100644
+index 38f62d89..59f0be0a 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -320,6 +320,8 @@ struct mt7996_link_sta {
+@@ -321,6 +321,8 @@ struct mt7996_link_sta {
  
  	s8 chain_signal[IEEE80211_MAX_CHAINS];
  	int signal;

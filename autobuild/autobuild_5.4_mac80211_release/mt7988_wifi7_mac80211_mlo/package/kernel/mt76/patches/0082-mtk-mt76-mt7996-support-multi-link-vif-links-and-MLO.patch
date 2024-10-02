@@ -1,7 +1,7 @@
-From 2459c5a19c77524c82244b1663613927b1adfc80 Mon Sep 17 00:00:00 2001
+From 59199b2eabeb1d8ce11bf644c4ecd565a385c663 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 23 Nov 2023 18:22:11 +0800
-Subject: [PATCH 082/195] mtk: mt76: mt7996: support multi-link vif links and
+Subject: [PATCH 082/223] mtk: mt76: mt7996: support multi-link vif links and
  MLO bss callbacks
 
 Rework add/remove interface functions to add/remove bss_conf functions,
@@ -18,7 +18,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  3 files changed, 267 insertions(+), 66 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index e5a95de1..983dcb44 100644
+index 98afb057..dc7ee54c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -205,6 +205,38 @@ static int get_omac_idx(enum nl80211_iftype type, u64 mask)
@@ -489,10 +489,10 @@ index e5a95de1..983dcb44 100644
 +	.change_vif_links = mt7996_change_vif_links,
  };
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 5b392dee..b0d4227f 100644
+index ced769b4..081e9ca9 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1047,15 +1047,23 @@ static void
+@@ -1052,15 +1052,23 @@ static void
  mt7996_mcu_bss_mld_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
  		       struct mt7996_bss_conf *mconf)
  {
@@ -520,7 +520,7 @@ index 5b392dee..b0d4227f 100644
  }
  
  static void
-@@ -1136,13 +1144,11 @@ mt7996_mcu_bss_ifs_timing_tlv(struct sk_buff *skb, struct mt7996_phy *phy)
+@@ -1141,13 +1149,11 @@ mt7996_mcu_bss_ifs_timing_tlv(struct sk_buff *skb, struct mt7996_phy *phy)
  }
  
  static int
@@ -538,7 +538,7 @@ index 5b392dee..b0d4227f 100644
  	struct ieee80211_vif *vif = conf->vif;
  	struct cfg80211_chan_def *chandef = &phy->chandef;
  	struct mt76_connac_bss_basic_tlv *bss;
-@@ -1254,8 +1260,7 @@ int mt7996_mcu_add_bss_info(struct mt7996_phy *phy,
+@@ -1259,8 +1265,7 @@ int mt7996_mcu_add_bss_info(struct mt7996_phy *phy,
  		return PTR_ERR(skb);
  
  	/* bss_basic must be first */
@@ -549,10 +549,10 @@ index 5b392dee..b0d4227f 100644
  
  	if (vif->type == NL80211_IFTYPE_MONITOR)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index fb16758a..526600fe 100644
+index d86e24e3..9b9b1f8f 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -341,6 +341,9 @@ struct mt7996_bss_conf {
+@@ -342,6 +342,9 @@ struct mt7996_bss_conf {
  	struct cfg80211_bitrate_mask bitrate_mask;
  
  	struct mt7996_chanctx *chanctx;
@@ -562,7 +562,7 @@ index fb16758a..526600fe 100644
  };
  
  struct mt7996_vif {
-@@ -349,6 +352,10 @@ struct mt7996_vif {
+@@ -350,6 +353,10 @@ struct mt7996_vif {
  
  	struct mt7996_sta sta;
  	struct mt7996_dev *dev;
@@ -573,7 +573,7 @@ index fb16758a..526600fe 100644
  };
  
  /* crash-dump */
-@@ -550,6 +557,8 @@ struct mt7996_dev {
+@@ -551,6 +558,8 @@ struct mt7996_dev {
  	u16 chainmask;
  	u8 chainshift[__MT_MAX_BAND];
  	u32 hif_idx;

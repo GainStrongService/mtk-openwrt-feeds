@@ -1,7 +1,7 @@
-From 5ea577e00e49d805815e548e6f37fea57ff69064 Mon Sep 17 00:00:00 2001
+From 62e749b2b89a799e0d137983f4dabc1eeb3ebad8 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 29 Nov 2023 10:12:39 +0800
-Subject: [PATCH 083/195] mtk: mt76: mt7996: support multi-link sta links and
+Subject: [PATCH 083/223] mtk: mt76: mt7996: support multi-link sta links and
  MLO sta callbacks
 
 Rework add_sta functions to add_link_sta functions, and support
@@ -19,7 +19,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  4 files changed, 400 insertions(+), 71 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 983dcb44..101e7725 100644
+index dc7ee54c..106e8534 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -926,42 +926,234 @@ mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
@@ -395,10 +395,10 @@ index 983dcb44..101e7725 100644
 +	.change_sta_links = mt7996_change_sta_links,
  };
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b0d4227f..e10ba1c0 100644
+index 081e9ca9..96d4d5b0 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2428,6 +2428,123 @@ out:
+@@ -2433,6 +2433,123 @@ out:
  				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
  }
  
@@ -563,10 +563,10 @@ index b15796dc..23d44cd3 100644
  	__le16 tag;
  	__le16 len;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 526600fe..b49e6257 100644
+index 9b9b1f8f..f6933418 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -330,6 +330,8 @@ struct mt7996_sta {
+@@ -331,6 +331,8 @@ struct mt7996_sta {
  	struct mt7996_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
  
  	struct mt7996_vif *vif;
@@ -575,7 +575,7 @@ index 526600fe..b49e6257 100644
  };
  
  struct mt7996_bss_conf {
-@@ -857,6 +859,9 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
+@@ -861,6 +863,9 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
  		       struct mt7996_bss_conf *mconf,
  		       struct ieee80211_link_sta *link_sta,
  		       struct mt7996_link_sta *mlink, bool enable, bool newly);
@@ -585,7 +585,7 @@ index 526600fe..b49e6257 100644
  int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
  			 struct ieee80211_ampdu_params *params,
  			 bool add);
-@@ -880,6 +885,8 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
+@@ -884,6 +889,8 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
  			     struct mt7996_bss_conf *mconf,
  			     struct ieee80211_link_sta *link_sta,
  			     struct mt7996_link_sta *mlink, bool changed);

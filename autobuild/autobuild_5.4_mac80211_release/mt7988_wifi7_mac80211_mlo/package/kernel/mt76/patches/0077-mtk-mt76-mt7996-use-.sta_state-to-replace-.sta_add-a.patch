@@ -1,7 +1,7 @@
-From dddb6dd71066e36b6d5978bd1422655638654fcd Mon Sep 17 00:00:00 2001
+From 2819a489bf4d70e8407cdc07d2d77b3b40441669 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 8 Nov 2023 18:52:26 +0800
-Subject: [PATCH 077/195] mtk: mt76: mt7996: use .sta_state to replace .sta_add
+Subject: [PATCH 077/223] mtk: mt76: mt7996: use .sta_state to replace .sta_add
  and .sta_remove
 
 MAC80211 mostly uses MLD address through TX path, and leaves the header
@@ -13,6 +13,7 @@ callback to meet this requirement.
 
 This is a preliminary patch to add MLO support for mt7996 chipsets.
 
+Change-Id: I8a0faef919843f2c7d5ff3256702a3bf8384ea60
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
  mt7996/main.c   | 55 +++++++++++++++++++++----------------------------
@@ -21,7 +22,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  3 files changed, 26 insertions(+), 32 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 8884c6c4..e093be48 100644
+index cbd64681..5edfbc4b 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -782,7 +782,7 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -131,10 +132,10 @@ index 1fcca23c..8ac1b12a 100644
  		.update_survey = mt7996_update_channel,
  		// .set_channel = mt7996_set_channel,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 3597bbbf..4d7617ca 100644
+index 07790257..7d416f30 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -967,6 +967,8 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+@@ -971,6 +971,8 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
  void mt7996_mac_set_coverage_class(struct mt7996_phy *phy);
  int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  		       struct ieee80211_sta *sta);

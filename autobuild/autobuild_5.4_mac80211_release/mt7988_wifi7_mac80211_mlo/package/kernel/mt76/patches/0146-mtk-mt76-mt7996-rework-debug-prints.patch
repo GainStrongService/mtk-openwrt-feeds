@@ -1,11 +1,12 @@
-From ddf5723d93ddcebe9db926765aad0f703c10312d Mon Sep 17 00:00:00 2001
+From 28b5dc0783ecf0b3b173c76b9138f769ec6345f3 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 19 Jun 2024 12:04:46 +0800
-Subject: [PATCH 146/195] mtk: mt76: mt7996: rework debug prints
+Subject: [PATCH 146/223] mtk: mt76: mt7996: rework debug prints
 
 Trim debug messages, and move some of them (especially mcu cmd) into
 tracing log.
 
+Change-Id: I1cf15113a43990fdf201722738e32f08b9118b8f
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
  mt76_connac_mcu.c |  1 -
@@ -16,7 +17,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  5 files changed, 67 insertions(+), 49 deletions(-)
 
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 76117b6c..426baf0e 100644
+index b62a1ac8..e4e6c0d3 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -428,7 +428,6 @@ void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
@@ -28,10 +29,10 @@ index 76117b6c..426baf0e 100644
  }
  EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_basic_tlv);
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index a0406700..960b02dd 100644
+index 966cf314..0a96b5de 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2930,9 +2930,6 @@ void mt7996_scan_work(struct work_struct *work)
+@@ -2942,9 +2942,6 @@ void mt7996_scan_work(struct work_struct *work)
  		return;
  	}
  
@@ -42,7 +43,7 @@ index a0406700..960b02dd 100644
  
  	if (!req->n_ssids ||
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 6317ec7f..f6422b1f 100644
+index d73fd9d6..647e0e8a 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -297,6 +297,9 @@ static void mt7996_remove_bss_conf(struct ieee80211_vif *vif,
@@ -241,10 +242,10 @@ index 6317ec7f..f6422b1f 100644
  
  	if (rem)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 99bad18e..596f58cc 100644
+index 28bccc15..6149f227 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -382,7 +382,6 @@ mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
+@@ -387,7 +387,6 @@ mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
  	if (!link_conf || !link_conf->csa_active || vif->type == NL80211_IFTYPE_STATION)
  		return;
  
@@ -252,7 +253,7 @@ index 99bad18e..596f58cc 100644
  	mvif->cs_ready_links = 0;
  	mvif->cs_link_id = IEEE80211_LINK_UNSPECIFIED;
  	ieee80211_csa_finish(vif, link_id);
-@@ -1508,8 +1507,8 @@ mt7996_mcu_bss_mld_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
+@@ -1513,8 +1512,8 @@ mt7996_mcu_bss_mld_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
  	}
  
  	mld->own_mld_id = mconf->own_mld_id;
@@ -263,7 +264,7 @@ index 99bad18e..596f58cc 100644
  }
  
  static void
-@@ -1662,8 +1661,8 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *conf,
+@@ -1667,8 +1666,8 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *conf,
  
  	memcpy(bss->bssid, conf->bssid, ETH_ALEN);
  
@@ -274,7 +275,7 @@ index 99bad18e..596f58cc 100644
  
  	bss->bcn_interval = cpu_to_le16(conf->beacon_int);
  	bss->dtim_period = conf->dtim_period;
-@@ -1802,8 +1801,6 @@ mt7996_mcu_sta_tx_cap(struct mt7996_dev *dev, struct mt76_vif *mvif,
+@@ -1807,8 +1806,6 @@ mt7996_mcu_sta_tx_cap(struct mt7996_dev *dev, struct mt76_vif *mvif,
  	tx_cap = (struct sta_rec_tx_cap *)tlv;
  	tx_cap->ampdu_limit_en = true;
  
@@ -283,7 +284,7 @@ index 99bad18e..596f58cc 100644
  	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
  				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
  }
-@@ -2963,8 +2960,8 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
+@@ -2968,8 +2965,8 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
  	conn_state = enable ? CONN_STATE_PORT_SECURE : CONN_STATE_DISCONNECT;
  	mt76_connac_mcu_sta_basic_tlv(&dev->mt76, skb, conf, link_sta,
  				      conn_state, newly);
@@ -294,7 +295,7 @@ index 99bad18e..596f58cc 100644
  
  	if (!enable)
  		goto out;
-@@ -3024,6 +3021,8 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -3029,6 +3026,8 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  	struct tlv *tlv;
  	unsigned long valid_links = sta->valid_links;
  	unsigned int link_id;
@@ -303,7 +304,7 @@ index 99bad18e..596f58cc 100644
  
  	mlink = mlink_dereference_protected(msta, msta->pri_link);
  	if (!mlink)
-@@ -3047,15 +3046,16 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -3052,15 +3051,16 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  	mld_setup->link_num = hweight16(sta->valid_links);
  
  	mld_setup_link = (struct mld_setup_link *)mld_setup->link_info;
@@ -323,7 +324,7 @@ index 99bad18e..596f58cc 100644
  		link_id, mld_setup_link->wcid, mld_setup_link->bss_idx);
  		mld_setup_link++;
  	}
-@@ -3321,8 +3321,8 @@ int mt7996_mcu_add_dev_info(struct mt7996_phy *phy,
+@@ -3326,8 +3326,8 @@ int mt7996_mcu_add_dev_info(struct mt7996_phy *phy,
  		return mt7996_mcu_muar_config(phy, conf, mconf, false, enable);
  
  	memcpy(data.tlv.omac_addr, conf->addr, ETH_ALEN);
@@ -334,7 +335,7 @@ index 99bad18e..596f58cc 100644
  	return mt76_mcu_send_msg(&dev->mt76, MCU_WMWA_UNI_CMD(DEV_INFO_UPDATE),
  				 &data, sizeof(data), true);
  }
-@@ -6536,10 +6536,10 @@ int mt7996_mcu_set_eml_omn(struct ieee80211_hw *hw,
+@@ -6559,10 +6559,10 @@ int mt7996_mcu_set_eml_omn(struct ieee80211_hw *hw,
  		}
  	}
  
@@ -350,10 +351,10 @@ index 99bad18e..596f58cc 100644
  	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
  			MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 30f19d1c..2ad48f96 100644
+index c20206c6..d56d9715 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -982,7 +982,15 @@ mt7996_get_link_wcid(struct mt7996_dev *dev, u16 idx, u8 band_idx)
+@@ -986,7 +986,15 @@ mt7996_get_link_wcid(struct mt7996_dev *dev, u16 idx, u8 band_idx)
  	return &mlink->wcid;
  }
  

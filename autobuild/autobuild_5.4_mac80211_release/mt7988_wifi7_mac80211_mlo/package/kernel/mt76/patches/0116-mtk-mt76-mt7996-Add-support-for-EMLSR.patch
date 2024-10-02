@@ -1,12 +1,13 @@
-From b8d5e5dc43fbefe1a6d537cc174ab1881b8415d8 Mon Sep 17 00:00:00 2001
+From 05cc12c0f48dae0a560f1eca2ad2a49f80f614bf Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 Date: Tue, 7 May 2024 15:47:23 +0800
-Subject: [PATCH 116/195] mtk: mt76: mt7996: Add support for EMLSR
+Subject: [PATCH 116/223] mtk: mt76: mt7996: Add support for EMLSR
 
 1. Register the EMLSR capability
 2. Set the EML capability of the station to firmware
 3. Process the EML Operating Mode Notification frame
 
+Change-Id: I0584c29abcc1956ae17f481639744ee8252e8adb
 Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 ---
  mt76_connac_mcu.h |  8 ++++++
@@ -18,10 +19,10 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  6 files changed, 166 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 70c2c6d7..07811d63 100644
+index 0a4bf9b7..2daa09cc 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -624,6 +624,13 @@ struct sta_rec_tx_proc {
+@@ -629,6 +629,13 @@ struct sta_rec_tx_proc {
  	__le32 flag;
  } __packed;
  
@@ -35,7 +36,7 @@ index 70c2c6d7..07811d63 100644
  /* wtbl_rec */
  
  struct wtbl_req_hdr {
-@@ -828,6 +835,7 @@ enum {
+@@ -833,6 +840,7 @@ enum {
  	STA_REC_PN_INFO = 0x26,
  	STA_REC_KEY_V3 = 0x27,
  	STA_REC_HDRT = 0x28,
@@ -44,7 +45,7 @@ index 70c2c6d7..07811d63 100644
  	STA_REC_TX_CAP = 0x2f,
  	STA_REC_MAX_NUM
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 9da12f07..2e624def 100644
+index c5c12ba0..c8eb7523 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -64,6 +64,7 @@ static const struct wiphy_iftype_ext_capab mt7996_iftypes_ext_capa[] = {
@@ -56,10 +57,10 @@ index 9da12f07..2e624def 100644
  		/* the max number of simultaneous links is defined as the
  		 * maximum number of affiliated APs minus 1.
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 10c54608..b1f5499e 100644
+index ea399a0b..76f0bb7e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2921,9 +2921,10 @@ mt7996_mcu_sta_eht_mld_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -2926,9 +2926,10 @@ mt7996_mcu_sta_eht_mld_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  
  	for (i = 0; i < ARRAY_SIZE(eht_mld->str_cap); i++)
  		eht_mld->str_cap[i] = 0x7;
@@ -71,7 +72,7 @@ index 10c54608..b1f5499e 100644
  	*/
  }
  
-@@ -6329,6 +6330,63 @@ int mt7996_mcu_set_vow_feature_ctrl(struct mt7996_phy *phy)
+@@ -6352,6 +6353,63 @@ int mt7996_mcu_set_vow_feature_ctrl(struct mt7996_phy *phy)
  	                         &req, sizeof(req), true);
  }
  
@@ -136,10 +137,10 @@ index 10c54608..b1f5499e 100644
  void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 65d6a526..6150816d 100644
+index 4815cf7b..94121471 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -410,6 +410,23 @@ enum {
+@@ -411,6 +411,23 @@ enum {
  	SCS_ENABLE,
  };
  
@@ -163,7 +164,7 @@ index 65d6a526..6150816d 100644
  struct mt7996_wed_rro_addr {
  	u32 head_low;
  	u32 head_high : 4;
-@@ -1226,6 +1243,8 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
+@@ -1230,6 +1247,8 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
  				     struct mt7996_link_sta *mlink);
  int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode);
  int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap);

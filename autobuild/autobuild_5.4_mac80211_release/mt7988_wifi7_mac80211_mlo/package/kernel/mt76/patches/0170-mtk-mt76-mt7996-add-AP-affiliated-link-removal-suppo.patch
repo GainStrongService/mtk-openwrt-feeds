@@ -1,11 +1,12 @@
-From 2b400c5ef3bebaf40134792b2fe9a3b3e8a128bb Mon Sep 17 00:00:00 2001
+From a025d78199c2a329723707c689075c34d7c780e5 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 31 May 2024 18:14:59 +0800
-Subject: [PATCH 170/195] mtk: mt76: mt7996: add AP affiliated link removal
+Subject: [PATCH 170/223] mtk: mt76: mt7996: add AP affiliated link removal
  support
 
 Add support for ap link removal of MLD reconfiguration.
 
+Change-Id: I27a611dcf6698f89f6a3a67f893a166d2afe6b1f
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
  mt76_connac_mcu.h |   3 +
@@ -16,10 +17,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  5 files changed, 367 insertions(+), 12 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 73173ee1..0f370f1e 100644
+index 302567e3..4976d944 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1074,6 +1074,7 @@ enum {
+@@ -1079,6 +1079,7 @@ enum {
  	MCU_UNI_EVENT_PP = 0x5a,
  	MCU_UNI_EVENT_PER_STA_INFO = 0x6d,
  	MCU_UNI_EVENT_ALL_STA_INFO = 0x6e,
@@ -27,7 +28,7 @@ index 73173ee1..0f370f1e 100644
  };
  
  #define MCU_UNI_CMD_EVENT			BIT(1)
-@@ -1319,6 +1320,7 @@ enum {
+@@ -1324,6 +1325,7 @@ enum {
  	MCU_UNI_CMD_ALL_STA_INFO = 0x6e,
  	MCU_UNI_CMD_ASSERT_DUMP = 0x6f,
  	MCU_UNI_CMD_PTA_3WIRE_CTRL = 0x78,
@@ -35,7 +36,7 @@ index 73173ee1..0f370f1e 100644
  };
  
  enum {
-@@ -1393,6 +1395,7 @@ enum {
+@@ -1398,6 +1400,7 @@ enum {
  	UNI_BSS_INFO_PM_DISABLE = 27,
  	UNI_BSS_INFO_BCN_CRIT_UPDATE = 32,
  	UNI_BSS_INFO_BCN_STA_PROF_CSA = 37,
@@ -44,7 +45,7 @@ index 73173ee1..0f370f1e 100644
  
  enum {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 68817847..f19162c3 100644
+index c95e7e35..6ad4558b 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -319,6 +319,21 @@ static void mt7996_remove_bss_conf(struct ieee80211_vif *vif,
@@ -163,10 +164,10 @@ index 68817847..f19162c3 100644
  	if (ret)
  		goto remove;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 81e0e710..ef8c830c 100644
+index 856168f6..417c38a3 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1350,6 +1350,48 @@ mt7996_mcu_pp_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -1355,6 +1355,48 @@ mt7996_mcu_pp_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	}
  }
  
@@ -215,7 +216,7 @@ index 81e0e710..ef8c830c 100644
  static void
  mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
  {
-@@ -1378,6 +1420,9 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -1383,6 +1425,9 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	case MCU_UNI_EVENT_PP:
  		mt7996_mcu_pp_event(dev, skb);
  		break;
@@ -225,7 +226,7 @@ index 81e0e710..ef8c830c 100644
  #ifdef CONFIG_MTK_DEBUG
  	case MCU_UNI_EVENT_SR:
  		mt7996_mcu_rx_sr_event(dev, skb);
-@@ -3171,6 +3216,44 @@ out:
+@@ -3176,6 +3221,44 @@ out:
  				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
  }
  
@@ -270,7 +271,7 @@ index 81e0e710..ef8c830c 100644
  int mt7996_mcu_teardown_mld_sta(struct mt7996_dev *dev,
  				struct mt7996_bss_conf *mconf,
  				struct mt7996_link_sta *mlink)
-@@ -3383,6 +3466,51 @@ int mt7996_mcu_add_dev_info(struct mt7996_phy *phy,
+@@ -3388,6 +3471,51 @@ int mt7996_mcu_add_dev_info(struct mt7996_phy *phy,
  				 &data, sizeof(data), true);
  }
  
@@ -322,7 +323,7 @@ index 81e0e710..ef8c830c 100644
  static void
  mt7996_mcu_beacon_cntdwn(struct ieee80211_bss_conf *conf, struct sk_buff *rskb,
  			 struct sk_buff *skb,
-@@ -3577,6 +3705,94 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
+@@ -3582,6 +3710,94 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev, struct ieee80211_bss_conf *conf,
  		mt7996_packet_log_to_host(dev, skb->data, skb->len, PKT_BIN_DEBUG_TX, 0);
  }
  
@@ -417,7 +418,7 @@ index 81e0e710..ef8c830c 100644
  int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
  			  struct ieee80211_bss_conf *conf,
  			  struct mt7996_bss_conf *mconf, int en)
-@@ -3630,6 +3846,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
+@@ -3635,6 +3851,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
  	mt7996_mcu_beacon_cntdwn(conf, rskb, skb, &offs);
  	mt7996_mcu_beacon_sta_prof_csa(rskb, conf, &offs);
  	mt7996_mcu_beacon_crit_update(rskb, skb, conf, mconf, &offs);
@@ -547,10 +548,10 @@ index 739e357c..7c559d2b 100644
  	u8 _rsv[4];
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index a04067d4..54ba5e4d 100644
+index a02e976a..a7655a61 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1083,6 +1083,8 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
+@@ -1087,6 +1087,8 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
  			     struct mt7996_bss_conf *mconf,
  			     struct ieee80211_link_sta *link_sta,
  			     struct mt7996_link_sta *mlink, bool changed);

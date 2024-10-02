@@ -1,7 +1,7 @@
-From 9eb4af2c6b0942add0749f9e21edf8728ba6807d Mon Sep 17 00:00:00 2001
+From c394984fc5a6e52aa435ead825e617fb3a0e7b81 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Fri, 7 Jun 2024 10:44:45 +0800
-Subject: [PATCH 141/195] mtk: mt76: mt7996: update TX/RX rates via MCU command
+Subject: [PATCH 141/223] mtk: mt76: mt7996: update TX/RX rates via MCU command
 
 Update TX/RX rates via MCU command to address following issues:
 1. TX rate was originally updated via TXS. However in MLO connection, WCID from TXS may not represent the actually used link.
@@ -10,6 +10,7 @@ Update TX/RX rates via MCU command to address following issues:
 Original TX-rate update via TXS is removed.
 Still, RX-rate update via RXD is not removed, because mac80211 requires driver to provide such information for each received frame.
 
+Change-Id: I505f2882ada89770093ed0a31eb73ac4aff8b568
 Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 ---
  mt76.h        |   1 +
@@ -19,10 +20,10 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  4 files changed, 161 insertions(+), 131 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 9832a39b..1322fa30 100644
+index 526b6298..de6f2be0 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -373,6 +373,7 @@ struct mt76_wcid {
+@@ -374,6 +374,7 @@ struct mt76_wcid {
  	int inactive_count;
  
  	struct rate_info rate;
@@ -31,10 +32,10 @@ index 9832a39b..1322fa30 100644
  
  	u16 idx;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 020203ec..484b679b 100644
+index 02045b84..39336832 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1242,15 +1242,12 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+@@ -1254,15 +1254,12 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
  		       int pid, __le32 *txs_data)
  {
  	struct mt76_sta_stats *stats = &wcid->stats;
@@ -52,7 +53,7 @@ index 020203ec..484b679b 100644
  
  	txs = le32_to_cpu(txs_data[0]);
  
-@@ -1298,105 +1295,23 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+@@ -1310,105 +1307,23 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
  	}
  
  	txrate = FIELD_GET(MT_TXS0_TX_RATE, txs);
@@ -173,7 +174,7 @@ index 020203ec..484b679b 100644
  		mt76_tx_status_skb_done(mdev, skb, &list);
  	mt76_tx_status_unlock(mdev, &list);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 376aa193..f6f2c26c 100644
+index ed64cf06..05917cc8 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1769,32 +1769,24 @@ static void mt7996_sta_statistics(struct ieee80211_hw *hw,
@@ -220,10 +221,10 @@ index 376aa193..f6f2c26c 100644
  	sinfo->tx_failed = mlink->wcid.stats.tx_failed;
  	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index f85e2b87..6fd69e10 100644
+index edbe9cbe..ee27b5df 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -532,42 +532,164 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -537,42 +537,164 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)
  }
  
  static int
@@ -272,7 +273,7 @@ index f85e2b87..6fd69e10 100644
  	case MT_PHY_TYPE_HE_MU:
 -		if (mcu_rate->tx_gi > NL80211_RATE_INFO_HE_GI_3_2)
 +		tmp_rate.mcs = mcs & GENMASK(3, 0);
-+		if (tmp_rate.mcs > 11 || gi > NL80211_RATE_INFO_HE_GI_3_2)
++		if (tmp_rate.mcs > 13 || gi > NL80211_RATE_INFO_HE_GI_3_2)
  			return -EINVAL;
 -		rate->he_gi = mcu_rate->tx_gi;
 +
@@ -285,7 +286,7 @@ index f85e2b87..6fd69e10 100644
  	case MT_PHY_TYPE_EHT_MU:
 -		if (mcu_rate->tx_gi > NL80211_RATE_INFO_EHT_GI_3_2)
 +		tmp_rate.mcs = mcs & GENMASK(3, 0);
-+		if (tmp_rate.mcs > 13 || gi > NL80211_RATE_INFO_EHT_GI_3_2)
++		if (tmp_rate.mcs > 15 || gi > NL80211_RATE_INFO_EHT_GI_3_2)
  			return -EINVAL;
 -		rate->eht_gi = mcu_rate->tx_gi;
 +
@@ -398,7 +399,7 @@ index f85e2b87..6fd69e10 100644
  static inline void __mt7996_stat_to_netdev(struct mt76_phy *mphy,
  					   struct mt76_wcid *wcid,
  					   u32 tx_bytes, u32 rx_bytes,
-@@ -618,8 +740,8 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -623,8 +745,8 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
  			if (!wcid)
  				break;
  

@@ -1,7 +1,7 @@
-From c4b86237826c77c6b53c3974683db6c00cafc101 Mon Sep 17 00:00:00 2001
+From 088cb092b3a6b3387d2d6f7ee5100ac803ff626a Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 1 Dec 2023 17:26:43 +0800
-Subject: [PATCH 085/195] mtk: mt76: mt7996: rework ieee80211_ops callbacks for
+Subject: [PATCH 085/223] mtk: mt76: mt7996: rework ieee80211_ops callbacks for
  link consideration
 
 Extend ieee80211 callback functions to support multi-link operation.
@@ -15,7 +15,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  1 file changed, 204 insertions(+), 109 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index bc8b986d..44b21821 100644
+index ae1b2875..580cb2a5 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -566,7 +566,6 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,

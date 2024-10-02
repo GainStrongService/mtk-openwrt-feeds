@@ -1,7 +1,7 @@
-From 1a8e69613ad804b4dd94250ecb0888a3f6fc0448 Mon Sep 17 00:00:00 2001
+From c16fd657d9955992ab12c22ac068c7f9d0035ed3 Mon Sep 17 00:00:00 2001
 From: mtk20656 <chank.chen@mediatek.com>
 Date: Sat, 20 Jan 2024 12:03:24 +0800
-Subject: [PATCH 106/195] mtk: mt76: mt7996: Add connac3 csi feature.
+Subject: [PATCH 106/223] mtk: mt76: mt7996: Add connac3 csi feature.
 
 1. format align to wifi6.
 2. add bw320 support.
@@ -9,6 +9,8 @@ Subject: [PATCH 106/195] mtk: mt76: mt7996: Add connac3 csi feature.
 
 Fix csi bug with single wiphy design.
 
+Change-Id: If37ac6de4781c3673671707ee3ee243dda8163f8
+Change-Id: I7761e2883bb08939917432df075062fb78de3bee
 Signed-off-by: mtk20656 <chank.chen@mediatek.com>
 ---
  mt76_connac_mcu.h |   2 +
@@ -22,10 +24,10 @@ Signed-off-by: mtk20656 <chank.chen@mediatek.com>
  8 files changed, 951 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 654f16ff..6c1a4126 100644
+index f6b472ef..11c147cd 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1061,6 +1061,7 @@ enum {
+@@ -1066,6 +1066,7 @@ enum {
  	MCU_UNI_EVENT_THERMAL = 0x35,
  	MCU_UNI_EVENT_NIC_CAPAB = 0x43,
  	MCU_UNI_EVENT_TESTMODE_CTRL = 0x46,
@@ -33,7 +35,7 @@ index 654f16ff..6c1a4126 100644
  	MCU_UNI_EVENT_WED_RRO = 0x57,
  	MCU_UNI_EVENT_PER_STA_INFO = 0x6d,
  	MCU_UNI_EVENT_ALL_STA_INFO = 0x6e,
-@@ -1298,6 +1299,7 @@ enum {
+@@ -1303,6 +1304,7 @@ enum {
  	MCU_UNI_CMD_TESTMODE_TRX_PARAM = 0x42,
  	MCU_UNI_CMD_TESTMODE_CTRL = 0x46,
  	MCU_UNI_CMD_PRECAL_RESULT = 0x47,
@@ -42,7 +44,7 @@ index 654f16ff..6c1a4126 100644
  	MCU_UNI_CMD_RRO = 0x57,
  	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index f75aa568..a1941869 100644
+index f26687df..211ad40c 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -807,6 +807,24 @@ error:
@@ -82,7 +84,7 @@ index f75aa568..a1941869 100644
  
  	mphy = phy->dev->mt76.phys[band];
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 5f9997ba..b0e93d74 100644
+index b7096901..32a37936 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1306,6 +1306,9 @@ void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -96,10 +98,10 @@ index 5f9997ba..b0e93d74 100644
  }
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index de20cc7c..79011ea1 100644
+index 8034c8ab..56bb32a0 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -653,6 +653,263 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -658,6 +658,263 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	}
  }
  
@@ -363,7 +365,7 @@ index de20cc7c..79011ea1 100644
  static void
  mt7996_mcu_rx_thermal_notify(struct mt7996_dev *dev, struct sk_buff *skb)
  {
-@@ -896,6 +1153,11 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -901,6 +1158,11 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	case MCU_UNI_EVENT_BF:
  		mt7996_mcu_rx_bf_event(dev, skb);
  		break;
@@ -375,7 +377,7 @@ index de20cc7c..79011ea1 100644
  #endif
  	default:
  		break;
-@@ -5983,4 +6245,207 @@ void mt7996_set_beacon_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
+@@ -6006,4 +6268,207 @@ void mt7996_set_beacon_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  
  	mt7996_mcu_add_beacon(hw, &vif->bss_conf, &mvif->deflink, val);
  }
@@ -698,10 +700,10 @@ index f9f04680..42e9f525 100644
 +
  #endif
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index fc36da8d..7d1cfab4 100644
+index 2a638a4a..eb38427b 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -445,6 +445,47 @@ struct mt7996_air_monitor_ctrl {
+@@ -446,6 +446,47 @@ struct mt7996_air_monitor_ctrl {
  	struct mt7996_air_monitor_group group[MT7996_AIR_MONITOR_MAX_GROUP];
  	struct mt7996_air_monitor_entry entry[MT7996_AIR_MONITOR_MAX_ENTRY];
  };
@@ -749,7 +751,7 @@ index fc36da8d..7d1cfab4 100644
  #endif
  
  struct mt7996_rro_ba_session {
-@@ -541,6 +582,18 @@ struct mt7996_phy {
+@@ -542,6 +583,18 @@ struct mt7996_phy {
  	u8 rts_bw_sig;
  	spinlock_t amnt_lock;
  	struct mt7996_air_monitor_ctrl amnt_ctrl;
@@ -768,7 +770,7 @@ index fc36da8d..7d1cfab4 100644
  #endif
  #ifdef CONFIG_MTK_DEBUG
  	bool sr_enable:1;
-@@ -1176,6 +1229,8 @@ void mt7996_mcu_set_mimo(struct mt7996_phy *phy);
+@@ -1180,6 +1233,8 @@ void mt7996_mcu_set_mimo(struct mt7996_phy *phy);
  int mt7996_set_muru_cfg(struct mt7996_phy *phy, u8 action, u8 val);
  int mt7996_mcu_set_muru_cfg(struct mt7996_phy *phy, void *data);
  void mt7996_set_beacon_vif(void *data, u8 *mac, struct ieee80211_vif *vif);

@@ -1,7 +1,7 @@
-From 3d349c01f30881c7ba9271f1f4eb686fee0a9315 Mon Sep 17 00:00:00 2001
+From 503baaaad8a49fcdcc2030a8eddacfec35c167b0 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 8 May 2023 09:03:50 +0800
-Subject: [PATCH 018/195] mtk: mt76: mt7996: enable SCS feature for mt7996
+Subject: [PATCH 018/223] mtk: mt76: mt7996: enable SCS feature for mt7996
  driver
 
 Enable Smart Carrier Sense algorithn by default to improve performance
@@ -20,10 +20,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  8 files changed, 148 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 5a116d0f..4c4fff39 100644
+index a7d7ecce..fcacd546 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1274,6 +1274,7 @@ enum {
+@@ -1279,6 +1279,7 @@ enum {
  	MCU_UNI_CMD_GET_STAT_INFO = 0x23,
  	MCU_UNI_CMD_SNIFFER = 0x24,
  	MCU_UNI_CMD_SR = 0x25,
@@ -32,10 +32,10 @@ index 5a116d0f..4c4fff39 100644
  	MCU_UNI_CMD_SET_DBDC_PARMS = 0x28,
  	MCU_UNI_CMD_TXPOWER = 0x2b,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 2749a5d7..7e813960 100644
+index a34e034d..0a8e929a 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -1416,6 +1416,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1432,6 +1432,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	dev->mt76.phy.priv = &dev->phy;
  	INIT_WORK(&dev->rc_work, mt7996_mac_sta_rc_work);
  	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt7996_mac_work);
@@ -44,10 +44,10 @@ index 2749a5d7..7e813960 100644
  	INIT_LIST_HEAD(&dev->twt_list);
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index a0fcd8aa..fd8bce0e 100644
+index d73644f6..789caa44 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1804,6 +1804,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
+@@ -1815,6 +1815,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
  		cancel_delayed_work_sync(&phy2->mt76->mac_work);
  	if (phy3)
  		cancel_delayed_work_sync(&phy3->mt76->mac_work);
@@ -55,7 +55,7 @@ index a0fcd8aa..fd8bce0e 100644
  
  	mutex_lock(&dev->mt76.mutex);
  	for (i = 0; i < 10; i++) {
-@@ -1839,6 +1840,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
+@@ -1850,6 +1851,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
  		ieee80211_queue_delayed_work(phy3->mt76->hw,
  					     &phy3->mt76->mac_work,
  					     MT7996_WATCHDOG_TIME);
@@ -64,7 +64,7 @@ index a0fcd8aa..fd8bce0e 100644
  
  void mt7996_mac_reset_work(struct work_struct *work)
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 342fedff..41975565 100644
+index 9ff9ae0e..a1c3874c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -81,11 +81,17 @@ int mt7996_run(struct ieee80211_hw *hw)
@@ -85,7 +85,7 @@ index 342fedff..41975565 100644
  	if (!running)
  		mt7996_mac_reset_counters(phy);
  
-@@ -113,6 +119,7 @@ static void mt7996_stop(struct ieee80211_hw *hw)
+@@ -113,6 +119,7 @@ static void mt7996_stop(struct ieee80211_hw *hw, bool suspend)
  	struct mt7996_phy *phy = mt7996_hw_phy(hw);
  
  	cancel_delayed_work_sync(&phy->mt76->mac_work);
@@ -94,10 +94,10 @@ index 342fedff..41975565 100644
  	mutex_lock(&dev->mt76.mutex);
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index a1573990..a24435ff 100644
+index b15075ab..98edae2c 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -4818,3 +4818,108 @@ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 da
+@@ -4832,3 +4832,108 @@ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 da
  	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(TXPOWER),
  				 &req, sizeof(req), false);
  }
@@ -224,10 +224,10 @@ index abf8ef48..f889cb8b 100644
  #define MT7996_PATCH_SCRAMBLE_KEY	GENMASK(15, 8)
  #define MT7996_PATCH_AES_KEY		GENMASK(7, 0)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index da68daed..7e3cea6e 100644
+index 8770839c..6cb6c724 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -233,6 +233,16 @@ struct mt7996_hif {
+@@ -243,6 +243,16 @@ struct mt7996_hif {
  	int irq;
  };
  
@@ -244,7 +244,7 @@ index da68daed..7e3cea6e 100644
  struct mt7996_wed_rro_addr {
  	u32 head_low;
  	u32 head_high : 4;
-@@ -283,6 +293,8 @@ struct mt7996_phy {
+@@ -293,6 +303,8 @@ struct mt7996_phy {
  	u8 pp_mode;
  	u16 punct_bitmap;
  
@@ -253,7 +253,7 @@ index da68daed..7e3cea6e 100644
  #ifdef CONFIG_NL80211_TESTMODE
  	struct {
  		u32 *reg_backup;
-@@ -329,6 +341,7 @@ struct mt7996_dev {
+@@ -339,6 +351,7 @@ struct mt7996_dev {
  	struct work_struct rc_work;
  	struct work_struct dump_work;
  	struct work_struct reset_work;
@@ -261,7 +261,7 @@ index da68daed..7e3cea6e 100644
  	wait_queue_head_t reset_wait;
  	struct {
  		u32 state;
-@@ -603,6 +616,8 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy);
+@@ -635,6 +648,8 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy);
  #ifdef CONFIG_NL80211_TESTMODE
  void mt7996_tm_rf_test_event(struct mt7996_dev *dev, struct sk_buff *skb);
  #endif
@@ -271,7 +271,7 @@ index da68daed..7e3cea6e 100644
  static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
  {
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 64952a73..8c576bac 100644
+index d1f3d16c..1807a744 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2429,6 +2429,16 @@ static int mt7996_token_read(struct seq_file *s, void *data)

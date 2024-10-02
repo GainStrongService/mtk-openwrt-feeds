@@ -1,7 +1,7 @@
-From c7b4b79f16d61220c62470c8a06dc578abcb79d4 Mon Sep 17 00:00:00 2001
+From bb16725ec128a46c3205d1cb67f152799bc58bb6 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 27 Feb 2024 18:07:11 +0800
-Subject: [PATCH 096/195] mtk: mt76: mt7996: use BSS_CHANGED_TXPOWER for
+Subject: [PATCH 096/223] mtk: mt76: mt7996: use BSS_CHANGED_TXPOWER for
  txpower setting
 
 This is a preliminary patch to add MLO support for mt7996 chipsets.
@@ -15,7 +15,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  4 files changed, 9 insertions(+), 13 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 102e3d1d..b2197a58 100644
+index 75e571b0..5c2bc2b0 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -665,14 +665,6 @@ static int mt7996_config(struct ieee80211_hw *hw, u32 changed)
@@ -52,10 +52,10 @@ index 102e3d1d..b2197a58 100644
  	mutex_unlock(&dev->mt76.mutex);
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 93589bb5..4234f727 100644
+index e7ee970b..d9edba0c 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -5313,7 +5313,8 @@ mt7996_update_max_txpower_cur(struct mt7996_phy *phy, int tx_power)
+@@ -5336,7 +5336,8 @@ mt7996_update_max_txpower_cur(struct mt7996_phy *phy, int tx_power)
  		mphy->txpower_cur = e2p_power_limit;
  }
  
@@ -65,7 +65,7 @@ index 93589bb5..4234f727 100644
  {
  #define TX_POWER_LIMIT_TABLE_RATE	0
  #define TX_POWER_LIMIT_TABLE_PATH	1
-@@ -5342,7 +5343,7 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
+@@ -5365,7 +5366,7 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
  
  	if (hw->conf.power_level == INT_MIN)
  		hw->conf.power_level = 127;
@@ -75,10 +75,10 @@ index 93589bb5..4234f727 100644
  	if (phy->sku_limit_en) {
  		txpower_limit = mt76_get_rate_power_limits(mphy, mphy->chandef.chan,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 4d49cd78..725d5d5f 100644
+index 9dd4d478..ba954623 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -980,7 +980,8 @@ int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch);
+@@ -984,7 +984,8 @@ int mt7996_mcu_get_chan_mib_info(struct mt7996_phy *phy, bool chan_switch);
  int mt7996_mcu_get_temperature(struct mt7996_phy *phy);
  int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state);
  int mt7996_mcu_set_thermal_protect(struct mt7996_phy *phy, bool enable);
@@ -89,10 +89,10 @@ index 4d49cd78..725d5d5f 100644
  		       u8 rx_sel, u8 val);
  int mt7996_mcu_rdd_background_disable_timer(struct mt7996_dev *dev,
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index ba17f947..0565ebc9 100644
+index be224373..799e443c 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
-@@ -1830,7 +1830,7 @@ mt7996_tm_update_params(struct mt7996_phy *phy, u32 changed)
+@@ -1834,7 +1834,7 @@ mt7996_tm_update_params(struct mt7996_phy *phy, u32 changed)
  		mt7996_tm_update_channel(phy);
  		mt7996_mcu_set_tx_power_ctrl(phy, POWER_CTRL(SKU_POWER_LIMIT), td->sku_en);
  		mt7996_mcu_set_tx_power_ctrl(phy, POWER_CTRL(BACKOFF_POWER_LIMIT), td->sku_en);

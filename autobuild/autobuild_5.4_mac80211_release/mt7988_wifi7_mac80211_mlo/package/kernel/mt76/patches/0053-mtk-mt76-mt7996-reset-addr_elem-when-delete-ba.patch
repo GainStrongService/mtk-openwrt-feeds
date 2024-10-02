@@ -1,7 +1,7 @@
-From cd5c2ff526ba35bfdac4761bf05a58272ac968d8 Mon Sep 17 00:00:00 2001
+From 82dd1101ce064f18bdcc47c7ef5779c407440bae Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Thu, 18 May 2023 15:01:47 +0800
-Subject: [PATCH 053/195] mtk: mt76: mt7996: reset addr_elem when delete ba
+Subject: [PATCH 053/223] mtk: mt76: mt7996: reset addr_elem when delete ba
 
 The old addr element info may be used when the signature is not equel to
 0xff, and sta will find error SDP cause the SDP/SDL=0 issue.
@@ -10,6 +10,8 @@ The old addr element info may be used when the signature is not equel to
 Due to fw change the cmd format.
 https://gerrit.mediatek.inc/c/neptune/firmware/bora/wifi/custom/+/7969193
 
+Change-Id: I12fb27e28b2c0310f824e66af6103b4ceba3503e
+Change-Id: I456a5d3eb2320a2c40cf57247ba63083a6d50b2e
 Signed-off-by: mtk27745 <rex.lu@mediatek.com>
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
 ---
@@ -18,10 +20,10 @@ Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
  2 files changed, 47 insertions(+)
 
 diff --git a/mt76.h b/mt76.h
-index f990ae4c..162f7883 100644
+index 260e198a..2798f9e5 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -452,6 +452,7 @@ struct mt76_rx_tid {
+@@ -453,6 +453,7 @@ struct mt76_rx_tid {
  	u16 nframes;
  
  	u8 num;

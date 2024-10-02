@@ -1,7 +1,7 @@
-From 2a3b941c0132f6fa65c12aadc969eaa94348a3b5 Mon Sep 17 00:00:00 2001
+From d1ceb708475e11cf159886d4c9e6ce78c4d3030d Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 8 Dec 2023 18:08:13 +0800
-Subject: [PATCH 093/195] mtk: mt76: mt7996: handle mapping for hw and vif
+Subject: [PATCH 093/223] mtk: mt76: mt7996: handle mapping for hw and vif
 
 We have several temporal workarounds for ieee80211_hw and mt76_phy
 mappings. For legacy MBSS cases, we also need a method to do the
@@ -37,7 +37,7 @@ index 38701c71..3f1fb6c2 100644
  	ieee80211_tx_status_ext(hw, &status);
  	spin_unlock_bh(&dev->rx_lock);
 diff --git a/mac80211.c b/mac80211.c
-index ac56a398..d4efd1dd 100644
+index 03632279..b1af346a 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -1546,7 +1546,7 @@ void mt76_wcid_cleanup(struct mt76_dev *dev, struct mt76_wcid *wcid)
@@ -50,10 +50,10 @@ index ac56a398..d4efd1dd 100644
  	}
  }
 diff --git a/mt76.h b/mt76.h
-index ae214f7e..3e593321 100644
+index 9fa411cb..2dea07a3 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -566,6 +566,9 @@ struct mt76_driver_ops {
+@@ -567,6 +567,9 @@ struct mt76_driver_ops {
  
  	void (*sta_remove)(struct mt76_dev *dev, struct ieee80211_vif *vif,
  			   struct ieee80211_sta *sta);
@@ -63,7 +63,7 @@ index ae214f7e..3e593321 100644
  };
  
  struct mt76_channel_state {
-@@ -1601,14 +1604,21 @@ static inline void mt76_testmode_reset(struct mt76_phy *phy, bool disable)
+@@ -1602,14 +1605,21 @@ extern const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS];
  
  /* internal */
  static inline struct ieee80211_hw *
@@ -88,10 +88,10 @@ index ae214f7e..3e593321 100644
  }
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index c0c0df2f..5417e741 100644
+index f9aa0e57..a48e4f44 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2845,13 +2845,23 @@ static void mt7996_scan_check_sta(void *data, struct ieee80211_sta *sta)
+@@ -2857,13 +2857,23 @@ static void mt7996_scan_check_sta(void *data, struct ieee80211_sta *sta)
  void mt7996_scan_work(struct work_struct *work)
  {
  	struct mt7996_phy *phy = container_of(work, struct mt7996_phy, scan_work.work);
@@ -116,7 +116,7 @@ index c0c0df2f..5417e741 100644
  	if (phy->scan_chan_idx >= req->n_channels) {
  		mt7996_scan_complete(phy, false);
  		mutex_unlock(&phy->dev->mt76.mutex);
-@@ -2911,3 +2921,15 @@ void mt7996_scan_work(struct work_struct *work)
+@@ -2923,3 +2933,15 @@ void mt7996_scan_work(struct work_struct *work)
  
  	ieee80211_queue_delayed_work(hw, &phy->scan_work, duration);
  }
@@ -133,7 +133,7 @@ index c0c0df2f..5417e741 100644
 +	}
 +}
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 76a74399..af72ad1a 100644
+index 01c736a9..cabd5729 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -444,6 +444,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
@@ -145,10 +145,10 @@ index 76a74399..af72ad1a 100644
  
  	ret = mt7996_add_bss_conf(phy, vif, &vif->bss_conf);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 0c22410d..93589bb5 100644
+index edaf8814..e7ee970b 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2950,11 +2950,11 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
+@@ -2955,11 +2955,11 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
  
  	if (changed & BSS_CHANGED_FILS_DISCOVERY) {
  		interval = conf->fils_discovery.max_interval;
@@ -175,10 +175,10 @@ index 8ac1b12a..ee5ee5a5 100644
  	struct mt7996_dev *dev;
  	struct mt76_dev *mdev;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index c26aa3a7..4d49cd78 100644
+index f83308de..9dd4d478 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -354,6 +354,7 @@ struct mt7996_vif {
+@@ -355,6 +355,7 @@ struct mt7996_vif {
  
  	struct mt7996_sta sta;
  	struct mt7996_dev *dev;
@@ -186,7 +186,7 @@ index c26aa3a7..4d49cd78 100644
  
  	u8 master_link_id;
  	u8 group_mld_id;
-@@ -901,6 +902,8 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx,
+@@ -905,6 +906,8 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx,
  void mt7996_init_txpower(struct mt7996_phy *phy);
  int mt7996_txbf_init(struct mt7996_dev *dev);
  int mt7996_get_chip_sku(struct mt7996_dev *dev);

@@ -1,7 +1,7 @@
-From da9972cc7cd5059078be0006c0ffa93e056225bf Mon Sep 17 00:00:00 2001
+From 2dd9be1a2d916ec0ca58ec933f55154db6a40bf9 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 13 Dec 2023 16:58:31 +0800
-Subject: [PATCH 094/195] mtk: mt76: mt7996: rework scanning parts for MLD STA
+Subject: [PATCH 094/223] mtk: mt76: mt7996: rework scanning parts for MLD STA
  support
 
 During the first scanning, the STA VIF is still a legacy interface,
@@ -9,6 +9,7 @@ and at the moment it doesn't know if it's MLD or not. So do dome tricks
 here to let the legacy interface be abled to scan all bands.
 This is a preliminary patch to add MLO support for mt7996 chipsets.
 
+Change-Id: Iff7f98918eb52e9510eaa9b55e2fa769f8b7039d
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
  mt7996/mac.c  | 44 +++++++++++++++++++++++---------------------
@@ -16,10 +17,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  2 files changed, 57 insertions(+), 22 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 5417e741..36d2e0b3 100644
+index a48e4f44..a30b7dfa 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2769,23 +2769,40 @@ static void
+@@ -2781,23 +2781,40 @@ static void
  mt7996_scan_send_probe(struct mt7996_phy *phy, struct cfg80211_ssid *ssid,
  		       const u8 *dst)
  {
@@ -63,7 +64,7 @@ index 5417e741..36d2e0b3 100644
  
  	if (is_unicast_ether_addr(dst)) {
  		struct ieee80211_hdr_3addr *hdr =
-@@ -2803,36 +2820,21 @@ mt7996_scan_send_probe(struct mt7996_phy *phy, struct cfg80211_ssid *ssid,
+@@ -2815,36 +2832,21 @@ mt7996_scan_send_probe(struct mt7996_phy *phy, struct cfg80211_ssid *ssid,
  
  	skb_set_queue_mapping(skb, IEEE80211_AC_VO);
  
@@ -104,7 +105,7 @@ index 5417e741..36d2e0b3 100644
  {
  	bool *has_sta = data;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index af72ad1a..e40d7fa4 100644
+index cabd5729..9ce7c6fb 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -2193,12 +2193,28 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,

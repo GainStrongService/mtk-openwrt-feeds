@@ -1,13 +1,14 @@
-From 70944a40375745238bac308ba53268a5a27225e9 Mon Sep 17 00:00:00 2001
+From cbe2fdac92d74596b378fbdc027434210d31d88b Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 5 Aug 2024 15:03:55 +0800
-Subject: [PATCH 185/195] mtk: mt76: mt7996: add Adv-TTLM support for STA
+Subject: [PATCH 185/223] mtk: mt76: mt7996: add Adv-TTLM support for STA
 
 1. add the handling for valid_link and TTLM changing in vif_cfg_changed
    callback.
 2. send peer-mld request for default mapping and Adv-TTLM. Neg-TTLM will
    be supported in further commit.
 
+Change-Id: I067331888f0cdb27826ca36cacb3897096835d94
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
  mt76_connac_mcu.h |  1 +
@@ -18,10 +19,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  5 files changed, 92 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 4980ca12..f0ae306c 100644
+index 69c8389f..68d7c31d 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1322,6 +1322,7 @@ enum {
+@@ -1327,6 +1327,7 @@ enum {
  	MCU_UNI_CMD_ASSERT_DUMP = 0x6f,
  	MCU_UNI_CMD_PTA_3WIRE_CTRL = 0x78,
  	MCU_UNI_CMD_MLD = 0x82,
@@ -30,7 +31,7 @@ index 4980ca12..f0ae306c 100644
  
  enum {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 8c67e495..a4e052c6 100644
+index a7c2043f..290dff6e 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -957,6 +957,9 @@ static void mt7996_vif_cfg_changed(struct ieee80211_hw *hw,
@@ -44,10 +45,10 @@ index 8c67e495..a4e052c6 100644
  }
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 190f87e0..084480ed 100644
+index 47f8b5cc..265f39a6 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3618,6 +3618,70 @@ int mt7996_mcu_mld_set_attlm(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -3623,6 +3623,70 @@ int mt7996_mcu_mld_set_attlm(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  	return ret;
  }
  
@@ -152,10 +153,10 @@ index a5818f95..dab4700e 100644
  	u8 _rsv[4];
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 26fb4b5b..f8d18217 100644
+index b115e7dd..1e52377a 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1211,6 +1211,8 @@ int mt7996_mcu_set_vow_feature_ctrl(struct mt7996_phy *phy);
+@@ -1215,6 +1215,8 @@ int mt7996_mcu_set_vow_feature_ctrl(struct mt7996_phy *phy);
  void mt7996_mcu_wmm_pbc_work(struct work_struct *work);
  int mt7996_mcu_mld_set_attlm(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  			     u16 disabled_links, u16 switch_time, u32 duration);

@@ -1,7 +1,7 @@
-From 2de2ec0cb55821375cf4a91e7f0b128473d636be Mon Sep 17 00:00:00 2001
+From ff2647b012eddbe530dd4b900506911fa91c8329 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 11 Jun 2024 18:09:57 +0800
-Subject: [PATCH 142/195] mtk: mt76: mt7996: add link information when dump
+Subject: [PATCH 142/223] mtk: mt76: mt7996: add link information when dump
  station
 
 Report following per-link information to mac80211:
@@ -12,6 +12,8 @@ Report following per-link information to mac80211:
 - TX/RX airtime
 - per-link per-antenna average data-frame RSSI to mac80211.
 
+Change-Id: I3a0c5e014dcad4683cf19859e452e771c49d4ba6
+Change-Id: I5c7c282b97ec8a82b0a54ff5e9bbf0858461c832
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 ---
@@ -19,7 +21,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  1 file changed, 78 insertions(+)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index f6f2c26c..93d920aa 100644
+index 05917cc8..380a6ca0 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1817,6 +1817,83 @@ out:

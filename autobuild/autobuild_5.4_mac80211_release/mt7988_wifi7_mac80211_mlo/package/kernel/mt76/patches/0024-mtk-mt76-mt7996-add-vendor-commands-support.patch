@@ -1,7 +1,7 @@
-From 399e39ba918da294bd207a527e439db767ce6271 Mon Sep 17 00:00:00 2001
+From 4ae9d91e5d5faa7600dfa6fefc331e582d74b5c9 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 13 Dec 2022 15:17:43 +0800
-Subject: [PATCH 024/195] mtk: mt76: mt7996: add vendor commands support
+Subject: [PATCH 024/223] mtk: mt76: mt7996: add vendor commands support
 
 mtk: wifi: mt76: fix muru_onoff as all enabled by default
 
@@ -38,7 +38,7 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  mt76_connac_mcu.h |   2 +
  mt7996/Makefile   |   3 +-
  mt7996/init.c     |   9 +
- mt7996/mac.c      |   4 +
+ mt7996/mac.c      |   5 +
  mt7996/main.c     |   4 +
  mt7996/mcu.c      |  37 ++-
  mt7996/mcu.h      |  14 +
@@ -47,15 +47,15 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  mt7996/mtk_mcu.h  |  15 +
  mt7996/vendor.c   | 805 ++++++++++++++++++++++++++++++++++++++++++++++
  mt7996/vendor.h   | 153 +++++++++
- 12 files changed, 1180 insertions(+), 6 deletions(-)
+ 12 files changed, 1181 insertions(+), 6 deletions(-)
  create mode 100644 mt7996/vendor.c
  create mode 100644 mt7996/vendor.h
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 4c4fff39..bdb1c5a5 100644
+index fcacd546..e9afc27b 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1264,6 +1264,7 @@ enum {
+@@ -1269,6 +1269,7 @@ enum {
  	MCU_UNI_CMD_REG_ACCESS = 0x0d,
  	MCU_UNI_CMD_CHIP_CONFIG = 0x0e,
  	MCU_UNI_CMD_POWER_CTRL = 0x0f,
@@ -63,7 +63,7 @@ index 4c4fff39..bdb1c5a5 100644
  	MCU_UNI_CMD_RX_HDR_TRANS = 0x12,
  	MCU_UNI_CMD_SER = 0x13,
  	MCU_UNI_CMD_TWT = 0x14,
-@@ -1296,6 +1297,7 @@ enum {
+@@ -1301,6 +1302,7 @@ enum {
  	MCU_UNI_CMD_PER_STA_INFO = 0x6d,
  	MCU_UNI_CMD_ALL_STA_INFO = 0x6e,
  	MCU_UNI_CMD_ASSERT_DUMP = 0x6f,
@@ -90,7 +90,7 @@ index 7bb17f44..6643c7a3 100644
  mt7996e-$(CONFIG_DEV_COREDUMP) += coredump.o
  mt7996e-$(CONFIG_NL80211_TESTMODE) += testmode.o
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 3b816070..0cf054df 100644
+index 994d74cc..703c7af0 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -380,6 +380,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
@@ -101,7 +101,7 @@ index 3b816070..0cf054df 100644
  
  	hw->sta_data_size = sizeof(struct mt7996_sta);
  	hw->vif_data_size = sizeof(struct mt7996_vif);
-@@ -631,6 +632,10 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+@@ -632,6 +633,10 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  	if (ret)
  		goto error;
  
@@ -112,7 +112,7 @@ index 3b816070..0cf054df 100644
  	ret = mt76_register_phy(mphy, true, mt76_rates,
  				ARRAY_SIZE(mt76_rates));
  	if (ret)
-@@ -1447,6 +1452,10 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1463,6 +1468,10 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	dev->mt76.test_ops = &mt7996_testmode_ops;
  #endif
  
@@ -124,13 +124,14 @@ index 3b816070..0cf054df 100644
  				   ARRAY_SIZE(mt76_rates));
  	if (ret)
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index fd8bce0e..f0c0db75 100644
+index 789caa44..05d02af1 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -679,6 +679,10 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
- 			if (ieee80211_has_a4(fc) && is_mesh && status->amsdu)
+@@ -680,6 +680,11 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
  				*qos &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
  		}
+ 		skb_set_mac_header(skb, (unsigned char *)hdr - skb->data);
++
 +#ifdef CONFIG_MTK_VENDOR
 +		if (phy->amnt_ctrl.enable && !ieee80211_is_beacon(fc))
 +			mt7996_vendor_amnt_fill_rx(phy, skb);
@@ -139,7 +140,7 @@ index fd8bce0e..f0c0db75 100644
  		status->flag |= RX_FLAG_8023;
  		mt7996_wed_check_ppe(dev, &dev->mt76.q_rx[q], msta, skb,
 diff --git a/mt7996/main.c b/mt7996/main.c
-index f279cbd4..550b1f4e 100644
+index ad4cd5dd..67eab3df 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -749,6 +749,10 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -154,10 +155,10 @@ index f279cbd4..550b1f4e 100644
  	if (ret)
  		return ret;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 7342a8e4..9fc64b96 100644
+index 1d4655ed..808ea178 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1378,6 +1378,8 @@ static void
+@@ -1388,6 +1388,8 @@ static void
  mt7996_mcu_sta_muru_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  			struct ieee80211_vif *vif, struct ieee80211_sta *sta)
  {
@@ -166,7 +167,7 @@ index 7342a8e4..9fc64b96 100644
  	struct ieee80211_he_cap_elem *elem = &sta->deflink.he_cap.he_cap_elem;
  	struct sta_rec_muru *muru;
  	struct tlv *tlv;
-@@ -1389,11 +1391,14 @@ mt7996_mcu_sta_muru_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+@@ -1399,11 +1401,14 @@ mt7996_mcu_sta_muru_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
  	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_MURU, sizeof(*muru));
  
  	muru = (struct sta_rec_muru *)tlv;
@@ -186,7 +187,7 @@ index 7342a8e4..9fc64b96 100644
  
  	if (sta->deflink.vht_cap.vht_supported)
  		muru->mimo_dl.vht_mu_bfee =
-@@ -4968,3 +4973,25 @@ int mt7996_mcu_set_scs(struct mt7996_phy *phy, u8 enable)
+@@ -4998,3 +5003,25 @@ int mt7996_mcu_set_scs(struct mt7996_phy *phy, u8 enable)
  	return mt76_mcu_send_msg(&phy->dev->mt76, MCU_WM_UNI_CMD(SCS),
  				 &req, sizeof(req), false);
  }
@@ -247,10 +248,10 @@ index 1ed05d7e..f827de9e 100644
  };
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 232af281..2bc4c4b8 100644
+index 2ec72496..a559c76f 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -258,6 +258,34 @@ struct mt7996_wed_rro_session_id {
+@@ -267,6 +267,34 @@ struct mt7996_wed_rro_session_id {
  	u16 id;
  };
  
@@ -285,7 +286,7 @@ index 232af281..2bc4c4b8 100644
  struct mt7996_phy {
  	struct mt76_phy *mt76;
  	struct mt7996_dev *dev;
-@@ -300,6 +328,8 @@ struct mt7996_phy {
+@@ -309,6 +337,8 @@ struct mt7996_phy {
  	bool sku_limit_en;
  	bool sku_path_en;
  
@@ -294,7 +295,7 @@ index 232af281..2bc4c4b8 100644
  #ifdef CONFIG_NL80211_TESTMODE
  	struct {
  		u32 *reg_backup;
-@@ -314,6 +344,10 @@ struct mt7996_phy {
+@@ -323,6 +353,10 @@ struct mt7996_phy {
  		u8 spe_idx;
  	} test;
  #endif
@@ -305,7 +306,7 @@ index 232af281..2bc4c4b8 100644
  };
  
  struct mt7996_dev {
-@@ -740,6 +774,25 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -771,6 +805,25 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  			 bool hif2, int *irq);
  u32 mt7996_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
  

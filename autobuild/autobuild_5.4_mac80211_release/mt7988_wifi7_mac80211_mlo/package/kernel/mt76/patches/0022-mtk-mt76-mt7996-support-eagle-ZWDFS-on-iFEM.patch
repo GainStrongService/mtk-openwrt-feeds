@@ -1,7 +1,7 @@
-From 3dff3d01f3c2b20a493b1cf74531f8cf193c60aa Mon Sep 17 00:00:00 2001
+From 0ed31af01bf9c0f5f040222fabee17af063f9eb8 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 5 Jul 2023 10:00:17 +0800
-Subject: [PATCH 022/195] mtk: mt76: mt7996: support eagle ZWDFS on iFEM
+Subject: [PATCH 022/223] mtk: mt76: mt7996: support eagle ZWDFS on iFEM
 
 Fix the case that control channel is not first chan during first
 interface setup.
@@ -15,7 +15,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 67 insertions(+), 5 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 6e4fc21d..f279cbd4 100644
+index e65b5bd7..ad4cd5dd 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1433,6 +1433,61 @@ mt7996_twt_teardown_request(struct ieee80211_hw *hw,
@@ -117,10 +117,10 @@ index 6e4fc21d..f279cbd4 100644
  		goto out;
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index d50c757d..a78c0707 100644
+index 59a24478..7ef6bb1f 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -372,12 +372,14 @@ mt7996_mcu_rx_radar_detected(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -382,12 +382,14 @@ mt7996_mcu_rx_radar_detected(struct mt7996_dev *dev, struct sk_buff *skb)
  	if (!mphy)
  		return;
  
@@ -138,10 +138,10 @@ index d50c757d..a78c0707 100644
  }
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index a679fd18..2eeb8d12 100644
+index 1fe681cf..2ec72496 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -397,6 +397,7 @@ struct mt7996_dev {
+@@ -407,6 +407,7 @@ struct mt7996_dev {
  	bool testmode_enable;
  	bool bin_file_mode;
  	u8 eeprom_mode;

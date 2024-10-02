@@ -1,8 +1,9 @@
-From 4349f061f18f983b2d67ffe3c7a0736d4ff26377 Mon Sep 17 00:00:00 2001
+From c21fcd823cc877e39068a92ffa440b7ad7f4bb45 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Feb 2023 13:37:23 +0800
-Subject: [PATCH 050/195] mtk: mt76: rework wed rx flow
+Subject: [PATCH 050/223] mtk: mt76: rework wed rx flow
 
+Change-Id: Icd787345c811cb5ad30d9c7c1c5f9e5298bd3be6
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
  dma.c           | 125 +++++++++++++++++++++++++++++++-----------------
@@ -259,7 +260,7 @@ index 33a84f5f..c54187bd 100644
  					 DMA_FROM_DEVICE);
  			skb_free_frag(buf);
 diff --git a/mac80211.c b/mac80211.c
-index ed25de4b..57621c28 100644
+index 78e9a1ae..b08a9388 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -596,7 +596,6 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
@@ -279,10 +280,10 @@ index ed25de4b..57621c28 100644
  	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
  		skb_queue_head_init(&dev->rx_skb[i]);
 diff --git a/mt76.h b/mt76.h
-index c782d7d9..f990ae4c 100644
+index e06d5aaa..260e198a 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -205,6 +205,7 @@ struct mt76_queue_entry {
+@@ -206,6 +206,7 @@ struct mt76_queue_entry {
  	};
  	union {
  		struct mt76_txwi_cache *txwi;
@@ -290,7 +291,7 @@ index c782d7d9..f990ae4c 100644
  		struct urb *urb;
  		int buf_sz;
  	};
-@@ -425,12 +426,16 @@ struct mt76_txwi_cache {
+@@ -426,12 +427,16 @@ struct mt76_txwi_cache {
  	struct list_head list;
  	dma_addr_t dma_addr;
  
@@ -312,7 +313,7 @@ index c782d7d9..f990ae4c 100644
  };
  
  struct mt76_rx_tid {
-@@ -523,6 +528,7 @@ struct mt76_driver_ops {
+@@ -524,6 +529,7 @@ struct mt76_driver_ops {
  	u16 txwi_size;
  	u16 token_size;
  	u8 mcs_rates;
@@ -320,7 +321,7 @@ index c782d7d9..f990ae4c 100644
  
  	void (*update_survey)(struct mt76_phy *phy);
  	int (*set_channel)(struct mt76_phy *phy);
-@@ -889,7 +895,6 @@ struct mt76_dev {
+@@ -891,7 +897,6 @@ struct mt76_dev {
  
  	struct ieee80211_hw *hw;
  
@@ -328,7 +329,7 @@ index c782d7d9..f990ae4c 100644
  	spinlock_t lock;
  	spinlock_t cc_lock;
  
-@@ -1575,8 +1580,8 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+@@ -1576,8 +1581,8 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
  }
  
  void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);
@@ -339,7 +340,7 @@ index c782d7d9..f990ae4c 100644
  void mt76_free_pending_rxwi(struct mt76_dev *dev);
  void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
  		      struct napi_struct *napi);
-@@ -1769,9 +1774,9 @@ struct mt76_txwi_cache *
+@@ -1770,9 +1775,9 @@ struct mt76_txwi_cache *
  mt76_token_release(struct mt76_dev *dev, int token, bool *wake);
  int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi);
  void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked);

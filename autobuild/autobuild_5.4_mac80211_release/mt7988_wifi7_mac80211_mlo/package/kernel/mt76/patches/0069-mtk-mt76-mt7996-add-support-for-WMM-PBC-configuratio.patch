@@ -1,12 +1,13 @@
-From 88b2bb56a0fc4d5ed59a9d3689691df8b7dbf552 Mon Sep 17 00:00:00 2001
+From 33a4c8e5ec36b3265e10e324e141e26b5941848f Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Thu, 4 Jan 2024 09:47:00 +0800
-Subject: [PATCH 069/195] mtk: mt76: mt7996: add support for WMM PBC
+Subject: [PATCH 069/223] mtk: mt76: mt7996: add support for WMM PBC
  configuration
 
 Query per-AC-queue packet statistics from WA, and determine if multi-AC transmission is ongoing.
 If it is, enable WMM mode in WA. Otherwise, disable WMM mode.
 
+Change-Id: I1852a45dc0e64780af5f091fd749ceab59697dbb
 Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 ---
  mt76_connac_mcu.h |  2 ++
@@ -18,10 +19,10 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  6 files changed, 105 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index c21641b3..edf55b72 100644
+index adecb0ed..c9cea5bb 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1037,6 +1037,7 @@ enum {
+@@ -1042,6 +1042,7 @@ enum {
  	MCU_EXT_EVENT_ASSERT_DUMP = 0x23,
  	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
  	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
@@ -29,7 +30,7 @@ index c21641b3..edf55b72 100644
  	MCU_EXT_EVENT_WA_TX_STAT = 0x74,
  	MCU_EXT_EVENT_BCC_NOTIFY = 0x75,
  	MCU_EXT_EVENT_MURU_CTRL = 0x9f,
-@@ -1236,6 +1237,7 @@ enum {
+@@ -1241,6 +1242,7 @@ enum {
  	MCU_EXT_CMD_TXDPD_CAL = 0x60,
  	MCU_EXT_CMD_CAL_CACHE = 0x67,
  	MCU_EXT_CMD_RED_ENABLE = 0x68,
@@ -38,10 +39,10 @@ index c21641b3..edf55b72 100644
  	MCU_EXT_CMD_SET_RADAR_TH = 0x7c,
  	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index f682423a..7c273f9c 100644
+index 04c15432..6d5e4c40 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -1536,6 +1536,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1556,6 +1556,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	INIT_WORK(&dev->dump_work, mt7996_mac_dump_work);
  	mutex_init(&dev->dump_mutex);
  
@@ -51,10 +52,10 @@ index f682423a..7c273f9c 100644
  	if (ret)
  		return ret;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 06a86146..099e97ef 100644
+index 8b753148..bc0f0020 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2298,6 +2298,10 @@ void mt7996_mac_work(struct work_struct *work)
+@@ -2310,6 +2310,10 @@ void mt7996_mac_work(struct work_struct *work)
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_ADM_STAT);
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_MSDU_COUNT);
  				}
@@ -66,10 +67,10 @@ index 06a86146..099e97ef 100644
  			           test_bit(MT76_STATE_RUNNING, &mdev->phys[i]->state))
  				break;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 4ffae1b6..94ab526e 100644
+index db877d75..47f8a7cd 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -669,6 +669,82 @@ mt7996_mcu_rx_thermal_notify(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -674,6 +674,82 @@ mt7996_mcu_rx_thermal_notify(struct mt7996_dev *dev, struct sk_buff *skb)
  	phy->throttle_state = n->duty_percent;
  }
  
@@ -152,7 +153,7 @@ index 4ffae1b6..94ab526e 100644
  static void
  mt7996_mcu_rx_ext_event(struct mt7996_dev *dev, struct sk_buff *skb)
  {
-@@ -678,6 +754,8 @@ mt7996_mcu_rx_ext_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -683,6 +759,8 @@ mt7996_mcu_rx_ext_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	case MCU_EXT_EVENT_FW_LOG_2_HOST:
  		mt7996_mcu_rx_log_message(dev, skb);
  		break;
@@ -192,11 +193,11 @@ index 5aa55e4f..8ffb16f8 100644
  	MCU_WA_PARAM_RED_CONFIG = 0x40,
  };
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 42a4ad42..510de136 100644
+index f6d3bd19..ba3a639b 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -607,6 +607,9 @@ struct mt7996_dev {
- 	u8 wtbl_size_group;
+@@ -612,6 +612,9 @@ struct mt7996_dev {
+ 	} var;
  
  	struct mt7996_vow_ctrl vow;
 +
@@ -205,7 +206,7 @@ index 42a4ad42..510de136 100644
  #ifdef CONFIG_MTK_DEBUG
  	u16 wlan_idx;
  	struct {
-@@ -858,6 +861,7 @@ int mt7996_mcu_set_band_confg(struct mt7996_phy *phy, u16 option, bool enable);
+@@ -862,6 +865,7 @@ int mt7996_mcu_set_band_confg(struct mt7996_phy *phy, u16 option, bool enable);
  int mt7996_mcu_set_vow_drr_ctrl(struct mt7996_phy *phy, struct mt7996_sta *msta,
  	                        enum vow_drr_ctrl_id id);
  int mt7996_mcu_set_vow_feature_ctrl(struct mt7996_phy *phy);

@@ -1,7 +1,7 @@
-From 4e18f649282ca5e6beef9f99ceeb346ad33bf746 Mon Sep 17 00:00:00 2001
+From 0f060bd8db3e101c30617548032f00adabcd9ffa Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Fri, 7 Jun 2024 13:51:25 +0800
-Subject: [PATCH 138/195] mtk: mt76: mt7996: Fix inconsistent QoS mapping
+Subject: [PATCH 138/223] mtk: mt76: mt7996: Fix inconsistent QoS mapping
  between SW and HW
 
 Fix inconsistent QoS mapping between SW and HW.
@@ -16,6 +16,8 @@ And it will set tid 7. but 57-63 in original function will not fill any value,
 so it will set zero to fw. Once the value of dscp is 57. mac80211 will correspond to tid 7.
 and fw will correspond to tid 0.
 
+Change-Id: Ied5b9caab869985cbbca55b401805af6787afef3
+Change-Id: I6d9066c6afdfc7bb1c4523e9bc8dec40111abd25
 Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Signed-off-by: Rex Lu <rex.lu@mediatek.com>
 ---
@@ -26,10 +28,10 @@ Signed-off-by: Rex Lu <rex.lu@mediatek.com>
  4 files changed, 94 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 063bfe75..80dbd987 100644
+index 73cf311a..1971c7bf 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
-@@ -1262,6 +1262,7 @@ enum {
+@@ -1267,6 +1267,7 @@ enum {
  	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
  	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
  	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
@@ -38,7 +40,7 @@ index 063bfe75..80dbd987 100644
  
  enum {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 5fd59539..9562f27a 100644
+index 9ad4a9d6..c1c62d32 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -2369,6 +2369,9 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
@@ -92,10 +94,10 @@ index 5fd59539..9562f27a 100644
 +	.set_qos_map = mt7996_set_qos_map,
  };
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 854b9ddf..f85e2b87 100644
+index 043f8d5c..edbe9cbe 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -6670,4 +6670,59 @@ int mt7996_mcu_set_csi(struct mt7996_phy *phy, u8 mode,
+@@ -6693,4 +6693,59 @@ int mt7996_mcu_set_csi(struct mt7996_phy *phy, u8 mode,
  		return -EINVAL;
  	}
  }
@@ -156,10 +158,10 @@ index 854b9ddf..f85e2b87 100644
 +}
  #endif
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index aa655424..5c326286 100644
+index 3ff9cb68..d97df22f 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -134,6 +134,8 @@
+@@ -136,6 +136,8 @@
  #define MT7996_MAX_PROBE_TIMEOUT	500
  #define MT7996_MAX_PROBE_TRIES		2
  
@@ -168,7 +170,7 @@ index aa655424..5c326286 100644
  struct mt7996_vif;
  struct mt7996_sta;
  struct mt7996_dfs_pulse;
-@@ -376,6 +378,9 @@ struct mt7996_vif {
+@@ -377,6 +379,9 @@ struct mt7996_vif {
  	void *probe[__MT_MAX_BAND];
  	unsigned long probe_send_time[__MT_MAX_BAND];
  	int probe_send_count[__MT_MAX_BAND];
@@ -178,7 +180,7 @@ index aa655424..5c326286 100644
  };
  
  /* crash-dump */
-@@ -1333,5 +1338,6 @@ int mt7996_mcu_mlo_agc(struct mt7996_dev *dev, const void *data, int len);
+@@ -1337,5 +1342,6 @@ int mt7996_mcu_mlo_agc(struct mt7996_dev *dev, const void *data, int len);
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
  int mt7996_dma_rro_init(struct mt7996_dev *dev);
  #endif /* CONFIG_NET_MEDIATEK_SOC_WED */

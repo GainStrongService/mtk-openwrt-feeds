@@ -1,7 +1,7 @@
-From 25892ea2ec0136f91d1f5cbc11b05b7a96aa8deb Mon Sep 17 00:00:00 2001
+From 5838cde9b267f8792119865a8224308b569899b0 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 7 Jun 2024 13:24:04 +0800
-Subject: [PATCH 148/195] mtk: mt76: mt7996: support configure coding type for
+Subject: [PATCH 148/223] mtk: mt76: mt7996: support configure coding type for
  wifi7 r1 cert
 
 This commit includes two changes for WiFi7 cert fix rate test cases.
@@ -17,6 +17,8 @@ commands to fix partial rate. To address this issue, we utilize variable
 cert_mode to determine whether we are currently using multiple user
 space commands to fix the partial rate.
 
+Change-Id: I8fbeb1ce639922c0a224eb5b9e849fbdcf50272d
+Change-Id: Ifb75c34a767ab6ad5597237e70a3673586fcb499
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 ---
  mt7996/mac.c     | 10 ++++++++++
@@ -29,10 +31,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  7 files changed, 82 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 960b02dd..c59cc7cc 100644
+index 0a96b5de..19484081 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2373,6 +2373,16 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
+@@ -2385,6 +2385,16 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
  		if (changed & IEEE80211_RC_SMPS_CHANGED)
  			mt7996_mcu_set_fixed_field(dev, mconf, link_sta, mlink, NULL,
  						   RATE_PARAM_MMPS_UPDATE);
@@ -50,10 +52,10 @@ index 960b02dd..c59cc7cc 100644
  		spin_lock_bh(&dev->mt76.sta_poll_lock);
  	}
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 596f58cc..12ab9fcd 100644
+index 6149f227..94746005 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2659,6 +2659,7 @@ int mt7996_mcu_set_fixed_field(struct mt7996_dev *dev,
+@@ -2664,6 +2664,7 @@ int mt7996_mcu_set_fixed_field(struct mt7996_dev *dev,
  	case RATE_PARAM_FIXED_MCS:
  	case RATE_PARAM_FIXED_GI:
  	case RATE_PARAM_FIXED_HE_LTF:
@@ -61,7 +63,7 @@ index 596f58cc..12ab9fcd 100644
  		if (phy)
  			ra->phy = *phy;
  		break;
-@@ -2884,6 +2885,12 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
+@@ -2889,6 +2890,12 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
  	if (IS_ERR(skb))
  		return PTR_ERR(skb);
  
@@ -87,10 +89,10 @@ index 737f426d..9b29dc29 100644
  #ifdef CONFIG_MTK_VENDOR
  	RATE_PARAM_FIXED_MIMO = 30,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 2ad48f96..a7c6a32d 100644
+index d56d9715..0b3df44a 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -516,6 +516,8 @@ struct csi_data {
+@@ -517,6 +517,8 @@ struct csi_data {
  
  	struct list_head node;
  };
@@ -99,7 +101,7 @@ index 2ad48f96..a7c6a32d 100644
  #endif
  
  struct mt7996_rro_ba_session {
-@@ -786,7 +788,8 @@ struct mt7996_dev {
+@@ -791,7 +793,8 @@ struct mt7996_dev {
  	const struct mt7996_dbg_reg_desc *dbg_reg;
  #endif
  #ifdef CONFIG_MTK_VENDOR

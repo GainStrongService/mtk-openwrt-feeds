@@ -1,7 +1,7 @@
-From 7f2ba60d358a1a4519c386d795ee1ed37fed3434 Mon Sep 17 00:00:00 2001
+From ee502aed06bf89606b05b5ac3e2d89b766de7772 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 4 Dec 2023 11:25:54 +0800
-Subject: [PATCH 086/195] mtk: mt76: mt7996: rework TXD for multi-link support
+Subject: [PATCH 086/223] mtk: mt76: mt7996: rework TXD for multi-link support
 
 This is a preliminary patch to add MLO support for mt7996 chipsets.
 
@@ -14,10 +14,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  2 files changed, 73 insertions(+), 24 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index fbe6c0bd..b0ad48dd 100644
+index 8b682842..26878e29 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -615,9 +615,8 @@ mt7996_mac_write_txwi_8023(struct mt7996_dev *dev, __le32 *txwi,
+@@ -627,9 +627,8 @@ mt7996_mac_write_txwi_8023(struct mt7996_dev *dev, __le32 *txwi,
  	u32 val;
  
  	if (wcid->sta) {
@@ -28,7 +28,7 @@ index fbe6c0bd..b0ad48dd 100644
  		wmm = sta->wme;
  	}
  
-@@ -727,6 +726,10 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+@@ -739,6 +738,10 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
  		txwi[3] |= cpu_to_le32(val);
  		txwi[3] &= ~cpu_to_le32(MT_TXD3_HW_AMSDU);
  	}
@@ -39,7 +39,7 @@ index fbe6c0bd..b0ad48dd 100644
  }
  
  void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
-@@ -736,10 +739,12 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+@@ -748,10 +751,12 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
  {
  	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
  	struct ieee80211_vif *vif = info->control.vif;
@@ -53,7 +53,7 @@ index fbe6c0bd..b0ad48dd 100644
  	u16 tx_count = 15;
  	u32 val;
  	bool inband_disc = !!(changed & (BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
-@@ -747,11 +752,16 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+@@ -759,11 +764,16 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
  	bool beacon = !!(changed & (BSS_CHANGED_BEACON |
  				    BSS_CHANGED_BEACON_ENABLED)) && (!inband_disc);
  
@@ -75,7 +75,7 @@ index fbe6c0bd..b0ad48dd 100644
  	}
  
  	if (inband_disc) {
-@@ -798,7 +808,10 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+@@ -810,7 +820,10 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
  		val |= MT_TXD5_TX_STATUS_HOST;
  	txwi[5] = cpu_to_le32(val);
  
@@ -87,7 +87,7 @@ index fbe6c0bd..b0ad48dd 100644
  	if (is_mt7996(&dev->mt76))
  		val |= FIELD_PREP(MT_TXD6_MSDU_CNT, 1);
  	else
-@@ -817,16 +830,18 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+@@ -829,16 +842,18 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
  			     is_multicast_ether_addr(hdr->addr1);
  		u8 idx = MT7996_BASIC_RATES_TBL;
  
@@ -112,7 +112,7 @@ index fbe6c0bd..b0ad48dd 100644
  		txwi[6] |= cpu_to_le32(val);
  		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
  	}
-@@ -842,17 +857,48 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -854,17 +869,48 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
  	struct ieee80211_key_conf *key = info->control.hw_key;
  	struct ieee80211_vif *vif = info->control.vif;
@@ -163,7 +163,7 @@ index fbe6c0bd..b0ad48dd 100644
  
  	t = (struct mt76_txwi_cache *)(txwi + mdev->drv->txwi_size);
  	t->skb = tx_info->skb;
-@@ -897,13 +943,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -909,13 +955,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	if (!is_8023 && ieee80211_is_mgmt(hdr->frame_control))
  		txp->fw.flags |= cpu_to_le16(MT_CT_INFO_MGMT_FRAME);
  
@@ -179,10 +179,10 @@ index fbe6c0bd..b0ad48dd 100644
  	txp->fw.rept_wds_wcid = cpu_to_le16(sta ? wcid->idx : 0xfff);
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index c7437a72..ec853d3b 100644
+index 38b924b5..bde3bec1 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -831,6 +831,15 @@ mlink_dereference_protected(struct mt7996_sta *msta, u8 link_id)
+@@ -835,6 +835,15 @@ mlink_dereference_protected(struct mt7996_sta *msta, u8 link_id)
  					 lockdep_is_held(&msta->vif->dev->mt76.mutex));
  }
  

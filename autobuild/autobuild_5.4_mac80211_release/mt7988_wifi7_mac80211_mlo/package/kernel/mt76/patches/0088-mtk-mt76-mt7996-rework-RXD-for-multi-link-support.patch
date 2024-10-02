@@ -1,7 +1,7 @@
-From 9477b7613c8abf0c59f9d2df6feb698324c27405 Mon Sep 17 00:00:00 2001
+From c30c021612cad8eefe3cae1b4cca929ab5a2d7fd Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 4 Dec 2023 14:50:47 +0800
-Subject: [PATCH 088/195] mtk: mt76: mt7996: rework RXD for multi-link support
+Subject: [PATCH 088/223] mtk: mt76: mt7996: rework RXD for multi-link support
 
 This is a preliminary patch to add MLO support for mt7996 chipsets.
 
@@ -13,7 +13,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  1 file changed, 2 insertions(+), 25 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index c910f353..8d6a153c 100644
+index 92628e17..98cd7e3b 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -51,29 +51,6 @@ static const struct mt7996_dfs_radar_spec jp_radar_specs = {

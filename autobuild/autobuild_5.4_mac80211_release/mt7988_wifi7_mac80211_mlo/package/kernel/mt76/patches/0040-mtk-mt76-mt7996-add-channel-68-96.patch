@@ -1,7 +1,7 @@
-From 61eca1d35212a7e73af941e2ceaeac73ca49ca5d Mon Sep 17 00:00:00 2001
+From 1836ddf781e91b41f66a1add7110bd24d133817c Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 11 Sep 2023 14:43:07 +0800
-Subject: [PATCH 040/195] mtk: mt76: mt7996: add channel 68 & 96
+Subject: [PATCH 040/223] mtk: mt76: mt7996: add channel 68 & 96
 
 ---
  mac80211.c        |  9 +++++++++
@@ -13,7 +13,7 @@ Subject: [PATCH 040/195] mtk: mt76: mt7996: add channel 68 & 96
  6 files changed, 82 insertions(+), 9 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 18428e44..32ae1e52 100644
+index 1d2477d6..ee5aa608 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -34,6 +34,15 @@ static const struct ieee80211_channel mt76_channels_5ghz[] = {
@@ -33,7 +33,7 @@ index 18428e44..32ae1e52 100644
  	CHAN5G(104, 5520),
  	CHAN5G(108, 5540),
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index f4641321..8a0f6d39 100644
+index da30be33..b71961d9 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -18,6 +18,17 @@ const struct ieee80211_channel dpd_2g_ch_list_bw20[] = {
@@ -62,7 +62,7 @@ index f4641321..8a0f6d39 100644
  const u32 dpd_5g_bw160_ch_num = ARRAY_SIZE(dpd_5g_ch_list_bw160);
  const u32 dpd_6g_bw160_ch_num = ARRAY_SIZE(dpd_6g_ch_list_bw160);
  const u32 dpd_6g_bw320_ch_num = ARRAY_SIZE(dpd_6g_ch_list_bw320);
-@@ -168,8 +180,8 @@ mt7996_get_dpd_per_band_size(struct mt7996_dev *dev, enum nl80211_band band)
+@@ -191,8 +203,8 @@ mt7996_get_dpd_per_band_size(struct mt7996_dev *dev, enum nl80211_band band)
  	if (band == NL80211_BAND_2GHZ)
  		dpd_size = dpd_2g_bw20_ch_num * DPD_PER_CH_BW20_SIZE;
  	else if (band == NL80211_BAND_5GHZ)
@@ -73,7 +73,7 @@ index f4641321..8a0f6d39 100644
  	else
  		dpd_size = mphy->sband_6g.sband.n_channels * DPD_PER_CH_BW20_SIZE +
  			   (dpd_6g_bw160_ch_num + dpd_6g_bw320_ch_num) * DPD_PER_CH_GT_BW20_SIZE;
-@@ -431,6 +443,39 @@ out:
+@@ -481,6 +493,39 @@ out:
  	return ret;
  }
  
@@ -114,7 +114,7 @@ index f4641321..8a0f6d39 100644
  {
  	struct mt76_dev *mdev = &dev->mt76;
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index 03a4fd07..9a15b446 100644
+index e90180a0..782d847b 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -67,6 +67,8 @@ enum mt7996_eeprom_field {
@@ -127,10 +127,10 @@ index 03a4fd07..9a15b446 100644
  extern const u32 dpd_5g_bw160_ch_num;
  extern const struct ieee80211_channel dpd_6g_ch_list_bw160[];
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index c4ac4b7f..20ac22dd 100644
+index 9e548100..54a84966 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3772,7 +3772,8 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
+@@ -3802,7 +3802,8 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
  		chan_list_size = mphy->sband_5g.sband.n_channels;
  		base_offset += dpd_size_2g;
  		if (bw == NL80211_CHAN_WIDTH_160) {
@@ -140,7 +140,7 @@ index c4ac4b7f..20ac22dd 100644
  			per_chan_size = DPD_PER_CH_GT_BW20_SIZE;
  			cal_id = RF_DPD_FLAT_5G_MEM_CAL;
  			chan_list = dpd_5g_ch_list_bw160;
-@@ -3781,6 +3782,9 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
+@@ -3811,6 +3812,9 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
  			/* apply (center channel - 2)'s dpd cal data for bw 40/80 channels */
  			channel -= 2;
  		}
@@ -150,7 +150,7 @@ index c4ac4b7f..20ac22dd 100644
  		break;
  	case NL80211_BAND_6GHZ:
  		dpd_mask = MT_EE_WIFI_CAL_DPD_6G;
-@@ -3820,6 +3824,10 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
+@@ -3850,6 +3854,10 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
  	if (idx == chan_list_size)
  		return -EINVAL;
  
@@ -162,10 +162,10 @@ index c4ac4b7f..20ac22dd 100644
  
  	for (i = 0; i < per_chan_size / MT_EE_CAL_UNIT; i++) {
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 5cec1eef..95d3bde0 100644
+index bace3afe..6de49afc 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
-@@ -531,6 +531,11 @@ mt7996_tm_dpd_prek_send_req(struct mt7996_phy *phy, struct mt7996_tm_req *req,
+@@ -537,6 +537,11 @@ mt7996_tm_dpd_prek_send_req(struct mt7996_phy *phy, struct mt7996_tm_req *req,
  	memcpy(&chandef_backup, chandef, sizeof(struct cfg80211_chan_def));
  
  	for (i = 0; i < channel_size; i++) {
@@ -177,7 +177,7 @@ index 5cec1eef..95d3bde0 100644
  		memcpy(chandef->chan, &chan_list[i], sizeof(struct ieee80211_channel));
  		chandef->width = width;
  
-@@ -612,7 +617,8 @@ mt7996_tm_dpd_prek(struct mt7996_phy *phy, enum mt76_testmode_state state)
+@@ -618,7 +623,8 @@ mt7996_tm_dpd_prek(struct mt7996_phy *phy, enum mt76_testmode_state state)
  						  NL80211_CHAN_WIDTH_20, RF_DPD_FLAT_5G_CAL);
  		if (ret)
  			return ret;
@@ -187,7 +187,7 @@ index 5cec1eef..95d3bde0 100644
  		wait_event_timeout(mdev->mcu.wait,
  				   dev->cur_prek_offset == wait_on_prek_offset, 30 * HZ);
  
-@@ -868,6 +874,7 @@ mt7996_tm_get_center_chan(struct mt7996_phy *phy, struct cfg80211_chan_def *chan
+@@ -874,6 +880,7 @@ mt7996_tm_get_center_chan(struct mt7996_phy *phy, struct cfg80211_chan_def *chan
  	const struct ieee80211_channel *chan = mphy->sband_5g.sband.channels;
  	u32 bitmap, i, offset, width_mhz, size = mphy->sband_5g.sband.n_channels;
  	u16 first_control = 0, control_chan = chandef->chan->hw_value;
@@ -195,7 +195,7 @@ index 5cec1eef..95d3bde0 100644
  
  	bitmap = mt7996_tm_bw_mapping(chandef->width, BW_MAP_NL_TO_CONTROL_BITMAP_5G);
  	if (!bitmap)
-@@ -877,7 +884,9 @@ mt7996_tm_get_center_chan(struct mt7996_phy *phy, struct cfg80211_chan_def *chan
+@@ -883,7 +890,9 @@ mt7996_tm_get_center_chan(struct mt7996_phy *phy, struct cfg80211_chan_def *chan
  	offset = width_mhz / 10 - 2;
  
  	for (i = 0; i < size; i++) {
@@ -206,7 +206,7 @@ index 5cec1eef..95d3bde0 100644
  			continue;
  
  		if (control_chan >= chan[i].hw_value)
-@@ -886,7 +895,7 @@ mt7996_tm_get_center_chan(struct mt7996_phy *phy, struct cfg80211_chan_def *chan
+@@ -892,7 +901,7 @@ mt7996_tm_get_center_chan(struct mt7996_phy *phy, struct cfg80211_chan_def *chan
  			break;
  	}
  

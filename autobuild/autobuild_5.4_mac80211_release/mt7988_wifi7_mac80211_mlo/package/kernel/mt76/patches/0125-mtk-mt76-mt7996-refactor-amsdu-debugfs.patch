@@ -1,7 +1,7 @@
-From dddf544dc31a7960dfa0ed93c2f06ecf61d356c5 Mon Sep 17 00:00:00 2001
+From e7b50308230e874028c65233d5e2f7a7d1ad6479 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 17 May 2024 17:34:03 +0800
-Subject: [PATCH 125/195] mtk: mt76: mt7996: refactor amsdu debugfs
+Subject: [PATCH 125/223] mtk: mt76: mt7996: refactor amsdu debugfs
 
 1. Remove hw_amsdu_info which is duplicated with amsdu_info.
 
@@ -9,13 +9,14 @@ Subject: [PATCH 125/195] mtk: mt76: mt7996: refactor amsdu debugfs
    If amsdu_info read CR directly, the CR would be cleared and the
    mt7996_mac_work cannot get correct value.
 
+Change-Id: Ie83e861f32fa7ede075916f2393df51e39bebbad
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  mt7996/mtk_debugfs.c | 63 ++++++++++++++++----------------------------
  1 file changed, 22 insertions(+), 41 deletions(-)
 
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 59c6db73..a7cbde3e 100644
+index 06fa83bb..9d8c1942 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -210,28 +210,35 @@ DEFINE_SHOW_ATTRIBUTE(mt7996_agginfo);
@@ -69,7 +70,7 @@ index 59c6db73..a7cbde3e 100644
  	return 0;
  }
  
-@@ -3342,30 +3349,6 @@ static const struct file_operations fops_amsdu_para = {
+@@ -3341,30 +3348,6 @@ static const struct file_operations fops_amsdu_para = {
  	.llseek = default_llseek,
  };
  
@@ -100,7 +101,7 @@ index 59c6db73..a7cbde3e 100644
  /* PSE INFO */
  static struct bmac_queue_info_t pse_queue_empty_info[] = {
  	{"CPU Q0",  ENUM_UMAC_CPU_PORT_1,     ENUM_UMAC_CTX_Q_0},
-@@ -4305,8 +4288,6 @@ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
+@@ -4304,8 +4287,6 @@ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
  	/* amsdu */
  	debugfs_create_file("amsdu_algo", 0600, dir, dev, &fops_amsdu_algo);
  	debugfs_create_file("amsdu_para", 0600, dir, dev, &fops_amsdu_para);

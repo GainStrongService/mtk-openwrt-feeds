@@ -1,13 +1,14 @@
-From 04b31a4bc7572c567068dcbfe0dc9fcb4396e930 Mon Sep 17 00:00:00 2001
+From bd67084cff9aa21fe1b714ebcfe771aad0286e11 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Thu, 13 Jun 2024 17:27:03 +0800
-Subject: [PATCH 149/195] mtk: mt76: mt7996: record RSSI and SNR
+Subject: [PATCH 149/223] mtk: mt76: mt7996: record RSSI and SNR
 
 RSSI and SNR information were incomplete.
 - RSSI: per-antenna ACK-frame RSSI was not reported.
 - SNR: unavailable.
 Therefore, get and record these signal statuses in order to show them for debugging purposes.
 
+Change-Id: I8997b8433f5af6769792e158ebf03a7f54eb3210
 Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 ---
  mt7996/mac.c    |  9 +++++-
@@ -17,7 +18,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  4 files changed, 70 insertions(+), 32 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index c59cc7cc..017e3465 100644
+index 19484081..c341a553 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -493,6 +493,13 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -34,7 +35,7 @@ index c59cc7cc..017e3465 100644
  		/* RXD Group 5 - C-RXV */
  		if (rxd1 & MT_RXD1_NORMAL_GROUP_5) {
  			rxd += 24;
-@@ -2413,7 +2420,7 @@ void mt7996_mac_work(struct work_struct *work)
+@@ -2425,7 +2432,7 @@ void mt7996_mac_work(struct work_struct *work)
  			if (i == mphy->band_idx) {
  				mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_RATE);
  				mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_AIRTIME);
@@ -44,10 +45,10 @@ index c59cc7cc..017e3465 100644
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_ADM_STAT);
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_MSDU_COUNT);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 12ab9fcd..3219ae8a 100644
+index 94746005..db975daa 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -5794,14 +5794,15 @@ int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u16 val)
+@@ -5817,14 +5817,15 @@ int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u16 val)
  }
  
  int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
@@ -65,7 +66,7 @@ index 12ab9fcd..3219ae8a 100644
  	struct {
  		u8 __rsv1;
  		u8 unsolicit;
-@@ -5840,23 +5841,18 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+@@ -5863,23 +5864,18 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
  	switch (tag) {
  	case UNI_PER_STA_RSSI:
  		for (i = 0; i < sta_num; ++i) {
@@ -99,7 +100,7 @@ index 12ab9fcd..3219ae8a 100644
  				ewma_avg_signal_add(&mlink->avg_ack_signal, -mlink->ack_signal);
  			} else {
  				ret = -EINVAL;
-@@ -5865,6 +5861,21 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+@@ -5888,6 +5884,21 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
  			}
  		}
  		break;
@@ -121,7 +122,7 @@ index 12ab9fcd..3219ae8a 100644
  	default:
  		ret = -EINVAL;
  		dev_err(dev->dev, "Unknown UNI_PER_STA_INFO_TAG: %d\n", tag);
-@@ -5875,7 +5886,7 @@ out:
+@@ -5898,7 +5909,7 @@ out:
  	return ret;
  }
  
@@ -130,7 +131,7 @@ index 12ab9fcd..3219ae8a 100644
  {
  	u16 sta_list[PER_STA_INFO_MAX_NUM];
  	LIST_HEAD(sta_poll_list);
-@@ -5900,8 +5911,8 @@ int mt7996_mcu_get_rssi(struct mt76_dev *dev)
+@@ -5923,8 +5934,8 @@ int mt7996_mcu_get_rssi(struct mt76_dev *dev)
  				break;
  			}
  			mlink = list_first_entry(&sta_poll_list,
@@ -141,7 +142,7 @@ index 12ab9fcd..3219ae8a 100644
  			list_del_init(&mlink->wcid.poll_list);
  			spin_unlock_bh(&dev->sta_poll_lock);
  
-@@ -5909,16 +5920,23 @@ int mt7996_mcu_get_rssi(struct mt76_dev *dev)
+@@ -5932,16 +5943,23 @@ int mt7996_mcu_get_rssi(struct mt76_dev *dev)
  		}
  
  		ret = mt7996_mcu_get_per_sta_info(dev, UNI_PER_STA_RSSI,
@@ -202,10 +203,10 @@ index 9b29dc29..20eaf20d 100644
  } __packed;
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index a7c6a32d..1a0b9d3a 100644
+index 0b3df44a..ee43c9e0 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -317,9 +317,15 @@ struct mt7996_link_sta {
+@@ -318,9 +318,15 @@ struct mt7996_link_sta {
  
  	struct list_head rc_list;
  
@@ -221,7 +222,7 @@ index a7c6a32d..1a0b9d3a 100644
  	unsigned long changed;
  
  	struct mt76_connac_sta_key_conf bip;
-@@ -1126,7 +1132,7 @@ void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
+@@ -1130,7 +1136,7 @@ void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
  void mt7996_mcu_exit(struct mt7996_dev *dev);
  int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
  	                        u16 sta_num, u16 *sta_list);

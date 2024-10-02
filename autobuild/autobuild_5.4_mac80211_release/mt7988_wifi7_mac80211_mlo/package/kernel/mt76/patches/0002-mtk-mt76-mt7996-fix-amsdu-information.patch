@@ -1,13 +1,14 @@
-From 00fba946a929e4125cec0ccd4252478b3bdb28f2 Mon Sep 17 00:00:00 2001
+From afaacba412a34baf39e58b27003d4d09516a15c2 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 17 May 2024 15:28:06 +0800
-Subject: [PATCH 002/195] mtk: mt76: mt7996: fix amsdu information
+Subject: [PATCH 002/223] mtk: mt76: mt7996: fix amsdu information
 
 The amsdu information is common information for all bands so maintain
 it by main phy instead of calculating by each phy.
 Without this patch, the statistics of tx_amsdu_cnt and tx_amsdu would
 be incorrect.
 
+Change-Id: Iac324d9dd63ceb3a55b51c0210e3e547e20a71cb
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  mt76.h           |  3 ++-
@@ -16,10 +17,10 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 11 insertions(+), 20 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 56cc2f95..2729b3f1 100644
+index 19c4f11c..063c45d2 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -929,6 +929,7 @@ struct mt76_dev {
+@@ -931,6 +931,7 @@ struct mt76_dev {
  	};
  };
  
@@ -27,7 +28,7 @@ index 56cc2f95..2729b3f1 100644
  /* per-phy stats.  */
  struct mt76_mib_stats {
  	u32 ack_fail_cnt;
-@@ -988,7 +989,7 @@ struct mt76_mib_stats {
+@@ -990,7 +991,7 @@ struct mt76_mib_stats {
  	u32 rx_vec_queue_overflow_drop_cnt;
  	u32 rx_ba_cnt;
  
@@ -68,10 +69,10 @@ index 62c03d08..a17c99a2 100644
  
  	return 0;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 109a74a9..503e92c0 100644
+index 29297c07..cfcfc3ea 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -2103,10 +2103,19 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy)
+@@ -2114,10 +2114,19 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy)
  {
  	struct mt76_mib_stats *mib = &phy->mib;
  	struct mt7996_dev *dev = phy->dev;
@@ -91,7 +92,7 @@ index 109a74a9..503e92c0 100644
  	cnt = mt76_rr(dev, MT_MIB_RSCR1(band_idx));
  	mib->fcs_err_cnt += cnt;
  
-@@ -2212,12 +2221,6 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy)
+@@ -2223,12 +2232,6 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy)
  	cnt = mt76_rr(dev, MT_MIB_BSCR17(band_idx));
  	mib->tx_bf_fb_cpl_cnt += cnt;
  

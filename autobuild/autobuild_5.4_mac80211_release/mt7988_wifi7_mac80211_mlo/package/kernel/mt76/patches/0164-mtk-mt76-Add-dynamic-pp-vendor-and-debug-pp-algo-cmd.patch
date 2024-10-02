@@ -1,7 +1,7 @@
-From 96a648bbee9243a761e4c4e1fd7daef131fa469b Mon Sep 17 00:00:00 2001
+From fdf267776932e3bab7c0d87f2c9c8a96ac9a4e0f Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Tue, 28 May 2024 15:39:06 +0800
-Subject: [PATCH 164/195] mtk: mt76: Add dynamic pp vendor and debug pp algo
+Subject: [PATCH 164/223] mtk: mt76: Add dynamic pp vendor and debug pp algo
  cmd support
 
 Add dynamic pp vendor and debug pp algo cmd support.
@@ -13,6 +13,8 @@ When extender sta have not connected to root ap and the chandef is null.
 mt76 just ignore the event. Once the sta connect to ap, the sta part would
 send a new fw cmd to update the pp bitmap.
 
+Change-Id: I3574940a3f4165f136df8e07a819a32a5bc02b41
+Change-Id: I1e9955ac0cecafa481fe851502880f6ea1a44469
 Signed-off-by: Allen Ye <allen.ye@mediatek.com>
 ---
  mt7996/mcu.c         |  70 ++++++++++++++++++++++++++++-
@@ -24,10 +26,10 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  6 files changed, 205 insertions(+), 30 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 2f8d155c..e26e8cd3 100644
+index fce92046..77d3b2c8 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1280,6 +1280,39 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -1285,6 +1285,39 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	}
  }
  
@@ -67,7 +69,7 @@ index 2f8d155c..e26e8cd3 100644
  static void
  mt7996_mcu_pp_event(struct mt7996_dev *dev, struct sk_buff *skb)
  {
-@@ -1306,9 +1339,13 @@ mt7996_mcu_pp_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -1311,9 +1344,13 @@ mt7996_mcu_pp_event(struct mt7996_dev *dev, struct sk_buff *skb)
  		if (phy->punct_bitmap == report_bitmap)
  			return;
  
@@ -83,7 +85,7 @@ index 2f8d155c..e26e8cd3 100644
  		break;
  	}
  }
-@@ -6408,6 +6445,35 @@ int mt7996_mcu_set_pp_sta_dscb(struct mt7996_phy *phy,
+@@ -6415,6 +6452,35 @@ int mt7996_mcu_set_pp_sta_dscb(struct mt7996_phy *phy,
  				 &req, sizeof(req), false);
  }
  
@@ -183,10 +185,10 @@ index 011b6c7a..01eb0ea1 100644
  	UNI_CMD_SCS_SEND_DATA,
  	UNI_CMD_SCS_SET_PD_THR_RANGE = 2,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 9ff7fdae..31b20dcb 100644
+index 58151ed0..755b4cf0 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1278,6 +1278,7 @@ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode);
+@@ -1282,6 +1282,7 @@ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode);
  int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap);
  int mt7996_mcu_set_pp_sta_dscb(struct mt7996_phy *phy, struct cfg80211_chan_def *chandef,
  			       u8 omac_idx);
@@ -194,7 +196,7 @@ index 9ff7fdae..31b20dcb 100644
  int mt7996_mcu_set_eml_omn(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u8 link_id,
  			   struct ieee80211_sta *sta, struct mt7996_eml_omn *eml_omn);
  #ifdef CONFIG_MAC80211_DEBUGFS
-@@ -1307,6 +1308,7 @@ int mt7996_mcu_set_muru_cfg(struct mt7996_dev *dev, void *data);
+@@ -1311,6 +1312,7 @@ int mt7996_mcu_set_muru_cfg(struct mt7996_dev *dev, void *data);
  void mt7996_set_beacon_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
  int mt7996_mcu_set_csi(struct mt7996_phy *phy, u8 mode,
  		       u8 cfg, u8 v1, u32 v2, u8 *mac_addr);
@@ -203,10 +205,10 @@ index 9ff7fdae..31b20dcb 100644
  
  int mt7996_mcu_edcca_enable(struct mt7996_phy *phy, bool enable);
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index b698c68a..093f3c69 100644
+index 02a6ee81..2ded5f79 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
-@@ -4368,6 +4368,18 @@ static const struct file_operations fops_muru_dbg_info = {
+@@ -4367,6 +4367,18 @@ static const struct file_operations fops_muru_dbg_info = {
  	.llseek = default_llseek,
  };
  
@@ -225,7 +227,7 @@ index b698c68a..093f3c69 100644
  void mt7996_mtk_init_band_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  {
  	/* agg */
-@@ -4390,6 +4402,8 @@ void mt7996_mtk_init_band_debugfs(struct mt7996_phy *phy, struct dentry *dir)
+@@ -4389,6 +4401,8 @@ void mt7996_mtk_init_band_debugfs(struct mt7996_phy *phy, struct dentry *dir)
  
  	debugfs_create_file("thermal_enable", 0600, dir, phy, &fops_thermal_enable);
  	debugfs_create_file("scs_enable", 0200, dir, phy, &fops_scs_enable);

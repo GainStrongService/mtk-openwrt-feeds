@@ -1,7 +1,7 @@
-From 2b2b0ec0d5869c11c14b89d81ba00cada60a443d Mon Sep 17 00:00:00 2001
+From 6ae2f546b249738b3c1f3ad573dd2ce4d2020558 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 15 May 2024 11:10:17 +0800
-Subject: [PATCH 121/195] mtk: mt76: mt7996: fix stop_tx_ba_session warning
+Subject: [PATCH 121/223] mtk: mt76: mt7996: fix stop_tx_ba_session warning
 
 ---
  mt7996/main.c | 11 +++++++----
@@ -9,7 +9,7 @@ Subject: [PATCH 121/195] mtk: mt76: mt7996: fix stop_tx_ba_session warning
  2 files changed, 13 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 071227c6..6889085d 100644
+index 3a85b025..3f93eda0 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1079,7 +1079,8 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
@@ -53,10 +53,10 @@ index 071227c6..6889085d 100644
  }
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 2d1d7555..443ffc28 100644
+index 1dcc367e..d9d29c4e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1735,6 +1735,9 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
+@@ -1740,6 +1740,9 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
  			mconf_dereference_protected(msta->vif, link_id);
  		int ret;
  
@@ -66,7 +66,7 @@ index 2d1d7555..443ffc28 100644
  		if (enable && !params->amsdu)
  			mlink->wcid.amsdu = false;
  
-@@ -1769,6 +1772,9 @@ int mt7996_mcu_add_rx_ba(struct mt7996_dev *dev,
+@@ -1774,6 +1777,9 @@ int mt7996_mcu_add_rx_ba(struct mt7996_dev *dev,
  			mconf_dereference_protected(msta->vif, link_id);
  		int ret;
  
