@@ -1,21 +1,8 @@
 diff --git a/package/kernel/mt76/Makefile b/package/kernel/mt76/Makefile
-index 9a7c1f8..173a88a 100644
+index 070d0f3..0d4ccdd 100644
 --- a/package/kernel/mt76/Makefile
 +++ b/package/kernel/mt76/Makefile
-@@ -318,7 +318,7 @@ endef
- define KernelPackage/mt7996e
-   $(KernelPackage/mt76-default)
-   TITLE:=MediaTek MT7996E wireless driver
--  DEPENDS+=@PCI_SUPPORT +kmod-mt76-connac +kmod-hwmon-core +@DRIVER_11AX_SUPPORT +@KERNEL_RELAY
-+  DEPENDS+=@PCI_SUPPORT +kmod-mt76-connac +kmod-hwmon-core +@DRIVER_11AX_SUPPORT +@KERNEL_RELAY +@DRIVER_11BE_SUPPORT
-   FILES:= $(PKG_BUILD_DIR)/mt7996/mt7996e.ko
-   AUTOLOAD:=$(call AutoProbe,mt7996e)
- endef
-@@ -660,9 +660,11 @@ define KernelPackage/mt7992-firmware/install
- 		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_dsp.bin \
- 		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_eeprom.bin \
- 		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_eeprom_2i5i.bin \
-+		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_eeprom_2i5e.bin \
+@@ -665,6 +665,7 @@ define KernelPackage/mt7992-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_rom_patch.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_wm.bin \
@@ -23,7 +10,7 @@ index 9a7c1f8..173a88a 100644
  		$(1)/lib/firmware/mediatek/mt7996
  endef
  
-@@ -675,6 +677,7 @@ define KernelPackage/mt7992-23-firmware/install
+@@ -677,6 +678,7 @@ define KernelPackage/mt7992-23-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_rom_patch_23.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_wa_23.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7992_wm_23.bin \
@@ -31,7 +18,7 @@ index 9a7c1f8..173a88a 100644
  		$(1)/lib/firmware/mediatek/mt7996
  endef
  
-@@ -693,6 +696,7 @@ define KernelPackage/mt7996-firmware/install
+@@ -695,6 +697,7 @@ define KernelPackage/mt7996-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_rom_patch.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_wa.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_wm.bin \
@@ -39,11 +26,10 @@ index 9a7c1f8..173a88a 100644
  		$(1)/lib/firmware/mediatek/mt7996
  endef
  
-@@ -704,6 +708,7 @@ define KernelPackage/mt7996-233-firmware/install
+@@ -706,6 +709,7 @@ define KernelPackage/mt7996-233-firmware/install
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_rom_patch_233.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_wa_233.bin \
  		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_wm_233.bin \
 +		$(PKG_BUILD_DIR)/firmware/mt7996/mt7996_wm_tm_233.bin \
  		$(1)/lib/firmware/mediatek/mt7996
  endef
- 
