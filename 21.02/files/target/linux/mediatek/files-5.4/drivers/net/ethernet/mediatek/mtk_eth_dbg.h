@@ -408,18 +408,6 @@ struct mtk_mii_ioctl_data {
 	unsigned int val_out;
 };
 
-#if defined(CONFIG_NET_DSA_MT7530) || defined(CONFIG_MT753X_GSW)
-static inline bool mt7530_exist(struct mtk_eth *eth)
-{
-	return true;
-}
-#else
-static inline bool mt7530_exist(struct mtk_eth *eth)
-{
-	return false;
-}
-#endif
-
 extern u32 _mtk_mdio_read(struct mtk_eth *eth, int phy_addr, int phy_reg);
 extern u32 _mtk_mdio_write(struct mtk_eth *eth, int phy_addr,
 		    int phy_reg, u16 write_data);
