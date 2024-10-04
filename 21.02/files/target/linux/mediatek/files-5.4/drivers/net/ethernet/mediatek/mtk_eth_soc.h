@@ -762,6 +762,7 @@
 
 /* Mac control registers */
 #define MTK_MAC_MCR(x)		(0x10100 + (x * 0x100))
+#define MAC_MCR_MAX_RX_JUMBO	FIELD_PREP(GENMASK(31, 28), 2)
 #define MAC_MCR_MAX_RX_MASK	GENMASK(25, 24)
 #define MAC_MCR_MAX_RX(_x)	(MAC_MCR_MAX_RX_MASK & ((_x) << 24))
 #define MAC_MCR_MAX_RX_1518	0x0

@@ -616,8 +616,10 @@ static void mtk_set_mcr_max_rx(struct mtk_mac *mac, u32 val)
 			mcr_new |= MAC_MCR_MAX_RX(MAC_MCR_MAX_RX_1536);
 		else if (val <= 1552)
 			mcr_new |= MAC_MCR_MAX_RX(MAC_MCR_MAX_RX_1552);
-		else
+		else {
 			mcr_new |= MAC_MCR_MAX_RX(MAC_MCR_MAX_RX_2048);
+			mcr_new |= MAC_MCR_MAX_RX_JUMBO;
+		}
 
 		if (mcr_new != mcr_cur)
 			mtk_w32(mac->hw, mcr_new, MTK_MAC_MCR(mac->id));
