@@ -1714,7 +1714,7 @@ enum mkt_eth_capabilities {
 		       MTK_GMAC1_USXGMII | MTK_GMAC2_USXGMII | \
 		       MTK_GMAC3_USXGMII | MTK_MUX_GMAC123_TO_USXGMII | \
 		       MTK_GMAC2_2P5GPHY | MTK_MUX_GMAC2_TO_2P5GPHY | MTK_RSS | \
-		       MTK_NETSYS_RX_V2 | MTK_36BIT_DMA)
+		       MTK_HWLRO | MTK_NETSYS_RX_V2 | MTK_36BIT_DMA)
 
 struct mtk_tx_dma_desc_info {
 	dma_addr_t	addr;
