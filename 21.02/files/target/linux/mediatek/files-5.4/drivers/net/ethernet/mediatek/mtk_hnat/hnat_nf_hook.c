@@ -1224,23 +1224,8 @@ static int hnat_ipv4_get_nexthop(struct sk_buff *skb,
 		return -1;
 	}
 
-	/*
-	 * if this packet is a tunnel packet and is about to construct
-	 * outer header, we must update its outer mac header pointer
-	 * before filling outer mac or it may screw up inner mac
-	 */
-	if ((skb_hnat_tops(skb) && skb_hnat_is_encap(skb)) ||
-	    (skb_hnat_cdrt(skb) && skb_hnat_is_encrypt(skb))) {
-		skb_push(skb, sizeof(struct ethhdr));
-		skb_reset_mac_header(skb);
-	}
-
 	memcpy(hw_path->eth_dest, neigh->ha, ETH_ALEN);
 	memcpy(hw_path->eth_src, out->dev_addr, ETH_ALEN);
-
-	if ((skb_hnat_tops(skb) && skb_hnat_is_encap(skb)) ||
-	    (skb_hnat_cdrt(skb) && skb_hnat_is_encrypt(skb)))
-		skb_pull(skb, sizeof(struct ethhdr));
 
 	rcu_read_unlock_bh();
 
@@ -1474,13 +1459,13 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 	if (eth->h_proto != htons(ETH_P_IP))
 		return 0;
 
-	if (skb_hnat_tops(skb) && mtk_tnl_encap_offload)
-		mtk_tnl_encap_offload(skb);
-
 	hnat_get_filled_unbind_entry(skb, &entry);
 
 	if (dev->netdev_ops->ndo_flow_offload_check)
 		dev->netdev_ops->ndo_flow_offload_check(&hw_path);
+
+	if (skb_hnat_tops(skb) && mtk_tnl_encap_offload)
+		mtk_tnl_encap_offload(skb, eth);
 
 	/* For packets pass through VTI (route-based IPSec),
 	 * We need to fill the inner packet info into hnat entry.
@@ -1547,7 +1532,7 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 		}
 	}
 
-	entry = ppe_fill_info_blk(eth, entry, &hw_path);
+	entry = ppe_fill_info_blk(entry, &hw_path);
 
 	if (IS_LAN(dev)) {
 		if (IS_BOND(dev))
@@ -3191,6 +3176,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 		  struct flow_offload_hw_path *),
 	const char *func)
 {
+	struct ethhdr eth = {0};
 	struct foe_entry *entry;
 	struct flow_offload_hw_path hw_path = { .dev = (struct net_device*)out,
 						.virt_dev = (struct net_device*)out };
@@ -3276,8 +3262,15 @@ static unsigned int mtk_hnat_nf_post_routing(
 		}
 		/* skb_hnat_tops(skb) is updated in mtk_tnl_offload() */
 		if (skb_hnat_tops(skb)) {
+			memcpy(eth.h_dest, hw_path.eth_dest, ETH_ALEN);
+			memcpy(eth.h_source, hw_path.eth_src, ETH_ALEN);
+			if (ip_hdr(skb)->version == IPVERSION_V4)
+				eth.h_proto = htons(ETH_P_IP);
+			else if (ip_hdr(skb)->version == IPVERSION_V6)
+				eth.h_proto = htons(ETH_P_IPV6);
+
 			if (skb_hnat_is_encap(skb) && !is_virt_dev &&
-			    mtk_tnl_encap_offload && mtk_tnl_encap_offload(skb))
+			    mtk_tnl_encap_offload && mtk_tnl_encap_offload(skb, &eth))
 				break;
 			if (skb_hnat_is_decap(skb))
 				break;

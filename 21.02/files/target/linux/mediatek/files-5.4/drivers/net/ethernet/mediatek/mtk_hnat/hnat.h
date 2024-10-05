@@ -1332,7 +1332,7 @@ extern int hook_toggle;
 extern int mape_toggle;
 extern int qos_toggle;
 extern int tnl_toggle;
-extern int (*mtk_tnl_encap_offload)(struct sk_buff *skb);
+extern int (*mtk_tnl_encap_offload)(struct sk_buff *skb, struct ethhdr *eth);
 extern int (*mtk_tnl_decap_offload)(struct sk_buff *skb);
 extern bool (*mtk_tnl_decap_offloadable)(struct sk_buff *skb);
 extern bool (*mtk_crypto_offloadable)(struct sk_buff *skb);

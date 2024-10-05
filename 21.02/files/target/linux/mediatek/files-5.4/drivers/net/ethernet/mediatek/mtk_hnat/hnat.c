@@ -52,7 +52,7 @@ void (*ppe_dev_register_hook)(struct net_device *dev) = NULL;
 EXPORT_SYMBOL(ppe_dev_register_hook);
 void (*ppe_dev_unregister_hook)(struct net_device *dev) = NULL;
 EXPORT_SYMBOL(ppe_dev_unregister_hook);
-int (*mtk_tnl_encap_offload)(struct sk_buff *skb) = NULL;
+int (*mtk_tnl_encap_offload)(struct sk_buff *skb, struct ethhdr *eth) = NULL;
 EXPORT_SYMBOL(mtk_tnl_encap_offload);
 int (*mtk_tnl_decap_offload)(struct sk_buff *skb) = NULL;
 EXPORT_SYMBOL(mtk_tnl_decap_offload);
