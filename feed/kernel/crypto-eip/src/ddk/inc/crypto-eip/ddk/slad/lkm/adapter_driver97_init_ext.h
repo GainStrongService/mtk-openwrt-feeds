@@ -51,6 +51,7 @@ EXPORT_SYMBOL(DMABuf_Alloc);
 EXPORT_SYMBOL(DMABuf_Particle_Alloc);
 EXPORT_SYMBOL(DMABuf_Register);
 EXPORT_SYMBOL(DMABuf_Release);
+EXPORT_SYMBOL(DMABuf_Particle_Release);
 
 
 // PEC API LKM implementation extensions
