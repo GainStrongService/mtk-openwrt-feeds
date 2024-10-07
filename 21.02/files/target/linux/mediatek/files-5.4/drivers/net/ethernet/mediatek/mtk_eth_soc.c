@@ -645,15 +645,15 @@ static struct phylink_pcs *mtk_mac_select_pcs(struct phylink_config *config,
 	struct mtk_eth *eth = mac->hw;
 	unsigned int sid;
 
-	if (interface == PHY_INTERFACE_MODE_SGMII ||
-	    phy_interface_mode_is_8023z(interface)) {
+	if ((interface == PHY_INTERFACE_MODE_SGMII ||
+	     phy_interface_mode_is_8023z(interface)) && eth->sgmii) {
 		sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
 		       0 : mtk_mac2xgmii_id(eth, mac->id);
 
 		return mtk_sgmii_select_pcs(eth->sgmii, sid);
-	} else if (interface == PHY_INTERFACE_MODE_USXGMII ||
-		   interface == PHY_INTERFACE_MODE_10GKR ||
-		   interface == PHY_INTERFACE_MODE_5GBASER) {
+	} else if ((interface == PHY_INTERFACE_MODE_USXGMII ||
+		    interface == PHY_INTERFACE_MODE_10GKR ||
+		    interface == PHY_INTERFACE_MODE_5GBASER) && eth->usxgmii) {
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
 		    mac->id != MTK_GMAC1_ID) {
 			sid = mtk_mac2xgmii_id(eth, mac->id);
@@ -4349,7 +4349,7 @@ static int mtk_open(struct net_device *dev)
 	phylink_start(mac->phylink);
 	netif_tx_start_all_queues(dev);
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
-	if (!phy_node && eth->sgmii->pcs[id].regmap)
+	if (!phy_node && eth->sgmii && eth->sgmii->pcs[id].regmap)
 		regmap_write(eth->sgmii->pcs[id].regmap,
 			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
 
@@ -4394,7 +4394,7 @@ static int mtk_stop(struct net_device *dev)
 	netif_tx_disable(dev);
 
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
-	if (!phy_node && eth->sgmii->pcs[id].regmap) {
+	if (!phy_node && eth->sgmii && eth->sgmii->pcs[id].regmap) {
 		regmap_read(eth->sgmii->pcs[id].regmap,
 			    SGMSYS_QPHY_PWR_STATE_CTRL, &val);
 		val |= SGMII_PHYA_PWD;
