@@ -11,8 +11,6 @@
 
 #include <crypto-eip/ddk/basic_defs.h>
 #include <crypto-eip/ddk/configs/cs_ddk197.h>
-#include <crypto-eip/ddk/configs/cs_driver_ext.h>
-#include <crypto-eip/ddk/configs/cs_adapter.h>
 #include <crypto-eip/ddk/libc/clib.h>
 #include <crypto-eip/ddk/kit/builder/sa/sa_builder.h>
 #include <crypto-eip/ddk/kit/builder/sa/sa_builder_ipsec.h>
@@ -32,6 +30,8 @@
 #ifdef DDK_EIP197_FW33_FEATURES
 #define MTK_EIP197_INLINE_STRIP_PADDING
 #endif
+
+#define HWPAL_PLATFORM_DEVICE_NAME  "security-ip-197-srv"
 
 #define CRYPTO_IOTOKEN_EXT
 

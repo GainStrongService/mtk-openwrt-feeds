@@ -20,7 +20,6 @@
 #include <pce/cls.h>
 #include <pce/netsys.h>
 
-#include <crypto-eip/ddk/configs/cs_hwpal_ext.h>
 #include <crypto-eip/ddk/kit/iotoken/iotoken.h>
 #include <crypto-eip/ddk/kit/iotoken/iotoken_ext.h>
 

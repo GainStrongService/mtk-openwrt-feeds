@@ -79,6 +79,10 @@ define KernelPackage/crypto-eip-inline
 	@CRYPTO_OFFLOAD_INLINE \
 	kmod-crypto-eip \
 	kmod-crypto-eip-ddk \
+	kmod-crypto-eip-ddk-ksupport \
+	kmod-crypto-eip-ddk-ctrl \
+	kmod-crypto-eip-ddk-ctrl-app \
+	kmod-crypto-eip-ddk-engine \
 	+kmod-pce \
 	+MTK_TOPS_CAPWAP_DTLS:kmod-tops
   FILES:=$(PKG_BUILD_DIR)/crypto-eip-inline.ko

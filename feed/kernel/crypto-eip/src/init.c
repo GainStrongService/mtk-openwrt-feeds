@@ -20,8 +20,6 @@
 #include <mtk_eth_soc.h>
 #include <mtk_hnat/hnat.h>
 
-#include <crypto-eip/ddk/configs/cs_hwpal_ext.h>
-
 #include "crypto-eip/crypto-eip.h"
 #include "crypto-eip/ddk-wrapper.h"
 #include "crypto-eip/lookaside.h"
