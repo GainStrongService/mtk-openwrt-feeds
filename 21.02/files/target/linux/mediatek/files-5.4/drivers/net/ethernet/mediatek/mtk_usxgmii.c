@@ -41,7 +41,7 @@ int mtk_usxgmii_xfi_pll_init(struct mtk_usxgmii *ss, struct device_node *r)
 
 	np = of_parse_phandle(r, "mediatek,xfi_pll", 0);
 	if (!np)
-		return -1;
+		return 0;
 
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
 		ss->pll = syscon_node_to_regmap(np);
@@ -60,7 +60,7 @@ int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r)
 
 	np = of_parse_phandle(r, "mediatek,toprgu", 0);
 	if (!np)
-		return -1;
+		return 0;
 
 	eth->toprgu = syscon_node_to_regmap(np);
 	if (IS_ERR(eth->toprgu))

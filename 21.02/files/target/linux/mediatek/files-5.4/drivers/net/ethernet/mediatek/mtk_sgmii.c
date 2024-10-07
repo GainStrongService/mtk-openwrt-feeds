@@ -45,7 +45,7 @@ static int mtk_sgmii_xfi_pll_init(struct mtk_sgmii *ss, struct device_node *r)
 
 	np = of_parse_phandle(r, "mediatek,xfi_pll", 0);
 	if (!np)
-		return -1;
+		return 0;
 
 	ss->pll = syscon_node_to_regmap(np);
 	if (IS_ERR(ss->pll))
