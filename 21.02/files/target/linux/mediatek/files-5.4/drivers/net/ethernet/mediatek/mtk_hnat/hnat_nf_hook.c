@@ -1018,7 +1018,7 @@ mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 	    !mtk_tnl_decap_offload) {
 		skb->dev->netdev_ops->ndo_flow_offload_check(&hw_path);
 
-		if (hw_path.flags & FLOW_OFFLOAD_PATH_TNL)
+		if (hw_path.flags & BIT(DEV_PATH_TNL))
 			skb_hnat_alg(skb) = 1;
 	}
 
@@ -1168,7 +1168,7 @@ static int hnat_ipv6_get_nexthop(struct sk_buff *skb,
 	struct neighbour *neigh = NULL;
 	struct dst_entry *dst = skb_dst(skb);
 
-	if (hw_path->flags & FLOW_OFFLOAD_PATH_PPPOE)
+	if (hw_path->flags & BIT(DEV_PATH_PPPOE))
 		return 0;
 
 	rcu_read_lock_bh();
@@ -1206,7 +1206,7 @@ static int hnat_ipv4_get_nexthop(struct sk_buff *skb,
 	struct rtable *rt = (struct rtable *)dst;
 	struct net_device *dev = (__force struct net_device *)out;
 
-	if (hw_path->flags & FLOW_OFFLOAD_PATH_PPPOE)
+	if (hw_path->flags & BIT(DEV_PATH_PPPOE))
 		return 0;
 
 	if (!skb_hnat_cdrt(skb) && dst && dst_xfrm(dst))
@@ -1294,8 +1294,8 @@ struct foe_entry ppe_fill_L2_info(struct foe_entry entry,
 struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 				   struct flow_offload_hw_path *hw_path)
 {
-	entry.bfib1.psn = (hw_path->flags & FLOW_OFFLOAD_PATH_PPPOE) ? 1 : 0;
-	entry.bfib1.vlan_layer += (hw_path->flags & FLOW_OFFLOAD_PATH_VLAN) ? 1 : 0;
+	entry.bfib1.psn = (hw_path->flags & BIT(DEV_PATH_PPPOE)) ? 1 : 0;
+	entry.bfib1.vlan_layer += (hw_path->flags & BIT(DEV_PATH_VLAN)) ? 1 : 0;
 	entry.bfib1.vpm = (entry.bfib1.vlan_layer) ? 1 : 0;
 	entry.bfib1.cah = 1;
 	entry.bfib1.time_stamp = (hnat_priv->data->version == MTK_HNAT_V2 ||
@@ -1390,7 +1390,7 @@ static inline int hnat_offload_engine_done(struct sk_buff *skb,
 {
 	struct dst_entry *dst = skb_dst(skb);
 
-	if ((skb_hnat_tops(skb) && !(hw_path->flags & FLOW_OFFLOAD_PATH_TNL))) {
+	if ((skb_hnat_tops(skb) && !(hw_path->flags & BIT(DEV_PATH_TNL)))) {
 		if (!tnl_toggle)
 			return -1;
 
@@ -2114,7 +2114,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	/* Fill Layer2 Info.*/
 	entry = ppe_fill_L2_info(entry, hw_path);
 
-	if ((skb_hnat_tops(skb) && hw_path->flags & FLOW_OFFLOAD_PATH_TNL) ||
+	if ((skb_hnat_tops(skb) && hw_path->flags & BIT(DEV_PATH_TNL)) ||
 	    (!skb_hnat_cdrt(skb) && skb_hnat_is_encrypt(skb) &&
 	    skb_dst(skb) && dst_xfrm(skb_dst(skb))))
 		goto hnat_entry_skip_bind;
@@ -3281,7 +3281,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 		out->netdev_ops->ndo_flow_offload_check(&hw_path);
 
 		out = (IS_GMAC1_MODE) ? hw_path.virt_dev : hw_path.dev;
-		if (hw_path.flags & FLOW_OFFLOAD_PATH_TNL && mtk_tnl_encap_offload) {
+		if (hw_path.flags & BIT(DEV_PATH_TNL) && mtk_tnl_encap_offload) {
 			if (ntohs(skb->protocol) == ETH_P_IP &&
 			    ip_hdr(skb)->protocol == IPPROTO_TCP) {
 				skb_hnat_set_tops(skb, hw_path.tnl_type + 1);
@@ -3309,7 +3309,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 
 	if (is_virt_dev
 	    && !(skb_hnat_tops(skb) && skb_hnat_is_encap(skb)
-		 && (hw_path.flags & FLOW_OFFLOAD_PATH_TNL)))
+		 && (hw_path.flags & BIT(DEV_PATH_TNL))))
 		return 0;
 
 	if (debug_level >= 7)

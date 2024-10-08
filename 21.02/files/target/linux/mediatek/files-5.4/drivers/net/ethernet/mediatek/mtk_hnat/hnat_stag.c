@@ -39,7 +39,7 @@ int hnat_dsa_fill_stag(const struct net_device *netdev,
 	int port_index;
 	u16 dsa_tag;
 
-	if (hw_path->flags & FLOW_OFFLOAD_PATH_VLAN)
+	if (hw_path->flags & BIT(DEV_PATH_VLAN))
 		ndev = hw_path->dev;
 	else
 		ndev = (struct net_device *)netdev;

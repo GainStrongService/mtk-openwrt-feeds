@@ -5,22 +5,31 @@ Subject: [PATCH]
  [networking][999-2708-mtkhnat-add-support-for-virtual-interface-acceleration.patch]
 
 ---
- include/net/netfilter/nf_flow_table.h |  3 +++
+ include/linux/netdevice.h             |  1 +
+ include/net/netfilter/nf_flow_table.h |  1 +
  net/8021q/vlan_dev.c                  |  1 +
  net/ipv6/ip6_tunnel.c                 | 24 ++++++++++++++++++++++++
  net/ipv6/sit.c                        | 24 ++++++++++++++++++++++++
- 4 files changed, 52 insertions(+)
+ 5 files changed, 51 insertions(+)
 
+diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
+index b60b506..c30952f 100644
+--- a/include/linux/netdevice.h
++++ b/include/linux/netdevice.h
+@@ -849,6 +849,8 @@ enum net_device_path_type {
+ 	DEV_PATH_BRIDGE,
+ 	DEV_PATH_PPPOE,
+ 	DEV_PATH_DSA,
++	DEV_PATH_DSLITE,
++	DEV_PATH_6RD,
+ };
+ 
+ struct net_device_path {
 diff --git a/include/net/netfilter/nf_flow_table.h b/include/net/netfilter/nf_flow_table.h
-index 16dbf5461..4cb73a7cb 100644
+index a1b4ab5..7a2945e 100644
 --- a/include/net/netfilter/nf_flow_table.h
 +++ b/include/net/netfilter/nf_flow_table.h
-@@ -94,9 +94,12 @@ struct flow_offload {
- #define FLOW_OFFLOAD_PATH_VLAN		BIT(1)
- #define FLOW_OFFLOAD_PATH_PPPOE		BIT(2)
- #define FLOW_OFFLOAD_PATH_DSA		BIT(3)
-+#define FLOW_OFFLOAD_PATH_DSLITE	BIT(4)
-+#define FLOW_OFFLOAD_PATH_6RD		BIT(5)
+@@ -181,6 +181,7 @@ struct flow_offload {
  
  struct flow_offload_hw_path {
  	struct net_device *dev;
@@ -29,11 +38,11 @@ index 16dbf5461..4cb73a7cb 100644
  
  	u8 eth_src[ETH_ALEN];
 diff --git a/net/8021q/vlan_dev.c b/net/8021q/vlan_dev.c
-index f973bec77..dbb3cea5c 100644
+index f45abd5..db5867d 100644
 --- a/net/8021q/vlan_dev.c
 +++ b/net/8021q/vlan_dev.c
-@@ -764,6 +764,7 @@ static int vlan_dev_flow_offload_check(struct flow_offload_hw_path *path)
- 	path->flags |= FLOW_OFFLOAD_PATH_VLAN;
+@@ -808,6 +808,7 @@ static int vlan_dev_flow_offload_check(struct flow_offload_hw_path *path)
+ 	path->flags |= BIT(DEV_PATH_VLAN);
  	path->vlan_proto = vlan->vlan_proto;
  	path->vlan_id = vlan->vlan_id;
 +	path->virt_dev = dev;
@@ -41,7 +50,7 @@ index f973bec77..dbb3cea5c 100644
  
  	if (vlan->real_dev->netdev_ops->ndo_flow_offload_check)
 diff --git a/net/ipv6/ip6_tunnel.c b/net/ipv6/ip6_tunnel.c
-index 71ef26e60..f8302fdd5 100644
+index 2e8a528..0bf25b0 100644
 --- a/net/ipv6/ip6_tunnel.c
 +++ b/net/ipv6/ip6_tunnel.c
 @@ -57,6 +57,11 @@
@@ -66,10 +75,10 @@ index 71ef26e60..f8302fdd5 100644
 +	struct net_device *dev = path->dev;
 +	struct ip6_tnl *tnl = netdev_priv(dev);
 +
-+	if (path->flags & FLOW_OFFLOAD_PATH_DSLITE)
++	if (path->flags & BIT(DEV_PATH_DSLITE))
 +		return -EEXIST;
 +
-+	path->flags |= FLOW_OFFLOAD_PATH_DSLITE;
++	path->flags |= BIT(DEV_PATH_DSLITE);
 +	path->dev = tnl->dev;
 +
 +	return 0;
@@ -90,7 +99,7 @@ index 71ef26e60..f8302fdd5 100644
  
  #define IPXIPX_FEATURES (NETIF_F_SG |		\
 diff --git a/net/ipv6/sit.c b/net/ipv6/sit.c
-index 117960895..0844a95e3 100644
+index 8d704ea..c50bbef 100644
 --- a/net/ipv6/sit.c
 +++ b/net/ipv6/sit.c
 @@ -52,6 +52,11 @@
@@ -105,7 +114,7 @@ index 117960895..0844a95e3 100644
  /*
     This version of net/ipv6/sit.c is cloned of net/ipv4/ip_gre.c
  
-@@ -1342,6 +1347,22 @@ done:
+@@ -1344,6 +1349,22 @@ ipip6_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
  	return err;
  }
  
@@ -115,10 +124,10 @@ index 117960895..0844a95e3 100644
 +	struct net_device *dev = path->dev;
 +	struct ip_tunnel *tnl = netdev_priv(dev);
 +
-+	if (path->flags & FLOW_OFFLOAD_PATH_6RD)
++	if (path->flags & BIT(DEV_PATH_6RD))
 +		return -EEXIST;
 +
-+	path->flags |= FLOW_OFFLOAD_PATH_6RD;
++	path->flags |= BIT(DEV_PATH_6RD);
 +	path->dev = tnl->dev;
 +
 +	return 0;
@@ -128,7 +137,7 @@ index 117960895..0844a95e3 100644
  static const struct net_device_ops ipip6_netdev_ops = {
  	.ndo_init	= ipip6_tunnel_init,
  	.ndo_uninit	= ipip6_tunnel_uninit,
-@@ -1349,6 +1370,9 @@ static const struct net_device_ops ipip6_netdev_ops = {
+@@ -1351,6 +1372,9 @@ static const struct net_device_ops ipip6_netdev_ops = {
  	.ndo_do_ioctl	= ipip6_tunnel_ioctl,
  	.ndo_get_stats64 = ip_tunnel_get_stats64,
  	.ndo_get_iflink = ip_tunnel_get_iflink,

@@ -35,7 +35,7 @@ Subject: [PATCH 04/26] add wed
  create mode 100644 include/linux/soc/mediatek/mtk_wed.h
 
 diff --git a/arch/arm64/boot/dts/mediatek/mt7622.dtsi b/arch/arm64/boot/dts/mediatek/mt7622.dtsi
-index 753a97a..e46566a 100644
+index 9eeecff..3224350 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7622.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7622.dtsi
 @@ -338,7 +338,7 @@
@@ -47,7 +47,7 @@ index 753a97a..e46566a 100644
  			interface-type = "ace";
  			reg = <0x5000 0x1000>;
  		};
-@@ -921,6 +921,11 @@
+@@ -920,6 +920,11 @@
  		};
  	};
  
@@ -59,7 +59,7 @@ index 753a97a..e46566a 100644
  	ethsys: syscon@1b000000 {
  		compatible = "mediatek,mt7622-ethsys",
  			     "syscon";
-@@ -939,6 +944,26 @@
+@@ -938,6 +943,26 @@
  		#dma-cells = <1>;
  	};
  
@@ -84,9 +84,9 @@ index 753a97a..e46566a 100644
 +	};
 +
  	eth: ethernet@1b100000 {
- 		compatible = "mediatek,mt7622-eth",
- 			     "mediatek,mt2701-eth",
-@@ -965,6 +990,11 @@
+ 		compatible = "mediatek,mt7622-eth";
+ 		reg = <0 0x1b100000 0 0x20000>;
+@@ -962,6 +987,11 @@
  		power-domains = <&scpsys MT7622_POWER_DOMAIN_ETHSYS>;
  		mediatek,ethsys = <&ethsys>;
  		mediatek,sgmiisys = <&sgmiisys>;
@@ -134,7 +134,7 @@ index 5f342f4..4090132
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 old mode 100755
 new mode 100644
-index 24b5593..15966b8
+index fe6ede6..4ae4a3b
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -22,11 +22,13 @@
@@ -151,7 +151,7 @@ index 24b5593..15966b8
  
  #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
  #include "mtk_hnat/nf_hnat_mtk.h"
-@@ -2388,6 +2390,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2505,6 +2507,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  		struct net_device *netdev = NULL;
  		dma_addr_t dma_addr = DMA_MAPPING_ERROR;
  		u64 addr64 = 0;
@@ -159,7 +159,7 @@ index 24b5593..15966b8
  		int mac = 0;
  
  		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
-@@ -2476,6 +2479,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2602,6 +2605,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
@@ -177,7 +177,7 @@ index 24b5593..15966b8
  		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
  			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
  				if (trxd.rxd3 & RX_DMA_VTAG_V2)
-@@ -4293,7 +4307,7 @@ static int mtk_stop(struct net_device *dev)
+@@ -4445,7 +4459,7 @@ static int mtk_stop(struct net_device *dev)
  	mtk_dma_free(eth);
  
  	if (eth->soc->offload_version)
@@ -186,7 +186,7 @@ index 24b5593..15966b8
  
  	return 0;
  }
-@@ -5710,6 +5724,22 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5908,6 +5922,22 @@ static int mtk_probe(struct platform_device *pdev)
  		}
  	}
  
@@ -209,7 +209,7 @@ index 24b5593..15966b8
  	if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
  		for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
  			eth->irq_pdma[i] = platform_get_irq(pdev, i);
-@@ -5726,7 +5756,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5924,7 +5954,8 @@ static int mtk_probe(struct platform_device *pdev)
  
  		if (eth->irq_fe[i] < 0) {
  			dev_err(&pdev->dev, "no IRQ%d resource found\n", i);
@@ -219,7 +219,7 @@ index 24b5593..15966b8
  		}
  	}
  
-@@ -5734,12 +5765,15 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5932,12 +5963,15 @@ static int mtk_probe(struct platform_device *pdev)
  		eth->clks[i] = devm_clk_get(eth->dev,
  					    mtk_clks_source_name[i]);
  		if (IS_ERR(eth->clks[i])) {
@@ -238,7 +238,7 @@ index 24b5593..15966b8
  			}
  			eth->clks[i] = NULL;
  		}
-@@ -5750,7 +5784,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -5948,7 +5982,7 @@ static int mtk_probe(struct platform_device *pdev)
  
  	err = mtk_hw_init(eth, MTK_TYPE_COLD_RESET);
  	if (err)
@@ -247,7 +247,7 @@ index 24b5593..15966b8
  
  	eth->hwlro = MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO);
  
-@@ -5879,14 +5913,15 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6075,14 +6109,15 @@ static int mtk_probe(struct platform_device *pdev)
  	}
  
  	if (eth->soc->offload_version) {
@@ -268,7 +268,7 @@ index 24b5593..15966b8
  	}
  
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
-@@ -5896,7 +5931,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6092,7 +6127,7 @@ static int mtk_probe(struct platform_device *pdev)
  		err = register_netdev(eth->netdev[i]);
  		if (err) {
  			dev_err(eth->dev, "error bringing up device\n");
@@ -277,7 +277,7 @@ index 24b5593..15966b8
  		} else
  			netif_info(eth, probe, eth->netdev[i],
  				   "mediatek frame engine at 0x%08lx, irq %d\n",
-@@ -5946,12 +5981,15 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6141,12 +6176,15 @@ static int mtk_probe(struct platform_device *pdev)
  
  	return 0;
  
@@ -294,7 +294,7 @@ index 24b5593..15966b8
  
  	return err;
  }
-@@ -5971,6 +6009,7 @@ static int mtk_remove(struct platform_device *pdev)
+@@ -6166,6 +6204,7 @@ static int mtk_remove(struct platform_device *pdev)
  		phylink_disconnect_phy(mac->phylink);
  	}
  
@@ -302,7 +302,7 @@ index 24b5593..15966b8
  	mtk_hw_deinit(eth);
  
  	for (i = 0; i < MTK_TX_NAPI_NUM; i++) {
-@@ -6002,6 +6041,7 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -6196,6 +6235,7 @@ static const struct mtk_soc_data mt2701_data = {
  	.required_pctl = true,
  	.has_sram = false,
  	.offload_version = 1,
@@ -310,7 +310,7 @@ index 24b5593..15966b8
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -6023,6 +6063,7 @@ static const struct mtk_soc_data mt7621_data = {
+@@ -6217,6 +6257,7 @@ static const struct mtk_soc_data mt7621_data = {
  	.required_pctl = false,
  	.has_sram = false,
  	.offload_version = 1,
@@ -318,7 +318,7 @@ index 24b5593..15966b8
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -6045,6 +6086,7 @@ static const struct mtk_soc_data mt7622_data = {
+@@ -6239,6 +6280,7 @@ static const struct mtk_soc_data mt7622_data = {
  	.required_pctl = false,
  	.has_sram = false,
  	.offload_version = 2,
@@ -326,7 +326,7 @@ index 24b5593..15966b8
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -6066,6 +6108,7 @@ static const struct mtk_soc_data mt7623_data = {
+@@ -6260,6 +6302,7 @@ static const struct mtk_soc_data mt7623_data = {
  	.required_pctl = true,
  	.has_sram = false,
  	.offload_version = 1,
@@ -337,10 +337,10 @@ index 24b5593..15966b8
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 old mode 100755
 new mode 100644
-index c9fb783..b8fd0c9
+index f9d1f91..01672eb
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -638,6 +638,9 @@
+@@ -619,6 +619,9 @@
  #define RX_DMA_SPORT_MASK       0x7
  #define RX_DMA_SPORT_MASK_V2    0xf
  
@@ -350,7 +350,7 @@ index c9fb783..b8fd0c9
  /* QDMA descriptor txd4 */
  #define TX_DMA_CHKSUM		(0x7 << 29)
  #define TX_DMA_TSO		BIT(28)
-@@ -1739,6 +1742,7 @@ struct mtk_reg_map {
+@@ -1809,6 +1812,7 @@ struct mtk_reg_map {
   *				the target SoC
   * @required_pctl		A bool value to show whether the SoC requires
   *				the extra setup for those pins used by GMAC.
@@ -358,7 +358,7 @@ index c9fb783..b8fd0c9
   * @txd_size			Tx DMA descriptor size.
   * @rxd_size			Rx DMA descriptor size.
   * @rx_dma_l4_valid		Rx DMA valid register mask.
-@@ -1753,6 +1757,7 @@ struct mtk_soc_data {
+@@ -1823,6 +1827,7 @@ struct mtk_soc_data {
  	u64		required_clks;
  	bool		required_pctl;
  	u8		offload_version;
@@ -366,18 +366,18 @@ index c9fb783..b8fd0c9
  	netdev_features_t hw_features;
  	bool		has_sram;
  	struct {
-@@ -1964,7 +1969,7 @@ struct mtk_eth {
+@@ -2115,7 +2120,7 @@ struct mtk_eth {
+ 	spinlock_t			syscfg0_lock;
  	struct notifier_block		netdevice_notifier;
- 	struct timer_list		mtk_dma_monitor_timer;
  
 -	struct mtk_ppe			ppe;
 +	struct mtk_ppe			*ppe;
  	struct rhashtable		flow_table;
  };
  
-@@ -2021,6 +2026,14 @@ extern const struct of_device_id of_mtk_match[];
- extern u32 mtk_hwlro_stats_ebl;
- extern u32 dbg_show_level;
+@@ -2178,6 +2183,14 @@ extern u32 (*mtk_get_tnl_netsys_params)(struct sk_buff *skb);
+ extern struct net_device *(*mtk_get_tnl_dev)(u8 tops_crsn);
+ extern void (*mtk_set_tops_crsn)(struct sk_buff *skb, u8 tops_crsn);
  
 +static inline struct mtk_foe_entry *
 +mtk_foe_get_entry(struct mtk_ppe *ppe, u16 hash)
@@ -2957,7 +2957,7 @@ index 0000000..0a0465e
 +
 +#endif
 diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
-index 2d1aa35..85d582c 100644
+index 6c0860b..5020ccd 100644
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
 @@ -849,6 +849,7 @@ enum net_device_path_type {
@@ -2965,10 +2965,10 @@ index 2d1aa35..85d582c 100644
  	DEV_PATH_PPPOE,
  	DEV_PATH_DSA,
 +	DEV_PATH_MTK_WDMA,
- };
- 
- struct net_device_path {
-@@ -874,6 +875,12 @@ struct net_device_path {
+ 	DEV_PATH_DSLITE,
+ 	DEV_PATH_6RD,
+ 	DEV_PATH_TNL,
+@@ -877,6 +878,12 @@ struct net_device_path {
  			int port;
  			u16 proto;
  		} dsa;
@@ -3119,7 +3119,7 @@ index 0000000..7e00cca
 +
 +#endif
 diff --git a/net/core/dev.c b/net/core/dev.c
-index e9dd11e..64d3e41 100644
+index 7d29e7b..906d101 100644
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
 @@ -758,6 +758,10 @@ int dev_fill_forward_path(const struct net_device *dev, const u8 *daddr,
@@ -3134,5 +3134,5 @@ index e9dd11e..64d3e41 100644
  	if (!path)
  		return -1;
 -- 
-2.18.0
+2.45.2
 

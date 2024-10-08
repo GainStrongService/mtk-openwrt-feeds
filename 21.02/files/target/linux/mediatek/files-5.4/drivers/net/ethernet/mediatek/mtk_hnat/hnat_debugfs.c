@@ -1145,6 +1145,10 @@ static int hnat_nf_acct_update(struct mtk_hnat *h, u32 ppe_id,
 				atomic64_add(bytes, &counter[dir].bytes);
 				atomic64_add(packets, &counter[dir].packets);
 			}
+
+			/* avoid compiler warnings */
+			if (tuple.dst.protonum == IPPROTO_TCP)
+				nf_conntrack_tcp_established(ct);
 		}
 	}
 
