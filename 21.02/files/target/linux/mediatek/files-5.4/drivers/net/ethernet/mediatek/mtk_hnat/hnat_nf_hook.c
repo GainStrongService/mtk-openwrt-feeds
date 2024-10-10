@@ -1157,8 +1157,8 @@ drop:
 }
 
 static int hnat_ipv6_get_nexthop(struct sk_buff *skb,
-					  const struct net_device *out,
-					  struct flow_offload_hw_path *hw_path)
+				 const struct net_device *out,
+				 struct flow_offload_hw_path *hw_path)
 {
 	const struct in6_addr *ipv6_nexthop;
 	struct neighbour *neigh = NULL;
@@ -1193,8 +1193,8 @@ static int hnat_ipv6_get_nexthop(struct sk_buff *skb,
 }
 
 static int hnat_ipv4_get_nexthop(struct sk_buff *skb,
-					  const struct net_device *out,
-					  struct flow_offload_hw_path *hw_path)
+				 const struct net_device *out,
+				 struct flow_offload_hw_path *hw_path)
 {
 	u32 nexthop;
 	struct neighbour *neigh;
@@ -2144,10 +2144,11 @@ hnat_entry_bind:
 		gmac = -EINVAL;
 	}
 
-	if ((gmac < 0) && (debug_level >= 7)) {
-		printk_ratelimited(KERN_WARNING
-				   "Unknown case of dp, iif=%x --> %s\n",
-				   skb_hnat_iface(skb), dev->name);
+	if (gmac < 0) {
+		if (debug_level >= 7)
+			printk_ratelimited(KERN_WARNING
+					   "Unknown case of dp, iif=%x --> %s\n",
+					   skb_hnat_iface(skb), dev->name);
 		return 0;
 	}
 
