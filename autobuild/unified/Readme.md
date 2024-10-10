@@ -70,7 +70,7 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
   - Platform
     - Support RTL8261N 10G PHY
     - Support MTK Prpl Reference Board, BE19000
-    - Support BananaPi Boards (BPI-R4), BE14000
+    - Support BananaPi BPI-R4, BE14000
 
   - WiFi - Basic WiFi7 EHT SU (not support MLO)
     - 320 MHz bandwidth
@@ -96,8 +96,8 @@ cd openwrt
 bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-BE19000 log_file=make
 ## 2. MTK Prpl Reference Board (Mozart)
 bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mozart log_file=make
-## 2. BananaPi Boards (BPI-R4)
-bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-bpi log_file=make
+## 2. BananaPi BPI-R4
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-bpi-r4 log_file=make
 
 #Further Build (After 1st full build)
 bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh build
