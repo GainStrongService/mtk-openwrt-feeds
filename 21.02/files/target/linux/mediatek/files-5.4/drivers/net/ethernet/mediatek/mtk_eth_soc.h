@@ -168,7 +168,7 @@
 /* PSE Last FreeQ Page Request Control */
 #define PSE_DUMY_REQ		0x10C
 #define PSE_DUMMY_WORK_GDM(x)	BIT(16 + (x))
-#define DUMMY_PAGE_THR		0x151
+#define DUMMY_PAGE_THR(x)	((x == MT7988_CAPS) ? 0x151 : 0x1)
 
 /* PSE Input Queue Reservation Register*/
 #define PSE_IQ_REV(x)		(0x140 + ((x - 1) * 0x4))
@@ -1711,7 +1711,7 @@ enum mkt_eth_capabilities {
 #define MT7988_CAPS   (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | MTK_GMAC3_SGMII | \
 		       MTK_PDMA_INT | MTK_MUX_GMAC123_TO_GEPHY_SGMII | MTK_QDMA | \
 		       MTK_NETSYS_V3 | MTK_RSTCTRL_PPE1 | MTK_RSTCTRL_PPE2 | \
-		       MTK_GMAC1_USXGMII | MTK_GMAC2_USXGMII | \
+		       MTK_ESW | MTK_GMAC1_USXGMII | MTK_GMAC2_USXGMII | \
 		       MTK_GMAC3_USXGMII | MTK_MUX_GMAC123_TO_USXGMII | \
 		       MTK_GMAC2_2P5GPHY | MTK_MUX_GMAC2_TO_2P5GPHY | MTK_RSS | \
 		       MTK_HWLRO | MTK_NETSYS_RX_V2 | MTK_36BIT_DMA)

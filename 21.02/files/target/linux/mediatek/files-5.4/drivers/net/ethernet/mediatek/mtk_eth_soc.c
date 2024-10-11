@@ -855,7 +855,8 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		mtk_w32(mac->hw, MTK_GDMA_XGDM_SEL, MTK_GDMA_EG_CTRL(mac->id));
 		mtk_w32(mac->hw, MAC_MCR_FORCE_LINK_DOWN, MTK_MAC_MCR(mac->id));
 
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
+		    MTK_HAS_CAPS(eth->soc->caps, MTK_ESW)) {
 			if (mac->id == MTK_GMAC1_ID)
 				mtk_setup_bridge_switch(eth);
 		}
@@ -4672,7 +4673,7 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 		if (eth->soc->caps != MT7988_CAPS || eth->hwver != MTK_HWID_V1)
 			mtk_w32(eth, PSE_DUMMY_WORK_GDM(1) |
 				PSE_DUMMY_WORK_GDM(2) |	PSE_DUMMY_WORK_GDM(3) |
-				DUMMY_PAGE_THR, PSE_DUMY_REQ);
+				DUMMY_PAGE_THR(eth->soc->caps), PSE_DUMY_REQ);
 
 		/* PSE should not drop port8 and port9 packets */
 		mtk_w32(eth, 0x00000300, PSE_NO_DROP_CFG);
@@ -4680,17 +4681,21 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 		/* PSE should drop p8 and p9 packets when WDMA Rx ring full*/
 		mtk_w32(eth, 0x00000300, PSE_PPE0_DROP);
 
-		/* PSE free buffer drop threshold */
-		mtk_w32(eth, 0x00600009, PSE_IQ_REV(8));
+		if (eth->soc->caps == MT7988_CAPS) {
+			/* PSE free buffer drop threshold */
+			mtk_w32(eth, 0x00600009, PSE_IQ_REV(8));
 
-		/* GDM and CDM Threshold */
-		mtk_w32(eth, 0x08000707, MTK_CDMW0_THRES);
-		mtk_w32(eth, 0x00000077, MTK_CDMW1_THRES);
+			/* GDM and CDM Threshold */
+			mtk_w32(eth, 0x08000707, MTK_CDMW0_THRES);
+			mtk_w32(eth, 0x00000077, MTK_CDMW1_THRES);
+		}
 
-		/* Disable GDM1 RX CRC stripping */
-		val = mtk_r32(eth, MTK_GDMA_FWD_CFG(0));
-		val &= ~MTK_GDMA_STRP_CRC;
-		mtk_w32(eth, val, MTK_GDMA_FWD_CFG(0));
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_ESW)) {
+			/* Disable GDM1 RX CRC stripping */
+			val = mtk_r32(eth, MTK_GDMA_FWD_CFG(0));
+			val &= ~MTK_GDMA_STRP_CRC;
+			mtk_w32(eth, val, MTK_GDMA_FWD_CFG(0));
+		}
 
 		/* PSE GDM3 MIB counter has incorrect hw default values,
 		 * so the driver ought to read clear the values beforehand
