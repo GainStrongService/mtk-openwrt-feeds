@@ -1,7 +1,7 @@
-From 6a7e30cf77280b1eb10fd17347ba33759f0d9148 Mon Sep 17 00:00:00 2001
+From 8f5062f0a4362f58e57354447ac81924c184db8a Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Nov 2023 11:10:10 +0800
-Subject: [PATCH 032/223] mtk: mt76: try more times when send message timeout.
+Subject: [PATCH 032/193] mtk: mt76: try more times when send message timeout.
 
 Change-Id: Ib7c01e6c9f74f68d8404a3d8bada9e5a10c4e232
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
@@ -13,7 +13,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  4 files changed, 54 insertions(+), 61 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 56044639..66c000ef 100644
+index 5604463..66c000e 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -504,9 +504,12 @@ mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
@@ -40,7 +40,7 @@ index 56044639..66c000ef 100644
  
  static int
 diff --git a/mcu.c b/mcu.c
-index 2bcce21f..fed363d0 100644
+index 2bcce21..fed363d 100644
 --- a/mcu.c
 +++ b/mcu.c
 @@ -4,6 +4,7 @@
@@ -144,7 +144,7 @@ index 2bcce21f..fed363d0 100644
  
  	return ret;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 428ccb1a..3c9ee0c8 100644
+index 428ccb1..3c9ee0c 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -1805,13 +1805,24 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
@@ -221,7 +221,7 @@ index 428ccb1a..3c9ee0c8 100644
  		 wiphy_name(dev->mt76.hw->wiphy));
  }
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 9e6f4d13..08234b3a 100644
+index ed41f51..77567d5 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -3139,6 +3139,7 @@ int mt7996_mcu_init_firmware(struct mt7996_dev *dev)

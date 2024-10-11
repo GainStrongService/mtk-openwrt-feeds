@@ -1,7 +1,7 @@
-From 663d6e60f6a431146594178ffbbbf7fd54180c38 Mon Sep 17 00:00:00 2001
+From 00885efeb0a1778b3e14fb0cbcab221798b6198a Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Fri, 18 Aug 2023 10:17:08 +0800
-Subject: [PATCH 058/223] mtk: mt76: mt7996: add per bss statistic info
+Subject: [PATCH 058/193] mtk: mt76: mt7996: add per bss statistic info
 
 Whenever WED is enabled, unicast traffic might run through HW path.
 As a result, we need to count them using WM event.
@@ -22,10 +22,10 @@ as they always go through SW path and thus mac80211 can always see and count the
  3 files changed, 37 insertions(+), 5 deletions(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index f493a373..f6cddac1 100644
+index fc44ab7..f492547 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -403,6 +403,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+@@ -400,6 +400,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER);
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_PUNCT);
@@ -34,7 +34,7 @@ index f493a373..f6cddac1 100644
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION);
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_PROTECTION);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index f02f447e..dcf1fc38 100644
+index 2721491..115ca47 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -265,6 +265,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
@@ -46,7 +46,7 @@ index f02f447e..dcf1fc38 100644
  
  	mt7996_mac_wtbl_update(dev, idx,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 70e1984a..8b84c9dc 100644
+index d35ae05..a72ae4c 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -529,6 +529,27 @@ mt7996_mcu_update_tx_gi(struct rate_info *rate, struct all_sta_trx_rate *mcu_rat

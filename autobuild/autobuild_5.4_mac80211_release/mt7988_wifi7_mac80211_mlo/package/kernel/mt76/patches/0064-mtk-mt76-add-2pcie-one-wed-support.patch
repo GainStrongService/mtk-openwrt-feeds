@@ -1,7 +1,7 @@
-From b6233b7c81cac3c7bc5147cf78ec403feb20e4a3 Mon Sep 17 00:00:00 2001
+From 08c3d3daa5d6b16dd2df5119fd13e0870988fe57 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Wed, 13 Sep 2023 17:35:43 +0800
-Subject: [PATCH 064/223] mtk: mt76: add 2pcie one wed support
+Subject: [PATCH 064/193] mtk: mt76: add 2pcie one wed support
 
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
 ---
@@ -13,7 +13,7 @@ Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
  5 files changed, 39 insertions(+), 13 deletions(-)
 
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index d62dc8ba..c23b0d65 100644
+index d62dc8b..c23b0d6 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
 @@ -355,6 +355,13 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
@@ -54,7 +54,7 @@ index d62dc8ba..c23b0d65 100644
  			dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].wed = wed;
  
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index 82968bc2..1251382b 100644
+index 82968bc..1251382 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
 @@ -375,10 +375,10 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
@@ -83,7 +83,7 @@ index 82968bc2..1251382b 100644
  			mt76_wr(dev, MT_INT_MASK_CSR, mdev->mmio.irqmask);
  			mt76_wr(dev, MT_INT1_MASK_CSR, mdev->mmio.irqmask);
 diff --git a/mt7996/mtk_debug.h b/mt7996/mtk_debug.h
-index 27d8f1cb..da2a6072 100644
+index 27d8f1c..da2a607 100644
 --- a/mt7996/mtk_debug.h
 +++ b/mt7996/mtk_debug.h
 @@ -561,6 +561,11 @@ struct queue_desc {
@@ -99,7 +99,7 @@ index 27d8f1cb..da2a6072 100644
  //#define WF_WFDMA_MCU_DMA0_BASE                                 0x02000
  #define WF_WFDMA_MCU_DMA0_BASE                                 0x54000000
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index c1671e68..5a140f51 100644
+index c1671e6..5a140f5 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -557,14 +557,22 @@ mt7996_show_dma_info(struct seq_file *s, struct mt7996_dev *dev)
@@ -152,7 +152,7 @@ index c1671e68..5a140f51 100644
  
  	/* MCU DMA information */
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index 2ad8c069..87bf0012 100644
+index 2ad8c06..87bf001 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -411,6 +411,7 @@ enum offs_rev {

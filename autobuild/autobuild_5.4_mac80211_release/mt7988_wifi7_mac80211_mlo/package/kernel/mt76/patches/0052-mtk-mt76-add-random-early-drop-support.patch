@@ -1,7 +1,7 @@
-From 7a0d06e95d36c4d9f0b7bb8ae2adac2e2c7ec831 Mon Sep 17 00:00:00 2001
+From 69731e6ec3e3e8dfcd5c21efea149598812f5a53 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 19 Apr 2023 18:32:41 +0800
-Subject: [PATCH 052/223] mtk: mt76: add random early drop support
+Subject: [PATCH 052/193] mtk: mt76: add random early drop support
 
 ---
  mt7996/debugfs.c     |  1 +
@@ -15,7 +15,7 @@ Subject: [PATCH 052/223] mtk: mt76: add random early drop support
  8 files changed, 167 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 07970e1a..e328a056 100644
+index 07970e1..e328a05 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -633,6 +633,7 @@ mt7996_tx_stats_show(struct seq_file *file, void *data)
@@ -27,7 +27,7 @@ index 07970e1a..e328a056 100644
  	mt7996_txbf_stat_read_phy(phy, file);
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index f78591ff..1c0c2796 100644
+index f78591f..1c0c279 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -1191,6 +1191,13 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
@@ -45,7 +45,7 @@ index f78591ff..1c0c2796 100644
  		}
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 9431f878..70e1984a 100644
+index 5352e4b..d35ae05 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -3157,8 +3157,8 @@ int mt7996_mcu_init_firmware(struct mt7996_dev *dev)
@@ -144,7 +144,7 @@ index 9431f878..70e1984a 100644
  {
  	struct {
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 3025f849..23db3b33 100644
+index 3025f84..23db3b3 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -346,8 +346,9 @@ enum {
@@ -167,7 +167,7 @@ index 3025f849..23db3b33 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 142c390d..8d222a0c 100644
+index 142c390..8d222a0 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -356,6 +356,7 @@ struct mt7996_phy {
@@ -201,7 +201,7 @@ index 142c390d..8d222a0c 100644
 -
  #endif
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index a59e3a18..c1671e68 100644
+index a59e3a1..c1671e6 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -3032,6 +3032,27 @@ static int mt7996_muru_prot_thr_set(void *data, u64 val)
@@ -242,7 +242,7 @@ index a59e3a18..c1671e68 100644
  	debugfs_create_u8("sku_disable", 0600, dir, &dev->dbg.sku_disable);
  	debugfs_create_file("scs_enable", 0200, dir, phy, &fops_scs_enable);
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index b46a66bb..967ee874 100644
+index b46a66b..967ee87 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -1317,4 +1317,30 @@ void mt7996_mcu_set_cert(struct mt7996_phy *phy, u8 type)
@@ -277,7 +277,7 @@ index b46a66bb..967ee874 100644
 +
  #endif
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
-index 58d61c51..2cffc893 100644
+index 58d61c5..2cffc89 100644
 --- a/mt7996/mtk_mcu.h
 +++ b/mt7996/mtk_mcu.h
 @@ -1138,6 +1138,30 @@ enum muru_vendor_ctrl {

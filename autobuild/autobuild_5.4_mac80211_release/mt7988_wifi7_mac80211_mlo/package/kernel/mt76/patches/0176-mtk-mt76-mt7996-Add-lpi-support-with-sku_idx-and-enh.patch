@@ -1,7 +1,7 @@
-From b6751afce073f71139c40e17b05b25950b037a28 Mon Sep 17 00:00:00 2001
+From a48dd483314110598c030bb29d044ae3a466300f Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Fri, 12 Jul 2024 16:58:57 +0800
-Subject: [PATCH 176/223] mtk: mt76: mt7996: Add lpi support with sku_idx and
+Subject: [PATCH 176/193] mtk: mt76: mt7996: Add lpi support with sku_idx and
  enhancement
 
 Add lpi support with sku_idx and enhancement.
@@ -30,7 +30,7 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  14 files changed, 286 insertions(+), 30 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index 4eb27782..469af710 100644
+index 4eb2778..469af71 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -233,8 +233,9 @@ static bool mt76_string_prop_find(struct property *prop, const char *str)
@@ -92,7 +92,7 @@ index 4eb27782..469af710 100644
  		return target_power;
  
 diff --git a/mt76.h b/mt76.h
-index 27c990df..14f409ba 100644
+index 27c990d..14f409b 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -948,6 +948,7 @@ struct mt76_phy {
@@ -124,7 +124,7 @@ index 27c990df..14f409ba 100644
  mt76_find_channel_node(struct device_node *np, struct ieee80211_channel *chan);
  
 diff --git a/mt76_connac3_mac.h b/mt76_connac3_mac.h
-index ad8392cd..7bc41047 100644
+index ad8392c..7bc4104 100644
 --- a/mt76_connac3_mac.h
 +++ b/mt76_connac3_mac.h
 @@ -209,6 +209,18 @@ enum {
@@ -147,10 +147,10 @@ index ad8392cd..7bc41047 100644
  #define MT_CT_INFO_COPY_HOST_TXD_ALL	BIT(1)
  #define MT_CT_INFO_MGMT_FRAME		BIT(2)
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 64c28ba4..b63316b4 100644
+index 6e83eaa..9634928 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -347,7 +347,7 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
+@@ -344,7 +344,7 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
  
  	phy->sku_limit_en = true;
  	phy->sku_path_en = true;
@@ -160,7 +160,7 @@ index 64c28ba4..b63316b4 100644
  		struct ieee80211_channel *chan = &sband->channels[i];
  		int target_power = mt7996_eeprom_get_target_power(dev, chan);
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 406a1275..295bff24 100644
+index 406a127..295bff2 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -897,8 +897,13 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
@@ -178,10 +178,10 @@ index 406a1275..295bff24 100644
  		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
  	}
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 21d65f78..2b92b686 100644
+index 79334a7..f3c55bc 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -878,6 +878,7 @@ static u8
+@@ -877,6 +877,7 @@ static u8
  mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_bss_conf *conf,
  		       struct mt7996_bss_conf *mconf, bool beacon, bool mcast)
  {
@@ -189,7 +189,7 @@ index 21d65f78..2b92b686 100644
  	struct mt7996_dev *dev = mt7996_hw_dev(hw);
  	struct mt76_phy *mphy = mconf->phy->mt76;
  	u16 rate;
-@@ -890,6 +891,8 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_bss_conf *conf,
+@@ -889,6 +890,8 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_bss_conf *conf,
  
  		if (dev->cert_mode && phy->mt76->band_idx == MT_BAND2)
  			rate = 0x0200;
@@ -198,7 +198,7 @@ index 21d65f78..2b92b686 100644
  
  		/* odd index for driver, even index for firmware */
  		idx = MT7996_BEACON_RATES_TBL + 2 * phy->mt76->band_idx;
-@@ -1035,7 +1038,7 @@ static void mt7996_link_info_changed(struct ieee80211_hw *hw,
+@@ -1034,7 +1037,7 @@ static void mt7996_link_info_changed(struct ieee80211_hw *hw,
  		mt7996_update_mu_group(hw, info, mconf);
  
  	if (changed & BSS_CHANGED_TXPOWER)
@@ -208,7 +208,7 @@ index 21d65f78..2b92b686 100644
  out:
  	mutex_unlock(&dev->mt76.mutex);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index dc1af0be..c6b6f405 100644
+index 19e0d6c..4919267 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -6320,7 +6320,7 @@ int mt7996_mcu_set_fixed_rate_table(struct mt7996_phy *phy, u8 table_idx,
@@ -380,7 +380,7 @@ index dc1af0be..c6b6f405 100644
  {
  	__le32 cp_mode;
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 5d4625c8..a5818f95 100644
+index 5d4625c..a5818f9 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -1067,6 +1067,7 @@ enum {
@@ -392,7 +392,7 @@ index 5d4625c8..a5818f95 100644
  };
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index b9b52d17..8b7486a1 100644
+index b9b52d1..8b7486a 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1119,7 +1119,7 @@ int mt7996_mcu_get_temperature(struct mt7996_phy *phy);
@@ -413,7 +413,7 @@ index b9b52d17..8b7486a1 100644
  
  int mt7996_mcu_edcca_enable(struct mt7996_phy *phy, bool enable);
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 2ded5f79..78450935 100644
+index 2ded5f7..7845093 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2508,7 +2508,7 @@ mt7996_get_txpower_info(struct file *file, char __user *user_buf,
@@ -434,7 +434,7 @@ index 2ded5f79..78450935 100644
  
  #endif
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 240227a9..1674e129 100644
+index 240227a..1674e12 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -1857,7 +1857,7 @@ mt7996_tm_update_params(struct mt7996_phy *phy, u32 changed)
@@ -447,7 +447,7 @@ index 240227a9..1674e129 100644
  	if (changed & BIT(TM_CHANGED_TX_LENGTH)) {
  		mt7996_tm_set(dev, SET_ID(TX_LEN), td->tx_mpdu_len);
 diff --git a/mt7996/testmode.h b/mt7996/testmode.h
-index ba1767ae..5c720da7 100644
+index ba1767a..5c720da 100644
 --- a/mt7996/testmode.h
 +++ b/mt7996/testmode.h
 @@ -15,18 +15,6 @@ enum {
@@ -470,7 +470,7 @@ index ba1767ae..5c720da7 100644
  	BF_CDBW_20MHZ,
  	BF_CDBW_40MHZ,
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index d7973c5e..e75c163e 100644
+index d7973c5..e75c163 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -145,6 +145,14 @@ csi_ctrl_policy[NUM_MTK_VENDOR_ATTRS_CSI_CTRL] = {
@@ -611,7 +611,7 @@ index d7973c5e..e75c163e 100644
  
  static const struct nl80211_vendor_cmd_info mt7996_vendor_events[] = {
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index ca4f00ad..515f77a6 100644
+index ca4f00a..515f77a 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -18,6 +18,7 @@ enum mtk_nl80211_vendor_subcmds {

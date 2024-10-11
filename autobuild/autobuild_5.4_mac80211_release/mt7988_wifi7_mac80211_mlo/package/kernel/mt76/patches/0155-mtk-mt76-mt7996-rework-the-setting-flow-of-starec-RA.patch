@@ -1,7 +1,7 @@
-From 6d567ce5c36ea5a0c26cb2b55063bbc383adbca7 Mon Sep 17 00:00:00 2001
+From df6c9f2a21127d2e95d8c618362b255ee5d660e4 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 26 Jun 2024 19:09:46 +0800
-Subject: [PATCH 155/223] mtk: mt76: mt7996: rework the setting flow of starec
+Subject: [PATCH 155/193] mtk: mt76: mt7996: rework the setting flow of starec
  RA and MLD tags
 
 1. STA_REC_RA and STA_REC_MLD tags need to be set when newly is true,
@@ -20,10 +20,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  4 files changed, 83 insertions(+), 113 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index ff4ef55d..103902b7 100644
+index 9cdbc5b..e09798c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1318,10 +1318,6 @@ mt7996_mac_sta_add_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -1317,10 +1317,6 @@ mt7996_mac_sta_add_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  		mtxq->wcid = mlink->wcid.idx;
  	}
  
@@ -35,7 +35,7 @@ index ff4ef55d..103902b7 100644
  error:
  	mt7996_mac_sta_remove_links(dev, vif, sta, add);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index db975daa..bad8e030 100644
+index f35a83b..534a362 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -2916,6 +2916,77 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
@@ -261,7 +261,7 @@ index db975daa..bad8e030 100644
  				struct mt7996_bss_conf *mconf,
  				struct mt7996_link_sta *mlink)
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 20eaf20d..05b29c90 100644
+index 20eaf20..05b29c9 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -983,6 +983,9 @@ enum {
@@ -275,7 +275,7 @@ index 20eaf20d..05b29c90 100644
  
  #define MT7996_MAX_BEACON_SIZE		1338
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 251a3c70..edd9c7c9 100644
+index 251a3c7..edd9c7c 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1087,8 +1087,6 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,

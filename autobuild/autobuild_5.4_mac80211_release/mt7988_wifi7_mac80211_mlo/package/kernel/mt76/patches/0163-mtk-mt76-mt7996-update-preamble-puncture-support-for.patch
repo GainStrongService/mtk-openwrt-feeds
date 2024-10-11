@@ -1,7 +1,7 @@
-From 8908556d4135d7aee178baa3bfb9d3025d1611d9 Mon Sep 17 00:00:00 2001
+From f383ae59e0f45d2205bab591e4a35b92a378c4b3 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Tue, 28 May 2024 15:31:39 +0800
-Subject: [PATCH 163/223] mtk: mt76: mt7996: update preamble puncture support
+Subject: [PATCH 163/193] mtk: mt76: mt7996: update preamble puncture support
  for mt7996
 
 Add pp station mode support. Current fw only support one bitmap on a band.
@@ -23,7 +23,7 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  5 files changed, 165 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 931b29eb..cc644edf 100644
+index 931b29e..cc644ed 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1076,6 +1076,7 @@ enum {
@@ -35,10 +35,10 @@ index 931b29eb..cc644edf 100644
  	MCU_UNI_EVENT_ALL_STA_INFO = 0x6e,
  };
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 103902b7..562137a5 100644
+index e09798c..1c86a8c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1241,6 +1241,12 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
+@@ -1240,6 +1240,12 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
  	if (ret)
  		goto error;
  
@@ -51,7 +51,7 @@ index 103902b7..562137a5 100644
  	ewma_avg_signal_init(&mlink->avg_ack_signal);
  
  	return 0;
-@@ -2844,6 +2850,10 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
+@@ -2843,6 +2849,10 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
  	if (ret)
  		return ret;
  
@@ -62,7 +62,7 @@ index 103902b7..562137a5 100644
  	return mt7996_set_channel(phy, &ctx->chandef);
  }
  
-@@ -2964,6 +2974,7 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
+@@ -2963,6 +2973,7 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
  	struct mt7996_chanctx *new_ctx;
  	struct mt7996_phy *phy;
  	int i, ret = 0;
@@ -70,7 +70,7 @@ index 103902b7..562137a5 100644
  
  	for (i = 0; i < n_vifs; i++) {
  		if (vifs[i].old_ctx == vifs[i].new_ctx)
-@@ -3006,6 +3017,17 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
+@@ -3005,6 +3016,17 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
  
  		mutex_unlock(&dev->mt76.mutex);
  
@@ -89,7 +89,7 @@ index 103902b7..562137a5 100644
  		if (ret)
  			goto out;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 723a7ad9..fce92046 100644
+index cef0882..13dc0ac 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1285,6 +1285,39 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -235,7 +235,7 @@ index 723a7ad9..fce92046 100644
  {
  	struct mt7996_dev *dev = phy->dev;
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index d99e9a60..011b6c7a 100644
+index d99e9a6..011b6c7 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -1162,6 +1162,7 @@ enum {
@@ -287,7 +287,7 @@ index d99e9a60..011b6c7a 100644
  	UNI_CMD_SCS_SEND_DATA,
  	UNI_CMD_SCS_SET_PD_THR_RANGE = 2,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index c122989d..58151ed0 100644
+index c122989..58151ed 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1280,6 +1280,8 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,

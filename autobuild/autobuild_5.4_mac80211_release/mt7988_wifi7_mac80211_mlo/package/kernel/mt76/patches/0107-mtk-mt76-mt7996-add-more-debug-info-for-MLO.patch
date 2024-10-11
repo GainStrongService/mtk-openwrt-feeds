@@ -1,7 +1,7 @@
-From 7aa62c926e4323d8a19bac3c286903ec3d266503 Mon Sep 17 00:00:00 2001
+From 448b88d2d911427ccf2d731da9386b6a514f9e12 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 22 Apr 2024 11:06:48 +0800
-Subject: [PATCH 107/223] mtk: mt76: mt7996: add more debug info for MLO
+Subject: [PATCH 107/193] mtk: mt76: mt7996: add more debug info for MLO
 
 Change-Id: Id61889262c153f28fca8f209319137d86e8b9c36
 ---
@@ -20,7 +20,7 @@ Change-Id: Id61889262c153f28fca8f209319137d86e8b9c36
  12 files changed, 1856 insertions(+), 18 deletions(-)
 
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index e4e6c0d3..b62a1ac8 100644
+index e4e6c0d..b62a1ac 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -428,6 +428,7 @@ void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
@@ -32,7 +32,7 @@ index e4e6c0d3..b62a1ac8 100644
  }
  EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_basic_tlv);
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 11c147cd..86a2fdf8 100644
+index 11c147c..86a2fdf 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1300,6 +1300,7 @@ enum {
@@ -44,7 +44,7 @@ index 11c147cd..86a2fdf8 100644
  	MCU_UNI_CMD_TESTMODE_TRX_PARAM = 0x42,
  	MCU_UNI_CMD_TESTMODE_CTRL = 0x46,
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index ab8732dd..db41e378 100644
+index ab8732d..db41e37 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -314,15 +314,17 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
@@ -127,7 +127,7 @@ index ab8732dd..db41e378 100644
  	if (is_fwlog) {
  		if (dev->relay_fwlog)
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 1cf84fe5..cd139111 100644
+index 1cf84fe..cd13911 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -331,6 +331,10 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -167,7 +167,7 @@ index 1cf84fe5..cd139111 100644
  }
  
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 32a37936..0c5ddda1 100644
+index 574b0b5..7b976d0 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -433,6 +433,9 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
@@ -192,7 +192,7 @@ index 32a37936..0c5ddda1 100644
  	mutex_lock(&dev->mt76.mutex);
  
  	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
-@@ -1140,6 +1148,8 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
+@@ -1139,6 +1147,8 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
  			mt76_wcid_mask_set(dev->mt76.wcid_phy_mask, idx);
  		rcu_assign_pointer(dev->mt76.wcid[idx], &mlink->wcid);
  		mt76_wcid_init(&mlink->wcid);
@@ -201,7 +201,7 @@ index 32a37936..0c5ddda1 100644
  	}
  
  	if (!assoc)
-@@ -1177,6 +1187,7 @@ mt7996_mac_sta_remove_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -1176,6 +1186,7 @@ mt7996_mac_sta_remove_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  	if (!ieee80211_vif_is_mld(vif) || rem == sta->valid_links)
  		cancel_delayed_work(&mvif->beacon_mon_work);
  
@@ -209,7 +209,7 @@ index 32a37936..0c5ddda1 100644
  	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
  		struct mt7996_bss_conf *mconf =
  			mconf_dereference_protected(mvif, link_id);
-@@ -1202,6 +1213,7 @@ mt7996_mac_sta_add_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -1201,6 +1212,7 @@ mt7996_mac_sta_add_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  	unsigned int link_id;
  	int i, ret;
  
@@ -217,7 +217,7 @@ index 32a37936..0c5ddda1 100644
  	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
  		struct mt7996_bss_conf *mconf =
  			mconf_dereference_protected(mvif, link_id);
-@@ -2560,6 +2572,7 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2559,6 +2571,7 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	unsigned int link_id;
  	int ret = 0;
  
@@ -225,7 +225,7 @@ index 32a37936..0c5ddda1 100644
  	if (old_links == new_links)
  		return 0;
  
-@@ -2605,6 +2618,7 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2604,6 +2617,7 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	unsigned long rem = old_links & ~new_links;
  	int ret = 0;
  
@@ -234,7 +234,7 @@ index 32a37936..0c5ddda1 100644
  
  	if (rem)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 56bb32a0..956bd396 100644
+index 56ad93a..9b5534d 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -338,6 +338,10 @@ mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -327,7 +327,7 @@ index 56bb32a0..956bd396 100644
  
  int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 42e9f525..5e217719 100644
+index 42e9f52..5e21771 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -1029,6 +1029,14 @@ enum {
@@ -346,7 +346,7 @@ index 42e9f525..5e217719 100644
  	UNI_CMD_SR_ENABLE = 0x1,
  	UNI_CMD_SR_ENABLE_SD,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index eb38427b..00023a5e 100644
+index eb38427..00023a5 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -742,6 +742,14 @@ struct mt7996_dev {
@@ -393,7 +393,7 @@ index eb38427b..00023a5e 100644
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_debug.h b/mt7996/mtk_debug.h
-index da2a6072..82990239 100644
+index da2a607..8299023 100644
 --- a/mt7996/mtk_debug.h
 +++ b/mt7996/mtk_debug.h
 @@ -2288,4 +2288,664 @@ enum cipher_suit {
@@ -1062,7 +1062,7 @@ index da2a6072..82990239 100644
 +
  #endif
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index bc9a0f04..f9c5b238 100644
+index bc9a0f0..f9c5b23 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -3186,6 +3186,1038 @@ mt7996_thermal_recal_set(void *data, u64 val)
@@ -2130,7 +2130,7 @@ index bc9a0f04..f9c5b238 100644
  	return 0;
  }
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index 0e2de2dc..8d163e1d 100644
+index 0e2de2d..8d163e1 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -94,7 +94,7 @@ static void handle_signal(int sig)
@@ -2213,7 +2213,7 @@ index 0e2de2dc..8d163e1d 100644
  			return out_fd;
  	} else {
 diff --git a/tools/main.c b/tools/main.c
-index e9e25567..dcbb9b26 100644
+index e9e2556..dcbb9b2 100644
 --- a/tools/main.c
 +++ b/tools/main.c
 @@ -49,6 +49,7 @@ void usage(void)

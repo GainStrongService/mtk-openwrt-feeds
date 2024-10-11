@@ -1,7 +1,7 @@
-From 82dd1101ce064f18bdcc47c7ef5779c407440bae Mon Sep 17 00:00:00 2001
+From 634fcdf1df68bdcd81f659db237e64703c246a9a Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Thu, 18 May 2023 15:01:47 +0800
-Subject: [PATCH 053/223] mtk: mt76: mt7996: reset addr_elem when delete ba
+Subject: [PATCH 053/193] mtk: mt76: mt7996: reset addr_elem when delete ba
 
 The old addr element info may be used when the signature is not equel to
 0xff, and sta will find error SDP cause the SDP/SDL=0 issue.
@@ -20,7 +20,7 @@ Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
  2 files changed, 47 insertions(+)
 
 diff --git a/mt76.h b/mt76.h
-index 260e198a..2798f9e5 100644
+index 260e198..2798f9e 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -453,6 +453,7 @@ struct mt76_rx_tid {
@@ -32,7 +32,7 @@ index 260e198a..2798f9e5 100644
  	u8 started:1, stopped:1, timer_pending:1;
  
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 23db3b33..7077a664 100644
+index 23db3b3..7077a66 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -298,6 +298,52 @@ struct mt7996_mcu_thermal_notify {

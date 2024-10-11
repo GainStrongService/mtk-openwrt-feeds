@@ -1,7 +1,7 @@
-From fdf267776932e3bab7c0d87f2c9c8a96ac9a4e0f Mon Sep 17 00:00:00 2001
+From 8ec1b934dbece35a4512a7ea203bb81c84dc268e Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Tue, 28 May 2024 15:39:06 +0800
-Subject: [PATCH 164/223] mtk: mt76: Add dynamic pp vendor and debug pp algo
+Subject: [PATCH 164/193] mtk: mt76: Add dynamic pp vendor and debug pp algo
  cmd support
 
 Add dynamic pp vendor and debug pp algo cmd support.
@@ -26,7 +26,7 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  6 files changed, 205 insertions(+), 30 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index fce92046..77d3b2c8 100644
+index 13dc0ac..e587051 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1285,6 +1285,39 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -122,7 +122,7 @@ index fce92046..77d3b2c8 100644
  {
  	struct mt7996_dev *dev = phy->dev;
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 011b6c7a..01eb0ea1 100644
+index 011b6c7..01eb0ea 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -1162,6 +1162,7 @@ enum {
@@ -185,7 +185,7 @@ index 011b6c7a..01eb0ea1 100644
  	UNI_CMD_SCS_SEND_DATA,
  	UNI_CMD_SCS_SET_PD_THR_RANGE = 2,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 58151ed0..755b4cf0 100644
+index 58151ed..755b4cf 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1282,6 +1282,7 @@ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode);
@@ -205,7 +205,7 @@ index 58151ed0..755b4cf0 100644
  
  int mt7996_mcu_edcca_enable(struct mt7996_phy *phy, bool enable);
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 02a6ee81..2ded5f79 100644
+index 02a6ee8..2ded5f7 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -4367,6 +4367,18 @@ static const struct file_operations fops_muru_dbg_info = {
@@ -237,7 +237,7 @@ index 02a6ee81..2ded5f79 100644
  
  void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index 33c682c0..d7973c5e 100644
+index 33c682c..d7973c5 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -96,7 +96,9 @@ ibf_ctrl_policy[NUM_MTK_VENDOR_ATTRS_IBF_CTRL] = {
@@ -397,7 +397,7 @@ index 33c682c0..d7973c5e 100644
  	INIT_LIST_HEAD(&phy->csi.list);
  	spin_lock_init(&phy->csi.lock);
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index 714f0b3e..ca4f00ad 100644
+index 714f0b3..ca4f00a 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -21,6 +21,10 @@ enum mtk_nl80211_vendor_subcmds {

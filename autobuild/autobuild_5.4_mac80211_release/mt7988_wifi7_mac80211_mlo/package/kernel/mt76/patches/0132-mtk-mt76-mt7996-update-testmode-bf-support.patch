@@ -1,7 +1,7 @@
-From 04a4a2672095e1b0162153655874ba194370ffc2 Mon Sep 17 00:00:00 2001
+From 5d2c4853535d0f98c5a0f5259c713c99b663175c Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 3 Jun 2024 16:40:38 +0800
-Subject: [PATCH 132/223] mtk: mt76: mt7996: update testmode bf support
+Subject: [PATCH 132/193] mtk: mt76: mt7996: update testmode bf support
 
 Fix bssid & omac idx to band idx when testmode is enabled
 
@@ -20,7 +20,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 98 insertions(+), 34 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index bc263bd4..526b6298 100644
+index bc263bd..526b629 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -796,6 +796,9 @@ struct mt76_testmode_data {
@@ -34,7 +34,7 @@ index bc263bd4..526b6298 100644
  
  	u8 tx_power[4];
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 485c87f9..f67e1b5d 100644
+index 170657f..5ed82a0 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -349,16 +349,27 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
@@ -75,7 +75,7 @@ index 485c87f9..f67e1b5d 100644
  
  	mconf->own_mld_id = get_own_mld_idx(dev->mld_id_mask, false);
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index c68619cb..240227a9 100644
+index c68619c..240227a 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -241,8 +241,10 @@ mt7996_tm_init(struct mt7996_phy *phy, bool en)
@@ -210,7 +210,7 @@ index c68619cb..240227a9 100644
  
  	if (ebf) {
 diff --git a/testmode.c b/testmode.c
-index a1744755..2834400f 100644
+index a174475..2834400 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -25,6 +25,8 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
@@ -261,7 +261,7 @@ index a1744755..2834400f 100644
  	     nla_put_u32(msg, MT76_TM_ATTR_FREQ_OFFSET, td->freq_offset)))
  		goto out;
 diff --git a/testmode.h b/testmode.h
-index 794a74f9..44f9984c 100644
+index 794a74f..44f9984 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -37,6 +37,9 @@
@@ -285,7 +285,7 @@ index 794a74f9..44f9984c 100644
  
  	MT76_TM_ATTR_STATS,
 diff --git a/tools/fields.c b/tools/fields.c
-index f793d1a5..8b372602 100644
+index f793d1a..8b37260 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -35,13 +35,21 @@ static const char * const testmode_tx_mode[] = {

@@ -1,7 +1,7 @@
-From efbc1e62252f25b9af9e812cd8a8ba61a9e043d0 Mon Sep 17 00:00:00 2001
+From 7832c5bf00f3d75096b2ad65db9005b6065d2516 Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Fri, 8 Sep 2023 11:57:39 +0800
-Subject: [PATCH 063/223] mtk: mt76: mt7996: add wed support for mt7992
+Subject: [PATCH 063/193] mtk: mt76: mt7996: add wed support for mt7992
 
 Fix incomplete WED initialization for Kite band-1 RX ring.
 
@@ -19,7 +19,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  7 files changed, 152 insertions(+), 48 deletions(-)
 
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index d9e1b17f..d62dc8ba 100644
+index d9e1b17..d62dc8b 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
 @@ -77,18 +77,23 @@ static void mt7996_dma_config(struct mt7996_dev *dev)
@@ -167,10 +167,10 @@ index d9e1b17f..d62dc8ba 100644
  		if (mt7996_band_valid(dev, MT_BAND2)) {
  			/* rx rro data queue for band2 */
 diff --git a/mt7996/init.c b/mt7996/init.c
-index b0c307fb..04c15432 100644
+index 7d0bb31..bd6efba 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -815,6 +815,7 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
+@@ -812,6 +812,7 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
  	/* interrupt enable */
  	mt76_wr(dev, MT_RRO_HOST_INT_ENA,
  		MT_RRO_HOST_INT_ENA_HOST_RRO_DONE_ENA);
@@ -178,7 +178,7 @@ index b0c307fb..04c15432 100644
  #endif
  }
  
-@@ -867,6 +868,17 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
+@@ -864,6 +865,17 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
  			dev->wed_rro.addr_elem[i].phy_addr;
  	}
  
@@ -196,7 +196,7 @@ index b0c307fb..04c15432 100644
  	ptr = dmam_alloc_coherent(dev->mt76.dma_dev,
  				  MT7996_RRO_WINDOW_MAX_LEN * sizeof(*addr),
  				  &dev->wed_rro.session.phy_addr,
-@@ -922,6 +934,16 @@ static void mt7996_wed_rro_free(struct mt7996_dev *dev)
+@@ -919,6 +931,16 @@ static void mt7996_wed_rro_free(struct mt7996_dev *dev)
  				   dev->wed_rro.addr_elem[i].phy_addr);
  	}
  
@@ -214,7 +214,7 @@ index b0c307fb..04c15432 100644
  		return;
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 0c5fa02d..9f94f530 100644
+index 0c5fa02..9f94f53 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2016,6 +2016,10 @@ void mt7996_mac_reset_work(struct work_struct *work)
@@ -229,7 +229,7 @@ index 0c5fa02d..9f94f530 100644
  					    true);
  
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index ee9ba3ff..82968bc2 100644
+index ee9ba3f..82968bc 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
 @@ -313,7 +313,8 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
@@ -321,7 +321,7 @@ index ee9ba3ff..82968bc2 100644
  		dev->mt76.rx_token_size = MT7996_TOKEN_SIZE + wed->wlan.rx_npkt;
  	}
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 1e17c291..7d0f7dda 100644
+index 1e17c29..7d0f7dd 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -124,6 +124,10 @@
@@ -356,7 +356,7 @@ index 1e17c291..7d0f7dda 100644
  		struct work_struct work;
  		struct list_head poll_list;
 diff --git a/mt7996/pci.c b/mt7996/pci.c
-index 4e957771..f0d3f199 100644
+index 4e95777..f0d3f19 100644
 --- a/mt7996/pci.c
 +++ b/mt7996/pci.c
 @@ -107,7 +107,7 @@ static int mt7996_pci_probe(struct pci_dev *pdev,
@@ -392,7 +392,7 @@ index 4e957771..f0d3f199 100644
  			goto free_wed_or_irq_vector;
  
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index f55d4a94..2ad8c069 100644
+index f55d4a9..2ad8c06 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -77,6 +77,8 @@ enum offs_rev {

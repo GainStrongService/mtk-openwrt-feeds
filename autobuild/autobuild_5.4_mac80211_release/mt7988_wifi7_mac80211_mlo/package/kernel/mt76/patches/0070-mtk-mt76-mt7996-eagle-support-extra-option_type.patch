@@ -1,7 +1,7 @@
-From 3ae943ca695746f6ff54a926d73a1a6b94d6411c Mon Sep 17 00:00:00 2001
+From 2b7b1c72a9abd1baea23d2d01717daaacec6d794 Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Thu, 1 Feb 2024 10:32:42 +0800
-Subject: [PATCH 070/223] mtk: mt76: mt7996: eagle support extra option_type
+Subject: [PATCH 070/193] mtk: mt76: mt7996: eagle support extra option_type
 
 1. eagle + mt7988d option_type 2 support
 2. eagle single pcie support
@@ -23,7 +23,7 @@ Signed-off-by: Rex Lu <rex.lu@mediatek.com>
  6 files changed, 123 insertions(+), 22 deletions(-)
 
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index c23b0d65..3dc0e8a1 100644
+index c23b0d6..3dc0e8a 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
 @@ -12,12 +12,20 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx, int n_desc,
@@ -111,10 +111,10 @@ index c23b0d65..3dc0e8a1 100644
  		mt76_wr(dev, MT_WFDMA0_PAUSE_RX_Q_45_TH + hif1_ofs, 0xc000c);
  		mt76_wr(dev, MT_WFDMA0_PAUSE_RX_Q_67_TH + hif1_ofs, 0x10008);
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 6d5e4c40..96b209e6 100644
+index 17a5245..c600d49 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -513,7 +513,7 @@ static void mt7996_mac_init_basic_rates(struct mt7996_dev *dev)
+@@ -510,7 +510,7 @@ static void mt7996_mac_init_basic_rates(struct mt7996_dev *dev)
  void mt7996_mac_init(struct mt7996_dev *dev)
  {
  #define HIF_TXD_V2_1	0x21
@@ -123,7 +123,7 @@ index 6d5e4c40..96b209e6 100644
  
  	mt76_clear(dev, MT_MDP_DCR2, MT_MDP_DCR2_RX_TRANS_SHORT);
  
-@@ -527,22 +527,45 @@ void mt7996_mac_init(struct mt7996_dev *dev)
+@@ -524,22 +524,45 @@ void mt7996_mac_init(struct mt7996_dev *dev)
  	}
  
  	/* rro module init */
@@ -179,7 +179,7 @@ index 6d5e4c40..96b209e6 100644
  	}
  
  	mt7996_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
-@@ -620,9 +643,22 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+@@ -617,9 +640,22 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  	if (phy)
  		return 0;
  
@@ -205,7 +205,7 @@ index 6d5e4c40..96b209e6 100644
  	}
  
  	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7996_ops, band);
-@@ -1076,6 +1112,9 @@ static int mt7996_variant_fem_init(struct mt7996_dev *dev)
+@@ -1073,6 +1109,9 @@ static int mt7996_variant_fem_init(struct mt7996_dev *dev)
  static int mt7996_init_hardware(struct mt7996_dev *dev)
  {
  	int ret, idx;
@@ -216,10 +216,10 @@ index 6d5e4c40..96b209e6 100644
  	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
  	if (is_mt7992(&dev->mt76)) {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index dcf1fc38..a53eaa55 100644
+index 115ca47..eab3b87 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1595,8 +1595,19 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1594,8 +1594,19 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  	struct mt7996_phy *phy = mt7996_hw_phy(hw);
  	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
  
@@ -242,7 +242,7 @@ index dcf1fc38..a53eaa55 100644
  	if (!mtk_wed_device_active(wed))
  		return -ENODEV;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index ba3a639b..eb9a5634 100644
+index ba3a639..eb9a563 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -8,6 +8,7 @@
@@ -272,7 +272,7 @@ index ba3a639b..eb9a5634 100644
  	u8 fw_debug_wm;
  	u8 fw_debug_wa;
 diff --git a/mt7996/pci.c b/mt7996/pci.c
-index f0d3f199..24d69d4d 100644
+index f0d3f19..24d69d4 100644
 --- a/mt7996/pci.c
 +++ b/mt7996/pci.c
 @@ -5,7 +5,6 @@
@@ -292,7 +292,7 @@ index f0d3f199..24d69d4d 100644
  	list_add(&hif->list, &hif_list);
  	spin_unlock_bh(&hif_lock);
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index 96438cca..3a1568c3 100644
+index 96438cc..3a1568c 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -435,6 +435,7 @@ enum offs_rev {

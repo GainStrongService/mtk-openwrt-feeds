@@ -1,7 +1,7 @@
-From fa32fd17aed1561a48cff42344e06d5ebf5a736d Mon Sep 17 00:00:00 2001
+From 35af00d6cef6831fbaadf26a441df5902dfcca7b Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 12 Oct 2023 16:17:33 +0800
-Subject: [PATCH 041/223] mtk: mt76: mt7996: add kite testmode support
+Subject: [PATCH 041/193] mtk: mt76: mt7996: add kite testmode support
 
 Add Kite testmode support
 1. avoid entering connac 2 testmode flow in kite
@@ -18,7 +18,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 202 insertions(+), 122 deletions(-)
 
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index b71961d9..7575dcb9 100644
+index b71961d..7575dcb 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -29,12 +29,39 @@ const struct ieee80211_channel dpd_5g_skip_ch_list[] = {
@@ -112,7 +112,7 @@ index b71961d9..7575dcb9 100644
  mt7996_eeprom_check_or_use_default(struct mt7996_dev *dev, bool use_default)
  {
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index 782d847b..c3c248ca 100644
+index 782d847..c3c248c 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -45,36 +45,69 @@ enum mt7996_eeprom_field {
@@ -210,7 +210,7 @@ index 782d847b..c3c248ca 100644
  #define RF_DPD_FLAT_CAL				BIT(28)
  #define RF_PRE_CAL				BIT(29)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 54a84966..87322283 100644
+index 7c96e40..0226139 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -3771,13 +3771,11 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
@@ -317,7 +317,7 @@ index 54a84966..87322283 100644
  	cal += MT_EE_CAL_GROUP_SIZE + base_offset + idx * per_chan_size;
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index e406dc87..981f496e 100644
+index e406dc8..981f496 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -203,6 +203,19 @@ struct mt7996_twt_flow {
@@ -360,7 +360,7 @@ index e406dc87..981f496e 100644
  void mt7996_dma_reset(struct mt7996_dev *dev, bool force);
  void mt7996_dma_prefetch(struct mt7996_dev *dev);
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 6de49afc..5c0eb3cb 100644
+index 6de49af..5c0eb3c 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -440,7 +440,7 @@ mt7996_tm_set_tx_cont(struct mt7996_phy *phy, bool en)
@@ -550,7 +550,7 @@ index 6de49afc..5c0eb3cb 100644
  	cal_idx = le32_to_cpu(data->cal_idx);
  	cal_type = le32_to_cpu(data->cal_type);
 diff --git a/testmode.c b/testmode.c
-index 9a7559bf..a1744755 100644
+index 9a7559b..a174475 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -37,6 +37,11 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {

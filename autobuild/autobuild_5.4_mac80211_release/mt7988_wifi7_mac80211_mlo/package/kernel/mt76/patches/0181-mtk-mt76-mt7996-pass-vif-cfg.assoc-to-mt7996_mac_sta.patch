@@ -1,7 +1,7 @@
-From 582927a3040724713a313cd346dd8f63c907c044 Mon Sep 17 00:00:00 2001
+From 356f29e586897090b81b4dd87076b8b07de1a96c Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 5 Aug 2024 14:55:10 +0800
-Subject: [PATCH 182/223] mtk: mt76: mt7996: pass vif->cfg.assoc to
+Subject: [PATCH 181/193] mtk: mt76: mt7996: pass vif->cfg.assoc to
  mt7996_mac_sta_add_links
 
 Link management functions might leverage mt7996_change_sta_links to
@@ -15,10 +15,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 7678059b..7d4352c7 100644
+index 938e8c8..61c065a 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -3161,6 +3161,7 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -3160,6 +3160,7 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	unsigned long add = new_links & ~old_links;
  	unsigned long rem = old_links & ~new_links;
  	int ret = 0;
@@ -26,7 +26,7 @@ index 7678059b..7d4352c7 100644
  
  	mt76_vif_dbg(vif, "STA %pM old=0x%x, new=0x%x\n", sta->addr, old_links, new_links);
  	mutex_lock(&dev->mt76.mutex);
-@@ -3174,7 +3175,8 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -3173,7 +3174,8 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		/* 	goto remove; */
  	}
  

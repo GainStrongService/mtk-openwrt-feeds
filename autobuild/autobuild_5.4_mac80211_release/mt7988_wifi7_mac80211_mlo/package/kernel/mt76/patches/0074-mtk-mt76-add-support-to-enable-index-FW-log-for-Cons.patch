@@ -1,7 +1,7 @@
-From ec4ace4cb79cc70a766eaf648b56b9db3836a254 Mon Sep 17 00:00:00 2001
+From b99e380eab721019572291ed3c6c10c92a057b00 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Thu, 11 Jan 2024 08:55:13 +0800
-Subject: [PATCH 074/223] mtk: mt76: add support to enable index FW log for
+Subject: [PATCH 074/193] mtk: mt76: add support to enable index FW log for
  ConsysPlanet
 
 Add support to enable and record index FW log, which is the input for ConsysPlanet, via mt76-test command.
@@ -39,7 +39,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  8 files changed, 295 insertions(+), 69 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index e46a0fb9..7e8e91ca 100644
+index e46a0fb..7e8e91c 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -430,8 +430,8 @@ create_buf_file_cb(const char *filename, struct dentry *parent, umode_t mode,
@@ -169,7 +169,7 @@ index e46a0fb9..7e8e91ca 100644
  	return true;
  }
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index bc0f0020..4ea44f8d 100644
+index bc0f002..4ea44f8 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2291,11 +2291,9 @@ void mt7996_mac_work(struct work_struct *work)
@@ -199,7 +199,7 @@ index bc0f0020..4ea44f8d 100644
  			           test_bit(MT76_STATE_RUNNING, &mdev->phys[i]->state))
  				break;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 47f8a7cd..d559df86 100644
+index 469efb5..a63a370 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -405,6 +405,7 @@ static void
@@ -258,7 +258,7 @@ index 47f8a7cd..d559df86 100644
  {
  	struct {
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 8ffb16f8..b15796dc 100644
+index 8ffb16f..b15796d 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -351,7 +351,8 @@ enum {
@@ -280,7 +280,7 @@ index 8ffb16f8..b15796dc 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 82ff4e99..4e99830f 100644
+index 82ff4e9..4e99830 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -593,9 +593,11 @@ struct mt7996_dev {
@@ -304,7 +304,7 @@ index 82ff4e99..4e99830f 100644
  void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
  void mt7996_mcu_exit(struct mt7996_dev *dev);
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index 3c6a61d7..0e2de2dc 100644
+index 3c6a61d..0e2de2d 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -29,10 +29,9 @@ static const char *debugfs_path(const char *phyname, const char *file)
@@ -592,7 +592,7 @@ index 3c6a61d7..0e2de2dc 100644
  	return ret;
  }
 diff --git a/tools/main.c b/tools/main.c
-index 699a9eea..e9e25567 100644
+index 699a9ee..e9e2556 100644
 --- a/tools/main.c
 +++ b/tools/main.c
 @@ -198,6 +198,8 @@ int main(int argc, char **argv)
@@ -605,7 +605,7 @@ index 699a9eea..e9e25567 100644
  		usage();
  
 diff --git a/tools/mt76-test.h b/tools/mt76-test.h
-index d2fafa86..b9d508c5 100644
+index d2fafa8..b9d508c 100644
 --- a/tools/mt76-test.h
 +++ b/tools/mt76-test.h
 @@ -22,6 +22,8 @@

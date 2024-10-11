@@ -1,7 +1,7 @@
-From 31c98d0e5f309c927880c4781a4c9323b6d41981 Mon Sep 17 00:00:00 2001
+From 087fde967ac8a47068fbf7a704320af4ce1dc641 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 11 Jun 2024 17:04:22 +0800
-Subject: [PATCH 145/223] mtk: mt76: mt7996: add per-radio antenna config
+Subject: [PATCH 145/193] mtk: mt76: mt7996: add per-radio antenna config
 
 Add per-radio antenna config
 
@@ -18,7 +18,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 47 insertions(+), 29 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index f986d5fd..a555bec2 100644
+index f986d5f..a555bec 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -431,8 +431,8 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
@@ -60,7 +60,7 @@ index f986d5fd..a555bec2 100644
  	*rx_ant = phy->antenna_mask;
  	mutex_unlock(&dev->mutex);
 diff --git a/mt76.h b/mt76.h
-index ce34cccc..8e71c2ce 100644
+index ce34ccc..8e71c2c 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -877,6 +877,7 @@ struct mt76_phy {
@@ -81,7 +81,7 @@ index ce34cccc..8e71c2ce 100644
  void mt76_insert_ccmp_hdr(struct sk_buff *skb, u8 key_id);
  int mt76_get_rate(struct mt76_dev *dev,
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index f9bd4d91..72a21fcf 100644
+index f9bd4d9..72a21fc 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -410,12 +410,15 @@ static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
@@ -101,10 +101,10 @@ index f9bd4d91..72a21fcf 100644
  	default:
  		ret = -EINVAL;
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 420c23c9..18a86afe 100644
+index 311d7cc..419ecaf 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -392,8 +392,10 @@ static void
+@@ -389,8 +389,10 @@ static void
  mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  {
  	struct mt7996_phy *phy = mt7996_hw_phy(hw);
@@ -115,7 +115,7 @@ index 420c23c9..18a86afe 100644
  	u16 max_subframes = phy->dev->has_eht ? IEEE80211_MAX_AMPDU_BUF_EHT :
  						IEEE80211_MAX_AMPDU_BUF_HE;
  
-@@ -455,25 +457,25 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+@@ -452,25 +454,25 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  
  	hw->max_tx_fragments = 4;
  
@@ -148,7 +148,7 @@ index 420c23c9..18a86afe 100644
  			IEEE80211_HT_MPDU_DENSITY_1;
  
  		ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
-@@ -481,17 +483,17 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+@@ -478,17 +480,17 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  
  	/* init led callbacks */
  	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
@@ -172,10 +172,10 @@ index 420c23c9..18a86afe 100644
  	wiphy->max_scan_ssids = 4;
  	wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 118c7d67..d73fd9d6 100644
+index 5044e89..678da02 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1705,14 +1705,11 @@ mt7996_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
+@@ -1704,14 +1704,11 @@ mt7996_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
  }
  
  static int
@@ -193,7 +193,7 @@ index 118c7d67..d73fd9d6 100644
  
  	/* only allow settings from hw0 */
  	if (hw != dev->phy.mt76->hw)
-@@ -1726,14 +1723,14 @@ mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+@@ -1725,14 +1722,14 @@ mt7996_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
  
  	mutex_lock(&dev->mt76.mutex);
  
@@ -212,7 +212,7 @@ index 118c7d67..d73fd9d6 100644
  			continue;
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 4a99671f..28bccc15 100644
+index 8bd2718..3a356b9 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -2435,6 +2435,7 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
@@ -233,7 +233,7 @@ index 4a99671f..28bccc15 100644
  	bf->bw = link_sta->bandwidth;
  	bf->ibf_dbw = link_sta->bandwidth;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index ccea70af..c20206c6 100644
+index ccea70a..c20206c 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1177,9 +1177,10 @@ void mt7996_memcpy_fromio(struct mt7996_dev *dev, void *buf, u32 offset,

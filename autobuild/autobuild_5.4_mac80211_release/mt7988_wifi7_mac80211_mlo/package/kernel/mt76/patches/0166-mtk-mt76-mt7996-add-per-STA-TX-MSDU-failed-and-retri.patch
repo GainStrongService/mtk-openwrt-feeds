@@ -1,7 +1,7 @@
-From e785b2395e3f293ce49ddab807fee0f3bda779d6 Mon Sep 17 00:00:00 2001
+From a7a99f2c82b7dfcc147eb45e695b2c04058ec8b4 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Thu, 4 Jul 2024 14:00:16 +0800
-Subject: [PATCH 166/223] mtk: mt76: mt7996: add per-STA TX MSDU failed and
+Subject: [PATCH 166/193] mtk: mt76: mt7996: add per-STA TX MSDU failed and
  retried counts
 
 Record per-STA TX MSDU failed and retried counts for debugging.
@@ -18,7 +18,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  6 files changed, 68 insertions(+), 59 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index c3b71cc3..27c990df 100644
+index c3b71cc..27c990d 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -364,6 +364,8 @@ struct mt76_sta_stats {
@@ -31,7 +31,7 @@ index c3b71cc3..27c990df 100644
  	u32 tx_retries;
  	u32 tx_failed;
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index cc644edf..302567e3 100644
+index cc644ed..302567e 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1407,6 +1407,8 @@ enum {
@@ -52,7 +52,7 @@ index cc644edf..302567e3 100644
  };
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 1f225756..8c68e08e 100644
+index 1f22575..8c68e08 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2443,6 +2443,43 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
@@ -109,7 +109,7 @@ index 1f225756..8c68e08e 100644
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_ADM_STAT);
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_MSDU_COUNT);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 77d3b2c8..3fcc7fac 100644
+index e587051..cd2bab3 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -6027,7 +6027,6 @@ int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u16 val)
@@ -208,7 +208,7 @@ index 77d3b2c8..3fcc7fac 100644
  {
  	struct {
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 01eb0ea1..739e357c 100644
+index 01eb0ea..739e357 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -211,6 +211,13 @@ struct per_sta_snr {
@@ -234,7 +234,7 @@ index 01eb0ea1..739e357c 100644
  } __packed;
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 755b4cf0..a02e976a 100644
+index 755b4cf..a02e976 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1138,7 +1138,6 @@ void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);

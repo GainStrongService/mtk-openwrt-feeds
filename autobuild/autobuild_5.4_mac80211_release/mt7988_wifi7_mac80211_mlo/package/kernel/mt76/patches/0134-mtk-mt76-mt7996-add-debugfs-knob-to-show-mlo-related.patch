@@ -1,7 +1,7 @@
-From c2753e78a28cc8efca84dcf1e7d33dff6ccfa528 Mon Sep 17 00:00:00 2001
+From 09b0caba56ffde8a00f5e4cf2c2a90fcd71d5e21 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 29 May 2024 18:45:50 +0800
-Subject: [PATCH 134/223] mtk: mt76: mt7996: add debugfs knob to show mlo
+Subject: [PATCH 134/193] mtk: mt76: mt7996: add debugfs knob to show mlo
  related table
 
 Add the following debugfs knob
@@ -19,7 +19,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  4 files changed, 119 insertions(+), 3 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index bafbcda1..240c6d46 100644
+index bafbcda..240c6d4 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -1107,6 +1107,7 @@ int mt7996_init_band_debugfs(struct mt7996_phy *phy)
@@ -40,7 +40,7 @@ index bafbcda1..240c6d46 100644
  	}
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 984ae79e..8af3c400 100644
+index 984ae79..8af3c40 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1326,7 +1326,8 @@ void mt7996_packet_log_to_host(struct mt7996_dev *dev, const void *data, int len
@@ -54,7 +54,7 @@ index 984ae79e..8af3c400 100644
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_debug_i.h b/mt7996/mtk_debug_i.h
-index d3756fa2..cec8d57e 100644
+index d3756fa..cec8d57 100644
 --- a/mt7996/mtk_debug_i.h
 +++ b/mt7996/mtk_debug_i.h
 @@ -982,6 +982,30 @@
@@ -89,7 +89,7 @@ index d3756fa2..cec8d57e 100644
  
  #endif
 diff --git a/mt7996/mtk_debugfs_i.c b/mt7996/mtk_debugfs_i.c
-index ea412cd5..839c3e31 100644
+index ea412cd..839c3e3 100644
 --- a/mt7996/mtk_debugfs_i.c
 +++ b/mt7996/mtk_debugfs_i.c
 @@ -695,7 +695,86 @@ static int mt7996_rx_msdu_pg_read(struct seq_file *s, void *data)

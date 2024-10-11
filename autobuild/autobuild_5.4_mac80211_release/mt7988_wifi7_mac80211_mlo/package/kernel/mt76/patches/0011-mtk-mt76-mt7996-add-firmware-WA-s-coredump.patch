@@ -1,7 +1,7 @@
-From 744e6ef280817a9010606e2d36573cc9206e8457 Mon Sep 17 00:00:00 2001
+From 23e7fc9ba2c48915bdf51ceb05703da10dbe1f36 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Fri, 19 May 2023 14:16:50 +0800
-Subject: [PATCH 011/223] mtk: mt76: mt7996: add firmware WA's coredump.
+Subject: [PATCH 011/193] mtk: mt76: mt7996: add firmware WA's coredump.
 
 Change-Id: I51f115b4ae15bc0f871f93652570d72511dbf880
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
@@ -15,7 +15,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  6 files changed, 182 insertions(+), 83 deletions(-)
 
 diff --git a/mt7996/coredump.c b/mt7996/coredump.c
-index ccab0d7b..60b88085 100644
+index ccab0d7..60b8808 100644
 --- a/mt7996/coredump.c
 +++ b/mt7996/coredump.c
 @@ -7,11 +7,11 @@
@@ -336,7 +336,7 @@ index ccab0d7b..60b88085 100644
  }
  
 diff --git a/mt7996/coredump.h b/mt7996/coredump.h
-index af2ba219..01ed3731 100644
+index af2ba21..01ed373 100644
 --- a/mt7996/coredump.h
 +++ b/mt7996/coredump.h
 @@ -6,10 +6,13 @@
@@ -429,7 +429,7 @@ index af2ba219..01ed3731 100644
  	return NULL;
  }
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index cfcfc3ea..dafc86f8 100644
+index cfcfc3e..dafc86f 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2018,28 +2018,25 @@ void mt7996_mac_reset_work(struct work_struct *work)
@@ -507,7 +507,7 @@ index cfcfc3ea..dafc86f8 100644
  }
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index dd428570..46fb3a03 100644
+index e567c3e..e691150 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -2719,6 +2719,8 @@ static int mt7996_load_patch(struct mt7996_dev *dev)
@@ -530,7 +530,7 @@ index dd428570..46fb3a03 100644
  		 fw_type, hdr->fw_ver, hdr->build_date);
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 1dd618c2..602f367d 100644
+index 1dd618c..602f367 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -94,6 +94,8 @@
@@ -564,7 +564,7 @@ index 1dd618c2..602f367d 100644
  	struct list_head sta_rc_list;
  	struct list_head twt_list;
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index 06e307b5..3450a2fc 100644
+index 06e307b..3450a2f 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -597,7 +597,8 @@ enum offs_rev {

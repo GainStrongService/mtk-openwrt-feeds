@@ -1,7 +1,7 @@
-From d03a551a2fc9723b1b26c254bdc64694f271068f Mon Sep 17 00:00:00 2001
+From 0c988ca317063ce416a8d0d613a64a755262bb3f Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Thu, 18 Apr 2024 11:16:24 +0800
-Subject: [PATCH 003/223] mtk: mt76: mt7996: add preamble puncture support for
+Subject: [PATCH 003/193] mtk: mt76: mt7996: add preamble puncture support for
  mt7996
 
 Add support configure preamble puncture feature through mcu commands.
@@ -19,7 +19,7 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  6 files changed, 61 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 1b0e80df..200eace5 100644
+index 1b0e80d..200eace 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1288,6 +1288,7 @@ enum {
@@ -31,10 +31,10 @@ index 1b0e80df..200eace5 100644
  	MCU_UNI_CMD_RRO = 0x57,
  	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index f6a010b6..f3744be6 100644
+index 2d36c73..5c57fbf 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -389,6 +389,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+@@ -386,6 +386,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_ACK_SIGNAL_SUPPORT);
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER);
@@ -43,7 +43,7 @@ index f6a010b6..f3744be6 100644
  	if (mt7996_has_background_radar(phy->dev) &&
  	    (!mdev->dev->of_node ||
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 343e6c4b..334cc8c5 100644
+index a9903cb..ac9a074 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -394,6 +394,11 @@ static int mt7996_config(struct ieee80211_hw *hw, u32 changed)
@@ -59,7 +59,7 @@ index 343e6c4b..334cc8c5 100644
  		if (ret)
  			return ret;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 5ac35af1..40915d1d 100644
+index d3346d5..1fed8eb 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -4573,3 +4573,43 @@ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode)
@@ -107,7 +107,7 @@ index 5ac35af1..40915d1d 100644
 +				 &req, sizeof(req), false);
 +}
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 43468bca..df42c0f8 100644
+index 43468bc..df42c0f 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -923,6 +923,16 @@ enum {
@@ -128,7 +128,7 @@ index 43468bca..df42c0f8 100644
  #define MT7996_PATCH_SCRAMBLE_KEY	GENMASK(15, 8)
  #define MT7996_PATCH_AES_KEY		GENMASK(7, 0)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index ad10329d..17dfbdc8 100644
+index ad10329..17dfbdc 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -270,6 +270,9 @@ struct mt7996_phy {

@@ -1,7 +1,7 @@
-From ca4c360d853ec0678da7b08c9b524334b931eeda Mon Sep 17 00:00:00 2001
+From 299020207d66edd409fa16260c310c8bd0a6c316 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 27 Nov 2023 10:43:34 +0800
-Subject: [PATCH 079/223] mtk: mt76: mt7996: switch to per-link data structure
+Subject: [PATCH 079/193] mtk: mt76: mt7996: switch to per-link data structure
  of sta
 
 Introduce struct mt7996_link_sta, data structure for per-link STA.
@@ -22,7 +22,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  6 files changed, 461 insertions(+), 368 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 792ace03..786bdc38 100644
+index 792ace0..786bdc3 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -726,14 +726,15 @@ static void
@@ -97,7 +97,7 @@ index 792ace03..786bdc38 100644
  	phy.ltf = cpu_to_le16(ltf);
  	phy.ldpc = phy.ldpc ? 7 : 0;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 8f743125..8b682842 100644
+index 8f74312..8b68284 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -54,7 +54,7 @@ static const struct mt7996_dfs_radar_spec jp_radar_specs = {
@@ -443,7 +443,7 @@ index 8f743125..8b682842 100644
  
  	rcu_read_unlock();
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 8d919dd0..98afb057 100644
+index f81df91..095892a 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -229,6 +229,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
@@ -601,7 +601,7 @@ index 8d919dd0..98afb057 100644
  out:
  	mutex_unlock(&dev->mt76.mutex);
  
-@@ -714,25 +721,27 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
+@@ -713,25 +720,27 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
  {
  	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	struct mt7996_bss_conf *mconf;
@@ -632,7 +632,7 @@ index 8d919dd0..98afb057 100644
  
  	if (changed & BSS_CHANGED_ERP_SLOT) {
  		int slottime = info->use_short_slot ? 9 : 20;
-@@ -803,6 +812,7 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -802,6 +811,7 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
  	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	struct mt7996_bss_conf *mconf = mconf_dereference_protected(mvif, 0);
@@ -640,7 +640,7 @@ index 8d919dd0..98afb057 100644
  	u8 band_idx = mconf->phy->mt76->band_idx;
  	int idx;
  
-@@ -814,13 +824,16 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -813,13 +823,16 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	if (idx < 0)
  		return -ENOSPC;
  
@@ -663,7 +663,7 @@ index 8d919dd0..98afb057 100644
  
  #ifdef CONFIG_MTK_VENDOR
  	mt7996_vendor_amnt_sta_remove(mconf->phy, sta);
-@@ -853,7 +866,9 @@ int mt7996_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -852,7 +865,9 @@ int mt7996_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
  	struct mt7996_bss_conf *mconf;
@@ -673,7 +673,7 @@ index 8d919dd0..98afb057 100644
  
  	mutex_lock(&dev->mt76.mutex);
  
-@@ -863,10 +878,17 @@ int mt7996_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -862,10 +877,17 @@ int mt7996_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  
  		conf = link_conf_dereference_protected(vif, 0);
  		mconf = mconf_dereference_protected(mvif, 0);
@@ -694,7 +694,7 @@ index 8d919dd0..98afb057 100644
  	}
  
  	mutex_unlock(&dev->mt76.mutex);
-@@ -879,25 +901,31 @@ void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -878,25 +900,31 @@ void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
  	struct mt7996_bss_conf *mconf;
@@ -734,7 +734,7 @@ index 8d919dd0..98afb057 100644
  }
  
  static void mt7996_tx(struct ieee80211_hw *hw,
-@@ -909,19 +937,22 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+@@ -908,19 +936,22 @@ static void mt7996_tx(struct ieee80211_hw *hw,
  	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
  	struct ieee80211_vif *vif = info->control.vif;
  	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
@@ -761,7 +761,7 @@ index 8d919dd0..98afb057 100644
  	}
  
  	mt76_tx(mphy, control->sta, wcid, skb);
-@@ -948,6 +979,7 @@ mt7996_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -947,6 +978,7 @@ mt7996_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	struct ieee80211_sta *sta = params->sta;
  	struct ieee80211_txq *txq = sta->txq[params->tid];
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
@@ -769,7 +769,7 @@ index 8d919dd0..98afb057 100644
  	u16 tid = params->tid;
  	u16 ssn = params->ssn;
  	struct mt76_txq *mtxq;
-@@ -959,14 +991,15 @@ mt7996_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -958,14 +990,15 @@ mt7996_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	mtxq = (struct mt76_txq *)txq->drv_priv;
  
  	mutex_lock(&dev->mt76.mutex);
@@ -787,7 +787,7 @@ index 8d919dd0..98afb057 100644
  		ret = mt7996_mcu_add_rx_ba(dev, params, false);
  		break;
  	case IEEE80211_AMPDU_TX_OPERATIONAL:
-@@ -977,16 +1010,16 @@ mt7996_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -976,16 +1009,16 @@ mt7996_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	case IEEE80211_AMPDU_TX_STOP_FLUSH:
  	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
  		mtxq->aggr = false;
@@ -807,7 +807,7 @@ index 8d919dd0..98afb057 100644
  		ret = mt7996_mcu_add_tx_ba(dev, params, false);
  		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
  		break;
-@@ -1165,10 +1198,19 @@ static void mt7996_sta_statistics(struct ieee80211_hw *hw,
+@@ -1164,10 +1197,19 @@ static void mt7996_sta_statistics(struct ieee80211_hw *hw,
  				  struct ieee80211_sta *sta,
  				  struct station_info *sinfo)
  {
@@ -828,7 +828,7 @@ index 8d919dd0..98afb057 100644
  	if (txrate->legacy || txrate->flags) {
  		if (txrate->legacy) {
  			sinfo->txrate.legacy = txrate->legacy;
-@@ -1187,44 +1229,52 @@ static void mt7996_sta_statistics(struct ieee80211_hw *hw,
+@@ -1186,44 +1228,52 @@ static void mt7996_sta_statistics(struct ieee80211_hw *hw,
  	sinfo->txrate.flags = txrate->flags;
  	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
  
@@ -892,7 +892,7 @@ index 8d919dd0..98afb057 100644
  }
  
  static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
-@@ -1238,7 +1288,7 @@ static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
+@@ -1237,7 +1287,7 @@ static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
  
  	if (!msta->vif) {
  		dev_warn(dev->mt76.dev, "Un-initialized STA %pM wcid %d in rc_work\n",
@@ -901,7 +901,7 @@ index 8d919dd0..98afb057 100644
  		return;
  	}
  
-@@ -1284,16 +1334,18 @@ static void mt7996_sta_set_4addr(struct ieee80211_hw *hw,
+@@ -1283,16 +1333,18 @@ static void mt7996_sta_set_4addr(struct ieee80211_hw *hw,
  	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
  	struct mt7996_bss_conf *mconf;
@@ -923,7 +923,7 @@ index 8d919dd0..98afb057 100644
  	mutex_unlock(&dev->mt76.mutex);
  }
  
-@@ -1306,16 +1358,18 @@ static void mt7996_sta_set_decap_offload(struct ieee80211_hw *hw,
+@@ -1305,16 +1357,18 @@ static void mt7996_sta_set_decap_offload(struct ieee80211_hw *hw,
  	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
  	struct mt7996_bss_conf *mconf;
@@ -945,7 +945,7 @@ index 8d919dd0..98afb057 100644
  	mutex_unlock(&dev->mt76.mutex);
  }
  
-@@ -1448,11 +1502,12 @@ static void mt7996_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
+@@ -1447,11 +1501,12 @@ static void mt7996_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
  {
  	struct mt76_ethtool_worker_info *wi = wi_data;
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
@@ -959,7 +959,7 @@ index 8d919dd0..98afb057 100644
  }
  
  static
-@@ -1555,10 +1610,12 @@ mt7996_twt_teardown_request(struct ieee80211_hw *hw,
+@@ -1554,10 +1609,12 @@ mt7996_twt_teardown_request(struct ieee80211_hw *hw,
  			    u8 flowid)
  {
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
@@ -973,7 +973,7 @@ index 8d919dd0..98afb057 100644
  	mutex_unlock(&dev->mt76.mutex);
  }
  
-@@ -1681,6 +1738,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1680,6 +1737,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	struct mt7996_bss_conf *mconf = &mvif->deflink;
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
@@ -981,7 +981,7 @@ index 8d919dd0..98afb057 100644
  	struct mt7996_dev *dev = mt7996_hw_dev(hw);
  	struct mt7996_phy *phy = mt7996_hw_phy(hw);
  	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
-@@ -1703,7 +1761,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1702,7 +1760,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  	if (!mtk_wed_device_active(wed))
  		return -ENODEV;
  
@@ -990,7 +990,7 @@ index 8d919dd0..98afb057 100644
  		return -EIO;
  
  	path->type = DEV_PATH_MTK_WDMA;
-@@ -1711,11 +1769,11 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1710,11 +1768,11 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  	path->mtk_wdma.wdma_idx = wed->wdma_idx;
  	path->mtk_wdma.bss = mconf->mt76.idx;
  	path->mtk_wdma.queue = 0;
@@ -1005,7 +1005,7 @@ index 8d919dd0..98afb057 100644
  		path->mtk_wdma.amsdu = 0;
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b2eed253..ced769b4 100644
+index cdc019f..af9a838 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -122,13 +122,13 @@ mt7996_mcu_get_sta_nss(u16 mcs_map)
@@ -2127,7 +2127,7 @@ index b2eed253..ced769b4 100644
  
  	switch (id) {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index be966c18..d86e24e3 100644
+index be966c1..d86e24e 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -304,10 +304,10 @@ struct mt7996_vow_sta_ctrl {
@@ -2252,7 +2252,7 @@ index be966c18..d86e24e3 100644
  int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap);
  #ifdef CONFIG_MAC80211_DEBUGFS
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 042da4e4..be224373 100644
+index 042da4e..be22437 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -241,8 +241,8 @@ mt7996_tm_init(struct mt7996_phy *phy, bool en)

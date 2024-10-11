@@ -1,7 +1,7 @@
-From 9cbfa34669e0afeabd5b880c3421258540f66356 Mon Sep 17 00:00:00 2001
+From bf108e5c1101d5ac7ebb67f793c54d2cfa997436 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 6 Apr 2023 16:40:28 +0800
-Subject: [PATCH 038/223] mtk: mt76: mt7996: add testmode bf support
+Subject: [PATCH 038/193] mtk: mt76: mt7996: add testmode bf support
 
 Add iTest additional bf command
 
@@ -37,7 +37,7 @@ Change-Id: Id528088e029c507d3c9fdb92ddaa99a2e38d9eb3
  14 files changed, 1590 insertions(+), 61 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 2805d758..7beefc59 100644
+index 2805d75..7beefc5 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -774,6 +774,11 @@ struct mt76_testmode_data {
@@ -53,7 +53,7 @@ index 2805d758..7beefc59 100644
  	bool ebf;
  
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index dd63d4a0..db152167 100644
+index dd63d4a..db15216 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -493,7 +493,8 @@ struct sta_rec_bf {
@@ -75,7 +75,7 @@ index dd63d4a0..db152167 100644
  	MCU_UNI_CMD_PRECAL_RESULT = 0x47,
  	MCU_UNI_CMD_RRO = 0x57,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index bfedfa3a..c0bd2d13 100644
+index 1ec4229..cf7b200 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1083,7 +1083,12 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
@@ -101,7 +101,7 @@ index bfedfa3a..c0bd2d13 100644
  	struct sk_buff *skb;
  	struct tlv *tlv;
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 2546354e..c6bb93b3 100644
+index 2546354..c6bb93b 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -685,6 +685,22 @@ struct bf_sounding_on {
@@ -172,7 +172,7 @@ index 2546354e..c6bb93b3 100644
  	CMD_BAND_NONE,
  	CMD_BAND_24G,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index a81e275d..32a0ffd8 100644
+index a81e275..32a0ffd 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -499,6 +499,14 @@ struct mt7996_dev {
@@ -213,7 +213,7 @@ index a81e275d..32a0ffd8 100644
 +
  #endif
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 1c4e2c90..a59e3a18 100644
+index 1c4e2c9..a59e3a1 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2916,7 +2916,7 @@ mt7996_starec_bf_read_set(void *data, u64 wlan_idx)
@@ -244,7 +244,7 @@ index 1c4e2c90..a59e3a18 100644
  DEFINE_DEBUGFS_ATTRIBUTE(fops_bf_pfmu_tag_read, NULL,
  			 mt7996_bf_pfmu_tag_read_set, "%lld\n");
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index 30da79f4..b46a66bb 100644
+index 30da79f..b46a66b 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -295,7 +295,7 @@ __mt7996_mcu_add_uni_tlv(struct sk_buff *skb, u16 tag, u16 len)
@@ -434,7 +434,7 @@ index 30da79f4..b46a66bb 100644
  		dev_info(dev->mt76.dev, "%s: unknown bf event tag %d\n",
  			 __func__, event->tag);
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
-index 7a4140b5..58d61c51 100644
+index 7a4140b..58d61c5 100644
 --- a/mt7996/mtk_mcu.h
 +++ b/mt7996/mtk_mcu.h
 @@ -189,6 +189,165 @@ struct bf_txsnd_info {
@@ -900,7 +900,7 @@ index 7a4140b5..58d61c51 100644
  	__le16 wlan_idx0;
  	__le16 wlan_idx1;
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index 539e799c..f55d4a94 100644
+index 539e799..f55d4a9 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -326,6 +326,9 @@ enum offs_rev {
@@ -914,7 +914,7 @@ index 539e799c..f55d4a94 100644
  #define MT_WF_RMAC_BASE(_band)			__BASE(WF_RMAC_BASE, (_band))
  #define MT_WF_RMAC(_band, ofs)			(MT_WF_RMAC_BASE(_band) + (ofs))
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index c4874eb3..bace3afe 100644
+index c4874eb..bace3af 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -23,6 +23,10 @@ enum {
@@ -1830,7 +1830,7 @@ index c4874eb3..bace3afe 100644
  
  static int
 diff --git a/mt7996/testmode.h b/mt7996/testmode.h
-index 78662b2e..f97ccb26 100644
+index 78662b2..f97ccb2 100644
 --- a/mt7996/testmode.h
 +++ b/mt7996/testmode.h
 @@ -27,6 +27,17 @@ enum {
@@ -1873,7 +1873,7 @@ index 78662b2e..f97ccb26 100644
  	__le32 func_data;
  	u8 band_idx;
 diff --git a/testmode.c b/testmode.c
-index 69147f86..9a7559bf 100644
+index 69147f8..9a7559b 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -462,6 +462,44 @@ out:
@@ -1953,7 +1953,7 @@ index 69147f86..9a7559bf 100644
  		err = dev->test_ops->set_params(phy, tb, state);
  		if (err)
 diff --git a/testmode.h b/testmode.h
-index 6d79832a..794a74f9 100644
+index 6d79832..794a74f 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -286,4 +286,57 @@ enum mt76_testmode_eeprom_action {
@@ -2015,7 +2015,7 @@ index 6d79832a..794a74f9 100644
 +
  #endif
 diff --git a/tools/fields.c b/tools/fields.c
-index 77696ce7..f793d1a5 100644
+index 77696ce..f793d1a 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -44,6 +44,30 @@ static const char * const testmode_offchan_bw[] = {

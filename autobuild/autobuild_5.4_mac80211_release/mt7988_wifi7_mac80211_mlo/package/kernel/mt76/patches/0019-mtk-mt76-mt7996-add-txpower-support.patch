@@ -1,7 +1,7 @@
-From 5d3b2dafbf6b343983b999b19e94ad175c374bd3 Mon Sep 17 00:00:00 2001
+From e872be26c3041b9ab7983f24de034b13f376a34b Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Fri, 24 Mar 2023 23:35:30 +0800
-Subject: [PATCH 019/223] mtk: mt76: mt7996: add txpower support
+Subject: [PATCH 019/193] mtk: mt76: mt7996: add txpower support
 
 Add single sku and default enable sku.
 
@@ -36,7 +36,7 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  14 files changed, 725 insertions(+), 27 deletions(-)
 
 diff --git a/eeprom.c b/eeprom.c
-index 6bd2cc1a..85935dea 100644
+index 6bd2cc1..85935de 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -320,9 +320,10 @@ mt76_apply_array_limit(s8 *pwr, size_t pwr_len, const __be32 *data,
@@ -141,7 +141,7 @@ index 6bd2cc1a..85935dea 100644
  	return max_power;
  }
 diff --git a/mt76.h b/mt76.h
-index 8666ec2f..ac2de858 100644
+index 8666ec2..ac2de85 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -1079,6 +1079,14 @@ struct mt76_power_limits {
@@ -168,7 +168,7 @@ index 8666ec2f..ac2de858 100644
  
  static inline bool mt76_queue_is_rx(struct mt76_dev *dev, struct mt76_queue *q)
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 07f52dd6..c7145074 100644
+index 07f52dd..c714507 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -2160,7 +2160,7 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
@@ -181,7 +181,7 @@ index 07f52dd6..c7145074 100644
  			tx_power_tlv.last_msg = ch_list[idx] == last_ch;
  			sku_tlbv.channel = ch_list[idx];
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 5ff52577..b091e30c 100644
+index 5ff5257..b091e30 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -541,3 +541,37 @@ s8 mt7996_eeprom_get_power_delta(struct mt7996_dev *dev, int band)
@@ -223,7 +223,7 @@ index 5ff52577..b091e30c 100644
 +	[SKU_EHT3x996_484] = 16,
 +};
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index b3b9b854..f3a9618b 100644
+index b3b9b85..f3a9618 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -127,4 +127,46 @@ mt7996_get_channel_group_6g(int channel)
@@ -274,10 +274,10 @@ index b3b9b854..f3a9618b 100644
 +
  #endif
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 0a8e929a..994d74cc 100644
+index 32f3a47..2634cc5 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -297,7 +297,12 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
+@@ -294,7 +294,12 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
  	int nss_delta = mt76_tx_power_nss_delta(nss);
  	int pwr_delta = mt7996_eeprom_get_power_delta(dev, sband->band);
  	struct mt76_power_limits limits;
@@ -290,7 +290,7 @@ index 0a8e929a..994d74cc 100644
  	for (i = 0; i < sband->n_channels; i++) {
  		struct ieee80211_channel *chan = &sband->channels[i];
  		int target_power = mt7996_eeprom_get_target_power(dev, chan);
-@@ -305,11 +310,18 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
+@@ -302,11 +307,18 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
  		target_power += pwr_delta;
  		target_power = mt76_get_rate_power_limits(phy->mt76, chan,
  							  &limits,
@@ -312,7 +312,7 @@ index 0a8e929a..994d74cc 100644
  	}
  }
 diff --git a/mt7996/main.c b/mt7996/main.c
-index a1c3874c..e65b5bd7 100644
+index c13b346..d5b97f1 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -85,6 +85,21 @@ int mt7996_run(struct ieee80211_hw *hw)
@@ -338,7 +338,7 @@ index a1c3874c..e65b5bd7 100644
  
  	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 98edae2c..59a24478 100644
+index 753a8ac..d114e7f 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -4684,9 +4684,31 @@ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id)
@@ -437,7 +437,7 @@ index 98edae2c..59a24478 100644
  				     MCU_WM_UNI_CMD(TXPOWER), true);
  }
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index f889cb8b..1ed05d7e 100644
+index f889cb8..1ed05d7 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -911,6 +911,7 @@ struct tx_power_ctrl {
@@ -457,7 +457,7 @@ index f889cb8b..1ed05d7e 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 6cb6c724..a1a30b33 100644
+index 6cb6c72..a1a30b3 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -305,6 +305,9 @@ struct mt7996_phy {
@@ -479,7 +479,7 @@ index 6cb6c724..a1a30b33 100644
  void mt7996_mcu_scs_sta_poll(struct work_struct *work);
  
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 1807a744..ad89eccd 100644
+index 1807a74..ad89ecc 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2439,6 +2439,364 @@ mt7996_scs_enable_set(void *data, u64 val)
@@ -860,7 +860,7 @@ index 1807a744..ad89eccd 100644
  				    mt7996_wtbl_read);
  
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index c16b25ab..e56ddd8f 100644
+index c16b25a..e56ddd8 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -12,8 +12,31 @@
@@ -896,7 +896,7 @@ index c16b25ab..e56ddd8f 100644
  int mt7996_mcu_muru_dbg_info(struct mt7996_dev *dev, u16 item, u8 val)
  {
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
-index 7f4d4e02..c30418ca 100644
+index 7f4d4e0..c30418c 100644
 --- a/mt7996/mtk_mcu.h
 +++ b/mt7996/mtk_mcu.h
 @@ -14,6 +14,98 @@ enum {
@@ -999,7 +999,7 @@ index 7f4d4e02..c30418ca 100644
  
  #endif
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index 3450a2fc..539e799c 100644
+index 3450a2f..539e799 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -695,24 +695,29 @@ enum offs_rev {

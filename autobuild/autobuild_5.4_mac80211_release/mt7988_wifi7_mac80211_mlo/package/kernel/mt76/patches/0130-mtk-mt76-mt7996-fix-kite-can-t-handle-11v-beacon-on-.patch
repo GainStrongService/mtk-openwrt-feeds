@@ -1,7 +1,7 @@
-From f703aab4906d08ae441eb0c710c288db45445cae Mon Sep 17 00:00:00 2001
+From 0d11b7b5e82424cc85fb019ae36f42ce2e602d5c Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Thu, 30 May 2024 17:39:38 +0800
-Subject: [PATCH 130/223] mtk: mt76: mt7996: fix kite can't handle 11v beacon
+Subject: [PATCH 130/193] mtk: mt76: mt7996: fix kite can't handle 11v beacon
  on sta side
 
 this hw flag SUPPORTS_MULTI_BSSID need to set. otherwise cfg80211_parse_mbssid_data will not handle 11v mbss beacon
@@ -12,10 +12,10 @@ Signed-off-by: Rex Lu <rex.lu@mediatek.com>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 32c79bd8..001f0d9c 100644
+index 1fe3f09..7d0dea4 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -48,6 +48,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
+@@ -45,6 +45,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
  
  static const u8 mt7996_if_types_ext_capa[] = {
  	[0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
@@ -23,7 +23,7 @@ index 32c79bd8..001f0d9c 100644
  	[7] = WLAN_EXT_CAPA8_OPMODE_NOTIF,
  };
  
-@@ -447,7 +448,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+@@ -444,7 +445,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  	ieee80211_hw_set(hw, SUPPORTS_TX_ENCAP_OFFLOAD);
  	ieee80211_hw_set(hw, SUPPORTS_RX_DECAP_OFFLOAD);
  	ieee80211_hw_set(hw, WANT_MONITOR_VIF);

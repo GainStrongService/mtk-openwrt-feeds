@@ -1,7 +1,7 @@
-From c179e8dd87acac5c2a7d04bb7e58722da862fc95 Mon Sep 17 00:00:00 2001
+From c14b26df4ab2474ea89fbc410f570d28d415bb9f Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 5 Jun 2024 10:11:13 +0800
-Subject: [PATCH 136/223] mtk: mt76: mt7996: set unused band to UNSPECIFIED in
+Subject: [PATCH 136/193] mtk: mt76: mt7996: set unused band to UNSPECIFIED in
  band_to_link
 
 Change-Id: I21190c5952a9c2f2a7f5f619f8d1fb23dd127c6f
@@ -13,7 +13,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 10 insertions(+)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 915a9f4f..9ad4a9d6 100644
+index 7bd189b..436ef82 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -482,6 +482,8 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
@@ -25,7 +25,7 @@ index 915a9f4f..9ad4a9d6 100644
  
  	if (vif->type == NL80211_IFTYPE_STATION)
  		ret = mt7996_add_bss_conf(phy, vif, &vif->bss_conf);
-@@ -1054,6 +1056,8 @@ mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
+@@ -1053,6 +1055,8 @@ mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
  
  	mutex_lock(&dev->mt76.mutex);
  	link_id = mvif->band_to_link[phy->mt76->band_idx];
@@ -35,7 +35,7 @@ index 915a9f4f..9ad4a9d6 100644
  	if (!mvif->cs_ready_links)
  		mvif->cs_link_id = link_id;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index a6f2c157..a62b5f9e 100644
+index 29dc95b..b498e9e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -379,6 +379,9 @@ mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
@@ -49,7 +49,7 @@ index a6f2c157..a62b5f9e 100644
  
  	if (!link_conf || !link_conf->csa_active || vif->type == NL80211_IFTYPE_STATION)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 7bb17126..3ff9cb68 100644
+index 7bb1712..3ff9cb6 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -966,6 +966,9 @@ mt7996_get_link_wcid(struct mt7996_dev *dev, u16 idx, u8 band_idx)

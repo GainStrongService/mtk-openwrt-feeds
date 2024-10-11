@@ -1,7 +1,7 @@
-From e2ca291d9edba04731cbec32d52ad00c13e5d1c9 Mon Sep 17 00:00:00 2001
+From 188ada444810cba695c6c54087de0266a2d9f36f Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 14 Jun 2024 14:54:44 +0800
-Subject: [PATCH 158/223] mtk: mt76: mt7996: support handle link_id in
+Subject: [PATCH 158/193] mtk: mt76: mt7996: support handle link_id in
  ap_wireless vendor cmd
 
 Add support handle link_id in ap_wireless vendor command. The link_id is
@@ -21,7 +21,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  4 files changed, 73 insertions(+), 44 deletions(-)
 
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index edd9c7c9..c122989d 100644
+index edd9c7c..c122989 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1304,8 +1304,8 @@ int mt7996_vendor_amnt_sta_remove(struct mt7996_phy *phy,
@@ -53,7 +53,7 @@ index edd9c7c9..c122989d 100644
  
  int mt7996_mcu_set_vow_drr_dbg(struct mt7996_dev *dev, u32 val);
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index c87daf8e..8bacf29d 100644
+index c87daf8..8bacf29 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -1082,11 +1082,10 @@ int mt7996_mcu_muru_set_prot_frame_thr(struct mt7996_dev *dev, u32 val)
@@ -201,7 +201,7 @@ index c87daf8e..8bacf29d 100644
  
  	mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(WSYS_CONFIG), &req,
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index ed7c1322..33c682c0 100644
+index ed7c132..33c682c 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -31,6 +31,7 @@ wireless_ctrl_policy[NUM_MTK_VENDOR_ATTRS_WIRELESS_CTRL] = {
@@ -300,7 +300,7 @@ index ed7c1322..33c682c0 100644
  		val8 = nla_get_u8(tb[MTK_VENDOR_ATTR_WIRELESS_CTRL_AMSDU]);
  		mt7996_set_wireless_amsdu(hw, val8);
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index 5608a3b4..714f0b3e 100644
+index 5608a3b..714f0b3 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -78,11 +78,6 @@ enum mtk_vendor_attr_mu_ctrl {

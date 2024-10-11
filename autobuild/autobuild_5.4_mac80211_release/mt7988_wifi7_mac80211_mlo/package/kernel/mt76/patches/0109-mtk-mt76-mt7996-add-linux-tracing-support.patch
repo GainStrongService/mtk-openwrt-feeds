@@ -1,7 +1,7 @@
-From 72119323570a647a238c6d3dfb2c07c190e062c4 Mon Sep 17 00:00:00 2001
+From 32f0003ab6551bda92347cad31cd00cc024f88cb Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 7 Sep 2022 12:13:20 +0800
-Subject: [PATCH 109/223] mtk: mt76: mt7996: add linux tracing support
+Subject: [PATCH 109/193] mtk: mt76: mt7996: add linux tracing support
 
 Add static tracepoint support for besra.
 
@@ -21,7 +21,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  create mode 100644 mt7996/trace.c
 
 diff --git a/agg-rx.c b/agg-rx.c
-index 07c386c7..b48943c4 100644
+index 07c386c..b48943c 100644
 --- a/agg-rx.c
 +++ b/agg-rx.c
 @@ -3,6 +3,7 @@
@@ -41,7 +41,7 @@ index 07c386c7..b48943c4 100644
  	if (!tid->started) {
  		if (sn_less)
 diff --git a/mac80211.c b/mac80211.c
-index a2b111c0..75674462 100644
+index a2b111c..7567446 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -5,6 +5,7 @@
@@ -69,7 +69,7 @@ index a2b111c0..75674462 100644
  			ieee80211_rx_list(hw, sta, skb, &list);
  		}
 diff --git a/mt7996/Makefile b/mt7996/Makefile
-index 49ec9154..936edc61 100644
+index 49ec915..936edc6 100644
 --- a/mt7996/Makefile
 +++ b/mt7996/Makefile
 @@ -12,4 +12,4 @@ mt7996e-y := pci.o init.o dma.o eeprom.o main.o mcu.o mac.o \
@@ -79,7 +79,7 @@ index 49ec9154..936edc61 100644
 -mt7996e-y += mtk_debugfs.o mtk_mcu.o mtk_debugfs_i.o
 +mt7996e-y += mtk_debugfs.o mtk_mcu.o mtk_debugfs_i.o trace.o
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 2e27e3b3..1c0d3676 100644
+index 2e27e3b..1c0d367 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -11,6 +11,7 @@
@@ -117,7 +117,7 @@ index 2e27e3b3..1c0d3676 100644
  	return 0;
  }
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 956bd396..d1aa19cb 100644
+index 9b5534d..b6b659d 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -10,6 +10,7 @@
@@ -158,7 +158,7 @@ index 956bd396..d1aa19cb 100644
  		return;
 diff --git a/mt7996/mt7996_trace.h b/mt7996/mt7996_trace.h
 new file mode 100644
-index 00000000..5fa73482
+index 0000000..5fa7348
 --- /dev/null
 +++ b/mt7996/mt7996_trace.h
 @@ -0,0 +1,141 @@
@@ -305,7 +305,7 @@ index 00000000..5fa73482
 +#include <trace/define_trace.h>
 diff --git a/mt7996/trace.c b/mt7996/trace.c
 new file mode 100644
-index 00000000..ba36f79a
+index 0000000..ba36f79
 --- /dev/null
 +++ b/mt7996/trace.c
 @@ -0,0 +1,12 @@
@@ -322,7 +322,7 @@ index 00000000..ba36f79a
 +
 +#endif
 diff --git a/trace.h b/trace.h
-index c3d0ef8e..57c94c6b 100644
+index c3d0ef8..57c94c6 100644
 --- a/trace.h
 +++ b/trace.h
 @@ -101,6 +101,64 @@ DEFINE_EVENT(dev_txid_evt, mac_txdone,

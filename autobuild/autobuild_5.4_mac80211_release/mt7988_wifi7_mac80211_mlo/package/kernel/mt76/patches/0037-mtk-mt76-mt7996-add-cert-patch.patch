@@ -1,7 +1,7 @@
-From d55504a4ab7bd47bcc4c26859eda52302c4855a7 Mon Sep 17 00:00:00 2001
+From 57bf57c14c4fba7e0e5dd595fa7e36fa75ce96ea Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Mon, 14 Aug 2023 13:36:58 +0800
-Subject: [PATCH 037/223] mtk: mt76: mt7996: add cert patch
+Subject: [PATCH 037/193] mtk: mt76: mt7996: add cert patch
 
 This patch includes TGac and TGax
 
@@ -42,7 +42,7 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  9 files changed, 779 insertions(+), 7 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 2ce9e839..484f91aa 100644
+index 2ce9e83..484f91a 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -10,6 +10,7 @@
@@ -69,10 +69,10 @@ index 2ce9e839..484f91aa 100644
  {
  	struct mt7996_dev *dev = container_of(work, struct mt7996_dev, rc_work);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 6203e800..dc00cc2f 100644
+index 359ea91..dd9f2ca 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -602,6 +602,7 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -601,6 +601,7 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		       bool beacon, bool mcast)
  {
  	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
@@ -80,7 +80,7 @@ index 6203e800..dc00cc2f 100644
  	struct mt76_phy *mphy = hw->priv;
  	u16 rate;
  	u8 i, idx;
-@@ -611,6 +612,9 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -610,6 +611,9 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	if (beacon) {
  		struct mt7996_phy *phy = mphy->priv;
  
@@ -90,7 +90,7 @@ index 6203e800..dc00cc2f 100644
  		/* odd index for driver, even index for firmware */
  		idx = MT7996_BEACON_RATES_TBL + 2 * phy->mt76->band_idx;
  		if (phy->beacon_rate != rate)
-@@ -738,6 +742,10 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -737,6 +741,10 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	u8 band_idx = mvif->phy->mt76->band_idx;
  	int ret, idx;
  
@@ -101,7 +101,7 @@ index 6203e800..dc00cc2f 100644
  	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7996_WTBL_STA);
  	if (idx < 0)
  		return -ENOSPC;
-@@ -763,7 +771,28 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -762,7 +770,28 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	if (ret)
  		return ret;
  
@@ -132,7 +132,7 @@ index 6203e800..dc00cc2f 100644
  
  void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index baf71b0a..bfedfa3a 100644
+index f46afbe..1ec4229 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1362,6 +1362,10 @@ mt7996_mcu_sta_vht_tlv(struct sk_buff *skb, struct ieee80211_sta *sta)
@@ -204,7 +204,7 @@ index baf71b0a..bfedfa3a 100644
  		if (val < 0 || val > 15) {
  			printk("Wrong value! The value is between 0-15.\n");
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index a98b174e..2546354e 100644
+index a98b174..2546354 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -755,6 +755,8 @@ enum {
@@ -240,7 +240,7 @@ index a98b174e..2546354e 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index ed998c0e..a81e275d 100644
+index ed998c0..a81e275 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -363,6 +363,7 @@ struct mt7996_phy {
@@ -292,7 +292,7 @@ index ed998c0e..a81e275d 100644
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index 68650623..30da79f4 100644
+index 6865062..30da79f 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -982,4 +982,210 @@ int mt7996_mcu_set_bypass_smthint(struct mt7996_phy *phy, u8 val)
@@ -507,7 +507,7 @@ index 68650623..30da79f4 100644
 +
  #endif
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
-index d9686ebb..7a4140b5 100644
+index d9686eb..7a4140b 100644
 --- a/mt7996/mtk_mcu.h
 +++ b/mt7996/mtk_mcu.h
 @@ -122,14 +122,15 @@ enum {
@@ -712,7 +712,7 @@ index d9686ebb..7a4140b5 100644
  
  #endif
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index 0d6fa779..7ab64471 100644
+index 0d6fa77..7ab6447 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -10,10 +10,31 @@
@@ -1012,7 +1012,7 @@ index 0d6fa779..7ab64471 100644
  }
 +#endif
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index 8aaa18ee..2ee1339a 100644
+index 8aaa18e..2ee1339 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -3,8 +3,12 @@

@@ -1,7 +1,7 @@
-From 70a14f12eef8b505890f654876a7f89432070bbf Mon Sep 17 00:00:00 2001
+From 374dc7d4e4eb39e6e7023ec7792f9306051b66e0 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 19 Jan 2024 14:04:03 +0800
-Subject: [PATCH 099/223] mtk: mt76: mt7996: support multi-link channel switch
+Subject: [PATCH 099/193] mtk: mt76: mt7996: support multi-link channel switch
 
 mtk: wifi: mt76: mt7996: remove the limitation of radar detect width for mlo
 
@@ -27,7 +27,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 22 insertions(+), 7 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index a98fe4fb..a2b111c0 100644
+index a98fe4f..a2b111c 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -1801,7 +1801,7 @@ enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
@@ -40,7 +40,7 @@ index a98fe4fb..a2b111c0 100644
  		    (phy->chandef.chan->flags & IEEE80211_CHAN_RADAR))
  			return MT_DFS_STATE_ACTIVE;
 diff --git a/mt76.h b/mt76.h
-index b65a6b0a..bc263bd4 100644
+index b65a6b0..bc263bd 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -862,6 +862,7 @@ struct mt76_phy {
@@ -52,10 +52,10 @@ index b65a6b0a..bc263bd4 100644
  
  	u32 aggr_stats[32];
 diff --git a/mt7996/main.c b/mt7996/main.c
-index fe5bfd72..e3f30b23 100644
+index 75d55f4..e1fa8bc 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2143,7 +2143,7 @@ static int
+@@ -2142,7 +2142,7 @@ static int
  mt7996_set_radar_background(struct ieee80211_hw *hw,
  			    struct cfg80211_chan_def *chandef)
  {
@@ -64,7 +64,7 @@ index fe5bfd72..e3f30b23 100644
  	struct mt7996_dev *dev = phy->dev;
  	int ret = -EINVAL;
  	bool running;
-@@ -2358,6 +2358,7 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
+@@ -2357,6 +2357,7 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
  	}
  
  	phy->chanctx = ctx;
@@ -72,7 +72,7 @@ index fe5bfd72..e3f30b23 100644
  	mutex_unlock(&phy->dev->mt76.mutex);
  
  	if (!mt76_testmode_enabled(phy->mt76) && !phy->mt76->test.bf_en) {
-@@ -2385,8 +2386,10 @@ mt7996_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
+@@ -2384,8 +2385,10 @@ mt7996_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
  
  	mutex_lock(&phy->dev->mt76.mutex);
  	ctx->assigned = false;
@@ -84,7 +84,7 @@ index fe5bfd72..e3f30b23 100644
  	mutex_unlock(&phy->dev->mt76.mutex);
  }
  
-@@ -2398,8 +2401,10 @@ mt7996_change_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
+@@ -2397,8 +2400,10 @@ mt7996_change_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
  	struct mt7996_phy *phy = ctx->phy;
  
  	wiphy_info(hw->wiphy, "%s: change %u, 0x%x\n", __func__, conf->def.chan->hw_value, changed);
@@ -96,7 +96,7 @@ index fe5bfd72..e3f30b23 100644
  
  		mt7996_set_channel(phy, &ctx->chandef);
  	}
-@@ -2497,6 +2502,7 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
+@@ -2496,6 +2501,7 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
  	mutex_lock(&phy->dev->mt76.mutex);
  
  	phy->chanctx = new_ctx;
@@ -105,7 +105,7 @@ index fe5bfd72..e3f30b23 100644
  	new_ctx->chandef = vifs->new_ctx->def;
  	new_ctx->phy = phy;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 9359a251..d897098e 100644
+index c484b4f..6c92baa 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -362,10 +362,18 @@ int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)

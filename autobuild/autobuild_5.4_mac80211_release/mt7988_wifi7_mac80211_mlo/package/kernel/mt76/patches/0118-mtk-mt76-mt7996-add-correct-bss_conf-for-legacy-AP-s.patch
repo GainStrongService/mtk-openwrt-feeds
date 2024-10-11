@@ -1,7 +1,7 @@
-From c8d1e3084599c7dbd74dd8408d0786e09851f177 Mon Sep 17 00:00:00 2001
+From 194e4d4f9a6a7c17555509795d13ee99e97d28d5 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 10 May 2024 13:35:56 +0800
-Subject: [PATCH 118/223] mtk: mt76: mt7996: add correct bss_conf for legacy AP
+Subject: [PATCH 118/193] mtk: mt76: mt7996: add correct bss_conf for legacy AP
  scan
 
 If the legacy AP interface is added but not yet started, its bss_conf
@@ -28,10 +28,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 13 insertions(+), 8 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 9a265710..2b16385d 100644
+index 6e90083..9ae23f5 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2367,15 +2367,20 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2366,15 +2366,20 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	phy->scan_vif = vif;
  	phy->scan_chan_idx = 0;
  

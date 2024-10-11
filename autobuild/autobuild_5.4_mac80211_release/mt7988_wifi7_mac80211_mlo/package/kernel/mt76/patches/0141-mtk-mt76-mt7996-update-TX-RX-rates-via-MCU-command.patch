@@ -1,7 +1,7 @@
-From c394984fc5a6e52aa435ead825e617fb3a0e7b81 Mon Sep 17 00:00:00 2001
+From 0c094b292cac8e88528a2eeb7ffc47125b2a63f4 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Fri, 7 Jun 2024 10:44:45 +0800
-Subject: [PATCH 141/223] mtk: mt76: mt7996: update TX/RX rates via MCU command
+Subject: [PATCH 141/193] mtk: mt76: mt7996: update TX/RX rates via MCU command
 
 Update TX/RX rates via MCU command to address following issues:
 1. TX rate was originally updated via TXS. However in MLO connection, WCID from TXS may not represent the actually used link.
@@ -20,7 +20,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  4 files changed, 161 insertions(+), 131 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 526b6298..de6f2be0 100644
+index 526b629..de6f2be 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -374,6 +374,7 @@ struct mt76_wcid {
@@ -32,7 +32,7 @@ index 526b6298..de6f2be0 100644
  
  	u16 idx;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 02045b84..39336832 100644
+index 02045b8..3933683 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -1254,15 +1254,12 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
@@ -174,10 +174,10 @@ index 02045b84..39336832 100644
  		mt76_tx_status_skb_done(mdev, skb, &list);
  	mt76_tx_status_unlock(mdev, &list);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index ed64cf06..05917cc8 100644
+index cc0c5ac..73a04e9 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1769,32 +1769,24 @@ static void mt7996_sta_statistics(struct ieee80211_hw *hw,
+@@ -1768,32 +1768,24 @@ static void mt7996_sta_statistics(struct ieee80211_hw *hw,
  	struct mt7996_phy *phy = mt7996_hw_phy(hw);
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
  	struct mt7996_link_sta *mlink;
@@ -221,7 +221,7 @@ index ed64cf06..05917cc8 100644
  	sinfo->tx_failed = mlink->wcid.stats.tx_failed;
  	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index edbe9cbe..ee27b5df 100644
+index 675af8c..66f6d46 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -537,42 +537,164 @@ mt7996_mcu_ie_countdown(struct mt7996_dev *dev, struct sk_buff *skb)

@@ -1,7 +1,7 @@
-From a77bf1528855525590647055a6d5c4b760946efc Mon Sep 17 00:00:00 2001
+From b13eef9898fec66dde706874155a5325d4244b1e Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 1 Dec 2023 16:01:53 +0800
-Subject: [PATCH 084/223] mtk: mt76: mt7996: introduce mt7996_band_phy() for ch
+Subject: [PATCH 084/193] mtk: mt76: mt7996: introduce mt7996_band_phy() for ch
  band and phy mapping
 
 For MLO devices, one ieee80211_hw can be mapped to several bands, and
@@ -16,7 +16,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  2 files changed, 112 insertions(+), 59 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 106e8534..ae1b2875 100644
+index 7da2047..6cff54f 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -41,9 +41,8 @@ static void mt7996_testmode_disable_all(struct mt7996_dev *dev)
@@ -187,7 +187,7 @@ index 106e8534..ae1b2875 100644
  }
  
  static inline int get_free_idx(u32 mask, u8 start, u8 end)
-@@ -2059,7 +2079,7 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2058,7 +2078,7 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	       struct ieee80211_scan_request *hw_req)
  {
  	struct cfg80211_scan_request *req = &hw_req->req;
@@ -196,7 +196,7 @@ index 106e8534..ae1b2875 100644
  
  	mutex_lock(&phy->dev->mt76.mutex);
  	if (WARN_ON(phy->scan_req || phy->scan_chan)) {
-@@ -2081,19 +2101,30 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2080,19 +2100,30 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  static void
  mt7996_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
  {
@@ -234,7 +234,7 @@ index 106e8534..ae1b2875 100644
  	int ret;
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index f6933418..38b924b5 100644
+index f693341..38b924b 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -793,6 +793,28 @@ mt7996_has_background_radar(struct mt7996_dev *dev)

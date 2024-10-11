@@ -1,7 +1,7 @@
-From 33a4c8e5ec36b3265e10e324e141e26b5941848f Mon Sep 17 00:00:00 2001
+From e314bd492d7456fe61da3225396cfaa972c4cfd3 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Thu, 4 Jan 2024 09:47:00 +0800
-Subject: [PATCH 069/223] mtk: mt76: mt7996: add support for WMM PBC
+Subject: [PATCH 069/193] mtk: mt76: mt7996: add support for WMM PBC
  configuration
 
 Query per-AC-queue packet statistics from WA, and determine if multi-AC transmission is ongoing.
@@ -19,7 +19,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  6 files changed, 105 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index adecb0ed..c9cea5bb 100644
+index adecb0e..c9cea5b 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1042,6 +1042,7 @@ enum {
@@ -39,10 +39,10 @@ index adecb0ed..c9cea5bb 100644
  	MCU_EXT_CMD_SET_RADAR_TH = 0x7c,
  	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 04c15432..6d5e4c40 100644
+index bd6efba..17a5245 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -1556,6 +1556,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1553,6 +1553,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	INIT_WORK(&dev->dump_work, mt7996_mac_dump_work);
  	mutex_init(&dev->dump_mutex);
  
@@ -52,7 +52,7 @@ index 04c15432..6d5e4c40 100644
  	if (ret)
  		return ret;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 8b753148..bc0f0020 100644
+index 8b75314..bc0f002 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2310,6 +2310,10 @@ void mt7996_mac_work(struct work_struct *work)
@@ -67,7 +67,7 @@ index 8b753148..bc0f0020 100644
  			           test_bit(MT76_STATE_RUNNING, &mdev->phys[i]->state))
  				break;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index db877d75..47f8a7cd 100644
+index e98c499..469efb5 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -674,6 +674,82 @@ mt7996_mcu_rx_thermal_notify(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -163,7 +163,7 @@ index db877d75..47f8a7cd 100644
  		break;
  	}
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 5aa55e4f..8ffb16f8 100644
+index 5aa55e4..8ffb16f 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -369,10 +369,25 @@ enum {
@@ -193,7 +193,7 @@ index 5aa55e4f..8ffb16f8 100644
  	MCU_WA_PARAM_RED_CONFIG = 0x40,
  };
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index f6d3bd19..ba3a639b 100644
+index f6d3bd1..ba3a639 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -612,6 +612,9 @@ struct mt7996_dev {

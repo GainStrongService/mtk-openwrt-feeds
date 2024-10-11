@@ -1,7 +1,7 @@
-From 28b5dc0783ecf0b3b173c76b9138f769ec6345f3 Mon Sep 17 00:00:00 2001
+From d84d275ceb0ff433f58c1bbfde93267225260e84 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 19 Jun 2024 12:04:46 +0800
-Subject: [PATCH 146/223] mtk: mt76: mt7996: rework debug prints
+Subject: [PATCH 146/193] mtk: mt76: mt7996: rework debug prints
 
 Trim debug messages, and move some of them (especially mcu cmd) into
 tracing log.
@@ -17,7 +17,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  5 files changed, 67 insertions(+), 49 deletions(-)
 
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index b62a1ac8..e4e6c0d3 100644
+index b62a1ac..e4e6c0d 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -428,7 +428,6 @@ void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
@@ -29,7 +29,7 @@ index b62a1ac8..e4e6c0d3 100644
  }
  EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_basic_tlv);
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 966cf314..0a96b5de 100644
+index 966cf31..0a96b5d 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2942,9 +2942,6 @@ void mt7996_scan_work(struct work_struct *work)
@@ -43,7 +43,7 @@ index 966cf314..0a96b5de 100644
  
  	if (!req->n_ssids ||
 diff --git a/mt7996/main.c b/mt7996/main.c
-index d73fd9d6..647e0e8a 100644
+index 678da02..543265a 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -297,6 +297,9 @@ static void mt7996_remove_bss_conf(struct ieee80211_vif *vif,
@@ -83,7 +83,7 @@ index d73fd9d6..647e0e8a 100644
  
  	mutex_lock(&dev->mt76.mutex);
  
-@@ -1216,7 +1220,8 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
+@@ -1215,7 +1219,8 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
  		rcu_assign_pointer(dev->mt76.wcid[idx], &mlink->wcid);
  		mt76_wcid_init(&mlink->wcid);
  
@@ -93,7 +93,7 @@ index d73fd9d6..647e0e8a 100644
  	}
  
  	if (!assoc)
-@@ -1255,7 +1260,7 @@ mt7996_mac_sta_remove_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -1254,7 +1259,7 @@ mt7996_mac_sta_remove_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  	if (!ieee80211_vif_is_mld(vif) || rem == sta->valid_links)
  		cancel_delayed_work(&mvif->beacon_mon_work);
  
@@ -102,7 +102,7 @@ index d73fd9d6..647e0e8a 100644
  	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
  		struct mt7996_bss_conf *mconf =
  			mconf_dereference_protected(mvif, link_id);
-@@ -1282,7 +1287,7 @@ mt7996_mac_sta_add_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -1281,7 +1286,7 @@ mt7996_mac_sta_add_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  	unsigned int link_id;
  	int i, ret;
  
@@ -111,7 +111,7 @@ index d73fd9d6..647e0e8a 100644
  	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
  		struct mt7996_bss_conf *mconf =
  			mconf_dereference_protected(mvif, link_id);
-@@ -1291,6 +1296,9 @@ mt7996_mac_sta_add_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -1290,6 +1295,9 @@ mt7996_mac_sta_add_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  		struct ieee80211_link_sta *link_sta =
  			link_sta_dereference_protected(sta, link_id);
  
@@ -121,7 +121,7 @@ index d73fd9d6..647e0e8a 100644
  		ret = mt7996_add_link_sta(dev, conf, mconf, link_sta, assoc);
  		if (ret)
  			goto error;
-@@ -1461,13 +1469,13 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+@@ -1460,13 +1468,13 @@ static void mt7996_tx(struct ieee80211_hw *hw,
  					rcu_dereference(sta->link[link_id]);
  
  				if (!link_sta) {
@@ -138,7 +138,7 @@ index d73fd9d6..647e0e8a 100644
  						goto unlock;
  					}
  				}
-@@ -2499,6 +2507,7 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2498,6 +2506,7 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	struct mt7996_bss_conf *mconf;
  	int ret;
  
@@ -146,7 +146,7 @@ index d73fd9d6..647e0e8a 100644
  	mutex_lock(&phy->dev->mt76.mutex);
  	if (WARN_ON(phy->scan_req || phy->scan_chan)) {
  		mutex_unlock(&phy->dev->mt76.mutex);
-@@ -2628,7 +2637,7 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
+@@ -2627,7 +2636,7 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
  	struct mt7996_chanctx *ctx = mt7996_chanctx_get(conf);
  	int ret;
  
@@ -155,7 +155,7 @@ index d73fd9d6..647e0e8a 100644
  	mutex_lock(&phy->dev->mt76.mutex);
  
  	if (ctx->assigned) {
-@@ -2667,7 +2676,7 @@ mt7996_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
+@@ -2666,7 +2675,7 @@ mt7996_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
  	struct mt7996_chanctx *ctx = mt7996_chanctx_get(conf);
  	struct mt7996_phy *phy = ctx->phy;
  
@@ -164,7 +164,7 @@ index d73fd9d6..647e0e8a 100644
  	cancel_delayed_work_sync(&phy->scan_work);
  	cancel_delayed_work_sync(&phy->mt76->mac_work);
  
-@@ -2687,13 +2696,14 @@ mt7996_change_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
+@@ -2686,13 +2695,14 @@ mt7996_change_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
  	struct mt7996_chanctx *ctx = mt7996_chanctx_get(conf);
  	struct mt7996_phy *phy = ctx->phy;
  
@@ -180,7 +180,7 @@ index d73fd9d6..647e0e8a 100644
  	}
  }
  
-@@ -2709,9 +2719,8 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2708,9 +2718,8 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	u8 link_id = link_conf->link_id;
  	int ret;
  
@@ -192,7 +192,7 @@ index d73fd9d6..647e0e8a 100644
  
  	mutex_lock(&phy->dev->mt76.mutex);
  
-@@ -2751,9 +2760,8 @@ mt7996_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2750,9 +2759,8 @@ mt7996_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	struct mt7996_chanctx *ctx = mt7996_chanctx_get(conf);
  	struct mt7996_phy *phy = ctx->phy;
  
@@ -204,7 +204,7 @@ index d73fd9d6..647e0e8a 100644
  	cancel_delayed_work_sync(&phy->scan_work);
  
  	mutex_lock(&phy->dev->mt76.mutex);
-@@ -2782,9 +2790,15 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
+@@ -2781,9 +2789,15 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
  		if (vifs[i].old_ctx == vifs[i].new_ctx)
  			continue;
  
@@ -223,7 +223,7 @@ index d73fd9d6..647e0e8a 100644
  
  		mutex_lock(&dev->mt76.mutex);
  
-@@ -2834,7 +2848,7 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2833,7 +2847,7 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	unsigned int link_id;
  	int ret = 0;
  
@@ -232,7 +232,7 @@ index d73fd9d6..647e0e8a 100644
  	if (old_links == new_links)
  		return 0;
  
-@@ -2880,7 +2894,7 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2879,7 +2893,7 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	unsigned long rem = old_links & ~new_links;
  	int ret = 0;
  
@@ -242,7 +242,7 @@ index d73fd9d6..647e0e8a 100644
  
  	if (rem)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 28bccc15..6149f227 100644
+index 3a356b9..5461fb1 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -387,7 +387,6 @@ mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
@@ -351,7 +351,7 @@ index 28bccc15..6149f227 100644
  	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
  			MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index c20206c6..d56d9715 100644
+index c20206c..d56d971 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -986,7 +986,15 @@ mt7996_get_link_wcid(struct mt7996_dev *dev, u16 idx, u8 band_idx)

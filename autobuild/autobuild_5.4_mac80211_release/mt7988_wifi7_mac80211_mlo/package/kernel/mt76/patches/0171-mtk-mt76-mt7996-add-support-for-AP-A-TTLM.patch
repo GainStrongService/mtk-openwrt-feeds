@@ -1,7 +1,7 @@
-From 54aea6e753436bff0a258c753d2b8da3daea72f8 Mon Sep 17 00:00:00 2001
+From b70fdcfd5cd1de56bbf1fdb04dc8b14dd59de7b5 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 28 Jun 2024 13:45:15 +0800
-Subject: [PATCH 171/223] mtk: mt76: mt7996: add support for AP A-TTLM
+Subject: [PATCH 171/193] mtk: mt76: mt7996: add support for AP A-TTLM
 
 This add support for AP A-TTLM support by following actions
 1. request at2lm resource to FW and get switch time TSF value
@@ -20,7 +20,7 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  5 files changed, 214 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 4976d944..18758ff2 100644
+index 4976d94..18758ff 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1401,6 +1401,7 @@ enum {
@@ -32,10 +32,10 @@ index 4976d944..18758ff2 100644
  
  enum {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 6ad4558b..c6cb5104 100644
+index a9ae083..972023c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -3171,6 +3171,19 @@ out:
+@@ -3170,6 +3170,19 @@ out:
  	return ret;
  }
  
@@ -55,14 +55,14 @@ index 6ad4558b..c6cb5104 100644
  static void
  mt7996_event_callback(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		      const struct ieee80211_event *event)
-@@ -3331,4 +3344,5 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -3330,4 +3343,5 @@ const struct ieee80211_ops mt7996_ops = {
  	.change_vif_links = mt7996_change_vif_links,
  	.change_sta_links = mt7996_change_sta_links,
  	.set_qos_map = mt7996_set_qos_map,
 +	.set_attlm = mt7996_set_attlm,
  };
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 417c38a3..0e8e2c06 100644
+index b6cc459..2ab7377 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1367,6 +1367,22 @@ mt7996_mcu_mld_reconf_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
@@ -255,7 +255,7 @@ index 417c38a3..0e8e2c06 100644
  	dev_kfree_skb(skb);
  	return mt76_mcu_skb_send_msg(&phy->dev->mt76, rskb,
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 7c559d2b..0f2695eb 100644
+index 7c559d2..0f2695e 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -560,6 +560,14 @@ struct bss_bcn_ml_reconf_offset {
@@ -340,7 +340,7 @@ index 7c559d2b..0f2695eb 100644
  };
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index a7655a61..15c4e557 100644
+index a7655a6..15c4e55 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1158,6 +1158,8 @@ int mt7996_mcu_set_vow_drr_ctrl(struct mt7996_phy *phy,

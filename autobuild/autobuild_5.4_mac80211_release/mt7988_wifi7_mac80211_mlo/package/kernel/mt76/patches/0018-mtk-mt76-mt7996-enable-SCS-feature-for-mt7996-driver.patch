@@ -1,7 +1,7 @@
-From 503baaaad8a49fcdcc2030a8eddacfec35c167b0 Mon Sep 17 00:00:00 2001
+From b53aea749fe231715863c5aca07da5313bfe6897 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 8 May 2023 09:03:50 +0800
-Subject: [PATCH 018/223] mtk: mt76: mt7996: enable SCS feature for mt7996
+Subject: [PATCH 018/193] mtk: mt76: mt7996: enable SCS feature for mt7996
  driver
 
 Enable Smart Carrier Sense algorithn by default to improve performance
@@ -20,7 +20,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  8 files changed, 148 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index a7d7ecce..fcacd546 100644
+index a7d7ecc..fcacd54 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1279,6 +1279,7 @@ enum {
@@ -32,10 +32,10 @@ index a7d7ecce..fcacd546 100644
  	MCU_UNI_CMD_SET_DBDC_PARMS = 0x28,
  	MCU_UNI_CMD_TXPOWER = 0x2b,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index a34e034d..0a8e929a 100644
+index 5e0a6d0..32f3a47 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -1432,6 +1432,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1429,6 +1429,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	dev->mt76.phy.priv = &dev->phy;
  	INIT_WORK(&dev->rc_work, mt7996_mac_sta_rc_work);
  	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt7996_mac_work);
@@ -44,7 +44,7 @@ index a34e034d..0a8e929a 100644
  	INIT_LIST_HEAD(&dev->twt_list);
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index d73644f6..789caa44 100644
+index d73644f..789caa4 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -1815,6 +1815,7 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
@@ -64,7 +64,7 @@ index d73644f6..789caa44 100644
  
  void mt7996_mac_reset_work(struct work_struct *work)
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 9ff9ae0e..a1c3874c 100644
+index 2642f50..c13b346 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -81,11 +81,17 @@ int mt7996_run(struct ieee80211_hw *hw)
@@ -94,7 +94,7 @@ index 9ff9ae0e..a1c3874c 100644
  	mutex_lock(&dev->mt76.mutex);
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b15075ab..98edae2c 100644
+index 5faaa0f..753a8ac 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -4832,3 +4832,108 @@ int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 da
@@ -207,7 +207,7 @@ index b15075ab..98edae2c 100644
 +				 &req, sizeof(req), false);
 +}
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index abf8ef48..f889cb8b 100644
+index abf8ef4..f889cb8 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -966,6 +966,12 @@ enum pp_mode {
@@ -224,7 +224,7 @@ index abf8ef48..f889cb8b 100644
  #define MT7996_PATCH_SCRAMBLE_KEY	GENMASK(15, 8)
  #define MT7996_PATCH_AES_KEY		GENMASK(7, 0)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 8770839c..6cb6c724 100644
+index 8770839..6cb6c72 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -243,6 +243,16 @@ struct mt7996_hif {
@@ -271,7 +271,7 @@ index 8770839c..6cb6c724 100644
  static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
  {
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index d1f3d16c..1807a744 100644
+index d1f3d16..1807a74 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2429,6 +2429,16 @@ static int mt7996_token_read(struct seq_file *s, void *data)

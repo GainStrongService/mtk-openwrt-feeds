@@ -1,7 +1,7 @@
-From 031841be718eb6736dec9c52744664433ed2a34e Mon Sep 17 00:00:00 2001
+From db6abcb6c3265d02b66b7b7cf68431493c0aad3d Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 24 Nov 2023 09:49:08 +0800
-Subject: [PATCH 044/223] mtk: mt76: mt7996: add adie efuse merge support
+Subject: [PATCH 044/193] mtk: mt76: mt7996: add adie efuse merge support
 
 Merge adie-dependent parameters in efuse into eeprom after FT.
 Note that Eagle BE14000 is not considered yet.
@@ -17,7 +17,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 193 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 1f4bad62..70a97d29 100644
+index 1f4bad6..70a97d2 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -881,6 +881,46 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug_muru_disable,
@@ -76,7 +76,7 @@ index 1f4bad62..70a97d29 100644
  	if (phy->mt76->cap.has_5ghz) {
  		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 7575dcb9..be87afe8 100644
+index 7575dcb..be87afe 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -546,6 +546,146 @@ static int mt7996_eeprom_load_precal(struct mt7996_dev *dev)
@@ -238,10 +238,10 @@ index 7575dcb9..be87afe8 100644
  	if (ret < 0)
  		return ret;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index dc00cc2f..ea4679dd 100644
+index dd9f2ca..9376d69 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1485,10 +1485,10 @@ mt7996_background_radar_handle_7975_ifem(struct ieee80211_hw *hw,
+@@ -1484,10 +1484,10 @@ mt7996_background_radar_handle_7975_ifem(struct ieee80211_hw *hw,
  	switch (mt76_chip(&dev->mt76)) {
  	case 0x7990:
  		is_ifem_adie = dev->fem_type == MT7996_FEM_INT &&
@@ -255,7 +255,7 @@ index dc00cc2f..ea4679dd 100644
  		break;
  	default:
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 5c0eb3cb..5a8b6d0a 100644
+index 5c0eb3c..5a8b6d0 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -2128,8 +2128,12 @@ mt7996_tm_write_back_to_efuse(struct mt7996_dev *dev)

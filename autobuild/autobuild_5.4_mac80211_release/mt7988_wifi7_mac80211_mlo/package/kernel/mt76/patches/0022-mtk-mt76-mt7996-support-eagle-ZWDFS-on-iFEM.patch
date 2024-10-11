@@ -1,7 +1,7 @@
-From 0ed31af01bf9c0f5f040222fabee17af063f9eb8 Mon Sep 17 00:00:00 2001
+From ef316262c78854e1be14079f2b257a33d94283d7 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 5 Jul 2023 10:00:17 +0800
-Subject: [PATCH 022/223] mtk: mt76: mt7996: support eagle ZWDFS on iFEM
+Subject: [PATCH 022/193] mtk: mt76: mt7996: support eagle ZWDFS on iFEM
 
 Fix the case that control channel is not first chan during first
 interface setup.
@@ -15,10 +15,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 67 insertions(+), 5 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index e65b5bd7..ad4cd5dd 100644
+index d5b97f1..dc363f3 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1433,6 +1433,61 @@ mt7996_twt_teardown_request(struct ieee80211_hw *hw,
+@@ -1432,6 +1432,61 @@ mt7996_twt_teardown_request(struct ieee80211_hw *hw,
  	mutex_unlock(&dev->mt76.mutex);
  }
  
@@ -80,7 +80,7 @@ index e65b5bd7..ad4cd5dd 100644
  static int
  mt7996_set_radar_background(struct ieee80211_hw *hw,
  			    struct cfg80211_chan_def *chandef)
-@@ -1441,6 +1496,7 @@ mt7996_set_radar_background(struct ieee80211_hw *hw,
+@@ -1440,6 +1495,7 @@ mt7996_set_radar_background(struct ieee80211_hw *hw,
  	struct mt7996_dev *dev = phy->dev;
  	int ret = -EINVAL;
  	bool running;
@@ -88,7 +88,7 @@ index e65b5bd7..ad4cd5dd 100644
  
  	mutex_lock(&dev->mt76.mutex);
  
-@@ -1453,13 +1509,14 @@ mt7996_set_radar_background(struct ieee80211_hw *hw,
+@@ -1452,13 +1508,14 @@ mt7996_set_radar_background(struct ieee80211_hw *hw,
  		goto out;
  	}
  
@@ -105,7 +105,7 @@ index e65b5bd7..ad4cd5dd 100644
  		ret = mt7996_mcu_rdd_background_enable(phy, NULL);
  		if (ret)
  			goto out;
-@@ -1468,7 +1525,9 @@ mt7996_set_radar_background(struct ieee80211_hw *hw,
+@@ -1467,7 +1524,9 @@ mt7996_set_radar_background(struct ieee80211_hw *hw,
  			goto update_phy;
  	}
  
@@ -117,28 +117,26 @@ index e65b5bd7..ad4cd5dd 100644
  		goto out;
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 59a24478..7ef6bb1f 100644
+index d114e7f..669d27b 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -382,12 +382,14 @@ mt7996_mcu_rx_radar_detected(struct mt7996_dev *dev, struct sk_buff *skb)
- 	if (!mphy)
+@@ -374,10 +374,12 @@ mt7996_mcu_rx_radar_detected(struct mt7996_dev *dev, struct sk_buff *skb)
+ 	if (r->band_idx == MT_RX_SEL2 && !dev->rdd2_phy)
  		return;
  
 -	if (r->band_idx == MT_RX_SEL2)
 +	if (r->band_idx == MT_RX_SEL2) {
 +		dev->bg_nxt_freq = 0;
- 		cfg80211_background_radar_event(mphy->hw->wiphy,
- 						&dev->rdd2_chandef,
- 						GFP_ATOMIC);
+ 		mphy = dev->rdd2_phy->mt76;
 -	else
 +	} else {
- 		ieee80211_radar_detected(mphy->hw);
+ 		mphy = dev->mt76.phys[r->band_idx];
 +	}
- 	dev->hw_pattern++;
- }
  
+ 	if (!mphy)
+ 		return;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 1fe681cf..2ec72496 100644
+index 1fe681c..2ec7249 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -407,6 +407,7 @@ struct mt7996_dev {

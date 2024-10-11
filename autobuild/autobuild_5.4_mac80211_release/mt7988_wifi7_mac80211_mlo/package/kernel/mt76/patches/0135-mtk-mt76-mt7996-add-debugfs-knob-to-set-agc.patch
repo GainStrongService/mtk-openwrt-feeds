@@ -1,7 +1,7 @@
-From 4483bcc086666bb2eaf40774c30d35d60911524b Mon Sep 17 00:00:00 2001
+From 70dea3d8ac2ae513c116b0fc075552a46f3fcf47 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 31 May 2024 10:55:03 +0800
-Subject: [PATCH 135/223] mtk: mt76: mt7996: add debugfs knob to set agc
+Subject: [PATCH 135/193] mtk: mt76: mt7996: add debugfs knob to set agc
 
 Add the following debugfs knob
 - /sys/kernel/debug/ieee80211/phy0/mt76/mlo_agc_tx
@@ -18,7 +18,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  5 files changed, 131 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 2daa09cc..73cf311a 100644
+index 2daa09c..73cf311 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1317,6 +1317,7 @@ enum {
@@ -30,7 +30,7 @@ index 2daa09cc..73cf311a 100644
  	MCU_UNI_CMD_ALL_STA_INFO = 0x6e,
  	MCU_UNI_CMD_ASSERT_DUMP = 0x6f,
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index c39dcc3c..389aab63 100644
+index c39dcc3..389aab6 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -1157,6 +1157,26 @@ enum {
@@ -61,7 +61,7 @@ index c39dcc3c..389aab63 100644
  #define MT7996_PATCH_SCRAMBLE_KEY	GENMASK(15, 8)
  #define MT7996_PATCH_AES_KEY		GENMASK(7, 0)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 8af3c400..7bb17126 100644
+index 8af3c40..7bb1712 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1328,6 +1328,7 @@ void mt7996_dump_bmac_txd_info(struct seq_file *s, struct mt7996_dev *dev,
@@ -73,7 +73,7 @@ index 8af3c400..7bb17126 100644
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_debugfs_i.c b/mt7996/mtk_debugfs_i.c
-index 839c3e31..852d1b12 100644
+index 839c3e3..852d1b1 100644
 --- a/mt7996/mtk_debugfs_i.c
 +++ b/mt7996/mtk_debugfs_i.c
 @@ -774,6 +774,106 @@ mt7996_agg_table_show(struct seq_file *s, void *data)
@@ -194,7 +194,7 @@ index 839c3e31..852d1b12 100644
  }
  
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index 809181e0..82e3f721 100644
+index 809181e..82e3f72 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -1364,4 +1364,10 @@ int mt7996_mcu_thermal_debug(struct mt7996_dev *dev, u8 mode, u8 action)

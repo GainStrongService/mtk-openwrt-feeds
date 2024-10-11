@@ -1,7 +1,7 @@
-From 4f6f8ddf1d26b8dac9d405f6c73457adab2660cc Mon Sep 17 00:00:00 2001
+From 80bca2a6b13f99a434ebb998efdce311e6410071 Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Tue, 19 Mar 2024 13:16:12 +0800
-Subject: [PATCH 073/223] mtk: mt76: mt7996: add kite two pcie with two wed
+Subject: [PATCH 073/193] mtk: mt76: mt7996: add kite two pcie with two wed
  support
 
 Signed-off-by: Rex Lu <rex.lu@mediatek.com>
@@ -15,7 +15,7 @@ Signed-off-by: Rex Lu <rex.lu@mediatek.com>
  6 files changed, 101 insertions(+), 47 deletions(-)
 
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index 3dc0e8a1..a2490fa7 100644
+index 3dc0e8a..a2490fa 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
 @@ -108,8 +108,8 @@ static void mt7996_dma_config(struct mt7996_dev *dev)
@@ -131,10 +131,10 @@ index 3dc0e8a1..a2490fa7 100644
  				       MT_RXQ_ID(MT_RXQ_BAND1_WA),
  				       MT7996_RX_MCU_RING_SIZE,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 96b209e6..48798711 100644
+index c600d49..77d4eae 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -527,39 +527,46 @@ void mt7996_mac_init(struct mt7996_dev *dev)
+@@ -524,39 +524,46 @@ void mt7996_mac_init(struct mt7996_dev *dev)
  	}
  
  	/* rro module init */
@@ -202,7 +202,7 @@ index 96b209e6..48798711 100644
  
  	if (dev->has_rro) {
  		u16 timeout;
-@@ -643,7 +650,7 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+@@ -640,7 +647,7 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  	if (phy)
  		return 0;
  
@@ -211,7 +211,7 @@ index 96b209e6..48798711 100644
  		switch (dev->option_type) {
  		case 2:
  			/* eagle + 7988d */
-@@ -653,7 +660,8 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+@@ -650,7 +657,8 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  			}
  			break;
  		default:
@@ -222,10 +222,10 @@ index 96b209e6..48798711 100644
  				wed = &dev->mt76.mmio.wed_hif2;
  			}
 diff --git a/mt7996/main.c b/mt7996/main.c
-index e5b32d33..3a274ba7 100644
+index 09b1daa..544be33 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1596,7 +1596,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1595,7 +1595,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  	struct mt7996_phy *phy = mt7996_hw_phy(hw);
  	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
  
@@ -234,7 +234,7 @@ index e5b32d33..3a274ba7 100644
  		switch (dev->option_type) {
  		case 2:
  			/* eagle + 7988d */
-@@ -1604,7 +1604,8 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1603,7 +1603,8 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  				wed = &dev->mt76.mmio.wed_hif2;
  			break;
  		default:
@@ -245,7 +245,7 @@ index e5b32d33..3a274ba7 100644
  			break;
  		}
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index 1251382b..14c70915 100644
+index 1251382..14c7091 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
 @@ -336,10 +336,16 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
@@ -287,7 +287,7 @@ index 1251382b..14c70915 100644
  
  	if (mtk_wed_device_active(wed)) {
 diff --git a/mt7996/pci.c b/mt7996/pci.c
-index 24d69d4d..382b6a89 100644
+index 24d69d4..382b6a8 100644
 --- a/mt7996/pci.c
 +++ b/mt7996/pci.c
 @@ -110,7 +110,7 @@ static int mt7996_pci_probe(struct pci_dev *pdev,
@@ -310,7 +310,7 @@ index 24d69d4d..382b6a89 100644
  		if (ret < 0)
  			goto free_wed_or_irq_vector;
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index 3a1568c3..a0b57e59 100644
+index 3a1568c..a0b57e5 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -525,6 +525,7 @@ enum offs_rev {

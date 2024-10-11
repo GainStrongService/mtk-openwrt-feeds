@@ -1,7 +1,7 @@
-From afaacba412a34baf39e58b27003d4d09516a15c2 Mon Sep 17 00:00:00 2001
+From 36d2f10c4ccbcab5c4de2c52961a13c70bcd0ad1 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 17 May 2024 15:28:06 +0800
-Subject: [PATCH 002/223] mtk: mt76: mt7996: fix amsdu information
+Subject: [PATCH 002/193] mtk: mt76: mt7996: fix amsdu information
 
 The amsdu information is common information for all bands so maintain
 it by main phy instead of calculating by each phy.
@@ -17,7 +17,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 11 insertions(+), 20 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 19c4f11c..063c45d2 100644
+index 19c4f11..063c45d 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -931,6 +931,7 @@ struct mt76_dev {
@@ -38,7 +38,7 @@ index 19c4f11c..063c45d2 100644
  
  	/* mcu_muru_stats */
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 62c03d08..a17c99a2 100644
+index 62c03d0..a17c99a 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -530,7 +530,6 @@ mt7996_tx_stats_show(struct seq_file *file, void *data)
@@ -69,7 +69,7 @@ index 62c03d08..a17c99a2 100644
  
  	return 0;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 29297c07..cfcfc3ea 100644
+index 29297c0..cfcfc3e 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2114,10 +2114,19 @@ void mt7996_mac_update_stats(struct mt7996_phy *phy)

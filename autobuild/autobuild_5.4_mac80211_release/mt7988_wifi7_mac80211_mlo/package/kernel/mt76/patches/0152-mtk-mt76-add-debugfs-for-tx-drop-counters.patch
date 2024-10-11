@@ -1,7 +1,7 @@
-From e126a0d9cd5d6a25caf5db58a5cc5edb6b22cc16 Mon Sep 17 00:00:00 2001
+From 97eb75e0679624054787ccd62655c3b542aab616 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 13 Jun 2024 17:47:13 +0800
-Subject: [PATCH 152/223] mtk: mt76: add debugfs for tx drop counters
+Subject: [PATCH 152/193] mtk: mt76: add debugfs for tx drop counters
 
 Change-Id: I1d375169cca29fb58544edfbd235ef3e058a130a
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
@@ -16,7 +16,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  7 files changed, 161 insertions(+), 12 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 3f1fb6c2..0dae40e2 100644
+index 3f1fb6c..0dae40e 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -612,12 +612,16 @@ mt76_dma_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
@@ -87,7 +87,7 @@ index 3f1fb6c2..0dae40e2 100644
  				tx_info.info, tx_info.skb, t);
  
 diff --git a/mac80211.c b/mac80211.c
-index a555bec2..93ff77be 100644
+index a555bec..93ff77b 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -417,6 +417,7 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
@@ -107,7 +107,7 @@ index a555bec2..93ff77be 100644
  	init_waitqueue_head(&dev->tx_wait);
  
 diff --git a/mt76.h b/mt76.h
-index 8e71c2ce..8e78ba86 100644
+index 8e71c2c..8e78ba8 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -849,6 +849,31 @@ struct mt76_vif {
@@ -159,7 +159,7 @@ index 8e71c2ce..8e78ba86 100644
  
  #define MT76_MAX_AMSDU_NUM 8
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index c341a553..a78ebefc 100644
+index c341a55..a78ebef 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -909,11 +909,15 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -215,10 +215,10 @@ index c341a553..a78ebefc 100644
  		dma_sync_single_for_cpu(mdev->dma_dev, tx_info->buf[1].addr,
  					tx_info->buf[1].len, DMA_TO_DEVICE);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 455beb74..8fb68880 100644
+index e0bee15..499290d 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1427,11 +1427,13 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+@@ -1426,11 +1426,13 @@ static void mt7996_tx(struct ieee80211_hw *hw,
  		      struct sk_buff *skb)
  {
  	struct mt76_phy *mphy;
@@ -232,7 +232,7 @@ index 455beb74..8fb68880 100644
  
  	if (control->sta) {
  		msta = (struct mt7996_sta *)control->sta->drv_priv;
-@@ -1503,14 +1505,18 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+@@ -1502,14 +1504,18 @@ static void mt7996_tx(struct ieee80211_hw *hw,
  		mphy = mconf->phy->mt76;
  		wcid = &mlink->wcid;
  	} else {
@@ -254,7 +254,7 @@ index 455beb74..8fb68880 100644
  }
  
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index f13f09e1..d15d403b 100644
+index f13f09e..d15d403 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -4162,6 +4162,83 @@ out:
@@ -352,7 +352,7 @@ index f13f09e1..d15d403b 100644
  
  #endif
 diff --git a/tx.c b/tx.c
-index 95c84dab..c9fda966 100644
+index 7906023..e7aba9f 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -335,8 +335,14 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,

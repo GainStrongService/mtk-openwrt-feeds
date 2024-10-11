@@ -1,7 +1,7 @@
-From 05cc12c0f48dae0a560f1eca2ad2a49f80f614bf Mon Sep 17 00:00:00 2001
+From 7d6f49bd212716b610be5cb9c8905a10d5e891f2 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 Date: Tue, 7 May 2024 15:47:23 +0800
-Subject: [PATCH 116/223] mtk: mt76: mt7996: Add support for EMLSR
+Subject: [PATCH 116/193] mtk: mt76: mt7996: Add support for EMLSR
 
 1. Register the EMLSR capability
 2. Set the EML capability of the station to firmware
@@ -19,7 +19,7 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  6 files changed, 166 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 0a4bf9b7..2daa09cc 100644
+index 0a4bf9b..2daa09c 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -629,6 +629,13 @@ struct sta_rec_tx_proc {
@@ -45,10 +45,10 @@ index 0a4bf9b7..2daa09cc 100644
  	STA_REC_TX_CAP = 0x2f,
  	STA_REC_MAX_NUM
 diff --git a/mt7996/init.c b/mt7996/init.c
-index c5c12ba0..c8eb7523 100644
+index 59ea76f..dc06fa8 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -64,6 +64,7 @@ static const struct wiphy_iftype_ext_capab mt7996_iftypes_ext_capa[] = {
+@@ -61,6 +61,7 @@ static const struct wiphy_iftype_ext_capab mt7996_iftypes_ext_capa[] = {
  		.extended_capabilities = mt7996_if_types_ext_capa,
  		.extended_capabilities_mask = mt7996_if_types_ext_capa,
  		.extended_capabilities_len = sizeof(mt7996_if_types_ext_capa),
@@ -57,7 +57,7 @@ index c5c12ba0..c8eb7523 100644
  		/* the max number of simultaneous links is defined as the
  		 * maximum number of affiliated APs minus 1.
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index ea399a0b..76f0bb7e 100644
+index ed8b07f..93c2696 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -2926,9 +2926,10 @@ mt7996_mcu_sta_eht_mld_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
@@ -137,7 +137,7 @@ index ea399a0b..76f0bb7e 100644
  void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 4815cf7b..94121471 100644
+index 4815cf7..9412147 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -411,6 +411,23 @@ enum {
@@ -174,7 +174,7 @@ index 4815cf7b..94121471 100644
  void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			    struct ieee80211_sta *sta, struct dentry *dir);
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index 84b50ab2..585c4e28 100644
+index 84b50ab..585c4e2 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -119,6 +119,13 @@ beacon_ctrl_policy[NUM_MTK_VENDOR_ATTRS_BEACON_CTRL] = {
@@ -263,7 +263,7 @@ index 84b50ab2..585c4e28 100644
  
  void mt7996_vendor_register(struct mt7996_phy *phy)
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index 834b3d08..f6fcb623 100644
+index 834b3d0..f6fcb62 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -18,6 +18,7 @@ enum mtk_nl80211_vendor_subcmds {

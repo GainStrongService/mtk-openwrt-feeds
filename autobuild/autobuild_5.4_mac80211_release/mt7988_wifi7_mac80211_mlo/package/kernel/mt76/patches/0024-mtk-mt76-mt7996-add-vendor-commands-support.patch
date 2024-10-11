@@ -1,7 +1,7 @@
-From 4ae9d91e5d5faa7600dfa6fefc331e582d74b5c9 Mon Sep 17 00:00:00 2001
+From b1f304d9bbb79080fce47c76865e7fe1141cb97a Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 13 Dec 2022 15:17:43 +0800
-Subject: [PATCH 024/223] mtk: mt76: mt7996: add vendor commands support
+Subject: [PATCH 024/193] mtk: mt76: mt7996: add vendor commands support
 
 mtk: wifi: mt76: fix muru_onoff as all enabled by default
 
@@ -52,7 +52,7 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  create mode 100644 mt7996/vendor.h
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index fcacd546..e9afc27b 100644
+index fcacd54..e9afc27 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1269,6 +1269,7 @@ enum {
@@ -72,7 +72,7 @@ index fcacd546..e9afc27b 100644
  
  enum {
 diff --git a/mt7996/Makefile b/mt7996/Makefile
-index 7bb17f44..6643c7a3 100644
+index 7bb17f4..6643c7a 100644
 --- a/mt7996/Makefile
 +++ b/mt7996/Makefile
 @@ -1,11 +1,12 @@
@@ -90,10 +90,10 @@ index 7bb17f44..6643c7a3 100644
  mt7996e-$(CONFIG_DEV_COREDUMP) += coredump.o
  mt7996e-$(CONFIG_NL80211_TESTMODE) += testmode.o
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 994d74cc..703c7af0 100644
+index 2634cc5..26c1cdf 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -380,6 +380,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+@@ -377,6 +377,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  
  	phy->slottime = 9;
  	phy->beacon_rate = -1;
@@ -101,7 +101,7 @@ index 994d74cc..703c7af0 100644
  
  	hw->sta_data_size = sizeof(struct mt7996_sta);
  	hw->vif_data_size = sizeof(struct mt7996_vif);
-@@ -632,6 +633,10 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+@@ -629,6 +630,10 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  	if (ret)
  		goto error;
  
@@ -112,7 +112,7 @@ index 994d74cc..703c7af0 100644
  	ret = mt76_register_phy(mphy, true, mt76_rates,
  				ARRAY_SIZE(mt76_rates));
  	if (ret)
-@@ -1463,6 +1468,10 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1460,6 +1465,10 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	dev->mt76.test_ops = &mt7996_testmode_ops;
  #endif
  
@@ -124,7 +124,7 @@ index 994d74cc..703c7af0 100644
  				   ARRAY_SIZE(mt76_rates));
  	if (ret)
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 789caa44..05d02af1 100644
+index 789caa4..05d02af 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -680,6 +680,11 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -140,10 +140,10 @@ index 789caa44..05d02af1 100644
  		status->flag |= RX_FLAG_8023;
  		mt7996_wed_check_ppe(dev, &dev->mt76.q_rx[q], msta, skb,
 diff --git a/mt7996/main.c b/mt7996/main.c
-index ad4cd5dd..67eab3df 100644
+index dc363f3..915b86e 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -749,6 +749,10 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -748,6 +748,10 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	mt7996_mac_wtbl_update(dev, idx,
  			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
  
@@ -155,7 +155,7 @@ index ad4cd5dd..67eab3df 100644
  	if (ret)
  		return ret;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 1d4655ed..808ea178 100644
+index baebb01..cffdd21 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1388,6 +1388,8 @@ static void
@@ -214,7 +214,7 @@ index 1d4655ed..808ea178 100644
 +}
 +#endif
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 1ed05d7e..f827de9e 100644
+index 1ed05d7..f827de9 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -754,8 +754,20 @@ enum {
@@ -248,7 +248,7 @@ index 1ed05d7e..f827de9e 100644
  };
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 2ec72496..a559c76f 100644
+index 2ec7249..a559c76 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -267,6 +267,34 @@ struct mt7996_wed_rro_session_id {
@@ -333,7 +333,7 @@ index 2ec72496..a559c76f 100644
  int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir);
  int mt7996_mcu_muru_dbg_info(struct mt7996_dev *dev, u16 item, u8 val);
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index e56ddd8f..5c54d02c 100644
+index e56ddd8..5c54d02 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -59,4 +59,91 @@ int mt7996_mcu_muru_dbg_info(struct mt7996_dev *dev, u16 item, u8 val)
@@ -429,7 +429,7 @@ index e56ddd8f..5c54d02c 100644
 +
  #endif
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
-index c30418ca..36a58ad6 100644
+index c30418c..36a58ad 100644
 --- a/mt7996/mtk_mcu.h
 +++ b/mt7996/mtk_mcu.h
 @@ -106,6 +106,21 @@ enum txpower_event {
@@ -456,7 +456,7 @@ index c30418ca..36a58ad6 100644
  #endif
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
 new file mode 100644
-index 00000000..0d6fa779
+index 0000000..0d6fa77
 --- /dev/null
 +++ b/mt7996/vendor.c
 @@ -0,0 +1,805 @@
@@ -1267,7 +1267,7 @@ index 00000000..0d6fa779
 +}
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
 new file mode 100644
-index 00000000..8aaa18ee
+index 0000000..8aaa18e
 --- /dev/null
 +++ b/mt7996/vendor.h
 @@ -0,0 +1,153 @@

@@ -1,7 +1,7 @@
-From 799a94c158a9c9df4586f8efec1cf586a7ad29d9 Mon Sep 17 00:00:00 2001
+From 1dfd2813ec62c27890085927164b4613284c1f12 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 17 May 2024 14:49:50 +0800
-Subject: [PATCH 126/223] mtk: mt76: mt7996: trigger channel calibration for
+Subject: [PATCH 126/193] mtk: mt76: mt7996: trigger channel calibration for
  DFS link after sta is associated
 
 Trigger channel calibration (set channel with switch reason = NORMAL)
@@ -18,7 +18,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 18 insertions(+), 10 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 3f93eda0..f45f6c02 100644
+index bdb1fab..161b5cb 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -82,12 +82,12 @@ int mt7996_run(struct ieee80211_hw *hw)
@@ -50,7 +50,7 @@ index 3f93eda0..f45f6c02 100644
  	if (ret)
  		goto out;
  
-@@ -2736,6 +2736,13 @@ mt7996_event_callback(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2735,6 +2735,13 @@ mt7996_event_callback(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  				next_time = min(next_time,
  						MT7996_MAX_BEACON_LOSS *
  						conf->beacon_int);
@@ -65,7 +65,7 @@ index 3f93eda0..f45f6c02 100644
  
  			ieee80211_queue_delayed_work(hw, &mvif->beacon_mon_work,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index d9d29c4e..a6f2c157 100644
+index 1f89c5f..29dc95b 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -4405,7 +4405,7 @@ int mt7996_mcu_rdd_background_enable(struct mt7996_phy *phy,
@@ -97,7 +97,7 @@ index d9d29c4e..a6f2c157 100644
  	else
  		req.switch_reason = CH_SWITCH_NORMAL;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 21be14d0..07c72d2b 100644
+index 21be14d..07c72d2 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1058,7 +1058,7 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,
@@ -110,7 +110,7 @@ index 21be14d0..07c72d2b 100644
  int mt7996_mcu_set_fixed_rate_ctrl(struct mt7996_dev *dev,
  				   void *data, u16 version);
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 799e443c..c68619cb 100644
+index 799e443..c68619c 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -550,7 +550,7 @@ mt7996_tm_dpd_prek_send_req(struct mt7996_phy *phy, struct mt7996_tm_req *req,

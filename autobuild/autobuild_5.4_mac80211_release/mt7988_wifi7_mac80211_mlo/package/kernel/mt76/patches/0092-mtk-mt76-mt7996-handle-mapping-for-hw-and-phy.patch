@@ -1,7 +1,7 @@
-From eb1ff9f088a5f55389f499e53b63b5f183025a61 Mon Sep 17 00:00:00 2001
+From e006a5bd3426c65015ad3437cc840f36e4a30c54 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 5 Dec 2023 13:56:51 +0800
-Subject: [PATCH 092/223] mtk: mt76: mt7996: handle mapping for hw and phy
+Subject: [PATCH 092/193] mtk: mt76: mt7996: handle mapping for hw and phy
 
 We've used mt7996_band_phy() to do mapping from ieee80211_hw to mt7996_phy,
 and this patch is a temporal workaround for opposite direction.
@@ -16,7 +16,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  4 files changed, 60 insertions(+), 13 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index ec73fe00..03632279 100644
+index ec73fe0..0363227 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -823,9 +823,13 @@ EXPORT_SYMBOL_GPL(mt76_has_tx_pending);
@@ -55,7 +55,7 @@ index ec73fe00..03632279 100644
  
  static void
 diff --git a/mt76.h b/mt76.h
-index 36e92dfe..9fa411cb 100644
+index 36e92df..9fa411c 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -843,6 +843,7 @@ struct mt76_vif {
@@ -83,7 +83,7 @@ index 36e92dfe..9fa411cb 100644
  mt76_get_txwi_ptr(struct mt76_dev *dev, struct mt76_txwi_cache *t)
  {
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index c4cd5bc2..f9aa0e57 100644
+index c4cd5bc..f9aa0e5 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2394,7 +2394,10 @@ void mt7996_mac_work(struct work_struct *work)
@@ -108,7 +108,7 @@ index c4cd5bc2..f9aa0e57 100644
  				      NULL)) {
  		rcu_read_unlock();
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 68234032..01c736a9 100644
+index 3f0c0ec..bfa78e3 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -173,6 +173,7 @@ static void mt7996_stop(struct ieee80211_hw *hw, bool suspend)
@@ -157,8 +157,8 @@ index 68234032..01c736a9 100644
  
  #define MT76_FILTER(_flag, _hw) do {					\
  		flags |= *total_flags & FIF_##_flag;			\
-@@ -762,12 +771,26 @@ static void mt7996_configure_filter(struct ieee80211_hw *hw,
- 			     MT_WF_RFCR_DROP_NDPA);
+@@ -761,12 +770,26 @@ static void mt7996_configure_filter(struct ieee80211_hw *hw,
+ 			     MT_WF_RFCR_DROP_CTL_RSV);
  
  	*total_flags = flags;
 -	mt76_wr(dev, MT_WF_RFCR(phy->mt76->band_idx), phy->rxfilter);
@@ -189,7 +189,7 @@ index 68234032..01c736a9 100644
  
  	mutex_unlock(&dev->mt76.mutex);
  }
-@@ -2188,7 +2211,7 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2187,7 +2210,7 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	phy->scan_chan_idx = 0;
  	mutex_unlock(&phy->dev->mt76.mutex);
  
@@ -198,7 +198,7 @@ index 68234032..01c736a9 100644
  
  	return 0;
  }
-@@ -2205,7 +2228,8 @@ mt7996_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+@@ -2204,7 +2227,8 @@ mt7996_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
  			continue;
  
  		phy = mt7996_band_phy(hw, band);
@@ -208,7 +208,7 @@ index 68234032..01c736a9 100644
  			continue;
  
  		cancel_delayed_work_sync(&phy->scan_work);
-@@ -2226,6 +2250,7 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
+@@ -2225,6 +2249,7 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
  	wiphy_info(hw->wiphy, "%s: add %u\n", __func__, conf->def.chan->hw_value);
  	mutex_lock(&phy->dev->mt76.mutex);
  

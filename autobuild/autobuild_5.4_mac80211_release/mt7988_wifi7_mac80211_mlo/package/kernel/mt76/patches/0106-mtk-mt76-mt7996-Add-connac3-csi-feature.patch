@@ -1,7 +1,7 @@
-From c16fd657d9955992ab12c22ac068c7f9d0035ed3 Mon Sep 17 00:00:00 2001
+From 3420fc6b8b3645808456e49f55180c23e3260c46 Mon Sep 17 00:00:00 2001
 From: mtk20656 <chank.chen@mediatek.com>
 Date: Sat, 20 Jan 2024 12:03:24 +0800
-Subject: [PATCH 106/223] mtk: mt76: mt7996: Add connac3 csi feature.
+Subject: [PATCH 106/193] mtk: mt76: mt7996: Add connac3 csi feature.
 
 1. format align to wifi6.
 2. add bw320 support.
@@ -24,7 +24,7 @@ Signed-off-by: mtk20656 <chank.chen@mediatek.com>
  8 files changed, 951 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index f6b472ef..11c147cd 100644
+index f6b472e..11c147c 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1066,6 +1066,7 @@ enum {
@@ -44,10 +44,10 @@ index f6b472ef..11c147cd 100644
  	MCU_UNI_CMD_RRO = 0x57,
  	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index f26687df..211ad40c 100644
+index 25ffd69..c501d19 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -807,6 +807,24 @@ error:
+@@ -804,6 +804,24 @@ error:
  	return ret;
  }
  
@@ -72,7 +72,7 @@ index f26687df..211ad40c 100644
  static void
  mt7996_unregister_phy(struct mt7996_phy *phy, enum mt76_band_id band)
  {
-@@ -818,6 +836,10 @@ mt7996_unregister_phy(struct mt7996_phy *phy, enum mt76_band_id band)
+@@ -815,6 +833,10 @@ mt7996_unregister_phy(struct mt7996_phy *phy, enum mt76_band_id band)
  	/* TODO: FIXME: temp for single wiphy support */
  	phy->mt76->hw = phy->mt76->ori_hw;
  
@@ -84,10 +84,10 @@ index f26687df..211ad40c 100644
  
  	mphy = phy->dev->mt76.phys[band];
 diff --git a/mt7996/main.c b/mt7996/main.c
-index b7096901..32a37936 100644
+index 408f848..574b0b5 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1306,6 +1306,9 @@ void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -1305,6 +1305,9 @@ void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
  	unsigned long rem = sta->valid_links ?: BIT(0);
  
@@ -98,7 +98,7 @@ index b7096901..32a37936 100644
  }
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 8034c8ab..56bb32a0 100644
+index efc0d54..56ad93a 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -658,6 +658,263 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -586,7 +586,7 @@ index 8034c8ab..56bb32a0 100644
 +}
  #endif
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index f9f04680..42e9f525 100644
+index f9f0468..42e9f52 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -1153,4 +1153,109 @@ struct fixed_rate_table_ctrl {
@@ -700,7 +700,7 @@ index f9f04680..42e9f525 100644
 +
  #endif
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 2a638a4a..eb38427b 100644
+index 2a638a4..eb38427 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -446,6 +446,47 @@ struct mt7996_air_monitor_ctrl {
@@ -780,7 +780,7 @@ index 2a638a4a..eb38427b 100644
  
  int mt7996_mcu_edcca_enable(struct mt7996_phy *phy, bool enable);
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index 64ef5515..84b50ab2 100644
+index 64ef551..84b50ab 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -119,6 +119,19 @@ beacon_ctrl_policy[NUM_MTK_VENDOR_ATTRS_BEACON_CTRL] = {
@@ -1060,7 +1060,7 @@ index 64ef5515..84b50ab2 100644
  }
  #endif
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index 32346775..834b3d08 100644
+index 3234677..834b3d0 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -7,6 +7,7 @@

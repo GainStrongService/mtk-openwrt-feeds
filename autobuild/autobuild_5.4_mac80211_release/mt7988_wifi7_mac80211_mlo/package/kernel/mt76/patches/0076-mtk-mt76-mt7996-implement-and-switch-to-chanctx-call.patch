@@ -1,7 +1,7 @@
-From f6889bcb95884df285d628c93b78fe28a5008262 Mon Sep 17 00:00:00 2001
+From 8d5864d26f56f7ca0d137271701ee443c3330489 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 6 Nov 2023 16:17:11 +0800
-Subject: [PATCH 076/223] mtk: mt76: mt7996: implement and switch to chanctx
+Subject: [PATCH 076/193] mtk: mt76: mt7996: implement and switch to chanctx
  callbacks
 
 To support MLO, chanctx callbacks are mandatory, since one VIF (MLD) could
@@ -21,10 +21,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  5 files changed, 211 insertions(+), 18 deletions(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index a188fa1d..7afbd46a 100644
+index 441300a..c6ca865 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -384,6 +384,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+@@ -381,6 +381,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  
  	hw->sta_data_size = sizeof(struct mt7996_sta);
  	hw->vif_data_size = sizeof(struct mt7996_vif);
@@ -32,7 +32,7 @@ index a188fa1d..7afbd46a 100644
  
  	wiphy->iface_combinations = if_comb;
  	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
-@@ -419,6 +420,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+@@ -416,6 +417,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  	ieee80211_hw_set(hw, SUPPORTS_RX_DECAP_OFFLOAD);
  	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
  	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
@@ -40,7 +40,7 @@ index a188fa1d..7afbd46a 100644
  
  	hw->max_tx_fragments = 4;
  
-@@ -639,6 +641,22 @@ static int mt7996_vow_init(struct mt7996_phy *phy)
+@@ -636,6 +638,22 @@ static int mt7996_vow_init(struct mt7996_phy *phy)
  	return mt7996_mcu_set_vow_feature_ctrl(phy);
  }
  
@@ -63,7 +63,7 @@ index a188fa1d..7afbd46a 100644
  static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  			       enum mt76_band_id band)
  {
-@@ -722,6 +740,8 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+@@ -719,6 +737,8 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  	if (ret)
  		goto error;
  
@@ -72,7 +72,7 @@ index a188fa1d..7afbd46a 100644
  	ret = mt7996_thermal_init(phy);
  	if (ret)
  		goto error;
-@@ -1629,6 +1649,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1626,6 +1646,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	if (ret)
  		return ret;
  
@@ -82,7 +82,7 @@ index a188fa1d..7afbd46a 100644
  	if (ret)
  		return ret;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 5c29fe7f..7cfc25ba 100644
+index 5c29fe7..7cfc25b 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2797,7 +2797,10 @@ void mt7996_scan_work(struct work_struct *work)
@@ -110,7 +110,7 @@ index 5c29fe7f..7cfc25ba 100644
  		ieee80211_queue_delayed_work(hw, &phy->scan_work, HZ / 10);
  
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 475763e4..cbd64681 100644
+index c6dfefd..54a179c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -76,6 +76,11 @@ int mt7996_run(struct ieee80211_hw *hw)
@@ -147,7 +147,7 @@ index 475763e4..cbd64681 100644
  	if (changed & (IEEE80211_CONF_CHANGE_POWER |
  		       IEEE80211_CONF_CHANGE_CHANNEL)) {
  		ret = mt7996_mcu_set_txpower_sku(phy);
-@@ -1723,6 +1713,158 @@ mt7996_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+@@ -1722,6 +1712,158 @@ mt7996_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
  	mutex_unlock(&phy->dev->mt76.mutex);
  }
  
@@ -306,7 +306,7 @@ index 475763e4..cbd64681 100644
  const struct ieee80211_ops mt7996_ops = {
  	.add_chanctx = ieee80211_emulate_add_chanctx,
  	.remove_chanctx = ieee80211_emulate_remove_chanctx,
-@@ -1777,4 +1919,10 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -1776,4 +1918,10 @@ const struct ieee80211_ops mt7996_ops = {
  	.net_fill_forward_path = mt7996_net_fill_forward_path,
  	.net_setup_tc = mt76_wed_net_setup_tc,
  #endif
@@ -318,7 +318,7 @@ index 475763e4..cbd64681 100644
 +	.switch_vif_chanctx = mt7996_switch_vif_chanctx,
  };
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 746fc223..ba53c3fc 100644
+index a54f645..b8bfcbf 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -5322,7 +5322,7 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap)
@@ -331,7 +331,7 @@ index 746fc223..ba53c3fc 100644
  		return 0;
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 87b166aa..07790257 100644
+index 87b166a..0779025 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -334,6 +334,8 @@ struct mt7996_vif {

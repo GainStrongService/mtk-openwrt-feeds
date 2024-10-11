@@ -1,7 +1,7 @@
-From 3d599c8f98348aa22fde6d3fc9b0536467a6378c Mon Sep 17 00:00:00 2001
+From bf7cfde381eaebc8e27be3ac9ceae80845ca835f Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 31 Mar 2023 11:27:24 +0800
-Subject: [PATCH 016/223] mtk: mt76: mt7996: add testmode pre-calibration
+Subject: [PATCH 016/193] mtk: mt76: mt7996: add testmode pre-calibration
  support
 
 Change-Id: If8a6cc02fa20e35f079c826e0571e8c04c3f9c7e
@@ -22,7 +22,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  12 files changed, 632 insertions(+), 23 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 5d9512d4..1d2477d6 100644
+index 5d9512d..1d2477d 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -6,27 +6,6 @@
@@ -54,7 +54,7 @@ index 5d9512d4..1d2477d6 100644
  	CHAN2G(1, 2412),
  	CHAN2G(2, 2417),
 diff --git a/mt76.h b/mt76.h
-index f6ffccac..8666ec2f 100644
+index f6ffcca..8666ec2 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -24,6 +24,27 @@
@@ -94,7 +94,7 @@ index f6ffccac..8666ec2f 100644
  
  #define MT_TM_FW_RX_COUNT	BIT(0)
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 873f59f7..c7fa7b26 100644
+index 873f59f..c7fa7b2 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1058,8 +1058,10 @@ enum {
@@ -109,7 +109,7 @@ index 873f59f7..c7fa7b26 100644
  	MCU_UNI_EVENT_PER_STA_INFO = 0x6d,
  	MCU_UNI_EVENT_ALL_STA_INFO = 0x6e,
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index cb4fb702..31b8fd1a 100644
+index cb4fb70..31b8fd1 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -12,6 +12,42 @@ static bool testmode_enable;
@@ -193,7 +193,7 @@ index cb4fb702..31b8fd1a 100644
  mt7996_eeprom_check_or_use_default(struct mt7996_dev *dev, bool use_default)
  {
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index 7f7a718f..c1cad4f9 100644
+index 7f7a718..c1cad4f 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -14,6 +14,7 @@ enum mt7996_eeprom_field {
@@ -258,7 +258,7 @@ index 7f7a718f..c1cad4f9 100644
  #define MT_EE_WIFI_CONF2_TX_PATH_BAND1		GENMASK(2, 0)
  #define MT_EE_WIFI_CONF2_TX_PATH_BAND2		GENMASK(5, 3)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 214a39d5..08534fec 100644
+index 2f3e547..914f1f9 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -725,6 +725,11 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -274,7 +274,7 @@ index 214a39d5..08534fec 100644
  		break;
  	}
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 5f911515..54b81c1e 100644
+index 5f91151..54b81c1 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -399,6 +399,9 @@ struct mt7996_dev {
@@ -306,7 +306,7 @@ index 5f911515..54b81c1e 100644
  static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
  {
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 58f0ad26..6969cba6 100644
+index 58f0ad2..6969cba 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -7,6 +7,8 @@
@@ -773,7 +773,7 @@ index 58f0ad26..6969cba6 100644
 +	.dump_precal = mt7996_tm_dump_precal,
  };
 diff --git a/mt7996/testmode.h b/mt7996/testmode.h
-index 319ef257..9bfb86f2 100644
+index 319ef25..9bfb86f 100644
 --- a/mt7996/testmode.h
 +++ b/mt7996/testmode.h
 @@ -34,6 +34,12 @@ enum bw_mapping_method {
@@ -835,7 +835,7 @@ index 319ef257..9bfb86f2 100644
  	RF_OPER_NORMAL,
  	RF_OPER_RF_TEST,
 diff --git a/testmode.c b/testmode.c
-index 44f3a5bf..cd8cb655 100644
+index 44f3a5b..cd8cb65 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -674,6 +674,18 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
@@ -858,7 +858,7 @@ index 44f3a5bf..cd8cb655 100644
  		err = -EINVAL;
  
 diff --git a/testmode.h b/testmode.h
-index 2873c903..3348d0d5 100644
+index 2873c90..3348d0d 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -220,6 +220,14 @@ enum mt76_testmode_state {
@@ -877,7 +877,7 @@ index 2873c903..3348d0d5 100644
  
  	/* keep last */
 diff --git a/tools/fields.c b/tools/fields.c
-index 055f90f3..b0122763 100644
+index 055f90f..b012276 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -11,6 +11,14 @@ static const char * const testmode_state[] = {

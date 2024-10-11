@@ -1,7 +1,7 @@
-From 93cd3c23453725f003318b5556ad09b56e3995a6 Mon Sep 17 00:00:00 2001
+From 016b60d28329d6af3b1d64b4ec4ede5d63992b6a Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 27 Jul 2023 19:35:32 +0800
-Subject: [PATCH 071/223] mtk: mt76: mt7996: support enable/disable thermal
+Subject: [PATCH 071/193] mtk: mt76: mt7996: support enable/disable thermal
  protection mechanism
 
 This commit adds a new debugfs thermal_enable to enable/disable thermal
@@ -24,7 +24,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  3 files changed, 47 insertions(+)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index a53eaa55..e5b32d33 100644
+index eab3b87..09b1daa 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -91,6 +91,7 @@ int mt7996_run(struct ieee80211_hw *hw)
@@ -36,7 +36,7 @@ index a53eaa55..e5b32d33 100644
  	ret = mt7996_mcu_set_tx_power_ctrl(phy, UNI_TXPOWER_SKU_POWER_LIMIT_CTRL,
  						dev->dbg.sku_disable ? 0 : phy->sku_limit_en);
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index eb9a5634..94735872 100644
+index eb9a563..9473587 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -490,6 +490,7 @@ struct mt7996_phy {
@@ -48,7 +48,7 @@ index eb9a5634..94735872 100644
  };
  
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 4ce4ac0d..196038d4 100644
+index 4ce4ac0..196038d 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -3127,6 +3127,49 @@ mt7996_show_rro_mib(struct seq_file *s, void *data)

@@ -1,7 +1,7 @@
-From cad5f671fef13c087e4e38058944cac48fecf479 Mon Sep 17 00:00:00 2001
+From 6bc7da4dbb67dbbf9d6e9d02918c1e7e9bbd5793 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 20 Feb 2024 10:08:01 +0800
-Subject: [PATCH 101/223] mtk: mt76: mt7996: add beacon monitoring in driver
+Subject: [PATCH 101/193] mtk: mt76: mt7996: add beacon monitoring in driver
  for mlo
 
 Add beacon monitoring in driver since mac80211 does not
@@ -38,7 +38,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 290 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index b8cf557b..1cf84fe5 100644
+index b8cf557..1cf84fe 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -559,6 +559,32 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -294,7 +294,7 @@ index b8cf557b..1cf84fe5 100644
  		   struct ieee80211_hw **hw)
  {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 6fad94b8..67948343 100644
+index 85d747d..9533de2 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -452,6 +452,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
@@ -313,7 +313,7 @@ index 6fad94b8..67948343 100644
  
  	mutex_lock(&dev->mt76.mutex);
  
-@@ -1146,6 +1148,9 @@ mt7996_mac_sta_remove_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -1145,6 +1147,9 @@ mt7996_mac_sta_remove_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
  	unsigned int link_id;
  
@@ -323,7 +323,7 @@ index 6fad94b8..67948343 100644
  	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
  		struct mt7996_bss_conf *mconf =
  			mconf_dereference_protected(mvif, link_id);
-@@ -2588,6 +2593,61 @@ out:
+@@ -2587,6 +2592,61 @@ out:
  	return ret;
  }
  
@@ -385,7 +385,7 @@ index 6fad94b8..67948343 100644
  const struct ieee80211_ops mt7996_ops = {
  	.add_chanctx = ieee80211_emulate_add_chanctx,
  	.remove_chanctx = ieee80211_emulate_remove_chanctx,
-@@ -2644,6 +2704,7 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -2643,6 +2703,7 @@ const struct ieee80211_ops mt7996_ops = {
  	.net_fill_forward_path = mt7996_net_fill_forward_path,
  	.net_setup_tc = mt76_wed_net_setup_tc,
  #endif
@@ -394,7 +394,7 @@ index 6fad94b8..67948343 100644
  	.remove_chanctx = mt7996_remove_chanctx,
  	.change_chanctx = mt7996_change_chanctx,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index c94853f2..2a638a4a 100644
+index c94853f..2a638a4 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -131,6 +131,10 @@

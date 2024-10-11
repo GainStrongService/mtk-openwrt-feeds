@@ -1,7 +1,7 @@
-From 0d130b8ba58d84007b12bd6984b94b756c5d6d3b Mon Sep 17 00:00:00 2001
+From 9ea195f63990ccc4925cf5f75f730eac744cda95 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 30 Jul 2024 19:49:39 +0800
-Subject: [PATCH 178/223] mtk: mt76: mt7996: add per-band token limit
+Subject: [PATCH 178/193] mtk: mt76: mt7996: add per-band token limit
 
 Add a threshold for per-band token count.
 The bands use the same token pool so a band cannot transmit if
@@ -21,7 +21,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  6 files changed, 40 insertions(+), 7 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 14f409ba..5d7b8c4c 100644
+index 14f409b..5d7b8c4 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -468,6 +468,7 @@ struct mt76_txwi_cache {
@@ -59,10 +59,10 @@ index 14f409ba..5d7b8c4c 100644
  struct mt76_rxwi_cache *mt76_rx_token_release(struct mt76_dev *dev, int token);
  int mt76_rx_token_consume(struct mt76_dev *dev, void *ptr,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index ae86c0eb..6e8791c8 100644
+index 3978560..e9e2ca1 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -1790,6 +1790,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1787,6 +1787,8 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	if (ret)
  		return ret;
  
@@ -72,7 +72,7 @@ index ae86c0eb..6e8791c8 100644
  	if (ret)
  		goto error;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 295bff24..ac51e27d 100644
+index 295bff2..ac51e27 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -971,7 +971,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -97,7 +97,7 @@ index 295bff24..ac51e27d 100644
  	spin_unlock_bh(&dev->mt76.token_lock);
  	idr_destroy(&dev->mt76.token);
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 8f8cd7ae..38f62d89 100644
+index 8f8cd7a..38f62d8 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -78,6 +78,7 @@
@@ -109,7 +109,7 @@ index 8f8cd7ae..38f62d89 100644
  #define MT7996_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
  #define MT7996_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 78450935..96a4a514 100644
+index 7845093..96a4a51 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2400,7 +2400,7 @@ static int mt7996_sta_info(struct seq_file *s, void *data)
@@ -142,7 +142,7 @@ index 78450935..96a4a514 100644
  	return 0;
  }
 diff --git a/tx.c b/tx.c
-index c9fda966..9bf43124 100644
+index e7aba9f..6f594fa 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -855,20 +855,29 @@ void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)

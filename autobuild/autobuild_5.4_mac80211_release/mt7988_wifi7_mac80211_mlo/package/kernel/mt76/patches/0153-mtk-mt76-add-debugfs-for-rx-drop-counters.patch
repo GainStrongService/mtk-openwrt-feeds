@@ -1,7 +1,7 @@
-From b230d11d8c61d395043c5463a780f7bcabfc7196 Mon Sep 17 00:00:00 2001
+From 7726ef490ef3be1d0d0db033116a0edb931a95f6 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 23 May 2024 02:33:47 +0800
-Subject: [PATCH 153/223] mtk: mt76: add debugfs for rx drop counters
+Subject: [PATCH 153/193] mtk: mt76: add debugfs for rx drop counters
 
 Change-Id: I23c494a80095c680cfe7765b5898fb044a4b73da
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
@@ -16,7 +16,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  7 files changed, 193 insertions(+), 16 deletions(-)
 
 diff --git a/agg-rx.c b/agg-rx.c
-index b48943c4..9875baa8 100644
+index b48943c..9875baa 100644
 --- a/agg-rx.c
 +++ b/agg-rx.c
 @@ -152,6 +152,7 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
@@ -57,7 +57,7 @@ index b48943c4..9875baa8 100644
  	}
  
 diff --git a/dma.c b/dma.c
-index 0dae40e2..81e76191 100644
+index 0dae40e..81e7619 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -251,13 +251,16 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
@@ -194,7 +194,7 @@ index 0dae40e2..81e76191 100644
  		skb_reserve(skb, q->buf_offset);
  
 diff --git a/dma.h b/dma.h
-index 3a8c2e55..718122d5 100644
+index 3a8c2e5..718122d 100644
 --- a/dma.h
 +++ b/dma.h
 @@ -93,27 +93,29 @@ mt76_dma_reset_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
@@ -234,7 +234,7 @@ index 3a8c2e55..718122d5 100644
  
  #endif
 diff --git a/mac80211.c b/mac80211.c
-index 93ff77be..6190822c 100644
+index 93ff77b..6190822 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -418,6 +418,7 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
@@ -288,7 +288,7 @@ index 93ff77be..6190822c 100644
  
  static void
 diff --git a/mt76.h b/mt76.h
-index 8e78ba86..62ae2662 100644
+index 8e78ba8..62ae266 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -188,6 +188,34 @@ enum mt76_dfs_state {
@@ -359,7 +359,7 @@ index 8e78ba86..62ae2662 100644
  
  struct mt76_dev {
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index a78ebefc..ee505a55 100644
+index a78ebef..ee505a5 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -1422,9 +1422,11 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
@@ -399,7 +399,7 @@ index a78ebefc..ee505a55 100644
  		break;
  	}
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index d15d403b..422518f5 100644
+index d15d403..422518f 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -4239,6 +4239,84 @@ out:

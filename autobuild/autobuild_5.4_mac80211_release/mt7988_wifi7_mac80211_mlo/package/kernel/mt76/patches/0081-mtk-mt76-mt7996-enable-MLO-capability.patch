@@ -1,7 +1,7 @@
-From e58436183460b0f31ba597c8dba7b839101f494f Mon Sep 17 00:00:00 2001
+From b63cdf42665f2f3a21e860b1dca4b991db4a3ec6 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 30 Nov 2023 16:31:17 +0800
-Subject: [PATCH 081/223] mtk: mt76: mt7996: enable MLO capability
+Subject: [PATCH 081/193] mtk: mt76: mt7996: enable MLO capability
 
 This is a preliminary patch to add MLO support for mt7996 chipsets.
 
@@ -12,7 +12,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  2 files changed, 42 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index f9bd4d91..8272ead2 100644
+index f9bd4d9..8272ead 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -422,6 +422,12 @@ static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
@@ -29,10 +29,10 @@ index f9bd4d91..8272ead2 100644
  }
  
 diff --git a/mt7996/init.c b/mt7996/init.c
-index f5bff109..cedadefc 100644
+index 1a3b867..8240735 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -35,7 +35,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
+@@ -32,7 +32,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
  		.limits = if_limits,
  		.n_limits = ARRAY_SIZE(if_limits),
  		.max_interfaces = MT7996_MAX_INTERFACES,
@@ -41,7 +41,7 @@ index f5bff109..cedadefc 100644
  		.beacon_int_infra_match = true,
  		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
  				       BIT(NL80211_CHAN_WIDTH_20) |
-@@ -46,6 +46,33 @@ static const struct ieee80211_iface_combination if_comb[] = {
+@@ -43,6 +43,33 @@ static const struct ieee80211_iface_combination if_comb[] = {
  	}
  };
  
@@ -75,7 +75,7 @@ index f5bff109..cedadefc 100644
  static ssize_t mt7996_thermal_temp_show(struct device *dev,
  					struct device_attribute *attr,
  					char *buf)
-@@ -419,8 +446,9 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+@@ -416,8 +443,9 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  	ieee80211_hw_set(hw, SUPPORTS_TX_ENCAP_OFFLOAD);
  	ieee80211_hw_set(hw, SUPPORTS_RX_DECAP_OFFLOAD);
  	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
@@ -86,7 +86,7 @@ index f5bff109..cedadefc 100644
  
  	hw->max_tx_fragments = 4;
  
-@@ -464,6 +492,12 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+@@ -461,6 +489,12 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  
  	wiphy->max_scan_ssids = 4;
  	wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;

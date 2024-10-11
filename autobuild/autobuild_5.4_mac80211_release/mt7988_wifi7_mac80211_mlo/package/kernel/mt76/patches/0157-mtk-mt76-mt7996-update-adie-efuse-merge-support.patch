@@ -1,7 +1,7 @@
-From b930141330014c5e7402fe75bd05e2f2a9705a81 Mon Sep 17 00:00:00 2001
+From 7f862ec237b850ed6b0e1683f46fd3b30368880d Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 14 Jun 2024 10:14:31 +0800
-Subject: [PATCH 157/223] mtk: mt76: mt7996: update adie efuse merge support
+Subject: [PATCH 157/193] mtk: mt76: mt7996: update adie efuse merge support
 
 Refactor efuse merge due to FW supporting the efuse merge mcu command
 
@@ -14,7 +14,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 153 insertions(+), 147 deletions(-)
 
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 72a21fcf..327a36b2 100644
+index 72a21fc..327a36b 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -564,146 +564,6 @@ fail:
@@ -176,7 +176,7 @@ index 72a21fcf..327a36b2 100644
  	if (ret < 0)
  		return ret;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index bad8e030..9194886b 100644
+index 534a362..27dfe29 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -4603,6 +4603,150 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag, bool sta)
@@ -352,7 +352,7 @@ index bad8e030..9194886b 100644
  
  int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *buf, u32 buf_len)
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 05b29c90..d99e9a60 100644
+index 05b29c9..d99e9a6 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -1038,6 +1038,7 @@ enum {

@@ -1,7 +1,7 @@
-From 6ae2f546b249738b3c1f3ad573dd2ce4d2020558 Mon Sep 17 00:00:00 2001
+From 32209f3efba3619f641ae5d989fb1b6aa9e43d68 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 15 May 2024 11:10:17 +0800
-Subject: [PATCH 121/223] mtk: mt76: mt7996: fix stop_tx_ba_session warning
+Subject: [PATCH 121/193] mtk: mt76: mt7996: fix stop_tx_ba_session warning
 
 ---
  mt7996/main.c | 11 +++++++----
@@ -9,10 +9,10 @@ Subject: [PATCH 121/223] mtk: mt76: mt7996: fix stop_tx_ba_session warning
  2 files changed, 13 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 3a85b025..3f93eda0 100644
+index fea73b1..bdb1fab 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1079,7 +1079,8 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
+@@ -1078,7 +1078,8 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
  				   struct ieee80211_bss_conf *conf,
  				   struct mt7996_bss_conf *mconf,
  				   struct ieee80211_link_sta *link_sta,
@@ -22,7 +22,7 @@ index 3a85b025..3f93eda0 100644
  {
  	struct ieee80211_sta *sta = link_sta->sta;
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
-@@ -1091,7 +1092,7 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
+@@ -1090,7 +1091,7 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
  	for (i = 0; i < ARRAY_SIZE(mlink->wcid.aggr); i++)
  			mt76_rx_aggr_stop(&dev->mt76, &mlink->wcid, i);
  
@@ -31,7 +31,7 @@ index 3a85b025..3f93eda0 100644
  		mt7996_mcu_teardown_mld_sta(dev, mconf, mlink);
  	else
  		mt7996_mcu_add_sta(dev, conf, mconf, link_sta, mlink, false, false);
-@@ -1205,7 +1206,8 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
+@@ -1204,7 +1205,8 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
  
  	return 0;
  error:
@@ -41,7 +41,7 @@ index 3a85b025..3f93eda0 100644
  	return ret;
  }
  
-@@ -1230,8 +1232,9 @@ mt7996_mac_sta_remove_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+@@ -1229,8 +1231,9 @@ mt7996_mac_sta_remove_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
  			link_conf_dereference_protected(vif, link_id);
  		struct ieee80211_link_sta *link_sta =
  			link_sta_dereference_protected(sta, link_id);
@@ -53,7 +53,7 @@ index 3a85b025..3f93eda0 100644
  }
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 1dcc367e..d9d29c4e 100644
+index 5279293..1f89c5f 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1740,6 +1740,9 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,

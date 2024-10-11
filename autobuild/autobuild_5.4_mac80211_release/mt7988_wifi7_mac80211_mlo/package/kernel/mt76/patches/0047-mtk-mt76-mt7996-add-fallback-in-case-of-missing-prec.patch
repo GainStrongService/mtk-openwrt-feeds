@@ -1,7 +1,7 @@
-From f516af1b0691dcf72ad4a38ce5e6c06cb94ed9be Mon Sep 17 00:00:00 2001
+From 478bf79875d21c0eac4b2c8e2e78fb951f9e80ab Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 19 Mar 2024 17:33:49 +0800
-Subject: [PATCH 047/223] mtk: mt76: mt7996: add fallback in case of missing
+Subject: [PATCH 047/193] mtk: mt76: mt7996: add fallback in case of missing
  precal data
 
 Align Wi-Fi 6 upstream changes
@@ -15,7 +15,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 22 insertions(+), 8 deletions(-)
 
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index f1c29e8d..3ec146d0 100644
+index f1c29e8..3ec146d 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -535,17 +535,31 @@ static int mt7996_eeprom_load_precal(struct mt7996_dev *dev)
@@ -57,10 +57,10 @@ index f1c29e8d..3ec146d0 100644
  
  static int mt7996_apply_cal_free_data(struct mt7996_dev *dev)
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 3421326a..eac00df0 100644
+index 92d4d6f..849a639 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -1021,7 +1021,7 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
+@@ -1018,7 +1018,7 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
  	if (ret < 0)
  		return ret;
  
@@ -70,7 +70,7 @@ index 3421326a..eac00df0 100644
  		if (ret)
  			return ret;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index ea4679dd..f02f447e 100644
+index 9376d69..2721491 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -338,7 +338,7 @@ int mt7996_set_channel(struct mt76_phy *mphy)

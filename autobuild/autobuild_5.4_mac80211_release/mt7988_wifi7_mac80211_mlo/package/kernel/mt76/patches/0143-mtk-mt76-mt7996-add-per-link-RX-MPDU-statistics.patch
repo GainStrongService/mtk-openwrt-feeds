@@ -1,7 +1,7 @@
-From 9e31f71efd5909af8d8916285f0816914fd15bac Mon Sep 17 00:00:00 2001
+From b784e9ad2ee7187b065d10c87b20a127e59346eb Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Tue, 23 Jul 2024 16:37:57 +0800
-Subject: [PATCH 143/223] mtk: mt76: mt7996: add per-link RX MPDU statistics
+Subject: [PATCH 143/193] mtk: mt76: mt7996: add per-link RX MPDU statistics
 
 Add per-link RX MPDU total/failed counts.
 
@@ -16,7 +16,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  5 files changed, 22 insertions(+)
 
 diff --git a/mt76.h b/mt76.h
-index de6f2be0..ce34cccc 100644
+index de6f2be..ce34ccc 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -340,6 +340,8 @@ struct mt76_sta_stats {
@@ -29,7 +29,7 @@ index de6f2be0..ce34cccc 100644
  	u32 rx_drops;
  	u64 rx_airtime;
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 1971c7bf..931b29eb 100644
+index 1971c7b..931b29e 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1426,6 +1426,8 @@ enum UNI_ALL_STA_INFO_TAG {
@@ -42,7 +42,7 @@ index 1971c7bf..931b29eb 100644
  };
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 39336832..966cf314 100644
+index 3933683..966cf31 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2420,6 +2420,7 @@ void mt7996_mac_work(struct work_struct *work)
@@ -54,7 +54,7 @@ index 39336832..966cf314 100644
  				if (mt7996_mcu_wa_cmd(phy->dev, MCU_WA_PARAM_CMD(QUERY), MCU_WA_PARAM_BSS_ACQ_PKT_CNT,
  				                      BSS_ACQ_PKT_CNT_BSS_BITMAP_ALL | BSS_ACQ_PKT_CNT_READ_CLR, 0))
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index ee27b5df..4a99671f 100644
+index 66f6d46..8bd2718 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -808,6 +808,16 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -75,7 +75,7 @@ index ee27b5df..4a99671f 100644
  			break;
  		}
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 389aab63..737f426d 100644
+index 389aab6..737f426 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -268,6 +268,13 @@ struct mt7996_mcu_all_sta_info_event {

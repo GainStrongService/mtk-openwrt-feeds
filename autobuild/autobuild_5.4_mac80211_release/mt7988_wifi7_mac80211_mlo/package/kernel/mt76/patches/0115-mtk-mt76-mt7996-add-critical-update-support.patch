@@ -1,7 +1,7 @@
-From d4e9a9535f8f51d6a4adabee9efc1a61b0798490 Mon Sep 17 00:00:00 2001
+From 78bfe7143b1d2e024ceff7a5171cd7e8b53ecb7e Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 23 Apr 2024 15:22:24 +0800
-Subject: [PATCH 115/223] mtk: mt76: mt7996: add critical update support
+Subject: [PATCH 115/193] mtk: mt76: mt7996: add critical update support
 
 Add critical update support
 modification: wmm configuration
@@ -30,7 +30,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  5 files changed, 208 insertions(+), 30 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 86a2fdf8..0a4bf9b7 100644
+index 86a2fdf..0a4bf9b 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1385,6 +1385,8 @@ enum {
@@ -43,7 +43,7 @@ index 86a2fdf8..0a4bf9b7 100644
  
  enum {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 0b62858b..9a265710 100644
+index 765e7d6..6e90083 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -370,6 +370,7 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
@@ -54,7 +54,7 @@ index 0b62858b..9a265710 100644
  
  	ret = mt7996_mcu_add_dev_info(phy, conf, mconf, true);
  	if (ret)
-@@ -979,7 +980,9 @@ static void mt7996_link_info_changed(struct ieee80211_hw *hw,
+@@ -978,7 +979,9 @@ static void mt7996_link_info_changed(struct ieee80211_hw *hw,
  		mconf->mt76.beacon_rates_idx =
  			mt7996_get_rates_table(hw, info, mconf, true, false);
  
@@ -65,7 +65,7 @@ index 0b62858b..9a265710 100644
  	}
  
  	if (changed & (BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
-@@ -1030,21 +1033,45 @@ mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
+@@ -1029,21 +1032,45 @@ mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
  	struct mt7996_dev *dev = mt7996_hw_dev(hw);
  	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	struct mt7996_phy *phy = mt7996_band_phy(hw, chandef->chan->band);
@@ -120,7 +120,7 @@ index 0b62858b..9a265710 100644
  	mutex_unlock(&dev->mt76.mutex);
  }
  
-@@ -2538,32 +2565,54 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
+@@ -2537,32 +2564,54 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
  			  int n_vifs,
  			  enum ieee80211_chanctx_switch_mode mode)
  {
@@ -195,7 +195,7 @@ index 0b62858b..9a265710 100644
  
  static int
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index f9ed473a..ea399a0b 100644
+index e9a1837..ed8b07f 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -375,6 +375,7 @@ mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
@@ -327,7 +327,7 @@ index f9ed473a..ea399a0b 100644
  	dev_kfree_skb(skb);
  	return mt76_mcu_skb_send_msg(&phy->dev->mt76, rskb,
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 5e217719..c39dcc3c 100644
+index 5e21771..c39dcc3 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -503,6 +503,27 @@ struct bss_bcn_mbss_tlv {
@@ -371,7 +371,7 @@ index 5e217719..c39dcc3c 100644
  					 MT7996_BEACON_UPDATE_SIZE)
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index b8699b65..4815cf7b 100644
+index b8699b6..4815cf7 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -352,6 +352,7 @@ struct mt7996_bss_conf {

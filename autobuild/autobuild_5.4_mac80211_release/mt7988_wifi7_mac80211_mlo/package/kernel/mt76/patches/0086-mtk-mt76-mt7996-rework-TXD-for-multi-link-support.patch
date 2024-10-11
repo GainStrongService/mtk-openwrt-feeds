@@ -1,7 +1,7 @@
-From ee502aed06bf89606b05b5ac3e2d89b766de7772 Mon Sep 17 00:00:00 2001
+From d6863b43e892718e59245501afd54e322ba1ecc2 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 4 Dec 2023 11:25:54 +0800
-Subject: [PATCH 086/223] mtk: mt76: mt7996: rework TXD for multi-link support
+Subject: [PATCH 086/193] mtk: mt76: mt7996: rework TXD for multi-link support
 
 This is a preliminary patch to add MLO support for mt7996 chipsets.
 
@@ -14,7 +14,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  2 files changed, 73 insertions(+), 24 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 8b682842..26878e29 100644
+index 8b68284..26878e2 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -627,9 +627,8 @@ mt7996_mac_write_txwi_8023(struct mt7996_dev *dev, __le32 *txwi,
@@ -179,7 +179,7 @@ index 8b682842..26878e29 100644
  	txp->fw.rept_wds_wcid = cpu_to_le16(sta ? wcid->idx : 0xfff);
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 38b924b5..bde3bec1 100644
+index 38b924b..bde3bec 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -835,6 +835,15 @@ mlink_dereference_protected(struct mt7996_sta *msta, u8 link_id)

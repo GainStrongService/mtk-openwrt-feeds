@@ -1,0 +1,26 @@
+From 9a0fcab618d234dfbe0e88aca8b2029bf968083b Mon Sep 17 00:00:00 2001
+From: Evelyn Tsai <evelyn.tsai@mediatek.com>
+Date: Sat, 12 Oct 2024 03:57:58 +0800
+Subject: [PATCH] Revert 'wifi: mac80211: don't use rate mask for offchannel TX
+ either'
+
+---
+ tx.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tx.c b/tx.c
+index a6b8c8f..d002cf6 100644
+--- a/tx.c
++++ b/tx.c
+@@ -357,7 +357,7 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
+ 	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, phy->band_idx);
+ 
+ 	if ((info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) ||
+-	    (info->control.flags & IEEE80211_TX_CTRL_DONT_USE_RATE_MASK))
++	    (info->control.flags & IEEE80211_TX_CTRL_SCAN_TX))
+ 		head = &wcid->tx_offchannel;
+ 	else {
+ 		if (!wcid->tx_pending.prev || !wcid->tx_pending.next) {
+-- 
+2.45.2
+

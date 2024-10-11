@@ -1,7 +1,7 @@
-From 83a66d966beb9a326c0a75641d21e562306cc8ab Mon Sep 17 00:00:00 2001
+From fce8d7b3e928e4d56389fbc3460717ce3be1cd90 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 4 Dec 2023 18:31:02 +0800
-Subject: [PATCH 089/223] mtk: mt76: mt7996: rework mac functions for
+Subject: [PATCH 089/193] mtk: mt76: mt7996: rework mac functions for
  multi-link support
 
 This is a preliminary patch to add MLO support for mt7996 chipsets.
@@ -14,7 +14,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  1 file changed, 65 insertions(+), 26 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 98cd7e3b..c4cd5bc2 100644
+index 98cd7e3..c4cd5bc 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -85,10 +85,11 @@ static int mt7996_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)

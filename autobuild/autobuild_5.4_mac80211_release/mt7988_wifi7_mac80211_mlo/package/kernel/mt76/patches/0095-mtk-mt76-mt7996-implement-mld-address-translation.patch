@@ -1,7 +1,7 @@
-From e5e8751f543d8558637b4b8438f1f2f518effc2b Mon Sep 17 00:00:00 2001
+From 8313c7414f417852ab27a3ee749204e6aa8741aa Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 7 Dec 2023 16:31:56 +0800
-Subject: [PATCH 095/223] mtk: mt76: mt7996: implement mld address translation
+Subject: [PATCH 095/193] mtk: mt76: mt7996: implement mld address translation
 
 Do the MLD to link address translation for EAPOL and management frames
 in driver.
@@ -18,7 +18,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  2 files changed, 66 insertions(+), 3 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index a30b7dfa..9c256655 100644
+index a30b7df..9c25665 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -910,6 +910,26 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -49,10 +49,10 @@ index a30b7dfa..9c256655 100644
  	for (i = 0; i < nbuf; i++) {
  		u16 len;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 9ce7c6fb..75e571b0 100644
+index f5a5f72..39aa5ee 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1316,14 +1316,56 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+@@ -1315,14 +1315,56 @@ static void mt7996_tx(struct ieee80211_hw *hw,
  
  	rcu_read_lock();
  	if (mvif && msta) {
@@ -112,7 +112,7 @@ index 9ce7c6fb..75e571b0 100644
  
  		mconf = rcu_dereference(mvif->link[link_id]);
  		mlink = rcu_dereference(msta->link[link_id]);
-@@ -1341,6 +1383,7 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+@@ -1340,6 +1382,7 @@ static void mt7996_tx(struct ieee80211_hw *hw,
  	}
  
  	mt76_tx(mphy, control->sta, wcid, skb);

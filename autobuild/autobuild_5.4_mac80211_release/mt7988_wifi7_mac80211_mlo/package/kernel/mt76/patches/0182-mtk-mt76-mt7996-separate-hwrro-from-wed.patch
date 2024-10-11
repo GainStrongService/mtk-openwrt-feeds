@@ -1,7 +1,7 @@
-From 1d7510d986c174a852a91d51415019538c4bd95b Mon Sep 17 00:00:00 2001
+From c43d67fb45091ce36aae1f3096a5b8c6cdd46891 Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Tue, 6 Aug 2024 10:06:10 +0800
-Subject: [PATCH 183/223] mtk: mt76: mt7996: separate hwrro from wed
+Subject: [PATCH 182/193] mtk: mt76: mt7996: separate hwrro from wed
 
 1. separate hwrro from wed
 2. support mt7996/mt7992 run hwrro 3.0 without wed
@@ -22,7 +22,7 @@ Signed-off-by: Rex Lu <rex.lu@mediatek.com>
  11 files changed, 617 insertions(+), 76 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 81e76191..7598823a 100644
+index 81e7619..7598823 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -231,7 +231,7 @@ mt76_dma_add_rx_buf(struct mt76_dev *dev, struct mt76_queue *q,
@@ -205,7 +205,7 @@ index 81e76191..7598823a 100644
  	.rx_reset = mt76_dma_rx_reset,
  	.kick = mt76_dma_kick_queue,
 diff --git a/dma.h b/dma.h
-index 718122d5..393be98a 100644
+index 718122d..393be98 100644
 --- a/dma.h
 +++ b/dma.h
 @@ -31,8 +31,12 @@
@@ -223,7 +223,7 @@ index 718122d5..393be98a 100644
  #define MT_DMA_WED_IND_REASON		GENMASK(15, 12)
  
 diff --git a/mac80211.c b/mac80211.c
-index 6190822c..d87aba36 100644
+index 6190822..d87aba3 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -732,6 +732,7 @@ static void mt76_rx_release_amsdu(struct mt76_phy *phy, enum mt76_rxq_id q)
@@ -246,7 +246,7 @@ index 6190822c..d87aba36 100644
  }
  
 diff --git a/mt76.h b/mt76.h
-index 5d7b8c4c..50d52776 100644
+index 5d7b8c4..50d5277 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -277,6 +277,7 @@ struct mt76_queue {
@@ -311,7 +311,7 @@ index 5d7b8c4c..50d52776 100644
  
  struct mt76_txwi_cache *
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index bbc3814d..e4b0af29 100644
+index bbc3814..e4b0af2 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
 @@ -300,7 +300,7 @@ void mt7996_dma_start(struct mt7996_dev *dev, bool reset, bool wed_reset)
@@ -482,10 +482,10 @@ index bbc3814d..e4b0af29 100644
  
  	if (!force)
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 6e8791c8..ddceddff 100644
+index e9e2ca1..9f80143 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -931,7 +931,6 @@ void mt7996_wfsys_reset(struct mt7996_dev *dev)
+@@ -928,7 +928,6 @@ void mt7996_wfsys_reset(struct mt7996_dev *dev)
  
  void mt7996_rro_hw_init(struct mt7996_dev *dev)
  {
@@ -493,7 +493,7 @@ index 6e8791c8..ddceddff 100644
  	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
  	u32 reg = MT_RRO_ADDR_ELEM_SEG_ADDR0;
  	int i;
-@@ -939,6 +938,10 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
+@@ -936,6 +935,10 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
  	if (!dev->has_rro)
  		return;
  
@@ -504,7 +504,7 @@ index 6e8791c8..ddceddff 100644
  	if (is_mt7992(&dev->mt76)) {
  		/* set emul 3.0 function */
  		mt76_wr(dev, MT_RRO_3_0_EMU_CONF,
-@@ -947,9 +950,6 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
+@@ -944,9 +947,6 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
  		mt76_wr(dev, MT_RRO_ADDR_ARRAY_BASE0,
  			dev->wed_rro.addr_elem[0].phy_addr);
  	} else {
@@ -514,7 +514,7 @@ index 6e8791c8..ddceddff 100644
  
  		/* TODO: remove line after WM has set */
  		mt76_clear(dev, WF_RRO_AXI_MST_CFG, WF_RRO_AXI_MST_CFG_DIDX_OK);
-@@ -972,18 +972,24 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
+@@ -969,18 +969,24 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
  		mt76_wr(dev, MT_RRO_ADDR_ARRAY_BASE1,
  			MT_RRO_ADDR_ARRAY_ELEM_ADDR_SEG_MODE);
  	}
@@ -550,7 +550,7 @@ index 6e8791c8..ddceddff 100644
  
  	/* particular session configure */
  	/* use max session idx + 1 as particular session id */
-@@ -1012,12 +1018,10 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
+@@ -1009,12 +1015,10 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
  	mt76_wr(dev, MT_RRO_HOST_INT_ENA,
  		MT_RRO_HOST_INT_ENA_HOST_RRO_DONE_ENA);
  
@@ -563,7 +563,7 @@ index 6e8791c8..ddceddff 100644
  	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
  	struct mt7996_wed_rro_addr *addr;
  	void *ptr;
-@@ -1026,9 +1030,6 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
+@@ -1023,9 +1027,6 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
  	if (!dev->has_rro)
  		return 0;
  
@@ -573,7 +573,7 @@ index 6e8791c8..ddceddff 100644
  	for (i = 0; i < ARRAY_SIZE(dev->wed_rro.ba_bitmap); i++) {
  		ptr = dmam_alloc_coherent(dev->mt76.dma_dev,
  					  MT7996_RRO_BA_BITMAP_CR_SIZE,
-@@ -1059,9 +1060,8 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
+@@ -1056,9 +1057,8 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
  			addr->signature = 0xff;
  			addr++;
  		}
@@ -585,7 +585,7 @@ index 6e8791c8..ddceddff 100644
  	}
  
  	for (i = 0; i < MT7996_RRO_MSDU_PG_CR_CNT; i++) {
-@@ -1093,22 +1093,15 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
+@@ -1090,22 +1090,15 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
  	mt7996_rro_hw_init(dev);
  
  	return mt7996_dma_rro_init(dev);
@@ -608,7 +608,7 @@ index 6e8791c8..ddceddff 100644
  	for (i = 0; i < ARRAY_SIZE(dev->wed_rro.ba_bitmap); i++) {
  		if (!dev->wed_rro.ba_bitmap[i].ptr)
  			continue;
-@@ -1148,12 +1141,10 @@ static void mt7996_wed_rro_free(struct mt7996_dev *dev)
+@@ -1145,12 +1138,10 @@ static void mt7996_wed_rro_free(struct mt7996_dev *dev)
  			   sizeof(struct mt7996_wed_rro_addr),
  			   dev->wed_rro.session.ptr,
  			   dev->wed_rro.session.phy_addr);
@@ -621,7 +621,7 @@ index 6e8791c8..ddceddff 100644
  	struct mt7996_dev *dev;
  	LIST_HEAD(list);
  
-@@ -1196,7 +1187,6 @@ reset:
+@@ -1193,7 +1184,6 @@ reset:
  out:
  		kfree(e);
  	}
@@ -629,7 +629,7 @@ index 6e8791c8..ddceddff 100644
  }
  
  static int mt7996_variant_type_init(struct mt7996_dev *dev)
-@@ -1848,6 +1838,10 @@ void mt7996_unregister_device(struct mt7996_dev *dev)
+@@ -1845,6 +1835,10 @@ void mt7996_unregister_device(struct mt7996_dev *dev)
  	mt7996_mcu_exit(dev);
  	mt7996_tx_token_put(dev);
  	mt7996_dma_cleanup(dev);
@@ -641,7 +641,7 @@ index 6e8791c8..ddceddff 100644
  
  	mt76_free_device(&dev->mt76);
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 58b462e8..b0b664e7 100644
+index 58b462e..b0b664e 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -1517,6 +1517,387 @@ void mt7996_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
@@ -1054,7 +1054,7 @@ index 58b462e8..b0b664e7 100644
  					    true);
  
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index ee5ee5a5..c84c1bbb 100644
+index ee5ee5a..c84c1bb 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
 @@ -654,6 +654,8 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
@@ -1067,7 +1067,7 @@ index ee5ee5a5..c84c1bbb 100644
  		.sta_event = mt7996_mac_sta_event,
  		.sta_remove = mt7996_mac_sta_remove,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 59f0be0a..b115e7dd 100644
+index 59f0be0..b115e7d 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -104,6 +104,7 @@
@@ -1152,7 +1152,7 @@ index 59f0be0a..b115e7dd 100644
  void mt7996_stats_work(struct work_struct *work);
  void mt7996_scan_work(struct work_struct *work);
 diff --git a/mt7996/pci.c b/mt7996/pci.c
-index 382b6a89..a010680f 100644
+index 382b6a8..a010680 100644
 --- a/mt7996/pci.c
 +++ b/mt7996/pci.c
 @@ -13,6 +13,9 @@
@@ -1174,7 +1174,7 @@ index 382b6a89..a010680f 100644
  	mt7996_wfsys_reset(dev);
  	hif2 = mt7996_pci_init_hif2(pdev);
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index a0b57e59..e86d5df3 100644
+index a0b57e5..e86d5df 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
 @@ -561,6 +561,7 @@ enum offs_rev {

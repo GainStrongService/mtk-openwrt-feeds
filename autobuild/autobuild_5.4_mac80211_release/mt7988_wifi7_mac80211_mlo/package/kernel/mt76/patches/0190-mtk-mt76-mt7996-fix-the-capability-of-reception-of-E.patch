@@ -1,7 +1,7 @@
-From eaaf030c560747704321c51c00e275da3d7a8217 Mon Sep 17 00:00:00 2001
+From 7ecb70d316fc12dacebec431d4349a44e72e49ea Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Tue, 3 Sep 2024 15:36:56 +0800
-Subject: [PATCH 191/223] mtk: mt76: mt7996: fix the capability of reception of
+Subject: [PATCH 190/193] mtk: mt76: mt7996: fix the capability of reception of
  EHT MU PPDU
 
 This commit includes two changes. First, enable "EHT MU PPDU With 4x
@@ -11,16 +11,15 @@ EHT LTFs" in the same element, where the previous setting of 3 in
 Bit 3-4 was incorrect.
 
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
-
 ---
  mt7996/init.c | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index f739afd2..2db4b3b5 100644
+index 604d015..00a7c8c 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -1636,21 +1636,20 @@ mt7996_init_eht_caps(struct mt7996_phy *phy, enum nl80211_band band,
+@@ -1633,21 +1633,20 @@ mt7996_init_eht_caps(struct mt7996_phy *phy, enum nl80211_band band,
  		IEEE80211_EHT_PHY_CAP3_CODEBOOK_7_5_MU_FDBK;
  
  	eht_cap_elem->phy_cap_info[4] =

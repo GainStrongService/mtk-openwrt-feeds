@@ -1,7 +1,7 @@
-From 23ce8e7268d891e3d762e1058986a5850258c89b Mon Sep 17 00:00:00 2001
+From 0afd9364fce24aefe590e88191679ca64fb48b7c Mon Sep 17 00:00:00 2001
 From: "sujuan.chen" <sujuan.chen@mediatek.com>
 Date: Thu, 12 Oct 2023 10:04:54 +0800
-Subject: [PATCH 061/223] mtk: mt76: mt7996: add SER0.5 support w/ wed3.0
+Subject: [PATCH 061/193] mtk: mt76: mt7996: add SER0.5 support w/ wed3.0
 
 Change-Id: I9b26cdbea6e8ee158a153fd153c2dea77b494f2f
 Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
@@ -18,7 +18,7 @@ Signed-off-by: sujuan.chen <sujuan.chen@mediatek.com>
  9 files changed, 146 insertions(+), 64 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index da21f641..e23b744b 100644
+index da21f64..e23b744 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -218,9 +218,9 @@ void __mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q,
@@ -53,7 +53,7 @@ index da21f641..e23b744b 100644
  	return 0;
  }
 diff --git a/dma.h b/dma.h
-index 1de5a2b2..3a8c2e55 100644
+index 1de5a2b..3a8c2e5 100644
 --- a/dma.h
 +++ b/dma.h
 @@ -83,12 +83,12 @@ int mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q,
@@ -72,7 +72,7 @@ index 1de5a2b2..3a8c2e55 100644
  		mt76_wed_dma_setup(dev, q, true);
  }
 diff --git a/mt76.h b/mt76.h
-index 2798f9e5..8bf37558 100644
+index 2798f9e..8bf3755 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -305,7 +305,7 @@ struct mt76_queue_ops {
@@ -111,7 +111,7 @@ index 2798f9e5..8bf37558 100644
  }
  
 diff --git a/mt792x_dma.c b/mt792x_dma.c
-index 5cc2d59b..c224bcc8 100644
+index 5cc2d59..c224bcc 100644
 --- a/mt792x_dma.c
 +++ b/mt792x_dma.c
 @@ -181,13 +181,13 @@ mt792x_dma_reset(struct mt792x_dev *dev, bool force)
@@ -132,7 +132,7 @@ index 5cc2d59b..c224bcc8 100644
  	mt76_tx_status_check(&dev->mt76, true);
  
 diff --git a/mt7996/dma.c b/mt7996/dma.c
-index 5d85e9ea..d9e1b17f 100644
+index 5d85e9e..d9e1b17 100644
 --- a/mt7996/dma.c
 +++ b/mt7996/dma.c
 @@ -711,21 +711,31 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
@@ -173,10 +173,10 @@ index 5d85e9ea..d9e1b17f 100644
  	mt7996_dma_enable(dev, !force);
  }
 diff --git a/mt7996/init.c b/mt7996/init.c
-index ac0ef6c1..b0c307fb 100644
+index b6bc0a8..7d0bb31 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -737,11 +737,91 @@ void mt7996_wfsys_reset(struct mt7996_dev *dev)
+@@ -734,11 +734,91 @@ void mt7996_wfsys_reset(struct mt7996_dev *dev)
  	msleep(20);
  }
  
@@ -269,7 +269,7 @@ index ac0ef6c1..b0c307fb 100644
  	struct mt7996_wed_rro_addr *addr;
  	void *ptr;
  	int i;
-@@ -801,50 +881,9 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
+@@ -798,50 +878,9 @@ static int mt7996_wed_rro_init(struct mt7996_dev *dev)
  		addr++;
  	}
  
@@ -323,7 +323,7 @@ index ac0ef6c1..b0c307fb 100644
  #else
  	return 0;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 094d6420..d58177ec 100644
+index 094d642..d58177e 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -1773,6 +1773,31 @@ mt7996_mac_restart(struct mt7996_dev *dev)
@@ -359,7 +359,7 @@ index 094d6420..d58177ec 100644
  	ret = mt7996_mcu_set_eeprom(dev);
  	if (ret)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index ed38a8ab..674f9de1 100644
+index ed38a8a..674f9de 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -723,6 +723,7 @@ extern const struct mt76_testmode_ops mt7996_testmode_ops;
@@ -371,7 +371,7 @@ index ed38a8ab..674f9de1 100644
  u64 __mt7996_get_tsf(struct ieee80211_hw *hw, struct mt7996_vif *mvif);
  int mt7996_register_device(struct mt7996_dev *dev);
 diff --git a/wed.c b/wed.c
-index 1c6d53c8..61a6badf 100644
+index 1c6d53c..61a6bad 100644
 --- a/wed.c
 +++ b/wed.c
 @@ -155,7 +155,7 @@ int mt76_wed_dma_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset)

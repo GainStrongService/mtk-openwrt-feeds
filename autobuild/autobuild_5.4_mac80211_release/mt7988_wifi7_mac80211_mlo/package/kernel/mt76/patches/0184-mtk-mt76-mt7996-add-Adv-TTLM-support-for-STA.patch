@@ -1,7 +1,7 @@
-From cbe2fdac92d74596b378fbdc027434210d31d88b Mon Sep 17 00:00:00 2001
+From 34de6317753746b67f335d3da31f46b70d505afb Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 5 Aug 2024 15:03:55 +0800
-Subject: [PATCH 185/223] mtk: mt76: mt7996: add Adv-TTLM support for STA
+Subject: [PATCH 184/193] mtk: mt76: mt7996: add Adv-TTLM support for STA
 
 1. add the handling for valid_link and TTLM changing in vif_cfg_changed
    callback.
@@ -19,7 +19,7 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  5 files changed, 92 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 69c8389f..68d7c31d 100644
+index 69c8389..68d7c31 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1327,6 +1327,7 @@ enum {
@@ -31,10 +31,10 @@ index 69c8389f..68d7c31d 100644
  
  enum {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index a7c2043f..290dff6e 100644
+index 10cfd93..eb364dc 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -957,6 +957,9 @@ static void mt7996_vif_cfg_changed(struct ieee80211_hw *hw,
+@@ -956,6 +956,9 @@ static void mt7996_vif_cfg_changed(struct ieee80211_hw *hw,
  		}
  	}
  
@@ -45,7 +45,7 @@ index a7c2043f..290dff6e 100644
  }
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 47f8b5cc..265f39a6 100644
+index 4919267..2fef4ea 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -3623,6 +3623,70 @@ int mt7996_mcu_mld_set_attlm(struct mt7996_dev *dev, struct ieee80211_vif *vif,
@@ -120,7 +120,7 @@ index 47f8b5cc..265f39a6 100644
  mt7996_mcu_beacon_cntdwn(struct ieee80211_bss_conf *conf, struct sk_buff *rskb,
  			 struct sk_buff *skb,
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index a5818f95..dab4700e 100644
+index a5818f9..dab4700 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -1244,6 +1244,28 @@ enum {
@@ -153,7 +153,7 @@ index a5818f95..dab4700e 100644
  	u8 _rsv[4];
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index b115e7dd..1e52377a 100644
+index b115e7d..1e52377 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1215,6 +1215,8 @@ int mt7996_mcu_set_vow_feature_ctrl(struct mt7996_phy *phy);

@@ -1,7 +1,7 @@
-From fe038594fb92fae539bf05f86022953810e4e1e6 Mon Sep 17 00:00:00 2001
+From 3d569a8df7ab86ada17a30c6e3a969441ff87a1e Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 22 Sep 2023 12:33:06 +0800
-Subject: [PATCH 039/223] mtk: mt76: mt7996: add zwdfs cert mode
+Subject: [PATCH 039/193] mtk: mt76: mt7996: add zwdfs cert mode
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
@@ -13,7 +13,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  5 files changed, 100 insertions(+), 12 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index c0bd2d13..9e548100 100644
+index cf7b200..b6de1b5 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -4532,18 +4532,7 @@ int mt7996_mcu_set_radio_en(struct mt7996_phy *phy, bool enable)
@@ -75,7 +75,7 @@ index c0bd2d13..9e548100 100644
  				     struct ieee80211_vif *vif,
  				     struct ieee80211_sta *sta)
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index c6bb93b3..3025f849 100644
+index c6bb93b..3025f84 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -119,6 +119,20 @@ struct mt7996_mcu_rdd_report {
@@ -100,7 +100,7 @@ index c6bb93b3..3025f849 100644
  	u8 _rsv[4];
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 32a0ffd8..e406dc87 100644
+index 32a0ffd..e406dc8 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -536,8 +536,11 @@ enum mt7996_rdd_cmd {
@@ -125,7 +125,7 @@ index 32a0ffd8..e406dc87 100644
  				     struct cfg80211_chan_def *chandef);
  int mt7996_mcu_set_fixed_rate_table(struct mt7996_phy *phy, u8 table_idx,
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index 7ab64471..ba00ef35 100644
+index 7ab6447..ba00ef3 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -108,6 +108,11 @@ rfeature_ctrl_policy[NUM_MTK_VENDOR_ATTRS_RFEATURE_CTRL] = {
@@ -187,7 +187,7 @@ index 7ab64471..ba00ef35 100644
  
  void mt7996_vendor_register(struct mt7996_phy *phy)
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index 2ee1339a..7c812f91 100644
+index 2ee1339..7c812f9 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -14,6 +14,7 @@ enum mtk_nl80211_vendor_subcmds {

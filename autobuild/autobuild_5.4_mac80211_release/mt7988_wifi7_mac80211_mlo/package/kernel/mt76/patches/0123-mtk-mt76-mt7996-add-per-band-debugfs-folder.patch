@@ -1,7 +1,7 @@
-From bfbeab14fc5c4a9caab56873328caee7fb407721 Mon Sep 17 00:00:00 2001
+From 8055630fc38101c33a667f4f1a31f6b301754130 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 16 May 2024 18:03:19 +0800
-Subject: [PATCH 123/223] mtk: mt76: mt7996: add per-band debugfs folder
+Subject: [PATCH 123/193] mtk: mt76: mt7996: add per-band debugfs folder
 
 Add per-band debugfs folder and  move upstream debugfs knob to it.
 
@@ -14,7 +14,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 42 insertions(+), 18 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 7e545f61..d2b38efb 100644
+index 7e545f6..d2b38ef 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -1073,21 +1073,49 @@ mt7996_airtime_read(struct seq_file *s, void *data)
@@ -90,10 +90,10 @@ index 7e545f61..d2b38efb 100644
  			    &fops_fw_debug_muru_disable);
  
 diff --git a/mt7996/init.c b/mt7996/init.c
-index e674361a..9a2e51f8 100644
+index 252712d..e4fd6da 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -787,7 +787,7 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+@@ -784,7 +784,7 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  			goto error;
  	}
  
@@ -102,7 +102,7 @@ index e674361a..9a2e51f8 100644
  	if (ret)
  		goto error;
  
-@@ -1728,6 +1728,14 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1725,6 +1725,14 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	if (ret)
  		return ret;
  
@@ -117,7 +117,7 @@ index e674361a..9a2e51f8 100644
  	ret = mt7996_register_phy(dev, mt7996_phy2(dev), MT_BAND1);
  	if (ret)
  		return ret;
-@@ -1752,10 +1760,6 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1749,10 +1757,6 @@ int mt7996_register_device(struct mt7996_dev *dev)
  			goto error;
  	}
  
@@ -129,7 +129,7 @@ index e674361a..9a2e51f8 100644
  	if (ret)
  		goto error;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 94121471..ef41beee 100644
+index 9412147..ef41bee 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1230,7 +1230,8 @@ int mt7996_dfs_init_radar_detector(struct mt7996_phy *phy);

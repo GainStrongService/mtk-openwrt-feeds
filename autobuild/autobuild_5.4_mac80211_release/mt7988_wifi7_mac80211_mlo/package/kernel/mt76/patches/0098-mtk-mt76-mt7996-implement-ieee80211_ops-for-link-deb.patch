@@ -1,7 +1,7 @@
-From 063ce389fe9a412cb67f97ca6d0d5143dddb22ca Mon Sep 17 00:00:00 2001
+From 6658fb63886a904eee769821de4be82eb520fa64 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 29 Dec 2023 18:37:41 +0800
-Subject: [PATCH 098/223] mtk: mt76: mt7996: implement ieee80211_ops for link
+Subject: [PATCH 098/193] mtk: mt76: mt7996: implement ieee80211_ops for link
  debugfs
 
 Add .link_sta_add_debugfs and .link_add_debugfs for per-link STA and BSS
@@ -18,7 +18,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  5 files changed, 214 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 786bdc38..ab8732dd 100644
+index 786bdc3..ab8732d 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -1294,4 +1294,205 @@ void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -228,7 +228,7 @@ index 786bdc38..ab8732dd 100644
 +}
  #endif
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index f5725b3c..b8cf557b 100644
+index f5725b3..b8cf557 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2390,10 +2390,10 @@ void mt7996_mac_work(struct work_struct *work)
@@ -245,10 +245,10 @@ index f5725b3c..b8cf557b 100644
  				if (mt7996_mcu_wa_cmd(phy->dev, MCU_WA_PARAM_CMD(QUERY), MCU_WA_PARAM_BSS_ACQ_PKT_CNT,
  				                      BSS_ACQ_PKT_CNT_BSS_BITMAP_ALL | BSS_ACQ_PKT_CNT_READ_CLR, 0))
 diff --git a/mt7996/main.c b/mt7996/main.c
-index d9cd7df1..fe5bfd72 100644
+index 906ae8e..75d55f4 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2629,6 +2629,8 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -2628,6 +2628,8 @@ const struct ieee80211_ops mt7996_ops = {
  	CFG80211_TESTMODE_DUMP(mt76_testmode_dump)
  #ifdef CONFIG_MAC80211_DEBUGFS
  	.sta_add_debugfs = mt7996_sta_add_debugfs,
@@ -258,7 +258,7 @@ index d9cd7df1..fe5bfd72 100644
  	.set_radar_background = mt7996_set_radar_background,
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index d9edba0c..9359a251 100644
+index 72b4619..c484b4f 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -621,8 +621,10 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -275,7 +275,7 @@ index d9edba0c..9359a251 100644
  		case UNI_ALL_STA_TXRX_AIRTIME:
  			wlan_idx = le16_to_cpu(res->airtime[i].wlan_idx);
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 66908ad2..c94853f2 100644
+index 66908ad..c94853f 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1146,6 +1146,11 @@ int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap);

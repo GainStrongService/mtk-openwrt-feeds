@@ -1,7 +1,7 @@
-From ce85a854c7b07de8cb560417a038a2c9870c61e5 Mon Sep 17 00:00:00 2001
+From 31d291dbd8415f4e31b083493f78bdbf6f1230e7 Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Mon, 17 Jun 2024 17:16:19 +0800
-Subject: [PATCH 162/223] mtk: mt76: mt7996: change source of per-WCID TX MPDU
+Subject: [PATCH 162/193] mtk: mt76: mt7996: change source of per-WCID TX MPDU
  statistics
 
 Change source of per-WCID TX MPDU statistics from TX-free-done event to PPDU TXS, because WCID from TX-free-done event may not represent the actually used link.
@@ -15,7 +15,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  3 files changed, 33 insertions(+), 23 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 62ae2662..c3b71cc3 100644
+index 62ae266..c3b71cc 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -364,6 +364,7 @@ struct mt76_sta_stats {
@@ -27,7 +27,7 @@ index 62ae2662..c3b71cc3 100644
  	u32 tx_failed;
  	u64 tx_airtime;
 diff --git a/mt76_connac3_mac.h b/mt76_connac3_mac.h
-index db0c29e6..ad8392cd 100644
+index db0c29e..ad8392c 100644
 --- a/mt76_connac3_mac.h
 +++ b/mt76_connac3_mac.h
 @@ -204,6 +204,11 @@ enum tx_frag_idx {
@@ -43,7 +43,7 @@ index db0c29e6..ad8392cd 100644
  #define MT_CT_INFO_COPY_HOST_TXD_ALL	BIT(1)
  #define MT_CT_INFO_MGMT_FRAME		BIT(2)
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 3cd034cd..87e671a3 100644
+index 3cd034c..87e671a 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -1218,19 +1218,9 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)

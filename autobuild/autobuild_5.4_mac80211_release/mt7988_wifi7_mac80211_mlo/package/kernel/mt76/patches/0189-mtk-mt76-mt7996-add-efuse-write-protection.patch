@@ -1,7 +1,7 @@
-From 617b4824df541129e545daa0015d43d2e625350b Mon Sep 17 00:00:00 2001
+From 5bdd94800111ac1742558a5d6e8b9daae0c24e79 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 29 Aug 2024 09:47:44 +0800
-Subject: [PATCH 190/223] mtk: mt76: mt7996: add efuse write protection
+Subject: [PATCH 189/193] mtk: mt76: mt7996: add efuse write protection
 
 Add efuse write protection in case that the user overwritten
 the FT value stored in efuse.
@@ -19,7 +19,7 @@ Change-Id: If50d6965da8d9488d44c9da77a4bfca9906da9bc
  4 files changed, 157 insertions(+), 18 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 01969464..b27b74d3 100644
+index b584a0e..cd10ee9 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -5115,13 +5115,6 @@ static int mt7996_mcu_set_cal_free_data(struct mt7996_dev *dev)
@@ -50,7 +50,7 @@ index 01969464..b27b74d3 100644
  	static const u16 *adie_offs[__MT_MAX_BAND];
  	static const u16 *eep_offs[__MT_MAX_BAND];
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index a0f2f251..592b3673 100644
+index e65d2a6..ddc44de 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -180,6 +180,29 @@ enum mt7996_eeprom_mode {
@@ -84,7 +84,7 @@ index a0f2f251..592b3673 100644
  	MT7996_COREDUMP_IDLE = 0,
  	MT7996_COREDUMP_MANUAL_WA,
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index b3692637..6f9900a6 100644
+index b369263..6e1cfcf 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -2133,6 +2133,127 @@ mt7996_tm_dump_stats(struct mt76_phy *mphy, struct sk_buff *msg)
@@ -252,7 +252,7 @@ index b3692637..6f9900a6 100644
  		ret = mt76_mcu_skb_send_msg(&dev->mt76, skb,
  					    MCU_WM_UNI_CMD(EFUSE_CTRL), true);
 diff --git a/mt7996/testmode.h b/mt7996/testmode.h
-index 5c720da7..154392dc 100644
+index 5c720da..154392d 100644
 --- a/mt7996/testmode.h
 +++ b/mt7996/testmode.h
 @@ -363,4 +363,10 @@ struct mt7996_tm_rdd_ipi_ctrl {

@@ -1,7 +1,7 @@
-From 953012de13153dbc078b6fe3cc64d6d44e2d251f Mon Sep 17 00:00:00 2001
+From b99c169ff2777a55470fc7f783776dc141358ee8 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 3 Nov 2023 21:44:45 +0800
-Subject: [PATCH 075/223] mtk: mt76: mt7996: implement and switch to hw scan
+Subject: [PATCH 075/193] mtk: mt76: mt7996: implement and switch to hw scan
  callbacks
 
 To support MLO, hw_scan callbacks are mandatory. However, the
@@ -31,7 +31,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  8 files changed, 256 insertions(+), 11 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index b08a9388..cad85f19 100644
+index b08a938..cad85f1 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -820,7 +820,7 @@ bool mt76_has_tx_pending(struct mt76_phy *phy)
@@ -52,7 +52,7 @@ index b08a9388..cad85f19 100644
  void mt76_update_survey_active_time(struct mt76_phy *phy, ktime_t time)
  {
 diff --git a/mt76.h b/mt76.h
-index aad7f557..36e92dfe 100644
+index aad7f55..36e92df 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -1483,6 +1483,8 @@ void mt76_release_buffered_frames(struct ieee80211_hw *hw,
@@ -65,10 +65,10 @@ index aad7f557..36e92dfe 100644
  void mt76_update_survey_active_time(struct mt76_phy *phy, ktime_t time);
  int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 48798711..a188fa1d 100644
+index 77d4eae..441300a 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -459,6 +459,9 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+@@ -456,6 +456,9 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
  
  	wiphy->available_antennas_rx = phy->mt76->antenna_mask;
  	wiphy->available_antennas_tx = phy->mt76->antenna_mask;
@@ -78,7 +78,7 @@ index 48798711..a188fa1d 100644
  }
  
  static void
-@@ -679,6 +682,7 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+@@ -676,6 +679,7 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  	mphy->dev->phys[band] = mphy;
  
  	INIT_DELAYED_WORK(&mphy->mac_work, mt7996_mac_work);
@@ -86,7 +86,7 @@ index 48798711..a188fa1d 100644
  
  	ret = mt7996_eeprom_parse_hw_cap(dev, phy);
  	if (ret)
-@@ -1594,6 +1598,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1591,6 +1595,7 @@ int mt7996_register_device(struct mt7996_dev *dev)
  	dev->mt76.phy.priv = &dev->phy;
  	INIT_WORK(&dev->rc_work, mt7996_mac_sta_rc_work);
  	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt7996_mac_work);
@@ -95,7 +95,7 @@ index 48798711..a188fa1d 100644
  	INIT_LIST_HEAD(&dev->sta_rc_list);
  	INIT_LIST_HEAD(&dev->twt_list);
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 4ea44f8d..5c29fe7f 100644
+index 4ea44f8..5c29fe7 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2705,3 +2705,144 @@ void mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
@@ -244,7 +244,7 @@ index 4ea44f8d..5c29fe7f 100644
 +	ieee80211_queue_delayed_work(hw, &phy->scan_work, duration);
 +}
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 3a274ba7..475763e4 100644
+index 544be33..c6dfefd 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -312,6 +312,8 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
@@ -345,7 +345,7 @@ index 3a274ba7..475763e4 100644
  	}
  
  	if (changed & (IEEE80211_CONF_CHANGE_POWER |
-@@ -1637,6 +1687,42 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -1636,6 +1686,42 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  
  #endif
  
@@ -388,7 +388,7 @@ index 3a274ba7..475763e4 100644
  const struct ieee80211_ops mt7996_ops = {
  	.add_chanctx = ieee80211_emulate_add_chanctx,
  	.remove_chanctx = ieee80211_emulate_remove_chanctx,
-@@ -1659,8 +1745,8 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -1658,8 +1744,8 @@ const struct ieee80211_ops mt7996_ops = {
  	.ampdu_action = mt7996_ampdu_action,
  	.set_rts_threshold = mt7996_set_rts_threshold,
  	.wake_tx_queue = mt76_wake_tx_queue,
@@ -400,7 +400,7 @@ index 3a274ba7..475763e4 100644
  	.get_txpower = mt76_get_txpower,
  	.channel_switch_beacon = mt7996_channel_switch_beacon,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index d559df86..746fc223 100644
+index a63a370..a54f645 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -3786,7 +3786,8 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag)
@@ -414,7 +414,7 @@ index d559df86..746fc223 100644
  	else if (!cfg80211_reg_can_beacon(phy->mt76->hw->wiphy, chandef,
  					  NL80211_IFTYPE_AP))
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index 14c70915..1fcca23c 100644
+index 14c7091..1fcca23 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
 @@ -657,7 +657,7 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
@@ -427,7 +427,7 @@ index 14c70915..1fcca23c 100644
  	struct mt7996_dev *dev;
  	struct mt76_dev *mdev;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 4e99830f..87b166aa 100644
+index 4e99830..87b166a 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -460,6 +460,13 @@ struct mt7996_phy {

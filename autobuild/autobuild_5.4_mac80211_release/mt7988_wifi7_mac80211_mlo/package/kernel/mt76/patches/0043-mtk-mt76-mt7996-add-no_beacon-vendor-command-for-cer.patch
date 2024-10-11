@@ -1,7 +1,7 @@
-From d75372c3491e32a67af73ce130cd36f03af82d51 Mon Sep 17 00:00:00 2001
+From 241f99ad85a20ef4a8a1c46203e853f14e62908c Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Wed, 22 Nov 2023 22:42:09 +0800
-Subject: [PATCH 043/223] mtk: mt76: mt7996: add no_beacon vendor command for
+Subject: [PATCH 043/193] mtk: mt76: mt7996: add no_beacon vendor command for
  cert
 
 Add the vendor command to disable/enable beacon
@@ -22,7 +22,7 @@ Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
  4 files changed, 65 insertions(+)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 87322283..9431f878 100644
+index 0226139..5352e4b 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -5136,4 +5136,15 @@ void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
@@ -42,7 +42,7 @@ index 87322283..9431f878 100644
 +}
  #endif
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 981f496e..f6e7fbdd 100644
+index 981f496..f6e7fbd 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -866,6 +866,7 @@ void mt7996_set_wireless_amsdu(struct ieee80211_hw *hw, u8 en);
@@ -54,7 +54,7 @@ index 981f496e..f6e7fbdd 100644
  
  int mt7996_mcu_edcca_enable(struct mt7996_phy *phy, bool enable);
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index ba00ef35..31688c37 100644
+index ba00ef3..31688c3 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -113,6 +113,11 @@ background_radar_ctrl_policy[NUM_MTK_VENDOR_ATTRS_BACKGROUND_RADAR_CTRL] = {
@@ -120,7 +120,7 @@ index ba00ef35..31688c37 100644
  
  void mt7996_vendor_register(struct mt7996_phy *phy)
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index 7c812f91..0d1ef322 100644
+index 7c812f9..0d1ef32 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -16,6 +16,7 @@ enum mtk_nl80211_vendor_subcmds {

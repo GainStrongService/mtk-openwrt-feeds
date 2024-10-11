@@ -1,7 +1,7 @@
-From bd12a6bbc6783a69d6ab5630b7b7ffda53da88d5 Mon Sep 17 00:00:00 2001
+From dc77f50b68d7901f245533fefae5ad8cf8858710 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 1 Apr 2024 17:00:21 +0800
-Subject: [PATCH 104/223] mtk: mt76: mt7996: enable ampdu limit to avoid BA
+Subject: [PATCH 104/193] mtk: mt76: mt7996: enable ampdu limit to avoid BA
  bound issue
 
 [Description]
@@ -34,7 +34,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 95 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 1dcd1696..f6b472ef 100644
+index 1dcd169..f6b472e 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -834,6 +834,7 @@ enum {
@@ -46,7 +46,7 @@ index 1dcd1696..f6b472ef 100644
  };
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 54b0272c..8034c8ab 100644
+index 511ab2d..efc0d54 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1349,6 +1349,85 @@ mt7996_mcu_sta_ba(struct mt7996_dev *dev, struct mt76_vif *mvif,
@@ -157,7 +157,7 @@ index 54b0272c..8034c8ab 100644
  
  	return 0;
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 9903d88e..f9f04680 100644
+index 9903d88..f9f0468 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -573,6 +573,13 @@ struct sta_rec_ba_uni {

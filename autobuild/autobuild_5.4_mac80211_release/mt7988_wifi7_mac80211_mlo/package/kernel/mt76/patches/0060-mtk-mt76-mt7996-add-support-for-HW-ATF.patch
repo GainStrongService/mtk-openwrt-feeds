@@ -1,7 +1,7 @@
-From e8d00b434ed9f3e4ac5bc4aa5486331bd948a4c3 Mon Sep 17 00:00:00 2001
+From b10e26c99f3def190cae36edcbb48170813b43bd Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Mon, 11 Sep 2023 16:35:15 +0800
-Subject: [PATCH 060/223] mtk: mt76: mt7996: add support for HW-ATF
+Subject: [PATCH 060/193] mtk: mt76: mt7996: add support for HW-ATF
 
 ---
  mt7996/debugfs.c |  90 ++++++++++++++++
@@ -13,7 +13,7 @@ Subject: [PATCH 060/223] mtk: mt76: mt7996: add support for HW-ATF
  6 files changed, 475 insertions(+), 26 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index e328a056..0ef8fee6 100644
+index e328a05..0ef8fee 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -927,6 +927,91 @@ static const struct file_operations mt7996_efuse_ops = {
@@ -121,10 +121,10 @@ index e328a056..0ef8fee6 100644
  	if (phy->mt76->cap.has_5ghz) {
  		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index f6cddac1..ac0ef6c1 100644
+index f492547..b6bc0a8 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -575,6 +575,37 @@ int mt7996_txbf_init(struct mt7996_dev *dev)
+@@ -572,6 +572,37 @@ int mt7996_txbf_init(struct mt7996_dev *dev)
  	return mt7996_mcu_set_txbf(dev, BF_HW_EN_UPDATE);
  }
  
@@ -162,7 +162,7 @@ index f6cddac1..ac0ef6c1 100644
  static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  			       enum mt76_band_id band)
  {
-@@ -647,6 +678,12 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
+@@ -644,6 +675,12 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
  	if (ret)
  		goto error;
  
@@ -175,7 +175,7 @@ index f6cddac1..ac0ef6c1 100644
  	ret = mt7996_init_debugfs(phy);
  	if (ret)
  		goto error;
-@@ -1493,6 +1530,12 @@ int mt7996_register_device(struct mt7996_dev *dev)
+@@ -1490,6 +1527,12 @@ int mt7996_register_device(struct mt7996_dev *dev)
  
  	dev->recovery.hw_init_done = true;
  
@@ -189,7 +189,7 @@ index f6cddac1..ac0ef6c1 100644
  	if (ret)
  		goto error;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 1c0c2796..094d6420 100644
+index 1c0c279..094d642 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -103,6 +103,7 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
@@ -220,7 +220,7 @@ index 1c0c2796..094d6420 100644
  
  		/* get signal strength of resp frames (CTS/BA/ACK) */
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 6b7a5372..6b78357d 100644
+index b59ede9..6c27360 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -2230,34 +2230,37 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev, struct ieee80211_vif *vif,
@@ -514,7 +514,7 @@ index 6b7a5372..6b78357d 100644
  void mt7996_set_wireless_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
  {
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 7077a664..c55fb527 100644
+index 7077a66..c55fb52 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -965,6 +965,7 @@ enum {
@@ -526,7 +526,7 @@ index 7077a664..c55fb527 100644
  	UNI_VOW_RX_AT_AIRTIME_CLR_EN = 0x0e,
  	UNI_VOW_RED_ENABLE = 0x18,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 8d222a0c..ed38a8ab 100644
+index 8d222a0..ed38a8a 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -117,6 +117,12 @@

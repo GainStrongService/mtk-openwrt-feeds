@@ -1,7 +1,7 @@
-From 17af6c5607c9b5191323d600c1fa7456b8741830 Mon Sep 17 00:00:00 2001
+From 0b1c543146b42ab542e1195b869e5b32957eb2da Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 21 Sep 2023 00:52:46 +0800
-Subject: [PATCH 031/223] mtk: mt76: mt7996: support dup wtbl
+Subject: [PATCH 031/193] mtk: mt76: mt7996: support dup wtbl
 
 Change-Id: I14ba41ace8341c23c1cfb6e9c4fbb2d5e93a5714
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
@@ -12,10 +12,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  3 files changed, 25 insertions(+)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 703c7af0..3421326a 100644
+index 26c1cdf..92d4d6f 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -689,6 +689,7 @@ static void mt7996_init_work(struct work_struct *work)
+@@ -686,6 +686,7 @@ static void mt7996_init_work(struct work_struct *work)
  	mt7996_mcu_set_eeprom(dev);
  	mt7996_mac_init(dev);
  	mt7996_txbf_init(dev);
@@ -24,7 +24,7 @@ index 703c7af0..3421326a 100644
  
  void mt7996_wfsys_reset(struct mt7996_dev *dev)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 356935b2..7bc5504e 100644
+index 356935b..7bc5504 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -844,6 +844,7 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir);
@@ -36,7 +36,7 @@ index 356935b2..7bc5504e 100644
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index dbdf8d80..ea4e5bf2 100644
+index dbdf8d8..ea4e5bf 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -257,4 +257,27 @@ void mt7996_mcu_rx_sr_event(struct mt7996_dev *dev, struct sk_buff *skb)

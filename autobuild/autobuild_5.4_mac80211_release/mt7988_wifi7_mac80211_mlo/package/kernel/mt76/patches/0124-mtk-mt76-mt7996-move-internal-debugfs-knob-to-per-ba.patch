@@ -1,7 +1,7 @@
-From 4a9412a2376d1a0c1c642cc2dea242b059a7463d Mon Sep 17 00:00:00 2001
+From 60bad0ddca997fdc6e0a235ded2def0fdb720b10 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 16 May 2024 18:04:28 +0800
-Subject: [PATCH 124/223] mtk: mt76: mt7996: move internal debugfs knob to
+Subject: [PATCH 124/193] mtk: mt76: mt7996: move internal debugfs knob to
  per-band folder
 
 Change-Id: I03efc222cd57035aa089babbc94c70e807494763
@@ -13,7 +13,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 44 insertions(+), 81 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index d2b38efb..9a62dfda 100644
+index d2b38ef..9a62dfd 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -1105,6 +1105,9 @@ int mt7996_init_band_debugfs(struct mt7996_phy *phy)
@@ -36,7 +36,7 @@ index d2b38efb..9a62dfda 100644
  
  	return 0;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index ef41beee..21be14d0 100644
+index ef41bee..21be14d 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1290,7 +1290,8 @@ enum edcca_bw_id {
@@ -50,7 +50,7 @@ index ef41beee..21be14d0 100644
  int mt7996_mcu_set_sr_enable(struct mt7996_phy *phy, u8 action, u64 val, bool set);
  void mt7996_mcu_rx_sr_event(struct mt7996_dev *dev, struct sk_buff *skb);
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 0cf48193..06fa83bb 100644
+index 0cf4819..06fa83b 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -14,13 +14,14 @@

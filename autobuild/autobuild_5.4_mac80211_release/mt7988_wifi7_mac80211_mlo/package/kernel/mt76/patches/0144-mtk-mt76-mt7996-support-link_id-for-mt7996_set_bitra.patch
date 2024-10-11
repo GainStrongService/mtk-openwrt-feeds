@@ -1,7 +1,7 @@
-From cd89b66b8dac6cbb4569d61c7f23b06692410adf Mon Sep 17 00:00:00 2001
+From 0cd3a2d760fa93dac064a2d44770a1742d797dfb Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Fri, 7 Jun 2024 13:23:55 +0800
-Subject: [PATCH 144/223] mtk: mt76: mt7996: support link_id for
+Subject: [PATCH 144/193] mtk: mt76: mt7996: support link_id for
  mt7996_set_bitrate_mask
 
 Add support new argument link_id for set_bitrate_mask within
@@ -15,10 +15,10 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  2 files changed, 31 insertions(+), 8 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 380a6ca0..118c7d67 100644
+index ad35b65..5044e89 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1899,17 +1899,21 @@ static void mt7996_sta_rc_work(void *data, struct ieee80211_sta *sta)
+@@ -1898,17 +1898,21 @@ static void mt7996_sta_rc_work(void *data, struct ieee80211_sta *sta)
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
  	struct mt7996_link_sta *mlink;
  	struct mt7996_dev *dev = msta->vif->dev;
@@ -43,7 +43,7 @@ index 380a6ca0..118c7d67 100644
  	rcu_read_unlock();
  }
  
-@@ -1921,6 +1925,10 @@ static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
+@@ -1920,6 +1924,10 @@ static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
  	struct mt7996_phy *phy = mt7996_hw_phy(hw);
  	struct mt7996_dev *dev = phy->dev;
@@ -54,7 +54,7 @@ index 380a6ca0..118c7d67 100644
  
  	if (!msta->vif) {
  		dev_warn(dev->mt76.dev, "Un-initialized STA %pM wcid %d in rc_work\n",
-@@ -1928,22 +1936,32 @@ static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
+@@ -1927,22 +1935,32 @@ static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
  		return;
  	}
  
@@ -91,7 +91,7 @@ index 380a6ca0..118c7d67 100644
  	mconf->bitrate_mask = *mask;
  	mutex_unlock(&dev->mt76.mutex);
  
-@@ -1955,7 +1973,7 @@ mt7996_set_bitrate_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1954,7 +1972,7 @@ mt7996_set_bitrate_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	 * - multiple rates: if it's not in range format i.e 0-{7,8,9} for VHT
  	 * then multiple MCS setting (MCS 4,5,6) is not supported.
  	 */
@@ -101,7 +101,7 @@ index 380a6ca0..118c7d67 100644
  
  	return 0;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index d97df22f..ccea70af 100644
+index d97df22..ccea70a 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -445,6 +445,11 @@ struct mt7996_wed_rro_session_id {

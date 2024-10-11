@@ -1,7 +1,7 @@
-From 3ee40687fd7064508306f1008c14433ccf7253d4 Mon Sep 17 00:00:00 2001
+From 28016b68a4afd015b5acc5891fc27a0a81904733 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 4 Jan 2024 19:53:37 +0800
-Subject: [PATCH 072/223] mtk: mt76: mt7996: support thermal recal debug
+Subject: [PATCH 072/193] mtk: mt76: mt7996: support thermal recal debug
  command
 
 Add support thermal recal debug command.
@@ -24,7 +24,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  4 files changed, 40 insertions(+)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index c9cea5bb..11a1224a 100644
+index c9cea5b..11a1224 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1302,6 +1302,7 @@ enum {
@@ -36,7 +36,7 @@ index c9cea5bb..11a1224a 100644
  	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
  	MCU_UNI_CMD_PER_STA_INFO = 0x6d,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 94735872..82ff4e99 100644
+index 9473587..82ff4e9 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1037,6 +1037,7 @@ void mt7996_mcu_set_cert(struct mt7996_phy *phy, u8 type);
@@ -48,7 +48,7 @@ index 94735872..82ff4e99 100644
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 196038d4..bc9a0f04 100644
+index 196038d..bc9a0f0 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -3170,6 +3170,22 @@ out:
@@ -83,7 +83,7 @@ index 196038d4..bc9a0f04 100644
  	return 0;
  }
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index 967ee874..809181e0 100644
+index 967ee87..809181e 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -1343,4 +1343,25 @@ int mt7996_mcu_set_vow_drr_dbg(struct mt7996_dev *dev, u32 val)

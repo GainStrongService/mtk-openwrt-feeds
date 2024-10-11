@@ -1,7 +1,7 @@
-From 63a51fd94d291a40f0514580c8f75f5e80d80886 Mon Sep 17 00:00:00 2001
+From bcb9246aadcdac7728bb7cce26e93a275f6eae23 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Fri, 19 May 2023 14:56:07 +0800
-Subject: [PATCH 025/223] mtk: mt76: mt7996: add debugfs for fw coredump.
+Subject: [PATCH 025/193] mtk: mt76: mt7996: add debugfs for fw coredump.
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
@@ -12,7 +12,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  4 files changed, 56 insertions(+), 5 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 9671c15d..1f4bad62 100644
+index 9671c15..1f4bad6 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -84,6 +84,8 @@ mt7996_sys_recovery_set(struct file *file, const char __user *user_buf,
@@ -64,7 +64,7 @@ index 9671c15d..1f4bad62 100644
  	desc += scnprintf(buff + desc, bufsz - desc,
  			  "\nlet's dump firmware SER statistics...\n");
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 05d02af1..e9f3942f 100644
+index 05d02af..e9f3942 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2101,15 +2101,36 @@ void mt7996_mac_dump_work(struct work_struct *work)
@@ -116,7 +116,7 @@ index 05d02af1..e9f3942f 100644
  	}
  
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index f827de9e..3e9364de 100644
+index f827de9..3e9364d 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -958,7 +958,11 @@ enum {
@@ -132,7 +132,7 @@ index f827de9e..3e9364de 100644
  	UNI_CMD_SER_ENABLE = 1,
  	UNI_CMD_SER_SET,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index a559c76f..edd2ce33 100644
+index a559c76..edd2ce3 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -147,6 +147,14 @@ enum mt7996_fem_type {

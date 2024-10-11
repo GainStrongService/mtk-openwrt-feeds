@@ -1,7 +1,7 @@
-From bd67084cff9aa21fe1b714ebcfe771aad0286e11 Mon Sep 17 00:00:00 2001
+From bb4be1811310546534aa2767ef5aaed73322507c Mon Sep 17 00:00:00 2001
 From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Date: Thu, 13 Jun 2024 17:27:03 +0800
-Subject: [PATCH 149/223] mtk: mt76: mt7996: record RSSI and SNR
+Subject: [PATCH 149/193] mtk: mt76: mt7996: record RSSI and SNR
 
 RSSI and SNR information were incomplete.
 - RSSI: per-antenna ACK-frame RSSI was not reported.
@@ -18,7 +18,7 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  4 files changed, 70 insertions(+), 32 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 19484081..c341a553 100644
+index 1948408..c341a55 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -493,6 +493,13 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -45,7 +45,7 @@ index 19484081..c341a553 100644
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_ADM_STAT);
  					mt7996_mcu_get_all_sta_info(mdev, UNI_ALL_STA_TXRX_MSDU_COUNT);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 94746005..db975daa 100644
+index d8001de..f35a83b 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -5817,14 +5817,15 @@ int mt7996_mcu_set_rro(struct mt7996_dev *dev, u16 tag, u16 val)
@@ -176,7 +176,7 @@ index 94746005..db975daa 100644
  
  	return ret;
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 9b29dc29..20eaf20d 100644
+index 9b29dc2..20eaf20 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -202,7 +202,13 @@ struct mt7996_mcu_mib {
@@ -203,7 +203,7 @@ index 9b29dc29..20eaf20d 100644
  } __packed;
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 0b3df44a..ee43c9e0 100644
+index 0b3df44..ee43c9e 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -318,9 +318,15 @@ struct mt7996_link_sta {

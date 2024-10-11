@@ -1,7 +1,7 @@
-From 5538043f91de86efa859432e4473f020bdcd23c3 Mon Sep 17 00:00:00 2001
+From 8f63a61593cf03073c4c4b499a8ddcdc8e14d81f Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 20 Jun 2024 10:55:07 +0800
-Subject: [PATCH 150/223] mtk: mt76: mt7996: support find the mt7996_phy by
+Subject: [PATCH 150/193] mtk: mt76: mt7996: support find the mt7996_phy by
  link_id for vendor command
 
 Add support to find the corresponding phy by link_id. This commit is for
@@ -22,7 +22,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  4 files changed, 30 insertions(+), 18 deletions(-)
 
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index ee43c9e0..b0d9b0bd 100644
+index ee43c9e..b0d9b0b 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1330,11 +1330,12 @@ int mt7996_mcu_set_txbf_internal(struct mt7996_phy *phy, u8 action, int idx, boo
@@ -41,7 +41,7 @@ index ee43c9e0..b0d9b0bd 100644
  void mt7996_mcu_set_nusers_ofdma(struct mt7996_phy *phy, u8 type, u8 ofdma_user_cnt);
  void mt7996_mcu_set_cert(struct mt7996_phy *phy, u8 type);
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 9d8c1942..f13f09e1 100644
+index 9d8c194..f13f09e 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2928,7 +2928,7 @@ mt7996_bf_txsnd_info_set(struct file *file,
@@ -54,7 +54,7 @@ index 9d8c1942..f13f09e1 100644
  	if (ret) return -EFAULT;
  
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index 7cf4b2be..c87daf8e 100644
+index 7cf4b2b..c87daf8 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -352,7 +352,7 @@ int mt7996_mcu_set_txbf_internal(struct mt7996_phy *phy, u8 action, int idx, boo
@@ -134,7 +134,7 @@ index 7cf4b2be..c87daf8e 100644
  		return 0;
  	}
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index e929f812..ed7c1322 100644
+index e929f81..ed7c132 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -866,12 +866,13 @@ static int mt7996_vendor_rfeature_ctrl(struct wiphy *wiphy,

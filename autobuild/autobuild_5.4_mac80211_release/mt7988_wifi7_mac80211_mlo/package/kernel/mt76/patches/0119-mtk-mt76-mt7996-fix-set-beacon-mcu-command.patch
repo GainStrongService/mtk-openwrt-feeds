@@ -1,7 +1,7 @@
-From 50cf21c286aa55676fa5a341781c5e72aa4758f5 Mon Sep 17 00:00:00 2001
+From a057701d35443223049fcd9d3d79d8fcfc6dee2f Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Tue, 14 May 2024 10:52:43 +0800
-Subject: [PATCH 119/223] mtk: mt76: mt7996: fix set beacon mcu command
+Subject: [PATCH 119/193] mtk: mt76: mt7996: fix set beacon mcu command
 
 When stopping AP, mac80211 frees beacon template before it calls
 driver's stop_ap operation. In other words, on the path of stopping
@@ -19,7 +19,7 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 15 insertions(+), 11 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 76f0bb7e..1dcc367e 100644
+index 93c2696..5279293 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -3384,7 +3384,7 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,

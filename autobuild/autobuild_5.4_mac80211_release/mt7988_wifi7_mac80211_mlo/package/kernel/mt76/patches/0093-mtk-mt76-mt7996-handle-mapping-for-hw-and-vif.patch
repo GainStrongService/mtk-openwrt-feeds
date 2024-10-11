@@ -1,7 +1,7 @@
-From d1ceb708475e11cf159886d4c9e6ce78c4d3030d Mon Sep 17 00:00:00 2001
+From abadd35e16e05493cadfadde59956327312b762d Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 8 Dec 2023 18:08:13 +0800
-Subject: [PATCH 093/223] mtk: mt76: mt7996: handle mapping for hw and vif
+Subject: [PATCH 093/193] mtk: mt76: mt7996: handle mapping for hw and vif
 
 We have several temporal workarounds for ieee80211_hw and mt76_phy
 mappings. For legacy MBSS cases, we also need a method to do the
@@ -24,7 +24,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  9 files changed, 46 insertions(+), 9 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 38701c71..3f1fb6c2 100644
+index 38701c7..3f1fb6c 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -685,7 +685,7 @@ free:
@@ -37,7 +37,7 @@ index 38701c71..3f1fb6c2 100644
  	ieee80211_tx_status_ext(hw, &status);
  	spin_unlock_bh(&dev->rx_lock);
 diff --git a/mac80211.c b/mac80211.c
-index 03632279..b1af346a 100644
+index 0363227..b1af346 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -1546,7 +1546,7 @@ void mt76_wcid_cleanup(struct mt76_dev *dev, struct mt76_wcid *wcid)
@@ -50,7 +50,7 @@ index 03632279..b1af346a 100644
  	}
  }
 diff --git a/mt76.h b/mt76.h
-index 9fa411cb..2dea07a3 100644
+index 9fa411c..2dea07a 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -567,6 +567,9 @@ struct mt76_driver_ops {
@@ -88,7 +88,7 @@ index 9fa411cb..2dea07a3 100644
  }
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index f9aa0e57..a48e4f44 100644
+index f9aa0e5..a48e4f4 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2857,13 +2857,23 @@ static void mt7996_scan_check_sta(void *data, struct ieee80211_sta *sta)
@@ -133,7 +133,7 @@ index f9aa0e57..a48e4f44 100644
 +	}
 +}
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 01c736a9..cabd5729 100644
+index bfa78e3..02b6798 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -444,6 +444,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
@@ -145,7 +145,7 @@ index 01c736a9..cabd5729 100644
  
  	ret = mt7996_add_bss_conf(phy, vif, &vif->bss_conf);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index edaf8814..e7ee970b 100644
+index f4493c9..3ecaa0d 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -2955,11 +2955,11 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
@@ -163,7 +163,7 @@ index edaf8814..e7ee970b 100644
  
  	if (!skb) {
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index 8ac1b12a..ee5ee5a5 100644
+index 8ac1b12..ee5ee5a 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
 @@ -659,6 +659,7 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
@@ -175,7 +175,7 @@ index 8ac1b12a..ee5ee5a5 100644
  	struct mt7996_dev *dev;
  	struct mt76_dev *mdev;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index f83308de..9dd4d478 100644
+index f83308d..9dd4d47 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -355,6 +355,7 @@ struct mt7996_vif {
@@ -196,7 +196,7 @@ index f83308de..9dd4d478 100644
  void mt7996_coredump(struct mt7996_dev *dev, u8 state);
  int mt7996_run(struct ieee80211_hw *hw);
 diff --git a/tx.c b/tx.c
-index a78ab2c8..95c84dab 100644
+index 330b8d3..7906023 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -76,7 +76,7 @@ mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)

@@ -1,7 +1,7 @@
-From c21fcd823cc877e39068a92ffa440b7ad7f4bb45 Mon Sep 17 00:00:00 2001
+From 893dc09b18642a3dea75a841b8be9ed8f3a9993d Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Mon, 6 Feb 2023 13:37:23 +0800
-Subject: [PATCH 050/223] mtk: mt76: rework wed rx flow
+Subject: [PATCH 050/193] mtk: mt76: rework wed rx flow
 
 Change-Id: Icd787345c811cb5ad30d9c7c1c5f9e5298bd3be6
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
@@ -16,7 +16,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  7 files changed, 144 insertions(+), 85 deletions(-)
 
 diff --git a/dma.c b/dma.c
-index 33a84f5f..c54187bd 100644
+index 33a84f5..c54187b 100644
 --- a/dma.c
 +++ b/dma.c
 @@ -64,17 +64,17 @@ mt76_alloc_txwi(struct mt76_dev *dev)
@@ -260,7 +260,7 @@ index 33a84f5f..c54187bd 100644
  					 DMA_FROM_DEVICE);
  			skb_free_frag(buf);
 diff --git a/mac80211.c b/mac80211.c
-index 78e9a1ae..b08a9388 100644
+index 78e9a1a..b08a938 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -596,7 +596,6 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
@@ -280,7 +280,7 @@ index 78e9a1ae..b08a9388 100644
  	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
  		skb_queue_head_init(&dev->rx_skb[i]);
 diff --git a/mt76.h b/mt76.h
-index e06d5aaa..260e198a 100644
+index e06d5aa..260e198 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -206,6 +206,7 @@ struct mt76_queue_entry {
@@ -353,7 +353,7 @@ index e06d5aaa..260e198a 100644
  static inline void mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
  {
 diff --git a/mt7915/mmio.c b/mt7915/mmio.c
-index 44e112b8..9741e1d2 100644
+index 44e112b..9741e1d 100644
 --- a/mt7915/mmio.c
 +++ b/mt7915/mmio.c
 @@ -714,7 +714,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
@@ -374,7 +374,7 @@ index 44e112b8..9741e1d2 100644
  		.tx_complete_skb = mt76_connac_tx_complete_skb,
  		.rx_skb = mt7915_queue_rx_skb,
 diff --git a/mt7915/mt7915.h b/mt7915/mt7915.h
-index ac0b1f0e..bcfec0b0 100644
+index ac0b1f0..bcfec0b 100644
 --- a/mt7915/mt7915.h
 +++ b/mt7915/mt7915.h
 @@ -62,6 +62,7 @@
@@ -386,7 +386,7 @@ index ac0b1f0e..bcfec0b0 100644
  #define MT7915_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
  #define MT7915_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 diff --git a/tx.c b/tx.c
-index 2634c5bc..5734979f 100644
+index c24729d..5aa37f4 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -869,16 +869,16 @@ int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
@@ -431,7 +431,7 @@ index 2634c5bc..5734979f 100644
  }
  EXPORT_SYMBOL_GPL(mt76_rx_token_release);
 diff --git a/wed.c b/wed.c
-index 8eca4d81..0a0b5c05 100644
+index 8eca4d8..0a0b5c0 100644
 --- a/wed.c
 +++ b/wed.c
 @@ -9,28 +9,45 @@

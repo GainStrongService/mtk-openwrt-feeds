@@ -1,7 +1,7 @@
-From d3bc0fc0ebebd8cff5549930cb7b5c336fb2b5f4 Mon Sep 17 00:00:00 2001
+From fb9580cf1c7472f764aa260590a7e522a016ec0b Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 7 Dec 2023 15:39:03 +0800
-Subject: [PATCH 090/223] mtk: mt76: rework mcu functions for multi-link
+Subject: [PATCH 090/193] mtk: mt76: rework mcu functions for multi-link
  support
 
 This is a preliminary patch to add MLO support for mt7996 chipsets.
@@ -15,7 +15,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  3 files changed, 56 insertions(+), 26 deletions(-)
 
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index c7145074..0c89222b 100644
+index c714507..0c89222 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -370,10 +370,11 @@ void mt76_connac_mcu_bss_omac_tlv(struct sk_buff *skb,
@@ -54,7 +54,7 @@ index c7145074..0c89222b 100644
  					      info->newly);
  	if (info->sta && info->enable)
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 11a1224a..ff8a314c 100644
+index 11a1224..ff8a314 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1928,7 +1928,7 @@ mt76_connac_mcu_add_tlv(struct sk_buff *skb, int tag, int len)
@@ -67,7 +67,7 @@ index 11a1224a..ff8a314c 100644
  				   int state, bool newly);
  void mt76_connac_mcu_wtbl_generic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 96d4d5b0..7b77cab2 100644
+index aeeb393..cb6f126 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1174,10 +1174,12 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *conf,

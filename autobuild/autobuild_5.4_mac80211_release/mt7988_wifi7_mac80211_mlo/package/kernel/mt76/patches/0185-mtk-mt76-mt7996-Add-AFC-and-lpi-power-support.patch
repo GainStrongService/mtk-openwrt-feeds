@@ -1,7 +1,7 @@
-From 4f43eb23f373930534372c1b82787f2da37c940d Mon Sep 17 00:00:00 2001
+From 2daaeb2a795d53cd7d04a3007ae032f1c5b6addd Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Thu, 1 Aug 2024 11:25:03 +0800
-Subject: [PATCH 186/223] mtk: mt76: mt7996: Add AFC and lpi power support
+Subject: [PATCH 185/193] mtk: mt76: mt7996: Add AFC and lpi power support
 
 This patch receiving and storing the power table from hostapd vendor cmd.
 The power table would be use to compare the sku table in standard power
@@ -41,7 +41,7 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  9 files changed, 429 insertions(+), 25 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 50d52776..a465785f 100644
+index 50d5277..a465785 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -1078,6 +1078,8 @@ struct mt76_dev {
@@ -54,7 +54,7 @@ index 50d52776..a465785f 100644
  #ifdef CONFIG_NL80211_TESTMODE
  	const struct mt76_testmode_ops *test_ops;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index b0b664e7..5d40b8f1 100644
+index b0b664e..5d40b8f 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -908,7 +908,7 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
@@ -67,10 +67,10 @@ index b0b664e7..5d40b8f1 100644
  			val |= FIELD_PREP(MT_TXD6_BW, FW_CDBW_80MHZ);
  		txwi[6] |= cpu_to_le32(val);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 290dff6e..812d8269 100644
+index eb364dc..6041bb4 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -891,7 +891,7 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_bss_conf *conf,
+@@ -890,7 +890,7 @@ mt7996_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_bss_conf *conf,
  
  		if (dev->cert_mode && phy->mt76->band_idx == MT_BAND2)
  			rate = 0x0200;
@@ -80,7 +80,7 @@ index 290dff6e..812d8269 100644
  
  		/* odd index for driver, even index for firmware */
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 265f39a6..725f2f31 100644
+index 2fef4ea..dce180f 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -6384,7 +6384,8 @@ int mt7996_mcu_set_fixed_rate_table(struct mt7996_phy *phy, u8 table_idx,
@@ -322,7 +322,7 @@ index 265f39a6..725f2f31 100644
  {
  	__le32 cp_mode;
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index dab4700e..33ba3774 100644
+index dab4700..33ba377 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -1295,6 +1295,145 @@ enum {
@@ -472,7 +472,7 @@ index dab4700e..33ba3774 100644
  	UNI_CMD_ACCESS_REG_BASIC = 0x0,
  	UNI_CMD_ACCESS_RF_REG_BASIC,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 1e52377a..b841cc2a 100644
+index 1e52377..b841cc2 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1174,6 +1174,8 @@ int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state);
@@ -485,7 +485,7 @@ index 1e52377a..b841cc2a 100644
  		       u8 rx_sel, u8 val);
  int mt7996_mcu_rdd_background_disable_timer(struct mt7996_dev *dev,
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 96a4a514..5338d0bd 100644
+index 96a4a51..5338d0b 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2522,6 +2522,11 @@ mt7996_get_txpower_info(struct file *file, char __user *user_buf,
@@ -547,7 +547,7 @@ index 96a4a514..5338d0bd 100644
  
  #endif
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index e13a148a..867c277d 100644
+index e13a148..867c277 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -162,6 +162,8 @@ txpower_ctrl_policy[NUM_MTK_VENDOR_ATTRS_TXPOWER_CTRL] = {
@@ -700,7 +700,7 @@ index e13a148a..867c277d 100644
  
  static const struct wiphy_vendor_command mt7996_vendor_commands[] = {
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index 71800590..cd84a492 100644
+index 7180059..cd84a49 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -338,12 +338,15 @@ enum mtk_vendor_attr_txpower_ctrl {

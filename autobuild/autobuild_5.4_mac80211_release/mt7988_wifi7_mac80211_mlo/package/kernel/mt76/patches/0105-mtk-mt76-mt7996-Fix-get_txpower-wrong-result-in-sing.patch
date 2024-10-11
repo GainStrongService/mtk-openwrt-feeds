@@ -1,7 +1,7 @@
-From 67c0e729c31b13fc348746b398857c353e43dab1 Mon Sep 17 00:00:00 2001
+From 223e2986e0169ab82e248f995e787f6c175bd3e3 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Mon, 8 Apr 2024 16:56:09 +0800
-Subject: [PATCH 105/223] mtk: mt76: mt7996: Fix get_txpower wrong result in
+Subject: [PATCH 105/193] mtk: mt76: mt7996: Fix get_txpower wrong result in
  single wiphy and legacy mode
 
 Fix get_txpower wrong result in single wiphy and legacy mode.
@@ -15,10 +15,10 @@ Change-Id: I306897ded276b0e5aee191339f18f0f25ca322f2
  1 file changed, 27 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 67948343..b7096901 100644
+index 9533de2..408f848 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -982,6 +982,32 @@ out:
+@@ -981,6 +981,32 @@ out:
  	mutex_unlock(&dev->mt76.mutex);
  }
  
@@ -51,7 +51,7 @@ index 67948343..b7096901 100644
  static void
  mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
  			     struct ieee80211_vif *vif,
-@@ -2673,7 +2699,7 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -2672,7 +2698,7 @@ const struct ieee80211_ops mt7996_ops = {
  	.hw_scan = mt7996_hw_scan,
  	.cancel_hw_scan = mt7996_cancel_hw_scan,
  	.release_buffered_frames = mt76_release_buffered_frames,

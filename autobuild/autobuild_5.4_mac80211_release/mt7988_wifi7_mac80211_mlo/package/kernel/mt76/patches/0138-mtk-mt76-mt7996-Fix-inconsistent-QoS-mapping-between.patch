@@ -1,7 +1,7 @@
-From 0f060bd8db3e101c30617548032f00adabcd9ffa Mon Sep 17 00:00:00 2001
+From fead2ef7e8e72032188e81fc53c58dfbe4eb3940 Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Fri, 7 Jun 2024 13:51:25 +0800
-Subject: [PATCH 138/223] mtk: mt76: mt7996: Fix inconsistent QoS mapping
+Subject: [PATCH 138/193] mtk: mt76: mt7996: Fix inconsistent QoS mapping
  between SW and HW
 
 Fix inconsistent QoS mapping between SW and HW.
@@ -28,7 +28,7 @@ Signed-off-by: Rex Lu <rex.lu@mediatek.com>
  4 files changed, 94 insertions(+), 1 deletion(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 73cf311a..1971c7bf 100644
+index 73cf311..1971c7b 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1267,6 +1267,7 @@ enum {
@@ -40,10 +40,10 @@ index 73cf311a..1971c7bf 100644
  
  enum {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 9ad4a9d6..c1c62d32 100644
+index 436ef82..dc3f555 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2369,6 +2369,9 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -2368,6 +2368,9 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  
  	ctx->dev = NULL;
  
@@ -53,7 +53,7 @@ index 9ad4a9d6..c1c62d32 100644
  	return 0;
  }
  
-@@ -2798,6 +2801,33 @@ mt7996_event_callback(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2797,6 +2800,33 @@ mt7996_event_callback(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	}
  }
  
@@ -87,14 +87,14 @@ index 9ad4a9d6..c1c62d32 100644
  const struct ieee80211_ops mt7996_ops = {
  	.add_chanctx = ieee80211_emulate_add_chanctx,
  	.remove_chanctx = ieee80211_emulate_remove_chanctx,
-@@ -2865,4 +2895,5 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -2864,4 +2894,5 @@ const struct ieee80211_ops mt7996_ops = {
  	.switch_vif_chanctx = mt7996_switch_vif_chanctx,
  	.change_vif_links = mt7996_change_vif_links,
  	.change_sta_links = mt7996_change_sta_links,
 +	.set_qos_map = mt7996_set_qos_map,
  };
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 043f8d5c..edbe9cbe 100644
+index 03ddb6a..675af8c 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -6693,4 +6693,59 @@ int mt7996_mcu_set_csi(struct mt7996_phy *phy, u8 mode,
@@ -158,7 +158,7 @@ index 043f8d5c..edbe9cbe 100644
 +}
  #endif
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 3ff9cb68..d97df22f 100644
+index 3ff9cb6..d97df22 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -136,6 +136,8 @@

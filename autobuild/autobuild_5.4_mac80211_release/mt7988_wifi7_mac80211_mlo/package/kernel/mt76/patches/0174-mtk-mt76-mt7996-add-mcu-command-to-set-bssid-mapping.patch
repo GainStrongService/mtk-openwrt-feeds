@@ -1,7 +1,7 @@
-From 848a43638c737f72cf30a53b855f0f09ee7be729 Mon Sep 17 00:00:00 2001
+From 1d0deb0b86c36daa34ed2d8f64c4a1dbb161ad37 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 22 Jul 2024 10:47:45 +0800
-Subject: [PATCH 174/223] mtk: mt76: mt7996: add mcu command to set bssid
+Subject: [PATCH 174/193] mtk: mt76: mt7996: add mcu command to set bssid
  mapping address
 
 When receiving 4 address non-amsdu packet, there is no bssid in the address
@@ -18,10 +18,10 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  4 files changed, 35 insertions(+)
 
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 18847ff5..d7a1d7cd 100644
+index 53781d4..e8192b8 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -539,6 +539,9 @@ mt7996_mac_init_band(struct mt7996_dev *dev, u8 band)
+@@ -536,6 +536,9 @@ mt7996_mac_init_band(struct mt7996_dev *dev, u8 band)
  {
  	u32 mask, set;
  
@@ -31,7 +31,7 @@ index 18847ff5..d7a1d7cd 100644
  	/* clear estimated value of EIFS for Rx duration & OBSS time */
  	mt76_wr(dev, MT_WF_RMAC_RSVD0(band), MT_WF_RMAC_RSVD0_EIFS_CLR);
  
-@@ -566,6 +569,10 @@ mt7996_mac_init_band(struct mt7996_dev *dev, u8 band)
+@@ -563,6 +566,10 @@ mt7996_mac_init_band(struct mt7996_dev *dev, u8 band)
  	 * MT_AGG_ACR_PPDU_TXS2H (PPDU format) even though ACR bit is set.
  	 */
  	mt76_set(dev, MT_AGG_ACR4(band), MT_AGG_ACR_PPDU_TXS2H);
@@ -43,7 +43,7 @@ index 18847ff5..d7a1d7cd 100644
  
  static void mt7996_mac_init_basic_rates(struct mt7996_dev *dev)
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b47aa7d6..dc1af0be 100644
+index faf7477..19e0d6c 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -6127,6 +6127,32 @@ int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
@@ -80,7 +80,7 @@ index b47aa7d6..dc1af0be 100644
  {
  	struct {
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index ffa574b8..5d4625c8 100644
+index ffa574b..5d4625c 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -1067,6 +1067,7 @@ enum {
@@ -92,7 +92,7 @@ index ffa574b8..5d4625c8 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 21019bc2..b9b52d17 100644
+index 21019bc..b9b52d1 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1112,6 +1112,7 @@ int mt7996_mcu_set_radar_th(struct mt7996_dev *dev, int index,

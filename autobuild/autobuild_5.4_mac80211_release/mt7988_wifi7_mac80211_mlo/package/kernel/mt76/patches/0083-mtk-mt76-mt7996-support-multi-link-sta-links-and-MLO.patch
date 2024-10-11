@@ -1,7 +1,7 @@
-From 62e749b2b89a799e0d137983f4dabc1eeb3ebad8 Mon Sep 17 00:00:00 2001
+From 5bdefd0e1869aadb1d4d0188a670040a25ca4fad Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 29 Nov 2023 10:12:39 +0800
-Subject: [PATCH 083/223] mtk: mt76: mt7996: support multi-link sta links and
+Subject: [PATCH 083/193] mtk: mt76: mt7996: support multi-link sta links and
  MLO sta callbacks
 
 Rework add_sta functions to add_link_sta functions, and support
@@ -19,10 +19,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  4 files changed, 400 insertions(+), 71 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index dc7ee54c..106e8534 100644
+index c532062..7da2047 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -926,42 +926,234 @@ mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
+@@ -925,42 +925,234 @@ mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
  	mutex_unlock(&dev->mt76.mutex);
  }
  
@@ -277,7 +277,7 @@ index dc7ee54c..106e8534 100644
  	case MT_BAND1:
  		phy = mt7996_phy2(dev);
  		break;
-@@ -984,69 +1176,26 @@ int mt7996_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+@@ -983,69 +1175,26 @@ int mt7996_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
  			 struct ieee80211_sta *sta, enum mt76_sta_event ev)
  {
  	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
@@ -355,7 +355,7 @@ index dc7ee54c..106e8534 100644
  }
  
  static void mt7996_tx(struct ieee80211_hw *hw,
-@@ -2161,6 +2310,32 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2160,6 +2309,32 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	return ret;
  }
  
@@ -388,14 +388,14 @@ index dc7ee54c..106e8534 100644
  const struct ieee80211_ops mt7996_ops = {
  	.add_chanctx = ieee80211_emulate_add_chanctx,
  	.remove_chanctx = ieee80211_emulate_remove_chanctx,
-@@ -2222,4 +2397,5 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -2221,4 +2396,5 @@ const struct ieee80211_ops mt7996_ops = {
  	.unassign_vif_chanctx = mt7996_unassign_vif_chanctx,
  	.switch_vif_chanctx = mt7996_switch_vif_chanctx,
  	.change_vif_links = mt7996_change_vif_links,
 +	.change_sta_links = mt7996_change_sta_links,
  };
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 081e9ca9..96d4d5b0 100644
+index 0384ec2..aeeb393 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -2433,6 +2433,123 @@ out:
@@ -523,7 +523,7 @@ index 081e9ca9..96d4d5b0 100644
  mt7996_mcu_sta_key_tlv(struct mt76_wcid *wcid,
  		       struct sk_buff *skb,
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index b15796dc..23d44cd3 100644
+index b15796d..23d44cd 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -692,6 +692,35 @@ struct sta_rec_hdr_trans {
@@ -563,7 +563,7 @@ index b15796dc..23d44cd3 100644
  	__le16 tag;
  	__le16 len;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 9b9b1f8f..f6933418 100644
+index 9b9b1f8..f693341 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -331,6 +331,8 @@ struct mt7996_sta {

@@ -1,7 +1,7 @@
-From 59199b2eabeb1d8ce11bf644c4ecd565a385c663 Mon Sep 17 00:00:00 2001
+From bc299e0b13412752d12524742ed9a4ff7e28c2bf Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 23 Nov 2023 18:22:11 +0800
-Subject: [PATCH 082/223] mtk: mt76: mt7996: support multi-link vif links and
+Subject: [PATCH 082/193] mtk: mt76: mt7996: support multi-link vif links and
  MLO bss callbacks
 
 Rework add/remove interface functions to add/remove bss_conf functions,
@@ -18,7 +18,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  3 files changed, 267 insertions(+), 66 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 98afb057..dc7ee54c 100644
+index 095892a..c532062 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -205,6 +205,38 @@ static int get_omac_idx(enum nl80211_iftype type, u64 mask)
@@ -284,7 +284,7 @@ index 98afb057..dc7ee54c 100644
  
  	mutex_unlock(&dev->mt76.mutex);
  }
-@@ -714,10 +815,31 @@ mt7996_update_mu_group(struct ieee80211_hw *hw, struct ieee80211_bss_conf *conf,
+@@ -713,10 +814,31 @@ mt7996_update_mu_group(struct ieee80211_hw *hw, struct ieee80211_bss_conf *conf,
  	mt76_wr(dev, MT_WF_PHYRX_BAND_GID_TAB_POS3(band), mu[3]);
  }
  
@@ -320,7 +320,7 @@ index 98afb057..dc7ee54c 100644
  {
  	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	struct mt7996_bss_conf *mconf;
-@@ -733,7 +855,6 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
+@@ -732,7 +854,6 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
  	 * and then peer references bss_info_rfch to set bandwidth cap.
  	 */
  	if ((changed & BSS_CHANGED_BSSID && !is_zero_ether_addr(info->bssid)) ||
@@ -328,7 +328,7 @@ index 98afb057..dc7ee54c 100644
  	    (changed & BSS_CHANGED_BEACON_ENABLED && info->enable_beacon)) {
  		mt7996_mcu_add_bss_info(phy, info, mconf, mlink, true);
  		mt7996_mcu_add_sta(dev, info, mconf, NULL, mlink, true,
-@@ -1081,7 +1202,7 @@ mt7996_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+@@ -1080,7 +1201,7 @@ mt7996_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
  	u64 ret;
  
  	mutex_lock(&dev->mt76.mutex);
@@ -337,7 +337,7 @@ index 98afb057..dc7ee54c 100644
  	ret = __mt7996_get_tsf(hw, mconf);
  	mutex_unlock(&dev->mt76.mutex);
  
-@@ -1104,7 +1225,7 @@ mt7996_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1103,7 +1224,7 @@ mt7996_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  
  	mutex_lock(&dev->mt76.mutex);
  
@@ -346,7 +346,7 @@ index 98afb057..dc7ee54c 100644
  	n = mconf->mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
  					       : mconf->mt76.omac_idx;
  	mt76_wr(dev, MT_LPON_UTTR0(phy->mt76->band_idx), tsf.t32[0]);
-@@ -1132,7 +1253,7 @@ mt7996_offset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1131,7 +1252,7 @@ mt7996_offset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  
  	mutex_lock(&dev->mt76.mutex);
  
@@ -355,7 +355,7 @@ index 98afb057..dc7ee54c 100644
  	n = mconf->mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
  					       : mconf->mt76.omac_idx;
  	mt76_wr(dev, MT_LPON_UTTR0(phy->mt76->band_idx), tsf.t32[0]);
-@@ -1307,7 +1428,7 @@ mt7996_set_bitrate_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1306,7 +1427,7 @@ mt7996_set_bitrate_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	u32 changed = IEEE80211_RC_SUPP_RATES_CHANGED;
  
  	mutex_lock(&dev->mt76.mutex);
@@ -364,7 +364,7 @@ index 98afb057..dc7ee54c 100644
  	mconf->bitrate_mask = *mask;
  	mutex_unlock(&dev->mt76.mutex);
  
-@@ -1527,7 +1648,7 @@ void mt7996_get_et_stats(struct ieee80211_hw *hw,
+@@ -1526,7 +1647,7 @@ void mt7996_get_et_stats(struct ieee80211_hw *hw,
  	int i, ei = 0;
  
  	mutex_lock(&dev->mt76.mutex);
@@ -373,7 +373,7 @@ index 98afb057..dc7ee54c 100644
  	wi.idx = mconf->mt76.idx,
  
  	mt7996_mac_update_stats(phy);
-@@ -1900,6 +2021,8 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1899,6 +2020,8 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	struct mt7996_phy *phy = ctx->phy;
  	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	struct mt7996_bss_conf *mconf;
@@ -382,7 +382,7 @@ index 98afb057..dc7ee54c 100644
  
  	wiphy_info(hw->wiphy, "Assign VIF (addr: %pM, type: %d, link_id: %d) to channel context: %d MHz\n",
  		    vif->addr, vif->type, link_conf->link_id,
-@@ -1907,10 +2030,24 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1906,10 +2029,24 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  
  	mutex_lock(&phy->dev->mt76.mutex);
  
@@ -408,7 +408,7 @@ index 98afb057..dc7ee54c 100644
  	mutex_unlock(&phy->dev->mt76.mutex);
  
  	return 0;
-@@ -1936,7 +2073,7 @@ mt7996_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1935,7 +2072,7 @@ mt7996_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	if (test_bit(MT76_SCANNING, &phy->mt76->state))
  		mt7996_scan_complete(phy, true);
  
@@ -417,7 +417,7 @@ index 98afb057..dc7ee54c 100644
  	mconf->chanctx = NULL;
  	ctx->nbss_assigned--;
  
-@@ -1976,6 +2113,54 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
+@@ -1975,6 +2112,54 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
  	return mt7996_set_channel(phy, &new_ctx->chandef);
  }
  
@@ -472,7 +472,7 @@ index 98afb057..dc7ee54c 100644
  const struct ieee80211_ops mt7996_ops = {
  	.add_chanctx = ieee80211_emulate_add_chanctx,
  	.remove_chanctx = ieee80211_emulate_remove_chanctx,
-@@ -1989,7 +2174,8 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -1988,7 +2173,8 @@ const struct ieee80211_ops mt7996_ops = {
  	.config = mt7996_config,
  	.conf_tx = mt7996_conf_tx,
  	.configure_filter = mt7996_configure_filter,
@@ -482,14 +482,14 @@ index 98afb057..dc7ee54c 100644
  	.sta_state = mt76_sta_state,
  	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
  	.sta_rc_update = mt7996_sta_rc_update,
-@@ -2035,4 +2221,5 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -2034,4 +2220,5 @@ const struct ieee80211_ops mt7996_ops = {
  	.assign_vif_chanctx = mt7996_assign_vif_chanctx,
  	.unassign_vif_chanctx = mt7996_unassign_vif_chanctx,
  	.switch_vif_chanctx = mt7996_switch_vif_chanctx,
 +	.change_vif_links = mt7996_change_vif_links,
  };
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index ced769b4..081e9ca9 100644
+index af9a838..0384ec2 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1052,15 +1052,23 @@ static void
@@ -549,7 +549,7 @@ index ced769b4..081e9ca9 100644
  
  	if (vif->type == NL80211_IFTYPE_MONITOR)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index d86e24e3..9b9b1f8f 100644
+index d86e24e..9b9b1f8 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -342,6 +342,9 @@ struct mt7996_bss_conf {

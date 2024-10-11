@@ -1,7 +1,7 @@
-From ff2647b012eddbe530dd4b900506911fa91c8329 Mon Sep 17 00:00:00 2001
+From f4bc56dac7cff717c1a6a510ecafea00a25c0c2c Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 11 Jun 2024 18:09:57 +0800
-Subject: [PATCH 142/223] mtk: mt76: mt7996: add link information when dump
+Subject: [PATCH 142/193] mtk: mt76: mt7996: add link information when dump
  station
 
 Report following per-link information to mac80211:
@@ -21,10 +21,10 @@ Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
  1 file changed, 78 insertions(+)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 05917cc8..380a6ca0 100644
+index 73a04e9..ad35b65 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1817,6 +1817,83 @@ out:
+@@ -1816,6 +1816,83 @@ out:
  	mutex_unlock(&dev->mt76.mutex);
  }
  
@@ -108,7 +108,7 @@ index 05917cc8..380a6ca0 100644
  static void mt7996_sta_rc_work(void *data, struct ieee80211_sta *sta)
  {
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
-@@ -2936,6 +3013,7 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -2935,6 +3012,7 @@ const struct ieee80211_ops mt7996_ops = {
  	.set_bitrate_mask = mt7996_set_bitrate_mask,
  	.set_coverage_class = mt7996_set_coverage_class,
  	.sta_statistics = mt7996_sta_statistics,

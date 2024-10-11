@@ -1,7 +1,7 @@
-From 9ba1059c52cbf12123e8b3531291623e692fe1d9 Mon Sep 17 00:00:00 2001
+From 1db1fb62393aab45621c5960a5d4281657151c8f Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 22 Apr 2024 12:22:05 +0800
-Subject: [PATCH 108/223] mtk: mt76: add internal debug tool
+Subject: [PATCH 108/193] mtk: mt76: add internal debug tool
 
 Add the following DebugFS knobs:
 - reset_counter: reset TX/RX statistical counters in FW, WTBL, and MT76.
@@ -71,7 +71,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  create mode 100644 mt7996/mtk_debugfs_i.c
 
 diff --git a/mt7996/Makefile b/mt7996/Makefile
-index 6643c7a3..49ec9154 100644
+index 6643c7a..49ec915 100644
 --- a/mt7996/Makefile
 +++ b/mt7996/Makefile
 @@ -1,4 +1,5 @@
@@ -87,7 +87,7 @@ index 6643c7a3..49ec9154 100644
 -mt7996e-y += mtk_debugfs.o mtk_mcu.o
 +mt7996e-y += mtk_debugfs.o mtk_mcu.o mtk_debugfs_i.o
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index db41e378..7e545f61 100644
+index db41e37..7e545f6 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -1118,8 +1118,12 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
@@ -105,10 +105,10 @@ index db41e378..7e545f61 100644
  #ifdef CONFIG_MTK_DEBUG
  	debugfs_create_u16("wlan_idx", 0600, dir, &dev->wlan_idx);
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 211ad40c..1d31e96a 100644
+index c501d19..3cd0c9e 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -886,6 +886,10 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
+@@ -883,6 +883,10 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
  		mt76_wr(dev, MT_RRO_ADDR_ARRAY_BASE0,
  			dev->wed_rro.addr_elem[0].phy_addr);
  	} else {
@@ -120,7 +120,7 @@ index 211ad40c..1d31e96a 100644
  		mt76_clear(dev, WF_RRO_AXI_MST_CFG, WF_RRO_AXI_MST_CFG_DIDX_OK);
  
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index cd139111..2e27e3b3 100644
+index cd13911..2e27e3b 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -334,6 +334,7 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -140,7 +140,7 @@ index cd139111..2e27e3b3 100644
  
  	return 0;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 00023a5e..e23ed8e7 100644
+index 00023a5..e23ed8e 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -103,6 +103,7 @@
@@ -186,7 +186,7 @@ index 00023a5e..e23ed8e7 100644
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_debug_i.h b/mt7996/mtk_debug_i.h
 new file mode 100644
-index 00000000..d3756fa2
+index 0000000..d3756fa
 --- /dev/null
 +++ b/mt7996/mtk_debug_i.h
 @@ -0,0 +1,987 @@
@@ -1179,7 +1179,7 @@ index 00000000..d3756fa2
 +#endif
 diff --git a/mt7996/mtk_debugfs_i.c b/mt7996/mtk_debugfs_i.c
 new file mode 100644
-index 00000000..ea412cd5
+index 0000000..ea412cd
 --- /dev/null
 +++ b/mt7996/mtk_debugfs_i.c
 @@ -0,0 +1,720 @@

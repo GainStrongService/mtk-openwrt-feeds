@@ -1,7 +1,7 @@
-From 7b4305017b499ad805701f6022ed92b1e5746aa2 Mon Sep 17 00:00:00 2001
+From a14fec185fd1411d4986e57d43cdcd7d1c558cc7 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 4 Mar 2024 16:21:16 +0800
-Subject: [PATCH 102/223] mtk: mt76: mt7996: support band_idx option for
+Subject: [PATCH 102/193] mtk: mt76: mt7996: support band_idx option for
  set_mu/get_mu vendor command
 
 The vendor command set_mu and get_mu should be executed with band_idx.
@@ -17,7 +17,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  4 files changed, 56 insertions(+), 12 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index d897098e..48837d41 100644
+index 6c92baa..5475d8a 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -5864,12 +5864,23 @@ int mt7996_mcu_set_vow_feature_ctrl(struct mt7996_phy *phy)
@@ -67,7 +67,7 @@ index d897098e..48837d41 100644
  
  void mt7996_set_beacon_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 23d44cd3..9903d88e 100644
+index 23d44cd..9903d88 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -882,6 +882,7 @@ enum {
@@ -79,7 +79,7 @@ index 23d44cd3..9903d88e 100644
  #define RATE_CFG_VAL	GENMASK(7, 0)
  
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index 31688c37..64ef5515 100644
+index 31688c3..64ef551 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
 @@ -16,6 +16,7 @@ mu_ctrl_policy[NUM_MTK_VENDOR_ATTRS_MU_CTRL] = {
@@ -163,7 +163,7 @@ index 31688c37..64ef5515 100644
  
  void mt7996_set_wireless_rts_sigta(struct ieee80211_hw *hw, u8 value) {
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index 0d1ef322..32346775 100644
+index 0d1ef32..3234677 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -68,6 +68,7 @@ enum mtk_vendor_attr_mu_ctrl {

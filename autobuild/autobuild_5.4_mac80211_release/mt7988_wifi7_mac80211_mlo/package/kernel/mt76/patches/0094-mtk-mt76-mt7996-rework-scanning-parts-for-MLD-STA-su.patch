@@ -1,7 +1,7 @@
-From 2dd9be1a2d916ec0ca58ec933f55154db6a40bf9 Mon Sep 17 00:00:00 2001
+From fd01b451fe67c4b09c10de44d03a1c02e8bd393e Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 13 Dec 2023 16:58:31 +0800
-Subject: [PATCH 094/223] mtk: mt76: mt7996: rework scanning parts for MLD STA
+Subject: [PATCH 094/193] mtk: mt76: mt7996: rework scanning parts for MLD STA
  support
 
 During the first scanning, the STA VIF is still a legacy interface,
@@ -17,7 +17,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  2 files changed, 57 insertions(+), 22 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index a48e4f44..a30b7dfa 100644
+index a48e4f4..a30b7df 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -2781,23 +2781,40 @@ static void
@@ -105,10 +105,10 @@ index a48e4f44..a30b7dfa 100644
  {
  	bool *has_sta = data;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index cabd5729..9ce7c6fb 100644
+index 02b6798..f5a5f72 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2193,12 +2193,28 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -2192,12 +2192,28 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  
  #endif
  
@@ -137,7 +137,7 @@ index cabd5729..9ce7c6fb 100644
  
  	mutex_lock(&phy->dev->mt76.mutex);
  	if (WARN_ON(phy->scan_req || phy->scan_chan)) {
-@@ -2206,10 +2222,23 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2205,10 +2221,23 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		return -EBUSY;
  	}
  
@@ -162,7 +162,7 @@ index cabd5729..9ce7c6fb 100644
  	mutex_unlock(&phy->dev->mt76.mutex);
  
  	ieee80211_queue_delayed_work(mt76_main_hw(phy->mt76), &phy->scan_work, 0);
-@@ -2220,6 +2249,7 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2219,6 +2248,7 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  static void
  mt7996_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
  {
@@ -170,7 +170,7 @@ index cabd5729..9ce7c6fb 100644
  	int band;
  
  	for (band = 0; band < NUM_NL80211_BANDS; band++) {
-@@ -2237,6 +2267,9 @@ mt7996_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+@@ -2236,6 +2266,9 @@ mt7996_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
  
  		mutex_lock(&phy->dev->mt76.mutex);
  		mt7996_scan_complete(phy, true);

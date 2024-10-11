@@ -1,7 +1,7 @@
-From a025d78199c2a329723707c689075c34d7c780e5 Mon Sep 17 00:00:00 2001
+From 95ad534b954c4ed55417dd5e1fbfb80410c52835 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 31 May 2024 18:14:59 +0800
-Subject: [PATCH 170/223] mtk: mt76: mt7996: add AP affiliated link removal
+Subject: [PATCH 170/193] mtk: mt76: mt7996: add AP affiliated link removal
  support
 
 Add support for ap link removal of MLD reconfiguration.
@@ -17,7 +17,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  5 files changed, 367 insertions(+), 12 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 302567e3..4976d944 100644
+index 302567e..4976d94 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1079,6 +1079,7 @@ enum {
@@ -45,7 +45,7 @@ index 302567e3..4976d944 100644
  
  enum {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index c95e7e35..6ad4558b 100644
+index 90320e5..a9ae083 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -319,6 +319,21 @@ static void mt7996_remove_bss_conf(struct ieee80211_vif *vif,
@@ -79,7 +79,7 @@ index c95e7e35..6ad4558b 100644
  		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
  		mtxq->wcid = idx;
  	}
-@@ -1128,6 +1143,8 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
+@@ -1127,6 +1142,8 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
  {
  	struct ieee80211_sta *sta = link_sta->sta;
  	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
@@ -88,7 +88,7 @@ index c95e7e35..6ad4558b 100644
  	int i;
  
  	if (!mlink)
-@@ -1148,6 +1165,7 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
+@@ -1147,6 +1164,7 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
  		mt7996_mac_twt_teardown_flow(dev, mlink, i);
  
  	rcu_assign_pointer(mlink->sta->link[mlink->wcid.link_id], NULL);
@@ -96,7 +96,7 @@ index c95e7e35..6ad4558b 100644
  
  	spin_lock_bh(&dev->mt76.sta_poll_lock);
  	if (!list_empty(&mlink->wcid.poll_list))
-@@ -1156,17 +1174,41 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
+@@ -1155,17 +1173,41 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
  		list_del_init(&mlink->rc_list);
  	spin_unlock_bh(&dev->mt76.sta_poll_lock);
  
@@ -146,7 +146,7 @@ index c95e7e35..6ad4558b 100644
  	mt76_wcid_cleanup(&dev->mt76, &mlink->wcid);
  	mt76_wcid_mask_clear(dev->mt76.wcid_mask, mlink->wcid.idx);
  	mt76_wcid_mask_clear(dev->mt76.wcid_phy_mask, mlink->wcid.idx);
-@@ -3108,9 +3150,15 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -3107,9 +3149,15 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	mt76_vif_dbg(vif, "STA %pM old=0x%x, new=0x%x\n", sta->addr, old_links, new_links);
  	mutex_lock(&dev->mt76.mutex);
  
@@ -164,7 +164,7 @@ index c95e7e35..6ad4558b 100644
  	if (ret)
  		goto remove;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 856168f6..417c38a3 100644
+index fb4f5f5..b6cc459 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1355,6 +1355,48 @@ mt7996_mcu_pp_event(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -427,7 +427,7 @@ index 856168f6..417c38a3 100644
  	dev_kfree_skb(skb);
  	return mt76_mcu_skb_send_msg(&phy->dev->mt76, rskb,
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 739e357c..7c559d2b 100644
+index 739e357..7c559d2 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -546,6 +546,20 @@ struct bss_bcn_sta_prof_cntdwn_tlv {
@@ -548,7 +548,7 @@ index 739e357c..7c559d2b 100644
  	u8 _rsv[4];
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index a02e976a..a7655a61 100644
+index a02e976..a7655a6 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -1087,6 +1087,8 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev,

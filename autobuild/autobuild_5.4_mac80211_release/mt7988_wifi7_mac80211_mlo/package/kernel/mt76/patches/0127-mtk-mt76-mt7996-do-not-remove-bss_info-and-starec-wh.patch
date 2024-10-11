@@ -1,7 +1,7 @@
-From ebc64cf0ebe700231a5b94b299abb49b8db88308 Mon Sep 17 00:00:00 2001
+From 81e8f959269eed83f6611ea65f7e1fc22bb4d934 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 22 May 2024 18:22:51 +0800
-Subject: [PATCH 127/223] mtk: mt76: mt7996: do not remove bss_info and starec
+Subject: [PATCH 127/193] mtk: mt76: mt7996: do not remove bss_info and starec
  when assign_vif_chanctx
 
 When STA interface re-connect from rootAP, it would unsign/assign vif
@@ -17,7 +17,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  1 file changed, 13 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index f45f6c02..be0864a0 100644
+index 161b5cb..5a6165b 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -338,6 +338,9 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
@@ -30,7 +30,7 @@ index f45f6c02..be0864a0 100644
  	if (conf != &vif->bss_conf) {
  		mconf = kzalloc(sizeof(*mconf), GFP_KERNEL);
  		if (!mconf)
-@@ -2520,10 +2523,16 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2519,10 +2522,16 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  
  	mutex_lock(&phy->dev->mt76.mutex);
  

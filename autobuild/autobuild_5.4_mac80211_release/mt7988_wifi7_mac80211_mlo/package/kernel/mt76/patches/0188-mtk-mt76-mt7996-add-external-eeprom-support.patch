@@ -1,7 +1,7 @@
-From 47862d9e7019f0e7524beb819bc875404cf687bd Mon Sep 17 00:00:00 2001
+From 2e68a34aa076b06b96614e3a1db37967909d8f2c Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 22 Aug 2024 23:22:46 +0800
-Subject: [PATCH 189/223] mtk: mt76: mt7996: add external eeprom support
+Subject: [PATCH 188/193] mtk: mt76: mt7996: add external eeprom support
 
 Add external eeprom support
 For Kite and Griffin, efuse mode is not supported due to the lack of
@@ -33,7 +33,7 @@ Change-Id: Ie36469700f9620806e6513ffaf076338841ba7c3
  13 files changed, 277 insertions(+), 68 deletions(-)
 
 diff --git a/debugfs.c b/debugfs.c
-index ac5207e5..2ded5c03 100644
+index ac5207e..2ded5c0 100644
 --- a/debugfs.c
 +++ b/debugfs.c
 @@ -121,6 +121,8 @@ mt76_register_debugfs_fops(struct mt76_phy *phy,
@@ -46,7 +46,7 @@ index ac5207e5..2ded5c03 100644
  				    mt76_rx_queues_read);
  
 diff --git a/mt76.h b/mt76.h
-index a465785f..c319ba26 100644
+index a465785..c319ba2 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -1065,6 +1065,7 @@ struct mt76_dev {
@@ -58,7 +58,7 @@ index a465785f..c319ba26 100644
  	char alpha2[3];
  	enum nl80211_dfs_regions region;
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 68d7c31d..25d5f9f9 100644
+index 68d7c31..25d5f9f 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1325,6 +1325,7 @@ enum {
@@ -70,7 +70,7 @@ index 68d7c31d..25d5f9f9 100644
  	MCU_UNI_CMD_MLD = 0x82,
  	MCU_UNI_CMD_PEER_MLD = 0x83,
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 240c6d46..d06fb587 100644
+index 240c6d4..d06fb58 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
 @@ -972,7 +972,9 @@ mt7996_efuse_get(struct file *file, char __user *user_buf,
@@ -152,7 +152,7 @@ index 240c6d46..d06fb587 100644
  	                            mt7996_vow_info_read);
  	debugfs_create_devm_seqfile(dev->mt76.dev, "airtime", dir,
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 327a36b2..db98db21 100644
+index 327a36b..db98db2 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -315,43 +315,52 @@ static int mt7996_eeprom_load(struct mt7996_dev *dev)
@@ -222,7 +222,7 @@ index 327a36b2..db98db21 100644
  
  out:
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index 788c33c8..15b6620d 100644
+index 788c33c..15b6620 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -151,13 +151,6 @@ enum mt7996_eeprom_band {
@@ -240,10 +240,10 @@ index 788c33c8..15b6620d 100644
  mt7996_get_channel_group_5g(int channel)
  {
 diff --git a/mt7996/init.c b/mt7996/init.c
-index ddceddff..f739afd2 100644
+index 9f80143..604d015 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
-@@ -1238,7 +1238,8 @@ static int mt7996_variant_fem_init(struct mt7996_dev *dev)
+@@ -1235,7 +1235,8 @@ static int mt7996_variant_fem_init(struct mt7996_dev *dev)
  	if (ret)
  		return ret;
  
@@ -254,7 +254,7 @@ index ddceddff..f739afd2 100644
  		return ret;
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b0e9617d..01969464 100644
+index 6d4765b..b584a0e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -5259,7 +5259,7 @@ int mt7996_mcu_set_eeprom_flash(struct mt7996_dev *dev)
@@ -431,7 +431,7 @@ index b0e9617d..01969464 100644
  	struct {
  		u8 _rsv[4];
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 33ba3774..f405b0cd 100644
+index 33ba377..f405b0c 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -161,7 +161,7 @@ struct mt7996_mcu_background_chain_ctrl {
@@ -498,7 +498,7 @@ index 33ba3774..f405b0cd 100644
  	UNI_VOW_DRR_CTRL,
  	UNI_VOW_FEATURE_CTRL,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index b841cc2a..a0f2f251 100644
+index b841cc2..e65d2a6 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -74,7 +74,8 @@
@@ -560,7 +560,7 @@ index b841cc2a..a0f2f251 100644
  int mt7996_mcu_set_ser(struct mt7996_dev *dev, u8 action, u8 set, u8 band);
  int mt7996_mcu_set_txbf(struct mt7996_dev *dev, u8 action);
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 5338d0bd..4996774f 100644
+index 5338d0b..4996774 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2829,6 +2829,9 @@ static int mt7996_show_eeprom_mode(struct seq_file *s, void *data)
@@ -574,7 +574,7 @@ index 5338d0bd..4996774f 100644
  		break;
  	}
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 1674e129..b3692637 100644
+index 1674e12..b369263 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -2138,37 +2138,43 @@ mt7996_tm_write_back_to_efuse(struct mt7996_dev *dev)
@@ -647,7 +647,7 @@ index 1674e129..b3692637 100644
  		break;
  	}
 diff --git a/testmode.h b/testmode.h
-index 44f9984c..8e751bbf 100644
+index 44f9984..8e751bb 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -281,11 +281,13 @@ enum mt76_testmode_tx_mode {
