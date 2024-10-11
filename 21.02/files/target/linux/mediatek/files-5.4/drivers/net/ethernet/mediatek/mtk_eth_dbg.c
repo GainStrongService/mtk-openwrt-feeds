@@ -1157,12 +1157,20 @@ void xfi_mib_dump(struct seq_file *seq, u32 gdm_id)
 int xfi_cnt_read(struct seq_file *seq, void *v)
 {
 	struct mtk_eth *eth = g_eth;
+	bool has_xgmac[MTK_MAX_DEVS] = {0,
+					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_2P5GPHY) ||
+					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_2P5GPHY_V2) ||
+					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_USXGMII),
+					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC3_USXGMII)};
 	int i;
 
 	seq_puts(seq, "+------------------------------------+\n");
 	seq_puts(seq, "|             <<XFI MAC>>            |\n");
 
 	for (i = MTK_GMAC2_ID; i < MTK_GMAC_ID_MAX; i++) {
+		if (!has_xgmac[i])
+			continue;
+
 		xfi_mib_dump(seq, i);
 		mtk_m32(eth, 0x1, 0x1, MTK_XFI_MIB_BASE(i) + MTK_XFI_CNT_CTRL);
 		seq_puts(seq, "|                                    |\n");
@@ -1496,12 +1504,16 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
 		seq_printf(seq, "| XMAC_P1_MCR	: %08x |\n",
 			   mtk_r32(eth, MTK_XMAC_MCR(1)));
-		seq_printf(seq, "| XMAC_P2_MCR	: %08x |\n",
-			   mtk_r32(eth, MTK_XMAC_MCR(2)));
 		seq_printf(seq, "| XMAC_P1_STS	: %08x |\n",
-			   mtk_r32(eth, MTK_XGMAC_STS(1)));
-		seq_printf(seq, "| XMAC_P2_STS	: %08x |\n",
-			   mtk_r32(eth, MTK_XGMAC_STS(2)));
+			   mtk_r32(eth, MTK_HAS_CAPS(eth->soc->caps, MTK_XGMAC_V2) ?
+						     MTK_XMAC_STS(1) : MTK_XGMAC_STS(1)));
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC3_USXGMII)) {
+			seq_printf(seq, "| XMAC_P2_MCR	: %08x |\n",
+				   mtk_r32(eth, MTK_XMAC_MCR(2)));
+			seq_printf(seq, "| XMAC_P2_STS	: %08x |\n",
+				   mtk_r32(eth, MTK_HAS_CAPS(eth->soc->caps, MTK_XGMAC_V2) ?
+							     MTK_XMAC_STS(2) : MTK_XGMAC_STS(2)));
+		}
 	}
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
 	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {

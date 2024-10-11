@@ -272,11 +272,15 @@ void mtk_dump_netsys_info(void *_eth)
 			"SGMII1", 0, 0x1a0);
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
 		mtk_dump_reg(eth, "XGMAC0", 0x12000, 0x300);
-		mtk_dump_reg(eth, "XGMAC1", 0x13000, 0x300);
-		mtk_dump_regmap(eth->usxgmii->pcs[0].regmap,
-				"USXGMII0", 0x800, 0x500);
-		mtk_dump_regmap(eth->usxgmii->pcs[1].regmap,
-				"USXGMII1", 0x800, 0x500);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_USXGMII)) {
+			mtk_dump_regmap(eth->usxgmii->pcs[1].regmap,
+					"USXGMII1", 0x800, 0x500);
+		}
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC3_USXGMII)) {
+			mtk_dump_reg(eth, "XGMAC1", 0x13000, 0x300);
+			mtk_dump_regmap(eth->usxgmii->pcs[0].regmap,
+					"USXGMII0", 0x800, 0x500);
+		}
 	}
 }
 
@@ -882,9 +886,15 @@ void mtk_mac_linkdown(struct mtk_eth *eth)
 			mcr |= XMAC_MCR_TRX_DISABLE;
 			mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
 
-			sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
-			sts &= ~MTK_XGMAC_FORCE_LINK(mac->id);
-			mtk_w32(mac->hw, sts, MTK_XGMAC_STS(mac->id));
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_XGMAC_V2)) {
+				sts = mtk_r32(mac->hw, MTK_XMAC_STS_FRC(mac->id));
+				sts &= ~XMAC_FORCE_LINK;
+				mtk_w32(mac->hw, sts, MTK_XMAC_STS_FRC(mac->id));
+			} else {
+				sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
+				sts &= ~MTK_XGMAC_FORCE_LINK(mac->id);
+				mtk_w32(mac->hw, sts, MTK_XGMAC_STS(mac->id));
+			}
 		}
 	}
 }

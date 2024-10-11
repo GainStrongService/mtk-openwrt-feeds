@@ -671,19 +671,32 @@ static int mtk_mac_prepare(struct phylink_config *config, unsigned int mode,
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
 	struct mtk_eth *eth = mac->hw;
+	bool has_xgmac[MTK_MAX_DEVS] = {0,
+					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_2P5GPHY) ||
+					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_2P5GPHY_V2) ||
+					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_USXGMII),
+					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC3_USXGMII)};
 	u32 val;
 
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
-	    mac->id != MTK_GMAC1_ID) {
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) && has_xgmac[mac->id]) {
 		val = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
 		val &= 0xfffffff0;
 		val |= XMAC_MCR_TRX_DISABLE;
 		mtk_w32(mac->hw, val, MTK_XMAC_MCR(mac->id));
 
-		val = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
-		val |= MTK_XGMAC_FORCE_MODE(mac->id);
-		val &= ~MTK_XGMAC_FORCE_LINK(mac->id);
-		mtk_w32(mac->hw, val, MTK_XGMAC_STS(mac->id));
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_XGMAC_V2)) {
+			val = mtk_r32(mac->hw, MTK_XMAC_STS_FRC(mac->id));
+			val |= XMAC_FORCE_RX_FC_MODE;
+			val |= XMAC_FORCE_TX_FC_MODE;
+			val |= XMAC_FORCE_LINK_MODE;
+			val &= ~XMAC_FORCE_LINK;
+			mtk_w32(mac->hw, val, MTK_XMAC_STS_FRC(mac->id));
+		} else {
+			val = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
+			val |= MTK_XGMAC_FORCE_MODE(mac->id);
+			val &= ~MTK_XGMAC_FORCE_LINK(mac->id);
+			mtk_w32(mac->hw, val, MTK_XGMAC_STS(mac->id));
+		}
 	}
 
 	return 0;
@@ -1029,7 +1042,8 @@ static void mtk_pse_set_mac_port_link(struct mtk_mac *mac, bool up,
 	struct mtk_eth *eth = mac->hw;
 	u32 port = 0;
 
-	if (!up && mac->id == MTK_GMAC2_ID &&
+	if (eth->soc->caps == MT7988_CAPS &&
+	    !up && mac->id == MTK_GMAC2_ID &&
 	    interface == PHY_INTERFACE_MODE_INTERNAL &&
 	    MTK_HAS_CAPS(eth->soc->caps, MTK_2P5GPHY)) {
 		void __iomem *base;
@@ -1071,6 +1085,7 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 {
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
+	struct mtk_eth *eth = mac->hw;
 	u32 mcr, sts;
 
 	mtk_pse_set_mac_port_link(mac, false, interface);
@@ -1084,9 +1099,15 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
 		mcr |= XMAC_MCR_TRX_DISABLE;
 		mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
 
-		sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
-		sts &= ~MTK_XGMAC_FORCE_LINK(mac->id);
-		mtk_w32(mac->hw, sts, MTK_XGMAC_STS(mac->id));
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_XGMAC_V2)) {
+			sts = mtk_r32(mac->hw, MTK_XMAC_STS_FRC(mac->id));
+			sts &= ~XMAC_FORCE_LINK;
+			mtk_w32(mac->hw, sts, MTK_XMAC_STS_FRC(mac->id));
+		} else {
+			sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
+			sts &= ~MTK_XGMAC_FORCE_LINK(mac->id);
+			mtk_w32(mac->hw, sts, MTK_XGMAC_STS(mac->id));
+		}
 	}
 }
 
@@ -1178,6 +1199,7 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 {
 	struct mtk_mac *mac = container_of(config, struct mtk_mac,
 					   phylink_config);
+	struct mtk_eth *eth = mac->hw;
 	u32 mcr, mcr_cur, sts;
 
 	mac->speed = speed;
@@ -1235,23 +1257,41 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 		mdelay(20);
 		mtk_m32(mac->hw, XMAC_GLB_CNTCLR, 0x1, MTK_XMAC_CNT_CTRL(mac->id));
 
-		sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
-		sts |= MTK_XGMAC_FORCE_LINK(mac->id);
-		mtk_w32(mac->hw, sts, MTK_XGMAC_STS(mac->id));
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_XGMAC_V2)) {
+			sts = mtk_r32(mac->hw, MTK_XMAC_STS_FRC(mac->id));
+			sts &= ~(XMAC_FORCE_TX_FC | XMAC_FORCE_RX_FC);
+			/* Configure pause modes -
+			 * phylink will avoid these for half duplex
+			 */
+			if (tx_pause)
+				sts |= XMAC_FORCE_TX_FC;
+			if (rx_pause)
+				sts |= XMAC_FORCE_RX_FC;
+			sts |= XMAC_FORCE_LINK;
+			mtk_w32(mac->hw, sts, MTK_XMAC_STS_FRC(mac->id));
 
-		mcr = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
+			mcr = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
+			mcr &= ~(XMAC_MCR_TRX_DISABLE);
+			mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
+		} else {
+			sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
+			sts |= MTK_XGMAC_FORCE_LINK(mac->id);
+			mtk_w32(mac->hw, sts, MTK_XGMAC_STS(mac->id));
 
-		mcr &= ~(XMAC_MCR_FORCE_TX_FC |	XMAC_MCR_FORCE_RX_FC);
-		/* Configure pause modes -
-		 * phylink will avoid these for half duplex
-		 */
-		if (tx_pause)
-			mcr |= XMAC_MCR_FORCE_TX_FC;
-		if (rx_pause)
-			mcr |= XMAC_MCR_FORCE_RX_FC;
+			mcr = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
 
-		mcr &= ~(XMAC_MCR_TRX_DISABLE);
-		mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
+			mcr &= ~(XMAC_MCR_FORCE_TX_FC |	XMAC_MCR_FORCE_RX_FC);
+			/* Configure pause modes -
+			 * phylink will avoid these for half duplex
+			 */
+			if (tx_pause)
+				mcr |= XMAC_MCR_FORCE_TX_FC;
+			if (rx_pause)
+				mcr |= XMAC_MCR_FORCE_RX_FC;
+
+			mcr &= ~(XMAC_MCR_TRX_DISABLE);
+			mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
+		}
 	}
 	mtk_pse_set_mac_port_link(mac, true, interface);
 }
@@ -5301,10 +5341,17 @@ static void mtk_get_pauseparam(struct net_device *dev, struct ethtool_pauseparam
 		pause->rx_pause = !!(val & MAC_MCR_FORCE_RX_FC);
 		pause->tx_pause = !!(val & MAC_MCR_FORCE_TX_FC);
 	} else if (mac->type == MTK_XGDM_TYPE) {
-		val = mtk_r32(eth, MTK_XMAC_MCR(mac->id));
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_XGMAC_V2)) {
+			val = mtk_r32(mac->hw, MTK_XMAC_STS_FRC(mac->id));
 
-		pause->rx_pause = !!(val & XMAC_MCR_FORCE_RX_FC);
-		pause->tx_pause = !!(val & XMAC_MCR_FORCE_TX_FC);
+			pause->rx_pause = !!(val & XMAC_FORCE_RX_FC);
+			pause->tx_pause = !!(val & XMAC_FORCE_TX_FC);
+		} else {
+			val = mtk_r32(eth, MTK_XMAC_MCR(mac->id));
+
+			pause->rx_pause = !!(val & XMAC_MCR_FORCE_RX_FC);
+			pause->tx_pause = !!(val & XMAC_MCR_FORCE_TX_FC);
+		}
 	}
 }
 
