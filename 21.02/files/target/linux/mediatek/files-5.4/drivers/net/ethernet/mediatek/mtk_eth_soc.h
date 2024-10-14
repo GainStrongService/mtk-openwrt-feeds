@@ -1778,6 +1778,13 @@ enum mkt_eth_capabilities {
 		       MTK_GMAC2_2P5GPHY | MTK_MUX_GMAC2_TO_2P5GPHY | MTK_RSS | \
 		       MTK_HWLRO | MTK_NETSYS_RX_V2 | MTK_36BIT_DMA)
 
+#define MT7987_CAPS   (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | MTK_GMAC3_SGMII |\
+		       MTK_PDMA_INT | MTK_MUX_GMAC123_TO_GEPHY_SGMII | MTK_QDMA_V1_4 | \
+		       MTK_MUX_U3_GMAC23_TO_QPHY | MTK_U3_COPHY_V2 | \
+		       MTK_GMAC2_2P5GPHY_V2 | MTK_MUX_GMAC2_TO_2P5GPHY | MTK_RSS | \
+		       MTK_NETSYS_V3 | MTK_RSTCTRL_PPE1 | \
+		       MTK_NETSYS_RX_V2 | MTK_36BIT_DMA)
+
 struct mtk_tx_dma_desc_info {
 	dma_addr_t	addr;
 	u32		size;

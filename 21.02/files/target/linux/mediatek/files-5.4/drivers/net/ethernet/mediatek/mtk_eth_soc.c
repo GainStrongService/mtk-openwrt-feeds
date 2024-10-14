@@ -6430,6 +6430,27 @@ static const struct mtk_soc_data mt7988_data = {
 	},
 };
 
+static const struct mtk_soc_data mt7987_data = {
+	.reg_map = &mt7988_reg_map,
+	.ana_rgc3 = 0x128,
+	.caps = MT7987_CAPS,
+	.hw_features = MTK_HW_FEATURES,
+	.required_clks = MT7988_CLKS_BITMAP,
+	.required_pctl = false,
+	.has_sram = false,
+	.rss_num = 4,
+	.txrx = {
+		.txd_size = sizeof(struct mtk_tx_dma_v2),
+		.rxd_size = sizeof(struct mtk_rx_dma_v2),
+		.tx_dma_size = MTK_DMA_SIZE(4K),
+		.rx_dma_size = MTK_DMA_SIZE(1K),
+		.fq_dma_size = MTK_DMA_SIZE(2K),
+		.rx_dma_l4_valid = RX_DMA_L4_VALID_V2,
+		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
+		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
+	},
+};
+
 static const struct mtk_soc_data rt5350_data = {
 	.reg_map = &mt7628_reg_map,
 	.caps = MT7628_CAPS,
@@ -6458,6 +6479,7 @@ const struct of_device_id of_mtk_match[] = {
 	{ .compatible = "mediatek,mt7986-eth", .data = &mt7986_data},
 	{ .compatible = "mediatek,mt7981-eth", .data = &mt7981_data},
 	{ .compatible = "mediatek,mt7988-eth", .data = &mt7988_data},
+	{ .compatible = "mediatek,mt7987-eth", .data = &mt7987_data},
 	{ .compatible = "ralink,rt5350-eth", .data = &rt5350_data},
 	{},
 };
