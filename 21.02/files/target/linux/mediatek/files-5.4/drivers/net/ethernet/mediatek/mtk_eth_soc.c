@@ -4774,6 +4774,23 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 			/* GDM and CDM Threshold */
 			mtk_w32(eth, 0x08000707, MTK_CDMW0_THRES);
 			mtk_w32(eth, 0x00000077, MTK_CDMW1_THRES);
+		} else if (eth->soc->caps == MT7987_CAPS) {
+			/* enable PSE info error interrupt */
+			mtk_w32(eth, 0x00ffffff, MTK_FE_PINFO_INT_ENABLE);
+			/* enable CDMP l3_len_ov_drop */
+			mtk_m32(eth, MTK_CDMP_L3_LEN_OV_DROP,
+				MTK_CDMP_L3_LEN_OV_DROP, MTK_CDMP_IG_CTRL);
+			/* enable CDMQ l3_len_ov_drop */
+			mtk_m32(eth, MTK_CDMQ_L3_LEN_OV_DROP,
+				MTK_CDMQ_L3_LEN_OV_DROP, MTK_CDMQ_IG_CTRL);
+			/* enable CDMW0 l3_len_ov_drop */
+			mtk_m32(eth, MTK_CDMW0_L3_LEN_OV_DROP,
+				MTK_CDMW0_L3_LEN_OV_DROP, MTK_CDMW0_IG_CTRL);
+			/* disable GDM page_num_mismatch_det */
+			for (i = 0; i < 3; i++) {
+				mtk_m32(eth, GDM_PAGE_MISMATCH_DET, 0,
+					FE_GDM_DBG_CTRL(i));
+			}
 		}
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_ESW)) {

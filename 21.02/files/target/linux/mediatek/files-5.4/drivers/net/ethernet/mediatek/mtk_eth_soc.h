@@ -109,17 +109,31 @@
 /* Frame Engine Interrupt Grouping Register */
 #define MTK_FE_INT_GRP		0x20
 
+/* PSE Error Interrupt Status Register */
+#define MTK_FE_PINFO_INT_ENABLE	0x58
+#define MTK_FE_PINFO_INT_STATUS	0x5c
+#define MTK_CDM_PL_END_ERR(x)		BIT((x) + 15)
+#define MTK_GDM_PL_END_ERR(x)		BIT((x) + 12)
+#define MTK_CDM_L3LEN_OVER_RUN(x)	BIT((x) + 3)
+#define MTK_GDM_L3LEN_OVER_RUN(x)	BIT((x))
+
 /* Frame Engine LRO auto-learn table info */
 #define MTK_FE_ALT_CF8		0x300
 #define MTK_FE_ALT_SGL_CFC	0x304
 #define MTK_FE_ALT_SEQ_CFC	0x308
 
-/* CDMP Ingress Control Register */
+/* CDMW Ingress Control Register */
+#define MTK_CDMW0_IG_CTRL	0x1600
+#define MTK_CDMW0_L3_LEN_OV_DROP	BIT(1)
+
+/* CDMQ Ingress Control Register */
 #define MTK_CDMQ_IG_CTRL	0x1400
+#define MTK_CDMQ_L3_LEN_OV_DROP	BIT(2)
 #define MTK_CDMQ_STAG_EN	BIT(0)
 
 /* CDMP Ingress Control Register */
 #define MTK_CDMP_IG_CTRL	0x400
+#define MTK_CDMP_L3_LEN_OV_DROP	BIT(2)
 #define MTK_CDMP_STAG_EN	BIT(0)
 
 /* CDMP Exgress Control Register */
@@ -175,6 +189,19 @@
 
 /* PSE Output Queue Threshold Register*/
 #define PSE_OQ_TH(x)		(0x160 + ((x - 1) * 0x4))
+
+/* GDM and CDM Debug Control */
+#define FE_CDM_DBG_CTRL(x)	(0x38c + ((x) * 0x8))
+#define CDM_DBG_IDX_MASK	GENMASK(5, 0)
+
+#define FE_GDM_DBG_CTRL(x)	(0x3e0 + ((x) * 0x8))
+#define GDM_DBG_IDX_MASK	GENMASK(5, 1)
+#define GDM_PAGE_MISMATCH_DET	BIT(9)
+
+#define FE_CGDM_INT3		(0x3fc)
+#define FE_CDM_RUNT_PACKET(x)	BIT(22 - (x))
+#define FE_CDM_PAGE_MISMATCH(x)	BIT(11 - (x))
+#define FE_GDM_PAGE_MISMATCH(x)	BIT(2 - (x))
 
 /* GDM and CDM Threshold */
 #define MTK_GDM2_THRES		0x1530
