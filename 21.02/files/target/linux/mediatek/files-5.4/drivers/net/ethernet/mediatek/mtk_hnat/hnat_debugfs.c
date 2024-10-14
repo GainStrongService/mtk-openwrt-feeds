@@ -39,13 +39,14 @@ int qos_dl_toggle = 1;
 int qos_ul_toggle = 1;
 int tnl_toggle;
 int xlat_toggle;
+int l2br_toggle;
 struct hnat_desc headroom[DEF_ETRY_NUM];
 unsigned int dbg_cpu_reason_cnt[MAX_CRSN_NUM];
 
 static const char * const entry_state[] = { "INVALID", "UNBIND", "BIND", "FIN" };
 
 static const char * const packet_type[] = {
-	"IPV4_HNAPT",    "IPV4_HNAT",     "IPV6_1T_ROUTE", "IPV4_DSLITE",
+	"IPV4_HNAPT",    "IPV4_HNAT",     "L2_BRIDGE",     "IPV4_DSLITE",
 	"IPV6_3T_ROUTE", "IPV6_5T_ROUTE", "REV",	   "IPV6_6RD",
 	"IPV4_MAP_T",    "IPV4_MAP_E",    "IPV6_HNAPT",    "IPV6_HNAT",
 };
@@ -371,6 +372,8 @@ int entry_detail(u32 ppe_id, int index)
 	u32 print_cnt;
 	unsigned char h_dest[ETH_ALEN];
 	unsigned char h_source[ETH_ALEN];
+	unsigned char new_h_dest[ETH_ALEN];
+	unsigned char new_h_source[ETH_ALEN];
 	__be32 saddr, daddr, nsaddr, ndaddr;
 
 	if (ppe_id >= CFG_PPE_NUM)
@@ -588,6 +591,13 @@ int entry_detail(u32 ppe_id, int index)
 				entry->ipv6_hnapt.new_ipv6_ip2,
 				entry->ipv6_hnapt.new_ipv6_ip3);
 		}
+	} else if (IS_L2_BRIDGE(entry)) {
+		pr_info("Information Block 2: %08X (FP=%d FQOS=%d QID=%d)",
+			entry->l2_bridge.info_blk2,
+			entry->l2_bridge.iblk2.dp,
+			entry->l2_bridge.iblk2.fqos,
+			entry->l2_bridge.iblk2.qid);
+		pr_info("Create L2 BRIDGE entry\n");
 #endif
 	}
 
@@ -603,8 +613,8 @@ int entry_detail(u32 ppe_id, int index)
 			"BIND" : entry->bfib1.state == 3 ?
 			"FIN" : "Unknown");
 		pr_info("Vlan_Layer = %u, ", entry->bfib1.vlan_layer);
-		pr_info("Eth_type = 0x%x, Vid1 = 0x%x, Vid2 = 0x%x\n",
-			entry->ipv4_hnapt.etype, entry->ipv4_hnapt.vlan1,
+		pr_info("SP_TAG = 0x%x, Vid1 = 0x%x, Vid2 = 0x%x\n",
+			entry->ipv4_hnapt.sp_tag, entry->ipv4_hnapt.vlan1,
 			entry->ipv4_hnapt.vlan2);
 		pr_info("multicast = %d, pppoe = %d, proto = %s\n",
 			entry->ipv4_hnapt.iblk2.mcast,
@@ -628,6 +638,32 @@ int entry_detail(u32 ppe_id, int index)
 			entry->ipv4_hnapt.winfo_pao.is_sp);
 #endif
 		pr_info("=========================================\n\n");
+	} else if (IS_L2_BRIDGE(entry)) {
+		*((u32 *)h_source) = swab32(entry->l2_bridge.smac_hi);
+		*((u16 *)&h_source[4]) = swab16(entry->l2_bridge.smac_lo);
+		*((u32 *)h_dest) = swab32(entry->l2_bridge.dmac_hi);
+		*((u16 *)&h_dest[4]) = swab16(entry->l2_bridge.dmac_lo);
+		*((u32 *)new_h_source) = swab32(entry->l2_bridge.new_smac_hi);
+		*((u16 *)&new_h_source[4]) = swab16(entry->l2_bridge.new_smac_lo);
+		*((u32 *)new_h_dest) = swab32(entry->l2_bridge.new_dmac_hi);
+		*((u16 *)&new_h_dest[4]) = swab16(entry->l2_bridge.new_dmac_lo);
+		pr_info("Org SMAC=%pM => DMAC=%pM\n", h_source, h_dest);
+		pr_info("New SMAC=%pM => DMAC=%pM\n", new_h_source, new_h_dest);
+		pr_info("Eth_type = 0x%04x, Vid1 = 0x%x, Vid2 = 0x%x\n",
+			entry->l2_bridge.etype, entry->l2_bridge.vlan1,
+			entry->l2_bridge.vlan2);
+		pr_info("State = %s, ",	entry->bfib1.state == 0 ?
+			"Invalid" : entry->bfib1.state == 1 ?
+			"Unbind" : entry->bfib1.state == 2 ?
+			"BIND" : entry->bfib1.state == 3 ?
+			"FIN" : "Unknown");
+		pr_info("DR_IDX = %x\n", entry->l2_bridge.iblk2.rxid);
+		pr_info("Vlan_Layer = %u, ", entry->bfib1.vlan_layer);
+		pr_info("SP_TAG = 0x%04x, New_Vid1 = 0x%x, New_Vid2 = 0x%x\n",
+			entry->l2_bridge.sp_tag, entry->l2_bridge.new_vlan1,
+			entry->l2_bridge.new_vlan2);
+		pr_info("multicast = %d\n", entry->l2_bridge.iblk2.mcast);
+		pr_info("=========================================\n\n");
 	} else {
 		*((u32 *)h_source) = swab32(entry->ipv6_5t_route.smac_hi);
 		*((u16 *)&h_source[4]) = swab16(entry->ipv6_5t_route.smac_lo);
@@ -641,8 +677,8 @@ int entry_detail(u32 ppe_id, int index)
 			"FIN" : "Unknown");
 
 		pr_info("Vlan_Layer = %u, ", entry->bfib1.vlan_layer);
-		pr_info("Eth_type = 0x%x, Vid1 = 0x%x, Vid2 = 0x%x\n",
-			entry->ipv6_5t_route.etype, entry->ipv6_5t_route.vlan1,
+		pr_info("SP_TAG = 0x%x, Vid1 = 0x%x, Vid2 = 0x%x\n",
+			entry->ipv6_5t_route.sp_tag, entry->ipv6_5t_route.vlan1,
 			entry->ipv6_5t_route.vlan2);
 		pr_info("multicast = %d, pppoe = %d, proto = %s\n",
 			entry->ipv6_5t_route.iblk2.mcast,
@@ -1185,14 +1221,14 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				swab16(entry->ipv4_hnapt.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|%pI4:%d->%pI4:%d=>%pI4:%d->%pI4:%d|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|%pI4:%d->%pI4:%d=>%pI4:%d->%pI4:%d|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
 				   entry, ppe_id, ei(entry, end),
 				   es(entry), pt(entry), &saddr,
 				   entry->ipv4_hnapt.sport, &daddr,
 				   entry->ipv4_hnapt.dport, &nsaddr,
 				   entry->ipv4_hnapt.new_sport, &ndaddr,
 				   entry->ipv4_hnapt.new_dport, h_source, h_dest,
-				   ntohs(entry->ipv4_hnapt.etype),
+				   ntohs(entry->ipv4_hnapt.sp_tag),
 				   entry->ipv4_hnapt.info_blk1,
 				   entry->ipv4_hnapt.info_blk2,
 				   entry->ipv4_hnapt.vlan1,
@@ -1211,11 +1247,11 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				swab16(entry->ipv4_hnapt.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|%pI4->%pI4=>%pI4->%pI4|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|%pI4->%pI4=>%pI4->%pI4|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
 				   entry, ppe_id, ei(entry, end),
 				   es(entry), pt(entry), &saddr,
 				   &daddr, &nsaddr, &ndaddr, h_source, h_dest,
-				   ntohs(entry->ipv4_hnapt.etype),
+				   ntohs(entry->ipv4_hnapt.sp_tag),
 				   entry->ipv4_hnapt.info_blk1,
 				   entry->ipv4_hnapt.info_blk2,
 				   entry->ipv4_hnapt.vlan1,
@@ -1239,13 +1275,13 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				swab16(entry->ipv6_5t_route.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x\n",
 				   entry, ppe_id, ei(entry, end), es(entry), pt(entry), ipv6_sip0,
 				   ipv6_sip1, ipv6_sip2, ipv6_sip3,
 				   entry->ipv6_5t_route.sport, ipv6_dip0,
 				   ipv6_dip1, ipv6_dip2, ipv6_dip3,
 				   entry->ipv6_5t_route.dport, h_source, h_dest,
-				   ntohs(entry->ipv6_5t_route.etype),
+				   ntohs(entry->ipv6_5t_route.sp_tag),
 				   entry->ipv6_5t_route.info_blk1,
 				   entry->ipv6_5t_route.info_blk2);
 		} else if (IS_IPV6_3T_ROUTE(entry)) {
@@ -1267,12 +1303,12 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				swab16(entry->ipv6_5t_route.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x\n",
 				   entry, ppe_id, ei(entry, end),
 				   es(entry), pt(entry), ipv6_sip0,
 				   ipv6_sip1, ipv6_sip2, ipv6_sip3, ipv6_dip0,
 				   ipv6_dip1, ipv6_dip2, ipv6_dip3, h_source,
-				   h_dest, ntohs(entry->ipv6_5t_route.etype),
+				   h_dest, ntohs(entry->ipv6_5t_route.sp_tag),
 				   entry->ipv6_5t_route.info_blk1,
 				   entry->ipv6_5t_route.info_blk2);
 		} else if (IS_IPV6_6RD(entry)) {
@@ -1296,7 +1332,7 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				swab16(entry->ipv6_5t_route.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|TSIP=%pI4->TDIP=%pI4|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|TSIP=%pI4->TDIP=%pI4|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x\n",
 				   entry, ppe_id, ei(entry, end),
 				   es(entry), pt(entry), ipv6_sip0,
 				   ipv6_sip1, ipv6_sip2, ipv6_sip3,
@@ -1304,7 +1340,7 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				   ipv6_dip1, ipv6_dip2, ipv6_dip3,
 				   entry->ipv6_5t_route.dport, &tsaddr, &tdaddr,
 				   h_source, h_dest,
-				   ntohs(entry->ipv6_5t_route.etype),
+				   ntohs(entry->ipv6_5t_route.sp_tag),
 				   entry->ipv6_5t_route.info_blk1,
 				   entry->ipv6_5t_route.info_blk2);
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -1332,7 +1368,7 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 
 			if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_SNAT) {
 				seq_printf(m,
-					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|NEW_SIP=%08x:%08x:%08x:%08x(sp=%d)->NEW_DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|NEW_SIP=%08x:%08x:%08x:%08x(sp=%d)->NEW_DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
 					   entry, ppe_id, ei(entry, end),
 					   es(entry), pt(entry),
 					   ipv6_sip0, ipv6_sip1,
@@ -1348,14 +1384,14 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 					   ipv6_dip2, ipv6_dip3,
 					   entry->ipv6_hnapt.new_dport,
 					   h_source, h_dest,
-					   ntohs(entry->ipv6_hnapt.etype),
+					   ntohs(entry->ipv6_hnapt.sp_tag),
 					   entry->ipv6_hnapt.info_blk1,
 					   entry->ipv6_hnapt.info_blk2,
 					   entry->ipv6_hnapt.vlan1,
 					   entry->ipv6_hnapt.vlan2);
 			} else if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_DNAT) {
 				seq_printf(m,
-					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|NEW_SIP=%08x:%08x:%08x:%08x(sp=%d)->NEW_DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|NEW_SIP=%08x:%08x:%08x:%08x(sp=%d)->NEW_DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
 					   entry, ppe_id, ei(entry, end),
 					   es(entry), pt(entry),
 					   ipv6_sip0, ipv6_sip1,
@@ -1371,7 +1407,7 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 					   new_ipv6_ip2, new_ipv6_ip3,
 					   entry->ipv6_hnapt.new_dport,
 					   h_source, h_dest,
-					   ntohs(entry->ipv6_hnapt.etype),
+					   ntohs(entry->ipv6_hnapt.sp_tag),
 					   entry->ipv6_hnapt.info_blk1,
 					   entry->ipv6_hnapt.info_blk2,
 					   entry->ipv6_hnapt.vlan1,
@@ -1401,7 +1437,7 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 
 			if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_SNAT) {
 				seq_printf(m,
-					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|NEW_SIP=%08x:%08x:%08x:%08x->NEW_DIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|NEW_SIP=%08x:%08x:%08x:%08x->NEW_DIP=%08x:%08x:%08x:%08x|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
 					   entry, ppe_id, ei(entry, end),
 					   es(entry), pt(entry),
 					   ipv6_sip0, ipv6_sip1,
@@ -1413,14 +1449,14 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 					   ipv6_dip0, ipv6_dip1,
 					   ipv6_dip2, ipv6_dip3,
 					   h_source, h_dest,
-					   ntohs(entry->ipv6_hnapt.etype),
+					   ntohs(entry->ipv6_hnapt.sp_tag),
 					   entry->ipv6_hnapt.info_blk1,
 					   entry->ipv6_hnapt.info_blk2,
 					   entry->ipv6_hnapt.vlan1,
 					   entry->ipv6_hnapt.vlan2);
 			} else if (entry->ipv6_hnapt.eg_ipv6_dir == IPV6_DNAT) {
 				seq_printf(m,
-					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|NEW_SIP=%08x:%08x:%08x:%08x->NEW_DIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+					   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|NEW_SIP=%08x:%08x:%08x:%08x->NEW_DIP=%08x:%08x:%08x:%08x|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
 					   entry, ppe_id, ei(entry, end),
 					   es(entry), pt(entry),
 					   ipv6_sip0, ipv6_sip1,
@@ -1432,12 +1468,44 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 					   new_ipv6_ip0, new_ipv6_ip1,
 					   new_ipv6_ip2, new_ipv6_ip3,
 					   h_source, h_dest,
-					   ntohs(entry->ipv6_hnapt.etype),
+					   ntohs(entry->ipv6_hnapt.sp_tag),
 					   entry->ipv6_hnapt.info_blk1,
 					   entry->ipv6_hnapt.info_blk2,
 					   entry->ipv6_hnapt.vlan1,
 					   entry->ipv6_hnapt.vlan2);
 			}
+		} else if (IS_L2_BRIDGE(entry)) {
+			unsigned char new_h_dest[ETH_ALEN];
+			unsigned char new_h_source[ETH_ALEN];
+
+			*((u32 *)h_source) = swab32(entry->l2_bridge.smac_hi);
+			*((u16 *)&h_source[4]) =
+				swab16(entry->l2_bridge.smac_lo);
+			*((u32 *)h_dest) = swab32(entry->l2_bridge.dmac_hi);
+			*((u16 *)&h_dest[4]) =
+				swab16(entry->l2_bridge.dmac_lo);
+
+			*((u32 *)new_h_source) = swab32(entry->l2_bridge.new_smac_hi);
+			*((u16 *)&new_h_source[4]) =
+				swab16(entry->l2_bridge.new_smac_lo);
+			*((u32 *)new_h_dest) = swab32(entry->l2_bridge.new_dmac_hi);
+			*((u16 *)&new_h_dest[4]) =
+				swab16(entry->l2_bridge.new_dmac_lo);
+
+			PRINT_COUNT(m, acct);
+			seq_printf(m,
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|%pM->%pM=>%pM->%pM|eth=0x%04x|sp_tag=%04x|info1=0x%x|info2=0x%x|vlan1=%d=>%d|vlan2=%d=>%d\n",
+				   entry, ppe_id, ei(entry, end),
+				   es(entry), pt(entry),
+				   h_source, h_dest, new_h_source, new_h_dest,
+				   entry->l2_bridge.etype,
+				   entry->l2_bridge.sp_tag,
+				   entry->l2_bridge.info_blk1,
+				   entry->l2_bridge.info_blk2,
+				   entry->l2_bridge.vlan1,
+				   entry->l2_bridge.new_vlan1,
+				   entry->l2_bridge.vlan2,
+				   entry->l2_bridge.new_vlan2);
 #endif
 		} else if (IS_IPV4_DSLITE(entry)) {
 			__be32 saddr = htonl(entry->ipv4_hnapt.sip);
@@ -1459,13 +1527,13 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				swab16(entry->ipv4_dslite.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%pI4->DIP=%pI4|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%pI4->DIP=%pI4|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x\n",
 				   entry, ppe_id, ei(entry, end),
 				   es(entry), pt(entry), &saddr,
 				   &daddr, ipv6_tsip0, ipv6_tsip1, ipv6_tsip2,
 				   ipv6_tsip3, ipv6_tdip0, ipv6_tdip1, ipv6_tdip2,
 				   ipv6_tdip3, h_source, h_dest,
-				   ntohs(entry->ipv6_5t_route.etype),
+				   ntohs(entry->ipv6_5t_route.sp_tag),
 				   entry->ipv6_5t_route.info_blk1,
 				   entry->ipv6_5t_route.info_blk2);
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -1491,7 +1559,7 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				swab16(entry->ipv4_dslite.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%pI4:%d->DIP=%pI4:%d|NSIP=%pI4:%d->NDIP=%pI4:%d|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|etype=0x%04x|info1=0x%x|info2=0x%x\n",
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%pI4:%d->DIP=%pI4:%d|NSIP=%pI4:%d->NDIP=%pI4:%d|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x\n",
 				   entry, ppe_id, ei(entry, end),
 				   es(entry), pt(entry),
 				   &saddr, entry->ipv4_dslite.sport,
@@ -1501,7 +1569,7 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				   ipv6_tsip0, ipv6_tsip1, ipv6_tsip2,
 				   ipv6_tsip3, ipv6_tdip0, ipv6_tdip1,
 				   ipv6_tdip2, ipv6_tdip3, h_source, h_dest,
-				   ntohs(entry->ipv6_5t_route.etype),
+				   ntohs(entry->ipv6_5t_route.sp_tag),
 				   entry->ipv6_5t_route.info_blk1,
 				   entry->ipv6_5t_route.info_blk2);
 #endif
@@ -1897,6 +1965,28 @@ void dbg_dump_entry(struct seq_file *m, struct foe_entry *entry,
 				   entry->ipv6_hnapt.new_ipv6_ip2,
 				   entry->ipv6_hnapt.new_ipv6_ip3);
 		}
+	} else if (IS_L2_BRIDGE(entry)) {
+		unsigned char h_dest[ETH_ALEN];
+		unsigned char h_source[ETH_ALEN];
+		unsigned char new_h_dest[ETH_ALEN];
+		unsigned char new_h_source[ETH_ALEN];
+
+		*((u32 *)h_source) = swab32(entry->l2_bridge.smac_hi);
+		*((u16 *)&h_source[4]) =
+			swab16(entry->l2_bridge.smac_lo);
+		*((u32 *)h_dest) = swab32(entry->l2_bridge.dmac_hi);
+		*((u16 *)&h_dest[4]) =
+			swab16(entry->l2_bridge.dmac_lo);
+
+		*((u32 *)new_h_source) = swab32(entry->l2_bridge.new_smac_hi);
+		*((u16 *)&new_h_source[4]) =
+			swab16(entry->l2_bridge.new_smac_lo);
+		*((u32 *)new_h_dest) = swab32(entry->l2_bridge.new_dmac_hi);
+		*((u16 *)&new_h_dest[4]) =
+			swab16(entry->l2_bridge.new_dmac_lo);
+		seq_printf(m,
+			   "L2_BRIDGE(%d): %pM->%pM => %pM -> %pM\n",
+			   index, h_source, h_dest, new_h_source, new_h_dest);
 #endif
 	}
 }
@@ -2753,6 +2843,95 @@ static const struct file_operations hnat_qos_toggle_fops = {
 	.release = single_release,
 };
 
+static void hnat_l2br_toggle_usage(void)
+{
+	pr_info("\n*** L2_BRIDGE HNAT is only supported on MT7987 platform ***\n");
+	pr_info("-------------------- Usage --------------------\n");
+	pr_info("Show L2_BRIDGE HNAT mode:\n");
+	pr_info("    cat /sys/kernel/debug/hnat/l2br_toggle\n");
+	pr_info("Disable L2_BRIDGE HNAT:\n");
+	pr_info("    echo 0 > /sys/kernel/debug/hnat/l2br_toggle\n");
+	pr_info("Enable L2_BRIDGE HNAT learning mode:\n");
+	pr_info("    echo 1 > /sys/kernel/debug/hnat/l2br_toggle\n");
+	pr_info("Enable L2_BRIDGE HNAT look-up mode:\n");
+	pr_info("    echo 2 > /sys/kernel/debug/hnat/l2br_toggle\n");
+	pr_info("Show L2_BRIDGE toggle usage:\n");
+	pr_info("    echo 3 > /sys/kernel/debug/hnat/l2br_toggle\n");
+	pr_info("-------------------- Details ------------------\n");
+	pr_info("Learning mode: PPE automatically learns and creates new L2_BRIDGE entries\n");
+	pr_info("Look-up mode : For L2 packets, PPE only checks existing entries without creating new ones\n");
+}
+
+static int hnat_l2br_toggle_read(struct seq_file *m, void *private)
+{
+	if (l2br_toggle == 0)
+		pr_info("L2_BRIDGE HNAT is disabled now!\n");
+	else if (l2br_toggle == 1)
+		pr_info("L2_BRIDGE HNAT learning mode is enabled now!\n");
+	else if (l2br_toggle == 2)
+		pr_info("L2_BRIDGE HNAT look up mode is enabled now!\n");
+
+	return 0;
+}
+
+static int hnat_l2br_toggle_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hnat_l2br_toggle_read, file->private_data);
+}
+
+static ssize_t hnat_l2br_toggle_write(struct file *file, const char __user *buffer,
+				     size_t count, loff_t *data)
+{
+	char buf[32] = {0};
+	int len = count;
+	u32 i, ppe_cfg = 0;
+
+	if (len  >= sizeof(buf))
+		return -EFAULT;
+
+	if (copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	if (buf[0] == '0') {
+		pr_info("L2_BRIDGE HNAT is going to be disabled!\n");
+		l2br_toggle = 0;
+	} else if (buf[0] == '1') {
+		pr_info("L2_BRIDGE HNAT learning mode is going to be enabled!\n");
+		l2br_toggle = 1;
+		ppe_cfg = BIT_L2_BRG_EN | BIT_L2_LRN_EN;
+	} else if (buf[0] == '2') {
+		pr_info("L2_BRIDGE HNAT look-up mode is going to be enabled!\n");
+		l2br_toggle = 2;
+		ppe_cfg = BIT_L2_BRG_EN;
+	} else if (buf[0] == '3') {
+		hnat_l2br_toggle_usage();
+		goto skip_ppe_cfg;
+	} else {
+		pr_err("Input error!\n");
+		hnat_l2br_toggle_usage();
+		goto skip_ppe_cfg;
+	}
+
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		cr_clr_bits(hnat_priv->ppe_base[i] + PPE_FLOW_CFG,
+			    BIT_L2_BRG_EN | BIT_L2_LRN_EN);
+		cr_set_bits(hnat_priv->ppe_base[i] + PPE_FLOW_CFG, ppe_cfg);
+	}
+
+skip_ppe_cfg:
+	return len;
+}
+
+static const struct file_operations hnat_l2br_toggle_fops = {
+	.open = hnat_l2br_toggle_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = hnat_l2br_toggle_write,
+	.release = single_release,
+};
+
 static int hnat_version_read(struct seq_file *m, void *private)
 {
 	pr_info("HNAT SW version : %s\nHNAT HW version : %d\n", HNAT_SW_VER, hnat_priv->data->version);
@@ -2777,6 +2956,13 @@ u32 hnat_get_ppe_hash(struct foe_entry *entry)
 	u32 hv1 = 0, hv2 = 0, hv3 = 0, hash = 0;
 
 	switch (entry->bfib1.pkt_type) {
+	case L2_BRIDGE:
+		hv1 = (entry->l2_bridge.etype << 16) |
+		      (entry->l2_bridge.vlan2 ^ entry->l2_bridge.vlan1);
+		hv2 = 0x5a5a |
+		      ((entry->l2_bridge.smac_lo ^ entry->l2_bridge.dmac_lo) << 16);
+		hv3 = entry->l2_bridge.dmac_hi ^ entry->l2_bridge.smac_hi;
+		break;
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
 	case IPV4_DSLITE:
@@ -2858,6 +3044,7 @@ static ssize_t hnat_static_entry_write(struct file *file,
 {
 	struct foe_entry *foe, entry = { 0 };
 	char buf[256], dmac_str[18], smac_str[18], dmac[6], smac[6];
+	char new_dmac_str[18], new_smac_str[18], new_dmac[6], new_smac[6];
 	int len = count, hash, coll = 0;
 	u32 ppe_id = 0;
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -2877,7 +3064,7 @@ static ssize_t hnat_static_entry_write(struct file *file,
 		return -EFAULT;
 	}
 
-	if (entry.ipv4_hnapt.bfib1.pkt_type == IPV4_HNAPT) {
+	if (entry.bfib1.pkt_type == IPV4_HNAPT) {
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 		if (sscanf(buf,
 			"%5d %8x %8x %8x %hx %hx %8x %8x %8x %hx %hx %18s %18s %4x %4x %4x",
@@ -2928,7 +3115,7 @@ static ssize_t hnat_static_entry_write(struct file *file,
 			return -EFAULT;
 		}
 #endif
-	} else if (entry.ipv4_hnapt.bfib1.pkt_type == IPV6_5T_ROUTE) {
+	} else if (entry.bfib1.pkt_type == IPV6_5T_ROUTE) {
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 		if (sscanf(buf,
 			"%5d %8x %8x%8x%8x%8x %8x%8x%8x%8x %hx %hx %8x %18s %18s %4x %4x %4x",
@@ -2983,6 +3170,31 @@ static ssize_t hnat_static_entry_write(struct file *file,
 			return -EFAULT;
 		}
 #endif
+	} else if (entry.bfib1.pkt_type == L2_BRIDGE) {
+		if (sscanf(buf,
+			"%5d %8x %18s %18s %hx %hx %hx %8x %18s %18s %hx %hx",
+			&hash,
+			&entry.l2_bridge.info_blk1,
+			dmac_str,
+			smac_str,
+			&entry.l2_bridge.etype,
+			&entry.l2_bridge.vlan1,
+			&entry.l2_bridge.vlan2,
+			&entry.l2_bridge.info_blk2,
+			new_dmac_str,
+			new_smac_str,
+			&entry.l2_bridge.new_vlan1,
+			&entry.l2_bridge.new_vlan2) != 12)
+			return -EFAULT;
+
+		if ((hash >= (int)hnat_priv->foe_etry_num) || (hash < -1)) {
+			hnat_static_entry_help();
+			return -EFAULT;
+		}
+
+		entry.l2_bridge.hph = 0xa5a5;
+		hnat_parse_mac(new_smac_str, new_smac);
+		hnat_parse_mac(new_dmac_str, new_dmac);
 	} else {
 		pr_info("Unknown packet type!\n");
 		return -EFAULT;
@@ -2991,16 +3203,25 @@ static ssize_t hnat_static_entry_write(struct file *file,
 
 	hnat_parse_mac(smac_str, smac);
 	hnat_parse_mac(dmac_str, dmac);
-	if (entry.ipv4_hnapt.bfib1.pkt_type == IPV4_HNAPT) {
+	if (entry.bfib1.pkt_type == IPV4_HNAPT) {
 		entry.ipv4_hnapt.dmac_hi = swab32(*((u32 *)dmac));
 		entry.ipv4_hnapt.dmac_lo = swab16(*((u16 *)&dmac[4]));
 		entry.ipv4_hnapt.smac_hi = swab32(*((u32 *)smac));
 		entry.ipv4_hnapt.smac_lo = swab16(*((u16 *)&smac[4]));
-	} else if (entry.ipv4_hnapt.bfib1.pkt_type == IPV6_5T_ROUTE) {
+	} else if (entry.bfib1.pkt_type == IPV6_5T_ROUTE) {
 		entry.ipv6_5t_route.dmac_hi = swab32(*((u32 *)dmac));
 		entry.ipv6_5t_route.dmac_lo = swab16(*((u16 *)&dmac[4]));
 		entry.ipv6_5t_route.smac_hi = swab32(*((u32 *)smac));
 		entry.ipv6_5t_route.smac_lo = swab16(*((u16 *)&smac[4]));
+	} else if (entry.bfib1.pkt_type == L2_BRIDGE) {
+		entry.l2_bridge.dmac_hi = swab32(*((u32 *)dmac));
+		entry.l2_bridge.dmac_lo = swab16(*((u16 *)&dmac[4]));
+		entry.l2_bridge.smac_hi = swab32(*((u32 *)smac));
+		entry.l2_bridge.smac_lo = swab16(*((u16 *)&smac[4]));
+		entry.l2_bridge.new_dmac_hi = swab32(*((u32 *)new_dmac));
+		entry.l2_bridge.new_dmac_lo = swab16(*((u16 *)&new_dmac[4]));
+		entry.l2_bridge.new_smac_hi = swab32(*((u32 *)new_smac));
+		entry.l2_bridge.new_smac_lo = swab16(*((u16 *)&new_smac[4]));
 	}
 
 	if (hash == -1)
@@ -3210,6 +3431,8 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 			    &hnat_xlat_toggle_fops);
 	debugfs_create_file("xlat_cfg", 0444, root, h,
 			    &hnat_xlat_cfg_fops);
+	debugfs_create_file("l2br_toggle", 0444, root, h,
+			    &hnat_l2br_toggle_fops);
 
 	for (i = 0; i < hnat_priv->data->num_of_sch; i++) {
 		ret = snprintf(name, sizeof(name), "qdma_sch%ld", i);

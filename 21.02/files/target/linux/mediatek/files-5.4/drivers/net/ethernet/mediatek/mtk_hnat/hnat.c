@@ -119,7 +119,7 @@ static void hnat_reset_timestamp(struct timer_list *t)
 	mod_timer(&hnat_priv->hnat_reset_timestamp_timer, jiffies + 14400 * HZ);
 }
 
-static void cr_set_bits(void __iomem *reg, u32 bs)
+void cr_set_bits(void __iomem *reg, u32 bs)
 {
 	u32 val = readl(reg);
 
@@ -127,7 +127,7 @@ static void cr_set_bits(void __iomem *reg, u32 bs)
 	writel(val, reg);
 }
 
-static void cr_clr_bits(void __iomem *reg, u32 bs)
+void cr_clr_bits(void __iomem *reg, u32 bs)
 {
 	u32 val = readl(reg);
 
@@ -581,6 +581,7 @@ static int hnat_hw_init(u32 ppe_id)
 
 	if (hnat_priv->data->version == MTK_HNAT_V3)
 		cr_set_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
+			    BIT_L2_HASH_VID | BIT_L2_HASH_ETH |
 			    BIT_IPV6_NAT_EN | BIT_IPV6_NAPT_EN |
 			    BIT_CS0_RM_ALL_IP6_IP_EN);
 
@@ -785,6 +786,7 @@ static void hnat_stop(u32 ppe_id)
 
 	if (hnat_priv->data->version == MTK_HNAT_V3)
 		cr_clr_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
+			    BIT_L2_HASH_VID | BIT_L2_HASH_ETH |
 			    BIT_IPV6_NAT_EN | BIT_IPV6_NAPT_EN |
 			    BIT_CS0_RM_ALL_IP6_IP_EN);
 

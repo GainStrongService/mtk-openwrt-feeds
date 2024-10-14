@@ -99,9 +99,11 @@ int hnat_dsa_fill_stag(const struct net_device *netdev,
 			dsa_tag |= BIT(8);
 
 		if (IS_IPV4_GRP(entry))
-			entry->ipv4_hnapt.etype = dsa_tag;
-		else
-			entry->ipv6_5t_route.etype = dsa_tag;
+			entry->ipv4_hnapt.sp_tag = dsa_tag;
+		else if (IS_IPV6_GRP(entry))
+			entry->ipv6_5t_route.sp_tag = dsa_tag;
+		else if (IS_L2_BRIDGE(entry))
+			entry->l2_bridge.sp_tag = dsa_tag;
 
 		entry->bfib1.vpm = 0;
 	}

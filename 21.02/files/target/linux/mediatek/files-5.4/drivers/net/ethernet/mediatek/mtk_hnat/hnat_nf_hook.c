@@ -231,8 +231,8 @@ static void foe_clear_ethdev_bind_entries(struct net_device *dev)
 						entry->ipv6_5t_route.vlan1 == dsa_tag;
 				} else {
 					match_dev = (IS_IPV4_GRP(entry)) ?
-						!!(entry->ipv4_hnapt.etype & dsa_tag) :
-						!!(entry->ipv6_5t_route.etype & dsa_tag);
+						!!(entry->ipv4_hnapt.sp_tag & dsa_tag) :
+						!!(entry->ipv6_5t_route.sp_tag & dsa_tag);
 				}
 			}
 
@@ -861,6 +861,10 @@ static unsigned int is_ppe_support_type(struct sk_buff *skb)
 		break;
 	case ETH_P_8021Q:
 		return 1;
+	default:
+		if (l2br_toggle == 1)
+			return 1;
+		break;
 	}
 
 	return 0;
@@ -1256,6 +1260,12 @@ struct foe_entry ppe_fill_L2_info(struct foe_entry entry,
 				  struct flow_offload_hw_path *hw_path)
 {
 	switch ((int)entry.bfib1.pkt_type) {
+	case L2_BRIDGE:
+		entry.l2_bridge.new_dmac_hi = swab32(*((u32 *)hw_path->eth_dest));
+		entry.l2_bridge.new_dmac_lo = swab16(*((u16 *)&hw_path->eth_dest[4]));
+		entry.l2_bridge.new_smac_hi = swab32(*((u32 *)hw_path->eth_src));
+		entry.l2_bridge.new_smac_lo = swab16(*((u16 *)&hw_path->eth_src[4]));
+		break;
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
 		entry.ipv4_hnapt.dmac_hi = swab32(*((u32 *)hw_path->eth_dest));
@@ -1294,6 +1304,15 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 		readl(hnat_priv->fe_base + 0x0010) & (0x7FFF);
 
 	switch ((int)entry.bfib1.pkt_type) {
+	case L2_BRIDGE:
+		if (hnat_priv->data->mcast &&
+		    is_multicast_ether_addr(&hw_path->eth_dest[0]))
+			entry.l2_bridge.iblk2.mcast = 1;
+		else
+			entry.l2_bridge.iblk2.mcast = 0;
+
+		entry.l2_bridge.iblk2.port_ag = 0xf;
+		break;
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
 		if (hnat_priv->data->mcast &&
@@ -1479,7 +1498,7 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 			udp = 1;
 			/* fallthrough */
 		case IPPROTO_TCP:
-			entry.ipv4_hnapt.etype = htons(ETH_P_IP);
+			entry.ipv4_hnapt.sp_tag = htons(ETH_P_IP);
 			if (IS_IPV4_GRP(&entry)) {
 				entry.ipv4_hnapt.iblk2.dscp = iph->tos;
 				if (hnat_priv->data->per_flow_accounting)
@@ -1656,7 +1675,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			udp = 1;
 			/* fallthrough */
 		case IPPROTO_TCP:
-			entry.ipv4_hnapt.etype = htons(ETH_P_IP);
+			entry.ipv4_hnapt.sp_tag = htons(ETH_P_IP);
 
 			/* DS-Lite WAN->LAN */
 			if (IS_IPV4_DSLITE(&entry) || IS_IPV4_MAPE(&entry)) {
@@ -1819,7 +1838,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			udp = 1;
 			/* fallthrough */
 		case NEXTHDR_TCP: /* IPv6-5T or IPv6-3T */
-			entry.ipv6_5t_route.etype = htons(ETH_P_IPV6);
+			entry.ipv6_5t_route.sp_tag = htons(ETH_P_IPV6);
 
 			entry.ipv6_5t_route.vlan1 = hw_path->vlan_id;
 
@@ -2013,7 +2032,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 					foe->ipv4_hnapt.new_sip;
 				entry.ipv4_hnapt.new_dip =
 					foe->ipv4_hnapt.new_dip;
-				entry.ipv4_hnapt.etype = htons(ETH_P_IP);
+				entry.ipv4_hnapt.sp_tag = htons(ETH_P_IP);
 
 				if (IS_HQOS_MODE) {
 					entry.ipv4_hnapt.iblk2.qid =
@@ -2062,6 +2081,33 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 		break;
 
 	default:
+		if (IS_L2_BRIDGE(&entry)) {
+			entry.l2_bridge.dmac_hi = foe->l2_bridge.dmac_hi;
+			entry.l2_bridge.dmac_lo = foe->l2_bridge.dmac_lo;
+			entry.l2_bridge.smac_hi = foe->l2_bridge.smac_hi;
+			entry.l2_bridge.smac_lo = foe->l2_bridge.smac_lo;
+			entry.l2_bridge.etype = foe->l2_bridge.etype;
+			entry.l2_bridge.hph = foe->l2_bridge.hph;
+			entry.l2_bridge.vlan1 = foe->l2_bridge.vlan1;
+			entry.l2_bridge.vlan2 = foe->l2_bridge.vlan2;
+			entry.l2_bridge.sp_tag = htons(h_proto);
+
+			if (hnat_priv->data->per_flow_accounting)
+				entry.l2_bridge.iblk2.mibf = 1;
+
+			entry.l2_bridge.new_vlan1 = hw_path->vlan_id;
+			if (skb_vlan_tagged(skb)) {
+				entry.bfib1.vlan_layer += 1;
+
+				if (entry.l2_bridge.new_vlan1)
+					entry.l2_bridge.new_vlan2 =
+						skb->vlan_tci;
+				else
+					entry.l2_bridge.new_vlan1 =
+						skb->vlan_tci;
+			}
+			break;
+		}
 		return -1;
 	}
 
@@ -2133,7 +2179,7 @@ hnat_entry_bind:
 		 * Current setting is PDMA RX.
 		 */
 		gmac = NR_PDMA_PORT;
-		if (IS_IPV4_GRP(foe)) {
+		if (IS_IPV4_GRP(foe) || IS_L2_BRIDGE(foe)) {
 			entry.ipv4_hnapt.act_dp &= ~UDF_PINGPONG_IFIDX;
 			entry.ipv4_hnapt.act_dp |= dev->ifindex & UDF_PINGPONG_IFIDX;
 		} else {
@@ -2205,7 +2251,7 @@ hnat_entry_bind:
 				      FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) ||
 				      ((mape_toggle && mape == 1) && !FROM_EXT(skb))) &&
 				      (!whnat)) {
-					entry.ipv4_hnapt.etype = htons(HQOS_MAGIC_TAG);
+					entry.ipv4_hnapt.sp_tag = htons(HQOS_MAGIC_TAG);
 					entry.ipv4_hnapt.vlan1 = skb_hnat_entry(skb);
 					entry.bfib1.vlan_layer = 1;
 				}
@@ -2222,6 +2268,18 @@ hnat_entry_bind:
 #endif
 		} else {
 			entry.ipv4_hnapt.iblk2.fqos = 0;
+		}
+	} else if (IS_L2_BRIDGE(&entry)) {
+		entry.l2_bridge.iblk2.dp = gmac;
+		entry.l2_bridge.iblk2.port_mg = 0;
+		if (qos_toggle) {
+			entry.l2_bridge.iblk2.qid = qid & 0x7f;
+			if (FROM_EXT(skb) || skb_hnat_sport(skb) == NR_QDMA_PORT)
+				entry.l2_bridge.iblk2.fqos = 0;
+			else
+				entry.l2_bridge.iblk2.fqos = HQOS_FLAG(dev, skb, qid) ? 1 : 0;
+		} else {
+			entry.l2_bridge.iblk2.fqos = 0;
 		}
 	} else {
 		entry.ipv6_5t_route.iblk2.dp = gmac & 0xf;
@@ -2246,7 +2304,7 @@ hnat_entry_bind:
 				if (IS_EXT(dev) && (FROM_GE_LAN_GRP(skb) ||
 				    FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb)) &&
 				    (!whnat)) {
-					entry.ipv6_5t_route.etype = htons(HQOS_MAGIC_TAG);
+					entry.ipv6_5t_route.sp_tag = htons(HQOS_MAGIC_TAG);
 					entry.ipv6_5t_route.vlan1 = skb_hnat_entry(skb);
 					entry.bfib1.vlan_layer = 1;
 				}
@@ -2413,7 +2471,9 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		if (is_multicast_ether_addr(eth->h_dest))
 			goto check_release_entry_lock;
 
-		if (IS_IPV4_GRP(&entry))
+		if (IS_L2_BRIDGE(&entry))
+			entry.l2_bridge.iblk2.mcast = 0;
+		else if (IS_IPV4_GRP(&entry))
 			entry.ipv4_hnapt.iblk2.mcast = 0;
 		else
 			entry.ipv6_5t_route.iblk2.mcast = 0;
@@ -2439,6 +2499,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	 * will change the smac for specail purpose.
 	 */
 	switch ((int)entry.bfib1.pkt_type) {
+	case L2_BRIDGE:
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
 		/*
@@ -2465,11 +2526,11 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	if (skb_vlan_tagged(skb)) {
 		entry.bfib1.vlan_layer = 1;
 		entry.bfib1.vpm = 1;
-		if (IS_IPV4_GRP(&entry)) {
-			entry.ipv4_hnapt.etype = htons(ETH_P_8021Q);
+		if (IS_IPV4_GRP(&entry) || IS_L2_BRIDGE(&entry)) {
+			entry.ipv4_hnapt.sp_tag = htons(ETH_P_8021Q);
 			entry.ipv4_hnapt.vlan1 = skb->vlan_tci;
 		} else if (IS_IPV6_GRP(&entry)) {
-			entry.ipv6_5t_route.etype = htons(ETH_P_8021Q);
+			entry.ipv6_5t_route.sp_tag = htons(ETH_P_8021Q);
 			entry.ipv6_5t_route.vlan1 = skb->vlan_tci;
 		}
 	} else {
@@ -2525,7 +2586,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 			    (FROM_GE_LAN_GRP(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
 				entry.bfib1.vpm = 0;
 				entry.bfib1.vlan_layer = 1;
-				entry.ipv4_hnapt.etype = htons(HQOS_MAGIC_TAG);
+				entry.ipv4_hnapt.sp_tag = htons(HQOS_MAGIC_TAG);
 				entry.ipv4_hnapt.vlan1 = skb_hnat_entry(skb);
 				entry.ipv4_hnapt.iblk2.fqos = 1;
 			}
@@ -2548,6 +2609,22 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		entry.ipv6_hnapt.winfo_pao.hf = skb_hnat_hf(skb);
 		entry.ipv6_hnapt.winfo_pao.amsdu = skb_hnat_amsdu(skb);
 		entry.ipv6_hnapt.tport_id = IS_HQOS_DL_MODE ? NR_QDMA_TPORT : 0;
+	} else if (IS_L2_BRIDGE(&entry)) {
+		entry.l2_bridge.iblk2.dp = gmac_no;
+		entry.l2_bridge.iblk2.rxid = skb_hnat_rx_id(skb);
+		entry.l2_bridge.iblk2.winfoi = 1;
+
+		entry.l2_bridge.winfo.bssid = skb_hnat_bss_id(skb);
+		entry.l2_bridge.winfo.wcid = skb_hnat_wc_id(skb);
+		entry.l2_bridge.winfo_pao.usr_info =
+			skb_hnat_usr_info(skb);
+		entry.l2_bridge.winfo_pao.tid = skb_hnat_tid(skb);
+		entry.l2_bridge.winfo_pao.is_fixedrate =
+			skb_hnat_is_fixedrate(skb);
+		entry.l2_bridge.winfo_pao.is_prior = skb_hnat_is_prior(skb);
+		entry.l2_bridge.winfo_pao.is_sp = skb_hnat_is_sp(skb);
+		entry.l2_bridge.winfo_pao.hf = skb_hnat_hf(skb);
+		entry.l2_bridge.winfo_pao.amsdu = skb_hnat_amsdu(skb);
 #endif
 	} else {
 		entry.ipv6_5t_route.iblk2.fqos = 0;
@@ -2630,7 +2707,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 			    (FROM_GE_LAN_GRP(skb) || FROM_GE_WAN(skb) || FROM_GE_VIRTUAL(skb))) {
 				entry.bfib1.vpm = 0;
 				entry.bfib1.vlan_layer = 1;
-				entry.ipv6_5t_route.etype = htons(HQOS_MAGIC_TAG);
+				entry.ipv6_5t_route.sp_tag = htons(HQOS_MAGIC_TAG);
 				entry.ipv6_5t_route.vlan1 = skb_hnat_entry(skb);
 				entry.ipv6_5t_route.iblk2.fqos = 1;
 			}
@@ -3094,7 +3171,7 @@ int mtk_464xlat_fill_l2(struct foe_entry *entry, struct sk_buff *skb,
 	u16 sp_tag;
 
 	if (l2w)
-		entry->ipv4_dslite.etype = ETH_P_IP;
+		entry->ipv4_dslite.sp_tag = ETH_P_IP;
 	else {
 		if (IS_DSA_LAN(dev)) {
 			port_reg = of_get_property(dev->dev.of_node,
@@ -3107,9 +3184,9 @@ int mtk_464xlat_fill_l2(struct foe_entry *entry, struct sk_buff *skb,
 
 			entry->bfib1.vlan_layer = 1;
 			entry->bfib1.vpm = 0;
-			entry->ipv6_6rd.etype = sp_tag;
+			entry->ipv6_6rd.sp_tag = sp_tag;
 		} else
-			entry->ipv6_6rd.etype = ETH_P_IPV6;
+			entry->ipv6_6rd.sp_tag = ETH_P_IPV6;
 	}
 
 	if (mtk_464xlat_fill_mac(entry, skb, dev, l2w))
