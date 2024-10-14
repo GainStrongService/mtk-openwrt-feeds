@@ -112,27 +112,6 @@
 #define GDMA2_FWD_CFG 0x1500
 #define GDMA3_FWD_CFG 0x540
 
-/* QDMA Tx queue configuration */
-#define QTX_CFG(x)			(QDMA_BASE + ((x) * 0x10))
-#define QTX_CFG_HW_RESV_CNT_OFFSET	(8)
-#define QTX_CFG_SW_RESV_CNT_OFFSET	(0)
-
-#define QTX_SCH(x)			(QDMA_BASE + 0x4 + ((x) * 0x10))
-#define QTX_SCH_MIN_RATE_EN		BIT(27)
-#define QTX_SCH_MAX_RATE_EN		BIT(11)
-#define QTX_SCH_MIN_RATE_MAN_OFFSET	(20)
-#define QTX_SCH_MIN_RATE_EXP_OFFSET	(16)
-#define QTX_SCH_MAX_RATE_WGHT_OFFSET	(12)
-#define QTX_SCH_MAX_RATE_MAN_OFFSET	(4)
-#define QTX_SCH_MAX_RATE_EXP_OFFSET	(0)
-
-/* QDMA Tx scheduler configuration */
-#define QDMA_PAGE			(QDMA_BASE + 0x1f0)
-#define QDMA_TX_2SCH_BASE		(QDMA_BASE + 0x214)
-#define QTX_MIB_IF			(QDMA_BASE + 0x2bc)
-#define QDMA_TX_4SCH_BASE(x)		(QDMA_BASE + 0x398 + (((x) >> 1) * 0x4))
-#define QDMA_TX_SCH_WFQ_EN		BIT(15)
-
 /*--------------------------------------------------------------------------*/
 /* Register Mask*/
 /*--------------------------------------------------------------------------*/
@@ -212,13 +191,6 @@
 #define GDM_OFRC_MASK (0xF << 0) /*RW*/
 #define GDM_ALL_FRC_MASK                                                      \
 	(GDM_UFRC_MASK | GDM_BFRC_MASK | GDM_MFRC_MASK | GDM_OFRC_MASK)
-
-/*QDMA_PAGE mask*/
-#define QTX_CFG_PAGE (0xf << 0) /* RW */
-
-/*QTX_MIB_IF mask*/
-#define MIB_ON_QTX_CFG (0x1 << 31) /* RW */
-#define VQTX_MIB_EN (0x1 << 28) /* RW */
 
 /* PPE Side Band FIFO Debug Mask */
 #define SB_MED_FULL_DRP_EN (0x1 << 11)
@@ -1237,9 +1209,6 @@ enum FoeIpAct {
 #define IPV6_HDR_LEN 40
 #define IPV6_SNAT	0
 #define IPV6_DNAT	1
-
-/*QDMA_PAGE value*/
-#define NUM_OF_Q_PER_PAGE 16
 
 /*IPv6 Header*/
 #ifndef NEXTHDR_IPIP

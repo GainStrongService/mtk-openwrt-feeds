@@ -400,11 +400,17 @@
 #define MTK_QTX_SCH_LEAKY_BUCKET_SIZE	GENMASK(29, 28)
 #define MTK_QTX_SCH_MIN_RATE_EN		BIT(27)
 #define MTK_QTX_SCH_MIN_RATE_MAN	GENMASK(26, 20)
+#define MTK_QTX_SCH_MIN_RATE_MAN_V2	GENMASK(25, 19)
 #define MTK_QTX_SCH_MIN_RATE_EXP	GENMASK(19, 16)
+#define MTK_QTX_SCH_MIN_RATE_EXP_V2	GENMASK(18, 16)
 #define MTK_QTX_SCH_MAX_RATE_WEIGHT	GENMASK(15, 12)
+#define MTK_QTX_SCH_MAX_RATE_WEIGHT_V2	GENMASK(15, 10)
 #define MTK_QTX_SCH_MAX_RATE_EN		BIT(11)
+#define MTK_QTX_SCH_MAX_RATE_EN_V2	BIT(26)
 #define MTK_QTX_SCH_MAX_RATE_MAN	GENMASK(10, 4)
+#define MTK_QTX_SCH_MAX_RATE_MAN_V2	GENMASK(9, 3)
 #define MTK_QTX_SCH_MAX_RATE_EXP	GENMASK(3, 0)
+#define MTK_QTX_SCH_MAX_RATE_EXP_V2	GENMASK(2, 0)
 
 /* QDMA RX Base Pointer Register */
 #define MTK_QRX_BASE_PTR0	(QDMA_BASE + 0x100)
@@ -508,6 +514,11 @@
 /* QDMA Interrupt Mask Register */
 #define MTK_QDMA_HRED2		(QDMA_BASE + 0x244)
 
+/* QDMA TX Queue MIB Interface Register */
+#define MTK_QTX_MIB_IF		(QDMA_BASE + 0x2bc)
+#define MTK_MIB_ON_QTX_CFG	BIT(31)
+#define MTK_VQTX_MIB_EN		BIT(28)
+
 /* QDMA TX Forward CPU Pointer Register */
 #define MTK_QTX_CTX_PTR		(QDMA_BASE +0x300)
 
@@ -535,9 +546,17 @@
 /* QDMA FQ Free Page Buffer Length Register */
 #define MTK_QDMA_FQ_BLEN	(QDMA_BASE +0x32c)
 
+/* QDMA FQ Free Page Fast Path Configuration Register */
+#define MTK_QDMA_FQ_FLUSH_MODE		BIT(3)
+#define MTK_QDMA_FQ_FASTPATH_EN		BIT(0)
+
 /* QDMA TX Scheduler Rate Control Register */
 #define MTK_QDMA_TX_4SCH_BASE(x)	(QDMA_BASE + 0x398 + (((x) >> 1) * 0x4))
 #define MTK_QDMA_TX_SCH_MASK		GENMASK(15, 0)
+#define MTK_QDMA_TX_SCH_MAX_WFQ		BIT(15)
+#define MTK_QDMA_TX_SCH_RATE_EN		BIT(11)
+#define MTK_QDMA_TX_SCH_RATE_MAN	GENMASK(10, 4)
+#define MTK_QDMA_TX_SCH_RATE_EXP	GENMASK(3, 0)
 
 /* WDMA Registers */
 #define MTK_WDMA_CTX_PTR(x)	(WDMA_BASE(x) + 0x8)
@@ -1427,6 +1446,14 @@ enum mtk_gdm_type {
 	MTK_GDM_TYPE_MAX
 };
 
+enum mtk_qdma_version {
+	MTK_QDMA_V1_1 = 0,
+	MTK_QDMA_V1_2,
+	MTK_QDMA_V1_3,
+	MTK_QDMA_V1_4,
+	MTK_QDMA_MAX
+};
+
 enum mtk_hw_id {
 	MTK_HWID_V1 = 0,
 	MTK_HWID_V2,
@@ -1562,6 +1589,10 @@ enum mkt_eth_capabilities {
 	MTK_PDMA_INT_BIT,
 	MTK_TRGMII_MT7621_CLK_BIT,
 	MTK_QDMA_BIT,
+	MTK_QDMA_V1_1_BIT,
+	MTK_QDMA_V1_2_BIT,
+	MTK_QDMA_V1_3_BIT,
+	MTK_QDMA_V1_4_BIT,
 	MTK_NETSYS_V1_BIT,
 	MTK_NETSYS_V2_BIT,
 	MTK_NETSYS_RX_V2_BIT,
@@ -1672,6 +1703,10 @@ enum mkt_eth_capabilities {
 #define MTK_GMAC1_USXGMII	(MTK_ETH_PATH_GMAC1_USXGMII | MTK_USXGMII | MTK_XGMAC)
 #define MTK_GMAC2_USXGMII	(MTK_ETH_PATH_GMAC2_USXGMII | MTK_USXGMII | MTK_XGMAC)
 #define MTK_GMAC3_USXGMII	(MTK_ETH_PATH_GMAC3_USXGMII | MTK_USXGMII | MTK_XGMAC)
+#define MTK_QDMA_V1_1		(BIT_ULL(MTK_QDMA_V1_1_BIT) | MTK_QDMA)
+#define MTK_QDMA_V1_2		(BIT_ULL(MTK_QDMA_V1_2_BIT) | MTK_QDMA)
+#define MTK_QDMA_V1_3		(BIT_ULL(MTK_QDMA_V1_3_BIT) | MTK_QDMA)
+#define MTK_QDMA_V1_4		(BIT_ULL(MTK_QDMA_V1_4_BIT) | MTK_QDMA)
 
 /* MUXes present on SoCs */
 /* 0: GDM1 -> GMAC1, 1: GDM1 -> ESW */
@@ -1708,15 +1743,15 @@ enum mkt_eth_capabilities {
 
 #define MT7621_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_TRGMII | \
 		      MTK_GMAC2_RGMII | MTK_SHARED_INT | \
-		      MTK_TRGMII_MT7621_CLK | MTK_QDMA | MTK_NETSYS_V1)
+		      MTK_TRGMII_MT7621_CLK | MTK_QDMA_V1_1 | MTK_NETSYS_V1)
 
 #define MT7622_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_SGMII | MTK_GMAC2_RGMII | \
 		      MTK_GMAC2_SGMII | MTK_GDM1_ESW | \
 		      MTK_MUX_GDM1_TO_GMAC1_ESW | MTK_NETSYS_V1 | \
-		      MTK_MUX_GMAC1_GMAC2_TO_SGMII_RGMII | MTK_QDMA)
+		      MTK_MUX_GMAC1_GMAC2_TO_SGMII_RGMII | MTK_QDMA_V1_1)
 
 #define MT7623_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_TRGMII | MTK_GMAC2_RGMII | \
-		      MTK_QDMA | MTK_NETSYS_V1)
+		      MTK_QDMA_V1_1 | MTK_NETSYS_V1)
 
 #define MT7628_CAPS  (MTK_SHARED_INT | MTK_SOC_MT7628 | MTK_NETSYS_V1)
 
@@ -1724,19 +1759,19 @@ enum mkt_eth_capabilities {
 		      MTK_GDM1_ESW | MTK_MUX_GDM1_TO_GMAC1_ESW | \
 		      MTK_MUX_GMAC2_GMAC0_TO_GEPHY | \
 		      MTK_MUX_U3_GMAC23_TO_QPHY | MTK_NETSYS_V1 | \
-		      MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA)
+		      MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA_V1_1)
 
 #define MT7986_CAPS   (MTK_PDMA_INT | MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | \
-                       MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
+		       MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA_V1_2 | \
 		       MTK_NETSYS_V2 | MTK_RSS)
 
 #define MT7981_CAPS   (MTK_PDMA_INT | MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | \
-		       MTK_GMAC2_GEPHY | MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA | \
+		       MTK_GMAC2_GEPHY | MTK_MUX_GMAC12_TO_GEPHY_SGMII | MTK_QDMA_V1_2 | \
 		       MTK_MUX_U3_GMAC23_TO_QPHY | MTK_U3_COPHY_V2 | \
 		       MTK_NETSYS_V2 | MTK_RSS)
 
 #define MT7988_CAPS   (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | MTK_GMAC3_SGMII | \
-		       MTK_PDMA_INT | MTK_MUX_GMAC123_TO_GEPHY_SGMII | MTK_QDMA | \
+		       MTK_PDMA_INT | MTK_MUX_GMAC123_TO_GEPHY_SGMII | MTK_QDMA_V1_3 | \
 		       MTK_NETSYS_V3 | MTK_RSTCTRL_PPE1 | MTK_RSTCTRL_PPE2 | \
 		       MTK_ESW | MTK_GMAC1_USXGMII | MTK_GMAC2_USXGMII | \
 		       MTK_GMAC3_USXGMII | MTK_MUX_GMAC123_TO_USXGMII | \
@@ -1806,6 +1841,7 @@ struct mtk_reg_map {
 		u32	fq_tail;	/* fq tail pointer */
 		u32	fq_count;	/* fq free page count */
 		u32	fq_blen;	/* fq free page buffer length */
+		u32	fq_fast_cfg;	/* fq free page fast path configuration */
 		u32	tx_sch_rate;	/* tx scheduler rate control
 					   registers */
 	} qdma;

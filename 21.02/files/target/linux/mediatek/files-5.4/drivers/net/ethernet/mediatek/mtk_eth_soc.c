@@ -240,6 +240,7 @@ static const struct mtk_reg_map mt7988_reg_map = {
 		.fq_tail	= 0x4724,
 		.fq_count	= 0x4728,
 		.fq_blen	= 0x472c,
+		.fq_fast_cfg	= 0x4738,
 		.tx_sch_rate	= 0x4798,
 	},
 	.gdm1_cnt		= 0x1c00,
@@ -4130,6 +4131,11 @@ static int mtk_start_dma(struct mtk_eth *eth)
 		val = mtk_r32(eth, reg_map->qdma.glo_cfg);
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
 		    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4))
+				mtk_m32(eth, MTK_QDMA_FQ_FASTPATH_EN,
+					MTK_QDMA_FQ_FASTPATH_EN,
+					reg_map->qdma.fq_fast_cfg);
+
 			val &= ~(MTK_RESV_BUF_MASK | MTK_DMA_SIZE_MASK);
 			mtk_w32(eth,
 				val | MTK_TX_DMA_EN | MTK_RX_DMA_EN |
@@ -4396,6 +4402,7 @@ static int mtk_open(struct net_device *dev)
 
 static void mtk_stop_dma(struct mtk_eth *eth, u32 glo_cfg)
 {
+	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
 	u32 val;
 	int i;
 
@@ -4414,6 +4421,45 @@ static void mtk_stop_dma(struct mtk_eth *eth, u32 glo_cfg)
 			continue;
 		}
 		break;
+	}
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4) &&
+	    (glo_cfg == eth->soc->reg_map->qdma.glo_cfg)) {
+		spin_lock_bh(&eth->page_lock);
+		/* stop the dma fastpath agent */
+		mtk_m32(eth, MTK_QDMA_FQ_FASTPATH_EN, 0,
+			reg_map->qdma.fq_fast_cfg);
+		/* enable the dma tx engine */
+		mtk_m32(eth, MTK_TX_DMA_EN, MTK_TX_DMA_EN, glo_cfg);
+		/* enable the dma flush mode */
+		mtk_m32(eth, MTK_QDMA_FQ_FLUSH_MODE, MTK_QDMA_FQ_FLUSH_MODE,
+			reg_map->qdma.fq_fast_cfg);
+		spin_unlock_bh(&eth->page_lock);
+
+		/* wait for dma flush complete */
+		for (i = 0; i < 10; i++) {
+			val = mtk_r32(eth, reg_map->qdma.fq_fast_cfg);
+			if (val & MTK_QDMA_FQ_FLUSH_MODE) {
+				mdelay(20);
+				continue;
+			}
+			break;
+		}
+
+		spin_lock_bh(&eth->page_lock);
+		/* disable the dma tx engine */
+		mtk_m32(eth, MTK_TX_DMA_EN, 0, glo_cfg);
+		spin_unlock_bh(&eth->page_lock);
+
+		/* wait for dma tx stop */
+		for (i = 0; i < 10; i++) {
+			val = mtk_r32(eth, glo_cfg);
+			if (val & MTK_TX_DMA_BUSY) {
+				mdelay(20);
+				continue;
+			}
+			break;
+		}
 	}
 }
 

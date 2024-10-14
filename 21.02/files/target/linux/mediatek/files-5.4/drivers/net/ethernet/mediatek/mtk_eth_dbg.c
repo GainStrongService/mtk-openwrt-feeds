@@ -65,6 +65,394 @@ struct mtk_eth *g_eth;
 
 struct mtk_eth_debug eth_debug;
 
+void qdma_qos_shaper_ebl(u32 id, bool enable)
+{
+	struct mtk_eth *eth = g_eth;
+	u32 val;
+
+	mtk_w32(eth, (id / MTK_QTX_PER_PAGE), MTK_QDMA_PAGE);
+	if (enable) {
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4)) {
+			val = MTK_QTX_SCH_MIN_RATE_EN | MTK_QTX_SCH_MAX_RATE_EN_V2;
+			val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN_V2, 1) |
+			       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP_V2, 4) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 1) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 6) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 4);
+		} else {
+			val = MTK_QTX_SCH_MIN_RATE_EN | MTK_QTX_SCH_MAX_RATE_EN;
+			val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, 1) |
+			       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, 4) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, 1) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, 6) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 4);
+		}
+
+		mtk_w32(eth, val, MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
+	} else {
+		mtk_w32(eth, 0, MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
+	}
+}
+
+void qdma_qos_disable(void)
+{
+	struct mtk_eth *eth = g_eth;
+	u32 num_of_sch = !MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1) ? 4 : 2;
+	u32 val, i;
+
+	for (i = 0; i < MAX_PPPQ_PORT_NUM; i++) {
+		qdma_qos_shaper_ebl(i, false);
+		mtk_w32(eth,
+			FIELD_PREP(MTK_QTX_CFG_HW_RESV_CNT_OFFSET, 4) |
+			FIELD_PREP(MTK_QTX_CFG_SW_RESV_CNT_OFFSET, 4),
+			MTK_QTX_CFG(i % MTK_QTX_PER_PAGE));
+	}
+
+	val = (MTK_QDMA_TX_SCH_MAX_WFQ) | (MTK_QDMA_TX_SCH_MAX_WFQ << 16);
+	for (i = 0; i < num_of_sch; i += 2) {
+		if (num_of_sch == 4)
+			mtk_w32(eth, val, MTK_QDMA_TX_4SCH_BASE(i));
+		else
+			mtk_w32(eth, val, MTK_QDMA_TX_2SCH_BASE);
+	}
+}
+EXPORT_SYMBOL(qdma_qos_disable);
+
+void qdma_qos_pppq_ebl(u32 enable)
+{
+	struct mtk_eth *eth = g_eth;
+	u32 num_of_sch = !MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1) ? 4 : 2;
+	u32 val, i;
+
+	for (i = 0; i < MAX_PPPQ_PORT_NUM; i++) {
+		if (enable)
+			qdma_qos_shaper_ebl(i, true);
+		else
+			qdma_qos_shaper_ebl(i, false);
+
+		mtk_w32(eth,
+			FIELD_PREP(MTK_QTX_CFG_HW_RESV_CNT_OFFSET, 4) |
+			FIELD_PREP(MTK_QTX_CFG_SW_RESV_CNT_OFFSET, 4),
+			MTK_QTX_CFG(i % MTK_QTX_PER_PAGE));
+	}
+
+	val = (MTK_QDMA_TX_SCH_MAX_WFQ) | (MTK_QDMA_TX_SCH_MAX_WFQ << 16);
+	for (i = 0; i < num_of_sch; i += 2) {
+		if (num_of_sch == 4)
+			mtk_w32(eth, val, MTK_QDMA_TX_4SCH_BASE(i));
+		else
+			mtk_w32(eth, val, MTK_QDMA_TX_2SCH_BASE);
+	}
+}
+EXPORT_SYMBOL(qdma_qos_pppq_ebl);
+
+static ssize_t qdma_sched_show(struct file *file, char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct mtk_eth *eth = g_eth;
+	long id = (long)file->private_data;
+	char *buf;
+	unsigned int len = 0, buf_len = 1500;
+	u32 qdma_tx_sch, sch_reg;
+	int enable, scheduling, max_rate, scheduler, i;
+	ssize_t ret_cnt;
+
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1))
+		qdma_tx_sch = mtk_r32(eth, MTK_QDMA_TX_4SCH_BASE(id));
+	else
+		qdma_tx_sch = mtk_r32(eth, MTK_QDMA_TX_2SCH_BASE);
+
+	if (id & 0x1)
+		qdma_tx_sch >>= 16;
+
+	qdma_tx_sch &= MTK_QDMA_TX_SCH_MASK;
+	enable = FIELD_GET(MTK_QDMA_TX_SCH_RATE_EN, qdma_tx_sch);
+	scheduling = FIELD_GET(MTK_QDMA_TX_SCH_MAX_WFQ, qdma_tx_sch);
+	max_rate = FIELD_GET(MTK_QDMA_TX_SCH_RATE_MAN, qdma_tx_sch);
+	qdma_tx_sch = FIELD_GET(MTK_QDMA_TX_SCH_RATE_EXP, qdma_tx_sch);
+	while (qdma_tx_sch--)
+		max_rate *= 10;
+
+	len += scnprintf(buf + len, buf_len - len,
+			 "EN\tScheduling\tMAX\tQueue#\n%d\t%s%16d\t", enable,
+			 (scheduling == 1) ? "WRR" : "SP", max_rate);
+
+	for (i = 0; i < MTK_QDMA_TX_NUM; i++) {
+		mtk_w32(eth, (i / MTK_QTX_PER_PAGE), MTK_QDMA_PAGE);
+		sch_reg = mtk_r32(eth, MTK_QTX_SCH(i % MTK_QTX_PER_PAGE));
+		if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1))
+			scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL_V2, sch_reg);
+		else
+			scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL, sch_reg);
+		if (id == scheduler)
+			len += scnprintf(buf + len, buf_len - len, "%d  ", i);
+	}
+
+	len += scnprintf(buf + len, buf_len - len, "\n");
+	if (len > buf_len)
+		len = buf_len;
+
+	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	kfree(buf);
+
+	return ret_cnt;
+}
+
+static ssize_t qdma_sched_write(struct file *file, const char __user *buf,
+				size_t length, loff_t *offset)
+{
+	struct mtk_eth *eth = g_eth;
+	long id = (long)file->private_data;
+	char line[64] = {0}, scheduling[32];
+	int enable, rate, exp = 0, shift = 0;
+	size_t size;
+	u32 qdma_tx_sch, val = 0;
+
+	if (length >= sizeof(line))
+		return -EINVAL;
+
+	if (copy_from_user(line, buf, length))
+		return -EFAULT;
+
+	if (sscanf(line, "%1d %3s %9d", &enable, scheduling, &rate) != 3)
+		return -EFAULT;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_3) ||
+	    MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4)) {
+		if (rate > 10000000 || rate < 0)
+			return -EINVAL;
+	} else {
+		if (rate > 1000000 || rate < 0)
+			return -EINVAL;
+	}
+
+	while (rate > 127) {
+		rate /= 10;
+		exp++;
+	}
+
+	line[length] = '\0';
+
+	if (enable)
+		val |= MTK_QDMA_TX_SCH_RATE_EN;
+	if (strcmp(scheduling, "sp") != 0)
+		val |= MTK_QDMA_TX_SCH_MAX_WFQ;
+	val |= FIELD_PREP(MTK_QDMA_TX_SCH_RATE_MAN, rate);
+	val |= FIELD_PREP(MTK_QDMA_TX_SCH_RATE_EXP, exp);
+	if (id & 0x1)
+		shift = 16;
+
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1))
+		qdma_tx_sch = mtk_r32(eth, MTK_QDMA_TX_4SCH_BASE(id));
+	else
+		qdma_tx_sch = mtk_r32(eth, MTK_QDMA_TX_2SCH_BASE);
+
+	qdma_tx_sch &= ~(MTK_QDMA_TX_SCH_MASK << shift);
+	qdma_tx_sch |= val << shift;
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1))
+		mtk_w32(eth, qdma_tx_sch, MTK_QDMA_TX_4SCH_BASE(id));
+	else
+		mtk_w32(eth, qdma_tx_sch, MTK_QDMA_TX_2SCH_BASE);
+
+	size = strlen(line);
+	*offset += size;
+
+	return length;
+}
+
+static const struct file_operations qdma_sched_fops = {
+	.open = simple_open,
+	.read = qdma_sched_show,
+	.write = qdma_sched_write,
+	.llseek = default_llseek,
+};
+
+static ssize_t qdma_queue_show(struct file *file, char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct mtk_eth *eth = g_eth;
+	long id = (long)file->private_data;
+	char *buf;
+	unsigned int len = 0, buf_len = 1500;
+	u32 qtx_sch, qtx_cfg;
+	int scheduler;
+	int min_rate_en, min_rate, min_rate_exp;
+	int max_rate_en, max_weight, max_rate, max_rate_exp;
+	ssize_t ret_cnt;
+
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mtk_w32(eth, (id / MTK_QTX_PER_PAGE), MTK_QDMA_PAGE);
+	qtx_cfg = mtk_r32(eth, MTK_QTX_CFG(id % MTK_QTX_PER_PAGE));
+	qtx_sch = mtk_r32(eth, MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1))
+		scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL_V2, qtx_sch);
+	else
+		scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL, qtx_sch);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4)) {
+		min_rate_en = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EN, qtx_sch);
+		min_rate = FIELD_GET(MTK_QTX_SCH_MIN_RATE_MAN_V2, qtx_sch);
+		min_rate_exp = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EXP_V2, qtx_sch);
+		max_rate_en = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EN_V2, qtx_sch);
+		max_weight = FIELD_GET(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, qtx_sch);
+		max_rate = FIELD_GET(MTK_QTX_SCH_MAX_RATE_MAN_V2, qtx_sch);
+		max_rate_exp = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EXP_V2, qtx_sch);
+	} else {
+		min_rate_en = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EN, qtx_sch);
+		min_rate = FIELD_GET(MTK_QTX_SCH_MIN_RATE_MAN, qtx_sch);
+		min_rate_exp = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EXP, qtx_sch);
+		max_rate_en = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EN, qtx_sch);
+		max_weight = FIELD_GET(MTK_QTX_SCH_MAX_RATE_WEIGHT, qtx_sch);
+		max_rate = FIELD_GET(MTK_QTX_SCH_MAX_RATE_MAN, qtx_sch);
+		max_rate_exp = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EXP, qtx_sch);
+	}
+	while (min_rate_exp--)
+		min_rate *= 10;
+
+	while (max_rate_exp--)
+		max_rate *= 10;
+
+	len += scnprintf(buf + len, buf_len - len,
+			 "scheduler: %d\nhw resv: %d\nsw resv: %d\n", scheduler,
+			 (qtx_cfg >> 8) & 0xff, qtx_cfg & 0xff);
+
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1)) {
+		/* Switch to debug mode */
+		mtk_m32(eth, MTK_MIB_ON_QTX_CFG, MTK_MIB_ON_QTX_CFG, MTK_QTX_MIB_IF);
+		mtk_m32(eth, MTK_VQTX_MIB_EN, MTK_VQTX_MIB_EN, MTK_QTX_MIB_IF);
+		qtx_cfg = mtk_r32(eth, MTK_QTX_CFG(id % MTK_QTX_PER_PAGE));
+		qtx_sch = mtk_r32(eth, MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
+		len += scnprintf(buf + len, buf_len - len,
+				 "packet count: %u\n", qtx_cfg);
+		len += scnprintf(buf + len, buf_len - len,
+				 "packet drop: %u\n\n", qtx_sch);
+
+		/* Recover to normal mode */
+		mtk_m32(eth, MTK_MIB_ON_QTX_CFG, 0, MTK_QTX_MIB_IF);
+		mtk_m32(eth, MTK_VQTX_MIB_EN, 0, MTK_QTX_MIB_IF);
+	}
+
+	len += scnprintf(buf + len, buf_len - len,
+			 "      EN     RATE     WEIGHT\n");
+	len += scnprintf(buf + len, buf_len - len,
+			 "----------------------------\n");
+	len += scnprintf(buf + len, buf_len - len,
+			 "max%5d%9d%9d\n", max_rate_en, max_rate, max_weight);
+	len += scnprintf(buf + len, buf_len - len,
+			 "min%5d%9d        -\n", min_rate_en, min_rate);
+
+	if (len > buf_len)
+		len = buf_len;
+
+	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	kfree(buf);
+
+	return ret_cnt;
+}
+
+static ssize_t qdma_queue_write(struct file *file, const char __user *buf,
+				size_t length, loff_t *offset)
+{
+	struct mtk_eth *eth = g_eth;
+	long id = (long)file->private_data;
+	char line[64] = {0};
+	int max_enable, max_rate, max_exp = 0;
+	int min_enable, min_rate, min_exp = 0;
+	int weight;
+	int resv;
+	int scheduler;
+	size_t size;
+	u32 qtx_sch = 0;
+
+	mtk_w32(eth, (id / MTK_QTX_PER_PAGE), MTK_QDMA_PAGE);
+	if (length >= sizeof(line))
+		return -EINVAL;
+
+	if (copy_from_user(line, buf, length))
+		return -EFAULT;
+
+	if (sscanf(line, "%d %d %d %d %d %d %d", &scheduler, &min_enable, &min_rate,
+		   &max_enable, &max_rate, &weight, &resv) != 7)
+		return -EFAULT;
+
+	line[length] = '\0';
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_3) ||
+	    MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4)) {
+		if (max_rate > 10000000 || max_rate < 0 ||
+		    min_rate > 10000000 || min_rate < 0)
+			return -EINVAL;
+	} else {
+		if (max_rate > 1000000 || max_rate < 0 ||
+		    min_rate > 1000000 || min_rate < 0)
+			return -EINVAL;
+	}
+
+	while (max_rate > 127) {
+		max_rate /= 10;
+		max_exp++;
+	}
+
+	while (min_rate > 127) {
+		min_rate /= 10;
+		min_exp++;
+	}
+
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1))
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_TX_SEL_V2, scheduler);
+	else
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_TX_SEL, scheduler);
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4)) {
+		if (min_enable)
+			qtx_sch |= MTK_QTX_SCH_MIN_RATE_EN;
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN_V2, min_rate);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP_V2, min_exp);
+		if (max_enable)
+			qtx_sch |= MTK_QTX_SCH_MAX_RATE_EN_V2;
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, weight);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, max_rate);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, max_exp);
+	} else {
+		if (min_enable)
+			qtx_sch |= MTK_QTX_SCH_MIN_RATE_EN;
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, min_rate);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, min_exp);
+		if (max_enable)
+			qtx_sch |= MTK_QTX_SCH_MAX_RATE_EN;
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, weight);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, max_rate);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, max_exp);
+	}
+	mtk_w32(eth, qtx_sch, MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
+
+	qtx_sch = mtk_r32(eth, MTK_QTX_CFG(id % MTK_QTX_PER_PAGE));
+	qtx_sch &= 0xffff0000;
+	qtx_sch |= FIELD_PREP(MTK_QTX_CFG_HW_RESV_CNT_OFFSET, resv);
+	qtx_sch |= FIELD_PREP(MTK_QTX_CFG_SW_RESV_CNT_OFFSET, resv);
+	mtk_w32(eth, qtx_sch, MTK_QTX_CFG(id % MTK_QTX_PER_PAGE));
+
+	size = strlen(line);
+	*offset += size;
+
+	return length;
+}
+
+static const struct file_operations qdma_queue_fops = {
+	.open = simple_open,
+	.read = qdma_queue_show,
+	.write = qdma_queue_write,
+	.llseek = default_llseek,
+};
+
 int mt798x_iomap(void)
 {
 	struct device_node *np = NULL;
@@ -800,6 +1188,8 @@ void mtketh_debugfs_exit(struct mtk_eth *eth)
 
 int mtketh_debugfs_init(struct mtk_eth *eth)
 {
+	char name[16];
+	long i;
 	int ret = 0;
 
 	eth_debug.root = debugfs_create_dir("mtketh", NULL);
@@ -828,6 +1218,31 @@ int mtketh_debugfs_init(struct mtk_eth *eth)
 				    eth_debug.root, eth,
 				    &fops_mt7530sw_reg_w);
 	}
+
+	for (i = 0; i < (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1) ? 4 : 2); i++) {
+		ret = snprintf(name, sizeof(name), "qdma_sch%ld", i);
+		if (ret != strlen(name)) {
+			ret = -ENOMEM;
+			goto err;
+		}
+		debugfs_create_file(name, 0444, eth_debug.root, (void *)i,
+				    &qdma_sched_fops);
+	}
+
+	for (i = 0; i < MTK_QDMA_TX_NUM; i++) {
+		ret = snprintf(name, sizeof(name), "qdma_txq%ld", i);
+		if (ret != strlen(name)) {
+			ret = -ENOMEM;
+			goto err;
+		}
+		debugfs_create_file(name, 0444, eth_debug.root, (void *)i,
+				    &qdma_queue_fops);
+	}
+
+	return 0;
+
+err:
+	debugfs_remove_recursive(eth_debug.root);
 	return ret;
 }
 

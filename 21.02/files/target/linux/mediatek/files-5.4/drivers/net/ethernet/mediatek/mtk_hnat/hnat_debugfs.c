@@ -26,6 +26,7 @@
 #include "hnat.h"
 #include "nf_hnat_mtk.h"
 #include "../mtk_eth_soc.h"
+#include "../mtk_eth_dbg.h"
 
 int dbg_entry_state = BIND;
 typedef int (*debugfs_write_func)(int par1);
@@ -2232,297 +2233,6 @@ static const struct file_operations hnat_ext_fops = {
 	.release = single_release,
 };
 
-static ssize_t hnat_sched_show(struct file *file, char __user *user_buf,
-			       size_t count, loff_t *ppos)
-{
-	long id = (long)file->private_data;
-	struct mtk_hnat *h = hnat_priv;
-	u32 qdma_tx_sch;
-	int enable;
-	int scheduling;
-	int max_rate;
-	char *buf;
-	unsigned int len = 0, buf_len = 1500;
-	ssize_t ret_cnt;
-	int scheduler, i;
-	u32 sch_reg;
-
-	buf = kzalloc(buf_len, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (hnat_priv->data->num_of_sch == 4)
-		qdma_tx_sch = readl(h->fe_base + QDMA_TX_4SCH_BASE(id));
-	else
-		qdma_tx_sch = readl(h->fe_base + QDMA_TX_2SCH_BASE);
-
-	if (id & 0x1)
-		qdma_tx_sch >>= 16;
-	qdma_tx_sch &= MTK_QDMA_TX_SCH_MASK;
-	enable = !!(qdma_tx_sch & BIT(11));
-	scheduling = !!(qdma_tx_sch & BIT(15));
-	max_rate = ((qdma_tx_sch >> 4) & 0x7f);
-	qdma_tx_sch &= 0xf;
-	while (qdma_tx_sch--)
-		max_rate *= 10;
-
-	len += scnprintf(buf + len, buf_len - len,
-			 "EN\tScheduling\tMAX\tQueue#\n%d\t%s%16d\t", enable,
-			 (scheduling == 1) ? "WRR" : "SP", max_rate);
-
-	for (i = 0; i < MTK_QDMA_TX_NUM; i++) {
-		cr_set_field(h->fe_base + QDMA_PAGE, QTX_CFG_PAGE,
-			     (i / NUM_OF_Q_PER_PAGE));
-		sch_reg = readl(h->fe_base + QTX_SCH(i % NUM_OF_Q_PER_PAGE));
-		if (hnat_priv->data->num_of_sch == 4)
-			scheduler = (sch_reg >> 30) & 0x3;
-		else
-			scheduler = !!(sch_reg & BIT(31));
-		if (id == scheduler)
-			len += scnprintf(buf + len, buf_len - len, "%d  ", i);
-	}
-
-	len += scnprintf(buf + len, buf_len - len, "\n");
-	if (len > buf_len)
-		len = buf_len;
-
-	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-
-	kfree(buf);
-	return ret_cnt;
-}
-
-static ssize_t hnat_sched_write(struct file *file, const char __user *buf,
-				size_t length, loff_t *offset)
-{
-	long id = (long)file->private_data;
-	struct mtk_hnat *h = hnat_priv;
-	char line[64] = {0};
-	int enable, rate, exp = 0, shift = 0;
-	char scheduling[32];
-	size_t size;
-	u32 qdma_tx_sch;
-	u32 val = 0;
-
-	if (length >= sizeof(line))
-		return -EINVAL;
-
-	if (copy_from_user(line, buf, length))
-		return -EFAULT;
-
-	if (sscanf(line, "%1d %3s %9d", &enable, scheduling, &rate) != 3)
-		return -EFAULT;
-
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-	if (rate > 10000000 || rate < 0)
-#else
-	if (rate > 1000000 || rate < 0)
-#endif
-		return -EINVAL;
-
-	while (rate > 127) {
-		rate /= 10;
-		exp++;
-	}
-
-	line[length] = '\0';
-
-	if (enable)
-		val |= BIT(11);
-	if (strcmp(scheduling, "sp") != 0)
-		val |= BIT(15);
-	val |= (rate & 0x7f) << 4;
-	val |= exp & 0xf;
-	if (id & 0x1)
-		shift = 16;
-
-	if (hnat_priv->data->num_of_sch == 4)
-		qdma_tx_sch = readl(h->fe_base + QDMA_TX_4SCH_BASE(id));
-	else
-		qdma_tx_sch = readl(h->fe_base + QDMA_TX_2SCH_BASE);
-
-	qdma_tx_sch &= ~(MTK_QDMA_TX_SCH_MASK << shift);
-	qdma_tx_sch |= val << shift;
-	if (hnat_priv->data->num_of_sch == 4)
-		writel(qdma_tx_sch, h->fe_base + QDMA_TX_4SCH_BASE(id));
-	else
-		writel(qdma_tx_sch, h->fe_base + QDMA_TX_2SCH_BASE);
-
-	size = strlen(line);
-	*offset += size;
-
-	return length;
-}
-
-static const struct file_operations hnat_sched_fops = {
-	.open = simple_open,
-	.read = hnat_sched_show,
-	.write = hnat_sched_write,
-	.llseek = default_llseek,
-};
-
-static ssize_t hnat_queue_show(struct file *file, char __user *user_buf,
-			       size_t count, loff_t *ppos)
-{
-	struct mtk_hnat *h = hnat_priv;
-	long id = (long)file->private_data;
-	u32 qtx_sch;
-	u32 qtx_cfg;
-	int scheduler;
-	int min_rate_en;
-	int min_rate;
-	int min_rate_exp;
-	int max_rate_en;
-	int max_weight;
-	int max_rate;
-	int max_rate_exp;
-	char *buf;
-	unsigned int len = 0, buf_len = 1500;
-	ssize_t ret_cnt;
-
-	buf = kzalloc(buf_len, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	cr_set_field(h->fe_base + QDMA_PAGE, QTX_CFG_PAGE, (id / NUM_OF_Q_PER_PAGE));
-	qtx_cfg = readl(h->fe_base + QTX_CFG(id % NUM_OF_Q_PER_PAGE));
-	qtx_sch = readl(h->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
-	if (hnat_priv->data->num_of_sch == 4)
-		scheduler = (qtx_sch >> 30) & 0x3;
-	else
-		scheduler = !!(qtx_sch & BIT(31));
-	min_rate_en = !!(qtx_sch & BIT(27));
-	min_rate = (qtx_sch >> 20) & 0x7f;
-	min_rate_exp = (qtx_sch >> 16) & 0xf;
-	max_rate_en = !!(qtx_sch & BIT(11));
-	max_weight = (qtx_sch >> 12) & 0xf;
-	max_rate = (qtx_sch >> 4) & 0x7f;
-	max_rate_exp = qtx_sch & 0xf;
-	while (min_rate_exp--)
-		min_rate *= 10;
-
-	while (max_rate_exp--)
-		max_rate *= 10;
-
-	len += scnprintf(buf + len, buf_len - len,
-			 "scheduler: %d\nhw resv: %d\nsw resv: %d\n", scheduler,
-			 (qtx_cfg >> 8) & 0xff, qtx_cfg & 0xff);
-
-	if (hnat_priv->data->version != MTK_HNAT_V1_1) {
-		/* Switch to debug mode */
-		cr_set_field(h->fe_base + QTX_MIB_IF, MIB_ON_QTX_CFG, 1);
-		cr_set_field(h->fe_base + QTX_MIB_IF, VQTX_MIB_EN, 1);
-		qtx_cfg = readl(h->fe_base + QTX_CFG(id % NUM_OF_Q_PER_PAGE));
-		qtx_sch = readl(h->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
-		len += scnprintf(buf + len, buf_len - len,
-				 "packet count: %u\n", qtx_cfg);
-		len += scnprintf(buf + len, buf_len - len,
-				 "packet drop: %u\n\n", qtx_sch);
-
-		/* Recover to normal mode */
-		cr_set_field(hnat_priv->fe_base + QTX_MIB_IF,
-			     MIB_ON_QTX_CFG, 0);
-		cr_set_field(hnat_priv->fe_base + QTX_MIB_IF, VQTX_MIB_EN, 0);
-	}
-
-	len += scnprintf(buf + len, buf_len - len,
-			 "      EN     RATE     WEIGHT\n");
-	len += scnprintf(buf + len, buf_len - len,
-			 "----------------------------\n");
-	len += scnprintf(buf + len, buf_len - len,
-			 "max%5d%9d%9d\n", max_rate_en, max_rate, max_weight);
-	len += scnprintf(buf + len, buf_len - len,
-			 "min%5d%9d        -\n", min_rate_en, min_rate);
-
-	if (len > buf_len)
-		len = buf_len;
-
-	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-
-	kfree(buf);
-	return ret_cnt;
-}
-
-static ssize_t hnat_queue_write(struct file *file, const char __user *buf,
-				size_t length, loff_t *offset)
-{
-	long id = (long)file->private_data;
-	struct mtk_hnat *h = hnat_priv;
-	char line[64] = {0};
-	int max_enable, max_rate, max_exp = 0;
-	int min_enable, min_rate, min_exp = 0;
-	int weight;
-	int resv;
-	int scheduler;
-	size_t size;
-	u32 qtx_sch = 0;
-
-	cr_set_field(h->fe_base + QDMA_PAGE, QTX_CFG_PAGE, (id / NUM_OF_Q_PER_PAGE));
-	if (length >= sizeof(line))
-		return -EINVAL;
-
-	if (copy_from_user(line, buf, length))
-		return -EFAULT;
-
-	if (sscanf(line, "%d %d %d %d %d %d %d", &scheduler, &min_enable, &min_rate,
-		   &max_enable, &max_rate, &weight, &resv) != 7)
-		return -EFAULT;
-
-	line[length] = '\0';
-
-#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-	if (max_rate > 10000000 || max_rate < 0 ||
-	    min_rate > 10000000 || min_rate < 0)
-#else
-	if (max_rate > 1000000 || max_rate < 0 ||
-	    min_rate > 1000000 || min_rate < 0)
-#endif
-		return -EINVAL;
-
-	while (max_rate > 127) {
-		max_rate /= 10;
-		max_exp++;
-	}
-
-	while (min_rate > 127) {
-		min_rate /= 10;
-		min_exp++;
-	}
-
-	if (hnat_priv->data->num_of_sch == 4)
-		qtx_sch |= (scheduler & 0x3) << 30;
-	else
-		qtx_sch |= (scheduler & 0x1) << 31;
-	if (min_enable)
-		qtx_sch |= BIT(27);
-	qtx_sch |= (min_rate & 0x7f) << 20;
-	qtx_sch |= (min_exp & 0xf) << 16;
-	if (max_enable)
-		qtx_sch |= BIT(11);
-	qtx_sch |= (weight & 0xf) << 12;
-	qtx_sch |= (max_rate & 0x7f) << 4;
-	qtx_sch |= max_exp & 0xf;
-	writel(qtx_sch, h->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
-
-	resv &= 0xff;
-	qtx_sch = readl(h->fe_base + QTX_CFG(id % NUM_OF_Q_PER_PAGE));
-	qtx_sch &= 0xffff0000;
-	qtx_sch |= (resv << 8) | resv;
-	writel(qtx_sch, h->fe_base + QTX_CFG(id % NUM_OF_Q_PER_PAGE));
-
-	size = strlen(line);
-	*offset += size;
-
-	return length;
-}
-
-static const struct file_operations hnat_queue_fops = {
-	.open = simple_open,
-	.read = hnat_queue_show,
-	.write = hnat_queue_write,
-	.llseek = default_llseek,
-};
-
 static ssize_t hnat_ppd_if_write(struct file *file, const char __user *buffer,
 				 size_t count, loff_t *data)
 {
@@ -2654,7 +2364,6 @@ static ssize_t hnat_hook_toggle_write(struct file *file, const char __user *buff
 {
 	char buf[8] = {0};
 	int len = count;
-	u32 id;
 
 	if ((len > 8) || copy_from_user(buf, buffer, len))
 		return -EFAULT;
@@ -2663,18 +2372,14 @@ static ssize_t hnat_hook_toggle_write(struct file *file, const char __user *buff
 		pr_info("hook is going to be enabled !\n");
 		hnat_enable_hook();
 
-		if (IS_PPPQ_MODE) {
-			for (id = 0; id < MAX_PPPQ_PORT_NUM; id++)
-				hnat_qos_shaper_ebl(id, 1);
-		}
+		if (IS_PPPQ_MODE)
+			qdma_qos_pppq_ebl(true);
 	} else if (buf[0] == '0' && hook_toggle) {
 		pr_info("hook is going to be disabled !\n");
 		hnat_disable_hook();
 
-		if (IS_PPPQ_MODE) {
-			for (id = 0; id < MAX_PPPQ_PORT_NUM; id++)
-				hnat_qos_shaper_ebl(id, 0);
-		}
+		if (IS_PPPQ_MODE)
+			qdma_qos_pppq_ebl(false);
 	}
 
 	return len;
@@ -2975,72 +2680,6 @@ static int hnat_qos_toggle_open(struct inode *inode, struct file *file)
 	return single_open(file, hnat_qos_toggle_read, file->private_data);
 }
 
-void hnat_qos_shaper_ebl(u32 id, u32 enable)
-{
-	struct mtk_hnat *h = hnat_priv;
-	u32 cfg;
-
-	cr_set_field(h->fe_base + QDMA_PAGE, QTX_CFG_PAGE, (id / NUM_OF_Q_PER_PAGE));
-	if (enable) {
-		cfg = QTX_SCH_MIN_RATE_EN | QTX_SCH_MAX_RATE_EN;
-		cfg |= (1 << QTX_SCH_MIN_RATE_MAN_OFFSET) |
-		       (4 << QTX_SCH_MIN_RATE_EXP_OFFSET) |
-		       (25 << QTX_SCH_MAX_RATE_MAN_OFFSET) |
-		       (5 << QTX_SCH_MAX_RATE_EXP_OFFSET) |
-		       (4 << QTX_SCH_MAX_RATE_WGHT_OFFSET);
-
-		writel(cfg, h->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
-	} else {
-		writel(0, h->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
-	}
-}
-
-static void hnat_qos_disable(void)
-{
-	struct mtk_hnat *h = hnat_priv;
-	u32 id, cfg;
-
-	for (id = 0; id < MAX_PPPQ_PORT_NUM; id++) {
-		hnat_qos_shaper_ebl(id, 0);
-		writel((4 << QTX_CFG_HW_RESV_CNT_OFFSET) |
-		       (4 << QTX_CFG_SW_RESV_CNT_OFFSET),
-		       h->fe_base + QTX_CFG(id % NUM_OF_Q_PER_PAGE));
-	}
-
-	cfg = (QDMA_TX_SCH_WFQ_EN) | (QDMA_TX_SCH_WFQ_EN << 16);
-	for (id = 0; id < h->data->num_of_sch; id += 2) {
-		if (h->data->num_of_sch == 4)
-			writel(cfg, h->fe_base + QDMA_TX_4SCH_BASE(id));
-		else
-			writel(cfg, h->fe_base + QDMA_TX_2SCH_BASE);
-	}
-}
-
-static void hnat_qos_pppq_enable(void)
-{
-	struct mtk_hnat *h = hnat_priv;
-	u32 id, cfg;
-
-	for (id = 0; id < MAX_PPPQ_PORT_NUM; id++) {
-		if (hook_toggle)
-			hnat_qos_shaper_ebl(id, 1);
-		else
-			hnat_qos_shaper_ebl(id, 0);
-
-		writel((4 << QTX_CFG_HW_RESV_CNT_OFFSET) |
-		       (4 << QTX_CFG_SW_RESV_CNT_OFFSET),
-		       h->fe_base + QTX_CFG(id % NUM_OF_Q_PER_PAGE));
-	}
-
-	cfg = (QDMA_TX_SCH_WFQ_EN) | (QDMA_TX_SCH_WFQ_EN << 16);
-	for (id = 0; id < h->data->num_of_sch; id+= 2) {
-		if (h->data->num_of_sch == 4)
-                        writel(cfg, h->fe_base + QDMA_TX_4SCH_BASE(id));
-                else
-                        writel(cfg, h->fe_base + QDMA_TX_2SCH_BASE);
-	}
-}
-
 static ssize_t hnat_qos_toggle_write(struct file *file, const char __user *buffer,
 				     size_t count, loff_t *data)
 {
@@ -3061,7 +2700,7 @@ static ssize_t hnat_qos_toggle_write(struct file *file, const char __user *buffe
 		qos_toggle = 0;
 		qos_dl_toggle = 0;
 		qos_ul_toggle = 0;
-		hnat_qos_disable();
+		qdma_qos_disable();
 	} else if (buf[0] == '1') {
 		p_buf = buf;
 		p_token = strsep(&p_buf, " \t");
@@ -3095,7 +2734,7 @@ static ssize_t hnat_qos_toggle_write(struct file *file, const char __user *buffe
 		qos_toggle = 2;
 		qos_dl_toggle = 1;
 		qos_ul_toggle = 1;
-		hnat_qos_pppq_enable();
+		qdma_qos_pppq_ebl(hook_toggle);
 	} else if (buf[0] == '3') {
 		hnat_qos_toggle_usage();
 	} else {
@@ -3505,7 +3144,7 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 	struct dentry *root;
 	struct dentry *file;
 	long i;
-	char name[16];
+	char name[16], name_symlink[48];
 
 	root = debugfs_create_dir("hnat", NULL);
 	if (!root) {
@@ -3578,8 +3217,13 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 			ret = -ENOMEM;
 			goto err1;
 		}
-		debugfs_create_file(name, 0444, root, (void *)i,
-				    &hnat_sched_fops);
+		ret = snprintf(name_symlink, sizeof(name_symlink),
+			       "/sys/kernel/debug/mtketh/qdma_sch%ld", i);
+		if (ret != strlen(name_symlink)) {
+			ret = -ENOMEM;
+			goto err1;
+		}
+		debugfs_create_symlink(name, root, name_symlink);
 	}
 
 	for (i = 0; i < MTK_QDMA_TX_NUM; i++) {
@@ -3588,8 +3232,13 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 			ret = -ENOMEM;
 			goto err1;
 		}
-		debugfs_create_file(name, 0444, root, (void *)i,
-				    &hnat_queue_fops);
+		ret = snprintf(name_symlink, sizeof(name_symlink),
+			       "/sys/kernel/debug/mtketh/qdma_txq%ld", i);
+		if (ret != strlen(name_symlink)) {
+			ret = -ENOMEM;
+			goto err1;
+		}
+		debugfs_create_symlink(name, root, name_symlink);
 	}
 
 	return 0;

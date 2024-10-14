@@ -106,6 +106,8 @@
 #define PROCREG_HW_LRO_AUTO_TLB		"hw_lro_auto_tlb"
 #define PROCREG_RESET_EVENT		"reset_event"
 
+#define MAX_PPPQ_PORT_NUM		6
+
 /* XFI MAC MIB Register */
 #define MTK_XFI_MIB_BASE(x)		(MTK_XMAC_MCR(x))
 #define MTK_XFI_CNT_CTRL		0x100
@@ -424,5 +426,7 @@ int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 void hw_lro_stats_update(u32 ring_no, struct mtk_rx_dma_v2 *rxd);
 void hw_lro_flush_stats_update(u32 ring_no, struct mtk_rx_dma_v2 *rxd);
 void mt753x_set_port_link_state(bool up);
+void qdma_qos_disable(void);
+void qdma_qos_pppq_ebl(u32 hook_toggle);
 
 #endif /* MTK_ETH_DBG_H */

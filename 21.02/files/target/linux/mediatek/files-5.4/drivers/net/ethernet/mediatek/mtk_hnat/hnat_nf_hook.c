@@ -959,13 +959,13 @@ static inline void qos_rate_limit_set(u32 id, const struct net_device *dev)
 	}
 
 setup_rate_limit:
-	cfg = QTX_SCH_MIN_RATE_EN | QTX_SCH_MAX_RATE_EN;
-	cfg |= (1 << QTX_SCH_MIN_RATE_MAN_OFFSET) |
-	       (4 << QTX_SCH_MIN_RATE_EXP_OFFSET) |
-	       (max_man << QTX_SCH_MAX_RATE_MAN_OFFSET) |
-	       (max_exp << QTX_SCH_MAX_RATE_EXP_OFFSET) |
-	       (4 << QTX_SCH_MAX_RATE_WGHT_OFFSET);
-	writel(cfg, hnat_priv->fe_base + QTX_SCH(id % NUM_OF_Q_PER_PAGE));
+	cfg = MTK_QTX_SCH_MIN_RATE_EN | MTK_QTX_SCH_MAX_RATE_EN;
+	cfg |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, 1) |
+	       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, 4) |
+	       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, max_man) |
+	       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, max_exp) |
+	       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 4);
+	writel(cfg, hnat_priv->fe_base + MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
 }
 
 static unsigned int
