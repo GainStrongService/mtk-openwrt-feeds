@@ -530,7 +530,7 @@ static int phy_operate(int argc, char *argv[])
 
 	switch (op) {
 	case 'r':
-		reg = strtoul(argv[argc - 1], NULL, 16);
+		reg = strtoul(argv[argc - 1], NULL, 0);
 		if (reg >= 0xFFFFFFFF) {
 			printf(" Phy read reg fail\n");
 			ret = -1;
@@ -552,7 +552,7 @@ static int phy_operate(int argc, char *argv[])
 				printf(" Phy read reg=0x%x, value=0x%x\n",
 				       reg, value);
 		} else if (argc == 7) {
-			dev_num = strtoul(argv[argc - 2], NULL, 16);
+			dev_num = strtoul(argv[argc - 2], NULL, 0);
 			if (dev_num > 0xFFFFFFFF) {
 				printf(" Phy read reg fail\n");
 				ret = -1;
@@ -577,7 +577,7 @@ static int phy_operate(int argc, char *argv[])
 			ret = phy_dump(32);
 		break;
 	case 'w':
-		reg = strtoul(argv[argc - 2], NULL, 16);
+		reg = strtoul(argv[argc - 2], NULL, 0);
 		if (reg >= 0xFFFFFFFF) {
 			printf(" Phy write reg fail\n");
 			ret = -1;
@@ -607,7 +607,7 @@ static int phy_operate(int argc, char *argv[])
 				printf(" Phy write reg=0x%x, value=0x%x\n",
 				       reg, cl_value);
 		} else if (argc == 8) {
-			dev_num = strtoul(argv[argc - 3], NULL, 16);
+			dev_num = strtoul(argv[argc - 3], NULL, 0);
 			if (dev_num > 0xFFFFFFFF) {
 				printf(" Phy write reg fail\n");
 				ret = -1;
