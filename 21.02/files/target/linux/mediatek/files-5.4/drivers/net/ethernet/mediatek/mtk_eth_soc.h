@@ -15,6 +15,7 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/refcount.h>
 #include <linux/phylink.h>
+#include <linux/ptp_clock_kernel.h>
 
 #define MTK_QDMA_PAGE_SIZE	2048
 #define	MTK_MAX_RX_LENGTH	1536
@@ -832,6 +833,61 @@
 #define MAC_MCR_FORCE_LINK	BIT(0)
 #define MAC_MCR_FORCE_LINK_DOWN	(MAC_MCR_FORCE_MODE)
 
+/* MAC timestamp registers */
+#define MTK_MAC_TS_T1(x)	(0x13000 + ((x) * 0x80))
+#define MAC_TS_T1_SID1(x)	(MTK_MAC_TS_T1(x) + 0x0)
+#define MAC_TS_T1_DW(x)		(MTK_MAC_TS_T1(x) + 0x4)
+#define MAC_TS_T1_SID2(x)	(MTK_MAC_TS_T1(x) + 0x14)
+
+#define MTK_MAC_TS_T2(x)	(0x13020 + ((x) * 0x80))
+#define MAC_TS_T2_SID1(x)	(MTK_MAC_TS_T2(x) + 0x0)
+#define MAC_TS_T2_DW(x)		(MTK_MAC_TS_T2(x) + 0x4)
+#define MAC_TS_T2_SID2(x)	(MTK_MAC_TS_T2(x) + 0x14)
+
+#define MTK_MAC_TS_T3(x)	(0x13040 + ((x) * 0x80))
+#define MAC_TS_T3_SID1(x)	(MTK_MAC_TS_T3(x) + 0x0)
+#define MAC_TS_T3_DW(x)		(MTK_MAC_TS_T3(x) + 0x4)
+#define MAC_TS_T3_SID2(x)	(MTK_MAC_TS_T3(x) + 0x14)
+
+#define MTK_MAC_TS_T4(x)	(0x13060 + ((x) * 0x80))
+#define MAC_TS_T4_SID1(x)	(MTK_MAC_TS_T4(x) + 0x0)
+#define MAC_TS_T4_DW(x)		(MTK_MAC_TS_T4(x) + 0x4)
+#define MAC_TS_T4_SID2(x)	(MTK_MAC_TS_T4(x) + 0x14)
+
+#define MTK_MAC_TS_CTRL		(0x13800)
+#define MAC_TS_IRQ_EN		(MTK_MAC_TS_CTRL)
+#define MAC_TS_IRQ_STS		(MTK_MAC_TS_CTRL + 0x10)
+#define MAC_TS_IRQ_FRC		(MTK_MAC_TS_CTRL + 0x20)
+#define MAC_TS_MODE_CTRL	(MTK_MAC_TS_CTRL + 0x30)
+#define MAC_TS_CPU_TRIG		(MTK_MAC_TS_CTRL + 0x40)
+#define CPU_TS_VALID		BIT(1)
+#define CPU_TRIG		BIT(0)
+
+#define MAC_TS_CPU_TS_DW(x)	(MTK_MAC_TS_CTRL + 0x44 + ((x) * 4))
+#define MAC_TS_SUBSECOND_FIELD0	(MTK_MAC_TS_CTRL + 0x80)
+#define MAC_TS_SUBSECOND_FIELD1	(MTK_MAC_TS_CTRL + 0x84)
+#define MAC_TS_SECOND_FIELD0	(MTK_MAC_TS_CTRL + 0x88)
+#define MAC_TS_SECOND_FIELD1	(MTK_MAC_TS_CTRL + 0x8C)
+
+#define MAC_TS_TIMESTAMP_CTRL	(MTK_MAC_TS_CTRL + 0x90)
+#define CSR_TS_ADJUST		BIT(1)
+#define CSR_TS_UPDATE		BIT(0)
+
+#define MAC_TS_TICK_SUBSECOND	(MTK_MAC_TS_CTRL + 0xA0)
+#define CSR_TICK_NANOSECOND	GENMASK(31, 16)
+#define CSR_TICK_SUB_NANOSECOND	GENMASK(15, 0)
+
+#define MAC_TS_TICK_CTRL	(MTK_MAC_TS_CTRL + 0xA4)
+#define CSR_TICK_UPDATE		BIT(1)
+#define CSR_TICK_RUN		BIT(0)
+
+#define MAC_TS_MAC_CFG		(MTK_MAC_TS_CTRL + 0xA8)
+#define CSR_HW_TS_EN(x)		BIT(x)
+
+#define MAC_TS_RSV		(MTK_MAC_TS_CTRL + 0xB4)
+#define TS_T1_MASK		GENMASK(2, 0)
+#define TS_T3_MASK		GENMASK(6, 4)
+
 /* XFI Mac control registers */
 #define MTK_XMAC_BASE(x)	(0x12000 + ((x - 1) * 0x1000))
 #define MTK_XMAC_MCR(x)		(MTK_XMAC_BASE(x))
@@ -1624,6 +1680,7 @@ enum mkt_eth_capabilities {
 	MTK_NETSYS_V2_BIT,
 	MTK_NETSYS_RX_V2_BIT,
 	MTK_NETSYS_V3_BIT,
+	MTK_HWTSTAMP_BIT,
 	MTK_SOC_MT7628_BIT,
 	MTK_RSTCTRL_PPE1_BIT,
 	MTK_RSTCTRL_PPE2_BIT,
@@ -1678,6 +1735,7 @@ enum mkt_eth_capabilities {
 #define MTK_NETSYS_V2		BIT_ULL(MTK_NETSYS_V2_BIT)
 #define MTK_NETSYS_RX_V2	BIT(MTK_NETSYS_RX_V2_BIT)
 #define MTK_NETSYS_V3		BIT_ULL(MTK_NETSYS_V3_BIT)
+#define MTK_HWTSTAMP		BIT_ULL(MTK_HWTSTAMP_BIT)
 #define MTK_SOC_MT7628		BIT_ULL(MTK_SOC_MT7628_BIT)
 #define MTK_RSTCTRL_PPE1	BIT_ULL(MTK_RSTCTRL_PPE1_BIT)
 #define MTK_RSTCTRL_PPE2	BIT_ULL(MTK_RSTCTRL_PPE2_BIT)
@@ -1810,7 +1868,7 @@ enum mkt_eth_capabilities {
 		       MTK_MUX_U3_GMAC23_TO_QPHY | MTK_U3_COPHY_V2 | \
 		       MTK_GMAC2_2P5GPHY_V2 | MTK_MUX_GMAC2_TO_2P5GPHY | MTK_RSS | \
 		       MTK_NETSYS_V3 | MTK_RSTCTRL_PPE1 | \
-		       MTK_NETSYS_RX_V2 | MTK_36BIT_DMA)
+		       MTK_NETSYS_RX_V2 | MTK_36BIT_DMA | MTK_HWTSTAMP)
 
 struct mtk_tx_dma_desc_info {
 	dma_addr_t	addr;
@@ -2184,6 +2242,11 @@ struct mtk_eth {
 	struct work_struct		pending_work;
 	unsigned long			state;
 
+	struct ptp_clock_info		ptp_info;
+	struct ptp_clock		*ptp_clock;
+	int				tx_ts_enabled;
+	int				rx_ts_enabled;
+
 	const struct mtk_soc_data	*soc;
 
 	struct {
@@ -2287,4 +2350,10 @@ int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
 
 void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
 u32 mtk_rss_indr_table(struct mtk_rss_params *rss_params, int index);
+
+int mtk_ptp_hwtstamp_process_tx(struct net_device *dev, struct sk_buff *skb);
+int mtk_ptp_hwtstamp_process_rx(struct net_device *dev, struct sk_buff *skb);
+int mtk_ptp_hwtstamp_set_config(struct net_device *dev, struct ifreq *ifr);
+int mtk_ptp_hwtstamp_get_config(struct net_device *dev, struct ifreq *ifr);
+int mtk_ptp_clock_init(struct mtk_eth *eth);
 #endif /* MTK_ETH_H */

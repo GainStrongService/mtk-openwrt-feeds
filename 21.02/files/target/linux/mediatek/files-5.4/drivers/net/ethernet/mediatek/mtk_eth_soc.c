@@ -2632,6 +2632,9 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		skb->dev = netdev;
 		skb_put(skb, pktlen);
 
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWTSTAMP) && eth->rx_ts_enabled)
+			mtk_ptp_hwtstamp_process_rx(eth->netdev[mac], skb);
+
 		if ((MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)))
 			rxdcsum = &trxd.rxd3;
 		else
@@ -2808,6 +2811,11 @@ static void mtk_poll_tx_qdma(struct mtk_eth *eth, int budget,
 		skb = tx_buf->skb;
 		if (!skb)
 			break;
+
+		if (unlikely(MTK_HAS_CAPS(eth->soc->caps, MTK_HWTSTAMP) &&
+			     skb != (struct sk_buff *)MTK_DMA_DUMMY_DESC &&
+			     skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+			mtk_ptp_hwtstamp_process_tx(eth->netdev[mac], skb);
 
 		if (skb != (struct sk_buff *)MTK_DMA_DUMMY_DESC) {
 			mtk_poll_tx_done(eth, state, mac, skb);
@@ -4338,6 +4346,9 @@ static int mtk_open(struct net_device *dev)
 				break;
 		}
 
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWTSTAMP))
+			mtk_ptp_clock_init(eth);
+
 		napi_enable(&eth->rx_napi[0].napi);
 		mtk_rx_irq_enable(eth, MTK_RX_DONE_INT(0));
 
@@ -4525,6 +4536,9 @@ static int mtk_stop(struct net_device *dev)
 	mtk_stop_dma(eth, eth->soc->reg_map->pdma.glo_cfg);
 
 	mtk_dma_free(eth);
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWTSTAMP))
+		ptp_clock_unregister(eth->ptp_clock);
 
 	return 0;
 }
@@ -4916,6 +4930,10 @@ static int mtk_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct mtk_mac *mac = netdev_priv(dev);
 
 	switch (cmd) {
+	case SIOCSHWTSTAMP:
+		return mtk_ptp_hwtstamp_set_config(dev, ifr);
+	case SIOCGHWTSTAMP:
+		return mtk_ptp_hwtstamp_get_config(dev, ifr);
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
@@ -5425,6 +5443,28 @@ static int mtk_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 	return phylink_ethtool_set_pauseparam(mac->phylink, pause);
 }
 
+static int mtk_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
+{
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_HWTSTAMP))
+		return -EOPNOTSUPP;
+
+	info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
+				SOF_TIMESTAMPING_RX_HARDWARE |
+				SOF_TIMESTAMPING_RAW_HARDWARE;
+	info->phc_index = 0;
+	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
+			 (1 << HWTSTAMP_TX_ON) |
+			 (1 << HWTSTAMP_TX_ONESTEP_SYNC);
+	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+			   (1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+			   (1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ);
+
+	return 0;
+}
+
 static int mtk_get_eee(struct net_device *dev, struct ethtool_eee *eee)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
@@ -5513,6 +5553,7 @@ static const struct ethtool_ops mtk_ethtool_ops = {
 	.set_rxfh		= mtk_set_rxfh,
 	.get_pauseparam		= mtk_get_pauseparam,
 	.set_pauseparam		= mtk_set_pauseparam,
+	.get_ts_info		= mtk_get_ts_info,
 	.get_eee		= mtk_get_eee,
 	.set_eee		= mtk_set_eee,
 };
