@@ -1,6 +1,6 @@
-From 2ee245f821d960dd389a5c3dd97dc1057aa05554 Mon Sep 17 00:00:00 2001
+From 3a4256932000744357ba358140fd2895756060e6 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Tue, 4 Jun 2024 09:14:34 +0800
+Date: Tue, 15 Oct 2024 15:23:05 +0800
 Subject: [PATCH 01/24] mt7622 backport nf hw offload framework and upstream
  hnat plus xt-FLOWOFFLOAD update v2
 
@@ -8,8 +8,8 @@ Subject: [PATCH 01/24] mt7622 backport nf hw offload framework and upstream
  drivers/net/ethernet/mediatek/Makefile        |    3 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   |   25 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |   19 +-
- drivers/net/ethernet/mediatek/mtk_ppe.c       |  514 +++++++
- drivers/net/ethernet/mediatek/mtk_ppe.h       |  288 ++++
+ drivers/net/ethernet/mediatek/mtk_ppe.c       |  513 +++++++
+ drivers/net/ethernet/mediatek/mtk_ppe.h       |  287 ++++
  .../net/ethernet/mediatek/mtk_ppe_debugfs.c   |  214 +++
  .../net/ethernet/mediatek/mtk_ppe_offload.c   |  535 ++++++++
  drivers/net/ethernet/mediatek/mtk_ppe_regs.h  |  144 ++
@@ -47,7 +47,7 @@ Subject: [PATCH 01/24] mt7622 backport nf hw offload framework and upstream
  net/netfilter/nf_flow_table_ip.c              |  447 +++---
  net/netfilter/nf_flow_table_offload.c         | 1199 +++++++++++++++++
  net/netfilter/xt_FLOWOFFLOAD.c                |  780 +++++++++++
- 42 files changed, 4983 insertions(+), 452 deletions(-)
+ 42 files changed, 4981 insertions(+), 452 deletions(-)
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/Makefile
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/mtk_eth_soc.c
  mode change 100644 => 100755 drivers/net/ethernet/mediatek/mtk_eth_soc.h
@@ -63,24 +63,24 @@ Subject: [PATCH 01/24] mt7622 backport nf hw offload framework and upstream
 diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
 old mode 100644
 new mode 100755
-index 634640d..5f342f4
+index 2f14aa1..0a3b977
 --- a/drivers/net/ethernet/mediatek/Makefile
 +++ b/drivers/net/ethernet/mediatek/Makefile
 @@ -4,5 +4,6 @@
  #
  
  obj-$(CONFIG_NET_MEDIATEK_SOC)			+= mtk_eth.o
--mtk_eth-y := mtk_eth_soc.o mtk_sgmii.o mtk_usxgmii.o mtk_eth_path.o mtk_eth_dbg.o mtk_eth_reset.o
-+mtk_eth-y := mtk_eth_soc.o mtk_sgmii.o mtk_usxgmii.o mtk_eth_path.o mtk_eth_dbg.o mtk_eth_reset.o	\
+-mtk_eth-y := mtk_eth_soc.o mtk_sgmii.o mtk_usxgmii.o mtk_eth_path.o mtk_eth_dbg.o mtk_eth_reset.o mtk_eth_ptp.o
++mtk_eth-y := mtk_eth_soc.o mtk_sgmii.o mtk_usxgmii.o mtk_eth_path.o mtk_eth_dbg.o mtk_eth_reset.o mtk_eth_ptp.o	\
 +	     mtk_ppe.o mtk_ppe_debugfs.o mtk_ppe_offload.o
  obj-$(CONFIG_NET_MEDIATEK_HNAT)			+= mtk_hnat/
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 old mode 100644
 new mode 100755
-index 697a197..edc4ecf
+index e3040fb..088ff2d
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4010,6 +4010,7 @@ static int mtk_open(struct net_device *dev)
+@@ -4307,6 +4307,7 @@ static int mtk_open(struct net_device *dev)
  	struct mtk_phylink_priv *phylink_priv = &mac->phylink_priv;
  	struct device_node *phy_node;
  	const char *mac_addr;
@@ -88,7 +88,7 @@ index 697a197..edc4ecf
  	u32 id = mtk_mac2xgmii_id(eth, mac->id);
  	int err, i;
  
-@@ -4102,7 +4103,10 @@ static int mtk_open(struct net_device *dev)
+@@ -4407,7 +4408,10 @@ static int mtk_open(struct net_device *dev)
  		regmap_write(eth->sgmii->pcs[id].regmap,
  			     SGMSYS_QPHY_PWR_STATE_CTRL, 0);
  
@@ -100,9 +100,9 @@ index 697a197..edc4ecf
  
  	return 0;
  }
-@@ -4189,6 +4193,9 @@ static int mtk_stop(struct net_device *dev)
- 
- 	mtk_dma_free(eth);
+@@ -4541,6 +4545,9 @@ static int mtk_stop(struct net_device *dev)
+ 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWTSTAMP))
+ 		ptp_clock_unregister(eth->ptp_clock);
  
 +	if (eth->soc->offload_version)
 +		mtk_ppe_stop(&eth->ppe);
@@ -110,7 +110,7 @@ index 697a197..edc4ecf
  	return 0;
  }
  
-@@ -5109,6 +5116,7 @@ static const struct net_device_ops mtk_netdev_ops = {
+@@ -5577,6 +5584,7 @@ static const struct net_device_ops mtk_netdev_ops = {
  #ifdef CONFIG_NET_POLL_CONTROLLER
  	.ndo_poll_controller	= mtk_poll_controller,
  #endif
@@ -118,7 +118,7 @@ index 697a197..edc4ecf
  };
  
  static void mux_poll(struct work_struct *work)
-@@ -5741,6 +5749,17 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6221,6 +6229,17 @@ static int mtk_probe(struct platform_device *pdev)
  			goto err_free_dev;
  	}
  
@@ -136,7 +136,7 @@ index 697a197..edc4ecf
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
  		if (!eth->netdev[i])
  			continue;
-@@ -5842,6 +5861,7 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -6331,6 +6350,7 @@ static const struct mtk_soc_data mt2701_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -144,7 +144,7 @@ index 697a197..edc4ecf
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5862,6 +5882,7 @@ static const struct mtk_soc_data mt7621_data = {
+@@ -6351,6 +6371,7 @@ static const struct mtk_soc_data mt7621_data = {
  	.required_clks = MT7621_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -152,7 +152,7 @@ index 697a197..edc4ecf
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5883,6 +5904,7 @@ static const struct mtk_soc_data mt7622_data = {
+@@ -6372,6 +6393,7 @@ static const struct mtk_soc_data mt7622_data = {
  	.required_clks = MT7622_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = false,
@@ -160,7 +160,7 @@ index 697a197..edc4ecf
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -5903,6 +5925,7 @@ static const struct mtk_soc_data mt7623_data = {
+@@ -6392,6 +6414,7 @@ static const struct mtk_soc_data mt7623_data = {
  	.required_clks = MT7623_CLKS_BITMAP,
  	.required_pctl = true,
  	.has_sram = false,
@@ -171,19 +171,19 @@ index 697a197..edc4ecf
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 old mode 100644
 new mode 100755
-index 9fae48f..54b2c7c
+index 02feeaf..8ca9c0c
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -15,6 +15,8 @@
- #include <linux/u64_stats_sync.h>
+@@ -16,6 +16,8 @@
  #include <linux/refcount.h>
  #include <linux/phylink.h>
+ #include <linux/ptp_clock_kernel.h>
 +#include <linux/rhashtable.h>
 +#include "mtk_ppe.h"
  
  #define MTK_QDMA_PAGE_SIZE	2048
  #define	MTK_MAX_RX_LENGTH	1536
-@@ -46,7 +48,8 @@
+@@ -51,7 +53,8 @@
  				 NETIF_F_HW_VLAN_CTAG_TX | \
  				 NETIF_F_SG | NETIF_F_TSO | \
  				 NETIF_F_TSO6 | \
@@ -193,7 +193,7 @@ index 9fae48f..54b2c7c
  #define MTK_SET_FEATURES	(NETIF_F_LRO | \
  				 NETIF_F_HW_VLAN_CTAG_RX)
  #define MTK_HW_FEATURES_MT7628	(NETIF_F_SG | NETIF_F_RXCSUM)
-@@ -133,6 +136,7 @@
+@@ -149,6 +152,7 @@
  #define MTK_GDMA_UCS_EN		BIT(20)
  #define MTK_GDMA_STRP_CRC	BIT(16)
  #define MTK_GDMA_TO_PDMA	0x0
@@ -201,7 +201,7 @@ index 9fae48f..54b2c7c
  #define MTK_GDMA_DROP_ALL	0x7777
  
  /* GDM Egress Control Register */
-@@ -686,6 +690,12 @@
+@@ -725,6 +729,12 @@
  #define RX_DMA_TCI(_x)		((_x) & (VLAN_PRIO_MASK | VLAN_VID_MASK))
  #define RX_DMA_VPID(_x)		(((_x) >> 16) & 0xffff)
  
@@ -214,7 +214,7 @@ index 9fae48f..54b2c7c
  /* QDMA descriptor rxd4 */
  #define RX_DMA_L4_VALID		BIT(24)
  #define RX_DMA_L4_VALID_PDMA	BIT(30)		/* when PDMA is used */
-@@ -1737,6 +1747,7 @@ struct mtk_soc_data {
+@@ -1967,6 +1977,7 @@ struct mtk_soc_data {
  	u64		caps;
  	u64		required_clks;
  	bool		required_pctl;
@@ -222,9 +222,9 @@ index 9fae48f..54b2c7c
  	netdev_features_t hw_features;
  	bool		has_sram;
  	struct {
-@@ -1947,6 +1958,9 @@ struct mtk_eth {
+@@ -2263,6 +2274,9 @@ struct mtk_eth {
  	int				ip_align;
-	spinlock_t			syscfg0_lock;
+ 	spinlock_t			syscfg0_lock;
  	struct notifier_block		netdevice_notifier;
 +
 +	struct mtk_ppe			ppe;
@@ -232,7 +232,7 @@ index 9fae48f..54b2c7c
  };
  
  /* struct mtk_mac -	the structure that holds the info about the MACs of the
-@@ -2026,6 +2040,9 @@ struct phylink_pcs *mtk_usxgmii_select_pcs(struct mtk_usxgmii *ss, int id);
+@@ -2348,6 +2362,9 @@ struct phylink_pcs *mtk_usxgmii_select_pcs(struct mtk_usxgmii *ss, unsigned int
  int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r);
  int mtk_toprgu_init(struct mtk_eth *eth, struct device_node *r);
  
@@ -241,10 +241,10 @@ index 9fae48f..54b2c7c
 +		     void *type_data);
  void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
  u32 mtk_rss_indr_table(struct mtk_rss_params *rss_params, int index);
- #endif /* MTK_ETH_H */
+ 
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
 new file mode 100644
-index 0000000..6965d98
+index 0000000..8a1437b
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -0,0 +1,513 @@
@@ -763,7 +763,7 @@ index 0000000..6965d98
 +}
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
 new file mode 100644
-index 0000000..242fb8f
+index 0000000..4787447
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
 @@ -0,0 +1,287 @@
@@ -1966,10 +1966,10 @@ index 0000000..0c45ea0
 +
 +#endif
 diff --git a/drivers/net/ppp/ppp_generic.c b/drivers/net/ppp/ppp_generic.c
-index 555ba50..25dcff2 100644
+index 76ed2d4..ec2fbd1 100644
 --- a/drivers/net/ppp/ppp_generic.c
 +++ b/drivers/net/ppp/ppp_generic.c
-@@ -1380,12 +1380,34 @@ static void ppp_dev_priv_destructor(struct net_device *dev)
+@@ -1395,12 +1395,34 @@ static void ppp_dev_priv_destructor(struct net_device *dev)
  		ppp_destroy_interface(ppp);
  }
  
@@ -2912,7 +2912,7 @@ index 9257292..bcfd169 100644
  		     struct bridge_vlan_info *p_vinfo)
  {
 diff --git a/net/core/dev.c b/net/core/dev.c
-index 9da89f2..e9dd11e 100644
+index 6c0aefe..7d29e7b 100644
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
 @@ -722,6 +722,52 @@ int dev_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
@@ -3093,7 +3093,7 @@ index 69443e9..0b481d2 100644
  	tristate "Netfilter IPv6 packet duplication to alternate destination"
  	depends on !NF_CONNTRACK || NF_CONNTRACK
 diff --git a/net/ipv6/route.c b/net/ipv6/route.c
-index d99d12a..29d6fd2 100644
+index f0677e1..d928855 100644
 --- a/net/ipv6/route.c
 +++ b/net/ipv6/route.c
 @@ -83,7 +83,7 @@ enum rt6_nud_state {
@@ -3105,7 +3105,7 @@ index d99d12a..29d6fd2 100644
  static void		ip6_negative_advice(struct sock *sk,
  					    struct dst_entry *dst);
  static void		ip6_dst_destroy(struct dst_entry *);
-@@ -3125,25 +3125,7 @@ static unsigned int ip6_default_advmss(const struct dst_entry *dst)
+@@ -3129,25 +3129,7 @@ static unsigned int ip6_default_advmss(const struct dst_entry *dst)
  
  static unsigned int ip6_mtu(const struct dst_entry *dst)
  {
@@ -6905,5 +6905,5 @@ index 0000000..9120c60
 +module_init(xt_flowoffload_tg_init);
 +module_exit(xt_flowoffload_tg_exit);
 -- 
-2.18.0
+2.45.2
 
