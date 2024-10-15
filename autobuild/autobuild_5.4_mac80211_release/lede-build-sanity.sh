@@ -336,6 +336,7 @@ prepare_mac80211() {
 			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0002-wifi7-hostapd-makefile-for-utils.patch || exit 1
 			# MT76 Makefile
 			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0003-wifi7-mt76-makefile-for-new-chip.patch || exit 1
+			rm ${MAC80211_AUTOBUILD_RELEASE}/package/kernel/mt76/Makefile
 	else
 			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0001-wifi6-mac80211-generate-hostapd-setting-from-ap-cap.patch || exit 1
 			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0002-wifi6-hostapd-makefile-for-utils.patch || exit 1
