@@ -6,14 +6,14 @@ Subject: [PATCH] flow-offload-add-mtkhnat-qdma-qos
 ---
  drivers/net/ethernet/mediatek/Makefile        |   2 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  10 +
- drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  44 ++
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  35 ++
  drivers/net/ethernet/mediatek/mtk_ppe.c       |  48 +-
  drivers/net/ethernet/mediatek/mtk_ppe.h       |   4 +
  .../net/ethernet/mediatek/mtk_ppe_offload.c   |  28 +-
  .../net/ethernet/mediatek/mtk_qdma_debugfs.c  | 448 ++++++++++++++++++
  include/net/flow_offload.h                    |   1 +
  net/netfilter/nf_flow_table_offload.c         |   4 +-
- 9 files changed, 584 insertions(+), 5 deletions(-)
+ 9 files changed, 575 insertions(+), 5 deletions(-)
  create mode 100644 drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c
 
 diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
@@ -110,29 +110,6 @@ diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/
 index 351e66c..2ddadf3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -549,6 +549,11 @@
- /* QDMA Interrupt Mask Register */
- #define MTK_QDMA_HRED2		(QDMA_BASE + 0x244)
- 
-+/* QDMA TX Queue MIB Interface Register */
-+#define MTK_QTX_MIB_IF		(QDMA_BASE + 0x2bc)
-+#define MTK_MIB_ON_QTX_CFG	BIT(31)
-+#define MTK_VQTX_MIB_EN		BIT(28)
-+
- /* QDMA TX Forward CPU Pointer Register */
- #define MTK_QTX_CTX_PTR		(QDMA_BASE +0x300)
- 
-@@ -578,6 +583,10 @@ 
- /* QDMA TX Scheduler Rate Control Register */
- #define MTK_QDMA_TX_4SCH_BASE(x)	(QDMA_BASE + 0x398 + (((x) >> 1) * 0x4))
- #define MTK_QDMA_TX_SCH_MASK		GENMASK(15, 0)
-+#define MTK_QDMA_TX_SCH_MAX_WFQ		BIT(15)
-+#define MTK_QDMA_TX_SCH_RATE_EN		BIT(11)
-+#define MTK_QDMA_TX_SCH_RATE_MAN	GENMASK(10, 4)
-+#define MTK_QDMA_TX_SCH_RATE_EXP	GENMASK(3, 0)
- 
- /* WDMA Registers */
- #define MTK_WDMA_CTX_PTR(x)	(WDMA_BASE(x) + 0x8)
 @@ -1771,6 +1781,7 @@ struct mtk_soc_data {
  		u32	rx_dma_l4_valid;
  		u32	dma_max_len;
