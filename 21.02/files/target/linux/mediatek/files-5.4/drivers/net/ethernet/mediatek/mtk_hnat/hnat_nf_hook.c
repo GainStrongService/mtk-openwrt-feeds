@@ -2042,17 +2042,11 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 						 MTK_HNAT_V3) ?
 						 skb->mark & 0x7f : skb->mark & 0xf;
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-					if ((IS_HQOS_UL_MODE && IS_WAN(dev)) ||
-					    (IS_HQOS_DL_MODE &&
-					     IS_LAN_GRP(dev)) ||
-					    (IS_PPPQ_MODE &&
-					     IS_PPPQ_PATH(dev, skb)))
-						entry.ipv4_hnapt.tport_id = NR_QDMA_TPORT;
-					else
-						entry.ipv4_hnapt.tport_id = 0;
-#else
-					entry.ipv4_hnapt.iblk2.fqos = 1;
+					entry.ipv4_hnapt.tport_id =
+						HQOS_FLAG(dev, skb, entry.ipv4_hnapt.iblk2.qid);
 #endif
+					entry.ipv4_hnapt.iblk2.fqos =
+						HQOS_FLAG(dev, skb, entry.ipv4_hnapt.iblk2.qid);
 				}
 
 				entry.ipv4_hnapt.bfib1.udp =
@@ -2259,13 +2253,13 @@ hnat_entry_bind:
 
 			if (FROM_EXT(skb) || skb_hnat_sport(skb) == NR_QDMA_PORT)
 				entry.ipv4_hnapt.iblk2.fqos = 0;
-			else
+			else {
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 				entry.ipv4_hnapt.tport_id = HQOS_FLAG(dev, skb, qid) ?
 							    NR_QDMA_TPORT : 0;
-#else
-				entry.ipv4_hnapt.iblk2.fqos = HQOS_FLAG(dev, skb, qid) ? 1 : 0;
 #endif
+				entry.ipv4_hnapt.iblk2.fqos = HQOS_FLAG(dev, skb, qid) ? 1 : 0;
+			}
 		} else {
 			entry.ipv4_hnapt.iblk2.fqos = 0;
 		}
@@ -2312,7 +2306,7 @@ hnat_entry_bind:
 
 			if (FROM_EXT(skb) || skb_hnat_sport(skb) == NR_QDMA_PORT)
 				entry.ipv6_5t_route.iblk2.fqos = 0;
-			else
+			else {
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 				switch (entry.bfib1.pkt_type) {
 				case IPV4_MAP_E:
@@ -2330,9 +2324,9 @@ hnat_entry_bind:
 						HQOS_FLAG(dev, skb, qid) ? NR_QDMA_TPORT : 0;
 					break;
 				}
-#else
-				entry.ipv6_5t_route.iblk2.fqos = HQOS_FLAG(dev, skb, qid) ? 1 : 0;
 #endif
+				entry.ipv6_5t_route.iblk2.fqos = HQOS_FLAG(dev, skb, qid) ? 1 : 0;
+			}
 		} else {
 			entry.ipv6_5t_route.iblk2.fqos = 0;
 		}
@@ -2551,6 +2545,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 			entry.ipv4_hnapt.winfo.wcid = skb_hnat_wc_id(skb);
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 			entry.ipv4_hnapt.tport_id = IS_HQOS_DL_MODE ? NR_QDMA_TPORT : 0;
+			entry.ipv4_hnapt.iblk2.fqos = IS_HQOS_DL_MODE ? 1 : 0;
 			entry.ipv4_hnapt.iblk2.rxid = skb_hnat_rx_id(skb);
 			entry.ipv4_hnapt.iblk2.winfoi = 1;
 			entry.ipv4_hnapt.winfo_pao.usr_info =
@@ -2609,6 +2604,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		entry.ipv6_hnapt.winfo_pao.hf = skb_hnat_hf(skb);
 		entry.ipv6_hnapt.winfo_pao.amsdu = skb_hnat_amsdu(skb);
 		entry.ipv6_hnapt.tport_id = IS_HQOS_DL_MODE ? NR_QDMA_TPORT : 0;
+		entry.ipv6_hnapt.iblk2.fqos = IS_HQOS_DL_MODE ? 1 : 0;
 	} else if (IS_L2_BRIDGE(&entry)) {
 		entry.l2_bridge.iblk2.dp = gmac_no;
 		entry.l2_bridge.iblk2.rxid = skb_hnat_rx_id(skb);
@@ -2625,6 +2621,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		entry.l2_bridge.winfo_pao.is_sp = skb_hnat_is_sp(skb);
 		entry.l2_bridge.winfo_pao.hf = skb_hnat_hf(skb);
 		entry.l2_bridge.winfo_pao.amsdu = skb_hnat_amsdu(skb);
+		entry.l2_bridge.iblk2.fqos = IS_HQOS_DL_MODE ? 1 : 0;
 #endif
 	} else {
 		entry.ipv6_5t_route.iblk2.fqos = 0;
@@ -2641,6 +2638,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 				entry.ipv4_mape.winfo.bssid = skb_hnat_bss_id(skb);
 				entry.ipv4_mape.winfo.wcid = skb_hnat_wc_id(skb);
 				entry.ipv4_mape.tport_id = IS_HQOS_DL_MODE ? NR_QDMA_TPORT : 0;
+				entry.ipv4_mape.iblk2.fqos = IS_HQOS_DL_MODE ? 1 : 0;
 				entry.ipv4_mape.iblk2.rxid = skb_hnat_rx_id(skb);
 				entry.ipv4_mape.iblk2.winfoi = 1;
 				entry.ipv4_mape.winfo_pao.usr_info =
@@ -2662,6 +2660,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 				entry.ipv6_5t_route.winfo.bssid = skb_hnat_bss_id(skb);
 				entry.ipv6_5t_route.winfo.wcid = skb_hnat_wc_id(skb);
 				entry.ipv6_5t_route.tport_id = IS_HQOS_DL_MODE ? NR_QDMA_TPORT : 0;
+				entry.ipv6_5t_route.iblk2.fqos = IS_HQOS_DL_MODE ? 1 : 0;
 				entry.ipv6_5t_route.iblk2.rxid = skb_hnat_rx_id(skb);
 				entry.ipv6_5t_route.iblk2.winfoi = 1;
 				entry.ipv6_5t_route.winfo_pao.usr_info =
