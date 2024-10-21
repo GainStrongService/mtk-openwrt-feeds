@@ -1,0 +1,26 @@
+From 49fb4bcb9c84822e5da498cd570d58a22159a001 Mon Sep 17 00:00:00 2001
+From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
+Date: Sat, 19 Oct 2024 16:30:19 +0800
+Subject: [PATCH] flow offload add arht switch dsa support
+
+---
+ drivers/net/ethernet/mediatek/mtk_ppe_offload.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
+index 15dd913..8ecbee3 100644
+--- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
++++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
+@@ -175,7 +175,8 @@ mtk_flow_get_dsa_port(struct net_device **dev)
+ 	if (IS_ERR(dp))
+ 		return -ENODEV;
+ 
+-	if (dp->cpu_dp->tag_ops->proto != DSA_TAG_PROTO_MTK)
++	if (dp->cpu_dp->tag_ops->proto != DSA_TAG_PROTO_MTK &&
++	    dp->cpu_dp->tag_ops->proto != DSA_TAG_PROTO_ARHT)
+ 		return -ENODEV;
+ 
+ 	*dev = dp->cpu_dp->master;
+-- 
+2.45.2
+
