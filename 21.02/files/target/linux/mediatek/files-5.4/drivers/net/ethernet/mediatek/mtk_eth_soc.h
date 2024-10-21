@@ -75,6 +75,46 @@
 #define MTK_RSS_HASH_KEYSIZE		40
 #define MTK_RSS_MAX_INDIRECTION_TABLE	128
 
+/* Global Memroy Interface Control */
+#define MTK_GLO_MEM_CTRL		0x604
+
+/* Global Memory Data */
+#define MTK_GLO_MEM_DATA0		0x608
+#define MTK_GLO_MEM_DATA(x)		(MTK_GLO_MEM_DATA0 + (x * 0x4))
+
+/* Global Memory Access Info */
+#define MTK_GLO_MEM_ADDR		GENMASK(19, 0)
+#define MTK_GLO_MEM_IDX			GENMASK(29, 20)
+#define MTK_GLO_MEM_CMD			GENMASK(31, 30)
+
+#define MTK_GLO_MEM_WRITE		(1)
+#define MTK_GLO_MEM_READ		(2)
+
+/* HW LRO Memory Info */
+#define MTK_LRO_MEM_IDX			(0x4)
+#define MTK_LRO_MEM_CFG_BASE		(0)
+#define MTK_LRO_MEM_DATA_BASE		(64)
+#define MTK_LRO_MEM_DIP_BASE		(128)
+
+/* HW LRO CFG Info */
+#define MTK_RING_MAX_AGG_CNT		GENMASK(7, 0)
+#define MTK_RING_OPMODE			GENMASK(9, 8)
+#define MTK_RING_AGE_TIME		GENMASK(15, 0)
+#define MTK_RING_MAX_AGG_TIME_V2	GENMASK(31, 16)
+
+#define MTK_RING_AUTO_LERAN_MODE_V2	(3)
+
+/* HW LRO DATA Info */
+#define MTK_LRO_DATA_VLD		BIT(26)
+#define MTK_LRO_DATA_DIP_IDX		GENMASK(5, 0)
+#define MTK_LRO_DATA_DPORT		GENMASK(15, 0)
+#define MTK_LRO_DATA_SPORT		GENMASK(31, 16)
+
+/* HW LRO DIP Info */
+#define MTK_LRO_DIP_MODE		GENMASK(1, 0)
+#define MTK_LRO_IPV4			(1)
+#define MTK_LRO_IPV6			(2)
+
 /* Frame Engine Global Configuration */
 #define MTK_FE_GLO_CFG(x)	((x < 8) ? 0x0 : 0x24)
 #define MTK_FE_LINK_DOWN_P(x)	((x < 8) ? FIELD_PREP(GENMASK(15, 8), BIT(x)) :	\
@@ -261,7 +301,7 @@
 
 /* PDMA HW LRO Control Registers */
 #define BITS(m, n)			(~(BIT(m) - 1) & ((BIT(n) - 1) | BIT(n)))
-#define MTK_HW_LRO_DIP_NUM		(4)
+#define MTK_HW_LRO_DIP_NUM		(MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS) ? 8 : 4)
 #if defined(CONFIG_MEDIATEK_NETSYS_RX_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 #define MTK_MAX_RX_RING_NUM		(8)
 #define MTK_HW_LRO_RING_NUM		(4)
@@ -1699,6 +1739,7 @@ enum mkt_eth_capabilities {
 	MTK_INFRA_BIT,
 	MTK_SHARED_SGMII_BIT,
 	MTK_HWLRO_BIT,
+	MTK_GLO_MEM_ACCESS_BIT,
 	MTK_RSS_BIT,
 	MTK_SHARED_INT_BIT,
 	MTK_PDMA_INT_BIT,
@@ -1758,6 +1799,7 @@ enum mkt_eth_capabilities {
 #define MTK_INFRA		BIT_ULL(MTK_INFRA_BIT)
 #define MTK_SHARED_SGMII	BIT_ULL(MTK_SHARED_SGMII_BIT)
 #define MTK_HWLRO		BIT_ULL(MTK_HWLRO_BIT)
+#define MTK_GLO_MEM_ACCESS	BIT_ULL(MTK_GLO_MEM_ACCESS_BIT)
 #define MTK_RSS			BIT_ULL(MTK_RSS_BIT)
 #define MTK_SHARED_INT		BIT_ULL(MTK_SHARED_INT_BIT)
 #define MTK_PDMA_INT		BIT_ULL(MTK_PDMA_INT_BIT)
@@ -1900,6 +1942,7 @@ enum mkt_eth_capabilities {
 		       MTK_MUX_U3_GMAC23_TO_QPHY | MTK_U3_COPHY_V2 | \
 		       MTK_GMAC2_2P5GPHY_V2 | MTK_MUX_GMAC2_TO_2P5GPHY | MTK_RSS | \
 		       MTK_NETSYS_V3 | MTK_RSTCTRL_PPE1 | \
+		       MTK_HWLRO | MTK_GLO_MEM_ACCESS | \
 		       MTK_NETSYS_RX_V2 | MTK_36BIT_DMA | MTK_HWTSTAMP)
 
 struct mtk_tx_dma_desc_info {

@@ -3322,40 +3322,103 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring, int in_s
 	}
 }
 
+static void mtk_hwlro_cfg_mem_clear(struct mtk_eth *eth)
+{
+	int i;
+
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS))
+		return;
+
+	mtk_w32(eth, 0, MTK_GLO_MEM_CTRL);
+	for (i = 0; i <= 9; i++)
+		mtk_w32(eth, 0, MTK_GLO_MEM_DATA(i));
+}
+
+static int mtk_hwlro_cfg_mem_done(struct mtk_eth *eth)
+{
+	int ret;
+
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS))
+		return -EPERM;
+
+	ret = FIELD_GET(MTK_GLO_MEM_CMD, mtk_r32(eth, MTK_GLO_MEM_CTRL));
+	if (ret != 0) {
+		pr_warn("GLO_MEM read/write error\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static u32 mtk_hwlro_cfg_mem_get_dip(struct mtk_eth *eth, u32 index)
+{
+	u32 reg_val;
+
+	reg_val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+	reg_val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_DIP_BASE + index);
+	reg_val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);
+	mtk_w32(eth, reg_val, MTK_GLO_MEM_CTRL);
+
+	return mtk_r32(eth, MTK_GLO_MEM_DATA(0));
+}
+
 static int mtk_hwlro_rx_init(struct mtk_eth *eth)
 {
 	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
-	int i;
-	u32 val;
 	u32 ring_ctrl_dw1 = 0, ring_ctrl_dw2 = 0, ring_ctrl_dw3 = 0;
-	u32 lro_ctrl_dw0 = 0, lro_ctrl_dw3 = 0;
+	u32 lro_ctrl_dw0 = 0, lro_ctrl_dw3 = 0, val;
+	int i;
 
-	/* set LRO rings to auto-learn modes */
-	ring_ctrl_dw2 |= MTK_RING_AUTO_LERAN_MODE;
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) {
+		/* set LRO rings to auto-learn modes */
+		ring_ctrl_dw2 |= MTK_RING_AUTO_LERAN_MODE;
 
-	/* validate LRO ring */
-	ring_ctrl_dw2 |= MTK_RING_VLD;
+		/* validate LRO ring */
+		ring_ctrl_dw2 |= MTK_RING_VLD;
 
-	/* set AGE timer (unit: 20us) */
-	ring_ctrl_dw2 |= MTK_RING_AGE_TIME_H;
-	ring_ctrl_dw1 |= MTK_RING_AGE_TIME_L;
+		/* set AGE timer (unit: 20us) */
+		ring_ctrl_dw2 |= MTK_RING_AGE_TIME_H;
+		ring_ctrl_dw1 |= MTK_RING_AGE_TIME_L;
 
-	/* set max AGG timer (unit: 20us) */
-	ring_ctrl_dw2 |= MTK_RING_MAX_AGG_TIME;
+		/* set max AGG timer (unit: 20us) */
+		ring_ctrl_dw2 |= MTK_RING_MAX_AGG_TIME;
 
-	/* set max LRO AGG count */
-	ring_ctrl_dw2 |= MTK_RING_MAX_AGG_CNT_L;
-	ring_ctrl_dw3 |= MTK_RING_MAX_AGG_CNT_H;
+		/* set max LRO AGG count */
+		ring_ctrl_dw2 |= MTK_RING_MAX_AGG_CNT_L;
+		ring_ctrl_dw3 |= MTK_RING_MAX_AGG_CNT_H;
 
-	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
-		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+		for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
+			int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
 
-		mtk_w32(eth, ring_ctrl_dw1,
-			reg_map->pdma.lro_rx_ctrl_dw0 + 0x4 + (idx * 0x40));
-		mtk_w32(eth, ring_ctrl_dw2,
-			reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
-		mtk_w32(eth, ring_ctrl_dw3,
-			reg_map->pdma.lro_rx_ctrl_dw0 + 0xc + (idx * 0x40));
+			mtk_w32(eth, ring_ctrl_dw1,
+				reg_map->pdma.lro_rx_ctrl_dw0 + 0x4 + (idx * 0x40));
+			mtk_w32(eth, ring_ctrl_dw2,
+				reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+			mtk_w32(eth, ring_ctrl_dw3,
+				reg_map->pdma.lro_rx_ctrl_dw0 + 0xc + (idx * 0x40));
+		}
+	} else {
+		for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
+			/* set AGG timer (unit: 20us) */
+			val = FIELD_PREP(MTK_RING_MAX_AGG_TIME_V2, MTK_HW_LRO_AGG_TIME);
+			/* set AGE timer (unit: 20us) */
+			val |= FIELD_PREP(MTK_RING_AGE_TIME, MTK_HW_LRO_AGE_TIME);
+			mtk_w32(eth, val, MTK_GLO_MEM_DATA(0));
+
+			/* set max aggregation count */
+			val = FIELD_PREP(MTK_RING_MAX_AGG_CNT, MTK_HW_LRO_MAX_AGG_CNT);
+			/* set LRO rings to auto-learn modes */
+			val |= FIELD_PREP(MTK_RING_OPMODE, MTK_RING_AUTO_LERAN_MODE_V2);
+			mtk_w32(eth, val, MTK_GLO_MEM_DATA(1));
+
+			val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+			val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_CFG_BASE + i + 1);
+			val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_WRITE);
+			mtk_w32(eth, val, MTK_GLO_MEM_CTRL);
+			mtk_hwlro_cfg_mem_done(eth);
+
+			mtk_hwlro_cfg_mem_clear(eth);
+		}
 	}
 
 	/* IPv4 checksum update enable */
@@ -3433,9 +3496,19 @@ static void mtk_hwlro_rx_uninit(struct mtk_eth *eth)
 
 	/* invalidate lro rings */
 	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
-		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+		int idx = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) &&
+			   !MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) ? i : i + 1;
 
-		mtk_w32(eth, 0, reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+		if (!MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS))
+			mtk_w32(eth, 0, reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+		else {
+			mtk_w32(eth, 0, MTK_GLO_MEM_DATA(1));
+			val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+			val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_CFG_BASE + idx);
+			val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_WRITE);
+			mtk_w32(eth, val, MTK_GLO_MEM_CTRL);
+			mtk_hwlro_cfg_mem_done(eth);
+		}
 	}
 
 	/* disable HW LRO */
@@ -3447,17 +3520,37 @@ static void mtk_hwlro_val_ipaddr(struct mtk_eth *eth, int idx, __be32 ip)
 	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
 	u32 reg_val;
 
-	reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) {
+		reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
 
-	/* invalidate the IP setting */
-	mtk_w32(eth, (reg_val & ~MTK_RING_MYIP_VLD),
-		reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+		/* invalidate the IP setting */
+		mtk_w32(eth, (reg_val & ~MTK_RING_MYIP_VLD),
+			reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
 
-	mtk_w32(eth, ip, reg_map->pdma.lro_rx_dip_dw0 + (idx * 0x40));
+		mtk_w32(eth, ip, reg_map->pdma.lro_rx_dip_dw0 + (idx * 0x40));
 
-	/* validate the IP setting */
-	mtk_w32(eth, (reg_val | MTK_RING_MYIP_VLD),
-		reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+		/* validate the IP setting */
+		mtk_w32(eth, (reg_val | MTK_RING_MYIP_VLD),
+			reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+	} else {
+		/* invalidate the IP setting */
+		mtk_w32(eth, 0, MTK_GLO_MEM_DATA(4));
+		reg_val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_DIP_BASE + idx);
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_WRITE);
+		mtk_w32(eth, reg_val, MTK_GLO_MEM_CTRL);
+		mtk_hwlro_cfg_mem_done(eth);
+
+		/* validate the IP setting */
+		mtk_w32(eth, ip, MTK_GLO_MEM_DATA(0));
+		reg_val = FIELD_PREP(MTK_LRO_DIP_MODE, MTK_LRO_IPV4);
+		mtk_w32(eth, reg_val, MTK_GLO_MEM_DATA(4));
+		reg_val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_DIP_BASE + idx);
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_WRITE);
+		mtk_w32(eth, reg_val, MTK_GLO_MEM_CTRL);
+		mtk_hwlro_cfg_mem_done(eth);
+	}
 }
 
 static void mtk_hwlro_inval_ipaddr(struct mtk_eth *eth, int idx)
@@ -3465,13 +3558,26 @@ static void mtk_hwlro_inval_ipaddr(struct mtk_eth *eth, int idx)
 	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
 	u32 reg_val;
 
-	reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) {
+		reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
 
-	/* invalidate the IP setting */
-	mtk_w32(eth, (reg_val & ~MTK_RING_MYIP_VLD),
-		reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+		/* invalidate the IP setting */
+		mtk_w32(eth, (reg_val & ~MTK_RING_MYIP_VLD),
+			reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
 
-	mtk_w32(eth, 0, reg_map->pdma.lro_rx_dip_dw0 + (idx * 0x40));
+		mtk_w32(eth, 0, reg_map->pdma.lro_rx_dip_dw0 + (idx * 0x40));
+	} else {
+		mtk_w32(eth, 0, MTK_GLO_MEM_DATA(4));
+		mtk_w32(eth, 0, MTK_GLO_MEM_DATA(3));
+		mtk_w32(eth, 0, MTK_GLO_MEM_DATA(2));
+		mtk_w32(eth, 0, MTK_GLO_MEM_DATA(1));
+		mtk_w32(eth, 0, MTK_GLO_MEM_DATA(0));
+		reg_val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_DIP_BASE + idx);
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_WRITE);
+		mtk_w32(eth, reg_val, MTK_GLO_MEM_CTRL);
+		mtk_hwlro_cfg_mem_done(eth);
+	}
 }
 
 static int mtk_hwlro_get_ip_cnt(struct mtk_mac *mac)
@@ -3497,7 +3603,11 @@ static int mtk_hwlro_add_ipaddr_idx(struct net_device *dev, u32 ip4dst)
 
 	/* check for duplicate IP address in the current DIP list */
 	for (i = 0; i < MTK_HW_LRO_DIP_NUM; i++) {
-		reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_dip_dw0 + (i * 0x40));
+		if (!MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS))
+			reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_dip_dw0 + (i * 0x40));
+		else
+			reg_val = mtk_hwlro_cfg_mem_get_dip(eth, i);
+
 		if (reg_val == ip4dst)
 			break;
 	}
@@ -3509,7 +3619,11 @@ static int mtk_hwlro_add_ipaddr_idx(struct net_device *dev, u32 ip4dst)
 
 	/* find out available DIP index */
 	for (i = 0; i < MTK_HW_LRO_DIP_NUM; i++) {
-		reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_dip_dw0 + (i * 0x40));
+		if (!MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS))
+			reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_dip_dw0 + (i * 0x40));
+		else
+			reg_val = mtk_hwlro_cfg_mem_get_dip(eth, i);
+
 		if (reg_val == 0UL)
 			break;
 	}
@@ -3532,7 +3646,11 @@ static int mtk_hwlro_get_ipaddr_idx(struct net_device *dev, u32 ip4dst)
 
 	/* find out DIP index that matches the given IP address */
 	for (i = 0; i < MTK_HW_LRO_DIP_NUM; i++) {
-		reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_dip_dw0 + (i * 0x40));
+		if (!MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS))
+			reg_val = mtk_r32(eth, reg_map->pdma.lro_rx_dip_dw0 + (i * 0x40));
+		else
+			reg_val = mtk_hwlro_cfg_mem_get_dip(eth, i);
+
 		if (reg_val == ip4dst)
 			break;
 	}

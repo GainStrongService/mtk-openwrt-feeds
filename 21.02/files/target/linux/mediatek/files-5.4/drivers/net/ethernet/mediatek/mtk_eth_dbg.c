@@ -2362,7 +2362,8 @@ int hwlro_agg_cnt_ctrl(int cnt)
 	int i;
 
 	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
-		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+		int idx = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) &&
+			   !MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) ? i : i + 1;
 
 		SET_PDMA_RXRING_MAX_AGG_CNT(eth, idx, cnt);
 	}
@@ -2376,7 +2377,8 @@ int hwlro_agg_time_ctrl(int time)
 	int i;
 
 	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
-		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+		int idx = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) &&
+			   !MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) ? i : i + 1;
 
 		SET_PDMA_RXRING_AGG_TIME(eth, idx, time);
 	}
@@ -2390,7 +2392,8 @@ int hwlro_age_time_ctrl(int time)
 	int i;
 
 	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
-		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+		int idx = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) &&
+			   !MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) ? i : i + 1;
 
 		SET_PDMA_RXRING_AGE_TIME(eth, idx, time);
 	}
@@ -2415,7 +2418,8 @@ int hwlro_ring_enable_ctrl(int enable)
 	pr_info("[%s] %s HW LRO rings\n", __func__, (enable) ? "Enable" : "Disable");
 
 	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
-		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+		int idx = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) &&
+			   !MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) ? i : i + 1;
 
 		SET_PDMA_RXRING_VALID(eth, idx, enable);
 	}
@@ -2608,6 +2612,95 @@ void hw_lro_auto_tlb_dump_v2(struct seq_file *seq, u32 index)
 	}
 }
 
+void hw_lro_auto_tlb_dump_v3(struct seq_file *seq, u32 index)
+{
+	struct mtk_eth *eth = g_eth;
+	u32 val, sport, dport, vld, dip_idx, mode;
+	u32 ipv6[4] = { 0 };
+	u32 ipv4 = 0;
+	int ret;
+
+	/* dump the LRO_DATA table for the specific entry */
+	val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+	val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_DATA_BASE + index);
+	val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);
+	mtk_w32(eth, val, MTK_GLO_MEM_CTRL);
+	/* check if the GLO_MEM access is successful */
+	ret = FIELD_GET(MTK_GLO_MEM_CMD, mtk_r32(eth, MTK_GLO_MEM_CTRL));
+	if (ret != 0) {
+		pr_warn("GLO_MEM read/write error\n");
+		return;
+	}
+
+	/* dump the valid entries of the auto-learn table */
+	vld = FIELD_GET(MTK_LRO_DATA_VLD, mtk_r32(eth, MTK_GLO_MEM_DATA(6)));
+	if (vld) {
+		if (index < 5)
+			seq_printf(seq,
+				   "\n===== TABLE Entry: %d (onging) =====\n",
+				   index);
+		else
+			seq_printf(seq,
+				   "\n===== TABLE Entry: %d (candidate) =====\n",
+				   index);
+
+		/* determine the DIP index for the specific entry */
+		dip_idx = FIELD_GET(MTK_LRO_DATA_DIP_IDX, mtk_r32(eth, MTK_GLO_MEM_DATA(5)));
+		/* switch to the LRO_DIP table for the specific DIP index */
+		val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+		val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_DIP_BASE + dip_idx);
+		val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);
+		mtk_w32(eth, val, MTK_GLO_MEM_CTRL);
+		/* determine the mode for the specific DIP index */
+		mode = FIELD_GET(MTK_LRO_DIP_MODE, mtk_r32(eth, MTK_GLO_MEM_DATA(4)));
+		/* dump the SIP and DIP */
+		if (mode == MTK_LRO_IPV4) {
+			val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+			val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_DATA_BASE + index);
+			val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);
+			mtk_w32(eth, val, MTK_GLO_MEM_CTRL);
+			ipv4 = mtk_r32(eth, MTK_GLO_MEM_DATA(1));
+			seq_printf(seq, "SIP = 0x%x: (IPv4)\n", ipv4);
+			val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+			val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_DIP_BASE + dip_idx);
+			val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);
+			mtk_w32(eth, val, MTK_GLO_MEM_CTRL);
+			ipv4 = mtk_r32(eth, MTK_GLO_MEM_DATA(0));
+			seq_printf(seq, "DIP = 0x%x: (IPv4)\n", ipv4);
+		} else if (mode == MTK_LRO_IPV6) {
+			val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+			val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_DATA_BASE + index);
+			val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);
+			mtk_w32(eth, val, MTK_GLO_MEM_CTRL);
+			ipv6[3] = mtk_r32(eth, MTK_GLO_MEM_DATA(4));
+			ipv6[2] = mtk_r32(eth, MTK_GLO_MEM_DATA(3));
+			ipv6[1] = mtk_r32(eth, MTK_GLO_MEM_DATA(2));
+			ipv6[0] = mtk_r32(eth, MTK_GLO_MEM_DATA(1));
+			seq_printf(seq, "SIP = 0x%x:0x%x:0x%x:0x%x (IPv6)\n",
+				   ipv6[3], ipv6[2], ipv6[1], ipv6[0]);
+			val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+			val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_DIP_BASE + dip_idx);
+			val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);
+			mtk_w32(eth, val, MTK_GLO_MEM_CTRL);
+			ipv6[3] = mtk_r32(eth, MTK_GLO_MEM_DATA(3));
+			ipv6[2] = mtk_r32(eth, MTK_GLO_MEM_DATA(2));
+			ipv6[1] = mtk_r32(eth, MTK_GLO_MEM_DATA(1));
+			ipv6[0] = mtk_r32(eth, MTK_GLO_MEM_DATA(0));
+			seq_printf(seq, "DIP = 0x%x:0x%x:0x%x:0x%x (IPv6)\n",
+				   ipv6[3], ipv6[2], ipv6[1], ipv6[0]);
+		}
+
+		/* dump the SPORT and DPORT */
+		val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+		val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_DATA_BASE + index);
+		val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);
+		mtk_w32(eth, val, MTK_GLO_MEM_CTRL);
+		sport = FIELD_GET(MTK_LRO_DATA_SPORT, mtk_r32(eth, MTK_GLO_MEM_DATA(0)));
+		dport = FIELD_GET(MTK_LRO_DATA_DPORT, mtk_r32(eth, MTK_GLO_MEM_DATA(0)));
+		seq_printf(seq, "TCP SPORT = %d | TCP DPORT = %d\n", sport, dport);
+	}
+}
+
 int hw_lro_auto_tlb_read(struct seq_file *seq, void *v)
 {
 	struct mtk_eth *eth = g_eth;
@@ -2628,8 +2721,12 @@ int hw_lro_auto_tlb_read(struct seq_file *seq, void *v)
 	seq_puts(seq, "[5] = hwlro_stats_enable_ctrl\n\n");
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
-		for (i = 1; i <= 8; i++)
-			hw_lro_auto_tlb_dump_v2(seq, i);
+		for (i = 1; i <= 8; i++) {
+			if (!MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS))
+				hw_lro_auto_tlb_dump_v2(seq, i);
+			else
+				hw_lro_auto_tlb_dump_v3(seq, i);
+		}
 	} else {
 		/* Read valid entries of the auto-learn table */
 		mtk_w32(eth, 0, MTK_FE_ALT_CF8);
@@ -2649,20 +2746,35 @@ int hw_lro_auto_tlb_read(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nHW LRO Ring Settings\n");
 
 	for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
-		int idx = MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) ? i : i + 1;
+		int idx = (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2) &&
+			   !MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) ? i : i + 1;
 
-		reg_op1 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0x4 + (idx * 0x40));
-		reg_op2 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
-		reg_op3 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0xc + (idx * 0x40));
-		reg_op4 = mtk_r32(eth, reg_map->pdma.lro_ctrl_dw0 + 0x8);
+		if (!MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) {
+			reg_op1 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0x4 + (idx * 0x40));
+			reg_op2 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0x8 + (idx * 0x40));
+			reg_op3 = mtk_r32(eth, reg_map->pdma.lro_rx_ctrl_dw0 + 0xc + (idx * 0x40));
+			reg_op4 = mtk_r32(eth, reg_map->pdma.lro_ctrl_dw0 + 0x8);
 
-		agg_cnt =
-		    ((reg_op3 & 0x3) << 6) |
-		    ((reg_op2 >> MTK_LRO_RING_AGG_CNT_L_OFFSET) & 0x3f);
-		agg_time = (reg_op2 >> MTK_LRO_RING_AGG_TIME_OFFSET) & 0xffff;
-		age_time =
-		    ((reg_op2 & 0x3f) << 10) |
-		    ((reg_op1 >> MTK_LRO_RING_AGE_TIME_L_OFFSET) & 0x3ff);
+			agg_cnt = ((reg_op3 & 0x3) << 6) |
+				  ((reg_op2 >> MTK_LRO_RING_AGG_CNT_L_OFFSET) & 0x3f);
+			agg_time = (reg_op2 >> MTK_LRO_RING_AGG_TIME_OFFSET) & 0xffff;
+			age_time = ((reg_op2 & 0x3f) << 10) |
+				   ((reg_op1 >> MTK_LRO_RING_AGE_TIME_L_OFFSET) & 0x3ff);
+		} else {
+			reg_op4 = mtk_r32(eth, reg_map->pdma.lro_ctrl_dw0 + 0x8);
+
+			reg_val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);
+			reg_val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_CFG_BASE + idx);
+			reg_val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);
+			mtk_w32(eth, reg_val, MTK_GLO_MEM_CTRL);
+			agg_cnt = FIELD_GET(MTK_RING_MAX_AGG_CNT,
+					    mtk_r32(eth, MTK_GLO_MEM_DATA(1)));
+			agg_time = FIELD_GET(MTK_RING_MAX_AGG_TIME_V2,
+					     mtk_r32(eth, MTK_GLO_MEM_DATA(0)));
+			age_time = FIELD_GET(MTK_RING_AGE_TIME,
+					     mtk_r32(eth, MTK_GLO_MEM_DATA(0)));
+		}
+
 		seq_printf(seq,
 			   "Ring[%d]: MAX_AGG_CNT=%d, AGG_TIME=%d, AGE_TIME=%d, Threshold=%d\n",
 			   MTK_HW_LRO_RING(i), agg_cnt, agg_time, age_time, reg_op4);
