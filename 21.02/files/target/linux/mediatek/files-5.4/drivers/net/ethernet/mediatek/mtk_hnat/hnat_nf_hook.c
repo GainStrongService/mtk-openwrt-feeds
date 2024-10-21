@@ -2264,7 +2264,7 @@ hnat_entry_bind:
 			entry.ipv4_hnapt.iblk2.fqos = 0;
 		}
 	} else if (IS_L2_BRIDGE(&entry)) {
-		entry.l2_bridge.iblk2.dp = gmac;
+		entry.l2_bridge.iblk2.dp = gmac & 0xf;
 		entry.l2_bridge.iblk2.port_mg = 0;
 		if (qos_toggle) {
 			entry.l2_bridge.iblk2.qid = qid & 0x7f;
@@ -2606,7 +2606,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		entry.ipv6_hnapt.tport_id = IS_HQOS_DL_MODE ? NR_QDMA_TPORT : 0;
 		entry.ipv6_hnapt.iblk2.fqos = IS_HQOS_DL_MODE ? 1 : 0;
 	} else if (IS_L2_BRIDGE(&entry)) {
-		entry.l2_bridge.iblk2.dp = gmac_no;
+		entry.l2_bridge.iblk2.dp = gmac_no & 0xf;
 		entry.l2_bridge.iblk2.rxid = skb_hnat_rx_id(skb);
 		entry.l2_bridge.iblk2.winfoi = 1;
 
