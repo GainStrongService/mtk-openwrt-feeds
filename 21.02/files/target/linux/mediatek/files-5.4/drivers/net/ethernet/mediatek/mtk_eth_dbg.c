@@ -1689,10 +1689,10 @@ int hwtx_ring_read(struct seq_file *seq, void *v)
 	int i = 0;
 
 	for (i = 0; i < eth->soc->txrx.fq_dma_size; i++) {
-		dma_addr_t addr = eth->phy_scratch_ring +
+		dma_addr_t addr = eth->fq_ring.phy_scratch_ring +
 				  i * (dma_addr_t)eth->soc->txrx.txd_size;
 
-		hwtx_ring = eth->scratch_ring + i * eth->soc->txrx.txd_size;
+		hwtx_ring = eth->fq_ring.scratch_ring + i * eth->soc->txrx.txd_size;
 
 		seq_printf(seq, "%d (%pad): %08x %08x %08x %08x", i, &addr,
 			   hwtx_ring->txd1, hwtx_ring->txd2,

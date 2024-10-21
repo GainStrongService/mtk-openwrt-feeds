@@ -1615,6 +1615,7 @@ struct mtk_tx_ring {
 	void *dma_pdma;	/* For MT7628/88 PDMA handling */
 	dma_addr_t phys_pdma;
 	int cpu_idx;
+	bool in_sram;
 };
 
 /* PDMA rx ring mode */
@@ -1644,6 +1645,19 @@ struct mtk_rx_ring {
 	u16 calc_idx;
 	u32 crx_idx_reg;
 	u32 ring_no;
+	bool in_sram;
+};
+
+/* struct mtk_rx_ring -	This struct holds info describing a HW TX ring
+ * @phy_scratch_ring:	physical address of scratch_ring
+ * @scratch_ring:	Newer SoCs need memory for a second HW managed TX ring
+ * @scratch_head:	The scratch memory that scratch_ring points to.
+ */
+struct mtk_fq_ring {
+	dma_addr_t	phy_scratch_ring;
+	void		*scratch_ring;
+	void		*scratch_head[MTK_FQ_DMA_HEAD];
+	bool		in_sram;
 };
 
 /* struct mtk_rss_params -	This is the structure holding parameters
@@ -2207,9 +2221,6 @@ struct gdm_monitor {
  * @rx_ring_qdma:	Pointer to the memory holding info about the QDMA RX ring
  * @tx_napi:		The TX NAPI struct
  * @rx_napi:		The RX NAPI struct
- * @scratch_ring:	Newer SoCs need memory for a second HW managed TX ring
- * @phy_scratch_ring:	physical address of scratch_ring
- * @scratch_head:	The scratch memory that scratch_ring points to.
  * @clks:		clock array for all clocks required
  * @mii_bus:		If there is a bus we need to create an instance for it
  * @pending_work:	The workqueue used to reset the dma ring
@@ -2235,6 +2246,7 @@ struct mtk_eth {
 	u8				hwver;
 	u32				msg_enable;
 	u32				pppq_toggle;
+	u64				sram_size;
 	unsigned long			sysclk;
 	struct regmap			*ethsys;
 	struct regmap                   *infra;
@@ -2247,13 +2259,11 @@ struct mtk_eth {
 	struct mtk_tx_ring		tx_ring[MTK_MAX_TX_RING_NUM];
 	struct mtk_rx_ring		rx_ring[MTK_MAX_RX_RING_NUM];
 	struct mtk_rx_ring		rx_ring_qdma;
+	struct mtk_fq_ring		fq_ring;
 	struct mtk_napi			tx_napi[MTK_TX_NAPI_NUM];
 	struct mtk_napi			rx_napi[MTK_RX_NAPI_NUM];
 	struct mtk_rss_params		rss_params;
-	void				*scratch_ring;
 	struct mtk_reset_event		reset_event;
-	dma_addr_t			phy_scratch_ring;
-	void				*scratch_head[MTK_FQ_DMA_HEAD];
 	struct clk			*clks[MTK_CLK_MAX];
 
 	struct mii_bus			*mii_bus;
