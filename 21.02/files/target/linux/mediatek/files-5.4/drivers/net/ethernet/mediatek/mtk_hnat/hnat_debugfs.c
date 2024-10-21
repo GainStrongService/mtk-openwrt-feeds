@@ -1149,6 +1149,8 @@ static int hnat_nf_acct_update(struct mtk_hnat *h, u32 ppe_id,
 			/* avoid compiler warnings */
 			if (tuple.dst.protonum == IPPROTO_TCP)
 				nf_conntrack_tcp_established(ct);
+
+			nf_ct_put(ct);
 		}
 	}
 
