@@ -46,7 +46,7 @@
 #define MII_MMD_ADDR_DATA_REG       0x0e
 #define MMD_OP_MODE_DATA            BIT(14)
 
-#define EN8811H_DRIVER_VERSION      "v1.2.5"
+#define EN8811H_DRIVER_VERSION      "v1.2.7"
 
 #define LED_ON_CTRL(i)              (0x024 + ((i)*2))
 #define LED_ON_EN                   (1 << 15)
@@ -93,6 +93,28 @@
 #define INVALID_DATA                0xffff
 #define PBUS_INVALID_DATA           0xffffffff
 
+/* MII Registers */
+#define AIR_AUX_CTRL_STATUS		0x1d
+#define AIR_AUX_CTRL_STATUS_SPEED_MASK	GENMASK(4, 2)
+#define AIR_AUX_CTRL_STATUS_SPEED_100		0x4
+#define AIR_AUX_CTRL_STATUS_SPEED_1000	0x8
+#define AIR_AUX_CTRL_STATUS_SPEED_2500	0xc
+
+/* Registers on BUCKPBUS */
+#define EN8811H_2P5G_LPA		0x3b30
+#define EN8811H_2P5G_LPA_2P5G			BIT(0)
+
+#define EN8811H_FW_CTRL_1		0x0f0018
+#define   EN8811H_FW_CTRL_1_START		0x0
+#define   EN8811H_FW_CTRL_1_FINISH		0x1
+#define EN8811H_FW_CTRL_2		0x800000
+#define EN8811H_FW_CTRL_2_LOADING		BIT(11)
+
+struct air_cable_test_rsl {
+	int status[4];
+	unsigned int length[4];
+};
+
 struct en8811h_priv {
 	struct dentry       *debugfs_root;
 	unsigned int        dm_crc32;
@@ -100,6 +122,22 @@ struct en8811h_priv {
 	char                buf[512];
 	int                 pol;
 	int                 surge;
+	int                 cko;
+	struct kobject      *cable_kobj;
+	int                 running_status;
+	int                 pair[4];
+	int                 an;
+	int                 link;
+	int                 speed;
+	int                 duplex;
+	int                 pause;
+	int                 asym_pause;
+	u16                 on_crtl[3];
+	u16                 blk_crtl[3];
+	u32                 firmware_version;
+	bool                mcu_needs_restart;
+	bool                mcu_reload;
+	int                 debug;
 };
 
 struct air_base_t_led_cfg {

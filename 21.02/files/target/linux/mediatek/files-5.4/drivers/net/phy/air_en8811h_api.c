@@ -32,14 +32,22 @@ struct air_phy_debug {
 };
 struct air_phy_debug air_debug;
 */
-
+#ifdef CONFIG_AIROHA_EN8811H_PHY_DEBUGFS
 static const char * const tx_rx_string[32] = {
 	"Tx Reverse, Rx Normal",
 	"Tx Normal, Rx Normal",
 	"Tx Reverse, Rx Reverse",
 	"Tx Normal, Rx Reverse",
 };
-
+static struct trrg_s _fldRW_tr_reg__EcVarTrainingGain_ECNC_C8h = {
+	.TrRGDesc.DescVal = 0x81900302,
+	.RgMask =   0x0000000C
+};
+static struct trrg_s _fldRW_tr_reg__EcVarTrainingTime_ECNC_C8h = {
+	.TrRGDesc.DescVal = 0x81900F04,
+	.RgMask =   0x0000FFF0
+};
+#endif
 /* Airoha MII read function */
 static int __air_mii_cl22_read(struct mii_bus *ebus,
 					int addr, unsigned int phy_register)
@@ -95,7 +103,7 @@ int __air_mii_cl45_read(struct phy_device *phydev, int devad, u16 reg)
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
 	int addr = phydev_addr(phydev);
 
-	ret |= __air_mii_cl22_write(mbus, addr, MII_MMD_ACC_CTL_REG, devad);
+	ret = __air_mii_cl22_write(mbus, addr, MII_MMD_ACC_CTL_REG, devad);
 	ret |= __air_mii_cl22_write(mbus, addr, MII_MMD_ADDR_DATA_REG, reg);
 	ret |= __air_mii_cl22_write(mbus, addr,
 			MII_MMD_ACC_CTL_REG, MMD_OP_MODE_DATA | devad);
@@ -115,7 +123,7 @@ int __air_mii_cl45_write(struct phy_device *phydev,
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
 	int addr = phydev_addr(phydev);
 
-	ret |= __air_mii_cl22_write(mbus, addr, MII_MMD_ACC_CTL_REG, devad);
+	ret = __air_mii_cl22_write(mbus, addr, MII_MMD_ACC_CTL_REG, devad);
 	ret |= __air_mii_cl22_write(mbus, addr, MII_MMD_ADDR_DATA_REG, reg);
 	ret |= __air_mii_cl22_write(mbus, addr,
 		MII_MMD_ACC_CTL_REG, MMD_OP_MODE_DATA | devad);
@@ -131,16 +139,11 @@ int __air_mii_cl45_write(struct phy_device *phydev,
 int air_mii_cl45_read(struct phy_device *phydev, int devad, u16 reg)
 {
 	int data;
-	struct device *dev = phydev_dev(phydev);
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
 
 	mutex_lock(&mbus->mdio_lock);
 	data = __air_mii_cl45_read(phydev, devad, reg);
 	mutex_unlock(&mbus->mdio_lock);
-	if (data == INVALID_DATA) {
-		dev_err(dev, "__airoha_cl45_read fail\n");
-		return INVALID_DATA;
-	}
 	return data;
 }
 
@@ -152,7 +155,7 @@ int air_mii_cl45_write(struct phy_device *phydev,
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
 
 	mutex_lock(&mbus->mdio_lock);
-	ret |= __air_mii_cl45_write(phydev, devad, reg, write_data);
+	ret = __air_mii_cl45_write(phydev, devad, reg, write_data);
 	mutex_unlock(&mbus->mdio_lock);
 	if (ret) {
 		dev_err(dev, "__airoha_cl45_write, ret: %d\n", ret);
@@ -189,17 +192,11 @@ unsigned int air_pbus_reg_read(struct phy_device *phydev,
 		unsigned int pbus_address)
 {
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
-	struct device *dev = phydev_dev(phydev);
-	int ret = 0;
 	unsigned int data;
 
 	mutex_lock(&mbus->mdio_lock);
 	data = __air_pbus_reg_read(phydev, pbus_address);
 	mutex_unlock(&mbus->mdio_lock);
-	if (ret) {
-		dev_err(dev, "%s: ret: %d\n", __func__, ret);
-		return ret;
-	}
 	return data;
 }
 
@@ -212,7 +209,7 @@ static int __air_pbus_reg_write(struct phy_device *phydev,
 	struct device *dev = phydev_dev(phydev);
 	int ret = 0;
 
-	ret |= __air_mii_cl22_write(mbus, (addr + 8),
+	ret = __air_mii_cl22_write(mbus, (addr + 8),
 			0x1F, (pbus_address >> 6));
 	ret |= __air_mii_cl22_write(mbus, (addr + 8),
 			((pbus_address >> 2) & 0xf), (pbus_data & 0xFFFF));
@@ -233,7 +230,7 @@ int air_pbus_reg_write(struct phy_device *phydev,
 	int ret = 0;
 
 	mutex_lock(&mbus->mdio_lock);
-	ret |= __air_pbus_reg_write(phydev, pbus_address, pbus_data);
+	ret = __air_pbus_reg_write(phydev, pbus_address, pbus_data);
 	mutex_unlock(&mbus->mdio_lock);
 	if (ret) {
 		dev_err(dev, "%s: ret: %d\n", __func__, ret);
@@ -251,7 +248,7 @@ static int __air_buckpbus_reg_write(struct phy_device *phydev,
 	int addr = phydev_addr(phydev);
 
 	/* page 4 */
-	ret |= __air_mii_cl22_write(mbus, addr, 0x1F, 4);
+	ret = __air_mii_cl22_write(mbus, addr, 0x1F, 4);
 	ret |= __air_mii_cl22_write(mbus, addr, 0x10, 0);
 	ret |= __air_mii_cl22_write(mbus, addr,
 			0x11, ((pbus_address >> 16) & 0xffff));
@@ -279,7 +276,7 @@ static unsigned int __air_buckpbus_reg_read(struct phy_device *phydev,
 	int addr = phydev_addr(phydev);
 
 	/* page 4 */
-	ret |= __air_mii_cl22_write(mbus, addr, 0x1F, 4);
+	ret = __air_mii_cl22_write(mbus, addr, 0x1F, 4);
 	ret |= __air_mii_cl22_write(mbus, addr, 0x10, 0);
 	ret |= __air_mii_cl22_write(mbus, addr,
 			0x15, ((pbus_address >> 16) & 0xffff));
@@ -292,7 +289,7 @@ static unsigned int __air_buckpbus_reg_read(struct phy_device *phydev,
 
 	pbus_data_high = __air_mii_cl22_read(mbus, addr, 0x17);
 	pbus_data_low = __air_mii_cl22_read(mbus, addr, 0x18);
-	pbus_data = (pbus_data_high << 16) + pbus_data_low;
+	pbus_data = pbus_data_low | (pbus_data_high << 16);
 	ret |= __air_mii_cl22_write(mbus, addr, 0x1F, 0);
 	if (ret) {
 		dev_err(dev, "__air_mii_cl22_write, ret: %d\n", ret);
@@ -305,16 +302,11 @@ unsigned int air_buckpbus_reg_read(struct phy_device *phydev,
 			unsigned int pbus_address)
 {
 	unsigned int data;
-	struct device *dev = phydev_dev(phydev);
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
 
 	mutex_lock(&mbus->mdio_lock);
 	data = __air_buckpbus_reg_read(phydev, pbus_address);
 	mutex_unlock(&mbus->mdio_lock);
-	if (data == INVALID_DATA) {
-		dev_err(dev, "__air_buckpbus_reg_read fail\n");
-		return INVALID_DATA;
-	}
 	return data;
 }
 
@@ -326,7 +318,7 @@ int air_buckpbus_reg_write(struct phy_device *phydev,
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
 
 	mutex_lock(&mbus->mdio_lock);
-	ret |= __air_buckpbus_reg_write(phydev, pbus_address, pbus_data);
+	ret = __air_buckpbus_reg_write(phydev, pbus_address, pbus_data);
 	mutex_unlock(&mbus->mdio_lock);
 	if (ret) {
 		dev_err(dev, "__air_buckpbus_reg_write, ret: %d\n", ret);
@@ -335,20 +327,90 @@ int air_buckpbus_reg_write(struct phy_device *phydev,
 	return ret;
 }
 
-int air_surge_5ohm_config(struct phy_device *phydev)
+int air_surge_protect_cfg(struct phy_device *phydev)
 {
 	int ret = 0;
 	struct device *dev = phydev_dev(phydev);
+	struct en8811h_priv *priv = phydev->priv;
 
-	ret |= air_mii_cl45_write(phydev, 0x1e, 0x800c, 0x0);
-	ret |= air_mii_cl45_write(phydev, 0x1e, 0x800d, 0x0);
-	ret |= air_mii_cl45_write(phydev, 0x1e, 0x800e, 0x1101);
-	ret |= air_mii_cl45_write(phydev, 0x1e, 0x800f, 0x00b0);
-	if (ret < 0)
-		return ret;
-	dev_info(dev, "surge protection mode - 5R\n");
+	if (priv->surge) {
+		ret = air_mii_cl45_write(phydev, 0x1e, 0x800c, 0x0);
+		ret |= air_mii_cl45_write(phydev, 0x1e, 0x800d, 0x0);
+		ret |= air_mii_cl45_write(phydev, 0x1e, 0x800e, 0x1101);
+		ret |= air_mii_cl45_write(phydev, 0x1e, 0x800f, 0x00b0);
+		if (ret < 0)
+			return ret;
+		dev_info(dev, "surge protection mode - 5R\n");
+	} else
+		dev_info(dev, "surge protection mode - 0R\n");
 	return ret;
 }
+
+int air_cko_cfg(struct phy_device *phydev)
+{
+	int ret = 0;
+	struct device *dev = phydev_dev(phydev);
+	struct en8811h_priv *priv = phydev->priv;
+	u32 pbus_value = 0;
+
+	if (!priv->cko) {
+		pbus_value = air_buckpbus_reg_read(phydev, 0xcf958);
+		pbus_value &= ~BIT(26);
+		ret = air_buckpbus_reg_write(phydev, 0xcf958, pbus_value);
+		if (ret < 0)
+			return ret;
+
+		dev_info(dev, "CKO Output mode - Disabled\n");
+	} else
+		dev_info(dev, "CKO Output mode - Enabled\n");
+	return ret;
+}
+
+int air_ref_clk_speed(struct phy_device *phydev, int para)
+{
+	struct device *dev = phydev_dev(phydev);
+	struct mii_bus *mbus = phydev_mdio_bus(phydev);
+	int addr = phydev_addr(phydev), ret;
+	struct en8811h_priv *priv = phydev->priv;
+
+	mutex_lock(&mbus->mdio_lock);
+	ret = __air_mii_cl22_write(mbus, addr, 0x1f, 0x0);
+	/* Get real speed from vendor register */
+	ret = __air_mii_cl22_read(mbus, addr, AIR_AUX_CTRL_STATUS);
+	if (ret < 0)
+		goto unlock;
+	switch (ret & AIR_AUX_CTRL_STATUS_SPEED_MASK) {
+	case AIR_AUX_CTRL_STATUS_SPEED_2500:
+		if (para == AIR_PARA_PRIV)
+			priv->speed = SPEED_2500;
+		else
+			phydev->speed = SPEED_2500;
+		break;
+	case AIR_AUX_CTRL_STATUS_SPEED_1000:
+		if (para == AIR_PARA_PRIV)
+			priv->speed = SPEED_1000;
+		else
+			phydev->speed = SPEED_1000;
+		break;
+	case AIR_AUX_CTRL_STATUS_SPEED_100:
+		if (para == AIR_PARA_PRIV)
+			priv->speed = SPEED_100;
+		else
+			phydev->speed = SPEED_100;
+		break;
+	default:
+		if (para == AIR_PARA_PRIV)
+			priv->speed = SPEED_2500;
+		else
+			phydev->speed = SPEED_2500;
+		dev_err(dev, "%s: Default Speed: 0x%x\n", __func__, ret);
+		break;
+	}
+unlock:
+	mutex_unlock(&mbus->mdio_lock);
+	return ret;
+}
+
 
 #if defined(CONFIG_OF)
 int en8811h_of_init(struct phy_device *phydev)
@@ -356,7 +418,7 @@ int en8811h_of_init(struct phy_device *phydev)
 	struct device *dev = phydev_dev(phydev);
 	struct device_node *of_node = dev->of_node;
 	struct en8811h_priv *priv = phydev->priv;
-	u32 val = 0;
+	int val = 0;
 
 	dev_info(dev, "%s: start\n", __func__);
 	if (of_find_property(of_node, "airoha,polarity", NULL)) {
@@ -388,12 +450,26 @@ int en8811h_of_init(struct phy_device *phydev)
 				   val);
 			return -EINVAL;
 		}
-		if (val)
-			priv->surge = 1;
-		else
-			priv->surge = 0;
+		priv->surge = val;
 	} else
-		priv->surge = 0;
+		priv->surge = AIR_SURGE_0R;
+
+	if (of_find_property(of_node, "airoha,cko-en", NULL)) {
+		if (of_property_read_u32(of_node, "airoha,cko-en",
+					 &val) != 0) {
+			dev_err(dev, "airoha,cko-en value is invalid.");
+			return -EINVAL;
+		}
+		if (val < AIR_CKO_DIS ||
+			val > AIR_CKO_EN) {
+			dev_err(dev,
+				   "airoha,cko-en value %u out of range.",
+				   val);
+			return -EINVAL;
+		}
+		priv->cko = val;
+	} else
+		priv->cko = AIR_CKO_DIS;
 
 	return 0;
 }
@@ -403,54 +479,6 @@ int en8811h_of_init(struct phy_device *phydev)
 	return -ESRCH;
 }
 #endif /* CONFIG_OF */
-
-static int air_resolve_an_speed(struct phy_device *phydev)
-{
-	int lpagb = 0, advgb = 0, common_adv_gb = 0;
-	int lpa = 0, adv = 0, common_adv = 0;
-	struct device *dev = phydev_dev(phydev);
-	struct mii_bus *mbus = phydev_mdio_bus(phydev);
-	int addr = phydev_addr(phydev);
-
-	dev_dbg(dev, "AN mode!\n");
-	dev_dbg(dev, "SPEED 1000/100!\n");
-	lpagb = air_mii_cl22_read(mbus,
-				addr, MII_STAT1000);
-	if (lpagb < 0)
-		return lpagb;
-	advgb = air_mii_cl22_read(mbus,
-				addr, MII_CTRL1000);
-	if (adv < 0)
-		return adv;
-	common_adv_gb = (lpagb & (advgb << 2));
-
-	lpa = air_mii_cl22_read(mbus, addr, MII_LPA);
-	if (lpa < 0)
-		return lpa;
-	adv = air_mii_cl22_read(mbus,
-				addr, MII_ADVERTISE);
-	if (adv < 0)
-		return adv;
-	phydev->pause = GET_BIT(adv, 10);
-	phydev->asym_pause = GET_BIT(adv, 11);
-	common_adv = (lpa & adv);
-
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_HALF;
-	if (common_adv_gb & (LPA_1000FULL | LPA_1000HALF)) {
-		phydev->speed = SPEED_1000;
-		if (common_adv_gb & LPA_1000FULL)
-			phydev->duplex = DUPLEX_FULL;
-	} else if (common_adv & (LPA_100FULL | LPA_100HALF)) {
-		phydev->speed = SPEED_100;
-		if (common_adv & LPA_100FULL)
-			phydev->duplex = DUPLEX_FULL;
-	} else {
-		if (common_adv & LPA_10FULL)
-			phydev->duplex = DUPLEX_FULL;
-	}
-	return 0;
-}
 
 int air_get_autonego(struct phy_device *phydev, int *an)
 {
@@ -468,20 +496,20 @@ int air_get_autonego(struct phy_device *phydev, int *an)
 	return 0;
 }
 
+#ifdef CONFIG_AIROHA_EN8811H_PHY_DEBUGFS
 static int air_read_status(struct phy_device *phydev)
 {
-	int ret = 0, reg = 0, an = AUTONEG_DISABLE, bmcr = 0;
-	u32 pbus_value = 0;
+	int ret = 0, reg = 0;
 	struct device *dev = phydev_dev(phydev);
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
 	int addr = phydev_addr(phydev);
+	struct en8811h_priv *priv = phydev->priv;
 
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
-	phydev->pause = 0;
-	phydev->asym_pause = 0;
-	phydev->link = 0;
-	phydev->autoneg = AUTONEG_DISABLE;
+	priv->speed = SPEED_UNKNOWN;
+	priv->duplex = DUPLEX_UNKNOWN;
+	priv->pause = 0;
+	priv->asym_pause = 0;
+
 	reg = air_mii_cl22_read(mbus, addr, MII_BMSR);
 	if (reg < 0) {
 		dev_err(dev, "MII_BMSR reg %d!\n", reg);
@@ -493,46 +521,23 @@ static int air_read_status(struct phy_device *phydev)
 		return reg;
 	}
 	if (reg & BMSR_LSTATUS) {
-		phydev->link = 1;
-		ret = air_get_autonego(phydev, &an);
+		priv->link = 1;
+		ret = air_ref_clk_speed(phydev, AIR_PARA_PRIV);
 		if (ret < 0)
 			return ret;
-		phydev->autoneg = an;
-		pbus_value = air_buckpbus_reg_read(phydev, 0x109D4);
-		if (0x10 & pbus_value) {
-			phydev->speed = SPEED_2500;
-			phydev->duplex = DUPLEX_FULL;
-		} else {
-			ret = air_get_autonego(phydev, &an);
-			if (phydev->autoneg == AUTONEG_ENABLE) {
-				ret = air_resolve_an_speed(phydev);
-				if (ret < 0)
-					return ret;
-			} else {
-				dev_dbg(dev, "Force mode!\n");
-				bmcr = air_mii_cl22_read(mbus, addr, MII_BMCR);
+		reg = air_mii_cl22_read(mbus,
+					addr, MII_ADVERTISE);
+		if (reg < 0)
+			return reg;
+		priv->pause = GET_BIT(reg, 10);
+		priv->asym_pause = GET_BIT(reg, 11);
+	} else
+		priv->link = 0;
 
-				if (bmcr < 0)
-					return bmcr;
-
-				if (bmcr & BMCR_FULLDPLX)
-					phydev->duplex = DUPLEX_FULL;
-				else
-					phydev->duplex = DUPLEX_HALF;
-
-				if (bmcr & BMCR_SPEED1000)
-					phydev->speed = SPEED_1000;
-				else if (bmcr & BMCR_SPEED100)
-					phydev->speed = SPEED_100;
-				else
-					phydev->speed = SPEED_UNKNOWN;
-			}
-		}
-	}
-
-	return ret;
+	priv->duplex = DUPLEX_FULL;
+	return 0;
 }
-#ifdef CONFIG_AIROHA_EN8811H_PHY_DEBUGFS
+
 static void air_polarity_help(void)
 {
 	pr_notice("\nUsage:\n"
@@ -541,7 +546,7 @@ static void air_polarity_help(void)
 			"option: tx_normal, tx_reverse, rx_normal, rx_revers\n");
 }
 
-static int air_set_polarity(struct phy_device *phydev, int tx_rx)
+static int air_set_polarity(struct phy_device *phydev, unsigned int tx_rx)
 {
 	int ret = 0;
 	unsigned int pbus_data = 0;
@@ -680,6 +685,84 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 	return ret;
 }
 
+static int airoha_led_control(struct phy_device *phydev, int force_mode)
+{
+	int ret = 0, id, on_evt;
+	struct en8811h_priv *priv = phydev->priv;
+
+	for (id = 0; id < EN8811H_LED_COUNT; id++) {
+		if (force_mode) {
+			on_evt = air_mii_cl45_read(phydev, 0x1f,
+					LED_ON_CTRL(id));
+			on_evt &= ~(LED_ON_EVT_LINK_2500M |
+				LED_ON_EVT_LINK_100M | LED_ON_EVT_LINK_1000M);
+			if (force_mode == AIR_LED_FORCE_ON)
+				on_evt |= LED_ON_EVT_FORCE;
+			else
+				on_evt &= ~LED_ON_EVT_FORCE;
+
+			ret = air_mii_cl45_write(phydev, 0x1f,
+					LED_ON_CTRL(id), on_evt);
+			if (ret < 0)
+				return ret;
+			ret = air_mii_cl45_write(phydev, 0x1f,
+					LED_BLK_CTRL(id), 0);
+		} else {
+			ret = air_mii_cl45_write(phydev, 0x1f,
+					LED_ON_CTRL(id), priv->on_crtl[id]);
+			ret |= air_mii_cl45_write(phydev, 0x1f,
+					LED_BLK_CTRL(id), priv->blk_crtl[id]);
+		}
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
+static void airphy_led_mode_help(void)
+{
+	pr_notice("\nUsage:\n"
+			"[debugfs] = /sys/kernel/debug/mdio-bus\':[phy_addr]\n"
+			"echo 0 > /[debugfs]/led_mode\n"
+			"echo 1 > /[debugfs]/led_mode\n"
+			"echo normal > /[debugfs]/led_mode\n");
+}
+
+static ssize_t airphy_led_mode(struct file *file, const char __user *ptr,
+					size_t len, loff_t *off)
+{
+	struct phy_device *phydev = file->private_data;
+	char buf[32], cmd[32];
+	int count = len, ret = 0;
+	int num = 0;
+
+	memset(buf, 0, 32);
+	memset(cmd, 0, 32);
+
+	if (count > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ptr, len))
+		return -EFAULT;
+
+	num = sscanf(buf, "%8s", cmd);
+	if (num < 1 || num > 2)
+		return -EFAULT;
+
+	if (!strncmp("0", cmd, strlen("0")))
+		ret = airoha_led_control(phydev, AIR_LED_FORCE_OFF);
+	else if (!strncmp("1", cmd, strlen("1")))
+		ret = airoha_led_control(phydev, AIR_LED_FORCE_ON);
+	else if (!strncmp("normal", cmd, strlen("normal")))
+		ret = airoha_led_control(phydev, AIR_LED_NORMAL);
+	else if (!strncmp("help", cmd, strlen("help")))
+		airphy_led_mode_help();
+
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
 static int airphy_info_show(struct seq_file *seq, void *v)
 {
 	struct phy_device *phydev = seq->private;
@@ -696,11 +779,17 @@ static int airphy_info_show(struct seq_file *seq, void *v)
 				priv->dm_crc32);
 	seq_printf(seq, "| EthMD32.DSP.bin CRC32: %08x\n",
 				priv->dsp_crc32);
-	val = air_buckpbus_reg_read(phydev, 0x3b3c);
-	seq_printf(seq, "| MD32 FW Version      : %08x\n", val);
-	val = air_mii_cl45_read(phydev, 0x1e, 0x8009);
-	seq_printf(seq, "| MD32 FW Status       : %08x\n",
-				air_mii_cl45_read(phydev, 0x1e, 0x8009));
+	seq_printf(seq, "| MD32 FW Version      : %08x\n", priv->firmware_version);
+	val = air_buckpbus_reg_read(phydev, 0x3a9c);
+	if (val & BIT(3))
+		seq_puts(seq, "| Surge Protection     : 5R\n");
+	else
+		seq_puts(seq, "| Surge Protection     : 0R\n");
+	val = air_buckpbus_reg_read(phydev, 0xcf958);
+	if (val & BIT(26))
+		seq_puts(seq, "| Co-Clock Ouput       : Enable\n");
+	else
+		seq_puts(seq, "| Co-Clock Ouput       : Disable\n");
 	val = (air_buckpbus_reg_read(phydev, 0xca0f8) & 0x3);
 	seq_printf(seq, "| Tx, Rx Polarity      : %s(%02d)\n",
 						tx_rx_string[val], val);
@@ -745,6 +834,18 @@ static int airphy_fcm_counter_show(struct phy_device *phydev,
 	seq_puts(seq, "| Tx to Line side_T        :");
 	pkt_cnt = air_buckpbus_reg_read(phydev, 0xe0088);
 	seq_printf(seq, "%010u |\n", pkt_cnt);
+	seq_puts(seq, "| Pause to System side     :");
+	pkt_cnt = air_buckpbus_reg_read(phydev, 0xe00A4);
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+	seq_puts(seq, "| Pause from Line side     :");
+	pkt_cnt = air_buckpbus_reg_read(phydev, 0xe0098);
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+	seq_puts(seq, "| Pause from System side   :");
+	pkt_cnt = air_buckpbus_reg_read(phydev, 0xe0080);
+	seq_printf(seq, "%010u |\n", pkt_cnt);
+	seq_puts(seq, "| Pause to Line side       :");
+	pkt_cnt = air_buckpbus_reg_read(phydev, 0xe008C);
+	seq_printf(seq, "%010u |\n", pkt_cnt);
 	ret = air_buckpbus_reg_write(phydev, 0xe0074, 0x3);
 	if (ret < 0)
 		return ret;
@@ -785,12 +886,13 @@ static int airphy_counter_show(struct seq_file *seq, void *v)
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
 	int ret = 0, addr = phydev_addr(phydev);
 	u32 pkt_cnt = 0;
+	struct en8811h_priv *priv = phydev->priv;
 
 	ret = air_read_status(phydev);
 	if (ret < 0)
 		return ret;
 	seq_puts(seq, "==========AIR PHY COUNTER==========\n");
-	if (phydev->link) {
+	if (priv->link) {
 		ret = airphy_ss_counter_show(phydev, seq);
 		if (ret < 0)
 			return ret;
@@ -798,7 +900,7 @@ static int airphy_counter_show(struct seq_file *seq, void *v)
 	ret = airphy_fcm_counter_show(phydev, seq);
 	if (ret < 0)
 		return ret;
-	if (phydev->link) {
+	if (priv->link) {
 		seq_puts(seq, "|\t<<MAC Counter>>\n");
 		seq_puts(seq, "| Tx Error from System side:");
 		pkt_cnt = air_buckpbus_reg_read(phydev, 0x131000);
@@ -813,7 +915,7 @@ static int airphy_counter_show(struct seq_file *seq, void *v)
 		pkt_cnt = air_buckpbus_reg_read(phydev, 0x132004);
 		seq_printf(seq, "%010u |\n", pkt_cnt);
 	}
-	if (phydev->link && phydev->speed == SPEED_2500) {
+	if (priv->link && priv->speed == SPEED_2500) {
 		seq_puts(seq, "|\t<<LS Counter>>\n");
 		ret = air_buckpbus_reg_write(phydev, 0x30718, 0x10);
 		if (ret < 0)
@@ -866,7 +968,7 @@ static int airphy_counter_show(struct seq_file *seq, void *v)
 		if (ret < 0)
 			return ret;
 	}
-	if (phydev->link && ((phydev->speed != SPEED_2500))) {
+	if (priv->link && ((priv->speed != SPEED_2500))) {
 		seq_puts(seq, "|\t<<LS Counter>>\n");
 		ret = air_mii_cl22_write(mbus, addr, 0x1f, 1);
 		if (ret < 0)
@@ -920,7 +1022,7 @@ static ssize_t airphy_polarity_write(struct file *file, const char __user *ptr,
 		return -EINVAL;
 	if (copy_from_user(buf, ptr, len))
 		return -EFAULT;
-	if (sscanf(buf, "%s %s", param1, param2) == -1)
+	if (sscanf(buf, "%12s %12s", param1, param2) == -1)
 		return -EFAULT;
 
 	if (!strncmp("tx_normal", param1, strlen("tx_normal"))) {
@@ -982,7 +1084,7 @@ static ssize_t airphy_port_mode(struct file *file, const char __user *ptr,
 	if (copy_from_user(buf, ptr, len))
 		return -EFAULT;
 
-	num = sscanf(buf, "%s %s", cmd, param);
+	num = sscanf(buf, "%8s %8s", cmd, param);
 	if (num < 1 || num > 3)
 		return -EFAULT;
 
@@ -1034,8 +1136,8 @@ static ssize_t airphy_debugfs_buckpbus(struct file *file,
 {
 	struct phy_device *phydev = file->private_data;
 	char buf[64];
-	int ret = 0;
-	unsigned int reg, val;
+	int ret = 0, i;
+	unsigned int reg, val, num;
 
 	memset(buf, 0, 64);
 	if (count > sizeof(buf) - 1)
@@ -1044,7 +1146,7 @@ static ssize_t airphy_debugfs_buckpbus(struct file *file,
 		return -EFAULT;
 
 	if (buf[0] == 'w') {
-		if (sscanf(buf, "w %x %x", &reg, &val) == -1)
+		if (sscanf(buf, "w %15x %15x", &reg, &val) == -1)
 			return -EFAULT;
 
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
@@ -1058,12 +1160,26 @@ static ssize_t airphy_debugfs_buckpbus(struct file *file,
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x confirm..\n",
 			phydev_addr(phydev), reg, val);
 	} else if (buf[0] == 'r') {
-		if (sscanf(buf, "r %x", &reg) == -1)
+		if (sscanf(buf, "r %15x", &reg) == -1)
 			return -EFAULT;
 
 		val = air_buckpbus_reg_read(phydev, reg);
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
 		phydev_addr(phydev), reg, val);
+	} else if (buf[0] == 'x') {
+		if (sscanf(buf, "x %15x %6d", &reg, &num) == -1)
+			return -EFAULT;
+		if (num > 0x1000 || num == 0) {
+			pr_notice("\nphy%d: number(0x%x) is invalid number\n",
+				phydev_addr(phydev), num);
+			return -EFAULT;
+		}
+		for (i = 0; i < num; i++) {
+			val = air_buckpbus_reg_read(phydev, (reg + (i * 4)));
+			pr_notice("phy=%d, reg=0x%x, val=0x%x",
+				phydev_addr(phydev), reg + (i * 4), val);
+			pr_notice("");
+		}
 	} else
 		airphy_debugfs_buckpbus_help();
 
@@ -1084,7 +1200,7 @@ static ssize_t airphy_debugfs_pbus(struct file *file,
 		return -EFAULT;
 
 	if (buf[0] == 'w') {
-		if (sscanf(buf, "w %x %x", &reg, &val) == -1)
+		if (sscanf(buf, "w %15x %15x", &reg, &val) == -1)
 			return -EFAULT;
 
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
@@ -1098,7 +1214,7 @@ static ssize_t airphy_debugfs_pbus(struct file *file,
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x confirm..\n",
 			phydev_addr(phydev), reg, val);
 	} else if (buf[0] == 'r') {
-		if (sscanf(buf, "r %x", &reg) == -1)
+		if (sscanf(buf, "r %15x", &reg) == -1)
 			return -EFAULT;
 
 		val = air_pbus_reg_read(phydev, reg);
@@ -1114,6 +1230,7 @@ static int airphy_link_status(struct seq_file *seq, void *v)
 {
 	int ret = 0;
 	struct phy_device *phydev = seq->private;
+	struct en8811h_priv *priv = phydev->priv;
 
 	ret = air_read_status(phydev);
 	if (ret < 0)
@@ -1121,18 +1238,21 @@ static int airphy_link_status(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "%s Information:\n", dev_name(phydev_dev(phydev)));
 	seq_printf(seq, "\tPHYAD: %02d\n", phydev_addr(phydev));
-	seq_printf(seq, "\tLink Status: %s\n", phydev->link ? "UP" : "DOWN");
-	if (phydev->link) {
+	seq_printf(seq, "\tLink Status: %s\n", priv->link ? "UP" : "DOWN");
+	if (priv->link) {
+		ret = air_get_autonego(phydev, &priv->an);
+		if (ret < 0)
+			return ret;
 		seq_printf(seq, "\tAuto-Nego: %s\n",
-				phydev->autoneg ? "on" : "off");
+				priv->an ? "on" : "off");
 		seq_puts(seq, "\tSpeed: ");
-		if (phydev->speed == SPEED_UNKNOWN)
-			seq_printf(seq, "Unknown! (%i)\n", phydev->speed);
+		if (priv->speed == SPEED_UNKNOWN)
+			seq_printf(seq, "Unknown! (%i)\n", priv->speed);
 		else
-			seq_printf(seq, "%uMb/s\n", phydev->speed);
+			seq_printf(seq, "%uMb/s\n", priv->speed);
 
 		seq_printf(seq, "\tDuplex: %s\n",
-				phydev->duplex ? "Full" : "Half");
+				priv->duplex ? "Full" : "Half");
 		seq_puts(seq, "\n");
 	}
 
@@ -1159,10 +1279,14 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 		   air_mii_cl22_read(mbus, addr, MII_ADVERTISE));
 	seq_printf(seq, "| RG_MII_LPA            : 0x%08x |\n",
 		   air_mii_cl22_read(mbus, addr, MII_LPA));
+	seq_printf(seq, "| RG_MII_EXPANSION      : 0x%08x |\n",
+		   air_mii_cl22_read(mbus, addr, MII_EXPANSION));
 	seq_printf(seq, "| RG_MII_CTRL1000       : 0x%08x |\n",
 		   air_mii_cl22_read(mbus, addr, MII_CTRL1000));
 	seq_printf(seq, "| RG_MII_STAT1000       : 0x%08x |\n",
 		   air_mii_cl22_read(mbus, addr, MII_STAT1000));
+	seq_printf(seq, "| RG_LINK_PARTNER_2G5   : 0x%08x |\n",
+		   air_buckpbus_reg_read(phydev, 0x3b30));
 	seq_printf(seq, "| RG_MII_REF_CLK        : 0x%08x |\n",
 		   air_mii_cl22_read(mbus, addr, 0x1d));
 	seq_printf(seq, "| RG_HW_STRAP1          : 0x%08x |\n",
@@ -1177,7 +1301,7 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 		   air_buckpbus_reg_read(phydev, 0xe0020));
 	seq_printf(seq, "| RG_MIN_IPG_NUM        : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0xe002C));
-	seq_printf(seq, "| RG_CTROL_0            : 0x%08x |\n",
+	seq_printf(seq, "| RG_CSR_AN0            : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0xc0000));
 	seq_printf(seq, "| RG_LINK_STATUS        : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0xc0b04));
@@ -1185,6 +1309,10 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 		   air_buckpbus_reg_read(phydev, 0xc0014));
 	seq_printf(seq, "| RG_FN_PWR_CTRL_STATUS : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0x1020c));
+	seq_printf(seq, "| RG_MD32_FW_READY      : 0x%08x |\n",
+		   air_mii_cl45_read(phydev, 0x1e, 0x8009));
+	seq_printf(seq, "| RG_RX_SYNC_CNT        : 0x%08x |\n",
+		   air_buckpbus_reg_read(phydev, 0x3A64));
 	seq_printf(seq, "| RG_WHILE_LOOP_COUNT   : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0x3A48));
 
@@ -1226,10 +1354,8 @@ static int airphy_temp_show_open(struct inode *inode, struct file *file)
 
 static unsigned int air_read_lp_speed(struct phy_device *phydev)
 {
-	int val = 0, an = AUTONEG_DISABLE;
-	unsigned int ret = 0;
-	int count = 15, i, lpa, lpagb;
-	struct air_lp_speed *m;
+	int val = 0, ret = 0;
+	int count = 15, lpa, lpagb;
 	struct device *dev = phydev_dev(phydev);
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
 	int addr = phydev_addr(phydev);
@@ -1281,7 +1407,7 @@ static unsigned int air_read_lp_speed(struct phy_device *phydev)
 
 static int airphy_lp_speed(struct seq_file *seq, void *v)
 {
-	unsigned int ret = 0, val = 0, did1 = 0, i;
+	int ret = 0, did1 = 0, i;
 	struct phy_device *phydev = seq->private;
 	static const struct {
 		unsigned int bit_index;
@@ -1304,8 +1430,8 @@ static int airphy_lp_speed(struct seq_file *seq, void *v)
 	seq_printf(seq, "%s Link Partner Ability:\n",
 			dev_name(phydev_dev(phydev)));
 	ret = air_read_lp_speed(phydev);
-	if (val < 0)
-		return val;
+	if (ret < 0)
+		return ret;
 	for (i = 0; i < ARRAY_SIZE(mode_defs); i++) {
 		if (ret & BIT(mode_defs[i].bit_index)) {
 			seq_printf(seq, "\t\t\t %s\n",
@@ -1353,7 +1479,7 @@ static ssize_t airphy_debugfs_cl22(struct file *file,
 		return -EFAULT;
 
 	if (buf[0] == 'w') {
-		if (sscanf(buf, "w %x %x", &reg, &val) == -1)
+		if (sscanf(buf, "w %15x %15x", &reg, &val) == -1)
 			return -EFAULT;
 
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x\n",
@@ -1367,7 +1493,7 @@ static ssize_t airphy_debugfs_cl22(struct file *file,
 		pr_notice("\nphy=%d, reg=0x%x, val=0x%x confirm..\n",
 			phydev_addr(phydev), reg, val);
 	} else if (buf[0] == 'r') {
-		if (sscanf(buf, "r %x", &reg) == -1)
+		if (sscanf(buf, "r %15x", &reg) == -1)
 			return -EFAULT;
 
 		val = air_mii_cl22_read(mbus, addr, reg);
@@ -1406,7 +1532,7 @@ static ssize_t airphy_debugfs_cl45(struct file *file,
 		return -EFAULT;
 
 	if (buf[0] == 'w') {
-		if (sscanf(buf, "w %x %x %x", &devnum, &reg, &val) == -1)
+		if (sscanf(buf, "w %15x %15x %15x", &devnum, &reg, &val) == -1)
 			return -EFAULT;
 
 		pr_notice("\nphy=%d, devnum=0x%x, reg=0x%x, val=0x%x\n",
@@ -1420,7 +1546,7 @@ static ssize_t airphy_debugfs_cl45(struct file *file,
 		pr_notice("\nphy=%d, devnum=0x%x, reg=0x%x, val=0x%x confirm..\n",
 			phydev_addr(phydev), devnum, reg, val);
 	} else if (buf[0] == 'r') {
-		if (sscanf(buf, "r %x %x", &devnum, &reg) == -1)
+		if (sscanf(buf, "r %15x %15x", &devnum, &reg) == -1)
 			return -EFAULT;
 
 		val = air_mii_cl45_read(phydev, devnum, reg);
@@ -1428,6 +1554,361 @@ static ssize_t airphy_debugfs_cl45(struct file *file,
 		phydev_addr(phydev), devnum, reg, val);
 	} else
 		airphy_debugfs_mii_cl45_help();
+
+	return count;
+}
+
+static void
+air_cable_pair_swap(int pair0, int pair1,
+	struct air_cable_test_rsl *ptr_cable)
+{
+	int tmp_status;
+	unsigned int tmp_length;
+
+	tmp_status = ptr_cable->status[pair0];
+	tmp_length = ptr_cable->length[pair0];
+	ptr_cable->status[pair0] = ptr_cable->status[pair1];
+	ptr_cable->length[pair0] = ptr_cable->length[pair1];
+	ptr_cable->status[pair1] = tmp_status;
+	ptr_cable->length[pair1] = tmp_length;
+}
+
+int air_wait_md32_fw(struct phy_device *phydev)
+{
+	int reg;
+	struct device *dev = phydev_dev(phydev);
+	int retry = 60;
+
+	do {
+		msleep(1000);
+		reg = air_mii_cl45_read(phydev, 0x1e, 0x8009);
+		if (reg == EN8811H_PHY_READY) {
+			dev_dbg(dev, "%s: PHY ready!\n", __func__);
+			break;
+		}
+		if (!(retry % 10))
+			dev_info(dev, "Waiting for MD32 FW ready....(%d)", reg);
+
+		if (!retry) {
+			dev_err(dev, "%s: MD32 FW is not ready.(Status: 0x%x)\n",
+							__func__, reg);
+			return -EPERM;
+		}
+	} while (retry--);
+	return 0;
+}
+
+static int air_cable_normal(struct phy_device *phydev, int step_col_12, int step_col_13)
+{
+	int ret = 0, reg;
+	struct device *dev = phydev_dev(phydev);
+	struct mii_bus *mbus = phydev_mdio_bus(phydev);
+	int addr = phydev_addr(phydev);
+
+	ret |= air_mii_cl22_write(mbus, addr, 0x1f, 0);
+	reg = ((air_mii_cl22_read(mbus, addr, 0x11)  & BIT(12)) >> 12);
+	if (!reg) {
+		reg = air_mii_cl22_read(mbus,
+				addr, MII_BMCR);
+		ret |= air_mii_cl22_write(mbus,
+				addr, MII_BMCR, reg | BMCR_PDOWN);
+		ret |= air_mii_cl22_write(mbus,
+				addr, MII_BMCR, reg & ~BMCR_PDOWN);
+		dev_dbg(dev, "%s Power Down -> Power UP.\n", __func__);
+		msleep(1000);
+		ret |= air_mii_cl22_write(mbus, addr, 0x1f, 0x1);
+		ret |= air_mii_cl22_write(mbus, addr, 0x18, 0x8000);
+		ret |= air_wait_md32_fw(phydev);
+		if (ret < 0) {
+			dev_err(dev,
+				"%s: cable normal 1-1 fail!\n", __func__);
+			return -EPERM;
+		}
+	}
+	ret |= air_mii_cl45_write(phydev, 0x1e, 0x800e, 0x1100);
+	ret |= air_mii_cl45_write(phydev, 0x1e, 0x800f, 0xd4);
+	ret |= air_wait_md32_fw(phydev);
+	if (ret < 0) {
+		dev_err(dev,
+			"%s: cable normal 1-2 fail!\n", __func__);
+		return -EPERM;
+	}
+	return 0;
+}
+
+static int airphy_cable_step2(struct phy_device *phydev)
+{
+	int ret = 0;
+	int step_col_12 = 0;
+	int step_col_13 = 0;
+	struct device *dev = phydev_dev(phydev);
+
+	ret = air_cable_normal(phydev, step_col_12, step_col_13);
+	if (ret < 0) {
+		dev_err(dev, "%s: air_cable_normal fail (ret=%d)\n",
+				__func__, ret);
+		return -EPERM;
+	}
+	step_col_12 = air_mii_cl45_read(phydev, 0x1e, 0x800c);
+	step_col_13 = air_mii_cl45_read(phydev, 0x1e, 0x800d);
+	dev_dbg(dev, "%s step_col_12 %d, step_col_13 %d\n",
+				__func__, step_col_12, step_col_13);
+	dev_dbg(dev, "%s: successfull\n", __func__);
+	return 0;
+}
+
+static int airphy_cable_step4(struct phy_device *phydev, struct air_cable_test_rsl *cable_rsl)
+{
+	int reg = 0, status;
+	struct device *dev = phydev_dev(phydev);
+	struct mii_bus *mbus = phydev_mdio_bus(phydev);
+	int addr = phydev_addr(phydev), test_pair = 0;
+	unsigned int pbus_value = 0, cable_len, cable_info;
+	int ret = 0;
+	static const char * const pair_str[] = {"A", "B", "C", "D"};
+
+	msleep(1000);
+	ret |= air_mii_cl45_write(phydev, 0x1e, 0x800e, 0x1100);
+	ret |= air_mii_cl45_write(phydev, 0x1e, 0x800f, 0xFA);
+	ret |= air_wait_md32_fw(phydev);
+	if (ret < 0) {
+		dev_err(dev,
+			"%s: cable step4 fail!\n", __func__);
+		return -EPERM;
+	}
+	ret |= air_mii_cl22_write(mbus, addr, 0x1f, 0x0);
+	reg = ((air_mii_cl22_read(mbus, addr, 0x11)  & BIT(12)) >> 12);
+	for (test_pair = 0; test_pair < 4; test_pair++) {
+		cable_info = air_buckpbus_reg_read(phydev, 0x11e0 + test_pair * 4);
+		dev_dbg(dev, "pair%s cable_info(0x%x) 0x%x\n",
+					pair_str[test_pair], 0x11e0 + test_pair * 4, pbus_value);
+		cable_len = cable_info & 0xffff;
+		status = cable_info >> 16;
+		if (!status) {
+			dev_dbg(dev, "Pair %d, term=%d, len=%d\n",
+					test_pair, status, cable_len);
+		} else {
+			cable_rsl->status[test_pair] = status;
+			cable_rsl->length[test_pair] = cable_len;
+			dev_dbg(dev, "2.pair %s, status %d, cable_len %d\n",
+				pair_str[test_pair], cable_rsl->status[test_pair],
+				cable_rsl->length[test_pair]);
+		}
+	}
+	if (!reg) {
+		dev_dbg(dev, "%s: air_cable_pair_swap\n", __func__);
+		air_cable_pair_swap(AIR_PORT_CABLE_TEST_PAIR_A,
+				AIR_PORT_CABLE_TEST_PAIR_B, cable_rsl);
+		air_cable_pair_swap(AIR_PORT_CABLE_TEST_PAIR_C,
+				AIR_PORT_CABLE_TEST_PAIR_D, cable_rsl);
+	}
+	ret |= air_mii_cl45_write(phydev, 0x1E, 0x800D, 0x0);
+	if (ret < 0)
+		return ret;
+	dev_dbg(dev, "%s successfull\n", __func__);
+	return 0;
+}
+
+int airphy_cable_step1(struct phy_device *phydev)
+{
+	int ret = 0, pair, len = 0, reg, retry;
+	int max_len = CMD_MAX_LENGTH;
+	static const char * const link_str[] = {"X", "100M", "1G", "2.5G", "LinkDown"};
+	struct device *dev = phydev_dev(phydev);
+	unsigned int pbus_value = 0;
+	struct air_cable_test_rsl cable_rsl = {0};
+	char str_out[CMD_MAX_LENGTH] = {0};
+	struct mii_bus *mbus = phydev_mdio_bus(phydev);
+	int addr = phydev_addr(phydev), status;
+	struct en8811h_priv *priv = phydev->priv;
+
+	pbus_value = air_buckpbus_reg_read(phydev, 0x3b3c);
+	dev_info(dev, "MD32 FW Version: %x\n", pbus_value);
+	msleep(1000);
+	ret |= air_mii_cl45_write(phydev, 0x1E, 0x800e, 0x1100);
+	ret |= air_mii_cl45_write(phydev, 0x1E, 0x800f, 0xd6);
+	if (ret < 0)
+		return ret;
+	retry = 5;
+	do {
+		status = air_wait_md32_fw(phydev);
+		if (!retry) {
+			dev_info(dev, "%s: md32 fw is not ready(%d)", __func__, status);
+			return -EPERM;
+		}
+		retry--;
+	} while (status);
+	pbus_value = air_buckpbus_reg_read(phydev, 0x11fc);
+	if ((pbus_value == 1) || (pbus_value == 3)) {
+		dev_info(dev, "%s -> No Support!\n",
+					link_str[pbus_value]);
+	} else if (pbus_value == 2) {
+		dev_info(dev, "%s - Link-Up Mode!\n",
+					link_str[pbus_value]);
+	} else if (pbus_value == 4) {
+		dev_info(dev, "Link-Down Mode!\n");
+	}
+	if ((pbus_value == 2) || (pbus_value == 4)) {
+		ret = airphy_cable_step2(phydev);
+		if (ret < 0)
+			goto phy_reset;
+		ret = airphy_cable_step4(phydev, &cable_rsl);
+		if (ret < 0)
+			goto phy_reset;
+	}
+	dev_info(dev, "%7s %15s %15s %15s\n", "pair-a", "pair-b", "pair-c", "pair-d");
+	dev_info(dev, "%7s %7s %7s %7s %7s %7s %7s %7s\n",
+	"status", "length", "status", "length", "status", "length", "status", "length");
+	for (pair = 0; pair < 4; pair++) {
+		if (cable_rsl.status[pair] == AIR_PORT_CABLE_STATUS_ERROR)
+			len += snprintf(str_out + len, max_len - len, "%7s", "error");
+		else if (cable_rsl.status[pair] == AIR_PORT_CABLE_STATUS_OPEN)
+			len += snprintf(str_out + len, max_len - len, "%7s", " open");
+		else if (cable_rsl.status[pair] == AIR_PORT_CABLE_STATUS_SHORT)
+			len += snprintf(str_out + len, max_len - len, "%7s", " short");
+		else if (cable_rsl.status[pair] == AIR_PORT_CABLE_STATUS_NORMAL)
+			len += snprintf(str_out + len, max_len - len, "%7s", "normal");
+
+		len += snprintf(str_out + len, max_len - len, "  %3d.%dm ",
+			cable_rsl.length[pair] / 10, cable_rsl.length[pair] % 10);
+		priv->pair[pair] = cable_rsl.length[pair];
+	}
+	dev_info(dev, "%s", str_out);
+	dev_info(dev, "%s air_cable_diag sucessfull.\n", __func__);
+
+	return 0;
+phy_reset:
+	dev_info(dev, "%s air_cable_diag fail.\n", __func__);
+	dev_info(dev, "%s phy_reset.\n", __func__);
+	ret |= air_mii_cl22_write(mbus, addr, 0x1f, 0x0);
+	reg = air_mii_cl22_read(mbus,
+			addr, MII_BMCR);
+	ret |= air_mii_cl22_write(mbus,
+			addr, MII_BMCR, reg | BMCR_PDOWN);
+	ret |= air_mii_cl22_write(mbus,
+			addr, MII_BMCR, reg & ~BMCR_PDOWN);
+	if (ret < 0)
+		return ret;
+	msleep(1000);
+	dev_dbg(dev, "%s Power Down -> Power UP.\n", __func__);
+
+	return 0;
+}
+
+static void
+air_token_ring_write(
+	struct phy_device *phydev, struct trrg_s TrRG, unsigned int WrtVal)
+{
+	int data;
+	struct mii_bus *mbus = phydev_mdio_bus(phydev);
+	int addr = phydev_addr(phydev);
+	unsigned int TmpVal;
+	struct hal_tr_data_s TR_DATA;
+
+	mutex_lock(&mbus->mdio_lock);
+	data = __air_mii_cl45_read(phydev, 0x1e, 0x148);
+	AIR_EN8811H_SET_VALUE(data, 1, 9, 1);
+	__air_mii_cl45_write(phydev, 0x1e, 0x148, data);
+	/* change page to 0x52b5 */
+	__air_mii_cl22_write(mbus, addr, 0x1F, 0x52B5);
+
+	/* write addr */
+	TrRG.TrRGDesc.param.WR_RD_CTRL = 1;
+	__air_mii_cl22_write(mbus, addr, 0x10, TrRG.TrRGDesc.Raw[1]);
+	/* read data */
+	TR_DATA.data_hi = __air_mii_cl22_read(mbus, addr, 0x12);
+	TR_DATA.data_lo = __air_mii_cl22_read(mbus, addr, 0x11);
+	TmpVal = ~TrRG.RgMask &
+			(((unsigned int)TR_DATA.data_hi)<<16 | (unsigned int)TR_DATA.data_lo);
+
+	TrRG.TrRGDesc.param.WR_RD_CTRL = 0;
+	WrtVal = (WrtVal<<TrRG.TrRGDesc.param.TrRG_LSB) | (TmpVal & ~TrRG.RgMask);
+	/* write data */
+	__air_mii_cl22_write(mbus, addr, 0x12, (WrtVal>>16) & 0x00FF);
+	__air_mii_cl22_write(mbus, addr, 0x11, WrtVal & 0xFFFF);
+	__air_mii_cl22_write(mbus, addr, 0x10, TrRG.TrRGDesc.Raw[1]);
+
+	/* change page to 0 */
+	__air_mii_cl22_write(mbus, addr, 0x1F, 0x0);
+
+	data = __air_mii_cl45_read(phydev, 0x1E, 0x148);
+	AIR_EN8811H_SET_VALUE(data, 0, 0x9, 0x1);
+	__air_mii_cl45_write(phydev, 0x1E, 0x148, data);
+	mutex_unlock(&mbus->mdio_lock);
+}
+
+
+void airphy_trigger_cable_diag(struct phy_device *phydev)
+{
+	struct en8811h_priv *priv = phydev->priv;
+
+	priv->running_status = 1;
+	air_token_ring_write(phydev, _fldRW_tr_reg__EcVarTrainingTime_ECNC_C8h, 0x2);
+	air_token_ring_write(phydev, _fldRW_tr_reg__EcVarTrainingGain_ECNC_C8h, 0x0);
+	airphy_cable_step1(phydev);
+	air_token_ring_write(phydev, _fldRW_tr_reg__EcVarTrainingTime_ECNC_C8h, 0xf4);
+	air_token_ring_write(phydev, _fldRW_tr_reg__EcVarTrainingGain_ECNC_C8h, 0x1);
+	priv->running_status = 0;
+}
+
+void airphy_dump_ec_cable_diag(struct phy_device *phydev)
+{
+	u32 PMEM_addr = 0;
+	u32 PMEM_value = 0;
+	short EC_COEF;
+	u8 pair, Test_Cnt;
+	struct device *dev = phydev_dev(phydev);
+
+	dev_info(dev, "Cable Diag EC Dump\n");
+	for (pair = 0; pair < 4; pair++) {
+		for (Test_Cnt = 0; Test_Cnt < 240; Test_Cnt++) { /* EC_FULL_TAPS = 240*/
+			PMEM_addr = ((0x118000 + ((Test_Cnt >> 1) * 4)) + (0x200 * pair));
+			PMEM_value = air_buckpbus_reg_read(phydev, PMEM_addr);
+			EC_COEF = 0;
+			if ((Test_Cnt%2) == 0)
+				EC_COEF = (short)(PMEM_value & 0xffff);
+			else
+				EC_COEF = (short)((PMEM_value >> 16) & 0xffff);
+
+			dev_info(dev, "Pair%d: EC_COEF=  %d\n", pair, EC_COEF);
+		}
+	}
+	dev_info(dev, "Cable Diag EC Dump Finish\n");
+}
+
+static void airphy_cable_diag_help(void)
+{
+	pr_notice("\nUsage:\n"
+			"[debugfs] = /sys/kernel/debug/mdio-bus\':[phy_addr]\n"
+			"echo start > /[debugfs]/cable_diag\n");
+}
+
+static ssize_t airphy_cable_diag(struct file *file, const char __user *ptr,
+					size_t len, loff_t *off)
+{
+	struct phy_device *phydev = file->private_data;
+	char buf[32], cmd[32];
+	int count = len;
+	int num = 0;
+
+	memset(buf, 0, 32);
+	memset(cmd, 0, 32);
+
+	if (count > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ptr, len))
+		return -EFAULT;
+
+	num = sscanf(buf, "%8s", cmd);
+	if (num != 1)
+		return -EFAULT;
+
+	if (!strncmp("start", cmd, strlen("start")))
+		airphy_trigger_cable_diag(phydev);
+	else if (!strncmp("dump", cmd, strlen("dump")))
+		airphy_dump_ec_cable_diag(phydev);
+	else
+		airphy_cable_diag_help();
 
 	return count;
 }
@@ -1522,6 +2003,20 @@ static const struct file_operations airphy_debugfs_cl45_fops = {
 	.llseek = noop_llseek,
 };
 
+static const struct file_operations airphy_cable_diag_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = airphy_cable_diag,
+	.llseek = noop_llseek,
+};
+
+static const struct file_operations airphy_led_mode_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = airphy_led_mode,
+	.llseek = noop_llseek,
+};
+
 int airphy_debugfs_init(struct phy_device *phydev)
 {
 	int ret = 0;
@@ -1571,7 +2066,12 @@ int airphy_debugfs_init(struct phy_device *phydev)
 	debugfs_create_file(DEBUGFS_MII_CL45_OP, S_IFREG | 0200,
 					dir, phydev,
 					&airphy_debugfs_cl45_fops);
-
+	debugfs_create_file(DEBUGFS_CABLE_DIAG, S_IFREG | 0200,
+					dir, phydev,
+					&airphy_cable_diag_fops);
+	debugfs_create_file(DEBUGFS_LED_MODE, S_IFREG | 0200,
+					dir, phydev,
+					&airphy_led_mode_fops);
 	priv->debugfs_root = dir;
 	return ret;
 }
