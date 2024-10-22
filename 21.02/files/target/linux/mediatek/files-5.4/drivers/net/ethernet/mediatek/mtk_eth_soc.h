@@ -2328,6 +2328,7 @@ struct mtk_eth {
 		struct wdma_monitor	wdma_monitor;
 		struct gdm_monitor	gdm_monitor;
 		u32			event;
+		bool			phy_disconnect;
 	} reset;
 
 	u32				rx_dma_l4_valid;
@@ -2351,6 +2352,9 @@ struct mtk_mac {
 	unsigned int			type;
 	int				speed;
 	int				phy_speed;
+	int				duplex;
+	bool				tx_pause;
+	bool				rx_pause;
 	struct device_node		*of_node;
 	struct phylink			*phylink;
 	struct phylink_config		phylink_config;

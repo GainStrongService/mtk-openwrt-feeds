@@ -79,11 +79,12 @@ static void mtk_dump_regmap(struct regmap *pmap, char *name,
 int mtk_eth_cold_reset(struct mtk_eth *eth)
 {
 	u32 reset_bits = 0;
+
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2) ||
 	    MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
 		regmap_write(eth->ethsys, ETHSYS_FE_RST_CHK_IDLE_EN, 0);
 
-	reset_bits = RSTCTRL_ETH | RSTCTRL_FE | RSTCTRL_PPE0;
+	reset_bits = RSTCTRL_FE | RSTCTRL_PPE0;
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
 		reset_bits |= RSTCTRL_PPE1;
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -92,6 +93,8 @@ int mtk_eth_cold_reset(struct mtk_eth *eth)
 	if (eth->reset.event == MTK_FE_START_RESET)
 		reset_bits |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
 #endif
+	if (eth->reset.phy_disconnect)
+		reset_bits |= RSTCTRL_ETH;
 	ethsys_reset(eth, reset_bits);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
@@ -123,7 +126,7 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 
 	if (i < 1000) {
 		done = 1;
-		reset_bits = RSTCTRL_ETH | RSTCTRL_PPE0;
+		reset_bits = RSTCTRL_PPE0;
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
 			reset_bits |= RSTCTRL_PPE1;
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -132,6 +135,8 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 		if (eth->reset.event == MTK_FE_START_RESET)
 			reset_bits |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
 #endif
+		if (eth->reset.phy_disconnect)
+			reset_bits |= RSTCTRL_ETH;
 
 		regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
 				   reset_bits, reset_bits);
@@ -955,9 +960,12 @@ u32 mtk_monitor_gdm_rx(struct mtk_eth *eth)
 		gdm_rx->pre_rx_cnt[i] = cur_rx_cnt;
 	}
 
-	if (err_flag)
+	if (err_flag) {
+		if (atomic_read(&reset_lock) == 0)
+			eth->reset.phy_disconnect = true;
+
 		return MTK_FE_STOP_TRAFFIC;
-	else
+	} else
 		return 0;
 }
 
@@ -1017,9 +1025,12 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 		gdm_tx->pre_opq_gdm[i] = cur_opq_gdm;
 	}
 
-	if (err_flag)
+	if (err_flag) {
+		if (atomic_read(&reset_lock) == 0)
+			eth->reset.phy_disconnect = true;
+
 		return MTK_FE_STOP_TRAFFIC;
-	else
+	} else
 		return 0;
 }
 
@@ -1105,39 +1116,6 @@ void mtk_restore_qdma_cfg(struct mtk_eth *eth)
 			MTK_QDMA_TX_2SCH_BASE);
 }
 
-void mtk_mac_linkdown(struct mtk_eth *eth)
-{
-	struct mtk_mac *mac = NULL;
-	u32 mcr, sts, i;
-
-	for (i = 0; i < MTK_MAX_DEVS; i++) {
-		if (!eth->mac[i])
-			continue;
-
-		mac = eth->mac[i];
-		if (mac->type == MTK_GDM_TYPE) {
-			mcr = mtk_r32(mac->hw, MTK_MAC_MCR(mac->id));
-			mcr &= ~(MAC_MCR_TX_EN | MAC_MCR_RX_EN | MAC_MCR_FORCE_LINK);
-			mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
-		} else if (mac->type == MTK_XGDM_TYPE && mac->id != MTK_GMAC1_ID) {
-			mcr = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id));
-			mcr &= 0xfffffff0;
-			mcr |= XMAC_MCR_TRX_DISABLE;
-			mtk_w32(mac->hw, mcr, MTK_XMAC_MCR(mac->id));
-
-			if (MTK_HAS_CAPS(eth->soc->caps, MTK_XGMAC_V2)) {
-				sts = mtk_r32(mac->hw, MTK_XMAC_STS_FRC(mac->id));
-				sts &= ~XMAC_FORCE_LINK;
-				mtk_w32(mac->hw, sts, MTK_XMAC_STS_FRC(mac->id));
-			} else {
-				sts = mtk_r32(mac->hw, MTK_XGMAC_STS(mac->id));
-				sts &= ~MTK_XGMAC_FORCE_LINK(mac->id);
-				mtk_w32(mac->hw, sts, MTK_XGMAC_STS(mac->id));
-			}
-		}
-	}
-}
-
 void mtk_pse_set_port_link(struct mtk_eth *eth, u32 port, bool enable)
 {
 	u32 val;
@@ -1148,50 +1126,6 @@ void mtk_pse_set_port_link(struct mtk_eth *eth, u32 port, bool enable)
 	else
 		val |= MTK_FE_LINK_DOWN_P(port);
 	mtk_w32(eth, val, MTK_FE_GLO_CFG(port));
-}
-
-void mtk_prepare_reset_fe(struct mtk_eth *eth)
-{
-	u32 i = 0, val = 0;
-
-	/* Disable NETSYS Interrupt */
-	mtk_w32(eth, 0, MTK_FE_INT_ENABLE);
-	mtk_w32(eth, 0, MTK_PDMA_INT_MASK);
-	mtk_w32(eth, 0, MTK_QDMA_INT_MASK);
-
-	/* Disable Linux netif Tx path */
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		if (!eth->netdev[i])
-			continue;
-
-		/* call carrier off first to avoid false dev_watchdog timeouts */
-		netif_carrier_off(eth->netdev[i]);
-		netif_tx_disable(eth->netdev[i]);
-	}
-
-	/* Disable QDMA Tx */
-	val = mtk_r32(eth, MTK_QDMA_GLO_CFG);
-	mtk_w32(eth, val & ~(MTK_TX_DMA_EN), MTK_QDMA_GLO_CFG);
-
-	/* Force mac link down */
-	mtk_mac_linkdown(eth);
-
-	/* Force PSE port link down */
-	mtk_pse_set_port_link(eth, 0, false);
-	mtk_pse_set_port_link(eth, 1, false);
-	mtk_pse_set_port_link(eth, 2, false);
-	mtk_pse_set_port_link(eth, 8, false);
-	mtk_pse_set_port_link(eth, 9, false);
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
-		mtk_pse_set_port_link(eth, 15, false);
-
-	/* Enable GDM drop */
-	for (i = 0; i < MTK_MAC_COUNT; i++)
-		mtk_gdm_config(eth, i, MTK_GDMA_DROP_ALL);
-
-	/* Disable ADMA Rx */
-	val = mtk_r32(eth, MTK_PDMA_GLO_CFG);
-	mtk_w32(eth, val & ~(MTK_RX_DMA_EN), MTK_PDMA_GLO_CFG);
 }
 
 void mtk_prepare_reset_ppe(struct mtk_eth *eth, u32 ppe_id)

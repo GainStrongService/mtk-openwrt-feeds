@@ -1203,7 +1203,11 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 	struct mtk_eth *eth = mac->hw;
 	u32 mcr, mcr_cur, sts;
 
+	mac->mode = mode;
 	mac->speed = speed;
+	mac->duplex = duplex;
+	mac->tx_pause = tx_pause;
+	mac->rx_pause = rx_pause;
 	if (phy)
 		mac->phy_speed = phy->speed;
 
@@ -1295,6 +1299,38 @@ static void mtk_mac_link_up(struct phylink_config *config, unsigned int mode,
 		}
 	}
 	mtk_pse_set_mac_port_link(mac, true, interface);
+}
+
+void mtk_mac_fe_reset_complete(struct mtk_eth *eth, unsigned long restart)
+{
+	struct phylink_link_state state;
+	struct mtk_mac *mac;
+	int i;
+
+	if (eth->reset.phy_disconnect)
+		return;
+
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!test_bit(i, &restart) || !eth->netdev[i])
+			continue;
+
+		mac = eth->mac[i];
+
+		/* The FE reset will cause the NETSYS Mux to return to its
+		 * initial state, so we need to call `mkt_mac_config()` to
+		 * configure the Muxes correctly after the FE reset.
+		 */
+		state.interface = mac->interface;
+		mac->interface = PHY_INTERFACE_MODE_NA;
+		mtk_mac_config(&mac->phylink_config, mac->mode, &state);
+		mtk_mac_finish(&mac->phylink_config, mac->interface,
+			       mac->interface);
+		mtk_mac_link_up(&mac->phylink_config, NULL, mac->mode,
+				mac->interface, mac->speed, mac->duplex,
+				mac->tx_pause, mac->rx_pause);
+
+		netif_carrier_on(eth->netdev[i]);
+	}
 }
 
 static void mtk_validate(struct phylink_config *config,
@@ -4454,13 +4490,6 @@ static int mtk_open(struct net_device *dev)
 			ether_addr_copy(dev->perm_addr, mac_addr);
 	}
 
-	err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
-	if (err) {
-		netdev_err(dev, "%s: could not attach PHY: %d\n", __func__,
-			   err);
-		return err;
-	}
-
 	/* we run 2 netdevs on the same dma ring so we only bring it up once */
 	if (!refcount_read(&eth->dma_refcnt)) {
 		int err = mtk_start_dma(eth);
@@ -4538,7 +4567,17 @@ static int mtk_open(struct net_device *dev)
 		}
 	}
 
-	phylink_start(mac->phylink);
+	if (!test_bit(MTK_RESETTING, &eth->state) || eth->reset.phy_disconnect) {
+		err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
+		if (err) {
+			netdev_err(dev, "%s: could not attach PHY: %d\n", __func__,
+				   err);
+			return err;
+		}
+
+		phylink_start(mac->phylink);
+	}
+
 	netif_tx_start_all_queues(dev);
 	phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
 	if (!phy_node && eth->sgmii && eth->sgmii->pcs[id].regmap)
@@ -4638,9 +4677,11 @@ static int mtk_stop(struct net_device *dev)
 	val = mtk_r32(eth, MTK_MAC_MCR(mac->id));
 	mtk_w32(eth, val & ~(MAC_MCR_RX_EN), MTK_MAC_MCR(mac->id));
 
-	phylink_stop(mac->phylink);
+	if (!test_bit(MTK_RESETTING, &eth->state) || eth->reset.phy_disconnect) {
+		phylink_stop(mac->phylink);
 
-	phylink_disconnect_phy(mac->phylink);
+		phylink_disconnect_phy(mac->phylink);
+	}
 
 	/* only shutdown DMA if this is the last user */
 	if (!refcount_dec_and_test(&eth->dma_refcnt))
@@ -5121,6 +5162,58 @@ int mtk_phy_config(struct mtk_eth *eth, int enable)
 	return 0;
 }
 
+static void mtk_prepare_reset_fe(struct mtk_eth *eth)
+{
+	struct mtk_mac *mac;
+	u32 i = 0, val = 0;
+
+	/* Disable NETSYS Interrupt */
+	mtk_w32(eth, 0, MTK_FE_INT_ENABLE);
+	mtk_w32(eth, 0, MTK_PDMA_INT_MASK);
+	mtk_w32(eth, 0, MTK_QDMA_INT_MASK);
+
+	/* Disable Linux netif Tx path */
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+
+		/* call carrier off first to avoid false dev_watchdog timeouts */
+		netif_carrier_off(eth->netdev[i]);
+		netif_tx_disable(eth->netdev[i]);
+	}
+
+	/* Disable QDMA Tx */
+	val = mtk_r32(eth, MTK_QDMA_GLO_CFG);
+	mtk_w32(eth, val & ~(MTK_TX_DMA_EN), MTK_QDMA_GLO_CFG);
+
+	/* Force mac link down */
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+
+		mac = eth->mac[i];
+		mtk_mac_link_down(&mac->phylink_config, mac->mode,
+				  mac->interface);
+	}
+
+	/* Force PSE port link down */
+	mtk_pse_set_port_link(eth, 0, false);
+	mtk_pse_set_port_link(eth, 1, false);
+	mtk_pse_set_port_link(eth, 2, false);
+	mtk_pse_set_port_link(eth, 8, false);
+	mtk_pse_set_port_link(eth, 9, false);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
+		mtk_pse_set_port_link(eth, 15, false);
+
+	/* Enable GDM drop */
+	for (i = 0; i < MTK_MAC_COUNT; i++)
+		mtk_gdm_config(eth, i, MTK_GDMA_DROP_ALL);
+
+	/* Disable ADMA Rx */
+	val = mtk_r32(eth, MTK_PDMA_GLO_CFG);
+	mtk_w32(eth, val & ~(MTK_RX_DMA_EN), MTK_PDMA_GLO_CFG);
+}
+
 static void mtk_pending_work(struct work_struct *work)
 {
 	struct mtk_eth *eth = container_of(work, struct mtk_eth, pending_work);
@@ -5141,7 +5234,9 @@ static void mtk_pending_work(struct work_struct *work)
 	while (test_and_set_bit_lock(MTK_RESETTING, &eth->state))
 		cpu_relax();
 
-	mtk_phy_config(eth, 0);
+	if (eth->reset.phy_disconnect)
+		mtk_phy_config(eth, 0);
+
 	mt753x_set_port_link_state(0);
 
 	/* Store QDMA configurations to prepare for reset */
@@ -5254,16 +5349,21 @@ static void mtk_pending_work(struct work_struct *work)
 		break;
 	}
 
+	mtk_mac_fe_reset_complete(eth, restart);
+
 	/* Restore QDMA configurations */
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
 		mtk_restore_qdma_cfg(eth);
 
-	atomic_dec(&reset_lock);
-
 	mt753x_set_port_link_state(1);
-	mtk_phy_config(eth, 1);
+	if (eth->reset.phy_disconnect)
+		mtk_phy_config(eth, 1);
+
 	eth->reset.event = 0;
+	eth->reset.phy_disconnect = false;
 	clear_bit_unlock(MTK_RESETTING, &eth->state);
+
+	atomic_dec(&reset_lock);
 
 	rtnl_unlock();
 }

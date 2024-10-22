@@ -837,6 +837,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 		case 1:
 			if (atomic_read(&force) == 1) {
 				eth->reset.event = MTK_FE_START_RESET;
+				eth->reset.phy_disconnect = false;
 				schedule_work(&eth->pending_work);
 			} else
 				pr_info(" stat:disable\n");
@@ -847,6 +848,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 		case 3:
 			if (atomic_read(&force) == 1) {
 				eth->reset.event = MTK_FE_STOP_TRAFFIC;
+				eth->reset.phy_disconnect = false;
 				schedule_work(&eth->pending_work);
 			} else
 				pr_info(" device resetting !!!\n");
@@ -857,15 +859,33 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 		case 5:
 			dbg_show_level = 0;
 			break;
+		case 6:
+			if (atomic_read(&force) == 1) {
+				eth->reset.event = MTK_FE_START_RESET;
+				eth->reset.phy_disconnect = true;
+				schedule_work(&eth->pending_work);
+			} else
+				pr_info(" stat:disable\n");
+			break;
+		case 7:
+			if (atomic_read(&force) == 1) {
+				eth->reset.event = MTK_FE_STOP_TRAFFIC;
+				eth->reset.phy_disconnect = true;
+				schedule_work(&eth->pending_work);
+			} else
+				pr_info(" stat:disable\n");
+			break;
 		default:
 			pr_info("Usage: echo [level] > /sys/kernel/debug/mtketh/reset\n");
-			pr_info("Commands:	 [level]\n");
-			pr_info("			   0	 disable reset\n");
-			pr_info("			   1	 FE and WDMA reset\n");
-			pr_info("			   2	 enable reset\n");
-			pr_info("			   3	 FE reset\n");
-			pr_info("			   4	enable dump reset info\n");
-			pr_info("			   5	disable dump reset info\n");
+			pr_info("Commands:   [level]\n");
+			pr_info("		0	disable FE force reset\n");
+			pr_info("		1	trigger FE and WDMA force reset without PHY disconnect\n");
+			pr_info("		2	enable FE force reset\n");
+			pr_info("		3	trigger FE force reset without PHY disconnect\n");
+			pr_info("		4	enable reset info dump\n");
+			pr_info("		5	disable reset info dump\n");
+			pr_info("		6	trigger FE and WDMA force reset with PHY disconnect\n");
+			pr_info("		7	trigger FE reset force with PHY disconnect\n");
 			break;
 	}
 	return count;

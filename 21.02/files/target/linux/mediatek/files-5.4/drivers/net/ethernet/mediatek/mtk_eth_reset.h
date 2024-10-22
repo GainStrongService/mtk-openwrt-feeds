@@ -89,7 +89,6 @@ void mtk_dump_netsys_info(void *_eth);
 void mtk_hw_reset_monitor(struct mtk_eth *eth);
 void mtk_save_qdma_cfg(struct mtk_eth *eth);
 void mtk_restore_qdma_cfg(struct mtk_eth *eth);
-void mtk_prepare_reset_fe(struct mtk_eth *eth);
 void mtk_prepare_reset_ppe(struct mtk_eth *eth, u32 ppe_id);
 
 void mtk_pse_set_port_link(struct mtk_eth *eth, u32 port, bool enable);
