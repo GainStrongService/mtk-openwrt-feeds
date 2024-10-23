@@ -4,13 +4,13 @@ Date: Thu, 17 Oct 2024 16:36:18 +0800
 Subject: [PATCH] ethernet update ppe from netsys2 to netsys3
 
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c   | 14 ++++++-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c   | 13 ++++++-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  7 ++--
  drivers/net/ethernet/mediatek/mtk_ppe.c       | 35 +++++++++++++++---
  drivers/net/ethernet/mediatek/mtk_ppe.h       | 37 ++++++++++++++++---
  .../net/ethernet/mediatek/mtk_ppe_offload.c   |  6 ++-
  drivers/net/ethernet/mediatek/mtk_ppe_regs.h  |  7 ++++
- 6 files changed, 87 insertions(+), 19 deletions(-)
+ 6 files changed, 86 insertions(+), 19 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 index aaf3621..c1b9fd2 100644
@@ -57,14 +57,6 @@ index aaf3621..c1b9fd2 100644
  	.rss_num = 4,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),
-@@ -6643,6 +6652,7 @@ static const struct mtk_soc_data mt7987_data = {
- 		.rx_dma_l4_valid = RX_DMA_L4_VALID_V2,
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
-+		.qdma_tx_sch = 4,
- 	},
- };
- 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 index d1c869d..0824d0a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h

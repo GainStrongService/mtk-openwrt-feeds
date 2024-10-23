@@ -1,23 +1,23 @@
-From 7f03888eb832e80ea8cd95593504a7cbcf98fd81 Mon Sep 17 00:00:00 2001
-From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
-Date: Tue, 9 Apr 2024 15:05:24 +0800
+From c2ccdb141e1f626e826ac081b7c978a705f16caf Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Wed, 23 Oct 2024 10:29:08 +0800
 Subject: [PATCH] flow-offload-add-mtkhnat-qdma-qos
 
 ---
  drivers/net/ethernet/mediatek/Makefile        |   2 +-
- drivers/net/ethernet/mediatek/mtk_eth_soc.c   |  10 +
- drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  35 ++
- drivers/net/ethernet/mediatek/mtk_ppe.c       |  48 +-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c   |   2 +
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  33 +++++
+ drivers/net/ethernet/mediatek/mtk_ppe.c       |  49 ++++++-
  drivers/net/ethernet/mediatek/mtk_ppe.h       |   4 +
- .../net/ethernet/mediatek/mtk_ppe_offload.c   |  28 +-
- .../net/ethernet/mediatek/mtk_qdma_debugfs.c  | 448 ++++++++++++++++++
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   |  28 +++-
+ .../net/ethernet/mediatek/mtk_qdma_debugfs.c  | 135 ++++++++++++++++++
  include/net/flow_offload.h                    |   1 +
  net/netfilter/nf_flow_table_offload.c         |   4 +-
- 9 files changed, 575 insertions(+), 5 deletions(-)
+ 9 files changed, 253 insertions(+), 5 deletions(-)
  create mode 100644 drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c
 
 diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
-index fdbb90f..c7d2296 100644
+index 1074006..fec5640 100644
 --- a/drivers/net/ethernet/mediatek/Makefile
 +++ b/drivers/net/ethernet/mediatek/Makefile
 @@ -5,7 +5,7 @@
@@ -30,10 +30,10 @@ index fdbb90f..c7d2296 100644
  ifdef CONFIG_DEBUG_FS
  mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 63d1cc3..b6293c2 100644
+index c03b59a..2dcb02c 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -5868,6 +5868,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6462,6 +6462,8 @@ static int mtk_probe(struct platform_device *pdev)
  		}
  
  		mtk_ppe_debugfs_init(eth);
@@ -42,93 +42,21 @@ index 63d1cc3..b6293c2 100644
  	}
  
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
-@@ -5987,6 +5989,7 @@ static const struct mtk_soc_data mt2701_data = {
- 		.rx_dma_l4_valid = RX_DMA_L4_VALID,
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
-+		.qdma_tx_sch = 2,
- 	},
- };
- 
-@@ -6010,6 +6013,7 @@ static const struct mtk_soc_data mt7621_data = {
- 		.rxd_size = sizeof(struct mtk_rx_dma),
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
-+		.qdma_tx_sch = 2,
- 	},
- };
- 
-@@ -6034,6 +6038,7 @@ static const struct mtk_soc_data mt7622_data = {
- 		.rx_dma_l4_valid = RX_DMA_L4_VALID,
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
-+		.qdma_tx_sch = 2,
- 	},
- };
- 
-@@ -6057,6 +6062,7 @@ static const struct mtk_soc_data mt7623_data = {
- 		.rx_dma_l4_valid = RX_DMA_L4_VALID,
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
-+		.qdma_tx_sch = 2,
- 	},
- };
- 
-@@ -6103,6 +6109,7 @@ static const struct mtk_soc_data mt7986_data = {
- 		.rx_dma_l4_valid = RX_DMA_L4_VALID,
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
-+		.qdma_tx_sch = 4,
- 	},
- };
- 
-@@ -6127,6 +6134,7 @@ static const struct mtk_soc_data mt7981_data = {
- 		.rx_dma_l4_valid = RX_DMA_L4_VALID,
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
-+		.qdma_tx_sch = 4,
- 	},
- };
- 
-@@ -6148,6 +6156,7 @@ static const struct mtk_soc_data mt7988_data = {
- 		.rx_dma_l4_valid = RX_DMA_L4_VALID_V2,
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN_V2,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT_V2,
-+		.qdma_tx_sch = 4,
- 	},
- };
- 
-@@ -6169,6 +6178,7 @@ static const struct mtk_soc_data rt5350_data = {
- 		.rx_dma_l4_valid = RX_DMA_L4_VALID_PDMA,
- 		.dma_max_len = MTK_TX_DMA_BUF_LEN,
- 		.dma_len_offset = MTK_TX_DMA_BUF_SHIFT,
-+		.qdma_tx_sch = 4,
- 	},
- };
- 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 351e66c..2ddadf3 100644
+index d52c29a..2e62560 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1771,6 +1781,7 @@ struct mtk_soc_data {
- 		u32	rx_dma_l4_valid;
- 		u32	dma_max_len;
- 		u32	dma_len_offset;
-+		u32	qdma_tx_sch;
- 	} txrx;
- };
- 
-@@ -1971,6 +1982,7 @@ struct mtk_eth {
+@@ -2361,6 +2361,7 @@ struct mtk_eth {
+ 	spinlock_t			syscfg0_lock;
  	struct notifier_block		netdevice_notifier;
- 	struct timer_list		mtk_dma_monitor_timer;
  
 +	u8				qos_toggle;
  	u8				ppe_num;
  	struct mtk_ppe			*ppe[MTK_MAX_PPE_NUM];
  	struct rhashtable		flow_table;
-@@ -2029,6 +2041,36 @@ extern const struct of_device_id of_mtk_match[];
- extern u32 mtk_hwlro_stats_ebl;
- extern u32 dbg_show_level;
+@@ -2433,6 +2434,36 @@ mtk_foe_get_entry(struct mtk_ppe *ppe, u16 hash)
+ 	return ppe->foe_table + hash * soc->foe_entry_size;
+ }
  
 +static inline void mtk_set_ib1_sp(struct mtk_eth *eth, struct mtk_foe_entry *foe, u32 val)
 +{
@@ -163,15 +91,15 @@ index 351e66c..2ddadf3 100644
  /* read the hardware status register */
  void mtk_stats_update_mac(struct mtk_mac *mac);
  
-@@ -2060,4 +2102,6 @@ void mtk_eth_set_dma_device(struct mtk_eth *eth, struct device *dma_dev);
- u32 mtk_rss_indr_table(struct mtk_rss_params *rss_params, int index);
+@@ -2470,4 +2501,6 @@ int mtk_ptp_hwtstamp_get_config(struct net_device *dev, struct ifreq *ifr);
+ int mtk_ptp_clock_init(struct mtk_eth *eth);
  
  int mtk_ppe_debugfs_init(struct mtk_eth *eth);
 +
 +int mtk_qdma_debugfs_init(struct mtk_eth *eth);
  #endif /* MTK_ETH_H */
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 94e03b2..8388f65 100755
+index ef6e992..f14e96f 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -128,7 +128,7 @@ static void mtk_ppe_cache_enable(struct mtk_ppe *ppe, bool enable)
@@ -244,10 +172,10 @@ index 94e03b2..8388f65 100755
  mtk_flow_entry_match(struct mtk_flow_entry *entry, struct mtk_foe_entry *data)
  {
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 86288b0..5ab864f 100644
+index 6c3fdb1..4beac4f 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -403,9 +403,13 @@ int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid);
+@@ -390,9 +390,13 @@ int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid);
  int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid);
  int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
  			   int bss, int wcid);
@@ -330,10 +258,10 @@ index b80f72d..3bc50a4 100755
  		return err;
 diff --git a/drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c b/drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c
 new file mode 100644
-index 0000000..0266e88
+index 0000000..3d7f183
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_qdma_debugfs.c
-@@ -0,0 +1,448 @@
+@@ -0,0 +1,135 @@
 +/* SPDX-License-Identifier: GPL-2.0
 + *
 + * Copyright (c) 2022 MediaTek Inc.
@@ -344,78 +272,23 @@ index 0000000..0266e88
 +#include <linux/kernel.h>
 +#include <linux/debugfs.h>
 +#include "mtk_eth_soc.h"
-+
-+#define MAX_PPPQ_PORT_NUM	6
++#include "mtk_eth_dbg.h"
 +
 +static struct mtk_eth *_eth;
 +
 +static void mtk_qdma_qos_shaper_ebl(struct mtk_eth *eth, u32 id, u32 enable)
 +{
-+	u32 val;
-+
-+	if (enable) {
-+		if (id < MAX_PPPQ_PORT_NUM) {
-+			val = MTK_QTX_SCH_MIN_RATE_EN | MTK_QTX_SCH_MAX_RATE_EN;
-+			val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, 1) |
-+			       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, 4) |
-+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, 1) |
-+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, 6) |
-+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 4);
-+		} else {
-+			val = MTK_QTX_SCH_MIN_RATE_EN;
-+			val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, 1) |
-+			       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, 3) |
-+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, 0) |
-+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, 0) |
-+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 4);
-+		}
-+
-+		writel(val, eth->base + MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
-+	} else {
-+		writel(0, eth->base + MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
-+	}
++	qdma_qos_shaper_ebl(id, enable);
 +}
 +
 +static void mtk_qdma_qos_disable(struct mtk_eth *eth)
 +{
-+	u32 id, val;
-+
-+	for (id = 0; id < MAX_PPPQ_PORT_NUM; id++) {
-+		mtk_qdma_qos_shaper_ebl(eth, id, 0);
-+
-+		writel(FIELD_PREP(MTK_QTX_CFG_HW_RESV_CNT_OFFSET, 4) |
-+		       FIELD_PREP(MTK_QTX_CFG_SW_RESV_CNT_OFFSET, 4),
-+		       eth->base + MTK_QTX_CFG(id % MTK_QTX_PER_PAGE));
-+	}
-+
-+	val = (MTK_QDMA_TX_SCH_MAX_WFQ) | (MTK_QDMA_TX_SCH_MAX_WFQ << 16);
-+	for (id = 0; id < eth->soc->txrx.qdma_tx_sch; id += 2) {
-+		if (eth->soc->txrx.qdma_tx_sch == 4)
-+			writel(val, eth->base + MTK_QDMA_TX_4SCH_BASE(id));
-+		else
-+			writel(val, eth->base + MTK_QDMA_TX_2SCH_BASE);
-+	}
++	qdma_qos_disable();
 +}
 +
 +static void mtk_qdma_qos_pppq_enable(struct mtk_eth *eth)
 +{
-+	u32 id, val;
-+
-+	for (id = 0; id < 2 * MAX_PPPQ_PORT_NUM; id++) {
-+		mtk_qdma_qos_shaper_ebl(eth, id, 1);
-+
-+		writel(FIELD_PREP(MTK_QTX_CFG_HW_RESV_CNT_OFFSET, 4) |
-+		       FIELD_PREP(MTK_QTX_CFG_SW_RESV_CNT_OFFSET, 4),
-+		       eth->base + MTK_QTX_CFG(id % MTK_QTX_PER_PAGE));
-+	}
-+
-+	val = (MTK_QDMA_TX_SCH_MAX_WFQ) | (MTK_QDMA_TX_SCH_MAX_WFQ << 16);
-+	for (id = 0; id < eth->soc->txrx.qdma_tx_sch; id+= 2) {
-+		if (eth->soc->txrx.qdma_tx_sch == 4)
-+			writel(val, eth->base + MTK_QDMA_TX_4SCH_BASE(id));
-+		else
-+			writel(val, eth->base + MTK_QDMA_TX_2SCH_BASE);
-+	}
++	qdma_qos_pppq_ebl(true);
 +}
 +
 + static ssize_t mtk_qmda_debugfs_write_qos(struct file *file, const char __user *buffer,
@@ -466,272 +339,6 @@ index 0000000..0266e88
 +			   inode->i_private);
 +}
 +
-+static ssize_t mtk_qmda_debugfs_read_qos_sched(struct file *file, char __user *user_buf,
-+					       size_t count, loff_t *ppos)
-+{
-+	struct mtk_eth *eth = _eth;
-+	long id = (long)file->private_data;
-+	char *buf;
-+	unsigned int len = 0, buf_len = 1500;
-+	int enable, scheduling, max_rate, exp, scheduler, i;
-+	ssize_t ret_cnt;
-+	u32 val;
-+
-+	buf = kzalloc(buf_len, GFP_KERNEL);
-+	if (!buf)
-+		return -ENOMEM;
-+
-+	if (eth->soc->txrx.qdma_tx_sch == 4)
-+		val = readl(eth->base + MTK_QDMA_TX_4SCH_BASE(id));
-+	else
-+		val = readl(eth->base + MTK_QDMA_TX_2SCH_BASE);
-+
-+	if (id & 0x1)
-+		val >>= 16;
-+
-+	val &= MTK_QDMA_TX_SCH_MASK;
-+	enable     = FIELD_GET(MTK_QDMA_TX_SCH_RATE_EN, val);
-+	scheduling = FIELD_GET(MTK_QDMA_TX_SCH_MAX_WFQ, val);
-+	max_rate   = FIELD_GET(MTK_QDMA_TX_SCH_RATE_MAN, val);
-+	exp        = FIELD_GET(MTK_QDMA_TX_SCH_RATE_EXP, val);
-+	while (exp--)
-+		max_rate *= 10;
-+
-+	len += scnprintf(buf + len, buf_len - len,
-+			 "EN\tScheduling\tMAX\tQueue#\n%d\t%s%16d\t", enable,
-+			 (scheduling == 1) ? "WRR" : "SP", max_rate);
-+
-+	for (i = 0; i < MTK_QDMA_TX_NUM; i++) {
-+		val = readl(eth->base + MTK_QDMA_PAGE) & ~MTK_QTX_CFG_PAGE;
-+		val |= FIELD_PREP(MTK_QTX_CFG_PAGE, i / MTK_QTX_PER_PAGE);
-+		writel(val, eth->base + MTK_QDMA_PAGE);
-+
-+		val = readl(eth->base + MTK_QTX_SCH(i % MTK_QTX_PER_PAGE));
-+		if (eth->soc->txrx.qdma_tx_sch == 4)
-+			scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL_V2, val);
-+		else
-+			scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL, val);
-+		if (id == scheduler)
-+			len += scnprintf(buf + len, buf_len - len, "%d  ", i);
-+	}
-+
-+	len += scnprintf(buf + len, buf_len - len, "\n");
-+	if (len > buf_len)
-+		len = buf_len;
-+
-+	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-+
-+	kfree(buf);
-+	return ret_cnt;
-+}
-+
-+static ssize_t mtk_qmda_debugfs_write_qos_sched(struct file *file, const char __user *buf,
-+						size_t length, loff_t *offset)
-+{
-+	struct mtk_eth *eth = _eth;
-+	long id = (long)file->private_data;
-+	char line[64] = {0}, scheduling[32];
-+	int enable, rate, exp = 0, shift = 0;
-+	size_t size;
-+	u32 sch, val = 0;
-+
-+	if (length >= sizeof(line))
-+		return -EINVAL;
-+
-+	if (copy_from_user(line, buf, length))
-+		return -EFAULT;
-+
-+	if (sscanf(line, "%d %s %d", &enable, scheduling, &rate) != 3)
-+		return -EFAULT;
-+
-+	while (rate > 127) {
-+		rate /= 10;
-+		exp++;
-+	}
-+
-+	line[length] = '\0';
-+
-+	if (enable)
-+		val |= FIELD_PREP(MTK_QDMA_TX_SCH_RATE_EN, 1);
-+	if (strcmp(scheduling, "sp") != 0)
-+		val |= FIELD_PREP(MTK_QDMA_TX_SCH_MAX_WFQ, 1);
-+	val |= FIELD_PREP(MTK_QDMA_TX_SCH_RATE_MAN, rate);
-+	val |= FIELD_PREP(MTK_QDMA_TX_SCH_RATE_EXP, exp);
-+
-+	if (id & 0x1)
-+		shift = 16;
-+
-+	if (eth->soc->txrx.qdma_tx_sch == 4)
-+		sch = readl(eth->base + MTK_QDMA_TX_4SCH_BASE(id));
-+	else
-+		sch = readl(eth->base + MTK_QDMA_TX_2SCH_BASE);
-+
-+	sch &= ~(MTK_QDMA_TX_SCH_MASK << shift);
-+	sch |= val << shift;
-+	if (eth->soc->txrx.qdma_tx_sch == 4)
-+		writel(sch, eth->base + MTK_QDMA_TX_4SCH_BASE(id));
-+	else
-+		writel(sch, eth->base + MTK_QDMA_TX_2SCH_BASE);
-+
-+	size = strlen(line);
-+	*offset += size;
-+
-+	return length;
-+}
-+
-+static ssize_t mtk_qmda_debugfs_read_qos_queue(struct file *file, char __user *user_buf,
-+					       size_t count, loff_t *ppos)
-+{
-+	struct mtk_eth *eth = _eth;
-+	long id = (long)file->private_data;
-+	char *buf;
-+	unsigned int len = 0, buf_len = 1500;
-+	int min_rate_en, min_rate, min_rate_exp;
-+	int max_rate_en, max_weight, max_rate, max_rate_exp;
-+	u32 qtx_sch, qtx_cfg, scheduler, val;
-+	ssize_t ret_cnt;
-+
-+	buf = kzalloc(buf_len, GFP_KERNEL);
-+	if (!buf)
-+		return -ENOMEM;
-+
-+	val = readl(eth->base + MTK_QDMA_PAGE) & ~MTK_QTX_CFG_PAGE;
-+	val |= FIELD_PREP(MTK_QTX_CFG_PAGE, id / MTK_QTX_PER_PAGE);
-+	writel(val, eth->base + MTK_QDMA_PAGE);
-+
-+	qtx_cfg = readl(eth->base + MTK_QTX_CFG(id % MTK_QTX_PER_PAGE));
-+	qtx_sch = readl(eth->base + MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
-+	if (eth->soc->txrx.qdma_tx_sch == 4)
-+		scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL_V2, qtx_sch);
-+	else
-+		scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL, qtx_sch);
-+
-+	min_rate_en  = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EN, qtx_sch);
-+	min_rate     = FIELD_GET(MTK_QTX_SCH_MIN_RATE_MAN, qtx_sch);
-+	min_rate_exp = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EXP, qtx_sch);
-+	max_rate_en  = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EN, qtx_sch);
-+	max_weight   = FIELD_GET(MTK_QTX_SCH_MAX_RATE_WEIGHT, qtx_sch);
-+	max_rate     = FIELD_GET(MTK_QTX_SCH_MAX_RATE_MAN, qtx_sch);
-+	max_rate_exp = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EXP, qtx_sch);
-+	while (min_rate_exp--)
-+		min_rate *= 10;
-+
-+	while (max_rate_exp--)
-+		max_rate *= 10;
-+
-+	len += scnprintf(buf + len, buf_len - len,
-+			 "scheduler: %d\nhw resv: %d\nsw resv: %d\n", scheduler,
-+			 (qtx_cfg >> 8) & 0xff, qtx_cfg & 0xff);
-+
-+	/* Switch to debug mode */
-+	val = readl(eth->base + MTK_QTX_MIB_IF) & ~MTK_MIB_ON_QTX_CFG;
-+	val |= MTK_MIB_ON_QTX_CFG;
-+	writel(val, eth->base + MTK_QTX_MIB_IF);
-+
-+	val = readl(eth->base + MTK_QTX_MIB_IF) & ~MTK_VQTX_MIB_EN;
-+	val |= MTK_VQTX_MIB_EN;
-+	writel(val, eth->base + MTK_QTX_MIB_IF);
-+
-+	qtx_cfg = readl(eth->base + MTK_QTX_CFG(id % MTK_QTX_PER_PAGE));
-+	qtx_sch = readl(eth->base + MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
-+
-+	len += scnprintf(buf + len, buf_len - len,
-+			 "packet count: %u\n", qtx_cfg);
-+	len += scnprintf(buf + len, buf_len - len,
-+			 "packet drop: %u\n\n", qtx_sch);
-+
-+	/* Recover to normal mode */
-+	val = readl(eth->base + MTK_QTX_MIB_IF);
-+	val &= ~MTK_MIB_ON_QTX_CFG;
-+	writel(val, eth->base + MTK_QTX_MIB_IF);
-+
-+	val = readl(eth->base + MTK_QTX_MIB_IF);
-+	val &= ~MTK_VQTX_MIB_EN;
-+	writel(val, eth->base + MTK_QTX_MIB_IF);
-+
-+	len += scnprintf(buf + len, buf_len - len,
-+			 "      EN     RATE     WEIGHT\n");
-+	len += scnprintf(buf + len, buf_len - len,
-+			 "----------------------------\n");
-+	len += scnprintf(buf + len, buf_len - len,
-+			 "max%5d%9d%9d\n", max_rate_en, max_rate, max_weight);
-+	len += scnprintf(buf + len, buf_len - len,
-+			 "min%5d%9d        -\n", min_rate_en, min_rate);
-+
-+	if (len > buf_len)
-+		len = buf_len;
-+
-+	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-+
-+	kfree(buf);
-+
-+	return ret_cnt;
-+}
-+
-+static ssize_t mtk_qmda_debugfs_write_qos_queue(struct file *file, const char __user *buf,
-+						size_t length, loff_t *offset)
-+{
-+	struct mtk_eth *eth = _eth;
-+	long id = (long)file->private_data;
-+	char line[64] = {0};
-+	int max_enable, max_rate, max_exp = 0;
-+	int min_enable, min_rate, min_exp = 0;
-+	int scheduler, weight, resv;
-+	size_t size;
-+	u32 val;
-+
-+	if (length >= sizeof(line))
-+		return -EINVAL;
-+
-+	if (copy_from_user(line, buf, length))
-+		return -EFAULT;
-+
-+	if (sscanf(line, "%d %d %d %d %d %d %d", &scheduler, &min_enable, &min_rate,
-+		   &max_enable, &max_rate, &weight, &resv) != 7)
-+		return -EFAULT;
-+
-+	line[length] = '\0';
-+
-+	while (max_rate > 127) {
-+		max_rate /= 10;
-+		max_exp++;
-+	}
-+
-+	while (min_rate > 127) {
-+		min_rate /= 10;
-+		min_exp++;
-+	}
-+
-+	val = readl(eth->base + MTK_QDMA_PAGE) & ~MTK_QTX_CFG_PAGE;
-+	val |= FIELD_PREP(MTK_QTX_CFG_PAGE, id / MTK_QTX_PER_PAGE);
-+	writel(val, eth->base + MTK_QDMA_PAGE);
-+
-+	if (eth->soc->txrx.qdma_tx_sch == 4)
-+		val = FIELD_PREP(MTK_QTX_SCH_TX_SEL_V2, scheduler);
-+	else
-+		val = FIELD_PREP(MTK_QTX_SCH_TX_SEL, scheduler);
-+	if (min_enable)
-+		val |= MTK_QTX_SCH_MIN_RATE_EN;
-+	val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, min_rate);
-+	val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, min_exp);
-+	if (max_enable)
-+		val |= MTK_QTX_SCH_MAX_RATE_EN;
-+	val |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, weight);
-+	val |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, max_rate);
-+	val |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, max_exp);
-+	writel(val, eth->base + MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
-+
-+	val = readl(eth->base + MTK_QTX_CFG(id % MTK_QTX_PER_PAGE));
-+	val |= FIELD_PREP(MTK_QTX_CFG_HW_RESV_CNT_OFFSET, resv);
-+	val |= FIELD_PREP(MTK_QTX_CFG_SW_RESV_CNT_OFFSET, resv);
-+	writel(val, eth->base + MTK_QTX_CFG(id % MTK_QTX_PER_PAGE));
-+
-+	size = strlen(line);
-+	*offset += size;
-+
-+	return length;
-+}
-+
 +int mtk_qdma_debugfs_init(struct mtk_eth *eth)
 +{
 +	static const struct file_operations fops_qos = {
@@ -742,23 +349,10 @@ index 0000000..0266e88
 +		.release = single_release,
 +	};
 +
-+	static const struct file_operations fops_qos_sched = {
-+		.open = simple_open,
-+		.read = mtk_qmda_debugfs_read_qos_sched,
-+		.write = mtk_qmda_debugfs_write_qos_sched,
-+		.llseek = default_llseek,
-+	};
-+
-+	static const struct file_operations fops_qos_queue = {
-+		.open = simple_open,
-+		.read = mtk_qmda_debugfs_read_qos_queue,
-+		.write = mtk_qmda_debugfs_write_qos_queue,
-+		.llseek = default_llseek,
-+	};
-+
 +	struct dentry *root;
 +	long i;
-+	char name[16];
++	char name[16], name_symlink[48];
++	int ret = 0;
 +
 +	_eth = eth;
 +
@@ -768,19 +362,40 @@ index 0000000..0266e88
 +
 +	debugfs_create_file("qos_toggle", S_IRUGO, root, eth, &fops_qos);
 +
-+	for (i = 0; i < eth->soc->txrx.qdma_tx_sch; i++) {
-+		snprintf(name, sizeof(name), "qdma_sch%ld", i);
-+		debugfs_create_file(name, S_IRUGO, root, (void *)i,
-+				    &fops_qos_sched);
++	for (i = 0; i < (!MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1) ? 4 : 2); i++) {
++		ret = snprintf(name, sizeof(name), "qdma_sch%ld", i);
++		if (ret != strlen(name)) {
++			ret = -ENOMEM;
++			goto err;
++		}
++		ret = snprintf(name_symlink, sizeof(name_symlink),
++			       "/sys/kernel/debug/mtketh/qdma_sch%ld", i);
++		if (ret != strlen(name_symlink)) {
++			ret = -ENOMEM;
++			goto err;
++		}
++		debugfs_create_symlink(name, root, name_symlink);
 +	}
 +
 +	for (i = 0; i < MTK_QDMA_TX_NUM; i++) {
-+		snprintf(name, sizeof(name), "qdma_txq%ld", i);
-+		debugfs_create_file(name, S_IRUGO, root, (void *)i,
-+				    &fops_qos_queue);
++		ret = snprintf(name, sizeof(name), "qdma_txq%ld", i);
++		if (ret != strlen(name)) {
++			ret = -ENOMEM;
++			goto err;
++		}
++		ret = snprintf(name_symlink, sizeof(name_symlink),
++			       "/sys/kernel/debug/mtketh/qdma_txq%ld", i);
++		if (ret != strlen(name_symlink)) {
++			ret = -ENOMEM;
++			goto err;
++		}
++		debugfs_create_symlink(name, root, name_symlink);
 +	}
 +
 +	return 0;
++
++err:
++	return ret;
 +}
 diff --git a/include/net/flow_offload.h b/include/net/flow_offload.h
 index 59b8736..c4eb45c 100644
@@ -822,5 +437,5 @@ index 50f2f2e..ba34572 100644
  	if (cmd == FLOW_CLS_REPLACE)
  		cls_flow.rule = flow_rule->rule;
 -- 
-2.18.0
+2.45.2
 
