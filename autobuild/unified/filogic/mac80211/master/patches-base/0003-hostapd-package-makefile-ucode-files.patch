@@ -1,5 +1,5 @@
 diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index 0e3396262d..3105b98c31 100644
+index 0e33962..3105b98 100644
 --- a/package/network/services/hostapd/Makefile
 +++ b/package/network/services/hostapd/Makefile
 @@ -85,7 +85,7 @@ ifneq ($(CONFIG_DRIVER_11BE_SUPPORT),)
@@ -22,10 +22,10 @@ index 0e3396262d..3105b98c31 100644
  
  define Package/hostapd/install
 diff --git a/package/network/services/hostapd/files/hostapd.uc b/package/network/services/hostapd/files/hostapd.uc
-index 6774fbf3ba..f9d9df8b3c 100644
+index 2d9ce28..2bc58e4 100644
 --- a/package/network/services/hostapd/files/hostapd.uc
 +++ b/package/network/services/hostapd/files/hostapd.uc
-@@ -61,6 +61,7 @@ start_disabled=1
+@@ -86,6 +86,7 @@ start_disabled=1
  function iface_freq_info(iface, config, params)
  {
  	let freq = params.frequency;
@@ -33,7 +33,7 @@ index 6774fbf3ba..f9d9df8b3c 100644
  	if (!freq)
  		return null;
  
-@@ -69,25 +70,29 @@ function iface_freq_info(iface, config, params)
+@@ -94,25 +95,29 @@ function iface_freq_info(iface, config, params)
  		sec_offset = 0;
  
  	let width = 0;
@@ -75,7 +75,7 @@ index 6774fbf3ba..f9d9df8b3c 100644
  }
  
  function iface_add(phy, config, phy_status)
-@@ -751,6 +756,8 @@ let main_obj = {
+@@ -841,6 +846,8 @@ let main_obj = {
  			up: true,
  			frequency: 0,
  			sec_chan_offset: 0,
@@ -84,8 +84,8 @@ index 6774fbf3ba..f9d9df8b3c 100644
  			csa: true,
  			csa_count: 0,
  		},
-@@ -758,6 +765,15 @@ let main_obj = {
- 			if (req.args.up == null || !req.args.phy)
+@@ -849,6 +856,15 @@ let main_obj = {
+ 			if (req.args.up == null || !phy)
  				return libubus.STATUS_INVALID_ARGUMENT;
  
 +			hostapd.printf(`ucode: mtk: apsta state update`);
@@ -97,14 +97,14 @@ index 6774fbf3ba..f9d9df8b3c 100644
 +			hostapd.printf(`    * bw320_offset: ${req.args.bw320_offset}`);
 +			hostapd.printf(`    * csa: ${req.args.csa}`);
 +
- 			let phy = req.args.phy;
  			let config = hostapd.data.config[phy];
  			if (!config || !config.bss || !config.bss[0] || !config.bss[0].ifname)
+ 				return 0;
 diff --git a/package/network/services/hostapd/files/wpa_supplicant.uc b/package/network/services/hostapd/files/wpa_supplicant.uc
-index 31d4534625..36d0b9aaef 100644
+index fbea276..a9b7f9d 100644
 --- a/package/network/services/hostapd/files/wpa_supplicant.uc
 +++ b/package/network/services/hostapd/files/wpa_supplicant.uc
-@@ -266,6 +266,7 @@ function iface_hostapd_notify(phy, ifname, iface, state)
+@@ -316,6 +316,7 @@ function iface_hostapd_notify(phy, ifname, iface, state)
  	let status = iface.status();
  	let msg = { phy: phy };
  
@@ -112,7 +112,7 @@ index 31d4534625..36d0b9aaef 100644
  	switch (state) {
  	case "DISCONNECTED":
  	case "AUTHENTICATING":
-@@ -280,6 +281,8 @@ function iface_hostapd_notify(phy, ifname, iface, state)
+@@ -330,6 +331,8 @@ function iface_hostapd_notify(phy, ifname, iface, state)
  		msg.up = true;
  		msg.frequency = status.frequency;
  		msg.sec_chan_offset = status.sec_chan_offset;
@@ -121,7 +121,7 @@ index 31d4534625..36d0b9aaef 100644
  		break;
  	default:
  		return;
-@@ -296,6 +299,8 @@ function iface_channel_switch(phy, ifname, iface, info)
+@@ -346,6 +349,8 @@ function iface_channel_switch(phy, ifname, iface, info)
  		csa: true,
  		csa_count: info.csa_count ? info.csa_count - 1 : 0,
  		frequency: info.frequency,
