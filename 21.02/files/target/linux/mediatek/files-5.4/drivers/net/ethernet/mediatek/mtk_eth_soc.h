@@ -61,7 +61,7 @@
 
 #define MTK_HW_LRO_DMA_SIZE	64
 
-#define	MTK_MAX_LRO_RX_LENGTH		(4096 * 3)
+#define	MTK_MAX_LRO_RX_LENGTH		(4096 * 3 + MTK_MAX_RX_LENGTH)
 #define	MTK_MAX_LRO_IP_CNT		2
 #define	MTK_HW_LRO_TIMER_UNIT		1	/* 20 us */
 #define	MTK_HW_LRO_REFRESH_TIME		50000	/* 1 sec. */
@@ -360,7 +360,7 @@
 #define MTK_CHK_DDONE		BIT(10)
 
 /* PDMA RX DMA Configuration Register */
-#define MTK_PDMA_LRO_SDL	(0x3000)
+#define MTK_PDMA_LRO_SDL	(0x3000 + MTK_MAX_RX_LENGTH)
 #define MTK_RX_CFG_SDL_OFFSET	(16)
 
 /* PDMA Reset Index Register */
