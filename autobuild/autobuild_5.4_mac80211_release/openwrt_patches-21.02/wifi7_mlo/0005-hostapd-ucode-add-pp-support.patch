@@ -1,8 +1,8 @@
 diff --git a/package/network/services/hostapd/files/hostapd.uc b/package/network/services/hostapd/files/hostapd.uc
-index 48f12c5e..19b1490f 100644
+index 9e77cde..58770a6 100644
 --- a/package/network/services/hostapd/files/hostapd.uc
 +++ b/package/network/services/hostapd/files/hostapd.uc
-@@ -64,6 +64,7 @@ function iface_freq_info(iface, config, params)
+@@ -89,6 +89,7 @@ function iface_freq_info(iface, config, params)
  	let freq = params.frequency;
  	let bw320_offset = params.bw320_offset;
  	let band_idx = params.band_idx;
@@ -10,7 +10,7 @@ index 48f12c5e..19b1490f 100644
  	if (!freq)
  		return null;
  
-@@ -94,7 +95,7 @@ function iface_freq_info(iface, config, params)
+@@ -119,7 +120,7 @@ function iface_freq_info(iface, config, params)
  	if (freq < 4000)
  		width = 0;
  
@@ -19,27 +19,27 @@ index 48f12c5e..19b1490f 100644
  }
  
  function iface_add(phy, config, phy_status)
-@@ -785,6 +786,7 @@ let main_obj = {
+@@ -886,6 +887,7 @@ let main_obj = {
  			band_idx: 0,
  			csa: true,
  			csa_count: 0,
 +			punct_bitmap: 0,
  		},
  		call: ex_wrap(function(req) {
- 			if (req.args.up == null || !req.args.phy)
-@@ -799,6 +801,7 @@ let main_obj = {
+ 			let phy = phy_name(req.args.phy, req.args.radio);
+@@ -901,6 +903,7 @@ let main_obj = {
  			hostapd.printf(`    * bw320_offset: ${req.args.bw320_offset}`);
  			hostapd.printf(`    * band_idx: ${req.args.band_idx}`);
  			hostapd.printf(`    * csa: ${req.args.csa}`);
 +			hostapd.printf(`    * punct_bitmap: ${req.args.punct_bitmap}`);
  
- 			let phy = req.args.phy;
  			let config = hostapd.data.config[phy];
+ 			if (!config || !config.bss || !config.bss[0] || !config.bss[0].ifname)
 diff --git a/package/network/services/hostapd/files/wpa_supplicant.uc b/package/network/services/hostapd/files/wpa_supplicant.uc
-index 2a775510..4eac1d6d 100644
+index aae7acc..a90781c 100644
 --- a/package/network/services/hostapd/files/wpa_supplicant.uc
 +++ b/package/network/services/hostapd/files/wpa_supplicant.uc
-@@ -281,6 +281,7 @@ function iface_hostapd_notify(phy, ifname, iface, state, link_id)
+@@ -334,6 +334,7 @@ function iface_hostapd_notify(phy, ifname, iface, state, link_id)
  		msg.ch_width = status.ch_width;
  		msg.bw320_offset = status.bw320_offset;
  		msg.band_idx = status.band_idx;
@@ -47,7 +47,7 @@ index 2a775510..4eac1d6d 100644
  		break;
  	default:
  		return;
-@@ -301,6 +302,7 @@ function iface_channel_switch(phy, ifname, iface, info)
+@@ -354,6 +355,7 @@ function iface_channel_switch(phy, ifname, iface, info)
  		bw320_offset: info.bw320_offset,
  		band_idx: info.band_idx,
  		sec_chan_offset: info.sec_chan_offset,
