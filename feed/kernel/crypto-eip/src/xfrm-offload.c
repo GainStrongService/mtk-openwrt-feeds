@@ -132,22 +132,14 @@ static int mtk_xfrm_offload_cls_entry_setup(struct mtk_xfrm_params *xfrm_params)
 static void mtk_xfrm_offload_context_tear_down(struct mtk_xfrm_params *xfrm_params)
 {
 	mtk_xfrm_offload_cdrt_tear_down(xfrm_params);
-
-	/* TODO: free context */
-	devm_kfree(crypto_dev, xfrm_params->p_tr);
-
-	/* TODO: transform record tear down */
+	mtk_ddk_invalidate_rec((void *) xfrm_params->p_handle, true);
+	crypto_free_sa((void *) xfrm_params->p_handle, 0);
 }
 
 static int mtk_xfrm_offload_context_setup(struct mtk_xfrm_params *xfrm_params)
 {
 	u32 *tr;
 	int ret;
-
-	xfrm_params->p_tr = devm_kcalloc(crypto_dev, sizeof(u32),
-					 TRANSFORM_RECORD_LEN, GFP_KERNEL);
-	if (unlikely(!xfrm_params->p_tr))
-		return -ENOMEM;
 
 	switch (xfrm_params->xs->outer_mode.encap) {
 	case XFRM_MODE_TUNNEL:
@@ -166,15 +158,11 @@ static int mtk_xfrm_offload_context_setup(struct mtk_xfrm_params *xfrm_params)
 		goto err_out;
 	}
 
-	memcpy(xfrm_params->p_tr, tr, sizeof(u32) * TRANSFORM_RECORD_LEN);
-
-	/* TODO: free tr */
+	xfrm_params->p_tr = tr;
 
 	return mtk_xfrm_offload_cdrt_setup(xfrm_params);
 
 err_out:
-	devm_kfree(crypto_dev, xfrm_params->p_tr);
-
 	return ret;
 }
 
@@ -234,7 +222,6 @@ free_cdrt:
 int mtk_xfrm_offload_state_add(struct xfrm_state *xs)
 {
 	struct mtk_xfrm_params *xfrm_params;
-	unsigned long flags;
 	int ret = 0;
 
 	/* TODO: maybe support IPv6 in the future? */
@@ -277,11 +264,12 @@ int mtk_xfrm_offload_state_add(struct xfrm_state *xs)
 
 	xs->xso.offload_handle = (unsigned long)xfrm_params;
 
-	spin_lock_irqsave(&xfrm_params_list.lock, flags);
+	spin_lock_bh(&xfrm_params_list.lock);
 
 	list_add_tail(&xfrm_params->node, &xfrm_params_list.list);
 
-	spin_unlock_irqrestore(&xfrm_params_list.lock, flags);
+	spin_unlock_bh(&xfrm_params_list.lock);
+
 out:
 	return ret;
 }
@@ -298,16 +286,19 @@ void mtk_xfrm_offload_state_free(struct xfrm_state *xs)
 		return;
 
 	xfrm_params = (struct mtk_xfrm_params *)xs->xso.offload_handle;
+	xs->xso.offload_handle = 0;
 
+	spin_lock_bh(&xfrm_params_list.lock);
 	list_del(&xfrm_params->node);
+	spin_unlock_bh(&xfrm_params_list.lock);
 
 	if (xs->xso.flags & XFRM_OFFLOAD_INBOUND)
 		mtk_xfrm_offload_cls_entry_tear_down(xfrm_params);
 
-	mtk_xfrm_offload_context_tear_down(xfrm_params);
-
 	if (xfrm_params->cdrt)
 		mtk_pce_cdrt_entry_free(xfrm_params->cdrt);
+
+	mtk_xfrm_offload_context_tear_down(xfrm_params);
 
 	devm_kfree(crypto_dev, xfrm_params);
 }
@@ -315,19 +306,30 @@ void mtk_xfrm_offload_state_free(struct xfrm_state *xs)
 void mtk_xfrm_offload_state_tear_down(void)
 {
 	struct mtk_xfrm_params *xfrm_params, *tmp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&xfrm_params_list.lock, flags);
+	spin_lock_bh(&xfrm_params_list.lock);
 
 	list_for_each_entry_safe(xfrm_params, tmp, &xfrm_params_list.list, node)
 		mtk_xfrm_offload_state_free(xfrm_params->xs);
 
-	spin_unlock_irqrestore(&xfrm_params_list.lock, flags);
+	spin_unlock_bh(&xfrm_params_list.lock);
 }
 
 int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp)
 {
 	return 0;
+}
+
+void mtk_xfrm_offload_policy_delete(struct xfrm_policy *xp)
+{
+}
+
+void mtk_xfrm_offload_policy_free(struct xfrm_policy *xp)
+{
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
+	foe_clear_crypto_entry(xp->selector);
+	return;
+#endif
 }
 
 static inline struct neighbour *mtk_crypto_find_dst_mac(struct sk_buff *skb,  struct xfrm_state *xs)

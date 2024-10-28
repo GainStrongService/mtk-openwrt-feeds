@@ -43,6 +43,7 @@ void crypto_free_token(void *token);
 void crypto_free_pkt(void *pkt);
 void crypto_free_sglist(void *sglist);
 void mtk_crypto_req_expired_timer(struct timer_list *t);
+bool mtk_ddk_invalidate_rec(void *sa_p, const bool IsTransform);
 
 void *mtk_ddk_tr_capwap_dtls_build(const bool capwap,
 				struct DTLS_param *DTLSParam_p, u32 dir);

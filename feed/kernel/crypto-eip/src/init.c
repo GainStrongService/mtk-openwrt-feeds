@@ -133,6 +133,8 @@ static const struct xfrmdev_ops mtk_xfrmdev_ops = {
 
 	/* Not support at v5.4*/
 	.xdo_dev_policy_add = mtk_xfrm_offload_policy_add,
+	.xdo_dev_policy_delete = mtk_xfrm_offload_policy_delete,
+	.xdo_dev_policy_free = mtk_xfrm_offload_policy_free,
 };
 
 static int mtk_crypto_register_algorithms(struct mtk_crypto_priv *priv)

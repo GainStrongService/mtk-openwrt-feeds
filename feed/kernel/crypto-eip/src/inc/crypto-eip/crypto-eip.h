@@ -50,6 +50,7 @@ struct mtk_xfrm_params {
 	struct cdrt_entry *cdrt;
 
 	u32 *p_tr;			/* pointer to transform record */
+	u32 *p_handle;		/* pointer to eip dma handle */
 	u32 dir;			/* SABuilder_Direction_t */
 };
 
@@ -162,5 +163,7 @@ void mtk_xfrm_offload_state_delete(struct xfrm_state *xs);
 void mtk_xfrm_offload_state_free(struct xfrm_state *xs);
 void mtk_xfrm_offload_state_tear_down(void);
 int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp);
+void mtk_xfrm_offload_policy_delete(struct xfrm_policy *xp);
+void mtk_xfrm_offload_policy_free(struct xfrm_policy *xp);
 bool mtk_xfrm_offload_ok(struct sk_buff *skb, struct xfrm_state *xs);
 #endif /* _CRYPTO_EIP_H_ */

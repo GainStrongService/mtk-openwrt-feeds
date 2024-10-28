@@ -1955,13 +1955,16 @@ u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
 	SABuilder_Params_t params;
 	bool set_auth_success = false;
 	unsigned int SAWords = 0;
-	uint8_t *inner, *outer;
+	uint8_t *inner = NULL;
+	uint8_t *outer = NULL;
 
 	DMABuf_Status_t dma_status;
 	DMABuf_Properties_t dma_properties = {0, 0, 0, 0};
 	DMABuf_HostAddress_t sa_host_addr;
 
 	DMABuf_Handle_t sa_handle = {0};
+
+	PCL_Status_t pcl_status;
 
 	sa_status = SABuilder_Init_ESP(&params,
 				       &ipsec_params,
@@ -1972,22 +1975,22 @@ u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
 
 	if (sa_status != SAB_STATUS_OK) {
 		pr_err("SABuilder_Init_ESP failed\n");
-		sa_handle.p = NULL;
-		return (u32 *) sa_handle.p;
+		sa_host_addr.p = NULL;
+		goto error_ret;
 	}
 
 	/* No support for aead now */
 	if (xs->aead) {
 		CRYPTO_ERR("AEAD not supported\n");
-		sa_handle.p = NULL;
-		return (u32 *) sa_handle.p;
+		sa_host_addr.p = NULL;
+		goto error_ret;
 	}
 
 	/* Check algorithm exist in xfrm state*/
 	if (!xs->ealg || !xs->aalg) {
 		CRYPTO_ERR("NULL algorithm in xfrm state\n");
-		sa_handle.p = NULL;
-		return (u32 *) sa_handle.p;
+		sa_host_addr.p = NULL;
+		goto error_ret;
 	}
 
 	/* Add crypto key and parameters */
@@ -2000,8 +2003,8 @@ u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
 	set_auth_success = set_auth_algo(xs->aalg, &params, inner, outer);
 	if (set_auth_success != true) {
 		CRYPTO_ERR("Set Auth Algo failed\n");
-		sa_handle.p = NULL;
-		return (u32 *) sa_handle.p;
+		sa_host_addr.p = NULL;
+		goto error_ret;
 	}
 
 	ipsec_params.IPsecFlags |= (SAB_IPSEC_PROCESS_IP_HEADERS
@@ -2014,8 +2017,8 @@ u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
 	sa_status = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
 	if (sa_status != SAB_STATUS_OK) {
 		CRYPTO_ERR("SA not created because of size errors\n");
-		sa_handle.p = NULL;
-		return (u32 *) sa_handle.p;
+		sa_host_addr.p = NULL;
+		goto error_ret;
 	}
 
 	dma_properties.fCached = true;
@@ -2026,18 +2029,29 @@ u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
 	dma_status = DMABuf_Alloc(dma_properties, &sa_host_addr, &sa_handle);
 	if (dma_status != DMABUF_STATUS_OK) {
 		CRYPTO_ERR("Allocation of SA failed\n");
-		/* goto error_exit; */
-		sa_handle.p = NULL;
-		return (u32 *) sa_handle.p;
+		sa_host_addr.p = NULL;
+		goto error_ret;
 	}
 
 	sa_status = SABuilder_BuildSA(&params, (u32 *) sa_host_addr.p, NULL, NULL);
 	if (sa_status != SAB_STATUS_OK) {
 		CRYPTO_ERR("SA not created because of errors\n");
-		sa_handle.p = NULL;
-		return (u32 *) sa_handle.p;
+		DMABuf_Release(sa_handle);
+		sa_host_addr.p = NULL;
+		goto error_ret;
 	}
 
+	pcl_status = PCL_Transform_Register(sa_handle);
+	if (pcl_status != PCL_STATUS_OK) {
+		CRYPTO_ERR("%s: PCL_Transform_Register failed\n", __func__);
+		DMABuf_Release(sa_handle);
+		sa_host_addr.p = NULL;
+		goto error_ret;
+	}
+
+	xfrm_params->p_handle = (u32 *) sa_handle.p;
+
+error_ret:
 	kfree(inner);
 	kfree(outer);
 	return (u32 *) sa_host_addr.p;
@@ -2358,7 +2372,7 @@ error_exit:
 
 bool
 mtk_ddk_invalidate_rec(
-		const DMABuf_Handle_t Rec_p,
+		void *sa_p,
 		const bool IsTransform)
 {
 	PEC_Status_t PEC_Rc;
@@ -2373,7 +2387,9 @@ mtk_ddk_invalidate_rec(
 	void *OutTokenDscrExt_p = NULL;
 	IOToken_Input_Dscr_Ext_t InTokenDscrExt;
 	IOToken_Output_Dscr_Ext_t OutTokenDscrExt;
+	DMABuf_Handle_t Rec_p;
 
+	Rec_p.p = sa_p;
 	ZEROINIT(InTokenDscrExt);
 	InTokenDscrExt_p = &InTokenDscrExt;
 	OutTokenDscrExt_p = &OutTokenDscrExt;
@@ -2684,7 +2700,7 @@ int mtk_ddk_pcl_capwap_dtls_build(
 	}
 	return 0;
 unregister_exit:
-	mtk_ddk_invalidate_rec(sa, true);
+	mtk_ddk_invalidate_rec(sa.p, true);
 	PCL_Transform_UnRegister(sa);
 	return -1;
 }
@@ -2726,7 +2742,7 @@ void mtk_ddk_remove_dtls_pcl(struct DTLSResourceMgmt *dtls_res, u32 dir)
 		return;
 
 	pcl_status = PCL_DTL_Transform_Remove(PCL_INTERFACE_ID, 0, sa);
-	ret = mtk_ddk_invalidate_rec(sa, true);
+	ret = mtk_ddk_invalidate_rec(sa.p, true);
 	pcl_status = PCL_Transform_UnRegister(sa);
 
 	return;
