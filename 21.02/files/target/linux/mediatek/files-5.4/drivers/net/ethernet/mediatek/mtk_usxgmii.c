@@ -91,17 +91,32 @@ int mtk_mac2xgmii_id(struct mtk_eth *eth, int mac_id)
 	u32 xgmii_id = mac_id;
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-		switch (mac_id) {
-		case MTK_GMAC1_ID:
-		case MTK_GMAC2_ID:
-			xgmii_id = 1;
-			break;
-		case MTK_GMAC3_ID:
-			xgmii_id = 0;
-			break;
-		default:
-			pr_info("[%s] Warning: get illegal mac_id=%d !=!!!\n",
-				__func__, mac_id);
+		if (eth->soc->caps == MT7988_CAPS) {
+			switch (mac_id) {
+			case MTK_GMAC1_ID:
+			case MTK_GMAC2_ID:
+				xgmii_id = 1;
+				break;
+			case MTK_GMAC3_ID:
+				xgmii_id = 0;
+				break;
+			default:
+				pr_info("[%s] Warning: get illegal mac_id=%d !=!!!\n",
+					__func__, mac_id);
+			}
+		} else {
+			switch (mac_id) {
+			case MTK_GMAC1_ID:
+				xgmii_id = 0;
+				break;
+			case MTK_GMAC2_ID:
+			case MTK_GMAC3_ID:
+				xgmii_id = 1;
+				break;
+			default:
+				pr_info("[%s] Warning: get illegal mac_id=%d !=!!!\n",
+					__func__, mac_id);
+			}
 		}
 	}
 
@@ -113,16 +128,30 @@ int mtk_xgmii2mac_id(struct mtk_eth *eth, int xgmii_id)
 	u32 mac_id = xgmii_id;
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-		switch (xgmii_id) {
-		case 0:
-			mac_id = 2;
-			break;
-		case 1:
-			mac_id = 1;
-			break;
-		default:
-			pr_info("[%s] Warning: get illegal xgmii_id=%d !=!!!\n",
-				__func__, xgmii_id);
+		if (eth->soc->caps == MT7988_CAPS) {
+			switch (xgmii_id) {
+			case 0:
+				mac_id = 2;
+				break;
+			case 1:
+				mac_id = 1;
+				break;
+			default:
+				pr_info("[%s] Warning: get illegal xgmii_id=%d !=!!!\n",
+					__func__, xgmii_id);
+			}
+		} else {
+			switch (xgmii_id) {
+			case 0:
+				mac_id = 0;
+				break;
+			case 1:
+				mac_id = 2;
+				break;
+			default:
+				pr_info("[%s] Warning: get illegal xgmii_id=%d !=!!!\n",
+					__func__, xgmii_id);
+			}
 		}
 	}
 
