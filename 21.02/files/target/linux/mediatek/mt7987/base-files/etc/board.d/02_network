@@ -29,6 +29,16 @@ mediatek_setup_interfaces()
 	esac
 }
 
+find_factory_partition() {
+	for device in /sys/class/block/mmcblk0p*; do
+		if grep -qi 'Factory' "$device/uevent"; then
+			# Extract the partition number
+			part=$(echo "$device" | grep -o 'mmcblk0p[0-9]*')
+			echo "$part"
+		fi
+	done
+}
+
 mediatek_setup_macs()
 {
 	local board="$1"
@@ -48,9 +58,19 @@ mediatek_setup_macs()
 		;;
 	esac
 
-	lan2_mac=$(mtd_get_mac_binary $part_name $lan2_mac_offset)
-	lan_mac=$(mtd_get_mac_binary $part_name $lan_mac_offset)
-	wan_mac=$(mtd_get_mac_binary $part_name $wan_mac_offset)
+	# Find the Factory partition
+	local factory_part=$(find_factory_partition)
+	if [ -n "$factory_part" ]; then
+		# For eMMC/SD
+		lan2_mac=$(get_mac_binary "/dev/$factory_part" $lan2_mac_offset)
+		lan_mac=$(get_mac_binary "/dev/$factory_part" $lan_mac_offset)
+		wan_mac=$(get_mac_binary "/dev/$factory_part" $wan_mac_offset)
+	else
+		# For NAND/NOR
+		lan2_mac=$(mtd_get_mac_binary $part_name $lan2_mac_offset)
+		lan_mac=$(mtd_get_mac_binary $part_name $lan_mac_offset)
+		wan_mac=$(mtd_get_mac_binary $part_name $wan_mac_offset)
+	fi
 
 	case "$lan2_mac" in
 		00:00:00:00:00:00);;
