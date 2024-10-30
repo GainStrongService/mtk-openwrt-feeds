@@ -72,20 +72,37 @@ void qdma_qos_shaper_ebl(u32 id, bool enable)
 
 	mtk_w32(eth, (id / MTK_QTX_PER_PAGE), MTK_QDMA_PAGE);
 	if (enable) {
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4)) {
-			val = MTK_QTX_SCH_MIN_RATE_EN | MTK_QTX_SCH_MAX_RATE_EN_V2;
-			val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN_V2, 1) |
-			       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP_V2, 4) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 1) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 6) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 4);
+		if (id < MAX_PPPQ_PORT_NUM) {
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4)) {
+				val = MTK_QTX_SCH_MIN_RATE_EN | MTK_QTX_SCH_MAX_RATE_EN_V2;
+				val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN_V2, 1) |
+				       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP_V2, 4) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 1) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 6) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 4);
+			} else {
+				val = MTK_QTX_SCH_MIN_RATE_EN | MTK_QTX_SCH_MAX_RATE_EN;
+				val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, 1) |
+				       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, 4) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, 1) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, 6) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 4);
+			}
 		} else {
-			val = MTK_QTX_SCH_MIN_RATE_EN | MTK_QTX_SCH_MAX_RATE_EN;
-			val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, 1) |
-			       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, 4) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, 1) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, 6) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 4);
+			val = MTK_QTX_SCH_MIN_RATE_EN;
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4)) {
+				val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN_V2, 1) |
+				       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP_V2, 3) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 0) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 0) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 4);
+			} else {
+				val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, 1) |
+				       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, 3) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, 0) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, 0) |
+				       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 4);
+			}
 		}
 
 		mtk_w32(eth, val, MTK_QTX_SCH(id % MTK_QTX_PER_PAGE));
@@ -100,7 +117,7 @@ void qdma_qos_disable(void)
 	u32 num_of_sch = !MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1) ? 4 : 2;
 	u32 val, i;
 
-	for (i = 0; i < MAX_PPPQ_PORT_NUM; i++) {
+	for (i = 0; i < 2 * MAX_PPPQ_PORT_NUM; i++) {
 		qdma_qos_shaper_ebl(i, false);
 		mtk_w32(eth,
 			FIELD_PREP(MTK_QTX_CFG_HW_RESV_CNT_OFFSET, 4) |
@@ -124,7 +141,7 @@ void qdma_qos_pppq_ebl(u32 enable)
 	u32 num_of_sch = !MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_1) ? 4 : 2;
 	u32 val, i;
 
-	for (i = 0; i < MAX_PPPQ_PORT_NUM; i++) {
+	for (i = 0; i < 2 * MAX_PPPQ_PORT_NUM; i++) {
 		if (enable)
 			qdma_qos_shaper_ebl(i, true);
 		else
