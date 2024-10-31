@@ -427,8 +427,8 @@ static void usage(char *cmd)
 
 static void parse_reg_cmd(int argc, char *argv[], int len)
 {
-	unsigned int val;
-	unsigned int off;
+	unsigned int val = 0;
+	unsigned int off = 0;
 	char *endptr;
 	int i, j;
 
@@ -643,6 +643,7 @@ int main(int argc, char *argv[])
 	int err = -EINVAL;
 	FILE *fp = NULL;
 	char buff[255];
+	char *endptr;
 
 	attres = (struct mt753x_attr *)malloc(sizeof(struct mt753x_attr));
 	if (attres == NULL) {
@@ -756,7 +757,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (!strcmp(argv[1], "dev")) {
-		attres->dev_id = strtoul(argv[2], NULL, 0);
+		errno = 0; /* To distinguish success/failure after call */
+		attres->dev_id = strtoul(argv[2], &endptr, 0);
+		if (errno != 0 || *endptr != '\0')
+			goto error;
+
 		argv += 2;
 		argc -= 2;
 		if (argc < 2)
@@ -1066,7 +1071,7 @@ int main(int argc, char *argv[])
 			usage(argv[0]);
 	} else
 		usage(argv[0]);
-
+error:
 	exit_free();
 	return 0;
 #endif
