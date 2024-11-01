@@ -1040,28 +1040,7 @@ static void mtk_gdm_fsm_poll(struct mtk_mac *mac)
 static void mtk_pse_set_mac_port_link(struct mtk_mac *mac, bool up,
 				      phy_interface_t interface)
 {
-	struct mtk_eth *eth = mac->hw;
 	u32 port = 0;
-
-	if (eth->soc->caps == MT7988_CAPS &&
-	    !up && mac->id == MTK_GMAC2_ID &&
-	    interface == PHY_INTERFACE_MODE_INTERNAL &&
-	    MTK_HAS_CAPS(eth->soc->caps, MTK_2P5GPHY)) {
-		void __iomem *base;
-
-		base = ioremap(0x0F0CFB00, SZ_4K);
-		if (base) {
-			/* wait for internal 2.5G PHY to turn off */
-			usleep_range(100, 1000);
-			/* enable the XGMAC clock for 10 msecs to
-			 * flush the packets.
-			 */
-			writel(readl(base) | BIT(9), base);
-			usleep_range(10000, 11000);
-			writel(readl(base) & ~BIT(9), base);
-			iounmap(base);
-		}
-	}
 
 	switch (mac->id) {
 	case MTK_GMAC1_ID:
