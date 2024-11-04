@@ -398,6 +398,9 @@ setup_model()
 	elif [[ $board == *"bpi-r4"* ]]; then
 		dbg "setup_model: bpi-r4 NUM_WIFI_CARD=$num_of_wifi"
 		MT7988 $num_of_wifi
+	elif [[ $board == *"7987"* ]]; then
+		dbg "setup_model: MT7987 NUM_WIFI_CARD=$num_of_wifi"
+		MT7988 $num_of_wifi
 	fi
 }
 
