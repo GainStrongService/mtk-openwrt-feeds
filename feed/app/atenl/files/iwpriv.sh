@@ -976,6 +976,81 @@ function do_ate_work() {
     esac
 }
 
+function convert_listmode {
+    local tag=$(echo $1 | sed s/,/' '/g | cut -d " " -f 1)
+
+    case ${tag} in
+        "16")
+            local params=$(echo $1 | sed s/,/' '/g)
+            local da=$(echo $params | cut -d " " -f 6)
+            local sa=$(echo $params | cut -d " " -f 7)
+            local bssid=$(echo $params | cut -d " " -f 8)
+            local cmd="list_act=tx_seg"
+
+            cmd="${cmd} tx_length=$(echo $params | cut -d " " -f 5)"
+            cmd="${cmd} mac_addrs=${da},${sa},${bssid}"
+            cmd="${cmd} tx_rate_stbc=$(echo $params | cut -d " " -f 9)"
+            cmd="${cmd} lm_seg_idx=$(echo $params | cut -d " " -f 12)"
+            cmd="${cmd} tx_antenna=$(echo $params | cut -d " " -f 15)"
+            cmd="${cmd} lm_center_ch=$(echo $params | cut -d " " -f 17)"
+            cmd="${cmd} lm_cbw=$(convert_tm_cbw_to_nl $(echo $params | cut -d " " -f 19))"
+            cmd="${cmd} tx_pkt_bw=$(convert_tm_cbw_to_nl $(echo $params | cut -d " " -f 20))"
+            cmd="${cmd} tx_pri_sel=$(echo $params | cut -d " " -f 21)"
+            cmd="${cmd} tx_count=$(echo $params | cut -d " " -f 24)"
+            cmd="${cmd} tx_power=$(echo $params | cut -d " " -f 25)"
+            cmd="${cmd} tx_rate_mode=$(convert_tx_mode $(echo $params | cut -d " " -f 26))"
+            cmd="${cmd} tx_rate_idx=$(echo $params | cut -d " " -f 27)"
+            cmd="${cmd} tx_rate_ldpc=$(echo $params | cut -d " " -f 28)"
+            cmd="${cmd} tx_ipg=$(echo $params | cut -d " " -f 29)"
+            cmd="${cmd} tx_rate_sgi=$(echo $params | cut -d " " -f 30)"
+            cmd="${cmd} tx_rate_nss=$(echo $params | cut -d " " -f 31)"
+            cmd="${cmd} lm_seg_timeout=$(echo $params | cut -d " " -f 34)"
+            do_cmd "mt76-test ${interface} set ${cmd}"
+            ;;
+        "17")
+            do_cmd "mt76-test ${interface} set list_act=tx_start"
+            ;;
+        "19")
+            do_cmd "mt76-test ${interface} set list_act=tx_stop"
+            do_cmd "mt76-test ${interface} set list_act=clear_seg"
+            ;;
+        "20")
+            local params=$(echo $1 | sed s/,/' '/g)
+            local cmd="list_act=rx_seg"
+
+            cmd="${cmd} mac_addrs=$(echo $params | cut -d " " -f 2)"
+            cmd="${cmd} lm_seg_idx=$(echo $params | cut -d " " -f 5)"
+            cmd="${cmd} tx_antenna=$(echo $params | cut -d " " -f 8)"
+            cmd="${cmd} lm_center_ch=$(echo $params | cut -d " " -f 10)"
+            cmd="${cmd} lm_cbw=$(convert_tm_cbw_to_nl $(echo $params | cut -d " " -f 12))"
+            cmd="${cmd} tx_pkt_bw=$(convert_tm_cbw_to_nl $(echo $params | cut -d " " -f 13))"
+            cmd="${cmd} tx_pri_sel=$(echo $params | cut -d " " -f 14)"
+            cmd="${cmd} lm_sta_idx=$(echo $params | cut -d " " -f 15)"
+            cmd="${cmd} lm_seg_timeout=$(echo $params | cut -d " " -f 18)"
+            do_cmd "mt76-test ${interface} set ${cmd}"
+            ;;
+        "21")
+            do_cmd "mt76-test ${interface} set list_act=rx_start"
+            ;;
+        "22")
+            do_cmd "mt76-test ${interface} set list_act=rx_stat"
+            ;;
+        "23")
+            do_cmd "mt76-test ${interface} set list_act=rx_stop"
+            do_cmd "mt76-test ${interface} set list_act=clear_seg"
+            ;;
+        "24")
+            do_cmd "mt76-test ${interface} set list_act=dut_stat"
+            ;;
+        "25")
+            do_cmd "mt76-test ${interface} set list_act=switch_seg"
+            ;;
+        *)
+            print_debug "skip ${tag}"
+            ;;
+    esac
+}
+
 function dump_usage {
     echo "Usage:"
     echo "  mwctl <interface> set csi ctrl=<opt1>,<opt2>,<opt3>,<opt4> (macaddr=<macaddr>)"
@@ -1208,6 +1283,10 @@ if [ "${cmd_type}" = "set" ]; then
             ;;
         "ATERUINFO")
             convert_ruinfo ${param}
+            skip=1
+            ;;
+        "ATELISTMODE")
+            convert_listmode ${param}
             skip=1
             ;;
         *)
