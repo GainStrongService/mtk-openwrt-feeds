@@ -218,7 +218,7 @@
 #define PSE_FQFC_CFG1		0x100
 #define PSE_FQFC_CFG2		0x104
 #define PSE_NO_DROP_CFG		0x108
-#define PSE_PPE0_DROP		0x110
+#define PSE_PPE_DROP(x)		(0x110 + (x * 0x4))
 
 /* PSE Last FreeQ Page Request Control */
 #define PSE_DUMY_REQ		0x10C

@@ -4371,8 +4371,16 @@ void mtk_set_pse_drop(u32 config)
 {
 	struct mtk_eth *eth = g_eth;
 
-	if (eth)
-		mtk_w32(eth, config, PSE_PPE0_DROP);
+	if (eth) {
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+			mtk_w32(eth, config, PSE_PPE_DROP(0));
+			mtk_w32(eth, config, PSE_PPE_DROP(1));
+			if (eth->soc->caps == MT7988_CAPS)
+				mtk_w32(eth, config, PSE_PPE_DROP(2));
+		} else if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
+			mtk_w32(eth, config, PSE_PPE_DROP(0));
+		}
+	}
 }
 EXPORT_SYMBOL(mtk_set_pse_drop);
 
@@ -4936,12 +4944,6 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 				PSE_DUMMY_WORK_GDM(2) |	PSE_DUMMY_WORK_GDM(3) |
 				DUMMY_PAGE_THR(eth->soc->caps), PSE_DUMY_REQ);
 
-		/* PSE should not drop port8 and port9 packets */
-		mtk_w32(eth, 0x00000300, PSE_NO_DROP_CFG);
-
-		/* PSE should drop p8 and p9 packets when WDMA Rx ring full*/
-		mtk_w32(eth, 0x00000300, PSE_PPE0_DROP);
-
 		if (eth->soc->caps == MT7988_CAPS) {
 			/* PSE free buffer drop threshold */
 			mtk_w32(eth, 0x00600009, PSE_IQ_REV(8));
@@ -4949,6 +4951,14 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 			/* GDM and CDM Threshold */
 			mtk_w32(eth, 0x08000707, MTK_CDMW0_THRES);
 			mtk_w32(eth, 0x00000077, MTK_CDMW1_THRES);
+
+			/* PSE should not drop p8, p9, p13 packets */
+			mtk_w32(eth, 0x00002300, PSE_NO_DROP_CFG);
+
+			/* PSE should drop PPE to p8, p9, p13 packets when WDMA Rx ring full*/
+			mtk_w32(eth, 0x00002300, PSE_PPE_DROP(0));
+			mtk_w32(eth, 0x00002300, PSE_PPE_DROP(1));
+			mtk_w32(eth, 0x00002300, PSE_PPE_DROP(2));
 		} else if (eth->soc->caps == MT7987_CAPS) {
 			/* enable PSE info error interrupt */
 			mtk_w32(eth, 0x00ffffff, MTK_FE_PINFO_INT_ENABLE);
@@ -4966,6 +4976,13 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 				mtk_m32(eth, GDM_PAGE_MISMATCH_DET, 0,
 					FE_GDM_DBG_CTRL(i));
 			}
+
+			/* PSE should not drop p8 packets */
+			mtk_w32(eth, 0x00000100, PSE_NO_DROP_CFG);
+
+			/* PSE should drop PPE to p8 packets when WDMA Rx ring full*/
+			mtk_w32(eth, 0x00000100, PSE_PPE_DROP(0));
+			mtk_w32(eth, 0x00000100, PSE_PPE_DROP(1));
 		}
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_ESW)) {
@@ -4990,7 +5007,7 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 		mtk_w32(eth, 0x00000300, PSE_NO_DROP_CFG);
 
 		/* PSE should drop p8 and p9 packets when WDMA Rx ring full*/
-		mtk_w32(eth, 0x00000300, PSE_PPE0_DROP);
+		mtk_w32(eth, 0x00000300, PSE_PPE_DROP(0));
 
 		/* PSE config input queue threshold */
 		mtk_w32(eth, 0x001a000e, PSE_IQ_REV(1));
