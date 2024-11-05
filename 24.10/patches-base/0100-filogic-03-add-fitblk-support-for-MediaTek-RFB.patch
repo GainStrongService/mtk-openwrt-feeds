@@ -1,0 +1,128 @@
+From: Weijie Gao <weijie.gao@mediatek.com>
+Subject: [PATCH] mediatek/filogic: add fitblk support for MediaTek RFBs
+
+Add fitblk support for MediaTek RFBs
+
+Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
+
+--- a/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7981-rfb.dts
++++ b/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7981-rfb.dts
+@@ -113,6 +113,22 @@
+ 		};
+ 	};
+ 
++	spi2_flash_pins: spi2-pins {
++		mux {
++			function = "spi";
++			groups = "spi2", "spi2_wp_hold";
++		};
++		conf-pu {
++			pins = "SPI2_CS", "SPI2_HOLD", "SPI2_WP";
++			drive-strength = <MTK_DRIVE_8mA>;
++			bias-pull-up = <MTK_PUPD_SET_R1R0_11>;
++		};
++		conf-pd {
++			pins = "SPI2_CLK", "SPI2_MOSI", "SPI2_MISO";
++			drive-strength = <MTK_DRIVE_8mA>;
++			bias-pull-down = <MTK_PUPD_SET_R1R0_11>;
++		};
++	};
+ };
+ 
+ &spi0 {
+--- a/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7988a-rfb-emmc.dtso
++++ b/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7988a-rfb-emmc.dtso
+@@ -28,6 +28,34 @@
+ 			no-sd;
+ 			no-sdio;
+ 			status = "okay";
++
++			card@0 {
++				compatible = "mmc-card";
++				reg = <0>;
++
++				block {
++					compatible = "block-device";
++					partitions {
++						block-partition-env {
++							partname = "u-boot-env";
++							nvmem-layout {
++								compatible = "u-boot,env-layout";
++							};
++						};
++
++						emmc_rootfs: block-partition-production {
++							partname = "firmware";
++						};
++					};
++				};
++			};
++		};
++	};
++
++	fragment@2 {
++		target-path = "/chosen";
++		__overlay__ {
++			rootdisk-emmc = <&emmc_rootfs>;
+ 		};
+ 	};
+ };
+--- a/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7988a-rfb-sd.dtso
++++ b/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7988a-rfb-sd.dtso
+@@ -26,6 +26,34 @@
+ 			vqmmc-supply = <&reg_3p3v>;
+ 			no-mmc;
+ 			status = "okay";
++
++			card@0 {
++				compatible = "mmc-card";
++				reg = <0>;
++
++				block {
++					compatible = "block-device";
++					partitions {
++						block-partition-env {
++							partname = "u-boot-env";
++							nvmem-layout {
++								compatible = "u-boot,env-layout";
++							};
++						};
++
++						sd_rootfs: block-partition-production {
++							partname = "firmware";
++						};
++					};
++				};
++			};
++		};
++	};
++
++	fragment@2 {
++		target-path = "/chosen";
++		__overlay__ {
++			rootdisk-sd = <&sd_rootfs>;
+ 		};
+ 	};
+ };
+--- a/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
++++ b/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
+@@ -18,7 +18,8 @@
+ 	chosen {
+ 		bootargs = "console=ttyS0,115200n1 loglevel=8  \
+ 			    earlycon=uart8250,mmio32,0x11000000 \
+-			    pci=pcie_bus_perf";
++			    pci=pcie_bus_perf ubi.block=0,firmware root=/dev/fit0 \
++			    rootwait";
+ 	};
+ 
+ 	memory {
+--- a/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7988a.dtsi
++++ b/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7988a.dtsi
+@@ -828,6 +828,7 @@
+ 			nvmem-cells = <&lvts_calibration>;
+ 			nvmem-cell-names = "lvts-calib-data-1";
+ 			#thermal-sensor-cells = <1>;
++			status = "disabled";
+ 		};
+ 
+ 		ssusb0: usb@11190000 {
