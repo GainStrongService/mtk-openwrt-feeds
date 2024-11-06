@@ -7,6 +7,7 @@
  */
 
 #include <crypto/aes.h>
+#include <crypto/ctr.h>
 #include <crypto/hash.h>
 #include <crypto/hmac.h>
 #include <crypto/md5.h>
@@ -777,7 +778,7 @@ int mtk_crypto_basic_cipher(struct crypto_async_request *async,
 			rc = PEC_SGList_Write(SrcSGListHandle, i - pass_id, sg_handle,
 						len - pass_assoc);
 			if (rc != PEC_STATUS_OK)
-				pr_notice("PEC_SGList_Write failed rc = %d\n", rc);
+				CRYPTO_ERR("PEC_SGList_Write failed rc = %d\n", rc);
 			pass_assoc = 0;
 		} else {
 			DMAProperties.Size = MAX(len, 1);
@@ -790,7 +791,7 @@ int mtk_crypto_basic_cipher(struct crypto_async_request *async,
 
 			rc = PEC_SGList_Write(SrcSGListHandle, i - pass_id, sg_handle, len);
 			if (rc != PEC_STATUS_OK)
-				pr_notice("PEC_SGList_Write failed rc = %d\n", rc);
+				CRYPTO_ERR("PEC_SGList_Write failed rc = %d\n", rc);
 		}
 
 		totlen_src -= len;
@@ -821,7 +822,7 @@ int mtk_crypto_basic_cipher(struct crypto_async_request *async,
 		}
 		rc = PEC_SGList_Write(DstSGListHandle, i, sg_handle, len);
 		if (rc != PEC_STATUS_OK)
-			pr_notice("PEC_SGList_Write failed rc = %d\n", rc);
+			CRYPTO_ERR("PEC_SGList_Write failed rc = %d\n", rc);
 
 		if (unlikely(!len))
 			break;
@@ -1165,7 +1166,7 @@ int crypto_ahash_aes_cbc(struct crypto_async_request *async, struct mtk_crypto_a
 	ZEROINIT(OutTokenDscr);
 
 	if (!IS_ALIGNED(InputByteCount, 16)) {
-		pr_notice("not aligned: %d\n", InputByteCount);
+		CRYPTO_ERR("not aligned: %d\n", InputByteCount);
 		return -EINVAL;
 	}
 	rc = SABuilder_Init_Basic(&params, &ProtocolParams, SAB_DIRECTION_OUTBOUND);
@@ -1884,269 +1885,6 @@ bool crypto_hmac_precompute(SABuilder_Auth_t AuthAlgo,
 	return true;
 }
 
-static SABuilder_Crypto_t set_crypto_algo(struct xfrm_algo *ealg)
-{
-	if (strcmp(ealg->alg_name, "cbc(des)") == 0)
-		return SAB_CRYPTO_DES;
-	else if (strcmp(ealg->alg_name, "cbc(aes)") == 0)
-		return SAB_CRYPTO_AES;
-	else if (strcmp(ealg->alg_name, "cbc(des3_ede)") == 0)
-		return SAB_CRYPTO_3DES;
-
-	return SAB_CRYPTO_NULL;
-}
-
-static bool set_auth_algo(struct xfrm_algo_auth *aalg, SABuilder_Params_t *params,
-			  uint8_t *inner, uint8_t *outer)
-{
-	if (strcmp(aalg->alg_name, "hmac(sha1)") == 0) {
-		params->AuthAlgo = SAB_AUTH_HMAC_SHA1;
-		inner = kcalloc(SHA1_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
-		outer = kcalloc(SHA1_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
-		crypto_hmac_precompute(SAB_AUTH_HMAC_SHA1, &aalg->alg_key[0],
-					aalg->alg_key_len / 8, inner, outer);
-
-		params->AuthKey1_p = inner;
-		params->AuthKey2_p = outer;
-	} else if (strcmp(aalg->alg_name, "hmac(sha256)") == 0) {
-		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_256;
-		inner = kcalloc(SHA256_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
-		outer = kcalloc(SHA256_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
-		crypto_hmac_precompute(SAB_AUTH_HMAC_SHA2_256, &aalg->alg_key[0],
-					aalg->alg_key_len / 8, inner, outer);
-		params->AuthKey1_p = inner;
-		params->AuthKey2_p = outer;
-	} else if (strcmp(aalg->alg_name, "hmac(sha384)") == 0) {
-		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_384;
-		inner = kcalloc(SHA384_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
-		outer = kcalloc(SHA384_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
-		crypto_hmac_precompute(SAB_AUTH_HMAC_SHA2_384, &aalg->alg_key[0],
-					aalg->alg_key_len / 8, inner, outer);
-		params->AuthKey1_p = inner;
-		params->AuthKey2_p = outer;
-	} else if (strcmp(aalg->alg_name, "hmac(sha512)") == 0) {
-		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_512;
-		inner = kcalloc(SHA512_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
-		outer = kcalloc(SHA512_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
-		crypto_hmac_precompute(SAB_AUTH_HMAC_SHA2_512, &aalg->alg_key[0],
-					aalg->alg_key_len / 8, inner, outer);
-		params->AuthKey1_p = inner;
-		params->AuthKey2_p = outer;
-	} else if (strcmp(aalg->alg_name, "hmac(md5)") == 0) {
-		params->AuthAlgo = SAB_AUTH_HMAC_MD5;
-		inner = kcalloc(MD5_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
-		outer = kcalloc(MD5_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
-		crypto_hmac_precompute(SAB_AUTH_HMAC_MD5, &aalg->alg_key[0],
-					aalg->alg_key_len / 8, inner, outer);
-		params->AuthKey1_p = inner;
-		params->AuthKey2_p = outer;
-	} else {
-		return false;
-	}
-
-	return true;
-}
-
-u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
-{
-	struct xfrm_state *xs = xfrm_params->xs;
-	SABuilder_Params_IPsec_t ipsec_params;
-	SABuilder_Status_t sa_status;
-	SABuilder_Params_t params;
-	bool set_auth_success = false;
-	unsigned int SAWords = 0;
-	uint8_t *inner = NULL;
-	uint8_t *outer = NULL;
-
-	DMABuf_Status_t dma_status;
-	DMABuf_Properties_t dma_properties = {0, 0, 0, 0};
-	DMABuf_HostAddress_t sa_host_addr;
-
-	DMABuf_Handle_t sa_handle = {0};
-
-	PCL_Status_t pcl_status;
-
-	sa_status = SABuilder_Init_ESP(&params,
-				       &ipsec_params,
-				       be32_to_cpu(xs->id.spi),
-				       ipsec_mode,
-				       SAB_IPSEC_IPV4,
-				       xfrm_params->dir);
-
-	if (sa_status != SAB_STATUS_OK) {
-		pr_err("SABuilder_Init_ESP failed\n");
-		sa_host_addr.p = NULL;
-		goto error_ret;
-	}
-
-	/* No support for aead now */
-	if (xs->aead) {
-		CRYPTO_ERR("AEAD not supported\n");
-		sa_host_addr.p = NULL;
-		goto error_ret;
-	}
-
-	/* Check algorithm exist in xfrm state*/
-	if (!xs->ealg || !xs->aalg) {
-		CRYPTO_ERR("NULL algorithm in xfrm state\n");
-		sa_host_addr.p = NULL;
-		goto error_ret;
-	}
-
-	/* Add crypto key and parameters */
-	params.CryptoAlgo = set_crypto_algo(xs->ealg);
-	params.CryptoMode = SAB_CRYPTO_MODE_CBC;
-	params.KeyByteCount = xs->ealg->alg_key_len / 8;
-	params.Key_p = xs->ealg->alg_key;
-
-	/* Add authentication key and parameters */
-	set_auth_success = set_auth_algo(xs->aalg, &params, inner, outer);
-	if (set_auth_success != true) {
-		CRYPTO_ERR("Set Auth Algo failed\n");
-		sa_host_addr.p = NULL;
-		goto error_ret;
-	}
-
-	ipsec_params.IPsecFlags |= (SAB_IPSEC_PROCESS_IP_HEADERS
-				    | SAB_IPSEC_EXT_PROCESSING);
-	if (ipsec_mode == SAB_IPSEC_TUNNEL) {
-		ipsec_params.SrcIPAddr_p = (uint8_t *) &xs->props.saddr.a4;
-		ipsec_params.DestIPAddr_p = (uint8_t *) &xs->id.daddr.a4;
-	}
-
-	sa_status = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
-	if (sa_status != SAB_STATUS_OK) {
-		CRYPTO_ERR("SA not created because of size errors\n");
-		sa_host_addr.p = NULL;
-		goto error_ret;
-	}
-
-	dma_properties.fCached = true;
-	dma_properties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	dma_properties.Bank = MTK_EIP197_INLINE_BANK_TRANSFORM;
-	dma_properties.Size = SAWords * sizeof(u32);
-
-	dma_status = DMABuf_Alloc(dma_properties, &sa_host_addr, &sa_handle);
-	if (dma_status != DMABUF_STATUS_OK) {
-		CRYPTO_ERR("Allocation of SA failed\n");
-		sa_host_addr.p = NULL;
-		goto error_ret;
-	}
-
-	sa_status = SABuilder_BuildSA(&params, (u32 *) sa_host_addr.p, NULL, NULL);
-	if (sa_status != SAB_STATUS_OK) {
-		CRYPTO_ERR("SA not created because of errors\n");
-		DMABuf_Release(sa_handle);
-		sa_host_addr.p = NULL;
-		goto error_ret;
-	}
-
-	pcl_status = PCL_Transform_Register(sa_handle);
-	if (pcl_status != PCL_STATUS_OK) {
-		CRYPTO_ERR("%s: PCL_Transform_Register failed\n", __func__);
-		DMABuf_Release(sa_handle);
-		sa_host_addr.p = NULL;
-		goto error_ret;
-	}
-
-	xfrm_params->p_handle = (u32 *) sa_handle.p;
-
-error_ret:
-	kfree(inner);
-	kfree(outer);
-	return (u32 *) sa_host_addr.p;
-}
-
-int mtk_ddk_pec_init(void)
-{
-	PEC_InitBlock_t pec_init_blk = {0, 0, false};
-	PEC_Capabilities_t pec_cap;
-	PEC_Status_t pec_sta;
-	u32 i = MTK_EIP197_INLINE_NOF_TRIES;
-	u32 j;
-#ifdef PEC_PCL_EIP197
-	PCL_Status_t pcl_sta;
-#endif
-
-#ifdef PEC_PCL_EIP197
-	pcl_sta = PCL_Init(PCL_INTERFACE_ID, 1);
-	if (pcl_sta != PCL_STATUS_OK) {
-		CRYPTO_ERR("PCL could not be initialized, error=%d\n", pcl_sta);
-		return 0;
-	}
-
-	pcl_sta = PCL_DTL_Init(PCL_INTERFACE_ID);
-	if (pcl_sta != PCL_STATUS_OK) {
-		CRYPTO_ERR("PCL-DTL could not be initialized, error=%d\n", pcl_sta);
-		return -1;
-	}
-#endif
-	for (j = 0; j < PEC_MAX_INTERFACE_NUM; j++) {
-		while (i) {
-			pec_sta = PEC_Init(j, &pec_init_blk);
-			if (pec_sta == PEC_STATUS_OK) {
-				CRYPTO_INFO("PEC_INIT interface %d ok!\n", j);
-				break;
-			} else if (pec_sta != PEC_STATUS_OK && pec_sta != PEC_STATUS_BUSY) {
-				return pec_sta;
-			}
-
-			mdelay(MTK_EIP197_INLINE_RETRY_DELAY_MS);
-			i--;
-		}
-	}
-
-	if (!i) {
-		CRYPTO_ERR("PEC could not be initialized: %d\n", pec_sta);
-		return pec_sta;
-	}
-
-	pec_sta = PEC_Capabilities_Get(&pec_cap);
-	if (pec_sta != PEC_STATUS_OK) {
-		CRYPTO_ERR("PEC capability could not be obtained: %d\n", pec_sta);
-#ifdef PEC_PCL_EIP197
-		PCL_UnInit(PCL_INTERFACE_ID);
-#endif
-		return pec_sta;
-	}
-
-	CRYPTO_INFO("PEC Capabilities: %s\n", pec_cap.szTextDescription);
-
-	return 0;
-}
-
-void mtk_ddk_pec_deinit(void)
-{
-	unsigned int LoopCounter = MTK_EIP197_INLINE_NOF_TRIES;
-	PEC_Status_t PEC_Status;
-	int j;
-
-	for (j = 0; j < PEC_MAX_INTERFACE_NUM; j++) {
-		while (LoopCounter > 0) {
-			PEC_Status = PEC_UnInit(j);
-			if (PEC_Status == PEC_STATUS_OK)
-				break;
-			else if (PEC_Status != PEC_STATUS_OK && PEC_Status != PEC_STATUS_BUSY) {
-				CRYPTO_ERR("PEC could not deinit, error=%d\n", PEC_Status);
-				return;
-			}
-			// Wait for MTK_EIP197_INLINE_RETRY_DELAY_MS milliseconds
-			udelay(MTK_EIP197_INLINE_RETRY_DELAY_MS * 1000);
-			LoopCounter--;
-		}
-		// Check for timeout
-		if (LoopCounter == 0) {
-			CRYPTO_ERR("PEC could not be un-initialized, timeout\n");
-			return;
-		}
-	}
-
-#ifdef PEC_PCL_EIP197
-	PCL_DTL_UnInit(PCL_INTERFACE_ID);
-	PCL_UnInit(PCL_INTERFACE_ID);
-#endif
-}
-
 bool
 mtk_ddk_aes_block_encrypt(uint8_t *Key_p,
 							 unsigned int KeyByteCount,
@@ -2368,6 +2106,337 @@ error_exit:
 
 	return rc == 0;
 
+}
+
+static bool set_crypto_aead(struct xfrm_algo_aead *aead, SABuilder_Params_t *params)
+{
+	params->Key_p = aead->alg_key;
+	params->CryptoAlgo = SAB_CRYPTO_AES;
+	params->KeyByteCount = aead->alg_key_len / 8;
+	if (strcmp(aead->alg_name, "rfc4106(gcm(aes))") == 0) {
+		params->CryptoMode = SAB_CRYPTO_MODE_GCM;
+		params->KeyByteCount = (aead->alg_key_len / 8) - CTR_RFC3686_NONCE_SIZE;
+		params->Nonce_p = aead->alg_key + params->KeyByteCount;
+	} else if (strcmp(aead->alg_name, "rfc4543(gcm(aes))") == 0) {
+		params->CryptoMode = SAB_CRYPTO_MODE_GMAC;
+		params->KeyByteCount = (aead->alg_key_len / 8) - CTR_RFC3686_NONCE_SIZE;
+		params->Nonce_p = aead->alg_key + params->KeyByteCount;
+	} else if (strcmp(aead->alg_name, "rfc4309(ccm(aes))") == 0) {
+		params->CryptoMode = SAB_CRYPTO_MODE_CCM;
+		params->KeyByteCount = (aead->alg_key_len / 8) - 3;
+		params->Nonce_p = aead->alg_key + params->KeyByteCount;
+	} else
+		return false;
+
+	return true;
+}
+
+static bool set_crypto_ealg(struct xfrm_algo *ealg, SABuilder_Params_t *params)
+{
+	params->CryptoMode = SAB_CRYPTO_MODE_CBC;
+	params->KeyByteCount = ealg->alg_key_len / 8;
+	params->Key_p = ealg->alg_key;
+	if (strcmp(ealg->alg_name, "cbc(des)") == 0)
+		params->CryptoAlgo = SAB_CRYPTO_DES;
+	else if (strcmp(ealg->alg_name, "cbc(aes)") == 0)
+		params->CryptoAlgo = SAB_CRYPTO_AES;
+	else if (strcmp(ealg->alg_name, "cbc(des3_ede)") == 0)
+		params->CryptoAlgo = SAB_CRYPTO_3DES;
+	else
+		return false;
+
+	return true;
+}
+
+static bool set_auth_aead(struct xfrm_algo_aead *aead, SABuilder_Params_t *params,
+			  uint8_t *hash_key)
+{
+	uint8_t t;
+	unsigned int i;
+
+	if (strcmp(aead->alg_name, "rfc4106(gcm(aes))") == 0) {
+		params->AuthAlgo = SAB_AUTH_AES_GCM;
+		hash_key = kcalloc(AES_BLOCK_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		memset(hash_key, 0, AES_BLOCK_SIZE);
+		mtk_ddk_aes_block_encrypt(params->Key_p, params->KeyByteCount, hash_key, hash_key);
+	} else if (strcmp(aead->alg_name, "rfc4543(gcm(aes))") == 0) {
+		params->AuthAlgo = SAB_AUTH_AES_GMAC;
+		hash_key = kcalloc(AES_BLOCK_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		memset(hash_key, 0, AES_BLOCK_SIZE);
+		mtk_ddk_aes_block_encrypt(params->Key_p, params->KeyByteCount, hash_key, hash_key);
+	} else if (strcmp(aead->alg_name, "rfc4309(ccm(aes))") == 0) {
+		params->AuthAlgo = SAB_AUTH_AES_CCM;
+		return true;
+	} else
+		return false;
+
+	/* Byte-swap the hash key */
+	for (i = 0; i < 4; i++) {
+		t = hash_key[4*i+3];
+		hash_key[4*i+3] = hash_key[4*i];
+		hash_key[4*i] = t;
+		t = hash_key[4*i+2];
+		hash_key[4*i+2] = hash_key[4*i+1];
+		hash_key[4*i+1] = t;
+	}
+	params->AuthKey1_p = hash_key;
+
+	return true;
+}
+
+static bool set_auth_aalg(struct xfrm_algo_auth *aalg, SABuilder_Params_t *params,
+			  uint8_t *inner, uint8_t *outer)
+{
+	if (strcmp(aalg->alg_name, "hmac(sha1)") == 0) {
+		params->AuthAlgo = SAB_AUTH_HMAC_SHA1;
+		inner = kcalloc(SHA1_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		outer = kcalloc(SHA1_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		crypto_hmac_precompute(SAB_AUTH_HMAC_SHA1, &aalg->alg_key[0],
+					aalg->alg_key_len / 8, inner, outer);
+		params->AuthKey1_p = inner;
+		params->AuthKey2_p = outer;
+	} else if (strcmp(aalg->alg_name, "hmac(sha256)") == 0) {
+		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_256;
+		inner = kcalloc(SHA256_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		outer = kcalloc(SHA256_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		crypto_hmac_precompute(SAB_AUTH_HMAC_SHA2_256, &aalg->alg_key[0],
+					aalg->alg_key_len / 8, inner, outer);
+		params->AuthKey1_p = inner;
+		params->AuthKey2_p = outer;
+	} else if (strcmp(aalg->alg_name, "hmac(sha384)") == 0) {
+		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_384;
+		inner = kcalloc(SHA384_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		outer = kcalloc(SHA384_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		crypto_hmac_precompute(SAB_AUTH_HMAC_SHA2_384, &aalg->alg_key[0],
+					aalg->alg_key_len / 8, inner, outer);
+		params->AuthKey1_p = inner;
+		params->AuthKey2_p = outer;
+	} else if (strcmp(aalg->alg_name, "hmac(sha512)") == 0) {
+		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_512;
+		inner = kcalloc(SHA512_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		outer = kcalloc(SHA512_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		crypto_hmac_precompute(SAB_AUTH_HMAC_SHA2_512, &aalg->alg_key[0],
+					aalg->alg_key_len / 8, inner, outer);
+		params->AuthKey1_p = inner;
+		params->AuthKey2_p = outer;
+	} else if (strcmp(aalg->alg_name, "hmac(md5)") == 0) {
+		params->AuthAlgo = SAB_AUTH_HMAC_MD5;
+		inner = kcalloc(MD5_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		outer = kcalloc(MD5_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		crypto_hmac_precompute(SAB_AUTH_HMAC_MD5, &aalg->alg_key[0],
+					aalg->alg_key_len / 8, inner, outer);
+		params->AuthKey1_p = inner;
+		params->AuthKey2_p = outer;
+	} else {
+		return false;
+	}
+
+	return true;
+}
+
+u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
+{
+	struct xfrm_state *xs = xfrm_params->xs;
+	SABuilder_Params_IPsec_t ipsec_params;
+	SABuilder_Status_t sa_status;
+	SABuilder_Params_t params;
+	bool set_success = false;
+	unsigned int SAWords = 0;
+	uint8_t *inner = NULL;
+	uint8_t *outer = NULL;
+
+	DMABuf_Status_t dma_status;
+	DMABuf_Properties_t dma_properties = {0, 0, 0, 0};
+	DMABuf_HostAddress_t sa_host_addr;
+
+	DMABuf_Handle_t sa_handle = {0};
+	PCL_Status_t pcl_status;
+
+	sa_status = SABuilder_Init_ESP(&params,
+				       &ipsec_params,
+				       be32_to_cpu(xs->id.spi),
+				       ipsec_mode,
+				       SAB_IPSEC_IPV4,
+				       xfrm_params->dir);
+
+	if (sa_status != SAB_STATUS_OK) {
+		pr_err("SABuilder_Init_ESP failed\n");
+		sa_host_addr.p = NULL;
+		goto error_ret;
+	}
+
+	/* Check algorithm exist in xfrm state*/
+	if (!xs->aead && (!xs->ealg || !xs->aalg)) {
+		CRYPTO_ERR("NULL algorithm in xfrm state\n");
+		sa_host_addr.p = NULL;
+		goto error_ret;
+	}
+
+	/* Add crypto key and parameters */
+	if (xs->aead)
+		set_success = set_crypto_aead(xs->aead, &params);
+	else
+		set_success = set_crypto_ealg(xs->ealg, &params);
+	if (set_success != true) {
+		CRYPTO_ERR("Set Crypto Algo failed\n");
+		sa_host_addr.p = NULL;
+		goto error_ret;
+	}
+
+	/* Add authentication key and parameters */
+	if (xs->aead)
+		set_success = set_auth_aead(xs->aead, &params, inner);
+	else
+		set_success = set_auth_aalg(xs->aalg, &params, inner, outer);
+	if (set_success != true) {
+		CRYPTO_ERR("Set Auth Algo failed\n");
+		sa_host_addr.p = NULL;
+		goto error_ret;
+	}
+
+	ipsec_params.IPsecFlags |= (SAB_IPSEC_PROCESS_IP_HEADERS
+				    | SAB_IPSEC_EXT_PROCESSING);
+	if (ipsec_mode == SAB_IPSEC_TUNNEL) {
+		ipsec_params.SrcIPAddr_p = (uint8_t *) &xs->props.saddr.a4;
+		ipsec_params.DestIPAddr_p = (uint8_t *) &xs->id.daddr.a4;
+	}
+
+	if (xs->aead)
+		ipsec_params.ICVByteCount = xs->aead->alg_icv_len / 8;
+	else
+		ipsec_params.ICVByteCount = xs->aalg->alg_trunc_len / 8;
+
+	sa_status = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
+	if (sa_status != SAB_STATUS_OK) {
+		CRYPTO_ERR("SA not created because of size errors\n");
+		sa_host_addr.p = NULL;
+		goto error_ret;
+	}
+
+	dma_properties.fCached = true;
+	dma_properties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
+	dma_properties.Bank = MTK_EIP197_INLINE_BANK_TRANSFORM;
+	dma_properties.Size = SAWords * sizeof(u32);
+
+	dma_status = DMABuf_Alloc(dma_properties, &sa_host_addr, &sa_handle);
+	if (dma_status != DMABUF_STATUS_OK) {
+		CRYPTO_ERR("Allocation of SA failed\n");
+		sa_host_addr.p = NULL;
+		goto error_ret;
+	}
+
+	sa_status = SABuilder_BuildSA(&params, (u32 *) sa_host_addr.p, NULL, NULL);
+	if (sa_status != SAB_STATUS_OK) {
+		CRYPTO_ERR("SA not created because of errors\n");
+		DMABuf_Release(sa_handle);
+		sa_host_addr.p = NULL;
+		goto error_ret;
+	}
+
+	pcl_status = PCL_Transform_Register(sa_handle);
+	if (pcl_status != PCL_STATUS_OK) {
+		CRYPTO_ERR("%s: PCL_Transform_Register failed\n", __func__);
+		DMABuf_Release(sa_handle);
+		sa_host_addr.p = NULL;
+		goto error_ret;
+	}
+
+	xfrm_params->p_handle = (u32 *) sa_handle.p;
+
+error_ret:
+	kfree(inner);
+	kfree(outer);
+	return (u32 *) sa_host_addr.p;
+}
+
+int mtk_ddk_pec_init(void)
+{
+	PEC_InitBlock_t pec_init_blk = {0, 0, false};
+	PEC_Capabilities_t pec_cap;
+	PEC_Status_t pec_sta;
+	u32 i = MTK_EIP197_INLINE_NOF_TRIES;
+	u32 j;
+#ifdef PEC_PCL_EIP197
+	PCL_Status_t pcl_sta;
+#endif
+
+#ifdef PEC_PCL_EIP197
+	pcl_sta = PCL_Init(PCL_INTERFACE_ID, 1);
+	if (pcl_sta != PCL_STATUS_OK) {
+		CRYPTO_ERR("PCL could not be initialized, error=%d\n", pcl_sta);
+		return 0;
+	}
+
+	pcl_sta = PCL_DTL_Init(PCL_INTERFACE_ID);
+	if (pcl_sta != PCL_STATUS_OK) {
+		CRYPTO_ERR("PCL-DTL could not be initialized, error=%d\n", pcl_sta);
+		return -1;
+	}
+#endif
+	for (j = 0; j < PEC_MAX_INTERFACE_NUM; j++) {
+		while (i) {
+			pec_sta = PEC_Init(j, &pec_init_blk);
+			if (pec_sta == PEC_STATUS_OK) {
+				CRYPTO_INFO("PEC_INIT interface %d ok!\n", j);
+				break;
+			} else if (pec_sta != PEC_STATUS_OK && pec_sta != PEC_STATUS_BUSY) {
+				return pec_sta;
+			}
+
+			mdelay(MTK_EIP197_INLINE_RETRY_DELAY_MS);
+			i--;
+		}
+	}
+
+	if (!i) {
+		CRYPTO_ERR("PEC could not be initialized: %d\n", pec_sta);
+		return pec_sta;
+	}
+
+	pec_sta = PEC_Capabilities_Get(&pec_cap);
+	if (pec_sta != PEC_STATUS_OK) {
+		CRYPTO_ERR("PEC capability could not be obtained: %d\n", pec_sta);
+#ifdef PEC_PCL_EIP197
+		PCL_UnInit(PCL_INTERFACE_ID);
+#endif
+		return pec_sta;
+	}
+
+	CRYPTO_INFO("PEC Capabilities: %s\n", pec_cap.szTextDescription);
+
+	return 0;
+}
+
+void mtk_ddk_pec_deinit(void)
+{
+	unsigned int LoopCounter = MTK_EIP197_INLINE_NOF_TRIES;
+	PEC_Status_t PEC_Status;
+	int j;
+
+	for (j = 0; j < PEC_MAX_INTERFACE_NUM; j++) {
+		while (LoopCounter > 0) {
+			PEC_Status = PEC_UnInit(j);
+			if (PEC_Status == PEC_STATUS_OK)
+				break;
+			else if (PEC_Status != PEC_STATUS_OK && PEC_Status != PEC_STATUS_BUSY) {
+				CRYPTO_ERR("PEC could not deinit, error=%d\n", PEC_Status);
+				return;
+			}
+			// Wait for MTK_EIP197_INLINE_RETRY_DELAY_MS milliseconds
+			udelay(MTK_EIP197_INLINE_RETRY_DELAY_MS * 1000);
+			LoopCounter--;
+		}
+		// Check for timeout
+		if (LoopCounter == 0) {
+			CRYPTO_ERR("PEC could not be un-initialized, timeout\n");
+			return;
+		}
+	}
+
+#ifdef PEC_PCL_EIP197
+	PCL_DTL_UnInit(PCL_INTERFACE_ID);
+	PCL_UnInit(PCL_INTERFACE_ID);
+#endif
 }
 
 bool
