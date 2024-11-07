@@ -1,4 +1,4 @@
-# Mediatek Upstream SoftMAC WiFi Driver - MT76 Release Note (OpenWRT main/Kernel 6.6)
+# Mediatek Upstream SoftMAC WiFi Driver - MT76 Release Note (OpenWrt 24.10/Kernel 6.6)
 
 ## Compile Environment Requirement
 
@@ -64,7 +64,7 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
 
 ## Wi-Fi 7 Latest Release Version
 
-- **Date**: 2024-10-10
+- **Date**: 2024-11-08
 - **Modified By**: Evelyn Tsai (evelyn.tsai@mediatek.com)
 - **Summary of Changes**:
   - Platform
@@ -81,11 +81,11 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
 
 #### Filogic 880 WiFi7 Pre-porting Release
 
-##### External Release (Snapshot from OpenWrt.git^c3251f)
+##### External Release (Snapshot from openwrt-24.10^f3359da)
 
 ```
-#Get Openwrt master source code from Git Server
-git clone --branch master https://git.openwrt.org/openwrt/openwrt.git openwrt
+#Get OpenWrt 24.10 source code from Git Server
+git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git openwrt
 
 #Get mtk-openwrt-feeds source code
 git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
@@ -110,15 +110,15 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 
 | Platform                 | OpenWrt/main                  | git01.mediatek.com                                                                |
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
-| Kernel                   | 6.6.48                        | ./feeds/mtk_openwrt_feed/master/patches-base |
-| **WiFi Package**         | **OpenWrt/master**            | **MTK Internal Patches**                                                          |
-| Hostapd                  | PKG_SOURCE_DATE:=2024-09-15   | ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/master/files/package/nerwork/services/hostapd/patches         |
+| Kernel                   | 6.6.58                        | ./feeds/mtk_openwrt_feed/24.10/patches-base |
+| **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
+| Hostapd                  | PKG_SOURCE_DATE:=2024-09-15   | ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/nerwork/services/hostapd/patches         |
 | libnl-tiny               | PKG_SOURCE_DATE:=2023-12-05   | N/A                                                                               |
 | iw                       | PKG_VERSION:=6.9              |                |
-| iwinfo                   | PKG_SOURCE_DATE:=2024-10-01   | N/A                                                                               |
-| wireless-regdb           | PKG_VERSION:=2024-07-04       | ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/master/files/package/firmware/wireless-regdb/patches                |
-| ucode                    | PKG_VERSION:=2024-07-22      | |
+| iwinfo                   | PKG_SOURCE_DATE:=2024-10-20   | N/A                                                                               |
+| wireless-regdb           | PKG_VERSION:=2024-10-07       | ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/firmware/wireless-regdb/patches                |
+| ucode                    | PKG_VERSION:=2024-07-22       | |
 | wifi-scripts             | PKG_VERSION:=1.0              |   |
-| netifd                   | PKG_VERSION:=2024-09-03       |   |
-| MAC80211                 | PKG_VERSION:=6.11.2 |  ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/master/files/package/kernel/mac80211/patches |
-| MT76                     | PKG_SOURCE_DATE:=2024-09-29   | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/master/files/package/kernel/mt76/patches **Firmware** ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/master/files/package/kernel/mt76/src/firmware/mt7996 |
+| netifd                   | PKG_VERSION:=2024-10-06       |   |
+| MAC80211                 | PKG_VERSION:=6.11.2 |  ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mac80211/patches |
+| MT76                     | PKG_SOURCE_DATE:=2024-10-11.1  | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/patches **Firmware** ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/src/firmware/mt7996 |
