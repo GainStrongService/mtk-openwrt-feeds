@@ -277,9 +277,15 @@ void foe_clear_all_bind_entries(void)
 
 static void gmac_ppe_fwd_enable(struct net_device *dev)
 {
-	struct mtk_mac *mac = netdev_priv(dev);
+	struct net_device *master_dev = dev;
+	struct mtk_mac *mac;
 
-	if (IS_LAN(dev) || IS_GMAC1_MODE)
+	if (netdev_uses_dsa(master_dev))
+		hnat_dsa_get_port(&master_dev);
+
+	mac = netdev_priv(master_dev);
+
+	if (mac->id == MTK_GMAC1_ID)
 		set_gmac_ppe_fwd(NR_GMAC1_PORT, 1);
 	else if (mac->id == MTK_GMAC2_ID)
 		set_gmac_ppe_fwd(NR_GMAC2_PORT, 1);
