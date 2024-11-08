@@ -359,6 +359,48 @@ int nf_hnat_netdevice_event(struct notifier_block *unused, unsigned long event,
 	return NOTIFY_DONE;
 }
 
+void foe_clear_crypto_entry(struct xfrm_selector sel)
+{
+	struct foe_entry *entry;
+	u32 prefix_d = ~0U;
+	u32 prefix_s = ~0U;
+	int i, hash_index;
+	int udp = 0;
+
+	if (sel.prefixlen_d != 0 && sel.prefixlen_d != 32)
+		prefix_d = htonl(prefix_d << (32 - sel.prefixlen_d));
+	if (sel.prefixlen_s != 0 && sel.prefixlen_s != 32)
+		prefix_s = htonl(prefix_s << (32 - sel.prefixlen_s));
+	if (sel.proto == IPPROTO_UDP)
+		udp = 1;
+
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		if (!hnat_priv->foe_table_cpu[i])
+			continue;
+
+		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
+			entry = hnat_priv->foe_table_cpu[i] + hash_index;
+
+			if (entry->bfib1.state == BIND && IS_IPV4_HNAPT(entry) &&
+			    !((htonl(entry->ipv4_hnapt.dip) ^ sel.daddr.a4) & prefix_d) &&
+			    !((htonl(entry->ipv4_hnapt.sip) ^ sel.saddr.a4) & prefix_s) &&
+			    !((entry->ipv4_hnapt.dport ^ sel.dport) & sel.dport_mask) &&
+			    !((entry->ipv4_hnapt.sport ^ sel.sport) & sel.sport_mask) &&
+			    entry->ipv4_hnapt.bfib1.udp == udp) {
+				memset(entry, 0, sizeof(*entry));
+				/* Clear HWNAT cache */
+				hnat_cache_ebl(1);
+				/* Wait for entry write done */
+				wmb();
+				if (debug_level >= 2)
+					pr_info("[%s]: delete entry idx = %d\n",
+						__func__, hash_index);
+			}
+		}
+	}
+}
+EXPORT_SYMBOL(foe_clear_crypto_entry);
+
 void foe_clear_entry(struct neighbour *neigh)
 {
 	u32 *daddr = (u32 *)neigh->primary_key;
