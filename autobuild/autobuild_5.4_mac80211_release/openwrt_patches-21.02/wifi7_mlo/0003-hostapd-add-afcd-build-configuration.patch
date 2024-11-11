@@ -1,5 +1,5 @@
 diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index bc17690..99090bf 100644
+index 8807d1d6..8c310dc8 100644
 --- a/package/network/services/hostapd/Makefile
 +++ b/package/network/services/hostapd/Makefile
 @@ -40,14 +40,16 @@ HOSTAPD_PROVIDERS:=
@@ -21,16 +21,16 @@ index bc17690..99090bf 100644
  
  LOCAL_VARIANT=$(patsubst %-internal,%,\
  	      $(patsubst %-openssl,%,\
-@@ -84,7 +86,7 @@ ifneq ($(CONFIG_DRIVER_11BE_SUPPORT),)
-   HOSTAPD_IEEE80211BE:=y
- endif
- 
--CORE_DEPENDS = +ucode +libubus +libucode +ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop +libblobmsg-json +libudebug
-+CORE_DEPENDS = +ucode +libubus +libucode +ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop +libblobmsg-json +libudebug +libcurl +libjson-c
+@@ -88,7 +90,7 @@ endif
+ CORE_DEPENDS = +ucode +libucode \
+ 	+ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop \
+ 	+libubus +libblobmsg-json \
+-	+libudebug
++	+libudebug +libcurl +libjson-c
  OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl
  
  DRIVER_MAKEOPTS= \
-@@ -93,7 +95,8 @@ DRIVER_MAKEOPTS= \
+@@ -97,7 +99,8 @@ DRIVER_MAKEOPTS= \
  	CONFIG_IEEE80211AX=$(HOSTAPD_IEEE80211AX) \
  	CONFIG_IEEE80211BE=$(HOSTAPD_IEEE80211BE) \
  	CONFIG_MBO=$(CONFIG_WPA_MBO_SUPPORT) \
@@ -40,7 +40,7 @@ index bc17690..99090bf 100644
  
  ifeq ($(SSL_VARIANT),openssl)
    DRIVER_MAKEOPTS += CONFIG_TLS=openssl CONFIG_SAE=y
-@@ -560,12 +563,33 @@ define Package/eapol-test-mbedtls
+@@ -564,12 +567,33 @@ define Package/eapol-test-mbedtls
    PROVIDES:=eapol-test
  endef
  
@@ -74,7 +74,7 @@ index bc17690..99090bf 100644
  	rm -f $(PKG_BUILD_DIR)/.config_*
  	touch $(subst .configured_,.config_,$(STAMP_CONFIGURED))
    endef
-@@ -589,7 +613,7 @@ TARGET_CPPFLAGS := \
+@@ -593,7 +617,7 @@ TARGET_CPPFLAGS := \
  	-D_GNU_SOURCE \
  	$(if $(CONFIG_WPA_MSG_MIN_PRIORITY),-DCONFIG_MSG_MIN_PRIORITY=$(CONFIG_WPA_MSG_MIN_PRIORITY))
  
@@ -83,7 +83,7 @@ index bc17690..99090bf 100644
  
  ifdef CONFIG_WPA_ENABLE_WEP
      DRIVER_MAKEOPTS += CONFIG_WEP=y
-@@ -625,6 +649,9 @@ define Build/Compile/wpad
+@@ -629,6 +653,9 @@ define Build/Compile/wpad
  		MULTICALL=1 \
  		wpa_cli wpa_supplicant_multi.a \
  	)
@@ -93,7 +93,7 @@ index bc17690..99090bf 100644
  	+export MAKEFLAGS="$(MAKE_JOBSERVER)"; $(TARGET_CC) -o $(PKG_BUILD_DIR)/wpad \
  		$(TARGET_CFLAGS) \
  		./files/multicall.c \
-@@ -675,12 +702,13 @@ define Build/Compile
+@@ -679,12 +706,13 @@ define Build/Compile
  endef
  
  define Install/hostapd/full
@@ -108,7 +108,7 @@ index bc17690..99090bf 100644
  endef
  
  define Package/hostapd-full/conffiles
-@@ -778,6 +806,13 @@ Package/wpa-supplicant-mesh-openssl/install = $(Package/wpa-supplicant/install)
+@@ -788,6 +816,13 @@ Package/wpa-supplicant-mesh-openssl/install = $(Package/wpa-supplicant/install)
  Package/wpa-supplicant-mesh-wolfssl/install = $(Package/wpa-supplicant/install)
  Package/wpa-supplicant-mesh-mbedtls/install = $(Package/wpa-supplicant/install)
  
@@ -122,7 +122,7 @@ index bc17690..99090bf 100644
  ifneq ($(LOCAL_TYPE),hostapd)
    define Package/wpa-cli/install
  	$(INSTALL_DIR) $(1)/usr/sbin
-@@ -853,3 +888,4 @@ $(eval $(call BuildPackage,eapol-test))
+@@ -863,3 +898,4 @@ $(eval $(call BuildPackage,eapol-test))
  $(eval $(call BuildPackage,eapol-test-openssl))
  $(eval $(call BuildPackage,eapol-test-wolfssl))
  $(eval $(call BuildPackage,eapol-test-mbedtls))

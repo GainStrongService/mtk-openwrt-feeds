@@ -1,17 +1,17 @@
 diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index 0e339626..f323f10f 100644
+index 16dfbff2..8807d1d6 100644
 --- a/package/network/services/hostapd/Makefile
 +++ b/package/network/services/hostapd/Makefile
-@@ -85,7 +85,7 @@ ifneq ($(CONFIG_DRIVER_11BE_SUPPORT),)
- endif
- 
- CORE_DEPENDS = +ucode +libubus +libucode +ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop +libblobmsg-json +libudebug
+@@ -89,7 +89,7 @@ CORE_DEPENDS = +ucode +libucode \
+ 	+ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop \
+ 	+libubus +libblobmsg-json \
+ 	+libudebug
 -OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl +PACKAGE_$(1):libopenssl-legacy
 +OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl
  
  DRIVER_MAKEOPTS= \
  	CONFIG_ACS=y CONFIG_DRIVER_NL80211=y \
-@@ -156,7 +156,7 @@ define Package/hostapd/Default
+@@ -160,7 +160,7 @@ define Package/hostapd/Default
    TITLE:=IEEE 802.1x Authenticator
    URL:=http://hostap.epitest.fi/
    DEPENDS:=$(DRV_DEPENDS) +hostapd-common $(CORE_DEPENDS)
@@ -20,7 +20,7 @@ index 0e339626..f323f10f 100644
    USERID:=network=101:network=101
    PROVIDES:=hostapd
    CONFLICTS:=$(HOSTAPD_PROVIDERS)
-@@ -261,7 +261,7 @@ define Package/wpad/Default
+@@ -265,7 +265,7 @@ define Package/wpad/Default
    SUBMENU:=WirelessAPD
    TITLE:=IEEE 802.1x Auth/Supplicant
    DEPENDS:=$(DRV_DEPENDS) +hostapd-common $(CORE_DEPENDS)
@@ -29,7 +29,7 @@ index 0e339626..f323f10f 100644
    USERID:=network=101:network=101
    URL:=http://hostap.epitest.fi/
    PROVIDES:=hostapd wpa-supplicant
-@@ -406,7 +406,7 @@ define Package/wpa-supplicant/Default
+@@ -410,7 +410,7 @@ define Package/wpa-supplicant/Default
    TITLE:=WPA Supplicant
    URL:=http://hostap.epitest.fi/wpa_supplicant/
    DEPENDS:=$(DRV_DEPENDS) +hostapd-common $(CORE_DEPENDS)
@@ -38,7 +38,7 @@ index 0e339626..f323f10f 100644
    USERID:=network=101:network=101
    PROVIDES:=wpa-supplicant
    CONFLICTS:=$(SUPPLICANT_PROVIDERS)
-@@ -504,7 +504,6 @@ define Package/hostapd-utils
+@@ -508,7 +508,6 @@ define Package/hostapd-utils
    TITLE:=IEEE 802.1x Authenticator (utils)
    URL:=http://hostap.epitest.fi/
    DEPENDS:=@$(subst $(space),||,$(foreach pkg,$(HOSTAPD_PROVIDERS),PACKAGE_$(pkg)))
@@ -46,7 +46,7 @@ index 0e339626..f323f10f 100644
  endef
  
  define Package/hostapd-utils/description
-@@ -518,7 +517,6 @@ define Package/wpa-cli
+@@ -522,7 +521,6 @@ define Package/wpa-cli
    SUBMENU:=WirelessAPD
    DEPENDS:=@$(subst $(space),||,$(foreach pkg,$(SUPPLICANT_PROVIDERS),PACKAGE_$(pkg)))
    TITLE:=WPA Supplicant command line control utility
@@ -54,7 +54,7 @@ index 0e339626..f323f10f 100644
  endef
  
  define Package/eapol-test/Default
-@@ -722,6 +720,9 @@ define Package/hostapd-common/install
+@@ -732,6 +730,9 @@ define Package/hostapd-common/install
  	$(INSTALL_BIN) ./files/wps-hotplug.sh $(1)/etc/rc.button/wps
  	$(INSTALL_DATA) ./files/wpad_acl.json $(1)/usr/share/acl.d
  	$(INSTALL_DATA) ./files/wpad.json $(1)/etc/capabilities
@@ -64,4 +64,3 @@ index 0e339626..f323f10f 100644
  endef
  
  define Package/hostapd/install
-
