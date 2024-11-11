@@ -34,5 +34,8 @@ define Package/aqr10g-phy-firmware/install
 	$(INSTALL_DATA) \
 		./files/Rhe-05.06-Candidate9-AQR_Mediatek_23B_P5_ID45824_LCLVER1.cld \
 		$(1)/lib/firmware/
+	$(INSTALL_DATA) \
+		./files/AQR-G4_v5.7.0-AQR_EVB_Generic_X3410_StdCfg_MDISwap_USX_ID46316_VER2148.cld \
+		$(1)/lib/firmware/
 endef
 $(eval $(call BuildPackage,aqr10g-phy-firmware))
