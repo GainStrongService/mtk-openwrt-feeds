@@ -26,12 +26,6 @@
 #include "air_en8811h.h"
 #include "air_en8811h_api.h"
 
-/*
-struct air_phy_debug {
-	struct dentry *root;
-};
-struct air_phy_debug air_debug;
-*/
 #ifdef CONFIG_AIROHA_EN8811H_PHY_DEBUGFS
 static const char * const tx_rx_string[32] = {
 	"Tx Reverse, Rx Normal",
@@ -470,6 +464,11 @@ int en8811h_of_init(struct phy_device *phydev)
 		priv->cko = val;
 	} else
 		priv->cko = AIR_CKO_DIS;
+
+	if (of_find_property(of_node, "airoha,phy-handle", NULL))
+		priv->phy_handle = true;
+	else
+		priv->phy_handle = false;
 
 	return 0;
 }
@@ -1268,7 +1267,7 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 {
 	struct phy_device *phydev = seq->private;
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
-	int addr = phydev_addr(phydev);
+	int addr = phydev_addr(phydev), ret;
 
 	seq_puts(seq, "\t<<DEBUG REG DUMP>>\n");
 	seq_printf(seq, "| RG_MII_BMCR           : 0x%08x |\n",
@@ -1287,8 +1286,10 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 		   air_mii_cl22_read(mbus, addr, MII_STAT1000));
 	seq_printf(seq, "| RG_LINK_PARTNER_2G5   : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0x3b30));
+	ret = air_mii_cl22_write(mbus, addr, 0x1f, 0x0);
+	ret = air_mii_cl22_read(mbus, addr, 0x1d);
 	seq_printf(seq, "| RG_MII_REF_CLK        : 0x%08x |\n",
-		   air_mii_cl22_read(mbus, addr, 0x1d));
+		   ret);
 	seq_printf(seq, "| RG_HW_STRAP1          : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0xcf910));
 	seq_printf(seq, "| RG_HW_STRAP2          : 0x%08x |\n",

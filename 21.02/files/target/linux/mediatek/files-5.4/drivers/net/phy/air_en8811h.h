@@ -46,7 +46,7 @@
 #define MII_MMD_ADDR_DATA_REG       0x0e
 #define MMD_OP_MODE_DATA            BIT(14)
 
-#define EN8811H_DRIVER_VERSION      "v1.2.7"
+#define EN8811H_DRIVER_VERSION      "v1.2.8_pre_release"
 
 #define LED_ON_CTRL(i)              (0x024 + ((i)*2))
 #define LED_ON_EN                   (1 << 15)
@@ -138,6 +138,7 @@ struct en8811h_priv {
 	bool                mcu_needs_restart;
 	bool                mcu_reload;
 	int                 debug;
+	int                 phy_handle;
 };
 
 struct air_base_t_led_cfg {
