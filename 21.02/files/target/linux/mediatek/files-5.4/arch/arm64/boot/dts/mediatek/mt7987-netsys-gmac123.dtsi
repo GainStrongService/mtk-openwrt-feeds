@@ -1,0 +1,209 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/phy/phy.h>
+#include <dt-bindings/reset/ti-syscon.h>
+#include <dt-bindings/clock/mediatek,mt7987-clk.h>
+#include <dt-bindings/pinctrl/mt65xx.h>
+
+&netsys {
+	ethwarp: syscon@15031000 {
+		compatible = "mediatek,mt7988-ethwarp", "syscon";
+		reg = <0 0x15031000 0 0x1000>;
+		#clock-cells = <1>;
+	};
+
+	eth: ethernet@15100000 {
+		compatible = "mediatek,mt7987-eth";
+		reg = <0 0x15100000 0 0x80000>,
+		      <0 0x15400000 0 0x20000>;
+		interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&ethsys CK_ETHDMA_FE_EN>,
+			 <&ethsys CK_ETHDMA_GP2_EN>,
+			 <&ethsys CK_ETHDMA_GP1_EN>,
+			 <&ethsys CK_ETHDMA_GP3_EN>,
+			 <&sgmiisys0 CK_SGM0_TX_EN>,
+			 <&sgmiisys0 CK_SGM0_RX_EN>,
+			 <&sgmiisys1 CK_SGM1_TX_EN>,
+			 <&sgmiisys1 CK_SGM1_RX_EN>,
+			 <&topckgen CK_TOP_SGM_0_SEL>,
+			 <&topckgen CK_TOP_SGM_1_SEL>,
+			 <&topckgen CK_TOP_ETH_GMII_SEL>,
+			 <&topckgen CK_TOP_ETH_REFCK_50M_SEL>,
+			 <&topckgen CK_TOP_ETH_SYS_200M_SEL>,
+			 <&topckgen CK_TOP_ETH_SYS_SEL>,
+			 <&topckgen CK_TOP_ETH_XGMII_SEL>,
+			 <&topckgen CK_TOP_ETH_MII_SEL>,
+			 <&topckgen CK_TOP_NETSYS_SEL>,
+			 <&topckgen CK_TOP_NETSYS_500M_SEL>,
+			 <&topckgen CK_TOP_NETSYS_2X_SEL>;
+		clock-names = "fe", "gp2", "gp1", "gp3", "sgmii_tx250m",
+			      "sgmii_rx250m", "sgmii2_tx250m", "sgmii2_rx250m",
+			      "top_sgm0_sel", "top_sgm1_sel", "top_eth_gmii_sel",
+			      "top_eth_refck_50m_sel", "top_eth_sys_200m_sel",
+			      "top_eth_sys_sel", "top_eth_xgmii_sel",
+			      "top_eth_mii_sel", "top_netsys_sel",
+			      "top_netsys_500m_sel", "top_netsys_pao_2x_sel";
+		assigned-clocks = <&topckgen CK_TOP_NETSYS_2X_SEL>,
+				  <&topckgen CK_TOP_SGM_0_SEL>,
+				  <&topckgen CK_TOP_SGM_1_SEL>;
+		assigned-clock-parents = <&apmixedsys CK_APMIXED_NET2PLL>,
+					 <&apmixedsys CK_APMIXED_SGMPLL>,
+					 <&apmixedsys CK_APMIXED_SGMPLL>;
+		mediatek,ethsys = <&ethsys>;
+		mediatek,sgmiisys = <&sgmiisys0>, <&sgmiisys1>;
+		mediatek,infracfg = <&topmisc>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mdio0_pins>;
+		#reset-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+		gmac0: mac@0 {
+			compatible = "mediatek,eth-mac";
+			reg = <0>;
+			mac-type = "gdm";
+			phy-mode = "2500base-x";
+
+			fixed-link {
+				speed = <2500>;
+				full-duplex;
+				pause;
+			};
+		};
+
+		gmac1: mac@1 {
+			compatible = "mediatek,eth-mac";
+			reg = <1>;
+			mac-type = "xgdm";
+			phy-mode = "internal";
+			phy-handle = <&phy15>;
+		};
+
+		gmac2: mac@2 {
+			compatible = "mediatek,eth-mac";
+			reg = <2>;
+			mac-type = "gdm";
+			phy-mode = "2500base-x";
+			phy-handle = <&phy11>;
+		};
+
+		mdio: mdio-bus {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reset-gpios = <&pio 48 1>;
+			reset-delay-us = <10000>;
+
+			phy11: phy@11 {
+				compatible = "ethernet-phy-id03a2.a411";
+				reg = <11>;
+				phy-mode = "2500base-x";
+				airoha,polarity = <1>;
+				airoha,surge = <0>;
+				airoha,phy-handle;
+			};
+
+			phy15: phy@15 {
+				pinctrl-names = "i2p5gbe-led";
+				pinctrl-0 = <&i2p5gbe_led0_pins>;
+				compatible = "ethernet-phy-ieee802.3-c45";
+				reg = <15>;
+				phy-mode = "internal";
+			};
+
+			switch1: switch@1 {
+				compatible = "airoha,an8855";
+				reg = <1>;
+				airoha,extSurge = <1>;
+				reset-gpios = <&pio 42 0>;
+			};
+		};
+	};
+
+	hnat: hnat@15000000 {
+		compatible = "mediatek,mtk-hnat_v5";
+		reg = <0 0x15100000 0 0x80000>;
+		resets = <&ethsys 0>;
+		reset-names = "mtketh";
+		status = "disabled";
+	};
+
+	crypto: crypto@15600000 {
+		compatible = "inside-secure,safexcel-eip197b",
+			     "security-ip-197-srv";
+		reg = <0 0x15600000 0 0x180000>;
+		interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 215 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "ring0", "ring1", "ring2", "ring3";
+		eth = <&eth>;
+		status = "disabled";
+	};
+};
+
+&crypto {
+	status = "okay";
+};
+
+&eth {
+	status = "okay";
+};
+
+&hnat {
+	mtketh-wan = "eth1";
+	mtketh-lan = "lan";
+	mtketh-lan2 = "eth2";
+	mtketh-max-gmac = <3>;
+	mtketh-ppe-num = <2>;
+	status = "okay";
+};
+
+&switch1 {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			label = "lan0";
+		};
+
+		port@1 {
+			reg = <1>;
+			label = "lan1";
+		};
+
+		port@2 {
+			reg = <2>;
+			label = "lan2";
+		};
+
+		port@3 {
+			reg = <3>;
+			label = "lan3";
+		};
+
+		port@5 {
+			reg = <5>;
+			label = "cpu";
+			ethernet = <&gmac0>;
+			phy-mode = "2500base-x";
+
+			fixed-link {
+				speed = <2500>;
+				full-duplex;
+				pause;
+			};
+		};
+	};
+};

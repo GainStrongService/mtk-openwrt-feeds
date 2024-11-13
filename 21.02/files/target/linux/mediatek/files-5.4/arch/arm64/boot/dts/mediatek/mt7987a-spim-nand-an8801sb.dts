@@ -1,0 +1,38 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
+
+/dts-v1/;
+#include "mt7987a.dtsi"
+#include "mt7987-netsys-gmac123.dtsi"
+#include "mt7987-spim-nand.dtsi"
+
+/ {
+	model = "MediaTek MT7987A SPIM-NAND AN8801SB";
+	compatible = "mediatek,mt7987a-spim-snand-an8801sb",
+		     "mediatek,mt7987a", "mediatek,mt7987";
+
+	chosen {
+		bootargs = "console=ttyS0,115200n1 loglevel=8  \
+			    earlycon=uart8250,mmio32,0x11000000 \
+			    pci=pcie_bus_perf";
+	};
+};
+
+&gmac2 {
+	mac-type = "gdm";
+	phy-mode = "sgmii";
+	phy-handle = <&phy31>;
+};
+
+&mdio {
+	/delete-property/ reset-gpios;
+	/delete-property/ reset-delay-us;
+	/delete-node/ phy@11;
+	phy31: phy@31 {
+		compatible = "ethernet-phy-idc0ff.0421";
+		reg = <31>;
+		reset-gpios = <&pio 48 1>;
+		reset-assert-us = <10000>;
+		reset-deassert-us = <10000>;
+		phy-mode = "sgmii";
+	};
+};

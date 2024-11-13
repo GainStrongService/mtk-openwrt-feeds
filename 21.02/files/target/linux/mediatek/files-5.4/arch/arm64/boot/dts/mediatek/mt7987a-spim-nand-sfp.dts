@@ -1,0 +1,45 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
+
+/dts-v1/;
+#include "mt7987a.dtsi"
+#include "mt7987-netsys-gmac123.dtsi"
+#include "mt7987-spim-nand.dtsi"
+
+/ {
+	model = "MediaTek MT7987A SPIM-NAND SFP";
+	compatible = "mediatek,mt7987a-spim-snand",
+		     "mediatek,mt7987a", "mediatek,mt7987";
+
+	chosen {
+		bootargs = "console=ttyS0,115200n1 loglevel=8  \
+			    earlycon=uart8250,mmio32,0x11000000 \
+			    pci=pcie_bus_perf";
+	};
+
+	sfp_cage0: sfp@0 {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c0>;
+		mod-def0-gpios = <&pio 49 1>;
+		los-gpios = <&pio 46 0>;
+		tx-disable-gpios = <&pio 48 0>;
+		maximum-power-milliwatt = <3000>;
+	};
+};
+
+&gmac2 {
+	mac-type = "gdm";
+	phy-mode = "2500base-x";
+	/delete-property/ phy-handle;
+	managed = "in-band-status";
+	sfp = <&sfp_cage0>;
+};
+
+&mdio {
+	/delete-property/ reset-gpios;
+	/delete-property/ reset-delay-us;
+	/delete-node/ phy@11;
+};
+
+&uart1 {
+	status = "disabled";
+};

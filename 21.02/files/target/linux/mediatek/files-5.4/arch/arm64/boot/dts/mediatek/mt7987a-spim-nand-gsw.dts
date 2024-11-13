@@ -1,0 +1,55 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
+
+/dts-v1/;
+#include "mt7987a.dtsi"
+#include "mt7987-netsys-gmac123.dtsi"
+#include "mt7987-spim-nand.dtsi"
+
+/ {
+	model = "MediaTek MT7987A SPIM-NAND RFB GSW";
+	compatible = "mediatek,mt7987a-spim-snand-gsw",
+		     "mediatek,mt7987a", "mediatek,mt7987";
+
+	chosen {
+		bootargs = "console=ttyS0,115200n1 loglevel=8  \
+			    earlycon=uart8250,mmio32,0x11000000 \
+			    pci=pcie_bus_perf";
+	};
+
+	gsw_an8855: gsw@1 {
+		compatible = "airoha,an8855";
+		#mediatek,ethsys = <&ethsys>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+};
+
+&gsw_an8855 {
+	airoha,mdio = <&mdio>;
+	airoha,portmap = "lllll";
+	airoha,intr = <6>;
+	airoha,extSurge = <1>;
+	reset-gpios = <&pio 42 0>;
+	interrupt-parent = <&pio>;
+	interrupts = <41 IRQ_TYPE_LEVEL_HIGH>;
+	status = "okay";
+
+	port5: port@5 {
+		compatible = "airoha,an8855-port";
+		reg = <5>;
+		phy-mode = "2500base-x";
+
+		fixed-link {
+			speed = <2500>;
+			full-duplex;
+		};
+	};
+};
+
+&mdio {
+	/delete-node/ switch@1;
+};
+
+&hnat {
+	mtketh-lan = "eth0";
+};
