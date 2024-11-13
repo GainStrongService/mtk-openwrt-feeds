@@ -4983,6 +4983,19 @@ static int mtk_hw_init(struct mtk_eth *eth, u32 type)
 			/* PSE should drop PPE to p8 packets when WDMA Rx ring full*/
 			mtk_w32(eth, 0x00000100, PSE_PPE_DROP(0));
 			mtk_w32(eth, 0x00000100, PSE_PPE_DROP(1));
+
+			/* Change SGMII clock source from PHYA */
+			for (i = 0; i < 2; i++) {
+				if (!eth->sgmii || !eth->sgmii->pcs[i].regmap)
+					continue;
+
+				regmap_update_bits(eth->sgmii->pcs[i].regmap,
+						   SGMSYS_SGMII_MODE, SGMII_TRX_BUF_THR_MASK,
+						   FIELD_PREP(SGMII_TRX_BUF_THR_MASK, 0x2111));
+				regmap_update_bits(eth->sgmii->pcs[i].regmap,
+						   SGMSYS_PCS_CONTROL_1, SGMII_PCS_REF_CK_SEL,
+						   SGMII_PCS_REF_CK_SEL);
+			}
 		}
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_ESW)) {

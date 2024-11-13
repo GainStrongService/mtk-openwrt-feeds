@@ -1105,6 +1105,7 @@
 #define SGMII_AN_ABILITY	BIT(19)
 #define SGMII_AN_COMPLETE	BIT(21)
 #define SGMII_PCS_FAULT		BIT(23)
+#define SGMII_PCS_REF_CK_SEL	BIT(24)
 #define SGMII_AN_EXPANSION_CLR	BIT(30)
 
 /* Register to set SGMII speed */
@@ -1137,6 +1138,7 @@
 #define SGMII_CODE_SYNC_SET_EN		BIT(10)
 #define SGMII_SEND_AN_ERROR_EN		BIT(11)
 #define SGMII_IF_MODE_MASK		GENMASK(5, 1)
+#define SGMII_TRX_BUF_THR_MASK		GENMASK(31, 16)
 
 /* Register to reset SGMII design */
 #define SGMII_RESERVED_0	0x34
