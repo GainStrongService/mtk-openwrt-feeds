@@ -4434,7 +4434,7 @@ set_speed:
 	if (s.base.speed == 0 || s.base.speed == ((__u32)-1))
 		return NOTIFY_DONE;
 
-	if (mac->speed > 0 && mac->speed < s.base.speed)
+	if (mac->phy_speed > 0 && mac->phy_speed < s.base.speed)
 		s.base.speed = 0;
 
 	mtk_set_queue_speed(eth, queue, s.base.speed);
@@ -4455,7 +4455,7 @@ dsa_set_speed:
 	if (dp->index >= MTK_QDMA_TX_NUM)
 		return NOTIFY_DONE;
 
-	if (mac->speed > 0 && mac->speed <= s.base.speed)
+	if (mac->phy_speed > 0 && mac->phy_speed <= s.base.speed)
 		s.base.speed = 0;
 
 	mtk_set_queue_speed(eth, dp->index, s.base.speed);
