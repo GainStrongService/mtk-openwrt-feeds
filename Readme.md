@@ -76,3 +76,26 @@ make menuconfig
 ```bash
 make V=s -j$(nproc)
 ```
+
+## MT7987 NPU Only (without WiFi) Build
+```bash
+#Get Openwrt 21.02 source code from Git server
+git clone --branch openwrt-21.02 https://git.openwrt.org/openwrt/openwrt.git
+
+#Get Openwrt master source code from Git Server
+git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_package
+
+#Get mtk-openwrt-feeds source code
+git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+
+#Change to openwrt folder
+cp -rf mtk-openwrt-feeds/autobuild/autobuild_5.4_mac80211_release openwrt
+cd openwrt; mv autobuild_5.4_mac80211_release autobuild
+
+#Add MTK feed
+echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
+
+#Build MT7987
+bash autobuild/mt7987-npu/lede-branch-build-sanity.sh
+```
+
