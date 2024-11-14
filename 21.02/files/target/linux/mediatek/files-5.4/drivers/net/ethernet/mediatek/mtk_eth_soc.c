@@ -1132,6 +1132,41 @@ static void mtk_set_queue_speed(struct mtk_eth *eth, unsigned int idx,
 		default:
 			break;
 		}
+	} else if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4)) {
+		switch (speed) {
+		case SPEED_10:
+			val |= MTK_QTX_SCH_MAX_RATE_EN_V2 |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 1) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 4) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 1);
+			break;
+		case SPEED_100:
+			val |= MTK_QTX_SCH_MAX_RATE_EN_V2 |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 1) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 5);
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 1);
+			break;
+		case SPEED_1000:
+			val |= MTK_QTX_SCH_MAX_RATE_EN_V2 |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 10) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 5) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 10);
+			break;
+		case SPEED_2500:
+			val |= MTK_QTX_SCH_MAX_RATE_EN_V2 |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 25) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 5) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 10);
+			break;
+		case SPEED_10000:
+			val |= MTK_QTX_SCH_MAX_RATE_EN_V2 |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 100) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 5) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 10);
+			break;
+		default:
+			break;
+		}
 	} else {
 		switch (speed) {
 		case SPEED_10:
