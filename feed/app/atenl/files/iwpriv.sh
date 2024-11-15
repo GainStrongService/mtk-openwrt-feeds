@@ -813,6 +813,8 @@ function do_ate_work() {
 
             if [ ! -z "${if_str}" -a "${if_str}" != " " ]; then
                 echo "ATE already starts."
+            elif [ ${is_connac3} == "1" ]; then
+                do_cmd "mt76-test phy${phy_idx} add mon${phy_idx}"
             else
                 do_cmd "iw phy ${interface} interface add mon${phy_idx} type monitor"
 
@@ -861,6 +863,8 @@ function do_ate_work() {
 
             if [ -z "${if_str}" -a "${if_str}" != " " ]; then
                 echo "ATE does not start."
+            elif [ ${is_connac3} == "1" ]; then
+                do_cmd "mt76-test phy${phy_idx} del mon${phy_idx}"
             else
                 do_cmd "mt76-test ${interface} set state=off"
                 do_cmd "iw dev mon${phy_idx} del"
