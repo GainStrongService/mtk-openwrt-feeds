@@ -87,7 +87,9 @@ static void usage(void)
 	       "  -h = show help text\n"
 	       "  -i = phy name of driver interface, please use first phy for dbdc\n"
 	       "  -u = use unicast to respond to HQADLL\n"
-	       "  -b = specify your bridge name\n");
+	       "  -b = specify your bridge name\n"
+	       "  -c = eeprom-related command\n"
+	       "  -p = specify the flash partition name and offset (<name>:<offs>)\n");
 	printf("examples:\n"
 	       "  %s -u -i phy0 -b br-lan\n", progname);
 
@@ -124,6 +126,7 @@ int main(int argc, char **argv)
 {
 	int opt, phy_idx, ret = 0;
 	char *phy = "phy0", *cmd = NULL;
+	char *token;
 	struct atenl *an;
 
 	progname = argv[0];
@@ -133,7 +136,7 @@ int main(int argc, char **argv)
 		return -ENOMEM;
 
 	while(1) {
-		opt = getopt(argc, argv, "hi:uc:b:");
+		opt = getopt(argc, argv, "hi:uc:b:p:");
 		if (opt == -1)
 			break;
 
@@ -153,6 +156,13 @@ int main(int argc, char **argv)
 				break;
 			case 'c':
 				cmd = optarg;
+				break;
+			case 'p':
+				token = strtok(optarg, ":");
+				if (!token)
+					break;
+				an->flash_part = token;
+				an->flash_offset = strtol(strtok(NULL, ":"), NULL, 0);
 				break;
 			default:
 				atenl_err("Not supported option: %c\n", opt);

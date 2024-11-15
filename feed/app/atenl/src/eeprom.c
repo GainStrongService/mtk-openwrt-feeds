@@ -3,6 +3,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/ioctl.h>
+#include <blkid/blkid.h>
 
 #include "atenl.h"
 
@@ -357,8 +359,8 @@ int atenl_eeprom_init(struct atenl *an, u8 phy_idx)
 	char buf[30];
 
 	set_band_val(an, 0, phy_idx, phy_idx);
-	atenl_nl_check_mtd(an);
-	flash_mode = an->mtd_part != NULL;
+	atenl_nl_check_flash(an);
+	flash_mode = an->flash_part != NULL;
 
 	// Get the first main phy index for this chip
 	an->main_phy_idx = phy_idx - an->band_idx;
@@ -430,30 +432,146 @@ int atenl_eeprom_update_precal(struct atenl *an, int write_offs, int size)
 	return 0;
 }
 
-int atenl_eeprom_write_mtd(struct atenl *an)
+int atenl_mtd_open(struct atenl *an, int flags)
 {
-#define TMP_FILE	"/tmp/tmp_eeprom.bin"
-	pid_t pid;
-	u32 size = an->eeprom_size;
-	u32 *precal_info = an->eeprom_data + an->eeprom_size;
-	u32 precal_size = precal_info[0] + precal_info[1];
-	char cmd[100];
+	char dev[128], buf[16];
+	char *part_num;
+	FILE *f;
+	int fd;
 
-	if (an->mtd_part == NULL || !(~an->mtd_offset))
+	f = fopen("/proc/mtd", "r");
+	if (!f)
+		return -1;
+
+	while (fgets(dev, sizeof(dev), f)) {
+		if (!strcasestr(dev, an->flash_part))
+			continue;
+
+		part_num = strtok(dev, ":");
+		if (part_num)
+			break;
+	}
+
+	fclose(f);
+
+	if (!part_num)
+		return -1;
+
+	/* mtdblockX emulates an mtd device as a block device.
+	 * Use mtdblockX instead of mtdX to avoid padding & buffer handling.
+	 */
+	snprintf(buf, sizeof(buf), "/dev/mtdblock%s", part_num + 3);
+
+	fd = open(buf, flags);
+
+	return fd;
+}
+
+int atenl_mmc_open(struct atenl *an, int flags)
+{
+	const char *mmc_dev = "/dev/mmcblk0";
+	int nparts, part_num;
+	blkid_partlist plist;
+	blkid_probe probe;
+	int i, fd = -1;
+	char buf[16];
+
+	probe = blkid_new_probe_from_filename(mmc_dev);
+	if (!probe)
+		return -1;
+
+	plist = blkid_probe_get_partitions(probe);
+	if (!plist)
+		goto out;
+
+	nparts = blkid_partlist_numof_partitions(plist);
+	if (!nparts)
+		goto out;
+
+	for (i = 0; i < nparts; i++) {
+		blkid_partition part;
+		const char *name;
+
+		part = blkid_partlist_get_partition(plist, i);
+		if (!part)
+			continue;
+
+		name = blkid_partition_get_name(part);
+		if (!name)
+			continue;
+
+		if (strncasecmp(name, an->flash_part, strlen(an->flash_part)))
+			continue;
+
+		part_num = blkid_partition_get_partno(part);
+		snprintf(buf, sizeof(buf), "%sp%d", mmc_dev, part_num);
+
+		fd = open(buf, flags);
+		if (fd >= 0)
+			break;
+	}
+
+out:
+	blkid_free_probe(probe);
+	return fd;
+}
+
+void atenl_flash_write(struct atenl *an, int fd, u32 size, bool is_mtd)
+{
+	u32 flash_size, offs;
+	int ret;
+
+	flash_size = lseek(fd, 0, SEEK_END);
+	if (size > flash_size)
+		return;
+
+	offs = an->flash_offset;
+	ret = lseek(fd, offs, SEEK_SET);
+	if (ret < 0)
+		return;
+
+	ret = write(fd, an->eeprom_data, size);
+	if (ret < 0)
+		return;
+
+	atenl_info("write to %s partition %s offset 0x%x size 0x%x\n",
+		   is_mtd ? "mtd" : "mmc", an->flash_part, offs, size);
+}
+
+int atenl_eeprom_write_flash(struct atenl *an)
+{
+	u32 size = an->eeprom_size;
+	u32 precal_size, *precal_info;
+	int fd;
+
+	/* flash_offset = -1 for binfile mode */
+	if (an->flash_part == NULL || !(~an->flash_offset)) {
+		atenl_err("Flash partition or offset is not specified\n");
 		return 0;
+	}
+
+	precal_info = (u32 *)(an->eeprom_data + size);
+	precal_size = precal_info[0] + precal_info[1];
 
 	if (precal_size)
 		size += PRE_CAL_INFO + precal_size;
 
-	sprintf(cmd, "dd if=%s of=%s bs=1 count=%d", eeprom_file, TMP_FILE, size);
-	system(cmd);
+	fd = atenl_mtd_open(an, O_RDWR | O_SYNC);
+	if (fd >= 0) {
+		atenl_flash_write(an, fd, size, true);
+		goto out;
+	}
 
-	sprintf(cmd, "mtd -p %d write %s %s", an->mtd_offset, TMP_FILE, an->mtd_part);
-	system(cmd);
+	fd = atenl_mmc_open(an, O_RDWR | O_SYNC);
+	if (fd >= 0) {
+		atenl_flash_write(an, fd, size, false);
+		goto out;
+	}
 
-	sprintf(cmd, "rm %s", TMP_FILE);
-	system(cmd);
+	atenl_err("Fail to open %s\n", an->flash_part);
 
+out:
+	close(fd);
 	return 0;
 }
 
@@ -512,7 +630,7 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 	atenl_eeprom_init(an, phy_idx);
 
 	if (!strncmp(cmd, "sync eeprom all", 15)) {
-		atenl_eeprom_write_mtd(an);
+		atenl_eeprom_write_flash(an);
 	} else if (!strncmp(cmd, "eeprom", 6)) {
 		char *s = strchr(cmd, ' ');
 
@@ -526,9 +644,9 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 			unlink(eeprom_file);
 		} else if (!strncmp(s, "file", 4)) {
 			atenl_info("%s\n", eeprom_file);
-			if (an->mtd_part != NULL)
+			if (an->flash_part != NULL)
 				atenl_info("%s mode\n",
-					   ~an->mtd_offset == 0 ? "Binfile" : "Flash");
+					   ~an->flash_offset == 0 ? "Binfile" : "Flash");
 			else
 				atenl_info("Efuse / Default bin mode\n");
 		} else if (!strncmp(s, "set", 3)) {
@@ -555,7 +673,7 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 			s++;
 
 			if (!strncmp(s, "flash", 5)) {
-				atenl_eeprom_write_mtd(an);
+				atenl_eeprom_write_flash(an);
 			} else if (!strncmp(s, "to efuse", 8)) {
 				atenl_eeprom_sync_to_driver(an);
 				atenl_nl_write_efuse_all(an);

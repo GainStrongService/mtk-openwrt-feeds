@@ -92,8 +92,8 @@ struct atenl {
 	bool unicast;
 	int sock_eth;
 
-	const char *mtd_part;
-	u32 mtd_offset;
+	const char *flash_part;
+	u32 flash_offset;
 	u8 band_idx;
 	u8 *eeprom_data;
 	int eeprom_fd;
@@ -465,7 +465,7 @@ void atenl_set_channel(struct atenl *an, u8 bw, u8 ch_band,
 		       u16 ch, u16 center_ch1, u16 center_ch2);
 int atenl_nl_process(struct atenl *an, struct atenl_data *data);
 int atenl_nl_process_many(struct atenl *an, struct atenl_data *data);
-int atenl_nl_check_mtd(struct atenl *an);
+int atenl_nl_check_flash(struct atenl *an);
 int atenl_nl_write_eeprom(struct atenl *an, u32 offset, u8 *val, int len);
 int atenl_nl_write_efuse_all(struct atenl *an);
 int atenl_nl_write_ext_eeprom_all(struct atenl *an);
@@ -477,7 +477,7 @@ int atenl_nl_precal_sync_from_driver(struct atenl *an, enum prek_ops ops);
 void atenl_get_ibf_cal_result(struct atenl *an);
 int atenl_eeprom_init(struct atenl *an, u8 phy_idx);
 void atenl_eeprom_close(struct atenl *an);
-int atenl_eeprom_write_mtd(struct atenl *an);
+int atenl_eeprom_write_flash(struct atenl *an);
 int atenl_eeprom_update_precal(struct atenl *an, int write_offs, int size);
 int atenl_eeprom_read_from_driver(struct atenl *an, u32 offset, int len);
 void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd);

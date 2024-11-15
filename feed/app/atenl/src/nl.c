@@ -1186,7 +1186,7 @@ int atenl_nl_set_aid(struct atenl *an, u8 band, u8 aid)
 	return 0;
 }
 
-static int atenl_nl_check_mtd_cb(struct nl_msg *msg, void *arg)
+static int atenl_nl_check_flash_cb(struct nl_msg *msg, void *arg)
 {
 	struct atenl_nl_priv *nl_priv = (struct atenl_nl_priv *)arg;
 	struct atenl *an = nl_priv->an;
@@ -1203,13 +1203,13 @@ static int atenl_nl_check_mtd_cb(struct nl_msg *msg, void *arg)
 	if (!tb[MT76_TM_ATTR_MTD_PART] || !tb[MT76_TM_ATTR_MTD_OFFSET])
 		return NL_SKIP;
 
-	an->mtd_part = strdup(nla_get_string(tb[MT76_TM_ATTR_MTD_PART]));
-	an->mtd_offset = nla_get_u32(tb[MT76_TM_ATTR_MTD_OFFSET]);
+	an->flash_part = strdup(nla_get_string(tb[MT76_TM_ATTR_MTD_PART]));
+	an->flash_offset = nla_get_u32(tb[MT76_TM_ATTR_MTD_OFFSET]);
 
 	return NL_SKIP;
 }
 
-int atenl_nl_check_mtd(struct atenl *an)
+int atenl_nl_check_flash(struct atenl *an)
 {
 	struct atenl_nl_priv nl_priv = { .an = an };
 	struct nl_msg *msg;
@@ -1219,9 +1219,14 @@ int atenl_nl_check_mtd(struct atenl *an)
 		return 2;
 	}
 
+	/* User has a specified flash partition */
+	if (an->flash_part)
+		return 0;
+
 	msg = unl_genl_msg(&nl_priv.unl, NL80211_CMD_TESTMODE, true);
 	nla_put_u32(msg, NL80211_ATTR_WIPHY, get_band_val(an, 0, phy_idx));
-	unl_genl_request(&nl_priv.unl, msg, atenl_nl_check_mtd_cb, (void *)&nl_priv);
+	unl_genl_request(&nl_priv.unl, msg, atenl_nl_check_flash_cb,
+			 (void *)&nl_priv);
 
 	unl_free(&nl_priv.unl);
 
