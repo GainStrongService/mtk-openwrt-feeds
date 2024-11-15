@@ -106,7 +106,12 @@
 #define PROCREG_HW_LRO_AUTO_TLB		"hw_lro_auto_tlb"
 #define PROCREG_RESET_EVENT		"reset_event"
 
-#define MAX_PPPQ_PORT_NUM		6
+#define MAX_SWITCH_PORT_NUM		(6)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MAX_PPPQ_QUEUE_NUM		(2 * MAX_SWITCH_PORT_NUM + 2)
+#else
+#define MAX_PPPQ_QUEUE_NUM		(2 * MAX_SWITCH_PORT_NUM)
+#endif
 
 /* XFI MAC MIB Register */
 #define MTK_XFI_MIB_BASE(x)		(MTK_XMAC_MCR(x))

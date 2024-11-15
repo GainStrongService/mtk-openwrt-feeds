@@ -983,6 +983,18 @@ drop:
 	return NF_DROP;
 }
 
+bool is_eth_dev_speed_under(const struct net_device *dev, u32 speed)
+{
+	const struct mtk_mac *mac;
+
+	if (!dev || !IS_ETH_GRP(dev) || netdev_uses_dsa((struct net_device *)dev))
+		return false;
+
+	mac = netdev_priv(dev);
+
+	return mac->phy_speed <= speed;
+}
+
 static inline void qos_rate_limit_set(u32 id, const struct net_device *dev)
 {
 	const struct mtk_mac *mac;
@@ -1048,10 +1060,10 @@ mtk_hnat_ipv4_nf_pre_routing(void *priv, struct sk_buff *skb,
 	    mtk_tnl_decap_offload && !mtk_tnl_decap_offload(skb)) {
 		if (skb_hnat_cdrt(skb) && skb_hnat_is_decrypt(skb))
 			/*
-			 * inbound flow of offload engines use QID 13
+			 * inbound flow of offload engines use QID 15
 			 * set its rate limit to maximum
 			 */
-			qos_rate_limit_set(13, NULL);
+			qos_rate_limit_set(15, NULL);
 
 		return NF_ACCEPT;
 	}
@@ -1138,10 +1150,10 @@ mtk_hnat_br_nf_local_in(void *priv, struct sk_buff *skb,
 	    mtk_tnl_decap_offload && !mtk_tnl_decap_offload(skb)) {
 		if (skb_hnat_cdrt(skb) && skb_hnat_is_decrypt(skb))
 			/*
-			 * inbound flow of offload engines use QID 13
+			 * inbound flow of offload engines use QID 15
 			 * set its rate limit to maximum
 			 */
-			qos_rate_limit_set(13, NULL);
+			qos_rate_limit_set(15, NULL);
 
 		return NF_ACCEPT;
 	}
@@ -1488,11 +1500,11 @@ static inline void hnat_fill_offload_engine_entry(struct sk_buff *skb,
 	}
 
 	/*
-	 * outbound flow of offload engines use QID 12
+	 * outbound flow of offload engines use QID 14
 	 * set its rate limit to line rate
 	 */
-	entry->ipv4_hnapt.iblk2.qid = 12;
-	qos_rate_limit_set(12, dev);
+	entry->ipv4_hnapt.iblk2.qid = 14;
+	qos_rate_limit_set(14, dev);
 #endif /* defined(CONFIG_MEDIATEK_NETSYS_V3) */
 }
 
@@ -2240,14 +2252,16 @@ hnat_entry_bind:
 		return 0;
 	}
 
-	if (IS_HQOS_MODE || (skb->mark & MTK_QDMA_TX_MASK) >= MAX_PPPQ_PORT_NUM)
+	if (IS_HQOS_MODE || (skb->mark & MTK_QDMA_TX_MASK) >= MAX_PPPQ_QUEUE_NUM)
 		qid = skb->mark & (MTK_QDMA_TX_MASK);
 	else if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb))
-		qid = port_id & MTK_QDMA_TX_MASK;
+		qid = ((port_id >= 0) ? port_id :
+		       (gmac == NR_GMAC2_PORT) ? 2 * MAX_SWITCH_PORT_NUM :
+						 2 * MAX_SWITCH_PORT_NUM + 1) & MTK_QDMA_TX_MASK;
 	else
 		qid = 0;
 
-	if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb)) {
+	if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb) && port_id >= 0) {
 		if (h_proto == ETH_P_IP) {
 			iph = ip_hdr(skb);
 			if (iph->protocol == IPPROTO_TCP) {
@@ -2256,7 +2270,7 @@ hnat_entry_bind:
 					      skb_transport_offset(skb) - tcp_hdrlen(skb);
 				/* Dispatch ACK packets to high priority queue */
 				if (payload_len == 0)
-					qid += 6;
+					qid += MAX_SWITCH_PORT_NUM;
 			}
 		} else if (h_proto == ETH_P_IPV6) {
 			ip6h = ipv6_hdr(skb);
@@ -2265,7 +2279,7 @@ hnat_entry_bind:
 				payload_len = be16_to_cpu(ip6h->payload_len) - tcp_hdrlen(skb);
 				/* Dispatch ACK packets to high priority queue */
 				if (payload_len == 0)
-					qid += 6;
+					qid += MAX_SWITCH_PORT_NUM;
 			}
 		}
 	}

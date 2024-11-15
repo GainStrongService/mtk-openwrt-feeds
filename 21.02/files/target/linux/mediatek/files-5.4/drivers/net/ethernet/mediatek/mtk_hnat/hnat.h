@@ -1184,6 +1184,7 @@ enum FoeIpAct {
 #define WAN_DEV_NAME hnat_priv->wan
 #define LAN_DEV_NAME hnat_priv->lan
 #define LAN2_DEV_NAME hnat_priv->lan2
+#define IS_ETH_GRP(dev) (IS_LAN_GRP(dev) || IS_WAN(dev))
 #define IS_WAN(dev) (!strncmp((dev)->name, WAN_DEV_NAME, strlen(WAN_DEV_NAME)))
 #define IS_LAN_GRP(dev) (IS_LAN(dev) | IS_LAN2(dev))
 #define IS_LAN(dev)								\
@@ -1218,12 +1219,21 @@ enum FoeIpAct {
 #define IS_GMAC1_MODE ((hnat_priv->gmac_num == 1) ? 1 : 0)
 #define IS_HQOS_MODE (qos_toggle == 1)
 #define IS_PPPQ_MODE (qos_toggle == 2)		/* Per Port Per Queue */
-#define IS_PPPQ_PATH(dev, skb) \
-	((IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev)) || \
-	 (FROM_WED(skb) && IS_DSA_LAN(dev)))
 #define IS_HQOS_DL_MODE (IS_HQOS_MODE && qos_dl_toggle)
 #define IS_HQOS_UL_MODE (IS_HQOS_MODE && qos_ul_toggle)
-#define MAX_PPPQ_PORT_NUM	6
+#define MAX_SWITCH_PORT_NUM		(6)
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MAX_PPPQ_QUEUE_NUM		(2 * MAX_SWITCH_PORT_NUM + 2)
+#define IS_PPPQ_PATH(dev, skb)				\
+	((IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev)) ||	\
+	 (FROM_WED(skb) && IS_DSA_LAN(dev)) ||		\
+	 (is_eth_dev_speed_under(dev, SPEED_2500)))
+#else
+#define MAX_PPPQ_QUEUE_NUM		(2 * MAX_SWITCH_PORT_NUM)
+#define IS_PPPQ_PATH(dev, skb)				\
+	((IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev)) ||	\
+	 (FROM_WED(skb) && IS_DSA_LAN(dev)))
+#endif
 
 #define es(entry) (entry_state[entry->bfib1.state])
 #define ei(entry, end) (hnat_priv->foe_etry_num - (int)(end - entry))
@@ -1267,11 +1277,11 @@ enum FoeIpAct {
 #define UDF_PINGPONG_IFIDX GENMASK(6, 0)
 #define UDF_HNAT_ENTRY_LOCKED BIT(7)
 
-#define HQOS_FLAG(dev, skb, qid)			\
-	((IS_HQOS_UL_MODE && IS_WAN(dev)) ||		\
-	 (IS_HQOS_DL_MODE && IS_LAN_GRP(dev)) ||	\
-	 (IS_PPPQ_MODE && (IS_PPPQ_PATH(dev, skb) ||	\
-			   qid >= MAX_PPPQ_PORT_NUM)))
+#define HQOS_FLAG(dev, skb, qid)				\
+	((IS_HQOS_UL_MODE && IS_WAN(dev)) ||			\
+	 (IS_HQOS_DL_MODE && IS_LAN_GRP(dev)) ||		\
+	 (IS_PPPQ_MODE && (IS_PPPQ_PATH(dev, skb) ||		\
+			   qid >= MAX_PPPQ_QUEUE_NUM)))
 
 #define HNAT_GMAC_FP(mac_id)						\
 	((IS_GMAC1_MODE || mac_id == MTK_GMAC1_ID) ? NR_GMAC1_PORT :	\
@@ -1340,6 +1350,7 @@ void hnat_unregister_nf_hooks(void);
 int whnat_adjust_nf_hooks(void);
 int mtk_hqos_ptype_cb(struct sk_buff *skb, struct net_device *dev,
 		      struct packet_type *pt, struct net_device *unused);
+bool is_eth_dev_speed_under(const struct net_device *dev, u32 speed);
 extern int dbg_cpu_reason;
 extern int debug_level;
 extern int xlat_toggle;
