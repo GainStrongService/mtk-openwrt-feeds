@@ -461,6 +461,8 @@ int atenl_eth_init(struct atenl *an);
 int atenl_eth_recv(struct atenl *an, struct atenl_data *data);
 int atenl_eth_send(struct atenl *an, struct atenl_data *data);
 int atenl_hqa_proc_cmd(struct atenl *an);
+void atenl_set_channel(struct atenl *an, u8 bw, u8 ch_band,
+		       u16 ch, u16 center_ch1, u16 center_ch2);
 int atenl_nl_process(struct atenl *an, struct atenl_data *data);
 int atenl_nl_process_many(struct atenl *an, struct atenl_data *data);
 int atenl_nl_check_mtd(struct atenl *an);

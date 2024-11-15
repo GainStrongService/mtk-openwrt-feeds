@@ -60,7 +60,6 @@ static int get_default_bridge_name(struct atenl *an)
 {
 	char buf[128];
 	FILE *f;
-	size_t len;
 	int ret;
 
 	ret = snprintf(buf, sizeof(buf), "/sbin/procd");

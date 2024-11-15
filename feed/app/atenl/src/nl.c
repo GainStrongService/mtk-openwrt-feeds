@@ -835,7 +835,7 @@ atenl_get_ibf_cal_result(struct atenl *an)
 
 	if (an->adie_id == 0x7975)
 		offset = 0x651;
-	else if (an->adie_id == 0x7976)
+	else
 		offset = 0x60a;
 
 	if (is_mt7996(an)) {
@@ -866,7 +866,6 @@ atenl_nl_ibf_set_val(struct atenl *an, struct atenl_data *data,
 	u16 val[8], is_atenl = 1;
 	u8 tmp_ant;
 	void *ptr, *a;
-	char cmd[64];
 	int i;
 
 	for (i = 0; i < 8; i++)
@@ -1564,6 +1563,7 @@ start:
 		ret = atenl_eeprom_update_precal(an, group_size, dpd_size);
 		break;
 	default:
+		ret = -EINVAL;
 		break;
 	}
 
