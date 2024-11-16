@@ -145,15 +145,17 @@ void mtk_sgmii_reset(struct mtk_sgmii_pcs *mpcs)
 	case 0:
 		/* Enable software reset */
 		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
-		val |= SWSYSRST_XFI_PEXPT0_GRST |
-		       SWSYSRST_SGMII0_GRST;
+		val |= SWSYSRST_SGMII0_GRST;
+		if (mpcs->regmap_pextp)
+			val |= SWSYSRST_XFI_PEXPT0_GRST;
 		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
 
 		/* Assert SGMII reset */
 		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
 		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88) |
-		       SWSYSRST_XFI_PEXPT0_GRST |
 		       SWSYSRST_SGMII0_GRST;
+		if (mpcs->regmap_pextp)
+			val |= SWSYSRST_XFI_PEXPT0_GRST;
 		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
 
 		usleep_range(100, 500);
@@ -161,28 +163,32 @@ void mtk_sgmii_reset(struct mtk_sgmii_pcs *mpcs)
 		/* De-assert SGMII reset */
 		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
 		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88);
-		val &= ~(SWSYSRST_XFI_PEXPT0_GRST |
-			 SWSYSRST_SGMII0_GRST);
+		val &= ~SWSYSRST_SGMII0_GRST;
+		if (mpcs->regmap_pextp)
+			val &= ~SWSYSRST_XFI_PEXPT0_GRST;
 		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
 
 		/* Disable software reset */
 		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
-		val &= ~(SWSYSRST_XFI_PEXPT0_GRST |
-			 SWSYSRST_SGMII0_GRST);
+		val &= ~SWSYSRST_SGMII0_GRST;
+		if (mpcs->regmap_pextp)
+			val &= ~SWSYSRST_XFI_PEXPT0_GRST;
 		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
 		break;
 	case 1:
 		/* Enable software reset */
 		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
-		val |= SWSYSRST_XFI_PEXPT1_GRST |
-		       SWSYSRST_SGMII1_GRST;
+		val |= SWSYSRST_SGMII1_GRST;
+		if (mpcs->regmap_pextp)
+			val |= SWSYSRST_XFI_PEXPT1_GRST;
 		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
 
 		/* Assert SGMII reset */
 		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
 		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88) |
-		       SWSYSRST_XFI_PEXPT1_GRST |
 		       SWSYSRST_SGMII1_GRST;
+		if (mpcs->regmap_pextp)
+			val |= SWSYSRST_XFI_PEXPT1_GRST;
 		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
 
 		usleep_range(100, 500);
@@ -190,14 +196,16 @@ void mtk_sgmii_reset(struct mtk_sgmii_pcs *mpcs)
 		/* De-assert SGMII reset */
 		regmap_read(eth->toprgu, TOPRGU_SWSYSRST, &val);
 		val |= FIELD_PREP(SWSYSRST_UNLOCK_KEY, 0x88);
-		val &= ~(SWSYSRST_XFI_PEXPT1_GRST |
-			 SWSYSRST_SGMII1_GRST);
+		val &= ~SWSYSRST_SGMII1_GRST;
+		if (mpcs->regmap_pextp)
+			val &= ~SWSYSRST_XFI_PEXPT1_GRST;
 		regmap_write(eth->toprgu, TOPRGU_SWSYSRST, val);
 
 		/* Disable software reset */
 		regmap_read(eth->toprgu, TOPRGU_SWSYSRST_EN, &val);
-		val &= ~(SWSYSRST_XFI_PEXPT1_GRST |
-			 SWSYSRST_SGMII1_GRST);
+		val &= ~SWSYSRST_SGMII1_GRST;
+		if (mpcs->regmap_pextp)
+			val &= ~SWSYSRST_XFI_PEXPT1_GRST;
 		regmap_write(eth->toprgu, TOPRGU_SWSYSRST_EN, val);
 		break;
 	}
@@ -515,6 +523,16 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	regmap_update_bits_check(mpcs->regmap, SGMSYS_PCS_ADVERTISE,
 				 SGMII_ADVERTISE, advertise, &changed);
 
+	if (eth->soc->caps == MT7987_CAPS) {
+		/* Change the sgmsys clock source from PHYA */
+		bmcr |= SGMII_PCS_REF_CK_SEL;
+
+		/* Change the sgmsys tx/rx buffer threshold */
+		regmap_update_bits(mpcs->regmap, SGMSYS_SGMII_MODE,
+				   SGMII_TRX_BUF_THR_MASK,
+				   FIELD_PREP(SGMII_TRX_BUF_THR_MASK, 0x2111));
+	}
+
 	/* Update the sgmsys mode register */
 	regmap_update_bits(mpcs->regmap, SGMSYS_SGMII_MODE,
 			   SGMII_REMOTE_FAULT_DIS | SGMII_DUPLEX_HALF |
@@ -523,7 +541,7 @@ static int mtk_sgmii_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 
 	/* Update the BMCR */
 	regmap_update_bits(mpcs->regmap, SGMSYS_PCS_CONTROL_1,
-			   SGMII_AN_ENABLE, bmcr);
+			   SGMII_AN_ENABLE | SGMII_PCS_REF_CK_SEL, bmcr);
 
 	/* Release PHYA power down state */
 	usleep_range(50, 100);
