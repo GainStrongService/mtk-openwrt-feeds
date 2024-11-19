@@ -256,7 +256,7 @@ static const struct mtk_gate infra_clks[] __initconst = {
 	GATE_INFRA3(CK_INFRA_USB_CK_P1, "infra_usb_ck_p1", "cb_cksq_40m", 7),
 	GATE_CRITICAL(CK_INFRA_USB_FRMCNT_CK_P1, "infra_usb_frmcnt_ck_p1",
 		      "cksq_40m_d2", &infra3_cg_regs, 9),
-	GATE_INFRA3(CK_INFRA_USB_PIPE_CK_P1, "infra_usb_pipe_ck_p1", "clkxtal",
+	GATE_INFRA3(CK_INFRA_USB_PIPE_CK_P1, "infra_usb_pipe_ck_p1", "usb_phy_sel",
 		    11),
 	GATE_INFRA3(CK_INFRA_USB_UTMI_CK_P1, "infra_usb_utmi_ck_p1", "clkxtal",
 		    13),
