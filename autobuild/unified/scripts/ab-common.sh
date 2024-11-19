@@ -172,6 +172,8 @@ copy_files() {
 	if test -d "${1}"; then
 		local dest="${openwrt_root}"
 
+		[ x$(ls "${1}" | wc -w) = x0 ] && return 0
+
 		[ -n "${2}" ] && dest="${openwrt_root}/${2}"
 		[ -d "${dest}" ] || exec_log "mkdir -p \"${dest}\""
 		exec_log "cp -af \"${1}\"/* \"${dest}/\""
