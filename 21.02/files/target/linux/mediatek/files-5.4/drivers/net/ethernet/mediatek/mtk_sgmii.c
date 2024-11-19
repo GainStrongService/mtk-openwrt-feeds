@@ -605,6 +605,12 @@ static void mtk_sgmii_pcs_get_state(struct phylink_pcs *pcs,
 {
 	struct mtk_sgmii_pcs *mpcs = pcs_to_mtk_sgmii_pcs(pcs);
 
+	/* Passing the advertising and lp_advertising parameters to
+	 * phylink_mii_c22_pcs_decode_state()in mtk_sgmii_get_state().
+	 */
+	linkmode_copy(mpcs->state.advertising, state->advertising);
+	linkmode_copy(mpcs->state.lp_advertising, state->lp_advertising);
+
 	/* When the interface of the mpcs is not initialized,
 	 * we should avoid overriding the state interface.
 	 */
