@@ -981,6 +981,16 @@ struct mtk_hnat {
 	bool nf_stat_en;
 	struct xlat_conf xlat;
 	spinlock_t		entry_lock;
+	spinlock_t		flow_entry_lock;
+	struct hlist_head *foe_flow[MAX_PPE_NUM];
+};
+
+struct hnat_flow_entry {
+	struct hlist_node list;
+	struct foe_entry data;
+	unsigned long last_update;
+	u16 ppe_index;
+	u16 hash;
 };
 
 struct extdev_entry {
@@ -1275,7 +1285,6 @@ enum FoeIpAct {
 #endif
 
 #define UDF_PINGPONG_IFIDX GENMASK(6, 0)
-#define UDF_HNAT_ENTRY_LOCKED BIT(7)
 
 #define HQOS_FLAG(dev, skb, qid)				\
 	((IS_HQOS_UL_MODE && IS_WAN(dev)) ||			\
@@ -1292,39 +1301,22 @@ enum FoeIpAct {
 extern const struct of_device_id of_hnat_match[];
 extern struct mtk_hnat *hnat_priv;
 
-static inline int is_hnat_entry_locked(struct foe_entry *entry)
+static inline bool hnat_entry_is_static_locked(struct foe_entry *entry)
 {
-	u32 udf = 0;
-
-	if (IS_IPV4_GRP(entry) || IS_L2_BRIDGE(entry))
-		udf = entry->ipv4_hnapt.act_dp;
-	else
-		udf = entry->ipv6_5t_route.act_dp;
-
-	return !!(udf & UDF_HNAT_ENTRY_LOCKED);
+	return entry->udib1.sta == 1;
 }
 
-static inline void hnat_set_entry_lock(struct foe_entry *entry, bool locked)
+static inline void hnat_set_entry_static_lock(struct foe_entry *entry, bool lock)
 {
-	if (IS_IPV4_GRP(entry) || IS_L2_BRIDGE(entry)) {
-		if (locked)
-			entry->ipv4_hnapt.act_dp |= UDF_HNAT_ENTRY_LOCKED;
-		else
-			entry->ipv4_hnapt.act_dp &= ~UDF_HNAT_ENTRY_LOCKED;
-	} else {
-		if (locked)
-			entry->ipv6_5t_route.act_dp |= UDF_HNAT_ENTRY_LOCKED;
-		else
-			entry->ipv6_5t_route.act_dp &= ~UDF_HNAT_ENTRY_LOCKED;
-	}
-	/* Ensure the lock has been written to the entry before return */
+	entry->udib1.sta = (lock) ? 1 : 0;
+	/* We must ensure all info has been updated */
 	wmb();
 }
 
-static inline void hnat_check_release_entry_lock(struct foe_entry *entry)
+static inline void hnat_check_release_entry_static_lock(struct foe_entry *entry)
 {
-	if (is_hnat_entry_locked(entry))
-		hnat_set_entry_lock(entry, false);
+	if (hnat_entry_is_static_locked(entry))
+		hnat_set_entry_static_lock(entry, false);
 }
 
 int hnat_dsa_fill_stag(const struct net_device *netdev,
@@ -1401,13 +1393,24 @@ u32 hnat_get_ppe_hash(struct foe_entry *entry);
 int mtk_ppe_get_xlat_v4_by_v6(struct in6_addr *ipv6, u32 *ipv4);
 int mtk_ppe_get_xlat_v6_by_v4(u32 *ipv4, struct in6_addr *ipv6,
 			      struct in6_addr *prefix);
+bool hnat_flow_entry_match(struct foe_entry *entry, struct foe_entry *data);
+void hnat_flow_entry_delete(struct hnat_flow_entry *flow_entry);
 
 struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 ppe_id,
 				       u32 index, struct hnat_accounting *diff);
 
-static inline u16 foe_timestamp(struct mtk_hnat *h)
+static inline u16 foe_timestamp(struct mtk_hnat *h, bool mcast)
 {
-	return (readl(hnat_priv->fe_base + 0x0010)) & 0xffff;
+	u16 time_stamp;
+
+	if (mcast)
+		time_stamp = (readl(h->fe_base + 0x0010)) & 0xffff;
+	else if (h->data->version == MTK_HNAT_V2 || h->data->version == MTK_HNAT_V3)
+		time_stamp = readl(h->fe_base + 0x0010) & (0xFF);
+	else
+		time_stamp = readl(h->fe_base + 0x0010) & (0x7FFF);
+
+	return time_stamp;
 }
 
 #endif /* NF_HNAT_H */

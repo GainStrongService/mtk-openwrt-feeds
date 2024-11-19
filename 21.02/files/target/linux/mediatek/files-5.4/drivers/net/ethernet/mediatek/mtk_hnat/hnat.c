@@ -28,6 +28,7 @@
 struct mtk_hnat *hnat_priv;
 static struct socket *_hnat_roam_sock;
 static struct work_struct _hnat_roam_work;
+static struct delayed_work _hnat_flow_entry_teardown_work;
 
 int (*ra_sw_nat_hook_rx)(struct sk_buff *skb) = NULL;
 EXPORT_SYMBOL(ra_sw_nat_hook_rx);
@@ -545,6 +546,72 @@ static void hnat_roaming_disable(void)
 	pr_info("hnat roaming work disable\n");
 }
 
+static void hnat_flow_entry_teardown_all(u32 ppe_id)
+{
+	struct hnat_flow_entry *flow_entry;
+	struct hlist_head *head;
+	struct hlist_node *n;
+	int index;
+
+	spin_lock_bh(&hnat_priv->flow_entry_lock);
+	for (index = 0; index < DEF_ETRY_NUM / 4; index++) {
+		head = &hnat_priv->foe_flow[ppe_id][index];
+		hlist_for_each_entry_safe(flow_entry, n, head, list) {
+			hnat_flow_entry_delete(flow_entry);
+		}
+	}
+	spin_unlock_bh(&hnat_priv->flow_entry_lock);
+}
+
+static void hnat_flow_entry_teardown_handler(struct work_struct *work)
+{
+	struct hnat_flow_entry *flow_entry;
+	struct foe_entry *entry;
+	struct hlist_head *head;
+	struct hlist_node *n;
+	int index, i;
+	u32 cnt = 0;
+
+	spin_lock_bh(&hnat_priv->flow_entry_lock);
+	for (i = 0; i < CFG_PPE_NUM; i++) {
+		for (index = 0; index < DEF_ETRY_NUM / 4; index++) {
+			head = &hnat_priv->foe_flow[i][index];
+			hlist_for_each_entry_safe(flow_entry, n, head, list) {
+				/* If the entry has not been used for 30 seconds, teardown it. */
+				if (time_after(jiffies, flow_entry->last_update + 30 * HZ)) {
+					entry = &hnat_priv->foe_table_cpu[flow_entry->ppe_index]
+									 [flow_entry->hash];
+					if (hnat_entry_is_static_locked(entry)) {
+						entry->udib1.time_stamp =
+								foe_timestamp(hnat_priv, false);
+						entry->udib1.state = INVALID;
+						hnat_set_entry_static_lock(entry, false);
+					}
+					hnat_flow_entry_delete(flow_entry);
+					cnt++;
+				}
+			}
+		}
+	}
+	spin_unlock_bh(&hnat_priv->flow_entry_lock);
+
+	if (debug_level >= 2 && cnt > 0)
+		pr_info("[%s]: Teardown %d entries\n", __func__, cnt);
+
+	schedule_delayed_work(&_hnat_flow_entry_teardown_work, 1 * HZ);
+}
+
+static void hnat_flow_entry_teardown_enable(void)
+{
+	INIT_DELAYED_WORK(&_hnat_flow_entry_teardown_work, hnat_flow_entry_teardown_handler);
+	schedule_delayed_work(&_hnat_flow_entry_teardown_work, 1 * HZ);
+}
+
+static void hnat_flow_entry_teardown_disable(void)
+{
+	cancel_delayed_work(&_hnat_flow_entry_teardown_work);
+}
+
 static int hnat_hw_init(u32 ppe_id)
 {
 	if (ppe_id >= CFG_PPE_NUM)
@@ -655,6 +722,7 @@ static int hnat_hw_init(u32 ppe_id)
 	dev_info(hnat_priv->dev, "PPE%d hwnat start\n", ppe_id);
 
 	spin_lock_init(&hnat_priv->entry_lock);
+	spin_lock_init(&hnat_priv->flow_entry_lock);
 	return 0;
 }
 
@@ -662,6 +730,7 @@ static int hnat_start(u32 ppe_id)
 {
 	u32 foe_table_sz;
 	u32 foe_mib_tb_sz;
+	u32 foe_flow_sz;
 	int etry_num_cfg;
 
 	if (ppe_id >= CFG_PPE_NUM)
@@ -674,12 +743,24 @@ static int hnat_start(u32 ppe_id)
 		hnat_priv->foe_table_cpu[ppe_id] = dma_alloc_coherent(
 				hnat_priv->dev, foe_table_sz,
 				&hnat_priv->foe_table_dev[ppe_id], GFP_KERNEL);
-
-		if (hnat_priv->foe_table_cpu[ppe_id])
-			break;
+		if (hnat_priv->foe_table_cpu[ppe_id]) {
+			foe_flow_sz = (hnat_priv->foe_etry_num / 4) * sizeof(struct hlist_head);
+			/* Allocate the foe_flow table for wifi tx binding flow */
+			hnat_priv->foe_flow[ppe_id] = devm_kzalloc(hnat_priv->dev, foe_flow_sz,
+								   GFP_KERNEL);
+			/* If the memory allocation fails, free the memory allocated before */
+			if (!hnat_priv->foe_flow[ppe_id]) {
+				dma_free_coherent(hnat_priv->dev, foe_table_sz,
+						  hnat_priv->foe_table_cpu[ppe_id],
+						  hnat_priv->foe_table_dev[ppe_id]);
+				hnat_priv->foe_table_cpu[ppe_id] = NULL;
+			} else {
+				break;
+			}
+		}
 	}
 
-	if (!hnat_priv->foe_table_cpu[ppe_id])
+	if (!hnat_priv->foe_table_cpu[ppe_id] || !hnat_priv->foe_flow[ppe_id])
 		return -1;
 	dev_info(hnat_priv->dev, "PPE%d entry number = %d\n",
 		 ppe_id, hnat_priv->foe_etry_num);
@@ -815,6 +896,10 @@ static void hnat_stop(u32 ppe_id)
 		writel(0, hnat_priv->ppe_base[ppe_id] + PPE_MIB_TB_BASE);
 		kfree(hnat_priv->acct[ppe_id]);
 	}
+
+	/* Release the allocated hnat_flow_entry nodes */
+	if (hnat_priv->foe_flow[ppe_id])
+		hnat_flow_entry_teardown_all(ppe_id);
 }
 
 static void hnat_release_netdev(void)
@@ -1152,6 +1237,8 @@ static int hnat_probe(struct platform_device *pdev)
 	if (err)
 		pr_info("hnat roaming work fail\n");
 
+	hnat_flow_entry_teardown_enable();
+
 	INIT_LIST_HEAD(&hnat_priv->xlat.map_list);
 
 	return 0;
@@ -1177,6 +1264,7 @@ static int hnat_remove(struct platform_device *pdev)
 	int i;
 
 	hnat_roaming_disable();
+	hnat_flow_entry_teardown_disable();
 	unregister_netdevice_notifier(&nf_hnat_netdevice_nb);
 	unregister_netevent_notifier(&nf_hnat_netevent_nb);
 	hnat_disable_hook();

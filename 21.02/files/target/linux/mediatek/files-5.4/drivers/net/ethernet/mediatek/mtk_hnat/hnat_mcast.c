@@ -272,7 +272,7 @@ static void hnat_mcast_check_timestamp(struct timer_list *t)
 			entry = hnat_priv->foe_table_cpu[i] + hash_index;
 			if (entry->bfib1.sta == 1) {
 				e_ts = (entry->ipv4_hnapt.m_timestamp) & 0xffff;
-				foe_ts = foe_timestamp(hnat_priv);
+				foe_ts = foe_timestamp(hnat_priv, true);
 				if ((foe_ts - e_ts) > 0x3000)
 					foe_ts = (~(foe_ts)) & 0xffff;
 				if (abs(foe_ts - e_ts) > 20)

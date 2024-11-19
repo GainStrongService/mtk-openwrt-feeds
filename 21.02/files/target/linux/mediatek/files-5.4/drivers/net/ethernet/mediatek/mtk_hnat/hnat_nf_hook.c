@@ -184,6 +184,57 @@ int ext_if_del(struct extdev_entry *ext_entry)
 	return i;
 }
 
+bool hnat_flow_entry_match(struct foe_entry *entry, struct foe_entry *data)
+{
+	int len;
+
+	if (entry->udib1.udp != data->udib1.udp)
+		return false;
+
+	switch (entry->udib1.pkt_type) {
+	case IPV4_HNAPT:
+	case IPV4_HNAT:
+	case IPV4_DSLITE:
+	case IPV4_MAP_T:
+	case IPV4_MAP_E:
+		len = offsetof(struct hnat_ipv4_hnapt, info_blk2);
+		break;
+	case IPV6_3T_ROUTE:
+	case IPV6_5T_ROUTE:
+	case IPV6_6RD:
+	case IPV6_HNAPT:
+	case IPV6_HNAT:
+		len = offsetof(struct hnat_ipv6_5t_route, resv1);
+		break;
+	}
+
+	return !memcmp(&entry->ipv4_hnapt.sip, &data->ipv4_hnapt.sip, len - 4);
+}
+
+void hnat_flow_entry_delete(struct hnat_flow_entry *flow_entry)
+{
+	hlist_del_init(&flow_entry->list);
+	kfree(flow_entry);
+}
+
+static struct hnat_flow_entry *hnat_flow_entry_search(struct foe_entry *data,
+						      u16 ppe_index,
+						      u16 hash)
+{
+	struct hnat_flow_entry *flow_entry;
+	struct hlist_head *head = &hnat_priv->foe_flow[ppe_index][hash / 4];
+	struct hlist_node *n;
+
+	hlist_for_each_entry_safe(flow_entry, n, head, list) {
+		if ((flow_entry->ppe_index == ppe_index) &&
+		    (flow_entry->hash == hash) &&
+		    hnat_flow_entry_match(&flow_entry->data, data))
+			return flow_entry;
+	}
+
+	return NULL;
+}
+
 static void foe_clear_ethdev_bind_entries(struct net_device *dev)
 {
 	struct net_device *master_dev = dev;
@@ -238,8 +289,7 @@ static void foe_clear_ethdev_bind_entries(struct net_device *dev)
 
 			if (match_dev) {
 				entry->bfib1.state = INVALID;
-				entry->bfib1.time_stamp =
-					readl((hnat_priv->fe_base + 0x0010)) & 0xFF;
+				entry->bfib1.time_stamp = foe_timestamp(hnat_priv, false);
 				total++;
 			}
 		}
@@ -262,9 +312,8 @@ void foe_clear_all_bind_entries(void)
 		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
 			entry = hnat_priv->foe_table_cpu[i] + hash_index;
 			if (entry->bfib1.state == BIND) {
-				entry->ipv4_hnapt.udib1.state = INVALID;
-				entry->ipv4_hnapt.udib1.time_stamp =
-					readl((hnat_priv->fe_base + 0x0010)) & 0xFF;
+				entry->udib1.state = INVALID;
+				entry->udib1.time_stamp = foe_timestamp(hnat_priv, false);
 			}
 		}
 	}
@@ -427,9 +476,8 @@ void foe_clear_entry(struct neighbour *neigh)
 					cr_set_field(hnat_priv->ppe_base[i] + PPE_TB_CFG,
 						     SMA, SMA_ONLY_FWD_CPU);
 
-					entry->ipv4_hnapt.udib1.state = INVALID;
-					entry->ipv4_hnapt.udib1.time_stamp =
-						readl((hnat_priv->fe_base + 0x0010)) & 0xFF;
+					entry->udib1.state = INVALID;
+					entry->udib1.time_stamp = foe_timestamp(hnat_priv, false);
 
 					/* clear HWNAT cache */
 					hnat_cache_ebl(1);
@@ -1358,10 +1406,8 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 	entry.bfib1.vlan_layer += (hw_path->flags & BIT(DEV_PATH_VLAN)) ? 1 : 0;
 	entry.bfib1.vpm = (entry.bfib1.vlan_layer) ? 1 : 0;
 	entry.bfib1.cah = 1;
-	entry.bfib1.time_stamp = (hnat_priv->data->version == MTK_HNAT_V2 ||
-				  hnat_priv->data->version == MTK_HNAT_V3) ?
-		readl(hnat_priv->fe_base + 0x0010) & (0xFF) :
-		readl(hnat_priv->fe_base + 0x0010) & (0x7FFF);
+	entry.bfib1.sta = 1;
+	entry.bfib1.ttl = 1;
 
 	switch ((int)entry.bfib1.pkt_type) {
 	case L2_BRIDGE:
@@ -1380,7 +1426,7 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 			entry.ipv4_hnapt.iblk2.mcast = 1;
 			if (hnat_priv->data->version == MTK_HNAT_V1_3) {
 				entry.bfib1.sta = 1;
-				entry.ipv4_hnapt.m_timestamp = foe_timestamp(hnat_priv);
+				entry.ipv4_hnapt.m_timestamp = foe_timestamp(hnat_priv, true);
 			}
 		} else {
 			entry.ipv4_hnapt.iblk2.mcast = 0;
@@ -1403,7 +1449,7 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 			entry.ipv6_5t_route.iblk2.mcast = 1;
 			if (hnat_priv->data->version == MTK_HNAT_V1_3) {
 				entry.bfib1.sta = 1;
-				entry.ipv4_hnapt.m_timestamp = foe_timestamp(hnat_priv);
+				entry.ipv4_hnapt.m_timestamp = foe_timestamp(hnat_priv, true);
 			}
 		} else {
 			entry.ipv6_5t_route.iblk2.mcast = 0;
@@ -1506,6 +1552,31 @@ static inline void hnat_fill_offload_engine_entry(struct sk_buff *skb,
 	entry->ipv4_hnapt.iblk2.qid = 14;
 	qos_rate_limit_set(14, dev);
 #endif /* defined(CONFIG_MEDIATEK_NETSYS_V3) */
+}
+
+static int hnat_foe_entry_commit(struct foe_entry *foe,
+				 struct foe_entry *entry,
+				 u32 state)
+{
+	/* Renew the entry timestamp */
+	entry->bfib1.time_stamp = foe_timestamp(hnat_priv, false);
+	/* We must ensure all info has been updated before set to hw */
+	wmb();
+	/* Before entry enter BIND state, write other fields first,
+	 * prevent racing with hardware accesses.
+	 */
+	memcpy(foe, entry, sizeof(struct foe_entry));
+	/* We must ensure all info has been updated before set to hw */
+	wmb();
+	/* After other fields have been written, write state to the entry */
+	entry->bfib1.state = state;
+	/* When the entry is going to enter BIND state, release the static lock */
+	entry->bfib1.sta = (state == BIND) ? 0 : 1;
+	foe->bfib1 = entry->bfib1;
+	/* We must ensure all info has been updated */
+	wmb();
+
+	return 0;
 }
 
 int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, int fill_inner_info)
@@ -1636,7 +1707,6 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 	entry.ipv4_hnapt.iblk2.port_mg =
 		(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
 	entry.bfib1.ttl = 1;
-	entry.bfib1.state = BIND;
 
 	hnat_fill_offload_engine_entry(skb, &entry, dev);
 
@@ -1654,7 +1724,7 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 		return 0;
 
 	spin_lock(&hnat_priv->entry_lock);
-	memcpy(foe, &entry, sizeof(entry));
+	hnat_foe_entry_commit(foe, &entry, BIND);
 	spin_unlock(&hnat_priv->entry_lock);
 
 	if (hnat_priv->data->per_flow_accounting &&
@@ -1667,15 +1737,16 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 }
 EXPORT_SYMBOL(hnat_bind_crypto_entry);
 
-static unsigned int skb_to_hnat_info(struct sk_buff *skb,
-				     const struct net_device *dev,
-				     struct foe_entry *foe,
-				     struct flow_offload_hw_path *hw_path)
+static int skb_to_hnat_info(struct sk_buff *skb,
+			    const struct net_device *dev,
+			    struct foe_entry *foe,
+			    struct flow_offload_hw_path *hw_path)
 {
 	struct net_device *master_dev = (struct net_device *)dev;
 	struct net_device *slave_dev[10];
 	struct list_head *iter;
 	struct foe_entry entry = { 0 };
+	struct hnat_flow_entry *flow_entry;
 	struct mtk_mac *mac;
 	struct iphdr *iph;
 	struct ipv6hdr *ip6h;
@@ -1696,21 +1767,21 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 	/*do not bind multicast if PPE mcast not enable*/
 	if (!hnat_priv->data->mcast && is_multicast_ether_addr(hw_path->eth_dest))
-		return 0;
+		return -1;
 
 	ret = hnat_offload_engine_done(skb, hw_path);
 	if (ret == 1) {
 		hnat_get_filled_unbind_entry(skb, &entry);
 		goto hnat_entry_bind;
 	} else if (ret == -1) {
-		return 0;
+		return -1;
 	}
 
 	entry.bfib1.pkt_type = foe->udib1.pkt_type; /* Get packte type state*/
 	entry.bfib1.state = foe->udib1.state;
 
 	if (unlikely(entry.bfib1.state != UNBIND))
-		return 0;
+		return -1;
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 	entry.bfib1.sp = foe->udib1.sp;
@@ -1721,14 +1792,14 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 	else if (ip_hdr(skb)->version == IPVERSION_V6)
 		h_proto = ETH_P_IPV6;
 	else
-		return 0;
+		return -1;
 
 	switch (h_proto) {
 	case ETH_P_IP:
 		iph = ip_hdr(skb);
 		/* Do not bind if pkt is fragmented */
 		if (ip_is_fragment(iph))
-			return 0;
+			return -1;
 
 		switch (iph->protocol) {
 		case IPPROTO_UDP:
@@ -1837,7 +1908,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv4_hnapt.eg_keep_dscp = 1;
 #endif
 			} else {
-				return 0;
+				return -1;
 			}
 
 			entry.ipv4_hnapt.bfib1.udp = udp;
@@ -1959,7 +2030,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv6_5t_route.dport =
 					foe->ipv6_5t_route.dport;
 			} else {
-				return 0;
+				return -1;
 			}
 
 			if (IS_IPV6_5T_ROUTE(&entry) &&
@@ -2014,7 +2085,7 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 			iph = (struct iphdr *)skb_inner_network_header(skb);
 			/* don't process inner fragment packets */
 			if (ip_is_fragment(iph))
-				return 0;
+				return -1;
 
 			if ((!mape_toggle &&
 			     entry.bfib1.pkt_type == IPV4_DSLITE) ||
@@ -2170,8 +2241,10 @@ static unsigned int skb_to_hnat_info(struct sk_buff *skb,
 
 	if ((skb_hnat_tops(skb) && hw_path->flags & BIT(DEV_PATH_TNL)) ||
 	    (!skb_hnat_cdrt(skb) && skb_hnat_is_encrypt(skb) &&
-	    skb_dst(skb) && dst_xfrm(skb_dst(skb))))
-		goto hnat_entry_skip_bind;
+	    skb_dst(skb) && dst_xfrm(skb_dst(skb)))) {
+		hnat_foe_entry_commit(foe, &entry, entry.udib1.state);
+		return 0;
+	}
 
 hnat_entry_bind:
 	/* Fill Info Blk*/
@@ -2202,7 +2275,7 @@ hnat_entry_bind:
 		if (port_id >= 0) {
 			if (hnat_dsa_fill_stag(dev, &entry, hw_path,
 					       h_proto, mape) < 0)
-				return 0;
+				return -1;
 		}
 
 		mac = netdev_priv(master_dev);
@@ -2249,7 +2322,7 @@ hnat_entry_bind:
 			printk_ratelimited(KERN_WARNING
 					   "Unknown case of dp, iif=%x --> %s\n",
 					   skb_hnat_iface(skb), dev->name);
-		return 0;
+		return -1;
 	}
 
 	if (IS_HQOS_MODE || (skb->mark & MTK_QDMA_TX_MASK) >= MAX_PPPQ_QUEUE_NUM)
@@ -2402,77 +2475,66 @@ hnat_entry_bind:
 	 * by Wi-Fi whnat engine. These data and INFO2.dp will be updated and
 	 * the entry is set to BIND state in mtk_sw_nat_hook_tx().
 	 */
-	if (!whnat) {
-		entry.bfib1.ttl = 1;
-		entry.bfib1.state = BIND;
-	} else {
-		if (spin_trylock(&hnat_priv->entry_lock)) {
-			/* If this entry is already lock, we should not modify it right now */
-			if (is_hnat_entry_locked(foe)) {
-				skb_hnat_filled(skb) = HNAT_INFO_FILLED;
-				spin_unlock(&hnat_priv->entry_lock);
-				return 0;
-			}
-
-			/* Final check if the entry is not in UNBIND state,
-			 * we should not modify it right now.
-			 */
-			if (foe->udib1.state != UNBIND) {
-				spin_unlock(&hnat_priv->entry_lock);
-				return 0;
-			}
-
-			/* Keep the entry locked until hook_tx is called */
-			hnat_set_entry_lock(&entry, true);
-
-			/* We must ensure all info has been updated before set to hw */
-			wmb();
-			memcpy(foe, &entry, sizeof(entry));
-
-			skb_hnat_filled(skb) = HNAT_INFO_FILLED;
-			spin_unlock(&hnat_priv->entry_lock);
-		}
-		return 0;
-	}
-
-hnat_entry_skip_bind:
-	if (spin_trylock(&hnat_priv->entry_lock)) {
+	if (whnat) {
 		/* Final check if the entry is not in UNBIND state,
 		 * we should not modify it right now.
 		 */
-		if (foe->udib1.state != UNBIND) {
-			spin_unlock(&hnat_priv->entry_lock);
-			return 0;
-		}
+		if (unlikely(foe->udib1.state != UNBIND))
+			return -1;
 
-		/* We must ensure all info has been updated before set to hw */
-		wmb();
-		/* Before entry enter BIND state, write other fields first,
-		 * prevent racing with hardware accesses.
-		 */
-		memcpy(&(foe->ipv6_hnapt.ipv6_sip0), &(entry.ipv6_hnapt.ipv6_sip0),
-		       sizeof(struct foe_entry) - sizeof(entry.bfib1));
-		/* We must ensure all info has been updated before set to hw */
-		wmb();
-		/* After other fields have been written, write info1 to BIND the entry */
-		memcpy(&foe->bfib1, &entry.bfib1, sizeof(entry.bfib1));
+		spin_lock_bh(&hnat_priv->flow_entry_lock);
 
-		/* reset statistic for this entry */
-		if (hnat_priv->data->per_flow_accounting &&
-		    skb_hnat_entry(skb) < hnat_priv->foe_etry_num &&
-		    skb_hnat_ppe(skb) < CFG_PPE_NUM) {
-			memset(&hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
-			       0, sizeof(struct hnat_accounting));
-			ct = nf_ct_get(skb, &ctinfo);
-			if (ct) {
-				hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].zone =
-					ct->zone;
-				hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].dir =
-					CTINFO2DIR(ctinfo);
+		flow_entry = hnat_flow_entry_search(&entry,
+						    skb_hnat_ppe(skb),
+						    skb_hnat_entry(skb));
+		if (!flow_entry) {
+			flow_entry = kmalloc(sizeof(*flow_entry), GFP_KERNEL);
+			if (!flow_entry) {
+				spin_unlock_bh(&hnat_priv->flow_entry_lock);
+				return -1;
 			}
+			flow_entry->ppe_index = skb_hnat_ppe(skb);
+			flow_entry->hash = skb_hnat_entry(skb);
+			hlist_add_head(&flow_entry->list,
+				&hnat_priv->foe_flow[skb_hnat_ppe(skb)][skb_hnat_entry(skb) / 4]);
 		}
+		memcpy(&flow_entry->data, &entry, sizeof(entry));
+		flow_entry->last_update = jiffies;
 
-		spin_unlock(&hnat_priv->entry_lock);
+		/* We must ensure all info has been updated */
+		wmb();
+		skb_hnat_filled(skb) = HNAT_INFO_FILLED;
+
+		spin_unlock_bh(&hnat_priv->flow_entry_lock);
+
+		return 0;
+	}
+
+	if (!spin_trylock_bh(&hnat_priv->entry_lock))
+		return -1;
+	/* Final check if the entry is not in UNBIND state,
+	 * we should not modify it right now.
+	 */
+	if (unlikely(foe->udib1.state != UNBIND || !hnat_entry_is_static_locked(foe))) {
+		spin_unlock_bh(&hnat_priv->entry_lock);
+		return -1;
+	}
+	hnat_foe_entry_commit(foe, &entry, BIND);
+	spin_unlock_bh(&hnat_priv->entry_lock);
+
+	/* reset statistic for this entry */
+	if (hnat_priv->data->per_flow_accounting &&
+	    skb_hnat_entry(skb) < hnat_priv->foe_etry_num &&
+	    skb_hnat_ppe(skb) < CFG_PPE_NUM) {
+		memset(&hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)],
+		       0, sizeof(struct hnat_accounting));
+		ct = nf_ct_get(skb, &ctinfo);
+		if (ct) {
+			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].zone =
+				ct->zone;
+			hnat_priv->acct[skb_hnat_ppe(skb)][skb_hnat_entry(skb)].dir =
+				CTINFO2DIR(ctinfo);
+		}
 	}
 
 	return 0;
@@ -2481,9 +2543,8 @@ hnat_entry_skip_bind:
 int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 {
 	struct foe_entry *hw_entry, entry;
+	struct hnat_flow_entry *flow_entry;
 	struct ethhdr *eth;
-	struct iphdr *iph;
-	struct ipv6hdr *ip6h;
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 
@@ -2491,13 +2552,8 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		return NF_ACCEPT;
 
 	hw_entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
-	memcpy(&entry, hw_entry, sizeof(entry));
-
-	if (!is_hnat_entry_locked(&entry))
+	if (!hnat_entry_is_static_locked(hw_entry))
 		return NF_ACCEPT;
-
-	if (unlikely(entry.bfib1.state != UNBIND))
-		goto check_release_entry_lock;
 
 	if (skb_hnat_alg(skb) || !is_hnat_info_filled(skb) ||
 	    !is_magic_tag_valid(skb) || !IS_SPACE_AVAILABLE_HEAD(skb))
@@ -2520,6 +2576,25 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	if (skb_hnat_reason(skb) != HIT_UNBIND_RATE_REACH)
 		goto check_release_entry_lock;
 
+	spin_lock_bh(&hnat_priv->flow_entry_lock);
+	/* Get the flow_entry prepared in skb_to_hnat_info */
+	flow_entry = hnat_flow_entry_search(hw_entry,
+					    skb_hnat_ppe(skb),
+					    skb_hnat_entry(skb));
+
+	if (unlikely((hw_entry->udib1.state != UNBIND) || (!flow_entry) ||
+		     (time_after_eq(jiffies, flow_entry->last_update + 3 * HZ)))) {
+		/* If the flow_entry is updated before 3 seconds(UNBIND AGE), delete it */
+		if (flow_entry)
+			hnat_flow_entry_delete(flow_entry);
+		spin_unlock_bh(&hnat_priv->flow_entry_lock);
+		goto check_release_entry_lock;
+	}
+
+	memcpy(&entry, &flow_entry->data, sizeof(entry));
+
+	spin_unlock_bh(&hnat_priv->flow_entry_lock);
+
 	eth = eth_hdr(skb);
 
 	/* not bind multicast if PPE mcast not enable */
@@ -2533,22 +2608,6 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 			entry.ipv4_hnapt.iblk2.mcast = 0;
 		else
 			entry.ipv6_5t_route.iblk2.mcast = 0;
-	}
-
-	/* not bind if IP of entry and skb are different */
-	if (IS_IPV4_HNAPT(&entry)) {
-		iph = ip_hdr(skb);
-		if (!iph ||
-		    entry.ipv4_hnapt.new_sip != ntohl(iph->saddr) ||
-		    entry.ipv4_hnapt.new_dip != ntohl(iph->daddr))
-			goto check_release_entry_lock;
-	} else if (IS_IPV6_5T_ROUTE(&entry)) {
-		ip6h = ipv6_hdr(skb);
-		if (!ip6h ||
-		    !hnat_ipv6_addr_equal(&entry.ipv6_5t_route.ipv6_sip0, &ip6h->saddr) ||
-		    !hnat_ipv6_addr_equal(&entry.ipv6_5t_route.ipv6_dip0, &ip6h->daddr)) {
-			goto check_release_entry_lock;
-		}
 	}
 
 	/* Some mt_wifi virtual interfaces, such as apcli,
@@ -2780,28 +2839,21 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	hnat_fill_offload_engine_entry(skb, &entry, NULL);
 #endif
 
-	entry.bfib1.ttl = 1;
-	entry.bfib1.state = BIND;
-
+	spin_lock_bh(&hnat_priv->entry_lock);
 	/* Final check if the entry is not in UNBIND state,
 	 * we should not modify it right now.
 	 */
-	if (hw_entry->udib1.state != UNBIND)
+	if (unlikely(hw_entry->udib1.state != UNBIND || !hnat_entry_is_static_locked(hw_entry))) {
+		spin_unlock_bh(&hnat_priv->entry_lock);
 		goto check_release_entry_lock;
+	}
+	hnat_foe_entry_commit(hw_entry, &entry, BIND);
+	spin_unlock_bh(&hnat_priv->entry_lock);
 
-	/* We must ensure all info has been updated before set to hw */
-	wmb();
-	/* Before entry enter BIND state, write other fields first,
-	 * prevent racing with hardware accesses.
-	 */
-	memcpy(&(hw_entry->ipv6_hnapt.ipv6_sip0), &(entry.ipv6_hnapt.ipv6_sip0),
-	       sizeof(struct foe_entry) - sizeof(entry.bfib1));
-	/* We must ensure all info has been updated before set to hw */
-	wmb();
-	/* After other fields have been written, write info1 to BIND the entry */
-	memcpy(&hw_entry->bfib1, &entry.bfib1, sizeof(entry.bfib1));
-
-	hnat_set_entry_lock(hw_entry, false);
+	spin_lock_bh(&hnat_priv->flow_entry_lock);
+	/* Clear the flow entry node in the foe_flow table */
+	hnat_flow_entry_delete(flow_entry);
+	spin_unlock_bh(&hnat_priv->flow_entry_lock);
 
 	/* reset statistic for this entry */
 	if (hnat_priv->data->per_flow_accounting) {
@@ -2871,7 +2923,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	return NF_ACCEPT;
 
 check_release_entry_lock:
-	hnat_check_release_entry_lock(hw_entry);
+	hnat_check_release_entry_static_lock(hw_entry);
 	return NF_ACCEPT;
 }
 
@@ -3415,7 +3467,9 @@ static unsigned int mtk_hnat_nf_post_routing(
 				break;
 		}
 
-		skb_to_hnat_info(skb, out, entry, &hw_path);
+		hnat_set_entry_static_lock(entry, true);
+		if (skb_to_hnat_info(skb, out, entry, &hw_path) < 0)
+			hnat_check_release_entry_static_lock(entry);
 		break;
 	case HIT_BIND_KEEPALIVE_DUP_OLD_HDR:
 		/* update hnat count to nf_conntrack by keepalive */
@@ -3431,7 +3485,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 		/* update mcast timestamp*/
 		if (hnat_priv->data->version == MTK_HNAT_V1_3 &&
 		    hnat_priv->data->mcast && entry->bfib1.sta == 1)
-			entry->ipv4_hnapt.m_timestamp = foe_timestamp(hnat_priv);
+			entry->ipv4_hnapt.m_timestamp = foe_timestamp(hnat_priv, true);
 
 		if (entry_hnat_is_bound(entry)) {
 			memset(skb_hnat_info(skb), 0, sizeof(struct hnat_desc));
