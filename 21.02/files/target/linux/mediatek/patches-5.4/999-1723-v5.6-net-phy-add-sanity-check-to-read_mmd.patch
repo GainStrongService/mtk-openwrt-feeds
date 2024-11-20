@@ -1,0 +1,26 @@
+From d4bf301416311b94e509cfb4a937e54e4384d8c2 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Wed, 20 Nov 2024 18:08:47 +0800
+Subject: [PATCH] net: phy: add sanity check to read_mmd
+
+Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+---
+ drivers/net/phy/phy-core.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/phy/phy-core.c b/drivers/net/phy/phy-core.c
+index 96d9e1f..7f7cdbd 100644
+--- a/drivers/net/phy/phy-core.c
++++ b/drivers/net/phy/phy-core.c
+@@ -400,7 +400,7 @@ int __phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
+ 	if (regnum > (u16)~0 || devad > 32)
+ 		return -EINVAL;
+ 
+-	if (phydev->drv->read_mmd) {
++	if (phydev->drv && phydev->drv->read_mmd) {
+ 		val = phydev->drv->read_mmd(phydev, devad, regnum);
+ 	} else if (phydev->is_c45) {
+ 		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
+-- 
+2.45.2
+
