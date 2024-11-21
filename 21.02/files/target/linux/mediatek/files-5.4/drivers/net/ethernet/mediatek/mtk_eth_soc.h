@@ -360,7 +360,7 @@
 #define MTK_CHK_DDONE		BIT(10)
 
 /* PDMA RX DMA Configuration Register */
-#define MTK_PDMA_LRO_SDL	(0x3000 + MTK_MAX_RX_LENGTH)
+#define MTK_PDMA_LRO_SDL	(0x3000)
 #define MTK_RX_CFG_SDL_OFFSET	(16)
 
 /* PDMA Reset Index Register */

@@ -3495,8 +3495,8 @@ static int mtk_hwlro_rx_init(struct mtk_eth *eth)
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
 		val = mtk_r32(eth, reg_map->pdma.rx_cfg);
-		mtk_w32(eth, val | (MTK_PDMA_LRO_SDL << MTK_RX_CFG_SDL_OFFSET),
-			reg_map->pdma.rx_cfg);
+		mtk_w32(eth, val | ((MTK_PDMA_LRO_SDL + MTK_MAX_RX_LENGTH) <<
+			MTK_RX_CFG_SDL_OFFSET), reg_map->pdma.rx_cfg);
 
 		lro_ctrl_dw0 |= MTK_PDMA_LRO_SDL << MTK_CTRL_DW0_SDL_OFFSET;
 	} else {
