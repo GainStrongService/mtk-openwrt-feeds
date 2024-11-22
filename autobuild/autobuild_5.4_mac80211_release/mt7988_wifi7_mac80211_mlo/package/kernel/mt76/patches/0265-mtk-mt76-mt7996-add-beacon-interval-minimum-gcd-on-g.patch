@@ -1,0 +1,26 @@
+From 695986130ff90493f244a1b29ac3aa792589f3ca Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Tue, 26 Nov 2024 11:21:06 +0800
+Subject: [PATCH 265/265] mtk: mt76: mt7996: add beacon interval minimum gcd on
+ global wiphy iface combination
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/init.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 67790cee..16762968 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -34,6 +34,7 @@ static const struct ieee80211_iface_combination if_comb_global = {
+ 			       BIT(NL80211_CHAN_WIDTH_40) |
+ 			       BIT(NL80211_CHAN_WIDTH_80) |
+ 			       BIT(NL80211_CHAN_WIDTH_160),
++	.beacon_int_min_gcd = 100,
+ };
+ 
+ static const struct ieee80211_iface_limit if_limits[] = {
+-- 
+2.45.2
+

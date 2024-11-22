@@ -1,7 +1,7 @@
-From a745353842ae1ca764abb6c9a24b43594799c3d0 Mon Sep 17 00:00:00 2001
+From c10ba0ea6887fa6ed5a7fa11f01e51b349dd0d37 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 26 Sep 2024 14:54:11 +0800
-Subject: [PATCH 015/193] mtk: mt76: mt7996: add basic testmode support
+Subject: [PATCH 015/265] mtk: mt76: mt7996: add basic testmode support
 
 Add testmode eeprom buffer mode support
 
@@ -14,8 +14,6 @@ and 2G band. Therefore, we should avoid reseting freq offset to 0 when
 
 edcca return err in testmode; therefore, bypass it when we are in testmode idle state or testmode bf is on
 
-Change-Id: I0e09e7f5bc0fb9aa4e4ec906a0f5f169bcc261cb
-Change-Id: I849b11b4ccdecd2b7b525b29801c02b5207bbf91
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  eeprom.c          |   6 +-
@@ -41,7 +39,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  create mode 100644 mt7996/testmode.h
 
 diff --git a/eeprom.c b/eeprom.c
-index ab4fab1..6bd2cc1 100644
+index ab4fab11..6bd2cc1a 100644
 --- a/eeprom.c
 +++ b/eeprom.c
 @@ -94,8 +94,10 @@ int mt76_get_of_data_from_mtd(struct mt76_dev *dev, void *eep, int offset, int l
@@ -58,7 +56,7 @@ index ab4fab1..6bd2cc1 100644
  
  out_put_node:
 diff --git a/mac80211.c b/mac80211.c
-index dc1ef40..5d9512d 100644
+index dc1ef40d..5d9512d4 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -846,7 +846,8 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
@@ -72,7 +70,7 @@ index dc1ef40..5d9512d 100644
  		if (status->flag & RX_FLAG_FAILED_FCS_CRC)
  			phy->test.rx_stats.fcs_error[q]++;
 diff --git a/mt76.h b/mt76.h
-index f50f211..f6ffcca 100644
+index f50f2117..f6ffccac 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -718,14 +718,21 @@ struct mt76_testmode_ops {
@@ -156,7 +154,7 @@ index f50f211..f6ffcca 100644
  {
  #ifdef CONFIG_NL80211_TESTMODE
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 200eace..873f59f 100644
+index 200eace5..873f59f7 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1284,12 +1284,14 @@ enum {
@@ -175,7 +173,7 @@ index 200eace..873f59f 100644
  	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
  	MCU_UNI_CMD_PER_STA_INFO = 0x6d,
 diff --git a/mt7996/Makefile b/mt7996/Makefile
-index a056b40..7bb17f4 100644
+index a056b40e..7bb17f44 100644
 --- a/mt7996/Makefile
 +++ b/mt7996/Makefile
 @@ -8,5 +8,6 @@ mt7996e-y := pci.o init.o dma.o eeprom.o main.o mcu.o mac.o \
@@ -186,7 +184,7 @@ index a056b40..7bb17f4 100644
  
  mt7996e-y += mtk_debugfs.o mtk_mcu.o
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 21379ce..cb4fb70 100644
+index 21379ce0..cb4fb702 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -6,6 +6,11 @@
@@ -312,7 +310,7 @@ index 21379ce..cb4fb70 100644
  		u32 eeprom_blk_size = MT7996_EEPROM_BLOCK_SIZE;
  		u32 block_num = DIV_ROUND_UP(MT7996_EEPROM_SIZE, eeprom_blk_size);
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index 8074a0a..7f7a718 100644
+index 8074a0ae..7f7a718f 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -14,6 +14,7 @@ enum mt7996_eeprom_field {
@@ -324,7 +322,7 @@ index 8074a0a..7f7a718 100644
  	MT_EE_RATE_DELTA_2G =	0x1400,
  	MT_EE_RATE_DELTA_5G =	0x147d,
 diff --git a/mt7996/init.c b/mt7996/init.c
-index c553a19..4958897 100644
+index c553a19b..4958897e 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -980,6 +980,10 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
@@ -350,7 +348,7 @@ index c553a19..4958897 100644
  				   ARRAY_SIZE(mt76_rates));
  	if (ret)
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index d1d45c9..d73644f 100644
+index d1d45c98..d73644f6 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -686,7 +686,8 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
@@ -364,7 +362,7 @@ index d1d45c9..d73644f 100644
  		case RX_ENC_EHT:
  			mt76_connac3_mac_decode_eht_radiotap(skb, rxv, mode);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index f4a1788..da47faf 100644
+index f4a17885..da47fafe 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -23,6 +23,18 @@ static bool mt7996_dev_running(struct mt7996_dev *dev)
@@ -452,7 +450,7 @@ index f4a1788..da47faf 100644
  	.sta_add_debugfs = mt7996_sta_add_debugfs,
  #endif
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 0b96b30..2f3e547 100644
+index 0b96b304..2f3e5471 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -2880,8 +2880,12 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
@@ -534,7 +532,7 @@ index 0b96b30..2f3e547 100644
 +				 &req, sizeof(req), false);
 +}
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index df42c0f..abf8ef4 100644
+index df42c0f8..abf8ef48 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -157,6 +157,16 @@ struct mt7996_mcu_eeprom {
@@ -587,7 +585,7 @@ index df42c0f..abf8ef4 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 6c88942..5f91151 100644
+index a74476fc..cd469586 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -32,6 +32,7 @@
@@ -666,7 +664,7 @@ index 6c88942..5f91151 100644
  	bool ibf;
  	u8 fw_debug_wm;
  	u8 fw_debug_wa;
-@@ -502,6 +526,7 @@ mt7996_has_background_radar(struct mt7996_dev *dev)
+@@ -503,6 +527,7 @@ mt7996_has_background_radar(struct mt7996_dev *dev)
  extern const struct ieee80211_ops mt7996_ops;
  extern struct pci_driver mt7996_pci_driver;
  extern struct pci_driver mt7996_hif_driver;
@@ -674,7 +672,7 @@ index 6c88942..5f91151 100644
  
  struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
  				     void __iomem *mem_base, u32 device_id);
-@@ -511,6 +536,7 @@ u64 __mt7996_get_tsf(struct ieee80211_hw *hw, struct mt7996_vif *mvif);
+@@ -512,6 +537,7 @@ u64 __mt7996_get_tsf(struct ieee80211_hw *hw, struct mt7996_vif *mvif);
  int mt7996_register_device(struct mt7996_dev *dev);
  void mt7996_unregister_device(struct mt7996_dev *dev);
  int mt7996_eeprom_init(struct mt7996_dev *dev);
@@ -682,7 +680,7 @@ index 6c88942..5f91151 100644
  int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy);
  int mt7996_eeprom_get_target_power(struct mt7996_dev *dev,
  				   struct ieee80211_channel *chan);
-@@ -598,6 +624,7 @@ void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
+@@ -599,6 +625,7 @@ void mt7996_mcu_rx_event(struct mt7996_dev *dev, struct sk_buff *skb);
  void mt7996_mcu_exit(struct mt7996_dev *dev);
  int mt7996_mcu_get_all_sta_info(struct mt7996_phy *phy, u16 tag);
  int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id);
@@ -692,7 +690,7 @@ index 6c88942..5f91151 100644
  {
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
 new file mode 100644
-index 0000000..58f0ad2
+index 00000000..58f0ad26
 --- /dev/null
 +++ b/mt7996/testmode.c
 @@ -0,0 +1,740 @@
@@ -1438,7 +1436,7 @@ index 0000000..58f0ad2
 +};
 diff --git a/mt7996/testmode.h b/mt7996/testmode.h
 new file mode 100644
-index 0000000..319ef25
+index 00000000..319ef257
 --- /dev/null
 +++ b/mt7996/testmode.h
 @@ -0,0 +1,299 @@
@@ -1742,7 +1740,7 @@ index 0000000..319ef25
 +
 +#endif
 diff --git a/testmode.c b/testmode.c
-index ca4fecc..44f3a5b 100644
+index ca4feccf..44f3a5bf 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -2,11 +2,13 @@
@@ -2009,7 +2007,7 @@ index ca4fecc..44f3a5b 100644
  
  	if (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_POWER)) {
 diff --git a/testmode.h b/testmode.h
-index 1b0bcae..2873c90 100644
+index 1b0bcae8..2873c903 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -5,7 +5,8 @@
@@ -2197,7 +2195,7 @@ index 1b0bcae..2873c90 100644
 +
  #endif
 diff --git a/tools/fields.c b/tools/fields.c
-index e3f6908..055f90f 100644
+index e3f69089..055f90f3 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -10,6 +10,7 @@ static const char * const testmode_state[] = {

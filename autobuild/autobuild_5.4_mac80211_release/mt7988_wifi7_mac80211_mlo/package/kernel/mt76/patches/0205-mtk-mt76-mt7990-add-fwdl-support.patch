@@ -1,0 +1,93 @@
+From b84a4df68a33dc8a32cd4ddda8867ae9ac3af274 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Mon, 9 Sep 2024 11:27:17 +0800
+Subject: [PATCH 205/265] mtk: mt76: mt7990: add fwdl support
+
+Add mt7990 fwdl support
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt76_connac_mcu.c |  3 +--
+ mt7996/mcu.c      | 15 ++++++++-------
+ mt7996/pci.c      |  2 ++
+ 3 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
+index e4e6c0d3..f83c306b 100644
+--- a/mt76_connac_mcu.c
++++ b/mt76_connac_mcu.c
+@@ -68,8 +68,7 @@ int mt76_connac_mcu_init_download(struct mt76_dev *dev, u32 addr, u32 len,
+ 	if ((!is_connac_v1(dev) && addr == MCU_PATCH_ADDRESS) ||
+ 	    (is_mt7921(dev) && addr == 0x900000) ||
+ 	    (is_mt7925(dev) && (addr == 0x900000 || addr == 0xe0002800)) ||
+-	    (is_mt7996(dev) && addr == 0x900000) ||
+-	    (is_mt7992(dev) && addr == 0x900000))
++	    (is_mt799x(dev) && addr == 0x900000))
+ 		cmd = MCU_CMD(PATCH_START_REQ);
+ 	else
+ 		cmd = MCU_CMD(TARGET_ADDRESS_LEN_REQ);
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 5cb2bd09..ed264acd 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -4444,10 +4444,9 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
+ }
+ 
+ static int
+-mt7996_firmware_state(struct mt7996_dev *dev, bool wa)
++mt7996_firmware_state(struct mt7996_dev *dev, u8 fw_state)
+ {
+-	u32 state = FIELD_PREP(MT_TOP_MISC_FW_STATE,
+-			       wa ? FW_STATE_RDY : FW_STATE_FW_DOWNLOAD);
++	u32 state = FIELD_PREP(MT_TOP_MISC_FW_STATE, fw_state);
+ 
+ 	if (!mt76_poll_msec(dev, MT_TOP_MISC, MT_TOP_MISC_FW_STATE,
+ 			    state, 1000)) {
+@@ -4480,12 +4479,13 @@ mt7996_mcu_restart(struct mt76_dev *dev)
+ static int mt7996_load_firmware(struct mt7996_dev *dev)
+ {
+ 	int ret;
++	u8 fw_state;
+ 
+ 	/* make sure fw is download state */
+-	if (mt7996_firmware_state(dev, false)) {
++	if (mt7996_firmware_state(dev, FW_STATE_FW_DOWNLOAD)) {
+ 		/* restart firmware once */
+ 		mt7996_mcu_restart(&dev->mt76);
+-		ret = mt7996_firmware_state(dev, false);
++		ret = mt7996_firmware_state(dev, FW_STATE_FW_DOWNLOAD);
+ 		if (ret) {
+ 			dev_err(dev->mt76.dev,
+ 				"Firmware is not ready for download\n");
+@@ -4501,7 +4501,8 @@ static int mt7996_load_firmware(struct mt7996_dev *dev)
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = mt7996_firmware_state(dev, true);
++	fw_state = is_mt7990(&dev->mt76) ? FW_STATE_NORMAL_TRX : FW_STATE_RDY;
++	ret = mt7996_firmware_state(dev, fw_state);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -4702,7 +4703,7 @@ int mt7996_mcu_init(struct mt7996_dev *dev)
+ void mt7996_mcu_exit(struct mt7996_dev *dev)
+ {
+ 	mt7996_mcu_restart(&dev->mt76);
+-	if (mt7996_firmware_state(dev, false)) {
++	if (mt7996_firmware_state(dev, FW_STATE_FW_DOWNLOAD)) {
+ 		dev_err(dev->mt76.dev, "Failed to exit mcu\n");
+ 		goto out;
+ 	}
+diff --git a/mt7996/pci.c b/mt7996/pci.c
+index 4a293bbd..1abd5741 100644
+--- a/mt7996/pci.c
++++ b/mt7996/pci.c
+@@ -283,3 +283,5 @@ MODULE_FIRMWARE(MT7992_FIRMWARE_WA);
+ MODULE_FIRMWARE(MT7992_FIRMWARE_WM);
+ MODULE_FIRMWARE(MT7992_FIRMWARE_DSP);
+ MODULE_FIRMWARE(MT7992_ROM_PATCH);
++MODULE_FIRMWARE(MT7990_FIRMWARE_WM);
++MODULE_FIRMWARE(MT7990_ROM_PATCH);
+-- 
+2.45.2
+

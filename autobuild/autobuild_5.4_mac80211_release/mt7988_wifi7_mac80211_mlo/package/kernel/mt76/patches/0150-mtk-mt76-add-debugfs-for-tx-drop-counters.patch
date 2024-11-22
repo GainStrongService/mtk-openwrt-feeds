@@ -1,0 +1,401 @@
+From a7f58f02fe2dae4f1c6b8b077370116b0e9bd46e Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Thu, 13 Jun 2024 17:47:13 +0800
+Subject: [PATCH 150/265] mtk: mt76: add debugfs for tx drop counters
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ dma.c                | 22 +++++++++---
+ mac80211.c           |  2 ++
+ mt76.h               | 27 +++++++++++++++
+ mt7996/mac.c         | 20 ++++++++---
+ mt7996/main.c        | 10 ++++--
+ mt7996/mtk_debugfs.c | 80 ++++++++++++++++++++++++++++++++++++++++++++
+ tx.c                 | 12 +++++++
+ 7 files changed, 161 insertions(+), 12 deletions(-)
+
+diff --git a/dma.c b/dma.c
+index 3f1fb6c2..0dae40e2 100644
+--- a/dma.c
++++ b/dma.c
+@@ -612,12 +612,16 @@ mt76_dma_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
+ 	dma_addr_t addr;
+ 	u8 *txwi;
+ 
+-	if (test_bit(MT76_RESET, &phy->state))
++	if (test_bit(MT76_RESET, &phy->state)) {
++		phy->tx_dbg_stats.tx_drop[MT_TX_DROP_RESET_STATE]++;
+ 		goto free_skb;
++	}
+ 
+ 	t = mt76_get_txwi(dev);
+-	if (!t)
++	if (!t) {
++		dev->tx_dbg_stats.tx_drop[MT_TX_DROP_GET_TXWI_FAIL]++;
+ 		goto free_skb;
++	}
+ 
+ 	txwi = mt76_get_txwi_ptr(dev, t);
+ 
+@@ -627,8 +631,10 @@ mt76_dma_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
+ 
+ 	len = skb_headlen(skb);
+ 	addr = dma_map_single(dev->dma_dev, skb->data, len, DMA_TO_DEVICE);
+-	if (unlikely(dma_mapping_error(dev->dma_dev, addr)))
++	if (unlikely(dma_mapping_error(dev->dma_dev, addr))) {
++		dev->tx_dbg_stats.tx_drop[MT_TX_DROP_DMA_FAIL]++;
+ 		goto free;
++	}
+ 
+ 	tx_info.buf[n].addr = t->dma_addr;
+ 	tx_info.buf[n++].len = dev->drv->txwi_size;
+@@ -636,13 +642,17 @@ mt76_dma_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
+ 	tx_info.buf[n++].len = len;
+ 
+ 	skb_walk_frags(skb, iter) {
+-		if (n == ARRAY_SIZE(tx_info.buf))
++		if (n == ARRAY_SIZE(tx_info.buf)) {
++			dev->tx_dbg_stats.tx_drop[MT_TX_DROP_AGG_EXCEEDED]++;
+ 			goto unmap;
++		}
+ 
+ 		addr = dma_map_single(dev->dma_dev, iter->data, iter->len,
+ 				      DMA_TO_DEVICE);
+-		if (unlikely(dma_mapping_error(dev->dma_dev, addr)))
++		if (unlikely(dma_mapping_error(dev->dma_dev, addr))) {
++			dev->tx_dbg_stats.tx_drop[MT_TX_DROP_DMA_FAIL]++;
+ 			goto unmap;
++		}
+ 
+ 		tx_info.buf[n].addr = addr;
+ 		tx_info.buf[n++].len = iter->len;
+@@ -651,6 +661,7 @@ mt76_dma_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
+ 
+ 	if (q->queued + (tx_info.nbuf + 1) / 2 >= q->ndesc - 1) {
+ 		ret = -ENOMEM;
++		phy->tx_dbg_stats.tx_drop[MT_TX_DROP_RING_FULL]++;
+ 		goto unmap;
+ 	}
+ 
+@@ -662,6 +673,7 @@ mt76_dma_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
+ 	if (ret < 0)
+ 		goto unmap;
+ 
++	phy->tx_dbg_stats.tx_to_hw++;
+ 	return mt76_dma_add_buf(dev, q, tx_info.buf, tx_info.nbuf,
+ 				tx_info.info, tx_info.skb, t);
+ 
+diff --git a/mac80211.c b/mac80211.c
+index a555bec2..93ff77be 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -417,6 +417,7 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
+ 
+ 	INIT_LIST_HEAD(&phy->tx_list);
+ 	spin_lock_init(&phy->tx_lock);
++	spin_lock_init(&phy->tx_dbg_stats.lock);
+ 
+ 	SET_IEEE80211_DEV(hw, dev->dev);
+ 	SET_IEEE80211_PERM_ADDR(hw, phy->macaddr);
+@@ -597,6 +598,7 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
+ 	spin_lock_init(&dev->lock);
+ 	spin_lock_init(&dev->cc_lock);
+ 	spin_lock_init(&dev->status_lock);
++	spin_lock_init(&dev->tx_dbg_stats.lock);
+ 	mutex_init(&dev->mutex);
+ 	init_waitqueue_head(&dev->tx_wait);
+ 
+diff --git a/mt76.h b/mt76.h
+index 8e71c2ce..8e78ba86 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -849,6 +849,31 @@ struct mt76_vif {
+ 	struct ieee80211_chanctx_conf *ctx;
+ };
+ 
++enum {
++	MT_TX_DROP_IN_TESTMODE,
++	MT_TX_DROP_WCID_NOT_INIT,
++	MT_TX_DROP_STOPPED_QUEUE,
++	MT_TX_DROP_RESET_STATE,
++	MT_TX_DROP_GET_TXWI_FAIL,
++	MT_TX_DROP_DMA_FAIL,
++	MT_TX_DROP_AGG_EXCEEDED,
++	MT_TX_DROP_RING_FULL,
++	MT_TX_DROP_INVALID_SKB,
++	MT_TX_DROP_GET_TOKEN_FAIL,
++	MT_TX_DROP_ADDR_TRANS_FAIL,
++	MT_TX_DROP_INVALID_WCID,
++	MT_TX_DROP_INVALID_LINK,
++	MT_TX_DROP_MAX,
++};
++
++struct mt76_tx_debug {
++	u32 tx_from_mac80211;
++	u32 tx_to_hw;
++
++	u32 tx_drop[MT_TX_DROP_MAX];
++	spinlock_t lock;
++};
++
+ struct mt76_phy {
+ 	struct ieee80211_hw *hw;
+ 	struct ieee80211_hw *ori_hw;
+@@ -906,6 +931,7 @@ struct mt76_phy {
+ 		bool al;
+ 		u8 pin;
+ 	} leds;
++	struct mt76_tx_debug tx_dbg_stats;
+ };
+ 
+ struct mt76_dev {
+@@ -1010,6 +1036,7 @@ struct mt76_dev {
+ 	};
+ 
+ 	const char *bin_file_name;
++	struct mt76_tx_debug tx_dbg_stats;
+ };
+ 
+ #define MT76_MAX_AMSDU_NUM 8
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index c341a553..a78ebefc 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -909,11 +909,15 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 	u8 *txwi = (u8 *)txwi_ptr;
+ 	u8 link_id;
+ 
+-	if (unlikely(tx_info->skb->len <= ETH_HLEN))
++	if (unlikely(tx_info->skb->len <= ETH_HLEN)) {
++		mdev->tx_dbg_stats.tx_drop[MT_TX_DROP_INVALID_SKB]++;
+ 		return -EINVAL;
++	}
+ 
+-	if (WARN_ON(!wcid))
++	if (WARN_ON(!wcid)) {
++		mdev->tx_dbg_stats.tx_drop[MT_TX_DROP_INVALID_WCID]++;
+ 		return -EINVAL;
++	}
+ 
+ 	msta = sta ? (struct mt7996_sta *)sta->drv_priv : &mvif->sta;
+ 	if (ieee80211_is_data_qos(hdr->frame_control) && sta->mlo) {
+@@ -939,15 +943,19 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 	}
+ 
+ 	mconf = rcu_dereference(mvif->link[wcid->link_id]);
+-	if (!mconf)
++	if (!mconf) {
++		mdev->tx_dbg_stats.tx_drop[MT_TX_DROP_INVALID_LINK]++;
+ 		return -ENOLINK;
++	}
+ 
+ 	t = (struct mt76_txwi_cache *)(txwi + mdev->drv->txwi_size);
+ 	t->skb = tx_info->skb;
+ 
+ 	id = mt76_token_consume(mdev, &t);
+-	if (id < 0)
++	if (id < 0) {
++		mdev->tx_dbg_stats.tx_drop[MT_TX_DROP_GET_TOKEN_FAIL]++;
+ 		return id;
++	}
+ #ifdef CONFIG_MTK_DEBUG
+ 	t->jiffies = jiffies;
+ #endif
+@@ -969,8 +977,10 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+ 
+ 		conf = rcu_dereference(vif->link_conf[wcid->link_id]);
+ 		link_sta = rcu_dereference(sta->link[wcid->link_id]);
+-		if (!conf || !link_sta)
++		if (!conf || !link_sta) {
++			mdev->tx_dbg_stats.tx_drop[MT_TX_DROP_INVALID_LINK]++;
+ 			return -ENOLINK;
++		}
+ 
+ 		dma_sync_single_for_cpu(mdev->dma_dev, tx_info->buf[1].addr,
+ 					tx_info->buf[1].len, DMA_TO_DEVICE);
+diff --git a/mt7996/main.c b/mt7996/main.c
+index e0bee15e..499290d8 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1426,11 +1426,13 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+ 		      struct sk_buff *skb)
+ {
+ 	struct mt76_phy *mphy;
++	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+ 	struct ieee80211_vif *vif = info->control.vif;
+ 	struct mt76_wcid *wcid;
+ 	struct mt7996_vif *mvif;
+ 	struct mt7996_sta *msta;
++	bool addr_trans_success = false;
+ 
+ 	if (control->sta) {
+ 		msta = (struct mt7996_sta *)control->sta->drv_priv;
+@@ -1502,14 +1504,18 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+ 		mphy = mconf->phy->mt76;
+ 		wcid = &mlink->wcid;
+ 	} else {
+-		struct mt7996_dev *dev = mt7996_hw_dev(hw);
+-
+ 		mphy = hw->priv;
+ 		wcid = &dev->mt76.global_wcid;
+ 	}
+ 
++	addr_trans_success = true;
+ 	mt76_tx(mphy, control->sta, wcid, skb);
+ unlock:
++	if (!addr_trans_success) {
++		spin_lock_bh(&dev->mt76.tx_dbg_stats.lock);
++		dev->mt76.tx_dbg_stats.tx_drop[MT_TX_DROP_ADDR_TRANS_FAIL]++;
++		spin_unlock_bh(&dev->mt76.tx_dbg_stats.lock);
++	}
+ 	rcu_read_unlock();
+ }
+ 
+diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
+index de5139ad..1a468705 100644
+--- a/mt7996/mtk_debugfs.c
++++ b/mt7996/mtk_debugfs.c
+@@ -4162,6 +4162,83 @@ out:
+ 	return ret;
+ }
+ 
++static int
++mt7996_tx_drop_show(struct seq_file *s, void *data)
++{
++	struct mt7996_dev *dev = s->private;
++	struct mt76_dev *mdev = &dev->mt76;
++	struct mt76_tx_debug *dev_stats = &mdev->tx_dbg_stats;
++	struct mt76_tx_debug *phy_stats[__MT_MAX_BAND];
++	int i = 0;
++
++	seq_printf(s, "\t\t\t\t       dev");
++	for (i = 0; i < __MT_MAX_BAND; i++) {
++		seq_printf(s, "       Band%d", i);
++		if (mdev->phys[i]) {
++			phy_stats[i] = &mdev->phys[i]->tx_dbg_stats;
++		} else {
++			phy_stats[i] = kzalloc(sizeof(struct mt76_tx_debug),
++					       GFP_KERNEL);
++			if (!phy_stats[i])
++				goto out;
++		}
++
++	}
++	seq_printf(s, "       total\n");
++
++	seq_printf(s, "%-30s%12d%12d%12d%12d%12d\n", "Receive from mac80211",
++		       dev_stats->tx_from_mac80211,
++		       phy_stats[0]->tx_from_mac80211,
++		       phy_stats[1]->tx_from_mac80211,
++		       phy_stats[2]->tx_from_mac80211,
++		       dev_stats->tx_from_mac80211 +
++		       phy_stats[0]->tx_from_mac80211 +
++		       phy_stats[1]->tx_from_mac80211 +
++		       phy_stats[2]->tx_from_mac80211);
++	seq_printf(s, "%-30s%12d%12d%12d%12d%12d\n\n", "Send to hw",
++		       dev_stats->tx_to_hw,
++		       phy_stats[0]->tx_to_hw,
++		       phy_stats[1]->tx_to_hw,
++		       phy_stats[2]->tx_to_hw,
++		       dev_stats->tx_to_hw +
++		       phy_stats[0]->tx_to_hw +
++		       phy_stats[1]->tx_to_hw +
++		       phy_stats[2]->tx_to_hw);
++#define __pr(t) seq_printf(s, "Drop due to %-18s%12d%12d%12d%12d%12d\n",\
++			   #t, dev_stats->tx_drop[MT_TX_DROP_##t],	\
++			   phy_stats[0]->tx_drop[MT_TX_DROP_##t],	\
++			   phy_stats[1]->tx_drop[MT_TX_DROP_##t],	\
++			   phy_stats[2]->tx_drop[MT_TX_DROP_##t],	\
++			   dev_stats->tx_drop[MT_TX_DROP_##t] +		\
++			   phy_stats[0]->tx_drop[MT_TX_DROP_##t] + 	\
++			   phy_stats[1]->tx_drop[MT_TX_DROP_##t] +	\
++			   phy_stats[2]->tx_drop[MT_TX_DROP_##t])
++
++	__pr(IN_TESTMODE);
++	__pr(WCID_NOT_INIT);
++	__pr(STOPPED_QUEUE);
++	__pr(RESET_STATE);
++	__pr(GET_TXWI_FAIL);
++	__pr(DMA_FAIL);
++	__pr(AGG_EXCEEDED);
++	__pr(RING_FULL);
++	__pr(INVALID_SKB);
++	__pr(GET_TOKEN_FAIL);
++	__pr(ADDR_TRANS_FAIL);
++	__pr(INVALID_WCID);
++	__pr(INVALID_LINK);
++
++#undef __pr
++out:
++	for (i = 0; i < __MT_MAX_BAND; i++) {
++		if (!mdev->phys[i] && phy_stats[i])
++			kfree(phy_stats[i]);
++	}
++
++	return 0;
++}
++DEFINE_SHOW_ATTRIBUTE(mt7996_tx_drop);
++
+ /* DRR */
+ static int
+ mt7996_drr_info(struct seq_file *s, void *data)
+@@ -4287,6 +4364,9 @@ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
+ 	/* amsdu */
+ 	debugfs_create_file("amsdu_algo", 0600, dir, dev, &fops_amsdu_algo);
+ 	debugfs_create_file("amsdu_para", 0600, dir, dev, &fops_amsdu_para);
++
++	/* Drop counters */
++	debugfs_create_file("tx_drop_stats", 0400, dir, dev, &mt7996_tx_drop_fops);
+ }
+ 
+ #endif
+diff --git a/tx.c b/tx.c
+index 7906023a..e7aba9f0 100644
+--- a/tx.c
++++ b/tx.c
+@@ -335,8 +335,14 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
+ 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+ 	struct sk_buff_head *head;
+ 
++	spin_lock_bh(&phy->tx_dbg_stats.lock);
++	phy->tx_dbg_stats.tx_from_mac80211++;
++	spin_unlock_bh(&phy->tx_dbg_stats.lock);
+ 	if (mt76_testmode_enabled(phy)) {
+ 		ieee80211_free_txskb(phy->hw, skb);
++		spin_lock_bh(&phy->tx_dbg_stats.lock);
++		phy->tx_dbg_stats.tx_drop[MT_TX_DROP_IN_TESTMODE]++;
++		spin_unlock_bh(&phy->tx_dbg_stats.lock);
+ 		return;
+ 	}
+ 
+@@ -357,6 +363,9 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
+ 			dev_warn(phy->dev->dev, "Un-initialized STA %pM wcid %d in mt76_tx\n",
+ 				 sta->addr, wcid->idx);
+ 
++			spin_lock_bh(&phy->tx_dbg_stats.lock);
++			phy->tx_dbg_stats.tx_drop[MT_TX_DROP_WCID_NOT_INIT]++;
++			spin_unlock_bh(&phy->tx_dbg_stats.lock);
+ 			ieee80211_free_txskb(phy->hw, skb);
+ 			return;
+ 		}
+@@ -390,6 +399,8 @@ mt76_txq_dequeue(struct mt76_phy *phy, struct mt76_txq *mtxq)
+ 	info = IEEE80211_SKB_CB(skb);
+ 	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, phy->band_idx);
+ 
++	phy->dev->tx_dbg_stats.tx_from_mac80211++;
++
+ 	return skb;
+ }
+ 
+@@ -628,6 +639,7 @@ mt76_txq_schedule_pending_wcid(struct mt76_phy *phy, struct mt76_wcid *wcid,
+ 		q = phy->q_tx[qid];
+ 		if (mt76_txq_stopped(q) || test_bit(MT76_RESET, &phy->state)) {
+ 			ret = -1;
++			phy->tx_dbg_stats.tx_drop[MT_TX_DROP_STOPPED_QUEUE]++;
+ 			break;
+ 		}
+ 
+-- 
+2.45.2
+

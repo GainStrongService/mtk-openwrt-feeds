@@ -1,12 +1,11 @@
-From 96bad7cc6e83269af0bb643485c06ab1e9dcfa6b Mon Sep 17 00:00:00 2001
+From ee54917c7a4e930ca03f4b8f0861abae2098dc03 Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Mon, 25 Dec 2023 15:17:49 +0800
-Subject: [PATCH 026/193] mtk: mt76: mt7996: Add mt7992 coredump support
+Subject: [PATCH 026/265] mtk: mt76: mt7996: Add mt7992 coredump support
 
 1. Add mt7992 coredump support
 2. fixed if new ic have not support coredump, it may cause crash when remove module
 
-Change-Id: I2ae5425aac6be8ff69a2c411e796be308b558b6b
 Signed-off-by: Rex Lu <rex.lu@mediatek.com>
 ---
  mt7996/coredump.c | 80 ++++++++++++++++++++++++++++++++++++++---------
@@ -14,7 +13,7 @@ Signed-off-by: Rex Lu <rex.lu@mediatek.com>
  2 files changed, 67 insertions(+), 14 deletions(-)
 
 diff --git a/mt7996/coredump.c b/mt7996/coredump.c
-index a7f91b5..d09bcd4 100644
+index a7f91b56..d09bcd4b 100644
 --- a/mt7996/coredump.c
 +++ b/mt7996/coredump.c
 @@ -67,6 +67,44 @@ static const struct mt7996_mem_region mt7996_wa_mem_regions[] = {
@@ -147,7 +146,7 @@ index a7f91b5..d09bcd4 100644
  }
  
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index edd2ce3..c011e8e 100644
+index 5a87553b..e4aa704b 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -238,6 +238,7 @@ struct mt7996_vif {

@@ -1,13 +1,12 @@
-From db6abcb6c3265d02b66b7b7cf68431493c0aad3d Mon Sep 17 00:00:00 2001
+From 01a7e2914472dd7aa6de51f6884c0f1a17f2ff61 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 24 Nov 2023 09:49:08 +0800
-Subject: [PATCH 044/193] mtk: mt76: mt7996: add adie efuse merge support
+Subject: [PATCH 044/265] mtk: mt76: mt7996: add adie efuse merge support
 
 Merge adie-dependent parameters in efuse into eeprom after FT.
-Note that Eagle BE14000 is not considered yet.
+Note that mt7996 BE14000 is not considered yet.
 Add efuse dump command.
 
-Change-Id: Ib088b90147c75d7437f40dd3569e3584c6ff9ab0
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  mt7996/debugfs.c  |  41 +++++++++++++
@@ -17,10 +16,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 193 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index 1f4bad6..70a97d2 100644
+index 93f1ef9a..07970e1a 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
-@@ -881,6 +881,46 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug_muru_disable,
+@@ -886,6 +886,46 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug_muru_disable,
  			 mt7996_fw_debug_muru_disable_get,
  			 mt7996_fw_debug_muru_disable_set, "%lld\n");
  
@@ -67,7 +66,7 @@ index 1f4bad6..70a97d2 100644
  int mt7996_init_debugfs(struct mt7996_phy *phy)
  {
  	struct mt7996_dev *dev = phy->dev;
-@@ -907,6 +947,7 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
+@@ -912,6 +952,7 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
  	debugfs_create_devm_seqfile(dev->mt76.dev, "twt_stats", dir,
  				    mt7996_twt_stats);
  	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
@@ -76,7 +75,7 @@ index 1f4bad6..70a97d2 100644
  	if (phy->mt76->cap.has_5ghz) {
  		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index 7575dcb..be87afe 100644
+index 7575dcb9..be87afe8 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -546,6 +546,146 @@ static int mt7996_eeprom_load_precal(struct mt7996_dev *dev)
@@ -238,7 +237,7 @@ index 7575dcb..be87afe 100644
  	if (ret < 0)
  		return ret;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index dd9f2ca..9376d69 100644
+index dd9f2cab..9376d693 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -1484,10 +1484,10 @@ mt7996_background_radar_handle_7975_ifem(struct ieee80211_hw *hw,
@@ -255,7 +254,7 @@ index dd9f2ca..9376d69 100644
  		break;
  	default:
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 5c0eb3c..5a8b6d0 100644
+index ea4cc320..a8e35347 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -2128,8 +2128,12 @@ mt7996_tm_write_back_to_efuse(struct mt7996_dev *dev)

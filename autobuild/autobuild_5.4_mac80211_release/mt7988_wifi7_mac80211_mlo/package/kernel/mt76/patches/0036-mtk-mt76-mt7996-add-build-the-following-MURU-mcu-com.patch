@@ -1,14 +1,13 @@
-From 5bd260ef2bcd50c4bc56a2b7a1150d8c3b975374 Mon Sep 17 00:00:00 2001
+From dac4259c984e73bbd35fc774689a673acc76c419 Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Tue, 13 Jun 2023 14:49:02 +0800
-Subject: [PATCH 036/193] mtk: mt76: mt7996: add build the following MURU mcu
+Subject: [PATCH 036/265] mtk: mt76: mt7996: add build the following MURU mcu
  command tlvs
 
 It includes the following tlvs:
 1. MURU tlv id 0x10, 0x33, 0xC8, 0xC9, 0xCA, 0xCC, 0xCD
 2. BF tlv id 0x1c
 
-Change-Id: I0ae5cbed5b4370d39a6cfca50721873845659006
 ---
  mt7996/mcu.h         |   1 +
  mt7996/mt7996.h      |   3 ++
@@ -18,7 +17,7 @@ Change-Id: I0ae5cbed5b4370d39a6cfca50721873845659006
  5 files changed, 219 insertions(+)
 
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 8a71851..a98b174 100644
+index 8a718513..a98b174e 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -776,6 +776,7 @@ enum {
@@ -30,10 +29,10 @@ index 8a71851..a98b174 100644
  
  enum {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 8d986de..ed998c0 100644
+index e915ff6f..a291db87 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -852,6 +852,9 @@ void mt7996_mcu_rx_bf_event(struct mt7996_dev *dev, struct sk_buff *skb);
+@@ -853,6 +853,9 @@ void mt7996_mcu_rx_bf_event(struct mt7996_dev *dev, struct sk_buff *skb);
  int mt7996_mcu_set_muru_fixed_rate_enable(struct mt7996_dev *dev, u8 action, int val);
  int mt7996_mcu_set_muru_fixed_rate_parameter(struct mt7996_dev *dev, u8 action, void *para);
  int mt7996_mcu_set_txbf_snd_info(struct mt7996_phy *phy, void *para);
@@ -44,7 +43,7 @@ index 8d986de..ed998c0 100644
  
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 51449df..1c4e2c9 100644
+index 08ed0035..f16605d5 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2911,6 +2911,127 @@ mt7996_sr_scene_cond_show(struct seq_file *file, void *data)
@@ -185,7 +184,7 @@ index 51449df..1c4e2c9 100644
  }
  
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
-index 6b2cdad..6865062 100644
+index 6b2cdad6..68650623 100644
 --- a/mt7996/mtk_mcu.c
 +++ b/mt7996/mtk_mcu.c
 @@ -904,4 +904,82 @@ error:
@@ -272,7 +271,7 @@ index 6b2cdad..6865062 100644
 +
  #endif
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
-index 27d6a05..d9686eb 100644
+index 27d6a05b..d9686ebb 100644
 --- a/mt7996/mtk_mcu.h
 +++ b/mt7996/mtk_mcu.h
 @@ -119,6 +119,20 @@ enum {

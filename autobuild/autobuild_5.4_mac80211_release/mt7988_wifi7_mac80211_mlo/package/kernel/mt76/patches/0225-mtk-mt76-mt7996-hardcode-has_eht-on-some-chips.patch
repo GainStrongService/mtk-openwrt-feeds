@@ -1,0 +1,29 @@
+From d70d42a372cf14b39816fb521449815bd2df1e1b Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 15 Oct 2024 18:07:01 +0800
+Subject: [PATCH 225/265] mtk: mt76: mt7996: hardcode has_eht on some chips
+
+Some earlier boards do not have related efuse values yet.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/eeprom.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
+index 48b0bc97..6d8df3a0 100644
+--- a/mt7996/eeprom.c
++++ b/mt7996/eeprom.c
+@@ -390,7 +390,8 @@ static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_phy *phy,
+ 	if (ret)
+ 		return ret;
+ 
+-	cap = 0x4b249248;	/* internal hardcode */
++	/* for internal development */
++	dev->has_eht = true;
+ 	if (cap) {
+ 		u8 band_offs = phy->mt76->band_idx * 3;
+ 
+-- 
+2.45.2
+

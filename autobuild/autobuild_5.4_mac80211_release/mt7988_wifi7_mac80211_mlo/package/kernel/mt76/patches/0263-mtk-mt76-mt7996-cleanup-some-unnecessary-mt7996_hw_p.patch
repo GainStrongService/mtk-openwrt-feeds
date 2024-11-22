@@ -1,0 +1,168 @@
+From 5157d87dc4cdbc5f49029e9c1d6bfcd6d3bb25e8 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 8 Nov 2024 18:16:46 +0800
+Subject: [PATCH 263/265] mtk: mt76: mt7996: cleanup some unnecessary
+ mt7996_hw_phy()
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/init.c    |  2 +-
+ mt7996/main.c    | 34 ++++++++++++++++++++--------------
+ mt7996/mtk_mcu.c |  3 +--
+ 3 files changed, 22 insertions(+), 17 deletions(-)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index bd6cca3e..0faa6557 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -423,7 +423,7 @@ mt7996_regd_notifier(struct wiphy *wiphy,
+ {
+ 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct mt7996_phy *phy;
+ 
+ 	memcpy(dev->mt76.alpha2, request->alpha2, sizeof(dev->mt76.alpha2));
+ 	dev->mt76.region = request->dfs_region;
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 52afc860..3c09e5bc 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -489,7 +489,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+ 	// struct wireless_dev *wdev = ieee80211_vif_to_wdev(vif);
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct mt7996_phy *phy;
+ 	int i, err = 0;
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+@@ -557,7 +557,7 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+ 	struct mt7996_bss_conf *mconf;
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct mt7996_phy *phy;
+ 	struct mt7996_radio_data rdata = {};
+ 	int i;
+ 
+@@ -980,8 +980,8 @@ static void mt7996_link_info_changed(struct ieee80211_hw *hw,
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+ 	struct mt7996_bss_conf *mconf;
+ 	struct mt7996_link_sta *mlink;
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
++	struct mt7996_phy *phy;
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
+@@ -990,8 +990,7 @@ static void mt7996_link_info_changed(struct ieee80211_hw *hw,
+ 	if (!mconf || !mlink)
+ 		goto out;
+ 
+-	if (mconf->phy)
+-		phy = mconf->phy;
++	phy = mconf->phy;
+ 	/* station mode uses BSSID to map the wlan entry to a peer,
+ 	 * and then peer references bss_info_rfch to set bandwidth cap.
+ 	 */
+@@ -1728,7 +1727,7 @@ mt7996_get_stats(struct ieee80211_hw *hw,
+ u64 __mt7996_get_tsf(struct ieee80211_hw *hw, struct mt7996_bss_conf *mconf)
+ {
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct mt7996_phy *phy = mconf->phy;
+ 	union {
+ 		u64 t64;
+ 		u32 t32[2];
+@@ -1779,7 +1778,7 @@ mt7996_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ {
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct mt7996_phy *phy;
+ 	struct mt7996_bss_conf *mconf;
+ 	union {
+ 		u64 t64;
+@@ -1790,6 +1789,9 @@ mt7996_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	mutex_lock(&dev->mt76.mutex);
+ 
+ 	mconf = mconf_dereference_protected(mvif, mvif->master_link_id);
++	if (!mconf)
++		return;
++	phy = mconf->phy;
+ 	n = mconf->mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
+ 					       : mconf->mt76.omac_idx;
+ 	mt76_wr(dev, MT_LPON_UTTR0(phy->mt76->band_idx), tsf.t32[0]);
+@@ -1807,7 +1809,7 @@ mt7996_offset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ {
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
++	struct mt7996_phy *phy;
+ 	struct mt7996_bss_conf *mconf;
+ 	union {
+ 		u64 t64;
+@@ -1818,6 +1820,9 @@ mt7996_offset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	mutex_lock(&dev->mt76.mutex);
+ 
+ 	mconf = mconf_dereference_protected(mvif, mvif->master_link_id);
++	if (!mconf)
++		return;
++	phy = mconf->phy;
+ 	n = mconf->mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
+ 					       : mconf->mt76.omac_idx;
+ 	mt76_wr(dev, MT_LPON_UTTR0(phy->mt76->band_idx), tsf.t32[0]);
+@@ -1832,12 +1837,14 @@ mt7996_offset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ static void
+ mt7996_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
+ {
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+-	struct mt7996_dev *dev = phy->dev;
++	struct mt7996_dev *dev = mt7996_hw_dev(hw);
++	struct mt7996_phy *phy;
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+-	phy->coverage_class = max_t(s16, coverage_class, 0);
+-	mt7996_mac_set_coverage_class(phy);
++	mt7996_for_each_phy(dev, phy) {
++		phy->coverage_class = max_t(s16, coverage_class, 0);
++		mt7996_mac_set_coverage_class(phy);
++	}
+ 	mutex_unlock(&dev->mt76.mutex);
+ }
+ 
+@@ -1883,7 +1890,6 @@ static void mt7996_sta_statistics(struct ieee80211_hw *hw,
+ 				  struct station_info *sinfo)
+ {
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+ 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+ 	struct mt7996_link_sta *mlink;
+ 	struct rate_info *rate;
+@@ -1917,7 +1923,7 @@ static void mt7996_sta_statistics(struct ieee80211_hw *hw,
+ 	sinfo->avg_ack_signal = -(s8)ewma_avg_signal_read(&mlink->avg_ack_signal);
+ 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL_AVG);
+ 
+-	if (mtk_wed_device_active(&phy->dev->mt76.mmio.wed)) {
++	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
+ 		sinfo->tx_bytes = mlink->wcid.stats.tx_bytes;
+ 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BYTES64);
+ 
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 8ef48c64..4dcbdd7f 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -1418,8 +1418,7 @@ unlock:
+ 
+ int mt7996_set_coding_type(struct ieee80211_hw *hw, u8 coding_type, u8 link_id)
+ {
+-	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+-	struct mt7996_dev *dev = phy->dev;
++	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 
+ 	dev->coding_type = coding_type;
+ 
+-- 
+2.45.2
+

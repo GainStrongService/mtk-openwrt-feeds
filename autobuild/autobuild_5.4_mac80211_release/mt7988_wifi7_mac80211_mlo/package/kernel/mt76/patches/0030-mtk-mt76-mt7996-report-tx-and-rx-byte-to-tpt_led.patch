@@ -1,17 +1,17 @@
-From c44b0549f0033d4092d31abce20f4020b06d7ada Mon Sep 17 00:00:00 2001
+From 478cec126242a0d8f367d59c58f413c86415839e Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Sat, 12 Aug 2023 04:17:22 +0800
-Subject: [PATCH 030/193] mtk: mt76: mt7996: report tx and rx byte to tpt_led
+Subject: [PATCH 030/265] mtk: mt76: mt7996: report tx and rx byte to tpt_led
 
 ---
  mt7996/mcu.c | 15 +++++++++++----
  1 file changed, 11 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index febd004..ed41f51 100644
+index d97e3983..afd18f1e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -535,6 +535,8 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -534,6 +534,8 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
  		u8 ac;
  		u16 wlan_idx;
  		struct mt76_wcid *wcid;
@@ -20,7 +20,7 @@ index febd004..ed41f51 100644
  
  		switch (le16_to_cpu(res->tag)) {
  		case UNI_ALL_STA_TXRX_RATE:
-@@ -554,11 +556,16 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -553,11 +555,16 @@ mt7996_mcu_rx_all_sta_info_event(struct mt7996_dev *dev, struct sk_buff *skb)
  			if (!wcid)
  				break;
  

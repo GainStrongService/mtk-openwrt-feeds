@@ -1,0 +1,138 @@
+From 46f61d7b1cd54759b6d31912292471c1a45beda3 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 8 Nov 2024 13:28:11 +0800
+Subject: [PATCH 262/265] mtk: mt76: mt7996: fix STA and remove interface
+
+---
+ mt7996/main.c | 52 ++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 29 insertions(+), 23 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 024301f4..52afc860 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -47,6 +47,11 @@ int mt7996_run(struct mt7996_phy *phy)
+ 	if (ret)
+ 		return ret;
+ 
++	/* set a parking channel */
++	ret = mt7996_mcu_set_chan_info(phy, UNI_CHANNEL_SWITCH, false);
++	if (ret)
++		return ret;
++
+ 	ret = mt7996_mcu_set_thermal_throttling(phy, MT7996_THERMAL_THROTTLE_MAX);
+ 	if (ret)
+ 		return ret;
+@@ -482,16 +487,12 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 			        struct ieee80211_vif *vif)
+ {
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+-	struct wireless_dev *wdev = ieee80211_vif_to_wdev(vif);
++	// struct wireless_dev *wdev = ieee80211_vif_to_wdev(vif);
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+ 	int i, err = 0;
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+-	if (vif->type == NL80211_IFTYPE_MONITOR &&
+-	    is_zero_ether_addr(vif->addr))
+-		phy->monitor_vif = vif;
+-
+ 	if (dev->testmode_enable && vif->type != NL80211_IFTYPE_MONITOR) {
+ 		mutex_unlock(&dev->mt76.mutex);
+ 		dev_err(dev->mt76.dev, "Only monitor interface is allowed in testmode\n");
+@@ -499,18 +500,21 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 	}
+ 
+ 	for (i = 0; i < MT7996_MAX_RADIOS; i++) {
+-		struct mt7996_phy *phy = dev->radio_phy[i];
++		// if (!(wdev->radio_mask & BIT(i)))
++		// 	continue;
+ 
+-		if (!phy || !(wdev->radio_mask & BIT(i)) ||
+-		    test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
++		phy = dev->radio_phy[i];
++		if (!phy || test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
+ 			continue;
+ 
+ 		err = mt7996_run(phy);
+ 		if (err)
+ 			goto out;
+ 
+-		if (vif->type == NL80211_IFTYPE_MONITOR)
++		if (vif->type == NL80211_IFTYPE_MONITOR) {
+ 			mt7996_set_monitor(phy, true);
++			phy->monitor_vif = vif;
++		}
+ 	}
+ 
+ 	INIT_DELAYED_WORK(&mvif->beacon_mon_work, mt7996_beacon_mon_work);
+@@ -518,12 +522,12 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 	mvif->hw = hw;
+ 	mvif->sta.vif = mvif;
+ 	/* TODO: temporaily set this to prevent some crashes */
+-	mvif->deflink.phy = phy;
++	mvif->deflink.phy = mt7996_hw_phy(hw);
+ 	memset(mvif->band_to_link, IEEE80211_LINK_UNSPECIFIED,
+ 	       sizeof(mvif->band_to_link));
+ 
+ 	if (vif->type == NL80211_IFTYPE_STATION)
+-		err = mt7996_add_bss_conf(phy, vif, &vif->bss_conf);
++		err = mt7996_add_bss_conf(mt7996_hw_phy(hw), vif, &vif->bss_conf);
+ 
+ out:
+ 	mutex_unlock(&dev->mt76.mutex);
+@@ -560,18 +564,10 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
+ 	ieee80211_iterate_active_interfaces_mtx(hw, 0, mt7996_remove_iter,
+ 						&rdata);
+ 
+-	cancel_delayed_work_sync(&phy->scan_work);
+-	cancel_delayed_work_sync(&phy->roc_complete_work);
+ 	cancel_delayed_work(&mvif->beacon_mon_work);
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
+-	if (test_bit(MT76_SCANNING, &phy->mt76->state))
+-		mt7996_scan_complete(phy, true);
+-
+-	if (vif == phy->monitor_vif)
+-		phy->monitor_vif = NULL;
+-
+ 	conf = link_conf_dereference_protected(vif, 0);
+ 	mconf = mconf_dereference_protected(mvif, 0);
+ 	if (!mconf || !conf)
+@@ -579,17 +575,27 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
+ 
+ 	mt7996_remove_bss_conf(vif, mconf, 0);
+ 
+-	if (dev->testmode_enable && vif->type == NL80211_IFTYPE_MONITOR)
+-		kfree(phy->mt76->lists);
++	for (i = 0; i < MT7996_MAX_RADIOS; i++) {
++		phy = dev->radio_phy[i];
++		if (!phy)
++			continue;
++
++		if (vif == phy->monitor_vif) {
++			phy->monitor_vif = NULL;
++
++			if (dev->testmode_enable)
++				kfree(phy->mt76->lists);
++		}
++	}
+ 
+ out:
+ 	mutex_unlock(&dev->mt76.mutex);
+ 
+ 	for (i = 0; i < MT7996_MAX_RADIOS; i++) {
+-		struct mt7996_phy *phy = dev->radio_phy[i];
+-
++		phy = dev->radio_phy[i];
+ 		if (!phy)
+ 			continue;
++
+ 		if (!(rdata.monitor_mask & BIT(i)))
+ 			mt7996_set_monitor(phy, false);
+ 		if (!(rdata.active_mask & BIT(i)))
+-- 
+2.45.2
+

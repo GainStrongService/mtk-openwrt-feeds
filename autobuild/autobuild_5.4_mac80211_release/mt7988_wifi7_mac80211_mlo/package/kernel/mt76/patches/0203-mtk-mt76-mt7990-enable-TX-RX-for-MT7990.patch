@@ -1,0 +1,55 @@
+From a5a266b0bce60dd6ef6f00f34e935682d12d8ace Mon Sep 17 00:00:00 2001
+From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+Date: Tue, 27 Aug 2024 17:47:24 +0800
+Subject: [PATCH 203/265] mtk: mt76: mt7990: enable TX/RX for MT7990
+
+Support TXD assignment for MT7990.
+
+Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+---
+ mt76_connac3_mac.h | 1 +
+ mt7996/mac.c       | 8 ++++++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/mt76_connac3_mac.h b/mt76_connac3_mac.h
+index 7bc41047..9b4c6f24 100644
+--- a/mt76_connac3_mac.h
++++ b/mt76_connac3_mac.h
+@@ -290,6 +290,7 @@ enum {
+ #define MT_TXD6_TX_RATE			GENMASK(21, 16)
+ #define MT_TXD6_TIMESTAMP_OFS_EN	BIT(15)
+ #define MT_TXD6_TIMESTAMP_OFS_IDX	GENMASK(14, 10)
++#define MT_TXD6_TID_ADDBA		GENMASK(10, 8)
+ #define MT_TXD6_MSDU_CNT		GENMASK(9, 4)
+ #define MT_TXD6_MSDU_CNT_V2		GENMASK(15, 10)
+ #define MT_TXD6_DIS_MAT			BIT(3)
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 874b0c77..d442a92c 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -715,9 +715,12 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+ 
+ 	if (ieee80211_is_action(fc) &&
+ 	    mgmt->u.action.category == WLAN_CATEGORY_BACK &&
+-	    mgmt->u.action.u.addba_req.action_code == WLAN_ACTION_ADDBA_REQ)
++	    mgmt->u.action.u.addba_req.action_code == WLAN_ACTION_ADDBA_REQ) {
++		if (is_mt7990(&dev->mt76))
++			txwi[6] |= cpu_to_le32(FIELD_PREP(MT_TXD6_TID_ADDBA, tid));
++
+ 		tid = MT_TX_ADDBA;
+-	else if (ieee80211_is_mgmt(hdr->frame_control))
++	} else if (ieee80211_is_mgmt(hdr->frame_control))
+ 		tid = MT_TX_NORMAL;
+ 
+ 	val = FIELD_PREP(MT_TXD1_HDR_FORMAT, MT_HDR_FORMAT_802_11) |
+@@ -882,6 +885,7 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+ 		val |= FIELD_PREP(MT_TXD6_MSDU_CNT, 1);
+ 		break;
+ 	case MT7992_DEVICE_ID:
++	case MT7990_DEVICE_ID:
+ 		if (is_8023 || !ieee80211_is_mgmt(hdr->frame_control))
+ 			val |= FIELD_PREP(MT_TXD6_MSDU_CNT_V2, 1);
+ 		break;
+-- 
+2.45.2
+

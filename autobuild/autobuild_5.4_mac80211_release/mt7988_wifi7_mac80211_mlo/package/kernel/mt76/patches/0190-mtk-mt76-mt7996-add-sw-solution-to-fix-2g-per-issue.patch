@@ -1,0 +1,27 @@
+From b2e3aecb9163d5eb406bd8eee0760b6031ef2053 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Wed, 21 Aug 2024 10:08:27 +0800
+Subject: [PATCH 190/265] mtk: mt76: mt7996: add sw solution to fix 2g per
+ issue
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/mcu.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 7e0b46aa..55bfe152 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -2300,6 +2300,8 @@ mt7996_mcu_sta_amsdu_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 	switch (link_sta->agg.max_amsdu_len) {
+ 	case IEEE80211_MAX_MPDU_LEN_VHT_11454:
+ 		amsdu->max_mpdu_size =
++			(mlink->wcid.phy_idx == MT_BAND0 && !link_sta->sta->mlo) ?
++			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991:
+ 			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
+ 		return;
+ 	case IEEE80211_MAX_MPDU_LEN_HT_7935:
+-- 
+2.45.2
+

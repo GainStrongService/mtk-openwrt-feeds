@@ -8,6 +8,7 @@ swpath=0
 backport_new=1
 hostapd_new=1
 release=1
+mt7990_fw=0
 mt7992_fw=0
 mt7996_fw=0
 release_folder=${BUILD_DIR}/feeds/mtk_openwrt_feed/autobuild/autobuild_5.4_mac80211_release
@@ -23,6 +24,9 @@ for arg in $*; do
 		;;
 	"release")
 		release=1
+		;;
+	"mt7990")
+		mt7990_fw=1
 		;;
 	"mt7992")
 		mt7992_fw=1
@@ -83,11 +87,23 @@ change_dot_config() {
 	[ "$release" = "1" ] && {
 		cp -rfa ${release_folder}/package/kernel/mt76/src/firmware ${BUILD_DIR}/package/kernel/mt76/src
 	}
-	[ "$mt7992_fw" = "1" -a "$mt7996_fw" = "0" ] && {
+	[ "$mt7992_fw" = "1" -a "$mt7996_fw" = "0" -a "$mt7990_fw" = "0" ] && {
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7996-firmware-common=y/# CONFIG_PACKAGE_kmod-mt7996-firmware-common is not set/g' ${BUILD_DIR}/.config
 		sed -i 's/CONFIG_PACKAGE_kmod-mt7996-firmware=y/# CONFIG_PACKAGE_kmod-mt7996-firmware is not set/g' ${BUILD_DIR}/.config
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7996-233-firmware=y/# CONFIG_PACKAGE_kmod-mt7996-233-firmware is not set/g' ${BUILD_DIR}/.config
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7990-firmware=y/# CONFIG_PACKAGE_kmod-mt7990-firmware is not set/g' ${BUILD_DIR}/.config
 	}
-	[ "$mt7992_fw" = "0" -a "$mt7996_fw" = "1" ] && {
+	[ "$mt7992_fw" = "0" -a "$mt7996_fw" = "1" -a "$mt7990_fw" = "0" ] && {
 		sed -i 's/CONFIG_PACKAGE_kmod-mt7992-firmware=y/# CONFIG_PACKAGE_kmod-mt7992-firmware is not set/g' ${BUILD_DIR}/.config
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7992-23-firmware=y/# CONFIG_PACKAGE_kmod-mt7992-23-firmware is not set/g' ${BUILD_DIR}/.config
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7990-firmware=y/# CONFIG_PACKAGE_kmod-mt7990-firmware is not set/g' ${BUILD_DIR}/.config
+	}
+	[ "$mt7992_fw" = "0" -a "$mt7996_fw" = "0" -a "$mt7990_fw" = "1" ] && {
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7996-firmware-common=y/# CONFIG_PACKAGE_kmod-mt7996-firmware-common is not set/g' ${BUILD_DIR}/.config
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7996-firmware=y/# CONFIG_PACKAGE_kmod-mt7996-firmware is not set/g' ${BUILD_DIR}/.config
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7996-233-firmware=y/# CONFIG_PACKAGE_kmod-mt7996-233-firmware is not set/g' ${BUILD_DIR}/.config
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7992-firmware=y/# CONFIG_PACKAGE_kmod-mt7992-firmware is not set/g' ${BUILD_DIR}/.config
+		sed -i 's/CONFIG_PACKAGE_kmod-mt7992-23-firmware=y/# CONFIG_PACKAGE_kmod-mt7992-23-firmware is not set/g' ${BUILD_DIR}/.config
 	}
 }
 
@@ -96,42 +112,18 @@ change_dot_config() {
 #do prepare stuff
 prepare
 
+# Flow Offload hant/whnat
 prepare_flowoffload
 
-#prepare mac80211 mt76 wifi stuff
+# prepare mac80211 mt76 wifi stuff
 prepare_mac80211 ${backport_new} ${hostapd_new}
-
-# find ${BUILD_DIR}/package/kernel/mt76/patches -name "*-mt76-*.patch" -delete
-rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*
 
 # remove crypto-eip package since it not support at mt76 yet
 rm -rf ${BUILD_DIR}/package/mtk_soc/drivers/crypto-eip/
 
-# remove some iw patches to let EHT work normally
-rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/001-nl80211_h_sync.patch
-rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/120-antenna_gain.patch
-# ===========================================================
-
 # ========== specific modification on mt7996 autobuild for MLO support ==========
 do_patch ${MTK_FEED_DIR}/autobuild/autobuild_5.4_mac80211_release/openwrt_patches${OPENWRT_VER}/wifi7_mlo || exit 1
-
-if [ "$release" = '1' ]; then
-	# remove original mt76/hostapd/backport patches and use mlo autobuild one
-	rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*
-	rm -rf ${BUILD_DIR}/package/kernel/mac80211/patches/*
-	rm -rf ${BUILD_DIR}/package/network/services/hostapd/patches/*
-	rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/*
-	# ========== follow mt7988_wifi7_mac80211_mlo git01 patches ========================
-	rm -rf ${BUILD_DIR}/autobuild/${branch_name}/package
-	cp -rf ${release_folder}/mt7988_wifi7_mac80211_mlo/package/* ${BUILD_DIR}/package/
-	# ===========================================================
-fi
-
-# disable RADIUS in hostapd config
-sed -i "s/.*CONFIG_RADIUS_SERVER.*/# CONFIG_RADIUS_SERVER=y/g" ${BUILD_DIR}/package/network/services/hostapd/files/hostapd-full.config
-sed -i "s/.*CONFIG_NO_RADIUS=y.*/CONFIG_NO_RADIUS=y/g" ${BUILD_DIR}/package/network/services/hostapd/files/hostapd-full.config
-# turning on hostapd -T option by default
-sed -i "s/.*CONFIG_DEBUG_LINUX_TRACING=y.*/CONFIG_DEBUG_LINUX_TRACING=y/g" ${BUILD_DIR}/package/network/services/hostapd/files/hostapd-full.config
+prepare_mac80211_release ${release}
 # ===========================================================
 
 prepare_final ${branch_name}

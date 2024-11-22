@@ -1,7 +1,7 @@
-From 6283692520dc79dd09e9300835b5b5b1aef78bd2 Mon Sep 17 00:00:00 2001
+From 3a75852ad6beb41cdf658e65e9b7b2a11ed9cc31 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 11 Sep 2023 14:43:07 +0800
-Subject: [PATCH 040/193] mtk: mt76: mt7996: add channel 68 & 96
+Subject: [PATCH 040/265] mtk: mt76: mt7996: add channel 68 & 96
 
 ---
  mac80211.c        |  9 +++++++++
@@ -13,7 +13,7 @@ Subject: [PATCH 040/193] mtk: mt76: mt7996: add channel 68 & 96
  6 files changed, 82 insertions(+), 9 deletions(-)
 
 diff --git a/mac80211.c b/mac80211.c
-index 1d2477d..ee5aa60 100644
+index 1d2477d6..ee5aa608 100644
 --- a/mac80211.c
 +++ b/mac80211.c
 @@ -34,6 +34,15 @@ static const struct ieee80211_channel mt76_channels_5ghz[] = {
@@ -33,7 +33,7 @@ index 1d2477d..ee5aa60 100644
  	CHAN5G(104, 5520),
  	CHAN5G(108, 5540),
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index da30be3..b71961d 100644
+index da30be33..b71961d9 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -18,6 +18,17 @@ const struct ieee80211_channel dpd_2g_ch_list_bw20[] = {
@@ -114,7 +114,7 @@ index da30be3..b71961d 100644
  {
  	struct mt76_dev *mdev = &dev->mt76;
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index e90180a..782d847 100644
+index e90180a0..782d847b 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -67,6 +67,8 @@ enum mt7996_eeprom_field {
@@ -127,10 +127,10 @@ index e90180a..782d847 100644
  extern const u32 dpd_5g_bw160_ch_num;
  extern const struct ieee80211_channel dpd_6g_ch_list_bw160[];
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b6de1b5..7c96e40 100644
+index 3f9bec38..284ba717 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -3802,7 +3802,8 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
+@@ -3801,7 +3801,8 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
  		chan_list_size = mphy->sband_5g.sband.n_channels;
  		base_offset += dpd_size_2g;
  		if (bw == NL80211_CHAN_WIDTH_160) {
@@ -140,7 +140,7 @@ index b6de1b5..7c96e40 100644
  			per_chan_size = DPD_PER_CH_GT_BW20_SIZE;
  			cal_id = RF_DPD_FLAT_5G_MEM_CAL;
  			chan_list = dpd_5g_ch_list_bw160;
-@@ -3811,6 +3812,9 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
+@@ -3810,6 +3811,9 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
  			/* apply (center channel - 2)'s dpd cal data for bw 40/80 channels */
  			channel -= 2;
  		}
@@ -150,7 +150,7 @@ index b6de1b5..7c96e40 100644
  		break;
  	case NL80211_BAND_6GHZ:
  		dpd_mask = MT_EE_WIFI_CAL_DPD_6G;
-@@ -3850,6 +3854,10 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
+@@ -3849,6 +3853,10 @@ int mt7996_mcu_apply_tx_dpd(struct mt7996_phy *phy)
  	if (idx == chan_list_size)
  		return -EINVAL;
  
@@ -162,7 +162,7 @@ index b6de1b5..7c96e40 100644
  
  	for (i = 0; i < per_chan_size / MT_EE_CAL_UNIT; i++) {
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index bace3af..6de49af 100644
+index 563a985e..4d4b0b5e 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -537,6 +537,11 @@ mt7996_tm_dpd_prek_send_req(struct mt7996_phy *phy, struct mt7996_tm_req *req,
@@ -216,7 +216,7 @@ index bace3af..6de49af 100644
  
  	return first_control + offset;
 diff --git a/mt7996/testmode.h b/mt7996/testmode.h
-index f97ccb2..ba1767a 100644
+index f97ccb26..ba1767ae 100644
 --- a/mt7996/testmode.h
 +++ b/mt7996/testmode.h
 @@ -38,9 +38,9 @@ enum {

@@ -1,7 +1,7 @@
-From d647ea9ef9051f1702c21c33864bb6298c8e3e43 Mon Sep 17 00:00:00 2001
+From 51965079988c46845b0f819ed2616cbd13f49059 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 22 Mar 2023 11:19:52 +0800
-Subject: [PATCH 021/193] mtk: mt76: mt7996: add testmode ZWDFS verification
+Subject: [PATCH 021/265] mtk: mt76: mt7996: add testmode ZWDFS verification
  support
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -15,7 +15,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  6 files changed, 326 insertions(+), 12 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index 924f273..2805d75 100644
+index 924f273b..2805d758 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -801,6 +801,14 @@ struct mt76_testmode_data {
@@ -34,7 +34,7 @@ index 924f273..2805d75 100644
  
  struct mt76_vif {
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index efb4e74..1fe681c 100644
+index bf0e2531..acb2c482 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -297,6 +297,7 @@ struct mt7996_phy {
@@ -46,7 +46,7 @@ index efb4e74..1fe681c 100644
  	bool has_aux_rx;
  
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 6969cba..c4874eb 100644
+index 6969cba6..c4874eb3 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -17,6 +17,12 @@ enum {
@@ -336,7 +336,7 @@ index 6969cba..c4874eb 100644
  
  static int
 diff --git a/mt7996/testmode.h b/mt7996/testmode.h
-index 9bfb86f..78662b2 100644
+index 9bfb86f2..78662b2e 100644
 --- a/mt7996/testmode.h
 +++ b/mt7996/testmode.h
 @@ -27,9 +27,15 @@ enum {
@@ -399,7 +399,7 @@ index 9bfb86f..78662b2 100644
 +
  #endif
 diff --git a/testmode.c b/testmode.c
-index cd8cb65..69147f8 100644
+index cd8cb655..69147f86 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -27,6 +27,13 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
@@ -453,7 +453,7 @@ index cd8cb65..69147f8 100644
  	     nla_put_u8(msg, MT76_TM_ATTR_TX_LTF, td->tx_ltf)) ||
  	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_ANTENNA) &&
 diff --git a/tools/fields.c b/tools/fields.c
-index b012276..77696ce 100644
+index b0122763..77696ce7 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -35,6 +35,15 @@ static const char * const testmode_tx_mode[] = {

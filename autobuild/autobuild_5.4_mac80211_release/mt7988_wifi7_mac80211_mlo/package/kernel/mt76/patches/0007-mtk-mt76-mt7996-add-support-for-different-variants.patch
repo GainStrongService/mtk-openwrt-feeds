@@ -1,10 +1,10 @@
-From 1168657b8d856f94f7334ca922b380911e7f0b71 Mon Sep 17 00:00:00 2001
+From f632ead7c740e09fb7416bd57b34ea88fa0f4816 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 20 Jul 2023 17:27:22 +0800
-Subject: [PATCH 007/193] mtk: mt76: mt7996: add support for different variants
+Subject: [PATCH 007/265] mtk: mt76: mt7996: add support for different variants
 
 Add fem type (2i5i, 2i5e, 2e5e, ...)
-Add Kite default bin for each fem type since loading wrong default bin
+Add mt7992 default bin for each fem type since loading wrong default bin
 will fail to setup interface
 Add eeprom fem type check
 
@@ -24,18 +24,34 @@ efem: XX_DEFAULT
 ifem: XX_DEFAULT_INT
 mixed fem: XX_DEFAULT_MIX
 
-Change-Id: I98caec6675670e3d1c0ee953bef2aeb71c3cf74e
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- mt7996/eeprom.c | 29 ++++++++++++++++++++++++++++-
- mt7996/eeprom.h |  1 +
- mt7996/init.c   |  2 +-
- mt7996/mcu.c    |  3 +++
- mt7996/mt7996.h | 16 ++++++++++++++++
- 5 files changed, 49 insertions(+), 2 deletions(-)
+ mt7996/debugfs.c |  5 +++++
+ mt7996/eeprom.c  | 29 ++++++++++++++++++++++++++++-
+ mt7996/eeprom.h  |  1 +
+ mt7996/init.c    |  2 +-
+ mt7996/mcu.c     |  3 +++
+ mt7996/mt7996.h  | 19 ++++++++++++++++++-
+ 6 files changed, 56 insertions(+), 3 deletions(-)
 
+diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
+index a17c99a2..fe05a2e8 100644
+--- a/mt7996/debugfs.c
++++ b/mt7996/debugfs.c
+@@ -247,6 +247,11 @@ mt7996_rdd_monitor(struct seq_file *s, void *data)
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
++	if (!mt7996_has_background_radar(dev)) {
++		seq_puts(s, "no background radar capability\n");
++		goto out;
++	}
++
+ 	if (!cfg80211_chandef_valid(chandef)) {
+ 		ret = -EINVAL;
+ 		goto out;
 diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
-index da94751..77dd6b2 100644
+index da94751d..77dd6b20 100644
 --- a/mt7996/eeprom.c
 +++ b/mt7996/eeprom.c
 @@ -9,14 +9,33 @@
@@ -103,7 +119,7 @@ index da94751..77dd6b2 100644
  	if (ret < 0)
  		return ret;
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index 7a771ca..8074a0a 100644
+index 7a771ca2..8074a0ae 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -29,6 +29,7 @@ enum mt7996_eeprom_field {
@@ -115,7 +131,7 @@ index 7a771ca..8074a0a 100644
  #define MT_EE_WIFI_CONF1_TX_PATH_BAND0		GENMASK(5, 3)
  #define MT_EE_WIFI_CONF2_TX_PATH_BAND1		GENMASK(2, 0)
 diff --git a/mt7996/init.c b/mt7996/init.c
-index 6fff95a..c553a19 100644
+index 6fff95a9..c553a19b 100644
 --- a/mt7996/init.c
 +++ b/mt7996/init.c
 @@ -903,7 +903,7 @@ static int mt7996_variant_type_init(struct mt7996_dev *dev)
@@ -128,7 +144,7 @@ index 6fff95a..c553a19 100644
  	default:
  		return -EINVAL;
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b765295..e567c3e 100644
+index b765295e..e567c3e3 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -18,6 +18,9 @@
@@ -142,7 +158,7 @@ index b765295..e567c3e 100644
  			_fw = MT7992_##name;			\
  		}						\
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 17dfbdc..1dd618c 100644
+index 17dfbdc8..6fbfb9b8 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -49,16 +49,23 @@
@@ -203,7 +219,17 @@ index 17dfbdc..1dd618c 100644
  	return band <= MT_BAND2;
  }
  
-@@ -492,6 +507,7 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx,
+@@ -457,7 +472,8 @@ mt7996_has_background_radar(struct mt7996_dev *dev)
+ 			return false;
+ 		break;
+ 	case 0x7992:
+-		if (dev->var.type == MT7992_VAR_TYPE_23)
++		if (dev->var.type == MT7992_VAR_TYPE_23 ||
++		    dev->var.type == MT7992_VAR_TYPE_24)
+ 			return false;
+ 		break;
+ 	default:
+@@ -492,6 +508,7 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx,
  			  int n_desc, int ring_base, struct mtk_wed_device *wed);
  void mt7996_init_txpower(struct mt7996_phy *phy);
  int mt7996_txbf_init(struct mt7996_dev *dev);

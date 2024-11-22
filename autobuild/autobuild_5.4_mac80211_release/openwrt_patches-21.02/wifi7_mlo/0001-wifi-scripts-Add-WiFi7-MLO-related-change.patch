@@ -1,5 +1,5 @@
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
-index 817ead71..9d8bc991 100644
+index 817ead71..7571f357 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 @@ -44,7 +44,7 @@ hostapd_append_wpa_key_mgmt() {
@@ -105,7 +105,7 @@ index 817ead71..9d8bc991 100644
 +	config_add_string group_mgmt_cipher
 +
 +	config_add_int assoc_phy
-+	config_add_int mld_id mld_link_id mld_assoc_phy mld_allowed_phy_bitmap mld_allowed_links rsn_overriding
++	config_add_int mld_id mld_link_id mld_assoc_phy mld_allowed_phy_bitmap mld_allowed_links mld_radio_mask rsn_overriding
 +	config_add_boolean mld_primary mld_single_link
 +	config_add_string mld_addr
 +	config_add_int eml_disable
@@ -142,7 +142,7 @@ index 817ead71..9d8bc991 100644
 -		vendor_elements fils ocv apup
 +		vendor_elements fils ocv apup unsol_bcast_probe_resp_interval fils_discovery_min_interval \
 +		fils_discovery_max_interval rnr group_cipher group_mgmt_cipher \
-+		mld_id mld_link_id mld_primary mld_addr mld_allowed_links eml_disable eml_resp
++		mld_id mld_link_id mld_primary mld_addr mld_allowed_links mld_radio_mask eml_disable eml_resp
  
  	set_default fils 0
  	set_default isolate 0
@@ -303,7 +303,7 @@ index 817ead71..9d8bc991 100644
  		append bss_conf "interworking=1" "$N"
  		set_default iw_internet 1
  		set_default iw_asra 0
-@@ -1194,6 +1343,51 @@ hostapd_set_bss_options() {
+@@ -1194,6 +1343,55 @@ hostapd_set_bss_options() {
  		append bss_conf "$val" "$N"
  	done
  
@@ -344,6 +344,10 @@ index 817ead71..9d8bc991 100644
 +		append bss_conf "mld_allowed_links=${mld_allowed_links}" "$N"
 +	fi
 +
++	if [ "$mld_radio_mask" -gt 0 ]; then
++		append bss_conf "mld_radio_mask=${mld_radio_mask}" "$N"
++	fi
++
 +	if [ -n "$eml_disable" ]; then
 +		append bss_conf "eml_disable=$eml_disable" "$N"
 +	fi
@@ -355,7 +359,7 @@ index 817ead71..9d8bc991 100644
  	append "$var" "$bss_conf" "$N"
  	return 0
  }
-@@ -1249,7 +1443,9 @@ wpa_supplicant_prepare_interface() {
+@@ -1249,7 +1447,9 @@ wpa_supplicant_prepare_interface() {
  
  	_wpa_supplicant_common "$1"
  
@@ -366,7 +370,7 @@ index 817ead71..9d8bc991 100644
  
  	[ -n "$network_bridge" ] && {
  		fail=
-@@ -1281,6 +1477,57 @@ wpa_supplicant_prepare_interface() {
+@@ -1281,6 +1481,57 @@ wpa_supplicant_prepare_interface() {
  		country_str="country=$country"
  	}
  
@@ -397,26 +401,26 @@ index 817ead71..9d8bc991 100644
 +		mld_connect_band_pref=$(($mld_assoc_phy+1))
 +	fi
 +
-+	local phy0_scan_list="2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 2462 2467 2472"
-+	local phy1_scan_list="5180 5200 5220 5240 5260 5280 5300 5320 5500 5520 5540 5560 5580 5600 5620 5640 5660 5680 5700 5720 5745 5765 5785 5805 5825 5845 5865 5885"
-+	local phy2_scan_list="5955 5975 5995 6015 6035 6055 6075 6095 6115 6135 6155 6175 6195 6215 6235 6255 6275 6295 6315 6335 6355 6375 6395 6415 6435 6455 6475 6495 6515 6535 6555 6575 6595 6615 6635 6655 6675 6695 6715 6735 6755 6775 6795 6815 6835 6855 6875 6895 6915 6935 6955 6975 6995 7015 7035 7055 7075 7095 7115"
++	local radio0_scan_list="2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 2462 2467 2472"
++	local radio1_scan_list="5180 5200 5220 5240 5260 5280 5300 5320 5500 5520 5540 5560 5580 5600 5620 5640 5660 5680 5700 5720 5745 5765 5785 5805 5825 5845 5865 5885"
++	local radio2_scan_list="5955 5975 5995 6015 6035 6055 6075 6095 6115 6135 6155 6175 6195 6215 6235 6255 6275 6295 6315 6335 6355 6375 6395 6415 6435 6455 6475 6495 6515 6535 6555 6575 6595 6615 6635 6655 6675 6695 6715 6735 6755 6775 6795 6815 6835 6855 6875 6895 6915 6935 6955 6975 6995 7015 7035 7055 7075 7095 7115"
 +	local scan_list=
 +	if [ $mld_allowed_phy_bitmap -gt 0 ]; then
 +		if [ "$mld_assoc_phy" = "0" ]; then
-+			scan_list="$phy0_scan_list"
++			scan_list="$radio0_scan_list"
 +		elif [ "$mld_assoc_phy" = "1" ]; then
-+			scan_list="$phy1_scan_list"
++			scan_list="$radio1_scan_list"
 +		elif [ "$mld_assoc_phy" = "2" ]; then
-+			scan_list="$phy2_scan_list"
++			scan_list="$radio2_scan_list"
 +		fi
 +	else
 +		# For Legacy STA
-+		if [ "$phy" = "phy0" ]; then
-+			scan_list="$phy0_scan_list"
-+		elif [ "$phy" = "phy1" ]; then
-+			scan_list="$phy1_scan_list"
-+		elif [ "$phy" = "phy2" ]; then
-+			scan_list="$phy2_scan_list"
++		if [ "$radio" = "0" ]; then
++			scan_list="$radio0_scan_list"
++		elif [ "$radio" = "1" ]; then
++			scan_list="$radio1_scan_list"
++		elif [ "$radio" = "2" ]; then
++			scan_list="$radio2_scan_list"
 +		fi
 +	fi
 +
@@ -424,7 +428,7 @@ index 817ead71..9d8bc991 100644
  	multiap_flag_file="${_config}.is_multiap"
  	if [ "$multi_ap" = "1" ]; then
  		touch "$multiap_flag_file"
-@@ -1292,6 +1539,11 @@ wpa_supplicant_prepare_interface() {
+@@ -1292,6 +1543,11 @@ wpa_supplicant_prepare_interface() {
  ${scan_list:+freq_list=$scan_list}
  $ap_scan
  $country_str
@@ -436,7 +440,7 @@ index 817ead71..9d8bc991 100644
  EOF
  	return 0
  }
-@@ -1563,12 +1815,39 @@ wpa_supplicant_add_network() {
+@@ -1563,12 +1819,39 @@ wpa_supplicant_add_network() {
  		;;
  	esac
  
@@ -480,7 +484,7 @@ index 817ead71..9d8bc991 100644
  		case "$wpa" in
  			1)
  				append network_data "proto=WPA" "$N$T"
-@@ -1578,12 +1857,39 @@ wpa_supplicant_add_network() {
+@@ -1578,12 +1861,39 @@ wpa_supplicant_add_network() {
  			;;
  		esac
  
@@ -521,7 +525,7 @@ index 817ead71..9d8bc991 100644
  	[ -n "$bssid" ] && append network_data "bssid=$bssid" "$N$T"
  	[ -n "$beacon_int" ] && append network_data "beacon_int=$beacon_int" "$N$T"
  
-@@ -1594,6 +1900,20 @@ wpa_supplicant_add_network() {
+@@ -1594,6 +1904,20 @@ wpa_supplicant_add_network() {
  	[ -n "$bssid_blacklist" ] && append network_data "bssid_blacklist=$bssid_blacklist" "$N$T"
  	[ -n "$bssid_whitelist" ] && append network_data "bssid_whitelist=$bssid_whitelist" "$N$T"
  
@@ -542,7 +546,7 @@ index 817ead71..9d8bc991 100644
  	[ -n "$basic_rate" ] && {
  		local br rate_list=
  		for br in $basic_rate; do
-@@ -1608,6 +1928,11 @@ wpa_supplicant_add_network() {
+@@ -1608,6 +1932,11 @@ wpa_supplicant_add_network() {
  		append network_data "mcast_rate=$mc_rate" "$N$T"
  	}
  
@@ -624,7 +628,7 @@ index c3772bb4..78ac4ae4 100644
  	config_add_array tags
  }
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
-index 3d953eff..6e4e04a7 100755
+index 3d953eff..0282a464 100755
 --- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 @@ -30,9 +30,11 @@ drv_mac80211_init_device_config() {
@@ -1004,7 +1008,7 @@ index 3d953eff..6e4e04a7 100755
  	fi
  
  	hostapd_prepare_device_config "$hostapd_conf_file" nl80211
-@@ -527,8 +645,16 @@ ${channel:+channel=$channel}
+@@ -527,7 +645,14 @@ ${channel:+channel=$channel}
  ${channel_list:+chanlist=$channel_list}
  ${hostapd_noscan:+noscan=1}
  ${tx_burst:+tx_queue_data2_burst=$tx_burst}
@@ -1017,11 +1021,9 @@ index 3d953eff..6e4e04a7 100755
 +${eml_disable:+eml_disable=$eml_disable}
 +${eml_resp:+eml_resp=$eml_resp}
  #num_global_macaddr=$num_global_macaddr
-+#single_hw=1
  $base_cfg
  
- EOF
-@@ -554,17 +680,41 @@ mac80211_hostapd_setup_bss() {
+@@ -554,17 +679,41 @@ mac80211_hostapd_setup_bss() {
  		append hostapd_cfg "wds_sta=1" "$N"
  		[ -n "$wds_bridge" ] && append hostapd_cfg "wds_bridge=$wds_bridge" "$N"
  	}
@@ -1065,7 +1067,7 @@ index 3d953eff..6e4e04a7 100755
  mac80211_get_addr() {
  	local phy="$1"
  	local idx="$(($2 + 1))"
-@@ -576,6 +726,10 @@ mac80211_generate_mac() {
+@@ -576,6 +725,10 @@ mac80211_generate_mac() {
  	local phy="$1"
  	local id="${macidx:-0}"
  
@@ -1076,26 +1078,44 @@ index 3d953eff..6e4e04a7 100755
  	wdev_tool "$phy$phy_suffix" get_macaddr id=$id num_global=$num_global_macaddr mbssid=${multiple_bssid:-0}
  }
  
-@@ -665,10 +819,110 @@ mac80211_set_ifname() {
+@@ -665,10 +818,131 @@ mac80211_set_ifname() {
  	eval "ifname=\"$phy-$prefix\${idx_$prefix:-0}\"; idx_$prefix=\$((\${idx_$prefix:-0 } + 1))"
  }
  
++find_colocated_sta() {
++	local own_radio_idx=$1
++
++	iface_list="$(cat /etc/config/wireless | grep wifi-iface | cut -d ' ' -f3 | tr -s "'\n" ' ')"
++	for iface in $iface_list
++	do
++		local mode="$(uci show wireless.$iface.mode | cut -d '=' -f2 | tr -d "'")"
++		local ifname="$(uci show wireless.$iface | grep ifname | cut -d '=' -f2 | tr -d "'")"
++		[ -n "$ifname" ] && [ "$mode" == "sta" ] && {
++			local mld_allowed_phy_bitmap="$(uci show wireless.$iface | grep mld_allowed_phy_bitmap | cut -d '=' -f2 | tr -d "'")"
++			[ -n "$mld_allowed_phy_bitmap" ] && [ $(($mld_allowed_phy_bitmap & $((1<<$own_radio_idx)))) ] && append active_ifnames "$ifname"
++		}
++	done
++}
++
 +fill_mld_params() {
 +	local target_mld_id=$1
-+	local phy_idx=$(echo $2 | tr -d "phy")
++	local own_phy_idx=$(echo $2 | tr -d "phy")
++	local own_radio_idx=$3
 +	local found_mld=0
 +	local is_mld_link_id_set=0
 +	local is_primary=1
 +	local mld_allowed_links=0
++	local mld_radio_mask=0
 +
 +	iface_list="$(cat /etc/config/wireless | grep wifi-iface | cut -d ' ' -f3 | tr -s "'\n" ' ')"
 +	for iface in $iface_list
 +	do
 +		local mld_id="$(uci show wireless.$iface | grep "mld_id" | cut -d '=' -f2 | tr -d "'")"
 +		local mld_link_id="$(uci show wireless.$iface | grep "mld_link_id" | cut -d '=' -f2 | tr -d "'")"
-+		local radio_id="$(uci show wireless.$iface | grep "device" | cut -d '=' -f2 | tr -d "radio'")"
++		local device="$(uci show wireless.$iface.device | cut -d '=' -f2 | tr -d "'")"
 +		local iface_disabled="$(uci show wireless.$iface | grep "disabled" | cut -d '=' -f2 | tr -d "'")"
-+		local ht_mode="$(uci show wireless.radio$radio_id.htmode | cut -d '=' -f2 | tr -d "'")"
++		local ht_mode="$(uci show wireless.$device.htmode | cut -d '=' -f2 | tr -d "'")"
++		local partner_radio_idx="$(uci show wireless.$device.radio | cut -d '=' -f2 | tr -d "'")"
 +
 +		if [ "$iface_disabled" != "1" ] && [ "$mld_id" = "$target_mld_id" ] && [[ "$ht_mode" == "EHT"* ]]; then
 +			if [ -n "$mld_link_id" ]; then
@@ -1108,11 +1128,14 @@ index 3d953eff..6e4e04a7 100755
 +				mld_allowed_links=$(($mld_allowed_links * 2 + 1))
 +			fi
 +
-+			[ $radio_id -lt $phy_idx ] && is_primary=0
++			[ $partner_radio_idx -lt $own_radio_idx ] && is_primary=0
++			mld_radio_mask=$(($mld_radio_mask + 2**$partner_radio_idx))
 +		fi
 +	done
++
 +	json_add_string "mld_primary" $is_primary
 +	json_add_string "mld_allowed_links" $mld_allowed_links
++	json_add_string "mld_radio_mask" $mld_radio_mask
 +
 +        mld_list="$(cat /etc/config/wireless | grep wifi-mld | cut -d ' ' -f3 | tr -s "'\n" ' ')"
 +        for m in $mld_list
@@ -1154,7 +1177,7 @@ index 3d953eff..6e4e04a7 100755
 +	fi
 +
 +	if [ -n "$mld_id" ]; then
-+		fill_mld_params $mld_id $phy || return
++		fill_mld_params $mld_id $phy $radio || return
 +
 +		json_get_vars mld_addr
 +		if [ -z "$mld_addr" ]; then
@@ -1188,7 +1211,7 @@ index 3d953eff..6e4e04a7 100755
  
  	[ -n "$ifname" ] || {
  		local prefix;
-@@ -687,20 +941,29 @@ mac80211_prepare_vif() {
+@@ -687,20 +961,29 @@ mac80211_prepare_vif() {
  	set_default powersave 0
  	json_add_string _ifname "$ifname"
  
@@ -1223,7 +1246,7 @@ index 3d953eff..6e4e04a7 100755
  		[ -z "$wpa_psk_file" ] && hostapd_set_psk "$ifname"
  		[ -z "$vlan_file" ] && hostapd_set_vlan "$ifname"
  	}
-@@ -718,6 +981,17 @@ mac80211_prepare_vif() {
+@@ -718,6 +1001,17 @@ mac80211_prepare_vif() {
  				type=interface
  			fi
  
@@ -1241,7 +1264,7 @@ index 3d953eff..6e4e04a7 100755
  			mac80211_hostapd_setup_bss "$phy" "$ifname" "$macaddr" "$type" || return
  
  			[ -n "$hostapd_ctrl" ] || {
-@@ -820,7 +1094,7 @@ mac80211_setup_adhoc() {
+@@ -820,7 +1114,7 @@ mac80211_setup_adhoc() {
  
  	json_add_object "$ifname"
  	json_add_string mode adhoc
@@ -1250,7 +1273,7 @@ index 3d953eff..6e4e04a7 100755
  	json_add_string ssid "$ssid"
  	json_add_string freq "$freq"
  	json_add_string htmode "$iw_htmode"
-@@ -846,7 +1120,7 @@ mac80211_setup_mesh() {
+@@ -846,7 +1140,7 @@ mac80211_setup_mesh() {
  
  	json_add_object "$ifname"
  	json_add_string mode mesh
@@ -1259,16 +1282,17 @@ index 3d953eff..6e4e04a7 100755
  	json_add_string ssid "$ssid"
  	json_add_string freq "$freq"
  	json_add_string htmode "$iw_htmode"
-@@ -911,7 +1185,7 @@ wpa_supplicant_add_interface() {
+@@ -911,7 +1205,8 @@ wpa_supplicant_add_interface() {
  	json_add_string iface "$ifname"
  	json_add_string mode "$mode"
  	json_add_string config "$_config"
 -	[ -n "$default_macaddr" ] || json_add_string macaddr "$macaddr"
 +	json_add_string macaddr "$macaddr"
++	json_add_string mld_allowed_phy_bitmap "$mld_allowed_phy_bitmap"
  	[ -n "$network_bridge" ] && json_add_string bridge "$network_bridge"
  	[ -n "$wds" ] && json_add_boolean 4addr "$wds"
  	json_add_boolean powersave "$powersave"
-@@ -957,6 +1231,13 @@ hostapd_set_config() {
+@@ -957,6 +1252,13 @@ hostapd_set_config() {
  	local phy="$1"
  	local radio="$2"
  
@@ -1282,7 +1306,7 @@ index 3d953eff..6e4e04a7 100755
  	[ -n "$hostapd_ctrl" ] || {
  		ubus_call hostapd config_set '{ "phy": "'"$phy"'", "radio": '"$radio"', "config": "", "prev_config": "'"${hostapd_conf_file}.prev"'" }' > /dev/null
  		return 0;
-@@ -1006,7 +1287,6 @@ mac80211_setup_vif() {
+@@ -1006,7 +1308,6 @@ mac80211_setup_vif() {
  	json_select config
  	json_get_var ifname _ifname
  	json_get_var macaddr _macaddr
@@ -1290,7 +1314,7 @@ index 3d953eff..6e4e04a7 100755
  	json_get_vars mode wds powersave
  
  	set_default powersave 0
-@@ -1041,6 +1321,9 @@ mac80211_setup_vif() {
+@@ -1041,6 +1342,9 @@ mac80211_setup_vif() {
  
  	json_select ..
  	[ -n "$failed" ] || wireless_add_vif "$name" "$ifname"
@@ -1300,7 +1324,7 @@ index 3d953eff..6e4e04a7 100755
  }
  
  get_freq() {
-@@ -1088,6 +1371,7 @@ mac80211_reset_config() {
+@@ -1088,6 +1392,7 @@ mac80211_reset_config() {
  	ubus_call hostapd config_set '{ "phy": "'"$phy"'", "radio": '"$radio"', "config": "", "prev_config": "'"$hostapd_conf_file"'" }' > /dev/null
  	ubus_call wpa_supplicant config_set '{ "phy": "'"$phy"'", "radio": '"$radio"', "config": [] }' > /dev/null
  	wdev_tool "$phy$phy_suffix" set_config '{}'
@@ -1308,7 +1332,7 @@ index 3d953eff..6e4e04a7 100755
  }
  
  mac80211_set_suffix() {
-@@ -1097,6 +1381,25 @@ mac80211_set_suffix() {
+@@ -1097,6 +1402,25 @@ mac80211_set_suffix() {
  	set_default radio -1
  }
  
@@ -1334,7 +1358,7 @@ index 3d953eff..6e4e04a7 100755
  drv_mac80211_setup() {
  	json_select config
  	json_get_vars \
-@@ -1105,7 +1408,8 @@ drv_mac80211_setup() {
+@@ -1105,7 +1429,8 @@ drv_mac80211_setup() {
  		txpower \
  		rxantenna txantenna \
  		frag rts beacon_int:100 htmode \
@@ -1344,18 +1368,7 @@ index 3d953eff..6e4e04a7 100755
  	json_get_values basic_rate_list basic_rate
  	json_get_values scan_list scan_list
  	json_select ..
-@@ -1138,10 +1442,24 @@ drv_mac80211_setup() {
- 		}
- 	}
- 
-+	# each phy sleeps different times to prevent for ubus race condition.
-+	if [ "$phy" = "phy1" ]; then
-+		sleep 3;
-+	elif [ "$phy" = "phy2" ]; then
-+		sleep 6;
-+	fi
-+
- 	hostapd_conf_file="/var/run/hostapd-$phy$vif_phy_suffix.conf"
+@@ -1142,6 +1467,13 @@ drv_mac80211_setup() {
  
  	macidx=0
  	staidx=0
@@ -1369,16 +1382,23 @@ index 3d953eff..6e4e04a7 100755
  
  	[ -n "$chanbw" ] && {
  		for file in /sys/kernel/debug/ieee80211/$phy/ath9k*/chanbw /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode; do
-@@ -1159,7 +1477,7 @@ drv_mac80211_setup() {
+@@ -1159,7 +1491,14 @@ drv_mac80211_setup() {
  	[ "$rxantenna" = "$prev_rxantenna" -a "$txantenna" = "$prev_txantenna" ] || mac80211_reset_config "$phy"
  	wireless_set_data phy="$phy" radio="$radio" txantenna="$txantenna" rxantenna="$rxantenna"
  
 -	iw phy "$phy" set antenna $txantenna $rxantenna >/dev/null 2>&1
-+	iw phy phy0 set antenna -b "${band}hz" $txantenna $rxantenna >/dev/null 2>&1
++	# each phy sleeps different times to prevent for ubus race condition.
++	if [ "$phy" = "phy1" ] || [ "$radio" = "1" ]; then
++		sleep 3;
++	elif [ "$phy" = "phy2" ] || [ "$radio" = "2" ]; then
++		sleep 6;
++	fi
++
++	iw phy phy0 set antenna $txantenna $rxantenna >/dev/null 2>&1
  	iw phy "$phy" set distance "$distance" >/dev/null 2>&1
  
  	[ -n "$frag" ] && iw phy "$phy" set frag "${frag%%.*}"
-@@ -1184,11 +1502,26 @@ drv_mac80211_setup() {
+@@ -1184,11 +1523,28 @@ drv_mac80211_setup() {
  
  	wpa_supplicant_init_config
  
@@ -1397,6 +1417,8 @@ index 3d953eff..6e4e04a7 100755
  	for_each_interface "ap sta adhoc mesh monitor" mac80211_prepare_vif
  	for_each_interface "ap sta adhoc mesh monitor" mac80211_setup_vif
  
++	find_colocated_sta "$radio"
++
 +	country_consistent_check
 +	phy_idx=$(echo "$phy" | sed 's/phy//')
 +	[ -n "$sr_enable" ] && echo "$sr_enable" > /sys/kernel/debug/ieee80211/phy0/mt76/band$phy_idx/sr_enable
@@ -1405,7 +1427,7 @@ index 3d953eff..6e4e04a7 100755
  	[ -x /usr/sbin/wpa_supplicant ] && wpa_supplicant_set_config "$phy" "$radio"
  	[ -x /usr/sbin/hostapd ] && hostapd_set_config "$phy" "$radio"
  
-@@ -1200,6 +1533,8 @@ drv_mac80211_setup() {
+@@ -1200,6 +1556,8 @@ drv_mac80211_setup() {
  
  	for_each_interface "ap sta adhoc mesh monitor" mac80211_set_vif_txpower
  	wireless_set_up
@@ -1650,6 +1672,21 @@ index f937dba7..21d4e417 100755
  	[ ! -f /etc/config/wireless ] && touch /etc/config/wireless
  	ucode /lib/wifi/mac80211.uc | uci -q batch
  
+diff --git a/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc b/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
+index c6bfb62e..239b409a 100644
+--- a/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
++++ b/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
+@@ -101,7 +101,9 @@ function wdev_create(phy, name, data)
+ 		req["4addr"] = data["4addr"];
+ 	if (data.macaddr)
+ 		req.mac = data.macaddr;
+-	if (data.radio != null && data.radio >= 0)
++	if (data.mld_radio_mask != null && data.mld_radio_mask > 0)
++		req.vif_radio_mask = data.mld_radio_mask;
++	else if (data.radio != null && data.radio >= 0)
+ 		req.vif_radio_mask = 1 << data.radio;
+ 
+ 	nl80211.error();
 diff --git a/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc b/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
 index db862d40..1c041315 100644
 --- a/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
@@ -1678,3 +1715,4 @@ index db862d40..1c041315 100644
  			    (he_phy_cap & 0x18) || ((band.vht_capa >> 2) & 0x3))
  				band_info.max_width = 160;
  			else if (band_name != "2G" &&
+

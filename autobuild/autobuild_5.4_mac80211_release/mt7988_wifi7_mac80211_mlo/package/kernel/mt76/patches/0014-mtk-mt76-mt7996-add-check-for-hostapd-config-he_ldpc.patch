@@ -1,7 +1,7 @@
-From 83e488204e800920844972b9b1b63962fbb2444c Mon Sep 17 00:00:00 2001
+From 6c3a0c83d4e6cb73b010c7bd4d61da09ea6e2fb8 Mon Sep 17 00:00:00 2001
 From: "Allen.Ye" <allen.ye@mediatek.com>
 Date: Thu, 8 Jun 2023 17:32:33 +0800
-Subject: [PATCH 014/193] mtk: mt76: mt7996: add check for hostapd config
+Subject: [PATCH 014/265] mtk: mt76: mt7996: add check for hostapd config
  he_ldpc
 
 Add check for hostapd config he_ldpc.
@@ -9,15 +9,13 @@ This capabilities is checked in mcu_beacon_check_caps in 7915.
 
 Add check for STA LDPC cap, if STA only have BCC we should not overwrite the phy_cap with config he_ldpc.
 
-Change-Id: Ibe7e40ec1dbb40bd3f3d96741e9933ec00b50df0
-Change-Id: I6d6f59df8897e3c00f2e0a1e3c6e5701e31c5e4b
 Signed-off-by: Allen.Ye <allen.ye@mediatek.com>
 ---
  mt7996/mcu.c | 12 +++++++++---
  1 file changed, 9 insertions(+), 3 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 56badef..0b96b30 100644
+index 56badefd..0b96b304 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1198,7 +1198,8 @@ int mt7996_mcu_add_rx_ba(struct mt7996_dev *dev,

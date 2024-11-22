@@ -1,0 +1,90 @@
+From 0f27cb98e0662a61161a3b9b910ee00feeeb5ae2 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 27 Aug 2024 19:55:12 +0800
+Subject: [PATCH 215/265] mtk: mt76: mt7990: modify mcu command to support
+ mt7990 chipset
+
+The mt7990 does not have WA so send command to wm directly and
+change wa commands to wm command.
+
+Although WA is removed from mt7990, the WM still use mcu command destination
+to check whether handle command or not.
+Fix the mcu command by the following rules.
+- If it was handled by WM only, use macro MCU_WM_UNI_CMD.
+- If it was handled by WA only, use macro MCU_WA_UNI_CMD.
+- If it was handled by both WA and WM, use macro MCU_WMWA_UNI_CMD.
+
+Above rules should be followed by mt7996 and mt7992 so this patch is
+compatible to mt7996 and mt7992.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/mcu.c     | 10 +++++-----
+ mt7996/mtk_mcu.c |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 12232732..a9f6978d 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -281,7 +281,7 @@ mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+ 
+ 	txd_len = cmd & __MCU_CMD_FIELD_UNI ? sizeof(*uni_txd) : sizeof(*mcu_txd);
+ 	txd = (__le32 *)skb_push(skb, txd_len);
+-	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
++	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state) && !is_mt7990(mdev))
+ 		qid = MT_MCUQ_WA;
+ 	else
+ 		qid = MT_MCUQ_WM;
+@@ -1949,7 +1949,7 @@ int mt7996_mcu_set_timing(struct mt7996_phy *phy, struct mt7996_bss_conf *mconf)
+ 	mt7996_mcu_bss_ifs_timing_tlv(skb, phy);
+ 
+ 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+-				     MCU_WMWA_UNI_CMD(BSS_INFO_UPDATE), true);
++				     MCU_WM_UNI_CMD(BSS_INFO_UPDATE), true);
+ }
+ 
+ static int
+@@ -2000,7 +2000,7 @@ mt7996_mcu_sta_tx_cap(struct mt7996_dev *dev, struct mt76_vif *mvif,
+ 	tx_cap->ampdu_limit_en = true;
+ 
+ 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+-				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
++				     MCU_WM_UNI_CMD(STA_REC_UPDATE), true);
+ }
+ 
+ static bool mt7996_check_limit_ampdu_en(struct ieee80211_ampdu_params *params) {
+@@ -4202,7 +4202,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
+ 	dev_kfree_skb(skb);
+ 
+ 	return mt76_mcu_skb_send_msg(&dev->mt76, rskb,
+-				     MCU_WMWA_UNI_CMD(BSS_INFO_UPDATE), true);
++				     MCU_WM_UNI_CMD(BSS_INFO_UPDATE), true);
+ }
+ 
+ static int mt7996_driver_own(struct mt7996_dev *dev, u8 band)
+@@ -6484,7 +6484,7 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
+ 	/* starec hdr trans */
+ 	mt7996_mcu_sta_hdr_trans_tlv(dev, skb, vif, mlink);
+ 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+-				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
++				     MCU_WM_UNI_CMD(STA_REC_UPDATE), true);
+ }
+ 
+ int mt7996_mcu_ps_leave(struct mt7996_dev *dev, struct mt7996_bss_conf *mconf,
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 9ec4bc9a..2e511df5 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -1475,7 +1475,7 @@ int mt7996_mcu_set_muru_qos_cfg(struct mt7996_dev *dev, u16 wlan_idx, u8 dir,
+ 		return -EINVAL;
+ 	}
+ 
+-	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(MURU), &req,
++	return mt76_mcu_send_msg(&dev->mt76, MCU_WMWA_UNI_CMD(MURU), &req,
+ 				 sizeof(req), true);
+ }
+ #endif
+-- 
+2.45.2
+

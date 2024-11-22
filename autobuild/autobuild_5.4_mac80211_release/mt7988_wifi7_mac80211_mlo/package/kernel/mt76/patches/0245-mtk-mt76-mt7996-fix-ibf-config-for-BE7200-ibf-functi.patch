@@ -1,0 +1,209 @@
+From 82a654d2fc69c72a326e76ae22a3f59d105a774d Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Fri, 1 Nov 2024 16:16:49 +0800
+Subject: [PATCH 245/265] mtk: mt76: mt7996: fix ibf config for BE7200 ibf
+ functionality
+
+Fix ibf timeout, ibf ncol and ndpa rate for BE7200 ibf functionality.
+Please noted that only mt7992 5G iFem 5T5R supports iBF on HE and EHT
+mode. For other chipsets, it only supports iBF on HT and VHT mode.
+The ibf configuration is aligned with the Logan driver.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+
+---
+ mt7996/mcu.c    | 54 +++++++++++++++++++++++++++++--------------------
+ mt7996/mt7996.h |  7 +++++++
+ 2 files changed, 39 insertions(+), 22 deletions(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 0d9e08a1..8663acb3 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -2582,17 +2582,21 @@ mt7996_is_ebf_supported(struct mt7996_phy *phy, struct ieee80211_bss_conf *conf,
+ }
+ 
+ static void
+-mt7996_mcu_sta_sounding_rate(struct sta_rec_bf *bf)
++mt7996_mcu_sta_sounding_rate(struct sta_rec_bf *bf, struct mt7996_phy *phy)
+ {
+ 	bf->sounding_phy = MT_PHY_TYPE_OFDM;
+ 	bf->ndp_rate = 0;				/* mcs0 */
+-	bf->ndpa_rate = MT7996_CFEND_RATE_DEFAULT;	/* ofdm 24m */
++	if (is_mt7996(phy->mt76->dev))
++		bf->ndpa_rate = MT7996_CFEND_RATE_DEFAULT;	/* ofdm 24m */
++	else
++		bf->ndpa_rate = MT7992_CFEND_RATE_DEFAULT;	/* ofdm 6m */
++
+ 	bf->rept_poll_rate = MT7996_CFEND_RATE_DEFAULT;	/* ofdm 24m */
+ }
+ 
+ static void
+ mt7996_mcu_sta_bfer_ht(struct ieee80211_link_sta *link_sta,
+-		       struct mt7996_phy *phy, struct sta_rec_bf *bf)
++		       struct mt7996_phy *phy, struct sta_rec_bf *bf, bool explicit)
+ {
+ 	struct ieee80211_mcs_info *mcs = &link_sta->ht_cap.mcs;
+ 	u8 n = 0;
+@@ -2612,7 +2616,8 @@ mt7996_mcu_sta_bfer_ht(struct ieee80211_link_sta *link_sta,
+ 
+ 	bf->nrow = hweight8(phy->mt76->antenna_mask) - 1;
+ 	bf->ncol = min_t(u8, bf->nrow, n);
+-	bf->ibf_ncol = n;
++	bf->ibf_ncol = explicit ? min_t(u8, MT7996_IBF_MAX_NC, bf->ncol) :
++				  min_t(u8, MT7996_IBF_MAX_NC, n);
+ }
+ 
+ static void
+@@ -2631,7 +2636,7 @@ mt7996_mcu_sta_bfer_vht(struct ieee80211_link_sta *link_sta,
+ 	if (explicit) {
+ 		u8 sts, snd_dim;
+ 
+-		mt7996_mcu_sta_sounding_rate(bf);
++		mt7996_mcu_sta_sounding_rate(bf, phy);
+ 
+ 		sts = FIELD_GET(IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK,
+ 				pc->cap);
+@@ -2639,14 +2644,14 @@ mt7996_mcu_sta_bfer_vht(struct ieee80211_link_sta *link_sta,
+ 				    vc->cap);
+ 		bf->nrow = min_t(u8, min_t(u8, snd_dim, sts), tx_ant);
+ 		bf->ncol = min_t(u8, nss_mcs, bf->nrow);
+-		bf->ibf_ncol = bf->ncol;
++		bf->ibf_ncol = min_t(u8, MT7996_IBF_MAX_NC, bf->ncol);
+ 
+ 		if (link_sta->bandwidth == IEEE80211_STA_RX_BW_160)
+ 			bf->nrow = 1;
+ 	} else {
+ 		bf->nrow = tx_ant;
+ 		bf->ncol = min_t(u8, nss_mcs, bf->nrow);
+-		bf->ibf_ncol = nss_mcs;
++		bf->ibf_ncol = min_t(u8, MT7996_IBF_MAX_NC, nss_mcs);
+ 
+ 		if (link_sta->bandwidth == IEEE80211_STA_RX_BW_160)
+ 			bf->ibf_nrow = 1;
+@@ -2656,7 +2661,7 @@ mt7996_mcu_sta_bfer_vht(struct ieee80211_link_sta *link_sta,
+ static void
+ mt7996_mcu_sta_bfer_he(struct ieee80211_link_sta *link_sta,
+ 		       struct ieee80211_vif *vif, struct mt7996_phy *phy,
+-		       struct sta_rec_bf *bf)
++		       struct sta_rec_bf *bf, bool explicit)
+ {
+ 	struct ieee80211_sta_he_cap *pc = &link_sta->he_cap;
+ 	struct ieee80211_he_cap_elem *pe = &pc->he_cap_elem;
+@@ -2669,7 +2674,7 @@ mt7996_mcu_sta_bfer_he(struct ieee80211_link_sta *link_sta,
+ 
+ 	bf->tx_mode = MT_PHY_TYPE_HE_SU;
+ 
+-	mt7996_mcu_sta_sounding_rate(bf);
++	mt7996_mcu_sta_sounding_rate(bf, phy);
+ 
+ 	bf->trigger_su = HE_PHY(CAP6_TRIG_SU_BEAMFORMING_FB,
+ 				pe->phy_cap_info[6]);
+@@ -2681,7 +2686,8 @@ mt7996_mcu_sta_bfer_he(struct ieee80211_link_sta *link_sta,
+ 		     pe->phy_cap_info[4]);
+ 	bf->nrow = min_t(u8, snd_dim, sts);
+ 	bf->ncol = min_t(u8, nss_mcs, bf->nrow);
+-	bf->ibf_ncol = bf->ncol;
++	bf->ibf_ncol = explicit ? min_t(u8, MT7996_IBF_MAX_NC, bf->ncol) :
++				  min_t(u8, MT7996_IBF_MAX_NC, nss_mcs);
+ 
+ 	if (link_sta->bandwidth != IEEE80211_STA_RX_BW_160)
+ 		return;
+@@ -2717,7 +2723,7 @@ mt7996_mcu_sta_bfer_he(struct ieee80211_link_sta *link_sta,
+ static void
+ mt7996_mcu_sta_bfer_eht(struct ieee80211_link_sta *link_sta,
+ 			struct ieee80211_vif *vif, struct mt7996_phy *phy,
+-			struct sta_rec_bf *bf)
++			struct sta_rec_bf *bf, bool explicit)
+ {
+ 	struct ieee80211_sta_eht_cap *pc = &link_sta->eht_cap;
+ 	struct ieee80211_eht_cap_elem_fixed *pe = &pc->eht_cap_elem;
+@@ -2731,7 +2737,7 @@ mt7996_mcu_sta_bfer_eht(struct ieee80211_link_sta *link_sta,
+ 
+ 	bf->tx_mode = MT_PHY_TYPE_EHT_MU;
+ 
+-	mt7996_mcu_sta_sounding_rate(bf);
++	mt7996_mcu_sta_sounding_rate(bf, phy);
+ 
+ 	bf->trigger_su = EHT_PHY(CAP3_TRIG_SU_BF_FDBK, pe->phy_cap_info[3]);
+ 	bf->trigger_mu = EHT_PHY(CAP3_TRIG_MU_BF_PART_BW_FDBK, pe->phy_cap_info[3]);
+@@ -2740,7 +2746,8 @@ mt7996_mcu_sta_bfer_eht(struct ieee80211_link_sta *link_sta,
+ 	      (EHT_PHY(CAP1_BEAMFORMEE_SS_80MHZ_MASK, pe->phy_cap_info[1]) << 1);
+ 	bf->nrow = min_t(u8, snd_dim, sts);
+ 	bf->ncol = min_t(u8, nss_mcs, bf->nrow);
+-	bf->ibf_ncol = bf->ncol;
++	bf->ibf_ncol = explicit ? min_t(u8, MT7996_IBF_MAX_NC, bf->ncol) :
++				  min_t(u8, MT7996_IBF_MAX_NC, nss_mcs);
+ 
+ 	if (link_sta->bandwidth < IEEE80211_STA_RX_BW_160)
+ 		return;
+@@ -2802,18 +2809,18 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_BF, sizeof(*bf));
+ 	bf = (struct sta_rec_bf *)tlv;
+ 
+-	/* he/eht: eBF only, in accordance with spec
++	/* he/eht: eBF only, except mt7992 BE7200 sku also supports iBF
+ 	 * vht: support eBF and iBF
+ 	 * ht: iBF only, since mac80211 lacks of eBF support
+ 	 */
+-	if (link_sta->eht_cap.has_eht && ebf)
+-		mt7996_mcu_sta_bfer_eht(link_sta, conf->vif, phy, bf);
+-	else if (link_sta->he_cap.has_he && ebf)
+-		mt7996_mcu_sta_bfer_he(link_sta, conf->vif, phy, bf);
++	if (link_sta->eht_cap.has_eht)
++		mt7996_mcu_sta_bfer_eht(link_sta, conf->vif, phy, bf, ebf);
++	else if (link_sta->he_cap.has_he)
++		mt7996_mcu_sta_bfer_he(link_sta, conf->vif, phy, bf, ebf);
+ 	else if (link_sta->vht_cap.vht_supported)
+ 		mt7996_mcu_sta_bfer_vht(link_sta, phy, bf, ebf);
+ 	else if (link_sta->ht_cap.ht_supported)
+-		mt7996_mcu_sta_bfer_ht(link_sta, phy, bf);
++		mt7996_mcu_sta_bfer_ht(link_sta, phy, bf, ebf);
+ 	else
+ 		return;
+ 
+@@ -2825,10 +2832,13 @@ mt7996_mcu_sta_bfer_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 	bf->ibf_dbw = link_sta->bandwidth;
+ 	bf->ibf_nrow = tx_ant;
+ 
+-	if (!ebf && link_sta->bandwidth <= IEEE80211_STA_RX_BW_40 && !bf->ncol)
+-		bf->ibf_timeout = 0x48;
++	if (link_sta->eht_cap.has_eht || link_sta->he_cap.has_he)
++		bf->ibf_timeout = is_mt7996(&dev->mt76) ? MT7996_IBF_TIMEOUT
++				  : MT7992_IBF_TIMEOUT;
++	else if (!ebf && link_sta->bandwidth <= IEEE80211_STA_RX_BW_40 && !bf->ncol)
++		bf->ibf_timeout = MT7996_LEGACY_IBF_TIMEOUT;
+ 	else
+-		bf->ibf_timeout = 0x18;
++		bf->ibf_timeout = MT7996_IBF_TIMEOUT;
+ 
+ 	if (bf->ncol < BF_MAT_ORDER) {
+ 		if (ebf)
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index fcbf4035..19f420cf 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -99,6 +99,8 @@
+ #define MT7996_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
+ #define MT7996_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
+ 
++#define MT7992_CFEND_RATE_DEFAULT	0x4b	/* OFDM 6M */
++
+ #define MT7996_SKU_RATE_NUM		417
+ #define MT7996_SKU_PATH_NUM		494
+ 
+@@ -144,6 +146,11 @@
+ #define MT7996_DRR_STA_AC2_QNTM_MASK	GENMASK(18, 16)
+ #define MT7996_DRR_STA_AC3_QNTM_MASK	GENMASK(22, 20)
+ 
++#define MT7996_IBF_MAX_NC		2
++#define MT7996_IBF_TIMEOUT		0x18
++#define MT7996_LEGACY_IBF_TIMEOUT	0x48
++#define MT7992_IBF_TIMEOUT		0xFF
++
+ /* RRO 3.1 */
+ #define MT7996_RRO_MSDU_PG_CR_CNT 8
+ #define MT7996_RRO_MSDU_PG_SIZE_PER_CR 0x10000
+-- 
+2.45.2
+

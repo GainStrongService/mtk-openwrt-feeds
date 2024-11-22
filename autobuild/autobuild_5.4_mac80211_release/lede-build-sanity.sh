@@ -98,6 +98,9 @@ prepare() {
 
 	#do mtk_soc openwrt patch
 	do_patch ${BUILD_DIR}/autobuild/openwrt_patches${OPENWRT_VER}/mtk_soc || exit 1
+
+	# copy memdump-cfg package
+	cp -fpR ${BUILD_DIR}/autobuild/package/mtk/memdump_cfg ${BUILD_DIR}/package/mtk/
 }
 
 add_proprietary_kernel_files() {
@@ -148,21 +151,9 @@ prepare_flowoffload() {
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/bridger ${BUILD_DIR}/package/network/services
 
 	patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0010-add-llvm_bpf-toolchain.patch || exit 1
-	patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0004-2102-netfilter-remove-nf_flow_table_hw.patch || exit 1
 	patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0005-add-netfilter-netlink-ftnl-package.patch || exit 1
 
-	#rm patches for flowblock
-	rm -rf ./target/linux/generic/pending-5.4/64*.patch
-	rm -rf ./target/linux/generic/hack-5.4/647-netfilter-flow-acct.patch
-	rm -rf ./target/linux/generic/hack-5.4/650-netfilter-add-xt_OFFLOAD-target.patch
-	rm -rf ./target/linux/mediatek/patches-5.4/999-2708-mtkhnat-add-support-for-virtual-interface-acceleration.patch
-	rm -rf ./target/linux/mediatek/patches-5.4/999-2726-mtkhnat-tnl-interface-offload-check.patch
-
-	# remove patches and packages of tops and ipsec
-	rm -rf ./target/linux/mediatek/patches-5.4/*mtk-tops*.patch
-	rm -rf ./target/linux/mediatek/patches-5.4/999-*xfrm*.patch
-	rm -rf ./target/linux/mediatek/patches-5.4/999-41*.patch
-	rm -rf ./target/linux/mediatek/patches-5.4/999-45*.patch
+	# packages of tops and ipsec
 	rm -rf ${BUILD_DIR}/package/feeds/mtk_openwrt_feed/tops
 	rm -rf ${BUILD_DIR}/package/feeds/mtk_openwrt_feed/crypto-eip
 	rm -rf ${BUILD_DIR}/package/feeds/mtk_openwrt_feed/pce
@@ -174,6 +165,13 @@ prepare_flowoffload() {
 	echo "CONFIG_SKB_EXTENSIONS=y" >> ./target/linux/mediatek/mt7988/config-5.4
 	echo "CONFIG_NETFILTER=y" >> ./target/linux/mediatek/mt7988/config-5.4
 	echo "CONFIG_NETFILTER_ADVANCED=y" >> ./target/linux/mediatek/mt7988/config-5.4
+
+	#hack mt7987 config5.4
+	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7987/config-5.4
+	echo "CONFIG_NETFILTER_FAMILY_BRIDGE=y" >> ./target/linux/mediatek/mt7987/config-5.4
+	echo "CONFIG_SKB_EXTENSIONS=y" >> ./target/linux/mediatek/mt7987/config-5.4
+	echo "CONFIG_NETFILTER=y" >> ./target/linux/mediatek/mt7987/config-5.4
+	echo "CONFIG_NETFILTER_ADVANCED=y" >> ./target/linux/mediatek/mt7987/config-5.4
 
 	#hack mt7986 config5.4
 	echo "CONFIG_BRIDGE_NETFILTER=y" >> ./target/linux/mediatek/mt7986/config-5.4
@@ -200,21 +198,30 @@ prepare_flowoffload() {
 prepare_mac80211() {
 	rm -rf ${BUILD_DIR}/package/network/services/hostapd
 	if [ "$2" = "1" ]; then
-		echo "========================Hostapd NEW==================="
+		echo "========================Hostapd 2.12==================="
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/hostapd ${BUILD_DIR}/package/network/services
 		rm -rf  ${MAC80211_AUTOBUILD_RELEASE}/package/network/services/hostapd
-		do_patch ${MAC80211_AUTOBUILD_RELEASE}/openwrt_patches${OPENWRT_VER}/hostapd || exit 1
+		# turning on hostapd -T option by default
+		sed -i "s/.*CONFIG_DEBUG_LINUX_TRACING=y.*/CONFIG_DEBUG_LINUX_TRACING=y/g" ${BUILD_DIR}/package/network/services/hostapd/files/hostapd-full.config
 	else
-		echo "========================Hostapd OLD==================="
+		echo "========================Hostapd 2.10==================="
 		tar xvf ${MAC80211_AUTOBUILD_RELEASE}/package/network/services/hostapd/hostapd_v2.10_07730ff3.tar.gz -C ${BUILD_DIR}/package/network/services/
 	fi
 
+	echo "========================libnl-tiny==================="
 	rm -rf ${BUILD_DIR}/package/libs/libnl-tiny
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/libs/libnl-tiny ${BUILD_DIR}/package/libs
 
+	echo "========================iw==================="
 	rm -rf ${BUILD_DIR}/package/network/utils/iw
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iw ${BUILD_DIR}/package/network/utils
+	if [ "$2" = "1" ]; then
+		# remove some iw patches to let EHT work normally
+		rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/001-nl80211_h_sync.patch
+		rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/120-antenna_gain.patch
+	fi
 
+	echo "========================iwinfo==================="
 	rm -rf ${BUILD_DIR}/package/network/utils/iwinfo
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/utils/iwinfo ${BUILD_DIR}/package/network/utils
 
@@ -258,7 +265,7 @@ prepare_mac80211() {
 
 	rm -rf ${BUILD_DIR}/package/kernel/mac80211
 	if [ "$1" = "1" ]; then
-		echo "=========================MAC80211 v6.1==================="
+		echo "=========================MAC80211 v6.12==================="
 		cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mac80211 ${BUILD_DIR}/package/kernel
 		rm -rf  ${MAC80211_AUTOBUILD_RELEASE}/package/kernel/mac80211
 	else
@@ -266,15 +273,17 @@ prepare_mac80211() {
 		tar xvf ${MAC80211_AUTOBUILD_RELEASE}/package/kernel/mac80211/mac80211_v5.15.81_077622a1.tar.gz -C ${BUILD_DIR}/package/kernel/
 	fi
 
+	echo "=========================Wireless RegDB==================="
 	rm -rf ${BUILD_DIR}/package/firmware/wireless-regdb
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/firmware/wireless-regdb ${BUILD_DIR}/package/firmware
 
+	echo "=========================MT76==================="
 	# do not directly remove mt76 folder, since the firmware folder will also be removed and enter an unsync state
 	rm -rf ${BUILD_DIR}/package/kernel/mt76/Makefile
 	rm -rf ${BUILD_DIR}/package/kernel/mt76/patches
 	rm -rf ${BUILD_DIR}/package/kernel/mt76/src
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/kernel/mt76 ${BUILD_DIR}/package/kernel
-	rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*build-on-linux-kernel-6.6.patch
+	rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*
 
 	# hack hostapd config
 	echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
@@ -340,6 +349,7 @@ prepare_mac80211() {
 	else
 			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0001-wifi6-mac80211-generate-hostapd-setting-from-ap-cap.patch || exit 1
 			patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0002-wifi6-hostapd-makefile-for-utils.patch || exit 1
+			rm ${BUILD_DIR}/package/kernel/mt76/patches/100-api_update.patch
 	fi
 
 	cp -rfa ${MAC80211_AUTOBUILD_RELEASE}/package/ ${BUILD_DIR}
@@ -350,6 +360,23 @@ prepare_mac80211() {
 
 	# Relayd change trigger reload to trigger restart
 	patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0007-relayd-change-trigger-reload-to-trigger-restart.patch || exit 1
+}
+
+prepare_mac80211_release () {
+	if [ "$1" = "1" ]; then
+		# remove original mt76/hostapd/backport patches and use mlo autobuild one
+		rm -rf ${BUILD_DIR}/package/kernel/mt76/patches/*
+		rm -rf ${BUILD_DIR}/package/kernel/mac80211/patches/*
+		rm -rf ${BUILD_DIR}/package/network/services/hostapd/patches/*
+		rm -rf ${BUILD_DIR}/package/network/utils/iw/patches/*
+		# ========== follow mt7988_wifi7_mac80211_mlo git01 patches ========================
+		rm -rf ${BUILD_DIR}/autobuild/${branch_name}/package
+		cp -rf ${release_folder}/mt7988_wifi7_mac80211_mlo/package/* ${BUILD_DIR}/package/
+		# ===========================================================
+	else
+		# internal build
+		echo "Internal build process not defined"
+	fi
 }
 
 copy_main_Config() {
@@ -475,7 +502,8 @@ prepare_final() {
 	case $1 in
 	mt7986*|\
 	mt7981*|\
-	mt7988*)
+	mt7988*|\
+	mt7987*)
 		rm -rf ${BUILD_DIR}/target/linux/mediatek/patches-5.4/0303-mtd-spinand-disable-on-die-ECC.patch
 		;;
 	*)

@@ -1,0 +1,68 @@
+From 39f29022fcd11ac7e4821d990dca1b62df9c849a Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Wed, 16 Oct 2024 17:19:14 +0800
+Subject: [PATCH 228/265] mtk: mt76: mt7996: remove mt7996_mac_enable_rtscts()
+
+It is controlled by FW, also, driver should not directly write WTBL to
+prevent WTBL overwritten issues.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/mac.c    | 12 ------------
+ mt7996/main.c   |  3 ---
+ mt7996/mt7996.h |  2 --
+ 3 files changed, 17 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 24dc28c8..1cd6baa3 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -69,18 +69,6 @@ u32 mt7996_mac_wtbl_lmac_addr(struct mt7996_dev *dev, u16 wcid, u8 dw)
+ 	return MT_WTBL_LMAC_OFFS(wcid, dw);
+ }
+ 
+-void mt7996_mac_enable_rtscts(struct mt7996_dev *dev,
+-			      struct mt7996_link_sta *mlink, bool enable)
+-{
+-	u32 addr;
+-
+-	addr = mt7996_mac_wtbl_lmac_addr(dev, mlink->wcid.idx, 5);
+-	if (enable)
+-		mt76_set(dev, addr, BIT(5));
+-	else
+-		mt76_clear(dev, addr, BIT(5));
+-}
+-
+ /* The HW does not translate the mac header to 802.3 for mesh point */
+ static int mt7996_reverse_frag0_hdr_trans(struct sk_buff *skb, u16 hdr_gap)
+ {
+diff --git a/mt7996/main.c b/mt7996/main.c
+index e664fd47..d2cac3f8 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -966,9 +966,6 @@ static void mt7996_link_info_changed(struct ieee80211_hw *hw,
+ 				   !!(changed & BSS_CHANGED_BSSID));
+ 	}
+ 
+-	if (changed & BSS_CHANGED_ERP_CTS_PROT)
+-		mt7996_mac_enable_rtscts(dev, mlink, info->use_cts_prot);
+-
+ 	if (changed & BSS_CHANGED_ERP_SLOT) {
+ 		int slottime = info->use_short_slot ? 9 : 20;
+ 
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index e3843859..413a1121 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1408,8 +1408,6 @@ bool mt7996_mac_wtbl_update(struct mt7996_dev *dev, int idx, u32 mask);
+ void mt7996_mac_reset_counters(struct mt7996_phy *phy);
+ void mt7996_mac_cca_stats_reset(struct mt7996_phy *phy);
+ void mt7996_mac_enable_nf(struct mt7996_dev *dev, u8 band);
+-void mt7996_mac_enable_rtscts(struct mt7996_dev *dev,
+-			      struct mt7996_link_sta *mlink, bool enable);
+ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+ 			   struct sk_buff *skb, struct mt76_wcid *wcid,
+ 			   struct ieee80211_key_conf *key, int pid,
+-- 
+2.45.2
+

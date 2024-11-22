@@ -1,7 +1,7 @@
-From 5ef6d1ad64a452dfd0f4747760490c3e47ce563d Mon Sep 17 00:00:00 2001
+From 8b7e4a4a54f47ca3b0eb7a786d1ca39fd2018a56 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 24 Mar 2023 14:02:32 +0800
-Subject: [PATCH 013/193] mtk: mt76: mt7996: add debug tool
+Subject: [PATCH 013/265] mtk: mt76: mt7996: add debug tool
 
 Add PSM bit in sta_info
 
@@ -50,17 +50,13 @@ Do not show fw version in fw_wm_info.
 The fw_wm_info is used to dump fw status when wm crash. When wm crash,
 we are not able to use any mcu command.
 
-Change-Id: Ie10390b01f17db893dbfbf3221bf63a4bd1fe38f
-Change-Id: I4483f9f506ecbdbb49c2ceb99ec76c32b930c67e
-Change-Id: I00c760b31009142848e32b1249d305800585e7fd
-Change-Id: Ifddd4db86982d39f2d39d198b8f5d3e7028983c2
-Change-Id: I591b558a9eec2fbd46d166c9bb1580a94e22072c
 Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
 Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+Signed-off-by: Evelyn Tsai <evelyn.tsai@mediatek.com>
 ---
  mt76.h               |    2 +
  mt7996/Makefile      |    4 +
@@ -82,7 +78,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  create mode 100644 mt7996/mtk_mcu.h
 
 diff --git a/mt76.h b/mt76.h
-index 063c45d..f50f211 100644
+index 063c45d2..f50f2117 100644
 --- a/mt76.h
 +++ b/mt76.h
 @@ -409,6 +409,8 @@ struct mt76_txwi_cache {
@@ -95,7 +91,7 @@ index 063c45d..f50f211 100644
  
  struct mt76_rx_tid {
 diff --git a/mt7996/Makefile b/mt7996/Makefile
-index 07c8b55..a056b40 100644
+index 07c8b555..a056b40e 100644
 --- a/mt7996/Makefile
 +++ b/mt7996/Makefile
 @@ -1,4 +1,6 @@
@@ -112,7 +108,7 @@ index 07c8b55..a056b40 100644
 +
 +mt7996e-y += mtk_debugfs.o mtk_mcu.o
 diff --git a/mt7996/coredump.c b/mt7996/coredump.c
-index 60b8808..a7f91b5 100644
+index 60b88085..a7f91b56 100644
 --- a/mt7996/coredump.c
 +++ b/mt7996/coredump.c
 @@ -195,7 +195,7 @@ mt7996_coredump_fw_stack(struct mt7996_dev *dev, u8 type, struct mt7996_coredump
@@ -161,7 +157,7 @@ index 60b8808..a7f91b5 100644
  		dev_warn(dev->mt76.dev, "no crash dump data found\n");
  		return -ENODATA;
 diff --git a/mt7996/coredump.h b/mt7996/coredump.h
-index 01ed373..93cd84a 100644
+index 01ed3731..93cd84a0 100644
 --- a/mt7996/coredump.h
 +++ b/mt7996/coredump.h
 @@ -75,6 +75,7 @@ struct mt7996_mem_region {
@@ -186,10 +182,10 @@ index 01ed373..93cd84a 100644
  mt7996_crash_data *mt7996_coredump_new(struct mt7996_dev *dev, u8 type)
  {
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
-index a17c99a..9671c15 100644
+index fe05a2e8..10b56057 100644
 --- a/mt7996/debugfs.c
 +++ b/mt7996/debugfs.c
-@@ -295,11 +295,39 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
+@@ -300,11 +300,39 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
  		DEBUG_SPL,
  		DEBUG_RPT_RX,
  		DEBUG_RPT_RA = 68,
@@ -230,7 +226,7 @@ index a17c99a..9671c15 100644
  
  	if (dev->fw_debug_bin)
  		val = MCU_FW_LOG_RELAY;
-@@ -314,18 +342,21 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
+@@ -319,18 +347,21 @@ mt7996_fw_debug_wm_set(void *data, u64 val)
  	if (ret)
  		return ret;
  
@@ -258,7 +254,7 @@ index a17c99a..9671c15 100644
  	}
  
  	return 0;
-@@ -397,6 +428,39 @@ remove_buf_file_cb(struct dentry *f)
+@@ -402,6 +433,39 @@ remove_buf_file_cb(struct dentry *f)
  	return 0;
  }
  
@@ -298,7 +294,7 @@ index a17c99a..9671c15 100644
  static int
  mt7996_fw_debug_bin_set(void *data, u64 val)
  {
-@@ -405,17 +469,23 @@ mt7996_fw_debug_bin_set(void *data, u64 val)
+@@ -410,17 +474,23 @@ mt7996_fw_debug_bin_set(void *data, u64 val)
  		.remove_buf_file = remove_buf_file_cb,
  	};
  	struct mt7996_dev *dev = data;
@@ -325,7 +321,7 @@ index a17c99a..9671c15 100644
  	return mt7996_fw_debug_wm_set(dev, dev->fw_debug_wm);
  }
  
-@@ -772,6 +842,30 @@ mt7996_rf_regval_set(void *data, u64 val)
+@@ -777,6 +847,30 @@ mt7996_rf_regval_set(void *data, u64 val)
  DEFINE_DEBUGFS_ATTRIBUTE(fops_rf_regval, mt7996_rf_regval_get,
  			 mt7996_rf_regval_set, "0x%08llx\n");
  
@@ -356,7 +352,7 @@ index a17c99a..9671c15 100644
  int mt7996_init_debugfs(struct mt7996_phy *phy)
  {
  	struct mt7996_dev *dev = phy->dev;
-@@ -807,10 +901,17 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
+@@ -812,10 +906,17 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
  		debugfs_create_devm_seqfile(dev->mt76.dev, "rdd_monitor", dir,
  					    mt7996_rdd_monitor);
  	}
@@ -374,7 +370,7 @@ index a17c99a..9671c15 100644
  	return 0;
  }
  
-@@ -822,7 +923,11 @@ mt7996_debugfs_write_fwlog(struct mt7996_dev *dev, const void *hdr, int hdrlen,
+@@ -827,7 +928,11 @@ mt7996_debugfs_write_fwlog(struct mt7996_dev *dev, const void *hdr, int hdrlen,
  	unsigned long flags;
  	void *dest;
  
@@ -386,7 +382,7 @@ index a17c99a..9671c15 100644
  	dest = relay_reserve(dev->relay_fwlog, hdrlen + len + 4);
  	if (dest) {
  		*(u32 *)dest = hdrlen + len;
-@@ -855,9 +960,6 @@ void mt7996_debugfs_rx_fw_monitor(struct mt7996_dev *dev, const void *data, int
+@@ -860,9 +965,6 @@ void mt7996_debugfs_rx_fw_monitor(struct mt7996_dev *dev, const void *data, int
  		.msg_type = cpu_to_le16(PKT_TYPE_RX_FW_MONITOR),
  	};
  
@@ -397,7 +393,7 @@ index a17c99a..9671c15 100644
  	hdr.timestamp = cpu_to_le32(mt76_rr(dev, MT_LPON_FRCR(0)));
  	hdr.len = *(__le16 *)data;
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index dafc86f..d1d45c9 100644
+index dafc86f8..d1d45c98 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -956,6 +956,9 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -411,7 +407,7 @@ index dafc86f..d1d45c9 100644
  	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
  	memset(txwi_ptr, 0, MT_TXD_SIZE);
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 602f367..6c88942 100644
+index 17787bb6..a74476fc 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -370,6 +370,7 @@ struct mt7996_dev {
@@ -440,7 +436,7 @@ index 602f367..6c88942 100644
  };
  
  enum {
-@@ -700,6 +712,7 @@ u32 mt7996_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
+@@ -701,6 +713,7 @@ u32 mt7996_wed_init_buf(void *ptr, dma_addr_t phys, int token_id);
  
  #ifdef CONFIG_MTK_DEBUG
  int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir);
@@ -450,7 +446,7 @@ index 602f367..6c88942 100644
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 diff --git a/mt7996/mtk_debug.h b/mt7996/mtk_debug.h
 new file mode 100644
-index 0000000..27d8f1c
+index 00000000..27d8f1cb
 --- /dev/null
 +++ b/mt7996/mtk_debug.h
 @@ -0,0 +1,2286 @@
@@ -2742,7 +2738,7 @@ index 0000000..27d8f1c
 +#endif
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
 new file mode 100644
-index 0000000..d1f3d16
+index 00000000..e681b3aa
 --- /dev/null
 +++ b/mt7996/mtk_debugfs.c
 @@ -0,0 +1,2506 @@
@@ -5254,7 +5250,7 @@ index 0000000..d1f3d16
 +#endif
 diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
 new file mode 100644
-index 0000000..c16b25a
+index 00000000..c16b25ab
 --- /dev/null
 +++ b/mt7996/mtk_mcu.c
 @@ -0,0 +1,39 @@
@@ -5299,7 +5295,7 @@ index 0000000..c16b25a
 +#endif
 diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
 new file mode 100644
-index 0000000..7f4d4e0
+index 00000000..7f4d4e02
 --- /dev/null
 +++ b/mt7996/mtk_mcu.h
 @@ -0,0 +1,19 @@
@@ -5323,7 +5319,7 @@ index 0000000..7f4d4e0
 +
 +#endif
 diff --git a/tools/CMakeLists.txt b/tools/CMakeLists.txt
-index 3a83e34..6599c44 100644
+index 3a83e34d..6599c444 100644
 --- a/tools/CMakeLists.txt
 +++ b/tools/CMakeLists.txt
 @@ -3,6 +3,13 @@ cmake_minimum_required(VERSION 2.8)
@@ -5341,7 +5337,7 @@ index 3a83e34..6599c44 100644
  TARGET_LINK_LIBRARIES(mt76-test nl-tiny)
  
 diff --git a/tools/fwlog.c b/tools/fwlog.c
-index e5d4a10..3c6a61d 100644
+index e5d4a105..3c6a61d7 100644
 --- a/tools/fwlog.c
 +++ b/tools/fwlog.c
 @@ -26,7 +26,7 @@ static const char *debugfs_path(const char *phyname, const char *file)

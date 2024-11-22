@@ -1,7 +1,7 @@
-From c08ddf22ff6a27ac3667e0649475d2bddc1aa385 Mon Sep 17 00:00:00 2001
+From 4a589d8169e7b612c61ef6c054791a36b68a0e93 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 6 Jun 2023 16:57:10 +0800
-Subject: [PATCH 027/193] mtk: mt76: mt7996: add support for runtime set
+Subject: [PATCH 027/265] mtk: mt76: mt7996: add support for runtime set
  in-band discovery
 
 with this patch, AP can runtime set inband discovery via hostapd_cli
@@ -17,10 +17,10 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  1 file changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index cffdd21..f451bf5 100644
+index aee1c560..d91297c9 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -2624,8 +2624,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
+@@ -2623,8 +2623,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
  	if (IS_ERR(rskb))
  		return PTR_ERR(rskb);
  
@@ -30,7 +30,7 @@ index cffdd21..f451bf5 100644
  		interval = vif->bss_conf.fils_discovery.max_interval;
  		skb = ieee80211_get_fils_discovery_tmpl(hw, vif);
  	} else if (changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP &&
-@@ -2660,7 +2659,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
+@@ -2659,7 +2658,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
  	discov->tx_type = !!(changed & BSS_CHANGED_FILS_DISCOVERY);
  	discov->tx_interval = interval;
  	discov->prob_rsp_len = cpu_to_le16(MT_TXD_SIZE + skb->len);

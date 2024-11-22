@@ -1,19 +1,18 @@
-From 356d5ed87c0ced7ac2078466d60e4ef5fd87edda Mon Sep 17 00:00:00 2001
+From c39fe5fe417b2653600a64791378ea2ecac90aa8 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 30 Oct 2023 11:06:19 +0800
-Subject: [PATCH 010/193] mtk: mt76: add sanity check to prevent kernel crash
+Subject: [PATCH 010/265] mtk: mt76: add sanity check to prevent kernel crash
 
 wcid may not be initialized when mac80211 calls mt76.tx and it would lead to
 kernel crash.
 
-Change-Id: I90004271c6e91620c6991195dd332780ce28380e
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
  tx.c | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/tx.c b/tx.c
-index ce193e6..c24729d 100644
+index ce193e62..c24729d6 100644
 --- a/tx.c
 +++ b/tx.c
 @@ -352,8 +352,16 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,

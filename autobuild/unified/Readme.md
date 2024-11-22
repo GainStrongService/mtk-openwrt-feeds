@@ -93,7 +93,7 @@ git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-f
 #Choose one SKU to build (1st Build)
 cd openwrt
 ## 1. Filogic 880 (MT7988+MT7996) MTK Reference Board (RFB)
-bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211_mtk-mt7988_rfb-mt7996 log_file=make
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt7988_rfb-mt7996 log_file=make
 ## 2. MTK Prpl Reference Board (Mozart)
 bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mozart log_file=make
 ## 2. BananaPi BPI-R4

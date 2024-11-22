@@ -1,7 +1,7 @@
-From d5e534db95352e78dd449058a31aad734a36afeb Mon Sep 17 00:00:00 2001
+From e67ba5ea35faf58b2b98d8ec9595df2f5dc158e7 Mon Sep 17 00:00:00 2001
 From: Bo Jiao <Bo.Jiao@mediatek.com>
 Date: Tue, 21 Nov 2023 09:55:46 +0800
-Subject: [PATCH 033/193] mtk: mt76: mt7996: add SER overlap handle
+Subject: [PATCH 033/265] mtk: mt76: mt7996: add SER overlap handle
 
 Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
 ---
@@ -11,7 +11,7 @@ Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
  3 files changed, 21 insertions(+)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 3c9ee0c..2ce9e83 100644
+index 3c9ee0c8..2ce9e839 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
 @@ -1906,6 +1906,7 @@ void mt7996_mac_reset_work(struct work_struct *work)
@@ -54,7 +54,7 @@ index 3c9ee0c..2ce9e83 100644
  	wake_up(&dev->reset_wait);
  }
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 77567d5..a5b4b84 100644
+index 4a27d1b9..b9b9c7ff 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -256,6 +256,14 @@ mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
@@ -73,7 +73,7 @@ index 77567d5..a5b4b84 100644
  
  	seq = ++dev->mt76.mcu.msg_seq & 0xf;
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 7bc5504..22d4454 100644
+index 2b8742ca..e64b5150 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -406,6 +406,8 @@ struct mt7996_dev {

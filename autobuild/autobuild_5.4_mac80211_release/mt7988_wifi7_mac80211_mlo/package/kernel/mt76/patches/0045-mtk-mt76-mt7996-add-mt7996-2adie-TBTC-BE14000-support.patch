@@ -1,0 +1,87 @@
+From 9992d952b67f370906b4590c96c1f92fffb3cddc Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 5 Dec 2023 16:48:33 +0800
+Subject: [PATCH 045/265] mtk: mt76: mt7996: add mt7996 2adie TBTC (BE14000)
+ support
+
+Add fwdl/default eeprom load support for mt7996 2 adie TBTC
+
+Add mt7996 2adie TBTC efuse merge
+Add mt7996 2adie TBTC group prek size
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/eeprom.c |  6 ++++--
+ mt7996/eeprom.h | 12 ++++++++++++
+ mt7996/mt7996.h |  1 +
+ 3 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
+index be87afe8..f1c29e8d 100644
+--- a/mt7996/eeprom.c
++++ b/mt7996/eeprom.c
+@@ -500,6 +500,8 @@ static void mt7996_eeprom_init_precal(struct mt7996_dev *dev)
+ 	switch (mt76_chip(&dev->mt76)) {
+ 	case 0x7990:
+ 		dev->prek.rev = mt7996_prek_rev;
++		if (dev->chip_sku == MT7996_VAR_TYPE_233)
++			dev->prek.rev = mt7996_prek_rev_233;
+ 		/* 5g & 6g bw 80 dpd channel list is not used */
+ 		dev->prek.dpd_ch_num[DPD_CH_NUM_BW320_6G] = ARRAY_SIZE(dpd_6g_ch_list_bw320);
+ 		break;
+@@ -603,7 +605,7 @@ static int mt7996_apply_cal_free_data(struct mt7996_dev *dev)
+ 	case 0x7990:
+ 		adie_base = adie_base_7996;
+ 		/* adie 0 */
+-		if (dev->fem_type == MT7996_FEM_INT)
++		if (dev->fem_type == MT7996_FEM_INT && dev->chip_sku != MT7996_VAR_TYPE_233)
+ 			adie_id = ADIE_7975;
+ 		else
+ 			adie_id = ADIE_7976;
+@@ -611,7 +613,7 @@ static int mt7996_apply_cal_free_data(struct mt7996_dev *dev)
+ 		eep_offs[0] = eep_offs_list[adie_id];
+ 
+ 		/* adie 1 */
+-		if (dev->chip_sku != MT7996_VAR_TYPE_404) {
++		if (dev->chip_sku == MT7996_VAR_TYPE_444) {
+ 			adie_offs[1] = adie_offs_list[ADIE_7977];
+ 			eep_offs[1] = eep_offs_list[ADIE_7977];
+ 		}
+diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
+index c3c248ca..788c33c8 100644
+--- a/mt7996/eeprom.h
++++ b/mt7996/eeprom.h
+@@ -70,6 +70,18 @@ static const u32 mt7996_prek_rev[] = {
+ 	[DPD_OTFG0_SIZE] =			2 * MT_EE_CAL_UNIT,
+ };
+ 
++static const u32 mt7996_prek_rev_233[] = {
++	[GROUP_SIZE_2G] =			4 * MT_EE_CAL_UNIT,
++	[GROUP_SIZE_5G] =			44 * MT_EE_CAL_UNIT,
++	[GROUP_SIZE_6G] =			100 * MT_EE_CAL_UNIT,
++	[ADCDCOC_SIZE_2G] =			4 * 4,
++	[ADCDCOC_SIZE_5G] =			4 * 4,
++	[ADCDCOC_SIZE_6G] =			4 * 5,
++	[DPD_LEGACY_SIZE] =			4 * MT_EE_CAL_UNIT,
++	[DPD_MEM_SIZE] =			13 * MT_EE_CAL_UNIT,
++	[DPD_OTFG0_SIZE] =			2 * MT_EE_CAL_UNIT,
++};
++
+ /* kite 2/5g config */
+ static const u32 mt7992_prek_rev[] = {
+ 	[GROUP_SIZE_2G] =			4 * MT_EE_CAL_UNIT,
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 284c0bfa..142c390d 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -38,6 +38,7 @@
+ #define MT7996_FIRMWARE_WA_233		"mediatek/mt7996/mt7996_wa_233.bin"
+ #define MT7996_FIRMWARE_WM_233		"mediatek/mt7996/mt7996_wm_233.bin"
+ #define MT7996_FIRMWARE_DSP_233		MT7996_FIRMWARE_DSP
++#define MT7996_FIRMWARE_WM_TM_233	"mediatek/mt7996/mt7996_wm_tm_233.bin"
+ #define MT7996_ROM_PATCH_233		"mediatek/mt7996/mt7996_rom_patch_233.bin"
+ 
+ #define MT7992_FIRMWARE_WA		"mediatek/mt7996/mt7992_wa.bin"
+-- 
+2.45.2
+

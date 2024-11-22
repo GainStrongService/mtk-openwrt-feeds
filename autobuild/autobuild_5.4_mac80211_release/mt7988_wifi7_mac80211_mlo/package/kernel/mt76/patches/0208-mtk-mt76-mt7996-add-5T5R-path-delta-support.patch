@@ -1,0 +1,167 @@
+From ced4b6e4e3fcf106355dc2b96e5119f5ddbb5055 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Fri, 6 Sep 2024 11:02:06 +0800
+Subject: [PATCH 208/265] mtk: mt76: mt7996: add 5T5R path delta support
+
+Add 5T5R (mt7992 BE7200 ifem, 4SS) path delta support
+Rename nss_delta to path_delta since the value is based
+on the number of TX path instead of the number of spatial stream.
+(path delta [0.5dBm] = 10 * log(path number) [dBm] * 2)
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ eeprom.c             | 2 +-
+ mac80211.c           | 2 +-
+ mt76.h               | 8 ++++----
+ mt7996/init.c        | 6 +++---
+ mt7996/main.c        | 2 +-
+ mt7996/mcu.h         | 2 +-
+ mt7996/mtk_debugfs.c | 8 ++++----
+ mt7996/vendor.c      | 2 +-
+ 8 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/eeprom.c b/eeprom.c
+index 469af710..17b1fabd 100644
+--- a/eeprom.c
++++ b/eeprom.c
+@@ -397,7 +397,7 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
+ 	s8 max_power_backoff = -127;
+ 	s8 txs_delta;
+ 	int n_chains = hweight16(phy->chainmask);
+-	s8 target_power_combine = target_power + mt76_tx_power_nss_delta(n_chains);
++	s8 target_power_combine = target_power + mt76_tx_power_path_delta(n_chains);
+ 
+ 	if (!mcs_rates)
+ 		mcs_rates = 12;
+diff --git a/mac80211.c b/mac80211.c
+index c7a9f813..7606fe15 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -1597,7 +1597,7 @@ int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ {
+ 	struct mt76_phy *phy = hw->priv;
+ 	int n_chains = hweight16(phy->chainmask);
+-	int delta = mt76_tx_power_nss_delta(n_chains);
++	int delta = mt76_tx_power_path_delta(n_chains);
+ 
+ 	*dbm = DIV_ROUND_UP(phy->txpower_cur + delta, 2);
+ 
+diff --git a/mt76.h b/mt76.h
+index c319ba26..9ecb124f 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -1529,12 +1529,12 @@ static inline bool mt76_is_skb_pktid(u8 pktid)
+ 	return pktid >= MT_PACKET_ID_FIRST;
+ }
+ 
+-static inline u8 mt76_tx_power_nss_delta(u8 nss)
++static inline u8 mt76_tx_power_path_delta(u8 path)
+ {
+-	static const u8 nss_delta[4] = { 0, 6, 9, 12 };
+-	u8 idx = nss - 1;
++	static const u8 path_delta[5] = { 0, 6, 9, 12, 14};
++	u8 idx = path - 1;
+ 
+-	return (idx < ARRAY_SIZE(nss_delta)) ? nss_delta[idx] : 0;
++	return (idx < ARRAY_SIZE(path_delta)) ? path_delta[idx] : 0;
+ }
+ 
+ static inline bool mt76_testmode_enabled(struct mt76_phy *phy)
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 1bc99783..f26ceb5c 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -297,8 +297,8 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
+ 				  struct ieee80211_supported_band *sband)
+ {
+ 	struct mt7996_dev *dev = phy->dev;
+-	int i, nss = hweight16(phy->mt76->chainmask);
+-	int nss_delta = mt76_tx_power_nss_delta(nss);
++	int i, path = hweight16(phy->mt76->chainmask);
++	int path_delta = mt76_tx_power_path_delta(path);
+ 	int pwr_delta = mt7996_eeprom_get_power_delta(dev, sband->band);
+ 	struct mt76_power_limits limits;
+ 	struct mt76_power_path_limits limits_path;
+@@ -319,7 +319,7 @@ static void __mt7996_init_txpower(struct mt7996_phy *phy,
+ 		if (!limits_path.ofdm[0])
+ 			phy->sku_path_en = false;
+ 
+-		target_power += nss_delta;
++		target_power += path_delta;
+ 		target_power = DIV_ROUND_UP(target_power, 2);
+ 		if (!np)
+ 			chan->max_power = min_t(int, chan->max_reg_power,
+diff --git a/mt7996/main.c b/mt7996/main.c
+index cf968551..713bd3d6 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1023,7 +1023,7 @@ int mt7996_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 
+ 	mphy = mconf->phy->mt76;
+ 
+-	delta = mt76_tx_power_nss_delta(hweight16(mphy->chainmask));
++	delta = mt76_tx_power_path_delta(hweight16(mphy->chainmask));
+ 
+ 	*dbm = DIV_ROUND_UP(mphy->txpower_cur + delta, 2);
+ out:
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index ed1dd498..f632788e 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -1084,7 +1084,7 @@ mt7996_get_power_bound(struct mt7996_phy *phy, s8 txpower)
+ 	int n_chains = hweight16(mphy->chainmask);
+ 
+ 	txpower = mt76_get_sar_power(mphy, mphy->chandef.chan, txpower * 2);
+-	txpower -= mt76_tx_power_nss_delta(n_chains);
++	txpower -= mt76_tx_power_path_delta(n_chains);
+ 
+ 	return txpower;
+ }
+diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
+index d3c0cba4..198d6a77 100644
+--- a/mt7996/mtk_debugfs.c
++++ b/mt7996/mtk_debugfs.c
+@@ -2565,7 +2565,7 @@ mt7996_get_txpower_sku(struct file *file, char __user *user_buf,
+ 	int i, offs = 0, len = 0;
+ 	u32 target_power = 0;
+ 	int n_chains = hweight16(phy->mt76->chainmask);
+-	int nss_delta = mt76_tx_power_nss_delta(n_chains);
++	int path_delta = mt76_tx_power_path_delta(n_chains);
+ 	int pwr_delta;
+ 	ssize_t ret;
+ 	char *buf;
+@@ -2681,15 +2681,15 @@ mt7996_get_txpower_sku(struct file *file, char __user *user_buf,
+ 	pwr_delta = mt7996_eeprom_get_power_delta(dev, sband.band);
+ 
+ 	target_power = max_t(u32, target_power, mt7996_eeprom_get_target_power(dev, chan));
+-	target_power += pwr_delta + nss_delta;
++	target_power += pwr_delta + path_delta;
+ 	target_power = DIV_ROUND_UP(target_power, 2);
+ 	len += scnprintf(buf + len, size - len,
+ 			 "eeprom maximum power:\t%d [dBm]\n",
+ 			 target_power);
+ 
+ 	len += scnprintf(buf + len, size - len,
+-			 "nss_delta:\t%d [0.5 dBm]\n",
+-			 nss_delta);
++			 "path_delta:\t%d [0.5 dBm]\n",
++			 path_delta);
+ 
+ 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+ 
+diff --git a/mt7996/vendor.c b/mt7996/vendor.c
+index a2ebccf6..39a5d714 100644
+--- a/mt7996/vendor.c
++++ b/mt7996/vendor.c
+@@ -1536,7 +1536,7 @@ static int mt7996_vendor_txpower_ctrl(struct wiphy *wiphy,
+ 
+ 	mphy = phy->mt76;
+ 	mdev = mphy->dev;
+-	delta = mt76_tx_power_nss_delta(hweight16(mphy->chainmask));
++	delta = mt76_tx_power_path_delta(hweight16(mphy->chainmask));
+ 
+ 	if (mphy->cap.has_6ghz &&
+ 	    tb[MTK_VENDOR_ATTR_TXPOWER_CTRL_AFC_LPI]) {
+-- 
+2.45.2
+
