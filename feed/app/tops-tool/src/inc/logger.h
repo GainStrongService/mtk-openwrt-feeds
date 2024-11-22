@@ -10,13 +10,13 @@
 
 #include <glob.h>
 
-#define LOG_MGMT_RELAYFS_PATH		"/sys/kernel/debug/tops/log-mgmt*"
+#define LOG_MGMT_RELAYFS_PATH		"/sys/kernel/debug/npu/tops/log-mgmt*"
 #define LOG_MGMT_NAME			"log-mgmt"
 
-#define LOG_OFFLOAD_RELAYFS_PATH	"/sys/kernel/debug/tops/log-offload*"
+#define LOG_OFFLOAD_RELAYFS_PATH	"/sys/kernel/debug/npu/tops/log-offload*"
 #define LOG_OFFLOAD_NAME		"log-offload"
 
-#define LOGGER_DEBUGFS_PATH		"/sys/kernel/debug/tops/logger"
+#define LOGGER_DEBUGFS_PATH		"/sys/kernel/debug/npu/tops/logger"
 
 #define BUFFER_LEN			(0x1000)
 
