@@ -870,7 +870,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 		case 1:
 			if (atomic_read(&force) == 1) {
 				eth->reset.event = MTK_FE_START_RESET;
-				eth->reset.phy_disconnect = false;
+				eth->reset.rstctrl_eth = false;
 				schedule_work(&eth->pending_work);
 			} else
 				pr_info(" stat:disable\n");
@@ -881,7 +881,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 		case 3:
 			if (atomic_read(&force) == 1) {
 				eth->reset.event = MTK_FE_STOP_TRAFFIC;
-				eth->reset.phy_disconnect = false;
+				eth->reset.rstctrl_eth = false;
 				schedule_work(&eth->pending_work);
 			} else
 				pr_info(" device resetting !!!\n");
@@ -895,7 +895,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 		case 6:
 			if (atomic_read(&force) == 1) {
 				eth->reset.event = MTK_FE_START_RESET;
-				eth->reset.phy_disconnect = true;
+				eth->reset.rstctrl_eth = true;
 				schedule_work(&eth->pending_work);
 			} else
 				pr_info(" stat:disable\n");
@@ -903,7 +903,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 		case 7:
 			if (atomic_read(&force) == 1) {
 				eth->reset.event = MTK_FE_STOP_TRAFFIC;
-				eth->reset.phy_disconnect = true;
+				eth->reset.rstctrl_eth = true;
 				schedule_work(&eth->pending_work);
 			} else
 				pr_info(" stat:disable\n");
@@ -912,13 +912,13 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 			pr_info("Usage: echo [level] > /sys/kernel/debug/mtketh/reset\n");
 			pr_info("Commands:   [level]\n");
 			pr_info("		0	disable FE force reset\n");
-			pr_info("		1	trigger FE and WDMA force reset without PHY disconnect\n");
+			pr_info("		1	trigger FE and WDMA force reset without ETH reset\n");
 			pr_info("		2	enable FE force reset\n");
-			pr_info("		3	trigger FE force reset without PHY disconnect\n");
+			pr_info("		3	trigger FE force reset without ETH reset\n");
 			pr_info("		4	enable reset info dump\n");
 			pr_info("		5	disable reset info dump\n");
-			pr_info("		6	trigger FE and WDMA force reset with PHY disconnect\n");
-			pr_info("		7	trigger FE reset force with PHY disconnect\n");
+			pr_info("		6	trigger FE and WDMA force reset with ETH reset\n");
+			pr_info("		7	trigger FE reset force with ETH reset\n");
 			break;
 	}
 	return count;

@@ -93,7 +93,7 @@ int mtk_eth_cold_reset(struct mtk_eth *eth)
 	if (eth->reset.event == MTK_FE_START_RESET)
 		reset_bits |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
 #endif
-	if (eth->reset.phy_disconnect)
+	if (eth->reset.rstctrl_eth)
 		reset_bits |= RSTCTRL_ETH;
 	ethsys_reset(eth, reset_bits);
 
@@ -135,7 +135,7 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 		if (eth->reset.event == MTK_FE_START_RESET)
 			reset_bits |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
 #endif
-		if (eth->reset.phy_disconnect)
+		if (eth->reset.rstctrl_eth)
 			reset_bits |= RSTCTRL_ETH;
 
 		regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
@@ -962,7 +962,7 @@ u32 mtk_monitor_gdm_rx(struct mtk_eth *eth)
 
 	if (err_flag) {
 		if (atomic_read(&reset_lock) == 0)
-			eth->reset.phy_disconnect = true;
+			eth->reset.rstctrl_eth = true;
 
 		return MTK_FE_STOP_TRAFFIC;
 	} else
@@ -1027,7 +1027,7 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 
 	if (err_flag) {
 		if (atomic_read(&reset_lock) == 0)
-			eth->reset.phy_disconnect = true;
+			eth->reset.rstctrl_eth = true;
 
 		return MTK_FE_STOP_TRAFFIC;
 	} else

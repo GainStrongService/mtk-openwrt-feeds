@@ -1322,7 +1322,10 @@ void mtk_mac_fe_reset_complete(struct mtk_eth *eth, unsigned long restart,
 	struct mtk_mac *mac;
 	int i;
 
-	if (eth->reset.phy_disconnect)
+	/* When pending_work triggers the SER and the SER resets the ETH, there is
+	 * no need to execute this function to restore the GMAC configuration.
+	 */
+	if (eth->reset.rstctrl_eth)
 		return;
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
@@ -4592,7 +4595,10 @@ static int mtk_open(struct net_device *dev)
 		}
 	}
 
-	if (!test_bit(MTK_RESETTING, &eth->state) || eth->reset.phy_disconnect) {
+	/* When pending_work triggers the SER and the SER does not reset the ETH,
+	 * there is no need to reconnect the PHY.
+	 */
+	if (!test_bit(MTK_RESETTING, &eth->state) || eth->reset.rstctrl_eth) {
 		err = phylink_of_phy_connect(mac->phylink, mac->of_node, 0);
 		if (err) {
 			netdev_err(dev, "%s: could not attach PHY: %d\n", __func__,
@@ -4702,7 +4708,10 @@ static int mtk_stop(struct net_device *dev)
 	val = mtk_r32(eth, MTK_MAC_MCR(mac->id));
 	mtk_w32(eth, val & ~(MAC_MCR_RX_EN), MTK_MAC_MCR(mac->id));
 
-	if (!test_bit(MTK_RESETTING, &eth->state) || eth->reset.phy_disconnect) {
+	/* When pending_work triggers the SER and the SER does not reset the ETH,
+	 * there is no need to disconnect the PHY.
+	 */
+	if (!test_bit(MTK_RESETTING, &eth->state) || eth->reset.rstctrl_eth) {
 		phylink_stop(mac->phylink);
 
 		phylink_disconnect_phy(mac->phylink);
@@ -5271,7 +5280,7 @@ static void mtk_pending_work(struct work_struct *work)
 	while (test_and_set_bit_lock(MTK_RESETTING, &eth->state))
 		cpu_relax();
 
-	if (eth->reset.phy_disconnect)
+	if (eth->reset.rstctrl_eth)
 		mtk_phy_config(eth, 0);
 
 	mt753x_set_port_link_state(0);
@@ -5393,11 +5402,11 @@ static void mtk_pending_work(struct work_struct *work)
 		mtk_restore_qdma_cfg(eth);
 
 	mt753x_set_port_link_state(1);
-	if (eth->reset.phy_disconnect)
+	if (eth->reset.rstctrl_eth)
 		mtk_phy_config(eth, 1);
 
 	eth->reset.event = 0;
-	eth->reset.phy_disconnect = false;
+	eth->reset.rstctrl_eth = false;
 	clear_bit_unlock(MTK_RESETTING, &eth->state);
 
 	atomic_dec(&reset_lock);
@@ -6378,9 +6387,11 @@ static int mtk_probe(struct platform_device *pdev)
 	eth->msg_enable = netif_msg_init(mtk_msg_level, MTK_DEFAULT_MSG_ENABLE);
 	INIT_WORK(&eth->pending_work, mtk_pending_work);
 
+	eth->reset.rstctrl_eth = true;
 	err = mtk_hw_init(eth, MTK_TYPE_COLD_RESET);
 	if (err)
 		return err;
+	eth->reset.rstctrl_eth = false;
 
 	eth->hwlro = MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO);
 

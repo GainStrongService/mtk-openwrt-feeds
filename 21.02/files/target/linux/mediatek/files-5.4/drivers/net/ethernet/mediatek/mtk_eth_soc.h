@@ -2332,7 +2332,7 @@ struct mtk_eth {
 		struct wdma_monitor	wdma_monitor;
 		struct gdm_monitor	gdm_monitor;
 		u32			event;
-		bool			phy_disconnect;
+		bool			rstctrl_eth;
 	} reset;
 
 	u32				rx_dma_l4_valid;
