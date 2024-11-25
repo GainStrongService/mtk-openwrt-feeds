@@ -239,14 +239,14 @@ index fe6ede6..4ae4a3b
  			eth->clks[i] = NULL;
  		}
 @@ -5948,7 +5982,7 @@ static int mtk_probe(struct platform_device *pdev)
- 
+ 	eth->reset.rstctrl_eth = true;
  	err = mtk_hw_init(eth, MTK_TYPE_COLD_RESET);
  	if (err)
 -		return err;
 +		goto err_wed_exit;
+ 	eth->reset.rstctrl_eth = false;
  
  	eth->hwlro = MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO);
- 
 @@ -6075,14 +6109,15 @@ static int mtk_probe(struct platform_device *pdev)
  	}
  
