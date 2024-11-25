@@ -1209,8 +1209,9 @@ int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void 
 		break;
 	case MTK_FE_START_RESET_INIT:
 		pr_info("%s rcv fe start reset init event:%lx\n", __func__, event);
-		if ((atomic_read(&reset_lock) == 0) &&
-		    (atomic_read(&force) == 1)) {
+		if (atomic_read(&reset_lock) == 0) {
+			if (atomic_read(&force) == 0)
+				atomic_set(&force, 2);
 			eth->reset.event = MTK_FE_START_RESET;
 			schedule_work(&eth->pending_work);
 		}

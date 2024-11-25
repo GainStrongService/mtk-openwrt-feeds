@@ -885,7 +885,8 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 		 */
 		if (mac->type != mac_type && !mtk_check_gmac23_idle(mac)) {
 			if (!test_bit(MTK_RESETTING, &mac->hw->state)) {
-				atomic_inc(&force);
+				if (atomic_read(&force) == 0)
+					atomic_set(&force, 2);
 				schedule_work(&eth->pending_work);
 			}
 		}
