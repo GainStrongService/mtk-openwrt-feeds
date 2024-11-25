@@ -809,9 +809,10 @@ static void mtk_usxgmii_pcs_link_poll(struct work_struct *work)
 	struct mtk_usxgmii_pcs *mpcs = container_of(work, struct mtk_usxgmii_pcs,
 						    link_poll.work);
 
-	if (mpcs->interface != PHY_INTERFACE_MODE_5GBASER &&
-	    mpcs->interface != PHY_INTERFACE_MODE_10GKR &&
-	    mpcs->interface != PHY_INTERFACE_MODE_USXGMII)
+	if ((mpcs->interface != PHY_INTERFACE_MODE_5GBASER &&
+	     mpcs->interface != PHY_INTERFACE_MODE_10GKR &&
+	     mpcs->interface != PHY_INTERFACE_MODE_USXGMII) ||
+	    (mpcs->link_poll_enable == false))
 		goto exit;
 
 	if (!mtk_usxgmii_link_status(mpcs) || !mtk_usxgmii_is_valid_ctle(mpcs))
@@ -942,6 +943,7 @@ int mtk_usxgmii_init(struct mtk_eth *eth, struct device_node *r)
 		ss->pcs[i].state.duplex = DUPLEX_FULL;
 		ss->pcs[i].state.speed = SPEED_10000;
 
+		ss->pcs[i].link_poll_enable = true;
 		INIT_DELAYED_WORK(&ss->pcs[i].link_poll, mtk_usxgmii_pcs_link_poll);
 
 		mutex_init(&ss->pcs[i].regmap_lock);

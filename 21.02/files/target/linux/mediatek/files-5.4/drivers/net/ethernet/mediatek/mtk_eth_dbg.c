@@ -1186,6 +1186,162 @@ static ssize_t pse_info_write(struct file *file, const char __user *buffer,
 	return len;
 }
 
+void usxgmii_link_poll_info(void)
+{
+	pr_info("Usage: echo [port] [option] > /sys/kernel/debug/mtketh/usxgmii_link_poll\n");
+	pr_info("              0~1      1      Enable link poll\n");
+	pr_info("                       0      Disable link poll (only for SI measurement)\n");
+}
+
+int usxgmii_link_poll_read(struct seq_file *m, void *private)
+{
+	struct mtk_eth *eth = m->private;
+	struct mtk_usxgmii *ss = eth->usxgmii;
+	int i;
+
+	if (!ss)
+		return -ENODEV;
+
+	for (i = 0; i < 2; i++) {
+		pr_info("usxgmii%d link poll is %s now!\n",
+			i, ss->pcs[i].link_poll_enable ? "Enable" : "Disable");
+	}
+
+	return 0;
+}
+
+static int usxgmii_link_poll_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, usxgmii_link_poll_read, inode->i_private);
+}
+
+static ssize_t usxgmii_link_poll_write(struct file *file, const char __user *buffer,
+				       size_t count, loff_t *off)
+{
+	struct seq_file *m = file->private_data;
+	struct mtk_eth *eth = m->private;
+	struct mtk_usxgmii *ss = eth->usxgmii;
+	long arg0 = 0, arg1 = 0;
+	char buf[32];
+	char *p_buf;
+	char *p_token = NULL;
+	char *p_delimiter = " \t";
+	u32 len = count;
+	int ret;
+
+	if (!ss)
+		return -ENODEV;
+
+	if (len >= sizeof(buf)) {
+		pr_info("input handling fail!\n");
+		return -1;
+	}
+
+	if (copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	p_buf = buf;
+	p_token = strsep(&p_buf, p_delimiter);
+	if (!p_token)
+		arg0 = 0;
+	else
+		ret = kstrtol(p_token, 10, &arg0);
+
+	p_token = strsep(&p_buf, p_delimiter);
+	if (!p_token)
+		arg1 = 0;
+	else
+		ret = kstrtol(p_token, 10, &arg1);
+
+	if ((arg0 >= 0 && arg0 <= 1) &&
+	    (arg1 >= 0 && arg1 <= 1))
+		ss->pcs[arg0].link_poll_enable = arg1;
+	else
+		usxgmii_link_poll_info();
+
+	return len;
+}
+
+void sgmii_link_poll_info(void)
+{
+	pr_info("Usage: echo [port] [option] > /sys/kernel/debug/mtketh/sgmii_link_poll\n");
+	pr_info("              0~1      1      Enable link poll\n");
+	pr_info("                       0      Disable link poll (only for SI measurement)\n");
+}
+
+int sgmii_link_poll_read(struct seq_file *m, void *private)
+{
+	struct mtk_eth *eth = m->private;
+	struct mtk_sgmii *ss = eth->sgmii;
+	int i;
+
+	if (!ss)
+		return -ENODEV;
+
+	for (i = 0; i < 2; i++) {
+		pr_info("sgmii%d link poll is %s now!\n",
+			i, ss->pcs[i].link_poll_enable ? "Enable" : "Disable");
+	}
+
+	return 0;
+}
+
+static int sgmii_link_poll_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, sgmii_link_poll_read, inode->i_private);
+}
+
+static ssize_t sgmii_link_poll_write(struct file *file, const char __user *buffer,
+				     size_t count, loff_t *off)
+{
+	struct seq_file *m = file->private_data;
+	struct mtk_eth *eth = m->private;
+	struct mtk_sgmii *ss = eth->sgmii;
+	long arg0 = 0, arg1 = 0;
+	char buf[32];
+	char *p_buf;
+	char *p_token = NULL;
+	char *p_delimiter = " \t";
+	u32 len = count;
+	int ret;
+
+	if (!ss)
+		return -ENODEV;
+
+	if (len >= sizeof(buf)) {
+		pr_info("input handling fail!\n");
+		return -1;
+	}
+
+	if (copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	p_buf = buf;
+	p_token = strsep(&p_buf, p_delimiter);
+	if (!p_token)
+		arg0 = 0;
+	else
+		ret = kstrtol(p_token, 10, &arg0);
+
+	p_token = strsep(&p_buf, p_delimiter);
+	if (!p_token)
+		arg1 = 0;
+	else
+		ret = kstrtol(p_token, 10, &arg1);
+
+	if ((arg0 >= 0 && arg0 <= 1) &&
+	    (arg1 >= 0 && arg1 <= 1))
+		ss->pcs[arg0].link_poll_enable = arg1;
+	else
+		sgmii_link_poll_info();
+
+	return len;
+}
+
 static const struct file_operations fops_reg_w = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
@@ -1215,6 +1371,24 @@ static const struct file_operations fops_pse_info = {
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.write = pse_info_write,
+	.release = single_release,
+};
+
+static const struct file_operations fops_usxgmii_link_poll = {
+	.owner = THIS_MODULE,
+	.open = usxgmii_link_poll_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = usxgmii_link_poll_write,
+	.release = single_release,
+};
+
+static const struct file_operations fops_sgmii_link_poll = {
+	.owner = THIS_MODULE,
+	.open = sgmii_link_poll_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = sgmii_link_poll_write,
 	.release = single_release,
 };
 
@@ -1259,6 +1433,10 @@ int mtketh_debugfs_init(struct mtk_eth *eth)
 			    eth_debug.root, eth, &mtketh_debug_fops);
 	debugfs_create_file("phy_reg_w", S_IFREG | S_IWUSR,
 			    eth_debug.root, eth,  &fops_reg_w);
+	debugfs_create_file("usxgmii_link_poll", 0444,
+			    eth_debug.root, eth,  &fops_usxgmii_link_poll);
+	debugfs_create_file("sgmii_link_poll", 0444,
+			    eth_debug.root, eth,  &fops_sgmii_link_poll);
 	debugfs_create_file("reset", S_IFREG | S_IWUSR,
 			    eth_debug.root, eth,  &fops_eth_reset);
 	debugfs_create_file("eth_debug_level", 0444,

@@ -2094,6 +2094,7 @@ struct mtk_sgmii_pcs {
 	struct mutex		reset_lock;
 	phy_interface_t		interface;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
+	bool			link_poll_enable;
 	unsigned long		link_poll_expire;
 	unsigned int		mode;
 	u32			flags;
@@ -2132,6 +2133,7 @@ struct mtk_usxgmii_pcs {
 	struct mutex		regmap_lock;
 	struct mutex		reset_lock;
 	phy_interface_t		interface;
+	bool			link_poll_enable;
 	unsigned long		link_poll_expire;
 	unsigned int		mode;
 	u32			polarity;
