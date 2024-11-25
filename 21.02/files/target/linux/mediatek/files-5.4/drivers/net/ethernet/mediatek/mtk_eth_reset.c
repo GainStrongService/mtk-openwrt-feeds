@@ -657,11 +657,18 @@ u32 mtk_monitor_wdma_rx(struct mtk_eth *eth)
 			 (cur_opq != 0 && cur_opq == wdma_rx->pre_opq[i]) && fsm_fs)
 			netsys_busy = true;
 		if (connsys_busy || netsys_busy) {
-			wdma_rx->hang_count[i]++;
-			if (wdma_rx->hang_count[i] >= 5) {
+			if (connsys_busy)
+				wdma_rx->hang_count_connsys[i]++;
+			else
+				wdma_rx->hang_count_netsys[i]++;
+
+			if (wdma_rx->hang_count_connsys[i] >= 180 ||
+			    wdma_rx->hang_count_netsys[i] >= 5) {
 				pr_info("WDMA %d Rx Info (%s)\n", i,
 					connsys_busy ? "CONNSYS busy" : "NETSYS busy");
-				pr_info("hang count = %d", wdma_rx->hang_count[i]);
+				pr_info("hang count = %d",
+					connsys_busy ? wdma_rx->hang_count_connsys[i] :
+						       wdma_rx->hang_count_netsys[i]);
 				pr_info("prev_drx = 0x%x	| cur_drx = 0x%x\n",
 					wdma_rx->pre_drx[i], cur_drx);
 				pr_info("prev_crx = 0x%x	| cur_crx = 0x%x\n",
@@ -678,8 +685,10 @@ u32 mtk_monitor_wdma_rx(struct mtk_eth *eth)
 				pr_info("==============================\n");
 				err_flag = 1;
 			}
-		} else
-			wdma_rx->hang_count[i] = 0;
+		} else {
+			wdma_rx->hang_count_connsys[i] = 0;
+			wdma_rx->hang_count_netsys[i] = 0;
+		}
 
 		wdma_rx->pre_crx[i] = cur_crx;
 		wdma_rx->pre_drx[i] = cur_drx;
