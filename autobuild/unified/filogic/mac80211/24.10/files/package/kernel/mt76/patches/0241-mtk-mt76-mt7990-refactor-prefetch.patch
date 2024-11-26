@@ -1,0 +1,121 @@
+From 5d834a300d54334b7eafb5dc1c409db883c54cd9 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 22 Oct 2024 20:04:40 +0800
+Subject: [PATCH 241/277] mtk: mt76: mt7990: refactor prefetch
+
+The mt7996 different prefetch value with mt7992 and mt7990.
+Set the correct prefetch size for each chip.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/dma.c | 81 ++++++++++++++++++++++++++++------------------------
+ 1 file changed, 44 insertions(+), 37 deletions(-)
+
+diff --git a/mt7996/dma.c b/mt7996/dma.c
+index 7d2f8a83..43d98c2e 100644
+--- a/mt7996/dma.c
++++ b/mt7996/dma.c
+@@ -166,56 +166,63 @@ static u32 __mt7996_dma_prefetch_base(u16 *base, u8 depth)
+ static void __mt7996_dma_prefetch(struct mt7996_dev *dev, u32 ofs)
+ {
+ 	u16 base = 0;
+-	u8 queue;
++	u8 queue, val;
+ 
+ #define PREFETCH(_depth)	(__mt7996_dma_prefetch_base(&base, (_depth)))
+ 	/* prefetch SRAM wrapping boundary for tx/rx ring. */
+-	mt76_wr(dev, MT_MCUQ_EXT_CTRL(MT_MCUQ_FWDL) + ofs, PREFETCH(0x2));
+-	mt76_wr(dev, MT_MCUQ_EXT_CTRL(MT_MCUQ_WM) + ofs, PREFETCH(0x2));
++
++	/* Tx Command Rings */
++	val = is_mt7996(&dev->mt76) ? 2 : 4;
++	mt76_wr(dev, MT_MCUQ_EXT_CTRL(MT_MCUQ_FWDL) + ofs, PREFETCH(val));
++	mt76_wr(dev, MT_MCUQ_EXT_CTRL(MT_MCUQ_WM) + ofs, PREFETCH(val));
++	if (mt7996_has_wa(dev))
++		mt76_wr(dev, MT_MCUQ_EXT_CTRL(MT_MCUQ_WA) + ofs, PREFETCH(val));
++
++	/* Tx Data Rings */
+ 	mt76_wr(dev, MT_TXQ_EXT_CTRL(0) + ofs, PREFETCH(0x8));
+-	mt76_wr(dev, MT_TXQ_EXT_CTRL(1) + ofs, PREFETCH(0x8));
+-	mt76_wr(dev, MT_MCUQ_EXT_CTRL(MT_MCUQ_WA) + ofs, PREFETCH(0x2));
+-	mt76_wr(dev, MT_TXQ_EXT_CTRL(2) + ofs, PREFETCH(0x8));
+-	mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MCU) + ofs, PREFETCH(0x2));
+-	mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MCU_WA) + ofs, PREFETCH(0x2));
+-	if (mt7996_has_wa(dev)) {
+-		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MAIN_WA) + ofs, PREFETCH(0x2));
++	if (!is_mt7996(&dev->mt76) || dev->hif2)
++		mt76_wr(dev, MT_TXQ_EXT_CTRL(1) + ofs, PREFETCH(0x8));
++	if (is_mt7996(&dev->mt76))
++		mt76_wr(dev, MT_TXQ_EXT_CTRL(2) + ofs, PREFETCH(0x8));
+ 
++	/* Rx Event Rings */
++	mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MCU) + ofs, PREFETCH(val));
++	mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MCU_WA) + ofs, PREFETCH(val));
++
++	/* Rx TxFreeDone From WA Rings */
++	if (mt7996_has_wa(dev)) {
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MAIN_WA) + ofs, PREFETCH(val));
+ 		queue = is_mt7996(&dev->mt76) ? MT_RXQ_BAND2_WA : MT_RXQ_BAND1_WA;
+-		mt76_wr(dev, MT_RXQ_EXT_CTRL(queue) + ofs, PREFETCH(0x2));
+-	} else {
+-		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND0) + ofs,
+-			PREFETCH(0x8));
+-		if (dev->hif2)
+-			mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND1) + ofs,
+-				PREFETCH(0x8));
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(queue) + ofs, PREFETCH(val));
+ 	}
+ 
+-	mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MAIN) + ofs, PREFETCH(0x10));
++	/* Rx TxFreeDone From MAC Rings */
++	val = is_mt7996(&dev->mt76) ? 4 : 8;
++	if (is_mt7990(&dev->mt76) || (is_mt7996(&dev->mt76) && dev->has_rro))
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND0) + ofs, PREFETCH(val));
++	if (is_mt7990(&dev->mt76) && dev->hif2)
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND1) + ofs, PREFETCH(val));
++	else if (is_mt7996(&dev->mt76) && dev->has_rro)
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND2) + ofs, PREFETCH(val));
+ 
++	/* Rx Data Rings */
++	mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MAIN) + ofs, PREFETCH(0x10));
+ 	queue = is_mt7996(&dev->mt76) ? MT_RXQ_BAND2 : MT_RXQ_BAND1;
+ 	mt76_wr(dev, MT_RXQ_EXT_CTRL(queue) + ofs, PREFETCH(0x10));
+ 
++	/* Rx RRO Rings */
+ 	if (dev->has_rro) {
+-		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_RRO_BAND0) + ofs,
+-			PREFETCH(0x10));
+-		if (is_mt7996(&dev->mt76))
+-			mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_RRO_BAND2) + ofs,
+-				PREFETCH(0x10));
+-		else
+-			mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_RRO_BAND1) + ofs,
+-				PREFETCH(0x10));
+-
+-		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MSDU_PAGE_BAND0) + ofs,
+-			PREFETCH(0x4));
+-		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MSDU_PAGE_BAND1) + ofs,
+-			PREFETCH(0x4));
+-		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MSDU_PAGE_BAND2) + ofs,
+-			PREFETCH(0x4));
+-		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND0) + ofs,
+-			PREFETCH(0x4));
+-		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND2) + ofs,
+-			PREFETCH(0x4));
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_RRO_BAND0) + ofs, PREFETCH(0x10));
++		queue = is_mt7996(&dev->mt76) ? MT_RXQ_RRO_BAND2 : MT_RXQ_RRO_BAND1;
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(queue) + ofs, PREFETCH(0x10));
++
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MSDU_PAGE_BAND0) + ofs, PREFETCH(val));
++		if (is_mt7996(&dev->mt76)) {
++			mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MSDU_PAGE_BAND1) + ofs,
++				PREFETCH(val));
++			mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MSDU_PAGE_BAND2) + ofs,
++				PREFETCH(val));
++		}
+ 	}
+ #undef PREFETCH
+ 
+-- 
+2.45.2
+

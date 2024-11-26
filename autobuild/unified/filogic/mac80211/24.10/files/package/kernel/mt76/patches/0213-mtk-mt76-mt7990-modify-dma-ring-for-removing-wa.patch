@@ -1,0 +1,341 @@
+From 3de35f4fca00318cbae5076fecca8ffb02e0e0c6 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Thu, 19 Sep 2024 15:21:28 +0800
+Subject: [PATCH 213/277] mtk: mt76: mt7990: modify dma ring for removing wa
+
+Modify dma ring for removing wa
+Avoid setting wa mcu command
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/dma.c    | 96 +++++++++++++++++++++++++++++--------------------
+ mt7996/init.c   | 45 ++++++++++++++---------
+ mt7996/mcu.c    | 22 ++++++------
+ mt7996/mt7996.h |  5 +++
+ 4 files changed, 102 insertions(+), 66 deletions(-)
+
+diff --git a/mt7996/dma.c b/mt7996/dma.c
+index f91f0b08..ab4ffeb9 100644
+--- a/mt7996/dma.c
++++ b/mt7996/dma.c
+@@ -63,20 +63,26 @@ static void mt7996_dma_config(struct mt7996_dev *dev)
+ 
+ 	/* rx queue */
+ 	RXQ_CONFIG(MT_RXQ_MCU, WFDMA0, MT_INT_RX_DONE_WM, MT7996_RXQ_MCU_WM);
++	/* In mt7990, rx ring 1 is for SDO instead */
+ 	RXQ_CONFIG(MT_RXQ_MCU_WA, WFDMA0, MT_INT_RX_DONE_WA, MT7996_RXQ_MCU_WA);
+-
+-	/* mt7996: band0 and band1, mt7992: band0 */
+ 	RXQ_CONFIG(MT_RXQ_MAIN, WFDMA0, MT_INT_RX_DONE_BAND0, MT7996_RXQ_BAND0);
+-	RXQ_CONFIG(MT_RXQ_MAIN_WA, WFDMA0, MT_INT_RX_DONE_WA_MAIN, MT7996_RXQ_MCU_WA_MAIN);
+ 
+-	if (is_mt7996(&dev->mt76)) {
++	switch (mt76_chip(&dev->mt76)) {
++	case MT7992_DEVICE_ID:
++		RXQ_CONFIG(MT_RXQ_MAIN_WA, WFDMA0, MT_INT_RX_DONE_WA_MAIN, MT7996_RXQ_MCU_WA_MAIN);
++		RXQ_CONFIG(MT_RXQ_BAND1_WA, WFDMA0, MT_INT_RX_DONE_WA_EXT, MT7996_RXQ_MCU_WA_EXT);
++		RXQ_CONFIG(MT_RXQ_BAND1, WFDMA0, MT_INT_RX_DONE_BAND1, MT7996_RXQ_BAND1);
++		break;
++	case MT7990_DEVICE_ID:
++		RXQ_CONFIG(MT_RXQ_BAND1, WFDMA0, MT_INT_RX_DONE_BAND1, MT7996_RXQ_BAND1);
++		break;
++	case MT7996_DEVICE_ID:
++	default:
++		RXQ_CONFIG(MT_RXQ_MAIN_WA, WFDMA0, MT_INT_RX_DONE_WA_MAIN, MT7996_RXQ_MCU_WA_MAIN);
+ 		/* mt7996 band2 */
+-		RXQ_CONFIG(MT_RXQ_BAND2, WFDMA0, MT_INT_RX_DONE_BAND2, MT7996_RXQ_BAND2);
+ 		RXQ_CONFIG(MT_RXQ_BAND2_WA, WFDMA0, MT_INT_RX_DONE_WA_TRI, MT7996_RXQ_MCU_WA_TRI);
+-	} else {
+-		/* mt7992 band1 */
+-		RXQ_CONFIG(MT_RXQ_BAND1, WFDMA0, MT_INT_RX_DONE_BAND1, MT7996_RXQ_BAND1);
+-		RXQ_CONFIG(MT_RXQ_BAND1_WA, WFDMA0, MT_INT_RX_DONE_WA_EXT, MT7996_RXQ_MCU_WA_EXT);
++		RXQ_CONFIG(MT_RXQ_BAND2, WFDMA0, MT_INT_RX_DONE_BAND2, MT7996_RXQ_BAND2);
++		break;
+ 	}
+ 
+ 	if (dev->has_rro) {
+@@ -138,7 +144,8 @@ static void mt7996_dma_config(struct mt7996_dev *dev)
+ 
+ 	/* mcu tx queue */
+ 	MCUQ_CONFIG(MT_MCUQ_WM, WFDMA0, MT_INT_TX_DONE_MCU_WM, MT7996_TXQ_MCU_WM);
+-	MCUQ_CONFIG(MT_MCUQ_WA, WFDMA0, MT_INT_TX_DONE_MCU_WA, MT7996_TXQ_MCU_WA);
++	if (mt7996_has_wa(dev))
++		MCUQ_CONFIG(MT_MCUQ_WA, WFDMA0, MT_INT_TX_DONE_MCU_WA, MT7996_TXQ_MCU_WA);
+ 	MCUQ_CONFIG(MT_MCUQ_FWDL, WFDMA0, MT_INT_TX_DONE_FWDL, MT7996_TXQ_FWDL);
+ }
+ 
+@@ -166,10 +173,12 @@ static void __mt7996_dma_prefetch(struct mt7996_dev *dev, u32 ofs)
+ 	mt76_wr(dev, MT_TXQ_EXT_CTRL(2) + ofs, PREFETCH(0x8));
+ 	mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MCU) + ofs, PREFETCH(0x2));
+ 	mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MCU_WA) + ofs, PREFETCH(0x2));
+-	mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MAIN_WA) + ofs, PREFETCH(0x2));
++	if (mt7996_has_wa(dev)) {
++		mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MAIN_WA) + ofs, PREFETCH(0x2));
+ 
+-	queue = is_mt7996(&dev->mt76) ? MT_RXQ_BAND2_WA : MT_RXQ_BAND1_WA;
+-	mt76_wr(dev, MT_RXQ_BAND1_CTRL(queue) + ofs, PREFETCH(0x2));
++		queue = is_mt7996(&dev->mt76) ? MT_RXQ_BAND2_WA : MT_RXQ_BAND1_WA;
++		mt76_wr(dev, MT_RXQ_BAND1_CTRL(queue) + ofs, PREFETCH(0x2));
++	}
+ 
+ 	mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MAIN) + ofs, PREFETCH(0x10));
+ 
+@@ -310,6 +319,9 @@ void mt7996_dma_start(struct mt7996_dev *dev, bool reset, bool wed_reset)
+ 		mtk_wed_device_start(wed, wed_irq_mask);
+ 	}
+ 
++	if (!mt7996_has_wa(dev))
++		irq_mask &= ~(MT_INT_RX(MT_RXQ_MAIN_WA) | MT_INT_RX(MT_RXQ_BAND1_WA));
++
+ 	irq_mask = reset ? MT_INT_MCU_CMD : irq_mask;
+ 
+ 	mt7996_irq_enable(dev, irq_mask);
+@@ -596,12 +608,14 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+ 		return ret;
+ 
+ 	/* command to WA */
+-	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WA,
+-				  MT_MCUQ_ID(MT_MCUQ_WA),
+-				  MT7996_TX_MCU_RING_SIZE,
+-				  MT_MCUQ_RING_BASE(MT_MCUQ_WA));
+-	if (ret)
+-		return ret;
++	if (mt7996_has_wa(dev)) {
++		ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WA,
++					  MT_MCUQ_ID(MT_MCUQ_WA),
++					  MT7996_TX_MCU_RING_SIZE,
++					  MT_MCUQ_RING_BASE(MT_MCUQ_WA));
++		if (ret)
++			return ret;
++	}
+ 
+ 	/* firmware download */
+ 	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_FWDL,
+@@ -620,7 +634,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+ 	if (ret)
+ 		return ret;
+ 
+-	/* event from WA */
++	/* event from WA (SDO for mt7990) */
+ 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
+ 			       MT_RXQ_ID(MT_RXQ_MCU_WA),
+ 			       MT7996_RX_MCU_RING_SIZE_WA,
+@@ -651,13 +665,15 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+ 		dev->mt76.q_rx[MT_RXQ_MAIN_WA].wed = wed;
+ 	}
+ 
+-	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN_WA],
+-			       MT_RXQ_ID(MT_RXQ_MAIN_WA),
+-			       MT7996_RX_MCU_RING_SIZE,
+-			       MT_RX_BUF_SIZE,
+-			       MT_RXQ_RING_BASE(MT_RXQ_MAIN_WA));
+-	if (ret)
+-		return ret;
++	if (mt7996_has_wa(dev)) {
++		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN_WA],
++				       MT_RXQ_ID(MT_RXQ_MAIN_WA),
++				       MT7996_RX_MCU_RING_SIZE,
++				       MT_RX_BUF_SIZE,
++				       MT_RXQ_RING_BASE(MT_RXQ_MAIN_WA));
++		if (ret)
++			return ret;
++	}
+ 
+ 	if (mt7996_band_valid(dev, MT_BAND2)) {
+ 		/* rx data queue for mt7996 band2 */
+@@ -706,18 +722,20 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+ 			return ret;
+ 
+ 		/* tx free notify event from WA for mt7992 band1 */
+-		rx_base = MT_RXQ_RING_BASE(MT_RXQ_BAND1_WA) + hif1_ofs;
+-		if (mtk_wed_device_active(wed_hif2)) {
+-			dev->mt76.q_rx[MT_RXQ_BAND1_WA].flags = MT_WED_Q_TXFREE;
+-			dev->mt76.q_rx[MT_RXQ_BAND1_WA].wed = wed_hif2;
++		if (mt7996_has_wa(dev)) {
++			rx_base = MT_RXQ_RING_BASE(MT_RXQ_BAND1_WA) + hif1_ofs;
++			if (mtk_wed_device_active(wed_hif2)) {
++				dev->mt76.q_rx[MT_RXQ_BAND1_WA].flags = MT_WED_Q_TXFREE;
++				dev->mt76.q_rx[MT_RXQ_BAND1_WA].wed = wed_hif2;
++			}
++			ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_BAND1_WA],
++					       MT_RXQ_ID(MT_RXQ_BAND1_WA),
++					       MT7996_RX_MCU_RING_SIZE,
++					       MT_RX_BUF_SIZE,
++					       rx_base);
++			if (ret)
++				return ret;
+ 		}
+-		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_BAND1_WA],
+-				       MT_RXQ_ID(MT_RXQ_BAND1_WA),
+-				       MT7996_RX_MCU_RING_SIZE,
+-				       MT_RX_BUF_SIZE,
+-				       rx_base);
+-		if (ret)
+-			return ret;
+ 	}
+ 
+ 	if (dev->has_rro) {
+@@ -734,7 +752,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+ 		if (ret)
+ 			return ret;
+ 
+-		if (is_mt7992(&dev->mt76)) {
++		if (!is_mt7996(&dev->mt76)) {
+ 			dev->mt76.q_rx[MT_RXQ_RRO_BAND1].flags =
+ 				MT_WED_RRO_Q_DATA(1) | MT_QFLAG_WED_RRO_EN;
+ 			if (mtk_wed_device_active(wed) && mtk_wed_get_rx_capa(wed))
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 9356ec1c..7b13d7c7 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -625,31 +625,38 @@ void mt7996_mac_init(struct mt7996_dev *dev)
+ 		mt76_rmw_field(dev, i, MT_LED_GPIO_SEL_MASK, 4);
+ 	}
+ 
+-	/* rro module init */
+-	rx_path_type = is_mt7996(&dev->mt76) ? 2 : 7;
+-	rro_bypass = is_mt7996(&dev->mt76) ? 1 : 2;
+-	txfree_path = is_mt7996(&dev->mt76) ? 0: 1;
++	/* rro module init, 2pcie */
++	switch (mt76_chip(&dev->mt76)) {
++	case MT7992_DEVICE_ID:
++		rx_path_type = 7;
++		rro_bypass = 2;
++		txfree_path = 1;
++		break;
++	case MT7990_DEVICE_ID:
++		rx_path_type = 7;
++		rro_bypass = 2;
++		txfree_path = 0;
++		break;
++	case MT7996_DEVICE_ID:
++	default:
++		rx_path_type = 2;
++		rro_bypass = 1;
++		txfree_path = 0;
++		break;
++	}
+ 
+ 	switch (dev->option_type) {
+ 	case 2:
+-		if (is_mt7996(&dev->mt76)) {
+-			/* mt7996 + 7988d */
++		/* mt7996 + 7988d */
++		if (is_mt7996(&dev->mt76))
+ 			rx_path_type = 3;
+-			rro_bypass = 1;
+-			txfree_path = 0;
+-		}
+ 		break;
+ 	case 3:
+ 		/* Airoha */
+-		if (is_mt7996(&dev->mt76)) {
++		if (is_mt7996(&dev->mt76))
+ 			rx_path_type = 6;
+-			rro_bypass = 1;
+-			txfree_path = 0;
+-		} else {
++		else
+ 			rx_path_type = 8;
+-			rro_bypass = 2;
+-			txfree_path = 1;
+-		}
+ 		break;
+ 	case 4:
+ 		if (is_mt7996(&dev->mt76)) {
+@@ -663,9 +670,13 @@ void mt7996_mac_init(struct mt7996_dev *dev)
+ 		break;
+ 	}
+ 
++	/* mt7990 does not have WA */
++	if (!dev->has_rro && mt7996_has_wa(dev))
++		txfree_path = 1;
++
+ 	mt7996_mcu_set_rro(dev, UNI_RRO_SET_PLATFORM_TYPE, dev->hif2 ? rx_path_type : 0);
+ 	mt7996_mcu_set_rro(dev, UNI_RRO_SET_BYPASS_MODE, dev->has_rro ? rro_bypass : 3);
+-	mt7996_mcu_set_rro(dev, UNI_RRO_SET_TXFREE_PATH, dev->has_rro ? txfree_path : 1);
++	mt7996_mcu_set_rro(dev, UNI_RRO_SET_TXFREE_PATH, txfree_path);
+ 
+ 	if (dev->has_rro) {
+ 		u16 timeout;
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 63cd4776..f6587a66 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -280,7 +280,7 @@ mt7996_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
+ 
+ 	txd_len = cmd & __MCU_CMD_FIELD_UNI ? sizeof(*uni_txd) : sizeof(*mcu_txd);
+ 	txd = (__le32 *)skb_push(skb, txd_len);
+-	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state) && !is_mt7990(mdev))
++	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state) && mt7996_has_wa(dev))
+ 		qid = MT_MCUQ_WA;
+ 	else
+ 		qid = MT_MCUQ_WM;
+@@ -4430,7 +4430,7 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
+ 	if (ret)
+ 		return ret;
+ 
+-	if (is_mt7990(&dev->mt76))
++	if (!mt7996_has_wa(dev))
+ 		return 0;
+ 
+ 	ret = __mt7996_load_ram(dev, "DSP", fw_name(dev, FIRMWARE_DSP),
+@@ -4500,7 +4500,7 @@ static int mt7996_load_firmware(struct mt7996_dev *dev)
+ 	if (ret)
+ 		return ret;
+ 
+-	fw_state = is_mt7990(&dev->mt76) ? FW_STATE_NORMAL_TRX : FW_STATE_RDY;
++	fw_state = mt7996_has_wa(dev) ? FW_STATE_RDY : FW_STATE_NORMAL_TRX;
+ 	ret = mt7996_firmware_state(dev, fw_state);
+ 	if (ret)
+ 		return ret;
+@@ -4528,7 +4528,7 @@ int mt7996_mcu_fw_log_2_host(struct mt7996_dev *dev, u8 type, u8 ctrl)
+ 		.ctrl = ctrl,
+ 	};
+ 
+-	if (type == MCU_FW_LOG_WA)
++	if (type == MCU_FW_LOG_WA && mt7996_has_wa(dev))
+ 		return mt76_mcu_send_msg(&dev->mt76, MCU_WA_UNI_CMD(WSYS_CONFIG),
+ 					 &data, sizeof(data), true);
+ 
+@@ -4669,13 +4669,15 @@ int mt7996_mcu_init_firmware(struct mt7996_dev *dev)
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = mt7996_mcu_fw_log_2_host(dev, MCU_FW_LOG_WA, 1);
+-	if (ret)
+-		return ret;
++	if (mt7996_has_wa(dev)) {
++		ret = mt7996_mcu_fw_log_2_host(dev, MCU_FW_LOG_WA, 1);
++		if (ret)
++			return ret;
+ 
+-	ret = mt7996_mcu_set_mwds(dev, 1);
+-	if (ret)
+-		return ret;
++		ret = mt7996_mcu_set_mwds(dev, 1);
++		if (ret)
++			return ret;
++	}
+ 
+ 	ret = mt7996_mcu_init_rx_airtime(dev);
+ 	if (ret)
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 5bccf903..06e7f9d4 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1294,6 +1294,11 @@ int mt7996_mcu_mld_set_attlm(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ int mt7996_mcu_peer_mld_ttlm_req(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ 				 u64 changed);
+ 
++static inline bool mt7996_has_wa(struct mt7996_dev *dev)
++{
++	return !is_mt7990(&dev->mt76);
++}
++
+ static inline int mt7996_wtbl_bmc_size(struct mt7996_dev *dev)
+ {
+ 	return is_mt7996(&dev->mt76) ? 64 : 32;
+-- 
+2.45.2
+

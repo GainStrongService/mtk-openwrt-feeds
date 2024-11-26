@@ -1,133 +1,144 @@
 diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index 0e33962..3105b98 100644
+index 16dfbff..b782896 100644
 --- a/package/network/services/hostapd/Makefile
 +++ b/package/network/services/hostapd/Makefile
-@@ -85,7 +85,7 @@ ifneq ($(CONFIG_DRIVER_11BE_SUPPORT),)
- endif
+@@ -9,9 +9,9 @@ PKG_RELEASE:=1
  
- CORE_DEPENDS = +ucode +libubus +libucode +ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop +libblobmsg-json +libudebug
+ PKG_SOURCE_URL:=https://w1.fi/hostap.git
+ PKG_SOURCE_PROTO:=git
+-PKG_SOURCE_DATE:=2024-09-15
+-PKG_SOURCE_VERSION:=5ace39b0a4cdbe18ddbc4e18f80ee3876233c20b
+-PKG_MIRROR_HASH:=43187d1ddd923970ef3821a0fe267880c2483f6f1a5acd0dd2d7906661ab1372
++PKG_SOURCE_DATE:=2024-10-13
++PKG_SOURCE_VERSION:=96e48a05aa0a82e91e3cab75506297e433e253d0
++PKG_MIRROR_HASH:=2f3d29a6a08c0dd282b2b7647f31fac167e867961688795fd190d9a3d65702b4
+ 
+ PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
+ PKG_LICENSE:=BSD-3-Clause
+@@ -40,14 +40,16 @@ HOSTAPD_PROVIDERS:=
+ LOCAL_TYPE=$(strip \
+ 		$(if $(findstring wpad,$(BUILD_VARIANT)),wpad, \
+ 		$(if $(findstring supplicant,$(BUILD_VARIANT)),supplicant, \
+-		hostapd \
++		hostapd, \
++		afcd \
+ 		)))
+ 
+ LOCAL_AND_LIB_VARIANT=$(patsubst hostapd-%,%,\
+ 		      $(patsubst wpad-%,%,\
+ 		      $(patsubst supplicant-%,%,\
++		      $(patsubst afcd-%,%, \
+ 		      $(BUILD_VARIANT)\
+-		      )))
++		      ))))
+ 
+ LOCAL_VARIANT=$(patsubst %-internal,%,\
+ 	      $(patsubst %-openssl,%,\
+@@ -88,8 +90,8 @@ endif
+ CORE_DEPENDS = +ucode +libucode \
+ 	+ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop \
+ 	+libubus +libblobmsg-json \
+-	+libudebug
 -OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl +PACKAGE_$(1):libopenssl-legacy
++	+libudebug +libcurl +libjson-c
 +OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl
  
  DRIVER_MAKEOPTS= \
  	CONFIG_ACS=y CONFIG_DRIVER_NL80211=y \
-@@ -722,6 +722,9 @@ define Package/hostapd-common/install
- 	$(INSTALL_BIN) ./files/wps-hotplug.sh $(1)/etc/rc.button/wps
- 	$(INSTALL_DATA) ./files/wpad_acl.json $(1)/usr/share/acl.d
- 	$(INSTALL_DATA) ./files/wpad.json $(1)/etc/capabilities
-+	[ ! -d $(STAGING_DIR)/usr/include/wpa_ctrl.h ] && $(CP) -f $(PKG_BUILD_DIR)/src/common/wpa_ctrl.h $(STAGING_DIR)/usr/include
-+	[ ! -d $(STAGING_DIR)/usr/lib/wpa_ctrl.o ] && $(CP) -f $(PKG_BUILD_DIR)/build/hostapd/src/common/wpa_ctrl.o $(STAGING_DIR)/usr/lib
-+	[ ! -d $(STAGING_DIR)/usr/lib/os_unix.o ] && $(CP) -f $(PKG_BUILD_DIR)/build/hostapd/src/utils/os_unix.o $(STAGING_DIR)/usr/lib
+@@ -97,7 +99,8 @@ DRIVER_MAKEOPTS= \
+ 	CONFIG_IEEE80211AX=$(HOSTAPD_IEEE80211AX) \
+ 	CONFIG_IEEE80211BE=$(HOSTAPD_IEEE80211BE) \
+ 	CONFIG_MBO=$(CONFIG_WPA_MBO_SUPPORT) \
+-	CONFIG_UCODE=y CONFIG_APUP=y
++	CONFIG_UCODE=y CONFIG_APUP=y CONFIG_AFC=y
++
+ 
+ ifeq ($(SSL_VARIANT),openssl)
+   DRIVER_MAKEOPTS += CONFIG_TLS=openssl CONFIG_SAE=y
+@@ -566,12 +569,33 @@ define Package/eapol-test-mbedtls
+   PROVIDES:=eapol-test
  endef
  
- define Package/hostapd/install
-diff --git a/package/network/services/hostapd/files/hostapd.uc b/package/network/services/hostapd/files/hostapd.uc
-index 2d9ce28..2bc58e4 100644
---- a/package/network/services/hostapd/files/hostapd.uc
-+++ b/package/network/services/hostapd/files/hostapd.uc
-@@ -86,6 +86,7 @@ start_disabled=1
- function iface_freq_info(iface, config, params)
- {
- 	let freq = params.frequency;
-+	let bw320_offset = params.bw320_offset;
- 	if (!freq)
- 		return null;
- 
-@@ -94,25 +95,29 @@ function iface_freq_info(iface, config, params)
- 		sec_offset = 0;
- 
- 	let width = 0;
--	for (let line in config.radio.data) {
--		if (!sec_offset && match(line, /^ht_capab=.*HT40/)) {
--			sec_offset = null; // auto-detect
--			continue;
--		}
-+	if (params.ch_width >= 0){
-+		width = params.ch_width;
-+	} else {
-+		for (let line in config.radio.data) {
-+			if (!sec_offset && match(line, /^ht_capab=.*HT40/)) {
-+				sec_offset = null; // auto-detect
-+				continue;
-+			}
- 
--		let val = match(line, /^(vht_oper_chwidth|he_oper_chwidth)=(\d+)/);
--		if (!val)
--			continue;
-+			let val = match(line, /^(vht_oper_chwidth|he_oper_chwidth|eht_oper_chwidth)=(\d+)/);
-+			if (!val)
-+				continue;
- 
--		val = int(val[2]);
--		if (val > width)
--			width = val;
-+			val = int(val[2]);
-+			if (val > width)
-+				width = val;
-+		}
- 	}
- 
- 	if (freq < 4000)
- 		width = 0;
- 
--	return hostapd.freq_info(freq, sec_offset, width);
-+	return hostapd.freq_info(freq, sec_offset, width, bw320_offset);
- }
- 
- function iface_add(phy, config, phy_status)
-@@ -841,6 +846,8 @@ let main_obj = {
- 			up: true,
- 			frequency: 0,
- 			sec_chan_offset: 0,
-+			ch_width: -1,
-+			bw320_offset: 1,
- 			csa: true,
- 			csa_count: 0,
- 		},
-@@ -849,6 +856,15 @@ let main_obj = {
- 			if (req.args.up == null || !phy)
- 				return libubus.STATUS_INVALID_ARGUMENT;
- 
-+			hostapd.printf(`ucode: mtk: apsta state update`);
-+			hostapd.printf(`    * phy: ${req.args.phy}`);
-+			hostapd.printf(`    * up: ${req.args.up}`);
-+			hostapd.printf(`    * freqeuncy: ${req.args.frequency}`);
-+			hostapd.printf(`    * sec_chan_offset: ${req.args.sec_chan_offset}`);
-+			hostapd.printf(`    * ch_width: ${req.args.ch_width}`);
-+			hostapd.printf(`    * bw320_offset: ${req.args.bw320_offset}`);
-+			hostapd.printf(`    * csa: ${req.args.csa}`);
++define Package/afcd/Default
++  SECTION:=net
++  CATEGORY:=Network
++  SUBMENU:=WirelessAPD
++  TITLE:=AFC daemon for hostapd
++  DEPENDS:=$(DRV_DEPENDS) +hostapd $(CORE_DEPENDS)
++  EXTRA_DEPENDS:=hostapd (=$(PKG_VERSION)-r$(PKG_RELEASE))
++  USERID:=network=101:network=101
++  URL:=https://github.com/LorenzoBianconi/hostapd/tree/hostap-afc-test-allen
++  PROVIDES:=afcd
++endef
 +
- 			let config = hostapd.data.config[phy];
- 			if (!config || !config.bss || !config.bss[0] || !config.bss[0].ifname)
- 				return 0;
-diff --git a/package/network/services/hostapd/files/wpa_supplicant.uc b/package/network/services/hostapd/files/wpa_supplicant.uc
-index fbea276..a9b7f9d 100644
---- a/package/network/services/hostapd/files/wpa_supplicant.uc
-+++ b/package/network/services/hostapd/files/wpa_supplicant.uc
-@@ -316,6 +316,7 @@ function iface_hostapd_notify(phy, ifname, iface, state)
- 	let status = iface.status();
- 	let msg = { phy: phy };
++define Package/afcd
++$(call Package/afcd/Default,$(1))
++  TITLE+= (built-in full)
++endef
++
++define Package/afcd/description
++ This package contains a package that supports hostapd to send afc request
++endef
  
-+	wpas.printf(`ucode: mtk: wpa_s in state ${state} notifies hostapd`);
- 	switch (state) {
- 	case "DISCONNECTED":
- 	case "AUTHENTICATING":
-@@ -330,6 +331,8 @@ function iface_hostapd_notify(phy, ifname, iface, state)
- 		msg.up = true;
- 		msg.frequency = status.frequency;
- 		msg.sec_chan_offset = status.sec_chan_offset;
-+		msg.ch_width = status.ch_width;
-+		msg.bw320_offset = status.bw320_offset;
- 		break;
- 	default:
- 		return;
-@@ -346,6 +349,8 @@ function iface_channel_switch(phy, ifname, iface, info)
- 		csa: true,
- 		csa_count: info.csa_count ? info.csa_count - 1 : 0,
- 		frequency: info.frequency,
-+		ch_width: info.ch_width,
-+		bw320_offset: info.bw320_offset,
- 		sec_chan_offset: info.sec_chan_offset,
- 	};
- 	ubus.call("hostapd", "apsta_state", msg);
-
+ ifneq ($(wildcard $(PKG_BUILD_DIR)/.config_*),$(subst .configured_,.config_,$(STAMP_CONFIGURED)))
+   define Build/Configure/rebuild
+ 	$(FIND) $(PKG_BUILD_DIR) -name \*.o -or -name \*.a | $(XARGS) rm -f
+ 	rm -f $(PKG_BUILD_DIR)/hostapd/hostapd
+ 	rm -f $(PKG_BUILD_DIR)/wpa_supplicant/wpa_supplicant
++	rm -f $(PKG_BUILD_DIR)/afc/afcd
+ 	rm -f $(PKG_BUILD_DIR)/.config_*
+ 	touch $(subst .configured_,.config_,$(STAMP_CONFIGURED))
+   endef
+@@ -595,7 +619,7 @@ TARGET_CPPFLAGS := \
+ 	-D_GNU_SOURCE \
+ 	$(if $(CONFIG_WPA_MSG_MIN_PRIORITY),-DCONFIG_MSG_MIN_PRIORITY=$(CONFIG_WPA_MSG_MIN_PRIORITY))
+ 
+-TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lucode -lm -lnl-tiny -ludebug
++TARGET_LDFLAGS += -lubox -lubus -lblobmsg_json -lucode -lm -lnl-tiny -ludebug -lcurl -ljson-c
+ 
+ ifdef CONFIG_WPA_ENABLE_WEP
+     DRIVER_MAKEOPTS += CONFIG_WEP=y
+@@ -631,6 +655,9 @@ define Build/Compile/wpad
+ 		MULTICALL=1 \
+ 		wpa_cli wpa_supplicant_multi.a \
+ 	)
++	+$(call Build/RunMake,afc, \
++		afcd \
++	)
+ 	+export MAKEFLAGS="$(MAKE_JOBSERVER)"; $(TARGET_CC) -o $(PKG_BUILD_DIR)/wpad \
+ 		$(TARGET_CFLAGS) \
+ 		./files/multicall.c \
+@@ -681,12 +708,13 @@ define Build/Compile
+ endef
+ 
+ define Install/hostapd/full
+-	$(INSTALL_DIR) $(1)/etc/init.d $(1)/etc/config $(1)/etc/radius
++	$(INSTALL_DIR) $(1)/etc/init.d $(1)/etc/config $(1)/etc/radius $(1)/etc/ssl/
+ 	ln -sf hostapd $(1)/usr/sbin/hostapd-radius
+ 	$(INSTALL_BIN) ./files/radius.init $(1)/etc/init.d/radius
+ 	$(INSTALL_DATA) ./files/radius.config $(1)/etc/config/radius
+ 	$(INSTALL_DATA) ./files/radius.clients $(1)/etc/radius/clients
+ 	$(INSTALL_DATA) ./files/radius.users $(1)/etc/radius/users
++	$(INSTALL_DATA) ./files/afc_ca.pem $(1)/etc/ssl/afc_ca.pem
+ endef
+ 
+ define Package/hostapd-full/conffiles
+@@ -787,6 +815,13 @@ Package/wpa-supplicant-mesh-openssl/install = $(Package/wpa-supplicant/install)
+ Package/wpa-supplicant-mesh-wolfssl/install = $(Package/wpa-supplicant/install)
+ Package/wpa-supplicant-mesh-mbedtls/install = $(Package/wpa-supplicant/install)
+ 
++ifneq ($(LOCAL_TYPE),afcd)
++  define Package/afcd/install
++	$(INSTALL_DIR) $(1)/usr/sbin
++	$(CP) $(PKG_BUILD_DIR)/afc/afcd $(1)/usr/sbin/
++  endef
++endif
++
+ ifneq ($(LOCAL_TYPE),hostapd)
+   define Package/wpa-cli/install
+ 	$(INSTALL_DIR) $(1)/usr/sbin
+@@ -862,3 +897,4 @@ $(eval $(call BuildPackage,eapol-test))
+ $(eval $(call BuildPackage,eapol-test-openssl))
+ $(eval $(call BuildPackage,eapol-test-wolfssl))
+ $(eval $(call BuildPackage,eapol-test-mbedtls))
++$(eval $(call BuildPackage,afcd))

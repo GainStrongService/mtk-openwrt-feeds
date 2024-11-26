@@ -1,0 +1,313 @@
+From 8c0607190e31f99298bd5686b350addfa61c1374 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 27 Aug 2024 18:01:03 +0800
+Subject: [PATCH 188/277] mtk: mt76: mt7990: add a macro to represent decive id
+
+This is a preliminary patch to support mt7990 chipset.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/coredump.c |  6 +++---
+ mt7996/eeprom.c   | 12 ++++++------
+ mt7996/init.c     |  8 ++++----
+ mt7996/main.c     |  4 ++--
+ mt7996/mcu.c      |  8 ++++----
+ mt7996/mmio.c     |  8 ++++----
+ mt7996/mt7996.h   |  9 +++++++--
+ mt7996/pci.c      | 19 +++++++++++--------
+ 8 files changed, 41 insertions(+), 33 deletions(-)
+
+diff --git a/mt7996/coredump.c b/mt7996/coredump.c
+index d09bcd4b..9f4b14ce 100644
+--- a/mt7996/coredump.c
++++ b/mt7996/coredump.c
+@@ -109,8 +109,8 @@ const struct mt7996_mem_region*
+ mt7996_coredump_get_mem_layout(struct mt7996_dev *dev, u8 type, u32 *num)
+ {
+ 	switch (mt76_chip(&dev->mt76)) {
+-	case 0x7990:
+-	case 0x7991:
++	case MT7996_DEVICE_ID:
++	case MT7996_DEVICE_ID_2:
+ 		if (type == MT7996_RAM_TYPE_WA) {
+ 			*num = ARRAY_SIZE(mt7996_wa_mem_regions);
+ 			return &mt7996_wa_mem_regions[0];
+@@ -118,7 +118,7 @@ mt7996_coredump_get_mem_layout(struct mt7996_dev *dev, u8 type, u32 *num)
+ 
+ 		*num = ARRAY_SIZE(mt7996_wm_mem_regions);
+ 		return &mt7996_wm_mem_regions[0];
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 		if (type == MT7996_RAM_TYPE_WA) {
+ 			/* mt7992 wa memory regions is the same as mt7996 */
+ 			*num = ARRAY_SIZE(mt7996_wa_mem_regions);
+diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
+index c57da264..46024176 100644
+--- a/mt7996/eeprom.c
++++ b/mt7996/eeprom.c
+@@ -87,9 +87,9 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
+ 	u16 val = get_unaligned_le16(eeprom);
+ 
+ 	switch (val) {
+-	case 0x7990:
++	case MT7996_DEVICE_ID:
+ 		return is_mt7996(&dev->mt76) ? 0 : -EINVAL;
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 		return is_mt7992(&dev->mt76) ? 0 : -EINVAL;
+ 	default:
+ 		return -EINVAL;
+@@ -99,7 +99,7 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
+ const char *mt7996_eeprom_name(struct mt7996_dev *dev)
+ {
+ 	switch (mt76_chip(&dev->mt76)) {
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 		switch (dev->var.type) {
+ 		case MT7992_VAR_TYPE_23:
+ 			if (dev->var.fem == MT7996_FEM_INT)
+@@ -115,7 +115,7 @@ const char *mt7996_eeprom_name(struct mt7996_dev *dev)
+ 				return MT7992_EEPROM_DEFAULT_MIX;
+ 			return MT7992_EEPROM_DEFAULT;
+ 		}
+-	case 0x7990:
++	case MT7996_DEVICE_ID:
+ 	default:
+ 		switch (dev->var.type) {
+ 		case MT7996_VAR_TYPE_233:
+@@ -501,14 +501,14 @@ static void mt7996_eeprom_init_precal(struct mt7996_dev *dev)
+ 	dev->prek.dpd_ch_num[DPD_CH_NUM_BW160_6G] = ARRAY_SIZE(dpd_6g_ch_list_bw160);
+ 
+ 	switch (mt76_chip(&dev->mt76)) {
+-	case 0x7990:
++	case MT7996_DEVICE_ID:
+ 		dev->prek.rev = mt7996_prek_rev;
+ 		if (dev->chip_sku == MT7996_VAR_TYPE_233)
+ 			dev->prek.rev = mt7996_prek_rev_233;
+ 		/* 5g & 6g bw 80 dpd channel list is not used */
+ 		dev->prek.dpd_ch_num[DPD_CH_NUM_BW320_6G] = ARRAY_SIZE(dpd_6g_ch_list_bw320);
+ 		break;
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 		dev->prek.rev  = mt7992_prek_rev;
+ 		dev->prek.dpd_ch_num[DPD_CH_NUM_BW80_5G] = ARRAY_SIZE(dpd_5g_ch_list_bw80);
+ 		/* 6g is not used in current sku */
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 9f801435..55124a09 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -447,12 +447,12 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 	hw->chanctx_data_size = sizeof(struct mt7996_chanctx);
+ 
+ 	switch (mt76_chip(mdev)) {
+-	case 0x7990:
++	case MT7996_DEVICE_ID:
+ 		wiphy->iface_combinations = if_comb;
+ 		wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+ 		wiphy->mbssid_max_interfaces = 16 * 3;
+ 		break;
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 	default:
+ 		wiphy->iface_combinations = if_comb_7992;
+ 		wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_7992);
+@@ -1192,13 +1192,13 @@ static int mt7996_variant_type_init(struct mt7996_dev *dev)
+ 	u8 var_type;
+ 
+ 	switch (mt76_chip(&dev->mt76)) {
+-	case 0x7990:
++	case MT7996_DEVICE_ID:
+ 		if (val & MT_PAD_GPIO_2ADIE_TBTC)
+ 			var_type = MT7996_VAR_TYPE_233;
+ 		else
+ 			var_type = MT7996_VAR_TYPE_444;
+ 		break;
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 		if (val & MT_PAD_GPIO_ADIE_SINGLE)
+ 			var_type = MT7992_VAR_TYPE_23;
+ 		else if (u32_get_bits(val, MT_PAD_GPIO_ADIE_COMB_7992))
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 1f90841a..a44556c1 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -2342,11 +2342,11 @@ mt7996_background_radar_handle_7975_ifem(struct ieee80211_hw *hw,
+ 	bool is_ifem_adie, expand = false;
+ 
+ 	switch (mt76_chip(&dev->mt76)) {
+-	case 0x7990:
++	case MT7996_DEVICE_ID:
+ 		is_ifem_adie = dev->fem_type == MT7996_FEM_INT &&
+ 			       dev->chip_sku != MT7996_VAR_TYPE_233;
+ 		break;
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 		is_ifem_adie = dev->chip_sku == MT7992_VAR_TYPE_44 &&
+ 			       dev->fem_type != MT7996_FEM_EXT;
+ 		break;
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 86830616..c9e8b8c8 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -14,7 +14,7 @@
+ #define fw_name(_dev, name, ...)	({			\
+ 	char *_fw;						\
+ 	switch (mt76_chip(&(_dev)->mt76)) {			\
+-	case 0x7992:						\
++	case MT7992_DEVICE_ID:						\
+ 		switch ((_dev)->var.type) {			\
+ 		case MT7992_VAR_TYPE_23:			\
+ 			_fw = MT7992_##name##_23;		\
+@@ -26,7 +26,7 @@
+ 			_fw = MT7992_##name;			\
+ 		}						\
+ 		break;						\
+-	case 0x7990:						\
++	case MT7996_DEVICE_ID:						\
+ 	default:						\
+ 		switch ((_dev)->var.type) {			\
+ 		case MT7996_VAR_TYPE_233:			\
+@@ -5216,7 +5216,7 @@ static int mt7996_mcu_set_cal_free_data(struct mt7996_dev *dev)
+ 	int adie_id, band, i, ret;
+ 
+ 	switch (mt76_chip(&dev->mt76)) {
+-	case 0x7990:
++	case MT7996_DEVICE_ID:
+ 		adie_base = adie_base_7996;
+ 		/* adie 0 */
+ 		if (dev->fem_type == MT7996_FEM_INT && dev->chip_sku != MT7996_VAR_TYPE_233)
+@@ -5236,7 +5236,7 @@ static int mt7996_mcu_set_cal_free_data(struct mt7996_dev *dev)
+ 		adie_offs[2] = adie_offs_list[ADIE_7977];
+ 		eep_offs[2] = eep_offs_list[ADIE_7977];
+ 		break;
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 		adie_base = adie_base_7992;
+ 		/* adie 0 */
+ 		if (dev->chip_sku == MT7992_VAR_TYPE_44 &&
+diff --git a/mt7996/mmio.c b/mt7996/mmio.c
+index dca6febc..4a1c91d8 100644
+--- a/mt7996/mmio.c
++++ b/mt7996/mmio.c
+@@ -357,7 +357,7 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+ 				     MT_RXQ_RING_BASE(MT7996_RXQ_BAND2) +
+ 				     MT7996_RXQ_BAND2 * MT_RING_SIZE;
+ 
+-		wed->wlan.id = 0x7991;
++		wed->wlan.id = MT7996_DEVICE_ID_2;
+ 		wed->wlan.tx_tbit[0] = ffs(MT_INT_TX_DONE_BAND2) - 1;
+ 	} else {
+ 		wed->wlan.hw_rro = dev->has_rro; /* default on */
+@@ -429,7 +429,7 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+ 		}
+ 		dev->mt76.rx_token_size = MT7996_TOKEN_SIZE + wed->wlan.rx_npkt;
+ 		if(dev->hif2 && is_mt7992(&dev->mt76))
+-			wed->wlan.id = 0x7992;
++			wed->wlan.id = MT7992_DEVICE_ID;
+ 	}
+ 
+ 	wed->wlan.nbuf = MT7996_TOKEN_SIZE;
+@@ -474,13 +474,13 @@ static int mt7996_mmio_init(struct mt76_dev *mdev,
+ 	spin_lock_init(&dev->reg_lock);
+ 
+ 	switch (device_id) {
+-	case 0x7990:
++	case MT7996_DEVICE_ID:
+ 		dev->reg.base = mt7996_reg_base;
+ 		dev->reg.offs_rev = mt7996_offs;
+ 		dev->reg.map = mt7996_reg_map;
+ 		dev->reg.map_size = ARRAY_SIZE(mt7996_reg_map);
+ 		break;
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 		dev->reg.base = mt7996_reg_base;
+ 		dev->reg.offs_rev = mt7992_offs;
+ 		dev->reg.map = mt7996_reg_map;
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index dcbb4d30..8acc3499 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -30,6 +30,11 @@
+ #define MT7996_RX_MCU_RING_SIZE		512
+ #define MT7996_RX_MCU_RING_SIZE_WA	1024
+ 
++#define MT7996_DEVICE_ID		0x7990
++#define MT7996_DEVICE_ID_2		0x7991
++#define MT7992_DEVICE_ID		0x7992
++#define MT7992_DEVICE_ID_2		0x799a
++
+ #define MT7996_FIRMWARE_WA		"mediatek/mt7996/mt7996_wa.bin"
+ #define MT7996_FIRMWARE_WM		"mediatek/mt7996/mt7996_wm.bin"
+ #define MT7996_FIRMWARE_DSP		"mediatek/mt7996/mt7996_dsp.bin"
+@@ -957,11 +962,11 @@ static inline bool
+ mt7996_has_background_radar(struct mt7996_dev *dev)
+ {
+ 	switch (mt76_chip(&dev->mt76)) {
+-	case 0x7990:
++	case MT7996_DEVICE_ID:
+ 		if (dev->var.type == MT7996_VAR_TYPE_233)
+ 			return false;
+ 		break;
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 		if (dev->var.type == MT7992_VAR_TYPE_23 ||
+ 		    dev->var.type == MT7992_VAR_TYPE_24)
+ 			return false;
+diff --git a/mt7996/pci.c b/mt7996/pci.c
+index a010680f..a5dd48fe 100644
+--- a/mt7996/pci.c
++++ b/mt7996/pci.c
+@@ -21,14 +21,14 @@ static DEFINE_SPINLOCK(hif_lock);
+ static u32 hif_idx;
+ 
+ static const struct pci_device_id mt7996_pci_device_table[] = {
+-	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7990) },
+-	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7992) },
++	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, MT7996_DEVICE_ID) },
++	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, MT7992_DEVICE_ID) },
+ 	{ },
+ };
+ 
+ static const struct pci_device_id mt7996_hif_device_table[] = {
+-	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7991) },
+-	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x799a) },
++	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, MT7996_DEVICE_ID_2) },
++	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, MT7992_DEVICE_ID_2) },
+ 	{ },
+ };
+ 
+@@ -71,8 +71,8 @@ static struct mt7996_hif *mt7996_pci_init_hif2(struct pci_dev *pdev)
+ 	if (!hif2_enable)
+ 		return NULL;
+ 
+-	if (!pci_get_device(PCI_VENDOR_ID_MEDIATEK, 0x7991, NULL) &&
+-	    !pci_get_device(PCI_VENDOR_ID_MEDIATEK, 0x799a, NULL))
++	if (!pci_get_device(PCI_VENDOR_ID_MEDIATEK, MT7996_DEVICE_ID_2, NULL) &&
++	    !pci_get_device(PCI_VENDOR_ID_MEDIATEK, MT7992_DEVICE_ID_2, NULL))
+ 		return NULL;
+ 
+ 	writel(hif_idx | MT_PCIE_RECOG_ID_SEM,
+@@ -113,7 +113,9 @@ static int mt7996_pci_probe(struct pci_dev *pdev,
+ 	int irq, ret;
+ 	struct mt76_dev *mdev;
+ 
+-	hif2_enable |= (id->device == 0x7990 || id->device == 0x7991 || id->device == 0x799a);
++	hif2_enable |= (id->device == MT7996_DEVICE_ID ||
++			id->device == MT7996_DEVICE_ID_2 ||
++			id->device == MT7992_DEVICE_ID_2);
+ 
+ 	ret = pcim_enable_device(pdev);
+ 	if (ret)
+@@ -135,7 +137,8 @@ static int mt7996_pci_probe(struct pci_dev *pdev,
+ 
+ 	mt76_pci_disable_aspm(pdev);
+ 
+-	if (id->device == 0x7991 || id->device == 0x799a)
++	if (id->device == MT7996_DEVICE_ID_2 ||
++	    id->device == MT7992_DEVICE_ID_2)
+ 		return mt7996_pci_hif2_probe(pdev);
+ 
+ 	dev = mt7996_mmio_probe(&pdev->dev, pcim_iomap_table(pdev)[0],
+-- 
+2.45.2
+

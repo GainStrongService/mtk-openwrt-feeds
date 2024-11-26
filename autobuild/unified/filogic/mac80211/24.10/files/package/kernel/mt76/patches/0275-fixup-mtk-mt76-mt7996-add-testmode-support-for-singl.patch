@@ -1,0 +1,43 @@
+From 2b2a4f2233508c9c036989c1b89e506ace25cf9a Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Mon, 18 Nov 2024 18:00:21 +0800
+Subject: [PATCH 275/277] fixup! mtk: mt76: mt7996: add testmode support for
+ single wiphy
+
+For real single wiphy, setting testmode state to off & ifconfig down
+are also required before deleting interface
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ tools/main.c | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/tools/main.c b/tools/main.c
+index 527ef201..2b58d6e2 100644
+--- a/tools/main.c
++++ b/tools/main.c
+@@ -401,15 +401,13 @@ static int mt76_delete_iface(struct phy_config *config, int argc, char **argv)
+ 		return 2;
+ 	}
+ 
+-	if (config->radio_idx < 0) {
+-		/* turn off testmode before deleting interface */
+-		ret = mt76_set_state(config, "off");
+-		if (ret)
+-			return ret;
++	/* turn off testmode before deleting interface */
++	ret = mt76_set_state(config, "off");
++	if (ret)
++		return ret;
+ 
+-		sprintf(cmd, "ifconfig %s down", name);
+-		system(cmd);
+-	}
++	sprintf(cmd, "ifconfig %s down", name);
++	system(cmd);
+ 
+ 	/* delete interface */
+ 	msg = unl_genl_msg(&unl, NL80211_CMD_DEL_INTERFACE, false);
+-- 
+2.45.2
+

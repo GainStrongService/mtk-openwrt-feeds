@@ -1,0 +1,592 @@
+From 128cc36bcdb42a1bd10e381409d732e961cc93fc Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Sun, 27 Oct 2024 21:07:09 +0800
+Subject: [PATCH 05/87] sync patches/ath9k
+
+---
+ drivers/net/wireless/ath/ath.h                |   2 +
+ drivers/net/wireless/ath/ath9k/ath9k.h        |   2 +-
+ drivers/net/wireless/ath/ath9k/common-debug.c | 107 +++++++++++++++++
+ drivers/net/wireless/ath/ath9k/common-debug.h |   4 +
+ drivers/net/wireless/ath/ath9k/common.c       |  21 +++-
+ drivers/net/wireless/ath/ath9k/debug.c        |   2 +
+ .../net/wireless/ath/ath9k/htc_drv_debug.c    |   2 +
+ drivers/net/wireless/ath/ath9k/htc_drv_init.c |   7 +-
+ drivers/net/wireless/ath/ath9k/hw.c           | 111 +++++++++++-------
+ drivers/net/wireless/ath/ath9k/hw.h           |   1 +
+ drivers/net/wireless/ath/ath9k/init.c         |  20 ++--
+ drivers/net/wireless/ath/ath9k/mac.c          |   9 +-
+ 12 files changed, 227 insertions(+), 61 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath.h b/drivers/net/wireless/ath/ath.h
+index eb63efd6..5377a353 100644
+--- a/drivers/net/wireless/ath/ath.h
++++ b/drivers/net/wireless/ath/ath.h
+@@ -151,6 +151,7 @@ struct ath_common {
+ 	int debug_mask;
+ 	enum ath_device_state state;
+ 	unsigned long op_flags;
++	u32 chan_bw;
+ 
+ 	struct ath_ani ani;
+ 
+@@ -181,6 +182,7 @@ struct ath_common {
+ 	const struct ath_ops *ops;
+ 	const struct ath_bus_ops *bus_ops;
+ 	const struct ath_ps_ops *ps_ops;
++	const struct ieee80211_ops *ieee_ops;
+ 
+ 	bool btcoex_enabled;
+ 	bool disable_ani;
+diff --git a/drivers/net/wireless/ath/ath9k/ath9k.h b/drivers/net/wireless/ath/ath9k/ath9k.h
+index 97f47105..d3b61d59 100644
+--- a/drivers/net/wireless/ath/ath9k/ath9k.h
++++ b/drivers/net/wireless/ath/ath9k/ath9k.h
+@@ -90,7 +90,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
+ 		(_l) &= ((_sz) - 1);		\
+ 	} while (0)
+ 
+-#define ATH_RXBUF               512
++#define ATH_RXBUF               256
+ #define ATH_TXBUF               512
+ #define ATH_TXBUF_RESERVE       5
+ #define ATH_TXMAXTRY            13
+diff --git a/drivers/net/wireless/ath/ath9k/common-debug.c b/drivers/net/wireless/ath/ath9k/common-debug.c
+index 7aefb79f..944bbe01 100644
+--- a/drivers/net/wireless/ath/ath9k/common-debug.c
++++ b/drivers/net/wireless/ath/ath9k/common-debug.c
+@@ -260,3 +260,110 @@ void ath9k_cmn_debug_phy_err(struct dentry *debugfs_phy,
+ 			    &fops_phy_err);
+ }
+ EXPORT_SYMBOL(ath9k_cmn_debug_phy_err);
++
++static ssize_t read_file_eeprom(struct file *file, char __user *user_buf,
++			     size_t count, loff_t *ppos)
++{
++	struct ath_hw *ah = file->private_data;
++	struct ath_common *common = ath9k_hw_common(ah);
++	int bytes = 0;
++	int pos = *ppos;
++	int size = 4096;
++	u16 val;
++	int i;
++
++	if (AR_SREV_9300_20_OR_LATER(ah))
++		size = 16384;
++
++	if (*ppos < 0)
++		return -EINVAL;
++
++	if (count > size - *ppos)
++		count = size - *ppos;
++
++	for (i = *ppos / 2; count > 0; count -= bytes, *ppos += bytes, i++) {
++		void *from = &val;
++
++		if (!common->bus_ops->eeprom_read(common, i, &val))
++			val = 0xffff;
++
++		if (*ppos % 2) {
++			from++;
++			bytes = 1;
++		} else if (count == 1) {
++			bytes = 1;
++		} else {
++			bytes = 2;
++		}
++		if (copy_to_user(user_buf, from, bytes))
++			return -EFAULT;
++		user_buf += bytes;
++	}
++	return *ppos - pos;
++}
++
++static const struct file_operations fops_eeprom = {
++	.read = read_file_eeprom,
++	.open = simple_open,
++	.owner = THIS_MODULE
++};
++
++void ath9k_cmn_debug_eeprom(struct dentry *debugfs_phy,
++			    struct ath_hw *ah)
++{
++	debugfs_create_file("eeprom", S_IRUSR, debugfs_phy, ah,
++			    &fops_eeprom);
++}
++EXPORT_SYMBOL(ath9k_cmn_debug_eeprom);
++
++static ssize_t read_file_chan_bw(struct file *file, char __user *user_buf,
++			     size_t count, loff_t *ppos)
++{
++	struct ath_hw *ah = file->private_data;
++	struct ath_common *common = ath9k_hw_common(ah);
++	char buf[32];
++	unsigned int len;
++
++	len = sprintf(buf, "0x%08x\n", common->chan_bw);
++	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
++}
++
++static ssize_t write_file_chan_bw(struct file *file, const char __user *user_buf,
++			     size_t count, loff_t *ppos)
++{
++	struct ath_hw *ah = file->private_data;
++	struct ath_common *common = ath9k_hw_common(ah);
++	unsigned long chan_bw;
++	char buf[32];
++	ssize_t len;
++
++	len = min(count, sizeof(buf) - 1);
++	if (copy_from_user(buf, user_buf, len))
++		return -EFAULT;
++
++	buf[len] = '\0';
++	if (kstrtoul(buf, 0, &chan_bw))
++		return -EINVAL;
++
++	common->chan_bw = chan_bw;
++	if (!test_bit(ATH_OP_INVALID, &common->op_flags))
++		common->ieee_ops->config(ah->hw, IEEE80211_CONF_CHANGE_CHANNEL);
++
++	return count;
++}
++
++static const struct file_operations fops_chanbw = {
++	.read = read_file_chan_bw,
++	.write = write_file_chan_bw,
++	.open = simple_open,
++	.owner = THIS_MODULE,
++	.llseek = default_llseek,
++};
++
++void ath9k_cmn_debug_chanbw(struct dentry *debugfs_phy,
++			    struct ath_hw *ah)
++{
++	debugfs_create_file("chanbw", S_IRUSR | S_IWUSR, debugfs_phy, ah,
++			    &fops_chanbw);
++}
++EXPORT_SYMBOL(ath9k_cmn_debug_chanbw);
+diff --git a/drivers/net/wireless/ath/ath9k/common-debug.h b/drivers/net/wireless/ath/ath9k/common-debug.h
+index 54f4c422..7a8b7ed1 100644
+--- a/drivers/net/wireless/ath/ath9k/common-debug.h
++++ b/drivers/net/wireless/ath/ath9k/common-debug.h
+@@ -69,6 +69,10 @@ void ath9k_cmn_debug_modal_eeprom(struct dentry *debugfs_phy,
+ 				  struct ath_hw *ah);
+ void ath9k_cmn_debug_base_eeprom(struct dentry *debugfs_phy,
+ 				 struct ath_hw *ah);
++void ath9k_cmn_debug_eeprom(struct dentry *debugfs_phy,
++			    struct ath_hw *ah);
++void ath9k_cmn_debug_chanbw(struct dentry *debugfs_phy,
++			    struct ath_hw *ah);
+ void ath9k_cmn_debug_stat_rx(struct ath_rx_stats *rxstats,
+ 			     struct ath_rx_status *rs);
+ void ath9k_cmn_debug_recv(struct dentry *debugfs_phy,
+diff --git a/drivers/net/wireless/ath/ath9k/common.c b/drivers/net/wireless/ath/ath9k/common.c
+index 099f3d45..86d4a503 100644
+--- a/drivers/net/wireless/ath/ath9k/common.c
++++ b/drivers/net/wireless/ath/ath9k/common.c
+@@ -297,11 +297,13 @@ EXPORT_SYMBOL(ath9k_cmn_get_hw_crypto_keytype);
+ /*
+  * Update internal channel flags.
+  */
+-static void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
++static void ath9k_cmn_update_ichannel(struct ath_common *common,
++				      struct ath9k_channel *ichan,
+ 				      struct cfg80211_chan_def *chandef)
+ {
+ 	struct ieee80211_channel *chan = chandef->chan;
+ 	u16 flags = 0;
++	int width;
+ 
+ 	ichan->channel = chan->center_freq;
+ 	ichan->chan = chan;
+@@ -309,7 +311,19 @@ static void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
+ 	if (chan->band == NL80211_BAND_5GHZ)
+ 		flags |= CHANNEL_5GHZ;
+ 
+-	switch (chandef->width) {
++	switch (common->chan_bw) {
++	case 5:
++		width = NL80211_CHAN_WIDTH_5;
++		break;
++	case 10:
++		width = NL80211_CHAN_WIDTH_10;
++		break;
++	default:
++		width = chandef->width;
++		break;
++	}
++
++	switch (width) {
+ 	case NL80211_CHAN_WIDTH_5:
+ 		flags |= CHANNEL_QUARTER;
+ 		break;
+@@ -342,10 +356,11 @@ struct ath9k_channel *ath9k_cmn_get_channel(struct ieee80211_hw *hw,
+ 					    struct cfg80211_chan_def *chandef)
+ {
+ 	struct ieee80211_channel *curchan = chandef->chan;
++	struct ath_common *common = ath9k_hw_common(ah);
+ 	struct ath9k_channel *channel;
+ 
+ 	channel = &ah->channels[curchan->hw_value];
+-	ath9k_cmn_update_ichannel(channel, chandef);
++	ath9k_cmn_update_ichannel(common, channel, chandef);
+ 
+ 	return channel;
+ }
+diff --git a/drivers/net/wireless/ath/ath9k/debug.c b/drivers/net/wireless/ath/ath9k/debug.c
+index aac84f33..9090c531 100644
+--- a/drivers/net/wireless/ath/ath9k/debug.c
++++ b/drivers/net/wireless/ath/ath9k/debug.c
+@@ -1429,6 +1429,8 @@ int ath9k_init_debug(struct ath_hw *ah)
+ 
+ 	ath9k_cmn_debug_base_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
+ 	ath9k_cmn_debug_modal_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
++	ath9k_cmn_debug_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
++	ath9k_cmn_debug_chanbw(sc->debug.debugfs_phy, sc->sc_ah);
+ 
+ 	debugfs_create_u32("gpio_mask", 0600,
+ 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_mask);
+diff --git a/drivers/net/wireless/ath/ath9k/htc_drv_debug.c b/drivers/net/wireless/ath/ath9k/htc_drv_debug.c
+index 9437d698..7f761f44 100644
+--- a/drivers/net/wireless/ath/ath9k/htc_drv_debug.c
++++ b/drivers/net/wireless/ath/ath9k/htc_drv_debug.c
+@@ -512,6 +512,8 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
+ 
+ 	ath9k_cmn_debug_base_eeprom(priv->debug.debugfs_phy, priv->ah);
+ 	ath9k_cmn_debug_modal_eeprom(priv->debug.debugfs_phy, priv->ah);
++	ath9k_cmn_debug_eeprom(priv->debug.debugfs_phy, priv->ah);
++	ath9k_cmn_debug_chanbw(priv->debug.debugfs_phy, priv->ah);
+ 
+ 	return 0;
+ }
+diff --git a/drivers/net/wireless/ath/ath9k/htc_drv_init.c b/drivers/net/wireless/ath/ath9k/htc_drv_init.c
+index fa02d9a5..53e49b6b 100644
+--- a/drivers/net/wireless/ath/ath9k/htc_drv_init.c
++++ b/drivers/net/wireless/ath/ath9k/htc_drv_init.c
+@@ -631,6 +631,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
+ 	priv->ah = ah;
+ 
+ 	common = ath9k_hw_common(ah);
++	common->ieee_ops = &ath9k_htc_ops;
+ 	common->ops = &ah->reg_ops;
+ 	common->ps_ops = &ath9k_htc_ps_ops;
+ 	common->bus_ops = &ath9k_usb_bus_ops;
+@@ -746,9 +747,9 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
+ 
+ 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN |
+ 			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
+-			    WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+-
+-	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
++			    WIPHY_FLAG_HAS_CHANNEL_SWITCH |
++			    WIPHY_FLAG_SUPPORTS_5_10_MHZ |
++			    WIPHY_FLAG_SUPPORTS_TDLS;
+ 
+ 	hw->queues = 4;
+ 	hw->max_listen_interval = 1;
+diff --git a/drivers/net/wireless/ath/ath9k/hw.c b/drivers/net/wireless/ath/ath9k/hw.c
+index 8507149e..8630b945 100644
+--- a/drivers/net/wireless/ath/ath9k/hw.c
++++ b/drivers/net/wireless/ath/ath9k/hw.c
+@@ -402,13 +402,8 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
+ 
+ 	ah->config.rx_intr_mitigation = true;
+ 
+-	if (AR_SREV_9300_20_OR_LATER(ah)) {
+-		ah->config.rimt_last = 500;
+-		ah->config.rimt_first = 2000;
+-	} else {
+-		ah->config.rimt_last = 250;
+-		ah->config.rimt_first = 700;
+-	}
++	ah->config.rimt_last = 250;
++	ah->config.rimt_first = 500;
+ 
+ 	if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
+ 		ah->config.pll_pwrsave = 7;
+@@ -667,6 +662,7 @@ int ath9k_hw_init(struct ath_hw *ah)
+ 
+ 	/* These are all the AR5008/AR9001/AR9002/AR9003 hardware family of chipsets */
+ 	switch (ah->hw_version.devid) {
++	case AR9300_DEVID_INVALID:
+ 	case AR5416_DEVID_PCI:
+ 	case AR5416_DEVID_PCIE:
+ 	case AR5416_AR9100_DEVID:
+@@ -1311,39 +1307,56 @@ void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
+ 	*coef_exponent = coef_exp - 16;
+ }
+ 
+-/* AR9330 WAR:
+- * call external reset function to reset WMAC if:
+- * - doing a cold reset
+- * - we have pending frames in the TX queues.
+- */
+-static bool ath9k_hw_ar9330_reset_war(struct ath_hw *ah, int type)
++static bool ath9k_hw_need_external_reset(struct ath_hw *ah, int type)
+ {
+-	int i, npend = 0;
++	int i;
+ 
+-	for (i = 0; i < AR_NUM_QCU; i++) {
+-		npend = ath9k_hw_numtxpending(ah, i);
+-		if (npend)
+-			break;
++	if (type == ATH9K_RESET_COLD)
++		return true;
++
++	if (AR_SREV_9550(ah))
++		return true;
++
++	/* AR9330 WAR:
++	 * call external reset function to reset WMAC if:
++	 * - doing a cold reset
++	 * - we have pending frames in the TX queues.
++	 */
++	if (AR_SREV_9330(ah)) {
++		for (i = 0; i < AR_NUM_QCU; i++) {
++			if (ath9k_hw_numtxpending(ah, i))
++				return true;
++		}
+ 	}
+ 
+-	if (ah->external_reset &&
+-	    (npend || type == ATH9K_RESET_COLD)) {
+-		int reset_err = 0;
++	return false;
++}
+ 
+-		ath_dbg(ath9k_hw_common(ah), RESET,
+-			"reset MAC via external reset\n");
++static bool ath9k_hw_external_reset(struct ath_hw *ah, int type)
++{
++	int err;
+ 
+-		reset_err = ah->external_reset();
+-		if (reset_err) {
+-			ath_err(ath9k_hw_common(ah),
+-				"External reset failed, err=%d\n",
+-				reset_err);
+-			return false;
+-		}
++	if (!ah->external_reset || !ath9k_hw_need_external_reset(ah, type))
++		return true;
++
++	ath_dbg(ath9k_hw_common(ah), RESET,
++		"reset MAC via external reset\n");
+ 
+-		REG_WRITE(ah, AR_RTC_RESET(ah), 1);
++	err = ah->external_reset();
++	if (err) {
++		ath_err(ath9k_hw_common(ah),
++			"External reset failed, err=%d\n", err);
++		return false;
++	}
++
++	if (AR_SREV_9550(ah)) {
++		REG_WRITE(ah, AR_RTC_RESET(ah), 0);
++		udelay(10);
+ 	}
+ 
++	REG_WRITE(ah, AR_RTC_RESET(ah), 1);
++	udelay(10);
++
+ 	return true;
+ }
+ 
+@@ -1396,24 +1409,24 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
+ 			rst_flags |= AR_RTC_RC_MAC_COLD;
+ 	}
+ 
+-	if (AR_SREV_9330(ah)) {
+-		if (!ath9k_hw_ar9330_reset_war(ah, type))
+-			return false;
+-	}
+-
+ 	if (ath9k_hw_mci_is_enabled(ah))
+ 		ar9003_mci_check_gpm_offset(ah);
+ 
+ 	/* DMA HALT added to resolve ar9300 and ar9580 bus error during
+-	 * RTC_RC reg read
++	 * RTC_RC reg read. Also needed for AR9550 external reset
+ 	 */
+-	if (AR_SREV_9300(ah) || AR_SREV_9580(ah)) {
++	if (AR_SREV_9300(ah) || AR_SREV_9580(ah) || AR_SREV_9550(ah)) {
+ 		REG_SET_BIT(ah, AR_CFG, AR_CFG_HALT_REQ);
+ 		ath9k_hw_wait(ah, AR_CFG, AR_CFG_HALT_ACK, AR_CFG_HALT_ACK,
+ 			      20 * AH_WAIT_TIMEOUT);
+-		REG_CLR_BIT(ah, AR_CFG, AR_CFG_HALT_REQ);
+ 	}
+ 
++	if (!AR_SREV_9100(ah))
++		ath9k_hw_external_reset(ah, type);
++
++	if (AR_SREV_9300(ah) || AR_SREV_9580(ah))
++		REG_CLR_BIT(ah, AR_CFG, AR_CFG_HALT_REQ);
++
+ 	REG_WRITE(ah, AR_RTC_RC(ah), rst_flags);
+ 
+ 	REGWRITE_BUFFER_FLUSH(ah);
+@@ -1434,8 +1447,12 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
+ 	if (!AR_SREV_9100(ah))
+ 		REG_WRITE(ah, AR_RC, 0);
+ 
+-	if (AR_SREV_9100(ah))
++	if (AR_SREV_9100(ah)) {
++		/* Reset the AHB-WMAC interface */
++		if (ah->external_reset)
++			ah->external_reset();
+ 		udelay(50);
++	}
+ 
+ 	return true;
+ }
+@@ -2954,7 +2971,8 @@ void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan,
+ {
+ 	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
+ 	struct ieee80211_channel *channel;
+-	int chan_pwr, new_pwr;
++	int chan_pwr, new_pwr, max_gain;
++	int ant_gain, ant_reduction = 0;
+ 	u16 ctl = NO_CTL;
+ 
+ 	if (!chan)
+@@ -2966,9 +2984,18 @@ void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan,
+ 	channel = chan->chan;
+ 	chan_pwr = min_t(int, channel->max_power * 2, MAX_COMBINED_POWER);
+ 	new_pwr = min_t(int, chan_pwr, reg->power_limit);
++	max_gain = chan_pwr - new_pwr + channel->max_antenna_gain * 2;
++
++	ant_gain = get_antenna_gain(ah, chan);
++	if (ant_gain > max_gain)
++		ant_reduction = ant_gain - max_gain;
++
++	/* FCC allows maximum antenna gain of 6 dBi */
++	if (reg->region == NL80211_DFS_FCC)
++		ant_reduction = max_t(int, ant_reduction - 12, 0);
+ 
+ 	ah->eep_ops->set_txpower(ah, chan, ctl,
+-				 get_antenna_gain(ah, chan), new_pwr, test);
++				 ant_reduction, new_pwr, test);
+ }
+ 
+ void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit, bool test)
+diff --git a/drivers/net/wireless/ath/ath9k/hw.h b/drivers/net/wireless/ath/ath9k/hw.h
+index 62436260..7cd572bd 100644
+--- a/drivers/net/wireless/ath/ath9k/hw.h
++++ b/drivers/net/wireless/ath/ath9k/hw.h
+@@ -36,6 +36,7 @@
+ 
+ #define ATHEROS_VENDOR_ID	0x168c
+ 
++#define AR9300_DEVID_INVALID	0xabcd
+ #define AR5416_DEVID_PCI	0x0023
+ #define AR5416_DEVID_PCIE	0x0024
+ #define AR9160_DEVID_PCI	0x0027
+diff --git a/drivers/net/wireless/ath/ath9k/init.c b/drivers/net/wireless/ath/ath9k/init.c
+index 2458387a..f8e77d57 100644
+--- a/drivers/net/wireless/ath/ath9k/init.c
++++ b/drivers/net/wireless/ath/ath9k/init.c
+@@ -48,7 +48,7 @@ int ath9k_modparam_nohwcrypt;
+ module_param_named(nohwcrypt, ath9k_modparam_nohwcrypt, int, 0444);
+ MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
+ 
+-int ath9k_led_blink;
++int ath9k_led_blink = 1;
+ module_param_named(blink, ath9k_led_blink, int, 0444);
+ MODULE_PARM_DESC(blink, "Enable LED blink on activity");
+ 
+@@ -733,6 +733,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
+ 	if (!ath9k_is_chanctx_enabled())
+ 		sc->cur_chan->hw_queue_base = 0;
+ 
++	common->ieee_ops = &ath9k_ops;
+ 	common->ops = &ah->reg_ops;
+ 	common->bus_ops = bus_ops;
+ 	common->ps_ops = &ath9k_ps_ops;
+@@ -882,6 +883,7 @@ static const struct ieee80211_iface_limit if_limits[] = {
+ 				 BIT(NL80211_IFTYPE_AP) },
+ 	{ .max = 1,	.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
+ 				 BIT(NL80211_IFTYPE_P2P_GO) },
++	{ .max = 1,	.types = BIT(NL80211_IFTYPE_ADHOC) },
+ };
+ 
+ #ifdef CPTCFG_ATH9K_CHANNEL_CONTEXT
+@@ -962,6 +964,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
+ 	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
+ 	ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
+ 	ieee80211_hw_set(hw, SUPPORTS_CLONED_SKBS);
++	ieee80211_hw_set(hw, MFP_CAPABLE);
+ 
+ 	if (ath9k_ps_enable)
+ 		ieee80211_hw_set(hw, SUPPORTS_PS);
+@@ -974,9 +977,6 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
+ 				IEEE80211_RADIOTAP_MCS_HAVE_STBC;
+ 	}
+ 
+-	if (AR_SREV_9160_10_OR_LATER(sc->sc_ah) || ath9k_modparam_nohwcrypt)
+-		ieee80211_hw_set(hw, MFP_CAPABLE);
+-
+ 	hw->wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR |
+ 			       NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE |
+ 			       NL80211_FEATURE_P2P_GO_CTWIN;
+@@ -1179,25 +1179,25 @@ static int __init ath9k_init(void)
+ {
+ 	int error;
+ 
+-	error = ath_pci_init();
++	error = ath_ahb_init();
+ 	if (error < 0) {
+-		pr_err("No PCI devices found, driver not installed\n");
+ 		error = -ENODEV;
+ 		goto err_out;
+ 	}
+ 
+-	error = ath_ahb_init();
++	error = ath_pci_init();
+ 	if (error < 0) {
++		pr_err("No PCI devices found, driver not installed\n");
+ 		error = -ENODEV;
+-		goto err_pci_exit;
++		goto err_ahb_exit;
+ 	}
+ 
+ 	dmi_check_system(ath9k_quirks);
+ 
+ 	return 0;
+ 
+- err_pci_exit:
+-	ath_pci_exit();
++ err_ahb_exit:
++	ath_ahb_exit();
+  err_out:
+ 	return error;
+ }
+diff --git a/drivers/net/wireless/ath/ath9k/mac.c b/drivers/net/wireless/ath/ath9k/mac.c
+index b070403e..d8d14a5f 100644
+--- a/drivers/net/wireless/ath/ath9k/mac.c
++++ b/drivers/net/wireless/ath/ath9k/mac.c
+@@ -678,13 +678,18 @@ void ath9k_hw_startpcureceive(struct ath_hw *ah, bool is_scanning)
+ 
+ 	ath9k_ani_reset(ah, is_scanning);
+ 
+-	REG_CLR_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
++	REG_CLR_BIT(ah, AR_DIAG_SW,
++		    AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT | AR_DIAG_FORCE_RX_CLEAR);
+ }
+ EXPORT_SYMBOL(ath9k_hw_startpcureceive);
+ 
+ void ath9k_hw_abortpcurecv(struct ath_hw *ah)
+ {
+-	REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_ABORT | AR_DIAG_RX_DIS);
++	u32 reg = AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT;
++
++	if (!IS_ENABLED(CPTCFG_ATH9K_TX99))
++		reg |= AR_DIAG_FORCE_RX_CLEAR;
++	REG_SET_BIT(ah, AR_DIAG_SW, reg);
+ 
+ 	ath9k_hw_disable_mib_counters(ah);
+ }
+-- 
+2.45.2
+

@@ -1,0 +1,28 @@
+From 79df78fb56e8d7c81d0452e17bd23505b9d7115c Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 12 Nov 2024 09:56:44 +0800
+Subject: [PATCH 256/277] fixup! mtk: mt76: mt7990: add unicmd for removing WA
+
+Add missing field.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/mcu.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index e4f8ff97..9056ae8f 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -8373,6 +8373,8 @@ int mt7996_mcu_set_qos_map(struct mt7996_dev *dev, struct mt7996_bss_conf *mconf
+ 	} __packed req = {
+ 		.tag = cpu_to_le16(UNI_CMD_SDO_SET_QOS_MAP),
+ 		.len = cpu_to_le16(sizeof(req) - 4),
++		.data.bss_idx = mconf->mt76.idx,
++		.data.qos_map_enable = true,
+ 	};
+ 	s8 i;
+ 
+-- 
+2.45.2
+

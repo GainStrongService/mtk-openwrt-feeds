@@ -1,0 +1,157 @@
+From 83143a928fab0655aafda36072afb0f724a5dadb Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Thu, 12 Sep 2024 11:07:04 +0800
+Subject: [PATCH 204/277] mtk: mt76: mt7990: Increase pp auto mode listen time
+
+Add the time is prevent for 5g link doing channel switch triggered by fw
+event before 6g link setup is not finished. The case makes hostapd couldn't
+setup mld successfully.
+
+Change pp detection theshold align for 5 seconds timer.
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ mt7996/main.c   |  4 ----
+ mt7996/mcu.c    | 58 +++++++++++++++++++++++++++++++++++++++++++++++--
+ mt7996/mcu.h    |  3 ++-
+ mt7996/vendor.c | 10 ++++++++-
+ 4 files changed, 67 insertions(+), 8 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 925ff5cf..c6295690 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -2902,10 +2902,6 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = mt7996_mcu_set_pp_alg_ctrl(phy, PP_ALG_SET_TIMER);
+-	if (ret)
+-		return ret;
+-
+ 	return mt7996_config_channel(phy, &ctx->chandef);
+ }
+ 
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index a083af43..f81754a5 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -7309,7 +7309,20 @@ int mt7996_mcu_set_pp_alg_ctrl(struct mt7996_phy *phy, u8 action)
+ 		__le16 len;
+ 
+ 		__le32 pp_timer_intv;
+-		__le32 rsv2[14];
++		__le32 thr_x2_value;
++		__le32 thr_x2_shift;
++		__le32 thr_x3_value;
++		__le32 thr_x3_shift;
++		__le32 thr_x4_value;
++		__le32 thr_x4_shift;
++		__le32 thr_x5_value;
++		__le32 thr_x5_shift;
++		__le32 thr_x6_value;
++		__le32 thr_x6_shift;
++		__le32 thr_x7_value;
++		__le32 thr_x7_shift;
++		__le32 thr_x8_value;
++		__le32 thr_x8_shift;
+ 		u8 band_idx;
+ 		u8 pp_action;
+ 		u8 reset;
+@@ -7318,12 +7331,53 @@ int mt7996_mcu_set_pp_alg_ctrl(struct mt7996_phy *phy, u8 action)
+ 		.tag = cpu_to_le16(UNI_CMD_PP_ALG_CTRL),
+ 		.len = cpu_to_le16(sizeof(req) - 4),
+ 
+-		.pp_timer_intv = action == PP_ALG_SET_TIMER ? 2000 : 0,
++		.pp_timer_intv = 0,
++		.thr_x2_value = 0,
++		.thr_x2_shift = 0,
++		.thr_x3_value = 0,
++		.thr_x3_shift = 0,
++		.thr_x4_value = 0,
++		.thr_x4_shift = 0,
++		.thr_x5_value = 0,
++		.thr_x5_shift = 0,
++		.thr_x6_value = 0,
++		.thr_x6_shift = 0,
++		.thr_x7_value = 0,
++		.thr_x7_shift = 0,
++		.thr_x8_value = 0,
++		.thr_x8_shift = 0,
+ 		.band_idx = phy->mt76->band_idx,
+ 		.pp_action = action,
+ 		.reset = 0,
+ 	};
+ 
++	switch (action)
++	{
++	case PP_ALG_SET_TIMER:
++		req.pp_timer_intv = 5000;
++		break;
++	case PP_ALG_SET_THR:
++		req.thr_x2_value = 1;
++		req.thr_x2_shift = 0;
++		req.thr_x3_value = 5000000;
++		req.thr_x3_shift = 3;
++		req.thr_x4_value = 1;
++		req.thr_x4_shift = 1;
++		req.thr_x5_value = 1;
++		req.thr_x5_shift = 0;
++		req.thr_x6_value = 1;
++		req.thr_x6_shift = 3;
++		req.thr_x7_value = 1;
++		req.thr_x7_shift = 0;
++		req.thr_x8_value = 5000000;
++		req.thr_x8_shift = 2;
++		break;
++	case PP_ALG_GET_STATISTICS:
++		break;
++	default:
++		return 0;
++	}
++
+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(PP),
+ 				 &req, sizeof(req), false);
+ }
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index cbefda6c..ed1dd498 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -1537,7 +1537,8 @@ enum pp_mode {
+ 
+ enum pp_alg_action {
+ 	PP_ALG_SET_TIMER,
+-	PP_ALG_GET_STATISTICS = 2,
++	PP_ALG_SET_THR,
++	PP_ALG_GET_STATISTICS,
+ };
+ 
+ enum {
+diff --git a/mt7996/vendor.c b/mt7996/vendor.c
+index 867c277d..a2ebccf6 100644
+--- a/mt7996/vendor.c
++++ b/mt7996/vendor.c
+@@ -875,11 +875,19 @@ static int mt7996_vendor_pp_ctrl(struct wiphy *wiphy, struct wireless_dev *wdev,
+ 		return 0;
+ 
+ 	switch (mode) {
++	case PP_FW_MODE:
++		err = mt7996_mcu_set_pp_alg_ctrl(phy, PP_ALG_SET_TIMER);
++		if (err)
++			return err;
++
++		err = mt7996_mcu_set_pp_alg_ctrl(phy, PP_ALG_SET_THR);
++		if (err)
++			return err;
++		fallthrough;
+ 	case PP_USR_MODE:
+ 		if (tb[MTK_VENDOR_ATTR_PP_BITMAP])
+ 			punct_bitmap = nla_get_u16(tb[MTK_VENDOR_ATTR_PP_BITMAP]);
+ 		fallthrough;
+-	case PP_FW_MODE:
+ 	case PP_DISABLE:
+ 		err = mt7996_mcu_set_pp_en(phy, mode, punct_bitmap);
+ 		break;
+-- 
+2.45.2
+

@@ -1,0 +1,72 @@
+From 6bb4e70284eed433a8946ae6eec86669337642cb Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Thu, 26 Sep 2024 14:07:08 +0800
+Subject: [PATCH 224/277] mtk: mt76: mt7990: revise txfree format for mt7990
+
+In mt7990, a new txfree format (ver7) is used.
+The differences between ver5 (used by mt7996/mt7992) and ver7 are listed below.
+1. Add TID(bit 11..8) and PID(bit 7..0) in DW2.
+2. An additional DW is added for TXD release timestamp, TXD release period from
+queue head, and PPDU RTS TX count. This DW also sets the Pair bit(bit 31), so skip
+it temporarily to avoid misparsing.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/mac.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index aa0ca248..d3d3a257 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1226,6 +1226,7 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+ 	void *end = data + len;
+ 	bool wake = false;
+ 	u16 total, count = 0;
++	u8 version;
+ 
+ 	/* clean DMA queues and unmap buffers first */
+ 	mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[MT_TXQ_PSD], false);
+@@ -1239,7 +1240,8 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+ 		mt76_queue_tx_cleanup(dev, phy3->q_tx[MT_TXQ_BE], false);
+ 	}
+ 
+-	if (WARN_ON_ONCE(le32_get_bits(tx_free[1], MT_TXFREE1_VER) < 5))
++	version = le32_get_bits(tx_free[1], MT_TXFREE1_VER);
++	if (WARN_ON_ONCE(version < 5))
+ 		return;
+ 
+ 	total = le32_get_bits(tx_free[0], MT_TXFREE0_MSDU_CNT);
+@@ -1257,13 +1259,14 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+ 			struct mt7996_sta *msta;
+ 			unsigned long valid_links;
+ 			unsigned int link_id;
++			u32 next_info;
+ 			u16 idx;
+ 
+ 			idx = FIELD_GET(MT_TXFREE_INFO_WLAN_ID, info);
+ 			wcid = rcu_dereference(dev->mt76.wcid[idx]);
+ 			sta = wcid_to_sta(wcid);
+ 			if (!sta)
+-				continue;
++				goto next;
+ 
+ 			valid_links = sta->valid_links ?: BIT(0);
+ 			msta = (struct mt7996_sta *)sta->drv_priv;
+@@ -1277,6 +1280,13 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+ 					list_add_tail(&mlink->wcid.poll_list, &mdev->sta_poll_list);
+ 			}
+ 			spin_unlock_bh(&mdev->sta_poll_lock);
++next:
++			/* In version 7, an additional DW with pair = 1 is added. Just skip it here.
++			 * TODO: parse txd release timestamp, PPDU RTS TX count if required.
++			 */
++			next_info = (void *)(cur_info + 1) < end ? le32_to_cpu(*(cur_info + 1)) : 0;
++			if (version == 7 && (next_info & MT_TXFREE_INFO_PAIR))
++				cur_info++;
+ 			continue;
+ 		} else if (info & MT_TXFREE_INFO_HEADER) {
+ 			if (!wcid)
+-- 
+2.45.2
+

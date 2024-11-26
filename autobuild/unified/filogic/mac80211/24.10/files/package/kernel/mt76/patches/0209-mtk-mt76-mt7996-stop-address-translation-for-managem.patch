@@ -1,0 +1,37 @@
+From 5fd6f52afa1abada47e0228ae98c29c68f01b8f5 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Thu, 19 Sep 2024 09:34:53 +0800
+Subject: [PATCH 209/277] mtk: mt76: mt7996: stop address translation for
+ management frames sent to non-associated STAs
+
+When sending management frames to non-associated STAs, mt76 uses the
+broadcast WCID with the header's A1 field set to the STA's address,
+which is unicast.
+
+However, if DIS_MAT is not set, the HW performs address translation,
+causing the header's A1 field become broadcast address.
+
+This commit prevents the address from being translated by setting
+DIS_MAT for management frames sent to non-associated STAs.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/mac.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index e2ef0a65..be54206c 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -794,7 +794,7 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+ 		txwi[6] |= cpu_to_le32(MT_TXD6_DIS_MAT);
+ 	}
+ 
+-	if (!wcid->sta && ieee80211_is_action(fc))
++	if (!wcid->sta && ieee80211_is_mgmt(fc))
+ 		txwi[6] |= cpu_to_le32(MT_TXD6_DIS_MAT);
+ }
+ 
+-- 
+2.45.2
+

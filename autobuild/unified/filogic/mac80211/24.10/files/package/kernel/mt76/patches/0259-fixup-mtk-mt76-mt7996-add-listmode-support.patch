@@ -1,0 +1,45 @@
+From 7aaabe10bf544d1d9e671c7acd139ed32ecd9667 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Wed, 6 Nov 2024 18:23:09 +0800
+Subject: [PATCH 259/277] fixup! mtk: mt76: mt7996: add listmode support
+
+---
+ testmode.c | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/testmode.c b/testmode.c
+index e1926353..0ac737fc 100644
+--- a/testmode.c
++++ b/testmode.c
+@@ -523,22 +523,18 @@ mt76_testmode_set_list_mode(struct mt76_phy *phy, struct nlattr **tb)
+ 	list = &phy->lists[seg_idx];
+ 
+ 	if (tb[MT76_TM_ATTR_LM_CENTER_CH]) {
+-		struct ieee80211_supported_band *sband;
++		struct ieee80211_supported_band *sband = NULL;
+ 		int n_channels;
+ 
+-		switch (phy->cur_band) {
+-		case NL80211_BAND_2GHZ:
++		if (phy->cap.has_2ghz)
+ 			sband = &phy->sband_2g.sband;
+-			break;
+-		case NL80211_BAND_5GHZ:
++		if (phy->cap.has_5ghz)
+ 			sband = &phy->sband_5g.sband;
+-			break;
+-		case NL80211_BAND_6GHZ:
++		if (phy->cap.has_6ghz)
+ 			sband = &phy->sband_6g.sband;
+-			break;
+-		default:
++		if (!sband)
+ 			return -EINVAL;
+-		}
++
+ 		n_channels = sband->n_channels;
+ 		min_ch = sband->channels[0].hw_value;
+ 		max_ch = sband->channels[n_channels - 1].hw_value;
+-- 
+2.45.2
+

@@ -1,0 +1,44 @@
+From 22f33f492b79546ae16d98a12ffd81697bdedab2 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 13 Aug 2024 14:26:52 +0800
+Subject: [PATCH 182/277] mtk: mt76: mt7996: add CU event notification
+ preliminary support
+
+Add preliminary support of the CU event notification.
+This patch should be merged to the final CU event notification patch.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/mcu.c | 2 ++
+ mt7996/mcu.h | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index e73d1193..10e4d03b 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -3819,6 +3819,8 @@ mt7996_mcu_beacon_crit_update(struct sk_buff *rskb, struct sk_buff *skb,
+ 	crit->tim_ie_pos[0] = cpu_to_le16(offs->tim_offset);
+ 	crit->cap_info_ie_pos[0] = cpu_to_le16(offsetof(struct ieee80211_mgmt,
+ 							u.beacon.capab_info));
++	/* Default off until CU finish patch is merged */
++	crit->require_event = false;
+ }
+ 
+ static void
+diff --git a/mt7996/mcu.h b/mt7996/mcu.h
+index 33ba3774..568dfd96 100644
+--- a/mt7996/mcu.h
++++ b/mt7996/mcu.h
+@@ -536,6 +536,8 @@ struct bss_bcn_crit_update_tlv {
+ 	__le32 bypass_seq_bitmap;
+ 	__le16 tim_ie_pos[32];
+ 	__le16 cap_info_ie_pos[32];
++	bool require_event;
++	u8 rsv[3];
+ } __packed;
+ 
+ struct bss_bcn_sta_prof_cntdwn_tlv {
+-- 
+2.45.2
+

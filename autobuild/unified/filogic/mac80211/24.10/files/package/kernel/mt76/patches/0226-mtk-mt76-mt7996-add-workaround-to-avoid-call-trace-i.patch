@@ -1,0 +1,39 @@
+From bcca09cc28ab5084bd93b7919b4fd619bafe3d01 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Thu, 17 Oct 2024 17:02:57 +0800
+Subject: [PATCH 226/277] mtk: mt76: mt7996: add workaround to avoid call trace
+ in testmode
+
+In testmode (under the multi-wiphy model), the radio cannot be enabled
+when it is not used by any interface.
+Otherwise, the unused radio's RX data would be sent to mac80211 and
+processed with the uninitialized wiphy/local/hw data structure, which
+leads to a kernel call trace.
+This commit could be removed once testmode is changed to single wiphy
+model.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/main.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 9f48935f..b1e0288a 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -72,6 +72,12 @@ int mt7996_run(struct ieee80211_hw *hw)
+ 		if (!phy || test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
+ 			continue;
+ 
++		/* FIXME: In testmode (under the multi-wiphy model), only enable the radio
++		 * used by the current wiphy. This avoids the call trace of ieee80211_rx_list.
++		 */
++		if (dev->testmode_enable && phy->mt76->hw != hw)
++			continue;
++
+ 		mt7996_mac_enable_nf(dev, phy->mt76->band_idx);
+ 
+ 		ret = mt7996_mcu_set_rts_thresh(phy, 0x92b);
+-- 
+2.45.2
+

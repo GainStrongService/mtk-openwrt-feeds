@@ -1,0 +1,87 @@
+From 9083a562873da22e80021c1e89032d7574b612a1 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 19 Mar 2024 17:33:49 +0800
+Subject: [PATCH 046/277] mtk: mt76: mt7996: add fallback in case of missing
+ precal data
+
+Align Wi-Fi 6 upstream changes
+https://github.com/openwrt/mt76/commit/2135e201e7a9339e018d4e2d4a33c73266e674d7
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/eeprom.c | 26 ++++++++++++++++++++------
+ mt7996/init.c   |  2 +-
+ mt7996/main.c   |  2 +-
+ 3 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/mt7996/eeprom.c b/mt7996/eeprom.c
+index f1c29e8d..3ec146d0 100644
+--- a/mt7996/eeprom.c
++++ b/mt7996/eeprom.c
+@@ -535,17 +535,31 @@ static int mt7996_eeprom_load_precal(struct mt7996_dev *dev)
+ 	size = MT_EE_CAL_GROUP_SIZE + MT_EE_CAL_DPD_SIZE;
+ 
+ 	dev->cal = devm_kzalloc(mdev->dev, size, GFP_KERNEL);
+-	if (!dev->cal)
+-		return -ENOMEM;
++	if (!dev->cal) {
++		ret = -ENOMEM;
++		goto fail;
++	}
+ 
+-	if (dev->bin_file_mode)
+-		return mt7996_eeprom_load_precal_binfile(dev, MT_EE_PRECAL, size);
++	if (dev->bin_file_mode) {
++		ret = mt7996_eeprom_load_precal_binfile(dev, MT_EE_PRECAL, size);
++		if (ret)
++			goto fail;
++	}
+ 
+ 	ret = mt76_get_of_data_from_mtd(mdev, dev->cal, offs, size);
+ 	if (!ret)
+-		return ret;
++		return 0;
+ 
+-	return mt76_get_of_data_from_nvmem(mdev, dev->cal, "precal", size);
++	ret = mt76_get_of_data_from_nvmem(mdev, dev->cal, "precal", size);
++	if (!ret)
++		return 0;
++
++fail:
++	dev_warn(dev->mt76.dev, "Failed to load precal data: %d\n", ret);
++	devm_kfree(dev->mt76.dev, dev->cal);
++	dev->cal = NULL;
++
++	return ret;
+ }
+ 
+ static int mt7996_apply_cal_free_data(struct mt7996_dev *dev)
+diff --git a/mt7996/init.c b/mt7996/init.c
+index 92d4d6ff..849a6396 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -1018,7 +1018,7 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	if (dev->flash_mode) {
++	if (dev->cal) {
+ 		ret = mt7996_mcu_apply_group_cal(dev);
+ 		if (ret)
+ 			return ret;
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 9376d693..27214916 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -338,7 +338,7 @@ int mt7996_set_channel(struct mt76_phy *mphy)
+ 	struct mt7996_phy *phy = mphy->priv;
+ 	int ret;
+ 
+-	if (dev->flash_mode) {
++	if (dev->cal) {
+ 		ret = mt7996_mcu_apply_tx_dpd(phy);
+ 		if (ret)
+ 			goto out;
+-- 
+2.45.2
+

@@ -1,0 +1,60 @@
+From ef12b8e61e2781877e2d977cb7ddd5f4d8f23166 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 27 Aug 2024 18:05:37 +0800
+Subject: [PATCH 189/277] mtk: mt76: mt7990: use device id macro in internal
+ debug file
+
+This is a preliminary patch to support mt7990 chipset.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/mtk_debugfs.c | 8 ++++----
+ mt7996/mtk_mcu.h     | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
+index 087a0498..35c20e8e 100644
+--- a/mt7996/mtk_debugfs.c
++++ b/mt7996/mtk_debugfs.c
+@@ -3808,9 +3808,9 @@ static size_t
+ ple_cr_num_of_ac(struct mt76_dev *dev)
+ {
+ 	switch (mt76_chip(dev)) {
+-	case 0x7990:
++	case MT7996_DEVICE_ID:
+ 		return CR_NUM_OF_AC_MT7996;
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 	default:
+ 		return CR_NUM_OF_AC_MT7992;
+ 	}
+@@ -4456,8 +4456,8 @@ void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
+ 	u32 device_id = (dev->mt76.rev) >> 16;
+ 	int i = 0;
+ 	static const struct mt7996_dbg_reg_desc dbg_reg_s[] = {
+-		{ 0x7990, mt7996_dbg_offs },
+-		{ 0x7992, mt7992_dbg_offs },
++		{ MT7996_DEVICE_ID, mt7996_dbg_offs },
++		{ MT7992_DEVICE_ID, mt7992_dbg_offs },
+ 	};
+ 
+ 	for (i = 0; i < ARRAY_SIZE(dbg_reg_s); i++) {
+diff --git a/mt7996/mtk_mcu.h b/mt7996/mtk_mcu.h
+index 711903e0..df4e6c1e 100644
+--- a/mt7996/mtk_mcu.h
++++ b/mt7996/mtk_mcu.h
+@@ -819,9 +819,9 @@ enum ibf_version {
+ static inline int get_ibf_version(struct mt7996_dev *dev)
+ {
+ 	switch (mt76_chip(&dev->mt76)) {
+-	case 0x7990:
++	case MT7996_DEVICE_ID:
+ 		return IBF_VER_1;
+-	case 0x7992:
++	case MT7992_DEVICE_ID:
+ 	default:
+ 		return IBF_VER_2;
+ 	}
+-- 
+2.45.2
+

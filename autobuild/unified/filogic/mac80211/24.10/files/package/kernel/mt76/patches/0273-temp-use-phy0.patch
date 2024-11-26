@@ -1,0 +1,31 @@
+From f2a12e429eb7327c59b4f8c9eaeeabda674eeaef Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 12 Nov 2024 10:30:40 +0800
+Subject: [PATCH 273/277] temp use phy0
+
+---
+ mt7996/main.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 5404377c..617a2fea 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -522,12 +522,12 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 	mvif->hw = hw;
+ 	mvif->sta.vif = mvif;
+ 	/* TODO: temporaily set this to prevent some crashes */
+-	mvif->deflink.phy = phy;
++	mvif->deflink.phy = mt7996_hw_phy(hw);
+ 	memset(mvif->band_to_link, IEEE80211_LINK_UNSPECIFIED,
+ 	       sizeof(mvif->band_to_link));
+ 
+ 	if (vif->type == NL80211_IFTYPE_STATION)
+-		err = mt7996_add_bss_conf(phy, vif, &vif->bss_conf);
++		err = mt7996_add_bss_conf(mt7996_hw_phy(hw), vif, &vif->bss_conf);
+ 
+ out:
+ 	mutex_unlock(&dev->mt76.mutex);
+-- 
+2.45.2
+

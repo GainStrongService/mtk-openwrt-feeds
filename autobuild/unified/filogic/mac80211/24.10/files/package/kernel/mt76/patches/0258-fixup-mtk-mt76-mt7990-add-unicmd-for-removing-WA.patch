@@ -1,0 +1,226 @@
+From 375a447eebc0f569f07420d2fc42b4a6f1c1fff5 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Wed, 6 Nov 2024 17:56:04 +0800
+Subject: [PATCH 258/277] fixup! mtk: mt76: mt7990: add unicmd for removing WA
+
+Add mcu command for RED and pkt budget control.
+Fix destination of SDO command.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/mcu.c | 134 ++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 90 insertions(+), 44 deletions(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 9056ae8f..320f7459 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -379,7 +379,7 @@ int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)
+ 		req.tag = cpu_to_le16(UNI_CMD_SDO_SET);
+ 
+ 	if (!mt7996_has_wa(dev))
+-		return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(SDO),
++		return mt76_mcu_send_msg(&dev->mt76, MCU_WA_UNI_CMD(SDO),
+ 					 &req, sizeof(req), true);
+ 
+ 	return mt76_mcu_send_msg(&dev->mt76, cmd, &req.args, sizeof(req.args), false);
+@@ -1135,38 +1135,53 @@ void mt7996_mcu_wmm_pbc_work(struct work_struct *work)
+ #define WMM_PBC_LOW_BOUND_BK	900
+ #define WMM_PBC_LOW_BOUND_MGMT	32
+ 	struct mt7996_dev *dev = container_of(work, struct mt7996_dev, wmm_pbc_work);
++
+ 	struct {
+-		u8 bss_idx;
+-		u8 queue_num;
+-		__le16 wlan_idx;
+-		u8 band_idx;
+-		u8 __rsv[3];
++		u8 _rsv[4];
++
++		__le16 tag;
++		__le16 len;
++
+ 		struct {
+-			__le16 low;
+-			__le16 up;
+-		} __packed bound[WMM_PBC_QUEUE_NUM];
++			u8 bss_idx;
++			u8 queue_num;
++			__le16 wlan_idx;
++			u8 band_idx;
++			u8 __rsv[3];
++			struct {
++				__le16 low;
++				__le16 up;
++			} __packed bound[WMM_PBC_QUEUE_NUM];
++		} __packed data;
+ 	} __packed req = {
+-		.bss_idx = WMM_PBC_BSS_ALL,
+-		.queue_num = WMM_PBC_QUEUE_NUM,
+-		.wlan_idx = cpu_to_le16(WMM_PBC_WLAN_IDX_ALL),
+-		.band_idx = dev->mphy.band_idx,
++		.tag = cpu_to_le16(UNI_CMD_SDO_PKT_BUDGET_CTRL_CFG),
++		.len = cpu_to_le16(sizeof(req) - 4),
++		.data.bss_idx = WMM_PBC_BSS_ALL,
++		.data.queue_num = WMM_PBC_QUEUE_NUM,
++		.data.wlan_idx = cpu_to_le16(WMM_PBC_WLAN_IDX_ALL),
++		.data.band_idx = dev->mphy.band_idx,
+ 	};
+ 	int i, ret;
+ 
+-#define pbc_acq_low_bound_config(_ac, _bound)								\
+-	req.bound[mt76_connac_lmac_mapping(_ac)].low = dev->wmm_pbc_enable ? cpu_to_le16(_bound) : 0
++#define pbc_acq_low_bound_config(_ac, _bound)						\
++	req.data.bound[mt76_connac_lmac_mapping(_ac)].low = dev->wmm_pbc_enable ?	\
++							    cpu_to_le16(_bound) : 0
+ 	pbc_acq_low_bound_config(IEEE80211_AC_VO, WMM_PBC_LOW_BOUND_VO);
+ 	pbc_acq_low_bound_config(IEEE80211_AC_VI, WMM_PBC_LOW_BOUND_VI);
+ 	pbc_acq_low_bound_config(IEEE80211_AC_BE, WMM_PBC_LOW_BOUND_BE);
+ 	pbc_acq_low_bound_config(IEEE80211_AC_BK, WMM_PBC_LOW_BOUND_BK);
+-	req.bound[4].low = dev->wmm_pbc_enable
+-	                   ? cpu_to_le16(WMM_PBC_LOW_BOUND_MGMT) : 0;
++	req.data.bound[4].low = dev->wmm_pbc_enable ?
++				cpu_to_le16(WMM_PBC_LOW_BOUND_MGMT) : 0;
+ 
+ 	for (i = 0; i < WMM_PBC_QUEUE_NUM; ++i)
+-		req.bound[i].up = cpu_to_le16(WMM_PBC_BOUND_DEFAULT);
++		req.data.bound[i].up = cpu_to_le16(WMM_PBC_BOUND_DEFAULT);
+ 
+-	ret = mt76_mcu_send_msg(&dev->mt76, MCU_WA_EXT_CMD(PKT_BUDGET_CTRL),
+-	                        &req, sizeof(req), true);
++	if (is_mt7990(&dev->mt76))
++		ret = mt76_mcu_send_msg(&dev->mt76, MCU_WA_UNI_CMD(SDO),
++					 &req, sizeof(req), true);
++	else
++		ret = mt76_mcu_send_msg(&dev->mt76, MCU_WA_EXT_CMD(PKT_BUDGET_CTRL),
++					&req.data, sizeof(req.data), true);
+ 	if (ret)
+ 		dev_err(dev->mt76.dev, "Failed to configure WMM PBC.\n");
+ }
+@@ -4976,13 +4991,21 @@ out:
+ 
+ static int mt7996_mcu_wa_red_config(struct mt7996_dev *dev)
+ {
+-#define RED_TOKEN_SRC_CNT	4
+ #define RED_TOKEN_CONFIG	2
+-	struct {
+-		__le32 arg0;
+-		__le32 arg1;
+-		__le32 arg2;
++#define RED_TOKEN_SRC_CNT	4
++#define RED_MAX_BAND_CNT	4
++
++	struct mt7996_wa_params {
++		__le32 arg[3];
++	} __packed;
++
++	struct mt7996_red_config_hdr {
++		u8 rsv[4];
++		__le16 tag;
++		__le16 len;
++	} __packed;
+ 
++	struct mt7996_red_config {
+ 		u8 mode;
+ 		u8 version;
+ 		u8 _rsv[4];
+@@ -4992,30 +5015,53 @@ static int mt7996_mcu_wa_red_config(struct mt7996_dev *dev)
+ 		__le16 priority_offset;
+ 		__le16 token_per_src[RED_TOKEN_SRC_CNT];
+ 		__le16 token_thr_per_src[RED_TOKEN_SRC_CNT];
++	} __packed;
++	struct mt7996_red_config *req;
++	void *data;
++	int ret, len = sizeof(struct mt7996_red_config);
++	u8 i;
+ 
+-		u8 _rsv2[604];
+-	} __packed req = {
+-		.arg0 = cpu_to_le32(MCU_WA_PARAM_RED_CONFIG),
++	len += is_mt7990(&dev->mt76) ?
++		sizeof(struct mt7996_red_config_hdr) + 1120 :
++		sizeof(struct mt7996_wa_params) + 604;
+ 
+-		.mode = RED_TOKEN_CONFIG,
+-		.len = cpu_to_le16(sizeof(req) - sizeof(__le32) * 3),
++	data = kzalloc(len, GFP_KERNEL);
+ 
+-		.tcp_offset = cpu_to_le16(200),
+-		.priority_offset = cpu_to_le16(255),
+-	};
+-	u8 i;
++	if (is_mt7990(&dev->mt76)) {
++		struct mt7996_red_config_hdr *hdr = (struct mt7996_red_config_hdr *)data;
+ 
++		hdr->tag = cpu_to_le16(UNI_CMD_SDO_RED_SETTING);
++		hdr->len = cpu_to_le16(len - 4);
++		req = (struct mt7996_red_config *)(data + sizeof(*hdr));
++		req->len = cpu_to_le16(len - sizeof(*hdr));
++	} else {
++		struct mt7996_wa_params *param = (struct mt7996_wa_params *)data;
++
++		param->arg[0] = cpu_to_le32(MCU_WA_PARAM_RED_CONFIG);
++		req = (struct mt7996_red_config *)(data + sizeof(*param));
++		req->len = cpu_to_le16(len - sizeof(*param));
++	}
++
++	req->mode = RED_TOKEN_CONFIG;
++	req->tcp_offset = cpu_to_le16(200);
++	req->priority_offset = cpu_to_le16(255);
+ 	for (i = 0; i < RED_TOKEN_SRC_CNT; i++) {
+-		req.token_per_src[i] = cpu_to_le16(MT7996_TOKEN_SIZE);
+-		req.token_thr_per_src[i] = cpu_to_le16(MT7996_TOKEN_SIZE);
++		req->token_per_src[i] = cpu_to_le16(MT7996_TOKEN_SIZE);
++		req->token_thr_per_src[i] = cpu_to_le16(MT7996_TOKEN_SIZE);
+ 	}
+ 
+-	if (!mtk_wed_device_active(&dev->mt76.mmio.wed))
+-		req.token_per_src[RED_TOKEN_SRC_CNT - 1] =
+-			cpu_to_le16(MT7996_SW_TOKEN_SIZE);
++	req->token_per_src[RED_TOKEN_SRC_CNT - 1] = dev->mt76.token_size;
+ 
+-	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_PARAM_CMD(SET),
+-				 &req, sizeof(req), false);
++	if (is_mt7990(&dev->mt76))
++		ret = mt76_mcu_send_msg(&dev->mt76, MCU_WA_UNI_CMD(SDO), data,
++					len, true);
++	else
++		ret = mt76_mcu_send_msg(&dev->mt76, MCU_WA_PARAM_CMD(SET), data,
++					len, false);
++
++	kfree(data);
++
++	return ret;
+ }
+ 
+ int mt7996_mcu_red_config(struct mt7996_dev *dev, bool enable)
+@@ -7036,7 +7082,7 @@ int mt7996_mcu_get_bss_acq_pkt_cnt(struct mt7996_dev *dev)
+ 	for (i = 0; i < UNI_CMD_SDO_CFG_BSS_MAP_WORDLEN; i++)
+ 		req.bitmap[i] = cpu_to_le32(~0);
+ 
+-	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(SDO), &req,
++	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_UNI_CMD(SDO), &req,
+ 				 sizeof(req), true);
+ }
+ 
+@@ -7471,7 +7517,7 @@ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode)
+ 		return -EINVAL;
+ 
+ 	if (!mt7996_has_wa(dev))
+-		return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(SDO),
++		return mt76_mcu_send_msg(&dev->mt76, MCU_WA_UNI_CMD(SDO),
+ 					 &req, sizeof(req), true);
+ 
+ 	cp_mode = cpu_to_le32(mode);
+@@ -8417,7 +8463,7 @@ int mt7996_mcu_set_qos_map(struct mt7996_dev *dev, struct mt7996_bss_conf *mconf
+ 	memcpy(mconf->vif->qos_map, req.data.qos_map, IP_DSCP_NUM);
+ 
+ 	if (!mt7996_has_wa(dev))
+-		return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(SDO),
++		return mt76_mcu_send_msg(&dev->mt76, MCU_WA_UNI_CMD(SDO),
+ 					 &req, sizeof(req), true);
+ 
+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_EXT_CMD(SET_QOS_MAP), &req.data,
+-- 
+2.45.2
+

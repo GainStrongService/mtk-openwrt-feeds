@@ -1,0 +1,98 @@
+From 9bab60b0676ea65dbaf4b0e41a928c62f72fb61c Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 21 Oct 2024 09:30:27 +0800
+Subject: [PATCH 233/277] mtk: mt76: mt7990: rename MT_RXQ_BAND1_CTRL to
+ MT_RXQ_EXT_CTRL
+
+The MT_RXQ_EXT_CTRL is ring extension control register for prefetch which
+is unrelated to the band. Use MT_RXQ_EXT_CTRL instead of
+MT_RXQ_BAND1_CTRL to avoid confusion.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/dma.c  | 32 ++++++++++++++++----------------
+ mt7996/regs.h |  2 +-
+ 2 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/mt7996/dma.c b/mt7996/dma.c
+index 54d57da4..7d2f8a83 100644
+--- a/mt7996/dma.c
++++ b/mt7996/dma.c
+@@ -176,45 +176,45 @@ static void __mt7996_dma_prefetch(struct mt7996_dev *dev, u32 ofs)
+ 	mt76_wr(dev, MT_TXQ_EXT_CTRL(1) + ofs, PREFETCH(0x8));
+ 	mt76_wr(dev, MT_MCUQ_EXT_CTRL(MT_MCUQ_WA) + ofs, PREFETCH(0x2));
+ 	mt76_wr(dev, MT_TXQ_EXT_CTRL(2) + ofs, PREFETCH(0x8));
+-	mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MCU) + ofs, PREFETCH(0x2));
+-	mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MCU_WA) + ofs, PREFETCH(0x2));
++	mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MCU) + ofs, PREFETCH(0x2));
++	mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MCU_WA) + ofs, PREFETCH(0x2));
+ 	if (mt7996_has_wa(dev)) {
+-		mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MAIN_WA) + ofs, PREFETCH(0x2));
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MAIN_WA) + ofs, PREFETCH(0x2));
+ 
+ 		queue = is_mt7996(&dev->mt76) ? MT_RXQ_BAND2_WA : MT_RXQ_BAND1_WA;
+-		mt76_wr(dev, MT_RXQ_BAND1_CTRL(queue) + ofs, PREFETCH(0x2));
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(queue) + ofs, PREFETCH(0x2));
+ 	} else {
+-		mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_TXFREE_BAND0) + ofs,
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND0) + ofs,
+ 			PREFETCH(0x8));
+ 		if (dev->hif2)
+-			mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_TXFREE_BAND1) + ofs,
++			mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND1) + ofs,
+ 				PREFETCH(0x8));
+ 	}
+ 
+-	mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MAIN) + ofs, PREFETCH(0x10));
++	mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MAIN) + ofs, PREFETCH(0x10));
+ 
+ 	queue = is_mt7996(&dev->mt76) ? MT_RXQ_BAND2 : MT_RXQ_BAND1;
+-	mt76_wr(dev, MT_RXQ_BAND1_CTRL(queue) + ofs, PREFETCH(0x10));
++	mt76_wr(dev, MT_RXQ_EXT_CTRL(queue) + ofs, PREFETCH(0x10));
+ 
+ 	if (dev->has_rro) {
+-		mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_RRO_BAND0) + ofs,
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_RRO_BAND0) + ofs,
+ 			PREFETCH(0x10));
+ 		if (is_mt7996(&dev->mt76))
+-			mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_RRO_BAND2) + ofs,
++			mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_RRO_BAND2) + ofs,
+ 				PREFETCH(0x10));
+ 		else
+-			mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_RRO_BAND1) + ofs,
++			mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_RRO_BAND1) + ofs,
+ 				PREFETCH(0x10));
+ 
+-		mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MSDU_PAGE_BAND0) + ofs,
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MSDU_PAGE_BAND0) + ofs,
+ 			PREFETCH(0x4));
+-		mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MSDU_PAGE_BAND1) + ofs,
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MSDU_PAGE_BAND1) + ofs,
+ 			PREFETCH(0x4));
+-		mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_MSDU_PAGE_BAND2) + ofs,
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_MSDU_PAGE_BAND2) + ofs,
+ 			PREFETCH(0x4));
+-		mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_TXFREE_BAND0) + ofs,
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND0) + ofs,
+ 			PREFETCH(0x4));
+-		mt76_wr(dev, MT_RXQ_BAND1_CTRL(MT_RXQ_TXFREE_BAND2) + ofs,
++		mt76_wr(dev, MT_RXQ_EXT_CTRL(MT_RXQ_TXFREE_BAND2) + ofs,
+ 			PREFETCH(0x4));
+ 	}
+ #undef PREFETCH
+diff --git a/mt7996/regs.h b/mt7996/regs.h
+index 6b0f0775..0c47269e 100644
+--- a/mt7996/regs.h
++++ b/mt7996/regs.h
+@@ -514,7 +514,7 @@ enum offs_rev {
+ 
+ #define MT_MCUQ_EXT_CTRL(q)			(MT_Q_BASE(q) +	0x600 +	\
+ 						 MT_MCUQ_ID(q) * 0x4)
+-#define MT_RXQ_BAND1_CTRL(q)			(MT_Q_BASE(__RXQ(q)) + 0x680 +	\
++#define MT_RXQ_EXT_CTRL(q)			(MT_Q_BASE(__RXQ(q)) + 0x680 +	\
+ 						 MT_RXQ_ID(q) * 0x4)
+ #define MT_TXQ_EXT_CTRL(q)			(MT_Q_BASE(__TXQ(q)) + 0x600 +	\
+ 						 MT_TXQ_ID(q) * 0x4)
+-- 
+2.45.2
+

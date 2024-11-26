@@ -1,0 +1,30 @@
+From 3c114ece03c4a2613f868d71336688e5ee277a9f Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 22 Oct 2024 15:01:02 +0800
+Subject: [PATCH 236/277] fixup! mtk: mt76: mt7996: add testmode bf support
+
+Fix mt7992 ibf eeprom offset
+2G: 0xC00 ~ 0xC1C use 29 byte instead of sizeof(mt7992_txbf_phase_info_2g)=27 byte
+5G: Use 34 byte each group (same as sizeof(mt7992_txbf_phase_info_5g))
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/testmode.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mt7996/testmode.c b/mt7996/testmode.c
+index 25f2bc53..05fd8184 100644
+--- a/mt7996/testmode.c
++++ b/mt7996/testmode.c
+@@ -1633,7 +1633,7 @@ mt7996_tm_txbf_e2p_update(struct mt7996_phy *phy)
+ {
+ #define TXBF_PHASE_EEPROM_START_OFFSET		0xc00
+ #define TXBF_PHASE_GROUP_EEPROM_OFFSET_VER_1	46
+-#define TXBF_PHASE_G0_EEPROM_OFFSET_VER_2	sizeof(struct mt7992_txbf_phase_info_2g)
++#define TXBF_PHASE_G0_EEPROM_OFFSET_VER_2	29
+ #define TXBF_PHASE_GX_EEPROM_OFFSET_VER_2	sizeof(struct mt7992_txbf_phase_info_5g)
+ 	struct mt7996_txbf_phase *phase, *p;
+ 	struct mt7996_dev *dev = phy->dev;
+-- 
+2.45.2
+

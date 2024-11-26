@@ -1,0 +1,27 @@
+From c3e4b5856102426632834ff96ceccf534235d9cb Mon Sep 17 00:00:00 2001
+From: Bo Jiao <Bo.Jiao@mediatek.com>
+Date: Thu, 27 Jun 2024 14:54:38 +0800
+Subject: [PATCH 151/277] mtk: mt76: mt7996: Fix NULL pointer crash when mac tx
+ free with a msta that has been removed.
+
+Signed-off-by: Bo Jiao <Bo.Jiao@mediatek.com>
+---
+ mt7996/mac.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index ee505a55..3cd034cd 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1212,7 +1212,7 @@ mt7996_mac_tx_free(struct mt7996_dev *dev, void *data, int len)
+ 				struct mt7996_link_sta *mlink =
+ 					rcu_dereference(msta->link[link_id]);
+ 
+-				if (list_empty(&mlink->wcid.poll_list))
++				if (mlink && list_empty(&mlink->wcid.poll_list))
+ 					list_add_tail(&mlink->wcid.poll_list, &mdev->sta_poll_list);
+ 			}
+ 			spin_unlock_bh(&mdev->sta_poll_lock);
+-- 
+2.45.2
+

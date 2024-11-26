@@ -1,0 +1,36 @@
+From b057b2182a7a54f71e25f43cbe54e3623081a40a Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Thu, 9 May 2024 11:10:43 +0800
+Subject: [PATCH 56/87] mtk: mac80211: set max_amsdu_len for link_sta
+
+Get station's max mpdu length from eht cap and compare with AP's
+capability. Update agg.max_amsdu_len in link_sta for driver can
+get correct max mpdu length.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+
+5G and 6G should ignore the max mpdu length in eht cap.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ net/mac80211/eht.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/net/mac80211/eht.c b/net/mac80211/eht.c
+index 7a3116c3..cc60b617 100644
+--- a/net/mac80211/eht.c
++++ b/net/mac80211/eht.c
+@@ -76,6 +76,10 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
+ 	link_sta->cur_max_bandwidth = ieee80211_sta_cap_rx_bw(link_sta);
+ 	link_sta->pub->bandwidth = ieee80211_sta_cur_vht_bw(link_sta);
+ 
++	/* 5G and 6G ignore the max mpdu length in eht cap */
++	if (sband->band != NL80211_BAND_2GHZ)
++		return;
++
+ 	switch (u8_get_bits(eht_cap->eht_cap_elem.mac_cap_info[0],
+ 			    IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK)) {
+ 	case IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_11454:
+-- 
+2.45.2
+
