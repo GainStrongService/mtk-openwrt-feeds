@@ -362,10 +362,58 @@ static ssize_t mtketh_debugfs_write(struct file *file, const char __user *ptr,
 	return len;
 }
 
+static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
+				    size_t len, loff_t *off)
+{
+	struct mtk_eth *eth = file->private_data;
+	unsigned long dbg_level = 0;
+	char buf[8] = "";
+	int count = len;
+
+	len = min((size_t)count, sizeof(buf) - 1);
+	if (copy_from_user(buf, ptr, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (kstrtoul(buf, 0, &dbg_level))
+		return -EINVAL;
+
+	switch (dbg_level) {
+	case 0:
+		atomic_set(&eth->reset.force, 0);
+		break;
+	case 1:
+		if (atomic_read(&eth->reset.force))
+			schedule_work(&eth->pending_work);
+		else
+			pr_info(" stat:disable\n");
+		break;
+	case 2:
+		atomic_set(&eth->reset.force, 1);
+		break;
+	default:
+		pr_info("Usage: echo [level] > /sys/kernel/debug/mtketh/reset\n");
+		pr_info("Commands:   [level]\n");
+		pr_info("		0	disable FE force reset\n");
+		pr_info("		1	trigger FE and WDMA force reset\n");
+		pr_info("		2	enable FE force reset\n");
+		break;
+	}
+
+	return count;
+}
+
 static const struct file_operations fops_reg_w = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
 	.write = mtketh_debugfs_write,
+	.llseek = noop_llseek,
+};
+
+static const struct file_operations fops_eth_reset = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = mtketh_debugfs_reset,
 	.llseek = noop_llseek,
 };
 
@@ -394,7 +442,9 @@ int mtketh_debugfs_init(struct mtk_eth *eth)
 	debugfs_create_file("phy_regs", 0444,
 			    eth_debug.root, eth, &mtketh_debug_fops);
 	debugfs_create_file("phy_reg_w", 0200,
-			    eth_debug.root, eth,  &fops_reg_w);
+			    eth_debug.root, eth, &fops_reg_w);
+	debugfs_create_file("reset", 0444,
+			    eth_debug.root, eth, &fops_eth_reset);
 	if (mt7530_exist(eth)) {
 		debugfs_create_file("mt7530sw_regs", 0444,
 				    eth_debug.root, eth,
