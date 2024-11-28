@@ -1,5 +1,5 @@
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
-index 817ead71..7571f357 100644
+index 817ead71af..7571f35710 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 @@ -44,7 +44,7 @@ hostapd_append_wpa_key_mgmt() {
@@ -559,7 +559,7 @@ index 817ead71..7571f357 100644
  		echo "wps_cred_processing=1" >> "$_config"
  	else
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh b/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh
-index c3772bb4..78ac4ae4 100644
+index c3772bb443..78ac4ae45f 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh
 @@ -204,6 +204,43 @@ _wdev_wrapper \
@@ -628,7 +628,7 @@ index c3772bb4..78ac4ae4 100644
  	config_add_array tags
  }
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
-index 3d953eff..0282a464 100755
+index 3d953eff74..245fbc3e40 100755
 --- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 @@ -30,9 +30,11 @@ drv_mac80211_init_device_config() {
@@ -1190,15 +1190,15 @@ index 3d953eff..0282a464 100755
 +
 +			# Get the lower four bits (last digit in hexadecimal representation)
 +			lower_nibble=$(($b6_dec & 0x0F))
-+
+ 
+-	json_get_vars ifname mode ssid wds powersave macaddr enable wpa_psk_file vlan_file
 +			# Rotate the lower four bits based on mld_id
 +			# Modulus by 16 ensures that the rotation stays within the bounds of a nibble (4 bits)
 +			rotated=$(( (lower_nibble + $mld_id - 1) & 0x0F ))
 +
 +			# Combine the upper four bits with the rotated lower four bits
 +			b6_rotated=$(($b6_dec & 0xF0 | rotated))
- 
--	json_get_vars ifname mode ssid wds powersave macaddr enable wpa_psk_file vlan_file
++
 +			# Reassemble the MAC address
 +			result_mac="${generated_mac%:*}:$(printf '%02X' $b6_rotated)"
 +
@@ -1332,7 +1332,7 @@ index 3d953eff..0282a464 100755
  }
  
  mac80211_set_suffix() {
-@@ -1097,6 +1402,25 @@ mac80211_set_suffix() {
+@@ -1097,6 +1402,74 @@ mac80211_set_suffix() {
  	set_default radio -1
  }
  
@@ -1355,10 +1355,59 @@ index 3d953eff..0282a464 100755
 +	done
 +}
 +
++set_antenna() {
++	local phy=$1
++	local radio_list="$(uci show wireless | grep wifi-device | cut -d '=' -f 1 | cut -d '.' -f 2)"
++	local radio
++	local radio_idx
++	local is_disabled
++	local antenna_mask
++	local offset
++	local radio_tx_antenna
++	local radio_rx_antenna
++	local wiphy_tx_antenna=0
++	local wiphy_rx_antenna=0
++
++	for radio in $radio_list
++	do
++		is_disabled="$(uci show wireless.${radio} | grep "disabled" | cut -d '=' -f 2 | tr -d "'")"
++		radio_idx="$(uci show wireless.${radio}.radio | cut -d '=' -f 2 | tr -d "'")"
++		radio_tx_antenna="$(uci show wireless.${radio} | grep txantenna | cut -d '=' -f 2 | tr -d "'")"
++		radio_rx_antenna="$(uci show wireless.${radio} | grep rxantenna | cut -d '=' -f 2 | tr -d "'")"
++		antenna_mask="$(iw phy ${phy} info | grep "wiphy radio" -A 21 | grep "Idx $radio_idx" -A 2 | grep "antenna_mask" | cut -d ' ' -f 2 | cut -d 'x' -f 2)"
++		antenna_mask=$((0x$antenna_mask))
++
++		offset=0
++		while [ $(($antenna_mask & 1)) -eq 0 ]
++		do
++			antenna_mask=$(($antenna_mask >> 1))
++			offset=$(($offset + 1))
++		done
++
++		if [ "$is_disabled" -ne "1" ] && [ -n "$radio_tx_antenna" ]; then
++			radio_tx_antenna=$(($radio_tx_antenna & $antenna_mask))
++		else
++			radio_tx_antenna=$antenna_mask
++		fi
++
++		wiphy_tx_antenna=$(($wiphy_tx_antenna+$(($radio_tx_antenna << $offset))))
++
++		if [ "$is_disabled" -ne "1" ] && [ -n "$radio_rx_antenna" ]; then
++			radio_rx_antenna=$(($radio_rx_antenna & $antenna_mask))
++		else
++			radio_rx_antenna=$antenna_mask
++		fi
++
++		wiphy_rx_antenna=$(($wiphy_rx_antenna+$(($radio_rx_antenna << $offset))))
++	done
++
++	iw phy $phy set antenna $wiphy_tx_antenna $wiphy_rx_antenna >/dev/null 2>&1
++}
++
  drv_mac80211_setup() {
  	json_select config
  	json_get_vars \
-@@ -1105,7 +1429,8 @@ drv_mac80211_setup() {
+@@ -1105,7 +1478,8 @@ drv_mac80211_setup() {
  		txpower \
  		rxantenna txantenna \
  		frag rts beacon_int:100 htmode \
@@ -1368,7 +1417,7 @@ index 3d953eff..0282a464 100755
  	json_get_values basic_rate_list basic_rate
  	json_get_values scan_list scan_list
  	json_select ..
-@@ -1142,6 +1467,13 @@ drv_mac80211_setup() {
+@@ -1142,6 +1516,13 @@ drv_mac80211_setup() {
  
  	macidx=0
  	staidx=0
@@ -1382,7 +1431,7 @@ index 3d953eff..0282a464 100755
  
  	[ -n "$chanbw" ] && {
  		for file in /sys/kernel/debug/ieee80211/$phy/ath9k*/chanbw /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode; do
-@@ -1159,7 +1491,14 @@ drv_mac80211_setup() {
+@@ -1159,7 +1540,14 @@ drv_mac80211_setup() {
  	[ "$rxantenna" = "$prev_rxantenna" -a "$txantenna" = "$prev_txantenna" ] || mac80211_reset_config "$phy"
  	wireless_set_data phy="$phy" radio="$radio" txantenna="$txantenna" rxantenna="$rxantenna"
  
@@ -1394,11 +1443,11 @@ index 3d953eff..0282a464 100755
 +		sleep 6;
 +	fi
 +
-+	iw phy phy0 set antenna $txantenna $rxantenna >/dev/null 2>&1
++	set_antenna $phy
  	iw phy "$phy" set distance "$distance" >/dev/null 2>&1
  
  	[ -n "$frag" ] && iw phy "$phy" set frag "${frag%%.*}"
-@@ -1184,11 +1523,28 @@ drv_mac80211_setup() {
+@@ -1184,11 +1572,28 @@ drv_mac80211_setup() {
  
  	wpa_supplicant_init_config
  
@@ -1427,7 +1476,7 @@ index 3d953eff..0282a464 100755
  	[ -x /usr/sbin/wpa_supplicant ] && wpa_supplicant_set_config "$phy" "$radio"
  	[ -x /usr/sbin/hostapd ] && hostapd_set_config "$phy" "$radio"
  
-@@ -1200,6 +1556,8 @@ drv_mac80211_setup() {
+@@ -1200,6 +1605,8 @@ drv_mac80211_setup() {
  
  	for_each_interface "ap sta adhoc mesh monitor" mac80211_set_vif_txpower
  	wireless_set_up
@@ -1437,7 +1486,7 @@ index 3d953eff..0282a464 100755
  
  _list_phy_interfaces() {
 diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
-index e82525e2..03a162b8 100644
+index e82525e247..03a162b856 100644
 --- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
 +++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
 @@ -12,6 +12,10 @@ if (!board.wlan)
@@ -1639,10 +1688,10 @@ index e82525e2..03a162b8 100644
  
  if (commit)
 diff --git a/package/network/config/wifi-scripts/files/sbin/wifi b/package/network/config/wifi-scripts/files/sbin/wifi
-index f937dba7..21d4e417 100755
+index f937dba7e6..6f851b8b7a 100755
 --- a/package/network/config/wifi-scripts/files/sbin/wifi
 +++ b/package/network/config/wifi-scripts/files/sbin/wifi
-@@ -175,8 +175,29 @@ wifi_detect_notice() {
+@@ -175,8 +175,30 @@ wifi_detect_notice() {
  }
  
  wifi_config() {
@@ -1652,10 +1701,11 @@ index f937dba7..21d4e417 100755
  	[ -e /tmp/.config_pending ] && return
  	ucode /usr/share/hostap/wifi-detect.uc
 +
-+	if (dmesg | grep -q "WM_TM"); then
-+		export MT76_ENV_WM_TM=1
-+	fi
++	unset MT76_ENV_WM_TM
++	tm=$(cat "/sys/kernel/debug/ieee80211/phy0/mt76/fw_version" | grep -q "Testmode")
++	[ -n "$tm" ] && export MT76_ENV_WM_TM=1
 +
++	unset MT76_ENV_RANDOM_MAC_BYTES
 +	if (dmesg | grep -q "eeprom load fail"); then
 +		# generate random bytes for macaddr
 +		rand=$(hexdump -C /dev/urandom | head -n 1 &)
@@ -1673,7 +1723,7 @@ index f937dba7..21d4e417 100755
  	ucode /lib/wifi/mac80211.uc | uci -q batch
  
 diff --git a/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc b/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
-index c6bfb62e..239b409a 100644
+index c6bfb62ef3..239b409a07 100644
 --- a/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
 +++ b/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
 @@ -101,7 +101,9 @@ function wdev_create(phy, name, data)
@@ -1688,7 +1738,7 @@ index c6bfb62e..239b409a 100644
  
  	nl80211.error();
 diff --git a/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc b/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
-index db862d40..1c041315 100644
+index db862d40c2..1c04131586 100644
 --- a/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
 +++ b/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
 @@ -150,14 +150,19 @@ function wiphy_detect() {
