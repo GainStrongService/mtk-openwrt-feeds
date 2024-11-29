@@ -1,5 +1,5 @@
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
-index 817ead71af..7571f35710 100644
+index 817ead71..7571f357 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 @@ -44,7 +44,7 @@ hostapd_append_wpa_key_mgmt() {
@@ -559,7 +559,7 @@ index 817ead71af..7571f35710 100644
  		echo "wps_cred_processing=1" >> "$_config"
  	else
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh b/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh
-index c3772bb443..78ac4ae45f 100644
+index c3772bb4..78ac4ae4 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh
 @@ -204,6 +204,43 @@ _wdev_wrapper \
@@ -628,7 +628,7 @@ index c3772bb443..78ac4ae45f 100644
  	config_add_array tags
  }
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
-index 3d953eff74..245fbc3e40 100755
+index 3d953eff..245fbc3e 100755
 --- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 @@ -30,9 +30,11 @@ drv_mac80211_init_device_config() {
@@ -1486,7 +1486,7 @@ index 3d953eff74..245fbc3e40 100755
  
  _list_phy_interfaces() {
 diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
-index e82525e247..03a162b856 100644
+index e82525e2..03a162b8 100644
 --- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
 +++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
 @@ -12,6 +12,10 @@ if (!board.wlan)
@@ -1688,10 +1688,10 @@ index e82525e247..03a162b856 100644
  
  if (commit)
 diff --git a/package/network/config/wifi-scripts/files/sbin/wifi b/package/network/config/wifi-scripts/files/sbin/wifi
-index f937dba7e6..6f851b8b7a 100755
+index f937dba7..21d4e417 100755
 --- a/package/network/config/wifi-scripts/files/sbin/wifi
 +++ b/package/network/config/wifi-scripts/files/sbin/wifi
-@@ -175,8 +175,30 @@ wifi_detect_notice() {
+@@ -175,8 +175,29 @@ wifi_detect_notice() {
  }
  
  wifi_config() {
@@ -1701,11 +1701,10 @@ index f937dba7e6..6f851b8b7a 100755
  	[ -e /tmp/.config_pending ] && return
  	ucode /usr/share/hostap/wifi-detect.uc
 +
-+	unset MT76_ENV_WM_TM
-+	tm=$(cat "/sys/kernel/debug/ieee80211/phy0/mt76/fw_version" | grep -q "Testmode")
-+	[ -n "$tm" ] && export MT76_ENV_WM_TM=1
++	if (dmesg | grep -q "WM_TM"); then
++		export MT76_ENV_WM_TM=1
++	fi
 +
-+	unset MT76_ENV_RANDOM_MAC_BYTES
 +	if (dmesg | grep -q "eeprom load fail"); then
 +		# generate random bytes for macaddr
 +		rand=$(hexdump -C /dev/urandom | head -n 1 &)
@@ -1723,7 +1722,7 @@ index f937dba7e6..6f851b8b7a 100755
  	ucode /lib/wifi/mac80211.uc | uci -q batch
  
 diff --git a/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc b/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
-index c6bfb62ef3..239b409a07 100644
+index c6bfb62e..239b409a 100644
 --- a/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
 +++ b/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
 @@ -101,7 +101,9 @@ function wdev_create(phy, name, data)
@@ -1738,7 +1737,7 @@ index c6bfb62ef3..239b409a07 100644
  
  	nl80211.error();
 diff --git a/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc b/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
-index db862d40c2..1c04131586 100644
+index db862d40..1c041315 100644
 --- a/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
 +++ b/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
 @@ -150,14 +150,19 @@ function wiphy_detect() {
@@ -1765,4 +1764,3 @@ index db862d40c2..1c04131586 100644
  			    (he_phy_cap & 0x18) || ((band.vht_capa >> 2) & 0x3))
  				band_info.max_width = 160;
  			else if (band_name != "2G" &&
-
