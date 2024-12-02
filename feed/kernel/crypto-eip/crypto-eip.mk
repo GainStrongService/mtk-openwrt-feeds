@@ -51,7 +51,9 @@ define KernelPackage/crypto-eip
 	CONFIG_CRYPTO_SHA3=y \
 	CONFIG_CRYPTO_HMAC=y \
 	CONFIG_INET_ESP=y \
-	CONFIG_INET_ESP_OFFLOAD=y
+	CONFIG_INET6_ESP=y \
+	CONFIG_INET_ESP_OFFLOAD=y \
+	CONFIG_INET6_ESP_OFFLOAD=y
   DEPENDS:= \
 	@TARGET_mediatek \
 	+strongswan \

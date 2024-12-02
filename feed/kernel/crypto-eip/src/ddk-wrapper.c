@@ -2256,12 +2256,20 @@ u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
 	DMABuf_Handle_t sa_handle = {0};
 	PCL_Status_t pcl_status;
 
-	sa_status = SABuilder_Init_ESP(&params,
-				       &ipsec_params,
-				       be32_to_cpu(xs->id.spi),
-				       ipsec_mode,
-				       SAB_IPSEC_IPV4,
-				       xfrm_params->dir);
+	if (xs->props.family == AF_INET)
+		sa_status = SABuilder_Init_ESP(&params,
+					&ipsec_params,
+					be32_to_cpu(xs->id.spi),
+					ipsec_mode,
+					SAB_IPSEC_IPV4,
+					xfrm_params->dir);
+	else
+		sa_status = SABuilder_Init_ESP(&params,
+					&ipsec_params,
+					be32_to_cpu(xs->id.spi),
+					ipsec_mode,
+					SAB_IPSEC_IPV6,
+					xfrm_params->dir);
 
 	if (sa_status != SAB_STATUS_OK) {
 		pr_err("SABuilder_Init_ESP failed\n");
@@ -2301,8 +2309,13 @@ u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
 	ipsec_params.IPsecFlags |= (SAB_IPSEC_PROCESS_IP_HEADERS
 				    | SAB_IPSEC_EXT_PROCESSING);
 	if (ipsec_mode == SAB_IPSEC_TUNNEL) {
-		ipsec_params.SrcIPAddr_p = (uint8_t *) &xs->props.saddr.a4;
-		ipsec_params.DestIPAddr_p = (uint8_t *) &xs->id.daddr.a4;
+		if (xs->props.family == AF_INET) {
+			ipsec_params.SrcIPAddr_p = (uint8_t *) &xs->props.saddr.a4;
+			ipsec_params.DestIPAddr_p = (uint8_t *) &xs->id.daddr.a4;
+		} else {
+			ipsec_params.SrcIPAddr_p = (uint8_t *) &xs->props.saddr.a6;
+			ipsec_params.DestIPAddr_p = (uint8_t *) &xs->id.daddr.a6;
+		}
 	}
 
 	if (xs->aead)

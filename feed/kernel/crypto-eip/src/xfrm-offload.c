@@ -44,7 +44,11 @@ static inline bool is_tops_tunnel(struct sk_buff *skb)
 
 static inline bool is_tcp(struct sk_buff *skb)
 {
-	return (ntohs(skb->protocol) == ETH_P_IP) && (ip_hdr(skb)->protocol == IPPROTO_TCP);
+	if (ntohs(skb->protocol) == ETH_P_IP)
+		return ip_hdr(skb)->protocol == IPPROTO_TCP;
+	if (ntohs(skb->protocol) == ETH_P_IPV6)
+		return ipv6_hdr(skb)->nexthdr == IPPROTO_TCP;
+	return false;
 }
 
 static inline bool is_hnat_rate_reach(struct sk_buff *skb)
@@ -225,8 +229,8 @@ int mtk_xfrm_offload_state_add(struct xfrm_state *xs)
 	int ret = 0;
 
 	/* TODO: maybe support IPv6 in the future? */
-	if (xs->props.family != AF_INET) {
-		CRYPTO_NOTICE("Only IPv4 xfrm states may be offloaded\n");
+	if (xs->props.family != AF_INET && xs->props.family != AF_INET6) {
+		CRYPTO_NOTICE("Only IPv4 and IPv6 xfrm states may be offloaded\n");
 		return -EINVAL;
 	}
 
@@ -238,8 +242,10 @@ int mtk_xfrm_offload_state_add(struct xfrm_state *xs)
 
 	/* only support tunnel mode or transport mode */
 	if (!(xs->outer_mode.encap == XFRM_MODE_TUNNEL
-	    || xs->outer_mode.encap == XFRM_MODE_TRANSPORT))
+	    || xs->outer_mode.encap == XFRM_MODE_TRANSPORT)) {
+		CRYPTO_NOTICE("Unsupported outer encapsulation type %u\n", xs->outer_mode.encap);
 		return -EINVAL;
+	}
 
 	xfrm_params = devm_kzalloc(crypto_dev,
 				   sizeof(struct mtk_xfrm_params),
@@ -332,7 +338,26 @@ void mtk_xfrm_offload_policy_free(struct xfrm_policy *xp)
 #endif
 }
 
-static inline struct neighbour *mtk_crypto_find_dst_mac(struct sk_buff *skb,  struct xfrm_state *xs)
+static inline struct neighbour *mtk_crypto_find_ipv6_dst_mac(struct sk_buff *skb,
+					struct xfrm_state *xs)
+{
+	struct neighbour *neigh;
+	struct dst_entry *dst = skb_dst(skb);
+
+	neigh = __ipv6_neigh_lookup_noref(dst->dev, &xs->id.daddr.a6);
+	if (unlikely(!neigh)) {
+		CRYPTO_INFO("%s: %s No neigh (daddr=%pI6)\n", __func__, dst->dev->name,
+				&xs->id.daddr.a6);
+		neigh = __neigh_create(&nd_tbl, &xs->id.daddr.a6, dst->dev, false);
+		neigh_output(neigh, skb, false);
+		return NULL;
+	}
+
+	return neigh;
+}
+
+static inline struct neighbour *mtk_crypto_find_ipv4_dst_mac(struct sk_buff *skb,
+					struct xfrm_state *xs)
 {
 	struct neighbour *neigh;
 	struct dst_entry *dst = skb_dst(skb);
@@ -359,7 +384,10 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 
 	rcu_read_lock_bh();
 
-	neigh = mtk_crypto_find_dst_mac(skb, xs);
+	if (xs->props.family == AF_INET)
+		neigh = mtk_crypto_find_ipv4_dst_mac(skb, xs);
+	else
+		neigh = mtk_crypto_find_ipv6_dst_mac(skb, xs);
 	if (!neigh) {
 		rcu_read_unlock_bh();
 		return true;
@@ -376,7 +404,10 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 	skb_push(skb, sizeof(struct ethhdr));
 	skb_reset_mac_header(skb);
 
-	eth_hdr(skb)->h_proto = htons(ETH_P_IP);
+	if (xs->props.family == AF_INET)
+		eth_hdr(skb)->h_proto = htons(ETH_P_IP);
+	else
+		eth_hdr(skb)->h_proto = htons(ETH_P_IPV6);
 	memcpy(eth_hdr(skb)->h_dest, neigh->ha, ETH_ALEN);
 	memcpy(eth_hdr(skb)->h_source, dst->dev->dev_addr, ETH_ALEN);
 
