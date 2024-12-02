@@ -1683,7 +1683,7 @@ static struct tc_settings mt7987_tc_settings[] = {
 		.tc_speed = SET_TC_SPEED_IN_US(118, 118, 118, 118),
 		.hw_filter = LVTS_FILTER_16_OF_18,
 		.dominator_sensing_point = ALL_SENSING_POINTS,
-		.hw_reboot_trip_point = 115000,
+		.hw_reboot_trip_point = 125000,
 		.irq_bit = BIT(4),
 	},
 };
