@@ -206,6 +206,8 @@ bool hnat_flow_entry_match(struct foe_entry *entry, struct foe_entry *data)
 	case IPV6_HNAT:
 		len = offsetof(struct hnat_ipv6_5t_route, resv1);
 		break;
+	default:
+		return false;
 	}
 
 	return !memcmp(&entry->ipv4_hnapt.sip, &data->ipv4_hnapt.sip, len - 4);
