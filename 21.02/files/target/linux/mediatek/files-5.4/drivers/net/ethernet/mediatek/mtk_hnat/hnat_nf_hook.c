@@ -1281,6 +1281,9 @@ static int hnat_ipv6_get_nexthop(struct sk_buff *skb,
 	if (hw_path->flags & BIT(DEV_PATH_PPPOE))
 		return 0;
 
+	if (!skb_hnat_cdrt(skb) && dst && dst_xfrm(dst))
+		return 0;
+
 	rcu_read_lock_bh();
 	ipv6_nexthop =
 		rt6_nexthop((struct rt6_info *)dst, &ipv6_hdr(skb)->daddr);
@@ -1532,26 +1535,40 @@ static inline void hnat_fill_offload_engine_entry(struct sk_buff *skb,
 		 * we fill in hnat tport and tops_entry for tunnel encapsulation
 		 * offloading
 		 */
-		if (skb_hnat_cdrt(skb) && skb_hnat_is_encrypt(skb)) {
-			entry->ipv4_hnapt.tport_id = NR_TDMA_EIP197_QDMA_TPORT;
+		if (IS_IPV4_GRP(entry)) {
+			if (skb_hnat_cdrt(skb) && skb_hnat_is_encrypt(skb)) {
+				entry->ipv4_hnapt.tport_id = NR_TDMA_EIP197_QDMA_TPORT;
+				entry->ipv4_hnapt.cdrt_id = skb_hnat_cdrt(skb);
+			} else
+				entry->ipv4_hnapt.tport_id = NR_TDMA_QDMA_TPORT;
+			entry->ipv4_hnapt.tops_entry = skb_hnat_tops(skb);
+		} else {
+			if (skb_hnat_cdrt(skb) && skb_hnat_is_encrypt(skb)) {
+				entry->ipv6_5t_route.tport_id = NR_TDMA_EIP197_QDMA_TPORT;
+				entry->ipv6_5t_route.cdrt_id = skb_hnat_cdrt(skb);
+			} else
+				entry->ipv6_5t_route.tport_id = NR_TDMA_QDMA_TPORT;
+			entry->ipv6_5t_route.tops_entry = skb_hnat_tops(skb);
+		}
+	} else if (skb_hnat_cdrt(skb) && skb_hnat_is_encrypt(skb)) {
+		if (IS_IPV4_GRP(entry)) {
+			entry->ipv4_hnapt.tport_id = NR_EIP197_QDMA_TPORT;
 			entry->ipv4_hnapt.cdrt_id = skb_hnat_cdrt(skb);
 		} else {
-			entry->ipv4_hnapt.tport_id = NR_TDMA_QDMA_TPORT;
+			entry->ipv6_5t_route.tport_id = NR_EIP197_QDMA_TPORT;
+			entry->ipv6_5t_route.cdrt_id = skb_hnat_cdrt(skb);
 		}
-		entry->ipv4_hnapt.tops_entry = skb_hnat_tops(skb);
-
-	} else if (skb_hnat_cdrt(skb) && skb_hnat_is_encrypt(skb)) {
-		entry->ipv4_hnapt.tport_id = NR_EIP197_QDMA_TPORT;
-		entry->ipv4_hnapt.cdrt_id = skb_hnat_cdrt(skb);
-	} else {
+	} else
 		return;
-	}
 
 	/*
 	 * outbound flow of offload engines use QID 14
 	 * set its rate limit to line rate
 	 */
-	entry->ipv4_hnapt.iblk2.qid = 14;
+	if (IS_IPV4_GRP(entry))
+		entry->ipv4_hnapt.iblk2.qid = 14;
+	else
+		entry->ipv6_5t_route.iblk2.qid = 14;
 	qos_rate_limit_set(14, dev);
 #endif /* defined(CONFIG_MEDIATEK_NETSYS_V3) */
 }
@@ -1586,6 +1603,7 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 	struct foe_entry *foe;
 	struct foe_entry entry = { 0 };
 	struct ethhdr *eth = eth_hdr(skb);
+	struct ipv6hdr *ip6h;
 	struct iphdr *iph;
 	struct tcpudphdr _ports;
 	const struct tcpudphdr *pptr;
@@ -1594,6 +1612,7 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct flow_offload_hw_path hw_path = { .dev = (struct net_device *) dev,
 						.virt_dev = (struct net_device *) dev };
+	u16 h_proto = 0;
 
 	if (!tnl_toggle) {
 		pr_notice("tnl_toggle is disable now!|\n");
@@ -1608,7 +1627,11 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 	if (entry_hnat_is_bound(foe))
 		return 0;
 
-	if (eth->h_proto != htons(ETH_P_IP))
+	if (ip_hdr(skb)->version == IPVERSION_V4)
+		h_proto = ETH_P_IP;
+	else if (ip_hdr(skb)->version == IPVERSION_V6)
+		h_proto = ETH_P_IPV6;
+	else
 		return 0;
 
 	hnat_get_filled_unbind_entry(skb, &entry);
@@ -1619,13 +1642,18 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 	if (skb_hnat_tops(skb) && mtk_tnl_encap_offload)
 		mtk_tnl_encap_offload(skb, eth);
 
+	if (!fill_inner_info)
+		goto hnat_skip_fill_inner;
+
 	/* For packets pass through VTI (route-based IPSec),
 	 * We need to fill the inner packet info into hnat entry.
 	 * Since the skb->mac_header is not pointed to correct position
 	 * in skb_to_hnat_info().
 	 */
-	if (fill_inner_info) {
+	switch (h_proto) {
+	case ETH_P_IP:
 		iph = ip_hdr(skb);
+
 		switch (iph->protocol) {
 		case IPPROTO_UDP:
 			udp = 1;
@@ -1643,11 +1671,9 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 					entry.bfib1.vlan_layer += 1;
 
 					if (entry.ipv4_hnapt.vlan1)
-						entry.ipv4_hnapt.vlan2 =
-							skb->vlan_tci;
+						entry.ipv4_hnapt.vlan2 = skb->vlan_tci;
 					else
-						entry.ipv4_hnapt.vlan1 =
-							skb->vlan_tci;
+						entry.ipv4_hnapt.vlan1 = skb->vlan_tci;
 				}
 
 				entry.ipv4_hnapt.sip = foe->ipv4_hnapt.sip;
@@ -1659,9 +1685,10 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 				entry.ipv4_hnapt.new_dip = ntohl(iph->daddr);
 
 				if (IS_IPV4_HNAPT(&entry)) {
-					pptr = skb_header_pointer(skb, iph->ihl * 4 + ETH_HLEN,
-								  sizeof(_ports),
-								  &_ports);
+					pptr = skb_header_pointer(skb,
+								iph->ihl * 4 + ETH_HLEN,
+								sizeof(_ports),
+								&_ports);
 					if (unlikely(!pptr))
 						return -1;
 
@@ -1674,16 +1701,90 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 			entry.ipv4_hnapt.bfib1.udp = udp;
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
-				entry.ipv4_hnapt.eg_keep_ecn = 1;
-				entry.ipv4_hnapt.eg_keep_dscp = 1;
+			entry.ipv4_hnapt.eg_keep_ecn = 1;
+			entry.ipv4_hnapt.eg_keep_dscp = 1;
 #endif
 			break;
 
 		default:
 			return -1;
 		}
+		break;
+	case ETH_P_IPV6:
+		ip6h = ipv6_hdr(skb);
+		switch (ip6h->nexthdr) {
+		case NEXTHDR_UDP:
+			udp = 1;
+			/* fallthrough */
+		case NEXTHDR_TCP:
+			entry.ipv6_5t_route.sp_tag = htons(ETH_P_IPV6);
+			entry.ipv6_5t_route.vlan1 = hw_path.vlan_id;
+
+			if (skb_vlan_tagged(skb)) {
+				entry.bfib1.vlan_layer += 1;
+
+				if (entry.ipv6_5t_route.vlan1)
+					entry.ipv6_5t_route.vlan2 =
+						skb->vlan_tci;
+				else
+					entry.ipv6_5t_route.vlan1 =
+						skb->vlan_tci;
+			}
+
+			if (hnat_priv->data->per_flow_accounting)
+				entry.ipv6_5t_route.iblk2.mibf = 1;
+			entry.ipv6_5t_route.bfib1.udp = udp;
+
+			entry.ipv6_3t_route.ipv6_sip0 =
+				foe->ipv6_3t_route.ipv6_sip0;
+			entry.ipv6_3t_route.ipv6_sip1 =
+				foe->ipv6_3t_route.ipv6_sip1;
+			entry.ipv6_3t_route.ipv6_sip2 =
+				foe->ipv6_3t_route.ipv6_sip2;
+			entry.ipv6_3t_route.ipv6_sip3 =
+				foe->ipv6_3t_route.ipv6_sip3;
+
+			entry.ipv6_3t_route.ipv6_dip0 =
+				foe->ipv6_3t_route.ipv6_dip0;
+			entry.ipv6_3t_route.ipv6_dip1 =
+				foe->ipv6_3t_route.ipv6_dip1;
+			entry.ipv6_3t_route.ipv6_dip2 =
+				foe->ipv6_3t_route.ipv6_dip2;
+			entry.ipv6_3t_route.ipv6_dip3 =
+				foe->ipv6_3t_route.ipv6_dip3;
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+			entry.ipv6_3t_route.eg_keep_ecn = 1;
+			entry.ipv6_3t_route.eg_keep_cls = 1;
+#endif
+			if (IS_IPV6_3T_ROUTE(&entry)) {
+				entry.ipv6_3t_route.prot =
+					foe->ipv6_3t_route.prot;
+				entry.ipv6_3t_route.hph =
+					foe->ipv6_3t_route.hph;
+			} else if (IS_IPV6_5T_ROUTE(&entry)) {
+				entry.ipv6_5t_route.sport =
+					foe->ipv6_5t_route.sport;
+				entry.ipv6_5t_route.dport =
+					foe->ipv6_5t_route.dport;
+			} else {
+				return 0;
+			}
+
+			entry.ipv6_5t_route.iblk2.dscp =
+				(ip6h->priority << 4 |
+				(ip6h->flow_lbl[0] >> 4));
+			break;
+		default:
+			return -1;
+		}
+		break;
+
+	default:
+		return -1;
 	}
 
+hnat_skip_fill_inner:
 	entry = ppe_fill_info_blk(entry, &hw_path);
 
 	if (IS_LAN(dev)) {
@@ -1704,20 +1805,33 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 		return -1;
 	}
 
-	entry.ipv4_hnapt.iblk2.mibf = 1;
-	entry.ipv4_hnapt.iblk2.dp = gmac;
-	entry.ipv4_hnapt.iblk2.port_mg =
-		(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
-	entry.bfib1.ttl = 1;
+	if (IS_IPV4_GRP(&entry)) {
+		entry.ipv4_hnapt.iblk2.dp = gmac;
+		entry.ipv4_hnapt.iblk2.port_mg =
+			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
+		entry.bfib1.ttl = 1;
+		entry.bfib1.state = BIND;
+		if (!skb_hnat_tops(skb)) {
+			entry.ipv4_hnapt.dmac_hi = swab32(*((u32 *)eth->h_dest));
+			entry.ipv4_hnapt.dmac_lo = swab16(*((u16 *)&eth->h_dest[4]));
+			entry.ipv4_hnapt.smac_hi = swab32(*((u32 *)eth->h_source));
+			entry.ipv4_hnapt.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
+		}
+	} else {
+		entry.ipv6_5t_route.iblk2.dp = gmac;
+		entry.ipv6_5t_route.iblk2.port_mg =
+			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
+		entry.bfib1.ttl = 1;
+		entry.bfib1.state = BIND;
+		if (!skb_hnat_tops(skb)) {
+			entry.ipv6_5t_route.dmac_hi = swab32(*((u32 *)eth->h_dest));
+			entry.ipv6_5t_route.dmac_lo = swab16(*((u16 *)&eth->h_dest[4]));
+			entry.ipv6_5t_route.smac_hi = swab32(*((u32 *)eth->h_source));
+			entry.ipv6_5t_route.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
+		}
+	}
 
 	hnat_fill_offload_engine_entry(skb, &entry, dev);
-
-	if (!skb_hnat_tops(skb)) {
-		entry.ipv4_hnapt.dmac_hi = swab32(*((u32 *)eth->h_dest));
-		entry.ipv4_hnapt.dmac_lo = swab16(*((u16 *)&eth->h_dest[4]));
-		entry.ipv4_hnapt.smac_hi = swab32(*((u32 *)eth->h_source));
-		entry.ipv4_hnapt.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
-	}
 
 	/* wait for entry written done */
 	wmb();
@@ -3409,14 +3523,6 @@ static unsigned int mtk_hnat_nf_post_routing(
 				return 0;
 			}
 		}
-	}
-
-	/* we are not support protocols other than IPv4 TCP for crypto offload yet */
-	if (skb_hnat_is_decrypt(skb) &&
-	    (ntohs(skb->protocol) != ETH_P_IP ||
-	    ip_hdr(skb)->protocol != IPPROTO_TCP)) {
-		skb_hnat_alg(skb) = 1;
-		return 0;
 	}
 
 	if (!IS_LAN_GRP(out) && !IS_WAN(out) && !IS_EXT(out))
