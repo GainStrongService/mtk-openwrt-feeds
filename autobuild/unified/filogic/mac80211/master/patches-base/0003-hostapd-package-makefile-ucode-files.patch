@@ -1,17 +1,17 @@
 diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index 0e33962..3105b98 100644
+index 16dfbff..9f1884a 100644
 --- a/package/network/services/hostapd/Makefile
 +++ b/package/network/services/hostapd/Makefile
-@@ -85,7 +85,7 @@ ifneq ($(CONFIG_DRIVER_11BE_SUPPORT),)
- endif
- 
- CORE_DEPENDS = +ucode +libubus +libucode +ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop +libblobmsg-json +libudebug
+@@ -89,7 +89,7 @@ CORE_DEPENDS = +ucode +libucode \
+ 	+ucode-mod-fs +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uloop \
+ 	+libubus +libblobmsg-json \
+ 	+libudebug
 -OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl +PACKAGE_$(1):libopenssl-legacy
 +OPENSSL_DEPENDS = +PACKAGE_$(1):libopenssl
  
  DRIVER_MAKEOPTS= \
  	CONFIG_ACS=y CONFIG_DRIVER_NL80211=y \
-@@ -722,6 +722,9 @@ define Package/hostapd-common/install
+@@ -732,6 +732,9 @@ define Package/hostapd-common/install
  	$(INSTALL_BIN) ./files/wps-hotplug.sh $(1)/etc/rc.button/wps
  	$(INSTALL_DATA) ./files/wpad_acl.json $(1)/usr/share/acl.d
  	$(INSTALL_DATA) ./files/wpad.json $(1)/etc/capabilities
@@ -130,4 +130,3 @@ index fbea276..a9b7f9d 100644
  		sec_chan_offset: info.sec_chan_offset,
  	};
  	ubus.call("hostapd", "apsta_state", msg);
-
