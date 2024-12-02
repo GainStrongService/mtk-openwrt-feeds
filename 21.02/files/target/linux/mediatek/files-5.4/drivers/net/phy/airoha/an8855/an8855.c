@@ -182,6 +182,9 @@
 /* Unique fields of PMCR for AN8855 */
 #define FORCE_TX_FC		BIT(4)
 #define FORCE_RX_FC		BIT(5)
+#define FORCE_EEE100		BIT(6)
+#define FORCE_EEE1G		BIT(7)
+#define FORCE_EEE2P5G		BIT(8)
 #define FORCE_DPX		BIT(25)
 #define FORCE_SPD		BITS(28, 30)
 #define FORCE_LNK		BIT(24)
@@ -945,6 +948,9 @@ static int an8855_mac_port_setup(struct gsw_an8855 *gsw, u32 port,
 			dev_info(gsw->dev, "%s is not supported by port %d\n",
 				 phy_modes(port_cfg->phy_mode), port);
 		}
+
+		/* disable eee on cpu port */
+		pmcr &= ~(FORCE_EEE100 | FORCE_EEE1G | FORCE_EEE2P5G);
 
 		if (port_cfg->force_link)
 			an8855_reg_write(gsw, PMCR(port), pmcr);
