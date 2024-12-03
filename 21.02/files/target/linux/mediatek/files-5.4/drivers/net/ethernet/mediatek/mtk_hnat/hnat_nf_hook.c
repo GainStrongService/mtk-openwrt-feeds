@@ -3445,13 +3445,15 @@ static unsigned int mtk_hnat_nf_post_routing(
 		if (fn && !mtk_hnat_accel_type(skb))
 			break;
 
-		if (!is_virt_dev) {
-			if (!fn) {
-				memcpy(hw_path.eth_dest, eth_hdr(skb)->h_dest, ETH_ALEN);
-				memcpy(hw_path.eth_src, eth_hdr(skb)->h_source, ETH_ALEN);
-			} else if (fn(skb, arp_dev, &hw_path)) {
+		if (!fn) {
+			memcpy(hw_path.eth_dest, eth_hdr(skb)->h_dest, ETH_ALEN);
+			memcpy(hw_path.eth_src, eth_hdr(skb)->h_source, ETH_ALEN);
+		} else {
+			if (is_virt_dev && (hw_path.flags & BIT(DEV_PATH_TNL))) {
+				memset(hw_path.eth_dest, 0, ETH_ALEN);
+				memset(hw_path.eth_src, 0, ETH_ALEN);
+			} else if (fn(skb, arp_dev, &hw_path))
 				break;
-			}
 		}
 		/* skb_hnat_tops(skb) is updated in mtk_tnl_offload() */
 		if (skb_hnat_tops(skb)) {
