@@ -2180,6 +2180,7 @@ struct mtk_phylink_priv {
 struct adma_monitor {
 	struct adma_rx_monitor {
 		u32		pre_drx[4];
+		u32		pre_fsm;
 		u16		pre_opq;
 		u8		hang_count;
 	} rx;

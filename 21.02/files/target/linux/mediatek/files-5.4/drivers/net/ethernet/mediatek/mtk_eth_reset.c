@@ -785,7 +785,7 @@ u32 mtk_monitor_adma_rx(struct mtk_eth *eth)
 	bool drx_hang = true;
 
 	cur_opq = (mtk_r32(eth, MTK_PSE_OQ_STA(0)) & 0xFFF);
-	cur_fsm = (mtk_r32(eth, MTK_FE_CDM1_FSM) & 0x0F0F0000) != 0;
+	cur_fsm = (mtk_r32(eth, MTK_FE_CDM1_FSM) & 0xFFFF0000);
 	cur_drx[0] = mtk_r32(eth, MTK_ADMA_DRX_PTR);
 	if (cur_drx[0] != adma_rx->pre_drx[0])
 		drx_hang = false;
@@ -799,7 +799,8 @@ u32 mtk_monitor_adma_rx(struct mtk_eth *eth)
 	}
 
 	/* drx remain unchanged && output queue is not zero && fs_fsm busy */
-	if (drx_hang && (cur_opq != 0 && cur_opq == adma_rx->pre_opq) && cur_fsm) {
+	if (drx_hang && (cur_opq != 0 && cur_opq == adma_rx->pre_opq) &&
+	    (cur_fsm != 0 && cur_fsm == adma_rx->pre_fsm)) {
 		adma_rx->hang_count++;
 		if (adma_rx->hang_count >= 5) {
 			pr_info("ADMA Rx Info\n");
@@ -831,6 +832,7 @@ u32 mtk_monitor_adma_rx(struct mtk_eth *eth)
 		adma_rx->hang_count = 0;
 
 	adma_rx->pre_opq = cur_opq;
+	adma_rx->pre_fsm = cur_fsm;
 	adma_rx->pre_drx[0] = cur_drx[0];
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
 		for (i = 1; i < eth->soc->rss_num; i++)
