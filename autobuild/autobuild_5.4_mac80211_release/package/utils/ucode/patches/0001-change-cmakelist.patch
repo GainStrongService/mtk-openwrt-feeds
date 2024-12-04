@@ -1,13 +1,14 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 4564818..c0d46b7 100644
+index bdf0738..861a58b 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -28,14 +28,11 @@ find_library(libuci NAMES uci)
+@@ -28,15 +28,11 @@ find_library(libuci NAMES uci)
  find_library(libubox NAMES ubox)
  find_library(libubus NAMES ubus)
  find_library(libblobmsg_json NAMES blobmsg_json)
 +find_library(libnl_tiny NAMES nl-tiny)
  find_package(ZLIB)
+-find_library(libmd NAMES libmd.a md)
  
 -if(LINUX)
 -  find_library(libnl_tiny NAMES nl-tiny)
@@ -16,8 +17,47 @@ index 4564818..c0d46b7 100644
 -    set(DEFAULT_NL_SUPPORT ON)
 -  endif()
 +if(libnl_tiny AND libubox)
-+ set(DEFAULT_NL_SUPPORT ON)
++  set(DEFAULT_NL_SUPPORT ON)
  endif()
  
  if(libuci AND libubox)
+@@ -55,10 +51,6 @@ if(ZLIB_FOUND)
+   set(DEFAULT_ZLIB_SUPPORT ON)
+ endif()
+ 
+-if(libmd)
+-  set(DEFAULT_DIGEST_SUPPORT ON)
+-endif()
+-
+ option(DEBUG_SUPPORT "Debug plugin support" ON)
+ option(FS_SUPPORT "Filesystem plugin support" ON)
+ option(MATH_SUPPORT "Math plugin support" ON)
+@@ -73,7 +65,6 @@ option(LOG_SUPPORT "Log plugin support" ON)
+ option(SOCKET_SUPPORT "Socket plugin support" ON)
+ option(ZLIB_SUPPORT "Zlib plugin support" ${DEFAULT_ZLIB_SUPPORT})
+ option(DIGEST_SUPPORT "Digest plugin support" ${DEFAULT_DIGEST_SUPPORT})
+-option(DIGEST_SUPPORT_EXTENDED "Enable additional hash algorithms" ${DEFAULT_DIGEST_SUPPORT})
+ 
+ set(LIB_SEARCH_PATH "${CMAKE_INSTALL_PREFIX}/lib/ucode/*.so:${CMAKE_INSTALL_PREFIX}/share/ucode/*.uc:./*.so:./*.uc" CACHE STRING "Default library search path")
+ string(REPLACE ":" "\", \"" LIB_SEARCH_DEFINE "${LIB_SEARCH_PATH}")
+@@ -297,19 +288,6 @@ if(ZLIB_SUPPORT)
+   target_link_libraries(zlib_lib ZLIB::ZLIB)
+ endif()
+ 
+-if(DIGEST_SUPPORT)
+-  pkg_check_modules(LIBMD REQUIRED libmd)
+-  include_directories(${LIBMD_INCLUDE_DIRS})
+-  set(LIBRARIES ${LIBRARIES} digest_lib)
+-  add_library(digest_lib MODULE lib/digest.c)
+-  set_target_properties(digest_lib PROPERTIES OUTPUT_NAME digest PREFIX "")
+-  if(DIGEST_SUPPORT_EXTENDED)
+-    target_compile_definitions(digest_lib PUBLIC HAVE_DIGEST_EXTENDED)
+-  endif()
+-  target_link_options(digest_lib PRIVATE ${UCODE_MODULE_LINK_OPTIONS})
+-  target_link_libraries(digest_lib ${libmd})
+-endif()
+-
+ if(UNIT_TESTING)
+   enable_testing()
+   add_definitions(-DUNIT_TESTING)
 

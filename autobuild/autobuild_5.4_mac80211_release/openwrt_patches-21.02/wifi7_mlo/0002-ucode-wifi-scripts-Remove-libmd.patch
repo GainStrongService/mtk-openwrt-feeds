@@ -1,0 +1,48 @@
+diff --git a/package/network/config/wifi-scripts/Makefile b/package/network/config/wifi-scripts/Makefile
+index 52edd1b5..5953f269 100644
+--- a/package/network/config/wifi-scripts/Makefile
++++ b/package/network/config/wifi-scripts/Makefile
+@@ -20,7 +20,7 @@ include $(INCLUDE_DIR)/package.mk
+ define Package/wifi-scripts
+   SECTION:=utils
+   CATEGORY:=Base system
+-  DEPENDS:=+netifd +ucode +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uci +ucode-mod-digest
++  DEPENDS:=+netifd +ucode +ucode-mod-nl80211 +ucode-mod-rtnl +ucode-mod-ubus +ucode-mod-uci
+   TITLE:=Wi-Fi configuration scripts
+   PKGARCH:=all
+ endef
+diff --git a/package/utils/ucode/Makefile b/package/utils/ucode/Makefile
+index a68dea81..dc238075 100644
+--- a/package/utils/ucode/Makefile
++++ b/package/utils/ucode/Makefile
+@@ -19,7 +19,6 @@ PKG_MAINTAINER:=Jo-Philipp Wich <jo@mein.io>
+ PKG_LICENSE:=ISC
+ 
+ PKG_ABI_VERSION:=20230711
+-PKG_BUILD_DEPENDS:=libmd
+ HOST_BUILD_DEPENDS:=libjson-c/host
+ 
+ include $(INCLUDE_DIR)/package.mk
+@@ -52,9 +51,7 @@ CMAKE_HOST_OPTIONS += \
+ 	-DUCI_SUPPORT=OFF \
+ 	-DULOOP_SUPPORT=OFF \
+ 	-DDEBUG_SUPPORT=ON \
+-	-DLOG_SUPPORT=OFF \
+-	-DDIGEST_SUPPORT=OFF
+-
++	-DLOG_SUPPORT=OFF
+ 
+ define Package/ucode/default
+   SUBMENU:=ucode
+@@ -180,10 +177,6 @@ $(eval $(call UcodeModule, \
+ 	uloop, ULOOP_SUPPORT, +libubox, \
+ 	The uloop module allows ucode scripts to interact with OpenWrt uloop event loop implementation.))
+ 
+-$(eval $(call UcodeModule, \
+-	digest, DIGEST_SUPPORT, , \
+-	The digest module allows ucode scripts to use libmd digests.))
+-
+ $(eval $(call BuildPackage,libucode))
+ $(eval $(call BuildPackage,ucode))
+ 
+

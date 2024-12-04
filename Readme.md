@@ -95,7 +95,11 @@ cd openwrt; mv autobuild_5.4_mac80211_release autobuild
 #Add MTK feed
 echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
 
-#Build MT7987
+#Build MT7987 (Only for the 1st build)
 bash autobuild/mt7987-npu/lede-branch-build-sanity.sh
+
+#Further Build (After 1st full build)
+./scripts/feeds update -a
+make V=s PKG_HASH=skip PKG_MIRROR_HASH=skip
 ```
 
