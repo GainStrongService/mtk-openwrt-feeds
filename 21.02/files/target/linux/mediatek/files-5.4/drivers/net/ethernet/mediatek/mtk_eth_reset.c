@@ -112,6 +112,9 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 
 	mdelay(100);
 
+	if (dbg_show_level)
+		mtk_dump_netsys_info_brief(eth);
+
 	reset_bits |= RSTCTRL_FE;
 	regmap_update_bits(eth->ethsys, ETHSYS_RSTCTRL,
 			   reset_bits, reset_bits);
@@ -165,28 +168,9 @@ int mtk_eth_warm_reset(struct mtk_eth *eth)
 		__func__, val1, val2, val3, i, done);
 
 	if (!done) {
-		mtk_dump_reg(eth, "FE", 0x0, 0x300);
-		mtk_dump_reg(eth, "ADMA", PDMA_BASE + 0x200, 0x10);
-		mtk_dump_reg(eth, "QDMA", QDMA_BASE + 0x200, 0x10);
-		mtk_dump_reg(eth, "WDMA0", WDMA_BASE(0) + 0x200, 0x10);
-		mtk_dump_reg(eth, "WDMA1", WDMA_BASE(1) + 0x200, 0x10);
-		mtk_dump_reg(eth, "PPE0", PPE_BASE(0), 0x10);
-		mtk_dump_reg(eth, "PPE0", PPE_BASE(0) + 0x180, 0x20);
-		if (!MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V1)) {
-			mtk_dump_reg(eth, "PPE1", PPE_BASE(1), 0x10);
-			mtk_dump_reg(eth, "PPE1", PPE_BASE(1) + 0x180, 0x20);
-		}
-		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-			mtk_dump_reg(eth, "PPE2", PPE_BASE(2), 0x10);
-			mtk_dump_reg(eth, "PPE2", PPE_BASE(2) + 0x180, 0x20);
-			regmap_write(eth->ethsys, ETHSYS_LP_NONE_IDLE_LAT0, 0xffffffff);
-			regmap_write(eth->ethsys, ETHSYS_LP_NONE_IDLE_LAT1, 0xffffffff);
-			regmap_read(eth->ethsys, ETHSYS_LP_NONE_IDLE_LAT0, &val1);
-			regmap_read(eth->ethsys, ETHSYS_LP_NONE_IDLE_LAT1, &val2);
-			pr_info("ETHSYS_LP_NONE_IDLE_LAT0:%x\n", val1);
-			pr_info("ETHSYS_LP_NONE_IDLE_LAT1:%x\n", val2);
-		}
+		pr_info("[%s] execute fe cold reset\n", __func__);
 		mtk_eth_cold_reset(eth);
+		mtk_dump_netsys_info_brief(eth);
 	}
 
 	return 0;
@@ -525,6 +509,49 @@ void mtk_dump_netsys_info(void *_eth)
 			mtk_dump_regmap(eth->usxgmii->pcs[0].regmap,
 					"USXGMII0", 0x800, 0x500);
 		}
+	}
+}
+
+void mtk_dump_netsys_info_brief(void *_eth)
+{
+	struct mtk_eth *eth = _eth;
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		regmap_write(eth->ethsys, ETHSYS_LP_NONE_IDLE_LAT0, 0xffffffff);
+		regmap_write(eth->ethsys, ETHSYS_LP_NONE_IDLE_LAT1, 0xffffffff);
+		mtk_dump_regmap(eth->ethsys, "ETHSYS", 0x140, 0x10);
+	}
+	mtk_dump_reg(eth, "FE", 0x180, 0x1C0);
+	mtk_dump_reg(eth, "ADMA", PDMA_BASE + 0x200, 0x40);
+	mtk_dump_reg(eth, "QDMA", QDMA_BASE + 0x200, 0x10);
+	mtk_dump_reg(eth, "WDMA0", WDMA_BASE(0), 0x10);
+	mtk_dump_reg(eth, "WDMA0", WDMA_BASE(0) + 0x100, 0x10);
+	mtk_dump_reg(eth, "WDMA0", WDMA_BASE(0) + 0x200, 0x10);
+	mtk_dump_reg(eth, "WDMA1", WDMA_BASE(1), 0x10);
+	mtk_dump_reg(eth, "WDMA1", WDMA_BASE(1) + 0x100, 0x10);
+	mtk_dump_reg(eth, "WDMA1", WDMA_BASE(1) + 0x200, 0x10);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		mtk_dump_reg(eth, "WDMA2", WDMA_BASE(2), 0x10);
+		mtk_dump_reg(eth, "WDMA2", WDMA_BASE(2) + 0x100, 0x10);
+		mtk_dump_reg(eth, "WDMA2", WDMA_BASE(2) + 0x200, 0x10);
+	}
+	mtk_dump_reg(eth, "PPE0", PPE_BASE(0), 0x10);
+	mtk_dump_reg(eth, "PPE0", PPE_BASE(0) + 0x180, 0x20);
+	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V1)) {
+		mtk_dump_reg(eth, "PPE1", PPE_BASE(1), 0x10);
+		mtk_dump_reg(eth, "PPE1", PPE_BASE(1) + 0x180, 0x20);
+	}
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		mtk_dump_reg(eth, "PPE2", PPE_BASE(2), 0x10);
+		mtk_dump_reg(eth, "PPE2", PPE_BASE(2) + 0x180, 0x20);
+	}
+	mtk_dump_reg(eth, "GMAC0", 0x10100, 0x10);
+	mtk_dump_reg(eth, "GMAC1", 0x10200, 0x10);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		mtk_dump_reg(eth, "GMAC2", 0x10300, 0x10);
+		mtk_dump_reg(eth, "XGMAC0", 0x12000, 0x20);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC3_USXGMII))
+			mtk_dump_reg(eth, "XGMAC1", 0x13000, 0x20);
 	}
 }
 
