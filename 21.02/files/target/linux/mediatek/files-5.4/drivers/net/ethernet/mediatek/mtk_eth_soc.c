@@ -5338,40 +5338,29 @@ static void mtk_pending_work(struct work_struct *work)
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i])
 			continue;
-
-		if (eth->reset.event == MTK_FE_STOP_TRAFFIC) {
-			pr_info("send MTK_FE_STOP_TRAFFIC event !\n");
+		pr_info("send event:%x !\n", eth->reset.event);
+		if (eth->reset.event == MTK_FE_STOP_TRAFFIC)
 			call_netdevice_notifiers(MTK_FE_STOP_TRAFFIC,
 						 eth->netdev[i]);
-		} else {
-			pr_info("send MTK_FE_START_RESET event !\n");
+		else
 			call_netdevice_notifiers(MTK_FE_START_RESET,
 						 eth->netdev[i]);
-		}
+
 		rtnl_unlock();
 		if (mtk_wifi_num > 0) {
-			if (wait_for_completion_timeout(&wait_ser_done,
-							msecs_to_jiffies(10000))) {
-				pr_info("received %s event from WiFi !\n",
-					!mtk_stop_fail ? "MTK_FE_STOP_TRAFFIC_DONE" :
-							 "MTK_FE_STOP_TRAFFIC_DONE_FAIL");
-				if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
-				    mtk_stop_fail) {
-					pr_info("send MTK_FE_START_RESET event "
-						"(WiFi stop traffic fail) !\n");
-					rtnl_lock();
-					call_netdevice_notifiers(MTK_FE_START_RESET,
-								 eth->netdev[i]);
-					rtnl_unlock();
-					if (!wait_for_completion_timeout(&wait_ser_done,
-									 msecs_to_jiffies(10000)))
-						pr_warn("wait for WiFi response timeout "
-							"(WiFi stop traffic fail) !\n");
-					mtk_stop_fail = 0;
-				}
-			} else {
-				pr_warn("wait for WiFi response timeout !\n");
+			pr_info("waiting event from wifi\n");
+			wait_for_completion(&wait_ser_done);
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
+			    mtk_stop_fail) {
+				rtnl_lock();
+				call_netdevice_notifiers(MTK_FE_START_RESET,
+							 eth->netdev[i]);
+				rtnl_unlock();
+				pr_info("waiting event when stop fail\n");
+				wait_for_completion(&wait_ser_done);
+				mtk_stop_fail = 0;
 			}
+
 		}
 		if (!try_wait_for_completion(&wait_tops_done))
 			pr_warn("wait for TOPS response timeout !\n");
