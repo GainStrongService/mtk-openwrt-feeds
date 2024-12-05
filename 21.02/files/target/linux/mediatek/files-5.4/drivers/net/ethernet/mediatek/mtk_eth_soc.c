@@ -5229,6 +5229,20 @@ static void mtk_prepare_reset_fe(struct mtk_eth *eth, unsigned long *restart_car
 		netif_tx_disable(eth->netdev[i]);
 	}
 
+	/* Force PSE port6 link down */
+	mtk_pse_set_port_link(eth, 6, false);
+	/* Wait for port6 of PSE_OQ to be cleared */
+	i = 0;
+	while (i < 1000) {
+		val = mtk_r32(eth, MTK_PSE_OQ_STA(3)) & 0xFFF;
+		if (val == 0)
+			break;
+		i++;
+		mdelay(1);
+	}
+	if (i > 1000)
+		pr_warn("[%s] wait for port6 of PSE_OQ clean timeout!\n", __func__);
+
 	/* Disable QDMA Tx */
 	val = mtk_r32(eth, MTK_QDMA_GLO_CFG);
 	mtk_w32(eth, val & ~(MTK_TX_DMA_EN), MTK_QDMA_GLO_CFG);
