@@ -16,7 +16,7 @@ python3-distutils python3-setuptools rsync swig unzip zlib1g-dev file wget
 ---
 
 ## Uboot & ATF
-The OpenWrt/24.10 or trunk image type is ITB, which cannot be loaded if the original U-Boot is too old. Please update to a newer U-Boot that supports both OpenWrt 21.0x and OpenWrt 24.xx image types. The minimum required version is 2024-08-07.
+The OpenWrt/24.10 or trunk image type is ITB, which cannot be loaded if the original U-Boot is too old. Please update to a newer U-Boot that supports both OpenWrt 21.0x and OpenWrt 24.xx image types. The minimum required version is 2024-11-08. Also need DTS relay to enable 10G ethernet for one-time uboot console setting
 
 - Since U-Boot is still released as a tarball, please log in to the DCC or contact the corresponding window to obtain the latest U-Boot and ATF source code.
 
@@ -64,7 +64,7 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
 
 ## Wi-Fi 7 Latest Release Version
 
-- **Date**: 2024-11-08
+- **Date**: 2024-12-06
 - **Modified By**: Evelyn Tsai (evelyn.tsai@mediatek.com)
 - **Summary of Changes**:
   - Platform
@@ -72,26 +72,40 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
     - Support MTK Prpl Reference Board, BE19000
     - Support BananaPi BPI-R4, BE14000
 
-  - WiFi - Basic WiFi7 EHT SU (not support MLO)
+  - WiFi - WiFi7 w/ MLO
+    - Single Wiphy Architecture
     - 320 MHz bandwidth
     - 4096-QAM MCS12, MCS13
     - WPA3 key management (AKM24)
-    - *NEW* Flowblock HNAT and WED over Bridger
+    - MLO Basic Functionality (Advertisement/Discovery/Setup)
 
+  - Not Ready
+    - Hardware Peak Performance
+    - MLO Post-Setup Features
 
-#### Filogic 880 WiFi7 Pre-porting Release
+#### Filogic 880 WiFi7 Alpha Release
 
-##### External Release (Snapshot from openwrt-24.10^f3359da)
+##### External Release (Snapshot from openwrt-24.10^5601274)
 
 ```
 #Get OpenWrt 24.10 source code from Git Server
 git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git openwrt
+cd openwrt; git checkout 5601274444df871dbf8ee3a7eb5d30da7a39c77b; cd -;
 
 #Get mtk-openwrt-feeds source code
 git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+cd mtk-openwrt-feeds; git checkout cdc5905a308564a78535270dd6296fb1991fecc0; cd -;
 
 #Choose one SKU to build (1st Build)
 cd openwrt
+
+#Change Feeds Revision
+#vim feeds.conf.default
+src-git packages https://git.openwrt.org/feed/packages.git^3b341e1
+src-git luci https://git.openwrt.org/project/luci.git^e76155d
+src-git routing https://git.openwrt.org/feed/routing.git^3f15699
+
+# Select one SKU to build
 ## 1. Filogic 880 (MT7988+MT7996) MTK Reference Board (RFB)
 bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt7988_rfb-mt7996 log_file=make
 ## 2. MTK Prpl Reference Board (Mozart)
@@ -101,6 +115,8 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-bpi-r4
 
 #Further Build (After 1st full build)
 bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh build
+or
+make V=s
 
 #Clean OpenWrt source tree
 bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
@@ -110,15 +126,17 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 
 | Platform                 | OpenWrt/main                  | git01.mediatek.com                                                                |
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
-| Kernel                   | 6.6.58                        | ./feeds/mtk_openwrt_feed/24.10/patches-base |
+| Kernel                   | 6.6.63                        | ./feeds/mtk_openwrt_feed/24.10/patches-base |
 | **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
-| Hostapd                  | PKG_SOURCE_DATE:=2024-09-15   | ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/nerwork/services/hostapd/patches         |
+| Hostapd                  | PKG_SOURCE_DATE:=2024-10-13   | ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/nerwork/services/hostapd/patches         |
 | libnl-tiny               | PKG_SOURCE_DATE:=2023-12-05   | N/A                                                                               |
-| iw                       | PKG_VERSION:=6.9              |                |
+| iw                       | PKG_VERSION:=6.9              | ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/network/utils/iw/patches               |
 | iwinfo                   | PKG_SOURCE_DATE:=2024-10-20   | N/A                                                                               |
 | wireless-regdb           | PKG_VERSION:=2024-10-07       | ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/firmware/wireless-regdb/patches                |
 | ucode                    | PKG_VERSION:=2024-07-22       | |
 | wifi-scripts             | PKG_VERSION:=1.0              |   |
 | netifd                   | PKG_VERSION:=2024-10-06       |   |
-| MAC80211                 | PKG_VERSION:=6.11.2 |  ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mac80211/patches |
+| MAC80211                 | PKG_VERSION:=6.11.2 (Sync to 2024-10-25) |  ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mac80211/patches |
 | MT76                     | PKG_SOURCE_DATE:=2024-10-11.1  | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/patches **Firmware** ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/src/firmware/mt7996 |
+
+
