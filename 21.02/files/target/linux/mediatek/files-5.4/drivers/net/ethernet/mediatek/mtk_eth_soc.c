@@ -1320,7 +1320,10 @@ void mtk_mac_fe_reset_complete(struct mtk_eth *eth, unsigned long restart,
 			       unsigned long restart_carrier)
 {
 	struct phylink_link_state state;
+	struct device_node *phy_node;
+	struct mtk_sgmii_pcs *mpcs;
 	struct mtk_mac *mac;
+	unsigned int sid;
 	int i;
 
 	/* When pending_work triggers the SER and the SER resets the ETH, there is
@@ -1342,6 +1345,22 @@ void mtk_mac_fe_reset_complete(struct mtk_eth *eth, unsigned long restart,
 		state.interface = mac->interface;
 		mac->interface = PHY_INTERFACE_MODE_NA;
 		mtk_mac_config(&mac->phylink_config, mac->mode, &state);
+
+		phy_node = of_parse_phandle(mac->of_node, "phy-handle", 0);
+		if (!phy_node && eth->sgmii &&
+		    (state.interface == PHY_INTERFACE_MODE_SGMII ||
+		     state.interface == PHY_INTERFACE_MODE_1000BASEX ||
+		     state.interface == PHY_INTERFACE_MODE_2500BASEX)) {
+			sid = (MTK_HAS_CAPS(eth->soc->caps, MTK_SHARED_SGMII)) ?
+			       0 : mtk_mac2xgmii_id(eth, mac->id);
+
+			mpcs = &eth->sgmii->pcs[sid];
+			mpcs->pcs.ops->pcs_disable(&mpcs->pcs);
+			mpcs->pcs.ops->pcs_config(&mpcs->pcs, UINT_MAX, mpcs->interface,
+						  mpcs->advertising, false);
+			mpcs->pcs.ops->pcs_enable(&mpcs->pcs);
+		}
+
 		mtk_mac_finish(&mac->phylink_config, mac->interface,
 			       mac->interface);
 		mtk_mac_link_up(&mac->phylink_config, NULL, mac->mode,
