@@ -235,18 +235,33 @@ int mii_mgr_cl45_read_indirect(unsigned int port_num, unsigned int dev,
 	mii.reg_num = 13;
 	mii.val_in = dev;
 	ret = ioctl(sk, method, &ifr);
+	if (ret < 0) {
+		printf("ioctl failed for reg %d and return errno %s\n",
+			mii.reg_num, strerror(errno));
+		goto error;
+	}
 
 	method = RAETH_MII_WRITE;
 	mii.phy_id = port_num;
 	mii.reg_num = 14;
 	mii.val_in = reg;
 	ret = ioctl(sk, method, &ifr);
+	if (ret < 0) {
+		printf("ioctl failed for reg %d and return errno %s\n",
+			mii.reg_num, strerror(errno));
+		goto error;
+	}
 
 	method = RAETH_MII_WRITE;
 	mii.phy_id = port_num;
 	mii.reg_num = 13;
 	mii.val_in = (0x6000 | dev);
 	ret = ioctl(sk, method, &ifr);
+	if (ret < 0) {
+		printf("ioctl failed for reg %d and return errno %s\n",
+			mii.reg_num, strerror(errno));
+		goto error;
+	}
 
 	usleep(1000);
 
@@ -254,10 +269,15 @@ int mii_mgr_cl45_read_indirect(unsigned int port_num, unsigned int dev,
 	mii.phy_id = port_num;
 	mii.reg_num = 14;
 	ret = ioctl(sk, method, &ifr);
-
-	close(sk);
+	if (ret < 0) {
+		printf("ioctl failed for reg %d and return errno %s\n",
+			mii.reg_num, strerror(errno));
+		goto error;
+	}
 	*value = mii.val_out;
 
+error:
+	close(sk);
 	return ret;
 }
 
@@ -283,18 +303,33 @@ int mii_mgr_cl45_write_indirect(unsigned int port_num, unsigned int dev,
 	mii.reg_num = 13;
 	mii.val_in = dev;
 	ret = ioctl(sk, method, &ifr);
+	if (ret < 0) {
+		printf("ioctl failed for reg %d and return errno %s\n",
+			mii.reg_num, strerror(errno));
+		goto error;
+	}
 
 	method = RAETH_MII_WRITE;
 	mii.phy_id = port_num;
 	mii.reg_num = 14;
 	mii.val_in = reg;
 	ret = ioctl(sk, method, &ifr);
+	if (ret < 0) {
+		printf("ioctl failed for reg %d and return errno %s\n",
+			mii.reg_num, strerror(errno));
+		goto error;
+	}
 
 	method = RAETH_MII_WRITE;
 	mii.phy_id = port_num;
 	mii.reg_num = 13;
 	mii.val_in = (0x6000 | dev);
 	ret = ioctl(sk, method, &ifr);
+	if (ret < 0) {
+		printf("ioctl failed for reg %d and return errno %s\n",
+			mii.reg_num, strerror(errno));
+		goto error;
+	}
 
 	usleep(1000);
 
@@ -303,9 +338,14 @@ int mii_mgr_cl45_write_indirect(unsigned int port_num, unsigned int dev,
 	mii.reg_num = 14;
 	mii.val_in = value;
 	ret = ioctl(sk, method, &ifr);
+	if (ret < 0) {
+		printf("ioctl failed for reg %d and return errno %s\n",
+			mii.reg_num, strerror(errno));
+		goto error;
+	}
 
+error:
 	close(sk);
-
 	return ret;
 }
 
