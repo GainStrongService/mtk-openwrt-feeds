@@ -5,7 +5,6 @@
 # Top rules
 
 list_add_after $(hooks autobuild_prepare) prepare_wifi_driver change_hostapd_conf
-list_add_after $(hooks autobuild_prepare) prepare_wifi_driver generate_mac80211_src
 
 change_hostapd_conf() {
     # hack hostapd config
@@ -25,10 +24,4 @@ change_hostapd_conf() {
     echo "CONFIG_HE_OVERRIDES=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
     echo "CONFIG_EHT_OVERRIDES=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
 
-}
-
-generate_mac80211_src() {
-	tarball=$(find ./package/kernel/mac80211/backports*.tar.xz -printf "%f\n")
-	tar -xJf ./package/kernel/mac80211/${tarball}
-	mv $(echo ${tarball} | cut -d '.' -f 1) ./package/kernel/mac80211/src
 }
