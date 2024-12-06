@@ -1,16 +1,16 @@
-From 7a5aec3bea2904c15137b3293a37cef67ab7c9b4 Mon Sep 17 00:00:00 2001
+From ef27c50654dd962bd941a1e0ddd4181dd6473cc4 Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Thu, 12 Sep 2024 16:17:51 +0800
-Subject: [PATCH]  wifi: mt76: mt7915: fix TX/RX hang without SER hw bit to do
+Subject: [PATCH] wifi: mt76: mt7915: fix TX/RX hang without SER hw bit to do
  L1 recovery issue
 
 ---
  mcu.c             |  4 +++-
  mt76.h            |  2 +-
- mt76_connac_mcu.c |  2 +-
+ mt76_connac_mcu.c | 18 +++++++++++++++++-
  mt7915/mcu.c      | 10 +++++++++-
  mt7915/regs.h     |  2 +-
- 5 files changed, 15 insertions(+), 5 deletions(-)
+ 5 files changed, 31 insertions(+), 5 deletions(-)
 
 diff --git a/mcu.c b/mcu.c
 index 1bc94e8..d331d81 100644
@@ -50,15 +50,38 @@ index fd59fdf..dbf0fba 100644
  				  struct sk_buff *skb, int seq);
  	u32 (*mcu_rr)(struct mt76_dev *dev, u32 offset);
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 0ce7ecd..e1f598f 100644
+index 0ce7ecd..b6c61b4 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -3076,7 +3076,7 @@ int mt76_connac2_mcu_fill_message(struct mt76_dev *dev, struct sk_buff *skb,
+@@ -3065,6 +3065,22 @@ out:
+ }
+ EXPORT_SYMBOL_GPL(mt76_connac2_load_patch);
+ 
++static int mt76_connac2_mcu_timeout_value(int cmd)
++{
++	u8 ext_cid = FIELD_GET(__MCU_CMD_FIELD_EXT_ID, cmd);
++	int timeout = 3 * HZ;
++
++	switch (ext_cid) {
++	case MCU_EXT_CMD_EFUSE_BUFFER_MODE:
++		timeout = 20 * HZ;
++		break;
++	default:
++		break;
++	}
++
++	return timeout;
++}
++
+ int mt76_connac2_mcu_fill_message(struct mt76_dev *dev, struct sk_buff *skb,
+ 				  int cmd, int *wait_seq)
+ {
+@@ -3076,7 +3092,7 @@ int mt76_connac2_mcu_fill_message(struct mt76_dev *dev, struct sk_buff *skb,
  	u8 seq;
  
  	/* TODO: make dynamic based on msg type */
 -	dev->mcu.timeout = 20 * HZ;
-+	dev->mcu.timeout = 3 * HZ;
++	dev->mcu.timeout = mt76_connac2_mcu_timeout_value(cmd);
  
  	seq = ++dev->mcu.msg_seq & 0xf;
  	if (!seq)
