@@ -6228,6 +6228,11 @@ doSaLearning(UI32_T argc, C8_T *argv[])
     {
         memset(&port_config, 0, sizeof(AIR_SEC_PORTSEC_PORT_CONFIG_T));
         rc = air_sec_getPortSecPortCfg(0, port, &port_config);
+        if(AIR_E_OK != rc)
+        {
+            AIR_PRINT("Get Port%02d sa learn Fail.\n", port);
+            return rc;
+        }
         port_config.sa_lrn_en = _strtoul(argv[1], NULL, 0);
         rc = air_sec_setPortSecPortCfg(0, port, port_config);
         if(AIR_E_OK == rc)
@@ -6271,6 +6276,11 @@ doSaLimit(UI32_T argc, C8_T *argv[])
     {
         memset(&port_config, 0, sizeof(AIR_SEC_PORTSEC_PORT_CONFIG_T));
         rc = air_sec_getPortSecPortCfg(0, port, &port_config);
+        if(AIR_E_OK != rc)
+        {
+            AIR_PRINT("Get Port%02d sa limit Fail\n", port);
+            return rc;
+        }
         port_config.sa_lmt_en = _strtoul(argv[1], NULL, 0);
         port_config.sa_lmt_cnt = _strtoul(argv[2], NULL, 0);
         rc = air_sec_setPortSecPortCfg(0, port, port_config);
