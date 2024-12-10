@@ -638,7 +638,7 @@ int mtk_crypto_basic_cipher(struct crypto_async_request *async,
 	unsigned int src_pkt =  cryptlen + assoclen;
 	unsigned int pass_assoc = 0;
 	int pass_id;
-	int rc;
+	int rc = 0;
 	int i;
 	int ring = ctx->base.ring;
 
@@ -2157,11 +2157,15 @@ static bool set_auth_aead(struct xfrm_algo_aead *aead, SABuilder_Params_t *param
 	if (strcmp(aead->alg_name, "rfc4106(gcm(aes))") == 0) {
 		params->AuthAlgo = SAB_AUTH_AES_GCM;
 		hash_key = kcalloc(AES_BLOCK_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		if (!hash_key)
+			return false;
 		memset(hash_key, 0, AES_BLOCK_SIZE);
 		mtk_ddk_aes_block_encrypt(params->Key_p, params->KeyByteCount, hash_key, hash_key);
 	} else if (strcmp(aead->alg_name, "rfc4543(gcm(aes))") == 0) {
 		params->AuthAlgo = SAB_AUTH_AES_GMAC;
 		hash_key = kcalloc(AES_BLOCK_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		if (!hash_key)
+			return false;
 		memset(hash_key, 0, AES_BLOCK_SIZE);
 		mtk_ddk_aes_block_encrypt(params->Key_p, params->KeyByteCount, hash_key, hash_key);
 	} else if (strcmp(aead->alg_name, "rfc4309(ccm(aes))") == 0) {

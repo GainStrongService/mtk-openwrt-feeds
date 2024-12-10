@@ -316,19 +316,21 @@ static int __init mtk_crypto_lookaside_data_init(struct platform_device *pdev)
 		priv->mtk_eip_ring[i].work_data.ring = i;
 		INIT_WORK(&priv->mtk_eip_ring[i].work_data.work, mtk_crypto_dequeue_work);
 
-		snprintf(wq_name, 17, "mtk_crypto_work%d", i);
+		if (snprintf(wq_name, 17, "mtk_crypto_work%d", i) >= 17)
+			return -EINVAL;
 		priv->mtk_eip_ring[i].workqueue = create_singlethread_workqueue(wq_name);
 		if (!priv->mtk_eip_ring[i].workqueue)
 			return -ENOMEM;
 
 		crypto_init_queue(&priv->mtk_eip_ring[i].queue, EIP197_DEFAULT_RING_SIZE);
+		INIT_LIST_HEAD(&priv->mtk_eip_ring[i].list);
 
 		spin_lock_init(&priv->mtk_eip_ring[i].ring_lock);
 		spin_lock_init(&priv->mtk_eip_ring[i].queue_lock);
-		INIT_LIST_HEAD(&priv->mtk_eip_ring[i].list);
 
 		// setup irq affinity
-		snprintf(irq_name, 6, "ring%d", i);
+		if (snprintf(irq_name, 6, "ring%d", i) >= 6)
+			return -EINVAL;
 		irq = platform_get_irq_byname(pdev,  irq_name);
 		if (irq < 0)
 			return irq;
