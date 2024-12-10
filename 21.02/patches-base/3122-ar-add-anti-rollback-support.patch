@@ -1,0 +1,28 @@
+--- a/target/linux/mediatek/image/Makefile
++++ b/target/linux/mediatek/image/Makefile
+@@ -29,6 +29,17 @@ define Build/squashfs-hashed
+ 		$(HASHED_BOOT_DEVICE)
+ endef
+ 
++# build fw-ar-ver
++get_fw_ar_ver = \
++  $(if $(wildcard $(2)),$(shell rm -rf $(2))) \
++  $(if $(wildcard $(1)),$(info $(shell $(STAGING_DIR_HOST)/bin/ar-tool fw_ar_table create_ar_conf $(1) $(2)))) \
++  $(if $(wildcard $(2)),$(eval include $(2))) \
++  $(if $(FW_AR_VER),$(info FW_AR_VER = $(FW_AR_VER)))
++
++define Build/fw-ar-ver
++	$(call get_fw_ar_ver,$(ANTI_ROLLBACK_TABLE),$(AUTO_AR_CONF))
++endef
++
+ # build signed fit
+ define Build/fit-sign
+ 	$(TOPDIR)/scripts/mkits.sh \
+@@ -43,6 +54,7 @@ define Build/fit-sign
+ 		-v $(LINUX_VERSION) \
+ 		$(if $(FIT_KEY_NAME),-S $(FIT_KEY_NAME)) \
+ 		$(if $(FIT_KEY_ALG),-b $(FIT_KEY_ALG)) \
++		$(if $(FW_AR_VER),-r $(FW_AR_VER)) \
+ 		$(if $(CONFIG_TARGET_ROOTFS_SQUASHFS),-R $(ROOTFS/squashfs/$(DEVICE_NAME)))
+ 	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage \
+ 		-f $@.its \

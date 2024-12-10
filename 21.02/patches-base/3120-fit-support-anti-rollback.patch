@@ -1,0 +1,58 @@
+--- a/scripts/mkits.sh
++++ b/scripts/mkits.sh
+@@ -17,7 +17,7 @@
+ usage() {
+ 	printf "Usage: %s -A arch -C comp -a addr -e entry" "$(basename "$0")"
+ 	printf " -v version -k kernel [-D name -n address -d dtb] -o its_file"
+-	printf "[-R rootfs] [-S key_name_hint] [-b key_alg]"
++	printf "[-R rootfs] [-r ar_ver] [-S key_name_hint] [-b key_alg]"
+ 
+ 	printf "\n\t-A ==> set architecture to 'arch'"
+ 	printf "\n\t-C ==> set compression type 'comp'"
+@@ -31,6 +31,7 @@ usage() {
+ 	printf "\n\t-d ==> include Device Tree Blob 'dtb'"
+ 	printf "\n\t-o ==> create output file 'its_file'"
+ 	printf "\n\t-R ==> specify rootfs file for embedding hash"
++	printf "\n\t-r ==> set anti-rollback version to 'fw_ar_ver' (dec)"
+ 	printf "\n\t-S ==> add signature at configurations and assign its key_name_hint by 'key_name_hint'"
+ 	printf "\n\t-b ==> set key algorithm\n"
+ 	exit 1
+@@ -38,7 +39,7 @@ usage() {
+ 
+ FDTNUM=1
+ 
+-while getopts ":A:a:c:C:D:d:e:k:n:o:v:R:S:b:" OPTION
++while getopts ":A:a:c:C:D:d:e:k:n:o:v:R:r:S:b:" OPTION
+ do
+ 	case $OPTION in
+ 		A ) ARCH=$OPTARG;;
+@@ -53,6 +54,7 @@ do
+ 		o ) OUTPUT=$OPTARG;;
+ 		v ) VERSION=$OPTARG;;
+ 		R ) ROOTFS_FILE=$OPTARG;;
++		r ) AR_VER=$OPTARG;;
+ 		S ) KEY_NAME_HINT=$OPTARG;;
+ 		b ) KEY_ALG=$OPTARG;;
+ 		* ) echo "Invalid option passed to '$0' (options:$*)"
+@@ -128,6 +130,13 @@ ${SIGN_IMAGES}
+ "
+ fi
+ 
++# Conditionally create anti-rollback version information
++if [ -n "${AR_VER}" ]; then
++	FW_AR_VER="\
++			fw_ar_ver = <${AR_VER}>;\
++"
++fi
++
+ # Create a default, fully populated DTS file
+ DATA="/dts-v1/;
+ 
+@@ -161,6 +170,7 @@ ${ROOTFS}
+ 		default = \"${CONFIG}\";
+ 		${CONFIG} {
+ 			description = \"OpenWrt\";
++${FW_AR_VER}
+ 			kernel = \"kernel-1\";
+ 			${FDT_PROP}
+ ${SIGNATURE}
