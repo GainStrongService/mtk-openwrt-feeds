@@ -1,0 +1,75 @@
+--- a/scripts/mkits.sh
++++ b/scripts/mkits.sh
+@@ -17,7 +17,7 @@
+ usage() {
+ 	printf "Usage: %s -A arch -C comp -a addr -e entry" "$(basename "$0")"
+ 	printf " -v version -k kernel [-D name -n address -d dtb] -o its_file"
+-	printf "[-R rootfs]"
++	printf "[-R rootfs] [-S key_name_hint] [-b key_alg]"
+ 
+ 	printf "\n\t-A ==> set architecture to 'arch'"
+ 	printf "\n\t-C ==> set compression type 'comp'"
+@@ -30,13 +30,15 @@ usage() {
+ 	printf "\n\t-n ==> fdt unit-address 'address'"
+ 	printf "\n\t-d ==> include Device Tree Blob 'dtb'"
+ 	printf "\n\t-o ==> create output file 'its_file'"
+-	printf "\n\t-R ==> specify rootfs file for embedding hash\n"
++	printf "\n\t-R ==> specify rootfs file for embedding hash"
++	printf "\n\t-S ==> add signature at configurations and assign its key_name_hint by 'key_name_hint'"
++	printf "\n\t-b ==> set key algorithm\n"
+ 	exit 1
+ }
+ 
+ FDTNUM=1
+ 
+-while getopts ":A:a:c:C:D:d:e:k:n:o:v:R:" OPTION
++while getopts ":A:a:c:C:D:d:e:k:n:o:v:R:S:b:" OPTION
+ do
+ 	case $OPTION in
+ 		A ) ARCH=$OPTARG;;
+@@ -51,6 +53,8 @@ do
+ 		o ) OUTPUT=$OPTARG;;
+ 		v ) VERSION=$OPTARG;;
+ 		R ) ROOTFS_FILE=$OPTARG;;
++		S ) KEY_NAME_HINT=$OPTARG;;
++		b ) KEY_ALG=$OPTARG;;
+ 		* ) echo "Invalid option passed to '$0' (options:$*)"
+ 		usage;;
+ 	esac
+@@ -109,6 +113,28 @@ if [ -f "${ROOTFS_FILE}" ]; then
+ "
+ fi
+ 
++# Conditionally create signature information
++if [ -n "${KEY_NAME_HINT}" ]; then
++	if [[ "${KEY_NAME_HINT}" == "offline,"* ]]; then
++		KEY_NAME_HINT=$(echo -n "${KEY_NAME_HINT}" | sed "s/^.*[,]//g")
++		SIGN_OFFLINE="
++				sign-offline = <1>;"
++	fi
++
++	if [ -z "${KEY_ALG}" ]; then
++		KEY_ALG="sha256,rsa2048"
++	fi
++
++	SIGNATURE="\
++			signature {
++				algo = \"${KEY_ALG}\";
++				key-name-hint = \"${KEY_NAME_HINT}\";
++${SIGN_IMAGES}
++${SIGN_OFFLINE}
++			};\
++"
++fi
++
+ # Create a default, fully populated DTS file
+ DATA="/dts-v1/;
+ 
+@@ -144,6 +170,7 @@ ${ROOTFS}
+ 			description = \"OpenWrt\";
+ 			kernel = \"kernel-1\";
+ 			${FDT_PROP}
++${SIGNATURE}
+ 		};
+ 	};
+ };"

@@ -1,0 +1,14 @@
+--- a/package/base-files/files/lib/upgrade/nand.sh
++++ b/package/base-files/files/lib/upgrade/nand.sh
+@@ -460,6 +460,11 @@ ubi_do_upgrade() {
+ 	local dual_boot=$(cat /sys/module/boot_param/parameters/dual_boot 2>/dev/null)
+ 	local file_type=$(identify $1)
+ 
++	if [ -b /dev/dm-0 ]; then
++		v "Detach all device mapper devices"
++		dmsetup remove_all
++	fi
++
+ 	if [ x"${dual_boot}" != xY ]; then
+ 		nand_do_upgrade "$1"
+ 		return

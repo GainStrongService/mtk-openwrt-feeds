@@ -1,0 +1,459 @@
+diff -Nurp a/boot_param.c b/boot_param.c
+--- a/boot_param.c	2022-04-12 10:12:44.759119100 +0800
++++ b/boot_param.c	2022-04-12 10:20:14.912922700 +0800
+@@ -9,6 +9,13 @@
+ #include <sys/stat.h>
+ #include <stdio.h>
+ #include <string.h>
++#include <stdint.h>
++#include <stdlib.h>
++#include <stdbool.h>
++#include <malloc.h>
++#include <limits.h>
++#include <ctype.h>
++#include <errno.h>
+ #include <dirent.h>
+ #include <fcntl.h>
+ #include <unistd.h>
+@@ -268,3 +275,319 @@ char *boot_param_get_dev(const char *nam
+ 
+ 	return blockdev_parse(partkey);
+ }
++
++/**
++ * skip_spaces - Removes leading whitespace from @str.
++ * @str: The string to be stripped.
++ *
++ * Returns a pointer to the first non-whitespace character in @str.
++ */
++static char *skip_spaces(const char *str)
++{
++	while (isspace(*str))
++		++str;
++	return (char *)str;
++}
++
++/**
++ * strim - Removes leading and trailing whitespace from @s.
++ * @s: The string to be stripped.
++ *
++ * Note that the first trailing whitespace is replaced with a %NUL-terminator
++ * in the given string @s. Returns a pointer to the first non-whitespace
++ * character in @s.
++ */
++static char *strim(char *s)
++{
++	size_t size;
++	char *end;
++
++	size = strlen(s);
++	if (!size)
++		return s;
++
++	end = s + size - 1;
++	while (end >= s && isspace(*end))
++		end--;
++	*(end + 1) = '\0';
++
++	return skip_spaces(s);
++}
++
++/**
++ * str_field_delimit - delimit a string based on a separator char.
++ * @str: the pointer to the string to delimit.
++ * @separator: char that delimits the field
++ *
++ * Find a @separator and replace it by '\0'.
++ * Remove leading and trailing spaces.
++ * Return the remainder string after the @separator.
++ */
++static char *str_field_delimit(char **str, char separator)
++{
++	char *s;
++
++	/* TODO: add support for escaped characters */
++	*str = skip_spaces(*str);
++	s = strchr(*str, separator);
++	/* Delimit the field and remove trailing spaces */
++	if (s)
++		*s = '\0';
++	*str = strim(*str);
++	return s ? ++s : NULL;
++}
++
++/*
++ * Destructively splits up the argument list to pass to ctr.
++ */
++static int dm_split_args(int max_argv, char *argv[], char *input)
++{
++	char *start, *end = input, *out;
++	int argc = 0;
++
++	if (!input)
++		return 0;
++
++	while (1) {
++		/* Skip whitespace */
++		start = skip_spaces(end);
++
++		if (!*start)
++			break;	/* success, we hit the end */
++
++		/* 'out' is used to remove any back-quotes */
++		end = out = start;
++		while (*end) {
++			/* Everything apart from '\0' can be quoted */
++			if (*end == '\\' && *(end + 1)) {
++				*out++ = *(end + 1);
++				end += 2;
++				continue;
++			}
++
++			if (isspace(*end))
++				break;	/* end of token */
++
++			*out++ = *end++;
++		}
++
++		/* we know this is whitespace */
++		if (*end)
++			end++;
++
++		/* terminate the string and put it in the array */
++		*out = '\0';
++		argv[argc] = start;
++		argc++;
++
++		/* have we already filled the array ? */
++		if (argc >= max_argv)
++			break;
++	}
++
++	return argc;
++}
++
++static int dm_parse_params(char *str, bool require_hash_blocks, struct dm_verity_info *dvi)
++{
++	char *argv[10];
++	int argc;
++
++	argc = dm_split_args(ARRAY_SIZE(argv), argv, str);
++
++	if (argc < 3)
++		return -EINVAL;
++
++	dvi->datadev = argv[1];
++	dvi->datadev_pos = dvi->datadev - dvi->tmpbuf;
++	dvi->datadev_len = strlen(dvi->datadev);
++
++	dvi->hashdev = argv[2];
++	dvi->hashdev_pos = dvi->hashdev - dvi->tmpbuf;
++	dvi->hashdev_len = strlen(dvi->hashdev);
++
++	if (require_hash_blocks && argc < 8)
++		return -EINVAL;
++
++	dvi->datadev_blksz = strtoul(argv[3], NULL, 0);
++	dvi->hashdev_blksz = strtoul(argv[4], NULL, 0);
++	dvi->data_blocks = strtoull(argv[5], NULL, 0);
++	dvi->hash_startblock = strtoull(argv[6], NULL, 0);
++
++	dvi->digest_name = argv[7];
++
++	return 0;
++}
++
++/**
++ * dm_parse_table_entry - parse a table entry
++ * @str: the pointer to a string with the format:
++ *	<start_sector> <num_sectors> <target_type> <target_args>[, ...]
++ *
++ * Return the remainder string after the table entry, i.e, after the comma which
++ * delimits the entry or NULL if reached the end of the string.
++ */
++static int dm_parse_table_entry(char *str, bool require_hash_blocks, struct dm_verity_info *dvi)
++{
++	unsigned int i;
++	/* fields:  */
++	char *field[4];
++
++	field[0] = str;
++	/* Delimit first 3 fields that are separated by space */
++	for (i = 0; i < ARRAY_SIZE(field) - 1; i++) {
++		field[i + 1] = str_field_delimit(&field[i], ' ');
++		if (!field[i + 1])
++			return -EINVAL;
++	}
++
++	/* params */
++	return dm_parse_params(field[3], require_hash_blocks, dvi);
++}
++
++/**
++ * dm_parse_device_entry - parse a device entry
++ * @str: the pointer to a string with the format:
++ *	name,uuid,minor,flags,table[; ...]
++ *
++ * Return the remainder string after the table entry, i.e, after the semi-colon
++ * which delimits the entry or NULL if reached the end of the string.
++ */
++static int dm_parse_device_entry(char *str, bool require_hash_blocks, struct dm_verity_info *dvi)
++{
++	/* There are 5 fields: name,uuid,minor,flags,table; */
++	char *field[5];
++	unsigned int i;
++
++	field[0] = str;
++	/* Delimit first 4 fields that are separated by comma */
++	for (i = 0; i < ARRAY_SIZE(field) - 1; i++) {
++		field[i + 1] = str_field_delimit(&field[i], ',');
++		if (!field[i + 1])
++			return -EINVAL;
++	}
++
++	/* table */
++	return dm_parse_table_entry(field[4], require_hash_blocks, dvi);
++}
++
++int dm_mod_create_arg_parse(const char *str, struct dm_verity_info *dvi)
++{
++	char *dmstr = strdup(str);
++	int ret;
++
++	if (!dmstr)
++		return -ENOMEM;
++
++	dvi->tmpbuf = dmstr;
++
++	ret = dm_parse_device_entry(dmstr, true, dvi);
++
++	return ret;
++}
++
++static inline unsigned long __ffs(unsigned long word)
++{
++	return __builtin_ctzl(word);
++}
++
++static inline unsigned long __fls(unsigned long word)
++{
++	return (sizeof(word) * 8) - 1 - __builtin_clzl(word);
++}
++
++#define DM_VERITY_MAX_LEVELS		63
++
++uint64_t calc_dm_image_size(const struct dm_verity_info *dvi)
++{
++	uint32_t hash_dev_block_bits, hash_per_block_bits, levels;
++	uint64_t hash_position;
++	uint32_t digest_size;
++	int i;
++
++	if (strcmp(dvi->digest_name, "sha256"))
++		return 0;
++
++	digest_size = 0x20;
++
++	hash_dev_block_bits = __ffs(dvi->hashdev_blksz);
++	hash_per_block_bits = __fls((1 << hash_dev_block_bits) / digest_size);
++
++	levels = 0;
++	if (dvi->data_blocks)
++		while (hash_per_block_bits * levels < 64 &&
++		       (unsigned long long)(dvi->data_blocks - 1) >>
++		       (hash_per_block_bits * levels))
++			levels++;
++
++	if (levels > DM_VERITY_MAX_LEVELS)
++		// Too many tree levels
++		return 0;
++
++	hash_position = dvi->hash_startblock;
++	for (i = levels - 1; i >= 0; i--) {
++		uint64_t s;
++		s = (dvi->data_blocks + ((uint64_t)1 << ((i + 1) * hash_per_block_bits)) - 1)
++			>> ((i + 1) * hash_per_block_bits);
++		if (hash_position + s < hash_position)
++			// Hash device offset overflow
++			return 0;
++		hash_position += s;
++	}
++
++	return hash_position * dvi->hashdev_blksz;
++}
++
++char *read_full_dm_mod_create(void)
++{
++	struct stat st;
++	ssize_t ret;
++	char *buf;
++	int fd;
++
++	fd = open("/sys/module/dm_mod/parameters/create", O_RDONLY, 0);
++	if (fd < 0) {
++		ULOG_ERR("unable to open /sys/module/dm_mod/parameters/create\n");
++		return NULL;
++	}
++
++	if (fstat(fd, &st)) {
++		ULOG_ERR("unable to get size of /sys/module/dm_mod/parameters/create\n");
++		return NULL;
++	}
++
++	buf = malloc(st.st_size + 1);
++	if (!buf) {
++		ULOG_ERR("unable to allocate memory for dm-mod.create\n");
++		close(fd);
++		return NULL;
++	}
++
++	ret = read(fd, buf, st.st_size);
++	if (ret < 0) {
++		ULOG_ERR("failed to read out dm-mod.create, error %u\n", errno);
++		close(fd);
++		return NULL;
++	}
++
++	close(fd);
++
++	if (!ret) {
++		ULOG_ERR("empty dm-mod.create\n");
++		return NULL;
++	}
++
++	while (ret > 0) {
++		if (buf[ret - 1] != '\n' && buf[ret - 1] != '\r')
++			break;
++
++		ret--;
++	}
++
++	if (ret < st.st_size)
++		buf[ret] = 0;
++	else
++		buf[st.st_size - 1] = 0;
++
++	return buf;
++}
+diff -Nurp a/boot_param.h b/boot_param.h
+--- a/boot_param.h	2022-04-12 10:12:44.766130100 +0800
++++ b/boot_param.h	2022-04-12 10:20:12.131730700 +0800
+@@ -18,4 +18,27 @@ int write_boot_param_string(const char *
+ char *blockdev_parse(const char *name);
+ char *boot_param_get_dev(const char *name);
+ 
++struct dm_verity_info {
++	char *tmpbuf;
++
++	char *datadev;
++	uint32_t datadev_pos;
++	uint32_t datadev_len;
++
++	char *hashdev;
++	uint32_t hashdev_pos;
++	uint32_t hashdev_len;
++
++	uint32_t datadev_blksz;
++	uint32_t hashdev_blksz;
++	uint64_t data_blocks;
++	uint64_t hash_startblock;
++
++	char *digest_name;
++};
++
++int dm_mod_create_arg_parse(const char *str, struct dm_verity_info *dvi);
++uint64_t calc_dm_image_size(const struct dm_verity_info *dvi);
++char *read_full_dm_mod_create(void);
++
+ #endif /* _BOOT_PARAM_H_ */
+diff -Nurp a/libfstools/rootdisk.c b/libfstools/rootdisk.c
+--- a/libfstools/rootdisk.c	2022-04-12 10:12:44.779066200 +0800
++++ b/libfstools/rootdisk.c	2022-04-12 10:20:01.667043800 +0800
+@@ -109,6 +109,54 @@ static int get_squashfs(struct squashfs_
+ 	return 0;
+ }
+ 
++static int parse_dm_rootdev(uint64_t *rootfs_size)
++{
++	struct dm_verity_info dvi;
++	char *dmstr, *realrootdev, *hashdev;
++	int ret;
++
++	dmstr = read_full_dm_mod_create();
++	if (!dmstr)
++		return -ENODEV;
++
++	ret = dm_mod_create_arg_parse(dmstr, &dvi);
++	if (ret) {
++		ULOG_ERR("failed to parse dm-mod.create\n");
++		return ret;
++	}
++
++	realrootdev = blockdev_parse(dvi.datadev);
++	hashdev = blockdev_parse(dvi.hashdev);
++
++	if (!realrootdev || !hashdev) {
++		ULOG_ERR("failed to find real root/hash device\n");
++		ret = -ENODEV;
++		goto out;
++	}
++
++	rootdev = realrootdev;
++	realrootdev = NULL;
++
++	if (!strcmp(rootdev, hashdev)) {
++		*rootfs_size = calc_dm_image_size(&dvi);
++		if (!*rootfs_size) {
++			ret = -EINVAL;
++			goto out;
++		}
++	}
++
++out:
++	if (realrootdev)
++		free(realrootdev);
++
++	if (hashdev)
++		free(hashdev);
++
++	free(dvi.tmpbuf);
++
++	return ret;
++}
++
+ static bool rootdisk_use_f2fs(struct rootdev_volume *p)
+ {
+ 	const char *dev = rootdev;
+@@ -155,6 +203,8 @@ static struct volume *rootdisk_volume_fi
+ {
+ 	struct squashfs_super_block sb;
+ 	struct rootdev_volume *p;
++	bool is_dm = false;
++	uint64_t dm_sz = 0;
+ 
+ 	if (strcmp(name, "rootfs_data") != 0)
+ 		return NULL;
+@@ -169,6 +219,12 @@ static struct volume *rootdisk_volume_fi
+ 	if (!rootdev)
+ 		return NULL;
+ 
++	if (strstr(rootdev, "dm-")) {
++		is_dm = true;
++		if (parse_dm_rootdev(&dm_sz) != 0)
++			return NULL;
++	}
++
+ 	if (strstr(rootdev, "mtdblock") ||
+ 	    strstr(rootdev, "ubiblock"))
+ 		return NULL;
+@@ -184,6 +240,10 @@ static struct volume *rootdisk_volume_fi
+ 	p->v.name = "rootfs_data";
+ 
+ 	p->offset = le64_to_cpu(sb.bytes_used);
++
++	if (is_dm && dm_sz)
++		p->offset = dm_sz;
++
+ 	p->offset = ((p->offset + (ROOTDEV_OVERLAY_ALIGN - 1)) &
+ 		     ~(ROOTDEV_OVERLAY_ALIGN - 1));
+ 

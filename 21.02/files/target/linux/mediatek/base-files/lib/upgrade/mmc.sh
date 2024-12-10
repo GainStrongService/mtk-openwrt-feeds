@@ -217,6 +217,11 @@ mtk_mmc_do_upgrade_dual_boot() {
 mtk_mmc_do_upgrade() {
 	local dual_boot=$(cat /sys/module/boot_param/parameters/dual_boot 2>/dev/null)
 
+	if [ -b /dev/dm-0 ]; then
+		v "Detach all device mapper devices"
+		dmsetup remove_all
+	fi
+
 	if [ x"${dual_boot}" = xY ]; then
 		mtk_mmc_do_upgrade_dual_boot "$1"
 	else
