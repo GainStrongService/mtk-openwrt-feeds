@@ -324,3 +324,10 @@ openwrt_feeds_enable() {
 
 	mv "${ab_root}/feeds.conf.mtk" "${openwrt_root}/feeds.conf.default"
 }
+
+# Get existed git-based feeds
+openwrt_avail_feeds() {
+	local feeds=$(cd ${openwrt_root}/feeds && find -maxdepth 1 -type d -exec test -d '{}'/.git \; -printf '%f\n')
+
+	echo $feeds
+}

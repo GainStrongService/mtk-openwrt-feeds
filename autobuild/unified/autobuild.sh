@@ -11,6 +11,7 @@ ab_root="$(dirname "$(readlink -f "$0")")"
 . ${ab_root}/scripts/list.sh
 . ${ab_root}/scripts/kconfig.sh
 . ${ab_root}/scripts/openwrt_helpers.sh
+. ${ab_root}/scripts/ftsnap.sh
 . ${ab_root}/scripts/ab-common.sh
 
 # Command line processing
@@ -31,6 +32,7 @@ do_menuconfig=
 do_help=
 do_list=
 do_clean=
+do_fullclean=
 
 if list_find ab_stages "${1}"; then
 	ab_stages="${1}"
@@ -51,6 +53,10 @@ elif test x"${1}" = x"list"; then
 	shift
 elif test x"${1}" = x"clean"; then
 	do_clean=1
+	shift
+elif test x"${1}" = x"fullclean"; then
+	do_clean=1
+	do_fullclean=1
 	shift
 fi
 
@@ -119,6 +125,9 @@ ab_tmp="${openwrt_root}/.ab"
 # Default release directory
 ab_bin_release="${openwrt_root}/autobuild_release"
 
+# Build autobuild tools
+make --no-print-directory -s -C "${ab_root}/tools"
+
 # OK, do clean here if required
 if test x"${do_clean}" = x"1"; then
 	if ! git status >/dev/null; then
@@ -126,13 +135,44 @@ if test x"${do_clean}" = x"1"; then
 		exit 1
 	fi
 
-	exec_log "git -C \"${openwrt_root}\" checkout ."
-	exec_log "git -C \"${openwrt_root}\" clean -f -d -e autobuild"
-	if test x"${reserve_feeds_set}" != x"yes"; then
+	if test x"${do_fullclean}" = x"1"; then
 		exec_log "rm -rf \"${openwrt_root}/feeds\""
 		exec_log "rm -rf \"${openwrt_root}/package/feeds\""
+		exec_log "rm -rf \"${openwrt_root}/tmp\""
+		exec_log "rm -rf \"${openwrt_root}/log\""
+		exec_log "git -C \"${openwrt_root}\" checkout ."
+		exec_log "git -C \"${openwrt_root}\" clean -f -d -e autobuild"
+
+		__residue_files=$(git -C ${openwrt_root} ls-files -m -o -x autobuild --exclude-standard)
+
+		for __f in ${__residue_files}; do
+			exec_log "rm -rf \"${openwrt_root}/${__f}\""
+		done
+
+		exit 0
 	fi
-	exec_log "rm -rf \"${openwrt_root}/.ab\""
+
+	ftsnap_prepare
+
+	exec_log "git -C \"${openwrt_root}\" checkout ."
+	exec_log "git -C \"${openwrt_root}\" clean -f -d -e autobuild -e .ab"
+
+	__residue_files=$(git -C ${openwrt_root} ls-files -m -o -x .ab -x autobuild --exclude-standard)
+
+	for __f in ${__residue_files}; do
+		exec_log "rm -rf \"${openwrt_root}/${__f}\""
+	done
+
+	# clean feeds
+	for __feed in $(openwrt_avail_feeds); do
+		exec_log "git -C \"${openwrt_root}/feeds/${__feed}\" checkout ."
+		exec_log "git -C \"${openwrt_root}/feeds/${__feed}\" clean -f -d"
+	done
+
+	# Remove everything in .ab/ except the keep folder
+	if test -d "${ab_tmp}"; then
+		exec_log "find ${ab_tmp} -mindepth 1 -maxdepth 1 ! -name keep -exec rm -rf {} \;"
+	fi
 
 	exit 0
 fi
@@ -283,7 +323,10 @@ help_add_line "  sdk_release - Do source code release. MediaTek internal use onl
 help_add_line "  menuconfig  - Do menuconfig for specified branch. defconfig of this branch"
 help_add_line "                will be updated."
 help_add_line "  clean       - Clean all modified/untraced files/directories from OpenWrt"
-help_add_line "                source code."
+help_add_line "                source code but keep filetime cache to reduce build time"
+help_add_line "                for subsequent prepare/build."
+help_add_line "  fullclean   - Do normal clean and then remove feeds and filetime cache as"
+help_add_line "                well."
 help_add_line "  list        - List all available branch names."
 help_add_line "  help        - Show this help."
 help_add_line ""
