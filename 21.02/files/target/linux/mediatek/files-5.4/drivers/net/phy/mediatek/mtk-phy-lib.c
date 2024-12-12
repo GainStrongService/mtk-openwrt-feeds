@@ -158,9 +158,9 @@ EXPORT_SYMBOL_GPL(mtk_phy_config_intr);
  */
 static int extend_an_new_lp_cnt_limit(struct phy_device *phydev)
 {
-	int mmd_read_ret;
 	u32 reg_val;
 	int timeout;
+	int ret;
 
 	/* According to table 28-9 & Figure 28-18 in IEEE 802.3,
 	 * link_fail_inhibit_timer of 10/100/1000 Mbps devices ranges from 750
@@ -169,13 +169,13 @@ static int extend_an_new_lp_cnt_limit(struct phy_device *phydev)
 	 * this PHY's 1G training starts. If 1G training never starts, we do
 	 * nothing but leave.
 	 */
-	timeout = read_poll_timeout(mmd_read_ret = phy_read_mmd, reg_val,
-				    (mmd_read_ret < 0) ||
+	timeout = read_poll_timeout(ret = phy_read_mmd, reg_val,
+				    (ret < 0) ||
 				    reg_val & MTK_PHY_FINAL_SPEED_1000,
 				    10000, 1000000, false, phydev,
 				    MDIO_MMD_VEND1, MTK_PHY_LINK_STATUS_MISC);
-	if (mmd_read_ret < 0)
-		return mmd_read_ret;
+	if (ret < 0)
+		return ret;
 
 	if (!timeout) {
 		/* Once we found MTK_PHY_FINAL_SPEED_1000 is set, no matter 1G
@@ -184,7 +184,16 @@ static int extend_an_new_lp_cnt_limit(struct phy_device *phydev)
 		 */
 		mtk_tr_modify(phydev, 0x0, 0xf, 0x3c, AN_NEW_LP_CNT_LIMIT_MASK,
 			      FIELD_PREP(AN_NEW_LP_CNT_LIMIT_MASK, 0xf));
-		mdelay(1500);
+		msleep(1500);
+
+		/* Read phy status again to make sure the following step won't
+		 * affect normal devices.
+		 */
+		ret = genphy_read_status(phydev);
+		if (ret)
+			return ret;
+		if (phydev->link)
+			return 0;
 
 		timeout = read_poll_timeout(mtk_tr_read, reg_val,
 					    (reg_val & AN_STATE_MASK) !=
@@ -193,18 +202,16 @@ static int extend_an_new_lp_cnt_limit(struct phy_device *phydev)
 					    10000, 1000000, false, phydev,
 					    0x0, 0xf, 0x2);
 		if (!timeout) {
-			mdelay(625);
+			msleep(625);
 			mtk_tr_modify(phydev, 0x0, 0xf, 0x3c,
 				      AN_NEW_LP_CNT_LIMIT_MASK,
 				      FIELD_PREP(AN_NEW_LP_CNT_LIMIT_MASK,
 						 0x8));
-			mdelay(500);
+			msleep(500);
 			mtk_tr_modify(phydev, 0x0, 0xf, 0x3c,
 				      AN_NEW_LP_CNT_LIMIT_MASK,
 				      FIELD_PREP(AN_NEW_LP_CNT_LIMIT_MASK,
 						 0xf));
-		} else {
-			return -ETIMEDOUT;
 		}
 	}
 
