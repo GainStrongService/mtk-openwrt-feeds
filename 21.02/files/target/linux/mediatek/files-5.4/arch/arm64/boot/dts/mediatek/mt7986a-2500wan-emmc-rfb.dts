@@ -1,6 +1,9 @@
 /dts-v1/;
 #include "mt7986a.dtsi"
 #include "mt7986a-pinctrl.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "MediaTek MT7986a RFB";
 	compatible = "mediatek,mt7986a-emmc-rfb";
@@ -8,6 +11,22 @@
 		bootargs = "console=ttyS0,115200n1 loglevel=8  \
 				earlycon=uart8250,mmio32,0x11002000 \
 				root=PARTLABEL=rootfs rootwait rootfstype=squashfs,f2fs";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&pio 9 GPIO_ACTIVE_LOW>;
+		};
+
+		wps {
+			label = "wps";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&pio 10 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	memory {

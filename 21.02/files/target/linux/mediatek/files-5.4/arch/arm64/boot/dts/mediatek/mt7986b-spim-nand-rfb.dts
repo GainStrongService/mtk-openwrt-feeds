@@ -2,6 +2,9 @@
 #include "mt7986b.dtsi"
 #include "mt7986b-pinctrl.dtsi"
 #include "mt7986-spim-nand-partition.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "MediaTek MT7986b RFB";
 	compatible = "mediatek,mt7986b-spim-snand-rfb";
@@ -12,6 +15,22 @@
 
 	memory {
 		reg = <0 0x40000000 0 0x10000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&pio 9 GPIO_ACTIVE_LOW>;
+		};
+
+		wps {
+			label = "wps";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&pio 10 GPIO_ACTIVE_LOW>;
+		};
 	};
 };
 
