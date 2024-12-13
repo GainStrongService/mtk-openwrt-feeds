@@ -130,14 +130,16 @@ modify_feeds_conf() {
 	# Backup original feeds
 	exec_log "cp -f \"${openwrt_root}/feeds.conf.default\" \"${ab_tmp}/\""
 
-	# Modify feeds
-	openwrt_feeds_replace_url packages https://gerrit.mediatek.inc/openwrt/feeds/packages
-	openwrt_feeds_replace_url luci https://gerrit.mediatek.inc/openwrt/feeds/luci
-	openwrt_feeds_replace_url routing https://gerrit.mediatek.inc/openwrt/feeds/routing
-	openwrt_feeds_disable telephony
-	openwrt_feeds_change_src_git_type packages 0
-	openwrt_feeds_change_src_git_type luci 0
-	openwrt_feeds_change_src_git_type routing 0
+	if test -n "${internal_build}"; then
+		# Modify feeds
+		openwrt_feeds_replace_url packages https://gerrit.mediatek.inc/openwrt/feeds/packages
+		openwrt_feeds_replace_url luci https://gerrit.mediatek.inc/openwrt/feeds/luci
+		openwrt_feeds_replace_url routing https://gerrit.mediatek.inc/openwrt/feeds/routing
+		openwrt_feeds_disable telephony
+		openwrt_feeds_change_src_git_type packages 0
+		openwrt_feeds_change_src_git_type luci 0
+		openwrt_feeds_change_src_git_type routing 0
+	fi
 
 	# Add mtk-openwrt-feeds
 	[ -n "${ab_variant_dir}" ] && list_append rev_file_list "${ab_variant_dir}/feed_revision"
