@@ -479,7 +479,8 @@ static int get_chip_name()
 {
 	int temp = 0, rc = 0;
 	FILE *fp = NULL;
-	char buff[255];
+	char *buff;
+	int filesize, i;
 
 	/*judge an8855, must be placed before reg_read*/
 	if (air_skip_check_flag) {
@@ -490,12 +491,51 @@ static int get_chip_name()
 	/*judge jaguar embedded switch */
 	fp = fopen("/proc/device-tree/compatible", "r");
 	if (fp != NULL) {
-		temp = -1;
-		if (fgets(buff, 255, (FILE *) fp) && strstr(buff, "mt7988"))
+		if (fseek(fp, 0, SEEK_END) < 0) {
+			fclose(fp);
+			return -1;
+		}
+
+		filesize = ftell(fp);
+		if (filesize < 0) {
+			printf("Failed to get file size");
+			fclose(fp);
+			return -1;
+		}
+
+		if (fseek(fp, 0, SEEK_SET) < 0) {
+			fclose(fp);
+			return -1;
+		}
+
+		buff = (char *)malloc(filesize + 1);
+		if (buff == NULL) {
+			printf("Memory allocation failed\n");
+			fclose(fp);
+			return -1;
+		}
+
+		if (fread(buff, 1, filesize, fp) != filesize) {
+			printf("Failed to read compatible content\n");
+			free(buff);
+			fclose(fp);
+			return -1;
+		}
+
+		/* Null-terminate the buffer and replace '\0' characters with space characters */
+		buff[filesize] = '\0';
+		for (i = 0; i < filesize; i++) {
+			if (buff[i] == '\0')
+				buff[i] = ' ';
+		}
+
+		if (strstr(buff, "mt7988") != NULL)
 			temp = 0x7988;
 
-		rc = fclose(fp);
-		if (rc == 0 && temp == 0x7988)
+		free(buff);
+		fclose(fp);
+
+		if (temp == 0x7988)
 			return temp;
 	}
 
