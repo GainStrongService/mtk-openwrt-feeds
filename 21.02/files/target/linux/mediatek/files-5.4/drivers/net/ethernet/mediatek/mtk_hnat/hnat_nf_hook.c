@@ -247,7 +247,7 @@ static void foe_clear_ethdev_bind_entries(struct net_device *dev)
 	int port_id, gmac;
 	u32 i, hash_index;
 	u32 dsa_tag;
-	u32 total = 0;
+	u32 total;
 
 	/* Get the master device if the device is slave device */
 	port_id = hnat_dsa_get_port(&master_dev);
@@ -269,6 +269,7 @@ static void foe_clear_ethdev_bind_entries(struct net_device *dev)
 	}
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
+		total = 0;
 		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
 			entry = hnat_priv->foe_table_cpu[i] + hash_index;
 			if (!entry_hnat_is_bound(entry))
@@ -295,11 +296,11 @@ static void foe_clear_ethdev_bind_entries(struct net_device *dev)
 				total++;
 			}
 		}
-	}
 
-	/* clear HWNAT cache */
-	if (total > 0)
-		hnat_cache_ebl(1);
+		/* clear HWNAT cache */
+		if (total)
+			hnat_cache_clr(i);
+	}
 }
 
 void foe_clear_all_bind_entries(void)
@@ -318,10 +319,10 @@ void foe_clear_all_bind_entries(void)
 				entry->udib1.time_stamp = foe_timestamp(hnat_priv, false);
 			}
 		}
-	}
 
-	/* clear HWNAT cache */
-	hnat_cache_ebl(1);
+		/* clear HWNAT cache */
+		hnat_cache_clr(i);
+	}
 
 	mod_timer(&hnat_priv->hnat_sma_build_entry_timer, jiffies + 3 * HZ);
 }
@@ -439,8 +440,8 @@ void foe_clear_crypto_entry(struct xfrm_selector sel)
 			    !((entry->ipv4_hnapt.sport ^ sel.sport) & sel.sport_mask) &&
 			    entry->ipv4_hnapt.bfib1.udp == udp) {
 				memset(entry, 0, sizeof(*entry));
-				/* Clear HWNAT cache */
-				hnat_cache_ebl(1);
+				/* clear HWNAT cache */
+				hnat_cache_clr(i);
 				/* Wait for entry write done */
 				wmb();
 				if (debug_level >= 2)
@@ -482,7 +483,7 @@ void foe_clear_entry(struct neighbour *neigh)
 					entry->udib1.time_stamp = foe_timestamp(hnat_priv, false);
 
 					/* clear HWNAT cache */
-					hnat_cache_ebl(1);
+					hnat_cache_clr(i);
 
 					mod_timer(&hnat_priv->hnat_sma_build_entry_timer,
 						  jiffies + 3 * HZ);
@@ -740,7 +741,7 @@ unsigned int do_hnat_ge_to_ext(struct sk_buff *skb, const char *func)
 			entry->ipv6_5t_route.act_dp &= ~UDF_PINGPONG_IFIDX;
 
 		/* clear HWNAT cache */
-		hnat_cache_ebl(1);
+		hnat_cache_clr(skb_hnat_ppe(skb));
 	}
 	if (debug_level >= 7)
 		trace_printk("%s: called from %s fail, index=%x\n", __func__,
@@ -3186,7 +3187,8 @@ static void mtk_hnat_dscp_update(struct sk_buff *skb, struct foe_entry *entry)
 		if (debug_level >= 7)
 			pr_info("%s %d update entry idx=%d\n", __func__, __LINE__,
 			skb_hnat_entry(skb));
-		hnat_cache_ebl(1);
+		/* clear HWNAT cache */
+		hnat_cache_clr(skb_hnat_ppe(skb));
 	}
 }
 

@@ -1363,6 +1363,7 @@ uint32_t hnat_cpu_reason_cnt(struct sk_buff *skb);
 int hnat_enable_hook(void);
 int hnat_disable_hook(void);
 void hnat_cache_ebl(int enable);
+void hnat_cache_clr(u32 ppe_id);
 void hnat_qos_shaper_ebl(u32 id, u32 enable);
 void exclude_boundary_entry(struct foe_entry *foe_table_cpu);
 void set_gmac_ppe_fwd(int gmac_no, int enable);

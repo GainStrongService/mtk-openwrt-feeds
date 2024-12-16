@@ -96,6 +96,14 @@ void hnat_cache_ebl(int enable)
 }
 EXPORT_SYMBOL(hnat_cache_ebl);
 
+void hnat_cache_clr(u32 ppe_id)
+{
+	if (ppe_id < CFG_PPE_NUM) {
+		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_X_MODE, 1);
+		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_X_MODE, 0);
+	}
+}
+
 static void hnat_reset_timestamp(struct timer_list *t)
 {
 	struct foe_entry *entry;
@@ -373,7 +381,8 @@ int entry_delete_by_mac(u8 *mac)
 		for (index = 0; index < DEF_ETRY_NUM; entry++, index++) {
 			if(entry->bfib1.state == BIND && entry_mac_cmp(entry, mac)) {
 				memset(entry, 0, sizeof(*entry));
-				hnat_cache_ebl(1);
+				/* clear HWNAT cache */
+				hnat_cache_clr(i);
 				if (debug_level >= 2)
 					pr_info("delete entry idx = %d\n", index);
 				ret++;
@@ -397,7 +406,8 @@ int entry_delete_by_ip(bool is_ipv4, void *addr)
 		for (index = 0; index < DEF_ETRY_NUM; entry++, index++) {
 			if (entry->bfib1.state == BIND && entry_ip_cmp(entry, is_ipv4, addr)) {
 				memset(entry, 0, sizeof(*entry));
-				hnat_cache_ebl(1);
+				/* clear HWNAT cache */
+				hnat_cache_clr(i);
 				if (debug_level >= 2)
 					pr_info("delete entry idx = %d\n", index);
 				ret++;
@@ -452,7 +462,8 @@ static int entry_delete_by_bssid_wcid(u32 wdma_idx, u16 bssid, u16 wcid)
 			}
 
 			memset(entry, 0, sizeof(*entry));
-			hnat_cache_ebl(1);
+			/* clear HWNAT cache */
+			hnat_cache_clr(i);
 			if (debug_level >= 2)
 				pr_info("delete entry idx = %d\n", index);
 			ret++;
