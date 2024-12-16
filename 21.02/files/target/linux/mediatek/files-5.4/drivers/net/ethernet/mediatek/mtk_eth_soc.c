@@ -5232,6 +5232,7 @@ static void mtk_prepare_reset_fe(struct mtk_eth *eth, unsigned long *restart_car
 
 	/* Disable NETSYS Interrupt */
 	mtk_w32(eth, 0, MTK_FE_INT_ENABLE);
+	mtk_w32(eth, 0, MTK_FE_INT_ENABLE2);
 	mtk_w32(eth, 0, MTK_PDMA_INT_MASK);
 	mtk_w32(eth, 0, MTK_QDMA_INT_MASK);
 
@@ -6490,7 +6491,7 @@ static int mtk_probe(struct platform_device *pdev)
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
 			err = devm_request_irq(eth->dev, eth->irq_fe[2],
-					       mtk_handle_fe_irq, 0,
+					       mtk_handle_fe_irq, IRQF_SHARED,
 					       dev_name(eth->dev), eth);
 			if (err)
 				goto err_free_dev;

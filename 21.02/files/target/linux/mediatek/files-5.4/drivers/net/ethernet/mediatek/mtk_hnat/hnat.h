@@ -107,6 +107,8 @@
 #define PPE_MIB_CAH_RDATA 0X160
 #define PPE_SB_FIFO_DBG 0x170
 #define PPE_SBW_CTRL 0x174
+#define PPE_SB_WED0_CNT 0x18C
+#define PPE_FLOW_CHK_STATUS 0x1B0
 
 #define GDMA1_FWD_CFG 0x500
 #define GDMA2_FWD_CFG 0x1500
@@ -135,7 +137,19 @@
 
 /*PPE_CAH_CTRL mask*/
 #define CAH_EN (0x1 << 0) /* RW */
+#define CAH_REQ (0x1 << 8) /* RW */
 #define CAH_X_MODE (0x1 << 9) /* RW */
+#define CAH_CMD (0x3 << 12) /* RW */
+#define CAH_DATA_SEL (0x3 << 18) /* RW */
+
+/*PPE_CAH_LINE_RW mask*/
+#define LINE_RW (0xffff << 0) /* RW */
+#define OFFSET_RW (0xff << 16) /* RW */
+
+/*PPE_CAH_TAG_SRH mask*/
+#define TAG_SRH (0xffff << 0) /* RW */
+#define SRH_LNUM (0x7fff << 16) /* RW */
+#define SRH_HIT (0x1 << 31) /* RW */
 
 /*PPE_UNB_AGE mask*/
 #define UNB_DLTA (0xff << 0) /* RW */
@@ -983,6 +997,7 @@ struct mtk_hnat {
 	spinlock_t		entry_lock;
 	spinlock_t		flow_entry_lock;
 	struct hlist_head *foe_flow[MAX_PPE_NUM];
+	int fe_irq2;
 };
 
 struct hnat_flow_entry {
@@ -1002,6 +1017,22 @@ struct tcpudphdr {
 	__be16 src;
 	__be16 dst;
 };
+
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+struct ppe_flow_chk_status {
+	u32 entry : 15;
+	u32 sta : 1;
+	u32 state : 2;
+	u32 sp : 4;
+	u32 fp : 4;
+	u32 cah : 1;
+	u32 rmt : 1;
+	u32 psn : 1;
+	u32 dram : 1;
+	u32 resv : 1;
+	u32 valid : 1;
+};
+#endif
 
 enum FoeEntryState { INVALID = 0, UNBIND = 1, BIND = 2, FIN = 3 };
 
@@ -1324,6 +1355,8 @@ void hnat_unregister_nf_hooks(void);
 int whnat_adjust_nf_hooks(void);
 int mtk_hqos_ptype_cb(struct sk_buff *skb, struct net_device *dev,
 		      struct packet_type *pt, struct net_device *unused);
+int hnat_dump_cache_entry(u32 ppe_id, u32 hash);
+int hnat_dump_ppe_entry(u32 ppe_id, u32 hash);
 bool is_eth_dev_speed_under(const struct net_device *dev, u32 speed);
 extern int dbg_cpu_reason;
 extern int debug_level;

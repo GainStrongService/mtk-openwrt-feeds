@@ -614,6 +614,167 @@ static void hnat_flow_entry_teardown_disable(void)
 	cancel_delayed_work(&_hnat_flow_entry_teardown_work);
 }
 
+static int is_cah_ctrl_request_done(int ppe_id)
+{
+	int count = 1000;
+
+	/* waiting for 1sec to make sure action was finished */
+	do {
+		if (((readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL) >> 8) & 0x1) == 0)
+			return 1;
+		usleep_range(1000, 1100);
+	} while (--count);
+
+	return 0;
+}
+
+static int hnat_cache_tag_search(int ppe_id, int tag)
+{
+	u32 tag_srh = 0;
+	int line = 0;
+
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_TAG_SRH, TAG_SRH, tag);
+	/* software access cache command = tag search */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_CMD, 0);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_REQ, 1);
+	if (is_cah_ctrl_request_done(ppe_id)) {
+		tag_srh = readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_TAG_SRH);
+		/* tag search miss */
+		if (!((tag_srh >> 31) & 0x1))
+			return -1;
+		line = (tag_srh >> 16) & 0x7f;
+	} else {
+		pr_notice("%s is timeout (%d)\n", __func__, line);
+		return -1;
+	}
+
+	return line;
+}
+
+int hnat_dump_cache_entry(u32 ppe_id, u32 hash)
+{
+	u32 data[32] = {0};
+	u32 cah_en = 0;
+	int line = 0;
+	int i = 0, j = 0;
+
+	cah_en = readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL) & 0x1;
+	if (!cah_en) {
+		pr_info("%s: Cache is not enabled\n", __func__);
+		return -1;
+	}
+
+	/* disable scan mode */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SCAN_MODE, 0);
+	/* cache disable */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_EN, 0);
+
+	if (ppe_id >= CFG_PPE_NUM || hash >= hnat_priv->foe_etry_num) {
+		pr_info("%s: invalid ppe_id or hash %d_%d\n", __func__, ppe_id, hash);
+		return -1;
+	}
+
+	line = hnat_cache_tag_search(ppe_id, hash);
+	if (line < 0)
+		return -1;
+
+	pr_info("==========<PPE Table Cache Entry=%d_%d >===============\n",
+		ppe_id, hash);
+	for (i = 0; i < 8; i++) {
+		for (j = 0; j < 4; j++) {
+			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_LINE_RW, LINE_RW, line);
+			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_LINE_RW, OFFSET_RW, i);
+			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_DATA_SEL, j);
+			/* software access cache command = read */
+			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_CMD, 2);
+			/* trigger software access cache request */
+			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_REQ, 1);
+			if (is_cah_ctrl_request_done(ppe_id))
+				data[i * 4 + j] =
+					readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_RDATA);
+			else
+				pr_info("%s is timeout (%d)\n", __func__, line);
+		}
+	}
+	for (i = 0; i < 4; i++) {
+		pr_info("%08x %08x %08x %08x %08x %08x %08x %08x\n",
+			data[i * 8], data[i * 8 + 1], data[i * 8 + 2], data[i * 8 + 3],
+			data[i * 8 + 4], data[i * 8 + 5], data[i * 8 + 6], data[i * 8 + 7]);
+	}
+	pr_info("=========================================\n");
+
+	/* clear cache table before enabling cache */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_X_MODE, 1);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_X_MODE, 0);
+	/* cache enable */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_EN, 1);
+	/* enable scan mode */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SCAN_MODE, 2);
+
+	return 0;
+}
+
+int hnat_dump_ppe_entry(u32 ppe_id, u32 hash)
+{
+	struct foe_entry *entry;
+	int i;
+
+	if (ppe_id >= CFG_PPE_NUM || hash >= hnat_priv->foe_etry_num) {
+		pr_info("%s: invalid ppe_id or hash %d_%d\n", __func__, ppe_id, hash);
+		return -1;
+	}
+
+	entry = hnat_get_foe_entry(ppe_id, hash);
+	pr_info("====================PPE Entry %d_%d HEX DUMP========================\n",
+		ppe_id, hash);
+	for (i = 0; i < sizeof(*entry) / 4; i += 8) {
+		pr_info("%08x %08x %08x %08x %08x %08x %08x %08x\n",
+			*((u32 *)entry + i + 0), *((u32 *)entry + i + 1),
+			*((u32 *)entry + i + 2), *((u32 *)entry + i + 3),
+			*((u32 *)entry + i + 4), *((u32 *)entry + i + 5),
+			*((u32 *)entry + i + 6), *((u32 *)entry + i + 7));
+	}
+
+	return 0;
+}
+
+static irqreturn_t hnat_handle_fe_irq2(int irq, void *priv)
+{
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	struct ppe_flow_chk_status *fcs;
+	u32 irq_status, chk_status;
+	u32 ppe_id;
+
+	irq_status = readl(hnat_priv->fe_base + MTK_FE_INT_STATUS2);
+	if (irq_status & MTK_FE_INT2_PPE0_FLOW_CHK) {
+		ppe_id = 0;
+
+		writel(MTK_FE_INT2_PPE0_FLOW_CHK, hnat_priv->fe_base + MTK_FE_INT_STATUS2);
+	} else if ((irq_status & MTK_FE_INT2_PPE1_FLOW_CHK) && (CFG_PPE_NUM > 1)) {
+		ppe_id = 1;
+		writel(MTK_FE_INT2_PPE1_FLOW_CHK, hnat_priv->fe_base + MTK_FE_INT_STATUS2);
+	} else {
+		return IRQ_NONE;
+	}
+
+	chk_status = readl(hnat_priv->ppe_base[ppe_id] - 0x200 + PPE_FLOW_CHK_STATUS);
+	fcs = (struct ppe_flow_chk_status *)(&chk_status);
+	pr_info("PPE%d_FLOW_CHK_IRQ HIT! status=0x%08x\n", ppe_id, chk_status);
+	pr_info("ENTRY=%d|STC=%d|STATE=%d|SP=%d|FP=%d|CAH=%d|RMT=%d|PSN=%d|DRAM=%d|VALID=%d\n",
+		fcs->entry, fcs->sta, fcs->state, fcs->sp, fcs->fp, fcs->cah, fcs->rmt,
+		fcs->psn, fcs->dram, fcs->valid);
+
+	if (hnat_dump_cache_entry(ppe_id, fcs->entry) < 0)
+		pr_info("Failed to dump cache entry %d_%d!\n", ppe_id, fcs->entry);
+
+	if (hnat_dump_ppe_entry(ppe_id, fcs->entry) < 0)
+		pr_info("Failed to dump ppe entry %d_%d!\n", ppe_id, fcs->entry);
+
+	return IRQ_HANDLED;
+#endif
+	return IRQ_NONE;
+}
+
 static int hnat_hw_init(u32 ppe_id)
 {
 	if (ppe_id >= CFG_PPE_NUM)
@@ -709,6 +870,12 @@ static int hnat_hw_init(u32 ppe_id)
 			     SB_MED_FULL_DRP_EN, 1);
 		cr_set_bits(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG,
 			    NEW_IPV4_ID_INC_EN | TSID_EN);
+		if (ppe_id == 0)
+			cr_set_field(hnat_priv->fe_base + MTK_FE_INT_ENABLE2,
+				     MTK_FE_INT2_PPE0_FLOW_CHK, 1);
+		else if (ppe_id == 1)
+			cr_set_field(hnat_priv->fe_base + MTK_FE_INT_ENABLE2,
+				     MTK_FE_INT2_PPE1_FLOW_CHK, 1);
 	}
 
 	/*enable ppe mib counter*/
@@ -1166,6 +1333,18 @@ static int hnat_probe(struct platform_device *pdev)
 #else
 	hnat_priv->ppe_base[0] = hnat_priv->fe_base + 0xe00;
 #endif
+
+	if (hnat_priv->data->version == MTK_HNAT_V3) {
+		/* PPE flow check interrupt registeration for MT7987 */
+		hnat_priv->fe_irq2 = platform_get_irq(pdev, 0);
+		if (hnat_priv->fe_irq2 >= 0) {
+			err = devm_request_irq(hnat_priv->dev, hnat_priv->fe_irq2,
+					       hnat_handle_fe_irq2, IRQF_SHARED,
+					       dev_name(hnat_priv->dev), hnat_priv);
+			if (err)
+				dev_err(&pdev->dev, "Unable to request FE IRQ!\n");
+		}
+	}
 
 	err = hnat_init_debugfs(hnat_priv);
 	if (err)
