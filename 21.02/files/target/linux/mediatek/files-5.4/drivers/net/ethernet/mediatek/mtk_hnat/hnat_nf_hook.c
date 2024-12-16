@@ -1411,7 +1411,7 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 	entry.bfib1.vlan_layer += (hw_path->flags & BIT(DEV_PATH_VLAN)) ? 1 : 0;
 	entry.bfib1.vpm = (entry.bfib1.vlan_layer) ? 1 : 0;
 	entry.bfib1.cah = 1;
-	entry.bfib1.sta = 1;
+	entry.bfib1.sta = 0;
 	entry.bfib1.ttl = 1;
 
 	switch ((int)entry.bfib1.pkt_type) {
@@ -1579,21 +1579,22 @@ static int hnat_foe_entry_commit(struct foe_entry *foe,
 {
 	/* Renew the entry timestamp */
 	entry->bfib1.time_stamp = foe_timestamp(hnat_priv, false);
+	/* After other fields have been written, write state to the entry */
+	entry->bfib1.state = state;
+
 	/* We must ensure all info has been updated before set to hw */
 	wmb();
 	/* Before entry enter BIND state, write other fields first,
 	 * prevent racing with hardware accesses.
 	 */
-	memcpy(foe, entry, sizeof(struct foe_entry));
+	memcpy(&foe->ipv6_hnapt.ipv6_sip0, &entry->ipv6_hnapt.ipv6_sip0,
+	       sizeof(struct foe_entry) - sizeof(struct hnat_bind_info_blk));
 	/* We must ensure all info has been updated before set to hw */
 	wmb();
-	/* After other fields have been written, write state to the entry */
-	entry->bfib1.state = state;
-	/* When the entry is going to enter BIND state, release the static lock */
-	entry->bfib1.sta = (state == BIND) ? 0 : 1;
+
 	foe->bfib1 = entry->bfib1;
 	/* We must ensure all info has been updated */
-	wmb();
+	dma_wmb();
 
 	return 0;
 }
@@ -2631,7 +2632,7 @@ hnat_entry_bind:
 	/* Final check if the entry is not in UNBIND state,
 	 * we should not modify it right now.
 	 */
-	if (unlikely(foe->udib1.state != UNBIND || !hnat_entry_is_static_locked(foe))) {
+	if (unlikely(foe->udib1.state != UNBIND)) {
 		spin_unlock_bh(&hnat_priv->entry_lock);
 		return -1;
 	}
@@ -2668,12 +2669,10 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		return NF_ACCEPT;
 
 	hw_entry = &hnat_priv->foe_table_cpu[skb_hnat_ppe(skb)][skb_hnat_entry(skb)];
-	if (!hnat_entry_is_static_locked(hw_entry))
-		return NF_ACCEPT;
 
 	if (skb_hnat_alg(skb) || !is_hnat_info_filled(skb) ||
 	    !is_magic_tag_valid(skb) || !IS_SPACE_AVAILABLE_HEAD(skb))
-		goto check_release_entry_lock;
+		return NF_ACCEPT;
 
 	if (debug_level >= 7)
 		trace_printk(
@@ -2684,13 +2683,13 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 
 	if ((gmac_no != NR_WDMA0_PORT) && (gmac_no != NR_WDMA1_PORT) &&
 	    (gmac_no != NR_WDMA2_PORT) && (gmac_no != NR_WHNAT_WDMA_PORT))
-		goto check_release_entry_lock;
+		return NF_ACCEPT;
 
 	if (unlikely(!skb_mac_header_was_set(skb)))
-		goto check_release_entry_lock;
+		return NF_ACCEPT;
 
 	if (skb_hnat_reason(skb) != HIT_UNBIND_RATE_REACH)
-		goto check_release_entry_lock;
+		return NF_ACCEPT;
 
 	spin_lock_bh(&hnat_priv->flow_entry_lock);
 	/* Get the flow_entry prepared in skb_to_hnat_info */
@@ -2704,7 +2703,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		if (flow_entry)
 			hnat_flow_entry_delete(flow_entry);
 		spin_unlock_bh(&hnat_priv->flow_entry_lock);
-		goto check_release_entry_lock;
+		return NF_ACCEPT;
 	}
 
 	memcpy(&entry, &flow_entry->data, sizeof(entry));
@@ -2716,7 +2715,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	/* not bind multicast if PPE mcast not enable */
 	if (!hnat_priv->data->mcast) {
 		if (is_multicast_ether_addr(eth->h_dest))
-			goto check_release_entry_lock;
+			return NF_ACCEPT;
 
 		if (IS_L2_BRIDGE(&entry))
 			entry.l2_bridge.iblk2.mcast = 0;
@@ -2959,9 +2958,9 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	/* Final check if the entry is not in UNBIND state,
 	 * we should not modify it right now.
 	 */
-	if (unlikely(hw_entry->udib1.state != UNBIND || !hnat_entry_is_static_locked(hw_entry))) {
+	if (unlikely(hw_entry->udib1.state != UNBIND)) {
 		spin_unlock_bh(&hnat_priv->entry_lock);
-		goto check_release_entry_lock;
+		return NF_ACCEPT;
 	}
 	hnat_foe_entry_commit(hw_entry, &entry, BIND);
 	spin_unlock_bh(&hnat_priv->entry_lock);
@@ -3036,10 +3035,6 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 		}
 	}
 #endif
-	return NF_ACCEPT;
-
-check_release_entry_lock:
-	hnat_check_release_entry_static_lock(hw_entry);
 	return NF_ACCEPT;
 }
 
@@ -3577,9 +3572,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 				break;
 		}
 
-		hnat_set_entry_static_lock(entry, true);
-		if (skb_to_hnat_info(skb, out, entry, &hw_path) < 0)
-			hnat_check_release_entry_static_lock(entry);
+		skb_to_hnat_info(skb, out, entry, &hw_path);
 		break;
 	case HIT_BIND_KEEPALIVE_DUP_OLD_HDR:
 		/* update hnat count to nf_conntrack by keepalive */

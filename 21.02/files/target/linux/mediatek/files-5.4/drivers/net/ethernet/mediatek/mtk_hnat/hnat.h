@@ -1301,24 +1301,6 @@ enum FoeIpAct {
 extern const struct of_device_id of_hnat_match[];
 extern struct mtk_hnat *hnat_priv;
 
-static inline bool hnat_entry_is_static_locked(struct foe_entry *entry)
-{
-	return entry->udib1.sta == 1;
-}
-
-static inline void hnat_set_entry_static_lock(struct foe_entry *entry, bool lock)
-{
-	entry->udib1.sta = (lock) ? 1 : 0;
-	/* We must ensure all info has been updated */
-	wmb();
-}
-
-static inline void hnat_check_release_entry_static_lock(struct foe_entry *entry)
-{
-	if (hnat_entry_is_static_locked(entry))
-		hnat_set_entry_static_lock(entry, false);
-}
-
 int hnat_dsa_fill_stag(const struct net_device *netdev,
 		       struct foe_entry *entry,
 		       struct flow_offload_hw_path *hw_path,

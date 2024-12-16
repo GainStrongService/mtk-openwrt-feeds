@@ -566,7 +566,6 @@ static void hnat_flow_entry_teardown_all(u32 ppe_id)
 static void hnat_flow_entry_teardown_handler(struct work_struct *work)
 {
 	struct hnat_flow_entry *flow_entry;
-	struct foe_entry *entry;
 	struct hlist_head *head;
 	struct hlist_node *n;
 	int index, i;
@@ -579,14 +578,6 @@ static void hnat_flow_entry_teardown_handler(struct work_struct *work)
 			hlist_for_each_entry_safe(flow_entry, n, head, list) {
 				/* If the entry has not been used for 30 seconds, teardown it. */
 				if (time_after(jiffies, flow_entry->last_update + 30 * HZ)) {
-					entry = &hnat_priv->foe_table_cpu[flow_entry->ppe_index]
-									 [flow_entry->hash];
-					if (hnat_entry_is_static_locked(entry)) {
-						entry->udib1.time_stamp =
-								foe_timestamp(hnat_priv, false);
-						entry->udib1.state = INVALID;
-						hnat_set_entry_static_lock(entry, false);
-					}
 					hnat_flow_entry_delete(flow_entry);
 					cnt++;
 				}
