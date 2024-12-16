@@ -915,6 +915,7 @@ int mtk_crypto_basic_cipher(struct crypto_async_request *async,
 		}
 	}
 
+	kfree(aad);
 	return rc;
 
 error_remove_sg:
@@ -925,8 +926,7 @@ error_remove_sg:
 		dma_unmap_sg(crypto_dev, dst, mtk_req->nr_dst, DMA_FROM_DEVICE);
 	}
 
-	if (aad != NULL)
-		kfree(aad);
+	kfree(aad);
 
 	crypto_free_sglist(SrcSGListHandle.p);
 	crypto_free_sglist(DstSGListHandle.p);
