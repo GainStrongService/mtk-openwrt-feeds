@@ -17,6 +17,12 @@
 
 #define SWITCH_APP_VERSION "1.0.7"
 
+#define CLOSE_FILE(fp) do { \
+	if (fclose(fp) == EOF) { \
+		printf("Failed to close file: %s\n", strerror(errno)); \
+	} \
+} while (0)
+
 struct mt753x_attr *attres;
 int chip_name;
 bool nl_init_flag;
@@ -492,33 +498,33 @@ static int get_chip_name()
 	fp = fopen("/proc/device-tree/compatible", "r");
 	if (fp != NULL) {
 		if (fseek(fp, 0, SEEK_END) < 0) {
-			fclose(fp);
+			CLOSE_FILE(fp);
 			return -1;
 		}
 
 		filesize = ftell(fp);
 		if (filesize < 0) {
 			printf("Failed to get file size");
-			fclose(fp);
+			CLOSE_FILE(fp);
 			return -1;
 		}
 
 		if (fseek(fp, 0, SEEK_SET) < 0) {
-			fclose(fp);
+			CLOSE_FILE(fp);
 			return -1;
 		}
 
 		buff = (char *)malloc(filesize + 1);
 		if (buff == NULL) {
 			printf("Memory allocation failed\n");
-			fclose(fp);
+			CLOSE_FILE(fp);
 			return -1;
 		}
 
 		if (fread(buff, 1, filesize, fp) != filesize) {
 			printf("Failed to read compatible content\n");
 			free(buff);
-			fclose(fp);
+			CLOSE_FILE(fp);
 			return -1;
 		}
 
@@ -533,7 +539,7 @@ static int get_chip_name()
 			temp = 0x7988;
 
 		free(buff);
-		fclose(fp);
+		CLOSE_FILE(fp);
 
 		if (temp == 0x7988)
 			return temp;
