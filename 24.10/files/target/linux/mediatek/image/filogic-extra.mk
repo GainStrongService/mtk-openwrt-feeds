@@ -10,11 +10,10 @@ define Device/mediatek_mt7988d-rfb
 	mt7988a-rfb-spim-nand-factory \
 	mt7988a-rfb-spim-nand-nmbm \
 	mt7988a-rfb-spim-nor \
-	mt7988a-rfb-eth1-aqr \
-	mt7988a-rfb-eth1-cux3410 \
 	mt7988a-rfb-eth1-i2p5g-phy \
-	mt7988a-rfb-eth1-mxl \
-	mt7988a-rfb-eth1-sfp
+	mt7988a-rfb-eth2-aqr \
+	mt7988a-rfb-eth2-mxl \
+	mt7988a-rfb-eth2-sfp
   DEVICE_DTS_DIR := $(DTS_DIR)/
   DEVICE_DTC_FLAGS := --pad 4096
   DEVICE_DTS_LOADADDR := 0x45f00000
