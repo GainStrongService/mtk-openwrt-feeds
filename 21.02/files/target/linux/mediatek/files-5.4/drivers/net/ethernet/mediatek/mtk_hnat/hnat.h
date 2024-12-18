@@ -1415,6 +1415,7 @@ void hnat_flow_entry_delete(struct hnat_flow_entry *flow_entry);
 struct hnat_accounting *hnat_get_count(struct mtk_hnat *h, u32 ppe_id,
 				       u32 index, struct hnat_accounting *diff);
 
+int mtk_hnat_skb_headroom_copy(struct sk_buff *new, struct sk_buff *old);
 static inline u16 foe_timestamp(struct mtk_hnat *h, bool mcast)
 {
 	u16 time_stamp;
