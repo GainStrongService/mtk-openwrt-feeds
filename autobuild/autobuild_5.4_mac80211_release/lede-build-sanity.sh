@@ -38,6 +38,8 @@ fi
 
 cp ${BUILD_DIR}/feeds.conf.default ${BUILD_DIR}/feeds.conf.default_ori
 
+date +%s > ${BUILD_DIR}/version.date
+
 clean() {
 	echo "clean start!"
 	echo "It will take some time ......"

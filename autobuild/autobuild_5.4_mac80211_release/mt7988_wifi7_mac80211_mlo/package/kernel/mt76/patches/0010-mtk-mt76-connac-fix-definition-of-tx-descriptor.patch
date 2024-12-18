@@ -1,0 +1,56 @@
+From 0c64f27383e08caf25d64772aad1a0d35c709431 Mon Sep 17 00:00:00 2001
+From: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+Date: Fri, 23 Aug 2024 14:51:39 +0800
+Subject: [PATCH 010/146] mtk: mt76: connac: fix definition of tx descriptor
+
+In mt7992, definitions of TXD.DW6.BIT10~15 are different for different frame types.
+
+Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
+---
+ mt7996/mac.c | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 4706ddef..02d8e52f 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -830,6 +830,7 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+ 			   struct ieee80211_key_conf *key, int pid,
+ 			   enum mt76_txq_id qid, u32 changed)
+ {
++	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+ 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+ 	struct ieee80211_vif *vif = info->control.vif;
+ 	u8 band_idx = (info->hw_queue & MT_TX_HW_QUEUE_PHY) >> 2;
+@@ -895,10 +896,17 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+ 	txwi[5] = cpu_to_le32(val);
+ 
+ 	val = MT_TXD6_DIS_MAT | MT_TXD6_DAS;
+-	if (is_mt7996(&dev->mt76))
++	switch (mt76_chip(&dev->mt76)) {
++	case MT7996_DEVICE_ID:
+ 		val |= FIELD_PREP(MT_TXD6_MSDU_CNT, 1);
+-	else
+-		val |= FIELD_PREP(MT_TXD6_MSDU_CNT_V2, 1);
++		break;
++	case MT7992_DEVICE_ID:
++		if (is_8023 || !ieee80211_is_mgmt(hdr->frame_control))
++			val |= FIELD_PREP(MT_TXD6_MSDU_CNT_V2, 1);
++		break;
++	default:
++		break;
++	}
+ 	txwi[6] = cpu_to_le32(val);
+ 	txwi[7] = 0;
+ 
+@@ -908,7 +916,6 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
+ 		mt7996_mac_write_txwi_80211(dev, txwi, skb, key);
+ 
+ 	if (txwi[1] & cpu_to_le32(MT_TXD1_FIXED_RATE)) {
+-		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+ 		bool mcast = ieee80211_is_data(hdr->frame_control) &&
+ 			     is_multicast_ether_addr(hdr->addr1);
+ 		u8 idx = MT7996_BASIC_RATES_TBL;
+-- 
+2.45.2
+
