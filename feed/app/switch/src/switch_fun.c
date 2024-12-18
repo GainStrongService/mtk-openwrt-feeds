@@ -383,7 +383,6 @@ int rw_phy_token_ring(int argc, char *argv[])
 	if (argv[2][0] == 'r') {
 		if (argc != 7)
 			return -1;
-		mii_mgr_write(0, 0x1f, 0x52b5);	// r31 = 0x52b5
 
 		errno = 0;
 		port_num = strtoul(argv[3], &endptr, 10);
@@ -391,6 +390,7 @@ int rw_phy_token_ring(int argc, char *argv[])
 			printf("Illegal port index and port:0~6\n");
 			return -1;
 		}
+		mii_mgr_write(port_num, 0x1f, 0x52b5);	// r31 = 0x52b5
 
 		errno = 0;
 		ch_addr = strtoul(argv[4], &endptr, 10);
@@ -420,7 +420,6 @@ int rw_phy_token_ring(int argc, char *argv[])
 	} else if (argv[2][0] == 'w') {
 		if (argc != 9)
 			return -1;
-		mii_mgr_write(0, 0x1f, 0x52b5);	// r31 = 0x52b5
 
 		errno = 0;
 		port_num = strtoul(argv[3], &endptr, 10);
@@ -428,6 +427,7 @@ int rw_phy_token_ring(int argc, char *argv[])
 			printf("Illegal port index and port:0~6\n");
 			return -1;
 		}
+		mii_mgr_write(port_num, 0x1f, 0x52b5);	// r31 = 0x52b5
 
 		errno = 0;
 		ch_addr = strtoul(argv[4], &endptr, 10);
@@ -466,6 +466,8 @@ int rw_phy_token_ring(int argc, char *argv[])
 				tr_reg_control, val_h, val_l);
 	} else
 		return -1;
+
+	mii_mgr_write(port_num, 0x1f, 0x0); // switch back to page 0
 
 	return 0;
 
