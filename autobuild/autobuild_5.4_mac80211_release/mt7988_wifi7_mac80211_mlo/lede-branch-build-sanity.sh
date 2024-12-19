@@ -133,12 +133,6 @@ if [ "$release" = '1' ]; then
 	# remove hostapd src folder
 	WIFI7_Hostapd_SOURCE_DIR=${BUILD_DIR}/package/network/services/hostapd/src;
 	rm -rf ${WIFI7_Hostapd_SOURCE_DIR};
-	# remove mac80211 src folder
-	WIFI7_MAC80211_DIR=${BUILD_DIR}/package/kernel/mac80211
-	rm -rf ${WIFI7_MAC80211_DIR}/src
-	tarball=$(find ${WIFI7_MAC80211_DIR}/backports*.tar.xz -printf "%f\n")
-	tar -xJf ${WIFI7_MAC80211_DIR}/${tarball}
-	mv $(echo ${tarball} | cut -d '.' -f 1) ${WIFI7_MAC80211_DIR}/src
 fi
 
 change_dot_config
