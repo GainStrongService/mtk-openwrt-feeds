@@ -1,0 +1,147 @@
+From 317c607b479dd0f0cb6c5e9f1f1d63e9b9fd2a46 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Thu, 15 Aug 2024 10:58:30 +0800
+Subject: [PATCH 123/149] mtk: hostapd: add Extender PP bitmap synchronization
+
+Add support for Extender to synchronize PP bitmap to AP interface after
+association.
+
+Set driver's PP mode only if the iface is enabled.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/ucode.c                    | 9 +++++++++
+ src/drivers/driver.h              | 2 ++
+ src/drivers/driver_nl80211.c      | 7 +++++++
+ wpa_supplicant/events.c           | 1 +
+ wpa_supplicant/ucode.c            | 6 +++++-
+ wpa_supplicant/wpa_supplicant_i.h | 1 +
+ 6 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/ap/ucode.c b/src/ap/ucode.c
+index 23437bc79..b7efe35cb 100644
+--- a/src/ap/ucode.c
++++ b/src/ap/ucode.c
+@@ -625,6 +625,15 @@ uc_hostapd_iface_start(uc_vm_t *vm, size_t nargs)
+ 	if (!errno)
+ 		hostapd_set_oper_chwidth(conf, intval);
+ 
++	intval = ucv_int64_get(ucv_object_get(info, "punct_bitmap", NULL));
++	if (!errno)
++		conf->punct_bitmap = intval;
++
++	conf->pp_mode = PP_USR_MODE;
++	if (iface->state == HAPD_IFACE_ENABLED &&
++	    hostapd_drv_pp_mode_set(iface->bss[0]) != 0)
++		return NULL;
++
+ 	intval = ucv_int64_get(ucv_object_get(info, "frequency", NULL));
+ 	if (!errno)
+ 		iface->freq = intval;
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index 4d9733450..97800847b 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -2772,6 +2772,7 @@ struct wpa_channel_info {
+ 	int sec_channel;
+ 	int center_frq1;
+ 	int center_frq2;
++	u16 punct_bitmap;
+ 	u8 seg1_idx;
+ };
+ 
+@@ -3145,6 +3146,7 @@ struct driver_sta_mlo_info {
+ 		u8 addr[ETH_ALEN];
+ 		u8 bssid[ETH_ALEN];
+ 		unsigned int freq, center_freq1, center_freq2;
++		u16 punct_bitmap;
+ 		struct t2lm_mapping t2lmap;
+ 		enum chan_width width;
+ 	} links[MAX_NUM_MLD_LINKS];
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index 5c53acb59..857990f6c 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -1213,6 +1213,10 @@ static void get_link_channel_info(struct nlattr **link_data, u8 link_id,
+ 		if (link_data[NL80211_ATTR_CENTER_FREQ2])
+ 			info->links[link_id].center_freq2 =
+ 			      nla_get_u32(link_data[NL80211_ATTR_CENTER_FREQ2]);
++
++		if (link_data[NL80211_ATTR_PUNCT_BITMAP])
++			info->links[link_id].punct_bitmap =
++			      nla_get_u32(link_data[NL80211_ATTR_PUNCT_BITMAP]);
+ 	}
+ }
+ 
+@@ -1984,6 +1988,9 @@ static int get_channel_info(struct nl_msg *msg, void *arg)
+ 	if (tb[NL80211_ATTR_CENTER_FREQ2])
+ 		chan_info->center_frq2 =
+ 			nla_get_u32(tb[NL80211_ATTR_CENTER_FREQ2]);
++	if (tb[NL80211_ATTR_PUNCT_BITMAP])
++		chan_info->punct_bitmap =
++			nla_get_u32(tb[NL80211_ATTR_PUNCT_BITMAP]);
+ 
+ 	if (chan_info->center_frq2) {
+ 		u8 seg1_idx = 0;
+diff --git a/wpa_supplicant/events.c b/wpa_supplicant/events.c
+index 90e422986..435972eb2 100644
+--- a/wpa_supplicant/events.c
++++ b/wpa_supplicant/events.c
+@@ -4188,6 +4188,7 @@ static int wpa_drv_get_mlo_info(struct wpa_supplicant *wpa_s)
+ 		wpa_s->links[i].center_freq1 = mlo.links[i].center_freq1;
+ 		wpa_s->links[i].center_freq2 = mlo.links[i].center_freq2;
+ 		wpa_s->links[i].width = mlo.links[i].width;
++		wpa_s->links[i].punct_bitmap = mlo.links[i].punct_bitmap;
+ 		wpa_supplicant_update_link_bss(wpa_s, i, mlo.links[i].bssid);
+ 	}
+ 
+diff --git a/wpa_supplicant/ucode.c b/wpa_supplicant/ucode.c
+index 124038def..c632349e1 100644
+--- a/wpa_supplicant/ucode.c
++++ b/wpa_supplicant/ucode.c
+@@ -281,6 +281,7 @@ uc_wpas_iface_status(uc_vm_t *vm, size_t nargs)
+ 	enum hostapd_hw_mode hw_mode;
+ 	int link_id = ucv_int64_get(link_obj);
+ 	u32 freq;
++	u16 punct_bitmap;
+ 
+ 	if (!wpa_s)
+ 		return NULL;
+@@ -314,11 +315,13 @@ uc_wpas_iface_status(uc_vm_t *vm, size_t nargs)
+ 			freq = wpa_s->links[link_id].freq;
+ 			center_freq1 = wpa_s->links[link_id].center_freq1;
+ 			chwidth = wpa_s->links[link_id].width;
++			punct_bitmap = wpa_s->links[link_id].punct_bitmap;
+ 		} else {
+ 			wpa_drv_channel_info(wpa_s, &ci);
+ 			freq = ci.frequency;
+ 			center_freq1 = ci.center_frq1;
+-			chwidth=ci.chanwidth;
++			chwidth = ci.chanwidth;
++			punct_bitmap = ci.punct_bitmap;
+ 		}
+ 
+ 		if (bss->freq != center_freq1) {
+@@ -344,6 +347,7 @@ uc_wpas_iface_status(uc_vm_t *vm, size_t nargs)
+ 		ucv_object_add(ret, "ch_width", ucv_int64_new(oper_chwidth));
+ 		ucv_object_add(ret, "bw320_offset", ucv_int64_new(bw320_offset));
+ 		ucv_object_add(ret, "band_idx", ucv_int64_new(band_idx));
++		ucv_object_add(ret, "punct_bitmap", ucv_int64_new(punct_bitmap));
+ 	}
+ 
+ #ifdef CONFIG_MESH
+diff --git a/wpa_supplicant/wpa_supplicant_i.h b/wpa_supplicant/wpa_supplicant_i.h
+index 567763e33..1c1e69d3b 100644
+--- a/wpa_supplicant/wpa_supplicant_i.h
++++ b/wpa_supplicant/wpa_supplicant_i.h
+@@ -742,6 +742,7 @@ struct wpa_supplicant {
+ 		u8 bssid[ETH_ALEN];
+ 		unsigned int freq, center_freq1, center_freq2;
+ 		enum chan_width width;
++		u16 punct_bitmap;
+ 		struct wpa_bss *bss;
+ 		bool disabled;
+ 	} links[MAX_NUM_MLD_LINKS];
+-- 
+2.45.2
+

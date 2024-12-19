@@ -1,4 +1,4 @@
-From a628a3ffe205faa6ff3068655d74dd4a7eaf5610 Mon Sep 17 00:00:00 2001
+From e23e2ee8dd6a83fd433f3014974577ef5606a99e Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Fri, 7 Jun 2024 13:25:08 +0800
 Subject: [PATCH 63/87] mtk: mac80211: Add exported function for SoftMAC driver
@@ -35,16 +35,18 @@ Do not copy Qos map from AP to AP_VLAN IF, because AP_VLAN's map will not be fre
 Instead, assign pointer to AP's Qos map to AP_VLAN IF.
 And add support for dynamic Qos-map setting for AP_VLAN IF.
 
+Check if ieee80211_sub_if_data is ready before its usage to prevent later kernel warning.
+
 Signed-off-by: Benjamin Lin <benjamin-jw.lin@mediatek.com>
 ---
  include/net/mac80211.h    |  4 +++-
- net/mac80211/cfg.c        |  9 +++++++--
+ net/mac80211/cfg.c        | 12 ++++++++++--
  net/mac80211/chan.c       |  7 +++++++
  net/mac80211/driver-ops.h | 21 +++++++++++++++++++++
  net/mac80211/iface.c      |  8 +++++++-
  net/mac80211/trace.h      |  6 ++++++
  net/mac80211/util.c       |  2 +-
- 7 files changed, 52 insertions(+), 5 deletions(-)
+ 7 files changed, 55 insertions(+), 5 deletions(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
 index 2b616097..02d549e3 100644
@@ -74,10 +76,10 @@ index 2b616097..02d549e3 100644
 -
  #endif /* MAC80211_H */
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index c215c996..d3c641fb 100644
+index d106e877..398e0ff9 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -4468,7 +4468,7 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
+@@ -4469,9 +4469,12 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
  				 struct net_device *dev,
  				 struct cfg80211_qos_map *qos_map)
  {
@@ -85,8 +87,13 @@ index c215c996..d3c641fb 100644
 +	struct ieee80211_sub_if_data *vlan, *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
  	struct mac80211_qos_map *new_qos_map, *old_qos_map;
  
++	if (!(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
++		return -EIO;
++
  	if (qos_map) {
-@@ -4486,7 +4486,12 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
+ 		new_qos_map = kzalloc(sizeof(*new_qos_map), GFP_KERNEL);
+ 		if (!new_qos_map)
+@@ -4487,7 +4490,12 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
  	if (old_qos_map)
  		kfree_rcu(old_qos_map, rcu_head);
  
@@ -149,7 +156,7 @@ index 3a7c6fa2..12641e72 100644
 +
  #endif /* __MAC80211_DRIVER_OPS */
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index 07c17953..9d8f2f4f 100644
+index 82fa566b..04157639 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
 @@ -389,8 +389,14 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,

@@ -1,0 +1,273 @@
+From d8e7f4d9f53d1753c2eb511aed306330511df8da Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 12 Nov 2024 23:01:52 +0800
+Subject: [PATCH 148/149] mtk: hostapd: set radio_mask when adding interface
+
+Fix crash issue if hapd->iface->current_hw_info not exist.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ hostapd/config_file.c                |  2 ++
+ src/ap/ap_config.h                   |  1 +
+ src/ap/ap_drv_ops.c                  | 17 ++++++++++++++---
+ src/ap/ap_drv_ops.h                  |  2 +-
+ src/ap/hostapd.c                     | 10 +++++++++-
+ src/drivers/driver.h                 |  2 +-
+ src/drivers/driver_nl80211.c         | 19 ++++++++++---------
+ src/drivers/driver_nl80211.h         |  2 +-
+ src/drivers/driver_nl80211_monitor.c |  2 +-
+ wpa_supplicant/driver_i.h            |  2 +-
+ 10 files changed, 41 insertions(+), 18 deletions(-)
+
+diff --git a/hostapd/config_file.c b/hostapd/config_file.c
+index 8bed9ea1c..8bb0cf181 100644
+--- a/hostapd/config_file.c
++++ b/hostapd/config_file.c
+@@ -5470,6 +5470,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+ 		bss->mld_primary = !!atoi(pos);
+ 	} else if (os_strcmp(buf, "mld_allowed_links") == 0) {
+ 		bss->mld_allowed_links = atoi(pos);
++	} else if (os_strcmp(buf, "mld_radio_mask") == 0) {
++		bss->mld_radio_mask = atoi(pos);
+ 	} else if (os_strcmp(buf, "mld_addr") == 0) {
+ 		if (hwaddr_aton(pos, bss->mld_addr)) {
+ 			wpa_printf(MSG_ERROR, "Line %d: Invalid mld_addr",
+diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
+index 9804ee3d6..00264f192 100644
+--- a/src/ap/ap_config.h
++++ b/src/ap/ap_config.h
+@@ -991,6 +991,7 @@ struct hostapd_bss_config {
+ 	u8 mld_primary;
+ 	/* Allowed link bitmap of the AP MLD to which the AP is affiliated */
+ 	u16 mld_allowed_links;
++	u32 mld_radio_mask;
+ 
+ 	/* The MLD ID to which the AP MLD is affiliated with */
+ 	u8 mld_id;
+diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
+index cb06d1532..05ab924a5 100644
+--- a/src/ap/ap_drv_ops.c
++++ b/src/ap/ap_drv_ops.c
+@@ -381,8 +381,19 @@ int hostapd_vlan_if_add(struct hostapd_data *hapd, const char *ifname)
+ {
+ 	char force_ifname[IFNAMSIZ];
+ 	u8 if_addr[ETH_ALEN];
++	u32 radio_mask = 0;
++
++#ifdef CONFIG_IEEE80211BE
++	if (hapd->iface->current_hw_info) {
++		if (hapd->conf->mld_ap)
++			radio_mask = hapd->conf->mld_radio_mask;
++		else
++			radio_mask = 1 << hapd->iface->current_hw_info->hw_idx;
++	}
++#endif /* CONFIG_IEEE80211BE */
++
+ 	return hostapd_if_add(hapd, WPA_IF_AP_VLAN, ifname, hapd->own_addr,
+-			      NULL, NULL, force_ifname, if_addr, NULL, 0, hapd->iface->freq);
++			      NULL, NULL, force_ifname, if_addr, NULL, 0, hapd->iface->freq, radio_mask);
+ }
+ 
+ 
+@@ -602,13 +613,13 @@ int hostapd_set_ssid(struct hostapd_data *hapd, const u8 *buf, size_t len)
+ int hostapd_if_add(struct hostapd_data *hapd, enum wpa_driver_if_type type,
+ 		   const char *ifname, const u8 *addr, void *bss_ctx,
+ 		   void **drv_priv, char *force_ifname, u8 *if_addr,
+-		   const char *bridge, int use_existing, int freq)
++		   const char *bridge, int use_existing, int freq, u32 radio_mask)
+ {
+ 	if (hapd->driver == NULL || hapd->driver->if_add == NULL)
+ 		return -1;
+ 	return hapd->driver->if_add(hapd->drv_priv, type, ifname, addr,
+ 				    bss_ctx, drv_priv, force_ifname, if_addr,
+-				    bridge, use_existing, 1, freq);
++				    bridge, use_existing, 1, freq, radio_mask);
+ }
+ 
+ 
+diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
+index ebdc61834..d03b99b44 100644
+--- a/src/ap/ap_drv_ops.h
++++ b/src/ap/ap_drv_ops.h
+@@ -62,7 +62,7 @@ int hostapd_set_ssid(struct hostapd_data *hapd, const u8 *buf, size_t len);
+ int hostapd_if_add(struct hostapd_data *hapd, enum wpa_driver_if_type type,
+ 		   const char *ifname, const u8 *addr, void *bss_ctx,
+ 		   void **drv_priv, char *force_ifname, u8 *if_addr,
+-		   const char *bridge, int use_existing, int freq);
++		   const char *bridge, int use_existing, int freq, u32 radio_mask);
+ int hostapd_if_remove(struct hostapd_data *hapd, enum wpa_driver_if_type type,
+ 		      const char *ifname);
+ int hostapd_if_link_remove(struct hostapd_data *hapd,
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index 616e36a40..0e0d15d2f 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -1470,6 +1470,7 @@ int hostapd_setup_bss(struct hostapd_data *hapd, int first, bool start_beacon)
+ 	char force_ifname[IFNAMSIZ];
+ 	u8 if_addr[ETH_ALEN];
+ 	int flush_old_stations = 1;
++	u32 radio_mask = 0;
+ 
+ 	if (!hostapd_mld_is_first_bss(hapd)) {
+ 		/* Only flush old stations when setting up the first BSS for the MLD. */
+@@ -1542,6 +1543,13 @@ int hostapd_setup_bss(struct hostapd_data *hapd, int first, bool start_beacon)
+ 			if (addr && !is_zero_ether_addr(hapd->conf->mld_addr))
+ 				os_memcpy(addr, hapd->conf->mld_addr, ETH_ALEN);
+ 		}
++
++		if (hapd->iface->current_hw_info) {
++			if (hapd->conf->mld_ap)
++				radio_mask = hapd->conf->mld_radio_mask;
++			else
++				radio_mask = 1 << hapd->iface->current_hw_info->hw_idx;
++		}
+ #endif /* CONFIG_IEEE80211BE */
+ 
+ 		hapd->interface_added = 1;
+@@ -1549,7 +1557,7 @@ int hostapd_setup_bss(struct hostapd_data *hapd, int first, bool start_beacon)
+ 				   conf->iface, addr, hapd,
+ 				   &hapd->drv_priv, force_ifname, if_addr,
+ 				   conf->bridge[0] ? conf->bridge : NULL,
+-				   first == -1, hapd->iface->freq)) {
++				   first == -1, hapd->iface->freq, radio_mask)) {
+ 			wpa_printf(MSG_ERROR, "Failed to add BSS (BSSID="
+ 				   MACSTR ")", MAC2STR(hapd->own_addr));
+ 			hapd->interface_added = 0;
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index ad9aa3167..109155f45 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -3985,7 +3985,7 @@ struct wpa_driver_ops {
+ 	int (*if_add)(void *priv, enum wpa_driver_if_type type,
+ 		      const char *ifname, const u8 *addr, void *bss_ctx,
+ 		      void **drv_priv, char *force_ifname, u8 *if_addr,
+-		      const char *bridge, int use_existing, int setup_ap, int freq);
++		      const char *bridge, int use_existing, int setup_ap, int freq, u32 radio_mask);
+ 
+ 	/**
+ 	 * if_remove - Remove a virtual interface
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index b56f924d7..c841ee3fc 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -6270,7 +6270,7 @@ static int nl80211_create_iface_once(struct wpa_driver_nl80211_data *drv,
+ 				     enum nl80211_iftype iftype,
+ 				     const u8 *addr, int wds,
+ 				     int (*handler)(struct nl_msg *, void *),
+-				     void *arg)
++				     void *arg, u32 radio_mask)
+ {
+ 	struct nl_msg *msg;
+ 	int ifidx;
+@@ -6282,7 +6282,8 @@ static int nl80211_create_iface_once(struct wpa_driver_nl80211_data *drv,
+ 	msg = nl80211_cmd_msg(drv->first_bss, 0, NL80211_CMD_NEW_INTERFACE);
+ 	if (!msg ||
+ 	    nla_put_string(msg, NL80211_ATTR_IFNAME, ifname) ||
+-	    nla_put_u32(msg, NL80211_ATTR_IFTYPE, iftype))
++	    nla_put_u32(msg, NL80211_ATTR_IFTYPE, iftype) ||
++	    nla_put_u32(msg, NL80211_ATTR_VIF_RADIO_MASK, radio_mask))
+ 		goto fail;
+ 
+ 	if (iftype == NL80211_IFTYPE_MONITOR) {
+@@ -6356,12 +6357,12 @@ int nl80211_create_iface(struct wpa_driver_nl80211_data *drv,
+ 			 const char *ifname, enum nl80211_iftype iftype,
+ 			 const u8 *addr, int wds,
+ 			 int (*handler)(struct nl_msg *, void *),
+-			 void *arg, int use_existing)
++			 void *arg, int use_existing, u32 radio_mask)
+ {
+ 	int ret;
+ 
+ 	ret = nl80211_create_iface_once(drv, ifname, iftype, addr, wds, handler,
+-					arg);
++					arg, radio_mask);
+ 
+ 	/* if error occurred and interface exists already */
+ 	if (ret == -ENFILE && if_nametoindex(ifname)) {
+@@ -6387,7 +6388,7 @@ int nl80211_create_iface(struct wpa_driver_nl80211_data *drv,
+ 
+ 		/* Try to create the interface again */
+ 		ret = nl80211_create_iface_once(drv, ifname, iftype, addr,
+-						wds, handler, arg);
++						wds, handler, arg, radio_mask);
+ 	}
+ 
+ 	if (ret >= 0 && is_p2p_net_interface(iftype)) {
+@@ -8760,7 +8761,7 @@ static int i802_set_wds_sta(void *priv, const u8 *addr, int aid, int val,
+ 		if (!if_nametoindex(name)) {
+ 			if (nl80211_create_iface(drv, name,
+ 						 NL80211_IFTYPE_AP_VLAN,
+-						 bss->addr, 1, NULL, NULL, 0) <
++						 bss->addr, 1, NULL, NULL, 0, 0) <
+ 			    0)
+ 				return -1;
+ 
+@@ -9151,7 +9152,7 @@ static int wpa_driver_nl80211_if_add(void *priv, enum wpa_driver_if_type type,
+ 				     void *bss_ctx, void **drv_priv,
+ 				     char *force_ifname, u8 *if_addr,
+ 				     const char *bridge, int use_existing,
+-				     int setup_ap, int freq)
++				     int setup_ap, int freq, u32 radio_mask)
+ {
+ 	enum nl80211_iftype nlmode;
+ 	struct i802_bss *bss = priv;
+@@ -9168,7 +9169,7 @@ static int wpa_driver_nl80211_if_add(void *priv, enum wpa_driver_if_type type,
+ 		os_memset(&p2pdev_info, 0, sizeof(p2pdev_info));
+ 		ifidx = nl80211_create_iface(drv, ifname, nlmode, addr,
+ 					     0, nl80211_wdev_handler,
+-					     &p2pdev_info, use_existing);
++					     &p2pdev_info, use_existing, radio_mask);
+ 		if (!p2pdev_info.wdev_id_set || ifidx != 0) {
+ 			wpa_printf(MSG_ERROR, "nl80211: Failed to create a P2P Device interface %s",
+ 				   ifname);
+@@ -9184,7 +9185,7 @@ static int wpa_driver_nl80211_if_add(void *priv, enum wpa_driver_if_type type,
+ 			   (long long unsigned int) p2pdev_info.wdev_id);
+ 	} else {
+ 		ifidx = nl80211_create_iface(drv, ifname, nlmode, addr,
+-					     0, NULL, NULL, use_existing);
++					     0, NULL, NULL, use_existing, radio_mask);
+ 		if (use_existing && ifidx == -ENFILE) {
+ 			added = 0;
+ 			ifidx = if_nametoindex(ifname);
+diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
+index 93238c4a4..f12139a17 100644
+--- a/src/drivers/driver_nl80211.h
++++ b/src/drivers/driver_nl80211.h
+@@ -327,7 +327,7 @@ int nl80211_create_iface(struct wpa_driver_nl80211_data *drv,
+ 			 const char *ifname, enum nl80211_iftype iftype,
+ 			 const u8 *addr, int wds,
+ 			 int (*handler)(struct nl_msg *, void *),
+-			 void *arg, int use_existing);
++			 void *arg, int use_existing, u32 radio_mask);
+ void nl80211_remove_iface(struct wpa_driver_nl80211_data *drv, int ifidx);
+ unsigned int nl80211_get_assoc_freq(struct wpa_driver_nl80211_data *drv);
+ int nl80211_get_assoc_ssid(struct wpa_driver_nl80211_data *drv, u8 *ssid);
+diff --git a/src/drivers/driver_nl80211_monitor.c b/src/drivers/driver_nl80211_monitor.c
+index 7ff55f149..448adb2ca 100644
+--- a/src/drivers/driver_nl80211_monitor.c
++++ b/src/drivers/driver_nl80211_monitor.c
+@@ -381,7 +381,7 @@ int nl80211_create_monitor_interface(struct wpa_driver_nl80211_data *drv)
+ 
+ 	drv->monitor_ifidx =
+ 		nl80211_create_iface(drv, buf, NL80211_IFTYPE_MONITOR, NULL,
+-				     0, NULL, NULL, 0);
++				     0, NULL, NULL, 0, 0);
+ 
+ 	if (drv->monitor_ifidx == -EOPNOTSUPP) {
+ 		/*
+diff --git a/wpa_supplicant/driver_i.h b/wpa_supplicant/driver_i.h
+index 4ce83ad95..8183a3ce5 100644
+--- a/wpa_supplicant/driver_i.h
++++ b/wpa_supplicant/driver_i.h
+@@ -449,7 +449,7 @@ static inline int wpa_drv_if_add(struct wpa_supplicant *wpa_s,
+ 	if (wpa_s->driver->if_add)
+ 		return wpa_s->driver->if_add(wpa_s->drv_priv, type, ifname,
+ 					     addr, bss_ctx, NULL, force_ifname,
+-					     if_addr, bridge, 0, 0, -1);
++					     if_addr, bridge, 0, 0, -1, 0);
+ 	return -1;
+ }
+ 
+-- 
+2.45.2
+

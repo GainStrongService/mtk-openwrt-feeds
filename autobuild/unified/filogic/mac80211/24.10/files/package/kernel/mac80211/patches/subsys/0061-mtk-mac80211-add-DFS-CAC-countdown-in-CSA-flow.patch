@@ -1,4 +1,4 @@
-From 2521fb34c5b7e0c4e643785e3f5b4a1eb28e083d Mon Sep 17 00:00:00 2001
+From f609b5d04b9a6fd69dbf13b72d5a2e2685fca91a Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 6 Feb 2024 17:46:10 +0800
 Subject: [PATCH 61/87] mtk: mac80211: add DFS CAC countdown in CSA flow
@@ -8,7 +8,7 @@ Add DFS channel CAC countdown mechanism in CSA flow
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  include/net/cfg80211.h     | 38 ++++++++++++++++-
- net/mac80211/cfg.c         | 84 ++++++++++++++++++++++++++++++++++++--
+ net/mac80211/cfg.c         | 85 ++++++++++++++++++++++++++++++++++++--
  net/mac80211/ieee80211_i.h |  1 +
  net/mac80211/mlme.c        |  6 ++-
  net/mac80211/util.c        |  7 +++-
@@ -16,7 +16,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  net/wireless/nl80211.c     |  5 ++-
  net/wireless/rdev-ops.h    | 18 ++++++++
  net/wireless/reg.c         |  8 +++-
- 9 files changed, 231 insertions(+), 10 deletions(-)
+ 9 files changed, 232 insertions(+), 10 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
 index a1e200ef..7c4ef574 100644
@@ -84,7 +84,7 @@ index a1e200ef..7c4ef574 100644
   * @dev: the device which switched channels
   * @chandef: the new channel definition
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index cdf5c072..c215c996 100644
+index cdf5c072..d106e877 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
 @@ -1600,7 +1600,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
@@ -96,7 +96,7 @@ index cdf5c072..c215c996 100644
  {
  	if (!link->u.ap.next_beacon)
  		return;
-@@ -3780,6 +3780,71 @@ static int ieee80211_set_after_csa_beacon(struct ieee80211_link_data *link_data,
+@@ -3780,6 +3780,72 @@ static int ieee80211_set_after_csa_beacon(struct ieee80211_link_data *link_data,
  	return 0;
  }
  
@@ -143,7 +143,8 @@ index cdf5c072..c215c996 100644
 +		      !cfg80211_reg_can_beacon_relax(local->hw.wiphy,
 +						     &link_data->csa.chanreq.oper,
 +						     sdata->wdev.iftype) &&
-+		      hweight16(sdata->vif.valid_links) <= 1;
++		      hweight16(sdata->vif.valid_links) <= 1 &&
++		      !ieee80211_is_cert_mode(&local->hw);
 +	/* broadcast deauth frame if CAC is required for non MLD or single link MLD AP */
 +	if (!send_deauth)
 +		return;
@@ -168,7 +169,7 @@ index cdf5c072..c215c996 100644
  static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
  {
  	struct ieee80211_sub_if_data *sdata = link_data->sdata;
-@@ -3790,6 +3855,8 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
+@@ -3790,6 +3856,8 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
  
  	lockdep_assert_wiphy(local->hw.wiphy);
  
@@ -177,7 +178,7 @@ index cdf5c072..c215c996 100644
  	/*
  	 * using reservation isn't immediate as it may be deferred until later
  	 * with multi-vif. once reservation is complete it will re-schedule the
-@@ -3813,6 +3880,12 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
+@@ -3813,6 +3881,12 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
  					&link_data->csa.chanreq.oper))
  		return -EINVAL;
  
@@ -190,7 +191,7 @@ index cdf5c072..c215c996 100644
  	link_conf->csa_active = false;
  
  	err = ieee80211_set_after_csa_beacon(link_data, &changed);
-@@ -5203,8 +5276,12 @@ ieee80211_skip_cac(struct wireless_dev *wdev, unsigned int link_id)
+@@ -5203,8 +5277,12 @@ ieee80211_skip_cac(struct wireless_dev *wdev, unsigned int link_id)
  
  	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
  				  &link->dfs_cac_timer_work);
@@ -205,7 +206,7 @@ index cdf5c072..c215c996 100644
  		cac_time_ms = wdev->links[link_id].cac_time_ms;
  		wdev->links[link_id].cac_start_time = jiffies -
  						      msecs_to_jiffies(cac_time_ms + 1);
-@@ -5296,6 +5373,7 @@ const struct cfg80211_ops mac80211_config_ops = {
+@@ -5296,6 +5374,7 @@ const struct cfg80211_ops mac80211_config_ops = {
  #endif
  	.get_channel = ieee80211_cfg_get_channel,
  	.start_radar_detection = ieee80211_start_radar_detection,

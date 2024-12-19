@@ -1,4 +1,4 @@
-From 2d19455bac2ce9f17948179697773bffdf895bef Mon Sep 17 00:00:00 2001
+From 52620856dc55ba6bd5698b36463d0f9f4b048aaf Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 19 Jan 2024 15:22:00 +0800
 Subject: [PATCH 39/87] mtk: mac80211: add wds mlo support
@@ -154,7 +154,7 @@ index 781cef83..131ac2b3 100644
  {
  	ieee80211_vif_set_links(sdata, 0, 0);
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index a164795d..1ce6cbbf 100644
+index cfc133f8..78b0d02c 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
 @@ -385,13 +385,6 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
@@ -171,7 +171,7 @@ index a164795d..1ce6cbbf 100644
  			/*
  			 * can only add VLANs to enabled APs
  			 */
-@@ -1293,6 +1286,9 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
+@@ -1310,6 +1303,9 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
  		       sizeof(sdata->vif.hw_queue));
  		sdata->vif.bss_conf.chanreq = master->vif.bss_conf.chanreq;
  

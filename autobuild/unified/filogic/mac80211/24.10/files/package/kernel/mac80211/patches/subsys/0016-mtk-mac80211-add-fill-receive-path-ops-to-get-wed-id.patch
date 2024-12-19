@@ -1,4 +1,4 @@
-From da244ada1cc7c498f03d0b46adaa54c115f74f65 Mon Sep 17 00:00:00 2001
+From 2e7e781b19fcd1d937aff0f65469aed90b38b86f Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Wed, 18 May 2022 15:10:22 +0800
 Subject: [PATCH 16/87] mtk: mac80211: add fill receive path ops to get wed idx
@@ -59,10 +59,10 @@ index 0af43ab4..3a7c6fa2 100644
  				   struct ieee80211_sub_if_data *sdata,
  				   struct net_device *dev,
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index 132e1077..a164795d 100644
+index 868c73ae..cfc133f8 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
-@@ -952,6 +952,28 @@ out:
+@@ -966,6 +966,28 @@ out:
  	return ret;
  }
  
@@ -91,14 +91,14 @@ index 132e1077..a164795d 100644
  static const struct net_device_ops ieee80211_dataif_8023_ops = {
  	.ndo_open		= ieee80211_open,
  	.ndo_stop		= ieee80211_stop,
-@@ -960,6 +982,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
+@@ -974,6 +996,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
  	.ndo_set_rx_mode	= ieee80211_set_multicast_list,
  	.ndo_set_mac_address	= ieee80211_change_mac,
  	.ndo_fill_forward_path	= ieee80211_netdev_fill_forward_path,
 +	.ndo_fill_receive_path	= ieee80211_netdev_fill_receive_path,
  	.ndo_setup_tc		= ieee80211_netdev_setup_tc,
- };
- 
+ #if LINUX_VERSION_IS_LESS(6,9,0)
+ 	.ndo_get_stats64	= ieee80211_get_stats64,
 diff --git a/net/mac80211/util.c b/net/mac80211/util.c
 index a4e1301c..f8491777 100644
 --- a/net/mac80211/util.c
