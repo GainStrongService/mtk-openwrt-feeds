@@ -44,7 +44,8 @@
 
 - **Date**: 2024-12-20
 - **Modified By**: Evelyn Tsai (evelyn.tsai@mediatek.com)
-- **Summary of Multi-Link Operation (MLO) - Support Features**:
+- **Summary of Features**:
+  - Real Single Wiphy - foundational requirement for Multi-Link
   - Preamble puncturing (WiFi6E with FCC regularity restriction)
   - WiFi6E Automated Frequency Coordination (AFC)
   - WiFi6E Mgmt Power Enhancement
@@ -53,33 +54,27 @@
   - Multi-Link + Security
     - With RSNO
     - Without RSNO (transition mode can be used here)
-      - with 6g (wpa3 only)
-      - without 6g (wap3/wpa2)
+      - with 6GHz (WPA3 only)
+      - without 6GHz (WPA3/WPA2)
   - Multi-Link + 4-address WDS
   - Multi-Link + Hardware Peak
   - Multi-Link channel access
-    | Type | Mode  | AP Support | STA Support |
-    |------|-------|------------|-------------|
-    | MLSR | MLSR  | Y          | N           |
-    |      | EMLSR | Y          | N           |
-    | MLMR | STR   | Y          | Y           |
-    |      | NSTR  | N          | N           |
-    |      | EMLMR | N          | N           |
+    - AP Support: MLSR/EMLSR and MLMR/STR
+    - STA Support: MLMR/STR
   - Multi-Link + Multiple Legay BSSID
   - Multi-Link Reconfiguration (Add/Remove Link)
   - Multi-Link Statistics (Per-MLD, Per-Link)
   - Multi-Link Channel switching (including ACS/DFS)
   - Link management (Adv-T2LM only)
   - BSS parameter critical update
-
-- **Not Support**:
-  - Link management (Neg-T2LM)
-  - Multi-Link + 11v MBSS
-  - Multi-Link + 11FT
-  - Multi-Link + WPS
-  - Multi-Link + TWT
-  - QoS Management R3
-  - EPCS
+   - **Not Support**: (under plan in Kernel6.6 Release)
+      - Link management (Neg-T2LM)
+      - Multi-Link + 11v MBSS
+      - Multi-Link + 11FT
+      - Multi-Link + WPS
+      - Multi-Link + TWT
+      - QoS Management R3
+      - EPCS
 - **Version**:
   - Driver Version: 4.3.24.10
   - Filogic880 Firmware Version: 20241106
@@ -87,7 +82,9 @@
 - **Document Reference**:
   - MAC80211 MT76 Programming Guide v4.8
   - MT76 Test Mode Programming Guide v2.3
-
+- **Notice**:
+  - Since the OpenWRT UCI haven't introduce the formal MLO config yet, please refer to the MAC80211 MT76 Programming Guide to Setup AP MLD and non-AP MLD (STA MLD)
+  - The default power control from user space is disabled to follow the maximum power from eFuse. If you would like to enable power relevant features (e.g., SingleSKU/iw set Tx Power), make sure the `txpower_sku` is enabled. The value shall be `0` when you check `/sys/kernel/debug/ieee80211/phy0/mt76/sku_disable`.
 
 #### Filogic 880/860 WiFi7 Kernel5.4 MP4.0 Release
 
