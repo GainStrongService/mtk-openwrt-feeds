@@ -615,9 +615,12 @@ static void hnat_flow_entry_teardown_disable(void)
 	cancel_delayed_work(&_hnat_flow_entry_teardown_work);
 }
 
-static int is_cah_ctrl_request_done(int ppe_id)
+static int is_cah_ctrl_request_done(u32 ppe_id)
 {
 	int count = 1000;
+
+	if (ppe_id >= CFG_PPE_NUM)
+		return 0;
 
 	/* waiting for 1sec to make sure action was finished */
 	do {
@@ -629,15 +632,19 @@ static int is_cah_ctrl_request_done(int ppe_id)
 	return 0;
 }
 
-static int hnat_cache_tag_search(int ppe_id, int tag)
+static int hnat_cache_tag_search(u32 ppe_id, u32 tag)
 {
 	u32 tag_srh = 0;
 	int line = 0;
+
+	if (ppe_id >= CFG_PPE_NUM || tag >= hnat_priv->foe_etry_num)
+		return -1;
 
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_TAG_SRH, TAG_SRH, tag);
 	/* software access cache command = tag search */
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_CMD, 0);
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_REQ, 1);
+
 	if (is_cah_ctrl_request_done(ppe_id)) {
 		tag_srh = readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_TAG_SRH);
 		/* tag search miss */

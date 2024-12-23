@@ -1279,6 +1279,9 @@ static int hnat_ipv6_get_nexthop(struct sk_buff *skb,
 	struct neighbour *neigh = NULL;
 	struct dst_entry *dst = skb_dst(skb);
 
+	if (!dst)
+		return 0;
+
 	if (hw_path->flags & BIT(DEV_PATH_PPPOE))
 		return 0;
 
