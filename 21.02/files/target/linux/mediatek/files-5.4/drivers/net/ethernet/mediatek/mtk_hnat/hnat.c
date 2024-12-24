@@ -909,6 +909,7 @@ static int hnat_start(u32 ppe_id)
 	u32 foe_mib_tb_sz;
 	u32 foe_flow_sz;
 	int etry_num_cfg;
+	int i;
 
 	if (ppe_id >= CFG_PPE_NUM)
 		return -EINVAL;
@@ -944,6 +945,9 @@ static int hnat_start(u32 ppe_id)
 
 	writel(hnat_priv->foe_table_dev[ppe_id], hnat_priv->ppe_base[ppe_id] + PPE_TB_BASE);
 	memset(hnat_priv->foe_table_cpu[ppe_id], 0, foe_table_sz);
+
+	for (i = 0; i < hnat_priv->foe_etry_num / 4; i++)
+		INIT_HLIST_HEAD(&hnat_priv->foe_flow[ppe_id][i]);
 
 	if (hnat_priv->data->version == MTK_HNAT_V1_1)
 		exclude_boundary_entry(hnat_priv->foe_table_cpu[ppe_id]);

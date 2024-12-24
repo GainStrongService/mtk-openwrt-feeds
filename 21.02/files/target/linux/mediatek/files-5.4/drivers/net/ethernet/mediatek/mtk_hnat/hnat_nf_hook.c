@@ -2614,6 +2614,7 @@ hnat_entry_bind:
 				spin_unlock_bh(&hnat_priv->flow_entry_lock);
 				return -1;
 			}
+			INIT_HLIST_NODE(&flow_entry->list);
 			flow_entry->ppe_index = skb_hnat_ppe(skb);
 			flow_entry->hash = skb_hnat_entry(skb);
 			hlist_add_head(&flow_entry->list,
