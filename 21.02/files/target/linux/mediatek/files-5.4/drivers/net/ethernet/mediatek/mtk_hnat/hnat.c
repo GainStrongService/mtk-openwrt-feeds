@@ -1151,9 +1151,6 @@ int hnat_disable_hook(void)
 	ra_sw_nat_hook_tx = NULL;
 	ra_sw_nat_hook_rx = NULL;
 	ra_sw_nat_clear_bind_entries = NULL;
-	hnat_get_wdma_tx_port = NULL;
-	hnat_get_wdma_rx_port = NULL;
-	hnat_set_wdma_pse_port_state = NULL;
 	hnat_unregister_nf_hooks();
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
