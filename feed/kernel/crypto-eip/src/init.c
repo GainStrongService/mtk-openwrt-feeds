@@ -346,7 +346,6 @@ static int __init mtk_crypto_eip_dts_init(void)
 {
 	struct platform_device *crypto_pdev;
 	struct device_node *crypto_node;
-	struct resource res;
 	int ret;
 
 	crypto_node = of_find_compatible_node(NULL, NULL, HWPAL_PLATFORM_DEVICE_NAME);
@@ -365,14 +364,11 @@ static int __init mtk_crypto_eip_dts_init(void)
 		goto out;
 	}
 
-	if (of_address_to_resource(crypto_node, 0, &res)) {
-		ret = -ENXIO;
-		goto out;
-	}
+	crypto_dev = &crypto_pdev->dev;
 
-	mcrypto.crypto_base = devm_ioremap(&crypto_pdev->dev,
-					   res.start, resource_size(&res));
-	if (!mcrypto.crypto_base) {
+	mcrypto.crypto_base = devm_platform_ioremap_resource(crypto_pdev, 0);
+	if (IS_ERR(mcrypto.crypto_base)) {
+		CRYPTO_ERR("Failed to get resource, please remove all ddk drivers\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -384,8 +380,6 @@ static int __init mtk_crypto_eip_dts_init(void)
 	ret = mtk_crypto_ppe_num_dts_init(crypto_pdev);
 	if (ret)
 		goto out;
-
-	crypto_dev = &crypto_pdev->dev;
 
 	ret = mtk_crypto_lookaside_data_init(crypto_pdev);
 	if (ret)
