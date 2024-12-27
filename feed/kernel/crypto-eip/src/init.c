@@ -195,6 +195,8 @@ static void mtk_crypto_xfrm_offload_deinit(struct mtk_eth *eth)
 #endif // HNAT
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
 		eth->netdev[i]->xfrmdev_ops = NULL;
 		eth->netdev[i]->features &= (~NETIF_F_HW_ESP);
 		eth->netdev[i]->hw_enc_features &= (~NETIF_F_HW_ESP);
@@ -209,6 +211,8 @@ static void mtk_crypto_xfrm_offload_init(struct mtk_eth *eth)
 	int i;
 
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
 		eth->netdev[i]->xfrmdev_ops = &mtk_xfrmdev_ops;
 		eth->netdev[i]->features |= NETIF_F_HW_ESP;
 		eth->netdev[i]->hw_enc_features |= NETIF_F_HW_ESP;
