@@ -89,20 +89,44 @@ void hnat_cache_ebl(int enable)
 {
 	int i;
 
+	spin_lock_bh(&hnat_priv->cah_lock);
+
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		cr_set_field(hnat_priv->ppe_base[i] + PPE_CAH_CTRL, CAH_X_MODE, 1);
 		cr_set_field(hnat_priv->ppe_base[i] + PPE_CAH_CTRL, CAH_X_MODE, 0);
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+		/* if PPE cache is enabled, lock the preserved cache line */
+		if (enable)
+			hnat_write_cache_line(i, 0, 0xFFFF, 3, NULL);
+#endif
 		cr_set_field(hnat_priv->ppe_base[i] + PPE_CAH_CTRL, CAH_EN, enable);
 	}
+
+	spin_unlock_bh(&hnat_priv->cah_lock);
+
+	if (debug_level >= 2)
+		pr_info("%s: %s cache of all PPE\n", __func__, (enable) ? "Enable" : "Disable");
 }
 EXPORT_SYMBOL(hnat_cache_ebl);
 
 void hnat_cache_clr(u32 ppe_id)
 {
+	spin_lock_bh(&hnat_priv->cah_lock);
+
 	if (ppe_id < CFG_PPE_NUM) {
 		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_X_MODE, 1);
 		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_X_MODE, 0);
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+		/* if PPE cache is enabled, lock the preserved cache line */
+		if (readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL) & CAH_EN)
+			hnat_write_cache_line(ppe_id, 0, 0xFFFF, 3, NULL);
+#endif
 	}
+
+	spin_unlock_bh(&hnat_priv->cah_lock);
+
+	if (debug_level >= 2)
+		pr_info("%s: Clear cache of PPE%d\n", __func__, ppe_id);
 }
 
 static void hnat_reset_timestamp(struct timer_list *t)
@@ -624,21 +648,21 @@ static int is_cah_ctrl_request_done(u32 ppe_id)
 
 	/* waiting for 1sec to make sure action was finished */
 	do {
-		if (((readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL) >> 8) & 0x1) == 0)
+		if ((readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL) & CAH_REQ) == 0)
 			return 1;
-		usleep_range(1000, 1100);
+		udelay(1000);
 	} while (--count);
 
 	return 0;
 }
 
-static int hnat_cache_tag_search(u32 ppe_id, u32 tag)
+int hnat_search_cache_line(u32 ppe_id, u32 tag)
 {
 	u32 tag_srh = 0;
 	int line = 0;
 
 	if (ppe_id >= CFG_PPE_NUM || tag >= hnat_priv->foe_etry_num)
-		return -1;
+		return -EINVAL;
 
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_TAG_SRH, TAG_SRH, tag);
 	/* software access cache command = tag search */
@@ -652,42 +676,144 @@ static int hnat_cache_tag_search(u32 ppe_id, u32 tag)
 			return -1;
 		line = (tag_srh >> 16) & 0x7f;
 	} else {
-		pr_notice("%s is timeout (%d)\n", __func__, line);
-		return -1;
+		pr_warn("%s line search timeout %d_%d\n", __func__, ppe_id, tag);
+		return -EBUSY;
 	}
 
 	return line;
 }
 
-int hnat_dump_cache_entry(u32 ppe_id, u32 hash)
+static void __hnat_write_cache_line(u32 ppe_id, u32 line, u32 tag, u32 state, u32 *data)
 {
-	u32 data[32] = {0};
-	u32 cah_en = 0;
-	int line = 0;
-	int i = 0, j = 0;
+	int i, j;
 
-	cah_en = readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL) & 0x1;
-	if (!cah_en) {
-		pr_info("%s: Cache is not enabled\n", __func__);
-		return -1;
+	if (ppe_id >= CFG_PPE_NUM || line >= MAX_PPE_CACHE_NUM) {
+		pr_warn("%s: invalid ppe_id or line %d_%d\n", __func__, ppe_id, line);
+		return;
 	}
+
+	if (state > 3) {
+		pr_warn("%s: invalid cache line state %d\n", __func__, state);
+		return;
+	}
+
+	if (data == NULL)
+		goto skip_data_write;
+
+	/* write data filed of the cache line */
+	for (i = 0; i < 8; i++) {
+		for (j = 0; j < 4; j++) {
+			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_LINE_RW, LINE_RW, line);
+			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_LINE_RW, OFFSET_RW, i);
+			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_DATA_SEL, j);
+			writel(data[i * 4 + j], hnat_priv->ppe_base[ppe_id] + PPE_CAH_WDATA);
+			/* software access cache command = write */
+			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_CMD, 3);
+			/* trigger software access cache request */
+			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_REQ, 1);
+			if (!is_cah_ctrl_request_done(ppe_id))
+				pr_warn("%s write data timeout in line %d_%d\n",
+					__func__, ppe_id, line);
+		}
+	}
+
+skip_data_write:
+	/* write tag filed of the cache line */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_LINE_RW, LINE_RW, line);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_LINE_RW, OFFSET_RW, 0x1F);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_DATA_SEL, 0);
+	writel((state << 16) | tag, hnat_priv->ppe_base[ppe_id] + PPE_CAH_WDATA);
+	/* software access cache command = write */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_CMD, 3);
+	/* trigger software access cache request */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_REQ, 1);
+	if (!is_cah_ctrl_request_done(ppe_id))
+		pr_warn("%s write tag timeout in line %d_%d\n",
+			__func__, ppe_id, line);
+}
+
+int hnat_write_cache_line(u32 ppe_id, int line, u32 tag, u32 state, u32 *data)
+{
+	u32 scan_mode;
+	u32 flow_cfg;
+	u32 cah_en;
+	u32 i;
+
+	if (ppe_id >= CFG_PPE_NUM || line >= MAX_PPE_CACHE_NUM) {
+		pr_warn("%s: invalid ppe_id or line %d_%d\n", __func__, ppe_id, line);
+		return -EINVAL;
+	}
+
+	if (state > 3) {
+		pr_warn("%s: invalid cache line state %d\n", __func__, state);
+		return -EINVAL;
+	}
+
+	/* disable table learning */
+	flow_cfg = readl(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG);
+	writel(0, hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG);
+
+	/* wait PPE return to idle */
+	udelay(1);
 
 	/* disable scan mode */
+	scan_mode = FIELD_GET(SCAN_MODE, readl(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG));
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SCAN_MODE, 0);
-	/* cache disable */
+
+	/* disable cache */
+	cah_en = readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL) & CAH_EN;
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_EN, 0);
 
-	if (ppe_id >= CFG_PPE_NUM || hash >= hnat_priv->foe_etry_num) {
-		pr_info("%s: invalid ppe_id or hash %d_%d\n", __func__, ppe_id, hash);
-		return -1;
+	if (line < 0) {
+		for (i = 0; i < MAX_PPE_CACHE_NUM; i++)
+			__hnat_write_cache_line(ppe_id, i, tag, state, data);
+	} else {
+		__hnat_write_cache_line(ppe_id, line, tag, state, data);
 	}
 
-	line = hnat_cache_tag_search(ppe_id, hash);
-	if (line < 0)
-		return -1;
+	/* restore cache enable */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_EN, cah_en);
 
-	pr_info("==========<PPE Table Cache Entry=%d_%d >===============\n",
-		ppe_id, hash);
+	/* restore scan mode */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SCAN_MODE, scan_mode);
+
+	/* restore table learning */
+	writel(flow_cfg, hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG);
+
+	return 0;
+}
+
+static int __hnat_dump_cache_entry(u32 ppe_id, int line)
+{
+	static const char * const cache_status[] = { "INVALID", "VALID", "DIRTY", "LOCK" };
+	u32 data[32] = {0};
+	int tag, status;
+	int i, j;
+
+	if (ppe_id >= CFG_PPE_NUM || line >= MAX_PPE_CACHE_NUM) {
+		pr_warn("%s: invalid ppe_id or line %d_%d\n", __func__, ppe_id, line);
+		return -EINVAL;
+	}
+
+	/* Get the cache line status and tag */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_LINE_RW, LINE_RW, line);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_LINE_RW, OFFSET_RW, 0x1F);
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_DATA_SEL, 0);
+	/* software access cache command = read */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_CMD, 2);
+	/* trigger software access cache request */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_REQ, 1);
+	if (!is_cah_ctrl_request_done(ppe_id)) {
+		pr_warn("%s: read tag timeout %d_%d\n", __func__, ppe_id, line);
+		return -EBUSY;
+	}
+
+	tag = readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_RDATA) & 0xFFFF;
+	status = (readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_RDATA) >> 16) & 0x3;
+
+	pr_info("==========<PPE Table Cache Entry=%d_%d, line:%d, status:%s >===============\n",
+		ppe_id, tag, line, cache_status[status]);
+
 	for (i = 0; i < 8; i++) {
 		for (j = 0; j < 4; j++) {
 			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_LINE_RW, LINE_RW, line);
@@ -697,27 +823,59 @@ int hnat_dump_cache_entry(u32 ppe_id, u32 hash)
 			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_CMD, 2);
 			/* trigger software access cache request */
 			cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_REQ, 1);
+
 			if (is_cah_ctrl_request_done(ppe_id))
 				data[i * 4 + j] =
 					readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_RDATA);
 			else
-				pr_info("%s is timeout (%d)\n", __func__, line);
+				pr_warn("%s: read data timeout %d_%d\n", __func__, ppe_id, line);
 		}
 	}
+
 	for (i = 0; i < 4; i++) {
 		pr_info("%08x %08x %08x %08x %08x %08x %08x %08x\n",
 			data[i * 8], data[i * 8 + 1], data[i * 8 + 2], data[i * 8 + 3],
 			data[i * 8 + 4], data[i * 8 + 5], data[i * 8 + 6], data[i * 8 + 7]);
 	}
+
 	pr_info("=========================================\n");
 
-	/* clear cache table before enabling cache */
-	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_X_MODE, 1);
-	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_X_MODE, 0);
-	/* cache enable */
-	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_EN, 1);
-	/* enable scan mode */
-	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SCAN_MODE, 2);
+	return 0;
+}
+
+int hnat_dump_cache_entry(u32 ppe_id, int hash)
+{
+	u32 scan_mode;
+	u32 cah_en;
+	int line;
+	int i;
+
+	if (ppe_id >= CFG_PPE_NUM) {
+		pr_warn("%s: invalid ppe_id %d\n", __func__, ppe_id);
+		return -EINVAL;
+	}
+
+	/* disable scan mode */
+	scan_mode = FIELD_GET(SCAN_MODE, readl(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG));
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SCAN_MODE, 0);
+	/* disable ppe cache */
+	cah_en = readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL) & CAH_EN;
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_EN, 0);
+
+	if (hash < 0) {
+		for (i = 0; i < MAX_PPE_CACHE_NUM; i++)
+			__hnat_dump_cache_entry(ppe_id, i);
+	} else {
+		line = hnat_search_cache_line(ppe_id, hash);
+		if (line < 0 || __hnat_dump_cache_entry(ppe_id, line) < 0)
+			pr_warn("%s: cache line of entry %d_%d not found!\n",
+				__func__, ppe_id, hash);
+	}
+
+	/* restore cache enable */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_EN, cah_en);
+	/* restore scan mode */
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SCAN_MODE, scan_mode);
 
 	return 0;
 }
@@ -728,7 +886,7 @@ int hnat_dump_ppe_entry(u32 ppe_id, u32 hash)
 	int i;
 
 	if (ppe_id >= CFG_PPE_NUM || hash >= hnat_priv->foe_etry_num) {
-		pr_info("%s: invalid ppe_id or hash %d_%d\n", __func__, ppe_id, hash);
+		pr_warn("%s: invalid ppe_id or hash %d_%d\n", __func__, ppe_id, hash);
 		return -1;
 	}
 
@@ -773,10 +931,10 @@ static irqreturn_t hnat_handle_fe_irq2(int irq, void *priv)
 		fcs->psn, fcs->dram, fcs->valid);
 
 	if (hnat_dump_cache_entry(ppe_id, fcs->entry) < 0)
-		pr_info("Failed to dump cache entry %d_%d!\n", ppe_id, fcs->entry);
+		pr_warn("Failed to dump cache entry %d_%d!\n", ppe_id, fcs->entry);
 
 	if (hnat_dump_ppe_entry(ppe_id, fcs->entry) < 0)
-		pr_info("Failed to dump ppe entry %d_%d!\n", ppe_id, fcs->entry);
+		pr_warn("Failed to dump ppe entry %d_%d!\n", ppe_id, fcs->entry);
 
 	return IRQ_HANDLED;
 #endif
@@ -898,8 +1056,10 @@ static int hnat_hw_init(u32 ppe_id)
 
 	dev_info(hnat_priv->dev, "PPE%d hwnat start\n", ppe_id);
 
+	spin_lock_init(&hnat_priv->cah_lock);
 	spin_lock_init(&hnat_priv->entry_lock);
 	spin_lock_init(&hnat_priv->flow_entry_lock);
+
 	return 0;
 }
 

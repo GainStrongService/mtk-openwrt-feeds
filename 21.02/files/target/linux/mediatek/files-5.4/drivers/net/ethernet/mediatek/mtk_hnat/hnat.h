@@ -903,6 +903,12 @@ struct foe_entry {
 #endif
 #define CFG_PPE_NUM		(hnat_priv->ppe_num)
 
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+#define MAX_PPE_CACHE_NUM	(128)
+#else
+#define MAX_PPE_CACHE_NUM	(32)
+#endif
+
 /* If the user wants to set skb->mark to prevent hardware acceleration
  * for the packet flow.
  */
@@ -994,6 +1000,7 @@ struct mtk_hnat {
 	struct timer_list hnat_mcast_check_timer;
 	bool nf_stat_en;
 	struct xlat_conf xlat;
+	spinlock_t		cah_lock;
 	spinlock_t		entry_lock;
 	spinlock_t		flow_entry_lock;
 	struct hlist_head *foe_flow[MAX_PPE_NUM];
@@ -1355,7 +1362,9 @@ void hnat_unregister_nf_hooks(void);
 int whnat_adjust_nf_hooks(void);
 int mtk_hqos_ptype_cb(struct sk_buff *skb, struct net_device *dev,
 		      struct packet_type *pt, struct net_device *unused);
-int hnat_dump_cache_entry(u32 ppe_id, u32 hash);
+int hnat_search_cache_line(u32 ppe_id, u32 tag);
+int hnat_write_cache_line(u32 ppe_id, int line, u32 tag, u32 state, u32 *data);
+int hnat_dump_cache_entry(u32 ppe_id, int hash);
 int hnat_dump_ppe_entry(u32 ppe_id, u32 hash);
 bool is_eth_dev_speed_under(const struct net_device *dev, u32 speed);
 extern int dbg_cpu_reason;
