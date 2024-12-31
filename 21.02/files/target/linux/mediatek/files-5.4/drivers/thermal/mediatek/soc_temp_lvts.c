@@ -1603,8 +1603,8 @@ static struct tc_settings mt7988_tc_settings[] = {
 			       MT7988_TS2_3},
 		.tc_speed = SET_TC_SPEED_IN_US(118, 118, 118, 118),
 		.hw_filter = LVTS_FILTER_16_OF_18,
-		.dominator_sensing_point = SENSING_POINT0,
-		.hw_reboot_trip_point = 117000,
+		.dominator_sensing_point = ALL_SENSING_POINTS,
+		.hw_reboot_trip_point = 125000,
 		.irq_bit = BIT(4),
 	},
 	[1] = {
@@ -1615,8 +1615,8 @@ static struct tc_settings mt7988_tc_settings[] = {
 			       MT7988_TS3_3},
 		.tc_speed = SET_TC_SPEED_IN_US(118, 118, 118, 118),
 		.hw_filter = LVTS_FILTER_16_OF_18,
-		.dominator_sensing_point = SENSING_POINT0,
-		.hw_reboot_trip_point = 117000,
+		.dominator_sensing_point = ALL_SENSING_POINTS,
+		.hw_reboot_trip_point = 125000,
 		.irq_bit = BIT(5),
 	}
 
