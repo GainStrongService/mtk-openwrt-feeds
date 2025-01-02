@@ -2191,6 +2191,7 @@ struct adma_monitor {
 
 struct qdma_monitor {
 	struct qdma_tx_monitor {
+		bool		pse_fc;
 		u8		hang_count;
 	} tx;
 	struct qdma_rx_monitor {

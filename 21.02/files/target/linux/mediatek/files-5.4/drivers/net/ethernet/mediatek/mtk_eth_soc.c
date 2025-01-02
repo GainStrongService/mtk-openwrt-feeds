@@ -4194,12 +4194,16 @@ static void mtk_tx_timeout(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
+	bool pse_fc = false;
 
 	eth->netdev[mac->id]->stats.tx_errors++;
 	netif_err(eth, tx_err, dev,
 		  "transmit timed out\n");
 
-	if (atomic_read(&reset_lock) == 0)
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		pse_fc = eth->reset.qdma_monitor.tx.pse_fc;
+
+	if (atomic_read(&reset_lock) == 0 && pse_fc == false)
 		schedule_work(&eth->pending_work);
 }
 

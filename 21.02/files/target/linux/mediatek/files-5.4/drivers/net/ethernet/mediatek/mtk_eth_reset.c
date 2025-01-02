@@ -761,6 +761,8 @@ u32 mtk_monitor_qdma_tx(struct mtk_eth *eth)
 	} else
 		qdma_tx->hang_count = 0;
 
+	qdma_tx->pse_fc = pse_fc;
+
 	if (err_flag)
 		return MTK_FE_STOP_TRAFFIC;
 	else
