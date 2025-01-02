@@ -1056,10 +1056,6 @@ static int hnat_hw_init(u32 ppe_id)
 
 	dev_info(hnat_priv->dev, "PPE%d hwnat start\n", ppe_id);
 
-	spin_lock_init(&hnat_priv->cah_lock);
-	spin_lock_init(&hnat_priv->entry_lock);
-	spin_lock_init(&hnat_priv->flow_entry_lock);
-
 	return 0;
 }
 
@@ -1544,6 +1540,10 @@ static int hnat_probe(struct platform_device *pdev)
 
 	hnat_priv->lvid = 1;
 	hnat_priv->wvid = 2;
+
+	spin_lock_init(&hnat_priv->cah_lock);
+	spin_lock_init(&hnat_priv->entry_lock);
+	spin_lock_init(&hnat_priv->flow_entry_lock);
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		err = hnat_start(i);
