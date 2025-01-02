@@ -2226,6 +2226,7 @@ struct wdma_monitor {
 		u32		pre_crx[MTK_WDMA_CNT];
 		u32		pre_drx[MTK_WDMA_CNT];
 		u32		pre_opq[MTK_WDMA_CNT];
+		u32		pre_fsm[MTK_WDMA_CNT];
 		u8		hang_count_connsys[MTK_WDMA_CNT];
 		u8		hang_count_netsys[MTK_WDMA_CNT];
 	} rx;

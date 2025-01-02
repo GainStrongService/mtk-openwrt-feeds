@@ -35,6 +35,9 @@ bool mtk_stop_fail;
 
 typedef u32 (*mtk_monitor_xdma_func) (struct mtk_eth *eth);
 
+bool (*mtk_check_wifi_busy)(u32 wdma_idx) = NULL;
+EXPORT_SYMBOL(mtk_check_wifi_busy);
+
 void mtk_reset_event_update(struct mtk_eth *eth, u32 id)
 {
 	struct mtk_reset_event *reset_event = &eth->reset_event;
@@ -647,13 +650,14 @@ u32 mtk_monitor_wdma_rx(struct mtk_eth *eth)
 {
 	struct wdma_rx_monitor *wdma_rx = &eth->reset.wdma_monitor.rx;
 	bool connsys_busy, netsys_busy;
-	u32 cur_crx, cur_drx, cur_opq, fsm_fs, max_cnt;
+	u32 cur_crx, cur_drx, cur_opq, cur_fsm, max_cnt;
 	u32 i, j, err_flag = 0;
-	bool rx_en, crx_unchanged, drx_unchanged;
+	bool rx_en, rx_busy, crx_unchanged, drx_unchanged;
 	int rx_cnt;
 
 	for (i = 0; i < MTK_WDMA_CNT; i++) {
 		rx_en = !!(mtk_r32(eth, MTK_WDMA_GLO_CFG(i)) & MTK_RX_DMA_EN);
+		rx_busy = !!(mtk_r32(eth, MTK_WDMA_GLO_CFG(i)) & MTK_RX_DMA_BUSY);
 		max_cnt = mtk_r32(eth, MTK_WDMA_RX_MAX_CNT(i));
 		if (!rx_en || max_cnt == 0)
 			continue;
@@ -674,22 +678,25 @@ u32 mtk_monitor_wdma_rx(struct mtk_eth *eth)
 		rx_cnt = (cur_drx > cur_crx) ? (cur_drx - 1 - cur_crx) :
 					       (cur_drx - 1 - cur_crx + max_cnt);
 		cur_opq = MTK_FE_WDMA_OQ(i);
-		fsm_fs = mtk_r32(eth, MTK_FE_CDM_FSM(i)) &
+		cur_fsm = mtk_r32(eth, MTK_FE_CDM_FSM(i)) &
 			(MTK_CDM_FS_FSM_MASK | MTK_CDM_FS_PARSER_FSM_MASK);
-		/* drx and crx remain unchanged && rx_cnt is not zero */
-		if (drx_unchanged && crx_unchanged && (rx_cnt > 0))
+		/* drx and crx remain unchanged && rx_cnt is not zero && wifi is not busy */
+		if (drx_unchanged && crx_unchanged && (rx_cnt > 0) &&
+		    mtk_check_wifi_busy && !mtk_check_wifi_busy(i))
 			connsys_busy = true;
-		/* drx and crx remain unchanged && pse_opq is not empty */
-		else if (drx_unchanged && crx_unchanged &&
-			 (cur_opq != 0 && cur_opq == wdma_rx->pre_opq[i]) && fsm_fs)
+		/* ring is empty && wdma busy && pse_opq is not empty && fs_fsm busy*/
+		else if (rx_cnt == 0 && rx_busy &&
+			(cur_opq != 0 && cur_opq == wdma_rx->pre_opq[i]) &&
+			(cur_fsm != 0 && cur_fsm == wdma_rx->pre_fsm[i]))
 			netsys_busy = true;
+
 		if (connsys_busy || netsys_busy) {
 			if (connsys_busy)
 				wdma_rx->hang_count_connsys[i]++;
 			else
 				wdma_rx->hang_count_netsys[i]++;
 
-			if (wdma_rx->hang_count_connsys[i] >= 180 ||
+			if (wdma_rx->hang_count_connsys[i] >= 5 ||
 			    wdma_rx->hang_count_netsys[i] >= 5) {
 				pr_info("WDMA %d Rx Info (%s)\n", i,
 					connsys_busy ? "CONNSYS busy" : "NETSYS busy");
@@ -720,6 +727,7 @@ u32 mtk_monitor_wdma_rx(struct mtk_eth *eth)
 		wdma_rx->pre_crx[i] = cur_crx;
 		wdma_rx->pre_drx[i] = cur_drx;
 		wdma_rx->pre_opq[i] = cur_opq;
+		wdma_rx->pre_fsm[i] = cur_fsm;
 	}
 
 	if (err_flag)
