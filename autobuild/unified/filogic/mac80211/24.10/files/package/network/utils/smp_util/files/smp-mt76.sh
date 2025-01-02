@@ -25,7 +25,8 @@ get_if_info()
 	do
 		if [[ "$vif" == "eth"* ]] ||  \
 		[[ "$vif" == "lan"* ]] || [[ "$vif" == "wan"* ]] || \
-		[[ "$vif" == "wlan"* ]] || [[ "$vif" == "phy"* ]]; then
+		[[ "$vif" == "wlan"* ]] || [[ "$vif" == "phy"* ]] || \
+		[[ "$vif" == *"mld"* ]]; then
 			RPS_IF_LIST="$RPS_IF_LIST $vif"
 		fi
 	done;
@@ -131,7 +132,7 @@ MT7988()
 
 	for vif in $NET_IF_LIST;
 	do
-		if [[ "$vif" == "wlan"* ]] || [[ "$vif" == "phy"* ]]; then
+		if [[ "$vif" == "wlan"* ]] || [[ "$vif" == "phy"* ]] || [[ "$vif" == *"mld"* ]]; then
 			WIFI_IF_LIST="$WIFI_IF_LIST $vif"
 		fi
 	done;
@@ -426,7 +427,8 @@ set_rps_cpu_bitmap()
 		eval rps_list=\$CPU${num}_RPS
 		dbg2 "# CPU$num: rps_list=$rps_list"
 		for i in $rps_list; do
-			var=${VAR_PREFIX}_${i//-/_}
+			var=${VAR_PREFIX}_${i//'-'/_}
+			var=${var//'.'/_}
 			eval ifval=\$$var
 			dbg2 "[var val before] \$$var=$ifval"
 			if [ -z "$ifval" ]; then
@@ -446,7 +448,8 @@ set_rps_cpus()
 {
 	dbg2 "# Setup rps of the interfaces, $RPS_IF_LIST."
 	for i in $RPS_IF_LIST; do
-		var=${VAR_PREFIX}_${i//-/_}
+		var=${VAR_PREFIX}_${i//'-'/_}
+		var=${var//'.'/_}
 		eval cpu_map=\$$var
 		if [ -d /sys/class/net/$i ]; then
 			if [ ! -z $cpu_map ]; then
