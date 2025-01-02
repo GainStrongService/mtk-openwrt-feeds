@@ -4746,17 +4746,20 @@ static int mtk_stop(struct net_device *dev)
 
 	for (i = 0; i < MTK_TX_NAPI_NUM; i++) {
 		mtk_tx_irq_disable(eth, MTK_TX_DONE_INT(i));
+		napi_synchronize(&eth->tx_napi[i].napi);
 		napi_disable(&eth->tx_napi[i].napi);
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
 			break;
 	}
 
 	mtk_rx_irq_disable(eth, MTK_RX_DONE_INT(0));
+	napi_synchronize(&eth->rx_napi[0].napi);
 	napi_disable(&eth->rx_napi[0].napi);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
 		for (i = 0; i < MTK_RX_RSS_NUM; i++) {
 			mtk_rx_irq_disable(eth, MTK_RX_DONE_INT(MTK_RSS_RING(i)));
+			napi_synchronize(&eth->rx_napi[MTK_RSS_RING(i)].napi);
 			napi_disable(&eth->rx_napi[MTK_RSS_RING(i)].napi);
 		}
 	}
@@ -4764,6 +4767,7 @@ static int mtk_stop(struct net_device *dev)
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO)) {
 		for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
 			mtk_rx_irq_disable(eth, MTK_RX_DONE_INT(MTK_HW_LRO_RING(i)));
+			napi_synchronize(&eth->rx_napi[MTK_HW_LRO_RING(i)].napi);
 			napi_disable(&eth->rx_napi[MTK_HW_LRO_RING(i)].napi);
 		}
 	}
