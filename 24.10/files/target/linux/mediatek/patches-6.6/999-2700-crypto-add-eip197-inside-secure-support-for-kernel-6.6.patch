@@ -51,27 +51,6 @@
  	return safexcel_hw_setup_cdesc_rings(priv) ?:
  	       safexcel_hw_setup_rdesc_rings(priv) ?:
  	       0;
-@@ -1746,6 +1760,7 @@ static int safexcel_probe(struct platfor
- {
- 	struct device *dev = &pdev->dev;
- 	struct safexcel_crypto_priv *priv;
-+	struct resource *res;
- 	int ret;
- 
- 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-@@ -1757,7 +1772,11 @@ static int safexcel_probe(struct platfor
- 
- 	platform_set_drvdata(pdev, priv);
- 
--	priv->base = devm_platform_ioremap_resource(pdev, 0);
-+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-+	if (!res)
-+		return -EINVAL;
-+
-+	priv->base = devm_ioremap(dev, res->start, resource_size(res));
- 	if (IS_ERR(priv->base)) {
- 		dev_err(dev, "failed to get resource\n");
- 		return PTR_ERR(priv->base);
 --- a/drivers/crypto/inside-secure/safexcel.h
 +++ b/drivers/crypto/inside-secure/safexcel.h
 @@ -189,6 +189,8 @@
