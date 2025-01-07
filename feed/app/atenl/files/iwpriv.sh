@@ -1137,7 +1137,7 @@ if [ "${cmd_type}" = "set" ]; then
             cert_cmd="$*"
 
 	    if [ ! -z "$mld" ]; then
-		    mld_interface=$(iw dev | grep Interface | awk '{print $2}')
+		    mld_interface=$(iw dev | grep Interface | awk '{print $2}' | tail -n1)
 		    if [ $cmd == "ap_rfeatures" ] || [ "$cmd" == "ap_wireless" ]; then
 
 			    band_number=$(echo "$cert_cmd" | grep -o 'band[0-9]*')
