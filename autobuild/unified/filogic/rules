@@ -1,0 +1,9 @@
+if test x"${hqa_set}" == x"yes"; then
+	list_add_after $(hooks autobuild_prepare) apply_global_patches apply_hqa_patches
+fi
+
+help_add_line "  hqa - Enable HQA test support."
+
+apply_hqa_patches() {
+	apply_patches "${ab_global}/${openwrt_branch}/extra-data/hqa_patches" || return 1
+}
