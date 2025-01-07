@@ -1,0 +1,30 @@
+--- a/target/linux/mediatek/image/Makefile
++++ b/target/linux/mediatek/image/Makefile
+@@ -40,6 +40,27 @@ define Build/fw-ar-ver
+ 	$(call get_fw_ar_ver,$(ANTI_ROLLBACK_TABLE),$(AUTO_AR_CONF))
+ endef
+ 
++define append-opteenode
++	LD_LIBRARY_PATH=$(STAGING_DIR_HOST)/lib \
++	fdtput $(1) "/reserved-memory/secmon@43000000" \
++		-tx reg 0 0x43000000 0 $(shell printf "%#x" $$((0x570000 \
++		$(if $(CONFIG_OPTEE_CORE_RESERVED_SHMEM),+ $(CONFIG_OPTEE_RESERVED_SHMEM_SIZE),))))
++	LD_LIBRARY_PATH=$(STAGING_DIR_HOST)/lib \
++	fdtput $(1) /firmware -cp
++	LD_LIBRARY_PATH=$(STAGING_DIR_HOST)/lib \
++	fdtput $(1) /firmware/optee -cp
++	LD_LIBRARY_PATH=$(STAGING_DIR_HOST)/lib \
++	fdtput $(1) /firmware/optee -ts compatible "linaro,optee-tz"
++	LD_LIBRARY_PATH=$(STAGING_DIR_HOST)/lib \
++	fdtput $(1) /firmware/optee -ts method "smc"
++	LD_LIBRARY_PATH=$(STAGING_DIR_HOST)/lib \
++	fdtput $(1) /firmware/optee -ts status "okay"
++endef
++
++define Build/append-opteenode
++	$(if $(CONFIG_PACKAGE_optee-mediatek),$(call append-opteenode, $(1)))
++endef
++
+ # build signed fit
+ define Build/fit-sign
+ 	$(TOPDIR)/scripts/mkits.sh \
