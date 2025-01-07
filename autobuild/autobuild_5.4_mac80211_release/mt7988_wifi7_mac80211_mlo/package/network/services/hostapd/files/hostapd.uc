@@ -88,7 +88,7 @@ function iface_freq_info(iface, config, params)
 {
 	let freq = params.frequency;
 	let bw320_offset = params.bw320_offset;
-	let band_idx = params.band_idx;
+	let radio_idx = params.radio_idx;
 	let punct_bitmap = params.punct_bitmap;
 	if (!freq)
 		return null;
@@ -120,7 +120,7 @@ function iface_freq_info(iface, config, params)
 	if (freq < 4000)
 		width = 0;
 
-	return hostapd.freq_info(freq, sec_offset, width, bw320_offset, band_idx, punct_bitmap);
+	return hostapd.freq_info(freq, sec_offset, width, bw320_offset, radio_idx, punct_bitmap);
 }
 
 function iface_add(phy, config, phy_status)
@@ -885,7 +885,7 @@ let main_obj = {
 			sec_chan_offset: 0,
 			ch_width: -1,
 			bw320_offset: 1,
-			band_idx: 0,
+			radio_idx: 0,
 			csa: true,
 			csa_count: 0,
 			punct_bitmap: 0,
@@ -902,7 +902,7 @@ let main_obj = {
 			hostapd.printf(`    * sec_chan_offset: ${req.args.sec_chan_offset}`);
 			hostapd.printf(`    * ch_width: ${req.args.ch_width}`);
 			hostapd.printf(`    * bw320_offset: ${req.args.bw320_offset}`);
-			hostapd.printf(`    * band_idx: ${req.args.band_idx}`);
+			hostapd.printf(`    * radio_idx: ${req.args.radio_idx}`);
 			hostapd.printf(`    * csa: ${req.args.csa}`);
 			hostapd.printf(`    * punct_bitmap: ${req.args.punct_bitmap}`);
 

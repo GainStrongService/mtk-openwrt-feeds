@@ -1,5 +1,5 @@
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
-index d673f54..6b9e876 100644
+index d673f540..c7cfbf98 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/hostapd.sh
 @@ -44,7 +44,7 @@ hostapd_append_wpa_key_mgmt() {
@@ -203,7 +203,19 @@ index d673f54..6b9e876 100644
  	[ -n "$wpa_pairwise" ] && append bss_conf "wpa_pairwise=$wpa_pairwise" "$N"
  
  	set_default wps_pushbutton 0
-@@ -893,7 +991,7 @@ hostapd_set_bss_options() {
+@@ -849,7 +947,10 @@ hostapd_set_bss_options() {
+ 	set_default wps_pbc_in_m1 0
+ 
+ 	config_methods=
+-	[ "$wps_pushbutton" -gt 0 ] && append config_methods push_button
++	[ "$wps_pushbutton" -gt 0 ] && {
++		append config_methods push_button
++		append bss_conf "wps_cred_add_sae=1" "$N"
++	}
+ 	[ "$wps_label" -gt 0 ] && append config_methods label
+ 
+ 	# WPS not possible on Multi-AP backhaul-only SSID
+@@ -893,7 +994,7 @@ hostapd_set_bss_options() {
  	}
  
  	append bss_conf "ssid=$ssid" "$N"
@@ -212,7 +224,7 @@ index d673f54..6b9e876 100644
  	[ -n "$network_ifname" ] && append bss_conf "snoop_iface=$network_ifname" "$N"
  	[ -n "$iapp_interface" ] && {
  		local ifname
-@@ -955,9 +1053,25 @@ hostapd_set_bss_options() {
+@@ -955,9 +1056,25 @@ hostapd_set_bss_options() {
  
  		hostapd_append_wpa_key_mgmt
  		[ -n "$wpa_key_mgmt" ] && append bss_conf "wpa_key_mgmt=$wpa_key_mgmt" "$N"
@@ -238,7 +250,7 @@ index d673f54..6b9e876 100644
  		if [ "$ieee80211r" -gt "0" ]; then
  			json_get_vars mobility_domain ft_psk_generate_local ft_over_ds reassociation_deadline
  
-@@ -1030,17 +1144,51 @@ hostapd_set_bss_options() {
+@@ -1030,17 +1147,51 @@ hostapd_set_bss_options() {
  		append bss_conf "okc=$auth_cache" "$N"
  		[ "$auth_cache" = 0 -a "$fils" = 0 ] && append bss_conf "disable_pmksa_caching=1" "$N"
  
@@ -291,7 +303,7 @@ index d673f54..6b9e876 100644
  					[ -n "$ieee80211w_max_timeout" ] && \
  						append bss_conf "assoc_sa_query_max_timeout=$ieee80211w_max_timeout" "$N"
  					[ -n "$ieee80211w_retry_timeout" ] && \
-@@ -1105,9 +1253,10 @@ hostapd_set_bss_options() {
+@@ -1105,9 +1256,10 @@ hostapd_set_bss_options() {
  	json_get_vars iw_roaming_consortium iw_domain_name iw_anqp_3gpp_cell_net iw_nai_realm
  	json_get_vars iw_anqp_elem iw_qos_map_set iw_ipaddr_type_availability iw_gas_address3
  	json_get_vars iw_venue_name iw_venue_url
@@ -303,7 +315,7 @@ index d673f54..6b9e876 100644
  		append bss_conf "interworking=1" "$N"
  		set_default iw_internet 1
  		set_default iw_asra 0
-@@ -1226,6 +1375,55 @@ hostapd_set_bss_options() {
+@@ -1226,6 +1378,55 @@ hostapd_set_bss_options() {
  		append bss_conf "$val" "$N"
  	done
  
@@ -359,7 +371,7 @@ index d673f54..6b9e876 100644
  	append "$var" "$bss_conf" "$N"
  	return 0
  }
-@@ -1281,7 +1479,9 @@ wpa_supplicant_prepare_interface() {
+@@ -1281,7 +1482,9 @@ wpa_supplicant_prepare_interface() {
  
  	_wpa_supplicant_common "$1"
  
@@ -370,7 +382,7 @@ index d673f54..6b9e876 100644
  
  	[ -n "$network_bridge" ] && {
  		fail=
-@@ -1313,6 +1513,57 @@ wpa_supplicant_prepare_interface() {
+@@ -1313,6 +1516,57 @@ wpa_supplicant_prepare_interface() {
  		country_str="country=$country"
  	}
  
@@ -428,7 +440,7 @@ index d673f54..6b9e876 100644
  	multiap_flag_file="${_config}.is_multiap"
  	if [ "$multi_ap" = "1" ]; then
  		touch "$multiap_flag_file"
-@@ -1324,6 +1575,11 @@ wpa_supplicant_prepare_interface() {
+@@ -1324,6 +1578,12 @@ wpa_supplicant_prepare_interface() {
  ${scan_list:+freq_list=$scan_list}
  $ap_scan
  $country_str
@@ -437,10 +449,11 @@ index d673f54..6b9e876 100644
 +${mld_force_single_link:+mld_force_single_link=$mld_force_single_link}
 +${mld_allowed_phy_bitmap:+mld_allowed_phy=$mld_allowed_phy_bitmap}
 +$rsn_overriding_str
++wps_cred_add_sae=1
  EOF
  	return 0
  }
-@@ -1595,12 +1851,39 @@ wpa_supplicant_add_network() {
+@@ -1595,12 +1855,39 @@ wpa_supplicant_add_network() {
  		;;
  	esac
  
@@ -484,7 +497,7 @@ index d673f54..6b9e876 100644
  		case "$wpa" in
  			1)
  				append network_data "proto=WPA" "$N$T"
-@@ -1610,12 +1893,39 @@ wpa_supplicant_add_network() {
+@@ -1610,12 +1897,39 @@ wpa_supplicant_add_network() {
  			;;
  		esac
  
@@ -525,7 +538,7 @@ index d673f54..6b9e876 100644
  	[ -n "$bssid" ] && append network_data "bssid=$bssid" "$N$T"
  	[ -n "$beacon_int" ] && append network_data "beacon_int=$beacon_int" "$N$T"
  
-@@ -1626,6 +1936,20 @@ wpa_supplicant_add_network() {
+@@ -1626,6 +1940,20 @@ wpa_supplicant_add_network() {
  	[ -n "$bssid_blacklist" ] && append network_data "bssid_blacklist=$bssid_blacklist" "$N$T"
  	[ -n "$bssid_whitelist" ] && append network_data "bssid_whitelist=$bssid_whitelist" "$N$T"
  
@@ -546,7 +559,7 @@ index d673f54..6b9e876 100644
  	[ -n "$basic_rate" ] && {
  		local br rate_list=
  		for br in $basic_rate; do
-@@ -1640,6 +1964,11 @@ wpa_supplicant_add_network() {
+@@ -1640,6 +1968,11 @@ wpa_supplicant_add_network() {
  		append network_data "mcast_rate=$mc_rate" "$N$T"
  	}
  
@@ -559,7 +572,7 @@ index d673f54..6b9e876 100644
  		echo "wps_cred_processing=1" >> "$_config"
  	else
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh b/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh
-index c3772bb..78ac4ae 100644
+index c3772bb4..78ac4ae4 100644
 --- a/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/netifd-wireless.sh
 @@ -204,6 +204,43 @@ _wdev_wrapper \
@@ -628,14 +641,14 @@ index c3772bb..78ac4ae 100644
  	config_add_array tags
  }
 diff --git a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
-index 5837f1c..03cc967 100755
+index 36888524..d4af2776 100755
 --- a/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 +++ b/package/network/config/wifi-scripts/files/lib/netifd/wireless/mac80211.sh
 @@ -30,9 +30,11 @@ drv_mac80211_init_device_config() {
  	config_add_string tx_burst
  	config_add_string distance
  	config_add_int radio beacon_int chanbw frag rts
-+	config_add_int mbssid mu_onoff sr_enable sr_enhanced rnr obss_interval band_idx
++	config_add_int mbssid mu_onoff sr_enable sr_enhanced rnr obss_interval
  	config_add_int rxantenna txantenna txpower min_tx_power
  	config_add_int num_global_macaddr multiple_bssid
  	config_add_boolean noscan ht_coex acs_exclude_dfs background_radar
@@ -681,7 +694,7 @@ index 5837f1c..03cc967 100755
  		append base_cfg "acs_exclude_dfs=1" "$N"
  
 -	json_get_vars noscan ht_coex min_tx_power:0 tx_burst
-+	json_get_vars noscan ht_coex min_tx_power:0 tx_burst mbssid mu_onoff rnr obss_interval band_idx
++	json_get_vars noscan ht_coex min_tx_power:0 tx_burst mbssid mu_onoff rnr obss_interval
 +	json_get_vars etxbfen:1 itxbfen:0 eml_disable eml_resp
  	json_get_values ht_capab_list ht_capab
  	json_get_values channel_list channels
@@ -1023,7 +1036,7 @@ index 5837f1c..03cc967 100755
  	fi
  
  	hostapd_prepare_device_config "$hostapd_conf_file" nl80211
-@@ -527,7 +648,14 @@ ${channel:+channel=$channel}
+@@ -527,7 +648,13 @@ ${channel:+channel=$channel}
  ${channel_list:+chanlist=$channel_list}
  ${hostapd_noscan:+noscan=1}
  ${tx_burst:+tx_queue_data2_burst=$tx_burst}
@@ -1032,13 +1045,12 @@ index 5837f1c..03cc967 100755
 +${itxbfen:+ibf_enable=$itxbfen}
 +${rnr:+rnr=$rnr}
  ${multiple_bssid:+mbssid=$multiple_bssid}
-+${band_idx:+band_idx=$band_idx}
 +${eml_disable:+eml_disable=$eml_disable}
 +${eml_resp:+eml_resp=$eml_resp}
  #num_global_macaddr=$num_global_macaddr
  $base_cfg
  
-@@ -554,17 +682,41 @@ mac80211_hostapd_setup_bss() {
+@@ -554,17 +681,41 @@ mac80211_hostapd_setup_bss() {
  		append hostapd_cfg "wds_sta=1" "$N"
  		[ -n "$wds_bridge" ] && append hostapd_cfg "wds_bridge=$wds_bridge" "$N"
  	}
@@ -1082,7 +1094,7 @@ index 5837f1c..03cc967 100755
  mac80211_get_addr() {
  	local phy="$1"
  	local idx="$(($2 + 1))"
-@@ -576,6 +728,10 @@ mac80211_generate_mac() {
+@@ -576,6 +727,10 @@ mac80211_generate_mac() {
  	local phy="$1"
  	local id="${macidx:-0}"
  
@@ -1093,7 +1105,7 @@ index 5837f1c..03cc967 100755
  	wdev_tool "$phy$phy_suffix" get_macaddr id=$id num_global=$num_global_macaddr mbssid=${multiple_bssid:-0}
  }
  
-@@ -665,10 +821,130 @@ mac80211_set_ifname() {
+@@ -665,10 +820,130 @@ mac80211_set_ifname() {
  	eval "ifname=\"$phy-$prefix\${idx_$prefix:-0}\"; idx_$prefix=\$((\${idx_$prefix:-0 } + 1))"
  }
  
@@ -1225,7 +1237,7 @@ index 5837f1c..03cc967 100755
  
  	[ -n "$ifname" ] || {
  		local prefix;
-@@ -687,20 +963,29 @@ mac80211_prepare_vif() {
+@@ -687,20 +962,29 @@ mac80211_prepare_vif() {
  	set_default powersave 0
  	json_add_string _ifname "$ifname"
  
@@ -1260,7 +1272,7 @@ index 5837f1c..03cc967 100755
  		json_select config
  		wireless_vif_parse_encryption
  		json_select ..
-@@ -723,6 +1008,17 @@ mac80211_prepare_vif() {
+@@ -723,6 +1007,17 @@ mac80211_prepare_vif() {
  				type=interface
  			fi
  
@@ -1278,7 +1290,7 @@ index 5837f1c..03cc967 100755
  			mac80211_hostapd_setup_bss "$phy" "$ifname" "$macaddr" "$type" || return
  
  			[ -n "$hostapd_ctrl" ] || {
-@@ -825,7 +1121,7 @@ mac80211_setup_adhoc() {
+@@ -825,7 +1120,7 @@ mac80211_setup_adhoc() {
  
  	json_add_object "$ifname"
  	json_add_string mode adhoc
@@ -1287,7 +1299,7 @@ index 5837f1c..03cc967 100755
  	json_add_string ssid "$ssid"
  	json_add_string freq "$freq"
  	json_add_string htmode "$iw_htmode"
-@@ -851,7 +1147,7 @@ mac80211_setup_mesh() {
+@@ -856,7 +1151,7 @@ mac80211_setup_mesh() {
  
  	json_add_object "$ifname"
  	json_add_string mode mesh
@@ -1296,7 +1308,7 @@ index 5837f1c..03cc967 100755
  	json_add_string ssid "$ssid"
  	json_add_string freq "$freq"
  	json_add_string htmode "$iw_htmode"
-@@ -916,7 +1212,8 @@ wpa_supplicant_add_interface() {
+@@ -922,7 +1217,8 @@ wpa_supplicant_add_interface() {
  	json_add_string iface "$ifname"
  	json_add_string mode "$mode"
  	json_add_string config "$_config"
@@ -1306,7 +1318,7 @@ index 5837f1c..03cc967 100755
  	[ -n "$network_bridge" ] && json_add_string bridge "$network_bridge"
  	[ -n "$wds" ] && json_add_boolean 4addr "$wds"
  	json_add_boolean powersave "$powersave"
-@@ -962,6 +1259,13 @@ hostapd_set_config() {
+@@ -968,6 +1264,13 @@ hostapd_set_config() {
  	local phy="$1"
  	local radio="$2"
  
@@ -1320,7 +1332,7 @@ index 5837f1c..03cc967 100755
  	[ -n "$hostapd_ctrl" ] || {
  		ubus_call hostapd config_set '{ "phy": "'"$phy"'", "radio": '"$radio"', "config": "", "prev_config": "'"${hostapd_conf_file}.prev"'" }' > /dev/null
  		return 0;
-@@ -1011,7 +1315,6 @@ mac80211_setup_vif() {
+@@ -1017,7 +1320,6 @@ mac80211_setup_vif() {
  	json_select config
  	json_get_var ifname _ifname
  	json_get_var macaddr _macaddr
@@ -1328,7 +1340,7 @@ index 5837f1c..03cc967 100755
  	json_get_vars mode wds powersave
  
  	set_default powersave 0
-@@ -1022,7 +1325,7 @@ mac80211_setup_vif() {
+@@ -1028,7 +1330,7 @@ mac80211_setup_vif() {
  			json_get_vars $MP_CONFIG_INT $MP_CONFIG_BOOL $MP_CONFIG_STRING
  			wireless_vif_parse_encryption
  			[ -z "$htmode" ] && htmode="NOHT";
@@ -1337,7 +1349,7 @@ index 5837f1c..03cc967 100755
  				mac80211_setup_supplicant || failed=1
  			else
  				mac80211_setup_mesh
-@@ -1046,6 +1349,9 @@ mac80211_setup_vif() {
+@@ -1052,6 +1354,9 @@ mac80211_setup_vif() {
  
  	json_select ..
  	[ -n "$failed" ] || wireless_add_vif "$name" "$ifname"
@@ -1347,7 +1359,7 @@ index 5837f1c..03cc967 100755
  }
  
  get_freq() {
-@@ -1093,6 +1399,7 @@ mac80211_reset_config() {
+@@ -1099,6 +1404,7 @@ mac80211_reset_config() {
  	ubus_call hostapd config_set '{ "phy": "'"$phy"'", "radio": '"$radio"', "config": "", "prev_config": "'"$hostapd_conf_file"'" }' > /dev/null
  	ubus_call wpa_supplicant config_set '{ "phy": "'"$phy"'", "radio": '"$radio"', "config": [] }' > /dev/null
  	wdev_tool "$phy$phy_suffix" set_config '{}'
@@ -1355,7 +1367,7 @@ index 5837f1c..03cc967 100755
  }
  
  mac80211_set_suffix() {
-@@ -1102,6 +1409,74 @@ mac80211_set_suffix() {
+@@ -1108,6 +1414,74 @@ mac80211_set_suffix() {
  	set_default radio -1
  }
  
@@ -1430,7 +1442,7 @@ index 5837f1c..03cc967 100755
  drv_mac80211_setup() {
  	json_select config
  	json_get_vars \
-@@ -1110,7 +1485,8 @@ drv_mac80211_setup() {
+@@ -1116,7 +1490,8 @@ drv_mac80211_setup() {
  		txpower \
  		rxantenna txantenna \
  		frag rts beacon_int:100 htmode \
@@ -1440,7 +1452,7 @@ index 5837f1c..03cc967 100755
  	json_get_values basic_rate_list basic_rate
  	json_get_values scan_list scan_list
  	json_select ..
-@@ -1147,6 +1523,13 @@ drv_mac80211_setup() {
+@@ -1153,6 +1528,13 @@ drv_mac80211_setup() {
  
  	macidx=0
  	staidx=0
@@ -1454,7 +1466,7 @@ index 5837f1c..03cc967 100755
  
  	[ -n "$chanbw" ] && {
  		for file in /sys/kernel/debug/ieee80211/$phy/ath9k*/chanbw /sys/kernel/debug/ieee80211/$phy/ath5k/bwmode; do
-@@ -1164,7 +1547,14 @@ drv_mac80211_setup() {
+@@ -1170,7 +1552,14 @@ drv_mac80211_setup() {
  	[ "$rxantenna" = "$prev_rxantenna" -a "$txantenna" = "$prev_txantenna" ] || mac80211_reset_config "$phy"
  	wireless_set_data phy="$phy" radio="$radio" txantenna="$txantenna" rxantenna="$rxantenna"
  
@@ -1470,7 +1482,7 @@ index 5837f1c..03cc967 100755
  	iw phy "$phy" set distance "$distance" >/dev/null 2>&1
  
  	[ -n "$frag" ] && iw phy "$phy" set frag "${frag%%.*}"
-@@ -1189,11 +1579,28 @@ drv_mac80211_setup() {
+@@ -1195,11 +1584,28 @@ drv_mac80211_setup() {
  
  	wpa_supplicant_init_config
  
@@ -1499,7 +1511,7 @@ index 5837f1c..03cc967 100755
  	[ -x /usr/sbin/wpa_supplicant ] && wpa_supplicant_set_config "$phy" "$radio"
  	[ -x /usr/sbin/hostapd ] && hostapd_set_config "$phy" "$radio"
  
-@@ -1205,6 +1612,8 @@ drv_mac80211_setup() {
+@@ -1219,6 +1625,8 @@ drv_mac80211_setup() {
  
  	for_each_interface "ap sta adhoc mesh monitor" mac80211_set_vif_txpower
  	wireless_set_up
@@ -1509,7 +1521,7 @@ index 5837f1c..03cc967 100755
  
  _list_phy_interfaces() {
 diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
-index e82525e..03a162b 100644
+index e82525e2..6af6f99e 100644
 --- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
 +++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
 @@ -12,6 +12,10 @@ if (!board.wlan)
@@ -1590,7 +1602,7 @@ index e82525e..03a162b 100644
  		let country, defaults, num_global_macaddr;
  		if (board.wlan.defaults) {
  			defaults = board.wlan.defaults.ssids?.[band_name]?.ssid ? board.wlan.defaults.ssids?.[band_name] : board.wlan.defaults.ssids?.all;
-@@ -90,28 +115,114 @@ for (let phy_name, phy in board.wlan) {
+@@ -90,28 +115,110 @@ for (let phy_name, phy in board.wlan) {
  		if (length(info.radios) > 0)
  			id += `\nset ${s}.radio='${radio.index}'`;
  
@@ -1604,19 +1616,16 @@ index e82525e..03a162b 100644
 +		let background_radar = 0;
 +		let encryption = "none";
 +		let mbo = 0;
-+		let band_idx = 0;
 +		let ssid = "";
 +
 +		if (band_name == "6g") {
 +			encryption = "sae";
 +			mbo = 1;
-+			band_idx = 2;
 +			ssid = "OpenWrt-6g";
 +		} else if (band_name == "5g") {
 +			noscan = 1;
 +			rnr = 1;
 +			background_radar = 1;
-+			band_idx = 1;
 +			ssid = "OpenWrt-5g";
 +		} else {
 +			noscan = 1;
@@ -1636,7 +1645,6 @@ index e82525e..03a162b 100644
 -set ${s}.disabled='${defaults ? 0 : 1}'
 +set ${s}.disabled='${defaults ? 0 : disabled}'
 +set ${s}.noscan=${noscan}
-+set ${s}.band_idx=${band_idx}
 +`);
 +
 +		let si_mld = si + "_mld";
@@ -1711,7 +1719,7 @@ index e82525e..03a162b 100644
  
  if (commit)
 diff --git a/package/network/config/wifi-scripts/files/sbin/wifi b/package/network/config/wifi-scripts/files/sbin/wifi
-index f937dba..d057369 100755
+index f937dba7..d0573699 100755
 --- a/package/network/config/wifi-scripts/files/sbin/wifi
 +++ b/package/network/config/wifi-scripts/files/sbin/wifi
 @@ -175,9 +175,31 @@ wifi_detect_notice() {
@@ -1747,7 +1755,7 @@ index f937dba..d057369 100755
  
  	for driver in $DRIVERS; do (
 diff --git a/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc b/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
-index c6bfb62..239b409 100644
+index c6bfb62e..239b409a 100644
 --- a/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
 +++ b/package/network/config/wifi-scripts/files/usr/share/hostap/common.uc
 @@ -101,7 +101,9 @@ function wdev_create(phy, name, data)
@@ -1762,7 +1770,7 @@ index c6bfb62..239b409 100644
  
  	nl80211.error();
 diff --git a/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc b/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
-index db862d4..1c04131 100644
+index db862d40..1c041315 100644
 --- a/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
 +++ b/package/network/config/wifi-scripts/files/usr/share/hostap/wifi-detect.uc
 @@ -150,14 +150,19 @@ function wiphy_detect() {

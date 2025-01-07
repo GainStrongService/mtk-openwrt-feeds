@@ -335,7 +335,7 @@ function iface_hostapd_notify(phy, ifname, iface, state, link_id)
 		msg.sec_chan_offset = status.sec_chan_offset;
 		msg.ch_width = status.ch_width;
 		msg.bw320_offset = status.bw320_offset;
-		msg.band_idx = status.band_idx;
+		msg.radio_idx = status.radio_idx;
 		msg.punct_bitmap = status.punct_bitmap;
 		break;
 	default:
@@ -355,7 +355,7 @@ function iface_channel_switch(phy, ifname, iface, info)
 		frequency: info.frequency,
 		ch_width: info.ch_width,
 		bw320_offset: info.bw320_offset,
-		band_idx: info.band_idx,
+		radio_idx: info.radio_idx,
 		sec_chan_offset: info.sec_chan_offset,
 		punct_bitmap: info.punct_bitmap,
 	};
