@@ -1,7 +1,7 @@
 --- a/include/image.mk
 +++ b/include/image.mk
-@@ -443,7 +443,10 @@ endif
- ROOTFS_ENCRYPT = $(if $(ROE_KEY_DIR),$(wildcard $(ROE_KEY_DIR)/$(ROE_KEY_NAME).key),)
+@@ -441,7 +441,10 @@ else
+ endif
  
  DEVICE_CHECK_FIT_KEY = $(if $(wildcard $(FIT_KEY_DIR)/$(FIT_KEY_NAME).key),install-images,install-disabled)
 -DEVICE_CHECK_FIT_DIR = $(if $(FIT_KEY_DIR),$(DEVICE_CHECK_FIT_KEY),install-images)
@@ -12,7 +12,7 @@
  
  DEVICE_EXTRA_PACKAGES = $(call qstrip,$(CONFIG_TARGET_DEVICE_PACKAGES_$(call target_conf,$(BOARD)$(if $(SUBTARGET),_$(SUBTARGET)))_DEVICE_$(1)))
  
-@@ -467,7 +470,7 @@ endef
+@@ -465,7 +468,7 @@ endef
  define Device/Check
    $(Device/Check/Common)
    KDIR_KERNEL_IMAGE := $(KDIR)/$(1)$$(KERNEL_SUFFIX)

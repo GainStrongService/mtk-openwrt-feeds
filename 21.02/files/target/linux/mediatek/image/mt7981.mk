@@ -207,16 +207,13 @@ define Device/mt7981-spim-nand-rfb-sb
   IMAGE/sysupgrade.bin := sysupgrade-tar \
 	rootfs=$$$$(IMAGE_ROOTFS)-hashed-$$(firstword $$(DEVICE_DTS)) | append-metadata
   FIT_KEY_DIR := $(TOPDIR)/../../keys
-  ROE_KEY_DIR := $(TOPDIR)/../../keys
   FIT_KEY_NAME := fit_key
-  ROE_KEY_NAME := roe_key
-  FIRMWARE_ENC_ALGO := tee_aes256
   ANTI_ROLLBACK_TABLE := $(TOPDIR)/../../fw_ar_table.xml
   AUTO_AR_CONF := $(TOPDIR)/../../auto_ar_conf.mk
   HASHED_BOOT_DEVICE := 253:0
   BASIC_KERNEL_CMDLINE := console=ttyS0,115200n1 rootfstype=squashfs loglevel=8
   KERNEL = append-opteenode $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb | \
-	   kernel-bin | lzma | squashfs-hashed | fw-ar-ver | hkdf | \
+	   kernel-bin | lzma | squashfs-hashed | fw-ar-ver | \
 	   fit-sign lzma $$(KDIR)/image-sb-$$(firstword $$(DEVICE_DTS)).dtb
   KERNEL_INITRAMFS =
 endef
@@ -234,10 +231,7 @@ define Device/mt7981-emmc-rfb-sb
   IMAGE/sysupgrade.bin := sysupgrade-tar \
 	rootfs=$$$$(IMAGE_ROOTFS)-hashed-$$(firstword $$(DEVICE_DTS)) | append-metadata
   FIT_KEY_DIR := $(TOPDIR)/../../keys
-  ROE_KEY_DIR := $(TOPDIR)/../../keys
   FIT_KEY_NAME := fit_key
-  ROE_KEY_NAME := roe_key
-  FIRMWARE_ENC_ALGO := tee_aes256
   ANTI_ROLLBACK_TABLE := $(TOPDIR)/../../fw_ar_table.xml
   AUTO_AR_CONF := $(TOPDIR)/../../auto_ar_conf.mk
   BASIC_KERNEL_CMDLINE := console=ttyS0,115200n1 rootfstype=squashfs,f2fs loglevel=8
@@ -248,6 +242,5 @@ define Device/mt7981-emmc-rfb-sb
 endef
 TARGET_DEVICES += mt7981-emmc-rfb-sb
 
-DEFAULT_DEVICE_VARS += FIT_KEY_DIR ROE_KEY_DIR FIT_KEY_NAME ROE_KEY_NAME \
-	FIRMWARE_ENC_ALGO ANTI_ROLLBACK_TABLE AUTO_AR_CONF HASHED_BOOT_DEVICE \
-	BASIC_KERNEL_CMDLINE
+DEFAULT_DEVICE_VARS += FIT_KEY_DIR FIT_KEY_NAME ANTI_ROLLBACK_TABLE AUTO_AR_CONF \
+	HASHED_BOOT_DEVICE BASIC_KERNEL_CMDLINE
