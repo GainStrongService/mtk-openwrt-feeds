@@ -1,0 +1,33 @@
+From e08a803774673a7762629ee4ce9904b7dc335479 Mon Sep 17 00:00:00 2001
+From: Jouni Malinen <j@w1.fi>
+Date: Sat, 16 Mar 2024 11:16:12 +0200
+Subject: [PATCH 03/11] eapol_test: Move Message-Authenticator attribute to be
+ the first one
+
+Even if this is not strictly speaking necessary for mitigating certain
+RADIUS protocol attacks, be consistent with the RADIUS server behavior
+and move the Message-Authenticator attribute to be the first attribute
+in the message from RADIUS client.
+
+Signed-off-by: Jouni Malinen <j@w1.fi>
+---
+ wpa_supplicant/eapol_test.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/wpa_supplicant/eapol_test.c b/wpa_supplicant/eapol_test.c
+index ca6faac..36890b6 100644
+--- a/wpa_supplicant/eapol_test.c
++++ b/wpa_supplicant/eapol_test.c
+@@ -200,6 +200,9 @@ static void ieee802_1x_encapsulate_radius(struct eapol_test_data *e,
+ 		return;
+ 	}
+ 
++	if (!radius_msg_add_msg_auth(msg))
++		goto fail;
++
+ 	radius_msg_make_authenticator(msg);
+ 
+ 	hdr = (const struct eap_hdr *) eap;
+-- 
+2.45.2
+

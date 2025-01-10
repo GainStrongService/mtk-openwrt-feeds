@@ -1,0 +1,43 @@
+From 90fde501cb0ffee85e59ae36798cb3f922b36654 Mon Sep 17 00:00:00 2001
+From: Jouni Malinen <j@w1.fi>
+Date: Sun, 17 Mar 2024 10:47:58 +0200
+Subject: [PATCH 08/11] RADIUS: Check Message-Authenticator if it is present
+ even if not required
+
+Always check the Message-Authenticator attribute in a received RADIUS
+message if it is present. Previously, this would have been skipped if
+the attribute was not required to be present.
+
+Signed-off-by: Jouni Malinen <j@w1.fi>
+---
+ src/radius/radius.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/src/radius/radius.c b/src/radius/radius.c
+index 9000c15..6e9a0e5 100644
+--- a/src/radius/radius.c
++++ b/src/radius/radius.c
+@@ -1000,6 +1000,20 @@ int radius_msg_verify(struct radius_msg *msg, const u8 *secret,
+ 		return 1;
+ 	}
+ 
++	if (!auth) {
++		u8 *pos;
++		size_t alen;
++
++		if (radius_msg_get_attr_ptr(msg,
++					    RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
++					    &pos, &alen, NULL) == 0) {
++			/* Check the Message-Authenticator attribute since it
++			 * was included even if we are configured to not
++			 * require it. */
++			auth = 1;
++		}
++	}
++
+ 	if (auth &&
+ 	    radius_msg_verify_msg_auth(msg, secret, secret_len,
+ 				       sent_msg->hdr->authenticator)) {
+-- 
+2.45.2
+

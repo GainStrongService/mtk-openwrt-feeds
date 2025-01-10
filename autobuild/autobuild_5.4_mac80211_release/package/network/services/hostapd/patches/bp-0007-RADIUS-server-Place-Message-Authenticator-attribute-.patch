@@ -1,0 +1,58 @@
+From 2bf555655110b84f547e2a5119739dcd219fb4a3 Mon Sep 17 00:00:00 2001
+From: Jouni Malinen <j@w1.fi>
+Date: Sat, 16 Mar 2024 11:13:32 +0200
+Subject: [PATCH 02/11] RADIUS server: Place Message-Authenticator attribute as
+ the first one
+
+Move the Message-Authenticator attribute to be the first attribute in
+the RADIUS messages. This mitigates certain MD5 attacks against
+RADIUS/UDP.
+
+Signed-off-by: Jouni Malinen <j@w1.fi>
+---
+ src/radius/radius_server.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/src/radius/radius_server.c b/src/radius/radius_server.c
+index e02c215..fa36915 100644
+--- a/src/radius/radius_server.c
++++ b/src/radius/radius_server.c
+@@ -920,6 +920,11 @@ radius_server_encapsulate_eap(struct radius_server_data *data,
+ 		return NULL;
+ 	}
+ 
++	if (!radius_msg_add_msg_auth(msg)) {
++		radius_msg_free(msg);
++		return NULL;
++	}
++
+ 	sess_id = htonl(sess->sess_id);
+ 	if (code == RADIUS_CODE_ACCESS_CHALLENGE &&
+ 	    !radius_msg_add_attr(msg, RADIUS_ATTR_STATE,
+@@ -1204,6 +1209,11 @@ radius_server_macacl(struct radius_server_data *data,
+ 		return NULL;
+ 	}
+ 
++	if (!radius_msg_add_msg_auth(msg)) {
++		radius_msg_free(msg);
++		return NULL;
++	}
++
+ 	if (radius_msg_copy_attr(msg, request, RADIUS_ATTR_PROXY_STATE) < 0) {
+ 		RADIUS_DEBUG("Failed to copy Proxy-State attribute(s)");
+ 		radius_msg_free(msg);
+@@ -1253,6 +1263,11 @@ static int radius_server_reject(struct radius_server_data *data,
+ 		return -1;
+ 	}
+ 
++	if (!radius_msg_add_msg_auth(msg)) {
++		radius_msg_free(msg);
++		return -1;
++	}
++
+ 	os_memset(&eapfail, 0, sizeof(eapfail));
+ 	eapfail.code = EAP_CODE_FAILURE;
+ 	eapfail.identifier = 0;
+-- 
+2.45.2
+
