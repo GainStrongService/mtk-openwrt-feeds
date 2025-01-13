@@ -64,7 +64,7 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
 
 ## Wi-Fi 7 Latest Release Version
 
-- **Date**: 2024-12-06
+- **Date**: 2024-01-14
 - **Modified By**: Evelyn Tsai (evelyn.tsai@mediatek.com)
 - **Summary of Changes**:
   - Platform
@@ -78,12 +78,58 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
     - 4096-QAM MCS12, MCS13
     - WPA3 key management (AKM24)
     - MLO Basic Functionality (Advertisement/Discovery/Setup)
+    - Hardware Peak Performance (Enable CONFIG_PACKAGE_smp_util=y)
 
   - Not Ready
-    - Hardware Peak Performance
     - MLO Post-Setup Features
 
-#### Filogic 880 WiFi7 Alpha Release
+#### Filogic 880 WiFi7 Update-to-date Release
+
+```
+#Get OpenWrt 24.10 source code from Git Server
+git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git openwrt
+
+#Get mtk-openwrt-feeds source code
+git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+
+#Choose one SKU to build (1st Build)
+cd openwrt
+
+# Select one SKU to build
+## 1. Filogic 880 (MT7988+MT7996) MTK Reference Board (RFB)
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt7988_rfb-mt7996 log_file=make
+## 2. MTK Prpl Reference Board (Mozart)
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mozart log_file=make
+## 2. BananaPi BPI-R4
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-bpi-r4 log_file=make
+
+#Further Build (After 1st full build)
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh build
+or
+make V=s
+
+#Clean OpenWrt source tree
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
+```
+
+##### WiFi Package Version
+
+| Platform                 | OpenWrt/main                  | git01.mediatek.com                                                                |
+|--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
+| Kernel                   | 6.6.71                        | ./feeds/mtk_openwrt_feed/24.10/patches-base |
+| **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
+| Hostapd                  | PKG_SOURCE_DATE:=2024-10-13   | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0003-hostapd-package-makefile-ucode-files.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/nerwork/services/hostapd/patches         |
+| libnl-tiny               | PKG_SOURCE_DATE:=2023-12-05   | N/A                                                                               |
+| iw                       | PKG_VERSION:=6.9              | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/network/utils/iw/patches               |
+| iwinfo                   | PKG_SOURCE_DATE:=2024-10-20   | N/A                                                                               |
+| wireless-regdb           | PKG_VERSION:=2024-10-07       | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/firmware/wireless-regdb/patches                |
+| ucode                    | PKG_VERSION:=2024-07-22       | |
+| wifi-scripts             | PKG_VERSION:=1.0              | **Files**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0002-wifi-scripts-package-files.patch   |
+| netifd                   | PKG_VERSION:=2024-12-17       |   |
+| MAC80211                 | PKG_VERSION:=wireless-next-2024-10-25 (~ Kernel 6.13) | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0004-mac80211-package-makefile.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mac80211/patches |
+| MT76                     | PKG_SOURCE_DATE:=2024-10-11.1  | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0001-mt76-package-makefile.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/patches <br /> **Firmware** ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/src/firmware/mt7996 |
+
+#### Filogic 880 WiFi7 Alpha Release (2024-12-06)
 
 ##### External Release (Snapshot from openwrt-24.10^5601274)
 
@@ -137,6 +183,6 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 | wifi-scripts             | PKG_VERSION:=1.0              | **Files**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0002-wifi-scripts-package-files.patch   |
 | netifd                   | PKG_VERSION:=2024-10-06       |   |
 | MAC80211                 | PKG_VERSION:=wireless-next-2024-10-25 (~ Kernel 6.13) | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0004-mac80211-package-makefile.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mac80211/patches |
-| MT76                     | PKG_SOURCE_DATE:=2024-10-11.1  | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0001-mt76-package-makefile.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/patches <br /> **Firmware** ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/src/firmware/mt7996 |
+| MT76                     | PKG_SOURCE_DATE:=2025-01-04  | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0001-mt76-package-makefile.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/patches <br /> **Firmware** ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/src/firmware/mt7996 |
 
 
