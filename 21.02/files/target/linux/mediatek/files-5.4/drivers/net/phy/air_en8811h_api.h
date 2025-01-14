@@ -37,6 +37,7 @@
 #define DEBUGFS_MII_CL45_OP         "cl45_op"
 #define DEBUGFS_CABLE_DIAG          "cable_diag"
 #define DEBUGFS_LED_MODE            "led_mode"
+#define DEBUGFS_TX_COMP             "tx_comp"
 
 #define CMD_MAX_LENGTH 128
 
@@ -60,6 +61,14 @@
 	(__out__) &= ~AIR_BITS_RANGE((__offset__), (__length__));			\
 	(__out__) |= AIR_BITS_OFF_L((__val__), (__offset__), (__length__));	\
 }
+
+#define CTL1000_PORT_TYPE           (0x0400)
+#define CTL1000_TEST_NORMAL         (0x0000)
+#define CTL1000_TEST_TM1            (0x2000)
+#define CTL1000_TEST_TM2            (0x4000)
+#define CTL1000_TEST_TM3            (0x6000)
+#define CTL1000_TEST_TM4            (0x8000)
+#define MMD_DEV_VSPEC1              (0x1e)
 
 enum air_port_mode {
 	AIR_PORT_MODE_FORCE_100,
@@ -133,6 +142,32 @@ enum air_cko {
 	AIR_CKO_LAST = 0xff
 };
 
+enum air_tx_comp_mode {
+	AIR_TX_COMP_MODE_100M_PAIR_A,
+	AIR_TX_COMP_MODE_100M_PAIR_B,
+	AIR_TX_COMP_MODE_100M_PAIR_A_DISCRETE,
+	AIR_TX_COMP_MODE_100M_PAIR_B_DISCRETE,
+	AIR_TX_COMP_MODE_1000M_TM1,
+	AIR_TX_COMP_MODE_1000M_TM2,
+	AIR_TX_COMP_MODE_1000M_TM3,
+	AIR_TX_COMP_MODE_1000M_TM4_TD,
+	AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_A,
+	AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_B,
+	AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_C,
+	AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_D,
+	AIR_TX_COMP_MODE_2500M_TM1,
+	AIR_TX_COMP_MODE_2500M_TM2,
+	AIR_TX_COMP_MODE_2500M_TM3,
+	AIR_TX_COMP_MODE_2500M_TM4_TONE_1,
+	AIR_TX_COMP_MODE_2500M_TM4_TONE_2,
+	AIR_TX_COMP_MODE_2500M_TM4_TONE_3,
+	AIR_TX_COMP_MODE_2500M_TM4_TONE_4,
+	AIR_TX_COMP_MODE_2500M_TM4_TONE_5,
+	AIR_TX_COMP_MODE_2500M_TM5,
+	AIR_TX_COMP_MODE_2500M_TM6,
+	AIR_TX_COMP_MODE_LAST = 0xFF,
+};
+
 struct trrg_param_s {
 	unsigned int TrRG_LSB     :5;
 	unsigned int Reserved_21  :3;
@@ -186,6 +221,7 @@ int en8811h_of_init(struct phy_device *phydev);
 int air_surge_protect_cfg(struct phy_device *phydev);
 int air_ref_clk_speed(struct phy_device *phydev, int para);
 int air_cko_cfg(struct phy_device *phydev);
+int airoha_control_flag(struct phy_device *phydev, int mask, int val);
 #ifdef CONFIG_AIROHA_EN8811H_PHY_DEBUGFS
 int airphy_debugfs_init(struct phy_device *phydev);
 void airphy_debugfs_remove(struct phy_device *phydev);

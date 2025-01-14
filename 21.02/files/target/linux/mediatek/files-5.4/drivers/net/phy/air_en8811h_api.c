@@ -252,7 +252,7 @@ static int __air_buckpbus_reg_write(struct phy_device *phydev,
 			0x13, ((pbus_data >> 16) & 0xffff));
 	ret |= __air_mii_cl22_write(mbus, addr, 0x14, (pbus_data & 0xffff));
 	ret |= __air_mii_cl22_write(mbus, addr, 0x1F, 0);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(dev, "__air_mii_cl22_write, ret: %d\n", ret);
 		return ret;
 	}
@@ -287,7 +287,7 @@ static unsigned int __air_buckpbus_reg_read(struct phy_device *phydev,
 	ret |= __air_mii_cl22_write(mbus, addr, 0x1F, 0);
 	if (ret) {
 		dev_err(dev, "__air_mii_cl22_write, ret: %d\n", ret);
-		return ret;
+		return PBUS_INVALID_DATA;
 	}
 	return pbus_data;
 }
@@ -495,6 +495,33 @@ int air_get_autonego(struct phy_device *phydev, int *an)
 	return 0;
 }
 
+int airoha_control_flag(struct phy_device *phydev, int mask, int val)
+{
+	u32 pbus_value = 0;
+	int ret;
+	struct device *dev = phydev_dev(phydev);
+
+	pbus_value = air_buckpbus_reg_read(phydev, 0x3a9c);
+	dev_dbg(dev, "%d:pbus_value 0x%x!\n", __LINE__, pbus_value);
+	switch (val) {
+	case 0:
+		pbus_value &= ~BIT(mask);
+		break;
+	case 1:
+		pbus_value |= BIT(mask);
+		break;
+	default:
+		dev_err(dev, "Wrong value %d!\n", val);
+		return -EINVAL;
+	}
+	dev_dbg(dev, "%d:pbus_value 0x%x!\n", __LINE__, pbus_value);
+	ret = air_buckpbus_reg_write(phydev,
+					0x3a9c, pbus_value);
+	if (ret < 0)
+		return ret;
+	return 0;
+}
+
 #ifdef CONFIG_AIROHA_EN8811H_PHY_DEBUGFS
 static int air_read_status(struct phy_device *phydev)
 {
@@ -566,9 +593,9 @@ static int air_set_polarity(struct phy_device *phydev, unsigned int tx_rx)
 static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 {
 	int ret = 0, val = 0;
-	unsigned int pbus_data = 0;
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
 	int addr = phydev_addr(phydev);
+	struct en8811h_priv *priv = phydev->priv;
 
 	switch (dbg_mode) {
 	case AIR_PORT_MODE_FORCE_100:
@@ -589,6 +616,7 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 		ret = air_mii_cl22_write(mbus, addr, MII_BMCR, val);
 		if (unlikely(ret < 0))
 			break;
+		priv->need_an = 1;
 		break;
 	case AIR_PORT_MODE_FORCE_1000:
 		pr_notice("\nForce 1000M\n");
@@ -608,6 +636,7 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 		ret = air_mii_cl22_write(mbus, addr, MII_BMCR, val);
 		if (unlikely(ret < 0))
 			break;
+		priv->need_an = 1;
 		break;
 	case AIR_PORT_MODE_FORCE_2500:
 		pr_notice("\nForce 2500M\n");
@@ -627,6 +656,7 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 		ret = air_mii_cl22_write(mbus, addr, MII_BMCR, val);
 		if (unlikely(ret < 0))
 			break;
+		priv->need_an = 1;
 		break;
 	case AIR_PORT_MODE_AUTONEGO:
 		pr_notice("\nAutonego mode\n");
@@ -642,40 +672,30 @@ static int air_set_mode(struct phy_device *phydev, int dbg_mode)
 		ret = air_mii_cl45_write(phydev, 0x7, 0x20, val);
 		if (unlikely(ret < 0))
 			break;
-		val = air_mii_cl22_read(mbus, addr, MII_BMCR) | BIT(9);
+		val = air_mii_cl22_read(mbus, addr, MII_BMCR);
+		val |= BMCR_ANENABLE;
 		ret = air_mii_cl22_write(mbus, addr, MII_BMCR, val);
 		if (unlikely(ret < 0))
 			break;
+		if (priv->need_an) {
+			val = air_mii_cl22_read(mbus, addr, MII_BMCR);
+			val |= BMCR_ANRESTART;
+			ret = air_mii_cl22_write(mbus, addr, MII_BMCR, val);
+			if (unlikely(ret < 0))
+				break;
+			priv->need_an = 0;
+			pr_notice("\nRe-an\n");
+		}
 		break;
 	case AIR_PORT_MODE_POWER_DOWN:
 		pr_notice("\nPower Down\n");
 		val = air_mii_cl22_read(mbus, addr, MII_BMCR) | BIT(11);
 		ret = air_mii_cl22_write(mbus, addr, MII_BMCR, val);
-		if (unlikely(ret < 0))
-			break;
 		break;
 	case AIR_PORT_MODE_POWER_UP:
 		pr_notice("\nPower Up\n");
 		val = air_mii_cl22_read(mbus, addr, MII_BMCR) & ~BIT(11);
 		ret = air_mii_cl22_write(mbus, addr, MII_BMCR, val);
-		if (unlikely(ret < 0))
-			break;
-		break;
-	case AIR_PORT_MODE_SSC_DISABLE:
-		pr_notice("\nSSC Disabled\n");
-		pbus_data = air_buckpbus_reg_read(phydev, 0xca000);
-		pbus_data &= ~BIT(21);
-		ret = air_buckpbus_reg_write(phydev, 0xca000, pbus_data);
-		if (unlikely(ret < 0))
-			break;
-		break;
-	case AIR_PORT_MODE_SSC_ENABLE:
-		pr_notice("\nSSC Enabled\n");
-		pbus_data = air_buckpbus_reg_read(phydev, 0xca000);
-		pbus_data |= BIT(21);
-		ret = air_buckpbus_reg_write(phydev, 0xca000, pbus_data);
-		if (unlikely(ret < 0))
-			break;
 		break;
 	default:
 		pr_notice("\nWrong Port mode\n");
@@ -792,6 +812,8 @@ static int airphy_info_show(struct seq_file *seq, void *v)
 	val = (air_buckpbus_reg_read(phydev, 0xca0f8) & 0x3);
 	seq_printf(seq, "| Tx, Rx Polarity      : %s(%02d)\n",
 						tx_rx_string[val], val);
+	seq_printf(seq, "| Init Stage           : %02d\n",
+						priv->init_stage);
 	seq_puts(seq, "\n");
 
 	return 0;
@@ -802,6 +824,11 @@ static int airphy_info_open(struct inode *inode, struct file *file)
 	return single_open(file, airphy_info_show, inode->i_private);
 }
 
+/**
+ * airphy_fcm_counter_show - FCM Counter
+ * @seq: Pointer to the sequence file structure.
+ * @phydev: target phy_device struct
+ */
 static int airphy_fcm_counter_show(struct phy_device *phydev,
 				struct seq_file *seq)
 {
@@ -878,6 +905,40 @@ static int airphy_ss_counter_show(struct phy_device *phydev,
 		return ret;
 	return 0;
 }
+/**
+ * airphy_mac_counter - Internal MAC counter
+ * @seq: Pointer to the sequence file structure.
+ * @phydev: target phy_device struct
+ * NOTE: MAC counter should not be polled continuously.
+ */
+static int airphy_mac_counter_show(struct seq_file *seq,
+		struct phy_device *phydev)
+{
+	int ret = 0;
+	u32 pkt_cnt = 0;
+
+	ret = air_buckpbus_reg_write(phydev, 0xdc036, 0xb);
+	if (ret < 0)
+		return ret;
+	pkt_cnt = air_buckpbus_reg_read(phydev, 0xdc037);
+	if (pkt_cnt == 0x98) {
+		seq_puts(seq, "|\t<<MAC Counter>>\n");
+		seq_puts(seq, "| Tx Error from System side:");
+		pkt_cnt = air_buckpbus_reg_read(phydev, 0x131000);
+		seq_printf(seq, "%010u |\n", pkt_cnt);
+		seq_puts(seq, "| Rx Error to System side  :");
+		pkt_cnt = air_buckpbus_reg_read(phydev, 0x132000);
+		seq_printf(seq, "%010u |\n", pkt_cnt);
+		seq_puts(seq, "| Tx from System side      :");
+		pkt_cnt = air_buckpbus_reg_read(phydev, 0x131004);
+		seq_printf(seq, "%010u |\n", pkt_cnt);
+		seq_puts(seq, "| Rx to System Side        :");
+		pkt_cnt = air_buckpbus_reg_read(phydev, 0x132004);
+		seq_printf(seq, "%010u |\n", pkt_cnt);
+	} else
+		seq_printf(seq, "MAC is not ready.(0x%x)\n", pkt_cnt);
+	return 0;
+}
 
 static int airphy_counter_show(struct seq_file *seq, void *v)
 {
@@ -900,19 +961,9 @@ static int airphy_counter_show(struct seq_file *seq, void *v)
 	if (ret < 0)
 		return ret;
 	if (priv->link) {
-		seq_puts(seq, "|\t<<MAC Counter>>\n");
-		seq_puts(seq, "| Tx Error from System side:");
-		pkt_cnt = air_buckpbus_reg_read(phydev, 0x131000);
-		seq_printf(seq, "%010u |\n", pkt_cnt);
-		seq_puts(seq, "| Rx Error to System side  :");
-		pkt_cnt = air_buckpbus_reg_read(phydev, 0x132000);
-		seq_printf(seq, "%010u |\n", pkt_cnt);
-		seq_puts(seq, "| Tx from System side      :");
-		pkt_cnt = air_buckpbus_reg_read(phydev, 0x131004);
-		seq_printf(seq, "%010u |\n", pkt_cnt);
-		seq_puts(seq, "| Rx to System Side        :");
-		pkt_cnt = air_buckpbus_reg_read(phydev, 0x132004);
-		seq_printf(seq, "%010u |\n", pkt_cnt);
+		ret = airphy_mac_counter_show(seq, phydev);
+		if (ret < 0)
+			return ret;
 	}
 	if (priv->link && priv->speed == SPEED_2500) {
 		seq_puts(seq, "|\t<<LS Counter>>\n");
@@ -1267,29 +1318,25 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 {
 	struct phy_device *phydev = seq->private;
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
-	int addr = phydev_addr(phydev), ret;
+	int addr = phydev_addr(phydev), ret, reg;
 
 	seq_puts(seq, "\t<<DEBUG REG DUMP>>\n");
-	seq_printf(seq, "| RG_MII_BMCR           : 0x%08x |\n",
-		   air_mii_cl22_read(mbus, addr, MII_BMCR));
-	seq_printf(seq, "| RG_MII_BMSR           : 0x%08x |\n",
-		   air_mii_cl22_read(mbus, addr, MII_BMSR));
-	seq_printf(seq, "| RG_MII_ADVERTISE      : 0x%08x |\n",
-		   air_mii_cl22_read(mbus, addr, MII_ADVERTISE));
-	seq_printf(seq, "| RG_MII_LPA            : 0x%08x |\n",
-		   air_mii_cl22_read(mbus, addr, MII_LPA));
-	seq_printf(seq, "| RG_MII_EXPANSION      : 0x%08x |\n",
-		   air_mii_cl22_read(mbus, addr, MII_EXPANSION));
-	seq_printf(seq, "| RG_MII_CTRL1000       : 0x%08x |\n",
-		   air_mii_cl22_read(mbus, addr, MII_CTRL1000));
-	seq_printf(seq, "| RG_MII_STAT1000       : 0x%08x |\n",
-		   air_mii_cl22_read(mbus, addr, MII_STAT1000));
+	for (reg = MII_BMCR; reg <= MII_STAT1000; reg++) {
+		seq_printf(seq, "| RG_MII_REG_%02x         : 0x%08x |\n",
+					reg, air_mii_cl22_read(mbus, addr, reg));
+	}
+	seq_printf(seq, "| RG_ABILITY_2G5        : 0x%08x |\n",
+		    air_mii_cl45_read(phydev, 0x7, 0x20));
 	seq_printf(seq, "| RG_LINK_PARTNER_2G5   : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0x3b30));
 	ret = air_mii_cl22_write(mbus, addr, 0x1f, 0x0);
+	if (ret < 0)
+		return 0;
 	ret = air_mii_cl22_read(mbus, addr, 0x1d);
 	seq_printf(seq, "| RG_MII_REF_CLK        : 0x%08x |\n",
 		   ret);
+	seq_printf(seq, "| RG_PHY_ANA            : 0x%08x |\n",
+		   air_buckpbus_reg_read(phydev, 0xca0f8));
 	seq_printf(seq, "| RG_HW_STRAP1          : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0xcf910));
 	seq_printf(seq, "| RG_HW_STRAP2          : 0x%08x |\n",
@@ -1304,7 +1351,7 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 		   air_buckpbus_reg_read(phydev, 0xe002C));
 	seq_printf(seq, "| RG_CSR_AN0            : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0xc0000));
-	seq_printf(seq, "| RG_LINK_STATUS        : 0x%08x |\n",
+	seq_printf(seq, "| RG_SS_LINK_STATUS     : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0xc0b04));
 	seq_printf(seq, "| RG_LINK_PARTNER_AN    : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0xc0014));
@@ -1316,7 +1363,6 @@ static int dbg_regs_show(struct seq_file *seq, void *v)
 		   air_buckpbus_reg_read(phydev, 0x3A64));
 	seq_printf(seq, "| RG_WHILE_LOOP_COUNT   : 0x%08x |\n",
 		   air_buckpbus_reg_read(phydev, 0x3A48));
-
 	return 0;
 }
 
@@ -1356,53 +1402,83 @@ static int airphy_temp_show_open(struct inode *inode, struct file *file)
 static unsigned int air_read_lp_speed(struct phy_device *phydev)
 {
 	int val = 0, ret = 0;
-	int count = 15, lpa, lpagb;
+	int lpa, lpagb;
+	int count = 15;
 	struct device *dev = phydev_dev(phydev);
 	struct mii_bus *mbus = phydev_mdio_bus(phydev);
 	int addr = phydev_addr(phydev);
+	struct en8811h_priv *priv = phydev->priv;
 
-	val = air_mii_cl22_read(mbus, addr, MII_BMCR) | BIT(9);
-	ret = air_mii_cl22_write(mbus, addr, MII_BMCR, val);
-	if (unlikely(ret < 0))
-		return ret;
-	msleep(1500);
-	do {
-		msleep(100);
-		ret = air_mii_cl45_read(phydev, MDIO_MMD_AN, 0x21);
-		ret &= BIT(5);
-		if (ret)
-			break;
-		count--;
-	} while (count);
+	if (priv->firmware_version < 0x24011202) {
+		val = air_mii_cl22_read(mbus, addr, MII_BMCR) | BIT(9);
+		ret = air_mii_cl22_write(mbus, addr, MII_BMCR, val);
+		if (unlikely(ret < 0))
+			return ret;
+		msleep(1500);
+		do {
+			msleep(100);
+			ret = air_mii_cl45_read(phydev, MDIO_MMD_AN, 0x21);
+			ret &= BIT(5);
+			if (ret)
+				break;
+			count--;
+		} while (count);
 
-	count = 10;
-	do {
-		msleep(500);
-		val = air_mii_cl22_read(mbus, addr, MII_BMSR);
-		if (val < 0) {
-			dev_err(dev, "MII_BMSR reg 0x%x!\n", val);
-			return val;
-		}
-		val = air_mii_cl22_read(mbus, addr, MII_BMSR);
-		if (val < 0) {
-			dev_err(dev, "MII_BMSR reg 0x%x!\n", val);
-			return val;
-		}
-		dev_dbg(dev, "val 0x%x\n", val);
-		if (val & BMSR_LSTATUS) {
-			val = air_mii_cl22_read(mbus, addr, MII_LPA);
-			if (val < 0)
+		count = 10;
+		do {
+			msleep(500);
+			val = air_mii_cl22_read(mbus, addr, MII_BMSR);
+			if (val < 0) {
+				dev_err(dev, "MII_BMSR reg 0x%x!\n", val);
 				return val;
-			lpa = (val & (BIT(5) | BIT(6) | BIT(7) | BIT(8))) >> 5;
-			val = air_mii_cl22_read(mbus, addr, MII_STAT1000);
-			if (val < 0)
+			}
+			val = air_mii_cl22_read(mbus, addr, MII_BMSR);
+			if (val < 0) {
+				dev_err(dev, "MII_BMSR reg 0x%x!\n", val);
 				return val;
-			lpagb = GET_BIT(val, 11) << 4;
+			}
+			dev_dbg(dev, "val 0x%x\n", val);
+			if (val & BMSR_LSTATUS) {
+				val = air_mii_cl22_read(mbus, addr, MII_LPA);
+				if (val < 0)
+					return val;
+				lpa = (val & (BIT(5) | BIT(6) | BIT(7) | BIT(8))) >> 5;
+				val = air_mii_cl22_read(mbus, addr, MII_STAT1000);
+				if (val < 0)
+					return val;
+				lpagb = GET_BIT(val, 11) << 4;
+				ret |= (lpagb | lpa);
+				return ret;
+			}
+		} while (count--);
+	} else {
+		ret = air_mii_cl22_read(mbus, addr, MII_BMSR);
+		if (ret < 0) {
+			dev_err(dev, "MII_BMSR reg 0x%x!\n", ret);
+			return ret;
+		}
+		ret = air_mii_cl22_read(mbus, addr, MII_BMSR);
+		if (ret < 0) {
+			dev_err(dev, "MII_BMSR reg 0x%x!\n", ret);
+			return ret;
+		}
+		dev_dbg(dev, "val 0x%x\n", ret);
+		if (ret & BMSR_LSTATUS) {
+			ret = air_buckpbus_reg_read(phydev, 0x3b30);
+			ret = GET_BIT(ret, 0) << 5;
+			lpa = air_mii_cl22_read(mbus, addr, MII_LPA);
+			if (lpa < 0)
+				return lpa;
+			lpa &= (BIT(5) | BIT(6) | BIT(7) | BIT(8));
+			lpa >>= 5;
+			lpagb = air_mii_cl22_read(mbus, addr, MII_STAT1000);
+			if (lpagb < 0)
+				return lpagb;
+			lpagb = GET_BIT(lpagb, 11) << 4;
 			ret |= (lpagb | lpa);
 			return ret;
 		}
-	} while (count--);
-
+	}
 	return 0;
 }
 
@@ -1852,7 +1928,7 @@ void airphy_trigger_cable_diag(struct phy_device *phydev)
 	priv->running_status = 0;
 }
 
-void airphy_dump_ec_cable_diag(struct phy_device *phydev)
+void airphy_dump_cable_diag(struct phy_device *phydev)
 {
 	u32 PMEM_addr = 0;
 	u32 PMEM_value = 0;
@@ -1907,9 +1983,374 @@ static ssize_t airphy_cable_diag(struct file *file, const char __user *ptr,
 	if (!strncmp("start", cmd, strlen("start")))
 		airphy_trigger_cable_diag(phydev);
 	else if (!strncmp("dump", cmd, strlen("dump")))
-		airphy_dump_ec_cable_diag(phydev);
+		airphy_dump_cable_diag(phydev);
 	else
 		airphy_cable_diag_help();
+
+	return count;
+}
+
+static int air_set_forcexbz(struct phy_device *phydev)
+{
+	int rv = 0;
+	struct mii_bus *mbus = phydev_mdio_bus(phydev);
+	int addr = phydev_addr(phydev);
+
+	rv = air_mii_cl22_write(mbus, addr, MII_BMCR, 0x1140);
+	rv |= air_buckpbus_reg_write(phydev, 0x10204, 0x0);
+	rv |= air_mii_cl45_write(phydev, 0x1e, 0x800c, 0x8);
+	rv |= air_mii_cl45_write(phydev, 0x1e, 0x800d, 0x0);
+	rv |= air_mii_cl45_write(phydev, 0x1e, 0x800e, 0x1100);
+	rv |= air_mii_cl45_write(phydev, 0x1e, 0x800f, 0x1);
+	if (unlikely(rv < 0))
+		return rv;
+	return 0;
+}
+
+static int air_set_tx_comp(struct phy_device *phydev, int tm_mode)
+{
+	int ret = 0;
+	struct mii_bus *mbus = phydev_mdio_bus(phydev);
+	int addr = phydev_addr(phydev);
+	int u16dat = 0;
+
+	switch (tm_mode) {
+	case AIR_TX_COMP_MODE_1000M_TM1:
+	case AIR_TX_COMP_MODE_1000M_TM2:
+	case AIR_TX_COMP_MODE_1000M_TM3:
+	case AIR_TX_COMP_MODE_1000M_TM4_TD:
+	case AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_A:
+	case AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_B:
+	case AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_C:
+	case AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_D:
+		ret = air_mii_cl22_write(mbus, addr, MII_BMCR,
+				BMCR_ANRESTART | BMCR_SPEED1000 | BMCR_FULLDPLX);
+		if (unlikely(ret < 0))
+			break;
+		if (tm_mode == AIR_TX_COMP_MODE_1000M_TM1) {
+			u16dat = (CTL1000_TEST_TM1 | CTL1000_PORT_TYPE |
+						ADVERTISE_1000FULL | ADVERTISE_1000HALF);
+			pr_notice("Tx Compliance 1000M Test mode 1\n");
+		} else if (tm_mode == AIR_TX_COMP_MODE_1000M_TM2) {
+			u16dat = (CTL1000_TEST_TM2 | CTL1000_PORT_TYPE |
+						ADVERTISE_1000FULL | ADVERTISE_1000HALF);
+			pr_notice("Tx Compliance 1000M Test mode 2\n");
+		} else if (tm_mode == AIR_TX_COMP_MODE_1000M_TM3) {
+			u16dat = (CTL1000_TEST_TM3 | CTL1000_PORT_TYPE |
+						ADVERTISE_1000FULL | ADVERTISE_1000HALF);
+			pr_notice("Tx Compliance 1000M Test mode 3\n");
+		} else
+			u16dat = (CTL1000_TEST_TM4 | CTL1000_PORT_TYPE |
+						ADVERTISE_1000FULL | ADVERTISE_1000HALF);
+
+		ret = air_mii_cl22_write(mbus, addr, MII_CTRL1000, u16dat);
+		if (unlikely(ret < 0))
+			break;
+		/* delay 1s */
+		mdelay(1000);
+		ret = air_buckpbus_reg_write(phydev, 0x1e0228, 0x0);
+		ret |= air_mii_cl22_write(mbus, addr, 0x1F, 0x0);
+		if (unlikely(ret < 0))
+			break;
+		if (tm_mode == AIR_TX_COMP_MODE_1000M_TM4_TD ||
+			tm_mode == AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_A ||
+			tm_mode == AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_B ||
+			tm_mode == AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_C ||
+			tm_mode == AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_D) {
+			if (tm_mode == AIR_TX_COMP_MODE_1000M_TM4_TD) {
+				u16dat = 0xf;
+				pr_notice("Tx Compliance 1000M Test mode 4\n");
+			} else if (tm_mode == AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_A) {
+				u16dat = 0x1;
+				pr_notice("Tx Compliance 1000M Test mode 4 PairA\n");
+			} else if (tm_mode == AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_B) {
+				u16dat = 0x2;
+				pr_notice("Tx Compliance 1000M Test mode 4 PairB\n");
+			} else if (tm_mode == AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_C) {
+				u16dat = 0x4;
+				pr_notice("Tx Compliance 1000M Test mode 4 PairC\n");
+			} else if (tm_mode == AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_D) {
+				u16dat = 0x8;
+				pr_notice("Tx Compliance 1000M Test mode 4 PairD\n");
+			}
+			ret = air_buckpbus_reg_write(phydev, 0x3a20, u16dat);
+			if (unlikely(ret < 0))
+				break;
+			ret = air_mii_cl22_write(mbus, addr, 0x1F, 0x0);
+			if (unlikely(ret < 0))
+				break;
+		}
+
+		ret = air_mii_cl45_write(phydev, MMD_DEV_VSPEC1, 0x145, 0x1010);
+		if (unlikely(ret < 0))
+			break;
+		if (tm_mode == AIR_TX_COMP_MODE_1000M_TM3) {
+			ret = air_mii_cl45_write(phydev, MMD_DEV_VSPEC1, 0x143, 0x200);
+			if (unlikely(ret < 0))
+				break;
+			pr_notice("Tx Compliance 1000M Test mode 3\n");
+		}
+		break;
+	case AIR_TX_COMP_MODE_100M_PAIR_A:
+	case AIR_TX_COMP_MODE_100M_PAIR_A_DISCRETE:
+		ret = air_mii_cl22_write(mbus, addr, MII_BMCR, (BMCR_SPEED100 | BMCR_FULLDPLX));
+		ret |= air_mii_cl45_write(phydev, MMD_DEV_VSPEC1, 0x145, 0x5010);
+		if (unlikely(ret < 0))
+			break;
+		/* delay 1s */
+		mdelay(1000);
+		ret = air_buckpbus_reg_write(phydev, 0x1e0228, 0x0);
+		ret |= air_mii_cl22_write(mbus, addr, 0x1F, 0x0);
+		if (unlikely(ret < 0))
+			break;
+		pr_notice("Tx Compliance 100M PairA\n");
+		break;
+	case AIR_TX_COMP_MODE_100M_PAIR_B:
+	case AIR_TX_COMP_MODE_100M_PAIR_B_DISCRETE:
+		ret = air_mii_cl22_write(mbus, addr, MII_BMCR, (BMCR_SPEED100 | BMCR_FULLDPLX));
+		ret |= air_mii_cl45_write(phydev, MMD_DEV_VSPEC1, 0x145, 0x5018);
+		if (unlikely(ret < 0))
+			break;
+		/* delay 1s */
+		mdelay(1000);
+		ret = air_buckpbus_reg_write(phydev, 0x1e0228, 0x0);
+		ret |= air_mii_cl22_write(mbus, addr, 0x1F, 0x0);
+		if (unlikely(ret < 0))
+			break;
+		pr_notice("Tx Compliance 100M PairB\n");
+		break;
+	case AIR_TX_COMP_MODE_2500M_TM1:
+		ret = air_set_forcexbz(phydev);
+		if (unlikely(ret < 0))
+			break;
+		ret = air_buckpbus_reg_write(phydev, 0x30008, 0x1000007);
+		ret |= air_buckpbus_reg_write(phydev, 0x30200, 0x8f601101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30004, 0x112101);
+		if (unlikely(ret < 0))
+			break;
+		pr_notice("Tx Compliance 2500M Test mode 1\n");
+		break;
+	case AIR_TX_COMP_MODE_2500M_TM2:
+		ret = air_set_forcexbz(phydev);
+		if (unlikely(ret < 0))
+			break;
+		ret = air_buckpbus_reg_write(phydev, 0x30200, 0x8c611101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30004, 0x122101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30200, 0x8c601101);
+		if (unlikely(ret < 0))
+			break;
+		pr_notice("Tx Compliance 2500M Test mode 2\n");
+		break;
+	case AIR_TX_COMP_MODE_2500M_TM3:
+		ret = air_set_forcexbz(phydev);
+		if (unlikely(ret < 0))
+			break;
+		ret = air_buckpbus_reg_write(phydev, 0x30200, 0x8c611101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30200, 0x89611101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30004, 0x132101);
+		ret |= air_buckpbus_reg_write(phydev, 0x85024, 0x0);
+		ret |= air_buckpbus_reg_write(phydev, 0x30200, 0x89601101);
+		if (unlikely(ret < 0))
+			break;
+		/* delay 1s */
+		mdelay(1000);
+		ret = air_buckpbus_reg_write(phydev, 0x10608, 0x808);
+		if (unlikely(ret < 0))
+			break;
+		pr_notice("Tx Compliance 2500M Test mode 3\n");
+		break;
+	case AIR_TX_COMP_MODE_2500M_TM4_TONE_1:
+		ret = air_set_forcexbz(phydev);
+		if (unlikely(ret < 0))
+			break;
+		ret = air_buckpbus_reg_write(phydev, 0x30200, 0x8c611101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30004, 0x142101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30200, 0x8c601101);
+		ret |= air_buckpbus_reg_write(phydev, 0x3089c, 0x1ff);
+		if (unlikely(ret < 0))
+			break;
+		pr_notice("Tx Compliance 2500M Test mode 4 Tone 1\n");
+		break;
+	case AIR_TX_COMP_MODE_2500M_TM4_TONE_2:
+		ret = air_set_forcexbz(phydev);
+		if (unlikely(ret < 0))
+			break;
+		ret = air_buckpbus_reg_write(phydev, 0x30200, 0x8c611101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30004, 0x242101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30200, 0x8c601101);
+		ret |= air_buckpbus_reg_write(phydev, 0x3089c, 0x1ff);
+		if (unlikely(ret < 0))
+			break;
+		pr_notice("Tx Compliance 2500M Test mode 4 Tone 2\n");
+		break;
+	case AIR_TX_COMP_MODE_2500M_TM4_TONE_3:
+		ret = air_set_forcexbz(phydev);
+		if (unlikely(ret < 0))
+			break;
+		ret = air_buckpbus_reg_write(phydev, 0x30200, 0x8c611101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30004, 0x442101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30200, 0x8c601101);
+		ret |= air_buckpbus_reg_write(phydev, 0x3089c, 0x1ff);
+		if (unlikely(ret < 0))
+			break;
+		pr_notice("Tx Compliance 2500M Test mode 4 Tone 3\n");
+		break;
+	case AIR_TX_COMP_MODE_2500M_TM4_TONE_4:
+		ret = air_set_forcexbz(phydev);
+		if (unlikely(ret < 0))
+			break;
+		ret = air_buckpbus_reg_write(phydev, 0x30200, 0x8c611101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30004, 0x542101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30200, 0x8c601101);
+		ret |= air_buckpbus_reg_write(phydev, 0x3089c, 0x1ff);
+		if (unlikely(ret < 0))
+			break;
+		pr_notice("Tx Compliance 2500M Test mode 4 Tone 4\n");
+		break;
+	case AIR_TX_COMP_MODE_2500M_TM4_TONE_5:
+		ret = air_set_forcexbz(phydev);
+		if (unlikely(ret < 0))
+			break;
+		ret = air_buckpbus_reg_write(phydev, 0x30200, 0x8c611101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30004, 0x642101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30200, 0x8c601101);
+		ret |= air_buckpbus_reg_write(phydev, 0x3089c, 0x1ff);
+		if (unlikely(ret < 0))
+			break;
+		pr_notice("Tx Compliance 2500M Test mode 4 Tone 5\n");
+		break;
+	case AIR_TX_COMP_MODE_2500M_TM5:
+		ret = air_set_forcexbz(phydev);
+		if (unlikely(ret < 0))
+			break;
+		ret = air_buckpbus_reg_write(phydev, 0x30200, 0x8c611101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30004, 0x152101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30200, 0x8c601101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30080, 0xc000006);
+		ret |= air_buckpbus_reg_write(phydev, 0x30898, 0x1ff01d8);
+		if (unlikely(ret < 0))
+			break;
+				pr_notice("Tx Compliance 2500M Test mode 5\n");
+		break;
+	case AIR_TX_COMP_MODE_2500M_TM6:
+		ret = air_set_forcexbz(phydev);
+		if (unlikely(ret < 0))
+			break;
+		ret = air_buckpbus_reg_write(phydev, 0x30200, 0x8c611101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30004, 0x162101);
+		ret |= air_buckpbus_reg_write(phydev, 0x30200, 0x8c601101);
+		if (unlikely(ret < 0))
+			break;
+		pr_notice("Tx Compliance 2500M Test mode 6\n");
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+static void air_set_tx_comp_help(void)
+{
+	pr_notice("\nUsage:\n"
+			"[debugfs] = /sys/kernel/debug/mdio-bus\':[phy_addr]\n"
+			"echo [mode] [para] > /[debugfs]/tx_comp\n"
+			"echo 2500-tm1 > /[debugfs]/tx_comp\n"
+			"echo 2500-tm2 > /[debugfs]/tx_comp\n"
+			"echo 2500-tm3 > /[debugfs]/tx_comp\n"
+			"echo 2500-tm4 tone1 > /[debugfs]/tx_comp\n"
+			"echo 2500-tm4 tone2 > /[debugfs]/tx_comp\n"
+			"echo 2500-tm4 tone3 > /[debugfs]/tx_comp\n"
+			"echo 2500-tm4 tone4 > /[debugfs]/tx_comp\n"
+			"echo 2500-tm4 tone5 > /[debugfs]/tx_comp\n"
+			"echo 1000-tm1 > /[debugfs]/tx_comp\n"
+			"echo 1000-tm2 > /[debugfs]/tx_comp\n"
+			"echo 1000-tm3 > /[debugfs]/tx_comp\n"
+			"echo 1000-tm4-td > /[debugfs]/tx_comp\n"
+			"echo 1000-tm4-cm paira > /[debugfs]/tx_comp\n"
+			"echo 1000-tm4-cm pairb > /[debugfs]/tx_comp\n"
+			"echo 1000-tm4-cm pairc > /[debugfs]/tx_comp\n"
+			"echo 1000-tm4-cm paird > /[debugfs]/tx_comp\n");
+	pr_notice("echo 100-tm paira > /[debugfs]/tx_comp\n"
+			"echo 100-tm pairb > /[debugfs]/tx_comp\n");
+}
+
+static ssize_t airphy_tx_compliance(struct file *file, const char __user *ptr,
+					size_t len, loff_t *off)
+{
+	struct phy_device *phydev = file->private_data;
+	char buf[32], cmd[32], param[32];
+	int count = len, ret = 0;
+	int num = 0;
+
+	memset(buf, 0, 32);
+	memset(cmd, 0, 32);
+	memset(param, 0, 32);
+
+	if (count > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ptr, len))
+		return -EFAULT;
+
+	num = sscanf(buf, "%10s %10s", cmd, param);
+	if (num < 1 || num > 3)
+		return -EFAULT;
+
+	if (!strncmp("2500-tm1", cmd, strlen("2500-tm1")))
+		ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_2500M_TM1);
+	else if (!strncmp("2500-tm2", cmd, strlen("2500-tm2")))
+		ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_2500M_TM2);
+	else if (!strncmp("2500-tm3", cmd, strlen("2500-tm3")))
+		ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_2500M_TM3);
+	else if (!strncmp("2500-tm4", cmd, strlen("2500-tm4"))) {
+		if (!strncmp("tone1", param, strlen("tone1")))
+			ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_2500M_TM4_TONE_1);
+		else if (!strncmp("tone2", param, strlen("tone2")))
+			ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_2500M_TM4_TONE_2);
+		else if (!strncmp("tone3", param, strlen("tone3")))
+			ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_2500M_TM4_TONE_3);
+		else if (!strncmp("tone4", param, strlen("tone4")))
+			ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_2500M_TM4_TONE_4);
+		else if (!strncmp("tone5", param, strlen("tone5")))
+			ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_2500M_TM4_TONE_5);
+		else
+			air_set_tx_comp_help();
+	} else if (!strncmp("2500-tm5", cmd, strlen("2500-tm5")))
+		ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_2500M_TM5);
+	else if (!strncmp("2500-tm6", cmd, strlen("2500-tm6")))
+		ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_2500M_TM6);
+	else if (!strncmp("1000-tm1", cmd, strlen("1000-tm1")))
+		ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_1000M_TM1);
+	else if (!strncmp("1000-tm2", cmd, strlen("1000-tm2")))
+		ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_1000M_TM2);
+	else if (!strncmp("1000-tm3", cmd, strlen("1000-tm3")))
+		ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_1000M_TM3);
+	else if (!strncmp("1000-tm4", cmd, strlen("1000-tm4-cm"))) {
+		if (!strncmp("paira", param, strlen("paira")))
+			ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_A);
+		else if (!strncmp("pairb", param, strlen("pairb")))
+			ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_B);
+		else if (!strncmp("pairc", param, strlen("pairc")))
+			ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_C);
+		else if (!strncmp("paird", param, strlen("paird")))
+			ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_1000M_TM4_CM_PAIR_D);
+		else
+			air_set_tx_comp_help();
+	} else if (!strncmp("1000-tm4-td", cmd, strlen("1000-tm4-td")))
+		ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_1000M_TM4_TD);
+	else if (!strncmp("100-tm", cmd, strlen("100-tm"))) {
+		if (!strncmp("paira", param, strlen("paira")))
+			ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_100M_PAIR_A);
+		else if (!strncmp("pairb", param, strlen("pairb")))
+			ret = air_set_tx_comp(phydev, AIR_TX_COMP_MODE_100M_PAIR_B);
+		else
+			air_set_tx_comp_help();
+	} else if (!strncmp("help", cmd, strlen("help"))) {
+		air_set_tx_comp_help();
+	}
+
+	if (ret < 0)
+		return ret;
 
 	return count;
 }
@@ -2018,6 +2459,13 @@ static const struct file_operations airphy_led_mode_fops = {
 	.llseek = noop_llseek,
 };
 
+static const struct file_operations airphy_tx_compliance_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = airphy_tx_compliance,
+	.llseek = noop_llseek,
+};
+
 int airphy_debugfs_init(struct phy_device *phydev)
 {
 	int ret = 0;
@@ -2073,6 +2521,9 @@ int airphy_debugfs_init(struct phy_device *phydev)
 	debugfs_create_file(DEBUGFS_LED_MODE, S_IFREG | 0200,
 					dir, phydev,
 					&airphy_led_mode_fops);
+	debugfs_create_file(DEBUGFS_TX_COMP, S_IFREG | 0200,
+					dir, phydev,
+					&airphy_tx_compliance_fops);
 	priv->debugfs_root = dir;
 	return ret;
 }
