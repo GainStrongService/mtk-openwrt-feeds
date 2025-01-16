@@ -1,0 +1,54 @@
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Subject: [PATCH] mediatek/filogic: add emmc flash mode support for MT7988A
+
+Add nvmem-cells for driver to read the factory partition of MT7988A eMMC flash
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+
+--- a/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7988a-rfb-emmc.dtso
++++ b/target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek/mt7988a-rfb-emmc.dtso
+@@ -43,6 +43,20 @@
+ 							};
+ 						};
+ 
++						block-partition-factory {
++							partname = "factory";
++
++							nvmem-layout {
++								compatible = "fixed-layout";
++								#address-cells = <1>;
++								#size-cells = <1>;
++
++								eeprom_factory_0: eeprom@0 {
++									reg = <0x0 0x1e00>;
++								};
++							};
++						};
++
+ 						emmc_rootfs: block-partition-production {
+ 							partname = "firmware";
+ 						};
+@@ -52,6 +66,20 @@
+ 		};
+ 	};
+ 
++	fragment@1 {
++		target = <&pcie0>;
++		__overlay__ {
++			slot0: pcie@0,0 {
++				reg = <0x0000 0 0 0 0>;
++				mt7996@0,0 {
++					reg = <0x0000 0 0 0 0>;
++					nvmem-cells = <&eeprom_factory_0>;
++					nvmem-cell-names = "eeprom";
++				};
++			};
++		};
++	};
++
+ 	fragment@2 {
+ 		target-path = "/chosen";
+ 		__overlay__ {
+-- 
+2.45.2
+
