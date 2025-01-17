@@ -1,0 +1,79 @@
+From da307e3f3d828288f264073d0de6995f2f17ce11 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Tue, 24 Dec 2024 11:43:08 +0800
+Subject: [PATCH 68/75] mtk: mt76: mt7996: add a mt7996_bss_conf array for
+ MBSSID non-TX BSS in mt7996_phy
+
+The array saves the pointers of MBSSID non-TX BSS's mt7996_bss_conf,
+with index being the BSSID index.
+
+It's object is to retrive non-TX BSS's mt7996_bss_conf by it's BSSID
+index.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/main.c   | 10 ++++++++++
+ mt7996/mt7996.h |  5 +++++
+ 2 files changed, 15 insertions(+)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index c189871d..7c1c877a 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -287,6 +287,10 @@ static void mt7996_remove_bss_conf(struct ieee80211_vif *vif,
+ 	rcu_assign_pointer(dev->mt76.wcid[mlink->wcid.idx], NULL);
+ 	rcu_assign_pointer(mvif->link[link_id], NULL);
+ 	rcu_assign_pointer(mvif->sta.link[link_id], NULL);
++	if (mconf->mbssid_idx != 0 && mconf->mbssid_idx < MT7996_MAX_MBSSID) {
++		rcu_assign_pointer(phy->mbssid_conf[mconf->mbssid_idx], NULL);
++		mconf->mbssid_idx = 0;
++	}
+ 
+ 	mvif->valid_links &= ~BIT(link_id);
+ 	dev->mt76.vif_mask &= ~BIT_ULL(mconf->mt76.idx);
+@@ -433,6 +437,12 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
+ 	rcu_assign_pointer(mvif->link[link_id], mconf);
+ 	rcu_assign_pointer(mvif->sta.link[link_id], mlink);
+ 
++	if (conf->nontransmitted && conf->bssid_index != 0 &&
++	    conf->bssid_index < MT7996_MAX_MBSSID) {
++		rcu_assign_pointer(phy->mbssid_conf[conf->bssid_index], mconf);
++		mconf->mbssid_idx = conf->bssid_index;
++	}
++
+ 	mt7996_dbg(dev, MT7996_DBG_BSS,
+ 		   "%s: band=%u, bss_idx=%u, link_id=%u, wcid=%u\n",
+ 		   __func__, phy->mt76->band_idx, mconf->mt76.idx,
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 07e808ee..b8e9aee8 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -15,6 +15,7 @@
+ #define MT7996_MAX_RADIOS		3
+ #define MT7996_MAX_INTERFACES		19	/* per-band */
+ #define MT7996_MAX_WMM_SETS		4
++#define MT7996_MAX_MBSSID		16
+ #define MT7996_WTBL_BMC_SIZE		(is_mt7996(&dev->mt76) ? 64 : 32)
+ #define MT7996_WTBL_RESERVED		(mt7996_wtbl_size(dev) - 1)
+ #define MT7996_WTBL_STA			(MT7996_WTBL_RESERVED - \
+@@ -443,6 +444,8 @@ struct mt7996_bss_conf {
+ 	u8 link_id;
+ 	u8 own_mld_id;
+ 	u8 bpcc;
++	u8 mbssid_idx;
++
+ 	s64 tsf_offset[IEEE80211_MLD_MAX_NUM_LINKS];
+ };
+ 
+@@ -783,6 +786,8 @@ struct mt7996_phy {
+ 	bool thermal_protection_enable:1;
+ 	bool mru_probe_enable:1;
+ #endif
++	/* Index 0 (TxBSS) is not used */
++	struct mt7996_bss_conf __rcu *mbssid_conf[MT7996_MAX_MBSSID];
+ };
+ 
+ struct mt7996_dev {
+-- 
+2.45.2
+

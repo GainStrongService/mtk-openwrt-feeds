@@ -1,0 +1,122 @@
+From 4eaddc8679842c2a4369b2f52592b714a32cdadf Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Thu, 12 Dec 2024 10:14:12 +0800
+Subject: [PATCH 56/75] mtk: mt76: fix rcu protection for mlink and mconf
+
+1. Use kree_rcu to protect mlink and mconf
+2. Do rcu_dereference with def_wcid to protect the sta_info
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mac80211.c      |  2 ++
+ mt76.h          |  7 +++----
+ mt7996/main.c   | 10 +++++-----
+ mt7996/mt7996.h |  2 ++
+ 4 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/mac80211.c b/mac80211.c
+index b58c007b..d4411eb3 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -1656,6 +1656,8 @@ void mt76_wcid_cleanup(struct mt76_dev *dev, struct mt76_wcid *wcid)
+ 		hw = mt76_tx_status_get_hw(dev, skb);
+ 		ieee80211_free_txskb(hw, skb);
+ 	}
++
++	rcu_assign_pointer(wcid->def_wcid, NULL);
+ }
+ EXPORT_SYMBOL_GPL(mt76_wcid_cleanup);
+ 
+diff --git a/mt76.h b/mt76.h
+index 37666604..60f948cc 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -451,7 +451,7 @@ struct mt76_wcid {
+ 
+ 	struct list_head poll_list;
+ 
+-	struct mt76_wcid *def_wcid;
++	struct mt76_wcid __rcu *def_wcid;
+ };
+ 
+ struct mt76_txq {
+@@ -1531,10 +1531,9 @@ wcid_to_sta(struct mt76_wcid *wcid)
+ 	if (!wcid || !wcid->sta)
+ 		return NULL;
+ 
+-	if (wcid->def_wcid)
+-		ptr = wcid->def_wcid;
++	ptr = rcu_dereference(wcid->def_wcid);
+ 
+-	return container_of(ptr, struct ieee80211_sta, drv_priv);
++	return ptr ? container_of(ptr, struct ieee80211_sta, drv_priv) : NULL;
+ }
+ 
+ static inline struct mt76_tx_cb *mt76_tx_skb_cb(struct sk_buff *skb)
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 8a5dea3d..cb47a20a 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -301,10 +301,10 @@ static void mt7996_remove_bss_conf(struct ieee80211_vif *vif,
+ 	mt76_wcid_cleanup(&dev->mt76, &mlink->wcid);
+ 
+ 	if (mlink != &mvif->sta.deflink)
+-		kfree(mlink);
++		kfree_rcu(mlink, rcu_head);
+ 
+ 	if (mconf != &mvif->deflink)
+-		kfree(mconf);
++		kfree_rcu(mconf, rcu_head);
+ }
+ 
+ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
+@@ -396,7 +396,7 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
+ 	mlink->wcid.phy_idx = band_idx;
+ 	mlink->wcid.hw_key_idx = -1;
+ 	mlink->wcid.tx_info |= MT_WCID_TX_INFO_SET;
+-	mlink->wcid.def_wcid = &mvif->sta.deflink.wcid;
++	rcu_assign_pointer(mlink->wcid.def_wcid, &mvif->sta.deflink.wcid);
+ 	mlink->wcid.link_id = link_id;
+ 	mlink->wcid.link_valid = ieee80211_vif_is_mld(vif);
+ 	mlink->sta = &mvif->sta;
+@@ -1212,7 +1212,7 @@ static void mt7996_remove_link_sta(struct mt7996_dev *dev,
+ 	mt76_wcid_mask_clear(dev->mt76.wcid_phy_mask, mlink->wcid.idx);
+ 
+ 	if (mlink != &msta->deflink)
+-		kfree(mlink);
++		kfree_rcu(mlink, rcu_head);
+ }
+ 
+ static int mt7996_add_link_sta(struct mt7996_dev *dev,
+@@ -1248,7 +1248,7 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
+ 		mlink->wcid.idx = idx;
+ 		mlink->wcid.phy_idx = mconf->phy->mt76->band_idx;
+ 		mlink->wcid.tx_info |= MT_WCID_TX_INFO_SET;
+-		mlink->wcid.def_wcid = &msta->deflink.wcid;
++		rcu_assign_pointer(mlink->wcid.def_wcid, &msta->deflink.wcid);
+ 		mlink->sta = msta;
+ 		if (sta->valid_links) {
+ 			mlink->wcid.link_valid = true;
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 9f862d0c..0241688a 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -390,6 +390,7 @@ struct mt7996_vow_sta_ctrl {
+ 
+ struct mt7996_link_sta {
+ 	struct mt76_wcid wcid; /* must be first */
++	struct rcu_head rcu_head;
+ 
+ 	struct mt7996_sta *sta;
+ 
+@@ -432,6 +433,7 @@ struct mt7996_sta {
+ 
+ struct mt7996_bss_conf {
+ 	struct mt76_vif mt76; /* must be first */
++	struct rcu_head rcu_head;
+ 
+ 	struct mt7996_vif *vif;
+ 	struct mt7996_phy *phy;
+-- 
+2.45.2
+

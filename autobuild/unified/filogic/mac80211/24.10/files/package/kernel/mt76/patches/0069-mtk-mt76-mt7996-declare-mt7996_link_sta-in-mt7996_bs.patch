@@ -1,0 +1,91 @@
+From 67fca0068851bfbda54e867abde8ffcb049dc7cf Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 20 Dec 2024 14:21:34 +0800
+Subject: [PATCH 69/75] mtk: mt76: mt7996: declare mt7996_link_sta in
+ mt7996_bss_conf
+
+Directly declare mt7996_link_sta in mt7996_bss_conf to reduce
+kmalloc/kfree handling flow.
+This also reduces complexity before migrating to new data structure.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/main.c     | 14 +-------------
+ mt7996/mt7996.h   |  2 ++
+ mt7996/testmode.c |  6 +++---
+ 3 files changed, 6 insertions(+), 16 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 7c1c877a..72b3ebf7 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -304,9 +304,6 @@ static void mt7996_remove_bss_conf(struct ieee80211_vif *vif,
+ 
+ 	mt76_wcid_cleanup(&dev->mt76, &mlink->wcid);
+ 
+-	if (mlink != &mvif->sta.deflink)
+-		kfree_rcu(mlink, rcu_head);
+-
+ 	if (mconf != &mvif->deflink)
+ 		kfree_rcu(mconf, rcu_head);
+ }
+@@ -378,16 +375,7 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
+ 	if (ret)
+ 		goto error;
+ 
+-	if (ieee80211_vif_is_mld(vif)) {
+-		mlink = kzalloc(sizeof(*mlink), GFP_KERNEL);
+-		if (!mlink) {
+-			ret = -ENOMEM;
+-			goto error;
+-		}
+-	} else {
+-		mlink = &mvif->sta.deflink;
+-	}
+-
++	mlink = &mconf->mlink;
+ 	dev->mt76.vif_mask |= BIT_ULL(mconf->mt76.idx);
+ 	dev->mld_id_mask |= BIT_ULL(mconf->own_mld_id);
+ 	phy->omac_mask |= BIT_ULL(mconf->mt76.omac_idx);
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index b8e9aee8..be72437f 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -436,6 +436,8 @@ struct mt7996_bss_conf {
+ 	struct mt76_vif mt76; /* must be first */
+ 	struct rcu_head rcu_head;
+ 
++	struct mt7996_link_sta mlink;
++
+ 	struct mt7996_vif *vif;
+ 	struct mt7996_phy *phy;
+ 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
+diff --git a/mt7996/testmode.c b/mt7996/testmode.c
+index 48ba2e9c..b3037d5b 100644
+--- a/mt7996/testmode.c
++++ b/mt7996/testmode.c
+@@ -243,10 +243,10 @@ mt7996_tm_init(struct mt7996_phy *phy, bool en)
+ 	mt7996_tm_rf_switch_mode(dev, rf_test_mode);
+ 
+ 	mt7996_mcu_add_bss_info(phy, phy->monitor_vif, &phy->monitor_vif->bss_conf,
+-				&mvif->deflink, &mvif->sta.deflink, en);
++				&mvif->deflink, &mvif->deflink.mlsta, en);
+ 	state = en ? CONN_STATE_PORT_SECURE : CONN_STATE_DISCONNECT;
+ 	mt7996_mcu_add_sta(dev, phy->monitor_vif, &phy->monitor_vif->bss_conf, &mvif->deflink,
+-			   NULL, &mvif->sta.deflink, state, false);
++			   NULL, &mvif->deflink.mlsta, state, false);
+ 
+ 	mt7996_tm_set(dev, SET_ID(BAND_IDX), phy->mt76->band_idx);
+ 
+@@ -1220,7 +1220,7 @@ mt7996_tm_txbf_init(struct mt7996_phy *phy, u16 *val)
+ 
+ 	mt7996_mcu_add_dev_info(phy, &phy->monitor_vif->bss_conf, &mvif->deflink, true);
+ 	mt7996_mcu_add_bss_info(phy, phy->monitor_vif, &phy->monitor_vif->bss_conf,
+-				&mvif->deflink, &mvif->sta.deflink, true);
++				&mvif->deflink, &mvif->deflink.mlsta, true);
+ 
+ 	if (td->ibf) {
+ 		if (td->is_txbf_dut) {
+-- 
+2.45.2
+

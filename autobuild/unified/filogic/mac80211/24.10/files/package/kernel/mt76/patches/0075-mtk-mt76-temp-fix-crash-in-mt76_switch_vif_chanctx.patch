@@ -1,0 +1,50 @@
+From c7325ee57fe1a299ab40a0831b742e7f600dcfad Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Sat, 18 Jan 2025 00:00:47 +0800
+Subject: [PATCH 75/75] mtk: mt76: temp fix crash in mt76_switch_vif_chanctx
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ channel.c | 17 ++---------------
+ 1 file changed, 2 insertions(+), 15 deletions(-)
+
+diff --git a/channel.c b/channel.c
+index d903578a..bddeb4e0 100644
+--- a/channel.c
++++ b/channel.c
+@@ -260,12 +260,9 @@ int mt76_switch_vif_chanctx(struct ieee80211_hw *hw,
+ 	}
+ 
+ 	ret = mt76_phy_update_channel(phy, vifs->new_ctx);
+-	if (ret)
++	if (ret || old_phy == phy)
+ 		goto out;
+ 
+-	if (old_phy == phy)
+-		goto skip_link_replace;
+-
+ 	for (i = 0; i < n_vifs; i++) {
+ 		mlink = mt76_vif_conf_link(dev, vifs[i].vif, vifs[i].link_conf);
+ 		if (!mlink)
+@@ -275,17 +272,7 @@ int mt76_switch_vif_chanctx(struct ieee80211_hw *hw,
+ 		ret = dev->drv->vif_link_add(phy, vifs[i].vif,
+ 					     vifs[i].link_conf, mlink);
+ 		if (ret)
+-			goto out;
+-
+-	}
+-
+-skip_link_replace:
+-	for (i = 0; i < n_vifs; i++) {
+-		mlink = mt76_vif_conf_link(dev, vifs[i].vif, vifs[i].link_conf);
+-		if (!mlink)
+-			continue;
+-
+-		mlink->ctx = vifs->new_ctx;
++			break;
+ 	}
+ 
+ out:
+-- 
+2.45.2
+

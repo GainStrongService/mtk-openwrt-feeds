@@ -1,0 +1,676 @@
+From 1eeb4ea98dda53a42690b55e64bb65136a2417ad Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Mon, 30 Dec 2024 12:15:09 +0800
+Subject: [PATCH 70/75] mtk: mt76: mt7996: move debug APIs to common part
+
+Some APIs, such as chanctx/scan/roc are going to be moved to common
+part, so also move debug APIs to common part to make them more general.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ Makefile                  |   2 +-
+ mt7996/debug.c => debug.c |  21 ++++---
+ debug.h                   |  41 ++++++++++++++
+ mt76.h                    |   3 +
+ mt7996/Makefile           |   3 +-
+ mt7996/debug.h            |  42 --------------
+ mt7996/mac.c              |   9 ++-
+ mt7996/main.c             | 114 ++++++++++++++++++--------------------
+ mt7996/mcu.c              |  60 ++++++++++----------
+ mt7996/mmio.c             |   5 ++
+ mt7996/mt7996.h           |   1 +
+ 11 files changed, 149 insertions(+), 152 deletions(-)
+ rename mt7996/debug.c => debug.c (55%)
+ create mode 100644 debug.h
+ delete mode 100644 mt7996/debug.h
+
+diff --git a/Makefile b/Makefile
+index f23e303f..a5e7e162 100644
+--- a/Makefile
++++ b/Makefile
+@@ -12,7 +12,7 @@ obj-$(CONFIG_MT792x_USB) += mt792x-usb.o
+ 
+ mt76-y := \
+ 	mmio.o util.o trace.o dma.o mac80211.o debugfs.o eeprom.o \
+-	tx.o agg-rx.o mcu.o wed.o
++	tx.o agg-rx.o mcu.o wed.o debug.o
+ 
+ mt76-$(CONFIG_PCI) += pci.o
+ mt76-$(CONFIG_NL80211_TESTMODE) += testmode.o
+diff --git a/mt7996/debug.c b/debug.c
+similarity index 55%
+rename from mt7996/debug.c
+rename to debug.c
+index 2bcb3669..0c15f128 100644
+--- a/mt7996/debug.c
++++ b/debug.c
+@@ -4,10 +4,9 @@
+  */
+ 
+ #include <linux/vmalloc.h>
+-#include "debug.h"
+-#include "mt7996.h"
++#include "mt76.h"
+ 
+-void mt7996_info(struct mt7996_dev *dev, const char *fmt, ...)
++void mt76_info(struct mt76_dev *dev, const char *fmt, ...)
+ {
+ 	struct va_format vaf = {
+ 		.fmt = fmt,
+@@ -16,12 +15,12 @@ void mt7996_info(struct mt7996_dev *dev, const char *fmt, ...)
+ 
+ 	va_start(args, fmt);
+ 	vaf.va = &args;
+-	dev_info(dev->mt76.dev, "%pV", &vaf);
++	dev_info(dev->dev, "%pV", &vaf);
+ 
+ 	va_end(args);
+ }
+ 
+-void mt7996_err(struct mt7996_dev *dev, const char *fmt, ...)
++void mt76_err(struct mt76_dev *dev, const char *fmt, ...)
+ {
+ 	struct va_format vaf = {
+ 		.fmt = fmt,
+@@ -30,12 +29,12 @@ void mt7996_err(struct mt7996_dev *dev, const char *fmt, ...)
+ 
+ 	va_start(args, fmt);
+ 	vaf.va = &args;
+-	dev_err(dev->mt76.dev, "%pV", &vaf);
++	dev_err(dev->dev, "%pV", &vaf);
+ 
+ 	va_end(args);
+ }
+ 
+-void mt7996_warn(struct mt7996_dev *dev, const char *fmt, ...)
++void mt76_warn(struct mt76_dev *dev, const char *fmt, ...)
+ {
+ 	struct va_format vaf = {
+ 		.fmt = fmt,
+@@ -44,12 +43,12 @@ void mt7996_warn(struct mt7996_dev *dev, const char *fmt, ...)
+ 
+ 	va_start(args, fmt);
+ 	vaf.va = &args;
+-	dev_warn_ratelimited(dev->mt76.dev, "%pV", &vaf);
++	dev_warn_ratelimited(dev->dev, "%pV", &vaf);
+ 
+ 	va_end(args);
+ }
+ 
+-void __mt7996_dbg(struct mt7996_dev *dev, const char *fmt, ...)
++void __mt76_dbg(struct mt76_dev *dev, const char *fmt, ...)
+ {
+ 	struct va_format vaf = {
+ 		.fmt = fmt,
+@@ -58,8 +57,8 @@ void __mt7996_dbg(struct mt7996_dev *dev, const char *fmt, ...)
+ 
+ 	va_start(args, fmt);
+ 	vaf.va = &args;
+-	dev_printk(KERN_DEBUG, dev->mt76.dev, "%pV", &vaf);
++	dev_printk(KERN_DEBUG, dev->dev, "%pV", &vaf);
+ 
+ 	va_end(args);
+ }
+-
++EXPORT_SYMBOL_GPL(__mt76_dbg);
+diff --git a/debug.h b/debug.h
+new file mode 100644
+index 00000000..c85d9def
+--- /dev/null
++++ b/debug.h
+@@ -0,0 +1,41 @@
++/* SPDX-License-Identifier: ISC */
++/*
++ * Copyright (C) 2024 MediaTek Inc.
++ */
++#ifndef __MT76_DEBUG_H_
++#define __MT76_DEBUG_H_
++
++struct mt76_dev;
++
++enum mt76_debug_mask {
++	MT76_DBG_DEV = BIT(0),
++	MT76_DBG_BSS = BIT(1),
++	MT76_DBG_STA = BIT(2),
++	MT76_DBG_CHAN = BIT(3),
++	MT76_DBG_MLD = BIT(4),
++	MT76_DBG_TXRX = BIT(5),
++	MT76_DBG_SCAN = BIT(6),
++
++	MT76_DBG_ALL = 0xffffffff,
++};
++
++__printf(2, 3) void mt76_info(struct mt76_dev *dev, const char *fmt, ...);
++__printf(2, 3) void mt76_err(struct mt76_dev *dev, const char *fmt, ...);
++__printf(2, 3) void mt76_warn(struct mt76_dev *dev, const char *fmt, ...);
++
++__printf(2, 3) void __mt76_dbg(struct mt76_dev *dev,
++			       const char *fmt, ...);
++void mt76_dbg_dump(struct mt76_dev *dev,
++		   enum mt76_debug_mask mask,
++		   const char *msg, const char *prefix,
++		   const void *buf, size_t len);
++
++#define mt76_dbg(dev, dbg_mask, fmt, ...)			\
++do {								\
++	typeof(dbg_mask) mask = (dbg_mask);			\
++	typeof(dev) _dev = (dev);				\
++	if ((_dev->debug_mask) & mask)				\
++		__mt76_dbg(_dev, fmt, ##__VA_ARGS__);	\
++} while (0)
++
++#endif /* __MT76_DEBUG_H_ */
+diff --git a/mt76.h b/mt76.h
+index 452d681d..9459e02a 100644
+--- a/mt76.h
++++ b/mt76.h
+@@ -23,6 +23,7 @@
+ #endif
+ #include "util.h"
+ #include "testmode.h"
++#include "debug.h"
+ 
+ #define CHAN2G(_idx, _freq) {			\
+ 	.band = NL80211_BAND_2GHZ,		\
+@@ -1151,6 +1152,8 @@ struct mt76_dev {
+ 		struct mt76_sdio sdio;
+ 	};
+ 
++	unsigned int debug_mask;
++
+ 	const char *bin_file_name;
+ 	struct mt76_tx_debug tx_dbg_stats;
+ };
+diff --git a/mt7996/Makefile b/mt7996/Makefile
+index d1593a31..c9299490 100644
+--- a/mt7996/Makefile
++++ b/mt7996/Makefile
+@@ -13,5 +13,4 @@ mt7996e-y := pci.o init.o dma.o eeprom.o main.o mcu.o mac.o \
+ mt7996e-$(CONFIG_DEV_COREDUMP) += coredump.o
+ mt7996e-$(CONFIG_NL80211_TESTMODE) += testmode.o
+ 
+-mt7996e-y += mtk_debugfs.o mtk_mcu.o mtk_debugfs_i.o trace.o \
+-	     debug.o
++mt7996e-y += mtk_debugfs.o mtk_mcu.o mtk_debugfs_i.o trace.o
+diff --git a/mt7996/debug.h b/mt7996/debug.h
+deleted file mode 100644
+index 750bed6a..00000000
+--- a/mt7996/debug.h
++++ /dev/null
+@@ -1,42 +0,0 @@
+-/* SPDX-License-Identifier: ISC */
+-/*
+- * Copyright (C) 2024 MediaTek Inc.
+- */
+-#ifndef __MT7996_DEBUG_H_
+-#define __MT7996_DEBUG_H_
+-
+-#include "mt7996.h"
+-
+-enum mt7996_debug_mask {
+-	MT7996_DBG_DEV = BIT(0),
+-	MT7996_DBG_BSS = BIT(1),
+-	MT7996_DBG_STA = BIT(2),
+-	MT7996_DBG_CHAN = BIT(3),
+-	MT7996_DBG_MLD = BIT(4),
+-	MT7996_DBG_TXRX = BIT(5),
+-	MT7996_DBG_SCAN = BIT(6),
+-
+-	MT7996_DBG_ALL = 0xffffffff,
+-};
+-
+-__printf(2, 3) void mt7996_info(struct mt7996_dev *dev, const char *fmt, ...);
+-__printf(2, 3) void mt7996_err(struct mt7996_dev *dev, const char *fmt, ...);
+-__printf(2, 3) void mt7996_warn(struct mt7996_dev *dev, const char *fmt, ...);
+-
+-extern unsigned int mt7996_debug_mask;
+-
+-__printf(2, 3) void __mt7996_dbg(struct mt7996_dev *dev,
+-				 const char *fmt, ...);
+-void mt7996_dbg_dump(struct mt7996_dev *dev,
+-		     enum mt7996_debug_mask mask,
+-		     const char *msg, const char *prefix,
+-		     const void *buf, size_t len);
+-
+-#define mt7996_dbg(dev, dbg_mask, fmt, ...)			\
+-do {								\
+-	typeof(dbg_mask) mask = (dbg_mask);			\
+-	if (mt7996_debug_mask & mask)				\
+-		__mt7996_dbg(dev, fmt, ##__VA_ARGS__);	\
+-} while (0)
+-
+-#endif /* __MT7996_DEBUG_H_ */
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 75785353..875ea6d6 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -12,7 +12,6 @@
+ #include "mcu.h"
+ #include "vendor.h"
+ #include "mt7996_trace.h"
+-#include "debug.h"
+ 
+ static const struct mt7996_dfs_radar_spec etsi_radar_specs = {
+ 	.pulse_th = { 110, -10, -80, 40, 5200, 128, 5200 },
+@@ -3498,10 +3497,10 @@ void mt7996_scan_work(struct work_struct *work)
+ 
+ 		mt7996_active_scan(phy);
+ 		ieee80211_queue_delayed_work(hw, &phy->scan_work, HZ / 16);
+-		mt7996_dbg(phy->dev, MT7996_DBG_SCAN,
+-			   "%s: move to active scan on channel %d\n",
+-			   __func__, phy->chanctx ? phy->chanctx->chandef.center_freq1 :
+-						    phy->mt76->chandef.center_freq1);
++		mt76_dbg(&phy->dev->mt76, MT76_DBG_SCAN,
++			 "%s: move to active scan on channel %d\n",
++			 __func__, phy->chanctx ? phy->chanctx->chandef.center_freq1 :
++						  phy->mt76->chandef.center_freq1);
+ 		return;
+ 	}
+ 
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 72b3ebf7..0c47aeaa 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -3,19 +3,13 @@
+  * Copyright (C) 2022 MediaTek Inc.
+  */
+ 
+-#include <linux/module.h>
+ #include "mt7996.h"
+ #include "mcu.h"
+ #include "mac.h"
+-#include "debug.h"
+ #ifdef CONFIG_MTK_DEBUG
+ #include "mtk_mcu.h"
+ #endif
+ 
+-unsigned int mt7996_debug_mask = 0x1f;
+-module_param(mt7996_debug_mask, uint, 0644);
+-MODULE_PARM_DESC(mt7996_debug_mask, "Debugging mask");
+-
+ static void mt7996_testmode_disable_all(struct mt7996_dev *dev)
+ {
+ 	struct mt7996_phy *phy;
+@@ -274,10 +268,10 @@ static void mt7996_remove_bss_conf(struct ieee80211_vif *vif,
+ 	phy = mconf->phy;
+ 	dev = phy->dev;
+ 
+-	mt7996_dbg(dev, MT7996_DBG_BSS,
+-		   "%s: band=%u, bss_idx=%u, link_id=%u, wcid=%u\n",
+-		   __func__, mconf->phy->mt76->band_idx, mconf->mt76.idx,
+-		   mconf->link_id, mlink->wcid.idx);
++	mt76_dbg(&dev->mt76, MT76_DBG_BSS,
++		 "%s: band=%u, bss_idx=%u, link_id=%u, wcid=%u\n",
++		 __func__, mconf->phy->mt76->band_idx, mconf->mt76.idx,
++		 mconf->link_id, mlink->wcid.idx);
+ 
+ 	mt7996_mcu_add_sta(dev, vif, NULL, mconf, NULL, mlink, CONN_STATE_DISCONNECT,
+ 			   false);
+@@ -431,10 +425,10 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
+ 		mconf->mbssid_idx = conf->bssid_index;
+ 	}
+ 
+-	mt7996_dbg(dev, MT7996_DBG_BSS,
+-		   "%s: band=%u, bss_idx=%u, link_id=%u, wcid=%u\n",
+-		   __func__, phy->mt76->band_idx, mconf->mt76.idx,
+-		   mconf->link_id, mlink->wcid.idx);
++	mt76_dbg(&dev->mt76, MT76_DBG_BSS,
++		 "%s: band=%u, bss_idx=%u, link_id=%u, wcid=%u\n",
++		 __func__, phy->mt76->band_idx, mconf->mt76.idx,
++		 mconf->link_id, mlink->wcid.idx);
+ 
+ 	return 0;
+ error:
+@@ -691,13 +685,13 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+ 	}
+ 
+ 	if (sta)
+-		mt7996_dbg(dev, MT7996_DBG_STA,
+-			   "%s: keyidx=%d, link_bitmap=0x%lx (STA %pM)\n",
+-			   __func__, key->keyidx, add, sta->addr);
++		mt76_dbg(&dev->mt76, MT76_DBG_STA,
++			 "%s: keyidx=%d, link_bitmap=0x%lx (STA %pM)\n",
++			 __func__, key->keyidx, add, sta->addr);
+ 	else
+-		mt7996_dbg(dev, MT7996_DBG_BSS,
+-			   "%s: keyidx=%d, link_bitmap=0x%lx\n",
+-			   __func__, key->keyidx, add);
++		mt76_dbg(&dev->mt76, MT76_DBG_BSS,
++			 "%s: keyidx=%d, link_bitmap=0x%lx\n",
++			 __func__, key->keyidx, add);
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
+@@ -1272,10 +1266,10 @@ static int mt7996_add_link_sta(struct mt7996_dev *dev,
+ 		rcu_assign_pointer(dev->mt76.wcid[idx], &mlink->wcid);
+ 		mt76_wcid_init(&mlink->wcid);
+ 
+-		mt7996_dbg(dev, MT7996_DBG_STA,
+-			   "%s: STA %pM, wcid=%u, link_id=%u (%pM), pri_link=%u, sec_link=%u\n",
+-			   __func__, sta->addr, mlink->wcid.idx, link_id,
+-			   link_sta->addr, msta->pri_link, msta->sec_link);
++		mt76_dbg(&dev->mt76, MT76_DBG_STA,
++			 "%s: STA %pM, wcid=%u, link_id=%u (%pM), pri_link=%u, sec_link=%u\n",
++			 __func__, sta->addr, mlink->wcid.idx, link_id,
++			 link_sta->addr, msta->pri_link, msta->sec_link);
+ 	}
+ 
+ 	if (!assoc)
+@@ -1324,7 +1318,7 @@ mt7996_mac_sta_remove_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ 	if (!ieee80211_vif_is_mld(vif) || rem == sta->valid_links)
+ 		cancel_delayed_work(&mvif->beacon_mon_work);
+ 
+-	mt7996_dbg(dev, MT7996_DBG_STA, "%s: removed_links=0x%lx\n", __func__, rem);
++	mt76_dbg(&dev->mt76, MT76_DBG_STA, "%s: removed_links=0x%lx\n", __func__, rem);
+ 	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
+ 		struct mt7996_bss_conf *mconf =
+ 			mconf_dereference_protected(mvif, link_id);
+@@ -1354,8 +1348,8 @@ mt7996_mac_sta_add_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ 	unsigned int link_id;
+ 	int i, ret;
+ 
+-	mt7996_dbg(dev, MT7996_DBG_STA,
+-		   "%s: added_links=0x%lx, assoc=%d\n", __func__, add, assoc);
++	mt76_dbg(&dev->mt76, MT76_DBG_STA,
++		 "%s: added_links=0x%lx, assoc=%d\n", __func__, add, assoc);
+ 	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
+ 		struct mt7996_bss_conf *mconf =
+ 			mconf_dereference_protected(mvif, link_id);
+@@ -1585,16 +1579,16 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+ 					rcu_dereference(sta->link[link_id]);
+ 
+ 				if (!link_sta) {
+-					mt7996_dbg(dev, MT7996_DBG_TXRX,
+-						   "%s, request TX on invalid link_id=%u, use primary link (id=%u) instead.\n",
+-						   __func__, link_id, msta->pri_link);
++					mt76_dbg(&dev->mt76, MT76_DBG_TXRX,
++						 "%s, request TX on invalid link_id=%u, use primary link (id=%u) instead.\n",
++						 __func__, link_id, msta->pri_link);
+ 					link_id = msta->pri_link;
+ 					link_sta = rcu_dereference(sta->link[link_id]);
+ 
+ 					if (!link_sta) {
+-						mt7996_dbg(dev, MT7996_DBG_TXRX,
+-							   "%s, primary link became invalid, give up the TX\n",
+-							   __func__);
++						mt76_dbg(&dev->mt76, MT76_DBG_TXRX,
++							 "%s, primary link became invalid, give up the TX\n",
++							 __func__);
+ 						goto unlock;
+ 					}
+ 				}
+@@ -2661,8 +2655,8 @@ mt7996_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	struct mt7996_bss_conf *mconf;
+ 	int ret;
+ 
+-	mt7996_dbg(dev, MT7996_DBG_CHAN, "%s: trigger scan on mt76 band %u\n",
+-		   __func__, phy->mt76->band_idx);
++	mt76_dbg(&dev->mt76, MT76_DBG_CHAN, "%s: trigger scan on mt76 band %u\n",
++		 __func__, phy->mt76->band_idx);
+ 	mutex_lock(&phy->dev->mt76.mutex);
+ 	if (WARN_ON(phy->scan_req || phy->scan_chan ||
+ 		    test_bit(MT76_STATE_ROC, &phy->mt76->state))) {
+@@ -2960,8 +2954,8 @@ mt7996_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf)
+ 	struct mt7996_chanctx *ctx = mt7996_chanctx_get(conf);
+ 	int ret;
+ 
+-	mt7996_dbg(dev, MT7996_DBG_CHAN, "%s: add %u on mt76 band %d\n",
+-		   __func__, conf->def.chan->hw_value, phy->mt76->band_idx);
++	mt76_dbg(&dev->mt76, MT76_DBG_CHAN, "%s: add %u on mt76 band %d\n",
++		 __func__, conf->def.chan->hw_value, phy->mt76->band_idx);
+ 	mutex_lock(&phy->dev->mt76.mutex);
+ 
+ 	if (ctx->assigned) {
+@@ -3001,8 +2995,8 @@ mt7996_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
+ 	struct mt7996_phy *phy = ctx->phy;
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 
+-	mt7996_dbg(dev, MT7996_DBG_CHAN, "%s: remove %u\n",
+-		   __func__, conf->def.chan->hw_value);
++	mt76_dbg(&dev->mt76, MT76_DBG_CHAN, "%s: remove %u\n",
++		 __func__, conf->def.chan->hw_value);
+ 	cancel_delayed_work_sync(&phy->scan_work);
+ 	cancel_delayed_work_sync(&phy->roc_complete_work);
+ 	cancel_delayed_work_sync(&phy->mt76->mac_work);
+@@ -3031,8 +3025,8 @@ mt7996_change_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *co
+ 
+ 		mt7996_config_channel(phy, &ctx->chandef);
+ 
+-		mt7996_dbg(dev, MT7996_DBG_CHAN, "%s: change to %u, 0x%x\n",
+-			   __func__, conf->def.chan->hw_value, changed);
++		mt76_dbg(&dev->mt76, MT76_DBG_CHAN, "%s: change to %u, 0x%x\n",
++			 __func__, conf->def.chan->hw_value, changed);
+ 	}
+ }
+ 
+@@ -3049,8 +3043,8 @@ mt7996_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	u8 link_id = link_conf->link_id;
+ 	int ret;
+ 
+-	mt7996_dbg(dev, MT7996_DBG_CHAN, "%s: assign link_id %u to %d MHz\n",
+-		   __func__, link_conf->link_id, conf->def.chan->center_freq);
++	mt76_dbg(&dev->mt76, MT76_DBG_CHAN, "%s: assign link_id %u to %d MHz\n",
++		 __func__, link_conf->link_id, conf->def.chan->center_freq);
+ 
+ 	mutex_lock(&phy->dev->mt76.mutex);
+ 
+@@ -3091,8 +3085,8 @@ mt7996_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	struct mt7996_phy *phy = ctx->phy;
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 
+-	mt7996_dbg(dev, MT7996_DBG_CHAN, "%s, remove link %u from %d MHz\n",
+-		   __func__, link_conf->link_id, conf->def.chan->center_freq);
++	mt76_dbg(&dev->mt76, MT76_DBG_CHAN, "%s, remove link %u from %d MHz\n",
++		 __func__, link_conf->link_id, conf->def.chan->center_freq);
+ 	cancel_delayed_work_sync(&phy->scan_work);
+ 	cancel_delayed_work_sync(&phy->roc_complete_work);
+ 
+@@ -3123,16 +3117,16 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
+ 		if (vifs[i].old_ctx == vifs[i].new_ctx)
+ 			continue;
+ 
+-		mt7996_dbg(dev, MT7996_DBG_CHAN,
+-			   "%s: chan=%d->%d, width=%d->%d, punct_bitmap=0x%04x->0x%04x, link=%u\n",
+-			   __func__,
+-			   vifs[i].old_ctx->def.chan->hw_value,
+-			   vifs[i].new_ctx->def.chan->hw_value,
+-			   vifs[i].old_ctx->def.width,
+-			   vifs[i].new_ctx->def.width,
+-			   vifs[i].old_ctx->def.punctured,
+-			   vifs[i].new_ctx->def.punctured,
+-			   vifs[i].link_conf->link_id);
++		mt76_dbg(&dev->mt76, MT76_DBG_CHAN,
++			 "%s: chan=%d->%d, width=%d->%d, punct_bitmap=0x%04x->0x%04x, link=%u\n",
++			 __func__,
++			 vifs[i].old_ctx->def.chan->hw_value,
++			 vifs[i].new_ctx->def.chan->hw_value,
++			 vifs[i].old_ctx->def.width,
++			 vifs[i].new_ctx->def.width,
++			 vifs[i].old_ctx->def.punctured,
++			 vifs[i].new_ctx->def.punctured,
++			 vifs[i].link_conf->link_id);
+ 
+ 		mutex_lock(&dev->mt76.mutex);
+ 
+@@ -3194,9 +3188,9 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	unsigned long add = new_links & ~old_links;
+ 	int link_id, ret = 0;
+ 
+-	mt7996_dbg(dev, MT7996_DBG_MLD,
+-		   "%s: old=0x%x, new=0x%x, dormant=0x%x\n",
+-		   __func__, old_links, new_links, vif->dormant_links);
++	mt76_dbg(&dev->mt76, MT76_DBG_MLD,
++		 "%s: old=0x%x, new=0x%x, dormant=0x%x\n",
++		 __func__, old_links, new_links, vif->dormant_links);
+ 
+ 	if (old_links == new_links)
+ 		return 0;
+@@ -3282,8 +3276,8 @@ mt7996_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	int ret = 0, link_id;
+ 	bool assoc;
+ 
+-	mt7996_dbg(dev, MT7996_DBG_STA, "%s: STA %pM old=0x%x, new=0x%x\n",
+-		   __func__, sta->addr, old_links, new_links);
++	mt76_dbg(&dev->mt76, MT76_DBG_STA, "%s: STA %pM old=0x%x, new=0x%x\n",
++		 __func__, sta->addr, old_links, new_links);
+ 	mutex_lock(&dev->mt76.mutex);
+ 
+ 	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 76898a57..c4d9d253 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -10,7 +10,6 @@
+ #include "mac.h"
+ #include "eeprom.h"
+ #include "mt7996_trace.h"
+-#include "debug.h"
+ 
+ #define fw_name(_dev, name, ...)	({			\
+ 	char *_fw;						\
+@@ -1798,10 +1797,10 @@ mt7996_mcu_bss_mld_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
+ 
+ 	mld->own_mld_id = mconf->own_mld_id;
+ 	mld->link_id = conf->link_id;
+-	mt7996_dbg(dev, MT7996_DBG_BSS,
+-		   "%s: group_mld_id=%d, own_mld_id=%d, remap_idx=%d, mld->addr[%pM]\n",
+-		   __func__, mld->group_mld_id,  mld->own_mld_id,
+-		   mld->remap_idx, mld->mac_addr);
++	mt76_dbg(&dev->mt76, MT76_DBG_BSS,
++		 "%s: group_mld_id=%d, own_mld_id=%d, remap_idx=%d, mld->addr[%pM]\n",
++		 __func__, mld->group_mld_id,  mld->own_mld_id,
++		 mld->remap_idx, mld->mac_addr);
+ }
+ 
+ static void
+@@ -1958,10 +1957,10 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb, struct ieee80211_vif *vif,
+ 
+ 	memcpy(bss->bssid, conf->bssid, ETH_ALEN);
+ 
+-	mt7996_dbg(dev, MT7996_DBG_BSS,
+-		   "%s: band=%d, omac=%d, wmm_idx=%d, bssid=%pM, link=%d, en=%d\n",
+-		   __func__, bss->band_idx, bss->omac_idx,
+-		   bss->wmm_idx, bss->bssid, conf->link_id, enable);
++	mt76_dbg(&dev->mt76, MT76_DBG_BSS,
++		 "%s: band=%d, omac=%d, wmm_idx=%d, bssid=%pM, link=%d, en=%d\n",
++		 __func__, bss->band_idx, bss->omac_idx,
++		 bss->wmm_idx, bss->bssid, conf->link_id, enable);
+ 
+ 	bss->bcn_interval = cpu_to_le16(conf->beacon_int);
+ 	bss->dtim_period = conf->dtim_period;
+@@ -3355,11 +3354,11 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 
+ 	mld_setup_link = (struct mld_setup_link *)mld_setup->link_info;
+ 
+-	mt7996_dbg(dev, MT7996_DBG_STA,
+-		   "%s: STA %pM pri_link=%u, pri_wcid=%u, sec_link=%u, sec_wcid=%u\n",
+-		   __func__, sta->addr, msta->pri_link,
+-		   le16_to_cpu(mld_setup->primary_id),
+-		   msta->sec_link, le16_to_cpu(mld_setup->seconed_id));
++	mt76_dbg(&dev->mt76, MT76_DBG_STA,
++		 "%s: STA %pM pri_link=%u, pri_wcid=%u, sec_link=%u, sec_wcid=%u\n",
++		 __func__, sta->addr, msta->pri_link,
++		 le16_to_cpu(mld_setup->primary_id),
++		 msta->sec_link, le16_to_cpu(mld_setup->seconed_id));
+ 
+ 	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+ 		mlink = mlink_dereference_protected(msta, link_id);
+@@ -3371,10 +3370,10 @@ mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+ 		mld_setup_link->wcid = cpu_to_le16(mlink->wcid.idx);
+ 		mld_setup_link->bss_idx = mconf->mt76.idx;
+ 
+-		mt7996_dbg(dev, MT7996_DBG_STA,
+-			   "%s: link_id(%d) wcid(%d) bss_idx(%d)\n",
+-			   __func__, link_id, mld_setup_link->wcid,
+-			   mld_setup_link->bss_idx);
++		mt76_dbg(&dev->mt76, MT76_DBG_STA,
++			 "%s: link_id(%d) wcid(%d) bss_idx(%d)\n",
++			 __func__, link_id, mld_setup_link->wcid,
++			 mld_setup_link->bss_idx);
+ 
+ 		mld_setup_link++;
+ 	}
+@@ -3454,10 +3453,10 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ 	/* starec basic */
+ 	mt76_connac_mcu_sta_basic_tlv(&dev->mt76, skb, vif, conf, link_sta,
+ 				      conn_state, newly);
+-	mt7996_dbg(dev, MT7996_DBG_DEV,
+-		   "%s: link=%u, wcid=%u, newly=%d, conn_state=%d\n",
+-		   __func__, mlink->wcid.link_id, mlink->wcid.idx,
+-		   newly, conn_state);
++	mt76_dbg(&dev->mt76, MT76_DBG_DEV,
++		 "%s: link=%u, wcid=%u, newly=%d, conn_state=%d\n",
++		 __func__, mlink->wcid.link_id, mlink->wcid.idx,
++		 newly, conn_state);
+ 
+ 	if (conn_state == CONN_STATE_DISCONNECT)
+ 		goto out;
+@@ -3730,10 +3729,10 @@ int mt7996_mcu_add_dev_info(struct mt7996_phy *phy,
+ 
+ 	if (conf) {
+ 		memcpy(data.tlv.omac_addr, conf->addr, ETH_ALEN);
+-		mt7996_dbg(dev, MT7996_DBG_DEV,
+-			   "%s: band=%u, omac=%u, addr=%pM, en=%d\n",
+-			   __func__, data.hdr.band_idx, data.hdr.omac_idx,
+-			   data.tlv.omac_addr, enable);
++		mt76_dbg(&dev->mt76, MT76_DBG_DEV,
++			 "%s: band=%u, omac=%u, addr=%pM, en=%d\n",
++			 __func__, data.hdr.band_idx, data.hdr.omac_idx,
++			 data.tlv.omac_addr, enable);
+ 	}
+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_WMWA_UNI_CMD(DEV_INFO_UPDATE),
+ 				 &data, sizeof(data), true);
+@@ -8181,11 +8180,10 @@ int mt7996_mcu_set_eml_omn(struct ieee80211_hw *hw,
+ 		}
+ 	}
+ 
+-	mt7996_dbg(dev, MT7996_DBG_MLD,
+-		   "%s: link:%u, wcid:%d, control:%x, mode:%d, bmp:%x\n",
+-		   __func__, mlink->wcid.link_id, mlink->wcid.idx, eml_omn->control,
+-		   !!(eml_omn->control & EML_OMN_CONTROL_EMLSR_MODE),
+-		   eml_op->bitmap);
++	mt76_dbg(&dev->mt76, MT76_DBG_MLD,
++		 "%s: link:%u, wcid:%d, control:%x, mode:%d, bmp:%x\n",
++		 __func__, mlink->wcid.link_id, mlink->wcid.idx, eml_omn->control,
++		 !!(eml_omn->control & EML_OMN_CONTROL_EMLSR_MODE), eml_op->bitmap);
+ 
+ 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+ 			MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
+diff --git a/mt7996/mmio.c b/mt7996/mmio.c
+index b9ca8697..e54d3584 100644
+--- a/mt7996/mmio.c
++++ b/mt7996/mmio.c
+@@ -17,6 +17,10 @@
+ static bool wed_enable = true;
+ module_param(wed_enable, bool, 0644);
+ 
++unsigned int mt76_debug_mask = 0x1f;
++module_param(mt76_debug_mask, uint, 0644);
++MODULE_PARM_DESC(mt76_debug_mask, "Debugging mask");
++
+ static const struct __base mt7996_reg_base[] = {
+ 	[WF_AGG_BASE]		= { { 0x820e2000, 0x820f2000, 0x830e2000 } },
+ 	[WF_ARB_BASE]		= { { 0x820e3000, 0x820f3000, 0x830e3000 } },
+@@ -685,6 +689,7 @@ static int mt7996_mmio_init(struct mt76_dev *mdev,
+ 	dev->mt76.bus = bus_ops;
+ 
+ 	mdev->rev = (device_id << 16) | (mt76_rr(dev, MT_HW_REV) & 0xff);
++	mdev->debug_mask = mt76_debug_mask;
+ 
+ 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
+ 
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index be72437f..b7eb0c17 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -10,6 +10,7 @@
+ #include <linux/ktime.h>
+ #include <linux/pci.h>
+ #include "../mt76_connac.h"
++#include "../debug.h"
+ #include "regs.h"
+ 
+ #define MT7996_MAX_RADIOS		3
+-- 
+2.45.2
+

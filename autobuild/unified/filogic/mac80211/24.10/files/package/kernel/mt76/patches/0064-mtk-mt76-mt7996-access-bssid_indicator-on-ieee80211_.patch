@@ -1,0 +1,79 @@
+From 80a0a5b3f378a92304329b7db29fd975615d9c50 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Fri, 20 Dec 2024 14:32:29 +0800
+Subject: [PATCH 64/75] mtk: mt76: mt7996: access bssid_indicator on
+ ieee80211_bss_conf
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ mt7996/main.c   | 1 -
+ mt7996/mcu.c    | 8 ++++----
+ mt7996/mt7996.h | 3 ---
+ 3 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index fc4d2ce3..a5a02d95 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -422,7 +422,6 @@ static int mt7996_add_bss_conf(struct mt7996_phy *phy,
+ 		mconf->mt76.basic_rates_idx = MT7996_BASIC_RATES_TBL;
+ 	mt7996_init_bitrate_mask(mconf);
+ 
+-	mconf->bssid_indicator = conf->bssid_indicator;
+ 	mt7996_mcu_add_bss_info(phy, vif, conf, mconf, mlink, true);
+ 	/* defer the first STA_REC of BMC entry to BSS_CHANGED_BSSID for STA
+ 	 * interface, since firmware only records BSSID when the entry is new
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index bd999857..c7b0d634 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -1716,12 +1716,12 @@ mt7996_mcu_bss_he_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *conf,
+ 
+ static void
+ mt7996_mcu_bss_mbssid_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *conf,
+-			  struct mt7996_bss_conf *mconf, int enable)
++			  int enable)
+ {
+ 	struct bss_info_uni_mbssid *mbssid;
+ 	struct tlv *tlv;
+ 
+-	if (!mconf->bssid_indicator && enable)
++	if (conf && !conf->bssid_indicator && enable)
+ 		return;
+ 
+ 	tlv = mt7996_mcu_add_uni_tlv(skb, UNI_BSS_INFO_11V_MBSSID, sizeof(*mbssid));
+@@ -1729,7 +1729,7 @@ mt7996_mcu_bss_mbssid_tlv(struct sk_buff *skb, struct ieee80211_bss_conf *conf,
+ 	mbssid = (struct bss_info_uni_mbssid *)tlv;
+ 
+ 	if (enable && conf) {
+-		mbssid->max_indicator = mconf->bssid_indicator;
++		mbssid->max_indicator = conf->bssid_indicator;
+ 		mbssid->mbss_idx = conf->bssid_index;
+ 		mbssid->tx_bss_omac_idx = 0;
+ 	}
+@@ -2020,7 +2020,7 @@ int mt7996_mcu_add_bss_info(struct mt7996_phy *phy, struct ieee80211_vif *vif,
+ 		mt7996_mcu_bss_mld_tlv(skb, vif, conf, mconf);
+ 	}
+ 
+-	mt7996_mcu_bss_mbssid_tlv(skb, conf, mconf, enable);
++	mt7996_mcu_bss_mbssid_tlv(skb, conf, enable);
+ 
+ out:
+ 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index a544d702..07e808ee 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -443,9 +443,6 @@ struct mt7996_bss_conf {
+ 	u8 link_id;
+ 	u8 own_mld_id;
+ 	u8 bpcc;
+-
+-	u8 bssid_indicator;
+-
+ 	s64 tsf_offset[IEEE80211_MLD_MAX_NUM_LINKS];
+ };
+ 
+-- 
+2.45.2
+

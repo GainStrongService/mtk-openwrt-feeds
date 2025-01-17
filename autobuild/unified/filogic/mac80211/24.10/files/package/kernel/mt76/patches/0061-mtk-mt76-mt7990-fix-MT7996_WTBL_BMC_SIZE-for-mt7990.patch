@@ -1,0 +1,29 @@
+From edab4306dd752ad745a31745c1a1e3c104702d45 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Thu, 19 Dec 2024 19:27:31 +0800
+Subject: [PATCH 61/75] mtk: mt76: mt7990: fix MT7996_WTBL_BMC_SIZE for mt7990
+
+According to hardware capability, the mt7990 only supports 32 bmc entries.
+Modify MT7996_WTBL_BMC_SIZE to prevent using invalid wcid.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ mt7996/mt7996.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index b79eb61e..7281af12 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -15,7 +15,7 @@
+ #define MT7996_MAX_RADIOS		3
+ #define MT7996_MAX_INTERFACES		19	/* per-band */
+ #define MT7996_MAX_WMM_SETS		4
+-#define MT7996_WTBL_BMC_SIZE		(is_mt7992(&dev->mt76) ? 32 : 64)
++#define MT7996_WTBL_BMC_SIZE		(is_mt7996(&dev->mt76) ? 64 : 32)
+ #define MT7996_WTBL_RESERVED		(mt7996_wtbl_size(dev) - 1)
+ #define MT7996_WTBL_STA			(MT7996_WTBL_RESERVED - \
+ 					 mt7996_max_interface_num(dev))
+-- 
+2.45.2
+
