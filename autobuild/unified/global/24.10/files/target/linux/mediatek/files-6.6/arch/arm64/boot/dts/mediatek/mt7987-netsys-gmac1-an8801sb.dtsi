@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+&gmac0 {
+	mac-type = "gdm";
+	phy-mode = "sgmii";
+	phy-handle = <&phy31>;
+
+	/delete-node/ fixed-link;
+};
+
+&mdio {
+	/delete-property/ reset-gpios;
+	/delete-property/ reset-delay-us;
+	/delete-node/ switch@1;
+	phy31: phy@31 {
+		compatible = "ethernet-phy-idc0ff.0421";
+		reg = <31>;
+		reset-gpios = <&pio 48 1>;
+		reset-assert-us = <10000>;
+		reset-deassert-us = <10000>;
+		phy-mode = "sgmii";
+	};
+};
+
+&hnat {
+	mtketh-lan = "eth0";
+};
