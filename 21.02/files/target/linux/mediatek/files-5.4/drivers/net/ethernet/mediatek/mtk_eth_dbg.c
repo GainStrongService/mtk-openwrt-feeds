@@ -48,7 +48,6 @@ u32 hw_lro_timestamp_flush_cnt[MTK_HW_LRO_RING_NUM];
 u32 hw_lro_norule_flush_cnt[MTK_HW_LRO_RING_NUM];
 u32 mtk_hwlro_stats_ebl;
 u32 dbg_show_level;
-u32 cur_rss_num;
 int eth_debug_level;
 
 static struct proc_dir_entry *proc_hw_lro_stats, *proc_hw_lro_auto_tlb,
@@ -2235,6 +2234,8 @@ static int mtk_rss_set_indr_tbl(struct mtk_eth *eth, int num)
 ssize_t rss_ctrl_write(struct file *file, const char __user *buffer,
 		       size_t count, loff_t *data)
 {
+	struct mtk_eth *eth = g_eth;
+	struct mtk_rss_params *rss_params = &eth->rss_params;
 	char buf[32];
 	char *p_buf;
 	char *p_token = NULL;
@@ -2261,14 +2262,17 @@ ssize_t rss_ctrl_write(struct file *file, const char __user *buffer,
 		ret = kstrtol(p_token, 10, &num);
 
 	if (!mtk_rss_set_indr_tbl(g_eth, num))
-		cur_rss_num = num;
+		rss_params->rss_num = num;
 
 	return count;
 }
 
 int rss_ctrl_read(struct seq_file *seq, void *v)
 {
-	pr_info("ADMA is using %d-RSS.\n", cur_rss_num);
+	struct mtk_eth *eth = g_eth;
+	struct mtk_rss_params *rss_params = &eth->rss_params;
+
+	pr_info("ADMA is using %d-RSS.\n", rss_params->rss_num);
 	return 0;
 }
 
@@ -3140,8 +3144,6 @@ int debug_proc_init(struct mtk_eth *eth)
 		if (!proc_rss_ctrl)
 			pr_info("!! FAIL to create %s PROC !!\n",
 				PROCREG_RSS_CTRL);
-
-		cur_rss_num = g_eth->soc->rss_num;
 	}
 
 	if (g_eth->hwlro) {

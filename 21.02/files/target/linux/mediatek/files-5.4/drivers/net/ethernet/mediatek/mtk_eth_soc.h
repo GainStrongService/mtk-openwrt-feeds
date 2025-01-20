@@ -1707,12 +1707,15 @@ struct mtk_fq_ring {
 
 /* struct mtk_rss_params -	This is the structure holding parameters
 				for the RSS ring
+ * rss_num			The element is used to record the
+				current RSS number
  * @hash_key			The element is used to record the
 				secret key for the RSS ring
  * indirection_table		The element is used to record the
 				indirection table for the RSS ring
  */
 struct mtk_rss_params {
+	u32		rss_num;
 	u32		hash_key[MTK_RSS_HASH_KEYSIZE / sizeof(u32)];
 	u8		indirection_table[MTK_RSS_MAX_INDIRECTION_TABLE];
 };

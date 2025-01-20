@@ -3900,10 +3900,14 @@ static int mtk_rss_init(struct mtk_eth *eth)
 	u32 val;
 	int i;
 
-	memcpy(rss_params->hash_key, hash_key, MTK_RSS_HASH_KEYSIZE);
+	if (!rss_params->rss_num) {
+		rss_params->rss_num = eth->soc->rss_num;
 
-	for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE; i++)
-		rss_params->indirection_table[i] = i % eth->soc->rss_num;
+		for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE; i++)
+			rss_params->indirection_table[i] = i % rss_params->rss_num;
+	}
+
+	memcpy(rss_params->hash_key, hash_key, MTK_RSS_HASH_KEYSIZE);
 
 	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
 		/* Set RSS rings to PSE modes */
@@ -5697,7 +5701,7 @@ static int mtk_set_rxfh(struct net_device *dev, const u32 *indir,
 	struct mtk_mac *mac = netdev_priv(dev);
 	struct mtk_eth *eth = mac->hw;
 	struct mtk_rss_params *rss_params = &eth->rss_params;
-	int i;
+	int i, rss_max = 0;
 
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE &&
 	    hfunc != ETH_RSS_HASH_TOP)
@@ -5713,8 +5717,14 @@ static int mtk_set_rxfh(struct net_device *dev, const u32 *indir,
 	}
 
 	if (indir) {
-		for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE; i++)
+		for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE; i++) {
 			rss_params->indirection_table[i] = indir[i];
+
+			if (indir[i] > rss_max)
+				rss_max = indir[i];
+		}
+
+		rss_params->rss_num = rss_max + 1;
 
 		for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE / 16; i++)
 			mtk_w32(eth, mtk_rss_indr_table(rss_params, i),
