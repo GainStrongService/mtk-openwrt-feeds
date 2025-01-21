@@ -831,20 +831,23 @@ out:
 void
 atenl_get_ibf_cal_result(struct atenl *an)
 {
-	u16 offset, group_size = 40;
+	u16 offset, len = 40 * 9;
 
 	if (an->adie_id == 0x7975)
 		offset = 0x651;
 	else
 		offset = 0x60a;
 
-	if (is_mt7996(an)) {
+	if (is_connac3(an)) {
 		offset = 0xc00;
-		group_size = 46;
+		/* Group 0: 29, Group 1 ~ 12: 34 for ibf 2.0 */
+		if (!is_mt7996(an))
+			len = 29 + 34 * 12;
+		else
+			len = 46 * 9;
 	}
 
-	/* per group size = 40 or 46, for group 0-8 */
-	atenl_eeprom_read_from_driver(an, offset, group_size * 9);
+	atenl_eeprom_read_from_driver(an, offset, len);
 }
 
 static int
