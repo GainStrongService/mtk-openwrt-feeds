@@ -1,8 +1,7 @@
-From 7fae1334aa4e9bf4856f3515777a4ae0ad22dc4f Mon Sep 17 00:00:00 2001
+From 4a52cc4a27cfa1e648082f8abbbc8dfa75c44dc9 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Tue, 5 Nov 2024 09:54:52 +0800
+Date: Fri, 24 Jan 2025 11:53:38 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: revise mdc divider configuration
- for mdio
 
 In the current method, the MDC divider was reset to the default setting
 of 2.5MHz after the NETSYS SER. Therefore, we need to move the MDC
@@ -10,14 +9,14 @@ divider configuration function to mtk_hw_init().
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 62 +++++++++++++++------
- 1 file changed, 44 insertions(+), 18 deletions(-)
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 62 ++++++++++++++-------
+ 1 file changed, 43 insertions(+), 19 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 498a23b..ad4ff46 100644
+index 082b32a..19b651f 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -982,7 +982,7 @@ static const struct phylink_mac_ops mtk_phylink_ops = {
+@@ -1002,11 +1002,11 @@ static const struct phylink_mac_ops mtk_phylink_ops = {
  	.mac_link_up = mtk_mac_link_up,
  };
  
@@ -26,7 +25,12 @@ index 498a23b..ad4ff46 100644
  {
  	unsigned int max_clk = 2500000, divider;
  	struct device_node *mii_np;
-@@ -1000,23 +1000,6 @@ static int mtk_mdio_init(struct mtk_eth *eth)
+-	int ret;
++	int ret = 0;
+ 	u32 val;
+ 
+ 	mii_np = of_get_child_by_name(eth->dev->of_node, "mdio-bus");
+@@ -1020,23 +1020,6 @@ static int mtk_mdio_init(struct mtk_eth *eth)
  		goto err_put_node;
  	}
  
@@ -50,12 +54,10 @@ index 498a23b..ad4ff46 100644
  	if (!of_property_read_u32(mii_np, "clock-frequency", &val)) {
  		if (val > MDC_MAX_FREQ || val < MDC_MAX_FREQ / MDC_MAX_DIVIDER) {
  			dev_err(eth->dev, "MDIO clock frequency out of range");
-@@ -1039,6 +1022,45 @@ static int mtk_mdio_init(struct mtk_eth *eth)
+@@ -1059,6 +1042,43 @@ static int mtk_mdio_init(struct mtk_eth *eth)
  
  	dev_dbg(eth->dev, "MDC is running on %d Hz\n", MDC_MAX_FREQ / divider);
  
-+	return 0;
-+
 +err_put_node:
 +	of_node_put(mii_np);
 +	return ret;
@@ -96,7 +98,7 @@ index 498a23b..ad4ff46 100644
  	ret = of_mdiobus_register(eth->mii_bus, mii_np);
  
  err_put_node:
-@@ -4132,6 +4154,10 @@ static int mtk_hw_init(struct mtk_eth *eth, bool reset)
+@@ -4349,6 +4369,10 @@ static int mtk_hw_init(struct mtk_eth *eth, bool reset)
  	else
  		mtk_hw_reset(eth);
  
