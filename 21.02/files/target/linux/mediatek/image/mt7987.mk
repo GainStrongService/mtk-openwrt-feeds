@@ -18,6 +18,23 @@ define Device/mediatek_mt7987a-spim-nand
 endef
 TARGET_DEVICES += mediatek_mt7987a-spim-nand
 
+define Device/mediatek_mt7987a-spim-nand-usb3
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7987a-spim-nand-usb3
+  DEVICE_DTS := mt7987a-spim-nand-usb3
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7987a-spim-snand-usb3
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 65536k
+  KERNEL_IN_UBI := 1
+  IMAGES += factory.bin
+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += mediatek_mt7987a-spim-nand-usb3
+
 define Device/mediatek_mt7987a-spim-nand-gsw
   DEVICE_VENDOR := MediaTek
   DEVICE_MODEL := mt7987a-spim-nand-gsw
@@ -192,6 +209,19 @@ define Device/mediatek_mt7987a-emmc
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += mediatek_mt7987a-emmc
+
+define Device/mediatek_mt7987a-emmc-usb3
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7987a-emmc-usb3
+  DEVICE_DTS := mt7987a-emmc-usb3
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7987a-emmc-usb3
+  DEVICE_PACKAGES := mkf2fs e2fsprogs blkid blockdev losetup kmod-fs-ext4 \
+		     kmod-mmc kmod-fs-f2fs kmod-fs-vfat kmod-nls-cp437 \
+		     kmod-nls-iso8859-1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += mediatek_mt7987a-emmc-usb3
 
 define Device/mediatek_mt7987a-sd
   DEVICE_VENDOR := MediaTek
