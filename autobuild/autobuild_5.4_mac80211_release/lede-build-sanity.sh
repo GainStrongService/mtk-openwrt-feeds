@@ -153,6 +153,7 @@ prepare_flowoffload() {
 	cp -fpR ${BUILD_DIR}/./../mac80211_package/package/network/services/bridger ${BUILD_DIR}/package/network/services
 
 	patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0010-add-llvm_bpf-toolchain.patch || exit 1
+	patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0008-update-nftables-packages.patch || exit 1
 	patch -f -p1 -i ${MAC80211_AUTOBUILD_RELEASE}/0005-add-netfilter-netlink-ftnl-package.patch || exit 1
 
 	# packages of tops and ipsec
