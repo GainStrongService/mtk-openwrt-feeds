@@ -5,6 +5,7 @@
 # Top rules
 
 list_add_after $(hooks autobuild_prepare) prepare_wifi_driver change_hostapd_conf
+list_add_after $(hooks autobuild_prepare) wifi_change_kernel_config change_kernel_flowoffload_conf
 
 change_hostapd_conf() {
 	# hack hostapd config
@@ -23,4 +24,10 @@ change_hostapd_conf() {
 	# add configuration for STA wireless mode setting
 	echo "CONFIG_HE_OVERRIDES=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
 	echo "CONFIG_EHT_OVERRIDES=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
+}
+
+change_kernel_flowoffload_conf () {
+	kernel_config_enable CONFIG_NETFILTER_INGRESS
+	kernel_config_enable CONFIG_NF_CONNTRACK
+	kernel_config_enable CONFIG_NF_FLOW_TABLE
 }
