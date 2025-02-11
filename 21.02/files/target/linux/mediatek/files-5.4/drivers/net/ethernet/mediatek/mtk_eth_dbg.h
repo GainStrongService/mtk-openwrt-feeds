@@ -95,6 +95,7 @@
 #define REG_ESW_MAX                     0xFC
 
 #define PROCREG_ESW_CNT			"esw_cnt"
+#define PROCREG_MAC_CNT			"mac_cnt"
 #define PROCREG_XFI_CNT			"xfi_cnt"
 #define PROCREG_TXRING			"tx_ring"
 #define PROCREG_HWTXRING		"hwtx_ring"
@@ -112,6 +113,33 @@
 #else
 #define MAX_PPPQ_QUEUE_NUM		(2 * MAX_SWITCH_PORT_NUM)
 #endif
+
+/* GMAC MIB Register */
+#define MTK_MAC_MIB_BASE(x)		(0x10400 + (x * 0x60))
+#define MTK_MAC_RX_UC_PKT_CNT_L		0x00
+#define MTK_MAC_RX_UC_PKT_CNT_H		0x04
+#define MTK_MAC_RX_UC_BYTE_CNT_L	0x08
+#define MTK_MAC_RX_UC_BYTE_CNT_H	0x0C
+#define MTK_MAC_RX_MC_PKT_CNT_L		0x10
+#define MTK_MAC_RX_MC_PKT_CNT_H		0x14
+#define MTK_MAC_RX_MC_BYTE_CNT_L	0x18
+#define MTK_MAC_RX_MC_BYTE_CNT_H	0x1C
+#define MTK_MAC_RX_BC_PKT_CNT_L		0x20
+#define MTK_MAC_RX_BC_PKT_CNT_H		0x24
+#define MTK_MAC_RX_BC_BYTE_CNT_L	0x28
+#define MTK_MAC_RX_BC_BYTE_CNT_H	0x2C
+#define MTK_MAC_TX_UC_PKT_CNT_L		0x30
+#define MTK_MAC_TX_UC_PKT_CNT_H		0x34
+#define MTK_MAC_TX_UC_BYTE_CNT_L	0x38
+#define MTK_MAC_TX_UC_BYTE_CNT_H	0x3C
+#define MTK_MAC_TX_MC_PKT_CNT_L		0x40
+#define MTK_MAC_TX_MC_PKT_CNT_H		0x44
+#define MTK_MAC_TX_MC_BYTE_CNT_L	0x48
+#define MTK_MAC_TX_MC_BYTE_CNT_H	0x4C
+#define MTK_MAC_TX_BC_PKT_CNT_L		0x50
+#define MTK_MAC_TX_BC_PKT_CNT_H		0x54
+#define MTK_MAC_TX_BC_BYTE_CNT_L	0x58
+#define MTK_MAC_TX_BC_BYTE_CNT_H	0x5C
 
 /* XFI MAC MIB Register */
 #define MTK_XFI_MIB_BASE(x)		(MTK_XMAC_MCR(x))
@@ -144,6 +172,16 @@
 #define MTK_XFI_RX_ALL_DROP_CNT		0x20C
 
 #define MTK_MT753X_PMCR_P(x)	(0x3000 + (x) * 100)
+
+#define PRINT_FORMATTED_MAC_MIB64(seq, reg)			\
+{								\
+	seq_printf(seq, "| MAC%d_%s	: %010llu |\n",		\
+		   gdm_id, #reg,				\
+		   mtk_r32(eth, MTK_MAC_MIB_BASE(gdm_id) +	\
+			   MTK_MAC_##reg##_L) +			\
+		   ((u64)mtk_r32(eth, MTK_MAC_MIB_BASE(gdm_id) +\
+				 MTK_MAC_##reg##_H) << 32));	\
+}
 
 #define PRINT_FORMATTED_XFI_MIB(seq, reg, mask)			\
 {								\
