@@ -1,8 +1,13 @@
 diff --git a/package/utils/ucode/Makefile b/package/utils/ucode/Makefile
-index ef253f89..1f4f4065 100644
+index ef253f89..6ee0cf2a 100644
 --- a/package/utils/ucode/Makefile
 +++ b/package/utils/ucode/Makefile
-@@ -12,9 +12,9 @@ PKG_RELEASE:=1
+@@ -8,18 +8,17 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=ucode
+-PKG_RELEASE:=1
++PKG_RELEASE:=3
  
  PKG_SOURCE_PROTO:=git
  PKG_SOURCE_URL=https://github.com/jow-/ucode.git
@@ -14,4 +19,30 @@ index ef253f89..1f4f4065 100644
 +PKG_MIRROR_HASH:=a5ec51dd989174422d3b19b022ff4f863d57eb559c9f08d54c0d10651f598357
  PKG_MAINTAINER:=Jo-Philipp Wich <jo@mein.io>
  PKG_LICENSE:=ISC
+ 
+ PKG_ABI_VERSION:=20230711
+-PKG_BUILD_DEPENDS:=libmd
+ HOST_BUILD_DEPENDS:=libjson-c/host
+ 
+ include $(INCLUDE_DIR)/package.mk
+@@ -52,8 +51,7 @@ CMAKE_HOST_OPTIONS += \
+ 	-DUCI_SUPPORT=OFF \
+ 	-DULOOP_SUPPORT=OFF \
+ 	-DDEBUG_SUPPORT=ON \
+-	-DLOG_SUPPORT=OFF \
+-	-DDIGEST_SUPPORT=OFF
++	-DLOG_SUPPORT=OFF
+ 
+ 
+ define Package/ucode/default
+@@ -180,10 +178,6 @@ $(eval $(call UcodeModule, \
+ 	uloop, ULOOP_SUPPORT, +libubox, \
+ 	The uloop module allows ucode scripts to interact with OpenWrt uloop event loop implementation.))
+ 
+-$(eval $(call UcodeModule, \
+-	digest, DIGEST_SUPPORT, , \
+-	The digest module allows ucode scripts to use libmd digests.))
+-
+ $(eval $(call BuildPackage,libucode))
+ $(eval $(call BuildPackage,ucode))
  
