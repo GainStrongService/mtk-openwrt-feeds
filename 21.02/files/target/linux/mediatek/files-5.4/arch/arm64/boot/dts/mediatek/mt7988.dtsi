@@ -22,7 +22,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a73";
 			enable-method = "psci";
@@ -38,9 +38,10 @@
 			operating-points-v2 = <&cluster0_opp>;
 			nvmem-cells = <&cpufreq_calibration>;
 			nvmem-cell-names = "calibration-data";
+			#cooling-cells = <2>;
 		};
 
-		cpu@1 {
+		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a73";
 			enable-method = "psci";
@@ -58,7 +59,7 @@
 			nvmem-cell-names = "calibration-data";
 		};
 
-		cpu@2 {
+		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a73";
 			enable-method = "psci";
@@ -76,7 +77,7 @@
 			nvmem-cell-names = "calibration-data";
 		};
 
-		cpu@3 {
+		cpu3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a73";
 			enable-method = "psci";
@@ -150,6 +151,12 @@
 					type = "hot";
 				};
 
+				cpu_trip_active_hot: active-hot {
+					temperature = <120000>;
+					hysteresis = <2000>;
+					type = "active";
+				};
+
 				cpu_trip_active_high: active-high {
 					temperature = <115000>;
 					hysteresis = <2000>;
@@ -164,6 +171,14 @@
 			};
 
 			cooling-maps {
+				cpu-active-hot {
+				/* active: dynamic cpu frequency scaling */
+					cooling-device = <&cpu0
+						THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+					trip = <&cpu_trip_active_hot>;
+				};
+
 				cpu-active-high {
 				/* active: set fan to cooling level 2 */
 					cooling-device = <&fan 2 2>;

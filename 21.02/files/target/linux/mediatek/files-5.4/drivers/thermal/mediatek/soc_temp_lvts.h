@@ -110,6 +110,8 @@ struct sensor_data {
 };
 
 struct lvts_data {
+	struct thermal_cooling_device *cdev;
+	struct cpufreq_policy *policy;
 	struct device *dev;
 	struct clk *clk;
 	unsigned int num_domain;
