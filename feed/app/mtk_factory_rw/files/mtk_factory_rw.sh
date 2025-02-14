@@ -20,8 +20,23 @@ usage()
 	exit 1
 }
 
+find_factory_partition() {
+	for device in /sys/class/block/mmcblk0p*; do
+		if grep -qi $1 "$device/uevent"; then
+			# Extract the partition number
+			part=$(echo "$device" | grep -o 'mmcblk0p[0-9]*')
+			echo "$part"
+		fi
+	done
+}
+
 factory_name="Factory"
-factory_mtd=/dev/$(grep -i ''${factory_name}'' /proc/mtd | cut -c 1-4)
+factory_mtd=$(grep -i "${factory_name}" /proc/mtd | cut -c 1-4)
+if [ -n "$factory_mtd" ]; then
+	factory_part=/dev/${factory_mtd}
+else
+	factory_part=/dev/$(find_factory_partition ${factory_name})
+fi
 
 #default:7622
 lan_mac_offset=0x2A
@@ -65,7 +80,7 @@ Get_offset_data()
 	local length=$1
 	local offset=$2
 
-	hexdump -v -n ${length} -s ${offset} -e ''`expr ${length} - 1`'/1 "%02x-" "%02x "' ${factory_mtd}
+	hexdump -v -n ${length} -s ${offset} -e ''`expr ${length} - 1`'/1 "%02x-" "%02x "' ${factory_part}
 }
 
 overwrite_data=
@@ -75,7 +90,7 @@ Get_offset_overwrite_data()
         local length=$1
         local offset=$2
 
-        overwrite_data=`hexdump -v -n ${length} -s ${offset} -e ''\`expr ${length} - 1\`'/1 "%02x " " %02x"' ${factory_mtd}`
+        overwrite_data=`hexdump -v -n ${length} -s ${offset} -e ''\`expr ${length} - 1\`'/1 "%02x " " %02x"' ${factory_part}`
 }
 
 #2.Write the offset's data from the Factory
@@ -93,9 +108,13 @@ Set_offset_data()
 		data=${data}"\x${temp}"
 	done
 
-	dd if=${factory_mtd} of=/tmp/Factory.backup
+	dd if=${factory_part} of=/tmp/Factory.backup
 	printf "${data}" | dd conv=notrunc of=/tmp/Factory.backup bs=1 seek=$((${offset}))
-	mtd write /tmp/Factory.backup ${factory_name}
+	if [ -n "$factory_mtd" ]; then
+		mtd write /tmp/Factory.backup ${factory_name}
+	else
+		dd if=/tmp/Factory.backup of=${factory_part}
+	fi
 	rm -rf /tmp/Factory.backup
 }
 
