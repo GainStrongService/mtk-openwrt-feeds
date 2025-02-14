@@ -2381,6 +2381,10 @@ struct mtk_mac {
 	bool				tx_lpi_enabled;
 	u32				tx_lpi_timer;
 	struct notifier_block		device_notifier;
+	struct work_struct		ptp_tx_work;
+	struct sk_buff			*ptp_tx_skb;
+	unsigned long			ptp_tx_start;
+	unsigned int			ptp_tx_class;
 };
 
 /* struct mtk_mux_data -	the structure that holds the private data about the
@@ -2445,4 +2449,5 @@ int mtk_ptp_hwtstamp_process_rx(struct net_device *dev, struct sk_buff *skb);
 int mtk_ptp_hwtstamp_set_config(struct net_device *dev, struct ifreq *ifr);
 int mtk_ptp_hwtstamp_get_config(struct net_device *dev, struct ifreq *ifr);
 int mtk_ptp_clock_init(struct mtk_eth *eth);
+int mtk_ptp_clock_deinit(struct mtk_eth *eth);
 #endif /* MTK_ETH_H */

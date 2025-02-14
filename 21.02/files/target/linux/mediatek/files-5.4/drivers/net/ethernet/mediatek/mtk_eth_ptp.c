@@ -7,6 +7,7 @@
  */
 
 #include <linux/if_vlan.h>
+#include <linux/jiffies.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
 
@@ -33,7 +34,7 @@ static int mtk_ptp_hwtstamp_enable(struct net_device *dev, int hwtstamp)
 	return 0;
 }
 
-static int mtk_ptp_hwtstamp_get_t1(struct mtk_mac *mac, struct timespec64 *ts)
+static int mtk_ptp_hwtstamp_get_t1(struct mtk_mac *mac, u16 seqid, struct timespec64 *ts)
 {
 	struct mtk_eth *eth = mac->hw;
 	u32 sid[2], dw[4];
@@ -44,8 +45,9 @@ static int mtk_ptp_hwtstamp_get_t1(struct mtk_mac *mac, struct timespec64 *ts)
 		dw[i] = mtk_r32(eth, MAC_TS_T1_DW(mac->id) + i * 4);
 	sid[1] = mtk_r32(eth, MAC_TS_T1_SID2(mac->id));
 
-	if (sid[0] != sid[1]) {
-		pr_warn("%s invalid hwtstamp(%d, %d)!\n", __func__, sid[0], sid[1]);
+	if (seqid != sid[0] || sid[0] != sid[1]) {
+		dev_warn(eth->dev, "invalid t1 hwtstamp(%d, %d, %d)!\n",
+			 seqid, sid[0], sid[1]);
 		return -EINVAL;
 	}
 
@@ -55,7 +57,7 @@ static int mtk_ptp_hwtstamp_get_t1(struct mtk_mac *mac, struct timespec64 *ts)
 	return 0;
 }
 
-static int mtk_ptp_hwtstamp_get_t2(struct mtk_mac *mac, struct timespec64 *ts)
+static int mtk_ptp_hwtstamp_get_t2(struct mtk_mac *mac, u16 seqid, struct timespec64 *ts)
 {
 	struct mtk_eth *eth = mac->hw;
 	u32 sid[2], dw[4];
@@ -66,8 +68,9 @@ static int mtk_ptp_hwtstamp_get_t2(struct mtk_mac *mac, struct timespec64 *ts)
 		dw[i] = mtk_r32(eth, MAC_TS_T2_DW(mac->id) + i * 4);
 	sid[1] = mtk_r32(eth, MAC_TS_T2_SID2(mac->id));
 
-	if (sid[0] != sid[1]) {
-		pr_warn("%s invalid hwtstamp(%d, %d)!\n", __func__, sid[0], sid[1]);
+	if (seqid != sid[0] || sid[0] != sid[1]) {
+		dev_warn(eth->dev, "invalid t2 hwtstamp(%d, %d, %d)!\n",
+			 seqid, sid[0], sid[1]);
 		return -EINVAL;
 	}
 
@@ -77,7 +80,7 @@ static int mtk_ptp_hwtstamp_get_t2(struct mtk_mac *mac, struct timespec64 *ts)
 	return 0;
 }
 
-static int mtk_ptp_hwtstamp_get_t3(struct mtk_mac *mac, struct timespec64 *ts)
+static int mtk_ptp_hwtstamp_get_t3(struct mtk_mac *mac, u16 seqid, struct timespec64 *ts)
 {
 	struct mtk_eth *eth = mac->hw;
 	u32 sid[2], dw[4];
@@ -88,8 +91,9 @@ static int mtk_ptp_hwtstamp_get_t3(struct mtk_mac *mac, struct timespec64 *ts)
 		dw[i] = mtk_r32(eth, MAC_TS_T3_DW(mac->id) + i * 4);
 	sid[1] = mtk_r32(eth, MAC_TS_T3_SID2(mac->id));
 
-	if (sid[0] != sid[1]) {
-		pr_warn("%s invalid hwtstamp(%d, %d)!\n", __func__, sid[0], sid[1]);
+	if (seqid != sid[0] || sid[0] != sid[1]) {
+		dev_warn(eth->dev, "invalid t3 hwtstamp(%d, %d, %d)!\n",
+			 seqid, sid[0], sid[1]);
 		return -EINVAL;
 	}
 
@@ -99,7 +103,7 @@ static int mtk_ptp_hwtstamp_get_t3(struct mtk_mac *mac, struct timespec64 *ts)
 	return 0;
 }
 
-static int mtk_ptp_hwtstamp_get_t4(struct mtk_mac *mac, struct timespec64 *ts)
+static int mtk_ptp_hwtstamp_get_t4(struct mtk_mac *mac, u16 seqid, struct timespec64 *ts)
 {
 	struct mtk_eth *eth = mac->hw;
 	u32 sid[2], dw[4];
@@ -110,8 +114,9 @@ static int mtk_ptp_hwtstamp_get_t4(struct mtk_mac *mac, struct timespec64 *ts)
 		dw[i] = mtk_r32(eth, MAC_TS_T4_DW(mac->id) + i * 4);
 	sid[1] = mtk_r32(eth, MAC_TS_T4_SID2(mac->id));
 
-	if (sid[0] != sid[1]) {
-		pr_warn("%s invalid hwtstamp(%d, %d)!\n", __func__, sid[0], sid[1]);
+	if (seqid != sid[0] || sid[0] != sid[1]) {
+		dev_warn(eth->dev, "invalid t4 hwtstamp(%d, %d, %d)!\n",
+			 seqid, sid[0], sid[1]);
 		return -EINVAL;
 	}
 
@@ -121,14 +126,74 @@ static int mtk_ptp_hwtstamp_get_t4(struct mtk_mac *mac, struct timespec64 *ts)
 	return 0;
 }
 
-int mtk_ptp_hwtstamp_process_tx(struct net_device *dev, struct sk_buff *skb)
+static void mtk_ptp_hwtstamp_tx_work(struct work_struct *work)
 {
-	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_mac *mac = container_of(work, struct mtk_mac, ptp_tx_work);
+	struct mtk_eth *eth = mac->hw;
+	struct sk_buff *skb = mac->ptp_tx_skb;
 	struct skb_shared_hwtstamps shhwtstamps;
 	struct timespec64 ts;
 	unsigned int ptp_class, offset = 0;
-	int ret;
 	u8 *data, msgtype;
+	u16 seqid;
+	int ret;
+
+	if (!skb)
+		return;
+
+	ptp_class = mac->ptp_tx_class;
+	if (ptp_class & PTP_CLASS_VLAN)
+		offset += VLAN_HLEN;
+
+	if ((ptp_class & PTP_CLASS_PMASK) == PTP_CLASS_L2)
+		offset += ETH_HLEN;
+
+	data = skb_mac_header(skb);
+	seqid = get_unaligned_be16(data + offset + OFF_PTP_SEQUENCE_ID);
+	msgtype = data[offset] & 0x0f;
+	switch (msgtype) {
+	case SYNC:
+	case PDELAY_REQ:
+		ret = mtk_ptp_hwtstamp_get_t1(mac, seqid, &ts);
+		break;
+	case DELAY_REQ:
+	case PDELAY_RESP:
+		ret = mtk_ptp_hwtstamp_get_t3(mac, seqid, &ts);
+		break;
+	default:
+		dev_warn(eth->dev, "unrecognized hwtstamp msgtype (%d)!", msgtype);
+		goto out;
+	}
+
+	if (ret) {
+		if (time_is_before_jiffies(mac->ptp_tx_start +
+					   msecs_to_jiffies(500))) {
+			dev_warn(eth->dev, "detect %s hwtstamp timeout!",
+				 (msgtype == SYNC || msgtype == PDELAY_REQ) ? "t1" : "t3");
+			goto out;
+		} else {
+			schedule_work(&mac->ptp_tx_work);
+			return;
+		}
+	}
+
+	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+
+	memset(&shhwtstamps, 0, sizeof(shhwtstamps));
+	shhwtstamps.hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
+	skb_tstamp_tx(skb, &shhwtstamps);
+
+out:
+	dev_kfree_skb_any(skb);
+	mac->ptp_tx_skb = NULL;
+	mac->ptp_tx_class = 0;
+	mac->ptp_tx_start = 0;
+}
+
+int mtk_ptp_hwtstamp_process_tx(struct net_device *dev, struct sk_buff *skb)
+{
+	struct mtk_mac *mac = netdev_priv(dev);
+	unsigned int ptp_class, offset = 0;
 
 	ptp_class = ptp_classify_raw(skb);
 	if (ptp_class == PTP_CLASS_NONE)
@@ -142,29 +207,10 @@ int mtk_ptp_hwtstamp_process_tx(struct net_device *dev, struct sk_buff *skb)
 	else
 		return 0;
 
-	data = skb_mac_header(skb);
-	msgtype = data[offset] & 0x0f;
-	switch (msgtype) {
-	case SYNC:
-	case PDELAY_REQ:
-		ret = mtk_ptp_hwtstamp_get_t1(mac, &ts);
-		break;
-	case DELAY_REQ:
-	case PDELAY_RESP:
-		ret = mtk_ptp_hwtstamp_get_t3(mac, &ts);
-		break;
-	default:
-		return 0;
-	}
-
-	if (ret)
-		return ret;
-
-	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-
-	memset(&shhwtstamps, 0, sizeof(shhwtstamps));
-	shhwtstamps.hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
-	skb_tstamp_tx(skb, &shhwtstamps);
+	mac->ptp_tx_skb = skb_get(skb);
+	mac->ptp_tx_class = ptp_class;
+	mac->ptp_tx_start = jiffies;
+	schedule_work(&mac->ptp_tx_work);
 
 	return 0;
 }
@@ -172,11 +218,13 @@ int mtk_ptp_hwtstamp_process_tx(struct net_device *dev, struct sk_buff *skb)
 int mtk_ptp_hwtstamp_process_rx(struct net_device *dev, struct sk_buff *skb)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
 	struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
 	struct timespec64 ts;
 	unsigned int ptp_class, offset = 0;
 	int ret;
 	u8 *data, msgtype;
+	u16 seqid;
 
 	ptp_class = ptp_classify_raw(skb);
 	if (ptp_class == PTP_CLASS_NONE)
@@ -192,17 +240,19 @@ int mtk_ptp_hwtstamp_process_rx(struct net_device *dev, struct sk_buff *skb)
 
 	skb_reset_mac_header(skb);
 	data = skb_mac_header(skb);
+	seqid = get_unaligned_be16(data + offset + OFF_PTP_SEQUENCE_ID);
 	msgtype = data[offset] & 0x0f;
 	switch (msgtype) {
 	case SYNC:
 	case PDELAY_REQ:
-		ret = mtk_ptp_hwtstamp_get_t2(mac, &ts);
+		ret = mtk_ptp_hwtstamp_get_t2(mac, seqid, &ts);
 		break;
 	case DELAY_REQ:
 	case PDELAY_RESP:
-		ret = mtk_ptp_hwtstamp_get_t4(mac, &ts);
+		ret = mtk_ptp_hwtstamp_get_t4(mac, seqid, &ts);
 		break;
 	default:
+		dev_warn(eth->dev, "unrecognized hwtstamp msgtype (%d)!", msgtype);
 		return 0;
 	}
 
@@ -398,6 +448,9 @@ static const struct ptp_clock_info mtk_ptp_caps = {
 
 int mtk_ptp_clock_init(struct mtk_eth *eth)
 {
+	struct mtk_mac *mac;
+	int i;
+
 	eth->ptp_info = mtk_ptp_caps;
 	eth->ptp_clock = ptp_clock_register(&eth->ptp_info,
 					    eth->dev);
@@ -406,7 +459,39 @@ int mtk_ptp_clock_init(struct mtk_eth *eth)
 		return -EINVAL;
 	}
 
+	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		mac = eth->mac[i];
+		if (!mac)
+			continue;
+
+		INIT_WORK(&mac->ptp_tx_work, mtk_ptp_hwtstamp_tx_work);
+	}
+
 	mtk_ptp_enable(&eth->ptp_info, NULL, 1);
+
+	return 0;
+}
+
+int mtk_ptp_clock_deinit(struct mtk_eth *eth)
+{
+	struct mtk_mac *mac;
+	int i;
+
+	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		mac = eth->mac[i];
+		if (!mac)
+			continue;
+
+		cancel_work_sync(&mac->ptp_tx_work);
+		dev_kfree_skb_any(mac->ptp_tx_skb);
+		mac->ptp_tx_skb = NULL;
+		mac->ptp_tx_class = 0;
+		mac->ptp_tx_start = 0;
+	}
+
+	mtk_ptp_enable(&eth->ptp_info, NULL, 0);
+
+	ptp_clock_unregister(eth->ptp_clock);
 
 	return 0;
 }

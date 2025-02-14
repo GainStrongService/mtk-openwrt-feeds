@@ -4783,7 +4783,7 @@ static int mtk_stop(struct net_device *dev)
 	mtk_dma_free(eth);
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWTSTAMP))
-		ptp_clock_unregister(eth->ptp_clock);
+		mtk_ptp_clock_deinit(eth);
 
 	return 0;
 }
