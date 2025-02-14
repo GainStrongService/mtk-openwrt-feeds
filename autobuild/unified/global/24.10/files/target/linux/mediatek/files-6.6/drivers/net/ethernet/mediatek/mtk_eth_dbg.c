@@ -219,12 +219,21 @@ static ssize_t qdma_queue_show(struct file *file, char __user *user_buf,
 		scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL, qtx_sch);
 
 	min_rate_en = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EN, qtx_sch);
-	min_rate = FIELD_GET(MTK_QTX_SCH_MIN_RATE_MAN, qtx_sch);
-	min_rate_exp = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EXP, qtx_sch);
-	max_rate_en = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EN, qtx_sch);
-	max_weight = FIELD_GET(MTK_QTX_SCH_MAX_RATE_WEIGHT, qtx_sch);
-	max_rate = FIELD_GET(MTK_QTX_SCH_MAX_RATE_MAN, qtx_sch);
-	max_rate_exp = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EXP, qtx_sch);
+	if (mtk_is_netsys_v3_or_greater(eth) && (eth->soc->caps != MT7988_CAPS)) {
+		min_rate = FIELD_GET(MTK_QTX_SCH_MIN_RATE_MAN_V3, qtx_sch);
+		min_rate_exp = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EXP_V3, qtx_sch);
+		max_rate_en = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EN_V3, qtx_sch);
+		max_weight = FIELD_GET(MTK_QTX_SCH_MAX_RATE_WEIGHT_V3, qtx_sch);
+		max_rate = FIELD_GET(MTK_QTX_SCH_MAX_RATE_MAN_V3, qtx_sch);
+		max_rate_exp = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EXP_V3, qtx_sch);
+	} else {
+		min_rate = FIELD_GET(MTK_QTX_SCH_MIN_RATE_MAN, qtx_sch);
+		min_rate_exp = FIELD_GET(MTK_QTX_SCH_MIN_RATE_EXP, qtx_sch);
+		max_rate_en = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EN, qtx_sch);
+		max_weight = FIELD_GET(MTK_QTX_SCH_MAX_RATE_WEIGHT, qtx_sch);
+		max_rate = FIELD_GET(MTK_QTX_SCH_MAX_RATE_MAN, qtx_sch);
+		max_rate_exp = FIELD_GET(MTK_QTX_SCH_MAX_RATE_EXP, qtx_sch);
+	}
 
 	while (min_rate_exp--)
 		min_rate *= 10;
@@ -301,7 +310,7 @@ static ssize_t qdma_queue_write(struct file *file, const char __user *buf,
 
 	line[length] = '\0';
 
-	if (mtk_is_netsys_v2_or_greater(eth)) {
+	if (mtk_is_netsys_v3_or_greater(eth)) {
 		if (max_rate > 10000000 || max_rate < 0 ||
 		    min_rate > 10000000 || min_rate < 0)
 			return -EINVAL;
@@ -328,13 +337,23 @@ static ssize_t qdma_queue_write(struct file *file, const char __user *buf,
 
 	if (min_enable)
 		qtx_sch |= MTK_QTX_SCH_MIN_RATE_EN;
-	qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, min_rate);
-	qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, min_exp);
-	if (max_enable)
-		qtx_sch |= MTK_QTX_SCH_MAX_RATE_EN;
-	qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, weight);
-	qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, max_rate);
-	qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, max_exp);
+	if (mtk_is_netsys_v3_or_greater(eth) && (eth->soc->caps != MT7988_CAPS)) {
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN_V3, min_rate);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP_V3, min_exp);
+		if (max_enable)
+			qtx_sch |= MTK_QTX_SCH_MAX_RATE_EN_V3;
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V3, weight);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V3, max_rate);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V3, max_exp);
+	} else {
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, min_rate);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, min_exp);
+		if (max_enable)
+			qtx_sch |= MTK_QTX_SCH_MAX_RATE_EN;
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, weight);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, max_rate);
+		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, max_exp);
+	}
 	mtk_w32(eth, qtx_sch, soc->reg_map->qdma.qtx_sch +
 			      (id % MTK_QTX_PER_PAGE) * MTK_QTX_OFFSET);
 
@@ -1454,11 +1473,15 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 		seq_printf(seq, "| XMAC_P1_MCR	: %08x |\n",
 			   mtk_r32(eth, MTK_XMAC_MCR(1)));
 		seq_printf(seq, "| XMAC_P1_STS	: %08x |\n",
-			   mtk_r32(eth, MTK_XGMAC_STS(1)));
-		seq_printf(seq, "| XMAC_P2_MCR	: %08x |\n",
-			   mtk_r32(eth, MTK_XMAC_MCR(2)));
-		seq_printf(seq, "| XMAC_P2_STS	: %08x |\n",
-			   mtk_r32(eth, MTK_XGMAC_STS(2)));
+			   mtk_r32(eth, MTK_HAS_CAPS(eth->soc->caps, MTK_XGMAC_V2) ?
+					MTK_XMAC_STS(1) : MTK_XGMAC_STS(1)));
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC3_USXGMII)) {
+			seq_printf(seq, "| XMAC_P2_MCR	: %08x |\n",
+				   mtk_r32(eth, MTK_XMAC_MCR(2)));
+			seq_printf(seq, "| XMAC_P2_STS	: %08x |\n",
+				   mtk_r32(eth, MTK_HAS_CAPS(eth->soc->caps, MTK_XGMAC_V2) ?
+						MTK_XMAC_STS(2) : MTK_XGMAC_STS(2)));
+		}
 	}
 
 	if (mtk_is_netsys_v2_or_greater(eth)) {
