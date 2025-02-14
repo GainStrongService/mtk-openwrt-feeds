@@ -330,7 +330,7 @@ int air_surge_protect_cfg(struct phy_device *phydev)
 	if (priv->surge) {
 		ret = air_mii_cl45_write(phydev, 0x1e, 0x800c, 0x0);
 		ret |= air_mii_cl45_write(phydev, 0x1e, 0x800d, 0x0);
-		ret |= air_mii_cl45_write(phydev, 0x1e, 0x800e, 0x1101);
+		ret |= air_mii_cl45_write(phydev, 0x1e, 0x800e, 0x1100);
 		ret |= air_mii_cl45_write(phydev, 0x1e, 0x800f, 0x00b0);
 		if (ret < 0)
 			return ret;

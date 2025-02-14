@@ -392,6 +392,10 @@ static int en8811h_init_up(struct phy_device *phydev)
 	struct en8811h_priv *priv = phydev->priv;
 
 	dev_info(dev, "%s start\n", __func__);
+	ret = air_buckpbus_reg_write(phydev, 0x1e00d0, 0xf);
+	ret |= air_buckpbus_reg_write(phydev, 0x1e0228, 0xf0);
+	if (ret < 0)
+		return ret;
 	ret = en8811h_load_firmware(phydev);
 	if (ret < 0) {
 		dev_err(dev, "EN8811H load firmware fail.\n");
@@ -696,18 +700,21 @@ static int en8811h_restart_up(struct phy_device *phydev)
 	struct en8811h_priv *priv = phydev->priv;
 
 	dev_info(dev, "%s start\n", __func__);
+	ret = air_buckpbus_reg_write(phydev, 0x1e00d0, 0xf);
+	ret |= air_buckpbus_reg_write(phydev, 0x1e0228, 0xf0);
+	if (ret < 0)
+		return ret;
 	ret = air_buckpbus_reg_write(phydev, EN8811H_FW_CTRL_1,
 				     EN8811H_FW_CTRL_1_START);
 	if (ret < 0)
 		return ret;
-	msleep(100);
 	ret = air_buckpbus_reg_write(phydev, EN8811H_FW_CTRL_1,
 				     EN8811H_FW_CTRL_1_FINISH);
 	if (ret < 0)
 		return ret;
 	retry = MAX_RETRY;
 	do {
-		mdelay(100);
+		mdelay(300);
 		reg_value = air_mii_cl45_read(phydev, 0x1e, 0x8009);
 		if (reg_value == EN8811H_PHY_READY) {
 			priv->init_stage = AIR_INIT_FW_READY;
@@ -728,25 +735,19 @@ static int en8811h_restart_up(struct phy_device *phydev)
 
 static int en8811h_check_up(struct phy_device *phydev)
 {
-	int ret, retry;
-	u32 pbus_value1, pbus_value2;
+	int ret, reg_value;
 	struct device *dev = phydev_dev(phydev);
 
 	dev_info(dev, "%s start\n", __func__);
-	retry = 3;
-	do {
-		pbus_value1 = air_buckpbus_reg_read(phydev, 0x3A48);
-		msleep(100);
-		pbus_value2 = air_buckpbus_reg_read(phydev, 0x3A48);
-		dev_dbg(dev, "%d pbus1 0x%x pbus2 0x%x\n", retry, pbus_value1, pbus_value2);
-		if (pbus_value2 == pbus_value1) {
-			ret = en8811h_restart_up(phydev);
-			if (ret < 0)
-				return ret;
-			break;
-		}
-	} while (retry--);
-	return 0;
+	reg_value = air_mii_cl45_read(phydev, 0x1e, 0x8009);
+	if (!reg_value) {
+		ret = en8811h_restart_up(phydev);
+		if (ret < 0)
+			return ret;
+		return 0;
+	}
+	dev_info(dev, "No need to restart up\n");
+	return AIR_INIT_SUCESS;
 }
 
 static int en8811h_config_init(struct phy_device *phydev)
@@ -756,10 +757,6 @@ static int en8811h_config_init(struct phy_device *phydev)
 	struct device *dev = phydev_dev(phydev);
 	struct en8811h_priv *priv = phydev->priv;
 
-	ret = air_buckpbus_reg_write(phydev, 0x1e00d0, 0xf);
-	ret |= air_buckpbus_reg_write(phydev, 0x1e0228, 0xf0);
-	if (ret < 0)
-		goto priv_free;
 	if (priv->init_stage < AIR_INIT_CONFIG) {
 		ret = en8811h_init_up(phydev);
 		if (ret < 0)
@@ -770,7 +767,8 @@ static int en8811h_config_init(struct phy_device *phydev)
 			dev_err(dev,
 				"EN8811H en8811h_check_up fail!\n");
 			goto priv_free;
-		}
+		} else if (ret == AIR_INIT_SUCESS)
+			return 0;
 	}
 	priv->init_stage = AIR_INIT_CONFIG;
 	ret = air_mii_cl45_write(phydev, 0x1e, 0x800c, 0x0);
@@ -843,21 +841,6 @@ static int en8811h_config_aneg(struct phy_device *phydev)
 		changed = true;
 
 	return __genphy_config_aneg(phydev, changed);
-}
-
-int en8811h_hst_cmd1(struct phy_device *phydev)
-{
-	int ret = 0;
-	struct device *dev = phydev_dev(phydev);
-
-	ret = air_mii_cl45_write(phydev, 0x1e, 0x800c, 0x8);
-	ret |= air_mii_cl45_write(phydev, 0x1e, 0x800d, 0x0);
-	ret |= air_mii_cl45_write(phydev, 0x1e, 0x800e, 0x1101);
-	ret |= air_mii_cl45_write(phydev, 0x1e, 0x800f, 0x1);
-	if (ret < 0)
-		return ret;
-	dev_info(dev, "%s done.\n", __func__);
-	return ret;
 }
 
 static int en8811h_update_link(struct phy_device *phydev)
