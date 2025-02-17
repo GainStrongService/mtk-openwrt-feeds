@@ -468,6 +468,8 @@ static int an8855_probe(struct platform_device *pdev)
 
 	gsw->irq = platform_get_irq(pdev, 0);
 	if (gsw->irq >= 0) {
+		INIT_WORK(&gsw->irq_worker, an8855_irq_worker);
+
 		ret = devm_request_irq(gsw->dev, gsw->irq, an8855_irq_handler,
 				       0, dev_name(gsw->dev), gsw);
 		if (ret) {
@@ -475,8 +477,6 @@ static int an8855_probe(struct platform_device *pdev)
 				gsw->irq);
 			goto fail;
 		}
-
-		INIT_WORK(&gsw->irq_worker, an8855_irq_worker);
 	}
 
 	platform_set_drvdata(pdev, gsw);
