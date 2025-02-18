@@ -49,6 +49,7 @@
 // Linux Kernel API
 #include <linux/platform_device.h>  // platform_*,
 #include <linux/mm.h>               // remap_pfn_range
+#include <linux/version.h>
 
 #ifdef UMDEVXS_USE_RPM
 // Runtime Power Management Kernel Macros API
@@ -239,7 +240,12 @@ UMDevXS_OFDev_Map(
 
     // avoid caching and buffering
     vma_p->vm_page_prot = pgprot_noncached(vma_p->vm_page_prot);
-    vma_p->vm_flags |= VM_IO;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0))
+        vm_flags_set(vma_p, VM_IO);
+#else
+        vma_p->vm_flags |= VM_IO;
+#endif
 
     // map the range into application space
     res = remap_pfn_range(

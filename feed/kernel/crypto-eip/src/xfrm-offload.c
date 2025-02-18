@@ -225,7 +225,11 @@ free_cdrt:
 	return ret;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+int mtk_xfrm_offload_state_add(struct xfrm_state *xs, struct netlink_ext_ack *extack)
+#else
 int mtk_xfrm_offload_state_add(struct xfrm_state *xs)
+#endif
 {
 	struct mtk_xfrm_params *xfrm_params;
 	int ret = 0;
@@ -323,7 +327,11 @@ void mtk_xfrm_offload_state_tear_down(void)
 	spin_unlock_bh(&xfrm_params_list.lock);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp, struct netlink_ext_ack *extack)
+#else
 int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp)
+#endif
 {
 	return 0;
 }

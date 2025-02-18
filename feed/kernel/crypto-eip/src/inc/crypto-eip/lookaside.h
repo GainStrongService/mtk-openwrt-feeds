@@ -9,11 +9,19 @@
 #ifndef _LOOKASIDE_H_
 #define _LOOKASIDE_H_
 
-#include <crypto/aes.h>
-#include <crypto/sha.h>
-#include <crypto/md5.h>
+#include <linux/version.h>
 #include <linux/io.h>
 #include <linux/list.h>
+
+#include <crypto/aes.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
+#else
+#include <crypto/sha.h>
+#endif
+
+#include <crypto/md5.h>
 #include <crypto/algapi.h>
 #include <crypto/skcipher.h>
 #include <crypto/aead.h>

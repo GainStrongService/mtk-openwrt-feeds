@@ -9,7 +9,7 @@ choice
 
 config CRYPTO_OFFLOAD_INLINE
 	bool "Inline Mode"
-	depends on TARGET_mediatek_mt7988 && !PACKAGE_kmod-eip197_driver
+	depends on TARGET_mediatek_mt7988 || TARGET_DEVICE_mediatek_filogic_DEVICE_mediatek_mt7988a-rfb || TARGET_DEVICE_mediatek_filogic_DEVICE_mediatek_mt7988d-rfb
 	select PACKAGE_kmod-crypto-eip-inline
 	select PACKAGE_kmod-crypto-eip-ddk
 	select PACKAGE_kmod-crypto-eip-ddk-ksupport
@@ -17,6 +17,9 @@ config CRYPTO_OFFLOAD_INLINE
 	select PACKAGE_kmod-crypto-eip-ddk-ctrl-app
 	select PACKAGE_kmod-crypto-eip-ddk-engine
 	select PACKAGE_crypto-eip-inline-fw
+	select PACKAGE_strongswan
+	select PACKAGE_strongswan-mod-kdf
+	select PACKAGE_strongswan-default
 endchoice
 
 choice

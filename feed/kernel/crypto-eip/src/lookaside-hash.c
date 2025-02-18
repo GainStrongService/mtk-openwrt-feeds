@@ -488,6 +488,19 @@ struct mtk_crypto_ahash_result {
 	int error;
 };
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0))
+static void mtk_crypto_ahash_complete(void *req, int error)
+{
+	struct crypto_async_request *areq = req;
+	struct mtk_crypto_ahash_result *result = areq->data;
+
+	if (error == -EINPROGRESS)
+		return;
+
+	result->error = error;
+	complete(&result->completion);
+}
+#else
 static void mtk_crypto_ahash_complete(struct crypto_async_request *req, int error)
 {
 	struct mtk_crypto_ahash_result *result = req->data;
@@ -498,6 +511,7 @@ static void mtk_crypto_ahash_complete(struct crypto_async_request *req, int erro
 	result->error = error;
 	complete(&result->completion);
 }
+#endif //LINUX VERSION
 
 static int mtk_crypto_hmac_init_pad(struct ahash_request *areq, unsigned int blocksize,
 				    const u8 *key, unsigned int keylen,

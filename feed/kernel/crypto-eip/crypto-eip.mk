@@ -56,8 +56,6 @@ define KernelPackage/crypto-eip
 	CONFIG_INET6_ESP_OFFLOAD=y
   DEPENDS:= \
 	@TARGET_mediatek \
-	+strongswan \
-	+strongswan-default
   $(call AddDepends/crypto)
 endef
 

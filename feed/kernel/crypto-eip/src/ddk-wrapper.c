@@ -2533,21 +2533,27 @@ void set_capwap_algo(SABuilder_Params_t *params, uint8_t mode)
 	switch (mode) {
 	case AES256_CBC_HMAC_SHA1:
 		params->KeyByteCount = 32;
-		/* fallthrough */
+		params->AuthAlgo = SAB_AUTH_HMAC_SHA1;
+		params->AuthKeyByteCount = 20;
+		break;
 	case AES128_CBC_HMAC_SHA1:
 		params->AuthAlgo = SAB_AUTH_HMAC_SHA1;
 		params->AuthKeyByteCount = 20;
 		break;
 	case AES256_CBC_HMAC_SHA2_256:
 		params->KeyByteCount = 32;
-		/* fallthrough */
+		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_256;
+		params->AuthKeyByteCount = 32;
+		break;
 	case AES128_CBC_HMAC_SHA2_256:
 		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_256;
 		params->AuthKeyByteCount = 32;
 		break;
 	case AES256_GCM:
 		params->KeyByteCount = 32;
-		/* fallthrough */
+		params->CryptoMode = SAB_CRYPTO_MODE_GCM;
+		params->AuthAlgo = SAB_AUTH_AES_GCM;
+		break;
 	case AES128_GCM:
 		params->CryptoMode = SAB_CRYPTO_MODE_GCM;
 		params->AuthAlgo = SAB_AUTH_AES_GCM;

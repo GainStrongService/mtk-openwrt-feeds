@@ -38,7 +38,7 @@ static int mtk_crypto_skcipher_send(struct crypto_async_request *async)
 	}
 
 	ret = mtk_crypto_basic_cipher(async, mtk_req, req->src, req->dst, req->cryptlen,
-				0, 0, req->iv, skcipher->ivsize);
+				0, 0, req->iv, crypto_skcipher_ivsize(skcipher));
 
 end:
 	if (ret != 0) {
@@ -59,8 +59,8 @@ static int mtk_crypto_skcipher_handle_result(struct mtk_crypto_result *res, int 
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
 
 	if (ctx->mode == MTK_CRYPTO_MODE_CBC && mtk_req->direction == MTK_CRYPTO_ENCRYPT)
-		sg_pcopy_to_buffer(req->dst, mtk_req->nr_dst, req->iv, skcipher->ivsize,
-					req->cryptlen - skcipher->ivsize);
+		sg_pcopy_to_buffer(req->dst, mtk_req->nr_dst, req->iv, crypto_skcipher_ivsize(skcipher),
+					req->cryptlen - crypto_skcipher_ivsize(skcipher));
 
 	if (req->src == req->dst) {
 		dma_unmap_sg(crypto_dev, req->src, mtk_req->nr_src, DMA_BIDIRECTIONAL);

@@ -9,10 +9,18 @@
 #ifndef _CRYPTO_EIP_H_
 #define _CRYPTO_EIP_H_
 
-#include <crypto/sha.h>
+#include <linux/version.h>
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/timer.h>
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
+#else
+#include <crypto/sha.h>
+#endif
+
 #include <net/xfrm.h>
 
 #include "crypto-eip/crypto-eip197-inline-ddk.h"
@@ -158,11 +166,17 @@ void crypto_eth_write(u32 reg, u32 val);
 u32 mtk_crypto_ppe_get_num(void);
 
 /* xfrm callback functions */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+int mtk_xfrm_offload_state_add(struct xfrm_state *xs, struct netlink_ext_ack *extack);
+int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp, struct netlink_ext_ack *extack);
+#else
 int mtk_xfrm_offload_state_add(struct xfrm_state *xs);
+int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp);
+#endif /* KERNEL 6.3.0 */
+
 void mtk_xfrm_offload_state_delete(struct xfrm_state *xs);
 void mtk_xfrm_offload_state_free(struct xfrm_state *xs);
 void mtk_xfrm_offload_state_tear_down(void);
-int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp);
 void mtk_xfrm_offload_policy_delete(struct xfrm_policy *xp);
 void mtk_xfrm_offload_policy_free(struct xfrm_policy *xp);
 bool mtk_xfrm_offload_ok(struct sk_buff *skb, struct xfrm_state *xs);

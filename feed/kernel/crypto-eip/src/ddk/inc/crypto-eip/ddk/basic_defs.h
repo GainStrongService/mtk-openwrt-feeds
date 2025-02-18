@@ -57,13 +57,13 @@
 #endif
 #endif
 
-#ifdef __STDC_VERSION__
-#if __STDC_VERSION__ >= 199901L
-#define BASICDEFS_TYPES_STDINT
-#define BASICDEFS_BOOL_V1
-#define BASICDEFS_INLINE_BUILTIN
-#endif
-#endif
+//#ifdef __STDC_VERSION__
+//#if __STDC_VERSION__ >= 199901L
+//#define BASICDEFS_TYPES_STDINT
+//#define BASICDEFS_BOOL_V1
+//#define BASICDEFS_INLINE_BUILTIN
+//#endif
+//#endif
 
 #ifdef __CYGWIN__
 #define BASICDEFS_COMPILER_CYGWIN_V1

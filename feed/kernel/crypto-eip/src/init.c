@@ -18,7 +18,10 @@
 #include <crypto/internal/hash.h>
 
 #include <mtk_eth_soc.h>
+
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 #include <mtk_hnat/hnat.h>
+#endif
 
 #include "crypto-eip/crypto-eip.h"
 #include "crypto-eip/ddk-wrapper.h"
@@ -189,12 +192,19 @@ static void mtk_crypto_unregister_algorithms(void)
 static void mtk_crypto_xfrm_offload_deinit(struct mtk_eth *eth)
 {
 	int i;
+	int count;
 
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 	mtk_crypto_offloadable = NULL;
 #endif // HNAT
 
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
+	count = MTK_MAX_DEVS;
+#else
+	count = MTK_MAC_COUNT;
+#endif
+
+	for (i = 0; i < count; i++) {
 		if (!eth->netdev[i])
 			continue;
 		eth->netdev[i]->xfrmdev_ops = NULL;
@@ -209,8 +219,15 @@ static void mtk_crypto_xfrm_offload_deinit(struct mtk_eth *eth)
 static void mtk_crypto_xfrm_offload_init(struct mtk_eth *eth)
 {
 	int i;
+	int count;
 
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
+	count = MTK_MAX_DEVS;
+#else
+	count = MTK_MAC_COUNT;
+#endif
+
+	for (i = 0; i < count; i++) {
 		if (!eth->netdev[i])
 			continue;
 		eth->netdev[i]->xfrmdev_ops = &mtk_xfrmdev_ops;
@@ -279,8 +296,8 @@ static int __init mtk_crypto_ppe_num_dts_init(struct platform_device *pdev)
 
 	hnat = of_parse_phandle(pdev->dev.of_node, "hnat", 0);
 	if (!hnat) {
-		CRYPTO_ERR("can not find hnat node\n");
-		return -ENODEV;
+		mcrypto.ppe_num = 1;
+		return 0;
 	}
 
 	ret = of_property_read_u32(hnat, "mtketh-ppe-num", &val);
@@ -464,3 +481,6 @@ module_exit(mtk_crypto_eip_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MediaTek Crypto EIP Control Driver");
 MODULE_AUTHOR(DRIVER_AUTHOR);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+#endif
