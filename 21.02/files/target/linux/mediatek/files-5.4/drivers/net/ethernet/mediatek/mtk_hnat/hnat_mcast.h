@@ -17,18 +17,14 @@
 #define RTMGRP_MDB 0x2000000
 
 #define MAX_MCAST_ENTRY 64
-
-#define MCAST_TO_PDMA (0x1 << 0)
-#define MCAST_TO_GDMA1 (0x1 << 1)
-#define MCAST_TO_GDMA2 (0x1 << 2)
+#define MAX_MCAST_PORT	5
 
 struct ppe_mcast_group {
 	u32 mac_hi; /*multicast mac addr*/
 	u16 mac_lo; /*multicast mac addr*/
 	u16 vid;
-	u8 mc_port; /*1:forward to cpu,2:forward to GDMA1,4:forward to GDMA2*/
-	u8 eif; /*num of eth if added to multi group. */
-	u8 oif; /* num of other if added to multi group ,ex wifi.*/
+	u8 mc_port; /*1:forward to cpu,2:forward to GDMA1,3:forward to GDMA2*/
+	u8 if_num[MAX_MCAST_PORT]; /*num of if added to multi group. */
 	bool valid;
 };
 
@@ -44,23 +40,27 @@ struct ppe_mcast_h {
 	union {
 		u32 value;
 		struct {
-			u32 mc_vid:12;
-			u32 mc_qos_qid54:2; /* mt7622 only */
-			u32 valid:1;
-			u32 rev1:1;
-			/*0:forward to cpu,1:forward to GDMA1*/
-			u32 mc_px_en:4;
-			u32 mc_mpre_sel:2; /* 0=01:00, 2=33:33 */
-			u32 mc_vid_cmp:1;
-			u32 rev2:1;
-			u32 mc_px_qos_en:4;
-			u32 mc_qos_qid:4;
+			u32 mc_vid : 12;
+			u32 mc_qos_qid64 : 3;
+			u32 mc_px_en : 5;
+			u32 mc_mpre_sel : 2; /* 0=01:00, 1=33:33 */
+			u32 mc_vid_cmp: 1;
+			u32 mc_px_qos_en : 5;
+			u32 mc_qos_qid : 4;
 		} info;
 	} u;
 };
 
 struct ppe_mcast_l {
 	u32 addr;
+};
+
+enum ppe_mcast_port {
+	MCAST_TO_GDMA3,
+	MCAST_TO_PDMA,
+	MCAST_TO_GDMA1,
+	MCAST_TO_GDMA2,
+	MCAST_TO_QDMA,
 };
 
 int hnat_mcast_enable(u32 ppe_id);

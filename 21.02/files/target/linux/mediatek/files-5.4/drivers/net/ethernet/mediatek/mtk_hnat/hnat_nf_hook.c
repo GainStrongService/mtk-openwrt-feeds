@@ -3606,7 +3606,7 @@ static unsigned int mtk_hnat_nf_post_routing(
 	case HIT_BIND_MULTICAST_TO_CPU:
 	case HIT_BIND_MULTICAST_TO_GMAC_CPU:
 		/*do not forward to gdma again,if ppe already done it*/
-		if (IS_LAN_GRP(out) || IS_WAN(out))
+		if (!IS_DSA_LAN(out) && (IS_LAN_GRP(out) || IS_WAN(out)))
 			return -1;
 		break;
 	}

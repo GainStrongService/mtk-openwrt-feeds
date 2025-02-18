@@ -80,8 +80,8 @@
 #define PPE_MCAST_H_E 0xE0
 #define PPE_MCAST_L_F 0x100
 #define PPE_MCAST_H_F 0x104
-#define PPE_MCAST_L_10 0xC00
-#define PPE_MCAST_H_10 0xC04
+#define PPE_MCAST_L_10 (-0x200)
+#define PPE_MCAST_H_10 (-0x200 + 0x4)
 #define PPE_MTU_DRP 0x108
 #define PPE_MTU_VLYR_0 0x10C
 #define PPE_MTU_VLYR_1 0x110
@@ -189,6 +189,7 @@
 #define NEW_IPV4_ID_INC_EN (0x1 << 20) /* RW */
 #define SP_CMP_EN (0x1 << 25) /* RW */
 
+#define MC_P4_PPSE (0xf << 16) /* RW */
 #define MC_P3_PPSE (0xf << 12) /* RW */
 #define MC_P2_PPSE (0xf << 8) /* RW */
 #define MC_P1_PPSE (0xf << 4) /* RW */
