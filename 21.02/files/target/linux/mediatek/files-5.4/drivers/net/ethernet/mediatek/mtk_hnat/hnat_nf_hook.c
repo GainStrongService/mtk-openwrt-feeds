@@ -3699,9 +3699,16 @@ mtk_hnat_ipv6_nf_post_routing(void *priv, struct sk_buff *skb,
 
 	post_routing_print(skb, state->in, state->out, __func__);
 
-	if (!mtk_hnat_nf_post_routing(skb, state->out, hnat_ipv6_get_nexthop,
-				      __func__))
-		return NF_ACCEPT;
+	/* if bridge-nf-call-iptables is enabled and the skb is forwarded in bridge-layer,
+	 * state->out would be changed to bridge dev in br_nf_post_routing.
+	 */
+	if (netif_is_bridge_master(state->out) && (state->out != skb->dev)) {
+		if (!mtk_hnat_nf_post_routing(skb, skb->dev, 0, __func__))
+			return NF_ACCEPT;
+	} else {
+		if (!mtk_hnat_nf_post_routing(skb, state->out, hnat_ipv6_get_nexthop, __func__))
+			return NF_ACCEPT;
+	}
 
 drop:
 	if (skb && (debug_level >= 7))
@@ -3725,9 +3732,16 @@ mtk_hnat_ipv4_nf_post_routing(void *priv, struct sk_buff *skb,
 
 	post_routing_print(skb, state->in, state->out, __func__);
 
-	if (!mtk_hnat_nf_post_routing(skb, state->out, hnat_ipv4_get_nexthop,
-				      __func__))
-		return NF_ACCEPT;
+	/* if bridge-nf-call-iptables is enabled and the skb is forwarded in bridge-layer,
+	 * state->out would be changed to bridge dev in br_nf_post_routing.
+	 */
+	if (netif_is_bridge_master(state->out) && (state->out != skb->dev)) {
+		if (!mtk_hnat_nf_post_routing(skb, skb->dev, 0, __func__))
+			return NF_ACCEPT;
+	} else {
+		if (!mtk_hnat_nf_post_routing(skb, state->out, hnat_ipv4_get_nexthop, __func__))
+			return NF_ACCEPT;
+	}
 
 drop:
 	if (skb && (debug_level >= 7))
@@ -3805,6 +3819,10 @@ mtk_hnat_br_nf_local_out(void *priv, struct sk_buff *skb,
 		return NF_ACCEPT;
 
 	post_routing_print(skb, state->in, state->out, __func__);
+
+	/* process it in ipv4/ipv6 post-routing hook if enabled bridge-nf-call-iptables */
+	if (nf_bridge_info_exists(skb))
+		return NF_ACCEPT;
 
 	if (!mtk_hnat_nf_post_routing(skb, state->out, 0, __func__))
 		return NF_ACCEPT;
