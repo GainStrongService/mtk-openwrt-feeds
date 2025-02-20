@@ -1,20 +1,28 @@
-From d4bf1945fac3092268a089d1c86d64291b5f37ea Mon Sep 17 00:00:00 2001
+From 0db479fb4a337237b67b4375ebd0938b197f73bd Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Fri, 1 Nov 2024 13:55:17 +0800
+Date: Thu, 20 Feb 2025 14:12:15 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: revise hardware configuration for
  NETSYSv3
 
+Change hardware configuration for the NETSYSv3.
+ - Enable PSE dummy page mechanism for the GDM1/2/3
+ - Enable PSE drop mechanism when the WDMA Rx ring full
+ - Enable PSE no-drop mechanism for packets from the WDMA Tx
+ - Correct PSE free drop threshold
+ - Correct PSE CDMA high threshold
+
+Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 13 ++++++++++---
- drivers/net/ethernet/mediatek/mtk_eth_soc.h |  5 +++++
- 2 files changed, 15 insertions(+), 3 deletions(-)
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 20 ++++++++++++++++----
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h |  7 ++++++-
+ 2 files changed, 22 insertions(+), 5 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index cc33931..498a23b 100644
+index 4acf6fc..5881ec2 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4192,11 +4192,18 @@ static int mtk_hw_init(struct mtk_eth *eth, bool reset)
- 	mtk_w32(eth, 0x21021000, MTK_FE_INT_GRP);
+@@ -4445,11 +4445,23 @@ static int mtk_hw_init(struct mtk_eth *eth, bool reset)
+ 	}
  
  	if (mtk_is_netsys_v3_or_greater(eth)) {
 -		/* PSE should not drop port1, port8 and port9 packets */
@@ -23,11 +31,16 @@ index cc33931..498a23b 100644
 +		mtk_w32(eth, PSE_DUMMY_WORK_GDM(1) | PSE_DUMMY_WORK_GDM(2) |
 +			PSE_DUMMY_WORK_GDM(3) | DUMMY_PAGE_THR, PSE_DUMY_REQ);
 +
-+		/* PSE should not drop port8 and port9 packets from WDMA Tx */
-+		mtk_w32(eth, 0x00000300, PSE_DROP_CFG);
++		/* PSE free buffer drop threshold */
++		mtk_w32(eth, 0x00600009, PSE_IQ_REV(8));
 +
-+		/* PSE should drop packets to port 8/9 on WDMA Rx ring full */
-+		mtk_w32(eth, 0x00000300, PSE_PPE0_DROP);
++		/* PSE should not drop port8, port9 and port13 packets from WDMA Tx */
++		mtk_w32(eth, 0x00002300, PSE_DROP_CFG);
++
++		/* PSE should drop packets to port8, port9 and port13 on WDMA Rx ring full */
++		mtk_w32(eth, 0x00002300, PSE_PPE_DROP(0));
++		mtk_w32(eth, 0x00002300, PSE_PPE_DROP(1));
++		mtk_w32(eth, 0x00002300, PSE_PPE_DROP(2));
  
  		/* GDM and CDM Threshold */
 -		mtk_w32(eth, 0x00000707, MTK_CDMW0_THRES);
@@ -35,22 +48,33 @@ index cc33931..498a23b 100644
  		mtk_w32(eth, 0x00000077, MTK_CDMW1_THRES);
  
  		/* Disable GDM1 RX CRC stripping */
+@@ -4466,7 +4478,7 @@ static int mtk_hw_init(struct mtk_eth *eth, bool reset)
+ 		mtk_w32(eth, 0x00000300, PSE_DROP_CFG);
+ 
+ 		/* PSE should drop packets to port 8/9 on WDMA Rx ring full */
+-		mtk_w32(eth, 0x00000300, PSE_PPE0_DROP);
++		mtk_w32(eth, 0x00000300, PSE_PPE_DROP(0));
+ 
+ 		/* PSE Free Queue Flow Control  */
+ 		mtk_w32(eth, 0x01fa01f4, PSE_FQFC_CFG2);
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index bd4a62e..0df84bf 100644
+index 3fbff22..4798c64 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -161,6 +161,11 @@
+@@ -165,7 +165,12 @@
+ #define PSE_FQFC_CFG1		0x100
+ #define PSE_FQFC_CFG2		0x104
  #define PSE_DROP_CFG		0x108
- #define PSE_PPE0_DROP		0x110
- 
+-#define PSE_PPE0_DROP		0x110
++#define PSE_PPE_DROP(x)		(0x110 + ((x) * 0x4))
++
 +/* PSE Last FreeQ Page Request Control */
 +#define PSE_DUMY_REQ		0x10C
 +#define PSE_DUMMY_WORK_GDM(x)	BIT(16 + (x))
 +#define DUMMY_PAGE_THR		0x1
-+
+ 
  /* PSE Input Queue Reservation Register*/
  #define PSE_IQ_REV(x)		(0x140 + (((x) - 1) << 2))
- 
 -- 
 2.45.2
 
