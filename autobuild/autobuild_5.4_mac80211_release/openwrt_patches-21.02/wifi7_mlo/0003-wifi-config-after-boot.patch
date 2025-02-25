@@ -1,0 +1,21 @@
+diff --git a/package/base-files/files/etc/init.d/boot b/package/base-files/files/etc/init.d/boot
+index 749d9e97..d17754d0 100755
+--- a/package/base-files/files/etc/init.d/boot
++++ b/package/base-files/files/etc/init.d/boot
+@@ -39,6 +39,7 @@ boot() {
+ 	grep -q pstore /proc/filesystems && /bin/mount -o noatime -t pstore pstore /sys/fs/pstore
+ 	[ "$FAILSAFE" = "true" ] && touch /tmp/.failsafe
+ 
++	touch /tmp/.config_pending
+ 	/sbin/kmodloader
+ 
+ 	[ ! -f /etc/config/wireless ] && {
+@@ -47,6 +48,8 @@ boot() {
+ 	}
+ 
+ 	/bin/config_generate
++	rm -f /tmp/.config_pending
++	/sbin/wifi config
+ 	uci_apply_defaults
+ 	sync
+ 	
