@@ -3,6 +3,7 @@
 /dts-v1/;
 #include "mt7987a.dtsi"
 #include "mt7987-netsys-gmac123.dtsi"
+#include "mt7987-netsys-gmac3-an8801sb.dtsi"
 #include "mt7987-spim-nand.dtsi"
 #include <dt-bindings/input/input.h>
 
@@ -36,27 +37,6 @@
 	};
 };
 
-&gmac2 {
-	mac-type = "gdm";
-	phy-mode = "sgmii";
-	phy-handle = <&phy31>;
-};
-
-&mdio {
-	/delete-property/ reset-gpios;
-	/delete-property/ reset-delay-us;
-	/delete-node/ phy@11;
-	phy31: phy@31 {
-		compatible = "ethernet-phy-idc0ff.0421";
-		reg = <31>;
-		reset-gpios = <&pio 48 1>;
-		reset-assert-us = <10000>;
-		reset-deassert-us = <10000>;
-		phy-mode = "sgmii";
-	};
-};
-
 &wmcpu_emi{
 	reg = <0 0x50000000 0 0x00A00000>;
 };
-
