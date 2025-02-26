@@ -2238,7 +2238,7 @@ static bool set_auth_aalg(struct xfrm_algo_auth *aalg, SABuilder_Params_t *param
 	return true;
 }
 
-u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
+void *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
 {
 	struct xfrm_state *xs = xfrm_params->xs;
 	SABuilder_Params_IPsec_t ipsec_params;
@@ -2358,12 +2358,12 @@ u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode)
 		goto error_ret;
 	}
 
-	xfrm_params->p_handle = (u32 *) sa_handle.p;
+	xfrm_params->p_handle = sa_handle.p;
 
 error_ret:
 	kfree(inner);
 	kfree(outer);
-	return (u32 *) sa_host_addr.p;
+	return sa_host_addr.p;
 }
 
 int mtk_ddk_pec_init(void)

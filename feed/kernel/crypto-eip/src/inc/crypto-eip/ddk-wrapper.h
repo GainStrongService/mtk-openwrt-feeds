@@ -15,7 +15,7 @@
 
 #define REQ_PKT_NUM 10
 
-u32 *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mod);
+void *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mod);
 int mtk_crypto_ddk_alloc_buff(struct mtk_crypto_cipher_ctx *ctx, int dir, unsigned int digestsize,
 				struct mtk_crypto_engine_data *data);
 int mtk_crypto_basic_cipher(struct crypto_async_request *async,

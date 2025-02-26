@@ -49,8 +49,8 @@ struct mtk_xfrm_params {
 	struct list_head node;
 	struct cdrt_entry *cdrt;
 
-	u32 *p_tr;			/* pointer to transform record */
-	u32 *p_handle;		/* pointer to eip dma handle */
+	void *p_tr;			/* pointer to transform record */
+	void *p_handle;		/* pointer to eip dma handle */
 	u32 dir;			/* SABuilder_Direction_t */
 };
 

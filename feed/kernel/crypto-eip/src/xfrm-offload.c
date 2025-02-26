@@ -78,7 +78,9 @@ static int mtk_xfrm_offload_cdrt_setup(struct mtk_xfrm_params *xfrm_params)
 
 	cdesc->desc1.common.type = 3;
 	cdesc->desc1.token_len = 48;
+	/* All use small transform record now */
 	cdesc->desc1.p_tr[0] = __pa(xfrm_params->p_tr) | 2;
+	cdesc->desc1.p_tr[1] = __pa(xfrm_params->p_tr) >> 32 & 0xFFFFFFFF;
 
 	cdesc->desc2.hw_srv = 3;
 	cdesc->desc2.allow_pad = 1;
@@ -142,7 +144,7 @@ static void mtk_xfrm_offload_context_tear_down(struct mtk_xfrm_params *xfrm_para
 
 static int mtk_xfrm_offload_context_setup(struct mtk_xfrm_params *xfrm_params)
 {
-	u32 *tr;
+	void *tr;
 	int ret;
 
 	switch (xfrm_params->xs->outer_mode.encap) {
