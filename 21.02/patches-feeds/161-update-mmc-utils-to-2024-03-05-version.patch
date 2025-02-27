@@ -1,0 +1,703 @@
+--- a/feeds/packages/utils/mmc-utils/Makefile
++++ b/feeds/packages/utils/mmc-utils/Makefile
+@@ -8,15 +8,15 @@
+ include $(TOPDIR)/rules.mk
+ 
+ PKG_NAME:=mmc-utils
+-PKG_RELEASE:=2
++PKG_RELEASE:=1
+ 
+ PKG_SOURCE_PROTO:=git
+-PKG_SOURCE_URL:=https://git.kernel.org/pub/scm/linux/kernel/git/cjb/mmc-utils.git
+-PKG_SOURCE_DATE:=2019-10-10
+-PKG_SOURCE_VERSION:=73d6c59af8d1bcedf5de4aa1f5d5b7f765f545f5
+-PKG_MIRROR_HASH:=6ff0b32136c7bc64a099f1185a3ca063b5d644056476456a23029e9f6dfa789a
++PKG_SOURCE_URL:=https://git.kernel.org/pub/scm/utils/mmc/mmc-utils.git
++PKG_SOURCE_DATE:=2024-03-05
++PKG_SOURCE_VERSION:=e1281d4de9166b7254ba30bb58f9191fc2c9e7fb
++PKG_MIRROR_HASH:=c89fde79584af7911187b84298af5e1aa6dc38736d6dfe79f25ecd24edc92998
+ 
+-PKG_LICENSE:=GPL-2.0
++PKG_LICENSE:=GPL-2.0-only
+ PKG_LICENSE_FILES:=
+ 
+ PKG_MAINTAINER:=Michael Heimpold <mhei@heimpold.de>
+@@ -27,7 +27,7 @@ define Package/mmc-utils
+   SECTION:=utils
+   CATEGORY:=Utilities
+   TITLE:=Userspace tools for MMC/SD devices
+-  URL:=http://git.kernel.org/cgit/linux/kernel/git/cjb/mmc-utils.git
++  URL:=https://git.kernel.org/pub/scm/utils/mmc/mmc-utils.git
+ endef
+ 
+ define Package/mmc-utils/description
+@@ -40,7 +40,8 @@ endef
+ 
+ define Build/Compile
+ 	$(MAKE) -C $(PKG_BUILD_DIR) \
+-	        $(TARGET_CONFIGURE_OPTS) CFLAGS="$(TARGET_CFLAGS) -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2" \
++	        $(TARGET_CONFIGURE_OPTS) CFLAGS="$(TARGET_CFLAGS) -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 \
++	        -UVERSION -DVERSION=\\\"$(shell echo $(PKG_SOURCE_VERSION) | cut -c -6)\\\"" \
+ 	        mmc
+ endef
+ 
+--- a/feeds/packages/utils/mmc-utils/patches/0000-properly-set-fortify-source-in-makefile.patch
++++ b/feeds/packages/utils/mmc-utils/patches/0000-properly-set-fortify-source-in-makefile.patch
+@@ -1,9 +1,10 @@
+ --- a/Makefile
+ +++ b/Makefile
+-@@ -1,5 +1,5 @@
++@@ -1,6 +1,6 @@
+  CC ?= gcc
+--AM_CFLAGS = -D_FILE_OFFSET_BITS=64 -D_FORTIFY_SOURCE=2
+-+AM_CFLAGS = -D_FILE_OFFSET_BITS=64
++ GIT_VERSION := "$(shell git describe --abbrev=6 --always --tags)"
++-AM_CFLAGS = -D_FILE_OFFSET_BITS=64 -D_FORTIFY_SOURCE=2 \
+++AM_CFLAGS = -D_FILE_OFFSET_BITS=64 \
++ 	    -DVERSION=\"$(GIT_VERSION)\"
+  CFLAGS ?= -g -O2
+  objects = \
+- 	mmc.o \
+--- a/feeds/packages/utils/mmc-utils/patches/0006-Fix-parsing-of-Product-Revision-and-Serial-Number.patch
++++ /dev/null
+@@ -1,24 +0,0 @@
+-From 1307f0efca4acdff036b5b3a60847f7528cd7b6f Mon Sep 17 00:00:00 2001
+-From: Stephane Fillod <f8cfe@free.fr>
+-Date: Mon, 14 Jan 2019 17:50:50 +0100
+-Subject: [PATCH] Fix parsing of Product Revision and Serial Number
+-
+-According to MMC Standard (similar to SDCard Standard).
+-
+-Signed-off-by: Stephane Fillod <f8cfe@free.fr>
+-Acked-by: Avri Altman <avri.altman@wdc.com>
+----
+- lsmmc.c | 2 +-
+- 1 file changed, 1 insertion(+), 1 deletion(-)
+-
+---- a/lsmmc.c
+-+++ b/lsmmc.c
+-@@ -562,7 +562,7 @@ void print_mmc_cid(struct config *config
+- 	unsigned int crc;
+- 
+- 	parse_bin(cid, "8u6r2u8u48a4u4u32u4u4u7u1r",
+--		&mid, &cbx, &oid, &pnm[0], &psn, &prv_major, &prv_minor,
+-+		&mid, &cbx, &oid, &pnm[0], &prv_major, &prv_minor, &psn,
+- 		&mdt_year, &mdt_month, &crc);
+- 
+- 	pnm[6] = '\0';
+--- a/feeds/packages/utils/mmc-utils/patches/0007-Add-various-SD-eMMC-vendors-to-table.patch
++++ /dev/null
+@@ -1,92 +0,0 @@
+-From a2985ca233641f596926314762b5f1085aeaa723 Mon Sep 17 00:00:00 2001
+-From: Stephane Fillod <f8cfe@free.fr>
+-Date: Tue, 15 Jan 2019 14:56:15 +0100
+-Subject: [PATCH] Add various SD/eMMC vendors to table
+-
+-Part if this list update comes from a compilation of this web site[1].
+-
+-[1] https://www.cameramemoryspeed.com/sd-memory-card-faq/reading-sd-card-cid-serial-psn-internal-numbers/
+-
+-Signed-off-by: Stephane Fillod <f8cfe@free.fr>
+----
+- lsmmc.c | 34 ++++++++++++++++++++++++++++++++--
+- 1 file changed, 32 insertions(+), 2 deletions(-)
+-
+---- a/lsmmc.c
+-+++ b/lsmmc.c
+-@@ -112,7 +112,7 @@ struct ids_database database[] = {
+- 	{
+- 		.type = "sd",
+- 		.id = 0x1b,
+--		.manufacturer = "Transcend",
+-+		.manufacturer = "Transcend/Samsung",
+- 	},
+- 	{
+- 		.type = "sd",
+-@@ -122,7 +122,7 @@ struct ids_database database[] = {
+- 	{
+- 		.type = "sd",
+- 		.id = 0x1d,
+--		.manufacturer = "Corsair",
+-+		.manufacturer = "Corsair/AData",
+- 	},
+- 	{
+- 		.type = "sd",
+-@@ -136,6 +136,11 @@ struct ids_database database[] = {
+- 	},
+- 	{
+- 		.type = "sd",
+-+		.id = 0x27,
+-+		.manufacturer = "Delkin/Phison",
+-+	},
+-+	{
+-+		.type = "sd",
+- 		.id = 0x28,
+- 		.manufacturer = "Lexar",
+- 	},
+-@@ -146,6 +151,11 @@ struct ids_database database[] = {
+- 	},
+- 	{
+- 		.type = "sd",
+-+		.id = 0x31,
+-+		.manufacturer = "Silicon Power",
+-+	},
+-+	{
+-+		.type = "sd",
+- 		.id = 0x33,
+- 		.manufacturer = "STMicroelectronics",
+- 	},
+-@@ -161,6 +171,21 @@ struct ids_database database[] = {
+- 	},
+- 	{
+- 		.type = "sd",
+-+		.id = 0x74,
+-+		.manufacturer = "Transcend",
+-+	},
+-+	{
+-+		.type = "sd",
+-+		.id = 0x76,
+-+		.manufacturer = "Patriot",
+-+	},
+-+	{
+-+		.type = "sd",
+-+		.id = 0x82,
+-+		.manufacturer = "Gobe/Sony",
+-+	},
+-+	{
+-+		.type = "sd",
+- 		.id = 0x89,
+- 		.manufacturer = "Unknown",
+- 	},
+-@@ -224,6 +249,11 @@ struct ids_database database[] = {
+- 		.id = 0x70,
+- 		.manufacturer = "Kingston",
+- 	},
+-+	{
+-+		.type = "mmc",
+-+		.id = 0xfe,
+-+		.manufacturer = "Micron",
+-+	},
+- };
+- 
+- /* Command line parsing functions */
+--- a/feeds/packages/utils/mmc-utils/patches/0008-Various-fixes.patch
++++ /dev/null
+@@ -1,269 +0,0 @@
+-From dacd9d2950f5f6559cde1ceec3035ab77e9698ad Mon Sep 17 00:00:00 2001
+-From: Stephane Fillod <f8cfe@free.fr>
+-Date: Tue, 15 Jan 2019 15:06:03 +0100
+-Subject: [PATCH] Various fixes
+-
+-These warnings were mainly found using cppcheck.
+-
+-Signed-off-by: Stephane Fillod <f8cfe@free.fr>
+-Reviewed-by: Michael Heimpold <mhei@heimpold.de>
+----
+- lsmmc.c    | 42 +++++++++++++++++++++---------------------
+- mmc_cmds.c | 14 ++++++++++++--
+- 2 files changed, 33 insertions(+), 23 deletions(-)
+-
+---- a/lsmmc.c
+-+++ b/lsmmc.c
+-@@ -554,9 +554,9 @@ void print_sd_cid(struct config *config,
+- 		printf("\tOID: %s\n", oid);
+- 		printf("\tPNM: %s\n", pnm);
+- 		printf("\tPRV: 0x%01x%01x ", prv_major, prv_minor);
+--		printf("(%d.%d)\n", prv_major, prv_minor);
+-+		printf("(%u.%u)\n", prv_major, prv_minor);
+- 		printf("\tPSN: 0x%08x\n", psn);
+--		printf("\tMDT: 0x%02x%01x %d %s\n", mdt_year, mdt_month,
+-+		printf("\tMDT: 0x%02x%01x %u %s\n", mdt_year, mdt_month,
+- 		       2000 + mdt_year, months[mdt_month]);
+- 		printf("\tCRC: 0x%02x\n", crc);
+- 	} else {
+-@@ -566,9 +566,9 @@ void print_sd_cid(struct config *config,
+- 		else
+- 			printf("manufacturer: 'Unlisted' '%s'\n", oid);
+- 
+--		printf("product: '%s' %d.%d\n", pnm, prv_major, prv_minor);
+-+		printf("product: '%s' %u.%u\n", pnm, prv_major, prv_minor);
+- 		printf("serial: 0x%08x\n", psn);
+--		printf("manfacturing date: %d %s\n", 2000 + mdt_year,
+-+		printf("manufacturing date: %u %s\n", 2000 + mdt_year,
+- 		       months[mdt_month]);
+- 	}
+- }
+-@@ -625,9 +625,9 @@ void print_mmc_cid(struct config *config
+- 		printf("\tOID: 0x%01x\n", oid);
+- 		printf("\tPNM: %s\n", pnm);
+- 		printf("\tPRV: 0x%01x%01x ", prv_major, prv_minor);
+--		printf("(%d.%d)\n", prv_major, prv_minor);
+-+		printf("(%u.%u)\n", prv_major, prv_minor);
+- 		printf("\tPSN: 0x%08x\n", psn);
+--		printf("\tMDT: 0x%01x%01x %d %s\n", mdt_month, mdt_year,
+-+		printf("\tMDT: 0x%01x%01x %u %s\n", mdt_month, mdt_year,
+- 		       1997 + mdt_year, months[mdt_month]);
+- 		printf("\tCRC: 0x%02x\n", crc);
+- 	} else {
+-@@ -637,9 +637,9 @@ void print_mmc_cid(struct config *config
+- 		else
+- 			printf("manufacturer: 'Unlisted' '%c'\n", oid);
+- 
+--		printf("product: '%s' %d.%d\n", pnm, prv_major, prv_minor);
+-+		printf("product: '%s' %u.%u\n", pnm, prv_major, prv_minor);
+- 		printf("serial: 0x%08x\n", psn);
+--		printf("manfacturing date: %d %s\n", 1997 + mdt_year,
+-+		printf("manufacturing date: %u %s\n", 1997 + mdt_year,
+- 		       months[mdt_month]);
+- 	}
+- }
+-@@ -729,7 +729,7 @@ void print_sd_csd(struct config *config,
+- 
+- 		printf("======SD/CSD======\n");
+- 
+--		printf("\tCSD_STRUCTURE: %d\n", csd_structure);
+-+		printf("\tCSD_STRUCTURE: %u\n", csd_structure);
+- 		printf("\tTAAC: 0x%02x (", taac);
+- 
+- 		switch (taac_timevalue) {
+-@@ -816,7 +816,7 @@ void print_sd_csd(struct config *config,
+- 		if (csd_structure == 1 && taac != 0x0e)
+- 			printf("Warn: Invalid TAAC (should be 0x0e)\n");
+- 
+--		printf("\tNSAC: %d clocks\n", nsac);
+-+		printf("\tNSAC: %u clocks\n", nsac);
+- 		if (csd_structure == 1 && nsac != 0x00)
+- 			printf("Warn: Invalid NSAC (should be 0x00)\n");
+- 
+-@@ -1103,12 +1103,12 @@ void print_sd_csd(struct config *config,
+- 			if (erase_blk_en != 0x01)
+- 				printf("Warn: Invalid ERASE_BLK_EN (should be 0x01)\n");
+- 
+--			printf("\tSECTOR_SIZE: 0x%02x (Erasable sector: %d blocks)\n",
+-+			printf("\tSECTOR_SIZE: 0x%02x (Erasable sector: %u blocks)\n",
+- 			       sector_size, sector_size + 1);
+- 			if (sector_size != 0x7f)
+- 				printf("Warn: Invalid SECTOR_SIZE (should be 0x7f)\n");
+- 
+--			printf("\tWP_GRP_SIZE: 0x%02x (Write protect group: %d blocks)\n",
+-+			printf("\tWP_GRP_SIZE: 0x%02x (Write protect group: %u blocks)\n",
+- 			       wp_grp_size, wp_grp_size + 1);
+- 			if (wp_grp_size != 0x00)
+- 				printf("Warn: Invalid WP_GRP_SIZE (should be 0x00)\n");
+-@@ -1117,7 +1117,7 @@ void print_sd_csd(struct config *config,
+- 			if (wp_grp_enable != 0x00)
+- 				printf("Warn: Invalid WP_GRP_ENABLE (should be 0x00)\n");
+- 
+--			printf("\tR2W_FACTOR: 0x%01x (Write %d times read)\n",
+-+			printf("\tR2W_FACTOR: 0x%01x (Write %u times read)\n",
+- 			       r2w_factor, r2w_factor);
+- 			if (r2w_factor != 0x02)
+- 				printf("Warn: Invalid R2W_FACTOR (should be 0x02)\n");
+-@@ -1199,7 +1199,7 @@ void print_sd_csd(struct config *config,
+- 		else
+- 			printf("%.2fbyte", memory_capacity * 1.0);
+- 
+--		printf(" (%lld bytes, %lld sectors, %d bytes each)\n",
+-+		printf(" (%llu bytes, %llu sectors, %d bytes each)\n",
+- 		       memory_capacity, blocks, block_size);
+- 	} else {
+- 		unsigned long long blocks = 0;
+-@@ -1262,7 +1262,7 @@ void print_sd_csd(struct config *config,
+- 		else
+- 			printf("%.2fbyte", memory_capacity * 1.0);
+- 
+--		printf(" (%lld bytes, %lld sectors, %d bytes each)\n",
+-+		printf(" (%llu bytes, %llu sectors, %d bytes each)\n",
+- 		       memory_capacity, blocks, block_size);
+- 	}
+- }
+-@@ -1456,7 +1456,7 @@ void print_mmc_csd(struct config *config
+- 			break;
+- 		}
+- 
+--		printf("\tNSAC: %d clocks\n", nsac);
+-+		printf("\tNSAC: %u clocks\n", nsac);
+- 		printf("\tTRAN_SPEED: 0x%02x (", tran_speed);
+- 		switch (tran_speed_timevalue) {
+- 		case 0x0:
+-@@ -1764,10 +1764,10 @@ void print_mmc_csd(struct config *config
+- 
+- 		printf("\tC_SIZE_MULT: 0x%01x\n", c_size_mult);
+- 		printf("\tERASE_GRP_SIZE: 0x%02x\n", erase_grp_size);
+--		printf("\tERASE_GRP_MULT: 0x%02x (%d write blocks/erase group)\n",
+-+		printf("\tERASE_GRP_MULT: 0x%02x (%u write blocks/erase group)\n",
+- 		       erase_grp_mult, (erase_grp_size + 1) *
+- 		       (erase_grp_mult + 1));
+--		printf("\tWP_GRP_SIZE: 0x%02x (%d blocks/write protect group)\n",
+-+		printf("\tWP_GRP_SIZE: 0x%02x (%u blocks/write protect group)\n",
+- 		       wp_grp_size, wp_grp_size + 1);
+- 		printf("\tWP_GRP_ENABLE: 0x%01x\n", wp_grp_enable);
+- 
+-@@ -1784,7 +1784,7 @@ void print_mmc_csd(struct config *config
+- 			break;
+- 		}
+- 
+--		printf("\tR2W_FACTOR: 0x%01x (Write %d times read)\n",
+-+		printf("\tR2W_FACTOR: 0x%01x (Write %u times read)\n",
+- 		       r2w_factor, r2w_factor);
+- 
+- 		printf("\tWRITE_BL_LEN: 0x%01x (", write_bl_len);
+-@@ -1914,7 +1914,7 @@ void print_mmc_csd(struct config *config
+- 		else
+- 			printf("%.2fbyte", memory_capacity * 1.0);
+- 
+--		printf(" (%lld bytes, %lld sectors, %d bytes each)\n",
+-+		printf(" (%llu bytes, %llu sectors, %d bytes each)\n",
+- 		       memory_capacity, blocks, block_size);
+- 	} else {
+- 		int mult;
+-@@ -1991,7 +1991,7 @@ void print_mmc_csd(struct config *config
+- 			printf("%.2fKbyte", memory_capacity / (1024.0));
+- 		else
+- 			printf("%.2fbyte", memory_capacity * 1.0);
+--		printf(" (%lld bytes, %lld sectors, %d bytes each)\n",
+-+		printf(" (%llu bytes, %llu sectors, %d bytes each)\n",
+- 		       memory_capacity, blocks, block_size);
+- 	}
+- }
+---- a/mmc_cmds.c
+-+++ b/mmc_cmds.c
+-@@ -252,6 +252,7 @@ int do_writeprotect_boot_get(int nargs,
+- 
+- 	print_writeprotect_boot_status(ext_csd);
+- 
+-+	close(fd);
+- 	return ret;
+- }
+- 
+-@@ -290,6 +291,7 @@ int do_writeprotect_boot_set(int nargs,
+- 		exit(1);
+- 	}
+- 
+-+	close(fd);
+- 	return ret;
+- }
+- 
+-@@ -378,6 +380,7 @@ int do_writeprotect_user_get(int nargs,
+- 	if (last_wpblk != (x + y - 1))
+- 		print_wp_status(wp_sizeblks, last_wpblk, cnt - 1, last_prot);
+- 
+-+	close(fd);
+- 	return ret;
+- }
+- 
+-@@ -524,6 +527,7 @@ int do_disable_512B_emulation(int nargs,
+- 		printf("MMC does not support disabling 512B emulation mode.\n");
+- 	}
+- 
+-+	close(fd);
+- 	return ret;
+- }
+- 
+-@@ -595,6 +599,7 @@ int do_write_boot_en(int nargs, char **a
+- 			value, EXT_CSD_PART_CONFIG, device);
+- 		exit(1);
+- 	}
+-+	close(fd);
+- 	return ret;
+- }
+- 
+-@@ -716,6 +721,7 @@ int do_hwreset(int value, int nargs, cha
+- 		exit(1);
+- 	}
+- 
+-+	close(fd);
+- 	return ret;
+- }
+- 
+-@@ -766,6 +772,7 @@ int do_write_bkops_en(int nargs, char **
+- 		exit(1);
+- 	}
+- 
+-+	close(fd);
+- 	return ret;
+- }
+- 
+-@@ -796,6 +803,7 @@ int do_status_get(int nargs, char **argv
+- 
+- 	printf("SEND_STATUS response: 0x%08x\n", response);
+- 
+-+	close(fd);
+- 	return ret;
+- }
+- 
+-@@ -1615,11 +1623,11 @@ int do_read_extcsd(int nargs, char **arg
+- 		printf("Write reliability setting register"
+- 			" [WR_REL_SET]: 0x%02x\n", reg);
+- 
+--		printf(" user area: %s\n", reg & (1<<0) ? reliable : fast);
+-+		printf(" user area: %s\n", (reg & (1<<0)) ? reliable : fast);
+- 		int i;
+- 		for (i = 1; i <= 4; i++) {
+- 			printf(" partition %d: %s\n", i,
+--				reg & (1<<i) ? reliable : fast);
+-+				(reg & (1<<i)) ? reliable : fast);
+- 		}
+- 
+- 		reg = ext_csd[EXT_CSD_WR_REL_PARAM];
+-@@ -1837,6 +1845,7 @@ int do_sanitize(int nargs, char **argv)
+- 		exit(1);
+- 	}
+- 
+-+	close(fd);
+- 	return ret;
+- 
+- }
+-@@ -2422,6 +2431,7 @@ int do_cache_ctrl(int value, int nargs,
+- 		exit(1);
+- 	}
+- 
+-+	close(fd);
+- 	return ret;
+- }
+- 
+--- a/feeds/packages/utils/mmc-utils/patches/0009-mmc-utils-let-FFU-mode-use-CMD23-and-CMD25.patch
++++ /dev/null
+@@ -1,181 +1 @@
+-From f54f401085e011e6f9c7b120aa1794b19c32b493 Mon Sep 17 00:00:00 2001
+-From: "Shivamurthy Shastri (sshivamurthy)" <sshivamurthy@micron.com>
+-Date: Wed, 10 Apr 2019 13:38:08 +0000
+-Subject: [PATCH] mmc-utils: let FFU mode use CMD23 and CMD25
+ 
+-As per specification, the host can use either CMD24 or CMD25 in
+-closed-ended or open-ended way.
+-CMD25 is better option as it can flash the firmware image in one go.
+-
+-Signed-off-by: Shivamurthy Shastri <sshivamurthy@micron.com>
+-Reviewed-by: Avri Altman <avri.altman@wdc.com>
+----
+- mmc.h      |  2 ++
+- mmc_cmds.c | 70 ++++++++++++++++++++++++++++++------------------------
+- 2 files changed, 41 insertions(+), 31 deletions(-)
+-
+---- a/mmc.h
+-+++ b/mmc.h
+-@@ -25,10 +25,12 @@
+- /* From kernel linux/mmc/mmc.h */
+- #define MMC_SWITCH		6	/* ac	[31:0] See below	R1b */
+- #define MMC_SEND_EXT_CSD	8	/* adtc				R1  */
+-+#define MMC_STOP_TRANSMISSION    12   /* ac                      R1b */
+- #define MMC_SEND_STATUS		13	/* ac   [31:16] RCA        R1  */
+- #define R1_SWITCH_ERROR   (1 << 7)  /* sx, c */
+- #define MMC_SWITCH_MODE_WRITE_BYTE	0x03	/* Set target to value */
+- #define MMC_READ_MULTIPLE_BLOCK  18   /* adtc [31:0] data addr   R1  */
+-+#define MMC_SET_BLOCK_COUNT      23   /* adtc [31:0] data addr   R1  */
+- #define MMC_WRITE_BLOCK		24	/* adtc [31:0] data addr	R1  */
+- #define MMC_WRITE_MULTIPLE_BLOCK 25   /* adtc                    R1  */
+- #define MMC_SET_WRITE_PROT	28    /* ac   [31:0] data addr   R1b */
+---- a/mmc_cmds.c
+-+++ b/mmc_cmds.c
+-@@ -2456,12 +2456,13 @@ int do_ffu(int nargs, char **argv)
+- 	int sect_done = 0, retry = 3, ret = -EINVAL;
+- 	unsigned int sect_size;
+- 	__u8 ext_csd[512];
+--	__u8 *buf;
+-+	__u8 *buf = NULL;
+- 	__u32 arg;
+- 	off_t fw_size;
+- 	ssize_t chunk_size;
+- 	char *device;
+--	struct mmc_ioc_multi_cmd *multi_cmd;
+-+	struct mmc_ioc_multi_cmd *multi_cmd = NULL;
+-+	__u32 blocks = 1;
+- 
+- 	if (nargs != 3) {
+- 		fprintf(stderr, "Usage: ffu <image name> </path/to/mmcblkX> \n");
+-@@ -2481,14 +2482,6 @@ int do_ffu(int nargs, char **argv)
+- 		exit(1);
+- 	}
+- 
+--	buf = malloc(512);
+--	multi_cmd = calloc(1, sizeof(struct mmc_ioc_multi_cmd) +
+--				3 * sizeof(struct mmc_ioc_cmd));
+--	if (!buf || !multi_cmd) {
+--		perror("failed to allocate memory");
+--		goto out;
+--	}
+--
+- 	ret = read_extcsd(dev_fd, ext_csd);
+- 	if (ret) {
+- 		fprintf(stderr, "Could not read EXT_CSD from %s\n", device);
+-@@ -2513,9 +2506,17 @@ int do_ffu(int nargs, char **argv)
+- 	}
+- 
+- 	fw_size = lseek(img_fd, 0, SEEK_END);
+-+	if (fw_size > MMC_IOC_MAX_BYTES || fw_size == 0) {
+-+		fprintf(stderr, "Wrong firmware size");
+-+		goto out;
+-+	}
+- 
+--	if (fw_size == 0) {
+--		fprintf(stderr, "Firmware image is empty");
+-+	/* allocate maximum required */
+-+	buf = malloc(fw_size);
+-+	multi_cmd = calloc(1, sizeof(struct mmc_ioc_multi_cmd) +
+-+				4 * sizeof(struct mmc_ioc_cmd));
+-+	if (!buf || !multi_cmd) {
+-+		perror("failed to allocate memory");
+- 		goto out;
+- 	}
+- 
+-@@ -2525,14 +2526,19 @@ int do_ffu(int nargs, char **argv)
+- 		goto out;
+- 	}
+- 
+-+	/* calculate required fw blocks for CMD25 */
+-+	blocks = fw_size / sect_size;
+-+
+- 	/* set CMD ARG */
+- 	arg = ext_csd[EXT_CSD_FFU_ARG_0] |
+- 		ext_csd[EXT_CSD_FFU_ARG_1] << 8 |
+- 		ext_csd[EXT_CSD_FFU_ARG_2] << 16 |
+- 		ext_csd[EXT_CSD_FFU_ARG_3] << 24;
+- 
+-+	/* prepare multi_cmd for FFU based on cmd to be used */
+-+
+- 	/* prepare multi_cmd to be sent */
+--	multi_cmd->num_of_cmds = 3;
+-+	multi_cmd->num_of_cmds = 4;
+- 
+- 	/* put device into ffu mode */
+- 	multi_cmd->cmds[0].opcode = MMC_SWITCH;
+-@@ -2543,37 +2549,42 @@ int do_ffu(int nargs, char **argv)
+- 	multi_cmd->cmds[0].flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
+- 	multi_cmd->cmds[0].write_flag = 1;
+- 
+-+	/* send block count */
+-+	multi_cmd->cmds[1].opcode = MMC_SET_BLOCK_COUNT;
+-+	multi_cmd->cmds[1].arg = blocks;
+-+	multi_cmd->cmds[1].flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
+-+
+- 	/* send image chunk */
+--	multi_cmd->cmds[1].opcode = MMC_WRITE_BLOCK;
+--	multi_cmd->cmds[1].blksz = sect_size;
+--	multi_cmd->cmds[1].blocks = 1;
+--	multi_cmd->cmds[1].arg = arg;
+--	multi_cmd->cmds[1].flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
+--	multi_cmd->cmds[1].write_flag = 1;
+--	mmc_ioc_cmd_set_data(multi_cmd->cmds[1], buf);
+-+	multi_cmd->cmds[2].opcode = MMC_WRITE_MULTIPLE_BLOCK;
+-+	multi_cmd->cmds[2].blksz = sect_size;
+-+	multi_cmd->cmds[2].blocks = blocks;
+-+	multi_cmd->cmds[2].arg = arg;
+-+	multi_cmd->cmds[2].flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
+-+	multi_cmd->cmds[2].write_flag = 1;
+-+	mmc_ioc_cmd_set_data(multi_cmd->cmds[2], buf);
+- 
+- 	/* return device into normal mode */
+--	multi_cmd->cmds[2].opcode = MMC_SWITCH;
+--	multi_cmd->cmds[2].arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
+-+	multi_cmd->cmds[3].opcode = MMC_SWITCH;
+-+	multi_cmd->cmds[3].arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
+- 			(EXT_CSD_MODE_CONFIG << 16) |
+- 			(EXT_CSD_NORMAL_MODE << 8) |
+- 			EXT_CSD_CMD_SET_NORMAL;
+--	multi_cmd->cmds[2].flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
+--	multi_cmd->cmds[2].write_flag = 1;
+-+	multi_cmd->cmds[3].flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
+-+	multi_cmd->cmds[3].write_flag = 1;
+- 
+- do_retry:
+- 	/* read firmware chunk */
+- 	lseek(img_fd, 0, SEEK_SET);
+--	chunk_size = read(img_fd, buf, 512);
+-+	chunk_size = read(img_fd, buf, fw_size);
+- 
+--	while (chunk_size > 0) {
+-+	if (chunk_size > 0) {
+- 		/* send ioctl with multi-cmd */
+- 		ret = ioctl(dev_fd, MMC_IOC_MULTI_CMD, multi_cmd);
+- 
+- 		if (ret) {
+- 			perror("Multi-cmd ioctl");
+- 			/* In case multi-cmd ioctl failed before exiting from ffu mode */
+--			ioctl(dev_fd, MMC_IOC_CMD, &multi_cmd->cmds[2]);
+-+			ioctl(dev_fd, MMC_IOC_CMD, &multi_cmd->cmds[3]);
+- 			goto out;
+- 		}
+- 
+-@@ -2600,9 +2611,6 @@ do_retry:
+- 		} else {
+- 			fprintf(stderr, "Programmed %d/%jd bytes\r", sect_done * sect_size, (intmax_t)fw_size);
+- 		}
+--
+--		/* read the next firmware chunk (if any) */
+--		chunk_size = read(img_fd, buf, 512);
+- 	}
+- 
+- 	if ((sect_done * sect_size) == fw_size) {
+-@@ -2639,7 +2647,7 @@ do_retry:
+- 		if (ret) {
+- 			perror("Multi-cmd ioctl failed setting install mode");
+- 			/* In case multi-cmd ioctl failed before exiting from ffu mode */
+--			ioctl(dev_fd, MMC_IOC_CMD, &multi_cmd->cmds[2]);
+-+			ioctl(dev_fd, MMC_IOC_CMD, &multi_cmd->cmds[3]);
+- 			goto out;
+- 		}
+- 
+--- a/feeds/packages/utils/mmc-utils/patches/0010-One-further-optimization-of-trimming-routine.patch
++++ /dev/null
+@@ -1,30 +0,0 @@
+-From 3539243dcab7b84bb8a45e2c2da80e162284bffc Mon Sep 17 00:00:00 2001
+-From: Michael Heimpold <mhei@heimpold.de>
+-Date: Sat, 8 Dec 2018 10:43:01 +0100
+-Subject: [PATCH] One further optimization of trimming routine
+-
+-The last change to the trimming routine made it more efficient,
+-however, we can even get rid of the memmove() as we leave the
+-function with strdup() anyway.
+-
+-Signed-off-by: Michael Heimpold <mhei@heimpold.de>
+-Reviewed-by: Wolfram Sang <wsa+renesas@sang-engineering.com>
+----
+- lsmmc.c | 5 ++---
+- 1 file changed, 2 insertions(+), 3 deletions(-)
+-
+---- a/lsmmc.c
+-+++ b/lsmmc.c
+-@@ -393,10 +393,9 @@ char *read_file(char *name)
+- 		start++;
+- 		len--;
+- 	}
+--	memmove(line, start, len);
+--	line[len] = '\0';
+- 
+--	return strdup(line);
+-+	start[len] = '\0';
+-+	return strdup(start);
+- }
+- 
+- /* Hexadecimal string parsing functions */
+--- a/feeds/packages/utils/mmc-utils/patches/0011-mmc-utils-Fix-scaling-of-cache-size.patch
++++ /dev/null
+@@ -1,29 +0,0 @@
+-From 8121cece25da8dad1dc91393f5285195997c71b1 Mon Sep 17 00:00:00 2001
+-From: Patrick Oppenlander <patrick.oppenlander@gmail.com>
+-Date: Fri, 14 Feb 2020 09:13:32 +1100
+-Subject: [PATCH] mmc-utils: Fix scaling of cache size
+-
+-JESD84-B51 7.4.30 CACHE_SIZE [252:249] states that "the size is
+-indicated as multiple of kilobits". This is also supported by Table 39,
+-"e.MMC internal sizes and related Units / Granularities" which lists
+-"32Kb (=4KB)" as the cache size granularity for 4KiB native devices.
+-
+-Signed-off-by: Patrick Oppenlander <patrick.oppenlander@gmail.com>
+-Reviewed-by: Avri Altman <avri.altman@wdc.com>
+----
+- mmc_cmds.c | 4 ++--
+- 1 file changed, 2 insertions(+), 2 deletions(-)
+-
+---- a/mmc_cmds.c
+-+++ b/mmc_cmds.c
+-@@ -1427,8 +1427,8 @@ int do_read_extcsd(int nargs, char **arg
+- 		printf("Power off notification [POWER_OFF_LONG_TIME: 0x%02x]\n",
+- 			ext_csd[247]);
+- 		printf("Cache Size [CACHE_SIZE] is %d KiB\n",
+--			ext_csd[249] << 0 | (ext_csd[250] << 8) |
+--			(ext_csd[251] << 16) | (ext_csd[252] << 24));
+-+			(ext_csd[249] << 0 | (ext_csd[250] << 8) |
+-+			(ext_csd[251] << 16) | (ext_csd[252] << 24)) / 8);
+- 	}
+- 
+- 	/* A441: Reserved [501:247]
