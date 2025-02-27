@@ -1,6 +1,6 @@
-From a092f5678aaf17b9ffacbeb60b85d351c0e3d97d Mon Sep 17 00:00:00 2001
+From 71d8b3a3ffd13ed8f57b4bdee4624f2a53591ed4 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Thu, 6 Feb 2025 14:08:25 +0800
+Date: Thu, 27 Feb 2025 19:36:06 +0800
 Subject: [PATCH] net: ethernet: mtk_ppe: add roaming handler
 
 Without this patch, the traffic may stop over 30 seconds when the
@@ -10,13 +10,13 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   |   7 +
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |   5 +
- drivers/net/ethernet/mediatek/mtk_ppe.c       | 192 ++++++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_ppe.c       | 199 ++++++++++++++++++
  drivers/net/ethernet/mediatek/mtk_ppe.h       |   2 +
  .../net/ethernet/mediatek/mtk_ppe_debugfs.c   |  56 +++++
- 5 files changed, 262 insertions(+)
+ 5 files changed, 269 insertions(+)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 19b651f..4eb455a 100644
+index 98b3625..5881ec2 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -3742,6 +3742,11 @@ static int mtk_open(struct net_device *dev)
@@ -41,7 +41,7 @@ index 19b651f..4eb455a 100644
  		mtk_ppe_stop(eth->ppe[i]);
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index df422f7..1e31ba8 100644
+index 811ed29..a6c887e 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -1495,10 +1495,15 @@ struct mtk_eth {
@@ -61,7 +61,7 @@ index df422f7..1e31ba8 100644
  
  	struct {
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index b000743..b9abc8a 100644
+index b000743..3482147 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -10,6 +10,7 @@
@@ -101,7 +101,7 @@ index b000743..b9abc8a 100644
  static void
  __mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry,
  		      bool set_state)
-@@ -1133,3 +1156,172 @@ int mtk_ppe_stop(struct mtk_ppe *ppe)
+@@ -1133,3 +1156,179 @@ int mtk_ppe_stop(struct mtk_ppe *ppe)
  
  	return 0;
  }
@@ -224,7 +224,8 @@ index b000743..b9abc8a 100644
 +	}
 +
 +out:
-+	schedule_work(&eth->ppe_roam_work);
++	if (!work_pending(&eth->ppe_roam_work))
++		schedule_work(&eth->ppe_roam_work);
 +}
 +
 +int mtk_ppe_roaming_start(struct mtk_eth *eth)
@@ -236,18 +237,23 @@ index b000743..b9abc8a 100644
 +	INIT_WORK(&eth->ppe_roam_work, mtk_ppe_roam_handler);
 +
 +	ret = sock_create_kern(&init_net, AF_NETLINK, SOCK_RAW, NETLINK_ROUTE, &sock);
-+	if (ret < 0)
++	if (ret < 0) {
++		pr_warn("mtk_ppe: roaming work is unable to create socket\n");
 +		goto out;
-+
-+	eth->ppe_roam_sock = sock;
++	}
 +
 +	addr.nl_family = AF_NETLINK;
 +	addr.nl_pad = 0;
 +	addr.nl_pid = 65534;
 +	addr.nl_groups = 1 << (RTNLGRP_NEIGH - 1);
 +	ret = kernel_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
-+	if (ret < 0)
++	if (ret < 0) {
++		pr_warn("mtk_ppe: roaming work is unable to bind socket\n");
 +		goto out;
++	}
++
++	eth->ppe_roam_sock = sock;
++	eth->ppe_roam_sock->sk->sk_rcvtimeo = msecs_to_jiffies(100);
 +
 +	schedule_work(&eth->ppe_roam_work);
 +
@@ -267,6 +273,7 @@ index b000743..b9abc8a 100644
 +	if (!eth->ppe_roam_sock)
 +		return -ENOENT;
 +
++	cancel_work_sync(&eth->ppe_roam_work);
 +	sock_release(eth->ppe_roam_sock);
 +	eth->ppe_roam_sock = NULL;
 +
