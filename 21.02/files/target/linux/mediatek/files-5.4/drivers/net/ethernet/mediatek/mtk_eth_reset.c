@@ -1274,6 +1274,11 @@ int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void 
 			eth->reset.event = MTK_FE_START_RESET;
 			schedule_work(&eth->pending_work);
 		}
+		break;
+	case MTK_WIFI_L1SER_DONE:
+		pr_info("%s rcv wifi done ack :%lx\n", __func__, event);
+		complete(&wait_ack_done);
+		break;
 	default:
 		break;
 	}

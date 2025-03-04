@@ -21,6 +21,7 @@
 #define MTK_FE_START_TRAFFIC	(0x2007)
 #define MTK_FE_STOP_TRAFFIC_DONE_FAIL	(0x2008)
 #define MTK_FE_START_RESET_INIT	(0x2009)
+#define MTK_WIFI_L1SER_DONE	(0x200a)
 
 /*FE GDM Counter */
 #define MTK_GDM_RX_FC	(0x24)
@@ -73,6 +74,7 @@ enum mtk_reset_event_id {
 
 int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void *ptr);
 extern struct completion wait_ser_done;
+extern struct completion wait_ack_done;
 extern struct completion wait_tops_done;
 extern char* mtk_reset_event_name[32];
 extern atomic_t reset_lock;

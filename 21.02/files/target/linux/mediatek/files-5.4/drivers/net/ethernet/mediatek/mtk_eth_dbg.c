@@ -867,7 +867,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 			atomic_set(&force, 0);
 			break;
 		case 1:
-			if (atomic_read(&force) == 1) {
+			if ((atomic_read(&force) == 1) && (atomic_read(&reset_lock) == 0)) {
 				eth->reset.event = MTK_FE_START_RESET;
 				eth->reset.rstctrl_eth = false;
 				schedule_work(&eth->pending_work);
@@ -878,7 +878,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 			atomic_set(&force, 1);
 			break;
 		case 3:
-			if (atomic_read(&force) == 1) {
+			if ((atomic_read(&force) == 1) && (atomic_read(&reset_lock) == 0)) {
 				eth->reset.event = MTK_FE_STOP_TRAFFIC;
 				eth->reset.rstctrl_eth = false;
 				schedule_work(&eth->pending_work);
@@ -892,7 +892,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 			dbg_show_level = 0;
 			break;
 		case 6:
-			if (atomic_read(&force) == 1) {
+			if ((atomic_read(&force) == 1) && (atomic_read(&reset_lock) == 0)) {
 				eth->reset.event = MTK_FE_START_RESET;
 				eth->reset.rstctrl_eth = true;
 				schedule_work(&eth->pending_work);
@@ -900,7 +900,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 				pr_info(" stat:disable\n");
 			break;
 		case 7:
-			if (atomic_read(&force) == 1) {
+			if ((atomic_read(&force) == 1) && (atomic_read(&reset_lock) == 0)) {
 				eth->reset.event = MTK_FE_STOP_TRAFFIC;
 				eth->reset.rstctrl_eth = true;
 				schedule_work(&eth->pending_work);
