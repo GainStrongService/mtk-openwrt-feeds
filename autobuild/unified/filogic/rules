@@ -1,8 +1,14 @@
+list_add_after $(hooks autobuild_prepare) platform_change_kernel_config filogic_change_kernel_config
+
 if test x"${hqa_set}" == x"yes"; then
 	list_add_after $(hooks autobuild_prepare) apply_global_patches apply_hqa_patches
 fi
 
 help_add_line "  hqa - Enable HQA test support."
+
+filogic_change_kernel_config() {
+	kernel_config_enable CONFIG_MT753X_GSW
+}
 
 apply_hqa_patches() {
 	apply_patches "${ab_global}/${openwrt_branch}/extra-data/hqa_patches" || return 1

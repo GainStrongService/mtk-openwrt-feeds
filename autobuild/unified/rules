@@ -24,8 +24,8 @@ hooks_autobuild_prepare="apply_global_patches remove_files_by_global_list copy_g
 			 prepare_wifi_driver prepare_openwrt_config platform_change_openwrt_config \
 			 wifi_change_openwrt_config sku_change_openwrt_config variant_change_openwrt_config \
 			 enable_openwrt_collect_debug_symbols make_defconfig update_target_info \
-			 platform_change_kernel_config wifi_change_kernel_config sku_change_kernel_config \
-			 variant_change_kernel_config enable_kernel_proc_config_gz"
+			 global_default_kernel_config platform_change_kernel_config wifi_change_kernel_config \
+			 sku_change_kernel_config variant_change_kernel_config enable_kernel_proc_config_gz"
 hooks_post_prepare="prepare_stamp ftsnap_restore"
 
 hooks_pre_build=
@@ -396,6 +396,12 @@ update_target_info() {
 	log_dbg "Target kernel config file: ${kernel_config_file}"
 
 	__target_info_updated=1
+}
+
+# for new kernel driver, please add default config for all targets to prevent autobuild pause
+global_default_kernel_config() {
+	kernel_config_disable CONFIG_RTL8261N_PHY
+	kernel_config_disable CONFIG_MT753X_GSW
 }
 
 # {platform,wifi,sku,variant}_change_kernel_config() { } Implemented by platform sub levels
