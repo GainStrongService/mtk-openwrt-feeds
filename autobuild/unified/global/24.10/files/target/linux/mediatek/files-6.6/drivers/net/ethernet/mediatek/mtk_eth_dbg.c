@@ -30,6 +30,13 @@
 #include "mtk_eth_dbg.h"
 #include "mtk_wed_regs.h"
 
+enum mt753x_presence {
+	MT753X_ABSENT = 0,
+	MT753X_PRESENT = 1,
+	MT753X_UNKNOWN = 0xffff,
+};
+
+enum mt753x_presence mt753x_presence = MT753X_UNKNOWN;
 u32 hw_lro_agg_num_cnt[MTK_MAX_RX_RING_NUM][MTK_HW_LRO_MAX_AGG_CNT + 1];
 u32 hw_lro_agg_size_cnt[MTK_MAX_RX_RING_NUM][16];
 u32 hw_lro_tot_agg_cnt[MTK_MAX_RX_RING_NUM];
@@ -415,6 +422,35 @@ u32 mt7530_mdio_r32(struct mtk_eth *eth, u32 reg)
 	mutex_unlock(&eth->mii_bus->mdio_lock);
 
 	return (high << 16) | (low & 0xffff);
+}
+
+static enum mt753x_presence mt753x_sw_detect(struct mtk_eth *eth)
+{
+	struct device_node *np;
+	u32 sw_id;
+	u32 rev;
+
+	/* mt7988 with built-in 7531 */
+	np = of_find_compatible_node(NULL, NULL, "mediatek,mt7988-switch");
+	if (np) {
+		of_node_put(np);
+		return MT753X_PRESENT;
+	}
+	/* external 753x */
+	rev = mt7530_mdio_r32(eth, 0x781c);
+	sw_id = (rev & 0xffff0000) >> 16;
+	if (sw_id == 0x7530 || sw_id == 0x7531)
+		return MT753X_PRESENT;
+
+	return MT753X_ABSENT;
+}
+
+static enum mt753x_presence mt7530_exist(struct mtk_eth *eth)
+{
+	if (mt753x_presence == MT753X_UNKNOWN)
+		mt753x_presence = mt753x_sw_detect(eth);
+
+	return mt753x_presence;
 }
 
 void mtk_switch_w32(struct mtk_eth *eth, u32 val, unsigned int reg)
