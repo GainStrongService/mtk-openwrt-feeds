@@ -356,7 +356,7 @@ int mt798x_iomap(void)
 {
 	struct device_node *np = NULL;
 
-	np = of_find_node_by_name(NULL, "switch0");
+	np = of_find_compatible_node(NULL, NULL, "mediatek,mt7988-switch");
 	if (np) {
 		eth_debug.base = of_iomap(np, 0);
 		if (!eth_debug.base) {
@@ -534,6 +534,7 @@ static int mtketh_mt7530sw_debug_show(struct seq_file *m, void *private)
 		return 0;
 	}
 
+	mt798x_iomap();
 	for (i = 0 ; i < ARRAY_SIZE(ranges) ; i++) {
 		for (offset = ranges[i].start;
 		     offset <= ranges[i].end; offset += 4) {
@@ -542,6 +543,7 @@ static int mtketh_mt7530sw_debug_show(struct seq_file *m, void *private)
 				   offset, data);
 		}
 	}
+	mt798x_iounmap();
 
 	return 0;
 }
@@ -600,11 +602,13 @@ static ssize_t mtketh_mt7530sw_debugfs_write(struct file *file,
 	if (kstrtoul(token, 16, (unsigned long *)&value))
 		return -EINVAL;
 
+	mt798x_iomap();
 	pr_info("%s:phy=%d, reg=0x%lx, val=0x%lx\n", __func__,
 		0x1f, reg, value);
 	mt7530_mdio_w32(eth, reg, value);
 	pr_info("%s:phy=%d, reg=0x%lx, val=0x%x confirm..\n", __func__,
 		0x1f, reg, mt7530_mdio_r32(eth, reg));
+	mt798x_iounmap();
 
 	return len;
 }
