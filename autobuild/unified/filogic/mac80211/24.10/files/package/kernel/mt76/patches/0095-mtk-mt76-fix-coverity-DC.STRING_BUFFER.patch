@@ -1,0 +1,39 @@
+From 5e1b0544329dda585ae7a224f994a0de359f9329 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 7 Feb 2025 15:17:22 +0800
+Subject: [PATCH 095/104] mtk: mt76: fix coverity DC.STRING_BUFFER
+
+Because "sprintf" assumes an arbitrarily long string, callers must be careful not to overflow the actual space of the destination.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ tools/eeprom.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/tools/eeprom.c b/tools/eeprom.c
+index d8fceaa5..cbb44d82 100644
+--- a/tools/eeprom.c
++++ b/tools/eeprom.c
+@@ -132,6 +132,7 @@ mt76_eeprom_init_file(void)
+ int mt76_eeprom_init(int phy)
+ {
+ 	struct nl_msg *msg;
++	int len;
+ 
+ 	msg = unl_genl_msg(&unl, NL80211_CMD_TESTMODE, true);
+ 	nla_put_u32(msg, NL80211_ATTR_WIPHY, phy);
+@@ -142,8 +143,9 @@ int mt76_eeprom_init(int phy)
+ 		return -1;
+ 	}
+ 
+-	eeprom_file = malloc(sizeof(EEPROM_FILE_PATH_FMT) + strlen(mtd_part));
+-	sprintf(eeprom_file, EEPROM_FILE_PATH_FMT, mtd_part);
++	len = sizeof(EEPROM_FILE_PATH_FMT) + strlen(mtd_part);
++	eeprom_file = malloc(len);
++	snprintf(eeprom_file, len, EEPROM_FILE_PATH_FMT, mtd_part);
+ 
+ 	eeprom_fd = mt76_eeprom_init_file();
+ 	if (eeprom_fd < 0)
+-- 
+2.45.2
+

@@ -1,0 +1,45 @@
+From d9be93459c48f31457c042eadc6b2fe6feb6fe57 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 21 Feb 2025 11:47:15 +0800
+Subject: [PATCH 176/185] fix nl80211_copy.h
+
+---
+ src/drivers/nl80211_copy.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/drivers/nl80211_copy.h b/src/drivers/nl80211_copy.h
+index 908cb8e69..2c6a43ebc 100644
+--- a/src/drivers/nl80211_copy.h
++++ b/src/drivers/nl80211_copy.h
+@@ -2890,6 +2890,9 @@ enum nl80211_commands {
+  *
+  * @NL80211_ATTR_VIF_RADIO_MASK: Bitmask of allowed radios (u32).
+  *	A value of 0 means all radios.
++ * @NL80211_ATTR_CNTDWN_OFFS_STA_PROF: An array of offsets (u16) to the channel
++ *	switch or color change counters in the per-STA profile corresponding to
++ *	the affected AP.
+  *
+  * @NL80211_ATTR_SUPPORTED_SELECTORS: supported selectors, array of
+  *	supported selectors as defined by IEEE 802.11 7.3.2.2 but without the
+@@ -2903,10 +2906,6 @@ enum nl80211_commands {
+  * @NL80211_ATTR_EPCS: Flag attribute indicating that EPCS is enabled for a
+  *	station interface.
+  *
+- * @NL80211_ATTR_CNTDWN_OFFS_STA_PROF: An array of offsets (u16) to the channel
+- *	switch or color change counters in the per-STA profile corresponding to
+- *	the affected AP.
+- *
+  * @NL80211_ATTR_MLO_LINK_DISABLED_BMP: u16 bitmap of A-TTLM disabled links for
+  * 	the %NL80211_CMD_SET_ATTLM.
+  *
+@@ -6723,6 +6722,7 @@ enum nl80211_ext_feature_index {
+ 	NL80211_EXT_FEATURE_OWE_OFFLOAD_AP,
+ 	NL80211_EXT_FEATURE_DFS_CONCURRENT,
+ 	NL80211_EXT_FEATURE_SPP_AMSDU_SUPPORT,
++	NL80211_EXT_FEATURE_STAS_COUNT,
+ 
+ 	/* add new features before the definition below */
+ 	NUM_NL80211_EXT_FEATURES,
+-- 
+2.45.2
+

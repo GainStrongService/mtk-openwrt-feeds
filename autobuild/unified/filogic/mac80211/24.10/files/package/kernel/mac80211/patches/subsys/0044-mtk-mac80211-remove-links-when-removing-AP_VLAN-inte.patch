@@ -1,7 +1,7 @@
-From 8f4561bf0123343ae02824ce43a1c6828c72d9aa Mon Sep 17 00:00:00 2001
+From 7742e585f74c633af6e57dd0d13453501b38c98b Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 6 Feb 2024 15:03:49 +0800
-Subject: [PATCH 44/87] mtk: mac80211: remove links when removing AP_VLAN
+Subject: [PATCH 044/101] mtk: mac80211: remove links when removing AP_VLAN
  interface
 
 Remove links information when removing AP_VLAN interface.
@@ -16,12 +16,12 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  3 files changed, 22 insertions(+), 1 deletion(-)
 
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index b1f4fc74..6aa2c31d 100644
+index b3b0ae5..2429884 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -5037,6 +5037,20 @@ static void ieee80211_del_intf_link(struct wiphy *wiphy,
- {
+@@ -5057,6 +5057,20 @@ static void ieee80211_del_intf_link(struct wiphy *wiphy,
  	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+ 	u16 new_links = wdev->valid_links & ~BIT(link_id);
  
 +	if (wdev->iftype == NL80211_IFTYPE_AP_VLAN) {
 +		int i;
@@ -39,12 +39,12 @@ index b1f4fc74..6aa2c31d 100644
 +
  	lockdep_assert_wiphy(sdata->local->hw.wiphy);
  
- 	ieee80211_vif_set_links(sdata, wdev->valid_links, 0);
+ 	/* During the link teardown process, certain functions require the
 diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
-index d044a6fa..8bcfe7b3 100644
+index 304109d..7d0469a 100644
 --- a/net/mac80211/mlme.c
 +++ b/net/mac80211/mlme.c
-@@ -2049,7 +2049,6 @@ void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
+@@ -2173,7 +2173,6 @@ void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
  {
  	struct sk_buff *skb;
  	struct ieee80211_hdr *nullfunc;
@@ -53,10 +53,10 @@ index d044a6fa..8bcfe7b3 100644
  
  	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
 diff --git a/net/wireless/util.c b/net/wireless/util.c
-index 040d6205..c03b185d 100644
+index 6015794..033335c 100644
 --- a/net/wireless/util.c
 +++ b/net/wireless/util.c
-@@ -2854,6 +2854,14 @@ void cfg80211_remove_links(struct wireless_dev *wdev)
+@@ -2850,6 +2850,14 @@ void cfg80211_remove_links(struct wireless_dev *wdev)
  {
  	unsigned int link_id;
  

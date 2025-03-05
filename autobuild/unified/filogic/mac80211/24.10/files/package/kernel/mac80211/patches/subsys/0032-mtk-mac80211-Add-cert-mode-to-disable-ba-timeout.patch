@@ -1,7 +1,7 @@
-From 9cc3b09943ebc5b3c5a1c5256d4fd84cf9388519 Mon Sep 17 00:00:00 2001
+From 0cdca7fb8a9418b9402d608669dc19764c587b92 Mon Sep 17 00:00:00 2001
 From: "Allen.Ye" <allen.ye@mediatek.com>
 Date: Thu, 9 Nov 2023 11:37:37 +0800
-Subject: [PATCH 32/87] mtk: mac80211: Add cert mode to disable ba timeout
+Subject: [PATCH 032/101] mtk: mac80211: Add cert mode to disable ba timeout
 
 Add a switch of certification mode in debugfs as cert_mode. In the case
 we use it to disable BA timeout from STA to prevent crashing STA.
@@ -18,10 +18,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  3 files changed, 59 insertions(+), 1 deletion(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 5805d5e7..1ce6425f 100644
+index 4797960..25e8e60 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -3075,8 +3075,14 @@ struct ieee80211_hw {
+@@ -3084,8 +3084,14 @@ struct ieee80211_hw {
  	u32 max_mtu;
  	const s8 *tx_power_levels;
  	u8 max_txpwr_levels_idx;
@@ -37,7 +37,7 @@ index 5805d5e7..1ce6425f 100644
  				       enum ieee80211_hw_flags flg)
  {
 diff --git a/net/mac80211/agg-tx.c b/net/mac80211/agg-tx.c
-index a738e9ad..6c465798 100644
+index a738e9a..6c46579 100644
 --- a/net/mac80211/agg-tx.c
 +++ b/net/mac80211/agg-tx.c
 @@ -1051,7 +1051,10 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
@@ -53,7 +53,7 @@ index a738e9ad..6c465798 100644
  				  TU_TO_EXP_TIME(tid_tx->timeout));
  			tid_tx->last_tx = jiffies;
 diff --git a/net/mac80211/debugfs.c b/net/mac80211/debugfs.c
-index 6d1eb75d..33596335 100644
+index 9aebc4d..e690680 100644
 --- a/net/mac80211/debugfs.c
 +++ b/net/mac80211/debugfs.c
 @@ -471,6 +471,54 @@ static const struct debugfs_short_fops reset_ops = {

@@ -1,19 +1,19 @@
-From 5b8dd0d4498e6e2c4b9e30c6549f3c6a247a6f0b Mon Sep 17 00:00:00 2001
+From 59d31e390e4d3859b8084e3643248a420c9ad4b1 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 29 Mar 2022 16:06:30 +0800
-Subject: [PATCH 10/87] mtk: cfg80211: extend CAC time for weather radar
+Subject: [PATCH 010/101] mtk: cfg80211: extend CAC time for weather radar
  channels
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
  include/net/cfg80211.h | 1 +
- net/wireless/chan.c    | 7 +++++++
+ net/wireless/chan.c    | 6 ++++++
  net/wireless/nl80211.c | 3 +++
- 3 files changed, 11 insertions(+)
+ 3 files changed, 10 insertions(+)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 536e6b32..6ace44b5 100644
+index a17a786..21fe314 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
 @@ -166,6 +166,7 @@ enum ieee80211_channel_flags {
@@ -25,28 +25,27 @@ index 536e6b32..6ace44b5 100644
  
  /**
 diff --git a/net/wireless/chan.c b/net/wireless/chan.c
-index cd4b5af2..fca582a0 100644
+index 174a741..d1a9e9d 100644
 --- a/net/wireless/chan.c
 +++ b/net/wireless/chan.c
-@@ -1190,6 +1190,13 @@ static unsigned int cfg80211_get_chans_dfs_cac_time(struct wiphy *wiphy,
- 		if (!(c->flags & IEEE80211_CHAN_RADAR))
- 			continue;
+@@ -1088,6 +1088,12 @@ cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
  
+ 		if (cf == 2 && c->dfs_cac_ms > t2)
+ 			t2 = c->dfs_cac_ms;
++
 +		/* weather radar in ETSI */
 +		if (reg_get_dfs_region(wiphy) == NL80211_DFS_ETSI &&
 +		    freq >= MHZ_TO_KHZ(5600) && freq <= MHZ_TO_KHZ(5640) &&
-+		    dfs_cac_ms < IEEE80211_DFS_WEATHER_MIN_CAC_TIME_MS &&
 +		    c->dfs_state == NL80211_DFS_USABLE)
-+			dfs_cac_ms = IEEE80211_DFS_WEATHER_MIN_CAC_TIME_MS;
-+
- 		if (c->dfs_cac_ms > dfs_cac_ms)
- 			dfs_cac_ms = c->dfs_cac_ms;
++			return IEEE80211_DFS_WEATHER_MIN_CAC_TIME_MS;
  	}
+ 
+ 	if (t1 == INT_MAX && t2 == INT_MAX)
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 83f20c85..0135bf99 100644
+index 0ef1e6e..fa51609 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -10207,6 +10207,9 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
+@@ -10184,6 +10184,9 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
  	if (WARN_ON(!cac_time_ms))
  		cac_time_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
  
@@ -55,7 +54,7 @@ index 83f20c85..0135bf99 100644
 +
  	err = rdev_start_radar_detection(rdev, dev, &chandef, cac_time_ms,
  					 link_id);
- 	if (!err) {
+ 	if (err)
 -- 
 2.45.2
 

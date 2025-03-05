@@ -1,7 +1,7 @@
-From b77a5499fe477b7c9b1b092073808679f6550806 Mon Sep 17 00:00:00 2001
+From 669e3eb6dde504b06e8542e003ba3a8ac78bc329 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 22 Sep 2022 14:27:41 +0800
-Subject: [PATCH 12/87] mtk: cfg80211: implement DFS status show, cac and nop
+Subject: [PATCH 012/101] mtk: cfg80211: implement DFS status show, cac and nop
  skip command via debugfs
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
@@ -15,28 +15,28 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  net/wireless/core.h     |   3 +
  net/wireless/debugfs.c  | 326 +++++++++++++++++++++++++++++++++++++++-
  net/wireless/mlme.c     |   5 +
- net/wireless/rdev-ops.h |  14 ++
+ net/wireless/rdev-ops.h |  13 ++
  net/wireless/trace.h    |  13 ++
- 7 files changed, 380 insertions(+), 7 deletions(-)
+ 7 files changed, 379 insertions(+), 7 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 6ace44b5..5963ad82 100644
+index 21fe314..03e9c9e 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -4957,6 +4957,7 @@ struct cfg80211_ops {
- 	int	(*set_ttlm)(struct wiphy *wiphy, struct net_device *dev,
- 			    struct cfg80211_ttlm_params *params);
- 	u32	(*get_radio_mask)(struct wiphy *wiphy, struct net_device *dev);
+@@ -4984,6 +4984,7 @@ struct cfg80211_ops {
+ 				   u16 rem_links);
+ 	int	(*set_epcs)(struct wiphy *wiphy, struct net_device *dev,
+ 			    bool val);
 +	void	(*skip_cac)(struct wireless_dev *wdev, unsigned int link_id);
  };
  
  /*
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 6146efad..c096227d 100644
+index 005e78b..3ff3267 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -5156,6 +5156,30 @@ ieee80211_set_ttlm(struct wiphy *wiphy, struct net_device *dev,
- 	return ieee80211_req_neg_ttlm(sdata, params);
+@@ -5193,6 +5193,30 @@ ieee80211_assoc_ml_reconf(struct wiphy *wiphy, struct net_device *dev,
+ 	return ieee80211_mgd_assoc_ml_reconf(sdata, add_links, rem_links);
  }
  
 +static void
@@ -66,14 +66,14 @@ index 6146efad..c096227d 100644
  const struct cfg80211_ops mac80211_config_ops = {
  	.add_virtual_intf = ieee80211_add_iface,
  	.del_virtual_intf = ieee80211_del_iface,
-@@ -5270,4 +5294,5 @@ const struct cfg80211_ops mac80211_config_ops = {
- 	.set_hw_timestamp = ieee80211_set_hw_timestamp,
+@@ -5308,4 +5332,5 @@ const struct cfg80211_ops mac80211_config_ops = {
  	.set_ttlm = ieee80211_set_ttlm,
  	.get_radio_mask = ieee80211_get_radio_mask,
+ 	.assoc_ml_reconf = ieee80211_assoc_ml_reconf,
 +	.skip_cac = ieee80211_skip_cac,
  };
 diff --git a/net/wireless/core.h b/net/wireless/core.h
-index d07cc228..dd3f1745 100644
+index 893d34d..573397d 100644
 --- a/net/wireless/core.h
 +++ b/net/wireless/core.h
 @@ -86,6 +86,9 @@ struct cfg80211_registered_device {
@@ -87,7 +87,7 @@ index d07cc228..dd3f1745 100644
  	struct work_struct background_cac_abort_wk;
  
 diff --git a/net/wireless/debugfs.c b/net/wireless/debugfs.c
-index 40e49074..27b46080 100644
+index 40e4907..b1ad7fe 100644
 --- a/net/wireless/debugfs.c
 +++ b/net/wireless/debugfs.c
 @@ -10,6 +10,7 @@
@@ -154,7 +154,7 @@ index 40e49074..27b46080 100644
 +	struct cfg80211_chan_def *chandef;
 +	struct cfg80211_chan_def *background_chandef = &rdev->background_radar_chandef;
 +	enum nl80211_band band;
-+	struct ieee80211_supported_band *sband;
++	struct ieee80211_supported_band *sband = NULL;
 +	struct ieee80211_channel *chan;
 +	unsigned long jiffies_passed;
 +	unsigned int link_id;
@@ -436,10 +436,10 @@ index 40e49074..27b46080 100644
  
  struct debugfs_read_work {
 diff --git a/net/wireless/mlme.c b/net/wireless/mlme.c
-index 5c962738..0d32ae26 100644
+index 1ab38d8..fe5f0a9 100644
 --- a/net/wireless/mlme.c
 +++ b/net/wireless/mlme.c
-@@ -1179,13 +1179,16 @@ __cfg80211_background_cac_event(struct cfg80211_registered_device *rdev,
+@@ -1180,13 +1180,16 @@ __cfg80211_background_cac_event(struct cfg80211_registered_device *rdev,
  		queue_work(cfg80211_wq, &rdev->propagate_cac_done_wk);
  		cfg80211_sched_dfs_chan_update(rdev);
  		wdev = rdev->background_radar_wdev;
@@ -456,7 +456,7 @@ index 5c962738..0d32ae26 100644
  		break;
  	default:
  		return;
-@@ -1266,8 +1269,10 @@ cfg80211_start_background_radar_detection(struct cfg80211_registered_device *rde
+@@ -1267,8 +1270,10 @@ cfg80211_start_background_radar_detection(struct cfg80211_registered_device *rde
  	if (!cac_time_ms)
  		cac_time_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
  
@@ -468,14 +468,13 @@ index 5c962738..0d32ae26 100644
  	__cfg80211_background_cac_event(rdev, wdev, chandef,
  					NL80211_RADAR_CAC_STARTED);
 diff --git a/net/wireless/rdev-ops.h b/net/wireless/rdev-ops.h
-index 12eefbde..80675b96 100644
+index 8d6b461..74d6d04 100644
 --- a/net/wireless/rdev-ops.h
 +++ b/net/wireless/rdev-ops.h
-@@ -1546,4 +1546,18 @@ rdev_get_radio_mask(struct cfg80211_registered_device *rdev,
- 
- 	return rdev->ops->get_radio_mask(wiphy, dev);
+@@ -1581,4 +1581,17 @@ rdev_set_epcs(struct cfg80211_registered_device *rdev,
+ 	return ret;
  }
-+
+ 
 +static inline int
 +rdev_skip_cac(struct cfg80211_registered_device *rdev,
 +	      struct wireless_dev *wdev, unsigned int link_id)
@@ -491,11 +490,11 @@ index 12eefbde..80675b96 100644
 +}
  #endif /* __CFG80211_RDEV_OPS */
 diff --git a/net/wireless/trace.h b/net/wireless/trace.h
-index 3119412c..c13c6120 100644
+index f686955..b1ab942 100644
 --- a/net/wireless/trace.h
 +++ b/net/wireless/trace.h
-@@ -4104,6 +4104,19 @@ TRACE_EVENT(cfg80211_links_removed,
- 		  __entry->link_mask)
+@@ -4182,6 +4182,19 @@ TRACE_EVENT(cfg80211_epcs_changed,
+ 		  WDEV_PR_ARG, __entry->enabled)
  );
  
 +TRACE_EVENT(rdev_skip_cac,

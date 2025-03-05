@@ -1,7 +1,7 @@
-From 12ca1c9bfca9e185dcb515712cc41b61c0e6f2ee Mon Sep 17 00:00:00 2001
+From 6ec840a1fc1c1310a316bb883b856f9421ed8dbd Mon Sep 17 00:00:00 2001
 From: "howard.hsu" <howard-yh.hsu@mediatek.com>
 Date: Wed, 19 Jan 2022 19:18:07 +0800
-Subject: [PATCH 009/149] mtk: hostapd: Add neighbor report and BSS Termination
+Subject: [PATCH 009/185] mtk: hostapd: Add neighbor report and BSS Termination
  for MBO certification
 
 1. Add hostapd_neighbor_count() and hostapd_neighbor_insert_buffer ()
@@ -32,7 +32,7 @@ Revert set_send_disassoc_frame_timer
  9 files changed, 223 insertions(+), 6 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 8119a0ec5..985a43950 100644
+index 11b4c979b..3c2d41b0f 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -1300,6 +1300,11 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
@@ -48,7 +48,7 @@ index 8119a0ec5..985a43950 100644
  		ret = hostapd_set_iface(hapd->iconf, hapd->conf, cmd, value);
  		if (ret)
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 66518998a..b6ca07f5b 100644
+index b56177647..818883601 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -177,6 +177,7 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
@@ -60,10 +60,10 @@ index 66518998a..b6ca07f5b 100644
  
  
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 29a9ae7db..25ac22e31 100644
+index b729e0240..28a8aa8b3 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -572,6 +572,7 @@ struct hostapd_bss_config {
+@@ -571,6 +571,7 @@ struct hostapd_bss_config {
  	int wnm_sleep_mode;
  	int wnm_sleep_mode_no_keys;
  	int bss_transition;
@@ -72,7 +72,7 @@ index 29a9ae7db..25ac22e31 100644
  	/* IEEE 802.11u - Interworking */
  	int interworking;
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
-index 5f7d5fc01..a49985792 100644
+index 207f5a336..0ef6dd337 100644
 --- a/src/ap/ctrl_iface_ap.c
 +++ b/src/ap/ctrl_iface_ap.c
 @@ -25,6 +25,7 @@
@@ -83,7 +83,7 @@ index 5f7d5fc01..a49985792 100644
  
  static const char * hw_mode_str(enum hostapd_hw_mode mode)
  {
-@@ -1407,6 +1408,10 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+@@ -1424,6 +1425,10 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
  			wpa_printf(MSG_DEBUG, "Invalid bss_term data");
  			return -1;
  		}
@@ -94,7 +94,7 @@ index 5f7d5fc01..a49985792 100644
  		end++;
  		WPA_PUT_LE16(&bss_term_dur[10], atoi(end));
  	}
-@@ -1433,16 +1438,26 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
+@@ -1450,16 +1455,26 @@ int hostapd_ctrl_iface_bss_tm_req(struct hostapd_data *hapd,
  		req_mode |= WNM_BSS_TM_REQ_ESS_DISASSOC_IMMINENT;
  	}
  

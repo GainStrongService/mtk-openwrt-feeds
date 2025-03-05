@@ -1,7 +1,7 @@
-From 9005edcc2a7ec74e3d199066ca29c0505297e40f Mon Sep 17 00:00:00 2001
+From 3eddb3872fdee8bbccf624af10352653484c7ba7 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Tue, 31 May 2022 21:15:54 +0800
-Subject: [PATCH 011/149] mtk: hostapd: add support for runtime set in-band
+Subject: [PATCH 011/185] mtk: hostapd: add support for runtime set in-band
  discovery
 
 Usage:
@@ -23,7 +23,7 @@ Signed-off-by: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
  4 files changed, 94 insertions(+), 3 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index fdd083d2e..1ac61eb42 100644
+index d3b206e3a..ffe31bc97 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -773,6 +773,69 @@ static int hostapd_ctrl_iface_send_qos_map_conf(struct hostapd_data *hapd,
@@ -96,7 +96,7 @@ index fdd083d2e..1ac61eb42 100644
  
  #ifdef CONFIG_WNM_AP
  
-@@ -4227,6 +4290,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4257,6 +4320,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		if (hostapd_ctrl_iface_coloc_intf_req(hapd, buf + 15))
  			reply_len = -1;
  #endif /* CONFIG_WNM_AP */
@@ -145,10 +145,10 @@ index 755ddf5f4..054884f78 100644
  };
  
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index d904fa265..44e4bc3d9 100644
+index 1db041cc1..751c02482 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
-@@ -2140,6 +2140,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
+@@ -2162,6 +2162,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
  				   struct wpa_driver_ap_params *params)
  {
  	params->fd_max_int = hapd->conf->fils_discovery_max_int;
@@ -157,7 +157,7 @@ index d904fa265..44e4bc3d9 100644
  	if (is_6ghz_op_class(hapd->iconf->op_class) &&
  	    params->fd_max_int > FD_MAX_INTERVAL_6GHZ)
  		params->fd_max_int = FD_MAX_INTERVAL_6GHZ;
-@@ -2148,7 +2150,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
+@@ -2170,7 +2172,8 @@ static u8 * hostapd_fils_discovery(struct hostapd_data *hapd,
  	if (params->fd_min_int > params->fd_max_int)
  		params->fd_min_int = params->fd_max_int;
  
@@ -168,10 +168,10 @@ index d904fa265..44e4bc3d9 100644
  						  &params->fd_frame_tmpl_len);
  
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 9c0aa8380..2d9e5c65c 100644
+index 96ec693c3..1e3e3d5a3 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -4808,7 +4808,6 @@ static int nl80211_fils_discovery(struct i802_bss *bss, struct nl_msg *msg,
+@@ -4892,7 +4892,6 @@ static int nl80211_fils_discovery(struct i802_bss *bss, struct nl_msg *msg,
  	     nla_put(msg, NL80211_FILS_DISCOVERY_ATTR_TMPL,
  		     params->fd_frame_tmpl_len, params->fd_frame_tmpl)))
  		return -1;
@@ -179,7 +179,7 @@ index 9c0aa8380..2d9e5c65c 100644
  	nla_nest_end(msg, attr);
  	return 0;
  }
-@@ -5440,7 +5439,10 @@ static int wpa_driver_nl80211_set_ap(void *priv,
+@@ -5523,7 +5522,10 @@ static int wpa_driver_nl80211_set_ap(void *priv,
  #endif /* CONFIG_SAE */
  
  #ifdef CONFIG_FILS

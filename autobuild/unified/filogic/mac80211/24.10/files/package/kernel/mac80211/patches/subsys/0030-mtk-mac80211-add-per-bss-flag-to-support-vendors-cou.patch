@@ -1,7 +1,7 @@
-From ac3520b9e002dc9bb8e53e454072fb0cc5f98c74 Mon Sep 17 00:00:00 2001
+From d3196f329d26c8146ccc2e93fda3788e4381851f Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Wed, 16 Aug 2023 07:23:34 +0800
-Subject: [PATCH 30/87] mtk: mac80211: add per-bss flag to support vendors
+Subject: [PATCH 030/101] mtk: mac80211: add per-bss flag to support vendors
  counter
 
 ---
@@ -11,10 +11,10 @@ Subject: [PATCH 30/87] mtk: mac80211: add per-bss flag to support vendors
  3 files changed, 17 insertions(+), 5 deletions(-)
 
 diff --git a/include/uapi/linux/nl80211.h b/include/uapi/linux/nl80211.h
-index 02af844b..4c2614d1 100644
+index e126fac..c0289d4 100644
 --- a/include/uapi/linux/nl80211.h
 +++ b/include/uapi/linux/nl80211.h
-@@ -6648,6 +6648,7 @@ enum nl80211_ext_feature_index {
+@@ -6676,6 +6676,7 @@ enum nl80211_ext_feature_index {
  	NL80211_EXT_FEATURE_OWE_OFFLOAD_AP,
  	NL80211_EXT_FEATURE_DFS_CONCURRENT,
  	NL80211_EXT_FEATURE_SPP_AMSDU_SUPPORT,
@@ -23,7 +23,7 @@ index 02af844b..4c2614d1 100644
  	/* add new features before the definition below */
  	NUM_NL80211_EXT_FEATURES,
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 995a34c5..d4df6b98 100644
+index 177d598..42b1fe7 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
 @@ -2679,7 +2679,9 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
@@ -37,7 +37,7 @@ index 995a34c5..d4df6b98 100644
  
  	if (rx->sta) {
  		/* The seqno index has the same property as needed
-@@ -4834,7 +4836,9 @@ static void ieee80211_rx_8023(struct ieee80211_rx_data *rx,
+@@ -4848,7 +4850,9 @@ static void ieee80211_rx_8023(struct ieee80211_rx_data *rx,
  
  	skb->dev = fast_rx->dev;
  
@@ -49,7 +49,7 @@ index 995a34c5..d4df6b98 100644
  	/* The seqno index has the same property as needed
  	 * for the rx_msdu field, i.e. it is IEEE80211_NUM_TIDS
 diff --git a/net/mac80211/tx.c b/net/mac80211/tx.c
-index 214f220d..f7c9d437 100644
+index 214f220..f7c9d43 100644
 --- a/net/mac80211/tx.c
 +++ b/net/mac80211/tx.c
 @@ -3563,7 +3563,9 @@ ieee80211_xmit_fast_finish(struct ieee80211_sub_if_data *sdata,

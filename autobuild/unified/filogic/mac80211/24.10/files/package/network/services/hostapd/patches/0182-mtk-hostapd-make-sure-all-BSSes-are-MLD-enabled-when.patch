@@ -1,0 +1,49 @@
+From 404de1a0869cf2f087538609cd9a12fcf1b33f1d Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Mon, 3 Mar 2025 11:20:49 +0800
+Subject: [PATCH 182/185] mtk: hostapd: make sure all BSSes are MLD enabled
+ when phy mode is BE
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/ap_config.c | 10 ++++++++++
+ src/ap/hostapd.h   |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
+index f636b43d3..a9344899b 100644
+--- a/src/ap/ap_config.c
++++ b/src/ap/ap_config.c
+@@ -1661,6 +1661,16 @@ int hostapd_config_check(struct hostapd_config *conf, int full_config)
+ 	if (full_config)
+ 		hostapd_set_and_check_bw320_offset(conf,
+ 						   conf->eht_bw320_offset);
++
++	/* Make sure that all BSSes are MLD enabled when ieee80211be is set */
++	if (full_config && conf->ieee80211be) {
++		for (i = 0; i < conf->num_bss; i++) {
++			if (!conf->bss[i]->mld_ap) {
++				conf->bss[i]->mld_ap = 1;
++				conf->bss[i]->mld_allowed_links = 1;
++			}
++		}
++	}
+ #endif /* CONFIG_IEEE80211BE */
+ 
+ 	if (full_config && conf->mbssid && !conf->ieee80211ax) {
+diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
+index e31f6c7e3..56f703d69 100644
+--- a/src/ap/hostapd.h
++++ b/src/ap/hostapd.h
+@@ -1100,7 +1100,7 @@ static inline u32 hostapd_get_radio_mask(struct hostapd_data *hapd)
+ {
+ #ifdef CONFIG_IEEE80211BE
+ 	if (hapd->iface->current_hw_info) {
+-		if (hapd->conf->mld_ap)
++		if (hapd->conf->mld_ap && hapd->conf->mld_radio_mask)
+ 			return hapd->conf->mld_radio_mask;
+ 		else
+ 			return 1 << hapd->iface->current_hw_info->hw_idx;
+-- 
+2.45.2
+

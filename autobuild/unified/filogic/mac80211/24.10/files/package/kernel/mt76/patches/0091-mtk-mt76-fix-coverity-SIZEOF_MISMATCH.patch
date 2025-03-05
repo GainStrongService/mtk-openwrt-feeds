@@ -1,0 +1,28 @@
+From 0c7dc328761cf74cdb6ba5c38cd146a753898cdc Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 7 Feb 2025 14:31:24 +0800
+Subject: [PATCH 091/104] mtk: mt76: fix coverity SIZEOF_MISMATCH
+
+Passing argument "mem_region->name" of type "char const * const" and argument "8UL /* sizeof (mem_region->name) */" to function "strscpy" is suspicious.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/mac.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 8284feba..c866f62f 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -2605,7 +2605,7 @@ void mt7996_mac_fw_coredump(struct mt7996_dev *dev, u8 type)
+ 		mt7996_memcpy_fromio(dev, buf, mem_region->start,
+ 				     mem_region->len);
+ 
+-		strscpy(hdr->name, mem_region->name, sizeof(mem_region->name));
++		strscpy(hdr->name, mem_region->name, sizeof(hdr->name));
+ 		hdr->start = mem_region->start;
+ 		hdr->len = mem_region->len;
+ 
+-- 
+2.45.2
+

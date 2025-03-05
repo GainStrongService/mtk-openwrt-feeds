@@ -1,7 +1,7 @@
-From abcca1d8191d40f2427a6d84c21a50306996a8ce Mon Sep 17 00:00:00 2001
+From dcac4abc8534887a2d0f5591838548429c74e8e0 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Tue, 9 Aug 2022 10:23:44 -0700
-Subject: [PATCH 014/149] mtk: hostapd: Add hostapd MU SET/GET control
+Subject: [PATCH 014/185] mtk: hostapd: Add hostapd MU SET/GET control
 
 ---
  hostapd/config_file.c             |   9 +++
@@ -20,13 +20,13 @@ Subject: [PATCH 014/149] mtk: hostapd: Add hostapd MU SET/GET control
  13 files changed, 255 insertions(+)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 9f5ee48bf..22da72c07 100644
+index 7fbbdfecf..602ca3c74 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -4251,6 +4251,15 @@ static int hostapd_config_fill(struct hostapd_config *conf,
- 			return 1;
- 		}
- 		conf->mbssid = mbssid;
+@@ -4255,6 +4255,15 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+ 		bss->mbssid_index = atoi(pos);
+ 	} else if (os_strcmp(buf, "mbssid_max") == 0) {
+ 		conf->mbssid_max = atoi(pos);
 +	} else if (os_strcmp(buf, "mu_onoff") == 0) {
 +		int val = atoi(pos);
 +		if (val < 0 || val > 15) {
@@ -40,10 +40,10 @@ index 9f5ee48bf..22da72c07 100644
  	} else if (os_strcmp(buf, "max_listen_interval") == 0) {
  		bss->max_listen_interval = atoi(pos);
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 1b493e463..0d0dfb76b 100644
+index 758535cec..6054e23c4 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4231,6 +4231,67 @@ fail:
+@@ -4256,6 +4256,67 @@ fail:
  #endif /* CONFIG_NAN_USD */
  
  
@@ -111,7 +111,7 @@ index 1b493e463..0d0dfb76b 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4845,6 +4906,11 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4873,6 +4934,11 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "GET_EDCCA ", 10) == 0) {
  		reply_len = hostapd_ctrl_iface_get_edcca(hapd, buf+10, reply,
  							  reply_size);
@@ -160,7 +160,7 @@ index 054884f78..a1eb9c38d 100644
  	{ "dpp_qr_code", hostapd_cli_cmd_dpp_qr_code, NULL,
  	  "report a scanned DPP URI from a QR Code" },
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 3f2631ff6..c6a51639d 100644
+index d88b5f60d..1b1413333 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
 @@ -291,6 +291,7 @@ struct hostapd_config * hostapd_config_defaults(void)
@@ -172,10 +172,10 @@ index 3f2631ff6..c6a51639d 100644
  
  	/* The third octet of the country string uses an ASCII space character
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index b9afe1f47..baf3b40f8 100644
+index f0b0a0260..27b4a533c 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1235,6 +1235,7 @@ struct hostapd_config {
+@@ -1238,6 +1238,7 @@ struct hostapd_config {
  	int reg_def_cli_eirp;
  
  	bool require_he;
@@ -184,10 +184,10 @@ index b9afe1f47..baf3b40f8 100644
  
  	/* VHT enable/disable config from CHAN_SWITCH */
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index 2a430b78a..f2bd910d3 100644
+index 4a82a7e00..a5e5ca62d 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
-@@ -1338,3 +1338,17 @@ int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value)
+@@ -1417,3 +1417,17 @@ int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value)
  		return 0;
  	return hapd->driver->get_edcca(hapd->drv_priv, mode, value);
  }
@@ -206,10 +206,10 @@ index 2a430b78a..f2bd910d3 100644
 +	return hapd->driver->mu_dump(hapd->drv_priv, mu_onoff);
 +}
 diff --git a/src/ap/ap_drv_ops.h b/src/ap/ap_drv_ops.h
-index 608571609..c1fa4fb68 100644
+index 6134abdfa..bc243b628 100644
 --- a/src/ap/ap_drv_ops.h
 +++ b/src/ap/ap_drv_ops.h
-@@ -161,6 +161,8 @@ int hostapd_drv_configure_edcca_enable(struct hostapd_data *hapd);
+@@ -162,6 +162,8 @@ int hostapd_drv_configure_edcca_enable(struct hostapd_data *hapd);
  int hostapd_drv_configure_edcca_threshold(struct hostapd_data *hapd,
  					  const int *threshold);
  int hostapd_drv_get_edcca(struct hostapd_data *hapd, const u8 mode, u8 *value);
@@ -219,10 +219,10 @@ index 608571609..c1fa4fb68 100644
  #include "drivers/driver.h"
  
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index d0ad94407..c5a84fca6 100644
+index 9b9a0a2bb..5ea53daa5 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
-@@ -2786,6 +2786,8 @@ dfs_offload:
+@@ -2807,6 +2807,8 @@ dfs_offload:
  	if (hostapd_drv_configure_edcca_threshold(hapd,
  						  hapd->iconf->edcca_threshold) < 0)
  		goto fail;
@@ -265,7 +265,7 @@ index 6121857dd..60bc4cd4c 100644
  #define ETH_ALEN 6
  
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index 8675d0ddc..797f4f0d3 100644
+index fb0f60494..53f64ae13 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
 @@ -180,6 +180,11 @@ struct hostapd_channel_data {
@@ -280,7 +280,7 @@ index 8675d0ddc..797f4f0d3 100644
  };
  
  #define HE_MAC_CAPAB_0		0
-@@ -5375,6 +5380,14 @@ struct wpa_driver_ops {
+@@ -5469,6 +5474,14 @@ struct wpa_driver_ops {
  				  const s8 edcca_compensation);
  	int (*configure_edcca_threshold)(void *priv, const int *threshold);
  	int (*get_edcca)(void *priv, const u8 mode, u8 *value);
@@ -296,10 +296,10 @@ index 8675d0ddc..797f4f0d3 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 46ce30bcc..c2c625f45 100644
+index 7b61e229a..dc81af859 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -14410,6 +14410,114 @@ fail:
+@@ -14515,6 +14515,114 @@ fail:
  }
  
  
@@ -414,7 +414,7 @@ index 46ce30bcc..c2c625f45 100644
  #ifdef CONFIG_DPP
  static int nl80211_dpp_listen(void *priv, bool enable)
  {
-@@ -14910,6 +15018,8 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -15136,6 +15244,8 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.update_connect_params = nl80211_update_connection_params,
  	.send_external_auth_status = nl80211_send_external_auth_status,
  	.set_4addr_mode = nl80211_set_4addr_mode,
@@ -424,22 +424,22 @@ index 46ce30bcc..c2c625f45 100644
  	.dpp_listen = nl80211_dpp_listen,
  #endif /* CONFIG_DPP */
 diff --git a/src/drivers/driver_nl80211.h b/src/drivers/driver_nl80211.h
-index f0548cb31..80f1453c5 100644
+index 5ae3fa387..96706a454 100644
 --- a/src/drivers/driver_nl80211.h
 +++ b/src/drivers/driver_nl80211.h
-@@ -202,6 +202,7 @@ struct wpa_driver_nl80211_data {
+@@ -197,6 +197,7 @@ struct wpa_driver_nl80211_data {
  	unsigned int qca_ap_allowed_freqs:1;
  	unsigned int connect_ext_vendor_cmd_avail:1;
  	unsigned int mtk_edcca_vendor_cmd_avail:1;
 +	unsigned int mtk_mu_vendor_cmd_avail:1;
  
- 	u32 ignore_next_local_disconnect;
- 	u32 ignore_next_local_deauth;
+ 	u8 extra_bss_membership_selectors[8];
+ 
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index c69aec180..76dcdcddf 100644
+index 1127a2fee..1a478bd0f 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
-@@ -1147,6 +1147,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
+@@ -1155,6 +1155,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
  				case MTK_NL80211_VENDOR_SUBCMD_EDCCA_CTRL:
  					drv->mtk_edcca_vendor_cmd_avail = 1;
  					break;

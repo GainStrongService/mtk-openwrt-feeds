@@ -1,0 +1,78 @@
+From fd3efc958de442152ebf4e8d75d7c7d5362270b5 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Tue, 21 Jan 2025 14:30:00 +0800
+Subject: [PATCH 081/104] mtk: mt76: fix the calculation of phy->num_sta
+
+This fixes longer scan time when the first STA is connecting.
+
+phy->num_sta is wrongly calculated, so even if there's no other STAs
+connected, it still has non-zero value. When STAUT runs the following
+code in mt76_scan_work(), it'll keep jumping back to a parking channel,
+such as 36->36->40->36->44->36->..., which makes the scanning time
+longer.
+
+        if (dev->scan.chan && phy->num_sta) {
+		dev->scan.chan = NULL;
+		mt76_set_channel(phy, &phy->main_chandef, false);
+		goto out;
+	}
+
+In __mt76_sta_remove(), it will also do phy->num_sta--, but this is
+already handled in mt7996_mac_sta_remove_links(), so I add a MLO check
+flag to skip that part.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mac80211.c    | 2 +-
+ mt7996/main.c | 9 +++++++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/mac80211.c b/mac80211.c
+index 1bc4a935..47ccfa2b 100644
+--- a/mac80211.c
++++ b/mac80211.c
+@@ -1573,7 +1573,7 @@ void __mt76_sta_remove(struct mt76_phy *phy, struct ieee80211_vif *vif,
+ 	if (dev->drv->sta_remove)
+ 		dev->drv->sta_remove(dev, vif, sta);
+ 
+-	if (sta->valid_links)
++	if (phy->hw->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO)
+ 		return;
+ 
+ 	mt76_wcid_cleanup(dev, wcid);
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 0a719cba..a035ebc5 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1325,13 +1325,16 @@ mt7996_mac_sta_remove_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ 			link_conf_dereference_protected(vif, link_id);
+ 		struct ieee80211_link_sta *link_sta =
+ 			link_sta_dereference_protected(sta, link_id);
++		struct mt7996_phy *phy;
+ 
+ 		if (!mconf || !mlsta)
+ 			continue;
+ 
++		phy = mconf->phy;
+ 		mt7996_remove_link_sta(dev, vif, conf, mconf, sta, link_sta,
+ 				       mlsta, msta->valid_links == BIT(link_id));
+-		mconf->phy->mt76->num_sta--;
++		if (phy->mt76->num_sta > 0)
++			phy->mt76->num_sta--;
+ 	}
+ }
+ 
+@@ -1361,7 +1364,9 @@ mt7996_mac_sta_add_links(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ 		ret = mt7996_add_link_sta(dev, conf, mconf, link_sta, assoc);
+ 		if (ret)
+ 			goto error;
+-		mconf->phy->mt76->num_sta++;
++
++		if (assoc)
++			mconf->phy->mt76->num_sta++;
+ 	}
+ 
+ 	if (!assoc)
+-- 
+2.45.2
+

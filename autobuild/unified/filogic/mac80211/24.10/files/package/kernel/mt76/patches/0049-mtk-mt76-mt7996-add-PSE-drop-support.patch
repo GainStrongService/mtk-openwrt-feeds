@@ -1,0 +1,90 @@
+From 4092a56d41f56ee2a2c046b8906ba4adb5bbe2ec Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 15 Nov 2024 12:01:33 +0800
+Subject: [PATCH 049/104] mtk: mt76: mt7996: add PSE drop support
+
+If MLD STA exists, turn off PSE drop.
+
+1. change function name due to platform team refactor function
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/main.c   | 19 +++++++++++++++++++
+ mt7996/mt7996.h | 11 +++++++++++
+ 2 files changed, 30 insertions(+)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 345dca93..6806b25a 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1433,6 +1433,16 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+ 	return 0;
+ }
+ 
++static void mt7996_check_mld_sta(void *data, struct ieee80211_sta *sta)
++{
++	bool *has_mld_sta = data;
++
++	if (*has_mld_sta)
++		return;
++	if (sta->mlo)
++		*has_mld_sta = true;
++}
++
+ int mt7996_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+ 			 struct ieee80211_sta *sta, enum mt76_sta_event ev)
+ {
+@@ -1441,12 +1451,15 @@ int mt7996_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+ 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+ 	unsigned long add = sta->valid_links ?: BIT(0);
+ 	int ret = 0, link_id;
++	bool has_mld_sta = false;
+ 
+ 	mutex_lock(&dev->mt76.mutex);
+ 
+ 	switch (ev) {
+ 	case MT76_STA_EVENT_ASSOC:
+ 		ret = mt7996_mac_sta_add_links(dev, vif, sta, add, true);
++		if (!ret && sta->mlo)
++			mt7996_set_pse_drop(dev, 0);
+ 		break;
+ 	case MT76_STA_EVENT_AUTHORIZE:
+ 		for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
+@@ -1468,6 +1481,12 @@ int mt7996_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+ 				goto out;
+ 		}
+ 		break;
++	case MT76_STA_EVENT_DISASSOC:
++		ieee80211_iterate_stations_atomic(mdev->hw, mt7996_check_mld_sta,
++						  &has_mld_sta);
++		if (!has_mld_sta)
++			mt7996_set_pse_drop(dev, 1);
++		break;
+ 	default:
+ 		break;
+ 	}
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index 9b059f5d..259db930 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1583,6 +1583,17 @@ int mt7996_mcu_set_mru_probe_en(struct mt7996_phy *phy);
+ #ifdef CONFIG_NET_MEDIATEK_SOC_WED
+ int mt7996_dma_rro_init(struct mt7996_dev *dev);
+ #endif /* CONFIG_NET_MEDIATEK_SOC_WED */
++
++static inline void mt7996_set_pse_drop(struct mt7996_dev *dev, bool enable)
++{
++#ifdef CONFIG_NET_MEDIATEK_SOC_WED
++	if (!is_mt7996(&dev->mt76) || !mtk_wed_device_active(&dev->mt76.mmio.wed))
++		return;
++
++	mtk_wed_device_ppe_drop(&dev->mt76.mmio.wed, enable);
++#endif /* CONFIG_NET_MEDIATEK_SOC_WED */
++}
++
+ int mt7996_mcu_set_qos_map(struct mt7996_dev *dev, struct mt7996_bss_conf *mconf,
+ 			   struct cfg80211_qos_map *usr_qos_map);
+ #endif
+-- 
+2.45.2
+

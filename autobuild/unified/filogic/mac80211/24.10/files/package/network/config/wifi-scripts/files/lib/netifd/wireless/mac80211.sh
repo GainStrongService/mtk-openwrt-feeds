@@ -60,7 +60,9 @@ drv_mac80211_init_device_config() {
 		he_twt_required \
 		he_twt_responder \
 		etxbfen \
-		itxbfen
+		itxbfen \
+		lpi_psd \
+		lpi_bcn_enhance
 	config_add_int \
 		beamformer_antennas \
 		beamformee_antennas \
@@ -75,7 +77,9 @@ drv_mac80211_init_device_config() {
 		pp_bitmap \
 		pp_mode \
 		eml_disable \
-		eml_resp
+		eml_resp \
+		sku_idx \
+		lpi_sku_idx
 	config_add_boolean \
 		ldpc \
 		greenfield \
@@ -153,7 +157,7 @@ mac80211_hostapd_setup_base() {
 		append base_cfg "acs_exclude_dfs=1" "$N"
 
 	json_get_vars noscan ht_coex min_tx_power:0 tx_burst mbssid mu_onoff rnr obss_interval
-	json_get_vars etxbfen:1 itxbfen:0 eml_disable eml_resp
+	json_get_vars etxbfen:1 itxbfen:0 eml_disable eml_resp lpi_psd sku_idx lpi_sku_idx lpi_bcn_enhance
 	json_get_values ht_capab_list ht_capab
 	json_get_values channel_list channels
 
@@ -655,6 +659,10 @@ ${rnr:+rnr=$rnr}
 ${multiple_bssid:+mbssid=$multiple_bssid}
 ${eml_disable:+eml_disable=$eml_disable}
 ${eml_resp:+eml_resp=$eml_resp}
+${lpi_psd:+lpi_psd=$lpi_psd}
+${lpi_bcn_enhance:+lpi_bcn_enhance=$lpi_bcn_enhance}
+${sku_idx:+sku_idx=$sku_idx}
+${lpi_sku_idx:+lpi_sku_idx=$lpi_sku_idx}
 #num_global_macaddr=$num_global_macaddr
 $base_cfg
 

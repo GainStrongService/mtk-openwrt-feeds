@@ -1,20 +1,19 @@
-From 4cbbcef1b67d934ad007934cdbd0f52cd3d839e6 Mon Sep 17 00:00:00 2001
+From 0e38ade1f038d973008ea2bee8e553df235c33da Mon Sep 17 00:00:00 2001
 From: "Allen.Ye" <allen.ye@mediatek.com>
 Date: Fri, 14 Apr 2023 05:05:17 +0800
-Subject: [PATCH 18/87] mtk: mac80211: update max_bssid_indicator based on real
- BSS numbers
+Subject: [PATCH 018/101] mtk: mac80211: update max_bssid_indicator based on
+ real BSS numbers
 
 Fix max_bssid_indicator get empty value due to wrong pointer.
-
 ---
  net/mac80211/cfg.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index c096227d..93e08545 100644
+index 3ff3267..779c9ee 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -1191,9 +1191,11 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
+@@ -1196,9 +1196,11 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
  	/* copy in optional mbssid_ies */
  	if (mbssid) {
  		u8 *pos = new->tail + new->tail_len;
@@ -26,7 +25,7 @@ index c096227d..93e08545 100644
  		pos += ieee80211_copy_mbssid_beacon(pos, new->mbssid_ies,
  						    mbssid);
  		if (rnr) {
-@@ -1202,8 +1204,7 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
+@@ -1207,8 +1209,7 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
  			ieee80211_copy_rnr_beacon(pos, new->rnr_ies, rnr);
  		}
  		/* update bssid_indicator */

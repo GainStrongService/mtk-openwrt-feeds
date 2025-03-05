@@ -1,7 +1,7 @@
-From ea0c54c9abf011ed9bc7a46ee475b4c9c2a405f7 Mon Sep 17 00:00:00 2001
+From 52cad4469bd32192daa69d724d29bc928bf07afa Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 12 Apr 2024 11:45:41 +0800
-Subject: [PATCH 52/87] mtk: mac80211: defer enabling beacon for MLD AP
+Subject: [PATCH 052/101] mtk: mac80211: defer enabling beacon for MLD AP
 
 Do not enable beacon on the first beacon update (NL80211_CMD_NEW_BEACON)
 for MLD AP, let it start from the next beacon update
@@ -15,10 +15,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  1 file changed, 6 insertions(+), 1 deletion(-)
 
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 6aa2c31d..1a726e8d 100644
+index 2429884..a75ce5e 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -1451,7 +1451,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
+@@ -1456,7 +1456,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
  	}
  
  	link_conf->dtim_period = params->dtim_period;
@@ -27,7 +27,7 @@ index 6aa2c31d..1a726e8d 100644
  	link_conf->allow_p2p_go_ps = sdata->vif.p2p;
  	link_conf->twt_responder = params->twt_responder;
  	link_conf->he_obss_pd = params->he_obss_pd;
-@@ -1521,6 +1521,11 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
+@@ -1526,6 +1526,11 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
  	ieee80211_recalc_dtim(local, sdata);
  	ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_SSID);
  	ieee80211_link_info_change_notify(sdata, link, changed);

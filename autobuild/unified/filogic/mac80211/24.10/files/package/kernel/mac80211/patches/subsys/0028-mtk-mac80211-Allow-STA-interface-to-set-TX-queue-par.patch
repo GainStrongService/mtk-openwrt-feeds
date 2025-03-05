@@ -1,7 +1,7 @@
-From bec53952a550197c018150070d53e0b90fe8643e Mon Sep 17 00:00:00 2001
+From 2c3dbf2caeeb8dd097d67cb98f7534dffad25c81 Mon Sep 17 00:00:00 2001
 From: Michael Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 7 Jul 2023 17:17:30 +0800
-Subject: [PATCH 28/87] mtk: mac80211: Allow STA interface to set TX queue
+Subject: [PATCH 028/101] mtk: mac80211: Allow STA interface to set TX queue
  parameters
 
 Signed-off-by: Michael Lee <michael-cy.lee@mediatek.com>
@@ -10,17 +10,17 @@ Signed-off-by: Michael Lee <michael-cy.lee@mediatek.com>
  1 file changed, 1 insertion(+)
 
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 5f19fd02..d5d85ec1 100644
+index c4372bb..c3b2b2e 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -3686,6 +3686,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
- 		}
+@@ -3697,6 +3697,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
+ 			return -EINVAL;
  
  		if (netdev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
 +		    netdev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
- 		    netdev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO) {
- 			result = -EINVAL;
- 			goto out;
+ 		    netdev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
+ 			return -EINVAL;
+ 
 -- 
 2.45.2
 

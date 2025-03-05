@@ -1,7 +1,7 @@
-From 4b491881558af7806a1e86d817d4df4bf1394ed1 Mon Sep 17 00:00:00 2001
+From 22e76ab138af2e3320d64694c4e517b72d3a0631 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 20 Sep 2022 19:33:45 +0800
-Subject: [PATCH 010/149] mtk: hostapd: print some sae info by hostapd ctrl
+Subject: [PATCH 010/185] mtk: hostapd: print some sae info by hostapd ctrl
 
 root@OpenWrt:~# hostapd_cli -i phy0-ap0 pmksa
 Setup at link 0:
@@ -20,7 +20,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  3 files changed, 39 insertions(+), 2 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 985a43950..fdd083d2e 100644
+index 3c2d41b0f..d3b206e3a 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -70,6 +70,7 @@
@@ -52,10 +52,10 @@ index 985a43950..fdd083d2e 100644
  
  	return -1;
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
-index a49985792..247c605b9 100644
+index 0ef6dd337..63a400875 100644
 --- a/src/ap/ctrl_iface_ap.c
 +++ b/src/ap/ctrl_iface_ap.c
-@@ -1165,7 +1165,27 @@ int hostapd_ctrl_iface_stop_ap(struct hostapd_data *hapd)
+@@ -1182,7 +1182,27 @@ int hostapd_ctrl_iface_stop_ap(struct hostapd_data *hapd)
  int hostapd_ctrl_iface_pmksa_list(struct hostapd_data *hapd, char *buf,
  				  size_t len)
  {
