@@ -17,9 +17,24 @@ python3-distutils python3-setuptools rsync swig unzip zlib1g-dev file wget
 
 ## Uboot & ATF
 The minimum required version is 2024-11-08, while the latest version is  **2025-03-04** for the latest U-Boot feature support.
-The OpenWrt/24.10 or trunk image type is ITB, which cannot be loaded if the original U-Boot is too old. Please update to a newer U-Boot that supports both OpenWrt 21.0x and OpenWrt 24.xx image types. Also need DTS relay to enable 10G ethernet for one-time uboot console setting
+The OpenWrt/24.10 or trunk image type is ITB, which cannot be loaded if the original U-Boot is too old. Please update to a newer U-Boot that supports both OpenWrt 21.0x and OpenWrt 24.xx image types.
 
 - Since U-Boot is still released as a tarball, please log in to the DCC or contact the corresponding window to obtain the latest U-Boot and ATF source code.
+
+Also need DTS overlay to enable 10G ethernet for one-time uboot console setting. "0. U-Boot console" 
+- GMAC1 is AQR113C 10G PHY case
+```
+setenv bootconf mt7988a-rfb-spim-nand-nmbm
+setenv bootconf_extra mt7988a-rfb-eth1-aqr#mt7988a-rfb-eth2-aqr 
+saveenv
+```
+
+- GMAC1 is Mediatek Internal 2.5G PHY case
+```
+setenv bootconf mt7988a-rfb-spim-nand-nmbm
+setenv bootconf_extra mt7988a-rfb-eth1-i2p5g-phy#mt7988a-rfb-eth2-aqr
+saveenv
+```
 
 ##### SPIM-NAND
 Note: Please follow the SOP below to upgrade the bl2 and fip on your board.
@@ -108,10 +123,10 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
       - Driver Version: 4.3.25.02
       - Filogic880 Firmware Version: 20250305
       - Filogic860 Firmware Version: 20250304
-    **Document Reference**:
+    - **Document Reference**:
       - MAC80211 MT76 Programming Guide v4.9
       - MT76 Test Mode Programming Guide v2.4
-    **Notice**:
+    - **Notice**:
       - Since the OpenWRT UCI haven't introduce the formal MLO config yet, please refer to the MAC80211 MT76 Programming Guide to Setup AP MLD and non-AP MLD (STA MLD)
       - The default power control from user space is disabled to follow the maximum power from eFuse. If you would like to enable power-relevant features (e.g., SingleSKU/iw set Tx Power)
       - make sure to set 'sku_idx' to zero for a single SKU table or to any positive number for the index of SKU tables you want in the hostapd configuration to enable it.
