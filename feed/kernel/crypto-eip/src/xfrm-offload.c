@@ -104,6 +104,7 @@ static void mtk_xfrm_offload_cls_entry_tear_down(struct mtk_xfrm_params *xfrm_pa
 static int mtk_xfrm_offload_cls_entry_setup(struct mtk_xfrm_params *xfrm_params)
 {
 	struct cls_desc *cdesc;
+	struct xfrm_state *xs = xfrm_params->xs;
 
 	xfrm_params->cdrt->cls = mtk_pce_cls_entry_alloc();
 	if (IS_ERR(xfrm_params->cdrt->cls))
@@ -118,19 +119,34 @@ static int mtk_xfrm_offload_cls_entry_setup(struct mtk_xfrm_params *xfrm_params)
 	CLS_DESC_DATA(cdesc, tport_idx, 0x2);
 	CLS_DESC_DATA(cdesc, cdrt_idx, xfrm_params->cdrt->idx);
 
-	CLS_DESC_MASK_DATA(cdesc, tag,
+	if (xs->encap) {
+		CLS_DESC_MASK_DATA(cdesc, tag,
+			   CLS_DESC_TAG_MASK, CLS_DESC_TAG_MATCH_L4_USR);
+		CLS_DESC_MASK_DATA(cdesc, l4_type,
+				CLS_DESC_L4_TYPE_MASK, IPPROTO_UDP);
+		CLS_DESC_MASK_DATA(cdesc, l4_valid,
+			   CLS_DESC_L4_VALID_MASK,
+			   CLS_DESC_VALID_UPPER_HALF_WORD_BIT |
+			   CLS_DESC_VALID_LOWER_HALF_WORD_BIT |
+			   CLS_DESC_VALID_DPORT_BIT);
+		CLS_DESC_MASK_DATA(cdesc, l4_dport, CLS_DESC_L4_DPORT_MASK,
+							be16_to_cpu(xs->encap->encap_dport));
+	} else {
+		CLS_DESC_MASK_DATA(cdesc, tag,
 			   CLS_DESC_TAG_MASK, CLS_DESC_TAG_MATCH_L4_HDR);
-	CLS_DESC_MASK_DATA(cdesc, l4_udp_hdr_nez,
+		CLS_DESC_MASK_DATA(cdesc, l4_udp_hdr_nez,
 			   CLS_DESC_UDPLITE_L4_HDR_NEZ_MASK,
 			   CLS_DESC_UDPLITE_L4_HDR_NEZ_MASK);
-	CLS_DESC_MASK_DATA(cdesc, l4_type,
+		CLS_DESC_MASK_DATA(cdesc, l4_type,
 			   CLS_DESC_L4_TYPE_MASK, IPPROTO_ESP);
-	CLS_DESC_MASK_DATA(cdesc, l4_valid,
+		CLS_DESC_MASK_DATA(cdesc, l4_valid,
 			   0x3,
 			   CLS_DESC_VALID_UPPER_HALF_WORD_BIT |
 			   CLS_DESC_VALID_LOWER_HALF_WORD_BIT);
+	}
+
 	CLS_DESC_MASK_DATA(cdesc, l4_hdr_usr_data,
-			   0xFFFFFFFF, be32_to_cpu(xfrm_params->xs->id.spi));
+					0xFFFFFFFF, be32_to_cpu(xfrm_params->xs->id.spi));
 
 	return mtk_pce_cls_entry_write(xfrm_params->cdrt->cls);
 }

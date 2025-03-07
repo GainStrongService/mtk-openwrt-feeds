@@ -35,7 +35,7 @@
  	}
 --- a/net/xfrm/xfrm_policy.c
 +++ b/net/xfrm/xfrm_policy.c
-@@ -3703,6 +3703,10 @@ int __xfrm_policy_check(struct sock *sk,
+@@ -3701,6 +3701,10 @@ int __xfrm_policy_check(struct sock *sk,
  		}
  	}
  #endif
@@ -46,7 +46,7 @@
  
  	if (pol->action == XFRM_POLICY_ALLOW) {
  		static struct sec_path dummy;
-@@ -3712,6 +3716,14 @@ int __xfrm_policy_check(struct sock *sk,
+@@ -3710,6 +3714,14 @@ int __xfrm_policy_check(struct sock *sk,
  		int ti = 0;
  		int i, k;
  
@@ -61,3 +61,16 @@
  		sp = skb_sec_path(skb);
  		if (!sp)
  			sp = &dummy;
+--- a/net/xfrm/xfrm_device.c
++++ b/net/xfrm/xfrm_device.c
+@@ -215,8 +215,8 @@ int xfrm_dev_state_add(struct net *net,
+ 	if (!x->type_offload)
+ 		return -EINVAL;
+ 
+-	/* We don't yet support UDP encapsulation and TFC padding. */
+-	if (x->encap || x->tfcpad)
++	/* We don't yet support TFC padding. */
++	if (x->tfcpad)
+ 		return -EINVAL;
+ 
+ 	if (xuo->flags &

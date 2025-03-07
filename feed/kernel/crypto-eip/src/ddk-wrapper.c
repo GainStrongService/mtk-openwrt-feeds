@@ -2306,6 +2306,12 @@ void *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode
 		goto error_ret;
 	}
 
+	if (xs->encap) {
+		ipsec_params.IPsecFlags |= SAB_IPSEC_NATT;
+		ipsec_params.NATTSrcPort = be16_to_cpu(xs->encap->encap_sport);
+		ipsec_params.NATTDestPort = be16_to_cpu(xs->encap->encap_dport);
+	}
+
 	ipsec_params.IPsecFlags |= (SAB_IPSEC_PROCESS_IP_HEADERS
 				    | SAB_IPSEC_EXT_PROCESSING);
 	if (ipsec_mode == SAB_IPSEC_TUNNEL) {
