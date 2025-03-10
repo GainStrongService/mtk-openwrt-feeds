@@ -362,7 +362,9 @@ int atenl_eeprom_init(struct atenl *an, u8 phy_idx)
 	atenl_nl_check_flash(an);
 	flash_mode = an->flash_part != NULL;
 
-	// Get the first main phy index for this chip
+	/* Get the first main phy index for this chip.
+	 * For single wiphy, phy_idx (i.e. wiphy idx) would be 0 and an->band_idx will also be 0.
+	 */
 	an->main_phy_idx = phy_idx - an->band_idx;
 	snprintf(buf, sizeof(buf), "/tmp/atenl-eeprom-phy%u", an->main_phy_idx);
 	eeprom_file = strdup(buf);

@@ -31,14 +31,19 @@ out:
 	perror("signal");
 }
 
-static int phy_lookup_idx(const char *name)
+static int phy_lookup_idx(struct atenl *an, const char *phyname)
 {
 	char buf[128];
 	FILE *f;
 	size_t len;
 	int ret;
 
-	ret = snprintf(buf, sizeof(buf), "/sys/class/ieee80211/%s/index", name);
+	atenl_nl_get_wiphy(an);
+	/* TODO: Handle single wiphy model */
+	if (an->is_single_wiphy)
+		return 0;
+
+	ret = snprintf(buf, sizeof(buf), "/sys/class/ieee80211/%s/index", phyname);
 	if (snprintf_error(sizeof(buf), ret))
 		return -1;
 
@@ -170,7 +175,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	phy_idx = phy_lookup_idx(phy);
+	phy_idx = phy_lookup_idx(an, phy);
 	if (phy_idx < 0 || phy_idx > UCHAR_MAX) {
 		atenl_err("Could not find phy '%s'\n", phy);
 		goto out;

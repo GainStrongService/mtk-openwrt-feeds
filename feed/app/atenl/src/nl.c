@@ -1579,3 +1579,42 @@ out:
 	unl_free(&nl_priv.unl);
 	return ret;
 }
+
+static int atenl_nl_get_wiphy_cb(struct nl_msg *msg, void *arg)
+{
+	struct atenl_nl_priv *nl_priv = (struct atenl_nl_priv *)arg;
+	struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
+	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+	struct atenl *an = nl_priv->an;
+
+	nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+		  genlmsg_attrlen(gnlh, 0), NULL);
+
+	if (!tb_msg[NL80211_ATTR_WIPHY])
+		return NL_STOP;
+
+	if (tb_msg[NL80211_ATTR_WIPHY_RADIOS])
+		an->is_single_wiphy = true;
+
+	return NL_SKIP;
+}
+
+int atenl_nl_get_wiphy(struct atenl *an)
+{
+	struct atenl_nl_priv nl_priv = {.an = an};
+	struct nl_msg *msg;
+
+	if (unl_genl_init(&nl_priv.unl, "nl80211") < 0) {
+		atenl_err("Failed to connect to nl80211\n");
+		return 2;
+	}
+
+	msg = unl_genl_msg(&(nl_priv.unl), NL80211_CMD_GET_WIPHY, true);
+	nla_put_flag(msg, NL80211_ATTR_SPLIT_WIPHY_DUMP);
+	nl_priv.msg = msg;
+	unl_genl_request(&(nl_priv.unl), msg, atenl_nl_get_wiphy_cb, (void *)&nl_priv);
+
+	unl_free(&nl_priv.unl);
+
+	return 0;
+}
