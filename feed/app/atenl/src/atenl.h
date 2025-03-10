@@ -306,6 +306,11 @@ enum {
 #define MT_EE_WIFI_EAGLE_CONF1_BAND_SEL		GENMASK(5, 3)
 #define MT_EE_WIFI_EAGLE_CONF2_BAND_SEL		GENMASK(2, 0)
 
+#define MT_EE_DO_RX_GAIN_CAL			0x1a1
+#define MT_EE_RX_GAIN_CAL			0x1830
+
+#define MT_EE_CAL_RX_GAIN_SIZE			748
+
 enum {
 	MT7976_ONE_ADIE_DBDC		= 0x7,
 	MT7975_ONE_ADIE_SINGLE_BAND	= 0x8, /* AX7800 */
@@ -485,6 +490,7 @@ int atenl_nl_set_aid(struct atenl *an, u8 band, u8 aid);
 int atenl_nl_precal_sync_from_driver(struct atenl *an, enum prek_ops ops);
 int atenl_nl_get_wiphy(struct atenl *an);
 void atenl_get_ibf_cal_result(struct atenl *an);
+void atenl_get_rx_gain_cal_result(struct atenl *an);
 int atenl_eeprom_init(struct atenl *an, u8 phy_idx);
 void atenl_eeprom_close(struct atenl *an);
 int atenl_eeprom_write_flash(struct atenl *an);

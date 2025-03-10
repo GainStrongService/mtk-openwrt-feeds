@@ -542,11 +542,13 @@ function convert_rxstat {
     local res=$(do_cmd "mt76-test ${interface} dump stats")
     local mdrdy=$(echo "${res}" | grep "rx_packets" | cut -d "=" -f 2)
     local fcs_error=$(echo "${res}" | grep "rx_fcs_error" | cut -d "=" -f 2)
+    local rssi=$(echo "${res}" | grep "last_rssi" | cut -d "=" -f 2 | sed 's/,/ /g')
     local rcpi=$(echo "${res}" | grep "last_rcpi" | cut -d "=" -f 2 | sed 's/,/ /g')
     local ib_rssi=$(echo "${res}" | grep "last_ib_rssi" | cut -d "=" -f 2 | sed 's/,/ /g')
     local wb_rssi=$(echo "${res}" | grep "last_wb_rssi" | cut -d "=" -f 2 | sed 's/,/ /g')
     local rx_ok=$(expr ${mdrdy} - ${fcs_error})
 
+    write_dmesg "rssi: ${rssi}"
     write_dmesg "rcpi: ${rcpi}"
     write_dmesg "fagc rssi ib: ${ib_rssi}"
     write_dmesg "fagc rssi wb: ${wb_rssi}"
@@ -991,6 +993,7 @@ function do_ate_work() {
             ;;
         "RXGAINCAL")
             do_cmd "mt76-test ${interface} set state=rx_gain_cal"
+            do_cmd "atenl -i ${interface} -c \"eeprom rx gain sync\""
             ;;
         *)
             print_debug "skip ${ate_cmd}"
@@ -1289,7 +1292,7 @@ if [ "${cmd_type}" = "set" ]; then
             convert_ibf ${cmd} ${param}
             skip=1
             ;;
-        "bufferMode")
+        "bufferMode"|"buffermode")
             if [ "${param}" = "2" ]; then
                 do_cmd "atenl -i ${interface} -c \"eeprom update buffermode\""
             fi

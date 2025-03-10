@@ -1045,6 +1045,16 @@ atenl_nl_ibf_profile_update_all(struct atenl *an, struct atenl_data *data,
 	return 0;
 }
 
+void
+atenl_get_rx_gain_cal_result(struct atenl *an)
+{
+	if (!is_connac3(an))
+		return;
+
+	atenl_eeprom_read_from_driver(an, MT_EE_DO_RX_GAIN_CAL, 1);
+	atenl_eeprom_read_from_driver(an, MT_EE_RX_GAIN_CAL, MT_EE_CAL_RX_GAIN_SIZE);
+}
+
 #define NL_OPS_GROUP(cmd, ...)	[HQA_CMD_##cmd] = { __VA_ARGS__ }
 static const struct atenl_nl_ops nl_ops[] = {
 	NL_OPS_GROUP(SET_TX_PATH, .set=MT76_TM_ATTR_TX_ANTENNA),
