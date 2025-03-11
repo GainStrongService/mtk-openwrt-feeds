@@ -452,14 +452,79 @@
 - 	return ret;
 - }
 - 
+--- a/feeds/packages/utils/mmc-utils/patches/0010-One-further-optimization-of-trimming-routine.patch
++++ /dev/null
+@@ -1,30 +0,0 @@
+-From 3539243dcab7b84bb8a45e2c2da80e162284bffc Mon Sep 17 00:00:00 2001
+-From: Michael Heimpold <mhei@heimpold.de>
+-Date: Sat, 8 Dec 2018 10:43:01 +0100
+-Subject: [PATCH] One further optimization of trimming routine
+-
+-The last change to the trimming routine made it more efficient,
+-however, we can even get rid of the memmove() as we leave the
+-function with strdup() anyway.
+-
+-Signed-off-by: Michael Heimpold <mhei@heimpold.de>
+-Reviewed-by: Wolfram Sang <wsa+renesas@sang-engineering.com>
+----
+- lsmmc.c | 5 ++---
+- 1 file changed, 2 insertions(+), 3 deletions(-)
+-
+---- a/lsmmc.c
+-+++ b/lsmmc.c
+-@@ -393,10 +393,9 @@ char *read_file(char *name)
+- 		start++;
+- 		len--;
+- 	}
+--	memmove(line, start, len);
+--	line[len] = '\0';
+- 
+--	return strdup(line);
+-+	start[len] = '\0';
+-+	return strdup(start);
+- }
+- 
+- /* Hexadecimal string parsing functions */
+--- a/feeds/packages/utils/mmc-utils/patches/0011-mmc-utils-Fix-scaling-of-cache-size.patch
++++ /dev/null
+@@ -1,29 +0,0 @@
+-From 8121cece25da8dad1dc91393f5285195997c71b1 Mon Sep 17 00:00:00 2001
+-From: Patrick Oppenlander <patrick.oppenlander@gmail.com>
+-Date: Fri, 14 Feb 2020 09:13:32 +1100
+-Subject: [PATCH] mmc-utils: Fix scaling of cache size
+-
+-JESD84-B51 7.4.30 CACHE_SIZE [252:249] states that "the size is
+-indicated as multiple of kilobits". This is also supported by Table 39,
+-"e.MMC internal sizes and related Units / Granularities" which lists
+-"32Kb (=4KB)" as the cache size granularity for 4KiB native devices.
+-
+-Signed-off-by: Patrick Oppenlander <patrick.oppenlander@gmail.com>
+-Reviewed-by: Avri Altman <avri.altman@wdc.com>
+----
+- mmc_cmds.c | 4 ++--
+- 1 file changed, 2 insertions(+), 2 deletions(-)
+-
+---- a/mmc_cmds.c
+-+++ b/mmc_cmds.c
+-@@ -1427,8 +1427,8 @@ int do_read_extcsd(int nargs, char **arg
+- 		printf("Power off notification [POWER_OFF_LONG_TIME: 0x%02x]\n",
+- 			ext_csd[247]);
+- 		printf("Cache Size [CACHE_SIZE] is %d KiB\n",
+--			ext_csd[249] << 0 | (ext_csd[250] << 8) |
+--			(ext_csd[251] << 16) | (ext_csd[252] << 24));
+-+			(ext_csd[249] << 0 | (ext_csd[250] << 8) |
+-+			(ext_csd[251] << 16) | (ext_csd[252] << 24)) / 8);
+- 	}
+- 
+- 	/* A441: Reserved [501:247]
 --- a/feeds/packages/utils/mmc-utils/patches/0009-mmc-utils-let-FFU-mode-use-CMD23-and-CMD25.patch
 +++ /dev/null
-@@ -1,181 +1 @@
+@@ -1,181 +0,0 @@
 -From f54f401085e011e6f9c7b120aa1794b19c32b493 Mon Sep 17 00:00:00 2001
 -From: "Shivamurthy Shastri (sshivamurthy)" <sshivamurthy@micron.com>
 -Date: Wed, 10 Apr 2019 13:38:08 +0000
 -Subject: [PATCH] mmc-utils: let FFU mode use CMD23 and CMD25
- 
+-
 -As per specification, the host can use either CMD24 or CMD25 in
 -closed-ended or open-ended way.
 -CMD25 is better option as it can flash the firmware image in one go.
@@ -636,68 +701,3 @@
 - 			goto out;
 - 		}
 - 
---- a/feeds/packages/utils/mmc-utils/patches/0010-One-further-optimization-of-trimming-routine.patch
-+++ /dev/null
-@@ -1,30 +0,0 @@
--From 3539243dcab7b84bb8a45e2c2da80e162284bffc Mon Sep 17 00:00:00 2001
--From: Michael Heimpold <mhei@heimpold.de>
--Date: Sat, 8 Dec 2018 10:43:01 +0100
--Subject: [PATCH] One further optimization of trimming routine
--
--The last change to the trimming routine made it more efficient,
--however, we can even get rid of the memmove() as we leave the
--function with strdup() anyway.
--
--Signed-off-by: Michael Heimpold <mhei@heimpold.de>
--Reviewed-by: Wolfram Sang <wsa+renesas@sang-engineering.com>
-----
-- lsmmc.c | 5 ++---
-- 1 file changed, 2 insertions(+), 3 deletions(-)
--
----- a/lsmmc.c
--+++ b/lsmmc.c
--@@ -393,10 +393,9 @@ char *read_file(char *name)
-- 		start++;
-- 		len--;
-- 	}
---	memmove(line, start, len);
---	line[len] = '\0';
-- 
---	return strdup(line);
--+	start[len] = '\0';
--+	return strdup(start);
-- }
-- 
-- /* Hexadecimal string parsing functions */
---- a/feeds/packages/utils/mmc-utils/patches/0011-mmc-utils-Fix-scaling-of-cache-size.patch
-+++ /dev/null
-@@ -1,29 +0,0 @@
--From 8121cece25da8dad1dc91393f5285195997c71b1 Mon Sep 17 00:00:00 2001
--From: Patrick Oppenlander <patrick.oppenlander@gmail.com>
--Date: Fri, 14 Feb 2020 09:13:32 +1100
--Subject: [PATCH] mmc-utils: Fix scaling of cache size
--
--JESD84-B51 7.4.30 CACHE_SIZE [252:249] states that "the size is
--indicated as multiple of kilobits". This is also supported by Table 39,
--"e.MMC internal sizes and related Units / Granularities" which lists
--"32Kb (=4KB)" as the cache size granularity for 4KiB native devices.
--
--Signed-off-by: Patrick Oppenlander <patrick.oppenlander@gmail.com>
--Reviewed-by: Avri Altman <avri.altman@wdc.com>
-----
-- mmc_cmds.c | 4 ++--
-- 1 file changed, 2 insertions(+), 2 deletions(-)
--
----- a/mmc_cmds.c
--+++ b/mmc_cmds.c
--@@ -1427,8 +1427,8 @@ int do_read_extcsd(int nargs, char **arg
-- 		printf("Power off notification [POWER_OFF_LONG_TIME: 0x%02x]\n",
-- 			ext_csd[247]);
-- 		printf("Cache Size [CACHE_SIZE] is %d KiB\n",
---			ext_csd[249] << 0 | (ext_csd[250] << 8) |
---			(ext_csd[251] << 16) | (ext_csd[252] << 24));
--+			(ext_csd[249] << 0 | (ext_csd[250] << 8) |
--+			(ext_csd[251] << 16) | (ext_csd[252] << 24)) / 8);
-- 	}
-- 
-- 	/* A441: Reserved [501:247]
