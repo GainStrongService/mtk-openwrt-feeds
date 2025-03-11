@@ -1,26 +1,25 @@
-From 43ce2ffe89e93f6bcbfa4a512744b14a8b522ac3 Mon Sep 17 00:00:00 2001
-From: Bc-bocun Chen <bc-bocun.chen@mediatek.com>
-Date: Mon, 18 Sep 2023 11:17:24 +0800
-Subject: [PATCH] flow-offload-add-mtkhnat-dscp
+From 462bded88cd7b5c19a4d75b77a39218b226cef2c Mon Sep 17 00:00:00 2001
+From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
+Date: Tue, 11 Mar 2025 17:41:41 +0800
+Subject: [PATCH] flow offload add mtkhnat dscp
 
 ---
- drivers/net/ethernet/mediatek/mtk_ppe.c       | 11 +++++++
+ drivers/net/ethernet/mediatek/mtk_ppe.c       | 10 ++++++
  drivers/net/ethernet/mediatek/mtk_ppe.h       |  1 +
  .../net/ethernet/mediatek/mtk_ppe_offload.c   | 16 ++++++++--
  include/net/netfilter/nf_flow_table.h         |  2 ++
  net/netfilter/nf_flow_table_offload.c         |  7 +++-
  net/netfilter/xt_FLOWOFFLOAD.c                | 32 +++++++++++++++++++
- 6 files changed, 66 insertions(+), 3 deletions(-)
+ 6 files changed, 65 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 184e29d..0e9c0bd 100755
+index 86e8f4f..be423ec 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -446,6 +446,17 @@ int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid)
- 
+@@ -468,6 +468,16 @@ int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid)
  	return 0;
  }
-+
+ 
 +int mtk_foe_entry_set_dscp(struct mtk_foe_entry *entry, int dscp)
 +{
 +	u32 *ib2 = mtk_foe_entry_ib2(entry);
@@ -31,23 +30,23 @@ index 184e29d..0e9c0bd 100755
 +	return 0;
 +}
 +
- static inline bool mtk_foe_entry_usable(struct mtk_foe_entry *entry)
+ int mtk_foe_entry_set_keep_dscp_ecn(struct mtk_foe_entry *entry, bool keep_en)
  {
- 	return !(entry->ib1 & MTK_FOE_IB1_STATIC) &&
+ 	u32 *udf = mtk_foe_entry_udf(entry);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 5529d64..2a8b6ef 100644
+index a5def6f..961d548 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -430,6 +430,7 @@ int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid);
+@@ -422,6 +422,7 @@ int mtk_foe_entry_set_tops_entry(struct mtk_foe_entry *entry, int tops_entry);
  int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
  			   int bss, int wcid);
  int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid);
 +int mtk_foe_entry_set_dscp(struct mtk_foe_entry *entry, int dscp);
+ int mtk_foe_entry_set_keep_dscp_ecn(struct mtk_foe_entry *entry, bool keep_en);
  bool mtk_foe_entry_match(struct mtk_foe_entry *entry, struct mtk_foe_entry *data);
  int mtk_foe_entry_set_sp(struct mtk_ppe *ppe, struct mtk_foe_entry *entry);
- int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index c1cce76..b9983d7 100644
+index f0c63da..3346f76 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 @@ -186,7 +186,7 @@ mtk_flow_get_dsa_port(struct net_device **dev)
@@ -102,7 +101,7 @@ index c1cce76..b9983d7 100644
  		return err;
  
 diff --git a/include/net/netfilter/nf_flow_table.h b/include/net/netfilter/nf_flow_table.h
-index 7374cb2..d5dd3fe 100644
+index a96303c..1cf4c69 100644
 --- a/include/net/netfilter/nf_flow_table.h
 +++ b/include/net/netfilter/nf_flow_table.h
 @@ -38,6 +38,7 @@ struct nf_flow_key {
@@ -150,7 +149,7 @@ index ba34572..b8b2fa6 100644
  }
  
 diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
-index 38013b0..ecdb2b6 100644
+index 0676b78..832cddc 100644
 --- a/net/netfilter/xt_FLOWOFFLOAD.c
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
 @@ -50,6 +50,35 @@ static DEFINE_SPINLOCK(hooks_lock);
@@ -200,5 +199,5 @@ index 38013b0..ecdb2b6 100644
  		ct->proto.tcp.seen[0].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
  		ct->proto.tcp.seen[1].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
 -- 
-2.18.0
+2.45.2
 
