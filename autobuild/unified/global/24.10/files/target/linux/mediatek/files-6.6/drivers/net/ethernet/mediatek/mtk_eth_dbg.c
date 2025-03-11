@@ -1270,26 +1270,32 @@ static const struct proc_ops hwtx_ring_fops = {
 int rx_ring_read(struct seq_file *seq, void *v)
 {
 	struct mtk_eth *eth = g_eth;
-	struct mtk_rx_ring *ring = &g_eth->rx_ring[0];
+	struct mtk_rx_ring *ring;
 	struct mtk_rx_dma_v2 *rx_ring;
-	int i = 0;
+	int i = 0, j = 0;
 
-	seq_printf(seq, "next to read: %d\n",
-		   NEXT_DESP_IDX(ring->calc_idx, eth->soc->rx.dma_size));
-	for (i = 0; i < eth->soc->rx.dma_size; i++) {
-		rx_ring = ring->dma + i * eth->soc->rx.desc_size;
+	for (j = 0; j < MTK_MAX_RX_RING_NUM; j++) {
+		ring = &eth->rx_ring[j];
+		if (!ring->dma)
+			continue;
 
-		seq_printf(seq, "%d: %08x %08x %08x %08x", i,
-			   rx_ring->rxd1, rx_ring->rxd2,
-			   rx_ring->rxd3, rx_ring->rxd4);
+		seq_printf(seq, "[Ring%d] next to read: %d\n", j,
+			   NEXT_DESP_IDX(ring->calc_idx, eth->soc->rx.dma_size));
+		for (i = 0; i < ring->dma_size; i++) {
+			rx_ring = ring->dma + i * eth->soc->rx.desc_size;
 
-		if (mtk_is_netsys_v2_or_greater(eth)) {
-			seq_printf(seq, " %08x %08x %08x %08x",
-				   rx_ring->rxd5, rx_ring->rxd6,
-				   rx_ring->rxd7, rx_ring->rxd8);
+			seq_printf(seq, "%04d: %08x %08x %08x %08x", i,
+				   rx_ring->rxd1, rx_ring->rxd2,
+				   rx_ring->rxd3, rx_ring->rxd4);
+
+			if (mtk_is_netsys_v3_or_greater(eth)) {
+				seq_printf(seq, " %08x %08x %08x %08x",
+					   rx_ring->rxd5, rx_ring->rxd6,
+					   rx_ring->rxd7, rx_ring->rxd8);
+			}
+
+			seq_puts(seq, "\n");
 		}
-
-		seq_puts(seq, "\n");
 	}
 
 	return 0;
@@ -1323,6 +1329,7 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 {
 	struct mtk_eth *eth = g_eth;
 	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
+	u32 i;
 
 	seq_puts(seq, "   <<DEBUG REG DUMP>>\n");
 
@@ -1378,6 +1385,28 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 		   mtk_r32(eth, reg_map->pdma.pcrx_ptr));
 	seq_printf(seq, "| PDMA_DRX_IDX	: %08x |\n",
 		   mtk_r32(eth, reg_map->pdma.pdrx_ptr));
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSS)) {
+		for (i = 1; i < eth->soc->rss_num; i++) {
+			seq_printf(seq, "| PDMA_CRX_IDX%d	: %08x |\n", i,
+				   mtk_r32(eth, reg_map->pdma.pcrx_ptr +
+					   i * MTK_QRX_OFFSET));
+			seq_printf(seq, "| PDMA_DRX_IDX%d	: %08x |\n", i,
+				   mtk_r32(eth, reg_map->pdma.pdrx_ptr +
+					   i * MTK_QRX_OFFSET));
+		}
+	}
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO)) {
+		for (i = 0; i < MTK_HW_LRO_RING_NUM; i++) {
+			seq_printf(seq, "| PDMA_CRX_IDX%d	: %08x |\n",
+				   MTK_HW_LRO_RING(i),
+				   mtk_r32(eth, reg_map->pdma.pcrx_ptr +
+					   MTK_HW_LRO_RING(i) * MTK_QRX_OFFSET));
+			seq_printf(seq, "| PDMA_DRX_IDX%d	: %08x |\n",
+				   MTK_HW_LRO_RING(i),
+				   mtk_r32(eth, reg_map->pdma.pdrx_ptr +
+					   MTK_HW_LRO_RING(i) * MTK_QRX_OFFSET));
+		}
+	}
 	seq_printf(seq, "| QDMA_CTX_IDX	: %08x |\n",
 		   mtk_r32(eth, reg_map->qdma.ctx_ptr));
 	seq_printf(seq, "| QDMA_DTX_IDX	: %08x |\n",
@@ -1419,6 +1448,17 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 	if (mtk_is_netsys_v3_or_greater(eth)) {
 		seq_printf(seq, "| MAC_P3_FSM	: %08x |\n",
 			   mtk_r32(eth, MTK_MAC_FSM(2)));
+	}
+
+	if (mtk_is_netsys_v3_or_greater(eth)) {
+		seq_printf(seq, "| XMAC_P1_MCR	: %08x |\n",
+			   mtk_r32(eth, MTK_XMAC_MCR(1)));
+		seq_printf(seq, "| XMAC_P1_STS	: %08x |\n",
+			   mtk_r32(eth, MTK_XGMAC_STS(1)));
+		seq_printf(seq, "| XMAC_P2_MCR	: %08x |\n",
+			   mtk_r32(eth, MTK_XMAC_MCR(2)));
+		seq_printf(seq, "| XMAC_P2_STS	: %08x |\n",
+			   mtk_r32(eth, MTK_XGMAC_STS(2)));
 	}
 
 	if (mtk_is_netsys_v2_or_greater(eth)) {
