@@ -20,6 +20,16 @@
 
 #define leaky_bucket 0
 
+#define MAC_ENTRY_LIVE_STATUS		2
+#define MAC_ENTRY_LIVE_STATUS_MASK	0x3
+
+enum mac_live_status {
+	MAC_ENTRY_EMPTY = 0,
+	MAC_ENTRY_DYNAMIC_VALID,
+	MAC_ENTRY_RESERVED,
+	MAC_ENTRY_STATIC
+};
+
 struct switch_func_s mt753x_switch_func = {
 	.pf_table_dump = table_dump,
 	.pf_table_clear = table_clear,
@@ -1608,10 +1618,13 @@ static void table_dump_internal(int type)
 
 				printf("   %2d", (mac2 >> 12) & 0x7);	//FID
 				printf("  %4d", (mac2 & 0xfff));
-				if (((value2 >> 24) & 0xff) == 0xFF)
-					printf("   --- ");	//r_age_field:static
+
+				if (((value2 >> MAC_ENTRY_LIVE_STATUS) &
+					MAC_ENTRY_LIVE_STATUS_MASK) == MAC_ENTRY_STATIC)
+					printf("   --- ");
 				else
-					printf(" %5d ", (((value2 >> 24) & 0xff) + 1) * 2);	//r_age_field
+					printf(" %5d ", (((value2 >> 24) & 0xff) + 1) * 2);
+
 				reg_read(REG_TSRA1_ADDR, &mac);
 				printf("  %08x", mac);
 				printf("%04x", ((mac2 >> 16) & 0xffff));
