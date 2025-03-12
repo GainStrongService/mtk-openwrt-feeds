@@ -11,6 +11,12 @@ for i in "$@"; do
 		;;
 	-p=* | --port=* )
 		port="${i#*=}"
+		port=`printf "0x%x" ${port}`
+		port_decimal=`printf "%d" ${port}`
+		shift # past argument=value
+		;;
+	-d=* | --debug )
+		debug_mode=1
 		shift # past argument=value
 		;;
 	--packet=* )
@@ -35,6 +41,7 @@ for i in "$@"; do
 		;;
 	-f=* | --flow=* )
 		flow="${i#*=}"
+		debug_mode=1
 		shift # past argument=value
 		;;
 	-m=* | --mode=* )
@@ -53,6 +60,15 @@ for i in "$@"; do
 		tclkoffset="${i#*=}"
 		shift # past argument=value
 		;;
+	-cl45 | --pure_cl45 )
+		pure_cl45=1
+		shift # past argument=value
+		;;
+	-v | --version )
+		echo "Version: ${version}"
+		exit 0
+		;;
+
 	#-s=*|--searchpath=*)
 	#        SEARCHPATH="${i#*=}"
 	#        shift # past argument=value
@@ -87,20 +103,20 @@ cmd_gen() {
 
 	if [ "${TEST_CMD}" = "switch" ] && [ "${_cl}" -eq 22 ]
 	then
-			CMD="switch phy cl22 "
-			response=" | awk {'print \$4'} | awk '{split(\$0,a,\"=\"); print a[2]}'"
+		CMD="switch phy cl22 "
+		response=" | grep -o 'reg=0x[0-9a-fA-F]\+' | cut -d= -f2"
 	elif [ "${TEST_CMD}" = "switch" ] && [ "${_cl}" -eq 45 ]
 	then
-			CMD="switch phy cl45 "
-			response=" | awk {'print \$4'} | awk '{split(\$0,a,\"=\"); print a[2]}'"
+		CMD="switch phy cl45 "
+		response=" | grep -o 'reg=0x[0-9a-fA-F]\+' | cut -d= -f2"
 	elif [ "${TEST_CMD}" = "mii" ] && [ "${_cl}" -eq 22 ]
 	then
-			CMD="mii_mgr "
-			response=" | awk {'print \$4'} | awk '{print \"0x\"\$0}'" ## Append 0x in front
+		CMD="mii_mgr "
+		response=" | awk {'print \$4'} | awk '{print \"0x\"\$0}'" ## Append 0x in front
 	elif [ "${TEST_CMD}" = "mii" ] && [ "${_cl}" -eq 45 ]
 	then
-			CMD="mii_mgr_cl45 "
-			response=" | awk {'print \$5'}"
+		CMD="mii_mgr_cl45 "
+		response=" | awk {'print \$5'}"
 	fi
 
 	## Determine read or write

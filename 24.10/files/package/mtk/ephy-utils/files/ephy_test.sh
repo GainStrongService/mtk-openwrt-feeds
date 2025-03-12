@@ -91,83 +91,11 @@ pr_packet_cnt=0
 pr_DSPstate=1
 ##############################################################
 
-TEST_CMD=""
-for i in "$@"; do
-	case $i in
-	-a=* | --an_type=* )
-		an_type="${i#*=}"
-		shift # past argument=value
-		;;
-	-s | --switch )
-		TEST_CMD="switch"
-		shift # past argument=value
-		;;
-	-p=* | --port=* )
-		port="${i#*=}"
-		port=`printf "0x%x" ${port}`
-		port_decimal=`printf "%d" ${port}`
-		shift # past argument=value
-		;;
-	-d=* | --debug )
-		debug_mode=1
-		shift # past argument=value
-		;;
-	--packet=* )
-		packet_num="${i#*=}"
-		shift # past argument=value
-		;;
-	-t=* | --delay=* )
-		delay="${i#*=}"
-		shift # past argument=value
-		;;
-	-i=* | --dst_ip=* )
-		dst_ip="${i#*=}"
-		shift # past argument=value
-		;;
-	-r=* | --round=* )
-		round="${i#*=}"
-		shift # past argument=value
-		;;
-	-l=* | --log_duration=* )
-		log_duration="${i#*=}"
-		shift # past argument=value
-		;;
-	-f=* | --flow=* )
-		flow="${i#*=}"
-		shift # past argument=value
-		;;
-	-m=* | --mode=* )
-		mode="${i#*=}"
-		shift # past argument=value
-		;;
-	-e=* | --end_condition=* )
-		end_condition="${i#*=}"
-		shift # past argument=value
-		;;
-	-cl45 | --pure_cl45 )
-		pure_cl45=1
-		shift # past argument=value
-		;;
-	#-s=*|--searchpath=*)
-	#        SEARCHPATH="${i#*=}"
-	#        shift # past argument=value
-	#        ;;
-	-v | --version )
-		echo "Version: ${version}"
-		exit 0
-		;;
-	--default)
-		DEFAULT=YES
-		shift # past argument with no value
-		;;
-	-*|--*)
-		echo "Unknown option $i"
-		exit 1
-		;;
-	*)
-		;;
-	esac
-done
+TEST_CMD="mii"
+kernel_ver=`uname -r`
+
+# Must source after initializing global vars, or they will be messed up
+source lib.sh
 
 platform=`cat /proc/device-tree/compatible | grep -E -o 'mt[0-9]+' | head -1`
 echo "Platform: ${platform}"
@@ -306,103 +234,6 @@ fi
 
 ########################################################################
 
-cmd_gen() {
-	_cl=$1
-	_direction=$2
-
-	## Initialize values
-	_dev_num=""
-	_reg_num=""
-
-	#### Error handling here.........####
-	if [ "${_cl}" -ne 22 ] && [ "${_cl}" -ne 45 ]; then
-		echo "command is neither cl22 nor cl45"
-		return 1
-	fi
-	#####################################
-
-	if [ "${TEST_CMD}" = "switch" ] && [ "${_cl}" -eq 22 ]
-	then
-		CMD="switch phy cl22 "
-		response=" | awk {'print \$4'} | awk '{split(\$0,a,\"=\"); print a[2]}'"
-	elif [ "${TEST_CMD}" = "switch" ] && [ "${_cl}" -eq 45 ]
-	then
-		CMD="switch phy cl45 "
-		response=" | awk {'print \$4'} | awk '{split(\$0,a,\"=\"); print a[2]}'"
-	elif [ "${TEST_CMD}" = "" ] && [ "${_cl}" -eq 22 ]
-	then
-		CMD="mii_mgr "
-		response=" | awk {'print \$4'} | awk '{print \"0x\"\$0}'" ## Append 0x in front
-	elif [ "${TEST_CMD}" = "" ] && [ "${_cl}" -eq 45 ]
-	then
-		CMD="mii_mgr_cl45 "
-		response=" | awk {'print \$5'}"
-	fi
-
-	## Determine read or write
-	if [ "${TEST_CMD}" = "switch" ] && [ "${_direction}" = "read" ]
-	then
-		dir="r "${port}" "
-	elif [ "${TEST_CMD}" = "switch" ] && [ "${_direction}" = "write" ]
-	then
-		response=""
-		dir="w "${port}" "
-	elif [ "${TEST_CMD}" = "" ] && [ "${_direction}" = "read" ]
-	then
-		dir="-g -p "${port}" "
-		if [ "${platform}" = "mt7629" ]; then
-			dir="-g -p "`printf "%d" ${port}`" "
-		fi
-	elif [ "${TEST_CMD}" = "" ] && [ "${_direction}" = "write" ]
-	then
-		response=""
-		dir="-s -p "${port}" "
-		if [ "${platform}" = "mt7629" ]; then
-			dir="-s -p "`printf "%d" ${port}`" "
-		fi
-	fi
-	CMD=${CMD}${dir}
-
-	if [ "${TEST_CMD}" = "" ]; then
-		_dev_num=" -d "
-		_reg_num=" -r "
-	fi
-	if [ "${_cl}" -eq 22 ]
-	then
-		_dev_num=""
-		if [ "${platform}" = "mt7629" ]
-		then
-			_reg_num=${_reg_num}`printf "%d" $3`
-		else
-			_reg_num=${_reg_num}$3
-		fi
-	elif [ "${_cl}" -eq 45 ]
-	then
-		_dev_num=${_dev_num}$3" "
-		_reg_num=${_reg_num}$4
-	fi
-	CMD=${CMD}${_dev_num}${_reg_num}
-
-	if [ "${_direction}" = "write" ]; then
-		if [ "${_cl}" -eq 22 ]
-		then
-			_val=$4
-		elif [ "${_cl}" -eq 45 ]
-		then
-			_val=$5
-		fi
-		if [ "${TEST_CMD}" = "switch" ]
-		then
-			CMD=${CMD}" "${_val}
-		elif [ "${TEST_CMD}" = "" ]
-		then
-			CMD=${CMD}" -v "${_val}
-		fi
-	fi
-
-	#echo "[Debug]"${CMD}${response}
-}
-
 disable_tx_power_saving() {
 	#switch phy cl45 w ${port} 0x1e 0xc6 0x53aa
 	cmd_gen 45 "write" 0x1e 0xc6 0x53aa && ${CMD}
@@ -479,12 +310,33 @@ relay_board_off() {
 	sleep 1
 }
 
-match_port() {
+dsa_match_port() {
+	interfaces=`ls -1 ${1}`
+	for ifs in ${interfaces}
+	do
+		port_dump=`ethtool ${ifs} | grep -E -o "PHYAD: [0-9a-fA-F]+" | sed 's/PHYAD: //g'`
+		if [ ${port_dump} -eq ${port_decimal} ]
+		then
+			target_interface=${ifs}
+			is_portMatch=1
+			#echo "Port matches!!"
+			break
+		fi
+	done
+}
+
+mii_match_port() {
 	interfaces=`ls -1 ${1}`
 	for ifs in ${interfaces}
 	do
 		#### Check if this interface is on the top of switch ####
-		mac_port=`readlink ${eth_prefix}/${eth_baseaddr}.ethernet/net/${ifs}/of_node`
+
+		if [[ "$kernel_ver" = "6.6"* ]]; then
+			mac_port=`readlink ${eth_prefix}/*/${eth_baseaddr}.ethernet/net/${ifs}/of_node`
+		elif [[ "$kernel_ver" = "5.4"* ]]; then
+			mac_port=`readlink ${eth_prefix}/${eth_baseaddr}.ethernet/net/${ifs}/of_node`
+		fi
+
 		if [ -n "${mac_port}" ]; then
 			# mac@0 is for switch on mt7981/mt7988
 			#if [[ ${mac_port} = *"mac@0"* ]]; then
@@ -509,18 +361,31 @@ match_port() {
 }
 
 is_portMatch=0
-if [ "${TEST_CMD}" = "" ]
+if [ "${TEST_CMD}" = "mii" ]
 then
-	eth_folder="${eth_prefix}/${eth_baseaddr}.ethernet/net/"
+	if [[ "$kernel_ver" = "6.6"* ]]; then
+		eth_folder_temp="${eth_prefix}/*/${eth_baseaddr}.ethernet/net/"
+	elif [[ "$kernel_ver" = "5.4"* ]]; then
+		eth_folder_temp="${eth_prefix}/${eth_baseaddr}.ethernet/net/"
+	fi
+	eth_folder=$(echo $eth_folder_temp)
 	if [ ! -d ${eth_folder} ]
 	then
 		echo "${eth_folder} doesn't exist"
 		exit 1
 	fi
-	match_port ${eth_folder}
+	mii_match_port ${eth_folder}
 elif [ "${TEST_CMD}" = "switch" ]
 then
-	eth_folder="${eth_prefix}/${eth_baseaddr}.ethernet/mdio_bus/mdio-bus/mdio-bus:1f/net/"
+	if [[ "$kernel_ver" = "6.6"* ]]
+	then
+		eth_folder_temp="${eth_prefix}/*/15020000.switch/net/"
+		eth_folder=$(echo $eth_folder_temp)
+	elif [[ "$kernel_ver" = "5.4"* ]]
+	then
+		eth_folder="${eth_prefix}/${eth_baseaddr}.ethernet/mdio_bus/mdio-bus/mdio-bus:1f/net/"
+	fi
+
 	if [ ! -d "${eth_folder}" ]
 	then
 		switch_framework="gsw"
@@ -541,7 +406,7 @@ then
 		done
 	else
 		switch_framework="dsa"
-		match_port ${eth_folder}
+		dsa_match_port ${eth_folder}
 		target_interface="lan${port_decimal}"
 	fi
 fi
@@ -641,7 +506,7 @@ poll_DSPState() {
 		#DSPState=$(( ((0x${DSPState_H} & 0xf0) << 16)+0x1 ))
 		DSPState=$(( ((0x${DSPState_H} & 0xf0) << 16) + 0x${DSPState_L} ))
 		#printf "DSPState: 0x%x\n" ${DSPState}
-	elif [ "${TEST_CMD}" = "" ]
+	elif [ "${TEST_CMD}" = "mii" ]
 	then
 		mii_mgr_tr_access "read" 0x1 0xf 0x39
 		DSPState=$(( ((${tr_high_val} & 0xf0) << 16) + ${tr_low_val} ))
