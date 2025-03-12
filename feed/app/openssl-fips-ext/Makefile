@@ -18,7 +18,7 @@ define Package/openssl-fips-ext
 	SECTION:=Utilities
 	SUBMENU:=FIPS
 	TITLE:=openssl-fips-ext -- simple tool for gcm and ccm based on openssl api
-	DEPENDS:= libopenssl
+	DEPENDS:= +libopenssl +libgnutls +kmod-cryptodev
 endef
 
 define Package/openssl-fips-ext/description
@@ -29,12 +29,14 @@ define Build/Compile
 	make -C $(PKG_BUILD_DIR) \
 		CC="$(TARGET_CC)" \
 		OPENSSL_INCS_LOCATION=-I$(STAGING_DIR)/usr/include/openssl \
-		OPENSSL_LIBS_LOCATION=-L$(STAGING_DIR)/usr/lib
+		OPENSSL_LIBS_LOCATION=-L$(STAGING_DIR)/usr/lib \
+		CRYPTODEV_INCS=-I$(KERNEL_BUILD_DIR)/cryptodev-linux-cryptodev-linux-1.12
 endef
 
 define Package/openssl-fips-ext/install
 	$(INSTALL_DIR) $(1)/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/openssl-fips-ext $(1)/bin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/hmac_sha $(1)/bin/
 endef
 
 $(eval $(call BuildPackage,openssl-fips-ext))

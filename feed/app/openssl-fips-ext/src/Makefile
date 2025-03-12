@@ -1,7 +1,10 @@
 CFLAGS = $(OPENSSL_INCS_LOCATION)
 LDFLAGS = $(OPENSSL_LIBS_LOCATION) -lssl -lcrypto -ldl -lpthread
 
-all: main.out
+all: main.out hmac_sha
+
+hmac_sha: hmac_sha.c
+	$(CC) $(CFLAGS) $(CRYPTODEV_INCS) -o hmac_sha hmac_sha.c
 
 main.out: common.o main.o aesgcm.o aesccm.o
 	$(CC) $(CFLAGS) -o openssl-fips-ext $^ $(LDFLAGS)
