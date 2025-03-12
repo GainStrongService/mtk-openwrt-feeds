@@ -327,6 +327,10 @@ prepare_openwrt_config() {
 	# for debug purpose
 	exec_log "cp -f \"${openwrt_config_file}\" \"${ab_tmp}/${ab_branch}.config\""
 	exec_log "STAGING_DIR_HOST=\"${openwrt_root}/staging_dir/host\" \"${openwrt_root}/scripts/config/aconf\" -m -M -o \"${ab_tmp}/${ab_branch}_defconfig\" -k \"${openwrt_root}/Config.in\" ${kconfig_files}"
+
+	# To enable MediaTek's ethernet PHY tool for MT7531 Gphy,
+	# MT7981's built-in Gphy, MT7988's & MT7987's built-in 2.5Gphy
+	openwrt_config_enable CONFIG_PACKAGE_ephy-utils
 }
 
 # {platform,wifi,sku,variant}_change_openwrt_config() { } Implemented by platform sub levels
