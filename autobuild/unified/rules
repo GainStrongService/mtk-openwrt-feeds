@@ -57,9 +57,7 @@ kernel_config_file=
 # $1:	Config name
 openwrt_config_disable() {
 	if test -z "${do_menuconfig}"; then
-		if kconfig_enabled "${openwrt_config_file}" "${1}"; then
-			kconfig_disable "${openwrt_config_file}" "${1}"
-		fi
+		kconfig_disable "${openwrt_config_file}" "${1}"
 	fi
 }
 
@@ -81,9 +79,7 @@ openwrt_config_enabled() {
 # Generic function for modifying target's kernel config
 # $1:	Config name
 kernel_config_disable() {
-	if kconfig_enabled "${kernel_config_file}" "${1}"; then
-		kconfig_disable "${kernel_config_file}" "${1}"
-	fi
+	kconfig_disable "${kernel_config_file}" "${1}"
 }
 
 # $1:	Config name
