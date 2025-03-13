@@ -148,9 +148,9 @@ cd openwrt
 
 #Change Feeds Revision
 #vim feeds.conf.default
-src-git packages https://git.openwrt.org/feed/packages.git^e10966a
-src-git luci https://git.openwrt.org/project/luci.git^0c6f546
-src-git routing https://git.openwrt.org/feed/routing.git^c9b6366
+src-git-full packages https://git.openwrt.org/feed/packages.git^e10966a
+src-git-full luci https://git.openwrt.org/project/luci.git^0c6f546
+src-git-full routing https://git.openwrt.org/feed/routing.git^c9b6366
 
 # Select one SKU to build
 ## 1. Filogic 880 (MT7988+MT7996) MTK Reference Board (RFB)
@@ -206,9 +206,9 @@ cd openwrt
 
 #Change Feeds Revision
 #vim feeds.conf.default
-src-git packages https://git.openwrt.org/feed/packages.git^3b341e1
-src-git luci https://git.openwrt.org/project/luci.git^e76155d
-src-git routing https://git.openwrt.org/feed/routing.git^3f15699
+src-git-full packages https://git.openwrt.org/feed/packages.git^3b341e1
+src-git-full luci https://git.openwrt.org/project/luci.git^e76155d
+src-git-full routing https://git.openwrt.org/feed/routing.git^3f15699
 
 # Select one SKU to build
 ## 1. Filogic 880 (MT7988+MT7996) MTK Reference Board (RFB)
