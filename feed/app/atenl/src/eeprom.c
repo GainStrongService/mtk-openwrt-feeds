@@ -112,16 +112,21 @@ atenl_eeprom_init_file(struct atenl *an, bool flash_mode)
 	return fd;
 }
 
-static void
+static int
 atenl_eeprom_init_chip_id(struct atenl *an)
 {
 	an->chip_id = *(u16 *)an->eeprom_data;
 
-	if (is_mt7915(an)) {
+	switch (an->chip_id) {
+	case MT7915_DEVICE_ID:
 		an->adie_id = 0x7975;
-	} else if (is_mt7916(an) || is_mt7981(an)) {
+		break;
+	case MT7916_EEPROM_CHIP_ID:
+	case MT7916_DEVICE_ID:
+	case MT7981_DEVICE_ID:
 		an->adie_id = 0x7976;
-	} else if (is_mt7986(an)) {
+		break;
+	case MT7986_DEVICE_ID: {
 		bool is_7975 = false;
 		u32 val;
 		u8 sub_id;
@@ -149,13 +154,18 @@ atenl_eeprom_init_chip_id(struct atenl *an)
 
 		an->sub_chip_id = sub_id;
 		an->adie_id = is_7975 ? 0x7975 : 0x7976;
-	} else if (is_mt7996(an)) {
-		/* TODO: parse info if required */
-	} else if (is_mt7992(an)) {
-		/* TODO: parse info if required */
-	} else if (is_mt7990(an)) {
-		/* TODO: parse info if required */
+		break;
 	}
+	case MT7996_DEVICE_ID:
+	case MT7992_DEVICE_ID:
+	case MT7990_DEVICE_ID:
+		/* TODO: parse info if required */
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
 }
 
 static void
@@ -370,8 +380,10 @@ int atenl_eeprom_init(struct atenl *an, u8 phy_idx)
 	eeprom_file = strdup(buf);
 
 	eeprom_fd = atenl_eeprom_init_file(an, flash_mode);
-	if (eeprom_fd < 0)
+	if (eeprom_fd < 0) {
+		atenl_err("Failed to open eeprom file %s\n", eeprom_file);
 		return -1;
+	}
 
 	an->eeprom_data = mmap(NULL, EEPROM_PART_SIZE, PROT_READ | PROT_WRITE,
 			       MAP_SHARED, eeprom_fd, 0);
@@ -382,7 +394,12 @@ int atenl_eeprom_init(struct atenl *an, u8 phy_idx)
 	}
 
 	an->eeprom_fd = eeprom_fd;
-	atenl_eeprom_init_chip_id(an);
+
+	/* make sure the chip id is correct before further processing */
+	if (atenl_eeprom_init_chip_id(an)) {
+		atenl_err("Unknown chip id %x\n", an->chip_id);
+		return -1;
+	}
 	atenl_eeprom_init_max_size(an);
 	atenl_eeprom_init_band_cap(an);
 	atenl_eeprom_init_antenna_cap(an);
@@ -521,23 +538,28 @@ out:
 void atenl_flash_write(struct atenl *an, int fd, u32 size, bool is_mtd)
 {
 	u32 flash_size, offs;
-	int ret;
+	int ret = 0;
 
 	flash_size = lseek(fd, 0, SEEK_END);
 	if (size > flash_size)
-		return;
+		goto fail;
 
 	offs = an->flash_offset;
 	ret = lseek(fd, offs, SEEK_SET);
 	if (ret < 0)
-		return;
+		goto fail;
 
 	ret = write(fd, an->eeprom_data, size);
 	if (ret < 0)
-		return;
+		goto fail;
 
 	atenl_info("write to %s partition %s offset 0x%x size 0x%x\n",
 		   is_mtd ? "mtd" : "mmc", an->flash_part, offs, size);
+	return;
+
+fail:
+	atenl_err("Failed to write %s: write size %d (flash size %d) ret = %d\n",
+		  is_mtd ? "mtd" : "mmc", size, flash_size, ret);
 }
 
 int atenl_eeprom_write_flash(struct atenl *an)
@@ -570,7 +592,7 @@ int atenl_eeprom_write_flash(struct atenl *an)
 		goto out;
 	}
 
-	atenl_err("Fail to open %s\n", an->flash_part);
+	atenl_err("Failed to open %s\n", an->flash_part);
 
 out:
 	close(fd);
@@ -588,8 +610,8 @@ int atenl_eeprom_read_from_driver(struct atenl *an, u32 offset, int len)
 	ssize_t rd;
 
 	snprintf(fname, sizeof(fname),
-		"/sys/kernel/debug/ieee80211/phy%d/mt76/eeprom",
-		an->main_phy_idx);
+		 "/sys/kernel/debug/ieee80211/phy%d/mt76/eeprom",
+		 an->main_phy_idx);
 	fd_ori = open(fname, O_RDONLY);
 	if (fd_ori < 0)
 		return -1;
@@ -629,7 +651,8 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 {
 	an->cmd_mode = true;
 
-	atenl_eeprom_init(an, phy_idx);
+	if (atenl_eeprom_init(an, phy_idx))
+		return;
 
 	if (!strncmp(cmd, "sync eeprom all", 15)) {
 		atenl_eeprom_write_flash(an);
@@ -662,6 +685,11 @@ void atenl_eeprom_cmd_handler(struct atenl *an, u8 phy_idx, char *cmd)
 			if (!sscanf(s, "%x=%x", &offset, &val) ||
 			    offset > EEPROM_PART_SIZE)
 				return;
+
+			if (offset == 0 || offset == 1) {
+				atenl_info("Modifying chip id is NOT allowed\n");
+				return;
+			}
 
 			an->eeprom_data[offset] = val;
 			atenl_info("set offset 0x%x to 0x%x\n", offset, val);
