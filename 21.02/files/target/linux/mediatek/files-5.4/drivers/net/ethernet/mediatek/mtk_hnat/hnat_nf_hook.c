@@ -917,15 +917,26 @@ static unsigned int is_ppe_support_type(struct sk_buff *skb)
 	struct ipv6hdr *ip6h = NULL;
 	struct iphdr _iphdr;
 
-	eth = eth_hdr(skb);
-	if (!is_magic_tag_valid(skb) || !IS_SPACE_AVAILABLE_HEAD(skb) ||
-	    (!hnat_priv->data->mcast && is_multicast_ether_addr(eth->h_dest)) ||
-	    is_broadcast_ether_addr(eth->h_dest))
+	if (unlikely(!skb))
 		return 0;
+
+	if (!is_magic_tag_valid(skb) || !IS_SPACE_AVAILABLE_HEAD(skb))
+		return 0;
+
+	if (skb_mac_header_was_set(skb) && (skb_mac_header_len(skb) >= ETH_HLEN)) {
+		eth = eth_hdr(skb);
+		if ((!hnat_priv->data->mcast && is_multicast_ether_addr(eth->h_dest)) ||
+		    is_broadcast_ether_addr(eth->h_dest))
+			return 0;
+	}
 
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP:
 		iph = ip_hdr(skb);
+
+		/* check if the packet is multicast */
+		if (!hnat_priv->data->mcast && ipv4_is_multicast(iph->daddr))
+			return 0;
 
 		if (mtk_tnl_decap_offloadable && mtk_tnl_decap_offloadable(skb)) {
 			/* tunnel protocol is offloadable */
@@ -941,6 +952,10 @@ static unsigned int is_ppe_support_type(struct sk_buff *skb)
 		break;
 	case ETH_P_IPV6:
 		ip6h = ipv6_hdr(skb);
+
+		/* check if the packet is multicast */
+		if (!hnat_priv->data->mcast && ip6h->daddr.s6_addr[0] == 0xff)
+			return 0;
 
 		if ((ip6h->nexthdr == NEXTHDR_TCP) ||
 		    (ip6h->nexthdr == NEXTHDR_UDP)) {
