@@ -403,8 +403,13 @@ update_target_info() {
 
 # for new kernel driver, please add default config for all targets to prevent autobuild pause
 global_default_kernel_config() {
-	kernel_config_disable CONFIG_RTL8261N_PHY
+	kernel_config_enable CONFIG_COMMON_CLK_MT7987
+	kernel_config_disable CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE
+	kernel_config_enable CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE
+	kernel_config_enable CONFIG_HOTPLUG_CPU
 	kernel_config_disable CONFIG_MT753X_GSW
+	kernel_config_enable CONFIG_PINCTRL_MT7987
+	kernel_config_disable CONFIG_RTL8261N_PHY
 }
 
 # {platform,wifi,sku,variant}_change_kernel_config() { } Implemented by platform sub levels
