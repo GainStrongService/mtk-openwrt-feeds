@@ -9,8 +9,8 @@ bridging offload.
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
  net/bridge/br_fdb.c            |   1 +
- net/netfilter/xt_FLOWOFFLOAD.c | 156 +++++++++++++++++++++++++++++----
- 2 files changed, 141 insertions(+), 16 deletions(-)
+ net/netfilter/xt_FLOWOFFLOAD.c | 159 +++++++++++++++++++++++++++++----
+ 2 files changed, 144 insertions(+), 16 deletions(-)
 
 diff --git a/net/bridge/br_fdb.c b/net/bridge/br_fdb.c
 index a6d8cd9..0da839d 100644
@@ -97,7 +97,7 @@ index 14c4651..5fce866 100644
  	n = dst_neigh_lookup(dst_cache, daddr);
  	if (!n)
  		return -1;
-@@ -413,23 +438,37 @@ static int nf_dev_fill_forward_path(const struct nf_flow_route *route,
+@@ -413,23 +438,40 @@ static int nf_dev_fill_forward_path(const struct nf_flow_route *route,
  	return dev_fill_forward_path(dev, ha, stack);
  }
  
@@ -124,10 +124,13 @@ index 14c4651..5fce866 100644
 +	if (xt_flowoffload_is_bridging(skb) && skb_mac_header_was_set(skb)) {
 +		eth = eth_hdr(skb);
 +		skb_dir = CTINFO2DIR(skb_get_nfct(skb) & NFCT_INFOMASK);
-+		if (skb_dir != dir)
++		if (skb_dir != dir) {
 +			memcpy(ha, eth->h_source, ETH_ALEN);
-+		else
++			memcpy(info.h_source, eth->h_dest, ETH_ALEN);
++		} else {
 +			memcpy(ha, eth->h_dest, ETH_ALEN);
++			memcpy(info.h_source, eth->h_source, ETH_ALEN);
++		}
 +	}
 +
  	if (nf_dev_fill_forward_path(route, dst, ct, dir, ha, &stack) >= 0)
