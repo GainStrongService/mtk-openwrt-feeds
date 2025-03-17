@@ -106,20 +106,18 @@
  
 -static int mt798x_2p5ge_phy_load_fw(struct phy_device *phydev)
 +static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
- {
- 	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
--	void __iomem *md32_en_cfg_base, *pmb_addr;
- 	struct device *dev = &phydev->mdio.dev;
++{
++	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
++	struct device *dev = &phydev->mdio.dev;
 +	void __iomem *xbz_pcs_reg_base;
 +	void __iomem *xbz_pma_rx_base;
 +	void __iomem *chip_scu_base;
 +	void __iomem *pmd_reg_base;
 +	void __iomem *mcu_csr_base;
- 	const struct firmware *fw;
++	const struct firmware *fw;
 +	void __iomem *apb_base;
 +	void __iomem *pmb_addr;
- 	int ret, i;
--	u16 reg;
++	int ret, i;
 +	u32 reg;
 +
 +	if (priv->fw_loaded)
@@ -350,12 +348,14 @@
 +}
 +
 +static int mt7988_2p5ge_phy_load_fw(struct phy_device *phydev)
-+{
-+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+ {
+ 	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+-	void __iomem *md32_en_cfg_base, *pmb_addr;
 +	void __iomem *mcu_csr_base, *pmb_addr;
-+	struct device *dev = &phydev->mdio.dev;
-+	const struct firmware *fw;
-+	int ret, i;
+ 	struct device *dev = &phydev->mdio.dev;
+ 	const struct firmware *fw;
+ 	int ret, i;
+-	u16 reg;
 +	u32 reg;
  
  	if (priv->fw_loaded)
@@ -424,3 +424,29 @@
  	if (ret < 0)
  		return ret;
  
+@@ -401,6 +723,25 @@ static int mt798x_2p5ge_phy_probe(struct
+ 
+ static struct phy_driver mtk_2p5gephy_driver[] = {
+ 	{
++		PHY_ID_MATCH_MODEL(MTK_2P5GPHY_ID_MT7987),
++		.name = "MediaTek MT7987 2.5GbE PHY",
++		.probe = mt798x_2p5ge_phy_probe,
++		.config_init = mt798x_2p5ge_phy_config_init,
++		.config_aneg = mt798x_2p5ge_phy_config_aneg,
++		.get_features = mt798x_2p5ge_phy_get_features,
++		.read_status = mt798x_2p5ge_phy_read_status,
++		.get_rate_matching = mt798x_2p5ge_phy_get_rate_matching,
++		.suspend = genphy_suspend,
++		.resume = genphy_resume,
++		.read_page = mtk_phy_read_page,
++		.write_page = mtk_phy_write_page,
++		.led_blink_set = mt798x_2p5ge_phy_led_blink_set,
++		.led_brightness_set = mt798x_2p5ge_phy_led_brightness_set,
++		.led_hw_is_supported = mt798x_2p5ge_phy_led_hw_is_supported,
++		.led_hw_control_get = mt798x_2p5ge_phy_led_hw_control_get,
++		.led_hw_control_set = mt798x_2p5ge_phy_led_hw_control_set,
++	},
++	{
+ 		PHY_ID_MATCH_MODEL(MTK_2P5GPHY_ID_MT7988),
+ 		.name = "MediaTek MT7988 2.5GbE PHY",
+ 		.probe = mt798x_2p5ge_phy_probe,
