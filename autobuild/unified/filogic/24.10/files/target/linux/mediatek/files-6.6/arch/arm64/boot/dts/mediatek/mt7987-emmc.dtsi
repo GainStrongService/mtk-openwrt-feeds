@@ -3,15 +3,6 @@
 #include "mt7987-pinctrl.dtsi"
 
 / {
-	reg_1p8v: regulator-1p8v {
-		compatible = "regulator-fixed";
-		regulator-name = "fixed-1.8V";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
 	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
@@ -36,15 +27,31 @@
 	pinctrl-0 = <&mmc_pins_default>;
 	pinctrl-1 = <&mmc_pins_uhs>;
 	bus-width = <8>;
-	max-frequency = <200000000>;
+	max-frequency = <48000000>;
 	cap-mmc-highspeed;
-	mmc-hs200-1_8v;
-	mmc-hs400-1_8v;
-	hs400-ds-delay = <0x12814>;
-	vqmmc-supply = <&reg_1p8v>;
 	vmmc-supply = <&reg_3p3v>;
 	non-removable;
-	no-sd;
-	no-sdio;
 	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	card@0 {
+		compatible = "mmc-card";
+		reg = <0>;
+
+		block {
+			compatible = "block-device";
+			partitions {
+				block-partition-env {
+					partname = "ubootenv";
+					nvmem-layout {
+						compatible = "u-boot,env";
+					};
+				};
+				emmc_rootfs: block-partition-production {
+					partname = "production";
+				};
+			};
+		};
+	};
 };
