@@ -1,16 +1,16 @@
-From 523cc55501cff0fb9314ebeb27f0624bb88dc4d4 Mon Sep 17 00:00:00 2001
+From 188c7f308958b39e7895a640c65e1c72315d9b03 Mon Sep 17 00:00:00 2001
 From: Mason Chang <mason-cw.chang@mediatek.com>
-Date: Wed, 26 Feb 2025 16:56:34 +0800
+Date: Tue, 18 Mar 2025 14:09:26 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: add register definitions for rss
  and lro
 
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 23 +++++++++++++++-
- drivers/net/ethernet/mediatek/mtk_eth_soc.h | 30 ++++++++++++++-------
- 2 files changed, 42 insertions(+), 11 deletions(-)
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 23 +++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h | 32 ++++++++++++++-------
+ 2 files changed, 45 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 5ad5a03..a3b0974 100644
+index 5ad5a03..02fb1b0 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -55,13 +55,18 @@ static const struct mtk_reg_map mtk_reg_map = {
@@ -53,18 +53,18 @@ index 5ad5a03..a3b0974 100644
  	},
  	.qdma = {
  		.qtx_cfg	= 0x4400,
-@@ -184,11 +196,20 @@ static const struct mtk_reg_map mt7988_reg_map = {
- 		.pdrx_ptr	= 0x690c,
+@@ -185,10 +197,21 @@ static const struct mtk_reg_map mt7988_reg_map = {
  		.glo_cfg	= 0x6a04,
  		.rst_idx	= 0x6a08,
--		.delay_irq	= 0x6a0c,
+ 		.delay_irq	= 0x6a0c,
 +		.rx_cfg		= 0x6a10,
-+		.delay_irq	= 0x6ac0,
  		.irq_status	= 0x6a20,
  		.irq_mask	= 0x6a28,
  		.adma_rx_dbg0	= 0x6a38,
  		.int_grp	= 0x6a50,
 +		.int_grp3	= 0x6a58,
++		.tx_delay_irq	= 0x6ab0,
++		.rx_delay_irq	= 0x6ac0,
 +		.lro_ctrl_dw0	= 0x6c08,
 +		.lro_alt_score_delta	= 0x6c1c,
 +		.lro_ring_dip_dw0	= 0x6c14,
@@ -76,10 +76,10 @@ index 5ad5a03..a3b0974 100644
  	.qdma = {
  		.qtx_cfg	= 0x4400,
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 18f2dd6..b6a30e1 100644
+index 18f2dd6..8cbfd1a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1219,17 +1219,27 @@ struct mtk_reg_map {
+@@ -1219,17 +1219,29 @@ struct mtk_reg_map {
  	u32	tx_irq_mask;
  	u32	tx_irq_status;
  	struct {
@@ -106,6 +106,8 @@ index 18f2dd6..b6a30e1 100644
 -		u32	int_grp;
 +		u32	int_grp;		/* interrupt group1 */
 +		u32	int_grp3;		/* interrupt group3 */
++		u32	tx_delay_irq;		/* tx delay interrupt */
++		u32	rx_delay_irq;		/* rx delay interrupt */
 +		u32	lro_ctrl_dw0;		/* lro ctrl dword0 */
 +		u32	lro_alt_score_delta;	/* lro auto-learn score delta */
 +		u32	lro_rx1_dly_int;	/* lro rx ring1 delay interrupt */
