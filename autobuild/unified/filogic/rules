@@ -1,4 +1,5 @@
 list_add_after $(hooks autobuild_prepare) platform_change_kernel_config filogic_change_kernel_config
+list_add_after $(hooks autobuild_prepare) copy_global_files copy_optee_files
 
 if test x"${hqa_set}" == x"yes"; then
 	list_add_after $(hooks autobuild_prepare) apply_global_patches apply_hqa_patches
@@ -25,4 +26,10 @@ filogic_change_kernel_config() {
 
 apply_hqa_patches() {
 	apply_patches "filogic/${openwrt_branch}/extra-data/hqa_patches" || return 1
+}
+
+copy_optee_files() {
+	copy_files "${openwrt_root}/../optee/optee_plat_mtk" "package/mtk/optee-mediatek/src/optee_plat_mtk"
+	copy_files "${openwrt_root}/../optee/optee_apps" "package/mtk/optee-mediatek/src/optee_apps"
+	copy_files "${openwrt_root}/../optee/optee_test_mtk" "package/mtk/optee-mediatek/src/optee_test_mtk"
 }

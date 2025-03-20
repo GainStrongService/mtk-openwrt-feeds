@@ -1,0 +1,15 @@
+menu "OP-TEE Configuration"
+	depends on PACKAGE_optee-mediatek
+
+source "Config-optee-os.in"
+source "Config-optee-client.in"
+source "Config-optee-mtk.in"
+
+	config OPTEE_TEST
+		bool "Build OP-TEE xtest"
+		select OPTEE_ENABLE_EMBEDDED_TESTS
+		select OPTEE_TA_TEST_PATH
+		default n
+		help
+		  Build optee_test to build xtest, and related TAs
+endmenu
