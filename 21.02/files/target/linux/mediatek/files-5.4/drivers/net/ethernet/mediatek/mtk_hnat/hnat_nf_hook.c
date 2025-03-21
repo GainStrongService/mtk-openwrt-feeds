@@ -3835,9 +3835,11 @@ mtk_hnat_br_nf_local_out(void *priv, struct sk_buff *skb,
 
 	post_routing_print(skb, state->in, state->out, __func__);
 
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	/* process it in ipv4/ipv6 post-routing hook if enabled bridge-nf-call-iptables */
 	if (nf_bridge_info_exists(skb))
 		return NF_ACCEPT;
+#endif
 
 	if (!mtk_hnat_nf_post_routing(skb, state->out, 0, __func__))
 		return NF_ACCEPT;
