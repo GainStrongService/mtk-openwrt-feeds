@@ -1,7 +1,8 @@
-From 1575c8a486b6b55b5e6addeff23d8a054e932796 Mon Sep 17 00:00:00 2001
+From c5d87bf6ba2fb75b842e83e8b879e2bdefe58036 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 17 Feb 2025 15:55:52 +0800
-Subject: [PATCH 2/2] mtk: mt76: mt7996: add 5T5R support for testmode RX
+Subject: [PATCH 1/2] mtk: mt76: mt7996: add testmode rx gain & fast cal
+ support
 
 add 5T5R support for testmode RX (especially for kite BE7200 ifem)
 
@@ -21,36 +22,40 @@ mt76-test phy0 set fast_cal=none/tx_verify (perform full cal)
 mt76-test phy0 set fast_cal=rx_verify (skip tx cal items)
 mt76-test phy0 set fast_cal=power_cal (skip dpd cal)
 
+mtk: mt76: mt7996: fix testmode RX frame issue
+
+Fix testmode RX frame issue
+The own mac address should be zero in normal case.
+Otherwise, the RX would be malfunctioning.
+Also, add TX_PATH setting in rx_frames
+
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>fast cal
 ---
- mt76.h            |   5 +
- mt7996/eeprom.h   |  21 +++--
- mt7996/mt7996.h   |   8 +-
- mt7996/testmode.c | 231 +++++++++++++++++++++++++++++++++++++++++-----
+ mt76.h            |   2 +
+ mt7996/eeprom.h   |  21 +++++--
+ mt7996/mt7996.h   |   8 +--
+ mt7996/testmode.c | 157 +++++++++++++++++++++++++++++++++++++---------
  mt7996/testmode.h |   6 +-
- testmode.c        |   9 +-
- testmode.h        |  30 ++++++
- tools/fields.c    |  12 +++
- 8 files changed, 285 insertions(+), 37 deletions(-)
+ testmode.c        |  30 ++++++---
+ testmode.h        |  30 +++++++++
+ tools/fields.c    |  12 ++++
+ 8 files changed, 217 insertions(+), 49 deletions(-)
 
 diff --git a/mt76.h b/mt76.h
-index cec20766..b169ad8f 100644
+index d0176693d..d063b1c54 100644
 --- a/mt76.h
 +++ b/mt76.h
-@@ -883,6 +883,11 @@ struct mt76_testmode_data {
+@@ -883,6 +883,8 @@ struct mt76_testmode_data {
  	u8 ipi_threshold;
  	u32 ipi_period;
  	u8 ipi_reset;
-+
-+	u16 rx_gain_bitmap;
-+	bool rx_gain_done;
 +
 +	u8 fast_cal;
  };
  
  enum {
 diff --git a/mt7996/eeprom.h b/mt7996/eeprom.h
-index e286a58b..63be9ae4 100644
+index e286a58b4..63be9ae48 100644
 --- a/mt7996/eeprom.h
 +++ b/mt7996/eeprom.h
 @@ -14,6 +14,7 @@ enum mt7996_eeprom_field {
@@ -103,7 +108,7 @@ index e286a58b..63be9ae4 100644
  #define MT_EE_WIFI_CONF1_TX_PATH_BAND0		GENMASK(5, 3)
  #define MT_EE_WIFI_CONF2_TX_PATH_BAND1		GENMASK(2, 0)
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 0ddd9757..fe7d1498 100644
+index 0ddd97576..fe7d14983 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
 @@ -754,10 +754,10 @@ struct mt7996_phy {
@@ -122,7 +127,7 @@ index 0ddd9757..fe7d1498 100644
  
  		u8 spe_idx;
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
-index 48ba2e9c..44fa2471 100644
+index 48ba2e9c8..f8afbc0eb 100644
 --- a/mt7996/testmode.c
 +++ b/mt7996/testmode.c
 @@ -103,6 +103,20 @@ static u8 mt7996_tm_rate_mapping(u8 tx_rate_mode, enum rate_mapping_type type)
@@ -196,89 +201,38 @@ index 48ba2e9c..44fa2471 100644
  
  	/* trigger switch channel calibration */
  	mt7996_tm_set(dev, SET_ID(CHAN_FREQ), chandef->center_freq1 * 1000);
-@@ -863,17 +895,166 @@ mt7996_tm_dump_precal(struct mt76_phy *mphy, struct sk_buff *msg, int flag, int
+@@ -407,6 +439,7 @@ mt7996_tm_set_rx_frames(struct mt7996_phy *phy, bool en)
+ #define RX_MU_DISABLE	0xf800
+ 	struct mt76_testmode_data *td = &phy->mt76->test;
+ 	struct mt7996_dev *dev = phy->dev;
++	u8 own_mac[ETH_ALEN] = {0};
+ 	int ret;
+ 
+ 	if (en) {
+@@ -428,10 +461,13 @@ mt7996_tm_set_rx_frames(struct mt7996_phy *phy, bool en)
+ 		mt7996_tm_set(dev, SET_ID(TX_MODE),
+ 			      mt7996_tm_rate_mapping(td->tx_rate_mode, RATE_MODE_TO_PHY));
+ 		mt7996_tm_set(dev, SET_ID(GI), td->tx_rate_sgi);
++		mt7996_tm_set_antenna(phy, SET_ID(TX_PATH));
+ 		mt7996_tm_set_antenna(phy, SET_ID(RX_PATH));
+ 		mt7996_tm_set(dev, SET_ID(MAX_PE), 2);
+ 
+-		mt7996_tm_set_mac_addr(dev, td->addr[1], SET_ID(SA));
++		if (td->bf_en)
++			memcpy(own_mac, td->addr[1], ETH_ALEN);
++		mt7996_tm_set_mac_addr(dev, own_mac, SET_ID(SA));
+ 
+ 		/* trigger firmware to start RX */
+ 		mt7996_tm_set(dev, SET_ID(COMMAND), RF_CMD(START_RX));
+@@ -863,17 +899,74 @@ mt7996_tm_dump_precal(struct mt76_phy *mphy, struct sk_buff *msg, int flag, int
  	return 0;
  }
  
-+static bool
-+mt7996_tm_check_rx_gain_ch(struct mt7996_phy *phy)
-+{
-+	const u32 rx_gain_ch_list_2g[] = {2442};
-+	const u32 rx_gain_ch_list_5g[] = {
-+		5180, 5260, 5340, 5500, 5580, 5660, 5745, 5825,
-+	};
-+	const u32 rx_gain_ch_list_6g[] = {
-+		5955, 6035, 6115, 6195, 6275, 6355, 6435, 6515,
-+		6595, 6675, 6755, 6835, 6915, 6995, 7075,
-+	};
-+	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
-+	struct mt76_testmode_data *td = &phy->mt76->test;
-+	const u32 *ch_list;
-+	int i, size;
-+
-+	if (!chandef->chan || chandef->width > NL80211_CHAN_WIDTH_20)
-+		return false;
-+
-+	switch (chandef->chan->band) {
-+	case NL80211_BAND_2GHZ:
-+		ch_list = rx_gain_ch_list_2g;
-+		size = ARRAY_SIZE(rx_gain_ch_list_2g);
-+		break;
-+	case NL80211_BAND_5GHZ:
-+		ch_list = rx_gain_ch_list_5g;
-+		size = ARRAY_SIZE(rx_gain_ch_list_5g);
-+		break;
-+	case NL80211_BAND_6GHZ:
-+		ch_list = rx_gain_ch_list_6g;
-+		size = ARRAY_SIZE(rx_gain_ch_list_6g);
-+		break;
-+	default:
-+		return false;
-+	}
-+
-+	for (i = 0; i < size; i++) {
-+		if (chandef->chan->center_freq == ch_list[i]) {
-+			td->rx_gain_bitmap |= BIT(i);
-+			if (hweight16(td->rx_gain_bitmap) == size)
-+				td->rx_gain_done = true;
-+			return true;
-+		}
-+	}
-+
-+	return false;
-+}
-+
-+static void
-+mt7996_tm_reset_rx_gain(struct mt7996_phy *phy, bool all)
-+{
-+	struct mt7996_dev *dev = phy->dev;
-+	u8 band_bitmap = 0, *eeprom = dev->mt76.eeprom.data;
-+	struct mt76_testmode_data *td;
-+	struct mt76_phy *mphy;
-+	int i;
-+
-+	for (i = 0; i < __MT_MAX_BAND; i++) {
-+		mphy = dev->mt76.phys[i];
-+		if (!mphy || (!all && mphy != phy->mt76))
-+			continue;
-+
-+		td = &mphy->test;
-+		td->rx_gain_bitmap = 0;
-+		td->rx_gain_done = false;
-+		band_bitmap |= BIT(mt7996_tm_band_mapping(mphy->chandef.chan->band));
-+	}
-+
-+	eeprom[MT_EE_DO_RX_GAIN_CAL] &= ~u8_encode_bits(band_bitmap,
-+							MT_EE_WIFI_CAL_RX_GAIN);
-+}
-+
 +static int
 +mt7996_tm_rx_gain_cal(struct mt7996_phy *phy, enum mt76_testmode_state state)
 +{
 +	struct mt7996_dev *dev = phy->dev;
 +	struct mt76_phy *mphy = phy->mt76;
-+	struct cfg80211_chan_def *chandef = &mphy->chandef;
-+	struct mt76_testmode_data *td = &mphy->test;
 +	struct mt7996_tm_req req = {
 +		.rf_test = {
 +			.tag = cpu_to_le16(UNI_RF_TEST_CTRL),
@@ -290,7 +244,7 @@ index 48ba2e9c..44fa2471 100644
 +			.op.rf.param.cal_param.band_idx = mphy->band_idx,
 +		},
 +	};
-+	u8 ch_band, *eeprom = dev->mt76.eeprom.data;
++	u8 *eeprom = dev->mt76.eeprom.data;
 +	u32 i, j, size, *cal;
 +	int ret = 0;
 +
@@ -304,29 +258,15 @@ index 48ba2e9c..44fa2471 100644
 +
 +	switch (state) {
 +	case MT76_TM_STATE_RX_GAIN_CAL:
-+		if (!mt7996_tm_check_rx_gain_ch(phy)) {
-+			dev_err(dev->mt76.dev, "Invalid calibration channel for RX gain\n");
-+			ret = -EINVAL;
-+			goto fail;
-+		}
-+
-+		mt7996_tm_set_rx_frames(phy, true);
 +		ret = mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(TESTMODE_CTRL), &req,
 +					sizeof(req), false);
 +		if (ret) {
-+			dev_err(dev->mt76.dev,
-+				"RX Gain Cal: mcu send msg failed (%d)\n",
-+				ret);
-+			goto fail;
++			dev_err(dev->mt76.dev, "%s: failed to send mcu msg (%d)\n",
++				__func__, ret);
++			return ret;
 +		}
 +
 +		wait_event_timeout(dev->mt76.mcu.wait, dev->cur_prek_offset == size, 30 * HZ);
-+
-+		/* disable runtime rx gain cal */
-+		ch_band = mt7996_tm_band_mapping(chandef->chan->band);
-+		if (td->rx_gain_done)
-+			eeprom[MT_EE_DO_RX_GAIN_CAL] |= u8_encode_bits(BIT(ch_band),
-+								       MT_EE_WIFI_CAL_RX_GAIN);
 +		break;
 +	case MT76_TM_STATE_RX_GAIN_CAL_DUMP:
 +		cal = (u32 *)eeprom;
@@ -337,21 +277,17 @@ index 48ba2e9c..44fa2471 100644
 +				 j * sizeof(u32), cal[j], cal[j + 1],
 +				 cal[j + 2], cal[j + 3]);
 +		}
-+		return 0;
++		break;
 +	case MT76_TM_STATE_RX_GAIN_CAL_CLEAN:
 +		memset(eeprom + MT_EE_RX_GAIN_CAL, 0, size);
-+		mt7996_tm_reset_rx_gain(phy, true);
-+		return 0;
++		eeprom[MT_EE_DO_RX_GAIN_CAL] &= ~u8_encode_bits(GENMASK(2, 0),
++								MT_EE_WIFI_CAL_RX_GAIN);
++		break;
 +	default:
-+		ret = -EINVAL;
-+		goto fail;
++		return -EINVAL;
 +	}
 +
 +	return 0;
-+
-+fail:
-+	mt7996_tm_reset_rx_gain(phy, false);
-+	return ret;
 +}
 +
  static void
@@ -370,7 +306,7 @@ index 48ba2e9c..44fa2471 100644
  
  	cal_idx = le32_to_cpu(data->cal_idx);
  	cal_type = le32_to_cpu(data->cal_type);
-@@ -881,6 +1062,10 @@ mt7996_tm_re_cal_event(struct mt7996_dev *dev, struct mt7996_tm_rf_test_result *
+@@ -881,6 +974,10 @@ mt7996_tm_re_cal_event(struct mt7996_dev *dev, struct mt7996_tm_rf_test_result *
  	len = len - sizeof(struct mt7996_tm_rf_test_data);
  
  	switch (cal_type) {
@@ -381,7 +317,7 @@ index 48ba2e9c..44fa2471 100644
  	case RF_PRE_CAL:
  		base = 0;
  		break;
-@@ -889,20 +1074,21 @@ mt7996_tm_re_cal_event(struct mt7996_dev *dev, struct mt7996_tm_rf_test_result *
+@@ -889,20 +986,21 @@ mt7996_tm_re_cal_event(struct mt7996_dev *dev, struct mt7996_tm_rf_test_result *
  		break;
  	case RF_DPD_FLAT_5G_CAL:
  	case RF_DPD_FLAT_5G_MEM_CAL:
@@ -408,16 +344,45 @@ index 48ba2e9c..44fa2471 100644
  }
  
  void mt7996_tm_rf_test_event(struct mt7996_dev *dev, struct sk_buff *skb)
-@@ -1934,6 +2120,8 @@ mt7996_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
- 		return mt7996_tm_group_prek(phy, state);
- 	else if (state >= MT76_TM_STATE_DPD_2G && state <= MT76_TM_STATE_DPD_CLEAN)
- 		return mt7996_tm_dpd_prek(phy, state);
+@@ -1893,6 +1991,7 @@ mt7996_tm_update_params(struct mt7996_phy *phy, u32 changed)
+ 	if (changed & BIT(TM_CHANGED_TXBF_ACT))
+ 		mt7996_tm_set_txbf(phy);
+ 	if (changed & BIT(TM_CHANGED_TX_ANTENNA)) {
++		mt76_testmode_param_set(td, MT76_TM_ATTR_TX_ANTENNA);
+ 		mt7996_tm_set_antenna(phy, SET_ID(TX_PATH));
+ 		mt7996_tm_set_antenna(phy, SET_ID(RX_PATH));
+ 	}
+@@ -1913,11 +2012,16 @@ mt7996_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
+ 	if (!dev->testmode_enable)
+ 		return -EPERM;
+ 
+-	mphy->test.state = state;
+-
+ 	if (prev_state != MT76_TM_STATE_OFF)
+ 		mt7996_tm_set(dev, SET_ID(BAND_IDX), mphy->band_idx);
+ 
++	if (state >= MT76_TM_STATE_GROUP_PREK && state <= MT76_TM_STATE_GROUP_PREK_CLEAN)
++		return mt7996_tm_group_prek(phy, state);
++	else if (state >= MT76_TM_STATE_DPD_2G && state <= MT76_TM_STATE_DPD_CLEAN)
++		return mt7996_tm_dpd_prek(phy, state);
 +	else if (state >= MT76_TM_STATE_RX_GAIN_CAL && state <= MT76_TM_STATE_RX_GAIN_CAL_CLEAN)
 +		return mt7996_tm_rx_gain_cal(phy, state);
++
+ 	if (prev_state == MT76_TM_STATE_TX_FRAMES ||
+ 	    state == MT76_TM_STATE_TX_FRAMES)
+ 		mt7996_tm_set_tx_frames(phy, state == MT76_TM_STATE_TX_FRAMES);
+@@ -1930,10 +2034,6 @@ mt7996_tm_set_state(struct mt76_phy *mphy, enum mt76_testmode_state state)
+ 	else if (prev_state == MT76_TM_STATE_OFF ||
+ 		 state == MT76_TM_STATE_OFF)
+ 		mt7996_tm_init(phy, !(state == MT76_TM_STATE_OFF));
+-	else if (state >= MT76_TM_STATE_GROUP_PREK && state <= MT76_TM_STATE_GROUP_PREK_CLEAN)
+-		return mt7996_tm_group_prek(phy, state);
+-	else if (state >= MT76_TM_STATE_DPD_2G && state <= MT76_TM_STATE_DPD_CLEAN)
+-		return mt7996_tm_dpd_prek(phy, state);
  
  	if ((state == MT76_TM_STATE_IDLE &&
  	     prev_state == MT76_TM_STATE_OFF) ||
-@@ -2484,11 +2672,6 @@ mt7996_tm_set_list_mode(struct mt76_phy *mphy, int seg_idx,
+@@ -2484,11 +2584,6 @@ mt7996_tm_set_list_mode(struct mt76_phy *mphy, int seg_idx,
  		.tag = cpu_to_le16(UNI_RF_TEST_LIST_MODE),
  		.len = cpu_to_le16(sizeof(req.seg)),
  	};
@@ -429,7 +394,7 @@ index 48ba2e9c..44fa2471 100644
  	static const u8 lm_ext_id[] = {
  		[MT76_TM_LM_ACT_SET_TX_SEGMENT] = 16,
  		[MT76_TM_LM_ACT_TX_START] = 17,
-@@ -2507,7 +2690,7 @@ mt7996_tm_set_list_mode(struct mt76_phy *mphy, int seg_idx,
+@@ -2507,7 +2602,7 @@ mt7996_tm_set_list_mode(struct mt76_phy *mphy, int seg_idx,
  		[LM_STATE_RX] = "rx ongoing",
  	};
  	int seg_param_num = sizeof(req.seg.tx_seg.rf) / sizeof(u32);
@@ -439,7 +404,7 @@ index 48ba2e9c..44fa2471 100644
  	struct sk_buff *skb;
  	u8 cbw, dbw;
 diff --git a/mt7996/testmode.h b/mt7996/testmode.h
-index 2dc9760e..9d381196 100644
+index 2dc9760e5..9d381196c 100644
 --- a/mt7996/testmode.h
 +++ b/mt7996/testmode.h
 @@ -102,7 +102,10 @@ struct mt7996_tm_event {
@@ -463,7 +428,7 @@ index 2dc9760e..9d381196 100644
  	RF_TEST_ID_SET_EBF_ENABLE = 127,
  	RF_TEST_ID_GET_TX_POWER = 136,
 diff --git a/testmode.c b/testmode.c
-index 0c698a48..8fa32349 100644
+index 0c698a483..15e738602 100644
 --- a/testmode.c
 +++ b/testmode.c
 @@ -42,6 +42,7 @@ const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
@@ -474,7 +439,58 @@ index 0c698a48..8fa32349 100644
  };
  EXPORT_SYMBOL_GPL(mt76_tm_policy);
  
-@@ -872,7 +873,9 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -468,6 +469,9 @@ __mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state)
+ 			return err;
+ 	}
+ 
++	if (state == MT76_TM_STATE_RX_FRAMES)
++		dev->test_ops->reset_rx_stats(phy);
++
+ 	err = dev->test_ops->set_state(phy, state);
+ 	if (err) {
+ 		if (state == MT76_TM_STATE_TX_FRAMES)
+@@ -478,9 +482,8 @@ __mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state)
+ 
+ 	if (state == MT76_TM_STATE_TX_FRAMES)
+ 		mt76_testmode_tx_start(phy);
+-	else if (state == MT76_TM_STATE_RX_FRAMES) {
+-		dev->test_ops->reset_rx_stats(phy);
+-	}
++	else if (state == MT76_TM_STATE_RX_GAIN_CAL)
++		return 0;
+ 
+ 	phy->test.state = state;
+ 
+@@ -491,6 +494,7 @@ int mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state
+ {
+ 	struct mt76_testmode_data *td = &phy->test;
+ 	struct ieee80211_hw *hw = phy->hw;
++	int ret;
+ 
+ 	if (state == td->state && state == MT76_TM_STATE_OFF)
+ 		return 0;
+@@ -500,10 +504,18 @@ int mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state
+ 	     !(hw->conf.flags & IEEE80211_CONF_MONITOR)))
+ 		return -ENOTCONN;
+ 
++	/* keep rx while performing rx gain calibration */
++	if (state == MT76_TM_STATE_RX_GAIN_CAL) {
++		if (td->state != MT76_TM_STATE_RX_FRAMES) {
++			ret = __mt76_testmode_set_state(phy, MT76_TM_STATE_RX_FRAMES);
++			if (ret)
++				return ret;
++		}
++		return __mt76_testmode_set_state(phy, state);
++	}
++
+ 	if (state != MT76_TM_STATE_IDLE &&
+ 	    td->state != MT76_TM_STATE_IDLE) {
+-		int ret;
+-
+ 		ret = __mt76_testmode_set_state(phy, MT76_TM_STATE_IDLE);
+ 		if (ret)
+ 			return ret;
+@@ -872,7 +884,9 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	    mt76_tm_get_u8(tb[MT76_TM_ATTR_OFF_CH_SCAN_BW], &td->offchan_bw,
  			   NL80211_CHAN_WIDTH_20_NOHT, NL80211_CHAN_WIDTH_160) ||
  	    mt76_tm_get_u8(tb[MT76_TM_ATTR_IPI_THRESHOLD], &td->ipi_threshold, 0, 10) ||
@@ -485,7 +501,7 @@ index 0c698a48..8fa32349 100644
  		goto out;
  
  	if (tb[MT76_TM_ATTR_TX_LENGTH]) {
-@@ -1139,7 +1142,9 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
+@@ -1139,7 +1153,9 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
  	    (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_PRI_SEL) &&
  	     nla_put_u8(msg, MT76_TM_ATTR_TX_PRI_SEL, td->tx_pri_sel)) ||
  	    (mt76_testmode_param_present(td, MT76_TM_ATTR_FREQ_OFFSET) &&
@@ -497,7 +513,7 @@ index 0c698a48..8fa32349 100644
  
  	if (mt76_testmode_param_present(td, MT76_TM_ATTR_TX_POWER)) {
 diff --git a/testmode.h b/testmode.h
-index 7043b6d1..9b763cc2 100644
+index 7043b6d1f..9b763cc25 100644
 --- a/testmode.h
 +++ b/testmode.h
 @@ -90,6 +90,9 @@
@@ -564,7 +580,7 @@ index 7043b6d1..9b763cc2 100644
 +
  #endif
 diff --git a/tools/fields.c b/tools/fields.c
-index 549c3433..8f2f364b 100644
+index 549c34336..8f2f364b9 100644
 --- a/tools/fields.c
 +++ b/tools/fields.c
 @@ -19,6 +19,9 @@ static const char * const testmode_state[] = {
