@@ -142,6 +142,32 @@ cd openwrt; git checkout 56559278b78900f6cae5fda6b8d1bb9cda41e8bf; cd -;
 #Get mtk-openwrt-feeds source code
 git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
 cd mtk-openwrt-feeds; git checkout a9748bd2c6ee1cee973f8fd7149c9389944ae147; cd -;
+echo "a9748bd" > mtk-openwrt-feeds/autobuild/unified/feed_revision
+
+#Fix the OpenWrt feed not being correctly replaced with the public one
+#vim mtk-openwrt-feeds/autobuild/unified/rules
+@@ -103,8 +103,11 @@
+ update_ab_info() {
+ 	if test -z "${internal_build}"; then
+ 		if test -d "${openwrt_root}/../mtk-openwrt-feeds"; then
+-			log_dbg "Internal repo build mode"
+-			internal_build=1
++			local remote=$(git -C "${openwrt_root}/../mtk-openwrt-feeds" remote -v 2>/dev/null | grep 'gerrit.mediatek.inc' 2>/dev/null)
++			if test -n "${remote}"; then
++				log_dbg "Internal repo build mode"
++				internal_build=1
++			fi
+ 		fi
+ 	fi
+ }
+@@ -163,7 +163,7 @@
+ 	if test -n "${internal_build}" -a -z "${feed_rev}"; then
+ 		openwrt_feeds_add mtk_openwrt_feed src-link "${feed_url}" --subdir=feed
+ 	else
+-		openwrt_feeds_add mtk_openwrt_feed src-git "${feed_url}${feed_rev}" --subdir=feed
++		openwrt_feeds_add mtk_openwrt_feed src-git-full "${feed_url}${feed_rev}" --subdir=feed
+ 	fi
+ }
 
 #Choose one SKU to build (1st Build)
 cd openwrt
