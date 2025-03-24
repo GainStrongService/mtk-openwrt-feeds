@@ -123,8 +123,9 @@ apply_autobuild_script_patch() {
 
 modify_feeds_conf() {
 	local rev_file_list=
-	local feed_rev=
-	local feed_url="https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds"
+	local rev_file=
+	local feed_url=
+	local feed_url_link=
 
 	# Backup original feeds
 	exec_log "cp -f \"${openwrt_root}/feeds.conf.default\" \"${ab_tmp}/\""
@@ -140,30 +141,33 @@ modify_feeds_conf() {
 		openwrt_feeds_change_src_git_type routing 0
 	fi
 
-	# Add mtk-openwrt-feeds
+	# Add initial mtk-openwrt-feeds
+	if test -n "${internal_build}"; then
+		feed_url="https://gerrit.mediatek.inc/openwrt/feeds/mtk_openwrt_feeds"
+		feed_url_link=$(realpath "${openwrt_root}/../mtk-openwrt-feeds")
+	else
+		feed_url="https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds"
+		feed_url_link=$(realpath "${ab_root}/../..")
+	fi
+
+	openwrt_feeds_add mtk_openwrt_feed src-link "${feed_url_link}" --subdir=feed
+
+	# Checkout to specified revision if required
 	[ -n "${ab_variant_dir}" ] && list_append rev_file_list "${ab_variant_dir}/feed_revision"
 	[ -n "${ab_sku_dir}" ] && list_append rev_file_list "${ab_sku_dir}/feed_revision"
 	[ -n "${ab_wifi_dir}" ] && list_append rev_file_list "${ab_wifi_dir}/feed_revision"
 	[ -n "${ab_platform_dir}" ] && list_append rev_file_list "${ab_platform_dir}/feed_revision"
 	list_append rev_file_list "${ab_root}/feed_revision"
 
-	for rev_file in ${rev_file_list}; do
-		if test -f "${rev_file}"; then
-			feed_rev=$(cat "${rev_file}")
+	for __rev_file in ${rev_file_list}; do
+		if test -f "${__rev_file}"; then
+			rev_file="${__rev_file}"
 			break;
 		fi
 	done
 
-	[ -n "${feed_rev}" ] && feed_rev="^${feed_rev}"
-
-	if test -n "${internal_build}"; then
-		feed_url="${openwrt_root}/../mtk-openwrt-feeds"
-	fi
-
-	if test -n "${internal_build}" -a -z "${feed_rev}"; then
-		openwrt_feeds_add mtk_openwrt_feed src-link "${feed_url}" --subdir=feed
-	else
-		openwrt_feeds_add mtk_openwrt_feed src-git-full "${feed_url}${feed_rev}" --subdir=feed
+	if test -n "${rev_file}"; then
+		openwrt_feeds_set_revision "${rev_file}" "${feed_url}" || return 1
 	fi
 }
 

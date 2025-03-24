@@ -325,6 +325,51 @@ openwrt_feeds_enable() {
 	mv "${ab_root}/feeds.conf.mtk" "${openwrt_root}/feeds.conf.default"
 }
 
+# Set feeds revision from revision file
+# $1: revision file
+# $2: mtk_openwrt_feed url
+openwrt_feeds_set_revision() {
+	local feeds_revision=()
+
+	while read line; do
+		feeds_revision+=("$line")
+	done < ${1}
+
+	rm -f "${ab_root}/feeds.conf.mtk"
+
+	cat "${openwrt_root}/feeds.conf.default" | while read line; do
+		local farr=()
+		local rev_line=
+		local matched=
+
+		if __openwrt_feed_line_decompose "${line}" farr; then
+			for __rev_line in "${feeds_revision[@]}"; do
+				rev_line=($__rev_line)
+				if test x"${farr[3]}" = x"${rev_line[0]}"; then
+					matched=1
+					break
+				fi
+			done
+
+			if test x"${matched}" = x1; then
+				if test x"${farr[3]}" = x"mtk_openwrt_feed"; then
+					farr[4]="${2}"
+				fi
+
+				farr[1]="src-git-full"
+				farr[5]="^"
+				farr[6]="${rev_line[1]}"
+
+				line=$(__openwrt_feed_line_compose farr)
+			fi
+		fi
+
+		echo "${line}" >> "${ab_root}/feeds.conf.mtk"
+	done
+
+	mv "${ab_root}/feeds.conf.mtk" "${openwrt_root}/feeds.conf.default"
+}
+
 # Get existed git-based feeds
 openwrt_avail_feeds() {
 	local feeds=$(cd ${openwrt_root}/feeds && find -maxdepth 1 -type d -exec test -d '{}'/.git \; -printf '%f\n')
