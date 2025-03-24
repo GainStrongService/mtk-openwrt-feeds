@@ -946,15 +946,23 @@ void hnat_cache_clr(u32 ppe_id)
 		pr_info("%s: Clear cache of PPE%d\n", __func__, ppe_id);
 }
 
+static void __hnat_cache_ebl(u32 ppe_id, int enable)
+{
+	if (ppe_id >= CFG_PPE_NUM)
+		return;
+
+	if (enable)
+		hnat_cache_clr(ppe_id);
+
+	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_EN, enable);
+}
+
 void hnat_cache_ebl(int enable)
 {
 	int i;
 
-	for (i = 0; i < CFG_PPE_NUM; i++) {
-		if (enable)
-			hnat_cache_clr(i);
-		cr_set_field(hnat_priv->ppe_base[i] + PPE_CAH_CTRL, CAH_EN, enable);
-	}
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		__hnat_cache_ebl(i, enable);
 
 	if (debug_level >= 2)
 		pr_info("%s: %s cache of all PPE\n", __func__, (enable) ? "Enable" : "Disable");
@@ -979,9 +987,6 @@ static int hnat_hw_init(u32 ppe_id)
 
 	/* set ip proto */
 	writel(0xFFFFFFFF, hnat_priv->ppe_base[ppe_id] + PPE_IP_PROT_CHK);
-
-	/* setup caching */
-	hnat_cache_ebl(1);
 
 	/* enable FOE */
 	cr_set_bits(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG,
@@ -1043,6 +1048,9 @@ static int hnat_hw_init(u32 ppe_id)
 	/* writel(0x55555555, hnat_priv->ppe_base[ppe_id] + PPE_DFT_CPORT); */ /* qdma */
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG, TTL0_DRP, 0);
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG, MCAST_TB_EN, 1);
+
+	/* setup caching */
+	__hnat_cache_ebl(ppe_id, 1);
 
 	if (hnat_priv->data->version == MTK_HNAT_V2 ||
 	    hnat_priv->data->version == MTK_HNAT_V3) {
@@ -1199,7 +1207,7 @@ static void hnat_stop(u32 ppe_id)
 		}
 	}
 	/* disable caching */
-	hnat_cache_ebl(0);
+	__hnat_cache_ebl(ppe_id, 0);
 
 	/* flush cache has to be ahead of hnat disable --*/
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG, PPE_EN, 0);

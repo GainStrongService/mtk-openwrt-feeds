@@ -778,7 +778,7 @@ int entry_delete(u32 ppe_id, int index)
 	}
 
 	/* clear HWNAT cache */
-	hnat_cache_ebl(1);
+	hnat_cache_clr(ppe_id);
 
 	return 0;
 }
