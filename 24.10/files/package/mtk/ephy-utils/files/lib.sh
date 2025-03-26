@@ -101,14 +101,15 @@ cmd_gen() {
 	fi
 	#####################################
 
+	# For $1 & $2 here, backslash is necessary so we can correctly use pipeline vars.
 	if [ "${TEST_CMD}" = "switch" ] && [ "${_cl}" -eq 22 ]
 	then
 		CMD="switch phy cl22 "
-		response=" | grep -o 'reg=0x[0-9a-fA-F]\+' | cut -d= -f2"
+		response=" | awk -F'value=' '{print \$2}' | awk '{print \$1}'"
 	elif [ "${TEST_CMD}" = "switch" ] && [ "${_cl}" -eq 45 ]
 	then
 		CMD="switch phy cl45 "
-		response=" | grep -o 'reg=0x[0-9a-fA-F]\+' | cut -d= -f2"
+		response=" | awk -F'value=' '{print \$2}' | awk '{print \$1}'"
 	elif [ "${TEST_CMD}" = "mii" ] && [ "${_cl}" -eq 22 ]
 	then
 		CMD="mii_mgr "

@@ -349,7 +349,16 @@ mii_match_port() {
 		#	continue
 		#fi
 		#########################################################
+
+		# For kernel-6.6, ethtool will show port number as hex.
+		# For kernel-5.4, ethtool will show port number as decimal.
+		# However, it seems that this depends on your dts settings. So
+		# we transform it here if it's hex.
 		port_dump=`ethtool ${ifs} | grep -E -o "PHYAD: [0-9a-fA-F]+" | sed 's/PHYAD: //g'`
+		if [[ $port_dump =~ ^[0-9a-fA-F]+$ ]]; then
+			port_dump=`printf "%d" 0x$port_dump`
+		fi
+
 		if [ ${port_dump} -eq ${port_decimal} ]
 		then
 			target_interface=${ifs}
@@ -1094,6 +1103,11 @@ do
 	else
 		test_result="linkup_fail"
 		let "total_linkup_fail_cnt++"
+		res_failed=`cat ${buffer_final} | grep "Master/Slave resolution failed" | wc -l`
+		if [ ${res_failed} -gt 0 ]; then
+			echo "Abort test due to resolution failure."
+			exit 1
+		fi
 		#echo "##################### Summary #####################"
 		#echo "Link-up Fail"
 		#echo "Index[$index]: Link-up Fail" >> /tmp/result.txt
