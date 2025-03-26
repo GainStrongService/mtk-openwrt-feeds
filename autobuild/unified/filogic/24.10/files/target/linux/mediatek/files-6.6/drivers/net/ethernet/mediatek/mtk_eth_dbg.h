@@ -151,53 +151,121 @@
 #define MTK_HW_LRO_TIMESTAMP_FLUSH	(4)
 #define MTK_HW_LRO_NON_RULE_FLUSH	(5)
 
-#define SET_PDMA_RXRING_MAX_AGG_CNT(eth, x, y)				\
-{									\
-	u32 reg_val1 = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
-	u32 reg_val2 = mtk_r32(eth, MTK_LRO_CTRL_DW3_CFG(x));		\
-	reg_val1 &= ~MTK_LRO_RING_AGG_CNT_L_MASK;			\
-	reg_val2 &= ~MTK_LRO_RING_AGG_CNT_H_MASK;			\
-	reg_val1 |= ((y) & 0x3f) << MTK_LRO_RING_AGG_CNT_L_OFFSET;	\
-	reg_val2 |= (((y) >> 6) & 0x03) <<				\
-		     MTK_LRO_RING_AGG_CNT_H_OFFSET;			\
-	mtk_w32(eth, reg_val1, MTK_LRO_CTRL_DW2_CFG(x));		\
-	mtk_w32(eth, reg_val2, MTK_LRO_CTRL_DW3_CFG(x));		\
+#define SET_PDMA_RXRING_MAX_AGG_CNT(eth, x, y)						\
+{											\
+	u32 reg_val1, reg_val2;								\
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) {				\
+		reg_val1 = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);		\
+		reg_val1 |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_CFG_BASE + x);	\
+		reg_val1 |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);		\
+		mtk_w32(eth, reg_val1, MTK_GLO_MEM_CTRL);				\
+		reg_val1 = mtk_r32(eth, MTK_GLO_MEM_DATA(1));				\
+		reg_val1 &= ~MTK_RING_MAX_AGG_CNT;					\
+		reg_val1 |= FIELD_PREP(MTK_RING_MAX_AGG_CNT, y);			\
+		mtk_w32(eth, reg_val1, MTK_GLO_MEM_DATA(1));				\
+		reg_val1 = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);		\
+		reg_val1 |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_CFG_BASE + x);	\
+		reg_val1 |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_WRITE);		\
+		mtk_w32(eth, reg_val1, MTK_GLO_MEM_CTRL);				\
+	} else {									\
+		reg_val1 = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));			\
+		reg_val2 = mtk_r32(eth, MTK_LRO_CTRL_DW3_CFG(x));			\
+		reg_val1 &= ~MTK_LRO_RING_AGG_CNT_L_MASK;				\
+		reg_val2 &= ~MTK_LRO_RING_AGG_CNT_H_MASK;				\
+		reg_val1 |= ((y) & 0x3f) << MTK_LRO_RING_AGG_CNT_L_OFFSET;		\
+		reg_val2 |= (((y) >> 6) & 0x03) <<					\
+			     MTK_LRO_RING_AGG_CNT_H_OFFSET;				\
+		mtk_w32(eth, reg_val1, MTK_LRO_CTRL_DW2_CFG(x));			\
+		mtk_w32(eth, reg_val2, MTK_LRO_CTRL_DW3_CFG(x));			\
+	}										\
 }
 
-#define SET_PDMA_RXRING_AGG_TIME(eth, x, y)				\
-{									\
-	u32 reg_val = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
-	reg_val &= ~MTK_LRO_RING_AGG_TIME_MASK;				\
-	reg_val |= ((y) & 0xffff) << MTK_LRO_RING_AGG_TIME_OFFSET;	\
-	mtk_w32(eth, reg_val, MTK_LRO_CTRL_DW2_CFG(x));			\
+#define SET_PDMA_RXRING_AGG_TIME(eth, x, y)						\
+{											\
+	u32 reg_val;									\
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) {				\
+		reg_val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);			\
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_CFG_BASE + x);	\
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);		\
+		mtk_w32(eth, reg_val, MTK_GLO_MEM_CTRL);				\
+		reg_val = mtk_r32(eth, MTK_GLO_MEM_DATA(0));				\
+		reg_val &= ~MTK_RING_MAX_AGG_TIME_V2;					\
+		reg_val |= FIELD_PREP(MTK_RING_MAX_AGG_TIME_V2, y);			\
+		mtk_w32(eth, reg_val, MTK_GLO_MEM_DATA(0));				\
+		reg_val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);			\
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_CFG_BASE + x);	\
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_WRITE);		\
+		mtk_w32(eth, reg_val, MTK_GLO_MEM_CTRL);				\
+	} else {									\
+		reg_val = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));			\
+		reg_val &= ~MTK_LRO_RING_AGG_TIME_MASK;					\
+		reg_val |= ((y) & 0xffff) << MTK_LRO_RING_AGG_TIME_OFFSET;		\
+		mtk_w32(eth, reg_val, MTK_LRO_CTRL_DW2_CFG(x));				\
+	}										\
 }
 
-#define SET_PDMA_RXRING_AGE_TIME(eth, x, y)				\
-{									\
-	u32 reg_val1 = mtk_r32(eth, MTK_LRO_CTRL_DW1_CFG(x));		\
-	u32 reg_val2 = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
-	reg_val1 &= ~MTK_LRO_RING_AGE_TIME_L_MASK;			\
-	reg_val2 &= ~MTK_LRO_RING_AGE_TIME_H_MASK;			\
-	reg_val1 |= ((y) & 0x3ff) << MTK_LRO_RING_AGE_TIME_L_OFFSET;	\
-	reg_val2 |= (((y) >> 10) & 0x03f) <<				\
-		     MTK_LRO_RING_AGE_TIME_H_OFFSET;			\
-	mtk_w32(eth, reg_val1, MTK_LRO_CTRL_DW1_CFG(x));		\
-	mtk_w32(eth, reg_val2, MTK_LRO_CTRL_DW2_CFG(x));		\
+#define SET_PDMA_RXRING_AGE_TIME(eth, x, y)						\
+{											\
+	u32 reg_val1, reg_val2;								\
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) {				\
+		reg_val1 = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);		\
+		reg_val1 |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_CFG_BASE + x);	\
+		reg_val1 |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);		\
+		mtk_w32(eth, reg_val1, MTK_GLO_MEM_CTRL);				\
+		reg_val1 = mtk_r32(eth, MTK_GLO_MEM_DATA(0));				\
+		reg_val1 &= ~MTK_RING_AGE_TIME;						\
+		reg_val1 |= FIELD_PREP(MTK_RING_AGE_TIME, y);				\
+		mtk_w32(eth, reg_val1, MTK_GLO_MEM_DATA(0));				\
+		reg_val1 = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);		\
+		reg_val1 |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_CFG_BASE + x);	\
+		reg_val1 |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_WRITE);		\
+		mtk_w32(eth, reg_val1, MTK_GLO_MEM_CTRL);				\
+	} else {									\
+		reg_val1 = mtk_r32(eth, MTK_LRO_CTRL_DW1_CFG(x));			\
+		reg_val2 = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));			\
+		reg_val1 &= ~MTK_LRO_RING_AGE_TIME_L_MASK;				\
+		reg_val2 &= ~MTK_LRO_RING_AGE_TIME_H_MASK;				\
+		reg_val1 |= ((y) & 0x3ff) << MTK_LRO_RING_AGE_TIME_L_OFFSET;		\
+		reg_val2 |= (((y) >> 10) & 0x03f) <<					\
+			     MTK_LRO_RING_AGE_TIME_H_OFFSET;				\
+		mtk_w32(eth, reg_val1, MTK_LRO_CTRL_DW1_CFG(x));			\
+		mtk_w32(eth, reg_val2, MTK_LRO_CTRL_DW2_CFG(x));			\
+	}										\
 }
 
-#define SET_PDMA_LRO_BW_THRESHOLD(eth, x)				\
-{									\
-	u32 reg_val = mtk_r32(eth, MTK_PDMA_LRO_CTRL_DW2);		\
-	reg_val = (x);							\
-	mtk_w32(eth, reg_val, MTK_PDMA_LRO_CTRL_DW2);			\
+#define SET_PDMA_LRO_BW_THRESHOLD(eth, x)						\
+{											\
+	u32 reg_val;									\
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) {				\
+		return -EINVAL;								\
+	} else {									\
+		reg_val = mtk_r32(eth, MTK_PDMA_LRO_CTRL_DW2);				\
+		reg_val = (x);								\
+		mtk_w32(eth, reg_val, MTK_PDMA_LRO_CTRL_DW2);				\
+	}										\
 }
 
-#define SET_PDMA_RXRING_VALID(eth, x, y)				\
-{									\
-	u32 reg_val = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));		\
-	reg_val &= ~(0x1 << MTK_LRO_RING_RX_PORT_VLD_OFFSET);			\
-	reg_val |= ((y) & 0x1) << MTK_LRO_RING_RX_PORT_VLD_OFFSET;		\
-	mtk_w32(eth, reg_val, MTK_LRO_CTRL_DW2_CFG(x));			\
+#define SET_PDMA_RXRING_VALID(eth, x, y)						\
+{											\
+	u32 reg_val;									\
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_GLO_MEM_ACCESS)) {				\
+		reg_val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);			\
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_CFG_BASE + x);	\
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_READ);		\
+		mtk_w32(eth, reg_val, MTK_GLO_MEM_CTRL);				\
+		reg_val = mtk_r32(eth, MTK_GLO_MEM_DATA(1));				\
+		reg_val |= FIELD_PREP(MTK_LRO_DATA_VLD, y);				\
+		mtk_w32(eth, reg_val, MTK_GLO_MEM_DATA(1));				\
+		reg_val = FIELD_PREP(MTK_GLO_MEM_IDX, MTK_LRO_MEM_IDX);			\
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_ADDR, MTK_LRO_MEM_CFG_BASE + x);	\
+		reg_val |= FIELD_PREP(MTK_GLO_MEM_CMD, MTK_GLO_MEM_WRITE);		\
+		mtk_w32(eth, reg_val, MTK_GLO_MEM_CTRL);				\
+	} else {									\
+		reg_val = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(x));			\
+		reg_val &= ~(0x1 << MTK_LRO_RING_RX_PORT_VLD_OFFSET);			\
+		reg_val |= ((y) & 0x1) << MTK_LRO_RING_RX_PORT_VLD_OFFSET;		\
+		mtk_w32(eth, reg_val, MTK_LRO_CTRL_DW2_CFG(x));				\
+	}										\
 }
 
 struct mtk_lro_alt_v1_info0 {
