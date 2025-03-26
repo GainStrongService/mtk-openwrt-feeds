@@ -344,8 +344,8 @@ enable_openwrt_collect_debug_symbols() {
 }
 
 make_defconfig() {
-	if test -f "${ab_tmp}/.config.prev" -a -f "${openwrt_root}/.config"; then
-		if ! cmp -s "${ab_tmp}/.config.prev" "${openwrt_root}/.config"; then
+	if test -f "${ab_tmp}/${ab_branch}.config" -a -f "${openwrt_root}/.config"; then
+		if ! cmp -s "${ab_tmp}/${ab_branch}.config" "${openwrt_root}/.config"; then
 			exec_log "make -C \"${openwrt_root}\" defconfig"
 		fi
 	fi
