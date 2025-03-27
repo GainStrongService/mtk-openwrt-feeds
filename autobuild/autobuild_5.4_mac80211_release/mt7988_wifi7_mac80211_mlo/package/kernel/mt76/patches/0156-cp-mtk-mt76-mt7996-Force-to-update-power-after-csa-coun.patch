@@ -1,0 +1,46 @@
+From b976ac5e63e7e90725719fd7a733cffb40b26c8b Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Wed, 19 Mar 2025 14:01:00 +0800
+Subject: [PATCH 1/4] mtk: mt76: mt7996: Force to update power after csa count
+ down
+
+Force to update txpower sku table after csa count down.
+
+mac80211 will not update power in __ieee80211_recalc_txpower() if the
+maximum txpower of the both channels are the same.
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ mt7996/main.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 65211a73..84c33598 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -3130,6 +3130,9 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
+ 	u8 omac_idx;
+ 
+ 	for (i = 0; i < n_vifs; i++) {
++		u8 delta;
++		int current_txpower;
++
+ 		if (vifs[i].old_ctx == vifs[i].new_ctx)
+ 			continue;
+ 
+@@ -3185,6 +3188,12 @@ mt7996_switch_vif_chanctx(struct ieee80211_hw *hw,
+ 		ret = mt7996_config_channel(phy, &new_ctx->chandef);
+ 		if (ret)
+ 			goto out;
++
++		delta = mt76_tx_power_path_delta(hweight16(phy->mt76->chainmask));
++		current_txpower = DIV_ROUND_UP(phy->mt76->txpower_cur + delta, 2);
++		ret = mt7996_mcu_set_txpower_sku(phy, current_txpower);
++		if (ret)
++			goto out;
+ 	}
+ 
+ out:
+-- 
+2.45.2
+
