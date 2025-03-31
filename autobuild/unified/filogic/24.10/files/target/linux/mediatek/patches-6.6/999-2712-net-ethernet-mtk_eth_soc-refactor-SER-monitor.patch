@@ -1,18 +1,18 @@
-From a90796be4cb63e3077fa32afe7e4c73e5540aa0b Mon Sep 17 00:00:00 2001
+From 4313bdefe4df942e597d5d0079d96128b448d167 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Tue, 11 Mar 2025 09:52:47 +0800
+Date: Mon, 31 Mar 2025 12:22:59 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor SER monitor
 
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 215 ++++++++++++++++----
- drivers/net/ethernet/mediatek/mtk_eth_soc.h |  28 ++-
- 2 files changed, 204 insertions(+), 39 deletions(-)
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 219 ++++++++++++++++----
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h |  29 ++-
+ 2 files changed, 209 insertions(+), 39 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index ace6835..4cab507 100644
+index 3bc9b2d..bf586d7 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4363,80 +4363,225 @@ static void mtk_hw_warm_reset(struct mtk_eth *eth)
+@@ -4363,80 +4363,229 @@ static void mtk_hw_warm_reset(struct mtk_eth *eth)
  			val, rst_mask);
  }
  
@@ -66,7 +66,7 @@ index ace6835..4cab507 100644
 +	bool wtx_busy, cdm_busy, oq_free;
 +	u32 adidx, wdidx, val;
 +	u32 cdma_rxfsm, gdm_txfsm, gdm_rxfsm;
-+	u32 txgp_cnt, rxgp_cnt;
++	u32 txgp_cnt, rxgp_cnt, rxfc_cnt;
 +	bool qfsm_hang, qfwd_hang, qpse_fc;
  	bool ret = false;
 +	int i;
@@ -160,6 +160,7 @@ index ace6835..4cab507 100644
 +
 +		txgp_cnt = hw_stats->tx_packets;
 +		rxgp_cnt = hw_stats->rx_packets;
++		rxfc_cnt = hw_stats->rx_flow_control_packets;
 +
 +		iq_hang = !!(mtk_get_iq_sta(eth, PSE_GDM_PORT(i)));
 +		oq_hang = !!(mtk_get_oq_sta(eth, PSE_GDM_PORT(i)));
@@ -171,7 +172,7 @@ index ace6835..4cab507 100644
 +		gmac_tx = FIELD_GET(GENMASK(31, 24), mtk_r32(eth, MTK_MAC_FSM(i))) != 1;
 +		if (oq_hang && gmac_tx && (txgp_cnt == eth->reset.gdm_txgp_cnt[i])) {
 +			if (++eth->reset.mac_tx_hang_count[i] > 2) {
-+				dev_warn(eth->dev, "detect GMAC%d Tx hang!\n", i);
++				dev_warn(eth->dev, "detect GMAC%d Tx hang!\n", i + 1);
 +				eth->reset.mac_tx_hang_count[i] = 0;
 +				ret = true;
 +			}
@@ -185,7 +186,7 @@ index ace6835..4cab507 100644
 +		gmac_rx = FIELD_GET(GENMASK(23, 16), mtk_r32(eth, MTK_MAC_FSM(i))) != 1;
 +		if (gmac_rx && (rxgp_cnt == eth->reset.gdm_rxgp_cnt[i])) {
 +			if (++eth->reset.mac_rx_hang_count[i] > 2) {
-+				dev_warn(eth->dev, "detect GMAC%d Rx hang!\n", i);
++				dev_warn(eth->dev, "detect GMAC%d Rx hang!\n", i + i);
 +				eth->reset.mac_rx_hang_count[i] = 0;
 +				ret = true;
 +			}
@@ -199,19 +200,22 @@ index ace6835..4cab507 100644
 +		/* GDM Tx */
 +		gdm_txfsm = FIELD_GET(GENMASK(28, 16), mtk_r32(eth, MTK_FE_GDM_FSM(i)));
 +		if (oq_hang && (txgp_cnt == eth->reset.gdm_txgp_cnt[i]) &&
++		    (rxfc_cnt == eth->reset.gdm_rxfc_cnt[i]) &&
 +		    ((gdm_txfsm == eth->reset.gdm_txfsm[i]) && (gdm_txfsm == 0x1033))) {
 +			if (++eth->reset.gdm_tx_hang_count[i] > 2) {
-+				dev_warn(eth->dev, "detect GDM%d Tx hang!\n", i);
++				dev_warn(eth->dev, "detect GDM%d Tx hang!\n", i + 1);
 +				eth->reset.gdm_tx_hang_count[i] = 0;
 +				ret = true;
 +			}
 +			eth->reset.gdm_txfsm[i] = gdm_txfsm;
 +			eth->reset.gdm_txgp_cnt[i] = txgp_cnt;
++			eth->reset.gdm_rxfc_cnt[i] = rxfc_cnt;
 +			goto out;
 +		}
 +		eth->reset.gdm_tx_hang_count[i] = 0;
 +		eth->reset.gdm_txfsm[i] = gdm_txfsm;
 +		eth->reset.gdm_txgp_cnt[i] = txgp_cnt;
++		eth->reset.gdm_rxfc_cnt[i] = rxfc_cnt;
 +
 +		if (!mtk_interface_mode_is_xgmii(eth->mac[i]->interface))
 +			continue;
@@ -222,7 +226,7 @@ index ace6835..4cab507 100644
 +		    ((gdm_rxfsm == eth->reset.gdm_rxfsm[i]) &&
 +		     (gdm_rxfsm == 0x23 || gdm_rxfsm == 0x24))) {
 +			if (++eth->reset.gdm_rx_hang_count[i] > 2) {
-+				dev_warn(eth->dev, "detect GDM%d Rx hang!\n", i);
++				dev_warn(eth->dev, "detect GDM%d Rx hang!\n", i + i);
 +				eth->reset.gdm_rx_hang_count[i] = 0;
 +				ret = true;
 +			}
@@ -274,7 +278,7 @@ index ace6835..4cab507 100644
  	return ret;
  }
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index e8048b9..a1c59b6 100644
+index 3338871..72262d6 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -382,8 +382,6 @@
@@ -298,8 +302,8 @@ index e8048b9..a1c59b6 100644
 +
  #define MTK_MAC_FSM(x)		(0x1010C + ((x) * 0x100))
  
- struct mtk_rx_dma {
-@@ -963,6 +967,12 @@ enum mtk_pse_port {
+ #if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+@@ -1003,6 +1007,12 @@ enum mtk_pse_port {
  	PSE_PORT_MAX
  };
  
@@ -312,7 +316,7 @@ index e8048b9..a1c59b6 100644
  /* GMAC Identifier */
  enum mtk_gmac_id {
  	MTK_GMAC1_ID = 0,
-@@ -1513,10 +1523,20 @@ struct mtk_eth {
+@@ -1555,10 +1565,21 @@ struct mtk_eth {
  	struct {
  		struct delayed_work monitor_work;
  		atomic_t force;
@@ -322,6 +326,7 @@ index e8048b9..a1c59b6 100644
 +		u32 adidx[3];
 +		u32 gdm_txgp_cnt[3];
 +		u32 gdm_rxgp_cnt[3];
++		u32 gdm_rxfc_cnt[3];
 +		u32 gdm_txfsm[3];
 +		u32 gdm_rxfsm[3];
 +		u32 cdma_rxfsm;
