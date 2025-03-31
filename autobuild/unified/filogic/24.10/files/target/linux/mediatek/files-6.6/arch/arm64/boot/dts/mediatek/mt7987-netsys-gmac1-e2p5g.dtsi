@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 
-&gmac0 {
-	mac-type = "gdm";
-	phy-mode = "2500base-x";
-	phy-handle = <&phy12>;
-
-	/delete-node/ fixed-link;
+&eth {
+	gmac0: mac@0 {
+		compatible = "mediatek,eth-mac";
+		reg = <0>;
+		pcs-handle = <&sgmiipcs0>;
+		phy-mode = "2500base-x";
+		phy-handle = <&phy12>;
+	};
 };
 
 &mdio {
-	/delete-node/ mfd@1;
 	phy12: phy@12 {
 		compatible = "ethernet-phy-id03a2.a411";
 		reg = <12>;

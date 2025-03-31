@@ -164,17 +164,35 @@
 		sgmiisys0: syscon@10060000 {
 			compatible = "mediatek,mt7987-sgmiisys",
 				     "mediatek,mt7987-sgmiisys0",
-				     "syscon";
+				     "syscon",
+				     "simple-mfd";
 			reg = <0 0x10060000 0 0x1000>;
 			#clock-cells = <1>;
+
+			sgmiipcs0: pcs {
+				compatible = "mediatek,mt7987-sgmii";
+				clocks = <&topckgen CLK_TOP_SGM_0_SEL>,
+					 <&sgmiisys0 CLK_SGM0_TX_EN>,
+					 <&sgmiisys0 CLK_SGM0_RX_EN>;
+				clock-names = "sgmii_sel", "sgmii_tx", "sgmii_rx";
+			};
 		};
 
 		sgmiisys1: syscon@10070000 {
 			compatible = "mediatek,mt7987-sgmiisys",
 				     "mediatek,mt7987-sgmiisys1",
-				     "syscon";
+				     "syscon",
+				     "simple-mfd";
 			reg = <0 0x10070000 0 0x1000>;
 			#clock-cells = <1>;
+
+			sgmiipcs1: pcs {
+				compatible = "mediatek,mt7987-sgmii";
+				clocks = <&topckgen CLK_TOP_SGM_1_SEL>,
+					 <&sgmiisys1 CLK_SGM1_TX_EN>,
+					 <&sgmiisys1 CLK_SGM1_RX_EN>;
+				clock-names = "sgmii_sel", "sgmii_tx", "sgmii_rx";
+			};
 		};
 
 		mcusys: mcusys@10400000 {
@@ -369,12 +387,6 @@
 			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-parent = <&gic>;
 			#interrupt-cells = <2>;
-
-			pcie1pereset {
-				gpio-hog;
-				gpios = <36 GPIO_ACTIVE_HIGH>;
-				output-high;
-			};
 		};
 
 		boottrap: boottrap@1001f6f0 {
@@ -655,9 +667,8 @@
 		};
 
 		pcie0: pcie@11280000 {
-			compatible = "mediatek,mt7988-pcie",
-				     "mediatek,mt7987-pcie",
-				     "mediatek,mt7986-pcie";
+			compatible = "mediatek,mt7987-pcie",
+				     "mediatek,mt8192-pcie";
 			device_type = "pci";
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -673,9 +684,10 @@
 			clocks = <&infracfg CLK_INFRA_PCIE_PIPE_P0>,
 				 <&infracfg CLK_INFRA_PCIE_GFMUX_TL_P0>,
 				 <&infracfg CLK_INFRA_PCIE_PERI_26M_CK_P0>,
-				 <&infracfg CLK_INFRA_133M_PCIE_CK_P0>;
+				 <&infracfg CLK_INFRA_133M_PCIE_CK_P0>,
+				 <&topckgen CLK_TOP_PEXTP_TL_SEL>;
 			clock-names = "pl_250m", "tl_26m", "peri_26m",
-				      "top_133m";
+				      "top_133m", "pextp_clk";
 			status = "disabled";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
@@ -692,8 +704,9 @@
 
 		pcie1: pcie@11290000 {
 			compatible = "mediatek,mt7988-pcie",
-				     "mediatek,mt7987-pcie",
-				     "mediatek,mt7986-pcie";
+				     "mediatek,mt7988-pcie",
+				     "mediatek,mt7986-pcie",
+				     "mediatek,mt8192-pcie";
 			device_type = "pci";
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -709,9 +722,10 @@
 			clocks = <&infracfg CLK_INFRA_PCIE_PIPE_P1>,
 				 <&infracfg CLK_INFRA_PCIE_GFMUX_TL_P1>,
 				 <&infracfg CLK_INFRA_PCIE_PERI_26M_CK_P1>,
-				 <&infracfg CLK_INFRA_133M_PCIE_CK_P1>;
+				 <&infracfg CLK_INFRA_133M_PCIE_CK_P1>,
+				 <&topckgen CLK_TOP_PEXTP_TL_P1_SEL>;
 			clock-names = "pl_250m", "tl_26m", "peri_26m",
-				      "top_133m";
+				      "top_133m", "pextp_clk";
 			status = "disabled";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;

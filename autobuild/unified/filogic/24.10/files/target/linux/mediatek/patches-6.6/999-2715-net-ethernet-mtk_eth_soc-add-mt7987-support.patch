@@ -1,6 +1,6 @@
-From fbfe214a373448be51a7ef8b67f287f06773e65b Mon Sep 17 00:00:00 2001
+From 878ad7bc4ad5cf110cbf5bf41a543abdda3f6d8d Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Mon, 17 Mar 2025 16:16:02 +0800
+Date: Mon, 31 Mar 2025 13:55:45 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: add mt7987 support
 
 Without this patch, users are unable to bring up ETH driver on the
@@ -10,8 +10,8 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/mtk_eth_path.c |   9 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.c  | 126 ++++++++++++++++---
- drivers/net/ethernet/mediatek/mtk_eth_soc.h  |  76 +++++++++--
- 3 files changed, 176 insertions(+), 35 deletions(-)
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h  |  70 +++++++++--
+ 3 files changed, 170 insertions(+), 35 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_path.c b/drivers/net/ethernet/mediatek/mtk_eth_path.c
 index 3f4f4cf..d18602c 100644
@@ -47,10 +47,10 @@ index 3f4f4cf..d18602c 100644
  		.name = "mux_gmac2_to_2p5gphy",
  		.cap_bit = MTK_ETH_MUX_GMAC2_TO_2P5GPHY,
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 29e922c..d6f1fa5 100644
+index 142d1dc..455afcc 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -791,14 +791,21 @@ static int mtk_mac_prepare(struct phylink_config *config, unsigned int mode,
+@@ -793,14 +793,21 @@ static int mtk_mac_prepare(struct phylink_config *config, unsigned int mode,
  {
  	struct mtk_mac *mac = container_of(config, struct mtk_mac,
  					   phylink_config);
@@ -74,7 +74,7 @@ index 29e922c..d6f1fa5 100644
  	}
  
  	return 0;
-@@ -836,12 +843,16 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
+@@ -838,12 +845,16 @@ static void mtk_mac_link_down(struct phylink_config *config, unsigned int mode,
  {
  	struct mtk_mac *mac = container_of(config, struct mtk_mac,
  					   phylink_config);
@@ -92,7 +92,7 @@ index 29e922c..d6f1fa5 100644
  	}
  }
  
-@@ -885,6 +896,30 @@ static void mtk_set_queue_speed(struct mtk_eth *eth, unsigned int idx,
+@@ -887,6 +898,30 @@ static void mtk_set_queue_speed(struct mtk_eth *eth, unsigned int idx,
  		default:
  			break;
  		}
@@ -123,7 +123,7 @@ index 29e922c..d6f1fa5 100644
  	} else {
  		switch (speed) {
  		case SPEED_10:
-@@ -957,6 +992,7 @@ static void mtk_xgdm_mac_link_up(struct mtk_mac *mac,
+@@ -997,6 +1032,7 @@ static void mtk_xgdm_mac_link_up(struct mtk_mac *mac,
  				 unsigned int mode, phy_interface_t interface,
  				 int speed, int duplex, bool tx_pause, bool rx_pause)
  {
@@ -131,7 +131,7 @@ index 29e922c..d6f1fa5 100644
  	u32 mcr;
  
  	if (mac->id == MTK_GMAC1_ID)
-@@ -967,20 +1003,37 @@ static void mtk_xgdm_mac_link_up(struct mtk_mac *mac,
+@@ -1007,20 +1043,37 @@ static void mtk_xgdm_mac_link_up(struct mtk_mac *mac,
  	mdelay(20);
  	mtk_m32(mac->hw, XMAC_GLB_CNTCLR, XMAC_GLB_CNTCLR, MTK_XMAC_CNT_CTRL(mac->id));
  
@@ -181,7 +181,7 @@ index 29e922c..d6f1fa5 100644
  }
  
  static void mtk_mac_link_up(struct phylink_config *config,
-@@ -2761,10 +2814,16 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
+@@ -2798,10 +2851,16 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
  			mtk_w32(eth, val, soc->reg_map->qdma.qtx_cfg + ofs);
  
  			val = MTK_QTX_SCH_MIN_RATE_EN |
@@ -201,7 +201,7 @@ index 29e922c..d6f1fa5 100644
  			if (mtk_is_netsys_v1(eth))
  				val |= MTK_QTX_SCH_LEAKY_BUCKET_EN;
  			mtk_w32(eth, val, soc->reg_map->qdma.qtx_sch + ofs);
-@@ -6445,6 +6504,36 @@ static const struct mtk_soc_data mt7986_data = {
+@@ -6528,6 +6587,36 @@ static const struct mtk_soc_data mt7986_data = {
  	},
  };
  
@@ -238,7 +238,7 @@ index 29e922c..d6f1fa5 100644
  static const struct mtk_soc_data mt7988_data = {
  	.reg_map = &mt7988_reg_map,
  	.ana_rgc3 = 0x128,
-@@ -6506,6 +6595,7 @@ const struct of_device_id of_mtk_match[] = {
+@@ -6589,6 +6678,7 @@ const struct of_device_id of_mtk_match[] = {
  	{ .compatible = "mediatek,mt7629-eth", .data = &mt7629_data },
  	{ .compatible = "mediatek,mt7981-eth", .data = &mt7981_data },
  	{ .compatible = "mediatek,mt7986-eth", .data = &mt7986_data },
@@ -247,7 +247,7 @@ index 29e922c..d6f1fa5 100644
  	{ .compatible = "ralink,rt5350-eth", .data = &rt5350_data },
  	{},
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 8a27274..f143747 100644
+index 1edfe5c..6bce1de 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -315,6 +315,13 @@
@@ -264,7 +264,7 @@ index 8a27274..f143747 100644
  /* QDMA Page Configuration Register */
  #define MTK_QTX_PER_PAGE	(16)
  
-@@ -606,9 +613,23 @@
+@@ -616,9 +623,23 @@
  #define XMAC_MCR_FORCE_RX_FC	BIT(4)
  
  /* XFI Mac logic reset registers */
@@ -289,18 +289,12 @@ index 8a27274..f143747 100644
  /* XFI Mac count global control */
  #define MTK_XMAC_CNT_CTRL(x)	(MTK_XMAC_BASE(x) + 0x100)
  #define XMAC_GLB_CNTCLR		BIT(0)
-@@ -959,6 +980,23 @@ enum mtk_clks_map {
+@@ -969,6 +990,17 @@ enum mtk_clks_map {
  				 BIT_ULL(MTK_CLK_SGMII2_RX_250M) | \
  				 BIT_ULL(MTK_CLK_SGMII2_CDR_REF) | \
  				 BIT_ULL(MTK_CLK_SGMII2_CDR_FB))
 +#define MT7987_CLKS_BITMAP	(BIT_ULL(MTK_CLK_FE) |  BIT_ULL(MTK_CLK_GP1) | \
 +				 BIT_ULL(MTK_CLK_GP2) | BIT_ULL(MTK_CLK_GP3) | \
-+				 BIT_ULL(MTK_CLK_SGMII_TX_250M) | \
-+				 BIT_ULL(MTK_CLK_SGMII_RX_250M) | \
-+				 BIT_ULL(MTK_CLK_SGMII2_TX_250M) | \
-+				 BIT_ULL(MTK_CLK_SGMII2_RX_250M) | \
-+				 BIT_ULL(MTK_CLK_TOP_SGM_0_SEL) | \
-+				 BIT_ULL(MTK_CLK_TOP_SGM_1_SEL) | \
 +				 BIT_ULL(MTK_CLK_TOP_ETH_GMII_SEL) | \
 +				 BIT_ULL(MTK_CLK_TOP_ETH_REFCK_50M_SEL) | \
 +				 BIT_ULL(MTK_CLK_TOP_ETH_SYS_200M_SEL) | \
@@ -313,7 +307,7 @@ index 8a27274..f143747 100644
  #define MT7988_CLKS_BITMAP	(BIT_ULL(MTK_CLK_FE) | BIT_ULL(MTK_CLK_ESW) | \
  				 BIT_ULL(MTK_CLK_GP1) | BIT_ULL(MTK_CLK_GP2) | \
  				 BIT_ULL(MTK_CLK_GP3) | BIT_ULL(MTK_CLK_XGP1) | \
-@@ -1150,12 +1188,14 @@ enum mkt_eth_capabilities {
+@@ -1160,12 +1192,14 @@ enum mkt_eth_capabilities {
  	MTK_RSTCTRL_PPE2_BIT,
  	MTK_U3_COPHY_V2_BIT,
  	MTK_SRAM_BIT,
@@ -329,7 +323,7 @@ index 8a27274..f143747 100644
  	MTK_ETH_MUX_GMAC2_TO_2P5GPHY_BIT,
  	MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII_BIT,
  	MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII_BIT,
-@@ -1199,14 +1239,16 @@ enum mkt_eth_capabilities {
+@@ -1209,14 +1243,16 @@ enum mkt_eth_capabilities {
  #define MTK_RSTCTRL_PPE2	BIT_ULL(MTK_RSTCTRL_PPE2_BIT)
  #define MTK_U3_COPHY_V2		BIT_ULL(MTK_U3_COPHY_V2_BIT)
  #define MTK_SRAM		BIT_ULL(MTK_SRAM_BIT)
@@ -348,7 +342,7 @@ index 8a27274..f143747 100644
  #define MTK_ETH_MUX_GMAC2_TO_2P5GPHY		\
  	BIT_ULL(MTK_ETH_MUX_GMAC2_TO_2P5GPHY_BIT)
  #define MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII	\
-@@ -1238,12 +1280,13 @@ enum mkt_eth_capabilities {
+@@ -1248,12 +1284,13 @@ enum mkt_eth_capabilities {
  #define MTK_GMAC2_RGMII		(MTK_ETH_PATH_GMAC2_RGMII | MTK_RGMII)
  #define MTK_GMAC2_SGMII		(MTK_ETH_PATH_GMAC2_SGMII | MTK_SGMII)
  #define MTK_GMAC2_GEPHY		(MTK_ETH_PATH_GMAC2_GEPHY | MTK_GEPHY)
@@ -366,7 +360,7 @@ index 8a27274..f143747 100644
  
  /* MUXes present on SoCs */
  /* 0: GDM1 -> GMAC1, 1: GDM1 -> ESW */
-@@ -1253,9 +1296,9 @@ enum mkt_eth_capabilities {
+@@ -1263,9 +1300,9 @@ enum mkt_eth_capabilities {
  #define MTK_MUX_GMAC2_GMAC0_TO_GEPHY    \
  	(MTK_ETH_MUX_GMAC2_GMAC0_TO_GEPHY | MTK_MUX | MTK_INFRA)
  
@@ -379,7 +373,7 @@ index 8a27274..f143747 100644
  
  /* 2: GMAC1 -> SGMII, 3: GMAC2 -> SGMII */
  #define MTK_MUX_GMAC1_GMAC2_TO_SGMII_RGMII      \
-@@ -1295,18 +1338,25 @@ enum mkt_eth_capabilities {
+@@ -1305,18 +1342,25 @@ enum mkt_eth_capabilities {
  #define MT7629_CAPS  (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | MTK_GMAC2_GEPHY | \
  		      MTK_GDM1_ESW | MTK_MUX_GDM1_TO_GMAC1_ESW | \
  		      MTK_MUX_GMAC2_GMAC0_TO_GEPHY | \

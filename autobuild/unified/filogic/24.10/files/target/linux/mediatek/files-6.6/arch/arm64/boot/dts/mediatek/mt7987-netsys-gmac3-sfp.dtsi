@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+/ {
+	sfp_cage0: sfp@0 {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c0>;
+		mod-def0-gpios = <&pio 49 GPIO_ACTIVE_LOW>;
+		los-gpios = <&pio 46 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&pio 48 GPIO_ACTIVE_HIGH>;
+		maximum-power-milliwatt = <3000>;
+	};
+};
+
+&eth {
+	gmac2: mac@2 {
+		compatible = "mediatek,eth-mac";
+		reg = <2>;
+		pcs-handle = <&sgmiipcs1>;
+		phy-mode = "2500base-x";
+		managed = "in-band-status";
+		sfp = <&sfp_cage0>;
+		status = "okay";
+	};
+};
+
+&hnat {
+	mtketh-lan2 = "eth2";
+	mtketh-max-gmac = <3>;
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	status = "okay";
+};
+
