@@ -1,0 +1,46 @@
+Index: openwrt/target/linux/mediatek/image/filogic.mk
+===================================================================
+--- openwrt.orig/target/linux/mediatek/image/filogic.mk
++++ openwrt/target/linux/mediatek/image/filogic.mk
+@@ -425,6 +425,41 @@ endif
+ endef
+ TARGET_DEVICES += bananapi_bpi-r3-mini
+ 
++define Device/bananapi_bpi-r4-lite
++  DEVICE_VENDOR := Bananapi
++  DEVICE_MODEL := BPi-R4 Lite
++  DEVICE_DTS := mt7987a-bananapi-bpi-r4-lite
++  DEVICE_DTS_OVERLAY:= \
++	mt7987-spim-nand \
++	mt7987-spim-nor \
++	mt7987-emmc \
++	mt7987-sd \
++	mt7987a-bananapi-bpi-r4-lite-1pcie-2L \
++	mt7987a-bananapi-bpi-r4-lite-2pcie-1L \
++	mt7987a-bananapi-bpi-r4-lite-2pcie-1L-M2 \
++	mt7987a-bananapi-bpi-r4-lite-MikroBus \
++	mt7987a-bananapi-bpi-r4-lite-sfp
++  DEVICE_DTS_DIR := $(DTS_DIR)/
++  DEVICE_DTC_FLAGS := --pad 4096
++  DEVICE_DTS_LOADADDR := 0x4ff00000
++  DEVICE_PACKAGES := \
++  mt798x-2p5g-phy-firmware-internal kmod-sfp blkid \
++  kmod-i2c-mux-pca954x kmod-eeprom-at24 kmod-rtc-pcf8563 \
++  kmod-usb3 kmod-hwmon-pwmfan
++  KERNEL_LOADADDR := 0x40000000
++  KERNEL := kernel-bin | gzip
++  KERNEL_INITRAMFS := kernel-bin | lzma | \
++        fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
++  IMAGES := sysupgrade.itb
++  KERNEL_INITRAMFS_SUFFIX := .itb
++  KERNEL_IN_UBI := 1
++  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
++  IMAGES := sysupgrade.itb
++  IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
++endef
++TARGET_DEVICES += bananapi_bpi-r4-lite
++
++
+ define Device/mediatek_mt7987a-rfb
+   DEVICE_VENDOR := MediaTek
+   DEVICE_MODEL := MT7987A rfb (DT-overlay)
