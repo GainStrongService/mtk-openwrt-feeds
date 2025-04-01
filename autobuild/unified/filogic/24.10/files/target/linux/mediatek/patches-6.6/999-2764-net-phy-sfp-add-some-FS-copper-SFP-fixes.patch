@@ -1,12 +1,12 @@
-From e8b5407012388cd3a2b99ce487eb2e94bd1eaba2 Mon Sep 17 00:00:00 2001
+From 79092d2ba43aec799e80b6672a040816af8fbd8f Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Wed, 19 Mar 2025 13:28:26 +0800
+Date: Tue, 1 Apr 2025 17:27:48 +0800
 Subject: [PATCH] net: phy: sfp: add some FS copper SFP fixes
 
 ---
  drivers/net/phy/realtek/realtek_main.c | 17 +-------
- drivers/net/phy/sfp.c                  | 54 +++++++++++++++++---------
- 2 files changed, 38 insertions(+), 33 deletions(-)
+ drivers/net/phy/sfp.c                  | 56 +++++++++++++++++---------
+ 2 files changed, 39 insertions(+), 34 deletions(-)
 
 diff --git a/drivers/net/phy/realtek/realtek_main.c b/drivers/net/phy/realtek/realtek_main.c
 index 0a324ff..7340183 100644
@@ -47,7 +47,7 @@ index 0a324ff..7340183 100644
  		.config_init    = rtl822xb_config_init_war,
  		.get_rate_matching = rtl822xb_get_rate_matching,
 diff --git a/drivers/net/phy/sfp.c b/drivers/net/phy/sfp.c
-index 0a3501d..c761c10 100644
+index 0a3501d..f2b282c 100644
 --- a/drivers/net/phy/sfp.c
 +++ b/drivers/net/phy/sfp.c
 @@ -191,7 +191,7 @@ static const enum gpiod_flags gpio_flags[] = {
@@ -156,9 +156,12 @@ index 0a3501d..c761c10 100644
  
  	sfp->tx_fault_ignore = false;
  
-@@ -2655,7 +2669,11 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+@@ -2653,9 +2667,13 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
+ 		 * clear.  Probe for the PHY and check the LOS state.
+ 		 */
  		ret = sfp_sm_probe_for_phy(sfp);
- 		if (ret == -ENODEV) {
+-		if (ret == -ENODEV) {
++		if (ret == -ENODEV || ret == -EINVAL) {
  			if (--sfp->sm_phy_retries) {
 -				sfp_sm_next(sfp, SFP_S_INIT_PHY, T_PHY_RETRY);
 +				sfp_sm_next(sfp, SFP_S_INIT_PHY,
