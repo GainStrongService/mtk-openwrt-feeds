@@ -1,6 +1,6 @@
-From a748d9c725108a036232eebf2c51f1b2b9d7f99b Mon Sep 17 00:00:00 2001
+From a725e1a393a99856bb81f2af61a9e4005b1d69a3 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Thu, 13 Mar 2025 23:19:01 +0800
+Date: Wed, 2 Apr 2025 09:49:10 +0800
 Subject: [PATCH] net: ethernet: mtk_ppe: dispatch short packets a high
  priority queue in PPPQ path
 
@@ -9,16 +9,16 @@ in an unbalanced PHY rate test for the mt7988.
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- drivers/net/ethernet/mediatek/mtk_ppe.c       | 35 +++++++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_ppe.c       | 38 +++++++++++++++++++
  .../net/ethernet/mediatek/mtk_ppe_debugfs.c   |  2 +-
- .../net/ethernet/mediatek/mtk_ppe_offload.c   |  4 +--
- 3 files changed, 38 insertions(+), 3 deletions(-)
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   |  4 +-
+ 3 files changed, 41 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 1f50c49..0617bb3 100644
+index 034340c..a9df40a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -506,6 +506,38 @@ int mtk_foe_entry_set_queue(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+@@ -505,6 +505,38 @@ int mtk_foe_entry_set_queue(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  	return 0;
  }
  
@@ -57,11 +57,14 @@ index 1f50c49..0617bb3 100644
  static int
  mtk_flow_entry_match_len(struct mtk_eth *eth, struct mtk_foe_entry *entry)
  {
-@@ -849,6 +881,9 @@ void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
+@@ -848,6 +880,12 @@ void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
  			continue;
  		}
  
-+		if (skb && skb->len < 100)
++		/* Dispatch the TCP Ack packets to the high-priority queue,
++		 * assuming they are no more than 64 bytes.
++		 */
++		if (!(foe.ib1 & MTK_FOE_IB1_UDP) && skb && skb->len <= 64)
 +			mtk_foe_entry_adj_queue(ppe, &entry->data);
 +
  		entry->hash = hash;
@@ -81,10 +84,10 @@ index 2d30ae0..46024ef 100644
  	}
  
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 8304f92..effe1a3 100644
+index f4657dd..e133362 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -241,11 +241,11 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+@@ -237,11 +237,11 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  
  	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(eth, foe, dsa_port))
  		mtk_foe_entry_set_queue(eth, foe, queue);
