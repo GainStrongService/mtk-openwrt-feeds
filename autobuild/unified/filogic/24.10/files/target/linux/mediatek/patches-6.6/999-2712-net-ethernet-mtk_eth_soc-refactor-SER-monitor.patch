@@ -186,7 +186,7 @@ index 3bc9b2d..bf586d7 100644
 +		gmac_rx = FIELD_GET(GENMASK(23, 16), mtk_r32(eth, MTK_MAC_FSM(i))) != 1;
 +		if (gmac_rx && (rxgp_cnt == eth->reset.gdm_rxgp_cnt[i])) {
 +			if (++eth->reset.mac_rx_hang_count[i] > 2) {
-+				dev_warn(eth->dev, "detect GMAC%d Rx hang!\n", i + i);
++				dev_warn(eth->dev, "detect GMAC%d Rx hang!\n", i + 1);
 +				eth->reset.mac_rx_hang_count[i] = 0;
 +				ret = true;
 +			}
@@ -226,7 +226,7 @@ index 3bc9b2d..bf586d7 100644
 +		    ((gdm_rxfsm == eth->reset.gdm_rxfsm[i]) &&
 +		     (gdm_rxfsm == 0x23 || gdm_rxfsm == 0x24))) {
 +			if (++eth->reset.gdm_rx_hang_count[i] > 2) {
-+				dev_warn(eth->dev, "detect GDM%d Rx hang!\n", i + i);
++				dev_warn(eth->dev, "detect GDM%d Rx hang!\n", i + 1);
 +				eth->reset.gdm_rx_hang_count[i] = 0;
 +				ret = true;
 +			}
