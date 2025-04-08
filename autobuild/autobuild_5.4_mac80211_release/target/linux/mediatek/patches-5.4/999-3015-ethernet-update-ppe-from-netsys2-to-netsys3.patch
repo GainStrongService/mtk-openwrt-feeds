@@ -6,7 +6,7 @@ Subject: [PATCH] ethernet update ppe from netsys2 to netsys3
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   | 13 +++-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  7 +-
- drivers/net/ethernet/mediatek/mtk_ppe.c       | 72 +++++++++++++++++--
+ drivers/net/ethernet/mediatek/mtk_ppe.c       | 74 +++++++++++++++++--
  drivers/net/ethernet/mediatek/mtk_ppe.h       | 44 ++++++++++--
  .../net/ethernet/mediatek/mtk_ppe_offload.c   |  6 +-
  drivers/net/ethernet/mediatek/mtk_ppe_regs.h  |  8 +++
@@ -180,7 +180,7 @@ index f14e96f..86e8f4f 100755
  	*ib2 |=  FIELD_PREP(MTK_FOE_IB2_RX_IDX, txq);
  
  	l2->winfo = FIELD_PREP(MTK_FOE_WINFO_WCID, wcid) |
-@@ -422,14 +454,32 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
+@@ -422,14 +454,34 @@ int mtk_foe_entry_set_wdma(struct mtk_foe_entry *entry, int wdma_idx, int txq,
  
  int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid)
  {
@@ -200,12 +200,14 @@ index f14e96f..86e8f4f 100755
 +
 +int mtk_foe_entry_set_keep_dscp_ecn(struct mtk_foe_entry *entry, bool keep_en)
 +{
++#if defined(CONFIG_MEDIATEK_NETSYS_V3)
 +	u32 *udf = mtk_foe_entry_udf(entry);
 +
 +	*udf &= ~MTK_FOE_UDF_KEEP_ECN;
 +	*udf &= ~MTK_FOE_UDF_KEEP_DSCP;
 +	*udf |= FIELD_PREP(MTK_FOE_UDF_KEEP_ECN, keep_en) |
 +		FIELD_PREP(MTK_FOE_UDF_KEEP_DSCP, keep_en);
++#endif
  
  	return 0;
  }
