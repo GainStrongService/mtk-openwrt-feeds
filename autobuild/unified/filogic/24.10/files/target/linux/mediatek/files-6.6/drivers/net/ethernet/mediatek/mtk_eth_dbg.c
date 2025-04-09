@@ -1857,7 +1857,7 @@ int hw_lro_stats_read_wrapper(struct seq_file *seq, void *v)
 {
 	struct mtk_eth *eth = g_eth;
 
-	if (mtk_is_netsys_v2_or_greater(eth))
+	if (mtk_is_netsys_v3_or_greater(eth))
 		hw_lro_stats_read_v2(seq, v);
 	else
 		hw_lro_stats_read_v1(seq, v);
@@ -2284,7 +2284,7 @@ int hw_lro_auto_tlb_read(struct seq_file *seq, void *v)
 
 		seq_printf(seq,
 			   "Ring[%d]: MAX_AGG_CNT=%d, AGG_TIME=%d, AGE_TIME=%d, Threshold=%d\n",
-			   MTK_HW_LRO_RING(i), agg_cnt, agg_time, age_time, reg_op4);
+			   MTK_HW_LRO_RING(i - 1), agg_cnt, agg_time, age_time, reg_op4);
 	}
 
 	seq_puts(seq, "\n");
