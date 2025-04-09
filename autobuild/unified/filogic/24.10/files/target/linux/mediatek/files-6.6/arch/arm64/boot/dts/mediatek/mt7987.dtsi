@@ -555,19 +555,16 @@
 				clocks = <&infracfg CLK_INFRA_USB_UTMI_CK_P1>;
 				clock-names = "ref";
 				#phy-cells = <1>;
-
 				auto_load_valid;
 				nvmem-cells = <&u2_intr_p0>,
 					      <&u2_auto_load_valid_p0>;
 				nvmem-cell-names = "intr", "auto_load_valid";
 			};
-
 			tphyu3port0: usb-phy@11c50700 {
 				reg = <0 0x11c50700 0 0x900>;
 				clocks = <&infracfg CLK_INFRA_USB_PIPE_CK_P1>;
 				clock-names = "ref";
 				#phy-cells = <1>;
-
 				auto_load_valid;
 				nvmem-cells = <&comb_intr_p0>,
 					      <&comb_rx_imp_p0>,
@@ -575,24 +572,33 @@
 					      <&comb_auto_load_valid>;
 				nvmem-cell-names = "intr", "rx_imp", "tx_imp",
 						   "auto_load_valid";
-
-				/* MT7987: 4'b0010 default USB30
-				 * Don't change the '0'
-				 */
 				mediatek,syscon-type = <&topmisc 0x218 0>;
-
 				status = "disabled";
 			};
 		};
 
-		xhci: xhci@11200000 {
+		ssusb: usb@11200000 {
 			compatible = "mediatek,mt7987-xhci",
-				"mediatek,mtk-xhci";
+				     "mediatek,mtk-xhci";
 			reg = <0 0x11200000 0 0x2e00>,
-			<0 0x11203e00 0 0x0100>;
+			      <0 0x11203e00 0 0x0100>;
 			reg-names = "mac", "ippc";
 			interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&infracfg CLK_INFRA_USB_SYS_CK_P1>,
+				 <&infracfg CLK_INFRA_USB_XHCI_CK_P1>,
+				 <&infracfg CLK_INFRA_USB_CK_P1>,
+				 <&infracfg CLK_INFRA_66M_USB_HCK_CK_P1>,
+				 <&infracfg CLK_INFRA_133M_USB_HCK_CK_P1>;
+			clock-names = "sys_ck",
+				      "xhci_ck",
+				      "ref_ck",
+				      "mcu_ck",
+				      "dma_ck";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			phys = <&tphyu2port0 PHY_TYPE_USB2>;
 			usb2-lpm-disable;
+			mediatek,u3p-dis-msk=<1>;
 			status = "disabled";
 		};
 
@@ -774,27 +780,27 @@
 				bits = <0 1>;
 			};
 
-			comb_rx_imp_p0: usb3-rx-imp@8ec {
+			comb_rx_imp_p0: usb3-rx-imp@8ec,1 {
 				reg = <0x8ec 1>;
 				bits = <0 5>;
 			};
 
-			comb_tx_imp_p0: usb3-tx-imp@8ec {
+			comb_tx_imp_p0: usb3-tx-imp@8ec,2 {
 				reg = <0x8ec 2>;
 				bits = <5 5>;
 			};
 
-			comb_intr_p0: usb3-intr@8ec {
-				reg = <0x8ec 2>;
-				bits = <10 6>;
+			comb_intr_p0: usb3-intr@8ec,3 {
+				reg = <0x8ed 1>;
+				bits = <2 6>;
 			};
 
-			u2_auto_load_valid_p0: usb2-alv-p0@8cc {
+			u2_auto_load_valid_p0: usb2-alv-p0@8cc,1 {
 				reg  = <0x8cc 1>;
 				bits = <0 1>;
 			};
 
-			u2_intr_p0: usb2-intr-p0@8cc {
+			u2_intr_p0: usb2-intr-p0@8cc,2 {
 				reg  = <0x8cc 1>;
 				bits = <1 5>;
 			};
