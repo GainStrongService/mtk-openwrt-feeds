@@ -886,11 +886,12 @@ u32 mtk_monitor_tdma_tx(struct mtk_eth *eth)
 {
 	struct tdma_tx_monitor *tdma_tx = &eth->reset.tdma_monitor.tx;
 	u32 cur_ipq10, cur_fsm, tx_busy, err_flag = 0;
+	u8 port = 10;
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-		cur_ipq10 = mtk_r32(eth, MTK_PSE_IQ_STA(6)) & 0xFFF;
-		cur_fsm = (mtk_r32(eth, MTK_FE_CDM6_FSM) & 0x1FFF) != 0;
-		tx_busy = ((mtk_r32(eth, MTK_TDMA_GLO_CFG) & 0x2) != 0);
+		cur_ipq10 = mtk_r32(eth, MTK_PSE_IQ_STA(port / 2)) & 0xFFF;
+		cur_fsm = mtk_r32(eth, MTK_FE_CDM6_FSM) & 0x1FFF;
+		tx_busy = (mtk_r32(eth, MTK_TDMA_GLO_CFG) & 0x2) != 0;
 
 		if (cur_ipq10 && cur_fsm && tx_busy &&
 		    (cur_fsm == tdma_tx->pre_fsm) &&
@@ -902,8 +903,8 @@ u32 mtk_monitor_tdma_tx(struct mtk_eth *eth)
 				pr_info("CDM6_FSM = 0x%x, PRE_CDM6_FSM = 0x%x\n",
 					mtk_r32(eth, MTK_FE_CDM6_FSM), tdma_tx->pre_fsm);
 				pr_info("PSE_IQ_P10 = 0x%x, PRE_PSE_IQ_P10 = 0x%x\n",
-					mtk_r32(eth, MTK_PSE_IQ_STA(6)), tdma_tx->pre_ipq10);
-				pr_info("DMA CFG = 0x%x\n",
+					mtk_r32(eth, MTK_PSE_IQ_STA(port / 2)), tdma_tx->pre_ipq10);
+				pr_info("DMA_CFG = 0x%x\n",
 					mtk_r32(eth, MTK_TDMA_GLO_CFG));
 				pr_info("==============================\n");
 				err_flag = 1;
@@ -924,21 +925,35 @@ u32 mtk_monitor_tdma_tx(struct mtk_eth *eth)
 u32 mtk_monitor_tdma_rx(struct mtk_eth *eth)
 {
 	struct tdma_rx_monitor *tdma_rx = &eth->reset.tdma_monitor.rx;
-	u32 cur_fsm, rx_busy, err_flag = 0;
+	u64 cur_rx_didx;
+	u32 i, cur_opq10, cur_fsm, rx_busy, err_flag = 0;
+	u8 port = 10;
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-		cur_fsm = (mtk_r32(eth, MTK_FE_CDM6_FSM) & 0xFFF0000) != 0;
-		rx_busy = ((mtk_r32(eth, MTK_TDMA_GLO_CFG) & 0x8) != 0);
+		for (i = 0, cur_rx_didx = 0; i < 4; i++)
+			cur_rx_didx |= (mtk_r32(eth, MTK_TDMA_RX_DRX_IDX(i)) & 0xFF) << (16 * i);
+		cur_opq10 = mtk_r32(eth, MTK_PSE_OQ_STA(port / 2)) & 0xFFF;
+		cur_fsm = mtk_r32(eth, MTK_FE_CDM6_FSM) & 0xFFF0000;
+		rx_busy = (mtk_r32(eth, MTK_TDMA_GLO_CFG) & 0x8) != 0;
 
-		if ((cur_fsm == tdma_rx->pre_fsm) && (cur_fsm != 0) && rx_busy) {
+		if (cur_opq10 && cur_fsm && rx_busy &&
+		    (cur_fsm == tdma_rx->pre_fsm) &&
+		    (cur_opq10 == tdma_rx->pre_opq10) &&
+		    (cur_rx_didx == tdma_rx->pre_rx_didx)) {
 			tdma_rx->hang_count++;
 			if (tdma_rx->hang_count >= 5) {
 				pr_info("TDMA Rx Info\n");
-				pr_info("hang count = %d", tdma_rx->hang_count);
-				pr_info("CDM6_FSM = %d\n",
-					mtk_r32(eth, MTK_FE_CDM6_FSM));
-				pr_info("DMA CFG = 0x%x\n",
+				pr_info("hang count = %d\n", tdma_rx->hang_count);
+				pr_info("CDM6_FSM = 0x%x, PRE_CDM6_FSM = 0x%x\n",
+					mtk_r32(eth, MTK_FE_CDM6_FSM), tdma_rx->pre_fsm);
+				pr_info("PSE_OQ_P10 = 0x%x, PRE_PSE_OQ_P10 = 0x%x\n",
+					mtk_r32(eth, MTK_PSE_OQ_STA(port / 2)), tdma_rx->pre_opq10);
+				pr_info("DMA_CFG = 0x%x\n",
 					mtk_r32(eth, MTK_TDMA_GLO_CFG));
+				for (i = 0; i < 4; i++)
+					pr_info("DMA_RX_DRX_IDX_%d = 0x%x, PRE_DMA_RX_DRX_IDX_%d = 0x%x\n",
+						mtk_r32(eth, MTK_TDMA_RX_DRX_IDX(i)),
+						(tdma_rx->pre_rx_didx >> (16 * i)) & 0xFF);
 				pr_info("==============================\n");
 				err_flag = 1;
 			}
@@ -946,6 +961,8 @@ u32 mtk_monitor_tdma_rx(struct mtk_eth *eth)
 			tdma_rx->hang_count = 0;
 
 		tdma_rx->pre_fsm = cur_fsm;
+		tdma_rx->pre_opq10 = cur_opq10;
+		tdma_rx->pre_rx_didx = cur_rx_didx;
 	}
 
 	if (err_flag)

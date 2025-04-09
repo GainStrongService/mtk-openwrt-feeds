@@ -644,6 +644,7 @@
 #define MTK_CDM_TS_FSM_MASK		GENMASK(3, 0)
 
 /*TDMA Register*/
+#define MTK_TDMA_RX_DRX_IDX(x)	(0x610C + (0x10 * x))
 #define MTK_TDMA_GLO_CFG	(0x6204)
 
 /* GMA1 Received Good Byte Count Register */
@@ -2211,6 +2212,8 @@ struct tdma_monitor {
 		u8		hang_count;
 	} tx;
 	struct tdma_rx_monitor {
+		u64		pre_rx_didx;
+		u32		pre_opq10;
 		u32		pre_fsm;
 		u8		hang_count;
 	} rx;
