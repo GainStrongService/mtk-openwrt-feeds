@@ -1144,6 +1144,14 @@ enum FoeIpAct {
 	(BITS_GDM_UFRC_P_PPE2 | BITS_GDM_BFRC_P_PPE2 |		\
 	 BITS_GDM_MFRC_P_PPE2 | BITS_GDM_OFRC_P_PPE2)
 
+#define BITS_GDM_UFRC_P_TDMA (NR_TDMA_PORT << 12)
+#define BITS_GDM_BFRC_P_TDMA (NR_TDMA_PORT << 8)
+#define BITS_GDM_MFRC_P_TDMA (NR_TDMA_PORT << 4)
+#define BITS_GDM_OFRC_P_TDMA (NR_TDMA_PORT << 0)
+#define BITS_GDM_ALL_FRC_P_TDMA					\
+	(BITS_GDM_UFRC_P_TDMA | BITS_GDM_BFRC_P_TDMA |		\
+	 BITS_GDM_MFRC_P_TDMA | BITS_GDM_OFRC_P_TDMA)
+
 #define BITS_GDM_UFRC_P_CPU_PDMA (NR_PDMA_PORT << 12)
 #define BITS_GDM_BFRC_P_CPU_PDMA (NR_PDMA_PORT << 8)
 #define BITS_GDM_MFRC_P_CPU_PDMA (NR_PDMA_PORT << 4)
@@ -1230,6 +1238,7 @@ enum FoeIpAct {
 #define NR_DISCARD 7
 #define NR_WDMA0_PORT 8
 #define NR_WDMA1_PORT 9
+#define NR_TDMA_PORT 10
 #define NR_WDMA2_PORT 13
 #define NR_GMAC3_PORT 15
 #define NR_QDMA_TPORT 1
@@ -1387,6 +1396,7 @@ extern int hook_toggle;
 extern int mape_toggle;
 extern int qos_toggle;
 extern int l2br_toggle;
+extern int l4s_toggle;
 extern int tnl_toggle;
 extern int (*mtk_tnl_encap_offload)(struct sk_buff *skb, struct ethhdr *eth);
 extern int (*mtk_tnl_decap_offload)(struct sk_buff *skb);

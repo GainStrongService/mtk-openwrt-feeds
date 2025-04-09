@@ -40,6 +40,7 @@ int qos_ul_toggle = 1;
 int tnl_toggle;
 int xlat_toggle;
 int l2br_toggle;
+int l4s_toggle;
 struct hnat_desc headroom[DEF_ETRY_NUM];
 unsigned int dbg_cpu_reason_cnt[MAX_CRSN_NUM];
 
@@ -2554,6 +2555,60 @@ static const struct file_operations hnat_tnl_toggle_fops = {
 	.write = hnat_tnl_toggle_write,
 	.release = single_release,
 };
+
+static int hnat_l4s_toggle_read(struct seq_file *m, void *private)
+{
+	pr_info("value=%d, l4s_toggle is %s now!\n",
+		l4s_toggle, (l4s_toggle) ? "enabled" : "disabled");
+
+	return 0;
+}
+
+static int hnat_l4s_toggle_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hnat_l4s_toggle_read, file->private_data);
+}
+
+static ssize_t hnat_l4s_toggle_write(struct file *file,
+				     const char __user *buffer,
+				     size_t count, loff_t *data)
+{
+	char buf[8] = {0};
+	int len = count;
+	int i;
+
+	if ((len > 8) || copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	if (buf[0] == '1') {
+		pr_info("l4s is going to be enabled !\n");
+		l4s_toggle = 1;
+	} else if (buf[0] == '0') {
+		pr_info("l4s is going to be disabled !\n");
+		l4s_toggle = 0;
+	} else {
+		pr_err("Input fail!\n");
+	}
+
+	for (i = 0; i < CFG_PPE_NUM; i++)
+		cr_set_field(hnat_priv->ppe_base[i] + PPE_TB_CFG, DSCP_TRFC_ECN_EN, l4s_toggle);
+
+	/* Reset GDM_IG_CTRL to corresponding port */
+	set_gmac_ppe_fwd(NR_GMAC1_PORT, 1);
+	set_gmac_ppe_fwd(NR_GMAC2_PORT, 1);
+	set_gmac_ppe_fwd(NR_GMAC3_PORT, 1);
+
+	return len;
+}
+
+static const struct file_operations hnat_l4s_toggle_fops = {
+	.open = hnat_l4s_toggle_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = hnat_l4s_toggle_write,
+	.release = single_release,
+};
+
 static int hnat_xlat_toggle_read(struct seq_file *m, void *private)
 {
 	pr_info("value=%d, xlat is %s now!\n",
@@ -3452,6 +3507,8 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 			    &hnat_xlat_cfg_fops);
 	debugfs_create_file("l2br_toggle", 0444, root, h,
 			    &hnat_l2br_toggle_fops);
+	debugfs_create_file("l4s_toggle", 0444, root, h,
+			    &hnat_l4s_toggle_fops);
 
 	for (i = 0; i < hnat_priv->data->num_of_sch; i++) {
 		ret = snprintf(name, sizeof(name), "qdma_sch%ld", i);

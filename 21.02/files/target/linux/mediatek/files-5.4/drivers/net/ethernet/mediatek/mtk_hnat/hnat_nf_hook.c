@@ -2637,6 +2637,22 @@ hnat_entry_bind:
 
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 	hnat_fill_offload_engine_entry(skb, &entry, dev);
+
+	if (l4s_toggle && FROM_WED(skb) && !whnat) {
+		/* For MT7988 TOPS L4S feature, BIND WiFi -> ETH entry to TDMA port */
+		if (IS_IPV4_GRP(&entry)) {
+			entry.ipv4_hnapt.tops_entry = entry.ipv4_hnapt.iblk2.dp;
+			entry.ipv4_hnapt.iblk2.dp = NR_TDMA_PORT;
+		} else {
+			if (IS_IPV4_MAPE(&entry) || IS_IPV4_MAPT(&entry))
+				entry.ipv4_mape.tops_entry = entry.ipv4_mape.iblk2.dp;
+			else if (IS_IPV6_HNAT(&entry) || IS_IPV6_HNAPT(&entry))
+				entry.ipv6_hnapt.tops_entry = entry.ipv6_hnapt.iblk2.dp;
+			else
+				entry.ipv6_5t_route.tops_entry = entry.ipv6_5t_route.iblk2.dp;
+			entry.ipv6_5t_route.iblk2.dp = NR_TDMA_PORT;
+		}
+	}
 #endif
 
 	/* The INFO2.port_mg and 2nd VLAN ID fields of PPE entry are redefined
