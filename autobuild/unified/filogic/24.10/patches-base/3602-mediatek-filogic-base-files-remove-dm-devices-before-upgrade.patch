@@ -1,0 +1,17 @@
+--- a/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
++++ b/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
+@@ -1,5 +1,5 @@
+ REQUIRE_IMAGE_METADATA=1
+-RAMFS_COPY_BIN='fitblk blkid'
++RAMFS_COPY_BIN='fitblk blkid dmsetup'
+ 
+ asus_initial_setup()
+ {
+@@ -68,6 +68,7 @@ platform_do_upgrade() {
+ 	case "$board" in
+ 	mediatek,mt7981-rfb|\
+ 	mediatek,mt7988a-rfb)
++		[ -e /dev/dm-0 ] && dmsetup remove_all
+ 		[ -e /dev/fit0 ] && fitblk /dev/fit0
+ 		[ -e /dev/fitrw ] && fitblk /dev/fitrw
+ 		export_fitblk_bootdev

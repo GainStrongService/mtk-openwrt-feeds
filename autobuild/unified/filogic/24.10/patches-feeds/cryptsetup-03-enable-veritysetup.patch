@@ -1,0 +1,18 @@
+--- a/feeds/packages/utils/cryptsetup/Makefile
++++ b/feeds/packages/utils/cryptsetup/Makefile
+@@ -64,7 +64,6 @@ CONFIGURE_ARGS += \
+ 	--disable-integritysetup \
+ 	--disable-selinux \
+ 	--disable-rpath \
+-	--disable-veritysetup \
+ 	--disable-udev \
+ 	--with-default-luks-format=LUKS2 \
+ 	--with-luks2-lock-path=/var/run/cryptsetup \
+@@ -100,6 +99,7 @@ define Package/cryptsetup/install
+ 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libcryptsetup.so* $(1)/usr/lib
+ 	$(INSTALL_DIR) $(1)/usr/sbin
+ 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/cryptsetup $(1)/usr/sbin
++	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/veritysetup $(1)/usr/sbin
+ endef
+ 
+ define Package/cryptsetup-ssh/install
