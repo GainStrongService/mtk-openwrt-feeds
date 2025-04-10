@@ -1,18 +1,18 @@
-From 4313bdefe4df942e597d5d0079d96128b448d167 Mon Sep 17 00:00:00 2001
+From c23ea6df28d8d2caf16637217b4a4cbf613c0d13 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Mon, 31 Mar 2025 12:22:59 +0800
+Date: Thu, 10 Apr 2025 23:10:21 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor SER monitor
 
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 219 ++++++++++++++++----
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 221 ++++++++++++++++----
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |  29 ++-
- 2 files changed, 209 insertions(+), 39 deletions(-)
+ 2 files changed, 211 insertions(+), 39 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 3bc9b2d..bf586d7 100644
+index 3bc9b2d..397a6e6 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4363,80 +4363,229 @@ static void mtk_hw_warm_reset(struct mtk_eth *eth)
+@@ -4363,80 +4363,231 @@ static void mtk_hw_warm_reset(struct mtk_eth *eth)
  			val, rst_mask);
  }
  
@@ -151,6 +151,8 @@ index 3bc9b2d..bf586d7 100644
  		goto out;
  	}
  
++	mtk_stats_update(eth);
++
 +	/* GDM sanity checks */
 +	for (i = 0; i < 3; i++) {
 +		if (!eth->netdev[i] || !netif_running(eth->netdev[i]))
