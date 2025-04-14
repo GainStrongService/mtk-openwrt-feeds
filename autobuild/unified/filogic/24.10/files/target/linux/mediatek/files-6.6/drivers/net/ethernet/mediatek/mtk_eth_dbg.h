@@ -26,6 +26,7 @@
 #define MTK_FE_CDM4_FSM			0x298
 #define MTK_FE_CDM5_FSM			0x318
 #define MTK_FE_CDM6_FSM			0x328
+#define MTK_FE_CDM7_FSM			0x338
 #define MTK_FE_GDM1_FSM			0x228
 #define MTK_FE_GDM2_FSM			0x22C
 #define MTK_FE_GDM3_FSM			0x23C

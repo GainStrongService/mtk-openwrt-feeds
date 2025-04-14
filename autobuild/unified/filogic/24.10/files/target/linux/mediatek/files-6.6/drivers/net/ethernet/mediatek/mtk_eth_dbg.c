@@ -1545,10 +1545,16 @@ int dbg_regs_read(struct seq_file *seq, void *v)
 			   mtk_r32(eth, MTK_FE_CDM5_FSM));
 		seq_printf(seq, "| FE_CDM6_FSM	: %08x |\n",
 			   mtk_r32(eth, MTK_FE_CDM6_FSM));
+		seq_printf(seq, "| FE_CDM7_FSM	: %08x |\n",
+			   mtk_r32(eth, MTK_FE_CDM7_FSM));
 		seq_printf(seq, "| FE_GDM1_FSM	: %08x |\n",
 			   mtk_r32(eth, MTK_FE_GDM1_FSM));
 		seq_printf(seq, "| FE_GDM2_FSM	: %08x |\n",
 			   mtk_r32(eth, MTK_FE_GDM2_FSM));
+		if (mtk_is_netsys_v3_or_greater(eth)) {
+			seq_printf(seq, "| FE_GDM3_FSM	: %08x |\n",
+				   mtk_r32(eth, MTK_FE_GDM3_FSM));
+		}
 		seq_printf(seq, "| SGMII_EFUSE	: %08x |\n",
 			   mtk_dbg_r32(MTK_SGMII_EFUSE));
 		seq_printf(seq, "| SGMII0_RX_CNT : %08x |\n",
