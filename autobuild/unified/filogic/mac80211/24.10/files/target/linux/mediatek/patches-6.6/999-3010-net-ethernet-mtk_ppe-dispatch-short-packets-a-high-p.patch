@@ -61,10 +61,10 @@ index 034340c..a9df40a 100644
  			continue;
  		}
  
-+		/* Dispatch the TCP Ack packets to the high-priority queue,
-+		 * assuming they are no more than 64 bytes.
++		/* Dispatch the IPv4/IPv6 TCP Ack packets to the high-priority
++		 * queue, assuming they are less than 100 bytes.
 +		 */
-+		if (!(foe.ib1 & MTK_FOE_IB1_UDP) && skb && skb->len <= 64)
++		if (!(foe.ib1 & MTK_FOE_IB1_UDP) && skb && skb->len < 100)
 +			mtk_foe_entry_adj_queue(ppe, &entry->data);
 +
  		entry->hash = hash;
