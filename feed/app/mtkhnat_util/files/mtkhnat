@@ -51,7 +51,10 @@ module=mtk_ppe
 	exit 0
 }
 
-insmod mtkhnat
+# if module=hnat, install the hnat driver module
+[ "${module}" = "hnat" ] && {
+	insmod mtkhnat
+}
 
 #if hqos=0, disable qdma_sch & qdma_txq
 [ "${hqos}" -eq 1 ] || {
