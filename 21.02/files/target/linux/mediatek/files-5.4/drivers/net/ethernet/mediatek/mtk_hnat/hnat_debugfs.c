@@ -754,10 +754,23 @@ int wrapped_ppe2_entry_delete(int index)
 	return 0;
 }
 
+void __entry_delete(struct foe_entry *entry)
+{
+	struct mtk_hnat *h = hnat_priv;
+
+	if (!entry)
+		return;
+
+	entry->bfib1.state = INVALID;
+	entry->bfib1.time_stamp = foe_timestamp(h, false);
+	dma_wmb();
+}
+
 int entry_delete(u32 ppe_id, int index)
 {
 	struct foe_entry *entry;
 	struct mtk_hnat *h = hnat_priv;
+	int cache_en, i;
 
 	if (ppe_id >= CFG_PPE_NUM)
 		return -EINVAL;
@@ -767,18 +780,29 @@ int entry_delete(u32 ppe_id, int index)
 		return -EINVAL;
 	}
 
+	spin_lock_bh(&hnat_priv->entry_lock);
+
+	cache_en = hnat_is_cache_enabled(ppe_id);
+	if (cache_en)
+		__hnat_cache_ebl(ppe_id, 0);
+
 	if (index == -1) {
-		memset(h->foe_table_cpu[ppe_id], 0, h->foe_etry_num * sizeof(struct foe_entry));
+		for (i = 0; i < h->foe_etry_num; i++) {
+			entry = h->foe_table_cpu[ppe_id] + i;
+			__entry_delete(entry);
+		}
 		pr_info("clear all foe entry\n");
 	} else {
-
 		entry = h->foe_table_cpu[ppe_id] + index;
-		memset(entry, 0, sizeof(struct foe_entry));
+		__entry_delete(entry);
 		pr_info("delete ppe id = %d, entry idx = %d\n", ppe_id, index);
 	}
 
 	/* clear HWNAT cache */
-	hnat_cache_clr(ppe_id);
+	if (cache_en)
+		__hnat_cache_ebl(ppe_id, 1);
+
+	spin_unlock_bh(&hnat_priv->entry_lock);
 
 	return 0;
 }

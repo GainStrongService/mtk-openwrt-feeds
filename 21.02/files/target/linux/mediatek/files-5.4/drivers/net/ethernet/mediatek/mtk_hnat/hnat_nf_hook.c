@@ -245,9 +245,9 @@ static void foe_clear_ethdev_bind_entries(struct net_device *dev)
 	struct mtk_mac *mac;
 	bool match_dev = false;
 	int port_id, gmac;
+	int cache_en, cnt;
 	u32 i, hash_index;
 	u32 dsa_tag;
-	u32 total;
 
 	/* Get the master device if the device is slave device */
 	port_id = hnat_dsa_get_port(&master_dev);
@@ -269,7 +269,7 @@ static void foe_clear_ethdev_bind_entries(struct net_device *dev)
 	}
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
-		total = 0;
+		cnt = 0;
 		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
 			entry = hnat_priv->foe_table_cpu[i] + hash_index;
 			if (!entry_hnat_is_bound(entry))
@@ -291,37 +291,66 @@ static void foe_clear_ethdev_bind_entries(struct net_device *dev)
 			}
 
 			if (match_dev) {
-				entry->bfib1.state = INVALID;
-				entry->bfib1.time_stamp = foe_timestamp(hnat_priv, false);
-				total++;
+				if (!cnt) {
+					/* before entry write, use entry_lock to prevent racing,
+					 * disable PPE cache if it is enabled.
+					 */
+					spin_lock_bh(&hnat_priv->entry_lock);
+					cache_en = hnat_is_cache_enabled(i);
+					if (cache_en == 1)
+						__hnat_cache_ebl(i, 0);
+				}
+				__entry_delete(entry);
+				if (debug_level >= 2)
+					pr_info("[%s]: delete entry idx = %d_%d\n",
+						__func__, i, hash_index);
+				cnt++;
 			}
 		}
 
-		/* clear HWNAT cache */
-		if (total)
-			hnat_cache_clr(i);
+		/* enable and clear HWNAT cache */
+		if (cnt > 0) {
+			if (cache_en == 1)
+				__hnat_cache_ebl(i, 1);
+			spin_unlock_bh(&hnat_priv->entry_lock);
+		}
 	}
 }
 
 void foe_clear_all_bind_entries(void)
 {
-	int i, hash_index;
 	struct foe_entry *entry;
-
+	int i, hash_index;
+	int cache_en, cnt;
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		cr_set_field(hnat_priv->ppe_base[i] + PPE_TB_CFG,
 			     SMA, SMA_ONLY_FWD_CPU);
-
+		cnt = 0;
 		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
 			entry = hnat_priv->foe_table_cpu[i] + hash_index;
 			if (entry->bfib1.state == BIND) {
-				entry->udib1.state = INVALID;
-				entry->udib1.time_stamp = foe_timestamp(hnat_priv, false);
+				if (!cnt) {
+					/* before entry write, use entry_lock to prevent racing,
+					 * disable PPE cache if it is enabled.
+					 */
+					spin_lock_bh(&hnat_priv->entry_lock);
+					cache_en = hnat_is_cache_enabled(i);
+					if (cache_en == 1)
+						__hnat_cache_ebl(i, 0);
+				}
+				__entry_delete(entry);
+				if (debug_level >= 2)
+					pr_info("[%s]: delete entry idx = %d_%d\n",
+						__func__, i, hash_index);
+				cnt++;
 			}
 		}
-
-		/* clear HWNAT cache */
-		hnat_cache_clr(i);
+		/* enable and clear HWNAT cache */
+		if (cnt > 0) {
+			if (cache_en == 1)
+				__hnat_cache_ebl(i, 1);
+			spin_unlock_bh(&hnat_priv->entry_lock);
+		}
 	}
 
 	mod_timer(&hnat_priv->hnat_sma_build_entry_timer, jiffies + 3 * HZ);
@@ -417,6 +446,7 @@ void foe_clear_crypto_entry(struct xfrm_selector sel)
 	u32 prefix_d = ~0U;
 	u32 prefix_s = ~0U;
 	int i, hash_index;
+	int cache_en, cnt;
 	int udp = 0;
 
 	if (sel.prefixlen_d != 0 && sel.prefixlen_d != 32)
@@ -429,7 +459,7 @@ void foe_clear_crypto_entry(struct xfrm_selector sel)
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		if (!hnat_priv->foe_table_cpu[i])
 			continue;
-
+		cnt = 0;
 		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
 			entry = hnat_priv->foe_table_cpu[i] + hash_index;
 
@@ -439,15 +469,27 @@ void foe_clear_crypto_entry(struct xfrm_selector sel)
 			    !((entry->ipv4_hnapt.dport ^ sel.dport) & sel.dport_mask) &&
 			    !((entry->ipv4_hnapt.sport ^ sel.sport) & sel.sport_mask) &&
 			    entry->ipv4_hnapt.bfib1.udp == udp) {
-				memset(entry, 0, sizeof(*entry));
-				/* clear HWNAT cache */
-				hnat_cache_clr(i);
-				/* Wait for entry write done */
-				wmb();
+				if (!cnt) {
+					/* before entry write, use entry_lock to prevent racing,
+					 * disable PPE cache if it is enabled.
+					 */
+					spin_lock_bh(&hnat_priv->entry_lock);
+					cache_en = hnat_is_cache_enabled(i);
+					if (cache_en == 1)
+						__hnat_cache_ebl(i, 0);
+				}
+				__entry_delete(entry);
 				if (debug_level >= 2)
-					pr_info("[%s]: delete entry idx = %d\n",
-						__func__, hash_index);
+					pr_info("[%s]: delete entry idx = %d_%d\n",
+						__func__, i, hash_index);
+				cnt++;
 			}
+		}
+		/* enable and clear HWNAT cache */
+		if (cnt > 0) {
+			if (cache_en == 1)
+				__hnat_cache_ebl(i, 1);
+			spin_unlock_bh(&hnat_priv->entry_lock);
 		}
 	}
 }
@@ -459,6 +501,7 @@ void foe_clear_entry(struct neighbour *neigh)
 	unsigned char h_dest[ETH_ALEN];
 	struct foe_entry *entry;
 	int i, hash_index;
+	int cache_en, cnt;
 	u32 dip;
 
 	dip = (u32)(*daddr);
@@ -466,7 +509,7 @@ void foe_clear_entry(struct neighbour *neigh)
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		if (!hnat_priv->foe_table_cpu[i])
 			continue;
-
+		cnt = 0;
 		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
 			entry = hnat_priv->foe_table_cpu[i] + hash_index;
 			if (entry->bfib1.state == BIND &&
@@ -475,28 +518,41 @@ void foe_clear_entry(struct neighbour *neigh)
 				*((u32 *)h_dest) = swab32(entry->ipv4_hnapt.dmac_hi);
 				*((u16 *)&h_dest[4]) =
 					swab16(entry->ipv4_hnapt.dmac_lo);
-				if (strncmp(h_dest, neigh->ha, ETH_ALEN) != 0) {
-					cr_set_field(hnat_priv->ppe_base[i] + PPE_TB_CFG,
-						     SMA, SMA_ONLY_FWD_CPU);
+				if (strncmp(h_dest, neigh->ha, ETH_ALEN) == 0)
+					continue;
 
-					entry->udib1.state = INVALID;
-					entry->udib1.time_stamp = foe_timestamp(hnat_priv, false);
-
-					/* clear HWNAT cache */
-					hnat_cache_clr(i);
-
-					mod_timer(&hnat_priv->hnat_sma_build_entry_timer,
-						  jiffies + 3 * HZ);
-
-					if (debug_level >= 7) {
-						pr_info("%s: state=%d\n", __func__,
-							neigh->nud_state);
-						pr_info("Delete old entry: dip =%pI4\n", &dip);
-						pr_info("Old mac= %pM\n", h_dest);
-						pr_info("New mac= %pM\n", neigh->ha);
-					}
+				cr_set_field(hnat_priv->ppe_base[i] + PPE_TB_CFG,
+						SMA, SMA_ONLY_FWD_CPU);
+				if (!cnt) {
+					/* before entry write, use entry_lock to prevent racing,
+					 * disable PPE cache if it is enabled.
+					 */
+					spin_lock_bh(&hnat_priv->entry_lock);
+					cache_en = hnat_is_cache_enabled(i);
+					if (cache_en == 1)
+						__hnat_cache_ebl(i, 0);
 				}
+
+				__entry_delete(entry);
+
+				mod_timer(&hnat_priv->hnat_sma_build_entry_timer,
+						jiffies + 3 * HZ);
+
+				if (debug_level >= 2) {
+					pr_info("%s: state=%d\n", __func__,
+						neigh->nud_state);
+					pr_info("Delete old entry: dip =%pI4\n", &dip);
+					pr_info("Old mac= %pM\n", h_dest);
+					pr_info("New mac= %pM\n", neigh->ha);
+				}
+				cnt++;
 			}
+		}
+		/* enable and clear HWNAT cache */
+		if (cnt > 0) {
+			if (cache_en == 1)
+				__hnat_cache_ebl(i, 1);
+			spin_unlock_bh(&hnat_priv->entry_lock);
 		}
 	}
 }
