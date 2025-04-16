@@ -8,6 +8,7 @@
 
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
+#include <net/ip6_route.h>
 
 #include <mtk_eth_soc.h>
 
@@ -369,16 +370,31 @@ static inline struct neighbour *mtk_crypto_find_ipv6_dst_mac(struct sk_buff *skb
 {
 	struct neighbour *neigh;
 	struct dst_entry *dst = skb_dst(skb);
+	struct rt6_info *rt = (struct rt6_info *) dst;
+	const struct in6_addr *nexthop;
 
-	neigh = __ipv6_neigh_lookup_noref(dst->dev, &xs->id.daddr.a6);
+	nexthop = rt6_nexthop(rt, (struct in6_addr *) &xs->id.daddr.a6);
+	neigh = __ipv6_neigh_lookup_noref(dst->dev, nexthop);
 	if (unlikely(!neigh)) {
 		CRYPTO_INFO("%s: %s No neigh (daddr=%pI6)\n", __func__, dst->dev->name,
-				&xs->id.daddr.a6);
-		neigh = __neigh_create(&nd_tbl, &xs->id.daddr.a6, dst->dev, false);
+				nexthop);
+		neigh = __neigh_create(&nd_tbl, nexthop, dst->dev, false);
 		neigh_output(neigh, skb, false);
 		return NULL;
 	}
 
+	if (is_zero_ether_addr(neigh->ha)) {
+		neigh = __ipv6_neigh_lookup_noref(dst->dev, &xs->id.daddr.a6);
+		if (unlikely(!neigh)) {
+			CRYPTO_INFO("%s: %s No neigh (daddr=%pI6)\n", __func__, dst->dev->name,
+					&xs->id.daddr.a6);
+			neigh = __neigh_create(&nd_tbl, &xs->id.daddr.a6, dst->dev, false);
+			neigh_output(neigh, skb, false);
+			return NULL;
+		}
+		if (is_zero_ether_addr(neigh->ha))
+			return NULL;
+	}
 	return neigh;
 }
 
@@ -387,16 +403,39 @@ static inline struct neighbour *mtk_crypto_find_ipv4_dst_mac(struct sk_buff *skb
 {
 	struct neighbour *neigh;
 	struct dst_entry *dst = skb_dst(skb);
+	struct rtable *rt = (struct rtable *) dst;
+	__be32 nexthop;
 
-	neigh = __ipv4_neigh_lookup_noref(dst->dev, xs->id.daddr.a4);
+	/*
+	 * First get the nexthop from the routing table.
+	 * Then try to get neighbour for MAC address.
+	 */
+	nexthop = rt_nexthop(rt, xs->id.daddr.a4);
+	neigh = __ipv4_neigh_lookup_noref(dst->dev, nexthop);
 	if (unlikely(!neigh)) {
-		CRYPTO_INFO("%s: %s No neigh (daddr=%pI4)\n", __func__, dst->dev->name,
-				&xs->id.daddr.a4);
-		neigh = __neigh_create(&arp_tbl, &xs->id.daddr.a4, dst->dev, false);
+		CRYPTO_INFO("%s: %s No neigh (nexthop=%pI4)\n", __func__, dst->dev->name,
+			&nexthop);
+		neigh = __neigh_create(&arp_tbl, &nexthop, dst->dev, false);
 		neigh_output(neigh, skb, false);
 		return NULL;
 	}
 
+	/*
+	 * If the nexthop has no dst MAC, arp may failed on that IP.
+	 * Use tunnel destination IP and try to find MAC address again.
+	 */
+	if (is_zero_ether_addr(neigh->ha)) {
+		neigh = __ipv4_neigh_lookup_noref(dst->dev, xs->id.daddr.a4);
+		if (unlikely(!neigh)) {
+			CRYPTO_INFO("%s: %s No neigh (nexthop=%pI4)\n", __func__, dst->dev->name,
+						&xs->id.daddr.a4);
+			neigh = __neigh_create(&arp_tbl, &xs->id.daddr.a4, dst->dev, false);
+			neigh_output(neigh, skb, false);
+			return NULL;
+		}
+		if (is_zero_ether_addr(neigh->ha))
+			return NULL;
+	}
 	return neigh;
 }
 
