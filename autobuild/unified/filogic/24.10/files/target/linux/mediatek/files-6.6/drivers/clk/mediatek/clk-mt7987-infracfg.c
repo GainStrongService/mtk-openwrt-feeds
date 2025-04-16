@@ -17,6 +17,10 @@
 #include "clk-mux.h"
 #include "clk-gate.h"
 #include <dt-bindings/clock/mediatek,mt7987-clk.h>
+#include <dt-bindings/reset/mediatek,mt7987-resets.h>
+
+#define MT7987_INFRA_RST0_SET_OFFSET	0x70
+#define MT7987_INFRA_RST1_SET_OFFSET	0x80
 
 static DEFINE_SPINLOCK(mt7987_clk_lock);
 
@@ -276,12 +280,31 @@ static const struct mtk_gate infra_clks[] __initconst = {
 		    "infra_pcie_peri_ck_26m_ck_p1", "csw_infra_f26m_sel", 8),
 };
 
+static u16 infra_rst_ofs[] = {
+	MT7987_INFRA_RST0_SET_OFFSET,
+	MT7987_INFRA_RST1_SET_OFFSET,
+};
+
+static u16 infra_idx_map[] = {
+	[MT7987_INFRA_RST0_PEXTP_MAC_SWRST] = 0 * RST_NR_PER_BANK + 6,
+	[MT7987_INFRA_RST1_THERM_CTRL_SWRST] = 1 * RST_NR_PER_BANK + 9,
+};
+
+static struct mtk_clk_rst_desc infra_rst_desc = {
+	.version = MTK_RST_SET_CLR,
+	.rst_bank_ofs = infra_rst_ofs,
+	.rst_bank_nr = ARRAY_SIZE(infra_rst_ofs),
+	.rst_idx_map = infra_idx_map,
+	.rst_idx_map_nr = ARRAY_SIZE(infra_idx_map),
+};
+
 static const struct mtk_clk_desc infra_desc = {
 	.clks = infra_clks,
 	.num_clks = ARRAY_SIZE(infra_clks),
 	.mux_clks = infra_muxes,
 	.num_mux_clks = ARRAY_SIZE(infra_muxes),
 	.clk_lock = &mt7987_clk_lock,
+	.rst_desc = &infra_rst_desc,
 };
 
 static const struct of_device_id of_match_clk_mt7987_infracfg[] = {
