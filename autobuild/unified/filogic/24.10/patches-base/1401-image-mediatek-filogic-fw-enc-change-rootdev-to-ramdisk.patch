@@ -1,0 +1,23 @@
+--- a/target/linux/mediatek/image/Makefile
++++ b/target/linux/mediatek/image/Makefile
+@@ -58,9 +58,19 @@ define Build/squashfs-hashed
+ 		$(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb
+ endef
+ 
++define Build/change-rootdev-to-ramdisk
++	$(STAGING_DIR_HOSTPKG)/bin/fdtget -t s \
++		$(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb /chosen bootargs | \
++		sed "s/root=[^ ]*/root=\/dev\/ram/" | xargs -I {} \
++	$(STAGING_DIR_HOSTPKG)/bin/fdtput -t s \
++		$(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb /chosen bootargs "{}"
++endef
++
+ define Build/secure-boot
+-	$(if $(CONFIG_MTK_SECURE_BOOT),$(call Build/squashfs-hashed))
++	$(if $(CONFIG_MTK_SECURE_BOOT), \
++		$(if $(CONFIG_MTK_FW_ENC_USE_RAMDISK),,$(call Build/squashfs-hashed)))
+ 	$(if $(CONFIG_PACKAGE_optee-mediatek),$(call Build/append-opteenode))
++	$(if $(CONFIG_MTK_FW_ENC_USE_RAMDISK),$(call Build/change-rootdev-to-ramdisk))
+ endef
+ 
+ $(eval $(call BuildImage))
