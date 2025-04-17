@@ -1,0 +1,31 @@
+--- a/target/linux/mediatek/image/Makefile
++++ b/target/linux/mediatek/image/Makefile
+@@ -33,6 +33,18 @@ define Device/Default
+ 	pad-rootfs | append-metadata
+ endef
+ 
++# build fw-ar-ver
++get_fw_ar_ver = \
++  $(if $(wildcard $(2)),$(shell rm -rf $(2))) \
++  $(if $(wildcard $(1)),$(info $(shell $(STAGING_DIR_HOST)/bin/ar-tool fw_ar_table create_ar_conf $(1) $(2)))) \
++  $(if $(wildcard $(2)),$(eval include $(2))) \
++  $(if $(FW_AR_VER),$(info FW_AR_VER = $(FW_AR_VER)),$(error Firmware anti-rollback version not found))
++
++define Image/fw-ar-ver
++	$(call get_fw_ar_ver,$(TOPDIR)/$(call qstrip,$(CONFIG_ANTI_ROLLBACK_TABLE)), \
++			     $(TOPDIR)/$(call qstrip,$(CONFIG_AUTO_AR_CONF)))
++endef
++
+ include $(SUBTARGET).mk
+ -include $(SUBTARGET)-extra.mk
+ 
+--- a/target/linux/mediatek/image/filogic.mk
++++ b/target/linux/mediatek/image/filogic.mk
+@@ -5,6 +5,7 @@ define Image/Prepare
+ 	rm -f $(KDIR)/ubi_mark
+ 	echo -ne '\xde\xad\xc0\xde' > $(KDIR)/ubi_mark
+ 	$(if $(CONFIG_MTK_FW_ENC),$(call Image/fw-enc-key-derive))
++	$(if $(CONFIG_MTK_ANTI_ROLLBACK),$(call Image/fw-ar-ver))
+ endef
+ 
+ define Build/mt7981-bl2
