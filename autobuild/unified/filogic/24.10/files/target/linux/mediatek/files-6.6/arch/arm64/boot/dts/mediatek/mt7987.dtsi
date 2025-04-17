@@ -255,10 +255,11 @@
 	};
 
 	thermal-zones {
-		thermal_zone0: soc_thermal {
+		cpu_thermal: cpu-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 			thermal-sensors = <&lvts 0>;
+
 			trips {
 				cpu_trip_crit: crit {
 					temperature = <125000>;
@@ -272,53 +273,44 @@
 					type = "hot";
 				};
 
-				cpu_trip_active1: active1 {
+				cpu_trip_active_high: active-high {
 					temperature = <115000>;
 					hysteresis = <2000>;
 					type = "active";
 				};
 
-				cpu_trip_active0: active0 {
+				cpu_trip_active_med: active-med {
 					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "active";
 				};
 
-				cpu_trip_passive: passive {
+				cpu_trip_active_low: active-low {
 					temperature = <40000>;
 					hysteresis = <2000>;
-					type = "passive";
+					type = "active";
 				};
 			};
 
 			cooling-maps {
 				cpu-active-high {
-					cooling-device = <&fan 2 2>;
-					trip = <&cpu_trip_active1>;
+				/* active: set fan to cooling level 2 */
+					cooling-device = <&fan 3 3>;
+					trip = <&cpu_trip_active_high>;
 				};
 
 				cpu-active-low {
-					cooling-device = <&fan 1 1>;
-					trip = <&cpu_trip_active0>;
+				/* active: set fan to cooling level 1 */
+					cooling-device = <&fan 2 2>;
+					trip = <&cpu_trip_active_med>;
 				};
 
 				cpu-passive {
-					cooling-device = <&fan 0 0>;
-					trip = <&cpu_trip_passive>;
+				/* passive: set fan to cooling level 0 */
+					cooling-device = <&fan 1 1>;
+					trip = <&cpu_trip_active_low>;
 				};
 			};
-		};
-
-		thermal_zone1: mcusys_thermal {
-			polling-delay-passive = <1000>;
-			polling-delay = <1000>;
-			thermal-sensors = <&lvts 1>;
-		};
-
-		thermal_zone2: eth2p5g_thermal {
-			polling-delay-passive = <1000>;
-			polling-delay = <1000>;
-			thermal-sensors = <&lvts 2>;
 		};
 	};
 
@@ -535,13 +527,14 @@
 		};
 
 		lvts: lvts@1100a000 {
-			compatible = "mediatek,mt7987-lvts";
-			#thermal-sensor-cells = <1>;
+			compatible = "mediatek,mt7987-lvts-ap";
 			reg = <0 0x1100a000 0 0x1000>;
 			clocks = <&infracfg CLK_INFRA_26M_THERM_SYSTEM>;
 			clock-names = "lvts_clk";
+			resets = <&infracfg MT7987_INFRA_RST1_THERM_CTRL_SWRST>;
 			nvmem-cells = <&lvts_calibration>;
-			nvmem-cell-names = "e_data1";
+			nvmem-cell-names = "lvts-calib-data-1";
+			#thermal-sensor-cells = <1>;
 			status = "disabled";
 		};
 
