@@ -490,6 +490,9 @@ static int mt7987_uart0_funcs[] = {1, 1};
 static int mt7987_uart1_0_pins[] = {3, 4, 5, 6};
 static int mt7987_uart1_0_funcs[] = {3, 3, 3, 3};
 
+static int mt7987_uart1_0_lite_pins[] = {3, 4};
+static int mt7987_uart1_0_lite_funcs[] = {3, 3};
+
 static int mt7987_uart1_1_pins[] = {21, 22, 23, 24};
 static int mt7987_uart1_1_funcs[] = {3, 3, 3, 3};
 
@@ -608,6 +611,7 @@ static const struct group_desc mt7987_groups[] = {
 	PINCTRL_PIN_GROUP("pcm0_1", mt7987_pcm0_1),
 	PINCTRL_PIN_GROUP("uart0", mt7987_uart0),
 	PINCTRL_PIN_GROUP("uart1_0", mt7987_uart1_0),
+	PINCTRL_PIN_GROUP("uart1_0_lite", mt7987_uart1_0_lite),
 	PINCTRL_PIN_GROUP("uart1_1", mt7987_uart1_1),
 	PINCTRL_PIN_GROUP("uart1_2", mt7987_uart1_2),
 	PINCTRL_PIN_GROUP("uart2_0", mt7987_uart2_0),
@@ -647,8 +651,10 @@ static const struct group_desc mt7987_groups[] = {
 static const char *const mt7987_wdt_groups[] = {"watchdog",};
 static const char *const mt7987_jtag_groups[] = {"jtag",};
 static const char *const mt7987_pcm_groups[] = {"pcm0_0", "pcm0_1"};
-static const char *const mt7987_uart_groups[] = {"uart0", "uart1_0", "uart1_1",
-						 "uart1_2", "uart2_0", "uart2_1",};
+static const char *const mt7987_uart_groups[] = {"uart0", "uart1_0",
+						 "uart1_0_lite", "uart1_1",
+						 "uart1_2", "uart2_0",
+						 "uart2_1",};
 static const char *const mt7987_pwm_groups[] = {"pwm0", "pwm1_0", "pwm1_1", "pwm2_0",
 					       "pwm2_1",};
 static const char *const mt7987_usb_groups[] = {"drv_vbus_p1", "drv_vbus",};
