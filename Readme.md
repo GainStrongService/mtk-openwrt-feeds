@@ -15,11 +15,11 @@ Currently two release branches are supported:
    git clone -b openwrt-21.02 https://git.openwrt.org/openwrt/openwrt.git
    ```
 
-2. master (will be 24.0x branch later)
-   The next version in development
+2. 24.10
+    This is the current in-use branch
 
    ```bash
-   git clone https://git.openwrt.org/openwrt/openwrt.git
+   git clone -b openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git
    ```
 
 ## 3. Add MediaTek OpenWrt feed
@@ -42,11 +42,11 @@ echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-open
    for file in $(find ./feeds/mtk_openwrt_feed/21.02/patches-feeds -name "*.patch" | sort); do patch -f -p1 -i ${file}; done
    ```
 
-2. master branch
+2. 24.10 branch
 
    ```bash
-   cp -af ./feeds/mtk_openwrt_feed/master/files/* .
-   for file in $(find ./feeds/mtk_openwrt_feed/master/patches-base -name "*.patch" | sort); do patch -f -p1 -i ${file}; done
+   cp -af ./feeds/mtk_openwrt_feed/24.10/files/* .
+   for file in $(find ./feeds/mtk_openwrt_feed/24.10/patches-base -name "*.patch" | sort); do patch -f -p1 -i ${file}; done
    ```
 
 ## 5. Configuration
@@ -63,7 +63,7 @@ make menuconfig
    Target Profile -> select as needed
    ```
 
-2. master branch
+2. 24.10 branch
 
    ```text
    Target System -> MediaTek Ralink ARM
@@ -77,29 +77,11 @@ make menuconfig
 make V=s -j$(nproc)
 ```
 
-## MT7987 NPU Only (without WiFi) Build
-```bash
-#Get Openwrt 21.02 source code from Git server
-git clone --branch openwrt-21.02 https://git.openwrt.org/openwrt/openwrt.git
+# Mediatek Official Release with autobuild framework
+1. 21.02 branch
+https://gerrit.mediatek.inc/plugins/gitiles/openwrt/feeds/mtk_openwrt_feeds/+/refs/heads/master/autobuild/autobuild_5.4_mac80211_release/Readme.md
 
-#Get Openwrt master source code from Git Server
-git clone --branch master https://git.openwrt.org/openwrt/openwrt.git mac80211_package
+2. 24.10 branch
+https://gerrit.mediatek.inc/plugins/gitiles/openwrt/feeds/mtk_openwrt_feeds/+/refs/heads/master/autobuild/unified/Readme.md
 
-#Get mtk-openwrt-feeds source code
-git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
-
-#Change to openwrt folder
-cp -rf mtk-openwrt-feeds/autobuild/autobuild_5.4_mac80211_release openwrt
-cd openwrt; mv autobuild_5.4_mac80211_release autobuild
-
-#Add MTK feed
-echo "src-git mtk_openwrt_feed https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds" >> feeds.conf.default
-
-#Build MT7987 (Only for the 1st build)
-bash autobuild/mt7987-npu/lede-branch-build-sanity.sh
-
-#Further Build (After 1st full build)
-./scripts/feeds update -a
-make V=s PKG_HASH=skip PKG_MIRROR_HASH=skip
-```
 
