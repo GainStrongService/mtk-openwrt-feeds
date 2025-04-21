@@ -4,27 +4,7 @@
 # Author: Evelyn Tsai <evelyn.tsai@mediatek.com>
 # Top rules
 
-list_add_after $(hooks autobuild_prepare) prepare_wifi_driver change_hostapd_conf
 list_add_after $(hooks autobuild_prepare) wifi_change_kernel_config change_kernel_flowoffload_conf
-
-change_hostapd_conf() {
-	# hack hostapd config
-	echo "CONFIG_MBO=y" >> ./package/network/services/hostapd/files/hostapd-full.config
-	echo "CONFIG_SAE_PK=y" >> ./package/network/services/hostapd/files/hostapd-full.config
-	echo "CONFIG_TESTING_OPTIONS=y" >> ./package/network/services/hostapd/files/hostapd-full.config
-	echo "CONFIG_HS20=y" >> ./package/network/services/hostapd/files/hostapd-full.config
-	echo "CONFIG_P2P_MANAGER=y" >> ./package/network/services/hostapd/files/hostapd-full.config
-	echo "CONFIG_WPS_UPNP=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
-	echo "CONFIG_DPP=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
-	echo "CONFIG_DPP2=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
-	echo "CONFIG_DPP3=y"  >> ./package/network/services/hostapd/files/hostapd-full.config
-	echo "CONFIG_DPP=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
-	echo "CONFIG_DPP2=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
-	echo "CONFIG_DPP3=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
-	# add configuration for STA wireless mode setting
-	echo "CONFIG_HE_OVERRIDES=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
-	echo "CONFIG_EHT_OVERRIDES=y"  >> ./package/network/services/hostapd/files/wpa_supplicant-full.config
-}
 
 change_kernel_flowoffload_conf () {
 	kernel_config_enable CONFIG_NETFILTER
