@@ -801,9 +801,9 @@ u32 mtk_monitor_qdma_rx(struct mtk_eth *eth)
 			pr_info("FQ_TAIL = 0x%x\n",
 				mtk_r32(eth, MTK_QDMA_FQ_TAIL));
 			err_flag = 1;
-		} else
-			qdma_rx->hang_count = 0;
-	}
+		}
+	} else
+		qdma_rx->hang_count = 0;
 
 	qdma_rx->pre_fq_head = cur_fq_head;
 	qdma_rx->pre_fq_tail = cur_fq_tail;
@@ -970,15 +970,16 @@ u32 mtk_monitor_gdm_rx(struct mtk_eth *eth)
 
 		if (eth->mac[i]->type == MTK_GDM_TYPE) {
 			gmac_rx = (mtk_r32(eth, MTK_MAC_FSM(i)) & 0xFF0000) != 0x10000;
-			if (gmac_rx && (cur_rx_cnt == gdm_rx->pre_rx_cnt[i]))
+			if (gmac_rx && (cur_rx_cnt == gdm_rx->pre_rx_cnt[i])) {
 				gdm_rx->hang_count_gmac[i]++;
-			if (gdm_rx->hang_count_gmac[i] >= 5) {
-				pr_info("GMAC%d Rx Info\n", i + 1);
-				pr_info("hang count = %d\n",
-					gdm_rx->hang_count_gmac[i]);
-				pr_info("GMAC_FSM = 0x%x\n",
-					mtk_r32(eth, MTK_MAC_FSM(i)));
-				err_flag = 1;
+				if (gdm_rx->hang_count_gmac[i] >= 5) {
+					pr_info("GMAC%d Rx Info\n", i + 1);
+					pr_info("hang count = %d\n",
+						gdm_rx->hang_count_gmac[i]);
+					pr_info("GMAC_FSM = 0x%x\n",
+						mtk_r32(eth, MTK_MAC_FSM(i)));
+					err_flag = 1;
+				}
 			} else
 				gdm_rx->hang_count_gmac[i] = 0;
 		} else if (eth->mac[i]->type == MTK_XGDM_TYPE && eth->mac[i]->id != MTK_GMAC1_ID) {
@@ -1035,15 +1036,16 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 		cur_opq_gdm = MTK_FE_GDM_OQ(i);
 		gmac_tx = (mtk_r32(eth, MTK_MAC_FSM(i)) & 0xFF000000) != 0x1000000;
 		if (gmac_tx && (cur_tx_cnt == gdm_tx->pre_tx_cnt[i]) &&
-		    (cur_opq_gdm > 0))
+		    (cur_opq_gdm > 0)) {
 			gdm_tx->hang_count_gmac[i]++;
-		if (gdm_tx->hang_count_gmac[i] >= 5) {
-			pr_info("GMAC%d Tx Info\n", i + 1);
-			pr_info("hang count = %d\n",
-				gdm_tx->hang_count_gmac[i]);
-			pr_info("GMAC_FSM = 0x%x\n",
-				mtk_r32(eth, MTK_MAC_FSM(i)));
-			err_flag = 1;
+			if (gdm_tx->hang_count_gmac[i] >= 5) {
+				pr_info("GMAC%d Tx Info\n", i + 1);
+				pr_info("hang count = %d\n",
+					gdm_tx->hang_count_gmac[i]);
+				pr_info("GMAC_FSM = 0x%x\n",
+					mtk_r32(eth, MTK_MAC_FSM(i)));
+				err_flag = 1;
+			}
 		} else
 			gdm_tx->hang_count_gmac[i] = 0;
 
@@ -1057,15 +1059,16 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 		cur_fsm_gdm = mtk_r32(eth, MTK_FE_GDM_FSM(i)) & 0x1FFF0000;
 		cur_opq_gdm = MTK_FE_GDM_OQ(i);
 		if ((cur_fsm_gdm == gdm_tx->pre_fsm_gdm[i]) && (cur_fsm_gdm == 0x10330000) &&
-		    (cur_opq_gdm == gdm_tx->pre_opq_gdm[i]) && (cur_opq_gdm > 0))
+		    (cur_opq_gdm == gdm_tx->pre_opq_gdm[i]) && (cur_opq_gdm > 0)) {
 			gdm_tx->hang_count_gdm[i]++;
-		if (gdm_tx->hang_count_gdm[i] >= 5) {
-			pr_info("GDM%d Tx Info\n", i + 1);
-			pr_info("hang count = %d\n",
-				gdm_tx->hang_count_gdm[i]);
-			pr_info("GDM_FSM = 0x%x\n",
-				mtk_r32(eth, MTK_FE_GDM_FSM(i)));
-			err_flag = 1;
+			if (gdm_tx->hang_count_gdm[i] >= 5) {
+				pr_info("GDM%d Tx Info\n", i + 1);
+				pr_info("hang count = %d\n",
+					gdm_tx->hang_count_gdm[i]);
+				pr_info("GDM_FSM = 0x%x\n",
+					mtk_r32(eth, MTK_FE_GDM_FSM(i)));
+				err_flag = 1;
+			}
 		} else
 			gdm_tx->hang_count_gdm[i] = 0;
 
