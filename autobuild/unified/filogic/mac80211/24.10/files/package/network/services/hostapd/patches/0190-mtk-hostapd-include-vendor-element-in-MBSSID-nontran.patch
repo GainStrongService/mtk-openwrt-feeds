@@ -1,4 +1,4 @@
-From 2110b982129640b2dd1c80f506b8ea61fab00d4b Mon Sep 17 00:00:00 2001
+From 1d3d60d1ebe8ef027fcddb60889f4e8116c3545d Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 17 Mar 2025 14:03:12 +0800
 Subject: [PATCH 190/210] mtk: hostapd: include vendor element in MBSSID
@@ -98,11 +98,11 @@ index e390929df..53bd3c6f4 100644
 +size_t hostapd_get_rsnxe_override_len(struct hostapd_data *hapd);
  #endif /* BEACON_H */
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index 911dc5e24..f75a5f666 100644
+index 650462409..f2cad1d24 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
-@@ -8589,6 +8589,16 @@ static size_t hostapd_eid_mbssid_elem_len(struct hostapd_data *hapd,
- 		}
+@@ -8587,6 +8587,16 @@ static size_t hostapd_eid_mbssid_elem_len(struct hostapd_data *hapd,
+ 			nontx_profile_len += hostapd_eid_eht_ml_beacon_len(bss, NULL, true);
  #endif /* CONFIG_IEEE80211BE */
  
 +		/* WFA vendor elements which cannot be inherited if one of them
@@ -118,7 +118,7 @@ index 911dc5e24..f75a5f666 100644
  		if (ie_count)
  			nontx_profile_len += 4 + ie_count + 1;
  
-@@ -8757,6 +8767,16 @@ static u8 * hostapd_eid_mbssid_elem(struct hostapd_data *hapd, u8 *eid, u8 *end,
+@@ -8755,6 +8765,16 @@ static u8 * hostapd_eid_mbssid_elem(struct hostapd_data *hapd, u8 *eid, u8 *end,
  			eid = hostapd_eid_eht_ml_beacon(bss, NULL, eid, true);
  #endif /* CONFIG_IEEE80211BE */
  

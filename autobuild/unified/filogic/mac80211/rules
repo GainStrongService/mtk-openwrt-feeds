@@ -5,10 +5,21 @@
 # Top rules
 
 list_add_after $(hooks autobuild_prepare) wifi_change_kernel_config change_kernel_flowoffload_conf
+list_add_after $(hooks autobuild_prepare) change_kernel_flowoffload_conf change_kernel_coredump_conf
 
 change_kernel_flowoffload_conf () {
 	kernel_config_enable CONFIG_NETFILTER
 	kernel_config_enable CONFIG_NETFILTER_INGRESS
 	kernel_config_enable CONFIG_NF_CONNTRACK
 	kernel_config_enable CONFIG_NF_FLOW_TABLE
+}
+
+change_kernel_coredump_conf() {
+	kernel_config_enable CONFIG_DEV_COREDUMP
+	kernel_config_enable CONFIG_REMOTEPROC
+	kernel_config_enable CONFIG_WANT_DEV_COREDUMP
+	kernel_config_disable CONFIG_VIRTIO_BLK
+	kernel_config_disable CONFIG_VIRTIO_NET
+	kernel_config_disable CONFIG_REMOTEPROC_CDEV
+	kernel_config_disable CONFIG_MTK_SCP
 }

@@ -1,4 +1,4 @@
-From 11f8f276f1fb0d8b1094cd671ad91791140edeb1 Mon Sep 17 00:00:00 2001
+From 595fdd752e510bb7bb69723c6bb490e94c6c4900 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 26 Dec 2024 11:08:12 +0800
 Subject: [PATCH 153/210] mtk: hostapd: add MLD and 11v MBSSID support
@@ -35,10 +35,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  src/ap/beacon.c         | 97 +++++++++++++++++++++++++----------------
  src/ap/hostapd.c        | 43 +++++++++++++++---
  src/ap/hostapd.h        |  4 ++
- src/ap/ieee802_11.c     | 46 +++++++++++++------
+ src/ap/ieee802_11.c     | 44 +++++++++++++------
  src/ap/ieee802_11.h     |  6 ++-
  src/ap/ieee802_11_eht.c | 14 +++---
- 6 files changed, 145 insertions(+), 65 deletions(-)
+ 6 files changed, 143 insertions(+), 65 deletions(-)
 
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
 index fcb33e8f4..0f6e479e0 100644
@@ -336,7 +336,7 @@ index 7ad79dcbb..a7e57face 100644
  int hostapd_mld_remove_link(struct hostapd_data *hapd);
  u8 hostapd_get_active_links(struct hostapd_data *hapd);
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index 88f0f2754..0387ec944 100644
+index 88f0f2754..37fd322df 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
 @@ -7820,12 +7820,12 @@ static bool hostapd_skip_rnr(size_t i, struct mbssid_ie_profiles *skip_profiles,
@@ -393,22 +393,20 @@ index 88f0f2754..0387ec944 100644
  {
  	struct hostapd_data *tx_bss = hostapd_mbssid_get_tx_bss(hapd);
  	size_t len, i, tx_xrate_len;
-@@ -8510,6 +8510,14 @@ static size_t hostapd_eid_mbssid_elem_len(struct hostapd_data *hapd,
+@@ -8510,6 +8510,12 @@ static size_t hostapd_eid_mbssid_elem_len(struct hostapd_data *hapd,
  			nontx_profile_len += xrate_len;
  		else if (tx_xrate_len)
  			ie_count++;
 +
 +#ifdef CONFIG_IEEE80211BE
-+		if (hostapd_is_mld_ap(bss) && bss != skip_mld_ap) {
++		if (hostapd_is_mld_ap(bss) && bss != skip_mld_ap)
 +			nontx_profile_len += hostapd_eid_eht_ml_beacon_len(bss, NULL, true);
-+			ie_count++;
-+		}
 +#endif /* CONFIG_IEEE80211BE */
 +
  		if (ie_count)
  			nontx_profile_len += 4 + ie_count + 1;
  
-@@ -8528,7 +8536,8 @@ static size_t hostapd_eid_mbssid_elem_len(struct hostapd_data *hapd,
+@@ -8528,7 +8534,8 @@ static size_t hostapd_eid_mbssid_elem_len(struct hostapd_data *hapd,
  
  size_t hostapd_eid_mbssid_len(struct hostapd_data *hapd, u32 frame_type,
  			      u8 *elem_count, const u8 *known_bss,
@@ -418,7 +416,7 @@ index 88f0f2754..0387ec944 100644
  {
  	size_t len = 0, bss_index = 1;
  	bool ap_mld = false;
-@@ -8556,7 +8565,7 @@ size_t hostapd_eid_mbssid_len(struct hostapd_data *hapd, u32 frame_type,
+@@ -8556,7 +8563,7 @@ size_t hostapd_eid_mbssid_len(struct hostapd_data *hapd, u32 frame_type,
  
  		len += hostapd_eid_mbssid_elem_len(hapd, frame_type,
  						   &bss_index, known_bss,
@@ -427,7 +425,7 @@ index 88f0f2754..0387ec944 100644
  
  		if (frame_type == WLAN_FC_STYPE_BEACON)
  			*elem_count += 1;
-@@ -8582,7 +8591,8 @@ size_t hostapd_eid_mbssid_len(struct hostapd_data *hapd, u32 frame_type,
+@@ -8582,7 +8589,8 @@ size_t hostapd_eid_mbssid_len(struct hostapd_data *hapd, u32 frame_type,
  static u8 * hostapd_eid_mbssid_elem(struct hostapd_data *hapd, u8 *eid, u8 *end,
  				    u32 frame_type, u8 max_bssid_indicator,
  				    size_t *bss_index, u8 elem_count,
@@ -437,7 +435,7 @@ index 88f0f2754..0387ec944 100644
  {
  	struct hostapd_data *tx_bss = hostapd_mbssid_get_tx_bss(hapd);
  	size_t i, tx_xrate_len;
-@@ -8670,6 +8680,12 @@ static u8 * hostapd_eid_mbssid_elem(struct hostapd_data *hapd, u8 *eid, u8 *end,
+@@ -8670,6 +8678,12 @@ static u8 * hostapd_eid_mbssid_elem(struct hostapd_data *hapd, u8 *eid, u8 *end,
  		xrate_len = hostapd_eid_ext_supp_rates(bss, eid) - eid;
  		eid += xrate_len;
  
@@ -450,7 +448,7 @@ index 88f0f2754..0387ec944 100644
  		/* List of Element ID values in increasing order */
  		if (!rsn && hostapd_wpa_ie(tx_bss, WLAN_EID_RSN))
  			non_inherit_ie[ie_count++] = WLAN_EID_RSN;
-@@ -8708,7 +8724,8 @@ u8 * hostapd_eid_mbssid(struct hostapd_data *hapd, u8 *eid, u8 *end,
+@@ -8708,7 +8722,8 @@ u8 * hostapd_eid_mbssid(struct hostapd_data *hapd, u8 *eid, u8 *end,
  			unsigned int frame_stype, u8 elem_count,
  			u8 **elem_offset,
  			const u8 *known_bss, size_t known_bss_len, u8 *rnr_eid,
@@ -460,7 +458,7 @@ index 88f0f2754..0387ec944 100644
  {
  	size_t bss_index = 1, cur_len = 0;
  	u8 elem_index = 0, *rnr_start_eid = rnr_eid;
-@@ -8749,7 +8766,8 @@ u8 * hostapd_eid_mbssid(struct hostapd_data *hapd, u8 *eid, u8 *end,
+@@ -8749,7 +8764,8 @@ u8 * hostapd_eid_mbssid(struct hostapd_data *hapd, u8 *eid, u8 *end,
  		eid = hostapd_eid_mbssid_elem(hapd, eid, end, frame_stype,
  					      hostapd_max_bssid_indicator(hapd),
  					      &bss_index, elem_count,
