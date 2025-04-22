@@ -1,0 +1,38 @@
+From bea0cfa3beec8080ec4cfecc6a4fe5051df70f16 Mon Sep 17 00:00:00 2001
+From: Weijie Gao <weijie.gao@mediatek.com>
+Date: Tue, 22 Apr 2025 09:38:03 +0800
+Subject: [PATCH] image: serialize build process of fit image
+
+This patch moves call to mkimage into the lock with mkits.sh to fix random
+rootfs corruption in FIT image when building multiple images in parallel.
+
+This is cause by mkits.sh generating page-aligned rootfs in parallel build.
+Since mkits.sh always generates page-aligned rootfs as root.*.pagesync file,
+multiple mkits.sh being called in parallel will cause root.*.pagesync file
+being corrupted while mkimage is converting .its to .itb image.
+
+Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
+---
+ include/image-commands.mk | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/image-commands.mk b/include/image-commands.mk
+index a627ffc202c..38cbd200bb6 100644
+--- a/include/image-commands.mk
++++ b/include/image-commands.mk
+@@ -390,9 +390,9 @@ define Build/fit
+ 		$(if $(DEVICE_DTS_LOADADDR),-s $(DEVICE_DTS_LOADADDR)) \
+ 		$(if $(DEVICE_DTS_OVERLAY),$(foreach dtso,$(DEVICE_DTS_OVERLAY), -O $(dtso):$(KERNEL_BUILD_DIR)/image-$(dtso).dtbo)) \
+ 		-c $(if $(DEVICE_DTS_CONFIG),$(DEVICE_DTS_CONFIG),"config-1") \
+-		-A $(LINUX_KARCH) -v $(LINUX_VERSION), gen-cpio$(if $(TARGET_PER_DEVICE_ROOTFS),.$(ROOTFS_ID/$(DEVICE_NAME))))
+-	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage $(if $(findstring external,$(word 3,$(1))),\
+-		-E -B 0x1000 $(if $(findstring static,$(word 3,$(1))),-p 0x1000)) -f $@.its $@.new
++		-A $(LINUX_KARCH) -v $(LINUX_VERSION); \
++		PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage $(if $(findstring external,$(word 3,$(1))),\
++			-E -B 0x1000 $(if $(findstring static,$(word 3,$(1))),-p 0x1000)) -f $@.its $@.new, gen-cpio$(if $(TARGET_PER_DEVICE_ROOTFS),.$(ROOTFS_ID/$(DEVICE_NAME))))
+ 	@mv $@.new $@
+ endef
+ 
+-- 
+2.45.2
+
