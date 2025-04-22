@@ -191,50 +191,32 @@ static void mtk_crypto_unregister_algorithms(void)
 
 static void mtk_crypto_xfrm_offload_deinit(struct mtk_eth *eth)
 {
-	int i;
-	int count;
+	struct net_device *dev;
 
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 	mtk_crypto_offloadable = NULL;
 #endif // HNAT
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
-	count = MTK_MAX_DEVS;
-#else
-	count = MTK_MAC_COUNT;
-#endif
-
-	for (i = 0; i < count; i++) {
-		if (!eth->netdev[i])
-			continue;
-		eth->netdev[i]->xfrmdev_ops = NULL;
-		eth->netdev[i]->features &= (~NETIF_F_HW_ESP);
-		eth->netdev[i]->hw_enc_features &= (~NETIF_F_HW_ESP);
+	for_each_netdev(&init_net, dev) {
+		dev->xfrmdev_ops = NULL;
+		dev->features &= (~NETIF_F_HW_ESP);
+		dev->hw_enc_features &= (~NETIF_F_HW_ESP);
 		rtnl_lock();
-		netdev_change_features(eth->netdev[i]);
+		netdev_change_features(dev);
 		rtnl_unlock();
 	}
 }
 
 static void mtk_crypto_xfrm_offload_init(struct mtk_eth *eth)
 {
-	int i;
-	int count;
+	struct net_device *dev;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
-	count = MTK_MAX_DEVS;
-#else
-	count = MTK_MAC_COUNT;
-#endif
-
-	for (i = 0; i < count; i++) {
-		if (!eth->netdev[i])
-			continue;
-		eth->netdev[i]->xfrmdev_ops = &mtk_xfrmdev_ops;
-		eth->netdev[i]->features |= NETIF_F_HW_ESP;
-		eth->netdev[i]->hw_enc_features |= NETIF_F_HW_ESP;
+	for_each_netdev(&init_net, dev) {
+		dev->xfrmdev_ops = &mtk_xfrmdev_ops;
+		dev->features |= NETIF_F_HW_ESP;
+		dev->hw_enc_features |= NETIF_F_HW_ESP;
 		rtnl_lock();
-		netdev_change_features(eth->netdev[i]);
+		netdev_change_features(dev);
 		rtnl_unlock();
 	}
 
