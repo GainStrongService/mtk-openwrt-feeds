@@ -1,7 +1,7 @@
-From 6344b0c690f9c437e34ecfcd735ad84eee5d44fb Mon Sep 17 00:00:00 2001
+From ba20f280c12e48a0f8dace513fd1e44bb4a9c0c1 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 20 Feb 2023 14:55:49 +0800
-Subject: [PATCH 018/185] mtk: hostapd: Add DFS detection mode
+Subject: [PATCH 018/210] mtk: hostapd: Add DFS detection mode
 
 Add DFS detection mode for testing radar detection rate.
 If DFS detection mode is on, AP will not switch channels when receiving
@@ -32,10 +32,10 @@ index 6a209ee4d..e4bca069d 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index be58d63ef..62fd68be4 100644
+index cf74fb02f..57dd36afe 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4341,6 +4341,26 @@ hostapd_ctrl_iface_get_ibf(struct hostapd_data *hapd, char *buf,
+@@ -4340,6 +4340,26 @@ hostapd_ctrl_iface_get_ibf(struct hostapd_data *hapd, char *buf,
  }
  
  
@@ -62,7 +62,7 @@ index be58d63ef..62fd68be4 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4965,6 +4985,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4964,6 +4984,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_get_mu(hapd, reply, reply_size);
  	} else if (os_strncmp(buf, "GET_IBF", 7) == 0) {
  		reply_len = hostapd_ctrl_iface_get_ibf(hapd, reply, reply_size);

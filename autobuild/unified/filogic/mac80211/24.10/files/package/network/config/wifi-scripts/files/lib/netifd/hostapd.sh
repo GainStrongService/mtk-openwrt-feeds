@@ -61,7 +61,7 @@ hostapd_append_wpa_key_mgmt() {
 		;;
 		sae)
 			case "$encryption" in
-			sae+sae-ext)
+			sae_sae-ext)
 				append wpa_key_mgmt "SAE SAE-EXT-KEY"
 			;;
 			*sae-ext*)
@@ -1155,7 +1155,13 @@ hostapd_set_bss_options() {
 		[ "$auth_cache" = 0 -a "$fils" = 0 ] && append bss_conf "disable_pmksa_caching=1" "$N"
 
 		[ -z "$group_cipher" ] && group_cipher="$wpa_cipher"
-		[ -n "$group_cipher" ] && append bss_conf "group_cipher=$group_cipher" "$N"
+		if [ -n "$group_cipher" ]; then
+			if [ "$group_cipher" == "CCMP TKIP" ]; then
+				append bss_conf "group_cipher=CCMP" "$N"
+			else
+				append bss_conf "group_cipher=$group_cipher" "$N"
+			fi
+		fi
 
 		if [ -n "$sae_groups" -o -n "$owe_groups" ]; then
 			case "$auth_type" in
@@ -1417,7 +1423,7 @@ hostapd_set_bss_options() {
 	fi
 
 	if [ "$mld_primary" -gt 0 ]; then
-		append bss_conf "mld_primary=${mld_primary}" "$N"
+		append bss_conf "#mld_primary=${mld_primary}" "$N"
 	fi
 
 	[ -n "$mld_link_id" ] && append bss_conf "mld_link_id=${mld_link_id}" "$N"
@@ -1427,7 +1433,7 @@ hostapd_set_bss_options() {
 	fi
 
 	if [ "$mld_radio_mask" -gt 0 ]; then
-		append bss_conf "mld_radio_mask=${mld_radio_mask}" "$N"
+		append bss_conf "#mld_radio_mask=${mld_radio_mask}" "$N"
 	fi
 
 	if [ -n "$eml_disable" ]; then

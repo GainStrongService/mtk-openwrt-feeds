@@ -1,7 +1,7 @@
-From fd32d605fb2a3e3465fea0e48358c4bf9bbfabb0 Mon Sep 17 00:00:00 2001
+From a0706e1461738607b1791362321a4b6cebccb7e2 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 29 Apr 2024 12:04:52 +0800
-Subject: [PATCH 113/185] mtk: hostapd: support MLD AP affiliated link removal
+Subject: [PATCH 113/210] mtk: hostapd: support MLD AP affiliated link removal
 
 Support ap link removal of MLD reconfiguration. Main changes include:
 - support to trigger it from hostapd_cli, with the following command:
@@ -29,10 +29,10 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  10 files changed, 129 insertions(+), 28 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 05ec9203a..06dcc6d41 100644
+index 85d678d57..6d391c71b 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3970,11 +3970,31 @@ static int hostapd_ctrl_iface_disable_mld(struct hostapd_iface *iface)
+@@ -3969,11 +3969,31 @@ static int hostapd_ctrl_iface_disable_mld(struct hostapd_iface *iface)
  static int hostapd_ctrl_iface_link_remove(struct hostapd_data *hapd, char *cmd,
  					  char *buf, size_t buflen)
  {
@@ -282,7 +282,7 @@ index 13b104c5d..bc543c9fe 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index fffcc61e1..602cd2f00 100644
+index 33e170512..3cc179816 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -1127,6 +1127,11 @@ static void nl80211_put_wiphy_data_ap(struct i802_bss *bss)

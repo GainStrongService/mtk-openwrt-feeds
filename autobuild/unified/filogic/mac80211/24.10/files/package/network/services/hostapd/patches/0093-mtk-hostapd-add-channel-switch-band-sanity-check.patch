@@ -1,7 +1,7 @@
-From 5dc29cc6d3761fcea6029d706d9967e888183bb8 Mon Sep 17 00:00:00 2001
+From 40114c08099e162f52de01fc6e3eaee24fcb32a0 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 30 May 2024 11:24:54 +0800
-Subject: [PATCH 093/185] mtk: hostapd: add channel switch band sanity check
+Subject: [PATCH 093/210] mtk: hostapd: add channel switch band sanity check
 
 Add band sanity check in case user selecting the wrong freq or link id
 
@@ -11,10 +11,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  1 file changed, 6 insertions(+)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 176674396..40fb5b60f 100644
+index cabe4129e..10051aca4 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -2842,6 +2842,7 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2841,6 +2841,7 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  					  char *pos)
  {
  #ifdef NEED_AP_MLME
@@ -22,7 +22,7 @@ index 176674396..40fb5b60f 100644
  	struct csa_settings settings;
  	int ret;
  	int dfs_range = 0;
-@@ -2867,6 +2868,11 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2866,6 +2867,11 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  					   settings.freq_params.freq)) {
  		wpa_printf(MSG_INFO,
  			   "chanswitch: Invalid frequency settings provided for multi band phy");

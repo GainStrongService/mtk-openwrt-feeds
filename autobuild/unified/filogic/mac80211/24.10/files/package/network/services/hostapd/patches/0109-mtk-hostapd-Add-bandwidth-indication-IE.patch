@@ -1,7 +1,7 @@
-From 6a5483deb8075dd431050d039185e324205536b2 Mon Sep 17 00:00:00 2001
+From 3e23e6c9740d442b91f6b731ded0e306c3d53b91 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Tue, 2 Jul 2024 10:38:49 +0800
-Subject: [PATCH 109/185] mtk: hostapd: Add bandwidth indication IE
+Subject: [PATCH 109/210] mtk: hostapd: Add bandwidth indication IE
 
 Move punct_bitmap from csa_settings to hostapd_freq_params for
 filling bandwidth indication IE while channel switch occurs.
@@ -17,10 +17,10 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  5 files changed, 6 insertions(+), 16 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index f3613106c..05ec9203a 100644
+index db2b038d6..85d678d57 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -2699,14 +2699,14 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
+@@ -2698,14 +2698,14 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
  		if (params->center_freq2 || params->sec_channel_offset)
  			return -1;
  
@@ -37,7 +37,7 @@ index f3613106c..05ec9203a 100644
  			return -1;
  
  		if (!params->center_freq1)
-@@ -2743,7 +2743,7 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
+@@ -2742,7 +2742,7 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
  			return -1;
  		}
  
@@ -46,7 +46,7 @@ index f3613106c..05ec9203a 100644
  			return -1;
  
  		/* Adjacent and overlapped are not allowed for 80+80 */
-@@ -2810,7 +2810,7 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
+@@ -2809,7 +2809,7 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
  		return -1;
  	}
  
@@ -55,7 +55,7 @@ index f3613106c..05ec9203a 100644
  		return 0;
  
  	if (!params->eht_enabled) {
-@@ -2828,7 +2828,7 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
+@@ -2827,7 +2827,7 @@ static int hostapd_ctrl_check_freq_params(struct hostapd_freq_params *params,
  	start_freq = params->center_freq1 - (params->bandwidth / 2);
  	if (!is_punct_bitmap_valid(params->bandwidth,
  				   (params->freq - start_freq) / 20,
@@ -64,7 +64,7 @@ index f3613106c..05ec9203a 100644
  		wpa_printf(MSG_ERROR, "Invalid preamble puncturing bitmap");
  		return -1;
  	}
-@@ -2951,7 +2951,7 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2950,7 +2950,7 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  
  #ifdef CONFIG_IEEE80211BE
  	hapd = iface->bss[0];

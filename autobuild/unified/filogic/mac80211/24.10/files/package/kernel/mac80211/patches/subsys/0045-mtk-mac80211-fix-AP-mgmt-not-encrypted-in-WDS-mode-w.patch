@@ -1,4 +1,4 @@
-From 44be218c50e8b8cae036fb5f48416dc4a2cf7c20 Mon Sep 17 00:00:00 2001
+From aff7e11313391ec794f5526e5b2566904a481f74 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 25 Jan 2024 14:07:23 +0800
 Subject: [PATCH 045/101] mtk: mac80211: fix AP mgmt not encrypted in WDS mode
@@ -15,10 +15,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 7 insertions(+)
 
 diff --git a/net/mac80211/tx.c b/net/mac80211/tx.c
-index 23fd00d..d499efb 100644
+index 27ec6487..e7e24f72 100644
 --- a/net/mac80211/tx.c
 +++ b/net/mac80211/tx.c
-@@ -1239,6 +1239,13 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
+@@ -1240,6 +1240,13 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
  		if (!tx->sta && !is_multicast_ether_addr(hdr->addr1)) {
  			tx->sta = sta_info_get(sdata, hdr->addr1);
  			aggr_check = true;

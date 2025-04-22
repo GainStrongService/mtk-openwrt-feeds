@@ -1,4 +1,4 @@
-From c033d9198283fc9bddee3eed5a24ed915a1cc732 Mon Sep 17 00:00:00 2001
+From 6a85fd75b368e7444eb41c81e5caf89350c64e16 Mon Sep 17 00:00:00 2001
 From: "Allen.Ye" <allen.ye@mediatek.com>
 Date: Thu, 30 Nov 2023 14:01:29 +0800
 Subject: [PATCH 034/101] mtk: mac80211: Fix SMPS action frame cap check
@@ -13,10 +13,10 @@ Signed-off-by: Allen.Ye <allen.ye@mediatek.com>
  1 file changed, 5 insertions(+), 3 deletions(-)
 
 diff --git a/net/mac80211/rx.c b/net/mac80211/rx.c
-index 42b1fe7..a8b939e 100644
+index 8d1dd80d..5c9bd3de 100644
 --- a/net/mac80211/rx.c
 +++ b/net/mac80211/rx.c
-@@ -3538,9 +3538,6 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
+@@ -3530,9 +3530,6 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
  
  	switch (mgmt->u.action.category) {
  	case WLAN_CATEGORY_HT:
@@ -26,7 +26,7 @@ index 42b1fe7..a8b939e 100644
  
  		if (sdata->vif.type != NL80211_IFTYPE_STATION &&
  		    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
-@@ -3559,6 +3556,11 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
+@@ -3551,6 +3548,11 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
  			enum ieee80211_smps_mode smps_mode;
  			struct sta_opmode_info sta_opmode = {};
  

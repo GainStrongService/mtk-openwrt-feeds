@@ -1,7 +1,7 @@
-From a4b56cd3f14e346e66c6d0c5aad3a06d895253c2 Mon Sep 17 00:00:00 2001
+From 7d871e8be3a5b1e51f980f929a8c518d47615fef Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 18 Dec 2023 11:35:34 +0800
-Subject: [PATCH 138/185] mtk: hostapd: add support for enable/disable single
+Subject: [PATCH 138/210] mtk: hostapd: add support for enable/disable single
  BSS
 
 This function is ported from wifi 6.
@@ -34,10 +34,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  6 files changed, 121 insertions(+)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index d20dd1e60..099018c04 100644
+index 2da3dde8f..b2d307156 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -1555,6 +1555,24 @@ static int hostapd_ctrl_iface_enable(struct hostapd_iface *iface)
+@@ -1554,6 +1554,24 @@ static int hostapd_ctrl_iface_enable(struct hostapd_iface *iface)
  }
  
  
@@ -62,7 +62,7 @@ index d20dd1e60..099018c04 100644
  static int hostapd_ctrl_iface_reload(struct hostapd_iface *iface)
  {
  	if (hostapd_reload_iface(iface) < 0) {
-@@ -1585,6 +1603,24 @@ static int hostapd_ctrl_iface_disable(struct hostapd_iface *iface)
+@@ -1584,6 +1602,24 @@ static int hostapd_ctrl_iface_disable(struct hostapd_iface *iface)
  }
  
  
@@ -87,7 +87,7 @@ index d20dd1e60..099018c04 100644
  static int
  hostapd_ctrl_iface_kick_mismatch_psk_sta_iter(struct hostapd_data *hapd,
  					      struct sta_info *sta, void *ctx)
-@@ -5799,6 +5835,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5798,6 +5834,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strcmp(buf, "ENABLE") == 0) {
  		if (hostapd_ctrl_iface_enable(hapd->iface))
  			reply_len = -1;
@@ -97,7 +97,7 @@ index d20dd1e60..099018c04 100644
  	} else if (os_strcmp(buf, "RELOAD_WPA_PSK") == 0) {
  		if (hostapd_ctrl_iface_reload_wpa_psk(hapd))
  			reply_len = -1;
-@@ -5822,6 +5861,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5821,6 +5860,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strcmp(buf, "DISABLE") == 0) {
  		if (hostapd_ctrl_iface_disable(hapd->iface))
  			reply_len = -1;
@@ -237,7 +237,7 @@ index 70bee3f64..b4a703381 100644
  void hostapd_free_hapd_data(struct hostapd_data *hapd);
  void hostapd_cleanup_iface_partial(struct hostapd_iface *iface);
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index eb0a9c2d7..cc850d33c 100644
+index 5bef32ab6..b64efe6b6 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -5379,6 +5379,17 @@ static int wpa_driver_nl80211_set_ap(void *priv,

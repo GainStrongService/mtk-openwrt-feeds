@@ -1,7 +1,7 @@
-From 51b6df095ceb7d82e7fabe6894c6009f940d73b2 Mon Sep 17 00:00:00 2001
+From 82324bd8c9169a3c9c0915efb5f366ee0eb59ba8 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 24 Oct 2024 08:37:07 +0800
-Subject: [PATCH 162/185] mtk: hostapd: add Neg-TTLM support for AP MLD
+Subject: [PATCH 162/210] mtk: hostapd: add Neg-TTLM support for AP MLD
 
 Add support to handle Neg-TTLM request and teardown from STA MLD.
 The AP MLD parses and checks the TTLM from the requst, setting the
@@ -30,6 +30,12 @@ STA MLD
 2. do not support suggesting another TTLM in the response
 
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+
+1. add the missing return
+2. rename hostapd_send_neg_ttlm_teardown() to
+   ieee802_11_send_neg_ttlm_teardown()
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
  hostapd/ctrl_iface.c           |  36 ++++
  hostapd/hostapd_cli.c          |  14 ++
@@ -50,10 +56,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  16 files changed, 433 insertions(+), 3 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index fc18d4f3f..c5ca2e5c2 100644
+index 2a6ca166e..61d41b946 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4153,6 +4153,39 @@ static int hostapd_ctrl_iface_set_attlm(struct hostapd_data *hapd, char *cmd,
+@@ -4152,6 +4152,39 @@ static int hostapd_ctrl_iface_set_attlm(struct hostapd_data *hapd, char *cmd,
  
  	return hostapd_mld_set_attlm(hapd);
  }
@@ -82,7 +88,7 @@ index fc18d4f3f..c5ca2e5c2 100644
 +		return -1;
 +	}
 +
-+	if (hostapd_send_neg_ttlm_teardown(hapd, addr)) {
++	if (ieee802_11_send_neg_ttlm_teardown(hapd, sta->addr)) {
 +		wpa_printf(MSG_DEBUG, "Failed sending Negotiated TTLM teardown");
 +		return -1;
 +	}
@@ -93,7 +99,7 @@ index fc18d4f3f..c5ca2e5c2 100644
  #endif /* CONFIG_TESTING_OPTIONS */
  #endif /* CONFIG_IEEE80211BE */
  
-@@ -6388,6 +6421,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -6387,6 +6420,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		if (hostapd_ctrl_iface_set_attlm(hapd, buf + 10, reply,
  						 reply_size))
  			reply_len = -1;
@@ -169,7 +175,7 @@ index d7338c9da..1a781e66d 100644
  int hostapd_set_ieee8021x(struct hostapd_data *hapd,
  			  struct wpa_bss_params *params);
 diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
-index 473c5002e..4a265fcc2 100644
+index 473c5002e..a2e339d1f 100644
 --- a/src/ap/drv_callbacks.c
 +++ b/src/ap/drv_callbacks.c
 @@ -1462,6 +1462,18 @@ void hostapd_event_ch_switch(struct hostapd_data *hapd, int freq, int ht,
@@ -183,7 +189,7 @@ index 473c5002e..4a265fcc2 100644
 +	    !sta->neg_ttlm.valid)
 +		return 0;
 +
-+	hostapd_send_neg_ttlm_teardown(hapd, sta->addr);
++	ieee802_11_send_neg_ttlm_teardown(hapd, sta->addr);
 +	hostapd_teardown_neg_ttlm(hapd, sta);
 +	return 0;
 +}
@@ -230,10 +236,10 @@ index fcb759dd7..b7a054f1d 100644
  void hostapd_event_tsf_offset(struct hostapd_data *hapd, s64 *tsf_offset);
  bool hostapd_mld_is_first_bss(struct hostapd_data *hapd);
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index 5bddf083c..9a3adf6c1 100644
+index 99d3e8e8e..ff157f757 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
-@@ -6263,7 +6263,7 @@ static int handle_action(struct hostapd_data *hapd,
+@@ -6266,7 +6266,7 @@ static int handle_action(struct hostapd_data *hapd,
  	struct sta_info *sta;
  	u8 *action __maybe_unused;
  
@@ -243,18 +249,18 @@ index 5bddf083c..9a3adf6c1 100644
  			       HOSTAPD_LEVEL_DEBUG,
  			       "handle_action - too short payload (len=%lu)",
 diff --git a/src/ap/ieee802_11.h b/src/ap/ieee802_11.h
-index b8481c023..27f6b3ea1 100644
+index b8481c023..797fa1b55 100644
 --- a/src/ap/ieee802_11.h
 +++ b/src/ap/ieee802_11.h
 @@ -276,4 +276,6 @@ int hostapd_process_assoc_ml_info(struct hostapd_data *hapd,
  void ieee802_11_rx_prot_eht(struct hostapd_data *hapd,
  			    const struct ieee80211_mgmt *mgmt,
  			    size_t len);
-+int hostapd_send_neg_ttlm_teardown(struct hostapd_data *hapd, const u8 *addr);
++int ieee802_11_send_neg_ttlm_teardown(struct hostapd_data *hapd, const u8 *addr);
 +void hostapd_teardown_neg_ttlm(struct hostapd_data *hapd, struct sta_info *sta);
  #endif /* IEEE802_11_H */
 diff --git a/src/ap/ieee802_11_eht.c b/src/ap/ieee802_11_eht.c
-index 1c9682b40..ec46136dc 100644
+index 1c9682b40..664429337 100644
 --- a/src/ap/ieee802_11_eht.c
 +++ b/src/ap/ieee802_11_eht.c
 @@ -13,6 +13,7 @@
@@ -465,7 +471,7 @@ index 1c9682b40..ec46136dc 100644
 +	}
 +
 +	if (ret) {
-+		hostapd_send_neg_ttlm_teardown(hapd, addr);
++		ieee802_11_send_neg_ttlm_teardown(hapd, addr);
 +		hostapd_teardown_neg_ttlm(assoc_hapd, sta);
 +		os_memset(neg_ttlm, 0, sizeof(*neg_ttlm));
 +	}
@@ -527,7 +533,7 @@ index 1c9682b40..ec46136dc 100644
  
  }
  
-+int hostapd_send_neg_ttlm_teardown(struct hostapd_data *hapd, const u8 *addr)
++int ieee802_11_send_neg_ttlm_teardown(struct hostapd_data *hapd, const u8 *addr)
 +{
 +	struct wpabuf *buf;
 +	size_t len = 2;
@@ -672,7 +678,7 @@ index 245accb33..28a610cce 100644
  	 * set_attlm - Set AP MLD advertised Tid-to-Link Mapping
  	 * @priv: Private driver interface data
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 93b30eba1..80c8dfc2e 100644
+index d82147294..6331c9b10 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -11361,6 +11361,32 @@ static bool nl80211_is_drv_shared(void *priv, int link_id)

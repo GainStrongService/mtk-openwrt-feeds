@@ -1,7 +1,7 @@
-From 2496fe8595c141ad4ca25c8fb97b9e087b358c65 Mon Sep 17 00:00:00 2001
+From da708a670240c6ee9895815375b68f995ea518cd Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 16 Dec 2022 03:57:11 +0800
-Subject: [PATCH 019/185] mtk: hostapd: Add amsdu set get ctrl
+Subject: [PATCH 019/210] mtk: hostapd: Add amsdu set get ctrl
 
 ---
  hostapd/config_file.c             |   9 +++
@@ -40,10 +40,10 @@ index e4bca069d..a8f9f8bfb 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 62fd68be4..14905f439 100644
+index 57dd36afe..4ba3192e0 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4361,6 +4361,30 @@ hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,
+@@ -4360,6 +4360,30 @@ hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,
  }
  
  
@@ -74,7 +74,7 @@ index 62fd68be4..14905f439 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4988,6 +5012,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4987,6 +5011,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "DFS_DETECT_MODE ", 16) == 0) {
  		reply_len = hostapd_ctrl_iface_set_dfs_detect_mode(hapd, buf + 16,
  								   reply, reply_size);

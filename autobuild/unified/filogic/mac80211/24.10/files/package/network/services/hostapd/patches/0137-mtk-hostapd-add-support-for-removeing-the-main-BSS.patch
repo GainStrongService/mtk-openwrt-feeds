@@ -1,7 +1,7 @@
-From f70f20a55282df92cf3f72cd74a59d993bcb7632 Mon Sep 17 00:00:00 2001
+From 52b8ae0686bef79708b81bd0a64bb3fde4629c7c Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 14 Dec 2023 14:42:58 +0800
-Subject: [PATCH 137/185] mtk: hostapd: add support for removeing the main BSS
+Subject: [PATCH 137/210] mtk: hostapd: add support for removeing the main BSS
 
 This function is ported from wifi 6.
 (https://gerrit.mediatek.inc/c/openwrt/feeds/mtk_openwrt_feeds/+/8407972)
@@ -34,10 +34,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  6 files changed, 168 insertions(+), 2 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 7d41d9545..d20dd1e60 100644
+index 2b976efb0..2da3dde8f 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -7071,6 +7071,17 @@ static int hostapd_ctrl_iface_add(struct hapd_interfaces *interfaces,
+@@ -7070,6 +7070,17 @@ static int hostapd_ctrl_iface_add(struct hapd_interfaces *interfaces,
  }
  
  
@@ -55,7 +55,7 @@ index 7d41d9545..d20dd1e60 100644
  static int hostapd_ctrl_iface_remove(struct hapd_interfaces *interfaces,
  				     char *buf)
  {
-@@ -7488,6 +7499,9 @@ static void hostapd_global_ctrl_iface_receive(int sock, void *eloop_ctx,
+@@ -7487,6 +7498,9 @@ static void hostapd_global_ctrl_iface_receive(int sock, void *eloop_ctx,
  	} else if (os_strncmp(buf, "REMOVE ", 7) == 0) {
  		if (hostapd_ctrl_iface_remove(interfaces, buf + 7) < 0)
  			reply_len = -1;
@@ -237,7 +237,7 @@ index 306db297b..8715b5041 100644
  	 * set_ieee8021x - Enable/disable IEEE 802.1X support (AP only)
  	 * @priv: Private driver interface data
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 23c0aaed6..eb0a9c2d7 100644
+index 77a020e43..5bef32ab6 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -9033,6 +9033,48 @@ static void i802_deinit(void *priv)

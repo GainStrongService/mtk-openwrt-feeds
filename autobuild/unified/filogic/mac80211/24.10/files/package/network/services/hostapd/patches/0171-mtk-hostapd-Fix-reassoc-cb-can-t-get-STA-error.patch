@@ -1,7 +1,7 @@
-From a4fad1f5acba108601b83a46cf60e8a3cc2c66d3 Mon Sep 17 00:00:00 2001
+From a1718656afdc7a231573e3401364bd244705a7d9 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Thu, 16 Jan 2025 15:52:20 +0800
-Subject: [PATCH 171/185] mtk: hostapd: Fix reassoc cb can't get STA error
+Subject: [PATCH 171/210] mtk: hostapd: Fix reassoc cb can't get STA error
 
 Change mld reassoc resp frame sa to use mld address when the connection
 is mlo.
@@ -20,10 +20,10 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  1 file changed, 5 insertions(+), 10 deletions(-)
 
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index 11681fa62..447623f00 100644
+index 1682fb353..07283c5e7 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
-@@ -5024,7 +5024,7 @@ static int add_associated_sta(struct hostapd_data *hapd,
+@@ -5027,7 +5027,7 @@ static int add_associated_sta(struct hostapd_data *hapd,
  static u16 send_assoc_resp(struct hostapd_data *hapd, struct sta_info *sta,
  			   const u8 *addr, u16 status_code, int reassoc,
  			   const u8 *ies, size_t ies_len, int rssi,
@@ -32,7 +32,7 @@ index 11681fa62..447623f00 100644
  {
  	int send_len;
  	u8 *buf;
-@@ -5433,8 +5433,7 @@ void fils_hlp_finish_assoc(struct hostapd_data *hapd, struct sta_info *sta)
+@@ -5436,8 +5436,7 @@ void fils_hlp_finish_assoc(struct hostapd_data *hapd, struct sta_info *sta)
  	reply_res = send_assoc_resp(hapd, sta, sta->addr, WLAN_STATUS_SUCCESS,
  				    sta->fils_pending_assoc_is_reassoc,
  				    sta->fils_pending_assoc_req,
@@ -42,7 +42,7 @@ index 11681fa62..447623f00 100644
  	os_free(sta->fils_pending_assoc_req);
  	sta->fils_pending_assoc_req = NULL;
  	sta->fils_pending_assoc_req_len = 0;
-@@ -5536,7 +5535,6 @@ static void handle_assoc(struct hostapd_data *hapd,
+@@ -5539,7 +5538,6 @@ static void handle_assoc(struct hostapd_data *hapd,
  #endif /* CONFIG_FILS */
  	int omit_rsnxe = 0;
  	bool set_beacon = false;
@@ -50,7 +50,7 @@ index 11681fa62..447623f00 100644
  	bool sae_pk = false;
  
  	if (len < IEEE80211_HDRLEN + (reassoc ? sizeof(mgmt->u.reassoc_req) :
-@@ -5612,7 +5610,6 @@ static void handle_assoc(struct hostapd_data *hapd,
+@@ -5615,7 +5613,6 @@ static void handle_assoc(struct hostapd_data *hapd,
  			wpa_printf(MSG_DEBUG,
  				   "MLD: Switching to assoc hapd/station");
  			hapd = assoc_hapd;
@@ -58,7 +58,7 @@ index 11681fa62..447623f00 100644
  		}
  	}
  #endif /* CONFIG_IEEE80211BE */
-@@ -5995,11 +5992,9 @@ static void handle_assoc(struct hostapd_data *hapd,
+@@ -5998,11 +5995,9 @@ static void handle_assoc(struct hostapd_data *hapd,
  
  	if (resp >= 0)
  		reply_res = send_assoc_resp(hapd,

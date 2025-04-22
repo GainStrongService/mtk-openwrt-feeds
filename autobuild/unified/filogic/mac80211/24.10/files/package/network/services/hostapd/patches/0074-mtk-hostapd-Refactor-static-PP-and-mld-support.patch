@@ -1,7 +1,7 @@
-From ca9038b41131b08a6974786592cac135b46de85d Mon Sep 17 00:00:00 2001
+From 1da7634ac16be133db3658c972f6f26100ddc7b8 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Tue, 2 Apr 2024 16:51:07 +0800
-Subject: [PATCH 074/185] mtk: hostapd: Refactor static PP and mld support
+Subject: [PATCH 074/210] mtk: hostapd: Refactor static PP and mld support
 
 Add band_idx attribute in pp cmd for vendor cmd under mld setting.
 
@@ -44,10 +44,10 @@ index 1dc2c6a94..f0277f640 100644
  				   line);
  			return 1;
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index a71e9c378..4c659d76b 100644
+index e381fec3a..e34e4a2ff 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4992,27 +4992,57 @@ hostapd_ctrl_iface_set_background_radar_mode(struct hostapd_data *hapd, char *cm
+@@ -4991,27 +4991,57 @@ hostapd_ctrl_iface_set_background_radar_mode(struct hostapd_data *hapd, char *cm
  	return os_snprintf(buf, buflen, "OK\n");
  }
  
@@ -114,7 +114,7 @@ index a71e9c378..4c659d76b 100644
  			return -1;
  		}
  		hapd->iconf->pp_mode = (u8) val;
-@@ -5020,7 +5050,8 @@ hostapd_ctrl_iface_set_pp(struct hostapd_data *hapd, char *cmd, char *buf,
+@@ -5019,7 +5049,8 @@ hostapd_ctrl_iface_set_pp(struct hostapd_data *hapd, char *cmd, char *buf,
  			return -1;
  	} else {
  		wpa_printf(MSG_ERROR,
@@ -124,7 +124,7 @@ index a71e9c378..4c659d76b 100644
  		return -1;
  	}
  	return os_snprintf(buf, buflen, "OK\n");
-@@ -5030,19 +5061,17 @@ static int
+@@ -5029,19 +5060,17 @@ static int
  hostapd_ctrl_iface_get_pp(struct hostapd_data *hapd, char *cmd, char *buf,
  			  size_t buflen)
  {
@@ -303,7 +303,7 @@ index a6a402fe1..70bba1489 100644
  	int (*get_mld_addr)(void *priv, u8 *addr);
  #endif
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index bf65a7606..6af8e46cf 100644
+index aa4e45d03..28deea643 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -161,6 +161,7 @@ amnt_dump_policy[NUM_MTK_VENDOR_ATTRS_AMNT_DUMP] = {

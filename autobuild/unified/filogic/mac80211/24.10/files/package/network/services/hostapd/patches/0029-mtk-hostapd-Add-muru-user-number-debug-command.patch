@@ -1,7 +1,7 @@
-From 5bc35e2e0e517fe1ea0caa2649882a618db6626f Mon Sep 17 00:00:00 2001
+From 4a2446fb6154ae10b6f03e6675eec8d54502b34e Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 12 May 2023 05:24:19 +0800
-Subject: [PATCH 029/185] mtk: hostapd: Add muru user number debug command
+Subject: [PATCH 029/210] mtk: hostapd: Add muru user number debug command
 
 ---
  hostapd/ctrl_iface.c         | 13 ++++++++++++-
@@ -14,10 +14,10 @@ Subject: [PATCH 029/185] mtk: hostapd: Add muru user number debug command
  7 files changed, 55 insertions(+), 15 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index d675b82d4..f148b1f62 100644
+index 7ad22dfcb..f5af5f795 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3873,6 +3873,8 @@ hostapd_ctrl_iface_set_edcca(struct hostapd_data *hapd, char *cmd,
+@@ -3872,6 +3872,8 @@ hostapd_ctrl_iface_set_edcca(struct hostapd_data *hapd, char *cmd,
  					 char *buf, size_t buflen)
  {
  	char *pos, *config, *value;
@@ -26,7 +26,7 @@ index d675b82d4..f148b1f62 100644
  	config = cmd;
  	pos = os_strchr(config, ' ');
  	if (pos == NULL)
-@@ -4272,6 +4274,8 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -4271,6 +4273,8 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  					 char *buf, size_t buflen)
  {
  	char *pos, *config, *value;
@@ -35,7 +35,7 @@ index d675b82d4..f148b1f62 100644
  	config = cmd;
  	pos = os_strchr(config, ' ');
  	if (pos == NULL)
-@@ -4289,13 +4293,20 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -4288,13 +4292,20 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  			return -1;
  		}
  		hapd->iconf->mu_onoff = (u8) mu;

@@ -1,7 +1,7 @@
-From adf6c79f6f5b315c610c084f0aa3511b239a67d3 Mon Sep 17 00:00:00 2001
+From 7b9009d822bfa67e814b17ec72e4d30593c4519a Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 23 Aug 2024 14:30:00 +0800
-Subject: [PATCH 123/185] mtk: hostapd: fix wds remove flow
+Subject: [PATCH 123/210] mtk: hostapd: fix wds remove flow
 
 Fix the params set to set_wds_sta to prevent ifname_wds being null.
 If ifname_wds is null, the wds interface cannot be remove.
@@ -26,7 +26,7 @@ index f34b4cfda..ec5ed2fcf 100644
  	int mRet = 0;
  
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index d2688c67b..23c0aaed6 100644
+index b2de9c3c1..77a020e43 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -8763,7 +8763,7 @@ static int i802_set_wds_sta(void *priv, const u8 *addr, int aid, int val,

@@ -1,7 +1,7 @@
-From da7dd3eaedb86f16dabb84372439562f3cb18590 Mon Sep 17 00:00:00 2001
+From d1a488d30b32c56a287f96b8fa30ad7a80d27f30 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 28 Jun 2024 14:05:21 +0800
-Subject: [PATCH 105/185] mtk: hostapd: add support for link add
+Subject: [PATCH 105/210] mtk: hostapd: add support for link add
 
 Add support for adding affiliated APs to AP MLD via the following link add command
 hostapd_cli -i <mld intf> raw LINK_ADD bss_config=phyX:<bss_config>
@@ -30,10 +30,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  5 files changed, 146 insertions(+), 8 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index a617baa5c..042093b99 100644
+index df4443b1f..b5db9c9cc 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3975,6 +3975,105 @@ static int hostapd_ctrl_iface_link_remove(struct hostapd_data *hapd, char *cmd,
+@@ -3974,6 +3974,105 @@ static int hostapd_ctrl_iface_link_remove(struct hostapd_data *hapd, char *cmd,
  
  	return ret;
  }
@@ -139,7 +139,7 @@ index a617baa5c..042093b99 100644
  #endif /* CONFIG_TESTING_OPTIONS */
  #endif /* CONFIG_IEEE80211BE */
  
-@@ -6045,6 +6144,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -6044,6 +6143,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		if (hostapd_ctrl_iface_link_remove(hapd, buf + 12,
  						   reply, reply_size))
  			reply_len = -1;
@@ -150,7 +150,7 @@ index a617baa5c..042093b99 100644
  #endif /* CONFIG_TESTING_OPTIONS */
  #endif /* CONFIG_IEEE80211BE */
  	} else if (os_strncmp(buf, "SET_EDCCA ", 10) == 0) {
-@@ -6883,6 +6986,7 @@ void hostapd_ctrl_iface_deinit(struct hostapd_data *hapd)
+@@ -6882,6 +6985,7 @@ void hostapd_ctrl_iface_deinit(struct hostapd_data *hapd)
  static int hostapd_ctrl_iface_add(struct hapd_interfaces *interfaces,
  				  char *buf)
  {

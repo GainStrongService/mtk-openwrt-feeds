@@ -1,7 +1,7 @@
-From 312f0fb22ab17396d1fd38b9048c9480613a73e4 Mon Sep 17 00:00:00 2001
+From 96857fe4a2ae7e7f857d94594c1544138cac5393 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Fri, 22 Dec 2023 18:09:20 +0800
-Subject: [PATCH 115/185] mtk: hostapd: Add txpower vendor command
+Subject: [PATCH 115/210] mtk: hostapd: Add txpower vendor command
 
 Porting and refactor from wifi6 power vendor cmd. Add lpi psd control,
 sku index and duplicate mode enhancement.
@@ -191,7 +191,7 @@ index 6a8f39f3d..4eeb77269 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 24d594ccf..212fd13b1 100644
+index 5930013d4..e87b00c3a 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -197,6 +197,14 @@ static struct nla_policy csi_data_policy[NUM_MTK_VENDOR_ATTRS_CSI_DATA] = {

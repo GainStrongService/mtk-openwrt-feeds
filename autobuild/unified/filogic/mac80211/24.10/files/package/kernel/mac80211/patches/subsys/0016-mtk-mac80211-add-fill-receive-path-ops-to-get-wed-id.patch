@@ -1,4 +1,4 @@
-From 9895a97dc751f5efc5560bebf7a5ec074bb9f24d Mon Sep 17 00:00:00 2001
+From bd5430d5fcf897ad4d6f4b38d1ca0b576caa4d5f Mon Sep 17 00:00:00 2001
 From: Sujuan Chen <sujuan.chen@mediatek.com>
 Date: Wed, 18 May 2022 15:10:22 +0800
 Subject: [PATCH 016/101] mtk: mac80211: add fill receive path ops to get wed
@@ -13,10 +13,10 @@ Signed-off-by: Sujuan Chen <sujuan.chen@mediatek.com>
  4 files changed, 50 insertions(+)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index d8dea7c..3ffff07 100644
+index ad9aae0a..cec6616b 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -4458,6 +4458,8 @@ struct ieee80211_prep_tx_info {
+@@ -4465,6 +4465,8 @@ struct ieee80211_prep_tx_info {
   *	resolve a path for hardware flow offloading
   * @can_activate_links: Checks if a specific active_links bitmap is
   *	supported by the driver.
@@ -25,7 +25,7 @@ index d8dea7c..3ffff07 100644
   * @change_vif_links: Change the valid links on an interface, note that while
   *	removing the old link information is still valid (link_conf pointer),
   *	but may immediately disappear after the function returns. The old or
-@@ -4852,6 +4854,9 @@ struct ieee80211_ops {
+@@ -4859,6 +4861,9 @@ struct ieee80211_ops {
  	bool (*can_activate_links)(struct ieee80211_hw *hw,
  				   struct ieee80211_vif *vif,
  				   u16 active_links);
@@ -36,10 +36,10 @@ index d8dea7c..3ffff07 100644
  				struct ieee80211_vif *vif,
  				u16 old_links, u16 new_links,
 diff --git a/net/mac80211/driver-ops.h b/net/mac80211/driver-ops.h
-index 462f964..68321f8 100644
+index 7eddfca0..ddf0b2dd 100644
 --- a/net/mac80211/driver-ops.h
 +++ b/net/mac80211/driver-ops.h
-@@ -1665,6 +1665,19 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
+@@ -1666,6 +1666,19 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
  	return ret;
  }
  
@@ -60,10 +60,10 @@ index 462f964..68321f8 100644
  				   struct ieee80211_sub_if_data *sdata,
  				   struct net_device *dev,
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index 9f35a8f..9871b58 100644
+index 75a8a710..951da241 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
-@@ -955,6 +955,28 @@ out:
+@@ -957,6 +957,28 @@ out:
  	return ret;
  }
  
@@ -92,7 +92,7 @@ index 9f35a8f..9871b58 100644
  static const struct net_device_ops ieee80211_dataif_8023_ops = {
  	.ndo_open		= ieee80211_open,
  	.ndo_stop		= ieee80211_stop,
-@@ -963,6 +985,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
+@@ -965,6 +987,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
  	.ndo_set_rx_mode	= ieee80211_set_multicast_list,
  	.ndo_set_mac_address	= ieee80211_change_mac,
  	.ndo_fill_forward_path	= ieee80211_netdev_fill_forward_path,
@@ -101,10 +101,10 @@ index 9f35a8f..9871b58 100644
  #if LINUX_VERSION_IS_LESS(6,9,0)
  	.ndo_get_stats64	= ieee80211_get_stats64,
 diff --git a/net/mac80211/util.c b/net/mac80211/util.c
-index f6b631f..9e48f98 100644
+index dec6e16b..d0f50d3d 100644
 --- a/net/mac80211/util.c
 +++ b/net/mac80211/util.c
-@@ -876,6 +876,15 @@ struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
+@@ -877,6 +877,15 @@ struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
  }
  EXPORT_SYMBOL_GPL(ieee80211_vif_to_wdev);
  

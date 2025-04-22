@@ -1,7 +1,7 @@
-From fdb944434cfd6bf8f8fdb6078e8334d7f8ce52d5 Mon Sep 17 00:00:00 2001
+From f4ad960f44e6e3d6351672e6ee6ab92e86bfdbbc Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 8 Jan 2025 09:38:43 +0800
-Subject: [PATCH 157/185] mtk: hostapd: add background radar standalone mode
+Subject: [PATCH 157/210] mtk: hostapd: add background radar standalone mode
 
 Add background radar standalone mode
 To enter standalone mode, please set the background_auto_ctrl to 0
@@ -33,10 +33,10 @@ index dff019614..948599d09 100644
  		conf->background_radar_mode = atoi(pos);
  	} else if (os_strcmp(buf, "min_tx_power") == 0) {
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 18e8211d4..edadf2f27 100644
+index 2b154fe8d..1c2ba54d4 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4989,8 +4989,10 @@ hostapd_ctrl_iface_set_offchain(struct hostapd_data *hapd, char *cmd,
+@@ -4988,8 +4988,10 @@ hostapd_ctrl_iface_set_offchain(struct hostapd_data *hapd, char *cmd,
  		iface->radar_background.new_chwidth = chwidth;
  	else
  		iface->radar_background.new_chwidth = -1;
@@ -49,7 +49,7 @@ index 18e8211d4..edadf2f27 100644
  
  	return os_snprintf(buf, buflen, "OK\n");
  }
-@@ -5073,10 +5075,11 @@ hostapd_ctrl_iface_get_offchain(struct hostapd_data *hapd, char *buf, size_t buf
+@@ -5072,10 +5074,11 @@ hostapd_ctrl_iface_get_offchain(struct hostapd_data *hapd, char *buf, size_t buf
  		return pos - buf;
  	pos += ret;
  	ret = os_snprintf(pos, end - pos,

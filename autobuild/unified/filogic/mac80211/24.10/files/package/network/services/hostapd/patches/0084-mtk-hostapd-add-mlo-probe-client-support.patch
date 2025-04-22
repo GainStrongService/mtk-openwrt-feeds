@@ -1,7 +1,7 @@
-From fb79a28753b2a7c0275d965145e766d5217d6cf0 Mon Sep 17 00:00:00 2001
+From d5be5e36db0b4feb0a94e84d1bacbfa308b0c546 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 10 May 2024 17:52:41 +0800
-Subject: [PATCH 084/185] mtk: hostapd: add mlo probe client support
+Subject: [PATCH 084/210] mtk: hostapd: add mlo probe client support
 
 Add mld-level probe client support
 Only register one eloop ap_handle_timeout per mld
@@ -13,10 +13,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  2 files changed, 29 insertions(+), 1 deletion(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 1d8270f19..176674396 100644
+index 2912f2d7a..cabe4129e 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -1470,6 +1470,18 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
+@@ -1469,6 +1469,18 @@ static int hostapd_ctrl_iface_set(struct hostapd_data *hapd, char *cmd)
  							hapd->conf->transition_disable);
  		}
  

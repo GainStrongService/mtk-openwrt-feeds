@@ -1,7 +1,7 @@
-From 2d729621b8df26a686ba40319cc3d70703b6f32f Mon Sep 17 00:00:00 2001
+From 28b37429abbd880d795295fdfc8d1f9d2362378f Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 21 Jan 2025 18:31:10 +0800
-Subject: [PATCH 165/185] mtk: hostapd: fix radio_mask for WDS interface
+Subject: [PATCH 165/210] mtk: hostapd: fix radio_mask for WDS interface
 
 This commit fixes the following display issue:
 (radio_mask of phy0.2-ap1 is 2, while phy0.2-ap1.sta1 is "0 1 2")
@@ -145,7 +145,7 @@ index 24545ec3a..3c5155df6 100644
  	/**
  	 * send_action - Transmit an Action frame
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 5e7ad9860..ca6e00fcf 100644
+index c90aee011..e0b382cbb 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -8772,7 +8772,8 @@ static int have_ifidx(struct wpa_driver_nl80211_data *drv, int ifidx,

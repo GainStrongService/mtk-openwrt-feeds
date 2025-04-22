@@ -928,24 +928,24 @@ mac80211_prepare_vif() {
 		json_get_vars mld_addr
 		if [ -z "$mld_addr" ]; then
 			generated_mac=$(mac80211_generate_mac mld)
-			# Split the MAC address to get the last byte
-			b6="${generated_mac##*:}"
+			# Split the MAC address to get the first byte
+			b1="${generated_mac%%:*}"
 
-			# Convert the last byte to a decimal for arithmetic operations
-			b6_dec=$((0x$b6))
+			# Convert the first byte to a decimal for arithmetic operations
+			b1_dec=$((0x$b1))
 
-			# Get the lower four bits (last digit in hexadecimal representation)
-			lower_nibble=$(($b6_dec & 0x0F))
+			# Get the upper four bits (first digit in hexadecimal representation)
+			upper_nibble=$(($b1_dec & 0xF0))
 
-			# Rotate the lower four bits based on mld_id
+			# Rotate the upper four bits based on mld_id
 			# Modulus by 16 ensures that the rotation stays within the bounds of a nibble (4 bits)
-			rotated=$(( (lower_nibble + $mld_id - 1) & 0x0F ))
+			rotated=$(( (upper_nibble + (($mld_id - 1) << 4)) & 0xF0 ))
 
-			# Combine the upper four bits with the rotated lower four bits
-			b6_rotated=$(($b6_dec & 0xF0 | rotated))
+			# Combine the lower four bits with the rotated upper four bits
+			b1_rotated=$(($b1_dec & 0x0F | rotated))
 
 			# Reassemble the MAC address
-			result_mac="${generated_mac%:*}:$(printf '%02X' $b6_rotated)"
+			result_mac="$(printf '%02X' $b1_rotated):${generated_mac#*:}"
 
 			# Add the MAC address to the JSON object
 			json_add_string mld_addr "$result_mac"

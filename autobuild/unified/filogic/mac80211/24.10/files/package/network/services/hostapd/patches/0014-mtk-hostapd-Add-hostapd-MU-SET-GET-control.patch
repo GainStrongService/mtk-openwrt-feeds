@@ -1,7 +1,7 @@
-From dcac4abc8534887a2d0f5591838548429c74e8e0 Mon Sep 17 00:00:00 2001
+From 56efaabd56bc98fe5e221788669b4ef8dccee4d6 Mon Sep 17 00:00:00 2001
 From: TomLiu <tomml.liu@mediatek.com>
 Date: Tue, 9 Aug 2022 10:23:44 -0700
-Subject: [PATCH 014/185] mtk: hostapd: Add hostapd MU SET/GET control
+Subject: [PATCH 014/210] mtk: hostapd: Add hostapd MU SET/GET control
 
 ---
  hostapd/config_file.c             |   9 +++
@@ -40,10 +40,10 @@ index 7fbbdfecf..602ca3c74 100644
  	} else if (os_strcmp(buf, "max_listen_interval") == 0) {
  		bss->max_listen_interval = atoi(pos);
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 758535cec..6054e23c4 100644
+index 406205afc..dff73e94b 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4256,6 +4256,67 @@ fail:
+@@ -4255,6 +4255,67 @@ fail:
  #endif /* CONFIG_NAN_USD */
  
  
@@ -111,7 +111,7 @@ index 758535cec..6054e23c4 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4873,6 +4934,11 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4872,6 +4933,11 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "GET_EDCCA ", 10) == 0) {
  		reply_len = hostapd_ctrl_iface_get_edcca(hapd, buf+10, reply,
  							  reply_size);

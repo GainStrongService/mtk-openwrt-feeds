@@ -1,7 +1,7 @@
-From 8eba504bd9be38a55ca60b1def4ebe7a6140d603 Mon Sep 17 00:00:00 2001
+From d310710e944df1186ce2a92c9866f3d9c1c01f9a Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 17 Oct 2024 15:50:35 +0800
-Subject: [PATCH 139/185] mtk: hostapd: add support for removing AP MLD
+Subject: [PATCH 139/210] mtk: hostapd: add support for removing AP MLD
 
 Add the support for removing AP MLD by a new hostapd_cli command:
 $ hostapd_cli -i global raw REMOVE_MLD <ifname>
@@ -31,10 +31,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  3 files changed, 108 insertions(+)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 099018c04..5b4b32255 100644
+index b2d307156..8f70f19c2 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -7124,6 +7124,17 @@ static int hostapd_ctrl_bss_remove(struct hapd_interfaces *interfaces,
+@@ -7123,6 +7123,17 @@ static int hostapd_ctrl_bss_remove(struct hapd_interfaces *interfaces,
  }
  
  
@@ -52,7 +52,7 @@ index 099018c04..5b4b32255 100644
  static int hostapd_ctrl_iface_remove(struct hapd_interfaces *interfaces,
  				     char *buf)
  {
-@@ -7544,6 +7555,9 @@ static void hostapd_global_ctrl_iface_receive(int sock, void *eloop_ctx,
+@@ -7543,6 +7554,9 @@ static void hostapd_global_ctrl_iface_receive(int sock, void *eloop_ctx,
  	} else if (os_strncmp(buf, "REMOVE_BSS ", 11) == 0) {
  		if (hostapd_ctrl_bss_remove(interfaces, buf + 11) < 0)
  			reply_len = -1;

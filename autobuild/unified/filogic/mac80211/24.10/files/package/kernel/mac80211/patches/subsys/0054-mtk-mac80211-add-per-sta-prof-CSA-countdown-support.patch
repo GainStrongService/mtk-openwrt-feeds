@@ -1,4 +1,4 @@
-From 1aed03d0d033d6601102718af3d053578d77f8f8 Mon Sep 17 00:00:00 2001
+From d5b9aeb356584bd7dc1f15541f2c5d112c38ef78 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 9 Apr 2024 11:01:51 +0800
 Subject: [PATCH 054/101] mtk: mac80211: add per-sta prof CSA countdown support
@@ -17,10 +17,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  7 files changed, 54 insertions(+), 14 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 89d03be..24f1bee 100644
+index f15f44d6..c58df6e8 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -1553,8 +1553,12 @@ struct cfg80211_ap_update {
+@@ -1567,8 +1567,12 @@ struct cfg80211_ap_update {
   * @beacon_csa: beacon data while performing the switch
   * @counter_offsets_beacon: offsets of the counters within the beacon (tail)
   * @counter_offsets_presp: offsets of the counters within the probe response
@@ -33,7 +33,7 @@ index 89d03be..24f1bee 100644
   * @beacon_after: beacon data to be used on the new channel
   * @radar_required: whether radar detection is required on the new channel
   * @block_tx: whether transmissions should be blocked while changing
-@@ -1567,8 +1571,10 @@ struct cfg80211_csa_settings {
+@@ -1581,8 +1585,10 @@ struct cfg80211_csa_settings {
  	struct cfg80211_beacon_data beacon_csa;
  	const u16 *counter_offsets_beacon;
  	const u16 *counter_offsets_presp;
@@ -45,10 +45,10 @@ index 89d03be..24f1bee 100644
  	bool radar_required;
  	bool block_tx;
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 093122c..229921a 100644
+index 51545451..ed7411f1 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -5533,6 +5533,9 @@ void ieee80211_report_low_ack(struct ieee80211_sta *sta, u32 num_packets);
+@@ -5540,6 +5540,9 @@ void ieee80211_report_low_ack(struct ieee80211_sta *sta, u32 num_packets);
   * @cntdwn_counter_offs: array of IEEE80211_MAX_CNTDWN_COUNTERS_NUM offsets
   *	to countdown counters.  This array can contain zero values which
   *	should be ignored.
@@ -58,7 +58,7 @@ index 093122c..229921a 100644
   * @mbssid_off: position of the multiple bssid element
   */
  struct ieee80211_mutable_offsets {
-@@ -5540,6 +5543,7 @@ struct ieee80211_mutable_offsets {
+@@ -5547,6 +5550,7 @@ struct ieee80211_mutable_offsets {
  	u16 tim_length;
  
  	u16 cntdwn_counter_offs[IEEE80211_MAX_CNTDWN_COUNTERS_NUM];
@@ -67,7 +67,7 @@ index 093122c..229921a 100644
  };
  
 diff --git a/include/uapi/linux/nl80211.h b/include/uapi/linux/nl80211.h
-index c0289d4..f426486 100644
+index 9f6e868e..06392401 100644
 --- a/include/uapi/linux/nl80211.h
 +++ b/include/uapi/linux/nl80211.h
 @@ -2880,6 +2880,9 @@ enum nl80211_commands {
@@ -78,9 +78,9 @@ index c0289d4..f426486 100644
 + *	switch or color change counters in the per-STA profile corresponding to
 + *	the affected AP.
   *
-  * @NL80211_ATTR_SUPPORTED_SELECTORS: supported selectors, array of
-  *	supported selectors as defined by IEEE 802.11 7.3.2.2 but without the
-@@ -3450,6 +3453,9 @@ enum nl80211_attrs {
+  * @NL80211_ATTR_SUPPORTED_SELECTORS: supported BSS Membership Selectors, array
+  *	of supported selectors as defined by IEEE Std 802.11-2020 9.4.2.3 but
+@@ -3458,6 +3461,9 @@ enum nl80211_attrs {
  
  	/* add attributes here, update the policy in nl80211.c */
  
@@ -90,7 +90,7 @@ index c0289d4..f426486 100644
  	__NL80211_ATTR_AFTER_LAST,
  	NUM_NL80211_ATTR = __NL80211_ATTR_AFTER_LAST,
  	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
-@@ -3462,6 +3468,7 @@ enum nl80211_attrs {
+@@ -3470,6 +3476,7 @@ enum nl80211_attrs {
  #define NL80211_ATTR_SAE_DATA NL80211_ATTR_AUTH_DATA
  #define NL80211_ATTR_CSA_C_OFF_BEACON NL80211_ATTR_CNTDWN_OFFS_BEACON
  #define NL80211_ATTR_CSA_C_OFF_PRESP NL80211_ATTR_CNTDWN_OFFS_PRESP
@@ -99,10 +99,10 @@ index c0289d4..f426486 100644
  /*
   * Allow user space programs to use #ifdef on new attributes by defining them
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index a75ce5e..a8c77dc 100644
+index 2dbb7df5..6b18a8f3 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -1214,6 +1214,9 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
+@@ -1213,6 +1213,9 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
  		memcpy(new->cntdwn_counter_offsets, csa->counter_offsets_beacon,
  		       csa->n_counter_offsets_beacon *
  		       sizeof(new->cntdwn_counter_offsets[0]));
@@ -112,7 +112,7 @@ index a75ce5e..a8c77dc 100644
  	} else if (cca) {
  		new->cntdwn_current_counter = cca->count;
  		new->cntdwn_counter_offsets[0] = cca->counter_offset_beacon;
-@@ -3920,8 +3923,10 @@ static int ieee80211_set_csa_beacon(struct ieee80211_link_data *link_data,
+@@ -3919,8 +3922,10 @@ static int ieee80211_set_csa_beacon(struct ieee80211_link_data *link_data,
  
  		csa.counter_offsets_beacon = params->counter_offsets_beacon;
  		csa.counter_offsets_presp = params->counter_offsets_presp;
@@ -123,7 +123,7 @@ index a75ce5e..a8c77dc 100644
  		csa.count = params->count;
  
  		err = ieee80211_assign_beacon(sdata, link_data,
-@@ -4084,17 +4089,19 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+@@ -4083,17 +4088,19 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
  	if (err)
  		goto out;
  
@@ -154,10 +154,10 @@ index a75ce5e..a8c77dc 100644
  
  	/* if there is a color change in progress, abort it */
 diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
-index 9b57b6a..fb3d80c 100644
+index bfd67bc4..faa25a07 100644
 --- a/net/mac80211/ieee80211_i.h
 +++ b/net/mac80211/ieee80211_i.h
-@@ -261,9 +261,11 @@ struct ieee80211_rx_data {
+@@ -259,9 +259,11 @@ struct ieee80211_rx_data {
  struct ieee80211_csa_settings {
  	const u16 *counter_offsets_beacon;
  	const u16 *counter_offsets_presp;
@@ -169,7 +169,7 @@ index 9b57b6a..fb3d80c 100644
  
  	u8 count;
  };
-@@ -280,6 +282,7 @@ struct beacon_data {
+@@ -278,6 +280,7 @@ struct beacon_data {
  	struct ieee80211_meshconf_ie *meshconf;
  	u16 cntdwn_counter_offsets[IEEE80211_MAX_CNTDWN_COUNTERS_NUM];
  	u8 cntdwn_current_counter;
@@ -178,10 +178,10 @@ index 9b57b6a..fb3d80c 100644
  	struct cfg80211_rnr_elems *rnr_ies;
  	struct rcu_head rcu_head;
 diff --git a/net/mac80211/tx.c b/net/mac80211/tx.c
-index d499efb..794c659 100644
+index e7e24f72..828da1ec 100644
 --- a/net/mac80211/tx.c
 +++ b/net/mac80211/tx.c
-@@ -5244,11 +5244,13 @@ ieee80211_beacon_get_finish(struct ieee80211_hw *hw,
+@@ -5245,11 +5245,13 @@ ieee80211_beacon_get_finish(struct ieee80211_hw *hw,
  
  		for (i = 0; i < IEEE80211_MAX_CNTDWN_COUNTERS_NUM; i++) {
  			u16 csa_off = beacon->cntdwn_counter_offsets[i];
@@ -199,18 +199,18 @@ index d499efb..794c659 100644
  	}
  
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index c3b2b2e..c207c0f 100644
+index 3681f00a..3cec5b4f 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -875,6 +875,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
- 				       NL80211_MAX_SUPP_SELECTORS),
+@@ -876,6 +876,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
  	[NL80211_ATTR_MLO_RECONF_REM_LINKS] = { .type = NLA_U16 },
  	[NL80211_ATTR_EPCS] = { .type = NLA_FLAG },
+ 	[NL80211_ATTR_ASSOC_MLD_EXT_CAPA_OPS] = { .type = NLA_U16 },
 +	[NL80211_ATTR_CNTDWN_OFFS_STA_PROF] = { .type = NLA_BINARY },
  };
  
  /* policy for the key attributes */
-@@ -10401,7 +10402,8 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
+@@ -10417,7 +10418,8 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
  	if (err)
  		goto free;
  
@@ -220,7 +220,7 @@ index c3b2b2e..c207c0f 100644
  		err = -EINVAL;
  		goto free;
  	}
-@@ -10424,6 +10426,15 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
+@@ -10440,6 +10442,15 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
  	if (err)
  		goto free;
  

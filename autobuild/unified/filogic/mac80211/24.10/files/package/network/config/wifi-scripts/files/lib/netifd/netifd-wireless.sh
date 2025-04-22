@@ -253,6 +253,8 @@ wireless_vif_parse_encryption() {
 		wpa_cipher="GCMP"
 	elif [ "$_w_mode" = "sta" ]; then
 		wpa_cipher="CCMP CCMP-256 GCMP GCMP-256"
+	elif [ "$encryption" == "sae-ext" ] ;then
+		wpa_cipher="GCMP-256"
 	else
 		wpa_cipher="CCMP"
 	fi
@@ -265,8 +267,7 @@ wireless_vif_parse_encryption() {
 		*gcmp256) wpa_cipher="GCMP-256";;
 		*gcmp) wpa_cipher="GCMP";;
 		wpa3-192*) wpa_cipher="GCMP-256";;
-		sae-ext) wpa_cipher="GCMP-256";;
-		sae+sae-ext) wpa_cipher="CCMP GCMP-256";;
+		sae_sae-ext) wpa_cipher="CCMP GCMP-256";;
 	esac
 
 	# 802.11n requires CCMP for WPA

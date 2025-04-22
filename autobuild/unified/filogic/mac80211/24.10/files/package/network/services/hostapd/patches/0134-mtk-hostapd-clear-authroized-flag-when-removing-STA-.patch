@@ -1,7 +1,7 @@
-From 73fb6820d67116921f1d51b3ccec3bc8aa42d8f6 Mon Sep 17 00:00:00 2001
+From 6227c51bef8088f7bcc618f299f460f9111ba69f Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 11 Oct 2024 14:50:10 +0800
-Subject: [PATCH 134/185] mtk: hostapd: clear authroized flag when removing STA
+Subject: [PATCH 134/210] mtk: hostapd: clear authroized flag when removing STA
  from the driver during association handling
 
 When removing the STA from the driver, authorized flag should be cleared
@@ -14,10 +14,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 1 insertion(+)
 
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index e827fca59..2a7e8a88f 100644
+index f7452c6e2..8e859fb1f 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
-@@ -4946,6 +4946,7 @@ static int add_associated_sta(struct hostapd_data *hapd,
+@@ -4949,6 +4949,7 @@ static int add_associated_sta(struct hostapd_data *hapd,
  	     (!reassoc && (sta->flags & WLAN_STA_AUTHORIZED)))) {
  		hostapd_drv_sta_remove(hapd, sta->addr);
  		wpa_auth_sm_event(sta->wpa_sm, WPA_DRV_STA_REMOVED);

@@ -1,13 +1,13 @@
-From 0cd1a562bb7684879dd6a4af5bed5431e4d214bf Mon Sep 17 00:00:00 2001
+From 1e533ad686515ae0bf5e6b39924f7f504578f9fb Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Mon, 30 May 2022 16:31:34 +0800
-Subject: [PATCH 013/185] mtk: hostapd: Support EDCCA hostapd configuration
+Subject: [PATCH 013/210] mtk: hostapd: Support EDCCA hostapd configuration
 
 edcca_enable and edcca_compensation and implement edcca related handlers.
 
 ---
  hostapd/config_file.c             |  34 ++++++
- hostapd/ctrl_iface.c              | 119 ++++++++++++++++++++
+ hostapd/ctrl_iface.c              | 118 ++++++++++++++++++++
  src/ap/ap_config.c                |   4 +
  src/ap/ap_config.h                |  30 ++++++
  src/ap/ap_drv_ops.c               |  27 +++++
@@ -18,7 +18,7 @@ edcca_enable and edcca_compensation and implement edcca related handlers.
  src/drivers/driver_nl80211.c      | 174 ++++++++++++++++++++++++++++++
  src/drivers/driver_nl80211.h      |   1 +
  src/drivers/driver_nl80211_capa.c |   7 ++
- 12 files changed, 426 insertions(+), 6 deletions(-)
+ 12 files changed, 425 insertions(+), 6 deletions(-)
 
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
 index 522656066..7fbbdfecf 100644
@@ -66,30 +66,29 @@ index 522656066..7fbbdfecf 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index ffe31bc97..758535cec 100644
+index ffe31bc97..406205afc 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -545,6 +545,19 @@ static const char * pbc_status_str(enum pbc_status status)
- }
+@@ -597,6 +597,18 @@ static int hostapd_ctrl_iface_wps_get_status(struct hostapd_data *hapd,
  
+ #endif /* CONFIG_WPS */
  
 +static const char *edcca_mode_str(enum edcca_mode status)
 +{
 +	switch (status) {
-+		case EDCCA_MODE_FORCE_DISABLE:
-+			return "Force Disable";
-+		case EDCCA_MODE_AUTO:
-+			return "Auto";
-+		default:
-+			return "Unknown";
++	case EDCCA_MODE_FORCE_DISABLE:
++		return "Force Disable";
++	case EDCCA_MODE_AUTO:
++		return "Auto";
++	default:
++		return "Unknown";
 +	}
 +}
 +
-+
- static int hostapd_ctrl_iface_wps_get_status(struct hostapd_data *hapd,
- 					     char *buf, size_t buflen)
- {
-@@ -3844,6 +3857,106 @@ static int hostapd_ctrl_iface_link_remove(struct hostapd_data *hapd, char *cmd,
+ #ifdef CONFIG_HS20
+ 
+ static int hostapd_ctrl_iface_hs20_wnm_notif(struct hostapd_data *hapd,
+@@ -3844,6 +3856,106 @@ static int hostapd_ctrl_iface_link_remove(struct hostapd_data *hapd, char *cmd,
  #endif /* CONFIG_TESTING_OPTIONS */
  #endif /* CONFIG_IEEE80211BE */
  
@@ -196,7 +195,7 @@ index ffe31bc97..758535cec 100644
  
  #ifdef CONFIG_NAN_USD
  
-@@ -4754,6 +4867,12 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4754,6 +4866,12 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  			reply_len = -1;
  #endif /* CONFIG_TESTING_OPTIONS */
  #endif /* CONFIG_IEEE80211BE */

@@ -1,7 +1,7 @@
-From df98a2f0b6cc01b07541410d5160b026b65cd485 Mon Sep 17 00:00:00 2001
+From 31ae785a3be20fbe113c76d0f2c80eda657500be Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 13 Aug 2024 14:26:52 +0800
-Subject: [PATCH 037/104] mtk: mt76: mt7996: add CU event notification support
+Subject: [PATCH 37/92] mtk: mt76: mt7996: add CU event notification support
 
 Add CU event notification support including CUF finish event.
 
@@ -18,7 +18,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 82 insertions(+), 5 deletions(-)
 
 diff --git a/mt76_connac_mcu.h b/mt76_connac_mcu.h
-index 7f256fa6..c27ccd64 100644
+index a49dff79..26f2f2a7 100644
 --- a/mt76_connac_mcu.h
 +++ b/mt76_connac_mcu.h
 @@ -1081,6 +1081,7 @@ enum {
@@ -27,13 +27,13 @@ index 7f256fa6..c27ccd64 100644
  	MCU_UNI_EVENT_ALL_STA_INFO = 0x6e,
 +	MCU_UNI_EVENT_BSS_INFO = 0x74,
  	MCU_UNI_EVENT_MLD = 0x81,
+ 	MCU_UNI_EVENT_SDO = 0x83,
  };
- 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index cc94ab2a..bafdca10 100644
+index 0570290b..ec7e9e17 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1414,6 +1414,54 @@ mt7996_mcu_mld_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -1433,6 +1433,54 @@ mt7996_mcu_mld_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	}
  }
  
@@ -42,7 +42,7 @@ index cc94ab2a..bafdca10 100644
 +{
 +	struct mt7996_mcu_bss_event *data = priv;
 +	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-+	struct mt7996_bss_conf *mconf;
++	struct mt7996_vif_link *mconf;
 +	unsigned long valid_links = vif->valid_links;
 +	unsigned int link_id;
 +
@@ -51,7 +51,7 @@ index cc94ab2a..bafdca10 100644
 +
 +	rcu_read_lock();
 +	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
-+		mconf = rcu_dereference(mvif->link[link_id]);
++		mconf = (struct mt7996_vif_link *)rcu_dereference(mvif->mt76.link[link_id]);
 +		if (!mconf)
 +			continue;
 +
@@ -88,7 +88,7 @@ index cc94ab2a..bafdca10 100644
  static void
  mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
  {
-@@ -1445,6 +1493,9 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -1464,6 +1512,9 @@ mt7996_mcu_uni_rx_unsolicited_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	case MCU_UNI_EVENT_MLD:
  		mt7996_mcu_mld_event(dev, skb);
  		break;
@@ -98,7 +98,7 @@ index cc94ab2a..bafdca10 100644
  #ifdef CONFIG_MTK_DEBUG
  	case MCU_UNI_EVENT_SR:
  		mt7996_mcu_rx_sr_event(dev, skb);
-@@ -3850,6 +3901,7 @@ mt7996_mcu_beacon_crit_update(struct sk_buff *rskb, struct sk_buff *skb,
+@@ -3856,6 +3907,7 @@ mt7996_mcu_beacon_crit_update(struct sk_buff *rskb, struct sk_buff *skb,
  	crit->tim_ie_pos[0] = cpu_to_le16(offs->tim_offset);
  	crit->cap_info_ie_pos[0] = cpu_to_le16(offsetof(struct ieee80211_mgmt,
  							u.beacon.capab_info));
@@ -106,15 +106,15 @@ index cc94ab2a..bafdca10 100644
  }
  
  static void
-@@ -3862,6 +3914,7 @@ mt7996_mcu_beacon_sta_prof_csa(struct sk_buff *rskb,
- 	struct mt7996_bss_conf *cs_mconf;
+@@ -3868,6 +3920,7 @@ mt7996_mcu_beacon_sta_prof_csa(struct sk_buff *rskb,
+ 	struct mt7996_vif_link *cs_mconf;
  	struct bss_bcn_sta_prof_cntdwn_tlv *sta_prof;
  	struct tlv *tlv;
 +	u8 cs_band;
  
  	if (!ieee80211_vif_is_mld(vif) || !offs->sta_prof_cntdwn_offs[0])
  		return;
-@@ -3872,9 +3925,10 @@ mt7996_mcu_beacon_sta_prof_csa(struct sk_buff *rskb,
+@@ -3878,9 +3931,10 @@ mt7996_mcu_beacon_sta_prof_csa(struct sk_buff *rskb,
  
  	tlv = mt7996_mcu_add_uni_tlv(rskb, UNI_BSS_INFO_BCN_STA_PROF_CSA, sizeof(*sta_prof));
  
@@ -128,7 +128,7 @@ index cc94ab2a..bafdca10 100644
  
  static void
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 0cfebef5..ae3c9879 100644
+index 1746a857..f4206d39 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
 @@ -536,14 +536,16 @@ struct bss_bcn_crit_update_tlv {
@@ -151,7 +151,7 @@ index 0cfebef5..ae3c9879 100644
  } __packed;
  
  struct bss_bcn_ml_reconf_tlv {
-@@ -1266,6 +1268,26 @@ enum {
+@@ -1269,6 +1271,26 @@ enum {
  	UNI_CMD_PEER_MLD_TTLM_REQ = 0x0,
  };
  

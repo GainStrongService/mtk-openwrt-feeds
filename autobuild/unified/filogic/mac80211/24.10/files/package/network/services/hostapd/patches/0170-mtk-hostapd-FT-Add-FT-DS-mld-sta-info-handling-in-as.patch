@@ -1,7 +1,7 @@
-From 674f68d48ad915c8f8bb80366df889ee3adc5578 Mon Sep 17 00:00:00 2001
+From f6ffc02245b9306892f530775e61a63ea29f338f Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Thu, 16 Jan 2025 19:11:45 +0800
-Subject: [PATCH 170/185] mtk: hostapd: FT: Add FT-DS mld sta info handling in
+Subject: [PATCH 170/210] mtk: hostapd: FT: Add FT-DS mld sta info handling in
  assoc
 
 Add FT-DS mld sta info handling in assoc. AP creates a sta entry when
@@ -14,10 +14,10 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  1 file changed, 32 insertions(+)
 
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index 9a3adf6c1..11681fa62 100644
+index ff157f757..1682fb353 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
-@@ -5506,6 +5506,15 @@ static struct sta_info * handle_mlo_translate(struct hostapd_data *hapd,
+@@ -5509,6 +5509,15 @@ static struct sta_info * handle_mlo_translate(struct hostapd_data *hapd,
  	wpa_printf(MSG_DEBUG, "MLD: assoc: mld=" MACSTR ", link=" MACSTR,
  		   MAC2STR(mld_addr), MAC2STR(mgmt->sa));
  
@@ -33,7 +33,7 @@ index 9a3adf6c1..11681fa62 100644
  	return hostapd_ml_get_assoc_sta(hapd, sta, assoc_hapd);
  }
  #endif /* CONFIG_IEEE80211BE */
-@@ -5620,6 +5629,29 @@ static void handle_assoc(struct hostapd_data *hapd,
+@@ -5623,6 +5632,29 @@ static void handle_assoc(struct hostapd_data *hapd,
  		 * entry in the driver as associated and not authenticated
  		 */
  		sta->flags |= WLAN_STA_AUTH;

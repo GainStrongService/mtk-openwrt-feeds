@@ -1,18 +1,33 @@
-From 6de62a8395477fbb0e52609e6bebcbadf73ffd6e Mon Sep 17 00:00:00 2001
+From 693dead1fc8a88adeb28b4c18a79e29ece75e499 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Thu, 16 Jan 2025 17:46:36 +0800
-Subject: [PATCH 169/185] mtk: hostapd: Add FT-Auth mld support
+Subject: [PATCH 169/210] mtk: hostapd: Add FT-Auth mld support
 
 Add basic mle in FT response and handle mld address of sta.
 
 Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+
+Add support FTA handle FT auth algo
+STA will use FT auth type when doing FTA roaming and the length of fixed
+fields is always 6. The format id defined in 802.11REVme_D3.0 Table 9-69.
+
+Fix process ft auth can't get correct mle make AP use link address to
+derive PTK.
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+
+Add rsnxe in FT auth response. According to WPA3-FT 8.5.X wfa requires
+roaming target ap should bring rsnxe with H2E information in FT auth response.
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
 ---
  src/ap/hostapd.c        |  5 +++
- src/ap/wpa_auth_ft.c    | 77 +++++++++++++++++++++++++++++++++++------
- src/ap/wpa_auth_glue.c  |  6 ++--
+ src/ap/ieee802_11_eht.c |  5 ++-
+ src/ap/wpa_auth_ft.c    | 84 +++++++++++++++++++++++++++++++++++------
+ src/ap/wpa_auth_glue.c  |  6 ++-
  src/common/wpa_common.c |  3 ++
  src/common/wpa_common.h |  1 +
- 5 files changed, 79 insertions(+), 13 deletions(-)
+ 6 files changed, 90 insertions(+), 14 deletions(-)
 
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
 index c18cf850c..5190f2e62 100644
@@ -30,8 +45,25 @@ index c18cf850c..5190f2e62 100644
  	if (is_zero_ether_addr(conf->r1_key_holder))
  		os_memcpy(conf->r1_key_holder, hapd->own_addr, ETH_ALEN);
  #endif /* CONFIG_IEEE80211R_AP */
+diff --git a/src/ap/ieee802_11_eht.c b/src/ap/ieee802_11_eht.c
+index 860a6ad76..fe16c38c6 100644
+--- a/src/ap/ieee802_11_eht.c
++++ b/src/ap/ieee802_11_eht.c
+@@ -1183,8 +1183,11 @@ static const u8 * auth_skip_fixed_fields(struct hostapd_data *hapd,
+ 
+ 		return pos;
+ #endif /* CONFIG_SAE */
+-	/* TODO: Support additional algorithms that can be used for MLO */
+ 	case WLAN_AUTH_FT:
++		if (auth_transaction > 4)
++			break;
++		return pos;
++	/* TODO: Support additional algorithms that can be used for MLO */
+ 	case WLAN_AUTH_FILS_SK:
+ 	case WLAN_AUTH_FILS_SK_PFS:
+ 	case WLAN_AUTH_FILS_PK:
 diff --git a/src/ap/wpa_auth_ft.c b/src/ap/wpa_auth_ft.c
-index 56b755a4a..ea40b9cc9 100644
+index 56b755a4a..35206229f 100644
 --- a/src/ap/wpa_auth_ft.c
 +++ b/src/ap/wpa_auth_ft.c
 @@ -28,6 +28,7 @@
@@ -61,7 +93,7 @@ index 56b755a4a..ea40b9cc9 100644
  
 +#ifdef CONFIG_IEEE80211BE
 +	sm->mld_assoc_link_id = -1;
-+	if (parse.basic_ml && link_id != -1)
++	if (parse.basic_ml && link_id >= 0)
 +		sm->mld_assoc_link_id = link_id;
 +#endif
  	wpa_hexdump(MSG_DEBUG, "FT: Requested PMKR0Name",
@@ -83,18 +115,25 @@ index 56b755a4a..ea40b9cc9 100644
  	buflen = 2 + sizeof(struct rsn_mdie) + 2 + sizeof(struct rsn_ftie) +
  		2 + FT_R1KH_ID_LEN + 200;
 +#ifdef CONFIG_IEEE80211BE
-+	if (sm->wpa_auth->is_ml)
++	if (sm->mld_assoc_link_id >= 0)
 +		buflen += 2 + BASIC_MLE_LEN;
 +#endif
  	*resp_ies = os_zalloc(buflen);
  	if (*resp_ies == NULL)
  		goto fail;
-@@ -3429,6 +3441,23 @@ pmk_r1_derived:
+@@ -3429,6 +3441,30 @@ pmk_r1_derived:
  		goto fail;
  	pos += ret;
  
++	/* RSNXE is not needed in the 2nd msg of FT authentication sequence
++	 * but since WPA3 T/C 8.5 would check H2E cap, we added it to pass the item */
++	ret = wpa_write_rsnxe(conf, pos, end - pos);
++	if (ret < 0)
++		goto fail;
++	pos += ret;
++
 +#ifdef CONFIG_IEEE80211BE
-+	if (sm->wpa_auth->is_ml) {
++	if (sm->mld_assoc_link_id >= 0) {
 +		*pos++ = WLAN_EID_EXTENSION;
 +		*pos++ = BASIC_MLE_LEN;
 +		*pos++ = WLAN_EID_EXT_MULTI_LINK;
@@ -113,7 +152,7 @@ index 56b755a4a..ea40b9cc9 100644
  	*resp_ies_len = pos - *resp_ies;
  
  	retval = WLAN_STATUS_SUCCESS;
-@@ -3453,6 +3482,8 @@ void wpa_ft_process_auth(struct wpa_state_machine *sm,
+@@ -3453,6 +3489,8 @@ void wpa_ft_process_auth(struct wpa_state_machine *sm,
  	u8 *resp_ies;
  	size_t resp_ies_len;
  	int res;
@@ -122,7 +161,7 @@ index 56b755a4a..ea40b9cc9 100644
  
  	if (sm == NULL) {
  		wpa_printf(MSG_DEBUG, "FT: Received authentication frame, but "
-@@ -3468,8 +3499,12 @@ void wpa_ft_process_auth(struct wpa_state_machine *sm,
+@@ -3468,8 +3506,12 @@ void wpa_ft_process_auth(struct wpa_state_machine *sm,
  	sm->ft_pending_cb_ctx = ctx;
  	sm->ft_pending_auth_transaction = auth_transaction;
  	sm->ft_pending_pull_left_retries = sm->wpa_auth->conf.rkh_pull_retries;
@@ -136,7 +175,7 @@ index 56b755a4a..ea40b9cc9 100644
  	if (res < 0) {
  		wpa_printf(MSG_DEBUG, "FT: Callback postponed until response is available");
  		return;
-@@ -3645,7 +3680,7 @@ int wpa_ft_validate_reassoc(struct wpa_state_machine *sm, const u8 *ies,
+@@ -3645,7 +3687,7 @@ int wpa_ft_validate_reassoc(struct wpa_state_machine *sm, const u8 *ies,
  		kck_len = sm->PTK.kck_len;
  	}
  	if (wpa_ft_mic(sm->wpa_key_mgmt, kck, kck_len,
@@ -145,7 +184,7 @@ index 56b755a4a..ea40b9cc9 100644
  		       parse.mdie - 2, parse.mdie_len + 2,
  		       parse.ftie - 2, parse.ftie_len + 2,
  		       parse.rsn - 2, parse.rsn_len + 2,
-@@ -3831,6 +3866,7 @@ static int wpa_ft_rrb_rx_request(struct wpa_authenticator *wpa_auth,
+@@ -3831,6 +3873,7 @@ static int wpa_ft_rrb_rx_request(struct wpa_authenticator *wpa_auth,
  	u8 *resp_ies;
  	size_t resp_ies_len;
  	int res;
@@ -153,7 +192,7 @@ index 56b755a4a..ea40b9cc9 100644
  
  	sm = wpa_ft_add_sta(wpa_auth, sta_addr);
  	if (sm == NULL) {
-@@ -3841,12 +3877,16 @@ static int wpa_ft_rrb_rx_request(struct wpa_authenticator *wpa_auth,
+@@ -3841,12 +3884,16 @@ static int wpa_ft_rrb_rx_request(struct wpa_authenticator *wpa_auth,
  
  	wpa_hexdump(MSG_MSGDUMP, "FT: RRB Request Frame body", body, len);
  
@@ -171,7 +210,7 @@ index 56b755a4a..ea40b9cc9 100644
  	if (res < 0) {
  		wpa_printf(MSG_DEBUG, "FT: No immediate response available - wait for pull response");
  		return 0;
-@@ -3868,7 +3908,7 @@ static int wpa_ft_send_rrb_auth_resp(struct wpa_state_machine *sm,
+@@ -3868,7 +3915,7 @@ static int wpa_ft_send_rrb_auth_resp(struct wpa_state_machine *sm,
  	struct wpa_authenticator *wpa_auth = sm->wpa_auth;
  	size_t rlen;
  	struct ft_rrb_frame *frame;
@@ -180,7 +219,7 @@ index 56b755a4a..ea40b9cc9 100644
  
  	wpa_printf(MSG_DEBUG, "FT: RRB authentication response: STA=" MACSTR
  		   " CurrentAP=" MACSTR " status=%u (%s)",
-@@ -3890,13 +3930,19 @@ static int wpa_ft_send_rrb_auth_resp(struct wpa_state_machine *sm,
+@@ -3890,13 +3937,19 @@ static int wpa_ft_send_rrb_auth_resp(struct wpa_state_machine *sm,
  	frame->frame_type = RSN_REMOTE_FRAME_TYPE_FT_RRB;
  	frame->packet_type = FT_PACKET_RESPONSE;
  	frame->action_length = host_to_le16(rlen);
@@ -202,7 +241,7 @@ index 56b755a4a..ea40b9cc9 100644
  	pos += ETH_ALEN;
  	WPA_PUT_LE16(pos, status);
  	pos += 2;
-@@ -4320,13 +4366,18 @@ static void ft_finish_pull(struct wpa_state_machine *sm)
+@@ -4320,13 +4373,18 @@ static void ft_finish_pull(struct wpa_state_machine *sm)
  	u8 *resp_ies;
  	size_t resp_ies_len;
  	u16 status;
@@ -222,7 +261,7 @@ index 56b755a4a..ea40b9cc9 100644
  	if (res < 0) {
  		/* this loop is broken by ft_pending_pull_left_retries */
  		wpa_printf(MSG_DEBUG,
-@@ -4807,7 +4858,11 @@ int wpa_ft_rrb_rx(struct wpa_authenticator *wpa_auth, const u8 *src_addr,
+@@ -4807,7 +4865,11 @@ int wpa_ft_rrb_rx(struct wpa_authenticator *wpa_auth, const u8 *src_addr,
  			return -1;
  		}
  
@@ -260,19 +299,19 @@ index 099528886..e3873517b 100644
  	wpa_ft_rrb_oui_rx(hapd->wpa_auth, src_addr, dst_addr, oui_suffix, buf,
  			  len);
 diff --git a/src/common/wpa_common.c b/src/common/wpa_common.c
-index 9c96269d5..1310151b6 100644
+index 9c96269d5..b030128ff 100644
 --- a/src/common/wpa_common.c
 +++ b/src/common/wpa_common.c
-@@ -1402,6 +1402,9 @@ int wpa_ft_parse_ies(const u8 *ies, size_t ies_len, struct wpa_ft_ies *parse,
- 		goto fail;
+@@ -1344,6 +1344,9 @@ int wpa_ft_parse_ies(const u8 *ies, size_t ies_len, struct wpa_ft_ies *parse,
+ 		parse->ftie_len = fte_len;
  	}
  
 +	if (elems.basic_mle)
 +		parse->basic_ml = elems.basic_mle;
 +
- 	return 0;
+ 	if (prot_ie_count == 0)
+ 		return 0; /* no MIC */
  
- fail:
 diff --git a/src/common/wpa_common.h b/src/common/wpa_common.h
 index e8abe2308..18cfd5cba 100644
 --- a/src/common/wpa_common.h

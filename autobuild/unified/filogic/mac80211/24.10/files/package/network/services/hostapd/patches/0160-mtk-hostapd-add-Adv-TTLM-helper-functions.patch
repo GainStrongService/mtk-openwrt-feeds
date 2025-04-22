@@ -1,7 +1,7 @@
-From fb406dd68b9dd63cf076c68b51fd68b1fb197118 Mon Sep 17 00:00:00 2001
+From 63a08d38894e9ec223bd0ea95521fcc33c6f54f8 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 17 Jan 2025 13:53:50 +0800
-Subject: [PATCH 160/185] mtk: hostapd: add Adv-TTLM helper functions
+Subject: [PATCH 160/210] mtk: hostapd: add Adv-TTLM helper functions
 
 Add 2 Adv-TTLM helper functions
 1. hostapd_is_attlm_active(): check whether the hapd has a setup a
@@ -18,10 +18,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  5 files changed, 17 insertions(+), 13 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index edadf2f27..fc18d4f3f 100644
+index 1c2ba54d4..2a6ca166e 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4105,12 +4105,13 @@ static int hostapd_ctrl_iface_set_attlm(struct hostapd_data *hapd, char *cmd,
+@@ -4104,12 +4104,13 @@ static int hostapd_ctrl_iface_set_attlm(struct hostapd_data *hapd, char *cmd,
  	if (!hapd->conf->mld_ap || !hapd->mld)
  		return -1;
  
@@ -70,10 +70,10 @@ index a7e57face..fcb759dd7 100644
  void hostapd_event_tsf_offset(struct hostapd_data *hapd, s64 *tsf_offset);
  bool hostapd_mld_is_first_bss(struct hostapd_data *hapd);
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index 4406bb8cd..5bddf083c 100644
+index e47b232d0..99d3e8e8e 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
-@@ -6543,7 +6543,7 @@ int ieee802_11_mgmt(struct hostapd_data *hapd, const u8 *buf, size_t len,
+@@ -6546,7 +6546,7 @@ int ieee802_11_mgmt(struct hostapd_data *hapd, const u8 *buf, size_t len,
  		return 1;
  	}
  

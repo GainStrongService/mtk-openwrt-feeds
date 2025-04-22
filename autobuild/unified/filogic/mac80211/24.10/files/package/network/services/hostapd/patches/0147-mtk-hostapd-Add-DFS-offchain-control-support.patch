@@ -1,7 +1,7 @@
-From ec8a1612ef2ae05509e657f25be7d5be2811990c Mon Sep 17 00:00:00 2001
+From e23b42e67b75ee52e187652458d0ac232935b407 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 8 Jan 2025 11:26:00 +0800
-Subject: [PATCH 147/185] mtk: hostapd: Add DFS offchain control support
+Subject: [PATCH 147/210] mtk: hostapd: Add DFS offchain control support
 
 Add DFS background chain channel switch command for testing purpose.
 This feature is implemented via hostapd_cli command.
@@ -34,10 +34,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 253 insertions(+), 28 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index c669cb259..b8d235398 100644
+index 62eddc288..062ba9f61 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4901,6 +4901,230 @@ hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,
+@@ -4900,6 +4900,230 @@ hostapd_ctrl_iface_set_dfs_detect_mode(struct hostapd_data *hapd, char *value,
  }
  
  
@@ -268,7 +268,7 @@ index c669cb259..b8d235398 100644
  static int
  hostapd_ctrl_iface_get_amsdu(struct hostapd_data *hapd, char *buf,
  					 size_t buflen)
-@@ -5219,27 +5443,6 @@ hostapd_ctrl_iface_set_background_radar_mode(struct hostapd_data *hapd, char *cm
+@@ -5218,27 +5442,6 @@ hostapd_ctrl_iface_set_background_radar_mode(struct hostapd_data *hapd, char *cm
  	return os_snprintf(buf, buflen, "OK\n");
  }
  
@@ -296,7 +296,7 @@ index c669cb259..b8d235398 100644
  static int
  hostapd_ctrl_iface_set_pp(struct hostapd_data *hapd, char *cmd, char *buf,
  			  size_t buflen)
-@@ -6238,6 +6441,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -6237,6 +6440,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "DFS_DETECT_MODE ", 16) == 0) {
  		reply_len = hostapd_ctrl_iface_set_dfs_detect_mode(hapd, buf + 16,
  								   reply, reply_size);

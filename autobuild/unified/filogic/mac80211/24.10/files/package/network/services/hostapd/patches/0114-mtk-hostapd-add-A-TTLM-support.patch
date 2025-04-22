@@ -1,7 +1,7 @@
-From 9460acb98bb16ee459093e86ec11c1336eef0ce7 Mon Sep 17 00:00:00 2001
+From d350ac93def228ad89cb933cf4d9065c0404ad65 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Wed, 3 Jul 2024 15:39:53 +0800
-Subject: [PATCH 114/185] mtk: hostapd: add A-TTLM support
+Subject: [PATCH 114/210] mtk: hostapd: add A-TTLM support
 
 Add a data structure for AP MLD's Advertised Tid-to-Link Mapping (A-TTLM).
 Since it is MLD-level, this commit also adds it into struct hostapd_mld.
@@ -69,10 +69,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  16 files changed, 463 insertions(+), 1 deletion(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 06dcc6d41..caa0b5099 100644
+index 6d391c71b..8a166ecd8 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4106,6 +4106,68 @@ out:
+@@ -4105,6 +4105,68 @@ out:
  	return ret;
  }
  
@@ -141,7 +141,7 @@ index 06dcc6d41..caa0b5099 100644
  #endif /* CONFIG_TESTING_OPTIONS */
  #endif /* CONFIG_IEEE80211BE */
  
-@@ -6165,6 +6227,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -6164,6 +6226,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		if (hostapd_ctrl_iface_link_add(hapd, buf + 9,
  						reply, reply_size))
  			reply_len = -1;
@@ -637,7 +637,7 @@ index bc543c9fe..6a8f39f3d 100644
  	 * struct connect_failed - Data for EVENT_CONNECT_FAILED_REASON
  	 * @addr: Remote client address
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 602cd2f00..24d594ccf 100644
+index 3cc179816..5930013d4 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -11238,6 +11238,38 @@ static bool nl80211_is_drv_shared(void *priv, int link_id)

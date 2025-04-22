@@ -1,7 +1,7 @@
-From 660ef02525947508d8c35c68d03f239234ad76ca Mon Sep 17 00:00:00 2001
+From 1fbeaf4b426e495912a48f0c00120b7aaf7cda4c Mon Sep 17 00:00:00 2001
 From: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 Date: Thu, 26 Jan 2023 09:16:00 +0800
-Subject: [PATCH 025/185] mtk: hostapd: Add available color bitmap
+Subject: [PATCH 025/210] mtk: hostapd: Add available color bitmap
 
 Signed-off-by: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
 ---
@@ -17,10 +17,10 @@ Signed-off-by: Yi-Chia Hsieh <yi-chia.hsieh@mediatek.com>
  9 files changed, 323 insertions(+), 2 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index f790792f6..995a30eef 100644
+index 58a780ce8..6da8bd41b 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4394,6 +4394,76 @@ hostapd_ctrl_iface_get_amsdu(struct hostapd_data *hapd, char *buf,
+@@ -4393,6 +4393,76 @@ hostapd_ctrl_iface_get_amsdu(struct hostapd_data *hapd, char *buf,
  	return ret;
  }
  
@@ -97,7 +97,7 @@ index f790792f6..995a30eef 100644
  
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
-@@ -5024,6 +5094,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5023,6 +5093,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  								   reply, reply_size);
  	} else if (os_strncmp(buf, "GET_AMSDU", 9) == 0) {
  		reply_len = hostapd_ctrl_iface_get_amsdu(hapd, reply, reply_size);

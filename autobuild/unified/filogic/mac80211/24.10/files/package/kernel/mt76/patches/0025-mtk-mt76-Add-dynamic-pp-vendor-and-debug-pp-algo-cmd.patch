@@ -1,8 +1,8 @@
-From de376e6e5ce59dd0715dac66e784ac72fdf6986a Mon Sep 17 00:00:00 2001
+From c648e4e47436244676614a1bf5d65169c70d225e Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Tue, 28 May 2024 15:39:06 +0800
-Subject: [PATCH 025/104] mtk: mt76: Add dynamic pp vendor and debug pp algo
- cmd support
+Subject: [PATCH 25/92] mtk: mt76: Add dynamic pp vendor and debug pp algo cmd
+ support
 
 Add dynamic pp vendor and debug pp algo cmd support.
 1. Add support channel switch with a punct bitmap.
@@ -15,19 +15,19 @@ send a new fw cmd to update the pp bitmap.
 
 Signed-off-by: Allen Ye <allen.ye@mediatek.com>
 ---
- mt7996/mcu.c         |  70 ++++++++++++++++++++++++++++-
+ mt7996/mcu.c         |  70 +++++++++++++++++++++++++++-
  mt7996/mcu.h         |  38 ++++++++++++++++
  mt7996/mt7996.h      |   2 +
  mt7996/mtk_debugfs.c |  14 ++++++
- mt7996/vendor.c      | 103 +++++++++++++++++++++++++++++++------------
+ mt7996/vendor.c      | 106 +++++++++++++++++++++++++++++++------------
  mt7996/vendor.h      |   8 +++-
- 6 files changed, 205 insertions(+), 30 deletions(-)
+ 6 files changed, 207 insertions(+), 31 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 78468012..3f56d8e6 100644
+index ec97782c..0f25022b 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -1280,6 +1280,39 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -1299,6 +1299,39 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
  	}
  }
  
@@ -67,7 +67,7 @@ index 78468012..3f56d8e6 100644
  static void
  mt7996_mcu_pp_event(struct mt7996_dev *dev, struct sk_buff *skb)
  {
-@@ -1306,9 +1339,13 @@ mt7996_mcu_pp_event(struct mt7996_dev *dev, struct sk_buff *skb)
+@@ -1325,9 +1358,13 @@ mt7996_mcu_pp_event(struct mt7996_dev *dev, struct sk_buff *skb)
  		if (phy->punct_bitmap == report_bitmap)
  			return;
  
@@ -83,7 +83,7 @@ index 78468012..3f56d8e6 100644
  		break;
  	}
  }
-@@ -6414,6 +6451,35 @@ int mt7996_mcu_set_pp_sta_dscb(struct mt7996_phy *phy,
+@@ -6326,6 +6363,35 @@ int mt7996_mcu_set_pp_sta_dscb(struct mt7996_phy *phy,
  				 &req, sizeof(req), false);
  }
  
@@ -120,10 +120,10 @@ index 78468012..3f56d8e6 100644
  {
  	struct mt7996_dev *dev = phy->dev;
 diff --git a/mt7996/mcu.h b/mt7996/mcu.h
-index 4010fa35..c9c7f091 100644
+index 555e54d9..0b3b4d01 100644
 --- a/mt7996/mcu.h
 +++ b/mt7996/mcu.h
-@@ -1173,6 +1173,7 @@ enum {
+@@ -1178,6 +1178,7 @@ enum {
  
  enum {
  	UNI_CMD_PP_EN_CTRL,
@@ -131,7 +131,7 @@ index 4010fa35..c9c7f091 100644
  	UNI_CMD_PP_DSCB_CTRL,
  };
  
-@@ -1182,6 +1183,11 @@ enum pp_mode {
+@@ -1187,6 +1188,11 @@ enum pp_mode {
  	PP_USR_MODE,
  };
  
@@ -143,7 +143,7 @@ index 4010fa35..c9c7f091 100644
  enum {
  	UNI_EVENT_PP_TAG_ALG_CTRL = 1,
  	UNI_EVENT_STATIC_PP_TAG_DSCB_IE,
-@@ -1215,6 +1221,38 @@ struct mt7996_mcu_pp_dscb_event {
+@@ -1220,6 +1226,38 @@ struct mt7996_mcu_pp_dscb_event {
  	u8 __rsv3[2];
  } __packed;
  
@@ -183,10 +183,10 @@ index 4010fa35..c9c7f091 100644
  	UNI_CMD_SCS_SEND_DATA,
  	UNI_CMD_SCS_SET_PD_THR_RANGE = 2,
 diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
-index 33dfeece..1e363f29 100644
+index 0fec8743..c731796c 100644
 --- a/mt7996/mt7996.h
 +++ b/mt7996/mt7996.h
-@@ -1280,6 +1280,7 @@ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode);
+@@ -1227,6 +1227,7 @@ int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode);
  int mt7996_mcu_set_pp_en(struct mt7996_phy *phy, u8 mode, u16 bitmap);
  int mt7996_mcu_set_pp_sta_dscb(struct mt7996_phy *phy, struct cfg80211_chan_def *chandef,
  			       u8 omac_idx);
@@ -194,8 +194,8 @@ index 33dfeece..1e363f29 100644
  int mt7996_mcu_set_eml_omn(struct ieee80211_vif *vif, u8 link_id,
  			   struct ieee80211_sta *sta, struct mt7996_dev *dev,
  			   struct mt7996_eml_omn *eml_omn);
-@@ -1310,6 +1311,7 @@ int mt7996_mcu_set_muru_cfg(struct mt7996_dev *dev, void *data);
- void mt7996_set_beacon_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
+@@ -1257,6 +1258,7 @@ int mt7996_mcu_set_muru_cfg(struct mt7996_dev *dev, void *data);
+ void mt7996_set_beacon_vif(struct ieee80211_vif *vif, u8 val);
  int mt7996_mcu_set_csi(struct mt7996_phy *phy, u8 mode,
  		       u8 cfg, u8 v1, u32 v2, u8 *mac_addr);
 +int mt7996_vendor_pp_bitmap_update(struct mt7996_phy *phy, u16 bitmap);
@@ -203,7 +203,7 @@ index 33dfeece..1e363f29 100644
  
  int mt7996_mcu_edcca_enable(struct mt7996_phy *phy, bool enable);
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index d293457a..dc66d1c3 100644
+index d7ca0a53..732edfea 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -4373,6 +4373,18 @@ static const struct file_operations fops_muru_dbg_info = {
@@ -235,10 +235,10 @@ index d293457a..dc66d1c3 100644
  
  void mt7996_mtk_init_dev_debugfs(struct mt7996_dev *dev, struct dentry *dir)
 diff --git a/mt7996/vendor.c b/mt7996/vendor.c
-index 5da7add6..7ea4ac3a 100644
+index e8124939..1d88a2fc 100644
 --- a/mt7996/vendor.c
 +++ b/mt7996/vendor.c
-@@ -96,7 +96,9 @@ ibf_ctrl_policy[NUM_MTK_VENDOR_ATTRS_IBF_CTRL] = {
+@@ -97,7 +97,9 @@ ibf_ctrl_policy[NUM_MTK_VENDOR_ATTRS_IBF_CTRL] = {
  static struct nla_policy
  pp_ctrl_policy[NUM_MTK_VENDOR_ATTRS_PP_CTRL] = {
  	[MTK_VENDOR_ATTR_PP_MODE] = { .type = NLA_U8 },
@@ -249,7 +249,7 @@ index 5da7add6..7ea4ac3a 100644
  };
  
  static const struct nla_policy
-@@ -805,31 +807,44 @@ static int mt7996_vendor_pp_ctrl(struct wiphy *wiphy, struct wireless_dev *wdev,
+@@ -812,61 +814,100 @@ static int mt7996_vendor_pp_ctrl(struct wiphy *wiphy, struct wireless_dev *wdev,
  				 const void *data, int data_len)
  {
  	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
@@ -259,7 +259,7 @@ index 5da7add6..7ea4ac3a 100644
  	struct mt7996_phy *phy;
 -	struct mt76_phy *mphy;
  	struct cfg80211_chan_def *chandef;
-+	struct mt7996_bss_conf *mconf;
++	struct mt7996_vif_link *mconf;
 +	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
  	int err;
 -	u8 val8, band_idx = 0;
@@ -271,31 +271,27 @@ index 5da7add6..7ea4ac3a 100644
  
 -	if (tb[MTK_VENDOR_ATTR_PP_BAND_IDX]) {
 -		band_idx = nla_get_u8(tb[MTK_VENDOR_ATTR_PP_BAND_IDX]);
--	}
 +	if (tb[MTK_VENDOR_ATTR_PP_MODE])
 +		mode = nla_get_u8(tb[MTK_VENDOR_ATTR_PP_MODE]);
 +	else
 +		return -EINVAL;
- 
--	if (!mt7996_band_valid(dev, band_idx))
--		goto error;
++
 +	if (ieee80211_vif_is_mld(vif) && tb[MTK_VENDOR_ATTR_PP_LINK_ID]) {
 +		link_id = nla_get_u8(tb[MTK_VENDOR_ATTR_PP_LINK_ID]);
 +		if (link_id >= IEEE80211_LINK_UNSPECIFIED)
 +			return -EINVAL;
-+	}
+ 	}
  
--	mphy = dev->mt76.phys[band_idx];
--	if (!mphy)
+-	if (!mt7996_band_valid(dev, band_idx))
 +	rcu_read_lock();
-+	mconf = rcu_dereference(mvif->link[link_id]);
++	mconf = (struct mt7996_vif_link *)rcu_dereference(mvif->mt76.link[link_id]);
 +	if (!mconf) {
 +		rcu_read_unlock();
  		goto error;
 +	}
  
--	phy = (struct mt7996_phy *)mphy->priv;
--	if (!phy)
+-	mphy = dev->mt76.phys[band_idx];
+-	if (!mphy)
 +	phy = mconf->phy;
 +	if (!phy) {
 +		rcu_read_unlock();
@@ -303,9 +299,15 @@ index 5da7add6..7ea4ac3a 100644
 +	}
 +	rcu_read_unlock();
  
- 	chandef = &phy->chanctx->chandef;
- 	if (!chandef)
-@@ -838,28 +853,53 @@ static int mt7996_vendor_pp_ctrl(struct wiphy *wiphy, struct wireless_dev *wdev,
+-	phy = (struct mt7996_phy *)mphy->priv;
+-	if (!phy)
++	if (!phy->mt76->chanctx)
+ 		goto error;
+-
+ 	chandef = &phy->mt76->chanctx->chandef;
+-	if (!chandef)
+-		goto error;
+ 
  	if (chandef->chan->band == NL80211_BAND_2GHZ)
  		return 0;
  
@@ -347,10 +349,11 @@ index 5da7add6..7ea4ac3a 100644
 +{
 +	struct sk_buff *skb;
 +	struct mt76_phy *mphy = phy->mt76;
-+	struct cfg80211_chan_def *chandef = &phy->chanctx->chandef;
++	struct cfg80211_chan_def *chandef;
 +
-+	if (!chandef)
++	if (!mphy->chanctx)
 +		return 0;
++	chandef = &mphy->chanctx->chandef;
 +
 +	skb = cfg80211_vendor_event_alloc(mphy->hw->wiphy, NULL, 20,
 +					  MTK_NL80211_VENDOR_EVENT_PP_BMP_UPDATE,
@@ -374,7 +377,7 @@ index 5da7add6..7ea4ac3a 100644
  static int mt7996_vendor_rfeature_ctrl(struct wiphy *wiphy,
  				       struct wireless_dev *wdev,
  				       const void *data,
-@@ -1506,10 +1546,19 @@ static const struct wiphy_vendor_command mt7996_vendor_commands[] = {
+@@ -1514,10 +1555,19 @@ static const struct wiphy_vendor_command mt7996_vendor_commands[] = {
  	},
  };
  
@@ -395,7 +398,7 @@ index 5da7add6..7ea4ac3a 100644
  	INIT_LIST_HEAD(&phy->csi.list);
  	spin_lock_init(&phy->csi.lock);
 diff --git a/mt7996/vendor.h b/mt7996/vendor.h
-index 714f0b3e..ca4f00ad 100644
+index 9d5ef41c..5289feb4 100644
 --- a/mt7996/vendor.h
 +++ b/mt7996/vendor.h
 @@ -21,6 +21,10 @@ enum mtk_nl80211_vendor_subcmds {
@@ -409,7 +412,7 @@ index 714f0b3e..ca4f00ad 100644
  enum mtk_vendor_attr_edcca_ctrl {
  	MTK_VENDOR_ATTR_EDCCA_THRESHOLD_INVALID = 0,
  
-@@ -222,7 +226,9 @@ enum mtk_vendor_attr_pp_ctrl {
+@@ -223,7 +227,9 @@ enum mtk_vendor_attr_pp_ctrl {
  	MTK_VENDOR_ATTR_PP_CTRL_UNSPEC,
  
  	MTK_VENDOR_ATTR_PP_MODE,

@@ -1,7 +1,7 @@
-From 3c9a7e02e0c213eb5080d9cff96a1ce03452ea13 Mon Sep 17 00:00:00 2001
+From bc076af04a747b735c98e7db9a9509a0be82c4b8 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 15 Aug 2024 10:58:30 +0800
-Subject: [PATCH 122/185] mtk: hostapd: add Extender PP bitmap synchronization
+Subject: [PATCH 122/210] mtk: hostapd: add Extender PP bitmap synchronization
 
 Add support for Extender to synchronize PP bitmap to AP interface after
 association.
@@ -59,7 +59,7 @@ index 7f2f0855d..a02fca795 100644
  		enum chan_width width;
  	} links[MAX_NUM_MLD_LINKS];
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index a83961ba8..d2688c67b 100644
+index 69ba4ce2c..b2de9c3c1 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -1221,6 +1221,10 @@ static void get_link_channel_info(struct nlattr **link_data, u8 link_id,

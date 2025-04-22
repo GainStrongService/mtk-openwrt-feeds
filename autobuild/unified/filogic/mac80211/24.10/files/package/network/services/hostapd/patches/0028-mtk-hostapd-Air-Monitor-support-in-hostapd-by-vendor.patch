@@ -1,7 +1,7 @@
-From 882ea7882b8388074d647253f4c56e4c12499caa Mon Sep 17 00:00:00 2001
+From 2a13b2c8a17b54568f755ba8e36f28380b10ca3f Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Fri, 12 May 2023 05:18:48 +0800
-Subject: [PATCH 028/185] mtk: hostapd: Air Monitor support in hostapd by
+Subject: [PATCH 028/210] mtk: hostapd: Air Monitor support in hostapd by
  vendor
 
 Signed-off-by: mtk23888 <dipanshu.mittal@mediatek.com>
@@ -18,10 +18,10 @@ Signed-off-by: mtk23888 <dipanshu.mittal@mediatek.com>
  9 files changed, 351 insertions(+)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index b3059a638..d675b82d4 100644
+index 8276eab48..7ad22dfcb 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4504,6 +4504,44 @@ hostapd_ctrl_iface_ap_wireless(struct hostapd_data *hapd, char *cmd,
+@@ -4503,6 +4503,44 @@ hostapd_ctrl_iface_ap_wireless(struct hostapd_data *hapd, char *cmd,
  
  	if (hostapd_drv_ap_wireless(hapd, (u8) sub_cmd, atoi(value)) != 0)
  		return -1;
@@ -66,7 +66,7 @@ index b3059a638..d675b82d4 100644
  
  	return os_snprintf(buf, buflen, "OK\n");
  }
-@@ -4556,6 +4594,75 @@ exit:
+@@ -4555,6 +4593,75 @@ exit:
  	return os_snprintf(buf, buflen, "OK\n");
  }
  
@@ -142,7 +142,7 @@ index b3059a638..d675b82d4 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -5193,6 +5300,12 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5192,6 +5299,12 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_ap_wireless(hapd, buf + 12, reply, reply_size);
  	} else if (os_strncmp(buf, "ap_rfeatures ", 13) == 0) {
  		reply_len = hostapd_ctrl_iface_ap_rfeatures(hapd, buf + 13, reply, reply_size);

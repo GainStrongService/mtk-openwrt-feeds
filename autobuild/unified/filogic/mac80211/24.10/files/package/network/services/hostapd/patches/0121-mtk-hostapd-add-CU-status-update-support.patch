@@ -1,7 +1,7 @@
-From 6d977f1f05c49f08ca362a3986c52fc46d7aac0d Mon Sep 17 00:00:00 2001
+From 4b6be3351b5325bba510be5a0d774f732afeebc8 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 29 Jul 2024 10:09:42 +0800
-Subject: [PATCH 121/185] mtk: hostapd: add CU status update support
+Subject: [PATCH 121/210] mtk: hostapd: add CU status update support
 
 Update the CUF status when a CU event notification is sent by kernel
 Also, refactor the CU flag mechanism to support different dtim period
@@ -28,10 +28,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  10 files changed, 164 insertions(+), 52 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index caa0b5099..7d41d9545 100644
+index 8a166ecd8..2b976efb0 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -2975,13 +2975,6 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2974,13 +2974,6 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  #ifdef CONFIG_IEEE80211BE
  		if (iface->bss[i]->conf->mld_ap)
  			hostapd_update_aff_link_beacon(iface->bss[i], settings.cs_count);

@@ -1,7 +1,7 @@
-From 522d383c933b96db4ee9e5b20bf9033f1d9eb2cf Mon Sep 17 00:00:00 2001
+From 76b5df824bb08fa81b3213383cc36ff859f0c775 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 15 Aug 2024 18:50:41 +0800
-Subject: [PATCH 120/185] mtk: hostapd: Fix hostapd crash in wds mode during
+Subject: [PATCH 120/210] mtk: hostapd: Fix hostapd crash in wds mode during
  freeing sta
 
 When freeing sta in wds mode, ap_free_sta will pass NULL pointer (ifname_wds)
@@ -17,7 +17,7 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 8187ceca4..a83961ba8 100644
+index 7d49fd8cb..69ba4ce2c 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -8756,11 +8756,14 @@ static int i802_set_wds_sta(void *priv, const u8 *addr, int aid, int val,

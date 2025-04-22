@@ -1,7 +1,7 @@
-From c86b1e922ddae707008c258108261c1f0dd50e75 Mon Sep 17 00:00:00 2001
+From 719ca2f50a7e7e27362b2a2b72b7bcc8733c546e Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 29 Feb 2024 19:55:34 +0800
-Subject: [PATCH 064/185] mtk: hostapd: support band_idx option for
+Subject: [PATCH 064/210] mtk: hostapd: support band_idx option for
  set_mu/get_mu vendor command
 
 Support band_idx for set_mu and get_mu vendor command. The usage shows
@@ -46,10 +46,10 @@ index d48353cd6..daf9103f1 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index ba97e8a7b..ec0334aa7 100644
+index 343013f36..18f8bcda1 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4386,17 +4386,42 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -4385,17 +4385,42 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  	value = pos;
  
  	if (os_strcmp(config, "onoff") == 0) {
@@ -100,7 +100,7 @@ index ba97e8a7b..ec0334aa7 100644
  	}
  
  	if (hapd->iconf->muru_config == NULL)
-@@ -4408,6 +4433,7 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -4407,6 +4432,7 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  	comm = &muru->comm;
  
  	if (os_strncmp(config, "update", 6) == 0) {
@@ -108,7 +108,7 @@ index ba97e8a7b..ec0334aa7 100644
  		ret = hostapd_drv_mu_ctrl(hapd, MU_CTRL_UPDATE);
  
  		os_free(hapd->iconf->muru_config);
-@@ -4553,15 +4579,14 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -4552,15 +4578,14 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  
  para_fail:
  	os_free(val);
@@ -127,7 +127,7 @@ index ba97e8a7b..ec0334aa7 100644
  {
  	u8 mu_onoff;
  	char *pos, *end;
-@@ -4569,14 +4594,35 @@ hostapd_ctrl_iface_get_mu(struct hostapd_data *hapd, char *buf,
+@@ -4568,14 +4593,35 @@ hostapd_ctrl_iface_get_mu(struct hostapd_data *hapd, char *buf,
  	pos = buf;
  	end = buf + buflen;
  
@@ -165,7 +165,7 @@ index ba97e8a7b..ec0334aa7 100644
  	} else {
  		wpa_printf(MSG_INFO, "ctrl iface failed to call");
  		return -1;
-@@ -5636,8 +5682,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5635,8 +5681,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  							  reply_size);
  	} else if (os_strncmp(buf, "SET_MU ", 7) == 0) {
  		reply_len = hostapd_ctrl_iface_set_mu(hapd, buf + 7, reply, reply_size);
@@ -264,7 +264,7 @@ index aea4b808b..748437cd3 100644
  	/**
  	 * beacon_ctrl - ctrl on off for beacon
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 7579d5538..b662dd6fb 100644
+index 635ab88ff..1b6ba501c 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -14611,7 +14611,8 @@ static int nl80211_mu_ctrl(void *priv, u8 mode, void *config)

@@ -790,10 +790,10 @@ function iface_load_config(phy, radio, filename)
 		if (val[0] == "mld_ap" && int(val[1]) == 1)
 			bss.mld_ap = 1;
 
-		if (val[0] == "mld_primary" && int(val[1]) == 1)
+		if (val[0] == "#mld_primary" && int(val[1]) == 1)
 			bss.mld_primary = 1;
 
-		if (val[0] == "mld_radio_mask" && int(val[1]))
+		if (val[0] == "#mld_radio_mask" && int(val[1]))
 			bss.mld_radio_mask = int(val[1]);
 
 		if (val[0] == "nas_identifier")

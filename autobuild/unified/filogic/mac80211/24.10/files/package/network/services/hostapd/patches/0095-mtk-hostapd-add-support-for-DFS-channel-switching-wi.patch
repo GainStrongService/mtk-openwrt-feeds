@@ -1,7 +1,7 @@
-From bfac2965ec50cd5864de65ba941fa8ba24af3118 Mon Sep 17 00:00:00 2001
+From 67fb0cd0f0336e8c40b290ba22600d754169a821 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Wed, 15 Nov 2023 15:06:00 +0800
-Subject: [PATCH 095/185] mtk: hostapd: add support for DFS channel switching
+Subject: [PATCH 095/210] mtk: hostapd: add support for DFS channel switching
  with csa sent
 
 Add support for DFS channel switch
@@ -50,10 +50,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  8 files changed, 281 insertions(+), 131 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 40fb5b60f..a617baa5c 100644
+index 10051aca4..df4443b1f 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -2843,12 +2843,12 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2842,12 +2842,12 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  {
  #ifdef NEED_AP_MLME
  	struct hostapd_hw_modes *mode = iface->current_mode;
@@ -70,7 +70,7 @@ index 40fb5b60f..a617baa5c 100644
  	unsigned int num_err = 0;
  	int err = 0;
  
-@@ -2887,21 +2887,28 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2886,21 +2886,28 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  	switch (settings.freq_params.bandwidth) {
  	case 40:
  		bandwidth = CHAN_WIDTH_40;
@@ -101,7 +101,7 @@ index 40fb5b60f..a617baa5c 100644
  		break;
  	}
  
-@@ -2916,47 +2923,29 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2915,47 +2922,29 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  	}
  
  	if (settings.freq_params.center_freq1)
@@ -171,7 +171,7 @@ index 40fb5b60f..a617baa5c 100644
  	}
  
  	for (i = 0; i < iface->num_bss; i++) {
-@@ -2984,6 +2973,37 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2983,6 +2972,37 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  #endif /* CONFIG_IEEE80211BE */
  	}
  

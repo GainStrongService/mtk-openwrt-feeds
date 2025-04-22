@@ -1,4 +1,4 @@
-From b38d3e72f6b41b662f6fd714155881d12c714469 Mon Sep 17 00:00:00 2001
+From dfcd542c022b926a3f1ff4efcafe98b944fe8c5d Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 6 May 2024 15:06:55 +0800
 Subject: [PATCH 053/101] mtk: mac80211: prevent STA MLD's link addr from being
@@ -15,10 +15,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 9 insertions(+), 5 deletions(-)
 
 diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
-index ee80f17..890eeac 100644
+index 3c95be4d..78920e9c 100644
 --- a/net/mac80211/mlme.c
 +++ b/net/mac80211/mlme.c
-@@ -8428,8 +8428,10 @@ void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
+@@ -8715,8 +8715,10 @@ void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
  	else if (sdata->u.mgd.reconf.add_links_data)
  		ether_addr_copy(link->conf->addr,
  				sdata->u.mgd.reconf.add_links_data->link[link_id].addr);
@@ -31,7 +31,7 @@ index ee80f17..890eeac 100644
  }
  
  /* scan finished notification */
-@@ -9221,11 +9223,13 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
+@@ -9512,11 +9514,13 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
  			}
  
  			link = sdata_dereference(sdata->link[i], sdata);

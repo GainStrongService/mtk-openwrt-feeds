@@ -1,7 +1,7 @@
-From 113c12dc38677818654786c7657b44cac4b9f902 Mon Sep 17 00:00:00 2001
+From 2c8651b10f6d343cc238f2ce597db65f0beab368 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Tue, 28 May 2024 17:46:26 +0800
-Subject: [PATCH 107/185] mtk: hostapd: support enable/disable preamble
+Subject: [PATCH 107/210] mtk: hostapd: support enable/disable preamble
  puncture from mtk vendor command
 
 Add mtk vendor event to update punct bitmap and trigger channel switch.
@@ -38,10 +38,10 @@ index 31e5207b2..26a7bd20b 100644
  		int val = atoi(pos);
  
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 042093b99..f3613106c 100644
+index b5db9c9cc..db2b038d6 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -2844,6 +2844,7 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2843,6 +2843,7 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  #ifdef NEED_AP_MLME
  	struct hostapd_hw_modes *mode = iface->current_mode;
  	struct csa_settings settings, background_settings;
@@ -49,7 +49,7 @@ index 042093b99..f3613106c 100644
  	int ret;
  	int freq, state;
  	int bandwidth, oper_chwidth;
-@@ -2948,6 +2949,17 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2947,6 +2948,17 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  		break;
  	}
  
@@ -67,7 +67,7 @@ index 042093b99..f3613106c 100644
  	for (i = 0; i < iface->num_bss; i++) {
  
  		/* Save CHAN_SWITCH VHT, HE, and EHT config */
-@@ -5166,8 +5178,7 @@ static int
+@@ -5165,8 +5177,7 @@ static int
  hostapd_ctrl_iface_set_pp(struct hostapd_data *hapd, char *cmd, char *buf,
  			  size_t buflen)
  {
@@ -77,7 +77,7 @@ index 042093b99..f3613106c 100644
  
  	config = cmd;
  
-@@ -5176,31 +5187,26 @@ hostapd_ctrl_iface_set_pp(struct hostapd_data *hapd, char *cmd, char *buf,
+@@ -5175,31 +5186,26 @@ hostapd_ctrl_iface_set_pp(struct hostapd_data *hapd, char *cmd, char *buf,
  		return -1;
  	*value++ = '\0';
  
@@ -117,7 +117,7 @@ index 042093b99..f3613106c 100644
  		return -1;
  	}
  	return os_snprintf(buf, buflen, "OK\n");
-@@ -5210,15 +5216,6 @@ static int
+@@ -5209,15 +5215,6 @@ static int
  hostapd_ctrl_iface_get_pp(struct hostapd_data *hapd, char *cmd, char *buf,
  			  size_t buflen)
  {
@@ -356,7 +356,7 @@ index d9c1ef893..13b104c5d 100644
  
  
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index cfcc08530..fffcc61e1 100644
+index 7920b10f9..33e170512 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -162,7 +162,9 @@ amnt_dump_policy[NUM_MTK_VENDOR_ATTRS_AMNT_DUMP] = {

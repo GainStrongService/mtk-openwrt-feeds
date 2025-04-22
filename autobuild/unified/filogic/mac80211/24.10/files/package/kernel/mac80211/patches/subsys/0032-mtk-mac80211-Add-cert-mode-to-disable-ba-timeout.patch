@@ -1,4 +1,4 @@
-From 0cdca7fb8a9418b9402d608669dc19764c587b92 Mon Sep 17 00:00:00 2001
+From 6b634c98a3d3db166cbc1e18fc2beef089848e65 Mon Sep 17 00:00:00 2001
 From: "Allen.Ye" <allen.ye@mediatek.com>
 Date: Thu, 9 Nov 2023 11:37:37 +0800
 Subject: [PATCH 032/101] mtk: mac80211: Add cert mode to disable ba timeout
@@ -18,10 +18,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  3 files changed, 59 insertions(+), 1 deletion(-)
 
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 4797960..25e8e60 100644
+index 879dfd6d..afe263da 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -3084,8 +3084,14 @@ struct ieee80211_hw {
+@@ -3091,8 +3091,14 @@ struct ieee80211_hw {
  	u32 max_mtu;
  	const s8 *tx_power_levels;
  	u8 max_txpwr_levels_idx;
@@ -37,10 +37,10 @@ index 4797960..25e8e60 100644
  				       enum ieee80211_hw_flags flg)
  {
 diff --git a/net/mac80211/agg-tx.c b/net/mac80211/agg-tx.c
-index a738e9a..6c46579 100644
+index e2a0a524..b8c1d47f 100644
 --- a/net/mac80211/agg-tx.c
 +++ b/net/mac80211/agg-tx.c
-@@ -1051,7 +1051,10 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
+@@ -1054,7 +1054,10 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
  		tid_tx->timeout =
  			le16_to_cpu(mgmt->u.action.u.addba_resp.timeout);
  
@@ -53,7 +53,7 @@ index a738e9a..6c46579 100644
  				  TU_TO_EXP_TIME(tid_tx->timeout));
  			tid_tx->last_tx = jiffies;
 diff --git a/net/mac80211/debugfs.c b/net/mac80211/debugfs.c
-index 9aebc4d..e690680 100644
+index d5513e69..e62d0475 100644
 --- a/net/mac80211/debugfs.c
 +++ b/net/mac80211/debugfs.c
 @@ -471,6 +471,54 @@ static const struct debugfs_short_fops reset_ops = {
@@ -111,7 +111,7 @@ index 9aebc4d..e690680 100644
  static const char *hw_flag_names[] = {
  #define FLAG(F)	[IEEE80211_HW_##F] = #F
  	FLAG(HAS_RATE_CONTROL),
-@@ -705,6 +753,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
+@@ -745,6 +793,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
  	debugfs_create_u32("aql_threshold", 0600,
  			   phyd, &local->aql_threshold);
  

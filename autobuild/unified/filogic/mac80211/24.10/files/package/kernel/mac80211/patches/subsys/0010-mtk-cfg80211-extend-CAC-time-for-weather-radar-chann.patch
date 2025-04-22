@@ -1,4 +1,4 @@
-From 59d31e390e4d3859b8084e3643248a420c9ad4b1 Mon Sep 17 00:00:00 2001
+From 6ae3f550315ba4eaa4543a25d3aaaba376f11766 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 29 Mar 2022 16:06:30 +0800
 Subject: [PATCH 010/101] mtk: cfg80211: extend CAC time for weather radar
@@ -13,10 +13,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  3 files changed, 10 insertions(+)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index a17a786..21fe314 100644
+index 13316fdb..d5f268b0 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -166,6 +166,7 @@ enum ieee80211_channel_flags {
+@@ -169,6 +169,7 @@ enum ieee80211_channel_flags {
  	(IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS)
  
  #define IEEE80211_DFS_MIN_CAC_TIME_MS		60000
@@ -25,10 +25,10 @@ index a17a786..21fe314 100644
  
  /**
 diff --git a/net/wireless/chan.c b/net/wireless/chan.c
-index 174a741..d1a9e9d 100644
+index 65f3123f..45a921a2 100644
 --- a/net/wireless/chan.c
 +++ b/net/wireless/chan.c
-@@ -1088,6 +1088,12 @@ cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
+@@ -1083,6 +1083,12 @@ cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
  
  		if (cf == 2 && c->dfs_cac_ms > t2)
  			t2 = c->dfs_cac_ms;
@@ -42,10 +42,10 @@ index 174a741..d1a9e9d 100644
  
  	if (t1 == INT_MAX && t2 == INT_MAX)
 diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
-index 0ef1e6e..fa51609 100644
+index eb68ccfc..a2d49f63 100644
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -10184,6 +10184,9 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
+@@ -10200,6 +10200,9 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
  	if (WARN_ON(!cac_time_ms))
  		cac_time_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
  

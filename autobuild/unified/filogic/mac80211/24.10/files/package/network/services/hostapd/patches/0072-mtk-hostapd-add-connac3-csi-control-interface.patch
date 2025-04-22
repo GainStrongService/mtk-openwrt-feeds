@@ -1,7 +1,7 @@
-From 4fde56da5c172b5cacbe3876d60e39b95a716977 Mon Sep 17 00:00:00 2001
+From 8edac3ba4eae56001a8ebe51f207a35e9dbda2a9 Mon Sep 17 00:00:00 2001
 From: mtk20656 <chank.chen@mediatek.com>
 Date: Tue, 6 Feb 2024 15:46:05 +0800
-Subject: [PATCH 072/185] mtk: hostapd: add connac3 csi control interface
+Subject: [PATCH 072/210] mtk: hostapd: add connac3 csi control interface
 
 1. add hostapd_cli interface
 2. add csi set/dump flow
@@ -21,10 +21,10 @@ Signed-off-by: mtk20656 <chank.chen@mediatek.com>
  9 files changed, 511 insertions(+), 7 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index ec0334aa7..a71e9c378 100644
+index 18f8bcda1..e381fec3a 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -5063,6 +5063,193 @@ hostapd_ctrl_iface_disable_beacon(struct hostapd_data *hapd, char *value,
+@@ -5062,6 +5062,193 @@ hostapd_ctrl_iface_disable_beacon(struct hostapd_data *hapd, char *value,
  
  }
  
@@ -218,7 +218,7 @@ index ec0334aa7..a71e9c378 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -5725,6 +5912,12 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5724,6 +5911,12 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "NO_BEACON ", 10) == 0) {
  		reply_len = hostapd_ctrl_iface_disable_beacon(hapd, buf + 10, reply,
  							      reply_size);
@@ -411,7 +411,7 @@ index 9d5cbb135..a6a402fe1 100644
  
  /**
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 4a7869863..bf65a7606 100644
+index a5306edcc..aa4e45d03 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -163,6 +163,36 @@ pp_ctrl_policy[NUM_MTK_VENDOR_ATTRS_PP_CTRL] = {

@@ -1,7 +1,7 @@
-From 87c2aabe39145dcb245de3216b16674db6d2644b Mon Sep 17 00:00:00 2001
+From 6f3c242554c9015be7138e559dbde97e43ee538a Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Sat, 3 Jun 2023 17:12:15 +0800
-Subject: [PATCH 030/185] mtk: hostapd: add connac3 PHY MURU manual mode config
+Subject: [PATCH 030/210] mtk: hostapd: add connac3 PHY MURU manual mode config
  support
 
 This commit supports read the following two formats to set MU/RU manual
@@ -53,7 +53,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  8 files changed, 395 insertions(+), 44 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index f148b1f62..42136606c 100644
+index f5af5f795..3c2a4663d 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -19,6 +19,7 @@
@@ -64,7 +64,7 @@ index f148b1f62..42136606c 100644
  #include <sys/un.h>
  #include <sys/stat.h>
  #include <stddef.h>
-@@ -3970,7 +3971,6 @@ hostapd_ctrl_iface_get_edcca(struct hostapd_data *hapd, char *cmd, char *buf,
+@@ -3969,7 +3970,6 @@ hostapd_ctrl_iface_get_edcca(struct hostapd_data *hapd, char *cmd, char *buf,
  	}
  }
  
@@ -72,7 +72,7 @@ index f148b1f62..42136606c 100644
  #ifdef CONFIG_NAN_USD
  
  static int hostapd_ctrl_nan_publish(struct hostapd_data *hapd, char *cmd,
-@@ -4269,21 +4269,61 @@ fail:
+@@ -4268,21 +4268,61 @@ fail:
  #endif /* CONFIG_NAN_USD */
  
  
@@ -141,7 +141,7 @@ index f148b1f62..42136606c 100644
  	value = pos;
  
  	if (os_strcmp(config, "onoff") == 0) {
-@@ -4293,24 +4333,170 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
+@@ -4292,24 +4332,170 @@ hostapd_ctrl_iface_set_mu(struct hostapd_data *hapd, char *cmd,
  			return -1;
  		}
  		hapd->iconf->mu_onoff = (u8) mu;
@@ -326,7 +326,7 @@ index f148b1f62..42136606c 100644
  }
  
  
-@@ -5292,8 +5478,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5291,8 +5477,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_get_edcca(hapd, buf+10, reply,
  							  reply_size);
  	} else if (os_strncmp(buf, "SET_MU ", 7) == 0) {
@@ -336,7 +336,7 @@ index f148b1f62..42136606c 100644
  	} else if (os_strncmp(buf, "GET_MU", 6) == 0) {
  		reply_len = hostapd_ctrl_iface_get_mu(hapd, reply, reply_size);
  	} else if (os_strncmp(buf, "GET_IBF", 7) == 0) {
-@@ -5317,6 +5502,14 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5316,6 +5501,14 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "DUMP_AMNT", 9) == 0) {
  		reply_len = hostapd_ctrl_iface_dump_amnt(hapd, buf+10,
  							reply, reply_size);

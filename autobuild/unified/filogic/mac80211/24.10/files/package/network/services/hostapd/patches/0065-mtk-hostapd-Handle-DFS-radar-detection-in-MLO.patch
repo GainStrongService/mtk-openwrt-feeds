@@ -1,7 +1,7 @@
-From c779b2a30a2d4fbe2e30d972bcb44c61b6f40718 Mon Sep 17 00:00:00 2001
+From 24c5b894b5412aac56ca0790ec3dcfc60489cf6d Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 19 Jan 2024 14:11:05 +0800
-Subject: [PATCH 065/185] mtk: hostapd: Handle DFS radar detection in MLO
+Subject: [PATCH 065/210] mtk: hostapd: Handle DFS radar detection in MLO
 
 To handle DFS CAC in MLO, we add the following changes:
 1. Add link id info to radar detect cmd for the kernel to use the correct link.
@@ -86,7 +86,7 @@ index 509dadabe..8bfba3262 100644
  					    current_len, NULL, false);
  	}
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index b662dd6fb..380b527ed 100644
+index 1b6ba501c..203dbd31e 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -10792,6 +10792,14 @@ static int nl80211_start_radar_detection(void *priv,

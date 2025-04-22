@@ -1,4 +1,4 @@
-From e13e249b2b8e7440a703e25d00fc6f84d9f5bbec Mon Sep 17 00:00:00 2001
+From c415c70b199d994c367e1b2725ddbd671f7d775a Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 9 Jan 2025 15:49:08 +0800
 Subject: [PATCH 007/101] sync patches/ath10k
@@ -17,7 +17,7 @@ Subject: [PATCH 007/101] sync patches/ath10k
  10 files changed, 108 insertions(+), 7 deletions(-)
 
 diff --git a/drivers/net/wireless/ath/ath10k/Kconfig b/drivers/net/wireless/ath/ath10k/Kconfig
-index 57c3be9..d8f919c 100644
+index 57c3be9c..d8f919c6 100644
 --- a/drivers/net/wireless/ath/ath10k/Kconfig
 +++ b/drivers/net/wireless/ath/ath10k/Kconfig
 @@ -94,6 +94,12 @@ config ATH10K_TRACING
@@ -34,7 +34,7 @@ index 57c3be9..d8f919c 100644
  	bool "Atheros DFS support for certified platforms"
  	depends on ATH10K && CFG80211_CERTIFICATION_ONUS
 diff --git a/drivers/net/wireless/ath/ath10k/Makefile b/drivers/net/wireless/ath/ath10k/Makefile
-index 6bc1261..e040d84 100644
+index 6bc12618..e040d843 100644
 --- a/drivers/net/wireless/ath/ath10k/Makefile
 +++ b/drivers/net/wireless/ath/ath10k/Makefile
 @@ -18,7 +18,7 @@ ath10k_core-y += mac.o \
@@ -47,7 +47,7 @@ index 6bc1261..e040d84 100644
  ath10k_core-$(CPTCFG_MAC80211_DEBUGFS) += debugfs_sta.o
  ath10k_core-$(CONFIG_PM) += wow.o
 diff --git a/drivers/net/wireless/ath/ath10k/core.c b/drivers/net/wireless/ath/ath10k/core.c
-index b329428..ff87580 100644
+index b3294287..ff87580c 100644
 --- a/drivers/net/wireless/ath/ath10k/core.c
 +++ b/drivers/net/wireless/ath/ath10k/core.c
 @@ -9,6 +9,7 @@
@@ -85,7 +85,7 @@ index b329428..ff87580 100644
  }
  EXPORT_SYMBOL(ath10k_core_register);
 diff --git a/drivers/net/wireless/ath/ath10k/core.h b/drivers/net/wireless/ath/ath10k/core.h
-index b893c43..394c978 100644
+index b893c43c..394c978b 100644
 --- a/drivers/net/wireless/ath/ath10k/core.h
 +++ b/drivers/net/wireless/ath/ath10k/core.h
 @@ -1315,6 +1315,10 @@ struct ath10k {
@@ -100,7 +100,7 @@ index b893c43..394c978 100644
  	u8 drv_priv[] __aligned(sizeof(void *));
  };
 diff --git a/drivers/net/wireless/ath/ath10k/htt.h b/drivers/net/wireless/ath/ath10k/htt.h
-index 603f6de..bea1d16 100644
+index 603f6de6..bea1d161 100644
 --- a/drivers/net/wireless/ath/ath10k/htt.h
 +++ b/drivers/net/wireless/ath/ath10k/htt.h
 @@ -236,7 +236,11 @@ enum htt_rx_ring_flags {
@@ -116,7 +116,7 @@ index 603f6de..bea1d16 100644
  #define HTT_RX_RING_FILL_LEVEL (((HTT_RX_RING_SIZE) / 2) - 1)
  #define HTT_RX_RING_FILL_LEVEL_DUAL_MAC (HTT_RX_RING_SIZE - 1)
 diff --git a/drivers/net/wireless/ath/ath10k/leds.c b/drivers/net/wireless/ath/ath10k/leds.c
-index 9b1d04e..b82033b 100644
+index 9b1d04eb..b82033b0 100644
 --- a/drivers/net/wireless/ath/ath10k/leds.c
 +++ b/drivers/net/wireless/ath/ath10k/leds.c
 @@ -70,7 +70,7 @@ int ath10k_leds_register(struct ath10k *ar)
@@ -129,7 +129,7 @@ index 9b1d04e..b82033b 100644
  	ret = led_classdev_register(wiphy_dev(ar->hw->wiphy), &ar->leds.cdev);
  	if (ret)
 diff --git a/drivers/net/wireless/ath/ath10k/mac.c b/drivers/net/wireless/ath/ath10k/mac.c
-index 1d51784..e2bf44f 100644
+index 1d517844..e2bf44f0 100644
 --- a/drivers/net/wireless/ath/ath10k/mac.c
 +++ b/drivers/net/wireless/ath/ath10k/mac.c
 @@ -1022,6 +1022,40 @@ static inline int ath10k_vdev_setup_sync(struct ath10k *ar)
@@ -247,7 +247,7 @@ index 1d51784..e2bf44f 100644
  	if (ret) {
  		ath10k_err(ar, "failed to register ieee80211: %d\n", ret);
 diff --git a/drivers/net/wireless/ath/ath10k/pci.c b/drivers/net/wireless/ath/ath10k/pci.c
-index 36ac452..3c5164c 100644
+index 36ac452f..3c5164c4 100644
 --- a/drivers/net/wireless/ath/ath10k/pci.c
 +++ b/drivers/net/wireless/ath/ath10k/pci.c
 @@ -132,7 +132,11 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
@@ -299,7 +299,7 @@ index 36ac452..3c5164c 100644
  	},
  
 diff --git a/drivers/net/wireless/ath/ath10k/thermal.h b/drivers/net/wireless/ath/ath10k/thermal.h
-index 1f4de9f..fcfa3c2 100644
+index 1f4de9fb..fcfa3c21 100644
 --- a/drivers/net/wireless/ath/ath10k/thermal.h
 +++ b/drivers/net/wireless/ath/ath10k/thermal.h
 @@ -25,7 +25,7 @@ struct ath10k_thermal {
@@ -312,7 +312,7 @@ index 1f4de9f..fcfa3c2 100644
  void ath10k_thermal_unregister(struct ath10k *ar);
  void ath10k_thermal_event_temperature(struct ath10k *ar, int temperature);
 diff --git a/local-symbols b/local-symbols
-index 0a6c056..09484bd 100644
+index 9e196648..22f25f26 100644
 --- a/local-symbols
 +++ b/local-symbols
 @@ -150,6 +150,7 @@ ATH10K_DEBUG=

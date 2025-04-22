@@ -1,7 +1,7 @@
-From 10de1064b8530e28d9597242233c57887af39d9f Mon Sep 17 00:00:00 2001
+From 152811e2963c2804a4c8e4cd8ae0a08d1ae114b7 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 12 Nov 2024 23:01:52 +0800
-Subject: [PATCH 145/185] mtk: hostapd: set radio_mask when adding interface
+Subject: [PATCH 145/210] mtk: hostapd: set radio_mask when adding interface
 
 Fix crash issue if hapd->iface->current_hw_info not exist.
 
@@ -161,7 +161,7 @@ index 8715b5041..694a5aefd 100644
  	/**
  	 * if_remove - Remove a virtual interface
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 18a89d894..02dcf0fa3 100644
+index 8ad6b871e..990e20806 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -6364,7 +6364,7 @@ static int nl80211_create_iface_once(struct wpa_driver_nl80211_data *drv,

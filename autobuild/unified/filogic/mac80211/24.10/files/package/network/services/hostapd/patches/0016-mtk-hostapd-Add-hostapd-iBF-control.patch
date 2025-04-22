@@ -1,7 +1,7 @@
-From f6b9cb17345b9cea05d2d1d374c86847e0f50327 Mon Sep 17 00:00:00 2001
+From 89e32e913165769f77c96bd4651d8d2967cf87c2 Mon Sep 17 00:00:00 2001
 From: mtk27835 <shurong.wen@mediatek.com>
 Date: Wed, 7 Sep 2022 14:41:51 -0700
-Subject: [PATCH 016/185] mtk: hostapd: Add hostapd iBF control
+Subject: [PATCH 016/210] mtk: hostapd: Add hostapd iBF control
 
 Signed-off-by: mtk27835 <shurong.wen@mediatek.com>
 ---
@@ -35,10 +35,10 @@ index 432b507f6..6a209ee4d 100644
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 6054e23c4..be58d63ef 100644
+index dff73e94b..cf74fb02f 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4317,6 +4317,30 @@ hostapd_ctrl_iface_get_mu(struct hostapd_data *hapd, char *buf,
+@@ -4316,6 +4316,30 @@ hostapd_ctrl_iface_get_mu(struct hostapd_data *hapd, char *buf,
  }
  
  
@@ -69,7 +69,7 @@ index 6054e23c4..be58d63ef 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -4939,6 +4963,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4938,6 +4962,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  							  reply_size);
  	} else if (os_strncmp(buf, "GET_MU", 6) == 0) {
  		reply_len = hostapd_ctrl_iface_get_mu(hapd, reply, reply_size);

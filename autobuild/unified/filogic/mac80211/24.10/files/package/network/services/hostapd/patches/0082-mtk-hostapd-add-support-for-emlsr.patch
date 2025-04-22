@@ -1,7 +1,7 @@
-From 3d5fdc507e44cd811ac52f6acd9e6f480d286f46 Mon Sep 17 00:00:00 2001
+From 37b4e6240cdb3309f0b6c10281e8713c1166481c Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 Date: Thu, 9 May 2024 15:41:18 +0800
-Subject: [PATCH 082/185] mtk: hostapd: add support for emlsr
+Subject: [PATCH 082/210] mtk: hostapd: add support for emlsr
 
 1. Processing the EML capability IE in the association request,
 and sending the value of EML field to the kernel.
@@ -63,10 +63,10 @@ index 66f30f226..31e5207b2 100644
  	} else if (os_strcmp(buf, "eht_oper_puncturing_override") == 0) {
  		if (get_u16(pos, line, &bss->eht_oper_puncturing_override))
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 0725460ee..1d8270f19 100644
+index 580c9a8ce..2912f2d7a 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -5104,6 +5104,40 @@ hostapd_ctrl_iface_disable_beacon(struct hostapd_data *hapd, char *value,
+@@ -5103,6 +5103,40 @@ hostapd_ctrl_iface_disable_beacon(struct hostapd_data *hapd, char *value,
  
  }
  
@@ -107,7 +107,7 @@ index 0725460ee..1d8270f19 100644
  static int
  hostapd_ctrl_iface_set_csi(struct hostapd_data *hapd, char *cmd,
  					char *buf, size_t buflen)
-@@ -6035,6 +6069,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -6034,6 +6068,8 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "WMM", 3) == 0) {
  		reply_len = hostapd_ctrl_iface_wmm(hapd, buf + 4,
  						   reply, reply_size);
@@ -560,7 +560,7 @@ index 63c131eb2..6fcc088eb 100644
  	 * three_wire_ctrl - set three_wire_ctrl mode
  	 * @priv: Private driver interface data
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 2a8aa4b57..c8e65ea20 100644
+index e41a1c1e5..592cd953d 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -2906,6 +2906,9 @@ static int nl80211_action_subscribe_ap(struct i802_bss *bss)

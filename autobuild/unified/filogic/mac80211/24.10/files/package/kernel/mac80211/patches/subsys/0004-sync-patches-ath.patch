@@ -1,4 +1,4 @@
-From 4f5261b09e8d6768695282cd326c5dde070cc51f Mon Sep 17 00:00:00 2001
+From 3b86729fa9a68636aa4d8e535114bceb470bfee9 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 9 Jan 2025 15:48:10 +0800
 Subject: [PATCH 004/101] sync patches/ath
@@ -15,7 +15,7 @@ Subject: [PATCH 004/101] sync patches/ath
  8 files changed, 88 insertions(+), 31 deletions(-)
 
 diff --git a/drivers/net/wireless/ath/Kconfig b/drivers/net/wireless/ath/Kconfig
-index 9ef8d46..bd576b4 100644
+index 9ef8d46f..bd576b41 100644
 --- a/drivers/net/wireless/ath/Kconfig
 +++ b/drivers/net/wireless/ath/Kconfig
 @@ -1,6 +1,6 @@
@@ -37,7 +37,7 @@ index 9ef8d46..bd576b4 100644
  	bool "Atheros wireless debugging"
  	help
 diff --git a/drivers/net/wireless/ath/Makefile b/drivers/net/wireless/ath/Makefile
-index 7432d87..adea25c 100644
+index 7432d878..adea25ca 100644
 --- a/drivers/net/wireless/ath/Makefile
 +++ b/drivers/net/wireless/ath/Makefile
 @@ -16,10 +16,10 @@ ath-objs :=	main.o \
@@ -53,7 +53,7 @@ index 7432d87..adea25c 100644
  
  CFLAGS_trace.o := -I$(src)
 diff --git a/drivers/net/wireless/ath/ath.h b/drivers/net/wireless/ath/ath.h
-index 1bfd992..eb63efd 100644
+index 1bfd9926..eb63efd6 100644
 --- a/drivers/net/wireless/ath/ath.h
 +++ b/drivers/net/wireless/ath/ath.h
 @@ -321,14 +321,7 @@ void _ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
@@ -72,7 +72,7 @@ index 1bfd992..eb63efd 100644
  extern const char *ath_bus_type_strings[];
  static inline const char *ath_bus_type_to_string(enum ath_bus_type bustype)
 diff --git a/drivers/net/wireless/ath/ath5k/pci.c b/drivers/net/wireless/ath/ath5k/pci.c
-index f5ca2fe..111d2d4 100644
+index f5ca2fe0..111d2d46 100644
 --- a/drivers/net/wireless/ath/ath5k/pci.c
 +++ b/drivers/net/wireless/ath/ath5k/pci.c
 @@ -20,6 +20,7 @@
@@ -130,7 +130,7 @@ index f5ca2fe..111d2d4 100644
  
  	for (offset = 0x1f, octet = 0, total = 0; offset >= 0x1d; offset--) {
 diff --git a/drivers/net/wireless/ath/regd.c b/drivers/net/wireless/ath/regd.c
-index 2afdebf..3ba9fc3 100644
+index 2afdebfe..3ba9fc3d 100644
 --- a/drivers/net/wireless/ath/regd.c
 +++ b/drivers/net/wireless/ath/regd.c
 @@ -24,6 +24,7 @@
@@ -312,7 +312,7 @@ index 2afdebf..3ba9fc3 100644
  				   REGULATORY_CUSTOM_REG;
  
 diff --git a/drivers/net/wireless/ath/regd_common.h b/drivers/net/wireless/ath/regd_common.h
-index cdb1e9a..2574f80 100644
+index cdb1e9a2..2574f80a 100644
 --- a/drivers/net/wireless/ath/regd_common.h
 +++ b/drivers/net/wireless/ath/regd_common.h
 @@ -32,6 +32,7 @@ enum EnumRd {
@@ -340,7 +340,7 @@ index cdb1e9a..2574f80 100644
  	{CTRY_UNITED_STATES3, FCC3_FCCA, "US"},
  	/* This "PS" is for US public safety actually... to support this we
 diff --git a/local-symbols b/local-symbols
-index 553aa0d..25a09e3 100644
+index db54544e..691b19ed 100644
 --- a/local-symbols
 +++ b/local-symbols
 @@ -90,6 +90,7 @@ ADM8211=
@@ -352,10 +352,10 @@ index 553aa0d..25a09e3 100644
  ATH_REG_DYNAMIC_USER_REG_HINTS=
  ATH_REG_DYNAMIC_USER_CERT_TESTING=
 diff --git a/net/wireless/reg.c b/net/wireless/reg.c
-index 630c85a..c9f8de0 100644
+index 6afbdaf2..cbdaad4c 100644
 --- a/net/wireless/reg.c
 +++ b/net/wireless/reg.c
-@@ -3363,6 +3363,8 @@ void regulatory_hint_country_ie(struct wiphy *wiphy, enum nl80211_band band,
+@@ -3366,6 +3366,8 @@ void regulatory_hint_country_ie(struct wiphy *wiphy, enum nl80211_band band,
  	enum environment_cap env = ENVIRON_ANY;
  	struct regulatory_request *request = NULL, *lr;
  
@@ -364,7 +364,7 @@ index 630c85a..c9f8de0 100644
  	/* IE len must be evenly divisible by 2 */
  	if (country_ie_len & 0x01)
  		return;
-@@ -3612,6 +3614,7 @@ static bool is_wiphy_all_set_reg_flag(enum ieee80211_regulatory_flags flag)
+@@ -3615,6 +3617,7 @@ static bool is_wiphy_all_set_reg_flag(enum ieee80211_regulatory_flags flag)
  
  void regulatory_hint_disconnect(void)
  {

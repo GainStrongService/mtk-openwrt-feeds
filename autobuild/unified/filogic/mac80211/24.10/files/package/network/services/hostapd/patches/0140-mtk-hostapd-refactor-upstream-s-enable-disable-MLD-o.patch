@@ -1,7 +1,7 @@
-From cc8d7cf192723ade2c61ea08f16631ee0b888800 Mon Sep 17 00:00:00 2001
+From 47578da05bcee1b417a7da6e118cb889d9e75940 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 21 Oct 2024 13:53:53 +0800
-Subject: [PATCH 140/185] mtk: hostapd: refactor upstream's enable/disable MLD
+Subject: [PATCH 140/210] mtk: hostapd: refactor upstream's enable/disable MLD
  operations
 
 Refactor the upstream's enable/disable MLD operations. It can be
@@ -25,10 +25,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  3 files changed, 102 insertions(+), 60 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 5b4b32255..c669cb259 100644
+index 8f70f19c2..62eddc288 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -3918,77 +3918,32 @@ static int hostapd_ctrl_iface_driver_cmd(struct hostapd_data *hapd, char *cmd,
+@@ -3917,77 +3917,32 @@ static int hostapd_ctrl_iface_driver_cmd(struct hostapd_data *hapd, char *cmd,
  
  
  #ifdef CONFIG_IEEE80211BE
@@ -119,7 +119,7 @@ index 5b4b32255..c669cb259 100644
  	}
  
  	return 0;
-@@ -6248,10 +6203,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -6247,10 +6202,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  #endif /* ANDROID */
  #ifdef CONFIG_IEEE80211BE
  	} else if (os_strcmp(buf, "ENABLE_MLD") == 0) {

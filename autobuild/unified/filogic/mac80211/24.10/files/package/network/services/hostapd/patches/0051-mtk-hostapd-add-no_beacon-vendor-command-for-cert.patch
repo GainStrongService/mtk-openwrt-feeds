@@ -1,7 +1,7 @@
-From ec0f2e14781fb420ec178a6e2dcfb4d022d1cf84 Mon Sep 17 00:00:00 2001
+From 29cb3a5808341a52e501a99c2706d24d8078b475 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <meichia.chiu@mediatek.com>
 Date: Wed, 22 Nov 2023 21:41:34 +0800
-Subject: [PATCH 051/185] mtk: hostapd: add no_beacon vendor command for cert
+Subject: [PATCH 051/210] mtk: hostapd: add no_beacon vendor command for cert
 
 Add the vendor command to disable/enable beacon
 
@@ -12,6 +12,10 @@ hostapd_cli -i <interface> no_beacon <value>
  1: disable beacon
 
 Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
+
+Fix the no_beacon command to per-bss based for single-wiphy change.
+
+Signed-off-by: Evelyn Tsai <evelyn.tsai@mediatek.com>
 ---
  hostapd/ctrl_iface.c              | 21 +++++++++++++++++++
  hostapd/hostapd_cli.c             |  7 +++++++
@@ -25,10 +29,10 @@ Signed-off-by: MeiChia Chiu <meichia.chiu@mediatek.com>
  9 files changed, 94 insertions(+)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 438d1cc7a..ba97e8a7b 100644
+index 0660f0ab6..343013f36 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4999,6 +4999,24 @@ hostapd_ctrl_iface_get_pp(struct hostapd_data *hapd, char *cmd, char *buf,
+@@ -4998,6 +4998,24 @@ hostapd_ctrl_iface_get_pp(struct hostapd_data *hapd, char *cmd, char *buf,
  	}
  }
  
@@ -53,7 +57,7 @@ index 438d1cc7a..ba97e8a7b 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -5658,6 +5676,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5657,6 +5675,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "SET_BACKGROUND_RADAR_MODE", 25) == 0) {
  		reply_len = hostapd_ctrl_iface_set_background_radar_mode(hapd, buf + 25,
  									 reply, reply_size);
@@ -165,7 +169,7 @@ index 761ccdb03..533a2abe5 100644
  	 * three_wire_ctrl - set three_wire_ctrl mode
  	 * @priv: Private driver interface data
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 587b318ca..8cb928f8f 100644
+index 587b318ca..9a3e1f6ad 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -14712,6 +14712,39 @@ static int nl80211_mu_dump(void *priv, u8 *mu_onoff)
@@ -186,7 +190,7 @@ index 587b318ca..8cb928f8f 100644
 +		return 0;
 +	}
 +
-+	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_VENDOR)) ||
++	if (!(msg = nl80211_bss_msg(bss, 0, NL80211_CMD_VENDOR)) ||
 +		nla_put_u32(msg, NL80211_ATTR_VENDOR_ID, OUI_MTK) ||
 +		nla_put_u32(msg, NL80211_ATTR_VENDOR_SUBCMD, MTK_NL80211_VENDOR_SUBCMD_BEACON_CTRL) ||
 +		!(data = nla_nest_start(msg, NL80211_ATTR_VENDOR_DATA)) ||

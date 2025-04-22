@@ -1,7 +1,7 @@
-From 9356bff75b3da2a097ed6ef435a5cde4369ad3f8 Mon Sep 17 00:00:00 2001
+From 15facba477d22d268f898cf080e967e94bb26dbc Mon Sep 17 00:00:00 2001
 From: Evelyn Tsai <evelyn.tsai@mediatek.com>
 Date: Tue, 24 Jan 2023 19:06:44 +0800
-Subject: [PATCH 027/185] mtk: hostapd: Add vendor for CAPI certification
+Subject: [PATCH 027/210] mtk: hostapd: Add vendor for CAPI certification
  commands
 
 Support new hostapd_cli command as below:
@@ -31,7 +31,7 @@ Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
  8 files changed, 221 insertions(+), 32 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 995a30eef..b3059a638 100644
+index 6da8bd41b..8276eab48 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
 @@ -72,6 +72,7 @@
@@ -42,7 +42,7 @@ index 995a30eef..b3059a638 100644
  
  #define HOSTAPD_CLI_DUP_VALUE_MAX_LEN 256
  
-@@ -4464,6 +4465,96 @@ hostapd_ctrl_iface_get_aval_color_bmp(struct hostapd_data *hapd, char *buf,
+@@ -4463,6 +4464,96 @@ hostapd_ctrl_iface_get_aval_color_bmp(struct hostapd_data *hapd, char *buf,
  	return pos - buf;
  }
  
@@ -139,7 +139,7 @@ index 995a30eef..b3059a638 100644
  
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
-@@ -5098,6 +5189,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5097,6 +5188,10 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  		reply_len = hostapd_ctrl_iface_get_bss_color(hapd, reply, reply_size);
  	} else if (os_strncmp(buf, "AVAL_COLOR_BMP", 14) == 0) {
  		reply_len = hostapd_ctrl_iface_get_aval_color_bmp(hapd, reply, reply_size);

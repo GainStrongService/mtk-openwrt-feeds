@@ -1,7 +1,7 @@
-From 5b5f451f3e64f050341e458474fa779a1b02ede9 Mon Sep 17 00:00:00 2001
+From 6b9fbab2aa8f1187f097a66569d8494b25d53200 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 22 Aug 2024 17:35:57 +0800
-Subject: [PATCH 124/185] mtk: hostapd: remove the STA when receiving AUTH from
+Subject: [PATCH 124/210] mtk: hostapd: remove the STA when receiving AUTH from
  associated STA MLD
 
 An AP MLD might receive AUTH from an associated STA MLD by following
@@ -17,13 +17,15 @@ connection exists.
 This commit lets MLD AP remove the MLD STA when receiving the AUTH from
 it, so that the next AUTH can be successfully handles.
 
+Add skip FT auth due to STA may roam back to current FTR.
+
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
- src/ap/ieee802_11.c | 28 ++++++++++++++++++++++++++--
- 1 file changed, 26 insertions(+), 2 deletions(-)
+ src/ap/ieee802_11.c | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)
 
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index e7a5b5a08..466accb59 100644
+index e7a5b5a08..88a0e8112 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
 @@ -93,6 +93,10 @@ static void handle_auth(struct hostapd_data *hapd,
@@ -37,14 +39,17 @@ index e7a5b5a08..466accb59 100644
  
  
  static u8 * hostapd_eid_multi_ap(struct hostapd_data *hapd, u8 *eid, size_t len)
-@@ -3190,6 +3194,18 @@ static void handle_auth(struct hostapd_data *hapd,
+@@ -3190,6 +3194,21 @@ static void handle_auth(struct hostapd_data *hapd,
  			return;
  		}
  #endif /* CONFIG_PASN */
 +#ifdef CONFIG_IEEE80211BE
-+		if (mld_sta && auth_transaction == 1 && !sta->added_unassoc) {
++		/* TODO: When FTO successfully roams to target FTR,
++		 * we should clean up STA entry in current FTR. */
++		if (mld_sta && auth_transaction == 1 && !sta->added_unassoc &&
++		    auth_alg != WLAN_AUTH_FT) {
 +			wpa_printf(MSG_INFO,
-+				   "recveive AUTH from associated STA "MACSTR
++				   "receive AUTH from associated STA "MACSTR
 +				   ", do deauthentication\n",
 +				   MAC2STR(sa));
 +			hostapd_ml_handle_disconnect(hapd, sta, mgmt, false);
@@ -56,7 +61,7 @@ index e7a5b5a08..466accb59 100644
  	} else {
  #ifdef CONFIG_MESH
  		if (hapd->conf->mesh & MESH_ENABLED) {
-@@ -5959,9 +5975,17 @@ static void hostapd_deauth_sta(struct hostapd_data *hapd,
+@@ -5959,9 +5978,17 @@ static void hostapd_deauth_sta(struct hostapd_data *hapd,
  			       struct sta_info *sta,
  			       const struct ieee80211_mgmt *mgmt)
  {
@@ -75,7 +80,7 @@ index e7a5b5a08..466accb59 100644
  
  	ap_sta_set_authorized(hapd, sta, 0);
  	sta->last_seq_ctrl = WLAN_INVALID_MGMT_SEQ;
-@@ -5972,7 +5996,7 @@ static void hostapd_deauth_sta(struct hostapd_data *hapd,
+@@ -5972,7 +5999,7 @@ static void hostapd_deauth_sta(struct hostapd_data *hapd,
  	hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
  		       HOSTAPD_LEVEL_DEBUG, "deauthenticated");
  	mlme_deauthenticate_indication(

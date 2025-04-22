@@ -1,7 +1,7 @@
-From f6d1aca4eff56da4ed44704d894a7610afd5eea0 Mon Sep 17 00:00:00 2001
+From 86b76c02bd0976e2b5d807825af61a4e9afbcaac Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 23 Apr 2024 16:03:19 +0800
-Subject: [PATCH 081/185] mtk: hostapd: add critical update support
+Subject: [PATCH 081/210] mtk: hostapd: add critical update support
 
 Add critical update support
 modification: wmm configuration
@@ -49,10 +49,10 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  16 files changed, 459 insertions(+), 33 deletions(-)
 
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index 4c659d76b..0725460ee 100644
+index e34e4a2ff..580c9a8ce 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -2952,6 +2952,18 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
+@@ -2951,6 +2951,18 @@ static int hostapd_ctrl_iface_chan_switch(struct hostapd_iface *iface,
  			ret = err;
  			num_err++;
  		}
@@ -71,7 +71,7 @@ index 4c659d76b..0725460ee 100644
  	}
  
  	return (iface->num_bss == num_err) ? ret : 0;
-@@ -5279,6 +5291,79 @@ hostapd_ctrl_iface_dump_csi(struct hostapd_data *hapd, char *cmd,
+@@ -5278,6 +5290,79 @@ hostapd_ctrl_iface_dump_csi(struct hostapd_data *hapd, char *cmd,
  	return 0;
  }
  
@@ -151,7 +151,7 @@ index 4c659d76b..0725460ee 100644
  static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  					      char *buf, char *reply,
  					      int reply_size,
-@@ -5947,6 +6032,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -5946,6 +6031,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "DUMP_CSI ", 8) == 0) {
  		reply_len = hostapd_ctrl_iface_dump_csi(hapd, buf + 9,
  							reply, reply_size);
@@ -778,7 +778,7 @@ index 70bba1489..63c131eb2 100644
  	int link_id;
  
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 6af8e46cf..2a8aa4b57 100644
+index 28deea643..e41a1c1e5 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -11631,9 +11631,10 @@ static int nl80211_switch_channel(void *priv, struct csa_settings *settings)
