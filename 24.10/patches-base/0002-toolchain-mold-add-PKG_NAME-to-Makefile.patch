@@ -1,0 +1,37 @@
+From 58b35e877c653c999e62be0839d338f7c918b85a Mon Sep 17 00:00:00 2001
+From: Weijie Gao <hackpascal@gmail.com>
+Date: Wed, 23 Apr 2025 02:15:09 +0800
+Subject: [PATCH] toolchain: mold: add PKG_NAME to Makefile
+
+In include/host-build.mk, HOST_BUILD_DIR is set by default value:
+HOST_BUILD_DIR ?= $(BUILD_DIR_HOST)/$(PKG_NAME)
+
+However the mold package has no PKG_NAME set at all. This means the
+HOST_BUILD_DIR is identical to $(BUILD_DIR_HOST).
+
+In the Host/Prepare stage, by default, the $(HOST_BUILD_DIR) will be
+deleted at first unconditionally. Since HOST_BUILD_DIR is identical
+to $(BUILD_DIR_HOST), the entire build_dir/toolchain-* directory will
+be removed and this will cause build failure.
+
+Adding PKG_NAME:=mold can solve this issue.
+
+Signed-off-by: Weijie Gao <hackpascal@gmail.com>
+---
+ toolchain/mold/Makefile | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/toolchain/mold/Makefile b/toolchain/mold/Makefile
+index a2acba89d3c808..01ecb2a0b86177 100644
+--- a/toolchain/mold/Makefile
++++ b/toolchain/mold/Makefile
+@@ -3,6 +3,9 @@
+ # See /LICENSE for more information.
+ #
+ include $(TOPDIR)/rules.mk
++
++PKG_NAME:=mold
++
+ include $(INCLUDE_DIR)/toolchain-build.mk
+ 
+ define Host/Configure
