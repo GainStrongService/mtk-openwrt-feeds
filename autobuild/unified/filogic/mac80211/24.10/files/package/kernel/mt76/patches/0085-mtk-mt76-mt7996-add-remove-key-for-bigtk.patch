@@ -1,4 +1,4 @@
-From fee7477ee86bd8fdbb16df8dee2633fcfab93def Mon Sep 17 00:00:00 2001
+From b9b22fef9818db37ec6b59992815151bfa71f68c Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Mon, 17 Feb 2025 20:56:51 +0800
 Subject: [PATCH 85/92] mtk: mt76: mt7996: add remove key for bigtk
@@ -16,10 +16,10 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  2 files changed, 21 insertions(+), 15 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index e5212379..efedc047 100644
+index b27a2c7c..aa5a99d5 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -708,6 +708,9 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -710,6 +710,9 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  	unsigned int link_id;
  	u8 pn[6] = {};
  
@@ -29,7 +29,7 @@ index e5212379..efedc047 100644
  	if (key->link_id >= 0) {
  		add = BIT(key->link_id);
  	} else {
-@@ -732,11 +735,12 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -734,11 +737,12 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  		conf = link_conf_dereference_protected(vif, link_id);
  		mconf = mt7996_vif_link(dev, vif, link_id);
  		msta_link = mt76_dereference(msta->link[link_id], &dev->mt76);
@@ -44,7 +44,7 @@ index e5212379..efedc047 100644
  		/* fall back to sw encryption for unsupported ciphers */
  		switch (key->cipher) {
  		case WLAN_CIPHER_SUITE_TKIP:
-@@ -766,7 +770,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -768,7 +772,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  			return -EOPNOTSUPP;
  		}
  
@@ -53,7 +53,7 @@ index e5212379..efedc047 100644
  		if (cmd == SET_KEY && !sta && !mconf->mt76.cipher) {
  			mconf->mt76.cipher = mt76_connac_mcu_get_cipher(key->cipher);
  			mt7996_mcu_add_bss_info(mconf->phy, vif, conf, &mconf->mt76, msta_link, true);
-@@ -774,12 +778,14 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -776,12 +780,14 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  
  		if (cmd == SET_KEY) {
  			*wcid_keyidx = idx;
@@ -73,7 +73,7 @@ index e5212379..efedc047 100644
  
  		err = mt7996_mcu_add_key(&dev->mt76, mconf, key,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index ec9bc1c0..251d416f 100644
+index 6d03ccaa..604d81b8 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -3527,30 +3527,30 @@ mt7996_mcu_sta_key_tlv(struct mt76_dev *dev,

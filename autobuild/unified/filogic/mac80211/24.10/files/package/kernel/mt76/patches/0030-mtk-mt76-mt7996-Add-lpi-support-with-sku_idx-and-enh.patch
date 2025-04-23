@@ -1,4 +1,4 @@
-From 3ff09f7b2b8757555b96479649f1eea43fee8196 Mon Sep 17 00:00:00 2001
+From b8eeb76d1f2305b24eb9c51679f7d1d0a367bece Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Fri, 12 Jul 2024 16:58:57 +0800
 Subject: [PATCH 30/92] mtk: mt76: mt7996: Add lpi support with sku_idx and
@@ -177,10 +177,10 @@ index 8e92ba51..3651015c 100644
  		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
  	}
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 8c150404..c06c29ec 100644
+index b24bb75d..3d113939 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -867,6 +867,7 @@ static u8
+@@ -869,6 +869,7 @@ static u8
  mt7996_get_rates_table(struct mt7996_phy *phy, struct ieee80211_bss_conf *conf,
  		       bool beacon, bool mcast)
  {
@@ -188,7 +188,7 @@ index 8c150404..c06c29ec 100644
  	struct mt7996_dev *dev = phy->dev;
  	struct mt76_vif_link *mvif = mt76_vif_conf_link(&dev->mt76, conf->vif, conf);
  	u16 rate;
-@@ -879,6 +880,8 @@ mt7996_get_rates_table(struct mt7996_phy *phy, struct ieee80211_bss_conf *conf,
+@@ -881,6 +882,8 @@ mt7996_get_rates_table(struct mt7996_phy *phy, struct ieee80211_bss_conf *conf,
  		if (dev->cert_mode && phy->mt76->band_idx == MT_BAND2 &&
  		    conf->he_support && !conf->eht_support)
  			rate = 0x0200;
@@ -197,7 +197,7 @@ index 8c150404..c06c29ec 100644
  
  		/* odd index for driver, even index for firmware */
  		idx = MT7996_BEACON_RATES_TBL + 2 * phy->mt76->band_idx;
-@@ -1034,7 +1037,7 @@ mt7996_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1036,7 +1039,7 @@ mt7996_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		mt7996_update_mu_group(hw, link, info);
  
  	if (changed & BSS_CHANGED_TXPOWER)
@@ -207,7 +207,7 @@ index 8c150404..c06c29ec 100644
  out:
  	mutex_unlock(&dev->mt76.mutex);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 0b5421f3..6dd1f37d 100644
+index db808ca0..20bccc5e 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -6433,7 +6433,7 @@ int mt7996_mcu_set_fixed_rate_table(struct mt7996_phy *phy, u8 table_idx,

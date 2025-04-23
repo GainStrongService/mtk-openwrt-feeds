@@ -1,4 +1,4 @@
-From 710d5eb1b9b04f788985cc88f6cead8268d7167a Mon Sep 17 00:00:00 2001
+From 7b2c15ee6be13c7cc0a030071e8d33a1b94a100a Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 27 Feb 2025 13:58:35 +0800
 Subject: [PATCH 83/92] mtk: mt76: mt7996: rework radar rdd idx
@@ -25,9 +25,7 @@ MT7996 205                 | 0              | 2
 MT7996 255 Band 1 5GL      | 1              | 2
 MT7996 255 Band 2 5GH      | 0              | 2
 
-CR-Id: WCNCR00274293
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
-Change-Id: I3f3a03897958047fff572924af301883fef42f1f
 ---
  mt7996/debugfs.c | 8 ++++----
  mt7996/mcu.c     | 4 ++--
@@ -62,7 +60,7 @@ index faae4809..c3dee3d6 100644
  		debugfs_create_devm_seqfile(dev->mt76.dev, "rdd_monitor", dir,
  					    mt7996_rdd_monitor);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 6e2dfacb..ec9bc1c0 100644
+index 452e134c..6d03ccaa 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -452,7 +452,7 @@ mt7996_mcu_rx_radar_detected(struct mt7996_dev *dev, struct sk_buff *skb)

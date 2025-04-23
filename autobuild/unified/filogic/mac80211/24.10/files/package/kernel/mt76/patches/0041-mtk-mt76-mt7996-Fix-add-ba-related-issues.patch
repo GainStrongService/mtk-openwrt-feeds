@@ -1,4 +1,4 @@
-From 3b43d6d5d443d73fa642918aa9bf660743970382 Mon Sep 17 00:00:00 2001
+From 35a8612b16f3171d10e606b92e256abce5c2bf1a Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Fri, 13 Sep 2024 10:22:52 +0800
 Subject: [PATCH 41/92] mtk: mt76: mt7996: Fix add ba related issues
@@ -146,10 +146,10 @@ index 2a7444c4..6a91710a 100644
  
  	txrate = FIELD_GET(MT_TXS0_TX_RATE, txs);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 21817bdd..568d9b0e 100644
+index bdcd2f70..3ba6bb27 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2637,6 +2637,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -2639,6 +2639,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
  	struct mt7996_sta_link *msta_link;
  	struct mt76_vif_link *mlink;
@@ -157,7 +157,7 @@ index 21817bdd..568d9b0e 100644
  
  	mlink = rcu_dereference(mvif->mt76.link[msta->deflink_id]);
  	if (!mlink)
-@@ -2683,7 +2684,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -2685,7 +2686,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  	ctx->dev = NULL;
  
  	if (path->mtk_wdma.amsdu)

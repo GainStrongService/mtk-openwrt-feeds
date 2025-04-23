@@ -1,4 +1,4 @@
-From 413017562561c94fd0b39ecb1cf42182cd1f03bf Mon Sep 17 00:00:00 2001
+From 5882b33d5a7e53aa679c9efa730ef297802af687 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 13 Nov 2024 11:03:57 +0800
 Subject: [PATCH 51/92] mtk: mt76: use compile flag to disable some wed change
@@ -59,10 +59,10 @@ index 5d81c0de..3a39edd2 100644
  
  int mt7996_rro_fill_msdu_page(struct mt76_dev *mdev, struct mt76_queue *q,
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 8616c6b1..00e941da 100644
+index c2b2433c..83567afc 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2704,6 +2704,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -2706,6 +2706,7 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  	path->mtk_wdma.bss = mlink->idx;
  	path->mtk_wdma.queue = 0;
  	path->mtk_wdma.wcid = msta_link->wcid.idx;
@@ -70,7 +70,7 @@ index 8616c6b1..00e941da 100644
  
  	if (ieee80211_hw_check(hw, SUPPORTS_AMSDU_IN_AMPDU) &&
  	    mtk_wed_is_amsdu_supported(wed))
-@@ -2713,9 +2714,6 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -2715,9 +2716,6 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  
  	ctx->dev = NULL;
  
@@ -81,10 +81,10 @@ index 8616c6b1..00e941da 100644
  }
  
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index 000b4eab..9cdab11c 100644
+index f81e76e0..4a09b41d 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
-@@ -517,6 +517,7 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -541,6 +541,7 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  		}
  
  		wed->wlan.wpdma_rx_glo = wed->wlan.phy_base + hif1_ofs + MT_WFDMA0_GLO_CFG;
@@ -92,7 +92,7 @@ index 000b4eab..9cdab11c 100644
  		wed->wlan.wpdma_rx[0] = wed->wlan.phy_base + hif1_ofs +
  				     MT_RXQ_RING_BASE(MT7996_RXQ_BAND2) +
  				     MT7996_RXQ_BAND2 * MT_RING_SIZE;
-@@ -547,6 +548,7 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -571,6 +572,7 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  			wed->wlan.wpdma_rx_rro[1] = wed->wlan.phy_base + hif1_ofs +
  						    MT_RXQ_RING_BASE(MT7996_RXQ_RRO_BAND1) +
  						    MT7996_RXQ_RRO_BAND1 * MT_RING_SIZE;

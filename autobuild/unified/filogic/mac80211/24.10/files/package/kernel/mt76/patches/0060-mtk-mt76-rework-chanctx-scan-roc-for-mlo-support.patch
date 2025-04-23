@@ -1,4 +1,4 @@
-From 79f54b72963a4cf0dac9769c0fc3a38ed8d44717 Mon Sep 17 00:00:00 2001
+From 6d85666da23d1d81e08ba2b25381b981c31a488f Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 30 Dec 2024 11:21:32 +0800
 Subject: [PATCH 60/92] mtk: mt76: rework chanctx/scan/roc for mlo support
@@ -503,10 +503,10 @@ index cb538267..77ada34c 100644
  	skb_set_queue_mapping(skb, IEEE80211_AC_VO);
  	if (!ieee80211_tx_prepare_skb(hw, vif, skb, band, NULL)) {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 360f5a45..4d37c85b 100644
+index 2d05f2d6..25b590d3 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -621,8 +621,30 @@ out:
+@@ -623,8 +623,30 @@ out:
  int mt7996_set_channel(struct mt76_phy *mphy)
  {
  	struct mt7996_phy *phy = mphy->priv;
@@ -539,7 +539,7 @@ index 360f5a45..4d37c85b 100644
  	if (phy->dev->cal) {
  		ret = mt7996_mcu_apply_tx_dpd(phy);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index c7fed4e3..da092d24 100644
+index 6bdb7057..3fb177ef 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -5508,7 +5508,7 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag, bool sta)

@@ -1,4 +1,4 @@
-From d244e71d7132464e9e07222f515ca23749ae59b9 Mon Sep 17 00:00:00 2001
+From 65986e3aed3c7773c622e301861ac7a208ffa5b8 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 21 Jan 2025 15:50:14 +0800
 Subject: [PATCH 67/92] mtk: mt76: mt7996: fix testmode issues
@@ -50,7 +50,7 @@ index 6893fe36..2e396842 100644
  					struct sk_buff *skb,
  					struct ieee80211_hw **hw)
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 3063ed53..a09c498b 100644
+index e239b453..2ad17202 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -12,6 +12,7 @@
@@ -69,7 +69,7 @@ index 3063ed53..a09c498b 100644
  }
  
  int mt7996_run(struct mt7996_phy *phy)
-@@ -597,8 +599,10 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
+@@ -599,8 +601,10 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
  		if (vif == phy->mt76->monitor_vif) {
  			phy->mt76->monitor_vif = NULL;
  
@@ -80,7 +80,7 @@ index 3063ed53..a09c498b 100644
  		}
  	}
  
-@@ -624,7 +628,7 @@ int mt7996_set_channel(struct mt76_phy *mphy)
+@@ -626,7 +630,7 @@ int mt7996_set_channel(struct mt76_phy *mphy)
  	int ret = 0;
  
  	if (mphy->chanctx && mphy->chanctx->state == MT76_CHANCTX_STATE_ADD) {
@@ -89,7 +89,7 @@ index 3063ed53..a09c498b 100644
  			ret = mt7996_mcu_edcca_enable(phy, true);
  			if (ret)
  				goto out;
-@@ -652,7 +656,7 @@ int mt7996_set_channel(struct mt76_phy *mphy)
+@@ -654,7 +658,7 @@ int mt7996_set_channel(struct mt76_phy *mphy)
  			goto out;
  	}
  
@@ -99,7 +99,7 @@ index 3063ed53..a09c498b 100644
  		goto out;
  	}
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index e903119e..7ee35364 100644
+index 09e9260a..8907118d 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1948,12 +1948,11 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
@@ -121,7 +121,7 @@ index e903119e..7ee35364 100644
  	}
  
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index c30e566d..5a7ff638 100644
+index 58b5409d..08819f47 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -2906,8 +2906,8 @@ static const struct file_operations mt7996_txpower_path_fops = {

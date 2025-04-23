@@ -1,4 +1,4 @@
-From 397ccb5fccc1a4a30e7e74a0a3b70f8b2eec6cf9 Mon Sep 17 00:00:00 2001
+From 8e940a322b6bf363da8f5d8310fc39bbaac14df0 Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Fri, 7 Jun 2024 13:51:25 +0800
 Subject: [PATCH 21/92] mtk: mt76: mt7996: Fix inconsistent QoS mapping between
@@ -38,10 +38,10 @@ index 7618b93d..ceaccb23 100644
  };
  
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 50367209..e010549a 100644
+index 52798c9c..91b93ccb 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2568,6 +2568,9 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
+@@ -2570,6 +2570,9 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
  
  	ctx->dev = NULL;
  
@@ -51,7 +51,7 @@ index 50367209..e010549a 100644
  	return 0;
  }
  
-@@ -2698,6 +2701,32 @@ mt7996_event_callback(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2700,6 +2703,32 @@ mt7996_event_callback(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	}
  }
  
@@ -84,7 +84,7 @@ index 50367209..e010549a 100644
  const struct ieee80211_ops mt7996_ops = {
  	.add_chanctx = mt76_add_chanctx,
  	.remove_chanctx = mt76_remove_chanctx,
-@@ -2764,4 +2793,5 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -2766,4 +2795,5 @@ const struct ieee80211_ops mt7996_ops = {
  	.event_callback = mt7996_event_callback,
  	.change_vif_links = mt7996_change_vif_links,
  	.change_sta_links = mt7996_mac_sta_change_links,

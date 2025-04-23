@@ -1,4 +1,4 @@
-From 502c69a9e6b48567c74615572dc4722950196253 Mon Sep 17 00:00:00 2001
+From b6c9784e8fa3a871e0a929748c5d2315b51b00a1 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Thu, 1 Aug 2024 11:25:03 +0800
 Subject: [PATCH 36/92] mtk: mt76: mt7996: Add AFC and lpi power support
@@ -65,10 +65,10 @@ index 480a4259..bda58fbf 100644
  			val |= FIELD_PREP(MT_TXD6_BW, FW_CDBW_80MHZ);
  		txwi[6] |= cpu_to_le32(val);
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 69a459be..52caac6b 100644
+index 5fa2a204..da0b11b9 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -880,7 +880,7 @@ mt7996_get_rates_table(struct mt7996_phy *phy, struct ieee80211_bss_conf *conf,
+@@ -882,7 +882,7 @@ mt7996_get_rates_table(struct mt7996_phy *phy, struct ieee80211_bss_conf *conf,
  		if (dev->cert_mode && phy->mt76->band_idx == MT_BAND2 &&
  		    conf->he_support && !conf->eht_support)
  			rate = 0x0200;
@@ -78,7 +78,7 @@ index 69a459be..52caac6b 100644
  
  		/* odd index for driver, even index for firmware */
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 6dd1f37d..0570290b 100644
+index 20bccc5e..24596dc8 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -6433,7 +6433,8 @@ int mt7996_mcu_set_fixed_rate_table(struct mt7996_phy *phy, u8 table_idx,

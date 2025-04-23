@@ -1,4 +1,4 @@
-From 2b2c454fc45e5217cf5f7945d61d7c9f441d2abb Mon Sep 17 00:00:00 2001
+From 0f64bae9d5e86ad8891750e0d50a4038c192d664 Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Tue, 17 Dec 2024 14:35:26 +0800
 Subject: [PATCH 66/92] mtk: mt76: mt7990: add mt7987 wed hw path support
@@ -726,7 +726,7 @@ index 0ede4427..9c39fee4 100644
  
  	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index da092d24..e903119e 100644
+index 3fb177ef..09e9260a 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1263,7 +1263,7 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -748,10 +748,10 @@ index da092d24..e903119e 100644
  	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
  				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index fd416908..1bef7e43 100644
+index 1f7762ff..e9034fe7 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
-@@ -457,25 +457,56 @@ out:
+@@ -481,25 +481,56 @@ out:
  }
  #endif
  
@@ -813,7 +813,7 @@ index fd416908..1bef7e43 100644
  	wed->wlan.pci_dev = pci_dev;
  	wed->wlan.bus_type = MTK_WED_BUS_PCIE;
  
-@@ -489,10 +520,12 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -513,10 +544,12 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  				      MT_INT_PCIE1_SOURCE_CSR_EXT;
  		wed->wlan.wpdma_mask = wed->wlan.phy_base +
  				       MT_INT_PCIE1_MASK_CSR;
@@ -830,7 +830,7 @@ index fd416908..1bef7e43 100644
  			switch (mt76_chip(&dev->mt76)) {
  			case MT7996_DEVICE_ID:
  				intr = MT_INT_RX_TXFREE_EXT;
-@@ -521,25 +554,30 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -545,25 +578,30 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  		}
  
  		wed->wlan.wpdma_rx_glo = wed->wlan.phy_base + hif1_ofs + MT_WFDMA0_GLO_CFG;
@@ -871,7 +871,7 @@ index fd416908..1bef7e43 100644
  
  		wed->wlan.wpdma_rx_rro[0] = wed->wlan.phy_base +
  					    MT_RXQ_RING_BASE(MT7996_RXQ_RRO_BAND0) +
-@@ -553,20 +591,34 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -577,20 +615,34 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  						    MT_RXQ_RING_BASE(MT7996_RXQ_RRO_BAND1) +
  						    MT7996_RXQ_RRO_BAND1 * MT_RING_SIZE;
  
@@ -914,7 +914,7 @@ index fd416908..1bef7e43 100644
  		wed->wlan.rro_rx_tbit[0] = ffs(MT_INT_RX_DONE_RRO_BAND0) - 1;
  		if (is_mt7996(&dev->mt76)) {
  			wed->wlan.rx_tbit[1] = ffs(MT_INT_RX_DONE_BAND2) - 1;
-@@ -576,15 +628,18 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -600,15 +652,18 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  			wed->wlan.rro_rx_tbit[1] = ffs(MT_INT_RX_DONE_RRO_BAND1) - 1;
  		}
  
@@ -938,7 +938,7 @@ index fd416908..1bef7e43 100644
  				intr = MT_INT_RX_TXFREE_MAIN;
  				ring = MT7996_RXQ_TXFREE0;
  			} else {
-@@ -609,10 +664,10 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -633,10 +688,10 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  		wed->wlan.txfree_tbit = ffs(intr) - 1;
  		wed->wlan.wpdma_txfree = wed->wlan.phy_base + MT_RXQ_RING_BASE(0) +
  					 ring * MT_RING_SIZE;
@@ -951,7 +951,7 @@ index fd416908..1bef7e43 100644
  	wed->wlan.token_start = 0;
  
  	wed->wlan.amsdu_max_subframes = 8;
-@@ -630,7 +685,8 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -654,7 +709,8 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  
  	if (mtk_wed_device_attach(wed)) {
  		wed_enable = false;
@@ -1018,10 +1018,10 @@ index 526867fa..7c7cd456 100644
  {
  	return min(MT7996_MAX_INTERFACES * (1 + mt7996_band_valid(dev, MT_BAND1) +
 diff --git a/mt7996/mtk_debug.h b/mt7996/mtk_debug.h
-index d7343045..26b4bdd4 100644
+index 224b60f7..503fb8bd 100644
 --- a/mt7996/mtk_debug.h
 +++ b/mt7996/mtk_debug.h
-@@ -972,7 +972,8 @@ struct queue_desc {
+@@ -942,7 +942,8 @@ struct queue_desc {
  /* RRO TOP */
  #define WF_RRO_TOP_BASE                                        0xA000 /*0x820C2000 */
  #define WF_RRO_TOP_IND_CMD_0_CTRL0_ADDR                        (WF_RRO_TOP_BASE + 0x40) // 2040
@@ -1032,7 +1032,7 @@ index d7343045..26b4bdd4 100644
  enum mt7996_wtbl_type {
  	WTBL_TYPE_LMAC, 	/* WTBL in LMAC */
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 3f4f0012..c30e566d 100644
+index 161ceea9..58b5409d 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -606,6 +606,8 @@ mt7996_show_dma_info(struct seq_file *s, struct mt7996_dev *dev)
@@ -1105,10 +1105,10 @@ index 1abd5741..8c4f774e 100644
  	hif2 = mt7996_pci_init_hif2(pdev);
  	if (hif2)
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index fb52477f..172da130 100644
+index ea770848..c48f1d51 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
-@@ -115,8 +115,13 @@ enum offs_rev {
+@@ -123,8 +123,13 @@ enum offs_rev {
  
  #define MT_RRO_3_1_GLOBAL_CONFIG		MT_RRO_TOP(0x604)
  #define MT_RRO_3_1_GLOBAL_CONFIG_INTERLEAVE_EN	BIT(0)
@@ -1122,7 +1122,7 @@ index fb52477f..172da130 100644
  
  #define MT_RRO_ACK_SN_CTRL			MT_RRO_TOP(0x50)
  #define MT_RRO_ACK_SN_CTRL_SN_MASK		GENMASK(27, 16)
-@@ -514,6 +519,7 @@ enum offs_rev {
+@@ -522,6 +527,7 @@ enum offs_rev {
  #define MT_TXQ_RING_BASE(q)			(MT_Q_BASE(__TXQ(q)) + 0x300)
  #define MT_RXQ_RING_BASE(q)			(MT_Q_BASE(__RXQ(q)) + 0x500)
  #define MT_RXQ_RRO_IND_RING_BASE		MT_RRO_TOP(0x40)
@@ -1130,7 +1130,7 @@ index fb52477f..172da130 100644
  
  #define MT_MCUQ_EXT_CTRL(q)			(MT_Q_BASE(q) +	0x600 +	\
  						 MT_MCUQ_ID(q) * 0x4)
-@@ -536,6 +542,7 @@ enum offs_rev {
+@@ -544,6 +550,7 @@ enum offs_rev {
  #define MT_INT_RX_DONE_WA_MAIN			BIT(2)
  #define MT_INT_RX_DONE_WA_EXT			BIT(3) /* for mt7992 */
  #define MT_INT_RX_DONE_WA_TRI			BIT(3)
@@ -1138,7 +1138,7 @@ index fb52477f..172da130 100644
  #define MT_INT_RX_TXFREE_MAIN			BIT(17)
  #define MT_INT_RX_TXFREE_BAND1			BIT(15)
  #define MT_INT_RX_TXFREE_TRI			BIT(15)
-@@ -550,8 +557,10 @@ enum offs_rev {
+@@ -558,8 +565,10 @@ enum offs_rev {
  #define MT_INT_RX_DONE_RRO_BAND1		BIT(17)
  #define MT_INT_RX_DONE_RRO_BAND2		BIT(14)
  #define MT_INT_RX_DONE_RRO_IND			BIT(11)

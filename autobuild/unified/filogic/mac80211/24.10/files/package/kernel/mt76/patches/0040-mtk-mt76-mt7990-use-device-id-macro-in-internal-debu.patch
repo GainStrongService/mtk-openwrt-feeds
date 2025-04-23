@@ -1,4 +1,4 @@
-From 3dd01e55046581250b1e4db27c54cc9f933b7d7a Mon Sep 17 00:00:00 2001
+From 6225a9e61d72147998c2a21759223d1c0ed277ee Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Tue, 27 Aug 2024 18:05:37 +0800
 Subject: [PATCH 40/92] mtk: mt76: mt7990: use device id macro in internal
@@ -192,6 +192,13 @@ The SDO command does not need the response event.
 Without this patch, WM will show error log when sending SDO command.
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+
+mtk: mt76: mt7990: rework mib register mapping for mt7990
+
+Rework mib register offset for mt7990.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+
 ---
  mt7996/coredump.c    |   2 +
  mt7996/debugfs.c     |   2 +-
@@ -203,17 +210,18 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  mt7996/main.c        |   1 +
  mt7996/mcu.c         | 336 ++++++++++++++++++++++++++++++++++---------
  mt7996/mcu.h         |  36 ++++-
- mt7996/mmio.c        |  60 +++++---
+ mt7996/mmio.c        |  84 ++++++++---
  mt7996/mt7996.h      |  19 +++
- mt7996/mtk_debug.h   | 146 ++++++++++++++++---
- mt7996/mtk_debugfs.c | 304 +++++++++++++++++++++++++++------------
+ mt7996/mtk_debug.h   | 116 ++++++++++++---
+ mt7996/mtk_debugfs.c | 316 +++++++++++++++++++++++++++-------------
  mt7996/mtk_mcu.c     |   2 +-
  mt7996/mtk_mcu.h     |   4 +-
  mt7996/pci.c         |   5 +-
+ mt7996/regs.h        |  24 ++--
  mt7996/testmode.c    |  28 +++-
  mt7996/vendor.c      |  10 +-
  testmode.c           |   2 +-
- 20 files changed, 825 insertions(+), 237 deletions(-)
+ 21 files changed, 841 insertions(+), 251 deletions(-)
 
 diff --git a/mt7996/coredump.c b/mt7996/coredump.c
 index 9f4b14ce..a724f4fc 100644
@@ -478,10 +486,10 @@ index bda58fbf..2a7444c4 100644
  				if (mphy->mac_work_count == 100) {
  					if (phy->dev->idxlog_enable && mt7996_mcu_fw_time_sync(mdev))
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 52caac6b..21817bdd 100644
+index da0b11b9..bdcd2f70 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2533,6 +2533,7 @@ mt7996_background_radar_handle_7975_ifem(struct ieee80211_hw *hw,
+@@ -2535,6 +2535,7 @@ mt7996_background_radar_handle_7975_ifem(struct ieee80211_hw *hw,
  		is_ifem_adie = dev->var.type == MT7992_VAR_TYPE_44 &&
  			       dev->var.fem != MT7996_FEM_EXT;
  		break;
@@ -490,7 +498,7 @@ index 52caac6b..21817bdd 100644
  		return;
  	}
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 8435f13b..47bf6b25 100644
+index 1e64de75..7016d844 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1137,38 +1137,53 @@ void mt7996_mcu_wmm_pbc_work(struct work_struct *work)
@@ -1053,10 +1061,55 @@ index 76c43d1f..d8cea639 100644
  
  enum {
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index dc79997a..000b4eab 100644
+index dc79997a..f81e76e0 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
-@@ -489,16 +489,26 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -54,6 +54,14 @@ static const u32 mt7996_offs[] = {
+ 	[MIB_BSCR7]		= 0x9e8,
+ 	[MIB_BSCR17]		= 0xa10,
+ 	[MIB_TRDR1]		= 0xa28,
++	[MIB_TSCR0]		= 0x6b0,
++	[MIB_TSCR1]		= 0x6b4,
++	[MIB_TSCR2]		= 0x6b8,
++	[MIB_TSCR3]		= 0x6bc,
++	[MIB_TSCR4]		= 0x6c0,
++	[MIB_TSCR5]		= 0x6c4,
++	[MIB_TSCR6]		= 0x6c8,
++	[MIB_TSCR7]		= 0x6d0,
+ 	[HIF_REMAP_L1]		= 0x24,
+ 	[HIF_REMAP_BASE_L1]	= 0x130000,
+ 	[HIF_REMAP_L2]		= 0x1b4,
+@@ -91,6 +99,14 @@ static const u32 mt7992_offs[] = {
+ 	[MIB_BSCR7]		= 0xae4,
+ 	[MIB_BSCR17]		= 0xb0c,
+ 	[MIB_TRDR1]		= 0xb24,
++	[MIB_TSCR0]		= 0x6b0,
++	[MIB_TSCR1]		= 0x6b4,
++	[MIB_TSCR2]		= 0x6b8,
++	[MIB_TSCR3]		= 0x6bc,
++	[MIB_TSCR4]		= 0x6c0,
++	[MIB_TSCR5]		= 0x6c4,
++	[MIB_TSCR6]		= 0x6c8,
++	[MIB_TSCR7]		= 0x6d0,
+ 	[HIF_REMAP_L1]		= 0x8,
+ 	[HIF_REMAP_BASE_L1]	= 0x40000,
+ 	[HIF_REMAP_L2]		= 0x1b4,
+@@ -128,6 +144,14 @@ static const u32 mt7990_offs[] = {
+ 	[MIB_BSCR7]		= 0xbd4,
+ 	[MIB_BSCR17]		= 0xbfc,
+ 	[MIB_TRDR1]		= 0xc14,
++	[MIB_TSCR0]		= 0x750,
++	[MIB_TSCR1]		= 0x754,
++	[MIB_TSCR2]		= 0x758,
++	[MIB_TSCR3]		= 0x75c,
++	[MIB_TSCR4]		= 0x760,
++	[MIB_TSCR5]		= 0x764,
++	[MIB_TSCR6]		= 0x768,
++	[MIB_TSCR7]		= 0x770,
+ 	[HIF_REMAP_L1]		= 0x8,
+ 	[HIF_REMAP_BASE_L1]	= 0x40000,
+ 	[HIF_REMAP_L2]		= 0x1b8,
+@@ -489,16 +513,26 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  					     MT_TXQ_RING_BASE(0) +
  					     MT7996_TXQ_BAND2 * MT_RING_SIZE;
  		if (dev->has_rro) {
@@ -1090,7 +1143,7 @@ index dc79997a..000b4eab 100644
  		} else {
  			wed->wlan.wpdma_txfree = wed->wlan.phy_base + hif1_ofs +
  						 MT_RXQ_RING_BASE(0) +
-@@ -566,24 +576,34 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
+@@ -566,24 +600,34 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
  
  		wed->wlan.tx_tbit[0] = ffs(MT_INT_TX_DONE_BAND0) - 1;
  		wed->wlan.tx_tbit[1] = ffs(MT_INT_TX_DONE_BAND1) - 1;
@@ -1204,19 +1257,13 @@ index 3caa599f..8e94efbf 100644
  int mt7996_mcu_set_sniffer_mode(struct mt7996_phy *phy, bool enabled);
  int mt7996_mcu_set_tx_power_ctrl(struct mt7996_phy *phy, u8 power_ctrl_id, u8 data);
 diff --git a/mt7996/mtk_debug.h b/mt7996/mtk_debug.h
-index 82990239..d7343045 100644
+index 82990239..224b60f7 100644
 --- a/mt7996/mtk_debug.h
 +++ b/mt7996/mtk_debug.h
-@@ -46,6 +46,17 @@ enum dbg_offs_rev {
+@@ -46,6 +46,11 @@ enum dbg_offs_rev {
  	MIB_MSR2,
  	MIB_MCTR5,
  	MIB_MCTR6,
-+	MIB_TSCR0,
-+	MIB_TSCR3,
-+	MIB_TSCR4,
-+	MIB_TSCR5,
-+	MIB_TSCR6,
-+	MIB_TSCR7,
 +	MIB_TSCR8,
 +	MIB_TBCR0,
 +	MIB_TBCR1,
@@ -1225,16 +1272,10 @@ index 82990239..d7343045 100644
  	__MT_DBG_OFFS_REV_MAX,
  };
  
-@@ -83,6 +94,17 @@ static const u32 mt7996_dbg_offs[] = {
+@@ -83,6 +88,11 @@ static const u32 mt7996_dbg_offs[] = {
  	[MIB_MSR2]		= 0xa6c,
  	[MIB_MCTR5]		= 0xa70,
  	[MIB_MCTR6]		= 0xa74,
-+	[MIB_TSCR0]		= 0x6b0,
-+	[MIB_TSCR3]		= 0x6bc,
-+	[MIB_TSCR4]		= 0x6c0,
-+	[MIB_TSCR5]		= 0x6c4,
-+	[MIB_TSCR6]		= 0x6c8,
-+	[MIB_TSCR7]		= 0x6d0,
 +	[MIB_TSCR8]		= 0x6cc,
 +	[MIB_TBCR0]		= 0x6ec,
 +	[MIB_TBCR1]		= 0x6f0,
@@ -1243,16 +1284,10 @@ index 82990239..d7343045 100644
  };
  
  static const u32 mt7992_dbg_offs[] = {
-@@ -119,6 +141,64 @@ static const u32 mt7992_dbg_offs[] = {
+@@ -119,6 +129,52 @@ static const u32 mt7992_dbg_offs[] = {
  	[MIB_MSR2]		= 0xb68,
  	[MIB_MCTR5]		= 0xb6c,
  	[MIB_MCTR6]		= 0xb70,
-+	[MIB_TSCR0]		= 0x6b0,
-+	[MIB_TSCR3]		= 0x6bc,
-+	[MIB_TSCR4]		= 0x6c0,
-+	[MIB_TSCR5]		= 0x6c4,
-+	[MIB_TSCR6]		= 0x6c8,
-+	[MIB_TSCR7]		= 0x6d0,
 +	[MIB_TSCR8]		= 0x6cc,
 +	[MIB_TBCR0]		= 0x6ec,
 +	[MIB_TBCR1]		= 0x6f0,
@@ -1294,12 +1329,6 @@ index 82990239..d7343045 100644
 +	[MIB_MSR2]		= 0xc58,
 +	[MIB_MCTR5]		= 0xc5c,
 +	[MIB_MCTR6]		= 0xc60,
-+	[MIB_TSCR0]		= 0x750,
-+	[MIB_TSCR3]		= 0x75c,
-+	[MIB_TSCR4]		= 0x760,
-+	[MIB_TSCR5]		= 0x764,
-+	[MIB_TSCR6]		= 0x768,
-+	[MIB_TSCR7]		= 0x770,
 +	[MIB_TSCR8]		= 0x76c,
 +	[MIB_TBCR0]		= 0x78c,
 +	[MIB_TBCR1]		= 0x790,
@@ -1308,7 +1337,7 @@ index 82990239..d7343045 100644
  };
  
  /* used to differentiate between generations */
-@@ -733,19 +813,19 @@ struct queue_desc {
+@@ -733,19 +789,13 @@ struct queue_desc {
  #define BN0_WF_MIB_TOP_BTCR_ADDR                               (BN0_WF_MIB_TOP_BASE + 0x5A0) // D5A0
  #define BN0_WF_MIB_TOP_RVSR0_ADDR                              (BN0_WF_MIB_TOP_BASE + __OFFS(MIB_RVSR0))
  
@@ -1319,12 +1348,6 @@ index 82990239..d7343045 100644
 -#define BN0_WF_MIB_TOP_TSCR6_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x6C8) // D6C8
 -#define BN0_WF_MIB_TOP_TSCR7_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x6D0) // D6D0
 -#define BN0_WF_MIB_TOP_TSCR8_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x6CC) // D6CC
-+#define BN0_WF_MIB_TOP_TSCR0_ADDR                              (BN0_WF_MIB_TOP_BASE + __DBG_OFFS(MIB_TSCR0))
-+#define BN0_WF_MIB_TOP_TSCR3_ADDR                              (BN0_WF_MIB_TOP_BASE + __DBG_OFFS(MIB_TSCR3))
-+#define BN0_WF_MIB_TOP_TSCR4_ADDR                              (BN0_WF_MIB_TOP_BASE + __DBG_OFFS(MIB_TSCR4))
-+#define BN0_WF_MIB_TOP_TSCR5_ADDR                              (BN0_WF_MIB_TOP_BASE + __DBG_OFFS(MIB_TSCR5))
-+#define BN0_WF_MIB_TOP_TSCR6_ADDR                              (BN0_WF_MIB_TOP_BASE + __DBG_OFFS(MIB_TSCR6))
-+#define BN0_WF_MIB_TOP_TSCR7_ADDR                              (BN0_WF_MIB_TOP_BASE + __DBG_OFFS(MIB_TSCR7))
 +#define BN0_WF_MIB_TOP_TSCR8_ADDR                              (BN0_WF_MIB_TOP_BASE + __DBG_OFFS(MIB_TSCR8))
  
 -#define BN0_WF_MIB_TOP_TBCR0_ADDR                              (BN0_WF_MIB_TOP_BASE + 0x6EC) // D6EC
@@ -1340,7 +1363,7 @@ index 82990239..d7343045 100644
  
  #define BN0_WF_MIB_TOP_TDRCR0_ADDR                             (BN0_WF_MIB_TOP_BASE + __DBG_OFFS(MIB_TDRCR0))
  #define BN0_WF_MIB_TOP_TDRCR1_ADDR                             (BN0_WF_MIB_TOP_BASE + __DBG_OFFS(MIB_TDRCR1))
-@@ -960,14 +1040,13 @@ enum cipher_suit {
+@@ -960,14 +1010,13 @@ enum cipher_suit {
  
  #define MT_DBG_WTBL_BASE		0x820D8000
  
@@ -1358,7 +1381,7 @@ index 82990239..d7343045 100644
  
  #define LWTBL_IDX2BASE_ID		GENMASK(14, 8)
  #define LWTBL_IDX2BASE_DW		GENMASK(7, 2)
-@@ -986,6 +1065,10 @@ enum cipher_suit {
+@@ -986,6 +1035,10 @@ enum cipher_suit {
  #define KEYTBL_IDX2BASE(_key, _dw)	(MT_DBG_UWTBL_TOP_BASE | 0x2000 | \
  					FIELD_PREP(KEYTBL_IDX2BASE_KEY, _key) | \
  					FIELD_PREP(KEYTBL_IDX2BASE_DW, _dw))
@@ -1369,7 +1392,7 @@ index 82990239..d7343045 100644
  
  // UMAC WTBL
  // DW0
-@@ -1089,6 +1172,10 @@ enum cipher_suit {
+@@ -1089,6 +1142,10 @@ enum cipher_suit {
  #define WF_UWTBL_SEC_ADDR_MODE_ADDR                                 32
  #define WF_UWTBL_SEC_ADDR_MODE_MASK                                 0x00300000 // 21-20
  #define WF_UWTBL_SEC_ADDR_MODE_SHIFT                                20
@@ -1380,7 +1403,7 @@ index 82990239..d7343045 100644
  #define WF_UWTBL_WMM_Q_DW                                           8
  #define WF_UWTBL_WMM_Q_ADDR                                         32
  #define WF_UWTBL_WMM_Q_MASK                                         0x06000000 // 26-25
-@@ -2154,6 +2241,20 @@ enum cipher_suit {
+@@ -2154,6 +2211,20 @@ enum cipher_suit {
  	0x00fc0000 // 23-18
  #define WF_LWTBL_SNR_RX3_SHIFT                                      18
  
@@ -1401,7 +1424,7 @@ index 82990239..d7343045 100644
  /* WTBL Group - Packet Number */
  /* DW 2 */
  #define WTBL_PN0_MASK                   BITS(0, 7)
-@@ -2324,6 +2425,10 @@ enum umac_ple_ctrl_port3_queue_idx {
+@@ -2324,6 +2395,10 @@ enum umac_ple_ctrl_port3_queue_idx {
  /* PSE PLE QUEUE */
  #define CR_NUM_OF_AC_MT7996	34
  #define CR_NUM_OF_AC_MT7992	17
@@ -1412,7 +1435,7 @@ index 82990239..d7343045 100644
  struct bmac_queue_info {
  	char *QueueName;
  	u32 Portid;
-@@ -2672,6 +2777,15 @@ struct bmac_queue_info_t {
+@@ -2672,6 +2747,15 @@ struct bmac_queue_info_t {
  #define WF_PSE_TOP_QUEUE_EMPTY_CPU_Q0_EMPTY_MASK               0x00000001                // CPU_Q0_EMPTY[0]
  #define WF_PSE_TOP_QUEUE_EMPTY_CPU_Q0_EMPTY_SHFT               0
  
@@ -1429,7 +1452,7 @@ index 82990239..d7343045 100644
  #define WF_PSE_TOP_QUEUE_EMPTY_1_HIF_13_EMPTY_MASK             0x20000000                // HIF_13_EMPTY[29]
  #define WF_PSE_TOP_QUEUE_EMPTY_1_HIF_13_EMPTY_SHFT             29
 diff --git a/mt7996/mtk_debugfs.c b/mt7996/mtk_debugfs.c
-index 11cb392f..3f4f0012 100644
+index 11cb392f..161ceea9 100644
 --- a/mt7996/mtk_debugfs.c
 +++ b/mt7996/mtk_debugfs.c
 @@ -532,26 +532,48 @@ mt7996_show_dma_info(struct seq_file *s, struct mt7996_dev *dev)
@@ -1628,6 +1651,19 @@ index 11cb392f..3f4f0012 100644
  	dump_dma_rx_ring_info(s, dev, "R9:Data1(MAC2WM)", "Both",
  		WF_WFDMA_MCU_DMA0_WPDMA_RX_RING9_CTRL0_ADDR);
  	dump_dma_rx_ring_info(s, dev, "R10:TXD2(H2WA)", "AP",
+@@ -755,9 +816,9 @@ static int mt7996_mibinfo_show(struct seq_file *s, void *data)
+ 	msr0 = mt76_rr(dev, BN0_WF_MIB_TOP_MSR0_ADDR + band_offset);
+ 	msr1 = mt76_rr(dev, BN0_WF_MIB_TOP_MSR1_ADDR + band_offset);
+ 	msr2 = mt76_rr(dev, BN0_WF_MIB_TOP_MSR2_ADDR + band_offset);
+-	ampdu_cnt[0] = mt76_rr(dev, BN0_WF_MIB_TOP_TSCR0_ADDR + band_offset);
+-	ampdu_cnt[1] = mt76_rr(dev, BN0_WF_MIB_TOP_TSCR3_ADDR + band_offset);
+-	ampdu_cnt[2] = mt76_rr(dev, BN0_WF_MIB_TOP_TSCR4_ADDR + band_offset);
++	ampdu_cnt[0] = mt76_rr(dev, MT_MIB_TSCR0(band_idx));
++	ampdu_cnt[1] = mt76_rr(dev, MT_MIB_TSCR3(band_idx));
++	ampdu_cnt[2] = mt76_rr(dev, MT_MIB_TSCR4(band_idx));
+ 	ampdu_cnt[1] &= BN0_WF_MIB_TOP_TSCR3_AMPDU_MPDU_COUNT_MASK;
+ 	ampdu_cnt[2] &= BN0_WF_MIB_TOP_TSCR4_AMPDU_ACKED_COUNT_MASK;
+ 
 @@ -799,7 +860,7 @@ static int mt7996_mibinfo_show(struct seq_file *s, void *data)
  	tbcr3 = mt76_rr(dev, BN0_WF_MIB_TOP_TBCR3_ADDR + band_offset);
  	seq_printf(s, "\tTx 160MHz Cnt=0x%x\n",
@@ -1637,6 +1673,20 @@ index 11cb392f..3f4f0012 100644
  	seq_printf(s, "\tTx 320MHz Cnt=0x%x\n",
  		tbcr4 & BN0_WF_MIB_TOP_TBCR4_TX_320MHZ_CNT_MASK);
  	seq_printf(s, "\tAMPDU Cnt=0x%x\n", ampdu_cnt[0]);
+@@ -811,10 +872,10 @@ static int mt7996_mibinfo_show(struct seq_file *s, void *data)
+ 
+ 	seq_printf(s, "===MU Related Counters===\n");
+ 	mu_cnt[0] = mt76_rr(dev, BN0_WF_MIB_TOP_BSCR2_ADDR + band_offset);
+-	mu_cnt[1] = mt76_rr(dev, BN0_WF_MIB_TOP_TSCR5_ADDR + band_offset);
+-	mu_cnt[2] = mt76_rr(dev, BN0_WF_MIB_TOP_TSCR6_ADDR + band_offset);
++	mu_cnt[1] = mt76_rr(dev, MT_MIB_TSCR5(band_idx));
++	mu_cnt[2] = mt76_rr(dev, MT_MIB_TSCR6(band_idx));
+ 	mu_cnt[3] = mt76_rr(dev, BN0_WF_MIB_TOP_TSCR8_ADDR + band_offset);
+-	mu_cnt[4] = mt76_rr(dev, BN0_WF_MIB_TOP_TSCR7_ADDR + band_offset);
++	mu_cnt[4] = mt76_rr(dev, MT_MIB_TSCR7(band_idx));
+ 
+ 	seq_printf(s, "\tMUBF_TX_COUNT=0x%x\n",
+ 		mu_cnt[0] & BN0_WF_MIB_TOP_BSCR2_MUBF_TX_COUNT_MASK);
 @@ -936,18 +997,25 @@ mt7996_wtbl_read_raw(struct mt7996_dev *dev, u16 idx,
  		return 0xFF;
  
@@ -2090,6 +2140,66 @@ index a63eeede..1abd5741 100644
  
  	ret = pcim_enable_device(pdev);
  	if (ret)
+diff --git a/mt7996/regs.h b/mt7996/regs.h
+index fb52477f..ea770848 100644
+--- a/mt7996/regs.h
++++ b/mt7996/regs.h
+@@ -64,6 +64,14 @@ enum offs_rev {
+ 	MIB_BSCR7,
+ 	MIB_BSCR17,
+ 	MIB_TRDR1,
++	MIB_TSCR0,
++	MIB_TSCR1,
++	MIB_TSCR2,
++	MIB_TSCR3,
++	MIB_TSCR4,
++	MIB_TSCR5,
++	MIB_TSCR6,
++	MIB_TSCR7,
+ 	HIF_REMAP_L1,
+ 	HIF_REMAP_BASE_L1,
+ 	HIF_REMAP_L2,
+@@ -244,9 +252,9 @@ enum offs_rev {
+ #define MT_MIB_BSCR7(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR7))
+ #define MT_MIB_BSCR17(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR17))
+ 
+-#define MT_MIB_TSCR5(_band)			MT_WF_MIB(_band, 0x6c4)
+-#define MT_MIB_TSCR6(_band)			MT_WF_MIB(_band, 0x6c8)
+-#define MT_MIB_TSCR7(_band)			MT_WF_MIB(_band, 0x6d0)
++#define MT_MIB_TSCR5(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR5))
++#define MT_MIB_TSCR6(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR6))
++#define MT_MIB_TSCR7(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR7))
+ 
+ #define MT_MIB_RSCR1(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR1))
+ /* rx mpdu counter, full 32 bits */
+@@ -262,14 +270,14 @@ enum offs_rev {
+ #define MT_MIB_RSCR36(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR36))
+ 
+ /* tx ampdu cnt, full 32 bits */
+-#define MT_MIB_TSCR0(_band)			MT_WF_MIB(_band, 0x6b0)
+-#define MT_MIB_TSCR2(_band)			MT_WF_MIB(_band, 0x6b8)
++#define MT_MIB_TSCR0(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR0))
++#define MT_MIB_TSCR2(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR2))
+ 
+ /* counts all mpdus in ampdu, regardless of success */
+-#define MT_MIB_TSCR3(_band)			MT_WF_MIB(_band, 0x6bc)
++#define MT_MIB_TSCR3(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR3))
+ 
+ /* counts all successfully tx'd mpdus in ampdu */
+-#define MT_MIB_TSCR4(_band)			MT_WF_MIB(_band, 0x6c0)
++#define MT_MIB_TSCR4(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR4))
+ 
+ /* rx ampdu count, 32-bit */
+ #define MT_MIB_RSCR27(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR27))
+@@ -293,7 +301,7 @@ enum offs_rev {
+ #define MT_MIB_RVSR1(_band)			MT_WF_MIB(_band, __OFFS(MIB_RVSR1))
+ 
+ /* rx blockack count, 32 bits */
+-#define MT_MIB_TSCR1(_band)			MT_WF_MIB(_band, 0x6b4)
++#define MT_MIB_TSCR1(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR1))
+ 
+ #define MT_MIB_BTSCR0(_band)			MT_WF_MIB(_band, 0x5e0)
+ #define MT_MIB_BTSCR5(_band)			MT_WF_MIB(_band, __OFFS(MIB_BTSCR5))
 diff --git a/mt7996/testmode.c b/mt7996/testmode.c
 index 87033158..dcc8e50b 100644
 --- a/mt7996/testmode.c

@@ -1,4 +1,4 @@
-From a4a1deceab8a9201bde896037fb583ae16c355d3 Mon Sep 17 00:00:00 2001
+From a1e595864762603d8f1976a66de2794de4ac5f9b Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 30 Dec 2024 12:15:09 +0800
 Subject: [PATCH 59/92] mtk: mt76: mt7996: move debug APIs to common part
@@ -188,7 +188,7 @@ index 3a39edd2..cb538267 100644
  static const struct mt7996_dfs_radar_spec etsi_radar_specs = {
  	.pulse_th = { 110, -10, -80, 40, 5200, 128, 5200 },
 diff --git a/mt7996/main.c b/mt7996/main.c
-index b8849f69..360f5a45 100644
+index 2659d8cc..2d05f2d6 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -10,10 +10,6 @@
@@ -214,7 +214,7 @@ index b8849f69..360f5a45 100644
  	return 0;
  error:
  	mt7996_vif_link_remove(mphy, vif, link_conf, mlink);
-@@ -685,7 +686,15 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -687,7 +688,15 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  		else
  			add = vif->valid_links ?: BIT(0);
  	}
@@ -231,7 +231,7 @@ index b8849f69..360f5a45 100644
  
  	mutex_lock(&dev->mt76.mutex);
  
-@@ -1646,10 +1655,16 @@ static void mt7996_tx(struct ieee80211_hw *hw,
+@@ -1648,10 +1657,16 @@ static void mt7996_tx(struct ieee80211_hw *hw,
  					rcu_dereference(sta->link[link_id]);
  
  				if (!link_sta) {
@@ -248,7 +248,7 @@ index b8849f69..360f5a45 100644
  						goto unlock;
  					}
  				}
-@@ -2734,6 +2749,10 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2736,6 +2751,10 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	unsigned long add = new_links & ~old_links;
  	int link_id, ret = 0;
  
@@ -260,7 +260,7 @@ index b8849f69..360f5a45 100644
  		return 0;
  
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index d0c9f475..c7fed4e3 100644
+index 91681113..6bdb7057 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1962,6 +1962,11 @@ mt7996_mcu_bss_basic_tlv(struct sk_buff *skb,
@@ -341,7 +341,7 @@ index d0c9f475..c7fed4e3 100644
  	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
  			MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index 9cdab11c..fd416908 100644
+index 4a09b41d..1f7762ff 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
 @@ -17,6 +17,10 @@
@@ -355,7 +355,7 @@ index 9cdab11c..fd416908 100644
  static const struct __base mt7996_reg_base[] = {
  	[WF_AGG_BASE]		= { { 0x820e2000, 0x820f2000, 0x830e2000 } },
  	[WF_ARB_BASE]		= { { 0x820e3000, 0x820f3000, 0x830e3000 } },
-@@ -687,6 +691,7 @@ static int mt7996_mmio_init(struct mt76_dev *mdev,
+@@ -711,6 +715,7 @@ static int mt7996_mmio_init(struct mt76_dev *mdev,
  	dev->mt76.bus = bus_ops;
  
  	mdev->rev = (device_id << 16) | (mt76_rr(dev, MT_HW_REV) & 0xff);

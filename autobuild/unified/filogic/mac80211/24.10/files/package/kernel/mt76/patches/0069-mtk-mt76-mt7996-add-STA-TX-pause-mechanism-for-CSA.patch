@@ -1,4 +1,4 @@
-From d36ca90d1b2dbb8227c0723af1c229ecf49683ff Mon Sep 17 00:00:00 2001
+From 2ec93f217546a8bfc8a17f9bf033e2bab70d1d7a Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 26 Nov 2024 11:12:18 +0800
 Subject: [PATCH 69/92] mtk: mt76: mt7996: add STA TX pause mechanism for CSA
@@ -285,10 +285,10 @@ index 9c39fee4..710980d4 100644
 +	return;
  }
 diff --git a/mt7996/main.c b/mt7996/main.c
-index a09c498b..69fc2513 100644
+index 2ad17202..35003a56 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2866,34 +2866,22 @@ mt7996_set_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+@@ -2868,34 +2868,22 @@ mt7996_set_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
  	struct ieee80211_neg_ttlm merged_ttlm;
  	struct mt7996_dev *dev = mt7996_hw_dev(hw);
  	struct ieee80211_sta *sta;
@@ -329,7 +329,7 @@ index a09c498b..69fc2513 100644
  	ret = mt7996_mcu_peer_mld_ttlm_req(dev, vif, sta, &merged_ttlm);
  	mutex_unlock(&dev->mt76.mutex);
  	return ret;
-@@ -3024,6 +3012,49 @@ mt7996_set_qos_map(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -3026,6 +3014,49 @@ mt7996_set_qos_map(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	return ret;
  }
  
@@ -379,7 +379,7 @@ index a09c498b..69fc2513 100644
  const struct ieee80211_ops mt7996_ops = {
  	.add_chanctx = mt76_add_chanctx,
  	.remove_chanctx = mt76_remove_chanctx,
-@@ -3095,4 +3126,5 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -3097,4 +3128,5 @@ const struct ieee80211_ops mt7996_ops = {
  	.set_sta_ttlm = mt7996_set_sta_ttlm,
  	.can_neg_ttlm = mt7996_can_neg_ttlm,
  	.set_ttlm = mt7996_set_ttlm,

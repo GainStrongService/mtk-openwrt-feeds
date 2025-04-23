@@ -1,4 +1,4 @@
-From c279bd92c755d25354153cfa78091486468225d2 Mon Sep 17 00:00:00 2001
+From 566efd53d0de2212f7dd4664b02642e8f0fc36e8 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 16 Apr 2025 11:04:00 +0800
 Subject: [PATCH 91/92] mtk: mt76: mt7996: fix bcn prot hw mode
@@ -45,10 +45,10 @@ index 2e09b597..1c138d1f 100644
  		txwi[3] &= ~cpu_to_le32(MT_TXD3_PROTECT_FRAME);
  	}
 diff --git a/mt7996/main.c b/mt7996/main.c
-index efedc047..54d4980d 100644
+index aa5a99d5..030ff467 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -707,6 +707,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -709,6 +709,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  	unsigned long add;
  	unsigned int link_id;
  	u8 pn[6] = {};
@@ -56,7 +56,7 @@ index efedc047..54d4980d 100644
  
  	if (cmd != SET_KEY && cmd != DISABLE_KEY)
  		return -EINVAL;
-@@ -754,7 +755,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -756,7 +757,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  		case WLAN_CIPHER_SUITE_BIP_CMAC_256:
  		case WLAN_CIPHER_SUITE_BIP_GMAC_128:
  		case WLAN_CIPHER_SUITE_BIP_GMAC_256:
@@ -65,7 +65,7 @@ index efedc047..54d4980d 100644
  				wcid_keyidx = &msta_link->wcid.hw_key_idx2;
  				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
  				err = mt7996_mcu_get_pn(dev, mconf, msta_link, pn);
-@@ -783,7 +784,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -785,7 +786,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  		}
  
  		/* To remove BIGTK independently, FW needs an extra inband command */
@@ -74,7 +74,7 @@ index efedc047..54d4980d 100644
  			goto out;
  
  		mt76_wcid_key_setup(&dev->mt76, &msta_link->wcid, key);
-@@ -791,6 +792,12 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -793,6 +794,12 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  		err = mt7996_mcu_add_key(&dev->mt76, mconf, key,
  					 MCU_WMWA_UNI_CMD(STA_REC_UPDATE),
  					 &msta_link->wcid, cmd, pn);
@@ -88,7 +88,7 @@ index efedc047..54d4980d 100644
  out:
  	mutex_unlock(&dev->mt76.mutex);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 251d416f..39f1bf1a 100644
+index 604d81b8..e39fd447 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -3563,11 +3563,20 @@ mt7996_mcu_sta_key_tlv(struct mt76_dev *dev,

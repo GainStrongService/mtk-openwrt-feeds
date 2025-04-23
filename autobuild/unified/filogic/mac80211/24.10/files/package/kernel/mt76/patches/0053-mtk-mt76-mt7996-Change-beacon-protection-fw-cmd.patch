@@ -1,4 +1,4 @@
-From 84f6b12b5ab31c8635ce7b463a71198b76cc5f22 Mon Sep 17 00:00:00 2001
+From 3a820fa6e944f37ba9578bf70281104e19f7d3c7 Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Thu, 19 Dec 2024 19:54:34 +0800
 Subject: [PATCH 53/92] mtk: mt76: mt7996: Change beacon protection fw cmd
@@ -15,10 +15,10 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  4 files changed, 49 insertions(+), 83 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 00e941da..646c5dca 100644
+index 83567afc..a39d9f7c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -675,6 +675,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -677,6 +677,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  	int err = 0;
  	unsigned long add;
  	unsigned int link_id;
@@ -26,7 +26,7 @@ index 00e941da..646c5dca 100644
  
  	if (key->link_id >= 0) {
  		add = BIT(key->link_id);
-@@ -713,6 +714,9 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -715,6 +716,9 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  			if (key->keyidx == 6 || key->keyidx == 7) {
  				wcid_keyidx = &msta_link->wcid.hw_key_idx2;
  				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
@@ -36,7 +36,7 @@ index 00e941da..646c5dca 100644
  				break;
  			}
  			fallthrough;
-@@ -723,6 +727,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -725,6 +729,7 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  			return -EOPNOTSUPP;
  		}
  
@@ -44,7 +44,7 @@ index 00e941da..646c5dca 100644
  		if (cmd == SET_KEY && !sta && !mconf->mt76.cipher) {
  			mconf->mt76.cipher = mt76_connac_mcu_get_cipher(key->cipher);
  			mt7996_mcu_add_bss_info(mconf->phy, vif, conf, &mconf->mt76, msta_link, true);
-@@ -738,12 +743,9 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -740,12 +745,9 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  
  		mt76_wcid_key_setup(&dev->mt76, &msta_link->wcid, key);
  
@@ -61,7 +61,7 @@ index 00e941da..646c5dca 100644
  out:
  	mutex_unlock(&dev->mt76.mutex);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index e67a913a..c469abe4 100644
+index 4392c9bb..4097d392 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -3491,10 +3491,12 @@ int mt7996_mcu_teardown_mld_sta(struct mt7996_dev *dev,

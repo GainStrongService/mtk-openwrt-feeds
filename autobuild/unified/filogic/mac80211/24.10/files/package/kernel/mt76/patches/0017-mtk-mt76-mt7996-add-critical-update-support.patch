@@ -1,4 +1,4 @@
-From bb67e33e5d80b6b71b70ab959f59781da94a3ece Mon Sep 17 00:00:00 2001
+From f6c7078698843308bbf24cbad8a2314da06c36ae Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 23 Apr 2024 15:22:24 +0800
 Subject: [PATCH 17/92] mtk: mt76: mt7996: add critical update support
@@ -49,10 +49,10 @@ index 184740e0..e9f905c2 100644
  
  enum {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 9e886217..4e40e89e 100644
+index 8374d58f..e4ea5a92 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -1007,7 +1007,11 @@ mt7996_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1009,7 +1009,11 @@ mt7996_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		link->mt76.beacon_rates_idx =
  			mt7996_get_rates_table(phy, info, true, false);
  
@@ -65,7 +65,7 @@ index 9e886217..4e40e89e 100644
  	}
  
  	if (changed & (BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
-@@ -1038,17 +1042,41 @@ mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
+@@ -1040,17 +1044,41 @@ mt7996_channel_switch_beacon(struct ieee80211_hw *hw,
  	unsigned int link_id;
  
  	mutex_lock(&dev->mt76.mutex);

@@ -1,4 +1,4 @@
-From abb0debc436de67c49abdee36a58c00df1ff5e2f Mon Sep 17 00:00:00 2001
+From 5fd4a77f0bcbcc31747bc6653b6e1252a3992065 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 17 May 2024 14:49:50 +0800
 Subject: [PATCH 19/92] mtk: mt76: mt7996: trigger channel calibration for DFS
@@ -17,10 +17,10 @@ Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
  4 files changed, 28 insertions(+), 8 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 4e40e89e..50367209 100644
+index e4ea5a92..52798c9c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -622,11 +622,23 @@ int mt7996_set_channel(struct mt76_phy *mphy)
+@@ -624,11 +624,23 @@ int mt7996_set_channel(struct mt76_phy *mphy)
  	struct mt7996_phy *phy = mphy->priv;
  	int ret;
  
@@ -46,7 +46,7 @@ index 4e40e89e..50367209 100644
  	if (ret)
  		goto out;
  
-@@ -2657,6 +2669,13 @@ mt7996_event_callback(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2659,6 +2671,13 @@ mt7996_event_callback(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  				next_time = min(next_time,
  						MT7996_MAX_BEACON_LOSS *
  						conf->beacon_int);

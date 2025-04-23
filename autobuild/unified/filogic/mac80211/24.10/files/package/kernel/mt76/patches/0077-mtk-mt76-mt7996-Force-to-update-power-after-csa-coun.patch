@@ -1,4 +1,4 @@
-From a4528d4cc52aaecc9a21ea150a993d48c1581f66 Mon Sep 17 00:00:00 2001
+From 373506d2ea2c0f5ebd8d4e719dd2082ba32415ee Mon Sep 17 00:00:00 2001
 From: Allen Ye <allen.ye@mediatek.com>
 Date: Mon, 24 Feb 2025 16:25:48 +0800
 Subject: [PATCH 77/92] mtk: mt76: mt7996: Force to update power after csa
@@ -15,10 +15,10 @@ Signed-off-by: Allen Ye <allen.ye@mediatek.com>
  1 file changed, 11 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index a4e3a2d9..e5212379 100644
+index 06b06520..b27a2c7c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -636,6 +636,9 @@ int mt7996_set_channel(struct mt76_phy *mphy)
+@@ -638,6 +638,9 @@ int mt7996_set_channel(struct mt76_phy *mphy)
  		if (ret)
  			goto out;
  	} else if (mphy->chanctx && mphy->chanctx->state == MT76_CHANCTX_STATE_SWITCH) {
@@ -28,7 +28,7 @@ index a4e3a2d9..e5212379 100644
  		if (mphy->chanctx->has_ap && phy->pp_mode == PP_USR_MODE) {
  			ret = mt7996_mcu_set_pp_en(phy, PP_USR_MODE,
  						   mphy->main_chandef.punctured);
-@@ -645,6 +648,14 @@ int mt7996_set_channel(struct mt76_phy *mphy)
+@@ -647,6 +650,14 @@ int mt7996_set_channel(struct mt76_phy *mphy)
  			ret = mt7996_mcu_set_pp_sta_dscb(phy, &mphy->main_chandef,
  							 omac_idx);
  		}
@@ -43,7 +43,7 @@ index a4e3a2d9..e5212379 100644
  	}
  
  	if (phy->dev->cal) {
-@@ -666,10 +677,6 @@ int mt7996_set_channel(struct mt76_phy *mphy)
+@@ -668,10 +679,6 @@ int mt7996_set_channel(struct mt76_phy *mphy)
  	if (ret)
  		goto out;
  

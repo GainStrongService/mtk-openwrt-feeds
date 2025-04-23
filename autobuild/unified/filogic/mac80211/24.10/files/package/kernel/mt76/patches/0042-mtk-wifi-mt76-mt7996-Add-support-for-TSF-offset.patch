@@ -1,4 +1,4 @@
-From 05a892a6ccc5ae39c453013c0129d0169ac9fd6e Mon Sep 17 00:00:00 2001
+From 7a820cec70b1b0483040adfdcde4ac71a9667626 Mon Sep 17 00:00:00 2001
 From: MeiChia Chiu <MeiChia.Chiu@mediatek.com>
 Date: Fri, 6 Sep 2024 17:21:46 +0800
 Subject: [PATCH 42/92] mtk: wifi: mt76: mt7996: Add support for TSF offset
@@ -29,10 +29,10 @@ index 4ed10fbb..ff9cd8ca 100644
  	MCU_UNI_CMD_GET_STAT_INFO = 0x23,
  	MCU_UNI_CMD_SNIFFER = 0x24,
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 568d9b0e..d5bc2e1d 100644
+index 3ba6bb27..a32501d3 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -956,6 +956,33 @@ mt7996_vif_cfg_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -958,6 +958,33 @@ mt7996_vif_cfg_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	mutex_unlock(&dev->mt76.mutex);
  }
  
@@ -66,7 +66,7 @@ index 568d9b0e..d5bc2e1d 100644
  static void
  mt7996_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  			 struct ieee80211_bss_conf *info, u64 changed)
-@@ -1031,6 +1058,9 @@ mt7996_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -1033,6 +1060,9 @@ mt7996_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		 */
  		if (!info->enable_beacon || !info->csa_active)
  			mt7996_mcu_add_beacon(hw, vif, info, info->enable_beacon);
@@ -77,7 +77,7 @@ index 568d9b0e..d5bc2e1d 100644
  
  	if (changed & (BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 47bf6b25..da8e4e78 100644
+index 7016d844..540f5ad7 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -2025,6 +2025,71 @@ out:

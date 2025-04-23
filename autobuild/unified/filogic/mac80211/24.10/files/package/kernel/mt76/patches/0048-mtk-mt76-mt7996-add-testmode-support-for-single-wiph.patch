@@ -1,4 +1,4 @@
-From 880e42b13a35d5f389da301ee25192962964fed4 Mon Sep 17 00:00:00 2001
+From 91ee612416301983ce474451490bf92b74715997 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 8 Nov 2024 17:01:16 +0800
 Subject: [PATCH 48/92] mtk: mt76: mt7996: add testmode support for single
@@ -50,7 +50,7 @@ index dfc48d25..3a4fbd8b 100644
  	radio->n_freq_range = 1;
  	radio->iface_combinations = is_mt7996(&dev->mt76) ? &if_comb : &if_comb_7992;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index d5bc2e1d..8616c6b1 100644
+index a32501d3..c2b2433c 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
 @@ -112,8 +112,6 @@ static int mt7996_start(struct ieee80211_hw *hw)
@@ -62,7 +62,7 @@ index d5bc2e1d..8616c6b1 100644
  	mutex_unlock(&dev->mt76.mutex);
  
  	ieee80211_queue_delayed_work(hw, &dev->scs_work, HZ);
-@@ -502,6 +500,8 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+@@ -504,6 +502,8 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
  		return -EINVAL;
  	}
  

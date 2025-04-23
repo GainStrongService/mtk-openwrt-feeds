@@ -1,4 +1,4 @@
-From 4828bd09b0b9800b2efd4677b6f33f5e8230c5ad Mon Sep 17 00:00:00 2001
+From 593622b77339b542aeb0ed00d4896c46e7ace2ef Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Thu, 27 Mar 2025 13:31:32 +0800
 Subject: [PATCH 88/92] mtk: mt76: mt7996: Add sw path hwrro3.1 support
@@ -388,10 +388,10 @@ index a3731ee1..2e09b597 100644
  {
  	struct mt7996_dev *dev = phy->dev;
 diff --git a/mt7996/mmio.c b/mt7996/mmio.c
-index dc3438f6..07b11895 100644
+index c64aad63..7a51a821 100644
 --- a/mt7996/mmio.c
 +++ b/mt7996/mmio.c
-@@ -902,6 +902,8 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
+@@ -926,6 +926,8 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
  		.rx_poll_complete = mt7996_rx_poll_complete,
  		.rx_rro_ind_process = mt7996_rro_rx_process,
  		.rx_rro_fill_msdu_pg = mt7996_rro_fill_msdu_page,
@@ -445,10 +445,10 @@ index 15ffc6d8..1dc99598 100644
  void mt7996_stats_work(struct work_struct *work);
  void mt7996_beacon_mon_work(struct work_struct *work);
 diff --git a/mt7996/regs.h b/mt7996/regs.h
-index 172da130..9b60e554 100644
+index c48f1d51..03867b94 100644
 --- a/mt7996/regs.h
 +++ b/mt7996/regs.h
-@@ -587,6 +587,7 @@ enum offs_rev {
+@@ -595,6 +595,7 @@ enum offs_rev {
  						 MT_INT_RX(MT_RXQ_RRO_BAND1) |		\
  						 MT_INT_RX(MT_RXQ_RRO_BAND2) |		\
  						 MT_INT_RX(MT_RXQ_RRO_IND) |		\

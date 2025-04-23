@@ -1,4 +1,4 @@
-From fc5724515b5d7706add0da56de05bbc09deb0f3b Mon Sep 17 00:00:00 2001
+From 1fc6a52f69a0f20e03ec250ad4b163cb9a6952d7 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 13 Jan 2025 14:07:45 +0800
 Subject: [PATCH 62/92] mtk: mt76: mt7996: set TTLM on a STA MLD
@@ -20,10 +20,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  1 file changed, 52 insertions(+), 4 deletions(-)
 
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 4d37c85b..f9bf389f 100644
+index 25b590d3..d92d5b8b 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -982,10 +982,6 @@ mt7996_vif_cfg_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -984,10 +984,6 @@ mt7996_vif_cfg_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		}
  	}
  
@@ -34,7 +34,7 @@ index 4d37c85b..f9bf389f 100644
  	mutex_unlock(&dev->mt76.mutex);
  }
  
-@@ -2860,6 +2856,45 @@ out:
+@@ -2862,6 +2858,45 @@ out:
  	return ret;
  }
  
@@ -80,7 +80,7 @@ index 4d37c85b..f9bf389f 100644
  static int
  mt7996_set_attlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		 u16 disabled_links, u16 switch_time, u32 duration)
-@@ -2873,6 +2908,17 @@ mt7996_set_attlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+@@ -2875,6 +2910,17 @@ mt7996_set_attlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  	return ret;
  }
  
@@ -98,7 +98,7 @@ index 4d37c85b..f9bf389f 100644
  static void
  mt7996_event_callback(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		      const struct ieee80211_event *event)
-@@ -3029,4 +3075,6 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -3031,4 +3077,6 @@ const struct ieee80211_ops mt7996_ops = {
  	.change_sta_links = mt7996_mac_sta_change_links,
  	.set_qos_map = mt7996_set_qos_map,
  	.set_attlm = mt7996_set_attlm,

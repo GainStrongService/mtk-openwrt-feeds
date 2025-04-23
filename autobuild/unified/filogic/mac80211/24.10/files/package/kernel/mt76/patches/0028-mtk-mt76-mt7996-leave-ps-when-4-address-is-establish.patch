@@ -1,4 +1,4 @@
-From adc0b405d3578c0260f3eb9f6b03354bbf9d2176 Mon Sep 17 00:00:00 2001
+From bc0f8f63d8a2ab69edbb8e8b8ac8eb5f28f04c3c Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Thu, 18 Jul 2024 10:29:22 +0800
 Subject: [PATCH 28/92] mtk: mt76: mt7996: leave ps when 4 address is
@@ -31,10 +31,10 @@ index 53d0c885..8721ecbd 100644
  };
  
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 36660f1d..8c150404 100644
+index 7003332a..b24bb75d 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2201,6 +2201,9 @@ static void mt7996_sta_set_4addr(struct ieee80211_hw *hw,
+@@ -2203,6 +2203,9 @@ static void mt7996_sta_set_4addr(struct ieee80211_hw *hw,
  			continue;
  
  		mt7996_mcu_wtbl_update_hdr_trans(dev, vif, link, msta_link);
@@ -45,7 +45,7 @@ index 36660f1d..8c150404 100644
  
  	mutex_unlock(&dev->mt76.mutex);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 13c46eb0..79ea2718 100644
+index b3df135d..8e0eee3d 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -6370,6 +6370,24 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,

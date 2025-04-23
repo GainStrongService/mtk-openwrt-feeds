@@ -1,4 +1,4 @@
-From 3aaa93357dba14f02b6bf63818c28fc074b484ed Mon Sep 17 00:00:00 2001
+From 70f489692d0be31af1ba494ee8a7abc945ab4225 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 28 Jun 2024 13:45:15 +0800
 Subject: [PATCH 27/92] mtk: mt76: mt7996: add support for AP A-TTLM
@@ -31,10 +31,10 @@ index 14c368cc..53d0c885 100644
  
  enum {
 diff --git a/mt7996/main.c b/mt7996/main.c
-index f542ae17..36660f1d 100644
+index 2c774231..7003332a 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
-@@ -2777,6 +2777,19 @@ out:
+@@ -2779,6 +2779,19 @@ out:
  	return ret;
  }
  
@@ -54,14 +54,14 @@ index f542ae17..36660f1d 100644
  static void
  mt7996_event_callback(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
  		      const struct ieee80211_event *event)
-@@ -2932,4 +2945,5 @@ const struct ieee80211_ops mt7996_ops = {
+@@ -2934,4 +2947,5 @@ const struct ieee80211_ops mt7996_ops = {
  	.change_vif_links = mt7996_change_vif_links,
  	.change_sta_links = mt7996_mac_sta_change_links,
  	.set_qos_map = mt7996_set_qos_map,
 +	.set_attlm = mt7996_set_attlm,
  };
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 54337d55..13c46eb0 100644
+index 21168339..b3df135d 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1381,6 +1381,22 @@ mt7996_mcu_mld_reconf_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
