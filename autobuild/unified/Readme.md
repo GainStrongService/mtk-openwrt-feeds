@@ -56,8 +56,8 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
 ---
 
 ### Supported Chipsets
-- Filogic880/MT7996 802.11a/b/g/n/ac/ax/be BE19000/BE14000 2.4/5G/6GHz PCIe Chip
-- Filogic860/MT7992 802.11a/b/g/n/ac/ax/be BE7200/BE5000 2.4/5G PCIe Chip
+- Filogic880/Filogic680/MT7996 802.11a/b/g/n/ac/ax/be BE19000/BE14000 2.4/5G/6GHz PCIe Chip
+- Filogic860/Filogic660/MT7992 802.11a/b/g/n/ac/ax/be BE7200/BE5000 2.4/5G PCIe Chip
 ---
 
 ### Default EEPROM Bin
@@ -80,15 +80,25 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
 
 ## Wi-Fi 7 Latest Release Version
 
-- **Date**: 2024-03-07
+- **Date**: 2025-04-25
 - **Modified By**: Evelyn Tsai (evelyn.tsai@mediatek.com)
+- **Version**:
+  - Driver Version: 4.3.25.04
+  - Filogic880/Filogic680 Firmware Version: 202504211220
+  - Filogic860/Filogic660 Firmware Version: 202504211313
+- **Document Reference**:
+  - MAC80211 MT76 Programming Guide v4.10
+  - MT76 Test Mode Programming Guide v2.5
 - **Summary of Changes**:
   - Platform
     - Support USB/PCIe/Dual Image/Flowblock HWNAT/Thermal
+    - Support single image, watchdog, pwm, eip197 look-aside mode, TRNG (*NEW*)
     - Support RTL8261N 10G PHY
     - Support MTK Prpl Reference Board, BE19000
     - Support BananaPi BPI-R4, BE14000
-
+    - **Not Support**:
+      - Security Boot
+      - Dual FIP
   - WiFi:
     - Real Single Wiphy - foundational requirement for Multi-Link
     - Preamble puncturing (WiFi6E with FCC regularity restriction)
@@ -113,24 +123,83 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
     - Link management (Adv-T2LM & Neg-T2LM)
     - BSS parameter critical update
     - Multi-Link + 11v MBSS
-    - Multi-Link + WPS (need to specify first link to setup)
+    - Multi-Link + WPS
     - EPCS Priority Access
-    - **Not Support or Known issue**:
-      - Multi-Link + 11FT
+    - **Partial Support w/ known issue**:
+      - Multi-Link + 11FT (AKM9/25)
+    - **Not Support**:
       - QoS Management R3
       - WiFi7 R2
-    - **Version**:
-      - Driver Version: 4.3.25.02
-      - Filogic880 Firmware Version: 20250305
-      - Filogic860 Firmware Version: 20250304
-    - **Document Reference**:
-      - MAC80211 MT76 Programming Guide v4.9
-      - MT76 Test Mode Programming Guide v2.4
-    - **Notice**:
-      - Since the OpenWRT UCI haven't introduce the formal MLO config yet, please refer to the MAC80211 MT76 Programming Guide to Setup AP MLD and non-AP MLD (STA MLD)
-      - The default power control from user space is disabled to follow the maximum power from eFuse. If you would like to enable power-relevant features (e.g., SingleSKU/iw set Tx Power)
-      - make sure to set 'sku_idx' to zero for a single SKU table or to any positive number for the index of SKU tables you want in the hostapd configuration to enable it.
-      - You can double-check whether the value under '/sys/kernel/debug/ieee80211/phy0/mt76/sku_disable' is 0.
+  - **Default Wi-Fi Configuration**:
+
+      |                  | 2g      | 5g      | 6g      | MLD                        |
+      |------------------|---------|---------|---------|----------------------------|
+      | **Channel**      | Ch1     | Ch36    | Ch37    | Ch1/36/37                  |
+      | **Bandwidth**    | BW40    | BW160   | BW320   | BW40/160/320               |
+      | **Security**     | OPEN    | OPEN    | SAE     | RSNE: PSK2 (AKM2)          |
+      |                  |         |         |         | RSNO: SAE (AKM8)           |
+      |                  |         |         |         | RSNO2: SAE-EXT (AKM24)     |
+      | **11vMBSS**      | Disable | Disable | Enable  |                            |
+
+  - **Notice**:
+    - Since the OpenWRT UCI haven't introduce the formal MLO config yet, please refer to the MAC80211 MT76 Programming Guide to Setup AP MLD and non-AP MLD (STA MLD)
+    - The default power control from user space is disabled to follow the maximum power from eFuse. If you would like to enable power-relevant features (e.g., SingleSKU/iw set Tx Power)
+    - make sure to set 'sku_idx' to zero for a single SKU table or to any positive number for the index of SKU tables you want in the hostapd configuration to enable it.
+    - You can double-check whether the value under '/sys/kernel/debug/ieee80211/phy0/mt76/sku_disable' is 0.
+
+#### Filogic 880 WiFi7 Beta Release (2025-04-25)
+
+```
+#Get OpenWrt 24.10 source code from Git Server
+git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git openwrt
+cd openwrt; git checkout 3a481ae21bdc504f7f0325151ee0cb4f25dfd2cd; cd -;
+
+#Get mtk-openwrt-feeds source code
+git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+cd mtk-openwrt-feeds; git checkout c8e3540e54b5b07b7afb4a5bd09d6f8db8c8a496; cd -;
+
+#Choose one SKU to build (1st Build)
+cd openwrt
+
+#Change Feeds Revision
+#vim ../mtk-openwrt-feeds/autobuild/unified/feed_revision
+packages e4be6dba98298957ef82ae70b4478818a351535e
+luci 9453d7db801bf4ea2555aa3e7c99e58b93c93c1b
+routing f2ee837d3714f86e9d636302e9f69612c71029cb
+
+# Select one SKU to build
+## 1. Filogic 880 (MT7988+MT7996) MTK Reference Board (RFB) and BananaPi BPI-R4
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt7988_rfb-mt7996 log_file=make
+## 2. Filogic 860 (MT7988+MT7992) MTK Reference Board (RFB)
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt7988_rfb-mt7992 log_file=make
+## 3. MTK Prpl Reference Board (Mozart)
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mozart log_file=make
+
+#Further Build (After 1st full build)
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh build
+or
+make V=s
+
+#Clean OpenWrt source tree
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
+```
+
+##### WiFi Package Version
+
+| **Platform**             | **OpenWrt-24.10**            | **git01.mediatek.com**         |
+|--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
+| Kernel                   | 6.6.68                        | ./feeds/mtk_openwrt_feed/24.10/patches-base <br />  ./feeds/mtk_openwrt_feed/24.10/files  <br /> ./feeds/mtk_openwrt_feed/24.10/patches-feeds                 |
+| **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
+| Hostapd                  | PKG_SOURCE_DATE:=2025-02-09   | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0003-hostapd-package-makefile-ucode-files.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/nerwork/services/hostapd/patches         |
+| libnl-tiny               | PKG_SOURCE_DATE:=2025-03-19   | N/A                                                                               |
+| iw                       | PKG_VERSION:=6.9-r1           | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/network/utils/iw/patches               |
+| iwinfo                   | PKG_SOURCE_DATE:=2024-10-20   | N/A                                                                               |
+| wireless-regdb           | PKG_VERSION:=2025-02-20       | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/firmware/wireless-regdb/patches                |
+| ucode                    | PKG_VERSION:=2025-02-10       | |
+| wifi-scripts             | PKG_VERSION:=1.0-r1           | **Files**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/network/config/wifi-scripts/files   |
+| netifd                   | PKG_VERSION:=2024-12-17       | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/network/config/netifd/patches  |
+| MAC80211                 | PKG_VERSION:=wireless-next-2025-03-20 (~ Kernel 6.14-rc7) | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0004-mac80211-package-makefile.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mac80211/patches |
+| MT76                     | PKG_SOURCE_DATE:=2025-04-11  | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0001-mt76-package-makefile.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/patches <br /> **Firmware** ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/src/firmware/mt7996 |
 
 #### Filogic 880 WiFi7 Beta Release (2025-03-07)
 
@@ -203,7 +272,7 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
 | Kernel                   | 6.6.79                        | ./feeds/mtk_openwrt_feed/24.10/patches-base |
 | **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
-| Hostapd                  | PKG_SOURCE_DATE:=2024-02-09   | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0003-hostapd-package-makefile-ucode-files.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/nerwork/services/hostapd/patches         |
+| Hostapd                  | PKG_SOURCE_DATE:=2025-02-09   | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0003-hostapd-package-makefile-ucode-files.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/nerwork/services/hostapd/patches         |
 | libnl-tiny               | PKG_SOURCE_DATE:=2023-12-05   | N/A                                                                               |
 | iw                       | PKG_VERSION:=6.9              | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/network/utils/iw/patches               |
 | iwinfo                   | PKG_SOURCE_DATE:=2024-10-20   | N/A                                                                               |
