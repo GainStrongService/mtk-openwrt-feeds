@@ -147,7 +147,7 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
     - make sure to set 'sku_idx' to zero for a single SKU table or to any positive number for the index of SKU tables you want in the hostapd configuration to enable it.
     - You can double-check whether the value under '/sys/kernel/debug/ieee80211/phy0/mt76/sku_disable' is 0.
 
-#### Filogic 880 WiFi7 Beta Release (2025-04-25)
+#### Filogic 880/860 WiFi7 MP4.1 Release (2025-04-25)
 
 ```
 #Get OpenWrt 24.10 source code from Git Server
