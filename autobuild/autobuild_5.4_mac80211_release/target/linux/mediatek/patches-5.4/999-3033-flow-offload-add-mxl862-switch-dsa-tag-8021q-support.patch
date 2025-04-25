@@ -1,0 +1,160 @@
+From 0dfc692f15f8539bfaa25b729a70d936f1dd4ec5 Mon Sep 17 00:00:00 2001
+From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
+Date: Mon, 28 Apr 2025 14:29:30 +0800
+Subject: [PATCH] flow offload add mxl862 switch dsa tag 8021q support
+
+---
+ drivers/net/ethernet/mediatek/mtk_ppe.c       | 25 +++++++++-----
+ drivers/net/ethernet/mediatek/mtk_ppe.h       |  2 +-
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   | 34 +++++++++++--------
+ 3 files changed, 37 insertions(+), 24 deletions(-)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
+index 41428a9..48c39f7 100644
+--- a/drivers/net/ethernet/mediatek/mtk_ppe.c
++++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
+@@ -365,20 +365,29 @@ int mtk_foe_entry_set_ipv6_tuple(struct mtk_foe_entry *entry,
+ 	return 0;
+ }
+ 
+-int mtk_foe_entry_set_dsa(struct mtk_foe_entry *entry, int port)
++int mtk_foe_entry_set_dsa(struct mtk_foe_entry *entry, int proto, int port)
+ {
+-	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(entry);
++#if IS_ENABLED(CONFIG_NET_DSA)
++	struct mtk_foe_mac_info *l2;
+ 
+-	l2->etype = BIT(port);
++	if (proto == DSA_TAG_PROTO_MXL862_8021Q) {
++		mtk_foe_entry_set_vlan(entry, port + BIT(11));
++	} else {
++		l2 = mtk_foe_entry_l2(entry);
++		l2->etype = BIT(port);
+ 
+-	if (!(entry->ib1 & MTK_FOE_IB1_BIND_VLAN_LAYER))
+-		entry->ib1 |= FIELD_PREP(MTK_FOE_IB1_BIND_VLAN_LAYER, 1);
+-	else
+-		l2->etype |= BIT(8);
++		if (!(entry->ib1 & MTK_FOE_IB1_BIND_VLAN_LAYER))
++			entry->ib1 |= FIELD_PREP(MTK_FOE_IB1_BIND_VLAN_LAYER, 1);
++		else
++			l2->etype |= BIT(8);
+ 
+-	entry->ib1 &= ~MTK_FOE_IB1_BIND_VLAN_TAG;
++		entry->ib1 &= ~MTK_FOE_IB1_BIND_VLAN_TAG;
++	}
+ 
+ 	return 0;
++#else
++	return -ENODEV;
++#endif
+ }
+ 
+ int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid)
+diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
+index 1aa2511..e1673b0 100644
+--- a/drivers/net/ethernet/mediatek/mtk_ppe.h
++++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
+@@ -417,7 +417,7 @@ int mtk_foe_entry_set_ipv4_tuple(struct mtk_foe_entry *entry, bool orig,
+ int mtk_foe_entry_set_ipv6_tuple(struct mtk_foe_entry *entry,
+ 				 __be32 *src_addr, __be16 src_port,
+ 				 __be32 *dest_addr, __be16 dest_port);
+-int mtk_foe_entry_set_dsa(struct mtk_foe_entry *entry, int port);
++int mtk_foe_entry_set_dsa(struct mtk_foe_entry *entry, int proto, int port);
+ int mtk_foe_entry_set_vlan(struct mtk_foe_entry *entry, int vid);
+ int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid);
+ int mtk_foe_entry_set_tops_entry(struct mtk_foe_entry *entry, int tops_entry);
+diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
+index e68d00f..cb430ce 100644
+--- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
++++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
+@@ -166,7 +166,7 @@ mtk_flow_mangle_ipv4(const struct flow_action_entry *act,
+ }
+ 
+ static int
+-mtk_flow_get_dsa_port(struct net_device **dev)
++mtk_flow_get_dsa_port(struct net_device **dev, int *proto)
+ {
+ #if IS_ENABLED(CONFIG_NET_DSA)
+ 	struct dsa_port *dp;
+@@ -176,10 +176,13 @@ mtk_flow_get_dsa_port(struct net_device **dev)
+ 		return -ENODEV;
+ 
+ 	if (dp->cpu_dp->tag_ops->proto != DSA_TAG_PROTO_MTK &&
+-	    dp->cpu_dp->tag_ops->proto != DSA_TAG_PROTO_ARHT)
++	    dp->cpu_dp->tag_ops->proto != DSA_TAG_PROTO_ARHT &&
++	    dp->cpu_dp->tag_ops->proto != DSA_TAG_PROTO_MXL862_8021Q)
+ 		return -ENODEV;
+ 
+ 	*dev = dp->cpu_dp->master;
++	if (proto)
++		*proto = dp->cpu_dp->tag_ops->proto;
+ 
+ 	return dp->index;
+ #else
+@@ -193,7 +196,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 			   int *wed_index, int dscp)
+ {
+ 	struct mtk_wdma_info info = {};
+-	int pse_port, dsa_port;
++	int pse_port, dsa_port, dsa_proto;
+ 
+ 	if (mtk_flow_get_wdma_info(dev, dest_mac, &info, dscp) == 0) {
+ 		mtk_foe_entry_set_wdma(foe, info.wdma_idx, info.queue, info.bss,
+@@ -213,9 +216,9 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 		goto out;
+ 	}
+ 
+-	dsa_port = mtk_flow_get_dsa_port(&dev);
++	dsa_port = mtk_flow_get_dsa_port(&dev, &dsa_proto);
+ 	if (dsa_port >= 0)
+-		mtk_foe_entry_set_dsa(foe, dsa_port);
++		mtk_foe_entry_set_dsa(foe, dsa_proto, dsa_port);
+ 
+ 	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(eth, foe, dsa_port))
+ 		mtk_foe_entry_set_qid(foe, dsa_port & MTK_QDMA_TX_MASK);
+@@ -397,6 +400,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+ 		return err;
+ 
+ #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
++	mtk_flow_get_dsa_port(&idev, NULL);
+ 	if (idev && idev->netdev_ops->ndo_fill_receive_path) {
+ 		ctx.dev = idev;
+ 		idev->netdev_ops->ndo_fill_receive_path(&ctx, &path);
+@@ -477,6 +481,16 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+ 			return err;
+ 	}
+ 
++	mtk_foe_entry_set_sp(eth->ppe[ppe_index], &foe);
++
++	err = mtk_flow_set_output_device(eth, &foe, odev, f->flow->ct, data.eth.h_dest,
++					 &wed_index, dscp);
++	if (err)
++		return err;
++
++	if (wed_index >= 0 && (err = mtk_wed_flow_add(wed_index)) < 0)
++		return err;
++
+ 	if (offload_type == MTK_PPE_PKT_TYPE_BRIDGE)
+ 		foe.bridge.vlan = data.vlan_in;
+ 
+@@ -489,16 +503,6 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+ 	if (data.pppoe.num == 1)
+ 		mtk_foe_entry_set_pppoe(&foe, data.pppoe.sid);
+ 
+-	mtk_foe_entry_set_sp(eth->ppe[ppe_index], &foe);
+-
+-	err = mtk_flow_set_output_device(eth, &foe, odev, f->flow->ct, data.eth.h_dest,
+-					 &wed_index, dscp);
+-	if (err)
+-		return err;
+-
+-	if (wed_index >= 0 && (err = mtk_wed_flow_add(wed_index)) < 0)
+-		return err;
+-
+ 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+ 	if (!entry)
+ 		return -ENOMEM;
+-- 
+2.45.2
+
