@@ -1,0 +1,12 @@
+--- a/include/image-commands.mk
++++ b/include/image-commands.mk
+@@ -391,7 +391,8 @@ define Build/fit
+ 		$(if $(DEVICE_DTS_OVERLAY),$(foreach dtso,$(DEVICE_DTS_OVERLAY), -O $(dtso):$(KERNEL_BUILD_DIR)/image-$(dtso).dtbo)) \
+ 		-c $(if $(DEVICE_DTS_CONFIG),$(DEVICE_DTS_CONFIG),"config-1") \
+ 		-A $(LINUX_KARCH) -v $(LINUX_VERSION) \
+-		$(if $(CONFIG_MTK_SECURE_BOOT),-b $(CONFIG_FIT_SIGN_ALG) -S $(call qstrip,$(CONFIG_FIT_SIGN_KEY_NAME))); \
++		$(if $(CONFIG_MTK_SECURE_BOOT),-b $(CONFIG_FIT_SIGN_ALG) -S $(call qstrip,$(CONFIG_FIT_SIGN_KEY_NAME))) \
++		$(if $(CONFIG_MTK_FW_ENC),-B $(CONFIG_FW_ENC_ALG)); \
+ 		PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage $(if $(findstring external,$(word 3,$(1))),\
+ 			-E -B 0x1000 $(if $(findstring static,$(word 3,$(1))),-p 0x1000)) \
+ 			$(if $(CONFIG_MTK_SECURE_BOOT),-o $(CONFIG_FIT_SIGN_ALG) -k $(TOPDIR)/$(call qstrip,$(CONFIG_SBC_KEY_DIR))) -f $@.its $@.new, \

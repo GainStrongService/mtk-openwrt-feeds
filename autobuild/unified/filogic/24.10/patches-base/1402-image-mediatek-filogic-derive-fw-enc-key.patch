@@ -1,0 +1,39 @@
+--- a/target/linux/mediatek/image/Makefile
++++ b/target/linux/mediatek/image/Makefile
+@@ -58,6 +58,26 @@ define Build/squashfs-hashed
+ 		$(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb
+ endef
+ 
++define hkdf
++	HOST_BIN=$(STAGING_DIR_HOST)/bin \
++	HOSTPKG_BIN=$(STAGING_DIR_HOSTPKG)/bin \
++	$(TOPDIR)/scripts/fw-enc-hkdf.sh -i $(1) -o $(2) -t $(3)
++endef
++
++define Image/fw-enc-key-derive
++	$(call hkdf,$(TOPDIR)/$(call qstrip,$(CONFIG_SBC_KEY_DIR)/$(CONFIG_PLAT_KEY_NAME).bin), \
++		    $(TOPDIR)/$(call qstrip,$(CONFIG_SBC_KEY_DIR)/roe_key.bin), \
++		    $(TOPDIR)/$(call qstrip,$(CONFIG_SBC_KEY_DIR)/$(CONFIG_ROE_SALT)))
++
++	$(call hkdf,$(TOPDIR)/$(call qstrip,$(CONFIG_SBC_KEY_DIR)/roe_key.bin), \
++		    $(TOPDIR)/$(call qstrip,$(CONFIG_SBC_KEY_DIR)/kernel_key.bin), \
++		    $(TOPDIR)/$(call qstrip,$(CONFIG_SBC_KEY_DIR)/$(CONFIG_KERNEL_SALT)))
++
++	$(call hkdf,$(TOPDIR)/$(call qstrip,$(CONFIG_SBC_KEY_DIR)/roe_key.bin), \
++		    $(TOPDIR)/$(call qstrip,$(CONFIG_SBC_KEY_DIR)/rootfs_key.bin), \
++		    $(TOPDIR)/$(call qstrip,$(CONFIG_SBC_KEY_DIR)/$(CONFIG_ROOTFS_SALT)))
++endef
++
+ define Build/change-rootdev-to-ramdisk
+ 	$(STAGING_DIR_HOSTPKG)/bin/fdtget -t s \
+ 		$(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb /chosen bootargs | \
+--- a/target/linux/mediatek/image/filogic.mk
++++ b/target/linux/mediatek/image/filogic.mk
+@@ -4,6 +4,7 @@ define Image/Prepare
+ 	# For UBI we want only one extra block
+ 	rm -f $(KDIR)/ubi_mark
+ 	echo -ne '\xde\xad\xc0\xde' > $(KDIR)/ubi_mark
++	$(if $(CONFIG_MTK_FW_ENC),$(call Image/fw-enc-key-derive))
+ endef
+ 
+ define Build/mt7981-bl2
