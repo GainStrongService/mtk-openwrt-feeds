@@ -108,6 +108,7 @@
 #define PPE_SB_FIFO_DBG 0x170
 #define PPE_SBW_CTRL 0x174
 #define PPE_SB_WED0_CNT 0x18C
+#define PPE_CAH_DBG 0x190
 #define PPE_FLOW_CHK_STATUS 0x1B0
 
 #define GDMA1_FWD_CFG 0x500
@@ -150,6 +151,9 @@
 #define TAG_SRH (0xffff << 0) /* RW */
 #define SRH_LNUM (0x7fff << 16) /* RW */
 #define SRH_HIT (0x1 << 31) /* RW */
+
+/*PPE_MIB_SER_CR mask*/
+#define BIT_MIB_BUSY (1 << 16) /* RW */
 
 /*PPE_UNB_AGE mask*/
 #define UNB_DLTA (0xff << 0) /* RW */
@@ -209,6 +213,9 @@
 
 /* PPE Side Band FIFO Debug Mask */
 #define SB_MED_FULL_DRP_EN (0x1 << 11)
+
+/* PPE Cache Debug status Mask */
+#define CAH_DBG_BUSY (0xf << 0)
 
 /*--------------------------------------------------------------------------*/
 /* Descriptor Structure */
@@ -1085,9 +1092,11 @@ enum FoeIpAct {
 #define HASH_MODE_3 3
 
 /*PPE_FLOW_CFG*/
-#define BIT_FUC_FOE BIT(2)
-#define BIT_FMC_FOE BIT(1)
-#define BIT_FBC_FOE BIT(0)
+#define BIT_ALERT_TCP_FIN_RST_SYN BIT(0)
+#define BIT_MD_TOAP_BYP_CRSN0 BIT(1)
+#define BIT_MD_TOAP_BYP_CRSN1 BIT(2)
+#define BIT_MD_TOAP_BYP_CRSN2 BIT(3)
+#define BIT_TCP_IP4F_NAT_EN BIT(6) /*Enable IPv4 fragment + TCP packet NAT*/
 #define BIT_UDP_IP4F_NAT_EN BIT(7) /*Enable IPv4 fragment + UDP packet NAT*/
 #define BIT_IPV6_3T_ROUTE_EN BIT(8)
 #define BIT_IPV6_5T_ROUTE_EN BIT(9)
@@ -1097,7 +1106,7 @@ enum FoeIpAct {
 #define BIT_IPV4_NAPT_EN BIT(13)
 #define BIT_IPV4_DSL_EN BIT(14)
 #define BIT_L2_BRG_EN BIT(15)
-#define BIT_MIB_BUSY BIT(16)
+#define BIT_IP_PROT_CHK_BLIST BIT(16)
 #define BIT_IPV4_NAT_FRAG_EN BIT(17)
 #define BIT_IPV4_HASH_GREK BIT(19)
 #define BIT_IPV6_HASH_GREK BIT(20)

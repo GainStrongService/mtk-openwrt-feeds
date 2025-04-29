@@ -927,16 +927,46 @@ static irqreturn_t hnat_handle_fe_irq2(int irq, void *priv)
 
 void __hnat_cache_clr(u32 ppe_id)
 {
+	static const u32 mask = BIT_ALERT_TCP_FIN_RST_SYN |
+				BIT_MD_TOAP_BYP_CRSN0 |
+				BIT_MD_TOAP_BYP_CRSN1 |
+				BIT_MD_TOAP_BYP_CRSN2 |
+				BIT_IP_PROT_CHK_BLIST |
+				BIT_IPV4_NAT_FRAG_EN |
+				BIT_IPV4_HASH_GREK |
+				BIT_IPV6_HASH_GREK |
+				BIT_CS0_RM_ALL_IP6_IP_EN |
+				BIT_L2_HASH_ETH |
+				BIT_L2_HASH_VID;
 	u32 cah_en, flow_cfg, scan_mode;
+	u32 i, idle, retry;
 
 	if (ppe_id >= CFG_PPE_NUM)
 		return;
 
 	/* disable table learning */
 	flow_cfg = readl(hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG);
-	writel(0, hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG);
+	writel(flow_cfg & mask, hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG);
 	/* wait PPE return to idle */
-	udelay(1);
+	udelay(100);
+
+	for (retry = 0; retry < 10; retry++) {
+		for (i = 0, idle = 0; i < 3; i++) {
+			if ((readl(hnat_priv->ppe_base[ppe_id] + PPE_CAH_DBG) & CAH_DBG_BUSY) == 0)
+				idle++;
+		}
+
+		if (idle >= 3)
+			break;
+
+		udelay(10);
+	}
+
+	if (retry >= 10) {
+		pr_info("%s: ppe cache idle check timeout!\n", __func__);
+		goto out;
+	}
+
 	/* disable scan mode */
 	scan_mode = FIELD_GET(SCAN_MODE, readl(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG));
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SCAN_MODE, 0);
@@ -958,6 +988,7 @@ void __hnat_cache_clr(u32 ppe_id)
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_CAH_CTRL, CAH_EN, cah_en);
 	/* restore scan mode */
 	cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG, SCAN_MODE, scan_mode);
+out:
 	/* restore table learning */
 	writel(flow_cfg, hnat_priv->ppe_base[ppe_id] + PPE_FLOW_CFG);
 }
@@ -1254,7 +1285,7 @@ static void hnat_stop(u32 ppe_id)
 		    BIT_IPV4_NAPT_EN | BIT_IPV4_NAT_EN | BIT_IPV4_NAT_FRAG_EN |
 		    BIT_IPV6_HASH_GREK | BIT_IPV4_DSL_EN |
 		    BIT_IPV6_6RD_EN | BIT_IPV6_3T_ROUTE_EN |
-		    BIT_IPV6_5T_ROUTE_EN | BIT_FUC_FOE | BIT_FMC_FOE);
+		    BIT_IPV6_5T_ROUTE_EN | BIT_MD_TOAP_BYP_CRSN1 | BIT_MD_TOAP_BYP_CRSN0);
 
 	if (hnat_priv->data->version == MTK_HNAT_V2 ||
 	    hnat_priv->data->version == MTK_HNAT_V3)
