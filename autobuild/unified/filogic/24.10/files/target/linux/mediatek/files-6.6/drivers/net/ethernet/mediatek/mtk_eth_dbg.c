@@ -739,7 +739,7 @@ static ssize_t mtketh_debugfs_reset(struct file *file, const char __user *ptr,
 		atomic_set(&eth->reset.force, 0);
 		break;
 	case 1:
-		if (atomic_read(&eth->reset.force))
+		if (atomic_read(&eth->reset.force) && !test_bit(MTK_RESETTING, &eth->state))
 			schedule_work(&eth->pending_work);
 		else
 			pr_info(" stat:disable\n");
