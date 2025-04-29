@@ -1,0 +1,31 @@
+From e6283194e7e173dba4bc69a3576c1e6a330e6e34 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Tue, 29 Apr 2025 17:06:59 +0800
+Subject: [PATCH] net: ethernet: mtk_eth_soc: fix typo for declaration MT7988
+ ESW capability
+
+Since MTK_ESW_BIT is a bit number rather than a bitmap, it causes
+MTK_HAS_CAPS to produce incorrect results. This leads to the ETH
+driver not declaring MAC capabilities correctly for the MT7988 ESW.
+
+Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+---
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index a31386b..0f4fbf2 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -5976,7 +5976,7 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
+ 	}
+ 
+ 	if (mtk_is_netsys_v3_or_greater(mac->hw) &&
+-	    MTK_HAS_CAPS(mac->hw->soc->caps, MTK_ESW_BIT) &&
++	    MTK_HAS_CAPS(mac->hw->soc->caps, MTK_ESW) &&
+ 	    id == MTK_GMAC1_ID) {
+ 		mac->phylink_config.mac_capabilities = MAC_ASYM_PAUSE |
+ 						       MAC_SYM_PAUSE |
+-- 
+2.45.2
+
