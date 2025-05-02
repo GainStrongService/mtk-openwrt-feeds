@@ -2,7 +2,7 @@
 
 ## Compile Environment Requirement
 
-- Minumum requirement: Ubuntu 22.04 
+- Minimum requirement: Ubuntu 22.04
 
 ##### Toolchain
 
@@ -22,14 +22,14 @@ The OpenWrt/24.10 or trunk image type is ITB, which cannot be loaded if the orig
 - Since U-Boot is still released as a tarball, please log in to the DCC or contact the corresponding window to obtain the latest U-Boot and ATF source code.
 
 Also need DTS overlay to enable 10G ethernet for one-time uboot console setting. "0. U-Boot console" 
-- GMAC1 is AQR113C 10G PHY case
+- GMAC1 and GMAC2 is AQR113C 10G PHY case
 ```
 setenv bootconf mt7988a-rfb-spim-nand-nmbm
 setenv bootconf_extra mt7988a-rfb-eth1-aqr#mt7988a-rfb-eth2-aqr 
 saveenv
 ```
 
-- GMAC1 is Mediatek Internal 2.5G PHY case
+- GMAC1 is Mediatek Internal 2.5G PHY and GMAC2 is AQR113C 10G PHY case
 ```
 setenv bootconf mt7988a-rfb-spim-nand-nmbm
 setenv bootconf_extra mt7988a-rfb-eth1-i2p5g-phy#mt7988a-rfb-eth2-aqr

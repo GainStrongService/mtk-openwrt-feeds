@@ -1,0 +1,172 @@
+From 5adc08e6f1f7e976eedd93d6c5ad4eb3e430f223 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Tue, 15 Apr 2025 11:40:08 +0800
+Subject: [PATCH] Fix the set_edcca and get_edcca vendor command
+
+Fix the set_edcca and get_edcca vendor cmd to per-band run for single-wiphy change.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+---
+ mt7996/mtk_mcu.c |  1 +
+ mt7996/vendor.c  | 58 +++++++++++++++++++++++++++---------------------
+ mt7996/vendor.h  |  1 +
+ 3 files changed, 35 insertions(+), 25 deletions(-)
+
+diff --git a/mt7996/mtk_mcu.c b/mt7996/mtk_mcu.c
+index 9baa0dee..c66b845f 100644
+--- a/mt7996/mtk_mcu.c
++++ b/mt7996/mtk_mcu.c
+@@ -107,6 +107,7 @@ int mt7996_mcu_edcca_threshold_ctrl(struct mt7996_phy *phy, u8 *value, bool set)
+ 		__le16 len;
+ 		u8 threshold[4];
+ 		bool init;
++		u8 _rsv2[3];
+ 	} __packed *res, req = {
+ 		.band_idx = phy->mt76->band_idx,
+ 		.tag = cpu_to_le16(UNI_BAND_CONFIG_EDCCA_THRESHOLD),
+diff --git a/mt7996/vendor.c b/mt7996/vendor.c
+index beaba999..f4d97463 100644
+--- a/mt7996/vendor.c
++++ b/mt7996/vendor.c
+@@ -73,6 +73,7 @@ edcca_ctrl_policy[NUM_MTK_VENDOR_ATTRS_EDCCA_CTRL] = {
+ 	[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC80_VAL] = { .type = NLA_U8 },
+ 	[MTK_VENDOR_ATTR_EDCCA_CTRL_COMPENSATE] = { .type = NLA_S8 },
+ 	[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC160_VAL] = { .type = NLA_U8 },
++	[MTK_VENDOR_ATTR_EDCCA_CTRL_RADIO_IDX] = { .type = NLA_U8 },
+ };
+ 
+ static const struct nla_policy
+@@ -683,10 +684,11 @@ static int mt7996_vendor_edcca_ctrl(struct wiphy *wiphy, struct wireless_dev *wd
+ 				    const void *data, int data_len)
+ {
+ 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
++	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+ 	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_EDCCA_CTRL];
+ 	int err;
+-	u8 edcca_mode;
++	u8 edcca_mode, radio_idx;
+ 	u8 edcca_value[EDCCA_MAX_BW_NUM];
+ 
+ 	err = nla_parse(tb, MTK_VENDOR_ATTR_EDCCA_CTRL_MAX, data, data_len,
+@@ -694,27 +696,32 @@ static int mt7996_vendor_edcca_ctrl(struct wiphy *wiphy, struct wireless_dev *wd
+ 	if (err)
+ 		return err;
+ 
+-	if (!tb[MTK_VENDOR_ATTR_EDCCA_CTRL_MODE])
++	if (!tb[MTK_VENDOR_ATTR_EDCCA_CTRL_MODE] ||
++	    !tb[MTK_VENDOR_ATTR_EDCCA_CTRL_RADIO_IDX])
+ 		return -EINVAL;
+ 
+ 	edcca_mode = nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_MODE]);
+-	if (edcca_mode == EDCCA_CTRL_SET_EN) {
++	radio_idx = nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_RADIO_IDX]);
++	if (!mt7996_radio_valid(dev, radio_idx))
++		return -EINVAL;
++
++	phy = dev->radio_phy[radio_idx];
++
++	switch (edcca_mode) {
++	case EDCCA_CTRL_SET_EN:
+ 		if (!tb[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL])
+ 			return -EINVAL;
+ 
+-		edcca_value[0] =
+-			nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL]);
++		edcca_value[0] = nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL]);
+ 
+-		err = mt7996_mcu_edcca_enable(phy, !!edcca_value[0]);
+-		if (err)
+-			return err;
+-	} else if (edcca_mode == EDCCA_CTRL_SET_THRES) {
++		return mt7996_mcu_edcca_enable(phy, !!edcca_value[0]);
++	case EDCCA_CTRL_SET_THRES:
+ 		if (!tb[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL] ||
+ 		    !tb[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC40_VAL] ||
+ 		    !tb[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC80_VAL] ||
+-		    !tb[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC160_VAL]) {
++		    !tb[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC160_VAL])
+ 			return -EINVAL;
+-		}
++
+ 		edcca_value[EDCCA_BW_20] =
+ 			nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_PRI20_VAL]);
+ 		edcca_value[EDCCA_BW_40] =
+@@ -724,11 +731,8 @@ static int mt7996_vendor_edcca_ctrl(struct wiphy *wiphy, struct wireless_dev *wd
+ 		edcca_value[EDCCA_BW_160] =
+ 			nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_SEC160_VAL]);
+ 
+-		err = mt7996_mcu_edcca_threshold_ctrl(phy, edcca_value, true);
+-
+-		if (err)
+-			return err;
+-	} else {
++		return mt7996_mcu_edcca_threshold_ctrl(phy, edcca_value, true);
++	default:
+ 		return -EINVAL;
+ 	}
+ 
+@@ -742,10 +746,11 @@ mt7996_vendor_edcca_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
+ 			     unsigned long *storage)
+ {
+ 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
++	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
+ 	struct nlattr *tb[NUM_MTK_VENDOR_ATTRS_EDCCA_CTRL];
+ 	int err;
+-	u8 edcca_mode;
++	u8 edcca_mode, radio_idx, i;
+ 	u8 value[EDCCA_MAX_BW_NUM];
+ 
+ 	if (*storage == 1)
+@@ -757,24 +762,27 @@ mt7996_vendor_edcca_ctrl_dump(struct wiphy *wiphy, struct wireless_dev *wdev,
+ 	if (err)
+ 		return err;
+ 
+-	if (!tb[MTK_VENDOR_ATTR_EDCCA_CTRL_MODE])
++	if (!tb[MTK_VENDOR_ATTR_EDCCA_CTRL_MODE] ||
++	    !tb[MTK_VENDOR_ATTR_EDCCA_CTRL_RADIO_IDX])
+ 		return -EINVAL;
+ 
+ 	edcca_mode = nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_MODE]);
+-
+ 	if (edcca_mode != EDCCA_CTRL_GET_THRES)
+ 		return -EINVAL;
+ 
+-	err = mt7996_mcu_edcca_threshold_ctrl(phy, value, false);
++	radio_idx = nla_get_u8(tb[MTK_VENDOR_ATTR_EDCCA_CTRL_RADIO_IDX]);
++	if (!mt7996_radio_valid(dev, radio_idx))
++		return -EINVAL;
+ 
++	phy = dev->radio_phy[radio_idx];
++	err = mt7996_mcu_edcca_threshold_ctrl(phy, value, false);
+ 	if (err)
+ 		return err;
+ 
+-	if (nla_put_u8(skb, MTK_VENDOR_ATTR_EDCCA_DUMP_PRI20_VAL, value[EDCCA_BW_20]) ||
+-	    nla_put_u8(skb, MTK_VENDOR_ATTR_EDCCA_DUMP_SEC40_VAL, value[EDCCA_BW_40]) ||
+-	    nla_put_u8(skb, MTK_VENDOR_ATTR_EDCCA_DUMP_SEC80_VAL, value[EDCCA_BW_80]) ||
+-	    nla_put_u8(skb, MTK_VENDOR_ATTR_EDCCA_DUMP_SEC160_VAL, value[EDCCA_BW_160]))
+-		return -ENOMEM;
++	for (i = 0; i < EDCCA_MAX_BW_NUM; i++)
++		if (nla_put_u8(skb, MTK_VENDOR_ATTR_EDCCA_DUMP_PRI20_VAL + i,
++			       value[EDCCA_BW_20 + i]))
++			return -ENOMEM;
+ 
+ 	return EDCCA_MAX_BW_NUM;
+ }
+diff --git a/mt7996/vendor.h b/mt7996/vendor.h
+index ef0be419..dcfdfa3d 100644
+--- a/mt7996/vendor.h
++++ b/mt7996/vendor.h
+@@ -37,6 +37,7 @@ enum mtk_vendor_attr_edcca_ctrl {
+ 	MTK_VENDOR_ATTR_EDCCA_CTRL_SEC80_VAL,
+ 	MTK_VENDOR_ATTR_EDCCA_CTRL_COMPENSATE,
+ 	MTK_VENDOR_ATTR_EDCCA_CTRL_SEC160_VAL,
++	MTK_VENDOR_ATTR_EDCCA_CTRL_RADIO_IDX,
+ 
+ 	/* keep last */
+ 	NUM_MTK_VENDOR_ATTRS_EDCCA_CTRL,
+-- 
+2.45.2
+
