@@ -146,10 +146,10 @@ MT7988()
 		CPU2_AFFINITY="$eth_irq_rx2"
 		CPU3_AFFINITY="$eth_irq_rx3"
 
-		CPU0_RPS="$RPS_IF_LIST"
-		CPU1_RPS="$RPS_IF_LIST"
-		CPU2_RPS="$RPS_IF_LIST"
-		CPU3_RPS="$RPS_IF_LIST"
+		CPU0_RPS=""
+		CPU1_RPS=""
+		CPU2_RPS=""
+		CPU3_RPS=""
 	else
 		#we bound all wifi card to cpu0 and bound eth to cpu
 		CPU0_AFFINITY=""
@@ -487,6 +487,18 @@ set_smp_affinity()
 	done
 }
 
+# Improve SW path peak throughput by disabling the GRO fraglist feature.
+disable_gro_fraglist()
+{
+	for iface in /sys/class/net/*; do
+		iface=$(basename "$iface")
+
+		if ethtool -k "$iface" | grep -q "rx-gro-list"; then
+			ethtool -K "$iface" rx-gro-list off
+		fi
+	done
+}
+
 if [ "$1" = "dbg" ]; then
 	DBG=1
 elif [ "$1" = "dbg2" ]; then
@@ -519,4 +531,5 @@ setup_model
 set_rps_cpu_bitmap
 set_rps_cpus $DEFAULT_RPS
 set_smp_affinity
+disable_gro_fraglist
 #end of file
