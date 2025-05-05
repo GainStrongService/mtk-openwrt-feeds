@@ -16,6 +16,8 @@ define Build/Compile/optee-apps
 		OPTEE_CLIENT_EXPORT=$(PKG_BUILD_DIR)/target/usr \
 		DESTDIR=$(PKG_BUILD_DIR)/target \
 		O=$(PKG_BUILD_DIR)/$(OPTEE_APPS_NAME)/out \
+		CFG_EARLY_TA=$(CONFIG_OPTEE_EARLY_TA) \
+		CFG_FW_ENC_EARLY_TA=$(CONFIG_OPTEE_FW_ENC_EARLY_TA) \
 		all install
 endef
 
