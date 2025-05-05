@@ -1,5 +1,6 @@
 list_add_after $(hooks autobuild_prepare) platform_change_kernel_config filogic_change_kernel_config
 list_add_after $(hooks autobuild_prepare) copy_global_files copy_optee_files
+list_add_after $(hooks do_build) download_openwrt_packages airoha_firmware_install
 
 if test x"${hqa_set}" == x"yes"; then
 	list_add_after $(hooks autobuild_prepare) apply_global_patches apply_hqa_patches
@@ -16,6 +17,9 @@ platform_change_openwrt_config() {
 }
 
 filogic_change_kernel_config() {
+	kernel_config_enable CONFIG_EXTRA_FIRMWARE "\"airoha/EthMD32.dm.bin airoha/EthMD32.DSP.bin"\"
+	kernel_config_enable CONFIG_EXTRA_FIRMWARE_DIR "\"../../linux-firmware-20241110/"\"
+	kernel_config_enable CONFIG_AIR_EN8811H_PHY
 	kernel_config_enable CONFIG_AIR_EN8811H_PHY_DEBUGFS
 	kernel_config_enable CONFIG_MT753X_GSW
 	kernel_config_enable CONFIG_AN8855_GSW
@@ -32,4 +36,8 @@ copy_optee_files() {
 	copy_files "${openwrt_root}/../optee/optee_plat_mtk" "package/mtk/optee-mediatek/src/optee_plat_mtk"
 	copy_files "${openwrt_root}/../optee/optee_apps" "package/mtk/optee-mediatek/src/optee_apps"
 	copy_files "${openwrt_root}/../optee/optee_test_mtk" "package/mtk/optee-mediatek/src/optee_test_mtk"
+}
+
+airoha_firmware_install() {
+	exec_log "make -C \"${openwrt_root}\" V=${verbose} -j\$((\$(nproc) + 1)) package/firmware/linux-firmware/{clean,prepare}"
 }
