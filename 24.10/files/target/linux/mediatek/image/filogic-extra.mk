@@ -22,7 +22,7 @@ define Device/mediatek_mt7988d-rfb
   DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal kmod-sfp blkid
   KERNEL_LOADADDR := 0x46000000
   KERNEL := kernel-bin | gzip
-  KERNEL_INITRAMFS := kernel-bin | lzma | \
+  KERNEL_INITRAMFS := kernel-bin | lzma | secure-boot-initramfs | \
 	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
   KERNEL_INITRAMFS_SUFFIX := .itb
   KERNEL_IN_UBI := 1
