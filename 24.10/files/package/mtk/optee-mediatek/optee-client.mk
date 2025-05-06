@@ -11,7 +11,8 @@ OPTEE_CLIENT_SOURCE=$(OPTEE_CLIENT_NAME)-$(OPTEE_CLIENT_RELEASE).tar.gz
 
 define Download/optee-client
   FILE:=$(OPTEE_CLIENT_SOURCE)
-  URL:=https://git.trustedfirmware.org/OP-TEE/optee_client.git/snapshot
+  URL:=https://github.com/OP-TEE/optee_client/archive/refs/tags
+  URL_FILE:=$(OPTEE_CLIENT_RELEASE).tar.gz
   HASH:=ac6dc2c0c253ea228ea230e537211a45475771050faf4e66fe64321de3a0a652
 endef
 

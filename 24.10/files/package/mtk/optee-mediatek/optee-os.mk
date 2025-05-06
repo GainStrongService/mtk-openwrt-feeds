@@ -11,7 +11,8 @@ OPTEE_OS_SOURCE=$(OPTEE_OS_NAME)-$(OPTEE_OS_RELEASE).tar.gz
 
 define Download/optee-os
   FILE:=$(OPTEE_OS_SOURCE)
-  URL:=https://git.trustedfirmware.org/OP-TEE/optee_os.git/snapshot
+  URL:=https://github.com/OP-TEE/optee_os/archive/refs/tags
+  URL_FILE:=$(OPTEE_OS_RELEASE).tar.gz
   HASH:=43c389f0505e8bc21d6fbaa8ea83ec67d1746ed14a537e3f505cd0e5b4cc2db9
 endef
 

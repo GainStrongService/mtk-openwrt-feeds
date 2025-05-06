@@ -11,7 +11,8 @@ OPTEE_TEST_SOURCE=$(OPTEE_TEST_NAME)-$(OPTEE_TEST_RELEASE).tar.gz
 
 define Download/optee-test
   FILE:=$(OPTEE_TEST_SOURCE)
-  URL:=https://git.trustedfirmware.org/OP-TEE/optee_test.git/snapshot
+  URL:=https://github.com/OP-TEE/optee_test/archive/refs/tags
+  URL_FILE:=$(OPTEE_TEST_RELEASE).tar.gz
   HASH:=cda3a4280a919cc6cd3cd3060e8c176cd42b968a9008305a6881e1fd433a6f1e
 endef
 
