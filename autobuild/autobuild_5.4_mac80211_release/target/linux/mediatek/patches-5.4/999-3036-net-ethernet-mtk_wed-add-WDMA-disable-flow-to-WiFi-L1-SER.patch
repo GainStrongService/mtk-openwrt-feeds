@@ -1,0 +1,67 @@
+From f11c7fec7f6ccf46fa1960c79075ff5858a0849f Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Tue, 6 May 2025 17:46:32 +0800
+Subject: [PATCH] net: ethernet: mtk_wed: add WDMA disable flow to WiFi L1 SER
+
+---
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h | 15 +++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_wed.c     |  3 +++
+ 2 files changed, 18 insertions(+)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+index 56a91a5..46aaad8 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -1599,6 +1599,9 @@ enum mtk_pse_port {
+ 	PSE_PORT_MAX
+ };
+ 
++#define PSE_WDMA_PORT(x)	(((x) == 0) ? PSE_WDMA0_PORT : \
++				 ((x) == 1) ? PSE_WDMA1_PORT : PSE_WDMA2_PORT)
++
+ /* GMAC Identifier */
+ enum mtk_gmac_id {
+ 	MTK_GMAC1_ID = 0,
+@@ -2520,6 +2523,18 @@ static inline void mtk_ppe_drop_config(struct mtk_eth *eth, u32 config)
+ 		mtk_w32(eth, config, PSE_PPE_DROP(2));
+ }
+ 
++static inline void mtk_pse_wdma_enable(struct mtk_eth *eth, int id, bool enable)
++{
++	u32 val;
++
++	val = mtk_r32(eth, MTK_FE_GLO_CFG(PSE_WDMA_PORT(id)));
++	if (enable)
++		val &= ~MTK_FE_LINK_DOWN_P(PSE_WDMA_PORT(id));
++	else
++		val |= MTK_FE_LINK_DOWN_P(PSE_WDMA_PORT(id));
++	mtk_w32(eth, val, MTK_FE_GLO_CFG(PSE_WDMA_PORT(id)));
++}
++
+ int mtk_gmac_sgmii_path_setup(struct mtk_eth *eth, int mac_id);
+ int mtk_gmac_2p5gphy_path_setup(struct mtk_eth *eth, int mac_id);
+ int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
+diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
+index f0879fb..4b72aa6 100644
+--- a/drivers/net/ethernet/mediatek/mtk_wed.c
++++ b/drivers/net/ethernet/mediatek/mtk_wed.c
+@@ -2032,6 +2032,8 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+ 	u32 val, status;
+ 	int i;
+ 
++	mtk_pse_wdma_enable(dev->hw->eth, dev->wdma_idx, false);
++
+ 	for (i = 0; i < ARRAY_SIZE(dev->tx_ring); i++) {
+ 		if (!dev->tx_ring[i].desc)
+ 			continue;
+@@ -2742,6 +2744,7 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
+ 	mtk_wed_amsdu_init(dev);
+ 
+ 	mtk_wed_dma_enable(dev);
++	mtk_pse_wdma_enable(dev->hw->eth, dev->wdma_idx, true);
+ 	dev->running = true;
+ }
+ 
+-- 
+2.45.2
+
