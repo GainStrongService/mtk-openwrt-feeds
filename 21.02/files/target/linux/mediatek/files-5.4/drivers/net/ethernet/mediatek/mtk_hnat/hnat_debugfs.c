@@ -770,7 +770,7 @@ int entry_delete(u32 ppe_id, int index)
 {
 	struct foe_entry *entry;
 	struct mtk_hnat *h = hnat_priv;
-	int cache_en, i;
+	int i;
 
 	if (ppe_id >= CFG_PPE_NUM)
 		return -EINVAL;
@@ -781,10 +781,6 @@ int entry_delete(u32 ppe_id, int index)
 	}
 
 	spin_lock_bh(&hnat_priv->entry_lock);
-
-	cache_en = hnat_is_cache_enabled(ppe_id);
-	if (cache_en)
-		__hnat_cache_ebl(ppe_id, 0);
 
 	if (index == -1) {
 		for (i = 0; i < h->foe_etry_num; i++) {
@@ -798,11 +794,10 @@ int entry_delete(u32 ppe_id, int index)
 		pr_info("delete ppe id = %d, entry idx = %d\n", ppe_id, index);
 	}
 
-	/* clear HWNAT cache */
-	if (cache_en)
-		__hnat_cache_ebl(ppe_id, 1);
-
 	spin_unlock_bh(&hnat_priv->entry_lock);
+
+	/* clear HWNAT cache */
+	hnat_cache_clr(ppe_id);
 
 	return 0;
 }

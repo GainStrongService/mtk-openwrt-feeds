@@ -1409,7 +1409,6 @@ void hnat_cache_ebl(int enable);
 void __hnat_cache_ebl(u32 ppe_id, int enable);
 void hnat_cache_clr(u32 ppe_id);
 void __hnat_cache_clr(u32 ppe_id);
-int hnat_is_cache_enabled(u32 ppe_id);
 void hnat_qos_shaper_ebl(u32 id, u32 enable);
 void exclude_boundary_entry(struct foe_entry *foe_table_cpu);
 void set_gmac_ppe_fwd(int gmac_no, int enable);
