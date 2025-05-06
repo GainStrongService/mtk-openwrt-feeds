@@ -24,6 +24,13 @@ define Package/optee-mediatek
   CATEGORY:=Boot Loaders
   TITLE:=optee-mediatek
   DEPENDS:=+libuuid +libpython3 +libopenssl
+  KCONFIG:= \
+	CONFIG_RTC_DRV_OPTEE=n \
+	CONFIG_HW_RANDOM_OPTEE=n \
+	CONFIG_OPTEE=y \
+	CONFIG_OPTEE_INSECURE_LOAD_IMAGE=n \
+	CONFIG_OPTEE_SHM_NUM_PRIV_PAGES=1 \
+	CONFIG_TEE=y
 endef
 
 define Package/optee-mediatek/description
