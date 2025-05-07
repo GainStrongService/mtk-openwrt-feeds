@@ -447,36 +447,38 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 	struct dst_entry *dst = skb_dst(skb);
 	int fill_inner_info = 0;
 
-	rcu_read_lock_bh();
+	if (dst->dev->type != ARPHRD_PPP) {
+		rcu_read_lock_bh();
 
-	if (xs->props.family == AF_INET)
-		neigh = mtk_crypto_find_ipv4_dst_mac(skb, xs);
-	else
-		neigh = mtk_crypto_find_ipv6_dst_mac(skb, xs);
-	if (!neigh) {
+		if (xs->props.family == AF_INET)
+			neigh = mtk_crypto_find_ipv4_dst_mac(skb, xs);
+		else
+			neigh = mtk_crypto_find_ipv6_dst_mac(skb, xs);
+		if (!neigh) {
+			rcu_read_unlock_bh();
+			return true;
+		}
+
+		/*
+		* For packet has pass through VTI (route-based VTI)
+		* The 'dev_queue_xmit' function called at network layer will cause both
+		* skb->mac_header and skb->network_header to point to the IP header
+		*/
+		if (skb->mac_header == skb->network_header)
+			fill_inner_info = 1;
+
+		skb_push(skb, sizeof(struct ethhdr));
+		skb_reset_mac_header(skb);
+
+		if (xs->props.family == AF_INET)
+			eth_hdr(skb)->h_proto = htons(ETH_P_IP);
+		else
+			eth_hdr(skb)->h_proto = htons(ETH_P_IPV6);
+		memcpy(eth_hdr(skb)->h_dest, neigh->ha, ETH_ALEN);
+		memcpy(eth_hdr(skb)->h_source, dst->dev->dev_addr, ETH_ALEN);
+
 		rcu_read_unlock_bh();
-		return true;
 	}
-
-	/*
-	 * For packet has pass through VTI (route-based VTI)
-	 * The 'dev_queue_xmit' function called at network layer will cause both
-	 * skb->mac_header and skb->network_header to point to the IP header
-	 */
-	if (skb->mac_header == skb->network_header)
-		fill_inner_info = 1;
-
-	skb_push(skb, sizeof(struct ethhdr));
-	skb_reset_mac_header(skb);
-
-	if (xs->props.family == AF_INET)
-		eth_hdr(skb)->h_proto = htons(ETH_P_IP);
-	else
-		eth_hdr(skb)->h_proto = htons(ETH_P_IPV6);
-	memcpy(eth_hdr(skb)->h_dest, neigh->ha, ETH_ALEN);
-	memcpy(eth_hdr(skb)->h_source, dst->dev->dev_addr, ETH_ALEN);
-
-	rcu_read_unlock_bh();
 
 	xfrm_params = (struct mtk_xfrm_params *)xs->xso.offload_handle;
 
