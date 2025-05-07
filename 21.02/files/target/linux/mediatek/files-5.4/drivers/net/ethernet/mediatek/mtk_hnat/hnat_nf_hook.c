@@ -1639,7 +1639,7 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 {
 	struct foe_entry *foe;
 	struct foe_entry entry = { 0 };
-	struct ethhdr *eth = eth_hdr(skb);
+	struct ethhdr eth = {0};
 	struct ipv6hdr *ip6h;
 	struct iphdr *iph;
 	struct tcpudphdr _ports;
@@ -1673,11 +1673,23 @@ int hnat_bind_crypto_entry(struct sk_buff *skb, const struct net_device *dev, in
 
 	hnat_get_filled_unbind_entry(skb, &entry);
 
-	if (dev->netdev_ops->ndo_flow_offload_check)
+	if (dev->netdev_ops->ndo_flow_offload_check) {
 		dev->netdev_ops->ndo_flow_offload_check(&hw_path);
+		dev = (IS_GMAC1_MODE) ? hw_path.virt_dev : hw_path.dev;
+	}
 
-	if (skb_hnat_tops(skb) && mtk_tnl_encap_offload)
-		mtk_tnl_encap_offload(skb, eth);
+	if (hw_path.flags & BIT(DEV_PATH_PPPOE)) {
+		memcpy(eth.h_dest, hw_path.eth_dest, ETH_ALEN);
+		memcpy(eth.h_source, hw_path.eth_src, ETH_ALEN);
+		eth.h_proto = htons(h_proto);
+		if (skb_hnat_tops(skb) && mtk_tnl_encap_offload)
+			mtk_tnl_encap_offload(skb, &eth);
+	} else {
+		memcpy(hw_path.eth_dest, eth_hdr(skb)->h_dest, ETH_ALEN);
+		memcpy(hw_path.eth_src, eth_hdr(skb)->h_source, ETH_ALEN);
+		if (skb_hnat_tops(skb) && mtk_tnl_encap_offload)
+			mtk_tnl_encap_offload(skb, eth_hdr(skb));
+	}
 
 	if (!fill_inner_info)
 		goto hnat_skip_fill_inner;
@@ -1848,24 +1860,14 @@ hnat_skip_fill_inner:
 			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
 		entry.bfib1.ttl = 1;
 		entry.bfib1.state = BIND;
-		if (!skb_hnat_tops(skb)) {
-			entry.ipv4_hnapt.dmac_hi = swab32(*((u32 *)eth->h_dest));
-			entry.ipv4_hnapt.dmac_lo = swab16(*((u16 *)&eth->h_dest[4]));
-			entry.ipv4_hnapt.smac_hi = swab32(*((u32 *)eth->h_source));
-			entry.ipv4_hnapt.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
-		}
+		entry = ppe_fill_L2_info(entry, &hw_path);
 	} else {
 		entry.ipv6_5t_route.iblk2.dp = gmac;
 		entry.ipv6_5t_route.iblk2.port_mg =
 			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
 		entry.bfib1.ttl = 1;
 		entry.bfib1.state = BIND;
-		if (!skb_hnat_tops(skb)) {
-			entry.ipv6_5t_route.dmac_hi = swab32(*((u32 *)eth->h_dest));
-			entry.ipv6_5t_route.dmac_lo = swab16(*((u16 *)&eth->h_dest[4]));
-			entry.ipv6_5t_route.smac_hi = swab32(*((u32 *)eth->h_source));
-			entry.ipv6_5t_route.smac_lo = swab16(*((u16 *)&eth->h_source[4]));
-		}
+		entry = ppe_fill_L2_info(entry, &hw_path);
 	}
 
 	hnat_fill_offload_engine_entry(skb, &entry, dev);
