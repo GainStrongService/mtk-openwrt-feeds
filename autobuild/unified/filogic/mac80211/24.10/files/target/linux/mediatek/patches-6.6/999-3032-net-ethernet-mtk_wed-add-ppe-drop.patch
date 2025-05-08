@@ -1,20 +1,20 @@
-From 5dd37b9e4b0830fb994f2d1ac2b346e35baf2c25 Mon Sep 17 00:00:00 2001
+From 94ade40f0e50da47a12f0648301a9211f9e0daaa Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 Date: Fri, 21 Feb 2025 11:48:53 +0800
-Subject: [PATCH 3/5] net: ethernet: mtk_wed: add ppe drop
+Subject: [PATCH] net: ethernet: mtk_wed: add ppe drop
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.h | 12 ++++++++++++
- drivers/net/ethernet/mediatek/mtk_wed.c     |  7 +++++++
+ drivers/net/ethernet/mediatek/mtk_wed.c     |  9 +++++++++
  include/linux/soc/mediatek/mtk_wed.h        |  4 ++++
- 3 files changed, 23 insertions(+)
+ 3 files changed, 25 insertions(+)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 10a0f36..fbfc4c0 100644
+index 8626083..4fe800b 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1881,6 +1881,18 @@ void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
+@@ -1890,6 +1890,18 @@ void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
  u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
  u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned int reg);
  
@@ -34,23 +34,25 @@ index 10a0f36..fbfc4c0 100644
  int mtk_gmac_2p5gphy_path_setup(struct mtk_eth *eth, int mac_id);
  int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 52ee047..8afb523 100644
+index e48d8f9..6f229a2 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
-@@ -2287,6 +2287,12 @@ mtk_wed_ppe_check(struct mtk_wed_device *dev, struct sk_buff *skb,
+@@ -2285,6 +2285,14 @@ mtk_wed_ppe_check(struct mtk_wed_device *dev, struct sk_buff *skb,
  	mtk_ppe_check_skb(eth->ppe[dev->hw->index], skb, hash);
  }
  
 +static void
 +mtk_wed_ppe_drop(struct mtk_wed_device *dev, bool enable)
 +{
-+	mtk_ppe_drop_config(dev->hw->eth, enable ? 0x2300 : 0x0);
++	u32 val = mtk_wed_is_v3_1(dev->hw) ? 0x100 : 0x2300;
++
++	mtk_ppe_drop_config(dev->hw->eth, enable ? val : 0x0);
 +}
 +
  static void
  mtk_wed_configure_irq(struct mtk_wed_device *dev, u32 irq_mask)
  {
-@@ -3174,6 +3180,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -3172,6 +3180,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  		.irq_set_mask = mtk_wed_irq_set_mask,
  		.detach = mtk_wed_detach,
  		.ppe_check = mtk_wed_ppe_check,
