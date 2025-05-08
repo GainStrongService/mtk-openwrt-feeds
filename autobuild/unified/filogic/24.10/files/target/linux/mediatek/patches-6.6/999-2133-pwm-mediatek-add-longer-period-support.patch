@@ -23,15 +23,15 @@ index 9701092e7..79d15a9c0 100644
 +	 */
 +	u32 clkdiv = 0, clksel = 0, cnt_period, cnt_duty,
 +	    reg_width = PWMDWIDTH, reg_thres = PWMTHRES;
+ 	unsigned long clk_rate;
  	u64 resolution;
- 	int ret;
  
 @@ -164,12 +167,30 @@ static int pwm_mediatek_config(struct pwm_chip *chip, struct pwm_device *pwm,
  
  	/* Using resolution in picosecond gets accuracy higher */
  	resolution = (u64)NSEC_PER_SEC * 1000;
 +	/* Calculate resolution based on current clock frequency */
- 	do_div(resolution, clk_get_rate(pc->clk_pwms[pwm->hwpwm]));
+ 	do_div(resolution, clk_rate);
 -
 +	/* Using resolution to calculate cnt_period which represents
 +	 * the effective range of the PWM period counter
