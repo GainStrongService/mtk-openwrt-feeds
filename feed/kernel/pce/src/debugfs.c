@@ -530,7 +530,11 @@ static ssize_t dipfilter_debug_write(struct file *file, const char __user *buffe
 
 	memset(&ddesc, 0, sizeof(struct dip_desc));
 
-	ret = sscanf(buf, "%4s %39s", arg, s_dip);
+	if (!strncmp(buf, "del", 3) || !strncmp(buf, "add", 3))
+		ret = sscanf(&buf[4], "%4s %39s", arg, s_dip);
+	else
+		ret = sscanf(buf, "%4s %39s", arg, s_dip);
+
 	if (ret != 2)
 		return -EINVAL;
 
@@ -550,10 +554,18 @@ static ssize_t dipfilter_debug_write(struct file *file, const char __user *buffe
 		return -EINVAL;
 	}
 
-	ret = mtk_pce_dipfilter_entry_add(&ddesc);
-	if (ret) {
-		PCE_ERR("add dipfilter entry failed: %d\n", ret);
-		return ret;
+	if (!strncmp(buf, "del", 3)) {
+		ret = mtk_pce_dipfilter_entry_del(&ddesc);
+		if (ret) {
+			PCE_ERR("del dipfilter entry failed: %d\n", ret);
+			return ret;
+		}
+	} else {
+		ret = mtk_pce_dipfilter_entry_add(&ddesc);
+		if (ret) {
+			PCE_ERR("add dipfilter entry failed: %d\n", ret);
+			return ret;
+		}
 	}
 
 	return count;
