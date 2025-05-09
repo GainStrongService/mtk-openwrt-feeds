@@ -15,6 +15,10 @@
 #include <dt-bindings/reset/mediatek,mt7987-resets.h>
 #include <dt-bindings/regulator/richtek,rt5190a-regulator.h>
 
+/* TOPRGU resets */
+#define MT7987_TOPRGU_SGMII0_GRST		1
+#define MT7987_TOPRGU_SGMII1_GRST		2
+
 / {
 	compatible = "mediatek,mt7987";
 	interrupt-parent = <&gic>;
@@ -169,6 +173,7 @@
 				     "syscon",
 				     "simple-mfd";
 			reg = <0 0x10060000 0 0x1000>;
+			resets = <&watchdog MT7987_TOPRGU_SGMII0_GRST>;
 			mediatek,phya_trx_ck;
 			#clock-cells = <1>;
 
@@ -187,6 +192,7 @@
 				     "syscon",
 				     "simple-mfd";
 			reg = <0 0x10070000 0 0x1000>;
+			resets = <&watchdog MT7987_TOPRGU_SGMII1_GRST>;
 			mediatek,phya_trx_ck;
 			#clock-cells = <1>;
 
@@ -366,13 +372,13 @@
 		};
 
 		watchdog: watchdog@1001c000 {
-			compatible = "mediatek,mt7622-wdt",
+			compatible = "mediatek,mt7987-wdt",
+				     "mediatek,mt7988-wdt",
 				     "mediatek,mt6589-wdt",
 				     "syscon";
 			reg = <0 0x1001c000 0 0x1000>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			#reset-cells = <1>;
-			status = "disabled";
 		};
 
 		pio: pinctrl@1001f000 {

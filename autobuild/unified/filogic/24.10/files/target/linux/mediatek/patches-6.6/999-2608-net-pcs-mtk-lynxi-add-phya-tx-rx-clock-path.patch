@@ -95,9 +95,9 @@ index 8f7d7d8..f738b0c 100644
 +	if (of_property_read_bool(np->parent, "mediatek,phya_trx_ck"))
 +		flags |= MTK_SGMII_FLAG_PHYA_TRX_CK;
 +
- 	mpcs->rstc = of_reset_control_get_shared(np->parent, NULL);
- 	if (IS_ERR(mpcs->rstc))
- 		mpcs->rstc = NULL;
+ 	if (of_parse_phandle(np->parent, "resets", 0)) {
+ 		mpcs->rstc = of_reset_control_get_shared(np->parent, NULL);
+ 		if (IS_ERR(mpcs->rstc))
 diff --git a/include/linux/pcs/pcs-mtk-lynxi.h b/include/linux/pcs/pcs-mtk-lynxi.h
 index 656a3e5..4ab8a32 100644
 --- a/include/linux/pcs/pcs-mtk-lynxi.h
