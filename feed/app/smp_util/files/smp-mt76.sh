@@ -1,5 +1,7 @@
 #!/bin/sh
 
+source /sbin/flowtable.sh
+
 OPTIMIZED_FOR="$1"
 CPU_LIST=`cat /proc/interrupts | sed -n '1p'`
 NUM_OF_CPU=0; for i in $CPU_LIST; do NUM_OF_CPU=`expr $NUM_OF_CPU + 1`; done;
@@ -13,6 +15,7 @@ WIFI_RADIO1=0
 WIFI_RADIO2=0
 WIFI_RADIO3=0
 WED_ENABLE=0
+NFT_ENABLE=1
 
 WIFI_MODULE_LIST='mt7915e mt7996e'
 
@@ -109,23 +112,13 @@ MT7988()
 	wifi2_irq_pcie1=
 
 	if [[ "$WED_ENABLE" -eq "1" ]]; then
-		dbg2 "WED_ENABLE ON irq/iptable setting"
-		#TCP Binding
-		iptables -D FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		#UDP Binding
-		iptables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p udp -j FLOWOFFLOAD --hw
-		#Multicast skip Binding
-		iptables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
-		iptables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
-		ip6tables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
-		ip6tables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
-
+		if [[ "$NFT_ENABLE" -eq "1" ]]; then
+			dbg2 "WED_ENABLE ON irq/nftables setting"
+			nftables_flowoffload_enable
+		else
+			dbg2 "WED_ENABLE ON irq/iptable setting"
+			iptables_flowoffload_enable
+		fi
 	else
 		dbg2 "WED_ENABLE OFF irq/iptable seting"
 	fi
@@ -185,22 +178,13 @@ MT7986()
 	wifi3_irq=
 
 	if [[ "$WED_ENABLE" -eq "1" ]]; then
-		dbg2 "WED_ENABLE ON irq/iptable setting"
-		#TCP Binding
-		iptables -D FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		#UDP Binding
-		iptables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p udp -j FLOWOFFLOAD --hw
-		#Multicast skip Binding
-		iptables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
-		iptables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
-		ip6tables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
-		ip6tables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
+		if [[ "$NFT_ENABLE" -eq "1" ]]; then
+			dbg2 "WED_ENABLE ON irq/nftables setting"
+			nftables_flowoffload_enable
+		else
+			dbg2 "WED_ENABLE ON irq/iptables setting"
+			iptables_flowoffload_enable
+		fi
 
 		#AX6000 AX7800 - SOC
 		if [[ "$WIFI_RADIO1" -eq "1" ]]; then
@@ -282,26 +266,13 @@ MT7981()
 
 	#AX3000
 	if [[ "$WED_ENABLE" -eq "1" ]]; then
-		dbg2 "WED_ENABLE ON irq/iptable setting"
-		#TCP Binding
-		iptables -D FORWARD -p tcp -m conntrack --ctstate	\
-				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p tcp -m conntrack --ctstate	\
-				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p tcp -m conntrack --ctstate	\
-				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p tcp -m conntrack --ctstate	\
-				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		#UDP Binding
-		iptables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p udp -j FLOWOFFLOAD --hw
-		#Multicast skip Binding
-		iptables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
-		iptables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
-		ip6tables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
-		ip6tables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
+		if [[ "$NFT_ENABLE" -eq "1" ]]; then
+			dbg2 "WED_ENABLE ON irq/nftables setting"
+			nftables_flowoffload_enable
+		else
+			dbg2 "WED_ENABLE ON irq/iptable setting"
+			iptables_flowoffload_enable
+		fi
 
 		if [[ "$WIFI_RADIO1" -eq "1" ]]; then
 			wifi1_irq=237

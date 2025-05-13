@@ -37,10 +37,13 @@ define Package/smp_util/install
 	$(INSTALL_DIR) $(1)/sbin
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/net
 
+	$(INSTALL_BIN) ./files/flowtable.sh $(1)/sbin/
 	$(INSTALL_BIN) ./files/smp-mt76.sh $(1)/sbin/
 	$(INSTALL_BIN) ./files/smp.init $(1)/etc/init.d/smp
 	$(INSTALL_BIN) ./files/99-smp $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/99-flowtable_update $(1)/etc/hotplug.d/net
 endef
 
 $(eval $(call BuildPackage,smp_util))
