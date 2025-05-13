@@ -432,7 +432,7 @@ int atenl_eeprom_update_precal(struct atenl *an, int write_offs, int size)
 	u32 offs = an->eeprom_prek_offs;
 	u8 cal_indicator, *eeprom, *pre_cal;
 
-	if (!an->cal && !an->cal_info)
+	if (!an->cal)
 		return 0;
 
 	eeprom = an->eeprom_data;
