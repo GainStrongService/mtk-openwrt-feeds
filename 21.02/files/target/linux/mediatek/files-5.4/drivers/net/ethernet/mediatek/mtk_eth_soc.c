@@ -865,7 +865,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 	}
 
 	/* Setup gmac */
-	mtk_set_mcr_max_rx(mac, dev->mtu + MTK_RX_ETH_HLEN);
+	mtk_set_mcr_max_rx(mac, eth->rx_dma_length);
 	if (mac->type == MTK_XGDM_TYPE) {
 		mtk_w32(mac->hw, MTK_GDMA_XGDM_SEL, MTK_GDMA_EG_CTRL(mac->id));
 		mtk_w32(mac->hw, MAC_MCR_FORCE_LINK_DOWN, MTK_MAC_MCR(mac->id));
@@ -1826,11 +1826,11 @@ static void mtk_get_stats64(struct net_device *dev,
 	storage->tx_dropped = dev->stats.tx_dropped;
 }
 
-static inline int mtk_max_frag_size(int mtu)
+static inline int mtk_max_frag_size(struct mtk_eth *eth, int mtu)
 {
 	/* make sure buf_size will be at least MTK_MAX_RX_LENGTH */
-	if (mtu + MTK_RX_ETH_HLEN < MTK_MAX_RX_LENGTH)
-		mtu = MTK_MAX_RX_LENGTH - MTK_RX_ETH_HLEN;
+	if (mtu + MTK_RX_ETH_HLEN < eth->rx_dma_length)
+		mtu = eth->rx_dma_length - MTK_RX_ETH_HLEN;
 
 	return SKB_DATA_ALIGN(MTK_RX_HLEN + mtu) +
 		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
@@ -3251,7 +3251,7 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 		rx_dma_size = soc->txrx.rx_dma_size;
 	}
 
-	ring->frag_size = mtk_max_frag_size(rx_data_len);
+	ring->frag_size = mtk_max_frag_size(eth, rx_data_len);
 	ring->buf_size = mtk_max_buf_size(ring->frag_size);
 	ring->data = kcalloc(rx_dma_size, sizeof(*ring->data),
 			     GFP_KERNEL);
@@ -4645,6 +4645,11 @@ static int mtk_open(struct net_device *dev)
 
 	mtk_gdm_config(eth, mac->id, MTK_GDMA_TO_PDMA);
 
+	if (mac->type == MTK_GDM_TYPE)
+		eth->netdev[mac->id]->max_mtu = MTK_MAX_RX_LENGTH_2K - MTK_RX_ETH_HLEN;
+	else if (mac->type == MTK_XGDM_TYPE)
+		eth->netdev[mac->id]->max_mtu = MTK_MAX_RX_LENGTH_9K - MTK_RX_ETH_HLEN;
+
 	return 0;
 }
 
@@ -5171,11 +5176,27 @@ static void mtk_uninit(struct net_device *dev)
 
 static int mtk_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int length = new_mtu + MTK_RX_ETH_HLEN;
 	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_eth *eth = mac->hw;
+	int length, i, max_mtu = 0;
 
-	mtk_set_mcr_max_rx(mac, length);
 	dev->mtu = new_mtu;
+
+	for (i = 0; i < MTK_MAX_DEVS; i++) {
+		if (!eth->netdev[i])
+			continue;
+
+		if (eth->netdev[i]->mtu > max_mtu)
+			max_mtu = eth->netdev[i]->mtu;
+	}
+
+	length = max_mtu + MTK_RX_ETH_HLEN;
+	if (length <= MTK_MAX_RX_LENGTH)
+		eth->rx_dma_length = MTK_MAX_RX_LENGTH;
+	else if (length <= MTK_MAX_RX_LENGTH_2K)
+		eth->rx_dma_length = MTK_MAX_RX_LENGTH_2K;
+	else if (length <= MTK_MAX_RX_LENGTH_9K)
+		eth->rx_dma_length = MTK_MAX_RX_LENGTH_9K;
 
 	return 0;
 }
@@ -6219,7 +6240,6 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 
 	eth->netdev[id]->irq = eth->irq_fe[0];
 	eth->netdev[id]->dev.of_node = np;
-	eth->netdev[id]->max_mtu = MTK_MAX_RX_LENGTH - MTK_RX_ETH_HLEN;
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
 		mac->device_notifier.notifier_call = mtk_device_event;
@@ -6606,6 +6626,8 @@ static int mtk_probe(struct platform_device *pdev)
 				       mtk_napi_rx, MTK_NAPI_WEIGHT);
 		}
 	}
+
+	eth->rx_dma_length = MTK_MAX_RX_LENGTH;
 
 	mtketh_debugfs_init(eth);
 	debug_proc_init(eth);

@@ -2349,6 +2349,7 @@ struct mtk_eth {
 	} reset;
 
 	u32				rx_dma_l4_valid;
+	int				rx_dma_length;
 	int				ip_align;
 	spinlock_t			syscfg0_lock;
 	struct notifier_block		netdevice_notifier;
