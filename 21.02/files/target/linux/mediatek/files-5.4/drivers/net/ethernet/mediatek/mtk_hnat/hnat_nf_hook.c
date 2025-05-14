@@ -482,7 +482,6 @@ void foe_clear_entry(struct neighbour *neigh)
 		cnt = 0;
 		for (hash_index = 0; hash_index < hnat_priv->foe_etry_num; hash_index++) {
 			entry = hnat_priv->foe_table_cpu[i] + hash_index;
-			cnt = 0;
 			if (entry->bfib1.state == BIND &&
 			    entry->ipv4_hnapt.new_dip == ntohl(dip) &&
 			    IS_IPV4_HNAPT(entry)) {
