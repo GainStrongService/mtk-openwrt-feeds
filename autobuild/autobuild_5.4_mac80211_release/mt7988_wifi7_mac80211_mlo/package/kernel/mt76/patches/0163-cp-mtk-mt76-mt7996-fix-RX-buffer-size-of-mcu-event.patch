@@ -1,0 +1,58 @@
+From 6207e530b40534ec51d25ab53f04d2df698005c0 Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Fri, 9 May 2025 11:44:54 +0800
+Subject: [PATCH] mtk: mt76: mt7996: fix RX buffer size of mcu event
+
+In connac3, the mcu event does not support scatter-gather mechanism
+(reported by @Peter). If a packet with size 1728-1800 bytes comes from an
+event ring, the ring will hang since driver tries to use scatter-gather
+to handle it, causing permanently mcu command timeout.
+
+To fix this, do not reserve the space of skb_shared_info for event skb in
+mt76_dma_rx_fill_buf().
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/dma.c    | 4 ++--
+ mt7996/mt7996.h | 3 +++
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/dma.c b/mt7996/dma.c
+index 61e5da75..d9cd0dd6 100644
+--- a/mt7996/dma.c
++++ b/mt7996/dma.c
+@@ -644,7 +644,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+ 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU],
+ 			       MT_RXQ_ID(MT_RXQ_MCU),
+ 			       MT7996_RX_MCU_RING_SIZE,
+-			       MT_RX_BUF_SIZE,
++			       MT7996_RX_MCU_BUF_SIZE,
+ 			       MT_RXQ_RING_BASE(MT_RXQ_MCU));
+ 	if (ret)
+ 		return ret;
+@@ -653,7 +653,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
+ 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
+ 			       MT_RXQ_ID(MT_RXQ_MCU_WA),
+ 			       MT7996_RX_MCU_RING_SIZE_WA,
+-			       MT_RX_BUF_SIZE,
++			       MT7996_RX_MCU_BUF_SIZE,
+ 			       MT_RXQ_RING_BASE(MT_RXQ_MCU_WA));
+ 	if (ret)
+ 		return ret;
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index e664f584..5ba9ad71 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -30,6 +30,9 @@
+ #define MT7996_RX_RING_SIZE		1536
+ #define MT7996_RX_MCU_RING_SIZE		512
+ #define MT7996_RX_MCU_RING_SIZE_WA	1024
++/* scatter-gather of mcu event is not supported in connac3 */
++#define MT7996_RX_MCU_BUF_SIZE		(2048 + \
++					 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+ 
+ #define MT7996_DEVICE_ID		0x7990
+ #define MT7996_DEVICE_ID_2		0x7991
+-- 
+2.45.2
+
