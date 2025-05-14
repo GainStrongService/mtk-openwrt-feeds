@@ -499,6 +499,9 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 	skb_tnl_magic_tag(skb) = TNL_MAGIC_TAG;
 #endif // HNAT
 
+	atomic64_add(skb->len - ETH_HLEN, &xfrm_params->bytes);
+	atomic64_inc(&xfrm_params->packets);
+
 	/* Since we're going to tx directly, set skb->dev to dst->dev */
 	skb->dev = dst->dev;
 

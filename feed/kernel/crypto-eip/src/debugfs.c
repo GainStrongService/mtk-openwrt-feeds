@@ -18,11 +18,10 @@ static int mtk_crypto_debugfs_read(struct seq_file *s, void *private)
 {
 	struct xfrm_params_list *xfrm_params_list;
 	struct mtk_xfrm_params *xfrm_params;
-	unsigned long flags;
 
 	xfrm_params_list = mtk_xfrm_params_list_get();
 
-	spin_lock_irqsave(&xfrm_params_list->lock, flags);
+	spin_lock_bh(&xfrm_params_list->lock);
 
 	list_for_each_entry(xfrm_params, &xfrm_params_list->list, node) {
 		seq_printf(s, "XFRM STATE: spi 0x%x, cdrt_idx %3d: ",
@@ -30,14 +29,17 @@ static int mtk_crypto_debugfs_read(struct seq_file *s, void *private)
 			   xfrm_params->cdrt->idx);
 
 		if (xfrm_params->cdrt->type == CDRT_DECRYPT)
-			seq_puts(s, "DECRYPT\n");
+			seq_puts(s, "INBOUND\n");
 		else if (xfrm_params->cdrt->type == CDRT_ENCRYPT)
-			seq_puts(s, "ENCRYPT\n");
+			seq_puts(s, "OUTBOUND\n");
 		else
 			seq_puts(s, "\n");
+
+		seq_printf(s, "\tBytes Sent: %llu\n", atomic64_read(&xfrm_params->bytes));
+		seq_printf(s, "\tPackets Sent: %llu\n", atomic64_read(&xfrm_params->packets));
 	}
 
-	spin_unlock_irqrestore(&xfrm_params_list->lock, flags);
+	spin_unlock_bh(&xfrm_params_list->lock);
 
 	return 0;
 }

@@ -432,6 +432,10 @@ static int __init mtk_crypto_eip_init(void)
 		return ret;
 	}
 
+	ret = mtk_crypto_register_nf_hooks();
+	if (ret)
+		CRYPTO_ERR("crypto-eip register hook failed: %d\n", ret);
+
 	mtk_crypto_xfrm_offload_init(mcrypto.eth);
 	mtk_crypto_debugfs_init();
 	mtk_crypto_register_algorithms(priv);
@@ -453,6 +457,7 @@ static void __exit mtk_crypto_eip_exit(void)
 	mtk_crypto_unregister_algorithms();
 	mtk_crypto_xfrm_offload_deinit(mcrypto.eth);
 
+	mtk_crypto_unregister_nf_hooks();
 	mtk_crypto_eip_hw_deinit();
 
 }

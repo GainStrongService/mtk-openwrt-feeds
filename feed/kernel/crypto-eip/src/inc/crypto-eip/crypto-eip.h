@@ -10,9 +10,11 @@
 #define _CRYPTO_EIP_H_
 
 #include <linux/version.h>
+#include <linux/netfilter.h>
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/timer.h>
+#include <linux/atomic.h>
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
 #include <crypto/sha1.h>
@@ -60,6 +62,8 @@ struct mtk_xfrm_params {
 	void *p_tr;			/* pointer to transform record */
 	void *p_handle;		/* pointer to eip dma handle */
 	u32 dir;			/* SABuilder_Direction_t */
+	atomic64_t bytes;          /* Total bytes applied */
+	atomic64_t packets;		/* Total packets applied */
 };
 
 /* DTLS */
@@ -180,4 +184,7 @@ void mtk_xfrm_offload_state_tear_down(void);
 void mtk_xfrm_offload_policy_delete(struct xfrm_policy *xp);
 void mtk_xfrm_offload_policy_free(struct xfrm_policy *xp);
 bool mtk_xfrm_offload_ok(struct sk_buff *skb, struct xfrm_state *xs);
+
+int mtk_crypto_register_nf_hooks(void);
+void mtk_crypto_unregister_nf_hooks(void);
 #endif /* _CRYPTO_EIP_H_ */
