@@ -43,15 +43,6 @@ static inline bool is_tops_tunnel(struct sk_buff *skb)
 		 ip_hdr(skb)->protocol == IPPROTO_GRE);
 }
 
-static inline bool is_tcp(struct sk_buff *skb)
-{
-	if (ntohs(skb->protocol) == ETH_P_IP)
-		return ip_hdr(skb)->protocol == IPPROTO_TCP;
-	if (ntohs(skb->protocol) == ETH_P_IPV6)
-		return ipv6_hdr(skb)->nexthdr == IPPROTO_TCP;
-	return false;
-}
-
 static inline bool is_hnat_rate_reach(struct sk_buff *skb)
 {
 	return is_magic_tag_valid(skb) && (skb_hnat_reason(skb) == HIT_UNBIND_RATE_REACH);
@@ -484,12 +475,8 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 	skb_hnat_cdrt(skb) = xfrm_params->cdrt->idx;
-	/*
-	 * EIP197 does not support fragmentation. As a result, we can not bind UDP
-	 * flow since it may cause network fail due to fragmentation
-	 */
-	if (ra_sw_nat_hook_tx &&
-	    ((is_tops_tunnel(skb) || is_tcp(skb)) && is_hnat_rate_reach(skb)))
+
+	if (ra_sw_nat_hook_tx && is_hnat_rate_reach(skb))
 		hnat_bind_crypto_entry(skb, dst->dev, fill_inner_info);
 
 	/* Set magic tag for tport setting, reset to 0 after tport is set */
