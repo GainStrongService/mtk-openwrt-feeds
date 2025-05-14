@@ -40,6 +40,24 @@
 					factory: partition@180000 {
 						label = "Factory";
 						reg = <0x180000 0x0400000>;
+
+						nvmem-layout {
+							compatible = "fixed-layout";
+							#address-cells = <1>;
+							#size-cells = <1>;
+
+							gmac2_mac: eeprom@fffee {
+								reg = <0xfffee 0x6>;
+							};
+
+							gmac1_mac: eeprom@ffff4 {
+								reg = <0xffff4 0x6>;
+							};
+
+							gmac0_mac: eeprom@ffffa {
+								reg = <0xffffa 0x6>;
+							};
+						};
 					};
 
 					partition@580000 {
@@ -85,5 +103,28 @@
 			};
 		};
 	};
-};
 
+	fragment@3 {
+		target = <&gmac0>;
+		__overlay__ {
+			nvmem-cell-names = "mac-address";
+			nvmem-cells = <&gmac0_mac>;
+		};
+	};
+
+	fragment@4 {
+		target = <&gmac1>;
+		__overlay__ {
+			nvmem-cell-names = "mac-address";
+			nvmem-cells = <&gmac1_mac>;
+		};
+	};
+
+	fragment@5 {
+		target = <&gmac2>;
+		__overlay__ {
+			nvmem-cell-names = "mac-address";
+			nvmem-cells = <&gmac2_mac>;
+		};
+	};
+};
