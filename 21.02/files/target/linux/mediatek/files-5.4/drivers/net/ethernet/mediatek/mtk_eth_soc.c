@@ -4645,10 +4645,10 @@ static int mtk_open(struct net_device *dev)
 
 	mtk_gdm_config(eth, mac->id, MTK_GDMA_TO_PDMA);
 
-	if (mac->type == MTK_GDM_TYPE)
-		eth->netdev[mac->id]->max_mtu = MTK_MAX_RX_LENGTH_2K - MTK_RX_ETH_HLEN;
-	else if (mac->type == MTK_XGDM_TYPE)
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_9K) && mac->type == MTK_XGDM_TYPE)
 		eth->netdev[mac->id]->max_mtu = MTK_MAX_RX_LENGTH_9K - MTK_RX_ETH_HLEN;
+	else
+		eth->netdev[mac->id]->max_mtu = MTK_MAX_RX_LENGTH_2K - MTK_RX_ETH_HLEN;
 
 	return 0;
 }
