@@ -38,13 +38,13 @@
 +			};
 +"
 +	if [ -n "${INITRD}" ]; then
-+		if ! echo "${INITRD}" | grep -q "cpio"; then
-+			RAMDISK_CIPHER_NODE="
-+				cipher {
-+					algo = \"${FW_ENC_ALG}\";
-+					key-name-hint = \"rootfs_key\";
-+				};
++		RAMDISK_CIPHER_NODE="
++			cipher {
++				algo = \"${FW_ENC_ALG}\";
++				key-name-hint = \"rootfs_key\";
++			};
 +"
++		if ! echo "${INITRD}" | grep -q "cpio"; then
 +			INITRD_SIZE=`stat -c %s ${INITRD}`
 +
 +			PKCS_PADDING_BYTES=$((16 - (INITRD_SIZE) % 16))
