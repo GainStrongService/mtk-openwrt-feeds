@@ -165,6 +165,9 @@ static inline struct xfrm_params_list *mtk_xfrm_params_list_get(void)
 void mtk_update_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);
 void mtk_remove_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);
 
+void mtk_crypto_enable_ipsec_dev_features(struct net_device *dev);
+void mtk_crypto_disable_ipsec_dev_features(struct net_device *dev);
+
 /* Netsys */
 void crypto_eth_write(u32 reg, u32 val);
 u32 mtk_crypto_ppe_get_num(void);

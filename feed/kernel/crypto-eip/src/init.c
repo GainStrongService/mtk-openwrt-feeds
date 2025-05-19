@@ -140,6 +140,33 @@ static const struct xfrmdev_ops mtk_xfrmdev_ops = {
 	.xdo_dev_policy_free = mtk_xfrm_offload_policy_free,
 };
 
+void mtk_crypto_enable_ipsec_dev_features(struct net_device *dev)
+{
+	dev->xfrmdev_ops = &mtk_xfrmdev_ops;
+	dev->features |= NETIF_F_HW_ESP;
+	dev->hw_enc_features |= NETIF_F_HW_ESP;
+
+	rtnl_lock();
+	netdev_change_features(dev);
+	rtnl_unlock();
+
+	if (dev->features & NETIF_F_HW_ESP)
+		CRYPTO_INFO("dev: %s, enable hw offload ipsec success\n", dev->name);
+	else
+		CRYPTO_INFO("dev: %s, enable hw offload ipsec failed\n", dev->name);
+}
+
+void mtk_crypto_disable_ipsec_dev_features(struct net_device *dev)
+{
+	dev->xfrmdev_ops = NULL;
+	dev->features &= (~NETIF_F_HW_ESP);
+	dev->hw_enc_features &= (~NETIF_F_HW_ESP);
+
+	rtnl_lock();
+	netdev_change_features(dev);
+	rtnl_unlock();
+}
+
 static int mtk_crypto_register_algorithms(struct mtk_crypto_priv *priv)
 {
 	int i;
@@ -197,28 +224,16 @@ static void mtk_crypto_xfrm_offload_deinit(struct mtk_eth *eth)
 	mtk_crypto_offloadable = NULL;
 #endif // HNAT
 
-	for_each_netdev(&init_net, dev) {
-		dev->xfrmdev_ops = NULL;
-		dev->features &= (~NETIF_F_HW_ESP);
-		dev->hw_enc_features &= (~NETIF_F_HW_ESP);
-		rtnl_lock();
-		netdev_change_features(dev);
-		rtnl_unlock();
-	}
+	for_each_netdev(&init_net, dev)
+		mtk_crypto_disable_ipsec_dev_features(dev);
 }
 
 static void mtk_crypto_xfrm_offload_init(struct mtk_eth *eth)
 {
 	struct net_device *dev;
 
-	for_each_netdev(&init_net, dev) {
-		dev->xfrmdev_ops = &mtk_xfrmdev_ops;
-		dev->features |= NETIF_F_HW_ESP;
-		dev->hw_enc_features |= NETIF_F_HW_ESP;
-		rtnl_lock();
-		netdev_change_features(dev);
-		rtnl_unlock();
-	}
+	for_each_netdev(&init_net, dev)
+		mtk_crypto_enable_ipsec_dev_features(dev);
 
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 	mtk_crypto_offloadable = mtk_crypto_eip_offloadable;
