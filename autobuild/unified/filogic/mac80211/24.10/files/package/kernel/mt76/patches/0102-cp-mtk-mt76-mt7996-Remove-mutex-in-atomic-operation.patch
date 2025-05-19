@@ -1,0 +1,66 @@
+From 30d8ec90c18583cf61cbb03222a27460458310a4 Mon Sep 17 00:00:00 2001
+From: Howard Hsu <howard-yh.hsu@mediatek.com>
+Date: Wed, 7 May 2025 10:10:41 +0800
+Subject: [PATCH 2/3] mtk: mt76: mt7996: Remove mutex in atomic operation
+
+This commit introduces two changes. First, do not hold the mutex in the
+atomic operation function, as it may cause a call trace when enabling
+the kernel build option "Compile the kernel with sleep inside atomic
+section checking." This mutex is removed since there is no significant
+benefit to use it. Second, iterate over the link station instead of the
+stations to find the minimum RSSI for each band.
+
+Signed-off-by: Howard Hsu <howard-yh.hsu@mediatek.com>
+
+---
+ mt7996/mcu.c | 31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)
+
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 65f50947..83432c43 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -7875,18 +7875,31 @@ int mt7996_mcu_set_scs_stats(struct mt7996_phy *phy)
+ void mt7996_sta_rssi_work(void *data, struct ieee80211_sta *sta)
+ {
+ 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+-	struct mt7996_sta_link *msta_link;
+ 	struct mt7996_phy *poll_phy = (struct mt7996_phy *)data;
++	struct mt7996_vif *mvif = msta->vif;
++	struct ieee80211_link_sta *link_sta;
++	struct ieee80211_vif *vif;
++	unsigned int link_id;
+ 
+-	mutex_lock(&poll_phy->dev->mt76.mutex);
+-	msta_link = mt76_dereference(msta->link[0], &poll_phy->dev->mt76);
+-	if (!msta_link)
+-		goto out;
++	vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
+ 
+-	if (poll_phy->scs_ctrl.sta_min_rssi > msta_link->ack_signal)
+-		poll_phy->scs_ctrl.sta_min_rssi = msta_link->ack_signal;
+-out:
+-	mutex_unlock(&poll_phy->dev->mt76.mutex);
++	rcu_read_lock();
++	for_each_sta_active_link(vif, sta, link_sta, link_id) {
++		struct mt7996_sta_link *msta_link;
++
++		msta_link = rcu_dereference(msta->link[link_id]);
++		if (!msta_link)
++			continue;
++
++		if (msta_link->wcid.phy_idx != poll_phy->mt76->band_idx)
++			continue;
++
++		if (poll_phy->scs_ctrl.sta_min_rssi > msta_link->ack_signal)
++			poll_phy->scs_ctrl.sta_min_rssi = msta_link->ack_signal;
++
++		break;
++	}
++	rcu_read_unlock();
+ }
+ 
+ void mt7996_mcu_scs_sta_poll(struct work_struct *work)
+-- 
+2.45.2
+
