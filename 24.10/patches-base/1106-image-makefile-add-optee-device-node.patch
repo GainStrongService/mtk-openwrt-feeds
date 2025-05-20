@@ -1,14 +1,18 @@
 --- a/target/linux/mediatek/image/Makefile
 +++ b/target/linux/mediatek/image/Makefile
-@@ -40,5 +40,20 @@ define Image/Build
+@@ -40,5 +40,24 @@ define Image/Build
  	$(call Image/Build/$(1),$(1))
  endef
  
 +define Build/append-opteenode
-+	LD_LIBRARY_PATH=$(STAGING_DIR_HOSTPKG)/lib \
 +	fdtput $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb "/reserved-memory/secmon@43000000" \
 +		-tx reg 0 0x43000000 0 $(shell printf "%#x" $$((0x570000 \
 +		$(if $(CONFIG_OPTEE_CORE_RESERVED_SHMEM),+ $(CONFIG_OPTEE_RESERVED_SHMEM_SIZE),))))
++	fdtput $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb /firmware -cp
++	fdtput $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb /firmware/optee -cp
++	fdtput $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb /firmware/optee -ts compatible "linaro,optee-tz"
++	fdtput $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb /firmware/optee -ts method "smc"
++	fdtput $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb /firmware/optee -ts status "okay"
 +endef
 +
 +define Build/secure-boot
