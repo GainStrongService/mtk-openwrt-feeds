@@ -1,18 +1,18 @@
-From 1c58b964f97521e5b48ec53958e40f748163cdb4 Mon Sep 17 00:00:00 2001
+From 8a043740a36072c3b36ab999b0803192e3bb92eb Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Wed, 9 Apr 2025 17:21:05 +0800
-Subject: [PATCH] net: phy: air_en8811h: update to v2.0.3
+Date: Wed, 21 May 2025 13:16:13 +0800
+Subject: [PATCH] net: phy: air_en8811h: update to v2.0.4
 
 ---
  drivers/clk/clk.c             |    1 +
  drivers/net/phy/Kconfig       |    6 +
- drivers/net/phy/air_en8811h.c | 1862 ++++++++++++++++++++++++++++++++-
+ drivers/net/phy/air_en8811h.c | 1909 ++++++++++++++++++++++++++++++++-
  drivers/net/phy/air_en8811h.h |  261 +++++
- 4 files changed, 2115 insertions(+), 15 deletions(-)
+ 4 files changed, 2159 insertions(+), 18 deletions(-)
  create mode 100644 drivers/net/phy/air_en8811h.h
 
 diff --git a/drivers/clk/clk.c b/drivers/clk/clk.c
-index 5bbd036..1552293 100644
+index 8474099..427f754 100644
 --- a/drivers/clk/clk.c
 +++ b/drivers/clk/clk.c
 @@ -565,6 +565,7 @@ unsigned int __clk_get_enable_count(struct clk *clk)
@@ -24,10 +24,10 @@ index 5bbd036..1552293 100644
  static unsigned long clk_core_get_rate_nolock(struct clk_core *core)
  {
 diff --git a/drivers/net/phy/Kconfig b/drivers/net/phy/Kconfig
-index be03345..2663aa5 100644
+index 17c6de7..223db6f 100644
 --- a/drivers/net/phy/Kconfig
 +++ b/drivers/net/phy/Kconfig
-@@ -164,6 +164,12 @@ config AIR_EN8811H_PHY
+@@ -166,6 +166,12 @@ config AIR_EN8811H_PHY
  	help
  	  Currently supports the Airoha EN8811H PHY.
  
@@ -41,7 +41,7 @@ index be03345..2663aa5 100644
  	tristate "AMD and Altima PHYs"
  	help
 diff --git a/drivers/net/phy/air_en8811h.c b/drivers/net/phy/air_en8811h.c
-index 3cdc8c6..80d2656 100644
+index 3cdc8c6..2b26933 100644
 --- a/drivers/net/phy/air_en8811h.c
 +++ b/drivers/net/phy/air_en8811h.c
 @@ -11,11 +11,16 @@
@@ -71,11 +71,7 @@ index 3cdc8c6..80d2656 100644
  #define EN8811H_2P5G_LPA		0x3b30
  #define   EN8811H_2P5G_LPA_2P5G			BIT(0)
  
-@@ -112,9 +120,16 @@
- #define   EN8811H_POLARITY_TX_NORMAL		BIT(0)
- #define   EN8811H_POLARITY_RX_REVERSE		BIT(1)
- 
-+
+@@ -115,6 +123,12 @@
  #define EN8811H_GPIO_OUTPUT		0xcf8b8
  #define   EN8811H_GPIO_OUTPUT_345		(BIT(3) | BIT(4) | BIT(5))
  
@@ -88,7 +84,18 @@ index 3cdc8c6..80d2656 100644
  #define EN8811H_FW_CTRL_1		0x0f0018
  #define   EN8811H_FW_CTRL_1_START		0x0
  #define   EN8811H_FW_CTRL_1_FINISH		0x1
-@@ -142,10 +157,36 @@ struct led {
+@@ -126,8 +140,8 @@
+ 
+ /* Default LED setup:
+  * GPIO5 <-> LED0  On: Link detected, blink Rx/Tx
+- * GPIO4 <-> LED1  On: Link detected at 2500 or 1000 Mbps
+- * GPIO3 <-> LED2  On: Link detected at 2500 or  100 Mbps
++ * GPIO4 <-> LED1  On: Link detected at 2500 and 1000 Mbps
++ * GPIO3 <-> LED2  On: Link detected at 2500 and  100 Mbps
+  */
+ #define AIR_DEFAULT_TRIGGER_LED0 (BIT(TRIGGER_NETDEV_LINK)      | \
+ 				  BIT(TRIGGER_NETDEV_RX)        | \
+@@ -142,10 +156,36 @@ struct led {
  	unsigned long state;
  };
  
@@ -104,7 +111,7 @@ index 3cdc8c6..80d2656 100644
 +	struct led		led[EN8811H_LED_COUNT];
 +	bool			led_hw_control;
 +	struct clk_hw		hw;
-+	struct phy_device 	*phydev;
++	struct phy_device	*phydev;
 +	bool			restart_mcu;
 +	unsigned int		dm_crc32;
 +	unsigned int		dsp_crc32;
@@ -128,7 +135,16 @@ index 3cdc8c6..80d2656 100644
  };
  
  enum {
-@@ -188,6 +229,17 @@ static const unsigned long en8811h_led_trig = BIT(TRIGGER_NETDEV_FULL_DUPLEX) |
+@@ -177,7 +217,7 @@ enum {
+ 	AIR_LED_MODE_USER_DEFINE,
+ };
+ 
+-#define AIR_PHY_LED_DUR_UNIT	1024
++#define AIR_PHY_LED_DUR_UNIT	781
+ #define AIR_PHY_LED_DUR (AIR_PHY_LED_DUR_UNIT << AIR_PHY_LED_DUR_BLINK_64MS)
+ 
+ static const unsigned long en8811h_led_trig = BIT(TRIGGER_NETDEV_FULL_DUPLEX) |
+@@ -188,6 +228,17 @@ static const unsigned long en8811h_led_trig = BIT(TRIGGER_NETDEV_FULL_DUPLEX) |
  					      BIT(TRIGGER_NETDEV_LINK_2500)   |
  					      BIT(TRIGGER_NETDEV_RX)          |
  					      BIT(TRIGGER_NETDEV_TX);
@@ -146,7 +162,7 @@ index 3cdc8c6..80d2656 100644
  
  static int air_phy_read_page(struct phy_device *phydev)
  {
-@@ -457,11 +509,15 @@ static int en8811h_load_firmware(struct phy_device *phydev)
+@@ -457,11 +508,15 @@ static int en8811h_load_firmware(struct phy_device *phydev)
  	ret = request_firmware_direct(&fw1, EN8811H_MD32_DM, dev);
  	if (ret < 0)
  		return ret;
@@ -164,7 +180,7 @@ index 3cdc8c6..80d2656 100644
  	ret = air_buckpbus_reg_write(phydev, EN8811H_FW_CTRL_1,
  				     EN8811H_FW_CTRL_1_START);
  	if (ret < 0)
-@@ -486,6 +542,12 @@ static int en8811h_load_firmware(struct phy_device *phydev)
+@@ -486,6 +541,12 @@ static int en8811h_load_firmware(struct phy_device *phydev)
  	if (ret < 0)
  		goto en8811h_load_firmware_out;
  
@@ -177,7 +193,7 @@ index 3cdc8c6..80d2656 100644
  	ret = air_buckpbus_reg_write(phydev, EN8811H_FW_CTRL_1,
  				     EN8811H_FW_CTRL_1_FINISH);
  	if (ret < 0)
-@@ -514,11 +576,21 @@ static int en8811h_restart_mcu(struct phy_device *phydev)
+@@ -514,11 +575,21 @@ static int en8811h_restart_mcu(struct phy_device *phydev)
  {
  	int ret;
  
@@ -199,7 +215,7 @@ index 3cdc8c6..80d2656 100644
  	ret = air_buckpbus_reg_write(phydev, EN8811H_FW_CTRL_1,
  				     EN8811H_FW_CTRL_1_FINISH);
  	if (ret < 0)
-@@ -544,10 +616,6 @@ static int air_hw_led_on_set(struct phy_device *phydev, u8 index, bool on)
+@@ -544,10 +615,6 @@ static int air_hw_led_on_set(struct phy_device *phydev, u8 index, bool on)
  
  	changed |= (priv->led[index].rules != 0);
  
@@ -210,7 +226,7 @@ index 3cdc8c6..80d2656 100644
  	if (changed)
  		return phy_modify_mmd(phydev, MDIO_MMD_VEND2,
  				      AIR_PHY_LED_ON(index),
-@@ -806,6 +874,93 @@ static int en8811h_led_hw_is_supported(struct phy_device *phydev, u8 index,
+@@ -806,9 +873,98 @@ static int en8811h_led_hw_is_supported(struct phy_device *phydev, u8 index,
  	return 0;
  };
  
@@ -285,7 +301,7 @@ index 3cdc8c6..80d2656 100644
 +		return 0;
 +
 +	init.name = devm_kasprintf(dev, GFP_KERNEL, "%s-cko",
-+				    fwnode_get_name(dev_fwnode(dev)));
++				   fwnode_get_name(dev_fwnode(dev)));
 +	if (!init.name)
 +		return -ENOMEM;
 +
@@ -303,8 +319,13 @@ index 3cdc8c6..80d2656 100644
 +
  static int en8811h_probe(struct phy_device *phydev)
  {
++	struct device *dev = &phydev->mdio.dev;
  	struct en8811h_priv *priv;
-@@ -817,12 +972,18 @@ static int en8811h_probe(struct phy_device *phydev)
++	u32 pbus_value;
+ 	int ret;
+ 
+ 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(struct en8811h_priv),
+@@ -817,12 +973,18 @@ static int en8811h_probe(struct phy_device *phydev)
  		return -ENOMEM;
  	phydev->priv = priv;
  
@@ -323,7 +344,7 @@ index 3cdc8c6..80d2656 100644
  
  	priv->led[0].rules = AIR_DEFAULT_TRIGGER_LED0;
  	priv->led[1].rules = AIR_DEFAULT_TRIGGER_LED1;
-@@ -830,6 +991,13 @@ static int en8811h_probe(struct phy_device *phydev)
+@@ -830,6 +992,13 @@ static int en8811h_probe(struct phy_device *phydev)
  
  	/* MDIO_DEVS1/2 empty, so set mmds_present bits here */
  	phydev->c45_ids.mmds_present |= MDIO_DEVS_PMAPMD | MDIO_DEVS_AN;
@@ -337,7 +358,7 @@ index 3cdc8c6..80d2656 100644
  
  	ret = air_leds_init(phydev, EN8811H_LED_COUNT, AIR_PHY_LED_DUR,
  			    AIR_LED_MODE_DISABLE);
-@@ -838,6 +1006,12 @@ static int en8811h_probe(struct phy_device *phydev)
+@@ -838,6 +1007,12 @@ static int en8811h_probe(struct phy_device *phydev)
  		return ret;
  	}
  
@@ -350,7 +371,59 @@ index 3cdc8c6..80d2656 100644
  	/* Configure led gpio pins as output */
  	ret = air_buckpbus_reg_modify(phydev, EN8811H_GPIO_OUTPUT,
  				      EN8811H_GPIO_OUTPUT_345,
-@@ -855,19 +1029,22 @@ static int en8811h_config_init(struct phy_device *phydev)
+@@ -845,6 +1020,51 @@ static int en8811h_probe(struct phy_device *phydev)
+ 	if (ret < 0)
+ 		return ret;
+ 
++	if (!device_property_read_bool(dev, "airoha,phy-handle")) {
++		ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_1,
++				    AIR_PHY_MCU_CMD_1_MODE1);
++		if (ret < 0)
++			return ret;
++		ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_2,
++				    AIR_PHY_MCU_CMD_2_MODE1);
++		if (ret < 0)
++			return ret;
++		ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_3,
++				    AIR_PHY_MCU_CMD_3_MODE1);
++		if (ret < 0)
++			return ret;
++		ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_4,
++				    AIR_PHY_MCU_CMD_4_MODE1);
++		if (ret < 0)
++			return ret;
++
++		/* Serdes polarity */
++		pbus_value = 0;
++		if (device_property_read_bool(dev, "airoha,pnswap-rx"))
++			pbus_value |=  EN8811H_POLARITY_RX_REVERSE;
++		else
++			pbus_value &= ~EN8811H_POLARITY_RX_REVERSE;
++		if (device_property_read_bool(dev, "airoha,pnswap-tx"))
++			pbus_value &= ~EN8811H_POLARITY_TX_NORMAL;
++		else
++			pbus_value |=  EN8811H_POLARITY_TX_NORMAL;
++		ret = air_buckpbus_reg_modify(phydev, EN8811H_POLARITY,
++					      EN8811H_POLARITY_RX_REVERSE |
++					      EN8811H_POLARITY_TX_NORMAL, pbus_value);
++		if (ret < 0)
++			return ret;
++
++		ret = air_buckpbus_reg_modify(phydev, EN8811H_CONTROL,
++					      EN8811H_CONTROL_INTERNAL, 0);
++		if (ret < 0)
++			return ret;
++
++		phydev_info(phydev, "EN8811H initialize OK! (%s)\n",
++			    EN8811H_DRIVER_VERSION);
++	} else
++		phydev_info(phydev, "EN8811H probe OK! (%s)\n",
++			    EN8811H_DRIVER_VERSION);
++
+ 	return 0;
+ }
+ 
+@@ -855,19 +1075,22 @@ static int en8811h_config_init(struct phy_device *phydev)
  	u32 pbus_value;
  	int ret;
  
@@ -376,7 +449,7 @@ index 3cdc8c6..80d2656 100644
  	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, AIR_PHY_MCU_CMD_1,
  			    AIR_PHY_MCU_CMD_1_MODE1);
  	if (ret < 0)
-@@ -908,6 +1085,34 @@ static int en8811h_config_init(struct phy_device *phydev)
+@@ -908,6 +1131,34 @@ static int en8811h_config_init(struct phy_device *phydev)
  		return ret;
  	}
  
@@ -400,7 +473,7 @@ index 3cdc8c6..80d2656 100644
 +			return ret;
 +
 +		phydev_info(phydev, "CKO Output %dMHz - Enabled\n",
-+			 (pbus_value & EN8811H_HWTRAP1_CKO) ? 50 : 25);
++			    (pbus_value & EN8811H_HWTRAP1_CKO) ? 50 : 25);
 +	} else {
 +		phydev_info(phydev, "CKO Output - Disabled.\n");
 +	}
@@ -411,7 +484,7 @@ index 3cdc8c6..80d2656 100644
  	return 0;
  }
  
-@@ -983,6 +1188,9 @@ static int en8811h_read_status(struct phy_device *phydev)
+@@ -983,6 +1234,9 @@ static int en8811h_read_status(struct phy_device *phydev)
  			 phydev->lp_advertising,
  			 pbus_value & EN8811H_2P5G_LPA_2P5G);
  
@@ -421,7 +494,7 @@ index 3cdc8c6..80d2656 100644
  	if (phydev->autoneg_complete)
  		phy_resolve_aneg_pause(phydev);
  
-@@ -1014,9 +1222,6 @@ static int en8811h_read_status(struct phy_device *phydev)
+@@ -1014,9 +1268,6 @@ static int en8811h_read_status(struct phy_device *phydev)
  				 phydev->speed == SPEED_2500);
  	}
  
@@ -431,7 +504,7 @@ index 3cdc8c6..80d2656 100644
  	return 0;
  }
  
-@@ -1052,11 +1257,34 @@ static irqreturn_t en8811h_handle_interrupt(struct phy_device *phydev)
+@@ -1052,11 +1303,34 @@ static irqreturn_t en8811h_handle_interrupt(struct phy_device *phydev)
  	return IRQ_HANDLED;
  }
  
@@ -466,7 +539,7 @@ index 3cdc8c6..80d2656 100644
  	.get_features		= en8811h_get_features,
  	.config_init		= en8811h_config_init,
  	.get_rate_matching	= en8811h_get_rate_matching,
-@@ -1071,6 +1299,8 @@ static struct phy_driver en8811h_driver[] = {
+@@ -1071,6 +1345,8 @@ static struct phy_driver en8811h_driver[] = {
  	.led_brightness_set	= air_led_brightness_set,
  	.led_hw_control_set	= air_led_hw_control_set,
  	.led_hw_control_get	= air_led_hw_control_get,
@@ -475,7 +548,7 @@ index 3cdc8c6..80d2656 100644
  } };
  
  module_phy_driver(en8811h_driver);
-@@ -1080,6 +1310,1608 @@ static struct mdio_device_id __maybe_unused en8811h_tbl[] = {
+@@ -1080,6 +1356,1603 @@ static struct mdio_device_id __maybe_unused en8811h_tbl[] = {
  	{ }
  };
  
@@ -653,7 +726,7 @@ index 3cdc8c6..80d2656 100644
 +				on_evt &= ~LED_ON_EVT_FORCE;
 +
 +			ret = phy_write_mmd(phydev, 0x1f,
-+					LED_ON_CTRL(id), on_evt);
++					    LED_ON_CTRL(id), on_evt);
 +			if (ret < 0)
 +				return ret;
 +			ret = phy_write_mmd(phydev, 0x1f,
@@ -723,11 +796,11 @@ index 3cdc8c6..80d2656 100644
 +	seq_puts(seq, "<<AIR EN8811H Driver info>>\n");
 +	air_buckpbus_reg_read(phydev, 0xcf914, &val);
 +	seq_printf(seq, "| Boot mode            : %s\n",
-+		  ((val & BIT(24)) >> 24) ? "Flash" : "Download Code");
++		   ((val & BIT(24)) >> 24) ? "Flash" : "Download Code");
 +	seq_printf(seq, "| EthMD32.dm.bin  CRC32: %08x\n",
-+				priv->dm_crc32);
++		   priv->dm_crc32);
 +	seq_printf(seq, "| EthMD32.DSP.bin CRC32: %08x\n",
-+				priv->dsp_crc32);
++		   priv->dsp_crc32);
 +	seq_printf(seq, "| MD32 FW Version      : %08x\n", priv->firmware_version);
 +
 +	air_buckpbus_reg_read(phydev, 0x3a9c, &val);
@@ -1689,7 +1762,7 @@ index 3cdc8c6..80d2656 100644
 +	step_col_12 = phy_read_mmd(phydev, 0x1e, 0x800c);
 +	step_col_13 = phy_read_mmd(phydev, 0x1e, 0x800d);
 +	phydev_dbg(phydev, "%s step_col_12 %d, step_col_13 %d\n",
-+				__func__, step_col_12, step_col_13);
++		   __func__, step_col_12, step_col_13);
 +	phydev_dbg(phydev, "%s: successful\n", __func__);
 +	return 0;
 +}
@@ -1726,21 +1799,21 @@ index 3cdc8c6..80d2656 100644
 +			cable_rsl->status[test_pair] = status;
 +			cable_rsl->length[test_pair] = cable_len;
 +			phydev_dbg(phydev, "2.pair %s, status %d, cable_len %d\n",
-+				pair_str[test_pair], cable_rsl->status[test_pair],
-+				cable_rsl->length[test_pair]);
++				   pair_str[test_pair], cable_rsl->status[test_pair],
++				   cable_rsl->length[test_pair]);
 +		}
 +	}
 +	if (!reg) {
 +		phydev_dbg(phydev, "%s: air_cable_pair_swap\n", __func__);
 +		air_cable_pair_swap(AIR_PORT_CABLE_TEST_PAIR_A,
-+				AIR_PORT_CABLE_TEST_PAIR_B, cable_rsl);
++				    AIR_PORT_CABLE_TEST_PAIR_B, cable_rsl);
 +		air_cable_pair_swap(AIR_PORT_CABLE_TEST_PAIR_C,
-+				AIR_PORT_CABLE_TEST_PAIR_D, cable_rsl);
++				    AIR_PORT_CABLE_TEST_PAIR_D, cable_rsl);
 +	}
 +	ret |= phy_write_mmd(phydev, 0x1E, 0x800D, 0x0);
 +	if (ret < 0)
 +		return ret;
-+	phydev_dbg(phydev, "%s successfull\n", __func__);
++	phydev_dbg(phydev, "%s successful\n", __func__);
 +	return 0;
 +}
 +
@@ -1790,7 +1863,7 @@ index 3cdc8c6..80d2656 100644
 +	}
 +	phydev_info(phydev, "%7s %15s %15s %15s\n", "pair-a", "pair-b", "pair-c", "pair-d");
 +	phydev_info(phydev, "%7s %7s %7s %7s %7s %7s %7s %7s\n",
-+	"status", "length", "status", "length", "status", "length", "status", "length");
++		    "status", "length", "status", "length", "status", "length", "status", "length");
 +	for (pair = 0; pair < 4; pair++) {
 +		if (cable_rsl.status[pair] == AIR_PORT_CABLE_STATUS_ERROR)
 +			len += snprintf(str_out + len, CMD_MAX_LENGTH, "%7s", "error");
@@ -1813,12 +1886,9 @@ index 3cdc8c6..80d2656 100644
 +	phydev_info(phydev, "%s air_cable_diag fail.\n", __func__);
 +	phydev_info(phydev, "%s phy_reset.\n", __func__);
 +	ret |= phy_write(phydev, 0x1f, 0x0);
-+	reg = phy_read(phydev,
-+			MII_BMCR);
-+	ret |= phy_write(phydev,
-+			MII_BMCR, reg | BMCR_PDOWN);
-+	ret |= phy_write(phydev,
-+			MII_BMCR, reg & ~BMCR_PDOWN);
++	reg = phy_read(phydev, MII_BMCR);
++	ret |= phy_write(phydev, MII_BMCR, reg | BMCR_PDOWN);
++	ret |= phy_write(phydev, MII_BMCR, reg & ~BMCR_PDOWN);
 +	if (ret < 0)
 +		return ret;
 +	msleep(1000);
@@ -1827,9 +1897,8 @@ index 3cdc8c6..80d2656 100644
 +	return 0;
 +}
 +
-+static void
-+air_token_ring_write(
-+	struct phy_device *phydev, struct trrg_s TrRG, unsigned int WrtVal)
++static void air_token_ring_write(struct phy_device *phydev, struct trrg_s TrRG,
++				 unsigned int WrtVal)
 +{
 +	int data;
 +
@@ -1867,7 +1936,6 @@ index 3cdc8c6..80d2656 100644
 +	__phy_write_mmd(phydev, 0x1E, 0x148, data);
 +	phy_unlock_mdio_bus(phydev);
 +}
-+
 +
 +static void airphy_trigger_cable_diag(struct phy_device *phydev)
 +{
@@ -2086,7 +2154,7 @@ index 3cdc8c6..80d2656 100644
  MODULE_FIRMWARE(EN8811H_MD32_DSP);
 diff --git a/drivers/net/phy/air_en8811h.h b/drivers/net/phy/air_en8811h.h
 new file mode 100644
-index 0000000..c3d4154
+index 0000000..0b243d1
 --- /dev/null
 +++ b/drivers/net/phy/air_en8811h.h
 @@ -0,0 +1,261 @@
@@ -2104,7 +2172,7 @@ index 0000000..c3d4154
 +
 +#define MAX_RETRY                   25
 +
-+#define EN8811H_DRIVER_VERSION  "v2.0.3"
++#define EN8811H_DRIVER_VERSION  "v2.0.4"
 +
 +
 +/***************************************************************
