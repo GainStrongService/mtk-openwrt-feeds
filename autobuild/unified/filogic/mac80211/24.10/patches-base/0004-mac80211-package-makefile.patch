@@ -1,5 +1,5 @@
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index f924d34..55ffe2d 100644
+index f924d34..1c12226 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -10,18 +10,19 @@ include $(INCLUDE_DIR)/kernel.mk
@@ -35,6 +35,15 @@ index f924d34..55ffe2d 100644
  
  config-$(call config_package,cfg80211,$(ALL_VARIANTS)) += CFG80211
  config-$(CONFIG_PACKAGE_CFG80211_TESTMODE) += NL80211_TESTMODE
+@@ -283,7 +288,7 @@ endif
+ 
+ MAKE_OPTS:= \
+ 	$(subst -C $(LINUX_DIR),-C "$(PKG_BUILD_DIR)",$(KERNEL_MAKEOPTS)) \
+-	EXTRA_CFLAGS="-I$(PKG_BUILD_DIR)/include $(IREMAP_CFLAGS) $(C_DEFINES)" \
++	EXTRA_CFLAGS="-I$(PKG_BUILD_DIR)/include $(IREMAP_CFLAGS) $(C_DEFINES) -Werror" \
+ 	KLIB_BUILD="$(LINUX_DIR)" \
+ 	MODPROBE=true \
+ 	KLIB=$(TARGET_MODULES_DIR) \
 @@ -304,6 +309,7 @@ define Build/Prepare
  	rm -rf $(PKG_BUILD_DIR)
  	mkdir -p $(PKG_BUILD_DIR)
