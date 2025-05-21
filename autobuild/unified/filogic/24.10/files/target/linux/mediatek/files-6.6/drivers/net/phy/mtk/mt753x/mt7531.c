@@ -315,9 +315,7 @@ static int mt7531_set_port_sgmii_force_mode(struct gsw_mt753x *gsw, u32 port,
 	/* Step 5: XXX: Special setting for PHYA ==> reserved for flexible */
 
 	/* Step 6 : Release PHYA power down state */
-	val = mt753x_reg_read(gsw, QPHY_PWR_STATE_CTRL(port_base));
-	val &= ~PHYA_PWD;
-	mt753x_reg_write(gsw, QPHY_PWR_STATE_CTRL(port_base), val);
+	mt753x_reg_write(gsw, QPHY_PWR_STATE_CTRL(port_base), 0);
 
 	/* Step 7 : Polling SGMII_LINK_STATUS */
 	timeout_us = 2000000;
