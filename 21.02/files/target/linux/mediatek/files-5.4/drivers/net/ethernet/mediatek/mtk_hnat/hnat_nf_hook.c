@@ -1859,14 +1859,28 @@ hnat_skip_fill_inner:
 			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
 		entry.bfib1.ttl = 1;
 		entry.bfib1.state = BIND;
-		entry = ppe_fill_L2_info(entry, &hw_path);
+
+		/* For L2 GRE and L2 VXLAN, should not modify MAC address */
+		if (!skb_hnat_tops(skb)) {
+			entry.ipv4_hnapt.dmac_hi = swab32(*((u32 *)hw_path.eth_dest));
+			entry.ipv4_hnapt.dmac_lo = swab16(*((u16 *)&hw_path.eth_dest[4]));
+			entry.ipv4_hnapt.smac_hi = swab32(*((u32 *)hw_path.eth_src));
+			entry.ipv4_hnapt.smac_lo = swab16(*((u16 *)&hw_path.eth_src[4]));
+		}
+		entry.ipv4_hnapt.pppoe_id = hw_path.pppoe_sid;
 	} else {
 		entry.ipv6_5t_route.iblk2.dp = gmac;
 		entry.ipv6_5t_route.iblk2.port_mg =
 			(hnat_priv->data->version == MTK_HNAT_V1_1) ? 0x3f : 0;
 		entry.bfib1.ttl = 1;
 		entry.bfib1.state = BIND;
-		entry = ppe_fill_L2_info(entry, &hw_path);
+		if (!skb_hnat_tops(skb)) {
+			entry.ipv6_5t_route.dmac_hi = swab32(*((u32 *)hw_path.eth_dest));
+			entry.ipv6_5t_route.dmac_lo = swab16(*((u16 *)&hw_path.eth_dest[4]));
+			entry.ipv6_5t_route.smac_hi = swab32(*((u32 *)hw_path.eth_src));
+			entry.ipv6_5t_route.smac_lo = swab16(*((u16 *)&hw_path.eth_src[4]));
+		}
+		entry.ipv6_5t_route.pppoe_id = hw_path.pppoe_sid;
 	}
 
 	hnat_fill_offload_engine_entry(skb, &entry, dev);
