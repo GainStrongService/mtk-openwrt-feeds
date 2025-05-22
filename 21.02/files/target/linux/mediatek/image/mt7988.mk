@@ -525,3 +525,37 @@ define Device/BPI-R4-NAND
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += BPI-R4-NAND
+
+define Device/mediatek_mt7988a-dsa-10g-spim-nand-wifi-emi
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7988a-dsa-10g-spim-nand-wifi-emi
+  DEVICE_DTS := mt7988a-dsa-10g-spim-nand-wifi-emi
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7988a-dsa-10g-spim-snand-wifi-emi
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 65536k
+  KERNEL_IN_UBI := 1
+  IMAGES += factory.bin
+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += mediatek_mt7988a-dsa-10g-spim-nand-wifi-emi
+
+define Device/mediatek_mt7988d-dsa-10g-spim-nand-wifi-emi
+  DEVICE_VENDOR := MediaTek
+  DEVICE_MODEL := mt7988d-dsa-10g-spim-nand-wifi-emi
+  DEVICE_DTS := mt7988d-dsa-10g-spim-nand-wifi-emi
+  DEVICE_DTS_DIR := $(DTS_DIR)/mediatek
+  SUPPORTED_DEVICES := mediatek,mt7988d-dsa-10g-spim-snand-wifi-emi
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 65536k
+  KERNEL_IN_UBI := 1
+  IMAGES += factory.bin
+  IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += mediatek_mt7988d-dsa-10g-spim-nand-wifi-emi
