@@ -2148,12 +2148,14 @@ static bool set_crypto_ealg(struct xfrm_algo *ealg, SABuilder_Params_t *params)
 	return true;
 }
 
-static bool set_auth_aead(struct xfrm_algo_aead *aead, SABuilder_Params_t *params,
-			  uint8_t *hash_key)
+static bool set_auth_aead(struct xfrm_algo_aead *aead,
+			  struct mtk_xfrm_params *xfrm_params,
+			  SABuilder_Params_t *params, uint8_t *hash_key)
 {
 	uint8_t t;
 	unsigned int i;
 
+	xfrm_params->tr_type = EIP197_SMALL_TR;
 	if (strcmp(aead->alg_name, "rfc4106(gcm(aes))") == 0) {
 		params->AuthAlgo = SAB_AUTH_AES_GCM;
 		hash_key = kcalloc(AES_BLOCK_SIZE, sizeof(uint8_t), GFP_KERNEL);
@@ -2188,8 +2190,9 @@ static bool set_auth_aead(struct xfrm_algo_aead *aead, SABuilder_Params_t *param
 	return true;
 }
 
-static bool set_auth_aalg(struct xfrm_algo_auth *aalg, SABuilder_Params_t *params,
-			  uint8_t *inner, uint8_t *outer)
+static bool set_auth_aalg(struct xfrm_algo_auth *aalg,
+			  struct mtk_xfrm_params *xfrm_params,
+			  SABuilder_Params_t *params, uint8_t *inner, uint8_t *outer)
 {
 	if (strcmp(aalg->alg_name, "hmac(sha1)") == 0) {
 		params->AuthAlgo = SAB_AUTH_HMAC_SHA1;
@@ -2199,6 +2202,7 @@ static bool set_auth_aalg(struct xfrm_algo_auth *aalg, SABuilder_Params_t *param
 					aalg->alg_key_len / 8, inner, outer);
 		params->AuthKey1_p = inner;
 		params->AuthKey2_p = outer;
+		xfrm_params->tr_type = EIP197_SMALL_TR;
 	} else if (strcmp(aalg->alg_name, "hmac(sha256)") == 0) {
 		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_256;
 		inner = kcalloc(SHA256_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
@@ -2207,6 +2211,7 @@ static bool set_auth_aalg(struct xfrm_algo_auth *aalg, SABuilder_Params_t *param
 					aalg->alg_key_len / 8, inner, outer);
 		params->AuthKey1_p = inner;
 		params->AuthKey2_p = outer;
+		xfrm_params->tr_type = EIP197_SMALL_TR;
 	} else if (strcmp(aalg->alg_name, "hmac(sha384)") == 0) {
 		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_384;
 		inner = kcalloc(SHA384_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
@@ -2215,6 +2220,7 @@ static bool set_auth_aalg(struct xfrm_algo_auth *aalg, SABuilder_Params_t *param
 					aalg->alg_key_len / 8, inner, outer);
 		params->AuthKey1_p = inner;
 		params->AuthKey2_p = outer;
+		xfrm_params->tr_type = EIP197_LARGE_TR;
 	} else if (strcmp(aalg->alg_name, "hmac(sha512)") == 0) {
 		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_512;
 		inner = kcalloc(SHA512_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
@@ -2223,6 +2229,7 @@ static bool set_auth_aalg(struct xfrm_algo_auth *aalg, SABuilder_Params_t *param
 					aalg->alg_key_len / 8, inner, outer);
 		params->AuthKey1_p = inner;
 		params->AuthKey2_p = outer;
+		xfrm_params->tr_type = EIP197_LARGE_TR;
 	} else if (strcmp(aalg->alg_name, "hmac(md5)") == 0) {
 		params->AuthAlgo = SAB_AUTH_HMAC_MD5;
 		inner = kcalloc(MD5_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
@@ -2231,6 +2238,7 @@ static bool set_auth_aalg(struct xfrm_algo_auth *aalg, SABuilder_Params_t *param
 					aalg->alg_key_len / 8, inner, outer);
 		params->AuthKey1_p = inner;
 		params->AuthKey2_p = outer;
+		xfrm_params->tr_type = EIP197_SMALL_TR;
 	} else {
 		return false;
 	}
@@ -2297,9 +2305,9 @@ void *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode
 
 	/* Add authentication key and parameters */
 	if (xs->aead)
-		set_success = set_auth_aead(xs->aead, &params, inner);
+		set_success = set_auth_aead(xs->aead, xfrm_params, &params, inner);
 	else
-		set_success = set_auth_aalg(xs->aalg, &params, inner, outer);
+		set_success = set_auth_aalg(xs->aalg, xfrm_params, &params, inner, outer);
 	if (set_success != true) {
 		CRYPTO_ERR("Set Auth Algo failed\n");
 		sa_host_addr.p = NULL;

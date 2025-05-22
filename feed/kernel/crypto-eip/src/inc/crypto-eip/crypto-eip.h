@@ -32,6 +32,8 @@ struct mtk_crypto;
 extern struct mtk_crypto mcrypto;
 
 #define TRANSFORM_RECORD_LEN		64
+#define EIP197_SMALL_TR			2
+#define EIP197_LARGE_TR			3
 
 #define MAX_TUNNEL_NUM			10
 #define PACKET_INBOUND			1
@@ -60,6 +62,7 @@ struct mtk_xfrm_params {
 	struct cdrt_entry *cdrt;
 
 	void *p_tr;			/* pointer to transform record */
+	u32 tr_type;
 	void *p_handle;		/* pointer to eip dma handle */
 	u32 dir;			/* SABuilder_Direction_t */
 	atomic64_t bytes;          /* Total bytes applied */

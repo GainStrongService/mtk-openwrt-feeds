@@ -80,7 +80,7 @@ static int mtk_xfrm_offload_cdrt_setup(struct mtk_xfrm_params *xfrm_params)
 	cdesc->desc1.common.type = 3;
 	cdesc->desc1.token_len = 48;
 	/* All use small transform record now */
-	cdesc->desc1.p_tr[0] = __pa(xfrm_params->p_tr) | 2;
+	cdesc->desc1.p_tr[0] = __pa(xfrm_params->p_tr) | xfrm_params->tr_type;
 	cdesc->desc1.p_tr[1] = __pa(xfrm_params->p_tr) >> 32 & 0xFFFFFFFF;
 
 	cdesc->desc2.hw_srv = 3;
