@@ -1853,11 +1853,11 @@ void xfi_mib_dump(struct seq_file *seq, u32 gdm_id)
 int xfi_cnt_read(struct seq_file *seq, void *v)
 {
 	struct mtk_eth *eth = g_eth;
-	bool has_xgmac[MTK_MAX_DEVS] = {0,
-					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_2P5GPHY) ||
-					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_2P5GPHY_V2) ||
-					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_USXGMII),
-					MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC3_USXGMII)};
+	bool has_xgmac[MTK_GMAC_ID_MAX] = {0,
+					   MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_2P5GPHY) ||
+					   MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_2P5GPHY_V2) ||
+					   MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC2_USXGMII),
+					   MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC3_USXGMII)};
 	int i;
 
 	seq_puts(seq, "+------------------------------------+\n");
