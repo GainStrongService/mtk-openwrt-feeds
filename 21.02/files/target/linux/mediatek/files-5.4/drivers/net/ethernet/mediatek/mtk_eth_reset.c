@@ -981,6 +981,12 @@ u32 mtk_monitor_gdm_rx(struct mtk_eth *eth)
 		if (!eth->mac[i] || !netif_running(eth->netdev[i]))
 			continue;
 
+		/* update GDM counter to the hw_stats */
+		if (spin_trylock(&eth->mac[i]->hw_stats->stats_lock)) {
+			mtk_stats_update_mac(eth->mac[i]);
+			spin_unlock(&eth->mac[i]->hw_stats->stats_lock);
+		}
+
 		hw_stats = eth->mac[i]->hw_stats;
 		cur_rx_cnt = hw_stats->rx_packets;
 
@@ -1045,6 +1051,12 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 		if (!eth->mac[i] || !netif_running(eth->netdev[i]) ||
 		    eth->mac[i]->type != MTK_GDM_TYPE)
 			continue;
+
+		/* update GDM counter to the hw_stats */
+		if (spin_trylock(&eth->mac[i]->hw_stats->stats_lock)) {
+			mtk_stats_update_mac(eth->mac[i]);
+			spin_unlock(&eth->mac[i]->hw_stats->stats_lock);
+		}
 
 		hw_stats = eth->mac[i]->hw_stats;
 		cur_tx_cnt = hw_stats->tx_packets;
