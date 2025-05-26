@@ -23,8 +23,11 @@ define Package/quick_track/description
 endef
 
 define Package/quick_track/install
+	$(INSTALL_DIR) $(1)/etc
 	$(INSTALL_DIR) $(1)/sbin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/app $(1)/sbin/qt_dut
+	$(INSTALL_BIN) ./files/pin_checksum.sh $(1)/sbin/pin_checksum.sh;
+	$(INSTALL_BIN) ./files/wsc_settings_APUT $(1)/etc/wsc_settings_APUT;
 endef
 
 $(eval $(call BuildPackage,quick_track))

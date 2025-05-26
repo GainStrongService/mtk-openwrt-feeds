@@ -1,0 +1,254 @@
+From 3b4eab5f19ac80189ce517ca82966cb32dda23a1 Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Tue, 3 Jun 2025 11:34:45 +0800
+Subject: [PATCH] Add mt76 openwrt-24.10 supprot
+
+Signed-off-by: Allen Ye <allen.ye@mediatek.com>
+---
+ Makefile                  |  9 ++++---
+ indigo_api_callback_dut.c | 14 +++++++++--
+ vendor_specific.h         | 13 +++++-----
+ vendor_specific_dut.c     | 53 +++++++++++++++++++++------------------
+ 4 files changed, 52 insertions(+), 37 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 9a64b6e..2457279 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,5 +1,5 @@
+ # Type is laptop or openwrt
+-TYPE = laptop
++TYPE = openwrt
+ # Role is dut or platform or sniffer
+ ROLE = dut
+ # Package Version
+@@ -21,11 +21,12 @@ else
+ #CC = /openwrt/11305r3/qsdk/staging_dir/toolchain-aarch64_cortex-a53_gcc-5.2.0_musl-1.1.16/bin/aarch64-openwrt-linux-gcc
+ #LD = /openwrt/11305r3/qsdk/staging_dir/toolchain-aarch64_cortex-a53_gcc-5.2.0_musl-1.1.16/bin/aarch64-openwrt-linux-ld
+ # Wi-Fi 7
+-CC = /openwrt/qsdk/staging_dir/toolchain-aarch64/bin/aarch64-openwrt-linux-musl-gcc
+-LD = /openwrt/qsdk/staging_dir/toolchain-aarch64/bin/aarch64-openwrt-linux-ld
+ # _OPENWRT_: Use OPENWRT
++CROSS_COMPILE = mipsel-linux-
++#CC = $(CROSS_COMPILE)gcc
++#LD = $(CROSS_COMPILE)
+ CFLAGS += -D_OPENWRT_
+-CFLAGS += -DHOSTAPD_SUPPORT_MBSSID_WAR
++CFLAGS += -DHOSTAPD_SUPPORT_MBSSID
+ endif
+ 
+ # Define the app is for DUT or platform
+diff --git a/indigo_api_callback_dut.c b/indigo_api_callback_dut.c
+index 2f3af3c..9641652 100644
+--- a/indigo_api_callback_dut.c
++++ b/indigo_api_callback_dut.c
+@@ -494,6 +494,12 @@ static int generate_hostapd_config(char *output, int output_size, struct packet_
+             continue;
+         }
+ 
++        if (tlv->id == TLV_HE_OPER_CHWIDTH || tlv->id == TLV_VHT_OPER_CHWIDTH) {
++            memset(value, 0, sizeof(value));
++            memcpy(value, tlv->value, tlv->len);
++            chwidth = atoi(value);
++        }
++
+         cfg = find_tlv_config(tlv->id);
+         if (!cfg) {
+             indigo_logger(LOG_LEVEL_ERROR, "Unknown AP configuration name: TLV ID 0x%04x", tlv->id);
+@@ -1222,6 +1228,9 @@ static int assign_static_ip_handler(struct packet_wrapper *req, struct packet_wr
+         message = TLV_VALUE_ASSIGN_STATIC_IP_NOT_OK;
+     }
+ 
++    sprintf(buffer, "brctl delif %s %s", BRIDGE_CONTROL, ifname);
++    system(buffer);
++
+     response:
+     fill_wrapper_message_hdr(resp, API_CMD_RESPONSE, req->hdr.seq);
+     fill_wrapper_tlv_byte(resp, TLV_STATUS, len == 0 ? TLV_VALUE_STATUS_OK : TLV_VALUE_STATUS_NOT_OK);
+@@ -1675,7 +1684,7 @@ static int send_ap_btm_handler(struct packet_wrapper *req, struct packet_wrapper
+     /*  disassoc_imminent=%s */
+     if (strlen(disassoc_imminent)) {
+         memset(buffer, 0, sizeof(buffer));
+-        sprintf(buffer, " disassoc_imminent=%s", disassoc_imminent);
++        sprintf(buffer, " disassoc_imminent=%s mbo_cert=1", disassoc_imminent);
+         strcat(request, buffer);
+     }
+     /* disassoc_timer=%s */
+@@ -1702,6 +1711,7 @@ static int send_ap_btm_handler(struct packet_wrapper *req, struct packet_wrapper
+         sprintf(buffer, " pref=1");
+         strcat(request, buffer);
+     }
++
+     indigo_logger(LOG_LEVEL_DEBUG, "cmd:%s", request);
+ 
+     /* Open hostapd UDS socket */
+@@ -3407,7 +3417,7 @@ static int start_wps_ap_handler(struct packet_wrapper *req, struct packet_wrappe
+         /* Please implement the wsc pin validation function to
+          * identify the invalid PIN code and DONOT start wps.
+          * */
+-        #define WPS_PIN_VALIDATION_FILE "/tmp/pin_checksum.sh"
++        #define WPS_PIN_VALIDATION_FILE "/sbin/pin_checksum.sh"
+         int len = 0, is_valid = 0;
+         char pipebuf[S_BUFFER_LEN];
+         char *parameter[] = {"sh", WPS_PIN_VALIDATION_FILE, pin_code, NULL};
+diff --git a/vendor_specific.h b/vendor_specific.h
+index 84d4bd6..02945db 100644
+--- a/vendor_specific.h
++++ b/vendor_specific.h
+@@ -34,18 +34,18 @@
+ #endif /* _OPENWRT_ */
+ #endif /* _DUT_ */
+ #define HAPD_CTRL_PATH_DEFAULT                      "/var/run/hostapd"
+-#define HAPD_GLOBAL_CTRL_PATH_DEFAULT               "/var/run/hostapd-global"
++#define HAPD_GLOBAL_CTRL_PATH_DEFAULT               "/var/run/hostapd/global"
+ #define HAPD_LOG_FILE                               "/var/log/hostapd.log"
+ 
+ #ifdef _OPENWRT_
+-#define HAPD_CONF_FILE_DEFAULT                      "/tmp/hostapd.conf"
+-#define HAPD_CONF_FILE_DEFAULT_PATH                 "/tmp"
+-#define WPAS_CONF_FILE_DEFAULT                      "/tmp/wpa_supplicant.conf"
++#define HAPD_CONF_FILE_DEFAULT                      "/tmp/run/hostapd-phy0.0.conf"
++#define HAPD_CONF_FILE_DEFAULT_PATH                 "/tmp/run"
++#define WPAS_CONF_FILE_DEFAULT                      "/tmp/run/wpa_supplicant.conf"
+ // 2(2.4G): first interface ath1, second interface ath11
+ // 5(5G): first interface ath0, second interface ath01
+ #define DEFAULT_APP_INTERFACES_PARAMS               "2:ath1,2:ath11,2:ath12,2:ath13,5:ath0,5:ath01,5:ath02,5:ath03"
+-#define DEFAULT_APP_6E_INTERFACES_PARAMS            "6:ath0,6:ath01,6:ath02,6:ath03,5:ath1,5:ath11,5:ath12,5:ath13,2:ath2,2:ath21,2:ath22,2:ath23"
+-#define WIFI7_PHY_INTERFACE                         "phy00"
++#define DEFAULT_APP_6E_INTERFACES_PARAMS            "2:phy0.0-ap0,2:phy0.0-ap1,5:phy0.1-ap0,5:phy0.1-ap1,6:phy0.2-ap0,6:phy0.2-ap1"
++#define WIFI7_PHY_INTERFACE                         "phy0"
+ 
+ #else
+ #define HAPD_CONF_FILE_DEFAULT                      "/etc/hostapd/hostapd.conf"
+@@ -77,6 +77,7 @@
+ 
+ /* Default bridge for wireless interfaces */
+ #define BRIDGE_WLANS                                "br-wlans"
++#define BRIDGE_CONTROL                              "br-lan"
+ 
+ #ifdef _WTS_OPENWRT_
+ #define HOSTAPD_SUPPORT_MBSSID 0
+diff --git a/vendor_specific_dut.c b/vendor_specific_dut.c
+index 42c980b..269de3e 100644
+--- a/vendor_specific_dut.c
++++ b/vendor_specific_dut.c
+@@ -33,10 +33,10 @@ int detect_number_radio() {
+     char buffer[BUFFER_LEN];
+     int number_radio = 0;
+ 
+-    fp = popen("iw dev", "r");
++    fp = popen("iw phy | grep 'Wiphy phy'", "r");
+     if (fp) {
+         while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+-            if (strstr(buffer, "phy#0") || strstr(buffer, "phy#1") || strstr(buffer, "phy#2"))
++            if (strstr(buffer, "Wiphy phy"))
+                 number_radio += 1;
+         }
+         pclose(fp);
+@@ -60,61 +60,61 @@ void interfaces_init() {
+         sprintf(phy_name, WIFI7_PHY_INTERFACE);
+     else
+         sprintf(phy_name, "phy1");
+-    sprintf(buffer, "iw phy %s interface add ath1 type managed >/dev/null 2>/dev/null", phy_name);
++    sprintf(buffer, "iw phy %s interface add phy0.1-ap0 type __ap >/dev/null 2>/dev/null", phy_name);
+     system(buffer);
+-    sprintf(buffer, "iw phy %s interface add ath11 type managed >/dev/null 2>/dev/null", phy_name);
++    sprintf(buffer, "iw phy %s interface add phy0.1-ap1 type __ap >/dev/null 2>/dev/null", phy_name);
+     system(buffer);
+     if (number_radio != 1)
+         sprintf(phy_name, "phy0");
+-    sprintf(buffer, "iw phy %s interface add ath0 type managed >/dev/null 2>/dev/null", phy_name);
++    sprintf(buffer, "iw phy %s interface add phy0.0-ap0 type __ap >/dev/null 2>/dev/null", phy_name);
+     system(buffer);
+-    sprintf(buffer, "iw phy %s interface add ath01 type managed >/dev/null 2>/dev/null", phy_name);
++    sprintf(buffer, "iw phy %s interface add phy0.0-ap1 type __ap >/dev/null 2>/dev/null", phy_name);
+     system(buffer);
+     if (number_radio == 1 || number_radio == 3) {
+         if (number_radio != 1)
+             sprintf(phy_name, "phy2");
+-        sprintf(buffer, "iw phy %s interface add ath2 type managed >/dev/null 2>/dev/null", phy_name);
++        sprintf(buffer, "iw phy %s interface add phy0.2-ap0 type __ap >/dev/null 2>/dev/null", phy_name);
+         system(buffer);
+-        sprintf(buffer, "iw phy %s interface add ath21 type managed >/dev/null 2>/dev/null", phy_name);
++        sprintf(buffer, "iw phy %s interface add phy0.2-ap1 type __ap >/dev/null 2>/dev/null", phy_name);
+         system(buffer);
+     }
+ 
+     memset(mac_addr, 0, sizeof(mac_addr));
+-    get_mac_address(mac_addr, sizeof(mac_addr), "ath1");
+-    control_interface("ath1", "down");
++    get_mac_address(mac_addr, sizeof(mac_addr), "phy0.1-ap0");
++    control_interface("phy0.1-ap0", "down");
+     mac_addr[16] = (char)'0';
+-    set_mac_address("ath1", mac_addr);
++    set_mac_address("phy0.1-ap0", mac_addr);
+ 
+-    control_interface("ath11", "down");
++    control_interface("phy0.1-ap1", "down");
+     mac_addr[16] = (char)'1';
+-    set_mac_address("ath11", mac_addr);
++    set_mac_address("phy0.1-ap1", mac_addr);
+ 
+     memset(mac_addr, 0, sizeof(mac_addr));
+-    get_mac_address(mac_addr, sizeof(mac_addr), "ath0");
+-    control_interface("ath0", "down");
++    get_mac_address(mac_addr, sizeof(mac_addr), "phy0.0-ap0");
++    control_interface("phy0.0-ap0", "down");
+     if (number_radio == 1)
+         mac_addr[16] = (char)'4';
+     else
+         mac_addr[16] = (char)'0';
+-    set_mac_address("ath0", mac_addr);
++    set_mac_address("phy0.0-ap0", mac_addr);
+ 
+-    control_interface("ath01", "down");
++    control_interface("phy0.0-ap1", "down");
+     if (number_radio == 1)
+         mac_addr[16] = (char)'5';
+     else
+         mac_addr[16] = (char)'1';
+-    set_mac_address("ath01", mac_addr);
++    set_mac_address("phy0.0-ap1", mac_addr);
+ 
+     if (number_radio == 1 || number_radio == 3) {
+         memset(mac_addr, 0, sizeof(mac_addr));
+-        get_mac_address(mac_addr, sizeof(mac_addr), "ath2");
+-        control_interface("ath2", "down");
++        get_mac_address(mac_addr, sizeof(mac_addr), "phy0.2-ap0");
++        control_interface("phy0.2-ap0", "down");
+         mac_addr[16] = (char)'8';
+-        set_mac_address("ath2", mac_addr);
++        set_mac_address("phy0.2-ap0", mac_addr);
+ 
+-        control_interface("ath21", "down");
++        control_interface("phy0.2-ap1", "down");
+         mac_addr[16] = (char)'9';
+-        set_mac_address("ath21", mac_addr);
++        set_mac_address("phy0.2-ap1", mac_addr);
+     }
+     sleep(1);
+ #endif
+@@ -125,6 +125,9 @@ void vendor_init() {
+     char buffer[BUFFER_LEN];
+     char mac_addr[S_BUFFER_LEN];
+ 
++    snprintf(buffer, sizeof(buffer), "fw3 stop");
++    system(buffer);
++
+     /* Vendor: add codes to let ControlApp have full control of hostapd */
+     /* Avoid hostapd being invoked by procd */
+     memset(buffer, 0, sizeof(buffer));
+@@ -455,8 +458,8 @@ wps_setting* get_vendor_wps_settings(enum wps_device_role role)
+     /*
+      * Please implement the vendor proprietary function to get WPS OOB and required settings.
+      * */
+-#define WSC_SETTINGS_FILE_AP "/tmp/wsc_settings_APUT"
+-#define WSC_SETTINGS_FILE_STA "/tmp/wsc_settings_STAUT"
++#define WSC_SETTINGS_FILE_AP "/etc/wsc_settings_APUT"
++#define WSC_SETTINGS_FILE_STA "/etc/wsc_settings_STAUT"
+     int len = 0, is_valid = 0;
+     char pipebuf[S_BUFFER_LEN];
+     char *parameter_ap[] = {"cat", WSC_SETTINGS_FILE_AP, NULL, NULL};
+-- 
+2.45.2
+
