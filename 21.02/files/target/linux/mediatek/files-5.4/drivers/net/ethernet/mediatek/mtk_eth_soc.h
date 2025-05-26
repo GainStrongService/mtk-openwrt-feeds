@@ -2214,7 +2214,7 @@ struct tdma_monitor {
 		u8		hang_count;
 	} tx;
 	struct tdma_rx_monitor {
-		u64		pre_rx_didx;
+		u32		pre_rx_didx;
 		u32		pre_opq10;
 		u32		pre_fsm;
 		u8		hang_count;
