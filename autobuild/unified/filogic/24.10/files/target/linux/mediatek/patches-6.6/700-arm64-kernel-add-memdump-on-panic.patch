@@ -1,6 +1,6 @@
 --- a/arch/arm64/include/asm/memdump.h
 +++ b/arch/arm64/include/asm/memdump.h
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,16 @@
 +/* SPDX-License-Identifier: GPL-2.0-only */
 +/*
 + * Copyright (C) 2025 MediaTek Inc.
@@ -11,7 +11,10 @@
 +#ifndef _ARM64_MEMDUMP_H_
 +#define _ARM64_MEMDUMP_H_
 +
++struct pt_regs;
++
 +void arm64_atf_memory_dump(int reboot_timeout);
++void arm64_atf_memory_dump_save_regs(struct pt_regs *regs);
 +
 +#endif /* _ARM64_MEMDUMP_H_ */
 --- a/arch/arm64/kernel/Makefile
@@ -35,7 +38,7 @@
  subdir- += vdso vdso32
 --- a/arch/arm64/kernel/memdump.c
 +++ b/arch/arm64/kernel/memdump.c
-@@ -0,0 +1,178 @@
+@@ -0,0 +1,201 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * Copyright (C) 2025 MediaTek Inc.
@@ -66,7 +69,7 @@
 +#define MTK_SIP_EMERG_MEM_DUMP			0xC2000540
 +
 +/* core dump info */
-+#define MEMDUMP_CORE_VER			1
++#define MEMDUMP_CORE_VER			2
 +
 +struct memdump_core_info {
 +	u32 crc;
@@ -74,7 +77,7 @@
 +	u32 ver;
 +	u32 nr_cpus;
 +	u32 nr_mem_ranges;
-+	u32 unused;
++	u32 panic_cpu;			/* v2 */
 +	uintptr_t note_buf_pa;
 +	size_t note_buf_size;
 +	uintptr_t vmcoreinfo_note_pa;
@@ -83,6 +86,9 @@
 +	uintptr_t kernel_pa;
 +	size_t kernel_size;
 +	uintptr_t mem_ranges_pa;
++	uintptr_t panic_regs_pa;	/* v2 */
++	u32 panic_regs_valid;		/* v2 */
++	u32 unused;			/* v2 */
 +};
 +
 +struct memdump_mem_range {
@@ -97,6 +103,7 @@
 +};
 +
 +static struct memdump_core_info *mdump_core_info;
++static struct pt_regs *mdump_panic_regs;
 +
 +static int get_nr_ram_ranges_callback(struct resource *res, void *arg)
 +{
@@ -130,6 +137,7 @@
 +
 +	mdump_core_info->ver = MEMDUMP_CORE_VER;
 +	mdump_core_info->nr_cpus = NR_CPUS;
++	mdump_core_info->panic_cpu = smp_processor_id();
 +
 +	note_buf = (uintptr_t *)((uintptr_t)mdump_core_info + sizeof(*mdump_core_info));
 +	mdump_core_info->note_buf_pa = __pa(note_buf);
@@ -155,6 +163,8 @@
 +	walk_system_ram_res(0, -1, &cmpriv, log_ram_headers_callback);
 +
 +	mdump_core_info->nr_mem_ranges = cmpriv.nr_ranges;
++
++	mdump_core_info->panic_regs_pa = __pa(mdump_panic_regs);
 +
 +	len = sizeof(*mdump_core_info) +
 +	      NR_CPUS * sizeof(uintptr_t) +
@@ -188,6 +198,15 @@
 +	pr_err("Memory dump SMCC failed\n");
 +}
 +
++void arm64_atf_memory_dump_save_regs(struct pt_regs *regs)
++{
++	mdump_core_info->panic_regs_valid = true;
++
++	memcpy(mdump_panic_regs, regs, sizeof(*regs));
++
++	dcache_clean_inval_poc((unsigned long)mdump_panic_regs, sizeof(*regs));
++}
++
 +/* dummy functions */
 +void machine_kexec_cleanup(struct kimage *kimage)
 +{
@@ -207,6 +226,13 @@
 +	mdump_core_info = (struct memdump_core_info *)get_zeroed_page(GFP_KERNEL);
 +	if (!mdump_core_info) {
 +		pr_warn("Memory allocation for memdump_core_info failed\n");
++		return -ENOMEM;
++	}
++
++	mdump_panic_regs = (struct pt_regs *)get_zeroed_page(GFP_KERNEL);
++	if (!mdump_panic_regs) {
++		pr_warn("Memory allocation for pt_regs failed\n");
++		free_page((unsigned long)mdump_core_info);
 +		return -ENOMEM;
 +	}
 +
@@ -239,6 +265,30 @@
  		break;
  
  #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+--- a/arch/arm64/kernel/traps.c
++++ b/arch/arm64/kernel/traps.c
+@@ -49,6 +49,10 @@
+ #include <asm/system_misc.h>
+ #include <asm/sysreg.h>
+ 
++#ifdef CONFIG_ARM64
++#include <asm/memdump.h>
++#endif
++
+ static bool __kprobes __check_eq(unsigned long pstate)
+ {
+ 	return (pstate & PSR_Z_BIT) != 0;
+@@ -228,6 +232,10 @@ void die(const char *str, struct pt_regs
+ 	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+ 	oops_exit();
+ 
++#ifdef CONFIG_ARM64
++	arm64_atf_memory_dump_save_regs(regs);
++#endif
++
+ 	if (in_interrupt())
+ 		panic("%s: Fatal exception in interrupt", str);
+ 	if (panic_on_oops)
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -68,8 +68,8 @@ obj-$(CONFIG_MODULE_SIG_FORMAT) += modul
