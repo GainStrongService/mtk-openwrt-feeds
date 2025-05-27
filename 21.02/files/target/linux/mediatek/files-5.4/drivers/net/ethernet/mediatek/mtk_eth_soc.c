@@ -5227,6 +5227,8 @@ int mtk_phy_config(struct mtk_eth *eth, int enable)
 {
 	struct device_node *mii_np = NULL;
 	struct device_node *child = NULL;
+	bool is_internal = false;
+	const char *label;
 	int addr = 0;
 	u32 val = 0;
 
@@ -5247,12 +5249,27 @@ int mtk_phy_config(struct mtk_eth *eth, int enable)
 			continue;
 		pr_info("%s %d addr:%d name:%s\n",
 			__func__, __LINE__, addr, child->name);
-		val = _mtk_mdio_read(eth, addr, mdiobus_c45_addr(0x1e, 0));
-		if (enable)
-			val &= ~BMCR_PDOWN;
-		else
-			val |= BMCR_PDOWN;
-		_mtk_mdio_write(eth, addr, mdiobus_c45_addr(0x1e, 0), val);
+
+		if (!of_property_read_string(child, "phy-mode", &label) &&
+			!strcasecmp(label, "internal"))
+			is_internal = true;
+
+		if (of_device_is_compatible(child, "ethernet-phy-ieee802.3-c45") &&
+			!is_internal) {
+			val = _mtk_mdio_read(eth, addr, mdiobus_c45_addr(0x1e, 0));
+			if (enable)
+				val &= ~BMCR_PDOWN;
+			else
+				val |= BMCR_PDOWN;
+			_mtk_mdio_write(eth, addr, mdiobus_c45_addr(0x1e, 0), val);
+		} else {
+			val = mdiobus_read(eth->mii_bus, addr, 0);
+			if (enable)
+				val &= ~BMCR_PDOWN;
+			else
+				val |= BMCR_PDOWN;
+			mdiobus_write(eth->mii_bus, addr, 0, val);
+		}
 	}
 
 	return 0;
@@ -5263,11 +5280,31 @@ static void mtk_prepare_reset_fe(struct mtk_eth *eth, unsigned long *restart_car
 	struct mtk_mac *mac;
 	u32 i = 0, val = 0;
 
-	/* Disable NETSYS Interrupt */
-	mtk_w32(eth, 0, MTK_FE_INT_ENABLE);
-	mtk_w32(eth, 0, MTK_FE_INT_ENABLE2);
-	mtk_w32(eth, 0, MTK_PDMA_INT_MASK);
-	mtk_w32(eth, 0, MTK_QDMA_INT_MASK);
+	/* Force PSE port link down */
+	mtk_pse_set_port_link(eth, 0, false);
+	mtk_pse_set_port_link(eth, 1, false);
+	mtk_pse_set_port_link(eth, 2, false);
+	mtk_pse_set_port_link(eth, 6, false);
+	mtk_pse_set_port_link(eth, 8, false);
+	mtk_pse_set_port_link(eth, 9, false);
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+		mtk_pse_set_port_link(eth, 13, false);
+		mtk_pse_set_port_link(eth, 15, false);
+	}
+
+	/* Enable GDM drop */
+	for (i = 0; i < MTK_MAC_COUNT; i++)
+		mtk_gdm_config(eth, i, MTK_GDMA_DROP_ALL);
+
+	/* Force mac link down */
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+
+		mac = eth->mac[i];
+		mtk_mac_link_down(&mac->phylink_config, mac->mode,
+				  mac->interface);
+	}
 
 	/* Disable Linux netif Tx path */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
@@ -5282,50 +5319,49 @@ static void mtk_prepare_reset_fe(struct mtk_eth *eth, unsigned long *restart_car
 		netif_tx_disable(eth->netdev[i]);
 	}
 
-	/* Force PSE port6 link down */
-	mtk_pse_set_port_link(eth, 6, false);
-	/* Wait for port6 of PSE_OQ to be cleared */
+	/* Wait for port of PSE_OQ to be cleared */
 	i = 0;
 	while (i < 1000) {
-		val = mtk_r32(eth, MTK_PSE_OQ_STA(3)) & 0xFFF;
-		if (val == 0)
+		u32 opq = 0;
+
+		opq += mtk_r32(eth, MTK_PSE_OQ_STA(0)) & 0xFFF;
+		opq += mtk_r32(eth, MTK_PSE_OQ_STA(3)) & 0xFFF;
+		opq += mtk_r32(eth, MTK_PSE_OQ_STA(4)) & 0xFFF;
+		opq += mtk_r32(eth, MTK_PSE_OQ_STA(4)) & 0xFFF0000;
+		opq += mtk_r32(eth, MTK_PSE_OQ_STA(6)) & 0xFFF0000;
+		opq += mtk_r32(eth, MTK_PSE_OQ_STA(7)) & 0xFFF0000;
+		if (opq == 0)
 			break;
 		i++;
 		mdelay(1);
 	}
-	if (i > 1000)
-		pr_warn("[%s] wait for port6 of PSE_OQ clean timeout!\n", __func__);
+
+	if (i == 1000) {
+		u32 cur = MTK_PSE_OQ_STA(0);
+		u32 end = MTK_PSE_OQ_STA(0) + 0x20;
+
+		pr_warn("[%s] PSE_OQ clean timeout!\n", __func__);
+		while (cur < end) {
+			pr_warn("0x%x: %08x %08x %08x %08x\n",
+				cur, mtk_r32(eth, cur), mtk_r32(eth, cur + 0x4),
+				mtk_r32(eth, cur + 0x8), mtk_r32(eth, cur + 0xc));
+			cur += 0x10;
+		}
+	}
 
 	/* Disable QDMA Tx */
 	val = mtk_r32(eth, MTK_QDMA_GLO_CFG);
 	mtk_w32(eth, val & ~(MTK_TX_DMA_EN), MTK_QDMA_GLO_CFG);
 
-	/* Force mac link down */
-	for (i = 0; i < MTK_MAC_COUNT; i++) {
-		if (!eth->netdev[i])
-			continue;
-
-		mac = eth->mac[i];
-		mtk_mac_link_down(&mac->phylink_config, mac->mode,
-				  mac->interface);
-	}
-
-	/* Force PSE port link down */
-	mtk_pse_set_port_link(eth, 0, false);
-	mtk_pse_set_port_link(eth, 1, false);
-	mtk_pse_set_port_link(eth, 2, false);
-	mtk_pse_set_port_link(eth, 8, false);
-	mtk_pse_set_port_link(eth, 9, false);
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3))
-		mtk_pse_set_port_link(eth, 15, false);
-
-	/* Enable GDM drop */
-	for (i = 0; i < MTK_MAC_COUNT; i++)
-		mtk_gdm_config(eth, i, MTK_GDMA_DROP_ALL);
-
 	/* Disable ADMA Rx */
 	val = mtk_r32(eth, MTK_PDMA_GLO_CFG);
 	mtk_w32(eth, val & ~(MTK_RX_DMA_EN), MTK_PDMA_GLO_CFG);
+
+	/* Disable NETSYS Interrupt */
+	mtk_w32(eth, 0, MTK_FE_INT_ENABLE);
+	mtk_w32(eth, 0, MTK_FE_INT_ENABLE2);
+	mtk_w32(eth, 0, MTK_PDMA_INT_MASK);
+	mtk_w32(eth, 0, MTK_QDMA_INT_MASK);
 }
 
 static void mtk_pending_work(struct work_struct *work)
