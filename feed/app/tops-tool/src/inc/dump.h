@@ -8,6 +8,7 @@
 #ifndef __DUMP_H__
 #define __DUMP_H__
 
+#include <stdint.h>
 #include <sys/types.h>
 
 #define DUMP_INFO_NAME_MAX_LEN		32
