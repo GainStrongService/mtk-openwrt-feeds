@@ -5,18 +5,55 @@ Change-Id: Ia459434bacf894df9e5543e8647b45d7470393e9
  .../filogic/base-files/etc/board.d/02_network | 90 ++++++++++++++++++-
  1 file changed, 88 insertions(+), 2 deletions(-)
 
-diff --git a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
-index f3e688f..2ffd270 100644
 --- a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
 +++ b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
-@@ -3,6 +3,81 @@
+@@ -3,6 +3,124 @@
  . /lib/functions/uci-defaults.sh
  . /lib/functions/system.sh
  
++check_mt7531_p5() {
++    local compatible_path="$1"
++    local port5_path="$2"
++    local expected_compatible="$3"
++    local expected_port5="$4"
++
++	if [ ! -f "$compatible_path" ] || [ ! -f "$port5_path" ]; then
++		return
++	fi
++
++    local compatible=$(cat "$compatible_path")
++    local port5=$(cat "$port5_path")
++
++    # Check if the compatible string and port5 are as expected
++    if [ "$compatible" = "$expected_compatible" ] && [ "$port5" = "$expected_port5" ]; then
++        echo "mt7531_p5_exist"
++    else
++        echo "mt7531_p5_not_exist"
++    fi
++}
++
++mediatek_check_mt7531_P5() {
++    local gsw_result=$(check_mt7531_p5 "/proc/device-tree/gsw@0/compatible" \
++                                      "/proc/device-tree/gsw@0/port@5/compatible" \
++                                      "mediatek,mt753x" \
++                                      "mediatek,mt753x-port")
++
++    local dsa_result=$(check_mt7531_p5 "/proc/device-tree/soc_netsys/ethernet@15100000/mdio-bus/switch@31/compatible" \
++                                      "/proc/device-tree/soc_netsys/ethernet@15100000/mdio-bus/switch@31/ports/port@5/label" \
++                                      "mediatek,mt7531" \
++                                      "lan5")
++
++    if [ "$gsw_result" = "mt7531_p5_exist" ] || [ "$dsa_result" = "mt7531_p5_exist" ]; then
++        echo "p5_exist"
++    else
++        echo "p5_not_exist"
++    fi
++}
++
 +mediatek_get_switch_type()
 +{
 +    # Base paths to the compatible and status properties
-+    local an8855_dsa_base_path="/proc/device-tree/soc_netsys/ethernet@15100000/mdio-bus/"
++    local dsa_base_path="/proc/device-tree/soc_netsys/ethernet@15100000/mdio-bus/*/"
 +    local mt7531_dsa_base_path="/proc/device-tree/soc/switch*/"
 +    local gsw_base_path="/proc/device-tree/gsw*/"
 +
@@ -42,18 +79,22 @@ index f3e688f..2ffd270 100644
 +        echo "$compatible" "$status"
 +    }
 +
-+    # Iterate over each compatible property for an8855-dsa
-+    for dir in $an8855_dsa_base_path; do
++    # Iterate over each compatible property for external dsa switch
++    for dir in $dsa_base_path; do
 +        if [ -d "$dir" ]; then
 +            read compatible status < <(check_compatible_status "$dir")
 +
 +            if [ "$compatible" = "airoha,an8855-mfd" ] && [ "$status" = "okay" ]; then
 +                dts_is_dsa=1
 +            fi
++
++            if [ "$compatible" = "mediatek,mt7531" ] && [ "$status" = "okay" ]; then
++                dts_is_dsa=1
++            fi
 +        fi
 +    done
 +
-+    # Iterate over each compatible property for mt7531-dsa
++    # Iterate over each compatible property for built-in mt7531-dsa
 +    for dir in $mt7531_dsa_base_path; do
 +        if [ -d "$dir" ]; then
 +            read compatible status < <(check_compatible_status "$dir")
@@ -91,7 +132,7 @@ index f3e688f..2ffd270 100644
  mediatek_setup_interfaces()
  {
  	local board="$1"
-@@ -110,8 +185,19 @@ mediatek_setup_interfaces()
+@@ -114,8 +232,29 @@ mediatek_setup_interfaces()
  	mediatek,mt7986b-rfb)
  		ucidef_set_interfaces_lan_wan "lan0 lan1 lan2 lan3 lan4" eth1
  		;;
@@ -103,16 +144,23 @@ index f3e688f..2ffd270 100644
 +	mediatek,mt7987*|\
 +	mediatek,mt7988*)
 +		local sys_switch=$(mediatek_get_switch_type)
++		local sys_mt7531_p5=$(mediatek_check_mt7531_P5)
 +		if [ "$sys_switch" = "sw_is_dsa" ]; then
-+			ucidef_set_interfaces_lan_wan "lan0 lan1 lan2 lan3 eth2" eth1
++			if [ "$sys_mt7531_p5" = "p5_exist" ]; then
++				ucidef_set_interfaces_lan_wan "lan0 lan1 lan2 lan3 lan5 eth2" eth1
++			else
++				ucidef_set_interfaces_lan_wan "lan0 lan1 lan2 lan3 eth2" eth1
++			fi
 +		else
 +			ucidef_set_interfaces_lan_wan "eth0 eth2" eth1
-+			ucidef_add_switch "switch0" \
-+				"0:lan" "1:lan" "2:lan" "3:lan" "6u@eth0"
++			if [ "$sys_mt7531_p5" = "p5_exist" ]; then
++				ucidef_add_switch "switch0" \
++					"0:lan" "1:lan" "2:lan" "3:lan" "5:lan" "6u@eth0"
++			else
++				ucidef_add_switch "switch0" \
++					"0:lan" "1:lan" "2:lan" "3:lan" "6u@eth0"
++			fi
 +		fi
  		;;
  	mercusys,mr90x-v1|\
  	mercusys,mr90x-v1-ubi)
--- 
-2.45.2
-
