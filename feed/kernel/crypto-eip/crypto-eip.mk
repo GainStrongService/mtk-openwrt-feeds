@@ -53,9 +53,10 @@ define KernelPackage/crypto-eip
 	CONFIG_INET_ESP=y \
 	CONFIG_INET6_ESP=y \
 	CONFIG_INET_ESP_OFFLOAD=y \
-	CONFIG_INET6_ESP_OFFLOAD=y
+	CONFIG_INET6_ESP_OFFLOAD=y \
+	CONFIG_XFRM_USER=y
   DEPENDS:= \
-	@TARGET_mediatek \
+	@TARGET_mediatek
   $(call AddDepends/crypto)
 endef
 
