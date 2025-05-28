@@ -52,7 +52,7 @@ def sysfs_temp_get():
 
     return temp
 
-def altitude_caculate(pressure_sealevel, pressure_target, temp_sealevel):
+def altitude_calculate(pressure_sealevel, pressure_target, temp_sealevel):
     '''ISA barometric formula'''
 
     l  = 0.0065                 # lapse rate of dry air
@@ -66,29 +66,38 @@ def altitude_caculate(pressure_sealevel, pressure_target, temp_sealevel):
 
     return val
 
+def altitude_write_to_file(filename, altitude):
+    with open(filename, 'w') as f:
+        f.write(str(altitude))
+
 def main():
     parser = argparse.ArgumentParser(description='altitude-tool is a tool to get the altitude of a coordinate')
     parser.add_argument('-k', '--key', type=str, required=True, help='API key to access openweather API')
     parser.add_argument('-x', '--lon', type=float, required=True, help='Longitude')
     parser.add_argument('-y', '--lat', type=float, required=True, help='Latitude')
+    parser.add_argument('-w', '--write', type=str, required=False, help='Write to path')
 
     args = parser.parse_args()
 
     key = args.key
     lat = args.lat
     lon = args.lon
+    path = args.write
 
     weather_data = WeatherData(key, lat, lon)
 
     pressure_sealevel = weather_data.pressure_sealevel
     temp_sealevel = weather_data.temp_sealevel
     pressure_target = sysfs_pressure_get()
-    altitude = altitude_caculate(pressure_sealevel, pressure_target, temp_sealevel)
+    altitude = altitude_calculate(pressure_sealevel, pressure_target, temp_sealevel)
 
     print(f"pressure_sealevel(hPa): {pressure_sealevel}")
     print(f"pressure_target(hPa):   {pressure_target}")
     print(f"temp_sealevel(c):       {temp_sealevel}")
     print(f"altitude(m):            {altitude}")
+
+    if path != None:
+        altitude_write_to_file(path, altitude)
 
 if __name__ == "__main__":
     main()
