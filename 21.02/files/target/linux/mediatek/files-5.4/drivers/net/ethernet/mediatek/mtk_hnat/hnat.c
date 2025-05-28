@@ -1523,21 +1523,21 @@ static int hnat_probe(struct platform_device *pdev)
 
 	err = of_property_read_string(np, "mtketh-lan", &name);
 	if (err < 0)
-		strncpy(hnat_priv->lan, "eth0", IFNAMSIZ);
+		strscpy(hnat_priv->lan, "eth0", IFNAMSIZ);
 	else
 		strncpy(hnat_priv->lan, (char *)name, IFNAMSIZ - 1);
 	dev_info(&pdev->dev, "lan = %s\n", hnat_priv->lan);
 
 	err = of_property_read_string(np, "mtketh-lan2", &name);
 	if (err < 0)
-		strncpy(hnat_priv->lan2, "eth2", IFNAMSIZ);
+		strscpy(hnat_priv->lan2, "eth2", IFNAMSIZ);
 	else
 		strncpy(hnat_priv->lan2, (char *)name, IFNAMSIZ - 1);
 	dev_info(&pdev->dev, "lan2 = %s\n", hnat_priv->lan2);
 
 	err = of_property_read_string(np, "mtketh-ppd", &name);
 	if (err < 0)
-		strncpy(hnat_priv->ppd, "eth0", IFNAMSIZ);
+		strscpy(hnat_priv->ppd, "eth0", IFNAMSIZ);
 	else
 		strncpy(hnat_priv->ppd, (char *)name, IFNAMSIZ - 1);
 	dev_info(&pdev->dev, "ppd = %s\n", hnat_priv->ppd);

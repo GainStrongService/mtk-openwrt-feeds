@@ -2670,7 +2670,7 @@ static ssize_t hnat_xlat_cfg_write(struct file *file, const char __user *buffer,
 {
 	struct mtk_hnat *h = hnat_priv;
 	int len = count;
-	char buf[256] = {0}, v4_str[64] = {0}, v6_str[64] = {0};
+	char buf[256] = {0}, v4_str[65] = {0}, v6_str[65] = {0};
 	struct map46 *map = NULL, *m = NULL, *next = NULL;
 	struct in6_addr ipv6;
 	u32 ipv4;
@@ -3073,8 +3073,8 @@ static ssize_t hnat_static_entry_write(struct file *file,
 				       size_t count, loff_t *data)
 {
 	struct foe_entry *foe, entry = { 0 };
-	char buf[256], dmac_str[18], smac_str[18], dmac[6], smac[6];
-	char new_dmac_str[18], new_smac_str[18], new_dmac[6], new_smac[6];
+	char buf[256], dmac_str[19], smac_str[19], dmac[6], smac[6];
+	char new_dmac_str[19], new_smac_str[19], new_dmac[6], new_smac[6];
 	int len = count, hash, coll = 0;
 	u32 ppe_id = 0;
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -3097,7 +3097,7 @@ static ssize_t hnat_static_entry_write(struct file *file,
 	if (entry.bfib1.pkt_type == IPV4_HNAPT) {
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 		if (sscanf(buf,
-			"%5d %8x %8x %8x %hx %hx %8x %8x %8x %hx %hx %18s %18s %4x %4x %4x",
+			"%5d %8x %8x %8x %4hx %4hx %8x %8x %8x %4hx %4hx %18s %18s %4x %4x %4x",
 			&hash,
 			&entry.ipv4_hnapt.info_blk1,
 			&entry.ipv4_hnapt.sip,
@@ -3125,7 +3125,7 @@ static ssize_t hnat_static_entry_write(struct file *file,
 		entry.ipv4_hnapt.cdrt_id = cdrt_id;
 #else
 		if (sscanf(buf,
-			"%5d %8x %8x %8x %hx %hx %8x %8x %8x %hx %hx %18s %18s",
+			"%5d %8x %8x %8x %4hx %4hx %8x %8x %8x %4hx %4hx %18s %18s",
 			&hash,
 			&entry.ipv4_hnapt.info_blk1,
 			&entry.ipv4_hnapt.sip,
@@ -3148,7 +3148,7 @@ static ssize_t hnat_static_entry_write(struct file *file,
 	} else if (entry.bfib1.pkt_type == IPV6_5T_ROUTE) {
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 		if (sscanf(buf,
-			"%5d %8x %8x%8x%8x%8x %8x%8x%8x%8x %hx %hx %8x %18s %18s %4x %4x %4x",
+			"%5d %8x %8x%8x%8x%8x %8x%8x%8x%8x %4hx %4hx %8x %18s %18s %4x %4x %4x",
 			&hash,
 			&entry.ipv6_5t_route.info_blk1,
 			&entry.ipv6_5t_route.ipv6_sip0,
@@ -3178,7 +3178,7 @@ static ssize_t hnat_static_entry_write(struct file *file,
 		entry.ipv6_5t_route.cdrt_id = cdrt_id;
 #else
 		if (sscanf(buf,
-			"%5d %8x %8x%8x%8x%8x %8x%8x%8x%8x %hx %hx %8x %18s %18s",
+			"%5d %8x %8x%8x%8x%8x %8x%8x%8x%8x %4hx %4hx %8x %18s %18s",
 			&hash,
 			&entry.ipv6_5t_route.info_blk1,
 			&entry.ipv6_5t_route.ipv6_sip0,
@@ -3202,7 +3202,7 @@ static ssize_t hnat_static_entry_write(struct file *file,
 #endif
 	} else if (entry.bfib1.pkt_type == L2_BRIDGE) {
 		if (sscanf(buf,
-			"%5d %8x %18s %18s %hx %hx %hx %8x %18s %18s %hx %hx",
+			"%5d %8x %18s %18s %4hx %4hx %4hx %8x %18s %18s %4hx %4hx",
 			&hash,
 			&entry.l2_bridge.info_blk1,
 			dmac_str,
