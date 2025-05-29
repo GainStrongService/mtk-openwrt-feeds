@@ -1,0 +1,31 @@
+From 92ae6a2d9444619b3b6e8e95228d08fbd79c245e Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Wed, 21 May 2025 11:42:51 +0800
+Subject: [PATCH] mtk: mt76: mt7996: add scan dwell time hw cap
+
+Add NL80211_EXT_FEATURE_SET_SCAN_DWELL support in driver.
+This allows user to specify channel dwell time during scanning.
+
+This is particularly useful for 802.11k,
+wpa_supplicant can handle Measurement Report with a specific Duration.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/init.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mt7996/init.c b/mt7996/init.c
+index cf2322d5..f8e18250 100644
+--- a/mt7996/init.c
++++ b/mt7996/init.c
+@@ -559,6 +559,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER);
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_PUNCT);
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_STAS_COUNT);
++	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_SET_SCAN_DWELL);
+ 
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION);
+ 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BEACON_PROTECTION);
+-- 
+2.45.2
+
