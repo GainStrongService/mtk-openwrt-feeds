@@ -9,9 +9,14 @@
 # mtk_vct.sh -s -p=0x2 | grep "Pair" | sed 's/Pair[A-D]: //'
 # mtk_vct.sh -p=0xf | grep "Pair" | sed 's/Pair[A-D]: //'
 
+version=1.3
+
 source lib.sh
 
-total_round=10
+if [ -z "$round" ]; then
+	round=5
+fi
+
 decimal_port=$(printf "%d" ${port})
 
 if [ "${TEST_CMD}" == "switch" ]; then
@@ -20,27 +25,55 @@ if [ "${TEST_CMD}" == "switch" ]; then
 		exit 1
 	fi
 
-	if="lan${decimal_port}"
+	for iface in /sys/class/net/*; do
+		iface_name=${iface##*/}
+		if [[ "$iface_name" = "lan"* ]]; then
+			phy_addr=$(ethtool ${iface_name} | awk '/PHYAD:/ {print $2}')
+			if [ $phy_addr -eq $decimal_port ]; then
+				if="$iface_name"
+				break
+			fi
+		fi
+	done
 fi
 
 if [ "${TEST_CMD}" != "switch" ]; then
 	TEST_CMD="mii"
-	if [ ${decimal_port} -eq 0 ]; then
-		if="eth0" # mt7981 built-in Gphy
-	elif [ ${decimal_port} -eq 15 ]; then
-		if="eth1" # mt7988/mt7987 build-in 2.5G phy
-	fi
+	for iface in /sys/class/net/*; do
+		iface_name=${iface##*/}
+		if [[ "$iface_name" = "lan"* ]]; then
+			continue
+		fi
+
+		if [ -d "$iface" ]; then
+			phydev=$(readlink $iface/phydev)
+			if [ -z "$phydev" ]; then
+				continue
+			fi
+
+			phy_addr=$(ethtool ${iface_name} | awk '/PHYAD:/ {print $2}')
+			if [ $phy_addr -eq $decimal_port ]; then
+				break
+			fi
+		fi
+	done
+
+	if="$iface_name"
+fi
+
+if [ -z ${if} ]; then
+	exit 1
 fi
 
 ifconfig ${if} down
 echo "Wait a minute if disconnection takes time"
-cmd_gen 22 "write" 0x0 0x1040 && ${CMD} > /dev/null
+cmd_gen 22 "write" 0x0 0x9040 && ${CMD} > /dev/null
 sleep 1
 
-round=1
-while [ ! ${round} -gt ${total_round} ]
+i=1
+while [ ! ${i} -gt ${round} ]
 do
-	echo "######## VCT test round${round} ########"
+	echo "######## VCT test round${i} ########"
 	if [ "${TEST_CMD}" == "switch" ]; then
 		/usr/sbin/mtk_vct -s -p ${port}
 		#/usr/sbin/mtk_vct -s -p ${port} | \
@@ -52,7 +85,8 @@ do
 		#grep -E "Pair[A-D]" | sed 's/Pair[A-D]: //g' | \
 		#sed 's/ length=//g' | sed 's/\([0-9]*\+\.[0-9]*\+\)m/\1/g'
 	fi
-	let "round++"
+	let "i++"
 done
 
+sleep 1 #Make sure that PHY bringup kernel log won't mess up VCT results.
 ifconfig ${if} up
