@@ -4,6 +4,7 @@
 
 #ifndef SYS_SWITCH_IOCTL_H
 #define SYS_SWITCH_IOCTL_H
+#include <stdint.h>
 
 #define ETH_DEVNAME "eth0"
 
