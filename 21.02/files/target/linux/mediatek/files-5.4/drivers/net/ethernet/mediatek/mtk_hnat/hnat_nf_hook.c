@@ -3571,13 +3571,10 @@ static unsigned int mtk_hnat_nf_post_routing(
 		out = (IS_GMAC1_MODE) ? hw_path.virt_dev : hw_path.dev;
 		if (hw_path.flags & BIT(DEV_PATH_TNL) && mtk_tnl_encap_offload) {
 			if (ntohs(skb->protocol) == ETH_P_IP &&
-			    ip_hdr(skb)->protocol == IPPROTO_TCP) {
+			    (ip_hdr(skb)->protocol == IPPROTO_TCP ||
+			     ip_hdr(skb)->protocol == IPPROTO_UDP))
 				skb_hnat_set_tops(skb, hw_path.tnl_type + 1);
-			} else {
-				/*
-				 * we are not support protocols other than IPv4 TCP
-				 * for tunnel protocol offload yet
-				 */
+			else {
 				skb_hnat_alg(skb) = 1;
 				return 0;
 			}
