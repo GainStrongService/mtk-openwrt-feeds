@@ -344,7 +344,11 @@
 };
 
 &xhci0 {
-	status = "disabled";
+	/* Use U2P only instead of both U3P/U2P due to U3P serdes shared with pcie2 */
+	phys = <&xphyu2port0 PHY_TYPE_USB2>;
+	/delete-property/ mediatek,p0_speed_fixup;
+	mediatek,u3p-dis-msk = <1>;
+	status = "okay";
 };
 
 &eth {
