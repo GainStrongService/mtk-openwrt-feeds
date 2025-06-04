@@ -7,9 +7,16 @@ version=1.3
 
 source lib.sh
 
+if [ -z "$port" ]; then
+	echo "Please specify correct port."
+	exit 1
+fi
+
 if [ -z "$round" ]; then
+	echo "\"-r\" is not specified and set to 5 by default."
 	round=5
 fi
+
 decimal_port=$(printf "%d" ${port})
 
 exec_vct() {
@@ -40,6 +47,18 @@ exec_vct() {
 	ifconfig $1 up
 }
 
+hex2dec() {
+	hex="$1"
+	case "$hex" in
+		0x*|0X*)
+			printf "%d\n" "$hex"
+			;;
+		*)
+			printf "%d\n" "0x$hex"
+			;;
+	esac
+}
+
 if [ "${TEST_CMD}" == "switch" ]; then
 	if [ ${decimal_port} -lt 0 ] || [ ${decimal_port} -gt 5 ]; then
 		echo "Please enter port=0~5"
@@ -50,6 +69,7 @@ if [ "${TEST_CMD}" == "switch" ]; then
 		iface_name=${iface##*/}
 		if [[ "$iface_name" = "lan"* ]]; then
 			phy_addr=$(ethtool ${iface_name} | awk '/PHYAD:/ {print $2}')
+			phy_addr=$(hex2dec "$phy_addr")
 			if [ $phy_addr -eq $decimal_port ]; then
 				if="$iface_name"
 				break
@@ -73,6 +93,7 @@ if [ "${TEST_CMD}" != "switch" ]; then
 			fi
 
 			phy_addr=$(ethtool ${iface_name} | awk '/PHYAD:/ {print $2}')
+			phy_addr=$(hex2dec "$phy_addr")
 			if [ $phy_addr -eq $decimal_port ]; then
 				break
 			fi
