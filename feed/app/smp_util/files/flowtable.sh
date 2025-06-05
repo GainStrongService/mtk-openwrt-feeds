@@ -14,7 +14,7 @@ nftables_flowoffload_enable()
 
 	# generate nft flowtable configuration rules
 	cat <<EOL > $flowtable_config
-table ip filter {
+table inet filter {
 	flowtable f {
 		hook ingress priority filter + 1;
 		devices = { $interfaces_list };
@@ -24,13 +24,13 @@ table ip filter {
 
 	chain forward {
 		type filter hook forward priority filter; policy accept;
-		ip protocol { tcp, udp } flow add @f;
+		meta l4proto { tcp, udp } flow add @f;
 	}
 }
 EOL
 
 	# delete existing nft flowtable configuration
-	nft delete table ip filter
+	nft delete table inet filter
 
 	# apply nft flowtable configuration file
 	nft -f $flowtable_config
