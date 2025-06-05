@@ -1,0 +1,49 @@
+From 5652cb8e821c6c0c53cc3ffca28f8f3bc1a4ac3f Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 3 Jun 2025 13:37:39 +0800
+Subject: [PATCH 92/95] mtk: mt76: mt7996: fix tx non-stop issue when radar is
+ detected
+
+RDD_DET_MODE is used only for testing radar detection rate, so remove it
+during normal setup.
+When the RDD detection mode is set to 1, FW will avoid stopping TX during radar
+detection.
+This patch need to upstream
+
+The RDD_DET_MODE will move to mt76 vendor part in the following patch for user
+to trigger it via hostapd_cli cmd.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/mac.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index cb03ec40..44d3f094 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -3253,7 +3253,7 @@ static void mt7996_dfs_stop_radar_detector(struct mt7996_phy *phy)
+ 
+ static int mt7996_dfs_start_rdd(struct mt7996_dev *dev, int rdd_idx)
+ {
+-	int err, region;
++	int region;
+ 
+ 	switch (dev->mt76.region) {
+ 	case NL80211_DFS_ETSI:
+@@ -3268,11 +3268,7 @@ static int mt7996_dfs_start_rdd(struct mt7996_dev *dev, int rdd_idx)
+ 		break;
+ 	}
+ 
+-	err = mt7996_mcu_rdd_cmd(dev, RDD_START, rdd_idx, region);
+-	if (err < 0)
+-		return err;
+-
+-	return mt7996_mcu_rdd_cmd(dev, RDD_DET_MODE, rdd_idx, 1);
++	return mt7996_mcu_rdd_cmd(dev, RDD_START, rdd_idx, region);
+ }
+ 
+ static int mt7996_dfs_start_radar_detector(struct mt7996_phy *phy)
+-- 
+2.45.2
+

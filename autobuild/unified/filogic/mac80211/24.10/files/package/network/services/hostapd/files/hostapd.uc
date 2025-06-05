@@ -888,7 +888,6 @@ let main_obj = {
 			sec_chan_offset: 0,
 			ch_width: -1,
 			bw320_offset: 1,
-			radio_idx: 0,
 			csa: true,
 			csa_count: 0,
 			punct_bitmap: 0,
@@ -905,7 +904,6 @@ let main_obj = {
 			hostapd.printf(`    * sec_chan_offset: ${req.args.sec_chan_offset}`);
 			hostapd.printf(`    * ch_width: ${req.args.ch_width}`);
 			hostapd.printf(`    * bw320_offset: ${req.args.bw320_offset}`);
-			hostapd.printf(`    * radio_idx: ${req.args.radio_idx}`);
 			hostapd.printf(`    * csa: ${req.args.csa}`);
 			hostapd.printf(`    * punct_bitmap: ${req.args.punct_bitmap}`);
 
@@ -922,12 +920,7 @@ let main_obj = {
 				return 0;
 			}
 
-			if (!req.args.frequency)
-				return libubus.STATUS_INVALID_ARGUMENT;
-
 			let freq_info = iface_freq_info(iface, config, req.args);
-			if (!freq_info)
-				return libubus.STATUS_UNKNOWN_ERROR;
 
 			let ret;
 			if (req.args.csa) {

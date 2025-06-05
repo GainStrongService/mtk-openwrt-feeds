@@ -1,7 +1,7 @@
-From cb0f97969869e68394c53e2d60319e0611ded8d7 Mon Sep 17 00:00:00 2001
+From 4d40b267b6564fe3bb7482fe29ba8b46ac32bca3 Mon Sep 17 00:00:00 2001
 From: Lorenzo Bianconi <lorenzo@kernel.org>
 Date: Wed, 17 Jan 2024 15:25:08 +0100
-Subject: [PATCH 007/210] hostapd: ap: Add AFC client support
+Subject: [PATCH 007/206] hostapd: ap: Add AFC client support
 
 Introduce Automated Frequency Coordination (AFC) support for UNII-5 and
 UNII-7 6GHz bands.
@@ -51,10 +51,10 @@ index 6aaa94c43..c28456165 100644
  CFLAGS += -DCONFIG_MODULE_TESTS
  OBJS += hapd_module_tests.o
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 98e03c467..522656066 100644
+index 2bd9691a6..dd2c01dba 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -1283,6 +1283,190 @@ static int hostapd_parse_he_srg_bitmap(u8 *bitmap, char *val)
+@@ -1279,6 +1279,190 @@ static int hostapd_parse_he_srg_bitmap(u8 *bitmap, char *val)
  	return 0;
  }
  
@@ -245,7 +245,7 @@ index 98e03c467..522656066 100644
  #endif /* CONFIG_IEEE80211AX */
  
  
-@@ -3981,6 +4165,83 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -3752,6 +3936,83 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  			return 1;
  		}
  		bss->unsol_bcast_probe_resp_interval = val;
@@ -341,7 +341,7 @@ index 8af8ecd95..f716553bb 100644
 +# Enable Automated Frequency Coordination for 6GHz outdoor
 +#CONFIG_AFC=y
 diff --git a/hostapd/hostapd.conf b/hostapd/hostapd.conf
-index e37e0417b..fd0a43407 100644
+index 338a16c82..7b1ab6ee6 100644
 --- a/hostapd/hostapd.conf
 +++ b/hostapd/hostapd.conf
 @@ -1041,6 +1041,48 @@ wmm_ac_vo_acm=0
@@ -1509,10 +1509,10 @@ index 000000000..7dfd01346
 +	}
 +}
 diff --git a/src/ap/ap_config.c b/src/ap/ap_config.c
-index 2bae39e67..b56177647 100644
+index bbf8a7ba8..2491bdf65 100644
 --- a/src/ap/ap_config.c
 +++ b/src/ap/ap_config.c
-@@ -1055,6 +1055,22 @@ void hostapd_config_free(struct hostapd_config *conf)
+@@ -1032,6 +1032,22 @@ void hostapd_config_free(struct hostapd_config *conf)
  #endif /* CONFIG_ACS */
  	wpabuf_free(conf->lci);
  	wpabuf_free(conf->civic);
@@ -1536,10 +1536,10 @@ index 2bae39e67..b56177647 100644
  	os_free(conf);
  }
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 62c2cd989..b729e0240 100644
+index 2d54a188d..3e7cbeea3 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -1293,6 +1293,53 @@ struct hostapd_config {
+@@ -1274,6 +1274,53 @@ struct hostapd_config {
  
  	bool channel_usage;
  	bool peer_to_peer_twt;
@@ -1594,7 +1594,7 @@ index 62c2cd989..b729e0240 100644
  
  
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 6b30bc846..de55e9c30 100644
+index c5b30afce..9adfb36f9 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -763,6 +763,7 @@ void hostapd_cleanup_iface_partial(struct hostapd_iface *iface)
@@ -1622,7 +1622,7 @@ index 6b30bc846..de55e9c30 100644
  		if (!delay_apply_cfg &&
  		    hostapd_set_freq(hapd, hapd->iconf->hw_mode, iface->freq,
  				     hapd->iconf->channel,
-@@ -3035,6 +3046,7 @@ void hostapd_interface_deinit(struct hostapd_iface *iface)
+@@ -3036,6 +3047,7 @@ void hostapd_interface_deinit(struct hostapd_iface *iface)
  
  	hostapd_set_state(iface, HAPD_IFACE_DISABLED);
  
@@ -1630,7 +1630,7 @@ index 6b30bc846..de55e9c30 100644
  	eloop_cancel_timeout(channel_list_update_timeout, iface, NULL);
  	iface->wait_channel_update = 0;
  	iface->is_no_ir = false;
-@@ -3108,6 +3120,10 @@ void hostapd_interface_free(struct hostapd_iface *iface)
+@@ -3109,6 +3121,10 @@ void hostapd_interface_free(struct hostapd_iface *iface)
  			   __func__, iface->bss[j]);
  		os_free(iface->bss[j]);
  	}

@@ -268,6 +268,7 @@ wireless_vif_parse_encryption() {
 		*gcmp) wpa_cipher="GCMP";;
 		wpa3-192*) wpa_cipher="GCMP-256";;
 		sae_sae-ext) wpa_cipher="CCMP GCMP-256";;
+		sae-ext-mixed) wpa_cipher="CCMP GCMP-256";;
 	esac
 
 	# 802.11n requires CCMP for WPA
@@ -310,6 +311,9 @@ wireless_vif_parse_encryption() {
 		;;
 		psk3-mixed*|sae-mixed*)
 			auth_type=psk-sae
+		;;
+		sae-ext-mixed*)
+			auth_type=psk-sae-ext
 		;;
 		psk3*|sae*)
 			auth_type=sae

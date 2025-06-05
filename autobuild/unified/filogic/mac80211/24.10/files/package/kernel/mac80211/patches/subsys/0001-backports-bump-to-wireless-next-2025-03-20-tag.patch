@@ -1,7 +1,7 @@
-From 86898f86e6c28334549809f866fe35d763708c70 Mon Sep 17 00:00:00 2001
+From 9a2fbdbfeb5dc8c06fa0331a2c21a3c469bb11f7 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Tue, 15 Apr 2025 17:39:12 +0800
-Subject: [PATCH 001/101] backports: bump to wireless-next-2025-03-20 tag
+Subject: [PATCH 001/107] backports: bump to wireless-next-2025-03-20 tag
 
 Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
 ---
@@ -11,6 +11,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  backport-include/kunit/static_stub.h          |  10 +
  backport-include/linux/debugfs.h              |   1 -
  backport-include/linux/jiffies.h              |  23 +
+ backport-include/linux/minmax.h               |  26 +
  backport-include/linux/netdevice.h            |  27 +
  backport-include/linux/skbuff.h               |   8 +
  backport-include/linux/soc/mediatek/mtk_wed.h |   4 +-
@@ -67,7 +68,7 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  net/wireless/trace.h                          |  19 +-
  net/wireless/util.c                           |   4 +-
  versions                                      |   4 +-
- 62 files changed, 1813 insertions(+), 671 deletions(-)
+ 63 files changed, 1839 insertions(+), 671 deletions(-)
  create mode 100644 backport-include/kunit/static_stub.h
  create mode 100644 backport-include/linux/jiffies.h
  create mode 100644 net/mac80211/tests/chan-mode.c
@@ -299,6 +300,41 @@ index 00000000..d37f9f01
 +#endif /* < 6.13.0 */
 +
 +#endif /* __BACKPORT_JIFFIES_H */
+diff --git a/backport-include/linux/minmax.h b/backport-include/linux/minmax.h
+index 7830c9ce..15c09624 100644
+--- a/backport-include/linux/minmax.h
++++ b/backport-include/linux/minmax.h
+@@ -4,4 +4,30 @@
+ #include_next <linux/minmax.h>
+ #else
+ #include <linux/kernel.h>
++
++static inline bool in_range64(u64 val, u64 start, u64 len)
++{
++	return (val - start) < len;
++}
++
++static inline bool in_range32(u32 val, u32 start, u32 len)
++{
++	return (val - start) < len;
++}
++
++/**
++* in_range - Determine if a value lies within a range.
++* @val: Value to test.
++* @start: First value in range.
++* @len: Number of values in range.
++*
++* This is more efficient than "if (start <= val && val < (start + len))".
++* It also gives a different answer if @start + @len overflows the size of
++* the type by a sufficient amount to encompass @val.  Decide for yourself
++* which behaviour you want, or prove that start + len never overflow.
++* Do not blindly replace one form with the other.
++*/
++#define in_range(val, start, len)                                       \
++	((sizeof(start) | sizeof(len) | sizeof(val)) <= sizeof(u32) ?   \
++		in_range32(val, start, len) : in_range64(val, start, len))
+ #endif
 diff --git a/backport-include/linux/netdevice.h b/backport-include/linux/netdevice.h
 index ffb40bc7..9f8646e6 100644
 --- a/backport-include/linux/netdevice.h

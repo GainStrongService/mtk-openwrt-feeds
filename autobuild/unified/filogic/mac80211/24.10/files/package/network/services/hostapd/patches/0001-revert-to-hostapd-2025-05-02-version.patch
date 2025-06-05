@@ -1,0 +1,2449 @@
+diff --git a/hostapd/config_file.c b/hostapd/config_file.c
+index e37579efc..0e35730f9 100644
+--- a/hostapd/config_file.c
++++ b/hostapd/config_file.c
+@@ -4485,15 +4485,6 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+ 			wpabuf_free(conf->lci);
+ 			conf->lci = NULL;
+ 		}
+-		if (conf->lci) {
+-			/* Enable LCI capability in RM Enabled Capabilities
+-			 * element */
+-			bss->radio_measurements[1] |=
+-				WLAN_RRM_CAPS_LCI_MEASUREMENT;
+-		} else {
+-			bss->radio_measurements[1] &=
+-				~WLAN_RRM_CAPS_LCI_MEASUREMENT;
+-		}
+ 	} else if (os_strcmp(buf, "civic") == 0) {
+ 		wpabuf_free(conf->civic);
+ 		conf->civic = wpabuf_parse_bin(pos);
+@@ -4501,15 +4492,6 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+ 			wpabuf_free(conf->civic);
+ 			conf->civic = NULL;
+ 		}
+-		if (conf->civic) {
+-			/* Enable civic location capability in RM Enabled
+-			 * Capabilities element */
+-			bss->radio_measurements[4] |=
+-				WLAN_RRM_CAPS_CIVIC_LOCATION_MEASUREMENT;
+-		} else {
+-			bss->radio_measurements[4] &=
+-				~WLAN_RRM_CAPS_CIVIC_LOCATION_MEASUREMENT;
+-		}
+ 	} else if (os_strcmp(buf, "rrm_neighbor_report") == 0) {
+ 		if (atoi(pos))
+ 			bss->radio_measurements[0] |=
+diff --git a/src/ap/beacon.c b/src/ap/beacon.c
+index 3bff0ae36..13a482d60 100644
+--- a/src/ap/beacon.c
++++ b/src/ap/beacon.c
+@@ -621,24 +621,18 @@ ieee802_11_build_ap_params_mbssid(struct hostapd_data *hapd,
+ 				 elem_count, elem_offset, NULL, 0, rnr_elem,
+ 				 &rnr_elem_count, rnr_elem_offset, rnr_len);
+ 
+-	params->mbssid.mbssid_tx_iface = tx_bss->conf->iface;
+-	params->mbssid.mbssid_index = hostapd_mbssid_get_bss_index(hapd);
+-	params->mbssid.mbssid_elem = elem;
+-	params->mbssid.mbssid_elem_len = end - elem;
+-	params->mbssid.mbssid_elem_count = elem_count;
+-	params->mbssid.mbssid_elem_offset = elem_offset;
+-	params->mbssid.rnr_elem = rnr_elem;
+-	params->mbssid.rnr_elem_len = rnr_len;
+-	params->mbssid.rnr_elem_count = rnr_elem_count;
+-	params->mbssid.rnr_elem_offset = rnr_elem_offset;
++	params->mbssid_tx_iface = tx_bss->conf->iface;
++	params->mbssid_index = hostapd_mbssid_get_bss_index(hapd);
++	params->mbssid_elem = elem;
++	params->mbssid_elem_len = end - elem;
++	params->mbssid_elem_count = elem_count;
++	params->mbssid_elem_offset = elem_offset;
++	params->rnr_elem = rnr_elem;
++	params->rnr_elem_len = rnr_len;
++	params->rnr_elem_count = rnr_elem_count;
++	params->rnr_elem_offset = rnr_elem_offset;
+ 	if (iface->conf->mbssid == ENHANCED_MBSSID_ENABLED)
+-		params->mbssid.ema = true;
+-
+-	params->mbssid.mbssid_tx_iface_linkid = -1;
+-#ifdef CONFIG_IEEE80211BE
+-	if (tx_bss->conf->mld_ap)
+-		params->mbssid.mbssid_tx_iface_linkid = tx_bss->mld_link_id;
+-#endif /* CONFIG_IEEE80211BE */
++		params->ema = true;
+ 
+ 	return 0;
+ 
+@@ -738,13 +732,8 @@ static void hostapd_free_probe_resp_params(struct probe_resp_params *params)
+ static size_t hostapd_probe_resp_elems_len(struct hostapd_data *hapd,
+ 					   struct probe_resp_params *params)
+ {
+-#ifdef CONFIG_IEEE80211BE
+-	struct hostapd_data *hapd_probed = hapd;
+-#endif /* CONFIG_IEEE80211BE */
+ 	size_t buflen = 0;
+ 
+-	hapd = hostapd_mbssid_get_tx_bss(hapd);
+-
+ #ifdef CONFIG_WPS
+ 	if (hapd->wps_probe_resp_ie)
+ 		buflen += wpabuf_len(hapd->wps_probe_resp_ie);
+@@ -788,10 +777,6 @@ static size_t hostapd_probe_resp_elems_len(struct hostapd_data *hapd,
+ 			 * switch */
+ 			buflen += 6;
+ 		}
+-
+-		if (hapd_probed != hapd && hapd_probed->conf->mld_ap)
+-			buflen += hostapd_eid_eht_basic_ml_len(hapd_probed,
+-							       NULL, true);
+ 	}
+ #endif /* CONFIG_IEEE80211BE */
+ 
+@@ -814,13 +799,9 @@ static u8 * hostapd_probe_resp_fill_elems(struct hostapd_data *hapd,
+ 					  struct probe_resp_params *params,
+ 					  u8 *pos, size_t len)
+ {
+-#ifdef CONFIG_IEEE80211BE
+-	struct hostapd_data *hapd_probed = hapd;
+-#endif /* CONFIG_IEEE80211BE */
+ 	u8 *csa_pos;
+ 	u8 *epos;
+ 
+-	hapd = hostapd_mbssid_get_tx_bss(hapd);
+ 	epos = pos + len;
+ 
+ 	*pos++ = WLAN_EID_SSID;
+@@ -954,10 +935,6 @@ static u8 * hostapd_probe_resp_fill_elems(struct hostapd_data *hapd,
+ 		pos = hostapd_eid_eht_capab(hapd, pos, IEEE80211_MODE_AP);
+ 		pos = hostapd_eid_eht_operation(hapd, pos);
+ 	}
+-
+-	if (hapd_probed != hapd && hapd_probed->conf->mld_ap)
+-		pos = hostapd_eid_eht_basic_ml_common(hapd_probed, pos, NULL,
+-						      true);
+ #endif /* CONFIG_IEEE80211BE */
+ 
+ #ifdef CONFIG_IEEE80211AC
+@@ -1026,7 +1003,6 @@ static u8 * hostapd_probe_resp_fill_elems(struct hostapd_data *hapd,
+ static void hostapd_gen_probe_resp(struct hostapd_data *hapd,
+ 				   struct probe_resp_params *params)
+ {
+-	struct hostapd_data *hapd_probed = hapd;
+ 	u8 *pos;
+ 	size_t buflen;
+ 
+@@ -1034,7 +1010,7 @@ static void hostapd_gen_probe_resp(struct hostapd_data *hapd,
+ 
+ #define MAX_PROBERESP_LEN 768
+ 	buflen = MAX_PROBERESP_LEN;
+-	buflen += hostapd_probe_resp_elems_len(hapd_probed, params);
++	buflen += hostapd_probe_resp_elems_len(hapd, params);
+ 	params->resp = os_zalloc(buflen);
+ 	if (!params->resp) {
+ 		params->resp_len = 0;
+@@ -1064,7 +1040,7 @@ static void hostapd_gen_probe_resp(struct hostapd_data *hapd,
+ 	params->resp->u.probe_resp.capab_info =
+ 		host_to_le16(hostapd_own_capab_info(hapd));
+ 
+-	pos = hostapd_probe_resp_fill_elems(hapd_probed, params,
++	pos = hostapd_probe_resp_fill_elems(hapd, params,
+ 					    params->resp->u.probe_resp.variable,
+ 					    buflen);
+ 
+@@ -2347,7 +2323,7 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
+ 		}
+ 		complete = hapd->iconf->mbssid == MBSSID_ENABLED ||
+ 			(hapd->iconf->mbssid == ENHANCED_MBSSID_ENABLED &&
+-			 params->mbssid.mbssid_elem_count == 1);
++			 params->mbssid_elem_count == 1);
+ 	}
+ 
+ 	tailpos = hostapd_eid_ext_capab(hapd, tailpos, complete);
+@@ -2395,7 +2371,7 @@ int ieee802_11_build_ap_params(struct hostapd_data *hapd,
+ 
+ 	tailpos = hostapd_get_rsnxe(hapd, tailpos, tailend - tailpos);
+ 	tailpos = hostapd_eid_mbssid_config(hapd, tailpos,
+-					    params->mbssid.mbssid_elem_count);
++					    params->mbssid_elem_count);
+ 
+ #ifdef CONFIG_IEEE80211AX
+ 	if (hapd->iconf->ieee80211ax && !hapd->conf->disable_11ax) {
+@@ -2641,14 +2617,14 @@ void ieee802_11_free_ap_params(struct wpa_driver_ap_params *params)
+ 	params->head = NULL;
+ 	os_free(params->proberesp);
+ 	params->proberesp = NULL;
+-	os_free(params->mbssid.mbssid_elem);
+-	params->mbssid.mbssid_elem = NULL;
+-	os_free(params->mbssid.mbssid_elem_offset);
+-	params->mbssid.mbssid_elem_offset = NULL;
+-	os_free(params->mbssid.rnr_elem);
+-	params->mbssid.rnr_elem = NULL;
+-	os_free(params->mbssid.rnr_elem_offset);
+-	params->mbssid.rnr_elem_offset = NULL;
++	os_free(params->mbssid_elem);
++	params->mbssid_elem = NULL;
++	os_free(params->mbssid_elem_offset);
++	params->mbssid_elem_offset = NULL;
++	os_free(params->rnr_elem);
++	params->rnr_elem = NULL;
++	os_free(params->rnr_elem_offset);
++	params->rnr_elem_offset = NULL;
+ #ifdef CONFIG_FILS
+ 	os_free(params->fd_frame_tmpl);
+ 	params->fd_frame_tmpl = NULL;
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index 049777b0a..65dc14d60 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -1570,7 +1570,7 @@ setup_mld:
+ 
+ 	/*
+ 	 * Short SSID calculation is identical to FCS and it is defined in
+-	 * IEEE Std 802.11-2024, 9.4.2.169.3 (Calculating the Short-SSID).
++	 * IEEE P802.11-REVmd/D3.0, 9.4.2.170.3 (Calculating the Short-SSID).
+ 	 */
+ 	conf->ssid.short_ssid = ieee80211_crc32(conf->ssid.ssid,
+ 						conf->ssid.ssid_len);
+@@ -4256,14 +4256,6 @@ void free_beacon_data(struct beacon_data *beacon)
+ 	beacon->proberesp_ies = NULL;
+ 	os_free(beacon->assocresp_ies);
+ 	beacon->assocresp_ies = NULL;
+-	os_free(beacon->mbssid.mbssid_elem);
+-	beacon->mbssid.mbssid_elem = NULL;
+-	os_free(beacon->mbssid.mbssid_elem_offset);
+-	beacon->mbssid.mbssid_elem_offset = NULL;
+-	os_free(beacon->mbssid.rnr_elem);
+-	beacon->mbssid.rnr_elem = NULL;
+-	os_free(beacon->mbssid.rnr_elem_offset);
+-	beacon->mbssid.rnr_elem_offset = NULL;
+ }
+ 
+ 
+@@ -4272,10 +4264,6 @@ int hostapd_build_beacon_data(struct hostapd_data *hapd,
+ {
+ 	struct wpabuf *beacon_extra, *proberesp_extra, *assocresp_extra;
+ 	struct wpa_driver_ap_params params;
+-	struct hostapd_data *tx_bss;
+-	u8 *mbssid_start_eid, *rnr_start_eid;
+-	size_t size = 0;
+-	int i;
+ 	int ret;
+ 
+ 	os_memset(beacon, 0, sizeof(*beacon));
+@@ -4339,76 +4327,6 @@ int hostapd_build_beacon_data(struct hostapd_data *hapd,
+ 		beacon->assocresp_ies_len = wpabuf_len(assocresp_extra);
+ 	}
+ 
+-	/* MBSSID element */
+-	if (!params.mbssid.mbssid_elem_len)
+-		goto done;
+-
+-	tx_bss = hostapd_mbssid_get_tx_bss(hapd);
+-	beacon->mbssid.mbssid_tx_iface = tx_bss->conf->iface;
+-	beacon->mbssid.mbssid_tx_iface_linkid =
+-		params.mbssid.mbssid_tx_iface_linkid;
+-	beacon->mbssid.mbssid_index = params.mbssid.mbssid_index;
+-
+-	beacon->mbssid.mbssid_elem_len = params.mbssid.mbssid_elem_len;
+-	beacon->mbssid.mbssid_elem_count = params.mbssid.mbssid_elem_count;
+-	if (params.mbssid.mbssid_elem) {
+-		beacon->mbssid.mbssid_elem =
+-			os_memdup(params.mbssid.mbssid_elem,
+-				  params.mbssid.mbssid_elem_len);
+-		if (!beacon->mbssid.mbssid_elem)
+-			goto free_beacon;
+-	}
+-	beacon->mbssid.ema = params.mbssid.ema;
+-
+-	if (params.mbssid.mbssid_elem_offset) {
+-		beacon->mbssid.mbssid_elem_offset =
+-			os_calloc(beacon->mbssid.mbssid_elem_count,
+-				  sizeof(u8 *));
+-		if (!beacon->mbssid.mbssid_elem_offset)
+-			goto free_beacon;
+-
+-		mbssid_start_eid = beacon->mbssid.mbssid_elem;
+-		beacon->mbssid.mbssid_elem_offset[0] = mbssid_start_eid;
+-		for (i = 0; i < beacon->mbssid.mbssid_elem_count - 1; i++) {
+-			size = params.mbssid.mbssid_elem_offset[i + 1] -
+-				params.mbssid.mbssid_elem_offset[i];
+-			mbssid_start_eid = mbssid_start_eid + size;
+-			beacon->mbssid.mbssid_elem_offset[i + 1] =
+-				mbssid_start_eid;
+-		}
+-	}
+-
+-	/* RNR element */
+-	if (!params.mbssid.rnr_elem_len)
+-		goto done;
+-
+-	if (params.mbssid.rnr_elem) {
+-		beacon->mbssid.rnr_elem = os_memdup(params.mbssid.rnr_elem,
+-						    params.mbssid.rnr_elem_len);
+-		if (!beacon->mbssid.rnr_elem)
+-			goto free_beacon;
+-	}
+-
+-	beacon->mbssid.rnr_elem_len = params.mbssid.rnr_elem_len;
+-	beacon->mbssid.rnr_elem_count = params.mbssid.rnr_elem_count;
+-	if (params.mbssid.rnr_elem_offset) {
+-		beacon->mbssid.rnr_elem_offset =
+-			os_calloc(beacon->mbssid.rnr_elem_count + 1,
+-				  sizeof(u8 *));
+-		if (!beacon->mbssid.rnr_elem_offset)
+-			goto free_beacon;
+-
+-		rnr_start_eid = beacon->mbssid.rnr_elem;
+-		beacon->mbssid.rnr_elem_offset[0] = rnr_start_eid;
+-		for (i = 0; i < beacon->mbssid.rnr_elem_count - 1; i++) {
+-			size = params.mbssid.rnr_elem_offset[i + 1] -
+-				params.mbssid.rnr_elem_offset[i];
+-			rnr_start_eid = rnr_start_eid + size;
+-			beacon->mbssid.rnr_elem_offset[i + 1] = rnr_start_eid;
+-		}
+-	}
+-
+-done:
+ 	ret = 0;
+ free_beacon:
+ 	/* if the function fails, the caller should not free beacon data */
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index ef5b4d243..0cca68c1c 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -6487,6 +6487,32 @@ static int handle_action(struct hostapd_data *hapd,
+ 		       "handle_action - unknown action category %d or invalid "
+ 		       "frame",
+ 		       mgmt->u.action.category);
++	if (!is_multicast_ether_addr(mgmt->da) &&
++	    !(mgmt->u.action.category & 0x80) &&
++	    !is_multicast_ether_addr(mgmt->sa)) {
++		struct ieee80211_mgmt *resp;
++
++		/*
++		 * IEEE 802.11-REVma/D9.0 - 7.3.1.11
++		 * Return the Action frame to the source without change
++		 * except that MSB of the Category set to 1.
++		 */
++		wpa_printf(MSG_DEBUG, "IEEE 802.11: Return unknown Action "
++			   "frame back to sender");
++		resp = os_memdup(mgmt, len);
++		if (resp == NULL)
++			return 0;
++		os_memcpy(resp->da, resp->sa, ETH_ALEN);
++		os_memcpy(resp->sa, hapd->own_addr, ETH_ALEN);
++		os_memcpy(resp->bssid, hapd->own_addr, ETH_ALEN);
++		resp->u.action.category |= 0x80;
++
++		if (hostapd_drv_send_mlme(hapd, resp, len, 0, NULL, 0, 0) < 0) {
++			wpa_printf(MSG_ERROR, "IEEE 802.11: Failed to send "
++				   "Action frame");
++		}
++		os_free(resp);
++	}
+ 
+ 	return 1;
+ }
+@@ -7539,8 +7565,7 @@ static u8 * hostapd_eid_wb_channel_switch(struct hostapd_data *hapd, u8 *eid,
+ 	u8 bw;
+ 
+ 	/* bandwidth: 0: 40, 1: 80, 160, 80+80, 4 to 255 reserved as per
+-	 * IEEE Std 802.11-2024, 9.4.2.156 and Table 9-316 (VHT Operation
+-	 * Information subfields).
++	 * IEEE P802.11-REVme/D7.0, 9.4.2.159 and Table 9-316.
+ 	 */
+ 	switch (hapd->cs_freq_params.bandwidth) {
+ 	case 320:
+@@ -7560,8 +7585,7 @@ static u8 * hostapd_eid_wb_channel_switch(struct hostapd_data *hapd, u8 *eid,
+ 		/* fallthrough */
+ 	case 160:
+ 		/* Update the CCFS0 and CCFS1 values in the element based on
+-		 * IEEE Std 802.11-2024, Table 9-316 (VHT Operation
+-		 * Information subfields).
++		 * IEEE P802.11-REVme/D7.0, Table 9-316
+ 		 */
+ 
+ 		/* CCFS1 - The channel center frequency index of the 160 MHz
+@@ -7740,44 +7764,6 @@ static size_t hostapd_eid_nr_db_len(struct hostapd_data *hapd,
+ }
+ 
+ 
+-#ifdef CONFIG_IEEE80211BE
+-static bool hostapd_mbssid_mld_match(struct hostapd_data *tx_hapd,
+-				     struct hostapd_data *ml_hapd,
+-				     u8 *match_idx)
+-{
+-	size_t bss_idx;
+-
+-	if (!ml_hapd->conf->mld_ap)
+-		return false;
+-
+-	if (!tx_hapd->iconf->mbssid || tx_hapd->iface->num_bss <= 1) {
+-		if (hostapd_is_ml_partner(tx_hapd, ml_hapd)) {
+-			if (match_idx)
+-				*match_idx = 0;
+-			return true;
+-		}
+-
+-		return false;
+-	}
+-
+-	for (bss_idx = 0; bss_idx < tx_hapd->iface->num_bss; bss_idx++) {
+-		struct hostapd_data *bss = tx_hapd->iface->bss[bss_idx];
+-
+-		if (!bss)
+-			continue;
+-
+-		if (hostapd_is_ml_partner(bss, ml_hapd)) {
+-			if (match_idx)
+-				*match_idx = bss_idx;
+-			return true;
+-		}
+-	}
+-
+-	return false;
+-}
+-#endif /* CONFIG_IEEE80211BE */
+-
+-
+ struct mbssid_ie_profiles {
+ 	u8 start;
+ 	u8 end;
+@@ -7786,9 +7772,9 @@ struct mbssid_ie_profiles {
+ static bool hostapd_skip_rnr(size_t i, struct mbssid_ie_profiles *skip_profiles,
+ 			     bool ap_mld, u8 tbtt_info_len, bool mld_update,
+ 			     struct hostapd_data *reporting_hapd,
+-			     struct hostapd_data *bss, u8 *match_idx)
++			     struct hostapd_data *bss)
+ {
+-	if (!mld_update && skip_profiles &&
++	if (skip_profiles &&
+ 	    i >= skip_profiles->start && i < skip_profiles->end)
+ 		return true;
+ 
+@@ -7810,17 +7796,7 @@ static bool hostapd_skip_rnr(size_t i, struct mbssid_ie_profiles *skip_profiles,
+ 
+ 	/* If building for ML RNR and they are not ML partners, don't include.
+ 	 */
+-	if (mld_update &&
+-	    !hostapd_mbssid_mld_match(reporting_hapd, bss, match_idx))
+-		return true;
+-
+-	/* When MLD parameters are added to beacon RNR and in case of EMA
+-	 * beacons we report only affiliated APs belonging to the reported
+-	 * non Tx profiles and TX profile will be reported in every EMA beacon.
+-	 */
+-	if (mld_update && skip_profiles && match_idx &&
+-	    (*match_idx < skip_profiles->start ||
+-	     *match_idx >= skip_profiles->end))
++	if (mld_update && !hostapd_is_ml_partner(reporting_hapd, bss))
+ 		return true;
+ #endif /* CONFIG_IEEE80211BE */
+ 
+@@ -7874,7 +7850,7 @@ repeat_rnr_len:
+ 
+ 			if (hostapd_skip_rnr(i, skip_profiles, ap_mld,
+ 					     tbtt_info_len, mld_update,
+-					     reporting_hapd, bss, NULL))
++					     reporting_hapd, bss))
+ 				continue;
+ 
+ 			if (len + tbtt_info_len > 255 ||
+@@ -7991,7 +7967,6 @@ static size_t hostapd_eid_rnr_colocation_len(struct hostapd_data *hapd,
+ 
+ 
+ static size_t hostapd_eid_rnr_mlo_len(struct hostapd_data *hapd, u32 type,
+-				      struct mbssid_ie_profiles *skip_profiles,
+ 				      size_t *current_len)
+ {
+ 	size_t len = 0;
+@@ -7999,7 +7974,7 @@ static size_t hostapd_eid_rnr_mlo_len(struct hostapd_data *hapd, u32 type,
+ 	struct hostapd_iface *iface;
+ 	size_t i;
+ 
+-	if (!hapd->iface || !hapd->iface->interfaces)
++	if (!hapd->iface || !hapd->iface->interfaces || !hapd->conf->mld_ap)
+ 		return 0;
+ 
+ 	/* TODO: Allow for FILS/Action as well */
+@@ -8014,8 +7989,7 @@ static size_t hostapd_eid_rnr_mlo_len(struct hostapd_data *hapd, u32 type,
+ 			continue;
+ 
+ 		len += hostapd_eid_rnr_iface_len(iface->bss[0], hapd,
+-						 current_len, skip_profiles,
+-						 true);
++						 current_len, NULL, true);
+ 	}
+ #endif /* CONFIG_IEEE80211BE */
+ 
+@@ -8059,8 +8033,7 @@ size_t hostapd_eid_rnr_len(struct hostapd_data *hapd, u32 type,
+ 	if (include_mld_params &&
+ 	    (type != WLAN_FC_STYPE_BEACON ||
+ 	     hapd->iconf->mbssid != ENHANCED_MBSSID_ENABLED))
+-		total_len += hostapd_eid_rnr_mlo_len(hapd, type, NULL,
+-						     &current_len);
++		total_len += hostapd_eid_rnr_mlo_len(hapd, type, &current_len);
+ 
+ 	return total_len;
+ }
+@@ -8130,7 +8103,7 @@ static bool hostapd_eid_rnr_bss(struct hostapd_data *hapd,
+ {
+ 	struct hostapd_iface *iface = hapd->iface;
+ 	struct hostapd_data *bss = iface->bss[i];
+-	u8 bss_param = 0, match_idx = 255;
++	u8 bss_param = 0;
+ 	bool ap_mld = false;
+ 	u8 *eid = *pos;
+ 
+@@ -8143,7 +8116,7 @@ static bool hostapd_eid_rnr_bss(struct hostapd_data *hapd,
+ 		return false;
+ 
+ 	if (hostapd_skip_rnr(i, skip_profiles, ap_mld, tbtt_info_len,
+-			     mld_update, reporting_hapd, bss, &match_idx))
++			     mld_update, reporting_hapd, bss))
+ 	    return false;
+ 
+ 	if (*len + RNR_TBTT_INFO_LEN > 255 ||
+@@ -8186,21 +8159,22 @@ static bool hostapd_eid_rnr_bss(struct hostapd_data *hapd,
+ #ifdef CONFIG_IEEE80211BE
+ 	if (ap_mld) {
+ 		u8 param_ch = bss->eht_mld_bss_param_change;
++		bool is_partner;
+ 
+-		/* If BSS is not a partner of the reporting_hapd or
+-		 * it is one of the nontransmitted hapd,
++		/* If BSS is not a partner of the reporting_hapd
+ 		 *  a) MLD ID advertised shall be 255.
+ 		 *  b) Link ID advertised shall be 15.
+ 		 *  c) BPCC advertised shall be 255 */
++		is_partner = hostapd_is_ml_partner(bss, reporting_hapd);
+ 		/* MLD ID */
+-		*eid++ = match_idx;
++		*eid++ = is_partner ? hostapd_get_mld_id(bss) : 0xFF;
+ 		/* Link ID (Bit 3 to Bit 0)
+ 		 * BPCC (Bit 4 to Bit 7) */
+-		*eid++ = match_idx < 255 ?
++		*eid++ = is_partner ?
+ 			bss->mld_link_id | ((param_ch & 0xF) << 4) :
+ 			(MAX_NUM_MLD_LINKS | 0xF0);
+ 		/* BPCC (Bit 3 to Bit 0) */
+-		*eid = match_idx < 255 ? ((param_ch & 0xF0) >> 4) : 0x0F;
++		*eid = is_partner ? ((param_ch & 0xF0) >> 4) : 0x0F;
+ #ifdef CONFIG_TESTING_OPTIONS
+ 		if (bss->conf->mld_indicate_disabled)
+ 			*eid |= RNR_TBTT_INFO_MLD_PARAM2_LINK_DISABLED;
+@@ -8317,15 +8291,13 @@ static u8 * hostapd_eid_rnr_colocation(struct hostapd_data *hapd, u8 *eid,
+ 
+ 
+ static u8 * hostapd_eid_rnr_mlo(struct hostapd_data *hapd, u32 type,
+-				u8 *eid,
+-				struct mbssid_ie_profiles *skip_profiles,
+-				size_t *current_len)
++				u8 *eid, size_t *current_len)
+ {
+ #ifdef CONFIG_IEEE80211BE
+ 	struct hostapd_iface *iface;
+ 	size_t i;
+ 
+-	if (!hapd->iface || !hapd->iface->interfaces)
++	if (!hapd->iface || !hapd->iface->interfaces || !hapd->conf->mld_ap)
+ 		return eid;
+ 
+ 	/* TODO: Allow for FILS/Action as well */
+@@ -8340,7 +8312,7 @@ static u8 * hostapd_eid_rnr_mlo(struct hostapd_data *hapd, u32 type,
+ 			continue;
+ 
+ 		eid = hostapd_eid_rnr_iface(iface->bss[0], hapd, eid,
+-					    current_len, skip_profiles, true);
++					    current_len, NULL, true);
+ 	}
+ #endif /* CONFIG_IEEE80211BE */
+ 
+@@ -8384,7 +8356,7 @@ u8 * hostapd_eid_rnr(struct hostapd_data *hapd, u8 *eid, u32 type,
+ 	if (include_mld_params &&
+ 	    (type != WLAN_FC_STYPE_BEACON ||
+ 	     hapd->iconf->mbssid != ENHANCED_MBSSID_ENABLED))
+-		eid = hostapd_eid_rnr_mlo(hapd, type, eid, NULL, &current_len);
++		eid = hostapd_eid_rnr_mlo(hapd, type, eid, &current_len);
+ 
+ 	if (eid == eid_start + 2)
+ 		return eid_start;
+@@ -8494,17 +8466,6 @@ static size_t hostapd_eid_mbssid_elem_len(struct hostapd_data *hapd,
+ 			nontx_profile_len += xrate_len;
+ 		else if (tx_xrate_len)
+ 			ie_count++;
+-
+-#ifdef CONFIG_IEEE80211BE
+-		/* For ML Probe Response frame, the solicited hapd's MLE will
+-		 * be in the frame body */
+-		if (bss->conf->mld_ap &&
+-		    (bss != hapd || frame_type != WLAN_FC_STYPE_PROBE_RESP))
+-			nontx_profile_len += hostapd_eid_eht_basic_ml_len(bss,
+-									  NULL,
+-									  true);
+-#endif /* CONFIG_IEEE80211BE */
+-
+ 		if (ie_count)
+ 			nontx_profile_len += 4 + ie_count + 1;
+ 
+@@ -8526,6 +8487,11 @@ size_t hostapd_eid_mbssid_len(struct hostapd_data *hapd, u32 frame_type,
+ 			      size_t known_bss_len, size_t *rnr_len)
+ {
+ 	size_t len = 0, bss_index = 1;
++	bool ap_mld = false;
++
++#ifdef CONFIG_IEEE80211BE
++	ap_mld = hapd->conf->mld_ap;
++#endif /* CONFIG_IEEE80211BE */
+ 
+ 	if (!hapd->iconf->mbssid || hapd->iface->num_bss <= 1 ||
+ 	    (frame_type != WLAN_FC_STYPE_BEACON &&
+@@ -8558,11 +8524,7 @@ size_t hostapd_eid_mbssid_len(struct hostapd_data *hapd, u32 frame_type,
+ 
+ 			*rnr_len += hostapd_eid_rnr_iface_len(
+ 				hapd, hostapd_mbssid_get_tx_bss(hapd),
+-				&rnr_cur_len, &skip_profiles, false);
+-
+-			*rnr_len += hostapd_eid_rnr_mlo_len(
+-				hostapd_mbssid_get_tx_bss(hapd), frame_type,
+-				&skip_profiles, &rnr_cur_len);
++				&rnr_cur_len, &skip_profiles, ap_mld);
+ 		}
+ 	}
+ 
+@@ -8671,14 +8633,6 @@ static u8 * hostapd_eid_mbssid_elem(struct hostapd_data *hapd, u8 *eid, u8 *end,
+ 			non_inherit_ie[ie_count++] = WLAN_EID_EXT_SUPP_RATES;
+ 		if (!rsnx && hostapd_wpa_ie(tx_bss, WLAN_EID_RSNX))
+ 			non_inherit_ie[ie_count++] = WLAN_EID_RSNX;
+-#ifdef CONFIG_IEEE80211BE
+-		/* For ML Probe Response frame, the solicited hapd's MLE will
+-		 * be in the frame body */
+-		if (bss->conf->mld_ap &&
+-		    (bss != hapd || frame_type != WLAN_FC_STYPE_PROBE_RESP))
+-			eid = hostapd_eid_eht_basic_ml_common(bss, eid, NULL,
+-							      true);
+-#endif /* CONFIG_IEEE80211BE */
+ 		if (ie_count) {
+ 			*eid++ = WLAN_EID_EXTENSION;
+ 			*eid++ = 2 + ie_count + 1;
+@@ -8714,7 +8668,11 @@ u8 * hostapd_eid_mbssid(struct hostapd_data *hapd, u8 *eid, u8 *end,
+ {
+ 	size_t bss_index = 1, cur_len = 0;
+ 	u8 elem_index = 0, *rnr_start_eid = rnr_eid;
+-	bool add_rnr;
++	bool add_rnr, ap_mld = false;
++
++#ifdef CONFIG_IEEE80211BE
++	ap_mld = hapd->conf->mld_ap;
++#endif /* CONFIG_IEEE80211BE */
+ 
+ 	if (!hapd->iconf->mbssid || hapd->iface->num_bss <= 1 ||
+ 	    (frame_stype != WLAN_FC_STYPE_BEACON &&
+@@ -8759,10 +8717,7 @@ u8 * hostapd_eid_mbssid(struct hostapd_data *hapd, u8 *eid, u8 *end,
+ 			cur_len = 0;
+ 			rnr_eid = hostapd_eid_rnr_iface(
+ 				hapd, hostapd_mbssid_get_tx_bss(hapd),
+-				rnr_eid, &cur_len, &skip_profiles, false);
+-			rnr_eid = hostapd_eid_rnr_mlo(
+-				hostapd_mbssid_get_tx_bss(hapd), frame_stype,
+-				rnr_eid, &skip_profiles, &cur_len);
++				rnr_eid, &cur_len, &skip_profiles, ap_mld);
+ 		}
+ 	}
+ 
+diff --git a/src/ap/ieee802_11.h b/src/ap/ieee802_11.h
+index da97c25e3..2bcc29eb1 100644
+--- a/src/ap/ieee802_11.h
++++ b/src/ap/ieee802_11.h
+@@ -94,12 +94,6 @@ u8 * hostapd_eid_eht_ml_beacon(struct hostapd_data *hapd,
+ 			       u8 *eid, bool include_mld_id);
+ u8 * hostapd_eid_eht_ml_assoc(struct hostapd_data *hapd, struct sta_info *info,
+ 			      u8 *eid);
+-u8 * hostapd_eid_eht_basic_ml_common(struct hostapd_data *hapd,
+-				     u8 *eid, struct mld_info *mld_info,
+-				     bool include_mld_id);
+-size_t hostapd_eid_eht_basic_ml_len(struct hostapd_data *hapd,
+-				    struct sta_info *info,
+-				    bool include_mld_id);
+ size_t hostapd_eid_eht_ml_beacon_len(struct hostapd_data *hapd,
+ 				     struct mld_info *info,
+ 				     bool include_mld_id);
+diff --git a/src/ap/ieee802_11_eht.c b/src/ap/ieee802_11_eht.c
+index fe4d0ce56..b61a94fa8 100644
+--- a/src/ap/ieee802_11_eht.c
++++ b/src/ap/ieee802_11_eht.c
+@@ -439,15 +439,9 @@ void hostapd_get_eht_capab(struct hostapd_data *hapd,
+ }
+ 
+ 
+-/* Beacon or a non ML Probe Response frame should include
+- * Common Info Length(1) + MLD MAC Address(6) +
+- * Link ID Info(1) + BSS Parameters Change count(1) +
+- * EML Capabilities (2) + MLD Capabilities (2)
+- */
+-#define EHT_ML_COMMON_INFO_LEN 13
+-u8 * hostapd_eid_eht_basic_ml_common(struct hostapd_data *hapd,
+-				     u8 *eid, struct mld_info *mld_info,
+-				     bool include_mld_id)
++static u8 * hostapd_eid_eht_basic_ml_common(struct hostapd_data *hapd,
++					    u8 *eid, struct mld_info *mld_info,
++					    bool include_mld_id)
+ {
+ 	struct wpabuf *buf;
+ 	u16 control;
+@@ -481,6 +475,7 @@ u8 * hostapd_eid_eht_basic_ml_common(struct hostapd_data *hapd,
+ 	 * BSS Parameters Change Count (1) + EML Capabilities (2) +
+ 	 * MLD Capabilities and Operations (2)
+ 	 */
++#define EHT_ML_COMMON_INFO_LEN 13
+ 	common_info_len = EHT_ML_COMMON_INFO_LEN;
+ 
+ 	if (include_mld_id) {
+@@ -672,76 +667,6 @@ out:
+ }
+ 
+ 
+-/*
+- * control (2) + station info length (1) + MAC address (6) +
+- * beacon interval (2) + TSF offset (8) + DTIM info (2) + BSS
+- * parameters change counter (1)
+- */
+-#define EHT_ML_STA_INFO_LENGTH 22
+-size_t hostapd_eid_eht_basic_ml_len(struct hostapd_data *hapd,
+-				    struct sta_info *info,
+-				    bool include_mld_id)
+-{
+-	int link_id;
+-	size_t len, num_frags;
+-
+-	if (!hapd->conf->mld_ap)
+-		return 0;
+-
+-	/* Include WLAN_EID_EXT_MULTI_LINK (1) */
+-	len = 1;
+-	/* control field */
+-	len += 2;
+-	/* Common info len for Basic MLE */
+-	len += EHT_ML_COMMON_INFO_LEN;
+-	if (include_mld_id)
+-		len++;
+-
+-	if (!info)
+-		goto out;
+-
+-	/* Add link info for the other links */
+-	for (link_id = 0; link_id < MAX_NUM_MLD_LINKS; link_id++) {
+-		struct mld_link_info *link = &info->mld_info.links[link_id];
+-		struct hostapd_data *link_bss;
+-		size_t sta_prof_len = EHT_ML_STA_INFO_LENGTH +
+-			link->resp_sta_profile_len;
+-
+-		/* Skip the local one */
+-		if (link_id == hapd->mld_link_id || !link->valid)
+-			continue;
+-
+-		link_bss = hostapd_mld_get_link_bss(hapd, link_id);
+-		if (!link_bss) {
+-			wpa_printf(MSG_ERROR,
+-				   "MLD: Couldn't find link BSS - skip it");
+-			continue;
+-		}
+-
+-		/* Per-STA Profile Subelement(1), Length (1) */
+-		len += 2;
+-		len += sta_prof_len;
+-		/* Consider Fragment EID(1) and Length (1) for each subelement
+-		 * fragment. */
+-		if (sta_prof_len > 255) {
+-			num_frags = (sta_prof_len / 255 - 1) +
+-				!!(sta_prof_len % 255);
+-			len += num_frags * 2;
+-		}
+-
+-	}
+-
+-out:
+-	if (len > 255) {
+-		num_frags = (len / 255 - 1) + !!(len % 255);
+-		len += num_frags * 2;
+-	}
+-
+-	/* WLAN_EID_EXTENSION (1) + length (1) */
+-	return len + 2;
+-}
+-
+-
+ static u8 * hostapd_eid_eht_reconf_ml(struct hostapd_data *hapd, u8 *eid)
+ {
+ #ifdef CONFIG_TESTING_OPTIONS
+@@ -1057,7 +982,7 @@ static const u8 * auth_skip_fixed_fields(struct hostapd_data *hapd,
+ #endif /* CONFIG_SAE */
+ 	const u8 *pos = mgmt->u.auth.variable;
+ 
+-	/* Skip fixed fields as based on IEEE Std 802.11-2024, Table 9-71
++	/* Skip fixed fields as based on IEE P802.11-REVme/D3.0, Table 9-69
+ 	 * (Presence of fields and elements in Authentications frames) */
+ 	switch (auth_alg) {
+ 	case WLAN_AUTH_OPEN:
+diff --git a/src/ap/ieee802_11_shared.c b/src/ap/ieee802_11_shared.c
+index e873e1c12..986b7b81e 100644
+--- a/src/ap/ieee802_11_shared.c
++++ b/src/ap/ieee802_11_shared.c
+@@ -381,10 +381,6 @@ static void hostapd_ext_capab_byte(struct hostapd_data *hapd, u8 *pos, int idx,
+ 			/* Bit 13 - Collocated Interference Reporting */
+ 			*pos |= 0x20;
+ 		}
+-		if (hapd->iface->conf->civic)
+-			*pos |= 0x40; /* Bit 14 - Civic Location */
+-		if (hapd->iface->conf->lci)
+-			*pos |= 0x80; /* Bit 15 - Geospatial Location */
+ 		break;
+ 	case 2: /* Bits 16-23 */
+ 		if (hapd->conf->wnm_sleep_mode)
+diff --git a/src/ap/neighbor_db.c b/src/ap/neighbor_db.c
+index 1768982d8..f7a7d83d4 100644
+--- a/src/ap/neighbor_db.c
++++ b/src/ap/neighbor_db.c
+@@ -266,6 +266,8 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
+ 	if (ht) {
+ 		bssid_info |= NEI_REP_BSSID_INFO_HT |
+ 			NEI_REP_BSSID_INFO_DELAYED_BA;
++
++		/* VHT bit added in IEEE P802.11-REVmc/D4.3 */
+ 		if (vht)
+ 			bssid_info |= NEI_REP_BSSID_INFO_VHT;
+ 	}
+@@ -315,8 +317,8 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
+ 
+ 	/*
+ 	 * Wide Bandwidth Channel subelement may be needed to allow the
+-	 * receiving STA to send packets to the AP. See IEEE Std 802.11-2024,
+-	 * Figure 9-423 (Wide Bandwidth Channel subelement format).
++	 * receiving STA to send packets to the AP. See IEEE P802.11-REVmc/D5.0
++	 * Figure 9-301.
+ 	 */
+ 	wpabuf_put_u8(nr, WNM_NEIGHBOR_WIDE_BW_CHAN);
+ 	wpabuf_put_u8(nr, 3);
+diff --git a/src/ap/rrm.c b/src/ap/rrm.c
+index 73771e4c5..fbcddf3f9 100644
+--- a/src/ap/rrm.c
++++ b/src/ap/rrm.c
+@@ -536,14 +536,13 @@ int hostapd_send_range_req(struct hostapd_data *hapd, const u8 *addr,
+ 	if (!hapd->range_req_token) /* For wraparounds */
+ 		hapd->range_req_token++;
+ 
+-	/* IEEE Std 802.11-2024, 9.6.6.2 (Radio Measurement Request frame
+-	 * format) */
++	/* IEEE P802.11-REVmc/D5.0, 9.6.7.2 */
+ 	wpabuf_put_u8(buf, WLAN_ACTION_RADIO_MEASUREMENT);
+ 	wpabuf_put_u8(buf, WLAN_RRM_RADIO_MEASUREMENT_REQUEST);
+ 	wpabuf_put_u8(buf, hapd->range_req_token); /* Dialog Token */
+ 	wpabuf_put_le16(buf, 0); /* Number of Repetitions */
+ 
+-	/* IEEE Std 802.11-2024, 9.4.2.19 (Measurement Request element) */
++	/* IEEE P802.11-REVmc/D5.0, 9.4.2.21 */
+ 	wpabuf_put_u8(buf, WLAN_EID_MEASURE_REQUEST);
+ 	len = wpabuf_put(buf, 1); /* Length will be set later */
+ 
+@@ -555,7 +554,7 @@ int hostapd_send_range_req(struct hostapd_data *hapd, const u8 *addr,
+ 	wpabuf_put_u8(buf, 0); /* Measurement Request Mode */
+ 	wpabuf_put_u8(buf, MEASURE_TYPE_FTM_RANGE); /* Measurement Type */
+ 
+-	/* IEEE Std 802.11-2024, 9.4.2.19.19 (FTM Range request) */
++	/* IEEE P802.11-REVmc/D5.0, 9.4.2.21.19 */
+ 	wpabuf_put_le16(buf, random_interval); /* Randomization Interval */
+ 	wpabuf_put_u8(buf, min_ap); /* Minimum AP Count */
+ 
+diff --git a/src/ap/wpa_auth_ie.c b/src/ap/wpa_auth_ie.c
+index 83ae4e065..2e5f59ec1 100644
+--- a/src/ap/wpa_auth_ie.c
++++ b/src/ap/wpa_auth_ie.c
+@@ -346,6 +346,9 @@ static u8 * rsne_write_data(u8 *buf, size_t len, u8 *pos, int group,
+ 
+ 		/* Management Group Cipher Suite */
+ 		switch (group_mgmt_cipher) {
++		case WPA_CIPHER_AES_128_CMAC:
++			RSN_SELECTOR_PUT(pos, RSN_CIPHER_SUITE_AES_128_CMAC);
++			break;
+ 		case WPA_CIPHER_BIP_GMAC_128:
+ 			RSN_SELECTOR_PUT(pos, RSN_CIPHER_SUITE_BIP_GMAC_128);
+ 			break;
+diff --git a/src/common/common_module_tests.c b/src/common/common_module_tests.c
+index 4339fc772..5763c51f4 100644
+--- a/src/common/common_module_tests.c
++++ b/src/common/common_module_tests.c
+@@ -608,8 +608,7 @@ static int sae_pk_tests(void)
+ 
+ static int pasn_test_pasn_auth(void)
+ {
+-	/* Test vector taken from IEEE Std 802.11-2024,
+-	 * J.12 (PASN Test Vectors) */
++	/* Test vector taken from IEEE P802.11az/D2.6, J.12 */
+ 	const u8 pmk[] = {
+ 		0xde, 0xf4, 0x3e, 0x55, 0x67, 0xe0, 0x1c, 0xa6,
+ 		0x64, 0x92, 0x65, 0xf1, 0x9a, 0x29, 0x0e, 0xef,
+@@ -681,8 +680,7 @@ static int pasn_test_pasn_auth(void)
+ 
+ static int pasn_test_no_pasn_auth(void)
+ {
+-	/* Test vector taken from IEEE Std 802.11-2024,
+-	 * J.13 (KDK Test Vectors when PASN authentication is not used) */
++	/* Test vector taken from IEEE P802.11az/D2.6, J.13 */
+ 	const u8 pmk[] = {
+ 		0xde, 0xf4, 0x3e, 0x55, 0x67, 0xe0, 0x1c, 0xa6,
+ 		0x64, 0x92, 0x65, 0xf1, 0x9a, 0x29, 0x0e, 0xef,
+diff --git a/src/common/ieee802_11_common.c b/src/common/ieee802_11_common.c
+index ae7a7647a..838869a03 100644
+--- a/src/common/ieee802_11_common.c
++++ b/src/common/ieee802_11_common.c
+@@ -2927,18 +2927,6 @@ int oper_class_bw_to_int(const struct oper_class_map *map)
+ }
+ 
+ 
+-bool is_24ghz_freq(int freq)
+-{
+-	return freq >= 2400 && freq <= 2484;
+-}
+-
+-
+-bool is_5ghz_freq(int freq)
+-{
+-	return freq >= 5150 && freq <= 5885;
+-}
+-
+-
+ int center_idx_to_bw_6ghz(u8 idx)
+ {
+ 	/* Channel: 2 */
+diff --git a/src/common/ieee802_11_common.h b/src/common/ieee802_11_common.h
+index 5f52b573c..abd17f062 100644
+--- a/src/common/ieee802_11_common.h
++++ b/src/common/ieee802_11_common.h
+@@ -300,8 +300,6 @@ u8 country_to_global_op_class(const char *country, u8 op_class);
+ 
+ const struct oper_class_map * get_oper_class(const char *country, u8 op_class);
+ int oper_class_bw_to_int(const struct oper_class_map *map);
+-bool is_24ghz_freq(int freq);
+-bool is_5ghz_freq(int freq);
+ int center_idx_to_bw_6ghz(u8 idx);
+ bool is_6ghz_freq(int freq);
+ bool is_6ghz_op_class(u8 op_class);
+diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
+index d029cf905..c5341d3b0 100644
+--- a/src/common/ieee802_11_defs.h
++++ b/src/common/ieee802_11_defs.h
+@@ -707,7 +707,7 @@
+ #define WLAN_PA_FILS_DISCOVERY 34
+ #define WLAN_PA_LOCATION_MEASUREMENT_REPORT 47
+ 
+-/* HT Action field values (IEEE Std 802.11-2024, 9.6.11.1, Table 9-517) */
++/* HT Action field values (IEEE P802.11-REVme/D4.0, 9.6.11.1, Table 9-491) */
+ #define WLAN_HT_ACTION_NOTIFY_CHANWIDTH 0
+ #define WLAN_HT_ACTION_SMPS 1
+ #define WLAN_HT_ACTION_CSI 4
+@@ -715,7 +715,7 @@
+ #define WLAN_HT_ACTION_COMPRESSED_BF 6
+ #define WLAN_HT_ACTION_ASEL_IDX_FEEDBACK 7
+ 
+-/* VHT Action field values (IEEE Std 802.11-2024, 9.6.22.1, Table 9-605) */
++/* VHT Action field values (IEEE P802.11-REVme/D4.0, 9.6.22.1, Table 9-579) */
+ #define WLAN_VHT_ACTION_COMPRESSED_BF 0
+ #define WLAN_VHT_ACTION_GROUP_ID_MGMT 1
+ #define WLAN_VHT_ACTION_OPMODE_NOTIF 2
+@@ -808,7 +808,6 @@
+ #define WLAN_RRM_CAPS_LCI_MEASUREMENT BIT(4)
+ /* byte 5 (out of 5) */
+ #define WLAN_RRM_CAPS_FTM_RANGE_REPORT BIT(2)
+-#define WLAN_RRM_CAPS_CIVIC_LOCATION_MEASUREMENT BIT(3)
+ 
+ /*
+  * IEEE Std 802.11-2020, 9.4.2.20.19 (Fine Timing Measurement Range
+@@ -2551,8 +2550,7 @@ struct ieee80211_spatial_reuse {
+ /**
+  * enum he_reg_info_6ghz_ap_type - Allowed Access Point types for 6 GHz Band
+  *
+- * IEEE Std 802.11-2024, Table E-12 (Regulatory Info subfield interpretation by
+- * non-AP STAs with dot11ExtendedRegInfoSupport not set to true)
++ * IEEE P802.11-REVme/D4.0, Table E-12 (Regulatory Info subfield encoding)
+  */
+ enum he_reg_info_6ghz_ap_type {
+ 	HE_REG_INFO_6GHZ_AP_TYPE_INDOOR         = 0,
+@@ -2683,8 +2681,6 @@ struct ieee80211_eht_operation {
+ 	struct ieee80211_eht_oper_info oper_info; /* 0 or 3 or 5 octets */
+ } STRUCT_PACKED;
+ 
+-#define IEEE80211_EHT_OP_MIN_LEN (1 + 4)
+-
+ /* IEEE P802.11be/D1.5, 9.4.2.313 - EHT Capabilities element */
+ 
+ /* Figure 9-1002af: EHT MAC Capabilities Information field */
+diff --git a/src/common/nan_de.c b/src/common/nan_de.c
+index 2833211f9..4f63adc85 100644
+--- a/src/common/nan_de.c
++++ b/src/common/nan_de.c
+@@ -604,14 +604,6 @@ static void nan_de_timer(void *eloop_ctx, void *timeout_ctx)
+ 			wpa_printf(MSG_DEBUG, "NAN: Service id %d expired",
+ 				   srv->id);
+ 			nan_de_del_srv(de, srv, NAN_DE_REASON_TIMEOUT);
+-			if (srv->type == NAN_DE_PUBLISH &&
+-			    de->cb.offload_cancel_publish)
+-				de->cb.offload_cancel_publish(de->cb.ctx,
+-							      srv->id);
+-			if (srv->type == NAN_DE_SUBSCRIBE &&
+-			    de->cb.offload_cancel_subscribe)
+-				de->cb.offload_cancel_subscribe(de->cb.ctx,
+-								srv->id);
+ 			continue;
+ 		}
+ 
+diff --git a/src/common/nan_de.h b/src/common/nan_de.h
+index 2900bab5c..41e294e71 100644
+--- a/src/common/nan_de.h
++++ b/src/common/nan_de.h
+@@ -50,9 +50,6 @@ struct nan_callbacks {
+ 	void (*subscribe_terminated)(void *ctx, int subscribe_id,
+ 				     enum nan_de_reason reason);
+ 
+-	void (*offload_cancel_publish)(void *ctx, int publish_id);
+-	void (*offload_cancel_subscribe)(void *ctx, int subscribe_id);
+-
+ 	void (*receive)(void *ctx, int id, int peer_instance_id,
+ 			const u8 *ssi, size_t ssi_len,
+ 			const u8 *peer_addr);
+diff --git a/src/common/qca-vendor.h b/src/common/qca-vendor.h
+index 4a38dc3ba..e66299a4e 100644
+--- a/src/common/qca-vendor.h
++++ b/src/common/qca-vendor.h
+@@ -1326,21 +1326,11 @@ enum qca_radiotap_vendor_ids {
+  *	The attributes used with this event are defined in
+  *	enum qca_wlan_vendor_attr_idle_shutdown.
+  *
+- * @QCA_NL80211_VENDOR_SUBCMD_PRI_LINK_MIGRATE: This vendor subcommand/event is
+- * 	used for primary link migration.
++ * @QCA_NL80211_VENDOR_SUBCMD_PRI_LINK_MIGRATE: Vendor subcommand that can
++ *	be used to trigger primary link migration from user space. Either just
++ *	one ML client or a bunch of clients can be migrated.
+  *
+- * 	This subcommand is used to trigger primary link migration from
+- * 	user space. Either just	one ML client or a bunch of clients can
+- * 	be migrated.
+- *
+- *	This subcommand is used as an event to notify user applications and
+- *	subsystems about primary link migration once it is completed
+- *	successfully. This event will send the MAC address of the peer for which
+- *	the primary link has been changed and the new link ID to ensure primary
+- *	link changes in WLAN subsystem are communicated to user applications
+- *	and also to manage the load of that primary link in a better way.
+- *
+- *	The attributes used with this subcommand/event are defined in
++ *	The attributes used with this subcommand are defined in
+  *	&enum qca_wlan_vendor_attr_pri_link_migrate.
+  *
+  *	@QCA_WLAN_VENDOR_ATTR_PRI_LINK_MIGR_MLD_MAC_ADDR and
+@@ -6566,36 +6556,6 @@ enum qca_vendor_attr_roam_candidate_selection_criteria {
+  *	interval until a candidate is found.
+  *	This configuration is valid until next disconnection. If this attribute
+  *	is not present, the existing configuration shall be used.
+- *
+- * @QCA_ATTR_ROAM_CONTROL_CANDIDATE_SCORE_MIN_DELTA_THRESHOLD: Unsigned 32-bit
+- *	value.
+- *	This attribute indicates the minimum roam score difference for an AP to
+- *	be considered as a candidate. A roam candidate AP will be ignored if
+- *	the score difference between the roam candidate AP and the current
+- *	connected AP is less than the sum of the current connected AP score and
+- *	the roam score delta.
+- *
+- *	The configuration is valid until next disconnection. If this attribute
+- *	is not present, the existing configuration shall be used.
+- *
+- * @QCA_ATTR_ROAM_CONTROL_CONNECTED_BSS_RECONNECT_DISALLOW_PERIOD: Unsigned
+- *	32-bit value.
+- *	This attribute specifies the duration (in seconds) of the current BSS
+- *	connection from the last successful association, after which the
+- *	connected BSS can be considered as a roaming candidate upon receiving
+- *	a Deauthentication or Disassociation frame from the BSS, provided no
+- *	alternative candidate is available. The connection timer to monitor the
+- *	disallow period should start after each successful connection.
+- *
+- *	This configuration is valid until next disconnection. If this attribute
+- *	is not present, the existing configuration shall be used.
+- *	0 - Always disallow roaming to the current connected BSS when a
+- *	Deauthentication or Disassociation frame is received from the connected
+- *	BSS.
+- *	Other values - Disallow roaming to the current connected BSS for the
+- *	specified duration from the last successful connection time when a
+- *	Deauthentication or Disassociation frame is received from the connected
+- *	BSS.
+  */
+ enum qca_vendor_attr_roam_control {
+ 	QCA_ATTR_ROAM_CONTROL_ENABLE = 1,
+@@ -6635,8 +6595,6 @@ enum qca_vendor_attr_roam_control {
+ 	QCA_ATTR_ROAM_CONTROL_CANDIDATE_SCORE_THRESHOLD_PERCENTAGE = 35,
+ 	QCA_ATTR_ROAM_CONTROL_CONNECTED_LOW_RSSI_THRESHOLD_DECREMENT = 36,
+ 	QCA_ATTR_ROAM_CONTROL_PERIODIC_ROAM_SCAN_INTERVAL = 37,
+-	QCA_ATTR_ROAM_CONTROL_CANDIDATE_SCORE_MIN_DELTA_THRESHOLD = 38,
+-	QCA_ATTR_ROAM_CONTROL_CONNECTED_BSS_RECONNECT_DISALLOW_PERIOD = 39,
+ 
+ 	/* keep last */
+ 	QCA_ATTR_ROAM_CONTROL_AFTER_LAST,
+@@ -19269,23 +19227,18 @@ enum qca_wlan_vendor_attr_idle_shutdown {
+ 
+ /**
+  * enum qca_wlan_vendor_attr_pri_link_migrate: Attributes used by the vendor
+- * 	subcommand/event %QCA_NL80211_VENDOR_SUBCMD_PRI_LINK_MIGRATE.
++ * 	subcommand %QCA_NL80211_VENDOR_SUBCMD_PRI_LINK_MIGRATE.
+  *
+- * @QCA_WLAN_VENDOR_ATTR_PRI_LINK_MIGR_MLD_MAC_ADDR: 6 byte MAC address.
+- * 	(a) Used in a subcommand to indicate that primary link migration
+- * 	will occur only for the ML client with the given MLD MAC address.
+- * 	(b) Used in an event to specify the MAC address of the peer for which
+- * 	the primary link has been modified.
++ * @QCA_WLAN_VENDOR_ATTR_PRI_LINK_MIGR_MLD_MAC_ADDR: 6 byte MAC address. When
++ *	specified, indicates that primary link migration will occur only for
++ *	the ML client with the given MLD MAC address.
+  * @QCA_WLAN_VENDOR_ATTR_PRI_LINK_MIGR_CURRENT_PRI_LINK_ID: Optional u8
+- *	attribute. Used with subcommand only.
+- *	When specified, all ML clients having their current primary
++ *	attribute. When specified, all ML clients having their current primary
+  *	link as specified will be considered for migration.
+  * @QCA_WLAN_VENDOR_ATTR_PRI_LINK_MIGR_NEW_PRI_LINK_ID: Optional u8 attribute.
+- *	(a) Used in subcommand, to indicate the new primary link to which the
+- *	selected ML clients should be migrated to. If not provided, the driver
+- *	will select a suitable primary link on its own.
+- *	(b) Used in event, to indicate the new link ID which is set as the
+- *	primary link.
++ *	Indicates the new primary link to which the selected ML clients
++ *	should be migrated to. If not provided, the driver will select a
++ *	suitable primary link on its own.
+  */
+ enum qca_wlan_vendor_attr_pri_link_migrate {
+ 	QCA_WLAN_VENDOR_ATTR_PRI_LINK_MIGR_INVALID = 0,
+diff --git a/src/common/wpa_common.c b/src/common/wpa_common.c
+index 4367a227d..e5e99b95d 100644
+--- a/src/common/wpa_common.c
++++ b/src/common/wpa_common.c
+@@ -1420,9 +1420,8 @@ void wpa_ft_parse_ies_free(struct wpa_ft_ies *parse)
+  * @akmp: Authentication and key management protocol
+  * @cipher: The cipher suite
+  *
+- * According to IEEE Std 802.11-2024, 12.13.8 (PTKSA derivation with PASN
+- * authentication), the hash algorithm to use is the
+- * hash algorithm defined for the Base AKM (see Table 9-190 (AKM suite
++ * According to IEEE P802.11az/D2.7, 12.12.7, the hash algorithm to use is the
++ * hash algorithm defined for the Base AKM (see Table 9-151 (AKM suite
+  * selectors)). When there is no Base AKM, the hash algorithm is selected based
+  * on the pairwise cipher suite provided in the RSNE by the AP in the second
+  * PASN frame. SHA-256 is used as the hash algorithm, except for the ciphers
+diff --git a/src/common/wpa_common.h b/src/common/wpa_common.h
+index 5b9773e33..d2c326c43 100644
+--- a/src/common/wpa_common.h
++++ b/src/common/wpa_common.h
+@@ -614,7 +614,7 @@ struct wpa_ft_ies {
+ 	struct wpabuf *fte_buf;
+ };
+ 
+-/* IEEE Std 802.11-2024 - 9.4.2.305 PASN Parameters element */
++/* IEEE P802.11az/D2.6 - 9.4.2.303 PASN Parameters element */
+ #define WPA_PASN_CTRL_COMEBACK_INFO_PRESENT BIT(0)
+ #define WPA_PASN_CTRL_GROUP_AND_KEY_PRESENT BIT(1)
+ 
+diff --git a/src/drivers/driver.h b/src/drivers/driver.h
+index 54b4a9b18..48092ea9a 100644
+--- a/src/drivers/driver.h
++++ b/src/drivers/driver.h
+@@ -1462,72 +1462,6 @@ struct unsol_bcast_probe_resp {
+ 	size_t unsol_bcast_probe_resp_tmpl_len;
+ };
+ 
+-struct mbssid_data {
+-	/**
+-	 * mbssid_tx_iface - Transmitting interface of the MBSSID set
+-	 */
+-	const char *mbssid_tx_iface;
+-
+-	/**
+-	 * mbssid_tx_iface_linkid - Link ID of the transmitting interface if
+-	 * it is part of an MLD. Otherwise, -1.
+-	 */
+-	int mbssid_tx_iface_linkid;
+-
+-	/**
+-	 * mbssid_index - The index of this BSS in the MBSSID set
+-	 */
+-	unsigned int mbssid_index;
+-
+-	/**
+-	 * mbssid_elem - Buffer containing all MBSSID elements
+-	 */
+-	u8 *mbssid_elem;
+-
+-	/**
+-	 * mbssid_elem_len - Total length of all MBSSID elements
+-	 */
+-	size_t mbssid_elem_len;
+-
+-	/**
+-	 * mbssid_elem_count - The number of MBSSID elements
+-	 */
+-	u8 mbssid_elem_count;
+-
+-	/**
+-	 * mbssid_elem_offset - Offsets to elements in mbssid_elem.
+-	 * Kernel will use these offsets to generate multiple BSSID beacons.
+-	 */
+-	u8 **mbssid_elem_offset;
+-
+-	/**
+-	 * ema - Enhanced MBSSID advertisements support.
+-	 */
+-	bool ema;
+-
+-	/**
+-	 * rnr_elem - This buffer contains all of reduced neighbor report (RNR)
+-	 * elements
+-	 */
+-	u8 *rnr_elem;
+-
+-	/**
+-	 * rnr_elem_len - Length of rnr_elem buffer
+-	 */
+-	size_t rnr_elem_len;
+-
+-	/**
+-	 * rnr_elem_count - Number of RNR elements
+-	 */
+-	u8 rnr_elem_count;
+-
+-	/**
+-	 * rnr_elem_offset - The offsets to the elements in rnr_elem.
+-	 * The driver will use these to include RNR elements in EMA beacons.
+-	 */
+-	u8 **rnr_elem_offset;
+-};
+-
+ struct wpa_driver_ap_params {
+ 	/**
+ 	 * head - Beacon head from IEEE 802.11 header to IEs before TIM IE
+@@ -1866,11 +1800,40 @@ struct wpa_driver_ap_params {
+ 	size_t fd_frame_tmpl_len;
+ 
+ 	/**
+-	 * mbssid - MBSSID element related params for Beacon frames
+-	 *
+-	 * This is used to add MBSSID element in beacon data.
++	 * mbssid_tx_iface - Transmitting interface of the MBSSID set
++	 */
++	const char *mbssid_tx_iface;
++
++	/**
++	 * mbssid_index - The index of this BSS in the MBSSID set
++	 */
++	unsigned int mbssid_index;
++
++	/**
++	 * mbssid_elem - Buffer containing all MBSSID elements
++	 */
++	u8 *mbssid_elem;
++
++	/**
++	 * mbssid_elem_len - Total length of all MBSSID elements
++	 */
++	size_t mbssid_elem_len;
++
++	/**
++	 * mbssid_elem_count - The number of MBSSID elements
++	 */
++	u8 mbssid_elem_count;
++
++	/**
++	 * mbssid_elem_offset - Offsets to elements in mbssid_elem.
++	 * Kernel will use these offsets to generate multiple BSSID beacons.
++	 */
++	u8 **mbssid_elem_offset;
++
++	/**
++	 * ema - Enhanced MBSSID advertisements support.
+ 	 */
+-	struct mbssid_data mbssid;
++	bool ema;
+ 
+ 	/**
+ 	 * punct_bitmap - Preamble puncturing bitmap
+@@ -1880,6 +1843,27 @@ struct wpa_driver_ap_params {
+ 	 */
+ 	u16 punct_bitmap;
+ 
++	/**
++	 * rnr_elem - This buffer contains all of reduced neighbor report (RNR)
++	 * elements
++	 */
++	u8 *rnr_elem;
++
++	/**
++	 * rnr_elem_len - Length of rnr_elem buffer
++	 */
++	size_t rnr_elem_len;
++
++	/**
++	 * rnr_elem_count - Number of RNR elements
++	 */
++	unsigned int rnr_elem_count;
++
++	/**
++	 * rnr_elem_offset - The offsets to the elements in rnr_elem.
++	 * The driver will use these to include RNR elements in EMA beacons.
++	 */
++	u8 **rnr_elem_offset;
+ 
+ 	/* Unsolicited broadcast Probe Response data */
+ 	struct unsol_bcast_probe_resp ubpr;
+@@ -2798,7 +2782,6 @@ struct wpa_channel_info {
+  * @proberesp_ies_len: Length of proberesp_ies in octets
+  * @proberesp_ies_len: Length of proberesp_ies in octets
+  * @probe_resp_len: Length of probe response template (@probe_resp)
+- * @mbssid: MBSSID element(s) to add into Beacon frames
+  */
+ struct beacon_data {
+ 	u8 *head, *tail;
+@@ -2812,8 +2795,6 @@ struct beacon_data {
+ 	size_t proberesp_ies_len;
+ 	size_t assocresp_ies_len;
+ 	size_t probe_resp_len;
+-
+-	struct mbssid_data mbssid;
+ };
+ 
+ /**
+diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
+index b7c666db4..ea33b1e45 100644
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -4919,7 +4919,8 @@ static int nl80211_unsol_bcast_probe_resp(struct i802_bss *bss,
+ }
+ 
+ 
+-static int nl80211_mbssid(struct nl_msg *msg, struct mbssid_data *params)
++static int nl80211_mbssid(struct nl_msg *msg,
++			 struct wpa_driver_ap_params *params)
+ {
+ 	struct nlattr *config, *elems;
+ 	int ifidx;
+@@ -4939,10 +4940,6 @@ static int nl80211_mbssid(struct nl_msg *msg, struct mbssid_data *params)
+ 		    nla_put_u32(msg, NL80211_MBSSID_CONFIG_ATTR_TX_IFINDEX,
+ 				ifidx))
+ 			return -1;
+-		if (params->mbssid_tx_iface_linkid >= 0 &&
+-		    nla_put_u8(msg, NL80211_MBSSID_CONFIG_ATTR_TX_LINK_ID,
+-			       params->mbssid_tx_iface_linkid))
+-			return -1;
+ 	}
+ 
+ 	if (params->ema && nla_put_flag(msg, NL80211_MBSSID_CONFIG_ATTR_EMA))
+@@ -5504,7 +5501,7 @@ static int wpa_driver_nl80211_set_ap(void *priv,
+ 	    nl80211_unsol_bcast_probe_resp(bss, msg, &params->ubpr) < 0)
+ 		goto fail;
+ 
+-	if (nl80211_mbssid(msg, &params->mbssid) < 0)
++	if (nl80211_mbssid(msg, params) < 0)
+ 		goto fail;
+ #endif /* CONFIG_IEEE80211AX */
+ 
+@@ -11456,8 +11453,8 @@ static int wpa_driver_nl80211_status(void *priv, char *buf, size_t buflen)
+ 	return pos - buf;
+ }
+ 
+-static int set_beacon_data(struct nl_msg *msg, struct beacon_data *settings,
+-			   bool skip_mbssid)
++
++static int set_beacon_data(struct nl_msg *msg, struct beacon_data *settings)
+ {
+ 	if ((settings->head &&
+ 	     nla_put(msg, NL80211_ATTR_BEACON_HEAD,
+@@ -11479,11 +11476,6 @@ static int set_beacon_data(struct nl_msg *msg, struct beacon_data *settings,
+ 		     settings->probe_resp_len, settings->probe_resp)))
+ 		return -ENOBUFS;
+ 
+-#ifdef CONFIG_IEEE80211AX
+-	if (!skip_mbssid && nl80211_mbssid(msg, &settings->mbssid) < 0)
+-		return -ENOBUFS;
+-#endif /* CONFIG_IEEE80211AX */
+-
+ 	return 0;
+ }
+ 
+@@ -11588,7 +11580,7 @@ static int nl80211_switch_channel(void *priv, struct csa_settings *settings)
+ 		goto error;
+ 
+ 	/* beacon_after params */
+-	ret = set_beacon_data(msg, &settings->beacon_after, false);
++	ret = set_beacon_data(msg, &settings->beacon_after);
+ 	if (ret)
+ 		goto error;
+ 
+@@ -11597,7 +11589,7 @@ static int nl80211_switch_channel(void *priv, struct csa_settings *settings)
+ 	if (!beacon_csa)
+ 		goto fail;
+ 
+-	ret = set_beacon_data(msg, &settings->beacon_csa, true);
++	ret = set_beacon_data(msg, &settings->beacon_csa);
+ 	if (ret)
+ 		goto error;
+ 
+@@ -11674,7 +11666,7 @@ static int nl80211_switch_color(void *priv, struct cca_settings *settings)
+ 		goto error;
+ 
+ 	/* beacon_after params */
+-	ret = set_beacon_data(msg, &settings->beacon_after, false);
++	ret = set_beacon_data(msg, &settings->beacon_after);
+ 	if (ret)
+ 		goto error;
+ 
+@@ -11685,7 +11677,7 @@ static int nl80211_switch_color(void *priv, struct cca_settings *settings)
+ 		goto error;
+ 	}
+ 
+-	ret = set_beacon_data(msg, &settings->beacon_cca, true);
++	ret = set_beacon_data(msg, &settings->beacon_cca);
+ 	if (ret)
+ 		goto error;
+ 
+diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
+index 670366848..d367eed3f 100644
+--- a/src/drivers/driver_nl80211_capa.c
++++ b/src/drivers/driver_nl80211_capa.c
+@@ -1463,11 +1463,11 @@ static void qca_nl80211_get_features(struct wpa_driver_nl80211_data *drv)
+ 	if (check_feature(QCA_WLAN_VENDOR_FEATURE_NAN_USD_OFFLOAD, &info))
+ 		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_NAN_OFFLOAD;
+ 
+-	if (check_feature(QCA_WLAN_VENDOR_FEATURE_P2P_V2, &info))
+-		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_P2P_FEATURE_V2;
++	if (!check_feature(QCA_WLAN_VENDOR_FEATURE_P2P_V2, &info))
++		drv->capa.flags2 &= ~WPA_DRIVER_FLAGS2_P2P_FEATURE_V2;
+ 
+-	if (check_feature(QCA_WLAN_VENDOR_FEATURE_PCC_MODE, &info))
+-		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_P2P_FEATURE_PCC_MODE;
++	if (!check_feature(QCA_WLAN_VENDOR_FEATURE_PCC_MODE, &info))
++		drv->capa.flags2 &= ~WPA_DRIVER_FLAGS2_P2P_FEATURE_PCC_MODE;
+ 
+ 	os_free(info.flags);
+ }
+@@ -1590,12 +1590,10 @@ int wpa_driver_nl80211_capa(struct wpa_driver_nl80211_data *drv)
+ 		drv->capa.flags &= ~WPA_DRIVER_FLAGS_EAPOL_TX_STATUS;
+ 
+ 	/* Enable P2P2 and PCC mode capabilities by default for the drivers
+-	 * for which SME runs in wpa_supplicant
+-	 */
+-	if (drv->capa.flags & WPA_DRIVER_FLAGS_SME) {
+-		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_P2P_FEATURE_V2;
+-		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_P2P_FEATURE_PCC_MODE;
+-	}
++	 * which can't explicitly indicate whether these capabilities are
++	 * supported. */
++	drv->capa.flags2 |= WPA_DRIVER_FLAGS2_P2P_FEATURE_V2;
++	drv->capa.flags2 |= WPA_DRIVER_FLAGS2_P2P_FEATURE_PCC_MODE;
+ 
+ #ifdef CONFIG_DRIVER_NL80211_QCA
+ 	if (!(info.capa->flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD))
+diff --git a/src/drivers/nl80211_copy.h b/src/drivers/nl80211_copy.h
+index e9ccf43fe..f6c1b181c 100644
+--- a/src/drivers/nl80211_copy.h
++++ b/src/drivers/nl80211_copy.h
+@@ -11,7 +11,7 @@
+  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
+  * Copyright 2008 Colin McCabe <colin@cozybit.com>
+  * Copyright 2015-2017	Intel Deutschland GmbH
+- * Copyright (C) 2018-2025 Intel Corporation
++ * Copyright (C) 2018-2024 Intel Corporation
+  *
+  * Permission to use, copy, modify, and/or distribute this software for any
+  * purpose with or without fee is hereby granted, provided that the above
+@@ -2881,9 +2881,9 @@ enum nl80211_commands {
+  * @NL80211_ATTR_VIF_RADIO_MASK: Bitmask of allowed radios (u32).
+  *	A value of 0 means all radios.
+  *
+- * @NL80211_ATTR_SUPPORTED_SELECTORS: supported BSS Membership Selectors, array
+- *	of supported selectors as defined by IEEE Std 802.11-2020 9.4.2.3 but
+- *	without the length restriction (at most %NL80211_MAX_SUPP_SELECTORS).
++ * @NL80211_ATTR_SUPPORTED_SELECTORS: supported selectors, array of
++ *	supported selectors as defined by IEEE 802.11 7.3.2.2 but without the
++ *	length restriction (at most %NL80211_MAX_SUPP_SELECTORS).
+  *	This can be used to provide a list of selectors that are implemented
+  *	by the supplicant. If not given, support for SAE_H2E is assumed.
+  *
+@@ -2893,12 +2893,6 @@ enum nl80211_commands {
+  * @NL80211_ATTR_EPCS: Flag attribute indicating that EPCS is enabled for a
+  *	station interface.
+  *
+- * @NL80211_ATTR_ASSOC_MLD_EXT_CAPA_OPS: Extended MLD capabilities and
+- *	operations that userspace implements to use during association/ML
+- *	link reconfig, currently only "BTM MLD Recommendation For Multiple
+- *	APs Support". Drivers may set additional flags that they support
+- *	in the kernel or device.
+- *
+  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
+  * @NL80211_ATTR_MAX: highest attribute number currently defined
+  * @__NL80211_ATTR_AFTER_LAST: internal use
+@@ -3454,8 +3448,6 @@ enum nl80211_attrs {
+ 	NL80211_ATTR_MLO_RECONF_REM_LINKS,
+ 	NL80211_ATTR_EPCS,
+ 
+-	NL80211_ATTR_ASSOC_MLD_EXT_CAPA_OPS,
+-
+ 	/* add attributes here, update the policy in nl80211.c */
+ 
+ 	__NL80211_ATTR_AFTER_LAST,
+@@ -4335,8 +4327,6 @@ enum nl80211_wmm_rule {
+  *	otherwise completely disabled.
+  * @NL80211_FREQUENCY_ATTR_ALLOW_6GHZ_VLP_AP: This channel can be used for a
+  *	very low power (VLP) AP, despite being NO_IR.
+- * @NL80211_FREQUENCY_ATTR_ALLOW_20MHZ_ACTIVITY: This channel can be active in
+- *	20 MHz bandwidth, despite being NO_IR.
+  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
+  *	currently defined
+  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
+@@ -4381,7 +4371,6 @@ enum nl80211_frequency_attr {
+ 	NL80211_FREQUENCY_ATTR_NO_6GHZ_AFC_CLIENT,
+ 	NL80211_FREQUENCY_ATTR_CAN_MONITOR,
+ 	NL80211_FREQUENCY_ATTR_ALLOW_6GHZ_VLP_AP,
+-	NL80211_FREQUENCY_ATTR_ALLOW_20MHZ_ACTIVITY,
+ 
+ 	/* keep last */
+ 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
+@@ -4593,34 +4582,31 @@ enum nl80211_sched_scan_match_attr {
+  * @NL80211_RRF_NO_6GHZ_AFC_CLIENT: Client connection to AFC AP not allowed
+  * @NL80211_RRF_ALLOW_6GHZ_VLP_AP: Very low power (VLP) AP can be permitted
+  *	despite NO_IR configuration.
+- * @NL80211_RRF_ALLOW_20MHZ_ACTIVITY: Allow activity in 20 MHz bandwidth,
+- *	despite NO_IR configuration.
+  */
+ enum nl80211_reg_rule_flags {
+-	NL80211_RRF_NO_OFDM                 = 1 << 0,
+-	NL80211_RRF_NO_CCK                  = 1 << 1,
+-	NL80211_RRF_NO_INDOOR               = 1 << 2,
+-	NL80211_RRF_NO_OUTDOOR              = 1 << 3,
+-	NL80211_RRF_DFS                     = 1 << 4,
+-	NL80211_RRF_PTP_ONLY                = 1 << 5,
+-	NL80211_RRF_PTMP_ONLY               = 1 << 6,
+-	NL80211_RRF_NO_IR                   = 1 << 7,
+-	__NL80211_RRF_NO_IBSS               = 1 << 8,
+-	NL80211_RRF_AUTO_BW                 = 1 << 11,
+-	NL80211_RRF_IR_CONCURRENT           = 1 << 12,
+-	NL80211_RRF_NO_HT40MINUS            = 1 << 13,
+-	NL80211_RRF_NO_HT40PLUS             = 1 << 14,
+-	NL80211_RRF_NO_80MHZ                = 1 << 15,
+-	NL80211_RRF_NO_160MHZ               = 1 << 16,
+-	NL80211_RRF_NO_HE                   = 1 << 17,
+-	NL80211_RRF_NO_320MHZ               = 1 << 18,
+-	NL80211_RRF_NO_EHT                  = 1 << 19,
+-	NL80211_RRF_PSD                     = 1 << 20,
+-	NL80211_RRF_DFS_CONCURRENT          = 1 << 21,
+-	NL80211_RRF_NO_6GHZ_VLP_CLIENT      = 1 << 22,
+-	NL80211_RRF_NO_6GHZ_AFC_CLIENT      = 1 << 23,
+-	NL80211_RRF_ALLOW_6GHZ_VLP_AP       = 1 << 24,
+-	NL80211_RRF_ALLOW_20MHZ_ACTIVITY    = 1 << 25,
++	NL80211_RRF_NO_OFDM		= 1<<0,
++	NL80211_RRF_NO_CCK		= 1<<1,
++	NL80211_RRF_NO_INDOOR		= 1<<2,
++	NL80211_RRF_NO_OUTDOOR		= 1<<3,
++	NL80211_RRF_DFS			= 1<<4,
++	NL80211_RRF_PTP_ONLY		= 1<<5,
++	NL80211_RRF_PTMP_ONLY		= 1<<6,
++	NL80211_RRF_NO_IR		= 1<<7,
++	__NL80211_RRF_NO_IBSS		= 1<<8,
++	NL80211_RRF_AUTO_BW		= 1<<11,
++	NL80211_RRF_IR_CONCURRENT	= 1<<12,
++	NL80211_RRF_NO_HT40MINUS	= 1<<13,
++	NL80211_RRF_NO_HT40PLUS		= 1<<14,
++	NL80211_RRF_NO_80MHZ		= 1<<15,
++	NL80211_RRF_NO_160MHZ		= 1<<16,
++	NL80211_RRF_NO_HE		= 1<<17,
++	NL80211_RRF_NO_320MHZ		= 1<<18,
++	NL80211_RRF_NO_EHT		= 1<<19,
++	NL80211_RRF_PSD			= 1<<20,
++	NL80211_RRF_DFS_CONCURRENT	= 1<<21,
++	NL80211_RRF_NO_6GHZ_VLP_CLIENT	= 1<<22,
++	NL80211_RRF_NO_6GHZ_AFC_CLIENT	= 1<<23,
++	NL80211_RRF_ALLOW_6GHZ_VLP_AP	= 1<<24,
+ };
+ 
+ #define NL80211_RRF_PASSIVE_SCAN	NL80211_RRF_NO_IR
+@@ -4741,8 +4727,8 @@ enum nl80211_survey_info {
+  * @NL80211_MNTR_FLAG_PLCPFAIL: pass frames with bad PLCP
+  * @NL80211_MNTR_FLAG_CONTROL: pass control frames
+  * @NL80211_MNTR_FLAG_OTHER_BSS: disable BSSID filtering
+- * @NL80211_MNTR_FLAG_COOK_FRAMES: deprecated
+- *	will unconditionally be refused
++ * @NL80211_MNTR_FLAG_COOK_FRAMES: report frames after processing.
++ *	overrides all other flags.
+  * @NL80211_MNTR_FLAG_ACTIVE: use the configured MAC address
+  *	and ACK incoming unicast packets.
+  * @NL80211_MNTR_FLAG_SKIP_TX: do not pass local tx packets
+@@ -8036,11 +8022,6 @@ enum nl80211_sar_specs_attrs {
+  *	Setting this flag is permitted only if the driver advertises EMA support
+  *	by setting wiphy->ema_max_profile_periodicity to non-zero.
+  *
+- * @NL80211_MBSSID_CONFIG_ATTR_TX_LINK_ID: Link ID of the transmitted profile.
+- *	This parameter is mandatory when NL80211_ATTR_MBSSID_CONFIG attributes
+- *	are sent for a non-transmitted profile and if the transmitted profile
+- *	is part of an MLD. For all other cases this parameter is unnecessary.
+- *
+  * @__NL80211_MBSSID_CONFIG_ATTR_LAST: Internal
+  * @NL80211_MBSSID_CONFIG_ATTR_MAX: highest attribute
+  */
+@@ -8052,7 +8033,6 @@ enum nl80211_mbssid_config_attributes {
+ 	NL80211_MBSSID_CONFIG_ATTR_INDEX,
+ 	NL80211_MBSSID_CONFIG_ATTR_TX_IFINDEX,
+ 	NL80211_MBSSID_CONFIG_ATTR_EMA,
+-	NL80211_MBSSID_CONFIG_ATTR_TX_LINK_ID,
+ 
+ 	/* keep last */
+ 	__NL80211_MBSSID_CONFIG_ATTR_LAST,
+diff --git a/src/p2p/p2p.c b/src/p2p/p2p.c
+index bd113ee20..b598a7856 100644
+--- a/src/p2p/p2p.c
++++ b/src/p2p/p2p.c
+@@ -6453,10 +6453,6 @@ void p2p_pasn_initialize(struct p2p_data *p2p, struct p2p_device *dev,
+ 					 dev->password);
+ 	} else if (verify) {
+ 		pasn->akmp = WPA_KEY_MGMT_SAE;
+-		if (p2p->cfg->set_pmksa)
+-			p2p->cfg->set_pmksa(p2p->cfg->cb_ctx,
+-					    dev->info.p2p_device_addr,
+-					    dev->info.dik_id);
+ 	} else {
+ 		pasn->akmp = WPA_KEY_MGMT_PASN;
+ 	}
+@@ -6778,12 +6774,6 @@ static int p2p_pasn_handle_action_wrapper(struct p2p_data *p2p,
+ 					      msg.dira_len)) {
+ 				struct wpa_ie_data rsn_data;
+ 
+-				if (p2p->cfg->set_pmksa)
+-					p2p->cfg->set_pmksa(
+-						p2p->cfg->cb_ctx,
+-						dev->info.p2p_device_addr,
+-						dev->info.dik_id);
+-
+ 				if (wpa_parse_wpa_ie_rsn(elems.rsn_ie - 2,
+ 							 elems.rsn_ie_len + 2,
+ 							 &rsn_data) == 0 &&
+@@ -7265,11 +7255,8 @@ int p2p_pasn_auth_rx(struct p2p_data *p2p, const struct ieee80211_mgmt *mgmt,
+ 	}
+ 
+ 	if (!dev->pasn) {
+-		dev->pasn = pasn_data_init();
+-		if (!dev->pasn) {
+-			p2p_dbg(p2p, "PASN: Uninitialized");
+-			return -1;
+-		}
++		p2p_dbg(p2p, "PASN: Uninitialized");
++		return -1;
+ 	}
+ 
+ 	pasn = dev->pasn;
+diff --git a/src/p2p/p2p.h b/src/p2p/p2p.h
+index 6f509d770..d0ecbd8fb 100644
+--- a/src/p2p/p2p.h
++++ b/src/p2p/p2p.h
+@@ -1380,24 +1380,14 @@ struct p2p_config {
+ 	 * @dira_tag: DIRA Tag
+ 	 * Returns: Identity block ID on success, 0 on failure
+ 	 *
+-	 * This function can be used to validate DIRA.
++	 * This function can be used to validate DIRA and configure PMK of a
++	 * paired/persistent peer from configuration. The handler function is
++	 * expected to call p2p_pasn_pmksa_set_pmk() to set the PMK/PMKID in
++	 * case a matching entry is found.
+ 	 */
+ 	int (*validate_dira)(void *ctx, const u8 *peer_addr,
+ 			     const u8 *dira_nonce, const u8 *dira_tag);
+ 
+-	/**
+-	 * set_pmksa - Configure PMK of a paired/persistent peer from
+-	 *	configuration
+-	 * @ctx: Callback context from cb_ctx
+-	 * @peer_addr: P2P Device address of the peer
+-	 * @dik_id: Identity block ID
+-	 * Returns: 0 on success
+-	 *
+-	 * It is expected to call p2p_pasn_pmksa_set_pmk() to set the PMK/PMKID
+-	 * for given dik_id.
+-	 */
+-	int (*set_pmksa)(void *ctx, const u8 *peer_addr, int dik_id);
+-
+ 	/**
+ 	 * pasn_send_mgmt - Function handler to transmit a Management frame
+ 	 * @ctx: Callback context from cb_ctx
+diff --git a/tests/hwsim/test_ap_mixed.py b/tests/hwsim/test_ap_mixed.py
+index 9fefac958..45c14f962 100644
+--- a/tests/hwsim/test_ap_mixed.py
++++ b/tests/hwsim/test_ap_mixed.py
+@@ -100,23 +100,3 @@ def test_ap_mixed_security(dev, apdev):
+         raise Exception("Unexpected key_mgmt(2c)")
+     if sae and dev[2].get_status_field("key_mgmt") != "FT-SAE":
+         raise Exception("Unexpected key_mgmt(3c)")
+-
+-def test_ap_mixed_security_wpa_sae(dev, apdev):
+-    """WPAv1(PSK-CCMP) and WPA3(SAE-CCMP) in a single BSS"""
+-    check_sae_capab(dev[0])
+-    ssid = "test-mixed"
+-    passphrase = 'qwertyuiop'
+-    params = hostapd.wpa_mixed_params(ssid=ssid, passphrase=passphrase)
+-    params['wpa_key_mgmt'] = "WPA-PSK SAE"
+-    params['wpa_pairwise'] = "CCMP"
+-    params['rsn_pairwise'] = "CCMP"
+-    # Remove WPA-PSK from RSNE
+-    rsne = "30140100000fac040100000fac040100000fac080c00"
+-    wpaie = "dd160050f20101000050f20401000050f20401000050f202"
+-    params['own_ie_override'] = rsne + wpaie
+-    hapd = hostapd.add_ap(apdev[0], params)
+-
+-    dev[0].set("sae_groups", "")
+-    dev[0].connect(ssid, psk=passphrase, key_mgmt="SAE", scan_freq="2412")
+-    dev[1].connect(ssid, key_mgmt="WPA-PSK", proto="WPA",
+-                   psk=passphrase, scan_freq="2412")
+diff --git a/wlantest/rx_eapol.c b/wlantest/rx_eapol.c
+index 75e29863d..dd58ae521 100644
+--- a/wlantest/rx_eapol.c
++++ b/wlantest/rx_eapol.c
+@@ -1683,9 +1683,9 @@ void rx_data_eapol(struct wlantest *wt, const u8 *bssid, const u8 *sta_addr,
+ 	hdr = (const struct ieee802_1x_hdr *) data;
+ 	length = be_to_host16(hdr->length);
+ 	wpa_printf(MSG_DEBUG, "RX EAPOL: " MACSTR " -> " MACSTR "%s ver=%u "
+-		   "type=%u len=%u #%u",
++		   "type=%u len=%u",
+ 		   MAC2STR(src), MAC2STR(dst), prot ? " Prot" : "",
+-		   hdr->version, hdr->type, length, wt->frame_num);
++		   hdr->version, hdr->type, length);
+ 	if (hdr->version < 1 || hdr->version > 3) {
+ 		wpa_printf(MSG_INFO, "Unexpected EAPOL version %u from "
+ 			   MACSTR, hdr->version, MAC2STR(src));
+diff --git a/wlantest/rx_mgmt.c b/wlantest/rx_mgmt.c
+index 47dbc6009..1c9309488 100644
+--- a/wlantest/rx_mgmt.c
++++ b/wlantest/rx_mgmt.c
+@@ -3950,13 +3950,12 @@ void rx_mgmt(struct wlantest *wt, const u8 *data, size_t len)
+ 		    stype == WLAN_FC_STYPE_PROBE_RESP ||
+ 		    stype == WLAN_FC_STYPE_PROBE_REQ) ?
+ 		   MSG_EXCESSIVE : MSG_MSGDUMP,
+-		   "MGMT %s%s%s DA=" MACSTR " SA=" MACSTR " BSSID=" MACSTR
+-		   " #%u",
++		   "MGMT %s%s%s DA=" MACSTR " SA=" MACSTR " BSSID=" MACSTR,
+ 		   mgmt_stype(stype),
+ 		   fc & WLAN_FC_PWRMGT ? " PwrMgt" : "",
+ 		   fc & WLAN_FC_ISWEP ? " Prot" : "",
+ 		   MAC2STR(hdr->addr1), MAC2STR(hdr->addr2),
+-		   MAC2STR(hdr->addr3), wt->frame_num);
++		   MAC2STR(hdr->addr3));
+ 
+ 	if ((fc & WLAN_FC_ISWEP) &&
+ 	    !(hdr->addr1[0] & 0x01) &&
+diff --git a/wlantest/sta.c b/wlantest/sta.c
+index 6e5411937..7bc96f722 100644
+--- a/wlantest/sta.c
++++ b/wlantest/sta.c
+@@ -232,7 +232,7 @@ skip_rsn_wpa:
+ 	wpa_printf(MSG_INFO, "STA " MACSTR
+ 		   " proto=%s%s%s"
+ 		   "pairwise=%s%s%s%s%s%s%s"
+-		   "key_mgmt=%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
++		   "key_mgmt=%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+ 		   "rsn_capab=%s%s%s%s%s%s%s%s%s%s",
+ 		   MAC2STR(sta->addr),
+ 		   sta->proto == 0 ? "OPEN " : "",
+@@ -257,16 +257,6 @@ skip_rsn_wpa:
+ 		   "EAP-SHA256 " : "",
+ 		   sta->key_mgmt & WPA_KEY_MGMT_PSK_SHA256 ?
+ 		   "PSK-SHA256 " : "",
+-		   sta->key_mgmt & WPA_KEY_MGMT_SAE ? "SAE " : "",
+-		   sta->key_mgmt & WPA_KEY_MGMT_FT_SAE ? "FT-SAE " : "",
+-		   sta->key_mgmt & WPA_KEY_MGMT_FILS_SHA256 ? "FILS-SHA256 " :
+-		   "",
+-		   sta->key_mgmt & WPA_KEY_MGMT_FILS_SHA384 ? "FILS-SHA384 " :
+-		   "",
+-		   sta->key_mgmt & WPA_KEY_MGMT_FT_FILS_SHA256 ?
+-		   "FILS-FT-SHA256 " : "",
+-		   sta->key_mgmt & WPA_KEY_MGMT_FT_FILS_SHA384 ?
+-		   "FILS-FT-SHA384 " : "",
+ 		   sta->key_mgmt & WPA_KEY_MGMT_OWE ? "OWE " : "",
+ 		   sta->key_mgmt & WPA_KEY_MGMT_PASN ? "PASN " : "",
+ 		   sta->key_mgmt & WPA_KEY_MGMT_DPP ? "DPP " : "",
+@@ -276,12 +266,6 @@ skip_rsn_wpa:
+ 		   "EAP-SUITE-B-192 " : "",
+ 		   sta->key_mgmt & WPA_KEY_MGMT_IEEE8021X_SHA384 ?
+ 		   "EAP-SHA384 " : "",
+-		   sta->key_mgmt & WPA_KEY_MGMT_FT_IEEE8021X_SHA384 ?
+-		   "FT-EAP-SHA384 " : "",
+-		   sta->key_mgmt & WPA_KEY_MGMT_SAE_EXT_KEY ? "SAE-EXT-KEY " :
+-		   "",
+-		   sta->key_mgmt & WPA_KEY_MGMT_FT_SAE_EXT_KEY ?
+-		   "FT-SAE-EXT-KEY " : "",
+ 		   sta->rsn_capab & WPA_CAPABILITY_PREAUTH ? "PREAUTH " : "",
+ 		   sta->rsn_capab & WPA_CAPABILITY_NO_PAIRWISE ?
+ 		   "NO_PAIRWISE " : "",
+diff --git a/wpa_supplicant/ctrl_iface.c b/wpa_supplicant/ctrl_iface.c
+index 97d9ae1f0..3892df99d 100644
+--- a/wpa_supplicant/ctrl_iface.c
++++ b/wpa_supplicant/ctrl_iface.c
+@@ -7365,18 +7365,7 @@ static int p2p_ctrl_group_add(struct wpa_supplicant *wpa_s, char *cmd)
+ 
+ #ifdef CONFIG_ACS
+ 	if ((wpa_s->drv_flags & WPA_DRIVER_FLAGS_ACS_OFFLOAD) &&
+-	    (freq == 2 || freq == 5)) {
+-		unsigned int res, size = P2P_MAX_PREF_CHANNELS;
+-		struct weighted_pcl pref_freq_list[P2P_MAX_PREF_CHANNELS];
+-
+-		acs = 1;
+-		res = wpa_drv_get_pref_freq_list(wpa_s, WPA_IF_P2P_GO,
+-						 &size, pref_freq_list);
+-		if (!res && size > 0)
+-			acs = 0;
+-	}
+-
+-	if ((wpa_s->drv_flags & WPA_DRIVER_FLAGS_ACS_OFFLOAD) && acs) {
++	    (acs || freq == 2 || freq == 5)) {
+ 		if (freq == 2 && wpa_s->best_24_freq <= 0) {
+ 			wpa_s->p2p_go_acs_band = HOSTAPD_MODE_IEEE80211G;
+ 			wpa_s->p2p_go_do_acs = 1;
+@@ -10781,7 +10770,7 @@ static void wpas_ctrl_neighbor_rep_cb(void *ctx, struct wpabuf *neighbor_rep)
+ 	const u8 *data;
+ 
+ 	/*
+-	 * Neighbor Report element (IEEE Std 802.11-2024, 9.4.2.35)
++	 * Neighbor Report element (IEEE P802.11-REVmc/D5.0)
+ 	 * BSSID[6]
+ 	 * BSSID Information[4]
+ 	 * Operating Class[1]
+diff --git a/wpa_supplicant/nan_usd.c b/wpa_supplicant/nan_usd.c
+index b2d195ca7..946d62fb3 100644
+--- a/wpa_supplicant/nan_usd.c
++++ b/wpa_supplicant/nan_usd.c
+@@ -271,15 +271,6 @@ static void wpas_nan_de_publish_terminated(void *ctx, int publish_id,
+ }
+ 
+ 
+-static void wpas_nan_usd_offload_cancel_publish(void *ctx, int publish_id)
+-{
+-	struct wpa_supplicant *wpa_s = ctx;
+-
+-	if (wpa_s->drv_flags2 & WPA_DRIVER_FLAGS2_NAN_OFFLOAD)
+-		wpas_drv_nan_cancel_publish(wpa_s, publish_id);
+-}
+-
+-
+ static void wpas_nan_de_subscribe_terminated(void *ctx, int subscribe_id,
+ 					     enum nan_de_reason reason)
+ {
+@@ -289,15 +280,6 @@ static void wpas_nan_de_subscribe_terminated(void *ctx, int subscribe_id,
+ }
+ 
+ 
+-static void wpas_nan_usd_offload_cancel_subscribe(void *ctx, int subscribe_id)
+-{
+-	struct wpa_supplicant *wpa_s = ctx;
+-
+-	if (wpa_s->drv_flags2 & WPA_DRIVER_FLAGS2_NAN_OFFLOAD)
+-		wpas_drv_nan_cancel_subscribe(wpa_s, subscribe_id);
+-}
+-
+-
+ static void wpas_nan_de_receive(void *ctx, int id, int peer_instance_id,
+ 				const u8 *ssi, size_t ssi_len,
+ 				const u8 *peer_addr)
+@@ -334,8 +316,6 @@ int wpas_nan_usd_init(struct wpa_supplicant *wpa_s)
+ 	cb.replied = wpas_nan_de_replied;
+ 	cb.publish_terminated = wpas_nan_de_publish_terminated;
+ 	cb.subscribe_terminated = wpas_nan_de_subscribe_terminated;
+-	cb.offload_cancel_publish = wpas_nan_usd_offload_cancel_publish;
+-	cb.offload_cancel_subscribe = wpas_nan_usd_offload_cancel_subscribe;
+ 	cb.receive = wpas_nan_de_receive;
+ #ifdef CONFIG_P2P
+ 	cb.process_p2p_usd_elems = wpas_nan_process_p2p_usd_elems;
+diff --git a/wpa_supplicant/p2p_supplicant.c b/wpa_supplicant/p2p_supplicant.c
+index 2090dde02..6d2551b89 100644
+--- a/wpa_supplicant/p2p_supplicant.c
++++ b/wpa_supplicant/p2p_supplicant.c
+@@ -5525,27 +5525,6 @@ static void wpas_bootstrap_rsp_rx(void *ctx, const u8 *addr,
+ }
+ 
+ 
+-static int wpas_set_pmksa(void *ctx, const u8 *peer_addr, int dik_id)
+-{
+-	struct wpa_supplicant *wpa_s = ctx;
+-	struct wpa_dev_ik *ik;
+-
+-	for (ik = wpa_s->conf->identity; ik; ik = ik->next) {
+-		if (ik->id == dik_id)
+-			break;
+-	}
+-	if (!ik)
+-		return -1;
+-#ifdef CONFIG_PASN
+-	p2p_pasn_pmksa_set_pmk(wpa_s->global->p2p, wpa_s->global->p2p_dev_addr,
+-			       peer_addr,
+-			       wpabuf_head(ik->pmk), wpabuf_len(ik->pmk),
+-			       wpabuf_head(ik->pmkid));
+-#endif /* CONFIG_PASN */
+-	return 0;
+-}
+-
+-
+ static int wpas_validate_dira(void *ctx, const u8 *peer_addr,
+ 			      const u8 *dira_nonce, const u8 *dira_tag)
+ {
+@@ -5587,6 +5566,13 @@ static int wpas_validate_dira(void *ctx, const u8 *peer_addr,
+ 	if (!ik)
+ 		return 0;
+ 
++#ifdef CONFIG_PASN
++	p2p_pasn_pmksa_set_pmk(wpa_s->global->p2p, wpa_s->global->p2p_dev_addr,
++			       peer_addr,
++			       wpabuf_head(ik->pmk), wpabuf_len(ik->pmk),
++			       wpabuf_head(ik->pmkid));
++#endif /* CONFIG_PASN */
++
+ 	return ik->id;
+ }
+ 
+@@ -5811,7 +5797,6 @@ int wpas_p2p_init(struct wpa_global *global, struct wpa_supplicant *wpa_s)
+ 	p2p.bootstrap_req_rx = wpas_bootstrap_req_rx;
+ 	p2p.bootstrap_rsp_rx = wpas_bootstrap_rsp_rx;
+ 	p2p.validate_dira = wpas_validate_dira;
+-	p2p.set_pmksa = wpas_set_pmksa;
+ #ifdef CONFIG_PASN
+ 	p2p.pasn_send_mgmt = wpas_p2p_pasn_send_mgmt;
+ 	p2p.prepare_data_element = wpas_p2p_prepare_data_element;
+@@ -5963,8 +5948,6 @@ int wpas_p2p_init(struct wpa_global *global, struct wpa_supplicant *wpa_s)
+ 
+ 	p2p.pairing_config.enable_pairing_setup =
+ 		wpa_s->conf->p2p_pairing_setup;
+-	p2p.pairing_config.pairing_capable =
+-		wpa_s->conf->p2p_pairing_setup;
+ 	p2p.pairing_config.enable_pairing_cache =
+ 		wpa_s->conf->p2p_pairing_cache;
+ 	p2p.pairing_config.bootstrap_methods =
+@@ -7318,11 +7301,13 @@ int wpas_p2p_group_remove(struct wpa_supplicant *wpa_s, const char *ifname)
+ 
+ static int wpas_p2p_select_go_freq(struct wpa_supplicant *wpa_s, int freq)
+ {
+-	unsigned int r, i, size = P2P_MAX_PREF_CHANNELS;
+-	struct weighted_pcl pref_freq_list[P2P_MAX_PREF_CHANNELS];
+-	int res = -1;
++	unsigned int r;
+ 
+ 	if (!wpa_s->conf->num_p2p_pref_chan && !freq) {
++		unsigned int i, size = P2P_MAX_PREF_CHANNELS;
++		struct weighted_pcl pref_freq_list[P2P_MAX_PREF_CHANNELS];
++		int res;
++
+ 		res = wpa_drv_get_pref_freq_list(wpa_s, WPA_IF_P2P_GO,
+ 						 &size, pref_freq_list);
+ 		if (!res && size > 0 && !is_p2p_allow_6ghz(wpa_s->global->p2p))
+@@ -7358,13 +7343,6 @@ static int wpas_p2p_select_go_freq(struct wpa_supplicant *wpa_s, int freq)
+ 		}
+ 	}
+ 
+-	if (freq == 2 || freq == 5 || freq == 6) {
+-		res = wpa_drv_get_pref_freq_list(wpa_s, WPA_IF_P2P_GO,
+-						 &size, pref_freq_list);
+-		if (!res && size > 0 && !is_p2p_allow_6ghz(wpa_s->global->p2p))
+-			size = p2p_remove_6ghz_channels(pref_freq_list, size);
+-	}
+-
+ 	if (freq == 2) {
+ 		wpa_printf(MSG_DEBUG, "P2P: Request to start GO on 2.4 GHz "
+ 			   "band");
+@@ -7374,28 +7352,6 @@ static int wpas_p2p_select_go_freq(struct wpa_supplicant *wpa_s, int freq)
+ 			freq = wpa_s->best_24_freq;
+ 			wpa_printf(MSG_DEBUG, "P2P: Use best 2.4 GHz band "
+ 				   "channel: %d MHz", freq);
+-		} else if (!res && size > 0) {
+-			for (i = 0; i < size; i++) {
+-				freq = pref_freq_list[i].freq;
+-				if (is_24ghz_freq(freq) &&
+-				    p2p_supported_freq(wpa_s->global->p2p,
+-						       freq) &&
+-				    !wpas_p2p_disallowed_freq(wpa_s->global,
+-							      freq) &&
+-				    p2p_pref_freq_allowed(&pref_freq_list[i],
+-							  true))
+-					break;
+-			}
+-
+-			if (i >= size) {
+-				wpa_printf(MSG_DEBUG,
+-					   "P2P: Could not select 2.4 GHz channel for P2P group");
+-				return -1;
+-			}
+-
+-			wpa_printf(MSG_DEBUG,
+-				   "P2P: Use preferred 2.4 GHz band channel: %d MHz",
+-				   freq);
+ 		} else {
+ 			if (os_get_random((u8 *) &r, sizeof(r)) < 0)
+ 				return -1;
+@@ -7414,27 +7370,6 @@ static int wpas_p2p_select_go_freq(struct wpa_supplicant *wpa_s, int freq)
+ 			freq = wpa_s->best_5_freq;
+ 			wpa_printf(MSG_DEBUG, "P2P: Use best 5 GHz band "
+ 				   "channel: %d MHz", freq);
+-		} else if (!res && size > 0) {
+-			for (i = 0; i < size; i++) {
+-				freq = pref_freq_list[i].freq;
+-				if (is_5ghz_freq(freq) &&
+-				    p2p_supported_freq(wpa_s->global->p2p,
+-						       freq) &&
+-				    !wpas_p2p_disallowed_freq(wpa_s->global,
+-							      freq) &&
+-				    p2p_pref_freq_allowed(&pref_freq_list[i],
+-							  true))
+-					break;
+-			}
+-
+-			if (i >= size) {
+-				wpa_printf(MSG_DEBUG,
+-					   "P2P: Could not select 5 GHz channel for P2P group");
+-				return -1;
+-			}
+-			wpa_printf(MSG_DEBUG,
+-				   "P2P: Use preferred 5 GHz band channel: %d MHz",
+-				   freq);
+ 		} else {
+ 			const int freqs[] = {
+ 				/* operating class 115 */
+@@ -7442,7 +7377,7 @@ static int wpas_p2p_select_go_freq(struct wpa_supplicant *wpa_s, int freq)
+ 				/* operating class 124 */
+ 				5745, 5765, 5785, 5805,
+ 			};
+-			unsigned int num_freqs = ARRAY_SIZE(freqs);
++			unsigned int i, num_freqs = ARRAY_SIZE(freqs);
+ 
+ 			if (os_get_random((u8 *) &r, sizeof(r)) < 0)
+ 				return -1;
+@@ -7471,36 +7406,6 @@ static int wpas_p2p_select_go_freq(struct wpa_supplicant *wpa_s, int freq)
+ 		}
+ 	}
+ 
+-	if (freq == 6) {
+-		wpa_printf(MSG_DEBUG, "P2P: Request to start GO on 6 GHz band");
+-		if (!res && size > 0) {
+-			for (i = 0; i < size; i++) {
+-				freq = pref_freq_list[i].freq;
+-				if (is_6ghz_freq(freq) &&
+-				    p2p_supported_freq(wpa_s->global->p2p,
+-						       freq) &&
+-				    !wpas_p2p_disallowed_freq(wpa_s->global,
+-							      freq) &&
+-				    p2p_pref_freq_allowed(&pref_freq_list[i],
+-							  true))
+-					break;
+-			}
+-
+-			if (i >= size) {
+-				wpa_printf(MSG_DEBUG,
+-					   "P2P: Could not select 6 GHz channel for P2P group");
+-				return -1;
+-			}
+-
+-			wpa_printf(MSG_DEBUG,
+-				   "P2P: Use preferred 6 GHz band channel: %d MHz",
+-				   freq);
+-		} else {
+-			wpa_printf(MSG_DEBUG,
+-				   "P2P: No preferred 6 GHz channel available");
+-		}
+-	}
+-
+ 	if (freq > 0 && !p2p_supported_freq_go(wpa_s->global->p2p, freq)) {
+ 		if ((wpa_s->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD) &&
+ 		    ieee80211_is_dfs(freq, wpa_s->hw.modes,
+@@ -11583,8 +11488,6 @@ int wpas_p2p_pasn_auth_rx(struct wpa_supplicant *wpa_s,
+ 
+ 	if (wpa_s->global->p2p_disabled || !p2p)
+ 		return -2;
+-
+-	wpa_s->p2p2 = true;
+ 	return p2p_pasn_auth_rx(p2p, mgmt, len, freq);
+ }
+ 
+diff --git a/wpa_supplicant/rrm.c b/wpa_supplicant/rrm.c
+index 88241e736..2ec43105c 100644
+--- a/wpa_supplicant/rrm.c
++++ b/wpa_supplicant/rrm.c
+@@ -198,8 +198,7 @@ int wpas_rrm_send_neighbor_rep_request(struct wpa_supplicant *wpa_s,
+ 	}
+ 
+ 	if (lci) {
+-		/* IEEE Std 802.11-2024, 9.4.2.19 (Measurement Request element)
+-		 */
++		/* IEEE P802.11-REVmc/D5.0 9.4.2.21 */
+ 		wpabuf_put_u8(buf, WLAN_EID_MEASURE_REQUEST);
+ 		wpabuf_put_u8(buf, MEASURE_REQUEST_LCI_LEN);
+ 
+@@ -216,14 +215,13 @@ int wpas_rrm_send_neighbor_rep_request(struct wpa_supplicant *wpa_s,
+ 		wpabuf_put_u8(buf, 0); /* Measurement Request Mode */
+ 		wpabuf_put_u8(buf, MEASURE_TYPE_LCI); /* Measurement Type */
+ 
+-		/* IEEE Std 802.11-2024, 9.4.2.19.10 (LCI request) */
++		/* IEEE P802.11-REVmc/D5.0 9.4.2.21.10 - LCI request */
+ 		/* Location Subject */
+ 		wpabuf_put_u8(buf, LOCATION_SUBJECT_REMOTE);
+ 
+ 		/* Optional Subelements */
+ 		/*
+-		 * IEEE Std 802.11-2024, Figure 9-265 (Maximum Age subelement
+-		 * format)
++		 * IEEE P802.11-REVmc/D5.0 Figure 9-170
+ 		 * The Maximum Age subelement is required, otherwise the AP can
+ 		 * send only data that was determined after receiving the
+ 		 * request. Setting it here to unlimited age.
+@@ -234,8 +232,7 @@ int wpas_rrm_send_neighbor_rep_request(struct wpa_supplicant *wpa_s,
+ 	}
+ 
+ 	if (civic) {
+-		/* IEEE Std 802.11-2024, 9.4.2.19 (Measurement Request element)
+-		 */
++		/* IEEE P802.11-REVmc/D5.0 9.4.2.21 */
+ 		wpabuf_put_u8(buf, WLAN_EID_MEASURE_REQUEST);
+ 		wpabuf_put_u8(buf, MEASURE_REQUEST_CIVIC_LEN);
+ 
+@@ -253,7 +250,8 @@ int wpas_rrm_send_neighbor_rep_request(struct wpa_supplicant *wpa_s,
+ 		/* Measurement Type */
+ 		wpabuf_put_u8(buf, MEASURE_TYPE_LOCATION_CIVIC);
+ 
+-		/* IEEE Std 802.11-2024, 9.4.2.19.14 (Location Civic request) */
++		/* IEEE P802.11-REVmc/D5.0 9.4.2.21.14:
++		 * Location Civic request */
+ 		/* Location Subject */
+ 		wpabuf_put_u8(buf, LOCATION_SUBJECT_REMOTE);
+ 		wpabuf_put_u8(buf, 0); /* Civic Location Type: IETF RFC 4776 */
+diff --git a/wpa_supplicant/scan.c b/wpa_supplicant/scan.c
+index a4824678d..ccedcc954 100644
+--- a/wpa_supplicant/scan.c
++++ b/wpa_supplicant/scan.c
+@@ -2802,138 +2802,6 @@ static const struct minsnr_bitrate_entry he160_table[] = {
+ 	{ -1, 1441200 }  /* SNR > 51 */
+ };
+ 
+-/* See IEEE P802.11be/D7.0, Table 36-78 - EHT-MCSs for 484+242-tone MRU,
+- * NSS,u = 1
+- */
+-static const struct minsnr_bitrate_entry eht60_table[] = {
+-	{ 0, 0 },
+-	{ 8, 25800 },   /* EHT80 with 20 MHz punctured MCS0 */
+-	{ 11, 51600 },  /* EHT80 with 20 MHz punctured MCS1 */
+-	{ 15, 77400 },  /* EHT80 with 20 MHz punctured MCS2 */
+-	{ 17, 103200 }, /* EHT80 with 20 MHz punctured MCS3 */
+-	{ 21, 154900 }, /* EHT80 with 20 MHz punctured MCS4 */
+-	{ 24, 206500 }, /* EHT80 with 20 MHz punctured MCS5 */
+-	{ 26, 232300 }, /* EHT80 with 20 MHz punctured MCS6 */
+-	{ 31, 258100 }, /* EHT80 with 20 MHz punctured MCS7 */
+-	{ 35, 309700 }, /* EHT80 with 20 MHz punctured MCS8 */
+-	{ 37, 344100 }, /* EHT80 with 20 MHz punctured MCS9 */
+-	{ 40, 387100 }, /* EHT80 with 20 MHz punctured MCS10 */
+-	{ 42, 430100 }, /* EHT80 with 20 MHz punctured MCS11 */
+-	{ 45, 464600 }, /* EHT80 with 20 MHz punctured MCS12 */
+-	{ 48, 516200 }, /* EHT80 with 20 MHz punctured MCS13 */
+-	{ -1, 516200 }  /* SNR > 48 */
+-};
+-
+-/* See IEEE P802.11be/D7.0, Table 36-80 - EHT-MCSs for 996+484-tone MRU,
+- * NSS,u = 1
+- */
+-static const struct minsnr_bitrate_entry eht120_table[] = {
+-	{ 0, 0 },
+-	{ 11, 53200 },   /* EHT160 with 40 MHz punctured MCS0 */
+-	{ 14, 106500 },  /* EHT160 with 40 MHz punctured MCS1 */
+-	{ 18, 159700 },  /* EHT160 with 40 MHz punctured MCS2 */
+-	{ 20, 212900 },  /* EHT160 with 40 MHz punctured MCS3 */
+-	{ 24, 319400 },  /* EHT160 with 40 MHz punctured MCS4 */
+-	{ 27, 425900 },  /* EHT160 with 40 MHz punctured MCS5 */
+-	{ 29, 479100 },  /* EHT160 with 40 MHz punctured MCS6 */
+-	{ 34, 532400 },  /* EHT160 with 40 MHz punctured MCS7 */
+-	{ 38, 638800 },  /* EHT160 with 40 MHz punctured MCS8 */
+-	{ 40, 709800 },  /* EHT160 with 40 MHz punctured MCS9 */
+-	{ 43, 798500 },  /* EHT160 with 40 MHz punctured MCS10 */
+-	{ 45, 887200 },  /* EHT160 with 40 MHz punctured MCS11 */
+-	{ 48, 958200 },  /* EHT160 with 40 MHz punctured MCS12 */
+-	{ 51, 1064700 }, /* EHT160 with 40 MHz punctured MCS13 */
+-	{ -1, 1064700 }  /* SNR > 51 */
+-};
+-
+-/* See IEEE P802.11be/D7.0, Table 36-81 - EHT-MCSs for 996+484+242-tone MRU,
+- * NSS,u = 1
+- */
+-static const struct minsnr_bitrate_entry eht140_table[] = {
+-	{ 0, 0 },
+-	{ 11, 61800 },   /* EHT160 with 20 MHz punctured MCS0 */
+-	{ 14, 123700 },  /* EHT160 with 20 MHz punctured MCS1 */
+-	{ 18, 185500 },  /* EHT160 with 20 MHz punctured MCS2 */
+-	{ 20, 247400 },  /* EHT160 with 20 MHz punctured MCS3 */
+-	{ 24, 371000 },  /* EHT160 with 20 MHz punctured MCS4 */
+-	{ 27, 494700 },  /* EHT160 with 20 MHz punctured MCS5 */
+-	{ 29, 556500 },  /* EHT160 with 20 MHz punctured MCS6 */
+-	{ 34, 618400 },  /* EHT160 with 20 MHz punctured MCS7 */
+-	{ 38, 742100 },  /* EHT160 with 20 MHz punctured MCS8 */
+-	{ 40, 824500 },  /* EHT160 with 20 MHz punctured MCS9 */
+-	{ 43, 927600 },  /* EHT160 with 20 MHz punctured MCS10 */
+-	{ 45, 1030600 }, /* EHT160 with 20 MHz punctured MCS11 */
+-	{ 48, 1113100 }, /* EHT160 with 20 MHz punctured MCS12 */
+-	{ 51, 1236800 }, /* EHT160 with 20 MHz punctured MCS13 */
+-	{ -1, 1236800 }  /* SNR > 51 */
+-};
+-
+-/* See IEEE P802.11be/D7.0, Table 36-83 - EHT-MCSs for 2x996+484-tone NRU,
+- * NSS,u = 1
+- */
+-static const struct minsnr_bitrate_entry eht200_table[] = {
+-	{ 0, 0 },
+-	{ 14, 89300 },    /* EHT320 with 120 MHz punctured MCS0 */
+-	{ 17, 178500 },   /* EHT320 with 120 MHz punctured MCS1 */
+-	{ 21, 267800 },   /* EHT320 with 120 MHz punctured MCS2 */
+-	{ 23, 357100 },   /* EHT320 with 120 MHz punctured MCS3 */
+-	{ 27, 535600 },   /* EHT320 with 120 MHz punctured MCS4 */
+-	{ 30, 714100 },   /* EHT320 with 120 MHz punctured MCS5 */
+-	{ 32, 803400 },   /* EHT320 with 120 MHz punctured MCS6 */
+-	{ 37, 892600 },   /* EHT320 with 120 MHz punctured MCS7 */
+-	{ 41, 1071200 },  /* EHT320 with 120 MHz punctured MCS8 */
+-	{ 43, 1190100 },  /* EHT320 with 120 MHz punctured MCS9 */
+-	{ 46, 1339000 },  /* EHT320 with 120 MHz punctured MCS10 */
+-	{ 48, 1487700 },  /* EHT320 with 120 MHz punctured MCS11 */
+-	{ 51, 1606800 },  /* EHT320 with 120 MHz punctured MCS12 */
+-	{ 54, 1785300 },  /* EHT320 with 120 MHz punctured MCS13 */
+-	{ -1, 1785300 }   /* SNR > 54 */
+-};
+-
+-/* See IEEE P802.11be/D7.0, Table 36-84 - EHT-MCSs for 3x996-tone MRU,
+- * NSS,u = 1
+- */
+-static const struct minsnr_bitrate_entry eht240_table[] = {
+-	{ 0, 0 },
+-	{ 14, 108100 },   /* EHT320 with 80 MHz punctured MCS0 */
+-	{ 17, 216200 },   /* EHT320 with 80 MHz punctured MCS1 */
+-	{ 21, 324300 },   /* EHT320 with 80 MHz punctured MCS2 */
+-	{ 23, 432400 },   /* EHT320 with 80 MHz punctured MCS3 */
+-	{ 27, 648500 },   /* EHT320 with 80 MHz punctured MCS4 */
+-	{ 30, 864700 },   /* EHT320 with 80 MHz punctured MCS5 */
+-	{ 32, 972800 },   /* EHT320 with 80 MHz punctured MCS6 */
+-	{ 37, 1080900 },  /* EHT320 with 80 MHz punctured MCS7 */
+-	{ 41, 1297100 },  /* EHT320 with 80 MHz punctured MCS8 */
+-	{ 43, 1441200 },  /* EHT320 with 80 MHz punctured MCS9 */
+-	{ 46, 1621300 },  /* EHT320 with 80 MHz punctured MCS10 */
+-	{ 48, 1801500 },  /* EHT320 with 80 MHz punctured MCS11 */
+-	{ 51, 1945600 },  /* EHT320 with 80 MHz punctured MCS12 */
+-	{ 54, 2161800 },  /* EHT320 with 80 MHz punctured MCS13 */
+-	{ -1, 2161800 }   /* SNR > 54 */
+-};
+-
+-/* See IEEE P802.11be/D7.0, Table 36-85: EHT-MCSs for 3x996+484-tone MRU,
+- * NSS,u = 1
+- */
+-static const struct minsnr_bitrate_entry eht280_table[] = {
+-	{ 0, 0 },
+-	{ 14, 125300 },   /* EHT320 with 40 MHz punctured MCS0 */
+-	{ 17, 250600 },   /* EHT320 with 40 MHz punctured MCS1 */
+-	{ 21, 375900 },   /* EHT320 with 40 MHz punctured MCS2 */
+-	{ 23, 501200 },   /* EHT320 with 40 MHz punctured MCS3 */
+-	{ 27, 751800 },   /* EHT320 with 40 MHz punctured MCS4 */
+-	{ 30, 1002400 },  /* EHT320 with 40 MHz punctured MCS5 */
+-	{ 32, 1127600 },  /* EHT320 with 40 MHz punctured MCS6 */
+-	{ 37, 1252900 },  /* EHT320 with 40 MHz punctured MCS7 */
+-	{ 41, 1503500 },  /* EHT320 with 40 MHz punctured MCS8 */
+-	{ 43, 1670600 },  /* EHT320 with 40 MHz punctured MCS9 */
+-	{ 46, 1879400 },  /* EHT320 with 40 MHz punctured MCS10 */
+-	{ 48, 2088200 },  /* EHT320 with 40 MHz punctured MCS11 */
+-	{ 51, 2255300 },  /* EHT320 with 40 MHz punctured MCS12 */
+-	{ 54, 2505900 },  /* EHT320 with 40 MHz punctured MCS13 */
+-	{ -1, 2505900 }   /* SNR > 54 */
+-};
+-
+ /* See IEEE P802.11be/D2.0, Table 36-86: EHT-MCSs for 4x996-tone RU, NSS,u = 1
+  */
+ static const struct minsnr_bitrate_entry eht320_table[] = {
+@@ -3023,96 +2891,6 @@ static unsigned int max_he_eht_rate(const struct minsnr_bitrate_entry table[],
+ }
+ 
+ 
+-static unsigned int get_eht_punctured_rate(enum chan_width cw,
+-					   u8 num_punct_bits, int adjusted_snr,
+-					   u8 boost)
+-{
+-	const struct minsnr_bitrate_entry *eht_table;
+-
+-	switch (cw) {
+-	case CHAN_WIDTH_80:
+-		switch (num_punct_bits) {
+-		case 1:
+-			/* EHT80 with 20 MHz punctured */
+-			eht_table = eht60_table;
+-			break;
+-		default:
+-			eht_table = he80_table;
+-			break;
+-		}
+-		break;
+-	case CHAN_WIDTH_160:
+-		switch (num_punct_bits) {
+-		case 2:
+-			/* EHT160 with 40 MHz punctured */
+-			eht_table = eht120_table;
+-			break;
+-		case 1:
+-			/* EHT160 with 20 MHz punctured */
+-			eht_table = eht140_table;
+-			break;
+-		default:
+-			eht_table = he160_table;
+-			break;
+-		}
+-		break;
+-	case CHAN_WIDTH_320:
+-		switch (num_punct_bits) {
+-		case 6:
+-			/* EHT320 with 120 MHz punctured */
+-			eht_table = eht200_table;
+-			break;
+-		case 4:
+-			/* EHT320 with 80 MHz punctured */
+-			eht_table = eht240_table;
+-			break;
+-		case 2:
+-			/* EHT320 with 40 MHz punctured */
+-			eht_table = eht280_table;
+-			break;
+-		default:
+-			eht_table = eht320_table;
+-			break;
+-		}
+-		break;
+-	default:
+-		/* Puncturing is not supported for the channel width */
+-		return 0;
+-	}
+-
+-	return max_he_eht_rate(eht_table, adjusted_snr, true) + boost;
+-}
+-
+-
+-static u8 get_eht_num_punct_bits(const u8 *ies, size_t ies_len)
+-{
+-	const u8 *eht_ie;
+-
+-	eht_ie = get_ie_ext(ies, ies_len, WLAN_EID_EXT_EHT_OPERATION);
+-	if (eht_ie && eht_ie[1] >= 1 + IEEE80211_EHT_OP_MIN_LEN) {
+-		struct ieee80211_eht_operation *eht_op;
+-
+-		eht_op = (struct ieee80211_eht_operation *) &eht_ie[3];
+-
+-		if (eht_op->oper_params &
+-		    EHT_OPER_DISABLED_SUBCHAN_BITMAP_PRESENT) {
+-			u16 punct_bitmap;
+-			u8 count = 0;
+-
+-			punct_bitmap = le_to_host16(
+-				eht_op->oper_info.disabled_chan_bitmap);
+-			while (punct_bitmap) {
+-				count += punct_bitmap & 1;
+-				punct_bitmap >>= 1;
+-			}
+-			return count;
+-		}
+-	}
+-
+-	return 0;
+-}
+-
+-
+ unsigned int wpas_get_est_tpt(const struct wpa_supplicant *wpa_s,
+ 			      const u8 *ies, size_t ies_len, int rate,
+ 			      int snr, int freq, enum chan_width *max_cw)
+@@ -3270,9 +3048,8 @@ unsigned int wpas_get_est_tpt(const struct wpa_supplicant *wpa_s,
+ 		struct ieee80211_eht_capabilities *eht;
+ 		struct he_capabilities *own_he;
+ 		u8 cw, boost = 2;
+-		const u8 *eht_ie = NULL;
++		const u8 *eht_ie;
+ 		bool is_eht = false;
+-		u8 num_punct_bits;
+ 
+ 		ie = get_ie_ext(ies, ies_len, WLAN_EID_EXT_HE_CAPABILITIES);
+ 		if (!ie || (ie[1] < 1 + IEEE80211_HE_CAPAB_MIN_LEN))
+@@ -3322,17 +3099,8 @@ unsigned int wpas_get_est_tpt(const struct wpa_supplicant *wpa_s,
+ 				*max_cw = CHAN_WIDTH_80;
+ 			adjusted_snr = snr + wpas_channel_width_rssi_bump(
+ 				ies, ies_len, CHAN_WIDTH_80);
+-
+-			num_punct_bits = get_eht_num_punct_bits(ies, ies_len);
+-			if (is_eht && num_punct_bits)
+-				tmp = get_eht_punctured_rate(CHAN_WIDTH_80,
+-							     num_punct_bits,
+-							     adjusted_snr,
+-							     boost);
+-			else
+-				tmp = max_he_eht_rate(he80_table, adjusted_snr,
+-						      is_eht) + boost;
+-
++			tmp = max_he_eht_rate(he80_table, adjusted_snr,
++					      is_eht) + boost;
+ 			if (tmp > est)
+ 				est = tmp;
+ 		}
+@@ -3346,21 +3114,13 @@ unsigned int wpas_get_est_tpt(const struct wpa_supplicant *wpa_s,
+ 				*max_cw = CHAN_WIDTH_160;
+ 			adjusted_snr = snr + wpas_channel_width_rssi_bump(
+ 				ies, ies_len, CHAN_WIDTH_160);
+-
+-			num_punct_bits = get_eht_num_punct_bits(ies, ies_len);
+-			if (is_eht && num_punct_bits)
+-				tmp = get_eht_punctured_rate(CHAN_WIDTH_160,
+-							     num_punct_bits,
+-							     adjusted_snr,
+-							     boost);
+-			else
+-				tmp = max_he_eht_rate(he160_table, adjusted_snr,
+-						      is_eht) + boost;
++			tmp = max_he_eht_rate(he160_table, adjusted_snr,
++					      is_eht) + boost;
+ 			if (tmp > est)
+ 				est = tmp;
+ 		}
+ 
+-		if (!is_eht || !eht_ie)
++		if (!is_eht)
+ 			return est;
+ 
+ 		eht = (struct ieee80211_eht_capabilities *) &eht_ie[3];
+@@ -3373,16 +3133,7 @@ unsigned int wpas_get_est_tpt(const struct wpa_supplicant *wpa_s,
+ 				*max_cw = CHAN_WIDTH_320;
+ 			adjusted_snr = snr + wpas_channel_width_rssi_bump(
+ 				ies, ies_len, CHAN_WIDTH_320);
+-
+-			num_punct_bits = get_eht_num_punct_bits(ies, ies_len);
+-			if (num_punct_bits)
+-				tmp = get_eht_punctured_rate(CHAN_WIDTH_320,
+-							     num_punct_bits,
+-							     adjusted_snr,
+-							     0);
+-			else
+-				tmp = max_he_eht_rate(eht320_table, adjusted_snr,
+-						      true);
++			tmp = max_he_eht_rate(eht320_table, adjusted_snr, true);
+ 			if (tmp > est)
+ 				est = tmp;
+ 		}
+diff --git a/wpa_supplicant/wnm_sta.c b/wpa_supplicant/wnm_sta.c
+index 881c0af6f..8f39b5f2d 100644
+--- a/wpa_supplicant/wnm_sta.c
++++ b/wpa_supplicant/wnm_sta.c
+@@ -907,10 +907,9 @@ static int wnm_send_bss_transition_mgmt_resp(
+ 		wpabuf_put_data(buf, target_bssid, ETH_ALEN);
+ 	} else if (status == WNM_BSS_TM_ACCEPT) {
+ 		/*
+-		 * IEEE Std 802.11-2024, 9.6.13.10 (BSS Transition Management
+-		 * Response frame format) clarifies that the Target BSSID field
+-		 * is always present when status code is zero, so use a fake
+-		 * value here if no BSSID is yet known.
++		 * P802.11-REVmc clarifies that the Target BSSID field is always
++		 * present when status code is zero, so use a fake value here if
++		 * no BSSID is yet known.
+ 		 */
+ 		wpabuf_put_data(buf, "\0\0\0\0\0\0", ETH_ALEN);
+ 	}

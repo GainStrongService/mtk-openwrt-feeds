@@ -1,7 +1,7 @@
-From 3cbef9bbfc16dcb08fa086df5b7c3db8d9f144e2 Mon Sep 17 00:00:00 2001
+From 633611956368249b1e7627fa43a784667d300475 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 7 Apr 2025 18:00:04 +0800
-Subject: [PATCH 099/101] mtk: mac80211: refactor BSS color change & collision
+Subject: [PATCH 099/107] mtk: mac80211: refactor BSS color change & collision
  detection
 
 1. add the check for color change to unavailable color
@@ -24,10 +24,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  3 files changed, 56 insertions(+), 6 deletions(-)
 
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 051bb803..6f2f06a5 100644
+index 0e5ccee4..b71a0827 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -5010,6 +5010,9 @@ static int ieee80211_color_change_finalize(struct ieee80211_link_data *link)
+@@ -4969,6 +4969,9 @@ static int ieee80211_color_change_finalize(struct ieee80211_link_data *link)
  
  	link->conf->color_change_active = false;
  
@@ -37,7 +37,7 @@ index 051bb803..6f2f06a5 100644
  	err = ieee80211_set_after_color_change_beacon(link, &changed);
  	if (err) {
  		cfg80211_color_change_aborted_notify(sdata->dev, link->link_id);
-@@ -5156,6 +5159,11 @@ ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
+@@ -5115,6 +5118,11 @@ ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
  		goto out;
  	}
  

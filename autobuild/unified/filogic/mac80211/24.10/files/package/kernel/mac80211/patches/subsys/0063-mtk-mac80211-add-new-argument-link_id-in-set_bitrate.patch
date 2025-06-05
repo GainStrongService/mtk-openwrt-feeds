@@ -1,7 +1,7 @@
-From 59ec24fbcbf4921aea33fe350cb074dd42895283 Mon Sep 17 00:00:00 2001
+From f1bfc5dbb5c08ad46e34648f108be074550803ba Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 30 May 2024 16:08:54 +0800
-Subject: [PATCH 063/101] mtk: mac80211: add new argument link_id in
+Subject: [PATCH 063/107] mtk: mac80211: add new argument link_id in
  set_bitrate_mask
 
 mt76 driver needs link id to fix parital rate on the specific link.
@@ -30,7 +30,7 @@ index 1c6f04a5..7e063d03 100644
  			       struct ieee80211_vif *vif,
  			       const struct ieee80211_event *event);
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 9ebddaf9..96a52fa7 100644
+index 78bee5c6..b029e3cf 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
 @@ -3499,7 +3499,7 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,

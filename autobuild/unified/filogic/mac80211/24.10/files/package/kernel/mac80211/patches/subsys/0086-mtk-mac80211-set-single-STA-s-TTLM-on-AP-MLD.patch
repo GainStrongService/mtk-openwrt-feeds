@@ -1,7 +1,7 @@
-From 0e67c263d20c22f26109fd51fe3426d80573a347 Mon Sep 17 00:00:00 2001
+From e60a210804474862122cf5f9a8755e7cda54e532 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 13 Jan 2025 15:22:15 +0800
-Subject: [PATCH 086/101] mtk: mac80211: set single STA's TTLM on AP MLD
+Subject: [PATCH 086/107] mtk: mac80211: set single STA's TTLM on AP MLD
 
 Add support to set a STA's TTLM on AP MLD, including receiving NL80211
 command and fowarding the TTLM request to driver.
@@ -78,10 +78,10 @@ index 02e69cf7..6fa52ebf 100644
  	NL80211_CMD_TSF_OFFSET_EVENT,
  
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index bdbb25ed..278aa113 100644
+index 6baf714f..da913a81 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -5312,6 +5312,30 @@ static int ieee80211_set_hw_timestamp(struct wiphy *wiphy,
+@@ -5271,6 +5271,30 @@ static int ieee80211_set_hw_timestamp(struct wiphy *wiphy,
  
  	return local->ops->set_hw_timestamp(&local->hw, &sdata->vif, hwts);
  }
@@ -112,7 +112,7 @@ index bdbb25ed..278aa113 100644
  
  static int
  ieee80211_set_attlm(struct wiphy *wiphy, struct net_device *dev,
-@@ -5537,6 +5561,7 @@ const struct cfg80211_ops mac80211_config_ops = {
+@@ -5496,6 +5520,7 @@ const struct cfg80211_ops mac80211_config_ops = {
  	.mod_link_station = ieee80211_mod_link_station,
  	.del_link_station = ieee80211_del_link_station,
  	.set_hw_timestamp = ieee80211_set_hw_timestamp,

@@ -1,7 +1,7 @@
-From cc192e634b11c170a04061fb9cc8958ec12dd442 Mon Sep 17 00:00:00 2001
+From 828a15706b89a3545d5d85a74b73c80e8307b9f0 Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Fri, 7 Jun 2024 13:25:08 +0800
-Subject: [PATCH 061/101] mtk: mac80211: Add exported function for SoftMAC
+Subject: [PATCH 061/107] mtk: mac80211: Add exported function for SoftMAC
  driver to get QoS map
 
 Add exported function for SoftMAC driver to get QoS map.
@@ -76,10 +76,10 @@ index e636ae9a..ff36a5d9 100644
 -
  #endif /* MAC80211_H */
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 0547a13c..9ebddaf9 100644
+index e66f95f6..78bee5c6 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -4494,9 +4494,12 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
+@@ -4453,9 +4453,12 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
  				 struct net_device *dev,
  				 struct cfg80211_qos_map *qos_map)
  {
@@ -93,7 +93,7 @@ index 0547a13c..9ebddaf9 100644
  	if (qos_map) {
  		new_qos_map = kzalloc(sizeof(*new_qos_map), GFP_KERNEL);
  		if (!new_qos_map)
-@@ -4512,7 +4515,12 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
+@@ -4471,7 +4474,12 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
  	if (old_qos_map)
  		kfree_rcu(old_qos_map, rcu_head);
  

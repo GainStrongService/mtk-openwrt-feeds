@@ -1,0 +1,37 @@
+From 3c84b354a7ca605d2b7f6f5b2d684771d235a18d Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Tue, 27 Feb 2024 15:04:35 +0800
+Subject: [PATCH 064/206] mtk: hostapd: specify link id for unicast DEAUTH
+
+When deauthenticating the STA, hostapd should specifies the setup link
+of the target STA so that the TX status of the DEAUTH can be forwarded
+to the correct link (BSS).
+
+(The original gerrit somehow disappears, so I commit it again)
+(https://gerrit.mediatek.inc/c/gateway/WiFi7/mac80211/hostapd/+/8715613)
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ src/ap/ap_drv_ops.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
+index 849b118bf..86877f837 100644
+--- a/src/ap/ap_drv_ops.c
++++ b/src/ap/ap_drv_ops.c
+@@ -931,7 +931,11 @@ int hostapd_drv_sta_deauth(struct hostapd_data *hapd,
+ 	if (hapd->conf->mld_ap) {
+ 		struct sta_info *sta = ap_get_sta(hapd, addr);
+ 
+-		link_id = hapd->mld_link_id;
++		if (sta)
++			link_id = sta->mld_assoc_link_id;
++		else
++			link_id = hapd->mld_link_id;
++
+ 		if (ap_sta_is_mld(hapd, sta))
+ 			own_addr = hapd->mld->mld_addr;
+ 	}
+-- 
+2.45.2
+

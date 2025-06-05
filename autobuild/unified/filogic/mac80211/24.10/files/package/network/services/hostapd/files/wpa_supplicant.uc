@@ -312,31 +312,36 @@ function iface_event(type, name, data) {
 	ubus.call("service", "event", { type: `wpa_supplicant.${name}.${type}`, data: {} });
 }
 
-function iface_hostapd_notify(phy, ifname, iface, state, link_id)
+function iface_hostapd_notify(phy, ifname, iface, state, radio_idx)
 {
 	let ubus = wpas.data.ubus;
-	let msg = { phy: phy };
+	//let msg = { phy: phy };
+	/* always notify phy0, but the radio depends on the input */
+	let msg = { phy: "phy0" };
 
-	wpas.printf(`ucode: mtk: wpa_s in state ${state} notifies hostapd`);
+	wpas.printf(`ucode: mtk: wpa_s in state ${state} notifies hostapd phy ${phy} radio ${radio_idx}`);
 	switch (state) {
 	case "DISCONNECTED":
 	case "AUTHENTICATING":
 	case "SCANNING":
 		msg.up = false;
+		msg.radio = radio_idx;
 		break;
 	case "INTERFACE_DISABLED":
 	case "INACTIVE":
 		msg.up = true;
 		break;
 	case "COMPLETED":
-		let status = iface.status(link_id);
+		let status = iface.status(radio_idx);
 		msg.up = true;
-		msg.frequency = status.frequency;
-		msg.sec_chan_offset = status.sec_chan_offset;
-		msg.ch_width = status.ch_width;
-		msg.bw320_offset = status.bw320_offset;
-		msg.radio_idx = status.radio_idx;
-		msg.punct_bitmap = status.punct_bitmap;
+		msg.radio = radio_idx;
+		if (status.frequency) {
+			msg.frequency = status.frequency;
+			msg.sec_chan_offset = status.sec_chan_offset;
+			msg.ch_width = status.ch_width;
+			msg.bw320_offset = status.bw320_offset;
+			msg.punct_bitmap = status.punct_bitmap;
+		}
 		break;
 	default:
 		return;
@@ -376,23 +381,24 @@ return {
 	},
 	state: function(ifname, iface, state) {
 		let phy = wpas.data.iface_phy[ifname];
-		let ret = iface.get_valid_links();
-		let link_id = 0, valid_links = ret.valid_links;
+		let ret = iface.get_info();
+		let radio_idx = 0, radio_mask = ret.radio_mask;
 		if (!phy) {
 			wpas.printf(`no PHY for ifname ${ifname}`);
 			return;
 		}
 
-		if (valid_links) {
-			while (valid_links) {
-				if (valid_links & 1)
-					iface_hostapd_notify(phy, ifname, iface, state, link_id);
+		if (!radio_mask) {
+			wpas.printf(`no radio_mask for ifname ${ifname}`);
+			return;
+		}
 
-				link_id++;
-				valid_links >>= 1;
-			}
-		} else {
-			iface_hostapd_notify(phy, ifname, iface, state, -1);
+		while (radio_mask) {
+			if (radio_mask & 1)
+				iface_hostapd_notify(phy, ifname, iface, state, radio_idx);
+
+			radio_idx++;
+			radio_mask >>= 1;
 		}
 
 		if (state != "COMPLETED")

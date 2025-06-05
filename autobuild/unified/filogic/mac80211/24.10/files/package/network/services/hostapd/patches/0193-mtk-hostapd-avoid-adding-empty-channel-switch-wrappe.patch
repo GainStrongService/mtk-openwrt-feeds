@@ -1,0 +1,33 @@
+From c114ebe1a2c1d4f76a17de7e6d611274c30d6646 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 29 Apr 2025 15:34:20 +0800
+Subject: [PATCH 193/206] mtk: hostapd: avoid adding empty channel switch
+ wrapper IE
+
+Avoid adding empty channel switch wrapper IE
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ src/ap/ieee802_11.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
+index b7c387495..42541e13f 100644
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -8081,6 +8081,12 @@ u8 * hostapd_eid_chsw_wrapper(struct hostapd_data *hapd, u8 *eid)
+ #endif /* CONFIG_IEEE80211BE */
+ 
+ 	*eid_len_offset = (eid - eid_len_offset) - 1;
++	/* channel switch wrapper is empty, clear its tag */
++	if (!(*eid_len_offset)) {
++		eid -= 2;
++		*eid = 0;
++	}
++
+ 	return eid;
+ }
+ 
+-- 
+2.45.2
+

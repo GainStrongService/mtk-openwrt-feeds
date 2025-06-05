@@ -1,0 +1,40 @@
+From 9a9c232f01a7fdbd6d6d55d46d339b8706970a0b Mon Sep 17 00:00:00 2001
+From: Shayne Chen <shayne.chen@mediatek.com>
+Date: Thu, 15 May 2025 21:18:25 +0800
+Subject: [PATCH 87/95] mtk: mt76: mt7996: fix condition in
+ mt7996_ampdu_action()
+
+Do not break the for loop if the ret value is not an error; otherwise,
+the ampdu_state of remaining links cannot be set correctly.
+This patch should be upstreamed.
+
+Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
+---
+ mt7996/main.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 959725e5..38e94a76 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1825,6 +1825,8 @@ mt7996_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 			mtxq->send_bar = false;
+ 			ret = mt7996_mcu_add_tx_ba(dev, params, link,
+ 						   msta_link, true);
++			if (ret)
++				dev_err(dev->mt76.dev, "TX AGG operation failed\n");
+ 			break;
+ 		case IEEE80211_AMPDU_TX_STOP_FLUSH:
+ 		case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
+@@ -1845,7 +1847,7 @@ mt7996_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 			break;
+ 		}
+ 
+-		if (ret)
++		if (ret && ret != IEEE80211_AMPDU_TX_START_IMMEDIATE)
+ 			break;
+ 	}
+ 
+-- 
+2.45.2
+

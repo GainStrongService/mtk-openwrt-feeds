@@ -1,0 +1,74 @@
+From 42bb27fc34662e37f30a1b29f867e7a664a0d3e7 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Wed, 16 Apr 2025 10:24:40 +0800
+Subject: [PATCH 102/107] mtk: mac80211: fix status code type in ttlm_res of
+ ieee80211_mgmt
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+---
+ include/linux/ieee80211.h |  2 +-
+ net/mac80211/mlme.c       | 13 +++++++------
+ 2 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/include/linux/ieee80211.h b/include/linux/ieee80211.h
+index e4fbaf6a..6f1701ee 100644
+--- a/include/linux/ieee80211.h
++++ b/include/linux/ieee80211.h
+@@ -1527,7 +1527,7 @@ struct ieee80211_mgmt {
+ 				struct {
+ 					u8 action_code;
+ 					u8 dialog_token;
+-					u8 status_code;
++					__le16 status_code;
+ 					u8 variable[];
+ 				} __packed ttlm_res;
+ 				struct {
+diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
+index 4ee3c1de..4b95a5b3 100644
+--- a/net/mac80211/mlme.c
++++ b/net/mac80211/mlme.c
+@@ -7829,6 +7829,7 @@ ieee80211_send_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
+ 	int hdr_len = offsetofend(struct ieee80211_mgmt, u.action.u.ttlm_res);
+ 	int ttlm_max_len = 2 + 1 + sizeof(struct ieee80211_ttlm_elem) + 1 +
+ 		2 * 2 * IEEE80211_TTLM_NUM_TIDS;
++	u16 status_code;
+ 
+ 	skb = dev_alloc_skb(local->tx_headroom + hdr_len + ttlm_max_len);
+ 	if (!skb)
+@@ -7851,19 +7852,18 @@ ieee80211_send_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
+ 		WARN_ON(1);
+ 		fallthrough;
+ 	case NEG_TTLM_RES_REJECT:
+-		mgmt->u.action.u.ttlm_res.status_code =
+-			WLAN_STATUS_DENIED_TID_TO_LINK_MAPPING;
++		status_code = WLAN_STATUS_DENIED_TID_TO_LINK_MAPPING;
+ 		break;
+ 	case NEG_TTLM_RES_ACCEPT:
+-		mgmt->u.action.u.ttlm_res.status_code = WLAN_STATUS_SUCCESS;
++		status_code = WLAN_STATUS_SUCCESS;
+ 		break;
+ 	case NEG_TTLM_RES_SUGGEST_PREFERRED:
+-		mgmt->u.action.u.ttlm_res.status_code =
+-			WLAN_STATUS_PREF_TID_TO_LINK_MAPPING_SUGGESTED;
++		status_code = WLAN_STATUS_PREF_TID_TO_LINK_MAPPING_SUGGESTED;
+ 		ieee80211_neg_ttlm_add_suggested_map(skb, neg_ttlm);
+ 		break;
+ 	}
+ 
++	mgmt->u.action.u.ttlm_res.status_code = cpu_to_le16(status_code);
+ 	ieee80211_tx_skb(sdata, skb);
+ }
+ 
+@@ -8029,7 +8029,8 @@ void ieee80211_process_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
+ 	 * This can be better implemented in the future, to handle request
+ 	 * rejections.
+ 	 */
+-	if (mgmt->u.action.u.ttlm_res.status_code != WLAN_STATUS_SUCCESS)
++	if (le16_to_cpu(mgmt->u.action.u.ttlm_res.status_code) !=
++	    WLAN_STATUS_SUCCESS)
+ 		__ieee80211_disconnect(sdata);
+ }
+ 
+-- 
+2.45.2
+

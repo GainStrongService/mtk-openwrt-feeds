@@ -1,7 +1,7 @@
-From 945b2392c0a3808b1a0c4a2e7c811df313aa975b Mon Sep 17 00:00:00 2001
+From 5994b16e1ae2f0f0f6d981813849b2803ab90ec8 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Wed, 19 Feb 2025 14:26:03 +0800
-Subject: [PATCH 003/210] sync 2025-02-12 openwrt patches folder
+Subject: [PATCH 003/206] sync 2025-02-12 openwrt patches folder
 
 ---
  hostapd/Makefile                          |  150 +-
@@ -98,11 +98,11 @@ Subject: [PATCH 003/210] sync 2025-02-12 openwrt patches folder
  wpa_supplicant/mesh.c                     |    3 +
  wpa_supplicant/wpa_cli.c                  |    9 +
  wpa_supplicant/wpa_priv.c                 |    8 +-
- wpa_supplicant/wpa_supplicant.c           |   82 +-
+ wpa_supplicant/wpa_supplicant.c           |   83 +-
  wpa_supplicant/wpa_supplicant_i.h         |    6 +
  wpa_supplicant/wps_supplicant.c           |    3 +
  wpa_supplicant/wps_supplicant.h           |    3 +-
- 98 files changed, 9985 insertions(+), 409 deletions(-)
+ 98 files changed, 9985 insertions(+), 410 deletions(-)
  create mode 100644 src/ap/apup.c
  create mode 100644 src/ap/apup.h
  create mode 100644 src/crypto/crypto_mbedtls.c
@@ -541,10 +541,10 @@ index 93a11dd86..6aaa94c43 100644
  	$(Q)$(CC) $(LDFLAGS) -o nt_password_hash $(NOBJS) $(LIBS_n)
  	@$(E) "  LD " $@
 diff --git a/hostapd/config_file.c b/hostapd/config_file.c
-index 78a61fb43..98e03c467 100644
+index 0e35730f9..2bd9691a6 100644
 --- a/hostapd/config_file.c
 +++ b/hostapd/config_file.c
-@@ -1229,6 +1229,8 @@ static int hostapd_config_vht_capab(struct hostapd_config *conf,
+@@ -1225,6 +1225,8 @@ static int hostapd_config_vht_capab(struct hostapd_config *conf,
  		conf->vht_capab |= VHT_CAP_RX_ANTENNA_PATTERN;
  	if (os_strstr(capab, "[TX-ANTENNA-PATTERN]"))
  		conf->vht_capab |= VHT_CAP_TX_ANTENNA_PATTERN;
@@ -553,7 +553,7 @@ index 78a61fb43..98e03c467 100644
  	return 0;
  }
  #endif /* CONFIG_IEEE80211AC */
-@@ -2470,8 +2472,12 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -2239,8 +2241,12 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  			   sizeof(conf->bss[0]->iface));
  	} else if (os_strcmp(buf, "bridge") == 0) {
  		os_strlcpy(bss->bridge, pos, sizeof(bss->bridge));
@@ -566,7 +566,7 @@ index 78a61fb43..98e03c467 100644
  	} else if (os_strcmp(buf, "vlan_bridge") == 0) {
  		os_strlcpy(bss->vlan_bridge, pos, sizeof(bss->vlan_bridge));
  	} else if (os_strcmp(buf, "wds_bridge") == 0) {
-@@ -2857,6 +2863,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -2626,6 +2632,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  	} else if (os_strcmp(buf, "iapp_interface") == 0) {
  		wpa_printf(MSG_INFO, "DEPRECATED: iapp_interface not used");
  #endif /* CONFIG_IAPP */
@@ -575,7 +575,7 @@ index 78a61fb43..98e03c467 100644
  	} else if (os_strcmp(buf, "own_ip_addr") == 0) {
  		if (hostapd_parse_ip_addr(pos, &bss->own_ip_addr)) {
  			wpa_printf(MSG_ERROR,
-@@ -3084,6 +3092,14 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -2853,6 +2861,14 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  				   line, bss->max_num_sta, MAX_STA_COUNT);
  			return 1;
  		}
@@ -590,7 +590,7 @@ index 78a61fb43..98e03c467 100644
  	} else if (os_strcmp(buf, "wpa") == 0) {
  		bss->wpa = atoi(pos);
  	} else if (os_strcmp(buf, "extended_key_id") == 0) {
-@@ -3273,6 +3289,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -3042,6 +3058,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  		wpa_printf(MSG_INFO,
  			   "Line %d: Obsolete peerkey parameter ignored", line);
  #ifdef CONFIG_IEEE80211R_AP
@@ -599,7 +599,7 @@ index 78a61fb43..98e03c467 100644
  	} else if (os_strcmp(buf, "mobility_domain") == 0) {
  		if (os_strlen(pos) != 2 * MOBILITY_DOMAIN_ID_LEN ||
  		    hexstr2bin(pos, bss->mobility_domain,
-@@ -3642,6 +3660,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -3413,6 +3431,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  #ifndef CONFIG_NO_VLAN
  	} else if (os_strcmp(buf, "dynamic_vlan") == 0) {
  		bss->ssid.dynamic_vlan = atoi(pos);
@@ -608,7 +608,7 @@ index 78a61fb43..98e03c467 100644
  	} else if (os_strcmp(buf, "per_sta_vif") == 0) {
  		bss->ssid.per_sta_vif = atoi(pos);
  	} else if (os_strcmp(buf, "vlan_file") == 0) {
-@@ -3745,6 +3765,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -3516,6 +3536,10 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  		if (bss->ocv && !bss->ieee80211w)
  			bss->ieee80211w = 1;
  #endif /* CONFIG_OCV */
@@ -619,7 +619,7 @@ index 78a61fb43..98e03c467 100644
  	} else if (os_strcmp(buf, "ieee80211n") == 0) {
  		conf->ieee80211n = atoi(pos);
  	} else if (os_strcmp(buf, "ht_capab") == 0) {
-@@ -3795,6 +3819,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -3566,6 +3590,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  	} else if (os_strcmp(buf, "he_bss_color") == 0) {
  		conf->he_op.he_bss_color = atoi(pos) & 0x3f;
  		conf->he_op.he_bss_color_disabled = 0;
@@ -628,7 +628,7 @@ index 78a61fb43..98e03c467 100644
  	} else if (os_strcmp(buf, "he_bss_color_partial") == 0) {
  		conf->he_op.he_bss_color_partial = atoi(pos);
  	} else if (os_strcmp(buf, "he_default_pe_duration") == 0) {
-@@ -5190,6 +5216,15 @@ static int hostapd_config_fill(struct hostapd_config *conf,
+@@ -4930,6 +4956,15 @@ static int hostapd_config_fill(struct hostapd_config *conf,
  		bss->mld_indicate_disabled = atoi(pos);
  #endif /* CONFIG_TESTING_OPTIONS */
  #endif /* CONFIG_IEEE80211BE */
@@ -644,7 +644,7 @@ index 78a61fb43..98e03c467 100644
  	} else {
  		wpa_printf(MSG_ERROR,
  			   "Line %d: unknown configuration item '%s'",
-@@ -5215,7 +5250,12 @@ struct hostapd_config * hostapd_config_read(const char *fname)
+@@ -4955,7 +4990,12 @@ struct hostapd_config * hostapd_config_read(const char *fname)
  	int errors = 0;
  	size_t i;
  
@@ -659,10 +659,10 @@ index 78a61fb43..98e03c467 100644
  		wpa_printf(MSG_ERROR, "Could not open configuration file '%s' "
  			   "for reading.", fname);
 diff --git a/hostapd/ctrl_iface.c b/hostapd/ctrl_iface.c
-index e282faacc..11b4c979b 100644
+index 2edce5ae3..5113b3d82 100644
 --- a/hostapd/ctrl_iface.c
 +++ b/hostapd/ctrl_iface.c
-@@ -4087,6 +4087,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4063,6 +4063,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  						      reply_size);
  	} else if (os_strcmp(buf, "STATUS-DRIVER") == 0) {
  		reply_len = hostapd_drv_status(hapd, reply, reply_size);
@@ -670,7 +670,7 @@ index e282faacc..11b4c979b 100644
  	} else if (os_strcmp(buf, "MIB") == 0) {
  		reply_len = ieee802_11_get_mib(hapd, reply, reply_size);
  		if (reply_len >= 0) {
-@@ -4128,6 +4129,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
+@@ -4104,6 +4105,7 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
  	} else if (os_strncmp(buf, "STA-NEXT ", 9) == 0) {
  		reply_len = hostapd_ctrl_iface_sta_next(hapd, buf + 9, reply,
  							reply_size);
@@ -678,7 +678,7 @@ index e282faacc..11b4c979b 100644
  	} else if (os_strcmp(buf, "ATTACH") == 0) {
  		if (hostapd_ctrl_iface_attach(hapd, from, fromlen, NULL))
  			reply_len = -1;
-@@ -6029,6 +6031,7 @@ try_again:
+@@ -6002,6 +6004,7 @@ try_again:
  		return -1;
  	}
  
@@ -686,7 +686,7 @@ index e282faacc..11b4c979b 100644
  	wpa_msg_register_cb(hostapd_ctrl_iface_msg_cb);
  
  	return 0;
-@@ -6130,6 +6133,7 @@ fail:
+@@ -6103,6 +6106,7 @@ fail:
  	os_free(fname);
  
  	interface->global_ctrl_sock = s;
@@ -797,7 +797,7 @@ index 57702d93b..755ddf5f4 100644
  	  "= send Disassociation Imminent notification" },
  	{ "ess_disassoc", hostapd_cli_cmd_ess_disassoc, NULL,
 diff --git a/hostapd/main.c b/hostapd/main.c
-index a8bb9d4d6..d4c03adbf 100644
+index f8d417fa2..6d80dfd4a 100644
 --- a/hostapd/main.c
 +++ b/hostapd/main.c
 @@ -31,7 +31,7 @@
@@ -879,7 +879,7 @@ index a8bb9d4d6..d4c03adbf 100644
  	/* Deinitialize all interfaces */
  	for (i = 0; i < interfaces.count; i++) {
 diff --git a/src/ap/acs.c b/src/ap/acs.c
-index f5b36d327..25fec499a 100644
+index 44d083684..2ae37bc67 100644
 --- a/src/ap/acs.c
 +++ b/src/ap/acs.c
 @@ -471,17 +471,17 @@ static int acs_get_bw_center_chan(int freq, enum bw_type bw)
@@ -944,10 +944,10 @@ index 68443115f..26f11ad98 100644
  			return sta_set_airtime_weight(hapd, sta, weight);
  	}
 diff --git a/src/ap/ap_config.h b/src/ap/ap_config.h
-index 4ef2d8c70..62c2cd989 100644
+index af0d785be..2d54a188d 100644
 --- a/src/ap/ap_config.h
 +++ b/src/ap/ap_config.h
-@@ -121,6 +121,7 @@ struct hostapd_ssid {
+@@ -120,6 +120,7 @@ struct hostapd_ssid {
  #define DYNAMIC_VLAN_OPTIONAL 1
  #define DYNAMIC_VLAN_REQUIRED 2
  	int dynamic_vlan;
@@ -955,7 +955,7 @@ index 4ef2d8c70..62c2cd989 100644
  #define DYNAMIC_VLAN_NAMING_WITHOUT_DEVICE 0
  #define DYNAMIC_VLAN_NAMING_WITH_DEVICE 1
  #define DYNAMIC_VLAN_NAMING_END 2
-@@ -282,6 +283,8 @@ struct airtime_sta_weight {
+@@ -284,6 +285,8 @@ struct airtime_sta_weight {
  struct hostapd_bss_config {
  	char iface[IFNAMSIZ + 1];
  	char bridge[IFNAMSIZ + 1];
@@ -964,7 +964,7 @@ index 4ef2d8c70..62c2cd989 100644
  	char vlan_bridge[IFNAMSIZ + 1];
  	char wds_bridge[IFNAMSIZ + 1];
  	int bridge_hairpin; /* hairpin_mode on bridge members */
-@@ -307,6 +310,7 @@ struct hostapd_bss_config {
+@@ -309,6 +312,7 @@ struct hostapd_bss_config {
  	unsigned int eap_sim_db_timeout;
  	int eap_server_erp; /* Whether ERP is enabled on internal EAP server */
  	struct hostapd_ip_addr own_ip_addr;
@@ -972,7 +972,7 @@ index 4ef2d8c70..62c2cd989 100644
  	char *nas_identifier;
  	struct hostapd_radius_servers *radius;
  	int radius_require_message_authenticator;
-@@ -997,6 +1001,35 @@ struct hostapd_bss_config {
+@@ -978,6 +982,35 @@ struct hostapd_bss_config {
  	int mbssid_index;
  
  	bool spp_amsdu;
@@ -1008,7 +1008,7 @@ index 4ef2d8c70..62c2cd989 100644
  };
  
  /**
-@@ -1087,6 +1120,8 @@ struct hostapd_config {
+@@ -1068,6 +1101,8 @@ struct hostapd_config {
  	unsigned int track_sta_max_num;
  	unsigned int track_sta_max_age;
  
@@ -1017,7 +1017,7 @@ index 4ef2d8c70..62c2cd989 100644
  	char country[3]; /* first two octets: country code as described in
  			  * ISO/IEC 3166-1. Third octet:
  			  * ' ' (ascii 32): all environments
-@@ -1124,6 +1159,8 @@ struct hostapd_config {
+@@ -1105,6 +1140,8 @@ struct hostapd_config {
  
  	int ht_op_mode_fixed;
  	u16 ht_capab;
@@ -1027,10 +1027,10 @@ index 4ef2d8c70..62c2cd989 100644
  	int secondary_channel;
  	int no_pri_sec_switch;
 diff --git a/src/ap/ap_drv_ops.c b/src/ap/ap_drv_ops.c
-index 8e9c41e41..7c0f63b22 100644
+index b2e930de9..e9d1ab0be 100644
 --- a/src/ap/ap_drv_ops.c
 +++ b/src/ap/ap_drv_ops.c
-@@ -389,15 +389,39 @@ int hostapd_set_wds_sta(struct hostapd_data *hapd, char *ifname_wds,
+@@ -385,15 +385,39 @@ int hostapd_set_wds_sta(struct hostapd_data *hapd, char *ifname_wds,
  			const u8 *addr, int aid, int val)
  {
  	const char *bridge = NULL;
@@ -1128,7 +1128,7 @@ index b52763628..b91c2cd7e 100644
  {
 diff --git a/src/ap/apup.c b/src/ap/apup.c
 new file mode 100644
-index 000000000..f736ddc8e
+index 000000000..cb0264e9e
 --- /dev/null
 +++ b/src/ap/apup.c
 @@ -0,0 +1,168 @@
@@ -1201,7 +1201,7 @@ index 000000000..f736ddc8e
 +	            NULL, 0, 0, NULL, NULL, NULL, 0, NULL, 0, NULL,
 +	            sta_ret->flags, 0, 0, 0,
 +	            0, // 0 add, 1 set
-+	            mld_link_addr, mld_link_sta);
++	            mld_link_addr, mld_link_sta, 0);
 +
 +	sta_ret->flags |= WLAN_STA_AUTH;
 +	wpa_auth_sm_event(sta_ret->wpa_sm, WPA_AUTH);
@@ -1275,7 +1275,7 @@ index 000000000..f736ddc8e
 +	            sta_ret->vht_opmode,
 +	            0, // int supp_p2p_ps
 +	            1, // 0 add, 1 set
-+	            mld_link_addr, mld_link_sta);
++	            mld_link_addr, mld_link_sta, 0);
 +
 +	ap_sta_set_authorized(hapd, sta_ret, 1);
 +	hostapd_set_sta_flags(hapd, sta_ret);
@@ -1331,10 +1331,10 @@ index 000000000..a14a283bb
 +              const struct ieee80211_mgmt *mgmt, size_t len,
 +              const struct ieee802_11_elems *elems );
 diff --git a/src/ap/beacon.c b/src/ap/beacon.c
-index 71f7bc3c7..1db041cc1 100644
+index 13a482d60..0517333bf 100644
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
-@@ -1428,6 +1428,12 @@ void handle_probe_req(struct hostapd_data *hapd,
+@@ -1414,6 +1414,12 @@ void handle_probe_req(struct hostapd_data *hapd,
  	int mld_id;
  	u16 links;
  #endif /* CONFIG_IEEE80211BE */
@@ -1347,7 +1347,7 @@ index 71f7bc3c7..1db041cc1 100644
  
  	if (hapd->iconf->rssi_ignore_probe_request && ssi_signal &&
  	    ssi_signal < hapd->iconf->rssi_ignore_probe_request)
-@@ -1481,7 +1487,7 @@ void handle_probe_req(struct hostapd_data *hapd,
+@@ -1467,7 +1473,7 @@ void handle_probe_req(struct hostapd_data *hapd,
  	 * is less likely to see them (Probe Request frame sent on a
  	 * neighboring, but partially overlapping, channel).
  	 */
@@ -1356,7 +1356,7 @@ index 71f7bc3c7..1db041cc1 100644
  	    hapd->iface->current_mode &&
  	    (hapd->iface->current_mode->mode == HOSTAPD_MODE_IEEE80211G ||
  	     hapd->iface->current_mode->mode == HOSTAPD_MODE_IEEE80211B) &&
-@@ -1614,6 +1620,12 @@ void handle_probe_req(struct hostapd_data *hapd,
+@@ -1600,6 +1606,12 @@ void handle_probe_req(struct hostapd_data *hapd,
  	}
  #endif /* CONFIG_P2P */
  
@@ -1369,7 +1369,7 @@ index 71f7bc3c7..1db041cc1 100644
  	/* TODO: verify that supp_rates contains at least one matching rate
  	 * with AP configuration */
  
-@@ -1632,7 +1644,7 @@ void handle_probe_req(struct hostapd_data *hapd,
+@@ -1618,7 +1630,7 @@ void handle_probe_req(struct hostapd_data *hapd,
  	if (hapd->conf->no_probe_resp_if_max_sta &&
  	    is_multicast_ether_addr(mgmt->da) &&
  	    is_multicast_ether_addr(mgmt->bssid) &&
@@ -1379,7 +1379,7 @@ index 71f7bc3c7..1db041cc1 100644
  		wpa_printf(MSG_MSGDUMP, "%s: Ignore Probe Request from " MACSTR
  			   " since no room for additional STA",
 diff --git a/src/ap/ctrl_iface_ap.c b/src/ap/ctrl_iface_ap.c
-index 4a51e6333..207f5a336 100644
+index 441995bcb..b6b6f3f64 100644
 --- a/src/ap/ctrl_iface_ap.c
 +++ b/src/ap/ctrl_iface_ap.c
 @@ -26,6 +26,26 @@
@@ -1518,10 +1518,10 @@ index 0cac194b2..d55d2c750 100644
  	if (iface->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD)
  		return 0;
 diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
-index d781cca3d..34f9b5d7c 100644
+index f3aeb2236..60413249a 100644
 --- a/src/ap/drv_callbacks.c
 +++ b/src/ap/drv_callbacks.c
-@@ -317,6 +317,10 @@ int hostapd_notif_assoc(struct hostapd_data *hapd, const u8 *addr,
+@@ -330,6 +330,10 @@ int hostapd_notif_assoc(struct hostapd_data *hapd, const u8 *addr,
  	struct hostapd_iface *iface = hapd->iface;
  #endif /* CONFIG_OWE */
  	bool updated = false;
@@ -1532,7 +1532,7 @@ index d781cca3d..34f9b5d7c 100644
  
  	if (addr == NULL) {
  		/*
-@@ -461,6 +465,12 @@ int hostapd_notif_assoc(struct hostapd_data *hapd, const u8 *addr,
+@@ -468,6 +472,12 @@ int hostapd_notif_assoc(struct hostapd_data *hapd, const u8 *addr,
  		goto fail;
  	}
  
@@ -1545,7 +1545,7 @@ index d781cca3d..34f9b5d7c 100644
  #ifdef CONFIG_P2P
  	if (elems.p2p) {
  		wpabuf_free(sta->p2p_ie);
-@@ -1386,6 +1396,7 @@ void hostapd_event_ch_switch(struct hostapd_data *hapd, int freq, int ht,
+@@ -1371,6 +1381,7 @@ void hostapd_event_ch_switch(struct hostapd_data *hapd, int freq, int ht,
  
  		wpa_msg(hapd->msg_ctx, MSG_INFO, AP_CSA_FINISHED
  			"freq=%d dfs=%d", freq, is_dfs);
@@ -1553,7 +1553,7 @@ index d781cca3d..34f9b5d7c 100644
  	} else if (hapd->iface->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD) {
  		/* Complete AP configuration for the first bring up. */
  		if (is_dfs0 > 0 &&
-@@ -2538,8 +2549,8 @@ static void hostapd_mld_iface_disable(struct hostapd_data *hapd)
+@@ -2523,8 +2534,8 @@ static void hostapd_mld_iface_disable(struct hostapd_data *hapd)
  #endif /* CONFIG_IEEE80211BE */
  
  
@@ -1564,7 +1564,7 @@ index d781cca3d..34f9b5d7c 100644
  {
  	struct hostapd_data *hapd = ctx;
  	struct sta_info *sta;
-@@ -2897,7 +2908,7 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
+@@ -2882,7 +2893,7 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
  }
  
  
@@ -1574,7 +1574,7 @@ index d781cca3d..34f9b5d7c 100644
  {
  	struct hapd_interfaces *interfaces = ctx;
 diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
-index 1907a6b62..6b30bc846 100644
+index 65dc14d60..c5b30afce 100644
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -251,6 +251,29 @@ static int hostapd_iface_conf_changed(struct hostapd_config *newconf,
@@ -1728,7 +1728,7 @@ index 1907a6b62..6b30bc846 100644
  
  	if (iface->is_no_ir) {
  		hostapd_set_state(iface, HAPD_IFACE_NO_IR);
-@@ -2970,7 +3005,7 @@ hostapd_alloc_bss_data(struct hostapd_iface *hapd_iface,
+@@ -2971,7 +3006,7 @@ hostapd_alloc_bss_data(struct hostapd_iface *hapd_iface,
  }
  
  
@@ -1737,7 +1737,7 @@ index 1907a6b62..6b30bc846 100644
  {
  	if (!hapd)
  		return;
-@@ -3513,6 +3548,7 @@ void hostapd_interface_deinit_free(struct hostapd_iface *iface)
+@@ -3517,6 +3552,7 @@ void hostapd_interface_deinit_free(struct hostapd_iface *iface)
  		   (unsigned int) iface->conf->num_bss);
  	driver = iface->bss[0]->driver;
  	drv_priv = iface->bss[0]->drv_priv;
@@ -1745,7 +1745,7 @@ index 1907a6b62..6b30bc846 100644
  	hostapd_interface_deinit(iface);
  	wpa_printf(MSG_DEBUG, "%s: driver=%p drv_priv=%p -> hapd_deinit",
  		   __func__, driver, drv_priv);
-@@ -4041,7 +4077,8 @@ int hostapd_remove_iface(struct hapd_interfaces *interfaces, char *buf)
+@@ -4045,7 +4081,8 @@ int hostapd_remove_iface(struct hapd_interfaces *interfaces, char *buf)
  		hapd_iface = interfaces->iface[i];
  		if (hapd_iface == NULL)
  			return -1;
@@ -1755,7 +1755,7 @@ index 1907a6b62..6b30bc846 100644
  			wpa_printf(MSG_INFO, "Remove interface '%s'", buf);
  			hapd_iface->driver_ap_teardown =
  				!!(hapd_iface->drv_flags &
-@@ -4087,6 +4124,8 @@ int hostapd_remove_iface(struct hapd_interfaces *interfaces, char *buf)
+@@ -4091,6 +4128,8 @@ int hostapd_remove_iface(struct hapd_interfaces *interfaces, char *buf)
  void hostapd_new_assoc_sta(struct hostapd_data *hapd, struct sta_info *sta,
  			   int reassoc)
  {
@@ -1764,7 +1764,7 @@ index 1907a6b62..6b30bc846 100644
  	if (hapd->tkip_countermeasures) {
  		hostapd_drv_sta_deauth(hapd, sta->addr,
  				       WLAN_REASON_MICHAEL_MIC_FAILURE);
-@@ -4094,10 +4133,16 @@ void hostapd_new_assoc_sta(struct hostapd_data *hapd, struct sta_info *sta,
+@@ -4098,10 +4137,16 @@ void hostapd_new_assoc_sta(struct hostapd_data *hapd, struct sta_info *sta,
  	}
  
  #ifdef CONFIG_IEEE80211BE
@@ -1899,7 +1899,7 @@ index cef38173e..78d95bc60 100644
  
  	hostapd_set_state(iface, HAPD_IFACE_HT_SCAN);
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index 72910394c..4a8436d1a 100644
+index 0cca68c1c..94b78c12b 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
 @@ -60,6 +60,9 @@
@@ -1912,7 +1912,7 @@ index 72910394c..4a8436d1a 100644
  
  #ifdef CONFIG_FILS
  static struct wpabuf *
-@@ -495,12 +498,17 @@ const char * sae_get_password(struct hostapd_data *hapd,
+@@ -631,8 +634,10 @@ const char * sae_get_password(struct hostapd_data *hapd,
  			      struct sae_pt **s_pt,
  			      const struct sae_pk **s_pk)
  {
@@ -1924,14 +1924,17 @@ index 72910394c..4a8436d1a 100644
  	struct sae_pt *pt = NULL;
  	const struct sae_pk *pk = NULL;
  	struct hostapd_sta_wpa_psk_short *psk = NULL;
+@@ -673,6 +678,9 @@ const char * sae_get_password(struct hostapd_data *hapd,
+ 		}
+ 	}
  
 +	if (sta && sta->use_sta_psk)
 +		goto use_sta_psk;
 +
- 	for (pw = hapd->conf->sae_passwords; pw; pw = pw->next) {
- 		if (!is_broadcast_ether_addr(pw->peer_addr) &&
- 		    (!sta ||
-@@ -522,12 +530,30 @@ const char * sae_get_password(struct hostapd_data *hapd,
+ 	/* If sae_track_password functionality is not enabled or no suitable
+ 	 * password entry was found with it, pick the first entry that matches
+ 	 * the STA MAC address and password identifier (if used). */
+@@ -697,12 +705,30 @@ const char * sae_get_password(struct hostapd_data *hapd,
  		pt = hapd->conf->ssid.pt;
  	}
  
@@ -1964,7 +1967,7 @@ index 72910394c..4a8436d1a 100644
  		}
  	}
  
-@@ -2881,7 +2907,7 @@ static void handle_auth(struct hostapd_data *hapd,
+@@ -3091,7 +3117,7 @@ static void handle_auth(struct hostapd_data *hapd,
  	u16 auth_alg, auth_transaction, status_code;
  	u16 resp = WLAN_STATUS_SUCCESS;
  	struct sta_info *sta = NULL;
@@ -1973,7 +1976,7 @@ index 72910394c..4a8436d1a 100644
  	u16 fc;
  	const u8 *challenge = NULL;
  	u8 resp_ies[2 + WLAN_AUTH_CHALLENGE_LEN];
-@@ -2892,6 +2918,11 @@ static void handle_auth(struct hostapd_data *hapd,
+@@ -3102,6 +3128,11 @@ static void handle_auth(struct hostapd_data *hapd,
  #ifdef CONFIG_IEEE80211BE
  	bool mld_sta = false;
  #endif /* CONFIG_IEEE80211BE */
@@ -1985,7 +1988,7 @@ index 72910394c..4a8436d1a 100644
  
  	if (len < IEEE80211_HDRLEN + sizeof(mgmt->u.auth)) {
  		wpa_printf(MSG_INFO, "handle_auth - too short payload (len=%lu)",
-@@ -3088,6 +3119,13 @@ static void handle_auth(struct hostapd_data *hapd,
+@@ -3298,6 +3329,13 @@ static void handle_auth(struct hostapd_data *hapd,
  		resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
  		goto fail;
  	}
@@ -1999,7 +2002,7 @@ index 72910394c..4a8436d1a 100644
  	if (res == HOSTAPD_ACL_PENDING)
  		return;
  
-@@ -3201,6 +3239,12 @@ static void handle_auth(struct hostapd_data *hapd,
+@@ -3417,6 +3455,12 @@ static void handle_auth(struct hostapd_data *hapd,
  		goto fail;
  	}
  
@@ -2012,7 +2015,7 @@ index 72910394c..4a8436d1a 100644
  	sta->flags &= ~WLAN_STA_PREAUTH;
  	ieee802_1x_notify_pre_auth(sta->eapol_sm, 0);
  
-@@ -3563,8 +3607,8 @@ static u16 check_multi_ap(struct hostapd_data *hapd, struct sta_info *sta,
+@@ -3779,8 +3823,8 @@ static u16 check_multi_ap(struct hostapd_data *hapd, struct sta_info *sta,
  }
  
  
@@ -2023,7 +2026,7 @@ index 72910394c..4a8436d1a 100644
  {
  	/* Supported rates not used in IEEE 802.11ad/DMG */
  	if (hapd->iface->current_mode &&
-@@ -4004,7 +4048,7 @@ static int __check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
+@@ -4222,7 +4266,7 @@ static int __check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
  			       elems->ext_capab_len);
  	if (resp != WLAN_STATUS_SUCCESS)
  		return resp;
@@ -2032,7 +2035,7 @@ index 72910394c..4a8436d1a 100644
  	if (resp != WLAN_STATUS_SUCCESS)
  		return resp;
  
-@@ -4835,6 +4879,13 @@ static int add_associated_sta(struct hostapd_data *hapd,
+@@ -5033,6 +5077,13 @@ static int add_associated_sta(struct hostapd_data *hapd,
  	 * drivers to accept the STA parameter configuration. Since this is
  	 * after a new FT-over-DS exchange, a new TK has been derived, so key
  	 * reinstallation is not a concern for this case.
@@ -2046,7 +2049,7 @@ index 72910394c..4a8436d1a 100644
  	 */
  	wpa_printf(MSG_DEBUG, "Add associated STA " MACSTR
  		   " (added_unassoc=%d auth_alg=%u ft_over_ds=%u reassoc=%d authorized=%d ft_tk=%d fils_tk=%d)",
-@@ -4848,7 +4899,8 @@ static int add_associated_sta(struct hostapd_data *hapd,
+@@ -5046,7 +5097,8 @@ static int add_associated_sta(struct hostapd_data *hapd,
  	    (!(sta->flags & WLAN_STA_AUTHORIZED) ||
  	     (reassoc && sta->ft_over_ds && sta->auth_alg == WLAN_AUTH_FT) ||
  	     (!wpa_auth_sta_ft_tk_already_set(sta->wpa_sm) &&
@@ -2056,7 +2059,7 @@ index 72910394c..4a8436d1a 100644
  		hostapd_drv_sta_remove(hapd, sta->addr);
  		wpa_auth_sm_event(sta->wpa_sm, WPA_DRV_STA_REMOVED);
  		set = 0;
-@@ -5410,7 +5462,7 @@ static void handle_assoc(struct hostapd_data *hapd,
+@@ -5608,7 +5660,7 @@ static void handle_assoc(struct hostapd_data *hapd,
  	int resp = WLAN_STATUS_SUCCESS;
  	u16 reply_res = WLAN_STATUS_UNSPECIFIED_FAILURE;
  	const u8 *pos;
@@ -2065,7 +2068,7 @@ index 72910394c..4a8436d1a 100644
  	struct sta_info *sta;
  	u8 *tmp = NULL;
  #ifdef CONFIG_FILS
-@@ -5652,6 +5704,11 @@ static void handle_assoc(struct hostapd_data *hapd,
+@@ -5850,6 +5902,11 @@ static void handle_assoc(struct hostapd_data *hapd,
  		left = res;
  	}
  #endif /* CONFIG_FILS */
@@ -2077,7 +2080,7 @@ index 72910394c..4a8436d1a 100644
  
  	/* followed by SSID and Supported rates; and HT capabilities if 802.11n
  	 * is used */
-@@ -5759,6 +5816,13 @@ static void handle_assoc(struct hostapd_data *hapd,
+@@ -5957,6 +6014,13 @@ static void handle_assoc(struct hostapd_data *hapd,
  	if (set_beacon)
  		ieee802_11_update_beacons(hapd->iface);
  
@@ -2091,7 +2094,7 @@ index 72910394c..4a8436d1a 100644
   fail:
  
  	/*
-@@ -5988,6 +6052,7 @@ static void handle_disassoc(struct hostapd_data *hapd,
+@@ -6186,6 +6250,7 @@ static void handle_disassoc(struct hostapd_data *hapd,
  			   (unsigned long) len);
  		return;
  	}
@@ -2099,7 +2102,7 @@ index 72910394c..4a8436d1a 100644
  
  	sta = ap_get_sta(hapd, mgmt->sa);
  	if (!sta) {
-@@ -6019,6 +6084,8 @@ static void handle_deauth(struct hostapd_data *hapd,
+@@ -6217,6 +6282,8 @@ static void handle_deauth(struct hostapd_data *hapd,
  	/* Clear the PTKSA cache entries for PASN */
  	ptksa_cache_flush(hapd->ptksa, mgmt->sa, WPA_CIPHER_NONE);
  
@@ -2108,7 +2111,7 @@ index 72910394c..4a8436d1a 100644
  	sta = ap_get_sta(hapd, mgmt->sa);
  	if (!sta) {
  		wpa_msg(hapd->msg_ctx, MSG_DEBUG, "Station " MACSTR
-@@ -6052,6 +6119,11 @@ static void handle_beacon(struct hostapd_data *hapd,
+@@ -6250,6 +6317,11 @@ static void handle_beacon(struct hostapd_data *hapd,
  				      0);
  
  	ap_list_process_beacon(hapd->iface, mgmt, &elems, fi);
@@ -2182,7 +2185,7 @@ index 9bc046141..77b7907e7 100644
  		   " in Association Request", MAC2STR(sta->addr));
  
 diff --git a/src/ap/ieee802_11_vht.c b/src/ap/ieee802_11_vht.c
-index 4dc325ce8..68880ab64 100644
+index df5f8cf76..f77cbdb7e 100644
 --- a/src/ap/ieee802_11_vht.c
 +++ b/src/ap/ieee802_11_vht.c
 @@ -26,6 +26,7 @@ u8 * hostapd_eid_vht_capabilities(struct hostapd_data *hapd, u8 *eid, u32 nsts)
@@ -2219,7 +2222,7 @@ index 4dc325ce8..68880ab64 100644
  	u8 *pos = eid;
  	enum oper_chan_width oper_chwidth =
  		hostapd_get_oper_chwidth(hapd->iconf);
-@@ -110,6 +123,7 @@ u8 * hostapd_eid_vht_operation(struct hostapd_data *hapd, u8 *eid)
+@@ -113,6 +126,7 @@ u8 * hostapd_eid_vht_operation(struct hostapd_data *hapd, u8 *eid)
  	oper->vht_op_info_chan_center_freq_seg1_idx = seg1;
  
  	oper->vht_op_info_chwidth = oper_chwidth;
@@ -2227,7 +2230,7 @@ index 4dc325ce8..68880ab64 100644
  	if (oper_chwidth == CONF_OPER_CHWIDTH_160MHZ) {
  		/*
  		 * Convert 160 MHz channel width to new style as interop
-@@ -123,6 +137,9 @@ u8 * hostapd_eid_vht_operation(struct hostapd_data *hapd, u8 *eid)
+@@ -126,6 +140,9 @@ u8 * hostapd_eid_vht_operation(struct hostapd_data *hapd, u8 *eid)
  			oper->vht_op_info_chan_center_freq_seg0_idx -= 8;
  		else
  			oper->vht_op_info_chan_center_freq_seg0_idx += 8;
@@ -2238,10 +2241,10 @@ index 4dc325ce8..68880ab64 100644
  		/*
  		 * Convert 80+80 MHz channel width to new style as interop
 diff --git a/src/ap/ieee802_1x.c b/src/ap/ieee802_1x.c
-index e8d21ff7a..ac6edf866 100644
+index efdf607ee..05291f87c 100644
 --- a/src/ap/ieee802_1x.c
 +++ b/src/ap/ieee802_1x.c
-@@ -598,6 +598,10 @@ int add_common_radius_attr(struct hostapd_data *hapd,
+@@ -597,6 +597,10 @@ int add_common_radius_attr(struct hostapd_data *hapd,
  	struct hostapd_radius_attr *attr;
  	int len;
  
@@ -2252,7 +2255,7 @@ index e8d21ff7a..ac6edf866 100644
  	if (!hostapd_config_get_radius_attr(req_attr,
  					    RADIUS_ATTR_NAS_IP_ADDRESS) &&
  	    hapd->conf->own_ip_addr.af == AF_INET &&
-@@ -2867,6 +2871,7 @@ static const char * bool_txt(bool val)
+@@ -2831,6 +2835,7 @@ static const char * bool_txt(bool val)
  	return val ? "TRUE" : "FALSE";
  }
  
@@ -2260,7 +2263,7 @@ index e8d21ff7a..ac6edf866 100644
  
  int ieee802_1x_get_mib(struct hostapd_data *hapd, char *buf, size_t buflen)
  {
-@@ -3053,6 +3058,7 @@ int ieee802_1x_get_mib_sta(struct hostapd_data *hapd, struct sta_info *sta,
+@@ -3017,6 +3022,7 @@ int ieee802_1x_get_mib_sta(struct hostapd_data *hapd, struct sta_info *sta,
  	return len;
  }
  
@@ -2301,10 +2304,10 @@ index fbcddf3f9..3b045ddee 100644
  	default:
  		wpa_printf(MSG_DEBUG, "RRM action %u is not supported",
 diff --git a/src/ap/sta_info.c b/src/ap/sta_info.c
-index 6b78d8377..46ea719b3 100644
+index 49f7c8984..a924ead8b 100644
 --- a/src/ap/sta_info.c
 +++ b/src/ap/sta_info.c
-@@ -475,6 +475,11 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
+@@ -476,6 +476,11 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
  	forced_memzero(sta->last_tk, WPA_TK_MAX_LEN);
  #endif /* CONFIG_TESTING_OPTIONS */
  
@@ -2316,7 +2319,7 @@ index 6b78d8377..46ea719b3 100644
  	os_free(sta);
  }
  
-@@ -543,6 +548,7 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
+@@ -544,6 +549,7 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
  		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
  			       HOSTAPD_LEVEL_INFO, "deauthenticated due to "
  			       "local deauth request");
@@ -2324,7 +2327,7 @@ index 6b78d8377..46ea719b3 100644
  		ap_free_sta(hapd, sta);
  		return;
  	}
-@@ -700,6 +706,7 @@ skip_poll:
+@@ -701,6 +707,7 @@ skip_poll:
  		mlme_deauthenticate_indication(
  			hapd, sta,
  			WLAN_REASON_PREV_AUTH_NOT_VALID);
@@ -2332,7 +2335,7 @@ index 6b78d8377..46ea719b3 100644
  		ap_free_sta(hapd, sta);
  		break;
  	}
-@@ -1552,9 +1559,6 @@ bool ap_sta_set_authorized_flag(struct hostapd_data *hapd, struct sta_info *sta,
+@@ -1553,9 +1560,6 @@ bool ap_sta_set_authorized_flag(struct hostapd_data *hapd, struct sta_info *sta,
  				mld_assoc_link_id = -2;
  		}
  #endif /* CONFIG_IEEE80211BE */
@@ -2342,7 +2345,7 @@ index 6b78d8377..46ea719b3 100644
  		sta->flags |= WLAN_STA_AUTHORIZED;
  	} else {
  		sta->flags &= ~WLAN_STA_AUTHORIZED;
-@@ -1575,6 +1579,8 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
+@@ -1576,6 +1580,8 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
  #endif /* CONFIG_P2P */
  	const u8 *ip_ptr = NULL;
  
@@ -2351,7 +2354,7 @@ index 6b78d8377..46ea719b3 100644
  #ifdef CONFIG_P2P
  	if (hapd->p2p_group == NULL) {
  		if (sta->p2p_ie != NULL &&
-@@ -1591,15 +1597,28 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
+@@ -1592,15 +1598,28 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
  		os_snprintf(buf, sizeof(buf), MACSTR, MAC2STR(sta->addr));
  
  	if (authorized) {
@@ -2380,7 +2383,7 @@ index 6b78d8377..46ea719b3 100644
  #ifdef CONFIG_P2P
  		if (wpa_auth_get_ip_addr(sta->wpa_sm, ip_addr_buf) == 0) {
  			os_snprintf(ip_addr, sizeof(ip_addr),
-@@ -1610,6 +1629,13 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
+@@ -1611,6 +1630,13 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
  		}
  #endif /* CONFIG_P2P */
  
@@ -2394,7 +2397,7 @@ index 6b78d8377..46ea719b3 100644
  		keyid = ap_sta_wpa_get_keyid(hapd, sta);
  		if (keyid) {
  			os_snprintf(keyid_buf, sizeof(keyid_buf),
-@@ -1628,17 +1654,19 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
+@@ -1629,17 +1655,19 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
  					 dpp_pkhash, SHA256_MAC_LEN);
  		}
  
@@ -2418,7 +2421,7 @@ index 6b78d8377..46ea719b3 100644
  
  		if (hapd->msg_ctx_parent &&
  		    hapd->msg_ctx_parent != hapd->msg_ctx)
-@@ -1942,3 +1970,22 @@ void ap_sta_free_sta_profile(struct mld_info *info)
+@@ -1943,3 +1971,22 @@ void ap_sta_free_sta_profile(struct mld_info *info)
  	}
  }
  #endif /* CONFIG_IEEE80211BE */
@@ -2442,7 +2445,7 @@ index 6b78d8377..46ea719b3 100644
 +}
 +
 diff --git a/src/ap/sta_info.h b/src/ap/sta_info.h
-index 827b21e45..2dfea0c48 100644
+index 9a8f4068a..437095123 100644
 --- a/src/ap/sta_info.h
 +++ b/src/ap/sta_info.h
 @@ -50,10 +50,6 @@
@@ -2456,7 +2459,7 @@ index 827b21e45..2dfea0c48 100644
  struct hostapd_data;
  
  struct mbo_non_pref_chan_info {
-@@ -185,6 +181,9 @@ struct sta_info {
+@@ -184,6 +180,9 @@ struct sta_info {
  	int vlan_id_bound; /* updated by ap_sta_bind_vlan() */
  	 /* PSKs from RADIUS authentication server */
  	struct hostapd_sta_wpa_psk_short *psk;
@@ -2466,7 +2469,7 @@ index 827b21e45..2dfea0c48 100644
  
  	char *identity; /* User-Name from RADIUS */
  	char *radius_cui; /* Chargeable-User-Identity from RADIUS */
-@@ -309,6 +308,7 @@ struct sta_info {
+@@ -306,6 +305,7 @@ struct sta_info {
  #endif /* CONFIG_TESTING_OPTIONS */
  #ifdef CONFIG_AIRTIME_POLICY
  	unsigned int airtime_weight;
@@ -2474,7 +2477,7 @@ index 827b21e45..2dfea0c48 100644
  	struct os_reltime backlogged_until;
  #endif /* CONFIG_AIRTIME_POLICY */
  
-@@ -413,23 +413,8 @@ int ap_sta_re_add(struct hostapd_data *hapd, struct sta_info *sta);
+@@ -410,23 +410,8 @@ int ap_sta_re_add(struct hostapd_data *hapd, struct sta_info *sta);
  
  void ap_free_sta_pasn(struct hostapd_data *hapd, struct sta_info *sta);
  
@@ -2650,10 +2653,10 @@ index af8cccaef..d259200c9 100644
  #ifdef CONFIG_IEEE80211BE
  		if (ap_sta_is_mld(hapd, sta)) {
 diff --git a/src/ap/wpa_auth.c b/src/ap/wpa_auth.c
-index a7e6ae2b8..166ec36de 100644
+index f2330bc9d..30f1cad75 100644
 --- a/src/ap/wpa_auth.c
 +++ b/src/ap/wpa_auth.c
-@@ -6187,6 +6187,7 @@ static const char * wpa_bool_txt(int val)
+@@ -6233,6 +6233,7 @@ static const char * wpa_bool_txt(int val)
  	return val ? "TRUE" : "FALSE";
  }
  
@@ -2661,7 +2664,7 @@ index a7e6ae2b8..166ec36de 100644
  
  #define RSN_SUITE "%02x-%02x-%02x-%d"
  #define RSN_SUITE_ARG(s) \
-@@ -6339,7 +6340,7 @@ int wpa_get_mib_sta(struct wpa_state_machine *sm, char *buf, size_t buflen)
+@@ -6385,7 +6386,7 @@ int wpa_get_mib_sta(struct wpa_state_machine *sm, char *buf, size_t buflen)
  
  	return len;
  }
@@ -2671,10 +2674,10 @@ index a7e6ae2b8..166ec36de 100644
  void wpa_auth_countermeasures_start(struct wpa_authenticator *wpa_auth)
  {
 diff --git a/src/ap/wpa_auth_glue.c b/src/ap/wpa_auth_glue.c
-index afd849b7e..099528886 100644
+index d30e9ef3b..eb1b17624 100644
 --- a/src/ap/wpa_auth_glue.c
 +++ b/src/ap/wpa_auth_glue.c
-@@ -331,6 +331,7 @@ static void hostapd_wpa_auth_psk_failure_report(void *ctx, const u8 *addr)
+@@ -320,6 +320,7 @@ static void hostapd_wpa_auth_psk_failure_report(void *ctx, const u8 *addr)
  	struct hostapd_data *hapd = ctx;
  	wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_POSSIBLE_PSK_MISMATCH MACSTR,
  		MAC2STR(addr));
@@ -2682,7 +2685,7 @@ index afd849b7e..099528886 100644
  }
  
  
-@@ -402,6 +403,7 @@ static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
+@@ -391,6 +392,7 @@ static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
  	struct sta_info *sta = ap_get_sta(hapd, addr);
  	const u8 *psk;
  
@@ -2690,7 +2693,7 @@ index afd849b7e..099528886 100644
  	if (vlan_id)
  		*vlan_id = 0;
  	if (psk_len)
-@@ -448,13 +450,18 @@ static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
+@@ -437,13 +439,18 @@ static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
  	 * returned psk which should not be returned again.
  	 * logic list (all hostapd_get_psk; all sta->psk)
  	 */
@@ -2710,7 +2713,7 @@ index afd849b7e..099528886 100644
  			if (pos->is_passphrase) {
  				if (pbkdf2_sha1(pos->passphrase,
  						hapd->conf->ssid.ssid,
-@@ -468,9 +475,13 @@ static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
+@@ -457,9 +464,13 @@ static const u8 * hostapd_wpa_auth_get_psk(void *ctx, const u8 *addr,
  			}
  			if (pos->psk == prev_psk) {
  				psk = pos->next ? pos->next->psk : NULL;
@@ -2724,7 +2727,7 @@ index afd849b7e..099528886 100644
  	}
  	return psk;
  }
-@@ -1818,8 +1829,12 @@ int hostapd_setup_wpa(struct hostapd_data *hapd)
+@@ -1823,8 +1834,12 @@ int hostapd_setup_wpa(struct hostapd_data *hapd)
  	    wpa_key_mgmt_ft(hapd->conf->wpa_key_mgmt)) {
  		const char *ft_iface;
  
@@ -2833,10 +2836,10 @@ index 029f4de23..4c20f137f 100644
  	hostapd_drv_br_port_set_attr(hapd, DRV_BR_PORT_ATTR_HAIRPIN_MODE, 0);
  	hapd->x_snoop_initialized = false;
 diff --git a/src/common/defs.h b/src/common/defs.h
-index 85e0f02d1..ebf567752 100644
+index 0a79ba2a6..ed1d50a7f 100644
 --- a/src/common/defs.h
 +++ b/src/common/defs.h
-@@ -63,6 +63,10 @@
+@@ -62,6 +62,10 @@
  			 WPA_KEY_MGMT_FT_FILS_SHA256 | \
  			 WPA_KEY_MGMT_FT_FILS_SHA384)
  
@@ -2876,10 +2879,10 @@ index f17f95a2c..39d39f429 100644
  
  	if (crypto_ec_point_is_at_infinity(ec, Qr)) {
 diff --git a/src/common/hw_features_common.c b/src/common/hw_features_common.c
-index 78a68aa87..f2a45f72c 100644
+index d9276b935..2a0f7d2d6 100644
 --- a/src/common/hw_features_common.c
 +++ b/src/common/hw_features_common.c
-@@ -923,6 +923,7 @@ int ieee80211ac_cap_check(u32 hw, u32 conf)
+@@ -924,6 +924,7 @@ int ieee80211ac_cap_check(u32 hw, u32 conf)
  	VHT_CAP_CHECK(VHT_CAP_VHT_LINK_ADAPTATION_VHT_MRQ_MFB);
  	VHT_CAP_CHECK(VHT_CAP_RX_ANTENNA_PATTERN);
  	VHT_CAP_CHECK(VHT_CAP_TX_ANTENNA_PATTERN);
@@ -2888,7 +2891,7 @@ index 78a68aa87..f2a45f72c 100644
  #undef VHT_CAP_CHECK
  #undef VHT_CAP_CHECK_MAX
 diff --git a/src/common/ieee802_11_defs.h b/src/common/ieee802_11_defs.h
-index f9e6f2bb3..c723c15bd 100644
+index c5341d3b0..cbd1bcda2 100644
 --- a/src/common/ieee802_11_defs.h
 +++ b/src/common/ieee802_11_defs.h
 @@ -1420,6 +1420,8 @@ struct ieee80211_ampe_ie {
@@ -2901,10 +2904,10 @@ index f9e6f2bb3..c723c15bd 100644
  #define VHT_OPMODE_CHANNEL_WIDTH_MASK		    ((u8) BIT(0) | BIT(1))
  #define VHT_OPMODE_CHANNEL_RxNSS_MASK		    ((u8) BIT(4) | BIT(5) | \
 diff --git a/src/common/sae.c b/src/common/sae.c
-index ce282db6b..0c2c7390e 100644
+index 8005095fc..8bcbda491 100644
 --- a/src/common/sae.c
 +++ b/src/common/sae.c
-@@ -1284,6 +1284,13 @@ void sae_deinit_pt(struct sae_pt *pt)
+@@ -1287,6 +1287,13 @@ void sae_deinit_pt(struct sae_pt *pt)
  static int sae_derive_commit_element_ecc(struct sae_data *sae,
  					 struct crypto_bignum *mask)
  {
@@ -10821,10 +10824,10 @@ index 000000000..d83a3db73
 +	return 0;
 +}
 diff --git a/src/drivers/driver.h b/src/drivers/driver.h
-index b9d3d0013..a4517e5d8 100644
+index 48092ea9a..b402a1abd 100644
 --- a/src/drivers/driver.h
 +++ b/src/drivers/driver.h
-@@ -1012,6 +1012,9 @@ struct wpa_driver_associate_params {
+@@ -1018,6 +1018,9 @@ struct wpa_driver_associate_params {
  	 * responsible for selecting with which BSS to associate. */
  	const u8 *bssid;
  
@@ -10834,7 +10837,7 @@ index b9d3d0013..a4517e5d8 100644
  	/**
  	 * bssid_hint - BSSID of a proposed AP
  	 *
-@@ -1929,6 +1932,7 @@ struct wpa_driver_mesh_join_params {
+@@ -1940,6 +1943,7 @@ struct wpa_driver_mesh_join_params {
  #define WPA_DRIVER_MESH_FLAG_AMPE	0x00000008
  	unsigned int flags;
  	bool handle_dfs;
@@ -10842,7 +10845,7 @@ index b9d3d0013..a4517e5d8 100644
  };
  
  struct wpa_driver_set_key_params {
-@@ -2411,6 +2415,9 @@ struct wpa_driver_capa {
+@@ -2425,6 +2429,9 @@ struct wpa_driver_capa {
  	/** Maximum number of iterations in a single scan plan */
  	u32 max_sched_scan_plan_iterations;
  
@@ -10852,7 +10855,7 @@ index b9d3d0013..a4517e5d8 100644
  	/** Whether sched_scan (offloaded scanning) is supported */
  	int sched_scan_supported;
  
-@@ -3995,6 +4002,25 @@ struct wpa_driver_ops {
+@@ -4009,6 +4016,25 @@ struct wpa_driver_ops {
  	int (*if_remove)(void *priv, enum wpa_driver_if_type type,
  			 const char *ifname);
  
@@ -10878,7 +10881,7 @@ index b9d3d0013..a4517e5d8 100644
  	/**
  	 * set_sta_vlan - Bind a station into a specific interface (AP only)
  	 * @priv: Private driver interface data
-@@ -4097,7 +4123,7 @@ struct wpa_driver_ops {
+@@ -4111,7 +4137,7 @@ struct wpa_driver_ops {
  	 * Returns: 0 on success, -1 on failure
  	 */
  	int (*set_wds_sta)(void *priv, const u8 *addr, int aid, int val,
@@ -10887,7 +10890,7 @@ index b9d3d0013..a4517e5d8 100644
  
  	/**
  	 * send_action - Transmit an Action frame
-@@ -4403,7 +4429,7 @@ struct wpa_driver_ops {
+@@ -4417,7 +4443,7 @@ struct wpa_driver_ops {
  	 * Returns: 0 on success, negative (<0) on failure
  	 */
  	int (*br_set_net_param)(void *priv, enum drv_br_net_param param,
@@ -10896,7 +10899,7 @@ index b9d3d0013..a4517e5d8 100644
  
  	/**
  	 * get_wowlan - Get wake-on-wireless status
-@@ -6811,6 +6837,7 @@ union wpa_event_data {
+@@ -6825,6 +6851,7 @@ union wpa_event_data {
  
  	/**
  	 * struct ch_switch
@@ -10904,7 +10907,7 @@ index b9d3d0013..a4517e5d8 100644
  	 * @freq: Frequency of new channel in MHz
  	 * @ht_enabled: Whether this is an HT channel
  	 * @ch_offset: Secondary channel offset
-@@ -6821,6 +6848,7 @@ union wpa_event_data {
+@@ -6835,6 +6862,7 @@ union wpa_event_data {
  	 * @punct_bitmap: Puncturing bitmap
  	 */
  	struct ch_switch {
@@ -10912,7 +10915,7 @@ index b9d3d0013..a4517e5d8 100644
  		int freq;
  		int ht_enabled;
  		int ch_offset;
-@@ -7069,8 +7097,8 @@ union wpa_event_data {
+@@ -7083,8 +7111,8 @@ union wpa_event_data {
   * Driver wrapper code should call this function whenever an event is received
   * from the driver.
   */
@@ -10923,7 +10926,7 @@ index b9d3d0013..a4517e5d8 100644
  
  /**
   * wpa_supplicant_event_global - Report a driver event for wpa_supplicant
-@@ -7082,7 +7110,7 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
+@@ -7096,7 +7124,7 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
   * Same as wpa_supplicant_event(), but we search for the interface in
   * wpa_global.
   */
@@ -10933,7 +10936,7 @@ index b9d3d0013..a4517e5d8 100644
  
  /*
 diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
-index 3d5d62e1b..96ec693c3 100644
+index ea33b1e45..8db5b6667 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
 @@ -77,6 +77,16 @@ enum nlmsgerr_attrs {
@@ -10974,7 +10977,7 @@ index 3d5d62e1b..96ec693c3 100644
  	err.err = -ENOMEM;
  
  	s_nl_cb = nl_socket_get_cb(nl_handle);
-@@ -546,6 +563,7 @@ int send_and_recv_glb(struct nl80211_global *global,
+@@ -552,6 +569,7 @@ int send_and_recv_glb(struct nl80211_global *global,
  	err.err_info = err_info;
  	err.drv = drv;
  
@@ -10982,7 +10985,7 @@ index 3d5d62e1b..96ec693c3 100644
  	nl_cb_err(cb, NL_CB_CUSTOM, error_handler, &err);
  	nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, finish_handler, &err.err);
  	if (ack_handler_custom) {
-@@ -949,6 +967,7 @@ nl80211_get_wiphy_data_ap(struct i802_bss *bss)
+@@ -955,6 +973,7 @@ nl80211_get_wiphy_data_ap(struct i802_bss *bss)
  			os_free(w);
  			return NULL;
  		}
@@ -10990,7 +10993,7 @@ index 3d5d62e1b..96ec693c3 100644
  		nl_cb_set(w->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM,
  			  no_seq_check, NULL);
  		nl_cb_set(w->nl_cb, NL_CB_VALID, NL_CB_CUSTOM,
-@@ -1364,7 +1383,7 @@ static void wpa_driver_nl80211_event_rtm_newlink(void *ctx,
+@@ -1370,7 +1389,7 @@ static void wpa_driver_nl80211_event_rtm_newlink(void *ctx,
  		}
  		wpa_printf(MSG_DEBUG, "nl80211: Interface down (%s/%s)",
  			   namebuf, ifname);
@@ -10999,7 +11002,7 @@ index 3d5d62e1b..96ec693c3 100644
  			wpa_printf(MSG_DEBUG,
  				   "nl80211: Not the main interface (%s) - do not indicate interface down",
  				   drv->first_bss->ifname);
-@@ -1400,7 +1419,7 @@ static void wpa_driver_nl80211_event_rtm_newlink(void *ctx,
+@@ -1406,7 +1425,7 @@ static void wpa_driver_nl80211_event_rtm_newlink(void *ctx,
  		}
  		wpa_printf(MSG_DEBUG, "nl80211: Interface up (%s/%s)",
  			   namebuf, ifname);
@@ -11008,7 +11011,7 @@ index 3d5d62e1b..96ec693c3 100644
  			wpa_printf(MSG_DEBUG,
  				   "nl80211: Not the main interface (%s) - do not indicate interface up",
  				   drv->first_bss->ifname);
-@@ -2046,6 +2065,7 @@ static int wpa_driver_nl80211_init_nl_global(struct nl80211_global *global)
+@@ -2052,6 +2071,7 @@ static int wpa_driver_nl80211_init_nl_global(struct nl80211_global *global)
  	genl_family_put(family);
  	nl_cache_free(cache);
  
@@ -11016,7 +11019,7 @@ index 3d5d62e1b..96ec693c3 100644
  	nl_cb_set(global->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM,
  		  no_seq_check, NULL);
  	nl_cb_set(global->nl_cb, NL_CB_VALID, NL_CB_CUSTOM,
-@@ -2216,6 +2236,7 @@ static int nl80211_init_bss(struct i802_bss *bss)
+@@ -2222,6 +2242,7 @@ static int nl80211_init_bss(struct i802_bss *bss)
  	if (!bss->nl_cb)
  		return -1;
  
@@ -11024,7 +11027,7 @@ index 3d5d62e1b..96ec693c3 100644
  	nl_cb_set(bss->nl_cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM,
  		  no_seq_check, NULL);
  	nl_cb_set(bss->nl_cb, NL_CB_VALID, NL_CB_CUSTOM,
-@@ -6327,8 +6348,7 @@ static void nl80211_teardown_ap(struct i802_bss *bss)
+@@ -6337,8 +6358,7 @@ static void nl80211_teardown_ap(struct i802_bss *bss)
  	}
  
  	nl80211_put_wiphy_data_ap(bss);
@@ -11034,7 +11037,7 @@ index 3d5d62e1b..96ec693c3 100644
  }
  
  
-@@ -8567,25 +8587,15 @@ static int have_ifidx(struct wpa_driver_nl80211_data *drv, int ifidx,
+@@ -8592,25 +8612,15 @@ static int have_ifidx(struct wpa_driver_nl80211_data *drv, int ifidx,
  
  
  static int i802_set_wds_sta(void *priv, const u8 *addr, int aid, int val,
@@ -11062,7 +11065,7 @@ index 3d5d62e1b..96ec693c3 100644
  	wpa_printf(MSG_DEBUG, "nl80211: Set WDS STA addr=" MACSTR
  		   " aid=%d val=%d name=%s", MAC2STR(addr), aid, val, name);
  	if (val) {
-@@ -8733,6 +8743,7 @@ static void *i802_init(struct hostapd_data *hapd,
+@@ -8761,6 +8771,7 @@ static void *i802_init(struct hostapd_data *hapd,
  	char master_ifname[IFNAMSIZ];
  	int ifindex, br_ifindex = 0;
  	int br_added = 0;
@@ -11070,7 +11073,7 @@ index 3d5d62e1b..96ec693c3 100644
  
  	bss = wpa_driver_nl80211_drv_init(hapd, params->ifname,
  					  params->global_priv, 1,
-@@ -8793,21 +8804,17 @@ static void *i802_init(struct hostapd_data *hapd,
+@@ -8821,21 +8832,17 @@ static void *i802_init(struct hostapd_data *hapd,
  	    (params->num_bridge == 0 || !params->bridge[0]))
  		add_ifidx(drv, br_ifindex, drv->ifindex);
  
@@ -11102,7 +11105,7 @@ index 3d5d62e1b..96ec693c3 100644
  	}
  
  	if (drv->capa.flags2 & WPA_DRIVER_FLAGS2_CONTROL_PORT_RX) {
-@@ -9176,6 +9183,50 @@ static int wpa_driver_nl80211_if_remove(struct i802_bss *bss,
+@@ -9208,6 +9215,50 @@ static int wpa_driver_nl80211_if_remove(struct i802_bss *bss,
  	return 0;
  }
  
@@ -11153,7 +11156,7 @@ index 3d5d62e1b..96ec693c3 100644
  
  static int cookie_handler(struct nl_msg *msg, void *arg)
  {
-@@ -11033,6 +11084,37 @@ static bool nl80211_is_drv_shared(void *priv, int link_id)
+@@ -11086,6 +11137,37 @@ static bool nl80211_is_drv_shared(void *priv, int link_id)
  #endif /* CONFIG_IEEE80211BE */
  
  
@@ -11191,7 +11194,7 @@ index 3d5d62e1b..96ec693c3 100644
  static int driver_nl80211_send_mlme(void *priv, const u8 *data,
  				    size_t data_len, int noack,
  				    unsigned int freq,
-@@ -11531,6 +11613,10 @@ static int nl80211_switch_channel(void *priv, struct csa_settings *settings)
+@@ -11584,6 +11666,10 @@ static int nl80211_switch_channel(void *priv, struct csa_settings *settings)
  	if (ret)
  		goto error;
  
@@ -11202,7 +11205,7 @@ index 3d5d62e1b..96ec693c3 100644
  	/* beacon_csa params */
  	beacon_csa = nla_nest_start(msg, NL80211_ATTR_CSA_IES);
  	if (!beacon_csa)
-@@ -12205,6 +12291,18 @@ static int nl80211_put_mesh_id(struct nl_msg *msg, const u8 *mesh_id,
+@@ -12258,6 +12344,18 @@ static int nl80211_put_mesh_id(struct nl_msg *msg, const u8 *mesh_id,
  }
  
  
@@ -11221,7 +11224,7 @@ index 3d5d62e1b..96ec693c3 100644
  static int nl80211_put_mesh_config(struct nl_msg *msg,
  				   struct wpa_driver_mesh_bss_params *params)
  {
-@@ -12266,6 +12364,7 @@ static int nl80211_join_mesh(struct i802_bss *bss,
+@@ -12319,6 +12417,7 @@ static int nl80211_join_mesh(struct i802_bss *bss,
  	    nl80211_put_basic_rates(msg, params->basic_rates) ||
  	    nl80211_put_mesh_id(msg, params->meshid, params->meshid_len) ||
  	    nl80211_put_beacon_int(msg, params->beacon_int) ||
@@ -11229,7 +11232,7 @@ index 3d5d62e1b..96ec693c3 100644
  	    nl80211_put_dtim_period(msg, params->dtim_period))
  		goto fail;
  
-@@ -12619,7 +12718,7 @@ static const char * drv_br_net_param_str(enum drv_br_net_param param)
+@@ -12672,7 +12771,7 @@ static const char * drv_br_net_param_str(enum drv_br_net_param param)
  
  
  static int wpa_driver_br_set_net_param(void *priv, enum drv_br_net_param param,
@@ -11238,7 +11241,7 @@ index 3d5d62e1b..96ec693c3 100644
  {
  	struct i802_bss *bss = priv;
  	char path[128];
-@@ -12645,8 +12744,11 @@ static int wpa_driver_br_set_net_param(void *priv, enum drv_br_net_param param,
+@@ -12698,8 +12797,11 @@ static int wpa_driver_br_set_net_param(void *priv, enum drv_br_net_param param,
  			return -EINVAL;
  	}
  
@@ -11251,7 +11254,7 @@ index 3d5d62e1b..96ec693c3 100644
  
  set_val:
  	if (linux_write_system_file(path, val))
-@@ -14733,6 +14835,8 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
+@@ -14789,6 +14891,8 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
  	.set_acl = wpa_driver_nl80211_set_acl,
  	.if_add = wpa_driver_nl80211_if_add,
  	.if_remove = driver_nl80211_if_remove,
@@ -11261,10 +11264,10 @@ index 3d5d62e1b..96ec693c3 100644
  	.get_hw_feature_data = nl80211_get_hw_feature_data,
  	.sta_add = wpa_driver_nl80211_sta_add,
 diff --git a/src/drivers/driver_nl80211_capa.c b/src/drivers/driver_nl80211_capa.c
-index 62b166961..d361ed5ec 100644
+index d367eed3f..4e7c8ce15 100644
 --- a/src/drivers/driver_nl80211_capa.c
 +++ b/src/drivers/driver_nl80211_capa.c
-@@ -984,6 +984,10 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
+@@ -981,6 +981,10 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
  			nla_get_u32(tb[NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS]);
  	}
  
@@ -11276,10 +11279,10 @@ index 62b166961..d361ed5ec 100644
  		capa->max_match_sets =
  			nla_get_u8(tb[NL80211_ATTR_MAX_MATCH_SETS]);
 diff --git a/src/drivers/driver_nl80211_event.c b/src/drivers/driver_nl80211_event.c
-index 354f18d28..1064e2d1f 100644
+index e7b67371a..73b85bf9d 100644
 --- a/src/drivers/driver_nl80211_event.c
 +++ b/src/drivers/driver_nl80211_event.c
-@@ -1199,6 +1199,7 @@ static void mlme_event_ch_switch(struct wpa_driver_nl80211_data *drv,
+@@ -1213,6 +1213,7 @@ static void mlme_event_ch_switch(struct wpa_driver_nl80211_data *drv,
  				 struct nlattr *bw, struct nlattr *cf1,
  				 struct nlattr *cf2,
  				 struct nlattr *punct_bitmap,
@@ -11287,7 +11290,7 @@ index 354f18d28..1064e2d1f 100644
  				 int finished)
  {
  	struct i802_bss *bss;
-@@ -1262,6 +1263,8 @@ static void mlme_event_ch_switch(struct wpa_driver_nl80211_data *drv,
+@@ -1278,6 +1279,8 @@ static void mlme_event_ch_switch(struct wpa_driver_nl80211_data *drv,
  		data.ch_switch.cf1 = nla_get_u32(cf1);
  	if (cf2)
  		data.ch_switch.cf2 = nla_get_u32(cf2);
@@ -11296,7 +11299,7 @@ index 354f18d28..1064e2d1f 100644
  
  	if (link) {
  		data.ch_switch.link_id = nla_get_u8(link);
-@@ -4114,6 +4117,7 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
+@@ -4129,6 +4132,7 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
  				     tb[NL80211_ATTR_CENTER_FREQ1],
  				     tb[NL80211_ATTR_CENTER_FREQ2],
  				     tb[NL80211_ATTR_PUNCT_BITMAP],
@@ -11304,7 +11307,7 @@ index 354f18d28..1064e2d1f 100644
  				     0);
  		break;
  	case NL80211_CMD_CH_SWITCH_NOTIFY:
-@@ -4126,6 +4130,7 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
+@@ -4141,6 +4145,7 @@ static void do_process_drv_event(struct i802_bss *bss, int cmd,
  				     tb[NL80211_ATTR_CENTER_FREQ1],
  				     tb[NL80211_ATTR_CENTER_FREQ2],
  				     tb[NL80211_ATTR_PUNCT_BITMAP],
@@ -11406,7 +11409,7 @@ index 0412ac330..e27565375 100644
  
  #endif /* RFKILL_H */
 diff --git a/src/radius/radius_client.c b/src/radius/radius_client.c
-index d4faa7936..8e145b5a4 100644
+index 705aaef66..3291fc037 100644
 --- a/src/radius/radius_client.c
 +++ b/src/radius/radius_client.c
 @@ -165,6 +165,8 @@ struct radius_client_data {
@@ -11418,7 +11421,7 @@ index d4faa7936..8e145b5a4 100644
  	/**
  	 * conf - RADIUS client configuration (list of RADIUS servers to use)
  	 */
-@@ -818,6 +820,30 @@ static void radius_close_acct_socket(struct radius_client_data *radius)
+@@ -821,6 +823,30 @@ static void radius_close_acct_socket(struct radius_client_data *radius)
  }
  
  
@@ -11449,7 +11452,7 @@ index d4faa7936..8e145b5a4 100644
  /**
   * radius_client_send - Send a RADIUS request
   * @radius: RADIUS client context from radius_client_init()
-@@ -1714,6 +1740,10 @@ radius_change_server(struct radius_client_data *radius,
+@@ -1733,6 +1759,10 @@ radius_change_server(struct radius_client_data *radius,
  			wpa_printf(MSG_DEBUG, "RADIUS local address: %s:%u",
  				   inet_ntoa(claddr.sin_addr),
  				   ntohs(claddr.sin_port));
@@ -11460,7 +11463,7 @@ index d4faa7936..8e145b5a4 100644
  		}
  		break;
  #ifdef CONFIG_IPV6
-@@ -1725,6 +1755,10 @@ radius_change_server(struct radius_client_data *radius,
+@@ -1744,6 +1774,10 @@ radius_change_server(struct radius_client_data *radius,
  				   inet_ntop(AF_INET6, &claddr6.sin6_addr,
  					     abuf, sizeof(abuf)),
  				   ntohs(claddr6.sin6_port));
@@ -11777,7 +11780,7 @@ index 233d662f6..80dc13fc8 100644
  	const struct hostapd_ip_addr *client_addr;
  	unsigned int time_window;
 diff --git a/src/radius/radius_server.c b/src/radius/radius_server.c
-index fa3691548..95a1cb994 100644
+index c9497c068..44b4312e3 100644
 --- a/src/radius/radius_server.c
 +++ b/src/radius/radius_server.c
 @@ -63,6 +63,12 @@ struct radius_server_counters {
@@ -11793,7 +11796,7 @@ index fa3691548..95a1cb994 100644
  /**
   * struct radius_session - Internal RADIUS server data for a session
   */
-@@ -90,7 +96,7 @@ struct radius_session {
+@@ -89,7 +95,7 @@ struct radius_session {
  	unsigned int macacl:1;
  	unsigned int t_c_filtering:1;
  
@@ -11802,7 +11805,7 @@ index fa3691548..95a1cb994 100644
  
  	u32 t_c_timestamp; /* Last read T&C timestamp from user DB */
  };
-@@ -394,6 +400,7 @@ static void radius_server_session_free(struct radius_server_data *data,
+@@ -373,6 +379,7 @@ static void radius_server_session_free(struct radius_server_data *data,
  	radius_msg_free(sess->last_reply);
  	os_free(sess->username);
  	os_free(sess->nas_ip);
@@ -11810,7 +11813,7 @@ index fa3691548..95a1cb994 100644
  	os_free(sess);
  	data->num_sess--;
  }
-@@ -554,6 +561,36 @@ radius_server_erp_find_key(struct radius_server_data *data, const char *keyname)
+@@ -533,6 +540,36 @@ radius_server_erp_find_key(struct radius_server_data *data, const char *keyname)
  }
  #endif /* CONFIG_ERP */
  
@@ -11847,7 +11850,7 @@ index fa3691548..95a1cb994 100644
  
  static struct radius_session *
  radius_server_get_new_session(struct radius_server_data *data,
-@@ -607,7 +644,7 @@ radius_server_get_new_session(struct radius_server_data *data,
+@@ -586,7 +623,7 @@ radius_server_get_new_session(struct radius_server_data *data,
  		eap_user_free(tmp);
  		return NULL;
  	}
@@ -11856,7 +11859,7 @@ index fa3691548..95a1cb994 100644
  	sess->macacl = tmp->macacl;
  	eap_user_free(tmp);
  
-@@ -1123,11 +1160,10 @@ radius_server_encapsulate_eap(struct radius_server_data *data,
+@@ -923,11 +960,10 @@ radius_server_encapsulate_eap(struct radius_server_data *data,
  	}
  
  	if (code == RADIUS_CODE_ACCESS_ACCEPT) {
@@ -11872,7 +11875,7 @@ index fa3691548..95a1cb994 100644
  				wpa_printf(MSG_ERROR, "Could not add RADIUS attribute");
  				radius_msg_free(msg);
  				return NULL;
-@@ -1221,11 +1257,10 @@ radius_server_macacl(struct radius_server_data *data,
+@@ -1023,11 +1059,10 @@ radius_server_macacl(struct radius_server_data *data,
  	}
  
  	if (code == RADIUS_CODE_ACCESS_ACCEPT) {
@@ -11888,20 +11891,20 @@ index fa3691548..95a1cb994 100644
  				wpa_printf(MSG_ERROR, "Could not add RADIUS attribute");
  				radius_msg_free(msg);
  				return NULL;
-@@ -2527,7 +2562,7 @@ static int radius_server_get_eap_user(void *ctx, const u8 *identity,
+@@ -2335,7 +2370,7 @@ static int radius_server_get_eap_user(void *ctx, const u8 *identity,
  	ret = data->get_eap_user(data->conf_ctx, identity, identity_len,
  				 phase2, user);
  	if (ret == 0 && user) {
 -		sess->accept_attr = user->accept_attr;
 +		sess->accept_attr = radius_server_copy_attr(user->accept_attr);
- 		sess->remediation = user->remediation;
  		sess->macacl = user->macacl;
  		sess->t_c_timestamp = user->t_c_timestamp;
+ 	}
 diff --git a/src/rsn_supp/wpa.c b/src/rsn_supp/wpa.c
-index 0d8473841..dd7979025 100644
+index 49412854c..0f6721e71 100644
 --- a/src/rsn_supp/wpa.c
 +++ b/src/rsn_supp/wpa.c
-@@ -4195,6 +4195,8 @@ static u32 wpa_key_mgmt_suite(struct wpa_sm *sm)
+@@ -4189,6 +4189,8 @@ static u32 wpa_key_mgmt_suite(struct wpa_sm *sm)
  }
  
  
@@ -11910,7 +11913,7 @@ index 0d8473841..dd7979025 100644
  #define RSN_SUITE "%02x-%02x-%02x-%d"
  #define RSN_SUITE_ARG(s) \
  ((s) >> 24) & 0xff, ((s) >> 16) & 0xff, ((s) >> 8) & 0xff, (s) & 0xff
-@@ -4276,6 +4278,7 @@ int wpa_sm_get_mib(struct wpa_sm *sm, char *buf, size_t buflen)
+@@ -4270,6 +4272,7 @@ int wpa_sm_get_mib(struct wpa_sm *sm, char *buf, size_t buflen)
  
  	return (int) len;
  }
@@ -12523,7 +12526,7 @@ index c7b56996d..59e3f859f 100644
  CONFIG_USIM_SIMULATOR=y
  CONFIG_SIM_SIMULATOR=y
 diff --git a/tests/hwsim/test_ap_eap.py b/tests/hwsim/test_ap_eap.py
-index 96b6d0f27..3961a4ece 100644
+index 5234ec219..0cb5e1da4 100644
 --- a/tests/hwsim/test_ap_eap.py
 +++ b/tests/hwsim/test_ap_eap.py
 @@ -42,20 +42,42 @@ def check_eap_capa(dev, method):
@@ -12645,7 +12648,7 @@ index 96b6d0f27..3961a4ece 100644
      params = hostapd.wpa2_eap_params(ssid="test-wpa2-eap")
      hostapd.add_ap(apdev[0], params)
  
-@@ -3581,7 +3622,7 @@ def test_ap_wpa2_eap_ikev2_oom(dev, apdev):
+@@ -3588,7 +3629,7 @@ def test_ap_wpa2_eap_ikev2_oom(dev, apdev):
              dev[0].request("REMOVE_NETWORK all")
  
      tls = dev[0].request("GET tls_library")
@@ -12654,7 +12657,7 @@ index 96b6d0f27..3961a4ece 100644
          tests = [(1, "os_get_random;dh_init")]
      else:
          tests = [(1, "crypto_dh_init;dh_init")]
-@@ -4901,7 +4942,7 @@ def test_ap_wpa2_eap_tls_intermediate_ca(dev, apdev, params):
+@@ -4908,7 +4949,7 @@ def test_ap_wpa2_eap_tls_intermediate_ca(dev, apdev, params):
      params["private_key"] = "auth_serv/iCA-server/server.key"
      hostapd.add_ap(apdev[0], params)
      tls = dev[0].request("GET tls_library")
@@ -12663,7 +12666,7 @@ index 96b6d0f27..3961a4ece 100644
          ca_cert = "auth_serv/iCA-user/ca-and-root.pem"
          client_cert = "auth_serv/iCA-user/user_and_ica.pem"
      else:
-@@ -4967,6 +5008,7 @@ def test_ap_wpa2_eap_tls_intermediate_ca_ocsp_sha1(dev, apdev, params):
+@@ -4974,6 +5015,7 @@ def test_ap_wpa2_eap_tls_intermediate_ca_ocsp_sha1(dev, apdev, params):
      run_ap_wpa2_eap_tls_intermediate_ca_ocsp(dev, apdev, params, "-sha1")
  
  def run_ap_wpa2_eap_tls_intermediate_ca_ocsp(dev, apdev, params, md):
@@ -12671,7 +12674,7 @@ index 96b6d0f27..3961a4ece 100644
      params = int_eap_server_params()
      params["ca_cert"] = "auth_serv/iCA-server/ca-and-root.pem"
      params["server_cert"] = "auth_serv/iCA-server/server.pem"
-@@ -4976,7 +5018,7 @@ def run_ap_wpa2_eap_tls_intermediate_ca_ocsp(dev, apdev, params, md):
+@@ -4983,7 +5025,7 @@ def run_ap_wpa2_eap_tls_intermediate_ca_ocsp(dev, apdev, params, md):
      try:
          hostapd.add_ap(apdev[0], params)
          tls = dev[0].request("GET tls_library")
@@ -12680,7 +12683,7 @@ index 96b6d0f27..3961a4ece 100644
              ca_cert = "auth_serv/iCA-user/ca-and-root.pem"
              client_cert = "auth_serv/iCA-user/user_and_ica.pem"
          else:
-@@ -5012,7 +5054,7 @@ def run_ap_wpa2_eap_tls_intermediate_ca_ocsp_revoked(dev, apdev, params, md):
+@@ -5019,7 +5061,7 @@ def run_ap_wpa2_eap_tls_intermediate_ca_ocsp_revoked(dev, apdev, params, md):
      try:
          hostapd.add_ap(apdev[0], params)
          tls = dev[0].request("GET tls_library")
@@ -12689,7 +12692,7 @@ index 96b6d0f27..3961a4ece 100644
              ca_cert = "auth_serv/iCA-user/ca-and-root.pem"
              client_cert = "auth_serv/iCA-user/user_and_ica.pem"
          else:
-@@ -5062,7 +5104,7 @@ def test_ap_wpa2_eap_tls_intermediate_ca_ocsp_multi_missing_resp(dev, apdev, par
+@@ -5069,7 +5111,7 @@ def test_ap_wpa2_eap_tls_intermediate_ca_ocsp_multi_missing_resp(dev, apdev, par
      try:
          hostapd.add_ap(apdev[0], params)
          tls = dev[0].request("GET tls_library")
@@ -12698,7 +12701,7 @@ index 96b6d0f27..3961a4ece 100644
              ca_cert = "auth_serv/iCA-user/ca-and-root.pem"
              client_cert = "auth_serv/iCA-user/user_and_ica.pem"
          else:
-@@ -5129,7 +5171,7 @@ def test_ap_wpa2_eap_tls_intermediate_ca_ocsp_multi(dev, apdev, params):
+@@ -5136,7 +5178,7 @@ def test_ap_wpa2_eap_tls_intermediate_ca_ocsp_multi(dev, apdev, params):
  
          hostapd.add_ap(apdev[0], params)
          tls = dev[0].request("GET tls_library")
@@ -12707,7 +12710,7 @@ index 96b6d0f27..3961a4ece 100644
              ca_cert = "auth_serv/iCA-user/ca-and-root.pem"
              client_cert = "auth_serv/iCA-user/user_and_ica.pem"
          else:
-@@ -5387,6 +5429,7 @@ def test_ap_wpa2_eap_ttls_server_cert_eku_client_server(dev, apdev):
+@@ -5394,6 +5436,7 @@ def test_ap_wpa2_eap_ttls_server_cert_eku_client_server(dev, apdev):
  
  def test_ap_wpa2_eap_ttls_server_pkcs12(dev, apdev):
      """WPA2-Enterprise using EAP-TTLS and server PKCS#12 file"""
@@ -12715,7 +12718,7 @@ index 96b6d0f27..3961a4ece 100644
      skip_with_fips(dev[0])
      params = int_eap_server_params()
      del params["server_cert"]
-@@ -5399,6 +5442,7 @@ def test_ap_wpa2_eap_ttls_server_pkcs12(dev, apdev):
+@@ -5406,6 +5449,7 @@ def test_ap_wpa2_eap_ttls_server_pkcs12(dev, apdev):
  
  def test_ap_wpa2_eap_ttls_server_pkcs12_extra(dev, apdev):
      """EAP-TTLS and server PKCS#12 file with extra certs"""
@@ -12723,7 +12726,7 @@ index 96b6d0f27..3961a4ece 100644
      skip_with_fips(dev[0])
      params = int_eap_server_params()
      del params["server_cert"]
-@@ -5421,6 +5465,7 @@ def test_ap_wpa2_eap_ttls_dh_params_server(dev, apdev):
+@@ -5428,6 +5472,7 @@ def test_ap_wpa2_eap_ttls_dh_params_server(dev, apdev):
  
  def test_ap_wpa2_eap_ttls_dh_params_dsa_server(dev, apdev):
      """WPA2-Enterprise using EAP-TTLS and alternative server dhparams (DSA)"""
@@ -12731,7 +12734,7 @@ index 96b6d0f27..3961a4ece 100644
      params = int_eap_server_params()
      params["dh_file"] = "auth_serv/dsaparam.pem"
      hapd = hostapd.add_ap(apdev[0], params)
-@@ -5732,8 +5777,8 @@ def test_ap_wpa2_eap_non_ascii_identity2(dev, apdev):
+@@ -5739,8 +5784,8 @@ def test_ap_wpa2_eap_non_ascii_identity2(dev, apdev):
  def test_openssl_cipher_suite_config_wpas(dev, apdev):
      """OpenSSL cipher suite configuration on wpa_supplicant"""
      tls = dev[0].request("GET tls_library")
@@ -12742,7 +12745,7 @@ index 96b6d0f27..3961a4ece 100644
      params = hostapd.wpa2_eap_params(ssid="test-wpa2-eap")
      hapd = hostapd.add_ap(apdev[0], params)
      eap_connect(dev[0], hapd, "TTLS", "pap user",
-@@ -5759,14 +5804,14 @@ def test_openssl_cipher_suite_config_wpas(dev, apdev):
+@@ -5766,14 +5811,14 @@ def test_openssl_cipher_suite_config_wpas(dev, apdev):
  def test_openssl_cipher_suite_config_hapd(dev, apdev):
      """OpenSSL cipher suite configuration on hostapd"""
      tls = dev[0].request("GET tls_library")
@@ -12761,7 +12764,7 @@ index 96b6d0f27..3961a4ece 100644
      eap_connect(dev[0], hapd, "TTLS", "pap user",
                  anonymous_identity="ttls", password="password",
                  ca_cert="auth_serv/ca.pem", phase2="auth=PAP")
-@@ -6238,6 +6283,11 @@ def test_ap_wpa2_eap_tls_versions_server(dev, apdev):
+@@ -6245,6 +6290,11 @@ def test_ap_wpa2_eap_tls_versions_server(dev, apdev):
      tests = [("TLSv1", "[ENABLE-TLSv1.0][DISABLE-TLSv1.1][DISABLE-TLSv1.2][DISABLE-TLSv1.3]"),
               ("TLSv1.1", "[ENABLE-TLSv1.0][ENABLE-TLSv1.1][DISABLE-TLSv1.2][DISABLE-TLSv1.3]"),
               ("TLSv1.2", "[ENABLE-TLSv1.0][ENABLE-TLSv1.1][ENABLE-TLSv1.2][DISABLE-TLSv1.3]")]
@@ -12773,7 +12776,7 @@ index 96b6d0f27..3961a4ece 100644
      for exp, flags in tests:
          hapd.disable()
          hapd.set("tls_flags", flags)
-@@ -7318,6 +7368,7 @@ def test_ap_wpa2_eap_assoc_rsn(dev, apdev):
+@@ -7325,6 +7375,7 @@ def test_ap_wpa2_eap_assoc_rsn(dev, apdev):
  def test_eap_tls_ext_cert_check(dev, apdev):
      """EAP-TLS and external server certification validation"""
      # With internal server certificate chain validation
@@ -12781,7 +12784,7 @@ index 96b6d0f27..3961a4ece 100644
      id = dev[0].connect("test-wpa2-eap", key_mgmt="WPA-EAP", eap="TLS",
                          identity="tls user",
                          ca_cert="auth_serv/ca.pem",
-@@ -7330,6 +7381,7 @@ def test_eap_tls_ext_cert_check(dev, apdev):
+@@ -7337,6 +7388,7 @@ def test_eap_tls_ext_cert_check(dev, apdev):
  def test_eap_ttls_ext_cert_check(dev, apdev):
      """EAP-TTLS and external server certification validation"""
      # Without internal server certificate chain validation
@@ -12789,7 +12792,7 @@ index 96b6d0f27..3961a4ece 100644
      id = dev[0].connect("test-wpa2-eap", key_mgmt="WPA-EAP", eap="TTLS",
                          identity="pap user", anonymous_identity="ttls",
                          password="password", phase2="auth=PAP",
-@@ -7340,6 +7392,7 @@ def test_eap_ttls_ext_cert_check(dev, apdev):
+@@ -7347,6 +7399,7 @@ def test_eap_ttls_ext_cert_check(dev, apdev):
  def test_eap_peap_ext_cert_check(dev, apdev):
      """EAP-PEAP and external server certification validation"""
      # With internal server certificate chain validation
@@ -12797,7 +12800,7 @@ index 96b6d0f27..3961a4ece 100644
      id = dev[0].connect("test-wpa2-eap", key_mgmt="WPA-EAP", eap="PEAP",
                          identity="user", anonymous_identity="peap",
                          ca_cert="auth_serv/ca.pem",
-@@ -7350,6 +7403,7 @@ def test_eap_peap_ext_cert_check(dev, apdev):
+@@ -7357,6 +7410,7 @@ def test_eap_peap_ext_cert_check(dev, apdev):
  
  def test_eap_fast_ext_cert_check(dev, apdev):
      """EAP-FAST and external server certification validation"""
@@ -12805,7 +12808,7 @@ index 96b6d0f27..3961a4ece 100644
      check_eap_capa(dev[0], "FAST")
      # With internal server certificate chain validation
      dev[0].request("SET blob fast_pac_auth_ext ")
-@@ -7364,10 +7418,6 @@ def test_eap_fast_ext_cert_check(dev, apdev):
+@@ -7371,10 +7425,6 @@ def test_eap_fast_ext_cert_check(dev, apdev):
      run_ext_cert_check(dev, apdev, id)
  
  def run_ext_cert_check(dev, apdev, net_id):
@@ -12987,7 +12990,7 @@ index 4a3b444ff..4f7f7f760 100644
  def test_pmksa_cache_ctrl(dev, apdev):
      """PMKSA cache control interface operations"""
 diff --git a/tests/hwsim/test_sae.py b/tests/hwsim/test_sae.py
-index 48bb6bd12..db5aa23e7 100644
+index 0490403bd..eec0291dc 100644
 --- a/tests/hwsim/test_sae.py
 +++ b/tests/hwsim/test_sae.py
 @@ -178,6 +178,11 @@ def test_sae_groups(dev, apdev):
@@ -13002,7 +13005,7 @@ index 48bb6bd12..db5aa23e7 100644
      heavy_groups = [14, 15, 16]
      suitable_groups = [15, 16, 17, 18, 19, 20, 21]
      groups = [str(g) for g in sae_groups]
-@@ -2248,6 +2253,8 @@ def run_sae_pwe_group(dev, apdev, group):
+@@ -2285,6 +2290,8 @@ def run_sae_pwe_group(dev, apdev, group):
              logger.info("Add Brainpool EC groups since OpenSSL is new enough")
          elif tls.startswith("wolfSSL"):
              logger.info("Make sure Brainpool EC groups were enabled when compiling wolfSSL")
@@ -13012,7 +13015,7 @@ index 48bb6bd12..db5aa23e7 100644
              raise HwsimSkip("Brainpool curve not supported")
      start_sae_pwe_ap(apdev[0], group, 2)
 diff --git a/tests/hwsim/test_suite_b.py b/tests/hwsim/test_suite_b.py
-index ddd1c2ee7..a44f32955 100644
+index f67ac4b0f..340975f9d 100644
 --- a/tests/hwsim/test_suite_b.py
 +++ b/tests/hwsim/test_suite_b.py
 @@ -27,6 +27,8 @@ def check_suite_b_tls_lib(dev, dhe=False, level128=False):
@@ -13024,7 +13027,7 @@ index ddd1c2ee7..a44f32955 100644
      if not tls.startswith("OpenSSL"):
          raise HwsimSkip("TLS library not supported for Suite B: " + tls)
      supported = False
-@@ -520,6 +522,7 @@ def test_suite_b_192_rsa_insufficient_dh(dev, apdev):
+@@ -539,6 +541,7 @@ def test_suite_b_192_rsa_insufficient_dh(dev, apdev):
  
      dev[0].connect("test-suite-b", key_mgmt="WPA-EAP-SUITE-B-192",
                     ieee80211w="2",
@@ -13033,7 +13036,7 @@ index ddd1c2ee7..a44f32955 100644
                     eap="TLS", identity="tls user",
                     ca_cert="auth_serv/rsa3072-ca.pem",
 diff --git a/tests/hwsim/test_wpas_ctrl.py b/tests/hwsim/test_wpas_ctrl.py
-index cf6d3211e..cbf136eaf 100644
+index 5b1aa655b..d9ac0cb8e 100644
 --- a/tests/hwsim/test_wpas_ctrl.py
 +++ b/tests/hwsim/test_wpas_ctrl.py
 @@ -1856,7 +1856,7 @@ def _test_wpas_ctrl_oom(dev):
@@ -13165,7 +13168,7 @@ index 33b448682..9dcca5596 100644
  		in = NULL;
  		if (need_more_data) {
 diff --git a/wpa_supplicant/Makefile b/wpa_supplicant/Makefile
-index bf9875e6d..1eb9e670b 100644
+index fd7d7a0bd..1d3505866 100644
 --- a/wpa_supplicant/Makefile
 +++ b/wpa_supplicant/Makefile
 @@ -10,6 +10,7 @@ ALL += dbus/fi.w1.wpa_supplicant1.service
@@ -13212,7 +13215,7 @@ index bf9875e6d..1eb9e670b 100644
  OBJS += ibss_rsn.o
  endif
  
-@@ -982,6 +1004,10 @@ ifdef CONFIG_DYNAMIC_EAP_METHODS
+@@ -984,6 +1006,10 @@ ifdef CONFIG_DYNAMIC_EAP_METHODS
  CFLAGS += -DCONFIG_DYNAMIC_EAP_METHODS
  LIBS += -ldl -rdynamic
  endif
@@ -13223,7 +13226,7 @@ index bf9875e6d..1eb9e670b 100644
  endif
  
  ifdef CONFIG_AP
-@@ -989,9 +1015,11 @@ NEED_EAP_COMMON=y
+@@ -991,9 +1017,11 @@ NEED_EAP_COMMON=y
  NEED_RSN_AUTHENTICATOR=y
  CFLAGS += -DCONFIG_AP
  OBJS += ap.o
@@ -13235,7 +13238,7 @@ index bf9875e6d..1eb9e670b 100644
  OBJS += ../src/ap/hostapd.o
  OBJS += ../src/ap/wpa_auth_glue.o
  OBJS += ../src/ap/utils.o
-@@ -1031,7 +1059,16 @@ ifdef CONFIG_FILS
+@@ -1033,7 +1061,16 @@ ifdef CONFIG_FILS
  OBJS += ../src/ap/fils_hlp.o
  endif
  ifdef CONFIG_CTRL_IFACE
@@ -13252,7 +13255,7 @@ index bf9875e6d..1eb9e670b 100644
  endif
  
  CFLAGS += -DEAP_SERVER -DEAP_SERVER_IDENTITY
-@@ -1082,6 +1119,12 @@ endif
+@@ -1084,6 +1121,12 @@ endif
  ifdef CONFIG_HS20
  OBJS += ../src/ap/hs20.o
  endif
@@ -13265,7 +13268,7 @@ index bf9875e6d..1eb9e670b 100644
  endif
  
  ifdef CONFIG_MBO
-@@ -1091,7 +1134,9 @@ NEED_GAS=y
+@@ -1093,7 +1136,9 @@ NEED_GAS=y
  endif
  
  ifdef NEED_RSN_AUTHENTICATOR
@@ -13275,7 +13278,7 @@ index bf9875e6d..1eb9e670b 100644
  NEED_AES_WRAP=y
  OBJS += ../src/ap/wpa_auth.o
  OBJS += ../src/ap/wpa_auth_ie.o
-@@ -1190,7 +1235,7 @@ TLS_FUNCS=y
+@@ -1192,7 +1237,7 @@ TLS_FUNCS=y
  endif
  
  ifeq ($(CONFIG_TLS), wolfssl)
@@ -13284,7 +13287,7 @@ index bf9875e6d..1eb9e670b 100644
  ifdef TLS_FUNCS
  CFLAGS += -DWOLFSSL_DER_LOAD
  OBJS += ../src/crypto/tls_wolfssl.o
-@@ -1206,6 +1251,7 @@ LIBS_p += -lwolfssl -lm
+@@ -1208,6 +1253,7 @@ LIBS_p += -lwolfssl -lm
  endif
  
  ifeq ($(CONFIG_TLS), openssl)
@@ -13292,7 +13295,7 @@ index bf9875e6d..1eb9e670b 100644
  CFLAGS += -DCRYPTO_RSA_OAEP_SHA256
  ifdef TLS_FUNCS
  CFLAGS += -DEAP_TLS_OPENSSL
-@@ -1232,7 +1278,28 @@ endif
+@@ -1234,7 +1280,28 @@ endif
  CFLAGS += -DTLS_DEFAULT_CIPHERS=\"$(CONFIG_TLS_DEFAULT_CIPHERS)\"
  endif
  
@@ -13321,7 +13324,7 @@ index bf9875e6d..1eb9e670b 100644
  ifndef CONFIG_CRYPTO
  # default to libgcrypt
  CONFIG_CRYPTO=gnutls
-@@ -1263,6 +1330,7 @@ endif
+@@ -1265,6 +1332,7 @@ endif
  endif
  
  ifeq ($(CONFIG_TLS), internal)
@@ -13329,7 +13332,7 @@ index bf9875e6d..1eb9e670b 100644
  ifndef CONFIG_CRYPTO
  CONFIG_CRYPTO=internal
  endif
-@@ -1343,6 +1411,7 @@ endif
+@@ -1345,6 +1413,7 @@ endif
  endif
  
  ifeq ($(CONFIG_TLS), linux)
@@ -13337,7 +13340,7 @@ index bf9875e6d..1eb9e670b 100644
  OBJS += ../src/crypto/crypto_linux.o
  OBJS_p += ../src/crypto/crypto_linux.o
  ifdef TLS_FUNCS
-@@ -1424,9 +1493,11 @@ endif
+@@ -1426,9 +1495,11 @@ endif
  
  ifneq ($(CONFIG_TLS), openssl)
  ifneq ($(CONFIG_TLS), wolfssl)
@@ -13349,7 +13352,7 @@ index bf9875e6d..1eb9e670b 100644
  ifdef CONFIG_OPENSSL_INTERNAL_AES_WRAP
  # Seems to be needed at least with BoringSSL
  NEED_INTERNAL_AES_WRAP=y
-@@ -1440,9 +1511,11 @@ endif
+@@ -1442,9 +1513,11 @@ endif
  
  ifdef NEED_INTERNAL_AES_WRAP
  ifneq ($(CONFIG_TLS), linux)
@@ -13361,7 +13364,7 @@ index bf9875e6d..1eb9e670b 100644
  ifdef NEED_AES_EAX
  AESOBJS += ../src/crypto/aes-eax.o
  NEED_AES_CTR=y
-@@ -1452,35 +1525,45 @@ AESOBJS += ../src/crypto/aes-siv.o
+@@ -1454,35 +1527,45 @@ AESOBJS += ../src/crypto/aes-siv.o
  NEED_AES_CTR=y
  endif
  ifdef NEED_AES_CTR
@@ -13407,7 +13410,7 @@ index bf9875e6d..1eb9e670b 100644
  ifdef NEED_AES_ENC
  ifdef CONFIG_INTERNAL_AES
  AESOBJS += ../src/crypto/aes-internal-enc.o
-@@ -1495,12 +1578,16 @@ ifneq ($(CONFIG_TLS), openssl)
+@@ -1497,12 +1580,16 @@ ifneq ($(CONFIG_TLS), openssl)
  ifneq ($(CONFIG_TLS), linux)
  ifneq ($(CONFIG_TLS), gnutls)
  ifneq ($(CONFIG_TLS), wolfssl)
@@ -13424,7 +13427,7 @@ index bf9875e6d..1eb9e670b 100644
  ifdef CONFIG_INTERNAL_SHA1
  SHA1OBJS += ../src/crypto/sha1-internal.o
  ifdef NEED_FIPS186_2_PRF
-@@ -1512,29 +1599,37 @@ CFLAGS += -DCONFIG_NO_PBKDF2
+@@ -1514,29 +1601,37 @@ CFLAGS += -DCONFIG_NO_PBKDF2
  else
  ifneq ($(CONFIG_TLS), openssl)
  ifneq ($(CONFIG_TLS), wolfssl)
@@ -13462,7 +13465,7 @@ index bf9875e6d..1eb9e670b 100644
  ifdef NEED_MD5
  ifdef CONFIG_INTERNAL_MD5
  MD5OBJS += ../src/crypto/md5-internal.o
-@@ -1589,12 +1684,17 @@ ifneq ($(CONFIG_TLS), openssl)
+@@ -1591,12 +1686,17 @@ ifneq ($(CONFIG_TLS), openssl)
  ifneq ($(CONFIG_TLS), linux)
  ifneq ($(CONFIG_TLS), gnutls)
  ifneq ($(CONFIG_TLS), wolfssl)
@@ -13480,7 +13483,7 @@ index bf9875e6d..1eb9e670b 100644
  ifdef CONFIG_INTERNAL_SHA256
  SHA256OBJS += ../src/crypto/sha256-internal.o
  endif
-@@ -1607,50 +1707,68 @@ CFLAGS += -DCONFIG_INTERNAL_SHA512
+@@ -1609,50 +1709,68 @@ CFLAGS += -DCONFIG_INTERNAL_SHA512
  SHA256OBJS += ../src/crypto/sha512-internal.o
  endif
  ifdef NEED_TLS_PRF_SHA256
@@ -13549,7 +13552,7 @@ index bf9875e6d..1eb9e670b 100644
  
  ifdef NEED_ASN1
  OBJS += ../src/tls/asn1.o
-@@ -1825,10 +1943,12 @@ ifdef CONFIG_FIPS
+@@ -1827,10 +1945,12 @@ ifdef CONFIG_FIPS
  CFLAGS += -DCONFIG_FIPS
  ifneq ($(CONFIG_TLS), openssl)
  ifneq ($(CONFIG_TLS), wolfssl)
@@ -13562,7 +13565,7 @@ index bf9875e6d..1eb9e670b 100644
  
  OBJS += $(SHA1OBJS) $(DESOBJS)
  
-@@ -2006,32 +2126,38 @@ wpa_priv: $(BCHECK) $(OBJS_priv)
+@@ -2008,32 +2128,38 @@ wpa_priv: $(BCHECK) $(OBJS_priv)
  
  _OBJS_VAR := OBJS
  include ../src/objs.mk
@@ -13606,7 +13609,7 @@ index bf9875e6d..1eb9e670b 100644
  	@$(E) "  LD " $@
  
  LIBCTRL += ../src/common/wpa_ctrl.o
-@@ -2138,6 +2264,12 @@ eap_gpsk.so: $(SRC_EAP_GPSK)
+@@ -2140,6 +2266,12 @@ eap_gpsk.so: $(SRC_EAP_GPSK)
  	$(Q)sed -e 's|\@BINDIR\@|$(BINDIR)|g' $< >$@
  	@$(E) "  sed" $<
  
@@ -13674,7 +13677,7 @@ index de18a68f0..eacf296ef 100644
  #endif /* CONFIG_CTRL_IFACE */
  
 diff --git a/wpa_supplicant/config.c b/wpa_supplicant/config.c
-index 6dfb3165a..37cf01148 100644
+index 77eb9bf68..69ee068f4 100644
 --- a/wpa_supplicant/config.c
 +++ b/wpa_supplicant/config.c
 @@ -18,6 +18,7 @@
@@ -13685,7 +13688,7 @@ index 6dfb3165a..37cf01148 100644
  #include "config.h"
  
  
-@@ -2449,6 +2450,97 @@ static char * wpa_config_write_mac_value(const struct parse_data *data,
+@@ -2423,6 +2424,97 @@ static char * wpa_config_write_mac_value(const struct parse_data *data,
  #endif /* NO_CONFIG_WRITE */
  
  
@@ -13783,7 +13786,7 @@ index 6dfb3165a..37cf01148 100644
  /* Helper macros for network block parser */
  
  #ifdef OFFSET
-@@ -2668,6 +2760,7 @@ static const struct parse_data ssid_fields[] = {
+@@ -2642,6 +2734,7 @@ static const struct parse_data ssid_fields[] = {
  #else /* CONFIG_MESH */
  	{ INT_RANGE(mode, 0, 4) },
  #endif /* CONFIG_MESH */
@@ -13791,7 +13794,7 @@ index 6dfb3165a..37cf01148 100644
  	{ INT_RANGE(proactive_key_caching, 0, 1) },
  	{ INT_RANGE(disabled, 0, 2) },
  	{ STR(id_str) },
-@@ -2743,6 +2836,8 @@ static const struct parse_data ssid_fields[] = {
+@@ -2717,6 +2810,8 @@ static const struct parse_data ssid_fields[] = {
  	{ INT(ap_max_inactivity) },
  	{ INT(dtim_period) },
  	{ INT(beacon_int) },
@@ -13801,7 +13804,7 @@ index 6dfb3165a..37cf01148 100644
  	{ INT_RANGE(macsec_policy, 0, 1) },
  	{ INT_RANGE(macsec_integ_only, 0, 1) },
 diff --git a/wpa_supplicant/config_file.c b/wpa_supplicant/config_file.c
-index ea52d9cf2..1f8a1e3e9 100644
+index 26c7d44bc..d73891f1a 100644
 --- a/wpa_supplicant/config_file.c
 +++ b/wpa_supplicant/config_file.c
 @@ -390,8 +390,13 @@ struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
@@ -13819,16 +13822,16 @@ index ea52d9cf2..1f8a1e3e9 100644
  	if (f == NULL) {
  		wpa_printf(MSG_ERROR, "Failed to open config file '%s', "
  			   "error: %s", name, strerror(errno));
-@@ -867,6 +872,7 @@ static void wpa_config_write_network(FILE *f, struct wpa_ssid *ssid)
- #endif /* IEEE8021X_EAPOL */
+@@ -868,6 +873,7 @@ static void wpa_config_write_network(FILE *f, struct wpa_ssid *ssid)
  	INT(mode);
+ #ifdef CONFIG_MESH
  	INT(no_auto_peer);
 +	INT(noscan);
  	INT_DEF(mesh_fwding, DEFAULT_MESH_FWDING);
+ #endif /* CONFIG_MESH */
  	INT(frequency);
- 	INT(enable_edmg);
 diff --git a/wpa_supplicant/config_ssid.h b/wpa_supplicant/config_ssid.h
-index 5f8a1f2ae..b719161b7 100644
+index 530b5e963..8fd3a8b70 100644
 --- a/wpa_supplicant/config_ssid.h
 +++ b/wpa_supplicant/config_ssid.h
 @@ -907,6 +907,9 @@ struct wpa_ssid {
@@ -13841,7 +13844,7 @@ index 5f8a1f2ae..b719161b7 100644
  #ifdef CONFIG_MACSEC
  	/**
  	 * macsec_policy - Determines the policy for MACsec secure session
-@@ -1063,6 +1066,8 @@ struct wpa_ssid {
+@@ -1071,6 +1074,8 @@ struct wpa_ssid {
  	 */
  	int no_auto_peer;
  
@@ -13851,10 +13854,10 @@ index 5f8a1f2ae..b719161b7 100644
  	 * mesh_rssi_threshold - Set mesh parameter mesh_rssi_threshold (dBm)
  	 *
 diff --git a/wpa_supplicant/ctrl_iface.c b/wpa_supplicant/ctrl_iface.c
-index 85fbbe458..897728313 100644
+index 3892df99d..79d330448 100644
 --- a/wpa_supplicant/ctrl_iface.c
 +++ b/wpa_supplicant/ctrl_iface.c
-@@ -2357,7 +2357,7 @@ static int wpa_supplicant_ctrl_iface_status(struct wpa_supplicant *wpa_s,
+@@ -2374,7 +2374,7 @@ static int wpa_supplicant_ctrl_iface_status(struct wpa_supplicant *wpa_s,
  			pos += ret;
  		}
  
@@ -13863,7 +13866,7 @@ index 85fbbe458..897728313 100644
  		if (wpa_s->ap_iface) {
  			pos += ap_ctrl_iface_wpa_get_status(wpa_s, pos,
  							    end - pos,
-@@ -12876,6 +12876,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
+@@ -12831,6 +12831,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
  			reply_len = -1;
  	} else if (os_strncmp(buf, "NOTE ", 5) == 0) {
  		wpa_printf(MSG_INFO, "NOTE: %s", buf + 5);
@@ -13871,7 +13874,7 @@ index 85fbbe458..897728313 100644
  	} else if (os_strcmp(buf, "MIB") == 0) {
  		reply_len = wpa_sm_get_mib(wpa_s->wpa, reply, reply_size);
  		if (reply_len >= 0) {
-@@ -12888,6 +12889,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
+@@ -12843,6 +12844,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
  				reply_size - reply_len);
  #endif /* CONFIG_MACSEC */
  		}
@@ -13879,7 +13882,7 @@ index 85fbbe458..897728313 100644
  	} else if (os_strncmp(buf, "STATUS", 6) == 0) {
  		reply_len = wpa_supplicant_ctrl_iface_status(
  			wpa_s, buf + 6, reply, reply_size);
-@@ -13394,6 +13396,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
+@@ -13330,6 +13332,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
  		reply_len = wpa_supplicant_ctrl_iface_bss(
  			wpa_s, buf + 4, reply, reply_size);
  #ifdef CONFIG_AP
@@ -13887,7 +13890,7 @@ index 85fbbe458..897728313 100644
  	} else if (os_strcmp(buf, "STA-FIRST") == 0) {
  		reply_len = ap_ctrl_iface_sta_first(wpa_s, reply, reply_size);
  	} else if (os_strncmp(buf, "STA ", 4) == 0) {
-@@ -13402,12 +13405,15 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
+@@ -13338,12 +13341,15 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
  	} else if (os_strncmp(buf, "STA-NEXT ", 9) == 0) {
  		reply_len = ap_ctrl_iface_sta_next(wpa_s, buf + 9, reply,
  						   reply_size);
@@ -13903,7 +13906,7 @@ index 85fbbe458..897728313 100644
  	} else if (os_strncmp(buf, "CHAN_SWITCH ", 12) == 0) {
  		if (ap_ctrl_iface_chanswitch(wpa_s, buf + 12))
  			reply_len = -1;
-@@ -13566,7 +13572,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
+@@ -13502,7 +13508,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
  		if (wpas_ctrl_iface_coloc_intf_report(wpa_s, buf + 18))
  			reply_len = -1;
  #endif /* CONFIG_WNM */
@@ -13912,7 +13915,7 @@ index 85fbbe458..897728313 100644
  	} else if (os_strncmp(buf, "DISASSOC_IMMINENT ", 18) == 0) {
  		if (ap_ctrl_iface_disassoc_imminent(wpa_s, buf + 18))
  			reply_len = -1;
-@@ -13576,7 +13582,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
+@@ -13512,7 +13518,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
  	} else if (os_strncmp(buf, "BSS_TM_REQ ", 11) == 0) {
  		if (ap_ctrl_iface_bss_tm_req(wpa_s, buf + 11))
  			reply_len = -1;
@@ -13990,10 +13993,10 @@ index 0c17aaea4..3d35757bf 100644
  
  	os_memset(&eapol_test, 0, sizeof(eapol_test));
 diff --git a/wpa_supplicant/events.c b/wpa_supplicant/events.c
-index ec29deae1..b6dbf6390 100644
+index fe8e45e07..ef66daa08 100644
 --- a/wpa_supplicant/events.c
 +++ b/wpa_supplicant/events.c
-@@ -6167,8 +6167,8 @@ static int wpas_pasn_auth(struct wpa_supplicant *wpa_s,
+@@ -6175,8 +6175,8 @@ static int wpas_pasn_auth(struct wpa_supplicant *wpa_s,
  #endif /* CONFIG_PASN */
  
  
@@ -14004,7 +14007,7 @@ index ec29deae1..b6dbf6390 100644
  {
  	struct wpa_supplicant *wpa_s = ctx;
  	int resched;
-@@ -6203,6 +6203,7 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
+@@ -6211,6 +6211,7 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
  		event_to_string(event), event);
  #endif /* CONFIG_NO_STDOUT_DEBUG */
  
@@ -14012,7 +14015,7 @@ index ec29deae1..b6dbf6390 100644
  	switch (event) {
  	case EVENT_AUTH:
  #ifdef CONFIG_FST
-@@ -7131,7 +7132,7 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
+@@ -7139,7 +7140,7 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
  }
  
  
@@ -14068,10 +14071,10 @@ index 9229eb51f..ee152c5b9 100644
  		case 'W':
  			params.wait_for_monitor++;
 diff --git a/wpa_supplicant/mesh.c b/wpa_supplicant/mesh.c
-index 869f0b39f..d6d9629c1 100644
+index 297d644e5..425298b50 100644
 --- a/wpa_supplicant/mesh.c
 +++ b/wpa_supplicant/mesh.c
-@@ -509,6 +509,8 @@ static int wpa_supplicant_mesh_init(struct wpa_supplicant *wpa_s,
+@@ -538,6 +538,8 @@ static int wpa_supplicant_mesh_init(struct wpa_supplicant *wpa_s,
  			   frequency);
  		goto out_free;
  	}
@@ -14080,7 +14083,7 @@ index 869f0b39f..d6d9629c1 100644
  
  	if (ssid->mesh_basic_rates == NULL) {
  		/*
-@@ -634,6 +636,7 @@ int wpa_supplicant_join_mesh(struct wpa_supplicant *wpa_s,
+@@ -663,6 +665,7 @@ int wpa_supplicant_join_mesh(struct wpa_supplicant *wpa_s,
  
  	params->meshid = ssid->ssid;
  	params->meshid_len = ssid->ssid_len;
@@ -14089,7 +14092,7 @@ index 869f0b39f..d6d9629c1 100644
  	wpa_s->mesh_ht_enabled = !!params->freq.ht_enabled;
  	wpa_s->mesh_vht_enabled = !!params->freq.vht_enabled;
 diff --git a/wpa_supplicant/wpa_cli.c b/wpa_supplicant/wpa_cli.c
-index 2f57be84e..ab243d9cb 100644
+index 2ab291712..f650bb909 100644
 --- a/wpa_supplicant/wpa_cli.c
 +++ b/wpa_supplicant/wpa_cli.c
 @@ -26,6 +26,15 @@
@@ -14142,10 +14145,10 @@ index 88f3f2a52..92efe5629 100644
  
  	os_memset(&global, 0, sizeof(global));
 diff --git a/wpa_supplicant/wpa_supplicant.c b/wpa_supplicant/wpa_supplicant.c
-index b43692d33..b6d2d9fdc 100644
+index da7ff00c9..afa68eb63 100644
 --- a/wpa_supplicant/wpa_supplicant.c
 +++ b/wpa_supplicant/wpa_supplicant.c
-@@ -1256,6 +1256,7 @@ void wpa_supplicant_set_state(struct wpa_supplicant *wpa_s,
+@@ -1271,6 +1271,7 @@ void wpa_supplicant_set_state(struct wpa_supplicant *wpa_s,
  		sme_sched_obss_scan(wpa_s, 0);
  	}
  	wpa_s->wpa_state = state;
@@ -14153,7 +14156,7 @@ index b43692d33..b6d2d9fdc 100644
  
  #ifdef CONFIG_BGSCAN
  	if (state == WPA_COMPLETED && wpa_s->current_ssid != wpa_s->bgscan_ssid)
-@@ -2972,7 +2973,7 @@ static int drv_supports_vht(struct wpa_supplicant *wpa_s,
+@@ -2963,7 +2964,7 @@ static int drv_supports_vht(struct wpa_supplicant *wpa_s,
  }
  
  
@@ -14162,7 +14165,7 @@ index b43692d33..b6d2d9fdc 100644
  {
  	int i;
  
-@@ -2981,7 +2982,10 @@ static bool ibss_mesh_is_80mhz_avail(int channel, struct hostapd_hw_modes *mode)
+@@ -2972,7 +2973,10 @@ static bool ibss_mesh_is_80mhz_avail(int channel, struct hostapd_hw_modes *mode)
  
  		chan = hw_get_channel_chan(mode, i, NULL);
  		if (!chan ||
@@ -14174,7 +14177,7 @@ index b43692d33..b6d2d9fdc 100644
  			return false;
  	}
  
-@@ -3041,7 +3045,7 @@ static bool ibss_mesh_can_use_vht(struct wpa_supplicant *wpa_s,
+@@ -3032,7 +3036,7 @@ static bool ibss_mesh_can_use_vht(struct wpa_supplicant *wpa_s,
  				  const struct wpa_ssid *ssid,
  				  struct hostapd_hw_modes *mode)
  {
@@ -14183,23 +14186,16 @@ index b43692d33..b6d2d9fdc 100644
  		return false;
  
  	if (!drv_supports_vht(wpa_s, ssid))
-@@ -3108,13 +3112,13 @@ static void ibss_mesh_select_40mhz(struct wpa_supplicant *wpa_s,
+@@ -3099,7 +3103,7 @@ static void ibss_mesh_select_40mhz(struct wpa_supplicant *wpa_s,
  				   const struct wpa_ssid *ssid,
  				   struct hostapd_hw_modes *mode,
  				   struct hostapd_freq_params *freq,
--				   int obss_scan) {
-+				   int obss_scan, bool dfs_enabled) {
+-				   int obss_scan, bool is_6ghz)
++				   int obss_scan, bool is_6ghz, bool dfs_enabled)
+ {
  	int chan_idx;
  	struct hostapd_channel_data *pri_chan = NULL, *sec_chan = NULL;
- 	int i, res;
- 	unsigned int j;
- 	static const int ht40plus[] = {
--		36, 44, 52, 60, 100, 108, 116, 124, 132, 140,
-+		1, 2, 3, 4, 5, 6, 7, 36, 44, 52, 60, 100, 108, 116, 124, 132, 140,
- 		149, 157, 165, 173, 184, 192
- 	};
- 	int ht40 = -1;
-@@ -3132,8 +3136,11 @@ static void ibss_mesh_select_40mhz(struct wpa_supplicant *wpa_s,
+@@ -3130,8 +3134,11 @@ static void ibss_mesh_select_40mhz(struct wpa_supplicant *wpa_s,
  		return;
  
  	/* Check primary channel flags */
@@ -14212,7 +14208,7 @@ index b43692d33..b6d2d9fdc 100644
  
  #ifdef CONFIG_HT_OVERRIDES
  	if (ssid->disable_ht40)
-@@ -3159,8 +3166,11 @@ static void ibss_mesh_select_40mhz(struct wpa_supplicant *wpa_s,
+@@ -3166,8 +3173,11 @@ static void ibss_mesh_select_40mhz(struct wpa_supplicant *wpa_s,
  		return;
  
  	/* Check secondary channel flags */
@@ -14223,9 +14219,9 @@ index b43692d33..b6d2d9fdc 100644
 +		if (!dfs_enabled)
 +			return;
  
- 	if (ht40 == -1) {
- 		if (!(pri_chan->flag & HOSTAPD_CHAN_HT40MINUS))
-@@ -3236,7 +3246,7 @@ static bool ibss_mesh_select_80_160mhz(struct wpa_supplicant *wpa_s,
+ 	if (freq->ht_enabled) {
+ 		if (ht40 == -1) {
+@@ -3245,7 +3255,7 @@ static bool ibss_mesh_select_80_160mhz(struct wpa_supplicant *wpa_s,
  				       const struct wpa_ssid *ssid,
  				       struct hostapd_hw_modes *mode,
  				       struct hostapd_freq_params *freq,
@@ -14234,7 +14230,7 @@ index b43692d33..b6d2d9fdc 100644
  	static const int bw80[] = {
  		5180, 5260, 5500, 5580, 5660, 5745, 5825,
  		5955, 6035, 6115, 6195, 6275, 6355, 6435,
-@@ -3286,7 +3296,7 @@ static bool ibss_mesh_select_80_160mhz(struct wpa_supplicant *wpa_s,
+@@ -3298,7 +3308,7 @@ static bool ibss_mesh_select_80_160mhz(struct wpa_supplicant *wpa_s,
  		goto skip_80mhz;
  
  	/* Use 40 MHz if channel not usable */
@@ -14243,29 +14239,31 @@ index b43692d33..b6d2d9fdc 100644
  		goto skip_80mhz;
  
  	chwidth = CONF_OPER_CHWIDTH_80MHZ;
-@@ -3300,7 +3310,7 @@ static bool ibss_mesh_select_80_160mhz(struct wpa_supplicant *wpa_s,
- 	if ((mode->he_capab[ieee80211_mode].phy_cap[
- 		     HE_PHYCAP_CHANNEL_WIDTH_SET_IDX] &
- 	     HE_PHYCAP_CHANNEL_WIDTH_SET_160MHZ_IN_5G) && is_6ghz &&
--	    ibss_mesh_is_80mhz_avail(channel + 16, mode)) {
-+	    ibss_mesh_is_80mhz_avail(channel + 16, mode, dfs_enabled)) {
+@@ -3340,7 +3350,7 @@ static bool ibss_mesh_select_80_160mhz(struct wpa_supplicant *wpa_s,
+ 	     HE_PHYCAP_CHANNEL_WIDTH_SET_160MHZ_IN_5G) &&
+ 	    (ssid->max_oper_chwidth == CONF_OPER_CHWIDTH_160MHZ ||
+ 	     ssid->max_oper_chwidth == CONF_OPER_CHWIDTH_320MHZ) &&
+-	    ibss_mesh_is_80mhz_avail(channel + 16 * offset_in_160, mode)) {
++	    ibss_mesh_is_80mhz_avail(channel + 16 * offset_in_160, mode, dfs_enabled)) {
  		for (j = 0; j < ARRAY_SIZE(bw160); j++) {
- 			if (freq->freq == bw160[j]) {
- 				chwidth = CONF_OPER_CHWIDTH_160MHZ;
-@@ -3317,9 +3327,9 @@ static bool ibss_mesh_select_80_160mhz(struct wpa_supplicant *wpa_s,
- 	if ((mode->eht_capab[ieee80211_mode].phy_cap[
- 		     EHT_PHYCAP_320MHZ_IN_6GHZ_SUPPORT_IDX] &
+ 			u8 start_chan;
+ 
+@@ -3363,11 +3373,11 @@ static bool ibss_mesh_select_80_160mhz(struct wpa_supplicant *wpa_s,
  	     EHT_PHYCAP_320MHZ_IN_6GHZ_SUPPORT_MASK) && is_6ghz &&
--	    ibss_mesh_is_80mhz_avail(channel + 16, mode) &&
--	    ibss_mesh_is_80mhz_avail(channel + 32, mode) &&
--	    ibss_mesh_is_80mhz_avail(channel + 48, mode)) {
-+	    ibss_mesh_is_80mhz_avail(channel + 16, mode, dfs_enabled) &&
-+	    ibss_mesh_is_80mhz_avail(channel + 32, mode, dfs_enabled) &&
-+	    ibss_mesh_is_80mhz_avail(channel + 48, mode, dfs_enabled)) {
+ 	    ssid->max_oper_chwidth == CONF_OPER_CHWIDTH_320MHZ &&
+ 	    ibss_mesh_is_80mhz_avail(channel + 16 -
+-				     64 * ((offset_in_320 + 1) / 4), mode) &&
++				     64 * ((offset_in_320 + 1) / 4), mode, dfs_enabled) &&
+ 	    ibss_mesh_is_80mhz_avail(channel + 32 -
+-				     64 * ((offset_in_320 + 2) / 4), mode) &&
++				     64 * ((offset_in_320 + 2) / 4), mode, dfs_enabled) &&
+ 	    ibss_mesh_is_80mhz_avail(channel + 48 -
+-				     64 * ((offset_in_320 + 3) / 4), mode)) {
++				     64 * ((offset_in_320 + 3) / 4), mode, dfs_enabled)) {
  		for (j = 0; j < ARRAY_SIZE(bw320); j += 2) {
  			if (freq->freq >= bw320[j] &&
  			    freq->freq <= bw320[j + 1]) {
-@@ -3348,10 +3358,12 @@ static bool ibss_mesh_select_80_160mhz(struct wpa_supplicant *wpa_s,
+@@ -3396,10 +3406,12 @@ static bool ibss_mesh_select_80_160mhz(struct wpa_supplicant *wpa_s,
  				if (!chan)
  					continue;
  
@@ -14281,7 +14279,7 @@ index b43692d33..b6d2d9fdc 100644
  
  				/* Found a suitable second segment for 80+80 */
  				chwidth = CONF_OPER_CHWIDTH_80P80MHZ;
-@@ -3403,12 +3415,17 @@ void ibss_mesh_setup_freq(struct wpa_supplicant *wpa_s,
+@@ -3451,12 +3463,17 @@ void ibss_mesh_setup_freq(struct wpa_supplicant *wpa_s,
  	int ieee80211_mode = wpas_mode_to_ieee80211_mode(ssid->mode);
  	enum hostapd_hw_mode hw_mode;
  	struct hostapd_hw_modes *mode = NULL;
@@ -14300,23 +14298,25 @@ index b43692d33..b6d2d9fdc 100644
  	if (ssid->mode == WPAS_MODE_IBSS && !ssid->fixed_freq) {
  		struct wpa_bss *bss = ibss_find_existing_bss(wpa_s, ssid);
  
-@@ -3446,11 +3463,13 @@ void ibss_mesh_setup_freq(struct wpa_supplicant *wpa_s,
+@@ -3494,12 +3511,13 @@ void ibss_mesh_setup_freq(struct wpa_supplicant *wpa_s,
  		freq->he_enabled = ibss_mesh_can_use_he(wpa_s, ssid, mode,
  							ieee80211_mode);
  	freq->channel = channel;
+-	/* Setup higher BW only for 5 and 6 GHz */
 +	if (mode->mode == HOSTAPD_MODE_IEEE80211G && ssid->noscan)
-+		ibss_mesh_select_40mhz(wpa_s, ssid, mode, freq, obss_scan, dfs_enabled);
- 	/* Setup higher BW only for 5 GHz */
++		ibss_mesh_select_40mhz(wpa_s, ssid, mode, freq, obss_scan, is_6ghz, dfs_enabled);
++	/* Setup higher BW only for 5 GHz */
  	if (mode->mode == HOSTAPD_MODE_IEEE80211A) {
--		ibss_mesh_select_40mhz(wpa_s, ssid, mode, freq, obss_scan);
-+		ibss_mesh_select_40mhz(wpa_s, ssid, mode, freq, obss_scan, dfs_enabled);
+-		ibss_mesh_select_40mhz(wpa_s, ssid, mode, freq, obss_scan,
+-				       is_6ghz);
++		ibss_mesh_select_40mhz(wpa_s, ssid, mode, freq, obss_scan, is_6ghz, dfs_enabled);
  		if (!ibss_mesh_select_80_160mhz(wpa_s, ssid, mode, freq,
 -						ieee80211_mode, is_6ghz))
 +						ieee80211_mode, is_6ghz, dfs_enabled))
  			freq->he_enabled = freq->vht_enabled = false;
  	}
  
-@@ -4621,6 +4640,12 @@ static void wpas_start_assoc_cb(struct wpa_radio_work *work, int deinit)
+@@ -4660,6 +4678,12 @@ static void wpas_start_assoc_cb(struct wpa_radio_work *work, int deinit)
  			params.beacon_int = ssid->beacon_int;
  		else
  			params.beacon_int = wpa_s->conf->beacon_int;
@@ -14329,7 +14329,7 @@ index b43692d33..b6d2d9fdc 100644
  	}
  
  	if (bss && ssid->enable_edmg)
-@@ -6328,7 +6353,7 @@ wpa_supplicant_alloc(struct wpa_supplicant *parent)
+@@ -6367,7 +6391,7 @@ wpa_supplicant_alloc(struct wpa_supplicant *parent)
  	if (wpa_s == NULL)
  		return NULL;
  	wpa_s->scan_req = INITIAL_SCAN_REQ;
@@ -14338,7 +14338,7 @@ index b43692d33..b6d2d9fdc 100644
  	wpa_s->new_connection = 1;
  	wpa_s->parent = parent ? parent : wpa_s;
  	wpa_s->p2pdev = wpa_s->parent;
-@@ -8050,7 +8075,6 @@ struct wpa_interface * wpa_supplicant_match_iface(struct wpa_global *global,
+@@ -8088,7 +8112,6 @@ struct wpa_interface * wpa_supplicant_match_iface(struct wpa_global *global,
  	return NULL;
  }
  
@@ -14346,7 +14346,7 @@ index b43692d33..b6d2d9fdc 100644
  /**
   * wpa_supplicant_match_existing - Match existing interfaces
   * @global: Pointer to global data from wpa_supplicant_init()
-@@ -8085,6 +8109,11 @@ static int wpa_supplicant_match_existing(struct wpa_global *global)
+@@ -8123,6 +8146,11 @@ static int wpa_supplicant_match_existing(struct wpa_global *global)
  
  #endif /* CONFIG_MATCH_IFACE */
  
@@ -14358,7 +14358,7 @@ index b43692d33..b6d2d9fdc 100644
  
  /**
   * wpa_supplicant_add_iface - Add a new network interface
-@@ -8167,6 +8196,9 @@ struct wpa_supplicant * wpa_supplicant_add_iface(struct wpa_global *global,
+@@ -8205,6 +8233,9 @@ struct wpa_supplicant * wpa_supplicant_add_iface(struct wpa_global *global,
  	}
  #endif /* CONFIG_P2P */
  
@@ -14368,7 +14368,7 @@ index b43692d33..b6d2d9fdc 100644
  	return wpa_s;
  }
  
-@@ -8193,6 +8225,9 @@ int wpa_supplicant_remove_iface(struct wpa_global *global,
+@@ -8231,6 +8262,9 @@ int wpa_supplicant_remove_iface(struct wpa_global *global,
  	struct wpa_supplicant *parent = wpa_s->parent;
  #endif /* CONFIG_MESH */
  
@@ -14378,7 +14378,7 @@ index b43692d33..b6d2d9fdc 100644
  	/* Remove interface from the global list of interfaces */
  	prev = global->ifaces;
  	if (prev == wpa_s) {
-@@ -8341,6 +8376,8 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
+@@ -8379,6 +8413,8 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
  #ifndef CONFIG_NO_WPA_MSG
  	wpa_msg_register_ifname_cb(wpa_supplicant_msg_ifname_cb);
  #endif /* CONFIG_NO_WPA_MSG */
@@ -14387,7 +14387,7 @@ index b43692d33..b6d2d9fdc 100644
  
  	if (params->wpa_debug_file_path)
  		wpa_debug_open_file(params->wpa_debug_file_path);
-@@ -8499,6 +8536,7 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
+@@ -8537,6 +8573,7 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
  
  	eloop_register_timeout(WPA_SUPPLICANT_CLEANUP_INTERVAL, 0,
  			       wpas_periodic, global, NULL);
@@ -14395,7 +14395,7 @@ index b43692d33..b6d2d9fdc 100644
  
  	return global;
  }
-@@ -8571,6 +8609,8 @@ void wpa_supplicant_deinit(struct wpa_global *global)
+@@ -8609,6 +8646,8 @@ void wpa_supplicant_deinit(struct wpa_global *global)
  
  	wpas_notify_supplicant_deinitialized(global);
  
@@ -14405,7 +14405,7 @@ index b43692d33..b6d2d9fdc 100644
  #ifdef CONFIG_AP
  	eap_server_unregister_methods();
 diff --git a/wpa_supplicant/wpa_supplicant_i.h b/wpa_supplicant/wpa_supplicant_i.h
-index d5e951f06..437ff21f3 100644
+index 1a7e2148e..c96ac0441 100644
 --- a/wpa_supplicant/wpa_supplicant_i.h
 +++ b/wpa_supplicant/wpa_supplicant_i.h
 @@ -21,6 +21,8 @@
@@ -14426,7 +14426,7 @@ index d5e951f06..437ff21f3 100644
  };
  
  
-@@ -705,6 +709,8 @@ struct wpa_supplicant {
+@@ -696,6 +700,8 @@ struct wpa_supplicant {
  	unsigned char own_addr[ETH_ALEN];
  	unsigned char perm_addr[ETH_ALEN];
  	char ifname[100];

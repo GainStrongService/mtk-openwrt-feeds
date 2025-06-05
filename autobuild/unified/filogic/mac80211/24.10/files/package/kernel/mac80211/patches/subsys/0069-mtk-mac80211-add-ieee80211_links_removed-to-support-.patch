@@ -1,7 +1,7 @@
-From 9178690e48d913a32b5e49f29852fc185f300e6a Mon Sep 17 00:00:00 2001
+From e6a4e68fea22a2f45e56d14df0e29f8ef2815dcb Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Fri, 3 May 2024 17:51:37 +0800
-Subject: [PATCH 069/101] mtk: mac80211: add ieee80211_links_removed() to
+Subject: [PATCH 069/107] mtk: mac80211: add ieee80211_links_removed() to
  support MLD AP reconf
 
 Add ieee80211_links_removed() to let driver notify upper layers for MLD AP
@@ -39,7 +39,7 @@ index 6fabbc16..2ef2a814 100644
   * ieee80211_get_scanning - get scanning bitmask
   *
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 96a52fa7..80db9cf6 100644
+index b029e3cf..815e49c0 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
 @@ -1685,9 +1685,11 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
@@ -70,7 +70,7 @@ index 96a52fa7..80db9cf6 100644
  
  	ieee80211_link_copy_chanctx_to_vlans(link, true);
  	ieee80211_link_release_channel(link);
-@@ -5353,6 +5357,15 @@ ieee80211_skip_cac(struct wireless_dev *wdev, unsigned int link_id)
+@@ -5312,6 +5316,15 @@ ieee80211_skip_cac(struct wireless_dev *wdev, unsigned int link_id)
  	}
  }
  

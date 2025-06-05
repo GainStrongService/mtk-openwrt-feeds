@@ -1,7 +1,7 @@
-From 87ae2ea58ad22945a197f403b6ddf22a91e0d5aa Mon Sep 17 00:00:00 2001
+From ee0ae26f23ee465050f1d973bb799a51fbde70bc Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Mon, 29 Jul 2024 10:07:17 +0800
-Subject: [PATCH 074/101] mtk: mac80211: add CU event notification support
+Subject: [PATCH 074/107] mtk: mac80211: add CU event notification support
 
 Add CU event notification support
 
@@ -116,10 +116,10 @@ index a2a30918..f4eb69d0 100644
 +
  #endif /* __LINUX_NL80211_H */
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index c908139b..2d77de08 100644
+index d564de7f..b292d418 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -3922,6 +3922,12 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
+@@ -3881,6 +3881,12 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
  		return err;
  
  	ieee80211_link_info_change_notify(sdata, link_data, changed);
@@ -132,7 +132,7 @@ index c908139b..2d77de08 100644
  
  	ieee80211_vif_unblock_queues_csa(sdata);
  
-@@ -5388,6 +5394,17 @@ void ieee80211_links_removed(struct ieee80211_vif *vif, u16 removed_links)
+@@ -5347,6 +5353,17 @@ void ieee80211_links_removed(struct ieee80211_vif *vif, u16 removed_links)
  }
  EXPORT_SYMBOL_GPL(ieee80211_links_removed);
  

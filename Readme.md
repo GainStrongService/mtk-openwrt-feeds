@@ -78,10 +78,7 @@ make V=s -j$(nproc)
 ```
 
 # Mediatek Official Release with autobuild framework
-1. 21.02 branch
-https://gerrit.mediatek.inc/plugins/gitiles/openwrt/feeds/mtk_openwrt_feeds/+/refs/heads/master/autobuild/autobuild_5.4_mac80211_release/Readme.md
+1. OpenWrt21.02 branch: [Kernel5.4 Release](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/autobuild_5.4_mac80211_release/Readme.md)
 
-2. 24.10 branch
-https://gerrit.mediatek.inc/plugins/gitiles/openwrt/feeds/mtk_openwrt_feeds/+/refs/heads/master/autobuild/unified/Readme.md
-
+2. OpenWrt24.10 branch: [Kernel6.6 Release](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/Readme.md)
 

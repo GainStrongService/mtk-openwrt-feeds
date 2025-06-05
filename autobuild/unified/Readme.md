@@ -16,23 +16,31 @@ python3-distutils python3-setuptools rsync swig unzip zlib1g-dev file wget
 ---
 
 ## Uboot & ATF
-The minimum required version is 2024-11-08, while the latest version is  **2025-03-04** for the latest U-Boot feature support.
+The minimum required version is 2024-11-08, while the latest version is  **2025-06-04** for the latest U-Boot feature support. (ex: Secure Boot)
 The OpenWrt/24.10 or trunk image type is ITB, which cannot be loaded if the original U-Boot is too old. Please update to a newer U-Boot that supports both OpenWrt 21.0x and OpenWrt 24.xx image types.
 
 - Since U-Boot is still released as a tarball, please log in to the DCC or contact the corresponding window to obtain the latest U-Boot and ATF source code.
 
 Also need DTS overlay to enable 10G ethernet for one-time uboot console setting. "0. U-Boot console" 
-- GMAC1 and GMAC2 is AQR113C 10G PHY case
+
+- Filogic880/860 (MT7988) - GMAC1 and GMAC2 is AQR113C 10G PHY case
 ```
 setenv bootconf mt7988a-rfb-spim-nand-nmbm
 setenv bootconf_extra mt7988a-rfb-eth1-aqr#mt7988a-rfb-eth2-aqr 
 saveenv
 ```
 
-- GMAC1 is Mediatek Internal 2.5G PHY and GMAC2 is AQR113C 10G PHY case
+- Filogic880/860 (MT7988) - GMAC1 is Mediatek Internal 2.5G PHY and GMAC2 is AQR113C 10G PHY case
 ```
 setenv bootconf mt7988a-rfb-spim-nand-nmbm
 setenv bootconf_extra mt7988a-rfb-eth1-i2p5g-phy#mt7988a-rfb-eth2-aqr
+saveenv
+```
+
+- Filogic850 (MT7987) - GMAC1 is AN8855 switch and GMAC2 is Mediatek Internal 2.5G PHY and GMAC3 is Mediatek External 2.5G PHY case
+```
+setenv bootconf mt7987-spim-nand
+setenv bootconf_extra mt7987-netsys-eth0-an8855#mt7987-netsys-eth1-i2p5g#mt7987-netsys-eth2-e2p5g
 saveenv
 ```
 
@@ -58,6 +66,7 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
 ### Supported Chipsets
 - Filogic880/Filogic680/MT7996 802.11a/b/g/n/ac/ax/be BE19000/BE14000 2.4/5G/6GHz PCIe Chip
 - Filogic860/Filogic660/MT7992 802.11a/b/g/n/ac/ax/be BE7200/BE5000 2.4/5G PCIe Chip
+- Filogic850/Filogic650/MT7990 802.11a/b/g/n/ac/ax/be BE3600 2.4/5G PCIe Chip
 ---
 
 ### Default EEPROM Bin
@@ -78,14 +87,19 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
   - eFEM: mt7992_eeprom_23.bin
   - iFEM: mt7992_eeprom_23_2i5i.bin
 
+- Filogic850/BE3600 (2-3)
+  - eFEM: mt7990_eeprom.bin
+  - iFEM: mt7990_eeprom_2i5i.bin
+
 ## Wi-Fi 7 Latest Release Version
 
-- **Date**: 2025-04-25
+- **Date**: 2025-06-06
 - **Modified By**: Evelyn Tsai (evelyn.tsai@mediatek.com)
 - **Version**:
-  - Driver Version: 4.3.25.04
-  - Filogic880/Filogic680 Firmware Version: 202504211220
-  - Filogic860/Filogic660 Firmware Version: 202504211313
+  - Driver Version: 4.3.25.06
+  - Filogic880/Filogic680 Firmware Version: 202506051257
+  - Filogic860/Filogic660 Firmware Version: 202506051312
+  - Filogic850/Filogic650 Firmware Version: 202506051257
 - **Document Reference**:
   - MAC80211 MT76 Programming Guide v4.10
   - MT76 Test Mode Programming Guide v2.5
@@ -96,9 +110,8 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
     - Support RTL8261N 10G PHY
     - Support MTK Prpl Reference Board, BE19000
     - Support BananaPi BPI-R4, BE14000
-    - **Not Support**:
-      - Security Boot
-      - Dual FIP
+    - Security Boot (MT7988 ready, MT7987 not ready)
+    - Dual FIP for eMMC only (all MT798x series)
   - WiFi:
     - Real Single Wiphy - foundational requirement for Multi-Link
     - Preamble puncturing (WiFi6E with FCC regularity restriction)
@@ -125,8 +138,7 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
     - Multi-Link + 11v MBSS
     - Multi-Link + WPS
     - EPCS Priority Access
-    - **Partial Support w/ known issue**:
-      - Multi-Link + 11FT (AKM9/25)
+    - Multi-Link + 11FT (AKM9/25), AP mode only
     - **Not Support**:
       - QoS Management R3
       - WiFi7 R2
@@ -146,6 +158,56 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
     - The default power control from user space is disabled to follow the maximum power from eFuse. If you would like to enable power-relevant features (e.g., SingleSKU/iw set Tx Power)
     - make sure to set 'sku_idx' to zero for a single SKU table or to any positive number for the index of SKU tables you want in the hostapd configuration to enable it.
     - You can double-check whether the value under '/sys/kernel/debug/ieee80211/phy0/mt76/sku_disable' is 0.
+
+#### Filogic 850 WiFi7 Alpha Release (2025-06-06)
+
+```
+#Get OpenWrt 24.10 source code from Git Server
+git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git openwrt
+
+#Get mtk-openwrt-feeds source code
+git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+
+#Choose one SKU to build (1st Build)
+cd openwrt
+
+#Change Feeds Revision
+#vim ../mtk-openwrt-feeds/autobuild/unified/feed_revision
+
+# Select one SKU to build
+## 1. Filogic 850 (MT7987) MTK Reference Board (RFB) and BananaPi BPI-R4-Lite
+## 1.1 Filogic 650 (MT7990) NIC
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt7987_rfb-mt7990 log_file=make
+## 1.2 Filogic 660 (MT7992) NIC
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt7987_rfb-mt7992 log_file=make
+## 1.3 Filogic 680 (MT7996) NIC
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic-mac80211-mt7987_rfb-mt7996 log_file=make
+
+#Further Build (After 1st full build)
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh build
+or
+make V=s
+
+#Clean OpenWrt source tree
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
+```
+
+##### WiFi Package Version
+
+| **Platform**             | **OpenWrt-24.10**            | **git01.mediatek.com**         |
+|--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
+| Kernel                   | 6.6.92                        | ./feeds/mtk_openwrt_feed/24.10/patches-base <br />  ./feeds/mtk_openwrt_feed/24.10/files  <br /> ./feeds/mtk_openwrt_feed/24.10/patches-feeds                 |
+| **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
+| Hostapd                  | PKG_SOURCE_DATE:=2025-05-02   | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0003-hostapd-package-makefile-ucode-files.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/nerwork/services/hostapd/patches         |
+| libnl-tiny               | PKG_SOURCE_DATE:=2025-03-19   | N/A                                                                               |
+| iw                       | PKG_VEㄥRSION:=6.9-r1           | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/network/utils/iw/patches               |
+| iwinfo                   | PKG_SOURCE_DATE:=2024-10-20   | N/A                                                                               |
+| wireless-regdb           | PKG_VERSION:=2025-02-20       | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/firmware/wireless-regdb/patches                |
+| ucode                    | PKG_VERSION:=2025-02-10       | |
+| wifi-scripts             | PKG_VERSION:=1.0-r1           | **Files**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/network/config/wifi-scripts/files   |
+| netifd                   | PKG_VERSION:=2024-12-17       | **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/network/config/netifd/patches  |
+| MAC80211                 | PKG_VERSION:=wireless-next-2025-03-20 (~ Kernel 6.14-rc7) | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0004-mac80211-package-makefile.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mac80211/patches |
+| MT76                     | PKG_SOURCE_DATE:=2025-06-01  | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0001-mt76-package-makefile.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/patches <br /> **Firmware** ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/kernel/mt76/src/firmware/mt7996 |
 
 #### Filogic 880/860 WiFi7 MP4.1 Release (2025-04-25)
 

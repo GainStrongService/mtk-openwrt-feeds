@@ -1,7 +1,7 @@
-From beb281706b5b62015b699505e96a5813207c2878 Mon Sep 17 00:00:00 2001
+From ceafaab4907dd387e33c8e831cb5fcfda6e67244 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Tue, 6 Feb 2024 17:46:10 +0800
-Subject: [PATCH 059/101] mtk: mac80211: add DFS CAC countdown in CSA flow
+Subject: [PATCH 059/107] mtk: mac80211: add DFS CAC countdown in CSA flow
 
 Add DFS channel CAC countdown mechanism in CSA flow
 
@@ -38,17 +38,22 @@ Add missing beacon_enable resuming
 Without this, ap will stop beaconing after skipping cac for post-csa CAC
 
 Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+
+Remove the deauth here, as it should be done in hostapd to clear the
+info of all the disassociated STA.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 ---
- include/net/cfg80211.h     |  52 ++++++++++++++++-
- net/mac80211/cfg.c         | 111 +++++++++++++++++++++++++++++++++----
- net/mac80211/ieee80211_i.h |   1 +
- net/mac80211/mlme.c        |   9 ++-
- net/mac80211/util.c        |   8 ++-
- net/wireless/chan.c        |  57 ++++++++++++++++++-
- net/wireless/nl80211.c     |   5 +-
- net/wireless/rdev-ops.h    |  18 ++++++
- net/wireless/reg.c         |   8 ++-
- 9 files changed, 250 insertions(+), 19 deletions(-)
+ include/net/cfg80211.h     | 52 +++++++++++++++++++++++++++-
+ net/mac80211/cfg.c         | 70 ++++++++++++++++++++++++++++++++------
+ net/mac80211/ieee80211_i.h |  1 +
+ net/mac80211/mlme.c        |  9 ++++-
+ net/mac80211/util.c        |  8 ++++-
+ net/wireless/chan.c        | 57 +++++++++++++++++++++++++++++--
+ net/wireless/nl80211.c     |  5 +--
+ net/wireless/rdev-ops.h    | 18 ++++++++++
+ net/wireless/reg.c         |  8 +++--
+ 9 files changed, 209 insertions(+), 19 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
 index ec36ec31..f10aa72d 100644
@@ -142,7 +147,7 @@ index ec36ec31..f10aa72d 100644
   * @dev: the device which switched channels
   * @chandef: the new channel definition
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 76c55548..0547a13c 100644
+index 76c55548..e66f95f6 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
 @@ -1604,7 +1604,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
@@ -154,7 +159,7 @@ index 76c55548..0547a13c 100644
  {
  	if (!link->u.ap.next_beacon)
  		return;
-@@ -3797,6 +3797,79 @@ static int ieee80211_set_after_csa_beacon(struct ieee80211_link_data *link_data,
+@@ -3797,6 +3797,40 @@ static int ieee80211_set_after_csa_beacon(struct ieee80211_link_data *link_data,
  	return 0;
  }
  
@@ -192,58 +197,10 @@ index 76c55548..0547a13c 100644
 +	return 1;
 +}
 +
-+static void ieee80211_csa_send_deauth(struct ieee80211_link_data *link_data)
-+{
-+	struct ieee80211_sub_if_data *sdata = link_data->sdata;
-+	struct ieee80211_local *local = sdata->local;
-+	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
-+	u8 broadcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-+	bool send_deauth;
-+
-+	send_deauth = !cfg80211_chandef_identical(&link_data->conf->chanreq.oper,
-+						  &link_data->csa.chanreq.oper) &&
-+		      !cfg80211_reg_can_beacon_relax(local->hw.wiphy,
-+						     &link_data->csa.chanreq.oper,
-+						     sdata->wdev.iftype) &&
-+		      hweight16(sdata->vif.valid_links) <= 1 &&
-+		      !ieee80211_is_cert_mode(&local->hw);
-+	/* broadcast deauth frame if CAC is required for non MLD or single link MLD AP */
-+	if (!send_deauth)
-+		return;
-+
-+	if (test_bit(IEEE80211_QUEUE_STOP_REASON_CSA,
-+		     &local->queue_stop_reasons[0])) {
-+		ieee80211_wake_vif_queues_norefcount(local, sdata,
-+						     IEEE80211_QUEUE_STOP_REASON_CSA);
-+		ieee80211_send_deauth_disassoc(sdata, broadcast,
-+					       link_data->conf->bssid,
-+					       IEEE80211_STYPE_DEAUTH,
-+					       WLAN_REASON_DEAUTH_LEAVING,
-+					       send_deauth, frame_buf);
-+		ieee80211_stop_vif_queues_norefcount(local, sdata,
-+					       IEEE80211_QUEUE_STOP_REASON_CSA);
-+		return;
-+	}
-+
-+	ieee80211_send_deauth_disassoc(sdata, broadcast,
-+				       link_data->conf->bssid, IEEE80211_STYPE_DEAUTH,
-+				       WLAN_REASON_DEAUTH_LEAVING,
-+				       send_deauth, frame_buf);
-+}
-+
  static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
  {
  	struct ieee80211_sub_if_data *sdata = link_data->sdata;
-@@ -3807,6 +3880,8 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
- 
- 	lockdep_assert_wiphy(local->hw.wiphy);
- 
-+	ieee80211_csa_send_deauth(link_data);
-+
- 	/*
- 	 * using reservation isn't immediate as it may be deferred until later
- 	 * with multi-vif. once reservation is complete it will re-schedule the
-@@ -3830,6 +3905,12 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
+@@ -3830,6 +3864,12 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
  					&link_data->csa.chanreq.oper))
  		return -EINVAL;
  
@@ -256,7 +213,7 @@ index 76c55548..0547a13c 100644
  	link_conf->csa_active = false;
  
  	err = ieee80211_set_after_csa_beacon(link_data, &changed);
-@@ -4048,9 +4129,6 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+@@ -4048,9 +4088,6 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
  	if (!list_empty(&local->roc_list) || local->scanning)
  		return -EBUSY;
  
@@ -266,7 +223,7 @@ index 76c55548..0547a13c 100644
  	if (WARN_ON(link_id >= IEEE80211_MLD_MAX_NUM_LINKS))
  		return -EINVAL;
  
-@@ -4063,10 +4141,6 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+@@ -4063,10 +4100,6 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
  	if (chanreq.oper.punctured && !link_conf->eht_support)
  		return -EINVAL;
  
@@ -277,7 +234,7 @@ index 76c55548..0547a13c 100644
  	conf = wiphy_dereference(wiphy, link_conf->chanctx_conf);
  	if (!conf) {
  		err = -EBUSY;
-@@ -4081,6 +4155,15 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+@@ -4081,6 +4114,15 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
  
  	chanctx = container_of(conf, struct ieee80211_chanctx, conf);
  
@@ -293,7 +250,7 @@ index 76c55548..0547a13c 100644
  	ch_switch.timestamp = 0;
  	ch_switch.device_timestamp = 0;
  	ch_switch.block_tx = params->block_tx;
-@@ -5245,8 +5328,15 @@ ieee80211_skip_cac(struct wireless_dev *wdev, unsigned int link_id)
+@@ -5245,8 +5287,15 @@ ieee80211_skip_cac(struct wireless_dev *wdev, unsigned int link_id)
  
  	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
  				  &link->dfs_cac_timer_work);
@@ -311,7 +268,7 @@ index 76c55548..0547a13c 100644
  		cac_time_ms = wdev->links[link_id].cac_time_ms;
  		wdev->links[link_id].cac_start_time = jiffies -
  						      msecs_to_jiffies(cac_time_ms + 1);
-@@ -5338,6 +5428,7 @@ const struct cfg80211_ops mac80211_config_ops = {
+@@ -5338,6 +5387,7 @@ const struct cfg80211_ops mac80211_config_ops = {
  #endif
  	.get_channel = ieee80211_cfg_get_channel,
  	.start_radar_detection = ieee80211_start_radar_detection,

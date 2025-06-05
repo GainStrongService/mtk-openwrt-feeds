@@ -1,0 +1,36 @@
+From e81f82a3bd746c203be21758d722e9e4e56e8546 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 19 May 2025 13:22:26 +0800
+Subject: [PATCH 201/206] mtk: hostapd: fix bandwidth 160 verification
+
+The for-loop has already checked all the 8 channels in the 160MHz
+bandwidth are available and therefore we can safely remove the flag
+check. Also, the flag came from the regdb which doesn't consider
+Ch36-Ch48 (80M-nonDFS) and Ch52-Ch64 (80M-DFS) as a contiguous 160M
+available for use. As a result, the flag is quite useless and we can
+remove it to fix the check performed in both the beacon req handler
+and supported op_class checker.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+---
+ wpa_supplicant/op_classes.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/wpa_supplicant/op_classes.c b/wpa_supplicant/op_classes.c
+index ff11d20b9..3b5f54c56 100644
+--- a/wpa_supplicant/op_classes.c
++++ b/wpa_supplicant/op_classes.c
+@@ -171,10 +171,6 @@ static enum chan_allowed verify_160mhz(struct hostapd_hw_modes *mode,
+ 		    NOT_ALLOWED)
+ 			return NOT_ALLOWED;
+ 
+-		if (!(flags & HOSTAPD_CHAN_VHT_80MHZ_SUBCHANNEL) ||
+-		    !(flags & HOSTAPD_CHAN_VHT_160MHZ_SUBCHANNEL))
+-			return NOT_ALLOWED;
+-
+ 		if (flags & HOSTAPD_CHAN_NO_IR)
+ 			no_ir = 1;
+ 	}
+-- 
+2.45.2
+
