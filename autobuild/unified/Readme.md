@@ -96,7 +96,7 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
 - **Date**: 2025-06-06
 - **Modified By**: Evelyn Tsai (evelyn.tsai@mediatek.com)
 - **Version**:
-  - Driver Version: 4.3.25.06
+  - Driver Version: 4.4.25.06
   - Filogic880/Filogic680 Firmware Version: 202506051257
   - Filogic860/Filogic660 Firmware Version: 202506051312
   - Filogic850/Filogic650 Firmware Version: 202506051257
@@ -164,15 +164,20 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
 ```
 #Get OpenWrt 24.10 source code from Git Server
 git clone --branch openwrt-24.10 https://git.openwrt.org/openwrt/openwrt.git openwrt
+cd openwrt; git checkout 0a21ab73121c7db7c9c92c7cbf2a7b8b586007a6; cd -;
 
 #Get mtk-openwrt-feeds source code
 git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
+cd mtk-openwrt-feeds; git checkout 94ded988427c60e667ec370213e7ad02065c21f6; cd -;
 
 #Choose one SKU to build (1st Build)
 cd openwrt
 
 #Change Feeds Revision
 #vim ../mtk-openwrt-feeds/autobuild/unified/feed_revision
+packages dfd8a8668f67e20507091279a74309f3fc4a2b6f
+luci e445dc1eb5af0e17a7a68d1db301554deeff7b91
+routing 4c35aedcf12078cd6f367abf05e954c06d28bb19
 
 # Select one SKU to build
 ## 1. Filogic 850 (MT7987) MTK Reference Board (RFB) and BananaPi BPI-R4-Lite
