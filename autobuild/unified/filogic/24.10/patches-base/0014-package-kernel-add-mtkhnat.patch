@@ -1,0 +1,30 @@
+diff --git a/package/kernel/linux/modules/netdevices.mk b/package/kernel/linux/modules/netdevices.mk
+index 9126ef7..e0b84c6 100644
+--- a/package/kernel/linux/modules/netdevices.mk
++++ b/package/kernel/linux/modules/netdevices.mk
+@@ -1980,6 +1997,25 @@ endef
+ $(eval $(call KernelPackage,mtk-t7xx))
+ 
+ 
++define KernelPackage/mediatek_hnat
++  SUBMENU:=$(NETWORK_DEVICES_MENU)
++  TITLE:=Mediatek HNAT module
++  DEPENDS:=@TARGET_mediatek +kmod-nf-conntrack
++  KCONFIG:= \
++	CONFIG_BRIDGE_NETFILTER=y \
++	CONFIG_NETFILTER_FAMILY_BRIDGE=y \
++	CONFIG_NET_MEDIATEK_HNAT
++  FILES:= \
++        $(LINUX_DIR)/drivers/net/ethernet/mediatek/mtk_hnat/mtkhnat.ko
++endef
++
++define KernelPackage/mediatek_hnat/description
++  Kernel modules for MediaTek HW NAT offloading
++endef
++
++$(eval $(call KernelPackage,mediatek_hnat))
++
++
+ define KernelPackage/atlantic
+   SUBMENU:=$(NETWORK_DEVICES_MENU)
+   TITLE:=Aquantia AQtion 10Gbps Ethernet NIC
