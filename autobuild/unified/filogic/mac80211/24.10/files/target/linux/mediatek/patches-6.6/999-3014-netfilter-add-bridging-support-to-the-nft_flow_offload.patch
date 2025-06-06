@@ -1,6 +1,6 @@
-From 99b046e47f3d49a68ac3b1eb64d232ac4fe0c6c3 Mon Sep 17 00:00:00 2001
+From d83beca9db8104be7b209145cd87de1603cc858f Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Thu, 8 May 2025 13:17:48 +0800
+Date: Fri, 6 Jun 2025 15:39:18 +0800
 Subject: [PATCH] netfilter: add bridging support to the nft_flow_offload
 
 Without this patch, the bridging traffic is unable to BIND using
@@ -8,11 +8,11 @@ nft_flow_offload.
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- net/netfilter/nft_flow_offload.c | 163 ++++++++++++++++++++++++++++---
- 1 file changed, 147 insertions(+), 16 deletions(-)
+ net/netfilter/nft_flow_offload.c | 164 ++++++++++++++++++++++++++++---
+ 1 file changed, 148 insertions(+), 16 deletions(-)
 
 diff --git a/net/netfilter/nft_flow_offload.c b/net/netfilter/nft_flow_offload.c
-index 53fd3f7..db5345a 100644
+index 53fd3f7..79cdfdc 100644
 --- a/net/netfilter/nft_flow_offload.c
 +++ b/net/netfilter/nft_flow_offload.c
 @@ -14,6 +14,7 @@
@@ -150,7 +150,7 @@ index 53fd3f7..db5345a 100644
  {
  	struct dst_entry *this_dst = skb_dst(pkt->skb);
  	struct dst_entry *other_dst = NULL;
-@@ -264,11 +308,93 @@ static int nft_flow_route(const struct nft_pktinfo *pkt,
+@@ -264,11 +308,94 @@ static int nft_flow_route(const struct nft_pktinfo *pkt,
  
  	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH &&
  	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
@@ -204,6 +204,7 @@ index 53fd3f7..db5345a 100644
 +	}
 +
 +	nft_default_forward_path(route, other_dst, dir);
++	dst_release(this_dst);
 +
 +	return 0;
 +}
@@ -246,7 +247,7 @@ index 53fd3f7..db5345a 100644
  }
  
  static bool nft_flow_offload_skip(struct sk_buff *skb, int family)
-@@ -356,8 +482,13 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
+@@ -356,8 +483,13 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
  		goto out;
  
  	dir = CTINFO2DIR(ctinfo);
