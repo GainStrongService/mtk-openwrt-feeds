@@ -1,12 +1,10 @@
-From e9b383c55027c4d8012b6e2da4832056547fceb6 Mon Sep 17 00:00:00 2001
-From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Mon, 31 Mar 2025 11:47:40 +0800
+From 39aa9cbd1eea8cb37eb3c04f50034d17431b0870 Mon Sep 17 00:00:00 2001
+From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
+Date: Fri, 6 Jun 2025 22:24:10 +0800
 Subject: [PATCH] net: ethernet: mtk_ppe: add roaming handler
 
 Without this patch, the traffic may stop over 30 seconds when the
 WiFi roams.
-
-Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   |   7 +
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |   5 +
@@ -16,12 +14,12 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  5 files changed, 271 insertions(+)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 4afcd8e..fbb01fc 100644
+index 35ef427..92b0c6c 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4084,6 +4084,11 @@ static int mtk_open(struct net_device *dev)
- 		for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
+@@ -4144,6 +4144,11 @@ static int mtk_open(struct net_device *dev)
  			mtk_ppe_start(eth->ppe[i]);
+ #endif
  
 +		err = mtk_ppe_roaming_start(eth);
 +		if (err)
@@ -31,20 +29,20 @@ index 4afcd8e..fbb01fc 100644
  		for (i = 0; i < MTK_MAX_DEVS; i++) {
  			if (!eth->netdev[i])
  				continue;
-@@ -4239,6 +4244,8 @@ static int mtk_stop(struct net_device *dev)
+@@ -4299,6 +4304,8 @@ static int mtk_stop(struct net_device *dev)
  
  	mtk_dma_free(eth);
  
 +	mtk_ppe_roaming_stop(eth);
 +
+ #if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
  	for (i = 0; i < ARRAY_SIZE(eth->ppe); i++)
  		mtk_ppe_stop(eth->ppe[i]);
- 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 5e55ea5..1739de8 100644
+index 9aff6ab..25bfada 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1650,10 +1650,15 @@ struct mtk_eth {
+@@ -1684,10 +1684,15 @@ struct mtk_eth {
  
  	struct metadata_dst		*dsa_meta[MTK_MAX_DSA_PORTS];
  
@@ -297,7 +295,7 @@ index 87b8223..e06d757 100644
  int mtk_ppe_stop(struct mtk_ppe *ppe);
  int mtk_ppe_prepare_reset(struct mtk_ppe *ppe);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c b/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
-index 455aadb..2d30ae0 100644
+index 129bde4..9a494a3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_debugfs.c
 @@ -251,6 +251,60 @@ static const struct file_operations mtk_ppe_internal_debugfs_qos_fops = {
