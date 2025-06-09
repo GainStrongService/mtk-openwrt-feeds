@@ -2759,7 +2759,7 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	}
 
 	memcpy(&entry, &flow_entry->data, sizeof(entry));
-
+	hnat_flow_entry_delete(flow_entry);
 	spin_unlock_bh(&hnat_priv->flow_entry_lock);
 
 	eth = eth_hdr(skb);
@@ -3016,11 +3016,6 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 	}
 	hnat_foe_entry_commit(hw_entry, &entry, BIND);
 	spin_unlock_bh(&hnat_priv->entry_lock);
-
-	spin_lock_bh(&hnat_priv->flow_entry_lock);
-	/* Clear the flow entry node in the foe_flow table */
-	hnat_flow_entry_delete(flow_entry);
-	spin_unlock_bh(&hnat_priv->flow_entry_lock);
 
 	/* reset statistic for this entry */
 	if (hnat_priv->data->per_flow_accounting) {
