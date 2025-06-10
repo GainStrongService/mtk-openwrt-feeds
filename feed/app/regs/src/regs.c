@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	access_type = tolower(argv[1][0]);
+	access_type = tolower((unsigned int)argv[1][0]);
 	if ((access_type == 'w' && argc < 4) || (access_type == 'm' && argc < 6)) {
 		usage();
 		exit(1);
