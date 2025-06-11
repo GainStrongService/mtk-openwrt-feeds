@@ -7,6 +7,7 @@
 . ${ab_global}/kasan.sh
 list_add_after $(hooks autobuild_prepare) wifi_change_kernel_config change_kernel_flowoffload_conf
 list_add_after $(hooks autobuild_prepare) change_kernel_flowoffload_conf change_kernel_coredump_conf
+list_add_after $(hooks autobuild_prepare) change_kernel_coredump_conf change_openwrt_relayd_conf
 
 change_kernel_flowoffload_conf () {
 	kernel_config_enable CONFIG_NETFILTER
@@ -23,4 +24,9 @@ change_kernel_coredump_conf() {
 	kernel_config_disable CONFIG_VIRTIO_NET
 	kernel_config_disable CONFIG_REMOTEPROC_CDEV
 	kernel_config_disable CONFIG_MTK_SCP
+}
+
+change_openwrt_relayd_conf () {
+	openwrt_config_enable CONFIG_PACKAGE_relayd
+	openwrt_config_enable CONFIG_PACKAGE_luci-proto-relay
 }
