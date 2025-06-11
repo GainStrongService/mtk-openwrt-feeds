@@ -181,11 +181,27 @@ menu "OP-TEE OS Configuration"
 		string "OP-TEE TA_SIGN_KEY"
 		default "keys/default_ta.pem"
 		help
-		  Determine signing key for OP-TEE TA's
+		  Determine signing key for OP-TEE TA's.
+		  If OPTEE_OFFLINE_SIGN enable, this key is real key for
+		  offline sign script test key.
+
+	config OPTEE_OFFLINE_SIGN
+		bool "OP-TEE OFFLINE_SIGN"
+		default n
+		help
+		  TAs offline sign
+
+	config OPTEE_OFFLINE_SIGN_DUMMY_KEY
+		string "OP-TEE OFFLINE_SIGN DUMMY KEY"
+		default "keys/default_ta.pem"
+		depends on OPTEE_OFFLINE_SIGN
+		help
+		  TAs offline sign's dummy key
 
 	config OPTEE_TA_PUBLIC_KEY
 		string "OP-TEE TA_PUBLIC_KEY"
 		default "keys/default_ta.pem"
+		depends on OPTEE_OFFLINE_SIGN
 		help
 		  Determine public key in OP-TEE OS
 endmenu

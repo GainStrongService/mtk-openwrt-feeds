@@ -18,6 +18,7 @@ include optee-os.mk
 include optee-client.mk
 include optee-test.mk
 include optee-apps.mk
+include ta-offline-sign.mk
 
 define Package/optee-mediatek
   SECTION:=boot
@@ -103,6 +104,9 @@ define Build/Compile
 	if [[ -d $(PKG_BUILD_DIR)/$(OPTEE_APPS_NAME) ]]; then $(call Build/Compile/optee-apps) ; fi
 ifeq ($(CONFIG_OPTEE_TEST),y)
 	$(call Build/Compile/optee-test)
+endif
+ifeq ($(CONFIG_OPTEE_OFFLINE_SIGN),y)
+	$(call tas-offline-sign)
 endif
 ifeq ($(CONFIG_OPTEE_EARLY_TA),y)
 	$(call Build/Compile/optee-os, EARLY_TA_BUILD)

@@ -32,6 +32,7 @@ define Build/Compile/optee-os
 		PLATFORM=mediatek-$(TARGET_PLATFORM) \
 		$(OPTEE_OS_MAKE_FLAGS) \
 		$(OPTEE_MTK_MAKE_FLAGS) \
+		$(OPTEE_TA_SIGN_KEYS) \
 		$(if $(1), EARLY_TA_PATHS="$$$$(cat $(EARLY_TA_LIST))",) \
 		all
 endef

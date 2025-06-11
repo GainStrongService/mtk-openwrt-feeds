@@ -27,7 +27,7 @@ define Build/Compile/optee-test
 		DESTDIR=$(PKG_BUILD_DIR)/target \
 		O=$(PKG_BUILD_DIR)/$(OPTEE_TEST_NAME)/out \
 		OPTEE_APPS_DIR=$(PKG_BUILD_DIR)/optee_apps \
-		TA_SIGN_KEY=$(TA_DEV_KIT_DIR)/$(call qstrip,$(CONFIG_OPTEE_TA_SIGN_KEY)) \
+		$(OPTEE_TA_SIGN_KEYS) \
 		all install
 endef
 
