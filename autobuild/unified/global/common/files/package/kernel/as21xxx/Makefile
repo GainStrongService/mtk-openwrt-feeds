@@ -20,8 +20,8 @@ define KernelPackage/phy-as21xxx
 	SUBMENU:=Network Devices
 	TITLE:=Aeonsemi AS21xxx PHY driver
 	DEPENDS:=@TARGET_mediatek
-	FILES:=$(PKG_BUILD_DIR)/as21xxx.ko
-	AUTOLOAD:=$(call AutoLoad,20,as21xxx,1)
+	FILES:=$(PKG_BUILD_DIR)/aeon_as21xxx.ko
+	AUTOLOAD:=$(call AutoLoad,20,aeon_as21xxx,1)
 endef
 
 define KernelPackage/phy-as21xxx/description
