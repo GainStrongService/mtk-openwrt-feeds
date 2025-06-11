@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/phy.h>
+#include "as21xxx.h"
 
 #define VEND1_GLB_REG_CPU_RESET_ADDR_LO_BASEADDR 0x3
 #define VEND1_GLB_REG_CPU_RESET_ADDR_HI_BASEADDR 0x4
@@ -181,12 +182,6 @@ struct as21xxx_led_pattern_info {
 	u16 val;
 };
 
-struct as21xxx_priv {
-	bool parity_status;
-	/* Protect concurrent IPC access */
-	struct mutex ipc_lock;
-};
-
 static struct as21xxx_led_pattern_info as21xxx_led_supported_pattern[] = {
 	{
 		.pattern = BIT(TRIGGER_NETDEV_LINK_10),
@@ -310,7 +305,7 @@ void aeon_mdio_patch(struct phy_device *phydev)
 }
 
 /* AEONSEMI MDIO READ function */
-int aeon_cl45_read(struct phy_device *phydev, int dev_addr,
+int aeon_cl45_read(struct phy_device *phydev, unsigned int dev_addr,
 		   unsigned int phy_reg)
 {
 	int data;
@@ -758,6 +753,10 @@ static int as21xxx_probe(struct phy_device *phydev)
 		return ret;
 
 	ret = aeon_ipc_get_fw_version(phydev);
+	if (ret)
+		return ret;
+
+	ret = as21xxx_debugfs_init(phydev);
 	if (ret)
 		return ret;
 
@@ -1219,7 +1218,6 @@ static int as21xxx_config_aneg(struct phy_device *phydev)
 	return aeon_c45_check_and_restart_aneg(phydev, changed);
 }
 
-
 static int as21xxx_match_phy_device(struct phy_device *phydev)
 {
 	/* AEONSEMI get pid. */
@@ -1233,6 +1231,11 @@ static int as21xxx_match_phy_device(struct phy_device *phydev)
 	return 1;
 }
 
+void as21xxx_remove(struct phy_device *phydev)
+{
+	as21xxx_debugfs_remove(phydev);
+}
+
 static struct phy_driver as21xxx_drivers[] = {
 	{
 		/* PHY expose in C45 as 0x7500 0x9410
@@ -1244,6 +1247,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.name		= "Aeonsemi AS21xxx",
 		.match_phy_device = as21xxx_match_phy_device,
 		.probe		= as21xxx_probe,
+		.remove		= as21xxx_remove,
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
@@ -1257,6 +1261,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		PHY_ID_MATCH_EXACT(PHY_ID_AS21011JB1),
 		.name		= "Aeonsemi AS21011JB1",
 		.probe		= as21xxx_probe,
+		.remove		= as21xxx_remove,
 		.match_phy_device = as21xxx_match_phy_device,
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
@@ -1271,6 +1276,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		PHY_ID_MATCH_EXACT(PHY_ID_AS21011PB1),
 		.name		= "Aeonsemi AS21011PB1",
 		.probe		= as21xxx_probe,
+		.remove		= as21xxx_remove,
 		.match_phy_device = as21xxx_match_phy_device,
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
@@ -1286,6 +1292,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		PHY_ID_MATCH_EXACT(PHY_ID_AS21010PB1),
 		.name		= "Aeonsemi AS21010PB1",
 		.probe		= as21xxx_probe,
+		.remove		= as21xxx_remove,
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
@@ -1301,6 +1308,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		PHY_ID_MATCH_EXACT(PHY_ID_AS21010JB1),
 		.name		= "Aeonsemi AS21010JB1",
 		.probe		= as21xxx_probe,
+		.remove		= as21xxx_remove,
 		.match_phy_device = as21xxx_match_phy_device,
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
@@ -1316,6 +1324,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		PHY_ID_MATCH_EXACT(PHY_ID_AS21210PB1),
 		.name		= "Aeonsemi AS21210PB1",
 		.probe		= as21xxx_probe,
+		.remove		= as21xxx_remove,
 		.match_phy_device = as21xxx_match_phy_device,
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
@@ -1331,6 +1340,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		PHY_ID_MATCH_EXACT(PHY_ID_AS21510JB1),
 		.name		= "Aeonsemi AS21510JB1",
 		.probe		= as21xxx_probe,
+		.remove		= as21xxx_remove,
 		.match_phy_device = as21xxx_match_phy_device,
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
@@ -1346,6 +1356,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		PHY_ID_MATCH_EXACT(PHY_ID_AS21510PB1),
 		.name		= "Aeonsemi AS21510PB1",
 		.probe		= as21xxx_probe,
+		.remove		= as21xxx_remove,
 		.match_phy_device = as21xxx_match_phy_device,
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
@@ -1361,6 +1372,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		PHY_ID_MATCH_EXACT(PHY_ID_AS21511JB1),
 		.name		= "Aeonsemi AS21511JB1",
 		.probe		= as21xxx_probe,
+		.remove		= as21xxx_remove,
 		.match_phy_device = as21xxx_match_phy_device,
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
@@ -1376,6 +1388,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		PHY_ID_MATCH_EXACT(PHY_ID_AS21210JB1),
 		.name		= "Aeonsemi AS21210JB1",
 		.probe		= as21xxx_probe,
+		.remove		= as21xxx_remove,
 		.match_phy_device = as21xxx_match_phy_device,
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
@@ -1391,6 +1404,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		PHY_ID_MATCH_EXACT(PHY_ID_AS21511PB1),
 		.name		= "Aeonsemi AS21511PB1",
 		.probe		= as21xxx_probe,
+		.remove		= as21xxx_remove,
 		.match_phy_device = as21xxx_match_phy_device,
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
