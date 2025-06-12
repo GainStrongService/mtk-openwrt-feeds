@@ -19,12 +19,18 @@
 #define MAX_MCAST_ENTRY 64
 #define MAX_MCAST_PORT	5
 
+struct ppe_mcast_list {
+	struct list_head list;  /* Protected by rwlock */
+	u16 vid; /* vlan id */
+	u8 dmac[ETH_ALEN]; /* multicast mac addr */
+	u8 mc_port; /* multicast port */
+};
+
 struct ppe_mcast_group {
-	u32 mac_hi; /*multicast mac addr*/
-	u16 mac_lo; /*multicast mac addr*/
 	u16 vid;
-	u8 mc_port; /*1:forward to cpu,2:forward to GDMA1,3:forward to GDMA2*/
-	u8 if_num[MAX_MCAST_PORT]; /*num of if added to multi group. */
+	u8 dmac[ETH_ALEN]; /* multicast mac addr */
+	u8 if_num[MAX_MCAST_PORT]; /* num of if added to multi group. */
+	u8 mc_port; /* 1:forward to cpu,2:forward to GDMA1,3:forward to GDMA2 */
 	bool valid;
 };
 
@@ -33,7 +39,9 @@ struct ppe_mcast_table {
 	struct work_struct work;
 	struct socket *msock;
 	struct ppe_mcast_group mtbl[MAX_MCAST_ENTRY];
+	struct list_head mlist;
 	u8 max_entry;
+	rwlock_t mcast_lock; /* Protect list and mc_port field */
 };
 
 struct ppe_mcast_h {
@@ -63,7 +71,21 @@ enum ppe_mcast_port {
 	MCAST_TO_QDMA,
 };
 
+enum hnat_mcast_mode {
+	HNAT_MCAST_MODE_MULTI = 0,
+	HNAT_MCAST_MODE_UNI,
+};
+
+#define IS_MCAST_MULTI_MODE (hnat_priv->data->mcast && mcast_mode == HNAT_MCAST_MODE_MULTI)
+#define IS_MCAST_UNI_MODE (hnat_priv->data->mcast && mcast_mode == HNAT_MCAST_MODE_UNI)
+#define IS_MCAST_PORT_GDM(port)							\
+	(port == (1 << MCAST_TO_GDMA1) || port == (1 << MCAST_TO_GDMA2) ||	\
+	 port == (1 << MCAST_TO_GDMA3))
+#define DMAC_TO_HI16(dmac) ((dmac[0] << 8) | dmac[1])
+#define DMAC_TO_LO32(dmac) ((dmac[2] << 24) | (dmac[3] << 16) | (dmac[4] << 8) | dmac[5])
+
 int hnat_mcast_enable(u32 ppe_id);
 int hnat_mcast_disable(void);
+bool hnat_is_mcast_uni(struct sk_buff *skb);
 
 #endif

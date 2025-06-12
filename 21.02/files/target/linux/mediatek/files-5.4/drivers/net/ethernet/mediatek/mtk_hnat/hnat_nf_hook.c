@@ -940,9 +940,13 @@ static unsigned int is_ppe_support_type(struct sk_buff *skb)
 
 	if (skb_mac_header_was_set(skb) && (skb_mac_header_len(skb) >= ETH_HLEN)) {
 		eth = eth_hdr(skb);
-		if ((!hnat_priv->data->mcast && is_multicast_ether_addr(eth->h_dest)) ||
-		    is_broadcast_ether_addr(eth->h_dest))
+		if (is_broadcast_ether_addr(eth->h_dest))
 			return 0;
+		if (is_multicast_ether_addr(eth->h_dest)) {
+			if (!hnat_priv->data->mcast ||
+			    (IS_MCAST_UNI_MODE && !hnat_is_mcast_uni(skb)))
+				return 0;
+		}
 	}
 
 	switch (ntohs(skb->protocol)) {
@@ -1451,7 +1455,7 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 
 	switch ((int)entry.bfib1.pkt_type) {
 	case L2_BRIDGE:
-		if (hnat_priv->data->mcast &&
+		if (IS_MCAST_MULTI_MODE &&
 		    is_multicast_ether_addr(&hw_path->eth_dest[0]))
 			entry.l2_bridge.iblk2.mcast = 1;
 		else
@@ -1461,7 +1465,7 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 		break;
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
-		if (hnat_priv->data->mcast &&
+		if (IS_MCAST_MULTI_MODE &&
 		    is_multicast_ether_addr(&hw_path->eth_dest[0])) {
 			entry.ipv4_hnapt.iblk2.mcast = 1;
 			if (hnat_priv->data->version == MTK_HNAT_V1_3) {
@@ -1484,7 +1488,7 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 	case IPV6_3T_ROUTE:
 	case IPV6_HNAPT:
 	case IPV6_HNAT:
-		if (hnat_priv->data->mcast &&
+		if (IS_MCAST_MULTI_MODE &&
 		    is_multicast_ether_addr(&hw_path->eth_dest[0])) {
 			entry.ipv6_5t_route.iblk2.mcast = 1;
 			if (hnat_priv->data->version == MTK_HNAT_V1_3) {

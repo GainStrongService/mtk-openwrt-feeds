@@ -21,7 +21,7 @@
  * mcast_entry_get - Returns the index of an unused entry
  * or an already existed entry in mtbl
  */
-static int mcast_entry_get(u16 vlan_id, u32 dst_mac)
+static int mcast_entry_get(u16 vlan_id, u8 *dmac)
 {
 	struct ppe_mcast_group *p = hnat_priv->pmcast->mtbl;
 	int index = -1;
@@ -30,7 +30,7 @@ static int mcast_entry_get(u16 vlan_id, u32 dst_mac)
 
 	for (i = 0; i < max; i++) {
 		if (p->valid) {
-			if ((p->vid == vlan_id) && (p->mac_hi == dst_mac)) {
+			if ((p->vid == vlan_id) && !memcmp(p->dmac, dmac, ETH_ALEN)) {
 				index = i;
 				break;
 			}
@@ -46,24 +46,35 @@ static int mcast_entry_get(u16 vlan_id, u32 dst_mac)
 	return index;
 }
 
-static int get_mac_from_mdb_entry(struct br_mdb_entry *entry,
-				   u32 *mac_hi, u16 *mac_lo)
+static int get_mac_from_mdb_entry(struct br_mdb_entry *entry, u8 *mac)
 {
+	u32 ip;
+
 	switch (ntohs(entry->addr.proto)) {
 	case ETH_P_IP:
-		*mac_lo = 0x0100;
-		*mac_hi = swab32((entry->addr.u.ip4 & 0xffff7f00) + 0x5e);
+		ip = be32_to_cpu(entry->addr.u.ip4);
+		mac[0] = 0x01;
+		mac[1] = 0x00;
+		mac[2] = 0x5e;
+		mac[3] = (ip >> 16) & 0x7F;
+		mac[4] = (ip >> 8) & 0xFF;
+		mac[5] = ip & 0xFF;
 		break;
 	case ETH_P_IPV6:
-		*mac_lo = 0x3333;
-		*mac_hi = swab32(entry->addr.u.ip6.s6_addr32[3]);
+		ip = be32_to_cpu(entry->addr.u.ip6.s6_addr32[3]);
+		mac[0] = 0x33;
+		mac[1] = 0x33;
+		mac[2] = (ip >> 24) & 0xFF;
+		mac[3] = (ip >> 16) & 0xFF;
+		mac[4] = (ip >> 8) & 0xFF;
+		mac[5] = ip & 0xFF;
 		break;
 	default:
 		return -EINVAL;
 	}
+
 	if (debug_level >= 7)
-		trace_printk("%s:group mac_h=0x%08x, mac_l=0x%04x\n",
-			     __func__, *mac_hi, *mac_lo);
+		pr_info("%s:group mac=%pM\n", __func__, mac);
 
 	return 0;
 }
@@ -73,8 +84,8 @@ static int set_hnat_mtbl(struct ppe_mcast_group *group, u32 ppe_id, int index)
 {
 	struct ppe_mcast_h mcast_h;
 	struct ppe_mcast_l mcast_l;
-	u32 mac_hi = group->mac_hi;
-	u16 mac_lo = group->mac_lo;
+	u16 mac_hi = DMAC_TO_HI16(group->dmac);
+	u32 mac_lo = DMAC_TO_LO32(group->dmac);
 	u8 mc_port = group->mc_port;
 	void __iomem *reg;
 
@@ -83,15 +94,15 @@ static int set_hnat_mtbl(struct ppe_mcast_group *group, u32 ppe_id, int index)
 
 	mcast_h.u.value = 0;
 	mcast_l.addr = 0;
-	if (mac_lo == 0x0100)
+	if (mac_hi == 0x0100)
 		mcast_h.u.info.mc_mpre_sel = 0;
-	else if (mac_lo == 0x3333)
+	else if (mac_hi == 0x3333)
 		mcast_h.u.info.mc_mpre_sel = 1;
 	else
 		return -EINVAL;
 
 	mcast_h.u.info.mc_px_en = mc_port;
-	mcast_l.addr = mac_hi;
+	mcast_l.addr = mac_lo;
 
 	if (debug_level >= 7)
 		trace_printk("%s:index=%d,group info=0x%x,addr=0x%x\n",
@@ -152,8 +163,7 @@ static int hnat_mcast_table_update(int type, struct br_mdb_entry *entry)
 	struct mtk_mac *mac;
 	int i, index, port;
 	int ret;
-	u32 mac_hi = 0;
-	u16 mac_lo = 0;
+	u8 dmac[ETH_ALEN];
 
 	rcu_read_lock();
 	dev = dev_get_by_index_rcu(&init_net, entry->ifindex);
@@ -163,17 +173,16 @@ static int hnat_mcast_table_update(int type, struct br_mdb_entry *entry)
 	}
 	rcu_read_unlock();
 
-	ret = get_mac_from_mdb_entry(entry, &mac_hi, &mac_lo);
+	ret = get_mac_from_mdb_entry(entry, dmac);
 	if (ret < 0)
 		return ret;
 
-	index = mcast_entry_get(entry->vid, mac_hi);
+	index = mcast_entry_get(entry->vid, dmac);
 	if (index == -1)
 		return -1;
 
 	group = &hnat_priv->pmcast->mtbl[index];
-	group->mac_hi = mac_hi;
-	group->mac_lo = mac_lo;
+	memcpy(group->dmac, dmac, ETH_ALEN);
 
 	if (IS_ETH_GRP(dev) && !IS_DSA_LAN(dev)) {
 		if (dev->netdev_ops->ndo_flow_offload_check) {
@@ -232,6 +241,172 @@ static int hnat_mcast_table_update(int type, struct br_mdb_entry *entry)
 	return 0;
 }
 
+/* Get mc_port value for read-only access */
+static bool hnat_mcast_get_mc_port(u8 *dmac, u16 vlan_id, u8 *mc_port)
+{
+	struct ppe_mcast_list *entry;
+	struct list_head *head;
+	bool found = false;
+
+	if (!hnat_priv->pmcast)
+		return false;
+
+	head = &hnat_priv->pmcast->mlist;
+
+	read_lock(&hnat_priv->pmcast->mcast_lock);
+	list_for_each_entry(entry, head, list) {
+		if (!memcmp(entry->dmac, dmac, ETH_ALEN) && (entry->vid == vlan_id)) {
+			*mc_port = entry->mc_port;
+			found = true;
+			break;
+		}
+	}
+	read_unlock(&hnat_priv->pmcast->mcast_lock);
+
+	return found;
+}
+
+/* Find node for update access - must be called with mcast_lock held */
+static struct ppe_mcast_list *hnat_mcast_list_find(u8 *dmac, u16 vlan_id)
+{
+	struct ppe_mcast_list *entry;
+	struct list_head *head;
+
+	if (!hnat_priv->pmcast)
+		return NULL;
+
+	head = &hnat_priv->pmcast->mlist;
+
+	/* Regular list traversal since we hold the lock */
+	list_for_each_entry(entry, head, list) {
+		if (!memcmp(entry->dmac, dmac, ETH_ALEN) && (entry->vid == vlan_id))
+			return entry;
+	}
+
+	return NULL;
+}
+
+static void hnat_mcast_list_del_all(void)
+{
+	struct ppe_mcast_list *entry, *tmp;
+	struct list_head *head;
+
+	if (!hnat_priv->pmcast)
+		return;
+
+	head = &hnat_priv->pmcast->mlist;
+
+	write_lock(&hnat_priv->pmcast->mcast_lock);
+	list_for_each_entry_safe(entry, tmp, head, list) {
+		list_del(&entry->list);
+		kfree(entry);
+	}
+	write_unlock(&hnat_priv->pmcast->mcast_lock);
+}
+
+bool hnat_is_mcast_uni(struct sk_buff *skb)
+{
+	u8 mc_port;
+	u16 vid;
+
+	if (!skb)
+		return false;
+
+	vid = skb_vlan_tagged(skb) ? skb->vlan_tci & VLAN_VID_MASK : 0;
+
+	if (!hnat_mcast_get_mc_port(eth_hdr(skb)->h_dest, vid, &mc_port))
+		return false;
+
+	/* only allows packets destined to single GDMA ports */
+	return IS_MCAST_PORT_GDM(mc_port);
+}
+
+static int hnat_mcast_list_update(int type, struct br_mdb_entry *entry)
+{
+	struct flow_offload_hw_path hw_path = { 0 };
+	struct ppe_mcast_list *pmcast_list;
+	struct net_device *dev;
+	struct mtk_mac *mac;
+	int port, ret;
+	u8 dmac[ETH_ALEN];
+
+	rcu_read_lock();
+	dev = dev_get_by_index_rcu(&init_net, entry->ifindex);
+	if (!dev) {
+		rcu_read_unlock();
+		return -ENODEV;
+	}
+	rcu_read_unlock();
+
+	ret = get_mac_from_mdb_entry(entry, dmac);
+	if (ret < 0)
+		return ret;
+
+	if (IS_ETH_GRP(dev) && !IS_DSA_LAN(dev)) {
+		if (dev->netdev_ops->ndo_flow_offload_check) {
+			hw_path.dev = dev;
+			hw_path.virt_dev = dev;
+			dev->netdev_ops->ndo_flow_offload_check(&hw_path);
+			dev = hw_path.dev;
+		}
+		mac = netdev_priv(dev);
+		port = (mac->id == MTK_GMAC1_ID) ? MCAST_TO_GDMA1 :
+		       (mac->id == MTK_GMAC2_ID) ? MCAST_TO_GDMA2 :
+		       (mac->id == MTK_GMAC3_ID) ? MCAST_TO_GDMA3 :
+						   -EINVAL;
+		if (port < 0)
+			return -1;
+	} else {
+		port = MCAST_TO_PDMA; /* to PDMA */
+	}
+
+	write_lock(&hnat_priv->pmcast->mcast_lock);
+
+	pmcast_list = hnat_mcast_list_find(dmac, entry->vid);
+
+	switch (type) {
+	case RTM_NEWMDB:
+		if (!pmcast_list) {
+			pmcast_list = kmalloc(sizeof(struct ppe_mcast_list), GFP_KERNEL);
+			if (!pmcast_list) {
+				write_unlock(&hnat_priv->pmcast->mcast_lock);
+				return -ENOMEM;
+			}
+			INIT_LIST_HEAD(&pmcast_list->list);
+			memcpy(pmcast_list->dmac, dmac, ETH_ALEN);
+			pmcast_list->vid = entry->vid;
+			pmcast_list->mc_port = (1 << port);
+			list_add_tail(&pmcast_list->list, &hnat_priv->pmcast->mlist);
+		} else {
+			pmcast_list->mc_port |= (1 << port);
+		}
+		break;
+	case RTM_DELMDB:
+		if (pmcast_list) {
+			pmcast_list->mc_port &= ~(1 << port);
+			if (pmcast_list->mc_port == 0) {
+				list_del(&pmcast_list->list);
+				kfree(pmcast_list);
+			}
+		}
+		break;
+	default:
+		write_unlock(&hnat_priv->pmcast->mcast_lock);
+		return -1;
+	}
+
+	write_unlock(&hnat_priv->pmcast->mcast_lock);
+
+	entry_delete_by_mac(dmac);
+
+	if (debug_level >= 7)
+		pr_info("%s_%s:devname=%s,mcast_port=%x, mac:%pM\n", __func__,
+			(type == RTM_NEWMDB) ? "NEW" : "DEL",
+			dev->name, pmcast_list->mc_port, dmac);
+
+	return 0;
+}
+
 static void hnat_mcast_nlmsg_handler(struct work_struct *work)
 {
 	struct sk_buff *skb = NULL;
@@ -274,7 +449,11 @@ static void hnat_mcast_nlmsg_handler(struct work_struct *work)
 					     entry->vid, entry->addr.u.ip4,
 					     entry->addr.proto);
 			}
-			hnat_mcast_table_update(nlh->nlmsg_type, entry);
+
+			if (IS_MCAST_MULTI_MODE)
+				hnat_mcast_table_update(nlh->nlmsg_type, entry);
+
+			hnat_mcast_list_update(nlh->nlmsg_type, entry);
 		}
 		kfree_skb(skb);
 	}
@@ -351,6 +530,10 @@ int hnat_mcast_enable(u32 ppe_id)
 
 		memset(pmcast->mtbl, 0, sizeof(struct ppe_mcast_group) * MAX_MCAST_ENTRY);
 
+		/* Initialize multicast list for unicast mode */
+		INIT_LIST_HEAD(&pmcast->mlist);
+		rwlock_init(&pmcast->mcast_lock);
+
 		if (hnat_priv->data->version == MTK_HNAT_V1_1)
 			pmcast->max_entry = 0x10;
 		else
@@ -417,7 +600,9 @@ int hnat_mcast_disable(void)
 	flush_work(&pmcast->work);
 	destroy_workqueue(pmcast->queue);
 	sock_release(pmcast->msock);
+	hnat_mcast_list_del_all();
 	kfree(pmcast);
+	hnat_priv->pmcast = NULL;
 
 	return 0;
 }

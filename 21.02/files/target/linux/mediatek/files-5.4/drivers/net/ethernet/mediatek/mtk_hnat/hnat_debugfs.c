@@ -32,6 +32,7 @@ int dbg_entry_state = BIND;
 typedef int (*debugfs_write_func)(int par1);
 int debug_level;
 int dbg_cpu_reason;
+int mcast_mode;
 int hook_toggle;
 int mape_toggle;
 int qos_toggle;
@@ -2304,12 +2305,39 @@ int __mcast_table_dump(struct seq_file *m, void *private, u32 ppe_id)
 	return 0;
 }
 
+void __mcast_list_dump(struct seq_file *m, void *private)
+{
+	struct ppe_mcast_list *entry;
+	struct list_head *head = &hnat_priv->pmcast->mlist;
+	u8 i = 0;
+
+	pr_info("============================\n");
+	pr_info("[ID]: MAC | VID | Port\n");
+	list_for_each_entry_rcu(entry, head, list) {
+		if (IS_MCAST_PORT_GDM(entry->mc_port))
+			pr_info("[%d]: mac:%pM vid:%d to GDM%d\n",
+				i++,
+				entry->dmac,
+				entry->vid,
+				(entry->mc_port == MCAST_TO_GDMA1) ? 1 :
+				(entry->mc_port == MCAST_TO_GDMA2) ? 2 : 3);
+	}
+}
+
 int mcast_table_dump(struct seq_file *m, void *private)
 {
 	int i;
 
-	for (i = 0; i < CFG_PPE_NUM; i++)
-		__mcast_table_dump(m, private, i);
+	pr_info("MCAST_MODE: %s\n",
+		IS_MCAST_MULTI_MODE ? "MULTI" :
+		IS_MCAST_UNI_MODE ? "UNI" : "NONE");
+
+	if (IS_MCAST_MULTI_MODE) {
+		for (i = 0; i < CFG_PPE_NUM; i++)
+			__mcast_table_dump(m, private, i);
+	} else if (IS_MCAST_UNI_MODE) {
+		__mcast_list_dump(m, private);
+	}
 
 	return 0;
 }
@@ -2319,10 +2347,40 @@ static int mcast_table_open(struct inode *inode, struct file *file)
 	return single_open(file, mcast_table_dump, file->private_data);
 }
 
+ssize_t mcast_table_write(struct file *file, const char __user *buffer,
+			  size_t count, loff_t *data)
+{
+	char buf[32];
+	u32 len = count, mode;
+
+	if (len >= sizeof(buf)) {
+		pr_info("input handling fail!\n");
+		return -1;
+	}
+
+	if (copy_from_user(buf, buffer, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	if (buf[0] == '0')
+		mode = HNAT_MCAST_MODE_MULTI;
+	else if (buf[0] == '1')
+		mode = HNAT_MCAST_MODE_UNI;
+
+	if (mcast_mode != mode)
+		foe_clear_all_bind_entries();
+
+	mcast_mode = mode;
+
+	return len;
+}
+
 static const struct file_operations hnat_mcast_fops = {
 	.open = mcast_table_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
+	.write = mcast_table_write,
 	.release = single_release,
 };
 

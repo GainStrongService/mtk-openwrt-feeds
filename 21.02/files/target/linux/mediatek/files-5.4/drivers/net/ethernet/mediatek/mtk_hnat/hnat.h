@@ -1388,6 +1388,7 @@ int hnat_dump_ppe_entry(u32 ppe_id, u32 hash);
 bool is_eth_dev_speed_under(const struct net_device *dev, u32 speed);
 extern int dbg_cpu_reason;
 extern int debug_level;
+extern int mcast_mode;
 extern int xlat_toggle;
 extern struct hnat_desc headroom[DEF_ETRY_NUM];
 extern int qos_dl_toggle;
