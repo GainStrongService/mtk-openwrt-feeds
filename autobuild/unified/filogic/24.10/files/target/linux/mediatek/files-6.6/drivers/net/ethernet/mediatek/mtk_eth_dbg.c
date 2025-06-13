@@ -153,7 +153,7 @@ static ssize_t qdma_sched_show(struct file *file, char __user *user_buf,
 	for (i = 0; i < MTK_QDMA_NUM_QUEUES; i++) {
 		mtk_w32(eth, (i / MTK_QTX_PER_PAGE), soc->reg_map->qdma.page);
 		sch_reg = mtk_r32(eth, soc->reg_map->qdma.qtx_sch +
-				       (id % MTK_QTX_PER_PAGE) * MTK_QTX_OFFSET);
+				       (i % MTK_QTX_PER_PAGE) * MTK_QTX_OFFSET);
 		if (mtk_is_netsys_v2_or_greater(eth))
 			scheduler = FIELD_GET(MTK_QTX_SCH_TX_SEL_V2, sch_reg);
 		else
@@ -386,6 +386,8 @@ static ssize_t qdma_queue_write(struct file *file, const char __user *buf,
 		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_TX_SEL_V2, scheduler);
 	else
 		qtx_sch |= FIELD_PREP(MTK_QTX_SCH_TX_SEL, scheduler);
+
+	qtx_sch |= FIELD_PREP(MTK_QTX_SCH_LEAKY_BUCKET_SIZE, 3);
 
 	if (min_enable)
 		qtx_sch |= MTK_QTX_SCH_MIN_RATE_EN;
