@@ -766,7 +766,10 @@ static int as21xxx_probe(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	return aeon_dpc_ra_enable(phydev);
+	if (phydev->interface == PHY_INTERFACE_MODE_USXGMII)
+		return aeon_dpc_ra_enable(phydev);
+
+	return ret;
 }
 
 int aeon_update_link(struct phy_device *phydev)
