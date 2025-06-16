@@ -1239,6 +1239,45 @@ void as21xxx_remove(struct phy_device *phydev)
 	as21xxx_debugfs_remove(phydev);
 }
 
+static int aeon_wait_reset_complete(struct phy_device *phydev)
+{
+	int val;
+
+	return read_poll_timeout(aeon_ipc_get_fw_version, val,
+				 val == 0, 10000, 2000000, false, phydev);
+}
+
+static int as21xxx_config_init(struct phy_device *phydev)
+{
+	int ret = aeon_wait_reset_complete(phydev);
+
+	if (ret) {
+		aeon_mdio_write(phydev, MDIO_MMD_VEND1, 0x142, 0x48);
+		ret = aeon_firmware_load(phydev);
+		if (ret)
+			return ret;
+
+		ret = aeon_wait_reset_complete(phydev);
+		if (!ret) {
+			/* Enable PTP clk if not already Enabled */
+			ret = phy_set_bits_mmd(phydev, MDIO_MMD_VEND1, VEND1_PTP_CLK,
+					       VEND1_PTP_CLK_EN);
+			if (ret)
+				return ret;
+
+			if (phydev->interface == PHY_INTERFACE_MODE_USXGMII) {
+				ret = aeon_dpc_ra_enable(phydev);
+				if (ret)
+					return ret;
+			}
+		} else {
+			return -ENODEV;
+		}
+	}
+
+	return 0;
+}
+
 static struct phy_driver as21xxx_drivers[] = {
 	{
 		/* PHY expose in C45 as 0x7500 0x9410
@@ -1254,6 +1293,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
+		.config_init    = as21xxx_config_init,
 		.led_brightness_set = as21xxx_led_brightness_set,
 		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 		.led_hw_control_set = as21xxx_led_hw_control_set,
@@ -1269,6 +1309,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.config_aneg = as21xxx_config_aneg,
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
+		.config_init    = as21xxx_config_init,
 		.led_brightness_set = as21xxx_led_brightness_set,
 		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 		.led_hw_control_set = as21xxx_led_hw_control_set,
@@ -1285,6 +1326,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
 		.read_status	= as21xxx_read_status,
+		.config_init    = as21xxx_config_init,
 		.led_brightness_set = as21xxx_led_brightness_set,
 		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 		.led_hw_control_set = as21xxx_led_hw_control_set,
@@ -1301,6 +1343,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.read_status	= as21xxx_read_status,
 		.match_phy_device = as21xxx_match_phy_device,
 		.read_status	= as21xxx_read_status,
+		.config_init    = as21xxx_config_init,
 		.led_brightness_set = as21xxx_led_brightness_set,
 		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 		.led_hw_control_set = as21xxx_led_hw_control_set,
@@ -1317,6 +1360,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
 		.read_status	= as21xxx_read_status,
+		.config_init    = as21xxx_config_init,
 		.led_brightness_set = as21xxx_led_brightness_set,
 		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 		.led_hw_control_set = as21xxx_led_hw_control_set,
@@ -1333,6 +1377,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
 		.read_status	= as21xxx_read_status,
+		.config_init    = as21xxx_config_init,
 		.led_brightness_set = as21xxx_led_brightness_set,
 		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 		.led_hw_control_set = as21xxx_led_hw_control_set,
@@ -1349,6 +1394,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
 		.read_status	= as21xxx_read_status,
+		.config_init    = as21xxx_config_init,
 		.led_brightness_set = as21xxx_led_brightness_set,
 		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 		.led_hw_control_set = as21xxx_led_hw_control_set,
@@ -1365,6 +1411,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
 		.read_status	= as21xxx_read_status,
+		.config_init    = as21xxx_config_init,
 		.led_brightness_set = as21xxx_led_brightness_set,
 		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 		.led_hw_control_set = as21xxx_led_hw_control_set,
@@ -1381,6 +1428,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
 		.read_status	= as21xxx_read_status,
+		.config_init    = as21xxx_config_init,
 		.led_brightness_set = as21xxx_led_brightness_set,
 		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 		.led_hw_control_set = as21xxx_led_hw_control_set,
@@ -1397,6 +1445,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
 		.read_status	= as21xxx_read_status,
+		.config_init    = as21xxx_config_init,
 		.led_brightness_set = as21xxx_led_brightness_set,
 		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 		.led_hw_control_set = as21xxx_led_hw_control_set,
@@ -1413,6 +1462,7 @@ static struct phy_driver as21xxx_drivers[] = {
 		.get_features	= as21xxx_get_features,
 		.read_status	= as21xxx_read_status,
 		.read_status	= as21xxx_read_status,
+		.config_init    = as21xxx_config_init,
 		.led_brightness_set = as21xxx_led_brightness_set,
 		.led_hw_is_supported = as21xxx_led_hw_is_supported,
 		.led_hw_control_set = as21xxx_led_hw_control_set,
