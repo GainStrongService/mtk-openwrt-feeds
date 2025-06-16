@@ -6675,6 +6675,7 @@ static int mtk_probe(struct platform_device *pdev)
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 	schedule_delayed_work(&eth->reset.monitor_work,
 			      MTK_DMA_MONITOR_TIMEOUT);
+	dev_info(eth->dev, "DMA Monitor is running ! (%s)\n", MTK_ETH_RESET_VERSION);
 #endif
 
 	return 0;
