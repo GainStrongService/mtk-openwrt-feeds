@@ -84,8 +84,7 @@ define KernelPackage/crypto-eip-inline
 	kmod-crypto-eip-ddk-ctrl \
 	kmod-crypto-eip-ddk-ctrl-app \
 	kmod-crypto-eip-ddk-engine \
-	+kmod-pce \
-	+MTK_TOPS_CAPWAP_DTLS:kmod-tops
+	+kmod-pce
   FILES:=$(PKG_BUILD_DIR)/crypto-eip-inline.ko
   $(call AddDepends/crypto)
 endef
@@ -98,7 +97,7 @@ define KernelPackage/crypto-eip-autoload
   CATEGORY:=MTK Properties
   SUBMENU:=Drivers
   TITLE:= EIP-197 Crypto Engine Driver Autoload
-  AUTOLOAD:=$(call AutoLoad,90,crypto-eip-inline)
+  AUTOLOAD:=$(call AutoLoad,60,crypto-eip-inline)
   KCONFIG:=
   DEPENDS:= kmod-crypto-eip-inline
 endef

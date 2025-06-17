@@ -21,7 +21,6 @@
 #include "crypto-eip/ddk-wrapper.h"
 #include "crypto-eip/internal.h"
 
-
 struct mtk_CDRT_DTLS_entry CDRT_DTLS_params;
 struct DTLSResourceMgmt *dtls_table[CAPWAP_MAX_TUNNEL_NUM];
 
@@ -126,11 +125,6 @@ mtk_dtls_capwap_init(void)
 	if (mtk_add_cdrt_dtls(CDRT_ENCRYPT))
 		CRYPTO_ERR("%s: CDRT ENCRYPT for DTLS init failed!\n", __func__);
 	// add hook function for tops driver
-#if defined(CONFIG_MTK_TOPS_CAPWAP_DTLS)
-	mtk_submit_SAparam_to_eip_driver = mtk_update_dtls_param;
-	mtk_remove_SAparam_to_eip_driver = mtk_remove_dtls_param;
-	mtk_update_cdrt_idx_from_eip_driver = mtk_update_cdrt_idx;
-#endif
 
 	// init table as NULL
 	for (i = 0; i < CAPWAP_MAX_TUNNEL_NUM; i++)
@@ -155,11 +149,6 @@ mtk_dtls_capwap_deinit(void)
 		mtk_pce_cdrt_entry_free(CDRT_DTLS_params.cdrt_inbound);
 	if (CDRT_DTLS_params.cdrt_outbound != NULL)
 		mtk_pce_cdrt_entry_free(CDRT_DTLS_params.cdrt_outbound);
-#if defined(CONFIG_MTK_TOPS_CAPWAP_DTLS)
-	mtk_update_cdrt_idx_from_eip_driver = NULL;
-	mtk_submit_SAparam_to_eip_driver = NULL;
-	mtk_remove_SAparam_to_eip_driver = NULL;
-#endif
 }
 
 void
