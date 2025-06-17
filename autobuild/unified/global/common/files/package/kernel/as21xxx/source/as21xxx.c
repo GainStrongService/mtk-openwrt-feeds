@@ -760,10 +760,7 @@ static int as21xxx_probe(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	if (phydev->interface == PHY_INTERFACE_MODE_USXGMII)
-		return aeon_dpc_ra_enable(phydev);
-
-	return ret;
+	return 0;
 }
 
 int aeon_update_link(struct phy_device *phydev)
@@ -1258,18 +1255,15 @@ static int as21xxx_config_init(struct phy_device *phydev)
 					       VEND1_PTP_CLK_EN);
 			if (ret)
 				return ret;
-
-			if (phydev->interface == PHY_INTERFACE_MODE_USXGMII) {
-				ret = aeon_dpc_ra_enable(phydev);
-				if (ret)
-					return ret;
-			}
 		} else {
 			return -ENODEV;
 		}
 	}
 
-	return 0;
+	if (phydev->interface == PHY_INTERFACE_MODE_USXGMII)
+		ret = aeon_dpc_ra_enable(phydev);
+
+	return ret;
 }
 
 static struct phy_driver as21xxx_drivers[] = {
