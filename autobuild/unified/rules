@@ -166,6 +166,26 @@ modify_feeds_conf() {
 		fi
 	done
 
+	if test -n "${internal_build}"; then
+		local tmp_rev_file="${ab_tmp}/tmp_rev_file"
+		rm -f "${tmp_rev_file}"
+		for tag in tag_packages tag_luci tag_routing; do
+			value="${!tag}"
+			if [ -n "$value" ]; then
+				echo "${tag#tag_} ${value}" >> "${tmp_rev_file}"
+			fi
+		done
+		if test -f "${tmp_rev_file}"; then
+			if test -n "${rev_file}"; then
+				log_err "Failed to set feed tag from command line"
+				log_err "feed revision file already exists: ${rev_file}"
+				return 1
+			else
+				rev_file="${tmp_rev_file}"
+			fi
+		fi
+	fi
+
 	if test -n "${rev_file}"; then
 		openwrt_feeds_set_revision "${rev_file}" "${feed_url}" || return 1
 	fi
@@ -590,3 +610,10 @@ do_menuconfig_update() {
 
 	exec_log "STAGING_DIR_HOST=\"${openwrt_root}/staging_dir/host\" \"${openwrt_root}/scripts/config/aconf\" -d -o \"${final_file}\" -k \"${openwrt_root}/Config.in\" -n \"${openwrt_config_file}\" ${kconfig_files}"
 }
+
+update_ab_info
+if test -n "${internal_build}"; then
+	help_add_line "  tag_packages - Set feeds/packages commit-id"
+	help_add_line "  tag_luci - Set feeds/luci commit-id"
+	help_add_line "  tag_routing - Set feeds/routing commit-id"
+fi
