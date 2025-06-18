@@ -7,6 +7,7 @@
 /dts-v1/;
 #include "mt7987a.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "Bananapi BPI-R4-LITE";
@@ -48,6 +49,21 @@
 		};
 	};
 
+	pwm-leds {
+		compatible = "pwm-leds";
+		status = "okay";
+
+		/* ACT LED on bpi-r4-lite */
+		sys-led {
+			color = <LED_COLOR_ID_BLUE>;
+			label = "act:blue";
+			pwms = <&pwm 0 50000>;
+			max-brightness = <255>;
+			active-high;
+			linux,default-trigger = "default-on";
+		};
+	};
+
 	sfp: sfp@0 {
 		compatible = "sff,sfp";
 		i2c-bus = <&imux1_sfp>;
@@ -56,6 +72,11 @@
 		tx-disable-gpios = <&pio 8 GPIO_ACTIVE_HIGH>;
 		maximum-power-milliwatt = <3000>;
 	};
+};
+
+&fan {
+	pwms = <&pwm 2 50000>;
+	status = "okay";
 };
 
 &gmac0 {
@@ -77,6 +98,24 @@
 &hnat {
 	mtketh-lan2 = "eth2";
 	mtketh-max-gmac = <3>;
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_pins>;
+	status = "okay";
+};
+
+&pwm_pins {
+	mux {
+		/*
+		 * - pwm0   : PWM0@PIN13
+		 * - pwm1_0 : PWM@PIN7  (share with JTAG)
+		 * - pwm2_0 : PWM2@PIN12 (share with PCM)
+		 */
+		function = "pwm";
+		groups = "pwm0", "pwm1_0", "pwm2_0";
+	};
 };
 
 &i2c0 {
