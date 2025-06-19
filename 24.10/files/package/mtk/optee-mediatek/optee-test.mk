@@ -28,10 +28,19 @@ define Build/Compile/optee-test
 		O=$(PKG_BUILD_DIR)/$(OPTEE_TEST_NAME)/out \
 		OPTEE_APPS_DIR=$(PKG_BUILD_DIR)/optee_apps \
 		$(OPTEE_TA_SIGN_KEYS) \
-		all install
+		all
 endef
 
 define Build/Install/optee-test
+	$(MAKE_VARS) \
+	$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR)/$(OPTEE_TEST_NAME) \
+		TA_DEV_KIT_DIR=$(TA_DEV_KIT_DIR) \
+		OPTEE_CLIENT_EXPORT=$(PKG_BUILD_DIR)/target/usr \
+		DESTDIR=$(PKG_BUILD_DIR)/target \
+		O=$(PKG_BUILD_DIR)/$(OPTEE_TEST_NAME)/out \
+		OPTEE_APPS_DIR=$(PKG_BUILD_DIR)/optee_apps \
+		$(OPTEE_TA_SIGN_KEYS) \
+		install
 	mkdir -p $(PKG_BUILD_DIR)/target/usr/bin
 	mv $(PKG_BUILD_DIR)/target/bin/xtest $(PKG_BUILD_DIR)/target/usr/bin/
 endef
