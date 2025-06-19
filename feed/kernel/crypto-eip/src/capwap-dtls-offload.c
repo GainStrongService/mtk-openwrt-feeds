@@ -112,6 +112,7 @@ mtk_update_cdrt_idx(struct mtk_cdrt_idx_param *cdrt_idx_params_p)
 	cdrt_idx_params_p->cdrt_idx_inbound = CDRT_DTLS_params.cdrt_inbound->idx;
 	cdrt_idx_params_p->cdrt_idx_outbound = CDRT_DTLS_params.cdrt_outbound->idx;
 }
+EXPORT_SYMBOL(mtk_update_cdrt_idx);
 
 
 void
@@ -214,6 +215,7 @@ failed:
 	dtls_table[TnlIdx] = NULL;
 	return;
 }
+EXPORT_SYMBOL(mtk_update_dtls_param);
 
 void mtk_remove_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx)
 {
@@ -222,3 +224,4 @@ void mtk_remove_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx)
 	kfree(dtls_table[TnlIdx]);
 	dtls_table[TnlIdx] = NULL;
 }
+EXPORT_SYMBOL(mtk_remove_dtls_param);

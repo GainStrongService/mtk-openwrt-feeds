@@ -159,12 +159,9 @@ static inline struct xfrm_params_list *mtk_xfrm_params_list_get(void)
 }
 #endif /* defined(CONFIG_CRYPTO_XFRM_OFFLOAD_MTK_PCE) */
 
-void mtk_update_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);
-EXPORT_SYMBOL(mtk_update_dtls_param);
-void mtk_remove_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);
-EXPORT_SYMBOL(mtk_remove_dtls_param);
-void mtk_update_cdrt_idx(struct mtk_cdrt_idx_param *cdrt_idx_params_p);
-EXPORT_SYMBOL(mtk_update_cdrt_idx);
+extern void mtk_update_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);
+extern void mtk_remove_dtls_param(struct DTLS_param *DTLSParam_p, int TnlIdx);
+extern void mtk_update_cdrt_idx(struct mtk_cdrt_idx_param *cdrt_idx_params_p);
 
 void mtk_crypto_enable_ipsec_dev_features(struct net_device *dev);
 void mtk_crypto_disable_ipsec_dev_features(struct net_device *dev);
