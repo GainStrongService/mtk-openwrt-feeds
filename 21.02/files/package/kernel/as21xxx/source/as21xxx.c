@@ -1218,6 +1218,28 @@ static int as21xxx_config_aneg(struct phy_device *phydev)
 	return aeon_c45_check_and_restart_aneg(phydev, changed);
 }
 
+static int as21xxx_config_led(struct phy_device *phydev)
+{
+	int ret;
+
+	/* LED0 */
+	ret = as21xxx_led_hw_control_set(phydev, 0,
+					 BIT(TRIGGER_NETDEV_LINK));
+	if (ret < 0)
+		return ret;
+
+	/* LED1 */
+	return as21xxx_led_hw_control_set(phydev, 1,
+					  BIT(TRIGGER_NETDEV_LINK_10) |
+					  BIT(TRIGGER_NETDEV_LINK_100) |
+					  BIT(TRIGGER_NETDEV_LINK_1000) |
+					  BIT(TRIGGER_NETDEV_LINK_2500) |
+					  BIT(TRIGGER_NETDEV_LINK_5000) |
+					  BIT(TRIGGER_NETDEV_LINK_10000) |
+					  BIT(TRIGGER_NETDEV_TX) |
+					  BIT(TRIGGER_NETDEV_RX));
+}
+
 static int as21xxx_match_phy_device(struct phy_device *phydev)
 {
 	/* AEONSEMI get pid. */
@@ -1265,6 +1287,8 @@ static int as21xxx_config_init(struct phy_device *phydev)
 			return -ENODEV;
 		}
 	}
+
+	as21xxx_config_led(phydev);
 
 	if (phydev->interface == PHY_INTERFACE_MODE_USXGMII)
 		ret = aeon_dpc_ra_enable(phydev);
