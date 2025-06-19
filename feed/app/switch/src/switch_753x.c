@@ -599,7 +599,7 @@ static int phy_operate(int argc, char *argv[])
 				       reg, value);
 		} else if (argc == 7) {
 			dev_num = strtoul(argv[argc - 2], NULL, 0);
-			if (dev_num > 0xFFFFFFFF) {
+			if (dev_num >= 0xFFFFFFFF) {
 				printf(" Phy read reg fail\n");
 				ret = -1;
 				break;
@@ -654,7 +654,7 @@ static int phy_operate(int argc, char *argv[])
 				       reg, cl_value);
 		} else if (argc == 8) {
 			dev_num = strtoul(argv[argc - 3], NULL, 0);
-			if (dev_num > 0xFFFFFFFF) {
+			if (dev_num >= 0xFFFFFFFF) {
 				printf(" Phy write reg fail\n");
 				ret = -1;
 				break;
@@ -928,12 +928,12 @@ int main(int argc, char *argv[])
 			p_switch_func->pf_qos_pri_mapping_queue(argc, argv);
 		else
 			usage(argv[0]);
-	} else if (!strncmp(argv[1], "stp", 3)) {
+	} else if (!strncmp(argv[1], "stp", 4)) {
 		if (argc < 3)
 			usage(argv[0]);
 		else
 			p_switch_func->pf_doStp(argc, argv);
-	} else if (!strncmp(argv[1], "sip", 5)) {
+	} else if (!strncmp(argv[1], "sip", 4)) {
 		if (argc < 3)
 			usage(argv[0]);
 		if (!strncmp(argv[2], "dump", 5))
@@ -988,7 +988,7 @@ int main(int argc, char *argv[])
 				p_switch_func->pf_acl_dip_meter(argc, argv);
 			else
 				usage(argv[0]);
-		} else if (!strncmp(argv[2], "dmac", 6)) {
+		} else if (!strncmp(argv[2], "dmac", 5)) {
 			if (!strncmp(argv[3], "add", 4))
 				p_switch_func->pf_acl_mac_add(argc, argv);
 			else
@@ -1003,7 +1003,7 @@ int main(int argc, char *argv[])
 				p_switch_func->pf_acl_sp_add(argc, argv);
 			else
 				usage(argv[0]);
-		} else if (!strncmp(argv[2], "L4", 5)) {
+		} else if (!strncmp(argv[2], "L4", 3)) {
 			if (!strncmp(argv[3], "add", 4))
 				p_switch_func->pf_acl_l4_add(argc, argv);
 			else
@@ -1089,7 +1089,7 @@ int main(int argc, char *argv[])
 				usage(argv[0]);
 		} else
 			usage(argv[0]);
-	} else if (!strncmp(argv[1], "pfc", 15)) {
+	} else if (!strncmp(argv[1], "pfc", 4)) {
 		if (argc < 4 || argc > 5)
 			usage(argv[0]);
 		if (!strncmp(argv[2], "enable", 7))
