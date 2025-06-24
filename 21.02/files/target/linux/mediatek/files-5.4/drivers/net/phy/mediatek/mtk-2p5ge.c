@@ -41,6 +41,13 @@
 #define   RG_SPEED_2500_STABLE		BIT(3)
 #define   RG_SPEED_100_STABLE		BIT(0)
 
+#define MTK_2P5GPHY_PMD_IRQ_BASE		0x0f010c00
+#define MTK_2P5GPHY_PMD_IRQ_LEN			0x30
+#define IRQ_MATCH_ANRECV_STATE			0xc
+#define   RG_IRQ_MATCH_ANRECV_STATE_MASK	GENMASK(31, 29)
+#define IRQ_STATUS				0x30
+#define   RG_IRQ_ANRECV_STATE			BIT(31)
+
 #define MTK_2P5GPHY_XBZ_PCS_REG_BASE	(0x0f030000)
 #define MTK_2P5GPHY_XBZ_PCS_REG_LEN	(0x844)
 #define PHY_CTRL_CONFIG			(0x200)
@@ -110,6 +117,10 @@
 
 struct mtk_i2p5ge_phy_priv {
 	bool fw_loaded;
+	bool fixed_link;
+	int count;
+	void __iomem *pmd_irq_base;
+	int fixed_link_fallback_en;
 };
 
 enum {
@@ -439,8 +450,9 @@ free_pmb:
 
 static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 {
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
 	struct pinctrl *pinctrl;
-	int ret;
+	int ret, reg;
 
 	/* Check if PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_INTERNAL)
@@ -451,6 +463,10 @@ static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 		ret = mt7987_2p5ge_phy_load_fw(phydev);
 		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
 				   MTK_PHY_LED_ON_POLARITY);
+		reg = readl(priv->pmd_irq_base + IRQ_MATCH_ANRECV_STATE);
+		reg &= ~RG_IRQ_MATCH_ANRECV_STATE_MASK;
+		reg |= FIELD_PREP(RG_IRQ_MATCH_ANRECV_STATE_MASK, 0x5);
+		writel(reg, priv->pmd_irq_base + IRQ_MATCH_ANRECV_STATE);
 		break;
 	case MTK_2P5GPHY_ID_MT7988:
 		ret = mt7988_2p5ge_phy_load_fw(phydev);
@@ -496,13 +512,8 @@ static int mt798x_2p5ge_phy_config_aneg(struct phy_device *phydev)
 	u32 adv;
 	int ret;
 
-	/* In fact, if we disable autoneg, we can't link up correctly:
-	 * 2.5G/1G: Need AN to exchange master/slave information.
-	 * 100M/10M: Without AN, link starts at half duplex (According to
-	 *           IEEE 802.3-2018), which this phy doesn't support.
-	 */
 	if (phydev->autoneg == AUTONEG_DISABLE)
-		return -EOPNOTSUPP;
+		return genphy_c45_pma_setup_forced(phydev);
 
 	ret = genphy_c45_an_config_aneg(phydev);
 	if (ret < 0)
@@ -541,9 +552,54 @@ static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
 	return 0;
 }
 
+static int mt798x_2p5ge_phy_fix_an_disable(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	const int sleep_ms[2] = {1000, 350};
+	const int tries = 2;
+	int status, i;
+
+	for (i = 0; i < tries; i++) {
+		if (i == 0) {
+			/* Try 100M Full fixed link */
+			phy_modify(phydev, MII_BMCR, BMCR_ANENABLE | BMCR_SPEED1000,
+				   BMCR_SPEED100);
+		} else {
+			/* Try 10M Full fixed link */
+			phy_clear_bits(phydev, MII_BMCR, BMCR_ANENABLE |
+				       BMCR_SPEED1000 | BMCR_SPEED100);
+		}
+		msleep(sleep_ms[i]);
+		status = phy_read(phydev, MII_BMSR);
+		if (status < 0)
+			return status;
+		if (status & BMSR_LSTATUS) {
+			if (priv->count == 0) {
+				priv->count++;
+				genphy_restart_aneg(phydev);
+				return 0;
+			}
+			priv->count = 0;
+			phydev->link = 1;
+			phydev->autoneg = AUTONEG_DISABLE;
+			priv->fixed_link = true;
+			return 0;
+		}
+	}
+
+	/* restore */
+	phydev->autoneg = AUTONEG_ENABLE;
+	phy_modify(phydev, MII_BMCR, BMCR_SPEED100,
+		   BMCR_ANENABLE | BMCR_SPEED1000 | BMCR_FULLDPLX);
+	priv->count = 0;
+
+	return 0;
+}
+
 static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
 {
-	int ret;
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	int timeout, reg_val, ret;
 
 	/* When MDIO_STAT1_LSTATUS is raised genphy_c45_read_link(), this phy
 	 * actually hasn't finished AN. So use CL22's link update function
@@ -557,6 +613,37 @@ static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
 	phydev->duplex = DUPLEX_UNKNOWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
+
+	if (priv->fixed_link_fallback_en) {
+		/* This means 10M/100M fixed link is enabled but link is down then. */
+		if (priv->fixed_link && phydev->autoneg == AUTONEG_DISABLE && !phydev->link) {
+			phydev->autoneg = AUTONEG_ENABLE;
+			phy_set_bits(phydev, MII_BMCR, BMCR_ANENABLE |
+				     BMCR_SPEED1000 | BMCR_SPEED100);
+			priv->fixed_link = false;
+		}
+
+		if (!phydev->link && !priv->fixed_link &&
+		    phydev->autoneg == AUTONEG_ENABLE && !phydev->autoneg_complete) {
+			/* For normal link partners, we'll try to read link code word first with
+			 * the following register. If RG_IRQ_ANRECV_STATE isn't present in 3s,
+			 * we'll try 10M/100M fixed link instead.
+			 */
+			timeout = readl_poll_timeout(priv->pmd_irq_base + IRQ_STATUS,
+						     reg_val,
+						     (reg_val & RG_IRQ_ANRECV_STATE),
+						     10000, 3000000);
+			writel(RG_IRQ_ANRECV_STATE, priv->pmd_irq_base + IRQ_STATUS);
+
+			if (timeout) {
+				ret = mt798x_2p5ge_phy_fix_an_disable(phydev);
+				if (ret < 0)
+					return ret;
+			} else {
+				priv->count = 0;
+			}
+		}
+	}
 
 	/* We'll read link speed through vendor specific registers down below.
 	 * So remove phy_resolve_aneg_linkmode (AN on) & genphy_c45_read_pma
@@ -614,6 +701,32 @@ static int mt798x_2p5ge_phy_get_rate_matching(struct phy_device *phydev,
 	return RATE_MATCH_PAUSE;
 }
 
+static ssize_t fixed_link_fallback_en_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct phy_device *phydev = container_of(dev, struct phy_device, mdio.dev);
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+
+	return sprintf(buf, "%d\n", priv->fixed_link_fallback_en);
+}
+
+static ssize_t fixed_link_fallback_en_store(struct device *dev,
+					    struct device_attribute *attr,
+					    const char *buf, size_t count)
+{
+	struct phy_device *phydev = container_of(dev, struct phy_device, mdio.dev);
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	int val;
+
+	if (kstrtoint(buf, 0, &val) == 0)
+		priv->fixed_link_fallback_en = !!val;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(fixed_link_fallback_en);
+
 static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
 {
 	struct mtk_i2p5ge_phy_priv *priv;
@@ -626,6 +739,10 @@ static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
 	switch (phydev->drv->phy_id) {
 	case MTK_2P5GPHY_ID_MT7987:
 	case MTK_2P5GPHY_ID_MT7988:
+		priv->pmd_irq_base = ioremap(MTK_2P5GPHY_PMD_IRQ_BASE,
+					     MTK_2P5GPHY_PMD_IRQ_LEN);
+		if (!priv->pmd_irq_base)
+			return -ENOMEM;
 		/* The original hardware only sets MDIO_DEVS_PMAPMD */
 		phydev->c45_ids.devices_in_package |= MDIO_DEVS_PCS |
 						      MDIO_DEVS_AN |
@@ -637,7 +754,12 @@ static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
 	}
 
 	priv->fw_loaded = false;
+	priv->fixed_link = false;
+	priv->count = 0;
 	phydev->priv = priv;
+
+	priv->fixed_link_fallback_en = 0;
+	device_create_file(&phydev->mdio.dev, &dev_attr_fixed_link_fallback_en);
 
 	return 0;
 }
