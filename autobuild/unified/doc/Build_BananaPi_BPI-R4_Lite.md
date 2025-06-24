@@ -60,14 +60,6 @@ https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/e5b
     cd mtk-openwrt-feeds && git checkout e5b75e44781cd0e64491afcdfa9646be03c8e8ea && cd -
     ```
 
-3.  **Change Feeds Revision**:
-    ```bash
-    # vim mtk-openwrt-feeds/autobuild/unified/feed_revision
-    packages b4afb21956cdeb240a6ecb87fe7e020c9f7b97ac
-    luci b4afb21956cdeb240a6ecb87fe7e020c9f7b97ac
-    routing 85d040f28c21c116c905aa15a66255dde80336e7
-    ```
-
 ### Set Up the Autobuild Environment
 
 The `autobuild_unified` system simplifies the firmware build process for the BananaPi BPI-R4 Lite by automating tasks such as patching the SDK, preparing necessary patches and configurations, and fetching required packages and feeds.
@@ -81,7 +73,7 @@ Update feed revisions in the autobuild configuration file:
 `vim ../mtk-openwrt-feeds/autobuild/unified/feed_revision`
 ```bash
 packages b4afb21956cdeb240a6ecb87fe7e020c9f7b97ac
-luci b4afb21956cdeb240a6ecb87fe7e020c9f7b97ac
+luci d6b13f648339273facc07b173546ace459c1cabe
 routing 85d040f28c21c116c905aa15a66255dde80336e7
 ```
 
@@ -120,4 +112,5 @@ If needed, clean the OpenWrt source directory using:
 
 Flashing the Firmware
 ---------------------
-For instructions on flashing the firmware onto the BananaPi BPI-R4 Lite, please refer to the separate document named _"Flash_BananaPi_BPI-R4_Lite.md"_
+For instructions on flashing the firmware onto the BananaPi BPI-R4 Lite, please refer to the separate document named
+[Flash_BananaPi_BPI-R4_Lite.md](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/refs/heads/master/autobuild/unified/doc/Flash_BananaPi_BPI-R4_Lite.md)
