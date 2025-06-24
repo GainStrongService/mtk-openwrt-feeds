@@ -89,17 +89,17 @@ index f4657dd..e133362 100644
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 @@ -237,11 +237,11 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  
- 	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(eth, foe, dsa_port))
+ 	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(mac, idev, dsa_port))
  		mtk_foe_entry_set_queue(eth, foe, queue);
--	else if (eth->qos_toggle == 1 || (ct->mark & MTK_QDMA_QUEUE_MASK) >= 9) {
-+	else if (eth->qos_toggle == 1 || (ct->mark & MTK_QDMA_QUEUE_MASK) >= 15) {
+-	else if (eth->qos_toggle == 1 || (ct_mark & MTK_QDMA_QUEUE_MASK) >= 9) {
++	else if (eth->qos_toggle == 1 || (ct_mark & MTK_QDMA_QUEUE_MASK) >= 15) {
  		u8 qos_ul_toggle;
  
  		if (eth->qos_toggle == 2)
--			qos_ul_toggle = ((ct->mark >> 16) & MTK_QDMA_QUEUE_MASK) >= 9 ? 1 : 0;
-+			qos_ul_toggle = ((ct->mark >> 16) & MTK_QDMA_QUEUE_MASK) >= 15 ? 1 : 0;
+-			qos_ul_toggle = ((ct_mark >> 16) & MTK_QDMA_QUEUE_MASK) >= 9 ? 1 : 0;
++			qos_ul_toggle = ((ct_mark >> 16) & MTK_QDMA_QUEUE_MASK) >= 15 ? 1 : 0;
  		else
- 			qos_ul_toggle = ((ct->mark >> 16) & MTK_QDMA_QUEUE_MASK) >= 1 ? 1 : 0;
+ 			qos_ul_toggle = ((ct_mark >> 16) & MTK_QDMA_QUEUE_MASK) >= 1 ? 1 : 0;
  
 -- 
 2.45.2

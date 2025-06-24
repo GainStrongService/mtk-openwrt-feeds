@@ -12,7 +12,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/mtk_ppe.c       | 11 ++++
  drivers/net/ethernet/mediatek/mtk_ppe.h       |  2 +
- .../net/ethernet/mediatek/mtk_ppe_offload.c   | 15 ++++-
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   | 13 ++++-
  include/net/netfilter/nf_conntrack_extend.h   |  1 +
  include/net/netfilter/nf_conntrack_qos.h      | 61 +++++++++++++++++++
  include/net/netfilter/nf_flow_table.h         |  2 +
@@ -71,9 +71,9 @@ index ebdb51b..effe1a3 100644
 @@ -190,7 +190,7 @@ mtk_flow_get_dsa_port(struct net_device **dev)
  static int
  mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
- 			   struct net_device *dev, struct nf_conn *ct, const u8 *dest_mac,
--			   int *wed_index)
-+			   int *wed_index, int dscp)
+ 			   struct net_device *idev, struct net_device *odev, u32 ct_mark,
+-			   const u8 *dest_mac, int *wed_index)
++			   const u8 *dest_mac, int *wed_index, int dscp)
  {
  	struct mtk_wdma_info info = {};
  	int pse_port, dsa_port, queue;
@@ -93,7 +93,7 @@ index ebdb51b..effe1a3 100644
  	int err = 0;
  	int i;
  
-@@ -321,6 +323,15 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
+@@ -321,6 +323,13 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
  		return -EOPNOTSUPP;
  	}
  
@@ -102,8 +102,6 @@ index ebdb51b..effe1a3 100644
 +
 +		flow_rule_match_ip(rule, &match);
 +		dscp = match.key->tos;
-+	} else {
-+		return -EOPNOTSUPP;
 +	}
 +
  	switch (addr_type) {
@@ -112,9 +110,9 @@ index ebdb51b..effe1a3 100644
 @@ -480,7 +491,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
  		mtk_foe_entry_set_pppoe(eth, &foe, data.pppoe.sid);
  
- 	err = mtk_flow_set_output_device(eth, &foe, odev, f->flow->ct, data.eth.h_dest,
--					 &wed_index);
-+					 &wed_index, dscp);
+ 	err = mtk_flow_set_output_device(eth, &foe, idev, odev, ct_mark,
+-					 data.eth.h_dest, &wed_index);
++					 data.eth.h_dest, &wed_index, dscp);
  	if (err)
  		return err;
  
