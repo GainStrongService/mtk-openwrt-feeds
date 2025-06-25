@@ -1407,7 +1407,7 @@ extern bool (*mtk_crypto_offloadable)(struct sk_buff *skb);
 extern int hnat_bind_crypto_entry(struct sk_buff *skb,
 				  const struct net_device *dev,
 				  int fill_inner_info);
-extern void foe_clear_crypto_entry(struct xfrm_selector sel);
+extern void foe_clear_crypto_entry(u32 cdrt_idx);
 int ext_if_add(struct extdev_entry *ext_entry);
 int ext_if_del(struct extdev_entry *ext_entry);
 void cr_set_bits(void __iomem *reg, u32 bs);
