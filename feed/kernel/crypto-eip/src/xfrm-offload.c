@@ -341,6 +341,22 @@ int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp, struct netlink_ext_ack *
 int mtk_xfrm_offload_policy_add(struct xfrm_policy *xp)
 #endif
 {
+	struct mtk_xfrm_params *xfrm_params;
+	struct xfrm_state *xs;
+	struct xfrm_tmpl xt = xp->xfrm_vec[0];
+
+	if (xt.id.spi) {
+		xs = xfrm_state_lookup_byspi(&init_net, xt.id.spi, xt.encap_family);
+		if (!xs)
+			return 0;
+
+		xfrm_params = (struct mtk_xfrm_params *)xs->xso.offload_handle;
+		if (!xfrm_params)
+			return 0;
+		xp->xdo.offload_handle = (unsigned long) xfrm_params;
+		xfrm_state_put(xs);
+	}
+
 	return 0;
 }
 
@@ -351,7 +367,17 @@ void mtk_xfrm_offload_policy_delete(struct xfrm_policy *xp)
 void mtk_xfrm_offload_policy_free(struct xfrm_policy *xp)
 {
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
-	foe_clear_crypto_entry(xp->selector);
+	struct mtk_xfrm_params *xfrm_params;
+
+	if (!xp->xdo.offload_handle)
+		return;
+
+	xfrm_params = (struct mtk_xfrm_params *)xp->xdo.offload_handle;
+	xp->xdo.offload_handle = 0;
+
+	if (xfrm_params->cdrt)
+		foe_clear_crypto_entry(xfrm_params->cdrt->idx);
+
 	return;
 #endif
 }
