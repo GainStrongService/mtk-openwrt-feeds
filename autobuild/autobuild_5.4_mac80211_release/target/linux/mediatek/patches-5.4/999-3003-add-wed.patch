@@ -20,8 +20,7 @@ Subject: [PATCH 04/26] add wed
  drivers/net/ethernet/mediatek/mtk_wed_regs.h  | 251 +++++
  include/linux/netdevice.h                     |   7 +
  include/linux/soc/mediatek/mtk_wed.h          | 131 +++
- net/core/dev.c                                |   4 +
- 17 files changed, 2276 insertions(+), 130 deletions(-)
+ 17 files changed, 2272 insertions(+), 130 deletions(-)
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/Kconfig
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/Makefile
  mode change 100755 => 100644 drivers/net/ethernet/mediatek/mtk_eth_soc.c
@@ -3118,21 +3117,6 @@ index 0000000..7e00cca
 +#endif
 +
 +#endif
-diff --git a/net/core/dev.c b/net/core/dev.c
-index 7d29e7b..906d101 100644
---- a/net/core/dev.c
-+++ b/net/core/dev.c
-@@ -758,6 +758,10 @@ int dev_fill_forward_path(const struct net_device *dev, const u8 *daddr,
- 		if (WARN_ON_ONCE(last_dev == ctx.dev))
- 			return -1;
- 	}
-+
-+	if (!ctx.dev)
-+		return ret;
-+
- 	path = dev_fwd_path(stack);
- 	if (!path)
- 		return -1;
 -- 
 2.45.2
 
