@@ -109,16 +109,11 @@ MT7988()
 
 	if [[ "$WED_ENABLE" -eq "1" ]]; then
 		dbg2 "WED_ENABLE ON irq/iptable setting"
-		#TCP Binding
-		iptables -D FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		#UDP Binding
-		iptables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p udp -j FLOWOFFLOAD --hw
+		#TCP/UDP Binding
+		iptables -D FORWARD -j FLOWOFFLOAD --hw
+		iptables -I FORWARD -j FLOWOFFLOAD --hw
+		ip6tables -D FORWARD -j FLOWOFFLOAD --hw
+		ip6tables -I FORWARD -j FLOWOFFLOAD --hw
 		#Multicast skip Binding
 		iptables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
 		iptables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
@@ -185,16 +180,11 @@ MT7986()
 
 	if [[ "$WED_ENABLE" -eq "1" ]]; then
 		dbg2 "WED_ENABLE ON irq/iptable setting"
-		#TCP Binding
-		iptables -D FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p tcp -m conntrack --ctstate RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		#UDP Binding
-		iptables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p udp -j FLOWOFFLOAD --hw
+		#TCP/UDP Binding
+		iptables -D FORWARD -j FLOWOFFLOAD --hw
+		iptables -I FORWARD -j FLOWOFFLOAD --hw
+		ip6tables -D FORWARD -j FLOWOFFLOAD --hw
+		ip6tables -I FORWARD -j FLOWOFFLOAD --hw
 		#Multicast skip Binding
 		iptables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
 		iptables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
@@ -282,20 +272,11 @@ MT7981()
 	#AX3000
 	if [[ "$WED_ENABLE" -eq "1" ]]; then
 		dbg2 "WED_ENABLE ON irq/iptable setting"
-		#TCP Binding
-		iptables -D FORWARD -p tcp -m conntrack --ctstate	\
-				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p tcp -m conntrack --ctstate	\
-				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p tcp -m conntrack --ctstate	\
-				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p tcp -m conntrack --ctstate	\
-				RELATED,ESTABLISHED -j FLOWOFFLOAD --hw
-		#UDP Binding
-		iptables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		iptables -I FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -D FORWARD -p udp -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -p udp -j FLOWOFFLOAD --hw
+		#TCP/UDP Binding
+		iptables -D FORWARD -j FLOWOFFLOAD --hw
+		iptables -I FORWARD -j FLOWOFFLOAD --hw
+		ip6tables -D FORWARD -j FLOWOFFLOAD --hw
+		ip6tables -I FORWARD -j FLOWOFFLOAD --hw
 		#Multicast skip Binding
 		iptables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT
 		iptables -I FORWARD -m pkttype --pkt-type multicast -j ACCEPT
