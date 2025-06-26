@@ -97,6 +97,8 @@
 #define   MTK_PHY_BYPASS_LINK_STATUS_OK		BIT(4)
 #define   MTK_PHY_FORCE_LINK_STATUS_HCD		BIT(3)
 
+#define MTK_PHY_PMA_PMD_SPPED_ABILITY		0x300
+
 #define MTK_PHY_AN_FORCE_SPEED_REG		(0x313)
 #define   MTK_PHY_MASTER_FORCE_SPEED_SEL_EN	BIT(7)
 #define   MTK_PHY_MASTER_FORCE_SPEED_SEL_MASK	GENMASK(6, 0)
@@ -110,6 +112,7 @@
 
 struct mtk_i2p5ge_phy_priv {
 	bool fw_loaded;
+	int pd_en;
 };
 
 enum {
@@ -492,17 +495,13 @@ static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 
 static int mt798x_2p5ge_phy_config_aneg(struct phy_device *phydev)
 {
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
 	bool changed = false;
 	u32 adv;
 	int ret;
 
-	/* In fact, if we disable autoneg, we can't link up correctly:
-	 * 2.5G/1G: Need AN to exchange master/slave information.
-	 * 100M/10M: Without AN, link starts at half duplex (According to
-	 *           IEEE 802.3-2018), which this phy doesn't support.
-	 */
 	if (phydev->autoneg == AUTONEG_DISABLE)
-		return -EOPNOTSUPP;
+		goto out;
 
 	ret = genphy_c45_an_config_aneg(phydev);
 	if (ret < 0)
@@ -520,7 +519,19 @@ static int mt798x_2p5ge_phy_config_aneg(struct phy_device *phydev)
 	if (ret > 0)
 		changed = true;
 
-	return genphy_c45_check_and_restart_aneg(phydev, changed);
+out:
+	if (priv->pd_en) {
+		phy_write_mmd(phydev, MDIO_MMD_VEND1,
+			      MTK_PHY_PMA_PMD_SPPED_ABILITY, 0xf7cf);
+		phy_modify_paged(phydev, MTK_PHY_PAGE_STANDARD,
+				 MII_ADVERTISE, 0,
+				 ADVERTISE_100HALF | ADVERTISE_10HALF);
+	}
+
+	if (phydev->autoneg == AUTONEG_DISABLE)
+		return genphy_c45_pma_setup_forced(phydev);
+	else
+		return genphy_c45_check_and_restart_aneg(phydev, changed);
 }
 
 static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
@@ -614,6 +625,34 @@ static int mt798x_2p5ge_phy_get_rate_matching(struct phy_device *phydev,
 	return RATE_MATCH_PAUSE;
 }
 
+static ssize_t pd_en_show(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	struct phy_device *phydev = container_of(dev, struct phy_device,
+						 mdio.dev);
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+
+	return sprintf(buf, "%d\n", priv->pd_en);
+}
+
+static ssize_t pd_en_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct phy_device *phydev = container_of(dev, struct phy_device,
+						 mdio.dev);
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	int val;
+
+	if (kstrtoint(buf, 0, &val) == 0)
+		priv->pd_en = !!val;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(pd_en);
+
 static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
 {
 	struct mtk_i2p5ge_phy_priv *priv;
@@ -638,6 +677,9 @@ static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
 
 	priv->fw_loaded = false;
 	phydev->priv = priv;
+
+	priv->pd_en = 1;
+	device_create_file(&phydev->mdio.dev, &dev_attr_pd_en);
 
 	return 0;
 }
