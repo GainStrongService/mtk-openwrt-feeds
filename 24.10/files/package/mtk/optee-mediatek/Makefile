@@ -34,6 +34,17 @@ define Package/optee-mediatek
 	CONFIG_TEE=y
 endef
 
+define Package/optee-pkcs11
+  SECTION:=boot
+  CATEGORY:=Boot Loaders
+  TITLE:=optee-pkcs11
+  DEPENDS:=+optee-mediatek +libp11 +opensc-utils +libopensc-pkcs11 +opensc-utils-pkcs11-tool
+endef
+
+define Package/optee-pkcs11/description
+  Enabled this config to use pkcs11 and pkcs11-tool
+endef
+
 define Package/optee-mediatek/description
  this package contain optee_os, optee_client and optee_test.
  you can reference https://optee.readthedocs.io/en/latest/building/index.html
@@ -133,3 +144,4 @@ define Package/optee-mediatek/install
 endef
 
 $(eval $(call BuildPackage,optee-mediatek))
+$(eval $(call BuildPackage,optee-pkcs11))
