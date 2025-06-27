@@ -17,8 +17,11 @@ define Download/optee-os
 endef
 
 TARGET_PLATFORM=$(call qstrip,$(CONFIG_TARGET_SUBTARGET))
-ifeq ($(TARGET_PLATFORM), filogic)
-	TARGET_PLATFORM=mt7988
+ifeq ($(TARGET_PLATFORM),filogic)
+DEVICE_PROFILE:=CONFIG_TARGET_$(if $(CONFIG_TARGET_MULTI_PROFILE),DEVICE_)$(BOARD)_$(SUBTARGET)_DEVICE_$(BOARD)
+TARGET_DEVICES:=$(shell grep -E '^$(DEVICE_PROFILE)_[^=]+=y' $(TOPDIR)/.config | \
+			sed -E 's/^$(DEVICE_PROFILE)_([^=]+)=.*/\1/' | sed -E 's/(mt798[0-9]+).*/\1/')
+TARGET_PLATFORM:=$(word 1,$(TARGET_DEVICES))
 endif
 
 include optee-os-config.mk
