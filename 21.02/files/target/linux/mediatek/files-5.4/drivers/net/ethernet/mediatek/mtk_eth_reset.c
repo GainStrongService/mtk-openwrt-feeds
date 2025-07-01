@@ -1044,12 +1044,11 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 {
 	struct gdm_tx_monitor *gdm_tx = &eth->reset.gdm_monitor.tx;
 	struct mtk_hw_stats *hw_stats;
-	u32 i, cur_tx_cnt, cur_fsm_gdm, cur_opq_gdm, err_flag = 0;
+	u32 i, cur_tx_cnt, cur_rxfc_cnt, cur_fsm_gdm, cur_opq_gdm, err_flag = 0;
 	bool gmac_tx;
 
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
-		if (!eth->mac[i] || !netif_running(eth->netdev[i]) ||
-		    eth->mac[i]->type != MTK_GDM_TYPE)
+		if (!eth->mac[i] || !netif_running(eth->netdev[i]))
 			continue;
 
 		/* update GDM counter to the hw_stats */
@@ -1060,8 +1059,12 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 
 		hw_stats = eth->mac[i]->hw_stats;
 		cur_tx_cnt = hw_stats->tx_packets;
-
+		cur_rxfc_cnt = hw_stats->rx_flow_control_packets;
 		cur_opq_gdm = MTK_FE_GDM_OQ(i);
+
+		if (eth->mac[i]->type == MTK_XGDM_TYPE)
+			goto skip_gmac;
+
 		gmac_tx = (mtk_r32(eth, MTK_MAC_FSM(i)) & 0xFF000000) != 0x1000000;
 		if (gmac_tx && (cur_tx_cnt == gdm_tx->pre_tx_cnt[i]) &&
 		    (cur_opq_gdm > 0)) {
@@ -1077,17 +1080,12 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 		} else
 			gdm_tx->hang_count_gmac[i] = 0;
 
-		gdm_tx->pre_tx_cnt[i] = cur_tx_cnt;
-	}
-
-	for (i = 0; i < MTK_MAX_DEVS; i++) {
-		if (!eth->mac[i] || !netif_running(eth->netdev[i]))
-			continue;
-
+skip_gmac:
 		cur_fsm_gdm = mtk_r32(eth, MTK_FE_GDM_FSM(i)) & 0x1FFF0000;
-		cur_opq_gdm = MTK_FE_GDM_OQ(i);
 		if ((cur_fsm_gdm == gdm_tx->pre_fsm_gdm[i]) && (cur_fsm_gdm == 0x10330000) &&
-		    (cur_opq_gdm == gdm_tx->pre_opq_gdm[i]) && (cur_opq_gdm > 0)) {
+		    (cur_opq_gdm == gdm_tx->pre_opq_gdm[i]) && (cur_opq_gdm > 0) &&
+		    (cur_rxfc_cnt == gdm_tx->pre_rxfc_cnt[i]) &&
+		    (cur_tx_cnt == gdm_tx->pre_tx_cnt[i])) {
 			gdm_tx->hang_count_gdm[i]++;
 			if (gdm_tx->hang_count_gdm[i] >= 5) {
 				pr_info("GDM%d Tx Info\n", i + 1);
@@ -1100,6 +1098,8 @@ u32 mtk_monitor_gdm_tx(struct mtk_eth *eth)
 		} else
 			gdm_tx->hang_count_gdm[i] = 0;
 
+		gdm_tx->pre_tx_cnt[i] = cur_tx_cnt;
+		gdm_tx->pre_rxfc_cnt[i] = cur_rxfc_cnt;
 		gdm_tx->pre_fsm_gdm[i] = cur_fsm_gdm;
 		gdm_tx->pre_opq_gdm[i] = cur_opq_gdm;
 	}

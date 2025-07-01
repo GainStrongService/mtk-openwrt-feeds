@@ -2243,6 +2243,7 @@ struct wdma_monitor {
 struct gdm_monitor {
 	struct gdm_tx_monitor {
 		u64		pre_tx_cnt[MTK_MAX_DEVS];
+		u32		pre_rxfc_cnt[MTK_MAX_DEVS];
 		u32		pre_fsm_gdm[MTK_MAX_DEVS];
 		u32		pre_opq_gdm[MTK_MAX_DEVS];
 		u8		hang_count_gdm[MTK_MAX_DEVS];
