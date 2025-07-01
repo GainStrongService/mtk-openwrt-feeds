@@ -22,8 +22,6 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/thermal.h>
-#include <linux/cpufreq.h>
-#include <linux/cpu_cooling.h>
 #include "soc_temp_lvts.h"
 
 /*
@@ -943,40 +941,6 @@ static int lvts_register_thermal_zones(struct lvts_data *lvts_data)
 	return 0;
 }
 
-static int lvts_register_cpu_cooling(struct lvts_data *lvts_data)
-{
-	struct device_node *np;
-	int ret = 0;
-
-	lvts_data->policy = cpufreq_cpu_get(0);
-	if (!lvts_data->policy) {
-		pr_debug("%s: cpufreq policy not found\n", __func__);
-		return -EPROBE_DEFER;
-	}
-
-	np = of_get_cpu_node(lvts_data->policy->cpu, NULL);
-	if (!of_find_property(np, "#cooling-cells", NULL)) {
-		cpufreq_cpu_put(lvts_data->policy);
-		return ret;
-	}
-
-	of_node_put(np);
-
-	lvts_data->cdev = cpufreq_cooling_register(lvts_data->policy);
-	if (IS_ERR(lvts_data->cdev)) {
-		ret = PTR_ERR(lvts_data->cdev);
-		cpufreq_cpu_put(lvts_data->policy);
-	}
-
-	return ret;
-}
-
-static void lvts_unregister_cpu_cooling(struct lvts_data *lvts_data)
-{
-	cpufreq_cooling_unregister(lvts_data->cdev);
-	cpufreq_cpu_put(lvts_data->policy);
-}
-
 static int lvts_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -990,44 +954,29 @@ static int lvts_probe(struct platform_device *pdev)
 		return -ENODATA;
 	}
 
-	ret = lvts_register_cpu_cooling(lvts_data);
-	if (ret) {
-		if (ret == -EPROBE_DEFER)
-			return ret;
-
-		dev_err(dev,
-			"Error: Failed to register cpufreq cooling device: %d\n", ret);
-		return ret;
-	}
-
 	lvts_data->dev = &pdev->dev;
 
 	ret = of_update_lvts_data(lvts_data, pdev);
 	if (ret)
-		goto unregister_cpu_cooling;
+		return ret;
 
 	platform_set_drvdata(pdev, lvts_data);
 
 	ret = lvts_init(lvts_data);
 	if (ret)
-		goto unregister_cpu_cooling;
+		return ret;
 
 	if (lvts_data->feature_bitmap & FEATURE_IRQ) {
 		ret = lvts_register_irq_handler(lvts_data);
 		if (ret)
-			goto unregister_cpu_cooling;
+			return ret;
 	}
 
 	ret = lvts_register_thermal_zones(lvts_data);
 	if (ret)
-		goto unregister_cpu_cooling;
+		return ret;
 
 	return 0;
-
-unregister_cpu_cooling:
-	lvts_unregister_cpu_cooling(lvts_data);
-
-	return ret;
 }
 
 static int lvts_remove(struct platform_device *pdev)
@@ -1037,8 +986,6 @@ static int lvts_remove(struct platform_device *pdev)
 	lvts_data = (struct lvts_data *)platform_get_drvdata(pdev);
 
 	lvts_close(lvts_data);
-
-	lvts_unregister_cpu_cooling(lvts_data);
 
 	return 0;
 }
