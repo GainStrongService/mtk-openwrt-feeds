@@ -2,7 +2,7 @@ diff --git a/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts b/arch/arm64/boot/dts/
 index fca9a3d..c20ef82 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
 +++ b/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
-@@ -219,6 +219,15 @@ &tphy {
+@@ -219,6 +219,15 @@
  	status = "okay";
  };
  
@@ -22,7 +22,7 @@ diff --git a/arch/arm64/boot/dts/mediatek/mt7988a.dtsi b/arch/arm64/boot/dts/med
 index 9285457..f748ad2 100644
 --- a/arch/arm64/boot/dts/mediatek/mt7988a.dtsi
 +++ b/arch/arm64/boot/dts/mediatek/mt7988a.dtsi
-@@ -1610,6 +1610,14 @@ i2p5gbe_led1: i2p5gbe-led1@1 {
+@@ -1606,6 +1606,14 @@
  			};
  		};
  
@@ -74,7 +74,7 @@ diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/media
 index b6b45ce..013945a 100644
 --- a/drivers/net/ethernet/mediatek/Makefile
 +++ b/drivers/net/ethernet/mediatek/Makefile
-@@ -11,3 +11,4 @@ mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
+@@ -11,3 +11,4 @@ mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) +
  endif
  obj-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_ops.o
  obj-$(CONFIG_NET_MEDIATEK_STAR_EMAC) += mtk_star_emac.o
@@ -94,7 +94,7 @@ index 851766b..afcd264 100644
  static int mtk_msg_level = -1;
  module_param_named(msg_level, mtk_msg_level, int, 0);
  MODULE_PARM_DESC(msg_level, "Message level (-1=defaults,0=none,...,16=all)");
-@@ -2509,8 +2513,32 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2598,8 +2602,32 @@ static int mtk_poll_rx(struct napi_struc
  				skb_dst_set_noref(skb, &eth->dsa_meta[port]->dst);
  		}
  
@@ -127,7 +127,7 @@ index 851766b..afcd264 100644
  
  		if (eth->hwlro && mtk_hwlro_stats_ebl &&
  		    IS_HW_LRO_RING(ring->ring_no)) {
-@@ -4111,8 +4139,10 @@ static int mtk_open(struct net_device *dev)
+@@ -4205,8 +4233,10 @@ static int mtk_open(struct net_device *d
  			return err;
  		}
  
@@ -138,7 +138,7 @@ index 851766b..afcd264 100644
  
  		for (i = 0; i < MTK_MAX_DEVS; i++) {
  			if (!eth->netdev[i])
-@@ -4269,8 +4299,10 @@ static int mtk_stop(struct net_device *dev)
+@@ -4372,8 +4402,10 @@ static int mtk_stop(struct net_device *d
  
  	mtk_dma_free(eth);
  
@@ -149,19 +149,19 @@ index 851766b..afcd264 100644
  
  	return 0;
  }
-@@ -6585,6 +6617,7 @@ static int mtk_probe(struct platform_device *pdev)
- 			goto err_free_dev;
+@@ -6729,6 +6761,7 @@ static int mtk_probe(struct platform_dev
+ 		};
  	}
  
 +#if !defined(CONFIG_NET_MEDIATEK_HNAT) && !defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
  	if (eth->soc->offload_version) {
  		u8 ppe_num = eth->soc->ppe_num;
  
-@@ -6605,6 +6638,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6749,6 +6782,7 @@ static int mtk_probe(struct platform_dev
  				goto err_deinit_ppe;
  		}
  	}
 +#endif
  
- 	for (i = 0; i < MTK_MAX_DEVS; i++) {
- 		if (!eth->netdev[i])
+ 	/* we run 2 devices on the same DMA ring so we need a dummy device
+ 	 * for NAPI to work
