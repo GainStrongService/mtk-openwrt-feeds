@@ -1160,12 +1160,6 @@ static void mtk_set_queue_speed(struct mtk_eth *eth, unsigned int idx,
 			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 5) |
 			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 10);
 			break;
-		case SPEED_10000:
-			val |= MTK_QTX_SCH_MAX_RATE_EN_V2 |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 100) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 5) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 10);
-			break;
 		default:
 			break;
 		}
@@ -1192,12 +1186,6 @@ static void mtk_set_queue_speed(struct mtk_eth *eth, unsigned int idx,
 		case SPEED_2500:
 			val |= MTK_QTX_SCH_MAX_RATE_EN |
 			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, 25) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, 5) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 10);
-			break;
-		case SPEED_10000:
-			val |= MTK_QTX_SCH_MAX_RATE_EN |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, 100) |
 			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, 5) |
 			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 10);
 			break;
