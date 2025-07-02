@@ -12,7 +12,7 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/mtk_ppe.c       | 11 ++++
  drivers/net/ethernet/mediatek/mtk_ppe.h       |  2 +
- .../net/ethernet/mediatek/mtk_ppe_offload.c   | 13 ++++-
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   | 13 +++-
  include/net/netfilter/nf_conntrack_extend.h   |  1 +
  include/net/netfilter/nf_conntrack_qos.h      | 61 +++++++++++++++++++
  include/net/netfilter/nf_flow_table.h         |  2 +
@@ -25,15 +25,15 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  net/netfilter/nf_flow_table_core.c            |  2 +
  net/netfilter/nf_flow_table_offload.c         |  7 ++-
  net/netfilter/xt_FLOWOFFLOAD.c                | 46 ++++++++++++++
- 15 files changed, 202 insertions(+), 4 deletions(-)
+ 15 files changed, 200 insertions(+), 4 deletions(-)
  create mode 100644 include/net/netfilter/nf_conntrack_qos.h
  create mode 100644 net/netfilter/nf_conntrack_qos.c
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index f16fff5..59a16ac 100644
+index 5a26825..a77a9dd 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -399,6 +399,17 @@ int mtk_foe_entry_set_dsa(struct mtk_eth *eth, struct mtk_foe_entry *entry,
+@@ -398,6 +398,17 @@ int mtk_foe_entry_set_dsa(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  	return 0;
  }
  
@@ -52,10 +52,10 @@ index f16fff5..59a16ac 100644
  			   int vid)
  {
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 2b22f06..068858d 100644
+index 0bd28fe..d505629 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -394,6 +394,8 @@ int mtk_foe_entry_set_ipv6_tuple(struct mtk_eth *eth,
+@@ -391,6 +391,8 @@ int mtk_foe_entry_set_ipv6_tuple(struct mtk_eth *eth,
  				 __be32 *dest_addr, __be16 dest_port);
  int mtk_foe_entry_set_dsa(struct mtk_eth *eth, struct mtk_foe_entry *entry,
  			  int port);
@@ -65,19 +65,19 @@ index 2b22f06..068858d 100644
  			   int vid);
  int mtk_foe_entry_set_pppoe(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index ebdb51b..effe1a3 100644
+index 82ca90a..a04b4cf 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -190,7 +190,7 @@ mtk_flow_get_dsa_port(struct net_device **dev)
- static int
+@@ -191,7 +191,7 @@ static int
  mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
- 			   struct net_device *idev, struct net_device *odev, u32 ct_mark,
--			   const u8 *dest_mac, int *wed_index)
-+			   const u8 *dest_mac, int *wed_index, int dscp)
+ 			   struct net_device *idev, struct net_device *odev,
+ 			   struct flow_cls_offload *f, const u8 *dest_mac,
+-			   int *wed_index)
++			   int *wed_index, int dscp)
  {
  	struct mtk_wdma_info info = {};
- 	int pse_port, dsa_port, queue;
-@@ -260,6 +260,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 	struct nf_conn *ct = NULL;
+@@ -270,6 +270,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  
  out:
  	mtk_foe_entry_set_pse_port(eth, foe, pse_port);
@@ -85,7 +85,7 @@ index ebdb51b..effe1a3 100644
  
  	return 0;
  }
-@@ -278,6 +279,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
+@@ -288,6 +289,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
  	int wed_index = -1;
  	u16 addr_type = 0;
  	u8 l4proto = 0;
@@ -93,7 +93,7 @@ index ebdb51b..effe1a3 100644
  	int err = 0;
  	int i;
  
-@@ -321,6 +323,13 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
+@@ -331,6 +333,13 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
  		return -EOPNOTSUPP;
  	}
  
@@ -107,10 +107,10 @@ index ebdb51b..effe1a3 100644
  	switch (addr_type) {
  	case 0:
  		offload_type = MTK_PPE_PKT_TYPE_BRIDGE;
-@@ -480,7 +491,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
+@@ -488,7 +497,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
  		mtk_foe_entry_set_pppoe(eth, &foe, data.pppoe.sid);
  
- 	err = mtk_flow_set_output_device(eth, &foe, idev, odev, ct_mark,
+ 	err = mtk_flow_set_output_device(eth, &foe, idev, odev, f,
 -					 data.eth.h_dest, &wed_index);
 +					 data.eth.h_dest, &wed_index, dscp);
  	if (err)
@@ -196,7 +196,7 @@ index 0000000..8f4b67f
 +
 +#endif /* _NF_CONNTRACK_QOS_H */
 diff --git a/include/net/netfilter/nf_flow_table.h b/include/net/netfilter/nf_flow_table.h
-index 35cefcf..9496781 100644
+index 8bc64f2..16eca1a 100644
 --- a/include/net/netfilter/nf_flow_table.h
 +++ b/include/net/netfilter/nf_flow_table.h
 @@ -36,6 +36,7 @@ struct nf_flow_key {
@@ -228,7 +228,7 @@ index 1f463b3..b1b04cc 100644
  	u8			sysctl_checksum;
  
 diff --git a/net/netfilter/Makefile b/net/netfilter/Makefile
-index 4b3d926..805b97f 100644
+index 8789ecf..575e221 100644
 --- a/net/netfilter/Makefile
 +++ b/net/netfilter/Makefile
 @@ -4,7 +4,7 @@ netfilter-objs := core.o nf_log.o nf_queue.o nf_sockopt.o utils.o
@@ -290,7 +290,7 @@ index 282e964..73913f3 100644
  	nf_ct_labels_ext_add(ct);
 diff --git a/net/netfilter/nf_conntrack_qos.c b/net/netfilter/nf_conntrack_qos.c
 new file mode 100644
-index 0000000..d591cb3
+index 0000000..0292ea6
 --- /dev/null
 +++ b/net/netfilter/nf_conntrack_qos.c
 @@ -0,0 +1,24 @@
@@ -319,7 +319,7 @@ index 0000000..d591cb3
 +	net->ct.sysctl_qos = nf_ct_qos;
 +}
 diff --git a/net/netfilter/nf_conntrack_standalone.c b/net/netfilter/nf_conntrack_standalone.c
-index 05b99e0..52d10b9 100644
+index 1188df1..b410c84 100644
 --- a/net/netfilter/nf_conntrack_standalone.c
 +++ b/net/netfilter/nf_conntrack_standalone.c
 @@ -21,6 +21,7 @@
@@ -375,7 +375,7 @@ index 05b99e0..52d10b9 100644
  #ifdef CONFIG_NF_CONNTRACK_EVENTS
  	NF_SYSCTL_CT_EVENTS,
  #endif
-@@ -726,6 +744,15 @@ static struct ctl_table nf_ct_sysctl_table[] = {
+@@ -730,6 +748,15 @@ static struct ctl_table nf_ct_sysctl_table[] = {
  		.extra1 	= SYSCTL_ZERO,
  		.extra2 	= SYSCTL_ONE,
  	},
@@ -392,7 +392,7 @@ index 05b99e0..52d10b9 100644
  	[NF_SYSCTL_CT_EVENTS] = {
  		.procname	= "nf_conntrack_events",
 diff --git a/net/netfilter/nf_flow_table_core.c b/net/netfilter/nf_flow_table_core.c
-index bad3307..36af939 100644
+index 23aa1e2..6ed2269 100644
 --- a/net/netfilter/nf_flow_table_core.c
 +++ b/net/netfilter/nf_flow_table_core.c
 @@ -9,6 +9,7 @@
@@ -439,7 +439,7 @@ index 9189ece..b792d0a 100644
  	switch (tuple->l4proto) {
  	case IPPROTO_TCP:
 diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
-index 2333cf8..d858f87 100644
+index 704babb..01ccead 100644
 --- a/net/netfilter/xt_FLOWOFFLOAD.c
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
 @@ -12,6 +12,7 @@
@@ -470,7 +470,7 @@ index 2333cf8..d858f87 100644
  static unsigned int
  xt_flowoffload_net_hook(void *priv, struct sk_buff *skb,
  			const struct nf_hook_state *state)
-@@ -603,6 +617,11 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -600,6 +614,11 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  	struct net_device *devs[2] = {};
  	struct nf_conn *ct;
  	struct net *net;
@@ -482,7 +482,7 @@ index 2333cf8..d858f87 100644
  
  	if (xt_flowoffload_skip(skb, xt_family(par)))
  		return XT_CONTINUE;
-@@ -636,6 +655,31 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -633,6 +652,31 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  
  	dir = CTINFO2DIR(ctinfo);
  
@@ -514,7 +514,7 @@ index 2333cf8..d858f87 100644
  	devs[dir] = xt_out(par);
  	devs[!dir] = xt_in(par);
  
-@@ -660,6 +704,8 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -657,6 +701,8 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  
  	flow_offload_route_init(flow, &route);
  

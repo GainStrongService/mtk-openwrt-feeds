@@ -10,13 +10,13 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   | 13 +++
  .../net/ethernet/mediatek/mtk_ppe_debugfs.c   | 94 +++++++++++++++++++
- .../net/ethernet/mediatek/mtk_ppe_offload.c   | 52 +++++++---
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   | 54 ++++++++---
  include/net/flow_offload.h                    |  1 +
  net/netfilter/nf_flow_table_offload.c         |  4 +-
- 5 files changed, 151 insertions(+), 13 deletions(-)
+ 5 files changed, 154 insertions(+), 12 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 3d1799d..ce75a77 100644
+index b88f006..190b8b9 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -1707,6 +1707,7 @@ struct mtk_eth {
@@ -166,29 +166,31 @@ index 0ba49a5..129bde4 100644
 +	return ret;
  }
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 4729191..8451606 100644
+index 4729191..82ca90a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 @@ -9,6 +9,8 @@
  #include <linux/ipv6.h>
  #include <net/flow_offload.h>
  #include <net/pkt_cls.h>
-+#include <net/netfilter/nf_conntrack.h>
++#include <net/netfilter/nf_conntrack_acct.h>
 +#include <net/netfilter/nf_flow_table.h>
  #include <net/dsa.h>
  #include "mtk_eth_soc.h"
  #include "mtk_wed.h"
-@@ -187,13 +189,14 @@ mtk_flow_get_dsa_port(struct net_device **dev)
+@@ -187,13 +189,17 @@ mtk_flow_get_dsa_port(struct net_device **dev)
  
  static int
  mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
 -			   struct net_device *dev, const u8 *dest_mac,
--			   int *wed_index)
-+			   struct net_device *idev, struct net_device *odev, u32 ct_mark,
-+			   const u8 *dest_mac, int *wed_index)
++			   struct net_device *idev, struct net_device *odev,
++			   struct flow_cls_offload *f, const u8 *dest_mac,
+ 			   int *wed_index)
  {
  	struct mtk_wdma_info info = {};
++	struct nf_conn *ct = NULL;
 +	struct mtk_mac *mac;
++	u32 ct_mark = 0;
  	int pse_port, dsa_port, queue;
  
 -	if (mtk_flow_get_wdma_info(dev, dest_mac, &info) == 0) {
@@ -196,7 +198,7 @@ index 4729191..8451606 100644
  		mtk_foe_entry_set_wdma(eth, foe, info.wdma_idx, info.queue,
  				       info.bss, info.wcid, info.amsdu);
  		if (mtk_is_netsys_v2_or_greater(eth)) {
-@@ -217,24 +220,45 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+@@ -217,24 +223,50 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  		goto out;
  	}
  
@@ -227,6 +229,11 @@ index 4729191..8451606 100644
 +		queue = (pse_port == PSE_GDM3_PORT) ? 2 : pse_port - 1;
 +	}
 +
++	if (f->flow && f->flow->ct) {
++		ct = f->flow->ct;
++		ct_mark = ct->mark;
++	}
++
 +	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(mac, idev, dsa_port))
 +		mtk_foe_entry_set_queue(eth, foe, queue);
 +	else if (eth->qos_toggle == 1 || (ct_mark & MTK_QDMA_QUEUE_MASK) >= 9) {
@@ -249,24 +256,13 @@ index 4729191..8451606 100644
  
  out:
  	mtk_foe_entry_set_pse_port(eth, foe, pse_port);
-@@ -254,6 +278,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
- 	struct mtk_flow_entry *entry;
- 	int offload_type = 0;
- 	int wed_index = -1;
-+	u32 ct_mark = 0;
- 	u16 addr_type = 0;
- 	u8 l4proto = 0;
- 	int err = 0;
-@@ -455,8 +480,11 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
+@@ -455,8 +487,8 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f,
  	if (data.pppoe.num == 1)
  		mtk_foe_entry_set_pppoe(eth, &foe, data.pppoe.sid);
  
 -	err = mtk_flow_set_output_device(eth, &foe, odev, data.eth.h_dest,
 -					 &wed_index);
-+	if (f->flow && f->flow->ct)
-+		ct_mark = f->flow->ct->mark;
-+
-+	err = mtk_flow_set_output_device(eth, &foe, idev, odev, ct_mark,
++	err = mtk_flow_set_output_device(eth, &foe, idev, odev, f,
 +					 data.eth.h_dest, &wed_index);
  	if (err)
  		return err;
