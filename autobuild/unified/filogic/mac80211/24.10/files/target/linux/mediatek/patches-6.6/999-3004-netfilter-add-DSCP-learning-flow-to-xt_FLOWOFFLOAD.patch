@@ -19,13 +19,14 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  include/net/netns/conntrack.h                 |  1 +
  net/netfilter/Makefile                        |  2 +-
  net/netfilter/nf_conntrack_core.c             |  3 +
+ net/netfilter/nf_conntrack_extend.c           |  2 +
  net/netfilter/nf_conntrack_netlink.c          |  2 +
  net/netfilter/nf_conntrack_qos.c              | 24 ++++++++
  net/netfilter/nf_conntrack_standalone.c       | 27 ++++++++
  net/netfilter/nf_flow_table_core.c            |  2 +
  net/netfilter/nf_flow_table_offload.c         |  7 ++-
  net/netfilter/xt_FLOWOFFLOAD.c                | 46 ++++++++++++++
- 15 files changed, 200 insertions(+), 4 deletions(-)
+ 16 files changed, 202 insertions(+), 4 deletions(-)
  create mode 100644 include/net/netfilter/nf_conntrack_qos.h
  create mode 100644 net/netfilter/nf_conntrack_qos.c
 
@@ -130,7 +131,7 @@ index 0b24724..5208c4b 100644
  #endif
 diff --git a/include/net/netfilter/nf_conntrack_qos.h b/include/net/netfilter/nf_conntrack_qos.h
 new file mode 100644
-index 0000000..8f4b67f
+index 0000000..538b418
 --- /dev/null
 +++ b/include/net/netfilter/nf_conntrack_qos.h
 @@ -0,0 +1,61 @@
@@ -173,7 +174,7 @@ index 0000000..8f4b67f
 +	if (!qos)
 +		pr_debug("failed to add qos extension area");
 +
-+	memset(qos->tos, 0, sizeof(qos->tos));
++	memset(qos, 0, sizeof(struct nf_conn_qos));
 +
 +	return qos;
 +#else
@@ -268,6 +269,26 @@ index a8f7813..4a5f6dd 100644
  	nf_conntrack_tstamp_pernet_init(net);
  	nf_conntrack_ecache_pernet_init(net);
  	nf_conntrack_proto_pernet_init(net);
+diff --git a/net/netfilter/nf_conntrack_extend.c b/net/netfilter/nf_conntrack_extend.c
+index dd62cc1..986d220 100644
+--- a/net/netfilter/nf_conntrack_extend.c
++++ b/net/netfilter/nf_conntrack_extend.c
+@@ -23,6 +23,7 @@
+ #include <net/netfilter/nf_conntrack_labels.h>
+ #include <net/netfilter/nf_conntrack_synproxy.h>
+ #include <net/netfilter/nf_conntrack_act_ct.h>
++#include <net/netfilter/nf_conntrack_qos.h>
+ #include <net/netfilter/nf_nat.h>
+ 
+ #define NF_CT_EXT_PREALLOC	128u /* conntrack events are on by default */
+@@ -36,6 +37,7 @@ static const u8 nf_ct_ext_type_len[NF_CT_EXT_NUM] = {
+ #endif
+ 	[NF_CT_EXT_SEQADJ] = sizeof(struct nf_conn_seqadj),
+ 	[NF_CT_EXT_ACCT] = sizeof(struct nf_conn_acct),
++	[NF_CT_EXT_QOS] = sizeof(struct nf_conn_qos),
+ #ifdef CONFIG_NF_CONNTRACK_EVENTS
+ 	[NF_CT_EXT_ECACHE] = sizeof(struct nf_conntrack_ecache),
+ #endif
 diff --git a/net/netfilter/nf_conntrack_netlink.c b/net/netfilter/nf_conntrack_netlink.c
 index 282e964..73913f3 100644
 --- a/net/netfilter/nf_conntrack_netlink.c
