@@ -150,7 +150,7 @@ index 53fd3f7..79cdfdc 100644
  {
  	struct dst_entry *this_dst = skb_dst(pkt->skb);
  	struct dst_entry *other_dst = NULL;
-@@ -264,11 +308,94 @@ static int nft_flow_route(const struct nft_pktinfo *pkt,
+@@ -264,13 +308,89 @@ static int nft_flow_route(const struct nft_pktinfo *pkt,
  
  	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH &&
  	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
@@ -159,11 +159,11 @@ index 53fd3f7..79cdfdc 100644
 +		if (nft_dev_forward_path(pkt, route, ct, dir, ft) ||
 +		    nft_dev_forward_path(pkt, route, ct, !dir, ft))
 +		    return -ENOENT;
-+	}
-+
-+	return 0;
-+}
-+
+ 	}
+ 
+ 	return 0;
+ }
+ 
 +static int
 +nft_flow_route_dir(const struct nft_pktinfo *pkt,
 +		   const struct nf_conn *ct,
@@ -171,7 +171,6 @@ index 53fd3f7..79cdfdc 100644
 +		   enum ip_conntrack_dir dir,
 +		   int ifindex)
 +{
-+	struct dst_entry *this_dst = skb_dst(pkt->skb);
 +	struct dst_entry *other_dst = NULL;
 +	struct flowi fl;
 +
@@ -194,17 +193,11 @@ index 53fd3f7..79cdfdc 100644
 +		break;
 +	}
 +
-+	if (!dst_hold_safe(this_dst))
-+		return -ENOENT;
-+
 +	nf_route(nft_net(pkt), &other_dst, &fl, false, nft_pf(pkt));
-+	if (!other_dst) {
-+		dst_release(this_dst);
++	if (!other_dst)
 +		return -ENOENT;
-+	}
 +
 +	nft_default_forward_path(route, other_dst, dir);
-+	dst_release(this_dst);
 +
 +	return 0;
 +}
@@ -235,19 +228,21 @@ index 53fd3f7..79cdfdc 100644
 +			ret = -ENOENT;
 +			goto err_route_dir2;
 +		}
- 	}
- 
- 	return 0;
++	}
++
++	return 0;
 +
 +err_route_dir2:
 +	dst_release(route->tuple[!dir].dst);
 +err_route_dir1:
 +	dst_release(route->tuple[dir].dst);
 +	return ret;
- }
- 
++}
++
  static bool nft_flow_offload_skip(struct sk_buff *skb, int family)
-@@ -356,8 +483,13 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
+ {
+ 	if (skb_sec_path(skb))
+@@ -356,8 +476,13 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
  		goto out;
  
  	dir = CTINFO2DIR(ctinfo);
