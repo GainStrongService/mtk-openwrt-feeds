@@ -163,29 +163,30 @@ index 08e0b94..704babb 100644
  {
  	struct dst_entry *this_dst = skb_dst(skb);
  	struct dst_entry *other_dst = NULL;
-@@ -456,13 +500,91 @@ xt_flowoffload_route(struct sk_buff *skb, const struct nf_conn *ct,
+@@ -456,15 +500,86 @@ xt_flowoffload_route(struct sk_buff *skb, const struct nf_conn *ct,
  	nf_default_forward_path(route, this_dst, dir, devs);
  	nf_default_forward_path(route, other_dst, !dir, devs);
  
 -	if (route->tuple[dir].xmit_type	== FLOW_OFFLOAD_XMIT_NEIGH &&
 +	if (route->tuple[dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH &&
-+	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
+ 	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
+-		nf_dev_forward_path(route, ct, dir, devs);
+-		nf_dev_forward_path(route, ct, !dir, devs);
 +		if (nf_dev_forward_path(skb, route, ct, dir, devs))
 +			return -ENOENT;
 +		if (nf_dev_forward_path(skb, route, ct, !dir, devs))
 +			return -ENOENT;
-+	}
-+
-+	return 0;
-+}
-+
+ 	}
+ 
+ 	return 0;
+ }
+ 
 +static int
 +xt_flowoffload_route_dir(struct sk_buff *skb, struct nf_flow_route *route,
 +			 const struct nf_conn *ct, enum ip_conntrack_dir dir,
 +			 const struct xt_action_param *par, int ifindex,
 +			 struct net_device **devs)
 +{
-+	struct dst_entry *this_dst = skb_dst(skb);
 +	struct dst_entry *dst = NULL;
 +	struct flowi fl;
 +
@@ -202,17 +203,11 @@ index 08e0b94..704babb 100644
 +		break;
 +	}
 +
-+	if (!dst_hold_safe(this_dst))
-+		return -ENOENT;
-+
 +	nf_route(xt_net(par), &dst, &fl, false, xt_family(par));
-+	if (!dst) {
-+		dst_release(this_dst);
++	if (!dst)
 +		return -ENOENT;
-+	}
 +
 +	nf_default_forward_path(route, dst, dir, devs);
-+	dst_release(this_dst);
 +
 +	return 0;
 +}
@@ -238,27 +233,27 @@ index 08e0b94..704babb 100644
 +		goto err_route_dir1;
 +
 +	if (route->tuple[dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH &&
- 	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
--		nf_dev_forward_path(route, ct, dir, devs);
--		nf_dev_forward_path(route, ct, !dir, devs);
++	    route->tuple[!dir].xmit_type == FLOW_OFFLOAD_XMIT_NEIGH) {
 +		if (nf_dev_forward_path(skb, route, ct, dir, devs) ||
 +		    nf_dev_forward_path(skb, route, ct, !dir, devs)) {
 +			ret = -ENOENT;
 +			goto err_route_dir2;
 +		}
- 	}
- 
- 	return 0;
++	}
++
++	return 0;
 +
 +err_route_dir2:
 +	dst_release(route->tuple[!dir].dst);
 +err_route_dir1:
 +	dst_release(route->tuple[dir].dst);
 +	return ret;
- }
- 
++}
++
  static unsigned int
-@@ -520,8 +642,14 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+ {
+@@ -520,8 +635,14 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  	if (test_and_set_bit(IPS_OFFLOAD_BIT, &ct->status))
  		return XT_CONTINUE;
  
