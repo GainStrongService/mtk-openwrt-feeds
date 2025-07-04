@@ -16,6 +16,7 @@ WIFI_RADIO2=0
 WIFI_RADIO3=0
 WED_ENABLE=0
 NFT_ENABLE=1
+HW_OFFLOAD=1
 
 WIFI_MODULE_LIST='mt7915e mt7996e'
 
@@ -114,10 +115,10 @@ MT7988()
 	if [[ "$WED_ENABLE" -eq "1" ]]; then
 		if [[ "$NFT_ENABLE" -eq "1" ]]; then
 			dbg2 "WED_ENABLE ON irq/nftables setting"
-			nftables_flowoffload_enable
+			nftables_flowoffload_enable "$HW_OFFLOAD"
 		else
-			dbg2 "WED_ENABLE ON irq/iptable setting"
-			iptables_flowoffload_enable
+			dbg2 "WED_ENABLE ON irq/iptables setting"
+			iptables_flowoffload_enable "$HW_OFFLOAD"
 		fi
 	else
 		dbg2 "WED_ENABLE OFF irq/iptable seting"
@@ -180,10 +181,10 @@ MT7986()
 	if [[ "$WED_ENABLE" -eq "1" ]]; then
 		if [[ "$NFT_ENABLE" -eq "1" ]]; then
 			dbg2 "WED_ENABLE ON irq/nftables setting"
-			nftables_flowoffload_enable
+			nftables_flowoffload_enable "$HW_OFFLOAD"
 		else
 			dbg2 "WED_ENABLE ON irq/iptables setting"
-			iptables_flowoffload_enable
+			iptables_flowoffload_enable "$HW_OFFLOAD"
 		fi
 
 		#AX6000 AX7800 - SOC
@@ -268,10 +269,10 @@ MT7981()
 	if [[ "$WED_ENABLE" -eq "1" ]]; then
 		if [[ "$NFT_ENABLE" -eq "1" ]]; then
 			dbg2 "WED_ENABLE ON irq/nftables setting"
-			nftables_flowoffload_enable
+			nftables_flowoffload_enable "$HW_OFFLOAD"
 		else
-			dbg2 "WED_ENABLE ON irq/iptable setting"
-			iptables_flowoffload_enable
+			dbg2 "WED_ENABLE ON irq/iptables setting"
+			iptables_flowoffload_enable "$HW_OFFLOAD"
 		fi
 
 		if [[ "$WIFI_RADIO1" -eq "1" ]]; then
