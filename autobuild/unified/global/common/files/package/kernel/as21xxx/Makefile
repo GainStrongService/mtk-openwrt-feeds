@@ -22,6 +22,7 @@ define KernelPackage/phy-as21xxx
 	DEPENDS:=@TARGET_mediatek
 	FILES:=$(PKG_BUILD_DIR)/aeon_as21xxx.ko
 	AUTOLOAD:=$(call AutoLoad,20,aeon_as21xxx,1)
+	MODPARAMS.aeon_as21xxx:=param1=1
 endef
 
 define KernelPackage/phy-as21xxx/description

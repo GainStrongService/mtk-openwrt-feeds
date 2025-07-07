@@ -119,6 +119,14 @@
 #define AS21XXX_MDIO_AN_C22		0xffe0
 
 #define PHY_ID_AS21XXX			0x75009410
+
+#define AEON_MEM_DEFAULT_ADDR (0x300100 >> 1)
+#define MEM_WORD_SIZE 4
+#define MAX_WDATA_SIZE 16
+
+static int param1 = 1;
+module_param(param1, int, 0444);
+MODULE_PARM_DESC(param1, "First parameter");
 /* AS21xxx ID Legend
  * AS21x1xxB1
  *     ^ ^^
@@ -364,6 +372,19 @@ void aeon_mdio_write(struct phy_device *phydev, unsigned int dev_addr,
 	aeon_mdio_patch(phydev);
 }
 
+/* AEONSEMI burst write for load fw */
+void aeon_cl45_write_burst(struct phy_device *phydev, unsigned int dev_addr,
+			   unsigned int phy_reg, const unsigned char *data,
+			   int size)
+{
+	unsigned short write_data = 0, i = 0;
+
+	for (i = 0; i < size; i += 2) {
+		write_data = (data[i + 1] << 8) | data[i];
+		phy_write_mmd(phydev, dev_addr, phy_reg, write_data);
+	}
+}
+
 static int aeon_firmware_boot(struct phy_device *phydev, const u8 *data,
 			      size_t size)
 {
@@ -417,6 +438,87 @@ static int aeon_firmware_boot(struct phy_device *phydev, const u8 *data,
 
 	return phy_modify_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLB_REG_CPU_CTRL,
 			      VEND1_GLB_CPU_CTRL_MASK, AEON_CPU_CTRL_FW_START);
+}
+
+static int aeon_set_default_value(struct phy_device *phydev)
+{
+	static const unsigned char base_data[] = {0x32, 0x30, 0x32, 0x33, 0x30, 0x37, 0x31, 0x34};
+	unsigned char bytebuf[16];
+	unsigned short *wdata;
+	unsigned int mask;
+	int byte_count, wdata_count = 0;
+	int pos = 0, val, ret = 0, remaining;
+	unsigned char padded_bytes[MEM_WORD_SIZE] = {0};
+
+	mask = param1 | 14;
+	memcpy(bytebuf, base_data, sizeof(base_data));
+	bytebuf[8] = mask & 0xff;
+	bytebuf[9] = (mask >> 8) & 0xff;
+	byte_count = 10;
+
+	wdata = kmalloc(MAX_WDATA_SIZE * sizeof(unsigned short), GFP_KERNEL);
+	if (!wdata) {
+		pr_err("Failed to allocate wdata array\n");
+		return -ENOMEM;
+	}
+
+	while (pos + MEM_WORD_SIZE <= byte_count) {
+		if (wdata_count + 2 > MAX_WDATA_SIZE) {
+			pr_err("wdata array overflow\n");
+			ret = -ENOSPC;
+			goto cleanup;
+		}
+
+		wdata[wdata_count++] = le16_to_cpu(*(unsigned short *)&bytebuf[pos]);
+		wdata[wdata_count++] = le16_to_cpu(*(unsigned short *)&bytebuf[pos + 2]);
+
+		pos += MEM_WORD_SIZE;
+	}
+
+	remaining = byte_count - pos;
+	if (remaining > 0) {
+		if (wdata_count + 2 <= MAX_WDATA_SIZE) {
+			// Here we just need padded_bytes once, otherwise we need to read from mem
+			memcpy(padded_bytes, &bytebuf[pos], remaining);
+
+			wdata[wdata_count++] = le16_to_cpu(*(unsigned short *)&padded_bytes[0]);
+			wdata[wdata_count++] = le16_to_cpu(*(unsigned short *)&padded_bytes[2]);
+		}
+	}
+
+	val = aeon_cl45_read(phydev, MDIO_MMD_VEND1, VEND1_GLB_REG_CPU_CTRL); //GLB_REG_CPU_CTRL
+	val |= 0x12;
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLB_REG_CPU_CTRL, val);
+
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_FW_START_ADDR,
+			(u16)(AEON_MEM_DEFAULT_ADDR & 0xFFFF));
+
+	phy_modify_mmd(phydev, MDIO_MMD_VEND1,
+			VEND1_GLB_REG_MDIO_INDIRECT_ADDRCMD,
+			0x3ffc, 0xc000);
+
+	aeon_cl45_write_burst(phydev, MDIO_MMD_VEND1, VEND1_GLB_REG_MDIO_INDIRECT_LOAD,
+			(unsigned char *)wdata, wdata_count*2);
+
+	val = aeon_cl45_read(phydev, MDIO_MMD_VEND1,
+			VEND1_GLB_REG_MDIO_INDIRECT_ADDRCMD); //GLB_REG_MDIO_INDIRECT_ADDRCMD
+	val &= 0x3FFF;
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLB_REG_MDIO_INDIRECT_ADDRCMD, val);
+
+	val = aeon_cl45_read(phydev, MDIO_MMD_VEND1, VEND1_GLB_REG_CPU_CTRL); //GLB_REG_CPU_CTRL
+	val &= 0xFFED;
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLB_REG_CPU_CTRL, val);
+
+cleanup:
+	kfree(wdata);
+	return 0;
+}
+
+static void aeon_set_fast_mdc_timing(struct phy_device *phydev)
+{
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x53, 0xFFFF);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x54, 0xFFFF);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x55, 0xFFFF);
 }
 
 static int aeon_firmware_load(struct phy_device *phydev)
@@ -735,6 +837,11 @@ static int as21xxx_probe(struct phy_device *phydev)
 	if (!priv)
 		return -ENOMEM;
 	phydev->priv = priv;
+
+	if (param1) {
+		aeon_set_fast_mdc_timing(phydev);
+		aeon_set_default_value(phydev);
+	}
 
 	ret = aeon_firmware_load(phydev);
 
