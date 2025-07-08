@@ -2363,15 +2363,13 @@ ssize_t mcast_table_write(struct file *file, const char __user *buffer,
 
 	buf[len] = '\0';
 
-	if (buf[0] == '0')
-		mode = HNAT_MCAST_MODE_MULTI;
-	else if (buf[0] == '1')
-		mode = HNAT_MCAST_MODE_UNI;
-
-	if (mcast_mode != mode)
-		foe_clear_all_bind_entries();
-
-	mcast_mode = mode;
+	if (buf[0] == '0' || buf[0] == '1') {
+		mode = buf[0] - '0';
+		if (mcast_mode != mode) {
+			foe_clear_all_bind_entries();
+			mcast_mode = mode;
+		}
+	}
 
 	return len;
 }

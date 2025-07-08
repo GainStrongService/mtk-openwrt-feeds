@@ -387,6 +387,7 @@ static int hnat_mcast_list_update(int type, struct br_mdb_entry *entry)
 			if (pmcast_list->mc_port == 0) {
 				list_del(&pmcast_list->list);
 				kfree(pmcast_list);
+				pmcast_list = NULL;
 			}
 		}
 		break;
@@ -400,9 +401,10 @@ static int hnat_mcast_list_update(int type, struct br_mdb_entry *entry)
 	entry_delete_by_mac(dmac);
 
 	if (debug_level >= 7)
-		pr_info("%s_%s:devname=%s,mcast_port=%x, mac:%pM\n", __func__,
-			(type == RTM_NEWMDB) ? "NEW" : "DEL",
-			dev->name, pmcast_list->mc_port, dmac);
+		pr_info("%s_%s:devname=%s,mcast_port=%x, mac:%pM\n",
+			__func__,
+			(type == RTM_NEWMDB) ? "NEW" : "DEL", dev->name,
+			(pmcast_list) ? pmcast_list->mc_port : 0, dmac);
 
 	return 0;
 }
