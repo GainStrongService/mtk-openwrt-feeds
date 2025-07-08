@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import struct
 import argparse
 import pprint
 import requests
@@ -108,19 +109,47 @@ def altitude_write_to_file(filename, altitude):
     with open(filename, 'w') as f:
         f.write(str(altitude))
 
-def main():
-    parser = argparse.ArgumentParser(description='altitude-tool is a tool to get the altitude of '\
-                                                 'a coordinate')
-    parser.add_argument('-k', '--key', type=str, required=True,
-                        help='API key to access openweather API')
-    parser.add_argument('-x', '--lon', type=float, required=True, help='Longitude')
-    parser.add_argument('-y', '--lat', type=float, required=True, help='Latitude')
-    parser.add_argument('-w', '--write', type=str, required=False, help='Write to path')
-    parser.add_argument('--api', type=str, choices=['gw', 'ow'], required=True,
-                        help='Choose the API: gw (google-weather-api), ow (open-weather-map)')
+class CalibrationData:
+    bin_path = '/sbin/mtk_factory_rw.sh'
 
-    args = parser.parse_args()
+    @classmethod
+    def pressure_offset_write(cls, offset):
+        '''
+        Write the calibrated offset value into factory partition.
+        Maximum precision of 0.001 hPa.
 
+        Parameters:
+        - offset (float): the offset pressure value in hectopascals (hPa).
+        '''
+
+        offset_round = round(offset * 1000)
+        packed_bytes = struct.pack('>i', offset_round)
+        val_str = packed_bytes.hex()
+        val_str_split = [val_str[i:i+2] for i in range(0, 8, 2)]
+
+        subprocess.run([cls.bin_path, '-w', '4', '0xFFFEA'] + val_str_split,
+                       text=True, capture_output=True, check=True)
+
+    @classmethod
+    def pressure_offset_read(cls):
+        '''
+        Read the calibrated offset value from factory partition.
+        Maximum precision of 0.001 hPa.
+
+        Returns:
+        - float: The offset pressure value in hectopascals (hPa).
+        '''
+
+        result = subprocess.run([cls.bin_path, '-r', '4', '0xFFFEA'],
+                                text=True, capture_output=True, check=True)
+        result_str = result.stdout
+        val_str = result_str.replace('-', '')
+        packed_bytes = bytes.fromhex(val_str)
+        val = struct.unpack('>i', packed_bytes)[0]
+
+        return (val / 1000)
+
+def altitude_evaluate(args):
     key = args.key
     lat = args.lat
     lon = args.lon
@@ -134,18 +163,51 @@ def main():
 
     weather_data = WeatherData(weather_api, lat, lon)
 
-    pressure_sealevel = weather_data.pressure_sealevel
-    temp_sealevel = weather_data.temp_sealevel
-    pressure_target = sysfs_pressure_get()
-    altitude = altitude_calculate(pressure_sealevel, pressure_target, temp_sealevel)
+    p_sealevel = weather_data.pressure_sealevel
+    t_sealevel = weather_data.temp_sealevel
+    p_measured = sysfs_pressure_get()
+    p_offset = CalibrationData.pressure_offset_read()
+    altitude = altitude_calculate(p_sealevel, p_measured + p_offset, t_sealevel)
 
-    print(f"pressure_sealevel(hPa): {pressure_sealevel}")
-    print(f"pressure_target(hPa):   {pressure_target}")
-    print(f"temp_sealevel(c):       {temp_sealevel}")
+    print(f"pressure_sealevel(hPa): {p_sealevel}")
+    print(f"pressure_measured(hPa): {p_measured}")
+    print(f"pressure_offset(hPa):   {p_offset}")
+    print(f"temp_sealevel(c):       {t_sealevel}")
     print(f"altitude(m):            {altitude}")
 
     if path != None:
         altitude_write_to_file(path, altitude)
+
+def update_offset(args):
+    offset = args.new_offset
+    if offset < -1000 and offset > 1000:
+        raise RuntimeError("invalid calibration offset")
+
+    CalibrationData.pressure_offset_write(offset)
+    new_offset = CalibrationData.pressure_offset_read()
+    print(f"offset updated: {new_offset}")
+
+def main():
+    parser = argparse.ArgumentParser(description='altitude-tool is a tool to get the altitude of '\
+                                                 'a coordinate')
+    parser.add_argument('-k', '--key', type=str, help='API key to access openweather API')
+    parser.add_argument('-x', '--lon', type=float, help='Longitude')
+    parser.add_argument('-y', '--lat', type=float, help='Latitude')
+    parser.add_argument('-w', '--write', type=str, help='Write to path')
+    parser.add_argument('--api', type=str, choices=['gw', 'ow'],
+                        help='Choose the API: gw (google-weather-api), ow (open-weather-map)')
+    parser.add_argument('-n', '--new-offset', type=float, help='update calibration offset')
+
+    args = parser.parse_args()
+
+    if args.api is not None and args.key is not None and \
+       args.lat is not None and args.lon is not None:
+        altitude_evaluate(args)
+    elif args.new_offset is not None:
+        update_offset(args)
+    else:
+        parser.error('use -k --api -x -y together or only -n')
+        parser.print_help()
 
 if __name__ == "__main__":
     main()
