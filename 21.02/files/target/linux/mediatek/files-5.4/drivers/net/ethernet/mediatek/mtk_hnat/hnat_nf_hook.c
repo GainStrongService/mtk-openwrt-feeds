@@ -2645,14 +2645,26 @@ hnat_entry_bind:
 		if (IS_IPV4_GRP(&entry)) {
 			entry.ipv4_hnapt.tops_entry = entry.ipv4_hnapt.iblk2.dp;
 			entry.ipv4_hnapt.iblk2.dp = NR_TDMA_PORT;
+			/* If the entry BIND to TOPS, don't enter QDMA(HQoS) path */
+			entry.ipv4_hnapt.tport_id = 0;
+			entry.ipv4_hnapt.iblk2.fqos = 0;
+			entry.ipv4_hnapt.iblk2.qid = 0;
+
 		} else {
-			if (IS_IPV4_MAPE(&entry) || IS_IPV4_MAPT(&entry))
+			if (IS_IPV4_MAPE(&entry) || IS_IPV4_MAPT(&entry)) {
 				entry.ipv4_mape.tops_entry = entry.ipv4_mape.iblk2.dp;
-			else if (IS_IPV6_HNAT(&entry) || IS_IPV6_HNAPT(&entry))
+				entry.ipv4_mape.tport_id = 0;
+			} else if (IS_IPV6_HNAT(&entry) || IS_IPV6_HNAPT(&entry)) {
 				entry.ipv6_hnapt.tops_entry = entry.ipv6_hnapt.iblk2.dp;
-			else
+				entry.ipv6_hnapt.tport_id = 0;
+			} else {
 				entry.ipv6_5t_route.tops_entry = entry.ipv6_5t_route.iblk2.dp;
+				entry.ipv6_5t_route.tport_id = 0;
+			}
 			entry.ipv6_5t_route.iblk2.dp = NR_TDMA_PORT;
+			/* If the entry BIND to TOPS, don't enter QDMA(HQoS) path */
+			entry.ipv6_5t_route.iblk2.fqos = 0;
+			entry.ipv6_5t_route.iblk2.qid = 0;
 		}
 	}
 #endif
