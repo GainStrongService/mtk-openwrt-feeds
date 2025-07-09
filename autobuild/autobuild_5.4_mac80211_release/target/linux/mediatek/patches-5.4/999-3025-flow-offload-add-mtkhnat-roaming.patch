@@ -12,10 +12,10 @@ Subject: [PATCH] flow offload add mtkhnat roaming
  5 files changed, 260 insertions(+)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 72fb677..60994c5 100644
+index 95b388b..cfb1035 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -4233,6 +4233,12 @@ static int mtk_open(struct net_device *dev)
+@@ -4564,6 +4564,12 @@ static int mtk_open(struct net_device *dev)
  		if (err)
  			return err;
  
@@ -28,7 +28,7 @@ index 72fb677..60994c5 100644
  
  		/* Indicates CDM to parse the MTK special tag from CPU */
  		if (netdev_uses_dsa(dev)) {
-@@ -4420,6 +4426,8 @@ static int mtk_stop(struct net_device *dev)
+@@ -4824,6 +4830,8 @@ static int mtk_stop(struct net_device *dev)
  	if (eth->soc->offload_version) {
  		for (i = 0; i < eth->ppe_num; i++)
  			mtk_ppe_stop(eth->ppe[i]);
@@ -38,12 +38,12 @@ index 72fb677..60994c5 100644
  
  	return 0;
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index dc0530c..81111b0 100644
+index 2f9e7db..5a69cac 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -2008,10 +2008,14 @@ struct mtk_eth {
+@@ -2384,10 +2384,14 @@ struct mtk_eth {
+ 	spinlock_t			syscfg0_lock;
  	struct notifier_block		netdevice_notifier;
- 	struct timer_list		mtk_dma_monitor_timer;
  
 +	u8				debug_level;
  	u8				qos_toggle;
@@ -57,7 +57,7 @@ index dc0530c..81111b0 100644
  
  /* struct mtk_mac -	the structure that holds the info about the MACs of the
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 7aa9a8c..eb701ad 100644
+index e3b0388..4bf7c43 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -10,6 +10,7 @@
@@ -68,7 +68,7 @@ index 7aa9a8c..eb701ad 100644
  #include "mtk_eth_soc.h"
  #include "mtk_ppe.h"
  #include "mtk_ppe_regs.h"
-@@ -510,6 +511,28 @@ bool mtk_foe_entry_match(struct mtk_foe_entry *entry, struct mtk_foe_entry *data
+@@ -545,6 +546,28 @@ bool mtk_foe_entry_match(struct mtk_foe_entry *entry, struct mtk_foe_entry *data
  	return !memcmp(&entry->data, &data->data, len - 4);
  }
  
@@ -94,10 +94,10 @@ index 7aa9a8c..eb701ad 100644
 +	return false;
 +}
 +
- int mtk_foe_entry_set_sp(struct mtk_ppe *ppe, struct mtk_foe_entry *entry)
+ static bool
+ mtk_flow_entry_match(struct mtk_flow_entry *entry, struct mtk_foe_entry *data)
  {
- 	struct mtk_eth *eth = ppe->eth;
-@@ -1136,3 +1159,171 @@ int mtk_ppe_stop(struct mtk_ppe *ppe)
+@@ -1159,3 +1182,171 @@ int mtk_ppe_stop(struct mtk_ppe *ppe)
  
  	return 0;
  }
@@ -270,10 +270,10 @@ index 7aa9a8c..eb701ad 100644
 +	return 0;
 +}
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.h b/drivers/net/ethernet/mediatek/mtk_ppe.h
-index 38a3776..c74deae 100644
+index 4356b2a..36f8ecd 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.h
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.h
-@@ -381,6 +381,8 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int index)
+@@ -386,6 +386,8 @@ struct mtk_ppe *mtk_ppe_init(struct mtk_eth *eth, void __iomem *base, int index)
  void mtk_ppe_deinit(struct mtk_eth *eth);
  int mtk_ppe_start(struct mtk_ppe *ppe);
  int mtk_ppe_stop(struct mtk_ppe *ppe);

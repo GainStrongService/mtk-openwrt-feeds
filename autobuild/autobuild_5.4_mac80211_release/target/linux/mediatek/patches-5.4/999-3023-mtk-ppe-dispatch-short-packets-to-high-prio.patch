@@ -1,58 +1,120 @@
 From e8a6054c824c5c65abd501bfd7437a3d7c5f2751 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 Date: Tue, 28 Nov 2023 13:25:03 +0800
-Subject: [PATCH 23/24] 
- mtk-ppe-dispatch-short-packets-to-high-priority-TXQ-in-PPPQ
+Subject: [PATCH] mtk ppe dispatch short packets to high priority TXQ in PPPQ
 
 ---
- drivers/net/ethernet/mediatek/mtk_ppe.c | 27 +++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   | 90 ++++++++++++++++++-
+ 1 file changed, 89 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index ae0acd5..547b5a0 100644
---- a/drivers/net/ethernet/mediatek/mtk_ppe.c
-+++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
-@@ -451,6 +451,31 @@ int mtk_foe_entry_set_qid(struct mtk_foe_entry *entry, int qid)
- 	return 0;
+diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
+index e901011..b0973f5 100644
+--- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
++++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
+@@ -190,6 +190,86 @@ mtk_flow_get_dsa_port(struct net_device **dev, int *proto)
+ #endif
  }
  
-+void mtk_foe_entry_adjust_qid(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
++static int
++mtk_flow_get_ct_dir(struct mtk_eth *eth, struct mtk_foe_entry *foe,
++		    struct nf_conn *ct)
 +{
-+	struct mtk_foe_mac_info *l2 = mtk_foe_entry_l2(&entry->data);
-+	u32 *ib2 = mtk_foe_entry_ib2(&entry->data);
-+	u8 qid;
++	const struct nf_conntrack_tuple *tuple;
++	struct mtk_foe_entry ct_entry = {0};
++	int i, j;
 +
-+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
-+	if (l2->tport_id != 1)
-+		return;
-+#else
-+	if (!(*ib2 & MTK_FOE_IB2_PSE_QOS))
-+		return;
-+#endif
++	if (!eth || !foe || !ct)
++		return -EINVAL;
 +
-+	qid = FIELD_GET(MTK_FOE_IB2_QID, *ib2);
-+	/* To enhance performance in the unbalanced PHY rate test,
-+	 * dispatching short packets to the high priority TXQ.
-+	 */
-+	if (ppe->eth->qos_toggle == 2 && qid < 6) {
-+		qid += 6;
-+		*ib2 &= ~MTK_FOE_IB2_QID;
-+		*ib2 |= FIELD_PREP(MTK_FOE_IB2_QID, qid);
++	ct_entry.ib1 = foe->ib1;
++
++	for (i = 0; i < IP_CT_DIR_MAX; i++) {
++		tuple = &ct->tuplehash[i].tuple;
++
++		if (FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, foe->ib1) > MTK_PPE_PKT_TYPE_IPV4_DSLITE) {
++			if (nf_ct_l3num(ct) != AF_INET6)
++				return -EINVAL;
++
++			for (j = 0; j < 4; j++) {
++				ct_entry.ipv6.src_ip[j] = ntohl(tuple->src.u3.in6.s6_addr32[j]);
++				ct_entry.ipv6.dest_ip[j] = ntohl(tuple->dst.u3.in6.s6_addr32[j]);
++			}
++			ct_entry.ipv6.src_port = ntohs(tuple->src.u.tcp.port);
++			ct_entry.ipv6.dest_port = ntohs( tuple->dst.u.tcp.port);
++		} else {
++			if (nf_ct_l3num(ct) != AF_INET)
++				return -EINVAL;
++
++			ct_entry.ipv4.orig.src_ip = ntohl(tuple->src.u3.ip);
++			ct_entry.ipv4.orig.dest_ip = ntohl(tuple->dst.u3.ip);
++			ct_entry.ipv4.orig.src_port = ntohs(tuple->src.u.tcp.port);
++			ct_entry.ipv4.orig.dest_port = ntohs(tuple->dst.u.tcp.port);
++		}
++
++		if (mtk_foe_entry_match(&ct_entry, foe))
++			return i;
 +	}
++
++	return -EINVAL;
 +}
 +
- int mtk_foe_entry_set_dscp(struct mtk_foe_entry *entry, int dscp)
- {
- 	u32 *ib2 = mtk_foe_entry_ib2(entry);
-@@ -790,6 +815,9 @@ void __mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
- 			continue;
- 		}
- 
-+		if (skb && skb->len < 100)
-+			mtk_foe_entry_adjust_qid(ppe, entry);
++static bool
++mtk_flow_is_tcp_ack(struct mtk_eth *eth, struct mtk_foe_entry *foe,
++		    struct nf_conn *ct)
++{
++	const struct nf_conn_counter *counters;
++	struct nf_conn_acct *acct;
++	u64 packets[IP_CT_DIR_MAX], bytes[IP_CT_DIR_MAX], avg[IP_CT_DIR_MAX];
++	int dir;
 +
- 		entry->hash = hash;
- 		__mtk_foe_entry_commit(ppe, &entry->data, hash);
- 		found = true;
++	if (!ct)
++		return false;
++
++	dir = mtk_flow_get_ct_dir(eth, foe, ct);
++	if (dir < 0 || dir >= IP_CT_DIR_MAX)
++		return false;
++
++	acct = nf_conn_acct_find(ct);
++	if (!acct)
++		return false;
++
++	counters = acct->counter;
++	packets[dir] = atomic64_read(&counters[dir].packets);
++	bytes[dir] = atomic64_read(&counters[dir].bytes);
++	packets[!dir] = atomic64_read(&counters[!dir].packets);
++	bytes[!dir] = atomic64_read(&counters[!dir].bytes);
++
++	/* Avoid division by zero */
++	if (!packets[dir] || !packets[!dir])
++		return false;
++
++	avg[dir] = bytes[dir] / packets[dir];
++	avg[!dir] = bytes[!dir] / packets[!dir];
++
++	/* TCP ACKs are small packets (<= 64 bytes) compared to data packets */
++	return (avg[dir] <= 64 && avg[dir] < avg[!dir]);
++}
++
+ static int
+ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 			   struct net_device *idev, struct net_device *odev,
+@@ -230,8 +310,16 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 		mtk_foe_entry_set_dsa(foe, dsa_proto, dsa_port);
+ 	}
+ 
+-	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(idev, dsa_port))
++	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(idev, dsa_port)) {
++		if ((dsa_port >= 0) && ct && nf_ct_protonum(ct) == IPPROTO_TCP) {
++			/* Dispatch the IPv4/IPv6 TCP Ack packets to the high-priority
++			 * queue, assuming they are less than 64 bytes.
++			 */
++			if (mtk_flow_is_tcp_ack(eth, foe, ct))
++				queue += 6;
++		}
+ 		mtk_foe_entry_set_qid(foe, queue & MTK_QDMA_TX_MASK);
++	}
+ 
+ 	if (odev == eth->netdev[0])
+ 		pse_port = PSE_GDM1_PORT;
 -- 
-2.18.0
+2.45.2
