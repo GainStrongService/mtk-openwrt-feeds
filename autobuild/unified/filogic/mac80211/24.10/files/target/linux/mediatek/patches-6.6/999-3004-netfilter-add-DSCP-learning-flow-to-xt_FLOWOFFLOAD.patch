@@ -1,6 +1,6 @@
-From f46e00e37374ae747b3094c2d389626af8b8df48 Mon Sep 17 00:00:00 2001
+From 82b8030a6e4f5b802e74103b8b0d95684ef407f2 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Mon, 17 Mar 2025 23:40:37 +0800
+Date: Wed, 9 Jul 2025 09:49:53 +0800
 Subject: [PATCH] netfilter: add DSCP learning flow to xt_FLOWOFFLOAD
 
 User can use the command below to enable DSCP learning flow.
@@ -25,8 +25,8 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  net/netfilter/nf_conntrack_standalone.c       | 27 ++++++++
  net/netfilter/nf_flow_table_core.c            |  2 +
  net/netfilter/nf_flow_table_offload.c         |  7 ++-
- net/netfilter/xt_FLOWOFFLOAD.c                | 46 ++++++++++++++
- 16 files changed, 202 insertions(+), 4 deletions(-)
+ net/netfilter/xt_FLOWOFFLOAD.c                | 47 ++++++++++++++
+ 16 files changed, 203 insertions(+), 4 deletions(-)
  create mode 100644 include/net/netfilter/nf_conntrack_qos.h
  create mode 100644 net/netfilter/nf_conntrack_qos.c
 
@@ -131,7 +131,7 @@ index 0b24724..5208c4b 100644
  #endif
 diff --git a/include/net/netfilter/nf_conntrack_qos.h b/include/net/netfilter/nf_conntrack_qos.h
 new file mode 100644
-index 0000000..538b418
+index 0000000..8f4b67f
 --- /dev/null
 +++ b/include/net/netfilter/nf_conntrack_qos.h
 @@ -0,0 +1,61 @@
@@ -189,7 +189,7 @@ index 0000000..538b418
 +
 +	qos = nf_ct_ext_find(ct, NF_CT_EXT_QOS);
 +	if (qos)
-+		memset(qos->tos, 0, sizeof(qos->tos));
++		memset(qos, 0, sizeof(struct nf_conn_qos));
 +#endif
 +}
 +
@@ -197,7 +197,7 @@ index 0000000..538b418
 +
 +#endif /* _NF_CONNTRACK_QOS_H */
 diff --git a/include/net/netfilter/nf_flow_table.h b/include/net/netfilter/nf_flow_table.h
-index 8bc64f2..16eca1a 100644
+index 9335b9e..587fe6a 100644
 --- a/include/net/netfilter/nf_flow_table.h
 +++ b/include/net/netfilter/nf_flow_table.h
 @@ -36,6 +36,7 @@ struct nf_flow_key {
@@ -460,7 +460,7 @@ index 9189ece..b792d0a 100644
  	switch (tuple->l4proto) {
  	case IPPROTO_TCP:
 diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
-index 704babb..01ccead 100644
+index b87df4c..88c9829 100644
 --- a/net/netfilter/xt_FLOWOFFLOAD.c
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
 @@ -12,6 +12,7 @@
@@ -491,7 +491,7 @@ index 704babb..01ccead 100644
  static unsigned int
  xt_flowoffload_net_hook(void *priv, struct sk_buff *skb,
  			const struct nf_hook_state *state)
-@@ -600,6 +614,11 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -659,6 +673,11 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  	struct net_device *devs[2] = {};
  	struct nf_conn *ct;
  	struct net *net;
@@ -503,7 +503,7 @@ index 704babb..01ccead 100644
  
  	if (xt_flowoffload_skip(skb, xt_family(par)))
  		return XT_CONTINUE;
-@@ -633,6 +652,31 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -692,6 +711,32 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  
  	dir = CTINFO2DIR(ctinfo);
  
@@ -523,11 +523,12 @@ index 704babb..01ccead 100644
 +		qos->tos[dir].value = tos;
 +		atomic64_add(1, &qos->tos[dir].counter);
 +
-+		if (atomic64_read(&qos->tos[dir].counter) < 30)
++		if (atomic64_read(&qos->tos[IP_CT_DIR_ORIGINAL].counter) < 30)
 +			return XT_CONTINUE;
 +
 +		if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum == IPPROTO_TCP) {
-+			if (atomic64_read(&qos->tos[!dir].counter) < 30)
++			if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status) &&
++			    atomic64_read(&qos->tos[IP_CT_DIR_REPLY].counter) < 30)
 +				return XT_CONTINUE;
 +		}
 +	}
@@ -535,7 +536,7 @@ index 704babb..01ccead 100644
  	devs[dir] = xt_out(par);
  	devs[!dir] = xt_in(par);
  
-@@ -657,6 +701,8 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -715,6 +760,8 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  
  	flow_offload_route_init(flow, &route);
  
