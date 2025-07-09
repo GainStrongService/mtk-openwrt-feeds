@@ -282,7 +282,7 @@ void mtk_crypto_ring3_handler(void)
 
 			CBFunc = mtk_crypto_ring3_handler;
 			if (OutTokenDscr.ErrorCode == 0)
-				continue;
+				ret = 0;
 			else if (OutTokenDscr.ErrorCode & BIT(9))
 				ret = -EBADMSG;
 			else if (OutTokenDscr.ErrorCode == 0x4003)
@@ -326,7 +326,7 @@ void mtk_crypto_ring2_handler(void)
 
 			CBFunc = mtk_crypto_ring2_handler;
 			if (OutTokenDscr.ErrorCode == 0)
-				continue;
+				ret = 0;
 			else if (OutTokenDscr.ErrorCode & BIT(9))
 				ret = -EBADMSG;
 			else if (OutTokenDscr.ErrorCode == 0x4003)
@@ -370,7 +370,7 @@ void mtk_crypto_ring1_handler(void)
 
 			CBFunc = mtk_crypto_ring1_handler;
 			if (OutTokenDscr.ErrorCode == 0)
-				continue;
+				ret = 0;
 			else if (OutTokenDscr.ErrorCode & BIT(9))
 				ret = -EBADMSG;
 			else if (OutTokenDscr.ErrorCode == 0x4003)
@@ -414,7 +414,7 @@ void mtk_crypto_ring0_handler(void)
 
 			CBFunc = mtk_crypto_ring0_handler;
 			if (OutTokenDscr.ErrorCode == 0)
-				continue;
+				ret = 0;
 			else if (OutTokenDscr.ErrorCode & BIT(9))
 				ret = -EBADMSG;
 			else if (OutTokenDscr.ErrorCode == 0x4003)
@@ -2262,7 +2262,7 @@ void *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode
 	DMABuf_HostAddress_t sa_host_addr;
 
 	DMABuf_Handle_t sa_handle = {0};
-	PCL_Status_t pcl_status;
+	PEC_Status_t pec_status;
 
 	if (xs->props.family == AF_INET)
 		sa_status = SABuilder_Init_ESP(&params,
@@ -2364,9 +2364,9 @@ void *mtk_ddk_tr_ipsec_build(struct mtk_xfrm_params *xfrm_params, u32 ipsec_mode
 		goto error_ret;
 	}
 
-	pcl_status = PCL_Transform_Register(sa_handle);
-	if (pcl_status != PCL_STATUS_OK) {
-		CRYPTO_ERR("%s: PCL_Transform_Register failed\n", __func__);
+	pec_status = PEC_SA_Register(0, sa_handle, DMABuf_NULLHandle, DMABuf_NULLHandle);
+	if (pec_status != PEC_STATUS_OK) {
+		CRYPTO_ERR("%s: PEC_SA_Register failed\n", __func__);
 		DMABuf_Release(sa_handle);
 		sa_host_addr.p = NULL;
 		goto error_ret;
