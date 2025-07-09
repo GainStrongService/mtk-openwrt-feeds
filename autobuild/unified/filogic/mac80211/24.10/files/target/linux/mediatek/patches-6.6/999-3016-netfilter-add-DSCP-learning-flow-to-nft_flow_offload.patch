@@ -13,8 +13,8 @@ Without this patch, the PPEs are unable to learn the DSCP from SKB.
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- net/netfilter/nft_flow_offload.c | 49 +++++++++++++++++++++++++++++++-
- 1 file changed, 48 insertions(+), 1 deletion(-)
+ net/netfilter/nft_flow_offload.c | 50 +++++++++++++++++++++++++++++++-
+ 1 file changed, 49 insertions(+), 1 deletion(-)
 
 diff --git a/net/netfilter/nft_flow_offload.c b/net/netfilter/nft_flow_offload.c
 index 253ef56..25fda90 100644
@@ -60,7 +60,7 @@ index 253ef56..25fda90 100644
  	int ret;
  
  	if (nft_flow_offload_skip(pkt->skb, nft_pf(pkt)))
-@@ -482,10 +501,36 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
+@@ -482,10 +501,37 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
  	if (!nf_ct_is_confirmed(ct))
  		goto out;
  
@@ -82,11 +82,12 @@ index 253ef56..25fda90 100644
 +		qos->tos[dir].value = tos;
 +		atomic64_add(1, &qos->tos[dir].counter);
 +
-+		if (atomic64_read(&qos->tos[dir].counter) < 30)
++		if (atomic64_read(&qos->tos[IP_CT_DIR_ORIGINAL].counter) < 30)
 +			goto out;
 +
 +		if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum == IPPROTO_TCP) {
-+			if (atomic64_read(&qos->tos[!dir].counter) < 30)
++			if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status) &&
++			    atomic64_read(&qos->tos[IP_CT_DIR_REPLY].counter) < 30)
 +				goto out;
 +		}
 +	}
