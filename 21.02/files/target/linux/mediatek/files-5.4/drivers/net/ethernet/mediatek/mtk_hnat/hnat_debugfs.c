@@ -2319,8 +2319,8 @@ void __mcast_list_dump(struct seq_file *m, void *private)
 				i++,
 				entry->dmac,
 				entry->vid,
-				(entry->mc_port == MCAST_TO_GDMA1) ? 1 :
-				(entry->mc_port == MCAST_TO_GDMA2) ? 2 : 3);
+				(entry->mc_port == BIT(MCAST_TO_GDMA1)) ? 1 :
+				(entry->mc_port == BIT(MCAST_TO_GDMA2)) ? 2 : 3);
 	}
 }
 
