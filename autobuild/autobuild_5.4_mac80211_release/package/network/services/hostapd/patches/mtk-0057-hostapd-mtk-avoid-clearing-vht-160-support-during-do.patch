@@ -1,0 +1,32 @@
+From 2bc554177d0d84b73a0234078d522dff45eec0de Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Fri, 11 Jul 2025 08:57:05 +0800
+Subject: [PATCH] hostapd: mtk: avoid clearing vht 160 support during
+ downgrading bw
+
+Avoid clearing BW160 support in VHT capabilities when downgrading bandwidth via channel switch.
+Otherwise, the STA will store the incorrect VHT capabilities of its connected AP, which leads
+to a VHT capabilities unsync issue.
+In this case, the STA will not be able to follow the AP to switch from BW80 back to BW160,
+since the VHT capabilities of the AP stored by the STA indicate that BW160 is not supported.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ src/ap/drv_callbacks.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/ap/drv_callbacks.c b/src/ap/drv_callbacks.c
+index 275f6b3..140003a 100644
+--- a/src/ap/drv_callbacks.c
++++ b/src/ap/drv_callbacks.c
+@@ -994,7 +994,6 @@ void hostapd_event_ch_switch(struct hostapd_data *hapd, int freq, int ht,
+ 	hostapd_set_oper_centr_freq_seg0_idx(hapd->iconf, seg0_idx);
+ 	hostapd_set_oper_centr_freq_seg1_idx(hapd->iconf, seg1_idx);
+ 	if (hapd->iconf->ieee80211ac) {
+-		hapd->iconf->vht_capab &= ~VHT_CAP_SUPP_CHAN_WIDTH_MASK;
+ 		if (chwidth == CONF_OPER_CHWIDTH_160MHZ)
+ 			hapd->iconf->vht_capab |=
+ 				VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
+-- 
+2.45.2
+
