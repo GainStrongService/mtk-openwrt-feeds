@@ -1293,6 +1293,7 @@ enum FoeIpAct {
 #define MAX_PPPQ_QUEUE_NUM		(2 * MAX_SWITCH_PORT_NUM + 2)
 #define IS_PPPQ_PATH(dev, skb)						\
 	((IS_DSA_1G_LAN(dev) || IS_DSA_WAN(dev)) ||			\
+	 (IS_ETH_GRP(dev) && is_eth_dev_speed_under(dev, SPEED_1000)) ||\
 	 (FROM_WED(skb) && (IS_DSA_LAN(dev) ||				\
 			    is_eth_dev_speed_under(dev, SPEED_2500))))
 #else

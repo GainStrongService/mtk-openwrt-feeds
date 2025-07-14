@@ -2500,9 +2500,7 @@ hnat_entry_bind:
 	if (IS_HQOS_MODE || (skb->mark & MTK_QDMA_TX_MASK) >= MAX_PPPQ_QUEUE_NUM)
 		qid = skb->mark & (MTK_QDMA_TX_MASK);
 	else if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb))
-		qid = ((port_id >= 0) ? port_id :
-		       (gmac == NR_GMAC2_PORT) ? 2 * MAX_SWITCH_PORT_NUM :
-						 2 * MAX_SWITCH_PORT_NUM + 1) & MTK_QDMA_TX_MASK;
+		qid = ((port_id >= 0) ? MTK_GMAC_ID_MAX + port_id : mac->id) & MTK_QDMA_TX_MASK;
 	else
 		qid = 0;
 

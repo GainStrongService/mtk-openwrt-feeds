@@ -1103,13 +1103,23 @@ static void mtk_set_queue_speed(struct mtk_eth *eth, unsigned int idx,
 		return;
 
 	val = MTK_QTX_SCH_MIN_RATE_EN |
-	      /* minimum: 10 Mbps */
-	      FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, 1) |
-	      FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, 4) |
 	      MTK_QTX_SCH_LEAKY_BUCKET_SIZE;
+	/* minimum: 10 Mbps */
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4)) {
+		val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN_V2, 1) |
+		       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP_V2, 4);
+	} else {
+		val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, 1) |
+		       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, 4);
+	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V1))
 		val |= MTK_QTX_SCH_LEAKY_BUCKET_EN;
+
+#if !defined(CONFIG_MEDIATEK_NETSYS_V3)
+	if (speed > SPEED_1000)
+		goto out;
+#endif
 
 	if (IS_ENABLED(CONFIG_SOC_MT7621)) {
 		switch (speed) {
@@ -1150,15 +1160,15 @@ static void mtk_set_queue_speed(struct mtk_eth *eth, unsigned int idx,
 			break;
 		case SPEED_1000:
 			val |= MTK_QTX_SCH_MAX_RATE_EN_V2 |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 10) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 5) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 1) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 6) |
 			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 10);
 			break;
 		case SPEED_2500:
 			val |= MTK_QTX_SCH_MAX_RATE_EN_V2 |
 			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN_V2, 25) |
 			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP_V2, 5) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 10);
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT_V2, 25);
 			break;
 		default:
 			break;
@@ -1179,8 +1189,8 @@ static void mtk_set_queue_speed(struct mtk_eth *eth, unsigned int idx,
 			break;
 		case SPEED_1000:
 			val |= MTK_QTX_SCH_MAX_RATE_EN |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, 10) |
-			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, 5) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_MAN, 1) |
+			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_EXP, 6) |
 			       FIELD_PREP(MTK_QTX_SCH_MAX_RATE_WEIGHT, 10);
 			break;
 		case SPEED_2500:
@@ -1194,6 +1204,7 @@ static void mtk_set_queue_speed(struct mtk_eth *eth, unsigned int idx,
 		}
 	}
 
+out:
 	mtk_w32(eth, (idx / MTK_QTX_PER_PAGE) & MTK_QTX_CFG_PAGE, MTK_QDMA_PAGE);
 	mtk_w32(eth, val, MTK_QTX_SCH(idx));
 }
@@ -3081,6 +3092,7 @@ static int mtk_tx_alloc(struct mtk_eth *eth, int ring_no)
 	int i, sz = soc->txrx.txd_size;
 	struct mtk_tx_dma_v2 *txd, *pdma_txd;
 	dma_addr_t offset;
+	u32 ofs, val;
 
 	ring->buf = kcalloc(soc->txrx.tx_dma_size, sizeof(*ring->buf),
 			       GFP_KERNEL);
@@ -3168,8 +3180,31 @@ static int mtk_tx_alloc(struct mtk_eth *eth, int ring_no)
 			ring->phys + ((soc->txrx.tx_dma_size - 1) * sz),
 			soc->reg_map->qdma.crx_ptr);
 		mtk_w32(eth, ring->last_free_ptr, soc->reg_map->qdma.drx_ptr);
-		mtk_w32(eth, (QDMA_RES_THRES << 8) | QDMA_RES_THRES,
-			soc->reg_map->qdma.qtx_cfg);
+
+		for (i = 0, ofs = 0; i < MTK_QDMA_TX_NUM; i++) {
+			val = (QDMA_RES_THRES << 8) | QDMA_RES_THRES;
+			mtk_w32(eth, val, soc->reg_map->qdma.qtx_cfg + ofs);
+
+			val = MTK_QTX_SCH_MIN_RATE_EN |
+			      MTK_QTX_SCH_LEAKY_BUCKET_SIZE;
+			/* minimum: 10 Mbps */
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA_V1_4)) {
+				val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN_V2, 1) |
+				       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP_V2, 4);
+			} else {
+				val |= FIELD_PREP(MTK_QTX_SCH_MIN_RATE_MAN, 1) |
+				       FIELD_PREP(MTK_QTX_SCH_MIN_RATE_EXP, 4);
+			}
+			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V1))
+				val |= MTK_QTX_SCH_LEAKY_BUCKET_EN;
+			mtk_w32(eth, val, soc->reg_map->qdma.qtx_sch + ofs);
+			ofs += MTK_QTX_OFFSET;
+		}
+		val = MTK_QDMA_TX_SCH_MAX_WFQ | (MTK_QDMA_TX_SCH_MAX_WFQ << 16);
+		mtk_w32(eth, val, soc->reg_map->qdma.tx_sch_rate);
+#if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
+		mtk_w32(eth, val, soc->reg_map->qdma.tx_sch_rate + 4);
+#endif
 	} else {
 		mtk_w32(eth, ring->phys_pdma,
 			soc->reg_map->pdma.tx_ptr + ring_no * MTK_QTX_OFFSET);
@@ -4453,67 +4488,38 @@ static int mtk_device_event(struct notifier_block *n, unsigned long event, void 
 	if (!eth->pppq_toggle)
 		return NOTIFY_DONE;
 
-	if (event != NETDEV_CHANGE)
+	if (event != NETDEV_CHANGE || dev->priv_flags & IFF_EBRIDGE)
 		return NOTIFY_DONE;
 
-	switch (mac->id) {
-	case MTK_GMAC1_ID:
-		netdev_for_each_lower_dev(dev, ldev, iter) {
-			if (netdev_priv(ldev) == mac)
-				goto dsa_set_speed;
-		}
-		break;
-	case MTK_GMAC2_ID:
-		if (strcmp(netdev_name(dev), "eth1"))
-			break;
-
-		queue = MTK_QDMA_GMAC2_QID;
-		goto set_speed;
-	case MTK_GMAC3_ID:
-		if (strcmp(netdev_name(dev), "eth2"))
-			break;
-
-		queue = MTK_QDMA_GMAC3_QID;
-		goto set_speed;
-	default:
-		pr_info("%s mac id invalid", __func__);
-		break;
+	/* handle DSA switch devices event */
+	netdev_for_each_lower_dev(dev, ldev, iter) {
+		if (netdev_priv(ldev) == mac)
+			goto found;
 	}
 
+	/* handle non-DSA switch devices event */
+	if (netdev_priv(dev) == mac)
+		goto found;
+
 	return NOTIFY_DONE;
 
-set_speed:
+found:
 	if (__ethtool_get_link_ksettings(dev, &s))
 		return NOTIFY_DONE;
 
 	if (s.base.speed == 0 || s.base.speed == ((__u32)-1))
 		return NOTIFY_DONE;
 
-	if (mac->phy_speed > 0 && mac->phy_speed < s.base.speed)
-		s.base.speed = 0;
+	if (dsa_slave_dev_check(dev)) {
+		dp = dsa_port_from_netdev(dev);
+		queue = dp->index + MTK_GMAC_ID_MAX;
+	} else
+		queue = mac->id;
+
+	if (queue >= MTK_QDMA_TX_NUM)
+		return NOTIFY_DONE;
 
 	mtk_set_queue_speed(eth, queue, s.base.speed);
-
-	return NOTIFY_DONE;
-
-dsa_set_speed:
-	if (!dsa_slave_dev_check(dev))
-		return NOTIFY_DONE;
-
-	if (__ethtool_get_link_ksettings(dev, &s))
-		return NOTIFY_DONE;
-
-	if (s.base.speed == 0 || s.base.speed == ((__u32)-1))
-		return NOTIFY_DONE;
-
-	dp = dsa_port_from_netdev(dev);
-	if (dp->index >= MTK_QDMA_TX_NUM)
-		return NOTIFY_DONE;
-
-	if (mac->phy_speed > 0 && mac->phy_speed <= s.base.speed)
-		s.base.speed = 0;
-
-	mtk_set_queue_speed(eth, dp->index, s.base.speed);
 
 	return NOTIFY_DONE;
 }
@@ -5889,20 +5895,10 @@ static u16 mtk_select_queue(struct net_device *dev, struct sk_buff *skb,
 		return skb->mark;
 
 	if (eth->pppq_toggle) {
-		switch (mac->id) {
-		case MTK_GMAC1_ID:
-			queue = skb_get_queue_mapping(skb);
-			break;
-		case MTK_GMAC2_ID:
-			queue = MTK_QDMA_GMAC2_QID;
-			break;
-		case MTK_GMAC3_ID:
-			queue = MTK_QDMA_GMAC3_QID;
-			break;
-		default:
-			pr_info("%s mac id invalid", __func__);
-			break;
-		}
+		if (netdev_uses_dsa(dev))
+			queue = skb_get_queue_mapping(skb) + MTK_GMAC_ID_MAX;
+		else
+			queue = mac->id;
 	} else
 		queue = mac->id ? MTK_QDMA_GMAC2_QID : 0;
 
@@ -6486,6 +6482,9 @@ static int mtk_probe(struct platform_device *pdev)
 	eth->reset.rstctrl_eth = false;
 
 	eth->hwlro = MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO);
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+		eth->pppq_toggle = 1;
 
 	for_each_child_of_node(pdev->dev.of_node, mac_np) {
 		if (!of_device_is_compatible(mac_np,

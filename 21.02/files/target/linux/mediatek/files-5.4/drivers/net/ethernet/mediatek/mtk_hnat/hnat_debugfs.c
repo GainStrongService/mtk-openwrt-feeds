@@ -2548,15 +2548,9 @@ static ssize_t hnat_hook_toggle_write(struct file *file, const char __user *buff
 	if (buf[0] == '1' && !hook_toggle) {
 		pr_info("hook is going to be enabled !\n");
 		hnat_enable_hook();
-
-		if (IS_PPPQ_MODE)
-			qdma_qos_pppq_ebl(true);
 	} else if (buf[0] == '0' && hook_toggle) {
 		pr_info("hook is going to be disabled !\n");
 		hnat_disable_hook();
-
-		if (IS_PPPQ_MODE)
-			qdma_qos_pppq_ebl(false);
 	}
 
 	return len;
@@ -2931,7 +2925,6 @@ static ssize_t hnat_qos_toggle_write(struct file *file, const char __user *buffe
 		qos_toggle = 0;
 		qos_dl_toggle = 0;
 		qos_ul_toggle = 0;
-		qdma_qos_disable();
 	} else if (buf[0] == '1') {
 		p_buf = buf;
 		p_token = strsep(&p_buf, " \t");
@@ -2961,11 +2954,10 @@ static ssize_t hnat_qos_toggle_write(struct file *file, const char __user *buffe
 		qos_toggle = 1;
 	} else if (buf[0] == '2') {
 		pr_info("Per-port-per-queue mode is going to be enabled!\n");
-		pr_info("PPPQ use qid 0~11 (scheduler 0).\n");
+		pr_info("PPPQ use qid 0~14 (scheduler 0).\n");
 		qos_toggle = 2;
 		qos_dl_toggle = 1;
 		qos_ul_toggle = 1;
-		qdma_qos_pppq_ebl(hook_toggle);
 	} else if (buf[0] == '3') {
 		hnat_qos_toggle_usage();
 	} else {

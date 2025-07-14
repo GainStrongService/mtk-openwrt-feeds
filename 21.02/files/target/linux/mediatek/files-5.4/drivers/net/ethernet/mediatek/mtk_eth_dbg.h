@@ -534,8 +534,5 @@ int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 void hw_lro_stats_update(u32 ring_no, struct mtk_rx_dma_v2 *rxd);
 void hw_lro_flush_stats_update(u32 ring_no, struct mtk_rx_dma_v2 *rxd);
 void mt753x_set_port_link_state(bool up);
-void qdma_qos_shaper_ebl(u32 id, bool enable);
-void qdma_qos_disable(void);
-void qdma_qos_pppq_ebl(u32 hook_toggle);
 
 #endif /* MTK_ETH_DBG_H */
