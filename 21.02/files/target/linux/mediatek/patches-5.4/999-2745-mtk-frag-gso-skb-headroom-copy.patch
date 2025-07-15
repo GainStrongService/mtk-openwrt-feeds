@@ -28,3 +28,33 @@
  			consume_skb(skb);
  			skb = segs;
  		}
+--- a/net/ipv4/ip_output.c
++++ b/net/ipv4/ip_output.c
+@@ -705,7 +705,7 @@ struct sk_buff *ip_frag_next(struct sk_b
+ 	}
+ 
+ 	/* Allocate buffer */
+-	skb2 = alloc_skb(len + state->hlen + state->ll_rs, GFP_ATOMIC);
++	skb2 = alloc_skb(len + state->hlen + state->ll_rs + NET_SKB_PAD + NET_IP_ALIGN, GFP_ATOMIC);
+ 	if (!skb2)
+ 		return ERR_PTR(-ENOMEM);
+ 
+@@ -714,7 +714,7 @@ struct sk_buff *ip_frag_next(struct sk_b
+ 	 */
+ 
+ 	ip_copy_metadata(skb2, skb);
+-	skb_reserve(skb2, state->ll_rs);
++	skb_reserve(skb2, state->ll_rs + NET_SKB_PAD + NET_IP_ALIGN);
+ 	skb_put(skb2, len + state->hlen);
+ 	skb_reset_network_header(skb2);
+ 	skb2->transport_header = skb2->network_header + state->hlen;
+@@ -909,6 +909,9 @@ slow_path:
+ 		}
+ 		ip_frag_ipcb(skb, skb2, first_frag, &state);
+ 
++		if (mtk_skb_headroom_copy)
++			mtk_skb_headroom_copy(skb2, skb);
++
+ 		/*
+ 		 *	Put this fragment into the sending queue.
+ 		 */
