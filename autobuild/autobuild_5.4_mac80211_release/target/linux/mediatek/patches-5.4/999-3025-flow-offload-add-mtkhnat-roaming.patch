@@ -6,10 +6,10 @@ Subject: [PATCH] flow offload add mtkhnat roaming
 ---
  drivers/net/ethernet/mediatek/mtk_eth_soc.c   |   8 +
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |   4 +
- drivers/net/ethernet/mediatek/mtk_ppe.c       | 191 ++++++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_ppe.c       | 201 ++++++++++++++++++
  drivers/net/ethernet/mediatek/mtk_ppe.h       |   2 +
  .../net/ethernet/mediatek/mtk_ppe_debugfs.c   |  55 +++++
- 5 files changed, 260 insertions(+)
+ 5 files changed, 270 insertions(+)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 index 95b388b..cfb1035 100644
@@ -97,7 +97,7 @@ index e3b0388..4bf7c43 100644
  static bool
  mtk_flow_entry_match(struct mtk_flow_entry *entry, struct mtk_foe_entry *data)
  {
-@@ -1159,3 +1182,171 @@ int mtk_ppe_stop(struct mtk_ppe *ppe)
+@@ -1159,3 +1182,181 @@ int mtk_ppe_stop(struct mtk_ppe *ppe)
  
  	return 0;
  }
@@ -175,6 +175,7 @@ index e3b0388..4bf7c43 100644
 +static void mtk_ppe_roam_handler(struct work_struct *work)
 +{
 +	struct mtk_eth *eth = container_of(work, struct mtk_eth, ppe_roam_work);
++	struct net_device *dev = NULL;
 +	struct kvec iov;
 +	struct msghdr msg;
 +	struct nlmsghdr *nlh;
@@ -205,6 +206,13 @@ index e3b0388..4bf7c43 100644
 +		goto out;
 +
 +	ifindex = ndm->ndm_ifindex;
++	dev = dev_get_by_index(&init_net, ifindex);
++	if (!dev)
++		goto out;
++
++	if (!dev->ieee80211_ptr)
++		goto out;
++
 +	nla = (struct nlattr *)((unsigned char *)ndm + sizeof(struct ndmsg));
 +	len -= NLMSG_LENGTH(sizeof(struct ndmsg));
 +	while (nla_ok(nla, len)) {
@@ -219,6 +227,8 @@ index e3b0388..4bf7c43 100644
 +	}
 +
 +out:
++	if (dev)
++		dev_put(dev);
 +	schedule_work(&eth->ppe_roam_work);
 +}
 +
