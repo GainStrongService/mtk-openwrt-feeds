@@ -2199,7 +2199,7 @@ static void mtk_tx_set_dma_desc_v3(struct sk_buff *skb, struct net_device *dev, 
 		cdrt = skb_tnl_cdrt(skb);
 		skb_tnl_magic_tag(skb) = 0;
 #endif
-		tport = EIP197_QDMA_TPORT;
+		tport = EIP197_TPORT;
 	}
 
 	if (tport) {

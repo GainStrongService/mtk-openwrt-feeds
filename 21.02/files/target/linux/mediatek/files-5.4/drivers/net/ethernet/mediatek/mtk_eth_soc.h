@@ -686,7 +686,7 @@
 #define TX_DMA_SPTAG_V3            BIT(27)
 
 /* QDMA V2 descriptor txd4 */
-#define EIP197_QDMA_TPORT          3
+#define EIP197_TPORT		   2
 #define TX_DMA_TPORT_SHIFT         0
 #define TX_DMA_TPORT_MASK          0xf
 #define TX_DMA_FPORT_SHIFT_V2      8
