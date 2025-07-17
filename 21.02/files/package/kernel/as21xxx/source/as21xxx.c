@@ -1061,7 +1061,7 @@ static int aeon_read_pid(struct phy_device *phydev)
 	pid2 = aeon_mdio_read(phydev, 0x1, 3);
 	if (pid2 < 0)
 		return pid2;
-	phydev_err(phydev, "%s aeonsemi1 PHY = %x - %x\n", __func__, pid1, pid2);
+	phydev_dbg(phydev, "%s aeonsemi1 PHY = %x - %x\n", __func__, pid1, pid2);
 
 	pid = ((pid1 & 0xffff) << 16) | (pid2 & 0xffff);
 
