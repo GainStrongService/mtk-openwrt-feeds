@@ -8,10 +8,10 @@ Subject: [PATCH] mtk ppe dispatch short packets to high priority TXQ in PPPQ
  1 file changed, 89 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index e901011..b0973f5 100644
+index 9b3bdd8..5e8d88a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -190,6 +190,86 @@ mtk_flow_get_dsa_port(struct net_device **dev, int *proto)
+@@ -186,6 +186,86 @@ mtk_flow_get_dsa_port(struct net_device **dev)
  #endif
  }
  
@@ -98,13 +98,13 @@ index e901011..b0973f5 100644
  static int
  mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  			   struct net_device *idev, struct net_device *odev,
-@@ -230,8 +310,16 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
- 		mtk_foe_entry_set_dsa(foe, dsa_proto, dsa_port);
+@@ -242,8 +322,16 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 		queue = (pse_port == PSE_GDM3_PORT) ? 2 : pse_port - 1;
  	}
  
--	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(idev, dsa_port))
-+	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(idev, dsa_port)) {
-+		if ((dsa_port >= 0) && ct && nf_ct_protonum(ct) == IPPROTO_TCP) {
+-	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(mac, idev, dsa_port))
++	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(mac, idev, dsa_port)) {
++		if (ct && nf_ct_protonum(ct) == IPPROTO_TCP && (queue >= 3 && queue <= 8)) {
 +			/* Dispatch the IPv4/IPv6 TCP Ack packets to the high-priority
 +			 * queue, assuming they are less than 64 bytes.
 +			 */
@@ -114,7 +114,8 @@ index e901011..b0973f5 100644
  		mtk_foe_entry_set_qid(foe, queue & MTK_QDMA_TX_MASK);
 +	}
  
- 	if (odev == eth->netdev[0])
- 		pse_port = PSE_GDM1_PORT;
+ out:
+ 	mtk_foe_entry_set_dscp(foe, dscp);
 -- 
 2.45.2
+

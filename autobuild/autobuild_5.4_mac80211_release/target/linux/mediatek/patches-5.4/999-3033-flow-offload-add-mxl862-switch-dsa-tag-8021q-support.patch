@@ -10,7 +10,7 @@ Subject: [PATCH] flow offload add mxl862 switch dsa tag 8021q support
  3 files changed, 35 insertions(+), 22 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe.c b/drivers/net/ethernet/mediatek/mtk_ppe.c
-index 4bf7c43..b26259b 100644
+index 967c8d3..0eb980a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe.c
 @@ -365,20 +365,29 @@ int mtk_foe_entry_set_ipv6_tuple(struct mtk_foe_entry *entry,
@@ -65,7 +65,7 @@ index 36f8ecd..81d870a 100644
  int mtk_foe_entry_set_pppoe(struct mtk_foe_entry *entry, int sid);
  int mtk_foe_entry_set_tops_entry(struct mtk_foe_entry *entry, int tops_entry);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 93c08f0..8ad774b 100644
+index e51cce4..84399ca 100644
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 @@ -166,7 +166,7 @@ mtk_flow_mangle_ipv4(const struct flow_action_entry *act,
@@ -92,29 +92,34 @@ index 93c08f0..8ad774b 100644
  
  	return dp->index;
  #else
-@@ -276,7 +279,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
- 	struct mtk_wdma_info info = {};
+@@ -277,7 +280,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  	struct nf_conn *ct = NULL;
+ 	struct mtk_mac *mac;
  	u32 ct_mark = 0;
 -	int pse_port, dsa_port, queue;
 +	int pse_port, dsa_port, dsa_proto, queue;
  
  	if (f->flow && f->flow->ct) {
  		ct = f->flow->ct;
-@@ -301,10 +304,10 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+@@ -302,7 +305,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  		goto out;
  	}
  
 -	dsa_port = mtk_flow_get_dsa_port(&odev);
 +	dsa_port = mtk_flow_get_dsa_port(&odev, &dsa_proto);
+ 
+ 	if (odev == eth->netdev[0]) {
+ 		mac = eth->mac[0];
+@@ -318,7 +321,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 
  	if (dsa_port >= 0) {
- 		queue = dsa_port;
+ 		queue = dsa_port + MTK_GMAC_ID_MAX;
 -		mtk_foe_entry_set_dsa(foe, dsa_port);
 +		mtk_foe_entry_set_dsa(foe, dsa_proto, dsa_port);
+ 	} else {
+ 		queue = (pse_port == PSE_GDM3_PORT) ? 2 : pse_port - 1;
  	}
- 
- 	if (eth->qos_toggle == 2 && mtk_ppe_check_pppq_path(idev, dsa_port)) {
-@@ -495,6 +498,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -502,6 +505,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  		return err;
  
  #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
@@ -122,7 +127,7 @@ index 93c08f0..8ad774b 100644
  	if (idev && idev->netdev_ops->ndo_fill_receive_path) {
  		ctx.dev = idev;
  		idev->netdev_ops->ndo_fill_receive_path(&ctx, &path);
-@@ -575,6 +579,14 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -582,6 +586,14 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  			return err;
  	}
  
@@ -137,7 +142,7 @@ index 93c08f0..8ad774b 100644
  	if (offload_type == MTK_PPE_PKT_TYPE_BRIDGE)
  		foe.bridge.vlan = data.vlan_in;
  
-@@ -587,14 +599,6 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -594,14 +606,6 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	if (data.pppoe.num == 1)
  		mtk_foe_entry_set_pppoe(&foe, data.pppoe.sid);
  

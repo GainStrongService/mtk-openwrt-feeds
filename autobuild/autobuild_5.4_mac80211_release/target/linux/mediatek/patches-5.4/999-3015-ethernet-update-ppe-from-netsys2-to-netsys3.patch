@@ -8,15 +8,15 @@ Subject: [PATCH] ethernet update ppe from netsys2 to netsys3
  drivers/net/ethernet/mediatek/mtk_eth_soc.h   |  5 +-
  drivers/net/ethernet/mediatek/mtk_ppe.c       | 74 +++++++++++++++++--
  drivers/net/ethernet/mediatek/mtk_ppe.h       | 44 +++++++++--
- .../net/ethernet/mediatek/mtk_ppe_offload.c   |  6 +-
+ .../net/ethernet/mediatek/mtk_ppe_offload.c   |  7 +-
  drivers/net/ethernet/mediatek/mtk_ppe_regs.h  |  8 ++
- 6 files changed, 131 insertions(+), 19 deletions(-)
+ 6 files changed, 132 insertions(+), 19 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index ca37ba5..01ddb22 100644
+index c166c35..3fc070c 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-@@ -2730,7 +2730,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2741,7 +2741,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
@@ -25,7 +25,7 @@ index ca37ba5..01ddb22 100644
  		hash = trxd.rxd5 & MTK_RXD5_FOE_ENTRY_V2;
  		reason = FIELD_GET(MTK_RXD5_PPE_CPU_REASON_V2, trxd.rxd5);
  		if (hash != MTK_RXD5_FOE_ENTRY_V2)
-@@ -6694,7 +6694,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6693,7 +6693,8 @@ static int mtk_probe(struct platform_device *pdev)
  
  		for (i = 0; i < eth->ppe_num; i++) {
  			eth->ppe[i] = mtk_ppe_init(eth,
@@ -35,7 +35,7 @@ index ca37ba5..01ddb22 100644
  						   i);
  			if (!eth->ppe[i]) {
  				err = -ENOMEM;
-@@ -6998,6 +6999,10 @@ static const struct mtk_soc_data mt7988_data = {
+@@ -6997,6 +6998,10 @@ static const struct mtk_soc_data mt7988_data = {
  	.required_clks = MT7988_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = true,
@@ -46,7 +46,7 @@ index ca37ba5..01ddb22 100644
  	.rss_num = 4,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),
-@@ -7019,6 +7024,10 @@ static const struct mtk_soc_data mt7987_data = {
+@@ -7018,6 +7023,10 @@ static const struct mtk_soc_data mt7987_data = {
  	.required_clks = MT7987_CLKS_BITMAP,
  	.required_pctl = false,
  	.has_sram = true,
@@ -58,7 +58,7 @@ index ca37ba5..01ddb22 100644
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma_v2),
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index efad9eb..708e32c 100644
+index cc062b8..1482139 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 @@ -195,9 +195,10 @@
@@ -371,10 +371,10 @@ index c3fbbc5..d1d30c5 100644
  int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
  void mtk_foe_entry_clear(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);
 diff --git a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-index 6eb5fe9..38af97c 100755
+index 6b08a07..9e84fe8 100755
 --- a/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
 +++ b/drivers/net/ethernet/mediatek/mtk_ppe_offload.c
-@@ -283,7 +283,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+@@ -204,7 +204,7 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
  		mtk_foe_entry_set_wdma(foe, info.wdma_idx, info.queue, info.bss,
  				       info.wcid);
  		pse_port = PSE_PPE0_PORT;
@@ -383,16 +383,17 @@ index 6eb5fe9..38af97c 100755
  		if (info.wdma_idx == 0)
  			pse_port = PSE_WDMA0_PORT;
  		else if (info.wdma_idx == 1)
-@@ -316,6 +316,8 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
- 		pse_port = PSE_GDM1_PORT;
- 	else if (odev == eth->netdev[1])
+@@ -228,6 +228,9 @@ mtk_flow_set_output_device(struct mtk_eth *eth, struct mtk_foe_entry *foe,
+ 	} else if (odev == eth->netdev[1]) {
+ 		mac = eth->mac[1];
  		pse_port = PSE_GDM2_PORT;
-+	else if (odev == eth->netdev[2])
++	} else if (odev == eth->netdev[2]) {
++		mac = eth->mac[2];
 +		pse_port = PSE_GDM3_PORT;
- 	else
+ 	} else
  		return -EOPNOTSUPP;
  
-@@ -474,7 +476,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
+@@ -389,7 +392,7 @@ mtk_flow_offload_replace(struct mtk_eth *eth, struct flow_cls_offload *f)
  	if (err)
  		return err;
  
