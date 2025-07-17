@@ -1,6 +1,6 @@
 --- a/target/linux/mediatek/image/Makefile
 +++ b/target/linux/mediatek/image/Makefile
-@@ -58,9 +58,19 @@ define Build/squashfs-hashed
+@@ -62,9 +62,19 @@ define Build/squashfs-hashed
  		$(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb
  endef
  
@@ -20,4 +20,4 @@
 +	$(if $(CONFIG_MTK_FW_ENC_USE_RAMDISK),$(call Build/change-rootdev-to-ramdisk))
  endef
  
- $(eval $(call BuildImage))
+ define Build/secure-boot-initramfs
