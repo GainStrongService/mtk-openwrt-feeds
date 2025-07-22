@@ -8,6 +8,8 @@
 #include "mtk_eth_soc.h"
 #include "mtk_eth_reset.h"
 
+extern struct mtk_eth *g_eth;
+
 static int mtk_rest_cnt;
 int mtk_wifi_num;
 u32 mtk_reset_flag = MTK_FE_START_RESET;
@@ -19,6 +21,21 @@ DECLARE_COMPLETION(wait_tops_done);
 
 bool (*mtk_check_wifi_busy)(u32 wdma_idx) = NULL;
 EXPORT_SYMBOL(mtk_check_wifi_busy);
+
+void mtk_set_pse_drop(u32 config)
+{
+	struct mtk_eth *eth = g_eth;
+
+	if (!eth || mtk_is_netsys_v1(eth))
+		return;
+
+	mtk_w32(eth, config, PSE_PPE_DROP(0));
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+		mtk_w32(eth, config, PSE_PPE_DROP(1));
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
+		mtk_w32(eth, config, PSE_PPE_DROP(2));
+}
+EXPORT_SYMBOL(mtk_set_pse_drop);
 
 int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void *ptr)
 {
