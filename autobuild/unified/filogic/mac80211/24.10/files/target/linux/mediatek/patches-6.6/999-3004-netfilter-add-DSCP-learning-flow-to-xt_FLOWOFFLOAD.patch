@@ -25,8 +25,8 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  net/netfilter/nf_conntrack_standalone.c       | 27 ++++++++
  net/netfilter/nf_flow_table_core.c            |  2 +
  net/netfilter/nf_flow_table_offload.c         |  7 ++-
- net/netfilter/xt_FLOWOFFLOAD.c                | 47 ++++++++++++++
- 16 files changed, 203 insertions(+), 4 deletions(-)
+ net/netfilter/xt_FLOWOFFLOAD.c                | 41 +++++++++++++
+ 16 files changed, 197 insertions(+), 4 deletions(-)
  create mode 100644 include/net/netfilter/nf_conntrack_qos.h
  create mode 100644 net/netfilter/nf_conntrack_qos.c
 
@@ -131,7 +131,7 @@ index 0b24724..5208c4b 100644
  #endif
 diff --git a/include/net/netfilter/nf_conntrack_qos.h b/include/net/netfilter/nf_conntrack_qos.h
 new file mode 100644
-index 0000000..8f4b67f
+index 0000000..3d5ffe7
 --- /dev/null
 +++ b/include/net/netfilter/nf_conntrack_qos.h
 @@ -0,0 +1,61 @@
@@ -197,7 +197,7 @@ index 0000000..8f4b67f
 +
 +#endif /* _NF_CONNTRACK_QOS_H */
 diff --git a/include/net/netfilter/nf_flow_table.h b/include/net/netfilter/nf_flow_table.h
-index 9335b9e..587fe6a 100644
+index 57a086c..f27aa5c 100644
 --- a/include/net/netfilter/nf_flow_table.h
 +++ b/include/net/netfilter/nf_flow_table.h
 @@ -36,6 +36,7 @@ struct nf_flow_key {
@@ -460,7 +460,7 @@ index 9189ece..b792d0a 100644
  	switch (tuple->l4proto) {
  	case IPPROTO_TCP:
 diff --git a/net/netfilter/xt_FLOWOFFLOAD.c b/net/netfilter/xt_FLOWOFFLOAD.c
-index b87df4c..88c9829 100644
+index 6d0f89b..cf185ae 100644
 --- a/net/netfilter/xt_FLOWOFFLOAD.c
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
 @@ -12,6 +12,7 @@
@@ -491,7 +491,7 @@ index b87df4c..88c9829 100644
  static unsigned int
  xt_flowoffload_net_hook(void *priv, struct sk_buff *skb,
  			const struct nf_hook_state *state)
-@@ -659,6 +673,11 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -636,6 +650,11 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  	struct net_device *devs[2] = {};
  	struct nf_conn *ct;
  	struct net *net;
@@ -503,7 +503,7 @@ index b87df4c..88c9829 100644
  
  	if (xt_flowoffload_skip(skb, xt_family(par)))
  		return XT_CONTINUE;
-@@ -692,6 +711,32 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -669,6 +688,26 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  
  	dir = CTINFO2DIR(ctinfo);
  
@@ -523,20 +523,14 @@ index b87df4c..88c9829 100644
 +		qos->tos[dir].value = tos;
 +		atomic64_add(1, &qos->tos[dir].counter);
 +
-+		if (atomic64_read(&qos->tos[IP_CT_DIR_ORIGINAL].counter) < 30)
++		if (atomic64_read(&qos->tos[dir].counter) < 30)
 +			return XT_CONTINUE;
-+
-+		if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum == IPPROTO_TCP) {
-+			if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status) &&
-+			    atomic64_read(&qos->tos[IP_CT_DIR_REPLY].counter) < 30)
-+				return XT_CONTINUE;
-+		}
 +	}
 +
  	devs[dir] = xt_out(par);
  	devs[!dir] = xt_in(par);
  
-@@ -715,6 +760,8 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -692,6 +731,8 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  
  	flow_offload_route_init(flow, &route);
  
