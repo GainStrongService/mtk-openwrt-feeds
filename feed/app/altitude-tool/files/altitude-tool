@@ -178,14 +178,21 @@ def altitude_evaluate(args):
     if path != None:
         altitude_write_to_file(path, altitude)
 
-def update_offset(args):
-    offset = args.new_offset
-    if offset < -1000 and offset > 1000:
+def update_offset(offset):
+    if offset < -1000 or offset > 1000:
         raise RuntimeError("invalid calibration offset")
 
     CalibrationData.pressure_offset_write(offset)
     new_offset = CalibrationData.pressure_offset_read()
     print(f"offset updated: {new_offset}")
+
+def print_pressure():
+    p_offset = CalibrationData.pressure_offset_read()
+    p_measured = sysfs_pressure_get()
+    val = p_offset + p_measured
+    print(f"pressure measured: {p_measured}")
+    print(f"pressure offset: {p_offset}")
+    print(f"pressure calibrated: {val}")
 
 def main():
     parser = argparse.ArgumentParser(description='altitude-tool is a tool to get the altitude of '\
@@ -197,6 +204,8 @@ def main():
     parser.add_argument('--api', type=str, choices=['gw', 'ow'],
                         help='Choose the API: gw (google-weather-api), ow (open-weather-map)')
     parser.add_argument('-n', '--new-offset', type=float, help='update calibration offset')
+    parser.add_argument('-c', '--calibrated', type=float, help='update offset by calibrated value')
+    parser.add_argument('-p', '--print-pressure', action='store_true', help='print pressure')
 
     args = parser.parse_args()
 
@@ -204,7 +213,11 @@ def main():
        args.lat is not None and args.lon is not None:
         altitude_evaluate(args)
     elif args.new_offset is not None:
-        update_offset(args)
+        update_offset(args.new_offset)
+    elif args.calibrated is not None:
+        update_offset(args.calibrated - sysfs_pressure_get())
+    elif args.print_pressure:
+        print_pressure()
     else:
         parser.error('use -k --api -x -y together or only -n')
         parser.print_help()
