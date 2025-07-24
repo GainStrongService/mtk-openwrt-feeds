@@ -95,9 +95,10 @@ static ssize_t mtk_crypto_offload_dev_write(struct file *file,
 	p = strsep(&tmp, "\n\r ");
 	dev = dev_get_by_name(&init_net, p);
 
-	if (dev)
+	if (dev) {
 		mtk_crypto_enable_ipsec_dev_features(dev);
-	else
+		dev_put(dev);
+	} else
 		pr_notice("no such device found\n");
 
 	return count;
