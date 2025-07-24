@@ -79,15 +79,18 @@ static void build_tuple(struct nlmsghdr *nlh, size_t size,
 
 int ftnl_flush_table(struct ftnl_handle *h)
 {
-	struct nlmsghdr nlh;
+	union {
+		char buffer[NFNL_HEADER_LEN];
+		struct nlmsghdr nlh;
+	} u;
 	int ret;
 
 	/* construct msg */
-	nfnl_fill_hdr(h->ftnlssh, &nlh, 0, AF_INET, 0,
+	nfnl_fill_hdr(h->ftnlssh, &u.nlh, 0, AF_INET, 0,
 		      FT_MSG_FLUSH, NLM_F_REQUEST | NLM_F_ACK);
 
 	/* send msg */
-	ret = nfnl_send(h->nfnlh, &nlh);
+	ret = nfnl_send(h->nfnlh, &u.nlh);
 	return ret;
 }
 
