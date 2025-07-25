@@ -881,7 +881,7 @@ int cr_set_usage(int level)
 	pr_info("              5     0~255      Set TCP keep alive interval\n");
 	pr_info("              6     0~255      Set UDP keep alive interval\n");
 	pr_info("              7     0~1        Set hnat counter update to nf_conntrack\n");
-	pr_info("              8     0~6        Set PPE hash debug mode\n");
+	pr_info("              8     0~6        Set PPE hash simple mode\n");
 
 	return 0;
 }
@@ -994,19 +994,19 @@ int set_nf_update_toggle(int toggle)
 }
 
 
-int set_hash_dbg_mode(int dbg_mode)
+int set_hash_simple_mode(int mode)
 {
-	static const char * const hash_dbg_mode[] = {
+	static const char * const hash_simple_mode[] = {
 		"Normal", "Source port[15:0]",
 		"IPv4 source IP[15:0]", "IPv6 source IP[15:0]", "Destination port[15:0]",
 		"IPv4 destination IP[15:0]", "IPv6 destination IP[15:0]" };
 	unsigned int foe_table_sz, foe_acct_tb_sz, ppe_id, i;
 
-	if (dbg_mode < 0 || dbg_mode > 6) {
-		pr_info("Invalid hash debug mode %d\n", dbg_mode);
-		pr_info("[debug mode]\n");
+	if (mode < 0 || mode > 6) {
+		pr_info("Invalid hash simple mode %d\n", mode);
+		pr_info("[simple mode]\n");
 		for (i = 0; i <= 6; i++)
-			pr_info("		%d	%s\n", i, hash_dbg_mode[i]);
+			pr_info("		%d	%s\n", i, hash_simple_mode[i]);
 		return -EINVAL;
 	}
 
@@ -1020,7 +1020,7 @@ int set_hash_dbg_mode(int dbg_mode)
 
 	for (ppe_id = 0; ppe_id < CFG_PPE_NUM; ppe_id++) {
 		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG,
-			     HASH_DBG, dbg_mode);
+			     HASH_DBG, mode);
 
 		memset(hnat_priv->foe_table_cpu[ppe_id], 0, foe_table_sz);
 
@@ -1038,7 +1038,7 @@ int set_hash_dbg_mode(int dbg_mode)
 	set_gmac_ppe_fwd(NR_GMAC2_PORT, 1);
 	set_gmac_ppe_fwd(NR_GMAC3_PORT, 1);
 
-	pr_info("Hash debug mode enabled, set to %s mode\n", hash_dbg_mode[dbg_mode]);
+	pr_info("Hash simple mode enabled, set to %s mode\n", hash_simple_mode[mode]);
 
 	return 0;
 }
@@ -1064,7 +1064,7 @@ static const debugfs_write_func cr_set_func[] = {
 	[2] = tcp_bind_lifetime, [3] = fin_bind_lifetime,
 	[4] = udp_bind_lifetime, [5] = tcp_keep_alive,
 	[6] = udp_keep_alive,    [7] = set_nf_update_toggle,
-	[8] = set_hash_dbg_mode,
+	[8] = set_hash_simple_mode,
 };
 
 int read_mib(struct mtk_hnat *h, u32 ppe_id,
@@ -1302,15 +1302,17 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				swab16(entry->ipv6_5t_route.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x\n",
-				   entry, ppe_id, ei(entry, end), es(entry), pt(entry), ipv6_sip0,
-				   ipv6_sip1, ipv6_sip2, ipv6_sip3,
-				   entry->ipv6_5t_route.sport, ipv6_dip0,
-				   ipv6_dip1, ipv6_dip2, ipv6_dip3,
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
+				   entry, ppe_id, ei(entry, end), es(entry), pt(entry),
+				   ipv6_sip0, ipv6_sip1, ipv6_sip2, ipv6_sip3,
+				   entry->ipv6_5t_route.sport,
+				   ipv6_dip0, ipv6_dip1, ipv6_dip2, ipv6_dip3,
 				   entry->ipv6_5t_route.dport, h_source, h_dest,
 				   ntohs(entry->ipv6_5t_route.sp_tag),
 				   entry->ipv6_5t_route.info_blk1,
-				   entry->ipv6_5t_route.info_blk2);
+				   entry->ipv6_5t_route.info_blk2,
+				   entry->ipv6_5t_route.vlan1,
+				   entry->ipv6_5t_route.vlan2);
 		} else if (IS_IPV6_3T_ROUTE(entry)) {
 			u32 ipv6_sip0 = entry->ipv6_3t_route.ipv6_sip0;
 			u32 ipv6_sip1 = entry->ipv6_3t_route.ipv6_sip1;
@@ -1330,46 +1332,50 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				swab16(entry->ipv6_5t_route.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x\n",
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x->DIP=%08x:%08x:%08x:%08x|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
 				   entry, ppe_id, ei(entry, end),
 				   es(entry), pt(entry), ipv6_sip0,
 				   ipv6_sip1, ipv6_sip2, ipv6_sip3, ipv6_dip0,
 				   ipv6_dip1, ipv6_dip2, ipv6_dip3, h_source,
-				   h_dest, ntohs(entry->ipv6_5t_route.sp_tag),
-				   entry->ipv6_5t_route.info_blk1,
-				   entry->ipv6_5t_route.info_blk2);
+				   h_dest, ntohs(entry->ipv6_3t_route.sp_tag),
+				   entry->ipv6_3t_route.info_blk1,
+				   entry->ipv6_3t_route.info_blk2,
+				   entry->ipv6_3t_route.vlan1,
+				   entry->ipv6_3t_route.vlan2);
 		} else if (IS_IPV6_6RD(entry)) {
-			u32 ipv6_sip0 = entry->ipv6_3t_route.ipv6_sip0;
-			u32 ipv6_sip1 = entry->ipv6_3t_route.ipv6_sip1;
-			u32 ipv6_sip2 = entry->ipv6_3t_route.ipv6_sip2;
-			u32 ipv6_sip3 = entry->ipv6_3t_route.ipv6_sip3;
-			u32 ipv6_dip0 = entry->ipv6_3t_route.ipv6_dip0;
-			u32 ipv6_dip1 = entry->ipv6_3t_route.ipv6_dip1;
-			u32 ipv6_dip2 = entry->ipv6_3t_route.ipv6_dip2;
-			u32 ipv6_dip3 = entry->ipv6_3t_route.ipv6_dip3;
+			u32 ipv6_sip0 = entry->ipv6_6rd.ipv6_sip0;
+			u32 ipv6_sip1 = entry->ipv6_6rd.ipv6_sip1;
+			u32 ipv6_sip2 = entry->ipv6_6rd.ipv6_sip2;
+			u32 ipv6_sip3 = entry->ipv6_6rd.ipv6_sip3;
+			u32 ipv6_dip0 = entry->ipv6_6rd.ipv6_dip0;
+			u32 ipv6_dip1 = entry->ipv6_6rd.ipv6_dip1;
+			u32 ipv6_dip2 = entry->ipv6_6rd.ipv6_dip2;
+			u32 ipv6_dip3 = entry->ipv6_6rd.ipv6_dip3;
 			__be32 tsaddr = htonl(entry->ipv6_6rd.tunnel_sipv4);
 			__be32 tdaddr = htonl(entry->ipv6_6rd.tunnel_dipv4);
 
 			*((u32 *)h_source) =
-				swab32(entry->ipv6_5t_route.smac_hi);
+				swab32(entry->ipv6_6rd.smac_hi);
 			*((u16 *)&h_source[4]) =
-				swab16(entry->ipv6_5t_route.smac_lo);
-			*((u32 *)h_dest) = swab32(entry->ipv6_5t_route.dmac_hi);
+				swab16(entry->ipv6_6rd.smac_lo);
+			*((u32 *)h_dest) = swab32(entry->ipv6_6rd.dmac_hi);
 			*((u16 *)&h_dest[4]) =
-				swab16(entry->ipv6_5t_route.dmac_lo);
+				swab16(entry->ipv6_6rd.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|TSIP=%pI4->TDIP=%pI4|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x\n",
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%08x:%08x:%08x:%08x(sp=%d)->DIP=%08x:%08x:%08x:%08x(dp=%d)|TSIP=%pI4->TDIP=%pI4|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
 				   entry, ppe_id, ei(entry, end),
 				   es(entry), pt(entry), ipv6_sip0,
 				   ipv6_sip1, ipv6_sip2, ipv6_sip3,
-				   entry->ipv6_5t_route.sport, ipv6_dip0,
+				   entry->ipv6_6rd.sport, ipv6_dip0,
 				   ipv6_dip1, ipv6_dip2, ipv6_dip3,
-				   entry->ipv6_5t_route.dport, &tsaddr, &tdaddr,
+				   entry->ipv6_6rd.dport, &tsaddr, &tdaddr,
 				   h_source, h_dest,
-				   ntohs(entry->ipv6_5t_route.sp_tag),
-				   entry->ipv6_5t_route.info_blk1,
-				   entry->ipv6_5t_route.info_blk2);
+				   ntohs(entry->ipv6_6rd.sp_tag),
+				   entry->ipv6_6rd.info_blk1,
+				   entry->ipv6_6rd.info_blk2,
+				   entry->ipv6_6rd.vlan1,
+				   entry->ipv6_6rd.vlan2);
 #if defined(CONFIG_MEDIATEK_NETSYS_V3)
 		} else if (IS_IPV6_HNAPT(entry)) {
 			u32 ipv6_sip0 = entry->ipv6_hnapt.ipv6_sip0;
@@ -1535,8 +1541,8 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				   entry->l2_bridge.new_vlan2);
 #endif
 		} else if (IS_IPV4_DSLITE(entry)) {
-			__be32 saddr = htonl(entry->ipv4_hnapt.sip);
-			__be32 daddr = htonl(entry->ipv4_hnapt.dip);
+			__be32 saddr = htonl(entry->ipv4_dslite.sip);
+			__be32 daddr = htonl(entry->ipv4_dslite.dip);
 			u32 ipv6_tsip0 = entry->ipv4_dslite.tunnel_sipv6_0;
 			u32 ipv6_tsip1 = entry->ipv4_dslite.tunnel_sipv6_1;
 			u32 ipv6_tsip2 = entry->ipv4_dslite.tunnel_sipv6_2;
@@ -1554,51 +1560,55 @@ static int __hnat_debug_show(struct seq_file *m, void *private, u32 ppe_id)
 				swab16(entry->ipv4_dslite.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%pI4->DIP=%pI4|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x\n",
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%pI4->DIP=%pI4|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
 				   entry, ppe_id, ei(entry, end),
 				   es(entry), pt(entry), &saddr,
 				   &daddr, ipv6_tsip0, ipv6_tsip1, ipv6_tsip2,
 				   ipv6_tsip3, ipv6_tdip0, ipv6_tdip1, ipv6_tdip2,
 				   ipv6_tdip3, h_source, h_dest,
-				   ntohs(entry->ipv6_5t_route.sp_tag),
-				   entry->ipv6_5t_route.info_blk1,
-				   entry->ipv6_5t_route.info_blk2);
+				   ntohs(entry->ipv4_dslite.sp_tag),
+				   entry->ipv4_dslite.info_blk1,
+				   entry->ipv4_dslite.info_blk2,
+				   entry->ipv4_dslite.vlan1,
+				   entry->ipv4_dslite.vlan2);
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 		} else if (IS_IPV4_MAPE(entry)) {
-			__be32 saddr = htonl(entry->ipv4_dslite.sip);
-			__be32 daddr = htonl(entry->ipv4_dslite.dip);
+			__be32 saddr = htonl(entry->ipv4_mape.sip);
+			__be32 daddr = htonl(entry->ipv4_mape.dip);
 			__be32 nsaddr = htonl(entry->ipv4_mape.new_sip);
 			__be32 ndaddr = htonl(entry->ipv4_mape.new_dip);
-			u32 ipv6_tsip0 = entry->ipv4_dslite.tunnel_sipv6_0;
-			u32 ipv6_tsip1 = entry->ipv4_dslite.tunnel_sipv6_1;
-			u32 ipv6_tsip2 = entry->ipv4_dslite.tunnel_sipv6_2;
-			u32 ipv6_tsip3 = entry->ipv4_dslite.tunnel_sipv6_3;
-			u32 ipv6_tdip0 = entry->ipv4_dslite.tunnel_dipv6_0;
-			u32 ipv6_tdip1 = entry->ipv4_dslite.tunnel_dipv6_1;
-			u32 ipv6_tdip2 = entry->ipv4_dslite.tunnel_dipv6_2;
-			u32 ipv6_tdip3 = entry->ipv4_dslite.tunnel_dipv6_3;
+			u32 ipv6_tsip0 = entry->ipv4_mape.tunnel_sipv6_0;
+			u32 ipv6_tsip1 = entry->ipv4_mape.tunnel_sipv6_1;
+			u32 ipv6_tsip2 = entry->ipv4_mape.tunnel_sipv6_2;
+			u32 ipv6_tsip3 = entry->ipv4_mape.tunnel_sipv6_3;
+			u32 ipv6_tdip0 = entry->ipv4_mape.tunnel_dipv6_0;
+			u32 ipv6_tdip1 = entry->ipv4_mape.tunnel_dipv6_1;
+			u32 ipv6_tdip2 = entry->ipv4_mape.tunnel_dipv6_2;
+			u32 ipv6_tdip3 = entry->ipv4_mape.tunnel_dipv6_3;
 
-			*((u32 *)h_source) = swab32(entry->ipv4_dslite.smac_hi);
+			*((u32 *)h_source) = swab32(entry->ipv4_mape.smac_hi);
 			*((u16 *)&h_source[4]) =
-				swab16(entry->ipv4_dslite.smac_lo);
-			*((u32 *)h_dest) = swab32(entry->ipv4_dslite.dmac_hi);
+				swab16(entry->ipv4_mape.smac_lo);
+			*((u32 *)h_dest) = swab32(entry->ipv4_mape.dmac_hi);
 			*((u16 *)&h_dest[4]) =
-				swab16(entry->ipv4_dslite.dmac_lo);
+				swab16(entry->ipv4_mape.dmac_lo);
 			PRINT_COUNT(m, acct);
 			seq_printf(m,
-				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%pI4:%d->DIP=%pI4:%d|NSIP=%pI4:%d->NDIP=%pI4:%d|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x\n",
+				   "addr=0x%p|ppe=%d|index=%d|state=%s|type=%s|SIP=%pI4:%d->DIP=%pI4:%d|NSIP=%pI4:%d->NDIP=%pI4:%d|TSIP=%08x:%08x:%08x:%08x->TDIP=%08x:%08x:%08x:%08x|%pM=>%pM|sp_tag=0x%04x|info1=0x%x|info2=0x%x|vlan1=%d|vlan2=%d\n",
 				   entry, ppe_id, ei(entry, end),
 				   es(entry), pt(entry),
-				   &saddr, entry->ipv4_dslite.sport,
-				   &daddr, entry->ipv4_dslite.dport,
+				   &saddr, entry->ipv4_mape.sport,
+				   &daddr, entry->ipv4_mape.dport,
 				   &nsaddr, entry->ipv4_mape.new_sport,
 				   &ndaddr, entry->ipv4_mape.new_dport,
 				   ipv6_tsip0, ipv6_tsip1, ipv6_tsip2,
 				   ipv6_tsip3, ipv6_tdip0, ipv6_tdip1,
 				   ipv6_tdip2, ipv6_tdip3, h_source, h_dest,
-				   ntohs(entry->ipv6_5t_route.sp_tag),
-				   entry->ipv6_5t_route.info_blk1,
-				   entry->ipv6_5t_route.info_blk2);
+				   ntohs(entry->ipv4_mape.sp_tag),
+				   entry->ipv4_mape.info_blk1,
+				   entry->ipv4_mape.info_blk2,
+				   entry->ipv4_mape.vlan1,
+				   entry->ipv4_mape.vlan2);
 #endif
 		} else
 			seq_printf(m, "addr=0x%p|ppe=%d|index=%d state=%s\n", entry, ppe_id, ei(entry, end),
