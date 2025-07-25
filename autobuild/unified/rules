@@ -25,11 +25,12 @@ hooks_autobuild_prepare="apply_global_patches remove_files_by_global_list copy_g
 			 wifi_change_openwrt_config sku_change_openwrt_config variant_change_openwrt_config \
 			 enable_openwrt_collect_debug_symbols make_defconfig update_target_info \
 			 global_default_kernel_config platform_change_kernel_config wifi_change_kernel_config \
-			 sku_change_kernel_config variant_change_kernel_config enable_kernel_proc_config_gz"
+			 sku_change_kernel_config variant_change_kernel_config enable_kernel_proc_config_gz \
+			 create_dl_symlink"
 hooks_post_prepare="prepare_stamp ftsnap_restore"
 
 hooks_pre_build=
-hooks_do_build="download_openwrt_packages build_openwrt"
+hooks_do_build="create_dl_symlink download_openwrt_packages build_openwrt"
 hooks_post_build=
 
 hooks_pre_release="update_target_info mk_ab_bin_release"
@@ -445,6 +446,16 @@ enable_kernel_proc_config_gz() {
 	kernel_config_enable CONFIG_IKCONFIG_PROC
 }
 
+create_dl_symlink() {
+	if test x"${internal_build}" = x"1"; then
+		if test -d "${openwrt_root}/../dl"; then
+			if ! test -d "${openwrt_root}/dl" -o -L "${openwrt_root}/dl"; then
+				exec_log "ln -sf ../dl \"${openwrt_root}/dl\""
+			fi
+		fi
+	fi
+}
+
 prepare_stamp() {
 	if test -n "${do_menuconfig}"; then
 		touch "${ab_tmp}/.stamp.menuconfig"
@@ -457,14 +468,6 @@ prepare_stamp() {
 }
 
 download_openwrt_packages() {
-	if test x"${internal_build}" = x"1"; then
-		if test -d "${openwrt_root}/../dl"; then
-			if ! test -d "${openwrt_root}/dl" -o -L "${openwrt_root}/dl"; then
-				exec_log "ln -sf ../dl \"${openwrt_root}/dl\""
-			fi
-		fi
-	fi
-
 	exec_log "make -C \"${openwrt_root}\" V=1 -j\$((\$(nproc) + 1)) download"
 }
 
