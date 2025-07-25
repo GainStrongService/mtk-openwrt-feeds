@@ -23,6 +23,7 @@
 #include <linux/string.h>
 #include <linux/thermal.h>
 #include "soc_temp_lvts.h"
+#include "../thermal_hwmon.h"
 
 /*
  * Definition or macro function
@@ -936,6 +937,8 @@ static int lvts_register_thermal_zones(struct lvts_data *lvts_data)
 			lvts_close(lvts_data);
 			return ret;
 		}
+
+		thermal_add_hwmon_sysfs(tzdev);
 	}
 
 	return 0;
