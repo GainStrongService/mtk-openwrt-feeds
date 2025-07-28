@@ -25,7 +25,16 @@
  ifeq ($(CONFIG_PACKAGE_cryptsetup-ssh),)
  CONFIGURE_ARGS += --disable-ssh-token
  endif
-@@ -137,5 +144,6 @@ endef
+@@ -102,6 +109,8 @@ CONFIGURE_VARS += \
+ TARGET_CFLAGS += -D_LARGEFILE64_SOURCE
+ TARGET_LDFLAGS += -Wl,--gc-sections $(if $(INTL_FULL),-lintl)
+ 
++HOST_LDFLAGS += -Wl,-rpath=$(STAGING_DIR_HOSTPKG)/lib
++
+ define Build/InstallDev
+ 	$(INSTALL_DIR) $(1)/usr/include
+ 	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/usr/include/libcryptsetup.h $(1)/usr/include
+@@ -137,5 +146,6 @@ endef
  
  $(eval $(call BuildPackage,cryptsetup))
  $(eval $(call BuildPackage,cryptsetup-ssh))

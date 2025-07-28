@@ -17,7 +17,17 @@
  
  define Package/libdevmapper/Default
    SECTION:=libs
-@@ -159,7 +162,16 @@ endef
+@@ -103,6 +106,9 @@ CONFIGURE_ARGS += \
+ 	--with-default-locking-dir=/var/lock/lvm \
+ 	--$(if $(findstring selinux,$(BUILD_VARIANT)),en,dis)able-selinux
+ 
++HOST_CONFIGURE_ARGS += \
++	--disable-selinux
++
+ ifneq ($(shell /bin/sh -c "echo -n 'X'"),X)
+ MAKE_SHELL = SHELL=/bin/bash
+ endif
+@@ -159,7 +165,16 @@ endef
  
  Package/lvm2-selinux/conffiles = $(Package/lvm2/conffiles)
  
