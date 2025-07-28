@@ -1,7 +1,7 @@
 --- a/target/linux/mediatek/image/Makefile
 +++ b/target/linux/mediatek/image/Makefile
-@@ -51,7 +51,19 @@ define Build/append-opteenode
- 	fdtput $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb /firmware/optee -ts status "okay"
+@@ -51,7 +51,18 @@ define Build/append-opteenode
+ 	$(STAGING_DIR_HOSTPKG)/bin/fdtput $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb /firmware/optee -ts status "okay"
  endef
  
 +# build squashfs-hashed
@@ -9,7 +9,6 @@
 +	$(TOPDIR)/scripts/make-squashfs-hashed.sh \
 +		$(ROOTFS/$(FILESYSTEMS)/$(DEVICE_NAME)) \
 +		$(STAGING_DIR_HOSTPKG) \
-+		$(TOPDIR) \
 +		$(ROOTFS/$(FILESYSTEMS)/$(DEVICE_NAME))-hashed-summary
 +	fdt-patch-dm-verify $(ROOTFS/$(FILESYSTEMS)/$(DEVICE_NAME))-hashed-summary \
 +		$(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb $(KDIR)/image-$(firstword $(DEVICE_DTS)).dtb

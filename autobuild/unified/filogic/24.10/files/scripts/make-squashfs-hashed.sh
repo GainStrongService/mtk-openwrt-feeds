@@ -4,9 +4,8 @@
 # 2. Parsing output of veritysetup
 #
 SQUASHFS_FILE_PATH=$1
-STAGING_DIR_HOST=$2
-TOPDIR=$3
-SUMMARY_FILE=$4
+STAGING_DIR_HOSTPKG=$2
+SUMMARY_FILE=$3
 
 FILE_SIZE=`stat -c "%s" ${SQUASHFS_FILE_PATH}`
 BLOCK_SIZE=4096
@@ -16,10 +15,10 @@ DATA_BLOCKS=$((${FILE_SIZE} / ${BLOCK_SIZE}))
 
 HASH_OFFSET=$((${DATA_BLOCKS} * ${BLOCK_SIZE}))
 
-export LD_LIBRARY_PATH="${STAGING_DIR_HOSTPKG}/lib:$LD_LIBRARY_PATH"
-
 ${STAGING_DIR_HOSTPKG}/bin/veritysetup format \
 	--data-blocks=${DATA_BLOCKS} \
 	--hash-offset=${HASH_OFFSET} \
 	${SQUASHFS_FILE_PATH} ${SQUASHFS_FILE_PATH} \
 	> ${SUMMARY_FILE}
+
+sed -i 's/\[bytes\]//g' ${SUMMARY_FILE}
