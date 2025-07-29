@@ -865,7 +865,7 @@ static void mtk_mac_config(struct phylink_config *config, unsigned int mode,
 	}
 
 	/* Setup gmac */
-	mtk_set_mcr_max_rx(mac, eth->rx_dma_length);
+	mtk_set_mcr_max_rx(mac, eth->rx_buf_len);
 	if (mac->type == MTK_XGDM_TYPE) {
 		mtk_w32(mac->hw, MTK_GDMA_XGDM_SEL, MTK_GDMA_EG_CTRL(mac->id));
 		mtk_w32(mac->hw, MAC_MCR_FORCE_LINK_DOWN, MTK_MAC_MCR(mac->id));
@@ -1827,20 +1827,20 @@ static void mtk_get_stats64(struct net_device *dev,
 
 static inline int mtk_max_frag_size(struct mtk_eth *eth, int mtu)
 {
-	/* make sure buf_size will be at least MTK_MAX_RX_LENGTH */
-	if (mtu + MTK_RX_ETH_HLEN < eth->rx_dma_length)
-		mtu = eth->rx_dma_length - MTK_RX_ETH_HLEN;
+	/* make sure buf_size will be at least max rx buffer length */
+	if (mtu + MTK_RX_ETH_HLEN < eth->rx_buf_len)
+		mtu = eth->rx_buf_len - MTK_RX_ETH_HLEN;
 
 	return SKB_DATA_ALIGN(MTK_RX_HLEN + mtu) +
 		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 }
 
-static inline int mtk_max_buf_size(int frag_size)
+static inline int mtk_max_buf_size(struct mtk_eth *eth, int frag_size)
 {
 	int buf_size = frag_size - NET_SKB_PAD - NET_IP_ALIGN -
 		       SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
-	WARN_ON(buf_size < MTK_MAX_RX_LENGTH);
+	WARN_ON(buf_size < eth->rx_buf_len);
 
 	return buf_size;
 }
@@ -3279,7 +3279,7 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 	}
 
 	ring->frag_size = mtk_max_frag_size(eth, rx_data_len);
-	ring->buf_size = mtk_max_buf_size(ring->frag_size);
+	ring->buf_size = mtk_max_buf_size(eth, ring->frag_size);
 	ring->data = kcalloc(rx_dma_size, sizeof(*ring->data),
 			     GFP_KERNEL);
 	if (!ring->data)
@@ -3545,7 +3545,7 @@ static int mtk_hwlro_rx_init(struct mtk_eth *eth)
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
 		val = mtk_r32(eth, reg_map->pdma.rx_cfg);
-		mtk_w32(eth, val | ((MTK_PDMA_LRO_SDL + MTK_MAX_RX_LENGTH) <<
+		mtk_w32(eth, val | ((MTK_PDMA_LRO_SDL + eth->rx_buf_len) <<
 			MTK_RX_CFG_SDL_OFFSET), reg_map->pdma.rx_cfg);
 
 		lro_ctrl_dw0 |= MTK_PDMA_LRO_SDL << MTK_CTRL_DW0_SDL_OFFSET;
@@ -5190,11 +5190,11 @@ static int mtk_change_mtu(struct net_device *dev, int new_mtu)
 
 	length = max_mtu + MTK_RX_ETH_HLEN;
 	if (length <= MTK_MAX_RX_LENGTH)
-		eth->rx_dma_length = MTK_MAX_RX_LENGTH;
+		eth->rx_buf_len = MTK_MAX_RX_LENGTH;
 	else if (length <= MTK_MAX_RX_LENGTH_2K)
-		eth->rx_dma_length = MTK_MAX_RX_LENGTH_2K;
+		eth->rx_buf_len = MTK_MAX_RX_LENGTH_2K;
 	else if (length <= MTK_MAX_RX_LENGTH_9K)
-		eth->rx_dma_length = MTK_MAX_RX_LENGTH_9K;
+		eth->rx_buf_len = MTK_MAX_RX_LENGTH_9K;
 
 	return 0;
 }
@@ -6654,7 +6654,7 @@ static int mtk_probe(struct platform_device *pdev)
 		}
 	}
 
-	eth->rx_dma_length = MTK_MAX_RX_LENGTH;
+	eth->rx_buf_len = MTK_MAX_RX_LENGTH;
 
 	mtketh_debugfs_init(eth);
 	debug_proc_init(eth);

@@ -61,7 +61,7 @@
 
 #define MTK_HW_LRO_DMA_SIZE	64
 
-#define	MTK_MAX_LRO_RX_LENGTH		(4096 * 3 + MTK_MAX_RX_LENGTH)
+#define	MTK_MAX_LRO_RX_LENGTH		(4096 * 3 + eth->rx_buf_len)
 #define	MTK_MAX_LRO_IP_CNT		2
 #define	MTK_HW_LRO_TIMER_UNIT		1	/* 20 us */
 #define	MTK_HW_LRO_REFRESH_TIME		50000	/* 1 sec. */
@@ -2353,7 +2353,7 @@ struct mtk_eth {
 	} reset;
 
 	u32				rx_dma_l4_valid;
-	int				rx_dma_length;
+	u32				rx_buf_len;
 	int				ip_align;
 	spinlock_t			syscfg0_lock;
 	struct notifier_block		netdevice_notifier;
