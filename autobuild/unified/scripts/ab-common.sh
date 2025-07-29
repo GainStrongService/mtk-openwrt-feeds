@@ -139,13 +139,13 @@ apply_patch() {
 apply_patches() {
 	if test -d ${1}; then
 		if test -n "${__use_quilt}"; then
-			find "${1}" -name '*.patch' | sort -n | tac | while read line; do
+			find -L "${1}" -name '*.patch' | sort -n | tac | while read line; do
 				exec_log "quilt import \"${line}\""
 			done
 
 			exec_log "quilt push -a"
 		else
-			find "${1}" -name '*.patch' | sort -n | while read line; do
+			find -L "${1}" -name '*.patch' | sort -n | while read line; do
 				apply_patch "${line}" || return $?
 			done
 		fi
