@@ -1657,6 +1657,7 @@ struct mtk_tx_ring {
 	u32 ring_no;
 	u16 thresh;
 	atomic_t free_count;
+	atomic_t full_count;
 	int dma_size;
 	void *dma_pdma;	/* For MT7628/88 PDMA handling */
 	dma_addr_t phys_pdma;

@@ -888,6 +888,27 @@ static ssize_t eth_debug_level_write(struct file *file, const char __user *ptr,
 	return len;
 }
 
+static int tx_full_cnt_read(struct seq_file *m, void *v)
+{
+	struct mtk_eth *eth = m->private;
+	int i, cnt;
+
+	for (i = 0; i < MTK_MAX_TX_RING_NUM; i++) {
+		cnt = atomic_xchg(&eth->tx_ring[i].full_count, 0);
+		pr_info("tx ring%d full count: %d\n", i, cnt);
+
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA))
+			break;
+	}
+
+	return 0;
+}
+
+static int tx_full_cnt_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, tx_full_cnt_read, inode->i_private);
+}
+
 int pse_info_usage(struct seq_file *m, void *private)
 {
 	pr_info("====================Advanced Settings====================\n");
@@ -1293,6 +1314,14 @@ static const struct file_operations fops_eth_debug = {
 	.release = single_release,
 };
 
+static const struct file_operations fops_tx_full_cnt = {
+	.owner = THIS_MODULE,
+	.open = tx_full_cnt_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 void mtketh_debugfs_exit(struct mtk_eth *eth)
 {
 	debugfs_remove_recursive(eth_debug.root);
@@ -1326,6 +1355,8 @@ int mtketh_debugfs_init(struct mtk_eth *eth)
 			    eth_debug.root, eth,  &fops_eth_reset);
 	debugfs_create_file("eth_debug_level", 0444,
 			    eth_debug.root, eth, &fops_eth_debug);
+	debugfs_create_file("tx_full_cnt", 0444,
+			    eth_debug.root, eth, &fops_tx_full_cnt);
 	if (mt7530_exist(eth)) {
 		debugfs_create_file("mt7530sw_regs", S_IRUGO,
 				    eth_debug.root, eth,

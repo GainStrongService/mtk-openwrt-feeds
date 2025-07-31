@@ -2570,6 +2570,7 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		else
 			netif_tx_stop_queue(txq);
 
+		atomic_inc(&ring->full_count);
 		netif_err(eth, tx_queued, dev,
 			  "Tx Ring full when queue awake!\n");
 		spin_unlock(&eth->page_lock);
@@ -2599,6 +2600,8 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_tx_stop_all_queues(dev);
 		else
 			netif_tx_stop_queue(txq);
+
+		atomic_inc(&ring->full_count);
 	}
 
 	spin_unlock(&eth->page_lock);
@@ -3161,6 +3164,7 @@ static int mtk_tx_alloc(struct mtk_eth *eth, int ring_no)
 
 	ring->dma_size = soc->txrx.tx_dma_size;
 	atomic_set(&ring->free_count, soc->txrx.tx_dma_size - 2);
+	atomic_set(&ring->full_count, 0);
 	ring->next_free = ring->dma;
 	ring->last_free = (void *)txd;
 	ring->last_free_ptr = (u32)(ring->phys + ((soc->txrx.tx_dma_size - 1) * sz));
