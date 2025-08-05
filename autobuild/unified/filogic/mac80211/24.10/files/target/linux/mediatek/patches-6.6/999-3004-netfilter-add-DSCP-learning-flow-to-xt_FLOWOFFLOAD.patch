@@ -21,12 +21,12 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  net/netfilter/nf_conntrack_core.c             |  3 +
  net/netfilter/nf_conntrack_extend.c           |  2 +
  net/netfilter/nf_conntrack_netlink.c          |  2 +
- net/netfilter/nf_conntrack_qos.c              | 24 ++++++++
+ net/netfilter/nf_conntrack_qos.c              | 25 ++++++++
  net/netfilter/nf_conntrack_standalone.c       | 27 ++++++++
  net/netfilter/nf_flow_table_core.c            |  2 +
  net/netfilter/nf_flow_table_offload.c         |  7 ++-
- net/netfilter/xt_FLOWOFFLOAD.c                | 41 +++++++++++++
- 16 files changed, 197 insertions(+), 4 deletions(-)
+ net/netfilter/xt_FLOWOFFLOAD.c                | 43 +++++++++++++
+ 16 files changed, 200 insertions(+), 4 deletions(-)
  create mode 100644 include/net/netfilter/nf_conntrack_qos.h
  create mode 100644 net/netfilter/nf_conntrack_qos.c
 
@@ -314,7 +314,7 @@ new file mode 100644
 index 0000000..0292ea6
 --- /dev/null
 +++ b/net/netfilter/nf_conntrack_qos.c
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,25 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/* QoS handling for netfilter. */
 +
@@ -330,15 +330,16 @@ index 0000000..0292ea6
 +#include <net/netfilter/nf_conntrack_extend.h>
 +#include <net/netfilter/nf_conntrack_qos.h>
 +
-+static bool nf_ct_qos __read_mostly = 1;
++static unsigned short nf_ct_qos __read_mostly = 3;
 +
-+module_param_named(qos, nf_ct_qos, bool, 0644);
++module_param_named(qos, nf_ct_qos, ushort, 0644);
 +MODULE_PARM_DESC(qos, "Enable connection tracking qos.");
 +
 +void nf_conntrack_qos_pernet_init(struct net *net)
 +{
 +	net->ct.sysctl_qos = nf_ct_qos;
 +}
++
 diff --git a/net/netfilter/nf_conntrack_standalone.c b/net/netfilter/nf_conntrack_standalone.c
 index 1188df1..b410c84 100644
 --- a/net/netfilter/nf_conntrack_standalone.c
@@ -407,7 +408,7 @@ index 1188df1..b410c84 100644
 +		.mode		= 0644,
 +		.proc_handler	= proc_dou8vec_minmax,
 +		.extra1 	= SYSCTL_ZERO,
-+		.extra2 	= SYSCTL_ONE,
++		.extra2 	= SYSCTL_TWO_HUNDRED,
 +	},
  #ifdef CONFIG_NF_CONNTRACK_EVENTS
  	[NF_SYSCTL_CT_EVENTS] = {
@@ -503,12 +504,14 @@ index 6d0f89b..cf185ae 100644
  
  	if (xt_flowoffload_skip(skb, xt_family(par)))
  		return XT_CONTINUE;
-@@ -669,6 +688,26 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -669,6 +688,28 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  
  	dir = CTINFO2DIR(ctinfo);
  
 +	qos = nf_conn_qos_find(ct);
 +	if (qos) {
++		struct net *net = nf_ct_net(ct);
++
 +		switch (xt_family(par)) {
 +		case NFPROTO_IPV4:
 +			iph = (struct iphdr *)(skb_network_header(skb) + offset);
@@ -523,7 +526,7 @@ index 6d0f89b..cf185ae 100644
 +		qos->tos[dir].value = tos;
 +		atomic64_add(1, &qos->tos[dir].counter);
 +
-+		if (atomic64_read(&qos->tos[dir].counter) < 30)
++		if (atomic64_read(&qos->tos[dir].counter) < net->ct.sysctl_qos)
 +			return XT_CONTINUE;
 +	}
 +

@@ -13,8 +13,8 @@ Without this patch, the PPEs are unable to learn the DSCP from SKB.
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- net/netfilter/nft_flow_offload.c | 44 +++++++++++++++++++++++++++++++-
- 1 file changed, 43 insertions(+), 1 deletion(-)
+ net/netfilter/nft_flow_offload.c | 46 +++++++++++++++++++++++++++++++-
+ 1 file changed, 45 insertions(+), 1 deletion(-)
 
 diff --git a/net/netfilter/nft_flow_offload.c b/net/netfilter/nft_flow_offload.c
 index 6f84cf1..05a6f66 100644
@@ -60,7 +60,7 @@ index 6f84cf1..05a6f66 100644
  	int ret;
  
  	if (nft_flow_offload_skip(pkt->skb, nft_pf(pkt)))
-@@ -521,10 +540,31 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
+@@ -521,10 +540,33 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
  	if (!nf_ct_is_confirmed(ct))
  		goto out;
  
@@ -68,6 +68,8 @@ index 6f84cf1..05a6f66 100644
 +
 +	qos = nf_conn_qos_find(ct);
 +	if (qos) {
++		struct net *net = nf_ct_net(ct);
++
 +		switch (nft_pf(pkt)) {
 +		case NFPROTO_IPV4:
 +			iph = (struct iphdr *)(skb_network_header(pkt->skb) + offset);
@@ -82,7 +84,7 @@ index 6f84cf1..05a6f66 100644
 +		qos->tos[dir].value = tos;
 +		atomic64_add(1, &qos->tos[dir].counter);
 +
-+		if (atomic64_read(&qos->tos[dir].counter) < 30)
++		if (atomic64_read(&qos->tos[dir].counter) < net->ct.sysctl_qos)
 +			goto out;
 +	}
 +
