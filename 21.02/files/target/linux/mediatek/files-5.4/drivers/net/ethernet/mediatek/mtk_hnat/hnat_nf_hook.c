@@ -925,12 +925,45 @@ static int hnat_ipv6_addr_equal(u32 *foe_ipv6_ptr, const struct in6_addr *target
 	return ipv6_addr_equal(&foe_in6_addr, target);
 }
 
+static int hnat_get_hdr_protocol(struct sk_buff *skb, u16 *h_offset)
+{
+	u16 h_proto, offset = 0;
+
+	h_proto = ntohs(skb->protocol);
+
+	if (h_proto == ETH_P_PPP_SES) {
+		struct {
+			struct pppoe_hdr hdr;
+			__be16 proto;
+		} *hdr, _hdr;
+
+		hdr = skb_header_pointer(skb, offset, sizeof(_hdr), &_hdr);
+		if (!hdr)
+			return -EPROTO;
+
+		h_proto = hdr->proto;
+		offset += PPPOE_SES_HLEN;
+
+		if (h_proto == htons(PPP_IP))
+			h_proto = ETH_P_IP;
+		else if (h_proto == htons(PPP_IPV6))
+			h_proto = ETH_P_IPV6;
+		else
+			return -EPROTO;
+	}
+
+	*h_offset = offset;
+
+	return h_proto;
+}
+
 static unsigned int is_ppe_support_type(struct sk_buff *skb)
 {
 	struct ethhdr *eth = NULL;
 	struct iphdr *iph = NULL;
 	struct ipv6hdr *ip6h = NULL;
 	struct iphdr _iphdr;
+	u16 h_proto, h_offset = 0;
 
 	if (unlikely(!skb))
 		return 0;
@@ -949,9 +982,11 @@ static unsigned int is_ppe_support_type(struct sk_buff *skb)
 		}
 	}
 
-	switch (ntohs(skb->protocol)) {
+	h_proto = hnat_get_hdr_protocol(skb, &h_offset);
+
+	switch (h_proto) {
 	case ETH_P_IP:
-		iph = ip_hdr(skb);
+		iph = (struct iphdr *)(skb_network_header(skb) + h_offset);
 
 		/* check if the packet is multicast */
 		if (!hnat_priv->data->mcast && ipv4_is_multicast(iph->daddr))
@@ -970,7 +1005,7 @@ static unsigned int is_ppe_support_type(struct sk_buff *skb)
 
 		break;
 	case ETH_P_IPV6:
-		ip6h = ipv6_hdr(skb);
+		ip6h = (struct ipv6hdr *)(skb_network_header(skb) + h_offset);
 
 		/* check if the packet is multicast */
 		if (!hnat_priv->data->mcast && ip6h->daddr.s6_addr[0] == 0xff)
@@ -980,7 +1015,7 @@ static unsigned int is_ppe_support_type(struct sk_buff *skb)
 		    (ip6h->nexthdr == NEXTHDR_UDP)) {
 			return 1;
 		} else if (ip6h->nexthdr == NEXTHDR_IPIP) {
-			iph = skb_header_pointer(skb, IPV6_HDR_LEN,
+			iph = skb_header_pointer(skb, IPV6_HDR_LEN + h_offset,
 						 sizeof(_iphdr), &_iphdr);
 			if (unlikely(!iph))
 				return 0;
@@ -1920,6 +1955,7 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 	struct foe_entry entry = { 0 };
 	struct hnat_flow_entry *flow_entry;
 	struct mtk_mac *mac;
+	struct tcphdr *tcph;
 	struct iphdr *iph;
 	struct ipv6hdr *ip6h;
 	struct tcpudphdr _ports;
@@ -1928,13 +1964,14 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 	enum ip_conntrack_info ctinfo;
 	int whnat = IS_WHNAT(dev);
 	int gmac = NR_DISCARD;
-	int udp = 0;
 	int port_id = 0;
-	u32 qid = 0;
-	u32 payload_len = 0;
 	int mape = 0;
-	int ret;
+	int udp = 0;
 	int i = 0;
+	int ret;
+	u32 payload_len = 0;
+	u32 qid = 0;
+	u16 h_offset = 0;
 	u16 h_proto = 0;
 
 	/*do not bind multicast if PPE mcast not enable*/
@@ -1959,7 +1996,12 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 	entry.bfib1.sp = foe->udib1.sp;
 #endif
 
-	if (ip_hdr(skb)->version == IPVERSION_V4)
+	if (ntohs(eth_hdr(skb)->h_proto) == ETH_P_PPP_SES) {
+		/* Apply PPPoE Bridge packet info to hw_path for further PPE entry preparing */
+		hw_path->flags |= BIT(DEV_PATH_PPPOE);
+		hw_path->pppoe_sid = ntohs(pppoe_hdr(skb)->sid);
+		h_proto = hnat_get_hdr_protocol(skb, &h_offset);
+	} else if (ip_hdr(skb)->version == IPVERSION_V4)
 		h_proto = ETH_P_IP;
 	else if (ip_hdr(skb)->version == IPVERSION_V6)
 		h_proto = ETH_P_IPV6;
@@ -1968,7 +2010,7 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 
 	switch (h_proto) {
 	case ETH_P_IP:
-		iph = ip_hdr(skb);
+		iph = (struct iphdr *)(skb_network_header(skb) + h_offset);
 		/* Do not bind if pkt is fragmented */
 		if (ip_is_fragment(iph))
 			return -1;
@@ -1992,7 +2034,7 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 #if defined(CONFIG_MEDIATEK_NETSYS_V2) || defined(CONFIG_MEDIATEK_NETSYS_V3)
 				if (IS_IPV4_MAPE(&entry)) {
 					pptr = skb_header_pointer(skb,
-								  iph->ihl * 4,
+								  iph->ihl * 4 + h_offset,
 								  sizeof(_ports),
 								  &_ports);
 					if (unlikely(!pptr))
@@ -2065,7 +2107,7 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 				entry.ipv4_hnapt.new_dip = ntohl(iph->daddr);
 
 				if (IS_IPV4_HNAPT(&entry)) {
-					pptr = skb_header_pointer(skb, iph->ihl * 4,
+					pptr = skb_header_pointer(skb, iph->ihl * 4 + h_offset,
 								sizeof(_ports),
 								&_ports);
 					if (unlikely(!pptr))
@@ -2135,7 +2177,7 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 		break;
 
 	case ETH_P_IPV6:
-		ip6h = ipv6_hdr(skb);
+		ip6h = (struct ipv6hdr *)(skb_network_header(skb) + h_offset);
 		switch (ip6h->nexthdr) {
 		case NEXTHDR_UDP:
 			udp = 1;
@@ -2235,7 +2277,7 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 						ntohl(ip6h->daddr.s6_addr32[3]);
 				}
 
-				pptr = skb_header_pointer(skb, IPV6_HDR_LEN,
+				pptr = skb_header_pointer(skb, IPV6_HDR_LEN + h_offset,
 							  sizeof(_ports),
 							  &_ports);
 				if (unlikely(!pptr))
@@ -2254,7 +2296,7 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 			break;
 
 		case NEXTHDR_IPIP:
-			iph = (struct iphdr *)skb_inner_network_header(skb);
+			iph = (struct iphdr *)(skb_inner_network_header(skb) + h_offset);
 			/* don't process inner fragment packets */
 			if (ip_is_fragment(iph))
 				return -1;
@@ -2506,20 +2548,20 @@ hnat_entry_bind:
 
 	if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb) && port_id >= 0) {
 		if (h_proto == ETH_P_IP) {
-			iph = ip_hdr(skb);
+			iph = (struct iphdr *)(skb_network_header(skb) + h_offset);
 			if (iph->protocol == IPPROTO_TCP) {
-				skb_set_transport_header(skb, sizeof(struct iphdr));
+				tcph = (struct tcphdr *)((u8 *)iph + iph->ihl * 4);
 				payload_len = be16_to_cpu(iph->tot_len) -
-					      skb_transport_offset(skb) - tcp_hdrlen(skb);
+					      iph->ihl * 4 - __tcp_hdrlen(tcph);
 				/* Dispatch ACK packets to high priority queue */
 				if (payload_len == 0)
 					qid += MAX_SWITCH_PORT_NUM;
 			}
 		} else if (h_proto == ETH_P_IPV6) {
-			ip6h = ipv6_hdr(skb);
+			ip6h = (struct ipv6hdr *)(skb_network_header(skb) + h_offset);
 			if (ip6h->nexthdr == NEXTHDR_TCP) {
-				skb_set_transport_header(skb, sizeof(struct ipv6hdr));
-				payload_len = be16_to_cpu(ip6h->payload_len) - tcp_hdrlen(skb);
+				tcph = (struct tcphdr *)((u8 *)ip6h + sizeof(struct ipv6hdr));
+				payload_len = be16_to_cpu(ip6h->payload_len) - __tcp_hdrlen(tcph);
 				/* Dispatch ACK packets to high priority queue */
 				if (payload_len == 0)
 					qid += MAX_SWITCH_PORT_NUM;
