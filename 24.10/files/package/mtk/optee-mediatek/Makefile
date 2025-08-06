@@ -9,8 +9,8 @@ include $(TOPDIR)/rules.mk
 include $(TOPDIR)/feeds/packages/lang/python/python3-version.mk
 
 PKG_NAME:=optee-mediatek
-PKG_VERSION:=4.5.0
-PKG_RELEASE:=4.5.0
+PKG_VERSION:=4.7.0
+PKG_RELEASE:=4.7.0
 
 include $(INCLUDE_DIR)/package.mk
 

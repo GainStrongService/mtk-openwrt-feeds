@@ -6,7 +6,7 @@
 #
 
 OPTEE_TEST_NAME:=optee_test
-OPTEE_TEST_RELEASE:=4.5.0
+OPTEE_TEST_RELEASE:=4.7.0
 OPTEE_TEST_SOURCE=$(OPTEE_TEST_NAME)-$(OPTEE_TEST_RELEASE).tar.gz
 
 TA_DEV_KIT_DIR:=$(PKG_BUILD_DIR)/optee_os/out/arm/export-ta_arm64
@@ -15,7 +15,7 @@ define Download/optee-test
   FILE:=$(OPTEE_TEST_SOURCE)
   URL:=https://github.com/OP-TEE/optee_test/archive/refs/tags
   URL_FILE:=$(OPTEE_TEST_RELEASE).tar.gz
-  HASH:=cda3a4280a919cc6cd3cd3060e8c176cd42b968a9008305a6881e1fd433a6f1e
+  HASH:=6a1e6c21e24d039d86f5535fc3455a8b4b9093e8943f418969810ac594be99bf
 endef
 
 define Build/Compile/optee-test

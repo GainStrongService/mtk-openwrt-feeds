@@ -6,14 +6,14 @@
 #
 
 OPTEE_CLIENT_NAME:=optee_client
-OPTEE_CLIENT_RELEASE:=4.5.0
+OPTEE_CLIENT_RELEASE:=4.7.0
 OPTEE_CLIENT_SOURCE=$(OPTEE_CLIENT_NAME)-$(OPTEE_CLIENT_RELEASE).tar.gz
 
 define Download/optee-client
   FILE:=$(OPTEE_CLIENT_SOURCE)
   URL:=https://github.com/OP-TEE/optee_client/archive/refs/tags
   URL_FILE:=$(OPTEE_CLIENT_RELEASE).tar.gz
-  HASH:=ac6dc2c0c253ea228ea230e537211a45475771050faf4e66fe64321de3a0a652
+  HASH:=e6c6b93e2be417df57ceb05a2eb6505744e3fbdd3b2ae5e5bf79bf6028b6f84d
 endef
 
 include optee-client-config.mk

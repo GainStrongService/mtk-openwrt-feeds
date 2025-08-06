@@ -6,14 +6,14 @@
 #
 
 OPTEE_OS_NAME:=optee_os
-OPTEE_OS_RELEASE:=4.5.0
+OPTEE_OS_RELEASE:=4.7.0
 OPTEE_OS_SOURCE=$(OPTEE_OS_NAME)-$(OPTEE_OS_RELEASE).tar.gz
 
 define Download/optee-os
   FILE:=$(OPTEE_OS_SOURCE)
   URL:=https://github.com/OP-TEE/optee_os/archive/refs/tags
   URL_FILE:=$(OPTEE_OS_RELEASE).tar.gz
-  HASH:=43c389f0505e8bc21d6fbaa8ea83ec67d1746ed14a537e3f505cd0e5b4cc2db9
+  HASH:=976b9c184678516038d4e79766608e81d10bf136f76fd0db2dc48f90f994fbd9
 endef
 
 TARGET_PLATFORM=$(call qstrip,$(CONFIG_TARGET_SUBTARGET))
