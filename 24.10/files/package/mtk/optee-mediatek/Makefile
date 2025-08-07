@@ -75,9 +75,6 @@ define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)/$(OPTEE_OS_NAME)
 	mkdir -p $(PKG_BUILD_DIR)/$(OPTEE_CLIENT_NAME)
 
-	mkdir -p $(BIN_DIR)/spim-nand
-	mkdir -p $(BIN_DIR)/emmc
-
 	$(eval $(call Download,optee-os))
 	$(eval $(call Download,optee-client))
 	$(eval $(call Download,optee-test))
@@ -147,10 +144,10 @@ define Package/optee-mediatek/install
 
 ifeq ($(CONFIG_OPTEE_RPMB_FS),y)
 	$(CP) $(PKG_BUILD_DIR)/$(OPTEE_OS_NAME)/out/arm/core/tee.bin \
-		$(BIN_DIR)/emmc
+		$(BIN_DIR)/tee-spim-nand.bin
 else
 	$(CP) $(PKG_BUILD_DIR)/$(OPTEE_OS_NAME)/out/arm/core/tee.bin \
-		$(BIN_DIR)/spim-nand
+		$(BIN_DIR)/tee-emmc.bin
 endif
 endef
 
