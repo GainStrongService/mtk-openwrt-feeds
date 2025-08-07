@@ -86,16 +86,16 @@ EOL
 
 iptables_flowoffload_disable()
 {
-	#TCP/UDP hardware Binding
-	iptables -D FORWARD -j FLOWOFFLOAD --hw 2>/dev/null
-	ip6tables -D FORWARD -j FLOWOFFLOAD --hw 2>/dev/null
-
-	#TCP/UDP software fast path
-	iptables -D FORWARD -j FLOWOFFLOAD 2>/dev/null
-	ip6tables -D FORWARD -j FLOWOFFLOAD 2>/dev/null
-
-	#Multicast skip Binding
+	iptables -D FORWARD -m conntrack --ctproto tcp -j FLOWOFFLOAD --hw 2>/dev/null
+	iptables -D FORWARD -m conntrack --ctproto udp -j FLOWOFFLOAD --hw 2>/dev/null
+	iptables -D FORWARD -m conntrack --ctproto tcp -j FLOWOFFLOAD 2>/dev/null
+	iptables -D FORWARD -m conntrack --ctproto udp -j FLOWOFFLOAD 2>/dev/null
 	iptables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT 2>/dev/null
+
+	ip6tables -D FORWARD -m conntrack --ctproto tcp -j FLOWOFFLOAD --hw 2>/dev/null
+	ip6tables -D FORWARD -m conntrack --ctproto udp -j FLOWOFFLOAD --hw 2>/dev/null
+	ip6tables -D FORWARD -m conntrack --ctproto tcp -j FLOWOFFLOAD 2>/dev/null
+	ip6tables -D FORWARD -m conntrack --ctproto udp -j FLOWOFFLOAD 2>/dev/null
 	ip6tables -D FORWARD -m pkttype --pkt-type multicast -j ACCEPT 2>/dev/null
 }
 
@@ -115,12 +115,16 @@ iptables_flowoffload_enable()
 
 	if [ "$hw_path" -eq 1 ]; then
 		#TCP/UDP hardware Binding
-		iptables -I FORWARD -j FLOWOFFLOAD --hw
-		ip6tables -I FORWARD -j FLOWOFFLOAD --hw
+		iptables -I FORWARD -m conntrack --ctproto tcp -j FLOWOFFLOAD --hw
+		iptables -I FORWARD -m conntrack --ctproto udp -j FLOWOFFLOAD --hw
+		ip6tables -I FORWARD -m conntrack --ctproto tcp -j FLOWOFFLOAD --hw
+		ip6tables -I FORWARD -m conntrack --ctproto udp -j FLOWOFFLOAD --hw
 	else
 		#TCP/UDP software fast path
-		iptables -I FORWARD -j FLOWOFFLOAD
-		ip6tables -I FORWARD -j FLOWOFFLOAD
+		iptables -I FORWARD -m conntrack --ctproto tcp -j FLOWOFFLOAD
+		iptables -I FORWARD -m conntrack --ctproto udp -j FLOWOFFLOAD
+		ip6tables -I FORWARD -m conntrack --ctproto tcp -j FLOWOFFLOAD
+		ip6tables -I FORWARD -m conntrack --ctproto udp -j FLOWOFFLOAD
 	fi
 
 	#Multicast skip Binding
