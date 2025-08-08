@@ -1146,7 +1146,6 @@ fi
 
 cmd=$(echo ${full_cmd} | sed s/=/' '/g | cut -d " " -f 1)
 param=$(echo ${full_cmd} | sed s/=/' '/g | cut -d " " -f 2)
-mld=$(iw dev | grep 'link ID')
 
 if [ "${cmd_type}" = "set" ]; then
     skip=0
@@ -1157,30 +1156,31 @@ if [ "${cmd_type}" = "set" ]; then
         "csi"|"amnt"|"ap_rfeatures"|"ap_wireless"|"mu"|"set_muru_manual_config")
             cert_cmd="$*"
 
-	    if [ ! -z "$mld" ]; then
-		    mld_interface=$(iw dev | grep Interface | awk '{print $2}' | tail -n1)
-		    if [ $cmd == "ap_rfeatures" ] || [ "$cmd" == "ap_wireless" ]; then
+            # FIXME: this line takes approximately 0.08 to 0.1 sec in kerenl 6.6
+            mld=$(iw dev | grep 'link ID')
+            if [ ! -z "$mld" ]; then
+                mld_interface=$(iw dev | grep Interface | awk '{print $2}' | tail -n1)
+                if [ $cmd == "ap_rfeatures" ] || [ "$cmd" == "ap_wireless" ]; then
 
-			    band_number=$(echo "$cert_cmd" | grep -o 'band[0-9]*')
+                    band_number=$(echo "$cert_cmd" | grep -o 'band[0-9]*')
 
-			    links_info_base="/sys/kernel/debug/ieee80211/phy0/netdev"
-			    links_info_intf="${mld_interface}/mt76_links_info"
-			    links_info_cmd="${links_info_base}:${links_info_intf}"
+                    links_info_base="/sys/kernel/debug/ieee80211/phy0/netdev"
+                    links_info_intf="${mld_interface}/mt76_links_info"
+                    links_info_cmd="${links_info_base}:${links_info_intf}"
 
-			    band_link_id_info=$(
-			    	cat "$links_info_cmd" | grep "${band_number}_link_id"
-			    )
-			    band_link_id=$(
-			    	echo "$band_link_id_info" | awk -F'=' '{print $2}' | tr -d ' '
-			    )
+                    band_link_id_info=$(
+                        cat "$links_info_cmd" | grep "${band_number}_link_id"
+                    )
+                    band_link_id=$(
+                        echo "$band_link_id_info" | awk -F'=' '{print $2}' | tr -d ' '
+                    )
 
-			    cmd_w_link_id=$(echo $* | sed "s/band[0-9]/& -l ${band_link_id}/g")
-			    cert_cmd=${cmd_w_link_id}
-
-		    fi
-		    ## convert bandX to mld interface name
-		    cert_cmd="$(echo ${cert_cmd} | sed 's/band[0-9]/${mld_interface}/')"
-	    fi
+                    cmd_w_link_id=$(echo $* | sed "s/band[0-9]/& -l ${band_link_id}/g")
+                    cert_cmd=${cmd_w_link_id}
+                fi
+                ## convert bandX to mld interface name
+                cert_cmd="$(echo ${cert_cmd} | sed 's/band[0-9]/${mld_interface}/')"
+            fi
 
             if [ ${is_connac3} == "1" ]; then
                 hostapd_cmd="$(echo $cert_cmd | sed 's/set/raw/')"
