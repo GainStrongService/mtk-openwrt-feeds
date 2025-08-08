@@ -1,0 +1,106 @@
+--- a/drivers/mmc/core/mmc_ops.c
++++ b/drivers/mmc/core/mmc_ops.c
+@@ -616,18 +616,28 @@ int mmc_send_tuning(struct mmc_host *hos
+ 	struct mmc_data data = {};
+ 	struct scatterlist sg;
+ 	struct mmc_ios *ios = &host->ios;
+-	const u8 *tuning_block_pattern;
++	const u8 *tuning_block_pattern = NULL;
++	u8 ext_csd_rev, structure_ver;
+ 	int size, err = 0;
+ 	u8 *data_buf;
+ 
+-	if (ios->bus_width == MMC_BUS_WIDTH_8) {
+-		tuning_block_pattern = tuning_blk_pattern_8bit;
+-		size = sizeof(tuning_blk_pattern_8bit);
+-	} else if (ios->bus_width == MMC_BUS_WIDTH_4) {
+-		tuning_block_pattern = tuning_blk_pattern_4bit;
+-		size = sizeof(tuning_blk_pattern_4bit);
+-	} else
++	if (opcode == MMC_SEND_EXT_CSD) {
++		/* For DDR52 tuning */
++		size = 512;
++		tuning_block_pattern = NULL; /* No pattern check for EXT_CSD */
++	} else if (opcode == MMC_SEND_TUNING_BLOCK_HS200 || opcode == MMC_SEND_TUNING_BLOCK) {
++		/* For standard tuning blocks */
++		if (ios->bus_width == MMC_BUS_WIDTH_8) {
++			tuning_block_pattern = tuning_blk_pattern_8bit;
++			size = sizeof(tuning_blk_pattern_8bit);
++		} else if (ios->bus_width == MMC_BUS_WIDTH_4) {
++			tuning_block_pattern = tuning_blk_pattern_4bit;
++			size = sizeof(tuning_blk_pattern_4bit);
++		} else
++			return -EINVAL;
++	} else {
+ 		return -EINVAL;
++	}
+ 
+ 	data_buf = kzalloc(size, GFP_KERNEL);
+ 	if (!data_buf)
+@@ -669,8 +679,27 @@ int mmc_send_tuning(struct mmc_host *hos
+ 		goto out;
+ 	}
+ 
+-	if (memcmp(data_buf, tuning_block_pattern, size))
+-		err = -EIO;
++	if (opcode == MMC_SEND_EXT_CSD && size >= 512) {
++		ext_csd_rev = data_buf[192];
++		if (ext_csd_rev == 0 || ext_csd_rev > 9) {
++			pr_err("%s: Invalid EXT_CSD revision: %d\n",
++			       mmc_hostname(host), ext_csd_rev);
++			err = -EIO;
++			goto out;
++		}
++
++		structure_ver = data_buf[194];
++		if (structure_ver < 1 || structure_ver > 3) {
++			pr_err("%s: Invalid EXT_CSD structure version: %d\n",
++			       mmc_hostname(host), structure_ver);
++			err = -EIO;
++			goto out;
++		}
++	} else if (tuning_block_pattern) {
++		/* For standard tuning blocks, compare with expected pattern */
++		if (memcmp(data_buf, tuning_block_pattern, size))
++			err = -EIO;
++	}
+ 
+ out:
+ 	kfree(data_buf);
+--- a/drivers/mmc/core/core.c
++++ b/drivers/mmc/core/core.c
+@@ -951,10 +951,14 @@ int mmc_execute_tuning(struct mmc_card *
+ 	if (host->cqe_on)
+ 		host->cqe_ops->cqe_off(host);
+ 
+-	if (mmc_card_mmc(card))
+-		opcode = MMC_SEND_TUNING_BLOCK_HS200;
+-	else
++	if (mmc_card_mmc(card)) {
++		if (card->host->ios.timing == MMC_TIMING_MMC_DDR52)
++			opcode = MMC_SEND_EXT_CSD;
++		else
++			opcode = MMC_SEND_TUNING_BLOCK_HS200;
++	} else {
+ 		opcode = MMC_SEND_TUNING_BLOCK;
++	}
+ 
+ 	err = host->ops->execute_tuning(host, opcode);
+ 
+--- a/drivers/mmc/core/mmc.c
++++ b/drivers/mmc/core/mmc.c
+@@ -1142,6 +1142,14 @@ static int mmc_select_hs_ddr(struct mmc_
+ 	if (err)
+ 		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330);
+ 
++	/* Execute tuning for DDR52 mode if supported by host */
++	if (!err && host->ops->execute_tuning) {
++		err = mmc_execute_tuning(card);
++		if (err)
++			pr_warn("%s: DDR52 tuning failed: %d\n",
++				mmc_hostname(host), err);
++	}
++
+ 	return err;
+ }
+ 

@@ -19,7 +19,7 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 		regulator-always-on;
-	};	
+	};
 };
 
 /* Disable spi1 node since MSDC and spi1 share pins on MT7987. */
@@ -32,7 +32,10 @@
 	pinctrl-0 = <&mmc_pins_default>;
 	pinctrl-1 = <&mmc_pins_uhs>;
 	bus-width = <8>;
-	max-frequency = <200000000>;
+	assigned-clocks = <&apmixedsys CK_APMIXED_MSDCPLL>;
+	assigned-clock-rates = <416000000>;
+	max-frequency = <52000000>;
+	mmc-ddr-3_3v;
 	cap-mmc-highspeed;
 	vqmmc-supply = <&reg_3p3v>;
 	vmmc-supply = <&reg_3p3v>;
