@@ -1719,6 +1719,21 @@ static int mtk_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
+void mtk_stats_update_xmac_fcserr(struct mtk_mac *mac)
+{
+	struct mtk_hw_stats *hw_stats = mac->hw_stats;
+	u64 rx_eth_cnt, rx_crcerr_cnt;
+
+	rx_eth_cnt = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x18c);
+	rx_crcerr_cnt = FIELD_GET(GENMASK(15, 0),
+				  mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x198));
+
+	if (rx_crcerr_cnt <= rx_eth_cnt * 2)
+		hw_stats->rx_fcs_errors += rx_crcerr_cnt;
+	else
+		mtk_m32(mac->hw, XMAC_GLB_CNTCLR, 0x1, MTK_XMAC_CNT_CTRL(mac->id));
+}
+
 void mtk_stats_update_mac(struct mtk_mac *mac)
 {
 	struct mtk_eth *eth = mac->hw;
@@ -1737,8 +1752,14 @@ void mtk_stats_update_mac(struct mtk_mac *mac)
 		mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x08 + offs);
 	hw_stats->rx_overflow +=
 		mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x10 + offs);
-	hw_stats->rx_fcs_errors +=
-		mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x14 + offs);
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
+	    mac->type == MTK_XGDM_TYPE && mac->id != MTK_GMAC1_ID)
+		mtk_stats_update_xmac_fcserr(mac);
+	else
+		hw_stats->rx_fcs_errors +=
+			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x14 + offs);
+
 	hw_stats->rx_short_errors +=
 		mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x18 + offs);
 	hw_stats->rx_long_errors +=
