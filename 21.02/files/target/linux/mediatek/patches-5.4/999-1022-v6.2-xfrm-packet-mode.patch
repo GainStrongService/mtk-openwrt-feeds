@@ -1,6 +1,6 @@
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
-@@ -919,6 +919,10 @@ struct xfrmdev_ops {
+@@ -981,6 +981,10 @@ struct xfrmdev_ops {
  	bool	(*xdo_dev_offload_ok) (struct sk_buff *skb,
  				       struct xfrm_state *x);
  	void	(*xdo_dev_state_advance_esn) (struct xfrm_state *x);
@@ -48,7 +48,7 @@
  };
  
  static inline struct net *xp_net(const struct xfrm_policy *xp)
-@@ -1084,6 +1100,29 @@ xfrm_state_addr_cmp(const struct xfrm_tm
+@@ -1087,6 +1103,29 @@ xfrm_state_addr_cmp(const struct xfrm_tm
  }
  
  #ifdef CONFIG_XFRM
@@ -78,7 +78,7 @@
  int __xfrm_policy_check(struct sock *, int dir, struct sk_buff *skb,
  			unsigned short family);
  
-@@ -1093,10 +1132,19 @@ static inline int __xfrm_policy_check2(s
+@@ -1096,10 +1135,19 @@ static inline int __xfrm_policy_check2(s
  {
  	struct net *net = dev_net(skb->dev);
  	int ndir = dir | (reverse ? XFRM_POLICY_MASK + 1 : 0);
@@ -98,7 +98,7 @@
  	return	(!net->xfrm.policy_count[dir] && !secpath_exists(skb)) ||
  		(skb_dst(skb) && (skb_dst(skb)->flags & DST_NOPOLICY)) ||
  		__xfrm_policy_check(sk, ndir, skb, family);
-@@ -1490,6 +1538,23 @@ struct xfrm_state *xfrm_stateonly_find(s
+@@ -1493,6 +1541,23 @@ struct xfrm_state *xfrm_stateonly_find(s
  struct xfrm_state *xfrm_state_lookup_byspi(struct net *net, __be32 spi,
  					      unsigned short family);
  int xfrm_state_check_expire(struct xfrm_state *x);
@@ -122,7 +122,7 @@
  void xfrm_state_insert(struct xfrm_state *x);
  int xfrm_state_add(struct xfrm_state *x);
  int xfrm_state_update(struct xfrm_state *x);
-@@ -1539,6 +1604,8 @@ struct xfrm_state *xfrm_find_acq_byseq(s
+@@ -1542,6 +1607,8 @@ struct xfrm_state *xfrm_find_acq_byseq(s
  int xfrm_state_delete(struct xfrm_state *x);
  int xfrm_state_flush(struct net *net, u8 proto, bool task_valid, bool sync);
  int xfrm_dev_state_flush(struct net *net, struct net_device *dev, bool task_valid);
@@ -131,7 +131,7 @@
  void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si);
  void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si);
  u32 xfrm_replay_seqhi(struct xfrm_state *x, __be32 net_seq);
-@@ -1820,29 +1887,6 @@ static inline void xfrm_states_delete(st
+@@ -1823,29 +1890,6 @@ static inline void xfrm_states_delete(st
  }
  #endif
  
@@ -161,7 +161,7 @@
  void __init xfrm_dev_init(void);
  
  #ifdef CONFIG_XFRM_OFFLOAD
-@@ -1851,6 +1895,9 @@ void xfrm_dev_backlog(struct softnet_dat
+@@ -1854,6 +1898,9 @@ void xfrm_dev_backlog(struct softnet_dat
  struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t features, bool *again);
  int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
  		       struct xfrm_user_offload *xuo);
@@ -171,7 +171,7 @@
  bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x);
  
  static inline void xfrm_dev_state_advance_esn(struct xfrm_state *x)
-@@ -1899,6 +1946,27 @@ static inline void xfrm_dev_state_free(s
+@@ -1902,6 +1949,28 @@ static inline void xfrm_dev_state_free(s
  		dev_put(dev);
  	}
  }
@@ -194,12 +194,13 @@
 +		if (dev->xfrmdev_ops->xdo_dev_policy_free)
 +			dev->xfrmdev_ops->xdo_dev_policy_free(x);
 +		xdo->dev = NULL;
++		dev_put(dev);
 +	}
 +}
  #else
  static inline void xfrm_dev_resume(struct sk_buff *skb)
  {
-@@ -1931,6 +1999,21 @@ static inline bool xfrm_dev_offload_ok(s
+@@ -1934,6 +2003,21 @@ static inline bool xfrm_dev_offload_ok(s
  	return false;
  }
  
@@ -333,7 +334,7 @@
  			return err;
  	}
  
-@@ -264,6 +293,65 @@ int xfrm_dev_state_add(struct net *net,
+@@ -264,6 +293,66 @@ int xfrm_dev_state_add(struct net *net,
  }
  EXPORT_SYMBOL_GPL(xfrm_dev_state_add);
  
@@ -388,6 +389,7 @@
 +		xdo->dev = NULL;
 +		xdo->type = XFRM_DEV_OFFLOAD_UNSPECIFIED;
 +		xdo->dir = 0;
++		dev_put(dev);
 +		NL_SET_ERR_MSG(extack, "Device failed to offload this policy");
 +		return err;
 +	}
@@ -399,7 +401,7 @@
  bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
  {
  	int mtu;
-@@ -274,8 +362,9 @@ bool xfrm_dev_offload_ok(struct sk_buff
+@@ -274,8 +363,9 @@ bool xfrm_dev_offload_ok(struct sk_buff
  	if (!x->type_offload || x->encap)
  		return false;
  
@@ -411,7 +413,7 @@
  		mtu = xfrm_state_mtu(x, xdst->child_mtu_cached);
  		if (skb->len <= mtu)
  			goto ok;
-@@ -376,8 +465,10 @@ static int xfrm_dev_feat_change(struct n
+@@ -376,8 +466,10 @@ static int xfrm_dev_feat_change(struct n
  
  static int xfrm_dev_down(struct net_device *dev)
  {
@@ -488,7 +490,7 @@
  			hlist_add_behind_rcu(&policy->bydst, newpos);
  		else
  			hlist_add_head_rcu(&policy->bydst, chain);
-@@ -1522,7 +1523,7 @@ static void xfrm_policy_insert_inexact_l
+@@ -1520,7 +1521,7 @@ static void xfrm_policy_insert_inexact_l
  			break;
  	}
  
@@ -497,7 +499,7 @@
  		hlist_add_behind_rcu(&policy->bydst_inexact_list, newpos);
  	else
  		hlist_add_head_rcu(&policy->bydst_inexact_list, chain);
-@@ -1559,9 +1560,12 @@ static struct xfrm_policy *xfrm_policy_i
+@@ -1557,9 +1558,12 @@ static struct xfrm_policy *xfrm_policy_i
  			break;
  	}
  
@@ -511,7 +513,7 @@
  		hlist_add_head_rcu(&policy->bydst, chain);
  
  	return delpol;
-@@ -1767,12 +1771,41 @@ xfrm_policy_flush_secctx_check(struct ne
+@@ -1765,12 +1769,41 @@ xfrm_policy_flush_secctx_check(struct ne
  	}
  	return err;
  }
@@ -553,7 +555,7 @@
  #endif
  
  int xfrm_policy_flush(struct net *net, u8 type, bool task_valid)
-@@ -1812,6 +1845,44 @@ out:
+@@ -1810,6 +1843,44 @@ out:
  }
  EXPORT_SYMBOL(xfrm_policy_flush);
  
@@ -598,7 +600,7 @@
  int xfrm_policy_walk(struct net *net, struct xfrm_policy_walk *walk,
  		     int (*func)(struct xfrm_policy *, int, int, void*),
  		     void *data)
-@@ -2113,6 +2184,9 @@ static struct xfrm_policy *xfrm_policy_l
+@@ -2111,6 +2182,9 @@ static struct xfrm_policy *xfrm_policy_l
  			break;
  		}
  	}
@@ -608,7 +610,7 @@
  	bin = xfrm_policy_inexact_lookup_rcu(net, type, family, dir, if_id);
  	if (!bin || !xfrm_policy_find_inexact_candidates(&cand, bin, saddr,
  							 daddr))
-@@ -2246,6 +2320,7 @@ int xfrm_policy_delete(struct xfrm_polic
+@@ -2244,6 +2318,7 @@ int xfrm_policy_delete(struct xfrm_polic
  	pol = __xfrm_policy_unlink(pol, dir);
  	spin_unlock_bh(&net->xfrm.xfrm_policy_lock);
  	if (pol) {
@@ -918,7 +920,7 @@
  
  	return 0;
  }
-@@ -1634,6 +1636,15 @@ static struct xfrm_policy *xfrm_policy_c
+@@ -1643,6 +1645,15 @@ static struct xfrm_policy *xfrm_policy_c
  	if (attrs[XFRMA_IF_ID])
  		xp->if_id = nla_get_u32(attrs[XFRMA_IF_ID]);
  
@@ -934,7 +936,7 @@
  	return xp;
   error:
  	*errp = err;
-@@ -1672,6 +1683,7 @@ static int xfrm_add_policy(struct sk_buf
+@@ -1681,6 +1692,7 @@ static int xfrm_add_policy(struct sk_buf
  	xfrm_audit_policy_add(xp, err ? 0 : 1, true);
  
  	if (err) {
@@ -942,7 +944,7 @@
  		security_xfrm_policy_free(xp->security);
  		kfree(xp);
  		return err;
-@@ -1783,6 +1795,8 @@ static int dump_one_policy(struct xfrm_p
+@@ -1795,6 +1807,8 @@ static int dump_one_policy(struct xfrm_p
  		err = xfrm_mark_put(skb, &xp->mark);
  	if (!err)
  		err = xfrm_if_id_put(skb, xp->if_id);
@@ -951,7 +953,7 @@
  	if (err) {
  		nlmsg_cancel(skb, nlh);
  		return err;
-@@ -2958,6 +2972,8 @@ static int build_acquire(struct sk_buff
+@@ -2970,6 +2984,8 @@ static int build_acquire(struct sk_buff
  		err = xfrm_mark_put(skb, &xp->mark);
  	if (!err)
  		err = xfrm_if_id_put(skb, xp->if_id);
@@ -960,7 +962,7 @@
  	if (err) {
  		nlmsg_cancel(skb, nlh);
  		return err;
-@@ -3076,6 +3092,8 @@ static int build_polexpire(struct sk_buf
+@@ -3088,6 +3104,8 @@ static int build_polexpire(struct sk_buf
  		err = xfrm_mark_put(skb, &xp->mark);
  	if (!err)
  		err = xfrm_if_id_put(skb, xp->if_id);
@@ -969,7 +971,7 @@
  	if (err) {
  		nlmsg_cancel(skb, nlh);
  		return err;
-@@ -3159,6 +3177,8 @@ static int xfrm_notify_policy(struct xfr
+@@ -3171,6 +3189,8 @@ static int xfrm_notify_policy(struct xfr
  		err = xfrm_mark_put(skb, &xp->mark);
  	if (!err)
  		err = xfrm_if_id_put(skb, xp->if_id);
