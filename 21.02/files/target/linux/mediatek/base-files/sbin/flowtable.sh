@@ -68,6 +68,7 @@ table inet filter {
 
 	chain forward {
 		type filter hook forward priority filter; policy accept;
+		meta pkttype multicast accept;
 		meta l4proto { tcp, udp } flow add @f;
 	}
 }
