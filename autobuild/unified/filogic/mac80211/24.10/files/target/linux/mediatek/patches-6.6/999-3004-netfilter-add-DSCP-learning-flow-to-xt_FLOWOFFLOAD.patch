@@ -24,9 +24,10 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  net/netfilter/nf_conntrack_qos.c              | 25 ++++++++
  net/netfilter/nf_conntrack_standalone.c       | 27 ++++++++
  net/netfilter/nf_flow_table_core.c            |  2 +
+ net/netfilter/nf_flow_table_ip.c              | 10 ++++++++++
  net/netfilter/nf_flow_table_offload.c         |  7 ++-
  net/netfilter/xt_FLOWOFFLOAD.c                | 43 +++++++++++++
- 16 files changed, 200 insertions(+), 4 deletions(-)
+ 17 files changed, 210 insertions(+), 4 deletions(-)
  create mode 100644 include/net/netfilter/nf_conntrack_qos.h
  create mode 100644 net/netfilter/nf_conntrack_qos.c
 
@@ -433,6 +434,48 @@ index 23aa1e2..6ed2269 100644
  	clear_bit(IPS_OFFLOAD_BIT, &flow->ct->status);
  	set_bit(NF_FLOW_TEARDOWN, &flow->flags);
  	flow_offload_fixup_ct(flow->ct);
+diff --git a/net/netfilter/nf_flow_table_ip.c b/net/netfilter/nf_flow_table_ip.c
+index 20dd4ee..bc15359 100644
+--- a/net/netfilter/nf_flow_table_ip.c
++++ b/net/netfilter/nf_flow_table_ip.c
+@@ -372,6 +372,7 @@ static int nf_flow_offload_forward(struct nf_flowtable_ctx *ctx,
+ 	struct flow_offload *flow;
+ 	unsigned int thoff, mtu;
+ 	struct iphdr *iph;
++	struct net *net;
+ 
+ 	dir = tuplehash->tuple.dir;
+ 	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
+@@ -393,6 +394,10 @@ static int nf_flow_offload_forward(struct nf_flowtable_ctx *ctx,
+ 	if (skb_try_make_writable(skb, thoff + ctx->hdrsize))
+ 		return -1;
+ 
++	net = nf_ct_net(flow->ct);
++	if (net->ct.sysctl_qos)
++		ipv4_change_dsfield(iph, 0u, flow->tuplehash[dir].tuple.tos);
++
+ 	flow_offload_refresh(flow_table, flow, false);
+ 
+ 	nf_flow_encap_pop(skb, tuplehash);
+@@ -651,6 +656,7 @@ static int nf_flow_offload_ipv6_forward(struct nf_flowtable_ctx *ctx,
+ 	struct flow_offload *flow;
+ 	unsigned int thoff, mtu;
+ 	struct ipv6hdr *ip6h;
++	struct net *net;
+ 
+ 	dir = tuplehash->tuple.dir;
+ 	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
+@@ -672,6 +678,10 @@ static int nf_flow_offload_ipv6_forward(struct nf_flowtable_ctx *ctx,
+ 	if (skb_try_make_writable(skb, thoff + ctx->hdrsize))
+ 		return -1;
+ 
++	net = nf_ct_net(flow->ct);
++	if (net->ct.sysctl_qos)
++		ipv6_change_dsfield(ip6h, 0u, flow->tuplehash[dir].tuple.tos);
++
+ 	flow_offload_refresh(flow_table, flow, false);
+ 
+ 	nf_flow_encap_pop(skb, tuplehash);
 diff --git a/net/netfilter/nf_flow_table_offload.c b/net/netfilter/nf_flow_table_offload.c
 index 9189ece..b792d0a 100644
 --- a/net/netfilter/nf_flow_table_offload.c
