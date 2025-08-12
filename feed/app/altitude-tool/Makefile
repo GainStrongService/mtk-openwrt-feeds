@@ -12,8 +12,8 @@ define Package/altitude-tool
   SUBMENU:=Applications
   DEFAULT:=y
   DEPENDS:= \
-	python3 \
-  	python3-requests
+	+python3 \
+  	+python3-requests
 endef
 
 define Package/altitude-tool/description
