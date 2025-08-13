@@ -38,8 +38,10 @@ nftables_flowoffload_enable()
 	fi
 
 	# check all of the ETH/WiFi virtual interfaces
-	interfaces=$(ifconfig -a | awk -F':| ' '/^[a-zA-Z]/ {print $1}' | \
-		grep -E 'eth|lan|wan|phy|mld|wlan|wifi|apcli|ra' | grep -v 'br-lan')
+	eth_ifs=$(ls /sys/class/net | grep -E '^(eth|lan|wan|ppp)')
+	wifi_ifs=$(iw dev | grep 'Interface' | awk '{print $2}')
+
+	interfaces=$(echo -e "$eth_ifs\n$wifi_ifs")
 
 	if [ -z "$interfaces" ]; then
 		echo "Error: No valid network interfaces found" >&2
