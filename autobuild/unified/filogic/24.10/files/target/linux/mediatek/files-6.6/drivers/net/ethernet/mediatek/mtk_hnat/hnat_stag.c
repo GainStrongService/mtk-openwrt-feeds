@@ -61,7 +61,8 @@ int hnat_dsa_fill_stag(const struct net_device *netdev,
 		return -ENODEV;
 
 	if (IS_DSA_TAG_PROTO_8021Q(dp)) {
-		dsa_tag = port_index + BIT(11);
+		/* tag 8021q RX and TX have been merged, bit[11:10] must be set to 0b11 now */
+		dsa_tag = port_index + GENMASK(11, 10);
 
 		if (IS_IPV4_GRP(entry)) {
 			/* PPE can only be filled up to 2 VLAN layers,

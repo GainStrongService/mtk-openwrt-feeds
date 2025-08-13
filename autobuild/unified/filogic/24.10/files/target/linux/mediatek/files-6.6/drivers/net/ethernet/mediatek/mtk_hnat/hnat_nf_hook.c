@@ -262,7 +262,7 @@ static void foe_clear_ethdev_bind_entries(struct net_device *dev)
 			return;
 
 		if (IS_DSA_TAG_PROTO_8021Q(dp))
-			dsa_tag = port_id + BIT(11);
+			dsa_tag = port_id + GENMASK(11, 10);
 		else
 			dsa_tag = BIT(port_id);
 	}
