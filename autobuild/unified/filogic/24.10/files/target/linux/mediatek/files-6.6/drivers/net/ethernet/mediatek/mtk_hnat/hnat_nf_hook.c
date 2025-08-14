@@ -416,21 +416,12 @@ int nf_hnat_netdevice_event(struct notifier_block *unused, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-void foe_clear_crypto_entry(struct xfrm_selector sel)
+void foe_clear_crypto_entry(u32 cdrt_idx)
 {
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
 	struct foe_entry *entry;
-	u32 prefix_d = ~0U;
-	u32 prefix_s = ~0U;
 	int i, hash_index;
 	int cnt;
-	int udp = 0;
-
-	if (sel.prefixlen_d != 0 && sel.prefixlen_d != 32)
-		prefix_d = htonl(prefix_d << (32 - sel.prefixlen_d));
-	if (sel.prefixlen_s != 0 && sel.prefixlen_s != 32)
-		prefix_s = htonl(prefix_s << (32 - sel.prefixlen_s));
-	if (sel.proto == IPPROTO_UDP)
-		udp = 1;
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		if (!hnat_priv->foe_table_cpu[i])
@@ -440,11 +431,7 @@ void foe_clear_crypto_entry(struct xfrm_selector sel)
 			entry = hnat_priv->foe_table_cpu[i] + hash_index;
 
 			if (entry->bfib1.state == BIND && IS_IPV4_HNAPT(entry) &&
-			    !((htonl(entry->ipv4_hnapt.dip) ^ sel.daddr.a4) & prefix_d) &&
-			    !((htonl(entry->ipv4_hnapt.sip) ^ sel.saddr.a4) & prefix_s) &&
-			    !((entry->ipv4_hnapt.dport ^ sel.dport) & sel.dport_mask) &&
-			    !((entry->ipv4_hnapt.sport ^ sel.sport) & sel.sport_mask) &&
-			    entry->bfib1.udp == udp) {
+			    entry->ipv4_hnapt.cdrt_id == cdrt_idx) {
 				spin_lock_bh(&hnat_priv->entry_lock);
 				__entry_delete(entry);
 				spin_unlock_bh(&hnat_priv->entry_lock);
@@ -458,6 +445,7 @@ void foe_clear_crypto_entry(struct xfrm_selector sel)
 		if (cnt > 0)
 			hnat_cache_clr(i);
 	}
+#endif /* defined(CONFIG_MEDIATEK_NETSYS_V3) */
 }
 EXPORT_SYMBOL(foe_clear_crypto_entry);
 
