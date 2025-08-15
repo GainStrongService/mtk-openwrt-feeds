@@ -1,0 +1,54 @@
+From 84befa726a279db03d16cc27ef8eea2d70ea84fd Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Fri, 15 Aug 2025 09:43:41 +0800
+Subject: [PATCH] sysctl: add some boundary constants to sysctl_vals
+
+---
+ fs/proc/proc_sysctl.c  |  2 +-
+ include/linux/sysctl.h | 17 ++++++++++++++---
+ 2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/fs/proc/proc_sysctl.c b/fs/proc/proc_sysctl.c
+index f4264dd..c76d2fd 100644
+--- a/fs/proc/proc_sysctl.c
++++ b/fs/proc/proc_sysctl.c
+@@ -24,7 +24,7 @@ static const struct file_operations proc_sys_dir_file_operations;
+ static const struct inode_operations proc_sys_dir_operations;
+ 
+ /* shared constants to be used in various sysctls */
+-const int sysctl_vals[] = { 0, 1, INT_MAX };
++const int sysctl_vals[] = { 0, 1, 2, 3, 4, 100, 200, 1000, 3000, INT_MAX, 65535, -1 };
+ EXPORT_SYMBOL(sysctl_vals);
+ 
+ /* Support for permanently empty directories */
+diff --git a/include/linux/sysctl.h b/include/linux/sysctl.h
+index aa615a0..b4b439f 100644
+--- a/include/linux/sysctl.h
++++ b/include/linux/sysctl.h
+@@ -38,9 +38,20 @@ struct ctl_table_header;
+ struct ctl_dir;
+ 
+ /* Keep the same order as in fs/proc/proc_sysctl.c */
+-#define SYSCTL_ZERO	((void *)&sysctl_vals[0])
+-#define SYSCTL_ONE	((void *)&sysctl_vals[1])
+-#define SYSCTL_INT_MAX	((void *)&sysctl_vals[2])
++#define SYSCTL_ZERO			((void *)&sysctl_vals[0])
++#define SYSCTL_ONE			((void *)&sysctl_vals[1])
++#define SYSCTL_TWO			((void *)&sysctl_vals[2])
++#define SYSCTL_THREE			((void *)&sysctl_vals[3])
++#define SYSCTL_FOUR			((void *)&sysctl_vals[4])
++#define SYSCTL_ONE_HUNDRED		((void *)&sysctl_vals[5])
++#define SYSCTL_TWO_HUNDRED		((void *)&sysctl_vals[6])
++#define SYSCTL_ONE_THOUSAND		((void *)&sysctl_vals[7])
++#define SYSCTL_THREE_THOUSAND		((void *)&sysctl_vals[8])
++#define SYSCTL_INT_MAX			((void *)&sysctl_vals[9])
++
++/* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
++#define SYSCTL_MAXOLDUID		((void *)&sysctl_vals[10])
++#define SYSCTL_NEG_ONE			((void *)&sysctl_vals[11])
+ 
+ extern const int sysctl_vals[];
+ 
+-- 
+2.45.2
+

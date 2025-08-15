@@ -19,9 +19,9 @@ Subject: [PATCH] flow offload add mtkhnat dscp
  net/netfilter/nf_flow_table_core.c            |  2 +
  net/netfilter/nf_flow_table_ip.c              | 10 ++++++++++
  net/netfilter/nf_flow_table_offload.c         |  7 +-
- net/netfilter/nft_flow_offload.c              | 45 ++++++++++++-
- net/netfilter/xt_FLOWOFFLOAD.c                | 41 ++++++++++++
- 17 files changed, 277 insertions(+), 6 deletions(-)
+ net/netfilter/nft_flow_offload.c              | 47 ++++++++++++-
+ net/netfilter/xt_FLOWOFFLOAD.c                | 43 ++++++++++++
+ 17 files changed, 281 insertions(+), 6 deletions(-)
  create mode 100644 include/net/netfilter/nf_conntrack_qos.h
  create mode 100644 net/netfilter/nf_conntrack_qos.c
 
@@ -329,9 +329,9 @@ index 0000000..086ce44
 +#include <net/netfilter/nf_conntrack_extend.h>
 +#include <net/netfilter/nf_conntrack_qos.h>
 +
-+static bool nf_ct_qos __read_mostly = 1;
++static unsigned short nf_ct_qos __read_mostly = 3;
 +
-+module_param_named(qos, nf_ct_qos, bool, 0644);
++module_param_named(qos, nf_ct_qos, ushort, 0644);
 +MODULE_PARM_DESC(qos, "Enable connection tracking qos.");
 +
 +static const struct nf_ct_ext_type qos_extend = {
@@ -425,7 +425,7 @@ index a2cfafa..58b976e 100644
 +		.mode		= 0644,
 +		.proc_handler	= proc_dointvec_minmax,
 +		.extra1 	= SYSCTL_ZERO,
-+		.extra2 	= SYSCTL_ONE,
++		.extra2 	= SYSCTL_TWO_HUNDRED,
 +	},
  	[NF_SYSCTL_CT_HELPER] = {
  		.procname	= "nf_conntrack_helper",
@@ -564,7 +564,7 @@ index ab542a0..922daeb 100644
  	int ret;
  
  	if (nft_flow_offload_skip(pkt->skb, nft_pf(pkt)))
-@@ -506,11 +525,31 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
+@@ -506,11 +525,33 @@ static void nft_flow_offload_eval(const struct nft_expr *expr,
  	if (!nf_ct_is_confirmed(ct))
  		goto out;
  
@@ -572,6 +572,8 @@ index ab542a0..922daeb 100644
 +
 +	qos = nf_conn_qos_find(ct);
 +	if (qos) {
++		struct net *net = nf_ct_net(ct);
++
 +		switch (nft_pf(pkt)) {
 +		case NFPROTO_IPV4:
 +			iph = (struct iphdr *)(skb_network_header(pkt->skb) + offset);
@@ -586,7 +588,7 @@ index ab542a0..922daeb 100644
 +		qos->tos[dir].value = tos;
 +		atomic64_add(1, &qos->tos[dir].counter);
 +
-+		if (atomic64_read(&qos->tos[dir].counter) < 30)
++		if (atomic64_read(&qos->tos[dir].counter) < net->ct.sysctl_qos)
 +			goto out;
 +	}
 +
@@ -651,12 +653,14 @@ index b7b4f30..18bebfe 100644
  
  	if (xt_flowoffload_skip(skb, xt_family(par)))
  		return XT_CONTINUE;
-@@ -685,6 +704,26 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
+@@ -685,6 +704,28 @@ flowoffload_tg(struct sk_buff *skb, const struct xt_action_param *par)
  
  	dir = CTINFO2DIR(ctinfo);
  
 +	qos = nf_conn_qos_find(ct);
 +	if (qos) {
++		struct net *net = nf_ct_net(ct);
++
 +		switch (xt_family(par)) {
 +		case NFPROTO_IPV4:
 +			iph = (struct iphdr *)(skb_network_header(skb) + offset);
@@ -671,7 +675,7 @@ index b7b4f30..18bebfe 100644
 +		qos->tos[dir].value = tos;
 +		atomic64_add(1, &qos->tos[dir].counter);
 +
-+		if (atomic64_read(&qos->tos[dir].counter) < 30)
++		if (atomic64_read(&qos->tos[dir].counter) < net->ct.sysctl_qos)
 +			return XT_CONTINUE;
 +	}
 +
