@@ -499,6 +499,10 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 
 	xfrm_params = (struct mtk_xfrm_params *)xs->xso.offload_handle;
 
+	/* Make sure we have enough skb headroom for cdrt_idx */
+	if (skb_cow_head(skb, NET_SKB_PAD + NET_IP_ALIGN))
+		return true;
+
 #if IS_ENABLED(CONFIG_NET_MEDIATEK_HNAT)
 	skb_hnat_cdrt(skb) = xfrm_params->cdrt->idx;
 
