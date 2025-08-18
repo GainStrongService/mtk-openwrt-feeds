@@ -85,6 +85,14 @@ dump_wm_info() {
     do_cmd "cat /sys/kernel/debug/ieee80211/phy0/mt76/fw_wm_info"
 }
 
+dump_wed_rxinfo() {
+    do_cmd "cat /sys/kernel/debug/wed0/rxinfo"
+}
+
+dump_wed_txinfo() {
+    do_cmd "cat /sys/kernel/debug/wed0/txinfo"
+}
+
 per_10_min_work() {
     dump_connection_info
 
@@ -96,6 +104,9 @@ per_10_min_work() {
         dump_ple_info
         dump_pse_info
         dump_mib_info
+        dump_tr_info
+        dump_wed_rxinfo
+        dump_wed_txinfo
 
         true $(( i++ ))
         sleep 1
@@ -115,7 +126,6 @@ per_60_min_work() {
     local max=2
     while [ $i -lt $max ]
     do
-        dump_tr_info
         dump_wm_info
 
         true $(( i++ ))
