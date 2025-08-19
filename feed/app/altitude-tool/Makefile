@@ -10,7 +10,6 @@ define Package/altitude-tool
   CATEGORY:=MTK Properties
   TITLE:=Altitude Tool
   SUBMENU:=Applications
-  DEFAULT:=y
   DEPENDS:= \
 	+python3 \
   	+python3-requests
