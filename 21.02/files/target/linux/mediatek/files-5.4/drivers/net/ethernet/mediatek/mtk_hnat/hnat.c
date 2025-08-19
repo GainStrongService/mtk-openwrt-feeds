@@ -360,6 +360,12 @@ int entry_delete_by_mac(u8 *mac)
 	int index, i, ret = 0;
 	int cnt;
 
+	if (!mac) {
+		if (debug_level >= 2)
+			pr_warn("%s: invalid mac address\n", __func__);
+		return 0;
+	}
+
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		entry = hnat_priv->foe_table_cpu[i];
 		cnt = 0;
@@ -391,6 +397,12 @@ int entry_delete_by_ip(bool is_ipv4, void *addr)
 	struct foe_entry *entry = NULL;
 	int index, i, ret = 0;
 	int cnt;
+
+	if (!addr) {
+		if (debug_level >= 2)
+			pr_warn("%s: invalid ip address\n", __func__);
+		return 0;
+	}
 
 	for (i = 0; i < CFG_PPE_NUM; i++) {
 		entry = hnat_priv->foe_table_cpu[i];
