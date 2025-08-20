@@ -1,16 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0+
+#include <linux/atomic.h>
 #include <linux/bitfield.h>
+#include <linux/completion.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
+#include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/phy.h>
 #include <linux/phy/phy.h>
+#include <linux/workqueue.h>
+#include <stdarg.h>
 
 #include "mtk.h"
 
-#define MTK_2P5GPHY_ID_MT7987	0x00339c91
-#define MTK_2P5GPHY_ID_MT7988	0x00339c11
+#define MTK_2P5GPHY_ID_MT7987		0x00339c91
+#define MTK_2P5GPHY_ID_MT7988		0x00339c11
+
+#define FW_LOAD_INITIAL_DELAY_MS	12000
+#define FW_LOAD_RETRY_DELAY_MS		1000
+#define FW_LOAD_MAX_RETRIES		3
 
 #define MT7987_2P5GE_PMB_FW		"mediatek/mt7987/i2p5ge-phy-pmb.bin"
 #define MT7987_2P5GE_PMB_FW_SIZE	0x18000
@@ -24,7 +34,6 @@
 #define MT7988_2P5GE_PMB_FW		"mediatek/mt7988/i2p5ge-phy-pmb.bin"
 #define MT7988_2P5GE_PMB_FW_SIZE	0x20000
 #define MT7988_2P5GE_PMB_FW_BASE	(PBUS_BASE + 0x100000)
-#define MT7988_2P5GE_PMB_FW_LEN	0x20000
 
 #define MTK_2P5GPHY_PMD_REG		0x010000
 #define DO_NOT_RESET			0x28
@@ -101,10 +110,6 @@
 #define SW_RESET			0x94
 #define   MD32_RESTART_EN_CLEAR		BIT(9)
 
-#define BASE100T_STATUS_EXTEND		0x10
-#define BASE1000T_STATUS_EXTEND		0x11
-#define EXTEND_CTRL_AND_STATUS		0x16
-
 #define PHY_AUX_CTRL_STATUS		0x1d
 #define   PHY_AUX_DPX_MASK		GENMASK(5, 5)
 #define   PHY_AUX_SPEED_MASK		GENMASK(4, 2)
@@ -119,28 +124,37 @@
 #define   MTK_PHY_BYPASS_LINK_STATUS_OK	BIT(4)
 #define   MTK_PHY_FORCE_LINK_STATUS_HCD	BIT(3)
 
-#define MTK_PHY_PMA_PMD_SPPED_ABILITY	0x300
+#define MTK_PHY_PMA_PMD_SPEED_ABILITY	0x300
+#define   CAP_100X_HDX			BIT(14)
+#define   CAP_10T_HDX			BIT(12)
 
-#define MTK_PHY_AN_FORCE_SPEED_REG	0x313
+#define MTK_PHY_AN_FORCE_SPEED_REG		0x313
 #define   MTK_PHY_MASTER_FORCE_SPEED_SEL_EN	BIT(7)
 #define   MTK_PHY_MASTER_FORCE_SPEED_SEL_MASK	GENMASK(6, 0)
 
-#define MTK_PHY_LPI_PCS_DSP_CTRL	0x121
+#define MTK_PHY_LPI_PCS_DSP_CTRL		0x121
 #define   MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK	GENMASK(12, 8)
+
+/* Registers on MDIO_MMD_VEND2 */
+#define MT7987_OPTIONS			0x110
+#define   NORMAL_RETRAIN_DISABLE	BIT(0)
 
 #define MTK_PHY_HOST_CMD1		0x800e
 #define MTK_PHY_HOST_CMD2		0x800f
 
-/* Registers on Token Ring debug nodes */
-/* ch_addr = 0x0, node_addr = 0xf, data_addr = 0x3c */
-#define AUTO_NP_10XEN				BIT(6)
-
 struct mtk_i2p5ge_phy_priv {
 	void __iomem *reg_base;
 	struct resource *res;
-	int pd_en;
-	int gbe_min_ipg_11B;
 	char fw_version[16];
+	struct delayed_work fw_load_work;
+	struct phy_device *phydev;
+	atomic_t fw_load_retries;
+	struct completion fw_completion;
+	struct mutex fw_mutex;
+	int half;
+	int gbe_min_ipg_11B;
+	int retrain;
+	int auto_downshift;
 };
 
 enum {
@@ -149,6 +163,51 @@ enum {
 	PHY_AUX_SPD_1000,
 	PHY_AUX_SPD_2500,
 };
+
+enum mtk_2p5ge_attr_id {
+	ATTR_HALF,
+	ATTR_GBE_MIN_IPG_11B,
+	ATTR_RETRAIN,
+	ATTR_AUTO_DOWNSHIFT,
+	ATTR_FW_VERSION,
+	ATTR_FCM_CNT,
+	ATTR_FCM_CNT_RESET,
+	ATTR_FCM_SW_RESET,
+};
+
+
+struct mtk_2p5ge_attr {
+	struct device_attribute dev_attr;
+	enum mtk_2p5ge_attr_id id;
+};
+
+#define MTK_2P5GE_ATTR_RW(_name, _id) \
+	static struct mtk_2p5ge_attr dev_attr_##_name = { \
+		.dev_attr = { \
+			.attr = { .name = __stringify(_name), .mode = 0644 }, \
+			.show = mtk_2p5ge_attr_show, \
+			.store = mtk_2p5ge_attr_store, \
+		}, \
+		.id = _id, \
+	}
+
+#define MTK_2P5GE_ATTR_RO(_name, _id) \
+	static struct mtk_2p5ge_attr dev_attr_##_name = { \
+		.dev_attr = { \
+			.attr = { .name = __stringify(_name), .mode = 0444 }, \
+			.show = mtk_2p5ge_attr_show, \
+		}, \
+		.id = _id, \
+	}
+
+#define MTK_2P5GE_ATTR_WO(_name, _id) \
+	static struct mtk_2p5ge_attr dev_attr_##_name = { \
+		.dev_attr = { \
+			.attr = { .name = __stringify(_name), .mode = 0200 }, \
+			.store = mtk_2p5ge_attr_store, \
+		}, \
+		.id = _id, \
+	}
 
 static inline u32 reg_readl(struct mtk_i2p5ge_phy_priv *priv, u32 offset)
 {
@@ -193,6 +252,131 @@ static inline void reg_clear_bits(struct mtk_i2p5ge_phy_priv *priv, u32 offset,
 	reg_modify(priv, offset, bits, 0);
 }
 
+static ssize_t mtk_2p5ge_attr_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct phy_device *phydev = container_of(dev, struct phy_device,
+						 mdio.dev);
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	struct mtk_2p5ge_attr *mtk_attr = container_of(attr, struct mtk_2p5ge_attr,
+						       dev_attr);
+	enum mtk_2p5ge_attr_id id = mtk_attr->id;
+	u32 ss_rx_start, ss_rx_pause, ss_tx_start, ss_tx_pause;
+	u32 ls_rx_start, ls_rx_pause, ls_tx_start, ls_tx_pause;
+	int len = 0;
+
+	switch (id) {
+	case ATTR_HALF:
+		return sprintf(buf, "%d\n", priv->half);
+
+	case ATTR_GBE_MIN_IPG_11B:
+		return sprintf(buf, "%d\n", priv->gbe_min_ipg_11B);
+
+	case ATTR_RETRAIN:
+		return sprintf(buf, "%d\n", priv->retrain);
+
+	case ATTR_AUTO_DOWNSHIFT:
+		return sprintf(buf, "%d\n", priv->auto_downshift);
+
+	case ATTR_FW_VERSION:
+		return sprintf(buf, "%s\n", priv->fw_version);
+
+	case ATTR_FCM_CNT:
+		ss_rx_start = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + SS_RX_START_CNT);
+		ss_rx_pause = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + SS_RX_PAUSE_CNT);
+		ss_tx_start = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + SS_TX_START_CNT);
+		ss_tx_pause = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + SS_TX_PAUSE_CNT);
+		ls_rx_start = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + LS_RX_START_CNT);
+		ls_rx_pause = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + LS_RX_PAUSE_CNT);
+		ls_tx_start = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + LS_TX_START_CNT);
+		ls_tx_pause = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + LS_TX_PAUSE_CNT);
+
+		len += sprintf(buf + len, "+------------------------------------------------------+\n");
+		len += sprintf(buf + len, "|                      <<FCM CNT>>                     |\n");
+		len += sprintf(buf + len, "+------------------------------------------------------+\n");
+		len += sprintf(buf + len, "|                         <RX>                         |\n");
+		len += sprintf(buf + len, "| Start Count from PHY (LS_RX_START_CNT):   %010u |\n", ls_rx_start);
+		len += sprintf(buf + len, "| Pause Count from PHY (LS_RX_PAUSE_CNT):   %010u |\n", ls_rx_pause);
+		len += sprintf(buf + len, "| Start Count to XGMAC (SS_TX_START_CNT):   %010u |\n", ss_tx_start);
+		len += sprintf(buf + len, "| Pause Count to XGMAC (SS_TX_PAUSE_CNT):   %010u |\n", ss_tx_pause);
+		len += sprintf(buf + len, "+------------------------------------------------------+\n");
+		len += sprintf(buf + len, "|                         <TX>                         |\n");
+		len += sprintf(buf + len, "| Start Count from XGMAC (SS_RX_START_CNT): %010u |\n", ss_rx_start);
+		len += sprintf(buf + len, "| Pause Count from XGMAC (SS_RX_PAUSE_CNT): %010u |\n", ss_rx_pause);
+		len += sprintf(buf + len, "| Start Count to PHY (LS_TX_START_CNT):     %010u |\n", ls_tx_start);
+		len += sprintf(buf + len, "| Pause Count to PHY (LS_TX_PAUSE_CNT):     %010u |\n", ls_tx_pause);
+		len += sprintf(buf + len, "+------------------------------------------------------+\n");
+		return len;
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static ssize_t mtk_2p5ge_attr_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct phy_device *phydev = container_of(dev, struct phy_device,
+						 mdio.dev);
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	struct mtk_2p5ge_attr *mtk_attr = container_of(attr, struct mtk_2p5ge_attr,
+						       dev_attr);
+	enum mtk_2p5ge_attr_id id = mtk_attr->id;
+	int val;
+
+	if (kstrtoint(buf, 0, &val) != 0)
+		return -EINVAL;
+
+	switch (id) {
+	case ATTR_HALF:
+		priv->half = !!val;
+		break;
+
+	case ATTR_GBE_MIN_IPG_11B:
+		priv->gbe_min_ipg_11B = !!val;
+		break;
+
+	case ATTR_RETRAIN:
+		priv->retrain = !!val;
+		break;
+
+	case ATTR_AUTO_DOWNSHIFT:
+		priv->auto_downshift = !!val;
+		break;
+
+	case ATTR_FCM_CNT_RESET:
+		if (val == 1)
+			reg_writel(priv, MTK_2P5GPHY_FCM_BASE + CLEAR_CTRL, 0xF);
+		break;
+
+	case ATTR_FCM_SW_RESET:
+		if (val == 1) {
+			reg_set_bits(priv,
+				     MTK_2P5GPHY_CHIP_SCU + RG_FCM_SW_RESET,
+				     FCM_SW_RST);
+			reg_clear_bits(priv,
+				       MTK_2P5GPHY_CHIP_SCU + RG_FCM_SW_RESET,
+				       FCM_SW_RST);
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+MTK_2P5GE_ATTR_RW(half, ATTR_HALF);
+MTK_2P5GE_ATTR_RW(gbe_min_ipg_11B, ATTR_GBE_MIN_IPG_11B);
+MTK_2P5GE_ATTR_RW(retrain, ATTR_RETRAIN);
+MTK_2P5GE_ATTR_RW(auto_downshift, ATTR_AUTO_DOWNSHIFT);
+MTK_2P5GE_ATTR_RO(fw_version, ATTR_FW_VERSION);
+MTK_2P5GE_ATTR_RO(fcm_cnt, ATTR_FCM_CNT);
+MTK_2P5GE_ATTR_WO(fcm_cnt_reset, ATTR_FCM_CNT_RESET);
+MTK_2P5GE_ATTR_WO(fcm_sw_reset, ATTR_FCM_SW_RESET);
+
 static void mtk_2p5ge_fw_info(struct device *dev,
 			      struct mtk_i2p5ge_phy_priv *priv,
 			      const struct firmware *fw,
@@ -206,39 +390,130 @@ static void mtk_2p5ge_fw_info(struct device *dev,
 		 (*(fw->data + fw_size - 1) >> 4) & 0xF,
 		 *(fw->data + fw_size - 1) & 0xF);
 
-	/* Store firmware version in priv structure */
 	snprintf(priv->fw_version, sizeof(priv->fw_version), "%x.%x.%x",
 		 *(fw->data + fw_size - 2),
 		 (*(fw->data + fw_size - 1) >> 4) & 0xF,
 		 *(fw->data + fw_size - 1) & 0xF);
 }
 
-static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
+static void mt798x_fw_load_retry_handler(struct phy_device *phydev,
+					 const char *err_fmt, ...)
 {
 	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
-	const struct firmware *fw;
+	char err_msg[256];
+	va_list args;
+	int retries;
+
+	va_start(args, err_fmt);
+	vsnprintf(err_msg, sizeof(err_msg), err_fmt, args);
+	va_end(args);
+
+	retries = atomic_inc_return(&priv->fw_load_retries);
+
+	mutex_lock(&priv->fw_mutex);
+
+	if (retries <= FW_LOAD_MAX_RETRIES) {
+		dev_info(dev, "%s failed, retry %d/%d in %dms\n",
+			 err_msg, retries, FW_LOAD_MAX_RETRIES,
+			 FW_LOAD_RETRY_DELAY_MS);
+
+		if (!delayed_work_pending(&priv->fw_load_work)) {
+			schedule_delayed_work(&priv->fw_load_work,
+					      msecs_to_jiffies(FW_LOAD_RETRY_DELAY_MS));
+		}
+	} else {
+		dev_err(dev, "%s failed after %d retries\n",
+			err_msg, FW_LOAD_MAX_RETRIES);
+		if (delayed_work_pending(&priv->fw_load_work))
+			cancel_delayed_work(&priv->fw_load_work);
+		complete(&priv->fw_completion);
+	}
+
+	mutex_unlock(&priv->fw_mutex);
+}
+
+static int mt798x_2p5ge_phy_probe_post_fw(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	struct pinctrl *pinctrl;
+
+	switch (phydev->drv->phy_id) {
+	case MTK_2P5GPHY_ID_MT7987:
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
+				   MTK_PHY_LED_ON_POLARITY);
+		break;
+	case MTK_2P5GPHY_ID_MT7988:
+		phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
+				 MTK_PHY_LED_ON_POLARITY);
+		break;
+	}
+
+	/* Setup LED */
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
+			 MTK_PHY_LED_ON_LINK10 | MTK_PHY_LED_ON_LINK100 |
+			 MTK_PHY_LED_ON_LINK1000 | MTK_PHY_LED_ON_LINK2500);
+	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED1_ON_CTRL,
+			 MTK_PHY_LED_ON_FDX | MTK_PHY_LED_ON_HDX);
+
+	pinctrl = devm_pinctrl_get_select(&phydev->mdio.dev, "i2p5gbe-led");
+	if (IS_ERR(pinctrl))
+		dev_err(&phydev->mdio.dev, "Fail to set LED pins!\n");
+
+	if (of_property_read_bool(phydev->mdio.dev.of_node, "half-en"))
+		priv->half = 1;
+	else
+		priv->half = 0;
+
+	if (of_property_read_bool(phydev->mdio.dev.of_node, "gbe-min-ipg-11-bytes-en"))
+		priv->gbe_min_ipg_11B = 1;
+	else
+		priv->gbe_min_ipg_11B = 0;
+
+	if (of_property_read_bool(phydev->mdio.dev.of_node, "retrain-dis"))
+		priv->retrain = 0;
+	else
+		priv->retrain = 1;
+
+	if (of_property_read_bool(phydev->mdio.dev.of_node, "auto-downshift-dis"))
+		priv->auto_downshift = 0;
+	else
+		priv->auto_downshift = 1;
+
+	device_create_file(&phydev->mdio.dev, &dev_attr_half.dev_attr);
+	device_create_file(&phydev->mdio.dev,
+			   &dev_attr_gbe_min_ipg_11B.dev_attr);
+	device_create_file(&phydev->mdio.dev, &dev_attr_auto_downshift.dev_attr);
+	device_create_file(&phydev->mdio.dev, &dev_attr_fw_version.dev_attr);
+	device_create_file(&phydev->mdio.dev, &dev_attr_fcm_cnt.dev_attr);
+	device_create_file(&phydev->mdio.dev,
+			   &dev_attr_fcm_cnt_reset.dev_attr);
+	device_create_file(&phydev->mdio.dev,
+			   &dev_attr_fcm_sw_reset.dev_attr);
+	if (phydev->drv->phy_id == MTK_2P5GPHY_ID_MT7987)
+		device_create_file(&phydev->mdio.dev, &dev_attr_retrain.dev_attr);
+
+	return 0;
+}
+
+static int mt7987_load_pmb_fw(struct phy_device *phydev, const struct firmware *fw)
+{
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	struct device *dev = &phydev->mdio.dev;
 	void __iomem *apb_base;
 	int ret, i;
 	u32 reg;
 
-	apb_base = ioremap(MTK_2P5GPHY_APB_BASE,
-			   MTK_2P5GPHY_APB_LEN);
-	if (!apb_base)
-		return -ENOMEM;
-
-	ret = request_firmware_direct(&fw, MT7987_2P5GE_PMB_FW, dev);
-	if (ret) {
-		dev_err(dev, "failed to load firmware: %s, ret: %d\n",
-			MT7987_2P5GE_PMB_FW, ret);
-		goto free_apb;
-	}
-
 	if (fw->size != MT7987_2P5GE_PMB_FW_SIZE) {
 		dev_err(dev, "PMb firmware size 0x%zx != 0x%x\n",
 			fw->size, MT7987_2P5GE_PMB_FW_SIZE);
-		ret = -EINVAL;
-		goto release_fw;
+		return -EINVAL;
+	}
+
+	apb_base = devm_ioremap(dev, MTK_2P5GPHY_APB_BASE, MTK_2P5GPHY_APB_LEN);
+	if (!apb_base) {
+		dev_err(dev, "Failed to map APB base\n");
+		return -ENOMEM;
 	}
 
 	/* Force 2.5Gphy back to AN state */
@@ -260,8 +535,6 @@ static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
 
 	mtk_2p5ge_fw_info(dev, priv, fw, MT7987_2P5GE_PMB_FW_SIZE);
 
-	release_firmware(fw);
-
 	/* Enable 100Mbps module clock. */
 	reg_modify(priv, MTK_2P5GPHY_PMD_REG + FNPLL_PWR_CTRL1,
 		   RG_SPEED_MASK, FIELD_PREP(RG_SPEED_MASK, RG_SPEED_100));
@@ -281,7 +554,6 @@ static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
 	ret = readl_poll_timeout(priv->reg_base + MTK_2P5GPHY_PMD_REG +
 				 FNPLL_PWR_CTRL_STATUS, reg,
 				 reg & RG_SPEED_2500_STABLE, 1, 10000);
-
 	if (ret)
 		dev_err(dev, "Fail to enable 2.5Gbps module clock: %d\n", ret);
 
@@ -330,20 +602,23 @@ static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
 	reg_set_bits(priv, MTK_2P5GPHY_XBZ_PMA_RX + CM_CTRL_P01, BIT(28));
 	reg_set_bits(priv, MTK_2P5GPHY_XBZ_PMA_RX + CM_CTRL_P23, BIT(28));
 
-	/* Initilize PM offset */
+	/* Initialize PM offset */
 	reg_writel(priv, MTK_2P5GPHY_XBZ_PMA_RX + SMEM_ADDR_REF_ADDR, 0);
 
-	ret = request_firmware_direct(&fw, MT7987_2P5GE_DSPBITTB, dev);
-	if (ret) {
-		dev_err(dev, "failed to load firmware: %s, ret: %d\n",
-			MT7987_2P5GE_DSPBITTB, ret);
-		goto free_apb;
-	}
+	return 0;
+}
+
+static int mt7987_load_dspbittb_fw(struct phy_device *phydev, const struct firmware *fw)
+{
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	struct device *dev = &phydev->mdio.dev;
+	int i;
+	u32 reg;
+
 	if (fw->size != MT7987_2P5GE_DSPBITTB_SIZE) {
 		dev_err(dev, "DSPBITTB size 0x%zx != 0x%x\n",
 			fw->size, MT7987_2P5GE_DSPBITTB_SIZE);
-		ret = -EINVAL;
-		goto release_fw;
+		return -EINVAL;
 	}
 
 	for (i = 0; i < fw->size - 1; i += 16) {
@@ -365,38 +640,137 @@ static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
 	reg = reg_readw(priv, MTK_2P5GPHY_MCU_CSR + MD32_EN_CFG);
 	reg_writew(priv, MTK_2P5GPHY_MCU_CSR + MD32_EN_CFG, reg | MD32_EN);
 	phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
+
 	/* We need a delay here to stabilize initialization of MCU */
 	usleep_range(7000, 8000);
 
-release_fw:
-	release_firmware(fw);
-
-free_apb:
-	iounmap(apb_base);
-
-	return ret;
+	return 0;
 }
 
-static int mt7988_2p5ge_phy_load_fw(struct phy_device *phydev)
+static void mt7987_dspbittb_fw_load_callback(const struct firmware *fw, void *context)
+{
+	struct phy_device *phydev = (struct phy_device *)context;
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	struct device *dev = &phydev->mdio.dev;
+	int ret;
+
+	if (!fw) {
+		mt798x_fw_load_retry_handler(phydev, "%s async load", MT7987_2P5GE_DSPBITTB);
+		return;
+	}
+
+	ret = mt7987_load_dspbittb_fw(phydev, fw);
+	release_firmware(fw);
+
+	if (ret) {
+		mt798x_fw_load_retry_handler(phydev, "DSPBitTb firmware (ret = %d) load", ret);
+		return;
+	}
+
+	complete(&priv->fw_completion);
+
+	/* Both PMB and DSPBitTb firmwares loaded successfully */
+	ret = mt798x_2p5ge_phy_probe_post_fw(phydev);
+	if (ret)
+		dev_err(dev, "Post-firmware probe failed: %d\n", ret);
+}
+
+static void mt7987_pmb_fw_load_callback(const struct firmware *fw, void *context)
+{
+	struct phy_device *phydev = (struct phy_device *)context;
+	struct device *dev = &phydev->mdio.dev;
+	int ret;
+
+	if (!fw) {
+		mt798x_fw_load_retry_handler(phydev, "%s async load", MT7987_2P5GE_PMB_FW);
+		return;
+	}
+
+	ret = mt7987_load_pmb_fw(phydev, fw);
+	release_firmware(fw);
+
+	if (ret) {
+		mt798x_fw_load_retry_handler(phydev, "PMB firmware (ret=%d) load", ret);
+		return;
+	}
+
+	ret = request_firmware_nowait(THIS_MODULE, true, MT7987_2P5GE_DSPBITTB,
+				      dev, GFP_KERNEL, phydev,
+				      mt7987_dspbittb_fw_load_callback);
+	if (ret)
+		mt798x_fw_load_retry_handler(phydev, "DSPBitTb firmware (ret=%d) load", ret);
+}
+
+static void mt7987_fw_load_work(struct work_struct *work)
+{
+	struct mtk_i2p5ge_phy_priv *priv =
+		container_of(work, struct mtk_i2p5ge_phy_priv, fw_load_work.work);
+	struct phy_device *phydev = priv->phydev;
+	struct device *dev = &phydev->mdio.dev;
+	int ret;
+
+	ret = request_firmware_nowait(THIS_MODULE, true, MT7987_2P5GE_PMB_FW,
+				      dev, GFP_KERNEL, phydev,
+				      mt7987_pmb_fw_load_callback);
+	if (ret)
+		mt798x_fw_load_retry_handler(phydev, "PMB firmware (ret=%d) load", ret);
+}
+
+static int mt7987_2p5ge_phy_load_fw_direct(struct phy_device *phydev)
 {
 	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
 	const struct firmware *fw;
-	int ret, i;
-	u32 reg;
+	int ret;
 
-	ret = request_firmware_direct(&fw, MT7988_2P5GE_PMB_FW, dev);
-	if (ret) {
-		dev_err(dev, "failed to load firmware: %s, ret: %d\n",
-			MT7988_2P5GE_PMB_FW, ret);
+	ret = request_firmware_direct(&fw, MT7987_2P5GE_PMB_FW, dev);
+	if (ret)
 		return ret;
-	}
+
+	ret = mt7987_load_pmb_fw(phydev, fw);
+	release_firmware(fw);
+	if (ret)
+		return ret;
+
+	ret = request_firmware_direct(&fw, MT7987_2P5GE_DSPBITTB, dev);
+	if (ret)
+		return ret;
+
+	ret = mt7987_load_dspbittb_fw(phydev, fw);
+	release_firmware(fw);
+	if (!ret)
+		complete(&priv->fw_completion);
+
+	return ret;
+}
+
+static int mt7987_2p5ge_phy_load_fw(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	int ret;
+
+	ret = mt7987_2p5ge_phy_load_fw_direct(phydev);
+	if (!ret)
+		return 0;
+
+	INIT_DELAYED_WORK(&priv->fw_load_work, mt7987_fw_load_work);
+	schedule_delayed_work(&priv->fw_load_work,
+			      msecs_to_jiffies(FW_LOAD_INITIAL_DELAY_MS));
+
+	return 0;
+}
+
+static int mt7988_load_pmb_fw(struct phy_device *phydev, const struct firmware *fw)
+{
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	struct device *dev = &phydev->mdio.dev;
+	int i;
+	u32 reg;
 
 	if (fw->size != MT7988_2P5GE_PMB_FW_SIZE) {
 		dev_err(dev, "Firmware size 0x%zx != 0x%x\n",
 			fw->size, MT7988_2P5GE_PMB_FW_SIZE);
-		ret = -EINVAL;
-		goto release_fw;
+		return -EINVAL;
 	}
 
 	reg = reg_readw(priv, MTK_2P5GPHY_MCU_CSR + MD32_EN_CFG);
@@ -422,25 +796,109 @@ static int mt7988_2p5ge_phy_load_fw(struct phy_device *phydev)
 
 	mtk_2p5ge_fw_info(dev, priv, fw, MT7988_2P5GE_PMB_FW_SIZE);
 
-release_fw:
+	return 0;
+}
+
+static int mt7988_2p5ge_phy_load_fw_direct(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	struct device *dev = &phydev->mdio.dev;
+	const struct firmware *fw;
+	int ret;
+
+	ret = request_firmware_direct(&fw, MT7988_2P5GE_PMB_FW, dev);
+	if (ret)
+		return ret;
+
+	ret = mt7988_load_pmb_fw(phydev, fw);
 	release_firmware(fw);
+	if (!ret)
+		complete(&priv->fw_completion);
 
 	return ret;
 }
 
+static void mt7988_fw_load_callback(const struct firmware *fw, void *context)
+{
+	struct phy_device *phydev = (struct phy_device *)context;
+	struct device *dev = &phydev->mdio.dev;
+	int ret;
+
+	if (!fw) {
+		mt798x_fw_load_retry_handler(phydev, "%s async load", MT7988_2P5GE_PMB_FW);
+		return;
+	}
+
+	ret = mt7988_load_pmb_fw(phydev, fw);
+	release_firmware(fw);
+
+	if (ret) {
+		mt798x_fw_load_retry_handler(phydev, "PMb firmware (ret=%d) load", ret);
+	} else {
+		ret = mt798x_2p5ge_phy_probe_post_fw(phydev);
+		if (ret)
+			dev_err(dev, "Post-firmware probe failed: %d\n", ret);
+	}
+}
+
+static void mt7988_fw_load_work(struct work_struct *work)
+{
+	struct mtk_i2p5ge_phy_priv *priv =
+		container_of(work, struct mtk_i2p5ge_phy_priv, fw_load_work.work);
+	struct phy_device *phydev = priv->phydev;
+	struct device *dev = &phydev->mdio.dev;
+	int ret;
+
+	ret = request_firmware_nowait(THIS_MODULE, true, MT7988_2P5GE_PMB_FW,
+				      dev, GFP_KERNEL, phydev, mt7988_fw_load_callback);
+	if (ret)
+		mt798x_fw_load_retry_handler(phydev, "PMb firmware async (ret=%d) load", ret);
+}
+
+static int mt7988_2p5ge_phy_load_fw(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+	int ret;
+
+	ret = mt7988_2p5ge_phy_load_fw_direct(phydev);
+	if (!ret)
+		return 0;
+
+	INIT_DELAYED_WORK(&priv->fw_load_work, mt7988_fw_load_work);
+	schedule_delayed_work(&priv->fw_load_work, msecs_to_jiffies(FW_LOAD_INITIAL_DELAY_MS));
+
+	return 0;
+}
+
 static int mt798x_2p5ge_phy_config_init(struct phy_device *phydev)
 {
-	/* Check if PHY interface type is compatible */
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+
 	if (phydev->interface != PHY_INTERFACE_MODE_INTERNAL)
 		return -ENODEV;
 
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LPI_PCS_DSP_CTRL,
 		       MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK, 0);
 
-	/* Enable HW auto downshift */
-	phy_modify_paged(phydev, MTK_PHY_PAGE_EXTENDED_1,
-			 MTK_PHY_AUX_CTRL_AND_STATUS,
-			 0, MTK_PHY_ENABLE_DOWNSHIFT);
+	if (priv->auto_downshift) {
+		phy_modify_paged(phydev, MTK_PHY_PAGE_EXTENDED_1,
+				 MTK_PHY_AUX_CTRL_AND_STATUS,
+				 MTK_PHY_ENABLE_DOWNSHIFT, MTK_PHY_ENABLE_DOWNSHIFT);
+	} else {
+		phy_modify_paged(phydev, MTK_PHY_PAGE_EXTENDED_1,
+				 MTK_PHY_AUX_CTRL_AND_STATUS,
+				 MTK_PHY_ENABLE_DOWNSHIFT, 0);
+	}
+
+	if (phydev->drv->phy_id == MTK_2P5GPHY_ID_MT7987) {
+		if (priv->retrain) {
+			phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2,
+					   MT7987_OPTIONS, NORMAL_RETRAIN_DISABLE);
+		} else {
+			phy_set_bits_mmd(phydev, MDIO_MMD_VEND2,
+					 MT7987_OPTIONS, NORMAL_RETRAIN_DISABLE);
+		}
+	}
 
 	return 0;
 }
@@ -468,12 +926,23 @@ static int mt798x_2p5ge_phy_config_aneg(struct phy_device *phydev)
 	if (ret > 0)
 		changed = true;
 
-	if (priv->pd_en) {
-		phy_write_mmd(phydev, MDIO_MMD_VEND1,
-			      MTK_PHY_PMA_PMD_SPPED_ABILITY, 0xf7cf);
-		phy_modify_paged(phydev, MTK_PHY_PAGE_STANDARD,
-				 MII_ADVERTISE, 0,
-				 ADVERTISE_100HALF | ADVERTISE_10HALF);
+	if (priv->half) {
+		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
+				 MTK_PHY_PMA_PMD_SPEED_ABILITY,
+				 CAP_10T_HDX | CAP_100X_HDX);
+		if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, phydev->advertising))
+			phy_set_bits(phydev, MII_ADVERTISE, ADVERTISE_10HALF);
+		else
+			phy_clear_bits(phydev, MII_ADVERTISE, ADVERTISE_10HALF);
+		if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, phydev->advertising))
+			phy_set_bits(phydev, MII_ADVERTISE, ADVERTISE_100HALF);
+		else
+			phy_clear_bits(phydev, MII_ADVERTISE, ADVERTISE_100HALF);
+	} else {
+		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+				   MTK_PHY_PMA_PMD_SPEED_ABILITY,
+				   CAP_10T_HDX | CAP_100X_HDX);
+		phy_clear_bits(phydev, MII_ADVERTISE, ADVERTISE_10HALF | ADVERTISE_100HALF);
 	}
 
 	if (phydev->autoneg == AUTONEG_DISABLE)
@@ -494,13 +963,17 @@ static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
 	 * connected to. Although it can do HDX handshake, it doesn't support
 	 * CSMA/CD that HDX requires.
 	 */
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+			   phydev->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+			 phydev->supported);
 	linkmode_clear_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
 			   phydev->supported);
 
 	return 0;
 }
 
-static int mt798x_2p5ge_handle_interrupt(struct phy_device *phydev)
+static int mt798x_2p5ge_phy_handle_interrupt(struct phy_device *phydev)
 {
 	int ret;
 
@@ -513,17 +986,27 @@ static int mt798x_2p5ge_handle_interrupt(struct phy_device *phydev)
 	return 0;
 }
 
-static int mt798x_2p5ge_config_intr(struct phy_device *phydev)
+static int mt798x_2p5ge_phy_ack_interrupt(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Clear pending interrupts */
+	ret = phy_read(phydev, 0x1a);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int mt798x_2p5ge_phy_config_intr(struct phy_device *phydev)
 {
 	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
 	int ret = 0;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
-		/* Enable PHY interrupts */
 		reg_clear_bits(priv, MTK_2P5GPHY_CHIP_SCU + IRQ_MASK, PHY_IRQ_MASK);
 		phy_write(phydev, MTK_PHY_IRQ_MASK, MDINT_MASK | LINK_STATUS_MASK);
-		/* Clear any pending interrupts */
-		ret = phy_read(phydev, 0x1a);
+		ret = mt798x_2p5ge_phy_ack_interrupt(phydev);
 	} else {
 		/* Disable PHY interrupts */
 		reg_set_bits(priv, MTK_2P5GPHY_CHIP_SCU + IRQ_MASK, PHY_IRQ_MASK);
@@ -531,18 +1014,6 @@ static int mt798x_2p5ge_config_intr(struct phy_device *phydev)
 	}
 
 	return (ret < 0) ? ret : 0;
-}
-
-static int mt798x_2p5ge_ack_interrupt(struct phy_device *phydev)
-{
-	int ret;
-
-	/* Read the interrupt status register to clear pending interrupts */
-	ret = phy_read(phydev, 0x1a);
-	if (ret < 0)
-		return ret;
-
-	return 0;
 }
 
 static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
@@ -596,7 +1067,7 @@ static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
 			phydev->speed = SPEED_100;
 			break;
 		case PHY_AUX_SPD_1000:
-			if (!priv->gbe_min_ipg_11B) {
+			if (priv->gbe_min_ipg_11B) {
 				reg_modify(priv, MTK_2P5GPHY_FCM_BASE + FIFO_CTRL,
 					   TX_SFIFO_IDLE_CNT_MASK |
 					   TX_SFIFO_DEL_IPG_WM_MASK,
@@ -629,165 +1100,10 @@ static int mt798x_2p5ge_phy_get_rate_matching(struct phy_device *phydev,
 	return RATE_MATCH_PAUSE;
 }
 
-/* Attribute IDs for sysfs entries */
-enum mtk_2p5ge_attr_id {
-	ATTR_PD_EN,
-	ATTR_GBE_MIN_IPG_11B,
-	ATTR_FW_VERSION,
-	ATTR_FCM_CNT,
-	ATTR_FCM_CNT_RESET,
-	ATTR_FCM_SW_RESET,
-};
-
-/* Structure for custom device attributes */
-struct mtk_2p5ge_attr {
-	struct device_attribute dev_attr;
-	enum mtk_2p5ge_attr_id id;
-};
-
-/* Helper macros for creating custom device attributes */
-#define MTK_2P5GE_ATTR_RW(_name, _id) \
-	static struct mtk_2p5ge_attr dev_attr_##_name = { \
-		.dev_attr = { \
-			.attr = { .name = __stringify(_name), .mode = 0644 }, \
-			.show = mtk_2p5ge_attr_show, \
-			.store = mtk_2p5ge_attr_store, \
-		}, \
-		.id = _id, \
-	}
-
-#define MTK_2P5GE_ATTR_RO(_name, _id) \
-	static struct mtk_2p5ge_attr dev_attr_##_name = { \
-		.dev_attr = { \
-			.attr = { .name = __stringify(_name), .mode = 0444 }, \
-			.show = mtk_2p5ge_attr_show, \
-		}, \
-		.id = _id, \
-	}
-
-#define MTK_2P5GE_ATTR_WO(_name, _id) \
-	static struct mtk_2p5ge_attr dev_attr_##_name = { \
-		.dev_attr = { \
-			.attr = { .name = __stringify(_name), .mode = 0200 }, \
-			.store = mtk_2p5ge_attr_store, \
-		}, \
-		.id = _id, \
-	}
-
-/* Generic show function for sysfs attributes */
-static ssize_t mtk_2p5ge_attr_show(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
-{
-	struct phy_device *phydev = container_of(dev, struct phy_device,
-						 mdio.dev);
-	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
-	struct mtk_2p5ge_attr *mtk_attr = container_of(attr, struct mtk_2p5ge_attr,
-						       dev_attr);
-	enum mtk_2p5ge_attr_id id = mtk_attr->id;
-	u32 ss_rx_start, ss_rx_pause, ss_tx_start, ss_tx_pause;
-	u32 ls_rx_start, ls_rx_pause, ls_tx_start, ls_tx_pause;
-	int len = 0;
-
-	switch (id) {
-	case ATTR_PD_EN:
-		return sprintf(buf, "%d\n", priv->pd_en);
-
-	case ATTR_GBE_MIN_IPG_11B:
-		return sprintf(buf, "%d\n", priv->gbe_min_ipg_11B);
-
-	case ATTR_FW_VERSION:
-		return sprintf(buf, "%s\n", priv->fw_version);
-
-	case ATTR_FCM_CNT:
-		ss_rx_start = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + SS_RX_START_CNT);
-		ss_rx_pause = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + SS_RX_PAUSE_CNT);
-		ss_tx_start = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + SS_TX_START_CNT);
-		ss_tx_pause = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + SS_TX_PAUSE_CNT);
-		ls_rx_start = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + LS_RX_START_CNT);
-		ls_rx_pause = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + LS_RX_PAUSE_CNT);
-		ls_tx_start = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + LS_TX_START_CNT);
-		ls_tx_pause = reg_readl(priv, MTK_2P5GPHY_FCM_BASE + LS_TX_PAUSE_CNT);
-
-		len += sprintf(buf + len, "+------------------------------------------------------+\n");
-		len += sprintf(buf + len, "|                      <<FCM CNT>>                     |\n");
-		len += sprintf(buf + len, "+------------------------------------------------------+\n");
-		len += sprintf(buf + len, "|                         <RX>                         |\n");
-		len += sprintf(buf + len, "| Start Count from PHY (LS_RX_START_CNT):   %010u |\n", ls_rx_start);
-		len += sprintf(buf + len, "| Pause Count from PHY (LS_RX_PAUSE_CNT):   %010u |\n", ls_rx_pause);
-		len += sprintf(buf + len, "| Start Count to XGMAC (SS_TX_START_CNT):   %010u |\n", ss_tx_start);
-		len += sprintf(buf + len, "| Pause Count to XGMAC (SS_TX_PAUSE_CNT):   %010u |\n", ss_tx_pause);
-		len += sprintf(buf + len, "+------------------------------------------------------+\n");
-		len += sprintf(buf + len, "|                         <TX>                         |\n");
-		len += sprintf(buf + len, "| Start Count from XGMAC (SS_RX_START_CNT): %010u |\n", ss_rx_start);
-		len += sprintf(buf + len, "| Pause Count from XGMAC (SS_RX_PAUSE_CNT): %010u |\n", ss_rx_pause);
-		len += sprintf(buf + len, "| Start Count to PHY (LS_TX_START_CNT):     %010u |\n", ls_tx_start);
-		len += sprintf(buf + len, "| Pause Count to PHY (LS_TX_PAUSE_CNT):     %010u |\n", ls_tx_pause);
-		len += sprintf(buf + len, "+------------------------------------------------------+\n");
-		return len;
-
-	default:
-		return -EINVAL;
-	}
-}
-
-static ssize_t mtk_2p5ge_attr_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count)
-{
-	struct phy_device *phydev = container_of(dev, struct phy_device,
-						 mdio.dev);
-	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
-	struct mtk_2p5ge_attr *mtk_attr = container_of(attr, struct mtk_2p5ge_attr,
-						       dev_attr);
-	enum mtk_2p5ge_attr_id id = mtk_attr->id;
-	int val;
-
-	if (kstrtoint(buf, 0, &val) != 0)
-		return -EINVAL;
-
-	switch (id) {
-	case ATTR_PD_EN:
-		priv->pd_en = !!val;
-		break;
-
-	case ATTR_GBE_MIN_IPG_11B:
-		priv->gbe_min_ipg_11B = !!val;
-		break;
-
-	case ATTR_FCM_CNT_RESET:
-		if (val == 1)
-			reg_writel(priv, MTK_2P5GPHY_FCM_BASE + CLEAR_CTRL, 0xF);
-		break;
-
-	case ATTR_FCM_SW_RESET:
-		if (val == 1) {
-			reg_set_bits(priv,
-				     MTK_2P5GPHY_CHIP_SCU + RG_FCM_SW_RESET,
-				     FCM_SW_RST);
-			reg_clear_bits(priv,
-				       MTK_2P5GPHY_CHIP_SCU + RG_FCM_SW_RESET,
-				       FCM_SW_RST);
-		}
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return count;
-}
-
-MTK_2P5GE_ATTR_RW(pd_en, ATTR_PD_EN);
-MTK_2P5GE_ATTR_RW(gbe_min_ipg_11B, ATTR_GBE_MIN_IPG_11B);
-MTK_2P5GE_ATTR_RO(fw_version, ATTR_FW_VERSION);
-MTK_2P5GE_ATTR_RO(fcm_cnt, ATTR_FCM_CNT);
-MTK_2P5GE_ATTR_WO(fcm_cnt_reset, ATTR_FCM_CNT_RESET);
-MTK_2P5GE_ATTR_WO(fcm_sw_reset, ATTR_FCM_SW_RESET);
-
 static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
 {
 	struct mtk_i2p5ge_phy_priv *priv;
-	struct pinctrl *pinctrl;
+	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(&phydev->mdio.dev,
@@ -795,41 +1111,35 @@ static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->res = request_mem_region(PBUS_BASE, PBUS_REG_LEN, "mt7987-phy");
-	if (!priv->res) {
-		dev_err(&phydev->mdio.dev, "Memory region already in use\n");
-		return -EBUSY;
-	}
-
-	priv->reg_base = ioremap(PBUS_BASE, PBUS_REG_LEN);
-	if (!priv->reg_base) {
-		dev_err(&phydev->mdio.dev, "Failed to map registers\n");
-		release_mem_region(PBUS_BASE, PBUS_REG_LEN);
+	res = devm_kzalloc(&phydev->mdio.dev, sizeof(*res), GFP_KERNEL);
+	if (!res)
 		return -ENOMEM;
-	}
 
-	/* Set phydev->priv before calling firmware loading functions */
-	phydev->priv = priv;
-
+	res->start = PBUS_BASE;
+	res->end = PBUS_BASE + PBUS_REG_LEN - 1;
+	res->flags = IORESOURCE_MEM;
 	switch (phydev->drv->phy_id) {
 	case MTK_2P5GPHY_ID_MT7987:
-		ret = mt7987_2p5ge_phy_load_fw(phydev);
-		phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
-				   MTK_PHY_LED_ON_POLARITY);
+		res->name = "mt7987-2p5ge-phy";
 		break;
 	case MTK_2P5GPHY_ID_MT7988:
-		ret = mt7988_2p5ge_phy_load_fw(phydev);
-		phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
-				 MTK_PHY_LED_ON_POLARITY);
-		phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
-				 MTK_PHY_LED_ON_POLARITY);
+		res->name = "mt7988-2p5ge-phy";
 		break;
-
 	default:
 		return -EINVAL;
 	}
-	if (ret < 0)
-		return ret;
+
+	priv->reg_base = devm_ioremap_resource(&phydev->mdio.dev, res);
+	if (IS_ERR(priv->reg_base)) {
+		dev_err(&phydev->mdio.dev, "Failed to map registers\n");
+		return PTR_ERR(priv->reg_base);
+	}
+
+	phydev->priv = priv;
+	priv->phydev = phydev;
+	atomic_set(&priv->fw_load_retries, 0);
+	mutex_init(&priv->fw_mutex);
+	init_completion(&priv->fw_completion);
 
 	/* This built-in 2.5GbE hardware only sets MDIO_DEVS_PMAPMD.
 	 * Set the rest by this driver since PCS/AN/VEND1/VEND2 MDIO
@@ -840,41 +1150,71 @@ static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
 					      MDIO_DEVS_VEND1 |
 					      MDIO_DEVS_VEND2;
 
-	/* Setup LED */
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED0_ON_CTRL,
-			 MTK_PHY_LED_ON_LINK10 | MTK_PHY_LED_ON_LINK100 |
-			 MTK_PHY_LED_ON_LINK1000 | MTK_PHY_LED_ON_LINK2500);
-	phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MTK_PHY_LED1_ON_CTRL,
-			 MTK_PHY_LED_ON_FDX | MTK_PHY_LED_ON_HDX);
+	/* Try direct load first (fw in kernel/initramfs). If failed, try
+	 * delayed async load (fw in rootfs) instead.
+	 */
+	switch (phydev->drv->phy_id) {
+	case MTK_2P5GPHY_ID_MT7987:
+		ret = mt7987_2p5ge_phy_load_fw(phydev);
+		break;
+	case MTK_2P5GPHY_ID_MT7988:
+		ret = mt7988_2p5ge_phy_load_fw(phydev);
+		break;
+	default:
+		return -EINVAL;
+	}
 
-	/* Switch pinctrl after setting polarity to avoid bogus blinking */
-	pinctrl = devm_pinctrl_get_select(&phydev->mdio.dev, "i2p5gbe-led");
-	if (IS_ERR(pinctrl))
-		dev_err(&phydev->mdio.dev, "Fail to set LED pins!\n");
+	if (ret < 0)
+		return ret;
 
-	/* Check if pd-disable property exists in device tree */
-	if (of_property_read_bool(phydev->mdio.dev.of_node, "pd-disable"))
-		priv->pd_en = 0;
-	else
-		priv->pd_en = 1;
-
-	/* Check if gbe-min-ipg-11B property exists in device tree */
-	if (of_property_read_bool(phydev->mdio.dev.of_node, "gbe-min-ipg-11B"))
-		priv->gbe_min_ipg_11B = 1;
-	else
-		priv->gbe_min_ipg_11B = 0;
-
-	device_create_file(&phydev->mdio.dev, &dev_attr_pd_en.dev_attr);
-	device_create_file(&phydev->mdio.dev,
-			   &dev_attr_gbe_min_ipg_11B.dev_attr);
-	device_create_file(&phydev->mdio.dev, &dev_attr_fw_version.dev_attr);
-	device_create_file(&phydev->mdio.dev, &dev_attr_fcm_cnt.dev_attr);
-	device_create_file(&phydev->mdio.dev,
-			   &dev_attr_fcm_cnt_reset.dev_attr);
-	device_create_file(&phydev->mdio.dev,
-			   &dev_attr_fcm_sw_reset.dev_attr);
+	if (completion_done(&priv->fw_completion)) {
+		ret = mt798x_2p5ge_phy_probe_post_fw(phydev);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
+}
+
+static int mt798x_2p5ge_phy_suspend(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+
+	if (!priv)
+		return genphy_suspend(phydev);
+
+	if (delayed_work_pending(&priv->fw_load_work))
+		cancel_delayed_work_sync(&priv->fw_load_work);
+
+	return genphy_suspend(phydev);
+}
+
+static void mt798x_2p5ge_phy_remove(struct phy_device *phydev)
+{
+	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
+
+	if (!priv)
+		return;
+
+	if (delayed_work_pending(&priv->fw_load_work))
+		cancel_delayed_work_sync(&priv->fw_load_work);
+
+	mutex_lock(&priv->fw_mutex);
+	mutex_unlock(&priv->fw_mutex);
+
+	device_remove_file(&phydev->mdio.dev, &dev_attr_half.dev_attr);
+	device_remove_file(&phydev->mdio.dev, &dev_attr_gbe_min_ipg_11B.dev_attr);
+	device_remove_file(&phydev->mdio.dev, &dev_attr_auto_downshift.dev_attr);
+	device_remove_file(&phydev->mdio.dev, &dev_attr_fw_version.dev_attr);
+	device_remove_file(&phydev->mdio.dev, &dev_attr_fcm_cnt.dev_attr);
+	device_remove_file(&phydev->mdio.dev, &dev_attr_fcm_cnt_reset.dev_attr);
+	device_remove_file(&phydev->mdio.dev, &dev_attr_fcm_sw_reset.dev_attr);
+	if (phydev->drv->phy_id == MTK_2P5GPHY_ID_MT7987)
+		device_remove_file(&phydev->mdio.dev, &dev_attr_retrain.dev_attr);
+
+	mutex_destroy(&priv->fw_mutex);
+
+	phydev->priv = NULL;
 }
 
 static struct phy_driver mtk_2p5gephy_driver[] = {
@@ -882,15 +1222,16 @@ static struct phy_driver mtk_2p5gephy_driver[] = {
 		PHY_ID_MATCH_MODEL(MTK_2P5GPHY_ID_MT7987),
 		.name = "MediaTek MT7987 2.5GbE PHY",
 		.probe = mt798x_2p5ge_phy_probe,
+		.remove = mt798x_2p5ge_phy_remove,
 		.config_init = mt798x_2p5ge_phy_config_init,
 		.config_aneg = mt798x_2p5ge_phy_config_aneg,
 		.get_features = mt798x_2p5ge_phy_get_features,
-		.config_intr = mt798x_2p5ge_config_intr,
-		.ack_interrupt = mt798x_2p5ge_ack_interrupt,
-		.handle_interrupt = &mt798x_2p5ge_handle_interrupt,
+		.config_intr = mt798x_2p5ge_phy_config_intr,
+		.ack_interrupt = mt798x_2p5ge_phy_ack_interrupt,
+		.handle_interrupt = &mt798x_2p5ge_phy_handle_interrupt,
 		.read_status = mt798x_2p5ge_phy_read_status,
 		.get_rate_matching = mt798x_2p5ge_phy_get_rate_matching,
-		.suspend = genphy_suspend,
+		.suspend = mt798x_2p5ge_phy_suspend,
 		.resume = genphy_resume,
 		.read_page = mtk_phy_read_page,
 		.write_page = mtk_phy_write_page,
@@ -899,15 +1240,16 @@ static struct phy_driver mtk_2p5gephy_driver[] = {
 		PHY_ID_MATCH_MODEL(MTK_2P5GPHY_ID_MT7988),
 		.name = "MediaTek MT7988 2.5GbE PHY",
 		.probe = mt798x_2p5ge_phy_probe,
+		.remove = mt798x_2p5ge_phy_remove,
 		.config_init = mt798x_2p5ge_phy_config_init,
 		.config_aneg = mt798x_2p5ge_phy_config_aneg,
 		.get_features = mt798x_2p5ge_phy_get_features,
-		.config_intr = mt798x_2p5ge_config_intr,
-		.ack_interrupt = mt798x_2p5ge_ack_interrupt,
-		.handle_interrupt = &mt798x_2p5ge_handle_interrupt,
+		.config_intr = mt798x_2p5ge_phy_config_intr,
+		.ack_interrupt = mt798x_2p5ge_phy_ack_interrupt,
+		.handle_interrupt = &mt798x_2p5ge_phy_handle_interrupt,
 		.read_status = mt798x_2p5ge_phy_read_status,
 		.get_rate_matching = mt798x_2p5ge_phy_get_rate_matching,
-		.suspend = genphy_suspend,
+		.suspend = mt798x_2p5ge_phy_suspend,
 		.resume = genphy_resume,
 		.read_page = mtk_phy_read_page,
 		.write_page = mtk_phy_write_page,
@@ -926,4 +1268,6 @@ MODULE_AUTHOR("SkyLake Huang <SkyLake.Huang@mediatek.com>");
 MODULE_LICENSE("GPL");
 
 MODULE_DEVICE_TABLE(mdio, mtk_2p5ge_phy_tbl);
+MODULE_FIRMWARE(MT7987_2P5GE_PMB_FW);
+MODULE_FIRMWARE(MT7987_2P5GE_DSPBITTB);
 MODULE_FIRMWARE(MT7988_2P5GE_PMB_FW);
