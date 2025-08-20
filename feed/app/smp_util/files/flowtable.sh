@@ -38,7 +38,7 @@ nftables_flowoffload_enable()
 	fi
 
 	# check all of the ETH/WiFi virtual interfaces
-	eth_ifs=$(ls /sys/class/net | grep -E '^(eth|lan|wan|ppp)')
+	eth_ifs=$(ls /sys/class/net | grep -E '^(eth|lan|wan|mxl|ppp)')
 	wifi_ifs=$(iw dev | grep 'Interface' | awk '{print $2}')
 
 	interfaces=$(echo -e "$eth_ifs\n$wifi_ifs")
