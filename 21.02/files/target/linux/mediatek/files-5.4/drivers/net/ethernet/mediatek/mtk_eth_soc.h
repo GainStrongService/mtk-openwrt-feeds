@@ -928,6 +928,8 @@
 #define MAC_TS_MAC_CFG		(MTK_MAC_TS_CTRL + 0xA8)
 #define CSR_HW_TS_EN(x)		BIT(x)
 
+#define MAC_TS_SECOND_VALUE	(MTK_MAC_TS_CTRL + 0xB0)
+
 #define MAC_TS_RSV		(MTK_MAC_TS_CTRL + 0xB4)
 #define TS_T1_MASK		GENMASK(2, 0)
 #define TS_T3_MASK		GENMASK(6, 4)
@@ -2336,6 +2338,7 @@ struct mtk_eth {
 
 	struct ptp_clock_info		ptp_info;
 	struct ptp_clock		*ptp_clock;
+	int				ptp_mode;
 	int				tx_ts_enabled;
 	int				rx_ts_enabled;
 

@@ -322,32 +322,55 @@ int mtk_ptp_hwtstamp_get_config(struct net_device *dev, struct ifreq *ifr)
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
 
-static int mtk_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
+static void mtk_ptp_adjust_subsecond_width(struct mtk_eth *eth, long scaled_ppm)
 {
-	struct mtk_eth *eth = container_of(ptp, struct mtk_eth, ptp_info);
 	u64 base, adj;
 	u16 data16;
 	bool negative;
 
+	base = 0x4 << 16;
+	negative = diff_by_scaled_ppm(base, scaled_ppm, &adj);
+	data16 = (u16)adj;
+
+	mtk_w32(eth,
+		negative ? (base - data16) : (base + data16),
+		MAC_TS_TICK_SUBSECOND);
+
+	// update tick configuration
+	mtk_m32(eth, CSR_TICK_UPDATE, CSR_TICK_UPDATE, MAC_TS_TICK_CTRL);
+	mtk_m32(eth, CSR_TICK_UPDATE, 0, MAC_TS_TICK_CTRL);
+}
+
+static void mtk_ptp_adjust_second_width(struct mtk_eth *eth, long scaled_ppm)
+{
+	u64 base, adj;
+	bool negative;
+
+	base = 1000000000ULL;
+	negative = diff_by_scaled_ppm(base, scaled_ppm, &adj);
+
+	if (negative)
+		mtk_w32(eth, base + adj, MAC_TS_SECOND_VALUE);
+	else
+		mtk_w32(eth, base - adj, MAC_TS_SECOND_VALUE);
+}
+
+static int mtk_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
+{
+	struct mtk_eth *eth = container_of(ptp, struct mtk_eth, ptp_info);
+
 	if (scaled_ppm) {
-		base = 0x4 << 16;
-		negative = diff_by_scaled_ppm(base, scaled_ppm, &adj);
-		data16 = (u16)adj;
-
-		if (negative)
-			mtk_w32(eth,
-				FIELD_PREP(CSR_TICK_NANOSECOND, 0x3) |
-				FIELD_PREP(CSR_TICK_SUB_NANOSECOND, 0xFFFF - data16),
-				MAC_TS_TICK_SUBSECOND);
-		else
-			mtk_w32(eth,
-				FIELD_PREP(CSR_TICK_NANOSECOND, 0x4) |
-				FIELD_PREP(CSR_TICK_SUB_NANOSECOND, data16),
-				MAC_TS_TICK_SUBSECOND);
-
-		// update tick configuration
-		mtk_m32(eth, CSR_TICK_UPDATE, CSR_TICK_UPDATE, MAC_TS_TICK_CTRL);
-		mtk_m32(eth, CSR_TICK_UPDATE, 0, MAC_TS_TICK_CTRL);
+		switch (eth->ptp_mode) {
+		case 0:
+			mtk_ptp_adjust_subsecond_width(eth, scaled_ppm);
+			break;
+		case 1:
+			mtk_ptp_adjust_second_width(eth, scaled_ppm);
+			break;
+		default:
+			pr_warn("Adjust mode (%d) is not supported!", eth->ptp_mode);
+			break;
+		}
 	}
 
 	return 0;
@@ -451,6 +474,7 @@ int mtk_ptp_clock_init(struct mtk_eth *eth)
 	struct mtk_mac *mac;
 	int i;
 
+	eth->ptp_mode = 1;	// 0 for adjusting subsecond width, 1 for adjusting second width.
 	eth->ptp_info = mtk_ptp_caps;
 	eth->ptp_clock = ptp_clock_register(&eth->ptp_info,
 					    eth->dev);
