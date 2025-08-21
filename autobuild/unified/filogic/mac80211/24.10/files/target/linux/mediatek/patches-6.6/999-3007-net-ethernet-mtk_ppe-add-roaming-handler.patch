@@ -30,8 +30,8 @@ index 35ef427..92b0c6c 100644
  			if (!eth->netdev[i])
  				continue;
 @@ -4299,6 +4304,8 @@ static int mtk_stop(struct net_device *dev)
- 
- 	mtk_dma_free(eth);
+ 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_HWTSTAMP))
+ 		mtk_ptp_clock_deinit(eth);
  
 +	mtk_ppe_roaming_stop(eth);
 +
