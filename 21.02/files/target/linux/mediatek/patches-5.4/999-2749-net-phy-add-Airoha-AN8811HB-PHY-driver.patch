@@ -1,0 +1,47 @@
+From 7f75afc0898bdf35797728300b7a72fa3708b481 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Fri, 22 Aug 2025 11:40:22 +0800
+Subject: [PATCH] net: phy: add Airoha AN8811HB PHY driver
+
+---
+ drivers/net/phy/Kconfig  | 11 +++++++++++
+ drivers/net/phy/Makefile |  1 +
+ 2 files changed, 12 insertions(+)
+
+diff --git a/drivers/net/phy/Kconfig b/drivers/net/phy/Kconfig
+index 291d5de..b20b890 100644
+--- a/drivers/net/phy/Kconfig
++++ b/drivers/net/phy/Kconfig
+@@ -359,6 +359,17 @@ config AIROHA_AN8801_PHY
+ 	---help---
+ 	  Currently supports the Airoha AN8801 PHY.
+ 
++config AIR_AN8811HB_PHY
++	tristate "Drivers for Airoha AN8811HB 2.5G Gigabit PHY"
++	---help---
++	  Currently supports the Airoha AN8811HB PHY.
++
++config AIR_AN8811HB_PHY_DEBUGFS
++	bool "AN8811HB debugfs support"
++	depends on AIR_AN8811HB_PHY
++	---help---
++	  Enable creation of debugfs files for the AN8811HB drivers.
++
+ config AIROHA_EN8801SC_PHY
+ 	tristate "Drivers for Airoha EN8801S Gigabit PHYs for MediaTek SoC."
+ 	---help---
+diff --git a/drivers/net/phy/Makefile b/drivers/net/phy/Makefile
+index 8078b11..c2d17a3 100644
+--- a/drivers/net/phy/Makefile
++++ b/drivers/net/phy/Makefile
+@@ -75,6 +75,7 @@ ifdef CONFIG_AQUANTIA_PHY_MIB
+ aquantia-objs			+= aquantia_mib.o
+ endif
+ obj-$(CONFIG_AIROHA_AN8801_PHY)	+= an8801.o
++obj-$(CONFIG_AIR_AN8811HB_PHY)	+= air_an8811hb.o
+ obj-$(CONFIG_AIROHA_EN8801SC_PHY)	+= en8801sc.o
+ air_en8811h-y := air_en8811h_main.o air_en8811h_api.o
+ obj-$(CONFIG_AIROHA_EN8811H_PHY)	+= air_en8811h.o
+-- 
+2.45.2
+
