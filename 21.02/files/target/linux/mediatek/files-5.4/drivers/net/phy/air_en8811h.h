@@ -48,7 +48,7 @@
 #define MII_MMD_ADDR_DATA_REG       0x0e
 #define MMD_OP_MODE_DATA            BIT(14)
 
-#define EN8811H_DRIVER_VERSION      "v1.3.0"
+#define EN8811H_DRIVER_VERSION      "v1.3.2"
 
 #define LED_ON_CTRL(i)              (0x024 + ((i)*2))
 #define LED_ON_EN                   (1 << 15)
@@ -88,7 +88,7 @@
 #define LED_BLK_DUR                 (0x023)
 #define LED_BLK_DUR_MASK            (0xffff)
 
-#define UNIT_LED_BLINK_DURATION     780
+#define UNIT_LED_BLINK_DURATION     781
 
 #define GET_BIT(val, bit) ((val & BIT(bit)) >> bit)
 
@@ -113,10 +113,24 @@
 #define EN8811H_FW_CTRL_2_LOADING		BIT(11)
 #define EN8811H_LOOP      0x800
 
+#define EN8811H_HWTRAP1     0xcf914
+#define EN8811H_HWTRAP1_CKO     BIT(12)
+
+#define EN8811H_CLK_CGM     0xcf958
+#define EN8811H_CLK_CGM_CKO     BIT(26)
+
 #define NUM_ASI_REGS       5
 struct air_cable_test_rsl {
 	int          status[4];
 	unsigned int length[4];
+};
+
+struct air_base_t_led_cfg {
+	u16 en;
+	u16 gpio;
+	u16 pol;
+	u16 on_cfg;
+	u16 blk_cfg;
 };
 
 struct en8811h_priv {
@@ -146,14 +160,9 @@ struct en8811h_priv {
 	int                 init_stage;
 	int                 need_an;
 	int                 count;
-};
-
-struct air_base_t_led_cfg {
-	u16 en;
-	u16 gpio;
-	u16 pol;
-	u16 on_cfg;
-	u16 blk_cfg;
+	struct air_base_t_led_cfg led[3];
+	int                 duration;
+	int                 led_dts;
 };
 
 enum air_init_stage {
@@ -192,8 +201,8 @@ enum air_led_blk_dur {
 };
 
 enum air_led_polarity {
-	AIR_ACTIVE_LOW,
 	AIR_ACTIVE_HIGH,
+	AIR_ACTIVE_LOW,
 };
 enum air_led_mode {
 	AIR_LED_MODE_DISABLE,
