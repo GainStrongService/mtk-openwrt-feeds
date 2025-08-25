@@ -17,14 +17,15 @@
 		__overlay__ {
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clock-frequency = <12500000>;
+			reset-gpios = <&pio 71 GPIO_ACTIVE_LOW>;
+			reset-delay-us = <200000>;
+			reset-post-delay-us = <350000>;
 
 			/* external Airoha AN8831X */
 			phy24: ethernet-phy@24 {
 				reg = <24>;
 				compatible = "ethernet-phy-ieee802.3-c45";
-				reset-gpios = <&pio 71 GPIO_ACTIVE_LOW>;
-				reset-assert-us = <200000>;
-				reset-deassert-us = <350000>;
 				firmware-name = "as21x1x_fw.bin";
 
 				leds {
