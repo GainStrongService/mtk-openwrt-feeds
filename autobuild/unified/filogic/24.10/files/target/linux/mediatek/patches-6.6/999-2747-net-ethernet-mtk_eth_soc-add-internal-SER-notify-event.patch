@@ -1,0 +1,252 @@
+From a109168a02678e1b5479584b8ba8c2ef25fbfee6 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Fri, 12 Sep 2025 13:53:56 +0800
+Subject: [PATCH] net: ethernet: mtk_eth_soc: add internal SER notify event
+ support
+
+Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+---
+ drivers/net/ethernet/mediatek/Makefile      |  2 +-
+ drivers/net/ethernet/mediatek/mtk_eth_dbg.c | 14 +++-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 75 ++++++++++++++++++++-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h |  2 +
+ 4 files changed, 89 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
+index 013945a..39338a6 100644
+--- a/drivers/net/ethernet/mediatek/Makefile
++++ b/drivers/net/ethernet/mediatek/Makefile
+@@ -4,7 +4,7 @@
+ #
+ 
+ obj-$(CONFIG_NET_MEDIATEK_SOC) += mtk_eth.o
+-mtk_eth-y := mtk_eth_soc.o mtk_eth_path.o mtk_eth_dbg.o mtk_ppe.o mtk_ppe_debugfs.o mtk_ppe_offload.o
++mtk_eth-y := mtk_eth_soc.o mtk_eth_path.o mtk_eth_reset.o mtk_eth_dbg.o mtk_ppe.o mtk_ppe_debugfs.o mtk_ppe_offload.o
+ mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed.o mtk_wed_mcu.o mtk_wed_wo.o
+ ifdef CONFIG_DEBUG_FS
+ mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_dbg.c b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
+index ec2933a..c83d27b 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
+@@ -23,6 +23,7 @@
+ 
+ #include "mtk_eth_soc.h"
+ #include "mtk_eth_dbg.h"
++#include "mtk_eth_reset.h"
+ #include "mtk_wed_regs.h"
+ 
+ static int mtk_qdma_pppq_show(struct seq_file *m, void *v)
+@@ -612,20 +613,29 @@ static ssize_t mtk_eth_debugfs_reset_write(struct file *file, const char __user
+ 		atomic_set(&eth->reset.force, 0);
+ 		break;
+ 	case 1:
+-		if (atomic_read(&eth->reset.force) && !test_bit(MTK_RESETTING, &eth->state))
++		if (atomic_read(&eth->reset.force) && !test_bit(MTK_RESETTING, &eth->state)) {
++			eth->reset.event = MTK_FE_START_RESET;
+ 			schedule_work(&eth->pending_work);
+-		else
++		} else
+ 			pr_info(" stat:disable\n");
+ 		break;
+ 	case 2:
+ 		atomic_set(&eth->reset.force, 1);
+ 		break;
++	case 3:
++		if (atomic_read(&eth->reset.force) && !test_bit(MTK_RESETTING, &eth->state)) {
++			eth->reset.event = MTK_FE_STOP_TRAFFIC;
++			schedule_work(&eth->pending_work);
++		} else
++			pr_info(" stat:disable\n");
++		break;
+ 	default:
+ 		pr_info("Usage: echo [level] > /sys/kernel/debug/mtketh/reset\n");
+ 		pr_info("Commands:   [level]\n");
+ 		pr_info("		0	disable FE force reset\n");
+ 		pr_info("		1	trigger FE and WDMA force reset\n");
+ 		pr_info("		2	enable FE force reset\n");
++		pr_info("		3	trigger FE force reset\n");
+ 		break;
+ 	}
+ 
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index 4c8afa6..4c09b93 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -34,6 +34,7 @@
+ 
+ #include "mtk_eth_soc.h"
+ #include "mtk_eth_dbg.h"
++#include "mtk_eth_reset.h"
+ #include "mtk_wed.h"
+ 
+ #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+@@ -4730,7 +4731,8 @@ static void mtk_hw_warm_reset(struct mtk_eth *eth)
+ 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE2))
+ 			rst_mask |= RSTCTRL_PPE2;
+ 
+-		rst_mask |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
++		if (eth->reset.event == MTK_FE_START_RESET)
++			rst_mask |= RSTCTRL_WDMA0 | RSTCTRL_WDMA1 | RSTCTRL_WDMA2;
+ 	} else if (mtk_is_netsys_v2_or_greater(eth)) {
+ 		rst_mask = RSTCTRL_ETH | RSTCTRL_PPE0_V2;
+ 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_RSTCTRL_PPE1))
+@@ -4834,6 +4836,7 @@ static bool mtk_hw_check_dma_hang(struct mtk_eth *eth)
+ 		    wtx_busy && cdm_busy && oq_free) {
+ 			if (++eth->reset.wdma_hang_count[i] > 2) {
+ 				dev_warn(eth->dev, "detect WDMA%d Tx hang!\n", i);
++				eth->reset.event = MTK_FE_START_RESET;
+ 				eth->reset.wdma_hang_count[i] = 0;
+ 				ret = true;
+ 			}
+@@ -4858,6 +4861,7 @@ static bool mtk_hw_check_dma_hang(struct mtk_eth *eth)
+ 	if (!qpse_fc && qfsm_hang && qfwd_hang) {
+ 		if (++eth->reset.qdma_hang_count > 2) {
+ 			dev_warn(eth->dev, "detect QDMA Tx hang !\n");
++			eth->reset.event = MTK_FE_STOP_TRAFFIC;
+ 			eth->reset.qdma_hang_count = 0;
+ 			ret = true;
+ 		}
+@@ -4888,6 +4892,7 @@ static bool mtk_hw_check_dma_hang(struct mtk_eth *eth)
+ 		if (oq_hang && gmac_tx && (txgp_cnt == eth->reset.gdm_txgp_cnt[i])) {
+ 			if (++eth->reset.mac_tx_hang_count[i] > 2) {
+ 				dev_warn(eth->dev, "detect GMAC%d Tx hang!\n", i + 1);
++				eth->reset.event = MTK_FE_STOP_TRAFFIC;
+ 				eth->reset.mac_tx_hang_count[i] = 0;
+ 				ret = true;
+ 			}
+@@ -4902,6 +4907,7 @@ static bool mtk_hw_check_dma_hang(struct mtk_eth *eth)
+ 		if (gmac_rx && (rxgp_cnt == eth->reset.gdm_rxgp_cnt[i])) {
+ 			if (++eth->reset.mac_rx_hang_count[i] > 2) {
+ 				dev_warn(eth->dev, "detect GMAC%d Rx hang!\n", i + 1);
++				eth->reset.event = MTK_FE_STOP_TRAFFIC;
+ 				eth->reset.mac_rx_hang_count[i] = 0;
+ 				ret = true;
+ 			}
+@@ -4919,6 +4925,7 @@ static bool mtk_hw_check_dma_hang(struct mtk_eth *eth)
+ 		    ((gdm_txfsm == eth->reset.gdm_txfsm[i]) && (gdm_txfsm == 0x1033))) {
+ 			if (++eth->reset.gdm_tx_hang_count[i] > 2) {
+ 				dev_warn(eth->dev, "detect GDM%d Tx hang!\n", i + 1);
++				eth->reset.event = MTK_FE_STOP_TRAFFIC;
+ 				eth->reset.gdm_tx_hang_count[i] = 0;
+ 				ret = true;
+ 			}
+@@ -4942,6 +4949,7 @@ static bool mtk_hw_check_dma_hang(struct mtk_eth *eth)
+ 		     (gdm_rxfsm == 0x23 || gdm_rxfsm == 0x24))) {
+ 			if (++eth->reset.gdm_rx_hang_count[i] > 2) {
+ 				dev_warn(eth->dev, "detect GDM%d Rx hang!\n", i + 1);
++				eth->reset.event = MTK_FE_STOP_TRAFFIC;
+ 				eth->reset.gdm_rx_hang_count[i] = 0;
+ 				ret = true;
+ 			}
+@@ -4972,6 +4980,7 @@ static bool mtk_hw_check_dma_hang(struct mtk_eth *eth)
+ 	    ((cdma_rxfsm != 0) && (cdma_rxfsm != eth->reset.cdma_rxfsm))) {
+ 		if (++eth->reset.adma_hang_count > 2) {
+ 			dev_warn(eth->dev, "detect ADMA Rx hang!\n");
++			eth->reset.event = MTK_FE_STOP_TRAFFIC;
+ 			eth->reset.adma_hang_count = 0;
+ 			ret = true;
+ 		}
+@@ -5443,7 +5452,41 @@ static void mtk_pending_work(struct work_struct *work)
+ 
+ 	mtk_save_qdma_cfg(eth);
+ 	mtk_prepare_for_reset(eth);
++#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
++	for (i = 0; i < MTK_MAX_DEVS; i++) {
++		if (!eth->netdev[i])
++			continue;
++
++		pr_info("send event:%x !\n", eth->reset.event);
++		if (eth->reset.event == MTK_FE_STOP_TRAFFIC)
++			call_netdevice_notifiers(MTK_FE_STOP_TRAFFIC,
++						 eth->netdev[i]);
++		else
++			call_netdevice_notifiers(MTK_FE_START_RESET,
++						 eth->netdev[i]);
++
++		rtnl_unlock();
++		if (mtk_wifi_num > 0) {
++			pr_info("waiting event from wifi\n");
++			wait_for_completion(&wait_ser_done);
++			if (mtk_is_netsys_v3_or_greater(eth) && mtk_stop_fail) {
++				rtnl_lock();
++				call_netdevice_notifiers(MTK_FE_START_RESET,
++							 eth->netdev[i]);
++				rtnl_unlock();
++				pr_info("waiting event when stop fail\n");
++				wait_for_completion(&wait_ser_done);
++				mtk_stop_fail = 0;
++			}
++		}
++		if (!try_wait_for_completion(&wait_tops_done))
++			pr_warn("wait for TOPS response timeout !\n");
++		rtnl_lock();
++		break;
++	}
++#else
+ 	mtk_wed_fe_reset();
++#endif
+ 	/* Run again reset preliminary configuration in order to avoid any
+ 	 * possible race during FE reset since it can run releasing RTNL lock.
+ 	 */
+@@ -5482,6 +5525,33 @@ static void mtk_pending_work(struct work_struct *work)
+ 			mt7988_esw_force_link(eth, true);
+ 	}
+ 
++#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
++	for (i = 0; i < MTK_MAX_DEVS; i++) {
++		if (!eth->netdev[i])
++			continue;
++
++		if (eth->reset.event == MTK_FE_STOP_TRAFFIC) {
++			pr_info("send MTK_FE_START_TRAFFIC event !\n");
++			call_netdevice_notifiers(MTK_FE_START_TRAFFIC,
++						 eth->netdev[i]);
++		} else {
++			pr_info("send MTK_FE_RESET_DONE event !\n");
++			call_netdevice_notifiers(MTK_FE_RESET_DONE,
++						 eth->netdev[i]);
++
++			if (mtk_is_netsys_v3_or_greater(eth)) {
++				pr_info("waiting done ack from wifi\n");
++				rtnl_unlock();
++				wait_for_completion(&wait_ack_done);
++				rtnl_lock();
++			}
++		}
++		call_netdevice_notifiers(MTK_FE_RESET_NAT_DONE,
++					 eth->netdev[i]);
++		break;
++	}
++#endif
++
+ 	clear_bit(MTK_RESETTING, &eth->state);
+ 
+ 	mtk_wed_fe_reset_complete();
+@@ -6833,6 +6903,9 @@ static int mtk_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	platform_set_drvdata(pdev, eth);
++#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
++	mtk_eth_netdevice_event_init(eth);
++#endif
+ 	schedule_delayed_work(&eth->reset.monitor_work,
+ 			      MTK_DMA_MONITOR_TIMEOUT);
+ 
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+index af858d5..dcf5c1d 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -1716,7 +1716,9 @@ struct mtk_eth {
+ 
+ 	struct {
+ 		struct delayed_work monitor_work;
++		struct notifier_block netdevice_notifier;
+ 		atomic_t force;
++		u32 event;
+ 		u32 wdidx[3];
+ 		u32 adidx[3];
+ 		u32 gdm_txgp_cnt[3];
+-- 
+2.45.2
+
