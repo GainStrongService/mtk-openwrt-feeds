@@ -5,6 +5,7 @@
  * Author: Chris.Chou <chris.chou@mediatek.com>
  */
 
+#include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 
 #include "crypto-eip/crypto-eip.h"
