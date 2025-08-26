@@ -78,6 +78,7 @@ dump_ser_status() {
 }
 
 dump_sta_info() {
+    # Caution: this might cause race condition with WM firmware
     do_cmd "cat /sys/kernel/debug/ieee80211/phy0/mt76/sta_info"
 }
 
@@ -115,7 +116,6 @@ per_10_min_work() {
 
 per_30_min_work() {
     dump_drop_stats
-    dump_sta_info
     dump_twt_info
 }
 
