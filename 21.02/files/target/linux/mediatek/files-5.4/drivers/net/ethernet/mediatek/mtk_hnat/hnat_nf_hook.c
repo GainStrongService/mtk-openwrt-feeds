@@ -1471,7 +1471,8 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 {
 	entry.bfib1.psn = (hw_path->flags & BIT(DEV_PATH_PPPOE)) ? 1 : 0;
 	entry.bfib1.vlan_layer += (hw_path->flags & BIT(DEV_PATH_VLAN)) ? 1 : 0;
-	entry.bfib1.vpm = (entry.bfib1.vlan_layer) ? 1 : 0;
+	/* after enabled IS_SP_TAG_EN in NETSYS_V3, info1.vpm becomes IS_SP_TAG flag control */
+	entry.bfib1.vpm = 0;
 	entry.bfib1.cah = 1;
 	entry.bfib1.sta = 0;
 	entry.bfib1.ttl = 1;
@@ -1485,6 +1486,9 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 			entry.l2_bridge.iblk2.mcast = 0;
 
 		entry.l2_bridge.iblk2.port_ag = 0xf;
+
+		if (entry.bfib1.vlan_layer)
+			entry.l2_bridge.sp_tag = ETH_P_8021Q;
 		break;
 	case IPV4_HNAPT:
 	case IPV4_HNAT:
@@ -1503,6 +1507,8 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 #else
 		entry.ipv4_hnapt.iblk2.port_ag = 0x3f;
 #endif
+		if (entry.bfib1.vlan_layer)
+			entry.ipv4_hnapt.sp_tag = ETH_P_8021Q;
 		break;
 	case IPV4_DSLITE:
 	case IPV4_MAP_E:
@@ -1527,6 +1533,8 @@ struct foe_entry ppe_fill_info_blk(struct foe_entry entry,
 #else
 		entry.ipv6_5t_route.iblk2.port_ag = 0x3f;
 #endif
+		if (entry.bfib1.vlan_layer)
+			entry.ipv6_5t_route.sp_tag = ETH_P_8021Q;
 		break;
 	}
 	return entry;
@@ -2867,16 +2875,14 @@ int mtk_sw_nat_hook_tx(struct sk_buff *skb, int gmac_no)
 
 	if (skb_vlan_tagged(skb)) {
 		entry.bfib1.vlan_layer = 1;
-		entry.bfib1.vpm = 1;
 		if (IS_IPV4_GRP(&entry) || IS_L2_BRIDGE(&entry)) {
-			entry.ipv4_hnapt.sp_tag = htons(ETH_P_8021Q);
+			entry.ipv4_hnapt.sp_tag = ETH_P_8021Q;
 			entry.ipv4_hnapt.vlan1 = skb->vlan_tci;
 		} else if (IS_IPV6_GRP(&entry)) {
-			entry.ipv6_5t_route.sp_tag = htons(ETH_P_8021Q);
+			entry.ipv6_5t_route.sp_tag = ETH_P_8021Q;
 			entry.ipv6_5t_route.vlan1 = skb->vlan_tci;
 		}
 	} else {
-		entry.bfib1.vpm = 0;
 		entry.bfib1.vlan_layer = 0;
 	}
 

@@ -60,6 +60,8 @@ int hnat_dsa_fill_stag(const struct net_device *netdev,
 	if (IS_ERR(dp))
 		return -ENODEV;
 
+	entry->bfib1.vpm = 0;
+
 	if (IS_DSA_TAG_PROTO_MXL862_8021Q(dp)) {
 		dsa_tag = port_index + BIT(11);
 
@@ -76,6 +78,7 @@ int hnat_dsa_fill_stag(const struct net_device *netdev,
 
 			entry->bfib1.vlan_layer = (entry->ipv4_hnapt.vlan1 != 0) +
 						  (entry->ipv4_hnapt.vlan2 != 0);
+			entry->ipv4_hnapt.sp_tag = ETH_P_8021Q;
 		} else {
 			if (unlikely(entry->ipv6_5t_route.vlan2))
 				return -EINVAL;
@@ -86,9 +89,8 @@ int hnat_dsa_fill_stag(const struct net_device *netdev,
 
 			entry->bfib1.vlan_layer = (entry->ipv6_5t_route.vlan1 != 0) +
 						  (entry->ipv6_5t_route.vlan2 != 0);
+			entry->ipv6_5t_route.sp_tag = ETH_P_8021Q;
 		}
-
-		entry->bfib1.vpm = 1;
 	} else {
 		dsa_tag = BIT(port_index);
 
@@ -105,7 +107,9 @@ int hnat_dsa_fill_stag(const struct net_device *netdev,
 		else if (IS_L2_BRIDGE(entry))
 			entry->l2_bridge.sp_tag = dsa_tag;
 
-		entry->bfib1.vpm = 0;
+		/* vpm is changed to is_sp_tag after IS_SP_TAG_EN enabled */
+		if (hnat_priv->data->version == MTK_HNAT_V3)
+			entry->bfib1.vpm = 1;
 	}
 
 	return port_index;

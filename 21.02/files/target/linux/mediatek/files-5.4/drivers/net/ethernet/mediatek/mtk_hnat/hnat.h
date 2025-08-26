@@ -134,6 +134,7 @@
 #define HASH_DBG (0x3 << 21) /* RW */
 #define TICK_SEL (0x1 << 24) /* RW */
 #define DSCP_TRFC_ECN_EN (0x1 << 25) /* RW */
+#define IS_SP_TAG_EN (0x1 << 26) /* RW */
 
 
 /*PPE_CAH_CTRL mask*/

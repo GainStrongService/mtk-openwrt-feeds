@@ -1139,6 +1139,8 @@ static int hnat_hw_init(u32 ppe_id)
 			     SB_MED_FULL_DRP_EN, 1);
 		cr_set_bits(hnat_priv->ppe_base[ppe_id] + PPE_GLO_CFG,
 			    NEW_IPV4_ID_INC_EN | TSID_EN);
+		cr_set_field(hnat_priv->ppe_base[ppe_id] + PPE_TB_CFG,
+			    IS_SP_TAG_EN, 1);
 		if (ppe_id == 0)
 			cr_set_field(hnat_priv->fe_base + MTK_FE_INT_ENABLE2,
 				     MTK_FE_INT2_PPE0_FLOW_CHK, 1);
