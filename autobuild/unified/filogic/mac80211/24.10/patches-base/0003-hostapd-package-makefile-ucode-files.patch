@@ -1,5 +1,5 @@
 diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index 8753782012..7ff3608ba6 100644
+index 8753782..614a94f 100644
 --- a/package/network/services/hostapd/Makefile
 +++ b/package/network/services/hostapd/Makefile
 @@ -5,13 +5,13 @@
@@ -90,7 +90,7 @@ index 8753782012..7ff3608ba6 100644
  	rm -f $(PKG_BUILD_DIR)/.config_*
  	touch $(subst .configured_,.config_,$(STAMP_CONFIGURED))
    endef
-@@ -595,7 +622,7 @@ TARGET_CPPFLAGS := \
+@@ -595,14 +622,14 @@ TARGET_CPPFLAGS := \
  	-D_GNU_SOURCE \
  	$(if $(CONFIG_WPA_MSG_MIN_PRIORITY),-DCONFIG_MSG_MIN_PRIORITY=$(CONFIG_WPA_MSG_MIN_PRIORITY))
  
@@ -99,6 +99,14 @@ index 8753782012..7ff3608ba6 100644
  
  ifdef CONFIG_WPA_ENABLE_WEP
      DRIVER_MAKEOPTS += CONFIG_WEP=y
+ endif
+ 
+ define Build/RunMake
+-	CFLAGS="$(TARGET_CPPFLAGS) $(TARGET_CFLAGS)" \
++	CFLAGS="$(TARGET_CPPFLAGS) $(TARGET_CFLAGS) -Werror" \
+ 	$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR)/$(1) \
+ 		$(TARGET_CONFIGURE_OPTS) \
+ 		$(DRIVER_MAKEOPTS) \
 @@ -631,6 +658,9 @@ define Build/Compile/wpad
  		MULTICALL=1 \
  		wpa_cli wpa_supplicant_multi.a \
