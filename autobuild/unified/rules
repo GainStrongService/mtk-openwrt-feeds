@@ -16,11 +16,7 @@ sub_stage_menuconfig="do_menuconfig_update"
 hooks_pre_prepare=
 hooks_mtk_feed_prepare="apply_mtk_feed_base_patches apply_mtk_feed_feed_patches remove_files_by_mtk_feed_list \
 			copy_mtk_feed_files"
-hooks_autobuild_prepare="apply_global_patches remove_files_by_global_list copy_global_files \
-			 apply_platform_patches remove_files_by_platform_list copy_platform_files \
-			 apply_wifi_patches remove_files_by_wifi_list copy_wifi_files \
-			 apply_sku_patches remove_files_by_sku_list copy_sku_files \
-			 apply_variant_patches remove_files_by_variant_list copy_variant_files \
+hooks_autobuild_prepare="patch_group_global_anchor patch_group_inheritance_anchor patch_group_append_anchor \
 			 prepare_wifi_driver prepare_openwrt_config platform_change_openwrt_config \
 			 wifi_change_openwrt_config sku_change_openwrt_config variant_change_openwrt_config \
 			 enable_openwrt_collect_debug_symbols make_defconfig update_target_info \
@@ -219,104 +215,6 @@ apply_mtk_feed_feed_patches() {
 
 install_feeds() {
 	exec_log "${openwrt_root}/scripts/feeds install -a"
-}
-
-remove_files_by_global_list() {
-	remove_files_from_list "${ab_global}/common/remove_list.txt"
-	remove_files_from_list "${ab_global}/${openwrt_branch}/remove_list.txt"
-}
-
-copy_global_files() {
-	copy_files "${ab_global}/common/files"
-	copy_files "${ab_global}/${openwrt_branch}/files"
-}
-
-apply_global_patches() {
-	apply_patches "${ab_global}/${openwrt_branch}/patches-base" || return 1
-	apply_patches "${ab_global}/${openwrt_branch}/patches-feeds" || return 1
-	apply_patches "${ab_global}/${openwrt_branch}/patches" || return 1
-}
-
-remove_files_by_platform_list() {
-	remove_files_from_list "${ab_platform_dir}/remove_list.txt"
-	remove_files_from_list "${ab_platform_dir}/${openwrt_branch}/remove_list.txt"
-}
-
-copy_platform_files() {
-	copy_files "${ab_platform_dir}/files"
-	copy_files "${ab_platform_dir}/${openwrt_branch}/files"
-}
-
-apply_platform_patches() {
-	apply_patches "${ab_platform_dir}/${openwrt_branch}/patches-base" || return 1
-	apply_patches "${ab_platform_dir}/${openwrt_branch}/patches-feeds" || return 1
-	apply_patches "${ab_platform_dir}/${openwrt_branch}/patches" || return 1
-}
-
-remove_files_by_wifi_list() {
-	if test -n "${ab_wifi_dir}"; then
-		remove_files_from_list "${ab_wifi_dir}/remove_list.txt"
-		remove_files_from_list "${ab_wifi_dir}/${openwrt_branch}/remove_list.txt"
-	fi
-}
-
-copy_wifi_files() {
-	if test -n "${ab_wifi_dir}"; then
-		copy_files "${ab_wifi_dir}/files"
-		copy_files "${ab_wifi_dir}/${openwrt_branch}/files"
-	fi
-}
-
-apply_wifi_patches() {
-	if test -n "${ab_wifi_dir}"; then
-		apply_patches "${ab_wifi_dir}/${openwrt_branch}/patches-base" || return 1
-		apply_patches "${ab_wifi_dir}/${openwrt_branch}/patches-feeds" || return 1
-		apply_patches "${ab_wifi_dir}/${openwrt_branch}/patches" || return 1
-	fi
-}
-
-remove_files_by_sku_list() {
-	if test -n "${ab_sku_dir}"; then
-		remove_files_from_list "${ab_sku_dir}/remove_list.txt"
-		remove_files_from_list "${ab_sku_dir}/${openwrt_branch}/remove_list.txt"
-	fi
-}
-
-copy_sku_files() {
-	if test -n "${ab_sku_dir}"; then
-		copy_files "${ab_sku_dir}/files"
-		copy_files "${ab_sku_dir}/${openwrt_branch}/files"
-	fi
-}
-
-apply_sku_patches() {
-	if test -n "${ab_sku_dir}"; then
-		apply_patches "${ab_sku_dir}/${openwrt_branch}/patches-base" || return 1
-		apply_patches "${ab_sku_dir}/${openwrt_branch}/patches-feeds" || return 1
-		apply_patches "${ab_sku_dir}/${openwrt_branch}/patches" || return 1
-	fi
-}
-
-remove_files_by_variant_list() {
-	if test -n "${ab_variant_dir}"; then
-		remove_files_from_list "${ab_variant_dir}/remove_list.txt"
-		remove_files_from_list "${ab_variant_dir}/${openwrt_branch}/remove_list.txt"
-	fi
-}
-
-copy_variant_files() {
-	if test -n "${ab_variant_dir}"; then
-		copy_files "${ab_variant_dir}/files"
-		copy_files "${ab_variant_dir}/${openwrt_branch}/files"
-	fi
-}
-
-apply_variant_patches() {
-	if test -n "${ab_variant_dir}"; then
-		apply_patches "${ab_variant_dir}/${openwrt_branch}/patches-base" || return 1
-		apply_patches "${ab_variant_dir}/${openwrt_branch}/patches-feeds" || return 1
-		apply_patches "${ab_variant_dir}/${openwrt_branch}/patches" || return 1
-	fi
 }
 
 # prepare_wifi_driver() { } Implemented by wifi inclusion

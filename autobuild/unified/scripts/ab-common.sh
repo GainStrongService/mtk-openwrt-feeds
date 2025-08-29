@@ -247,3 +247,118 @@ list_all_autobuild_branches_real() {
 list_all_autobuild_branches() {
 	list_all_autobuild_branches_real "" "" 1
 }
+
+# Create patches/files/remove-list hook functions
+# $1:	Name
+# $2:	Base folder
+# $3:	Whether to use global folder organization
+create_patch_file_group_functions() {
+	local global_common=
+
+	[ -n "${3}" ] && global_common=common/
+
+	eval "
+		apply_${1}_patches() {
+			apply_patches "${2}/\${openwrt_branch}/patches-base" || return 1;
+			apply_patches "${2}/\${openwrt_branch}/patches-feeds" || return 1;
+			apply_patches "${2}/\${openwrt_branch}/patches" || return 1;
+		};
+
+		remove_files_by_${1}_list() {
+			remove_files_from_list "${2}/${global_common}remove_list.txt";
+			remove_files_from_list "${2}/\${openwrt_branch}/remove_list.txt";
+		};
+
+		copy_${1}_files() {
+			copy_files "${2}/${global_common}files";
+			copy_files "${2}/\${openwrt_branch}/files";
+		};
+	"
+
+	__ab_apply_patches_hook_name="apply_${1}_patches"
+	__ab_remove_files_by_list_hook_name="remove_files_by_${1}_list"
+	__ab_copy_files_hook_name="copy_${1}_files"
+}
+
+# Append patches/files/remove-list hook functions at specific anchor
+# $1:	Name
+# $2:	Anchor name
+append_patch_file_group_hooks() {
+	if ! list_find $(hooks autobuild_prepare) "${2}"; then
+		log_err "Anchor \"${2}\" not found in list \"autobuild_prepare\""
+		return 1
+	fi
+
+	list_add_after_unique $(hooks autobuild_prepare) "${2}" "apply_${1}_patches"
+	list_add_after_unique $(hooks autobuild_prepare) "apply_${1}_patches" "remove_files_by_${1}_list"
+	list_add_after_unique $(hooks autobuild_prepare) "remove_files_by_${1}_list" "copy_${1}_files"
+	list_add_after_unique $(hooks autobuild_prepare) "copy_${1}_files"  "${2}"
+}
+
+# Create and add patches/files/remove-list hook functions (global type)
+# $1:	Name
+# $2:	Base folder
+add_global_patch_file_group_hooks() {
+	create_patch_file_group_functions "${1}" "${2}" 1 || return 1
+	append_patch_file_group_hooks "${1}" patch_group_global_anchor
+}
+
+# Create and add patches/files/remove-list hook functions at specific anchor
+# $1:	Name
+# $2:	Anchor name
+# $3:	Base folder
+__add_patch_file_group_hooks() {
+	create_patch_file_group_functions "${1}" "${3}" || return 1
+	append_patch_file_group_hooks "${1}" "${2}"
+}
+
+# Create and add patches/files/remove-list hook functions (normal rules)
+# $1:	Name
+# $2:	Base folder
+add_patch_file_group_hooks() {
+	__add_patch_file_group_hooks "${1}" patch_group_append_anchor "${2}"
+}
+
+# Inherit patches/files/remove-list hook functions
+# $1:	Autobuild name
+# $2:	Start level
+inherit_patch_file_group_hooks() {
+	local names=$(echo "${1}" | sed 's/-/ /g')
+	local name_arr=
+	local level=0
+	local path=
+	local name=
+	local i=
+
+	eval "name_arr=(${names})"
+
+	local n=${#name_arr[@]}
+	echo "n=$n"
+
+	[ ${n} -eq 0 ] && return
+
+	[ -n "${2}" ] && level=${2}
+	echo "level=$level"
+
+	for i in $(seq 0 $((n-1))); do
+		if test -z ${path}; then
+			path="${name_arr[$i]}"
+		else
+			path="${path}/${name_arr[$i]}"
+		fi
+
+		if test -z ${name}; then
+			name="${name_arr[$i]}"
+		else
+			name="${name}_${name_arr[$i]}"
+		fi
+
+		if test ${i} -ge ${level}; then
+			if ! test -f "${ab_root}/${path}/rules"; then
+				return
+			fi
+
+			__add_patch_file_group_hooks "${name}" patch_group_inheritance_anchor "${ab_root}/${path}"
+		fi
+	done
+}

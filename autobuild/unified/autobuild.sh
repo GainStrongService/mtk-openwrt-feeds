@@ -342,11 +342,51 @@ help_add_line "    current branch defconfigs before starting menuconfig"
 
 # Include branch rules (the rule is child level overriding parent level)
 . "${ab_root}/rules"
+
+## Hook name
+__ab_branch_hook_name=
+
+## Variables indicate the hook function names
+__ab_apply_patches_hook_name=
+__ab_remove_files_by_list_hook_name=
+__ab_copy_files_hook_name=
+
+add_global_patch_file_group_hooks global "${ab_global}"
 [ -f "${ab_global}/${openwrt_branch}/rules" ] && . "${ab_global}/${openwrt_branch}/rules"
-[ -n "${ab_platform_dir}" ] && . "${ab_platform_dir}/rules"
-[ -n "${ab_wifi_dir}" ] && . "${ab_wifi_dir}/rules"
-[ -n "${ab_sku_dir}" ] && . "${ab_sku_dir}/rules"
-[ -n "${ab_variant_dir}" ] && . "${ab_variant_dir}/rules"
+
+[ -d "${ab_global}-dev" -o -L "${ab_global}-dev" ] && {
+	add_global_patch_file_group_hooks global_dev "${ab_global}-dev"
+	[ -f "${ab_global}-dev/${openwrt_branch}/rules" ] && . "${ab_global}-dev/${openwrt_branch}/rules"
+}
+
+[ -n "${ab_platform_dir}" ] && {
+	__ab_branch_hook_name="${ab_branch_platform}"
+	add_patch_file_group_hooks "${__ab_branch_hook_name}" "${ab_platform_dir}"
+	. "${ab_platform_dir}/rules"
+}
+
+[ -n "${ab_wifi_dir}" ] && {
+	__ab_branch_hook_name="${__ab_branch_hook_name}_${ab_branch_wifi}"
+	add_patch_file_group_hooks "${__ab_branch_hook_name}" "${ab_wifi_dir}"
+	. "${ab_wifi_dir}/rules"
+}
+
+[ -n "${ab_sku_dir}" ] && {
+	__ab_branch_hook_name="${__ab_branch_hook_name}_${ab_branch_sku}"
+	add_patch_file_group_hooks "${__ab_branch_hook_name}" "${ab_sku_dir}"
+	. "${ab_sku_dir}/rules"
+}
+
+[ -n "${ab_variant_dir}" ] && {
+	__ab_branch_hook_name="${__ab_branch_hook_name}_${ab_branch_variant}"
+	add_patch_file_group_hooks "${__ab_branch_hook_name}" "${ab_variant_dir}"
+	. "${ab_variant_dir}/rules"
+}
+
+unset __ab_branch_hook_name
+unset __ab_apply_patches_hook_name
+unset __ab_remove_files_by_list_hook_name
+unset __ab_copy_files_hook_name
 
 # Show help?
 if test x"${do_help}" = x"1"; then
