@@ -1719,80 +1719,90 @@ static int mtk_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-void mtk_stats_update_xmac_fcserr(struct mtk_mac *mac)
-{
-	struct mtk_hw_stats *hw_stats = mac->hw_stats;
-	u64 rx_eth_cnt, rx_crcerr_cnt;
-
-	rx_eth_cnt = mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x18c);
-	rx_crcerr_cnt = FIELD_GET(GENMASK(15, 0),
-				  mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x198));
-
-	if (rx_crcerr_cnt <= rx_eth_cnt * 2)
-		hw_stats->rx_fcs_errors += rx_crcerr_cnt;
-	else
-		mtk_m32(mac->hw, XMAC_GLB_CNTCLR, 0x1, MTK_XMAC_CNT_CTRL(mac->id));
-}
-
 void mtk_stats_update_mac(struct mtk_mac *mac)
 {
 	struct mtk_eth *eth = mac->hw;
 	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
 	struct mtk_hw_stats *hw_stats = mac->hw_stats;
 	unsigned int offs = hw_stats->reg_offset;
-	u64 stats;
+	u64 stats, rx_crcerr_cnt, rx_eof_cnt;
+
+	if (!netif_carrier_ok(eth->netdev[mac->id]))
+		return;
 
 	u64_stats_update_begin(&hw_stats->syncp);
 
-	hw_stats->rx_bytes += mtk_r32(mac->hw, reg_map->gdm1_cnt + offs);
-	stats =  mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x4 + offs);
-	if (stats)
-		hw_stats->rx_bytes += (stats << 32);
-	hw_stats->rx_packets +=
-		mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x08 + offs);
-	hw_stats->rx_overflow +=
-		mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x10 + offs);
-
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3) &&
-	    mac->type == MTK_XGDM_TYPE && mac->id != MTK_GMAC1_ID)
-		mtk_stats_update_xmac_fcserr(mac);
-	else
+	    mac->type == MTK_XGDM_TYPE && mac->id != MTK_GMAC1_ID) {
+		rx_crcerr_cnt = FIELD_GET(GENMASK(15, 0),
+					  mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x198));
+		rx_eof_cnt = FIELD_GET(GENMASK(15, 0),
+				       mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x1a4));
+		if (rx_crcerr_cnt <= rx_eof_cnt * 2) {
+			hw_stats->rx_packets +=
+				mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x18c);
+			hw_stats->rx_fcs_errors += rx_crcerr_cnt;
+			hw_stats->rx_bytes +=
+				mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x1ac);
+			hw_stats->rx_short_errors +=
+				mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x1bc);
+			hw_stats->rx_flow_control_packets += FIELD_GET(GENMASK(15, 0),
+				mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x190));
+			hw_stats->rx_long_errors += FIELD_GET(GENMASK(15, 0),
+				mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x194));
+		}
+
+		hw_stats->tx_packets +=
+			mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x114);
+		hw_stats->tx_bytes +=
+			mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x134);
+
+		mtk_m32(mac->hw, XMAC_GLB_CNTCLR, 0x1, MTK_XMAC_CNT_CTRL(mac->id));
+	} else {
+		hw_stats->rx_bytes += mtk_r32(mac->hw, reg_map->gdm1_cnt + offs);
+		stats =  mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x4 + offs);
+		if (stats)
+			hw_stats->rx_bytes += (stats << 32);
+		hw_stats->rx_packets +=
+			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x08 + offs);
+		hw_stats->rx_overflow +=
+			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x10 + offs);
 		hw_stats->rx_fcs_errors +=
 			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x14 + offs);
+		hw_stats->rx_short_errors +=
+			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x18 + offs);
+		hw_stats->rx_long_errors +=
+			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x1c + offs);
+		hw_stats->rx_checksum_errors +=
+			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x20 + offs);
+		hw_stats->rx_flow_control_packets +=
+			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x24 + offs);
 
-	hw_stats->rx_short_errors +=
-		mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x18 + offs);
-	hw_stats->rx_long_errors +=
-		mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x1c + offs);
-	hw_stats->rx_checksum_errors +=
-		mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x20 + offs);
-	hw_stats->rx_flow_control_packets +=
-		mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x24 + offs);
-
-	if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
-		hw_stats->tx_skip +=
-			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x50 + offs);
-		hw_stats->tx_collisions +=
-			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x54 + offs);
-		hw_stats->tx_bytes +=
-			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x40 + offs);
-		stats =  mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x44 + offs);
-		if (stats)
-			hw_stats->tx_bytes += (stats << 32);
-		hw_stats->tx_packets +=
-			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x48 + offs);
-	} else {
-		hw_stats->tx_skip +=
-			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x28 + offs);
-		hw_stats->tx_collisions +=
-			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x2c + offs);
-		hw_stats->tx_bytes +=
-			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x30 + offs);
-		stats =  mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x34 + offs);
-		if (stats)
-			hw_stats->tx_bytes += (stats << 32);
-		hw_stats->tx_packets +=
-			mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x38 + offs);
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V3)) {
+			hw_stats->tx_skip +=
+				mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x50 + offs);
+			hw_stats->tx_collisions +=
+				mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x54 + offs);
+			hw_stats->tx_bytes +=
+				mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x40 + offs);
+			stats =  mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x44 + offs);
+			if (stats)
+				hw_stats->tx_bytes += (stats << 32);
+			hw_stats->tx_packets +=
+				mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x48 + offs);
+		} else {
+			hw_stats->tx_skip +=
+				mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x28 + offs);
+			hw_stats->tx_collisions +=
+				mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x2c + offs);
+			hw_stats->tx_bytes +=
+				mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x30 + offs);
+			stats =  mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x34 + offs);
+			if (stats)
+				hw_stats->tx_bytes += (stats << 32);
+			hw_stats->tx_packets +=
+				mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x38 + offs);
+		}
 	}
 
 	u64_stats_update_end(&hw_stats->syncp);
