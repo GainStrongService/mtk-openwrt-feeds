@@ -1,7 +1,7 @@
-From 40f06123191e47f493d05d65b19bd0efd37e3abc Mon Sep 17 00:00:00 2001
+From 7000c48b35bdc18b6421d6c053bcd1ec3749ce90 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Tue, 3 Dec 2024 15:33:04 +0800
-Subject: [PATCH 085/107] mtk: mac80211: refactor struct cfg80211_ttlm_params
+Subject: [PATCH 085/115] mtk: mac80211: refactor struct cfg80211_ttlm_params
 
 1. add is_teardown in cfg80211_ttlm_params. If the "is_teardown" is
    set to true, the bitmap shoule become the default one and the
@@ -16,10 +16,10 @@ Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
  3 files changed, 6 insertions(+), 4 deletions(-)
 
 diff --git a/include/linux/ieee80211.h b/include/linux/ieee80211.h
-index 7b883c56..246c2358 100644
+index 6d296c55..ae63ec61 100644
 --- a/include/linux/ieee80211.h
 +++ b/include/linux/ieee80211.h
-@@ -251,6 +251,7 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
+@@ -250,6 +250,7 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
  
  #define IEEE80211_FIRST_TSPEC_TSID	8
  #define IEEE80211_NUM_TIDS		16
@@ -28,10 +28,10 @@ index 7b883c56..246c2358 100644
  /* number of user priorities 802.11 uses */
  #define IEEE80211_NUM_UPS		8
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index abb090b6..5bf7cdff 100644
+index 929b5f3d..ad0b8392 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -1741,14 +1741,17 @@ struct link_station_del_parameters {
+@@ -1735,14 +1735,17 @@ struct link_station_del_parameters {
   *
   * Used for setting a TID to link mapping.
   *
@@ -52,10 +52,10 @@ index abb090b6..5bf7cdff 100644
  
  /**
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 614331ed..e06fb621 100644
+index ee03bba2..152afc24 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -1944,8 +1944,6 @@ struct ieee80211_vif_cfg {
+@@ -1955,8 +1955,6 @@ struct ieee80211_vif_cfg {
  	u8 ap_addr[ETH_ALEN] __aligned(2);
  };
  

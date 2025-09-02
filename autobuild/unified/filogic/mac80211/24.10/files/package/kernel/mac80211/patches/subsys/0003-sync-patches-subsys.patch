@@ -1,12 +1,12 @@
-From 002a822746c2fb624bcf7ae227312d8a3216a62c Mon Sep 17 00:00:00 2001
+From bea441f89d24ef219e102854253f87b613db020a Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 9 Jan 2025 15:44:08 +0800
-Subject: [PATCH 003/107] sync patches/subsys
+Subject: [PATCH 003/115] sync patches/subsys
 
 ---
  include/net/cfg80211.h             |  4 ++
  include/net/mac80211.h             |  2 +-
- net/mac80211/cfg.c                 |  8 +---
+ net/mac80211/cfg.c                 |  2 +
  net/mac80211/debugfs.c             | 13 +++++-
  net/mac80211/ieee80211_i.h         |  4 ++
  net/mac80211/main.c                | 19 +-------
@@ -22,10 +22,10 @@ Subject: [PATCH 003/107] sync patches/subsys
  net/wireless/core.h                |  2 +
  net/wireless/mlme.c                |  7 +--
  net/wireless/sysfs.c               | 27 +++++++++--
- 18 files changed, 155 insertions(+), 146 deletions(-)
+ 18 files changed, 155 insertions(+), 140 deletions(-)
 
 diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
-index 823ea613..13316fdb 100644
+index 214d06ee..b3142364 100644
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
 @@ -195,6 +195,8 @@ enum ieee80211_channel_flags {
@@ -45,7 +45,7 @@ index 823ea613..13316fdb 100644
  	unsigned int dfs_cac_ms;
  	s8 psd;
  };
-@@ -3469,6 +3472,7 @@ enum wiphy_params_flags {
+@@ -3567,6 +3570,7 @@ enum wiphy_params_flags {
  /* The per TXQ device queue limit in airtime */
  #define IEEE80211_DEFAULT_AQL_TXQ_LIMIT_L	5000
  #define IEEE80211_DEFAULT_AQL_TXQ_LIMIT_H	12000
@@ -54,10 +54,10 @@ index 823ea613..13316fdb 100644
  /* The per interface airtime threshold to switch to lower queue limit */
  #define IEEE80211_AQL_THRESHOLD			24000
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index e0ff697b..c33e2cb4 100644
+index 0c5b7129..0d87c500 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -1238,8 +1238,8 @@ struct ieee80211_tx_info {
+@@ -1249,8 +1249,8 @@ struct ieee80211_tx_info {
  	    status_data_idr:1,
  	    status_data:13,
  	    hw_queue:4,
@@ -68,23 +68,10 @@ index e0ff697b..c33e2cb4 100644
  	union {
  		struct {
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 4b360d8d..828df83b 100644
+index 63f369e6..71047ef2 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -1677,12 +1677,6 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
- 
- 	__sta_info_flush(sdata, true, link_id, NULL);
- 
--	ieee80211_remove_link_keys(link, &keys);
--	if (!list_empty(&keys)) {
--		synchronize_net();
--		ieee80211_free_key_list(local, &keys);
--	}
--
- 	link_conf->enable_beacon = false;
- 	sdata->beacon_rate_set = false;
- 	sdata->vif.cfg.ssid_len = 0;
-@@ -2897,6 +2891,8 @@ static int ieee80211_scan(struct wiphy *wiphy,
+@@ -3021,6 +3021,8 @@ static int ieee80211_scan(struct wiphy *wiphy,
  		 */
  		fallthrough;
  	case NL80211_IFTYPE_AP:
@@ -94,7 +81,7 @@ index 4b360d8d..828df83b 100644
  		 * If the scan has been forced (and the driver supports
  		 * forcing), don't care about being beaconing already.
 diff --git a/net/mac80211/debugfs.c b/net/mac80211/debugfs.c
-index 66efa7ce..d5513e69 100644
+index d96948de..61e8a141 100644
 --- a/net/mac80211/debugfs.c
 +++ b/net/mac80211/debugfs.c
 @@ -221,11 +221,13 @@ static ssize_t aql_pending_read(struct file *file,
@@ -144,7 +131,7 @@ index 66efa7ce..d5513e69 100644
  		return -EINVAL;
  
 diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
-index 6e1f1cb2..0ad82d28 100644
+index 6850886f..9de9371a 100644
 --- a/net/mac80211/ieee80211_i.h
 +++ b/net/mac80211/ieee80211_i.h
 @@ -103,6 +103,8 @@ ieee80211_sta_keep_active(struct sta_info *sta, u8 ac)
@@ -156,7 +143,7 @@ index 6e1f1cb2..0ad82d28 100644
  struct ieee80211_bss {
  	u32 device_ts_beacon, device_ts_presp;
  
-@@ -1370,10 +1372,12 @@ struct ieee80211_local {
+@@ -1419,10 +1421,12 @@ struct ieee80211_local {
  	spinlock_t handle_wake_tx_queue_lock;
  
  	u16 airtime_flags;
@@ -170,10 +157,10 @@ index 6e1f1cb2..0ad82d28 100644
  
  	const struct ieee80211_ops *ops;
 diff --git a/net/mac80211/main.c b/net/mac80211/main.c
-index e2f31f2a..1de90864 100644
+index e887dbd7..8684584a 100644
 --- a/net/mac80211/main.c
 +++ b/net/mac80211/main.c
-@@ -959,6 +959,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
+@@ -971,6 +971,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
  	spin_lock_init(&local->rx_path_lock);
  	spin_lock_init(&local->queue_stop_reason_lock);
  
@@ -181,7 +168,7 @@ index e2f31f2a..1de90864 100644
  	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
  		INIT_LIST_HEAD(&local->active_txqs[i]);
  		spin_lock_init(&local->active_txq_lock[i]);
-@@ -1593,24 +1594,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
+@@ -1580,24 +1581,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
  
  	ieee80211_check_wbrf_support(local);
  
@@ -207,7 +194,7 @@ index e2f31f2a..1de90864 100644
  	local->ifa_notifier.notifier_call = ieee80211_ifa_changed;
  	result = register_inetaddr_notifier(&local->ifa_notifier);
 diff --git a/net/mac80211/rc80211_minstrel_ht.c b/net/mac80211/rc80211_minstrel_ht.c
-index 5886351c..ca4e3fe4 100644
+index 8d540736..5d0e2d4a 100644
 --- a/net/mac80211/rc80211_minstrel_ht.c
 +++ b/net/mac80211/rc80211_minstrel_ht.c
 @@ -580,6 +580,14 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 *dest, u16 index)
@@ -365,10 +352,10 @@ index f385cf6b..1f78a949 100644
  
  #define EWMA_LEVEL	96	/* ewma weighting factor [/EWMA_DIV] */
 diff --git a/net/mac80211/sta_info.c b/net/mac80211/sta_info.c
-index ff6ff8b4..1faf5b91 100644
+index 6a9a40aa..7eb45955 100644
 --- a/net/mac80211/sta_info.c
 +++ b/net/mac80211/sta_info.c
-@@ -583,6 +583,7 @@ __sta_info_alloc(struct ieee80211_sub_if_data *sdata,
+@@ -630,6 +630,7 @@ __sta_info_alloc(struct ieee80211_sub_if_data *sdata,
  	spin_lock_init(&sta->ps_lock);
  	INIT_WORK(&sta->drv_deliver_wk, sta_deliver_ps_frames);
  	wiphy_work_init(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
@@ -376,7 +363,7 @@ index ff6ff8b4..1faf5b91 100644
  #ifdef CPTCFG_MAC80211_MESH
  	if (ieee80211_vif_is_mesh(&sdata->vif)) {
  		sta->mesh = kzalloc(sizeof(*sta->mesh), gfp);
-@@ -2387,13 +2388,28 @@ EXPORT_SYMBOL(ieee80211_sta_recalc_aggregates);
+@@ -2430,13 +2431,28 @@ EXPORT_SYMBOL(ieee80211_sta_recalc_aggregates);
  
  void ieee80211_sta_update_pending_airtime(struct ieee80211_local *local,
  					  struct sta_info *sta, u8 ac,
@@ -406,7 +393,7 @@ index ff6ff8b4..1faf5b91 100644
  	if (!tx_completed) {
  		if (sta)
  			atomic_add(tx_airtime,
-@@ -2474,6 +2490,13 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
+@@ -2526,6 +2542,13 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
  
  		sband = local->hw.wiphy->bands[band];
  
@@ -421,7 +408,7 @@ index ff6ff8b4..1faf5b91 100644
  			break;
  
 diff --git a/net/mac80211/sta_info.h b/net/mac80211/sta_info.h
-index ec02f8c7..6f3a2522 100644
+index 012bf7fa..df136cfe 100644
 --- a/net/mac80211/sta_info.h
 +++ b/net/mac80211/sta_info.h
 @@ -147,7 +147,8 @@ struct airtime_info {
@@ -435,7 +422,7 @@ index ec02f8c7..6f3a2522 100644
  struct sta_info;
  
 diff --git a/net/mac80211/status.c b/net/mac80211/status.c
-index 3def95dd..ce061c57 100644
+index a6e8258c..9437b751 100644
 --- a/net/mac80211/status.c
 +++ b/net/mac80211/status.c
 @@ -734,7 +734,7 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
@@ -447,7 +434,7 @@ index 3def95dd..ce061c57 100644
  		rcu_read_unlock();
  	}
  
-@@ -1137,10 +1137,11 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
+@@ -1143,10 +1143,11 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
  		/* Do this here to avoid the expensive lookup of the sta
  		 * in ieee80211_report_used_skb().
  		 */
@@ -461,10 +448,10 @@ index 3def95dd..ce061c57 100644
  	}
  
 diff --git a/net/mac80211/tx.c b/net/mac80211/tx.c
-index 68fe6f26..f0f97179 100644
+index 4b798b28..e4004d34 100644
 --- a/net/mac80211/tx.c
 +++ b/net/mac80211/tx.c
-@@ -2556,7 +2556,7 @@ static u16 ieee80211_store_ack_skb(struct ieee80211_local *local,
+@@ -2547,7 +2547,7 @@ static u16 ieee80211_store_ack_skb(struct ieee80211_local *local,
  
  		spin_lock_irqsave(&local->ack_status_lock, flags);
  		id = idr_alloc(&local->ack_status_frames, ack_skb,
@@ -473,7 +460,7 @@ index 68fe6f26..f0f97179 100644
  		spin_unlock_irqrestore(&local->ack_status_lock, flags);
  
  		if (id >= 0) {
-@@ -3985,20 +3985,20 @@ begin:
+@@ -3976,20 +3976,20 @@ begin:
  encap_out:
  	info->control.vif = vif;
  
@@ -504,7 +491,7 @@ index 68fe6f26..f0f97179 100644
  	}
  
  	return skb;
-@@ -4050,6 +4050,7 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
+@@ -4041,6 +4041,7 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
  	struct ieee80211_txq *ret = NULL;
  	struct txq_info *txqi = NULL, *head = NULL;
  	bool found_eligible_txq = false;
@@ -512,7 +499,7 @@ index 68fe6f26..f0f97179 100644
  
  	spin_lock_bh(&local->active_txq_lock[ac]);
  
-@@ -4073,26 +4074,26 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
+@@ -4064,26 +4065,26 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
  	if (!head)
  		head = txqi;
  
@@ -552,7 +539,7 @@ index 68fe6f26..f0f97179 100644
  	if (txqi->schedule_round == local->schedule_round[ac])
  		goto out;
  
-@@ -4157,7 +4158,8 @@ bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
+@@ -4150,7 +4151,8 @@ bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
  		return true;
  
  	if (!txq->sta)
@@ -562,7 +549,7 @@ index 68fe6f26..f0f97179 100644
  
  	if (unlikely(txq->tid == IEEE80211_NUM_TIDS))
  		return true;
-@@ -4206,15 +4208,15 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
+@@ -4199,15 +4201,15 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
  
  	spin_lock_bh(&local->active_txq_lock[ac]);
  
@@ -581,7 +568,7 @@ index 68fe6f26..f0f97179 100644
  	list_for_each_entry_safe(iter, tmp, &local->active_txqs[ac],
  				 schedule_order) {
  		if (iter == txqi)
-@@ -4227,7 +4229,8 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
+@@ -4220,7 +4222,8 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
  		}
  		sta = container_of(iter->txq.sta, struct sta_info, sta);
  		if (ieee80211_sta_deficit(sta, ac) < 0)
@@ -591,7 +578,7 @@ index 68fe6f26..f0f97179 100644
  		list_move_tail(&iter->schedule_order, &local->active_txqs[ac]);
  	}
  
-@@ -4235,7 +4238,7 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
+@@ -4228,7 +4231,7 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
  	if (sta->airtime[ac].deficit >= 0)
  		goto out;
  
@@ -664,7 +651,7 @@ index bdb1dcb9..65f3123f 100644
  cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
  			      const struct cfg80211_chan_def *chandef)
 diff --git a/net/wireless/core.c b/net/wireless/core.c
-index f49c7938..99a8ffd7 100644
+index ad2c7989..dcbc5ef9 100644
 --- a/net/wireless/core.c
 +++ b/net/wireless/core.c
 @@ -674,21 +674,6 @@ int wiphy_verify_iface_combinations(struct wiphy *wiphy,
@@ -690,10 +677,10 @@ index f49c7938..99a8ffd7 100644
  			/*
  			 * Don't advertise an unsupported type
 diff --git a/net/wireless/core.h b/net/wireless/core.h
-index 59bd9bc4..7c6ed6d4 100644
+index 39b59534..e225bb7f 100644
 --- a/net/wireless/core.h
 +++ b/net/wireless/core.h
-@@ -474,6 +474,8 @@ void cfg80211_set_dfs_state(struct wiphy *wiphy,
+@@ -481,6 +481,8 @@ void cfg80211_set_dfs_state(struct wiphy *wiphy,
  			    enum nl80211_dfs_state dfs_state);
  
  void cfg80211_dfs_channels_update_work(struct work_struct *work);
@@ -703,10 +690,10 @@ index 59bd9bc4..7c6ed6d4 100644
  void cfg80211_sched_dfs_chan_update(struct cfg80211_registered_device *rdev);
  
 diff --git a/net/wireless/mlme.c b/net/wireless/mlme.c
-index 1a9f486b..86c30825 100644
+index 894d95a7..5d6cb841 100644
 --- a/net/wireless/mlme.c
 +++ b/net/wireless/mlme.c
-@@ -1038,6 +1038,8 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
+@@ -1056,6 +1056,8 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
  			if (c->dfs_state == NL80211_DFS_UNAVAILABLE) {
  				time_dfs_update = IEEE80211_DFS_MIN_NOP_TIME_MS;
  				radar_event = NL80211_RADAR_NOP_FINISHED;
@@ -715,7 +702,7 @@ index 1a9f486b..86c30825 100644
  			} else {
  				if (regulatory_pre_cac_allowed(wiphy) ||
  				    cfg80211_any_wiphy_oper_chan(wiphy, c))
-@@ -1045,11 +1047,10 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
+@@ -1063,11 +1065,10 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
  
  				time_dfs_update = REG_PRE_CAC_EXPIRY_GRACE_MS;
  				radar_event = NL80211_RADAR_PRE_CAC_EXPIRED;

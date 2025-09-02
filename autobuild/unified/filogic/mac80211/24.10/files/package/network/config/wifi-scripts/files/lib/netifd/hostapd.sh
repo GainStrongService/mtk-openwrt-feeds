@@ -88,7 +88,7 @@ hostapd_append_wpa_key_mgmt() {
 		;;
 	esac
 
-	[ "$fils" -gt 0 ] && {
+	[ -n "$fils" ] && [ "$fils" -gt 0 ] && {
 		case "$auth_type" in
 			eap192)
 				append wpa_key_mgmt FILS-SHA384
@@ -371,6 +371,7 @@ hostapd_common_add_bss_config() {
 	config_add_int time_advertisement
 	config_add_string time_zone
 	config_add_string vendor_elements
+	config_add_string assocresp_elements
 
 	config_add_boolean ieee80211k rrm_neighbor_report rrm_beacon_report
 
@@ -465,6 +466,8 @@ hostapd_common_add_bss_config() {
 	config_add_string mld_addr
 	config_add_int eml_disable
 	config_add_int eml_resp
+	config_add_string mtk_vendor_element
+	config_add_int disable_rrm
 }
 
 hostapd_set_vlan_file() {
@@ -681,7 +684,8 @@ hostapd_set_bss_options() {
 		eap_server eap_user_file ca_cert server_cert private_key private_key_passwd server_id radius_server_clients radius_server_auth_port \
 		vendor_elements fils ocv apup unsol_bcast_probe_resp_interval fils_discovery_min_interval \
 		fils_discovery_max_interval rnr group_cipher group_mgmt_cipher \
-		mld_id mld_link_id mld_primary mld_addr mld_allowed_links mld_radio_mask eml_disable eml_resp
+		mld_id mld_link_id mld_primary mld_addr mld_allowed_links mld_radio_mask eml_disable eml_resp \
+		assocresp_elements
 
 	set_default fils 0
 	set_default isolate 0
@@ -706,6 +710,7 @@ hostapd_set_bss_options() {
 	set_default airtime_bss_limit 0
 	set_default eap_server 0
 	set_default apup 0
+	set_default unsol_bcast_probe_resp_interval 0
 
 	/usr/sbin/hostapd -vfils || fils=0
 
@@ -735,6 +740,7 @@ hostapd_set_bss_options() {
 	append bss_conf "utf8_ssid=$utf8_ssid" "$N"
 	append bss_conf "multi_ap=$multi_ap" "$N"
 	[ -n "$vendor_elements" ] && append bss_conf "vendor_elements=$vendor_elements" "$N"
+	[ -n "$assocresp_elements" ] && append bss_conf "assocresp_elements=$assocresp_elements" "$N"
 
 	[ "$tdls_prohibit" -gt 0 ] && append bss_conf "tdls_prohibit=$tdls_prohibit" "$N"
 
@@ -1425,17 +1431,17 @@ hostapd_set_bss_options() {
 		fi
 	fi
 
-	if [ "$mld_primary" -gt 0 ]; then
+	if [ -n "$mld_primary" ] && [ "$mld_primary" -gt 0 ]; then
 		append bss_conf "#mld_primary=${mld_primary}" "$N"
 	fi
 
 	[ -n "$mld_link_id" ] && append bss_conf "mld_link_id=${mld_link_id}" "$N"
 
-	if [ "$mld_allowed_links" -gt 0 ]; then
+	if [ -n "$mld_allowed_links" ] && [ "$mld_allowed_links" -gt 0 ]; then
 		append bss_conf "mld_allowed_links=${mld_allowed_links}" "$N"
 	fi
 
-	if [ "$mld_radio_mask" -gt 0 ]; then
+	if [ -n "$mld_radio_mask" ] && [ "$mld_radio_mask" -gt 0 ]; then
 		append bss_conf "#mld_radio_mask=${mld_radio_mask}" "$N"
 	fi
 
@@ -1503,6 +1509,7 @@ wpa_supplicant_prepare_interface() {
 	_wpa_supplicant_common "$1"
 
 	json_get_vars mode wds multi_ap assoc_phy mld_single_link mld_assoc_phy mld_allowed_phy_bitmap rsn_overriding
+	json_get_vars disable_rrm
 	set_default mld_allowed_phy_bitmap 0
 	set_default rsn_overriding 2
 
@@ -1547,7 +1554,7 @@ wpa_supplicant_prepare_interface() {
 	}
 
 	if !([ "$mld_allowed_phy_bitmap" -ge 0 ] && [ "$mld_allowed_phy_bitmap" -le 7 ]); then
-		echo "Error: Invalid MLD allowed phy: ${mld_allowed_phy_bitmap}"
+		echo "error: Invalid MLD allowed phy: ${mld_allowed_phy_bitmap}"
 		return 1
 	fi
 
@@ -1556,7 +1563,12 @@ wpa_supplicant_prepare_interface() {
 	local mld_connect_band_pref=
 	if [ -n "$mld_assoc_phy" ]; then
 		if [ $(($mld_allowed_phy_bitmap & $((1<<$mld_assoc_phy)))) -eq 0 ]; then
-			echo "Error: Conflict between preferred association phy and allowed phy"
+			echo "error: Conflict between preferred association phy and allowed phy"
+			return 1
+		fi
+
+		if [ $(($mld_allowed_phy_bitmap & $((1<<$radio)))) -eq 0 ]; then
+			echo "error: Conflict between UCI setup phy and allowed phy"
 			return 1
 		fi
 
@@ -1604,6 +1616,7 @@ ${mld_force_single_link:+mld_force_single_link=$mld_force_single_link}
 ${mld_allowed_phy_bitmap:+mld_allowed_phy=$mld_allowed_phy_bitmap}
 $rsn_overriding_str
 wps_cred_add_sae=1
+${disable_rrm:+disable_rrm=$disable_rrm}
 EOF
 	return 0
 }
@@ -1644,7 +1657,8 @@ wpa_supplicant_add_network() {
 		basic_rate mcast_rate \
 		ieee80211w ieee80211r fils ocv \
 		multi_ap \
-		default_disabled
+		default_disabled \
+		mtk_vendor_element
 
 	case "$auth_type" in
 		sae|owe|eap2|eap192)
@@ -1695,6 +1709,7 @@ wpa_supplicant_add_network() {
 	}
 
 	[ -n "$ocv" ] && append network_data "ocv=$ocv" "$N$T"
+	[ -n "$mtk_vendor_element" ] && append network_data "mtk_vendor_element=\"$mtk_vendor_element\"" "$N$T"
 
 	case "$auth_type" in
 		none) ;;

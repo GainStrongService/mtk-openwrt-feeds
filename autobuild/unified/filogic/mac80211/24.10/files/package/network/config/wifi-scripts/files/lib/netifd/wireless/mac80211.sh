@@ -100,7 +100,6 @@ drv_mac80211_init_iface_config() {
 	config_add_int max_listen_int
 	config_add_int dtim_period
 	config_add_int start_disabled
-	config_add_int vif_txpower
 
 	# mesh
 	config_add_string mesh_id
@@ -556,7 +555,7 @@ mac80211_hostapd_setup_base() {
 			append base_cfg "he_twt_responder=$he_twt_responder" "$N"
 		fi
 		if [ "$he_bss_color_enabled" -gt 0 ]; then
-			if !([ "$he_bss_color" -gt 0 ] && [ "$he_bss_color" -le 64 ]); then
+			if !([ -n "$he_bss_color" ] && [ "$he_bss_color" -gt 0 ] && [ "$he_bss_color" -le 64 ]); then
 				rand=$(head -n 1 /dev/urandom | tr -dc 0-9 | head -c 2 | sed 's/^0*//')
 				he_bss_color=$((rand % 63 + 1))
 			fi
@@ -663,6 +662,7 @@ ${lpi_bcn_enhance:+lpi_bcn_enhance=$lpi_bcn_enhance}
 ${sku_idx:+sku_idx=$sku_idx}
 ${lpi_sku_idx:+lpi_sku_idx=$lpi_sku_idx}
 #num_global_macaddr=$num_global_macaddr
+#used_radio_mask=$used_radio_mask
 $base_cfg
 
 EOF
@@ -851,6 +851,7 @@ fill_mld_params() {
 	local is_primary=1
 	local mld_allowed_links=0
 	local mld_radio_mask=0
+	local mld_link_cnt=0
 
 	iface_list="$(cat /etc/config/wireless | grep wifi-iface | cut -d ' ' -f3 | tr -s "'\n" ' ')"
 	for iface in $iface_list
@@ -861,8 +862,9 @@ fill_mld_params() {
 		local iface_disabled="$(uci show wireless.$iface | grep "disabled" | cut -d '=' -f2 | tr -d "'")"
 		local ht_mode="$(uci show wireless.$device.htmode | cut -d '=' -f2 | tr -d "'")"
 		local partner_radio_idx="$(uci show wireless.$device.radio | cut -d '=' -f2 | tr -d "'")"
+		local radio_disabled="$(uci show wireless.$device | grep "disabled" | cut -d '=' -f2 | tr -d "'")"
 
-		if [ "$iface_disabled" != "1" ] && [ "$mld_id" = "$target_mld_id" ] && [[ "$ht_mode" == "EHT"* ]]; then
+		if [ "$iface_disabled" != "1" ] && [ "$radio_disabled" != "1" ] && [ "$mld_id" = "$target_mld_id" ] && [[ "$ht_mode" == "EHT"* ]]; then
 			if [ -n "$mld_link_id" ]; then
 				is_mld_link_id_set=1
 				mld_allowed_links=$(($mld_allowed_links + 2**$mld_link_id))
@@ -872,6 +874,8 @@ fill_mld_params() {
 			else
 				mld_allowed_links=$(($mld_allowed_links * 2 + 1))
 			fi
+
+			mld_link_cnt=$(($mld_link_cnt + 1))
 
 			[ $partner_radio_idx -lt $own_radio_idx ] && is_primary=0
 			mld_radio_mask=$(($mld_radio_mask + 2**$partner_radio_idx))
@@ -900,6 +904,11 @@ fill_mld_params() {
 
 	if [ $found_mld -eq 0 ]; then
 		echo "mld_id $target_mld_id is not found"
+		return 1
+	fi
+
+	if [ $mld_link_cnt -gt 3 ]; then
+		echo "mld_link_cnt $mld_link_cnt is invalid"
 		return 1
 	fi
 
@@ -1015,16 +1024,16 @@ mac80211_prepare_vif() {
 				type=interface
 			fi
 
-			local retry=5
+			local retry=15
 			local ifname_folder="/sys/class/ieee80211/$phy/device/net/$ifname"
-			while [ "$retry" -gt 0 ] && [ "$mld_primary" -eq 0 ] && [ ! -d $ifname_folder ]
+			while [ "$retry" -gt 0 ] && [ -n "$mld_primary" ] && [ "$mld_primary" -eq 0 ] && [ ! -d $ifname_folder ]
 			do
 				echo "$phy:$ifname is not mld primary and does not exist, sleep 1s"
 				retry=$((retry - 1))
-				sleep 1
+				sleep 3
 			done
 
-			[ "$retry" -eq 0 ] && [ ! -d $ifname_folder ] && retrun
+			[ "$retry" -eq 0 ] && [ ! -d $ifname_folder ] && return
 
 			mac80211_hostapd_setup_bss "$phy" "$ifname" "$macaddr" "$type" || return
 
@@ -1186,22 +1195,6 @@ mac80211_setup_monitor() {
 	json_set_namespace "$prev"
 }
 
-mac80211_set_vif_txpower() {
-	local name="$1"
-
-	json_select config
-	json_get_var ifname _ifname
-	json_get_vars vif_txpower
-	json_select ..
-
-	set_default vif_txpower "$txpower"
-	if [ -n "$vif_txpower" ]; then
-		iw dev "$ifname" set txpower fixed "${vif_txpower%%.*}00"
-	else
-		iw dev "$ifname" set txpower auto
-	fi
-}
-
 wpa_supplicant_init_config() {
 	json_set_namespace wpa_supp prev
 
@@ -1361,7 +1354,11 @@ mac80211_setup_vif() {
 	esac
 
 	json_select ..
-	[ -n "$failed" ] || wireless_add_vif "$name" "$ifname"
+	if [ -n "$failed" ]; then
+		echo "error: $ifname failed to setup"
+	else
+		wireless_add_vif "$name" "$ifname"
+	fi
 
 	echo "Setup SMP Affinity"
 	/sbin/smp-mt76.sh
@@ -1420,6 +1417,37 @@ mac80211_set_suffix() {
 	phy_suffix="${radio:+:$radio}"
 	vif_phy_suffix="${radio:+.$radio}"
 	set_default radio -1
+}
+
+mac80211_count_ap_radio() {
+	local radio
+	local iface
+
+	for radio in $(uci show wireless | grep '=wifi-device' | cut -d. -f2 | cut -d= -f1); do
+		local radio_disabled=$(uci get wireless.$radio.disabled 2>/dev/null)
+		# skip disabled radios
+		[ "$radio_disabled" = "1" ] && continue
+
+		# Check for at least one enabled AP iface on this radio
+		for iface in $(uci show wireless | grep '=wifi-iface' | cut -d. -f2 | cut -d= -f1); do
+			local iface_device=$(uci get wireless.$iface.device 2>/dev/null)
+			# skip mismatched wifi-iface
+			[ "$iface_device" != "$radio" ] && continue
+
+			local iface_disabled=$(uci get wireless.$iface.disabled 2>/dev/null)
+			# skip disabled wifi-iface
+			[ "$iface_disabled" = "1" ] && continue
+
+			iface_mode=$(uci get wireless.$iface.mode 2>/dev/null)
+			[ "$iface_mode" = "ap" ] && {
+				# Extract the radio index (e.g., radio0 -> 0)
+				local idx=$(echo "$radio" | sed 's/[^0-9]*//g')
+
+				used_radio_mask=$((used_radio_mask | (1 << idx)))
+				break
+			}
+		done
+	done
 }
 
 mac80211_count_ap() {
@@ -1580,6 +1608,9 @@ drv_mac80211_setup() {
 	wpa_supp_init=
 	for_each_interface "ap" mac80211_check_ap
 
+	used_radio_mask=0
+	mac80211_count_ap_radio
+
 	[ -f "$hostapd_conf_file" ] && mv "$hostapd_conf_file" "$hostapd_conf_file.prev"
 
 	for_each_interface "sta adhoc mesh" mac80211_set_noscan
@@ -1610,31 +1641,28 @@ drv_mac80211_setup() {
 	find_colocated_sta "$radio"
 
 	country_consistent_check
-	phy_idx=$(echo "$phy" | sed 's/phy//')
-	[ -n "$sr_enable" ] && echo "$sr_enable" > /sys/kernel/debug/ieee80211/phy0/mt76/band$phy_idx/sr_enable
-	[ -n "$sr_enhanced" ] && echo "$sr_enhanced" > /sys/kernel/debug/ieee80211/phy0/mt76/band$phy_idx/sr_enhanced_enable
 
 	[ -x /usr/sbin/wpa_supplicant ] && wpa_supplicant_set_config "$phy" "$radio"
 	[ -x /usr/sbin/hostapd ] && hostapd_set_config "$phy" "$radio"
 
-	[ -x /usr/sbin/wpa_supplicant ] && [ -z "$hostapd_ctrl" ] && wpa_supplicant_start "$phy" "$radio"
+	[ -x /usr/sbin/wpa_supplicant ] && [ "$used_radio_mask" -eq 0 ] && wpa_supplicant_start "$phy" "$radio"
 
 	json_set_namespace wdev_uc prev
 	wdev_tool "$phy$phy_suffix" set_config "$(json_dump)" $active_ifnames
 	json_set_namespace "$prev"
 
-	[ -z "$phy_suffix" ] && {
-		if [ -n "$txpower" ]; then
-			iw phy "$phy" set txpower fixed "${txpower%%.*}00"
-		else
-			iw phy "$phy" set txpower auto
-		fi
-	}
+	if [ -n "$txpower" ]; then
+		iw phy "$phy" set txpower fixed "${txpower%%.*}00" radio "$radio"
+	else
+		iw phy "$phy" set txpower auto radio "$radio"
+	fi
 
-	for_each_interface "ap sta adhoc mesh monitor" mac80211_set_vif_txpower
 	wireless_set_up
 
 	echo /tmp/%e.core > /proc/sys/kernel/core_pattern
+	phy_idx=$(echo "$phy" | sed 's/phy//')
+	[ -n "$sr_enable" ] && echo "$sr_enable" > /sys/kernel/debug/ieee80211/phy0/mt76/band$phy_idx/sr_enable
+	[ -n "$sr_enhanced" ] && echo "$sr_enhanced" > /sys/kernel/debug/ieee80211/phy0/mt76/band$phy_idx/sr_enhanced_enable
 }
 
 _list_phy_interfaces() {

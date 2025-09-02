@@ -1,17 +1,17 @@
-From d15a789ddae93c8aabe719f2fc3dfe49306c069c Mon Sep 17 00:00:00 2001
+From a109a8827dbdf35bd4dbfd0c9effc2fc37643b68 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 9 Jan 2025 15:49:31 +0800
-Subject: [PATCH 008/107] sync patches/rt2x00
+Subject: [PATCH 008/115] sync patches/rt2x00
 
 ---
- drivers/net/wireless/ralink/rt2x00/Kconfig    |  23 +-
+ drivers/net/wireless/ralink/rt2x00/Kconfig    |  26 +-
  drivers/net/wireless/ralink/rt2x00/Makefile   |   1 +
  drivers/net/wireless/ralink/rt2x00/rt2800.h   |  29 +-
  .../net/wireless/ralink/rt2x00/rt2800lib.c    | 537 +++++++++++-------
  .../net/wireless/ralink/rt2x00/rt2800lib.h    |  33 ++
  .../net/wireless/ralink/rt2x00/rt2800mmio.c   |  38 +-
  .../net/wireless/ralink/rt2x00/rt2800pci.c    |  10 +
- .../net/wireless/ralink/rt2x00/rt2800soc.c    |  52 +-
+ .../net/wireless/ralink/rt2x00/rt2800soc.c    |  48 +-
  .../net/wireless/ralink/rt2x00/rt2800usb.c    |   7 +
  drivers/net/wireless/ralink/rt2x00/rt2x00.h   |   9 +
  .../net/wireless/ralink/rt2x00/rt2x00dev.c    |  34 +-
@@ -21,12 +21,12 @@ Subject: [PATCH 008/107] sync patches/rt2x00
  .../net/wireless/ralink/rt2x00/rt2x00soc.c    |  16 +
  include/linux/rt2x00_platform.h               |  23 +
  local-symbols                                 |   1 +
- 17 files changed, 792 insertions(+), 252 deletions(-)
+ 17 files changed, 792 insertions(+), 251 deletions(-)
  create mode 100644 drivers/net/wireless/ralink/rt2x00/rt2x00eeprom.c
  create mode 100644 include/linux/rt2x00_platform.h
 
 diff --git a/drivers/net/wireless/ralink/rt2x00/Kconfig b/drivers/net/wireless/ralink/rt2x00/Kconfig
-index 8f6e3d24..abaa51b9 100644
+index 4b7586d7..eaf93200 100644
 --- a/drivers/net/wireless/ralink/rt2x00/Kconfig
 +++ b/drivers/net/wireless/ralink/rt2x00/Kconfig
 @@ -70,6 +70,7 @@ config RT2800PCI
@@ -37,13 +37,12 @@ index 8f6e3d24..abaa51b9 100644
  	select RT2X00_LIB_CRYPTO
  	depends on CRC_CCITT
  	depends on EEPROM_93CX6
-@@ -211,13 +212,15 @@ endif
- config RT2800SOC
+@@ -212,11 +213,15 @@ config RT2800SOC
  	tristate "Ralink WiSoC support"
  	depends on m
--	depends on SOC_RT288X || SOC_RT305X || SOC_MT7620
+ 	depends on OF && (SOC_RT288X || SOC_RT305X || SOC_MT7620 || COMPILE_TEST)
 +	depends on SOC_RT288X || SOC_RT305X || SOC_RT3883 || SOC_MT7620
- 	select RT2X00_LIB_SOC
++	select RT2X00_LIB_SOC
  	select RT2X00_LIB_MMIO
  	select RT2X00_LIB_CRYPTO
  	select RT2X00_LIB_FIRMWARE
@@ -54,7 +53,7 @@ index 8f6e3d24..abaa51b9 100644
  	help
  	  This adds support for Ralink WiSoC devices.
  	  Supported chips: RT2880, RT3050, RT3052, RT3350, RT3352.
-@@ -226,36 +229,37 @@ config RT2800SOC
+@@ -225,31 +230,37 @@ config RT2800SOC
  
  
  config RT2800_LIB
@@ -77,11 +76,10 @@ index 8f6e3d24..abaa51b9 100644
  config RT2X00_LIB_PCI
 -	tristate
 +	tristate "RT2x00 PCI support"
- 	depends on m
- 	select RT2X00_LIB
- 
- config RT2X00_LIB_SOC
--	tristate
++	depends on m
++	select RT2X00_LIB
++
++config RT2X00_LIB_SOC
 +	tristate "RT2x00 SoC support"
 +	depends on SOC_RT288X || SOC_RT305X || SOC_RT3883 || SOC_MT7620
  	depends on m
@@ -99,7 +97,7 @@ index 8f6e3d24..abaa51b9 100644
  	depends on m
  
  config RT2X00_LIB_FIRMWARE
-@@ -265,6 +269,9 @@ config RT2X00_LIB_FIRMWARE
+@@ -259,6 +270,9 @@ config RT2X00_LIB_FIRMWARE
  config RT2X00_LIB_CRYPTO
  	bool
  
@@ -110,7 +108,7 @@ index 8f6e3d24..abaa51b9 100644
  	bool
  	default y if (RT2X00_LIB=y && LEDS_CLASS=y) || (RT2X00_LIB=m && LEDS_CLASS!=n)
 diff --git a/drivers/net/wireless/ralink/rt2x00/Makefile b/drivers/net/wireless/ralink/rt2x00/Makefile
-index 4a2156b8..94335ece 100644
+index f722da6a..9c9ac48b 100644
 --- a/drivers/net/wireless/ralink/rt2x00/Makefile
 +++ b/drivers/net/wireless/ralink/rt2x00/Makefile
 @@ -8,6 +8,7 @@ rt2x00lib-$(CPTCFG_RT2X00_LIB_DEBUGFS)	+= rt2x00debug.o
@@ -183,7 +181,7 @@ index 8930589b..fbb791c8 100644
   * EDCA_AC0_CFG:
   */
 diff --git a/drivers/net/wireless/ralink/rt2x00/rt2800lib.c b/drivers/net/wireless/ralink/rt2x00/rt2800lib.c
-index 08253507..e12e72c3 100644
+index 8245a152..69323faf 100644
 --- a/drivers/net/wireless/ralink/rt2x00/rt2800lib.c
 +++ b/drivers/net/wireless/ralink/rt2x00/rt2800lib.c
 @@ -25,6 +25,7 @@
@@ -1090,7 +1088,7 @@ index 08253507..e12e72c3 100644
  	reg = rt2800_register_read(rt2x00dev, offset);
  	rt2x00_set_field32(&reg, EDCA_AC0_CFG_TX_OP, queue->txop);
 diff --git a/drivers/net/wireless/ralink/rt2x00/rt2800lib.h b/drivers/net/wireless/ralink/rt2x00/rt2800lib.h
-index 194de676..59b29f2c 100644
+index 620a3d98..5467a8f9 100644
 --- a/drivers/net/wireless/ralink/rt2x00/rt2800lib.h
 +++ b/drivers/net/wireless/ralink/rt2x00/rt2800lib.h
 @@ -76,6 +76,9 @@ struct rt2800_ops {
@@ -1131,7 +1129,7 @@ index 194de676..59b29f2c 100644
  void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
  			const u8 command, const u8 token,
  			const u8 arg0, const u8 arg1);
-@@ -270,4 +294,13 @@ void rt2800_get_txwi_rxwi_size(struct rt2x00_dev *rt2x00dev,
+@@ -271,4 +295,13 @@ void rt2800_get_txwi_rxwi_size(struct rt2x00_dev *rt2x00dev,
  			       unsigned short *rxwi_size);
  void rt2800_pre_reset_hw(struct rt2x00_dev *rt2x00dev);
  
@@ -1146,7 +1144,7 @@ index 194de676..59b29f2c 100644
 +
  #endif /* RT2800LIB_H */
 diff --git a/drivers/net/wireless/ralink/rt2x00/rt2800mmio.c b/drivers/net/wireless/ralink/rt2x00/rt2800mmio.c
-index 5323acff..e55666f7 100644
+index 45775ecd..e14bc9e4 100644
 --- a/drivers/net/wireless/ralink/rt2x00/rt2800mmio.c
 +++ b/drivers/net/wireless/ralink/rt2x00/rt2800mmio.c
 @@ -35,7 +35,7 @@ unsigned int rt2800mmio_get_dma_done(struct data_queue *queue)
@@ -1265,7 +1263,7 @@ index c891043f..c1002bc2 100644
  
  static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 diff --git a/drivers/net/wireless/ralink/rt2x00/rt2800soc.c b/drivers/net/wireless/ralink/rt2x00/rt2800soc.c
-index 59be66cc..4111fe37 100644
+index 733bcffc..363ce922 100644
 --- a/drivers/net/wireless/ralink/rt2x00/rt2800soc.c
 +++ b/drivers/net/wireless/ralink/rt2x00/rt2800soc.c
 @@ -27,6 +27,12 @@
@@ -1301,9 +1299,9 @@ index 59be66cc..4111fe37 100644
  /* Firmware functions */
  static char *rt2800soc_get_firmware_name(struct rt2x00_dev *rt2x00dev)
  {
-@@ -131,6 +124,27 @@ static int rt2800soc_write_firmware(struct rt2x00_dev *rt2x00dev,
- 	return 0;
+@@ -149,6 +142,27 @@ static int rt2800soc_resume(struct platform_device *pdev)
  }
+ #endif /* CONFIG_PM */
  
 +#ifdef CONFIG_SOC_MT7620
 +static int rt2800soc_get_chippkg(void)
@@ -1329,7 +1327,7 @@ index 59be66cc..4111fe37 100644
  static const struct ieee80211_ops rt2800soc_mac80211_ops = {
  	.add_chanctx = ieee80211_emulate_add_chanctx,
  	.remove_chanctx = ieee80211_emulate_remove_chanctx,
-@@ -172,12 +186,15 @@ static const struct rt2800_ops rt2800soc_rt2800_ops = {
+@@ -190,12 +204,15 @@ static const struct rt2800_ops rt2800soc_rt2800_ops = {
  	.register_multiread	= rt2x00mmio_register_multiread,
  	.register_multiwrite	= rt2x00mmio_register_multiwrite,
  	.regbusy_read		= rt2x00mmio_regbusy_read,
@@ -1346,26 +1344,18 @@ index 59be66cc..4111fe37 100644
  };
  
  static const struct rt2x00lib_ops rt2800soc_rt2x00_ops = {
-@@ -243,10 +260,17 @@ static int rt2800soc_probe(struct platform_device *pdev)
- 	return rt2x00soc_probe(pdev, &rt2800soc_ops);
- }
- 
-+static const struct of_device_id rt2880_wmac_match[] = {
-+	{ .compatible = "ralink,rt2880-wmac" },
-+	{},
-+};
-+MODULE_DEVICE_TABLE(of, rt2880_wmac_match);
-+
+@@ -344,7 +361,8 @@ MODULE_DEVICE_TABLE(of, rt2880_wmac_match);
  static struct platform_driver rt2800soc_driver = {
  	.driver		= {
  		.name		= "rt2800_wmac",
- 		.mod_name	= KBUILD_MODNAME,
+-		.of_match_table = rt2880_wmac_match,
++		.mod_name	= KBUILD_MODNAME,
 +		.of_match_table	= rt2880_wmac_match,
  	},
  	.probe		= rt2800soc_probe,
- #if LINUX_VERSION_IS_GEQ(6,11,0)
+ 	.remove		= rt2800soc_remove,
 diff --git a/drivers/net/wireless/ralink/rt2x00/rt2800usb.c b/drivers/net/wireless/ralink/rt2x00/rt2800usb.c
-index a37f8eaf..26634472 100644
+index 7cf0b5cb..143b2f9b 100644
 --- a/drivers/net/wireless/ralink/rt2x00/rt2800usb.c
 +++ b/drivers/net/wireless/ralink/rt2x00/rt2800usb.c
 @@ -628,6 +628,10 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
@@ -1390,7 +1380,7 @@ index a37f8eaf..26634472 100644
  
  static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 diff --git a/drivers/net/wireless/ralink/rt2x00/rt2x00.h b/drivers/net/wireless/ralink/rt2x00/rt2x00.h
-index 4e1ef186..b4b8b89d 100644
+index 28e3d4e3..04c383e3 100644
 --- a/drivers/net/wireless/ralink/rt2x00/rt2x00.h
 +++ b/drivers/net/wireless/ralink/rt2x00/rt2x00.h
 @@ -28,6 +28,8 @@
@@ -1431,7 +1421,7 @@ index 4e1ef186..b4b8b89d 100644
  
  struct rt2x00_bar_list_entry {
 diff --git a/drivers/net/wireless/ralink/rt2x00/rt2x00dev.c b/drivers/net/wireless/ralink/rt2x00/rt2x00dev.c
-index 274524e1..69f8d5aa 100644
+index eb6934c9..79709271 100644
 --- a/drivers/net/wireless/ralink/rt2x00/rt2x00dev.c
 +++ b/drivers/net/wireless/ralink/rt2x00/rt2x00dev.c
 @@ -990,6 +990,12 @@ static void rt2x00lib_rate(struct ieee80211_rate *entry,
@@ -1812,7 +1802,7 @@ index 00000000..e10377e2
 +
 +#endif /* _RT2X00_PLATFORM_H */
 diff --git a/local-symbols b/local-symbols
-index 22f25f26..cd89dcb3 100644
+index 5b1282e8..24793be7 100644
 --- a/local-symbols
 +++ b/local-symbols
 @@ -323,6 +323,7 @@ RT2X00_LIB_FIRMWARE=

@@ -1,7 +1,7 @@
-From bbe28e48ade3628f583ab06d13f06596511d6df5 Mon Sep 17 00:00:00 2001
+From d001549a8f28fbb5de82b62d09a5a01663eceb3e Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 9 Jan 2025 15:49:08 +0800
-Subject: [PATCH 007/107] sync patches/ath10k
+Subject: [PATCH 007/115] sync patches/ath10k
 
 ---
  drivers/net/wireless/ath/ath10k/Kconfig   |  6 +++
@@ -47,10 +47,10 @@ index 6bc12618..e040d843 100644
  ath10k_core-$(CPTCFG_MAC80211_DEBUGFS) += debugfs_sta.o
  ath10k_core-$(CONFIG_PM) += wow.o
 diff --git a/drivers/net/wireless/ath/ath10k/core.c b/drivers/net/wireless/ath/ath10k/core.c
-index b3294287..ff87580c 100644
+index 6f78f175..ec317872 100644
 --- a/drivers/net/wireless/ath/ath10k/core.c
 +++ b/drivers/net/wireless/ath/ath10k/core.c
-@@ -9,6 +9,7 @@
+@@ -11,6 +11,7 @@
  #include <linux/module.h>
  #include <linux/firmware.h>
  #include <linux/of.h>
@@ -58,7 +58,7 @@ index b3294287..ff87580c 100644
  #include <linux/property.h>
  #include <linux/dmi.h>
  #include <linux/ctype.h>
-@@ -3411,6 +3412,8 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
+@@ -3458,6 +3459,8 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
  
  	device_get_mac_address(ar->dev, ar->mac_addr);
  
@@ -67,7 +67,7 @@ index b3294287..ff87580c 100644
  	ret = ath10k_core_init_firmware_features(ar);
  	if (ret) {
  		ath10k_err(ar, "fatal problem with firmware features: %d\n",
-@@ -3539,6 +3542,16 @@ int ath10k_core_register(struct ath10k *ar,
+@@ -3586,6 +3589,16 @@ int ath10k_core_register(struct ath10k *ar,
  
  	queue_work(ar->workqueue, &ar->register_work);
  
@@ -85,10 +85,10 @@ index b3294287..ff87580c 100644
  }
  EXPORT_SYMBOL(ath10k_core_register);
 diff --git a/drivers/net/wireless/ath/ath10k/core.h b/drivers/net/wireless/ath/ath10k/core.h
-index b893c43c..394c978b 100644
+index 0d33cdec..4e6c0b8c 100644
 --- a/drivers/net/wireless/ath/ath10k/core.h
 +++ b/drivers/net/wireless/ath/ath10k/core.h
-@@ -1315,6 +1315,10 @@ struct ath10k {
+@@ -1320,6 +1320,10 @@ struct ath10k {
  	s32 tx_power_2g_limit;
  	s32 tx_power_5g_limit;
  
@@ -129,11 +129,11 @@ index 9b1d04eb..b82033b0 100644
  	ret = led_classdev_register(wiphy_dev(ar->hw->wiphy), &ar->leds.cdev);
  	if (ret)
 diff --git a/drivers/net/wireless/ath/ath10k/mac.c b/drivers/net/wireless/ath/ath10k/mac.c
-index 1d517844..e2bf44f0 100644
+index 01b5af50..4a462732 100644
 --- a/drivers/net/wireless/ath/ath10k/mac.c
 +++ b/drivers/net/wireless/ath/ath10k/mac.c
-@@ -1022,6 +1022,40 @@ static inline int ath10k_vdev_setup_sync(struct ath10k *ar)
- 	return ar->last_wmi_vdev_start_status;
+@@ -1044,6 +1044,40 @@ static inline int ath10k_vdev_delete_sync(struct ath10k *ar)
+ 	return 0;
  }
  
 +static u32 ath10k_get_max_antenna_gain(struct ath10k *ar,
@@ -173,7 +173,7 @@ index 1d517844..e2bf44f0 100644
  static int ath10k_monitor_vdev_start(struct ath10k *ar, int vdev_id)
  {
  	struct cfg80211_chan_def *chandef = NULL;
-@@ -1054,7 +1088,8 @@ static int ath10k_monitor_vdev_start(struct ath10k *ar, int vdev_id)
+@@ -1076,7 +1110,8 @@ static int ath10k_monitor_vdev_start(struct ath10k *ar, int vdev_id)
  	arg.channel.min_power = 0;
  	arg.channel.max_power = channel->max_power * 2;
  	arg.channel.max_reg_power = channel->max_reg_power * 2;
@@ -183,7 +183,7 @@ index 1d517844..e2bf44f0 100644
  
  	reinit_completion(&ar->vdev_setup_done);
  	reinit_completion(&ar->vdev_delete_done);
-@@ -1500,7 +1535,8 @@ static int ath10k_vdev_start_restart(struct ath10k_vif *arvif,
+@@ -1522,7 +1557,8 @@ static int ath10k_vdev_start_restart(struct ath10k_vif *arvif,
  	arg.channel.min_power = 0;
  	arg.channel.max_power = chandef->chan->max_power * 2;
  	arg.channel.max_reg_power = chandef->chan->max_reg_power * 2;
@@ -193,7 +193,7 @@ index 1d517844..e2bf44f0 100644
  
  	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
  		arg.ssid = arvif->u.ap.ssid;
-@@ -3431,7 +3467,8 @@ static int ath10k_update_channel_list(struct ath10k *ar)
+@@ -3453,7 +3489,8 @@ static int ath10k_update_channel_list(struct ath10k *ar)
  			ch->min_power = 0;
  			ch->max_power = channel->max_power * 2;
  			ch->max_reg_power = channel->max_reg_power * 2;
@@ -203,7 +203,7 @@ index 1d517844..e2bf44f0 100644
  			ch->reg_class_id = 0; /* FIXME */
  
  			/* FIXME: why use only legacy modes, why not any
-@@ -9934,6 +9971,21 @@ static int ath10k_mac_init_rd(struct ath10k *ar)
+@@ -9962,6 +9999,21 @@ static int ath10k_mac_init_rd(struct ath10k *ar)
  	return 0;
  }
  
@@ -225,7 +225,7 @@ index 1d517844..e2bf44f0 100644
  int ath10k_mac_register(struct ath10k *ar)
  {
  	static const u32 cipher_suites[] = {
-@@ -10052,7 +10104,6 @@ int ath10k_mac_register(struct ath10k *ar)
+@@ -10080,7 +10132,6 @@ int ath10k_mac_register(struct ath10k *ar)
  	ieee80211_hw_set(ar->hw, CHANCTX_STA_CSA);
  	ieee80211_hw_set(ar->hw, QUEUE_CONTROL);
  	ieee80211_hw_set(ar->hw, SUPPORTS_TX_FRAG);
@@ -233,7 +233,7 @@ index 1d517844..e2bf44f0 100644
  
  	if (!test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags))
  		ieee80211_hw_set(ar->hw, SW_CRYPTO_CONTROL);
-@@ -10296,6 +10347,12 @@ int ath10k_mac_register(struct ath10k *ar)
+@@ -10324,6 +10375,12 @@ int ath10k_mac_register(struct ath10k *ar)
  
  	ar->hw->weight_multiplier = ATH10K_AIRTIME_WEIGHT_MULTIPLIER;
  
@@ -247,10 +247,10 @@ index 1d517844..e2bf44f0 100644
  	if (ret) {
  		ath10k_err(ar, "failed to register ieee80211: %d\n", ret);
 diff --git a/drivers/net/wireless/ath/ath10k/pci.c b/drivers/net/wireless/ath/ath10k/pci.c
-index 36ac452f..3c5164c4 100644
+index 220fc682..f0b6f7d4 100644
 --- a/drivers/net/wireless/ath/ath10k/pci.c
 +++ b/drivers/net/wireless/ath/ath10k/pci.c
-@@ -132,7 +132,11 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
+@@ -133,7 +133,11 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
  		.flags = CE_ATTR_FLAGS,
  		.src_nentries = 0,
  		.src_sz_max = 2048,
@@ -262,7 +262,7 @@ index 36ac452f..3c5164c4 100644
  		.recv_cb = ath10k_pci_htt_htc_rx_cb,
  	},
  
-@@ -141,7 +145,11 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
+@@ -142,7 +146,11 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
  		.flags = CE_ATTR_FLAGS,
  		.src_nentries = 0,
  		.src_sz_max = 2048,
@@ -274,7 +274,7 @@ index 36ac452f..3c5164c4 100644
  		.recv_cb = ath10k_pci_htc_rx_cb,
  	},
  
-@@ -168,7 +176,11 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
+@@ -169,7 +177,11 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
  		.flags = CE_ATTR_FLAGS,
  		.src_nentries = 0,
  		.src_sz_max = 512,
@@ -286,7 +286,7 @@ index 36ac452f..3c5164c4 100644
  		.recv_cb = ath10k_pci_htt_rx_cb,
  	},
  
-@@ -193,7 +205,11 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
+@@ -194,7 +206,11 @@ static const struct ce_attr pci_host_ce_config_wlan[] = {
  		.flags = CE_ATTR_FLAGS,
  		.src_nentries = 0,
  		.src_sz_max = 2048,
@@ -312,7 +312,7 @@ index 1f4de9fb..fcfa3c21 100644
  void ath10k_thermal_unregister(struct ath10k *ar);
  void ath10k_thermal_event_temperature(struct ath10k *ar, int temperature);
 diff --git a/local-symbols b/local-symbols
-index 9e196648..22f25f26 100644
+index 441cbd37..5b1282e8 100644
 --- a/local-symbols
 +++ b/local-symbols
 @@ -150,6 +150,7 @@ ATH10K_DEBUG=

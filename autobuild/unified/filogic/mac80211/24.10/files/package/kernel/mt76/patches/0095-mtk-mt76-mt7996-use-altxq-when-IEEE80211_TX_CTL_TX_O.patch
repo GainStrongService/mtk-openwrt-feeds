@@ -1,7 +1,7 @@
-From 35705aece5776644084695063c115f5c5e924609 Mon Sep 17 00:00:00 2001
+From 0ef915c61763e1a797d83bbbdf081cdaf2333982 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 4 Jun 2025 16:42:10 +0800
-Subject: [PATCH 95/95] mtk: mt76: mt7996: use altxq when
+Subject: [PATCH 095/119] mtk: mt76: mt7996: use altxq when
  IEEE80211_TX_CTL_TX_OFFCHAN is true
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
@@ -10,10 +10,10 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  1 file changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 15e3f245..68768e7c 100644
+index b377bcd2..a5084ca9 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -760,10 +760,15 @@ mt7996_mac_write_txwi_8023(struct mt7996_dev *dev, __le32 *txwi,
+@@ -757,10 +757,15 @@ mt7996_mac_write_txwi_8023(struct mt7996_dev *dev, __le32 *txwi,
  		txwi[3] |= cpu_to_le32(MT_TXD3_HW_AMSDU);
  }
  
@@ -30,7 +30,7 @@ index 15e3f245..68768e7c 100644
  	if (ieee80211_is_deauth(fc)) {
  		/* In WPA3 cert TC-4.8.1, the deauth must be transmitted without
  		 * considering PSM bit
-@@ -800,7 +805,7 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
+@@ -797,7 +802,7 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
  	u8 fc_type, fc_stype;
  	u32 val;
  

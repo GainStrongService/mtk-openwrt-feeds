@@ -353,14 +353,16 @@ function iface_hostapd_notify(phy, ifname, iface, state, radio_idx)
 function iface_channel_switch(phy, ifname, iface, info)
 {
 	let msg = {
-		phy: phy,
+                /* always notify phy0, but the radio depends on the input */
+		/* phy: phy, */
+                phy: "phy0",
+		radio: info.radio_idx,
 		up: true,
 		csa: true,
 		csa_count: info.csa_count ? info.csa_count - 1 : 0,
 		frequency: info.frequency,
 		ch_width: info.ch_width,
 		bw320_offset: info.bw320_offset,
-		radio_idx: info.radio_idx,
 		sec_chan_offset: info.sec_chan_offset,
 		punct_bitmap: info.punct_bitmap,
 	};

@@ -129,6 +129,7 @@ for (let phy_name, phy in board.wlan) {
 		let mld_ieee80211w = "1";
 		let mbo = 0;
 		let ssid = "";
+		let assocresp_elements="dd07000ce700000000";
 
 		if (band_name == "6g") {
 			encryption = "sae";
@@ -169,6 +170,7 @@ set ${si_mld}.mode='ap'
 set ${si_mld}.mld_id=${mld_id}
 set ${si_mld}.ieee80211w='${mld_ieee80211w}'
 set ${si_mld}.encryption='${mld_encryption}'
+set ${si_mld}.assocresp_elements='${assocresp_elements}'
 `);
 			if (band_name != "6g")
 				print(`set ${si_mld}.encryption_rsno=${mld_encryption_rsno}
@@ -183,6 +185,7 @@ set ${si}.ssid='${defaults?.ssid || ssid}'
 set ${si}.encryption='${defaults?.encryption || encryption}'
 set ${si}.key='${defaults?.key || ""}'
 set ${si}.mbo=${mbo}
+set ${si}.assocresp_elements='${assocresp_elements}'
 `);
 
 		if (mbssid)

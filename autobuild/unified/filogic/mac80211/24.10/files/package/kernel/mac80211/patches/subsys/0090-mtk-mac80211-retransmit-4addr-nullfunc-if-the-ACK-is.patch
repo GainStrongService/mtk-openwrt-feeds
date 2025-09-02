@@ -1,7 +1,7 @@
-From bb9398cfcfc134c176ac7d2888f8a830ac152d3f Mon Sep 17 00:00:00 2001
+From 374f1072a5f0e4f382af6bf925887eca7323c13d Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 14 Feb 2025 09:41:07 +0800
-Subject: [PATCH 090/107] mtk: mac80211: retransmit 4addr nullfunc if the ACK
+Subject: [PATCH 090/115] mtk: mac80211: retransmit 4addr nullfunc if the ACK
  is not received
 
 When using 4 address mode, station need to send a 4 address null func to
@@ -25,7 +25,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  5 files changed, 55 insertions(+), 1 deletion(-)
 
 diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
-index b4f14f2a..ae252e6c 100644
+index 1df55bb0..e84f2b1f 100644
 --- a/net/mac80211/ieee80211_i.h
 +++ b/net/mac80211/ieee80211_i.h
 @@ -91,6 +91,7 @@ enum ieee80211_status_data {
@@ -36,7 +36,7 @@ index b4f14f2a..ae252e6c 100644
  	IEEE80211_STATUS_SUBDATA_MASK	= 0x1ff0,
  };
  
-@@ -554,6 +555,7 @@ struct ieee80211_if_managed {
+@@ -563,6 +564,7 @@ struct ieee80211_if_managed {
  	unsigned int uapsd_max_sp_len;
  
  	u8 use_4addr;
@@ -44,7 +44,7 @@ index b4f14f2a..ae252e6c 100644
  
  	/*
  	 * State variables for keeping track of RSSI of the AP currently
-@@ -2431,6 +2433,7 @@ void ieee80211_dynamic_ps_timer(struct timer_list *t);
+@@ -2488,6 +2490,7 @@ void ieee80211_dynamic_ps_timer(struct timer_list *t);
  void ieee80211_send_nullfunc(struct ieee80211_local *local,
  			     struct ieee80211_sub_if_data *sdata,
  			     bool powersave);
@@ -53,10 +53,10 @@ index b4f14f2a..ae252e6c 100644
  				   struct ieee80211_sub_if_data *sdata);
  void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
 diff --git a/net/mac80211/main.c b/net/mac80211/main.c
-index 79cb6cc0..82582a35 100644
+index 5cef0293..b345e555 100644
 --- a/net/mac80211/main.c
 +++ b/net/mac80211/main.c
-@@ -501,6 +501,8 @@ static void ieee80211_restart_work(struct work_struct *work)
+@@ -513,6 +513,8 @@ static void ieee80211_restart_work(struct work_struct *work)
  				ieee80211_sta_connection_lost(sdata,
  							      WLAN_REASON_UNSPECIFIED,
  							      false);
@@ -66,10 +66,10 @@ index 79cb6cc0..82582a35 100644
  		wiphy_delayed_work_flush(local->hw.wiphy,
  					 &sdata->dec_tailroom_needed_wk);
 diff --git a/net/mac80211/mlme.c b/net/mac80211/mlme.c
-index fa8d44ab..4ee3c1de 100644
+index 73b41697..73b94576 100644
 --- a/net/mac80211/mlme.c
 +++ b/net/mac80211/mlme.c
-@@ -2325,13 +2325,29 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
+@@ -2374,13 +2374,29 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
  void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
  				   struct ieee80211_sub_if_data *sdata)
  {
@@ -100,7 +100,7 @@ index fa8d44ab..4ee3c1de 100644
  	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 30);
  	if (!skb)
  		return;
-@@ -2353,9 +2369,15 @@ void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
+@@ -2402,9 +2418,15 @@ void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
  		memcpy(nullfunc->addr3, sdata->deflink.u.mgd.bssid, ETH_ALEN);
  	}
  
@@ -116,7 +116,7 @@ index fa8d44ab..4ee3c1de 100644
  }
  
  /* spectrum management related things */
-@@ -8749,6 +8771,8 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
+@@ -8895,6 +8917,8 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
  				ieee80211_neg_ttlm_timeout_work);
  	wiphy_work_init(&ifmgd->teardown_ttlm_work,
  			ieee80211_teardown_ttlm_work);
@@ -125,7 +125,7 @@ index fa8d44ab..4ee3c1de 100644
  
  	ifmgd->flags = 0;
  	ifmgd->powersave = sdata->wdev.ps;
-@@ -9975,6 +9999,8 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
+@@ -10170,6 +10194,8 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
  			  &ifmgd->beacon_connection_loss_work);
  	wiphy_work_cancel(sdata->local->hw.wiphy,
  			  &ifmgd->csa_connection_drop_work);
@@ -135,10 +135,10 @@ index fa8d44ab..4ee3c1de 100644
  				  &ifmgd->tdls_peer_del_work);
  
 diff --git a/net/mac80211/sta_info.c b/net/mac80211/sta_info.c
-index 3fd6a71f..1863e9a4 100644
+index b856194f..85deb173 100644
 --- a/net/mac80211/sta_info.c
 +++ b/net/mac80211/sta_info.c
-@@ -1475,6 +1475,9 @@ static void __sta_info_destroy_part2(struct sta_info *sta, bool recalc)
+@@ -1517,6 +1517,9 @@ static void __sta_info_destroy_part2(struct sta_info *sta, bool recalc)
  		WARN_ON_ONCE(ret);
  	}
  
@@ -149,7 +149,7 @@ index 3fd6a71f..1863e9a4 100644
  	ieee80211_free_sta_keys(local, sta);
  
 diff --git a/net/mac80211/status.c b/net/mac80211/status.c
-index ce061c57..d4894aa0 100644
+index 9437b751..582d10a2 100644
 --- a/net/mac80211/status.c
 +++ b/net/mac80211/status.c
 @@ -713,6 +713,23 @@ ieee80211_handle_teardown_ttlm_status(struct ieee80211_sub_if_data *sdata,

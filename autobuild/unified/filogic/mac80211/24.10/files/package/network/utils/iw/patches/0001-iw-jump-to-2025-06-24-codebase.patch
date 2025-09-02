@@ -1,0 +1,3057 @@
+From 740b0faf33bc2dba1fb5bbdf5bf2aa50bbe330c7 Mon Sep 17 00:00:00 2001
+From: Johannes Berg <johannes.berg@intel.com>
+Date: Fri, 17 May 2024 12:04:06 +0200
+Subject: [PATCH 01/11] iw: jump to 2025-06-24 codebase
+
+iw: refactor frequency help
+
+The channel parsing is the same in most places, refactor
+the help strings for that to not duplicate them in all
+the commands using them. This also corrects the help for
+a number of commands that never saw 320 MHz support.
+
+Reviewed-by: Miriam Rachel Korenblit <miriam.rachel.korenblit@intel.com>
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: add puncturing support
+
+Parse and pass the puncturing bitmap to the kernel in any
+chandef (except S1G), the kernel will check validity.
+
+Reviewed-by: Miriam Rachel Korenblit <miriam.rachel.korenblit@intel.com>
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+util: clarify comment about 'parsed' pointer
+
+It took me a while to understand this (again?), so
+clarify the comment here.
+
+Reviewed-by: Miriam Rachel Korenblit <miriam.rachel.korenblit@intel.com>
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: remove sizer section and related code
+
+With commit 338059ace9d0 ("iw: change __cmd section scheme to fit
+gcc/clang"), the __cmd section only includes pointers to struct cmd
+rather than the struct itself. This means that the code to measure the
+spacing is not needed anymore and can be dropped.
+
+Signed-off-by: Benjamin Berg <benjamin.berg@intel.com>
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: fix formats under MIPS64/PPC
+
+__SANE_USERSPACE_TYPES__ needs to be defined to get consistent 64-bit
+type defines and to fix -Wformat warnings.
+
+Signed-off-by: Rosen Penev <rosenp@gmail.com>
+Link: https://lore.kernel.org/r/20240702193544.5984-1-rosenp@gmail.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+update nl80211.h
+
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+scan: Add printing of HE Operation Element
+
+Signed-off-by: Christopher A Wills <christopher.a.wills@intel.com>
+
+iw: scan: add enum for element IDs
+
+Formerly, element IDs were hardcoded. Improve readability by using
+element ID names.
+
+Signed-off-by: Dylan Eskew <dylan.eskew@candelatech.com>
+Link: https://patch.msgid.link/20240930181145.1043048-2-dylan.eskew@candelatech.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+update nl80211.h
+
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: add output for wiphy interface combinations
+
+When multiple hardwares are grouped under a wiphy, the information about it
+is advertised via NL80211_ATTR_WIPHY_RADIOS and
+NL80211_ATTR_WIPHY_INTERFACE_COMBINATIONS attributes. Add support to parse
+and display the information in info command.
+
+Sample output with hwsim radio
+(insmod mac80211_hwsim.ko radios=1 mlo=1 multi_radio=1):
+$ iw phy0 info
+  ....
+          valid interface combinations:
+                 * #{ IBSS } <= 1, #{ managed, AP, mesh point, P2P-client, P2P-GO } <= 2048, #{ P2P-device } <= 1,
+                   total <= 2050, #channels <= 1, radar detect widths: { 20 MHz (no HT), 20 MHz, 40 MHz, 80 MHz, 160 MHz, 5 MHz, 10 MHz }
+  ....
+          Supported wiphy radios:
+                * Idx 0:
+                        Frequency Range:  2402 MHz - 2494 MHz
+                        Radio's valid interface combinations:
+                                 * #{ IBSS } <= 1, #{ managed, AP, mesh point, P2P-client, P2P-GO } <= 2048, #{ P2P-device } <= 1,
+                                   total <= 2050, #channels <= 1, radar detect widths: { 20 MHz (no HT), 20 MHz, 40 MHz, 80 MHz, 160 MHz, 5 MHz, 10 MHz }
+
+                * Idx 1:
+                        Frequency Range:  5170 MHz - 5935 MHz
+                        Radio's valid interface combinations:
+                                 * #{ IBSS } <= 1, #{ managed, AP, mesh point, P2P-client, P2P-GO } <= 2048, #{ P2P-device } <= 1,
+                                   total <= 2050, #channels <= 1, radar detect widths: { 20 MHz (no HT), 20 MHz, 40 MHz, 80 MHz, 160 MHz, 5 MHz, 10 MHz }
+
+                * Idx 2:
+                        Frequency Range:  5945 MHz - 7125 MHz
+                        Radio's valid interface combinations:
+                                 * #{ IBSS } <= 1, #{ managed, AP, mesh point, P2P-client, P2P-GO } <= 2048, #{ P2P-device } <= 1,
+                                   total <= 2050, #channels <= 1, radar detect widths: { 20 MHz (no HT), 20 MHz, 40 MHz, 80 MHz, 160 MHz, 5 MHz, 10 MHz }
+
+                * Idx 3:
+                        Frequency Range:  892 MHz - 937 MHz
+                        Radio's valid interface combinations:
+                                 * #{ IBSS } <= 1, #{ managed, AP, mesh point, P2P-client, P2P-GO } <= 2048, #{ P2P-device } <= 1,
+                                   total <= 2050, #channels <= 1, radar detect widths: { 20 MHz (no HT), 20 MHz, 40 MHz, 80 MHz, 160 MHz, 5 MHz, 10 MHz }
+
+        Globally valid interface combinations:
+                 * #{ IBSS } <= 1, #{ managed, AP, mesh point, P2P-client, P2P-GO } <= 2048, #{ P2P-device } <= 1,
+                   total <= 2050, #channels <= 4
+
+Signed-off-by: Aditya Kumar Singh <quic_adisi@quicinc.com>
+Link: https://patch.msgid.link/20241008050607.1113396-3-quic_adisi@quicinc.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: print tx power per link for MLD
+
+Add support to print tx power per link for an ML interface
+
+Sample output:
+phy#0
+        Interface wlp88s0
+                ifindex 5
+                wdev 0x1
+                addr 00:03:7f:01:54:92
+                ssid tx_power_123
+                type AP
+                multicast TXQ:
+                        qsz-byt qsz-pkt flows   drops   marks   overlmt hashcol tx-bytes        tx-packets
+                        0       0       0       0       0       0       0       0               0
+                MLD with links:
+                 - link ID  0 link addr 00:03:7f:01:54:92
+                   channel 36 (5180 MHz), width: 80 MHz, center1: 5210 MHz
+                   txpower 30.00 dBm
+
+Signed-off-by: Aaradhana Sahu <quic_aarasahu@quicinc.com>
+Signed-off-by: Rameshkumar Sundaram <quic_ramess@quicinc.com>
+Link: https://patch.msgid.link/20241125100913.261319-1-quic_ramess@quicinc.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: scan: replace passed ie buffer with ie context
+
+Since some ies require references to other ies, parse
+the ie list once before to create a context and prevent
+parsing more than the two times required.
+
+Signed-off-by: Dylan Eskew <dylan.eskew@candelatech.com>
+Link: https://patch.msgid.link/20241122161851.647214-1-dylan.eskew@candelatech.com
+[cleanups]
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: util: update and clean up eht capa printing
+
+A number of fields were either missing or incorrect, so
+update to more aligned with 802.11be spec. Also clean up
+printout formatting.
+
+Signed-off-by: Dylan Eskew <dylan.eskew@candelatech.com>
+Link: https://patch.msgid.link/20250319183918.1215853-2-dylan.eskew@candelatech.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: scan: add eht capability parsing
+
+Add ability to print out EHT capabilities from
+AP beacons.
+
+Signed-off-by: Dylan Eskew <dylan.eskew@candelatech.com>
+Link: https://patch.msgid.link/20250319183918.1215853-3-dylan.eskew@candelatech.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: fix HE capabilities on Big Endian platforms
+
+IE fields are encoded in Little Endian and are not correctly
+printed on Big Endian platforms.
+
+Fixes: c741be9f6ca3 ("iw: print HE capabilities")
+Signed-off-by: Aleksander Jan Bajkowski <olek2@wp.pl>
+Link: https://patch.msgid.link/20250405184807.701728-2-olek2@wp.pl
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: fix HE operation on Big Endian platforms
+
+IE fields are encoded in Little Endian and are not correctly
+printed on Big Endian platforms.
+
+Fixes: 422419e06d55 ("scan: Add printing of HE Operation Element")
+Signed-off-by: Aleksander Jan Bajkowski <olek2@wp.pl>
+Link: https://patch.msgid.link/20250405184807.701728-3-olek2@wp.pl
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: scan: Decode additional WPA3 AKM suite types
+
+These values are taken from the publicly-available WPA3
+specification available on the WFA website.
+
+Specific string choice attempts to match previous
+printouts, rather than matching the specification
+verbatim.
+
+Signed-off-by: Alex Gavin <alex.gavin@candelatech.com>
+Link: https://patch.msgid.link/20250413182515.10755-2-alex.gavin@candelatech.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: scan: Decode additional WPA3 group ciphers
+
+These values are taken from the publicly-available WPA3
+specification available on the WFA website.
+
+The values also match hostapd keys 'group_cipher'
+and 'group_mgmt_cipher'.
+
+Signed-off-by: Alex Gavin <alex.gavin@candelatech.com>
+Link: https://patch.msgid.link/20250413182515.10755-3-alex.gavin@candelatech.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+util: rename hz to Hz
+
+In most places, the Hz unit is used. This commit changes
+hz to Hz in other places.
+
+Signed-off-by: Aleksander Jan Bajkowski <olek2@wp.pl>
+Link: https://patch.msgid.link/20250413113653.29050-1-olek2@wp.pl
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+util: rename hz to Hz vol 2
+
+In most places, the Hz unit is used. This commit changes
+hz to Hz in other places.
+
+Signed-off-by: Aleksander Jan Bajkowski <olek2@wp.pl>
+Link: https://patch.msgid.link/20250502200424.3492403-1-olek2@wp.pl
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: scan: Add printing of EHT Operation Element
+
+Add ability to print out EHT capabilities from AP beacons.
+
+Signed-off-by: Aleksander Jan Bajkowski <olek2@wp.pl>
+Link: https://patch.msgid.link/20250502100353.3149470-1-olek2@wp.pl
+[add default case to bandwidth switch]
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: fix EHT capabilities on Big Endian platforms
+
+IE fields are encoded in Little Endian and are not correctly
+printed on Big Endian platforms.
+
+Fixes: 5a71b722270c ("iw: Print local EHT capabilities")
+Signed-off-by: Aleksander Jan Bajkowski <olek2@wp.pl>
+Link: https://patch.msgid.link/20250502194405.3489240-1-olek2@wp.pl
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: print NO-EHT flags for reg get command
+
+Currently when NO-EHT flag is set by driver, iw doesn't display that
+information in the 'iw reg get' command. Add changes to print "NO-EHT"
+while displaying the reg rules via reg get command, if a reg rule is
+marked with NO-EHT flag.
+
+Sample Output:
+
+country RU: DFS-UNSET
+        (2402 - 2472 @ 40), (N/A, 20), (N/A), NO-EHT
+        (5170 - 5250 @ 80), (N/A, 23), (N/A), AUTO-BW, NO-EHT
+        (5250 - 5330 @ 80), (N/A, 23), (0 ms), DFS, AUTO-BW, NO-EHT
+        (5490 - 5730 @ 160), (N/A, 24), (0 ms), DFS, AUTO-BW, NO-EHT
+        (5735 - 5835 @ 80), (N/A, 30), (N/A), AUTO-BW, NO-EHT
+
+Signed-off-by: Aditya Kumar Singh <aditya.kumar.singh@oss.qualcomm.com>
+Signed-off-by: Manish Dharanenthiran <manish.dharanenthiran@oss.qualcomm.com>
+Link: https://patch.msgid.link/20250512152304.2852658-1-manish.dharanenthiran@oss.qualcomm.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: Prevent segfault in ftm get stats
+
+Ensure correct NL80211_FTM_STATS_MAX is passed to nla_parse
+to prevent segmentation fault.
+
+Fixes: 02b85d80b4f4 ("iw: add FTM responder commands")
+Signed-off-by: Daniel Gabay <daniel.gabay@intel.com>
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+update nl80211.h
+
+From Linux 6.16-rc2.
+
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: Add command to enable/disable EPCS
+
+Add support to enable/disable Emergency Preparedness Communication
+Services (EPCS).
+
+Signed-off-by: Ilan Peer <ilan.peer@intel.com>
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: print HE mcs correctly when mcs_len
+
+Print HE mcs correctly when lower layer
+report correct/real mcs length.
+
+Signed-off-by: Janusz Dziedzic <janusz.dziedzic@gmail.com>
+Link: https://patch.msgid.link/20250426202702.913342-1-janusz.dziedzic@gmail.com
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+
+iw: scan: Add partial Multi-Link element printing
+
+Only print some basic items to start.
+
+Minimum and maximum length values are computed from the
+specification. Maximum only includes Common Info and
+does not consider Link Info.
+
+Signed-off-by: Alex Gavin <alex.gavin@candelatech.com>
+Link: https://patch.msgid.link/20250528041330.83464-1-alex.gavin@candelatech.com
+[code style, spelling fixes]
+Signed-off-by: Johannes Berg <johannes.berg@intel.com>
+---
+ Makefile    |   1 +
+ ap.c        |  10 +-
+ ftm.c       |   2 +-
+ ieee80211.h |  46 ++++++
+ info.c      | 219 ++++++++++++++++----------
+ interface.c |  28 ++++
+ iw.c        |  23 ---
+ iw.h        |  28 +++-
+ link.c      |   5 +-
+ nl80211.h   | 415 ++++++++++++++++++++++++++++++++----------------
+ phy.c       |  38 ++---
+ reg.c       |   8 +-
+ scan.c      | 301 ++++++++++++++++++++++-------------
+ util.c      | 441 +++++++++++++++++++++++++++++++++++++++++++++-------
+ 14 files changed, 1122 insertions(+), 443 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 17be33f..2652fac 100644
+--- a/Makefile
++++ b/Makefile
+@@ -17,6 +17,7 @@ CFLAGS ?= -O2 -g
+ CFLAGS += -Wall -Wextra -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common
+ CFLAGS += -Werror-implicit-function-declaration -Wsign-compare -Wno-unused-parameter
+ CFLAGS += -Wdeclaration-after-statement
++CFLAGS += -D__SANE_USERSPACE_TYPES__
+ CFLAGS += $(CFLAGS_EVAL)
+ CFLAGS += $(EXTRA_CFLAGS)
+ 
+diff --git a/ap.c b/ap.c
+index 748576d..bf72fe2 100644
+--- a/ap.c
++++ b/ap.c
+@@ -144,12 +144,14 @@ static int handle_start_ap(struct nl80211_state *state,
+  nla_put_failure:
+ 	return -ENOSPC;
+ }
+-COMMAND(ap, start, "",
+-	NL80211_CMD_NEW_BEACON, 0, CIB_NETDEV, handle_start_ap,
+-	"<SSID> <control freq> [5|10|20|40|80|80+80|160] [<center1_freq> [<center2_freq>]]"
++COMMAND(ap, start,
++	"<SSID> "
++	PARSE_FREQ_ARGS("<SSID> ",
+ 	" <beacon interval in TU> <DTIM period> [hidden-ssid|zeroed-ssid] head"
+ 	" <beacon head in hexadecimal> [tail <beacon tail in hexadecimal>]"
+-	" [inactivity-time <inactivity time in seconds>] [key0:abcde d:1:6162636465]\n");
++	" [inactivity-time <inactivity time in seconds>] [key0:abcde d:1:6162636465]"),
++	NL80211_CMD_NEW_BEACON, 0, CIB_NETDEV, handle_start_ap,
++	"Start an AP. Note that this usually requires hostapd or similar.\n");
+ 
+ static int handle_stop_ap(struct nl80211_state *state,
+ 			  struct nl_msg *msg,
+diff --git a/ftm.c b/ftm.c
+index 23be38e..7688e71 100644
+--- a/ftm.c
++++ b/ftm.c
+@@ -39,7 +39,7 @@ static int handle_ftm_stats(struct nl_msg *msg, void *arg)
+ 		return NL_SKIP;
+ 	}
+ 
+-	nla_parse(info, NL80211_REG_RULE_ATTR_MAX,
++	nla_parse(info, NL80211_FTM_STATS_MAX,
+ 		  nla_data(tb[NL80211_ATTR_FTM_RESPONDER_STATS]),
+ 		  nla_len(tb[NL80211_ATTR_FTM_RESPONDER_STATS]),
+ 		  info_policy);
+diff --git a/ieee80211.h b/ieee80211.h
+index 3713a4d..2e6b68b 100644
+--- a/ieee80211.h
++++ b/ieee80211.h
+@@ -58,6 +58,52 @@ struct ieee80211_vht_cap {
+ 	struct ieee80211_vht_mcs_info mcs;
+ } __attribute__ ((packed));
+ 
++enum elem_id {
++	EID_SSID			= 0,
++	EID_SUPP_RATES			= 1,
++	EID_DS_PARAMS			= 3,
++	EID_TIM				= 5,
++	EID_IBSS_TIM_PARAMS		= 6,
++	EID_COUNTRY			= 7,
++	EID_BSS_LOAD			= 11,
++	EID_POWER_CONSTRAINT		= 32,
++	EID_TPC_REPORT			= 35,
++	EID_ERP_INFO			= 42,
++	EID_HT_CAPABILITY		= 45,
++	EID_ERP_D4_0			= 47,
++	EID_RSN				= 48,
++	EID_EXT_SUPP_RATES		= 50,
++	EID_AP_CHAN_REPORT		= 51,
++	EID_SUPP_OP_CLASSES		= 59,
++	EID_HT_OPERATION		= 61,
++	EID_SECONDARY_CH_OFFSET		= 62,
++	EID_MEASUREMENT_PILOT_TX	= 66,
++	EID_RM_ENABLED_CAPABILITIES	= 70,
++	EID_OVERLAP_BSS_SCAN_PARAM	= 74,
++	EID_INTERWORKING		= 107,
++	EID_ADVERTISEMENT		= 108,
++	EID_ROAMING_CONSORTIUM		= 111,
++	EID_MESH_CONFIG			= 113,
++	EID_MESH_ID			= 114,
++	EID_EXT_CAPABILITY		= 127,
++	EID_VHT_CAPABILITY		= 191,
++	EID_VHT_OPERATION		= 192,
++	EID_TRANSMIT_POWER_ENVELOPE	= 195,
++	EID_SHORT_BEACON_INTERVAL	= 214,
++	EID_S1G_CAPABILITY		= 217,
++	EID_VENDOR			= 221,
++	EID_S1G_OPERATION		= 232,
++	EID_EXTENSION			= 255,
++};
++
++enum elem_id_ext {
++	EID_EXT_HE_CAPABILITY		= 35,
++	EID_EXT_HE_OPERATION		= 36,
++	EID_EXT_EHT_OPERATION		= 106,
++	EID_EXT_MULTI_LINK     		= 107,
++	EID_EXT_EHT_CAPABILITY		= 108,
++};
++
+ #define SUITE(oui, id)  (((oui) << 8) | (id))
+ 
+ /* cipher suite selectors */
+diff --git a/info.c b/info.c
+index c5e863f..986eaa6 100644
+--- a/info.c
++++ b/info.c
+@@ -295,6 +295,85 @@ static void print_pmsr_capabilities(struct nlattr *pmsr_capa)
+ 	}
+ }
+ 
++static void print_interface_combination(struct nlattr *nla, bool *have_combinations,
++					const char *indent, const char *tag)
++{
++	static struct nla_policy iface_combination_policy[NUM_NL80211_IFACE_COMB] = {
++		[NL80211_IFACE_COMB_LIMITS] = { .type = NLA_NESTED },
++		[NL80211_IFACE_COMB_MAXNUM] = { .type = NLA_U32 },
++		[NL80211_IFACE_COMB_STA_AP_BI_MATCH] = { .type = NLA_FLAG },
++		[NL80211_IFACE_COMB_NUM_CHANNELS] = { .type = NLA_U32 },
++		[NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS] = { .type = NLA_U32 },
++	};
++	struct nlattr *tb_comb[NUM_NL80211_IFACE_COMB];
++	static struct nla_policy iface_limit_policy[NUM_NL80211_IFACE_LIMIT] = {
++		[NL80211_IFACE_LIMIT_TYPES] = { .type = NLA_NESTED },
++		[NL80211_IFACE_LIMIT_MAX] = { .type = NLA_U32 },
++	};
++	struct nlattr *tb_limit[NUM_NL80211_IFACE_LIMIT];
++	struct nlattr *nl_limit;
++	int err, rem_limit;
++	bool comma = false;
++
++	if (!(*have_combinations)) {
++		printf("%s%svalid interface combinations:\n", indent, tag);
++		*have_combinations = true;
++	}
++
++	printf("%s\t * ", indent);
++
++	err = nla_parse_nested(tb_comb, MAX_NL80211_IFACE_COMB,
++			       nla, iface_combination_policy);
++	if (err || !tb_comb[NL80211_IFACE_COMB_LIMITS] ||
++	    !tb_comb[NL80211_IFACE_COMB_MAXNUM] ||
++	    !tb_comb[NL80211_IFACE_COMB_NUM_CHANNELS]) {
++		printf(" <failed to parse>\n");
++		return;
++	}
++
++	nla_for_each_nested(nl_limit, tb_comb[NL80211_IFACE_COMB_LIMITS], rem_limit) {
++		err = nla_parse_nested(tb_limit, MAX_NL80211_IFACE_LIMIT,
++				       nl_limit, iface_limit_policy);
++		if (err || !tb_limit[NL80211_IFACE_LIMIT_TYPES]) {
++			printf("<failed to parse>\n");
++			return;
++		}
++
++		if (comma)
++			printf(", ");
++		comma = true;
++		printf("#{ ");
++		print_iftype_line(tb_limit[NL80211_IFACE_LIMIT_TYPES]);
++		printf(" } <= %u", nla_get_u32(tb_limit[NL80211_IFACE_LIMIT_MAX]));
++	}
++	printf(",\n%s\t   ", indent);
++
++	printf("total <= %d, #channels <= %d%s",
++		nla_get_u32(tb_comb[NL80211_IFACE_COMB_MAXNUM]),
++		nla_get_u32(tb_comb[NL80211_IFACE_COMB_NUM_CHANNELS]),
++		tb_comb[NL80211_IFACE_COMB_STA_AP_BI_MATCH] ?
++			", STA/AP BI must match" : "");
++	if (tb_comb[NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS]) {
++		unsigned long widths = nla_get_u32(tb_comb[NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS]);
++
++		if (widths) {
++			int width;
++			bool first = true;
++
++			printf(", radar detect widths: {");
++			for (width = 0; width < 32; width++)
++				if (widths & (1 << width)) {
++					printf("%s %s",
++					       first ? "":",",
++					       channel_width_name(width));
++					first = false;
++				}
++			printf(" }\n");
++		}
++	}
++	printf("\n");
++}
++
+ static int print_phy_handler(struct nl_msg *msg, void *arg)
+ {
+ 	struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
+@@ -560,88 +639,12 @@ next:
+ 				  "\t\t", tb_msg[NL80211_ATTR_SOFTWARE_IFTYPES]);
+ 
+ 	if (tb_msg[NL80211_ATTR_INTERFACE_COMBINATIONS]) {
++		bool have_combinations = false;
+ 		struct nlattr *nl_combi;
+ 		int rem_combi;
+-		bool have_combinations = false;
+-
+-		nla_for_each_nested(nl_combi, tb_msg[NL80211_ATTR_INTERFACE_COMBINATIONS], rem_combi) {
+-			static struct nla_policy iface_combination_policy[NUM_NL80211_IFACE_COMB] = {
+-				[NL80211_IFACE_COMB_LIMITS] = { .type = NLA_NESTED },
+-				[NL80211_IFACE_COMB_MAXNUM] = { .type = NLA_U32 },
+-				[NL80211_IFACE_COMB_STA_AP_BI_MATCH] = { .type = NLA_FLAG },
+-				[NL80211_IFACE_COMB_NUM_CHANNELS] = { .type = NLA_U32 },
+-				[NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS] = { .type = NLA_U32 },
+-			};
+-			struct nlattr *tb_comb[NUM_NL80211_IFACE_COMB];
+-			static struct nla_policy iface_limit_policy[NUM_NL80211_IFACE_LIMIT] = {
+-				[NL80211_IFACE_LIMIT_TYPES] = { .type = NLA_NESTED },
+-				[NL80211_IFACE_LIMIT_MAX] = { .type = NLA_U32 },
+-			};
+-			struct nlattr *tb_limit[NUM_NL80211_IFACE_LIMIT];
+-			struct nlattr *nl_limit;
+-			int err, rem_limit;
+-			bool comma = false;
+-
+-			if (!have_combinations) {
+-				printf("\tvalid interface combinations:\n");
+-				have_combinations = true;
+-			}
+ 
+-			printf("\t\t * ");
+-
+-			err = nla_parse_nested(tb_comb, MAX_NL80211_IFACE_COMB,
+-					       nl_combi, iface_combination_policy);
+-			if (err || !tb_comb[NL80211_IFACE_COMB_LIMITS] ||
+-			    !tb_comb[NL80211_IFACE_COMB_MAXNUM] ||
+-			    !tb_comb[NL80211_IFACE_COMB_NUM_CHANNELS]) {
+-				printf(" <failed to parse>\n");
+-				goto broken_combination;
+-			}
+-
+-			nla_for_each_nested(nl_limit, tb_comb[NL80211_IFACE_COMB_LIMITS], rem_limit) {
+-				err = nla_parse_nested(tb_limit, MAX_NL80211_IFACE_LIMIT,
+-						       nl_limit, iface_limit_policy);
+-				if (err || !tb_limit[NL80211_IFACE_LIMIT_TYPES]) {
+-					printf("<failed to parse>\n");
+-					goto broken_combination;
+-				}
+-
+-				if (comma)
+-					printf(", ");
+-				comma = true;
+-				printf("#{ ");
+-				print_iftype_line(tb_limit[NL80211_IFACE_LIMIT_TYPES]);
+-				printf(" } <= %u", nla_get_u32(tb_limit[NL80211_IFACE_LIMIT_MAX]));
+-			}
+-			printf(",\n\t\t   ");
+-
+-			printf("total <= %d, #channels <= %d%s",
+-				nla_get_u32(tb_comb[NL80211_IFACE_COMB_MAXNUM]),
+-				nla_get_u32(tb_comb[NL80211_IFACE_COMB_NUM_CHANNELS]),
+-				tb_comb[NL80211_IFACE_COMB_STA_AP_BI_MATCH] ?
+-					", STA/AP BI must match" : "");
+-			if (tb_comb[NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS]) {
+-				unsigned long widths = nla_get_u32(tb_comb[NL80211_IFACE_COMB_RADAR_DETECT_WIDTHS]);
+-
+-				if (widths) {
+-					int width;
+-					bool first = true;
+-
+-					printf(", radar detect widths: {");
+-					for (width = 0; width < 32; width++)
+-						if (widths & (1 << width)) {
+-							printf("%s %s",
+-							       first ? "":",",
+-							       channel_width_name(width));
+-							first = false;
+-						}
+-					printf(" }\n");
+-				}
+-			}
+-			printf("\n");
+-broken_combination:
+-			;
+-		}
++		nla_for_each_nested(nl_combi, tb_msg[NL80211_ATTR_INTERFACE_COMBINATIONS], rem_combi)
++			print_interface_combination(nl_combi, &have_combinations, "\t", "");
+ 
+ 		if (!have_combinations)
+ 			printf("\tinterface combinations are not supported\n");
+@@ -885,6 +888,64 @@ broken_combination:
+ 		printf("\tMaximum associated stations in AP mode: %u\n",
+ 		       nla_get_u32(tb_msg[NL80211_ATTR_MAX_AP_ASSOC_STA]));
+ 
++	if (tb_msg[NL80211_ATTR_WIPHY_RADIOS]) {
++		struct nlattr *radio;
++		int rem_radios;
++
++		printf("\tSupported wiphy radios:\n");
++		nla_for_each_nested(radio, tb_msg[NL80211_ATTR_WIPHY_RADIOS], rem_radios) {
++			bool have_combinations = false;
++			struct nlattr *radio_prop;
++			int rem_radio_prop;
++
++			nla_for_each_nested(radio_prop, radio, rem_radio_prop) {
++				struct nlattr *tb_freq[NL80211_WIPHY_RADIO_FREQ_ATTR_MAX + 1];
++
++				switch (nla_type(radio_prop)) {
++				case NL80211_WIPHY_RADIO_ATTR_INDEX:
++					printf("\t\t* Idx %u:\n", nla_get_u32(radio_prop));
++					break;
++				case NL80211_WIPHY_RADIO_ATTR_FREQ_RANGE:
++					printf("\t\t\tFrequency Range: ");
++
++					nla_parse_nested(tb_freq, NL80211_WIPHY_RADIO_FREQ_ATTR_MAX, radio_prop,
++							 NULL);
++					if (!tb_freq[NL80211_WIPHY_RADIO_FREQ_ATTR_START] ||
++					    !tb_freq[NL80211_WIPHY_RADIO_FREQ_ATTR_END]) {
++						printf("<failed to parse>");
++					} else {
++						printf("%u MHz - %u MHz",
++						       KHZ_TO_MHZ(nla_get_u32(tb_freq[NL80211_WIPHY_RADIO_FREQ_ATTR_START])),
++						       KHZ_TO_MHZ(nla_get_u32(tb_freq[NL80211_WIPHY_RADIO_FREQ_ATTR_END])));
++					}
++					printf("\n");
++					break;
++				case NL80211_WIPHY_RADIO_ATTR_INTERFACE_COMBINATION:
++					print_interface_combination(radio_prop, &have_combinations, "\t\t\t",
++								    "Radio's ");
++					if (!have_combinations)
++						printf("\t\t\tRadio level interface combinations are not supported\n");
++					break;
++				default:
++					printf("\t\t\t* <failed to parse>\n");
++				}
++			}
++		}
++	}
++
++	if (tb_msg[NL80211_ATTR_WIPHY_INTERFACE_COMBINATIONS]) {
++		bool have_combinations = false;
++		struct nlattr *nl_combi;
++		int rem_combi;
++
++		nla_for_each_nested(nl_combi, tb_msg[NL80211_ATTR_WIPHY_INTERFACE_COMBINATIONS], rem_combi)
++			print_interface_combination(nl_combi, &have_combinations, "\t",
++						    "Globally ");
++
++		if (!have_combinations)
++			printf("\tGlobal interface combinations are not supported\n");
++	}
++
+ 	return NL_SKIP;
+ }
+ 
+diff --git a/interface.c b/interface.c
+index bb1a1d3..65a4006 100644
+--- a/interface.c
++++ b/interface.c
+@@ -490,6 +490,11 @@ static int print_iface_handler(struct nl_msg *msg, void *arg)
+ 				printf("\n%s\t   ", indent);
+ 				print_channel(tb);
+ 			}
++			if (tb[NL80211_ATTR_WIPHY_TX_POWER_LEVEL]) {
++				int32_t txp = nla_get_u32(tb[NL80211_ATTR_WIPHY_TX_POWER_LEVEL]);
++
++				printf("\n%s\t   txpower %d.%.2d dBm", indent, txp / 100, txp % 100);
++			}
+ 			printf("\n");
+ 		}
+ 	}
+@@ -1031,3 +1036,26 @@ COMMAND(set, tidconf, "[peer <MAC address>] tids <mask> [override] [sretry <num>
+ 	"  $ iw dev wlan0 set tidconf peer xx:xx:xx:xx:xx:xx tids 0x2 bitrates auto\n"
+ 	"  $ iw dev wlan0 set tidconf peer xx:xx:xx:xx:xx:xx tids 0x2 bitrates limit vht-mcs-5 4:9\n"
+ 	);
++
++static int handle_set_epcs(struct nl80211_state *state,
++			   struct nl_msg *msg,
++			   int argc, char **argv,
++			   enum id_input id)
++{
++	if (argc != 1)
++		return 1;
++
++	if (strcmp(argv[0], "enable") == 0)
++		NLA_PUT_FLAG(msg, NL80211_ATTR_EPCS);
++	else if (strcmp(argv[0], "disable") != 0)
++		return 1;
++
++	return 0;
++
++nla_put_failure:
++	return 1;
++}
++
++COMMAND(set, epcs, "<enable|disable>",
++	NL80211_CMD_EPCS_CFG, 0, CIB_NETDEV, handle_set_epcs,
++	"Enable/Disable EPCS support");
+diff --git a/iw.c b/iw.c
+index 35308ba..c99edb1 100644
+--- a/iw.c
++++ b/iw.c
+@@ -87,8 +87,6 @@ static void nl80211_cleanup(struct nl80211_state *state)
+ 	nl_socket_free(state->nl_sock);
+ }
+ 
+-static int cmd_size;
+-
+ extern struct cmd *__start___cmd[];
+ extern struct cmd *__stop___cmd;
+ 
+@@ -555,33 +553,12 @@ int handle_cmd(struct nl80211_state *state, enum id_input idby,
+ 	return __handle_cmd(state, idby, argc, argv, NULL);
+ }
+ 
+-/*
+- * Unfortunately, I don't know how densely the linker packs the struct cmd.
+- * For example, if you have a 72-byte struct cmd, the linker will pad each
+- * out to 96 bytes before putting them together in the section. There must
+- * be some algorithm, but I haven't found it yet.
+- *
+- * We used to calculate this by taking the (abs value of) the difference
+- * between __section_get and __section_set, but if LTO is enabled then this
+- * stops working because the entries of the "__cmd" section get rearranged
+- * freely by the compiler/linker.
+- *
+- * Fix this by using yet another "__sizer" section that only contains these
+- * two entries - then the (abs value of) the difference between them will
+- * be how they get packed and that can be used to iterate the __cmd section
+- * as well.
+- */
+-static struct cmd sizer1 __attribute__((section("__sizer"))) = {};
+-static struct cmd sizer2 __attribute__((section("__sizer"))) = {};
+-
+ int main(int argc, char **argv)
+ {
+ 	struct nl80211_state nlstate;
+ 	int err;
+ 	const struct cmd *cmd = NULL;
+ 
+-	/* calculate command size including padding */
+-	cmd_size = labs((long)&sizer2 - (long)&sizer1);
+ 	/* strip off self */
+ 	argc--;
+ 	argv0 = *argv++;
+diff --git a/iw.h b/iw.h
+index 7e9107e..145b058 100644
+--- a/iw.h
++++ b/iw.h
+@@ -47,6 +47,13 @@ enum nlmsgerr_attrs {
+ #  define nl_sock nl_handle
+ #endif
+ 
++#define MHZ_TO_KHZ(freq) ((freq) * 1000)
++#define KHZ_TO_MHZ(freq) ((freq) / 1000)
++#define DBI_TO_MBI(gain) ((gain) * 100)
++#define MBI_TO_DBI(gain) ((gain) / 100)
++#define DBM_TO_MBM(gain) ((gain) * 100)
++#define MBM_TO_DBM(gain) ((gain) / 100)
++
+ struct nl80211_state {
+ 	struct nl_sock *nl_sock;
+ 	int nl80211_id;
+@@ -106,6 +113,7 @@ struct chandef {
+ 	unsigned int center_freq1;
+ 	unsigned int center_freq1_offset;
+ 	unsigned int center_freq2;
++	unsigned int punctured;
+ };
+ 
+ #define ARRAY_SIZE(ar) (sizeof(ar)/sizeof(ar[0]))
+@@ -209,6 +217,19 @@ int parse_hex_mask(char *hexmask, unsigned char **result, size_t *result_len,
+ unsigned char *parse_hex(char *hex, size_t *outlen);
+ 
+ int parse_keys(struct nl_msg *msg, char **argv[], int *argc);
++
++#define _PARSE_FREQ_ARGS_OPT1 "<freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz|320MHz] [punct <bitmap>]"
++#define _PARSE_FREQ_ARGS_OPT2 "<control freq> [5|10|20|40|80|80+80|160|320] [<center1_freq> [<center2_freq>]] [punct <bitmap>]"
++#define PARSE_FREQ_ARGS(pfx, sfx) \
++	pfx _PARSE_FREQ_ARGS_OPT1 sfx "\n" \
++	pfx _PARSE_FREQ_ARGS_OPT2 sfx
++#define _PARSE_FREQ_KHZ_ARGS_OPT1 "<freq in KHz> [1MHz|2MHz|4MHz|8MHz|16MHz]"
++#define _PARSE_FREQ_KHZ_ARGS_OPT2 "<control freq in KHz> [1|2|4|8|16] [<center1_freq> [<center2_freq>]]"
++#define PARSE_FREQ_KHZ_ARGS(pfx, sfx) \
++	pfx _PARSE_FREQ_KHZ_ARGS_OPT1 sfx "\n" \
++	pfx _PARSE_FREQ_KHZ_ARGS_OPT2 sfx
++#define PARSE_CHAN_ARGS(pfx) \
++	pfx "<channel> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz|320MHz] [punct <bitmap>]"
+ int parse_freqchan(struct chandef *chandef, bool chan, int argc, char **argv,
+ 		    int *parsed, bool freq_in_khz);
+ enum nl80211_chan_width str_to_bw(const char *str);
+@@ -222,7 +243,12 @@ void print_ampdu_spacing(__u8 spacing);
+ void print_ht_capability(__u16 cap);
+ void print_vht_info(__u32 capa, const __u8 *mcs);
+ void print_he_capability(const uint8_t *ie, int len);
++void print_he_operation(const uint8_t *ie, int len);
+ void print_he_info(struct nlattr *nl_iftype);
++void print_eht_capability(const uint8_t *ie, int len, const uint8_t *he_cap,
++			  bool from_ap);
++void print_multi_link(const uint8_t *ie, int len);
++void print_eht_operation(const uint8_t *ie, int len);
+ void print_eht_info(struct nlattr *nl_iftype, int band);
+ void print_s1g_capability(const uint8_t *caps);
+ 
+@@ -253,7 +279,7 @@ enum print_ie_type {
+ #define BIT(x) (1ULL<<(x))
+ 
+ void print_ies(unsigned char *ie, int ielen, bool unknown,
+-	       enum print_ie_type ptype);
++	       enum print_ie_type ptype, bool from_ap);
+ 
+ void parse_bitrate(struct nlattr *bitrate_attr, char *buf, int buflen);
+ void iw_hexdump(const char *prefix, const __u8 *data, size_t len);
+diff --git a/link.c b/link.c
+index a7ee963..20ab927 100644
+--- a/link.c
++++ b/link.c
+@@ -93,7 +93,7 @@ static int link_bss_handler(struct nl_msg *msg, void *arg)
+ 			if (bss[NL80211_BSS_INFORMATION_ELEMENTS])
+ 				print_ies(nla_data(bss[NL80211_BSS_INFORMATION_ELEMENTS]),
+ 					  nla_len(bss[NL80211_BSS_INFORMATION_ELEMENTS]),
+-					  false, PRINT_LINK_MLO_MLD);
++					  false, PRINT_LINK_MLO_MLD, false);
+ 		}
+ 	} else {
+ 		memcpy(result->sta_addr, nla_data(bss[NL80211_BSS_BSSID]), 6);
+@@ -121,7 +121,8 @@ static int link_bss_handler(struct nl_msg *msg, void *arg)
+ 	if (bss[NL80211_BSS_INFORMATION_ELEMENTS])
+ 		print_ies(nla_data(bss[NL80211_BSS_INFORMATION_ELEMENTS]),
+ 			  nla_len(bss[NL80211_BSS_INFORMATION_ELEMENTS]),
+-			  false, result->mld ? PRINT_LINK_MLO_LINK : PRINT_LINK);
++			  false, result->mld ? PRINT_LINK_MLO_LINK : PRINT_LINK,
++			  false);
+ 
+ 	if (bss[NL80211_BSS_FREQUENCY_OFFSET])
+ 		freq_offset = nla_get_u32(bss[NL80211_BSS_FREQUENCY_OFFSET]);
+diff --git a/nl80211.h b/nl80211.h
+index f23ecbd..e9ccf43 100644
+--- a/nl80211.h
++++ b/nl80211.h
+@@ -11,7 +11,7 @@
+  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
+  * Copyright 2008 Colin McCabe <colin@cozybit.com>
+  * Copyright 2015-2017	Intel Deutschland GmbH
+- * Copyright (C) 2018-2024 Intel Corporation
++ * Copyright (C) 2018-2025 Intel Corporation
+  *
+  * Permission to use, copy, modify, and/or distribute this software for any
+  * purpose with or without fee is hereby granted, provided that the above
+@@ -413,8 +413,8 @@
+  *	are like for %NL80211_CMD_SET_BEACON, and additionally parameters that
+  *	do not change are used, these include %NL80211_ATTR_BEACON_INTERVAL,
+  *	%NL80211_ATTR_DTIM_PERIOD, %NL80211_ATTR_SSID,
+- *	%NL80211_ATTR_HIDDEN_SSID, %NL80211_ATTR_CIPHERS_PAIRWISE,
+- *	%NL80211_ATTR_CIPHER_GROUP, %NL80211_ATTR_WPA_VERSIONS,
++ *	%NL80211_ATTR_HIDDEN_SSID, %NL80211_ATTR_CIPHER_SUITES_PAIRWISE,
++ *	%NL80211_ATTR_CIPHER_SUITE_GROUP, %NL80211_ATTR_WPA_VERSIONS,
+  *	%NL80211_ATTR_AKM_SUITES, %NL80211_ATTR_PRIVACY,
+  *	%NL80211_ATTR_AUTH_TYPE, %NL80211_ATTR_INACTIVITY_TIMEOUT,
+  *	%NL80211_ATTR_ACL_POLICY and %NL80211_ATTR_MAC_ADDRS.
+@@ -442,20 +442,15 @@
+  *	stations connected and using at least that link as one of its links.
+  *
+  * @NL80211_CMD_GET_MPATH: Get mesh path attributes for mesh path to
+- * 	destination %NL80211_ATTR_MAC on the interface identified by
+- * 	%NL80211_ATTR_IFINDEX.
++ *	destination %NL80211_ATTR_MAC on the interface identified by
++ *	%NL80211_ATTR_IFINDEX.
+  * @NL80211_CMD_SET_MPATH:  Set mesh path attributes for mesh path to
+- * 	destination %NL80211_ATTR_MAC on the interface identified by
+- * 	%NL80211_ATTR_IFINDEX.
++ *	destination %NL80211_ATTR_MAC on the interface identified by
++ *	%NL80211_ATTR_IFINDEX.
+  * @NL80211_CMD_NEW_MPATH: Create a new mesh path for the destination given by
+  *	%NL80211_ATTR_MAC via %NL80211_ATTR_MPATH_NEXT_HOP.
+  * @NL80211_CMD_DEL_MPATH: Delete a mesh path to the destination given by
+  *	%NL80211_ATTR_MAC.
+- * @NL80211_CMD_NEW_PATH: Add a mesh path with given attributes to the
+- *	interface identified by %NL80211_ATTR_IFINDEX.
+- * @NL80211_CMD_DEL_PATH: Remove a mesh path identified by %NL80211_ATTR_MAC
+- *	or, if no MAC address given, all mesh paths, on the interface identified
+- *	by %NL80211_ATTR_IFINDEX.
+  * @NL80211_CMD_SET_BSS: Set BSS attributes for BSS identified by
+  *	%NL80211_ATTR_IFINDEX.
+  *
+@@ -476,15 +471,15 @@
+  *	after being queried by the kernel. CRDA replies by sending a regulatory
+  *	domain structure which consists of %NL80211_ATTR_REG_ALPHA set to our
+  *	current alpha2 if it found a match. It also provides
+- * 	NL80211_ATTR_REG_RULE_FLAGS, and a set of regulatory rules. Each
+- * 	regulatory rule is a nested set of attributes  given by
+- * 	%NL80211_ATTR_REG_RULE_FREQ_[START|END] and
+- * 	%NL80211_ATTR_FREQ_RANGE_MAX_BW with an attached power rule given by
+- * 	%NL80211_ATTR_REG_RULE_POWER_MAX_ANT_GAIN and
+- * 	%NL80211_ATTR_REG_RULE_POWER_MAX_EIRP.
++ *	NL80211_ATTR_REG_RULE_FLAGS, and a set of regulatory rules. Each
++ *	regulatory rule is a nested set of attributes  given by
++ *	%NL80211_ATTR_REG_RULE_FREQ_[START|END] and
++ *	%NL80211_ATTR_FREQ_RANGE_MAX_BW with an attached power rule given by
++ *	%NL80211_ATTR_REG_RULE_POWER_MAX_ANT_GAIN and
++ *	%NL80211_ATTR_REG_RULE_POWER_MAX_EIRP.
+  * @NL80211_CMD_REQ_SET_REG: ask the wireless core to set the regulatory domain
+- * 	to the specified ISO/IEC 3166-1 alpha2 country code. The core will
+- * 	store this as a valid request and then query userspace for it.
++ *	to the specified ISO/IEC 3166-1 alpha2 country code. The core will
++ *	store this as a valid request and then query userspace for it.
+  *
+  * @NL80211_CMD_GET_MESH_CONFIG: Get mesh networking properties for the
+  *	interface identified by %NL80211_ATTR_IFINDEX
+@@ -574,31 +569,31 @@
+  * @NL80211_CMD_FLUSH_PMKSA: Flush all PMKSA cache entries.
+  *
+  * @NL80211_CMD_REG_CHANGE: indicates to userspace the regulatory domain
+- * 	has been changed and provides details of the request information
+- * 	that caused the change such as who initiated the regulatory request
+- * 	(%NL80211_ATTR_REG_INITIATOR), the wiphy_idx
+- * 	(%NL80211_ATTR_REG_ALPHA2) on which the request was made from if
+- * 	the initiator was %NL80211_REGDOM_SET_BY_COUNTRY_IE or
+- * 	%NL80211_REGDOM_SET_BY_DRIVER, the type of regulatory domain
+- * 	set (%NL80211_ATTR_REG_TYPE), if the type of regulatory domain is
+- * 	%NL80211_REG_TYPE_COUNTRY the alpha2 to which we have moved on
+- * 	to (%NL80211_ATTR_REG_ALPHA2).
++ *	has been changed and provides details of the request information
++ *	that caused the change such as who initiated the regulatory request
++ *	(%NL80211_ATTR_REG_INITIATOR), the wiphy_idx
++ *	(%NL80211_ATTR_REG_ALPHA2) on which the request was made from if
++ *	the initiator was %NL80211_REGDOM_SET_BY_COUNTRY_IE or
++ *	%NL80211_REGDOM_SET_BY_DRIVER, the type of regulatory domain
++ *	set (%NL80211_ATTR_REG_TYPE), if the type of regulatory domain is
++ *	%NL80211_REG_TYPE_COUNTRY the alpha2 to which we have moved on
++ *	to (%NL80211_ATTR_REG_ALPHA2).
+  * @NL80211_CMD_REG_BEACON_HINT: indicates to userspace that an AP beacon
+- * 	has been found while world roaming thus enabling active scan or
+- * 	any mode of operation that initiates TX (beacons) on a channel
+- * 	where we would not have been able to do either before. As an example
+- * 	if you are world roaming (regulatory domain set to world or if your
+- * 	driver is using a custom world roaming regulatory domain) and while
+- * 	doing a passive scan on the 5 GHz band you find an AP there (if not
+- * 	on a DFS channel) you will now be able to actively scan for that AP
+- * 	or use AP mode on your card on that same channel. Note that this will
+- * 	never be used for channels 1-11 on the 2 GHz band as they are always
+- * 	enabled world wide. This beacon hint is only sent if your device had
+- * 	either disabled active scanning or beaconing on a channel. We send to
+- * 	userspace the wiphy on which we removed a restriction from
+- * 	(%NL80211_ATTR_WIPHY) and the channel on which this occurred
+- * 	before (%NL80211_ATTR_FREQ_BEFORE) and after (%NL80211_ATTR_FREQ_AFTER)
+- * 	the beacon hint was processed.
++ *	has been found while world roaming thus enabling active scan or
++ *	any mode of operation that initiates TX (beacons) on a channel
++ *	where we would not have been able to do either before. As an example
++ *	if you are world roaming (regulatory domain set to world or if your
++ *	driver is using a custom world roaming regulatory domain) and while
++ *	doing a passive scan on the 5 GHz band you find an AP there (if not
++ *	on a DFS channel) you will now be able to actively scan for that AP
++ *	or use AP mode on your card on that same channel. Note that this will
++ *	never be used for channels 1-11 on the 2 GHz band as they are always
++ *	enabled world wide. This beacon hint is only sent if your device had
++ *	either disabled active scanning or beaconing on a channel. We send to
++ *	userspace the wiphy on which we removed a restriction from
++ *	(%NL80211_ATTR_WIPHY) and the channel on which this occurred
++ *	before (%NL80211_ATTR_FREQ_BEFORE) and after (%NL80211_ATTR_FREQ_AFTER)
++ *	the beacon hint was processed.
+  *
+  * @NL80211_CMD_AUTHENTICATE: authentication request and notification.
+  *	This command is used both as a command (request to authenticate) and
+@@ -1120,7 +1115,7 @@
+  *	current configuration is not changed.  If it is present but
+  *	set to zero, the configuration is changed to don't-care
+  *	(i.e. the device can decide what to do).
+- * @NL80211_CMD_NAN_FUNC_MATCH: Notification sent when a match is reported.
++ * @NL80211_CMD_NAN_MATCH: Notification sent when a match is reported.
+  *	This will contain a %NL80211_ATTR_NAN_MATCH nested attribute and
+  *	%NL80211_ATTR_COOKIE.
+  *
+@@ -1334,6 +1329,13 @@
+  *      %NL80211_ATTR_MLO_TTLM_ULINK attributes are used to specify the
+  *      TID to Link mapping for downlink/uplink traffic.
+  *
++ * @NL80211_CMD_ASSOC_MLO_RECONF: For a non-AP MLD station, request to
++ *      add/remove links to/from the association.
++ *
++ * @NL80211_CMD_EPCS_CFG: EPCS configuration for a station. Used by userland to
++ *	control EPCS configuration. Used to notify userland on the current state
++ *	of EPCS.
++ *
+  * @NL80211_CMD_MAX: highest used command number
+  * @__NL80211_CMD_AFTER_LAST: internal use
+  */
+@@ -1591,6 +1593,9 @@ enum nl80211_commands {
+ 
+ 	NL80211_CMD_SET_TID_TO_LINK_MAPPING,
+ 
++	NL80211_CMD_ASSOC_MLO_RECONF,
++	NL80211_CMD_EPCS_CFG,
++
+ 	/* add new commands above here */
+ 
+ 	/* used to define NL80211_CMD_MAX below */
+@@ -1715,21 +1720,21 @@ enum nl80211_commands {
+  *	(see &enum nl80211_plink_action).
+  * @NL80211_ATTR_MPATH_NEXT_HOP: MAC address of the next hop for a mesh path.
+  * @NL80211_ATTR_MPATH_INFO: information about a mesh_path, part of mesh path
+- * 	info given for %NL80211_CMD_GET_MPATH, nested attribute described at
++ *	info given for %NL80211_CMD_GET_MPATH, nested attribute described at
+  *	&enum nl80211_mpath_info.
+  *
+  * @NL80211_ATTR_MNTR_FLAGS: flags, nested element with NLA_FLAG attributes of
+  *      &enum nl80211_mntr_flags.
+  *
+  * @NL80211_ATTR_REG_ALPHA2: an ISO-3166-alpha2 country code for which the
+- * 	current regulatory domain should be set to or is already set to.
+- * 	For example, 'CR', for Costa Rica. This attribute is used by the kernel
+- * 	to query the CRDA to retrieve one regulatory domain. This attribute can
+- * 	also be used by userspace to query the kernel for the currently set
+- * 	regulatory domain. We chose an alpha2 as that is also used by the
+- * 	IEEE-802.11 country information element to identify a country.
+- * 	Users can also simply ask the wireless core to set regulatory domain
+- * 	to a specific alpha2.
++ *	current regulatory domain should be set to or is already set to.
++ *	For example, 'CR', for Costa Rica. This attribute is used by the kernel
++ *	to query the CRDA to retrieve one regulatory domain. This attribute can
++ *	also be used by userspace to query the kernel for the currently set
++ *	regulatory domain. We chose an alpha2 as that is also used by the
++ *	IEEE-802.11 country information element to identify a country.
++ *	Users can also simply ask the wireless core to set regulatory domain
++ *	to a specific alpha2.
+  * @NL80211_ATTR_REG_RULES: a nested array of regulatory domain regulatory
+  *	rules.
+  *
+@@ -1772,9 +1777,9 @@ enum nl80211_commands {
+  * @NL80211_ATTR_BSS: scan result BSS
+  *
+  * @NL80211_ATTR_REG_INITIATOR: indicates who requested the regulatory domain
+- * 	currently in effect. This could be any of the %NL80211_REGDOM_SET_BY_*
++ *	currently in effect. This could be any of the %NL80211_REGDOM_SET_BY_*
+  * @NL80211_ATTR_REG_TYPE: indicates the type of the regulatory domain currently
+- * 	set. This can be one of the nl80211_reg_type (%NL80211_REGDOM_TYPE_*)
++ *	set. This can be one of the nl80211_reg_type (%NL80211_REGDOM_TYPE_*)
+  *
+  * @NL80211_ATTR_SUPPORTED_COMMANDS: wiphy attribute that specifies
+  *	an array of command numbers (i.e. a mapping index to command number)
+@@ -1793,15 +1798,15 @@ enum nl80211_commands {
+  *	a u32
+  *
+  * @NL80211_ATTR_FREQ_BEFORE: A channel which has suffered a regulatory change
+- * 	due to considerations from a beacon hint. This attribute reflects
+- * 	the state of the channel _before_ the beacon hint processing. This
+- * 	attributes consists of a nested attribute containing
+- * 	NL80211_FREQUENCY_ATTR_*
++ *	due to considerations from a beacon hint. This attribute reflects
++ *	the state of the channel _before_ the beacon hint processing. This
++ *	attributes consists of a nested attribute containing
++ *	NL80211_FREQUENCY_ATTR_*
+  * @NL80211_ATTR_FREQ_AFTER: A channel which has suffered a regulatory change
+- * 	due to considerations from a beacon hint. This attribute reflects
+- * 	the state of the channel _after_ the beacon hint processing. This
+- * 	attributes consists of a nested attribute containing
+- * 	NL80211_FREQUENCY_ATTR_*
++ *	due to considerations from a beacon hint. This attribute reflects
++ *	the state of the channel _after_ the beacon hint processing. This
++ *	attributes consists of a nested attribute containing
++ *	NL80211_FREQUENCY_ATTR_*
+  *
+  * @NL80211_ATTR_CIPHER_SUITES: a set of u32 values indicating the supported
+  *	cipher suites
+@@ -1862,12 +1867,6 @@ enum nl80211_commands {
+  *	that protected APs should be used. This is also used with NEW_BEACON to
+  *	indicate that the BSS is to use protection.
+  *
+- * @NL80211_ATTR_CIPHERS_PAIRWISE: Used with CONNECT, ASSOCIATE, and NEW_BEACON
+- *	to indicate which unicast key ciphers will be used with the connection
+- *	(an array of u32).
+- * @NL80211_ATTR_CIPHER_GROUP: Used with CONNECT, ASSOCIATE, and NEW_BEACON to
+- *	indicate which group key cipher will be used with the connection (a
+- *	u32).
+  * @NL80211_ATTR_WPA_VERSIONS: Used with CONNECT, ASSOCIATE, and NEW_BEACON to
+  *	indicate which WPA version(s) the AP we want to associate with is using
+  *	(a u32 with flags from &enum nl80211_wpa_versions).
+@@ -1898,6 +1897,7 @@ enum nl80211_commands {
+  *	with %NL80211_KEY_* sub-attributes
+  *
+  * @NL80211_ATTR_PID: Process ID of a network namespace.
++ * @NL80211_ATTR_NETNS_FD: File descriptor of a network namespace.
+  *
+  * @NL80211_ATTR_GENERATION: Used to indicate consistent snapshots for
+  *	dumps. This number increases whenever the object list being
+@@ -1952,6 +1952,7 @@ enum nl80211_commands {
+  *
+  * @NL80211_ATTR_ACK: Flag attribute indicating that the frame was
+  *	acknowledged by the recipient.
++ * @NL80211_ATTR_ACK_SIGNAL: Station's ack signal strength (s32)
+  *
+  * @NL80211_ATTR_PS_STATE: powersave state, using &enum nl80211_ps_state values.
+  *
+@@ -2061,6 +2062,10 @@ enum nl80211_commands {
+  * @NL80211_ATTR_INTERFACE_COMBINATIONS: Nested attribute listing the supported
+  *	interface combinations. In each nested item, it contains attributes
+  *	defined in &enum nl80211_if_combination_attrs.
++ *	If the wiphy uses multiple radios (@NL80211_ATTR_WIPHY_RADIOS is set),
++ *	this attribute contains the interface combinations of the first radio.
++ *	See @NL80211_ATTR_WIPHY_INTERFACE_COMBINATIONS for the global wiphy
++ *	combinations for the sum of all radios.
+  * @NL80211_ATTR_SOFTWARE_IFTYPES: Nested attribute (just like
+  *	%NL80211_ATTR_SUPPORTED_IFTYPES) containing the interface types that
+  *	are managed in software: interfaces of these types aren't subject to
+@@ -2149,6 +2154,9 @@ enum nl80211_commands {
+  * @NL80211_ATTR_DISABLE_HE: Force HE capable interfaces to disable
+  *      this feature during association. This is a flag attribute.
+  *	Currently only supported in mac80211 drivers.
++ * @NL80211_ATTR_DISABLE_EHT: Force EHT capable interfaces to disable
++ *      this feature during association. This is a flag attribute.
++ *	Currently only supported in mac80211 drivers.
+  * @NL80211_ATTR_HT_CAPABILITY_MASK: Specify which bits of the
+  *      ATTR_HT_CAPABILITY to which attention should be paid.
+  *      Currently, only mac80211 NICs support this feature.
+@@ -2158,6 +2166,12 @@ enum nl80211_commands {
+  *      All values are treated as suggestions and may be ignored
+  *      by the driver as required.  The actual values may be seen in
+  *      the station debugfs ht_caps file.
++ * @NL80211_ATTR_VHT_CAPABILITY_MASK: Specify which bits of the
++ *      ATTR_VHT_CAPABILITY to which attention should be paid.
++ *      Currently, only mac80211 NICs support this feature.
++ *      All values are treated as suggestions and may be ignored
++ *      by the driver as required.  The actual values may be seen in
++ *      the station debugfs vht_caps file.
+  *
+  * @NL80211_ATTR_DFS_REGION: region for regulatory rules which this country
+  *    abides to when initiating radiation on DFS channels. A country maps
+@@ -2416,7 +2430,7 @@ enum nl80211_commands {
+  *	scheduled scan is started.  Or the delay before a WoWLAN
+  *	net-detect scan is started, counting from the moment the
+  *	system is suspended.  This value is a u32, in seconds.
+-
++ *
+  * @NL80211_ATTR_REG_INDOOR: flag attribute, if set indicates that the device
+  *      is operating in an indoor environment.
+  *
+@@ -2856,6 +2870,35 @@ enum nl80211_commands {
+  *	%NL80211_CMD_ASSOCIATE indicating the SPP A-MSDUs
+  *	are used on this connection
+  *
++ * @NL80211_ATTR_WIPHY_RADIOS: Nested attribute describing physical radios
++ *	belonging to this wiphy. See &enum nl80211_wiphy_radio_attrs.
++ *
++ * @NL80211_ATTR_WIPHY_INTERFACE_COMBINATIONS: Nested attribute listing the
++ *	supported interface combinations for all radios combined. In each
++ *	nested item, it contains attributes defined in
++ *	&enum nl80211_if_combination_attrs.
++ *
++ * @NL80211_ATTR_VIF_RADIO_MASK: Bitmask of allowed radios (u32).
++ *	A value of 0 means all radios.
++ *
++ * @NL80211_ATTR_SUPPORTED_SELECTORS: supported BSS Membership Selectors, array
++ *	of supported selectors as defined by IEEE Std 802.11-2020 9.4.2.3 but
++ *	without the length restriction (at most %NL80211_MAX_SUPP_SELECTORS).
++ *	This can be used to provide a list of selectors that are implemented
++ *	by the supplicant. If not given, support for SAE_H2E is assumed.
++ *
++ * @NL80211_ATTR_MLO_RECONF_REM_LINKS: (u16) A bitmask of the links requested
++ *      to be removed from the MLO association.
++ *
++ * @NL80211_ATTR_EPCS: Flag attribute indicating that EPCS is enabled for a
++ *	station interface.
++ *
++ * @NL80211_ATTR_ASSOC_MLD_EXT_CAPA_OPS: Extended MLD capabilities and
++ *	operations that userspace implements to use during association/ML
++ *	link reconfig, currently only "BTM MLD Recommendation For Multiple
++ *	APs Support". Drivers may set additional flags that they support
++ *	in the kernel or device.
++ *
+  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
+  * @NL80211_ATTR_MAX: highest attribute number currently defined
+  * @__NL80211_ATTR_AFTER_LAST: internal use
+@@ -3401,6 +3444,18 @@ enum nl80211_attrs {
+ 
+ 	NL80211_ATTR_ASSOC_SPP_AMSDU,
+ 
++	NL80211_ATTR_WIPHY_RADIOS,
++	NL80211_ATTR_WIPHY_INTERFACE_COMBINATIONS,
++
++	NL80211_ATTR_VIF_RADIO_MASK,
++
++	NL80211_ATTR_SUPPORTED_SELECTORS,
++
++	NL80211_ATTR_MLO_RECONF_REM_LINKS,
++	NL80211_ATTR_EPCS,
++
++	NL80211_ATTR_ASSOC_MLD_EXT_CAPA_OPS,
++
+ 	/* add attributes here, update the policy in nl80211.c */
+ 
+ 	__NL80211_ATTR_AFTER_LAST,
+@@ -3445,6 +3500,7 @@ enum nl80211_attrs {
+ #define NL80211_WIPHY_NAME_MAXLEN		64
+ 
+ #define NL80211_MAX_SUPP_RATES			32
++#define NL80211_MAX_SUPP_SELECTORS		128
+ #define NL80211_MAX_SUPP_HT_RATES		77
+ #define NL80211_MAX_SUPP_REG_RULES		128
+ #define NL80211_TKIP_DATA_OFFSET_ENCR_KEY	0
+@@ -3565,7 +3621,7 @@ enum nl80211_sta_flags {
+  * enum nl80211_sta_p2p_ps_status - station support of P2P PS
+  *
+  * @NL80211_P2P_PS_UNSUPPORTED: station doesn't support P2P PS mechanism
+- * @@NL80211_P2P_PS_SUPPORTED: station supports P2P PS mechanism
++ * @NL80211_P2P_PS_SUPPORTED: station supports P2P PS mechanism
+  * @NUM_NL80211_P2P_PS_STATUS: number of values
+  */
+ enum nl80211_sta_p2p_ps_status {
+@@ -3603,9 +3659,9 @@ enum nl80211_he_gi {
+ 
+ /**
+  * enum nl80211_he_ltf - HE long training field
+- * @NL80211_RATE_INFO_HE_1xLTF: 3.2 usec
+- * @NL80211_RATE_INFO_HE_2xLTF: 6.4 usec
+- * @NL80211_RATE_INFO_HE_4xLTF: 12.8 usec
++ * @NL80211_RATE_INFO_HE_1XLTF: 3.2 usec
++ * @NL80211_RATE_INFO_HE_2XLTF: 6.4 usec
++ * @NL80211_RATE_INFO_HE_4XLTF: 12.8 usec
+  */
+ enum nl80211_he_ltf {
+ 	NL80211_RATE_INFO_HE_1XLTF,
+@@ -3720,7 +3776,7 @@ enum nl80211_eht_ru_alloc {
+  * @NL80211_RATE_INFO_HE_GI: HE guard interval identifier
+  *	(u8, see &enum nl80211_he_gi)
+  * @NL80211_RATE_INFO_HE_DCM: HE DCM value (u8, 0/1)
+- * @NL80211_RATE_INFO_RU_ALLOC: HE RU allocation, if not present then
++ * @NL80211_RATE_INFO_HE_RU_ALLOC: HE RU allocation, if not present then
+  *	non-OFDMA was used (u8, see &enum nl80211_he_ru_alloc)
+  * @NL80211_RATE_INFO_320_MHZ_WIDTH: 320 MHz bitrate
+  * @NL80211_RATE_INFO_EHT_MCS: EHT MCS index (u8, 0-15)
+@@ -3823,7 +3879,7 @@ enum nl80211_sta_bss_param {
+  *	(u64, to this station)
+  * @NL80211_STA_INFO_SIGNAL: signal strength of last received PPDU (u8, dBm)
+  * @NL80211_STA_INFO_TX_BITRATE: current unicast tx rate, nested attribute
+- * 	containing info as possible, see &enum nl80211_rate_info
++ *	containing info as possible, see &enum nl80211_rate_info
+  * @NL80211_STA_INFO_RX_PACKETS: total received packet (MSDUs and MMPDUs)
+  *	(u32, from this station)
+  * @NL80211_STA_INFO_TX_PACKETS: total transmitted packets (MSDUs and MMPDUs)
+@@ -3852,8 +3908,8 @@ enum nl80211_sta_bss_param {
+  *	Contains a nested array of signal strength attributes (u8, dBm)
+  * @NL80211_STA_INFO_CHAIN_SIGNAL_AVG: per-chain signal strength average
+  *	Same format as NL80211_STA_INFO_CHAIN_SIGNAL.
+- * @NL80211_STA_EXPECTED_THROUGHPUT: expected throughput considering also the
+- *	802.11 header (u32, kbps)
++ * @NL80211_STA_INFO_EXPECTED_THROUGHPUT: expected throughput considering also
++ *	the 802.11 header (u32, kbps)
+  * @NL80211_STA_INFO_RX_DROP_MISC: RX packets dropped for unspecified reasons
+  *	(u64)
+  * @NL80211_STA_INFO_BEACON_RX: number of beacons received from this peer (u64)
+@@ -4039,7 +4095,7 @@ enum nl80211_mpath_flags {
+  * @NL80211_MPATH_INFO_METRIC: metric (cost) of this mesh path
+  * @NL80211_MPATH_INFO_EXPTIME: expiration time for the path, in msec from now
+  * @NL80211_MPATH_INFO_FLAGS: mesh path flags, enumerated in
+- * 	&enum nl80211_mpath_flags;
++ *	&enum nl80211_mpath_flags;
+  * @NL80211_MPATH_INFO_DISCOVERY_TIMEOUT: total path discovery timeout, in msec
+  * @NL80211_MPATH_INFO_DISCOVERY_RETRIES: mesh path discovery retries
+  * @NL80211_MPATH_INFO_HOP_COUNT: hop count to destination
+@@ -4179,7 +4235,7 @@ enum nl80211_band_attr {
+  * @NL80211_WMMR_CW_MAX: Maximum contention window slot.
+  * @NL80211_WMMR_AIFSN: Arbitration Inter Frame Space.
+  * @NL80211_WMMR_TXOP: Maximum allowed tx operation time.
+- * @nl80211_WMMR_MAX: highest possible wmm rule.
++ * @NL80211_WMMR_MAX: highest possible wmm rule.
+  * @__NL80211_WMMR_LAST: Internal use.
+  */
+ enum nl80211_wmm_rule {
+@@ -4201,8 +4257,9 @@ enum nl80211_wmm_rule {
+  * @NL80211_FREQUENCY_ATTR_DISABLED: Channel is disabled in current
+  *	regulatory domain.
+  * @NL80211_FREQUENCY_ATTR_NO_IR: no mechanisms that initiate radiation
+- * 	are permitted on this channel, this includes sending probe
+- * 	requests, or modes of operation that require beaconing.
++ *	are permitted on this channel, this includes sending probe
++ *	requests, or modes of operation that require beaconing.
++ * @__NL80211_FREQUENCY_ATTR_NO_IBSS: obsolete, same as _NO_IR
+  * @NL80211_FREQUENCY_ATTR_RADAR: Radar detection is mandatory
+  *	on this channel in current regulatory domain.
+  * @NL80211_FREQUENCY_ATTR_MAX_TX_POWER: Maximum transmission power in mBm
+@@ -4276,6 +4333,10 @@ enum nl80211_wmm_rule {
+  * @NL80211_FREQUENCY_ATTR_CAN_MONITOR: This channel can be used in monitor
+  *	mode despite other (regulatory) restrictions, even if the channel is
+  *	otherwise completely disabled.
++ * @NL80211_FREQUENCY_ATTR_ALLOW_6GHZ_VLP_AP: This channel can be used for a
++ *	very low power (VLP) AP, despite being NO_IR.
++ * @NL80211_FREQUENCY_ATTR_ALLOW_20MHZ_ACTIVITY: This channel can be active in
++ *	20 MHz bandwidth, despite being NO_IR.
+  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
+  *	currently defined
+  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
+@@ -4319,6 +4380,8 @@ enum nl80211_frequency_attr {
+ 	NL80211_FREQUENCY_ATTR_NO_6GHZ_VLP_CLIENT,
+ 	NL80211_FREQUENCY_ATTR_NO_6GHZ_AFC_CLIENT,
+ 	NL80211_FREQUENCY_ATTR_CAN_MONITOR,
++	NL80211_FREQUENCY_ATTR_ALLOW_6GHZ_VLP_AP,
++	NL80211_FREQUENCY_ATTR_ALLOW_20MHZ_ACTIVITY,
+ 
+ 	/* keep last */
+ 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
+@@ -4357,16 +4420,16 @@ enum nl80211_bitrate_attr {
+ };
+ 
+ /**
+- * enum nl80211_initiator - Indicates the initiator of a reg domain request
++ * enum nl80211_reg_initiator - Indicates the initiator of a reg domain request
+  * @NL80211_REGDOM_SET_BY_CORE: Core queried CRDA for a dynamic world
+- * 	regulatory domain.
++ *	regulatory domain.
+  * @NL80211_REGDOM_SET_BY_USER: User asked the wireless core to set the
+- * 	regulatory domain.
++ *	regulatory domain.
+  * @NL80211_REGDOM_SET_BY_DRIVER: a wireless drivers has hinted to the
+- * 	wireless core it thinks its knows the regulatory domain we should be in.
++ *	wireless core it thinks its knows the regulatory domain we should be in.
+  * @NL80211_REGDOM_SET_BY_COUNTRY_IE: the wireless core has received an
+- * 	802.11 country information element with regulatory information it
+- * 	thinks we should consider. cfg80211 only processes the country
++ *	802.11 country information element with regulatory information it
++ *	thinks we should consider. cfg80211 only processes the country
+  *	code from the IE, and relies on the regulatory domain information
+  *	structure passed by userspace (CRDA) from our wireless-regdb.
+  *	If a channel is enabled but the country code indicates it should
+@@ -4385,11 +4448,11 @@ enum nl80211_reg_initiator {
+  *	to a specific country. When this is set you can count on the
+  *	ISO / IEC 3166 alpha2 country code being valid.
+  * @NL80211_REGDOM_TYPE_WORLD: the regulatory set domain is the world regulatory
+- * 	domain.
++ *	domain.
+  * @NL80211_REGDOM_TYPE_CUSTOM_WORLD: the regulatory domain set is a custom
+- * 	driver specific world regulatory domain. These do not apply system-wide
+- * 	and are only applicable to the individual devices which have requested
+- * 	them to be applied.
++ *	driver specific world regulatory domain. These do not apply system-wide
++ *	and are only applicable to the individual devices which have requested
++ *	them to be applied.
+  * @NL80211_REGDOM_TYPE_INTERSECTION: the regulatory domain set is the product
+  *	of an intersection between two regulatory domains -- the previously
+  *	set regulatory domain on the system and the last accepted regulatory
+@@ -4406,21 +4469,21 @@ enum nl80211_reg_type {
+  * enum nl80211_reg_rule_attr - regulatory rule attributes
+  * @__NL80211_REG_RULE_ATTR_INVALID: attribute number 0 is reserved
+  * @NL80211_ATTR_REG_RULE_FLAGS: a set of flags which specify additional
+- * 	considerations for a given frequency range. These are the
+- * 	&enum nl80211_reg_rule_flags.
++ *	considerations for a given frequency range. These are the
++ *	&enum nl80211_reg_rule_flags.
+  * @NL80211_ATTR_FREQ_RANGE_START: starting frequencry for the regulatory
+- * 	rule in KHz. This is not a center of frequency but an actual regulatory
+- * 	band edge.
++ *	rule in KHz. This is not a center of frequency but an actual regulatory
++ *	band edge.
+  * @NL80211_ATTR_FREQ_RANGE_END: ending frequency for the regulatory rule
+- * 	in KHz. This is not a center a frequency but an actual regulatory
+- * 	band edge.
++ *	in KHz. This is not a center a frequency but an actual regulatory
++ *	band edge.
+  * @NL80211_ATTR_FREQ_RANGE_MAX_BW: maximum allowed bandwidth for this
+  *	frequency range, in KHz.
+  * @NL80211_ATTR_POWER_RULE_MAX_ANT_GAIN: the maximum allowed antenna gain
+- * 	for a given frequency range. The value is in mBi (100 * dBi).
+- * 	If you don't have one then don't send this.
++ *	for a given frequency range. The value is in mBi (100 * dBi).
++ *	If you don't have one then don't send this.
+  * @NL80211_ATTR_POWER_RULE_MAX_EIRP: the maximum allowed EIRP for
+- * 	a given frequency range. The value is in mBm (100 * dBm).
++ *	a given frequency range. The value is in mBm (100 * dBm).
+  * @NL80211_ATTR_DFS_CAC_TIME: DFS CAC time in milliseconds.
+  *	If not present or 0 default CAC time will be used.
+  * @NL80211_ATTR_POWER_RULE_PSD: power spectral density (in dBm).
+@@ -4507,8 +4570,9 @@ enum nl80211_sched_scan_match_attr {
+  * @NL80211_RRF_PTP_ONLY: this is only for Point To Point links
+  * @NL80211_RRF_PTMP_ONLY: this is only for Point To Multi Point links
+  * @NL80211_RRF_NO_IR: no mechanisms that initiate radiation are allowed,
+- * 	this includes probe requests or modes of operation that require
+- * 	beaconing.
++ *	this includes probe requests or modes of operation that require
++ *	beaconing.
++ * @__NL80211_RRF_NO_IBSS: obsolete, same as NO_IR
+  * @NL80211_RRF_AUTO_BW: maximum available bandwidth should be calculated
+  *	base on contiguous rules and wider channels will be allowed to cross
+  *	multiple contiguous/overlapping frequency ranges.
+@@ -4522,35 +4586,41 @@ enum nl80211_sched_scan_match_attr {
+  * @NL80211_RRF_NO_EHT: EHT operation not allowed
+  * @NL80211_RRF_PSD: Ruleset has power spectral density value
+  * @NL80211_RRF_DFS_CONCURRENT: Operation on this channel is allowed for
+-	peer-to-peer or adhoc communication under the control of a DFS master
+-	which operates on the same channel (FCC-594280 D01 Section B.3).
+-	Should be used together with %NL80211_RRF_DFS only.
++ *	peer-to-peer or adhoc communication under the control of a DFS master
++ *	which operates on the same channel (FCC-594280 D01 Section B.3).
++ *	Should be used together with %NL80211_RRF_DFS only.
+  * @NL80211_RRF_NO_6GHZ_VLP_CLIENT: Client connection to VLP AP not allowed
+  * @NL80211_RRF_NO_6GHZ_AFC_CLIENT: Client connection to AFC AP not allowed
++ * @NL80211_RRF_ALLOW_6GHZ_VLP_AP: Very low power (VLP) AP can be permitted
++ *	despite NO_IR configuration.
++ * @NL80211_RRF_ALLOW_20MHZ_ACTIVITY: Allow activity in 20 MHz bandwidth,
++ *	despite NO_IR configuration.
+  */
+ enum nl80211_reg_rule_flags {
+-	NL80211_RRF_NO_OFDM		= 1<<0,
+-	NL80211_RRF_NO_CCK		= 1<<1,
+-	NL80211_RRF_NO_INDOOR		= 1<<2,
+-	NL80211_RRF_NO_OUTDOOR		= 1<<3,
+-	NL80211_RRF_DFS			= 1<<4,
+-	NL80211_RRF_PTP_ONLY		= 1<<5,
+-	NL80211_RRF_PTMP_ONLY		= 1<<6,
+-	NL80211_RRF_NO_IR		= 1<<7,
+-	__NL80211_RRF_NO_IBSS		= 1<<8,
+-	NL80211_RRF_AUTO_BW		= 1<<11,
+-	NL80211_RRF_IR_CONCURRENT	= 1<<12,
+-	NL80211_RRF_NO_HT40MINUS	= 1<<13,
+-	NL80211_RRF_NO_HT40PLUS		= 1<<14,
+-	NL80211_RRF_NO_80MHZ		= 1<<15,
+-	NL80211_RRF_NO_160MHZ		= 1<<16,
+-	NL80211_RRF_NO_HE		= 1<<17,
+-	NL80211_RRF_NO_320MHZ		= 1<<18,
+-	NL80211_RRF_NO_EHT		= 1<<19,
+-	NL80211_RRF_PSD			= 1<<20,
+-	NL80211_RRF_DFS_CONCURRENT	= 1<<21,
+-	NL80211_RRF_NO_6GHZ_VLP_CLIENT	= 1<<22,
+-	NL80211_RRF_NO_6GHZ_AFC_CLIENT	= 1<<23,
++	NL80211_RRF_NO_OFDM                 = 1 << 0,
++	NL80211_RRF_NO_CCK                  = 1 << 1,
++	NL80211_RRF_NO_INDOOR               = 1 << 2,
++	NL80211_RRF_NO_OUTDOOR              = 1 << 3,
++	NL80211_RRF_DFS                     = 1 << 4,
++	NL80211_RRF_PTP_ONLY                = 1 << 5,
++	NL80211_RRF_PTMP_ONLY               = 1 << 6,
++	NL80211_RRF_NO_IR                   = 1 << 7,
++	__NL80211_RRF_NO_IBSS               = 1 << 8,
++	NL80211_RRF_AUTO_BW                 = 1 << 11,
++	NL80211_RRF_IR_CONCURRENT           = 1 << 12,
++	NL80211_RRF_NO_HT40MINUS            = 1 << 13,
++	NL80211_RRF_NO_HT40PLUS             = 1 << 14,
++	NL80211_RRF_NO_80MHZ                = 1 << 15,
++	NL80211_RRF_NO_160MHZ               = 1 << 16,
++	NL80211_RRF_NO_HE                   = 1 << 17,
++	NL80211_RRF_NO_320MHZ               = 1 << 18,
++	NL80211_RRF_NO_EHT                  = 1 << 19,
++	NL80211_RRF_PSD                     = 1 << 20,
++	NL80211_RRF_DFS_CONCURRENT          = 1 << 21,
++	NL80211_RRF_NO_6GHZ_VLP_CLIENT      = 1 << 22,
++	NL80211_RRF_NO_6GHZ_AFC_CLIENT      = 1 << 23,
++	NL80211_RRF_ALLOW_6GHZ_VLP_AP       = 1 << 24,
++	NL80211_RRF_ALLOW_20MHZ_ACTIVITY    = 1 << 25,
+ };
+ 
+ #define NL80211_RRF_PASSIVE_SCAN	NL80211_RRF_NO_IR
+@@ -4671,10 +4741,11 @@ enum nl80211_survey_info {
+  * @NL80211_MNTR_FLAG_PLCPFAIL: pass frames with bad PLCP
+  * @NL80211_MNTR_FLAG_CONTROL: pass control frames
+  * @NL80211_MNTR_FLAG_OTHER_BSS: disable BSSID filtering
+- * @NL80211_MNTR_FLAG_COOK_FRAMES: report frames after processing.
+- *	overrides all other flags.
++ * @NL80211_MNTR_FLAG_COOK_FRAMES: deprecated
++ *	will unconditionally be refused
+  * @NL80211_MNTR_FLAG_ACTIVE: use the configured MAC address
+  *	and ACK incoming unicast packets.
++ * @NL80211_MNTR_FLAG_SKIP_TX: do not pass local tx packets
+  *
+  * @__NL80211_MNTR_FLAG_AFTER_LAST: internal use
+  * @NL80211_MNTR_FLAG_MAX: highest possible monitor flag
+@@ -4687,6 +4758,7 @@ enum nl80211_mntr_flags {
+ 	NL80211_MNTR_FLAG_OTHER_BSS,
+ 	NL80211_MNTR_FLAG_COOK_FRAMES,
+ 	NL80211_MNTR_FLAG_ACTIVE,
++	NL80211_MNTR_FLAG_SKIP_TX,
+ 
+ 	/* keep last */
+ 	__NL80211_MNTR_FLAG_AFTER_LAST,
+@@ -4707,8 +4779,8 @@ enum nl80211_mntr_flags {
+  *	alternate between Active and Doze states, but may not wake up
+  *	for neighbor's beacons.
+  *
+- * @__NL80211_MESH_POWER_AFTER_LAST - internal use
+- * @NL80211_MESH_POWER_MAX - highest possible power save level
++ * @__NL80211_MESH_POWER_AFTER_LAST: internal use
++ * @NL80211_MESH_POWER_MAX: highest possible power save level
+  */
+ 
+ enum nl80211_mesh_power_mode {
+@@ -5728,7 +5800,7 @@ struct nl80211_pattern_support {
+  *	"TCP connection wakeup" for more details. This is a nested attribute
+  *	containing the exact information for establishing and keeping alive
+  *	the TCP connection.
+- * @NL80211_WOWLAN_TRIG_TCP_WAKEUP_MATCH: For wakeup reporting only, the
++ * @NL80211_WOWLAN_TRIG_WAKEUP_TCP_MATCH: For wakeup reporting only, the
+  *	wakeup packet was received on the TCP connection
+  * @NL80211_WOWLAN_TRIG_WAKEUP_TCP_CONNLOST: For wakeup reporting only, the
+  *	TCP connection was lost or failed to be established
+@@ -6077,7 +6149,7 @@ enum nl80211_plink_state {
+  * @NL80211_PLINK_ACTION_BLOCK: block traffic from this mesh peer
+  * @NUM_NL80211_PLINK_ACTIONS: number of possible actions
+  */
+-enum plink_actions {
++enum nl80211_plink_action {
+ 	NL80211_PLINK_ACTION_NO_ACTION,
+ 	NL80211_PLINK_ACTION_OPEN,
+ 	NL80211_PLINK_ACTION_BLOCK,
+@@ -6404,6 +6476,7 @@ enum nl80211_feature_flags {
+  *	receiving control port frames over nl80211 instead of the netdevice.
+  * @NL80211_EXT_FEATURE_ACK_SIGNAL_SUPPORT: This driver/device supports
+  *	(average) ACK signal strength reporting.
++ * @NL80211_EXT_FEATURE_DATA_ACK_SIGNAL_SUPPORT: Backward-compatible ID
+  * @NL80211_EXT_FEATURE_TXQS: Driver supports FQ-CoDel-enabled intermediate
+  *      TXQs.
+  * @NL80211_EXT_FEATURE_SCAN_RANDOM_SN: Driver/device supports randomizing the
+@@ -6787,6 +6860,8 @@ enum nl80211_acl_policy {
+  * @NL80211_SMPS_STATIC: static SMPS (use a single antenna)
+  * @NL80211_SMPS_DYNAMIC: dynamic smps (start with a single antenna and
+  *	turn on other antennas after CTS/RTS).
++ * @__NL80211_SMPS_AFTER_LAST: internal
++ * @NL80211_SMPS_MAX: highest used enumeration
+  */
+ enum nl80211_smps_mode {
+ 	NL80211_SMPS_OFF,
+@@ -7008,6 +7083,8 @@ enum nl80211_bss_select_attr {
+  * @NL80211_NAN_FUNC_PUBLISH: function is publish
+  * @NL80211_NAN_FUNC_SUBSCRIBE: function is subscribe
+  * @NL80211_NAN_FUNC_FOLLOW_UP: function is follow-up
++ * @__NL80211_NAN_FUNC_TYPE_AFTER_LAST: internal use
++ * @NL80211_NAN_FUNC_MAX_TYPE: internal use
+  */
+ enum nl80211_nan_function_type {
+ 	NL80211_NAN_FUNC_PUBLISH,
+@@ -7168,7 +7245,7 @@ enum nl80211_nan_match_attributes {
+ };
+ 
+ /**
+- * nl80211_external_auth_action - Action to perform with external
++ * enum nl80211_external_auth_action - Action to perform with external
+  *     authentication request. Used by NL80211_ATTR_EXTERNAL_AUTH_ACTION.
+  * @NL80211_EXTERNAL_AUTH_START: Start the authentication.
+  * @NL80211_EXTERNAL_AUTH_ABORT: Abort the ongoing authentication.
+@@ -7186,7 +7263,7 @@ enum nl80211_external_auth_action {
+  * @NL80211_FTM_RESP_ATTR_LCI: The content of Measurement Report Element
+  *	(9.4.2.22 in 802.11-2016) with type 8 - LCI (9.4.2.22.10),
+  *	i.e. starting with the measurement token
+- * @NL80211_FTM_RESP_ATTR_CIVIC: The content of Measurement Report Element
++ * @NL80211_FTM_RESP_ATTR_CIVICLOC: The content of Measurement Report Element
+  *	(9.4.2.22 in 802.11-2016) with type 11 - Civic (Section 9.4.2.22.13),
+  *	i.e. starting with the measurement token
+  * @__NL80211_FTM_RESP_ATTR_LAST: Internal
+@@ -7829,6 +7906,7 @@ enum nl80211_sae_pwe_mechanism {
+  *
+  * @NL80211_SAR_TYPE_POWER: power limitation specified in 0.25dBm unit
+  *
++ * @NUM_NL80211_SAR_TYPE: internal
+  */
+ enum nl80211_sar_type {
+ 	NL80211_SAR_TYPE_POWER,
+@@ -7842,6 +7920,8 @@ enum nl80211_sar_type {
+ /**
+  * enum nl80211_sar_attrs - Attributes for SAR spec
+  *
++ * @__NL80211_SAR_ATTR_INVALID: Invalid
++ *
+  * @NL80211_SAR_ATTR_TYPE: the SAR type as defined in &enum nl80211_sar_type.
+  *
+  * @NL80211_SAR_ATTR_SPECS: Nested array of SAR power
+@@ -7873,6 +7953,8 @@ enum nl80211_sar_attrs {
+ /**
+  * enum nl80211_sar_specs_attrs - Attributes for SAR power limit specs
+  *
++ * @__NL80211_SAR_ATTR_SPECS_INVALID: Invalid
++ *
+  * @NL80211_SAR_ATTR_SPECS_POWER: Required (s32)value to specify the actual
+  *	power limit value in units of 0.25 dBm if type is
+  *	NL80211_SAR_TYPE_POWER. (i.e., a value of 44 represents 11 dBm).
+@@ -7954,6 +8036,11 @@ enum nl80211_sar_specs_attrs {
+  *	Setting this flag is permitted only if the driver advertises EMA support
+  *	by setting wiphy->ema_max_profile_periodicity to non-zero.
+  *
++ * @NL80211_MBSSID_CONFIG_ATTR_TX_LINK_ID: Link ID of the transmitted profile.
++ *	This parameter is mandatory when NL80211_ATTR_MBSSID_CONFIG attributes
++ *	are sent for a non-transmitted profile and if the transmitted profile
++ *	is part of an MLD. For all other cases this parameter is unnecessary.
++ *
+  * @__NL80211_MBSSID_CONFIG_ATTR_LAST: Internal
+  * @NL80211_MBSSID_CONFIG_ATTR_MAX: highest attribute
+  */
+@@ -7965,6 +8052,7 @@ enum nl80211_mbssid_config_attributes {
+ 	NL80211_MBSSID_CONFIG_ATTR_INDEX,
+ 	NL80211_MBSSID_CONFIG_ATTR_TX_IFINDEX,
+ 	NL80211_MBSSID_CONFIG_ATTR_EMA,
++	NL80211_MBSSID_CONFIG_ATTR_TX_LINK_ID,
+ 
+ 	/* keep last */
+ 	__NL80211_MBSSID_CONFIG_ATTR_LAST,
+@@ -7987,4 +8075,57 @@ enum nl80211_ap_settings_flags {
+ 	NL80211_AP_SETTINGS_SA_QUERY_OFFLOAD_SUPPORT	= 1 << 1,
+ };
+ 
++/**
++ * enum nl80211_wiphy_radio_attrs - wiphy radio attributes
++ *
++ * @__NL80211_WIPHY_RADIO_ATTR_INVALID: Invalid
++ *
++ * @NL80211_WIPHY_RADIO_ATTR_INDEX: Index of this radio (u32)
++ * @NL80211_WIPHY_RADIO_ATTR_FREQ_RANGE: Frequency range supported by this
++ *	radio. Attribute may be present multiple times.
++ * @NL80211_WIPHY_RADIO_ATTR_INTERFACE_COMBINATION: Supported interface
++ *	combination for this radio. Attribute may be present multiple times
++ *	and contains attributes defined in &enum nl80211_if_combination_attrs.
++ * @NL80211_WIPHY_RADIO_ATTR_ANTENNA_MASK: bitmask (u32) of antennas
++ *	connected to this radio.
++ *
++ * @__NL80211_WIPHY_RADIO_ATTR_LAST: Internal
++ * @NL80211_WIPHY_RADIO_ATTR_MAX: Highest attribute
++ */
++enum nl80211_wiphy_radio_attrs {
++	__NL80211_WIPHY_RADIO_ATTR_INVALID,
++
++	NL80211_WIPHY_RADIO_ATTR_INDEX,
++	NL80211_WIPHY_RADIO_ATTR_FREQ_RANGE,
++	NL80211_WIPHY_RADIO_ATTR_INTERFACE_COMBINATION,
++	NL80211_WIPHY_RADIO_ATTR_ANTENNA_MASK,
++
++	/* keep last */
++	__NL80211_WIPHY_RADIO_ATTR_LAST,
++	NL80211_WIPHY_RADIO_ATTR_MAX = __NL80211_WIPHY_RADIO_ATTR_LAST - 1,
++};
++
++/**
++ * enum nl80211_wiphy_radio_freq_range - wiphy radio frequency range
++ *
++ * @__NL80211_WIPHY_RADIO_FREQ_ATTR_INVALID: Invalid
++ *
++ * @NL80211_WIPHY_RADIO_FREQ_ATTR_START: Frequency range start (u32).
++ *	The unit is kHz.
++ * @NL80211_WIPHY_RADIO_FREQ_ATTR_END: Frequency range end (u32).
++ *	The unit is kHz.
++ *
++ * @__NL80211_WIPHY_RADIO_FREQ_ATTR_LAST: Internal
++ * @NL80211_WIPHY_RADIO_FREQ_ATTR_MAX: Highest attribute
++ */
++enum nl80211_wiphy_radio_freq_range {
++	__NL80211_WIPHY_RADIO_FREQ_ATTR_INVALID,
++
++	NL80211_WIPHY_RADIO_FREQ_ATTR_START,
++	NL80211_WIPHY_RADIO_FREQ_ATTR_END,
++
++	__NL80211_WIPHY_RADIO_FREQ_ATTR_LAST,
++	NL80211_WIPHY_RADIO_FREQ_ATTR_MAX = __NL80211_WIPHY_RADIO_FREQ_ATTR_LAST - 1,
++};
++
+ #endif /* __LINUX_NL80211_H */
+diff --git a/phy.c b/phy.c
+index 4722125..584b103 100644
+--- a/phy.c
++++ b/phy.c
+@@ -198,15 +198,10 @@ static int handle_freq(struct nl80211_state *state, struct nl_msg *msg,
+ 	return put_chandef(msg, &chandef);
+ }
+ 
+-COMMAND(set, freq,
+-	"<freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz|320MHz]\n"
+-	"<control freq> [5|10|20|40|80|80+80|160] [<center1_freq> [<center2_freq>]]",
++COMMAND(set, freq, PARSE_FREQ_ARGS("", ""),
+ 	NL80211_CMD_SET_WIPHY, 0, CIB_PHY, handle_freq,
+-	"Set frequency/channel the hardware is using, including HT\n"
+-	"configuration.");
+-COMMAND(set, freq,
+-	"<freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz|320MHz]\n"
+-	"<control freq> [5|10|20|40|80|80+80|160] [<center1_freq> [<center2_freq>]]",
++	"Set frequency/channel configuration the hardware is using.");
++COMMAND(set, freq, PARSE_FREQ_ARGS("", ""),
+ 	NL80211_CMD_SET_WIPHY, 0, CIB_NETDEV, handle_freq, NULL);
+ 
+ static int handle_freq_khz(struct nl80211_state *state, struct nl_msg *msg,
+@@ -223,15 +218,11 @@ static int handle_freq_khz(struct nl80211_state *state, struct nl_msg *msg,
+ 	return put_chandef(msg, &chandef);
+ }
+ 
+-COMMAND(set, freq_khz,
+-	"<freq> [1MHz|2MHz|4MHz|8MHz|16MHz]\n"
+-	"<control freq> [1|2|4|8|16] [<center1_freq> [<center2_freq>]]",
++COMMAND(set, freq_khz, PARSE_FREQ_KHZ_ARGS("", ""),
+ 	NL80211_CMD_SET_WIPHY, 0, CIB_PHY, handle_freq_khz,
+ 	"Set frequency in kHz the hardware is using\n"
+ 	"configuration.");
+-COMMAND(set, freq_khz,
+-	"<freq> [1MHz|2MHz|4MHz|8MHz|16MHz]\n"
+-	"<control freq> [1|2|4|8|16] [<center1_freq> [<center2_freq>]]",
++COMMAND(set, freq_khz, PARSE_FREQ_KHZ_ARGS("", ""),
+ 	NL80211_CMD_SET_WIPHY, 0, CIB_NETDEV, handle_freq_khz, NULL);
+ 
+ static int handle_chan(struct nl80211_state *state, struct nl_msg *msg,
+@@ -247,9 +238,9 @@ static int handle_chan(struct nl80211_state *state, struct nl_msg *msg,
+ 
+ 	return put_chandef(msg, &chandef);
+ }
+-COMMAND(set, channel, "<channel> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz]",
++COMMAND(set, channel, PARSE_CHAN_ARGS(""),
+ 	NL80211_CMD_SET_WIPHY, 0, CIB_PHY, handle_chan, NULL);
+-COMMAND(set, channel, "<channel> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz]",
++COMMAND(set, channel, PARSE_CHAN_ARGS(""),
+ 	NL80211_CMD_SET_WIPHY, 0, CIB_NETDEV, handle_chan, NULL);
+ 
+ 
+@@ -403,22 +394,19 @@ err_out:
+ 		free(cac_trigger_argv);
+ 	return err;
+ }
+-TOPLEVEL(cac, "channel <channel> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz]\n"
+-	      "freq <freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz]\n"
+-	      "freq <control freq> [5|10|20|40|80|80+80|160] [<center1_freq> [<center2_freq>]]",
++TOPLEVEL(cac, PARSE_CHAN_ARGS("channel ") "\n"
++              PARSE_FREQ_ARGS("freq ", ""),
+ 	 0, 0, CIB_NETDEV, handle_cac, NULL);
+ COMMAND(cac, trigger,
+-	"channel <channel> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz]\n"
+-	"freq <frequency> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz]\n"
+-	"freq <frequency> [5|10|20|40|80|80+80|160] [<center1_freq> [<center2_freq>]]",
++	PARSE_CHAN_ARGS("channel ") "\n"
++	PARSE_FREQ_ARGS("freq ", ""),
+ 	NL80211_CMD_RADAR_DETECT, 0, CIB_NETDEV, handle_cac_trigger,
+ 	"Start or trigger a channel availability check (CAC) looking to look for\n"
+ 	"radars on the given channel.");
+ 
+ COMMAND(cac, background,
+-	"channel <channel> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz]\n"
+-	"freq <frequency> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz]\n"
+-	"freq <frequency> [5|10|20|40|80|80+80|160] [<center1_freq> [<center2_freq>]]",
++	PARSE_CHAN_ARGS("channel ") "\n"
++	PARSE_FREQ_ARGS("freq ", ""),
+ 	NL80211_CMD_RADAR_DETECT, 0, CIB_NETDEV, handle_cac_background,
+ 	"Start background channel availability check (CAC) looking to look for\n"
+ 	"radars on the given channel.");
+diff --git a/reg.c b/reg.c
+index 857c995..f24535d 100644
+--- a/reg.c
++++ b/reg.c
+@@ -13,13 +13,6 @@
+ 
+ SECTION(reg);
+ 
+-#define MHZ_TO_KHZ(freq) ((freq) * 1000)
+-#define KHZ_TO_MHZ(freq) ((freq) / 1000)
+-#define DBI_TO_MBI(gain) ((gain) * 100)
+-#define MBI_TO_DBI(gain) ((gain) / 100)
+-#define DBM_TO_MBM(gain) ((gain) * 100)
+-#define MBM_TO_DBM(gain) ((gain) / 100)
+-
+ static bool isalpha_upper(char letter)
+ {
+ 	if (letter >= 65 && letter <= 90)
+@@ -211,6 +204,7 @@ static int print_reg_handler(struct nl_msg *msg, void *arg)
+ 		PARSE_FLAG(NL80211_RRF_NO_160MHZ, "NO-160MHZ");
+ 		PARSE_FLAG(NL80211_RRF_NO_HE, "NO-HE");
+ 		PARSE_FLAG(NL80211_RRF_NO_320MHZ, "NO-320MHZ");
++		PARSE_FLAG(NL80211_RRF_NO_EHT, "NO-EHT");
+ 
+ 		/* Kernels that support NO_IR always turn on both flags */
+ 		if ((flags & NL80211_RRF_NO_IR) && (flags & __NL80211_RRF_NO_IBSS)) {
+diff --git a/scan.c b/scan.c
+index faf406d..facb503 100644
+--- a/scan.c
++++ b/scan.c
+@@ -554,13 +554,14 @@ static void tab_on_first(bool *first)
+ 		*first = false;
+ }
+ 
+-struct print_ies_data {
+-	unsigned char *ie;
+-	int ielen;
++struct ie_context {
++	bool from_ap;
++	bool is_vht_cap;
++	const uint8_t *he_cap;
+ };
+ 
+ static void print_ssid(const uint8_t type, uint8_t len, const uint8_t *data,
+-		       const struct print_ies_data *ie_buffer)
++		       const struct ie_context *ctx)
+ {
+ 	printf(" ");
+ 	print_ssid_escaped(len, data);
+@@ -572,7 +573,7 @@ static void print_ssid(const uint8_t type, uint8_t len, const uint8_t *data,
+ 
+ static void print_supprates(const uint8_t type, uint8_t len,
+ 			    const uint8_t *data,
+-			    const struct print_ies_data *ie_buffer)
++			    const struct ie_context *ctx)
+ {
+ 	int i;
+ 
+@@ -595,7 +596,7 @@ static void print_supprates(const uint8_t type, uint8_t len,
+ 
+ static void print_rm_enabled_capabilities(const uint8_t type, uint8_t len,
+ 			    const uint8_t *data,
+-			    const struct print_ies_data *ie_buffer)
++			    const struct ie_context *ctx)
+ {
+ 	__u64 capa = ((__u64) data[0]) |
+ 		     ((__u64) data[1]) << 8 |
+@@ -649,7 +650,7 @@ static void print_rm_enabled_capabilities(const uint8_t type, uint8_t len,
+ }
+ 
+ static void print_ds(const uint8_t type, uint8_t len, const uint8_t *data,
+-		     const struct print_ies_data *ie_buffer)
++		     const struct ie_context *ctx)
+ {
+ 	printf(" channel %d\n", data[0]);
+ }
+@@ -669,7 +670,7 @@ static const char *country_env_str(char environment)
+ }
+ 
+ static void print_country(const uint8_t type, uint8_t len, const uint8_t *data,
+-			  const struct print_ies_data *ie_buffer)
++			  const struct ie_context *ctx)
+ {
+ 	printf(" %.*s", 2, data);
+ 
+@@ -716,21 +717,21 @@ static void print_country(const uint8_t type, uint8_t len, const uint8_t *data,
+ 
+ static void print_powerconstraint(const uint8_t type, uint8_t len,
+ 				  const uint8_t *data,
+-				  const struct print_ies_data *ie_buffer)
++				  const struct ie_context *ctx)
+ {
+ 	printf(" %d dB\n", data[0]);
+ }
+ 
+ static void print_tpcreport(const uint8_t type, uint8_t len,
+ 			    const uint8_t *data,
+-			    const struct print_ies_data *ie_buffer)
++			    const struct ie_context *ctx)
+ {
+ 	printf(" TX power: %d dBm\n", data[0]);
+ 	/* printf(" Link Margin (%d dB) is reserved in Beacons\n", data[1]); */
+ }
+ 
+ static void print_erp(const uint8_t type, uint8_t len, const uint8_t *data,
+-		      const struct print_ies_data *ie_buffer)
++		      const struct ie_context *ctx)
+ {
+ 	if (data[0] == 0x00)
+ 		printf(" <no flags>");
+@@ -744,7 +745,7 @@ static void print_erp(const uint8_t type, uint8_t len, const uint8_t *data,
+ }
+ 
+ static void print_ap_channel_report(const uint8_t type, uint8_t len, const uint8_t *data,
+-				    const struct print_ies_data *ie_buffer)
++				    const struct ie_context *ctx)
+ {
+ 	uint8_t oper_class = data[0];
+ 	int i;
+@@ -808,6 +809,18 @@ static void print_cipher(const uint8_t *data)
+ 		case 8:
+ 			printf("GCMP");
+ 			break;
++		case 9:
++			printf("GCMP-256");
++			break;
++		case 11:
++			printf("BIP-GMAC-128");
++			break;
++		case 12:
++			printf("BIP-GMAC-256");
++			break;
++		case 13:
++			printf("BIP-CMAC-256");
++			break;
+ 		default:
+ 			printf("%.02x-%.02x-%.02x:%d",
+ 				data[0], data[1] ,data[2], data[3]);
+@@ -886,6 +899,18 @@ static void print_auth(const uint8_t *data)
+ 		case 18:
+ 			printf("OWE");
+ 			break;
++		case 19:
++			printf("FT/PSK/SHA-384");
++			break;
++		case 20:
++			printf("PSK/SHA-384");
++			break;
++		case 24:
++			printf("SAE-EXT-KEY");
++			break;
++		case 25:
++			printf("FT/SAE-EXT-KEY");
++			break;
+ 		default:
+ 			printf("%.02x-%.02x-%.02x:%d",
+ 				data[0], data[1] ,data[2], data[3]);
+@@ -1084,13 +1109,13 @@ static void print_osen_ie(const char *defcipher, const char *defauth,
+ }
+ 
+ static void print_rsn(const uint8_t type, uint8_t len, const uint8_t *data,
+-		      const struct print_ies_data *ie_buffer)
++		      const struct ie_context *ctx)
+ {
+ 	print_rsn_ie("CCMP", "IEEE 802.1X", len, data);
+ }
+ 
+ static void print_ht_capa(const uint8_t type, uint8_t len, const uint8_t *data,
+-			  const struct print_ies_data *ie_buffer)
++			  const struct ie_context *ctx)
+ {
+ 	printf("\n");
+ 	print_ht_capability(data[0] | (data[1] << 8));
+@@ -1135,7 +1160,7 @@ static const char* vgroup_11u(uint8_t t)
+ 
+ static void print_interworking(const uint8_t type, uint8_t len,
+ 			       const uint8_t *data,
+-			       const struct print_ies_data *ie_buffer)
++			       const struct ie_context *ctx)
+ {
+ 	/* See Section 7.3.2.92 in the 802.11u spec. */
+ 	printf("\n");
+@@ -1168,7 +1193,7 @@ static void print_interworking(const uint8_t type, uint8_t len,
+ 
+ static void print_11u_advert(const uint8_t type, uint8_t len,
+ 			     const uint8_t *data,
+-			     const struct print_ies_data *ie_buffer)
++			     const struct ie_context *ctx)
+ {
+ 	/* See Section 7.3.2.93 in the 802.11u spec. */
+ 	/* TODO: This code below does not decode private protocol IDs */
+@@ -1201,7 +1226,7 @@ static void print_11u_advert(const uint8_t type, uint8_t len,
+ }
+ 
+ static void print_11u_rcon(const uint8_t type, uint8_t len, const uint8_t *data,
+-			   const struct print_ies_data *ie_buffer)
++			   const struct ie_context *ctx)
+ {
+ 	/* See Section 7.3.2.96 in the 802.11u spec. */
+ 	int idx = 0;
+@@ -1254,7 +1279,7 @@ static void print_11u_rcon(const uint8_t type, uint8_t len, const uint8_t *data,
+ 
+ static void print_tx_power_envelope(const uint8_t type, uint8_t len,
+ 				    const uint8_t *data,
+-				    const struct print_ies_data *ie_buffer)
++				    const struct ie_context *ctx)
+ {
+ 	const uint8_t local_max_tx_power_count = data[0] & 7;
+ 	const uint8_t local_max_tx_power_unit_interp = (data[0] >> 3) & 7;
+@@ -1290,7 +1315,7 @@ static const char *ht_secondary_offset[4] = {
+ };
+ 
+ static void print_ht_op(const uint8_t type, uint8_t len, const uint8_t *data,
+-			const struct print_ies_data *ie_buffer)
++			const struct ie_context *ctx)
+ {
+ 	static const char *protection[4] = {
+ 		"no",
+@@ -1322,21 +1347,10 @@ static void print_ht_op(const uint8_t type, uint8_t len, const uint8_t *data,
+ 
+ static void print_capabilities(const uint8_t type, uint8_t len,
+ 			       const uint8_t *data,
+-			       const struct print_ies_data *ie_buffer)
++			       const struct ie_context *ctx)
+ {
+ 	int i, base, bit, si_duration = 0, max_amsdu = 0;
+-	bool s_psmp_support = false, is_vht_cap = false;
+-	unsigned char *ie = ie_buffer->ie;
+-	int ielen = ie_buffer->ielen;
+-
+-	while (ielen >= 2 && ielen >= ie[1]) {
+-		if (ie[0] == 191) {
+-			is_vht_cap = true;
+-			break;
+-		}
+-		ielen -= ie[1] + 2;
+-		ie += ie[1] + 2;
+-	}
++	bool s_psmp_support = false;
+ 
+ 	for (i = 0; i < len; i++) {
+ 		base = i * 8;
+@@ -1432,8 +1446,8 @@ static void print_capabilities(const uint8_t type, uint8_t len,
+ 			CAPA(61, "TDLS Wider Bandwidth");
+ 			CAPA(62, "Operating Mode Notification");
+ 
+-			ADD_BIT_VAL(63, is_vht_cap, max_amsdu, 1);
+-			ADD_BIT_VAL(64, is_vht_cap, max_amsdu, 2);
++			ADD_BIT_VAL(63, ctx->is_vht_cap, max_amsdu, 1);
++			ADD_BIT_VAL(64, ctx->is_vht_cap, max_amsdu, 2);
+ 
+ 			CAPA(65, "Channel Schedule Management");
+ 			CAPA(66, "Geodatabase Inband Enabling Signal");
+@@ -1462,7 +1476,7 @@ static void print_capabilities(const uint8_t type, uint8_t len,
+ 		printf("\n\t\t * Service Interval Granularity is %d ms",
+ 		       (si_duration + 1) * 5);
+ 
+-	if (is_vht_cap) {
++	if (ctx->is_vht_cap) {
+ 		printf("\n\t\t * Max Number Of MSDUs In A-MSDU is ");
+ 		switch (max_amsdu) {
+ 		case 0:
+@@ -1486,7 +1500,7 @@ static void print_capabilities(const uint8_t type, uint8_t len,
+ }
+ 
+ static void print_tim(const uint8_t type, uint8_t len, const uint8_t *data,
+-		      const struct print_ies_data *ie_buffer)
++		      const struct ie_context *ctx)
+ {
+ 	printf(" DTIM Count %u DTIM Period %u Bitmap Control 0x%x "
+ 	       "Bitmap[0] 0x%x",
+@@ -1497,13 +1511,13 @@ static void print_tim(const uint8_t type, uint8_t len, const uint8_t *data,
+ }
+ 
+ static void print_ibssatim(const uint8_t type, uint8_t len, const uint8_t *data,
+-			   const struct print_ies_data *ie_buffer)
++			   const struct ie_context *ctx)
+ {
+ 	printf(" %d TUs\n", (data[1] << 8) + data[0]);
+ }
+ 
+ static void print_vht_capa(const uint8_t type, uint8_t len, const uint8_t *data,
+-			   const struct print_ies_data *ie_buffer)
++			   const struct ie_context *ctx)
+ {
+ 	printf("\n");
+ 	print_vht_info((__u32) data[0] | ((__u32)data[1] << 8) |
+@@ -1512,7 +1526,7 @@ static void print_vht_capa(const uint8_t type, uint8_t len, const uint8_t *data,
+ }
+ 
+ static void print_vht_oper(const uint8_t type, uint8_t len, const uint8_t *data,
+-			   const struct print_ies_data *ie_buffer)
++			   const struct ie_context *ctx)
+ {
+ 	const char *chandwidths[] = {
+ 		[0] = "20 or 40 MHz",
+@@ -1531,7 +1545,7 @@ static void print_vht_oper(const uint8_t type, uint8_t len, const uint8_t *data,
+ 
+ static void print_supp_op_classes(const uint8_t type, uint8_t len,
+ 				  const uint8_t *data,
+-				  const struct print_ies_data *ie_buffer)
++				  const struct ie_context *ctx)
+ {
+ 	uint8_t *p = (uint8_t*) data;
+ 	const uint8_t *next_data = p + len;
+@@ -1565,7 +1579,7 @@ static void print_supp_op_classes(const uint8_t type, uint8_t len,
+ 
+ static void print_measurement_pilot_tx(const uint8_t type, uint8_t len,
+ 				       const uint8_t *data,
+-				       const struct print_ies_data *ie_buffer)
++				       const struct ie_context *ctx)
+ {
+ 	uint8_t *p, len_remaining;
+ 
+@@ -1614,7 +1628,7 @@ static void print_measurement_pilot_tx(const uint8_t type, uint8_t len,
+ 
+ static void print_obss_scan_params(const uint8_t type, uint8_t len,
+ 				   const uint8_t *data,
+-				   const struct print_ies_data *ie_buffer)
++				   const struct ie_context *ctx)
+ {
+ 	printf("\n");
+ 	printf("\t\t * passive dwell: %d TUs\n", (data[1] << 8) | data[0]);
+@@ -1629,7 +1643,7 @@ static void print_obss_scan_params(const uint8_t type, uint8_t len,
+ 
+ static void print_secchan_offs(const uint8_t type, uint8_t len,
+ 			       const uint8_t *data,
+-			       const struct print_ies_data *ie_buffer)
++			       const struct ie_context *ctx)
+ {
+ 	if (data[0] < ARRAY_SIZE(ht_secondary_offset))
+ 		printf(" %s (%d)\n", ht_secondary_offset[data[0]], data[0]);
+@@ -1638,7 +1652,7 @@ static void print_secchan_offs(const uint8_t type, uint8_t len,
+ }
+ 
+ static void print_bss_load(const uint8_t type, uint8_t len, const uint8_t *data,
+-			   const struct print_ies_data *ie_buffer)
++			   const struct ie_context *ctx)
+ {
+ 	printf("\n");
+ 	printf("\t\t * station count: %d\n", (data[1] << 8) | data[0]);
+@@ -1648,7 +1662,7 @@ static void print_bss_load(const uint8_t type, uint8_t len, const uint8_t *data,
+ 
+ static void print_mesh_conf(const uint8_t type, uint8_t len,
+ 			    const uint8_t *data,
+-			    const struct print_ies_data *ie_buffer)
++			    const struct ie_context *ctx)
+ {
+ 	printf("\n");
+ 	printf("\t\t * Active Path Selection Protocol ID: %d\n", data[0]);
+@@ -1681,7 +1695,7 @@ static void print_mesh_conf(const uint8_t type, uint8_t len,
+ 
+ static void print_s1g_capa(const uint8_t type, uint8_t len,
+ 			    const uint8_t *data,
+-			    const struct print_ies_data *ie_buffer)
++			    const struct ie_context *ctx)
+ {
+ 	printf("\n");
+ 	print_s1g_capability(data);
+@@ -1689,14 +1703,14 @@ static void print_s1g_capa(const uint8_t type, uint8_t len,
+ 
+ static void print_short_beacon_int(const uint8_t type, uint8_t len,
+ 			    const uint8_t *data,
+-			    const struct print_ies_data *ie_buffer)
++			    const struct ie_context *ctx)
+ {
+ 	printf(" %d\n", (data[1] << 8) | data[0]);
+ }
+ 
+ static void print_s1g_oper(const uint8_t type, uint8_t len,
+ 			    const uint8_t *data,
+-			    const struct print_ies_data *ie_buffer)
++			    const struct ie_context *ctx)
+ {
+ 	int oper_ch_width, prim_ch_width;
+ 	int prim_ch_width_subfield = data[0] & 0x1;
+@@ -1777,14 +1791,14 @@ static void print_s1g_oper(const uint8_t type, uint8_t len,
+ struct ie_print {
+ 	const char *name;
+ 	void (*print)(const uint8_t type, uint8_t len, const uint8_t *data,
+-		      const struct print_ies_data *ie_buffer);
++		      const struct ie_context *ctx);
+ 	uint8_t minlen, maxlen;
+ 	uint8_t flags;
+ };
+ 
+ static void print_ie(const struct ie_print *p, const uint8_t type, uint8_t len,
+ 		     const uint8_t *data,
+-		     const struct print_ies_data *ie_buffer)
++		     const struct ie_context *ctx)
+ {
+ 	int i;
+ 
+@@ -1805,7 +1819,7 @@ static void print_ie(const struct ie_print *p, const uint8_t type, uint8_t len,
+ 		return;
+ 	}
+ 
+-	p->print(type, len, data, ie_buffer);
++	p->print(type, len, data, ctx);
+ }
+ 
+ #define PRINT_IGN {		\
+@@ -1816,51 +1830,65 @@ static void print_ie(const struct ie_print *p, const uint8_t type, uint8_t len,
+ }
+ 
+ static const struct ie_print ieprinters[] = {
+-	[0] = { "SSID", print_ssid, 0, 32,
+-		 BIT(PRINT_SCAN) | BIT(PRINT_LINK) | BIT(PRINT_LINK_MLO_MLD), },
+-	[1] = { "Supported rates", print_supprates, 0, 255, BIT(PRINT_SCAN), },
+-	[3] = { "DS Parameter set", print_ds, 1, 1, BIT(PRINT_SCAN), },
+-	[5] = { "TIM", print_tim, 4, 255, BIT(PRINT_SCAN), },
+-	[6] = { "IBSS ATIM window", print_ibssatim, 2, 2, BIT(PRINT_SCAN), },
+-	[7] = { "Country", print_country, 3, 255, BIT(PRINT_SCAN), },
+-	[11] = { "BSS Load", print_bss_load, 5, 5, BIT(PRINT_SCAN), },
+-	[32] = { "Power constraint", print_powerconstraint, 1, 1, BIT(PRINT_SCAN), },
+-	[35] = { "TPC report", print_tpcreport, 2, 2, BIT(PRINT_SCAN), },
+-	[42] = { "ERP", print_erp, 1, 255, BIT(PRINT_SCAN), },
+-	[45] = { "HT capabilities", print_ht_capa, 26, 26, BIT(PRINT_SCAN), },
+-	[47] = { "ERP D4.0", print_erp, 1, 255, BIT(PRINT_SCAN), },
+-	[51] = { "AP Channel Report", print_ap_channel_report, 1, 255, BIT(PRINT_SCAN), },
+-	[59] = { "Supported operating classes", print_supp_op_classes, 1, 255, BIT(PRINT_SCAN), },
+-	[66] = { "Measurement Pilot Transmission", print_measurement_pilot_tx, 1, 255, BIT(PRINT_SCAN), },
+-	[74] = { "Overlapping BSS scan params", print_obss_scan_params, 14, 255, BIT(PRINT_SCAN), },
+-	[61] = { "HT operation", print_ht_op, 22, 22, BIT(PRINT_SCAN), },
+-	[62] = { "Secondary Channel Offset", print_secchan_offs, 1, 1, BIT(PRINT_SCAN), },
+-	[191] = { "VHT capabilities", print_vht_capa, 12, 255, BIT(PRINT_SCAN), },
+-	[192] = { "VHT operation", print_vht_oper, 5, 255, BIT(PRINT_SCAN), },
+-	[48] = { "RSN", print_rsn, 2, 255, BIT(PRINT_SCAN), },
+-	[50] = { "Extended supported rates", print_supprates, 0, 255, BIT(PRINT_SCAN), },
+-	[70] = { "RM enabled capabilities", print_rm_enabled_capabilities, 5, 5, BIT(PRINT_SCAN), },
+-	[113] = { "MESH Configuration", print_mesh_conf, 7, 7, BIT(PRINT_SCAN), },
+-	[114] = { "MESH ID", print_ssid, 0, 32, BIT(PRINT_SCAN) | BIT(PRINT_LINK), },
+-	[127] = { "Extended capabilities", print_capabilities, 0, 255, BIT(PRINT_SCAN), },
+-	[107] = { "802.11u Interworking", print_interworking, 0, 255, BIT(PRINT_SCAN), },
+-	[108] = { "802.11u Advertisement", print_11u_advert, 0, 255, BIT(PRINT_SCAN), },
+-	[111] = { "802.11u Roaming Consortium", print_11u_rcon, 2, 255, BIT(PRINT_SCAN), },
+-	[195] = { "Transmit Power Envelope", print_tx_power_envelope, 2, 5, BIT(PRINT_SCAN), },
+-	[214] = { "Short beacon interval", print_short_beacon_int, 2, 2, BIT(PRINT_SCAN), },
+-	[217] = { "S1G capabilities", print_s1g_capa, 15, 15, BIT(PRINT_SCAN), },
+-	[232] = { "S1G operation", print_s1g_oper, 6, 6, BIT(PRINT_SCAN), },
++	[EID_SSID] = { "SSID", print_ssid, 0, 32,
++		       BIT(PRINT_SCAN) | BIT(PRINT_LINK) | BIT(PRINT_LINK_MLO_MLD), },
++	[EID_SUPP_RATES] = { "Supported rates", print_supprates, 0, 255, BIT(PRINT_SCAN), },
++	[EID_DS_PARAMS] = { "DS Parameter set", print_ds, 1, 1, BIT(PRINT_SCAN), },
++	[EID_TIM] = { "TIM", print_tim, 4, 255, BIT(PRINT_SCAN), },
++	[EID_IBSS_TIM_PARAMS] = { "IBSS ATIM window", print_ibssatim, 2, 2, BIT(PRINT_SCAN), },
++	[EID_COUNTRY] = { "Country", print_country, 3, 255, BIT(PRINT_SCAN), },
++	[EID_BSS_LOAD] = { "BSS Load", print_bss_load, 5, 5, BIT(PRINT_SCAN), },
++	[EID_POWER_CONSTRAINT] = { "Power constraint", print_powerconstraint,
++				   1, 1, BIT(PRINT_SCAN), },
++	[EID_TPC_REPORT] = { "TPC report", print_tpcreport, 2, 2, BIT(PRINT_SCAN), },
++	[EID_ERP_INFO] = { "ERP", print_erp, 1, 255, BIT(PRINT_SCAN), },
++	[EID_HT_CAPABILITY] = { "HT capabilities", print_ht_capa, 26, 26, BIT(PRINT_SCAN), },
++	[EID_ERP_D4_0] = { "ERP D4.0", print_erp, 1, 255, BIT(PRINT_SCAN), },
++	[EID_AP_CHAN_REPORT] = { "AP Channel Report", print_ap_channel_report,
++				 1, 255, BIT(PRINT_SCAN), },
++	[EID_SUPP_OP_CLASSES] = { "Supported operating classes",
++				  print_supp_op_classes, 1, 255, BIT(PRINT_SCAN), },
++	[EID_MEASUREMENT_PILOT_TX] = { "Measurement Pilot Transmission",
++				       print_measurement_pilot_tx, 1, 255, BIT(PRINT_SCAN), },
++	[EID_OVERLAP_BSS_SCAN_PARAM] = { "Overlapping BSS scan params",
++					 print_obss_scan_params, 14, 255, BIT(PRINT_SCAN), },
++	[EID_HT_OPERATION] = { "HT operation", print_ht_op, 22, 22, BIT(PRINT_SCAN), },
++	[EID_SECONDARY_CH_OFFSET] = { "Secondary Channel Offset",
++				      print_secchan_offs, 1, 1, BIT(PRINT_SCAN), },
++	[EID_VHT_CAPABILITY] = { "VHT capabilities", print_vht_capa, 12, 255, BIT(PRINT_SCAN), },
++	[EID_VHT_OPERATION] = { "VHT operation", print_vht_oper, 5, 255, BIT(PRINT_SCAN), },
++	[EID_RSN] = { "RSN", print_rsn, 2, 255, BIT(PRINT_SCAN), },
++	[EID_EXT_SUPP_RATES] = { "Extended supported rates", print_supprates,
++				 0, 255, BIT(PRINT_SCAN), },
++	[EID_RM_ENABLED_CAPABILITIES] = { "RM enabled capabilities",
++					  print_rm_enabled_capabilities, 5, 5, BIT(PRINT_SCAN), },
++	[EID_MESH_CONFIG] = { "MESH Configuration", print_mesh_conf, 7, 7, BIT(PRINT_SCAN), },
++	[EID_MESH_ID] = { "MESH ID", print_ssid, 0, 32, BIT(PRINT_SCAN) | BIT(PRINT_LINK), },
++	[EID_EXT_CAPABILITY] = { "Extended capabilities", print_capabilities,
++				 0, 255, BIT(PRINT_SCAN), },
++	[EID_INTERWORKING] = { "802.11u Interworking", print_interworking,
++			       0, 255, BIT(PRINT_SCAN), },
++	[EID_ADVERTISEMENT] = { "802.11u Advertisement", print_11u_advert,
++				0, 255, BIT(PRINT_SCAN), },
++	[EID_ROAMING_CONSORTIUM] = { "802.11u Roaming Consortium",
++				     print_11u_rcon, 2, 255, BIT(PRINT_SCAN), },
++	[EID_TRANSMIT_POWER_ENVELOPE] = { "Transmit Power Envelope",
++					  print_tx_power_envelope, 2, 5, BIT(PRINT_SCAN), },
++	[EID_SHORT_BEACON_INTERVAL] = { "Short beacon interval",
++					print_short_beacon_int, 2, 2, BIT(PRINT_SCAN), },
++	[EID_S1G_CAPABILITY] = { "S1G capabilities", print_s1g_capa, 15, 15, BIT(PRINT_SCAN), },
++	[EID_S1G_OPERATION] = { "S1G operation", print_s1g_oper, 6, 6, BIT(PRINT_SCAN), },
+ };
+ 
+ static void print_wifi_wpa(const uint8_t type, uint8_t len, const uint8_t *data,
+-			   const struct print_ies_data *ie_buffer)
++			   const struct ie_context *ctx)
+ {
+ 	print_rsn_ie("TKIP", "IEEE 802.1X", len, data);
+ }
+ 
+ static void print_wifi_osen(const uint8_t type, uint8_t len,
+ 			    const uint8_t *data,
+-			    const struct print_ies_data *ie_buffer)
++			    const struct ie_context *ctx)
+ {
+ 	print_osen_ie("OSEN", "OSEN", len, data);
+ }
+@@ -1908,7 +1936,7 @@ static bool print_wifi_wmm_param(const uint8_t *data, uint8_t len)
+ }
+ 
+ static void print_wifi_wmm(const uint8_t type, uint8_t len, const uint8_t *data,
+-			   const struct print_ies_data *ie_buffer)
++			   const struct ie_context *ctx)
+ {
+ 	int i;
+ 
+@@ -1951,7 +1979,7 @@ static const char * wifi_wps_dev_passwd_id(uint16_t id)
+ }
+ 
+ static void print_wifi_wps(const uint8_t type, uint8_t len, const uint8_t *data,
+-			   const struct print_ies_data *ie_buffer)
++			   const struct ie_context *ctx)
+ {
+ 	bool first = true;
+ 	__u16 subtype, sublen;
+@@ -2191,7 +2219,7 @@ static const struct ie_print wifiprinters[] = {
+ 
+ static inline void print_p2p(const uint8_t type, uint8_t len,
+ 			     const uint8_t *data,
+-			     const struct print_ies_data *ie_buffer)
++			     const struct ie_context *ctx)
+ {
+ 	bool first = true;
+ 	__u8 subtype;
+@@ -2273,7 +2301,7 @@ static inline void print_p2p(const uint8_t type, uint8_t len,
+ 
+ static inline void print_hs20_ind(const uint8_t type, uint8_t len,
+ 				  const uint8_t *data,
+-				  const struct print_ies_data *ie_buffer)
++				  const struct ie_context *ctx)
+ {
+ 	/* I can't find the spec for this...just going off what wireshark uses. */
+ 	printf("\n");
+@@ -2285,7 +2313,7 @@ static inline void print_hs20_ind(const uint8_t type, uint8_t len,
+ 
+ static void print_wifi_owe_tarns(const uint8_t type, uint8_t len,
+ 				 const uint8_t *data,
+-				 const struct print_ies_data *ie_buffer)
++				 const struct ie_context *ctx)
+ {
+ 	char mac_addr[20];
+ 	int ssid_len;
+@@ -2378,17 +2406,50 @@ static void print_vendor(unsigned char len, unsigned char *data,
+ }
+ 
+ static void print_he_capa(const uint8_t type, uint8_t len, const uint8_t *data,
+-			  const struct print_ies_data *ie_buffer)
++			  const struct ie_context *ctx)
+ {
+ 	printf("\n");
+ 	print_he_capability(data, len);
+ }
+ 
++static void print_he_oper(const uint8_t type, uint8_t len, const uint8_t *data,
++			  const struct ie_context *ctx)
++{
++	printf("\n");
++	print_he_operation(data, len);
++}
++
++static void print_eht_capa(const uint8_t type, uint8_t len,
++			   const uint8_t *data, const struct ie_context *ctx)
++{
++	printf("\n");
++	print_eht_capability(data, len, ctx->he_cap, ctx->from_ap);
++}
++
++static void _print_multi_link(const uint8_t type, uint8_t len, const uint8_t *data,
++			      const struct ie_context *ctx)
++{
++	printf("\n");
++	print_multi_link(data, len);
++}
++
++static void print_eht_oper(const uint8_t type, uint8_t len, const uint8_t *data,
++			   const struct ie_context *ctx)
++{
++	printf("\n");
++	print_eht_operation(data, len);
++}
++
+ static const struct ie_print ext_printers[] = {
+-	[35] = { "HE capabilities", print_he_capa, 21, 54, BIT(PRINT_SCAN), },
++	[EID_EXT_HE_CAPABILITY] = { "HE capabilities", print_he_capa, 21, 54, BIT(PRINT_SCAN), },
++	[EID_EXT_HE_OPERATION] = { "HE Operation", print_he_oper, 6, 15, BIT(PRINT_SCAN), },
++	[EID_EXT_EHT_CAPABILITY] = { "EHT capabilities", print_eht_capa, 13, 30, BIT(PRINT_SCAN), },
++	[EID_EXT_MULTI_LINK] = { "Multi-Link", _print_multi_link, 5, 23, BIT(PRINT_SCAN), },
++	[EID_EXT_EHT_OPERATION] = { "EHT Operation", print_eht_oper, 5, 10, BIT(PRINT_SCAN), },
+ };
+ 
+ static void print_extension(unsigned char len, unsigned char *ie,
++			    const struct ie_context *ctx,
+ 			    bool unknown, enum print_ie_type ptype)
+ {
+ 	unsigned char tag;
+@@ -2401,7 +2462,7 @@ static void print_extension(unsigned char len, unsigned char *ie,
+ 	tag = ie[0];
+ 	if (tag < ARRAY_SIZE(ext_printers) && ext_printers[tag].name &&
+ 	    ext_printers[tag].flags & BIT(ptype)) {
+-		print_ie(&ext_printers[tag], tag, len - 1, ie + 1, NULL);
++		print_ie(&ext_printers[tag], tag, len - 1, ie + 1, ctx);
+ 		return;
+ 	}
+ 
+@@ -2415,27 +2476,59 @@ static void print_extension(unsigned char len, unsigned char *ie,
+ 	}
+ }
+ 
++static void init_context(struct ie_context *ctx,
++			 unsigned char *ie, int ielen, bool from_ap)
++{
++	unsigned char *pos = ie;
++	int remaining = ielen;
++
++	memset(ctx, 0, sizeof(*ctx));
++
++	if (!ie || !ielen)
++		return;
++
++	ctx->from_ap = from_ap;
++
++	while (remaining >= 2 && remaining - 2 >= pos[1]) {
++		switch (pos[0]) {
++		case EID_VHT_CAPABILITY:
++			ctx->is_vht_cap = true;
++			break;
++		case EID_EXTENSION:
++			switch (pos[2]) {
++			case EID_EXT_HE_CAPABILITY:
++				ctx->he_cap = pos + 3;
++				break;
++			}
++			break;
++		}
++
++		remaining -= pos[1] + 2;
++		pos += pos[1] + 2;
++	}
++}
++
+ void print_ies(unsigned char *ie, int ielen, bool unknown,
+-	       enum print_ie_type ptype)
++	       enum print_ie_type ptype, bool from_ap)
+ {
+-	struct print_ies_data ie_buffer = {
+-		.ie = ie,
+-		.ielen = ielen };
++	struct ie_context ctx;
+ 
+-	if (ie == NULL || ielen < 0)
++	if (!ie)
+ 		return;
+ 
++	init_context(&ctx, ie, ielen, from_ap);
++
+ 	while (ielen >= 2 && ielen - 2 >= ie[1]) {
+ 		if (ie[0] < ARRAY_SIZE(ieprinters) &&
+ 		    ieprinters[ie[0]].name &&
+ 		    ieprinters[ie[0]].flags & BIT(ptype) &&
+ 			    ie[1] > 0) {
+ 			print_ie(&ieprinters[ie[0]],
+-				 ie[0], ie[1], ie + 2, &ie_buffer);
++				 ie[0], ie[1], ie + 2, &ctx);
+ 		} else if (ie[0] == 221 /* vendor */) {
+ 			print_vendor(ie[1], ie + 2, unknown, ptype);
+ 		} else if (ie[0] == 255 /* extension */) {
+-			print_extension(ie[1], ie + 2, unknown, ptype);
++			print_extension(ie[1], ie + 2, &ctx, unknown, ptype);
+ 		} else if (unknown) {
+ 			int i;
+ 
+@@ -2640,13 +2733,13 @@ static int print_bss_handler(struct nl_msg *msg, void *arg)
+ 			printf("\tInformation elements from Probe Response "
+ 			       "frame:\n");
+ 		print_ies(nla_data(ies), nla_len(ies),
+-			  params->unknown, params->type);
++			  params->unknown, params->type, true);
+ 	}
+ 	if (bss[NL80211_BSS_BEACON_IES] && show--) {
+ 		printf("\tInformation elements from Beacon frame:\n");
+ 		print_ies(nla_data(bss[NL80211_BSS_BEACON_IES]),
+ 			  nla_len(bss[NL80211_BSS_BEACON_IES]),
+-			  params->unknown, params->type);
++			  params->unknown, params->type, true);
+ 	}
+ 
+ 	return NL_SKIP;
+diff --git a/util.c b/util.c
+index d36dbdc..36c1185 100644
+--- a/util.c
++++ b/util.c
+@@ -593,11 +593,11 @@ static int parse_freqs(struct chandef *chandef, int argc, char **argv,
+  * user by giving "NOHT" instead.
+  *
+  * The working specifier if chan is set are:
+- *   <channel> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz]
++ *   <channel> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz|320MHz]
+  *
+  * And if frequency is set:
+  *   <freq> [NOHT|HT20|HT40+|HT40-|5MHz|10MHz|80MHz|160MHz|320MHz]
+- *   <control freq> [5|10|20|40|80|80+80|160] [<center1_freq> [<center2_freq>]]
++ *   <control freq> [5|10|20|40|80|80+80|160|320] [<center1_freq> [<center2_freq>]]
+  *
+  * If the mode/channel width is not given the NOHT is assumed.
+  *
+@@ -735,15 +735,29 @@ int parse_freqchan(struct chandef *chandef, bool chan, int argc, char **argv,
+ 		goto out;
+ 	}
+ 
+-	/* This was a only a channel definition, nothing further may follow. */
++	/* This was a only a channel definition, only puncturing may follow */
+ 	if (chan)
+ 		goto out;
+ 
+ 	res = parse_freqs(chandef, argc - 1, argv + 1, &_parsed, freq_in_khz);
+ 
+  out:
+-	/* Error out if parsed is NULL. */
+-	if (!parsed && _parsed != argc)
++	if (!freq_in_khz && argc > _parsed && strcmp(argv[_parsed], "punct") == 0) {
++		_parsed++;
++		if (argc <= _parsed)
++			return 1;
++		chandef->punctured = strtoul(argv[_parsed], &end, 10);
++		if (*end)
++			return 1;
++		_parsed++;
++	}
++
++	/*
++	 * Either this must consume all args, or users must pass a
++	 * valid pointer as 'parsed' and use it to know how many of
++	 * the arguments this function consumed.
++	 */
++	if (_parsed != argc && !parsed)
+ 		return 1;
+ 
+ 	if (parsed)
+@@ -800,6 +814,9 @@ int put_chandef(struct nl_msg *msg, struct chandef *chandef)
+ 			    NL80211_ATTR_CENTER_FREQ2,
+ 			    chandef->center_freq2);
+ 
++	if (chandef->punctured)
++		NLA_PUT_U32(msg, NL80211_ATTR_PUNCT_BITMAP, chandef->punctured);
++
+ 	return 0;
+ 
+  nla_put_failure:
+@@ -1175,11 +1192,11 @@ void print_vht_info(__u32 capa, const __u8 *mcs)
+ 		case 2: printf("160 MHz, 80+80 MHz\n"); break;
+ 		}
+ 	} else {
+-		print_nss_ratio("20Mhz", false, nss_tbl->bw_20);
+-		print_nss_ratio("40Mhz", false, nss_tbl->bw_40);
+-		print_nss_ratio("80Mhz", false, nss_tbl->bw_80);
+-		print_nss_ratio("160Mhz", false, nss_tbl->bw_160);
+-		print_nss_ratio("80+80Mhz", false, nss_tbl->bw_80_80);
++		print_nss_ratio("20MHz", false, nss_tbl->bw_20);
++		print_nss_ratio("40MHz", false, nss_tbl->bw_40);
++		print_nss_ratio("80MHz", false, nss_tbl->bw_80);
++		print_nss_ratio("160MHz", false, nss_tbl->bw_160);
++		print_nss_ratio("80+80MHz", false, nss_tbl->bw_80_80);
+ 		printf("\n");
+ 	}
+ 
+@@ -1245,14 +1262,15 @@ static void __print_he_capa(const __u16 *mac_cap,
+ 
+ 	#define PRINT_HE_CAP(_var, _idx, _bit, _str) \
+ 	do { \
+-		if (_var[_idx] & BIT(_bit)) \
++		if (le16toh(_var[_idx]) & BIT(_bit)) \
+ 			printf("%s\t\t\t" _str "\n", pre); \
+ 	} while (0)
+ 
+ 	#define PRINT_HE_CAP_MASK(_var, _idx, _shift, _mask, _str) \
+ 	do { \
+-		if ((_var[_idx] >> _shift) & _mask) \
+-			printf("%s\t\t\t" _str ": %d\n", pre, (_var[_idx] >> _shift) & _mask); \
++		if ((le16toh(_var[_idx]) >> _shift) & _mask) \
++			printf("%s\t\t\t" _str ": %d\n", pre, \
++			       (le16toh(_var[_idx]) >> _shift) & _mask); \
+ 	} while (0)
+ 
+ 	#define PRINT_HE_MAC_CAP(...) PRINT_HE_CAP(mac_cap, __VA_ARGS__)
+@@ -1263,7 +1281,7 @@ static void __print_he_capa(const __u16 *mac_cap,
+ 
+ 	printf("%s\t\tHE MAC Capabilities (0x", pre);
+ 	for (i = 0; i < 3; i++)
+-		printf("%04x", mac_cap[i]);
++		printf("%04x", le16toh(mac_cap[i]));
+ 	printf("):\n");
+ 
+ 	PRINT_HE_MAC_CAP(0, 0, "+HTC HE Supported");
+@@ -1334,11 +1352,11 @@ static void __print_he_capa(const __u16 *mac_cap,
+ 	PRINT_HE_PHY_CAP(2, 7, "SU Beamformer");
+ 	PRINT_HE_PHY_CAP(2, 8, "SU Beamformee");
+ 	PRINT_HE_PHY_CAP(2, 9, "MU Beamformer");
+-	PRINT_HE_PHY_CAP_MASK(2, 10, 0x7, "Beamformee STS <= 80Mhz");
+-	PRINT_HE_PHY_CAP_MASK(2, 13, 0x7, "Beamformee STS > 80Mhz");
++	PRINT_HE_PHY_CAP_MASK(2, 10, 0x7, "Beamformee STS <= 80MHz");
++	PRINT_HE_PHY_CAP_MASK(2, 13, 0x7, "Beamformee STS > 80MHz");
+ 
+-	PRINT_HE_PHY_CAP_MASK(3, 0, 0x7, "Sounding Dimensions <= 80Mhz");
+-	PRINT_HE_PHY_CAP_MASK(3, 3, 0x7, "Sounding Dimensions > 80Mhz");
++	PRINT_HE_PHY_CAP_MASK(3, 0, 0x7, "Sounding Dimensions <= 80MHz");
++	PRINT_HE_PHY_CAP_MASK(3, 3, 0x7, "Sounding Dimensions > 80MHz");
+ 	PRINT_HE_PHY_CAP(3, 6, "Ng = 16 SU Feedback");
+ 	PRINT_HE_PHY_CAP(3, 7, "Ng = 16 MU Feedback");
+ 	PRINT_HE_PHY_CAP(3, 8, "Codebook Size SU Feedback");
+@@ -1377,18 +1395,18 @@ static void __print_he_capa(const __u16 *mac_cap,
+ 		char *bw[] = { "<= 80", "160", "80+80" };
+ 		int j;
+ 
+-		if ((phy_cap[0] & (phy_cap_support[i] << 8)) == 0)
++		if ((le16toh(phy_cap[0]) & (phy_cap_support[i] << 8)) == 0)
+ 			continue;
+ 
+ 		/* Supports more, but overflow? Abort. */
+-		if ((i * 2 + 2) * sizeof(mcs_set[0]) >= mcs_len)
++		if ((i * 2 + 2) * sizeof(le16toh(mcs_set[0])) > mcs_len)
+ 			return;
+ 
+ 		for (j = 0; j < 2; j++) {
+ 			int k;
+ 			printf("%s\t\tHE %s MCS and NSS set %s MHz\n", pre, j ? "TX" : "RX", bw[i]);
+ 			for (k = 0; k < 8; k++) {
+-				__u16 mcs = mcs_set[(i * 2) + j];
++				__u16 mcs = le16toh(mcs_set[(i * 2) + j]);
+ 				mcs >>= k * 2;
+ 				mcs &= 0x3;
+ 				printf("%s\t\t\t%d streams: ", pre, k + 1);
+@@ -1411,7 +1429,7 @@ static void __print_he_capa(const __u16 *mac_cap,
+ 			ppet_len = 0;
+ 	}
+ 
+-	if (ppet_len && (phy_cap[3] & BIT(15))) {
++	if (ppet_len && (le16toh(phy_cap[3]) & BIT(15))) {
+ 		printf("%s\t\tPPE Threshold ", pre);
+ 		for (i = 0; i < ppet_len; i++)
+ 			if (ppet[i])
+@@ -1514,40 +1532,59 @@ static void __print_eht_capa(int band,
+ 			     const __u8 *mcs_set, size_t mcs_len,
+ 			     const __u8 *ppet, size_t ppet_len,
+ 			     const __u16 *he_phy_cap,
++			     bool from_ap,
+ 			     bool indent)
+ {
+ 	unsigned int i;
+ 	const char *pre = indent ? "\t" : "";
+-	const char *mcs[] = { "0-7", "8-9", "10-11", "12-13"};
+ 
+-	#define PRINT_EHT_CAP(_var, _idx, _bit, _str) \
++	#define PRINT_EHT_MAC_CAP(_idx, _bit, _str) \
+ 	do { \
+-		if (_var[_idx] & BIT(_bit)) \
++		if (mac_cap[_idx] & BIT(_bit)) \
+ 			printf("%s\t\t\t" _str "\n", pre); \
+ 	} while (0)
+ 
+-	#define PRINT_EHT_CAP_MASK(_var, _idx, _shift, _mask, _str) \
++	#define PRINT_EHT_MAC_CAP_MASK(_idx, _shift, _mask, _str) \
++	do { \
++		if ((mac_cap[_idx] >> _shift) & _mask) \
++			printf("%s\t\t\t" _str ": %d\n", pre, \
++			       (mac_cap[_idx] >> _shift) & _mask); \
++	} while (0)
++
++	#define PRINT_EHT_PHY_CAP(_idx, _bit, _str) \
+ 	do { \
+-		if ((_var[_idx] >> _shift) & _mask) \
+-			printf("%s\t\t\t" _str ": %d\n", pre, (_var[_idx] >> _shift) & _mask); \
++		if (le32toh(phy_cap[_idx]) & BIT(_bit)) \
++			printf("%s\t\t\t" _str "\n", pre); \
+ 	} while (0)
+ 
+-	#define PRINT_EHT_MAC_CAP(...) PRINT_EHT_CAP(mac_cap, __VA_ARGS__)
+-	#define PRINT_EHT_PHY_CAP(...) PRINT_EHT_CAP(phy_cap, __VA_ARGS__)
+-	#define PRINT_EHT_PHY_CAP_MASK(...) PRINT_EHT_CAP_MASK(phy_cap, __VA_ARGS__)
++	#define PRINT_EHT_PHY_CAP_MASK(_idx, _shift, _mask, _str) \
++	do { \
++		if ((le32toh(phy_cap[_idx]) >> _shift) & _mask) \
++			printf("%s\t\t\t" _str ": %d\n", pre, \
++			       (le32toh(phy_cap[_idx]) >> _shift) & _mask); \
++	} while (0)
+ 
+ 	printf("%s\t\tEHT MAC Capabilities (0x", pre);
+ 	for (i = 0; i < 2; i++)
+ 		printf("%02x", mac_cap[i]);
+ 	printf("):\n");
+ 
+-	PRINT_EHT_MAC_CAP(0, 0, "NSEP priority access Supported");
++	PRINT_EHT_MAC_CAP(0, 0, "EPCS Priority Access Supported");
+ 	PRINT_EHT_MAC_CAP(0, 1, "EHT OM Control Supported");
+-	PRINT_EHT_MAC_CAP(0, 2, "Triggered TXOP Sharing Supported");
+-	PRINT_EHT_MAC_CAP(0, 3, "ARR Supported");
+-
+-	printf("%s\t\tEHT PHY Capabilities: (0x", pre);
+-	for (i = 0; i < 8; i++)
++	PRINT_EHT_MAC_CAP(0, 2, "Triggered TXOP Sharing Mode 1 Supported");
++	PRINT_EHT_MAC_CAP(0, 3, "Triggered TXOP Sharing Mode 2 Supported");
++	PRINT_EHT_MAC_CAP(0, 4, "Restricted TWP Supported");
++	PRINT_EHT_MAC_CAP(0, 5, "SCS Traffic Description Supported");
++	PRINT_EHT_MAC_CAP_MASK(0, 6, 0x3, "Maximum MPDU Length");
++
++	PRINT_EHT_MAC_CAP(1, 1, "Maximum A_MPDU Length Exponent Extension");
++	PRINT_EHT_MAC_CAP(1, 2, "EHT TRS Supported");
++	PRINT_EHT_MAC_CAP(1, 3, "TXOP Return In TXOP Sharing Mode 2 Supported");
++	PRINT_EHT_MAC_CAP(1, 4, "Two BQRs Supported");
++	PRINT_EHT_MAC_CAP_MASK(1, 5, 0x3, "EHT Link Adaptation Supported");
++
++	printf("%s\t\tEHT PHY Capabilities (0x", pre);
++	for (i = 0; i < 9; i++)
+ 		printf("%02x", ((__u8 *)phy_cap)[i]);
+ 	printf("):\n");
+ 
+@@ -1593,43 +1630,82 @@ static void __print_eht_capa(int band,
+ 	PRINT_EHT_PHY_CAP(1, 28, "MU Beamformer (80MHz)");
+ 	PRINT_EHT_PHY_CAP(1, 29, "MU Beamformer (160MHz)");
+ 	PRINT_EHT_PHY_CAP(1, 30, "MU Beamformer (320MHz)");
++	PRINT_EHT_PHY_CAP(1, 31, "TB Sounding Feedback Rate Limit");
+ 
+-	printf("%s\t\tEHT MCS/NSS: (0x", pre);
+-	for (i = 0; i < mcs_len; i++)
+-		printf("%02x", ((__u8 *)mcs_set)[i]);
+-	printf("):\n");
++	PRINT_EHT_PHY_CAP(2, 0, "Rx 1024-QAM In Wider Bandwidth DL OFDMA Supported");
++	PRINT_EHT_PHY_CAP(2, 1, "Rx 4096-QAM In Wider Bandwidth DL OFDMA Supported");
++
++	if (!from_ap &&
++	    !(le16toh(he_phy_cap[0]) & ((BIT(1) | BIT(2) | BIT(3) | BIT(4)) << 8))) {
++		static const char * const mcs[] = { "0-7", "8-9", "10-11", "12-13" };
++
++		printf("%s\t\tEHT-MCS Map (20 MHz Non-AP STA) (0x", pre);
++		for (i = 0; i < mcs_len; i++)
++			printf("%02x", ((__u8 *)mcs_set)[i]);
++		printf("):\n");
+ 
+-	if (!(he_phy_cap[0] & ((BIT(2) | BIT(3) | BIT(4)) << 8))){
+-		for (i = 0; i < 4; i++)
+-			printf("%s\t\tEHT bw=20 MHz, max NSS for MCS %s: Rx=%u, Tx=%u\n",
+-			       pre, mcs[i],
+-			       mcs_set[i] & 0xf, mcs_set[i] >> 4);
++		for (i = 0; i < 4; i++) {
++			printf("%s\t\t\tRx Max NSS for MCS %s: %u\n",
++			       pre, mcs[i], mcs_set[i] & 0xf);
++			printf("%s\t\t\tTx Max NSS for MCS %s: %u\n",
++			       pre, mcs[i], mcs_set[i] >> 4);
++		}
+ 	} else {
+-		if (he_phy_cap[0] & (BIT(2) << 8)) {
++		static const char * const mcs[] = { "0-9", "10-11", "12-13"};
++
++		/* Bit 1 corresponds to 2.4GHz 40MHz support
++		 * Bit 2 corresponds to 5/6GHz 40 and 80MHz support
++		 * If no Channel Width bits are set, but we are an AP, we use
++		 * this MCS logic also.
++		 */
++		if (le16toh(he_phy_cap[0]) & ((BIT(1) | BIT(2)) << 8) ||
++		    (from_ap && !(le16toh(he_phy_cap[0]) &
++		    ((BIT(1) | BIT(2) | BIT(3) | BIT(4)) << 8)))) {
++			printf("%s\t\tEHT-MCS Map (BW <= 80) (0x", pre);
+ 			for (i = 0; i < 3; i++)
+-				printf("%s\t\tEHT bw <= 80 MHz, max NSS for MCS %s: Rx=%u, Tx=%u\n",
+-				       pre, mcs[i + 1],
+-				       mcs_set[i] & 0xf, mcs_set[i] >> 4);
++				printf("%02x", ((__u8 *)mcs_set)[i]);
++			printf("):\n");
++
++			for (i = 0; i < 3; i++) {
++				printf("%s\t\t\tRx Max NSS for MCS %s: %u\n",
++				       pre, mcs[i], mcs_set[i] & 0xf);
++				printf("%s\t\t\tTx Max NSS for MCS %s: %u\n",
++				       pre, mcs[i], mcs_set[i] >> 4);
++			}
+ 		}
+ 		mcs_set += 3;
+ 
+-		if (he_phy_cap[0] & (BIT(3) << 8)) {
++		if (le16toh(he_phy_cap[0]) & (BIT(3) << 8)) {
++			printf("%s\t\tEHT-MCS Map (BW = 160) (0x", pre);
+ 			for (i = 0; i < 3; i++)
+-				printf("%s\t\tEHT bw=160 MHz, max NSS for MCS %s: Rx=%u, Tx=%u\n",
+-				       pre, mcs[i + 1],
+-				       mcs_set[i] & 0xf, mcs_set[i] >> 4);
++				printf("%02x", ((__u8 *)mcs_set)[i]);
++			printf("):\n");
++
++			for (i = 0; i < 3; i++) {
++				printf("%s\t\t\tRx Max NSS for MCS %s: %u\n",
++				       pre, mcs[i], mcs_set[i] & 0xf);
++				printf("%s\t\t\tTx Max NSS for MCS %s: %u\n",
++				       pre, mcs[i], mcs_set[i] >> 4);
++			}
+ 		}
+ 
+ 		mcs_set += 3;
+-		if (band == NL80211_BAND_6GHZ && (phy_cap[0] & BIT(1))) {
++		if (band == NL80211_BAND_6GHZ && (le32toh(phy_cap[0]) & BIT(1))) {
++			printf("%s\t\tEHT-MCS Map (BW = 320) (0x", pre);
+ 			for (i = 0; i < 3; i++)
+-				printf("%s\t\tEHT bw=320 MHz, max NSS for MCS %s: Rx=%u, Tx=%u\n",
+-				       pre, mcs[i + 1],
+-				       mcs_set[i] & 0xf, mcs_set[i] >> 4);
++				printf("%02x", ((__u8 *)mcs_set)[i]);
++			printf("):\n");
++
++			for (i = 0; i < 3; i++) {
++				printf("%s\t\t\tRx Max NSS for MCS %s: %u\n",
++				       pre, mcs[i], mcs_set[i] & 0xf);
++				printf("%s\t\t\tTx Max NSS for MCS %s: %u\n",
++				       pre, mcs[i], mcs_set[i] >> 4);
++			}
+ 		}
+ 	}
+ 
+-	if (ppet && ppet_len && (phy_cap[1] & BIT(11))) {
++	if (ppet && ppet_len && (le32toh(phy_cap[1]) & BIT(11))) {
+ 		printf("%s\t\tEHT PPE Thresholds ", pre);
+ 		for (i = 0; i < ppet_len; i++)
+ 			if (ppet[i])
+@@ -1712,7 +1788,29 @@ void print_eht_info(struct nlattr *nl_iftype, int band)
+ 	}
+ 
+ 	__print_eht_capa(band, mac_cap, phy_cap, mcs_set, mcs_len, ppet, ppet_len,
+-			 he_phy_cap, true);
++			 he_phy_cap, false, true);
++}
++
++void print_eht_capability(const uint8_t *ie, int len, const uint8_t *he_cap,
++			  bool from_ap)
++{
++	const void *mac_cap, *phy_cap, *mcs_set, *he_phy_cap;
++	int mcs_len;
++	int i = 0;
++
++	mac_cap = &ie[i];
++	i += 2;
++
++	phy_cap = &ie[i];
++	i += 9;
++
++	mcs_set = &ie[i];
++	mcs_len = len - i;
++
++	he_phy_cap = &he_cap[6];
++
++	__print_eht_capa(NL80211_BAND_6GHZ, mac_cap, phy_cap, mcs_set, mcs_len,
++			 NULL, 0, he_phy_cap - 1, from_ap, false);
+ }
+ 
+ void print_he_capability(const uint8_t *ie, int len)
+@@ -1733,6 +1831,229 @@ void print_he_capability(const uint8_t *ie, int len)
+ 	__print_he_capa(mac_cap, phy_cap - 1, mcs_set, mcs_len, NULL, 0, false);
+ }
+ 
++void print_he_operation(const uint8_t *ie, int len)
++{
++	uint8_t oper_parameters[3] = {ie[0], ie[1], ie[2] };
++	uint8_t bss_color = ie[3];
++	uint16_t nss_mcs_set = le16toh(*(uint16_t *)(&ie[4]));
++	uint8_t vht_oper_present = oper_parameters[1] & 0x40;
++	uint8_t co_hosted_bss_present = oper_parameters[1] & 0x80;
++	uint8_t uhb_operation_info_present = oper_parameters[2] & 0x02;
++	uint8_t offset = 6;
++
++	printf("\t\tHE Operation Parameters: (0x%02x%02x%02x)\n",
++	       oper_parameters[2], oper_parameters[1], oper_parameters[0]);
++	printf("\t\t\tDefault PE Duration: %hhu\n", oper_parameters[0] & 0x07);
++	if (oper_parameters[0] & 0x08)
++		printf("\t\t\tTWT Required\n");
++
++	printf("\t\t\tTXOP Duration RTS Threshold: %hu\n",
++	       le16toh((*(uint16_t *)(oper_parameters))) >> 4 & 0x03ff);
++	if (oper_parameters[1] & 0x40)
++		printf("\t\t\tVHT Operation Information Present\n");
++
++	if (oper_parameters[1] & 0x80)
++		printf("\t\t\tCo-Hosted BSS\n");
++
++	if (oper_parameters[2] & 0x01)
++		printf("\t\t\tER SU Disable\n");
++
++	if (oper_parameters[2] & 0x02)
++		printf("\t\t\t6 GHz Operation Information Present\n");
++
++	printf("\t\tBSS Color: %hhu\n", bss_color & 0x3F);
++	if (bss_color & 0x40)
++		printf("\t\tPartial BSS Color\n");
++
++	if (bss_color & 0x80)
++		printf("\t\tBSS Color Disabled\n");
++
++	printf("\t\tBasic HE-MCS NSS Set: 0x%04x\n", nss_mcs_set);
++	for (int k = 0; k < 8; k++) {
++		__u16 mcs = nss_mcs_set;
++
++		mcs >>= k * 2;
++		mcs &= 0x3;
++		printf("\t\t\t%d streams: ", k + 1);
++		if (mcs == 3)
++			printf("not supported\n");
++		else
++			printf("MCS 0-%d\n", 7 + (mcs * 2));
++	}
++
++	if (vht_oper_present) {
++		if (len - offset < 3) {
++			printf("\t\tVHT Operation Info: Invalid\n");
++			return;
++		}
++
++		printf("\t\tVHT Operation Info: 0x%02x%02x%02x\n",
++		       ie[offset + 2], ie[offset + 1], ie[offset + 0]);
++		offset += 3;
++	}
++
++	if (co_hosted_bss_present) {
++		if (len - offset < 1) {
++			printf("\t\tMax Co-Hosted BSSID: Invalid\n");
++			return;
++		}
++
++		printf("\t\tMax Co-Hosted BSSID: %hhu\n", ie[offset]);
++		offset += 1;
++	}
++
++	if (uhb_operation_info_present) {
++		if (len - offset < 5) {
++			printf("\t\t6 GHz Operation Info: Invalid\n");
++			return;
++		} else {
++			const uint8_t control = ie[offset + 1];
++
++			printf("\t\t6 GHz Operation Information: 0x");
++			for (uint8_t i = 0; i < 5; i++)
++				printf("%02x", ie[offset + i]);
++
++			printf("\n");
++			printf("\t\t\tPrimary Channel: %hhu\n", ie[offset]);
++			printf("\t\t\tChannel Width: ");
++			switch (control & 0x3) {
++				case 0: printf("20 MHz\n"); break;
++				case 1: printf("40 MHz\n"); break;
++				case 2: printf("80 MHz\n"); break;
++				case 3: printf("80+80 or 160 MHz\n"); break;
++			}
++
++			if (control & 0x4)
++				printf("\t\t\tDuplicate Beacon: True\n");
++
++			printf("\t\t\tRegulatory Info: %hhu\n", (control >> 3) & 0xf);
++			printf("\t\t\tCenter Frequency Segment 0: %hhu\n", ie[offset+2]);
++			printf("\t\t\tCenter Frequency Segment 1: %hhu\n", ie[offset+3]);
++			printf("\t\t\tMinimum Rate: %hhu\n", ie[offset+4]);
++		}
++	}
++}
++
++void print_multi_link(const uint8_t *ie, int len)
++{
++	uint16_t eml_capa = 0;
++	uint16_t mld_capa = 0;
++	uint16_t presence_bitmap = (ie[1] << 8) | ie[0];
++	bool link_id_info_present      = presence_bitmap & 0x0010;
++	bool bss_param_change_present  = presence_bitmap & 0x0020;
++	bool medium_sync_delay_present = presence_bitmap & 0x0040;
++	bool eml_capabilities_present  = presence_bitmap & 0x0080;
++	bool mld_capabilities_present  = presence_bitmap & 0x0100;
++	uint8_t common_info_len = ie[2] - 1;
++	uint8_t offset = 3;
++	char mld_mac[20];
++
++	mac_addr_n2a(mld_mac, (uint8_t *)ie + offset);
++	printf("\t\tMLD MAC: %s\n", mld_mac);
++	offset += 6;
++
++	// Link ID Info
++	if (offset < common_info_len && link_id_info_present) {
++		printf("\t\tLink ID: %d\n", ie[offset] & 0xF);
++		offset += 1;
++	}
++
++	// BSS Parameters Change Count
++	if (offset < common_info_len && bss_param_change_present)
++		offset += 1;
++
++	// Medium Synchronization Delay Information
++	if (offset < common_info_len && medium_sync_delay_present)
++		offset += 2;
++
++	// EML Capabilities
++	if (offset < common_info_len && eml_capabilities_present) {
++		eml_capa = (ie[offset + 1] << 8) | ie[offset];
++		printf("\t\t\tEML Capabilities: 0x%04x\n", eml_capa);
++
++		if (eml_capa & 0x0001)
++			printf("\t\t\t\tEMLSR Support\n");
++		if (eml_capa & 0x0080)
++			printf("\t\t\t\tEMLMR Support\n");
++
++		offset += 2;
++	}
++
++	// MLD Capabilities and Operations
++	if (offset < common_info_len && mld_capabilities_present) {
++		mld_capa = (ie[offset + 1] << 8) | ie[offset];
++		printf("\t\t\tMLD Capabilities and Operations: 0x%04x\n", mld_capa);
++
++		// This is zero-indexed (i.e. 0 means 1 simulataneous link, 1 means 2, etc)
++		printf("\t\t\t\tMaximum Number of Simultaneous Links: %d\n", mld_capa & 0xF);
++
++		offset += 2;
++	}
++}
++
++void print_eht_operation(const uint8_t *ie, int len)
++{
++	uint8_t oper_parameters = ie[0];
++	uint8_t disabled_subchannel_info_present = oper_parameters & 0x02;
++	uint8_t eht_operation_info_present = oper_parameters & 0x01;
++
++	printf("\t\tEHT Operation Parameters: (0x%02x)\n",
++	       oper_parameters);
++
++	if (oper_parameters & 0x04)
++		printf("\t\t\tEHT Default PE Duration\n");
++
++	if (oper_parameters & 0x08)
++		printf("\t\t\tGroup Addressed BU Indication Limit\n");
++
++	printf("\t\t\tGroup Addressed BU Indication Exponent: 0x%01x\n",
++	       (oper_parameters >> 4 & 3));
++
++	printf("\t\tBasic EHT-MCS And Nss Set: 0x");
++	for (uint8_t i = 0; i < 4; i++)
++		printf("%02x", ie[1 + i]);
++
++	printf("\n");
++
++	if (eht_operation_info_present) {
++		uint8_t offset = 5;
++		const uint8_t control = ie[offset];
++		uint8_t eht_operation_info_len = 3;
++
++		if (disabled_subchannel_info_present)
++			eht_operation_info_len += 2;
++
++		if (len - offset < eht_operation_info_len) {
++			printf("\t\tEHT Operation Info: Invalid\n");
++			return;
++		}
++
++		printf("\t\tEHT Operation Info: 0x");
++		for (uint8_t i = 0; i < eht_operation_info_len; i++)
++			printf("%02x", ie[offset + i]);
++
++		printf("\n");
++		printf("\t\t\tChannel Width: ");
++		switch (control & 0x7) {
++		case 0: printf("20 MHz\n"); break;
++		case 1: printf("40 MHz\n"); break;
++		case 2: printf("80 MHz\n"); break;
++		case 3: printf("160 MHz\n"); break;
++		case 4: printf("320 MHz\n"); break;
++		default: printf("invalid bandwidth (%d)\n", control & 0x7); break;
++		}
++
++		printf("\t\t\tCenter Frequency Segment 0: %hhu\n",
++		       ie[offset + 1]);
++		printf("\t\t\tCenter Frequency Segment 1: %hhu\n",
++		       ie[offset + 2]);
++
++		if (disabled_subchannel_info_present)
++			printf("\t\t\tDisabled Subchannel Bitmap: 0x%02x%02x\n",
++			       ie[offset + 3], ie[offset + 4]);
++	}
++}
++
+ void iw_hexdump(const char *prefix, const __u8 *buf, size_t size)
+ {
+ 	size_t i;
+-- 
+2.45.2
+

@@ -1,31 +1,32 @@
-From 6490b6ddb92e62d4cd3ea4c38dcf6ca73de76c84 Mon Sep 17 00:00:00 2001
+From 0cd95757ca71796115ab38534ea9e514a7cdc13a Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 4 Jun 2025 13:39:37 +0800
-Subject: [PATCH 94/95] mtk: mt76: per band sw token needs to consider MLO
+Subject: [PATCH 094/119] mtk: mt76: per band sw token needs to consider MLO
  affiliated link case
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
 ---
- mt7996/mac.c | 21 +++++++++++++++++++++
+ mt7996/mac.c | 22 ++++++++++++++++++++++
  tx.c         |  2 +-
- 2 files changed, 22 insertions(+), 1 deletion(-)
+ 2 files changed, 23 insertions(+), 1 deletion(-)
 
 diff --git a/mt7996/mac.c b/mt7996/mac.c
-index 44d3f094..15e3f245 100644
+index 17c68e27..b377bcd2 100644
 --- a/mt7996/mac.c
 +++ b/mt7996/mac.c
-@@ -1101,6 +1101,27 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
+@@ -1098,6 +1098,28 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
  	t->wcid = wcid->idx;
  
  	id = mt76_token_consume(mdev, &t, mconf->mt76.band_idx);
 +
 +	if (id == -EBUSY && sta && sta->mlo) {
-+		struct ieee80211_link_sta *link_sta;
++		unsigned long valid_links = vif->valid_links ?: BIT(0);
 +		struct mt7996_vif_link *mconf_temp;
 +		unsigned int link_id_temp;
 +
 +		/* For MLO station, try to get token from affiliated link */
-+		for_each_sta_active_link(vif, sta, link_sta, link_id_temp) {
++		for_each_set_bit(link_id_temp, &valid_links,
++				 IEEE80211_MLD_MAX_NUM_LINKS) {
 +			mconf_temp = (struct mt7996_vif_link *)
 +				     rcu_dereference(mvif->mt76.link[link_id_temp]);
 +
@@ -43,10 +44,10 @@ index 44d3f094..15e3f245 100644
  		mdev->tx_dbg_stats.tx_drop[MT_TX_DROP_GET_TOKEN_FAIL]++;
  		return id;
 diff --git a/tx.c b/tx.c
-index 3bab7eae..c06e4dba 100644
+index c0f4fca2..5fd81f79 100644
 --- a/tx.c
 +++ b/tx.c
-@@ -859,7 +859,7 @@ EXPORT_SYMBOL_GPL(__mt76_set_tx_blocked);
+@@ -858,7 +858,7 @@ EXPORT_SYMBOL_GPL(__mt76_set_tx_blocked);
  int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi,
  		       u8 phy_idx)
  {

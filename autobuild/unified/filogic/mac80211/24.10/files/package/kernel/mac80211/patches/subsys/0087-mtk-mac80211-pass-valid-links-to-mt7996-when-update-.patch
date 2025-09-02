@@ -1,7 +1,7 @@
-From 3876ecfdfe9f1e87aaee6b1949e2e4da9d9b5d67 Mon Sep 17 00:00:00 2001
+From 37468b35bea6ac85d890de9e463acdc95d8c146a Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Mon, 13 Jan 2025 15:13:17 +0800
-Subject: [PATCH 087/107] mtk: mac80211: pass valid links to mt7996 when update
+Subject: [PATCH 087/115] mtk: mac80211: pass valid links to mt7996 when update
  vif's links in mac80211
 
 MAC80211 used to pass active links to mt7996 when updating vif's links,
@@ -14,14 +14,14 @@ This commits ass valid links to mt7996 when update vif's links in mac80211
 
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
- net/mac80211/link.c | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ net/mac80211/link.c | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)
 
 diff --git a/net/mac80211/link.c b/net/mac80211/link.c
-index 85eae892..e05ed78b 100644
+index 7141b982..127aa4cb 100644
 --- a/net/mac80211/link.c
 +++ b/net/mac80211/link.c
-@@ -199,7 +199,6 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
+@@ -196,7 +196,6 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
  				      u16 new_links, u16 dormant_links)
  {
  	u16 old_links = sdata->vif.valid_links;
@@ -29,14 +29,20 @@ index 85eae892..e05ed78b 100644
  	unsigned long add = new_links & ~old_links;
  	unsigned long rem = old_links & ~new_links;
  	unsigned int link_id;
-@@ -278,10 +277,13 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
+@@ -275,11 +274,18 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
  		ieee80211_set_vif_links_bitmaps(sdata, new_links, dormant_links);
  
  		/* tell the driver */
--		ret = drv_change_vif_links(sdata->local, sdata,
--					   old_links & old_active,
--					   new_links & sdata->vif.active_links,
--					   old);
+-		if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN)
+-			ret = drv_change_vif_links(sdata->local, sdata,
+-						   old_links & old_active,
+-						   new_links & sdata->vif.active_links,
+-						   old);
++		// if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN)
++		// 	ret = drv_change_vif_links(sdata->local, sdata,
++		// 				   old_links & old_active,
++		// 				   new_links & sdata->vif.active_links,
++		// 				   old);
 +		/* FIXME
 +		 * MLMR solution does link add/del when valid links change
 +		 * and so we change to report old/new valid links to driver.

@@ -1,7 +1,7 @@
-From 964ec6964db233868b9324624d51f2d0aa8f337a Mon Sep 17 00:00:00 2001
+From 89567a0fd5b6b8cb119860ccd8ea3026e519d32c Mon Sep 17 00:00:00 2001
 From: Lorenzo Bianconi <lorenzo@kernel.org>
 Date: Wed, 7 Feb 2024 00:08:18 +0100
-Subject: [PATCH 008/206] hostapd: Update TPE IE according to AFC
+Subject: [PATCH 008/236] hostapd: Update TPE IE according to AFC
 
 Update Transmit Power Envelope (TPE) IE according to the reply from AFC
 coordinator on UNII-5 or UNII-7 6GHz bands.
@@ -66,7 +66,7 @@ index 7dfd01346..27c2a8061 100644
 +	return -EINVAL;
 +}
 diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
-index 6ae2cec41..e41b918f9 100644
+index b0d4a33b4..3d8102b65 100644
 --- a/src/ap/hostapd.h
 +++ b/src/ap/hostapd.h
 @@ -801,10 +801,19 @@ struct hostapd_iface {
@@ -90,10 +90,10 @@ index 6ae2cec41..e41b918f9 100644
  {
  	return 1;
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index 94b78c12b..a42a0b05b 100644
+index 6014cece8..58ff45918 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
-@@ -7513,42 +7513,53 @@ u8 * hostapd_eid_txpower_envelope(struct hostapd_data *hapd, u8 *eid)
+@@ -7549,42 +7549,53 @@ u8 * hostapd_eid_txpower_envelope(struct hostapd_data *hapd, u8 *eid)
  	 */
  	if (is_6ghz_op_class(iconf->op_class)) {
  		enum max_tx_pwr_interpretation tx_pwr_intrpn;

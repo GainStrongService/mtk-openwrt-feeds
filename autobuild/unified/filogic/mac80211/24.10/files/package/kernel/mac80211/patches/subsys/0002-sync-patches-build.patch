@@ -1,7 +1,7 @@
-From 32c75f710ca6a2329719a9ca6d3fa898ef1a7868 Mon Sep 17 00:00:00 2001
+From 4be577a2094027ed72044231596d08eca9968448 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Thu, 9 Jan 2025 15:42:08 +0800
-Subject: [PATCH 002/107] sync patches/build
+Subject: [PATCH 002/115] sync patches/build
 
 ---
  Kconfig.sources                               |   2 -
@@ -11,7 +11,6 @@ Subject: [PATCH 002/107] sync patches/build
  drivers/bus/mhi/host/trace.h                  |  12 +-
  drivers/net/wireless/ath/ath10k/snoc.c        |   6 +-
  drivers/net/wireless/ath/ath10k/trace.h       |  64 +++++-----
- drivers/net/wireless/ath/ath11k/Kconfig       |   6 +-
  drivers/net/wireless/ath/ath11k/ahb.c         |   6 +-
  drivers/net/wireless/ath/ath11k/trace.h       |  44 +++----
  drivers/net/wireless/ath/ath12k/trace.h       |  16 +--
@@ -32,7 +31,7 @@ Subject: [PATCH 002/107] sync patches/build
  local-symbols                                 |   8 --
  net/mac80211/trace.h                          |   2 +-
  net/wireless/trace.h                          |   2 +-
- 28 files changed, 210 insertions(+), 230 deletions(-)
+ 27 files changed, 207 insertions(+), 227 deletions(-)
 
 diff --git a/Kconfig.sources b/Kconfig.sources
 index 0aa62a35..d74affd4 100644
@@ -363,10 +362,10 @@ index 3e0c4177..502e2ff0 100644
  	),
  
 diff --git a/drivers/net/wireless/ath/ath10k/snoc.c b/drivers/net/wireless/ath/ath10k/snoc.c
-index 43b00068..b33b6bd3 100644
+index d51f2e5a..fb555fef 100644
 --- a/drivers/net/wireless/ath/ath10k/snoc.c
 +++ b/drivers/net/wireless/ath/ath10k/snoc.c
-@@ -1635,10 +1635,10 @@ static int ath10k_fw_init(struct ath10k *ar)
+@@ -1638,10 +1638,10 @@ static int ath10k_fw_init(struct ath10k *ar)
  
  	ar_snoc->fw.dev = &pdev->dev;
  
@@ -553,25 +552,8 @@ index db8fcbed..52e502cb 100644
  		__entry->len = len;
  		memcpy(__get_dynamic_array(data), data, len);
  	),
-diff --git a/drivers/net/wireless/ath/ath11k/Kconfig b/drivers/net/wireless/ath/ath11k/Kconfig
-index da6352f7..76e2b701 100644
---- a/drivers/net/wireless/ath/ath11k/Kconfig
-+++ b/drivers/net/wireless/ath/ath11k/Kconfig
-@@ -25,9 +25,9 @@ config ATH11K_PCI
- 	tristate "Atheros ath11k PCI support"
- 	depends on m
- 	depends on ATH11K && PCI
--	select MHI_BUS
--	select QRTR
--	select QRTR_MHI
-+	depends on MHI_BUS
-+	depends on QRTR
-+	depends on QRTR_MHI
- 	select PCI_PWRCTL_PWRSEQ if HAVE_PWRCTL
- 	help
- 	  This module adds support for PCIE bus
 diff --git a/drivers/net/wireless/ath/ath11k/ahb.c b/drivers/net/wireless/ath/ath11k/ahb.c
-index d38d6dcc..e4442e95 100644
+index 50809cc1..0f58b48e 100644
 --- a/drivers/net/wireless/ath/ath11k/ahb.c
 +++ b/drivers/net/wireless/ath/ath11k/ahb.c
 @@ -1031,10 +1031,10 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
@@ -807,10 +789,10 @@ index 23cd5e20..ad09f2d9 100644
  	),
  	TP_printk("%s: %s", __get_str(func), __get_str(msg))
 diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/usb.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/usb.c
-index 2821c27f..2f5aab05 100644
+index f0129d10..489b31ec 100644
 --- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/usb.c
 +++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/usb.c
-@@ -1577,7 +1577,11 @@ static int brcmf_usb_reset_device(struct device *dev, void *notused)
+@@ -1585,7 +1585,11 @@ static int brcmf_usb_reset_device(struct device *dev, void *notused)
  
  void brcmf_usb_exit(void)
  {
@@ -893,10 +875,10 @@ index 0db1fa54..1d6c292c 100644
  	),
  	TP_printk("%s", __get_str(msg))
 diff --git a/drivers/net/wireless/intel/iwlwifi/iwl-devtrace.h b/drivers/net/wireless/intel/iwlwifi/iwl-devtrace.h
-index e83158f1..c24e2648 100644
+index 1a06f9e4..3d87b28f 100644
 --- a/drivers/net/wireless/intel/iwlwifi/iwl-devtrace.h
 +++ b/drivers/net/wireless/intel/iwlwifi/iwl-devtrace.h
-@@ -87,7 +87,7 @@ static inline void trace_ ## name(proto) {}
+@@ -88,7 +88,7 @@ static inline void trace_ ## name(proto) {}
  #endif
  
  #define DEV_ENTRY	__string(dev, dev_name(dev))
@@ -906,10 +888,10 @@ index e83158f1..c24e2648 100644
  #include "iwl-devtrace-io.h"
  #include "iwl-devtrace-ucode.h"
 diff --git a/drivers/net/wireless/intel/iwlwifi/mvm/tt.c b/drivers/net/wireless/intel/iwlwifi/mvm/tt.c
-index d9247096..cb12a888 100644
+index 53bab21e..4bbffaec 100644
 --- a/drivers/net/wireless/intel/iwlwifi/mvm/tt.c
 +++ b/drivers/net/wireless/intel/iwlwifi/mvm/tt.c
-@@ -638,8 +638,13 @@ static int iwl_mvm_tzone_get_temp(struct thermal_zone_device *device,
+@@ -626,8 +626,13 @@ static int iwl_mvm_tzone_get_temp(struct thermal_zone_device *device,
  	return 0;
  }
  
@@ -923,7 +905,7 @@ index d9247096..cb12a888 100644
  {
  	struct iwl_mvm *mvm = thermal_zone_device_priv(device);
  
-@@ -682,13 +687,23 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
+@@ -670,13 +675,23 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
  	for (i = 0 ; i < IWL_MAX_DTS_TRIPS; i++) {
  		mvm->tz_device.trips[i].temperature = THERMAL_TEMP_INVALID;
  		mvm->tz_device.trips[i].type = THERMAL_TRIP_PASSIVE;
@@ -1117,7 +1099,7 @@ index df26c7b0..1038c30f 100644
  	 * We have different type of choice blocks.
  	 * If curr.tri equals to mod then we can select several
 diff --git a/local-symbols b/local-symbols
-index a051adbf..db54544e 100644
+index ed8e2d79..45cbdd39 100644
 --- a/local-symbols
 +++ b/local-symbols
 @@ -53,14 +53,6 @@ MAC80211_MESH_PS_DEBUG=
@@ -1136,7 +1118,7 @@ index a051adbf..db54544e 100644
  QCOM_COMMAND_DB=
  QCOM_GENI_SE=
 diff --git a/net/mac80211/trace.h b/net/mac80211/trace.h
-index 72fad8ea..ccd85f0a 100644
+index 0bfbce15..e738b5e6 100644
 --- a/net/mac80211/trace.h
 +++ b/net/mac80211/trace.h
 @@ -33,7 +33,7 @@
@@ -1149,10 +1131,10 @@ index 72fad8ea..ccd85f0a 100644
  #define VIF_PR_ARG	__get_str(vif_name), __entry->vif_type, __entry->p2p ? "/p2p" : ""
  
 diff --git a/net/wireless/trace.h b/net/wireless/trace.h
-index b462abf6..2b1db7f5 100644
+index cd69598b..91141cad 100644
 --- a/net/wireless/trace.h
 +++ b/net/wireless/trace.h
-@@ -446,7 +446,7 @@ TRACE_EVENT(rdev_add_virtual_intf,
+@@ -457,7 +457,7 @@ TRACE_EVENT(rdev_add_virtual_intf,
  	),
  	TP_fast_assign(
  		WIPHY_ASSIGN;
