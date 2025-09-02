@@ -9,15 +9,22 @@
  		goto resume;
  
  	do {
-@@ -570,12 +570,10 @@ int xfrm_output(struct sock *sk, struct
+@@ -570,12 +570,20 @@ int xfrm_output(struct sock *sk, struct
  
  	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
  		if (!xfrm_dev_offload_ok(skb, x)) {
--			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
--			kfree_skb(skb);
--			return -EHOSTUNREACH;
 +			secpath_reset(skb);
 +			goto sw_path;
++		}
++
++		/*
++		 * This is just a workaround to mark the packet
++		 * which needs to be free with packet offload
++		 */
++		if (skb->inner_protocol == IPPROTO_RSVP) {
+ 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
+ 			kfree_skb(skb);
+ 			return -EHOSTUNREACH;
  		}
 -
 -		return xfrm_output_resume(skb, 0);
@@ -25,7 +32,7 @@
  	}
  
  	secpath_reset(skb);
-@@ -606,6 +604,7 @@ int xfrm_output(struct sock *sk, struct
+@@ -606,6 +614,7 @@ int xfrm_output(struct sock *sk, struct
  		if (x->xso.dev && x->xso.dev->features & NETIF_F_HW_ESP_TX_CSUM)
  			goto out;
  	} else {

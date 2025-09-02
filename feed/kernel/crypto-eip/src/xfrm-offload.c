@@ -8,6 +8,7 @@
 
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
+#include <linux/netdevice.h>
 #include <net/ip6_route.h>
 
 #include <mtk_eth_soc.h>
@@ -388,7 +389,11 @@ static inline struct neighbour *mtk_crypto_find_ipv6_dst_mac(struct sk_buff *skb
 	struct neighbour *neigh;
 	struct dst_entry *dst = skb_dst(skb);
 	struct rt6_info *rt = (struct rt6_info *) dst;
+	struct sk_buff *skbn;
 	const struct in6_addr *nexthop;
+
+	if (!netif_carrier_ok(dst->dev) || !(dst->dev->flags & IFF_UP))
+		return NULL;
 
 	nexthop = rt6_nexthop(rt, (struct in6_addr *) &xs->id.daddr.a6);
 	neigh = __ipv6_neigh_lookup_noref(dst->dev, nexthop);
@@ -396,7 +401,12 @@ static inline struct neighbour *mtk_crypto_find_ipv6_dst_mac(struct sk_buff *skb
 		CRYPTO_INFO("%s: %s No neigh (daddr=%pI6)\n", __func__, dst->dev->name,
 				nexthop);
 		neigh = __neigh_create(&nd_tbl, nexthop, dst->dev, false);
-		neigh_output(neigh, skb, false);
+		if (IS_ERR(neigh))
+			return NULL;
+
+		skbn = skb_clone(skb, GFP_ATOMIC);
+		if (skbn)
+			neigh_output(neigh, skbn, false);
 		return NULL;
 	}
 
@@ -406,12 +416,20 @@ static inline struct neighbour *mtk_crypto_find_ipv6_dst_mac(struct sk_buff *skb
 			CRYPTO_INFO("%s: %s No neigh (daddr=%pI6)\n", __func__, dst->dev->name,
 					&xs->id.daddr.a6);
 			neigh = __neigh_create(&nd_tbl, &xs->id.daddr.a6, dst->dev, false);
-			neigh_output(neigh, skb, false);
+			if (IS_ERR(neigh))
+				return NULL;
+
+			skbn = skb_clone(skb, GFP_ATOMIC);
+			if (skbn)
+				neigh_output(neigh, skbn, false);
 			return NULL;
 		}
-		if (is_zero_ether_addr(neigh->ha))
-			return NULL;
 	}
+
+	/* For the case that neighbour is found, but no MAC address is set */
+	if (is_zero_ether_addr(neigh->ha))
+		return NULL;
+
 	return neigh;
 }
 
@@ -421,7 +439,11 @@ static inline struct neighbour *mtk_crypto_find_ipv4_dst_mac(struct sk_buff *skb
 	struct neighbour *neigh;
 	struct dst_entry *dst = skb_dst(skb);
 	struct rtable *rt = (struct rtable *) dst;
+	struct sk_buff *skbn;
 	__be32 nexthop;
+
+	if (!netif_carrier_ok(dst->dev) || !(dst->dev->flags & IFF_UP))
+		return NULL;
 
 	/*
 	 * First get the nexthop from the routing table.
@@ -433,7 +455,12 @@ static inline struct neighbour *mtk_crypto_find_ipv4_dst_mac(struct sk_buff *skb
 		CRYPTO_INFO("%s: %s No neigh (nexthop=%pI4)\n", __func__, dst->dev->name,
 			&nexthop);
 		neigh = __neigh_create(&arp_tbl, &nexthop, dst->dev, false);
-		neigh_output(neigh, skb, false);
+		if (IS_ERR(neigh))
+			return NULL;
+
+		skbn = skb_clone(skb, GFP_ATOMIC);
+		if (skbn)
+			neigh_output(neigh, skbn, false);
 		return NULL;
 	}
 
@@ -447,12 +474,20 @@ static inline struct neighbour *mtk_crypto_find_ipv4_dst_mac(struct sk_buff *skb
 			CRYPTO_INFO("%s: %s No neigh (nexthop=%pI4)\n", __func__, dst->dev->name,
 						&xs->id.daddr.a4);
 			neigh = __neigh_create(&arp_tbl, &xs->id.daddr.a4, dst->dev, false);
-			neigh_output(neigh, skb, false);
+			if (IS_ERR(neigh))
+				return NULL;
+
+			skbn = skb_clone(skb, GFP_ATOMIC);
+			if (skbn)
+				neigh_output(neigh, skbn, false);
 			return NULL;
 		}
-		if (is_zero_ether_addr(neigh->ha))
-			return NULL;
 	}
+
+	/* For the case that neighbour is found, but no MAC address is set */
+	if (is_zero_ether_addr(neigh->ha))
+		return NULL;
+
 	return neigh;
 }
 
@@ -473,6 +508,8 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 			neigh = mtk_crypto_find_ipv6_dst_mac(skb, xs);
 		if (!neigh) {
 			rcu_read_unlock_bh();
+			/* This is just a workaround to mark the packet which needs to be free */
+			skb->inner_protocol = IPPROTO_RSVP;
 			return true;
 		}
 
@@ -519,9 +556,6 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 	atomic64_add(skb->len - ETH_HLEN, &xfrm_params->bytes);
 	atomic64_inc(&xfrm_params->packets);
 
-	/* Since we're going to tx directly, set skb->dev to dst->dev */
-	skb->dev = dst->dev;
-
 	/*
 	 * Since skb headroom may not be copy when segment, we cannot rely on
 	 * headroom data (ex. cdrt) to decide packets should send to EIP197.
@@ -529,6 +563,10 @@ bool mtk_xfrm_offload_ok(struct sk_buff *skb,
 	 * be sent to EIP197.
 	 */
 	skb->inner_protocol = IPPROTO_ESP;
+
+	/* Since we're going to tx directly, set skb->dev to dst->dev */
+	skb->dev = dst->dev;
+
 	/*
 	 * Tx packet to EIP197.
 	 * To avoid conflict of SW and HW sequence number
