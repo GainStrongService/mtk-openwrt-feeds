@@ -2,19 +2,6 @@ diff --git a/package/kernel/mt76/Makefile b/package/kernel/mt76/Makefile
 index b5b9b22..ec31797 100644
 --- a/package/kernel/mt76/Makefile
 +++ b/package/kernel/mt76/Makefile
-@@ -8,9 +8,9 @@ PKG_LICENSE_FILES:=
- 
- PKG_SOURCE_URL:=https://github.com/openwrt/mt76
- PKG_SOURCE_PROTO:=git
--PKG_SOURCE_DATE:=2025-08-27
--PKG_SOURCE_VERSION:=de1df8b888bd1c99ee191f451af47b4fa9658e8c
--PKG_MIRROR_HASH:=4ead68e97fc6472a682dae2f96f9dbb377f23c316511f625b85af15de46e9397
-+PKG_SOURCE_DATE:=2025-06-01
-+PKG_SOURCE_VERSION:=79dd14f2e8161b656341b6653261779199aedbe4
-+PKG_MIRROR_HASH:=49402da06c57f485b33c6514c21fa87d76bc92d2017970b1719fd1918e031627
- 
- PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
- PKG_USE_NINJA:=0
 @@ -317,11 +317,12 @@ endef
  
  define KernelPackage/mt7996e
@@ -59,7 +46,7 @@ index b5b9b22..ec31797 100644
  endif
  
 +PKG_YEAR:=$(shell echo $(PKG_SOURCE_DATE) | cut -d'-' -f1 | cut -c3-4)
-+PKG_MONTH:=$(shell echo $(PKG_SOURCE_DATE) | cut -d'-' -f2)
++PKG_MONTH:=$(shell echo $(PKG_SOURCE_DATE) | cut -d'-' -f2 | sed 's/^0*//')
 +ADDITIONAL_CFLAGS=-DPKG_YEAR=$(PKG_YEAR) -DPKG_MONTH=$(PKG_MONTH)
 +
  define Build/Compile
