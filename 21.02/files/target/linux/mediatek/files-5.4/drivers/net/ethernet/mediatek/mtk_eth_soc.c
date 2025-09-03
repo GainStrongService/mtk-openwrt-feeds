@@ -1739,17 +1739,23 @@ void mtk_stats_update_mac(struct mtk_mac *mac)
 		rx_eof_cnt = FIELD_GET(GENMASK(15, 0),
 				       mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x1a4));
 		if (rx_crcerr_cnt <= rx_eof_cnt * 2) {
+			hw_stats->rx_fcs_errors += rx_crcerr_cnt;
 			hw_stats->rx_packets +=
 				mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x18c);
-			hw_stats->rx_fcs_errors += rx_crcerr_cnt;
 			hw_stats->rx_bytes +=
 				mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x1ac);
-			hw_stats->rx_short_errors +=
-				mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x1bc);
 			hw_stats->rx_flow_control_packets += FIELD_GET(GENMASK(15, 0),
 				mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x190));
 			hw_stats->rx_long_errors += FIELD_GET(GENMASK(15, 0),
 				mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x194));
+
+			if (!MTK_HAS_CAPS(eth->soc->caps, MTK_XGMAC)) {
+				hw_stats->rx_short_errors +=
+					mtk_r32(mac->hw, MTK_XMAC_MCR(mac->id) + 0x1bc);
+			} else {
+				hw_stats->rx_short_errors +=
+					mtk_r32(mac->hw, reg_map->gdm1_cnt + 0x18 + offs);
+			}
 		}
 
 		hw_stats->tx_packets +=
