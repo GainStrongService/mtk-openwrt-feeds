@@ -31,8 +31,12 @@ function do_cmd() {
 
 function print_debug() {
     if [ "${work_mode}" = "DEBUG" ]; then
-        echo "$1"
+        echo "[DEBUG] $1"
     fi
+}
+
+function print_err() {
+    echo "[ERROR] $1"
 }
 
 function write_dmesg() {
@@ -328,7 +332,7 @@ function convert_gi {
                     he_ltf="2"
                     ;;
                 *)
-                    echo "unknown gi"
+                    print_err "unknown gi"
             esac
             ;;
         "he_mu")
@@ -348,7 +352,7 @@ function convert_gi {
                     he_ltf="2"
                     ;;
                 *)
-                    echo "unknown gi"
+                    print_err "unknown gi"
             esac
             ;;
         "he_tb")
@@ -365,11 +369,11 @@ function convert_gi {
                     he_ltf="2"
                     ;;
                 *)
-                    echo "unknown gi"
+                    print_err "unknown gi"
             esac
             ;;
         *)
-            print_debug "legacy mode no need gi"
+            print_err "legacy mode no need gi"
     esac
 
     do_cmd "mt76-test ${interface} set tx_rate_sgi=${sgi} tx_ltf=${he_ltf}"
@@ -458,7 +462,7 @@ function convert_channel {
             elif [ "${temp}" == "6" ]; then
                 local band=2
             else
-                echo "iwpriv wrapper band translate error!"
+                print_err "wrapper band translate error!"
             fi
         else
             # mt7915 in AX8400 case: band should be determined by only the input band
@@ -829,7 +833,7 @@ function do_ate_work() {
             local if_str=$(ifconfig | grep mon${phy_idx})
 
             if [ ! -z "${if_str}" -a "${if_str}" != " " ]; then
-                echo "ATE already starts."
+                print_debug "ATE already starts."
             elif [ ${is_connac3} == "1" ]; then
                 do_cmd "mt76-test phy${phy_idx} add mon${phy_idx}"
             else
@@ -879,7 +883,7 @@ function do_ate_work() {
             local if_str=$(ifconfig | grep mon${phy_idx})
 
             if [ -z "${if_str}" -a "${if_str}" != " " ]; then
-                echo "ATE does not start."
+                print_debug "ATE does not start."
             elif [ ${is_connac3} == "1" ]; then
                 do_cmd "mt76-test phy${phy_idx} del mon${phy_idx}"
             else
@@ -949,7 +953,7 @@ function do_ate_work() {
         "TXFRAME")
             do_cmd "mt76-test ${interface} set state=tx_frames"
             ;;
-        "TXSTOP"|"RXSTOP")
+        "TXSTOP"|"RXSTOP"|"TXCONTSTOP")
             do_cmd "mt76-test ${interface} set state=idle"
             ;;
         "TXREVERT")
@@ -996,7 +1000,7 @@ function do_ate_work() {
             do_cmd "atenl -i ${interface} -c \"eeprom rx gain sync\""
             ;;
         *)
-            print_debug "skip ${ate_cmd}"
+            print_err "Unknown cmd: ${ate_cmd}"
             ;;
     esac
 }
@@ -1071,7 +1075,7 @@ function convert_listmode {
             do_cmd "mt76-test ${interface} set list_act=switch_seg"
             ;;
         *)
-            print_debug "skip ${tag}"
+            print_err "Unknown tag: ${tag}"
             ;;
     esac
 }
@@ -1215,7 +1219,7 @@ if [ "${cmd_type}" = "set" ]; then
         "ATEPKTTXTIME"|"ATEIPG"|"ATEDUTYCYCLE"|"ATETXFREQOFFSET")
             cmd_new=$(simple_convert ${cmd})
             if [ "${param_new}" = "undefined" ]; then
-                echo "unknown cmd: ${cmd}"
+                print_err "unknown cmd: ${cmd}"
                 exit
             fi
             param_new=${param}
@@ -1241,8 +1245,8 @@ if [ "${cmd_type}" = "set" ]; then
             cmd_new="tx_rate_mode"
             param_new=$(convert_tx_mode ${param})
             if [ "${param_new}" = "undefined" ]; then
-                echo "unknown tx mode"
-                echo "0:cck, 1:ofdm, 2:ht, 4:vht, 8:he_su, 9:he_er, 10:he_tb, 11:he_mu"
+                print_err "unknown tx mode"
+                print_debug "0:cck, 1:ofdm, 2:ht, 4:vht, 8:he_su, 9:he_er, 10:he_tb, 11:he_mu"
                 exit
             else
                 record_config ${cmd} ${param} ${iwpriv_file}
@@ -1315,7 +1319,7 @@ if [ "${cmd_type}" = "set" ]; then
             skip=1
             ;;
         *)
-            print_debug "Unknown command to set: ${cmd}"
+            print_err "Unknown command to set: ${cmd}"
             skip=1
     esac
 
@@ -1457,5 +1461,5 @@ elif [ "${cmd_type}" = "switch" ]; then
     do_cmd "killall hostapd"
     do_cmd "killall netifd"
 else
-    echo "Unknown command"
+    print_err "Unknown command type"
 fi
