@@ -1,10 +1,8 @@
-From f79814732507ec8249716cf69a256966650b4f2e Mon Sep 17 00:00:00 2001
+From e686f39990ac3972990d96675ef6e3590bbbba75 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Fri, 6 Jun 2025 13:50:48 +0800
 Subject: [PATCH 208/236] mtk: hostapd: refactor upstream 11v+MLD
  implementation
-
-The refactor is based on our previous change
 
 In the following context, "non-TX link" means a BSS that is a
 nontransmitted BSS in a MBSSID set and is also affiliciated with a MLD.
@@ -211,7 +209,7 @@ index 58c49bad6..e916b7819 100644
  
  
 diff --git a/src/ap/ieee802_11.c b/src/ap/ieee802_11.c
-index 80894576b..48d273cb2 100644
+index c9afd3e16..fc7a68a21 100644
 --- a/src/ap/ieee802_11.c
 +++ b/src/ap/ieee802_11.c
 @@ -8291,7 +8291,8 @@ static bool hostapd_skip_rnr(size_t i, struct mbssid_ie_profiles *skip_profiles,
