@@ -7,6 +7,10 @@ version=1.4
 
 source lib.sh
 
+kernel_ver=`uname -r`
+kernel_66="6.6.0"
+sortV=$(printf '%s\n' "$kernel_66" "$kernel_ver" | sort -V | tail -1)
+
 if [ -z "$port" ]; then
 	echo "Please specify correct port."
 	exit 1
@@ -68,16 +72,22 @@ exec_vct() {
 	ifconfig $1 up
 }
 
-hex2dec() {
-	hex="$1"
-	case "$hex" in
-		0x*|0X*)
-			printf "%d\n" "$hex"
-			;;
-		*)
-			printf "%d\n" "0x$hex"
-			;;
-	esac
+addr_trans() {
+	addr=$1
+	if [[ $sortV == "$kernel_ver" ]] && [[ "$kernel_ver" != "$kernel_66" ]]; then
+		# In kernel version greater than 6.6, ethtool uses hex value for phy address
+		case "$addr" in
+			0x*|0X*)
+				printf "%d\n" "$hex"
+				;;
+			*)
+				printf "%d\n" "0x$hex"
+				;;
+		esac
+	else
+		# In kernel version of 5.4, ethtool uses decimal value for phy address
+		printf "%d\n" $addr
+	fi
 }
 
 if [ "${TEST_CMD}" == "switch" ]; then
@@ -90,7 +100,7 @@ if [ "${TEST_CMD}" == "switch" ]; then
 		iface_name=${iface##*/}
 		if [[ "$iface_name" = "lan"* ]]; then
 			phy_addr=$(ethtool ${iface_name} | awk '/PHYAD:/ {print $2}')
-			phy_addr=$(hex2dec "$phy_addr")
+			phy_addr=$(addr_trans "$phy_addr")
 			if [ $phy_addr -eq $decimal_port ]; then
 				if="$iface_name"
 				break
@@ -114,7 +124,7 @@ if [ "${TEST_CMD}" != "switch" ]; then
 			fi
 
 			phy_addr=$(ethtool ${iface_name} | awk '/PHYAD:/ {print $2}')
-			phy_addr=$(hex2dec "$phy_addr")
+			phy_addr=$(addr_trans "$phy_addr")
 			if [ $phy_addr -eq $decimal_port ]; then
 				break
 			fi
