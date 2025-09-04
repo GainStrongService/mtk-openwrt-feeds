@@ -4192,7 +4192,8 @@ static int mxl862xx_port_fdb_add(struct dsa_switch *ds, int port,
 	memcpy(mac_table_add.mac, addr, ETH_ALEN);
 
 	mac_table_add.port_id = port + 1;
-	mac_table_add.tci = (vid & 0xFFF);
+	if (priv->port_info[priv->hw_info->cpu_port].tag_protocol == DSA_TAG_PROTO_MXL862)
+		mac_table_add.tci = (vid & 0xFFF);
 	mac_table_add.static_entry = true;
 
 	/* For CPU port add entries corresponding to all FIDs */
@@ -4235,7 +4236,9 @@ static int mxl862xx_port_fdb_del(struct dsa_switch *ds, int port,
 	uint8_t i = 0;
 
 	memcpy(mac_table_remove.mac, addr, ETH_ALEN);
-	mac_table_remove.tci = (vid & 0xFFF);
+
+	if (priv->port_info[priv->hw_info->cpu_port].tag_protocol == DSA_TAG_PROTO_MXL862)
+		mac_table_remove.tci = (vid & 0xFFF);
 
 	/* For CPU port remove entries corresponding to all FIDs */
 	for (i = 0; i < priv->hw_info->phy_ports; i++) {
