@@ -9,7 +9,7 @@
 # mtk_vct.sh -s -p=0x2 | grep "Pair" | sed 's/Pair[A-D]: //'
 # mtk_vct.sh -p=0xf | grep "Pair" | sed 's/Pair[A-D]: //'
 
-version=1.3
+version=1.4
 
 source lib.sh
 
@@ -100,10 +100,31 @@ do
 		#grep -E "Pair[A-D]" | sed 's/Pair[A-D]: //g' | \
 		#sed 's/ length=//g' | sed 's/\([0-9]*\+\.[0-9]*\+\)m/\1/g'
 	elif [ "${TEST_CMD}" == "mii" ]; then
+		cmd_gen 22 "read" 0x2
+		id1=$(eval "${CMD}${response}")
+		cmd_gen 22 "read" 0x3
+		id2=$(eval "${CMD}${response}")
+		phy_id=`printf "0x%x%x" ${id1} ${id2}`
+		if [ ${phy_id} == 0x339c11 ] || [ ${phy_id} == 0x339c12 ]; then
+			# This disables 1G fix for microhcip
+			cmd_gen 45 "read" 0x1e 0x40
+			val=$(eval "${CMD}${response}")
+			val=`printf "0x%x" $(( ${val} | 0x4000 ))`
+			cmd_gen 45 "write" 0x1e 0x40 ${val} && ${CMD} >> /dev/null
+		fi
+
 		/usr/sbin/mtk_vct -p ${port}
 		#/usr/sbin/mtk_vct -p ${port} | \
 		#grep -E "Pair[A-D]" | sed 's/Pair[A-D]: //g' | \
 		#sed 's/ length=//g' | sed 's/\([0-9]*\+\.[0-9]*\+\)m/\1/g'
+
+		if [ ${phy_id} == 0x339c11 ] || [ ${phy_id} == 0x339c12 ]; then
+			# This enables 1G fix for microhcip
+			cmd_gen 45 "read" 0x1e 0x40
+			val=$(eval "${CMD}${response}")
+			val=`printf "0x%x" $(( ${val} & ~0x4000 ))`
+			cmd_gen 45 "write" 0x1e 0x40 ${val} && ${CMD} >> /dev/null
+		fi
 	fi
 	let "i++"
 done
