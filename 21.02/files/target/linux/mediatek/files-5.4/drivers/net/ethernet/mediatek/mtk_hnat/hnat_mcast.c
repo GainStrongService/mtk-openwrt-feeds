@@ -244,7 +244,7 @@ static int hnat_mcast_table_update(int type, struct br_mdb_entry *entry)
 /* Get mc_port value for read-only access */
 static bool hnat_mcast_get_mc_port(u8 *dmac, u16 vlan_id, u8 *mc_port)
 {
-	struct ppe_mcast_list *entry;
+	struct ppe_mcast_list *entry, *tmp;
 	struct list_head *head;
 	bool found = false;
 
@@ -254,7 +254,7 @@ static bool hnat_mcast_get_mc_port(u8 *dmac, u16 vlan_id, u8 *mc_port)
 	head = &hnat_priv->pmcast->mlist;
 
 	read_lock(&hnat_priv->pmcast->mcast_lock);
-	list_for_each_entry(entry, head, list) {
+	list_for_each_entry_safe(entry, tmp, head, list) {
 		if (!memcmp(entry->dmac, dmac, ETH_ALEN) && (entry->vid == vlan_id)) {
 			*mc_port = entry->mc_port;
 			found = true;
@@ -269,7 +269,7 @@ static bool hnat_mcast_get_mc_port(u8 *dmac, u16 vlan_id, u8 *mc_port)
 /* Find node for update access - must be called with mcast_lock held */
 static struct ppe_mcast_list *hnat_mcast_list_find(u8 *dmac, u16 vlan_id)
 {
-	struct ppe_mcast_list *entry;
+	struct ppe_mcast_list *entry, *tmp;
 	struct list_head *head;
 
 	if (!hnat_priv->pmcast)
@@ -278,7 +278,7 @@ static struct ppe_mcast_list *hnat_mcast_list_find(u8 *dmac, u16 vlan_id)
 	head = &hnat_priv->pmcast->mlist;
 
 	/* Regular list traversal since we hold the lock */
-	list_for_each_entry(entry, head, list) {
+	list_for_each_entry_safe(entry, tmp, head, list) {
 		if (!memcmp(entry->dmac, dmac, ETH_ALEN) && (entry->vid == vlan_id))
 			return entry;
 	}
@@ -296,12 +296,12 @@ static void hnat_mcast_list_del_all(void)
 
 	head = &hnat_priv->pmcast->mlist;
 
-	write_lock(&hnat_priv->pmcast->mcast_lock);
+	write_lock_bh(&hnat_priv->pmcast->mcast_lock);
 	list_for_each_entry_safe(entry, tmp, head, list) {
 		list_del(&entry->list);
 		kfree(entry);
 	}
-	write_unlock(&hnat_priv->pmcast->mcast_lock);
+	write_unlock_bh(&hnat_priv->pmcast->mcast_lock);
 }
 
 bool hnat_is_mcast_uni(struct sk_buff *skb)
@@ -360,7 +360,7 @@ static int hnat_mcast_list_update(int type, struct br_mdb_entry *entry)
 		port = MCAST_TO_PDMA; /* to PDMA */
 	}
 
-	write_lock(&hnat_priv->pmcast->mcast_lock);
+	write_lock_bh(&hnat_priv->pmcast->mcast_lock);
 
 	pmcast_list = hnat_mcast_list_find(dmac, entry->vid);
 
@@ -369,7 +369,7 @@ static int hnat_mcast_list_update(int type, struct br_mdb_entry *entry)
 		if (!pmcast_list) {
 			pmcast_list = kmalloc(sizeof(struct ppe_mcast_list), GFP_KERNEL);
 			if (!pmcast_list) {
-				write_unlock(&hnat_priv->pmcast->mcast_lock);
+				write_unlock_bh(&hnat_priv->pmcast->mcast_lock);
 				return -ENOMEM;
 			}
 			INIT_LIST_HEAD(&pmcast_list->list);
@@ -392,11 +392,11 @@ static int hnat_mcast_list_update(int type, struct br_mdb_entry *entry)
 		}
 		break;
 	default:
-		write_unlock(&hnat_priv->pmcast->mcast_lock);
+		write_unlock_bh(&hnat_priv->pmcast->mcast_lock);
 		return -1;
 	}
 
-	write_unlock(&hnat_priv->pmcast->mcast_lock);
+	write_unlock_bh(&hnat_priv->pmcast->mcast_lock);
 
 	entry_delete_by_mac(dmac);
 
