@@ -29,6 +29,6 @@ extern int mtk_wifi_num;
 extern u32 mtk_reset_flag;
 extern bool mtk_stop_fail;
 
-int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void *ptr);
+int mtk_eth_netdevice_event_init(struct mtk_eth *eth);
 
 #endif		/* MTK_ETH_RESET_H */

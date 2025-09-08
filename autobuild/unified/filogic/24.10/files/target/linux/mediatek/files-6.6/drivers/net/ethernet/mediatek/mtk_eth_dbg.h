@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2018 MediaTek Inc.
+ *   Copyright (C) 2025 MediaTek Inc.
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -19,32 +19,16 @@
 #define MTK_ETH_DBG_H
 
 /* Debug Purpose Register */
-#define MTK_PSE_FQFC_CFG		0x100
-#define MTK_FE_CDM1_FSM			0x220
-#define MTK_FE_CDM2_FSM			0x224
-#define MTK_FE_CDM3_FSM			0x238
-#define MTK_FE_CDM4_FSM			0x298
-#define MTK_FE_CDM5_FSM			0x318
-#define MTK_FE_CDM6_FSM			0x328
-#define MTK_FE_CDM7_FSM			0x338
-#define MTK_FE_GDM1_FSM			0x228
-#define MTK_FE_GDM2_FSM			0x22C
-#define MTK_FE_GDM3_FSM			0x23C
-#define MTK_FE_PSE_FREE			0x240
-#define MTK_FE_DROP_FQ			0x244
-#define MTK_FE_DROP_FC			0x248
-#define MTK_FE_DROP_PPE			0x24C
-#define MTK_MAC_FSM(x)			(0x1010C + ((x) * 0x100))
 #define MTK_SGMII_FALSE_CARRIER_CNT(x)	(0x10060028 + ((x) * 0x10000))
 #define MTK_SGMII_EFUSE			0x11D008C8
 
-#define MTKETH_MII_READ			0x89F3
-#define MTKETH_MII_WRITE		0x89F4
+#define REG_ESW_MAX			0xFC
 #define MTKETH_ESW_REG_READ		0x89F1
 #define MTKETH_ESW_REG_WRITE		0x89F2
+#define MTKETH_MII_READ			0x89F3
+#define MTKETH_MII_WRITE		0x89F4
 #define MTKETH_MII_READ_CL45		0x89FC
 #define MTKETH_MII_WRITE_CL45		0x89FD
-#define REG_ESW_MAX			0xFC
 
 #define PROCREG_ESW_CNT			"esw_cnt"
 #define PROCREG_MAC_CNT			"mac_cnt"
@@ -117,34 +101,34 @@
 #define MTK_XFI_RX_MC_DROP_CNT		0x208
 #define MTK_XFI_RX_ALL_DROP_CNT		0x20C
 
-#define PRINT_FORMATTED_MAC_MIB64(seq, reg)			\
-{								\
-	seq_printf(seq, "| MAC%d_%s	: %010llu |\n",		\
+#define PRINT_FORMATTED_MAC_MIB64(m, reg)			\
+({								\
+	seq_printf(m, "| MAC%d_%s	: %010llu |\n",		\
 		   gdm_id + 1, #reg,				\
 		   mtk_r32(eth, MTK_MAC_MIB_BASE(gdm_id) +	\
 			   MTK_MAC_##reg##_L) +			\
 		   ((u64)mtk_r32(eth, MTK_MAC_MIB_BASE(gdm_id) +\
 				 MTK_MAC_##reg##_H) << 32));	\
-}
+})
 
-#define PRINT_FORMATTED_XFI_MIB(seq, reg, mask)			\
-{								\
-	seq_printf(seq, "| XFI%d_%s	: %010lu |\n",		\
+#define PRINT_FORMATTED_XFI_MIB(m, reg, mask)			\
+({								\
+	seq_printf(m, "| XFI%d_%s	: %010lu |\n",		\
 		   gdm_id, #reg,				\
 		   FIELD_GET(mask, mtk_r32(eth,			\
 			     MTK_XFI_MIB_BASE(gdm_id) +		\
 			     MTK_XFI_##reg)));			\
-}
+})
 
-#define PRINT_FORMATTED_XFI_MIB64(seq, reg)			\
-{								\
-	seq_printf(seq, "| XFI%d_%s	: %010llu |\n",		\
+#define PRINT_FORMATTED_XFI_MIB64(m, reg)			\
+({								\
+	seq_printf(m, "| XFI%d_%s	: %010llu |\n",		\
 		   gdm_id, #reg,				\
 		   mtk_r32(eth, MTK_XFI_MIB_BASE(gdm_id) +	\
 			   MTK_XFI_##reg##_L) +			\
 		   ((u64)mtk_r32(eth, MTK_XFI_MIB_BASE(gdm_id) +\
 				 MTK_XFI_##reg##_H) << 32));	\
-}
+})
 
 /* HW LRO flush reason */
 #define MTK_HW_LRO_AGG_FLUSH		(1)
@@ -270,42 +254,42 @@
 	}										\
 }
 
-struct mtk_lro_alt_v1_info0 {
+struct mtk_hwlro_alt_v1_info0 {
 	u32 dtp : 16;
 	u32 stp : 16;
 };
 
-struct mtk_lro_alt_v1_info1 {
+struct mtk_hwlro_alt_v1_info1 {
 	u32 sip0 : 32;
 };
 
-struct mtk_lro_alt_v1_info2 {
+struct mtk_hwlro_alt_v1_info2 {
 	u32 sip1 : 32;
 };
 
-struct mtk_lro_alt_v1_info3 {
+struct mtk_hwlro_alt_v1_info3 {
 	u32 sip2 : 32;
 };
 
-struct mtk_lro_alt_v1_info4 {
+struct mtk_hwlro_alt_v1_info4 {
 	u32 sip3 : 32;
 };
 
-struct mtk_lro_alt_v1_info5 {
+struct mtk_hwlro_alt_v1_info5 {
 	u32 vlan_vid0 : 32;
 };
 
-struct mtk_lro_alt_v1_info6 {
+struct mtk_hwlro_alt_v1_info6 {
 	u32 vlan_vid1 : 16;
 	u32 vlan_vid_vld : 4;
 	u32 cnt : 12;
 };
 
-struct mtk_lro_alt_v1_info7 {
+struct mtk_hwlro_alt_v1_info7 {
 	u32 dw_len : 32;
 };
 
-struct mtk_lro_alt_v1_info8 {
+struct mtk_hwlro_alt_v1_info8 {
 	u32 dip_id : 2;
 	u32 ipv6 : 1;
 	u32 ipv4 : 1;
@@ -313,19 +297,19 @@ struct mtk_lro_alt_v1_info8 {
 	u32 valid : 1;
 };
 
-struct mtk_lro_alt_v1 {
-	struct mtk_lro_alt_v1_info0 alt_info0;
-	struct mtk_lro_alt_v1_info1 alt_info1;
-	struct mtk_lro_alt_v1_info2 alt_info2;
-	struct mtk_lro_alt_v1_info3 alt_info3;
-	struct mtk_lro_alt_v1_info4 alt_info4;
-	struct mtk_lro_alt_v1_info5 alt_info5;
-	struct mtk_lro_alt_v1_info6 alt_info6;
-	struct mtk_lro_alt_v1_info7 alt_info7;
-	struct mtk_lro_alt_v1_info8 alt_info8;
+struct mtk_hwlro_alt_v1 {
+	struct mtk_hwlro_alt_v1_info0 alt_info0;
+	struct mtk_hwlro_alt_v1_info1 alt_info1;
+	struct mtk_hwlro_alt_v1_info2 alt_info2;
+	struct mtk_hwlro_alt_v1_info3 alt_info3;
+	struct mtk_hwlro_alt_v1_info4 alt_info4;
+	struct mtk_hwlro_alt_v1_info5 alt_info5;
+	struct mtk_hwlro_alt_v1_info6 alt_info6;
+	struct mtk_hwlro_alt_v1_info7 alt_info7;
+	struct mtk_hwlro_alt_v1_info8 alt_info8;
 };
 
-struct mtk_lro_alt_v2_info0 {
+struct mtk_hwlro_alt_v2_info0 {
 	u32 v2_id_h:3;
 	u32 v1_id:12;
 	u32 v0_id:12;
@@ -336,7 +320,7 @@ struct mtk_lro_alt_v2_info0 {
 	u32 valid:1;
 };
 
-struct mtk_lro_alt_v2_info1 {
+struct mtk_hwlro_alt_v2_info1 {
 	u32 sip3_h:9;
 	u32 v6_valid:1;
 	u32 v4_valid:1;
@@ -344,56 +328,64 @@ struct mtk_lro_alt_v2_info1 {
 	u32 v2_id_l:9;
 };
 
-struct mtk_lro_alt_v2_info2 {
+struct mtk_hwlro_alt_v2_info2 {
 	u32 sip2_h:9;
 	u32 sip3_l:23;
 };
-struct mtk_lro_alt_v2_info3 {
+
+struct mtk_hwlro_alt_v2_info3 {
 	u32 sip1_h:9;
 	u32 sip2_l:23;
 };
-struct mtk_lro_alt_v2_info4 {
+
+struct mtk_hwlro_alt_v2_info4 {
 	u32 sip0_h:9;
 	u32 sip1_l:23;
 };
-struct mtk_lro_alt_v2_info5 {
+
+struct mtk_hwlro_alt_v2_info5 {
 	u32 dip3_h:9;
 	u32 sip0_l:23;
 };
-struct mtk_lro_alt_v2_info6 {
+
+struct mtk_hwlro_alt_v2_info6 {
 	u32 dip2_h:9;
 	u32 dip3_l:23;
 };
-struct mtk_lro_alt_v2_info7 {
+
+struct mtk_hwlro_alt_v2_info7 {
 	u32 dip1_h:9;
 	u32 dip2_l:23;
 };
-struct mtk_lro_alt_v2_info8 {
+
+struct mtk_hwlro_alt_v2_info8 {
 	u32 dip0_h:9;
 	u32 dip1_l:23;
 };
-struct mtk_lro_alt_v2_info9 {
+
+struct mtk_hwlro_alt_v2_info9 {
 	u32 sp_h:9;
 	u32 dip0_l:23;
 };
-struct mtk_lro_alt_v2_info10 {
+
+struct mtk_hwlro_alt_v2_info10 {
 	u32 resv:9;
 	u32 dp:16;
 	u32 sp_l:7;
 };
 
-struct mtk_lro_alt_v2 {
-	struct mtk_lro_alt_v2_info0 alt_info0;
-	struct mtk_lro_alt_v2_info1 alt_info1;
-	struct mtk_lro_alt_v2_info2 alt_info2;
-	struct mtk_lro_alt_v2_info3 alt_info3;
-	struct mtk_lro_alt_v2_info4 alt_info4;
-	struct mtk_lro_alt_v2_info5 alt_info5;
-	struct mtk_lro_alt_v2_info6 alt_info6;
-	struct mtk_lro_alt_v2_info7 alt_info7;
-	struct mtk_lro_alt_v2_info8 alt_info8;
-	struct mtk_lro_alt_v2_info9 alt_info9;
-	struct mtk_lro_alt_v2_info10 alt_info10;
+struct mtk_hwlro_alt_v2 {
+	struct mtk_hwlro_alt_v2_info0 alt_info0;
+	struct mtk_hwlro_alt_v2_info1 alt_info1;
+	struct mtk_hwlro_alt_v2_info2 alt_info2;
+	struct mtk_hwlro_alt_v2_info3 alt_info3;
+	struct mtk_hwlro_alt_v2_info4 alt_info4;
+	struct mtk_hwlro_alt_v2_info5 alt_info5;
+	struct mtk_hwlro_alt_v2_info6 alt_info6;
+	struct mtk_hwlro_alt_v2_info7 alt_info7;
+	struct mtk_hwlro_alt_v2_info8 alt_info8;
+	struct mtk_hwlro_alt_v2_info9 alt_info9;
+	struct mtk_hwlro_alt_v2_info10 alt_info10;
 };
 
 struct mtk_esw_reg {
@@ -408,6 +400,40 @@ struct mtk_mii_ioctl_data {
 	unsigned int val_out;
 };
 
+struct mtk_hwlro_stats {
+	u32 agg_num_cnt[4][MTK_HW_LRO_MAX_AGG_CNT + 1];
+	u32 agg_size_cnt[4][16];
+	u32 tot_agg_cnt[4];
+	u32 tot_flush_cnt[4];
+	u32 agg_flush_cnt[4];
+	u32 age_flush_cnt[4];
+	u32 seq_flush_cnt[4];
+	u32 timestamp_flush_cnt[4];
+	u32 norule_flush_cnt[4];
+	u32 ebl;
+};
+
+struct mtk_mt7530_switch {
+	void __iomem	*mmio_base;
+	bool		exist;
+};
+
+struct mtk_qdma_ctx {
+	struct mtk_eth	*eth;
+	long		id;
+};
+
+struct mtk_eth_debugfs {
+	struct dentry			*root;
+	struct proc_dir_entry		*procfs_root;
+	struct mtk_hwlro_stats		hwlro_stats;
+	struct mtk_mt7530_switch	mt7530;
+	struct mtk_qdma_ctx		qdma_sched[4];
+	struct mtk_qdma_ctx		qdma_queue[MTK_QDMA_NUM_QUEUES];
+};
+
+typedef int (*mtk_hwlro_dbg_func) (struct mtk_eth *eth, int par);
+
 extern int _mtk_mdio_write_c22(struct mtk_eth *eth, u32 phy_addr, u32 phy_reg,
 			       u32 write_data);
 extern int _mtk_mdio_write_c45(struct mtk_eth *eth, u32 phy_addr,
@@ -416,13 +442,14 @@ extern int _mtk_mdio_read_c22(struct mtk_eth *eth, u32 phy_addr, u32 phy_reg);
 extern int _mtk_mdio_read_c45(struct mtk_eth *eth, u32 phy_addr,
 			      u32 devad, u32 phy_reg);
 
-int debug_proc_init(struct mtk_eth *eth);
-void debug_proc_exit(void);
+void mtk_eth_debugfs_hwlro_stats_update(struct mtk_eth *eth, u32 ring_no,
+					struct mtk_rx_dma_v2 *rxd);
+void mtk_eth_debugfs_hwlro_flush_stats_update(struct mtk_eth *eth, u32 ring_no,
+					      struct mtk_rx_dma_v2 *rxd);
 
-int mtketh_debugfs_init(struct mtk_eth *eth);
-void mtketh_debugfs_exit(struct mtk_eth *eth);
-int mtk_do_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-void hw_lro_stats_update(u32 ring_no, struct mtk_rx_dma_v2 *rxd);
-void hw_lro_flush_stats_update(u32 ring_no, struct mtk_rx_dma_v2 *rxd);
+int mtk_eth_debugfs_priv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
+
+int mtk_eth_debugfs_init(struct mtk_eth *eth);
+void mtk_eth_debugfs_exit(struct mtk_eth *eth);
 
 #endif /* MTK_ETH_DBG_H */

@@ -10,8 +10,8 @@ netif_napi_enable because the ETH driver does not call netif_napi_add().
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 28 +++++++++++++--------
- 1 file changed, 17 insertions(+), 11 deletions(-)
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 32 +++++++++++++--------
+ 1 file changed, 19 insertions(+), 13 deletions(-)
 
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
@@ -28,10 +28,12 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  static int mtk_free_dev(struct mtk_eth *eth)
  {
  	int i;
-@@ -5671,6 +5677,15 @@ static int mtk_probe(struct platform_dev
+@@ -5671,6 +5677,17 @@ static int mtk_probe(struct platform_dev
  		}
  	}
  
++	mtk_eth_debugfs_init(eth);
++
 +	/* we run 2 devices on the same DMA ring so we need a dummy device
 +	 * for NAPI to work
 +	 */
@@ -44,10 +46,12 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
  		if (!eth->netdev[i])
  			continue;
-@@ -5685,15 +5700,6 @@ static int mtk_probe(struct platform_dev
- 				   eth->netdev[i]->base_addr, eth->irq[0]);
+@@ -5685,17 +5700,6 @@ static int mtk_probe(struct platform_dev
+ 				    eth->netdev[i]->base_addr, eth->irq[0]);
  	}
  
+-	mtk_eth_debugfs_init(eth);
+-
 -	/* we run 2 devices on the same DMA ring so we need a dummy device
 -	 * for NAPI to work
 -	 */
@@ -57,9 +61,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 -	netif_napi_add(&eth->dummy_dev, &eth->tx_napi, mtk_napi_tx);
 -	netif_napi_add(&eth->dummy_dev, &eth->rx_napi, mtk_napi_rx);
 -
- 	mtketh_debugfs_init(eth);
- 	debug_proc_init(eth);
- 
+ 	platform_set_drvdata(pdev, eth);
+ 	schedule_delayed_work(&eth->reset.monitor_work,
+ 			      MTK_DMA_MONITOR_TIMEOUT);
 @@ -5704,6 +5710,7 @@ static int mtk_probe(struct platform_dev
  	return 0;
  

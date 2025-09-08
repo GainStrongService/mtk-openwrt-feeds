@@ -5,9 +5,9 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: add proprietary SER flow
 
 ---
  drivers/net/ethernet/mediatek/Makefile      | 2 +-
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 5 +++++
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 4 +++++
  drivers/net/ethernet/mediatek/mtk_eth_soc.h | 1 +++
- 3 files changed, 7 insertions(+), 1 deletion(-)
+ 3 files changed, 6 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/net/ethernet/mediatek/Makefile b/drivers/net/ethernet/mediatek/Makefile
 index 013945a..39338a6 100644
@@ -34,13 +34,12 @@ index 3a938fd..62292ff 100644
  #include "mtk_hnat/nf_hnat_mtk.h"
  #endif
  
-@@ -6822,6 +6823,10 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6822,6 +6823,9 @@ static int mtk_probe(struct platform_device *pdev)
  	debug_proc_init(eth);
  
  	platform_set_drvdata(pdev, eth);
 +#if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
-+	eth->reset.netdevice_notifier.notifier_call = mtk_eth_netdevice_event;
-+	register_netdevice_notifier(&eth->reset.netdevice_notifier);
++	mtk_eth_netdevice_event_init(eth);
 +#endif
  	schedule_delayed_work(&eth->reset.monitor_work,
  			      MTK_DMA_MONITOR_TIMEOUT);

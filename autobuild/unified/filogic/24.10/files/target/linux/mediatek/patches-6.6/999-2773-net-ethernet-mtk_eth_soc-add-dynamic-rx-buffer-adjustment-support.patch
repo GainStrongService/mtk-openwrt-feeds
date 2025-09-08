@@ -129,9 +129,9 @@ index d7ddd24..8607db3 100644
  
 +	eth->rx_buf_len = MTK_MAX_RX_LENGTH;
 +
- 	mtketh_debugfs_init(eth);
- 	debug_proc_init(eth);
- 
+ 	platform_set_drvdata(pdev, eth);
+ #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
+ 	eth->reset.netdevice_notifier.notifier_call = mtk_eth_netdevice_event;
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 index e971c6f..0f9e1d0 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h

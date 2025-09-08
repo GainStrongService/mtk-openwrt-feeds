@@ -8,7 +8,7 @@
 #include "mtk_eth_soc.h"
 #include "mtk_eth_reset.h"
 
-extern struct mtk_eth *g_eth;
+struct mtk_eth *g_eth;
 
 static int mtk_rest_cnt;
 int mtk_wifi_num;
@@ -85,4 +85,14 @@ int mtk_eth_netdevice_event(struct notifier_block *n, unsigned long event, void 
 	}
 
 	return NOTIFY_DONE;
+}
+
+int mtk_eth_netdevice_event_init(struct mtk_eth *eth)
+{
+	g_eth = eth;
+
+	eth->reset.netdevice_notifier.notifier_call = mtk_eth_netdevice_event;
+	register_netdevice_notifier(&eth->reset.netdevice_notifier);
+
+	return 0;
 }
