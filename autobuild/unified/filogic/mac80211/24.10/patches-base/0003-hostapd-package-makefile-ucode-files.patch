@@ -1,5 +1,5 @@
 diff --git a/package/network/services/hostapd/Makefile b/package/network/services/hostapd/Makefile
-index 8753782..614a94f 100644
+index 8753782..6d98a8f 100644
 --- a/package/network/services/hostapd/Makefile
 +++ b/package/network/services/hostapd/Makefile
 @@ -5,13 +5,13 @@
@@ -56,7 +56,7 @@ index 8753782..614a94f 100644
  
  ifeq ($(SSL_VARIANT),openssl)
    DRIVER_MAKEOPTS += CONFIG_TLS=openssl CONFIG_SAE=y
-@@ -566,12 +572,33 @@ define Package/eapol-test-mbedtls
+@@ -566,12 +572,32 @@ define Package/eapol-test-mbedtls
    PROVIDES:=eapol-test
  endef
  
@@ -65,8 +65,7 @@ index 8753782..614a94f 100644
 +  CATEGORY:=Network
 +  SUBMENU:=WirelessAPD
 +  TITLE:=AFC daemon for hostapd
-+  DEPENDS:=$(DRV_DEPENDS) +hostapd $(CORE_DEPENDS)
-+  EXTRA_DEPENDS:=hostapd (=$(PKG_VERSION)-r$(PKG_RELEASE))
++  DEPENDS:=$(DRV_DEPENDS) $(CORE_DEPENDS) $(OPENSSL_DEPENDS)
 +  USERID:=network=101:network=101
 +  URL:=https://github.com/LorenzoBianconi/hostapd/tree/hostap-afc-test-allen
 +  PROVIDES:=afcd
@@ -90,7 +89,7 @@ index 8753782..614a94f 100644
  	rm -f $(PKG_BUILD_DIR)/.config_*
  	touch $(subst .configured_,.config_,$(STAMP_CONFIGURED))
    endef
-@@ -595,14 +622,14 @@ TARGET_CPPFLAGS := \
+@@ -595,14 +621,14 @@ TARGET_CPPFLAGS := \
  	-D_GNU_SOURCE \
  	$(if $(CONFIG_WPA_MSG_MIN_PRIORITY),-DCONFIG_MSG_MIN_PRIORITY=$(CONFIG_WPA_MSG_MIN_PRIORITY))
  
@@ -107,7 +106,7 @@ index 8753782..614a94f 100644
  	$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR)/$(1) \
  		$(TARGET_CONFIGURE_OPTS) \
  		$(DRIVER_MAKEOPTS) \
-@@ -631,6 +658,9 @@ define Build/Compile/wpad
+@@ -631,6 +657,9 @@ define Build/Compile/wpad
  		MULTICALL=1 \
  		wpa_cli wpa_supplicant_multi.a \
  	)
@@ -117,7 +116,7 @@ index 8753782..614a94f 100644
  	+export MAKEFLAGS="$(MAKE_JOBSERVER)"; $(TARGET_CC) -o $(PKG_BUILD_DIR)/wpad \
  		$(TARGET_CFLAGS) \
  		./files/multicall.c \
-@@ -643,6 +673,9 @@ define Build/Compile/hostapd
+@@ -643,6 +672,9 @@ define Build/Compile/hostapd
  	+$(call Build/RunMake,hostapd, \
  		hostapd hostapd_cli \
  	)
@@ -127,7 +126,7 @@ index 8753782..614a94f 100644
  endef
  
  define Build/Compile/supplicant
-@@ -681,12 +714,13 @@ define Build/Compile
+@@ -681,12 +713,13 @@ define Build/Compile
  endef
  
  define Install/hostapd/full
@@ -142,7 +141,7 @@ index 8753782..614a94f 100644
  endef
  
  define Package/hostapd-full/conffiles
-@@ -787,6 +821,13 @@ Package/wpa-supplicant-mesh-openssl/install = $(Package/wpa-supplicant/install)
+@@ -787,6 +820,13 @@ Package/wpa-supplicant-mesh-openssl/install = $(Package/wpa-supplicant/install)
  Package/wpa-supplicant-mesh-wolfssl/install = $(Package/wpa-supplicant/install)
  Package/wpa-supplicant-mesh-mbedtls/install = $(Package/wpa-supplicant/install)
  
@@ -156,7 +155,7 @@ index 8753782..614a94f 100644
  ifneq ($(LOCAL_TYPE),hostapd)
    define Package/wpa-cli/install
  	$(INSTALL_DIR) $(1)/usr/sbin
-@@ -862,3 +903,4 @@ $(eval $(call BuildPackage,eapol-test))
+@@ -862,3 +902,4 @@ $(eval $(call BuildPackage,eapol-test))
  $(eval $(call BuildPackage,eapol-test-openssl))
  $(eval $(call BuildPackage,eapol-test-wolfssl))
  $(eval $(call BuildPackage,eapol-test-mbedtls))
