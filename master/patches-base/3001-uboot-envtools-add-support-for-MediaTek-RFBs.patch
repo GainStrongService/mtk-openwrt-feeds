@@ -5,8 +5,8 @@ Support MediaTek RFBs by using env parameters passed by u-boot via FDT.
 
 Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
 
---- a/package/boot/uboot-envtools/files/mediatek_filogic
-+++ b/package/boot/uboot-envtools/files/mediatek_filogic
+--- a/package/boot/uboot-tools/uboot-envtools/files/mediatek_filogic
++++ b/package/boot/uboot-tools/uboot-envtools/files/mediatek_filogic
 @@ -11,6 +11,26 @@ touch /etc/config/ubootenv
  
  board=$(board_name)
@@ -32,9 +32,9 @@ Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
 +}
 +
  ubootenv_add_mmc_default() {
- 	local envdev="$(find_mmc_part "ubootenv" "${1:-mmcblk0}")"
- 	ubootenv_add_uci_config "$envdev" "0x0" "0x40000" "0x40000" "1"
-@@ -33,6 +53,68 @@ ubootenv_add_ubi_default() {
+ 	ubootenv_add_mmc "ubootenv" "${1:-mmcblk0}" "0x0" "0x40000" "0x40000" "1"
+ 	ubootenv_add_mmc "ubootenv" "${1:-mmcblk0}" "0x40000" "0x40000" "0x40000" "1"
+@@ -22,6 +42,68 @@ ubootenv_add_nor_default() {
  }
  
  case "$board" in
@@ -101,5 +101,5 @@ Signed-off-by: Weijie Gao <weijie.gao@mediatek.com>
 +	esac
 +	;;
  abt,asr3000|\
- h3c,magic-nx30-pro|\
- jcg,q30-pro|\
+ asus,zenwifi-bt8-ubootmod|\
+ cmcc,a10-ubootmod|\

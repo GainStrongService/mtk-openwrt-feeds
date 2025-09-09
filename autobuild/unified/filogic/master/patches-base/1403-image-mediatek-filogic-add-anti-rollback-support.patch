@@ -1,7 +1,7 @@
 --- a/target/linux/mediatek/image/Makefile
 +++ b/target/linux/mediatek/image/Makefile
-@@ -33,6 +33,17 @@ define Device/Default
- 	pad-rootfs | append-metadata
+@@ -38,6 +38,17 @@ define Build/asus-trx
+ 	mv $@.new $@
  endef
  
 +define Image/get_fw_ar_ver
@@ -20,7 +20,7 @@
  
 --- a/target/linux/mediatek/image/filogic.mk
 +++ b/target/linux/mediatek/image/filogic.mk
-@@ -5,6 +5,7 @@ define Image/Prepare
+@@ -7,6 +7,7 @@ define Image/Prepare
  	rm -f $(KDIR)/ubi_mark
  	echo -ne '\xde\xad\xc0\xde' > $(KDIR)/ubi_mark
  	$(if $(CONFIG_MTK_FW_ENC),$(call Image/fw-enc-key-derive))

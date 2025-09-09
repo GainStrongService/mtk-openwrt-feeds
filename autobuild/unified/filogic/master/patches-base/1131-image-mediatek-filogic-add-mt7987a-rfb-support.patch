@@ -1,8 +1,8 @@
---- a/target/linux/mediatek/image/filogic.mk
-+++ b/target/linux/mediatek/image/filogic.mk
-@@ -440,6 +440,91 @@ endif
+--- a/target/linux/mediatek/image/filogic-extra.mk
++++ b/target/linux/mediatek/image/filogic-extra.mk
+@@ -58,3 +58,88 @@ define Device/bananapi_bpi-r4-pro
  endef
- TARGET_DEVICES += bananapi_bpi-r3-mini
+ TARGET_DEVICES += bananapi_bpi-r4-pro
  
 +define Device/mediatek_mt7987a-emmc-rfb
 +  DEVICE_VENDOR := MediaTek
@@ -12,7 +12,7 @@
 +  DEVICE_DTS_DIR := $(DTS_DIR)/
 +  DEVICE_DTC_FLAGS := --pad 4096
 +  DEVICE_DTS_LOADADDR := 0x4ff00000
-+  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal kmod-mt798x-2p5g-phy blkid
++  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal blkid
 +  KERNEL_LOADADDR := 0x40000000
 +  KERNEL := kernel-bin | gzip
 +  KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -33,7 +33,7 @@
 +  DEVICE_DTS_DIR := $(DTS_DIR)/
 +  DEVICE_DTC_FLAGS := --pad 4096
 +  DEVICE_DTS_LOADADDR := 0x4ff00000
-+  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal kmod-mt798x-2p5g-phy blkid
++  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal blkid
 +  KERNEL_LOADADDR := 0x40000000
 +  KERNEL := kernel-bin | gzip
 +  KERNEL_INITRAMFS := kernel-bin | lzma | \
@@ -55,7 +55,7 @@
 +  DEVICE_DTC_FLAGS := --pad 4096
 +  DEVICE_DTS_LOADADDR := 0x4ff00000
 +  KERNEL_LOADADDR := 0x40000000
-+  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal kmod-mt798x-2p5g-phy
++  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal
 +  KERNEL := kernel-bin | gzip
 +  KERNEL_INITRAMFS := kernel-bin | lzma | \
 +        fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
@@ -77,7 +77,7 @@
 +  DEVICE_DTC_FLAGS := --pad 4096
 +  DEVICE_DTS_LOADADDR := 0x4ff00000
 +  KERNEL_LOADADDR := 0x40000000
-+  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal kmod-mt798x-2p5g-phy
++  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal
 +  KERNEL := kernel-bin | gzip
 +  KERNEL_INITRAMFS := kernel-bin | lzma | \
 +        fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
@@ -89,6 +89,3 @@
 +endef
 +TARGET_DEVICES += mediatek_mt7987a-spim-nor-rfb
 +
- define Device/bananapi_bpi-r4-common
-   DEVICE_VENDOR := Bananapi
-   DEVICE_DTS_DIR := $(DTS_DIR)/
