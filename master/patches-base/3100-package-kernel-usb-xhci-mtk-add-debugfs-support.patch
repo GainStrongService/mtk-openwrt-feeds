@@ -1,0 +1,15 @@
+diff --git a/package/kernel/linux/modules/usb.mk b/package/kernel/linux/modules/usb.mk
+index 734df05..a5edcab 100644
+--- a/package/kernel/linux/modules/usb.mk
++++ b/package/kernel/linux/modules/usb.mk
+@@ -1864,7 +1864,9 @@ $(eval $(call KernelPackage,usb-xhci-hcd))
+ define KernelPackage/usb-xhci-mtk
+   TITLE:=xHCI support for MediaTek SoCs
+   DEPENDS:=+kmod-usb-xhci-hcd
+-  KCONFIG:=CONFIG_USB_XHCI_MTK
++  KCONFIG:= \
++        CONFIG_USB_XHCI_MTK \
++        CONFIG_USB_XHCI_MTK_DEBUGFS=n
+   HIDDEN:=1
+   FILES:= \
+ 	 $(LINUX_DIR)/drivers/usb/host/xhci-mtk-hcd.ko

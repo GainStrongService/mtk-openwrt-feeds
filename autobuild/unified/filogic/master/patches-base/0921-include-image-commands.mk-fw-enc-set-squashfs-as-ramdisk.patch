@@ -1,0 +1,11 @@
+--- a/include/image-commands.mk
++++ b/include/image-commands.mk
+@@ -380,7 +380,7 @@ define Build/fit
+ 			$(if $(findstring 11,$(if $(DEVICE_DTS_OVERLAY),1)$(if $(findstring $(KERNEL_BUILD_DIR)/image-,$(word 2,$(1))),,1)), \
+ 				-d $(KERNEL_BUILD_DIR)/image-$$(basename $(word 2,$(1))), \
+ 				-d $(word 2,$(1)))) \
+-		$(if $(findstring with-rootfs,$(word 3,$(1))),-r $(IMAGE_ROOTFS)) \
++		$(if $(findstring with-rootfs,$(word 3,$(1))),$(if $(CONFIG_MTK_FW_ENC_USE_RAMDISK),-i,-r) $(IMAGE_ROOTFS)) \
+ 		$(if $(findstring with-initrd,$(word 3,$(1))), \
+ 			$(if $(CONFIG_TARGET_ROOTFS_INITRAMFS_SEPARATE), \
+ 				-i $(KERNEL_BUILD_DIR)/initrd$(if $(TARGET_PER_DEVICE_ROOTFS),.$(ROOTFS_ID/$(DEVICE_NAME))).cpio$(strip $(call Build/initrd_compression)))) \

@@ -1,0 +1,207 @@
+menu "OP-TEE OS Configuration"
+	depends on PACKAGE_optee-mediatek
+	menu "OP-TEE OS Debug Configuration"
+		config OPTEE_DEBUG_INFO
+			bool "OP-TEE Core Debug Info"
+			default n
+			help
+			  Embed debug information in OP-TEE core
+
+		config OPTEE_CORE_DEBUG
+			bool "OP-TEE Core Debug"
+			default n
+			help
+			  Enable debug features of OP-TEE core, assterion, lock checks
+
+		choice OPTEE_CORE_LOG_LEVEL
+			bool "OP-TEE Core Log Level"
+			default OPTEE_CORE_LOG_LEVEL_INFO
+			config OPTEE_CORE_LOG_LEVEL_NONE
+				bool "NONE"
+			config OPTEE_CORE_LOG_LEVEL_ERROR
+				bool "ERROR"
+			config OPTEE_CORE_LOG_LEVEL_INFO
+				bool "INFO"
+			config OPTEE_CORE_LOG_LEVEL_DEBUG
+				bool "DEBUG"
+			config OPTEE_CORE_LOG_LEVEL_FLOW
+				bool "FLOW"
+		endchoice
+
+		config OPTEE_CORE_MALLOC_DEBUG
+			bool "OP-TEE Core Malloc Debug"
+			default n
+
+		config OPTEE_CORE_SANITIZE_UNDEFINED
+			bool "OP-TEE Core Undefined Sanitizer"
+			default n
+			help
+			  Enable support for detected undefined behavior
+
+		config OPTEE_CORE_SANITIZE_KADDRESS
+			bool "OP-TEE Core Kernel Address Sanitizer"
+			default n
+			help
+			  Enable Kernel Address sanitizer
+
+		config OPTEE_CORE_DEBUG_CHECK_STACKS
+			bool "OP-TEE Core Debug Check Stacks"
+			default n
+			help
+			  Use compiler instrumentation to troubleshoot stack overflows
+
+		choice OPTEE_TA_LOG_LEVEL
+			bool "OP-TEE TA Log Level"
+			default OPTEE_TA_LOG_LEVEL_ERROR
+			depends on !OPTEE_CORE_LOG_LEVEL_NONE
+			config OPTEE_TA_LOG_LEVEL_NONE
+				bool "NONE"
+			config OPTEE_TA_LOG_LEVEL_ERROR
+				bool "ERROR"
+			config OPTEE_TA_LOG_LEVEL_INFO
+				bool "INFO"
+			config OPTEE_TA_LOG_LEVEL_DEBUG
+				bool "DEBUG"
+			config OPTEE_TA_LOG_LEVEL_FLOW
+				bool "FLOW"
+		endchoice
+
+		config OPTEE_CORE_TA_TRACE
+			bool "OP-TEE Core TA Trace"
+			default y
+			help
+			  TA traces are output according to OP-TEE TA Log Level
+
+		config OPTEE_TA_STATS
+			bool "OP-TEE TA Stats"
+			default n
+			help
+			  User TA runtime context dump
+
+		config OPTEE_TA_MALLOC_DEBUG
+			bool "OP-TEE TA Malloc Debug"
+			default n
+	endmenu
+
+	menu "OP-TEE OS Memory Configuration"
+		config BL32_TZRAM_BASE
+			string "BL32 TZRAM base address"
+			default "0x4fa00000"
+
+		config BL32_TZRAM_SIZE
+			string "BL32 TZRAM size"
+			default "0x500000"
+
+		config BL32_LOAD_OFFSET
+			string "BL32 load offset"
+			default "0x1000"
+
+		config OPTEE_CORE_DYN_SHMEM
+			bool "OP-TEE Core Dynamic Shared Memory"
+			default y
+			help
+			  Enable support for dynamic shared memory (anywhere in non-secure memory)
+
+		config OPTEE_DRAM_BASE
+			string "OP-TEE Non-secure DRAM BASE"
+			default "0x40000000"
+			depends on OPTEE_CORE_DYN_SHMEM
+
+		config OPTEE_DRAM_SIZE
+			string "OP-TEE Non-secure DRAM SIZE"
+			default "0x40000000"
+			depends on OPTEE_CORE_DYN_SHMEM
+	endmenu
+
+	menu "OP-TEE Secure Storage Configuration"
+		config OPTEE_REE_FS
+			bool "OP-TEE REE(Rich Execution Environment) FS"
+			default y
+			depends on !OPTEE_RPMB_FS
+			help
+			  Enable this option to store data to REE(Linux) file system
+			  when invoking storage APIs by TAs
+
+		config OPTEE_RPMB_FS
+			bool "OP-TEE RPMB FS"
+			default n
+			help
+			  Enable OP-TEE RPMB FS storage, make sure the device supports eMMC flash
+
+		config OPTEE_RPMB_FS_DEBUG_DATA
+			bool "Debug RPMB Data Frame"
+			default n
+			depends on OPTEE_RPMB_FS && OPTEE_CORE_LOG_LEVEL_DEBUG=y
+			help
+			  Dump the data frame sent/received to/from OP-TEE core,
+			  only enabled when the log level is set to debug
+
+		config OPTEE_RPMB_WRITE_KEY
+			bool "RPMB Key Provision"
+			default n
+			depends on OPTEE_RPMB_FS
+			help
+			  Enable RPMB write key stage, OP-TEE core sends the RPMB key
+			  to non-secure world for writing to the RPMB partition
+
+		menu "Storage Test Configuration"
+		depends on OPTEE_REE_FS=y || OPTEE_RPMB_FS=y
+			config OPTEE_REE_FS_ALLOW_RESET
+				bool "Allow to reset whole OP-TEE REE FS"
+				default n
+				depends on OPTEE_REE_FS
+				help
+				  Allow to reset whole REE FS storage, should use
+				  in testing purpose
+
+			config OPTEE_RPMB_TESTKEY
+				bool "Use RPMB Test Key instead of HUK Derived Key"
+				default n
+				depends on OPTEE_RPMB_FS
+				help
+				  Use test key instead of key derived from HUK as RPMB key,
+				  only for testing purpose
+		endmenu
+	endmenu
+
+	config OPTEE_ENABLE_EMBEDDED_TESTS
+		bool "OP-TEE Core Enable Embedded Tests"
+		default n
+
+	config OPTEE_EARLY_TA
+		bool "OP-TEE early TA"
+		default n
+
+	config OPTEE_FW_ENC_EARLY_TA
+		bool "OPTEE Firmware Encryption early TA"
+		default n
+		select OPTEE_EARLY_TA
+
+	config OPTEE_TA_SIGN_KEY
+		string "OP-TEE TA_SIGN_KEY"
+		default "keys/default_ta.pem"
+		help
+		  Determine signing key for OP-TEE TA's.
+		  If OPTEE_OFFLINE_SIGN enable, this key is real key for
+		  offline sign script test key.
+
+	config OPTEE_OFFLINE_SIGN
+		bool "OP-TEE OFFLINE_SIGN"
+		default n
+		help
+		  TAs offline sign
+
+	config OPTEE_OFFLINE_SIGN_DUMMY_KEY
+		string "OP-TEE OFFLINE_SIGN DUMMY KEY"
+		default "keys/default_ta.pem"
+		depends on OPTEE_OFFLINE_SIGN
+		help
+		  TAs offline sign's dummy key
+
+	config OPTEE_TA_PUBLIC_KEY
+		string "OP-TEE TA_PUBLIC_KEY"
+		default "keys/default_ta.pem"
+		depends on OPTEE_OFFLINE_SIGN
+		help
+		  Determine public key in OP-TEE OS
+endmenu

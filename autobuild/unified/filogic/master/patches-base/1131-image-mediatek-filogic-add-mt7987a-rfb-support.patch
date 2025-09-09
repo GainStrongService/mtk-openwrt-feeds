@@ -1,0 +1,94 @@
+--- a/target/linux/mediatek/image/filogic.mk
++++ b/target/linux/mediatek/image/filogic.mk
+@@ -440,6 +440,91 @@ endif
+ endef
+ TARGET_DEVICES += bananapi_bpi-r3-mini
+ 
++define Device/mediatek_mt7987a-emmc-rfb
++  DEVICE_VENDOR := MediaTek
++  DEVICE_MODEL := MT7987A rfb (EMMC)
++  DEVICE_DTS_CONFIG := config-mt7987a-emmc
++  DEVICE_DTS := mt7987a-emmc-rfb
++  DEVICE_DTS_DIR := $(DTS_DIR)/
++  DEVICE_DTC_FLAGS := --pad 4096
++  DEVICE_DTS_LOADADDR := 0x4ff00000
++  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal kmod-mt798x-2p5g-phy blkid
++  KERNEL_LOADADDR := 0x40000000
++  KERNEL := kernel-bin | gzip
++  KERNEL_INITRAMFS := kernel-bin | lzma | \
++        fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
++  KERNEL_INITRAMFS_SUFFIX := .itb
++  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
++  IMAGES := sysupgrade.itb
++  IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
++  SUPPORTED_DEVICES += mediatek,mt7987a-rfb
++endef
++TARGET_DEVICES += mediatek_mt7987a-emmc-rfb
++
++define Device/mediatek_mt7987a-sd-rfb
++  DEVICE_VENDOR := MediaTek
++  DEVICE_MODEL := MT7987A rfb (SD)
++  DEVICE_DTS_CONFIG := config-mt7987a-sd
++  DEVICE_DTS := mt7987a-sd-rfb
++  DEVICE_DTS_DIR := $(DTS_DIR)/
++  DEVICE_DTC_FLAGS := --pad 4096
++  DEVICE_DTS_LOADADDR := 0x4ff00000
++  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal kmod-mt798x-2p5g-phy blkid
++  KERNEL_LOADADDR := 0x40000000
++  KERNEL := kernel-bin | gzip
++  KERNEL_INITRAMFS := kernel-bin | lzma | \
++        fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
++  KERNEL_INITRAMFS_SUFFIX := .itb
++  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
++  IMAGES := sysupgrade.itb
++  IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
++  SUPPORTED_DEVICES += mediatek,mt7987a-rfb
++endef
++TARGET_DEVICES += mediatek_mt7987a-sd-rfb
++
++define Device/mediatek_mt7987a-spim-nand-rfb
++  DEVICE_VENDOR := MediaTek
++  DEVICE_MODEL := MT7987A rfb (spim-nand)
++  DEVICE_DTS_CONFIG := config-mt7987a-spim-nand
++  DEVICE_DTS := mt7987a-spim-nand-rfb
++  DEVICE_DTS_DIR := $(DTS_DIR)/
++  DEVICE_DTC_FLAGS := --pad 4096
++  DEVICE_DTS_LOADADDR := 0x4ff00000
++  KERNEL_LOADADDR := 0x40000000
++  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal kmod-mt798x-2p5g-phy
++  KERNEL := kernel-bin | gzip
++  KERNEL_INITRAMFS := kernel-bin | lzma | \
++        fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
++  KERNEL_INITRAMFS_SUFFIX := .itb
++  KERNEL_IN_UBI := 1
++  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
++  IMAGES := sysupgrade.itb
++  IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
++  SUPPORTED_DEVICES += mediatek,mt7987a-rfb
++endef
++TARGET_DEVICES += mediatek_mt7987a-spim-nand-rfb
++
++define Device/mediatek_mt7987a-spim-nor-rfb
++  DEVICE_VENDOR := MediaTek
++  DEVICE_MODEL := MT7987A rfb (spim-nor)
++  DEVICE_DTS_CONFIG := config-mt7987a-spim-nor
++  DEVICE_DTS := mt7987a-spim-nor-rfb
++  DEVICE_DTS_DIR := $(DTS_DIR)/
++  DEVICE_DTC_FLAGS := --pad 4096
++  DEVICE_DTS_LOADADDR := 0x4ff00000
++  KERNEL_LOADADDR := 0x40000000
++  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal kmod-mt798x-2p5g-phy
++  KERNEL := kernel-bin | gzip
++  KERNEL_INITRAMFS := kernel-bin | lzma | \
++        fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
++  KERNEL_INITRAMFS_SUFFIX := .itb
++  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
++  IMAGES := sysupgrade.itb
++  IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
++  SUPPORTED_DEVICES += mediatek,mt7987a-rfb
++endef
++TARGET_DEVICES += mediatek_mt7987a-spim-nor-rfb
++
+ define Device/bananapi_bpi-r4-common
+   DEVICE_VENDOR := Bananapi
+   DEVICE_DTS_DIR := $(DTS_DIR)/

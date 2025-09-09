@@ -1,0 +1,33 @@
+menu "OP-TEE MTK Configuration"
+	depends on PACKAGE_optee-mediatek
+	menu "Test Configuration"
+		config OPTEE_MTK_TEST
+			bool "Enable MTK Testsuite"
+			select OPTEE_TEST
+			select OPTEE_MTK_SECURE_STORAGE
+			select OPTEE_MTK_RNG
+			default n
+
+		config OPTEE_MTK_TEST_FIPS
+			bool "Enable MTK FIPS test interface"
+			default n
+			depends on OPTEE_MTK_TEST
+	endmenu
+
+	config OPTEE_MTK_SECURE_STORAGE
+		bool "Enable secure storage example"
+		default n
+		help
+		  Enable secure storage host/TA example to manipulate OP-TEE storage
+		  by using user space commands, including read/write/delete/rename/list
+		  operations, mainly for testing purpose
+
+	config OPTEE_MTK_RNG
+		bool "Enable random number generator(RNG) command"
+		default n
+		help
+		  Enable random number generator(RNG) host example to get random
+		  number from OP-TEE OS by using user space commands, mainly for
+		  testing purpose
+
+endmenu

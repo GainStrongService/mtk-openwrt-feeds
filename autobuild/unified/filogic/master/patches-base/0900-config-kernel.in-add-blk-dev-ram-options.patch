@@ -1,0 +1,21 @@
+--- a/config/Config-kernel.in
++++ b/config/Config-kernel.in
+@@ -1488,3 +1488,18 @@ config KERNEL_WERROR
+ 	  and unusual warnings, or you have some architecture with problems,
+ 	  you may need to disable this config option in order to
+ 	  successfully build the kernel.
++
++config KERNEL_BLK_DEV_RAM
++	bool "RAM block device support"
++	default n
++	depends on MTK_FW_ENC_USE_RAMDISK
++
++config KERNEL_BLK_DEV_RAM_COUNT
++	int "Default number of RAM disks"
++	default 1
++	depends on KERNEL_BLK_DEV_RAM
++
++config KERNEL_BLK_DEV_RAM_SIZE
++	int "Default RAM disk size (kbytes)"
++	default 30720
++	depends on KERNEL_BLK_DEV_RAM
