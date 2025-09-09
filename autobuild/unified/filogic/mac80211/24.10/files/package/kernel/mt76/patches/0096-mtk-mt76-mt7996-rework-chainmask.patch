@@ -1,7 +1,7 @@
-From a88d7bf0c70f49fac6d8318fff798f8ca9050810 Mon Sep 17 00:00:00 2001
+From 2c1d49b799f1bd3000aad1f41a80a2fd3944ba79 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Fri, 6 Jun 2025 10:40:55 +0800
-Subject: [PATCH 096/119] mtk: mt76: mt7996: rework chainmask
+Subject: [PATCH 096/123] mtk: mt76: mt7996: rework chainmask
 
 It is more convenient for the driver to leave the chainmask unshifted, as
 the shifted chainmask is only used for radio->antenna_mask and
@@ -109,7 +109,7 @@ index b33cb772..ffcf3616 100644
  		mt76_set_stream_caps(phy->mt76, true);
  		mt7996_set_stream_vht_txbf_caps(phy);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 3acf24a3..746ded91 100644
+index f64ea3c3..b8366733 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -5649,7 +5649,7 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag, bool sta)

@@ -1,7 +1,7 @@
-From 8017d216fe84ada53c87b75af2b82ba625448042 Mon Sep 17 00:00:00 2001
+From bf3757d72e8c49366230af2d75458feca92fe745 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Mon, 11 Aug 2025 12:41:50 +0800
-Subject: [PATCH 112/119] mtk: mt76: mt7996: deny addba request when delete BA
+Subject: [PATCH 112/123] mtk: mt76: mt7996: deny addba request when delete BA
  is not finish
 
 MT7996 needs to delete RRO session when receiving FW command.
@@ -58,7 +58,7 @@ index d60302b9..172ec9dd 100644
  		 * multiple links, store the AMPDU state for reordering in the
  		 * primary link
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 624e224c..53176be6 100644
+index a056da67..990978c2 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1379,6 +1379,7 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)

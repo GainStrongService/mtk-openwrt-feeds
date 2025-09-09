@@ -1,7 +1,7 @@
-From 6ba55be18f1a7bece7b1f7293b2041594ec3fae7 Mon Sep 17 00:00:00 2001
+From 18f326771f8b2bbf4511345917dd6a1328d95d97 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 27 Feb 2025 13:58:35 +0800
-Subject: [PATCH 075/119] mtk: mt76: mt7996: rework radar rdd idx
+Subject: [PATCH 075/123] mtk: mt76: mt7996: rework radar rdd idx
 
 The definition of MT_RX_SEL (for rdd_rx_sel) is mixed with the definition of HWRDD idx.
 For example, MT_RX_SEL2 is for background HWRDD idx, not an option of rdd_rx_sel.
@@ -68,7 +68,7 @@ index 931b2734..e6cc39d7 100644
  		debugfs_create_devm_seqfile(dev->mt76.dev, "rdd_monitor", dir,
  					    mt7996_rdd_monitor);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 5e646bbb..af749bf7 100644
+index 601da2ae..b0d2be11 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -455,7 +455,7 @@ mt7996_mcu_rx_radar_detected(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -90,7 +90,7 @@ index 5e646bbb..af749bf7 100644
  	if (!chandef) { /* disable offchain */
  		err = mt7996_mcu_rdd_cmd(dev, RDD_STOP, rdd_idx, 0);
  		if (err)
-@@ -6902,7 +6905,7 @@ int mt7996_mcu_rdd_background_disable_timer(struct mt7996_dev *dev, bool disable
+@@ -6901,7 +6904,7 @@ int mt7996_mcu_rdd_background_disable_timer(struct mt7996_dev *dev, bool disable
  		.tag = cpu_to_le16(UNI_RDD_CTRL_PARM),
  		.len = cpu_to_le16(sizeof(req) - 4),
  		.ctrl = RDD_DISABLE_ZW_TIMER,

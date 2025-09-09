@@ -1,7 +1,7 @@
-From 4ed04a5f514bd3566326bac2ca6d78e9d851d2e1 Mon Sep 17 00:00:00 2001
+From 39015f741f238db92028326ff41ff42f0d3625a6 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Fri, 6 Jun 2025 15:40:14 +0800
-Subject: [PATCH 098/119] mtk: mt76: mt7996: fix csa finish flow to prevent no
+Subject: [PATCH 098/123] mtk: mt76: mt7996: fix csa finish flow to prevent no
  beacon issue after channel switch
 
 Check omac index to get the correct vif when receiving csa event from fw.
@@ -16,7 +16,7 @@ Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
  2 files changed, 31 insertions(+), 9 deletions(-)
 
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 3ae92cbc..b60b9e3a 100644
+index 4937f73f..6b0e7e11 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -401,9 +401,11 @@ int mt7996_mcu_wa_cmd(struct mt7996_dev *dev, int cmd, u32 a1, u32 a2, u32 a3)

@@ -1,7 +1,7 @@
-From 0a58703b165369114bb3e575df11b77240e4bebc Mon Sep 17 00:00:00 2001
+From 2980088bef2eaee68a6fc23cab70ccc2a08d9d71 Mon Sep 17 00:00:00 2001
 From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
 Date: Thu, 5 Jun 2025 23:25:59 +0800
-Subject: [PATCH 100/119] mtk: mt76: mt7996: add 5th rx rssi dump support
+Subject: [PATCH 100/123] mtk: mt76: mt7996: add 5th rx rssi dump support
 
 Dump the rssi of 5th rx for mt7990 6G 4T5R & mt7992 5G 5T5R
 
@@ -207,10 +207,10 @@ index a5084ca9..2b91eab7 100644
  						    -msta_link->chain_signal[i]);
  			ewma_avg_signal_add(&msta_link->signal_avg, -msta_link->signal);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 69bee714..165c85b0 100644
+index 6460a760..d1710e19 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -7247,20 +7247,33 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+@@ -7246,20 +7246,33 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
  	switch (tag) {
  	case UNI_PER_STA_RSSI:
  		for (i = 0; i < sta_num; ++i) {
@@ -253,7 +253,7 @@ index 69bee714..165c85b0 100644
  		}
  		break;
  	case UNI_PER_STA_SNR:
-@@ -7270,7 +7283,7 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
+@@ -7269,7 +7282,7 @@ int mt7996_mcu_get_per_sta_info(struct mt76_dev *dev, u16 tag,
  			msta_link = container_of(wcid, struct mt7996_sta_link, wcid);
  			if (msta_link)
  				memcpy(msta_link->chain_ack_snr, res->snr[i].val,

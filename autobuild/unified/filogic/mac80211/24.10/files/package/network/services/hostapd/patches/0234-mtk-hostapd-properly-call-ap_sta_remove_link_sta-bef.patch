@@ -1,4 +1,4 @@
-From 50fc1c9e94bbb726893d03aedccc49d58f20bd58 Mon Sep 17 00:00:00 2001
+From 616c6ef1a33532f29c5d4ca879089d62fb644121 Mon Sep 17 00:00:00 2001
 From: Michael-CY Lee <michael-cy.lee@mediatek.com>
 Date: Thu, 21 Aug 2025 09:11:53 +0800
 Subject: [PATCH 234/236] mtk: hostapd: properly call ap_sta_remove_link_sta()
@@ -13,23 +13,26 @@ ap_free_sta() to prevent the issue.
 
 Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
 ---
- src/ap/sta_info.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ src/ap/sta_info.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
 
 diff --git a/src/ap/sta_info.c b/src/ap/sta_info.c
-index e32c491c9..46145cf32 100644
+index e32c491c9..bedefdfac 100644
 --- a/src/ap/sta_info.c
 +++ b/src/ap/sta_info.c
-@@ -524,6 +524,8 @@ void hostapd_free_stas(struct hostapd_data *hapd)
+@@ -524,6 +524,11 @@ void hostapd_free_stas(struct hostapd_data *hapd)
  		sta = sta->next;
  		wpa_printf(MSG_DEBUG, "Removing station " MACSTR,
  			   MAC2STR(prev->addr));
-+		if (ap_sta_is_mld(hapd, prev))
++#ifdef CONFIG_IEEE80211BE
++		if (ap_sta_is_mld(hapd, prev) && !(hapd->mld &&
++		    (hapd->mld->removed_links & BIT(hapd->mld_link_id))))
 +			ap_sta_remove_link_sta(hapd, prev);
++#endif /* CONFIG_IEEE80211BE */
  		ap_free_sta(hapd, prev);
  	}
  }
-@@ -768,6 +770,8 @@ static void ap_handle_session_timer(void *eloop_ctx, void *timeout_ctx)
+@@ -768,6 +773,8 @@ static void ap_handle_session_timer(void *eloop_ctx, void *timeout_ctx)
  		       "session timeout");
  	sta->acct_terminate_cause =
  		RADIUS_ACCT_TERMINATE_CAUSE_SESSION_TIMEOUT;
@@ -38,7 +41,7 @@ index e32c491c9..46145cf32 100644
  	ap_free_sta(hapd, sta);
  }
  
-@@ -842,8 +846,11 @@ static void ap_sta_assoc_timeout(void *eloop_ctx, void *timeout_ctx)
+@@ -842,8 +849,11 @@ static void ap_sta_assoc_timeout(void *eloop_ctx, void *timeout_ctx)
  	if (sta->flags & WLAN_STA_AUTH)
  		ap_sta_deauthenticate(hapd, sta,
  				      WLAN_REASON_PREV_AUTH_NOT_VALID);

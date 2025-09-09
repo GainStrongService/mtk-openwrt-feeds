@@ -1,7 +1,7 @@
-From 1db73e638cf535e4820fb36cb873a96e7dc7a100 Mon Sep 17 00:00:00 2001
+From 9d78637bb61745d985a23a4f2178ab06a75c829a Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 16 Apr 2025 11:04:00 +0800
-Subject: [PATCH 082/119] mtk: mt76: mt7996: fix bcn prot hw mode
+Subject: [PATCH 082/123] mtk: mt76: mt7996: fix bcn prot hw mode
 
 Fix beacon protection hw mode.
 1. Set TXD_BIP when it is beacon and beacon protection is enabled.
@@ -88,7 +88,7 @@ index 5895294d..6102b099 100644
  out:
  	mutex_unlock(&dev->mt76.mutex);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index 89b6e0bf..de621eec 100644
+index 88026725..32561aed 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -3718,11 +3718,20 @@ mt7996_mcu_sta_key_tlv(struct mt76_dev *dev,

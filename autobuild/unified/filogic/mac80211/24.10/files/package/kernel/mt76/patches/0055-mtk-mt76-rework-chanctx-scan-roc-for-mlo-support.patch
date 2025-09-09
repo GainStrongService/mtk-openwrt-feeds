@@ -1,7 +1,7 @@
-From ef65c0e9f6ad41c0a8949eb8bb075cbb0060fdfb Mon Sep 17 00:00:00 2001
+From ff86c9ad8712d936651bc2bf5901f2cb171bbbe4 Mon Sep 17 00:00:00 2001
 From: Shayne Chen <shayne.chen@mediatek.com>
 Date: Mon, 30 Dec 2024 11:21:32 +0800
-Subject: [PATCH 055/119] mtk: mt76: rework chanctx/scan/roc for mlo support
+Subject: [PATCH 055/123] mtk: mt76: rework chanctx/scan/roc for mlo support
 
 Main changes:
 sync some channel/scan/roc API
@@ -43,9 +43,9 @@ Signed-off-by: Shayne Chen <shayne.chen@mediatek.com>
  mt7996/init.c |   2 +
  mt7996/mac.c  |  12 ++-
  mt7996/main.c |  25 ++++++-
- mt7996/mcu.c  |   4 +-
+ mt7996/mcu.c  |   5 +-
  scan.c        | 124 ++++++++++++++++++++++++++++---
- 8 files changed, 310 insertions(+), 70 deletions(-)
+ 8 files changed, 310 insertions(+), 71 deletions(-)
 
 diff --git a/channel.c b/channel.c
 index 77b75792..57966240 100644
@@ -539,19 +539,20 @@ index 185c02ab..8a3e7f90 100644
  	if (phy->dev->cal) {
  		ret = mt7996_mcu_apply_tx_dpd(phy);
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index a46b7959..f00d76de 100644
+index a46b7959..59ed54d6 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
-@@ -5631,7 +5631,7 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag, bool sta)
+@@ -5630,8 +5630,7 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag, bool sta)
+ 	if (phy->mt76->hw->conf.flags & IEEE80211_CONF_MONITOR)
  		req.switch_reason = CH_SWITCH_NORMAL;
  	else if (phy->mt76->offchannel ||
- 		 phy->mt76->hw->conf.flags & IEEE80211_CONF_IDLE ||
+-		 phy->mt76->hw->conf.flags & IEEE80211_CONF_IDLE ||
 -		 phy->scan_chan)
-+		 test_bit(MT76_SCANNING, &phy->mt76->state))
++		 phy->mt76->hw->conf.flags & IEEE80211_CONF_IDLE)
  		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
  	else if (!cfg80211_reg_can_beacon(phy->mt76->hw->wiphy, chandef, iftype))
  		req.switch_reason = CH_SWITCH_DFS;
-@@ -8687,7 +8687,7 @@ int mt7996_mcu_set_qos_map(struct mt7996_dev *dev, struct mt7996_vif_link *mconf
+@@ -8687,7 +8686,7 @@ int mt7996_mcu_set_qos_map(struct mt7996_dev *dev, struct mt7996_vif_link *mconf
  		}
  	}
  

@@ -1,7 +1,7 @@
-From 9a3b6b3fe950e58063939f79295a99d2bbd4e0a0 Mon Sep 17 00:00:00 2001
+From 7de4e67aaf7669f3e05a9d71e24105a6e553da9c Mon Sep 17 00:00:00 2001
 From: Howard Hsu <howard-yh.hsu@mediatek.com>
 Date: Thu, 5 Jun 2025 10:55:47 +0800
-Subject: [PATCH 099/119] mtk: mt76: mt7996: refactor reading current tx duty
+Subject: [PATCH 099/123] mtk: mt76: mt7996: refactor reading current tx duty
  cycle
 
 Refactor the ways to read the current tx duty cycle due to the firmware
@@ -90,7 +90,7 @@ index 2d486799..86362a2f 100644
  static struct attribute *mt7996_hwmon_attrs[] = {
  	&sensor_dev_attr_temp1_input.dev_attr.attr,
 diff --git a/mt7996/mcu.c b/mt7996/mcu.c
-index b60b9e3a..69bee714 100644
+index 6b0e7e11..6460a760 100644
 --- a/mt7996/mcu.c
 +++ b/mt7996/mcu.c
 @@ -1182,19 +1182,19 @@ mt7996_mcu_csi_report_event(struct mt7996_dev *dev, struct sk_buff *skb)
@@ -139,7 +139,7 @@ index b60b9e3a..69bee714 100644
  		break;
  #ifdef CONFIG_NL80211_TESTMODE
  	case MCU_UNI_EVENT_TESTMODE_CTRL:
-@@ -6415,15 +6414,15 @@ int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state)
+@@ -6414,15 +6413,15 @@ int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state)
  	for (level = 0; level < 4; level++) {
  		req.ctrl.duty.duty_level = level;
  		req.ctrl.duty.duty_cycle = state;
@@ -158,7 +158,7 @@ index b60b9e3a..69bee714 100644
  
  	return 0;
  }
-@@ -6468,6 +6467,29 @@ int mt7996_mcu_set_thermal_protect(struct mt7996_phy *phy, bool enable)
+@@ -6467,6 +6466,29 @@ int mt7996_mcu_set_thermal_protect(struct mt7996_phy *phy, bool enable)
  				 &req, sizeof(req), false);
  }
  
