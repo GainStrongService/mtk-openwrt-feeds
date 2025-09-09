@@ -67,6 +67,8 @@
 // Runtime Power Management Device Macros API
 #include "rpm_device_macros.h"  // RPM_*
 
+#include <linux/platform_device.h>
+
 
 /*----------------------------------------------------------------------------
  * Definitions and macros

@@ -99,12 +99,16 @@ typedef unsigned int   uint32_t;
 #endif
 
 /* ============ MIN, MAX ============ */
-
 // warning for side-effects on the following two macros since the arguments
 // are evaluated twice changing this to inline functions is problematic
 // because of type incompatibilities
+#include <linux/version.h>
+#if KERNEL_VERSION(6, 12, 0) < LINUX_VERSION_CODE
+#include <linux/minmax.h>
+#else
 #define MIN(_x, _y) ((_x) < (_y) ? (_x) : (_y))
 #define MAX(_x, _y) ((_x) > (_y) ? (_x) : (_y))
+#endif
 
 /* ============ BIT_n ============ */
 

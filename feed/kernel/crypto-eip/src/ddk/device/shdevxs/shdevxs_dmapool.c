@@ -169,14 +169,15 @@ SHDevXS_Internal_DMAPool_Initialize(void)
 
     // Initialize the locks
     Descriptor_Lock = SHDevXS_Internal_Lock_Alloc();
-    if (Descriptor_Lock == NULL)
-    {
-        LOG_CRIT("SHDevXS_Internal_DMAPool_Initialize: lock allocation failed\n");
-        SHDevXS_Internal_DMAPool_UnInitialize();
-        return -1;
-    }
-    else
-        LOG_INFO("SHDevXS_Internal_DMAPool_Initialize: Lock obtained\n");
+
+	if (Descriptor_Lock == NULL)
+	{
+		LOG_CRIT("SHDevXS_Internal_DMAPool_Initialize: lock allocation failed\n");
+		SHDevXS_Internal_DMAPool_UnInitialize();
+		return -1;
+	} else {
+		LOG_INFO("SHDevXS_Internal_DMAPool_Initialize: Lock obtained\n");
+	}
 
     return 0;
 }
