@@ -1,8 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ephy-utils
-PKG_VERSION:=1
-PKG_RELEASE:=1
+PKG_VERSION:=1.0.0
 
 PKG_CONFIG_DEPENDS:=
 
@@ -13,7 +12,6 @@ define Package/ephy-utils
   CATEGORY:=MTK Properties
   SUBMENU:=Misc
   TITLE:=Ethernet Phy Utilities
-  VERSION:=$(PKG_RELEASE)-$(REVISION)
   DEPENDS:=+mii_mgr +switch
 endef
 
