@@ -34,7 +34,16 @@ platform_change_openwrt_config() {
 
 filogic_change_kernel_config() {
 	kernel_config_enable CONFIG_EXTRA_FIRMWARE "\"airoha/EthMD32.dm.bin airoha/EthMD32.DSP.bin\""
-	kernel_config_enable CONFIG_EXTRA_FIRMWARE_DIR "\"../../linux-firmware-20241110/\""
+
+	case ${kernel_ver} in
+		6.12*)
+			kernel_config_enable CONFIG_EXTRA_FIRMWARE_DIR "\"../../linux-firmware-20250808/"\"
+		;;
+		*)
+			kernel_config_enable CONFIG_EXTRA_FIRMWARE_DIR "\"../../linux-firmware-20241110/"\"
+		;;
+	esac
+
 	kernel_config_enable CONFIG_AIR_EN8811H_PHY
 	kernel_config_enable CONFIG_AIR_EN8811H_PHY_DEBUGFS
 	kernel_config_enable CONFIG_MT753X_GSW
