@@ -7,6 +7,7 @@ import requests
 import subprocess
 import json
 import time
+import math
 
 class WeatherAPI:
     def __init__(self, key):
@@ -107,6 +108,19 @@ def altitude_calculate(pressure_sealevel, pressure_target, temp_sealevel):
 
     return val
 
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371000  # 地球半徑，單位為公尺
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+    distance = R * c
+    return distance
+
 def altitude_write_to_file(filename, altitude):
     with open(filename, 'w') as f:
         f.write(str(altitude))
@@ -151,10 +165,10 @@ class CalibrationData:
 
         return (val / 1000)
 
-def altitude_evaluate(args):
+def altitude_evaluate(args, lon, lat):
     key = args.key
-    lat = args.lat
-    lon = args.lon
+    # lat = args.lat
+    # lon = args.lon
     path = args.write
     api = args.api
 
@@ -171,14 +185,15 @@ def altitude_evaluate(args):
     p_offset = CalibrationData.pressure_offset_read()
     altitude = altitude_calculate(p_sealevel, p_measured + p_offset, t_sealevel)
 
-    print(f"pressure_sealevel(hPa): {p_sealevel}")
-    print(f"pressure_measured(hPa): {p_measured}")
-    print(f"pressure_offset(hPa):   {p_offset}")
-    print(f"temp_sealevel(c):       {t_sealevel}")
-    print(f"altitude(m):            {altitude}")
+    #print(f"pressure_sealevel(hPa): {p_sealevel}")
+    #print(f"pressure_measured(hPa): {p_measured}")
+    #print(f"pressure_offset(hPa):   {p_offset}")
+    #print(f"temp_sealevel(c):       {t_sealevel}")
+    #print(f"altitude(m):            {altitude}")
 
     if path != None:
         altitude_write_to_file(path, altitude)
+    return altitude
 
 def update_offset(offset):
     if offset < -1000 or offset > 1000:
@@ -275,6 +290,7 @@ def main():
     parser.add_argument('-x', '--lon', type=float, help='Longitude')
     parser.add_argument('-y', '--lat', type=float, help='Latitude')
     parser.add_argument('-w', '--write', type=str, help='Write to path')
+    parser.add_argument('-o', '--geo-op', type=str, help='Geolocation operation')
     parser.add_argument('--api', type=str, choices=['gw', 'ow'], default='gw',
                         help='Choose the API: gw (google-weather-api), ow (open-weather-map)')
     parser.add_argument('--geo-api', type=str, choices=['gg'], default='gg',
@@ -282,6 +298,8 @@ def main():
     parser.add_argument('-n', '--new-offset', type=float, help='update calibration offset')
     parser.add_argument('-c', '--calibrated', type=float, help='update offset by calibrated value')
     parser.add_argument('-p', '--print-pressure', action='store_true', help='print pressure')
+    parser.add_argument('-r', '--ref-altitude', type=str, help='input reference altitude')
+    parser.add_argument('-l', '--loop', type=int, help='loop count', default=1)
 
     args = parser.parse_args()
 
@@ -301,7 +319,36 @@ def main():
             print(f"Error reading geo key from file: {e}", file=sys.stderr)
             sys.exit(1)
 
-    if args.geo_key is not None:
+    if args.geo_op == 'full_test':
+        if args.interface is None:
+            print("interface not set")
+        print("actual Geolocation:", {"latitude": args.lat, "longitude": args.lon})
+        print (f"g_longitude    ,g_latitude     ,accuracy  ,distance            ,g_altitude         ")
+        a = 0
+        while a < args.loop:
+            ap_list_json = wpa_scan_to_google_json(args.interface)
+            # print("scan result:", json.dumps({"wifiAccessPoints": ap_list_json}, ensure_ascii=False, indent=2))
+            result = send_to_google_geolocation_api(ap_list_json, args.geo_key)
+            # print("Geolocation API result using interface:", result)
+            distance = haversine (args.lat, args.lon, result['location']['lat'], result['location']['lng'])
+            if args.api is not None and args.key is not None and \
+               args.lat is not None and args.lon is not None:
+                altitude = altitude_evaluate(args, result['location']['lng'], result['location']['lat'])
+            print (f"{result['location']['lng']:<15},{result['location']['lat']:<15},{result['accuracy']:<10},{distance:<20},{altitude:<20}")
+            time.sleep(1)
+            a += 1
+    elif args.geo_op == 'altitude_only':
+        if args.ref_altitude is None:
+            print("ref_altitude is not set")
+        print(f"altitude_only ref_altitude: {args.ref_altitude}")
+        print("actual Geolocation:", {"latitude": args.lat, "longitude": args.lon})
+        print(f"g_altitude")
+        a = 0
+        while a < args.loop:
+            altitude = altitude_evaluate(args, args.lon, args.lat)
+            print(f"{altitude}")
+            a += 1
+    elif args.geo_key is not None:
         if args.interface is not None:
             ap_list_json = wpa_scan_to_google_json(args.interface)
             print("scan result:", json.dumps({"wifiAccessPoints": ap_list_json}, ensure_ascii=False, indent=2))
@@ -317,7 +364,7 @@ def main():
                         "ssid": "MyWifi"
                     },
                     {
-                        "macAddress": "12:34:56:78:9A:BC",
+                        "macAddress": "01:23:45:67:89:AC",
                         "signalStrength": -70,
                         "channel": 6,
                         "ssid": "AnotherWifi"
@@ -326,17 +373,22 @@ def main():
             }
             result = send_to_google_geolocation_api(json_data, args.geo_key)
             print("Geolocation API result:", result)
-        args.lat = result['location']['lat']
-        args.lon = result['location']['lng']
+        print(args.lat, args.lon, result['location']['lat'], result['location']['lng'])
+        distance = haversine (args.lat, args.lon, result['location']['lat'], result['location']['lng'])
+        print(f"{distance}")
+        # args.lat = result['location']['lat']
+        # args.lon = result['location']['lng']
         if args.api is not None and args.key is not None and \
            args.lat is not None and args.lon is not None:
-            altitude_evaluate(args)
+            altitude = altitude_evaluate(args, args.lon, args.lat)
+            print(f"{altitude}")
     elif args.interface is not None:
         ap_list_json = wpa_scan_to_google_json(args.interface)
         print("scan result:", json.dumps({"wifiAccessPoints": ap_list_json}, ensure_ascii=False, indent=2))
     elif args.api is not None and args.key is not None and \
        args.lat is not None and args.lon is not None:
-        altitude_evaluate(args)
+        altitude = altitude_evaluate(args, args.lon, args.lat)
+        print(f"{altitude}")
     elif args.new_offset is not None:
         update_offset(args.new_offset)
     elif args.calibrated is not None:
