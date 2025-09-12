@@ -66,7 +66,7 @@ Note: Please follow the SOP below to upgrade the U-Boot image and GPT partition 
 ### Supported Chipsets
 - Filogic880/Filogic680/MT7996 802.11a/b/g/n/ac/ax/be BE19000/BE14000 2.4/5G/6GHz PCIe Chip
 - Filogic860/Filogic660/MT7992 802.11a/b/g/n/ac/ax/be BE7200/BE5000 2.4/5G PCIe Chip
-- Filogic850/Filogic650/MT7990 802.11a/b/g/n/ac/ax/be BE3600 2.4/5G PCIe Chip (*NEW*)
+- Filogic850/Filogic650/MT7990 802.11a/b/g/n/ac/ax/be BE3600 2.4/5G PCIe Chip (**NEW**)
 ---
 
 ### Default EEPROM Bin
@@ -211,7 +211,7 @@ bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
 
 | **Platform**             | **OpenWrt-24.10**             | **git01.mediatek.com**         |
 |--------------------------|-------------------------------|-----------------------------------------------------------------------------------|
-| Kernel                   | 6.6.103                       | ./feeds/mtk_openwrt_feed/24.10/patches-base <br />  ./feeds/mtk_openwrt_feed/24.10/files  <br /> ./feeds/mtk_openwrt_feed/24.10/patches-feeds              |
+| Kernel                   | 6.6.104                       | ./feeds/mtk_openwrt_feed/24.10/patches-base <br />  ./feeds/mtk_openwrt_feed/24.10/files  <br /> ./feeds/mtk_openwrt_feed/24.10/patches-feeds              |
 | **WiFi Package**         | **OpenWrt-24.10**             | **MTK Internal Patches**                                                          |
 | Hostapd                  | PKG_SOURCE_DATE:=2025-05-23   | **Makefile**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/patches-base/0003-hostapd-package-makefile-ucode-files.patch <br /> **Patches**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/nerwork/services/hostapd/patches <br />  **Files**: ./feeds/mtk_openwrt_feed/autobuild/unified/filogic/mac80211/24.10/files/package/nerwork/services/hostapd/files|
 | libnl-tiny               | PKG_SOURCE_DATE:=2025-03-19   | N/A                                                                               |
