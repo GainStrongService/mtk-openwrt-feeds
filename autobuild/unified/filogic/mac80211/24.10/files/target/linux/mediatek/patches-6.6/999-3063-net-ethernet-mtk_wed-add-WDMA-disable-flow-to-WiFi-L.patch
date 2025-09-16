@@ -1,7 +1,8 @@
-From ba602c06e7d1f77e0a9b5b8f0458a7258363bc29 Mon Sep 17 00:00:00 2001
+From 305544f515d9b00521534ace7e2cfc4953e3eba4 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 Date: Tue, 29 Apr 2025 22:15:57 +0800
-Subject: [PATCH] net: ethernet: mtk_wed: add WDMA disable flow to WiFi L1 SER
+Subject: [PATCH 08/10] net: ethernet: mtk_wed: add WDMA disable flow to WiFi
+ L1 SER
 
 Without this patch, the WED driver cannot prevent packets from entering
 WDMA during WiFi L1 SER, causing incomplete packets to get stuck in the
@@ -15,10 +16,10 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  2 files changed, 15 insertions(+)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index cc2f0c5..b022e71 100644
+index a9daa7a..cfa362e 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1901,6 +1901,18 @@ static inline void mtk_ppe_drop_config(struct mtk_eth *eth, u32 config)
+@@ -2042,6 +2042,18 @@ static inline void mtk_ppe_drop_config(struct mtk_eth *eth, u32 config)
  		mtk_w32(eth, config, PSE_PPE_DROP(2));
  }
  
@@ -38,10 +39,10 @@ index cc2f0c5..b022e71 100644
  int mtk_gmac_2p5gphy_path_setup(struct mtk_eth *eth, int mac_id);
  int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 6b01d4b..c71a6bb 100644
+index 4ee4300..7bfde3e 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
-@@ -2072,6 +2072,8 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
+@@ -2106,6 +2106,8 @@ mtk_wed_reset_dma(struct mtk_wed_device *dev)
  	u32 val;
  	int i;
  
@@ -50,7 +51,7 @@ index 6b01d4b..c71a6bb 100644
  	for (i = 0; i < ARRAY_SIZE(dev->tx_ring); i++) {
  		if (!dev->tx_ring[i].desc)
  			continue;
-@@ -2756,6 +2758,7 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
+@@ -2771,6 +2773,7 @@ mtk_wed_start(struct mtk_wed_device *dev, u32 irq_mask)
  	mtk_wed_amsdu_init(dev);
  
  	mtk_wed_dma_enable(dev);

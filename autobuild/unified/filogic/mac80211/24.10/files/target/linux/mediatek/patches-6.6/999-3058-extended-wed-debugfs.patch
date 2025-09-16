@@ -1,7 +1,7 @@
-From 50f6438d2f918cd9391237050518ba30e43150d6 Mon Sep 17 00:00:00 2001
+From 439f567ed0939b840835b17efaabaa59350e4c6c Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Wed, 5 Jun 2024 10:30:28 +0800
-Subject: [PATCH 1/2] extended wed debugfs
+Subject: [PATCH 03/10] extended wed debugfs
 
 ---
  drivers/net/ethernet/mediatek/mtk_wed.c       |   9 +-
@@ -11,7 +11,7 @@ Subject: [PATCH 1/2] extended wed debugfs
  4 files changed, 440 insertions(+), 56 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 45e24df..1914c9c 100644
+index 6989f14..e0e6ecc 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -58,6 +58,7 @@ struct mtk_wed_flow_block_priv {
@@ -20,25 +20,25 @@ index 45e24df..1914c9c 100644
  	.regmap = {
 +		.wed_rev_id		= 0,
  		.tx_bm_tkid		= 0x088,
- 		.wpdma_rx_ring0		= 0x770,
- 		.wpdma_rx_ring1		= 0,
-@@ -70,6 +71,7 @@ static const struct mtk_wed_soc_data mt7622_data = {
+ 		.wpdma_rx_ring = {
+ 			0x770,
+@@ -71,6 +72,7 @@ static const struct mtk_wed_soc_data mt7622_data = {
  
  static const struct mtk_wed_soc_data mt7986_data = {
  	.regmap = {
 +		.wed_rev_id		= 0x4,
  		.tx_bm_tkid		= 0x0c8,
- 		.wpdma_rx_ring0		= 0x770,
- 		.wpdma_rx_ring1		= 0,
-@@ -82,6 +84,7 @@ static const struct mtk_wed_soc_data mt7986_data = {
+ 		.wpdma_rx_ring = {
+ 			0x770,
+@@ -84,6 +86,7 @@ static const struct mtk_wed_soc_data mt7986_data = {
  
  static const struct mtk_wed_soc_data mt7988_data = {
  	.regmap = {
 +		.wed_rev_id		= 0x4,
  		.tx_bm_tkid		= 0x0c8,
- 		.wpdma_rx_ring0		= 0x7d0,
- 		.wpdma_rx_ring1		= 0x7d8,
-@@ -1691,8 +1694,8 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
+ 		.wpdma_rx_ring = {
+ 			0x7d0,
+@@ -1696,8 +1699,8 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
  	/* reset tx wdma drv */
  	wed_clr(dev, MTK_WED_WDMA_GLO_CFG, MTK_WED_WDMA_GLO_CFG_TX_DRV_EN);
  	if (mtk_wed_is_v3_or_greater(dev->hw))
@@ -49,7 +49,7 @@ index 45e24df..1914c9c 100644
  	else
  		mtk_wed_poll_busy(dev, MTK_WED_CTRL,
  				  MTK_WED_CTRL_WDMA_INT_AGENT_BUSY);
-@@ -2494,7 +2497,7 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -2499,7 +2502,7 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  		regmap_update_bits(hw->hifsys, HIFSYS_DMA_AG_MAP,
  				   BIT(hw->index), 0);
  	else
@@ -59,7 +59,7 @@ index 45e24df..1914c9c 100644
  	if (mtk_wed_get_rx_capa(dev))
  		ret = mtk_wed_wo_init(hw);
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.h b/drivers/net/ethernet/mediatek/mtk_wed.h
-index 33bca92..56a5c16 100644
+index aa8fe81..09805e3 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.h
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.h
 @@ -16,6 +16,7 @@ struct mtk_wed_wo;
@@ -68,8 +68,8 @@ index 33bca92..56a5c16 100644
  	struct {
 +		u32 wed_rev_id;
  		u32 tx_bm_tkid;
- 		u32 wpdma_rx_ring0;
- 		u32 wpdma_rx_ring1;
+ 		u32 wpdma_rx_ring[MTK_WED_RX_QUEUES];
+ 		u32 reset_idx_tx_mask;
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c b/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c
 index 781c691..57c56e0 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed_debugfs.c

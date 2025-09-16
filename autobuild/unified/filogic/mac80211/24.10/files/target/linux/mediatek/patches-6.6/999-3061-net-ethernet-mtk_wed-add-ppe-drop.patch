@@ -1,7 +1,7 @@
-From 94ade40f0e50da47a12f0648301a9211f9e0daaa Mon Sep 17 00:00:00 2001
+From d008bb3429f5369e0623e1cff9f0b00580a5aa20 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 Date: Fri, 21 Feb 2025 11:48:53 +0800
-Subject: [PATCH] net: ethernet: mtk_wed: add ppe drop
+Subject: [PATCH 06/10] net: ethernet: mtk_wed: add ppe drop
 
 Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
@@ -11,10 +11,10 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  3 files changed, 25 insertions(+)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-index 8626083..4fe800b 100644
+index 317be60..a9daa7a 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1890,6 +1890,18 @@ void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
+@@ -2030,6 +2030,18 @@ void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
  u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
  u32 mtk_m32(struct mtk_eth *eth, u32 mask, u32 set, unsigned int reg);
  
@@ -34,10 +34,10 @@ index 8626083..4fe800b 100644
  int mtk_gmac_2p5gphy_path_setup(struct mtk_eth *eth, int mac_id);
  int mtk_gmac_gephy_path_setup(struct mtk_eth *eth, int mac_id);
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index e48d8f9..6f229a2 100644
+index 3517829..4ee4300 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
-@@ -2285,6 +2285,14 @@ mtk_wed_ppe_check(struct mtk_wed_device *dev, struct sk_buff *skb,
+@@ -2301,6 +2301,14 @@ mtk_wed_ppe_check(struct mtk_wed_device *dev, struct sk_buff *skb,
  	mtk_ppe_check_skb(eth->ppe[dev->hw->index], skb, hash);
  }
  
@@ -52,7 +52,7 @@ index e48d8f9..6f229a2 100644
  static void
  mtk_wed_configure_irq(struct mtk_wed_device *dev, u32 irq_mask)
  {
-@@ -3172,6 +3180,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -3188,6 +3196,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  		.irq_set_mask = mtk_wed_irq_set_mask,
  		.detach = mtk_wed_detach,
  		.ppe_check = mtk_wed_ppe_check,
