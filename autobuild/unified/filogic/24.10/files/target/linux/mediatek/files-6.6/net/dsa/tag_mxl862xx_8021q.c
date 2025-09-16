@@ -24,7 +24,8 @@
 #include "tag_8021q.h"
 #include "tag.h"
 
-#define MXL862_NAME	"mxl862xx"
+
+#define MXL862_TAG_8021Q_NAME	"mxl862_8021q"
 
 /* To define the outgoing port and to discover the incoming port
  * a special 4-byte outer VLAN tag is used by the MxL862xx.
@@ -37,12 +38,13 @@
  */
 
 /* special tag in TX path header */
+
 static struct sk_buff *mxl862_8021q_tag_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
-	u16 tx_vid = dsa_tag_8021q_standalone_vid(dp);
 
+	u16 tx_vid = dsa_tag_8021q_standalone_vid(dp);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(dev, queue_mapping);
 
@@ -60,14 +62,12 @@ static struct sk_buff *mxl862_8021q_tag_rcv(struct sk_buff *skb,
 
 	/* removes Outer VLAN tag */
 	dsa_8021q_rcv(skb, &src_port, &switch_id, NULL);
-
 	if (src_port == -1 || switch_id == -1) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid outer 802.1Q tag: switch %d port %d\n", switch_id, src_port);
 		return NULL;
 	}
 
 	skb->dev = dsa_master_find_slave(dev, switch_id, src_port);
-
 	if (!skb->dev) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid source port: %d\n", src_port);
 		return NULL;
@@ -79,7 +79,7 @@ static struct sk_buff *mxl862_8021q_tag_rcv(struct sk_buff *skb,
 }
 
 static const struct dsa_device_ops mxl862_8021q_netdev_ops = {
-	.name = "mxl862_8021q",
+	.name = MXL862_TAG_8021Q_NAME,
 	.proto = DSA_TAG_PROTO_MXL862_8021Q,
 	.xmit = mxl862_8021q_tag_xmit,
 	.rcv = mxl862_8021q_tag_rcv,
@@ -87,8 +87,6 @@ static const struct dsa_device_ops mxl862_8021q_netdev_ops = {
 	.promisc_on_master	= true,
 };
 
-
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_MXL862_8021Q, MXL862_NAME);
-
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_MXL862_8021Q, MXL862_TAG_8021Q_NAME);
 module_dsa_tag_driver(mxl862_8021q_netdev_ops);

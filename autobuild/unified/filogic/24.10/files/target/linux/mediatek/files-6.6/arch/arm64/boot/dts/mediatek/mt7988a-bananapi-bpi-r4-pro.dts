@@ -143,28 +143,6 @@
 				sfp = <&sfp2>;
 			};
 		};
-		mux2: ethernet-mux@2 {
-			compatible = "mediatek,eth-mux";
-			reg = <2>;
-			chan-sel-gpios = <&pio 54 GPIO_ACTIVE_HIGH>;
-			mod-def0-gpios = <&pio 4 GPIO_ACTIVE_LOW>;
-			sfp-present-channel = <0>;
-
-			channel_20: channel@0 {
-				reg = <0>;
-				phy-mode = "10gbase-r";
-				phy-connection-type = "10gbase-r";
-				managed = "in-band-status";
-				sfp = <&sfp1>;
-			};
-
-			channel_21: channel@1 {
-				reg = <1>;
-				phy-mode = "10gbase-r";
-				phy-connection-type = "10gbase-r";
-				phy-handle = <&phy24>;
-			};
-		};
 	};
 };
 
@@ -266,7 +244,7 @@
 		compatible = "mxl,86252";
 		reg = <16>;
 		dsa,member = <0 0>;
-		status = "disabled";
+		status = "okay";
 
 		ports {
 			port0: port@0 {
@@ -309,14 +287,7 @@
 				status = "okay";
 			};
 
-			port12: port@12 {
-				reg = <12>;
-				label = "mxl_lan12";
-				phy-mode = "xfi";
-				status = "okay";
-			};
-
-			port8: port@8 {
+			port5: port@5 {
 				reg = <8>;
 				label = "cpu";
 				phy-mode = "usxgmii";
@@ -328,6 +299,20 @@
 					full-duplex;
 				};
 			};
+
+			port6: port@6 {
+				reg = <12>;
+				label = "mxl_lan5";
+				phy-mode = "usxgmii";
+				phy-handle = <&phy24>;
+				status = "okay";
+
+				fixed-link {
+					speed = <10000>;
+					full-duplex;
+				};
+			};
+
 		};
 
 		mdio {
@@ -358,10 +343,6 @@
 &gsw_phy0 {
 	pinctrl-names = "gbe-led";
 	pinctrl-0 = <&gbe0_led0_pins>;
-};
-
-&gsw_port0 {
-	label = "wan";
 };
 
 &gsw_phy0_led0 {
