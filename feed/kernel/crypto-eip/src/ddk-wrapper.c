@@ -144,7 +144,7 @@ unsigned int crypto_pe_busy_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
 		}
 
 		/* Wait for MTK_EIP197_PKT_GET_TIMEOUT_MS milliseconds */
-		udelay(MTK_EIP197_PKT_GET_TIMEOUT_MS);
+		udelay(MTK_EIP197_PKT_GET_TIMEOUT_MS * 1000);
 		LoopCounter--;
 	}
 
