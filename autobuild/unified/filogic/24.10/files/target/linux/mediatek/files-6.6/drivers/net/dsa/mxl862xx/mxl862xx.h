@@ -14,12 +14,18 @@
 #define VID_RULES	2
 #define MAX_VLANS	100
 #define MAX_PORTS	MXL862XX_MAX_PORT_NUM
-#define MAX_BRIDGES 16
+#define MAX_BRIDGES 	17
 
 struct mxl862xx_hw_info {
 	u8 max_ports;
 	u8 phy_ports;
 	u8 ext_ports;
+};
+
+struct mxl862xx_pcs {
+	struct phylink_pcs pcs;
+	struct mxl862xx_priv *priv;
+	int port;
 };
 
 struct mxl862xx_filter_ids {
@@ -98,4 +104,5 @@ struct mxl862xx_priv {
 	struct mutex pce_table_lock;
 	uint8_t cpu_port;
 	uint8_t user_pnum;
+	struct mxl862xx_pcs pcs_port_1;
 };
