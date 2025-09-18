@@ -87,6 +87,22 @@ struct mxl862xx_port_info {
 	struct mxl862xx_port_vlan_info vlan;
 };
 
+struct dp_mux_data {
+	struct device_node	*of_node;
+	struct phylink		*phylink;
+};
+
+struct combo_port_mux {
+	struct dsa_port		*dp;
+	struct gpio_desc	*mod_def0_gpio;
+	struct gpio_desc	*chan_sel_gpio;
+	struct dp_mux_data	*data[2];
+	unsigned int		channel;
+	unsigned int		sfp_present_channel;
+	struct delayed_work	sfp_monitor_work;
+	bool			initialized;
+};
+
 struct mxl862xx_priv {
 	struct dsa_switch *ds;
 	struct mii_bus *bus;
@@ -105,4 +121,5 @@ struct mxl862xx_priv {
 	uint8_t cpu_port;
 	uint8_t user_pnum;
 	struct mxl862xx_pcs pcs_port_1;
+	struct combo_port_mux *ds_mux[MAX_PORTS];
 };
