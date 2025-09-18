@@ -1,0 +1,75 @@
+#
+# Copyright (C) 2025 Mediatek Ltd.
+#
+# This is free software, licensed under the GNU General Public License v2.
+# See /LICENSE for more information.
+#
+
+keyname="overlayfs_key"
+key_blob=
+key_id=
+
+get_key_blob() {
+        key_blob=$(keyctl print $key_id)
+}
+
+add_overlayfs_key_to_keyring() {
+        key_id=$(keyctl add trusted $keyname "new 32" @u)
+}
+
+load_overlayfs_key_to_keyring() {
+        keyctl add trusted $keyname "load $key_blob" @u
+}
+
+store_key_blob() {
+        key_blob_storage -w $key_blob
+}
+
+read_key_blob() {
+        key_blob=$(key_blob_storage -r)
+}
+
+launch_tee_supplicant() {
+	tee-supplicant -d
+}
+
+do_mount() {
+	local major=$(cat /proc/devices | grep device-mapper | cut -d' ' -f1)
+	local num=0
+
+	dmsetup status
+	if [ ! "$(dmsetup status | grep dm-verity)" = "" ]
+	then
+		num=1
+	fi
+
+	dmsetup create overlayfs_encryption --table \
+		"0 $(blockdev --getsize /dev/fitrw) crypt aes-xts-plain64 \
+		:32:trusted:$keyname 0 /dev/fitrw 0"
+
+	mknod /dev/dm-$num b $major $num
+}
+
+do_overlayfs_encryption() {
+	if [ ! -e "/dev/fitrw" ]
+	then
+		return
+	fi
+
+	launch_tee_supplicant
+
+	read_key_blob
+
+	if [ -z "$key_blob" ]
+	then
+		add_overlayfs_key_to_keyring
+		get_key_blob
+		store_key_blob
+	else
+		load_overlayfs_key_to_keyring
+	fi
+
+	do_mount
+}
+
+[ "$INITRAMFS" = "1" ] || boot_hook_add preinit_main do_overlayfs_encryption
