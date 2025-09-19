@@ -1,0 +1,36 @@
+From 8afeec00a7cb77b6cddc7972111bf23eca02954b Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Tue, 29 Oct 2024 14:27:41 +0800
+Subject: [PATCH] net: ethernet: mtk_eth_soc: add reseting usxgmii of
+ rtl8261n
+
+---
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index 7237b9b..28d3ddd 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -956,6 +956,18 @@ static void mtk_mac_link_up(struct phylink_config *config,
+ 		mtk_gdm_mac_link_up(mac, phy, mode, interface, speed, duplex,
+ 				    tx_pause, rx_pause);
+ 
++	/* Workaround for resetting the USXGMII of the Realtek RTL8261N */
++	if (phy && (phy->drv->phy_id == 0x001ccaf3)) {
++		mdelay(1000);
++		mdiobus_c45_write(phy->mdio.bus, phy->mdio.addr,
++				  0x1e, 0x141, 0x40);
++		mdiobus_c45_write(phy->mdio.bus, phy->mdio.addr,
++				  0x1e, 0x143, 0x88a0);
++		mdiobus_c45_write(phy->mdio.bus, phy->mdio.addr,
++				  0x1e, 0x141, 0xc0);
++		mdiobus_c45_write(phy->mdio.bus, phy->mdio.addr,
++				  0x1e, 0x143, 0x88a0);
++	}
+ }
+ 
+ static const struct phylink_mac_ops mtk_phylink_ops = {
+-- 
+2.45.2
+
