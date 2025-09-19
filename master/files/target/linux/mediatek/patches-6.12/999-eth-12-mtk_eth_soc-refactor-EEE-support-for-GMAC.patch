@@ -1,0 +1,162 @@
+From 33f4b2c8eba22869a14e9126bc074b3bfec3b1e4 Mon Sep 17 00:00:00 2001
+From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+Date: Mon, 22 Sep 2025 11:12:05 +0800
+Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor EEE support for GMAC
+
+Refactor EEE support for the GMAC.
+  - Enable EEE with 1us TX LPI
+    ethtool --set-eee eth1 eee on tx-lpi on tx-timer 1
+  - Disable EEE
+    ethtool --set-eee eth1 eee off
+  - Dump EEE information
+    ethtool --show-eee eth1
+
+Without this patch, the users are unable to utilize ethtool for the
+enabling MAC/PHY EEE capability.
+
+Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
+---
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 81 +++++++++++++--------
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h |  8 ++
+ 2 files changed, 60 insertions(+), 29 deletions(-)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index ae22aad..620028d 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -901,6 +901,40 @@ static void mtk_set_queue_speed(struct mtk_eth *eth, unsigned int idx,
+ 	mtk_w32(eth, val, soc->reg_map->qdma.qtx_sch + ofs);
+ }
+ 
++static void mtk_gdm_mac_setup_eee(struct mtk_mac *mac, bool enable)
++{
++	struct mtk_eth *eth = mac->hw;
++	u32 mcr, mcr_cur;
++	u32 val;
++
++	mac->tx_lpi_enabled = enable;
++
++	mcr = mcr_cur = mtk_r32(eth, MTK_MAC_MCR(mac->id));
++	mcr &= ~(MAC_MCR_EEE100M | MAC_MCR_EEE1G);
++
++	if (enable) {
++		val = FIELD_PREP(MAC_EEE_WAKEUP_TIME_1000, 19) |
++		      FIELD_PREP(MAC_EEE_WAKEUP_TIME_100, 33) |
++		      FIELD_PREP(MAC_EEE_LPI_TXIDLE_THD, mac->txidle_thd_ms) |
++		      FIELD_PREP(MAC_EEE_RESV0, 14);
++		mtk_w32(eth, val, MTK_MAC_EEE(mac->id));
++
++		switch (mac->speed) {
++		case SPEED_1000:
++			mcr |= MAC_MCR_EEE1G;
++			break;
++		case SPEED_100:
++			mcr |= MAC_MCR_EEE100M;
++			break;
++		};
++	} else
++		mtk_w32(eth, 0x00000002, MTK_MAC_EEE(mac->id));
++
++	/* Only update control register when needed! */
++	if (mcr != mcr_cur)
++		mtk_w32(eth, mcr, MTK_MAC_MCR(mac->id));
++}
++
+ static void mtk_gdm_mac_link_up(struct mtk_mac *mac,
+ 				struct phy_device *phy,
+ 				unsigned int mode, phy_interface_t interface,
+@@ -947,6 +981,9 @@ static void mtk_gdm_mac_link_up(struct mtk_mac *mac,
+ 
+ 	mcr |= MAC_MCR_TX_EN | MAC_MCR_RX_EN | MAC_MCR_FORCE_LINK;
+ 	mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
++
++	if (mode == MLO_AN_PHY && phy)
++		mtk_gdm_mac_setup_eee(mac, phy_init_eee(phy, false) >= 0);
+ }
+ 
+ static void mtk_xgdm_mac_link_up(struct mtk_mac *mac,
+@@ -5447,9 +5484,12 @@ static int mtk_get_eee(struct net_device *dev, struct ethtool_keee *eee)
+ 	if (ret)
+ 		return ret;
+ 
+-	reg = mtk_r32(mac->hw, MTK_MAC_EEECR(mac->id));
+-	eee->tx_lpi_enabled = mac->tx_lpi_enabled;
+-	eee->tx_lpi_timer = FIELD_GET(MAC_EEE_LPI_TXIDLE_THD, reg) * 1000;
++	if (!mtk_interface_mode_is_xgmii(mac->interface)) {
++		reg = mtk_r32(mac->hw, MTK_MAC_EEE(mac->id));
++
++		eee->tx_lpi_enabled = mac->tx_lpi_enabled;
++		eee->tx_lpi_timer = FIELD_GET(MAC_EEE_LPI_TXIDLE_THD, reg);
++	}
+ 
+ 	return 0;
+ }
+@@ -5457,37 +5497,20 @@ static int mtk_get_eee(struct net_device *dev, struct ethtool_keee *eee)
+ static int mtk_set_eee(struct net_device *dev, struct ethtool_keee *eee)
+ {
+ 	struct mtk_mac *mac = netdev_priv(dev);
+-	u32 txidle_thd_ms, reg;
+ 	int ret;
+ 
+-	/* Tx idle timer in ms */
+-	txidle_thd_ms = DIV_ROUND_UP(eee->tx_lpi_timer, 1000);
+-	if (!FIELD_FIT(MAC_EEE_LPI_TXIDLE_THD, txidle_thd_ms))
+-		return -EINVAL;
+-
+-	reg = FIELD_PREP(MAC_EEE_LPI_TXIDLE_THD, txidle_thd_ms);
+-
+-	/* PHY Wake-up time, this field does not have a reset value, so use the
+-	 * reset value from MT7531 (36us for 100BaseT and 17us for 1000BaseT).
+-	 */
+-	reg |= FIELD_PREP(MAC_EEE_WAKEUP_TIME_1000, 17) |
+-	       FIELD_PREP(MAC_EEE_WAKEUP_TIME_100, 36);
+-
+-	if (!txidle_thd_ms)
+-		/* Force LPI Mode without a delay */
+-		reg |= MAC_EEE_LPI_MODE;
+-
+-	ret = phylink_ethtool_set_eee(mac->phylink, eee);
++	return phylink_ethtool_set_eee(mac->phylink, eee);
+ 	if (ret)
+ 		return ret;
+ 
+-	mac->tx_lpi_enabled = eee->tx_lpi_enabled;
+-	mac->txidle_thd_ms = txidle_thd_ms;
+-	mtk_w32(mac->hw, reg, MTK_MAC_EEECR(mac->id));
+-	if (eee->eee_enabled && eee->eee_active && eee->tx_lpi_enabled)
+-		mtk_m32(mac->hw, 0, MAC_MCR_EEE100M | MAC_MCR_EEE1G, MTK_MAC_MCR(mac->id));
+-	else
+-		mtk_m32(mac->hw, MAC_MCR_EEE100M | MAC_MCR_EEE1G, 0, MTK_MAC_MCR(mac->id));
++	if (!mtk_interface_mode_is_xgmii(mac->interface)) {
++		if (eee->tx_lpi_enabled && eee->tx_lpi_timer > 255)
++			return -EINVAL;
++
++		mac->txidle_thd_ms = eee->tx_lpi_timer;
++
++		mtk_gdm_mac_setup_eee(mac, eee->eee_enabled && eee->tx_lpi_timer);
++	}
+ 
+ 	return 0;
+ }
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+index b5c7bfa..07ab2e5 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -522,6 +522,14 @@
+ #define MAC_EEE_CKG_RXLPI		BIT(2)
+ #define MAC_EEE_LPI_MODE		BIT(0)
+ 
++/* Mac EEE control registers */
++#define MTK_MAC_EEE(x)		(0x10104 + (x * 0x100))
++#define MAC_EEE_WAKEUP_TIME_1000	GENMASK(31, 24)
++#define MAC_EEE_WAKEUP_TIME_100	GENMASK(23, 16)
++#define MAC_EEE_LPI_TXIDLE_THD	GENMASK(15, 8)
++#define MAC_EEE_RESV0		GENMASK(7, 4)
++#define MAC_EEE_LPI_MODE	BIT(0)
++
+ /* Mac status registers */
+ #define MTK_MAC_MSR(x)		(0x10108 + (x * 0x100))
+ #define MAC_MSR_EEE1G		BIT(7)
+-- 
+2.45.2
+
