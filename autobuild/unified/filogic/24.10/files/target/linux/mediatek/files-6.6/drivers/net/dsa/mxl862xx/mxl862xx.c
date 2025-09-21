@@ -3711,7 +3711,7 @@ static void sfp_monitor_work_func(struct work_struct *work)
 	sfp_present = gpiod_get_value_cansleep(mux->mod_def0_gpio);
 	new_channel = sfp_present ? mux->sfp_present_channel : !mux->sfp_present_channel;
 
-	if (mux->initialized && mux->channel == new_channel)
+	if (mux->channel == new_channel)
 		goto reschedule;
 
 	rtnl_lock();
@@ -3732,7 +3732,6 @@ static void sfp_monitor_work_func(struct work_struct *work)
 	rtnl_unlock();
 
 	mux->channel = new_channel;
-	mux->initialized = true;
 
 reschedule:
 	mod_delayed_work(system_wq, &mux->sfp_monitor_work, msecs_to_jiffies(100));
@@ -3841,7 +3840,7 @@ static int ds_add_mux(struct mxl862xx_priv *priv, struct device_node *np)
 	mux->dp = dsa_to_port(priv->ds, id);
 	/* configure default channel to 10G PHY */
 	mux->channel = !mux->sfp_present_channel;
-	mux->initialized = false;
+	gpiod_set_value_cansleep(mux->chan_sel_gpio, mux->channel);
 
 	for_each_child_of_node(np, child) {
 		err = ds_add_mux_channel(mux, child);

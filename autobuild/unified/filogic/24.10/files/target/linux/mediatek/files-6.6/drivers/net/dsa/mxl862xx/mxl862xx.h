@@ -100,7 +100,6 @@ struct combo_port_mux {
 	unsigned int		channel;
 	unsigned int		sfp_present_channel;
 	struct delayed_work	sfp_monitor_work;
-	bool			initialized;
 };
 
 struct mxl862xx_priv {
