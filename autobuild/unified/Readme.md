@@ -38,11 +38,21 @@ saveenv
 ```
 
 - Filogic850 (MT7987) - GMAC1 is AN8855 switch and GMAC2 is Mediatek Internal 2.5G PHY and GMAC3 is Mediatek External 2.5G PHY case
-```
-setenv bootconf mt7987-spim-nand
-setenv bootconf_extra mt7987-netsys-eth0-an8855#mt7987-netsys-eth1-i2p5g#mt7987-netsys-eth2-e2p5g
-saveenv
-```
+    - If your ITB image includes the [MT7987_DTSO_RENMAE](https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/469d57073d96d5743f2f92d0a84c553f31b1ff1f) OpenWrt MTK feed change, the MT7987's NAND DTSO has been renamed to `mt7987-spim-nand-nmbm`
+To avoid kernel boot failure, please use the following command to update your U-Boot configuration settings:
+
+    ### mtk_openwrt_feeds codebase after 2025-09-18
+    ```
+    setenv bootconf mt7987-spim-nand-nmbm
+    setenv bootconf_extra mt7987-netsys-eth0-an8855#mt7987-netsys-eth1-i2p5g#mt7987-netsys-eth2-e2p5g
+    saveenv
+    ```
+    ### mtk_openwrt_feeds codebase before 2025-09-18
+    ```
+    setenv bootconf mt7987-spim-nand
+    setenv bootconf_extra mt7987-netsys-eth0-an8855#mt7987-netsys-eth1-i2p5g#mt7987-netsys-eth2-e2p5g
+    saveenv
+    ```
 
 ##### SPIM-NAND
 Note: Please follow the SOP below to upgrade the bl2 and fip on your board.
