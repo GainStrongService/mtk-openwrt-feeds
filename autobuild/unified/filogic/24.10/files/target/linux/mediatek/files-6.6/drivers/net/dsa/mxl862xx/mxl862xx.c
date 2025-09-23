@@ -138,7 +138,7 @@ static int mxl862xx_phy_read_mmd(struct mxl862xx_priv *priv, int port, int devad
 
 	ret = MXL862XX_API_READ(priv, INT_GPHY_READ, param);
 	if (ret) {
-		pr_err("mxl862xx: failed to read mmd on port %d\n", port);
+		pr_debug("mxl862xx: failed to read mmd on port %d\n", port);
 		return ret;
 	}
 
@@ -158,7 +158,7 @@ static int mxl862xx_phy_write_mmd(struct mxl862xx_priv *priv, int port,
 
 	ret = MXL862XX_API_WRITE(priv, INT_GPHY_WRITE, param);
 	if (ret)
-		pr_err("mxl862xx: failed to write mmd on port %d\n", port);
+		pr_debug("mxl862xx: failed to write mmd on port %d\n", port);
 
 	return ret;
 }
