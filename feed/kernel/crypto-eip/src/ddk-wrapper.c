@@ -119,6 +119,8 @@ unsigned int crypto_pe_busy_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
 
 		pecres = PEC_Packet_Get(ring, RD_p, 1, &Counter);
 		if (pecres != PEC_STATUS_OK) {
+			if (pecres == PEC_STATUS_BUSY)
+				goto wait;
 			/* IO error */
 			CRYPTO_ERR("PEC_Packet_Get error %d\n", pecres);
 			return 0;
@@ -143,6 +145,7 @@ unsigned int crypto_pe_busy_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
 			return Counter;
 		}
 
+wait:
 		/* Wait for MTK_EIP197_PKT_GET_TIMEOUT_MS milliseconds */
 		udelay(MTK_EIP197_PKT_GET_TIMEOUT_MS * 1000);
 		LoopCounter--;
@@ -879,7 +882,10 @@ int mtk_crypto_basic_cipher(struct crypto_async_request *async,
 		goto error_remove_sg;
 	}
 
-	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
+	do {
+		rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
+	} while (rc == PEC_STATUS_BUSY);
+
 	if (rc != PEC_STATUS_OK && count != 1) {
 		goto error_remove_sg;
 	}
@@ -1075,7 +1081,10 @@ int crypto_ahash_token_req(struct crypto_async_request *async, struct mtk_crypto
 		goto error_exit_unregister;
 	}
 
-	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
+	do {
+		rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
+	} while (rc == PEC_STATUS_BUSY);
+
 	if (rc != PEC_STATUS_OK && count != 1) {
 		rc = 1;
 		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
@@ -1302,7 +1311,10 @@ int crypto_ahash_aes_cbc(struct crypto_async_request *async, struct mtk_crypto_a
 		goto error_exit_unregister;
 	}
 
-	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
+	do {
+		rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
+	} while (rc == PEC_STATUS_BUSY);
+
 	if (rc != PEC_STATUS_OK && count != 1) {
 		rc = 1;
 		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
@@ -1555,7 +1567,10 @@ int crypto_first_ahash_req(struct crypto_async_request *async,
 		goto error_exit_unregister;
 	}
 
-	rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
+	do {
+		rc = PEC_Packet_Put(ring, &Cmd, 1, &count);
+	} while (rc == PEC_STATUS_BUSY);
+
 	if (rc != PEC_STATUS_OK && count != 1) {
 		rc = 1;
 		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
@@ -1777,7 +1792,10 @@ bool crypto_basic_hash(SABuilder_Auth_t HashAlgo, uint8_t *Input_p,
 		goto error_exit_unregister;
 	}
 
-	rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
+	do {
+		rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
+	} while (rc == PEC_STATUS_BUSY);
+
 	if (rc != PEC_STATUS_OK && count != 1) {
 		rc = 1;
 		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
@@ -2074,10 +2092,10 @@ mtk_ddk_aes_block_encrypt(uint8_t *Key_p,
 		goto error_exit_unregister;
 	}
 
-	rc = PEC_Packet_Put(PEC_INTERFACE_ID,
-						&Cmd,
-						1,
-						&count);
+	do {
+		rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
+	} while (rc == PEC_STATUS_BUSY);
+
 	if (rc != PEC_STATUS_OK && count != 1) {
 		rc = 1;
 		CRYPTO_ERR("PEC_Packet_Put error\n");
@@ -2517,10 +2535,10 @@ mtk_ddk_invalidate_rec(
 		return false;
 
 	// Issue command
-	PEC_Rc = PEC_Packet_Put(PEC_INTERFACE_ID,
-							&Cmd,
-							1,
-							&count);
+	do {
+		PEC_Rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
+	} while (PEC_Rc == PEC_STATUS_BUSY);
+
 	if (PEC_Rc != PEC_STATUS_OK || count != 1) {
 		CRYPTO_ERR("%s: PEC_Packet_Put() error %d, count %d\n",
 				 __func__,
