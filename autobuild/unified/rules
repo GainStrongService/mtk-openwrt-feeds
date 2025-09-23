@@ -68,6 +68,13 @@ openwrt_config_enable() {
 	fi
 }
 
+# $1:	Config file
+openwrt_config_merge() {
+	if test -z "${do_menuconfig}"; then
+		cat "${1}" >> "${openwrt_config_file}"
+	fi
+}
+
 # $1:	Config name
 openwrt_config_enabled() {
 	kconfig_enabled "${openwrt_config_file}" "${1}"
