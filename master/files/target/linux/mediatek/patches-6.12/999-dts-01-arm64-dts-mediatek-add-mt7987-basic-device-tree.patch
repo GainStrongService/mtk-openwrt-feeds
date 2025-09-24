@@ -250,7 +250,7 @@
 +};
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7987b.dtsi
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,22 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2023 MediaTek Inc.
@@ -273,18 +273,9 @@
 +		/delete-node/ cpu@3;
 +	};
 +};
-+
-+&cpu_thermal {
-+	cooling-maps {
-+		cpu-active-hot {
-+			cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-+					 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-+		};
-+	};
-+};
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7987.dtsi
-@@ -0,0 +1,845 @@
+@@ -0,0 +1,781 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2023 MediaTek Inc.
@@ -350,7 +341,6 @@
 +				 <&apmixedsys CLK_APMIXED_ARM_LL>;
 +			clock-names = "cpu", "intermediate", "armpll";
 +			operating-points-v2 = <&cluster0_opp>;
-+			#cooling-cells = <2>;
 +		};
 +
 +		cpu1: cpu@1 {
@@ -364,7 +354,6 @@
 +				 <&apmixedsys CLK_APMIXED_ARM_LL>;
 +			clock-names = "cpu", "intermediate", "armpll";
 +			operating-points-v2 = <&cluster0_opp>;
-+			#cooling-cells = <2>;
 +		};
 +
 +		cpu2: cpu@2 {
@@ -378,7 +367,6 @@
 +				 <&apmixedsys CLK_APMIXED_ARM_LL>;
 +			clock-names = "cpu", "intermediate", "armpll";
 +			operating-points-v2 = <&cluster0_opp>;
-+			#cooling-cells = <2>;
 +		};
 +
 +		cpu3: cpu@3 {
@@ -392,7 +380,6 @@
 +				 <&apmixedsys CLK_APMIXED_ARM_LL>;
 +			clock-names = "cpu", "intermediate", "armpll";
 +			operating-points-v2 = <&cluster0_opp>;
-+			#cooling-cells = <2>;
 +		};
 +
 +		cluster0_opp: opp_table0 {
@@ -564,65 +551,6 @@
 +					temperature = <125000>;
 +					hysteresis = <2000>;
 +					type = "critical";
-+				};
-+
-+				cpu_trip_hot: hot {
-+					temperature = <120000>;
-+					hysteresis = <2000>;
-+					type = "hot";
-+				};
-+
-+				cpu_trip_active_hot: active-hot {
-+					temperature = <117000>;
-+					hysteresis = <2000>;
-+					type = "active";
-+				};
-+
-+				cpu_trip_active_high: active-high {
-+					temperature = <115000>;
-+					hysteresis = <2000>;
-+					type = "active";
-+				};
-+
-+				cpu_trip_active_med: active-med {
-+					temperature = <85000>;
-+					hysteresis = <2000>;
-+					type = "active";
-+				};
-+
-+				cpu_trip_active_low: active-low {
-+					temperature = <40000>;
-+					hysteresis = <2000>;
-+					type = "active";
-+				};
-+			};
-+
-+			cooling-maps {
-+				cpu-active-hot {
-+				/* active: dynamic cpu frequency scaling */
-+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-+					trip = <&cpu_trip_active_hot>;
-+				};
-+
-+				cpu-active-high {
-+				/* active: set fan to cooling level 2 */
-+					cooling-device = <&fan 3 3>;
-+					trip = <&cpu_trip_active_high>;
-+				};
-+
-+				cpu-active-low {
-+				/* active: set fan to cooling level 1 */
-+					cooling-device = <&fan 2 2>;
-+					trip = <&cpu_trip_active_med>;
-+				};
-+
-+				cpu-passive {
-+				/* passive: set fan to cooling level 0 */
-+					cooling-device = <&fan 1 1>;
-+					trip = <&cpu_trip_active_low>;
 +				};
 +			};
 +		};
@@ -849,7 +777,6 @@
 +			nvmem-cells = <&lvts_calibration>;
 +			nvmem-cell-names = "lvts-calib-data-1";
 +			#thermal-sensor-cells = <1>;
-+			status = "disabled";
 +		};
 +
 +		usbtphy: usb-phy@11c50000 {
@@ -1132,7 +1059,7 @@
 +};
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7987a.dtsi
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,68 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2023 MediaTek Inc.
@@ -1165,10 +1092,6 @@
 +};
 +
 +&infra_bus_prot {
-+	status = "okay";
-+};
-+
-+&lvts {
 +	status = "okay";
 +};
 +
