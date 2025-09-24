@@ -110,14 +110,10 @@ airoha_firmware_install() {
 copy_phy_firmware() {
 	# ensure the PHY firmware is located in the same directory when compiling the kernel's built-in PHY driver
 	copy_file "${openwrt_root}/package/kernel/as21xxx/firmware/as21x1x_fw.bin" "staging_dir/firmware"
-	case ${kernel_ver} in
-		6.12*)
-			copy_files "${openwrt_root}/build_dir/target-aarch64_cortex-a53_musl/linux-firmware-20250808/airoha" "staging_dir/firmware"
-		;;
-		*)
-			copy_files "${openwrt_root}/build_dir/target-aarch64_cortex-a53_musl/linux-firmware-20241110/airoha" "staging_dir/firmware"
-		;;
-	esac
+
+	# copy linux firmware
+	linux_firmware_path=$(openwrt_get_package_build_dir "package/firmware/linux-firmware")
+	copy_files "${linux_firmware_path}/airoha" "staging_dir/firmware"
 }
 
 remove_crypto_package () {
