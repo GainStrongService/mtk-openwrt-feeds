@@ -13,8 +13,9 @@
 
 / {
 	model = "MediaTek MT7988A Reference Board";
-	compatible = "mediatek,mt7988a-rfb",
-		     "mediatek,mt7988a";
+	compatible = "mediatek,mt7988a-mxl86252-rfb",
+				 "mediatek,mt7988a",
+				 "mediatek,mt7988";
 
 	chosen {
 		bootargs = "console=ttyS0,115200n1 loglevel=6  \
@@ -48,6 +49,7 @@
 
 			chan-sel-gpios = <&pio 30 GPIO_ACTIVE_HIGH>;
 			mod-def0-gpios = <&pio 82 GPIO_ACTIVE_LOW>;
+			sfp-present-channel = <1>;
 
 			channel0: channel@0 {
 				reg = <0>;
@@ -68,15 +70,115 @@
 };
 
 &mdio_bus {
+	clock-frequency = <10500000>;
+
 	/* external Aquantia AQR113C */
 	phy0: ethernet-phy@0 {
 		reg = <0>;
 		compatible = "ethernet-phy-ieee802.3-c45";
 		firmware-name = "Rhe-05.06-Candidate9-AQR_Mediatek_23B_P5_ID45824_LCLVER1.cld";
-		reset-gpios = <&pio 72 GPIO_ACTIVE_LOW>;
-		reset-assert-us = <100000>;
-		reset-deassert-us = <221000>;
+		eee-broken-10gt;
+		eee-broken-1000t;
 	};
+
+	/* external AQR113C on mxl 2.5G switch */
+	phy8: ethernet-phy@8 {
+		reg = <8>;
+		compatible = "ethernet-phy-ieee802.3-c45";
+		firmware-name = "Rhe-05.06-Candidate9-AQR_Mediatek_23B_P5_ID45824_LCLVER1.cld";
+		eee-broken-10gt;
+		eee-broken-1000t;
+	};
+
+	switch16: switch@16 {
+		compatible = "mxl,86252";
+		reg = <16>;
+		dsa,member = <0 0>;
+		status = "okay";
+
+		ports {
+			port0: port@0 {
+				reg = <0>;
+				label = "mxl_lan0";
+				phy-handle = <&switchphy0>;
+				phy-mode = "internal";
+				status = "okay";
+			};
+
+			port1: port@1 {
+				reg = <1>;
+				label = "mxl_lan1";
+				phy-handle = <&switchphy1>;
+				phy-mode = "internal";
+				status = "okay";
+			};
+
+			port2: port@2 {
+				reg = <2>;
+				label = "mxl_lan2";
+				phy-handle = <&switchphy2>;
+				phy-mode = "internal";
+				status = "okay";
+			};
+
+			port3: port@3 {
+				reg = <3>;
+				label = "mxl_lan3";
+				phy-handle = <&switchphy3>;
+				phy-mode = "internal";
+				status = "okay";
+			};
+
+			port4: port@4 {
+				reg = <4>;
+				label = "mxl_lan4";
+				phy-handle = <&switchphy4>;
+				phy-mode = "internal";
+				status = "okay";
+			};
+
+			port5: port@5 {
+				reg = <8>;
+				label = "cpu";
+				phy-mode = "usxgmii";
+				ethernet = <&gmac2>;
+				dsa-tag-protocol = "mxl862_8021q";
+
+				fixed-link {
+					speed = <10000>;
+					full-duplex;
+				};
+			};
+
+			port6: port@6 {
+				reg = <12>;
+				label = "mxl_lan5";
+				phy-mode = "usxgmii";
+				phy-handle = <&phy8>;
+				status = "okay";
+			};
+
+		};
+
+		mdio {
+			switchphy0:switchphy@0 {
+				reg= <0>;
+			};
+			switchphy1:switchphy@1 {
+				reg= <1>;
+			};
+			switchphy2:switchphy@2 {
+				reg= <2>;
+			};
+			switchphy3:switchphy@3 {
+				reg= <3>;
+			};
+			switchphy4:switchphy@4 {
+				reg= <4>;
+			};
+		};
+	};
+
 };
 
 &gmac0 {
@@ -100,6 +202,10 @@
 		full-duplex;
 		pause;
 	};
+};
+
+&int_2p5g_phy {
+	status = "disabled";
 };
 
 &cpu0 {
@@ -127,6 +233,7 @@
 };
 
 &switch {
+	dsa,member = <1 0>;
 	status = "okay";
 };
 
@@ -270,4 +377,8 @@
 
 &xphy {
 	status = "okay";
+};
+
+&hnat {
+	mtketh-lan2 = "mxl_lan";
 };
