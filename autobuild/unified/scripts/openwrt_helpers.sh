@@ -56,6 +56,48 @@ openwrt_get_subtarget_name() {
 	make -s -C "${openwrt_root}" -f "${ab_root}/scripts/get_openwrt_defs.mk" get-subtarget-name
 }
 
+# Get OpenWrt package's name
+# $1:	package directory
+openwrt_get_package_name() {
+	make -s -C "${openwrt_root}" -f "${ab_root}/scripts/get_openwrt_package_defs.mk" get-package-name \
+		__PACKAGE_DIR="${1}" V=s 2>/dev/null
+}
+
+# Get OpenWrt package's version
+# $1:	package directory
+openwrt_get_package_version() {
+	make -s -C "${openwrt_root}" -f "${ab_root}/scripts/get_openwrt_package_defs.mk" get-package-version \
+		__PACKAGE_DIR="${1}" V=s 2>/dev/null
+}
+
+# Get OpenWrt package's release
+# $1:	package directory
+openwrt_get_package_release() {
+	make -s -C "${openwrt_root}" -f "${ab_root}/scripts/get_openwrt_package_defs.mk" get-package-release \
+		__PACKAGE_DIR="${1}" V=s 2>/dev/null
+}
+
+# Get OpenWrt package's source tarball name
+# $1:	package directory
+openwrt_get_package_source() {
+	make -s -C "${openwrt_root}" -f "${ab_root}/scripts/get_openwrt_package_defs.mk" get-package-source \
+		__PACKAGE_DIR="${1}" V=s 2>/dev/null
+}
+
+# Get OpenWrt package's build directory
+# $1:	package directory
+openwrt_get_package_build_dir() {
+	make -s -C "${openwrt_root}" -f "${ab_root}/scripts/get_openwrt_package_defs.mk" get-package-build-dir \
+		__PACKAGE_DIR="${1}" V=s 2>/dev/null
+}
+
+# Get OpenWrt package's install directory
+# $1:	package directory
+openwrt_get_package_install_dir() {
+	make -s -C "${openwrt_root}" -f "${ab_root}/scripts/get_openwrt_package_defs.mk" get-package-install-dir \
+		__PACKAGE_DIR="${1}" V=s 2>/dev/null
+}
+
 # Check if a path is OpenWrt's root directory
 # $1:	Path to be checked
 is_openwrt_build_root() {
