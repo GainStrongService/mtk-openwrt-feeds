@@ -1,0 +1,104 @@
+--- a/tools/fdt_host.h
++++ b/tools/fdt_host.h
+@@ -38,4 +38,13 @@ int fdt_remove_unused_strings(const void
+ int fit_check_sign(const void *fit, const void *key,
+ 		   const char *fit_uname_config);
+ 
++/**
++ * fit_check_all_sign() - Check all signatures in a FIT
++ *
++ * @fit: FIT to check
++ * @key: Key FDT blob to check against
++ * @return 0 if OK, -ve if signature failed
++ */
++int fit_check_all_sign(const void *fit, const void *key);
++
+ #endif /* __FDT_HOST_H__ */
+--- a/tools/fit_check_sign.c
++++ b/tools/fit_check_sign.c
+@@ -40,6 +40,7 @@ int main(int argc, char **argv)
+ 	struct stat fsbuf;
+ 	struct stat ksbuf;
+ 	void *fit_blob;
++	bool all_verify = false;
+ 	char *fdtfile = NULL;
+ 	char *keyfile = NULL;
+ 	char *config_name = NULL;
+@@ -50,7 +51,7 @@ int main(int argc, char **argv)
+ 
+ 	strncpy(cmdname, *argv, sizeof(cmdname) - 1);
+ 	cmdname[sizeof(cmdname) - 1] = '\0';
+-	while ((c = getopt(argc, argv, "f:k:c:")) != -1)
++	while ((c = getopt(argc, argv, "f:k:c:a")) != -1)
+ 		switch (c) {
+ 		case 'f':
+ 			fdtfile = optarg;
+@@ -61,6 +62,9 @@ int main(int argc, char **argv)
+ 		case 'c':
+ 			config_name = optarg;
+ 			break;
++		case 'a':
++			all_verify = true;
++			break;
+ 		default:
+ 			usage(cmdname);
+ 			break;
+@@ -80,7 +84,10 @@ int main(int argc, char **argv)
+ 			return EXIT_FAILURE;
+ 	}
+ 	image_set_host_blob(key_blob);
+-	ret = fit_check_sign(fit_blob, key_blob, config_name);
++	if (all_verify)
++		ret = fit_check_all_sign(fit_blob, key_blob);
++	else
++		ret = fit_check_sign(fit_blob, key_blob, config_name);
+ 	if (!ret) {
+ 		ret = EXIT_SUCCESS;
+ 		fprintf(stderr, "Signature check OK\n");
+--- a/tools/image-host.c
++++ b/tools/image-host.c
+@@ -1387,4 +1387,44 @@ int fit_check_sign(const void *fit, cons
+ 
+ 	return ret;
+ }
++
++int fit_check_all_sign(const void *fit, const void *key)
++{
++	int confs_noffset;
++	int noffset;
++	int ret = 0;
++	int ndepth;
++	int count;
++
++	/* Find configurations parent node offset */
++	confs_noffset = fdt_path_offset(fit, FIT_CONFS_PATH);
++	if (confs_noffset < 0) {
++		debug("Can't get configurations parent node '%s' (%s)\n",
++		      FIT_CONFS_PATH, fdt_strerror(confs_noffset));
++		return -ENOENT;
++	}
++
++	for (ndepth = 0, count = 0,
++		noffset = fdt_next_node(fit, confs_noffset, &ndepth);
++	     (noffset >= 0) && (ndepth > 0);
++	     noffset = fdt_next_node(fit, noffset, &ndepth)) {
++		if (ndepth == 1) {
++			/*
++			 * Direct child node of the configurations parent node,
++			 * i.e. configuration node.
++			 */
++			printf("Verifying Hash Integrity for Configuration %u (%s)... ",
++			       count++, fdt_get_name(fit, noffset, NULL));
++			ret = fit_config_verify(fit, noffset);
++			if (ret)
++				return ret;
++			printf("Verified OK, loading images\n");
++			ret = bootm_host_load_images(fit, noffset);
++			if (ret)
++				return ret;
++		}
++	}
++
++	return 0;
++}
+ #endif

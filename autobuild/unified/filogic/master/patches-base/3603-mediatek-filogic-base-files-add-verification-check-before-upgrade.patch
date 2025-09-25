@@ -1,0 +1,21 @@
+--- a/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
++++ b/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
+@@ -244,6 +244,10 @@ platform_do_upgrade() {
+ 	esac
+ }
+ 
++fit_verify_image() {
++	return 0
++}
++
+ PART_NAME=firmware
+ 
+ platform_check_image() {
+@@ -282,6 +286,7 @@ platform_check_image() {
+ 	xiaomi,redmi-router-ax6000-ubootmod|\
+ 	xiaomi,mi-router-wr30u-ubootmod|\
+ 	zyxel,ex5601-t0-ubootmod)
++		fit_verify_image "$1" || return 74
+ 		fit_check_image "$1"
+ 		return $?
+ 		;;
