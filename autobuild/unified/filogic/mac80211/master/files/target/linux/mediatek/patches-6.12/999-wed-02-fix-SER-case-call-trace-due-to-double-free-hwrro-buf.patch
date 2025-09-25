@@ -1,0 +1,24 @@
+From 370fc1b0b5e7d3ff1c70256375ec1c532f068e73 Mon Sep 17 00:00:00 2001
+From: Rex Lu <rex.lu@mediatek.com>
+Date: Fri, 27 Sep 2024 13:46:33 +0800
+Subject: [PATCH 02/16] fix SER case call trace due to double free hwrro buffer
+
+---
+ drivers/net/ethernet/mediatek/mtk_wed.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
+index 5813c4d..41476df 100644
+--- a/drivers/net/ethernet/mediatek/mtk_wed.c
++++ b/drivers/net/ethernet/mediatek/mtk_wed.c
+@@ -1746,7 +1746,6 @@ mtk_wed_rx_reset(struct mtk_wed_device *dev)
+ 				   false);
+ 	}
+ 	mtk_wed_free_rx_buffer(dev);
+-	mtk_wed_hwrro_free_buffer(dev);
+ 
+ 	return 0;
+ }
+-- 
+2.45.2
+
