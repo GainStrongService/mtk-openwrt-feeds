@@ -9,7 +9,7 @@ if [ -z ${internal_build} ]; then
 fi
 
 if test x"${hqa_set}" == x"yes"; then
-	list_add_after $(hooks autobuild_prepare) apply_global_patches apply_hqa_patches
+	. "${ab_global}/hqa.sh"
 fi
 
 if test x"${optee}" == x"yes"; then
@@ -92,10 +92,6 @@ platform_enable_security_config() {
 	openwrt_config_enable CONFIG_MTK_SECURE_BOOT
 	openwrt_config_enable CONFIG_MTK_ANTI_ROLLBACK
 	openwrt_config_enable CONFIG_MTK_FW_ENC
-}
-
-apply_hqa_patches() {
-	apply_patches "filogic/${openwrt_branch}/extra-data/hqa_patches" || return 1
 }
 
 copy_optee_files() {
