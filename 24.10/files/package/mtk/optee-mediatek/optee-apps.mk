@@ -20,6 +20,7 @@ define Build/Compile/optee-apps
 		O=$(PKG_BUILD_DIR)/$(OPTEE_APPS_NAME)/out \
 		CFG_EARLY_TA=$(CONFIG_OPTEE_EARLY_TA) \
 		CFG_FW_ENC_EARLY_TA=$(CONFIG_OPTEE_FW_ENC_EARLY_TA) \
+		CFG_OVERLAYFS_ENCRYPTION_TA=$(CONFIG_PACKAGE_overlayfs-encryption) \
 		$(OPTEE_TA_SIGN_KEYS) \
 		all install
 endef

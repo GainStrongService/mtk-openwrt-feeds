@@ -27,6 +27,7 @@ endif
 include optee-os-config.mk
 
 define Build/Compile/optee-os
+	$(if $(1),$(call Build/Compile/add_early_ta,$(PKG_BUILD_DIR)/$(OPTEE_OS_NAME)/out/arm/ta/trusted_keys),)
 	$(MAKE_VARS) \
 	$(MAKE) -C $(PKG_BUILD_DIR)/$(OPTEE_OS_NAME) \
 		CFG_ARM64_core=y \
