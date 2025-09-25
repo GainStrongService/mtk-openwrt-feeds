@@ -34,7 +34,7 @@ platform_change_openwrt_config() {
 }
 
 filogic_change_kernel_config() {
-	kernel_config_enable CONFIG_EXTRA_FIRMWARE "\"EthMD32.dm.bin EthMD32.DSP.bin as21x1x_fw.bin\""
+	kernel_config_enable CONFIG_EXTRA_FIRMWARE "\"airoha/EthMD32.dm.bin airoha/EthMD32.DSP.bin as21x1x_fw.bin\""
 	kernel_config_enable CONFIG_EXTRA_FIRMWARE_DIR "\"../../../../staging_dir/firmware\""
 	kernel_config_enable CONFIG_AIR_EN8811H_PHY
 	kernel_config_enable CONFIG_AIR_EN8811H_PHY_DEBUGFS
@@ -113,7 +113,7 @@ copy_phy_firmware() {
 
 	# copy linux firmware
 	linux_firmware_path=$(openwrt_get_package_build_dir "package/firmware/linux-firmware")
-	copy_files "${linux_firmware_path}/airoha" "staging_dir/firmware"
+	copy_files "${linux_firmware_path}/airoha" "staging_dir/firmware/airoha"
 }
 
 remove_crypto_package () {
