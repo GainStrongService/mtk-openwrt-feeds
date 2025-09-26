@@ -333,12 +333,10 @@ inherit_patch_file_group_hooks() {
 	eval "name_arr=(${names})"
 
 	local n=${#name_arr[@]}
-	echo "n=$n"
 
 	[ ${n} -eq 0 ] && return
 
 	[ -n "${2}" ] && level=${2}
-	echo "level=$level"
 
 	for i in $(seq 0 $((n-1))); do
 		if test -z ${path}; then
