@@ -70,11 +70,15 @@ for arg in "$@"; do
 		eval ${name}=\"\${value}\"
 		eval ${name}_set=yes
 
-		__logged_args[${#__logged_args[@]}]="${name}=\"${value}\""
+		if ! is_pseudo_arg "${name}"; then
+			__logged_args[${#__logged_args[@]}]="${name}=\"${value}\""
+		fi
 	else
 		eval ${arg}_set=yes
 
-		__logged_args[${#__logged_args[@]}]="${arg}"
+		if ! is_pseudo_arg "${arg}"; then
+			__logged_args[${#__logged_args[@]}]="${arg}"
+		fi
 	fi
 done
 

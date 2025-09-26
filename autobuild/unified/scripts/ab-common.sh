@@ -25,6 +25,23 @@ help_print() {
 	done
 }
 
+# Check whether a argument name is pseudo argument
+# $1:	Argument name
+is_pseudo_arg() {
+	case ${1} in
+	log_file|\
+	log_file_merge|\
+	debug|\
+	release_dir|\
+	extra_branches|\
+	release_build)
+		;;
+	*)
+		return 1
+		;;
+	esac
+}
+
 # Check whether a string is a valid autobuild branch name
 # $1:	Branch name
 autobuild_branch_name_check() {
