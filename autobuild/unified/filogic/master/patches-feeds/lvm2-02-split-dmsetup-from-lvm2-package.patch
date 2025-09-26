@@ -1,0 +1,48 @@
+--- a/feeds/packages/utils/lvm2/Makefile
++++ b/feeds/packages/utils/lvm2/Makefile
+@@ -63,6 +63,15 @@ $(call Package/libdevmapper/description)
+ 
+ endef
+ 
++define Package/dmsetup
++  SECTION:=utils
++  CATEGORY:=Utilities
++  SUBMENU:=Disc
++  TITLE:=The Linux Kernel Device Mapper userspace setup utility
++  URL:=https://sourceware.org/dm/
++  DEPENDS:=+libdevmapper
++endef
++
+ define Package/lvm2/default
+   SECTION:=utils
+   CATEGORY:=Utilities
+@@ -135,6 +144,12 @@ endef
+ 
+ Package/libdevmapper-selinux/install = $(Package/libdevmapper/install)
+ 
++define Package/dmsetup/install
++	$(INSTALL_DIR) $(1)/sbin
++	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/dmsetup $(1)/sbin
++	ln -sf dmsetup $(1)/sbin/dmstats
++endef
++
+ define Package/lvm2/install
+ 	$(INSTALL_DIR) $(1)/sbin
+ 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/lvm $(1)/sbin
+@@ -151,7 +166,7 @@ define Package/lvm2/install
+ 	$(INSTALL_BIN) ./files/lvm2.init $(1)/etc/init.d/lvm2
+ 	$(INSTALL_DIR) $(1)/etc/hotplug.d/block
+ 	$(INSTALL_DATA) ./files/lvm2.hotplug $(1)/etc/hotplug.d/block/20-lvm2
+-	$(FIND) $(PKG_INSTALL_DIR)/usr/sbin/ -type l -exec $(CP) -a {} $(1)/sbin/ \;
++	$(FIND) $(PKG_INSTALL_DIR)/usr/sbin/ -type l ! -name dmstats -exec $(CP) -a {} $(1)/sbin/ \;
+ endef
+ 
+ Package/lvm2-selinux/install = $(Package/lvm2/install)
+@@ -172,6 +187,7 @@ endef
+ 
+ $(eval $(call BuildPackage,libdevmapper))
+ $(eval $(call BuildPackage,libdevmapper-selinux))
++$(eval $(call BuildPackage,dmsetup))
+ $(eval $(call BuildPackage,lvm2))
+ $(eval $(call BuildPackage,lvm2-selinux))
+ $(eval $(call HostBuild))
