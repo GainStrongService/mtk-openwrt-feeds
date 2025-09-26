@@ -156,7 +156,8 @@ exec_log() {
 
 	[ -z "${1}" ] && return
 
-	local expanded=$(eval "echo ${1}")
+	local escaped_cmd=$(printf "%q" "${1}")
+	local expanded=$(eval "echo ${escaped_cmd}")
 	print_text "+ ${expanded}"
 
 	if test -n "${2}"; then
