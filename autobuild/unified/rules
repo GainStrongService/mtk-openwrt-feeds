@@ -35,7 +35,7 @@ hooks_do_release="collect_openwrt_images collect_openwrt_configs collect_kernel_
 hooks_post_release=
 
 hooks_pre_sdk_release=
-hooks_do_sdk_release="release_openwrt_sdk"
+hooks_do_sdk_release=
 hooks_post_sdk_release=
 
 # Global information
@@ -134,7 +134,7 @@ modify_feeds_conf() {
 	# Backup original feeds
 	exec_log "cp -f \"${openwrt_root}/feeds.conf.default\" \"${ab_tmp}/\""
 
-	if test -n "${internal_build}"; then
+	if test -n "${internal_build}" -o -n "${release_build}"; then
 		# Modify feeds
 		openwrt_feeds_replace_url packages https://gerrit.mediatek.inc/openwrt/feeds/packages
 		openwrt_feeds_replace_url luci https://gerrit.mediatek.inc/openwrt/feeds/luci

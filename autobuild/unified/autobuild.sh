@@ -33,12 +33,20 @@ do_help=
 do_list=
 do_clean=
 do_fullclean=
+do_sdk_release=
 
 if list_find ab_stages "${1}"; then
 	ab_stages="${1}"
 	shift
 elif test x"${1}" = x"sdk_release"; then
+	if ! test -f ${ab_root}/global-dev/release/common.sh; then
+		log_err "SDK release is not supported"
+	fi
+
+	. ${ab_root}/global-dev/release/common.sh
+
 	ab_stages="prepare sdk_release"
+	do_sdk_release=1
 	shift
 elif test x"${1}" = x"menuconfig"; then
 	ab_stages="prepare menuconfig"
@@ -347,6 +355,15 @@ help_add_line "    current branch defconfigs before starting menuconfig"
 # Include branch rules (the rule is child level overriding parent level)
 . "${ab_root}/rules"
 
+# SDK release prepare stage 1
+if test -n "${do_sdk_release}"; then
+	if ! sdk_release_prepare; then
+		exit 1
+	fi
+
+	. ${ab_root}/global-dev/release/rules
+fi
+
 ## Hook name
 __ab_branch_hook_name=
 
@@ -391,6 +408,13 @@ unset __ab_branch_hook_name
 unset __ab_apply_patches_hook_name
 unset __ab_remove_files_by_list_hook_name
 unset __ab_copy_files_hook_name
+
+# SDK release prepare stage 2
+if test -n "${do_sdk_release}"; then
+	if ! sdk_release_per_level_prepare; then
+		exit 1
+	fi
+fi
 
 # Show help?
 if test x"${do_help}" = x"1"; then
