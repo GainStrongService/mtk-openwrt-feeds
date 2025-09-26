@@ -377,7 +377,7 @@ openwrt_feeds_set_revision() {
 		feeds_revision+=("$line")
 	done < ${1}
 
-	rm -f "${ab_root}/feeds.conf.mtk"
+	rm -f "${ab_tmp}/feeds.conf.mtk"
 
 	cat "${openwrt_root}/feeds.conf.default" | while read line; do
 		local farr=()
@@ -406,10 +406,10 @@ openwrt_feeds_set_revision() {
 			fi
 		fi
 
-		echo "${line}" >> "${ab_root}/feeds.conf.mtk"
+		echo "${line}" >> "${ab_tmp}/feeds.conf.mtk"
 	done
 
-	mv "${ab_root}/feeds.conf.mtk" "${openwrt_root}/feeds.conf.default"
+	mv "${ab_tmp}/feeds.conf.mtk" "${openwrt_root}/feeds.conf.default"
 }
 
 # Get existed git-based feeds
