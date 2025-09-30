@@ -7,11 +7,6 @@
 __help_text=()
 __use_quilt=
 
-if which quilt > /dev/null; then
-	__quilt_ver=$(quilt --version 2>/dev/null)
-	[ -n "${__quilt_ver}" ] && __use_quilt=1
-fi
-
 # Add help text line
 # $1:	Text line
 help_add_line() {
