@@ -17,7 +17,7 @@ define Package/mtkhnat_util
   SECTION:=net
   CATEGORY:=Network
   TITLE:=mtk hnat utility
-  VERSION:=$(PKG_RELEASE)-$(REVISION)
+  VERSION:=$(PKG_VERSION)-r$(PKG_RELEASE)
 endef
 
 define Package/mtkhnat_util/description
