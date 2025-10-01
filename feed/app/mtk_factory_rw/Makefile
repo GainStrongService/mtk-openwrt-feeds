@@ -18,7 +18,7 @@ define Package/mtk_factory_rw
   CATEGORY:=MTK Properties
   SUBMENU:=Misc
   TITLE:=mtk factory read and write
-  VERSION:=$(PKG_RELEASE)-$(REVISION)
+  VERSION:=$(PKG_VERSION)-r$(PKG_RELEASE)
 endef
 
 define Package/mtk_factory_rw/description
