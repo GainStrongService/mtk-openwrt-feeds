@@ -18,7 +18,7 @@ define Package/netsys_dbg_util
   CATEGORY:=MTK Properties
   SUBMENU:=Misc
   TITLE:=mtk netsys debug utility
-  VERSION:=$(PKG_RELEASE)-$(REVISION)
+  VERSION:=$(PKG_VERSION)-r$(PKG_RELEASE)
 endef
 
 define Package/netsys_dbg_util/description
