@@ -57,7 +57,7 @@
 #define MXL86252_EXT_PORT_NUM		2
 #define MXL86282_EXT_PORT_NUM		2
 
-#define MAX_BRIDGES			16
+#define MAX_BRIDGES			17
 #define MAX_PORTS			MXL862XX_MAX_PORT_NUM
 #define MAX_VLAN_ENTRIES		(1024-160)
 #define IDX_INVAL			(-1)
@@ -1267,7 +1267,7 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 
 	/* Store bridge portmap in the driver cache.
 	 * Add CPU port for each bridge. */
-	for (i = 0; i < MAX_BRIDGES; i++)
+	for (i = 1; i < MAX_BRIDGES; i++)
 		mxl862xx_bridge_portmap[i] = BIT(DSA_MXL_PORT(cpu_port));
 
 	__set_vlan_filters_limits(ds);
@@ -1306,6 +1306,19 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 				__func__, i, ret);
 			goto EXIT;
 		}
+
+		mxl862xx_bridge_portmap[0] |= BIT(DSA_MXL_PORT(i));
+	}
+
+	/* Update CPU bridge port */
+	mxl862xx_bridge_port_config_t br_port_cfg = { 0 };
+	br_port_cfg.bridge_port_id = DSA_MXL_PORT(cpu_port);
+	br_port_cfg.mask = MXL862XX_BRIDGE_PORT_CONFIG_MASK_BRIDGE_PORT_MAP;
+	br_port_cfg.bridge_port_map[0] = mxl862xx_bridge_portmap[0];
+	ret = mxl862xx_bridge_port_config_set(&mxl_dev, &br_port_cfg);
+	if (ret != MXL862XX_STATUS_OK) {
+		dev_err(ds->dev, "failed to set the cpu portmap\n");
+		goto EXIT;
 	}
 
 	/* Clear MAC address table */
@@ -1486,22 +1499,158 @@ static void mxl862xx_phylink_get_caps(struct dsa_switch *ds, int port,
 }
 #endif
 
+static int mxl862xx_phylink_mac_link_state(struct dsa_switch *ds, int port,
+			      struct phylink_link_state *state)
+{
+	mxl862xx_port_link_cfg_t port_link_cfg = { 0 };
+	mxl862xx_port_cfg_t port_cfg = { 0 };
+	int hw_port = DSA_MXL_PORT(port);
+	int ret = -EINVAL;
+
+	if (dsa_is_cpu_port(ds, port))
+		return 0;
+
+	if (hw_port != 9 && hw_port != 13)
+		return 0;
+
+	port_link_cfg.port_id = hw_port;
+	ret = mxl862xx_port_link_cfg_get(&mxl_dev, &port_link_cfg);
+	if (ret != MXL862XX_STATUS_OK) {
+		dev_err(ds->dev, "failed to read link configuration on port %d\n", port);
+		return ret;
+	}
+
+	port_cfg.port_id = hw_port;
+	ret = mxl862xx_port_cfg_get(&mxl_dev, &port_cfg);
+	if (ret != MXL862XX_STATUS_OK) {
+		dev_err(ds->dev, "failed to read configuration on port %d\n", port);
+		return ret;
+	}
+
+	if (port_link_cfg.link == MXL862XX_PORT_LINK_UP)
+		state->link = 1;
+	else
+		state->link = 0;
+	state->an_complete = state->link;
+
+	switch (port_link_cfg.speed) {
+	case MXL862XX_PORT_SPEED_10:
+		state->speed = SPEED_10;
+		break;
+	case MXL862XX_PORT_SPEED_100:
+		state->speed = SPEED_100;
+		break;
+	case MXL862XX_PORT_SPEED_1000:
+		state->speed = SPEED_1000;
+		break;
+	case MXL862XX_PORT_SPEED_2500:
+		state->speed = SPEED_2500;
+		break;
+	case MXL862XX_PORT_SPEED_5000:
+		state->speed = SPEED_5000;
+		break;
+	case MXL862XX_PORT_SPEED_10000:
+		state->speed = SPEED_10000;
+		break;
+	default:
+		state->speed = SPEED_UNKNOWN;
+		dev_err(ds->dev, "unsupported links speed on port %d\n", port);
+		break;
+	}
+
+	switch (port_link_cfg.duplex) {
+	case MXL862XX_DUPLEX_HALF:
+		state->duplex = DUPLEX_HALF;
+		break;
+	case MXL862XX_DUPLEX_FULL:
+		state->duplex = DUPLEX_FULL;
+		break;
+	default:
+		state->duplex = DUPLEX_UNKNOWN;
+		break;
+	}
+
+	state->pause &= ~(MLO_PAUSE_RX | MLO_PAUSE_TX);
+	switch (port_cfg.flow_ctrl) {
+	case MXL862XX_FLOW_RXTX:
+		state->pause |= MLO_PAUSE_TXRX_MASK;
+		break;
+	case MXL862XX_FLOW_TX:
+		state->pause |= MLO_PAUSE_TX;
+		break;
+	case MXL862XX_FLOW_RX:
+		state->pause |= MLO_PAUSE_RX;
+		break;
+	case MXL862XX_FLOW_OFF:
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static void mxl862xx_phylink_mac_config(struct dsa_switch *ds, int port,
 					unsigned int mode,
 					const struct phylink_link_state *state)
 {
-	switch (state->interface) {
-	case PHY_INTERFACE_MODE_INTERNAL:
+	mxl862xx_sys_sfp_cfg_t ser_intf = { 0 };
+	int hw_port = DSA_MXL_PORT(port);
+	int ret;
+
+	if (dsa_is_cpu_port(ds, port))
 		return;
-	case PHY_INTERFACE_MODE_SGMII:
-		return;
-	case PHY_INTERFACE_MODE_USXGMII:
-		/* Configure the USXGMII */
-		break;
-	default:
-		dev_err(ds->dev, "Unsupported interface: %d\n",
-			state->interface);
-		return;
+
+	if (hw_port == 9 || hw_port == 13) {
+		if (hw_port == 9)
+			ser_intf.port_id = 0;
+		else
+			ser_intf.port_id = 1;
+
+		/** select speed when mode is 1
+		 *	0 - 10G Quad USXGMII
+		*	1 - 1000BaseX ANeg
+		*	2 - 10G	XFI
+		*	3 - 10G Single USXGMII
+		*	4 - 2.5G SGMII
+		*	5 - 2500 Single USXGMI
+		*	6 - 2500BaseX NonANeg
+		*	7 - 1000BaseX NonANeg
+		*	8 - 1G SGMI
+		*/
+		switch (state->interface) {
+		case PHY_INTERFACE_MODE_SGMII:
+			ser_intf.speed = 8;
+			break;
+		case PHY_INTERFACE_MODE_1000BASEX:
+			ser_intf.speed = 7;
+			break;
+		case PHY_INTERFACE_MODE_2500BASEX:
+			ser_intf.speed = 4;
+			break;
+		case PHY_INTERFACE_MODE_10GKR:
+			ser_intf.speed = 2;
+			break;
+		case PHY_INTERFACE_MODE_USXGMII:
+			ser_intf.speed = 3;
+			break;
+		default:
+			dev_err(ds->dev, "Unsupported interface: %d\n", state->interface);
+			return;
+		}
+
+		ser_intf.option = 0;
+		ser_intf.mode = 1;
+		ret = mxl862xx_sys_misc_sfp_set(&mxl_dev, &ser_intf);
+		if (ret != MXL862XX_STATUS_OK) {
+			dev_err(ds->dev, "%s: failed to set intf on port %d\n", __func__, port);
+			return;
+		}
+	} else {
+		/* Internal phy */
+		if (state->interface != PHY_INTERFACE_MODE_INTERNAL) {
+			dev_err(ds->dev, "Unsupported interface: %d\n", state->interface);
+			return;
+		}
 	}
 }
 
@@ -4360,6 +4509,7 @@ static const struct dsa_switch_ops mxl862xx_switch_ops = {
 	.get_tag_protocol = mxl862xx_get_tag_protocol,
 	.phy_read = mxl862xx_phy_read,
 	.phy_write = mxl862xx_phy_write,
+	.phylink_mac_link_state = mxl862xx_phylink_mac_link_state,
 	.phylink_mac_config = mxl862xx_phylink_mac_config,
 	.phylink_mac_link_down = mxl862xx_phylink_mac_link_down,
 	.phylink_mac_link_up = mxl862xx_phylink_mac_link_up,

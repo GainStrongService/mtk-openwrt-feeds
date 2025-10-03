@@ -37,6 +37,12 @@ int mxl862xx_register_mod(const mxl862xx_device_t *dev, mxl862xx_register_mod_t 
 			    0);
 }
 
+int mxl862xx_port_link_cfg_get(const mxl862xx_device_t *dev, mxl862xx_port_link_cfg_t *parm)
+{
+	return mxl862xx_api_wrap(dev, MXL862XX_COMMON_PORTLINKCFGGET, parm, sizeof(*parm), 0,
+			    sizeof(*parm));
+}
+
 int mxl862xx_port_link_cfg_set(const mxl862xx_device_t *dev, mxl862xx_port_link_cfg_t *parm)
 {
 	return mxl862xx_api_wrap(dev, MXL862XX_COMMON_PORTLINKCFGSET, parm, sizeof(*parm),
@@ -270,3 +276,14 @@ int mxl862xx_cfg_set(const mxl862xx_device_t *dev, mxl862xx_cfg_t *parm)
 				MXL862XX_COMMON_CFGGET, 0);
 }
 
+int mxl862xx_sys_misc_sfp_get(const mxl862xx_device_t *dev, mxl862xx_sys_sfp_cfg_t *parm)
+{
+	return mxl862xx_api_wrap(dev, SYS_MISC_SFP_GET, parm, sizeof(*parm), 0,
+			    sizeof(*parm));
+}
+
+int mxl862xx_sys_misc_sfp_set(const mxl862xx_device_t *dev, mxl862xx_sys_sfp_cfg_t *parm)
+{
+	return mxl862xx_api_wrap(dev, SYS_MISC_SFP_SET, parm, sizeof(*parm),
+				SYS_MISC_SFP_GET, 0);
+}

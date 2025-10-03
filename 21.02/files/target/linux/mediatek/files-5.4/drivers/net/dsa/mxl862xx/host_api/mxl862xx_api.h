@@ -1762,6 +1762,33 @@ struct sys_fw_image_version {
 	uint32_t iv_build_num;
 };
 
+/** \brief Config SFP
+ *  Used by \ref sys_misc_sfp_get and \ref sys_misc_sfp_set.
+ */
+typedef struct {
+    uint8_t port_id: 4;
+    uint8_t option: 4;
+    union {
+        struct {
+            uint8_t mode;
+            /** select speed when mode is 1
+             *  0 - 10G Quad USXGMII
+             *  1 - 1000BaseX ANeg
+             *  2 - 10G XFI
+             *  3 - 10G Single USXGMII
+             *  4 - 2.5G SGMII
+             *  5 - 2500 Single USXGMI
+             *  6 - 2500BaseX NonANeg
+             *  7 - 1000BaseX NonANeg
+             *  8 - 1G SGMI
+             */
+            uint8_t speed;
+            uint8_t link;
+        };
+        uint8_t fc_en;
+    };
+} mxl862xx_sys_sfp_cfg_t;
+
 int sys_misc_fw_version(const mxl862xx_device_t *dummy,
 			struct sys_fw_image_version *sys_img_ver);
 
@@ -1823,4 +1850,6 @@ int mxl862xx_vlan_filter_get(const mxl862xx_device_t *, mxl862xx_vlanfilter_conf
 int mxl862xx_vlan_filter_free(const mxl862xx_device_t *, mxl862xx_vlanfilter_alloc_t *);
 int mxl862xx_cfg_get(const mxl862xx_device_t *, mxl862xx_cfg_t *);
 int mxl862xx_cfg_set(const mxl862xx_device_t *, mxl862xx_cfg_t *);
+int mxl862xx_sys_misc_sfp_get(const mxl862xx_device_t *, mxl862xx_sys_sfp_cfg_t *);
+int mxl862xx_sys_misc_sfp_set(const mxl862xx_device_t *, mxl862xx_sys_sfp_cfg_t *);
 #endif /* _MXL862XX_API_H_ */
