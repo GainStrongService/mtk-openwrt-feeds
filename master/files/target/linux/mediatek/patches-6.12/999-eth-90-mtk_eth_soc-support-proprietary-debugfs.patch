@@ -1082,9 +1082,9 @@ index 0000000..b35866f
 +		   (int)(ring->last_free - (struct mtk_tx_dma *)ring->dma));
 +	for (i = 0; i < eth->soc->tx.dma_size; i++) {
 +		dma_addr_t addr = ring->phys +
-+				 i * (dma_addr_t)eth->soc->tx.desc_shift;
++				  (i << eth->soc->tx.desc_shift);
 +
-+		tx_ring = ring->dma + i * eth->soc->tx.desc_shift;
++		tx_ring = ring->dma + (i << eth->soc->tx.desc_shift);
 +
 +		seq_printf(m, "%04d (0x%llx): %08x %08x %08x %08x", i, addr,
 +			   tx_ring->txd1, tx_ring->txd2,
@@ -1121,11 +1121,11 @@ index 0000000..b35866f
 +	struct mtk_tx_dma_v2 *hwtx_ring;
 +	int i = 0;
 +
-+	for (i = 0; i < MTK_QDMA_RING_SIZE; i++) {
++	for (i = 0; i < eth->soc->tx.fq_dma_size; i++) {
 +		dma_addr_t addr = eth->fq_ring.phy_scratch_ring +
-+				  i * (dma_addr_t)eth->soc->tx.desc_shift;
++				  (i << eth->soc->tx.desc_shift);
 +
-+		hwtx_ring = eth->fq_ring.scratch_ring + i * eth->soc->tx.desc_shift;
++		hwtx_ring = eth->fq_ring.scratch_ring + (i << eth->soc->tx.desc_shift);
 +
 +		seq_printf(m, "%04d (0x%llx): %08x %08x %08x %08x", i, addr,
 +			   hwtx_ring->txd1, hwtx_ring->txd2,
@@ -1172,9 +1172,9 @@ index 0000000..b35866f
 +			   NEXT_DESP_IDX(ring->calc_idx, eth->soc->rx.dma_size));
 +		for (i = 0; i < ring->dma_size; i++) {
 +			dma_addr_t addr = ring->phys +
-+				 i * (dma_addr_t)eth->soc->tx.desc_shift;
++					  (i << eth->soc->tx.desc_shift);
 +
-+			rx_ring = ring->dma + i * eth->soc->rx.desc_shift;
++			rx_ring = ring->dma + (i << eth->soc->rx.desc_shift);
 +
 +			seq_printf(m, "%04d (0x%llx): %08x %08x %08x %08x", i, addr,
 +				   rx_ring->rxd1, rx_ring->rxd2,
