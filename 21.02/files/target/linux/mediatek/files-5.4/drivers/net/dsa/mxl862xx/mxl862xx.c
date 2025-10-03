@@ -2610,9 +2610,9 @@ __prepare_vlan_ingress_filters_off(struct mxl862xx_priv *priv, uint8_t port, uin
 	if (port == priv->cpu_port)
 		vlan_cfg.entry_index = priv->port_info[port].vlan.ingress_vlan_block_info.filters_max - 1;
 	else {
-		vlan_cfg.entry_index =
-			priv->port_info[port]
-				.vlan.ingress_vlan_block_info.final_filters_idx--;
+		/* for vlan filter off, this entry is fixed and always put at the end of the block */
+		vlan_cfg.entry_index = priv->port_info[port].vlan.ingress_vlan_block_info.filters_max - 1;
+		priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
 	}
 	vlan_cfg.filter.outer_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG;
 	vlan_cfg.filter.inner_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG;
@@ -2737,7 +2737,7 @@ __prepare_vlan_egress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid,
 	//Entry 4: no outer/inner tag, no PVID  DISCARD
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
 	vlan_cfg.extended_vlan_block_id = block_info->block_id;
-	vlan_cfg.entry_index = block_info->final_filters_idx--;
+	vlan_cfg.entry_index = block_info->filters_max - 1;
 	vlan_cfg.filter.inner_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG;
 	vlan_cfg.filter.outer_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG;
 	vlan_cfg.treatment.remove_tag =
@@ -2747,10 +2747,12 @@ __prepare_vlan_egress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid,
 	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
 
+	block_info->final_filters_idx = vlan_cfg.entry_index;
+
 	//Entry 3: Only Outer tag present. Discard if VID is not matching the previous rules
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
 	vlan_cfg.extended_vlan_block_id = block_info->block_id;
-	vlan_cfg.entry_index = block_info->final_filters_idx--;
+	vlan_cfg.entry_index = block_info->filters_max - 2;
 	vlan_cfg.filter.outer_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NORMAL;
 	vlan_cfg.filter.inner_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG;
 	vlan_cfg.treatment.remove_tag =
@@ -2760,10 +2762,12 @@ __prepare_vlan_egress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid,
 	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
 
+	block_info->final_filters_idx = vlan_cfg.entry_index;
+
 	//Entry 2: Outer and Inner tags are present. Discard if VID is not matching the previous rules
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
 	vlan_cfg.extended_vlan_block_id = block_info->block_id;
-	vlan_cfg.entry_index = block_info->final_filters_idx--;
+	vlan_cfg.entry_index = block_info->filters_max - 3;
 	vlan_cfg.filter.outer_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NORMAL;
 	vlan_cfg.filter.inner_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NORMAL;
 	vlan_cfg.treatment.remove_tag =
@@ -2772,6 +2776,8 @@ __prepare_vlan_egress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid,
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
 	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
+
+	block_info->final_filters_idx = vlan_cfg.entry_index;
 
 	/* VID specific entries must be processed before the final entries,
 	 * so putting them at the beginnig of the block */
@@ -3582,9 +3588,7 @@ __prepare_vlan_ingress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
 	vlan_cfg.extended_vlan_block_id =
 		priv->port_info[port].vlan.ingress_vlan_block_info.block_id;
-	vlan_cfg.entry_index =
-		priv->port_info[port]
-			.vlan.ingress_vlan_block_info.final_filters_idx--;
+	vlan_cfg.entry_index = priv->port_info[port].vlan.ingress_vlan_block_info.filters_max - 1;
 	vlan_cfg.filter.outer_vlan.type =
 		MXL862XX_EXTENDEDVLAN_FILTER_TYPE_DEFAULT;
 	vlan_cfg.filter.inner_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG;
@@ -3600,13 +3604,13 @@ __prepare_vlan_ingress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid
 		goto EXIT;
 	}
 
+	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
+
 	//Entry 5 no other rule applies Outer tag default Inner tag  present DISCARD
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
 	vlan_cfg.extended_vlan_block_id =
 		priv->port_info[port].vlan.ingress_vlan_block_info.block_id;
-	vlan_cfg.entry_index =
-		priv->port_info[port]
-			.vlan.ingress_vlan_block_info.final_filters_idx--;
+	vlan_cfg.entry_index = priv->port_info[port].vlan.ingress_vlan_block_info.filters_max - 2;
 	vlan_cfg.filter.outer_vlan.type =
 		MXL862XX_EXTENDEDVLAN_FILTER_TYPE_DEFAULT;
 	vlan_cfg.filter.inner_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NORMAL;
@@ -3622,13 +3626,13 @@ __prepare_vlan_ingress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid
 		goto EXIT;
 	}
 
+	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
+
 	// Entry 4  untagged pkts. If there's PVID accept and add PVID tag, otherwise reject
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
 	vlan_cfg.extended_vlan_block_id =
 		priv->port_info[port].vlan.ingress_vlan_block_info.block_id;
-	vlan_cfg.entry_index =
-		priv->port_info[port]
-			.vlan.ingress_vlan_block_info.final_filters_idx--;
+	vlan_cfg.entry_index = priv->port_info[port].vlan.ingress_vlan_block_info.filters_max - 3;
 	vlan_cfg.filter.outer_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG;
 	vlan_cfg.filter.inner_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG;
 	if (!priv->port_info[port].vlan.pvid) {
@@ -3653,13 +3657,13 @@ __prepare_vlan_ingress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid
 	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
 
+	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
+
 	// Entry 3 : Only Outer tag present : not matching  DISCARD
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
 	vlan_cfg.extended_vlan_block_id =
 		priv->port_info[port].vlan.ingress_vlan_block_info.block_id;
-	vlan_cfg.entry_index =
-		priv->port_info[port]
-			.vlan.ingress_vlan_block_info.final_filters_idx--;
+	vlan_cfg.entry_index = priv->port_info[port].vlan.ingress_vlan_block_info.filters_max - 4;
 	vlan_cfg.filter.outer_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NORMAL;
 	vlan_cfg.filter.inner_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG;
 	vlan_cfg.treatment.remove_tag =
@@ -3669,14 +3673,13 @@ __prepare_vlan_ingress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid
 	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
 
+	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
+
 	// Entry 2 : Outer and Inner VLAN tag present : not matching  DISCARD
 	memset(&vlan_cfg, 0, sizeof(vlan_cfg));
 	vlan_cfg.extended_vlan_block_id =
 		priv->port_info[port].vlan.ingress_vlan_block_info.block_id;
-	vlan_cfg.entry_index =
-		priv->port_info[port]
-			.vlan.ingress_vlan_block_info.final_filters_idx--;
-
+	vlan_cfg.entry_index = priv->port_info[port].vlan.ingress_vlan_block_info.filters_max - 5;
 	vlan_cfg.filter.outer_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NORMAL;
 	vlan_cfg.filter.inner_vlan.type = MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NORMAL;
 	vlan_cfg.treatment.remove_tag =
@@ -3685,6 +3688,8 @@ __prepare_vlan_ingress_filters(struct dsa_switch *ds, uint8_t port, uint16_t vid
 	ret = mxl862xx_extended_vlan_set(&mxl_dev, &vlan_cfg);
 	if (ret != MXL862XX_STATUS_OK)
 		goto EXIT;
+
+	priv->port_info[port].vlan.ingress_vlan_block_info.final_filters_idx = vlan_cfg.entry_index;
 
 	/* VID specific filtering rules which should be executed first before final ones.
 	 * Storing starts at the beginning of the block. */
