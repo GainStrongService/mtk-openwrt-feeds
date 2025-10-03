@@ -119,9 +119,7 @@ endif
 ifeq ($(CONFIG_OPTEE_OFFLINE_SIGN),y)
 	$(call tas-offline-sign)
 endif
-ifeq ($(CONFIG_OPTEE_EARLY_TA),y)
 	$(call Build/Compile/optee-os, EARLY_TA_BUILD)
-endif
 endef
 
 define Build/Install
