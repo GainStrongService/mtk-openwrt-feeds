@@ -298,7 +298,7 @@ static int mxl862xx_phy_read_mmd(struct dsa_switch *ds, int devnum, int port, in
 	if (ret == MXL862XX_STATUS_OK)
 		goto EXIT;
 	else {
-		pr_err("%s: reading port: %d failed with err: %d\n",
+		pr_debug("%s: reading port: %d failed with err: %d\n",
 			__func__, port, ret);
 	}
 
@@ -323,7 +323,7 @@ static int mxl862xx_phy_write_mmd(struct dsa_switch *ds, int devnum, int port, i
 	if (ret == MXL862XX_STATUS_OK)
 		goto EXIT;
 	else {
-		pr_err("%s: writing port: %d failed with err: %d\n",
+		pr_debug("%s: writing port: %d failed with err: %d\n",
 			__func__, port, ret);
 	}
 
