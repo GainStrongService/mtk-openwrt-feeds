@@ -487,13 +487,20 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clock-frequency = <10500000>;
+		reset-gpios = <&pio 72 1>;
+		reset-assert-us = <100000>;
+		reset-deassert-us = <221000>;
 
 		phy0: ethernet-phy@0 {
 			reg = <0>;
 			compatible = "ethernet-phy-ieee802.3-c45";
-			reset-gpios = <&pio 72 1>;
-			reset-assert-us = <100000>;
-			reset-deassert-us = <221000>;
+			mdi-reversal = /bits/ 16 <1>;
+		};
+
+		/* external AQR113C on mxl 2.5G switch */
+		phy8: ethernet-phy@8 {
+			reg = <8>;
+			compatible = "ethernet-phy-ieee802.3-c45";
 			mdi-reversal = /bits/ 16 <1>;
 		};
 
@@ -543,7 +550,7 @@
 					status = "okay";
 				};
 
-				port8: port@8 {
+				port5: port@5 {
 					reg = <8>;
 					label = "cpu";
 					phy-mode = "usxgmii";
@@ -555,6 +562,15 @@
 						full-duplex;
 					};
 				};
+
+				port6: port@6 {
+					reg = <12>;
+					label = "mxl_lan5";
+					phy-mode = "usxgmii";
+					phy-handle = <&phy8>;
+					status = "okay";
+				};
+
 			};
 
 			mdio {

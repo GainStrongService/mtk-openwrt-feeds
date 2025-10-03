@@ -39,7 +39,7 @@
 #endif
 
 
-#define MXL862_NAME	"mxl862xx"
+#define MXL862_TAG_8021Q_NAME	"mxl862_8021q"
 
 /* To define the outgoing port and to discover the incoming port
  * a special 4-byte outer VLAN tag is used by the MxL862xx.
@@ -119,7 +119,6 @@ static struct sk_buff *mxl862_8021q_tag_xmit(struct sk_buff *skb,
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(dev, queue_mapping);
 
-
 	dsa_8021q_xmit(skb, dev, ETH_P_8021Q,
 			      ((pcp << VLAN_PRIO_SHIFT) | tx_vid));
 
@@ -135,26 +134,29 @@ static struct sk_buff *mxl862_8021q_tag_rcv(struct sk_buff *skb,
 				      struct net_device *dev)
 #endif
 {
-	uint16_t vlan = ntohs(*(uint16_t*)(skb->data));
-	int port = dsa_8021q_rx_source_port(vlan);
 	int src_port = -1;
 	int switch_id = -1;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0))
-	skb->dev = dsa_master_find_slave(dev, 0, port);
-#else
-	skb->dev = dsa_conduit_find_user(dev, 0, port);
-#endif
-	if (!skb->dev) {
-		dev_warn_ratelimited(&dev->dev,"Dropping packet due to invalid source port:%d\n", port);
-		return NULL;
-	}
 	/* removes Outer VLAN tag */
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
 	dsa_8021q_rcv(skb, &src_port, &switch_id);
 #else
 	dsa_8021q_rcv(skb, &src_port, &switch_id, NULL);
 #endif
+	if (src_port == -1 || switch_id == -1) {
+		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid outer 802.1Q tag: switch %d port %d\n", switch_id, src_port);
+		return NULL;
+	}
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 7, 0))
+	skb->dev = dsa_master_find_slave(dev, switch_id, src_port);
+#else
+	skb->dev = dsa_conduit_find_user(dev, switch_id, src_port);
+#endif
+	if (!skb->dev) {
+		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid source port: %d\n", src_port);
+		return NULL;
+	}
 
 	dsa_default_offload_fwd_mark(skb);
 
@@ -162,7 +164,7 @@ static struct sk_buff *mxl862_8021q_tag_rcv(struct sk_buff *skb,
 }
 
 static const struct dsa_device_ops mxl862_8021q_netdev_ops = {
-	.name = "mxl862_8021q",
+	.name = MXL862_TAG_8021Q_NAME,
 	.proto = DSA_TAG_PROTO_MXL862_8021Q,
 	.xmit = mxl862_8021q_tag_xmit,
 	.rcv = mxl862_8021q_tag_rcv,
@@ -179,12 +181,11 @@ static const struct dsa_device_ops mxl862_8021q_netdev_ops = {
 #endif
 };
 
-
 MODULE_LICENSE("GPL");
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0))
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_MXL862_8021Q);
 #else
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_MXL862_8021Q, MXL862_NAME);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_MXL862_8021Q, MXL862_TAG_8021Q_NAME);
 #endif
 
 module_dsa_tag_driver(mxl862_8021q_netdev_ops);
