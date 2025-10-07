@@ -1,15 +1,15 @@
-From 2981641936880b965df6160ba71f08312f9d4826 Mon Sep 17 00:00:00 2001
+From 0e45ba3bb7ae42c7cfaab1b188992d066e9a63c8 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Tue, 7 Oct 2025 14:26:32 +0800
+Date: Tue, 7 Oct 2025 14:49:18 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
 
 ---
  drivers/net/ethernet/mediatek/Makefile      |    2 +-
  drivers/net/ethernet/mediatek/mtk_eth_dbg.c | 2390 +++++++++++++++++++
  drivers/net/ethernet/mediatek/mtk_eth_dbg.h |  458 ++++
- drivers/net/ethernet/mediatek/mtk_eth_soc.c |   47 +-
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c |   41 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |   58 +
- 5 files changed, 2944 insertions(+), 11 deletions(-)
+ 5 files changed, 2941 insertions(+), 8 deletions(-)
  create mode 100644 drivers/net/ethernet/mediatek/mtk_eth_dbg.c
  create mode 100644 drivers/net/ethernet/mediatek/mtk_eth_dbg.h
 
@@ -2887,7 +2887,7 @@ index 0000000..0eff3e6
 +
 +#endif /* MTK_ETH_DBG_H */
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 0dcb94f..10019be 100644
+index 0dcb94f..8464b39 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -36,6 +36,7 @@
@@ -3015,30 +3015,6 @@ index 0dcb94f..10019be 100644
  		skb_record_rx_queue(skb, 0);
  		napi_gro_receive(napi, skb);
  
-@@ -2884,12 +2902,12 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
- 
- static void mtk_handle_status_irq(struct mtk_eth *eth)
- {
--	u32 status2 = mtk_r32(eth, MTK_INT_STATUS2);
-+	u32 status2 = mtk_r32(eth, MTK_FE_INT_STATUS);
- 
- 	if (unlikely(status2 & (MTK_GDM1_AF | MTK_GDM2_AF))) {
- 		mtk_stats_update(eth);
- 		mtk_w32(eth, (MTK_GDM1_AF | MTK_GDM2_AF),
--			MTK_INT_STATUS2);
-+			MTK_FE_INT_STATUS);
- 	}
- }
- 
-@@ -4038,7 +4056,7 @@ static void mtk_dma_free(struct mtk_eth *eth)
- 
- static bool mtk_hw_reset_check(struct mtk_eth *eth)
- {
--	u32 val = mtk_r32(eth, MTK_INT_STATUS2);
-+	u32 val = mtk_r32(eth, MTK_FE_INT_STATUS);
- 
- 	return (val & MTK_FE_INT_FQ_EMPTY) || (val & MTK_FE_INT_RFIFO_UF) ||
- 	       (val & MTK_FE_INT_RFIFO_OV) || (val & MTK_FE_INT_TSO_FAIL) ||
 @@ -5439,6 +5457,12 @@ static void mtk_restore_qdma_cfg(struct mtk_eth *eth)
  			reg_map->qdma.tx_sch_rate + 0x4);
  }

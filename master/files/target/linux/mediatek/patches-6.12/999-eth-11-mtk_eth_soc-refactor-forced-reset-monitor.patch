@@ -1,17 +1,41 @@
-From 5e10e5389cd562320792ea776c47763eff79e7ae Mon Sep 17 00:00:00 2001
+From 1b0d740e728bef30438c293e94de6b90a9eccbe6 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Mon, 22 Sep 2025 11:11:59 +0800
+Date: Tue, 7 Oct 2025 15:41:30 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: refactor forced reset monitor
 
 ---
- drivers/net/ethernet/mediatek/mtk_eth_soc.c | 221 ++++++++++++++++----
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 227 ++++++++++++++++----
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |  34 ++-
- 2 files changed, 215 insertions(+), 40 deletions(-)
+ 2 files changed, 218 insertions(+), 43 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 084319d..ae22aad 100644
+index a3959f6..6b8241d 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -2720,12 +2720,12 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
+ 
+ static void mtk_handle_status_irq(struct mtk_eth *eth)
+ {
+-	u32 status2 = mtk_r32(eth, MTK_INT_STATUS2);
++	u32 status2 = mtk_r32(eth, MTK_FE_INT_STATUS);
+ 
+ 	if (unlikely(status2 & (MTK_GDM1_AF | MTK_GDM2_AF))) {
+ 		mtk_stats_update(eth);
+ 		mtk_w32(eth, (MTK_GDM1_AF | MTK_GDM2_AF),
+-			MTK_INT_STATUS2);
++			MTK_FE_INT_STATUS);
+ 	}
+ }
+ 
+@@ -3748,7 +3748,7 @@ static void mtk_dma_free(struct mtk_eth *eth)
+ 
+ static bool mtk_hw_reset_check(struct mtk_eth *eth)
+ {
+-	u32 val = mtk_r32(eth, MTK_INT_STATUS2);
++	u32 val = mtk_r32(eth, MTK_FE_INT_STATUS);
+ 
+ 	return (val & MTK_FE_INT_FQ_EMPTY) || (val & MTK_FE_INT_RFIFO_UF) ||
+ 	       (val & MTK_FE_INT_RFIFO_OV) || (val & MTK_FE_INT_TSO_FAIL) ||
 @@ -4514,80 +4514,231 @@ static void mtk_hw_warm_reset(struct mtk_eth *eth)
  			val, rst_mask);
  }
