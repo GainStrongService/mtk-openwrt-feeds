@@ -2001,7 +2001,7 @@ air_token_ring_write(
 }
 
 
-void airphy_trigger_cable_diag(struct phy_device *phydev)
+static void airphy_trigger_cable_diag(struct phy_device *phydev)
 {
 	struct en8811h_priv *priv = phydev->priv;
 
@@ -2014,7 +2014,7 @@ void airphy_trigger_cable_diag(struct phy_device *phydev)
 	priv->running_status = 0;
 }
 
-void airphy_dump_cable_diag(struct phy_device *phydev)
+static void airphy_dump_cable_diag(struct phy_device *phydev)
 {
 	u32 PMEM_addr = 0;
 	u32 PMEM_value = 0;
