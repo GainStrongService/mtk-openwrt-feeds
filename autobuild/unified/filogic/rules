@@ -11,6 +11,10 @@ if test x"${hqa_set}" == x"yes"; then
 	. "${ab_global}/hqa.sh"
 fi
 
+if test x"${bootloader_set}" == x"yes"; then
+	. "${ab_global}/bootloader.sh"
+fi
+
 if test x"${optee}" == x"yes"; then
 	list_add_after $(hooks autobuild_prepare) platform_change_openwrt_config platform_enable_optee_config
 	list_add_after $(hooks do_build) build_openwrt platform_build_optee_rpmb
@@ -22,6 +26,7 @@ fi
 
 help_add_line "  hqa - Enable HQA test support."
 help_add_line "  optee - Enable optee"
+help_add_line "  bootloader - Enable build BL2/FIP from github release"
 help_add_line "  secure_boot - Enable secure_boot, including signing, anti-rollback and firmware encryption"
 
 platform_change_openwrt_config() {

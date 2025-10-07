@@ -1,0 +1,288 @@
+[PATCH 30/37] board: mediatek: add eFuse read/write commands
+
+[Description]
+add eFuse read/write commands, allow to access eFuse during u-boot
+stage. field index and value definition are provided in AN.
+[Release-Log]
+N/A
+
+Change-Id: I500bc0d772b48b209db4fbf67937935f5d6d51da
+---
+ board/mediatek/Kconfig            |  12 +++
+ board/mediatek/common/Makefile    |   5 +-
+ board/mediatek/common/cmd_efuse.c | 145 ++++++++++++++++++++++++++++++
+ board/mediatek/common/mtk_efuse.c |  44 +++++----
+ board/mediatek/common/mtk_efuse.h |   2 +
+ 5 files changed, 188 insertions(+), 20 deletions(-)
+ create mode 100644 board/mediatek/common/cmd_efuse.c
+--- a/board/mediatek/common/Makefile
++++ b/board/mediatek/common/Makefile
+@@ -40,7 +40,10 @@ obj-$(CONFIG_MTK_WGET) += mtk_wget.o cmd
+ 
+ endif
+ 
+-obj-$(CONFIG_MTK_ANTI_ROLLBACK) += mtk_ar.o mtk_efuse.o
++obj-$(CONFIG_MTK_EFUSE) += mtk_efuse.o
++obj-$(CONFIG_MTK_EFUSE_CMD) += cmd_efuse.o
++
++obj-$(CONFIG_MTK_ANTI_ROLLBACK) += mtk_ar.o
+ 
+ obj-$(CONFIG_MTK_DUAL_BOOT) += dual_boot.o
+ 
+--- /dev/null
++++ b/board/mediatek/common/cmd_efuse.c
+@@ -0,0 +1,145 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) 2025 MediaTek Inc. All Rights Reserved.
++ *
++ * MTK eFuse read/write command
++ */
++
++#include <command.h>
++#include <errno.h>
++#include <hexdump.h>
++#include <malloc.h>
++#include <vsprintf.h>
++#include <string.h>
++#include "colored_print.h"
++#include "mtk_efuse.h"
++
++static int do_efuse_read(struct cmd_tbl *cmdtp, int flag, int argc,
++			 char *const argv[])
++{
++	int ret;
++	uint32_t len = 0;
++	unsigned long field = 0;
++	uint8_t *data;
++
++	if (argc < 2)
++		return CMD_RET_USAGE;
++
++	ret = strict_strtoul(argv[1], 10, &field);
++	if (ret) {
++		cprintln(ERROR, "*** Invalid field ***");
++		return CMD_RET_USAGE;
++	}
++
++	ret = mtk_efuse_get_len(field, &len);
++	if (ret)
++		return ret;
++
++	data = calloc(len, sizeof(uint8_t));
++	if (!data)
++		return -ENOMEM;
++
++	ret = mtk_efuse_read(field, data, len);
++	if (ret)
++		goto out;
++
++	print_hex_dump("", DUMP_PREFIX_OFFSET, 16, 4, data, len, false);
++
++out:
++	free(data);
++	return ret;
++}
++
++static int do_efuse_write(struct cmd_tbl*cmdtp, int flag, int argc,
++			  char *const argv[])
++{
++	int ret;
++	uint32_t len = 0;
++	unsigned long field = 0;
++	uint8_t *buf;
++	uint8_t *data;
++
++	if (argc < 3)
++		return CMD_RET_USAGE;
++
++	ret = strict_strtoul(argv[1], 10, &field);
++	if (ret) {
++		cprintln(ERROR, "*** Invalid field ***");
++		return CMD_RET_USAGE;
++	}
++
++	ret = mtk_efuse_get_len(field, &len);
++	if (ret)
++		return ret;
++
++	data = calloc(len, sizeof(uint8_t));
++	if (!data)
++		return -ENOMEM;
++
++	if (strlen(argv[2]) == len * 2) {
++		ret = hex2bin(data, argv[2], len);
++		if (ret) {
++			cprintln(ERROR, "*** Cannot convert hexstring to binary ***");
++			goto out;
++		}
++	} else if (strlen(argv[2]) + 1 == len * 2) {
++		/* odd */
++		buf = calloc(strlen(argv[2]) + 2, sizeof(uint8_t));
++		if (!buf) {
++			ret = -ENOMEM;
++			goto out;
++		}
++
++		buf[0] = '0';
++		memcpy(buf + 1, argv[2], strlen(argv[2]));
++
++		ret = hex2bin(data, buf, len);
++		if (ret) {
++			cprintln(ERROR, "*** Cannot convert hexstring to binary ***");
++			free(buf);
++			goto out;
++		}
++
++		free(buf);
++	} else {
++		cprintln(ERROR, "*** Invalid length ***");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	ret = mtk_efuse_write(field, (void *)data, len);
++
++out:
++	free(data);
++	return ret;
++}
++
++static struct cmd_tbl efuse_cmd_sub[] = {
++	U_BOOT_CMD_MKENT(read, 2, 0, do_efuse_read, "", ""),
++	U_BOOT_CMD_MKENT(write, 3, 0, do_efuse_write, "", "")
++};
++
++static int do_efuse(struct cmd_tbl *cmdtp, int flag, int argc,
++		    char *const argv[])
++{
++	struct cmd_tbl *cp;
++
++	if (argc < 2)
++		return CMD_RET_USAGE;
++
++	argc--;
++	argv++;
++
++	cp = find_cmd_tbl(argv[0], efuse_cmd_sub, ARRAY_SIZE(efuse_cmd_sub));
++	if (cp)
++		return cp->cmd(cmdtp, flag, argc, argv);
++
++	return CMD_RET_USAGE;
++}
++
++static char efuse_help_text[] =
++	"read <index> - read <index> eFuse field\n"
++	"efuse write <index> <data> - write <data> to <index> eFuse field\n";
++
++U_BOOT_CMD(efuse, CONFIG_SYS_MAXARGS, 0, do_efuse, "MTK eFuse read/write commands",
++	   efuse_help_text);
+--- a/board/mediatek/common/mtk_efuse.c
++++ b/board/mediatek/common/mtk_efuse.c
+@@ -30,17 +30,14 @@ static int mtk_efuse_smc(uint32_t smc_fi
+ 	return 0;
+ }
+ 
+-int mtk_efuse_read(uint32_t efuse_field,
+-		   uint8_t *read_buffer,
+-		   uint32_t read_buffer_len)
++int mtk_efuse_get_len(uint32_t efuse_field, uint32_t *len_p)
+ {
+ 	int ret;
+-	uint32_t offset;
+-	uint32_t efuse_len;
+ 	struct arm_smccc_res res;
+-	uint32_t val;
+ 
+-	/* get efuse length */
++	if (!len_p)
++		return -EINVAL;
++
+ 	ret = mtk_efuse_smc(MTK_SIP_EFUSE_GET_LEN,
+ 			    efuse_field, 0x0, 0x0, 0x0,
+ 			    &res);
+@@ -51,7 +48,25 @@ int mtk_efuse_read(uint32_t efuse_field,
+ 		       __func__, res.a0);
+ 		return -1;
+ 	}
+-	efuse_len = res.a1;
++
++	*len_p = res.a1;
++
++	return 0;
++}
++
++int mtk_efuse_read(uint32_t efuse_field,
++		   uint8_t *read_buffer,
++		   uint32_t read_buffer_len)
++{
++	int ret;
++	uint32_t offset;
++	uint32_t efuse_len;
++	struct arm_smccc_res res;
++	uint32_t val;
++
++	ret = mtk_efuse_get_len(efuse_field, &efuse_len);
++	if (ret)
++		return ret;
+ 
+ 	/* verify buffer */
+ 	if (!read_buffer)
+@@ -95,18 +110,9 @@ int mtk_efuse_write(uint32_t efuse_field
+ 	struct arm_smccc_res res;
+ 	void *data;
+ 
+-	/* get efuse length */
+-	ret = mtk_efuse_smc(MTK_SIP_EFUSE_GET_LEN,
+-			    efuse_field, 0x0, 0x0, 0x0,
+-			    &res);
+-	if (ret < 0)
++	ret = mtk_efuse_get_len(efuse_field, &efuse_len);
++	if (ret)
+ 		return ret;
+-	else if (res.a0 != MTK_EFUSE_SUCCESS) {
+-		printf("%s : get efuse length fail (%lu)\n",
+-		       __func__, res.a0);
+-		return -1;
+-	}
+-	efuse_len = res.a1;
+ 
+ 	/* verify buffer */
+ 	if (!write_buffer)
+--- a/board/mediatek/common/mtk_efuse.h
++++ b/board/mediatek/common/mtk_efuse.h
+@@ -80,6 +80,8 @@ enum MTK_EFUSE_FIELD {
+ 	EFUSE_FW_AR_VER1
+ };
+ 
++int mtk_efuse_get_len(uint32_t efuse_field, uint32_t *len_p);
++
+ int mtk_efuse_read(uint32_t efuse_field,
+ 		   uint8_t *read_buffer,
+ 		   uint32_t read_buffer_len);
+--- a/board/mediatek/Kconfig
++++ b/board/mediatek/Kconfig
+@@ -271,11 +271,23 @@ config CHAIN_OF_TRUST
+ 
+ config MTK_ANTI_ROLLBACK
+ 	bool "Enable MediaTek anti-rollback framework"
++	select MTK_EFUSE
+ 	default n
+ 	help
+ 	  Enable this option will allow boards to verify Firmware Anti-rollback
+ 	  Version.
+ 
++config MTK_EFUSE
++	bool
++	default n
++
++config MTK_EFUSE_CMD
++	bool "Enable MediaTek eFuse commands"
++	select MTK_EFUSE
++	default n
++	help
++	  Enable this option will allow boards to read/write eFuse through u-boot cmd.
++
+ endif # MTK_SECURE_BOOT
+ 
+ menuconfig MTK_FW_ENCRYPT

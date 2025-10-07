@@ -1,0 +1,78 @@
+[PATCH 31/37] board: mediatek: secure boot: Fix issue about
+
+[Description]
+Fix issue about decrypting image that is too big
+failed via bl31 due to page size too small in bl31.
+[Release log]
+N/A
+
+Change-Id: I8dec3e85a0964b215b74e553b0a779295205fdcf
+---
+ board/mediatek/common/mtk_aes_decrypt.c | 31 +++++++++++++++++++------
+ 1 file changed, 24 insertions(+), 7 deletions(-)
+--- a/board/mediatek/common/mtk_aes_decrypt.c	2025-09-08 15:23:14.333534072 +0800
++++ b/board/mediatek/common/mtk_aes_decrypt.c	2025-09-08 15:23:14.293532347 +0800
+@@ -20,6 +20,8 @@
+ #define KERNEL_KEY_IDX				1
+ #define ROOTFS_KEY_IDX				2
+ 
++#define SHM_SIZE				0x500000
++
+ static int set_iv(uint8_t *iv, uint32_t iv_len)
+ {
+ 	struct arm_smccc_res res = { 0 };
+@@ -43,9 +45,26 @@
+ 			 uint8_t *plain, size_t plain_len)
+ {
+ 	struct arm_smccc_res res = { 0 };
++	int dec_size = 0, shm_size = 0;
++	int last_block = 0;
+ 
+-	arm_smccc_smc(MTK_SIP_FW_DEC_IMAGE, (uintptr_t)cipher, cipher_len,
+-		      (uintptr_t)plain, plain_len, 0, 0, 0, &res);
++	while (dec_size <= cipher_len) {
++		if (dec_size + SHM_SIZE >= cipher_len)
++			last_block = 1;
++
++		shm_size = ((dec_size + SHM_SIZE) < cipher_len) ? SHM_SIZE : cipher_len % SHM_SIZE;
++
++		arm_smccc_smc(MTK_SIP_FW_DEC_IMAGE, (uintptr_t)cipher, shm_size,
++		      last_block, 0, 0, 0, 0, &res);
++		if (res.a0) {
++			printf("image_decrypt failed %x\n", res.a0);
++			return res.a0;
++		}
++
++		dec_size += SHM_SIZE;
++		cipher += SHM_SIZE;
++		last_block = 0;
++	}
+ 
+ 	return res.a0;
+ }
+@@ -59,22 +78,20 @@
+ 	res = set_key(key_idx);
+ 	if (res) {
+ 		printf("setup image decryption key failed: %d\n", res);
+-		goto out;
++		return res;
+ 	}
+ 
+ 	res = set_iv(iv, iv_len);
+ 	if (res) {
+ 		printf("setup image decryption IV failed: %d\n", res);
+-		goto out;
++		return res;
+ 	}
+ 
+ 	res = image_decrypt(cipher, cipher_len, plain, plain_len);
+ 	if (res) {
+ 		printf("image decryption failed: %d\n", res);
+-		goto out;
++		return res;
+ 	}
+-
+-out:
+ 	return res;
+ }
+ #endif /* ifndef USE_HOSTCC */

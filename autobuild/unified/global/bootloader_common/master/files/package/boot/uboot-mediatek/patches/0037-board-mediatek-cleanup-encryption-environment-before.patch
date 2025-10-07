@@ -1,0 +1,85 @@
+[PATCH 37/37] board: mediatek: cleanup encryption environment before
+
+[Description]
+cleanup encryption environment before booting kernel. Since each FIT
+node is decrypted separately, TEE cannot know when all encryption are
+done. u-boot needs to invoke the cleanup function explicitly to tell TEE
+to cleanup the encryption environment, especially encryption keys.
+
+Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
+---
+ board/mediatek/common/Makefile      |  1 +
+ board/mediatek/common/boot_helper.c |  7 +++++++
+ board/mediatek/common/fw_dec.c      | 18 ++++++++++++++++++
+ board/mediatek/common/fw_dec.h      | 11 +++++++++++
+ 4 files changed, 37 insertions(+)
+ create mode 100644 board/mediatek/common/fw_dec.c
+ create mode 100644 board/mediatek/common/fw_dec.h
+--- a/board/mediatek/common/Makefile	2025-09-08 15:23:19.865772546 +0800
++++ b/board/mediatek/common/Makefile	2025-09-08 15:23:19.789769270 +0800
+@@ -53,6 +53,7 @@
+ 
+ obj-$(CONFIG_MTK_MISC_CUSTOMIZED) += customizations/
+ 
++obj-$(CONFIG_MTK_FW_ENCRYPT) += fw_dec.o
+ obj-$(CONFIG_MTK_FW_ENCRYPT_VIA_BL31) += mtk_aes_decrypt.o
+ obj-$(CONFIG_MTK_FW_ENCRYPT_VIA_OPTEE) += mtk_optee_aes_decrypt.o
+ 
+--- a/board/mediatek/common/boot_helper.c	2025-09-08 15:23:19.865772546 +0800
++++ b/board/mediatek/common/boot_helper.c	2025-09-08 15:23:19.805769960 +0800
+@@ -21,6 +21,7 @@
+ #include "boot_helper.h"
+ #include "dual_boot.h"
+ #include "dm_parser.h"
++#include "fw_dec.h"
+ 
+ #define ARGLIST_INCR				20
+ 
+@@ -632,6 +633,12 @@
+ 	u32 newlen;
+ 	int ret;
+ 
++#ifdef CONFIG_MTK_FW_ENCRYPT
++	ret = fw_dec_cleanup();
++	if (ret)
++		panic("Cannot cleanup FW encryption environment\n");
++#endif
++
+ 	if (!(CONFIG_IS_ENABLED(OF_LIBFDT) && images->ft_len)) {
+ 		printf("Warning: no FDT present for current image!\n");
+ 		return;
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/board/mediatek/common/fw_dec.c	2025-09-08 15:23:19.817770477 +0800
+@@ -0,0 +1,18 @@
++// SPDX-License-Identifier: GPL-2.0+
++/*
++ * Copyright (C) 2025 MediaTek Incorporation. All Rights Reserved.
++ *
++ */
++
++#include <linux/arm-smccc.h>
++
++#define MTK_SIP_FW_DEC_CLEANUP			0xC2000584
++
++int fw_dec_cleanup(void)
++{
++	struct arm_smccc_res res = { 0 };
++
++	arm_smccc_smc(MTK_SIP_FW_DEC_CLEANUP, 0, 0, 0, 0, 0, 0, 0, &res);
++
++	return res.a0;
++}
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/board/mediatek/common/fw_dec.h	2025-09-08 15:23:19.841771512 +0800
+@@ -0,0 +1,11 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (C) 2025 MediaTek Inc. All Rights Reserved.
++ *
++ */
++#ifndef _FW_DEC_H_
++#define _FW_DEC_H_
++
++int fw_dec_cleanup(void);
++
++#endif /* _FW_DEC_H_ */
