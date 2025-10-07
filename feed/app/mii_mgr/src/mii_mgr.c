@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -28,13 +29,43 @@ do {					\
 	}				\
 } while (0)
 
+static const char *get_first_eth_interface(void)
+{
+	static char eth_if[IFNAMSIZ] = {0};
+	DIR *dir;
+	struct dirent *entry;
+
+	/* If already detected, return cached result */
+	if (eth_if[0] != '\0')
+		return eth_if;
+
+	/* Default fallback */
+	strncpy(eth_if, "eth0", IFNAMSIZ - 1);
+
+	dir = opendir("/sys/class/net");
+	if (!dir)
+		return eth_if;
+
+	/* Look for the first ethernet interface */
+	while ((entry = readdir(dir)) != NULL) {
+		if (strncmp(entry->d_name, "eth", 3) == 0) {
+			strncpy(eth_if, entry->d_name, IFNAMSIZ - 1);
+			eth_if[IFNAMSIZ - 1] = '\0';
+			break;
+		}
+	}
+
+	closedir(dir);
+	return eth_if;
+}
+
 void show_usage(void)
 {
 	INFO("mii_mgr -g -i [ifname] -p [phy number] -r [register number]\n"
 	     "  Get: mii_mgr -g -p 3 -r 4\n\n"
 	     "mii_mgr -s -p [phy number] -r [register number] -v [0xvalue]\n"
 	     "  Set: mii_mgr -s -p 4 -r 1 -v 0xff11\n"
-	     "#NOTE: Without -i , eth0 is default ifname!\n"
+	     "#NOTE: Without -i , first available ethernet interface is auto-detected!\n"
 	     " -z: silent mode\n"
 	     "----------------------------------------------------------------------------------------\n"
 	     "Get: mii_mgr_cl45 -g -p [port number] -d [dev number] -r [register number]\n"
@@ -108,9 +139,12 @@ int main(int argc, char *argv[])
 	int is_write = 0,is_cl45 = 0;
 	int is_priv = 1;
 	unsigned int port=0, dev=0,reg_num=0,val=0;
-	char ifname[IFNAMSIZ] = "eth0";
+	char ifname[IFNAMSIZ];
 	uint16_t phy_id=0;
 	uint16_t cmd;
+
+	strncpy(ifname, get_first_eth_interface(), IFNAMSIZ - 1);
+	ifname[IFNAMSIZ - 1] = '\0';
 
 	if (argc < 6) {
 		show_usage();
