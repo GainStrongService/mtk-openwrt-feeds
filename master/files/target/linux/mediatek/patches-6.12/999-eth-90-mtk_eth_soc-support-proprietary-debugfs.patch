@@ -1,16 +1,15 @@
-From 6d84b14e70a5900cda7c4c34ab0b07a6f361b8cd Mon Sep 17 00:00:00 2001
+From 2981641936880b965df6160ba71f08312f9d4826 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Mon, 22 Sep 2025 11:12:16 +0800
+Date: Tue, 7 Oct 2025 14:26:32 +0800
 Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
 
-Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
 ---
  drivers/net/ethernet/mediatek/Makefile      |    2 +-
- drivers/net/ethernet/mediatek/mtk_eth_dbg.c | 2357 +++++++++++++++++++
- drivers/net/ethernet/mediatek/mtk_eth_dbg.h |  457 ++++
+ drivers/net/ethernet/mediatek/mtk_eth_dbg.c | 2390 +++++++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_eth_dbg.h |  458 ++++
  drivers/net/ethernet/mediatek/mtk_eth_soc.c |   47 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |   58 +
- 5 files changed, 2910 insertions(+), 11 deletions(-)
+ 5 files changed, 2944 insertions(+), 11 deletions(-)
  create mode 100644 drivers/net/ethernet/mediatek/mtk_eth_dbg.c
  create mode 100644 drivers/net/ethernet/mediatek/mtk_eth_dbg.h
 
@@ -29,10 +28,10 @@ index ddbb7f4..24f7d04 100644
  mtk_eth-$(CONFIG_NET_MEDIATEK_SOC_WED) += mtk_wed_debugfs.o
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_dbg.c b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
 new file mode 100644
-index 0000000..b35866f
+index 0000000..551c3f4
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
-@@ -0,0 +1,2357 @@
+@@ -0,0 +1,2390 @@
 +/*
 + *   Copyright (C) 2025 MediaTek Inc.
 + *
@@ -1067,6 +1066,29 @@ index 0000000..b35866f
 +	return single_open(file, mtk_eth_debugfs_xfi_cnt_show, inode->i_private);
 +}
 +DEFINE_SHOW_ATTRIBUTE(mtk_eth_debugfs_xfi_cnt);
++
++static int mtk_tx_full_cnt_read(struct seq_file *m, void *v)
++{
++	struct mtk_eth *eth = m->private;
++
++	seq_printf(m, "tx ring full count: %d\n",
++		   atomic_xchg(&eth->tx_ring.full_count, 0));
++
++	return 0;
++}
++
++static int mtk_tx_full_cnt_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, mtk_tx_full_cnt_read, inode->i_private);
++}
++
++static const struct file_operations mtk_eth_debugfs_tx_full_cnt_fops = {
++	.owner = THIS_MODULE,
++	.open = mtk_tx_full_cnt_open,
++	.read = seq_read,
++	.llseek = seq_lseek,
++	.release = single_release,
++};
 +
 +static int mtk_tx_ring_read(struct seq_file *m, void *v)
 +{
@@ -2206,6 +2228,12 @@ index 0000000..b35866f
 +		.proc_lseek = seq_lseek,
 +		.proc_release = single_release
 +	};
++	static const struct proc_ops mtk_eth_procfs_tx_full_cnt_fops = {
++		.proc_open = mtk_tx_full_cnt_open,
++		.proc_read = seq_read,
++		.proc_lseek = seq_lseek,
++		.proc_release = single_release,
++	};
 +	static const struct proc_ops mtk_eth_procfs_tx_ring_fops = {
 +		.proc_open = mtk_tx_ring_open,
 +		.proc_read = seq_read,
@@ -2265,6 +2293,8 @@ index 0000000..b35866f
 +
 +	proc_create_data(PROCREG_DBG_REGS, 0444, eth->debugfs->procfs_root,
 +			 &mtk_eth_procfs_dbg_regs_fops, (void *)eth);
++	proc_create_data(PROCREG_TXFULL_CNT, 0444, eth->debugfs->procfs_root,
++			 &mtk_eth_procfs_tx_full_cnt_fops, (void *)eth);
 +	proc_create_data(PROCREG_TXRING, 0444, eth->debugfs->procfs_root,
 +			 &mtk_eth_procfs_tx_ring_fops, (void *)eth);
 +	proc_create_data(PROCREG_HWTXRING, 0444, eth->debugfs->procfs_root,
@@ -2351,6 +2381,8 @@ index 0000000..b35866f
 +
 +	debugfs_create_file(PROCREG_DBG_REGS, 0444, eth->debugfs->root,
 +			    eth, &mtk_eth_debugfs_dbg_regs_fops);
++	debugfs_create_file(PROCREG_TXFULL_CNT, 0444, eth->debugfs->root,
++			    eth, &mtk_eth_debugfs_tx_full_cnt_fops);
 +	debugfs_create_file(PROCREG_TXRING, 0444, eth->debugfs->root,
 +			    eth, &mtk_eth_debugfs_tx_ring_fops);
 +	debugfs_create_file(PROCREG_HWTXRING, 0444, eth->debugfs->root,
@@ -2392,10 +2424,10 @@ index 0000000..b35866f
 +}
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_dbg.h b/drivers/net/ethernet/mediatek/mtk_eth_dbg.h
 new file mode 100644
-index 0000000..f0eb893
+index 0000000..0eff3e6
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_dbg.h
-@@ -0,0 +1,457 @@
+@@ -0,0 +1,458 @@
 +/*
 + *   Copyright (C) 2025 MediaTek Inc.
 + *
@@ -2431,6 +2463,7 @@ index 0000000..f0eb893
 +#define PROCREG_ESW_CNT			"esw_cnt"
 +#define PROCREG_MAC_CNT			"mac_cnt"
 +#define PROCREG_XFI_CNT			"xfi_cnt"
++#define PROCREG_TXFULL_CNT		"tx_full_cnt"
 +#define PROCREG_TXRING			"tx_ring"
 +#define PROCREG_HWTXRING		"hwtx_ring"
 +#define PROCREG_RXRING			"rx_ring"
@@ -2854,7 +2887,7 @@ index 0000000..f0eb893
 +
 +#endif /* MTK_ETH_DBG_H */
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
-index 78ca66c..81773ee 100644
+index 0dcb94f..10019be 100644
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -36,6 +36,7 @@
