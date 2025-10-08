@@ -1,6 +1,6 @@
 --- a/target/linux/mediatek/image/filogic-extra.mk
 +++ b/target/linux/mediatek/image/filogic-extra.mk
-@@ -82,90 +82,41 @@ define Device/bananapi_bpi-r4-pro
+@@ -82,96 +82,48 @@ define Device/bananapi_bpi-r4-pro
  endef
  TARGET_DEVICES += bananapi_bpi-r4-pro
  
@@ -10,32 +10,11 @@
 -  DEVICE_MODEL := MT7987A rfb (EMMC)
 -  DEVICE_DTS_CONFIG := config-mt7987a-emmc
 -  DEVICE_DTS := mt7987a-emmc-rfb
--  DEVICE_DTS_DIR := $(DTS_DIR)/
--  DEVICE_DTC_FLAGS := --pad 4096
--  DEVICE_DTS_LOADADDR := 0x4ff00000
--  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal blkid
--  KERNEL_LOADADDR := 0x40000000
--  KERNEL := kernel-bin | gzip
--  KERNEL_INITRAMFS := kernel-bin | lzma | \
--        fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
--  KERNEL_INITRAMFS_SUFFIX := .itb
--  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
--  IMAGES := sysupgrade.itb
--  IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
--  SUPPORTED_DEVICES += mediatek,mt7987a-rfb
--endef
--TARGET_DEVICES += mediatek_mt7987a-emmc-rfb
--
--define Device/mediatek_mt7987a-sd-rfb
--  DEVICE_VENDOR := MediaTek
--  DEVICE_MODEL := MT7987A rfb (SD)
--  DEVICE_DTS_CONFIG := config-mt7987a-sd
--  DEVICE_DTS := mt7987a-sd-rfb
 +  DEVICE_MODEL := MT7987A rfb (DT-overlay)
 +  DEVICE_DTS := mt7987a-rfb
 +  DEVICE_DTS_OVERLAY:= \
++	mt7987-spim-nand \
 +	mt7987-spim-nand-nmbm \
-+	mt7987-spim-nand-ubi \
 +	mt7987-spim-nor \
 +	mt7987-emmc \
 +	mt7987-sd \
@@ -60,6 +39,27 @@
 -  KERNEL_INITRAMFS_SUFFIX := .itb
 -  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
    IMAGES := sysupgrade.itb
+-  IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
+-  SUPPORTED_DEVICES += mediatek,mt7987a-rfb
+-endef
+-TARGET_DEVICES += mediatek_mt7987a-emmc-rfb
+-
+-define Device/mediatek_mt7987a-sd-rfb
+-  DEVICE_VENDOR := MediaTek
+-  DEVICE_MODEL := MT7987A rfb (SD)
+-  DEVICE_DTS_CONFIG := config-mt7987a-sd
+-  DEVICE_DTS := mt7987a-sd-rfb
+-  DEVICE_DTS_DIR := $(DTS_DIR)/
+-  DEVICE_DTC_FLAGS := --pad 4096
+-  DEVICE_DTS_LOADADDR := 0x4ff00000
+-  DEVICE_PACKAGES := mt798x-2p5g-phy-firmware-internal blkid
+-  KERNEL_LOADADDR := 0x40000000
+-  KERNEL := kernel-bin | gzip
+-  KERNEL_INITRAMFS := kernel-bin | lzma | \
+-        fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
+-  KERNEL_INITRAMFS_SUFFIX := .itb
+-  IMAGE_SIZE := $$(shell expr 64 + $$(CONFIG_TARGET_ROOTFS_PARTSIZE))m
+-  IMAGES := sysupgrade.itb
 -  IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | pad-rootfs | append-metadata
 -  SUPPORTED_DEVICES += mediatek,mt7987a-rfb
 -endef
@@ -111,11 +111,10 @@
  
  define Device/bananapi_bpi-r4-lite
    DEVICE_VENDOR := Bananapi
-@@ -173,6 +124,7 @@ define Device/bananapi_bpi-r4-lite
+   DEVICE_MODEL := BPi-R4 Lite
    DEVICE_DTS := mt7987a-bananapi-bpi-r4-lite
    DEVICE_DTS_OVERLAY:= \
++	mt7987-spim-nand \
  	mt7987-spim-nand-nmbm \
-+	mt7987-spim-nand-ubi \
  	mt7987-spim-nor \
  	mt7987-emmc \
- 	mt7987-sd \
