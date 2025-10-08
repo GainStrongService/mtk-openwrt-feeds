@@ -122,6 +122,15 @@
 			sound-dai = <&proslic_spi>;
 		};
 	};
+
+	sfp_esp1: sfp@1 {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c2>;
+		mod-def0-gpios = <&pio 82 GPIO_ACTIVE_LOW>;
+		los-gpios = <&pio 81 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&pio 36 GPIO_ACTIVE_HIGH>;
+		maximum-power-milliwatt = <3000>;
+	};
 };
 
 &fan {
@@ -146,7 +155,7 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c0 {
@@ -234,6 +243,12 @@
 		shunt-resistor-micro-ohms = <10000>;
 		#io-channel-cells = <1>;
 	};
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+	status = "okay";
 };
 
 &spi0 {
@@ -351,6 +366,13 @@
 		};
 	};
 
+	i2c2_pins: i2c2-pins-g0 {
+		mux {
+			function = "i2c";
+			groups = "i2c2_0";
+		};
+	};
+
 	pcie0_pins: pcie0-pins {
 		mux {
 			function = "pcie";
@@ -445,6 +467,32 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio0_pins>;
 	status = "okay";
+
+	mux: mux-bus {
+		mux1: ethernet-mux@1 {
+			compatible = "mediatek,eth-mux";
+			reg = <1>;
+
+			chan-sel-gpios = <&pio 30 GPIO_ACTIVE_HIGH>;
+			mod-def0-gpios = <&pio 82 GPIO_ACTIVE_LOW>;
+			sfp-present-channel = <1>;
+
+			channel0: channel@0 {
+				reg = <0>;
+				phy-mode = "usxgmii";
+				phy-connection-type = "usxgmii";
+				phy-handle = <&phy0>;
+			};
+
+			channel1: channel@1 {
+				reg = <1>;
+				phy-mode = "10gbase-kr";
+				phy-connection-type = "10gbase-kr";
+				managed = "in-band-status";
+				sfp = <&sfp_esp1>;
+			};
+		};
+	};
 
 	gmac0: mac@0 {
 		compatible = "mediatek,eth-mac";

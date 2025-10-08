@@ -133,7 +133,7 @@ index 5f342f4..4090132
 diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 old mode 100755
 new mode 100644
-index fe6ede6..4ae4a3b
+index fa758ff..780732a
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -22,11 +22,13 @@
@@ -150,7 +150,7 @@ index fe6ede6..4ae4a3b
  
  #if defined(CONFIG_NET_MEDIATEK_HNAT) || defined(CONFIG_NET_MEDIATEK_HNAT_MODULE)
  #include "mtk_hnat/nf_hnat_mtk.h"
-@@ -2505,6 +2507,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2678,6 +2680,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  		struct net_device *netdev = NULL;
  		dma_addr_t dma_addr = DMA_MAPPING_ERROR;
  		u64 addr64 = 0;
@@ -158,7 +158,7 @@ index fe6ede6..4ae4a3b
  		int mac = 0;
  
  		idx = NEXT_DESP_IDX(ring->calc_idx, ring->dma_size);
-@@ -2602,6 +2605,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
+@@ -2778,6 +2781,17 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
  			skb_checksum_none_assert(skb);
  		skb->protocol = eth_type_trans(skb, netdev);
  
@@ -176,8 +176,8 @@ index fe6ede6..4ae4a3b
  		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
  			if (MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_RX_V2)) {
  				if (trxd.rxd3 & RX_DMA_VTAG_V2)
-@@ -4445,7 +4459,7 @@ static int mtk_stop(struct net_device *dev)
- 	mtk_dma_free(eth);
+@@ -4832,7 +4846,7 @@ static int mtk_stop(struct net_device *dev)
+ 		mtk_ptp_clock_deinit(eth);
  
  	if (eth->soc->offload_version)
 -		mtk_ppe_stop(&eth->ppe);
@@ -185,7 +185,7 @@ index fe6ede6..4ae4a3b
  
  	return 0;
  }
-@@ -5908,6 +5922,22 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6545,6 +6559,22 @@ static int mtk_probe(struct platform_device *pdev)
  		}
  	}
  
@@ -208,7 +208,7 @@ index fe6ede6..4ae4a3b
  	if (MTK_HAS_CAPS(eth->soc->caps, MTK_PDMA_INT)) {
  		for (i = 0; i < MTK_PDMA_IRQ_NUM; i++)
  			eth->irq_pdma[i] = platform_get_irq(pdev, i);
-@@ -5924,7 +5954,8 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6561,7 +6591,8 @@ static int mtk_probe(struct platform_device *pdev)
  
  		if (eth->irq_fe[i] < 0) {
  			dev_err(&pdev->dev, "no IRQ%d resource found\n", i);
@@ -218,7 +218,7 @@ index fe6ede6..4ae4a3b
  		}
  	}
  
-@@ -5932,12 +5963,15 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6569,12 +6600,15 @@ static int mtk_probe(struct platform_device *pdev)
  		eth->clks[i] = devm_clk_get(eth->dev,
  					    mtk_clks_source_name[i]);
  		if (IS_ERR(eth->clks[i])) {
@@ -237,7 +237,7 @@ index fe6ede6..4ae4a3b
  			}
  			eth->clks[i] = NULL;
  		}
-@@ -5948,7 +5982,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6586,7 +6620,7 @@ static int mtk_probe(struct platform_device *pdev)
  	eth->reset.rstctrl_eth = true;
  	err = mtk_hw_init(eth, MTK_TYPE_COLD_RESET);
  	if (err)
@@ -246,7 +246,7 @@ index fe6ede6..4ae4a3b
  	eth->reset.rstctrl_eth = false;
  
  	eth->hwlro = MTK_HAS_CAPS(eth->soc->caps, MTK_HWLRO);
-@@ -6075,14 +6109,15 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6717,14 +6751,15 @@ static int mtk_probe(struct platform_device *pdev)
  	}
  
  	if (eth->soc->offload_version) {
@@ -267,7 +267,7 @@ index fe6ede6..4ae4a3b
  	}
  
  	for (i = 0; i < MTK_MAX_DEVS; i++) {
-@@ -6092,7 +6127,7 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6734,7 +6769,7 @@ static int mtk_probe(struct platform_device *pdev)
  		err = register_netdev(eth->netdev[i]);
  		if (err) {
  			dev_err(eth->dev, "error bringing up device\n");
@@ -276,13 +276,14 @@ index fe6ede6..4ae4a3b
  		} else
  			netif_info(eth, probe, eth->netdev[i],
  				   "mediatek frame engine at 0x%08lx, irq %d\n",
-@@ -6141,12 +6176,15 @@ static int mtk_probe(struct platform_device *pdev)
+@@ -6786,13 +6821,16 @@ static int mtk_probe(struct platform_device *pdev)
  
  	return 0;
  
 -err_deinit_mdio:
 +err_deinit_ppe:
 +	mtk_ppe_deinit(eth);
+ 	mtk_release_all_muxes(eth);
  	mtk_mdio_cleanup(eth);
  err_free_dev:
  	mtk_free_dev(eth);
@@ -293,7 +294,7 @@ index fe6ede6..4ae4a3b
  
  	return err;
  }
-@@ -6166,6 +6204,7 @@ static int mtk_remove(struct platform_device *pdev)
+@@ -6812,6 +6850,7 @@ static int mtk_remove(struct platform_device *pdev)
  		phylink_disconnect_phy(mac->phylink);
  	}
  
@@ -301,7 +302,7 @@ index fe6ede6..4ae4a3b
  	mtk_hw_deinit(eth);
  
  	for (i = 0; i < MTK_TX_NAPI_NUM; i++) {
-@@ -6196,6 +6235,7 @@ static const struct mtk_soc_data mt2701_data = {
+@@ -6842,6 +6881,7 @@ static const struct mtk_soc_data mt2701_data = {
  	.required_pctl = true,
  	.has_sram = false,
  	.offload_version = 1,
@@ -309,7 +310,7 @@ index fe6ede6..4ae4a3b
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -6217,6 +6257,7 @@ static const struct mtk_soc_data mt7621_data = {
+@@ -6863,6 +6903,7 @@ static const struct mtk_soc_data mt7621_data = {
  	.required_pctl = false,
  	.has_sram = false,
  	.offload_version = 1,
@@ -317,7 +318,7 @@ index fe6ede6..4ae4a3b
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -6239,6 +6280,7 @@ static const struct mtk_soc_data mt7622_data = {
+@@ -6885,6 +6926,7 @@ static const struct mtk_soc_data mt7622_data = {
  	.required_pctl = false,
  	.has_sram = false,
  	.offload_version = 2,
@@ -325,7 +326,7 @@ index fe6ede6..4ae4a3b
  	.rss_num = 0,
  	.txrx = {
  		.txd_size = sizeof(struct mtk_tx_dma),
-@@ -6260,6 +6302,7 @@ static const struct mtk_soc_data mt7623_data = {
+@@ -6906,6 +6948,7 @@ static const struct mtk_soc_data mt7623_data = {
  	.required_pctl = true,
  	.has_sram = false,
  	.offload_version = 1,

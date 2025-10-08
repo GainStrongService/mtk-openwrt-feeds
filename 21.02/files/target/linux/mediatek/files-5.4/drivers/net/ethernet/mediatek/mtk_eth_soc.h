@@ -2411,10 +2411,12 @@ struct mtk_mux_data {
  */
 struct mtk_mux {
 	struct delayed_work		poll;
-	struct gpio_desc		*gpio[2];
+	struct gpio_desc		*mod_def0_gpio;
+	struct gpio_desc		*chan_sel_gpio;
 	struct mtk_mux_data		*data[2];
 	struct mtk_mac			*mac;
 	unsigned int			channel;
+	unsigned int			sfp_present_channel;
 };
 
 /* the struct describing the SoC. these are declared in the soc_xyz.c files */
