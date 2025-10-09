@@ -1,0 +1,285 @@
+--- a/include/kernel-5.4
++++ b/include/kernel-5.4
+@@ -1,2 +1,2 @@
+-LINUX_VERSION-5.4 = .238
+-LINUX_KERNEL_HASH-5.4.238 = 70a2b2da85598eba6a73cdc0749e441cbdf3011d9babcb7028a46aa8d98aa91f
++LINUX_VERSION-5.4 = .300
++LINUX_KERNEL_HASH-5.4.300 = 9949210093ca924d7b41162bb4772becd3f28ff726a09d061558929690a1815a
+
+--- a/target/linux/mediatek/patches-5.4/0005-dts-mt7622-add-gsw.patch
++++ b/target/linux/mediatek/patches-5.4/0005-dts-mt7622-add-gsw.patch
+@@ -81,7 +81,7 @@
+  	};
+  
+  	cpus {
+-@@ -40,23 +39,36 @@
++@@ -39,23 +39,36 @@
+  
+  	gpio-keys {
+  		compatible = "gpio-keys";
+@@ -99,9 +99,9 @@
+  			linux,code = <KEY_WPS_BUTTON>;
+ -			gpios = <&pio 102 0>;
+ +			gpios = <&pio 102 GPIO_ACTIVE_LOW>;
+-+		};
+-+	};
+-+
++ 		};
++ 	};
++ 
+ +	leds {
+ +		compatible = "gpio-leds";
+ +
+@@ -113,12 +113,13 @@
+ +		red {
+ +			label = "bpi-r64:pio:red";
+ +			gpios = <&pio 88 GPIO_ACTIVE_HIGH>;
+- 		};
+- 	};
+- 
+- 	memory {
+++ 		};
+++ 	};
+++	
++ 	memory@40000000 {
+ -		reg = <0 0x40000000 0 0x20000000>;
+ +		reg = <0 0x40000000 0 0x40000000>;
++		device_type = "memory";
+  	};
+  
+  	reg_1p8v: regulator-1p8v {
+
+--- a/target/linux/mediatek/patches-5.4/0993-arm64-dts-mediatek-Split-PCIe-node-for-MT2712-MT7622.patch
++++ b/target/linux/mediatek/patches-5.4/0993-arm64-dts-mediatek-Split-PCIe-node-for-MT2712-MT7622.patch
+@@ -389,25 +389,20 @@ Signed-off-by: chuanjia.liu <Chuanjia.Liu@mediatek.com>
+  					<0 0 0 2 &pcie_intc1 1>,
+ --- a/arch/arm64/boot/dts/mediatek/mt7622-rfb1.dts
+ +++ b/arch/arm64/boot/dts/mediatek/mt7622-rfb1.dts
+-@@ -254,18 +254,16 @@
++@@ -184,14 +184,16 @@
+  	};
+  };
+  
+ -&pcie {
+ +&pcie0 {
+  	pinctrl-names = "default";
+--	pinctrl-0 = <&pcie0_pins>, <&pcie1_pins>;
+-+	pinctrl-0 = <&pcie0_pins>;
++ 	pinctrl-0 = <&pcie0_pins>;
+  	status = "okay";
+ +};
+  
+ -	pcie@0,0 {
+ -		status = "okay";
+ -	};
+--
+--	pcie@1,0 {
+--		status = "okay";
+--	};
+ +&pcie1 {
+ +	pinctrl-names = "default";
+ +	pinctrl-0 = <&pcie1_pins>;
+
+--- a/target/linux/generic/pending-5.4/680-NET-skip-GRO-for-foreign-MAC-addresses.patch
++++ b/target/linux/generic/pending-5.4/680-NET-skip-GRO-for-foreign-MAC-addresses.patch
+@@ -115,11 +115,11 @@ Signed-off-by: Felix Fietkau <nbd@nbd.na
+  	call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+  	add_device_randomness(dev->dev_addr, dev->addr_len);
+  	return 0;
+---- a/net/ethernet/eth.c
+-+++ b/net/ethernet/eth.c
+-@@ -143,6 +143,18 @@ u32 eth_get_headlen(const struct net_dev
++--- a/include/linux/etherdevice.h
+++++ b/include/linux/etherdevice.h
++@@ -531,6 +531,18 @@ static inline unsigned long compare_ethe
++ #endif
+  }
+- EXPORT_SYMBOL(eth_get_headlen);
+  
+ +static inline bool
+ +eth_check_local_mask(const void *addr1, const void *addr2, const void *mask)
+@@ -134,9 +134,9 @@ Signed-off-by: Felix Fietkau <nbd@nbd.na
+ +}
+ +
+  /**
+-  * eth_type_trans - determine the packet's protocol ID.
+-  * @skb: received socket data
+-@@ -174,6 +186,10 @@ __be16 eth_type_trans(struct sk_buff *sk
++  * eth_skb_pkt_type - Assign packet type if destination address does not match
++  * @skb: Assigned a packet type if address does not match @dev address
++@@ -553,6 +565,10 @@ static inline void eth_skb_pkt_type(stru
+  		} else {
+  			skb->pkt_type = PACKET_OTHERHOST;
+  		}
+@@ -145,5 +145,5 @@ Signed-off-by: Felix Fietkau <nbd@nbd.na
+ +					 dev->local_addr_mask))
+ +			skb->gro_skip = 1;
+  	}
++ }
+  
+- 	/*
+--- a/target/linux/generic/backport-5.4/770-v5.12-net-bridge-notify-switchdev-of-disappearance-of-old-.patch
++++ b/target/linux/generic/backport-5.4/770-v5.12-net-bridge-notify-switchdev-of-disappearance-of-old-.patch
+@@ -116,10 +116,10 @@ Signed-off-by: Jakub Kicinski <kuba@kernel.org>
+ 
+ --- a/net/bridge/br_fdb.c
+ +++ b/net/bridge/br_fdb.c
+-@@ -581,6 +581,7 @@ void br_fdb_update(struct net_bridge *br
+- 
++@@ -589,6 +589,7 @@ void br_fdb_update(struct net_bridge *br
+  			/* fastpath: update of existing entry */
+- 			if (unlikely(source != fdb->dst && !fdb->is_sticky)) {
++ 			if (unlikely(source != fdb->dst &&
++ 				     !test_bit(BR_FDB_STICKY, &fdb->flags))) {
+ +				br_switchdev_fdb_notify(fdb, RTM_DELNEIGH);
+  				fdb->dst = source;
+  				fdb_modified = true;
+--- a/target/linux/generic/pending-5.4/620-net_sched-codel-do-not-defer-queue-length-update.patch
++++ b/target/linux/generic/pending-5.4/620-net_sched-codel-do-not-defer-queue-length-update.patch
+@@ -22,19 +22,11 @@ Link: https://bugzilla.kernel.org/show_bug.cgi?id=109581
+ 
+ --- a/net/sched/sch_codel.c
+ +++ b/net/sched/sch_codel.c
+-@@ -95,11 +95,17 @@ static struct sk_buff *codel_qdisc_deque
+- 			    &q->stats, qdisc_pkt_len, codel_get_enqueue_time,
++@@ -96,7 +96,12 @@ static struct sk_buff *codel_qdisc_deque
+  			    drop_func, dequeue_func);
+  
+--	/* We cant call qdisc_tree_reduce_backlog() if our qlen is 0,
+--	 * or HTB crashes. Defer it for next round.
+-+	/* If our qlen is 0 qdisc_tree_reduce_backlog() will deactivate
+-+	 * parent class, dequeue in parent qdisc will do the same if we
+-+	 * return skb. Temporary increment qlen if we have skb.
+- 	 */
+--	if (q->stats.drop_count && sch->q.qlen) {
+--		qdisc_tree_reduce_backlog(sch, q->stats.drop_count, q->stats.drop_len);
+-+	if (q->stats.drop_count) {
++ 	if (q->stats.drop_count) {
++-		qdisc_tree_reduce_backlog(sch, q->stats.drop_count, q->stats.drop_len);
+ +		if (skb)
+ +			sch->q.qlen++;
+ +		qdisc_tree_reduce_backlog(sch, q->stats.drop_count,
+@@ -68,14 +60,11 @@ Link: https://bugzilla.kernel.org/show_bug.cgi?id=109581
+  	if (!skb) {
+  		/* force a pass through old_flows to prevent starvation */
+  		if ((head == &q->new_flows) && !list_empty(&q->old_flows))
+-@@ -315,15 +330,6 @@ begin:
+- 	}
++@@ -331,12 +331,6 @@ begin:
+  	qdisc_bstats_update(sch, skb);
+  	flow->deficit -= qdisc_pkt_len(skb);
+--	/* We cant call qdisc_tree_reduce_backlog() if our qlen is 0,
+--	 * or HTB crashes. Defer it for next round.
+--	 */
+--	if (q->cstats.drop_count && sch->q.qlen) {
++ 
++-	if (q->cstats.drop_count) {
+ -		qdisc_tree_reduce_backlog(sch, q->cstats.drop_count,
+ -					  q->cstats.drop_len);
+ -		q->cstats.drop_count = 0;
+--- a/target/linux/generic/pending-5.4/762-net-bridge-switchdev-Refactor-br_switchdev_fdb_notif.patch
++++ b/target/linux/generic/pending-5.4/762-net-bridge-switchdev-Refactor-br_switchdev_fdb_notif.patch
+@@ -15,7 +15,7 @@ Reviewed-by: Vladimir Oltean <olteanv@gmail.com>
+ 
+ --- a/net/bridge/br_switchdev.c
+ +++ b/net/bridge/br_switchdev.c
+-@@ -102,42 +102,27 @@ int br_switchdev_set_port_flag(struct ne
++@@ -102,44 +102,27 @@ int br_switchdev_set_port_flag(struct ne
+  	return 0;
+  }
+  
+@@ -41,7 +41,7 @@ Reviewed-by: Vladimir Oltean <olteanv@gmail.com>
+ +	struct switchdev_notifier_fdb_info info = {
+ +		.addr = fdb->key.addr.addr,
+ +		.vid = fdb->key.vlan_id,
+-+		.added_by_user = fdb->added_by_user,
+++		.added_by_user = test_bit(BR_FDB_ADDED_BY_USER, &fdb->flags),
+ +		.offloaded = fdb->offloaded,
+ +	};
+ +
+@@ -53,7 +53,8 @@ Reviewed-by: Vladimir Oltean <olteanv@gmail.com>
+ -		br_switchdev_fdb_call_notifiers(false, fdb->key.addr.addr,
+ -						fdb->key.vlan_id,
+ -						fdb->dst->dev,
+--						fdb->added_by_user,
++-						test_bit(BR_FDB_ADDED_BY_USER,
++-							 &fdb->flags),
+ -						fdb->offloaded);
+ +		call_switchdev_notifiers(SWITCHDEV_FDB_DEL_TO_DEVICE,
+ +					 fdb->dst->dev, &info.info, NULL);
+@@ -62,7 +63,8 @@ Reviewed-by: Vladimir Oltean <olteanv@gmail.com>
+ -		br_switchdev_fdb_call_notifiers(true, fdb->key.addr.addr,
+ -						fdb->key.vlan_id,
+ -						fdb->dst->dev,
+--						fdb->added_by_user,
++-						test_bit(BR_FDB_ADDED_BY_USER,
++-							 &fdb->flags),
+ -						fdb->offloaded);
+ +		call_switchdev_notifiers(SWITCHDEV_FDB_ADD_TO_DEVICE,
+ +					 fdb->dst->dev, &info.info, NULL);
+--- a/target/linux/generic/pending-5.4/763-net-bridge-switchdev-Include-local-flag-in-FDB-notif.patch
++++ b/target/linux/generic/pending-5.4/763-net-bridge-switchdev-Include-local-flag-in-FDB-notif.patch
+@@ -35,8 +35,8 @@ Signed-off-by: Tobias Waldekranz <tobias@waldekranz.com>
+ @@ -109,6 +109,7 @@ br_switchdev_fdb_notify(const struct net
+  		.addr = fdb->key.addr.addr,
+  		.vid = fdb->key.vlan_id,
+- 		.added_by_user = fdb->added_by_user,
+-+		.local = fdb->is_local,
++ 		.added_by_user = test_bit(BR_FDB_ADDED_BY_USER, &fdb->flags),
+++		.local = test_bit(BR_FDB_LOCAL, &fdb->flags),
+  		.offloaded = fdb->offloaded,
+  	};
+  
+--- a/target/linux/generic/pending-5.4/764-net-bridge-switchdev-Send-FDB-notifications-for-host.patch
++++ b/target/linux/generic/pending-5.4/764-net-bridge-switchdev-Send-FDB-notifications-for-host.patch
+@@ -17,10 +17,10 @@ Signed-off-by: Tobias Waldekranz <tobias@waldekranz.com>
+ 
+ --- a/net/bridge/br_fdb.c
+ +++ b/net/bridge/br_fdb.c
+-@@ -581,7 +581,7 @@ void br_fdb_update(struct net_bridge *br
+- 
++@@ -589,7 +589,7 @@ void br_fdb_update(struct net_bridge *br
+  			/* fastpath: update of existing entry */
+- 			if (unlikely(source != fdb->dst && !fdb->is_sticky)) {
++ 			if (unlikely(source != fdb->dst &&
++ 				     !test_bit(BR_FDB_STICKY, &fdb->flags))) {
+ -				br_switchdev_fdb_notify(fdb, RTM_DELNEIGH);
+ +				br_switchdev_fdb_notify(br, fdb, RTM_DELNEIGH);
+  				fdb->dst = source;
+--- a/target/linux/generic/pending-5.4/270-platform-mikrotik-build-bits.patch
++++ b/target/linux/generic/pending-5.4/270-platform-mikrotik-build-bits.patch
+@@ -16,16 +16,17 @@ Signed-off-by: Thibaut VARÈNE <hacks@slashdirt.org>
+ 
+ --- a/drivers/platform/Kconfig
+ +++ b/drivers/platform/Kconfig
+-@@ -13,3 +13,5 @@ source "drivers/platform/chrome/Kconfig"
+- source "drivers/platform/mellanox/Kconfig"
++@@ -14,4 +14,6 @@ source "drivers/platform/mellanox/Kconfi
+  
+  source "drivers/platform/olpc/Kconfig"
+-+
++ 
+ +source "drivers/platform/mikrotik/Kconfig"
+++
++ source "drivers/platform/surface/Kconfig"
+ --- a/drivers/platform/Makefile
+ +++ b/drivers/platform/Makefile
+-@@ -9,3 +9,4 @@ obj-$(CONFIG_MIPS)		+= mips/
+- obj-$(CONFIG_OLPC_EC)		+= olpc/
++@@ -10,3 +10,4 @@ obj-$(CONFIG_OLPC_EC)		+= olpc/
+  obj-$(CONFIG_GOLDFISH)		+= goldfish/
+  obj-$(CONFIG_CHROME_PLATFORMS)	+= chrome/
++ obj-$(CONFIG_SURFACE_PLATFORMS)	+= surface/
+ +obj-$(CONFIG_MIKROTIK)		+= mikrotik/
+--- a/package/kernel/linux/modules/other.mk
++++ b/package/kernel/linux/modules/other.mk
+@@ -730,7 +730,8 @@ define KernelPackage/mtdtests
+ 	$(LINUX_DIR)/drivers/mtd/tests/mtd_speedtest.ko \
+ 	$(LINUX_DIR)/drivers/mtd/tests/mtd_stresstest.ko \
+ 	$(LINUX_DIR)/drivers/mtd/tests/mtd_subpagetest.ko \
+-	$(LINUX_DIR)/drivers/mtd/tests/mtd_torturetest.ko
++	$(LINUX_DIR)/drivers/mtd/tests/mtd_torturetest.ko \
++	$(LINUX_DIR)/drivers/mtd/tests/mtd_test.ko
+ endef
+ 
+ define KernelPackage/mtdtests/description
