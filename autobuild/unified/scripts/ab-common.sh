@@ -141,7 +141,7 @@ apply_patch() {
 			exec_log "quilt import \"${1}\""
 			exec_log "quilt push -a"
 		else
-			exec_log "patch -d \"${openwrt_root}\" -p1 -i \"${1}\""
+			exec_log "patch --no-backup-if-mismatch -d \"${openwrt_root}\" -p1 -i \"${1}\""
 		fi
 	fi
 }
