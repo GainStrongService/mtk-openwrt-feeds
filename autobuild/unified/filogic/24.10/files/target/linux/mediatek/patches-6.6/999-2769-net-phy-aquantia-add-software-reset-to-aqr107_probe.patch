@@ -1,14 +1,14 @@
-From 6c8b7e983c6e99faf21f7b5c38b44b4996f143e2 Mon Sep 17 00:00:00 2001
+From 0324ba110d62fca64a337a65ce57620436701587 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Wed, 7 May 2025 13:17:22 +0800
+Date: Mon, 13 Oct 2025 11:44:17 +0800
 Subject: [PATCH] net: phy: aquantia: add software reset to aqr107_probe
 
 ---
- drivers/net/phy/aquantia/aquantia_main.c      | 27 +++++++++++++++++++
- 1 files changed, 27 insertions(+), 0 deletions(-)
+ drivers/net/phy/aquantia/aquantia_main.c | 27 ++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)
 
 diff --git a/drivers/net/phy/aquantia/aquantia_main.c b/drivers/net/phy/aquantia/aquantia_main.c
-index 49dffb5..8b90771 100644
+index 4214d8c..96f5c02 100644
 --- a/drivers/net/phy/aquantia/aquantia_main.c
 +++ b/drivers/net/phy/aquantia/aquantia_main.c
 @@ -122,6 +122,10 @@
@@ -56,9 +56,9 @@ index 49dffb5..8b90771 100644
  
 +	aqr107_phy_reset(phydev);
 +
- 	aqr_mib_probe(phydev);
+ 	aqr_firmware_load(phydev);
  
- 	return aqr_hwmon_probe(phydev);
+ 	aqr_mib_probe(phydev);
 -- 
 2.45.2
 

@@ -1,6 +1,6 @@
-From a70b67d1500caf6b304a7df1252dc9a3a4e4a0d7 Mon Sep 17 00:00:00 2001
+From 58ea728a1e27f5c8a5b36b34ff5a7b4b6190ec23 Mon Sep 17 00:00:00 2001
 From: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
-Date: Tue, 10 Dec 2024 10:00:57 +0800
+Date: Mon, 13 Oct 2025 11:43:00 +0800
 Subject: [PATCH] net: phy: aquantia: add mib debugfs
 
 The users can utilize following command to dump the MIB information
@@ -34,7 +34,7 @@ index c6c4d49..fc44429 100644
  aquantia-objs			+= aquantia_hwmon.o
  endif
 diff --git a/drivers/net/phy/aquantia/aquantia.h b/drivers/net/phy/aquantia/aquantia.h
-index 9d1cee1..2b3b043 100644
+index 5b2d4a1..bcd7f5e 100644
 --- a/drivers/net/phy/aquantia/aquantia.h
 +++ b/drivers/net/phy/aquantia/aquantia.h
 @@ -166,10 +166,25 @@ static const struct aqr107_hw_stat aqr107_hw_stats[] = {
@@ -73,12 +73,12 @@ index 9d1cee1..2b3b043 100644
  
  int aqr_phy_led_blink_set(struct phy_device *phydev, u8 index,
 diff --git a/drivers/net/phy/aquantia/aquantia_main.c b/drivers/net/phy/aquantia/aquantia_main.c
-index 811dc13..49dffb5 100644
+index 6daba30..804e10b 100644
 --- a/drivers/net/phy/aquantia/aquantia_main.c
 +++ b/drivers/net/phy/aquantia/aquantia_main.c
-@@ -809,6 +809,8 @@ static int aqr107_probe(struct phy_device *phydev)
- 	if (!phydev->priv)
- 		return -ENOMEM;
+@@ -780,6 +780,8 @@ static int aqr107_probe(struct phy_device *phydev)
+ 
+ 	aqr_firmware_load(phydev);
  
 +	aqr_mib_probe(phydev);
 +
