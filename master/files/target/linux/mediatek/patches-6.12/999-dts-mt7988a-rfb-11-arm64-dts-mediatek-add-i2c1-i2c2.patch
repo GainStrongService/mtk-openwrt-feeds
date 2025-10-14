@@ -1,0 +1,28 @@
+--- a/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
++++ b/arch/arm64/boot/dts/mediatek/mt7988a-rfb.dts
+@@ -242,6 +242,25 @@
+ 	};
+ };
+ 
++&i2c1 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&i2c1_pins>;
++	status = "okay";
++
++	eeprom@57 {
++		compatible = "atmel,24c32";
++		reg = <0x57>;
++		status = "disabled";
++	};
++};
++
++&i2c1 {
++	pinctrl-names = "default";
++	/* pin-shared with 10G phys reset gpio pin */
++	pinctrl-0 = <&i2c2_1_pins>;
++	status = "disabled";
++};
++
+ &pcie0 {
+ 	status = "okay";
+ };
