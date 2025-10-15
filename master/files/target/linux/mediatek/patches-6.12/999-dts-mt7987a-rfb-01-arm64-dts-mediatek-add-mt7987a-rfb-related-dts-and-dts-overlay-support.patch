@@ -457,7 +457,7 @@
 +};
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7987a-rfb.dts
-@@ -0,0 +1,87 @@
+@@ -0,0 +1,89 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2025 MediaTek Inc.
@@ -500,9 +500,10 @@
 +
 +	/* use pwm0 as led: share with fan/pwm_rgb */
 +	pwm_led {
++		compatible = "pwm-leds";
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pwm_pins>;
-+		status = "okay";
++		status = "disabled";
 +
 +		led {
 +			pwms = <&pwm 0 50000 0>;
@@ -514,6 +515,7 @@
 +
 +	/* use pwm0/1/2 as multicolor LED: share with fan/pwm_led */
 +	pwm_rgb {
++		compatible = "pwm-leds-multicolor";
 +		pinctrl-names = "default";
 +		pinctrl-0 = <&pwm_rgb_pins>;
 +		status = "disabled";
