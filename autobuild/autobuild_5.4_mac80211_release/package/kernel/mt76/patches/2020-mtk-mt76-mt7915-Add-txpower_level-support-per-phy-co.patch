@@ -1,0 +1,41 @@
+From 7076075518c4b1be899e65018844b2dff31e1204 Mon Sep 17 00:00:00 2001
+From: Allen Ye <allen.ye@mediatek.com>
+Date: Thu, 16 Oct 2025 17:57:59 +0800
+Subject: [PATCH] mtk: mt76: mt7915: Add txpower_level support per phy config
+
+Add txpower_level support per phy config.
+---
+ mt7915/mtk_debugfs.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/mt7915/mtk_debugfs.c b/mt7915/mtk_debugfs.c
+index 5a28d10..3bf16e9 100644
+--- a/mt7915/mtk_debugfs.c
++++ b/mt7915/mtk_debugfs.c
+@@ -3031,12 +3031,9 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_red_target_dly, NULL,
+ static int
+ mt7915_txpower_level_set(void *data, u64 val)
+ {
+-	struct mt7915_dev *dev = data;
+-	struct mt7915_phy *ext_phy = mt7915_ext_phy(dev);
+-	mt7915_mcu_set_txpower_level(&dev->phy, val);
+-	if (ext_phy)
+-		mt7915_mcu_set_txpower_level(ext_phy, val);
++	struct mt7915_phy *phy = data;
+ 
++	mt7915_mcu_set_txpower_level(phy, val);
+ 	return 0;
+ }
+ 
+@@ -4261,7 +4258,7 @@ int mt7915_mtk_init_debugfs(struct mt7915_phy *phy, struct dentry *dir)
+ 	debugfs_create_file("red_target_dly", 0600, dir, dev,
+ 			    &fops_red_target_dly);
+ 
+-	debugfs_create_file("txpower_level", 0400, dir, dev,
++	debugfs_create_file("txpower_level", 0400, dir, phy,
+ 			    &fops_txpower_level);
+ 
+ 	debugfs_create_file("pfmu_tag_read", 0600, dir, phy,
+-- 
+2.45.2
+
