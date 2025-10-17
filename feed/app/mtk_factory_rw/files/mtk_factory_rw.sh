@@ -30,12 +30,43 @@ find_factory_partition() {
 	done
 }
 
+find_ubi_factory_partition() {
+	# Check if UBI is available
+	[ ! -d "/sys/class/ubi" ] && return
+
+	# Look for UBI volumes with Factory name
+	for volume in /sys/class/ubi/ubi*_*; do
+		[ ! -f "$volume/name" ] && continue
+		vol_name=$(cat "$volume/name" 2>/dev/null)
+		if echo "$vol_name" | grep -qi "$1"; then
+			# Extract UBI device and volume number (e.g., ubi0_1)
+			echo "$volume" | grep -o 'ubi[0-9]*_[0-9]*'
+			return
+		fi
+	done
+}
+
 factory_name="Factory"
-factory_mtd=$(grep -i "${factory_name}" /proc/mtd | cut -c 1-4)
-if [ -n "$factory_mtd" ]; then
-	factory_part=/dev/${factory_mtd}
+# Priority order: UBI -> MTD -> MMC
+factory_ubi=$(find_ubi_factory_partition ${factory_name})
+if [ -n "$factory_ubi" ]; then
+	factory_part=/dev/${factory_ubi}
+	factory_type="ubi"
 else
-	factory_part=/dev/$(find_factory_partition ${factory_name})
+	factory_mtd=$(grep -i "${factory_name}" /proc/mtd | cut -c 1-4)
+	if [ -n "$factory_mtd" ]; then
+		factory_part=/dev/${factory_mtd}
+		factory_type="mtd"
+	else
+		factory_mmc=$(find_factory_partition ${factory_name})
+		if [ -n "$factory_mmc" ]; then
+			factory_part=/dev/${factory_mmc}
+			factory_type="mmc"
+		else
+			echo "Error: Factory partition not found!"
+			exit 1
+		fi
+	fi
 fi
 
 #default:7622
@@ -110,9 +141,15 @@ Set_offset_data()
 
 	dd if=${factory_part} of=/tmp/Factory.backup
 	printf "${data}" | dd conv=notrunc of=/tmp/Factory.backup bs=1 seek=$((${offset}))
-	if [ -n "$factory_mtd" ]; then
+
+	if [ "$factory_type" = "ubi" ]; then
+		# For UBI devices, use ubiupdatevol
+		ubiupdatevol ${factory_part} /tmp/Factory.backup
+	elif [ "$factory_type" = "mtd" ]; then
+		# For MTD devices, use mtd command
 		mtd write /tmp/Factory.backup ${factory_name}
 	else
+		# For MMC devices, use dd
 		dd if=/tmp/Factory.backup of=${factory_part}
 	fi
 	rm -rf /tmp/Factory.backup
