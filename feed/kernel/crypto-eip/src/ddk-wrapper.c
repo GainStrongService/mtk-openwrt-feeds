@@ -100,7 +100,7 @@ static bool crypto_iotoken_create(IOToken_Input_Dscr_t * const dscr_p,
 	return true;
 }
 
-unsigned int crypto_pe_busy_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
+static unsigned int crypto_pe_busy_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
 			       u32 *OutTokenData_p,
 			       PEC_ResultDescriptor_t *RD_p, int ring)
 {
@@ -156,7 +156,7 @@ wait:
 	return 0;
 }
 
-unsigned int crypto_pe_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
+static unsigned int crypto_pe_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
 			       u32 *OutTokenData_p,
 			       PEC_ResultDescriptor_t *RD_p, int ring)
 {
@@ -198,7 +198,7 @@ unsigned int crypto_pe_get_one(IOToken_Output_Dscr_t *const OutTokenDscr_p,
 	return 0;
 }
 
-SABuilder_Crypto_Mode_t lookaside_match_alg_mode(enum mtk_crypto_cipher_mode mode)
+static SABuilder_Crypto_Mode_t lookaside_match_alg_mode(enum mtk_crypto_cipher_mode mode)
 {
 	switch (mode) {
 	case MTK_CRYPTO_MODE_CBC:
@@ -222,7 +222,7 @@ SABuilder_Crypto_Mode_t lookaside_match_alg_mode(enum mtk_crypto_cipher_mode mod
 	}
 }
 
-SABuilder_Crypto_t lookaside_match_alg_name(enum mtk_crypto_alg alg)
+static SABuilder_Crypto_t lookaside_match_alg_name(enum mtk_crypto_alg alg)
 {
 	switch (alg) {
 	case MTK_CRYPTO_AES:
@@ -236,7 +236,7 @@ SABuilder_Crypto_t lookaside_match_alg_name(enum mtk_crypto_alg alg)
 	}
 }
 
-SABuilder_Auth_t aead_hash_match(enum mtk_crypto_alg alg)
+static SABuilder_Auth_t aead_hash_match(enum mtk_crypto_alg alg)
 {
 	switch (alg) {
 	case MTK_CRYPTO_ALG_SHA1:
@@ -262,7 +262,7 @@ SABuilder_Auth_t aead_hash_match(enum mtk_crypto_alg alg)
 	}
 }
 
-void mtk_crypto_ring3_handler(void)
+static void mtk_crypto_ring3_handler(void)
 {
 	struct mtk_crypto_result *rd;
 	struct mtk_crypto_context *ctx;
@@ -306,7 +306,7 @@ void mtk_crypto_ring3_handler(void)
 	}
 }
 
-void mtk_crypto_ring2_handler(void)
+static void mtk_crypto_ring2_handler(void)
 {
 	struct mtk_crypto_result *rd;
 	struct mtk_crypto_context *ctx;
@@ -350,7 +350,7 @@ void mtk_crypto_ring2_handler(void)
 	}
 }
 
-void mtk_crypto_ring1_handler(void)
+static void mtk_crypto_ring1_handler(void)
 {
 	struct mtk_crypto_result *rd;
 	struct mtk_crypto_context *ctx;
@@ -394,7 +394,7 @@ void mtk_crypto_ring1_handler(void)
 	}
 }
 
-void mtk_crypto_ring0_handler(void)
+static void mtk_crypto_ring0_handler(void)
 {
 	struct mtk_crypto_result *rd;
 	struct mtk_crypto_context *ctx;
@@ -941,7 +941,7 @@ error_remove_sg:
 	return rc;
 }
 
-SABuilder_Auth_t lookaside_match_hash(enum mtk_crypto_alg alg)
+static SABuilder_Auth_t lookaside_match_hash(enum mtk_crypto_alg alg)
 {
 	switch (alg) {
 	case MTK_CRYPTO_ALG_SHA1:
@@ -1613,7 +1613,7 @@ error_exit:
 	return rc;
 }
 
-bool crypto_basic_hash(struct ahash_request *areq, uint8_t *input,
+static bool crypto_basic_hash(struct ahash_request *areq, uint8_t *input,
 				unsigned int input_length, uint8_t *output, bool final)
 {
 	DECLARE_CRYPTO_WAIT(wait);
@@ -1664,7 +1664,7 @@ bool crypto_basic_hash(struct ahash_request *areq, uint8_t *input,
 	return true;
 }
 
-void mtk_crypto_hash_byteswap(SABuilder_Auth_t algo, uint8_t *input, unsigned int length)
+static void mtk_crypto_hash_byteswap(SABuilder_Auth_t algo, uint8_t *input, unsigned int length)
 {
 	int i;
 	u32 temp;
@@ -1786,11 +1786,8 @@ free_ahash:
 	return ret;
 }
 
-bool
-mtk_ddk_aes_block_encrypt(uint8_t *key,
-							 unsigned int klen,
-							 uint8_t *input,
-							 uint8_t *output)
+static bool
+mtk_ddk_aes_block_encrypt(uint8_t *key,  unsigned int klen, uint8_t *input, uint8_t *output)
 {
 	struct crypto_skcipher *tfm;
 	struct skcipher_request *req = NULL;
@@ -2268,7 +2265,7 @@ mtk_ddk_invalidate_rec(
 	return true;
 }
 
-void set_capwap_algo(SABuilder_Params_t *params, uint8_t mode)
+static void set_capwap_algo(SABuilder_Params_t *params, uint8_t mode)
 {
 	params->CryptoAlgo = SAB_CRYPTO_AES;
 	params->CryptoMode = SAB_CRYPTO_MODE_CBC;

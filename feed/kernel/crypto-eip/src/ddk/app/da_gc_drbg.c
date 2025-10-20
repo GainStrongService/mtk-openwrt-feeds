@@ -27,7 +27,7 @@
 
 // Demo Application Classification Engine Module API
 #include "da_gc_ce.h"
-
+#include "da_gc_drbg.h"
 
 /*----------------------------------------------------------------------------
  * This module uses (requires) the following interface(s):

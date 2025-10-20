@@ -9,5 +9,5 @@
 #define _CRYPTO_EIP_DEBUGFS_H_
 
 int mtk_crypto_debugfs_init(void);
-void mtk_crypto_debugfs_eixt(void);
+void mtk_crypto_debugfs_exit(void);
 #endif /* _CRYPTO_EIP_DEBUGFS_H_ */

@@ -12,6 +12,7 @@
 #include <pce/cdrt.h>
 
 #include "crypto-eip/crypto-eip.h"
+#include "crypto-eip/debugfs.h"
 
 struct dentry *mtk_crypto_debugfs_root;
 

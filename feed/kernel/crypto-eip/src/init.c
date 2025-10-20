@@ -489,6 +489,7 @@ static void __exit mtk_crypto_eip_exit(void)
 	mtk_crypto_unregister_algorithms();
 #endif /* CONFIG_CRYPTO_MTK_DDK_LOOKASIDE */
 
+	mtk_crypto_debugfs_exit();
 	mtk_crypto_xfrm_offload_deinit(mcrypto.eth);
 
 	mtk_crypto_unregister_nf_hooks();
