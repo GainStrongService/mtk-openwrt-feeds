@@ -11,6 +11,7 @@
 #include <crypto/hash.h>
 #include <crypto/hmac.h>
 #include <crypto/md5.h>
+#include <crypto/skcipher.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <crypto/internal/hash.h>
@@ -1612,216 +1613,77 @@ error_exit:
 	return rc;
 }
 
-bool crypto_basic_hash(SABuilder_Auth_t HashAlgo, uint8_t *Input_p,
-				unsigned int InputByteCount, uint8_t *Output_p,
-				unsigned int OutputByteCount, bool fFinalize)
+bool crypto_basic_hash(struct ahash_request *areq, uint8_t *input,
+				unsigned int input_length, uint8_t *output, bool final)
 {
-	SABuilder_Params_Basic_t ProtocolParams;
-	SABuilder_Params_t params;
-	unsigned int SAWords = 0;
-	static uint8_t DummyAuthKey[64];
-	int rc;
+	DECLARE_CRYPTO_WAIT(wait);
+	struct scatterlist sg;
+	int ret;
 
-	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
-	DMABuf_HostAddress_t TokenHostAddress;
-	DMABuf_HostAddress_t PktHostAddress;
-	DMABuf_HostAddress_t SAHostAddress;
-	DMABuf_Status_t DMAStatus;
+	ahash_request_set_callback(areq, CRYPTO_TFM_REQ_MAY_BACKLOG, crypto_req_done, &wait);
+	sg_init_one(&sg, input, input_length);
+	ahash_request_set_crypt(areq, &sg, output, input_length);
 
-	DMABuf_Handle_t TokenHandle = {0};
-	DMABuf_Handle_t PktHandle = {0};
-	DMABuf_Handle_t SAHandle = {0};
+	if (final) {
+		ret = crypto_ahash_digest(areq);
+		if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
+			pr_notice("%s: hash update failed: %d\n", __func__, ret);
+			return false;
+		}
+		ret = crypto_wait_req(ret, &wait);
+		if (ret) {
+			pr_notice("%s: hash failed: %d\n", __func__, ret);
+			return false;
+		}
+	} else {
+		ret = crypto_ahash_init(areq);
+		if (ret) {
+			pr_notice("%s: hash init failed: %d\n", __func__, ret);
+			return false;
+		}
 
-	unsigned int TokenMaxWords = 0;
-	unsigned int TokenHeaderWord;
-	unsigned int TokenWords = 0;
-	unsigned int TCRWords = 0;
-	void *TCRData = 0;
+		ret = crypto_ahash_update(areq);
+		if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
+			pr_notice("%s: hash update failed: %d\n", __func__, ret);
+			return false;
+		}
 
-	TokenBuilder_Params_t TokenParams;
-	PEC_CommandDescriptor_t Cmd;
-	PEC_ResultDescriptor_t Res;
-	unsigned int count;
+		ret = crypto_wait_req(ret, &wait);
+		if (ret) {
+			pr_notice("%s: hash failed: %d\n", __func__, ret);
+			return false;
+		}
 
-	u32 OutputToken[IOTOKEN_IN_WORD_COUNT];
-	u32 InputToken[IOTOKEN_IN_WORD_COUNT];
-	IOToken_Output_Dscr_t OutTokenDscr;
-	IOToken_Input_Dscr_t InTokenDscr;
-	void *InTokenDscrExt_p = NULL;
-
-#ifdef CRYPTO_IOTOKEN_EXT
-	IOToken_Input_Dscr_Ext_t InTokenDscrExt;
-
-	ZEROINIT(InTokenDscrExt);
-	InTokenDscrExt_p = &InTokenDscrExt;
-#endif
-	ZEROINIT(InTokenDscr);
-	ZEROINIT(OutTokenDscr);
-
-	rc = SABuilder_Init_Basic(&params, &ProtocolParams, SAB_DIRECTION_OUTBOUND);
-	if (rc) {
-		CRYPTO_ERR("SABuilder_Init_Basic failed: %d\n", rc);
-		goto error_exit;
+		ret = crypto_ahash_export(areq, output);
+		if (ret) {
+			pr_notice("%s: hash export failed: %d\n", __func__, ret);
+			return false;
+		}
 	}
 
-	params.AuthAlgo = HashAlgo;
-	params.AuthKey1_p = DummyAuthKey;
+	return true;
+}
 
-	if (!fFinalize)
-		params.flags |= SAB_FLAG_HASH_SAVE | SAB_FLAG_HASH_INTERMEDIATE;
-	params.flags |= SAB_FLAG_SUPPRESS_PAYLOAD;
-	ProtocolParams.ICVByteCount = OutputByteCount;
+void mtk_crypto_hash_byteswap(SABuilder_Auth_t algo, uint8_t *input, unsigned int length)
+{
+	int i;
+	u32 temp;
 
-	rc = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
-	if (rc) {
-		CRYPTO_ERR("SA not created because of size errors: %d\n", rc);
-		goto error_exit;
+	if (algo == SAB_AUTH_HMAC_MD5)
+		return;
+
+	/* Byte swapping for 32-bit word hash (ex. sha1, sha256) */
+	for (i = 0; i < (length / 4); i++)
+		((__be32 *)input)[i] = cpu_to_be32(((__le32 *)input)[i]);
+
+	/* Extra swap for 64-bit word hash (ex. sha384, sha512) */
+	if (algo == SAB_AUTH_HMAC_SHA2_384 || algo == SAB_AUTH_HMAC_SHA2_512) {
+		for (i = 0; i < (length / 4); i = i + 2) {
+			temp = ((u32 *)input)[i];
+			((u32 *)input)[i] = ((u32 *)input)[i + 1];
+			((u32 *)input)[i + 1] = temp;
+		}
 	}
-
-	DMAProperties.fCached = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_TRANSFORM;
-	DMAProperties.Size = MAX(4*SAWords, 256);
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &SAHostAddress, &SAHandle);
-	if (DMAStatus != DMABUF_STATUS_OK) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of SA failed: %d\n", DMAStatus);
-		goto error_exit;
-	}
-
-	rc = SABuilder_BuildSA(&params, (u32 *)SAHostAddress.p, NULL, NULL);
-	if (rc) {
-		CRYPTO_ERR("SA not created because of errors: %d\n", rc);
-		goto error_exit;
-	}
-
-	rc = TokenBuilder_GetContextSize(&params, &TCRWords);
-	if (rc) {
-		CRYPTO_ERR("TokenBuilder_GetContextSize returned errors: %d\n", rc);
-		goto error_exit;
-	}
-
-	TCRData = kmalloc(4 * TCRWords, GFP_KERNEL);
-	if (!TCRData) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of TCR failed\n");
-		goto error_exit;
-	}
-
-	rc = TokenBuilder_BuildContext(&params, TCRData);
-	if (rc) {
-		CRYPTO_ERR("TokenBuilder_BuildContext failed: %d\n", rc);
-		goto error_exit;
-	}
-
-	rc = TokenBuilder_GetSize(TCRData, &TokenMaxWords);
-	if (rc) {
-		CRYPTO_ERR("TokenBuilder_GetSize failed: %d\n", rc);
-		goto error_exit;
-	}
-
-	DMAProperties.fCached = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_TOKEN;
-	DMAProperties.Size = 4*TokenMaxWords;
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &TokenHostAddress, &TokenHandle);
-	if (DMAStatus != DMABUF_STATUS_OK) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of token builder failed: %d\n", DMAStatus);
-		goto error_exit;
-	}
-
-	DMAProperties.fCached = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank = MTK_EIP197_INLINE_BANK_PACKET;
-	DMAProperties.Size = MAX(InputByteCount, OutputByteCount);
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &PktHostAddress, &PktHandle);
-	if (DMAStatus != DMABUF_STATUS_OK) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of source packet buffer failed: %d\n",
-			   DMAStatus);
-		goto error_exit;
-	}
-
-	rc = PEC_SA_Register(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
-				DMABuf_NULLHandle);
-	if (rc != PEC_STATUS_OK) {
-		CRYPTO_ERR("PEC_SA_Register failed: %d\n", rc);
-		goto error_exit;
-	}
-
-	memcpy(PktHostAddress.p, Input_p, InputByteCount);
-
-	ZEROINIT(TokenParams);
-	TokenParams.PacketFlags |= (TKB_PACKET_FLAG_HASHFIRST
-				    | TKB_PACKET_FLAG_HASHAPPEND);
-	if (fFinalize)
-		TokenParams.PacketFlags |= TKB_PACKET_FLAG_HASHFINAL;
-
-	rc = TokenBuilder_BuildToken(TCRData, (u8 *) PktHostAddress.p,
-				     InputByteCount, &TokenParams,
-				     (u32 *) TokenHostAddress.p,
-				     &TokenWords, &TokenHeaderWord);
-	if (rc != TKB_STATUS_OK) {
-		CRYPTO_ERR("Token builder failed: %d\n", rc);
-		goto error_exit_unregister;
-	}
-
-	ZEROINIT(Cmd);
-	Cmd.Token_Handle = TokenHandle;
-	Cmd.Token_WordCount = TokenWords;
-	Cmd.SrcPkt_Handle = PktHandle;
-	Cmd.SrcPkt_ByteCount = InputByteCount;
-	Cmd.DstPkt_Handle = PktHandle;
-	Cmd.SA_Handle1 = SAHandle;
-	Cmd.SA_Handle2 = DMABuf_NULLHandle;
-
-#if defined(CRYPTO_IOTOKEN_EXT)
-	InTokenDscrExt.HW_Services  = IOTOKEN_CMD_PKT_LAC;
-#endif
-	InTokenDscr.TknHdrWordInit = TokenHeaderWord;
-
-	if (!crypto_iotoken_create(&InTokenDscr,
-				   InTokenDscrExt_p,
-				   InputToken,
-				   &Cmd)) {
-		rc = 1;
-		goto error_exit_unregister;
-	}
-
-	do {
-		rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
-	} while (rc == PEC_STATUS_BUSY);
-
-	if (rc != PEC_STATUS_OK && count != 1) {
-		rc = 1;
-		CRYPTO_ERR("PEC_Packet_Put error: %d\n", rc);
-		goto error_exit_unregister;
-	}
-
-	if (crypto_pe_busy_get_one(&OutTokenDscr, OutputToken, &Res, PEC_INTERFACE_ID) < 1) {
-		rc = 1;
-		CRYPTO_ERR("error from crypto_pe_busy_get_one\n");
-		goto error_exit_unregister;
-	}
-	memcpy(Output_p, PktHostAddress.p, OutputByteCount);
-
-error_exit_unregister:
-	PEC_SA_UnRegister(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
-				DMABuf_NULLHandle);
-
-error_exit:
-	DMABuf_Release(SAHandle);
-	DMABuf_Release(TokenHandle);
-	DMABuf_Release(PktHandle);
-
-	if (TCRData != NULL)
-		kfree(TCRData);
-
-	return rc == 0;
 }
 
 bool crypto_hmac_precompute(SABuilder_Auth_t AuthAlgo,
@@ -1830,46 +1692,42 @@ bool crypto_hmac_precompute(SABuilder_Auth_t AuthAlgo,
 			    uint8_t *Inner_p,
 			    uint8_t *Outer_p)
 {
-	SABuilder_Auth_t HashAlgo;
-	unsigned int blocksize, hashsize, digestsize;
-	static uint8_t pad_block[128], hashed_key[128];
+	unsigned int blocksize, digestsize;
+	uint8_t pad_block[128], hashed_key[128];
 	unsigned int i;
+	struct ahash_request *areq = NULL;
+	struct crypto_ahash *atfm = NULL;
+	bool ret = false;
+	uint8_t *state = NULL;
 
 	switch (AuthAlgo) {
 	case SAB_AUTH_HMAC_MD5:
-		HashAlgo = SAB_AUTH_HASH_MD5;
-		blocksize = 64;
-		hashsize = 16;
+		atfm = crypto_alloc_ahash("md5-generic", 0, 0);
 		digestsize = 16;
 		break;
 	case SAB_AUTH_HMAC_SHA1:
-		HashAlgo = SAB_AUTH_HASH_SHA1;
-		blocksize = 64;
-		hashsize = 20;
+		atfm = crypto_alloc_ahash("sha1-generic", 0, 0);
 		digestsize = 20;
 		break;
 	case SAB_AUTH_HMAC_SHA2_224:
-		HashAlgo = SAB_AUTH_HASH_SHA2_224;
-		blocksize = 64;
-		hashsize = 28;
+		atfm = crypto_alloc_ahash("sha224-generic", 0, 0);
+		/*
+		 * The final hash size of sha224 is 28 bytes, but for intermediate calculate
+		 * the digest size is same as sha256, so it's 32 bytes.
+		 */
 		digestsize = 32;
 		break;
 	case SAB_AUTH_HMAC_SHA2_256:
-		HashAlgo = SAB_AUTH_HASH_SHA2_256;
-		blocksize = 64;
-		hashsize = 32;
+		atfm = crypto_alloc_ahash("sha256-generic", 0, 0);
 		digestsize = 32;
 		break;
 	case SAB_AUTH_HMAC_SHA2_384:
-		HashAlgo = SAB_AUTH_HASH_SHA2_384;
-		blocksize = 128;
-		hashsize = 48;
+		atfm = crypto_alloc_ahash("sha384-generic", 0, 0);
+		/* As sha224, the digest size of sha384 is the size of sha512 */
 		digestsize = 64;
 		break;
 	case SAB_AUTH_HMAC_SHA2_512:
-		HashAlgo = SAB_AUTH_HASH_SHA2_512;
-		blocksize = 128;
-		hashsize = 64;
+		atfm = crypto_alloc_ahash("sha512-generic", 0, 0);
 		digestsize = 64;
 		break;
 	default:
@@ -1877,253 +1735,107 @@ bool crypto_hmac_precompute(SABuilder_Auth_t AuthAlgo,
 		return false;
 	}
 
+	if (IS_ERR(atfm)) {
+		pr_err("%s: hash: failed to allocate atfm\n", __func__);
+		return false;
+	}
+
+	blocksize = crypto_ahash_blocksize(atfm);
+	state = kzalloc(crypto_ahash_statesize(atfm), GFP_KERNEL);
+	if (!state)
+		goto free_ahash;
+
+	areq = ahash_request_alloc(atfm, GFP_KERNEL);
+	if (!areq)
+		goto free_ahash;
+
+	crypto_ahash_clear_flags(atfm, ~0);
+
 	memset(hashed_key, 0, blocksize);
 	if (AuthKeyByteCount <= blocksize) {
 		memcpy(hashed_key, AuthKey_p, AuthKeyByteCount);
 	} else {
-		if (!crypto_basic_hash(HashAlgo, AuthKey_p, AuthKeyByteCount,
-				       hashed_key, hashsize, true))
-			return false;
+		if (!crypto_basic_hash(areq, AuthKey_p, AuthKeyByteCount, hashed_key, true))
+			goto free_request;
 	}
 
 	for (i = 0; i < blocksize; i++)
 		pad_block[i] = hashed_key[i] ^ 0x36;
 
-	if (!crypto_basic_hash(HashAlgo, pad_block, blocksize,
-			       Inner_p, digestsize, false))
-		return false;
+	if (!crypto_basic_hash(areq, pad_block, blocksize, state, false))
+		goto free_request;
+	memcpy(Inner_p, state, digestsize);
+	mtk_crypto_hash_byteswap(AuthAlgo, Inner_p, digestsize);
 
 	for (i = 0; i < blocksize; i++)
 		pad_block[i] = hashed_key[i] ^ 0x5c;
 
-	if (!crypto_basic_hash(HashAlgo, pad_block, blocksize,
-			       Outer_p, digestsize, false))
-		return false;
+	if (!crypto_basic_hash(areq, pad_block, blocksize, state, false))
+		goto free_request;
+	memcpy(Outer_p, state, digestsize);
+	mtk_crypto_hash_byteswap(AuthAlgo, Outer_p, digestsize);
 
-	return true;
+	ret = true;
+
+free_request:
+	kfree(state);
+	ahash_request_free(areq);
+free_ahash:
+	crypto_free_ahash(atfm);
+
+	return ret;
 }
 
 bool
-mtk_ddk_aes_block_encrypt(uint8_t *Key_p,
-							 unsigned int KeyByteCount,
-							 uint8_t *InData_p,
-							 uint8_t *OutData_p)
+mtk_ddk_aes_block_encrypt(uint8_t *key,
+							 unsigned int klen,
+							 uint8_t *input,
+							 uint8_t *output)
 {
-	int rc;
-	SABuilder_Params_t params;
-	SABuilder_Params_Basic_t ProtocolParams;
-	unsigned int SAWords = 0;
+	struct crypto_skcipher *tfm;
+	struct skcipher_request *req = NULL;
+	struct scatterlist src, dst;
+	int ret = 0;
+	void *iv = NULL;
+	bool val = false;
+	DECLARE_CRYPTO_WAIT(wait);
 
-	DMABuf_Status_t DMAStatus;
-	DMABuf_Properties_t DMAProperties = {0, 0, 0, 0};
-	DMABuf_HostAddress_t SAHostAddress;
-	DMABuf_HostAddress_t TokenHostAddress;
-	DMABuf_HostAddress_t PktHostAddress;
-
-	DMABuf_Handle_t SAHandle = {0};
-	DMABuf_Handle_t TokenHandle = {0};
-	DMABuf_Handle_t PktHandle = {0};
-
-	unsigned int TCRWords = 0;
-	void *TCRData = 0;
-	unsigned int TokenWords = 0;
-	unsigned int TokenHeaderWord;
-	unsigned int TokenMaxWords = 0;
-
-	TokenBuilder_Params_t TokenParams;
-	PEC_CommandDescriptor_t Cmd;
-	PEC_ResultDescriptor_t Res;
-	unsigned int count;
-
-	IOToken_Input_Dscr_t InTokenDscr;
-	IOToken_Output_Dscr_t OutTokenDscr;
-	uint32_t InputToken[IOTOKEN_IN_WORD_COUNT];
-	uint32_t OutputToken[IOTOKEN_OUT_WORD_COUNT];
-	IOToken_Output_Dscr_Ext_t OutTokenDscrExt;
-	IOToken_Input_Dscr_Ext_t InTokenDscrExt;
-
-	ZEROINIT(InTokenDscrExt);
-	ZEROINIT(OutTokenDscrExt);
-
-	ZEROINIT(InTokenDscr);
-	ZEROINIT(OutTokenDscr);
-
-	rc = SABuilder_Init_Basic(&params, &ProtocolParams, SAB_DIRECTION_OUTBOUND);
-	if (rc != 0) {
-		CRYPTO_ERR("SABuilder_Init_Basic failed\n");
-		goto error_exit;
-	}
-	// Add crypto key and parameters.
-	params.CryptoAlgo = SAB_CRYPTO_AES;
-	params.CryptoMode = SAB_CRYPTO_MODE_ECB;
-	params.KeyByteCount = KeyByteCount;
-	params.Key_p = Key_p;
-
-	rc = SABuilder_GetSizes(&params, &SAWords, NULL, NULL);
-
-	if (rc != 0) {
-		CRYPTO_ERR("SA not created because of errors\n");
-		goto error_exit;
+	tfm = crypto_alloc_skcipher("ecb(aes)", 0, 0);
+	if (IS_ERR(tfm)) {
+		pr_err("skcipher: failed to allocate tfm\n");
+		return PTR_ERR(tfm);
 	}
 
-	DMAProperties.fCached   = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank	    = MTK_EIP197_INLINE_BANK_TRANSFORM;
-	DMAProperties.Size	    = 4*SAWords;
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &SAHostAddress, &SAHandle);
-	if (DMAStatus != DMABUF_STATUS_OK) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of SA failed\n");
-		goto error_exit;
+	req = skcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		pr_err("skcipher: failed to allocate request\n");
+		goto out;
 	}
 
-	rc = SABuilder_BuildSA(&params, (uint32_t *)SAHostAddress.p, NULL, NULL);
-
-	if (rc != 0) {
-		LOG_CRIT("SA not created because of errors\n");
-		goto error_exit;
+	ret = crypto_skcipher_setkey(tfm, key, klen);
+	if (ret) {
+		pr_err("skcipher: setkey failed\n");
+		goto out;
 	}
 
-	rc = TokenBuilder_GetContextSize(&params, &TCRWords);
+	sg_init_one(&src, input, AES_BLOCK_SIZE);
+	sg_init_one(&dst, output, AES_BLOCK_SIZE);
 
-	if (rc != 0) {
-		CRYPTO_ERR("TokenBuilder_GetContextSize returned errors\n");
-		goto error_exit;
+	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG, crypto_req_done, &wait);
+	skcipher_request_set_crypt(req, &src, &dst, AES_BLOCK_SIZE, iv);
+	ret = crypto_skcipher_encrypt(req);
+	ret = crypto_wait_req(ret, &wait);
+	if (ret) {
+		pr_notice("aead failed to encrypt/decrypt: %d\n", ret);
+		goto out;
 	}
 
-	// The Token Context Record does not need to be allocated
-	// in a DMA-safe buffer.
-	TCRData = kcalloc(4*TCRWords, sizeof(uint8_t), GFP_KERNEL);
-	if (!TCRData) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of TCR failed\n");
-		goto error_exit;
-	}
+	val = true;
+out:
+	skcipher_request_free(req);
+	crypto_free_skcipher(tfm);
 
-	rc = TokenBuilder_BuildContext(&params, TCRData);
-
-	if (rc != 0) {
-		CRYPTO_ERR("TokenBuilder_BuildContext failed\n");
-		goto error_exit;
-	}
-
-	rc = TokenBuilder_GetSize(TCRData, &TokenMaxWords);
-	if (rc != 0) {
-		CRYPTO_ERR("TokenBuilder_GetSize failed\n");
-		goto error_exit;
-	}
-
-	// Allocate one buffer for the token and two packet buffers.
-
-	DMAProperties.fCached   = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank      = MTK_EIP197_INLINE_BANK_PACKET;
-	DMAProperties.Size      = 4*TokenMaxWords;
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &TokenHostAddress, &TokenHandle);
-	if (DMAStatus != DMABUF_STATUS_OK) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of token buffer failed.\n");
-		goto error_exit;
-	}
-
-	DMAProperties.fCached   = true;
-	DMAProperties.Alignment = MTK_EIP197_INLINE_DMA_ALIGNMENT_BYTE_COUNT;
-	DMAProperties.Bank      = MTK_EIP197_INLINE_BANK_PACKET;
-	DMAProperties.Size      = 16;
-
-	DMAStatus = DMABuf_Alloc(DMAProperties, &PktHostAddress,
-							 &PktHandle);
-	if (DMAStatus != DMABUF_STATUS_OK) {
-		rc = 1;
-		CRYPTO_ERR("Allocation of source packet buffer failed.\n");
-		goto error_exit;
-	}
-
-	// Register the SA
-	rc = PEC_SA_Register(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
-					  DMABuf_NULLHandle);
-	if (rc != PEC_STATUS_OK) {
-		CRYPTO_ERR("PEC_SA_Register failed\n");
-		goto error_exit;
-	}
-
-	// Copy input packet into source packet buffer.
-	memcpy(PktHostAddress.p, InData_p, 16);
-
-	// Set Token Parameters if specified in test vector.
-	ZEROINIT(TokenParams);
-
-
-	// Prepare a token to process the packet.
-	rc = TokenBuilder_BuildToken(TCRData,
-								 (uint8_t *)PktHostAddress.p,
-								 16,
-								 &TokenParams,
-								 (uint32_t *)TokenHostAddress.p,
-								 &TokenWords,
-								 &TokenHeaderWord);
-	if (rc != TKB_STATUS_OK) {
-		if (rc == TKB_BAD_PACKET)
-			CRYPTO_ERR("Token not created because packet size is invalid\n");
-		else
-			CRYPTO_ERR("Token builder failed\n");
-		goto error_exit_unregister;
-	}
-
-	ZEROINIT(Cmd);
-	Cmd.Token_Handle = TokenHandle;
-	Cmd.Token_WordCount = TokenWords;
-	Cmd.SrcPkt_Handle = PktHandle;
-	Cmd.SrcPkt_ByteCount = 16;
-	Cmd.DstPkt_Handle = PktHandle;
-	Cmd.SA_Handle1 = SAHandle;
-	Cmd.SA_Handle2 = DMABuf_NULLHandle;
-
-	InTokenDscrExt.HW_Services  = IOTOKEN_CMD_PKT_LAC;
-	InTokenDscr.TknHdrWordInit = TokenHeaderWord;
-
-	if (!crypto_iotoken_create(&InTokenDscr,
-							   &InTokenDscrExt,
-							   InputToken,
-							   &Cmd)) {
-		rc = 1;
-		goto error_exit_unregister;
-	}
-
-	do {
-		rc = PEC_Packet_Put(PEC_INTERFACE_ID, &Cmd, 1, &count);
-	} while (rc == PEC_STATUS_BUSY);
-
-	if (rc != PEC_STATUS_OK && count != 1) {
-		rc = 1;
-		CRYPTO_ERR("PEC_Packet_Put error\n");
-		goto error_exit_unregister;
-	}
-
-	if (crypto_pe_busy_get_one(&OutTokenDscr, OutputToken, &Res, PEC_INTERFACE_ID) < 1) {
-		rc = 1;
-		CRYPTO_ERR("error from crypto_pe_busy_get_one\n");
-		goto error_exit_unregister;
-	}
-	memcpy(OutData_p, PktHostAddress.p, 16);
-
-
-error_exit_unregister:
-	PEC_SA_UnRegister(PEC_INTERFACE_ID, SAHandle, DMABuf_NULLHandle,
-					  DMABuf_NULLHandle);
-
-error_exit:
-	DMABuf_Release(SAHandle);
-	DMABuf_Release(TokenHandle);
-	DMABuf_Release(PktHandle);
-
-	if (TCRData != NULL)
-		kfree(TCRData);
-
-	return rc == 0;
-
+	return val;
 }
 
 static bool set_crypto_aead(struct xfrm_algo_aead *aead, SABuilder_Params_t *params)
@@ -2232,8 +1944,8 @@ static bool set_auth_aalg(struct xfrm_algo_auth *aalg,
 		xfrm_params->tr_type = EIP197_SMALL_TR;
 	} else if (strcmp(aalg->alg_name, "hmac(sha384)") == 0) {
 		params->AuthAlgo = SAB_AUTH_HMAC_SHA2_384;
-		inner = kcalloc(SHA384_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
-		outer = kcalloc(SHA384_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		inner = kcalloc(SHA512_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
+		outer = kcalloc(SHA512_DIGEST_SIZE, sizeof(uint8_t), GFP_KERNEL);
 		crypto_hmac_precompute(SAB_AUTH_HMAC_SHA2_384, &aalg->alg_key[0],
 					aalg->alg_key_len / 8, inner, outer);
 		params->AuthKey1_p = inner;
