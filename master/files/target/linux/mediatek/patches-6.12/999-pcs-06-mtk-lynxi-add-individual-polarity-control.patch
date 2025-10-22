@@ -18,11 +18,9 @@ Signed-off-by: Bo-Cun Chen <bc-bocun.chen@mediatek.com>
  include/linux/pcs/pcs-mtk-lynxi.h |  3 ++-
  2 files changed, 18 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/net/pcs/pcs-mtk-lynxi.c b/drivers/net/pcs/pcs-mtk-lynxi.c
-index bea2bdd..363151f 100644
 --- a/drivers/net/pcs/pcs-mtk-lynxi.c
 +++ b/drivers/net/pcs/pcs-mtk-lynxi.c
-@@ -71,7 +71,8 @@
+@@ -74,7 +74,8 @@
  /* Register to QPHY wrapper control */
  #define SGMSYS_QPHY_WRAP_CTRL		0xec
  #define SGMII_PN_SWAP_MASK		GENMASK(1, 0)
@@ -32,15 +30,15 @@ index bea2bdd..363151f 100644
  
  #define MTK_NETSYS_V3_AMA_RGC3		0x128
  
-@@ -202,6 +203,7 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
+@@ -205,6 +206,7 @@ static int mtk_pcs_lynxi_config(struct p
  	struct mtk_pcs_lynxi *mpcs = pcs_to_mtk_pcs_lynxi(pcs);
  	bool mode_changed = false, changed;
- 	unsigned int rgc3, sgm_mode, bmcr = 0;
+ 	unsigned int rgc3, sgm_mode, bmcr = 0, trxbuf_thr = 0x3112;
 +	unsigned int pnswap_tx, pnswap_rx;
  	int advertise, link_timer;
  
  	advertise = phylink_mii_c22_pcs_encode_advertisement(interface,
-@@ -245,10 +247,14 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
+@@ -254,10 +256,14 @@ static int mtk_pcs_lynxi_config(struct p
  		regmap_set_bits(mpcs->regmap, SGMSYS_RESERVED_0,
  				SGMII_SW_RESET);
  
@@ -59,7 +57,7 @@ index bea2bdd..363151f 100644
  
  		if (interface == PHY_INTERFACE_MODE_2500BASEX)
  			rgc3 = SGMII_PHY_SPEED_3_125G;
-@@ -462,7 +468,11 @@ static int mtk_pcs_lynxi_probe(struct platform_device *pdev)
+@@ -473,7 +479,11 @@ static int mtk_pcs_lynxi_probe(struct pl
  		return PTR_ERR(regmap);
  
  	if (of_property_read_bool(np->parent, "mediatek,pnswap"))
@@ -70,10 +68,8 @@ index bea2bdd..363151f 100644
 +	else if (of_property_read_bool(np->parent, "mediatek,pnswap-rx"))
 +		flags |= MTK_SGMII_FLAG_PN_SWAP_RX;
  
- 	mpcs->rstc = of_reset_control_get_shared(np->parent, NULL);
- 	if (IS_ERR(mpcs->rstc))
-diff --git a/include/linux/pcs/pcs-mtk-lynxi.h b/include/linux/pcs/pcs-mtk-lynxi.h
-index 2d44e95..656a3e5 100644
+ 	if (of_property_read_bool(np->parent, "mediatek,phya_trx_ck"))
+ 		flags |= MTK_SGMII_FLAG_PHYA_TRX_CK;
 --- a/include/linux/pcs/pcs-mtk-lynxi.h
 +++ b/include/linux/pcs/pcs-mtk-lynxi.h
 @@ -5,7 +5,8 @@
@@ -83,9 +79,6 @@ index 2d44e95..656a3e5 100644
 -#define MTK_SGMII_FLAG_PN_SWAP BIT(0)
 +#define MTK_SGMII_FLAG_PN_SWAP_TX BIT(0)
 +#define MTK_SGMII_FLAG_PN_SWAP_RX BIT(1)
+ #define MTK_SGMII_FLAG_PHYA_TRX_CK BIT(2)
  struct phylink_pcs *mtk_pcs_lynxi_create(struct device *dev,
  					 struct regmap *regmap,
- 					 u32 ana_rgc3, u32 flags);
--- 
-2.45.2
-

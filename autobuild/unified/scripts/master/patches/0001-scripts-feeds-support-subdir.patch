@@ -26,14 +26,14 @@
  	system("ln -sf $name.tmp/.packageinfo ./feeds/$name.index");
  	system("ln -sf $name.tmp/.targetinfo ./feeds/$name.targetindex");
  
-@@ -861,15 +867,17 @@ sub update {
+@@ -872,15 +878,17 @@ sub update {
  	my @index_feeds;
  	foreach my $feed (@feeds) {
- 		my ($type, $name, $src) = @$feed;
+ 		my ($type, $name, $src, $flags) = @$feed;
 +		my $subdir = $feed->[3]{subdir};
  		next unless $#ARGV == -1 or $opts{a} or $argv_feeds{$name};
  		if (not $opts{i}) {
- 			update_feed($type, $name, $src, $opts{f}, $opts{r}, $opts{s}) == 0 or $failed=1;
+ 			update_feed($type, $name, $src, $opts{f}, $opts{r}, $opts{s}, $flags) == 0 or $failed=1;
  		}
 -		push @index_feeds, $name;
 +		push @index_feeds, [ $name, $subdir ];

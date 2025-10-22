@@ -35,15 +35,12 @@
  
  #define MT7988_2P5GE_PMB_FW		"mediatek/mt7988/i2p5ge-phy-pmb.bin"
 -#define MT7988_2P5GE_PMB_FW_SIZE	(0x20000)
--#define MT7988_2P5GE_PMB_FW_BASE	(0x0f100000)
--#define MT7988_2P5GE_PMB_FW_LEN		(0x20000)
--
++#define MT7988_2P5GE_PMB_FW_SIZE	0x20000
++#define MT7988_2P5GE_PMB_FW_BASE	(PBUS_BASE + 0x100000)
+ 
 -#define MTK_2P5GPHY_PMD_REG_BASE	(0x0f010000)
 -#define MTK_2P5GPHY_PMD_REG_LEN		(0x210)
 -#define DO_NOT_RESET			(0x28)
-+#define MT7988_2P5GE_PMB_FW_SIZE	0x20000
-+#define MT7988_2P5GE_PMB_FW_BASE	(PBUS_BASE + 0x100000)
-+
 +#define MTK_2P5GPHY_PMD_REG		0x010000
 +#define DO_NOT_RESET			0x28
  #define   DO_NOT_RESET_XBZ		BIT(0)
@@ -152,6 +149,7 @@
 +#define SW_RESET			0x94
  #define   MD32_RESTART_EN_CLEAR		BIT(9)
  
+-
 -#define BASE100T_STATUS_EXTEND		(0x10)
 -#define BASE1000T_STATUS_EXTEND		(0x11)
 -#define EXTEND_CTRL_AND_STATUS		(0x16)
@@ -161,15 +159,18 @@
  #define   PHY_AUX_DPX_MASK		GENMASK(5, 5)
  #define   PHY_AUX_SPEED_MASK		GENMASK(4, 2)
  
+-/* Registers on MDIO_MMD_VEND1 */
+-#define MTK_PHY_LPI_PCS_DSP_CTRL		(0x121)
+-#define   MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK	GENMASK(12, 8)
 +/* Registers on CL22 page 0 */
 +#define MTK_PHY_IRQ_MASK		0x19
 +#define   MDINT_MASK			BIT(15)
 +#define   LINK_STATUS_MASK		BIT(13)
-+
- /* Registers on MDIO_MMD_VEND1 */
+ 
 -#define MTK_PHY_LINK_STATUS_RELATED		(0x147)
 -#define   MTK_PHY_BYPASS_LINK_STATUS_OK		BIT(4)
 -#define   MTK_PHY_FORCE_LINK_STATUS_HCD		BIT(3)
++/* Registers on MDIO_MMD_VEND1 */
 +#define MTK_PHY_LINK_STATUS_RELATED	0x147
 +#define   MTK_PHY_BYPASS_LINK_STATUS_OK	BIT(4)
 +#define   MTK_PHY_FORCE_LINK_STATUS_HCD	BIT(3)
@@ -183,26 +184,25 @@
  #define   MTK_PHY_MASTER_FORCE_SPEED_SEL_EN	BIT(7)
  #define   MTK_PHY_MASTER_FORCE_SPEED_SEL_MASK	GENMASK(6, 0)
  
--#define MTK_PHY_LPI_PCS_DSP_CTRL		(0x121)
 +#define MTK_PHY_LPI_PCS_DSP_CTRL		0x121
- #define   MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK	GENMASK(12, 8)
- 
--/* Registers on Token Ring debug nodes */
--/* ch_addr = 0x0, node_addr = 0xf, data_addr = 0x3c */
--#define AUTO_NP_10XEN				BIT(6)
++#define   MTK_PHY_LPI_SIG_EN_LO_THRESH100_MASK	GENMASK(12, 8)
++
 +/* Registers on MDIO_MMD_VEND2 */
 +#define MT7987_OPTIONS			0x110
 +#define   NORMAL_RETRAIN_DISABLE	BIT(0)
 +
-+#define MTK_PHY_HOST_CMD1		0x800e
-+#define MTK_PHY_HOST_CMD2		0x800f
+ #define MTK_PHY_HOST_CMD1		0x800e
+ #define MTK_PHY_HOST_CMD2		0x800f
+-/* Registers on Token Ring debug nodes */
+-/* ch_addr = 0x0, node_addr = 0xf, data_addr = 0x3c */
+-#define AUTO_NP_10XEN				BIT(6)
  
  struct mtk_i2p5ge_phy_priv {
 -	bool fw_loaded;
 +	void __iomem *reg_base;
 +	struct resource *res;
 +	char fw_version[16];
- 	unsigned long led_state;
++	unsigned long led_state;
 +	int half;
 +	int gbe_min_ipg_11B;
 +	int retrain;
@@ -427,16 +427,16 @@
 +	case ATTR_GBE_MIN_IPG_11B:
 +		priv->gbe_min_ipg_11B = !!val;
 +		break;
++
++	case ATTR_RETRAIN:
++		priv->retrain = !!val;
++		break;
  
 -	mcu_csr_base = ioremap(MTK_2P5GPHY_MCU_CSR_BASE,
 -			       MTK_2P5GPHY_MCU_CSR_LEN);
 -	if (!mcu_csr_base) {
 -		ret = -ENOMEM;
 -		goto free_chip_scu;
-+	case ATTR_RETRAIN:
-+		priv->retrain = !!val;
-+		break;
-+
 +	case ATTR_AUTO_DOWNSHIFT:
 +		priv->auto_downshift = !!val;
 +		break;
@@ -717,24 +717,25 @@
  
  	return ret;
  }
-@@ -365,30 +546,16 @@ free_apb:
+@@ -365,31 +546,16 @@ free_apb:
  static int mt7988_2p5ge_phy_load_fw(struct phy_device *phydev)
  {
  	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
 -	void __iomem *mcu_csr_base, *pmb_addr;
  	struct device *dev = &phydev->mdio.dev;
  	const struct firmware *fw;
+-	struct device_node *np;
  	int ret, i;
  	u32 reg;
  
--	if (priv->fw_loaded)
--		return 0;
+-	np = of_find_compatible_node(NULL, NULL, "mediatek,2p5gphy-fw");
+-	if (!np)
+-		return -ENOENT;
 -
--	pmb_addr = ioremap(MT7988_2P5GE_PMB_FW_BASE, MT7988_2P5GE_PMB_FW_LEN);
+-	pmb_addr = of_iomap(np, 0);
 -	if (!pmb_addr)
 -		return -ENOMEM;
--	mcu_csr_base = ioremap(MTK_2P5GPHY_MCU_CSR_BASE,
--			       MTK_2P5GPHY_MCU_CSR_LEN);
+-	mcu_csr_base = of_iomap(np, 1);
 -	if (!mcu_csr_base) {
 -		ret = -ENOMEM;
 -		goto free_pmb;
@@ -750,7 +751,7 @@
  	}
  
  	if (fw->size != MT7988_2P5GE_PMB_FW_SIZE) {
-@@ -398,7 +565,7 @@ static int mt7988_2p5ge_phy_load_fw(stru
+@@ -399,7 +565,7 @@ static int mt7988_2p5ge_phy_load_fw(stru
  		goto release_fw;
  	}
  
@@ -759,27 +760,23 @@
  	if (reg & MD32_EN) {
  		phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
  		usleep_range(10000, 11000);
-@@ -406,106 +573,67 @@ static int mt7988_2p5ge_phy_load_fw(stru
- 	phy_set_bits(phydev, MII_BMCR, BMCR_PDOWN);
- 
- 	/* Write magic number to safely stall MCU */
--	phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x800e, 0x1100);
--	phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x800f, 0x00df);
-+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_HOST_CMD1, 0x1100);
-+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_HOST_CMD2, 0x00df);
+@@ -411,91 +577,59 @@ static int mt7988_2p5ge_phy_load_fw(stru
+ 	phy_write_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_HOST_CMD2, 0x00df);
  
  	for (i = 0; i < MT7988_2P5GE_PMB_FW_SIZE - 1; i += 4)
 -		writel(*((uint32_t *)(fw->data + i)), pmb_addr + i);
--	dev_info(dev, "Firmware date code: %x/%x/%x, version: %x.%x\n",
--		 be16_to_cpu(*((__be16 *)(fw->data +
--					  MT7988_2P5GE_PMB_FW_SIZE - 8))),
--		 *(fw->data + MT7988_2P5GE_PMB_FW_SIZE - 6),
--		 *(fw->data + MT7988_2P5GE_PMB_FW_SIZE - 5),
--		 *(fw->data + MT7988_2P5GE_PMB_FW_SIZE - 2),
--		 *(fw->data + MT7988_2P5GE_PMB_FW_SIZE - 1));
 +		reg_writel(priv, MTK_2P5GPHY_PMB_FW + i,
 +			   *((uint32_t *)(fw->data + i)));
  
+-	if (!priv->fw_loaded)
+-		dev_info(dev, "Firmware date code: %x/%x/%x, version: %x.%x\n",
+-			 be16_to_cpu(*((__be16 *)(fw->data +
+-						  MT7988_2P5GE_PMB_FW_SIZE - 8))),
+-			 *(fw->data + MT7988_2P5GE_PMB_FW_SIZE - 6),
+-			 *(fw->data + MT7988_2P5GE_PMB_FW_SIZE - 5),
+-			 *(fw->data + MT7988_2P5GE_PMB_FW_SIZE - 2),
+-			 *(fw->data + MT7988_2P5GE_PMB_FW_SIZE - 1));
+-
 -	writew(reg & ~MD32_EN, mcu_csr_base + MD32_EN_CFG);
 -	writew(reg | MD32_EN, mcu_csr_base + MD32_EN_CFG);
 +	reg_writew(priv, MTK_2P5GPHY_MCU_CSR + MD32_EN_CFG, reg & ~MD32_EN);
@@ -787,7 +784,6 @@
  	phy_set_bits(phydev, MII_BMCR, BMCR_RESET);
  	/* We need a delay here to stabilize initialization of MCU */
  	usleep_range(7000, 8000);
--	dev_info(dev, "Firmware loading/trigger ok.\n");
  
 -	priv->fw_loaded = true;
 +	mtk_2p5ge_fw_info(dev, priv, fw, MT7988_2P5GE_PMB_FW_SIZE);
@@ -839,7 +835,7 @@
 -
 -	/* Switch pinctrl after setting polarity to avoid bogus blinking */
 -	pinctrl = devm_pinctrl_get_select(&phydev->mdio.dev, "i2p5gbe-led");
--	if (IS_ERR(pinctrl))
+-	if (IS_ERR(pinctrl) && PTR_ERR(pinctrl) != -ENODEV)
 -		dev_err(&phydev->mdio.dev, "Fail to set LED pins!\n");
 -
  	phy_modify_mmd(phydev, MDIO_MMD_VEND1, MTK_PHY_LPI_PCS_DSP_CTRL,
@@ -882,23 +878,11 @@
  	bool changed = false;
  	u32 adv;
  	int ret;
- 
--	/* In fact, if we disable autoneg, we can't link up correctly:
--	 * 2.5G/1G: Need AN to exchange master/slave information.
--	 * 100M/10M: Without AN, link starts at half duplex (According to
--	 *           IEEE 802.3-2018), which this phy doesn't support.
--	 */
--	if (phydev->autoneg == AUTONEG_DISABLE)
--		return -EOPNOTSUPP;
--
- 	ret = genphy_c45_an_config_aneg(phydev);
- 	if (ret < 0)
- 		return ret;
-@@ -522,7 +650,29 @@ static int mt798x_2p5ge_phy_config_aneg(
+@@ -516,7 +650,29 @@ static int mt798x_2p5ge_phy_config_aneg(
  	if (ret > 0)
  		changed = true;
  
--	return genphy_c45_check_and_restart_aneg(phydev, changed);
+-	return __genphy_config_aneg(phydev, changed);
 +	if (priv->half) {
 +		phy_set_bits_mmd(phydev, MDIO_MMD_VEND1,
 +				 MTK_PHY_PMA_PMD_SPEED_ABILITY,
@@ -925,7 +909,7 @@
  }
  
  static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
-@@ -537,14 +687,64 @@ static int mt798x_2p5ge_phy_get_features
+@@ -531,14 +687,64 @@ static int mt798x_2p5ge_phy_get_features
  	 * connected to. Although it can do HDX handshake, it doesn't support
  	 * CSMA/CD that HDX requires.
  	 */
@@ -968,7 +952,7 @@
 +		ret = phy_write(phydev, MTK_PHY_IRQ_MASK, MDINT_MASK | LINK_STATUS_MASK);
 +		if (ret < 0)
 +			return ret;
-+		
++
 +		/* Clear any pending interrupts */
 +		ret = phy_read(phydev, 0x1a);
 +		if (ret < 0)
@@ -990,7 +974,7 @@
  	int ret;
  
  	/* When MDIO_STAT1_LSTATUS is raised genphy_c45_read_link(), this phy
-@@ -593,6 +793,19 @@ static int mt798x_2p5ge_phy_read_status(
+@@ -587,6 +793,19 @@ static int mt798x_2p5ge_phy_read_status(
  			phydev->speed = SPEED_100;
  			break;
  		case PHY_AUX_SPD_1000:
@@ -1010,7 +994,7 @@
  			phydev->speed = SPEED_1000;
  			break;
  		case PHY_AUX_SPD_2500:
-@@ -601,9 +814,6 @@ static int mt798x_2p5ge_phy_read_status(
+@@ -595,9 +814,6 @@ static int mt798x_2p5ge_phy_read_status(
  		}
  
  		phydev->duplex = DUPLEX_FULL;
@@ -1020,7 +1004,86 @@
  		phydev->rate_matching = RATE_MATCH_PAUSE;
  	}
  
-@@ -695,41 +905,159 @@ static int mt798x_2p5ge_phy_led_hw_contr
+@@ -610,62 +826,271 @@ static int mt798x_2p5ge_phy_get_rate_mat
+ 	return RATE_MATCH_PAUSE;
+ }
+ 
++static const unsigned long supported_triggers =
++	BIT(TRIGGER_NETDEV_FULL_DUPLEX) |
++	BIT(TRIGGER_NETDEV_LINK)        |
++	BIT(TRIGGER_NETDEV_LINK_10)     |
++	BIT(TRIGGER_NETDEV_LINK_100)    |
++	BIT(TRIGGER_NETDEV_LINK_1000)   |
++	BIT(TRIGGER_NETDEV_LINK_2500)   |
++	BIT(TRIGGER_NETDEV_RX)          |
++	BIT(TRIGGER_NETDEV_TX);
++
++static int mt798x_2p5ge_phy_led_blink_set(struct phy_device *phydev, u8 index,
++					  unsigned long *delay_on,
++					  unsigned long *delay_off)
++{
++	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
++	bool blinking = false;
++	int err = 0;
++
++	err = mtk_phy_led_num_dly_cfg(index, delay_on, delay_off, &blinking);
++	if (err < 0)
++		return err;
++
++	err = mtk_phy_hw_led_blink_set(phydev, index, &priv->led_state,
++				       blinking);
++	if (err)
++		return err;
++
++	return mtk_phy_hw_led_on_set(phydev, index, &priv->led_state,
++				     MTK_2P5GPHY_LED_ON_MASK, false);
++}
++
++static int mt798x_2p5ge_phy_led_brightness_set(struct phy_device *phydev,
++					       u8 index,
++					       enum led_brightness value)
++{
++	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
++	int err;
++
++	err = mtk_phy_hw_led_blink_set(phydev, index, &priv->led_state, false);
++	if (err)
++		return err;
++
++	return mtk_phy_hw_led_on_set(phydev, index, &priv->led_state,
++				     MTK_2P5GPHY_LED_ON_MASK,
++				     (value != LED_OFF));
++}
++
++static int mt798x_2p5ge_phy_led_hw_is_supported(struct phy_device *phydev,
++						u8 index, unsigned long rules)
++{
++	return mtk_phy_led_hw_is_supported(phydev, index, rules,
++					   supported_triggers);
++}
++
++static int mt798x_2p5ge_phy_led_hw_control_get(struct phy_device *phydev,
++					       u8 index, unsigned long *rules)
++{
++	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
++
++	return mtk_phy_led_hw_ctrl_get(phydev, index, rules, &priv->led_state,
++				       MTK_2P5GPHY_LED_ON_SET,
++				       MTK_2P5GPHY_LED_RX_BLINK_SET,
++				       MTK_2P5GPHY_LED_TX_BLINK_SET);
++};
++
++static int mt798x_2p5ge_phy_led_hw_control_set(struct phy_device *phydev,
++					       u8 index, unsigned long rules)
++{
++	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
++
++	return mtk_phy_led_hw_ctrl_set(phydev, index, rules, &priv->led_state,
++				       MTK_2P5GPHY_LED_ON_SET,
++				       MTK_2P5GPHY_LED_RX_BLINK_SET,
++				       MTK_2P5GPHY_LED_TX_BLINK_SET);
++};
++
  static int mt798x_2p5ge_phy_probe(struct phy_device *phydev)
  {
  	struct mtk_i2p5ge_phy_priv *priv;
@@ -1147,8 +1210,8 @@
 +		device_create_file(&phydev->mdio.dev, &dev_attr_retrain.dev_attr);
 +
 +	/* Keep LED functionality from kernel 6.6 */
- 	mtk_phy_leds_state_init(phydev);
- 
++	mtk_phy_leds_state_init(phydev);
++
  	return 0;
  }
  
@@ -1186,7 +1249,16 @@
  		.read_status = mt798x_2p5ge_phy_read_status,
  		.get_rate_matching = mt798x_2p5ge_phy_get_rate_matching,
  		.suspend = genphy_suspend,
-@@ -746,9 +1074,12 @@ static struct phy_driver mtk_2p5gephy_dr
+ 		.resume = genphy_resume,
+ 		.read_page = mtk_phy_read_page,
+ 		.write_page = mtk_phy_write_page,
++		.led_blink_set = mt798x_2p5ge_phy_led_blink_set,
++		.led_brightness_set = mt798x_2p5ge_phy_led_brightness_set,
++		.led_hw_is_supported = mt798x_2p5ge_phy_led_hw_is_supported,
++		.led_hw_control_get = mt798x_2p5ge_phy_led_hw_control_get,
++		.led_hw_control_set = mt798x_2p5ge_phy_led_hw_control_set,
+ 	},
+ 	{
  		PHY_ID_MATCH_MODEL(MTK_2P5GPHY_ID_MT7988),
  		.name = "MediaTek MT7988 2.5GbE PHY",
  		.probe = mt798x_2p5ge_phy_probe,
@@ -1199,7 +1271,18 @@
  		.read_status = mt798x_2p5ge_phy_read_status,
  		.get_rate_matching = mt798x_2p5ge_phy_get_rate_matching,
  		.suspend = genphy_suspend,
-@@ -775,4 +1106,6 @@ MODULE_AUTHOR("SkyLake Huang <SkyLake.Hu
+ 		.resume = genphy_resume,
+ 		.read_page = mtk_phy_read_page,
+ 		.write_page = mtk_phy_write_page,
++		.led_blink_set = mt798x_2p5ge_phy_led_blink_set,
++		.led_brightness_set = mt798x_2p5ge_phy_led_brightness_set,
++		.led_hw_is_supported = mt798x_2p5ge_phy_led_hw_is_supported,
++		.led_hw_control_get = mt798x_2p5ge_phy_led_hw_control_get,
++		.led_hw_control_set = mt798x_2p5ge_phy_led_hw_control_set,
+ 	},
+ };
+ 
+@@ -681,4 +1106,6 @@ MODULE_AUTHOR("SkyLake Huang <SkyLake.Hu
  MODULE_LICENSE("GPL");
  
  MODULE_DEVICE_TABLE(mdio, mtk_2p5ge_phy_tbl);

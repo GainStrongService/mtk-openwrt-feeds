@@ -8,10 +8,8 @@ Without this patch, unexpected LVTS hardware behavior may occur.
  drivers/thermal/mediatek/lvts_thermal.c | 124 ++++++++++++++++++++----
  1 file changed, 107 insertions(+), 17 deletions(-)
 
-diff --git a/drivers/thermal/mediatek/lvts_thermal.c b/drivers/thermal/mediatek/lvts_thermal.c
-index f4d1e66..eb78871 100644
---- a/drivers/thermal/mediatek/lvts_thermal.c
-+++ b/drivers/thermal/mediatek/lvts_thermal.c
+--- a/drivers/thermal/mediatek/lvts_thermal.c	2025-10-20 17:08:09.363454309 +0800
++++ b/drivers/thermal/mediatek/lvts_thermal.c	2025-10-20 17:09:23.506695416 +0800
 @@ -58,11 +58,11 @@
  #define LVTS_PROTTC(__base)		(__base + 0x00CC)
  #define LVTS_CLKEN(__base)		(__base + 0x00E4)
@@ -37,7 +35,7 @@ index f4d1e66..eb78871 100644
  #define LVTS_COEFF_A_MT8195			-250460
  #define LVTS_COEFF_B_MT8195			250460
  #define LVTS_COEFF_A_MT7988			-204650
-@@ -91,8 +92,12 @@
+@@ -93,8 +94,12 @@
  #define LVTS_MSR_IMMEDIATE_MODE		0
  #define LVTS_MSR_FILTERED_MODE		1
  
@@ -51,18 +49,15 @@ index f4d1e66..eb78871 100644
  
  #define LVTS_MINIMUM_THRESHOLD		20000
  
-@@ -132,8 +137,10 @@ struct lvts_data {
+@@ -135,6 +140,7 @@
  	int num_init_cmd;
  	int temp_factor;
  	int temp_offset;
 +	int golden_temp;
  	int gt_calib_bit_offset;
  	unsigned int def_calibration;
-+	bool irq_enable;
  };
- 
- struct lvts_sensor {
-@@ -150,6 +157,7 @@ struct lvts_ctrl {
+@@ -153,6 +159,7 @@
  	struct lvts_sensor sensors[LVTS_SENSOR_MAX];
  	const struct lvts_data *lvts_data;
  	u32 calibration[LVTS_SENSOR_MAX];
@@ -70,8 +65,8 @@ index f4d1e66..eb78871 100644
  	u8 valid_sensor_mask;
  	int mode;
  	void __iomem *base;
-@@ -410,6 +418,9 @@ static int lvts_set_trips(struct thermal_zone_device *tz, int low, int high)
- 	}
+@@ -417,6 +424,9 @@
+ 
  	lvts_update_irq_mask(lvts_ctrl);
  
 +	if (!lvts_data->irq_enable)
@@ -80,7 +75,7 @@ index f4d1e66..eb78871 100644
  	if (!should_update_thresh)
  		return 0;
  
-@@ -804,8 +815,10 @@ static int lvts_golden_temp_init(struct device *dev, u8 *calib,
+@@ -811,8 +821,10 @@
  	gt = (((u32 *)calib)[0] >> lvts_data->gt_calib_bit_offset) & 0xff;
  
  	/* A zero value for gt means that device has invalid efuse data */
@@ -92,7 +87,7 @@ index f4d1e66..eb78871 100644
  
  	golden_temp_offset = golden_temp * 500 + lvts_data->temp_offset;
  
-@@ -859,6 +872,14 @@ static int lvts_ctrl_init(struct device *dev, struct lvts_domain *lvts_td,
+@@ -866,6 +878,14 @@
  		 */
  		lvts_ctrl[i].mode = lvts_data->lvts_ctrl[i].mode;
  
@@ -107,7 +102,7 @@ index f4d1e66..eb78871 100644
  		lvts_ctrl[i].low_thresh = INT_MIN;
  		lvts_ctrl[i].high_thresh = INT_MIN;
  	}
-@@ -915,12 +936,14 @@ static void lvts_write_config(struct lvts_ctrl *lvts_ctrl, const u32 *cmds, int
+@@ -922,7 +942,7 @@
  	 */
  	for (i = 0; i < nr_cmds; i++) {
  		writel(cmds[i], LVTS_CONFIG(lvts_ctrl->base));
@@ -116,20 +111,13 @@ index f4d1e66..eb78871 100644
  	}
  }
  
- static int lvts_irq_init(struct lvts_ctrl *lvts_ctrl)
- {
-+	const struct lvts_data *lvts_data = lvts_ctrl->lvts_data;
-+
- 	/*
- 	 * LVTS_PROTCTL : Thermal Protection Sensor Selection
- 	 *
-@@ -954,7 +977,12 @@ static int lvts_irq_init(struct lvts_ctrl *lvts_ctrl)
+@@ -963,8 +983,12 @@
  	 * The LVTS_MONINT register layout is the same as the LVTS_MONINTSTS
  	 * register, except we set the bits to enable the interrupt.
  	 */
--	writel(0, LVTS_MONINT(lvts_ctrl->base));
+-	if (lvts_data->irq_enable)
 +	if (lvts_data->irq_enable) {
-+		writel(0, LVTS_MONINT(lvts_ctrl->base));
+ 		writel(0, LVTS_MONINT(lvts_ctrl->base));
 +	} else {
 +		writel(BIT(16), LVTS_PROTCTL(lvts_ctrl->base));
 +		writel(lvts_ctrl->hw_reset_raw_temp, LVTS_PROTTC(lvts_ctrl->base));
@@ -137,7 +125,7 @@ index f4d1e66..eb78871 100644
  
  	return 0;
  }
-@@ -1041,6 +1069,38 @@ static int lvts_ctrl_calibrate(struct device *dev, struct lvts_ctrl *lvts_ctrl)
+@@ -1051,6 +1075,38 @@
  	return 0;
  }
  
@@ -176,7 +164,7 @@ index f4d1e66..eb78871 100644
  static int lvts_ctrl_configure(struct device *dev, struct lvts_ctrl *lvts_ctrl)
  {
  	u32 value;
-@@ -1061,8 +1121,8 @@ static int lvts_ctrl_configure(struct device *dev, struct lvts_ctrl *lvts_ctrl)
+@@ -1071,8 +1127,8 @@
  	/*
  	 * LVTS_CALSCALE : ADC voltage round
  	 */
@@ -186,7 +174,7 @@ index f4d1e66..eb78871 100644
  
  	/*
  	 * LVTS_MSRCTL0 : Sensor filtering strategy
-@@ -1290,6 +1350,12 @@ static int lvts_domain_init(struct device *dev, struct lvts_domain *lvts_td,
+@@ -1300,6 +1356,12 @@
  			return ret;
  		}
  
@@ -199,44 +187,7 @@ index f4d1e66..eb78871 100644
  		ret = lvts_ctrl_configure(dev, lvts_ctrl);
  		if (ret) {
  			dev_dbg(dev, "Failed to configure controller");
-@@ -1338,9 +1404,11 @@ static int lvts_probe(struct platform_device *pdev)
- 	if (IS_ERR(lvts_td->reset))
- 		return dev_err_probe(dev, PTR_ERR(lvts_td->reset), "Failed to get reset control\n");
- 
--	irq = platform_get_irq(pdev, 0);
--	if (irq < 0)
--		return irq;
-+	if (lvts_data->irq_enable) {
-+		irq = platform_get_irq(pdev, 0);
-+		if (irq < 0)
-+			return irq;
-+	}
- 
- 	golden_temp_offset = lvts_data->temp_offset;
- 
-@@ -1348,14 +1416,17 @@ static int lvts_probe(struct platform_device *pdev)
- 	if (ret)
- 		return dev_err_probe(dev, ret, "Failed to initialize the lvts domain\n");
- 
-+
- 	/*
- 	 * At this point the LVTS is initialized and enabled. We can
- 	 * safely enable the interrupt.
- 	 */
--	ret = devm_request_threaded_irq(dev, irq, NULL, lvts_irq_handler,
--					IRQF_ONESHOT, dev_name(dev), lvts_td);
--	if (ret)
--		return dev_err_probe(dev, ret, "Failed to request interrupt\n");
-+	if (lvts_data->irq_enable) {
-+		ret = devm_request_threaded_irq(dev, irq, NULL, lvts_irq_handler,
-+						IRQF_ONESHOT, dev_name(dev), lvts_td);
-+		if (ret)
-+			return dev_err_probe(dev, ret, "Failed to request interrupt\n");
-+	}
- 
- 	platform_set_drvdata(pdev, lvts_td);
- 
-@@ -1387,6 +1458,7 @@ static const struct lvts_ctrl_data mt7988_lvts_ap_data_ctrl[] = {
+@@ -1414,6 +1476,7 @@
  		},
  		VALID_SENSOR_MAP(1, 1, 1, 1),
  		.offset = 0x0,
@@ -244,7 +195,7 @@ index f4d1e66..eb78871 100644
  	},
  	{
  		.lvts_sensor = {
-@@ -1401,6 +1473,7 @@ static const struct lvts_ctrl_data mt7988_lvts_ap_data_ctrl[] = {
+@@ -1428,6 +1491,7 @@
  		},
  		VALID_SENSOR_MAP(1, 1, 1, 1),
  		.offset = 0x100,
@@ -252,7 +203,7 @@ index f4d1e66..eb78871 100644
  	}
  };
  
-@@ -1762,7 +1835,10 @@ static const struct lvts_data mt7988_lvts_ap_data = {
+@@ -1810,7 +1874,10 @@
  	.num_init_cmd	= ARRAY_SIZE(mt7988_init_cmds),
  	.temp_factor	= LVTS_COEFF_A_MT7988,
  	.temp_offset	= LVTS_COEFF_B_MT7988,
@@ -263,7 +214,7 @@ index f4d1e66..eb78871 100644
  };
  
  static const struct lvts_data mt8186_lvts_data = {
-@@ -1774,8 +1850,10 @@ static const struct lvts_data mt8186_lvts_data = {
+@@ -1823,8 +1890,10 @@
  	.num_init_cmd	= ARRAY_SIZE(default_init_cmds),
  	.temp_factor	= LVTS_COEFF_A_MT7988,
  	.temp_offset	= LVTS_COEFF_B_MT7988,
@@ -274,7 +225,7 @@ index f4d1e66..eb78871 100644
  };
  
  static const struct lvts_data mt8188_lvts_mcu_data = {
-@@ -1787,8 +1865,10 @@ static const struct lvts_data mt8188_lvts_mcu_data = {
+@@ -1837,8 +1906,10 @@
  	.num_init_cmd	= ARRAY_SIZE(default_init_cmds),
  	.temp_factor	= LVTS_COEFF_A_MT8195,
  	.temp_offset	= LVTS_COEFF_B_MT8195,
@@ -285,7 +236,7 @@ index f4d1e66..eb78871 100644
  };
  
  static const struct lvts_data mt8188_lvts_ap_data = {
-@@ -1800,8 +1880,10 @@ static const struct lvts_data mt8188_lvts_ap_data = {
+@@ -1851,8 +1922,10 @@
  	.num_init_cmd	= ARRAY_SIZE(default_init_cmds),
  	.temp_factor	= LVTS_COEFF_A_MT8195,
  	.temp_offset	= LVTS_COEFF_B_MT8195,
@@ -296,7 +247,7 @@ index f4d1e66..eb78871 100644
  };
  
  static const struct lvts_data mt8192_lvts_mcu_data = {
-@@ -1813,8 +1895,10 @@ static const struct lvts_data mt8192_lvts_mcu_data = {
+@@ -1865,8 +1938,10 @@
  	.num_init_cmd	= ARRAY_SIZE(default_init_cmds),
  	.temp_factor	= LVTS_COEFF_A_MT8195,
  	.temp_offset	= LVTS_COEFF_B_MT8195,
@@ -307,7 +258,7 @@ index f4d1e66..eb78871 100644
  };
  
  static const struct lvts_data mt8192_lvts_ap_data = {
-@@ -1826,8 +1910,10 @@ static const struct lvts_data mt8192_lvts_ap_data = {
+@@ -1879,8 +1954,10 @@
  	.num_init_cmd	= ARRAY_SIZE(default_init_cmds),
  	.temp_factor	= LVTS_COEFF_A_MT8195,
  	.temp_offset	= LVTS_COEFF_B_MT8195,
@@ -318,7 +269,7 @@ index f4d1e66..eb78871 100644
  };
  
  static const struct lvts_data mt8195_lvts_mcu_data = {
-@@ -1839,8 +1925,10 @@ static const struct lvts_data mt8195_lvts_mcu_data = {
+@@ -1893,8 +1970,10 @@
  	.num_init_cmd	= ARRAY_SIZE(default_init_cmds),
  	.temp_factor	= LVTS_COEFF_A_MT8195,
  	.temp_offset	= LVTS_COEFF_B_MT8195,
@@ -329,7 +280,7 @@ index f4d1e66..eb78871 100644
  };
  
  static const struct lvts_data mt8195_lvts_ap_data = {
-@@ -1852,8 +1940,10 @@ static const struct lvts_data mt8195_lvts_ap_data = {
+@@ -1907,8 +1986,10 @@
  	.num_init_cmd	= ARRAY_SIZE(default_init_cmds),
  	.temp_factor	= LVTS_COEFF_A_MT8195,
  	.temp_offset	= LVTS_COEFF_B_MT8195,
@@ -340,6 +291,3 @@ index f4d1e66..eb78871 100644
  };
  
  static const struct of_device_id lvts_of_match[] = {
--- 
-2.45.2
-
