@@ -1,7 +1,7 @@
-From 29bbc923fa384b5752440ce159f1d276877e0662 Mon Sep 17 00:00:00 2001
+From f23dfce995104d06c64f83350bb61f281565f395 Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Tue, 8 Apr 2025 14:25:50 +0800
-Subject: [PATCH 15/16] refactor mtk_wed_irq_get to avoid wed status false
+Subject: [PATCH 14/15] refactor mtk_wed_irq_get to avoid wed status false
  alarm
 
 ---
@@ -9,10 +9,10 @@ Subject: [PATCH 15/16] refactor mtk_wed_irq_get to avoid wed status false
  1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 7bfde3e..ebe7611 100644
+index 4a0791a..5263289 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
-@@ -2991,8 +2991,7 @@ mtk_wed_irq_get(struct mtk_wed_device *dev, u32 mask)
+@@ -2992,8 +2992,7 @@ mtk_wed_irq_get(struct mtk_wed_device *dev, u32 mask)
  	u32 val, ext_mask;
  
  	if (mtk_wed_is_v3_or_greater(dev->hw))

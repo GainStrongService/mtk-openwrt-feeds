@@ -1,7 +1,7 @@
-From b9c8879d181d6966ca9159610ecbe008378cd181 Mon Sep 17 00:00:00 2001
+From e93ee41dc5266a76f6ca7064e8c0bb5f10b5a94c Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Wed, 5 Jun 2024 10:30:28 +0800
-Subject: [PATCH 09/16] extended wed debugfs
+Subject: [PATCH 08/15] extended wed debugfs
 
 ---
  drivers/net/ethernet/mediatek/mtk_wed.c       |   9 +-
@@ -11,7 +11,7 @@ Subject: [PATCH 09/16] extended wed debugfs
  4 files changed, 440 insertions(+), 56 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 6989f14..e0e6ecc 100644
+index 3469bdd..9368d50 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -58,6 +58,7 @@ struct mtk_wed_flow_block_priv {
@@ -49,7 +49,7 @@ index 6989f14..e0e6ecc 100644
  	else
  		mtk_wed_poll_busy(dev, MTK_WED_CTRL,
  				  MTK_WED_CTRL_WDMA_INT_AGENT_BUSY);
-@@ -2499,7 +2502,7 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -2500,7 +2503,7 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  		regmap_update_bits(hw->hifsys, HIFSYS_DMA_AG_MAP,
  				   BIT(hw->index), 0);
  	else

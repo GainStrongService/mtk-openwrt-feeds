@@ -1,14 +1,14 @@
-From 7367525832bf86986683f2dc98fbee6943896fca Mon Sep 17 00:00:00 2001
+From dbfb21802c5516fb1c67d3218a90c116e717c51a Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Tue, 1 Oct 2024 14:07:22 +0800
-Subject: [PATCH 05/16] Fix reinsert wifi module cause memory leak issue
+Subject: [PATCH 04/15] Fix reinsert wifi module cause memory leak issue
 
 ---
  drivers/net/ethernet/mediatek/mtk_wed.c | 22 ++++++++++++++++++++--
  1 file changed, 20 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 1ee8897..5726a2d 100644
+index 7b65bec..fa74210 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -936,6 +936,16 @@ mtk_wed_free_ring(struct mtk_wed_device *dev, struct mtk_wed_ring *ring)
@@ -61,7 +61,7 @@ index 1ee8897..5726a2d 100644
  	wdma_w32(dev, MTK_WDMA_RING_TX(idx) + MTK_WED_RING_OFS_BASE,
  		 wdma->desc_phys);
  	wdma_w32(dev, MTK_WDMA_RING_TX(idx) + MTK_WED_RING_OFS_COUNT,
-@@ -2528,6 +2545,7 @@ mtk_wed_tx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs,
+@@ -2529,6 +2546,7 @@ mtk_wed_tx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs,
  
  	ring->reg_base = MTK_WED_RING_TX(idx);
  	ring->wpdma = regs;

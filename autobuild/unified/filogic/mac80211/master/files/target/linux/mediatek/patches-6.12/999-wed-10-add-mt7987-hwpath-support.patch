@@ -1,7 +1,7 @@
-From 33141f558a6618e39f7e0614b9d57b310514fc6d Mon Sep 17 00:00:00 2001
+From 426431a2f63266bff30e9f571a263e951335c80a Mon Sep 17 00:00:00 2001
 From: Rex Lu <rex.lu@mediatek.com>
 Date: Mon, 21 Oct 2024 16:19:03 +0800
-Subject: [PATCH 11/16] add mt7987 hwpath support
+Subject: [PATCH 10/15] add mt7987 hwpath support
 
 ---
  drivers/net/ethernet/mediatek/mtk_wed.c       | 847 +++++++++++++-----
@@ -10,11 +10,11 @@ Subject: [PATCH 11/16] add mt7987 hwpath support
  drivers/net/ethernet/mediatek/mtk_wed_mcu.c   |   2 +-
  drivers/net/ethernet/mediatek/mtk_wed_regs.h  |  57 +-
  drivers/net/ethernet/mediatek/mtk_wed_wo.c    |   6 +
- include/linux/soc/mediatek/mtk_wed.h          |  58 +-
- 7 files changed, 777 insertions(+), 264 deletions(-)
+ include/linux/soc/mediatek/mtk_wed.h          |  59 +-
+ 7 files changed, 778 insertions(+), 264 deletions(-)
 
 diff --git a/drivers/net/ethernet/mediatek/mtk_wed.c b/drivers/net/ethernet/mediatek/mtk_wed.c
-index 231be59..3517829 100644
+index 5d6dd83..20ded67 100644
 --- a/drivers/net/ethernet/mediatek/mtk_wed.c
 +++ b/drivers/net/ethernet/mediatek/mtk_wed.c
 @@ -47,6 +47,7 @@
@@ -1284,7 +1284,7 @@ index 231be59..3517829 100644
  
  	dev->hw = hw;
  	dev->dev = hw->dev;
-@@ -2482,6 +2812,11 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -2483,6 +2813,11 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  	    of_dma_is_coherent(hw->eth->dev->of_node))
  		mtk_eth_set_dma_device(hw->eth, hw->dev);
  
@@ -1296,7 +1296,7 @@ index 231be59..3517829 100644
  	ret = mtk_wed_tx_buffer_alloc(dev);
  	if (ret)
  		goto out;
-@@ -2490,7 +2825,7 @@ mtk_wed_attach(struct mtk_wed_device *dev)
+@@ -2491,7 +2826,7 @@ mtk_wed_attach(struct mtk_wed_device *dev)
  	if (ret)
  		goto out;
  
@@ -1305,7 +1305,7 @@ index 231be59..3517829 100644
  		ret = mtk_wed_rro_alloc(dev);
  		if (ret)
  			goto out;
-@@ -2625,6 +2960,8 @@ mtk_wed_rx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs,
+@@ -2626,6 +2961,8 @@ mtk_wed_rx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs,
  	ring->wpdma = regs;
  	ring->flags |= MTK_WED_RING_CONFIGURED;
  
@@ -1314,7 +1314,7 @@ index 231be59..3517829 100644
  	/* WPDMA ->  WED */
  	wpdma_rx_w32(dev, idx, MTK_WED_RING_OFS_BASE, ring->desc_phys);
  	wpdma_rx_w32(dev, idx, MTK_WED_RING_OFS_COUNT, MTK_WED_RX_RING_SIZE);
-@@ -2818,6 +3155,20 @@ mtk_wed_setup_tc(struct mtk_wed_device *wed, struct net_device *dev,
+@@ -2819,6 +3156,20 @@ mtk_wed_setup_tc(struct mtk_wed_device *wed, struct net_device *dev,
  	}
  }
  
@@ -1335,7 +1335,7 @@ index 231be59..3517829 100644
  void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  		    void __iomem *wdma, phys_addr_t wdma_phy,
  		    int index)
-@@ -2837,11 +3188,13 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -2838,11 +3189,13 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  		.irq_set_mask = mtk_wed_irq_set_mask,
  		.detach = mtk_wed_detach,
  		.ppe_check = mtk_wed_ppe_check,
@@ -1349,7 +1349,7 @@ index 231be59..3517829 100644
  	};
  	struct device_node *eth_np = eth->dev->of_node;
  	struct platform_device *pdev;
-@@ -2883,14 +3236,17 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -2884,14 +3237,17 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  	hw->wdma = wdma;
  	hw->index = index;
  	hw->irq = irq;
@@ -1370,7 +1370,7 @@ index 231be59..3517829 100644
  		break;
  	default:
  	case 1:
-@@ -2898,6 +3254,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
+@@ -2899,6 +3255,7 @@ void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
  				"mediatek,pcie-mirror");
  		hw->hifsys = syscon_regmap_lookup_by_phandle(eth_np,
  				"mediatek,hifsys");
@@ -1712,7 +1712,7 @@ index 7063c78..1002cea 100644
  	mtk_wed_wo_hw_deinit(wo);
  }
 diff --git a/include/linux/soc/mediatek/mtk_wed.h b/include/linux/soc/mediatek/mtk_wed.h
-index 5ab3a93..7b40626 100644
+index 5c3358e..46df69e 100644
 --- a/include/linux/soc/mediatek/mtk_wed.h
 +++ b/include/linux/soc/mediatek/mtk_wed.h
 @@ -56,6 +56,20 @@ enum mtk_wed_bus_tye {
@@ -1761,9 +1761,9 @@ index 5ab3a93..7b40626 100644
 -		bool hw_rro;
 +		enum mtk_wed_hwrro_mode hw_rro;
  		bool msi;
+ 		bool hif2;
  
- 		u16 token_start;
-@@ -167,6 +183,7 @@ struct mtk_wed_device {
+@@ -168,6 +184,7 @@ struct mtk_wed_device {
  		u8 rro_rx_tbit[MTK_WED_RX_QUEUES];
  		u8 rx_pg_tbit[MTK_WED_RX_PAGE_QUEUES];
  		u8 txfree_tbit;
@@ -1771,7 +1771,7 @@ index 5ab3a93..7b40626 100644
  		u8 amsdu_max_subframes;
  
  		struct {
-@@ -216,6 +233,7 @@ struct mtk_wed_ops {
+@@ -217,6 +234,7 @@ struct mtk_wed_ops {
  	void (*irq_set_mask)(struct mtk_wed_device *dev, u32 mask);
  	int (*setup_tc)(struct mtk_wed_device *wed, struct net_device *dev,
  			enum tc_setup_type type, void *type_data);
@@ -1779,7 +1779,7 @@ index 5ab3a93..7b40626 100644
  	void (*start_hw_rro)(struct mtk_wed_device *dev, u32 irq_mask,
  			     bool reset);
  	void (*rro_rx_ring_setup)(struct mtk_wed_device *dev, int ring,
-@@ -224,6 +242,8 @@ struct mtk_wed_ops {
+@@ -225,6 +243,8 @@ struct mtk_wed_ops {
  				      void __iomem *regs);
  	int (*ind_rx_ring_setup)(struct mtk_wed_device *dev,
  				 void __iomem *regs);
@@ -1788,7 +1788,7 @@ index 5ab3a93..7b40626 100644
  };
  
  extern const struct mtk_wed_ops __rcu *mtk_soc_wed_ops;
-@@ -248,13 +268,36 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
+@@ -249,13 +269,37 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
  	return ret;
  }
  
@@ -1796,8 +1796,9 @@ index 5ab3a93..7b40626 100644
 +mtk_wed_device_get_hw_version(void)
 +{
 +	int ret = MTK_WED_DISABLE;
-+	const struct mtk_wed_ops *ops;
 +#ifdef CONFIG_NET_MEDIATEK_SOC_WED
++	const struct mtk_wed_ops *ops;
++
 +	rcu_read_lock();
 +	ops = rcu_dereference(mtk_soc_wed_ops);
 +	if (ops)
@@ -1828,7 +1829,7 @@ index 5ab3a93..7b40626 100644
  #else
  	return false;
  #endif
-@@ -263,7 +306,7 @@ static inline bool mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
+@@ -264,7 +308,7 @@ static inline bool mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
  static inline bool mtk_wed_is_amsdu_supported(struct mtk_wed_device *dev)
  {
  #ifdef CONFIG_NET_MEDIATEK_SOC_WED
@@ -1837,7 +1838,7 @@ index 5ab3a93..7b40626 100644
  #else
  	return false;
  #endif
-@@ -303,6 +346,8 @@ static inline bool mtk_wed_is_amsdu_supported(struct mtk_wed_device *dev)
+@@ -304,6 +348,8 @@ static inline bool mtk_wed_is_amsdu_supported(struct mtk_wed_device *dev)
  	(_dev)->ops->msdu_pg_rx_ring_setup(_dev, _ring, _regs)
  #define mtk_wed_device_ind_rx_ring_setup(_dev, _regs) \
  	(_dev)->ops->ind_rx_ring_setup(_dev, _regs)
@@ -1846,7 +1847,7 @@ index 5ab3a93..7b40626 100644
  
  #else
  static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
-@@ -327,6 +372,7 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
+@@ -328,6 +374,7 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
  #define mtk_wed_device_rro_rx_ring_setup(_dev, _ring, _regs) -ENODEV
  #define mtk_wed_device_msdu_pg_rx_ring_setup(_dev, _ring, _regs) -ENODEV
  #define mtk_wed_device_ind_rx_ring_setup(_dev, _regs) -ENODEV
