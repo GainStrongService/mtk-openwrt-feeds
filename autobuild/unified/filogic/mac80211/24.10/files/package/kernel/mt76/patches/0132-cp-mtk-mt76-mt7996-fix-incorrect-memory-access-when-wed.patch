@@ -1,0 +1,77 @@
+From 839872ec4aca14f86daf602370607dd5358145ec Mon Sep 17 00:00:00 2001
+From: Rex Lu <rex.lu@mediatek.com>
+Date: Fri, 26 Sep 2025 11:10:03 +0800
+Subject: [PATCH 3/5] mtk: mt76: mt7996: fix incorrect memory access when wed1
+ is enabled
+
+The wed may be mt76->wed or mt76->wed_hif2.
+Get correct mt76_dev by wed_hif2 according wed version and wdma idx
+
+Signed-off-by: Rex Lu <rex.lu@mediatek.com>
+---
+ wed.c | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/wed.c b/wed.c
+index cc70f7809..bb7c5d82a 100644
+--- a/wed.c
++++ b/wed.c
+@@ -6,9 +6,18 @@
+ #include "mt76.h"
+ #include "dma.h"
+ 
++static struct mt76_dev *
++mt76_wed_get_mt76_dev(struct mtk_wed_device *wed)
++{
++	if (wed->version == MTK_WED_HW_V3 && wed->wdma_idx == 1)
++		return container_of(wed, struct mt76_dev, mmio.wed_hif2);
++	else
++		return container_of(wed, struct mt76_dev, mmio.wed);
++};
++
+ void mt76_wed_release_rx_buf(struct mtk_wed_device *wed)
+ {
+-	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
++	struct mt76_dev *dev = mt76_wed_get_mt76_dev(wed);
+ #if LINUX_VERSION_IS_LESS(6,6,0)
+ 	/* Todo: Check wether it is necessary in kernel 6.6 */
+ 	struct page *page;
+@@ -58,7 +67,7 @@ EXPORT_SYMBOL_GPL(mt76_wed_release_rx_buf);
+ #ifdef CONFIG_NET_MEDIATEK_SOC_WED
+ u32 mt76_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+ {
+-	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
++	struct mt76_dev *dev = mt76_wed_get_mt76_dev(wed);
+ 	struct mtk_wed_bm_desc *desc = wed->rx_buf_ring.desc;
+ 	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
+ 	struct mt76_txwi_cache *t = NULL;
+@@ -107,7 +116,7 @@ EXPORT_SYMBOL_GPL(mt76_wed_init_rx_buf);
+ 
+ int mt76_wed_offload_enable(struct mtk_wed_device *wed)
+ {
+-	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
++	struct mt76_dev *dev = mt76_wed_get_mt76_dev(wed);
+ 
+ 	spin_lock_bh(&dev->token_lock);
+ 	dev->token_size = MT76_WED_SW_TOKEN_SIZE;
+@@ -196,7 +205,7 @@ EXPORT_SYMBOL_GPL(mt76_wed_dma_setup);
+ 
+ void mt76_wed_offload_disable(struct mtk_wed_device *wed)
+ {
+-	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
++	struct mt76_dev *dev = mt76_wed_get_mt76_dev(wed);
+ 
+ 	spin_lock_bh(&dev->token_lock);
+ 	dev->token_size = MT76_WED_SW_TOKEN_SIZE;
+@@ -206,7 +215,7 @@ EXPORT_SYMBOL_GPL(mt76_wed_offload_disable);
+ 
+ void mt76_wed_reset_complete(struct mtk_wed_device *wed)
+ {
+-	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
++	struct mt76_dev *dev = mt76_wed_get_mt76_dev(wed);
+ 
+ 	complete(&dev->mmio.wed_reset_complete);
+ }
+-- 
+2.45.2
+

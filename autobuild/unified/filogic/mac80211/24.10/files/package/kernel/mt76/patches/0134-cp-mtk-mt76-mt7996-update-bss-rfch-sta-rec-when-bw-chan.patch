@@ -1,0 +1,208 @@
+From e69fe007608dc2f9b99f74d1a34e4bde164a26aa Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Wed, 15 Oct 2025 11:20:39 +0800
+Subject: [PATCH 5/5] mtk: mt76: mt7996: update bss rfch & sta rec when bw
+ changes
+
+When channel & bandwidth are changed via a channel switch, the bss rfch
+and the sta rec should also be updated to ensure that the fcap of the
+peer wtbl in both APUT and STAUT are updated as well. Otherwise, both
+the AP & STA will not be able to TX/RX at the max bandwidth.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/mac.c    |  1 +
+ mt7996/main.c   | 18 ++++++++++++
+ mt7996/mcu.c    | 75 +++++++++++++++++++++++++++++++++++++++++++++++--
+ mt7996/mt7996.h |  3 ++
+ 4 files changed, 95 insertions(+), 2 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index f9d43dff7..392d4d838 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -3977,6 +3977,7 @@ void mt7996_sta_chsw_state_reset(struct mt7996_vif_link *mconf)
+ 	lockdep_assert_held(&dev->mt76.mutex);
+ 
+ 	mvif->tx_paused_links &= ~BIT(link_id);
++	mvif->cs_link_id = IEEE80211_LINK_UNSPECIFIED;
+ 	mconf->state = MT7996_STA_CHSW_IDLE;
+ 	mconf->next_state = MT7996_STA_CHSW_IDLE;
+ 	mconf->pause_timeout = 0;
+diff --git a/mt7996/main.c b/mt7996/main.c
+index aa365bbfd..3100f01e2 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -540,6 +540,7 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
+ 	mvif->sta.vif = mvif;
+ 	/* TODO: temporaily set this to prevent some crashes */
+ 	mvif->deflink.mt76.mvif = &mvif->mt76;
++	mvif->cs_link_id = IEEE80211_LINK_UNSPECIFIED;
+ 	memset(mvif->mt76.band_to_link, IEEE80211_LINK_UNSPECIFIED,
+ 	       sizeof(mvif->mt76.band_to_link));
+ 
+@@ -1186,9 +1187,24 @@ mt7996_post_channel_switch(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 	struct cfg80211_chan_def *chandef = &link_conf->chanreq.oper;
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+ 	struct mt7996_phy *phy = mt7996_band_phy(dev, chandef->chan->band);
++	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
++	struct mt7996_vif_link *link = mt7996_vif_conf_link(dev, vif, link_conf);
++	int ret;
++
++	if (mvif->cs_link_id == IEEE80211_LINK_UNSPECIFIED ||
++	    mvif->cs_link_id != link_conf->link_id)
++		return 0;
++
++	ret = mt7996_mcu_update_bss_rfch(phy, link);
++	if (ret)
++		return ret;
++	ieee80211_iterate_stations_mtx(hw, mt7996_mcu_update_sta_rec_bw, link);
+ 
+ 	mt7996_mcu_rdd_resume_tx(phy);
+ 
++	mvif->cs_ready_links = 0;
++	mvif->cs_link_id = IEEE80211_LINK_UNSPECIFIED;
++
+ 	if (!phy->mt76->radar_bypass_cal)
+ 		return 0;
+ 
+@@ -3017,6 +3033,7 @@ mt7996_sta_channel_switch(struct ieee80211_hw *hw,
+ {
+ #define TX_PAUSED_GRACE_PERIOD		2000
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
++	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+ 	struct ieee80211_bss_conf *conf;
+ 	struct mt7996_vif_link *mconf;
+ 	unsigned int link_id = ch_switch->link_id;
+@@ -3044,6 +3061,7 @@ mt7996_sta_channel_switch(struct ieee80211_hw *hw,
+ 			       cfg80211_chandef_dfs_cac_time(hw->wiphy,
+ 							     &ch_switch->chandef);
+ 	mconf->next_state = MT7996_STA_CHSW_PAUSE_TX;
++	mvif->cs_link_id = link_id;
+ 	mutex_unlock(&dev->mt76.mutex);
+ 
+ 	cancel_delayed_work(&mconf->sta_chsw_work);
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 8f297f92e..67635235d 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -423,8 +423,6 @@ mt7996_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
+ 	if (!link_conf || !link_conf->csa_active || vif->type == NL80211_IFTYPE_STATION)
+ 		return;
+ 
+-	mvif->cs_ready_links = 0;
+-	mvif->cs_link_id = IEEE80211_LINK_UNSPECIFIED;
+ 	ieee80211_csa_finish(vif, link_id);
+ 	/* remove CSA for affiliated links */
+ 	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+@@ -2150,6 +2148,22 @@ out:
+ 				     MCU_WMWA_UNI_CMD(BSS_INFO_UPDATE), true);
+ }
+ 
++int mt7996_mcu_update_bss_rfch(struct mt7996_phy *phy, struct mt7996_vif_link *link)
++{
++	struct mt7996_dev *dev = phy->dev;
++	struct sk_buff *skb;
++
++	skb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &link->mt76,
++					 MT7996_BSS_UPDATE_MAX_SIZE);
++	if (IS_ERR(skb))
++		return PTR_ERR(skb);
++
++	mt7996_mcu_bss_rfch_tlv(skb, phy);
++
++	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
++				     MCU_WMWA_UNI_CMD(BSS_INFO_UPDATE), true);
++}
++
+ int mt7996_mcu_get_tsf_offset(struct mt7996_phy *phy,
+ 			      struct mt7996_vif *mvif,
+ 			      int rpting_link_id,
+@@ -3740,6 +3754,63 @@ int mt7996_mcu_teardown_mld_sta(struct mt7996_dev *dev,
+ 				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
+ }
+ 
++void mt7996_mcu_update_sta_rec_bw(void *data, struct ieee80211_sta *sta)
++{
++	struct mt7996_vif_link *own_link = (struct mt7996_vif_link *)data;
++	struct mt7996_phy *phy = own_link->phy;
++	struct mt7996_dev *dev = phy->dev;
++	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
++	struct mt7996_vif *mvif = msta->vif;
++	struct ieee80211_vif *vif;
++	struct ieee80211_bss_conf *link_conf;
++	struct ieee80211_link_sta *link_sta;
++	struct mt7996_sta_link *msta_link;
++	struct mt7996_vif_link *link;
++	struct sk_buff *skb;
++	unsigned int link_id;
++
++	link_id = mvif->mt76.band_to_link[phy->mt76->band_idx];
++	if (link_id == IEEE80211_LINK_UNSPECIFIED)
++		return;
++
++	rcu_read_lock();
++
++	link_sta = rcu_dereference(sta->link[link_id]);
++	if (!link_sta)
++		goto out;
++
++	msta_link = rcu_dereference(msta->link[link_id]);
++	if (!msta_link)
++		goto out;
++
++	vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
++	link_conf = rcu_dereference(vif->link_conf[link_id]);
++	if (!link_conf)
++		goto out;
++
++	link = (struct mt7996_vif_link *)rcu_dereference(mvif->mt76.link[link_id]);
++	if (!link || link != own_link)
++		goto out;
++
++	skb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &link->mt76,
++					      &msta_link->wcid,
++					      MT7996_STA_UPDATE_MAX_SIZE);
++	if (IS_ERR(skb))
++		goto out;
++
++	mt7996_mcu_sta_bfer_tlv(dev, skb, link_conf, link_sta, link);
++	mt7996_mcu_sta_rate_ctrl_tlv(skb, dev, vif, link_conf, link_sta, link);
++
++	rcu_read_unlock();
++
++	mt76_mcu_skb_send_msg(&dev->mt76, skb,
++			      MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
++	return;
++
++out:
++	rcu_read_unlock();
++}
++
+ static int
+ mt7996_mcu_sta_key_tlv(struct mt76_dev *dev,
+ 		       struct mt76_wcid *wcid,
+diff --git a/mt7996/mt7996.h b/mt7996/mt7996.h
+index cd9b254b4..2c0bcc894 100644
+--- a/mt7996/mt7996.h
++++ b/mt7996/mt7996.h
+@@ -1236,6 +1236,8 @@ int mt7996_mcu_add_bss_info(struct mt7996_phy *phy, struct ieee80211_vif *vif,
+ 			    struct ieee80211_bss_conf *link_conf,
+ 			    struct mt76_vif_link *mlink,
+ 			    struct mt7996_sta_link *msta_link, int enable);
++int mt7996_mcu_update_bss_rfch(struct mt7996_phy *phy,
++			       struct mt7996_vif_link *link);
+ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ 		       struct ieee80211_bss_conf *link_conf,
+ 		       struct ieee80211_link_sta *link_sta,
+@@ -1245,6 +1247,7 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ int mt7996_mcu_teardown_mld_sta(struct mt7996_dev *dev,
+ 				struct mt7996_vif_link *link,
+ 				struct mt7996_sta_link *msta_link);
++void mt7996_mcu_update_sta_rec_bw(void *data, struct ieee80211_sta *sta);
+ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
+ 			 struct ieee80211_ampdu_params *params,
+ 			 struct ieee80211_vif *vif, bool enable);
+-- 
+2.45.2
+

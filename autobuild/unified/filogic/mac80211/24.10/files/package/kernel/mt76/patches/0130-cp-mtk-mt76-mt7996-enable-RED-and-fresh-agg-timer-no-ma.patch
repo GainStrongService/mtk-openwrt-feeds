@@ -1,0 +1,50 @@
+From 9fdd46ba22fb6266ca9a13db604f7e78528f4f77 Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Fri, 19 Sep 2025 17:08:49 +0800
+Subject: [PATCH 1/5] mtk: mt76: mt7996: enable RED and fresh agg timer no
+ matter WED is on or off
+
+When customer use their offloading mechanism without WED,
+traffic cannot go through host CPU so we needs the following
+features to prevent issues.
+1. Enable RED to prevent resource contention.
+2. Update agg time to prevent BA timeout
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+(cherry picked from commit 5545d62f2d0b5ae0d3ff63c3fad2fcd4d58fca16)
+---
+ mt7996/mac.c | 3 +--
+ mt7996/mcu.c | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/mt7996/mac.c b/mt7996/mac.c
+index 11da93340..f9d43dff7 100644
+--- a/mt7996/mac.c
++++ b/mt7996/mac.c
+@@ -1589,8 +1589,7 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
+ 		goto unlock;
+ 	}
+ 
+-	if (mtk_wed_device_active(&dev->mt76.mmio.wed) && wcid->sta &&
+-	    (wcid->tx_info & MT_WCID_TX_INFO_SET)) {
++	if (wcid->sta && (wcid->tx_info & MT_WCID_TX_INFO_SET)) {
+ 		/* Do not check TX BA status for mgmt frames which are sent at a
+ 		 * fixed rate
+ 		 */
+diff --git a/mt7996/mcu.c b/mt7996/mcu.c
+index 4c4eda428..8f297f92e 100644
+--- a/mt7996/mcu.c
++++ b/mt7996/mcu.c
+@@ -5250,8 +5250,7 @@ int mt7996_mcu_init_firmware(struct mt7996_dev *dev)
+ 	if (ret)
+ 		return ret;
+ 
+-	return mt7996_mcu_red_config(dev,
+-			mtk_wed_device_active(&dev->mt76.mmio.wed));
++	return mt7996_mcu_red_config(dev, true);
+ }
+ 
+ int mt7996_mcu_init(struct mt7996_dev *dev)
+-- 
+2.45.2
+

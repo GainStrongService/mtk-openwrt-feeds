@@ -1,0 +1,54 @@
+From b402c37743ea92ce081fbe5144ca2d21fa41f834 Mon Sep 17 00:00:00 2001
+From: Michael-CY Lee <michael-cy.lee@mediatek.com>
+Date: Tue, 9 Sep 2025 15:59:33 +0800
+Subject: [PATCH 1/2] fixup! mtk: hostapd: always do WPA initialization in
+ hostapd_reload_bss() if hapd->conf->wpa is set
+
+Since we always do WPA initialization here, hapd->wpa_auth should be
+de-initialized before the next initialization.
+
+Signed-off-by: Michael-CY Lee <michael-cy.lee@mediatek.com>
+(cherry picked from commit 32a07c54881afe1e574132c2b2eb82efa95da8fd)
+---
+ src/ap/hostapd.c | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/ap/hostapd.c b/src/ap/hostapd.c
+index fb5d7b687..510a9264f 100644
+--- a/src/ap/hostapd.c
++++ b/src/ap/hostapd.c
+@@ -163,6 +163,16 @@ static void hostapd_reload_bss(struct hostapd_data *hapd)
+ 	else
+ 		hostapd_set_drv_ieee8021x(hapd, hapd->conf->iface, 0);
+ 
++	if (hapd->wpa_auth) {
++		wpa_deinit(hapd->wpa_auth);
++		hapd->wpa_auth = NULL;
++		hostapd_set_privacy(hapd, 0);
++#ifdef CONFIG_WEP
++		hostapd_setup_encryption(hapd->conf->iface, hapd);
++#endif /* CONFIG_WEP */
++		hostapd_set_generic_elem(hapd, (u8 *) "", 0);
++	}
++
+ 	if (hapd->conf->wpa) {
+ 		hostapd_setup_wpa(hapd);
+ 		if (hapd->wpa_auth)
+@@ -180,14 +190,6 @@ static void hostapd_reload_bss(struct hostapd_data *hapd)
+ 			wpa_printf(MSG_ERROR, "Failed to configure WPA IE for "
+ 				   "the kernel driver.");
+ 	*/
+-	} else if (hapd->wpa_auth) {
+-		wpa_deinit(hapd->wpa_auth);
+-		hapd->wpa_auth = NULL;
+-		hostapd_set_privacy(hapd, 0);
+-#ifdef CONFIG_WEP
+-		hostapd_setup_encryption(hapd->conf->iface, hapd);
+-#endif /* CONFIG_WEP */
+-		hostapd_set_generic_elem(hapd, (u8 *) "", 0);
+ 	}
+ 
+ 	hostapd_neighbor_sync_own_report(hapd);
+-- 
+2.45.2
+

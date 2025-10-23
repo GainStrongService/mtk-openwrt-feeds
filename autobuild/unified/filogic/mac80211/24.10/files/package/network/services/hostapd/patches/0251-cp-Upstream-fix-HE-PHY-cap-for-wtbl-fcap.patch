@@ -1,0 +1,195 @@
+From 4bdc3f18ab984f9f49ef3298e248c2fc8701fe68 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Tue, 14 Oct 2025 15:59:23 +0800
+Subject: [PATCH 2/2] Upstream: fix HE PHY cap for wtbl fcap
+
+This patch syncs the latest upstream patches listed below to fix the issue
+of the fcap remaining unchanged during channel switch
+https://git.w1.fi/cgit/hostap/commit/?id=3803fec369d83c95f230ea2b59590e6778e845b2
+https://git.w1.fi/cgit/hostap/commit/?id=e75347fd1636851632cd2c23de60e62a1ce61bc0
+https://git.w1.fi/cgit/hostap/commit/?id=3e9aa453eb2a7da0a509ee06f9aa850364857c09
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ src/ap/ieee802_11_eht.c | 33 +++++------------------------
+ src/ap/ieee802_11_he.c  | 46 ++++++++++++-----------------------------
+ 2 files changed, 18 insertions(+), 61 deletions(-)
+
+diff --git a/src/ap/ieee802_11_eht.c b/src/ap/ieee802_11_eht.c
+index 1d076c5a2..42bd402d8 100644
+--- a/src/ap/ieee802_11_eht.c
++++ b/src/ap/ieee802_11_eht.c
+@@ -49,34 +49,14 @@ static u16 ieee80211_eht_ppet_size(u16 ppe_thres_hdr, const u8 *phy_cap_info)
+ 
+ 
+ static u8 ieee80211_eht_mcs_set_size(enum hostapd_hw_mode mode, u8 opclass,
+-				     int he_oper_chwidth, const u8 *he_phy_cap,
++				     const u8 *he_phy_cap,
+ 				     const u8 *eht_phy_cap)
+ {
+ 	u8 sz = EHT_PHYCAP_MCS_NSS_LEN_20MHZ_PLUS;
+ 	bool band24, band5, band6;
+-	u8 he_phy_cap_chwidth = ~HE_PHYCAP_CHANNEL_WIDTH_MASK;
+ 	u8 cap_chwidth;
+ 
+-	switch (he_oper_chwidth) {
+-	case CONF_OPER_CHWIDTH_80P80MHZ:
+-		he_phy_cap_chwidth |=
+-			HE_PHYCAP_CHANNEL_WIDTH_SET_80PLUS80MHZ_IN_5G;
+-		/* fall through */
+-	case CONF_OPER_CHWIDTH_160MHZ:
+-		he_phy_cap_chwidth |= HE_PHYCAP_CHANNEL_WIDTH_SET_160MHZ_IN_5G;
+-		/* fall through */
+-	case CONF_OPER_CHWIDTH_80MHZ:
+-	case CONF_OPER_CHWIDTH_USE_HT:
+-		he_phy_cap_chwidth |= HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_IN_2G |
+-			HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G;
+-		break;
+-	}
+-
+ 	cap_chwidth = he_phy_cap[HE_PHYCAP_CHANNEL_WIDTH_SET_IDX];
+-	if (he_oper_chwidth != -1)
+-		he_phy_cap_chwidth &= cap_chwidth;
+-	else
+-		he_phy_cap_chwidth = cap_chwidth;
+ 
+ 	band24 = mode == HOSTAPD_MODE_IEEE80211B ||
+ 		mode == HOSTAPD_MODE_IEEE80211G ||
+@@ -86,18 +66,18 @@ static u8 ieee80211_eht_mcs_set_size(enum hostapd_hw_mode mode, u8 opclass,
+ 	band6 = is_6ghz_op_class(opclass);
+ 
+ 	if (band24 &&
+-	    (he_phy_cap_chwidth & HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_IN_2G) == 0)
++	    (cap_chwidth & HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_IN_2G) == 0)
+ 		return EHT_PHYCAP_MCS_NSS_LEN_20MHZ_ONLY;
+ 
+ 	if (band5 &&
+-	    (he_phy_cap_chwidth &
++	    (cap_chwidth &
+ 	     (HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
+ 	      HE_PHYCAP_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
+ 	      HE_PHYCAP_CHANNEL_WIDTH_SET_80PLUS80MHZ_IN_5G)) == 0)
+ 		return EHT_PHYCAP_MCS_NSS_LEN_20MHZ_ONLY;
+ 
+ 	if (band5 &&
+-	    (he_phy_cap_chwidth &
++	    (cap_chwidth &
+ 	     (HE_PHYCAP_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
+ 	      HE_PHYCAP_CHANNEL_WIDTH_SET_80PLUS80MHZ_IN_5G)))
+ 	    sz += EHT_PHYCAP_MCS_NSS_LEN_20MHZ_PLUS;
+@@ -127,7 +107,6 @@ size_t hostapd_eid_eht_capab_len(struct hostapd_data *hapd,
+ 		return 0;
+ 
+ 	len += ieee80211_eht_mcs_set_size(mode->mode, hapd->iconf->op_class,
+-					  hapd->iconf->he_oper_chwidth,
+ 					  mode->he_capab[opmode].phy_cap,
+ 					  eht_cap->phy_cap);
+ 	len += ieee80211_eht_ppet_size(WPA_GET_LE16(&eht_cap->ppet[0]),
+@@ -181,7 +160,6 @@ u8 * hostapd_eid_eht_capab(struct hostapd_data *hapd, u8 *eid,
+ 
+ 	mcs_nss_len = ieee80211_eht_mcs_set_size(mode->mode,
+ 						 hapd->iconf->op_class,
+-						 hapd->iconf->he_oper_chwidth,
+ 						 mode->he_capab[opmode].phy_cap,
+ 						 eht_cap->phy_cap);
+ 	if (mcs_nss_len) {
+@@ -403,7 +381,6 @@ static bool check_valid_eht_mcs(struct hostapd_data *hapd,
+ 	sta_mcs = capab->optional;
+ 
+ 	if (ieee80211_eht_mcs_set_size(mode->mode, hapd->iconf->op_class,
+-				       hapd->iconf->he_oper_chwidth,
+ 				       mode->he_capab[opmode].phy_cap,
+ 				       mode->eht_capab[opmode].phy_cap) ==
+ 	    EHT_PHYCAP_MCS_NSS_LEN_20MHZ_ONLY)
+@@ -445,7 +422,7 @@ static bool ieee80211_invalid_eht_cap_size(enum hostapd_hw_mode mode,
+ 	if (len < cap_len)
+ 		return true;
+ 
+-	cap_len += ieee80211_eht_mcs_set_size(mode, opclass, -1, he_phy_cap,
++	cap_len += ieee80211_eht_mcs_set_size(mode, opclass, he_phy_cap,
+ 					      cap->phy_cap);
+ 	if (len < cap_len)
+ 		return true;
+diff --git a/src/ap/ieee802_11_he.c b/src/ap/ieee802_11_he.c
+index 4b5023366..5c9aa57bc 100644
+--- a/src/ap/ieee802_11_he.c
++++ b/src/ap/ieee802_11_he.c
+@@ -91,37 +91,19 @@ u8 * hostapd_eid_he_capab(struct hostapd_data *hapd, u8 *eid,
+ {
+ 	struct ieee80211_he_capabilities *cap;
+ 	struct hostapd_hw_modes *mode = hapd->iface->current_mode;
+-	u8 he_oper_chwidth = ~HE_PHYCAP_CHANNEL_WIDTH_MASK;
++	const struct he_capabilities *he_capab;
+ 	u8 *pos = eid;
+-	u8 ie_size = 0, mcs_nss_size = 4, ppet_size = 0;
++	u8 ie_size = 0, mcs_nss_size, ppet_size;
+ 
+ 	if (!mode)
+ 		return eid;
+ 
+-	ie_size = sizeof(*cap) - sizeof(cap->optional);
+-	ppet_size = ieee80211_he_ppet_size(mode->he_capab[opmode].ppet[0],
+-					   mode->he_capab[opmode].phy_cap);
++	he_capab = &mode->he_capab[opmode];
++	mcs_nss_size = ieee80211_he_mcs_set_size(he_capab->phy_cap);
++	ppet_size = ieee80211_he_ppet_size(he_capab->ppet[0],
++					   he_capab->phy_cap);
+ 
+-	switch (hapd->iface->conf->he_oper_chwidth) {
+-	case CONF_OPER_CHWIDTH_80P80MHZ:
+-		he_oper_chwidth |=
+-			HE_PHYCAP_CHANNEL_WIDTH_SET_80PLUS80MHZ_IN_5G;
+-		mcs_nss_size += 4;
+-		/* fall through */
+-	case CONF_OPER_CHWIDTH_160MHZ:
+-		he_oper_chwidth |= HE_PHYCAP_CHANNEL_WIDTH_SET_160MHZ_IN_5G;
+-		mcs_nss_size += 4;
+-		/* fall through */
+-	case CONF_OPER_CHWIDTH_80MHZ:
+-	case CONF_OPER_CHWIDTH_USE_HT:
+-		he_oper_chwidth |= HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_IN_2G |
+-			HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G;
+-		break;
+-	default:
+-		break;
+-	}
+-
+-	ie_size += mcs_nss_size + ppet_size;
++	ie_size = IEEE80211_HE_CAPAB_MIN_LEN + mcs_nss_size + ppet_size;
+ 
+ 	*pos++ = WLAN_EID_EXTENSION;
+ 	*pos++ = 1 + ie_size;
+@@ -130,14 +112,15 @@ u8 * hostapd_eid_he_capab(struct hostapd_data *hapd, u8 *eid,
+ 	cap = (struct ieee80211_he_capabilities *) pos;
+ 	os_memset(cap, 0, sizeof(*cap));
+ 
+-	os_memcpy(cap->he_mac_capab_info, mode->he_capab[opmode].mac_cap,
++	os_memcpy(cap->he_mac_capab_info, he_capab->mac_cap,
+ 		  HE_MAX_MAC_CAPAB_SIZE);
+-	os_memcpy(cap->he_phy_capab_info, mode->he_capab[opmode].phy_cap,
++	os_memcpy(cap->he_phy_capab_info, he_capab->phy_cap,
+ 		  HE_MAX_PHY_CAPAB_SIZE);
+-	os_memcpy(cap->optional, mode->he_capab[opmode].mcs, mcs_nss_size);
++	os_memcpy(cap->optional, he_capab->mcs, mcs_nss_size);
++
+ 	if (ppet_size)
+-		os_memcpy(&cap->optional[mcs_nss_size],
+-			  mode->he_capab[opmode].ppet,  ppet_size);
++		os_memcpy(&cap->optional[mcs_nss_size], he_capab->ppet,
++			  ppet_size);
+ 
+ 	if (hapd->iface->conf->he_phy_capab.he_ldpc)
+ 		cap->he_phy_capab_info[HE_PHYCAP_LDPC_CODING_IN_PAYLOAD_IDX] |=
+@@ -167,9 +150,6 @@ u8 * hostapd_eid_he_capab(struct hostapd_data *hapd, u8 *eid,
+ 		cap->he_phy_capab_info[HE_PHYCAP_MU_BEAMFORMER_CAPAB_IDX] &=
+ 			~HE_PHYCAP_MU_BEAMFORMER_CAPAB;
+ 
+-	cap->he_phy_capab_info[HE_PHYCAP_CHANNEL_WIDTH_SET_IDX] &=
+-		he_oper_chwidth;
+-
+ 	pos += ie_size;
+ 
+ 	return pos;
+-- 
+2.45.2
+

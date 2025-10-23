@@ -1,0 +1,90 @@
+From a5d5e58228840d13ccf1de5ea14b4f4f34915a4f Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Wed, 8 Oct 2025 14:51:37 +0800
+Subject: [PATCH 4/5] mtk: mt76: mt7996: update mtxq wcid to another link when
+ the original wcid is removed
+
+In the normal case, mtxq->wcid should be the same as wcid of one of link.
+But the mtxq->wcid may be different from all links' wcid when using
+ACS, MLO, and multiple BSS in Prpl.
+Because ACS would remove wcid after scanning and the mtxq->wcid is
+not updated when wcid is removed.
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+(cherry picked from commit 913ca59cf901ea3778cab71c3b0136b3cd4c4793)
+---
+ mt7996/debugfs.c |  4 ++++
+ mt7996/main.c    | 17 +++++++++++++++++
+ 2 files changed, 21 insertions(+)
+
+diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
+index a58aedfa3..43d9c5771 100644
+--- a/mt7996/debugfs.c
++++ b/mt7996/debugfs.c
+@@ -1577,6 +1577,7 @@ mt7996_vif_links_info_show(struct seq_file *s, void *data)
+ 	struct mt7996_dev *dev = mvif->dev;
+ 	struct mt7996_vif_link *mconf;
+ 	struct mt7996_sta_link *msta_link;
++	struct mt76_txq *mtxq = (struct mt76_txq *) vif->txq->drv_priv;
+ 	unsigned long valid_links;
+ 	u8 link_id, i;
+ 
+@@ -1597,10 +1598,12 @@ mt7996_vif_links_info_show(struct seq_file *s, void *data)
+ 	seq_printf(s, "mld remap id = %d\n", mvif->mld_remap_idx);
+ 
+ 	seq_printf(s, "valid links = 0x%x\n", vif->valid_links);
++	seq_printf(s, "mtxq->wcid = %d\n", mtxq->wcid);
+ 	for (i = 0; i < __MT_MAX_BAND; i++)
+ 		seq_printf(s, "band%d_link_id = %d\n", i, mvif->mt76.band_to_link[i]);
+ 
+ 	mutex_lock(&dev->mt76.mutex);
++	rcu_read_lock();
+ 	valid_links = vif->valid_links ?: BIT(0);
+ 	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+ 		mconf = mt7996_vif_link(dev, vif, link_id);
+@@ -1622,6 +1625,7 @@ mt7996_vif_links_info_show(struct seq_file *s, void *data)
+ 			   mconf->phy->mt76->chanctx->chandef.chan->hw_value,
+ 			   width_to_bw[mconf->phy->mt76->chanctx->chandef.width]);
+ 	}
++	rcu_read_unlock();
+ 	mutex_unlock(&dev->mt76.mutex);
+ 
+ 	return 0;
+diff --git a/mt7996/main.c b/mt7996/main.c
+index 87d3c76fc..aa365bbfd 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -376,6 +376,7 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
+ 			    struct mt76_vif_link *mlink)
+ {
+ 	struct mt7996_vif_link *link = container_of(mlink, struct mt7996_vif_link, mt76);
++	struct mt76_txq *mtxq = vif->txq ? (struct mt76_txq *)vif->txq->drv_priv : NULL;
+ 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+ 	struct mt7996_sta_link *msta_link = &link->msta_link;
+ 	struct mt7996_phy *phy = link->phy;
+@@ -413,6 +414,22 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
+ 	mvif->mt76.valid_links &= ~BIT(link_id);
+ 	dev->mld_idx_mask &= ~BIT_ULL(link->mld_idx);
+ 
++	/* Update mtxq wcid to another link when the original wcid is removed */
++	if (mtxq && mtxq->wcid == idx) {
++		unsigned long valid_links = mvif->mt76.valid_links;
++		mtxq->wcid = 0;
++		for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
++			struct mt7996_sta_link *msta_link_temp =
++				mt76_dereference(mvif->sta.link[link_id], &dev->mt76);
++
++			if (!msta_link_temp)
++				continue;
++
++			mtxq->wcid = msta_link_temp->wcid.idx;
++			break;
++		}
++	}
++
+ 	spin_lock_bh(&dev->mt76.sta_poll_lock);
+ 	if (!list_empty(&msta_link->wcid.poll_list))
+ 		list_del_init(&msta_link->wcid.poll_list);
+-- 
+2.45.2
+
