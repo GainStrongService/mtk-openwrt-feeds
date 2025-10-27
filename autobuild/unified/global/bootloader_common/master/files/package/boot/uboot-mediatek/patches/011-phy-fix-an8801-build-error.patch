@@ -1,0 +1,20 @@
+--- a/drivers/net/phy/an8801.c
++++ b/drivers/net/phy/an8801.c
+@@ -19,7 +19,7 @@
+ #include "an8801.h"
+ 
+ #define phydev_cfg(phy)            ((struct an8801r_priv *)(phy)->priv)
+-#define phydev_dev(_dev) (&_dev->dev)
++#define phydev_dev(_dev) (_dev->dev)
+ 
+ /* For reference only
+  *	GPIO1    <-> LED0,
+@@ -303,7 +303,7 @@ static int
+ an8801sb_config(struct phy_device *phydev)
+ {
+ 	u32 reg_value, phy_id, led_id;
+-	struct device *dev = phydev_dev(phydev);
++	struct device *dev = (struct device *)phydev_dev(phydev);
+ 	struct an8801r_priv *priv = NULL;
+ 	int ret;
+ 

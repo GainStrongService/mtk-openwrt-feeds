@@ -1,10 +1,3 @@
-[PATCH 37/37] board: mediatek: cleanup encryption environment before
-
-[Description]
-cleanup encryption environment before booting kernel. Since each FIT
-node is decrypted separately, TEE cannot know when all encryption are
-done. u-boot needs to invoke the cleanup function explicitly to tell TEE
-to cleanup the encryption environment, especially encryption keys.
 
 Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
 ---
@@ -15,30 +8,33 @@ Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
  4 files changed, 37 insertions(+)
  create mode 100644 board/mediatek/common/fw_dec.c
  create mode 100644 board/mediatek/common/fw_dec.h
---- a/board/mediatek/common/Makefile	2025-09-08 15:23:19.865772546 +0800
-+++ b/board/mediatek/common/Makefile	2025-09-08 15:23:19.789769270 +0800
-@@ -53,6 +53,7 @@
- 
+
+Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
+--- a/board/mediatek/common/Makefile
++++ b/board/mediatek/common/Makefile
+@@ -53,5 +53,6 @@ obj-$(CONFIG_ENABLE_NAND_NMBM) += nmbm.o
+
  obj-$(CONFIG_MTK_MISC_CUSTOMIZED) += customizations/
- 
+
 +obj-$(CONFIG_MTK_FW_ENCRYPT) += fw_dec.o
  obj-$(CONFIG_MTK_FW_ENCRYPT_VIA_BL31) += mtk_aes_decrypt.o
  obj-$(CONFIG_MTK_FW_ENCRYPT_VIA_OPTEE) += mtk_optee_aes_decrypt.o
- 
---- a/board/mediatek/common/boot_helper.c	2025-09-08 15:23:19.865772546 +0800
-+++ b/board/mediatek/common/boot_helper.c	2025-09-08 15:23:19.805769960 +0800
+
+Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
+--- a/board/mediatek/common/boot_helper.c
++++ b/board/mediatek/common/boot_helper.c
 @@ -21,6 +21,7 @@
  #include "boot_helper.h"
  #include "dual_boot.h"
  #include "dm_parser.h"
 +#include "fw_dec.h"
- 
+
  #define ARGLIST_INCR				20
- 
-@@ -632,6 +633,12 @@
+
+@@ -632,6 +633,12 @@ void board_prep_linux(struct bootm_heade
  	u32 newlen;
  	int ret;
- 
+
 +#ifdef CONFIG_MTK_FW_ENCRYPT
 +	ret = fw_dec_cleanup();
 +	if (ret)
@@ -48,8 +44,10 @@ Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
  	if (!(CONFIG_IS_ENABLED(OF_LIBFDT) && images->ft_len)) {
  		printf("Warning: no FDT present for current image!\n");
  		return;
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/board/mediatek/common/fw_dec.c	2025-09-08 15:23:19.817770477 +0800
+
+Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
+--- /dev/null
++++ b/board/mediatek/common/fw_dec.c
 @@ -0,0 +1,18 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/*
@@ -69,8 +67,10 @@ Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
 +
 +	return res.a0;
 +}
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/board/mediatek/common/fw_dec.h	2025-09-08 15:23:19.841771512 +0800
+
+Change-Id: I31fe3569db45e5d9ede758d181edb96976b7c4fd
+--- /dev/null
++++ b/board/mediatek/common/fw_dec.h
 @@ -0,0 +1,11 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*

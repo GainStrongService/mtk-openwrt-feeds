@@ -1,21 +1,17 @@
-[PATCH 29/37] board: secure boot: common: Add config for secure boot
-
-[Description]
-Add config for secure boot
-	FIT_KEY: path to fit public key
-	Select algo: sha256,rsa2048 sha256,rsa3072 sha384,rsa3072
 
 Change-Id: I6b71dd5795c4bb63f01d1c17c9715e4cad3f3220
 ---
  Makefile               | 18 +++++++-----------
  board/mediatek/Kconfig | 26 ++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 11 deletions(-)
+
+Change-Id: I6b71dd5795c4bb63f01d1c17c9715e4cad3f3220
 --- a/Makefile
 +++ b/Makefile
 @@ -1165,16 +1165,12 @@ endif
  	$(call cmd,ofcheck,$(KCONFIG_CONFIG))
- 
- 
+
+
 -ifneq ($(FIT_KEY),)
 -FIT_KEY_DIR := $(patsubst %/,%,$(dir $(FIT_KEY)))
 -FIT_KEY_NAME := $(basename $(notdir $(FIT_KEY)))
@@ -32,7 +28,7 @@ Change-Id: I6b71dd5795c4bb63f01d1c17c9715e4cad3f3220
 +FIT_KEY_DIR := $(shell dirname $(CONFIG_FIT_KEY))
 +FIT_KEY_NAME := $(shell basename $(CONFIG_FIT_KEY) | cut -d '.' -f 1)
  endif
- 
+
  PHONY += dtbs dtbs_check
 @@ -1182,8 +1178,8 @@ dtbs: dts/dt.dtb
  	@:
@@ -43,14 +39,16 @@ Change-Id: I6b71dd5795c4bb63f01d1c17c9715e4cad3f3220
 +ifneq ($(CONFIG_MTK_SECURE_BOOT),)
 +	$(objtree)/tools/fdt_add_pubkey -a $(CONFIG_KEY_ALG) -k $(FIT_KEY_DIR) -n $(FIT_KEY_NAME) -r conf $@
  endif
- 
+
  ifeq ($(CONFIG_MTK_FW_ENCRYPT),y)
+
+Change-Id: I6b71dd5795c4bb63f01d1c17c9715e4cad3f3220
 --- a/board/mediatek/Kconfig
 +++ b/board/mediatek/Kconfig
 @@ -269,6 +269,32 @@ config CHAIN_OF_TRUST
  	bool
  	default n
- 
+
 +config FIT_KEY
 +	string "FIT PUBLIC KEY"
 +	default "../keys/fit_key.crt"

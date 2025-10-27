@@ -156,6 +156,67 @@ define BuildPackage/U-Boot
   )
 endef
 
+define U-Boot/mt7987_rfb-spim-nand
+  NAME:=MT7987A Reference Board (SPI-NAND-UBI)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7987a-rfb
+  UBOOT_CONFIG:=mt7987_spim_nand_ubi_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=spim-nand0-ubi
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-spim-nand0-ubi-comb
+endef
+
+define U-Boot/mt7987_rfb-spim-nand-nmbm
+  NAME:=MT7987A Reference Board (SPI-NAND-NMBM)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7987a-rfb
+  UBOOT_CONFIG:= mt7987_spim_nand_nmbm_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=spim-nand0-nmbm
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-spim-nand0-nmbm-comb
+endef
+
+define U-Boot/mt7987_rfb-nor
+  NAME:=MT7987A Reference Board (NOR)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7987a-rfb
+  UBOOT_CONFIG:=mt7987_spim_nor_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=nor
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-nor-comb
+  FIP_COMPRESS:=1
+endef
+
+define U-Boot/mt7987_rfb-emmc
+  NAME:=MT7987A Reference Board (EMMC)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7987a-rfb
+  UBOOT_CONFIG:=mt7987_emmc_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=emmc
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-emmc-comb
+endef
+
+define U-Boot/mt7987_rfb-sd
+  NAME:=MT7987A Reference Board (SDMMC)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7987a-rfb
+  UBOOT_CONFIG:=mt7987_sd_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=sdmmc
+  BL2_SOC:=mt7987
+  BL2_DDRTYPE:=comb
+  DEPENDS:=+trusted-firmware-a-mt7987-sdmmc-comb
+endef
+
 define U-Boot/mt7988_rfb-spim-nand
   NAME:=MT7988A Reference Board (SPI-NAND-UBI)
   BUILD_SUBTARGET:=filogic
@@ -172,7 +233,7 @@ define U-Boot/mt7988_rfb-spim-nand-nmbm
   NAME:=MT7988A Reference Board (SPI-NAND-NMBM)
   BUILD_SUBTARGET:=filogic
   BUILD_DEVICES:=mediatek_mt7988a-rfb
-  UBOOT_CONFIG:=mt7988_spim_nand_rfb
+  UBOOT_CONFIG:=mt7988_spim_nand_nmbm_rfb
   UBOOT_IMAGE:=u-boot.fip
   BL2_BOOTDEV:=spim-nand
   BL2_SOC:=mt7988
@@ -218,6 +279,11 @@ define U-Boot/mt7988_rfb-sd
 endef
 
 UBOOT_TARGETS := \
+	mt7987_rfb-spim-nand \
+	mt7987_rfb-spim-nand-nmbm \
+	mt7987_rfb-nor \
+	mt7987_rfb-emmc \
+	mt7987_rfb-sd \
 	mt7988_rfb-spim-nand \
 	mt7988_rfb-spim-nand-nmbm \
 	mt7988_rfb-nor \

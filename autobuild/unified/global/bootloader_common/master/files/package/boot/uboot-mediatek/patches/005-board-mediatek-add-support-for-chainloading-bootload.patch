@@ -1,7 +1,3 @@
-[PATCH 36/37] board: mediatek: add support for chainloading bootloader
-
-Add APIs for verifying and booting legacy image
-Add support for chainloading next bootloader to bootmenu
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 ---
@@ -28,6 +24,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  create mode 100644 board/mediatek/common/cmd_mtkchainload.c
 diff --git a/board/mediatek/Kconfig b/board/mediatek/Kconfig
 index 6f39e319b9f..f0b28dc07ff 100644
+
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/Kconfig
@@ -88,6 +85,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 diff --git a/board/mediatek/common/Makefile b/board/mediatek/common/Makefile
 index 3d31e956742..c085f3f8ca6 100644
 
+
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/Makefile
 +++ b/board/mediatek/common/Makefile
@@ -102,6 +100,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 
 diff --git a/board/mediatek/common/boot_helper.c b/board/mediatek/common/boot_helper.c
 index 508b68e2fae..da7efee2f43 100644
+
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/boot_helper.c
@@ -137,6 +136,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 diff --git a/board/mediatek/common/boot_helper.h b/board/mediatek/common/boot_helper.h
 index 074af68ec93..4fa463073b3 100644
 
+
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/boot_helper.h
 +++ b/board/mediatek/common/boot_helper.h
@@ -150,6 +150,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 
 diff --git a/board/mediatek/common/bootmenu_common.c b/board/mediatek/common/bootmenu_common.c
 index 8aaaabf70b0..a59ed8afef8 100644
+
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_common.c
@@ -177,6 +178,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  {
 diff --git a/board/mediatek/common/bootmenu_common.h b/board/mediatek/common/bootmenu_common.h
 index 2a7eef62ad0..f64e41b23ca 100644
+
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_common.h
@@ -242,6 +244,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 
 diff --git a/board/mediatek/common/bootmenu_mmc.c b/board/mediatek/common/bootmenu_mmc.c
 index ebc480efea5..c9c69b51671 100644
+
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_mmc.c
@@ -314,6 +317,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 diff --git a/board/mediatek/common/bootmenu_mmc_common.c b/board/mediatek/common/bootmenu_mmc_common.c
 index 0504b0bb72f..46fa011bab0 100644
 
+
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_mmc_common.c
 +++ b/board/mediatek/common/bootmenu_mmc_common.c
@@ -350,6 +354,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  {
 diff --git a/board/mediatek/common/bootmenu_mtd.c b/board/mediatek/common/bootmenu_mtd.c
 index 946af21fffd..1aad9a0fa26 100644
+
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_mtd.c
@@ -430,6 +435,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 diff --git a/board/mediatek/common/bootmenu_mtd_common.c b/board/mediatek/common/bootmenu_mtd_common.c
 index 8296d61e208..ce81a401216 100644
 
+
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_mtd_common.c
 +++ b/board/mediatek/common/bootmenu_mtd_common.c
@@ -479,6 +485,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  {
 diff --git a/board/mediatek/common/bootmenu_mtd_legacy.c b/board/mediatek/common/bootmenu_mtd_legacy.c
 index fd59e070aec..fc3ee1ee93a 100644
+
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_mtd_legacy.c
@@ -550,6 +557,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  		.cmd = "mtkload"
 diff --git a/board/mediatek/common/bootmenu_snor_emmc.c b/board/mediatek/common/bootmenu_snor_emmc.c
 index fe97ebac37d..801da7f70f6 100644
+
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_snor_emmc.c
@@ -630,6 +638,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 diff --git a/board/mediatek/common/bootmenu_ubi.c b/board/mediatek/common/bootmenu_ubi.c
 index 6ff05e8e23c..e4f385c7c11 100644
 
+
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/bootmenu_ubi.c
 +++ b/board/mediatek/common/bootmenu_ubi.c
@@ -702,6 +711,7 @@ diff --git a/board/mediatek/common/cmd_mtkchainload.c b/board/mediatek/common/cm
 new file mode 100644
 index 00000000000..a60810c40d1
 
+
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- /dev/null
 +++ b/board/mediatek/common/cmd_mtkchainload.c
@@ -756,6 +766,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 diff --git a/board/mediatek/common/mmc_helper.c b/board/mediatek/common/mmc_helper.c
 index fab01ae7925..11cd1f6be69 100644
 
+
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/mmc_helper.c
 +++ b/board/mediatek/common/mmc_helper.c
@@ -792,6 +803,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  		return 0;
 diff --git a/board/mediatek/common/mtd_helper.c b/board/mediatek/common/mtd_helper.c
 index ae612ae0b10..949ce0a3aa4 100644
+
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/mtd_helper.c
@@ -963,6 +975,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 diff --git a/board/mediatek/common/mtd_helper.h b/board/mediatek/common/mtd_helper.h
 index 77e49effabc..0296f1eb28b 100644
 
+
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/mtd_helper.h
 +++ b/board/mediatek/common/mtd_helper.h
@@ -1001,6 +1014,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
  #endif /* _MTD_HELPER_H_ */
 diff --git a/board/mediatek/common/verify_helper.c b/board/mediatek/common/verify_helper.c
 index 82f973e4e7f..7b510522fbd 100644
+
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/verify_helper.c
@@ -1051,6 +1065,7 @@ Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
   *
 diff --git a/board/mediatek/common/verify_helper.h b/board/mediatek/common/verify_helper.h
 index 3c93e4335c6..75d9e72b375 100644
+
 
 Change-Id: I3d0e4bdf34bd2197cb2973084f58371666dc625b
 --- a/board/mediatek/common/verify_helper.h

@@ -25,6 +25,12 @@ platform_update_bootloader_package_timestamp() {
 platform_enable_bootloader_config() {
 	openwrt_config_enable CONFIG_PACKAGE_trusted-firmware-a-mt7988-ram-comb
 	openwrt_config_enable CONFIG_PACKAGE_trusted-firmware-a-mt7988-ram-ddr4
+	openwrt_config_enable CONFIG_PACKAGE_trusted-firmware-a-mt7987-ram-comb
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_rfb-emmc
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_rfb-nor
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_rfb-sd
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_rfb-spim-nand
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_rfb-spim-nand-nmbm
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-emmc
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-nor
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-sd
