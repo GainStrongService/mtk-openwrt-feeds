@@ -956,6 +956,13 @@ int aeon_read_lpa(struct phy_device *phydev)
 			return lpa;
 
 		mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, lpa);
+
+		/* Read the link partner's 10G advertisment */
+		lpa = aeon_cl45_read(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_STAT);
+		if (lpa < 0)
+			return lpa;
+
+		mii_10gbt_stat_mod_linkmode_lpa_t(phydev->lp_advertising, lpa);
 	} else {
 		linkmode_zero(phydev->lp_advertising);
 	}
