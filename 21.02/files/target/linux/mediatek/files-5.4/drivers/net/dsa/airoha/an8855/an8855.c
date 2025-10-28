@@ -10,6 +10,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
@@ -18,6 +19,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include <net/dsa.h>
 #include <linux/of_address.h>
 #include <linux/seq_file.h>
@@ -29,7 +31,7 @@
 #include "an8855_phy.h"
 
 /* AN8855 driver version */
-#define ARHT_AN8855_DSA_DRIVER_VER	"1.0.2"
+#define ARHT_AN8855_DSA_DRIVER_VER	"1.0.8"
 
 #define ARHT_CHIP_NAME                  "an8855"
 #define ARHT_PROC_DIR                   "air_sw"
@@ -327,11 +329,17 @@ an8855_fdb_write(struct an8855_priv *priv, u16 vid,
 	reg |= mac[5] << MAC_BYTE_5;
 	reg |= mac[4] << MAC_BYTE_4;
 	an8855_write(priv, AN8855_ATA2, reg);
+
+	/* Always install FDB entries with IVL and FID 1
+	 * Set FDB entries' filter ID to 1 to match the
+	 * VLAN table due to FID1 is the only one used for bridges.
+	 */
 	reg = 0;
+	reg |= AN8855_ATWD_IVL;
 	if (add)
-		reg |= 0x1;
-	reg |= 0x1 << 15;
-	reg |= vid << 16;
+		reg |= AN8855_ATWD_VLD;
+	reg |= FIELD_PREP(AN8855_ATWD_VID, vid);
+	reg |= FIELD_PREP(AN8855_ATWD_FID, FID_BRIDGED);
 	an8855_write(priv, AN8855_ATWD, reg);
 	an8855_write(priv, AN8855_ATWD2, port_mask);
 }
@@ -476,21 +484,107 @@ an8855_get_sset_count(struct dsa_switch *ds, int port, int sset)
 	return ARRAY_SIZE(an8855_mib);
 }
 
+#if (KERNEL_VERSION(5, 10, 226) < LINUX_VERSION_CODE)
+static int
+an8855_set_ageing_time(struct dsa_switch *ds, unsigned int msecs)
+{
+	struct an8855_priv *priv = ds->priv;
+	unsigned int secs = msecs / AN8855_AGING_1000MS;
+	unsigned int value = 0;
+	unsigned int age_count = 0;
+	unsigned int age_unit = 0;
+	unsigned int u32dat = 0;
+
+	if (secs < 1 || secs > AN8855_AGE_TIME_MAX)
+		return -ERANGE;
+
+	u32dat = an8855_read(priv, AN8855_AAC);
+	value = secs * AN8855_AGING_1000MS / AN8855_L2_AGING_MS_CONSTANT;
+	age_unit = value / BIT(AAC_AGE_CNT_LENGTH) + 1;
+	age_count = value / age_unit + 1;
+
+	u32dat |= ((age_unit - 1) << AAC_AGE_UNIT) & AAC_AGE_UNIT_MASK;
+	u32dat |= ((age_count - 1) << AAC_AGE_CNT) & AAC_AGE_CNT_MASK;
+	an8855_write(priv, AN8855_AAC, u32dat);
+
+	return 0;
+}
+#endif
+
+/* Trap link local frame and specified frames to CPU
+ */
+static void
+an8855_trap_frames(struct an8855_priv *priv)
+{
+	u32 mask, val;
+
+	/* Trap BPDUs to the CPU port(s) and egress them
+	 * VLAN-untagged.
+	 */
+	mask = AN8855_BPDU_BPDU_FR | AN8855_BPDU_EG_TAG | AN8855_BPDU_PORT_FW_MASK;
+	val = AN8855_BPDU_BPDU_FR |
+		FIELD_PREP(AN8855_BPDU_EG_TAG, AN8855_VLAN_EG_UNTAGGED) |
+		FIELD_PREP(AN8855_BPDU_PORT_FW_MASK, AN8855_BPDU_CPU_ONLY);
+	an8855_rmw(priv, AN8855_BPC, mask, val);
+
+	/* Trap 802.1X PAE frames to the CPU port(s) and egress them
+	 * VLAN-untagged.
+	 */
+	mask = AN8855_PAE_BPDU_FR | AN8855_PAE_EG_TAG | AN8855_PAE_PORT_FW;
+	val = AN8855_PAE_BPDU_FR |
+	      FIELD_PREP(AN8855_PAE_EG_TAG, AN8855_VLAN_EG_UNTAGGED) |
+	      FIELD_PREP(AN8855_PAE_PORT_FW, AN8855_BPDU_CPU_ONLY);
+	an8855_rmw(priv, AN8855_PAC, mask, val);
+
+	/* Trap frames with :01 and :02 MAC DAs to the CPU port(s) and egress
+	 * them VLAN-untagged.
+	 */
+	mask = AN8855_R01_BPDU_FR | AN8855_R01_EG_TAG | AN8855_R01_PORT_FW |
+	       AN8855_R02_BPDU_FR | AN8855_R02_EG_TAG | AN8855_R02_PORT_FW;
+	val = AN8855_R01_BPDU_FR |
+	      FIELD_PREP(AN8855_R01_EG_TAG, AN8855_VLAN_EG_UNTAGGED) |
+	      FIELD_PREP(AN8855_R01_PORT_FW, AN8855_BPDU_CPU_ONLY) |
+	      AN8855_R02_BPDU_FR |
+	      FIELD_PREP(AN8855_R02_EG_TAG, AN8855_VLAN_EG_UNTAGGED) |
+	      FIELD_PREP(AN8855_R02_PORT_FW, AN8855_BPDU_CPU_ONLY);
+	an8855_rmw(priv, AN8855_RGAC1, mask, val);
+
+	/* Trap frames with :03 and :0E MAC DAs to the CPU port(s) and egress
+	 * them VLAN-untagged.
+	 */
+	mask = AN8855_R03_BPDU_FR | AN8855_R03_EG_TAG | AN8855_R03_PORT_FW |
+	       AN8855_R0E_BPDU_FR | AN8855_R0E_EG_TAG | AN8855_R0E_PORT_FW;
+	val = AN8855_R03_BPDU_FR |
+	      FIELD_PREP(AN8855_R03_EG_TAG, AN8855_VLAN_EG_UNTAGGED) |
+	      FIELD_PREP(AN8855_R03_PORT_FW, AN8855_BPDU_CPU_ONLY) |
+	      AN8855_R0E_BPDU_FR |
+	      FIELD_PREP(AN8855_R0E_EG_TAG, AN8855_VLAN_EG_UNTAGGED) |
+	      FIELD_PREP(AN8855_R0E_PORT_FW, AN8855_BPDU_CPU_ONLY);
+	an8855_rmw(priv, AN8855_RGAC2, mask, val);
+}
+
 static int
 an8855_cpu_port_enable(struct dsa_switch *ds, int port)
 {
 	struct an8855_priv *priv = ds->priv;
+	int ret;
 
 	/* Setup max capability of CPU port at first */
-	if (priv->info->cpu_port_config)
-		priv->info->cpu_port_config(ds, port);
+	if (priv->info->cpu_port_config) {
+		ret = priv->info->cpu_port_config(ds, port);
+		if (ret)
+			return ret;
+	}
 
 	/* Enable Airoha header mode on the cpu port */
 	an8855_write(priv, AN8855_PVC_P(port),
 		     PORT_SPEC_REPLACE_MODE | PORT_SPEC_TAG);
 
-	/* Unknown multicast frame forwarding to the cpu port */
+	/* Enable unknown packet flooding on the cpu port */
+	an8855_write(priv, AN8855_UNUF, BIT(port));
 	an8855_write(priv, AN8855_UNMF, BIT(port));
+	an8855_write(priv, AN8855_BCF, BIT(port));
+	an8855_write(priv, AN8855_UNIPMF, BIT(port));
 
 	/* Set CPU port number */
 	an8855_rmw(priv, AN8855_MFC, CPU_MASK, CPU_EN | CPU_PORT(port));
@@ -501,6 +595,10 @@ an8855_cpu_port_enable(struct dsa_switch *ds, int port)
 	an8855_write(priv, AN8855_PORTMATRIX_P(port),
 		     PORTMATRIX_MATRIX(dsa_user_ports(priv->ds)));
 
+	/* Set to fallback mode for independent VLAN learning */
+	an8855_rmw(priv, AN8855_PCR_P(port), PCR_PORT_VLAN_MASK,
+		   AN8855_PORT_FALLBACK_MODE);
+
 	return 0;
 }
 
@@ -508,6 +606,9 @@ static int
 an8855_port_enable(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct an8855_priv *priv = ds->priv;
+
+	if (port < 0)
+		return 0;
 
 	if (!dsa_is_user_port(ds, port))
 		return 0;
@@ -532,6 +633,9 @@ an8855_port_disable(struct dsa_switch *ds, int port)
 {
 	struct an8855_priv *priv = ds->priv;
 
+	if (port < 0)
+		return;
+
 	if (!dsa_is_user_port(ds, port))
 		return;
 
@@ -546,14 +650,60 @@ an8855_port_disable(struct dsa_switch *ds, int port)
 	mutex_unlock(&priv->reg_mutex);
 }
 
+#if (KERNEL_VERSION(5, 10, 226) < LINUX_VERSION_CODE)
+static int
+an8855_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
+{
+	struct an8855_priv *priv = ds->priv;
+	int length;
+	u32 val;
+
+	/* When a new MTU is set, DSA always set the CPU port's MTU to the
+	 * largest MTU of the slave ports. Because the switch only has a global
+	 * RX length register, only allowing CPU port here is enough.
+	 */
+	if (!dsa_is_cpu_port(ds, port))
+		return 0;
+
+	mutex_lock(&priv->reg_mutex);
+	val = an8855_read(priv, AN8855_GMACCR);
+	val &= ~GMACCR_RX_PKT_LEN_MASK;
+
+	/* RX length also includes Ethernet header, AIR tag, and FCS length */
+	length = new_mtu + ETH_HLEN + AIR_HDR_LEN + ETH_FCS_LEN;
+	if (length <= 1522) {
+		val |= MAX_RX_PKT_LEN_1522;
+	} else if (length <= 1536) {
+		val |= MAX_RX_PKT_LEN_1536;
+	} else if (length <= 1552) {
+		val |= MAX_RX_PKT_LEN_1552;
+	} else {
+		val &= ~GMACCR_MAX_RX_JUMBO_MASK;
+		val |= MAX_RX_JUMBO(DIV_ROUND_UP(length, 1024));
+		val |= MAX_RX_PKT_LEN_JUMBO;
+	}
+
+	an8855_write(priv, AN8855_GMACCR, val);
+	mutex_unlock(&priv->reg_mutex);
+	return 0;
+}
+
+static int
+an8855_port_max_mtu(struct dsa_switch *ds, int port)
+{
+	return AN8855_MAX_MTU;
+}
+#endif
+
 static void
 an8855_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 {
 	struct an8855_priv *priv = ds->priv;
+#if (KERNEL_VERSION(5, 15, 1) < LINUX_VERSION_CODE)
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	bool learning = false;
+#endif
 	u32 stp_state;
-
-	if (dsa_is_unused_port(ds, port))
-		return;
 
 	switch (state) {
 	case BR_STATE_DISABLED:
@@ -567,15 +717,67 @@ an8855_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 		break;
 	case BR_STATE_LEARNING:
 		stp_state = AN8855_STP_LEARNING;
+#if (KERNEL_VERSION(5, 15, 1) < LINUX_VERSION_CODE)
+		learning = dp->learning;
+#endif
 		break;
 	case BR_STATE_FORWARDING:
+#if (KERNEL_VERSION(5, 15, 1) < LINUX_VERSION_CODE)
+		learning = dp->learning;
+		fallthrough;
+#endif
 	default:
 		stp_state = AN8855_STP_FORWARDING;
 		break;
 	}
 
-	an8855_rmw(priv, AN8855_SSP_P(port), FID_PST_MASK, stp_state);
+	an8855_rmw(priv, AN8855_SSP_P(port), FID_PST_MASK(FID_BRIDGED),
+		FID_PST(FID_BRIDGED, stp_state));
+#if (KERNEL_VERSION(5, 15, 1) < LINUX_VERSION_CODE)
+	an8855_rmw(priv, AN8855_PSC_P(port), SA_DIS,
+			   learning ? 0 : SA_DIS);
+#endif
 }
+
+#if (KERNEL_VERSION(5, 12, 19) < LINUX_VERSION_CODE)
+static int
+an8855_port_pre_bridge_flags(struct dsa_switch *ds, int port,
+			     struct switchdev_brport_flags flags,
+			     struct netlink_ext_ack *extack)
+{
+	if (flags.mask & ~(BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD |
+			   BR_BCAST_FLOOD))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+an8855_port_bridge_flags(struct dsa_switch *ds, int port,
+			 struct switchdev_brport_flags flags,
+			 struct netlink_ext_ack *extack)
+{
+	struct an8855_priv *priv = ds->priv;
+
+	if (flags.mask & BR_LEARNING)
+		an8855_rmw(priv, AN8855_PSC_P(port), SA_DIS,
+			   flags.val & BR_LEARNING ? 0 : SA_DIS);
+
+	if (flags.mask & BR_FLOOD)
+		an8855_rmw(priv, AN8855_UNUF, BIT(port),
+			   flags.val & BR_FLOOD ? BIT(port) : 0);
+
+	if (flags.mask & BR_MCAST_FLOOD)
+		an8855_rmw(priv, AN8855_UNMF, BIT(port),
+			   flags.val & BR_MCAST_FLOOD ? BIT(port) : 0);
+
+	if (flags.mask & BR_BCAST_FLOOD)
+		an8855_rmw(priv, AN8855_BCF, BIT(port),
+			   flags.val & BR_BCAST_FLOOD ? BIT(port) : 0);
+
+	return 0;
+}
+#endif
 
 static int
 an8855_port_bridge_join(struct dsa_switch *ds, int port,
@@ -586,6 +788,9 @@ an8855_port_bridge_join(struct dsa_switch *ds, int port,
 	int i;
 
 	mutex_lock(&priv->reg_mutex);
+
+	if (port < 0)
+		return 0;
 
 	for (i = 0; i < AN8855_NUM_PORTS; i++) {
 		/* Add this port to the port matrix of the other ports in the
@@ -610,9 +815,23 @@ an8855_port_bridge_join(struct dsa_switch *ds, int port,
 			   PORTMATRIX_MASK, PORTMATRIX_MATRIX(port_bitmap));
 	priv->ports[port].pm |= PORTMATRIX_MATRIX(port_bitmap);
 
+	/* Set to fallback mode for independent VLAN learning */
+	an8855_rmw(priv, AN8855_PCR_P(port), PCR_PORT_VLAN_MASK,
+		   AN8855_PORT_FALLBACK_MODE);
+
 	mutex_unlock(&priv->reg_mutex);
 
 	return 0;
+}
+
+static void an8855_port_set_pvid(struct an8855_priv *priv, int port,
+				u16 pvid)
+{
+	an8855_rmw(priv, AN8855_PPBV1_P(port), G0_PORT_VID_MASK,
+		pvid);
+
+	an8855_rmw(priv, AN8855_PVID_P(port), G0_PORT_VID_MASK,
+		pvid);
 }
 
 static void
@@ -622,19 +841,31 @@ an8855_port_set_vlan_unaware(struct dsa_switch *ds, int port)
 	bool all_user_ports_removed = true;
 	int i;
 
-	/* When a port is removed from the bridge, the port would be set up
-	 * back to the default as is at initial boot which is a VLAN-unaware
-	 * port.
+	/* This is called after .port_bridge_leave when leaving a VLAN-aware
+	 * bridge. Don't set standalone ports to fallback mode.
 	 */
-	an8855_rmw(priv, AN8855_PCR_P(port), PCR_PORT_VLAN_MASK,
-		   AN8855_PORT_MATRIX_MODE);
-	an8855_rmw(priv, AN8855_PVC_P(port), VLAN_ATTR_MASK | PVC_EG_TAG_MASK,
-		   VLAN_ATTR(AN8855_VLAN_TRANSPARENT) |
-		   PVC_EG_TAG(AN8855_VLAN_EG_CONSISTENT));
+	if (dsa_to_port(ds, port)->bridge_dev)
+		an8855_rmw(priv, AN8855_PCR_P(port), PCR_PORT_VLAN_MASK,
+				AN8855_PORT_FALLBACK_MODE);
+
+
+	an8855_rmw(priv, AN8855_PVC_P(port),
+			VLAN_ATTR_MASK | PVC_EG_TAG_MASK | ACC_FRM_MASK,
+			VLAN_ATTR(AN8855_VLAN_TRANSPARENT) |
+			PVC_EG_TAG(AN8855_VLAN_EG_CONSISTENT) |
+			AN8855_VLAN_ACC_ALL);
+
+	/* Set PVID to 0 */
+	an8855_port_set_pvid(priv, port, G0_PORT_VID_DEF);
 
 	for (i = 0; i < AN8855_NUM_PORTS; i++) {
+#if (KERNEL_VERSION(5, 14, 21) < LINUX_VERSION_CODE)
+		if (dsa_is_user_port(ds, i) &&
+		    dsa_port_is_vlan_filtering(dsa_to_port(ds, i))) {
+#else
 		if (dsa_is_user_port(ds, i) &&
 		    dsa_port_is_vlan_filtering(&ds->ports[i])) {
+#endif
 			all_user_ports_removed = false;
 			break;
 		}
@@ -644,11 +875,22 @@ an8855_port_set_vlan_unaware(struct dsa_switch *ds, int port)
 	 * the CPU port get out of VLAN filtering mode.
 	 */
 	if (all_user_ports_removed) {
+#if (KERNEL_VERSION(5, 9, 16) < LINUX_VERSION_CODE)
+		struct dsa_port *dp = dsa_to_port(ds, port);
+		struct dsa_port *cpu_dp = dp->cpu_dp;
+
+		an8855_write(priv, AN8855_PORTMATRIX_P(cpu_dp->index),
+			     PORTMATRIX_MATRIX(dsa_user_ports(priv->ds)));
+		an8855_write(priv, AN8855_PVC_P(cpu_dp->index),
+			     PORT_SPEC_REPLACE_MODE | PORT_SPEC_TAG |
+			     PVC_EG_TAG(AN8855_VLAN_EG_CONSISTENT));
+#else
 		an8855_write(priv, AN8855_PORTMATRIX_P(AN8855_CPU_PORT),
 			     PORTMATRIX_MATRIX(dsa_user_ports(priv->ds)));
 		an8855_write(priv, AN8855_PVC_P(AN8855_CPU_PORT),
 			     PORT_SPEC_REPLACE_MODE | PORT_SPEC_TAG |
 			     PVC_EG_TAG(AN8855_VLAN_EG_CONSISTENT));
+#endif
 	}
 }
 
@@ -656,24 +898,47 @@ static void
 an8855_port_set_vlan_aware(struct dsa_switch *ds, int port)
 {
 	struct an8855_priv *priv = ds->priv;
+	u32 acc_frm = 0, val = 0;
 
 	/* Trapped into security mode allows packet forwarding through VLAN
-	 * table lookup. CPU port is set to fallback mode to let untagged
-	 * frames pass through.
+	 * table lookup.
 	 */
-	if (dsa_is_cpu_port(ds, port))
-		an8855_rmw(priv, AN8855_PCR_P(port), PCR_PORT_VLAN_MASK,
-			   AN8855_PORT_FALLBACK_MODE);
-	else
+	if (dsa_is_user_port(ds, port)) {
 		an8855_rmw(priv, AN8855_PCR_P(port), PCR_PORT_VLAN_MASK,
 			   AN8855_PORT_SECURITY_MODE);
 
-	/* Set the port as a user port which is to be able to recognize VID
-	 * from incoming packets before fetching entry within the VLAN table.
-	 */
-	an8855_rmw(priv, AN8855_PVC_P(port), VLAN_ATTR_MASK | PVC_EG_TAG_MASK,
-		   VLAN_ATTR(AN8855_VLAN_USER) |
-		   PVC_EG_TAG(AN8855_VLAN_EG_DISABLED));
+		an8855_port_set_pvid(priv, port,
+			G0_PORT_VID(priv->ports[port].pvid));
+
+		/* Only accept tagged frames if PVID is not set */
+		val = an8855_read(priv, AN8855_PVID_P(port));
+		if ((val & G0_PORT_VID_MASK) != G0_PORT_VID_DEF)
+			acc_frm = AN8855_VLAN_ACC_TAGGED;
+		else
+			acc_frm = AN8855_VLAN_ACC_ALL;
+
+		an8855_rmw(priv, AN8855_PVC_P(port), ACC_FRM_MASK, acc_frm);
+
+		/* Set the port as a user port which is to be able to recognize
+		 * VID from incoming packets before fetching entry within the
+		 * VLAN table.
+		 */
+		an8855_rmw(priv, AN8855_PVC_P(port),
+			VLAN_ATTR_MASK | PVC_EG_TAG_MASK,
+			VLAN_ATTR(AN8855_VLAN_USER) |
+			PVC_EG_TAG(AN8855_VLAN_EG_DISABLED));
+	} else {
+		/* Also set CPU ports to the "user" VLAN port attribute, to
+		 * allow VLAN classification, but keep the EG_TAG attribute as
+		 * "consistent" (i.o.w. don't change its value) for packets
+		 * received by the switch from the CPU, so that tagged packets
+		 * are forwarded to user ports as tagged, and untagged as
+		 * untagged.
+		 */
+		an8855_rmw(priv, AN8855_PVC_P(port),
+			VLAN_ATTR_MASK,
+			VLAN_ATTR(AN8855_VLAN_USER));
+	}
 }
 
 static void
@@ -684,6 +949,9 @@ an8855_port_bridge_leave(struct dsa_switch *ds, int port,
 	int i;
 
 	mutex_lock(&priv->reg_mutex);
+
+	if (port < 0)
+		return;
 
 	for (i = 0; i < AN8855_NUM_PORTS; i++) {
 		/* Remove this port from the port matrix of the other ports
@@ -696,7 +964,7 @@ an8855_port_bridge_leave(struct dsa_switch *ds, int port,
 			if (priv->ports[i].enable)
 				an8855_clear(priv, AN8855_PORTMATRIX_P(i),
 					     PORTMATRIX_MATRIX(BIT(port)));
-			priv->ports[i].pm &= PORTMATRIX_MATRIX(BIT(port));
+			priv->ports[i].pm &= ~PORTMATRIX_MATRIX(BIT(port));
 		}
 	}
 
@@ -707,6 +975,13 @@ an8855_port_bridge_leave(struct dsa_switch *ds, int port,
 		an8855_rmw(priv, AN8855_PORTMATRIX_P(port), PORTMATRIX_MASK,
 			   PORTMATRIX_MATRIX(BIT(AN8855_CPU_PORT)));
 	priv->ports[port].pm = PORTMATRIX_MATRIX(BIT(AN8855_CPU_PORT));
+
+	/* When a port is removed from the bridge, the port would be set up
+	 * back to the default as is at initial boot which is a VLAN-unaware
+	 * port.
+	 */
+	an8855_rmw(priv, AN8855_PCR_P(port), PCR_PORT_VLAN_MASK,
+		   AN8855_PORT_MATRIX_MODE);
 
 	mutex_unlock(&priv->reg_mutex);
 }
@@ -829,6 +1104,60 @@ err:
 	return 0;
 }
 
+#if (KERNEL_VERSION(5, 12, 19) < LINUX_VERSION_CODE)
+static int
+an8855_port_mdb_add(struct dsa_switch *ds, int port,
+		    const struct switchdev_obj_port_mdb *mdb)
+{
+	struct an8855_priv *priv = ds->priv;
+	const u8 *addr = mdb->addr;
+	u16 vid = mdb->vid;
+	u8 port_mask = 0;
+	int ret;
+
+	mutex_lock(&priv->reg_mutex);
+
+	an8855_fdb_write(priv, vid, 0, addr, 0);
+	if (!an8855_fdb_cmd(priv, AN8855_FDB_READ, NULL))
+		port_mask = (an8855_read(priv, AN8855_ATRD3) >> ATRD3_MAC_PORT)
+			    & ATRD3_MAC_PORT_MASK;
+
+	port_mask |= BIT(port);
+	an8855_fdb_write(priv, vid, port_mask, addr, 1);
+	ret = an8855_fdb_cmd(priv, AN8855_FDB_WRITE, NULL);
+
+	mutex_unlock(&priv->reg_mutex);
+
+	return ret;
+}
+
+static int
+an8855_port_mdb_del(struct dsa_switch *ds, int port,
+		    const struct switchdev_obj_port_mdb *mdb)
+{
+	struct an8855_priv *priv = ds->priv;
+	const u8 *addr = mdb->addr;
+	u16 vid = mdb->vid;
+	u8 port_mask = 0;
+	int ret;
+
+	mutex_lock(&priv->reg_mutex);
+
+	an8855_fdb_write(priv, vid, 0, addr, 0);
+	if (!an8855_fdb_cmd(priv, AN8855_FDB_READ, NULL))
+		port_mask = (an8855_read(priv, AN8855_ATRD3) >> ATRD3_MAC_PORT)
+			    & ATRD3_MAC_PORT_MASK;
+
+	port_mask &= ~BIT(port);
+	an8855_fdb_write(priv, vid, port_mask, addr, port_mask ? 1 : 0);
+	ret = an8855_fdb_cmd(priv, AN8855_FDB_WRITE, NULL);
+
+	mutex_unlock(&priv->reg_mutex);
+
+	return ret;
+}
+#endif
+
 static int
 an8855_vlan_cmd(struct an8855_priv *priv, enum an8855_vlan_cmd cmd, u16 vid)
 {
@@ -855,9 +1184,19 @@ an8855_vlan_cmd(struct an8855_priv *priv, enum an8855_vlan_cmd cmd, u16 vid)
 	return 0;
 }
 
+#if (KERNEL_VERSION(5, 9, 16) < LINUX_VERSION_CODE)
+static int
+an8855_port_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
+			   struct netlink_ext_ack *extack)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_port *cpu_dp = dp->cpu_dp;
+#else
 static int
 an8855_port_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 {
+#endif
+
 	if (vlan_filtering) {
 		/* The port is being kept as VLAN-unaware port when bridge is
 		 * set up with vlan_filtering not being set, Otherwise, the
@@ -865,7 +1204,11 @@ an8855_port_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 		 * for becoming a VLAN-aware port.
 		 */
 		an8855_port_set_vlan_aware(ds, port);
+#if (KERNEL_VERSION(5, 9, 16) < LINUX_VERSION_CODE)
+		an8855_port_set_vlan_aware(ds, cpu_dp->index);
+#else
 		an8855_port_set_vlan_aware(ds, AN8855_CPU_PORT);
+#endif
 	} else {
 		an8855_port_set_vlan_unaware(ds, port);
 	}
@@ -873,6 +1216,7 @@ an8855_port_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 	return 0;
 }
 
+#if (KERNEL_VERSION(5, 11, 22) >= LINUX_VERSION_CODE)
 static int
 an8855_port_vlan_prepare(struct dsa_switch *ds, int port,
 			 const struct switchdev_obj_port_vlan *vlan)
@@ -880,6 +1224,7 @@ an8855_port_vlan_prepare(struct dsa_switch *ds, int port,
 	/* nothing needed */
 	return 0;
 }
+#endif
 
 static void
 an8855_hw_vlan_add(struct an8855_priv *priv, struct an8855_hw_vlan_entry *entry)
@@ -887,8 +1232,7 @@ an8855_hw_vlan_add(struct an8855_priv *priv, struct an8855_hw_vlan_entry *entry)
 	u8 new_members;
 	u32 val;
 
-	new_members = entry->old_members | BIT(entry->port) |
-	    BIT(AN8855_CPU_PORT);
+	new_members = entry->old_members | BIT(entry->port);
 
 	/* Validate the entry with independent learning, create egress tag per
 	 * VLAN and joining the port as one of the port members.
@@ -896,28 +1240,29 @@ an8855_hw_vlan_add(struct an8855_priv *priv, struct an8855_hw_vlan_entry *entry)
 	val =
 	    an8855_read(priv,
 			AN8855_VARD0) & (ETAG_CTRL_MASK << PORT_EG_CTRL_SHIFT);
-	val |= (IVL_MAC | VTAG_EN | PORT_MEM(new_members) | VLAN_VALID);
+	val |= (IVL_MAC | VTAG_EN | PORT_MEM(new_members) | FID(FID_BRIDGED) |
+			VLAN_VALID);
 	an8855_write(priv, AN8855_VAWD0, val);
 	an8855_write(priv, AN8855_VAWD1, 0);
 
 	/* Decide whether adding tag or not for those outgoing packets from the
 	 * port inside the VLAN.
 	 */
-	val =
-	    entry->untagged ? AN8855_VLAN_EGRESS_UNTAG : AN8855_VLAN_EGRESS_TAG;
-	an8855_rmw(priv, AN8855_VAWD0,
-		   ETAG_CTRL_P_MASK(entry->port) << PORT_EG_CTRL_SHIFT,
-		   ETAG_CTRL_P(entry->port, val) << PORT_EG_CTRL_SHIFT);
-
 	/* CPU port is always taken as a tagged port for serving more than one
 	 * VLANs across and also being applied with egress type stack mode for
 	 * that VLAN tags would be appended after hardware special tag used as
 	 * DSA tag.
 	 */
+	if (entry->port == AN8855_CPU_PORT)
+		val = AN8855_VLAN_EGRESS_STACK;
+	else if (entry->untagged)
+		val = AN8855_VLAN_EGRESS_UNTAG;
+	else
+		val = AN8855_VLAN_EGRESS_TAG;
+
 	an8855_rmw(priv, AN8855_VAWD0,
-		   ETAG_CTRL_P_MASK(AN8855_CPU_PORT) << PORT_EG_CTRL_SHIFT,
-		   ETAG_CTRL_P(AN8855_CPU_PORT,
-			       AN8855_VLAN_EGRESS_STACK) << PORT_EG_CTRL_SHIFT);
+		   ETAG_CTRL_P_MASK(entry->port),
+		   ETAG_CTRL_P(entry->port, val));
 }
 
 static void
@@ -934,11 +1279,7 @@ an8855_hw_vlan_del(struct an8855_priv *priv, struct an8855_hw_vlan_entry *entry)
 		return;
 	}
 
-	/* If certain member apart from CPU port is still alive in the VLAN,
-	 * the entry would be kept valid. Otherwise, the entry is got to be
-	 * disabled.
-	 */
-	if (new_members && new_members != BIT(AN8855_CPU_PORT)) {
+	if (new_members) {
 		val = IVL_MAC | VTAG_EN | PORT_MEM(new_members) | VLAN_VALID;
 		an8855_write(priv, AN8855_VAWD0, val);
 	} else {
@@ -968,31 +1309,77 @@ an8855_hw_vlan_update(struct an8855_priv *priv, u16 vid,
 	an8855_vlan_cmd(priv, AN8855_VTCR_WR_VID, vid);
 }
 
+static int
+an8855_setup_vlan0(struct an8855_priv *priv)
+{
+	unsigned int val;
+
+	/* Validate the entry with independent learning, keep the original
+	 * ingress tag attribute.
+	 */
+	val = IVL_MAC | EG_CON | PORT_MEM(AN8855_ALL_MEMBERS) | FID(FID_BRIDGED) |
+	      VLAN_VALID;
+	an8855_write(priv, AN8855_VAWD0, (u32)val);
+
+	return an8855_vlan_cmd(priv, AN8855_VTCR_WR_VID, 0);
+}
+
+#if (KERNEL_VERSION(5, 11, 22) < LINUX_VERSION_CODE)
+static int
+an8855_port_vlan_add(struct dsa_switch *ds, int port,
+		     const struct switchdev_obj_port_vlan *vlan,
+		     struct netlink_ext_ack *extack)
+#else
 static void
 an8855_port_vlan_add(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_vlan *vlan)
+#endif
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	struct an8855_hw_vlan_entry new_entry;
 	struct an8855_priv *priv = ds->priv;
-	u16 vid;
+	u16 vid = 0;
 
 	mutex_lock(&priv->reg_mutex);
 
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		an8855_hw_vlan_entry_init(&new_entry, port, untagged);
-		an8855_hw_vlan_update(priv, vid, &new_entry,
+#if (KERNEL_VERSION(5, 11, 22) < LINUX_VERSION_CODE)
+	vid = vlan->vid;
+#else
+	vid = vlan->vid_end;
+#endif
+
+	an8855_hw_vlan_entry_init(&new_entry, port, untagged);
+	an8855_hw_vlan_update(priv, vid, &new_entry,
 				      an8855_hw_vlan_add);
-	}
 
 	if (pvid) {
-		an8855_rmw(priv, AN8855_PVID_P(port), G0_PORT_VID_MASK,
-			   G0_PORT_VID(vlan->vid_end));
-		priv->ports[port].pvid = vlan->vid_end;
+		priv->ports[port].pvid = vid;
+
+		/* Accept all frames if PVID is set */
+		an8855_rmw(priv, AN8855_PVC_P(port), ACC_FRM_MASK,
+			   AN8855_VLAN_ACC_ALL);
+
+		/* Only configure PVID if VLAN filtering is enabled */
+		if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
+			an8855_port_set_pvid(priv, port, vid);
+
+	} else if (vid && priv->ports[port].pvid == vid) {
+		/* This VLAN is overwritten without PVID, so unset it */
+		priv->ports[port].pvid = G0_PORT_VID_DEF;
+
+		/* Only accept tagged frames if the port is VLAN-aware */
+		if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
+			an8855_rmw(priv, AN8855_PVC_P(port), ACC_FRM_MASK,
+				   AN8855_VLAN_ACC_TAGGED);
+
+		an8855_port_set_pvid(priv, port, G0_PORT_VID_DEF);
 	}
 
 	mutex_unlock(&priv->reg_mutex);
+#if (KERNEL_VERSION(5, 11, 22) < LINUX_VERSION_CODE)
+	return 0;
+#endif
 }
 
 static int
@@ -1001,25 +1388,33 @@ an8855_port_vlan_del(struct dsa_switch *ds, int port,
 {
 	struct an8855_hw_vlan_entry target_entry;
 	struct an8855_priv *priv = ds->priv;
-	u16 vid, pvid;
+	u16 vid = 0;
 
 	mutex_lock(&priv->reg_mutex);
 
-	pvid = priv->ports[port].pvid;
-	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		an8855_hw_vlan_entry_init(&target_entry, port, 0);
-		an8855_hw_vlan_update(priv, vid, &target_entry,
+#if (KERNEL_VERSION(5, 11, 22) < LINUX_VERSION_CODE)
+	vid = vlan->vid;
+#else
+	vid = vlan->vid_end;
+#endif
+
+	an8855_hw_vlan_entry_init(&target_entry, port, 0);
+	an8855_hw_vlan_update(priv, vid, &target_entry,
 				      an8855_hw_vlan_del);
 
 		/* PVID is being restored to the default whenever the PVID port
 		 * is being removed from the VLAN.
 		 */
-		if (pvid == vid)
-			pvid = G0_PORT_VID_DEF;
-	}
+	if (priv->ports[port].pvid == vid) {
+		priv->ports[port].pvid = G0_PORT_VID_DEF;
 
-	an8855_rmw(priv, AN8855_PVID_P(port), G0_PORT_VID_MASK, pvid);
-	priv->ports[port].pvid = pvid;
+		/* Only accept tagged frames if the port is VLAN-aware */
+		if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
+			an8855_rmw(priv, AN8855_PVC_P(port), ACC_FRM_MASK,
+				   AN8855_VLAN_ACC_TAGGED);
+
+		an8855_port_set_pvid(priv, port, G0_PORT_VID_DEF);
+	}
 
 	mutex_unlock(&priv->reg_mutex);
 
@@ -1089,66 +1484,7 @@ static void an8855_port_mirror_del(struct dsa_switch *ds, int port,
 static enum dsa_tag_protocol
 air_get_tag_protocol(struct dsa_switch *ds, int port, enum dsa_tag_protocol mp)
 {
-	struct an8855_priv *priv = ds->priv;
-
-	if (port != AN8855_CPU_PORT) {
-		dev_warn(priv->dev, "port not matched with tagging CPU port\n");
-		return DSA_TAG_PROTO_NONE;
-	} else {
-		return DSA_TAG_PROTO_ARHT;
-	}
-}
-
-static int
-setup_unused_ports(struct dsa_switch *ds, u32 pm)
-{
-	struct an8855_priv *priv = ds->priv;
-	u32 egtag_mask = 0;
-	u32 egtag_val = 0;
-	int i;
-
-	if (!pm)
-		return 0;
-
-	for (i = 0; i < AN8855_NUM_PORTS; i++) {
-		if (!dsa_is_unused_port(ds, i))
-			continue;
-
-		/* Setup MAC port with maximum capability. */
-		if (i == 5)
-			if (priv->info->cpu_port_config)
-				priv->info->cpu_port_config(ds, i);
-
-		an8855_rmw(priv, AN8855_PORTMATRIX_P(i), PORTMATRIX_MASK,
-			   AN8855_PORTMATRIX_P(pm));
-		an8855_rmw(priv, AN8855_PCR_P(i), PCR_PORT_VLAN_MASK,
-			   AN8855_PORT_SECURITY_MODE);
-		egtag_mask |= ETAG_CTRL_P_MASK(i);
-		egtag_val |= ETAG_CTRL_P(i, AN8855_VLAN_EGRESS_UNTAG);
-	}
-
-	/* Add unused ports to VLAN2 group for using IVL fdb. */
-	an8855_write(priv, AN8855_VAWD0,
-		     IVL_MAC | VTAG_EN | PORT_MEM(pm) | VLAN_VALID);
-	an8855_rmw(priv, AN8855_VAWD0, egtag_mask << PORT_EG_CTRL_SHIFT,
-		   egtag_val << PORT_EG_CTRL_SHIFT);
-	an8855_write(priv, AN8855_VAWD1, 0);
-	an8855_vlan_cmd(priv, AN8855_VTCR_WR_VID, AN8855_RESERVED_VLAN);
-
-	for (i = 0; i < AN8855_NUM_PORTS; i++) {
-		if (!dsa_is_unused_port(ds, i))
-			continue;
-
-		an8855_rmw(priv, AN8855_PVID_P(i), G0_PORT_VID_MASK,
-			   G0_PORT_VID(AN8855_RESERVED_VLAN));
-		an8855_rmw(priv, AN8855_SSP_P(i), FID_PST_MASK,
-			   AN8855_STP_FORWARDING);
-
-		dev_dbg(ds->dev, "Add unused port%d to reserved VLAN%d group\n",
-			i, AN8855_RESERVED_VLAN);
-	}
-
-	return 0;
+	return DSA_TAG_PROTO_ARHT;
 }
 
 static int an8855_led_set_usr_def(struct dsa_switch *ds, u8 entity,
@@ -1366,9 +1702,9 @@ an8855_setup(struct dsa_switch *ds)
 {
 	struct an8855_priv *priv = ds->priv;
 	struct an8855_dummy_poll p;
-	u32 unused_pm = 0;
 	u32 val, id, led_count = ARRAY_SIZE(led_cfg);
 	int ret, i;
+	u8  mac[6] = {0};
 
 	/* Reset whole chip through gpio pin or memory-mapped registers for
 	 * different type of hardware
@@ -1472,23 +1808,58 @@ an8855_setup(struct dsa_switch *ds)
 	val &= ~(CKG_LNKDN_GLB_STOP | CKG_LNKDN_PORT_STOP);
 	an8855_write(priv, AN8855_CKGCR, val);
 
+	/* Replace oldest mac entry */
+	val = an8855_read(priv, AN8855_AGC);
+	val |= MAC_OLDEST_REPLACE;
+	an8855_write(priv, AN8855_AGC, val);
+
+	an8855_trap_frames(priv);
+
 	/* Enable and reset MIB counters */
 	an8855_mib_reset(ds);
+
+	/* Disable flooding on all ports */
+	an8855_write(priv, AN8855_UNUF, 0);
+	an8855_write(priv, AN8855_UNMF, 0);
+	an8855_write(priv, AN8855_BCF, 0);
+	an8855_write(priv, AN8855_UNIPMF, 0);
 
 	for (i = 0; i < AN8855_NUM_PORTS; i++) {
 		/* Disable forwarding by default on all ports */
 		an8855_rmw(priv, AN8855_PORTMATRIX_P(i), PORTMATRIX_MASK,
 			   PORTMATRIX_CLR);
-		if (dsa_is_unused_port(ds, i))
-			unused_pm |= BIT(i);
-		else if (dsa_is_cpu_port(ds, i))
-			an8855_cpu_port_enable(ds, i);
-		else
+
+#if (KERNEL_VERSION(5, 12, 19) < LINUX_VERSION_CODE)
+		/* Disable learning by default on all ports */
+		an8855_write(priv, AN8855_PSC_P(i), SA_DIS);
+#else
+		if (dsa_is_cpu_port(ds, i))
+			/* Disable learning by default on cpu port */
+			an8855_write(priv, AN8855_PSC_P(AN8855_CPU_PORT), SA_DIS);
+
+#endif
+		if (dsa_is_cpu_port(ds, i)) {
+			ret = an8855_cpu_port_enable(ds, i);
+			if (ret)
+				return ret;
+		} else {
 			an8855_port_disable(ds, i);
+			an8855_port_set_pvid(priv, i, G0_PORT_VID_DEF);
+		}
 		/* Enable consistent egress tag */
 		an8855_rmw(priv, AN8855_PVC_P(i), PVC_EG_TAG_MASK,
 			   PVC_EG_TAG(AN8855_VLAN_EG_CONSISTENT));
 	}
+
+	/* Setup VLAN ID 0 for VLAN-unaware bridges */
+	ret = an8855_setup_vlan0(priv);
+	if (ret)
+		return ret;
+
+	ds->assisted_learning_on_cpu_port = true;
+#if (KERNEL_VERSION(5, 7, 1) < LINUX_VERSION_CODE)
+	ds->mtu_enforcement_ingress = true;
+#endif
 
 	for (i = 0; i < AN8855_NUM_PHYS; i++) {
 		val = an8855_phy_read(ds, i, MII_BMCR);
@@ -1502,15 +1873,43 @@ an8855_setup(struct dsa_switch *ds)
 	for (i = 0; i < AN8855_NUM_PHYS; i++)
 		an8855_phy_write(ds, i, MII_BMCR, 0x1240);
 
-	/* Group and enable unused ports as a standalone dumb switch. */
-	setup_unused_ports(ds, unused_pm);
-
-	ds->configure_vlan_while_not_filtering = true;
-
 	/* Flush the FDB table */
 	ret = an8855_fdb_cmd(priv, AN8855_FDB_FLUSH, NULL);
 	if (ret < 0)
 		return ret;
+
+	/* set ldf ether type */
+	val = an8855_read(priv, AN8855_LPDET_SA_MSB);
+	val &= ~(AN8855_LPDET_FRAME_TYPE_MASK);
+	val |= (AN8855_LPDET_FRAME_TYPE_DEFAULT << AN8855_LPDET_FRAME_TYPE_OFFT);
+	an8855_write(priv, AN8855_LPDET_SA_MSB, val);
+
+	/* set ldf source mac */
+	dev_err(priv->dev, "an8855 set ldf source mac\n");
+	val = an8855_read(priv, AN8855_SMACCR1);
+	for (i = 0; i < 2; i++)
+		mac[i] = (val >> ((1 - i) * 8)) & 0xFF;
+
+	val = an8855_read(priv, AN8855_SMACCR0);
+	for (i = 2; i < 6; i++)
+		mac[i] = (val >> ((5 - i) * 8)) & 0xFF;
+
+	val = an8855_read(priv, AN8855_LPDET_SA_MSB);
+	val &= ~0xFFFF;
+	val |= mac[0] << 8;
+	val |= mac[1];
+	an8855_write(priv, AN8855_LPDET_SA_MSB, val);
+
+	val = mac[2] << 24;
+	val |= mac[3] << 16;
+	val |= mac[4] << 8;
+	val |= mac[5];
+	an8855_write(priv, AN8855_LPDET_SA_LSB, val);
+
+	/* set over_rxpause = 1, rate_1s = 1 */
+	val = an8855_read(priv, AN8855_LPDETCR);
+	val |= (AN8855_LPDETCR_OVER_RXPAUSE | AN8855_LPDETCR_PERIOD_1S);
+	an8855_write(priv, AN8855_LPDETCR, val);
 
 	return 0;
 }
@@ -1574,17 +1973,6 @@ an8855_sgmii_validate(struct an8855_priv *priv, int port,
 		phylink_set(supported, 1000baseX_Full);
 		phylink_set(supported, 2500baseX_Full);
 	}
-}
-
-static void
-an8855_sgmii_link_up_force(struct dsa_switch *ds, int port,
-			   unsigned int mode, phy_interface_t interface,
-			   int speed, int duplex)
-{
-	/* For adjusting speed and duplex of SGMII force mode. */
-	if (interface != PHY_INTERFACE_MODE_SGMII ||
-	    phylink_autoneg_inband(mode))
-		return;
 }
 
 static bool
@@ -2203,13 +2591,6 @@ an8855_sgmii_setup(struct an8855_priv *priv, int mode)
 }
 
 static int
-an8855_sgmii_setup_mode_force(struct an8855_priv *priv, u32 port,
-					 phy_interface_t interface)
-{
-	return an8855_sgmii_setup(priv, SGMII_MODE_FORCE);
-}
-
-static int
 an8855_sgmii_setup_mode_an(struct an8855_priv *priv, int port,
 				      phy_interface_t interface)
 {
@@ -2245,67 +2626,6 @@ an8855_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 	}
 
 	return -EINVAL;
-}
-
-static int
-an8855_sw_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
-		     const struct phylink_link_state *state)
-{
-	struct an8855_priv *priv = ds->priv;
-
-	return priv->info->mac_port_config(ds, port, mode, state->interface);
-}
-
-static void
-an8855_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
-			  const struct phylink_link_state *state)
-{
-	struct an8855_priv *priv = ds->priv;
-	u32 mcr_cur, mcr_new;
-
-	if (!an8855_phy_mode_supported(ds, port, state))
-		goto unsupported;
-
-	switch (port) {
-	case 0:		/* Internal phy */
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-		if (state->interface != PHY_INTERFACE_MODE_GMII)
-			goto unsupported;
-		break;
-	case 5:
-		if (priv->p5_interface == state->interface)
-			break;
-
-		if (an8855_sw_mac_config(ds, port, mode, state) < 0)
-			goto unsupported;
-
-		priv->p5_interface = state->interface;
-		break;
-	default:
-unsupported:
-		dev_err(ds->dev, "%s: unsupported %s port: %i\n",
-			__func__, phy_modes(state->interface), port);
-		return;
-	}
-
-	if (phylink_autoneg_inband(mode) &&
-	    state->interface != PHY_INTERFACE_MODE_SGMII) {
-		dev_err(ds->dev, "%s: in-band negotiation unsupported\n",
-			__func__);
-		return;
-	}
-
-	mcr_cur = an8855_read(priv, AN8855_PMCR_P(port));
-	mcr_new = mcr_cur;
-	mcr_new &= ~PMCR_LINK_SETTINGS_MASK;
-	mcr_new |= PMCR_IFG_XMIT(1) | PMCR_MAC_MODE | PMCR_BACKOFF_EN |
-	    PMCR_BACKPR_EN | AN8855_FORCE_MODE;
-
-	if (mcr_new != mcr_cur)
-		an8855_write(priv, AN8855_PMCR_P(port), mcr_new);
 }
 
 static void
@@ -2538,15 +2858,6 @@ an8855_phylink_mac_link_state(struct dsa_switch *ds, int port,
 }
 
 static int
-an8855_sw_phylink_mac_link_state(struct dsa_switch *ds, int port,
-				 struct phylink_link_state *state)
-{
-	struct an8855_priv *priv = ds->priv;
-
-	return priv->info->mac_port_get_state(ds, port, state);
-}
-
-static int
 an8855_sw_setup(struct dsa_switch *ds)
 {
 	struct an8855_priv *priv = ds->priv;
@@ -2623,16 +2934,33 @@ static const struct dsa_switch_ops an8855_switch_ops = {
 	.phy_write = an8855_sw_phy_write,
 	.get_ethtool_stats = an8855_get_ethtool_stats,
 	.get_sset_count = an8855_get_sset_count,
+#if (KERNEL_VERSION(5, 10, 226) < LINUX_VERSION_CODE)
+	.set_ageing_time	= an8855_set_ageing_time,
+#endif
 	.port_enable = an8855_port_enable,
 	.port_disable = an8855_port_disable,
+#if (KERNEL_VERSION(5, 10, 226) < LINUX_VERSION_CODE)
+	.port_change_mtu	= an8855_port_change_mtu,
+	.port_max_mtu		= an8855_port_max_mtu,
+#endif
 	.port_stp_state_set = an8855_stp_state_set,
+#if (KERNEL_VERSION(5, 12, 19) < LINUX_VERSION_CODE)
+	.port_pre_bridge_flags	= an8855_port_pre_bridge_flags,
+	.port_bridge_flags	= an8855_port_bridge_flags,
+#endif
 	.port_bridge_join = an8855_port_bridge_join,
 	.port_bridge_leave = an8855_port_bridge_leave,
 	.port_fdb_add = an8855_port_fdb_add,
 	.port_fdb_del = an8855_port_fdb_del,
+#if (KERNEL_VERSION(5, 12, 19) < LINUX_VERSION_CODE)
+	.port_mdb_add		= an8855_port_mdb_add,
+	.port_mdb_del		= an8855_port_mdb_del,
+#endif
 	.port_fdb_dump = an8855_port_fdb_dump,
 	.port_vlan_filtering = an8855_port_vlan_filtering,
+#if (KERNEL_VERSION(5, 11, 22) >= LINUX_VERSION_CODE)
 	.port_vlan_prepare = an8855_port_vlan_prepare,
+#endif
 	.port_vlan_add = an8855_port_vlan_add,
 	.port_vlan_del = an8855_port_vlan_del,
 	.port_mirror_add = an8855_port_mirror_add,
@@ -2671,6 +2999,9 @@ an8855_probe(struct mdio_device *mdiodev)
 	struct an8855_priv *priv;
 	struct device_node *dn;
 	struct device_node *switch_node = NULL;
+#if (KERNEL_VERSION(5, 4, 284) < LINUX_VERSION_CODE)
+	struct device *dev;
+#endif
 	int ret;
 
 	dn = mdiodev->dev.of_node;
@@ -2678,11 +3009,23 @@ an8855_probe(struct mdio_device *mdiodev)
 	priv = devm_kzalloc(&mdiodev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+#if (KERNEL_VERSION(5, 4, 284) < LINUX_VERSION_CODE)
+	priv->bus = mdiodev->bus;
+	priv->dev = &mdiodev->dev;
 
+	dev = priv->dev;
+	priv->ds = devm_kzalloc(dev, sizeof(*priv->ds), GFP_KERNEL);
+	if (!priv->ds)
+#else
 	priv->ds = dsa_switch_alloc(&mdiodev->dev, AN8855_NUM_PORTS);
+#endif
 	if (!priv->ds)
 		return -ENOMEM;
 
+#if (KERNEL_VERSION(5, 4, 284) < LINUX_VERSION_CODE)
+	priv->ds->dev = dev;
+	priv->ds->num_ports = AN8855_NUM_PORTS;
+#endif
 	/* Get the hardware identifier from the devicetree node.
 	 * We will need it for some of the clock and regulator setup.
 	 */
@@ -2729,8 +3072,8 @@ an8855_probe(struct mdio_device *mdiodev)
 	if (of_property_read_u32(dn, "airoha,intr", &priv->intr_pin))
 		priv->intr_pin = AN8855_DFL_INTR_ID;
 
-	if (of_property_read_u32(dn, "airoha,extSurge", &priv->extSurge))
-		priv->extSurge = AN8855_DFL_EXT_SURGE;
+	if (of_property_read_u32(dn, "airoha,ext-surge", &priv->ext_surge))
+		priv->ext_surge = AN8855_DFL_EXT_SURGE;
 
 	priv->bus = mdiodev->bus;
 	priv->dev = &mdiodev->dev;

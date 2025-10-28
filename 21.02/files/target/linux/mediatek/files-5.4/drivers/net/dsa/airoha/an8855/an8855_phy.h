@@ -1,4 +1,4 @@
-// SPDX-License-Identifier:     GPL-2.0+
+/* SPDX-License-Identifier:     GPL-2.0+ */
 /*
  * Common part for Airoha AN8855 gigabit switch
  *

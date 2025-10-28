@@ -290,6 +290,8 @@ an8855_nl_response(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
+	an8855_lock();
+
 	ret = cmditem->process(info);
 
 	an8855_put();

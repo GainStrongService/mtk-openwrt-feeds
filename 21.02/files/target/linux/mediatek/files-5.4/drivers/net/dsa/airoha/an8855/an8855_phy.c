@@ -90,7 +90,7 @@ an8855_phy_setting(struct dsa_switch *ds)
 		an8855_switch_phy_write(ds, i, MII_ADVERTISE, val);
 	}
 
-	if (priv->extSurge) {
+	if (priv->ext_surge) {
 		for (i = 0; i < AN8855_NUM_PHYS; i++) {
 			/* Read data */
 			for (j = 0; j < AN8855_WORD_SIZE; j++) {
@@ -127,42 +127,6 @@ an8855_phy_setting(struct dsa_switch *ds)
 			an8855_phy_cl45_write(priv, i, PHY_DEV1E, 0x175, cl45_data);
 		}
 	}
-}
-
-static void
-an8855_low_power_setting(struct dsa_switch *ds)
-{
-	int port, addr;
-	struct an8855_priv *priv = ds->priv;
-
-	for (port = 0; port < AN8855_NUM_PHYS; port++) {
-		an8855_phy_cl45_write(priv, port, 0x1e, 0x11, 0x0f00);
-		an8855_phy_cl45_write(priv, port, 0x1e, 0x3c, 0x0000);
-		an8855_phy_cl45_write(priv, port, 0x1e, 0x3d, 0x0000);
-		an8855_phy_cl45_write(priv, port, 0x1e, 0x3e, 0x0000);
-		an8855_phy_cl45_write(priv, port, 0x1e, 0xc6, 0x53aa);
-	}
-
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x268, 0x07f1);
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x269, 0x2111);
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x26a, 0x0000);
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x26b, 0x0074);
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x26e, 0x00f6);
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x26f, 0x6666);
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x271, 0x2c02);
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x272, 0x0c22);
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x700, 0x0001);
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x701, 0x0803);
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x702, 0x01b6);
-	an8855_phy_cl45_write(priv, 0, 0x1f, 0x703, 0x2111);
-
-	an8855_phy_cl45_write(priv, 1, 0x1f, 0x700, 0x0001);
-
-	for (addr = 0x200; addr <= 0x230; addr += 2)
-		an8855_phy_cl45_write(priv, 0, 0x1f, addr, 0x2020);
-
-	for (addr = 0x201; addr <= 0x231; addr += 2)
-		an8855_phy_cl45_write(priv, 0, 0x1f, addr, 0x0020);
 }
 
 static void

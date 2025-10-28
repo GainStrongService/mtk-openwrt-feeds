@@ -6,6 +6,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/version.h>
 
 #include "dsa_priv.h"
 
@@ -22,7 +23,6 @@ static struct sk_buff *air_tag_xmit(struct sk_buff *skb,
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 	u8 xmit_tpid;
 	u8 *air_tag;
-	unsigned char *dest = eth_hdr(skb)->h_dest;
 
 	/* Build the special tag after the MAC Source Address. If VLAN header
 	 * is present, it's required that VLAN header and special tag is
@@ -38,9 +38,10 @@ static struct sk_buff *air_tag_xmit(struct sk_buff *skb,
 		xmit_tpid = AIR_HDR_XMIT_TAGGED_TPID_88A8;
 		break;
 	default:
+#if (KERNEL_VERSION(5, 15, 1) > LINUX_VERSION_CODE)
 		if (skb_cow_head(skb, AIR_HDR_LEN) < 0)
 			return NULL;
-
+#endif
 		xmit_tpid = AIR_HDR_XMIT_UNTAGGED;
 		skb_push(skb, AIR_HDR_LEN);
 		memmove(skb->data, skb->data + AIR_HDR_LEN, 2 * ETH_ALEN);
@@ -63,20 +64,19 @@ static struct sk_buff *air_tag_xmit(struct sk_buff *skb,
 	return skb;
 }
 
+#if (KERNEL_VERSION(5, 15, 1) > LINUX_VERSION_CODE)
 static struct sk_buff *air_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 				   struct packet_type *pt)
+#else
+static struct sk_buff *air_tag_rcv(struct sk_buff *skb, struct net_device *dev)
+#endif
 {
 	int port;
 	__be16 *phdr, hdr;
-	unsigned char *dest = eth_hdr(skb)->h_dest;
-	bool is_multicast_skb = is_multicast_ether_addr(dest) &&
-				!is_broadcast_ether_addr(dest);
+#if (KERNEL_VERSION(5, 15, 1) > LINUX_VERSION_CODE)
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+#endif
 
-	if (dev->features & NETIF_F_HW_VLAN_CTAG_RX) {
-		hdr = ntohs(skb->vlan_proto);
-		skb->vlan_proto = 0;
-		skb->vlan_tci = 0;
-	} else {
 		if (unlikely(!pskb_may_pull(skb, AIR_HDR_LEN)))
 			return NULL;
 
@@ -93,7 +93,6 @@ static struct sk_buff *air_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 		memmove(skb->data - ETH_HLEN,
 			skb->data - ETH_HLEN - AIR_HDR_LEN,
 			2 * ETH_ALEN);
-	}
 
 	/* Get source port information */
 	port = (hdr & AIR_HDR_RECV_SOURCE_PORT_MASK);
@@ -102,13 +101,20 @@ static struct sk_buff *air_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!skb->dev)
 		return NULL;
 
-	/* Only unicast or broadcast frames are offloaded */
-	if (likely(!is_multicast_skb))
-		skb->offload_fwd_mark = 1;
-
+	/* Don't set skb->offload_fw_mark
+	 * when not offloading the bridge
+	 * Ref linux git commit bea7907 & 5a30833
+	 */
+#if (KERNEL_VERSION(5, 15, 1) <= LINUX_VERSION_CODE)
+	dsa_default_offload_fwd_mark(skb);
+#endif
 	return skb;
 }
 
+/* Use the generic flow dissector procedure
+ * Ref linux git commit b1af365
+ */
+#if (KERNEL_VERSION(5, 10, 1) > LINUX_VERSION_CODE)
 static int air_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 				int *offset)
 {
@@ -117,14 +123,21 @@ static int air_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 
 	return 0;
 }
+#endif
 
 static const struct dsa_device_ops air_netdev_ops = {
 	.name		= "air",
 	.proto		= DSA_TAG_PROTO_ARHT,
 	.xmit		= air_tag_xmit,
 	.rcv		= air_tag_rcv,
+#if (KERNEL_VERSION(5, 10, 1) > LINUX_VERSION_CODE)
 	.flow_dissect	= air_tag_flow_dissect,
+#endif
+#if (KERNEL_VERSION(5, 14, 1) > LINUX_VERSION_CODE)
 	.overhead	= AIR_HDR_LEN,
+#else
+	.needed_headroom = AIR_HDR_LEN,
+#endif
 };
 
 MODULE_LICENSE("GPL");

@@ -18,6 +18,10 @@
 #define AN8855_DFL_INTR_ID				0xd
 #define AN8855_DFL_EXT_SURGE			0x0
 
+#define AIR_HDR_LEN						4
+#define AN8855_MAX_MTU					(15 * 1024 - ETH_HLEN - ETH_FCS_LEN - AIR_HDR_LEN)
+#define AN8855_L2_AGING_MS_CONSTANT		(1024)
+
 enum an8855_id {
 	ID_AN8855 = 0,
 };
@@ -28,14 +32,67 @@ enum sgmii_mode {
 };
 
 /* Registers to mac forward control for unknown frames */
+#define AN8855_AGC			0x1020000c
+#define	 MAC_OLDEST_REPLACE	BIT(23)
+
 #define AN8855_MFC			0x10200010
 #define	 CPU_EN				BIT(15)
 #define	 CPU_PORT(x)		((x) << 8)
 #define	 CPU_MASK			(0x9f << 8)
 
+#define AN8855_PAC			0x10200024
+#define   AN8855_TAG_PAE_MANG_FR	BIT(30)
+#define   AN8855_TAG_PAE_BPDU_FR	BIT(28)
+#define   AN8855_TAG_PAE_EG_TAG		GENMASK(27, 25)
+#define   AN8855_TAG_PAE_LKY_VLAN	BIT(24)
+#define   AN8855_TAG_PAE_PRI_HIGH	BIT(23)
+#define   AN8855_TAG_PAE_MIR		GENMASK(20, 19)
+#define   AN8855_TAG_PAE_PORT_FW	GENMASK(18, 16)
+#define   AN8855_PAE_MANG_FR		BIT(14)
+#define   AN8855_PAE_BPDU_FR		BIT(12)
+#define   AN8855_PAE_EG_TAG			GENMASK(11, 9)
+#define   AN8855_PAE_LKY_VLAN		BIT(8)
+#define   AN8855_PAE_PRI_HIGH		BIT(7)
+#define   AN8855_PAE_MIR			GENMASK(4, 3)
+#define   AN8855_PAE_PORT_FW		GENMASK(2, 0)
+
+#define AN8855_RGAC1		0x10200028
+#define   AN8855_R02_MANG_FR		BIT(30)
+#define   AN8855_R02_BPDU_FR		BIT(28)
+#define   AN8855_R02_EG_TAG			GENMASK(27, 25)
+#define   AN8855_R02_LKY_VLAN		BIT(24)
+#define   AN8855_R02_PRI_HIGH		BIT(23)
+#define   AN8855_R02_MIR			GENMASK(20, 19)
+#define   AN8855_R02_PORT_FW		GENMASK(18, 16)
+#define   AN8855_R01_MANG_FR		BIT(14)
+#define   AN8855_R01_BPDU_FR		BIT(12)
+#define   AN8855_R01_EG_TAG			GENMASK(11, 9)
+#define   AN8855_R01_LKY_VLAN		BIT(8)
+#define   AN8855_R01_PRI_HIGH		BIT(7)
+#define   AN8855_R01_MIR			GENMASK(4, 3)
+#define   AN8855_R01_PORT_FW		GENMASK(2, 0)
+
+#define AN8855_RGAC2			0x1020002c
+#define   AN8855_R0E_MANG_FR		BIT(30)
+#define   AN8855_R0E_BPDU_FR		BIT(28)
+#define   AN8855_R0E_EG_TAG			GENMASK(27, 25)
+#define   AN8855_R0E_LKY_VLAN		BIT(24)
+#define   AN8855_R0E_PRI_HIGH		BIT(23)
+#define   AN8855_R0E_MIR			GENMASK(20, 19)
+#define   AN8855_R0E_PORT_FW		GENMASK(18, 16)
+#define   AN8855_R03_MANG_FR		BIT(14)
+#define   AN8855_R03_BPDU_FR		BIT(12)
+#define   AN8855_R03_EG_TAG			GENMASK(11, 9)
+#define   AN8855_R03_LKY_VLAN		BIT(8)
+#define   AN8855_R03_PRI_HIGH		BIT(7)
+#define   AN8855_R03_MIR			GENMASK(4, 3)
+#define   AN8855_R03_PORT_FW		GENMASK(2, 0)
+
 #define AN8855_UNUF			0x102000b4
 #define AN8855_UNMF			0x102000b8
 #define AN8855_BCF			0x102000bc
+
+#define AN8855_AGDIS		0x102000c0
 
 /* Registers for mirror port control */
 #define	AN8855_MIR						  0x102000cc
@@ -46,7 +103,15 @@ enum sgmii_mode {
 
 /* Registers for BPDU and PAE frame control*/
 #define AN8855_BPC					0x102000D0
+#define  AN8855_BPDU_MANG_FR		BIT(14)
+#define  AN8855_BPDU_BPDU_FR		BIT(12)
+#define  AN8855_BPDU_EG_TAG			GENMASK(11, 9)
+#define  AN8855_BPDU_LKY_VLAN		BIT(8)
+#define  AN8855_BPDU_PRI_HIGH		BIT(7)
+#define	 AN8855_BPDU_MIR			GENMASK(4, 3)
 #define	AN8855_BPDU_PORT_FW_MASK	GENMASK(2, 0)
+
+#define AN8855_UNIPMF		0x102000dc
 
 enum an8855_bpdu_port_fw {
 	AN8855_BPDU_FOLLOW_MFC,
@@ -62,7 +127,17 @@ enum an8855_bpdu_port_fw {
 
 /* Register for address table write data */
 #define AN8855_ATWD			0x10200324
+#define   AN8855_ATWD_FID		GENMASK(31, 28)
+#define   AN8855_ATWD_VID		GENMASK(27, 16)
+#define   AN8855_ATWD_IVL		BIT(15)
+#define   AN8855_ATWD_EG_TAG		GENMASK(14, 12)
+#define   AN8855_ATWD_SA_MIR		GENMASK(9, 8)
+#define   AN8855_ATWD_SA_FWD		GENMASK(7, 5)
+#define   AN8855_ATWD_UPRI		GENMASK(4, 2)
+#define   AN8855_ATWD_LEAKY		BIT(1)
+#define   AN8855_ATWD_VLD		BIT(0) /* vid LOAD */
 #define AN8855_ATWD2		0x10200328
+#define   AN8855_ATWD2_PORT		GENMASK(7, 0)
 
 /* Register for address table control */
 #define AN8855_ATC			0x10200300
@@ -86,6 +161,11 @@ enum an8855_fdb_cmds {
 /* Registers for table search read address */
 #define AN8855_ATRDS		0x10200330
 #define AN8855_ATRD0		0x10200334
+#define AN8855_ATRD1		0x10200338
+#define AN8855_ATRD2		0x1020033c
+#define AN8855_ATRD3		0x10200340
+#define ATRD3_MAC_PORT		0
+#define ATRD3_MAC_PORT_MASK	0x7f
 #define	 CVID				10
 #define	 CVID_MASK			0xfff
 
@@ -112,6 +192,16 @@ enum an8855_fdb_type {
 #define	 PORT_MAP			4
 #define	 PORT_MAP_MASK		0xff
 
+#define AN8855_AAC			0x102000a0
+#define AAC_AGE_CNT_LENGTH	9
+#define AAC_AGE_CNT			12
+#define AAC_AGE_CNT_MASK	0x1ff000
+#define AAC_AGE_UNIT		0
+#define AAC_AGE_UNIT_MASK	0x7ff
+
+#define AN8855_AGING_1000MS (1000)
+#define AN8855_AGE_TIME_MAX (1000000)
+
 /* Register for vlan table control */
 #define AN8855_VTCR			0x10200600
 #define	 VTCR_BUSY			BIT(31)
@@ -133,14 +223,23 @@ enum an8855_vlan_cmd {
 #define	 IVL_MAC			BIT(5)
 /* Per VLAN Egress Tag Control */
 #define	 VTAG_EN			BIT(10)
+/* Egress Tag Consistent */
+#define  EG_CON				BIT(11)
 /* Egress Tag Control */
 #define PORT_EG_CTRL_SHIFT	12
 /* VLAN Member Control */
 #define	 PORT_MEM_SHFT		26
 #define	 PORT_MEM_MASK		0x7f
 #define	 PORT_MEM(x)		(((x) & PORT_MEM_MASK) << PORT_MEM_SHFT)
+/* Filter ID */
+#define  FID(x)				(((x) & 0xf) << 1)
 /* VLAN Entry Valid */
 #define	 VLAN_VALID			BIT(0)
+
+enum an8855_fid {
+	FID_STANDALONE = 0,
+	FID_BRIDGED = 1,
+};
 
 #define AN8855_VAWD1			0x10200608
 #define	 PORT_STAG			BIT(1)
@@ -159,8 +258,8 @@ enum an8855_vlan_egress_attr {
 
 /* Register for port STP state control */
 #define AN8855_SSP_P(x)		(0x10208000 + ((x) * 0x200))
-#define	 FID_PST(x)			((x) & 0x3)
-#define	 FID_PST_MASK		FID_PST(0x3)
+#define  FID_PST(fid, state)	(((state) & 0x3) << ((fid) * 2))
+#define  FID_PST_MASK(fid)		FID_PST(fid, 0x3)
 
 enum an8855_stp_state {
 	AN8855_STP_DISABLED = 0,
@@ -208,6 +307,7 @@ enum an8855_port_mode {
 #define	 PVC_EG_TAG_MASK		PVC_EG_TAG(7)
 #define	 VLAN_ATTR(x)			(((x) & 0x3) << 6)
 #define	 VLAN_ATTR_MASK			VLAN_ATTR(3)
+#define  ACC_FRM_MASK			GENMASK(1, 0)
 
 #define AN8855_PORTMATRIX_P(x)	(0x10208044 + ((x) * 0x200))
 #define PORTMATRIX_MATRIX(x)	((x) & 0x3f)
@@ -217,6 +317,10 @@ enum an8855_port_mode {
 enum an8855_vlan_port_eg_tag {
 	AN8855_VLAN_EG_DISABLED = 0,
 	AN8855_VLAN_EG_CONSISTENT = 1,
+	AN8855_VLAN_EG_UNTAGGED = 4,
+	AN8855_VLAN_EG_SWAP = 5,
+	AN8855_VLAN_EG_TAGGED = 6,
+	AN8855_VLAN_EG_STACK = 7,
 };
 
 enum an8855_vlan_port_attr {
@@ -224,11 +328,19 @@ enum an8855_vlan_port_attr {
 	AN8855_VLAN_TRANSPARENT = 3,
 };
 
+enum an8855_vlan_port_acc_frm {
+	AN8855_VLAN_ACC_ALL = 0,
+	AN8855_VLAN_ACC_TAGGED = 1,
+	AN8855_VLAN_ACC_UNTAGGED = 2,
+};
+
+#define AN8855_PPBV1_P(x)		(0x10208014 + ((x) * 0x200))
+
 /* Register for port PVID */
 #define AN8855_PVID_P(x)		(0x10208048 + ((x) * 0x200))
 #define	 G0_PORT_VID(x)			(((x) & 0xfff) << 0)
 #define	 G0_PORT_VID_MASK		G0_PORT_VID(0xfff)
-#define	 G0_PORT_VID_DEF		G0_PORT_VID(1)
+#define	 G0_PORT_VID_DEF		G0_PORT_VID(0)
 
 /* Register for port MAC control register */
 #define AN8855_PMCR_P(x)		(0x10210000 + ((x) * 0x200))
@@ -243,8 +355,8 @@ enum an8855_vlan_port_attr {
 #define	 PMCR_FORCE_EEE2P5G		BIT(8)
 #define	 PMCR_FORCE_EEE1G		BIT(7)
 #define	 PMCR_FORCE_EEE100		BIT(6)
-#define	 PMCR_TX_FC_EN			BIT(5)
-#define	 PMCR_RX_FC_EN			BIT(4)
+#define	 PMCR_RX_FC_EN			BIT(5)
+#define	 PMCR_TX_FC_EN			BIT(4)
 #define	 PMCR_FORCE_SPEED_2500	(0x3 << 28)
 #define	 PMCR_FORCE_SPEED_1000	(0x2 << 28)
 #define	 PMCR_FORCE_SPEED_100	(0x1 << 28)
@@ -291,6 +403,32 @@ enum an8855_vlan_port_attr {
 #define LPI_TXIDLE_THD_MASK		BITS(14, 31)
 #define CKG_LNKDN_GLB_STOP	0x01
 #define CKG_LNKDN_PORT_STOP	0x02
+
+/* Register for Global MAC Control */
+#define AN8855_GMACCR			(0x10213e00)
+#define GMACCR_MAX_RX_JUMBO		(4)
+#define GMACCR_MAX_RX_JUMBO_MASK	(BITS(4, 7))
+#define GMACCR_RX_PKT_LEN		(0)
+#define GMACCR_RX_PKT_LEN_MASK	(BITS(0, 1))
+#define MAX_RX_PKT_LEN_1522		0x0
+#define MAX_RX_PKT_LEN_1536		0x1
+#define MAX_RX_PKT_LEN_1552		0x2
+#define MAX_RX_PKT_LEN_JUMBO	0x3
+#define MAX_RX_JUMBO(x)		((x) << 4)
+
+/* Register for LPDET */
+#define AN8855_LPDETCR                  (0x10213F08)
+#define AN8855_LPDETCR_OVER_RXPAUSE     (1 << 11)
+#define AN8855_LPDETCR_PERIOD_1S        (1 << 7)
+#define AN8855_LPDET_SA_MSB             (0x10213F20)
+#define AN8855_LPDET_SA_LSB             (0x10213F24)
+#define AN8855_LPDET_FRAME_TYPE_MASK    (0xFFFF0000)
+#define AN8855_LPDET_FRAME_TYPE_OFFT    (16)
+#define AN8855_LPDET_FRAME_TYPE_DEFAULT (0x88B6)
+
+/* fields of global mac control */
+#define AN8855_SMACCR0                  (0x10213E10)
+#define AN8855_SMACCR1                  (0x10213E14)
 
 /* Register for MIB */
 #define AN8855_PORT_MIB_COUNTER(x)	(0x10214000 + (x) * 0x200)
@@ -625,7 +763,7 @@ struct an8855_priv {
 	u8 mirror_rx;
 	u8 mirror_tx;
 	u8 eee_enable;
-	u32 extSurge;
+	u32 ext_surge;
 
 	struct an8855_port ports[AN8855_NUM_PORTS];
 	/* protect among processes for registers access */
