@@ -35,6 +35,8 @@
 /* MACRO FUNCTION DECLARATIONS
  */
 
+#define AIR_IPV4_ZERO      0
+
 /* DATA TYPE DECLARATIONS
  */
 typedef int                 BOOL_T;
@@ -48,6 +50,22 @@ typedef char                C8_T;
 typedef unsigned long long  UI64_T;
 
 typedef UI8_T   AIR_MAC_T[6];
+typedef UI32_T  AIR_IPV4_T;
+typedef UI8_T   AIR_IPV6_T[16];
+
+typedef union AIR_IP_U
+{
+
+    AIR_IPV4_T     ipv4_addr;
+    AIR_IPV6_T     ipv6_addr;
+
+}AIR_IP_T;
+
+typedef struct AIR_IP_ADDR_S
+{
+   AIR_IP_T      ip_addr;
+   BOOL_T        ipv4 ;
+}AIR_IP_ADDR_T;
 
 /* EXPORTED SUBPROGRAM SPECIFICATIONS
  */

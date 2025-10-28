@@ -35,6 +35,23 @@
     }                                                           \
 } while(0)
 
+#define CMD_IPV4_STR_SIZE        (16)
+#define CMD_IPV4_TO_STR(__buf__,__ipv4__)    \
+                        snprintf(__buf__,CMD_IPV4_STR_SIZE,"%d.%d.%d.%d",   \
+                        ((__ipv4__)&0xFF000000)>>24,((__ipv4__)&0x00FF0000)>>16,    \
+                        ((__ipv4__)&0x0000FF00)>>8, ((__ipv4__)&0x000000FF))
+
+#define CMD_IPV6_STR_SIZE        (40)
+#define CMD_IPV6_TO_STR(__buf__,__ipv6__)    \
+                        snprintf(__buf__,CMD_IPV6_STR_SIZE, \
+                        "%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X",  \
+                        (__ipv6__)[0],  (__ipv6__)[1],  (__ipv6__)[2],  (__ipv6__)[3],    \
+                        (__ipv6__)[4],  (__ipv6__)[5],  (__ipv6__)[6],  (__ipv6__)[7],    \
+                        (__ipv6__)[8],  (__ipv6__)[9],  (__ipv6__)[10], (__ipv6__)[11],  \
+                        (__ipv6__)[12], (__ipv6__)[13], (__ipv6__)[14], (__ipv6__)[15])
+
+#define CMD_IP_ADDR_STR_SIZE     (CMD_IPV6_STR_SIZE)
+
 /* DATA TYPE DECLARATIONS
 */
 typedef struct {
@@ -268,6 +285,35 @@ static AIR_ERROR_NO_T doAclGet(UI32_T argc, C8_T *argv[]);
 static AIR_ERROR_NO_T doAclDel(UI32_T argc, C8_T *argv[]);
 static AIR_ERROR_NO_T doAclClear(UI32_T argc, C8_T *argv[]);
 static AIR_ERROR_NO_T doAcl(UI32_T argc, C8_T *argv[]);
+
+static void _ipmc_cmd_printTblHead(const AIR_IPMC_MATCH_TYPE_T match_type);
+static AIR_IPMC_MATCH_TYPE_T _ipmc_cmd_getMatchType(AIR_IPMC_ENTRY_T *ptr_entry);
+static void _printIpmcMcast(const UI32_T unit, AIR_IPMC_ENTRY_T *mcast, const AIR_IPMC_MATCH_TYPE_T match_type, UI8_T title);
+static AIR_ERROR_NO_T doIpmcAddMcast(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmcAddMcastMem(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmcDelMcast(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmcDelMcastMem(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmcGetMcast(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmcSearchMode(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmcAdd(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmcDel(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmcClear(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmcGet(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmcSet(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmcDump(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doIpmc(UI32_T argc, C8_T *argv[]);
+
+
+static AIR_ERROR_NO_T doLpdetClearStatus(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doLpdetGetSrcMac(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doLpdetGetCtrl(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doLpdetGetStatus(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doLpdetSetSrcMac(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doLpdetSetCtrl(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doLpdetClear(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doLpdetGet(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doLpdetSet(UI32_T argc, C8_T *argv[]);
+static AIR_ERROR_NO_T doLpdet(UI32_T argc, C8_T *argv[]);
 
 static AIR_ERROR_NO_T subcmd(const AIR_CMD_T tab[], UI32_T argc, C8_T *argv[]);
 
@@ -838,6 +884,75 @@ static AIR_CMD_T aclCmds[] =
     {NULL, NULL, 0, NULL},
 };
 
+static AIR_CMD_T ipmcAddCmds[] = {
+    {"mcast",       doIpmcAddMcast,        3,      "ipmc add mcast <vid(0..4095)> <gaddr(IPADDR)> <portmap(7'bin)> [ disable-egrs-vlan-filter(1:En,0:Dis) ]"},
+    {"mcastMem",    doIpmcAddMcastMem,     3,      "ipmc add mcastMem <vid(0..4095)> <gaddr(IPADDR)> <portmap(7'bin)>"},
+    /* last entry, do not modify this entry */
+    {NULL, NULL, 0, NULL},
+};
+
+static AIR_CMD_T ipmcDelCmds[] = {
+    {"mcast",       doIpmcDelMcast,        2,      "ipmc del mcast <vid(0..4095}> <gaddr(IPADDR)>"},
+    {"mcastMem",    doIpmcDelMcastMem,     3,      "ipmc del mcastMem <vid(0..4095)> <gaddr(IPADDR)> <portmap(7'bin)>"},
+    /* last entry, do not modify this entry */
+    {NULL, NULL, 0, NULL},
+};
+
+static AIR_CMD_T ipmcGetCmds[] = {
+    {"mcast",       doIpmcGetMcast,         2,       "ipmc get mcast <vid(0..4095}> <gaddr(IPADDR)>"},
+    {"searchMode",  doIpmcSearchMode,       1,       "ipmc get searchMode <port(0..6)>"},
+    /* last entry, do not modify this entry */
+    {NULL, NULL, 0, NULL},
+};
+
+static AIR_CMD_T ipmcSetCmds[] = {
+    {"searchMode",      doIpmcSearchMode,       2,       "ipmc set searchMode <port(0..6)> <mode(0:l2mc, 1:ipmc)>"},
+    /* last entry, do not modify this entry */
+    {NULL, NULL, 0, NULL},
+};
+
+static AIR_CMD_T ipmcCmds[] =
+{
+    {"add",         doIpmcAdd,        0,            NULL},
+    {"del",         doIpmcDel,        0,            NULL},
+    {"clear",       doIpmcClear,      CMD_NO_PARA,  "ipmc clear"},
+    {"get",         doIpmcGet,        0,             NULL},
+    {"set",         doIpmcSet,        0,            NULL},
+    {"dump",        doIpmcDump,       1,            "ipmc dump searchType<0:dip4, 1:dip6>"},
+    /* last entry, do not modify this entry */
+    {NULL, NULL, 0, NULL},
+};
+
+static AIR_CMD_T lpdetClearCmds[] = {
+    {"status",      doLpdetClearStatus, 2,            "lpdet clear status <port(0..6)> <type(0:tx-lp-frame, 1:rx-lp-alarm)>"},
+    /* last entry, do not modify this entry */
+    {NULL, NULL, 0, NULL},
+};
+
+static AIR_CMD_T lpdetGetCmds[] = {
+    {"srcMac",      doLpdetGetSrcMac,   CMD_NO_PARA,  "lpdet get srcMac"},
+    {"control",     doLpdetGetCtrl,     1,            "lpdet get control <port(0..6)>"},
+    {"status",      doLpdetGetStatus,   1,            "lpdet get status <port(0..6)>"},
+    /* last entry, do not modify this entry */
+    {NULL, NULL, 0, NULL},
+};
+
+static AIR_CMD_T lpdetSetCmds[] = {
+    {"srcMac",      doLpdetSetSrcMac,   1,            "lpdet set srcMac <mac(12'hex)>"},
+    {"control",     doLpdetSetCtrl,     3,            "lpdet set control <port(0..6)> <type(0:tx-lp-frame, 1:rx-lp-alarm)> <en(1:En,0:Dis)>"},
+    /* last entry, do not modify this entry */
+    {NULL, NULL, 0, NULL},
+};
+
+static AIR_CMD_T lpdetCmds[] =
+{
+    {"clear",       doLpdetClear,       0,           NULL},
+    {"get",         doLpdetGet,         0,           NULL},
+    {"set",         doLpdetSet,         0,           NULL},
+    /* last entry, do not modify this entry */
+    {NULL, NULL, 0, NULL},
+};
+
 static AIR_CMD_T Cmds[] =
 {
     {"reg",         doReg,          0,      NULL},
@@ -857,6 +972,8 @@ static AIR_CMD_T Cmds[] =
     {"sec",         doSec,          0,      NULL},
     {"acl",         doAcl,          0,      NULL},
     {"sptag",       doSptag,        0,      NULL},
+    {"ipmc",        doIpmc,         0,      NULL},
+    {"lpdet",       doLpdet,        0,      NULL},
 
     /* last entry, do not modify this entry */
     {NULL, NULL, 0, NULL},
@@ -1290,6 +1407,101 @@ _showIpv6Str(
     }
 }
 
+void
+_getIpv4Str(
+    const AIR_IPV4_T *ptr_ipv4,
+    C8_T *ptr_str)
+{
+    CMD_IPV4_TO_STR(ptr_str, *ptr_ipv4);
+}
+
+void
+_getIpv6Str(
+    const AIR_IPV6_T *ptr_ipv6,
+    C8_T *ptr_str)
+{
+    UI32_T idx = 0, next = 0, last = 16;
+    UI32_T cont_zero = 0;
+
+    while (idx < last)
+    {
+        if ((0 == cont_zero) && (0 == (*ptr_ipv6)[idx]) && (0 == (*ptr_ipv6)[idx + 1]))
+        {
+            next = idx + 2;
+
+            while (next < last)
+            {
+                if (((*ptr_ipv6)[next]) || ((*ptr_ipv6)[next + 1]))
+                {
+                    snprintf(
+                            ptr_str + strlen(ptr_str),
+                            CMD_IPV6_STR_SIZE - strlen(ptr_str),
+                            "%s", (cont_zero) ? (":") : (":0"));
+                    break;
+                }
+
+                if (0 == cont_zero)
+                {
+                    cont_zero = 1;
+                }
+                next += 2;
+            }
+
+            if (next == last)
+            {
+
+                snprintf(
+                        ptr_str + strlen(ptr_str),
+                        CMD_IPV6_STR_SIZE - strlen(ptr_str),
+                        "%s", (cont_zero) ? ("::") : (":0"));
+            }
+
+            idx = next;
+        }
+        else
+        {
+            if (idx)
+            {
+                snprintf(
+                    ptr_str + strlen(ptr_str),
+                    CMD_IPV6_STR_SIZE - strlen(ptr_str),
+                    ":");
+            }
+
+            if ((*ptr_ipv6)[idx])
+            {
+                snprintf(
+                    ptr_str + strlen(ptr_str),
+                    CMD_IPV6_STR_SIZE - strlen(ptr_str),
+                    "%0x%02x", (*ptr_ipv6)[idx], (*ptr_ipv6)[idx + 1]);
+            }
+            else
+            {
+                snprintf(
+                    ptr_str + strlen(ptr_str),
+                    CMD_IPV6_STR_SIZE - strlen(ptr_str),
+                    "%0x", (*ptr_ipv6)[idx + 1]);
+            }
+
+            idx += 2;
+        }
+    }
+}
+
+void
+_getIpAddrStr(
+    const AIR_IP_ADDR_T *ptr_ip_addr,
+    C8_T *ptr_str)
+{
+    if(TRUE == ptr_ip_addr->ipv4)
+    {
+        _getIpv4Str(&ptr_ip_addr->ip_addr.ipv4_addr, ptr_str);
+    }
+    else
+    {
+        _getIpv6Str(&ptr_ip_addr->ip_addr.ipv6_addr, ptr_str);
+    }
+}
 static AIR_ERROR_NO_T
 _hex2bit(
         const UI32_T hex,
@@ -6228,7 +6440,7 @@ doSaLearning(UI32_T argc, C8_T *argv[])
     {
         memset(&port_config, 0, sizeof(AIR_SEC_PORTSEC_PORT_CONFIG_T));
         rc = air_sec_getPortSecPortCfg(0, port, &port_config);
-        if(AIR_E_OK != rc)
+        if (AIR_E_OK != rc)
         {
             AIR_PRINT("Get Port%02d sa learn Fail.\n", port);
             return rc;
@@ -6276,9 +6488,9 @@ doSaLimit(UI32_T argc, C8_T *argv[])
     {
         memset(&port_config, 0, sizeof(AIR_SEC_PORTSEC_PORT_CONFIG_T));
         rc = air_sec_getPortSecPortCfg(0, port, &port_config);
-        if(AIR_E_OK != rc)
+        if (AIR_E_OK != rc)
         {
-            AIR_PRINT("Get Port%02d sa limit Fail\n", port);
+            AIR_PRINT("Get Port%02d sa limit Fail.\n", port);
             return rc;
         }
         port_config.sa_lmt_en = _strtoul(argv[1], NULL, 0);
@@ -7927,6 +8139,798 @@ doAcl(
         C8_T *argv[])
 {
     return subcmd(aclCmds, argc, argv);
+}
+
+static AIR_ERROR_NO_T
+doIpmcAddMcast(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    AIR_ERROR_NO_T rc = AIR_E_OK;
+    AIR_IPMC_ENTRY_T mcst;
+    UI32_T unit = 0;
+    C8_T dip_str[CMD_IP_ADDR_STR_SIZE];
+
+    /* ipmc add mcast <vid(0..4095)> <gaddr(IPADDR)> <portmap(7'bin)> [ disable-egrs-vlan-filter<1:En,0:Dis> ] */
+
+    memset(&mcst, 0, sizeof(AIR_IPMC_ENTRY_T));
+    memset(dip_str, 0, CMD_IP_ADDR_STR_SIZE);
+    if((argc == 3) || (argc == 4))
+    {
+        mcst.vid = _strtoul(argv[0], NULL, 0);
+
+        rc = _str2ipv4(argv[1], &(mcst.group_addr.ip_addr.ipv4_addr));
+        if(rc == AIR_E_OK)
+        {
+            mcst.group_addr.ipv4 = TRUE;
+        }
+        else
+        {
+            rc = _str2ipv6(argv[1], &mcst.group_addr.ip_addr.ipv6_addr);
+            if(rc != AIR_E_OK)
+            {
+                AIR_PRINT("Unrecognized command.\n");
+                return rc;
+            }
+        }
+        mcst.port_bitmap[0] = _strtoul(argv[2], NULL, 2);
+        if(argc == 4)
+        {
+            if(argv[3] == 1)
+                mcst.flags |= AIR_IPMC_ENTRY_FLAGS_DISABLE_EGRESS_VLAN_FILTER;
+            else
+                mcst.flags &= ~(AIR_IPMC_ENTRY_FLAGS_DISABLE_EGRESS_VLAN_FILTER);
+        }
+        rc = air_ipmc_addMcastAddr(unit, &mcst);
+        _getIpAddrStr(&mcst.group_addr, dip_str);
+        AIR_PRINT("Add Group: %s ", dip_str);
+        if(rc == AIR_E_OK)
+            AIR_PRINT(" Done.\n");
+        else
+            AIR_PRINT(" Fail.\n");
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        rc = AIR_E_BAD_PARAMETER;
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T
+doIpmcAddMcastMem(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    AIR_ERROR_NO_T  rc = AIR_E_OK;
+    AIR_IPMC_ENTRY_T mcst;
+    UI32_T unit = 0;
+    C8_T dip_str[CMD_IP_ADDR_STR_SIZE];
+
+    /* ipmc add mcastMem <vid(0..4095)> <gaddr(IPADDR)> <portmap(7'bin)> */
+    memset(&mcst, 0, sizeof(AIR_IPMC_ENTRY_T));
+    memset(dip_str, 0, CMD_IP_ADDR_STR_SIZE);
+    if(argc == 3)
+    {
+        mcst.vid = _strtoul(argv[0], NULL, 0);
+
+        rc = _str2ipv4(argv[1], &(mcst.group_addr.ip_addr.ipv4_addr));
+        if(rc == AIR_E_OK)
+        {
+            mcst.group_addr.ipv4 = TRUE;
+        }
+        else
+        {
+            rc = _str2ipv6(argv[1], &mcst.group_addr.ip_addr.ipv6_addr);
+            if(rc != AIR_E_OK)
+            {
+                AIR_PRINT("Unrecognized command.\n"); 
+                return rc;
+            }
+        }
+        mcst.port_bitmap[0] = _strtoul(argv[2], NULL, 2);
+        rc = air_ipmc_addMcastMember(unit, &mcst);
+        AIR_PRINT("Add group member");
+        if(rc == AIR_E_OK)
+            AIR_PRINT(" Done.\n");
+        else if(rc == AIR_E_ENTRY_NOT_FOUND)
+            AIR_PRINT(" Fail. Entry not found.\n");
+        else
+            AIR_PRINT(" Fail.\n");
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        rc = AIR_E_BAD_PARAMETER;
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T
+doIpmcDelMcast(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    AIR_ERROR_NO_T  rc = AIR_E_OK;
+    AIR_IPMC_ENTRY_T mcst;
+    C8_T dip_str[CMD_IP_ADDR_STR_SIZE];
+    UI32_T unit = 0;
+
+    /* ipmc del mcast <vid(0..4095}> <gaddr(IPADDR)> */
+    memset(&mcst, 0, sizeof(AIR_IPMC_ENTRY_T));
+    memset(dip_str, 0, CMD_IP_ADDR_STR_SIZE);
+    if(argc == 2)
+    {
+        mcst.vid = _strtoul(argv[0], NULL, 0);
+
+        rc = _str2ipv4(argv[1], &(mcst.group_addr.ip_addr.ipv4_addr));
+        if(rc == AIR_E_OK)
+        {
+            mcst.group_addr.ipv4 = TRUE;
+        }
+        else
+        {
+            rc = _str2ipv6(argv[1], &mcst.group_addr.ip_addr.ipv6_addr);
+            if(rc != AIR_E_OK)
+            {
+                AIR_PRINT("Unrecognized command.\n");
+                return rc;
+            }
+        }
+        rc = air_ipmc_delMcastAddr(unit, &mcst);
+        _getIpAddrStr(&mcst.group_addr, dip_str);
+        AIR_PRINT("Del group: %s", dip_str);
+        if(rc == AIR_E_OK)
+            AIR_PRINT(" Done.\n");
+        else
+            AIR_PRINT(" Fail.\n");
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        rc = AIR_E_BAD_PARAMETER;
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T
+doIpmcDelMcastMem(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    AIR_ERROR_NO_T  rc = AIR_E_OK;
+    AIR_IPMC_ENTRY_T mcst;
+    UI32_T unit = 0;
+    C8_T dip_str[CMD_IP_ADDR_STR_SIZE];
+
+    /* ipmc del mcastMem <vid(0..4095)> <gaddr(IPADDR)> <portmap(7'bin)> */
+    memset(&mcst, 0, sizeof(AIR_IPMC_ENTRY_T));
+    memset(dip_str, 0, CMD_IP_ADDR_STR_SIZE);
+    if(argc == 3)
+    {
+        mcst.vid = _strtoul(argv[0], NULL, 0);
+
+        rc = _str2ipv4(argv[1], &(mcst.group_addr.ip_addr.ipv4_addr));
+        if(rc == AIR_E_OK)
+        {
+            mcst.group_addr.ipv4 = TRUE;
+        }
+        else
+        {
+            rc = _str2ipv6(argv[1], &mcst.group_addr.ip_addr.ipv6_addr);
+            if(rc != AIR_E_OK)
+            {
+                AIR_PRINT("Unrecognized command.\n");
+                return rc;
+            }
+        }
+        mcst.port_bitmap[0] = _strtoul(argv[2], NULL, 2);
+        rc = air_ipmc_delMcastMember(unit, &mcst);
+        AIR_PRINT("Del group member");
+        if(rc == AIR_E_OK)
+            AIR_PRINT(" Done.\n");
+        else if(rc == AIR_E_ENTRY_NOT_FOUND)
+            AIR_PRINT(" Fail. Entry not found.\n");
+        else
+            AIR_PRINT(" Fail.\n");
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        rc = AIR_E_BAD_PARAMETER;
+    }
+    return rc;
+}
+
+static AIR_IPMC_MATCH_TYPE_T
+_ipmc_cmd_getMatchType(
+    AIR_IPMC_ENTRY_T *ptr_entry)
+{
+    if (TRUE == ptr_entry->group_addr.ipv4)
+    {
+        return AIR_IPMC_MATCH_TYPE_IPV4_GRP;
+    }
+    else
+    {
+        return AIR_IPMC_MATCH_TYPE_IPV6_GRP;
+    }
+}
+
+static void
+_ipmc_cmd_printTblHead(
+    const AIR_IPMC_MATCH_TYPE_T match_type)
+{
+    const C8_T *_str_unit    = "unit";
+    const C8_T *_str_vid     = "vid";
+    const C8_T *_str_gaddr   = "group-address";
+    const C8_T *_str_portlist= "portmap[0:6]";
+    const C8_T *_str_memCnt  = "member-count";
+    const C8_T *_str_na      = "---";
+    const C8_T *_str_en      = "enable";
+    const C8_T *_str_dis     = "disable";
+    if (match_type < AIR_IPMC_MATCH_TYPE_IPV6_GRP)
+    {
+        AIR_PRINT("\n%5s %-5s%-16s%s\n",
+                _str_unit, _str_vid, _str_gaddr, _str_portlist);
+    }
+    else
+    {
+        AIR_PRINT("\n%5s %-5s%-40s%s\n",
+                _str_unit, _str_vid, _str_gaddr, _str_portlist);
+    }
+}
+
+static void
+_printIpmcMcast(
+    const UI32_T unit,
+    AIR_IPMC_ENTRY_T *ptr_entry,
+    const AIR_IPMC_MATCH_TYPE_T match_type,
+    UI8_T title)
+{
+    AIR_ERROR_NO_T rc = AIR_E_OK;
+    C8_T dip_str[CMD_IP_ADDR_STR_SIZE];
+    C8_T str_temp[20];
+
+    memset(dip_str, 0, CMD_IP_ADDR_STR_SIZE);
+    memset(str_temp, 0, 20);
+
+    if(title)
+    {
+        _ipmc_cmd_printTblHead(match_type);
+    }
+    _getIpAddrStr(&ptr_entry->group_addr, dip_str);
+    _hex2bitstr(ptr_entry->port_bitmap[0], str_temp, AIR_MAX_NUM_OF_PORTS+1);
+    switch (match_type)
+    {
+        case AIR_IPMC_MATCH_TYPE_IPV4_GRP:
+            AIR_PRINT("%5u %-5u%-16s%s\n", unit, ptr_entry->vid, dip_str, str_temp);
+            break;
+        case AIR_IPMC_MATCH_TYPE_IPV6_GRP:
+            AIR_PRINT("%5u %-5u%-40s%s\n", unit, ptr_entry->vid, dip_str, str_temp);
+            break;
+        default:
+            AIR_PRINT("unknown match type:%u\n", match_type);
+    }
+}
+
+static AIR_ERROR_NO_T
+doIpmcGetMcast(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    AIR_ERROR_NO_T  rc = AIR_E_OK;
+    AIR_IPMC_ENTRY_T entry;
+    UI32_T unit = 0;
+    AIR_IPMC_MATCH_TYPE_T match_type;
+    C8_T dip_str[CMD_IP_ADDR_STR_SIZE];
+
+    /* ipmc get mcastMem <vid(0..4095)> <gaddr(IPADDR)> */
+    memset(&entry, 0, sizeof(AIR_IPMC_ENTRY_T));
+    memset(dip_str, 0, CMD_IP_ADDR_STR_SIZE);
+    if(argc == 2)
+    {
+        entry.vid = _strtoul(argv[0], NULL, 0);
+
+        rc = _str2ipv4(argv[1], &(entry.group_addr.ip_addr.ipv4_addr));
+        if(rc == AIR_E_OK)
+        {
+            entry.group_addr.ipv4 = TRUE;
+        }
+        else
+        {
+            rc = _str2ipv6(argv[1], &entry.group_addr.ip_addr.ipv6_addr);
+            if(rc != AIR_E_OK)
+            {
+                AIR_PRINT("Unrecognized command.\n");
+                return rc;
+            }
+        }
+        rc = air_ipmc_getMcastAddr(unit, &entry);
+        if(rc == AIR_E_OK)
+        {
+            match_type = _ipmc_cmd_getMatchType(&entry);
+            _printIpmcMcast(unit, &entry, match_type, 1);
+        }
+        else if(rc == AIR_E_ENTRY_NOT_FOUND)
+            AIR_PRINT("Fail. Entry not found.\n");
+        else
+            AIR_PRINT("Fail.\n", rc);
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        rc = AIR_E_BAD_PARAMETER;
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T
+doIpmcSearchMode(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    AIR_ERROR_NO_T  rc = AIR_E_OK;
+    UI32_T unit = 0, port = 0, mode_num = 0;
+    BOOL_T mode = 0;
+
+    if(argc == 1)
+    {
+        /* ipmc get searchMode <port(0..6)> */
+        port = _strtoul(argv[0], NULL, 0);
+        rc = air_ipmc_getPortIpmcMode(unit, port, &mode);
+        if(rc == AIR_E_OK)
+        {
+            AIR_PRINT("Get Port%02d searchMode: %s\n", port, (TRUE == mode)? "ipmc": "l2mc");
+        }
+        else
+        {
+            AIR_PRINT("get searchMode fail(%u)\n", rc);
+        }
+    }
+    else if(argc == 2)
+    {
+        /* ipmc set searchMode <port(0..6)> <mode(0:l2mc, 1:ipmc)> */
+        port = _strtoul(argv[0], NULL, 0);
+        mode_num = _strtoul(argv[1], NULL, 0);
+        mode = (mode_num == 0) ? FALSE : TRUE;
+        rc = air_ipmc_setPortIpmcMode(unit, port, mode);
+        if(rc != AIR_E_OK)
+        {
+            AIR_PRINT("set searchMode fail(%u) on port(%u)\n", rc, port);
+        }
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        rc = AIR_E_BAD_PARAMETER;
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T
+doIpmcAdd(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    return subcmd(ipmcAddCmds, argc, argv);
+}
+
+static AIR_ERROR_NO_T
+doIpmcDel(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    return subcmd(ipmcDelCmds, argc, argv);
+}
+
+static AIR_ERROR_NO_T
+doIpmcClear(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    AIR_ERROR_NO_T  rc = AIR_E_OK;
+    UI32_T unit = 0;
+
+    if(argc == 0)
+    {
+        /* ipmc clear */
+        rc = air_ipmc_delAllMcastAddr(unit);
+        if(rc != AIR_E_OK)
+        {
+            AIR_PRINT("ipmc clear fail");
+        }
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        rc = AIR_E_BAD_PARAMETER;
+    }
+
+    return rc;
+}
+
+static AIR_ERROR_NO_T
+doIpmcGet(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    return subcmd(ipmcGetCmds, argc, argv);
+}
+
+static AIR_ERROR_NO_T
+doIpmcSet(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    return subcmd(ipmcSetCmds, argc, argv);
+}
+
+static AIR_ERROR_NO_T
+doIpmcDump(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    AIR_ERROR_NO_T  rc = AIR_E_OK;
+    AIR_IPMC_ENTRY_T *ptr_entry;
+    UI32_T unit = 0, search_type = 0, set_num = 0, rt_cnt = 0, total_cnt = 0;
+    UI32_T i = 0;
+    AIR_IPMC_MATCH_TYPE_T match_type = AIR_IPMC_MATCH_TYPE_LAST;
+    C8_T dip_str[CMD_IP_ADDR_STR_SIZE];
+
+    /* ipmc dump searchType<0:dip4, 1:dip6> */
+    memset(dip_str, 0, CMD_IP_ADDR_STR_SIZE);
+    if(argc == 1)
+    {
+        search_type = _strtoul(argv[0], NULL, 0);
+        if(search_type == 0)
+            match_type = AIR_IPMC_MATCH_TYPE_IPV4_GRP;
+        else if(search_type == 1)
+            match_type = AIR_IPMC_MATCH_TYPE_IPV6_GRP;
+        else
+        {
+            AIR_PRINT("Unrecognized command.\n");
+            return AIR_E_BAD_PARAMETER;
+        }
+
+        /* get the bucket size */
+        rc = air_ipmc_getMcastBucketSize(unit, &set_num);
+        if (AIR_E_OK != rc)
+        {
+            AIR_PRINT("get bucket size fail\n");
+            return rc;
+        }
+        ptr_entry = AIR_MALLOC(sizeof(AIR_IPMC_ENTRY_T) * set_num);
+        if(ptr_entry == NULL)
+        {
+            AIR_PRINT("allocate memory fail\n");
+            return AIR_E_NO_MEMORY;
+        }
+
+        memset(ptr_entry, 0, sizeof(AIR_IPMC_ENTRY_T) * set_num);
+        rc = air_ipmc_getFirstMcastAddr(unit, match_type, &rt_cnt, ptr_entry);
+        if(rc != AIR_E_OK)
+        {
+            if(rc == AIR_E_ENTRY_NOT_FOUND)
+                AIR_PRINT("ipmc table(%s) is empty\n", match_type == AIR_IPMC_MATCH_TYPE_IPV4_GRP ? "dip4" : "dip6");
+            else
+                AIR_PRINT("dump IPMC table fail\n");
+
+            free(ptr_entry);
+            return rc;
+        }
+        total_cnt += rt_cnt;
+        _printIpmcMcast(unit, &ptr_entry[0], match_type, 1);
+        for(i = 1 ; i < rt_cnt; i++)
+            _printIpmcMcast(unit, &ptr_entry[i], match_type, 0);
+
+        while(rc == AIR_E_OK)
+        {
+            memset(ptr_entry, 0, sizeof(AIR_IPMC_ENTRY_T) * set_num);
+            rt_cnt = 0;
+            rc = air_ipmc_getNextMcastAddr(unit, match_type, &rt_cnt, ptr_entry);
+            if(rc == AIR_E_ENTRY_NOT_FOUND)
+                break;
+            else if(rc != AIR_E_OK)
+            {
+                AIR_PRINT("dump mac table fail\n");
+                break;
+            }
+            else
+            {
+                /* rc == AIR_E_OK */
+                for(i = 0 ; i < rt_cnt ; i++)
+                    _printIpmcMcast(unit, &ptr_entry[i], match_type, 0);
+                total_cnt += rt_cnt;
+            }
+        }
+        AIR_PRINT("\n total %u %s %s\n",
+            total_cnt,
+            match_type == AIR_IPMC_MATCH_TYPE_IPV4_GRP ? "dip4" : "dip6",
+            (total_cnt>1)?"entries":"entry");
+        if(ptr_entry != NULL)
+            free(ptr_entry);
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        rc = AIR_E_BAD_PARAMETER;
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T
+doIpmc(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    return subcmd(ipmcCmds, argc, argv);
+}
+
+static AIR_ERROR_NO_T doLpdetClearStatus(UI32_T argc, C8_T *argv[])
+{
+    AIR_ERROR_NO_T              rc = AIR_E_OK;
+    UI32_T                      unit = 0, port = 0, type = 0;
+    AIR_SWC_LPDET_CTRL_TYPE_T   ctrl_type = AIR_SWC_LPDET_CTRL_TYPE_LAST;
+    AIR_PORT_BITMAP_T           pbm = {0};
+
+    if(2 == argc)
+    {
+        port = _strtoul(argv[0], NULL, 0);
+        type = _strtoul(argv[1], NULL, 0);
+
+        if (0 == type)
+        {
+            ctrl_type = AIR_SWC_LPDET_CTRL_TYPE_TX_LP_FRAME;
+        }
+        else if (1 == type)
+        {
+            ctrl_type = AIR_SWC_LPDET_CTRL_TYPE_RX_LP_ALARM;
+        }
+        else
+        {
+            AIR_PRINT("Unrecognized type.\n");
+            return AIR_E_BAD_PARAMETER;
+        }
+
+        AIR_PORT_ADD(pbm, port);
+
+        rc = air_lpdet_clearStatus(unit, ctrl_type, pbm);
+        AIR_PRINT("clear port %u lpdet %s status", port, (type == 1) ? "rx-lp-alarm" : "tx-lp-frame");
+        if(AIR_E_OK == rc)
+        {
+            AIR_PRINT("Done!\n");
+        }
+        else
+        {
+            AIR_PRINT("Fail!\n");
+        }
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        return AIR_E_BAD_PARAMETER;
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T doLpdetGetSrcMac(UI32_T argc, C8_T *argv[])
+{
+    AIR_ERROR_NO_T  rc = AIR_E_OK;
+    UI32_T          unit = 0;
+    AIR_MAC_T       mac = {0};
+
+    if(0 == argc)
+    {
+        rc = air_lpdet_getLdfSrcMac(unit, mac);
+        AIR_PRINT("lpdet frame source mac address ");
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        return AIR_E_BAD_PARAMETER;
+    }
+
+    if(rc == AIR_E_OK)
+    {
+        AIR_PRINT(" : %02X-%02X-%02X-%02X-%02X-%02X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    }
+    else
+    {
+        AIR_PRINT("Fail!\n");
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T doLpdetGetCtrl(UI32_T argc, C8_T *argv[])
+{
+    AIR_ERROR_NO_T              rc = AIR_E_OK;
+    UI32_T                      unit = 0, port = 0, type = 0, mode_num = 0;
+    BOOL_T                      enable = FALSE;
+
+    if(1 == argc)
+    {
+        port = _strtoul(argv[0], NULL, 0);
+
+        rc = air_lpdet_getCtrl(unit, port, AIR_SWC_LPDET_CTRL_TYPE_TX_LP_FRAME, &enable);
+        if(AIR_E_OK == rc)
+        {
+            AIR_PRINT("Get port %u lpdet tx loop frame is %s\n", port, (enable == TRUE) ? "enable" : "disable");
+        }
+        else
+        {
+            AIR_PRINT("Get port %u lpdet tx loop frame fail!\n", port);
+        }
+        rc = air_lpdet_getCtrl(unit, port, AIR_SWC_LPDET_CTRL_TYPE_RX_LP_ALARM, &enable);
+        if(AIR_E_OK == rc)
+        {
+            AIR_PRINT("Get port %u lpdet rx loop alarm is %s\n", port, (enable == TRUE) ? "enable" : "disable");
+        }
+        else
+        {
+            AIR_PRINT("Get port %u lpdet rx loop alarm fail!\n", port);
+        }
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        return AIR_E_BAD_PARAMETER;
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T doLpdetGetStatus(UI32_T argc, C8_T *argv[])
+{
+    AIR_ERROR_NO_T              rc = AIR_E_OK;
+    UI32_T                      unit = 0, port = 0;
+    AIR_SWC_LPDET_CTRL_TYPE_T   ctrl_type = AIR_SWC_LPDET_CTRL_TYPE_LAST;
+    AIR_PORT_BITMAP_T           tx_pbm = {0}, rx_pbm = {0};
+
+    if(1 == argc)
+    {
+        port = _strtoul(argv[0], NULL, 0);
+
+        rc |= air_lpdet_getStatus(unit, AIR_SWC_LPDET_CTRL_TYPE_TX_LP_FRAME, tx_pbm);
+        if(AIR_E_OK == rc)
+        {
+            AIR_PRINT("Get port %u lpdet tx loop frame is %s\n", port,
+                        AIR_PORT_CHK(tx_pbm, port) ? "active" : "inactive");
+        }
+        else
+        {
+            AIR_PRINT("Get port %u lpdet tx loop frame fail!\n", port);
+        }
+        rc |= air_lpdet_getStatus(unit, AIR_SWC_LPDET_CTRL_TYPE_RX_LP_ALARM, rx_pbm);
+        if(AIR_E_OK == rc)
+        {
+            AIR_PRINT("Get port %u lpdet rx loop alarm is %s\n", port,
+                        AIR_PORT_CHK(rx_pbm, port) ? "loop" : "normal");
+        }
+        else
+        {
+            AIR_PRINT("Get port %u lpdet rx loop alarm fail!\n", port);
+        }
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        return AIR_E_BAD_PARAMETER;
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T doLpdetSetSrcMac(UI32_T argc, C8_T *argv[])
+{
+    AIR_ERROR_NO_T  rc = AIR_E_OK;
+    UI32_T          unit = 0;
+    AIR_MAC_T       mac = {0};
+
+    if(1 == argc)
+    {
+        rc = _str2mac(argv[0], (C8_T *)mac);
+        if(rc != AIR_E_OK)
+        {
+            AIR_PRINT("Unrecognized command.\n");
+            return rc;
+        }
+        rc = air_lpdet_setLdfSrcMac(unit, mac);
+        AIR_PRINT("Set lpdet frame source mac address to ");
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        return AIR_E_BAD_PARAMETER;
+    }
+
+    if(rc == AIR_E_OK)
+    {
+        AIR_PRINT("%02X-%02X-%02X-%02X-%02X-%02X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    }
+    else
+    {
+        AIR_PRINT("Fail!\n");
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T doLpdetSetCtrl(UI32_T argc, C8_T *argv[])
+{
+    AIR_ERROR_NO_T              rc = AIR_E_OK;
+    UI32_T                      unit = 0, port = 0, type = 0, mode_num = 0;
+    AIR_MAC_T                   mac = {0};
+    BOOL_T                      enable = 0;
+    AIR_SWC_LPDET_CTRL_TYPE_T   ctrl_type = AIR_SWC_LPDET_CTRL_TYPE_LAST;
+
+    if(3 == argc)
+    {
+        port = _strtoul(argv[0], NULL, 0);
+        type = _strtoul(argv[1], NULL, 0);
+        mode_num = _strtoul(argv[2], NULL, 0);
+        enable = (mode_num == 0) ? FALSE : TRUE;
+
+        if (0 == type)
+        {
+            ctrl_type = AIR_SWC_LPDET_CTRL_TYPE_TX_LP_FRAME;
+        }
+        else if (1 == type)
+        {
+            ctrl_type = AIR_SWC_LPDET_CTRL_TYPE_RX_LP_ALARM;
+        }
+        else
+        {
+            AIR_PRINT("Unrecognized type.\n");
+            return AIR_E_BAD_PARAMETER;
+        }
+
+        rc = air_lpdet_setCtrl(unit, port, ctrl_type, enable);
+        AIR_PRINT("Set port %u lpdet %s control to %s ",
+                    port, (type == 1) ? "rx-lp-alarm" : "tx-lp-frame", (enable == TRUE) ? "enable" : "disable");
+        if(AIR_E_OK == rc)
+        {
+            AIR_PRINT("Done!\n");
+        }
+        else
+        {
+            AIR_PRINT("Fail!\n");
+        }
+    }
+    else
+    {
+        AIR_PRINT("Unrecognized command.\n");
+        return AIR_E_BAD_PARAMETER;
+    }
+    return rc;
+}
+
+static AIR_ERROR_NO_T
+doLpdetClear(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    return subcmd(lpdetClearCmds, argc, argv);
+}
+
+static AIR_ERROR_NO_T
+doLpdetGet(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    return subcmd(lpdetGetCmds, argc, argv);
+}
+
+static AIR_ERROR_NO_T
+doLpdetSet(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    return subcmd(lpdetSetCmds, argc, argv);
+}
+
+static AIR_ERROR_NO_T
+doLpdet(
+        UI32_T argc,
+        C8_T *argv[])
+{
+    return subcmd(lpdetCmds, argc, argv);
 }
 
 static AIR_ERROR_NO_T

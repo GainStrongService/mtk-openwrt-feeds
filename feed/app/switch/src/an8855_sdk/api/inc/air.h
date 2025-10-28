@@ -31,6 +31,8 @@
 #include "air_sec.h"
 #include "air_acl.h"
 #include "air_sptag.h"
+#include "air_ipmc.h"
+#include "air_lpdet.h"
 
 /* NAMING CONSTANT DECLARATIONS
  */
@@ -78,6 +80,18 @@
             _ext_free(ptr);                                                 \
         }                                                                   \
     }while (0)
+
+#define AIR_IP_ADDR_IS_ZERO(__ip__)                                                            \
+                        (__ip__.ipv4 == TRUE)?                                                        \
+                        (__ip__.ip_addr.ipv4_addr == AIR_IPV4_ZERO):                                 \
+                        (__ip__.ip_addr.ipv6_addr[0] == 0 && __ip__.ip_addr.ipv6_addr[1] == 0 &&      \
+                         __ip__.ip_addr.ipv6_addr[2] == 0 && __ip__.ip_addr.ipv6_addr[3] == 0 &&      \
+                         __ip__.ip_addr.ipv6_addr[4] == 0 && __ip__.ip_addr.ipv6_addr[5] == 0 &&      \
+                         __ip__.ip_addr.ipv6_addr[6] == 0 && __ip__.ip_addr.ipv6_addr[7] == 0 &&      \
+                         __ip__.ip_addr.ipv6_addr[8] == 0 && __ip__.ip_addr.ipv6_addr[9] == 0 &&      \
+                         __ip__.ip_addr.ipv6_addr[10] == 0 && __ip__.ip_addr.ipv6_addr[11] == 0 &&    \
+                         __ip__.ip_addr.ipv6_addr[12] == 0 && __ip__.ip_addr.ipv6_addr[13] == 0 &&    \
+                         __ip__.ip_addr.ipv6_addr[14] == 0 && __ip__.ip_addr.ipv6_addr[15] == 0)
 
 #ifndef BIT
 #define BIT(nr) (1UL << (nr))

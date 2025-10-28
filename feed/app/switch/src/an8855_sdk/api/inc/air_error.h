@@ -28,6 +28,7 @@ typedef enum
     AIR_E_ENTRY_EXISTS,        /* Entry already exists */
     AIR_E_NOT_SUPPORT,         /* Feature is not supported */
     AIR_E_TIMEOUT,             /* Time out error */
+    AIR_E_NO_MEMORY,           /* No memory is available. */
     AIR_E_LAST
 } AIR_ERROR_NO_T;
 

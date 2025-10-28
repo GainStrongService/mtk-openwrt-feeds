@@ -32,6 +32,10 @@
 /* MACRO FUNCTION DECLARATIONS
  */
 
+#define AIR_PORT_ADD(bitmap, port) (((bitmap)[(port)/32]) |=  (1U << ((port)%32)))
+#define AIR_PORT_DEL(bitmap, port) (((bitmap)[(port)/32]) &= ~(1U << ((port)%32)))
+#define AIR_PORT_CHK(bitmap, port) ((((bitmap)[(port)/32] &   (1U << ((port)%32)))) != 0)
+
 /* DATA TYPE DECLARATIONS
  */
 /* AIR_PORT_BITMAP_T is the data type for physical port bitmap. */

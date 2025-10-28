@@ -291,6 +291,24 @@
 #define ATA2_MAC_ADDR_LSB_OFFSET            (16)
 #define ATA2_MAC_ADDR_LSB_LENGTH            (16)
 
+/* fields of ATA3 */
+#define ATA3                                (REG_ARL_BASE_ADDRESS + 0x030C)
+
+/* fields of ATA4 */
+#define ATA4                                (REG_ARL_BASE_ADDRESS + 0x0310)
+
+/* fields of ATA5 */
+#define ATA5                                (REG_ARL_BASE_ADDRESS + 0x0314)
+
+/* fields of ATA6 */
+#define ATA6                                (REG_ARL_BASE_ADDRESS + 0x0318)
+
+/* fields of ATA7 */
+#define ATA7                                (REG_ARL_BASE_ADDRESS + 0x031C)
+
+/* fields of ATA8 */
+#define ATA8                                (REG_ARL_BASE_ADDRESS + 0x0320)
+
 /* fields of ATWD */
 #define ATWD                                (REG_ARL_BASE_ADDRESS + 0x0324)
 #define ATWD_MAC_LIVE_OFFSET                (0)
@@ -311,6 +329,26 @@
 #define ATWD_MAC_VID_LENGTH                 (12)
 #define ATWD_MAC_FID_OFFSET                 (28)
 #define ATWD_MAC_FID_LENGTH                 (4)
+
+/* fields of MAC and Multicast */
+#define ATWD_IPM_VLD_OFFSET                 (0)   /* bit[0]     */
+#define ATWD_IPM_LEAKY_OFFSET               (1)   /* bit[1]     */
+#define ATWD_IPM_UPRI_OFFSET                (2)   /* bit[4:2]   */
+#define ATWD_IPM_IPV6_OFFSET                (5)   /* bit[5]     */
+#define ATWD_IPM_EG_TAG_OFFSET              (12)  /* bit[14:12] */
+#define ATWD_IPM_VID_OFFSET                 (16)  /* bit[27:16] */
+
+#define ATWD_IPM_VLD_RANGE                  (1)
+#define ATWD_IPM_LEAKY_RANGE                (1)
+#define ATWD_IPM_UPRI_RANGE                 (3)
+#define ATWD_IPM_IPV6_RANGE                 (1)
+#define ATWD_IPM_EG_TAG_RANGE               (3)
+#define ATWD_IPM_VID_RANGE                  (12)
+
+#define ATRD0_IPM_LEAKY_OFFSET              (5)  /* bit[5] */
+#define ATRD0_IPM_LEAKY_RANGE               (1)
+#define ATRD0_IPM_VID_OFFSET                (10) /* bit[21:10] */
+#define ATRD0_IPM_VID_RANGE                 (12)
 
 /* fields of ATWD2 */
 #define ATWD2                               (REG_ARL_BASE_ADDRESS + 0x0328)
@@ -535,6 +573,9 @@ typedef enum {
 
 #define SSC(p)                              PORT_CTRL_REG(p, 0x00)
 #define PIC(p)                              PORT_CTRL_REG(p, 0x08)
+#define PIC_PORT_IGMP_CTRL_CSR_IPM_01       (1 << 8)
+#define PIC_PORT_IGMP_CTRL_CSR_IPM_33       (1 << 9)
+#define PIC_PORT_IGMP_CTRL_CSR_IPM_224      (1 << 10)
 
 /* fields of IGMP SNOOPING */
 #define IGMP_HW_GQUERY                      1
@@ -717,6 +758,19 @@ typedef enum {
 #define MIB_CCR_TX_OCT_CNT_BAD              (1 << 4)
 
 #define CSR_ACL_MIB_CLEAR                   (1 << 0)
+
+#define LPDETTXCR                           (MAC_GLOBAL_REG_BASE + 0x100)
+#define LPDETRXCR                           (MAC_GLOBAL_REG_BASE + 0x104)
+#define LPDETCR                             (MAC_GLOBAL_REG_BASE + 0x108)
+#define LPDETCR_OVER_RXPAUSE                (1 << 11)
+#define LPDETCR_PERIOD_1S                   (1 << 7)
+#define LPDETRXSR                           (MAC_GLOBAL_REG_BASE + 0x110)
+#define LPDETTXSR                           (MAC_GLOBAL_REG_BASE + 0x114)
+#define LPDET_SA_MSB                        (MAC_GLOBAL_REG_BASE + 0x120)
+#define LPDET_FRAME_TYPE_OFFT               (16)
+#define LPDET_FRAME_TYPE_LENG               (16)
+#define LPDET_SMAC_MASK                     (0xFFFF)
+#define LPDET_SA_LSB                        (MAC_GLOBAL_REG_BASE + 0x124)
 
 #define SGMII_REG_BASE                      0x5000
 #define SGMII_REG_PORT_BASE                 0x1000
