@@ -176,7 +176,7 @@ int mtk_pce_dipfilter_entry_del(struct dip_desc *ddesc)
 	struct fe_mem_msg fmsg;
 	struct dipfilter_entry *dip_entry;
 	unsigned long flag;
-	int ret;
+	int ret = 0;
 
 	if (!ddesc)
 		return 0;
@@ -207,7 +207,7 @@ int mtk_pce_dipfilter_entry_del(struct dip_desc *ddesc)
 unlock:
 	spin_unlock_irqrestore(&dip_hw.lock, flag);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(mtk_pce_dipfilter_entry_del);
 
