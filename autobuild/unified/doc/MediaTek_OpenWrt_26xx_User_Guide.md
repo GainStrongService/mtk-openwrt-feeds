@@ -95,14 +95,14 @@ For a pure-platform build (MT7988/MT7987 RFB) with the MediaTek official bootloa
 
    Use the following command to perform a full build for OpenWrt + MediaTek official bootloader:
    ```bash
-   bash ../mtk_openwrt_feeds/autobuild/unified/autobuild.sh filogic bootloader=1 log_file=make
+   bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic bootloader=1 log_file=make
    ```
 
 2. **Further Builds After Initial Build**
 
    For incremental builds, you can use:
    ```bash
-   bash ../mtk_openwrt_feeds/autobuild/unified/autobuild.sh build
+   bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh build
    ```
    Or use the standard OpenWrt build command for more control:
    ```bash
@@ -117,7 +117,7 @@ You can also build the SDK manually, step by step, for more flexibility and debu
 
 - **List Supported autobuild_unified Targets:**
   ```bash
-  bash ../mtk_openwrt_feeds/autobuild/unified/autobuild.sh list
+  bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh list
   ```
   Example output:
   ```
@@ -144,31 +144,31 @@ You can also build the SDK manually, step by step, for more flexibility and debu
 
 - **Prepare the SDK for Platform-Only Build:**
   ```bash
-  bash ../mtk_openwrt_feeds/autobuild/unified/autobuild.sh filogic prepare
+  bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic prepare
   ```
   This command applies all necessary patches and feeds for a pure-platform SDK.
 
 - **Check Available Input Parameters:**
   ```bash
-  bash ../mtk_openwrt_feeds/autobuild/unified/autobuild.sh filogic help
+  bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic help
   ```
   This will display all available input parameters for customizing the SDK.
 
 - **Switch to Mediatek Official U-Boot:**  
   To use the Mediatek official U-Boot (with full boot menu and additional support) instead of the OpenWrt official  bootloader, run:
   ```bash
-  bash ../mtk_openwrt_feeds/autobuild/unified/autobuild.sh filogic prepare bootloader=1
+  bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic prepare bootloader=1
   ```
   This command applies the necessary patches to use the Mediatek official U-Boot and ATF in `package/boot`.
 
 - **Clean or Reset the SDK:**
   If switching between different targets or configurations, use the `clean` or `fullclean` commands to avoid conflicts.
   ```bash
-  bash ../mtk_openwrt_feeds/autobuild/unified/autobuild.sh clean
+  bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh clean
   ```
   or for a full clean:
   ```bash
-  bash ../mtk_openwrt_feeds/autobuild/unified/autobuild.sh fullclean
+  bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh fullclean
   ```
   The difference between 'clean' and 'fullclean' is that 'clean' will not re-install feeds that have not changed. Normally, the 'clean' command is sufficient and saves time waiting for long downloads. However, if you suspect the feeds may have residual issues due to a bug, you can use 'fullclean' instead.
 
@@ -196,7 +196,7 @@ To use the MediaTek official U-Boot (with full boot menu and additional support)
 (For One-Step Build, this is included in the one-step command; no extra settings are needed.)
 
 ```bash
-bash ../mtk_openwrt_feeds/autobuild/unified/autobuild.sh filogic prepare bootloader=1
+bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh filogic prepare bootloader=1
 ```
 This command applies the necessary patches to use the MediaTek official U-Boot and ATF in `package/boot`.
 
@@ -271,7 +271,7 @@ you can use the following commands to build and collect MediaTek official ATF an
   By default, bootloader-related images are stored in `./staging_dir/target-aarch64_cortex-a53_musl/image`.
   If you want to collect bootloader images into `./autobuild_release`, you also need to specify the `bootloader` parameter for the release command:
   ```bash
-  bash ../mtk_openwrt_feeds/autobuild/unified/autobuild.sh release bootloader=1
+  bash ../mtk-openwrt-feeds/autobuild/unified/autobuild.sh release bootloader=1
   ```
 
 
