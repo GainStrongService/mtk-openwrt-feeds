@@ -101,18 +101,22 @@ platform_enable_security_config() {
 }
 
 airoha_firmware_install() {
-	exec_log "make -C \"${openwrt_root}\" V=s package/firmware/linux-firmware/{download,clean,prepare}"
+	if test x"${internal_sync_set}" != x"yes"; then
+		exec_log "make -C \"${openwrt_root}\" V=s package/firmware/linux-firmware/{download,clean,prepare}"
+	fi
 }
 
 copy_phy_firmware() {
-	# ensure the PHY firmware is located in the same directory when compiling the kernel's built-in PHY driver
-	copy_file "${openwrt_root}/package/kernel/as21xxx/firmware/as21x1x_fw.bin" "staging_dir/firmware"
-	copy_file "${openwrt_root}/package/kernel/aqr10g-phy-fw/files/Rhe-05.06-Candidate9-AQR_Mediatek_23B_P5_ID45824_LCLVER1.cld" "staging_dir/firmware"
-	copy_file "${openwrt_root}/package/kernel/aqr10g-phy-fw/files/AQR-G4_v5.7.0-AQR_EVB_Generic_X3410_StdCfg_MDISwap_USX_ID46316_VER2148.cld" "staging_dir/firmware"
+	if test x"${internal_sync_set}" != x"yes"; then
+		# ensure the PHY firmware is located in the same directory when compiling the kernel's built-in PHY driver
+		copy_file "${openwrt_root}/package/kernel/as21xxx/firmware/as21x1x_fw.bin" "staging_dir/firmware"
+		copy_file "${openwrt_root}/package/kernel/aqr10g-phy-fw/files/Rhe-05.06-Candidate9-AQR_Mediatek_23B_P5_ID45824_LCLVER1.cld" "staging_dir/firmware"
+		copy_file "${openwrt_root}/package/kernel/aqr10g-phy-fw/files/AQR-G4_v5.7.0-AQR_EVB_Generic_X3410_StdCfg_MDISwap_USX_ID46316_VER2148.cld" "staging_dir/firmware"
 
-	# copy linux firmware
-	linux_firmware_path=$(openwrt_get_package_build_dir "package/firmware/linux-firmware")
-	copy_files "${linux_firmware_path}/airoha" "staging_dir/firmware/airoha"
+		# copy linux firmware
+		linux_firmware_path=$(openwrt_get_package_build_dir "package/firmware/linux-firmware")
+		copy_files "${linux_firmware_path}/airoha" "staging_dir/firmware/airoha"
+	fi
 }
 
 remove_crypto_package () {
