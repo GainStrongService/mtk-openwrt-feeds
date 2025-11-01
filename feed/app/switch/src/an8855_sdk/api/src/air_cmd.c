@@ -8166,7 +8166,7 @@ doIpmcAddMcast(
         }
         else
         {
-            rc = _str2ipv6(argv[1], &mcst.group_addr.ip_addr.ipv6_addr);
+            rc = _str2ipv6(argv[1], mcst.group_addr.ip_addr.ipv6_addr);
             if(rc != AIR_E_OK)
             {
                 AIR_PRINT("Unrecognized command.\n");
@@ -8176,7 +8176,7 @@ doIpmcAddMcast(
         mcst.port_bitmap[0] = _strtoul(argv[2], NULL, 2);
         if(argc == 4)
         {
-            if(argv[3] == 1)
+            if(atoi(argv[3]) == 1)
                 mcst.flags |= AIR_IPMC_ENTRY_FLAGS_DISABLE_EGRESS_VLAN_FILTER;
             else
                 mcst.flags &= ~(AIR_IPMC_ENTRY_FLAGS_DISABLE_EGRESS_VLAN_FILTER);
@@ -8221,10 +8221,10 @@ doIpmcAddMcastMem(
         }
         else
         {
-            rc = _str2ipv6(argv[1], &mcst.group_addr.ip_addr.ipv6_addr);
+            rc = _str2ipv6(argv[1], mcst.group_addr.ip_addr.ipv6_addr);
             if(rc != AIR_E_OK)
             {
-                AIR_PRINT("Unrecognized command.\n"); 
+                AIR_PRINT("Unrecognized command.\n");
                 return rc;
             }
         }
@@ -8270,7 +8270,7 @@ doIpmcDelMcast(
         }
         else
         {
-            rc = _str2ipv6(argv[1], &mcst.group_addr.ip_addr.ipv6_addr);
+            rc = _str2ipv6(argv[1], mcst.group_addr.ip_addr.ipv6_addr);
             if(rc != AIR_E_OK)
             {
                 AIR_PRINT("Unrecognized command.\n");
@@ -8317,7 +8317,7 @@ doIpmcDelMcastMem(
         }
         else
         {
-            rc = _str2ipv6(argv[1], &mcst.group_addr.ip_addr.ipv6_addr);
+            rc = _str2ipv6(argv[1], mcst.group_addr.ip_addr.ipv6_addr);
             if(rc != AIR_E_OK)
             {
                 AIR_PRINT("Unrecognized command.\n");
@@ -8438,7 +8438,7 @@ doIpmcGetMcast(
         }
         else
         {
-            rc = _str2ipv6(argv[1], &entry.group_addr.ip_addr.ipv6_addr);
+            rc = _str2ipv6(argv[1], entry.group_addr.ip_addr.ipv6_addr);
             if(rc != AIR_E_OK)
             {
                 AIR_PRINT("Unrecognized command.\n");

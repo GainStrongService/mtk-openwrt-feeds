@@ -11,6 +11,7 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "air_types.h"
 #include "air_error.h"
 #include "air_reg.h"
