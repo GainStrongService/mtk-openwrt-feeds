@@ -1,0 +1,44 @@
+From 04a4796ae67ec233e167ef8776c7ab9c42ff8cea Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Mon, 3 Nov 2025 18:14:04 +0800
+Subject: [PATCH v3] Fix build fail for kernel 5.4.300
+
+Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
+Change-Id: I20b9438c2b89d3b91a95eb2abb12540d28a68fec
+---
+ backport-include/linux/interrupt.h | 2 +-
+ backport-include/net/genetlink.h   | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/backport-include/linux/interrupt.h b/backport-include/linux/interrupt.h
+index 4629fb18..88c1cf7b 100644
+--- a/backport-include/linux/interrupt.h
++++ b/backport-include/linux/interrupt.h
+@@ -3,7 +3,7 @@
+ #include <linux/version.h>
+ #include_next <linux/interrupt.h>
+ 
+-#if LINUX_VERSION_IS_LESS(5,9,0)
++#if LINUX_VERSION_IS_LESS(5,4,291)
+ 
+ static inline void
+ tasklet_setup(struct tasklet_struct *t,
+diff --git a/backport-include/net/genetlink.h b/backport-include/net/genetlink.h
+index 43ca3b43..56e39fcf 100644
+--- a/backport-include/net/genetlink.h
++++ b/backport-include/net/genetlink.h
+@@ -180,7 +180,11 @@ static inline int backport_genlmsg_multicast_allns(const struct genl_family *fam
+ 	int ret;
+ 
+ 	rcu_read_lock();
++#if LINUX_VERSION_IS_LESS(5,4,285)
+ 	ret = genlmsg_multicast_allns(family, skb, portid, group, GFP_ATOMIC);
++#else
++	ret = genlmsg_multicast_allns(family, skb, portid, group);
++#endif
+ 	rcu_read_unlock();
+ 
+ 	return ret;
+-- 
+2.45.2
+

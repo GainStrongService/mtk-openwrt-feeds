@@ -1,0 +1,78 @@
+From de8d39c5a07fee2d8735db4b85c670ef29b8ac7e Mon Sep 17 00:00:00 2001
+From: Peter Chiu <chui-hao.chiu@mediatek.com>
+Date: Tue, 4 Nov 2025 10:29:15 +0800
+Subject: [PATCH v2] Fix build fail for kernel 5.4.300
+
+---
+ backport-include/linux/interrupt.h |  2 +-
+ backport-include/net/genetlink.h   | 20 ++++++++++++++++++++
+ net/wireless/nl80211.c             |  4 ++--
+ 3 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/backport-include/linux/interrupt.h b/backport-include/linux/interrupt.h
+index f42f2dd..679bf2d 100755
+--- a/backport-include/linux/interrupt.h
++++ b/backport-include/linux/interrupt.h
+@@ -43,7 +43,7 @@ static inline void backport_hrtimer_start(struct hrtimer *timer, s64 time,
+ 
+ #endif
+ 
+-#if LINUX_VERSION_IS_LESS(5,9,0)
++#if LINUX_VERSION_IS_LESS(5,4,291)
+ 
+ static inline void
+ tasklet_setup(struct tasklet_struct *t,
+diff --git a/backport-include/net/genetlink.h b/backport-include/net/genetlink.h
+index 3b75b47..a73aeef 100755
+--- a/backport-include/net/genetlink.h
++++ b/backport-include/net/genetlink.h
+@@ -221,4 +221,24 @@ static inline int genlmsg_parse(const struct nlmsghdr *nlh,
+ }
+ #endif /* LINUX_VERSION_IS_LESS(5,2,0) */
+ 
++#if LINUX_VERSION_IS_LESS(5,5,0)
++static inline int backport_genlmsg_multicast_allns(const struct genl_family *family,
++						   struct sk_buff *skb, u32 portid,
++						   unsigned int group)
++{
++	int ret;
++
++	rcu_read_lock();
++#if LINUX_VERSION_IS_LESS(5,4,285)
++	ret = genlmsg_multicast_allns(family, skb, portid, group, GFP_ATOMIC);
++#else
++	ret = genlmsg_multicast_allns(family, skb, portid, group);
++#endif
++	rcu_read_unlock();
++
++	return ret;
++}
++#define genlmsg_multicast_allns LINUX_BACKPORT(genlmsg_multicast_allns)
++#endif /* LINUX_VERSION_IS_LESS(5,5,0) */
++
+ #endif /* __BACKPORT_NET_GENETLINK_H */
+diff --git a/net/wireless/nl80211.c b/net/wireless/nl80211.c
+index bc6b5ac..53013d6 100755
+--- a/net/wireless/nl80211.c
++++ b/net/wireless/nl80211.c
+@@ -16504,7 +16504,7 @@ void nl80211_common_reg_change_event(enum nl80211_commands cmd_id,
+ 
+ 	rcu_read_lock();
+ 	genlmsg_multicast_allns(&nl80211_fam, msg, 0,
+-				NL80211_MCGRP_REGULATORY, GFP_ATOMIC);
++				NL80211_MCGRP_REGULATORY);
+ 	rcu_read_unlock();
+ 
+ 	return;
+@@ -17021,7 +17021,7 @@ void nl80211_send_beacon_hint_event(struct wiphy *wiphy,
+ 
+ 	rcu_read_lock();
+ 	genlmsg_multicast_allns(&nl80211_fam, msg, 0,
+-				NL80211_MCGRP_REGULATORY, GFP_ATOMIC);
++				NL80211_MCGRP_REGULATORY);
+ 	rcu_read_unlock();
+ 
+ 	return;
+-- 
+2.45.2
+
