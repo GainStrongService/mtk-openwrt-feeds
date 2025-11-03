@@ -5,11 +5,11 @@ Subject: [PATCH] net: ethernet: mtk_eth_soc: support proprietary debugfs
 
 ---
  drivers/net/ethernet/mediatek/Makefile      |    2 +-
- drivers/net/ethernet/mediatek/mtk_eth_dbg.c | 2390 +++++++++++++++++++
+ drivers/net/ethernet/mediatek/mtk_eth_dbg.c | 2392 +++++++++++++++++++
  drivers/net/ethernet/mediatek/mtk_eth_dbg.h |  458 ++++
  drivers/net/ethernet/mediatek/mtk_eth_soc.c |   41 +-
  drivers/net/ethernet/mediatek/mtk_eth_soc.h |   58 +
- 5 files changed, 2941 insertions(+), 8 deletions(-)
+ 5 files changed, 2943 insertions(+), 8 deletions(-)
  create mode 100644 drivers/net/ethernet/mediatek/mtk_eth_dbg.c
  create mode 100644 drivers/net/ethernet/mediatek/mtk_eth_dbg.h
 
@@ -31,7 +31,7 @@ new file mode 100644
 index 0000000..551c3f4
 --- /dev/null
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
-@@ -0,0 +1,2390 @@
+@@ -0,0 +1,2392 @@
 +/*
 + *   Copyright (C) 2025 MediaTek Inc.
 + *
@@ -1098,10 +1098,12 @@ index 0000000..551c3f4
 +	int i = 0;
 +
 +	seq_printf(m, "free count = %d\n", (int)atomic_read(&ring->free_count));
-+	seq_printf(m, "cpu next free: %d\n",
-+		   (int)(ring->next_free - (struct mtk_tx_dma *)ring->dma));
-+	seq_printf(m, "cpu last free: %d\n",
-+		   (int)(ring->last_free - (struct mtk_tx_dma *)ring->dma));
++	seq_printf(m, "cpu next free: %ld\n",
++		   ((uintptr_t)ring->next_free - (uintptr_t)ring->dma) >>
++		   eth->soc->tx.desc_shift);
++	seq_printf(m, "cpu last free: %ld\n",
++		   ((uintptr_t)ring->last_free - (uintptr_t)ring->dma) >>
++		   eth->soc->tx.desc_shift);
 +	for (i = 0; i < eth->soc->tx.dma_size; i++) {
 +		dma_addr_t addr = ring->phys +
 +				  (i << eth->soc->tx.desc_shift);
