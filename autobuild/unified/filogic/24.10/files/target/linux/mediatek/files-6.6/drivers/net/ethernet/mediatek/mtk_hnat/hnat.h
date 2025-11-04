@@ -1313,8 +1313,8 @@ enum FoeIpAct {
 #define UDF_PINGPONG_IFIDX GENMASK(6, 0)
 
 #define HQOS_FLAG(dev, skb, qid)				\
-	((IS_HQOS_UL_MODE && IS_WAN(dev)) ||			\
-	 (IS_HQOS_DL_MODE && IS_LAN_GRP(dev)) ||		\
+	((IS_HQOS_UL_MODE && skb->mark && IS_WAN(dev)) ||			\
+	 (IS_HQOS_DL_MODE && skb->mark && IS_LAN_GRP(dev)) ||		\
 	 (IS_PPPQ_MODE && (IS_PPPQ_PATH(dev, skb) ||		\
 			   qid >= MAX_PPPQ_QUEUE_NUM)))
 
