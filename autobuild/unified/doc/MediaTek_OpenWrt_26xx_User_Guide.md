@@ -544,7 +544,6 @@ mt7988a-rfb-eth1-sfp.dtso
 mt7988a-rfb-eth2-an8831x.dtso
 mt7988a-rfb-eth2-aqr.dtso
 mt7988a-rfb-eth2-cux3410.dtso
-mt7988a-rfb-eth2-mxl86252.dtso
 mt7988a-rfb-eth2-mxl.dtso
 mt7988a-rfb-eth2-sfp.dtso
 ```

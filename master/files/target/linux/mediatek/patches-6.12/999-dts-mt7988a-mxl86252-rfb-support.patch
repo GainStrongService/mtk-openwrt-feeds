@@ -1,6 +1,15 @@
+From 0e80e0fcc4a2de6b688afe949fecdb5bf0716467 Mon Sep 17 00:00:00 2001
+From: "neal.yen" <neal.yen@mediatek.com>
+Date: Tue, 4 Nov 2025 14:31:35 +0800
+Subject: [PATCH] dts: mediatek: add mt7988a mxl86252 rfb support
+
+
+diff --git a/arch/arm64/boot/dts/mediatek/mt7988a-rfb-mxl86252.dts b/arch/arm64/boot/dts/mediatek/mt7988a-rfb-mxl86252.dts
+new file mode 100644
+index 0000000..f92039d
 --- /dev/null
 +++ b/arch/arm64/boot/dts/mediatek/mt7988a-rfb-mxl86252.dts
-@@ -0,0 +1,450 @@
+@@ -0,0 +1,555 @@
 +// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 +/*
 + * Copyright (C) 2022 MediaTek Inc.
@@ -15,7 +24,7 @@
 +#include "mt7988a.dtsi"
 +/ {
 +	model = "MediaTek MT7988A Reference Board";
-+	compatible = "mediatek,mt7988a-rfb",
++	compatible = "mediatek,mt7988a-mxl86252-rfb",
 +		     "mediatek,mt7988a";
 +
 +	chosen {
@@ -46,7 +55,7 @@
 +		regulator-max-microvolt = <3300000>;
 +		regulator-boot-on;
 +		regulator-always-on;
-+	};	
++	};
 +
 +	sfp_esp1: sfp@1 {
 +		compatible = "sff,sfp";
@@ -69,6 +78,7 @@
 +
 +			chan-sel-gpios = <&pio 30 GPIO_ACTIVE_HIGH>;
 +			mod-def0-gpios = <&pio 82 GPIO_ACTIVE_LOW>;
++			sfp-present-channel = <1>;
 +
 +			channel0: channel@0 {
 +				reg = <0>;
@@ -89,14 +99,113 @@
 +};
 +
 +&mdio_bus {
++	clock-frequency = <10500000>;
++
 +	/* external Aquantia AQR113C */
 +	phy0: ethernet-phy@0 {
 +		reg = <0>;
 +		compatible = "ethernet-phy-ieee802.3-c45";
 +		firmware-name = "Rhe-05.06-Candidate9-AQR_Mediatek_23B_P5_ID45824_LCLVER1.cld";
-+		reset-gpios = <&pio 72 GPIO_ACTIVE_LOW>;
-+		reset-assert-us = <100000>;
-+		reset-deassert-us = <221000>;
++		eee-broken-10gt;
++		eee-broken-1000t;
++	};
++
++	/* external Aquantia AQR113C on mxl 2.5G switch */
++	phy8: ethernet-phy@8 {
++		reg = <8>;
++		compatible = "ethernet-phy-ieee802.3-c45";
++		firmware-name = "Rhe-05.06-Candidate9-AQR_Mediatek_23B_P5_ID45824_LCLVER1.cld";
++		eee-broken-10gt;
++		eee-broken-1000t;
++	};
++
++	switch16: switch@16 {
++		compatible = "mxl,86252";
++		reg = <16>;
++		dsa,member = <0 0>;
++		status = "okay";
++
++		ports {
++			port0: port@0 {
++				reg = <0>;
++				label = "mxl_lan0";
++				phy-handle = <&switchphy0>;
++				phy-mode = "internal";
++				status = "okay";
++			};
++
++			port1: port@1 {
++				reg = <1>;
++				label = "mxl_lan1";
++				phy-handle = <&switchphy1>;
++				phy-mode = "internal";
++				status = "okay";
++			};
++
++			port2: port@2 {
++				reg = <2>;
++				label = "mxl_lan2";
++				phy-handle = <&switchphy2>;
++				phy-mode = "internal";
++				status = "okay";
++			};
++
++			port3: port@3 {
++				reg = <3>;
++				label = "mxl_lan3";
++				phy-handle = <&switchphy3>;
++				phy-mode = "internal";
++				status = "okay";
++			};
++
++			port4: port@4 {
++				reg = <4>;
++				label = "mxl_lan4";
++				phy-handle = <&switchphy4>;
++				phy-mode = "internal";
++				status = "okay";
++			};
++
++			port5: port@5 {
++				reg = <8>;
++				label = "cpu";
++				phy-mode = "usxgmii";
++				ethernet = <&gmac2>;
++				dsa-tag-protocol = "mxl862_8021q";
++
++				fixed-link {
++					speed = <10000>;
++					full-duplex;
++				};
++			};
++
++			port6: port@6 {
++				reg = <12>;
++				label = "mxl_lan5";
++				phy-mode = "usxgmii";
++				phy-handle = <&phy8>;
++				status = "okay";
++			};
++
++		};
++
++		mdio {
++			switchphy0:switchphy@0 {
++				reg= <0>;
++			};
++			switchphy1:switchphy@1 {
++				reg= <1>;
++			};
++			switchphy2:switchphy@2 {
++				reg= <2>;
++			};
++			switchphy3:switchphy@3 {
++				reg= <3>;
++			};
++			switchphy4:switchphy@4 {
++				reg= <4>;
++			};
++		};
 +	};
 +};
 +
@@ -121,6 +230,10 @@
 +		full-duplex;
 +		pause;
 +	};
++};
++
++&int_2p5g_phy {
++	status = "disabled";
 +};
 +
 +&cpu0 {
@@ -148,37 +261,38 @@
 +};
 +
 +&switch {
++	dsa,member = <1 0>;
 +	status = "okay";
 +};
 +
-+&gsw_phy0 {
++&gsw_phy2 {
 +	pinctrl-names = "gbe-led";
-+	pinctrl-0 = <&gbe0_led0_pins>;
++	pinctrl-0 = <&gbe2_led0_pins>;
 +};
 +
-+&gsw_phy0_led0 {
++&gsw_phy2_led0 {
 +	status = "okay";
 +	function = LED_FUNCTION_LAN;
 +	color = <LED_COLOR_ID_GREEN>;
 +};
 +
-+&gsw_port0 {
-+	label = "lan0";
++&gsw_port2 {
++	label = "lan2";
 +};
 +
-+&gsw_phy1 {
++&gsw_phy3 {
 +	pinctrl-names = "gbe-led";
-+	pinctrl-0 = <&gbe1_led0_pins>;
++	pinctrl-0 = <&gbe3_led0_pins>;
 +};
 +
-+&gsw_phy1_led0 {
++&gsw_phy3_led0 {
 +	status = "okay";
 +	function = LED_FUNCTION_LAN;
 +	color = <LED_COLOR_ID_GREEN>;
 +};
 +
-+&gsw_port1 {
-+	label = "lan1";
++&gsw_port3 {
++	label = "lan3";
 +};
 +
 +&i2c0 {
@@ -266,31 +380,31 @@
 +		};
 +	};
 +
-+	gbe0_led0_pins: gbe0-led0-pins {
++	gbe2_led0_pins: gbe2-led0-pins {
 +		mux {
 +			function = "led";
-+			groups = "gbe0_led0";
++			groups = "gbe2_led0";
 +		};
 +	};
 +
-+	gbe1_led0_pins: gbe1-led0-pins {
++	gbe3_led0_pins: gbe3-led0-pins {
 +		mux {
 +			function = "led";
-+			groups = "gbe1_led0";
++			groups = "gbe3_led0";
 +		};
 +	};
 +
-+	gbe0_led1_pins: gbe0-led1-pins {
++	gbe2_led1_pins: gbe2-led1-pins {
 +		mux {
 +			function = "led";
-+			groups = "gbe0_led1";
++			groups = "gbe2_led1";
 +		};
 +	};
 +
-+	gbe1_led1_pins: gbe1-led1-pins {
++	gbe3_led1_pins: gbe3-led1-pins {
 +		mux {
 +			function = "led";
-+			groups = "gbe1_led1";
++			groups = "gbe3_led1";
 +		};
 +	};
 +
@@ -451,3 +565,6 @@
 +&xsphy {
 +	status = "okay";
 +};
+-- 
+2.45.2
+
