@@ -1,0 +1,229 @@
+From 4ea7847270d1000a2aeeeca955f8517cbf4780de Mon Sep 17 00:00:00 2001
+From: "chak-kei.lam" <chak-kei.lam@mediatek.com>
+Date: Wed, 12 Nov 2025 18:39:59 +0800
+Subject: [PATCH] net: ethernet: mtk_eth_soc: support multiple dsa switch PPPQ
+
+Without this patch, when multiple dsa switch exists,
+the same QDMA TX queue would be used by two different
+DSA device if their dp->index are the same, which would
+leads to throughput bound in QDMA queue.
+
+The QDMA queue mapping use below command to show:
+cat /sys/kernel/debug/mtketh/qdma_pppq
+---
+ drivers/net/ethernet/mediatek/mtk_eth_dbg.c | 53 ++++++++++++++++--
+ drivers/net/ethernet/mediatek/mtk_eth_soc.c | 60 +++++++++++++++++++--
+ drivers/net/ethernet/mediatek/mtk_eth_soc.h |  4 ++
+ 3 files changed, 109 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_dbg.c b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
+index c83d27b..89135ab 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_dbg.c
+@@ -20,6 +20,7 @@
+ #include <linux/kernel.h>
+ #include <linux/phylink.h>
+ #include <linux/proc_fs.h>
++#include <net/dsa.h>
+ 
+ #include "mtk_eth_soc.h"
+ #include "mtk_eth_dbg.h"
+@@ -29,14 +30,56 @@
+ static int mtk_qdma_pppq_show(struct seq_file *m, void *v)
+ {
+ 	struct mtk_eth *eth = m->private;
++	struct net_device *pppq_map[MTK_QDMA_NUM_QUEUES] = { NULL };
++	struct net_device *ndev;
++	struct mtk_mac *mac;
+ 	int i;
+ 
++	/* Find the netdevices for the corresponding QDMA queues */
++	for (i = 0; i < MTK_MAX_DEVS; i++) {
++		ndev = eth->netdev[i];
++		if (!ndev)
++			continue;
++
++		/* queue[i] is used by ethernet devices with GMAC index i */
++		if (i < MTK_QDMA_NUM_QUEUES)
++			pppq_map[i] = ndev;
++
++		/* Populate per-port queue owners for DSA-user ports */
++		if (netdev_uses_dsa(ndev)) {
++			const struct dsa_port *dp;
++			struct dsa_switch *ds;
++			u32 pppq_ofs = eth->pppq_ofs[i];
++			u32 qid, p;
++
++			mac = netdev_priv(ndev);
++			ds = ndev->dsa_ptr->ds;
++
++			for (p = 0; p < ds->num_ports; p++) {
++				/* only handle user ports */
++				if (!dsa_is_user_port(ds, p))
++					continue;
++
++				dp = dsa_to_port(ds, p);
++				if (dp->index >= ARRAY_SIZE(mac->dsa_user_idx))
++					continue;
++
++				qid = MTK_MAX_DEVS + pppq_ofs + mac->dsa_user_idx[dp->index];
++				pppq_map[qid % MTK_QDMA_NUM_QUEUES] = dp->slave;
++				/* TCP ACK use high priority queue in HNAT */
++				qid += eth->pppq_ofs[MTK_MAX_DEVS];
++				pppq_map[qid % MTK_QDMA_NUM_QUEUES] = dp->slave;
++			}
++		}
++	}
++
+ 	seq_puts(m, "Usage of the QDMA PPPQ for the HW path:\n");
+-	for (i = 0; i < MTK_QDMA_NUM_QUEUES; i++)
+-		seq_printf(m, "qdma_txq%d:	%5d Mbps %8d refcnt\n",
+-			   i, eth->qdma_shaper.speed[i],
+-			   atomic_read(&eth->qdma_shaper.refcnt[i]));
+-	seq_printf(m, "qdma_thres:	%5d Mbps\n", eth->qdma_shaper.threshold);
++	for (i = 0; i < MTK_QDMA_NUM_QUEUES; i++) {
++		if (pppq_map[i])
++			seq_printf(m, "qdma_txq%d:	%8s	%5d Mbps %8d refcnt\n",
++				   i, pppq_map[i]->name, eth->qdma_shaper.speed[i],
++				   atomic_read(&eth->qdma_shaper.refcnt[i]));
++	}
+ 
+ 	return 0;
+ }
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.c b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+index 6e2c4aa..ede63bd 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -4229,6 +4229,51 @@ static bool mtk_uses_dsa(struct net_device *dev)
+ #endif
+ }
+ 
++static void mtk_eth_set_dsa_pppq_offset(struct mtk_eth *eth)
++{
++	struct net_device *dev;
++	int i, offset = 0;
++
++	for (i = 0; i < MTK_MAX_DEVS; i++) {
++		dev = eth->netdev[i];
++		if (dev && netdev_uses_dsa(dev)) {
++			eth->pppq_ofs[i] = offset;
++			/* add the number of DSA user ports in that switch */
++			offset += hweight32(dsa_user_ports(dev->dsa_ptr->ds));
++		}
++	}
++
++	/* save the total number of DSA user ports in the all switches */
++	eth->pppq_ofs[MTK_MAX_DEVS] = offset;
++}
++
++static void mtk_eth_set_dsa_user_idx(struct mtk_eth *eth, struct net_device *dev)
++{
++	const struct dsa_port *dp;
++	struct dsa_switch *ds;
++	struct mtk_mac *mac;
++	int p, cnt = 0;
++
++	if (!dsa_slave_dev_check(dev))
++		return;
++
++	dp = dsa_port_from_netdev(dev);
++	ds = dp->cpu_dp->ds;
++	mac = netdev_priv(dp->cpu_dp->master);
++
++	for (p = 0; p < ds->num_ports; p++) {
++		/* only handle user ports */
++		if (!dsa_is_user_port(ds, p))
++			continue;
++
++		dp = dsa_to_port(ds, p);
++		if (dp->index < ARRAY_SIZE(mac->dsa_user_idx))
++			mac->dsa_user_idx[dp->index] = cnt;
++
++		cnt++;
++	}
++}
++
+ static int mtk_device_event(struct notifier_block *n, unsigned long event, void *ptr)
+ {
+ 	struct mtk_mac *mac = container_of(n, struct mtk_mac, device_notifier);
+@@ -4239,6 +4284,7 @@ static int mtk_device_event(struct notifier_block *n, unsigned long event, void
+ 	struct list_head *iter;
+ 	struct dsa_port *dp;
+ 	unsigned int queue;
++	u32 pppq_ofs = eth->pppq_ofs[mac->id];
+ 
+ 	if (event != NETDEV_CHANGE || dev->priv_flags & IFF_EBRIDGE)
+ 		return NOTIFY_DONE;
+@@ -4263,8 +4309,14 @@ static int mtk_device_event(struct notifier_block *n, unsigned long event, void
+ 		return NOTIFY_DONE;
+ 
+ 	if (dsa_slave_dev_check(dev)) {
++		/* set txq offset when multiple dsa switch exist */
++		mtk_eth_set_dsa_pppq_offset(eth);
++		/* set DSA user port ordering index due to non-contiguous dp index */
++		mtk_eth_set_dsa_user_idx(eth, dev);
++
+ 		dp = dsa_port_from_netdev(dev);
+-		queue = dp->index + 3;
++		if (dp->index < ARRAY_SIZE(mac->dsa_user_idx))
++			queue = MTK_MAX_DEVS + pppq_ofs + mac->dsa_user_idx[dp->index];
+ 	} else
+ 		queue = mac->id;
+ 
+@@ -6155,13 +6207,15 @@ static u16 mtk_select_queue(struct net_device *dev, struct sk_buff *skb,
+ 			    struct net_device *sb_dev)
+ {
+ 	struct mtk_mac *mac = netdev_priv(dev);
++	struct mtk_eth *eth = mac->hw;
+ 	unsigned int queue = 0;
++	unsigned int dp_index = skb_get_queue_mapping(skb);
+ 
+ 	if (skb->mark > 0 && skb->mark < dev->num_tx_queues)
+ 		return skb->mark;
+ 
+-	if (netdev_uses_dsa(dev))
+-		queue = skb_get_queue_mapping(skb) + 3;
++	if (netdev_uses_dsa(dev) && dp_index < ARRAY_SIZE(mac->dsa_user_idx))
++		queue = MTK_MAX_DEVS + eth->pppq_ofs[mac->id] + mac->dsa_user_idx[dp_index];
+ 	else
+ 		queue = mac->id;
+ 
+diff --git a/drivers/net/ethernet/mediatek/mtk_eth_soc.h b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+index a108917..2893cac 100644
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -1709,6 +1709,7 @@ struct mtk_soc_data {
+  * @pending_work:	The workqueue used to reset the dma ring
+  * @state:		Initialization and runtime state of the device
+  * @soc:		Holding specific data among vaious SoCs
++ * @pppq_ofs:		Offset of DSA user port in qdma PPPQ mapping
+  */
+ 
+ struct mtk_eth {
+@@ -1729,6 +1730,7 @@ struct mtk_eth {
+ 	int				irq_fe[MTK_FE_IRQ_NUM];
+ 	int				irq_pdma[MTK_PDMA_IRQ_NUM];
+ 	u32				msg_enable;
++	u32				pppq_ofs[MTK_MAX_DEVS];
+ 	unsigned long			sysclk;
+ 	struct regmap			*ethsys;
+ 	struct regmap			*infra;
+@@ -1819,6 +1821,7 @@ struct mtk_eth {
+  * @of_node:		Our devicetree node
+  * @hw:			Backpointer to our main datastruture
+  * @hw_stats:		Packet statistics counter
++ * @dsa_user_idx	DSA user port ordering index for qdma PPPQ mapping
+  */
+ struct mtk_mac {
+ 	int				id;
+@@ -1846,6 +1849,7 @@ struct mtk_mac {
+ 	struct sk_buff			*ptp_tx_skb;
+ 	unsigned long			ptp_tx_start;
+ 	unsigned int			ptp_tx_class;
++	u8				dsa_user_idx[16];
+ };
+ 
+ /* struct mtk_mux_data -	the structure that holds the private data about the
+-- 
+2.45.2
+
