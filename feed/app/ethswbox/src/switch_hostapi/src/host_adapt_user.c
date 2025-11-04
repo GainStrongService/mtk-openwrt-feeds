@@ -7,6 +7,7 @@
 
 ******************************************************************************/
 
+#include <unistd.h>
 #include "host_adapt.h"
 #include "sys_switch_ioctl.h"
 

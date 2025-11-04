@@ -9,6 +9,7 @@
 
 #include "host_smdio_ssb.h"
 #include "host_adapt.h"
+#include "sys_switch_ioctl.h"
 
 #include <unistd.h>
 #include <stdlib.h>
