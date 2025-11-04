@@ -74,7 +74,8 @@ dump_twt_info() {
 }
 
 dump_ser_status() {
-    do_cmd "echo 0 > /sys/kernel/debug/ieee80211/phy0/mt76/band0/sys_recovery"
+    do_cmd "echo 0 > /sys/kernel/debug/ieee80211/phy0/mt76/band0/sys_recovery" # FW
+    do_cmd "cat /sys/kernel/debug/ieee80211/phy0/mt76/band0/sys_recovery" # Driver
 }
 
 dump_sta_info() {
@@ -88,14 +89,22 @@ dump_wm_info() {
 
 dump_wed_rxinfo() {
     do_cmd "cat /sys/kernel/debug/wed0/rxinfo"
+    do_cmd "cat /sys/kernel/debug/wed1/rxinfo" #Eagle
 }
 
 dump_wed_txinfo() {
     do_cmd "cat /sys/kernel/debug/wed0/txinfo"
+    do_cmd "cat /sys/kernel/debug/wed1/txinfo" #Eagle
+}
+
+dump_wed_cfg() {
+    do_cmd "cat /sys/kernel/debug/wed0/cfg"
+    do_cmd "cat /sys/kernel/debug/wed1/cfg" #Eagle
 }
 
 per_10_min_work() {
     dump_connection_info
+    dump_sta_info
 
     local i=0
     local max=3
@@ -117,16 +126,17 @@ per_10_min_work() {
 per_30_min_work() {
     dump_drop_stats
     dump_twt_info
+    dump_ser_status
 }
 
 per_60_min_work() {
-    dump_ser_status
 
     local i=0
     local max=2
     while [ $i -lt $max ]
     do
         dump_wm_info
+	dump_wed_cfg
 
         true $(( i++ ))
         sleep 1
