@@ -14,17 +14,29 @@ PKG_RELEASE:=1
 PKG_BUILD_DEPENDS:=dtc/host
 
 include $(INCLUDE_DIR)/package.mk
+include $(INCLUDE_DIR)/kernel.mk
 
-define Package/secure-upgrade
+define Package/secure-upgrade-utils
   SECTION:=MTK Properties
   CATEGORY:=MTK Properties
   SUBMENU:=Misc
-  TITLE:= Secure Upgrade Scripts
-  DEPENDS:=@MTK_SECURE_BOOT +fit-check-sign
+  TITLE:= Secure Upgrade Utilities
+  DEPENDS:=@MTK_SECURE_BOOT +fit-check-sign +kmod-secure-upgrade
 endef
 
-define Package/secure-upgrade/description
-  MediaTek secure upgrade scripts
+define Package/secure-upgrade-utils/description
+  MediaTek secure upgrade utilities
+endef
+
+define KernelPackage/secure-upgrade
+  SUBMENU:=Other modules
+  TITLE:= secure upgrade helper
+  FILES:=$(PKG_BUILD_DIR)/sec-upg.ko
+  AUTOLOAD:=$(call AutoLoad,99,sec-upg)
+endef
+
+define KernelPackage/secure-upgrade/description
+  Helper kernel module to invoke secure SMC calls
 endef
 
 define Build/Configure
@@ -38,13 +50,19 @@ define Build/Configure
 endef
 
 define Build/Compile
+	$(KERNEL_MAKE) M="$(PKG_BUILD_DIR)" modules
 endef
 
-define Package/secure-upgrade/install
+define Package/secure-upgrade-utils/install
 	$(INSTALL_DIR) $(1)/etc/keys
 	$(INSTALL_DIR) $(1)/lib/upgrade
 	$(CP) $(PKG_BUILD_DIR)/fit_key.dtb $(1)/etc/keys
 	$(CP) ./files/secure_check.sh $(1)/lib/upgrade
+ifneq ($(CONFIG_MTK_ANTI_ROLLBACK),y)
+	sed -i -e 's/ANTI_ROLLBACK=1/ANTI_ROLLBACK=0/g' \
+		$(1)/lib/upgrade/secure_check.sh
+endif
 endef
 
-$(eval $(call BuildPackage,secure-upgrade))
+$(eval $(call BuildPackage,secure-upgrade-utils))
+$(eval $(call KernelPackage,secure-upgrade))

@@ -1,0 +1,240 @@
+--- a/tools/fdt_host.h
++++ b/tools/fdt_host.h
+@@ -43,8 +43,9 @@ int fit_check_sign(const void *fit, cons
+  *
+  * @fit: FIT to check
+  * @key: Key FDT blob to check against
++ * @ar_ver_verify: verify anti-rollback version
+  * @return 0 if OK, -ve if signature failed
+  */
+-int fit_check_all_sign(const void *fit, const void *key);
++int fit_check_all_sign(const void *fit, const void *key, bool ar_ver_verify);
+ 
+ #endif /* __FDT_HOST_H__ */
+--- a/tools/fit_check_sign.c
++++ b/tools/fit_check_sign.c
+@@ -41,6 +41,7 @@ int main(int argc, char **argv)
+ 	struct stat ksbuf;
+ 	void *fit_blob;
+ 	bool all_verify = false;
++	bool ar_ver_verify = false;
+ 	char *fdtfile = NULL;
+ 	char *keyfile = NULL;
+ 	char *config_name = NULL;
+@@ -51,7 +52,7 @@ int main(int argc, char **argv)
+ 
+ 	strncpy(cmdname, *argv, sizeof(cmdname) - 1);
+ 	cmdname[sizeof(cmdname) - 1] = '\0';
+-	while ((c = getopt(argc, argv, "f:k:c:a")) != -1)
++	while ((c = getopt(argc, argv, "f:k:c:ar")) != -1)
+ 		switch (c) {
+ 		case 'f':
+ 			fdtfile = optarg;
+@@ -65,6 +66,9 @@ int main(int argc, char **argv)
+ 		case 'a':
+ 			all_verify = true;
+ 			break;
++		case 'r':
++			ar_ver_verify = true;
++			break;
+ 		default:
+ 			usage(cmdname);
+ 			break;
+@@ -85,7 +89,7 @@ int main(int argc, char **argv)
+ 	}
+ 	image_set_host_blob(key_blob);
+ 	if (all_verify)
+-		ret = fit_check_all_sign(fit_blob, key_blob);
++		ret = fit_check_all_sign(fit_blob, key_blob, ar_ver_verify);
+ 	else
+ 		ret = fit_check_sign(fit_blob, key_blob, config_name);
+ 	if (!ret) {
+--- a/tools/image-host.c
++++ b/tools/image-host.c
+@@ -24,6 +24,8 @@
+ #include <openssl/err.h>
+ #endif
+ 
++#include "mtk_ar.h"
++
+ /**
+  * fit_set_hash_value - set hash value in requested has node
+  * @fit: pointer to the FIT format image header
+@@ -1551,7 +1553,7 @@ out:
+ 	return ret;
+ }
+ 
+-int fit_check_all_sign(const void *fit, const void *key)
++int fit_check_all_sign(const void *fit, const void *key, bool ar_ver_verify)
+ {
+ 	int confs_noffset;
+ 	int noffset;
+@@ -1581,6 +1583,11 @@ int fit_check_all_sign(const void *fit,
+ 			ret = fit_config_verify(fit, noffset);
+ 			if (ret)
+ 				return ret;
++			if (ar_ver_verify) {
++				ret = fit_config_ar_ver_verify(fit, noffset, NULL);
++				if (ret)
++					return ret;
++			}
+ 			printf("Verified OK, loading images\n");
+ 			ret = bootm_host_load_images(fit, noffset);
+ 			if (ret)
+--- a/tools/Makefile
++++ b/tools/Makefile
+@@ -92,7 +92,7 @@ ifneq ($(CONFIG_CMD_BOOTEFI_SELFTEST)$(C
+ hostprogs-y += file2include
+ endif
+ 
+-FIT_OBJS-y := fit_common.o fit_image.o image-host.o generated/boot/image-fit.o
++FIT_OBJS-y := fit_common.o fit_image.o mtk_ar.o image-host.o generated/boot/image-fit.o
+ FIT_SIG_OBJS-$(CONFIG_TOOLS_LIBCRYPTO) := image-sig-host.o generated/boot/image-fit-sig.o
+ FIT_CIPHER_OBJS-$(CONFIG_TOOLS_LIBCRYPTO) := generated/boot/image-cipher.o
+ 
+--- /dev/null
++++ b/tools/mtk_ar.c
+@@ -0,0 +1,128 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) 2025 MediaTek Inc. All Rights Reserved.
++ *
++ */
++
++#include <errno.h>
++#include <image.h>
++#include <linux/arm-smccc.h>
++#include "mtk_ar.h"
++#include <sys/stat.h>
++
++#define FIT_BL_AR_VER_PROP		"bl_ar_ver"
++#define FIT_FW_AR_VER_PROP		"fw_ar_ver"
++
++enum AR_VER_ID {
++	BL_AR_VER_ID = 0,
++	FW_AR_VER_ID,
++};
++
++static int fit_conf_get_fw_ar_ver(const void *fit, int conf_noffset,
++				  uint32_t *ar_ver_p)
++{
++	const uint32_t *img_ar_ver_p;
++	int len = 0;
++
++	img_ar_ver_p = fdt_getprop(fit, conf_noffset, FIT_FW_AR_VER_PROP, &len);
++	if (!img_ar_ver_p || len != sizeof(*img_ar_ver_p))
++		return -EINVAL;
++
++	*ar_ver_p = fdt32_to_cpu(*img_ar_ver_p);
++
++	return 0;
++}
++
++static int get_ar_ver(uint32_t id, uint32_t *ar_ver)
++{
++	char nodename[48] = "";
++	char *node = NULL;
++	char buf[4] = "";
++	struct stat st;
++	char *endp;
++	FILE *f;
++	int l;
++
++	if (id == BL_AR_VER_ID) {
++		node = FIT_BL_AR_VER_PROP;
++	} else if (id == FW_AR_VER_ID) {
++		node = FIT_FW_AR_VER_PROP;
++	} else {
++		return -EINVAL;
++	}
++
++	l = snprintf(nodename, sizeof(nodename),
++		     "/sys/kernel/debug/sec_upg/%s", node);
++	if (l < 0 || l >= sizeof(nodename))
++		return -EINVAL;
++
++	if (stat(nodename, &st))
++		return -ENODEV;
++
++	f = fopen(nodename, "r");
++	if (!f)
++		return -ENOENT;
++
++	if (!fgets(buf, sizeof(buf), f) && !feof(f)) {
++		fclose(f);
++		return -EINVAL;
++	}
++	fclose(f);
++
++	*ar_ver = strtoul(buf, &endp, 10);
++	if (errno || endp == buf)
++		return -EINVAL;
++
++	return 0;
++}
++
++int fit_config_ar_ver_verify(const void *fit, int conf_noffset,
++			     uint32_t *ar_ver_p)
++{
++	uint32_t dev_ar_ver = 0;
++	uint32_t img_ar_ver = 0;
++	int ret;
++
++	if (!fit || conf_noffset < 0)
++		return -EINVAL;
++
++	if (ar_ver_p)
++		*ar_ver_p = 0;
++
++	ret = fit_conf_get_fw_ar_ver(fit, conf_noffset, &img_ar_ver);
++	if (ret) {
++		printf("fw_ar_ver:unavailable\n");
++		return ret;
++	} else {
++		printf("fw_ar_ver:%u", img_ar_ver);
++	}
++
++	ret = get_ar_ver(FW_AR_VER_ID, &dev_ar_ver);
++	if (ret) {
++		if (ret == -ENODEV) {
++			/* not support separate FW version, get BL version */
++			ret = get_ar_ver(BL_AR_VER_ID, &dev_ar_ver);
++			if (ret) {
++				printf(",unavailable\n");
++				return ret;
++			}
++		} else {
++			printf(",unavailable\n");
++			return ret;
++		}
++	}
++
++	if (img_ar_ver < dev_ar_ver) {
++		printf("<%u-\n", dev_ar_ver);
++		return -EINVAL;
++	} else if (img_ar_ver == dev_ar_ver) {
++		printf("=%u+ ", dev_ar_ver);
++	} else {
++		printf(">%u+ ", dev_ar_ver);
++	}
++
++	if (ar_ver_p)
++		*ar_ver_p = img_ar_ver;
++
++	return 0;
++}
+--- /dev/null
++++ b/tools/mtk_ar.h
+@@ -0,0 +1,12 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (C) 2025 MediaTek Inc. All Rights Reserved.
++ *
++ */
++#ifndef _MTK_AR_H_
++#define _MTK_AR_H_
++
++int fit_config_ar_ver_verify(const void *fit, int conf_noffset,
++			     uint32_t *ar_ver_p);
++
++#endif /* _MTK_AR_H_ */
