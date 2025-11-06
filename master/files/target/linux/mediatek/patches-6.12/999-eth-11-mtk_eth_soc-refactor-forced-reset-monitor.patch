@@ -158,10 +158,10 @@ index a3959f6..6b8241d 100644
 -	gmac2_tx = FIELD_GET(GENMASK(31, 24), mtk_r32(eth, MTK_MAC_FSM(1))) != 1;
 -	gdm1_fc = mtk_r32(eth, reg_map->gdm1_cnt + 0x24);
 -	gdm2_fc = mtk_r32(eth, reg_map->gdm1_cnt + 0x64);
-+	val = mtk_r32(eth, MTK_FE_INT_STATUS2);
++	val = mtk_r32(eth, MTK_FE_INT_STATUS);
 +	qpse_fc = !!(FIELD_GET(BIT(PSE_QDMA_TX_PORT), val));
 +	if (qpse_fc)
-+		mtk_w32(eth, BIT(PSE_QDMA_TX_PORT), MTK_FE_INT_STATUS2);
++		mtk_w32(eth, BIT(PSE_QDMA_TX_PORT), MTK_FE_INT_STATUS);
  
 -	if (qfsm_hang && qfwd_hang &&
 -	    ((gdm1_tx && gmac1_tx && gdm1_fc < 1) ||

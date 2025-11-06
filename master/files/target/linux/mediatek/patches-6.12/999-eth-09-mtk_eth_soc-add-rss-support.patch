@@ -267,7 +267,7 @@ index 1cf1d40..87850dd 100644
 +	for (i = 0; i < MTK_RSS_MAX_INDIRECTION_TABLE; i++)
 +		rss_params->indirection_table[i] = i % eth->soc->rss_num;
 +
-+	if (soc->rx.desc_shift == sizeof(struct mtk_rx_dma)) {
++	if (soc->rx.desc_shift == const_ilog2(sizeof(struct mtk_rx_dma))) {
 +		/* Set RSS rings to PSE modes */
 +		for (i = 1; i <= MTK_HW_LRO_RING_NUM; i++) {
 +			val = mtk_r32(eth, MTK_LRO_CTRL_DW2_CFG(i));
@@ -502,7 +502,7 @@ index 1cf1d40..87850dd 100644
 +		mtk_m32(eth, MTK_PDMA_DELAY_TX_MASK,
 +			val << MTK_PDMA_DELAY_TX_PTIME_SHIFT, reg_map->qdma.delay_irq);
 +
-+	if (eth->soc->rx.desc_shift == sizeof(struct mtk_rx_dma)) {
++	if (eth->soc->rx.desc_shift == const_ilog2(sizeof(struct mtk_rx_dma))) {
 +		mtk_m32(eth, MTK_PDMA_DELAY_RX_MASK, val, reg_map->pdma.delay_irq);
 +		mtk_w32(eth, val, reg_map->pdma.lro_rx1_dly_int);
 +		mtk_w32(eth, val, reg_map->pdma.lro_rx1_dly_int + 0x4);
@@ -535,7 +535,7 @@ index 1cf1d40..87850dd 100644
 +		mtk_m32(eth, MTK_PDMA_DELAY_RX_MASK,
 +			val >> MTK_PDMA_DELAY_TX_PTIME_SHIFT, reg_map->qdma.delay_irq);
 +
-+	if (eth->soc->rx.desc_shift == sizeof(struct mtk_rx_dma)) {
++	if (eth->soc->rx.desc_shift == const_ilog2(sizeof(struct mtk_rx_dma))) {
 +		mtk_m32(eth, MTK_PDMA_DELAY_TX_MASK, val, reg_map->pdma.delay_irq);
 +	} else {
 +		mtk_w32(eth, val >> MTK_PDMA_DELAY_TX_PTIME_SHIFT,

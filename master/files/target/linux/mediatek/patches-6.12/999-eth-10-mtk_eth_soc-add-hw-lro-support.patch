@@ -73,7 +73,7 @@ index 87850dd..74a7fc1 100644
 +	mtk_w32(eth, 0xffffffff, MTK_PDMA_LRO_CTRL_DW1);
 +
 +	if (mtk_is_netsys_v2_or_greater(eth)) {
-+		i = (soc->rx.desc_shift == sizeof(struct mtk_rx_dma_v2)) ? 1 : 0;
++		i = (soc->rx.desc_shift == const_ilog2(sizeof(struct mtk_rx_dma_v2))) ? 1 : 0;
 +		mtk_m32(eth, MTK_RX_DONE_INT(MTK_HW_LRO_RING(i)),
 +			MTK_RX_DONE_INT(MTK_HW_LRO_RING(i)), reg_map->pdma.int_grp);
 +		mtk_m32(eth, MTK_RX_DONE_INT(MTK_HW_LRO_RING(i + 1)),
