@@ -3468,6 +3468,20 @@ int hnat_init_debugfs(struct mtk_hnat *h)
 		debugfs_create_symlink(name, root, name_symlink);
 	}
 
+#if defined(CONFIG_MEDIATEK_NETSYS_V3)
+	ret = snprintf(name, sizeof(name), "qdma_pppq");
+	if (ret != strlen(name)) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+	ret = snprintf(name_symlink, sizeof(name_symlink), "/sys/kernel/debug/mtketh/qdma_pppq");
+	if (ret != strlen(name_symlink)) {
+		ret = -ENOMEM;
+		goto err1;
+	}
+	debugfs_create_symlink(name, root, name_symlink);
+#endif
+
 	return 0;
 
 err1:

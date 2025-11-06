@@ -1903,6 +1903,7 @@ static int skb_to_hnat_info(struct sk_buff *skb,
 	struct list_head *iter;
 	struct foe_entry entry = { 0 };
 	struct hnat_flow_entry *flow_entry;
+	struct mtk_eth *eth;
 	struct mtk_mac *mac;
 	struct iphdr *iph;
 	struct ipv6hdr *ip6h;
@@ -2481,9 +2482,14 @@ hnat_entry_bind:
 
 	if (IS_HQOS_MODE || (skb->mark & MTK_QDMA_QUEUE_MASK) >= MAX_PPPQ_QUEUE_NUM)
 		qid = skb->mark & (MTK_QDMA_QUEUE_MASK);
-	else if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb))
-		qid = ((port_id >= 0) ? 3 + port_id : mac->id) & MTK_QDMA_QUEUE_MASK;
-	else
+	else if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb)) {
+		eth = mac->hw;
+		/* Add the DSA switch offset and use the DSA user-port ordering index */
+		if (port_id >= 0 && port_id < ARRAY_SIZE(mac->dsa_user_idx))
+			qid = MTK_MAX_DEVS + eth->pppq_ofs[mac->id] + mac->dsa_user_idx[port_id];
+		else
+			qid = mac->id;
+	} else
 		qid = 0;
 
 	if (IS_PPPQ_MODE && IS_PPPQ_PATH(dev, skb) && port_id >= 0) {
@@ -2495,7 +2501,7 @@ hnat_entry_bind:
 					      skb_transport_offset(skb) - tcp_hdrlen(skb);
 				/* Dispatch ACK packets to high priority queue */
 				if (payload_len == 0)
-					qid += MAX_SWITCH_PORT_NUM;
+					qid += eth->pppq_ofs[MTK_MAX_DEVS];
 			}
 		} else if (h_proto == ETH_P_IPV6) {
 			ip6h = ipv6_hdr(skb);
@@ -2504,10 +2510,13 @@ hnat_entry_bind:
 				payload_len = be16_to_cpu(ip6h->payload_len) - tcp_hdrlen(skb);
 				/* Dispatch ACK packets to high priority queue */
 				if (payload_len == 0)
-					qid += MAX_SWITCH_PORT_NUM;
+					qid += eth->pppq_ofs[MTK_MAX_DEVS];
 			}
 		}
 	}
+
+	/* Make qid valid for qdma */
+	qid &= MTK_QDMA_TX_MASK;
 
 	if (IS_IPV4_GRP(&entry)) {
 		entry.ipv4_hnapt.iblk2.dp = gmac & 0xf;
