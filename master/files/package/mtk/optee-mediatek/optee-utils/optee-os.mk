@@ -16,15 +16,9 @@ define Download/optee-os
   HASH:=976b9c184678516038d4e79766608e81d10bf136f76fd0db2dc48f90f994fbd9
 endef
 
-TARGET_PLATFORM=$(call qstrip,$(CONFIG_TARGET_SUBTARGET))
-ifeq ($(TARGET_PLATFORM),filogic)
-DEVICE_PROFILE:=CONFIG_TARGET_$(if $(CONFIG_TARGET_MULTI_PROFILE),DEVICE_)$(BOARD)_$(SUBTARGET)_DEVICE_$(BOARD)
-TARGET_DEVICES:=$(shell grep -E '^$(DEVICE_PROFILE)_[^=]+=y' $(TOPDIR)/.config | \
-			sed -E 's/^$(DEVICE_PROFILE)_([^=]+)=.*/\1/' | sed -E 's/(mt798[0-9]+).*/\1/')
-TARGET_PLATFORM:=$(word 1,$(TARGET_DEVICES))
-endif
-
-include optee-os-config.mk
+define Build/Compile/add_early_ta
+	echo $(1)/*.stripped.elf >> $(EARLY_TA_LIST)
+endef
 
 define Build/Compile/optee-os
 	$(MAKE_VARS) \
@@ -32,11 +26,8 @@ define Build/Compile/optee-os
 		CFG_ARM64_core=y \
 		supported-ta-targets=ta_arm64 \
 		O=out/arm \
-		PLATFORM=mediatek-$(TARGET_PLATFORM) \
-		$(OPTEE_OS_MAKE_FLAGS) \
-		$(OPTEE_MTK_MAKE_FLAGS) \
+		PLATFORM=mediatek-mt7988 \
 		$(OPTEE_TA_SIGN_KEYS) \
-		$(if $(1), EARLY_TA_PATHS="$$$$(cat $(EARLY_TA_LIST))",) \
 		all
 endef
 

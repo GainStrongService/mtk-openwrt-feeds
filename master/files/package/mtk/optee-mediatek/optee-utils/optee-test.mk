@@ -28,6 +28,7 @@ define Build/Compile/optee-test
 		O=$(PKG_BUILD_DIR)/$(OPTEE_TEST_NAME)/out \
 		OPTEE_APPS_DIR=$(PKG_BUILD_DIR)/optee_apps \
 		$(OPTEE_TA_SIGN_KEYS) \
+		$(OPTEE_MTK_MAKE_FLAGS) \
 		all
 endef
 
@@ -40,6 +41,7 @@ define Build/Install/optee-test
 		O=$(PKG_BUILD_DIR)/$(OPTEE_TEST_NAME)/out \
 		OPTEE_APPS_DIR=$(PKG_BUILD_DIR)/optee_apps \
 		$(OPTEE_TA_SIGN_KEYS) \
+		$(OPTEE_MTK_MAKE_FLAGS) \
 		install
 	mkdir -p $(PKG_BUILD_DIR)/target/usr/bin
 	mv $(PKG_BUILD_DIR)/target/bin/xtest $(PKG_BUILD_DIR)/target/usr/bin/

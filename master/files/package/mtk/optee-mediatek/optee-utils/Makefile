@@ -1,4 +1,5 @@
 #
+CFLAGS += $(MTK_TEST_CFLAGS)
 # Copyright (C) 2023 Mediatek Ltd.
 #
 # This is free software, licensed under the GNU General Public License v2.
@@ -10,7 +11,8 @@ include $(TOPDIR)/feeds/packages/lang/python/python3-version.mk
 
 PKG_NAME:=optee-mediatek
 PKG_VERSION:=4.7.0
-PKG_RELEASE:=4.7.0
+
+PATCH_DIR:= ../patches
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -18,6 +20,7 @@ include optee-os.mk
 include optee-client.mk
 include optee-test.mk
 include optee-apps.mk
+include ../optee-os-config.mk
 include ta-offline-sign.mk
 
 define Package/optee-mediatek
@@ -52,7 +55,7 @@ define Package/optee-mediatek/description
 endef
 
 define Package/optee-mediatek/config
-  source "$(SOURCE)/config/Config.in"
+  source "$(SOURCE)/../config/Config.in"
 endef
 
 OPTEE_PLAT_MTK_NAME:=optee_plat_mtk
@@ -70,6 +73,7 @@ define Build/Prepare
 	if [[ -d $(PKG_BUILD_DIR) ]] ; then rm -rf $(PKG_BUILD_DIR) ; fi
 	if [[ -f $(CFFI_BACKEND_SO_PATH)/_cffi_backend.cpython-39-$(MODULE_ARCH)-linux-gnu.so ]] ; then $(call link_cffi_backend_so) ; fi
 
+	rm -rf $(EARLY_TA_LIST)
 	mkdir -p $(PKG_BUILD_DIR)
 	mkdir -p $(PKG_BUILD_DIR)/$(OPTEE_TEST_NAME)
 	mkdir -p $(PKG_BUILD_DIR)/$(OPTEE_OS_NAME)
@@ -119,9 +123,7 @@ endif
 ifeq ($(CONFIG_OPTEE_OFFLINE_SIGN),y)
 	$(call tas-offline-sign)
 endif
-ifeq ($(CONFIG_OPTEE_EARLY_TA),y)
-	$(call Build/Compile/optee-os, EARLY_TA_BUILD)
-endif
+	$(call Build/Compile/add_early_ta,$(PKG_BUILD_DIR)/$(OPTEE_OS_NAME)/out/arm/ta/trusted_keys)
 endef
 
 define Build/Install
@@ -141,14 +143,6 @@ define Package/optee-mediatek/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(CP) $(PKG_BUILD_DIR)/target/* $(1)/
 	$(CP) ./files/optee.init $(1)/etc/init.d/optee
-
-ifeq ($(CONFIG_OPTEE_RPMB_FS),y)
-	$(CP) $(PKG_BUILD_DIR)/$(OPTEE_OS_NAME)/out/arm/core/tee.bin \
-		$(BIN_DIR)/tee-spim-nand.bin
-else
-	$(CP) $(PKG_BUILD_DIR)/$(OPTEE_OS_NAME)/out/arm/core/tee.bin \
-		$(BIN_DIR)/tee-emmc.bin
-endif
 endef
 
 $(eval $(call BuildPackage,optee-mediatek))
