@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-License-Identifier: GPL-2.0 AND GPL-2.0-only */
 /*
  * xhci-mtk-unusuallib.h -- xhci toolkit header file
  *

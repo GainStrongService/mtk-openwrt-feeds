@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * xHCI host controller toolkit driver
+ * MediaTek xHCI Host Controller Driver
  *
- * Copyright (C) 2021  MediaTek Inc.
+ * Copyright (c) 2015 MediaTek Inc.
  *
- *  Author: Zhanyong Wang <zhanyong.wang@mediatek.com>
- *          Shaocheng.Wang <shaocheng.wang@mediatek.com>
- *          Chunfeng.Yun <chunfeng.yun@mediatek.com>
+ * Author: Zhanyong Wang <zhanyong.wang@mediatek.com>
  */
 
 #include <linux/platform_device.h>
@@ -47,30 +45,30 @@ static int t_power_u1u2(struct xhci_hcd_mtk *mtk, int argc, char **argv);
 #define MAX_ARG_SIZE 4
 
 struct class_info {
-        int class;
-        char *class_name;
+		int class;
+		char *class_name;
 };
 
 static const struct class_info clas_info[] = {
-        /* max. 5 chars. per name string */
-        {USB_CLASS_PER_INTERFACE,       ">ifc"},
-        {USB_CLASS_AUDIO,               "audio"},
-        {USB_CLASS_COMM,                "comm."},
-        {USB_CLASS_HID,                 "HID"},
-        {USB_CLASS_PHYSICAL,            "PID"},
-        {USB_CLASS_STILL_IMAGE,         "still"},
-        {USB_CLASS_PRINTER,             "print"},
-        {USB_CLASS_MASS_STORAGE,        "stor."},
-        {USB_CLASS_HUB,                 "hub"},
-        {USB_CLASS_CDC_DATA,            "data"},
-        {USB_CLASS_CSCID,               "scard"},
-        {USB_CLASS_CONTENT_SEC,         "c-sec"},
-        {USB_CLASS_VIDEO,               "video"},
-        {USB_CLASS_WIRELESS_CONTROLLER, "wlcon"},
-        {USB_CLASS_MISC,                "misc"},
-        {USB_CLASS_APP_SPEC,            "app."},
-        {USB_CLASS_VENDOR_SPEC,         "vend."},
-        {-1,                            "unk."}         /* leave as last */
+		/* max. 5 chars. per name string */
+		{USB_CLASS_PER_INTERFACE,		">ifc"},
+		{USB_CLASS_AUDIO,				"audio"},
+		{USB_CLASS_COMM,				"comm."},
+		{USB_CLASS_HID,				"HID"},
+		{USB_CLASS_PHYSICAL,			"PID"},
+		{USB_CLASS_STILL_IMAGE,		"still"},
+		{USB_CLASS_PRINTER,			"print"},
+		{USB_CLASS_MASS_STORAGE,		"stor."},
+		{USB_CLASS_HUB,				"hub"},
+		{USB_CLASS_CDC_DATA,			"data"},
+		{USB_CLASS_CSCID,				"scard"},
+		{USB_CLASS_CONTENT_SEC,		"c-sec"},
+		{USB_CLASS_VIDEO,				"video"},
+		{USB_CLASS_WIRELESS_CONTROLLER, "wlcon"},
+		{USB_CLASS_MISC,				"misc"},
+		{USB_CLASS_APP_SPEC,			"app."},
+		{USB_CLASS_VENDOR_SPEC,		"vend."},
+		{-1,					"unk."} /* leave as last */
 };
 
 struct hqa_test_cmd {
@@ -95,12 +93,12 @@ struct hqa_test_cmd xhci_mtk_hqa_cmds[] = {
 
 static const char *class_decode(const int class)
 {
-        int i;
+	int i;
 
-        for (i = 0; clas_info[i].class != -1; i++)
-                if (clas_info[i].class == class)
-                        break;
-        return clas_info[i].class_name;
+	for (i = 0; clas_info[i].class != -1; i++)
+		if (clas_info[i].class == class)
+			break;
+	return clas_info[i].class_name;
 }
 
 /*
@@ -214,6 +212,7 @@ static void xhci_gki_quiesce(struct xhci_hcd *xhci)
 static int xhci_gki_halt(struct xhci_hcd *xhci)
 {
 	int ret;
+
 	xhci_gki_quiesce(xhci);
 
 	ret = xhci_gki_handshake(&xhci->op_regs->status,
@@ -237,7 +236,7 @@ static int xhci_gki_halt(struct xhci_hcd *xhci)
  * Updates the copy of the device descriptor stored in the device structure,
  * which dedicates space for this purpose.
  *
- * Not exported, only for use by the core.  If drivers really want to read
+ * Not exported, only for use by the core.	If drivers really want to read
  * the device descriptor directly, they can call usb_get_descriptor() with
  * type = USB_DT_DEVICE and index = 0.
  *
@@ -264,7 +263,7 @@ static int usb_get_device_descriptor(struct usb_device *dev, unsigned int size)
 	return ret;
 }
 
-int call_hqa_func(struct xhci_hcd_mtk *mtk, char *buf)
+static int call_hqa_func(struct xhci_hcd_mtk *mtk, char *buf)
 {
 	struct hqa_test_cmd *hqa;
 	struct usb_hcd *hcd = mtk->hcd;
@@ -303,7 +302,7 @@ static int test_mode_enter(struct xhci_hcd_mtk *mtk,
 		temp &= ~CMD_RUN;
 		writel(temp, addr);
 
-		/*  wait for HCHalted */
+		/* wait for HCHalted */
 		xhci_gki_halt(xhci);
 	}
 
@@ -501,9 +500,9 @@ static int t_debug_port(struct xhci_hcd_mtk *mtk, int argc, char **argv)
 	struct usb_device *rhdev;
 	struct usb_device *udev;
 	long port_id;
-    const struct usb_device_descriptor *desc;
-    u16 bcdUSB;
-    u16 bcdDevice;
+	const struct usb_device_descriptor *desc;
+	u16 bcdUSB;
+	u16 bcdDevice;
 
 	port_id = 2;
 
@@ -512,7 +511,7 @@ static int t_debug_port(struct xhci_hcd_mtk *mtk, int argc, char **argv)
 
 	xhci_err(xhci, "mu3h %s test port%d\n", __func__, (int)port_id);
 	if (port_id <= mtk->num_u3_ports) {
-		 hcd = xhci->shared_hcd;
+		hcd = xhci->shared_hcd;
 	} else if (port_id <= mtk->num_u3_ports + mtk->num_u2_ports) {
 		port_id -= mtk->num_u3_ports;
 	} else {
@@ -523,7 +522,9 @@ static int t_debug_port(struct xhci_hcd_mtk *mtk, int argc, char **argv)
 	rhdev = hcd->self.root_hub;
 	udev = usb_hub_find_child(rhdev, port_id);
 	if (udev == NULL) {
-		xhci_err(xhci, "mu3h %s usb_hub_find_child(..., %i) failed\n", __func__, (int)port_id);
+		xhci_err(xhci,
+			"mu3h %s usb_hub_find_child(..., %i) failed\n",
+			__func__, (int)port_id);
 		return -EPERM;
 	}
 
@@ -531,22 +532,22 @@ static int t_debug_port(struct xhci_hcd_mtk *mtk, int argc, char **argv)
 	if (udev && udev->state == USB_STATE_CONFIGURED) {
 		announce_device(udev);
 		desc = (const struct usb_device_descriptor *)&udev->descriptor;
-                bcdUSB    = le16_to_cpu(desc->bcdUSB);
-                bcdDevice = le16_to_cpu(desc->bcdDevice);
+				bcdUSB	  = le16_to_cpu(desc->bcdUSB);
+				bcdDevice = le16_to_cpu(desc->bcdDevice);
 
-                dev_info(&udev->dev, "D:  Ver=%2x.%02x Cls=%02x(%-5s) Sub=%02x Prot=%02x MxPS=%2d #Cfgs=%3d\n",
-                        bcdUSB >> 8, bcdUSB & 0xff,
-                        desc->bDeviceClass,
-                        class_decode(desc->bDeviceClass),
-                        desc->bDeviceSubClass,
-                        desc->bDeviceProtocol,
-                        desc->bMaxPacketSize0,
-                        desc->bNumConfigurations);
+				dev_info(&udev->dev, "D:  Ver=%2x.%02x Cls=%02x(%-5s) Sub=%02x Prot=%02x MxPS=%2d #Cfgs=%3d\n",
+						bcdUSB >> 8, bcdUSB & 0xff,
+						desc->bDeviceClass,
+						class_decode(desc->bDeviceClass),
+						desc->bDeviceSubClass,
+						desc->bDeviceProtocol,
+						desc->bMaxPacketSize0,
+						desc->bNumConfigurations);
 
-                dev_info(&udev->dev, "P:  Vendor=%04x ProdID=%04x Rev=%2x.%02x\n",
-                        le16_to_cpu(desc->idVendor),
-                        le16_to_cpu(desc->idProduct),
-                        bcdDevice >> 8, bcdDevice & 0xff);
+				dev_info(&udev->dev, "P:  Vendor=%04x ProdID=%04x Rev=%2x.%02x\n",
+						le16_to_cpu(desc->idVendor),
+						le16_to_cpu(desc->idProduct),
+						bcdDevice >> 8, bcdDevice & 0xff);
 	}
 
 	return 0;
@@ -600,8 +601,9 @@ static int t_test_suspend(struct xhci_hcd_mtk *mtk, int argc, char **argv)
 
 	if (udev != NULL) {
 		usb_lock_device(udev);
-		ir = xhci->interrupter;
-		if (!hcd->msi_enabled) {		
+		/* This is the handler of the primary interrupter */
+		ir = xhci->interrupters[0];
+		if (!hcd->msi_enabled) {
 			temp = readl(&ir->ir_set->irq_pending);
 			writel(ER_IRQ_DISABLE(temp), &ir->ir_set->irq_pending);
 		}
@@ -723,7 +725,7 @@ static int t_test_enumerate_bus(struct xhci_hcd_mtk *mtk, int argc, char **argv)
 
 	xhci_err(xhci, "mu3h %s test port%d\n", __func__, (int)port_id);
 	if (port_id <= mtk->num_u3_ports) {
-		 hcd = xhci->shared_hcd;
+		hcd = xhci->shared_hcd;
 	} else if (port_id <= mtk->num_u3_ports + mtk->num_u2_ports) {
 		port_id -= mtk->num_u3_ports;
 	} else {
@@ -768,7 +770,7 @@ static int t_test_get_device_descriptor(struct xhci_hcd_mtk *mtk,
 
 	xhci_err(xhci, "mu3h %s test port%d\n", __func__, (int)port_id);
 	if (port_id <= mtk->num_u3_ports) {
-		 hcd = xhci->shared_hcd;
+		hcd = xhci->shared_hcd;
 	} else if (port_id <= mtk->num_u3_ports + mtk->num_u2_ports) {
 		port_id -= mtk->num_u3_ports;
 	} else {
@@ -880,7 +882,7 @@ static ssize_t usb3hqa_show(struct device *dev,
 	u32 val;
 	u32 i;
 	int ports;
-	char   str[XHCI_MSG_MAX];
+	char str[XHCI_MSG_MAX];
 
 	cnt += sprintf(buf + cnt, "usb3hqa usage:\n");
 	cnt += sprintf(buf + cnt, "	echo [u3port] >usb3hqa\n");
@@ -924,9 +926,9 @@ usb3hqa_store(struct device *dev, struct device_attribute *attr,
 
 	hqa_info(mtk, "usb3hqa: %s\n", buf);
 
-	words = sscanf(buf, "%d", &port);
-	if ((words != 1) ||
-	    (port < 1 || port > mtk->num_u3_ports)) {
+	words = kstrtoint(buf, 10, &port);
+	if ((words != 0) ||
+		(port < 1 || port > mtk->num_u3_ports)) {
 		hqa_info(mtk, "usb3hqa: param number:%i, port:%i (%i) failure\n",
 			words, port, mtk->num_u3_ports);
 		return -EINVAL;

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2021  MediaTek Inc.
  *
- *  Author: Zhanyong Wang <zhanyong.wang@mediatek.com>
+ * Author: Zhanyong Wang <zhanyong.wang@mediatek.com>
  */
 
 
@@ -19,7 +19,7 @@
 #define REGS_LIMIT_XHCI 0x1000
 #define REGS_LIMIT_MU3D 0x2e00
 static ssize_t reg_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
+			struct device_attribute *attr, char *buf)
 {
 	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
 	ssize_t cnt = 0;
@@ -43,9 +43,9 @@ static ssize_t reg_show(struct device *dev,
 		"  su - set phy2     reg bits: offset bit_start mask value\n"
 		"  px - print xhci mac reg bits: offset bit_start mask\n"
 		"  pm - print mu3d mac reg bits: offset bit_start mask\n"
-		"  pi - print ippc     reg bits: offset bit_start mask\n"
-		"  pp - print phy3     reg bits: offset bit_start mask\n"
-		"  pu - print phy2     reg bits: offset bit_start mask\n"
+		"  pi - print ippc       reg bits: offset bit_start mask\n"
+		"  pp - print phy3       reg bits: offset bit_start mask\n"
+		"  pu - print phy2       reg bits: offset bit_start mask\n"
 		"  NOTE: numbers should be HEX, except bit_star(DEC)\n");
 
 	if (mtk->hqa_pos) {
@@ -58,14 +58,14 @@ static ssize_t reg_show(struct device *dev,
 
 /* base address: return value; limit is put into @limit */
 static void __iomem *get_reg_base_limit(struct xhci_hcd_mtk *mtk,
-					const char *buf, u32 *limit)
+				const char *buf, u32 *limit)
 {
 	struct usb_hcd *hcd = mtk->hcd;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct platform_device *device = to_platform_device(mtk->dev);
 	void __iomem *base = NULL;
-	struct device_node  *node = mtk->dev->of_node;
-	u32 io     = 0;
+	struct device_node	*node = mtk->dev->of_node;
+	u32 io	   = 0;
 	u32 range  = 0;
 	u32 len    = 0;
 	int index  = 0;
@@ -74,46 +74,50 @@ static void __iomem *get_reg_base_limit(struct xhci_hcd_mtk *mtk,
 	switch (buf[1]) {
 	case 'x':
 		ret = query_reg_addr(device, &io, &range, "mac");
-		if (ret) break;
+		if (ret)
+			break;
 
 		base = ioremap(io, range);
 
 		xhci_info(xhci, "xhci's reg: [0x%08X ~ 0x%08X]\n",
-			  io, io + range);
-		hqa_info (mtk,  "xhci's reg: [0x%08X ~ 0x%08X]\n",
-			  io, io + range);
+			io, io + range);
+		hqa_info(mtk,	"xhci's reg: [0x%08X ~ 0x%08X]\n",
+			io, io + range);
 		break;
 	case 'm':
 		if (!mtk->has_ippc)
 			device = to_platform_device(device->dev.parent);
 
 		ret = query_reg_addr(device, &io, &range, "mac");
-		if (ret) break;
+		if (ret)
+			break;
 
 		if (mtk->has_ippc) {
-			io   += REGS_LIMIT_XHCI;
+			io	 += REGS_LIMIT_XHCI;
 			range = REGS_LIMIT_MU3D;
 		}
 
 		base = ioremap(io, range);
-                xhci_info(xhci, "mu3d's reg: [0x%08X ~ 0x%08X]\n",
-			  io, io + range);
-                hqa_info (mtk,  "mu3d's reg: [0x%08X ~ 0x%08X]\n",
-			  io, io + range);
+				xhci_info(xhci, "mu3d's reg: [0x%08X ~ 0x%08X]\n",
+				io, io + range);
+				hqa_info(mtk,	"mu3d's reg: [0x%08X ~ 0x%08X]\n",
+				io, io + range);
 		break;
 	case 'i':
 		ret = query_reg_addr(device, &io, &range, "ippc");
-		if (ret) break;
+		if (ret)
+			break;
 
 		base = ioremap(io, range);
 		xhci_info(xhci, "ippc's reg: [0x%08X ~ 0x%08X]\n",
-			  io, io + range);
-		hqa_info (mtk,  "ippc's reg: [0x%08X ~ 0x%08X]\n",
-			  io, io + range);
+				io, io + range);
+		hqa_info(mtk,	"ippc's reg: [0x%08X ~ 0x%08X]\n",
+				io, io + range);
 		break;
 	case 'p':
 		ret = query_phy_addr(node, &index, &io, &len, PHY_TYPE_USB3);
-		if (ret && ret != -EACCES) break;
+		if (ret && ret != -EACCES)
+			break;
 
 		range  = io & 0x0000FFFF;
 		range += len;
@@ -122,13 +126,14 @@ static void __iomem *get_reg_base_limit(struct xhci_hcd_mtk *mtk,
 
 		base = ioremap(io, range);
 		xhci_info(xhci, "phy's reg: [0x%08X ~ 0x%08X]\n",
-			      io, io + range);
-		hqa_info (mtk,  "phy's reg: [0x%08X ~ 0x%08X]\n",
-			  io, io + range);
+					io, io + range);
+		hqa_info(mtk,	"phy's reg: [0x%08X ~ 0x%08X]\n",
+				io, io + range);
 		break;
 	case 'u':
 		ret = query_phy_addr(node, &index, &io, &len, PHY_TYPE_USB2);
-		if (ret && ret != -EACCES) break;
+		if (ret && ret != -EACCES)
+			break;
 
 		range  = io & 0x0000FFFF;
 		range += len;
@@ -137,9 +142,9 @@ static void __iomem *get_reg_base_limit(struct xhci_hcd_mtk *mtk,
 
 		base = ioremap(io, range);
 		xhci_info(xhci, "phy's reg: [0x%08X ~ 0x%08X]\n",
-			      io, io + range);
-		hqa_info (mtk,  "phy's reg: [0x%08X ~ 0x%08X]\n",
-			  io, io + range);
+					io, io + range);
+		hqa_info(mtk,	"phy's reg: [0x%08X ~ 0x%08X]\n",
+				io, io + range);
 		break;
 	default:
 		base = NULL;
@@ -163,15 +168,15 @@ static void ssusb_write_reg(struct xhci_hcd_mtk *mtk, const char *buf)
 
 	param = sscanf(buf, "%*s 0x%x 0x%x", &offset, &value);
 	xhci_info(xhci, "params-%d (offset: %#x, value: %#x)\n",
-		  param, offset, value);
-	hqa_info (mtk,  "params-%d (offset: %#x, value: %#x)\n",
-		  param, offset, value);
+			param, offset, value);
+	hqa_info(mtk,	"params-%d (offset: %#x, value: %#x)\n",
+			param, offset, value);
 
 	base = get_reg_base_limit(mtk, buf, &limit);
 	if (!base || (param != 2)) {
 		xhci_err(xhci, "params are invalid!\n");
 		hqa_info(mtk,  "params are invalid since %p, %u!\n",
-			 base, param);
+			base, param);
 		return;
 	}
 
@@ -179,15 +184,15 @@ static void ssusb_write_reg(struct xhci_hcd_mtk *mtk, const char *buf)
 	if (offset >= limit) {
 		xhci_err(xhci, "reg's offset overrun!\n");
 		hqa_info(mtk,  "reg's offset overrun since %u >= %u!\n",
-			 offset, limit);
+			offset, limit);
 		return;
 	}
 	old_val = readl(base + offset);
 	writel(value, base + offset);
 	xhci_info(xhci, "0x%8.8x : 0x%8.8x --> 0x%8.8x\n", offset, old_val,
-		  readl(base + offset));
-	hqa_info (mtk,  "0x%8.8x : 0x%8.8x --> 0x%8.8x\n", offset, old_val,
-		  readl(base + offset));
+			readl(base + offset));
+	hqa_info(mtk,	"0x%8.8x : 0x%8.8x --> 0x%8.8x\n", offset, old_val,
+			readl(base + offset));
 
 	base = (void __iomem *)((unsigned long)base & 0xFFFF0000);
 	iounmap(base);
@@ -204,7 +209,7 @@ static void read_single_reg(struct xhci_hcd_mtk *mtk,
 	if (offset >= limit) {
 		xhci_err(xhci, "reg's offset overrun!\n");
 		hqa_info(mtk,  "reg's offset overrun since %u >= %u!\n",
-			 offset, limit);
+			offset, limit);
 		return;
 	}
 	value = readl(base + offset);
@@ -213,7 +218,7 @@ static void read_single_reg(struct xhci_hcd_mtk *mtk,
 }
 
 static void read_multi_regs(struct xhci_hcd_mtk *mtk,
-			    void __iomem *base, u32 offset, u32 len, u32 limit)
+				void __iomem *base, u32 offset, u32 len, u32 limit)
 {
 	struct usb_hcd *hcd = mtk->hcd;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
@@ -226,13 +231,13 @@ static void read_multi_regs(struct xhci_hcd_mtk *mtk,
 	if (offset + len > limit) {
 		xhci_err(xhci, "reg's offset overrun!\n");
 		hqa_info(mtk,  "reg's offset overrun since %u > %u!\n",
-			 offset + len, limit);
+			offset + len, limit);
 		return;
 	}
 
 	len >>= 2;
 	xhci_info(xhci, "read regs [%#x, %#x)\n", offset, offset + (len << 4));
-	hqa_info (mtk,  "read regs [%#x, %#x)\n", offset, offset + (len << 4));
+	hqa_info(mtk,	"read regs [%#x, %#x)\n", offset, offset + (len << 4));
 	for (i = 0; i < len; i++) {
 		xhci_err(xhci, "0x%8.8x : 0x%8.8x 0x%8.8x 0x%8.8x 0x%8.8x\n",
 			offset, readl(base + offset),
@@ -240,10 +245,10 @@ static void read_multi_regs(struct xhci_hcd_mtk *mtk,
 			readl(base + offset + 0x8),
 			readl(base + offset + 0xc));
 		hqa_info(mtk,  "0x%8.8x : 0x%8.8x 0x%8.8x 0x%8.8x 0x%8.8x\n",
-			 offset, readl(base + offset),
-			 readl(base + offset + 0x4),
-			 readl(base + offset + 0x8),
-			 readl(base + offset + 0xc));
+			offset, readl(base + offset),
+			readl(base + offset + 0x4),
+			readl(base + offset + 0x8),
+			readl(base + offset + 0xc));
 		offset += 0x10;
 	}
 }
@@ -260,15 +265,15 @@ static void ssusb_read_regs(struct xhci_hcd_mtk *mtk, const char *buf)
 
 	param = sscanf(buf, "%*s 0x%x 0x%x", &offset, &len);
 	xhci_info(xhci, "params-%d (offset: %#x, len: %#x)\n",
-		  param, offset, len);
-	hqa_info (mtk,  "params-%d (offset: %#x, len: %#x)\n",
-		 param, offset, len);
+			param, offset, len);
+	hqa_info(mtk,	"params-%d (offset: %#x, len: %#x)\n",
+			param, offset, len);
 
 	base = get_reg_base_limit(mtk, buf, &limit);
 	if (!base || !param) {
 		xhci_err(xhci, "params are invalid!\n");
 		hqa_info(mtk,  "params are invalid since %p, %u!\n",
-			 base, param);
+			base, param);
 		return;
 	}
 
@@ -296,17 +301,17 @@ static void ssusb_set_reg_bits(struct xhci_hcd_mtk *mtk, const char *buf)
 	u32 param;
 
 	param = sscanf(buf, "%*s 0x%x %d 0x%x 0x%x",
-		       &offset, &bit_start, &mask, &value);
+				&offset, &bit_start, &mask, &value);
 	xhci_info(xhci, "params-%d (offset:%#x,bit_start:%d,mask:%#x,value:%#x)\n",
-		  param, offset, bit_start, mask, value);
+			param, offset, bit_start, mask, value);
 	hqa_info(mtk,  "params-%d (offset:%#x,bit_start:%d,mask:%#x,value:%#x)\n",
-		 param, offset, bit_start, mask, value);
+			param, offset, bit_start, mask, value);
 
 	base = get_reg_base_limit(mtk, buf, &limit);
 	if (!base || (param != 4) || (bit_start > 31)) {
 		xhci_err(xhci, "params are invalid!\n");
 		hqa_info(mtk,  "params are invalid since %p, %u, %u\n",
-			 base, param, bit_start);
+			base, param, bit_start);
 		return;
 	}
 
@@ -314,7 +319,7 @@ static void ssusb_set_reg_bits(struct xhci_hcd_mtk *mtk, const char *buf)
 	if (offset >= limit) {
 		xhci_err(xhci, "reg's offset overrun!\n");
 		hqa_info(mtk,  "reg's offset overrun since %u >= %u!\n",
-			 offset, limit);
+			offset, limit);
 		return;
 	}
 	old_val = readl(base + offset);
@@ -323,9 +328,9 @@ static void ssusb_set_reg_bits(struct xhci_hcd_mtk *mtk, const char *buf)
 	new_val |= (value << bit_start);
 	writel(new_val, base + offset);
 	xhci_info(xhci, "0x%8.8x : 0x%8.8x --> 0x%8.8x\n", offset, old_val,
-		  readl(base + offset));
-	hqa_info (mtk,  "0x%8.8x : 0x%8.8x --> 0x%8.8x\n", offset, old_val,
-		 readl(base + offset));
+			readl(base + offset));
+	hqa_info(mtk,	"0x%8.8x : 0x%8.8x --> 0x%8.8x\n", offset, old_val,
+			readl(base + offset));
 
 	base = (void __iomem *)((unsigned long)base & 0xFFFF0000);
 	iounmap(base);
@@ -347,14 +352,14 @@ static void ssusb_print_reg_bits(struct xhci_hcd_mtk *mtk, const char *buf)
 	param = sscanf(buf, "%*s 0x%x %d 0x%x", &offset, &bit_start, &mask);
 	xhci_info(xhci, "params-%d (offset: %#x, bit_start: %d, mask: %#x)\n",
 		param, offset, bit_start, mask);
-	hqa_info (mtk,  "params-%d (offset: %#x, bit_start: %d, mask: %#x)\n",
+	hqa_info(mtk,	"params-%d (offset: %#x, bit_start: %d, mask: %#x)\n",
 		param, offset, bit_start, mask);
 
 	base = get_reg_base_limit(mtk, buf, &limit);
 	if (!base || (param != 3) || (bit_start > 31)) {
 		xhci_err(xhci, "params are invalid!\n");
 		hqa_info(mtk,  "params are invalid since %p, %u, %u\n",
-			 base, param, bit_start);
+			base, param, bit_start);
 		return;
 	}
 
@@ -362,7 +367,7 @@ static void ssusb_print_reg_bits(struct xhci_hcd_mtk *mtk, const char *buf)
 	if (offset >= limit) {
 		xhci_err(xhci, "reg's offset overrun!\n");
 		hqa_info(mtk,  "reg's offset overrun since %u >= %u!\n",
-			 offset, limit);
+			offset, limit);
 		return;
 	}
 
@@ -371,7 +376,7 @@ static void ssusb_print_reg_bits(struct xhci_hcd_mtk *mtk, const char *buf)
 	new_val >>= bit_start;
 	new_val &= mask;
 	xhci_info(xhci, "0x%8.8x : 0x%8.8x (0x%x)\n", offset, old_val, new_val);
-	hqa_info (mtk,  "0x%8.8x : 0x%8.8x (0x%x)\n", offset, old_val, new_val);
+	hqa_info(mtk, "0x%8.8x : 0x%8.8x (0x%x)\n", offset, old_val, new_val);
 
 	base = (void __iomem *)((unsigned long)base & 0xFFFF0000);
 	iounmap(base);
@@ -386,7 +391,7 @@ reg_store(struct device *dev, struct device_attribute *attr,
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 
 	xhci_info(xhci, "cmd:%s\n", buf);
-	hqa_info (mtk,  "cmd:%s\n", buf);
+	hqa_info(mtk,	"cmd:%s\n", buf);
 
 	switch (buf[0]) {
 	case 'w':

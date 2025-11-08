@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-License-Identifier: GPL-2.0 AND GPL-2.0-only */
 /*
  * xhci-mtk-unusuallib.h -- xhci toolkit header file
  *
@@ -12,7 +12,7 @@
 
 #include <dt-bindings/phy/phy.h>
 
-#define HQA_PREFIX_SIZE		4*1024
+#define HQA_PREFIX_SIZE		(4*1024)
 
 #define BIT_WIDTH_1		1
 #define MSK_WIDTH_1		0x1
@@ -123,7 +123,7 @@
 		 BV_##_bd); \
 	val = bin2str(val, BIT_WIDTH_##_bw, str); \
 	cnt += sprintf(buf + cnt, "	%-22s = %ib%s\n", \
-			NAME_##_bd, _bw, str); } while(0)
+			NAME_##_bd, _bw, str); } while (0)
 
 
 #if IS_ENABLED(CONFIG_USB_XHCI_MTK_DEBUGFS)
@@ -162,26 +162,27 @@ u32 bin2str(u32 value, u32 width, char *buffer);
 int query_phy_addr(struct device_node *np, int *start,
 				u32 *addr, u32 *length, int type);
 int query_reg_addr(struct platform_device *pdev, u32 *addr,
-				u32 *length, const char* name);
+				u32 *length, const char *name);
 void force_preemphasis_disabled(struct xhci_hcd_mtk *mtk);
 const char *xhci_mtk_decode_portsc(char *str, u32 portsc);
 
 static inline int remaining(struct xhci_hcd_mtk *mtk)
 {
 	u32 surplus = 0;
+
 	if (mtk && mtk->hqa_pos < mtk->hqa_size)
 		surplus = mtk->hqa_size - mtk->hqa_pos;
 
 	return surplus;
 }
 
-#define hqa_info(mtk, fmt, args...)  \
+#define hqa_info(mtk, fmt, args...)  (\
 	(mtk)->hqa_pos += snprintf((mtk)->hqa_buf + (mtk)->hqa_pos, \
-		remaining(mtk), fmt, ## args)
+		remaining(mtk), fmt, ## args))
 
 #define DEVICE_ATTR_DECLARED(_name) \
-		extern struct device_attribute dev_attr_##_name;
-#define UNUSUAL_DEVICE_ATTR(_name)  &dev_attr_##_name
+		extern struct device_attribute dev_attr_##_name
+#define UNUSUAL_DEVICE_ATTR(_name)  (&dev_attr_##_name)
 #else
 static inline u32 usb20hqa_write(u32 __iomem *addr,
 					u32 shift, u32 mask, u32 value)
@@ -222,7 +223,7 @@ static inline int query_phy_addr(struct device_node *np, int *start,
 	return -EPERM;
 }
 static inline int query_reg_addr(struct platform_device *pdev, u32 *addr,
-					u32 *length, const char* name)
+					u32 *length, const char *name)
 {
 	return -EPERM;
 }

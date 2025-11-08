@@ -1,13 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-License-Identifier: GPL-2.0 AND GPL-2.0-only */
 /*
  * xhci-mtk-unusuallib.h -- xhci toolkit header file
  *
  * Copyright (C) 2021 Mediatek Inc - http://www.mediatek.com
- *
- *  Author: Zhanyong Wang <zhanyong.wang@mediatek.com>
- *          Shaocheng.Wang <shaocheng.wang@mediatek.com>
- *          Chunfeng.Yun <chunfeng.yun@mediatek.com>
+ * Author:
+ *  Zhanyong Wang <zhanyong.wang@mediatek.com>
  */
+
 
 #ifndef __XHCI_MTK_TEST_H
 #define __XHCI_MTK_TEST_H

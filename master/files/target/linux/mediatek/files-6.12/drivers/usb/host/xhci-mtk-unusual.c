@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2021  MediaTek Inc.
  *
- *  Author: Zhanyong Wang <zhanyong.wang@mediatek.com>
+ * Author: Zhanyong Wang <zhanyong.wang@mediatek.com>
  */
 
 #include <linux/platform_device.h>
@@ -152,7 +152,7 @@ int query_phy_addr(struct device_node *np, int *start, u32 *addr, u32 *length, i
 	int ret = -EPERM;
 	struct of_phandle_args args;
 	struct resource res;
-	struct device_node  *node = np;
+	struct device_node *node = np;
 	int numphys = 0;
 	int index;
 
@@ -163,7 +163,7 @@ int query_phy_addr(struct device_node *np, int *start, u32 *addr, u32 *length, i
 		numphys = of_count_phandle_with_args(node,
 			"phys", "#phy-cells");
 		for (index = *start;
-		     (numphys > 0) && index < numphys; index++) {
+			 (numphys > 0) && index < numphys; index++) {
 			ret = of_parse_phandle_with_args(node,
 				"phys", "#phy-cells",
 				index, &args);
@@ -178,9 +178,9 @@ int query_phy_addr(struct device_node *np, int *start, u32 *addr, u32 *length, i
 					break;
 				}
 
-				*addr   = res.start;
+				*addr	= res.start;
 				*length = (u32)resource_size(&res);
-				*start  = index;
+				*start	= index;
 				if (!of_device_is_available(args.np))
 					ret = -EACCES;
 
@@ -198,7 +198,7 @@ int query_phy_addr(struct device_node *np, int *start, u32 *addr, u32 *length, i
 	return ret;
 }
 
-int query_reg_addr(struct platform_device *pdev, u32 *addr, u32 *length, const char* name)
+int query_reg_addr(struct platform_device *pdev, u32 *addr, u32 *length, const char *name)
 {
 	int ret = -EPERM;
 	struct resource *pres;
@@ -210,7 +210,7 @@ int query_reg_addr(struct platform_device *pdev, u32 *addr, u32 *length, const c
 	while (device) {
 		pres = platform_get_resource_byname(device, IORESOURCE_MEM, name);
 		if (pres != NULL) {
-			*addr   = pres->start;
+			*addr	= pres->start;
 			*length = (u32)resource_size(pres);
 			ret = 0;
 			break;
@@ -228,7 +228,7 @@ int query_reg_addr(struct platform_device *pdev, u32 *addr, u32 *length, const c
 const char *xhci_mtk_decode_portsc(char *str, u32 portsc)
 {
 	int ret;
-	const char *speed[] = {
+	static const char * const speed[] = {
 		"UNKNOWN-Speed",
 		"Full-Speed",
 		"Low-Speed",
@@ -240,11 +240,11 @@ const char *xhci_mtk_decode_portsc(char *str, u32 portsc)
 		};
 
 	ret = sprintf(str, "%s %s %s Link: %s PortSpeed: %s ",
-		      portsc & PORT_POWER	? "Powered" : "Powered-off",
-		      portsc & PORT_CONNECT	? "Connected" : "Not-connected",
-		      portsc & PORT_PE		? "Enabled" : "Disabled",
-		      xhci_portsc_link_state_string(portsc),
-		      speed[DEV_PORT_SPEED(portsc) > 7 ? 0 : DEV_PORT_SPEED(portsc)]);
+				portsc & PORT_POWER	? "Powered" : "Powered-off",
+				portsc & PORT_CONNECT	? "Connected" : "Not-connected",
+				portsc & PORT_PE		? "Enabled" : "Disabled",
+				xhci_portsc_link_state_string(portsc),
+				speed[DEV_PORT_SPEED(portsc) > 7 ? 0 : DEV_PORT_SPEED(portsc)]);
 
 	if (portsc & PORT_OC)
 		ret += sprintf(str + ret, "OverCurrent ");
