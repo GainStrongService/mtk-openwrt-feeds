@@ -1,7 +1,7 @@
-From a5d5e58228840d13ccf1de5ea14b4f4f34915a4f Mon Sep 17 00:00:00 2001
+From afce3289e64be9e89224b7c5159bc7c7ce14fef7 Mon Sep 17 00:00:00 2001
 From: Peter Chiu <chui-hao.chiu@mediatek.com>
 Date: Wed, 8 Oct 2025 14:51:37 +0800
-Subject: [PATCH 4/5] mtk: mt76: mt7996: update mtxq wcid to another link when
+Subject: [PATCH 1/5] mtk: mt76: mt7996: update mtxq wcid to another link when
  the original wcid is removed
 
 In the normal case, mtxq->wcid should be the same as wcid of one of link.
@@ -11,11 +11,10 @@ Because ACS would remove wcid after scanning and the mtxq->wcid is
 not updated when wcid is removed.
 
 Signed-off-by: Peter Chiu <chui-hao.chiu@mediatek.com>
-(cherry picked from commit 913ca59cf901ea3778cab71c3b0136b3cd4c4793)
 ---
  mt7996/debugfs.c |  4 ++++
- mt7996/main.c    | 17 +++++++++++++++++
- 2 files changed, 21 insertions(+)
+ mt7996/main.c    | 21 +++++++++++++++++++--
+ 2 files changed, 23 insertions(+), 2 deletions(-)
 
 diff --git a/mt7996/debugfs.c b/mt7996/debugfs.c
 index a58aedfa3..43d9c5771 100644
@@ -51,9 +50,21 @@ index a58aedfa3..43d9c5771 100644
  
  	return 0;
 diff --git a/mt7996/main.c b/mt7996/main.c
-index 87d3c76fc..aa365bbfd 100644
+index 87d3c76fc..7ab3afa63 100644
 --- a/mt7996/main.c
 +++ b/mt7996/main.c
+@@ -328,9 +328,9 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
+ 	mt7996_mac_wtbl_update(dev, idx,
+ 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
+ 
+-	if (vif->txq && hweight16(vif->valid_links) <= 1) {
++	if (vif->txq) {
+ 		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
+-		mtxq->wcid = idx;
++		mtxq->wcid = mtxq->wcid ?: idx;
+ 	}
+ 	if (vif->type != NL80211_IFTYPE_AP &&
+ 	    (!mlink->omac_idx || mlink->omac_idx > 3))
 @@ -376,6 +376,7 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
  			    struct mt76_vif_link *mlink)
  {

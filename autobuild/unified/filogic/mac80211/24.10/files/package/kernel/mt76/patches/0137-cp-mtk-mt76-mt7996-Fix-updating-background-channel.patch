@@ -1,0 +1,127 @@
+From ad348ef152152f7220f209e75fec3d8a98ed5ff3 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Fri, 7 Nov 2025 11:16:39 +0800
+Subject: [PATCH 5/5] mtk: mt76: mt7996: Fix updating background channel
+
+Handle the case of 7975 ifem background radar channel switch.
+When one of the subchannel is ready, starts the CAC of another
+subchannel.
+Also, reset the next freq of background radar when the target csa
+channel is not the current channel of background radar.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ mt7996/main.c | 65 +++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 55 insertions(+), 10 deletions(-)
+
+diff --git a/mt7996/main.c b/mt7996/main.c
+index d9c063920..521b25949 100644
+--- a/mt7996/main.c
++++ b/mt7996/main.c
+@@ -1180,6 +1180,25 @@ fail:
+ 	mutex_unlock(&dev->mt76.mutex);
+ }
+ 
++static int
++mt7996_pre_channel_switch(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
++			  struct ieee80211_channel_switch *ch_switch)
++{
++	struct mt7996_dev *dev = mt7996_hw_dev(hw);
++	struct cfg80211_chan_def *rdd2_chandef, *c = &ch_switch->chandef;
++	struct mt7996_phy *phy = mt7996_band_phy(dev, c->chan->band);
++
++	if (phy != dev->rdd2_phy)
++		return 0;
++
++	rdd2_chandef = &dev->rdd2_chandef;
++	if (rdd2_chandef->width != c->width ||
++	    rdd2_chandef->center_freq1 != c->center_freq1)
++		dev->bg_nxt_freq = 0;
++
++	return 0;
++}
++
+ static int
+ mt7996_post_channel_switch(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 			   struct ieee80211_bss_conf *link_conf)
+@@ -2601,9 +2620,15 @@ mt7996_background_radar_handle_7975_ifem(struct ieee80211_hw *hw,
+ 					 struct cfg80211_chan_def *fw_chandef)
+ {
+ 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+-	struct cfg80211_chan_def *c = user_chandef;
++	struct cfg80211_chan_def *rdd2_chandef, *c = user_chandef;
+ 	struct ieee80211_channel *first_chan;
+ 	bool is_ifem_adie, expand = false;
++	enum subchan_state {
++		SUBCHAN_NOT_READY,
++		SUBCHAN_PRIMARY_READY,
++		SUBCHAN_SECONDARY_READY,
++	};
++	enum subchan_state state = SUBCHAN_NOT_READY;
+ 
+ 	switch (mt76_chip(&dev->mt76)) {
+ 	case MT7996_DEVICE_ID:
+@@ -2622,24 +2647,43 @@ mt7996_background_radar_handle_7975_ifem(struct ieee80211_hw *hw,
+ 	if (!user_chandef || !is_ifem_adie)
+ 		goto out;
+ 
+-	if (user_chandef->width == NL80211_CHAN_WIDTH_160) {
++	switch (user_chandef->width) {
++	case NL80211_CHAN_WIDTH_160:
+ 		first_chan = ieee80211_get_channel(hw->wiphy, user_chandef->center_freq1 - 70);
+-		if (dev->bg_nxt_freq)
+-			goto out;
+-
+-		if (first_chan->flags & IEEE80211_CHAN_RADAR)
+-			dev->bg_nxt_freq = first_chan->center_freq;
+-		else
++		/* the primary sub-channel does not require CAC */
++		if (!(first_chan->flags & IEEE80211_CHAN_RADAR)) {
++			dev->bg_nxt_freq = 0;
+ 			c = fw_chandef;
++			break;
++		}
+ 
+-		c->chan = ieee80211_get_channel(hw->wiphy, first_chan->center_freq + 80);
+-	} else {
++		/* the primary or secondary sub-channel has completed the CAC */
++		rdd2_chandef = &dev->rdd2_chandef;
++		if (rdd2_chandef->width == NL80211_CHAN_WIDTH_80 &&
++		    (rdd2_chandef->center_freq1 == user_chandef->center_freq1 + 40 ||
++		     rdd2_chandef->center_freq1 == user_chandef->center_freq1 - 40) &&
++		    cfg80211_reg_can_beacon(hw->wiphy, rdd2_chandef, NL80211_IFTYPE_AP))
++			state = rdd2_chandef->center_freq1 < user_chandef->center_freq1 ?
++				SUBCHAN_PRIMARY_READY : SUBCHAN_SECONDARY_READY;
++
++		dev->bg_nxt_freq = first_chan->center_freq;
++		if (state == SUBCHAN_PRIMARY_READY)
++			dev->bg_nxt_freq += 80;
++		break;
++	case NL80211_CHAN_WIDTH_80:
+ 		if (!dev->bg_nxt_freq)
+ 			goto out;
++		break;
++	default:
++		goto out;
++	}
+ 
++	if (state || user_chandef->width == NL80211_CHAN_WIDTH_80) {
+ 		c->chan = ieee80211_get_channel(hw->wiphy, dev->bg_nxt_freq);
+ 		dev->bg_nxt_freq = 0;
+ 		expand = true;
++	} else {
++		c->chan = ieee80211_get_channel(hw->wiphy, first_chan->center_freq + 80);
+ 	}
+ 	c->width = NL80211_CHAN_WIDTH_80;
+ 	c->center_freq1 = c->chan->center_freq + 30;
+@@ -3101,6 +3145,7 @@ const struct ieee80211_ops mt7996_ops = {
+ 	.release_buffered_frames = mt76_release_buffered_frames,
+ 	.get_txpower = mt7996_get_txpower,
+ 	.channel_switch_beacon = mt7996_channel_switch_beacon,
++	.pre_channel_switch = mt7996_pre_channel_switch,
+ 	.post_channel_switch = mt7996_post_channel_switch,
+ 	.get_stats = mt7996_get_stats,
+ 	.get_et_sset_count = mt7996_get_et_sset_count,
+-- 
+2.45.2
+

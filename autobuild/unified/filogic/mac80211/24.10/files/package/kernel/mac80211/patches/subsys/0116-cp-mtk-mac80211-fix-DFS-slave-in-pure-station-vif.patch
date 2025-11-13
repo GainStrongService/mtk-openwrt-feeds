@@ -1,0 +1,73 @@
+From 5e98f8bde54c4994519497b1bda5d7c62c3d507d Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Thu, 30 Oct 2025 17:22:43 +0800
+Subject: [PATCH] mtk: mac80211: fix DFS slave in pure station vif
+
+cfg80211_is_wiphy_oper_chan does not consider STA, so when there is
+only STA, the DFS state of the target channel will be set back to usable,
+especially when the current channel of the STA overlaps with the target
+CSA channel.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ include/net/cfg80211.h |  4 ++--
+ net/wireless/chan.c    | 12 +++++++-----
+ 2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/include/net/cfg80211.h b/include/net/cfg80211.h
+index 9014078d..16b1ffad 100644
+--- a/include/net/cfg80211.h
++++ b/include/net/cfg80211.h
+@@ -9074,8 +9074,8 @@ void cfg80211_cac_event(struct net_device *netdev,
+  *
+  */
+ void cfg80211_sta_update_dfs_state(struct wireless_dev *wdev,
+-				   const struct cfg80211_chan_def *bss_chandef,
+-				   const struct cfg80211_chan_def *csa_chandef,
++				   struct cfg80211_chan_def *bss_chandef,
++				   struct cfg80211_chan_def *csa_chandef,
+ 				   unsigned long csa_time,
+ 				   bool associated);
+ 
+diff --git a/net/wireless/chan.c b/net/wireless/chan.c
+index 9a3dba43..5ad6c22b 100644
+--- a/net/wireless/chan.c
++++ b/net/wireless/chan.c
+@@ -1634,8 +1634,8 @@ bool cfg80211_any_usable_channels(struct wiphy *wiphy,
+ EXPORT_SYMBOL(cfg80211_any_usable_channels);
+ 
+ void cfg80211_sta_update_dfs_state(struct wireless_dev *wdev,
+-				   const struct cfg80211_chan_def *bss_chandef,
+-				   const struct cfg80211_chan_def *csa_chandef,
++				   struct cfg80211_chan_def *bss_chandef,
++				   struct cfg80211_chan_def *csa_chandef,
+ 				   unsigned long csa_time,
+ 				   bool associated)
+ {
+@@ -1654,7 +1654,7 @@ void cfg80211_sta_update_dfs_state(struct wireless_dev *wdev,
+ 	/* assume csa channel is cac completed */
+ 	if (csa_active &&
+ 	    (cfg80211_chandef_dfs_usable(wiphy, csa_chandef) ||
+-	    cfg80211_chandef_dfs_available(wiphy, csa_chandef))) {
++	     cfg80211_chandef_dfs_available(wiphy, csa_chandef))) {
+ 		cfg80211_set_dfs_state(wiphy, csa_chandef, NL80211_DFS_AVAILABLE);
+ 		/* avoid the dfs state from expired during csa countdown */
+ 		cfg80211_update_last_available(wiphy, csa_chandef, csa_time);
+@@ -1674,10 +1674,12 @@ void cfg80211_sta_update_dfs_state(struct wireless_dev *wdev,
+ 	}
+ 
+ 	/* avoid setting the dfs state to usable
+-	 * when other interfaces still operate on this channel
++	 * when other interfaces still operate on this channel,
++	 * or when the csa channel overlaps with the current channel
+ 	 */
+ 	if (dfs_state == NL80211_DFS_USABLE &&
+-	    (cfg80211_is_wiphy_oper_chan(wiphy, bss_chandef->chan) ||
++	    ((csa_active && cfg80211_is_sub_chan(csa_chandef, bss_chandef->chan, false)) ||
++	     cfg80211_is_wiphy_oper_chan(wiphy, bss_chandef->chan) ||
+ 	     cfg80211_offchan_chain_is_active(rdev, bss_chandef->chan)))
+ 		return;
+ 
+-- 
+2.45.2
+

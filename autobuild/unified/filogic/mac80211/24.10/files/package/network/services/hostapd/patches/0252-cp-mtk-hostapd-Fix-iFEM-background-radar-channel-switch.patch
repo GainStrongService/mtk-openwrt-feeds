@@ -1,0 +1,88 @@
+From df24296149d1cbbc68c70f5a774f84c3df138c03 Mon Sep 17 00:00:00 2001
+From: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+Date: Fri, 7 Nov 2025 10:32:08 +0800
+Subject: [PATCH] mtk: hostapd: Fix iFEM background radar channel switch fail
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Handling background radar channel switch when the max supported
+bandwidth of the background radar is 80MHz
+When the background radar supports a maximum bandwidth of 80MHz,
+special handling is needed for channel switching.
+For example, if the AP is operating on ch36 bw160, and the background radar
+is on ch116 bw80 (due to the bandwidth cap), and the target channel is
+ch100 bw160.
+
+Instead of switching to a non-DFS channel with 160MHz and waiting for the background radar,
+the AP will reduce its bandwidth and switch to the background radar’s current channel.
+Then, the background radar will start CAC on the primary subchannel (ch100 bw80).
+Once the CAC is completed, the AP will expand its channel from ch116 bw80 to ch100 bw160.
+
+Signed-off-by: StanleyYP Wang <StanleyYP.Wang@mediatek.com>
+---
+ src/ap/dfs.c     | 20 +++++++++++++++++---
+ src/ap/hostapd.h |  1 +
+ 2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/ap/dfs.c b/src/ap/dfs.c
+index 7795b2691..aeeb3c23d 100644
+--- a/src/ap/dfs.c
++++ b/src/ap/dfs.c
+@@ -1820,6 +1820,7 @@ int hostapd_dfs_background_chan_update(struct hostapd_iface *iface, int freq,
+ 		break;
+ 	};
+ 
++	iface->radar_background.max_bw80 = true;
+ 	iface->radar_background.freq = freq;
+ 	iface->radar_background.channel = (freq - 5000) / 5;
+ 	iface->radar_background.centr_freq_seg0_idx = (cf1 - 5000) / 5;
+@@ -2056,10 +2057,22 @@ int hostapd_dfs_handle_csa(struct hostapd_iface *iface,
+ 		 * available channel exists.
+ 		 */
+ 		if (!iface->radar_background.cac_started) {
++			bool subchan_ready;
++
+ 			iface->radar_background.temp_ch = 1;
+-			chan = dfs_get_csa_channel(iface, n_chans, 0, DFS_AVAILABLE);
+-			if (!chan)
+-				update_background = true;
++			subchan_ready = (center - 40 == background_center ||
++					 center + 40 == background_center) &&
++					n_chans == 8;
++			if (iface->radar_background.max_bw80 && subchan_ready) {
++				chan = hw_get_channel_chan(iface->current_mode,
++							   iface->radar_background.channel,
++							   NULL);
++				n_chans /= 2;
++			} else {
++				chan = dfs_get_csa_channel(iface, n_chans, 0, DFS_AVAILABLE);
++				if (!chan)
++					update_background = true;
++			}
+ 		} else {
+ 			iface->radar_background.temp_ch = 0;
+ 			return 0;
+@@ -2080,6 +2093,7 @@ int hostapd_dfs_handle_csa(struct hostapd_iface *iface,
+ 	freq_params->sec_channel_offset = 1;
+ 	freq_params->center_freq1 = chan->freq + (n_chans - 1) * 10;
+ 	freq_params->center_freq2 = 0;
++	freq_params->bandwidth = n_chans * 20;
+ 
+ 	return 1;
+ 
+diff --git a/src/ap/hostapd.h b/src/ap/hostapd.h
+index 646baab99..d7b45d3c9 100644
+--- a/src/ap/hostapd.h
++++ b/src/ap/hostapd.h
+@@ -721,6 +721,7 @@ struct hostapd_iface {
+ 		 */
+ 		unsigned int expand_ch:1;
+ 		int new_chwidth;
++		bool max_bw80;
+ 	} radar_background;
+ 
+ 	u16 hw_flags;
+-- 
+2.45.2
+
