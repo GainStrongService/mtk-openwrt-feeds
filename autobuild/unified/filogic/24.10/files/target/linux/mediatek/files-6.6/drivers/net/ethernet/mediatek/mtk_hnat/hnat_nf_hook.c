@@ -2516,7 +2516,7 @@ hnat_entry_bind:
 	}
 
 	/* Make qid valid for qdma */
-	qid &= MTK_QDMA_TX_MASK;
+	qid &= MTK_QDMA_QUEUE_MASK;
 
 	if (IS_IPV4_GRP(&entry)) {
 		entry.ipv4_hnapt.iblk2.dp = gmac & 0xf;
