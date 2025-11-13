@@ -283,27 +283,3 @@
  endef
  
  define KernelPackage/mtdtests/description
---- /dev/null
-+++ b/target/linux/mediatek/999-1901-v5.4-let-patch-level-greater-than-255.patch
-@@ -0,0 +1,21 @@
-+--- a/Makefile
-++++ b/Makefile
-+@@ -1210,15 +1210,15 @@ define filechk_utsrelease.h
-+ endef
-+ 
-+ define filechk_version.h
-+-	if [ $(SUBLEVEL) -gt 255 ]; then                                 \
-++	if [ $(SUBLEVEL) -gt 511 ]; then                                 \
-+ 		echo \#define LINUX_VERSION_CODE $(shell                 \
-+-		expr $(VERSION) \* 65536 + $(PATCHLEVEL) \* 256 + 255); \
-++		expr $(VERSION) \* 65536 + $(PATCHLEVEL) \* 256 + 511); \
-+ 	else                                                             \
-+ 		echo \#define LINUX_VERSION_CODE $(shell                 \
-+ 		expr $(VERSION) \* 65536 + $(PATCHLEVEL) \* 256 + $(SUBLEVEL)); \
-+ 	fi;                                                              \
-+ 	echo '#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) +  \
-+-	((c) > 255 ? 255 : (c)))'
-++	((c) > 511 ? 511 : (c)))'
-+ endef
-+ 
-+ $(version_h): PATCHLEVEL := $(if $(PATCHLEVEL), $(PATCHLEVEL), 0)
