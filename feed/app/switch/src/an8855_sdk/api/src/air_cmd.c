@@ -1412,7 +1412,10 @@ _getIpv4Str(
     const AIR_IPV4_T *ptr_ipv4,
     C8_T *ptr_str)
 {
-    CMD_IPV4_TO_STR(ptr_str, *ptr_ipv4);
+    int ret;
+    ret = CMD_IPV4_TO_STR(ptr_str, *ptr_ipv4);
+    if (ret < 0)
+        printf("Encoding error in snprintf\n");
 }
 
 void
@@ -1422,6 +1425,7 @@ _getIpv6Str(
 {
     UI32_T idx = 0, next = 0, last = 16;
     UI32_T cont_zero = 0;
+    int ret;
 
     while (idx < last)
     {
@@ -1433,10 +1437,14 @@ _getIpv6Str(
             {
                 if (((*ptr_ipv6)[next]) || ((*ptr_ipv6)[next + 1]))
                 {
-                    snprintf(
-                            ptr_str + strlen(ptr_str),
-                            CMD_IPV6_STR_SIZE - strlen(ptr_str),
-                            "%s", (cont_zero) ? (":") : (":0"));
+                    ret = snprintf(
+                             ptr_str + strlen(ptr_str),
+                             CMD_IPV6_STR_SIZE - strlen(ptr_str),
+                             "%s", (cont_zero) ? (":") : (":0"));
+                    if (ret < 0) {
+                        printf("Encoding error in snprintf\n");
+                        return;
+                    }
                     break;
                 }
 
@@ -1449,11 +1457,14 @@ _getIpv6Str(
 
             if (next == last)
             {
-
-                snprintf(
-                        ptr_str + strlen(ptr_str),
-                        CMD_IPV6_STR_SIZE - strlen(ptr_str),
-                        "%s", (cont_zero) ? ("::") : (":0"));
+                ret = snprintf(
+                         ptr_str + strlen(ptr_str),
+                         CMD_IPV6_STR_SIZE - strlen(ptr_str),
+                         "%s", (cont_zero) ? ("::") : (":0"));
+                if (ret < 0) {
+                    printf("Encoding error in snprintf\n");
+                    return;
+                }
             }
 
             idx = next;
@@ -1462,25 +1473,37 @@ _getIpv6Str(
         {
             if (idx)
             {
-                snprintf(
-                    ptr_str + strlen(ptr_str),
-                    CMD_IPV6_STR_SIZE - strlen(ptr_str),
-                    ":");
+                ret = snprintf(
+                     ptr_str + strlen(ptr_str),
+                     CMD_IPV6_STR_SIZE - strlen(ptr_str),
+                     ":");
+                if (ret < 0) {
+                    printf("Encoding error in snprintf\n");
+                    return;
+                }
             }
 
             if ((*ptr_ipv6)[idx])
             {
-                snprintf(
-                    ptr_str + strlen(ptr_str),
-                    CMD_IPV6_STR_SIZE - strlen(ptr_str),
-                    "%0x%02x", (*ptr_ipv6)[idx], (*ptr_ipv6)[idx + 1]);
+                ret = snprintf(
+                     ptr_str + strlen(ptr_str),
+                     CMD_IPV6_STR_SIZE - strlen(ptr_str),
+                     "%0x%02x", (*ptr_ipv6)[idx], (*ptr_ipv6)[idx + 1]);
+                if (ret < 0) {
+                    printf("Encoding error in snprintf\n");
+                    return;
+                }
             }
             else
             {
-                snprintf(
-                    ptr_str + strlen(ptr_str),
-                    CMD_IPV6_STR_SIZE - strlen(ptr_str),
-                    "%0x", (*ptr_ipv6)[idx + 1]);
+                ret = snprintf(
+                     ptr_str + strlen(ptr_str),
+                     CMD_IPV6_STR_SIZE - strlen(ptr_str),
+                     "%0x", (*ptr_ipv6)[idx + 1]);
+                if (ret < 0) {
+                    printf("Encoding error in snprintf\n");
+                    return;
+                }
             }
 
             idx += 2;
@@ -8176,7 +8199,7 @@ doIpmcAddMcast(
         mcst.port_bitmap[0] = _strtoul(argv[2], NULL, 2);
         if(argc == 4)
         {
-            if(atoi(argv[3]) == 1)
+            if(_strtol(argv[3], NULL, 10) == 1)
                 mcst.flags |= AIR_IPMC_ENTRY_FLAGS_DISABLE_EGRESS_VLAN_FILTER;
             else
                 mcst.flags &= ~(AIR_IPMC_ENTRY_FLAGS_DISABLE_EGRESS_VLAN_FILTER);
@@ -8615,7 +8638,7 @@ doIpmcDump(
             else
                 AIR_PRINT("dump IPMC table fail\n");
 
-            free(ptr_entry);
+            AIR_FREE(ptr_entry);
             return rc;
         }
         total_cnt += rt_cnt;
@@ -8648,7 +8671,7 @@ doIpmcDump(
             match_type == AIR_IPMC_MATCH_TYPE_IPV4_GRP ? "dip4" : "dip6",
             (total_cnt>1)?"entries":"entry");
         if(ptr_entry != NULL)
-            free(ptr_entry);
+            AIR_FREE(ptr_entry);
     }
     else
     {

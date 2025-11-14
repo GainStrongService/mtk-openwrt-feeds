@@ -214,9 +214,9 @@ _findDIP6Entry(
     u32dat = (ATC_CMD_SEARCH | ATC_MAT_DIPV6 | ATC_START_BUSY);
     aml_writeReg(unit, ATC, u32dat);
     (*p_portmap)[0] = 0;
-    for(;;)
+    while(1)
     {
-        for(;;)
+        while(1)
         {
             /* Check timeout */
             for(i = 0; i < AIR_L2_MAX_BUSY_TIME; i++)
@@ -1015,7 +1015,7 @@ air_ipmc_delMcastMember(
         }
         AIR_PORT_FOREACH(mt_portmap[0], port)
         {
-            if(AIR_PORT_CHK(mt_portmap, port))
+            if(AIR_PORT_CHK(portmask, port))
             {
                 AIR_PORT_ADD(map, port);
             }
@@ -1074,9 +1074,9 @@ air_ipmc_delMcastMember(
         {
             AIR_PORT_DEL(mt_portmap, port);
         }
-        AIR_PORT_FOREACH(portmask[0], port)
+        AIR_PORT_FOREACH(mt_portmap[0], port)
         {
-            if(AIR_PORT_CHK(mt_portmap, port))
+            if(AIR_PORT_CHK(portmask, port))
             {
                 AIR_PORT_ADD(map, port);
             }
