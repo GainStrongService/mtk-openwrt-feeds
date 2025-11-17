@@ -57,6 +57,7 @@ cd -
 ```bash
 git clone --branch master https://git01.mediatek.com/openwrt/feeds/mtk-openwrt-feeds
 cd mtk-openwrt-feeds
+git checkout d6397aaf69fbb442f913b2853cac2991962ef905
 cd -
 ```
 
