@@ -156,6 +156,104 @@ define BuildPackage/U-Boot
   )
 endef
 
+define U-Boot/mt7981_rfb-spim-nand-nmbm
+  NAME:=MT7981 Reference Board (SPI-NAND-NMBM)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7981a-rfb
+  UBOOT_CONFIG:= mt7981_spim_nand_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=spim-nand
+  BL2_SOC:=mt7981
+  BL2_DDRTYPE:=ddr3
+  DEPENDS:=+trusted-firmware-a-mt7981-spim-nand-ddr3
+endef
+
+define U-Boot/mt7981_rfb-nor
+  NAME:=MT7981 Reference Board (NOR)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7981-rfb
+  UBOOT_CONFIG:=mt7981_spim_nor_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=nor
+  BL2_SOC:=mt7981
+  BL2_DDRTYPE:=ddr3
+  DEPENDS:=+trusted-firmware-a-mt7981-nor-ddr3
+  FIP_COMPRESS:=1
+endef
+
+define U-Boot/mt7981_rfb-emmc
+  NAME:=MT7981 Reference Board (EMMC)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7981-rfb
+  UBOOT_CONFIG:=mt7981_emmc_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=emmc
+  BL2_SOC:=mt7981
+  BL2_DDRTYPE:=ddr3
+  DEPENDS:=+trusted-firmware-a-mt7981-emmc-ddr3
+endef
+
+define U-Boot/mt7981_rfb-sd
+  NAME:=MT7981 Reference Board (SDMMC)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7981-rfb
+  UBOOT_CONFIG:=mt7981_emmc_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=sdmmc
+  BL2_SOC:=mt7981
+  BL2_DDRTYPE:=ddr3
+  DEPENDS:=+trusted-firmware-a-mt7981-sdmmc-ddr3
+endef
+
+define U-Boot/mt7986_rfb-spim-nand-nmbm
+  NAME:=MT7986A Reference Board (SPI-NAND-NMBM)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7986a-rfb
+  UBOOT_CONFIG:= mt7986_spim_nand_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=spim-nand
+  BL2_SOC:=mt7986
+  BL2_DDRTYPE:=ddr4
+  DEPENDS:=+trusted-firmware-a-mt7986-spim-nand-ddr4
+endef
+
+define U-Boot/mt7986_rfb-nor
+  NAME:=MT7986A Reference Board (NOR)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7986a-rfb
+  UBOOT_CONFIG:=mt7986_spim_nor_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=nor
+  BL2_SOC:=mt7986
+  BL2_DDRTYPE:=ddr4
+  DEPENDS:=+trusted-firmware-a-mt7986-nor-ddr4
+  FIP_COMPRESS:=1
+endef
+
+define U-Boot/mt7986_rfb-emmc
+  NAME:=MT7986A Reference Board (EMMC)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7986a-rfb
+  UBOOT_CONFIG:=mt7986a_emmc_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=emmc
+  BL2_SOC:=mt7986
+  BL2_DDRTYPE:=ddr4
+  DEPENDS:=+trusted-firmware-a-mt7986-emmc-ddr4
+endef
+
+define U-Boot/mt7986_rfb-sd
+  NAME:=MT7986A Reference Board (SDMMC)
+  BUILD_SUBTARGET:=filogic
+  BUILD_DEVICES:=mediatek_mt7986a-rfb
+  UBOOT_CONFIG:=mt7986a_sd_rfb
+  UBOOT_IMAGE:=u-boot.fip
+  BL2_BOOTDEV:=sdmmc
+  BL2_SOC:=mt7986
+  BL2_DDRTYPE:=ddr4
+  DEPENDS:=+trusted-firmware-a-mt7986-sdmmc-ddr4
+endef
+
 define U-Boot/mt7987_rfb-spim-nand
   NAME:=MT7987A Reference Board (SPI-NAND-UBI)
   BUILD_SUBTARGET:=filogic
@@ -279,6 +377,14 @@ define U-Boot/mt7988_rfb-sd
 endef
 
 UBOOT_TARGETS := \
+	mt7981_rfb-spim-nand-nmbm \
+	mt7981_rfb-nor \
+	mt7981_rfb-emmc \
+	mt7981_rfb-sd \
+	mt7986_rfb-spim-nand-nmbm \
+	mt7986_rfb-nor \
+	mt7986_rfb-emmc \
+	mt7986_rfb-sd \
 	mt7987_rfb-spim-nand \
 	mt7987_rfb-spim-nand-nmbm \
 	mt7987_rfb-nor \

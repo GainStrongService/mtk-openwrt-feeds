@@ -26,6 +26,8 @@ platform_enable_bootloader_config() {
 	openwrt_config_enable CONFIG_PACKAGE_trusted-firmware-a-mt7988-ram-comb
 	openwrt_config_enable CONFIG_PACKAGE_trusted-firmware-a-mt7988-ram-ddr4
 	openwrt_config_enable CONFIG_PACKAGE_trusted-firmware-a-mt7987-ram-comb
+	openwrt_config_enable CONFIG_PACKAGE_trusted-firmware-a-mt7986-ram-ddr4
+	openwrt_config_enable CONFIG_PACKAGE_trusted-firmware-a-mt7981-ram-ddr3
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_rfb-emmc
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_rfb-nor
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7987_rfb-sd
@@ -36,6 +38,14 @@ platform_enable_bootloader_config() {
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-sd
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-spim-nand
 	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7988_rfb-spim-nand-nmbm
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7986_rfb-emmc
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7986_rfb-nor
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7986_rfb-sd
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7986_rfb-spim-nand-nmbm
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7981_rfb-emmc
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7981_rfb-nor
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7981_rfb-sd
+	openwrt_config_enable CONFIG_PACKAGE_u-boot-mt7981_rfb-spim-nand-nmbm
 }
 
 filogic_collect_bootloader_images() {
