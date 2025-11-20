@@ -28,6 +28,14 @@
 #define AN_NEW_LP_CNT_LIMIT_MASK		GENMASK(23, 20)
 #define AUTO_NP_10XEN				BIT(6)
 
+/* Registers on CL22 page 0 */
+#define MTK_PHY_IRQ_MASK		0x19
+#define   MDINT_MASK			BIT(15)
+#define   LINK_STATUS_MASK		BIT(13)
+
+#define MTK_PHY_IRQ_STATUS		0x1a
+#define   INT_LINK_CHANGE		BIT(13)
+
 /* Registers on MDIO_MMD_VEND1 */
 #define MTK_PHY_LINK_STATUS_MISC	(0xa2)
 #define   MTK_PHY_FINAL_SPEED_1000	BIT(3)
@@ -97,6 +105,10 @@ void __mtk_tr_clr_bits(struct phy_device *phydev, u8 ch_addr, u8 node_addr,
 
 int mtk_phy_read_page(struct phy_device *phydev);
 int mtk_phy_write_page(struct phy_device *phydev, int page);
+
+int mtk_phy_handle_interrupt(struct phy_device *phydev);
+int mtk_phy_ack_interrupt(struct phy_device *phydev);
+int mtk_phy_config_intr(struct phy_device *phydev);
 
 int mtk_gphy_cl22_read_status(struct phy_device *phydev);
 /*int mtk_phy_led_hw_is_supported(struct phy_device *phydev, u8 index,

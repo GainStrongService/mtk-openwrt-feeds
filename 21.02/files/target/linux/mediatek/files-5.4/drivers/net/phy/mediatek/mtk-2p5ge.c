@@ -695,49 +695,6 @@ static int mt798x_2p5ge_phy_get_features(struct phy_device *phydev)
 	return 0;
 }
 
-static int mt798x_2p5ge_phy_handle_interrupt(struct phy_device *phydev)
-{
-	int ret;
-
-	ret = phy_read(phydev, 0x1a);
-	if (ret < 0)
-		return ret;
-
-	phy_queue_state_machine(phydev, 0);
-
-	return 0;
-}
-
-static int mt798x_2p5ge_phy_ack_interrupt(struct phy_device *phydev)
-{
-	int ret;
-
-	/* Clear pending interrupts */
-	ret = phy_read(phydev, 0x1a);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int mt798x_2p5ge_phy_config_intr(struct phy_device *phydev)
-{
-	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
-	int ret = 0;
-
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
-		reg_clear_bits(priv, MTK_2P5GPHY_CHIP_SCU + IRQ_MASK, PHY_IRQ_MASK);
-		phy_write(phydev, MTK_PHY_IRQ_MASK, MDINT_MASK | LINK_STATUS_MASK);
-		ret = mt798x_2p5ge_phy_ack_interrupt(phydev);
-	} else {
-		/* Disable PHY interrupts */
-		reg_set_bits(priv, MTK_2P5GPHY_CHIP_SCU + IRQ_MASK, PHY_IRQ_MASK);
-		phy_write(phydev, MTK_PHY_IRQ_MASK, 0);
-	}
-
-	return (ret < 0) ? ret : 0;
-}
-
 static int mt798x_2p5ge_phy_read_status(struct phy_device *phydev)
 {
 	struct mtk_i2p5ge_phy_priv *priv = phydev->priv;
@@ -973,9 +930,9 @@ static struct phy_driver mtk_2p5gephy_driver[] = {
 		.config_init = mt798x_2p5ge_phy_config_init,
 		.config_aneg = mt798x_2p5ge_phy_config_aneg,
 		.get_features = mt798x_2p5ge_phy_get_features,
-		.config_intr = mt798x_2p5ge_phy_config_intr,
-		.ack_interrupt = mt798x_2p5ge_phy_ack_interrupt,
-		.handle_interrupt = &mt798x_2p5ge_phy_handle_interrupt,
+		.config_intr = mtk_phy_config_intr,
+		.ack_interrupt = mtk_phy_ack_interrupt,
+		.handle_interrupt = mtk_phy_handle_interrupt,
 		.read_status = mt798x_2p5ge_phy_read_status,
 		.get_rate_matching = mt798x_2p5ge_phy_get_rate_matching,
 		.suspend = genphy_suspend,
@@ -991,9 +948,9 @@ static struct phy_driver mtk_2p5gephy_driver[] = {
 		.config_init = mt798x_2p5ge_phy_config_init,
 		.config_aneg = mt798x_2p5ge_phy_config_aneg,
 		.get_features = mt798x_2p5ge_phy_get_features,
-		.config_intr = mt798x_2p5ge_phy_config_intr,
-		.ack_interrupt = mt798x_2p5ge_phy_ack_interrupt,
-		.handle_interrupt = &mt798x_2p5ge_phy_handle_interrupt,
+		.config_intr = mtk_phy_config_intr,
+		.ack_interrupt = mtk_phy_ack_interrupt,
+		.handle_interrupt = mtk_phy_handle_interrupt,
 		.read_status = mt798x_2p5ge_phy_read_status,
 		.get_rate_matching = mt798x_2p5ge_phy_get_rate_matching,
 		.suspend = genphy_suspend,

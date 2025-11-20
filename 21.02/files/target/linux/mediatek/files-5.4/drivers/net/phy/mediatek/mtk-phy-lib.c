@@ -109,6 +109,49 @@ int mtk_phy_write_page(struct phy_device *phydev, int page)
 }
 EXPORT_SYMBOL_GPL(mtk_phy_write_page);
 
+int mtk_phy_handle_interrupt(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, MTK_PHY_IRQ_STATUS);
+	if (ret < 0)
+		return ret;
+
+	phy_queue_state_machine(phydev, 0);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mtk_phy_handle_interrupt);
+
+int mtk_phy_ack_interrupt(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Clear pending interrupts */
+	ret = phy_read(phydev, MTK_PHY_IRQ_STATUS);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mtk_phy_ack_interrupt);
+
+int mtk_phy_config_intr(struct phy_device *phydev)
+{
+	int ret = 0;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		phy_write(phydev, MTK_PHY_IRQ_MASK, MDINT_MASK | LINK_STATUS_MASK);
+		ret = mtk_phy_ack_interrupt(phydev);
+	} else {
+		/* Disable PHY interrupts */
+		phy_write(phydev, MTK_PHY_IRQ_MASK, 0);
+	}
+
+	return (ret < 0) ? ret : 0;
+}
+EXPORT_SYMBOL_GPL(mtk_phy_config_intr);
+
 /* This function deals with the case that 1G AN starts but isn't completed. We
  * set AN_NEW_LP_CNT_LIMIT with different values time after time to let our
  * 1G->100Mbps hardware automatic downshift to fit more partner devices.
