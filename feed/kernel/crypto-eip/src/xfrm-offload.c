@@ -271,7 +271,11 @@ int mtk_xfrm_offload_state_add(struct xfrm_state *xs)
 	xfrm_params->xs = xs;
 	INIT_LIST_HEAD(&xfrm_params->node);
 
+#if KERNEL_VERSION(6, 3, 0) < LINUX_VERSION_CODE
+	if (xs->xso.dir == XFRM_DEV_OFFLOAD_IN)
+#else
 	if (xs->xso.flags & XFRM_OFFLOAD_INBOUND)
+#endif
 		/* rx path */
 		ret = mtk_xfrm_offload_state_add_inbound(xs, xfrm_params);
 	else
@@ -313,7 +317,11 @@ void mtk_xfrm_offload_state_free(struct xfrm_state *xs)
 	list_del(&xfrm_params->node);
 	spin_unlock_bh(&xfrm_params_list.lock);
 
+#if KERNEL_VERSION(6, 3, 0) < LINUX_VERSION_CODE
+	if (xs->xso.dir == XFRM_DEV_OFFLOAD_IN)
+#else
 	if (xs->xso.flags & XFRM_OFFLOAD_INBOUND)
+#endif
 		mtk_xfrm_offload_cls_entry_tear_down(xfrm_params);
 
 	if (xfrm_params->cdrt)
